@@ -11,8 +11,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 
 ### UI
 
-![ss-454-788-72-20250608-143002](https://github.com/user-attachments/assets/cf662f6e-e462-48d7-8b47-e326673dc062)
-
+<img width="400" alt="" src="https://github.com/user-attachments/assets/cf662f6e-e462-48d7-8b47-e326673dc062">
 
 ### Features
 
