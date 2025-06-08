@@ -9,6 +9,11 @@ This script allows you to split selected images or vector artwork in Adobe Illus
 Originally created by Jongware on 7-Oct-2010
 https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shapes-out-of-image-simultaneously/td-p/8709621#9185144
 
+### UI
+
+![ss-454-788-72-20250608-143002](https://github.com/user-attachments/assets/cf662f6e-e462-48d7-8b47-e326673dc062)
+
+
 ### Features
 
 - Supports image files, vector shapes, symbols, and groups.
