@@ -37,7 +37,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
    - **Rows/Columns**: Manual or auto-filled based on total pieces.
    - **Shape Type**: Choose from "Traditional", "Random", or "Grid".
    - **Offset**: Enable and input the offset value (e.g., -2pt).
-   - **Scatter**: Enable to apply random scatter displacement (e.g., 30pt range).
+   - **Explode**: Enable to apply random scatter displacement (e.g., 30pt range).
 
 4. **Run the Script**
    - Click the “Run” button. The object is split and each piece is masked.
