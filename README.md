@@ -9,13 +9,8 @@
 
 [DTP Transitで公開しているスクリプトについて｜DTP Transit 別館](https://note.com/dtp_tranist/n/n60092f59a341)
 
-<aside>
-<img src="https://s3-us-west-2.amazonaws.com/secure.notion-static.com/e87c2d2c-7441-4508-8f28-2a9b941074a1/transparent.png" alt="https://s3-us-west-2.amazonaws.com/secure.notion-static.com/e87c2d2c-7441-4508-8f28-2a9b941074a1/transparent.png" width="40px" />
+![](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/e87c2d2c-7441-4508-8f28-2a9b941074a1/transparent.png" alt="https://s3-us-west-2.amazonaws.com/secure.notion-static.com/e87c2d2c-7441-4508-8f28-2a9b941074a1/transparent.png)
 
-
-
-- 目次
-</aside>
 
 ## ドキュメントの切替
 
@@ -27,8 +22,6 @@
 
 [【Illustrator】ドキュメント切替をスムーズに行うスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/nd9c7b7c077fb)
 
-[SmartSwitchDocs.jsx](attachment:ace1fb02-bbaa-4fda-906b-a2ece1818344:SmartSwitchDocs.jsx)
-
 ---
 
 # 配置や整列
@@ -37,7 +30,7 @@
 
 https://youtu.be/7sNMYhyTwfY
 
-![ss-738-1182-72-20250430-182231.png](attachment:39819285-64c4-42c9-9ae1-e8401f99f9eb:ss-738-1182-72-20250430-182231.png)
+
 
 - 行数・列数の指定による分割数
 - 上・下・左・右マージンの個別指定
@@ -69,13 +62,9 @@ https://youtu.be/7sNMYhyTwfY
 - プリセットを登録できる
 - 生成される長方形が別レイヤーに、不透明度を15%に設定
 
-[【Illustrator】グリッド状にガイドを生成｜DTP Transit 別館](https://note.com/dtp_tranist/n/ne5981ad351ab)
-
 ---
 
 ## 複数のオブジェクトの大きさを最大（最小）の幅や高さに合わせる
-
-![ss-842-838-72-20250516-164812.png](attachment:42aa1214-9ce0-4605-9e12-3f77e52d664f:ss-842-838-72-20250516-164812.png)
 
 - ラジオボタンでリサイズ基準を選択
     - 最大：幅／高さ
@@ -96,7 +85,6 @@ https://youtu.be/7sNMYhyTwfY
 
 [【Illustrator】複数のオブジェクトの大きさをリサイズするスクリプト（updated）｜DTP Transit 別館](https://note.com/dtp_tranist/n/n6f35bd4000ec)
 
-[SmartObjectResizer.jsx](attachment:8b70fdcb-5165-4d0d-8ba8-42f4827409b6:SmartObjectResizer.jsx)
 
 ## **配置したオブジェクトをグリッド状に配置する**
 
@@ -112,8 +100,6 @@ https://youtu.be/7sNMYhyTwfY
 ![ss-746-988-72-20250521-053754.png](attachment:9fcaba82-d785-4979-bbc3-53cb18a52c3e:ss-746-988-72-20250521-053754.png)
 
 [【Illustrator】配置したオブジェクトをグリッド状に配置するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/na3c45cea09b7)
-
-[SmartObjectDistributor.jsx](attachment:35d32790-6bf4-4adf-a5bc-5c13f49a9ab2:SmartObjectDistributor.jsx)
 
 ## **選択したオブジェクトを幅や高さ、不透明度、カラーでソート**
 
@@ -139,8 +125,6 @@ https://youtu.be/7sNMYhyTwfY
 ![ss-562-720-72-20250602-073450.png](attachment:336d9f6a-9bfd-4a7e-b524-a4621d0dd6de:ss-562-720-72-20250602-073450.png)
 
 [【Illustrator】選択したオブジェクトを幅や高さ、不透明度、カラーでソートするスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n663264db75ff)
-
-[SmartObjectSorter.jsx](attachment:9dd69125-e2c3-4e46-9445-ffe968170226:SmartObjectSorter.jsx)
 
 ---
 
@@ -229,7 +213,6 @@ https://youtu.be/8ClvEwyFoAw
 
 [【Illustrator】カテゴリ別ウエイト順にフォントを一覧表示し、フォント見本を一瞬で作成するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n103ac6622657)
 
-[TypefaceSampler.jsx](attachment:bfc75450-a692-4d02-9744-6ebea7a155a8:TypefaceSampler.jsx)
 
 ---
 
@@ -284,8 +267,6 @@ fileName:	sw-B
 
 [【Illustrator】ドキュメントで使用されているフォント情報を書き出す｜DTP Transit 別館](https://note.com/dtp_tranist/n/n16e7e95652b6)
 
-[ExportFontInfoFromXMP.jsx](attachment:2bc38437-7da2-4d37-992b-6cf850349a40:ExportFontInfoFromXMP.jsx)
-
 ---
 
 # テキスト関連
@@ -296,7 +277,6 @@ fileName:	sw-B
 
 [【Illustrator】テキストを1文字ごとにバラバラにしたい｜DTP Transit 別館](https://note.com/dtp_tranist/n/n26b329ff743e)
 
-[TextSplitterPro.jsx](attachment:1931d6a1-fbe0-497c-b310-92596d57ac32:TextSplitterPro.jsx)
 
 # 基本図形
 
@@ -331,7 +311,6 @@ https://youtu.be/EoUUIdbC0IU
 
 [【Illustrator】正方形や正円、正三角形を作成するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n47cb6051e206)
 
-[SmartShapeMaker.jsx](attachment:d00883ae-be1f-464b-8e64-b3e31d7644c7:SmartShapeMaker.jsx)
 
 ---
 
@@ -360,7 +339,6 @@ https://youtu.be/EoUUIdbC0IU
 
 [【Illustrator】選択したオブジェクトを書き出すスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/necf308c39f5d)
 
-[SmartObjectExporter.jsx](attachment:82d60a79-480a-4489-839e-4a07e5383239:SmartObjectExporter.jsx)
 
 ---
 
@@ -380,7 +358,6 @@ https://youtu.be/EoUUIdbC0IU
 
 [【Illustrator】開いているファイルを1つに整列統合するIllustratorスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n8180588e5630)
 
-[SmartBatchImporter.jsx](attachment:77c9e8ce-588b-49e8-89cb-77b878e9f825:SmartBatchImporter.jsx)
 
 ## **Figmaの⌘ + shift + C（ビットマップとしてコピー）**
 
@@ -388,7 +365,6 @@ https://youtu.be/EoUUIdbC0IU
 
 [【Illustrator】Figmaの⌘ + shift + C（ビットマップとしてコピー）をIllustratorでも｜DTP Transit 別館](https://note.com/dtp_tranist/n/nf5f269788086)
 
-[CopyAsPngLikeFigma-with-Dialog.jsx](attachment:f36ce888-7cb7-4bd2-93c6-7d95f18e8716:CopyAsPngLikeFigma-with-Dialog.jsx)
 
 ---
 
@@ -410,7 +386,6 @@ https://youtu.be/EoUUIdbC0IU
 
 [【Illustrator】アートボード名を最前面のテキストや特定のレイヤーのテキストに設定するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/ne0934ee22972)
 
-[SmartArtboardRenamer.jsx](attachment:121287b6-4a1e-4933-90a9-b74c489ad3c7:SmartArtboardRenamer.jsx)
 
 ---
 
@@ -429,7 +404,6 @@ https://youtu.be/EoUUIdbC0IU
 
 [【Illustrator】連番や指定文字を使ってアートボード名前を一括変更｜DTP Transit 別館](https://note.com/dtp_tranist/n/n80f9534bc6fb)
 
-[RenameArtboardsPlus.jsx](attachment:b1e4e141-3c72-49a7-8911-29c89c71b11e:RenameArtboardsPlus.jsx)
 
 # マスク
 
@@ -443,7 +417,6 @@ https://youtu.be/EoUUIdbC0IU
 
 [【Illustrator】オブジェクトのまとまりごとにグループ化したり、マスクする｜DTP Transit 別館](https://note.com/dtp_tranist/n/nb23985473f80)
 
-[SmartClipAndGroup.jsx](attachment:ae71d1d2-3859-4e33-8731-4273ecea557b:SmartClipAndGroup.jsx)
 
 ## **〈クリッピングマスクを解除〉を拡張するスクリプト**
 
@@ -462,7 +435,6 @@ Illustratorのデフォルトの〈クリッピングマスクを解除〉機能
 
 [【Illustrator】〈クリッピングマスクを解除〉を拡張するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/nebc832e574f7)
 
-[ReleaseClipMask.jsx](attachment:11c3353c-6b6a-4cd6-ad8f-a3b7eec18d26:ReleaseClipMask.jsx)
 
 ## パズル
 
@@ -477,7 +449,6 @@ https://www.youtube.com/watch?v=6PSJE333slQ
 
 [【Illustrator】画像だけを選択して、パズルのピース作成からマスクまでを一括で行うスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n89f63325c0bc?magazine_key=mebd7eab21ea5)
 
-https://github.com/swwwitch/illustrator-scripts/blob/main/SmartSlice-with-Puzzlify.jsx
 
 # その他
 
@@ -487,6 +458,3 @@ https://github.com/swwwitch/illustrator-scripts/blob/main/SmartSlice-with-Puzzli
 
 [【Illustrator】塗り足し部分を隠すオブジェクト作成をスクプトを使って1ステップで準備する（Illustratorのアクション、スクリプト）｜DTP Transit 別館](https://note.com/dtp_tranist/n/n602696048b72)
 
-[trimmark.jsx](attachment:8dada69b-8d48-4715-9e39-2e492ab5f98f:trimmark.jsx)
-
-[pseudo-mask.jsx](attachment:80fb37c8-7980-4e63-85d1-6001a37d95ae:pseudo-mask.jsx)
