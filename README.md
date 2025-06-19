@@ -15,7 +15,7 @@
 - 開いているドキュメント数が**2つ**なら、ダイアログボックスを表示せず、アクティブでないドキュメントに切り換える
 - 開いているドキュメント数が**3つ**以上なら、ダイアログボックスでドキュメントを切り換える（ただし、現在のアクティブなドキュメントは別扱いにする）
 
-![ss-708-712-72-20250601-085759](https://github.com/user-attachments/assets/d9d38e80-a649-44fe-b609-093607690281)
+![ss-708-712-72-20250601-085759](https://github.com/user-attachments/assets/e2e98c44-0db3-46c6-9f0e-579b17b82599)
 
 
 [【Illustrator】ドキュメント切替をスムーズに行うスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/nd9c7b7c077fb)
@@ -27,7 +27,6 @@
 ## **グリッド状にガイドを生成**
 
 https://youtu.be/7sNMYhyTwfY
-
 
 
 - 行数・列数の指定による分割数
@@ -86,7 +85,8 @@ https://youtu.be/7sNMYhyTwfY
 
 ## **配置したオブジェクトをグリッド状に配置する**
 
-![ss-2006-988-72-20250520-163549.png](attachment:ecf588d5-8c56-41fa-ba9a-edf2e60dd003:ss-2006-988-72-20250520-163549.png)
+![ss-2006-988-72-20250520-163549](https://github.com/user-attachments/assets/b438fa19-3d35-4b65-9ebc-c5de37946511)
+
 
 - 行数・列数、上下左右マージン、行間／列間の個別設定
 - マージンを「すべて同じ値にする」で一括指定可能
@@ -95,13 +95,15 @@ https://youtu.be/7sNMYhyTwfY
 - 選択オブジェクトを各セルに順次配置（余りは無視し、元の位置に）
 - 「ランダム」ボタンで配置順をシャッフル
 
-![ss-746-988-72-20250521-053754.png](attachment:9fcaba82-d785-4979-bbc3-53cb18a52c3e:ss-746-988-72-20250521-053754.png)
+![ss-746-988-72-20250521-053754](https://github.com/user-attachments/assets/3bec4d25-184d-46ab-98c5-fecbb2be9c0d)
+
 
 [【Illustrator】配置したオブジェクトをグリッド状に配置するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/na3c45cea09b7)
 
 ## **選択したオブジェクトを幅や高さ、不透明度、カラーでソート**
 
-![ss-1854-1192-72-20250602-073752.png](attachment:84ffb8d1-e6df-4afb-9db1-c987d14ef8f8:ss-1854-1192-72-20250602-073752.png)
+![ss-1854-1192-72-20250602-073752](https://github.com/user-attachments/assets/a7e71b0b-6720-4747-a141-511226d1896f)
+
 
 - 並び方向：「横並び」または「縦並び」
     
@@ -119,8 +121,7 @@ https://youtu.be/7sNMYhyTwfY
     
     使用できない整列方向は自動的に無効化される
     
-
-![ss-562-720-72-20250602-073450.png](attachment:336d9f6a-9bfd-4a7e-b524-a4621d0dd6de:ss-562-720-72-20250602-073450.png)
+![ss-562-720-72-20250602-073450](https://github.com/user-attachments/assets/7eb7dab5-fdf4-45c4-94d4-ecc33cde8277)
 
 [【Illustrator】選択したオブジェクトを幅や高さ、不透明度、カラーでソートするスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n663264db75ff)
 
@@ -132,7 +133,7 @@ https://youtu.be/7sNMYhyTwfY
 
 https://youtu.be/8ClvEwyFoAw
 
-![ss-446-742-72-20250430-182416.png](attachment:660fa984-317a-456a-9779-3e05ae5a490a:ss-446-742-72-20250430-182416.png)
+![ss-446-742-72-20250430-182416](https://github.com/user-attachments/assets/cec5ce38-37d4-4248-bd61-9daec334a213)
 
 - 表示形式は「詳細表示」と「簡易表示」から選択可能
 - 詳細表示はエリア内文字、簡易版はポイント文字で出力される
@@ -161,8 +162,6 @@ https://youtu.be/8ClvEwyFoAw
 
 ## フォント置換
 
-![image.png](attachment:80666b45-3a6f-43a6-9c93-25b66533987d:image.png)
-
 - フォントをファミリー／スタイルごとに整理して表示
     
     （スタイル1つのみのファミリーは分類しない）
@@ -180,6 +179,7 @@ https://youtu.be/8ClvEwyFoAw
 ［書き出し］ボタンを付けました。
 
 ![ss-880-632-72-20250501-150629.png](attachment:d3249346-5eec-41b0-9681-a4c880680463:ss-880-632-72-20250501-150629.png)
+![ss-880-632-72-20250501-150629](https://github.com/user-attachments/assets/020427ab-c5e5-4e1f-b490-f0cfb396c378)
 
 - ドキュメント内で使用されているフォントの一覧を取得し、使用数順に並べてダイアログボックスに表示
 - フォント数をカウントし、（）内に表示
