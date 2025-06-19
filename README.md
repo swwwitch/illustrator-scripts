@@ -9,16 +9,14 @@
 
 [DTP Transitで公開しているスクリプトについて｜DTP Transit 別館](https://note.com/dtp_tranist/n/n60092f59a341)
 
-![](https://s3-us-west-2.amazonaws.com/secure.notion-static.com/e87c2d2c-7441-4508-8f28-2a9b941074a1/transparent.png" alt="https://s3-us-west-2.amazonaws.com/secure.notion-static.com/e87c2d2c-7441-4508-8f28-2a9b941074a1/transparent.png)
-
-
 ## ドキュメントの切替
 
 - 開いているドキュメント数が**1つ**なら、何も起きない
 - 開いているドキュメント数が**2つ**なら、ダイアログボックスを表示せず、アクティブでないドキュメントに切り換える
 - 開いているドキュメント数が**3つ**以上なら、ダイアログボックスでドキュメントを切り換える（ただし、現在のアクティブなドキュメントは別扱いにする）
 
-![ss-708-712-72-20250601-085759.png](attachment:e74de67c-5b8a-420a-9d29-a78cb5118bf1:ss-708-712-72-20250601-085759.png)
+![ss-708-712-72-20250601-085759](https://github.com/user-attachments/assets/d9d38e80-a649-44fe-b609-093607690281)
+
 
 [【Illustrator】ドキュメント切替をスムーズに行うスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/nd9c7b7c077fb)
 
