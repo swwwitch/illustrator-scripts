@@ -1,4 +1,4 @@
-// #target illustrator
+#target illustrator
 
 /*
  * スクリプトの概要 / Script Overview：
