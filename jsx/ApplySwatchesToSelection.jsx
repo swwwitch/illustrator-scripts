@@ -15,6 +15,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 3. テキスト1つ選択時は文字ごとにスウォッチを適用
 4. 複数オブジェクト選択時は位置順に並べ替えてスウォッチを適用
 
+その他
+- スウォッチ数が3色より多い場合には、ランダムに適用される（var randomizeSwatches = true;）
+
 対象と対象外：
 対象：TextFrame, PathItem, CompoundPathItem（内部のPathItemも含む）
 対象外：上記以外のオブジェクト
@@ -28,6 +31,9 @@ https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 
 解説記事：
 https://note.com/dtp_tranist/n/n51f21e1526f9
+
+creoldさんが多機能版を公開されています。
+https://github.com/creold/illustrator-scripts/blob/master/md/Color.md#matchcolors
 
 */
 
