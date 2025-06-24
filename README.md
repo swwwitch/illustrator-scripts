@@ -9,6 +9,14 @@
 
 [DTP Transitで公開しているスクリプトについて｜DTP Transit 別館](https://note.com/dtp_tranist/n/n60092f59a341)
 
+## スウォッチの適用
+
+選択中のオブジェクトに対して、スウォッチパネルで選択されているスウォッチを順に適用します。
+
+UIはありません。
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplySwatchesToSelection.jsx
+
 ## ドキュメントの切替
 
 - 開いているドキュメント数が**1つ**なら、何も起きない
