@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 // #target illustrator
+=======
+#target illustrator
+>>>>>>> a8cc9f637bc495f8fb94ef76fcaa29a31445aa76
 
 /*
  * スクリプトの概要 / Script Overview：
