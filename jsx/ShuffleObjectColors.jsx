@@ -21,6 +21,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 【限定条件】
 - RGB / CMYK カラーモード対応（内部的に RGB に変換して処理）
 
+【バグ】
+- CMYK カラーの変換精度に注意（特に黒・白の扱い）
+- 白、黒の保持の挙動に注意（除外条件の設定）
+
 更新日：2025-06-24
 */
 
