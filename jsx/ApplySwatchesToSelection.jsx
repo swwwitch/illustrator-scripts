@@ -3,38 +3,27 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 スクリプト名：ApplySwatchesToSelection.jsx
-作成日：2024年11月03日
-更新日：2025年06月24日
 
 概要：
-選択中のオブジェクトに対して、スウォッチパネルで選択されているスウォッチを順に適用します。
+スウォッチパネルで選択されているスウォッチ、または全スウォッチの中からプロセスカラーを使い、
+選択オブジェクトやテキストに順またはランダムでカラーを適用します。
 
 処理の流れ：
 1. ドキュメントと選択状態の確認
-2. スウォッチの選択を取得し、必要に応じてランダム化
+2. スウォッチの取得（未選択時はプロセスカラーからランダム取得）
 3. テキスト1つ選択時は文字ごとにスウォッチを適用
 4. 複数オブジェクト選択時は位置順に並べ替えてスウォッチを適用
 
-その他
-- スウォッチ数が3色より多い場合には、ランダムに適用される（var randomizeSwatches = true;）
-
-対象と対象外：
-対象：TextFrame, PathItem, CompoundPathItem（内部のPathItemも含む）
-対象外：上記以外のオブジェクト
-
-限定条件：
-スウォッチが1つ以上選択されていること、オブジェクトが選択されていること
+対象：TextFrame, PathItem, CompoundPathItem（内部のPathItem含む）
+限定条件：オブジェクトが選択されていること
 
 謝辞：
-縦方向の調整にはshspageさんのsort_by_position.jsxを参照しました。
+sort_by_position.jsx（shspage氏）を参考にしました。
 https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 
-解説記事：
-https://note.com/dtp_tranist/n/n51f21e1526f9
-
-creoldさんが多機能版を公開されています。
-https://github.com/creold/illustrator-scripts/blob/master/md/Color.md#matchcolors
-
+作成日：2024年11月03日
+最終更新日：2025年06月25日
+- v1.1 スウォッチを選択していないときには、全スウォッチを対象に
 */
 
 function getCurrentLang() {
@@ -53,10 +42,6 @@ var LABELS = {
     errNoSelection: {
         ja: "オブジェクトを選択してください。",
         en: "Please select objects."
-    },
-    errNoSwatch: {
-        ja: "スウォッチパネルでスウォッチを選択してください。",
-        en: "Please select swatches in the Swatches panel."
     },
     errUnexpected: {
         ja: "エラーが発生しました: ",
@@ -78,9 +63,13 @@ function main() {
         if (selectedItems.length > 0) {
             var selectedSwatches = activeDoc.swatches.getSelected();
 
-            // スウォッチ数が3色より多い場合のみランダム化
-            var randomizeSwatches = true;
-            if (randomizeSwatches && selectedSwatches.length > 3) {
+            // スウォッチが選択されていない場合はプロセスカラースウォッチをすべて取得し、ランダムに利用
+            if (selectedSwatches.length === 0) {
+                selectedSwatches = getAvailableProcessSwatches(activeDoc);
+            }
+
+            // スウォッチ数が3色より多い場合はランダムにシャッフル
+            if (selectedSwatches.length > 3) {
                 selectedSwatches = shuffleArray(selectedSwatches);
             }
 
@@ -93,7 +82,7 @@ function main() {
                         selectedTextFrame.characters[i].fillColor = swatchColor;
                     }
                 } else {
-                    // 位置順に並べ替えてスウォッチを適用
+                    // 複数オブジェクトは位置順に並べ替えてスウォッチを適用
                     sortByPosition(selectedItems);
                     for (var i = 0; i < selectedItems.length; i++) {
                         var swatchColor = getSwatchColor(i, selectedSwatches);
@@ -111,7 +100,8 @@ function main() {
                     }
                 }
             } else {
-                alert(LABELS.errNoSwatch[lang]);
+                // ここは実質発生しないが念のため
+                alert(LABELS.errNoSelection[lang]);
             }
         } else {
             alert(LABELS.errNoSelection[lang]);
@@ -119,6 +109,19 @@ function main() {
     } catch (e) {
         alert(LABELS.errUnexpected[lang] + e.message);
     }
+}
+
+// 使用可能なスウォッチ（プロセスカラー）だけを取得
+function getAvailableProcessSwatches(doc) {
+    var result = [];
+    var swatches = doc.swatches;
+    for (var i = 0; i < swatches.length; i++) {
+        var col = swatches[i].color;
+        if (!(col.typename === "SpotColor" || col.typename === "GradientColor" || col.typename === "PatternColor")) {
+            result.push(swatches[i]);
+        }
+    }
+    return result;
 }
 
 // オブジェクトを位置順に並べ替える（横幅が広ければ左→右、縦幅が広ければ上→下）
