@@ -9,10 +9,12 @@
 
 [DTP Transitで公開しているスクリプトについて｜DTP Transit 別館](https://note.com/dtp_tranist/n/n60092f59a341)
 
+[TOC]
 
-# カラー
 
-## スウォッチの連続適用
+### カラー
+
+### スウォッチの連続適用
 
 選択中のオブジェクトに対して、スウォッチパネルで選択されているスウォッチを順に適用します。
 
@@ -20,15 +22,15 @@ UIはありません。
 
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplySwatchesToSelection.jsx
 
-## カラーをランダム適用
+### カラーをランダム適用
 
 ![](https://github.com/swwwitch/illustrator-scripts/blob/master/png/ss-490-440-72-20250624-213948.png)
 
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ShuffleObjectColors.jsx
 
-# ドキュメント
+## ドキュメント
 
-## ドキュメントの切替
+### ドキュメントの切替
 
 - 開いているドキュメント数が**1つ**なら、何も起きない
 - 開いているドキュメント数が**2つ**なら、ダイアログボックスを表示せず、アクティブでないドキュメントに切り換える
@@ -41,9 +43,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ShuffleObjectCol
 
 ---
 
-# 配置や整列
+## 配置や整列
 
-## **グリッド状にガイドを生成**
+### グリッド状にガイドを生成
 
 https://youtu.be/7sNMYhyTwfY
 
@@ -68,7 +70,7 @@ https://youtu.be/7sNMYhyTwfY
 - アートボードに対して上下左右、個別にマージンを設定できる
 - アートボードからどれだけ伸ばすか、指定できる
 
-### 段組設定との違い
+#### 段組設定との違い
 
 スクリプトの方は次のような特徴があります。
 
@@ -80,7 +82,7 @@ https://youtu.be/7sNMYhyTwfY
 
 ---
 
-## 複数のオブジェクトの大きさを最大（最小）の幅や高さに合わせる
+### 複数のオブジェクトの大きさを最大（最小）の幅や高さに合わせる
 
 - ラジオボタンでリサイズ基準を選択
     - 最大：幅／高さ
@@ -102,7 +104,7 @@ https://youtu.be/7sNMYhyTwfY
 [【Illustrator】複数のオブジェクトの大きさをリサイズするスクリプト（updated）｜DTP Transit 別館](https://note.com/dtp_tranist/n/n6f35bd4000ec)
 
 
-## **配置したオブジェクトをグリッド状に配置する**
+### 配置したオブジェクトをグリッド状に配置する
 
 ![ss-2006-988-72-20250520-163549](https://github.com/user-attachments/assets/b438fa19-3d35-4b65-9ebc-c5de37946511)
 
@@ -119,7 +121,7 @@ https://youtu.be/7sNMYhyTwfY
 
 [【Illustrator】配置したオブジェクトをグリッド状に配置するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/na3c45cea09b7)
 
-## **選択したオブジェクトを幅や高さ、不透明度、カラーでソート**
+### 選択したオブジェクトを幅や高さ、不透明度、カラーでソート
 
 ![ss-1854-1192-72-20250602-073752](https://github.com/user-attachments/assets/a7e71b0b-6720-4747-a141-511226d1896f)
 
@@ -144,11 +146,20 @@ https://youtu.be/7sNMYhyTwfY
 
 [【Illustrator】選択したオブジェクトを幅や高さ、不透明度、カラーでソートするスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n663264db75ff)
 
+## オブジェクトを入れ替え
+
+- 選択中のオブジェクトと、指定方向（上下左右）にある最も近いオブジェクトの位置を入れ替える
+- ダイアログボックスを表示中、↑↓キーで上下、←→キーで左右のオブジェクトを入れ替える
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/SwapNearestItemWithDialogbox.jsx
+
+![](https://github.com/swwwitch/illustrator-scripts/blob/62637fb44f3091ec94b5c4b48094221be9e07686/png/ss-294-226-72-20250627-000819.png)
+
 ---
 
-# フォント関連
+## フォント関連
 
-## **選択したテキストのフォント名、フォントサイズなどをテキストとして生成する**
+### 選択したテキストのフォント名、フォントサイズなどをテキストとして生成する
 
 https://youtu.be/8ClvEwyFoAw
 
@@ -179,7 +190,7 @@ https://youtu.be/8ClvEwyFoAw
 
 ## ドキュメントフォント関連
 
-## フォント置換
+### フォント置換
 
 - フォントをファミリー／スタイルごとに整理して表示
     
@@ -207,7 +218,7 @@ https://youtu.be/8ClvEwyFoAw
 - リストボックスで↑↓キーやクリックでフォントを選択すると、ドキュメントで選択中のテキストに即時反映される
 - ［書き出し］ボタンをクリックすると、デスクトップにテキストファイルで書き出します。
 
-### 標準ツールでなく、このスクリプトを使うメリット
+#### 標準ツールでなく、このスクリプトを使うメリット
 
 - フォントのみを適用できる（スポイトなどフォント以外の情報も参照するため）
 - テキスト書き出し：Illustrator 2025（29）以降、文字化けするため
@@ -216,7 +227,7 @@ https://youtu.be/8ClvEwyFoAw
 
 ---
 
-## **カテゴリ別ウエイト順にフォントを一覧表示し、フォント見本を一瞬で作成する**
+### カテゴリ別ウエイト順にフォントを一覧表示し、フォント見本を一瞬で作成する
 
 次のようなフォント見本を作成します。
 
@@ -233,7 +244,7 @@ https://youtu.be/8ClvEwyFoAw
 
 ---
 
-## **ドキュメントで使用されているフォント情報を書き出す**
+### ドキュメントで使用されているフォント情報を書き出す
 
 アクティブなIllustratorドキュメントに埋め込まれているXMPメタデータからすべてのフォント情報を抽出し、次のファイル形式でデスクトップに保存します。
 
@@ -286,18 +297,18 @@ fileName:	sw-B
 
 ---
 
-# テキスト関連
+## テキスト関連
 
-## 文字ばらし
+### 文字ばらし
 
 ![ss-2436-1240-72-20250609-170356.png](attachment:09fec99a-b12c-4b2b-affa-3e4ff8ab5b76:ss-2436-1240-72-20250609-170356.png)
 
 [【Illustrator】テキストを1文字ごとにバラバラにしたい｜DTP Transit 別館](https://note.com/dtp_tranist/n/n26b329ff743e)
 
 
-# 基本図形
+## 基本図形
 
-## **正方形や正円、正三角形を作成するスクリプト**
+### 正方形や正円、正三角形を作成するスクリプト
 
 https://youtu.be/EoUUIdbC0IU
 
@@ -331,9 +342,9 @@ https://youtu.be/EoUUIdbC0IU
 
 ---
 
-# アートワークやファイル
+### アートワークやファイル
 
-## **選択したオブジェクトを書き出すスクリプト**
+### 選択したオブジェクトを書き出すスクリプト
 
 選択したオブジェクトを一時アートボードに収めて PNG 書き出しするスクリプトです。
 書き出し倍率・余白・背景・罫線・ファイル名・保存先などを UI で柔軟に設定でき、プレビュー機能によりリアルタイムで結果を確認できます。
@@ -359,7 +370,7 @@ https://youtu.be/EoUUIdbC0IU
 
 ---
 
-## **開いているファイルを1つに整列統合するIllustratorスクリプト**
+### 開いているファイルを1つに整列統合するIllustratorスクリプト
 
 - 複数の AI/SVG ファイルをバッチ処理で読み込み、表示中かつロック解除されているオブジェクトを対象に
 - ファイルが開いているときには、そのファイルが対象。
@@ -376,7 +387,7 @@ https://youtu.be/EoUUIdbC0IU
 [【Illustrator】開いているファイルを1つに整列統合するIllustratorスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n8180588e5630)
 
 
-## **Figmaの⌘ + shift + C（ビットマップとしてコピー）**
+### Figmaの⌘ + shift + C（ビットマップとしてコピー）
 
 ![ss-460-450-72-20250603-092734.png](attachment:ae88cae3-2f8b-4b93-8098-efbccce05b3f:ss-460-450-72-20250603-092734.png)
 
@@ -385,9 +396,9 @@ https://youtu.be/EoUUIdbC0IU
 
 ---
 
-# アートボード
+## アートボード
 
-## **アートボード名を最前面のテキストや特定のレイヤーのテキストに設定するスクリプト**
+### アートボード名を最前面のテキストや特定のレイヤーのテキストに設定するスクリプト
 
 アートボード名を最前面のテキストや特定のレイヤーのテキストに設定します。
 
@@ -422,9 +433,9 @@ https://youtu.be/EoUUIdbC0IU
 [【Illustrator】連番や指定文字を使ってアートボード名前を一括変更｜DTP Transit 別館](https://note.com/dtp_tranist/n/n80f9534bc6fb)
 
 
-# マスク
+## マスク
 
-## **オブジェクトのまとまりごとにグループ化したり、マスクする**
+## オブジェクトのまとまりごとにグループ化したり、マスクする
 
 対象のオブジェクトが少ない場合には、地道にグループ化したり、マスクすればいいのですが、数が増えたら絶望的です。
 
@@ -435,7 +446,7 @@ https://youtu.be/EoUUIdbC0IU
 [【Illustrator】オブジェクトのまとまりごとにグループ化したり、マスクする｜DTP Transit 別館](https://note.com/dtp_tranist/n/nb23985473f80)
 
 
-## **〈クリッピングマスクを解除〉を拡張するスクリプト**
+### 〈クリッピングマスクを解除〉を拡張するスクリプト
 
 Illustratorのデフォルトの〈クリッピングマスクを解除〉機能を実行すると、パスと対象となるオブジェクト（リンクファイル）が残ります。
 
@@ -467,9 +478,9 @@ https://www.youtube.com/watch?v=6PSJE333slQ
 [【Illustrator】画像だけを選択して、パズルのピース作成からマスクまでを一括で行うスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n89f63325c0bc?magazine_key=mebd7eab21ea5)
 
 
-# その他
+### その他
 
-## トンボ作成
+### トンボ作成
 
 アートボードまたは選択オブジェクトに対してトリムマークを作成し、「トンボ」レイヤーに配置してロックします。あわせて対象オブジェクトを複製し、ガイドに変換します。
 
