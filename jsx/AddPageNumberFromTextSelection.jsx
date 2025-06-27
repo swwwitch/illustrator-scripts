@@ -3,16 +3,22 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 AddPageNumberFromTextSelection.jsx
-更新日: 2025-06-27
 
 概要：
 _pagenumberレイヤー上で選択されたテキストを基準に、
 すべてのアートボードに連番テキストを複製します。
-ユーザーに開始番号を入力してもらい、アートボード数に応じて番号を振ります。
+ユーザーに開始番号・接頭辞・ゼロパディング・総ページ数表示を指定して、
+アートボード数に応じたページ番号を作成します。
 
 限定条件：
 ・選択テキストは_pagenumberレイヤー上のポイントテキストであること
 ・段落揃えの変更は行いません
+
+作成日：2025-06-25
+更新日: 2025-06-27
+- v1.0.0 初版
+- v1.0.1 テキストの複製ロジックを修正
+- v1.0.2 ゼロ埋め機能、接頭辞、総ページ数表示機能を追加
 
 Overview:
 Based on the text selected in the _pagenumber layer,
@@ -22,12 +28,7 @@ The user is prompted to enter a starting number, and page numbers are assigned a
 Conditions:
 - The selected text must be point text in the _pagenumber layer.
 - Paragraph alignment will not be changed.
-<<<<<<< HEAD
 
-Updated: 2025-06-27
-
-=======
->>>>>>> 061c98dff6e1228d83df25947ef9259eae1583e5
 */
 
 function getCurrentLang() {
@@ -41,16 +42,12 @@ var LABELS = {
         en: "Add Page Numbers"
     },
     promptMessage: {
-        ja: "開始番号を入力してください",
-        en: "Enter starting number"
+        ja: "開始番号",
+        en: "Starting number"
     },
     errorNotNumber: {
         ja: "有効な数字を入力してください",
         en: "Please enter a valid number"
-    },
-    errorLayerHidden: {
-        ja: "_pagenumberレイヤーが非表示またはロックされています",
-        en: "_pagenumber layer is hidden or locked"
     },
     errorInvalidSelection: {
         ja: "複製対象のテキストを_pagenumberレイヤーで選択してください",
@@ -77,10 +74,59 @@ function getArtboardIndexByPosition(doc, pos) {
     return -1;
 }
 
+function buildPageNumberString(num, maxDigits, prefix, zeroPad, totalPageNum, showTotal) {
+    var numStr = String(num);
+    if (zeroPad && numStr.length < maxDigits) {
+        while (numStr.length < maxDigits) {
+            numStr = "0" + numStr;
+        }
+    }
+    numStr = prefix + numStr;
+    if (showTotal) {
+        numStr += "/" + totalPageNum;
+    }
+    return numStr;
+}
+
 function main() {
-    var startNum = prompt(LABELS.promptMessage[lang], "1");
-    if (startNum === null) return;
-    startNum = parseInt(startNum, 10);
+    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    dialog.orientation = "column";
+    dialog.alignChildren = "left";
+
+    var prefixGroup = dialog.add("group");
+    prefixGroup.orientation = "row";
+    var prefixLabel = prefixGroup.add("statictext", undefined, "接頭辞");
+    var prefixField = prefixGroup.add("edittext", undefined, "");
+    prefixField.characters = 10;
+
+    var inputGroup = dialog.add("group");
+    inputGroup.orientation = "row";
+    var label = inputGroup.add("statictext", undefined, LABELS.promptMessage[lang]);
+    var inputField = inputGroup.add("edittext", undefined, "1");
+    inputField.characters = 5;
+
+    var zeroPadCheckbox = dialog.add("checkbox", undefined, "ゼロパディング");
+    var totalPageCheckbox = dialog.add("checkbox", undefined, "総ページ数を表示");
+
+    var buttonGroup = dialog.add("group");
+    buttonGroup.orientation = "row";
+    var cancelBtn = buttonGroup.add("button", undefined, "Cancel");
+    var okBtn = buttonGroup.add("button", undefined, "OK");
+
+    okBtn.onClick = function() {
+        dialog.close(1);
+    };
+    cancelBtn.onClick = function() {
+        dialog.close(0);
+    };
+
+    inputField.active = true;
+
+    if (dialog.show() !== 1) {
+        return;
+    }
+
+    var startNum = parseInt(inputField.text, 10);
     if (isNaN(startNum)) {
         alert(LABELS.errorNotNumber[lang]);
         return;
@@ -152,11 +198,6 @@ function main() {
 
     removeOtherTextFrames(pagenumberLayer, targetText);
 
-    if (!pagenumberLayer.visible || pagenumberLayer.locked) {
-        alert(LABELS.errorLayerHidden[lang]);
-        return;
-    }
-
     if (targetText.layer.name !== "_pagenumber") {
         alert(LABELS.errorInvalidSelection[lang]);
         return;
@@ -185,9 +226,16 @@ function main() {
 
     textFrames.sort(function(a, b) { return a.abIdx - b.abIdx; });
 
+    var maxNum = startNum + doc.artboards.length - 1;
+    var maxDigits = String(maxNum).length;
+    var prefix = prefixField.text;
+    var zeroPad = zeroPadCheckbox.value;
+    var showTotal = totalPageCheckbox.value;
+
     for (var i = 0; i < textFrames.length; i++) {
         var num = startNum + i;
-        textFrames[i].frame.contents = String(num);
+        var numStr = buildPageNumberString(num, maxDigits, prefix, zeroPad, maxNum, showTotal);
+        textFrames[i].frame.contents = numStr;
     }
 }
 
