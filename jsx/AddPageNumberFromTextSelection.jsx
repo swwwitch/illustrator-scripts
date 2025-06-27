@@ -22,9 +22,12 @@ The user is prompted to enter a starting number, and page numbers are assigned a
 Conditions:
 - The selected text must be point text in the _pagenumber layer.
 - Paragraph alignment will not be changed.
+<<<<<<< HEAD
 
 Updated: 2025-06-27
 
+=======
+>>>>>>> 061c98dff6e1228d83df25947ef9259eae1583e5
 */
 
 function getCurrentLang() {
