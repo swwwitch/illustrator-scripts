@@ -13,6 +13,18 @@ _pagenumberレイヤー上で選択されたテキストを基準に、
 限定条件：
 ・選択テキストは_pagenumberレイヤー上のポイントテキストであること
 ・段落揃えの変更は行いません
+
+Overview:
+Based on the text selected in the _pagenumber layer,
+this script duplicates the text as sequential page numbers on all artboards.
+The user is prompted to enter a starting number, and page numbers are assigned according to the number of artboards.
+
+Conditions:
+- The selected text must be point text in the _pagenumber layer.
+- Paragraph alignment will not be changed.
+
+Updated: 2025-06-27
+
 */
 
 function getCurrentLang() {
