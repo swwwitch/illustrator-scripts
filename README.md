@@ -414,6 +414,12 @@ https://youtu.be/EoUUIdbC0IU
 
 [【Illustrator】アートボード名を最前面のテキストや特定のレイヤーのテキストに設定するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/ne0934ee22972)
 
+### ページ番号を挿入
+
+https://github.com/swwwitch/illustrator-scripts/blob/b6f3d4e4c880db223d0f05cd3ffddea63f75512b/jsx/AddPageNumber.jsx
+
+![](png/ss-664-440-72-20250627-114603.png)
+
 
 ---
 
