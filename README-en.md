@@ -11,11 +11,11 @@ Conditions:
 - The selected text must be point text in the _pagenumber layer.
 - Paragraph alignment will not be changed.
 
-![](png/ss-664-440-72-20250628-072541.png)
+![](png/ss-2432-1434-72-20250628-074603b.png)
 
 https://github.com/swwwitch/illustrator-scripts/blob/4ac57fc0fa1c2560a2d44bd39afb2ac0d80554ff/jsx/AddPageNumberFromTextSelection.jsx
 
-![](png/ss-2432-1434-72-20250628-074603.png)
+
 
 
 
