@@ -416,7 +416,7 @@ https://youtu.be/EoUUIdbC0IU
 
 ### ページ番号を挿入
 
-https://github.com/swwwitch/illustrator-scripts/blob/b6f3d4e4c880db223d0f05cd3ffddea63f75512b/jsx/AddPageNumber.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5a5828c39b6c1d/jsx/AddPageNumberFromTextSelection.jsx
 
 ![](png/ss-664-440-72-20250627-114603.png)
 

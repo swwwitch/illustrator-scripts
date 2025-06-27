@@ -16,6 +16,12 @@
 ![](https://github.com/swwwitch/illustrator-scripts/blob/62637fb44f3091ec94b5c4b48094221be9e07686/png/ss-294-226-72-20250627-000819.png)
 
 
-- [ページ番号を挿入](https://github.com/swwwitch/illustrator-scripts/blob/b6f3d4e4c880db223d0f05cd3ffddea63f75512b/jsx/AddPageNumber.jsx)を追加
+- 「ページ番号を挿入」スクリプト（初版）
 
 ![](png/ss-664-440-72-20250627-114603.png)
+
+### 20250628
+
+「ページ番号を挿入」を修正。
+
+https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5a5828c39b6c1d/jsx/AddPageNumberFromTextSelection.jsx
