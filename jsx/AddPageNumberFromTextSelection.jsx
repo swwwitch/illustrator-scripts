@@ -194,6 +194,7 @@ function main() {
         var prefix = prefixField.text;
         var zeroPad = zeroPadCheckbox.value;
         var showTotal = totalPageCheckbox.value;
+        targetText.visible = false;
         generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNum, prefix, zeroPad, showTotal);
     }
 
@@ -214,6 +215,7 @@ function main() {
         dialog.close(1);
     };
     cancelBtn.onClick = function() {
+        targetText.visible = true;
         removeOtherTextFrames(pagenumberLayer, targetText);
         dialog.close(0);
     };
