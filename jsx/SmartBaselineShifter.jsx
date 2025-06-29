@@ -2,36 +2,54 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプト名：SmartBaselineShifter.jsx
+SmartBaselineShifter.jsx
 
-    スクリプト概要：
-    選択したテキストフレーム内の指定文字にベースラインシフト（ポイント単位）を個別適用します。
-    ダイアログで文字列、シフト量（整数・小数）、符号、リセットオプションを設定し、即時プレビューが可能です。
+概要（日本語）:
+選択したテキストフレーム内の指定文字にポイント単位でベースラインシフトを個別適用します。
+ダイアログで対象文字列、シフト量（整数・小数）、符号、リセットを設定し、即時プレビューが可能です。
 
-    処理の流れ：
-    1. テキストフレームを選択
-    2. ダイアログで対象文字、シフト量、符号、リセットを設定
-    3. プレビュー確認後、OKで確定
+処理の流れ:
+1. テキストフレームを選択
+2. ダイアログで設定を入力
+3. プレビュー確認後、OKで適用、キャンセルで元に戻す
 
-    対象：選択中のテキストフレーム（ポイント文字・エリア文字含む）
-    更新日：2024-06-29
-    限定条件：Illustrator 2025 以降推奨
+対象環境: ポイント文字・エリア文字を含む選択中のテキストフレーム
+推奨環境: Illustrator 2025以降
+
+Overview (English):
+Applies baseline shift individually by point value to specified characters in selected text frames.
+Allows users to set target characters, shift amount (integer and decimal), sign, and reset options in a dialog with instant preview.
+
+Process:
+1. Select text frames
+2. Input settings in the dialog
+3. Preview changes; apply with OK or revert with Cancel
+
+Target Environment: Selected text frames (point and area text supported)
+Last Updated: 2024-06-29
+Recommended: Illustrator 2025 or later
+
+作成日：2024-06-29
+更新日：
+- v1.0.0（2024-06-29）初版
+- v1.0.1（2024-06-29）+/-ボタン追加
+- v1.0.2（2024-06-29）ダイアログを2カラム化、正規表現対応
 */
 
-// 言語切り替え
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 
-// ラベル定義（UIの表示順）
 var LABELS = {
     dialogTitle: { ja: "ベースラインシフト", en: "Baseline Shift" },
-    reset: { ja: "すべてをリセット", en: "Reset All" },
     targetText: { ja: "対象文字列:", en: "Target Text:" },
     shiftValue: { ja: "シフト量:", en: "Shift Value:" },
     sign: { ja: "符号:", en: "Sign:" },
     positive: { ja: "正", en: "Positive" },
     negative: { ja: "負", en: "Negative" },
+    resetAll: { ja: "すべてをリセット", en: "Reset All" },
+    regex: { ja: "正規表現対応", en: "Regex" },
+    resetBtn: { ja: "初期化", en: "Reset" },
     cancel: { ja: "キャンセル", en: "Cancel" },
     ok: { ja: "OK", en: "OK" },
     alertOpenDoc: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
@@ -51,13 +69,30 @@ function collectTextFrames(item, array) {
     }
 }
 
-function resetAllBaselineShift(frames) {
+function resetBaselineShift(frames, targetStr) {
     for (var i = 0; i < frames.length; i++) {
         var tf = frames[i];
         var contents = tf.contents;
-        for (var j = 0; j < contents.length; j++) {
-            var range = tf.textRange.characters[j];
-            range.characterAttributes.baselineShift = 0;
+        try {
+            if (!targetStr) {
+                // Reset baseline shift for all characters
+                var chars = tf.textRange.characters;
+                for (var j = 0; j < chars.length; j++) {
+                    chars[j].characterAttributes.baselineShift = 0;
+                }
+            } else {
+                // Reset baseline shift only for characters in targetStr
+                for (var k = 0; k < targetStr.length; k++) {
+                    var ch = targetStr.charAt(k);
+                    var index = contents.indexOf(ch);
+                    while (index !== -1) {
+                        tf.textRange.characters[index].characterAttributes.baselineShift = 0;
+                        index = contents.indexOf(ch, index + 1);
+                    }
+                }
+            }
+        } catch (e) {
+            // Ignore errors silently
         }
     }
 }
@@ -69,9 +104,8 @@ function main() {
         alert(LABELS.alertOpenDoc[lang]);
         return;
     }
-
     var doc = app.activeDocument;
-    if (doc.selection.length === 0) {
+    if (!doc.selection || doc.selection.length === 0) {
         alert(LABELS.alertSelectText[lang]);
         return;
     }
@@ -80,79 +114,158 @@ function main() {
     for (var i = 0; i < doc.selection.length; i++) {
         collectTextFrames(doc.selection[i], textFrames);
     }
-
     if (textFrames.length === 0) {
         alert(LABELS.alertSelectFrame[lang]);
         return;
     }
 
-    resetAllBaselineShift(textFrames);
+    resetBaselineShift(textFrames);
 
     var defaultTarget = "";
-    if (textFrames.length > 0) {
-        var contents = textFrames[0].contents;
-        var matches = contents.match(/[^0-9\s]/g);
-        if (matches) {
-            var uniqueChars = {};
-            for (var i = 0; i < matches.length; i++) {
-                uniqueChars[matches[i]] = true;
-            }
-            for (var c in uniqueChars) {
-                defaultTarget += c;
-            }
+    var contents = textFrames[0].contents;
+    var matches = contents.match(/[^0-9\s]/g);
+    if (matches) {
+        var uniqueChars = {};
+        for (var i = 0; i < matches.length; i++) {
+            uniqueChars[matches[i]] = true;
+        }
+        for (var c in uniqueChars) {
+            defaultTarget += c;
         }
     }
 
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
-    dialog.alignChildren = "fill";
+    dialog.orientation = "row";
 
-    // リセットチェックボックス
-    var resetCheckbox = dialog.add("checkbox", undefined, LABELS.reset[lang]);
+    var leftPanel = dialog.add("group");
+    leftPanel.orientation = "column";
+    leftPanel.alignChildren = "fill";
+
+    var resetCheckbox = leftPanel.add("checkbox", undefined, LABELS.resetAll[lang]);
     resetCheckbox.value = false;
     resetCheckbox.onClick = function() {
         if (resetCheckbox.value) {
-            resetAllBaselineShift(textFrames);
+            resetBaselineShift(textFrames);
+            shiftIntInput.text = "0";
+            shiftDecInput.text = "0";
+            signPositive.value = true;
+            previewShiftAll();
             app.redraw();
         }
     };
 
-    var targetGroup = dialog.add("group");
-    targetGroup.add("statictext", undefined, LABELS.targetText[lang]);
-    var targetInput = targetGroup.add("edittext", undefined, defaultTarget);
-    targetInput.characters = 10;
+    var targetPanel = leftPanel.add("panel", undefined, LABELS.targetText[lang]);
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = "left";
+    targetPanel.margins = [15, 20, 15, 10];
 
-    var shiftPanel = dialog.add("panel", undefined, LABELS.dialogTitle[lang]);
+    var targetInput = targetPanel.add("edittext", undefined, defaultTarget);
+    targetInput.characters = 15;
+
+    var regexCheckbox = targetPanel.add("checkbox", undefined, LABELS.regex[lang]);
+    regexCheckbox.value = false;
+
+    var shiftPanel = leftPanel.add("panel", undefined, LABELS.dialogTitle[lang]);
     shiftPanel.orientation = "column";
     shiftPanel.alignChildren = "left";
     shiftPanel.margins = [15, 20, 15, 10];
 
+    var resultText = shiftPanel.add("statictext", undefined, LABELS.previewLabel[lang] + "0");
+    resultText.characters = 16;
+    resultText.alignment = "center";
+
+    var signGroup = shiftPanel.add("group");
+    signGroup.add("statictext", undefined, LABELS.sign[lang]);
+    var signPositive = signGroup.add("radiobutton", undefined, LABELS.positive[lang]);
+    var signNegative = signGroup.add("radiobutton", undefined, LABELS.negative[lang]);
+    signPositive.value = true;
+    signGroup.margins = [0, 10, 0, 0];
+
     var shiftGroup = shiftPanel.add("group");
-    shiftGroup.add("statictext", undefined, LABELS.shiftValue[lang]);
+    // shiftGroup.add("statictext", undefined, LABELS.shiftValue[lang]);
+
     var shiftIntInput = shiftGroup.add("edittext", undefined, "0");
     shiftIntInput.characters = 3;
+
+    var intSignGroup = shiftGroup.add("group");
+    intSignGroup.orientation = "column";
+    intSignGroup.alignment = "center";
+    intSignGroup.spacing = 2;
+    var plusIntBtn = intSignGroup.add("button", undefined, "+");
+    plusIntBtn.preferredSize = [25, 20];
+    var minusIntBtn = intSignGroup.add("button", undefined, "−");
+    minusIntBtn.preferredSize = [25, 20];
+
+    plusIntBtn.onClick = function() {
+        var val = parseInt(shiftIntInput.text, 10);
+        if (isNaN(val)) val = 0;
+        shiftIntInput.text = (val + 1).toString();
+        previewShiftAll();
+    };
+    minusIntBtn.onClick = function() {
+        var val = parseInt(shiftIntInput.text, 10);
+        if (isNaN(val)) val = 0;
+        shiftIntInput.text = (val - 1).toString();
+        previewShiftAll();
+    };
+
     shiftGroup.add("statictext", undefined, ".");
     var shiftDecInput = shiftGroup.add("edittext", undefined, "0");
     shiftDecInput.characters = 3;
 
-    var signGroup = shiftPanel.add("group");
-    signGroup.add("statictext", undefined, LABELS.sign[lang]);
-    var signOptions = signGroup.add("radiobutton", undefined, LABELS.positive[lang]);
-    var signOptionsNeg = signGroup.add("radiobutton", undefined, LABELS.negative[lang]);
-    signOptions.value = true;
-    signGroup.margins = [0, 0, 0, 10];
+    var decSignGroup = shiftGroup.add("group");
+    decSignGroup.orientation = "column";
+    decSignGroup.alignment = "center";
+    decSignGroup.spacing = 2;
+    var plusDecBtn = decSignGroup.add("button", undefined, "+");
+    plusDecBtn.preferredSize = [25, 20];
+    var minusDecBtn = decSignGroup.add("button", undefined, "−");
+    minusDecBtn.preferredSize = [25, 20];
 
-    var resultText = shiftPanel.add("statictext", undefined, LABELS.previewLabel[lang] + "0");
-    resultText.characters = 20; // 表示幅を広くする
-    resultText.alignment = "center";
-
-    signOptions.onClick = signOptionsNeg.onClick = function() {
+    plusDecBtn.onClick = function() {
+        var val = parseInt(shiftDecInput.text, 10);
+        if (isNaN(val)) val = 0;
+        if (val < 9) val++;
+        shiftDecInput.text = val.toString();
+        previewShiftAll();
+    };
+    minusDecBtn.onClick = function() {
+        var val = parseInt(shiftDecInput.text, 10);
+        if (isNaN(val)) val = 0;
+        if (val > 0) val--;
+        shiftDecInput.text = val.toString();
         previewShiftAll();
     };
 
-    var buttonGroup = dialog.add("group");
+    signPositive.onClick = signNegative.onClick = function() {
+        previewShiftAll();
+    };
+
+    var rightPanel = dialog.add("group");
+    rightPanel.orientation = "column";
+    rightPanel.alignChildren = "center";
+
+    var buttonGroup = rightPanel.add("group");
+    buttonGroup.orientation = "column";
     buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
+
     var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang]);
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
+    var spacer = buttonGroup.add("statictext", undefined, " ");
+    spacer.preferredSize = [0, 120];
+    var resetBtn = buttonGroup.add("button", undefined, LABELS.resetBtn[lang]);
+
+    okBtn.preferredSize = [100, 30];
+    cancelBtn.preferredSize = [100, 30];
+    resetBtn.preferredSize = [100, 30];
+
+    resetBtn.onClick = function() {
+        signPositive.value = true;
+        shiftIntInput.text = "0";
+        shiftDecInput.text = "0";
+        previewShiftAll();
+        app.redraw();
+    };
 
     var lastTarget = "";
     var lastShift = 0;
@@ -162,9 +275,7 @@ function main() {
     };
 
     cancelBtn.onClick = function() {
-        for (var j = 0; j < textFrames.length; j++) {
-            resetBaselineShift(textFrames[j], lastTarget);
-        }
+        resetBaselineShift(textFrames, lastTarget);
         dialog.close();
     };
 
@@ -180,76 +291,50 @@ function main() {
         if (isNaN(decPart)) decPart = 0;
         var shiftValue = parseFloat(intPart + "." + decPart);
 
-        var displayValue = "";
-        if (shiftValue === 0) {
-            displayValue = "0.0";
-        } else {
-            displayValue = "" + Math.abs(shiftValue).toFixed(1);
-        }
-        if (signOptionsNeg.value && shiftValue > 0) {
-            displayValue = "-" + displayValue;
-        }
-        resultText.text = LABELS.previewLabel[lang] + displayValue;
-
-        if (signOptionsNeg.value && shiftValue > 0) {
+        var displayVal = shiftValue === 0 ? "0.0" : Math.abs(shiftValue).toFixed(1);
+        if (signNegative.value && shiftValue > 0) {
+            displayVal = "-" + displayVal;
             shiftValue = -shiftValue;
         }
+        resultText.text = LABELS.previewLabel[lang] + displayVal;
 
         if (!targetText || isNaN(shiftValue)) {
-            for (var j = 0; j < textFrames.length; j++) {
-                resetBaselineShift(textFrames[j], lastTarget);
-            }
+            resetBaselineShift(textFrames, lastTarget);
             lastTarget = targetText;
             lastShift = 0;
             app.redraw();
             return;
         }
 
+        resetBaselineShift(textFrames, lastTarget);
+
+        var regex;
+        if (regexCheckbox.value) {
+            try {
+                regex = new RegExp(targetText, "g");
+            } catch (e) {
+                alert(LABELS.error[lang] + e);
+                return;
+            }
+        } else {
+            regex = new RegExp(targetText.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"), "g");
+        }
+
         for (var j = 0; j < textFrames.length; j++) {
-            resetBaselineShift(textFrames[j], lastTarget);
-            for (var k = 0; k < targetText.length; k++) {
-                var ch = targetText.charAt(k);
-                applyShiftToTargetText(textFrames[j], ch, shiftValue);
+            var tf = textFrames[j];
+            var contents = tf.contents;
+            var match;
+            while ((match = regex.exec(contents)) !== null) {
+                var index = match.index;
+                for (var i = 0; i < match[0].length; i++) {
+                    tf.textRange.characters[index + i].characterAttributes.baselineShift = shiftValue;
+                }
             }
         }
 
         lastTarget = targetText;
         lastShift = shiftValue;
         app.redraw();
-    }
-
-    function applyShiftToTargetText(textFrame, targetStr, shift) {
-        try {
-            var contents = textFrame.contents;
-            var index = contents.indexOf(targetStr);
-
-            while (index !== -1) {
-                var range = textFrame.textRange.characters[index];
-                range.characterAttributes.baselineShift = shift;
-                index = contents.indexOf(targetStr, index + 1);
-            }
-        } catch (e) {
-            alert(LABELS.error[lang] + e);
-        }
-    }
-
-    function resetBaselineShift(textFrame, targetStr) {
-        if (!targetStr) return;
-        try {
-            var contents = textFrame.contents;
-            for (var k = 0; k < targetStr.length; k++) {
-                var ch = targetStr.charAt(k);
-                var index = contents.indexOf(ch);
-
-                while (index !== -1) {
-                    var range = textFrame.textRange.characters[index];
-                    range.characterAttributes.baselineShift = 0;
-                    index = contents.indexOf(ch, index + 1);
-                }
-            }
-        } catch (e) {
-            // 無視
-        }
     }
 
     dialog.show();
