@@ -54,3 +54,6 @@ The final result is previewed in the “Shift Value” display.
 ### Reset
 Resets the baseline shift not only for the target characters but also for all characters in the selected text.
 
+![](png/ss-494-598-72-20250629-231353.png)
+
+https://github.com/swwwitch/illustrator-scripts/blob/a4e2d62479bb5599949ccbc404e8c87c60cfc985/jsx/SmartBaselineShifter.jsx
