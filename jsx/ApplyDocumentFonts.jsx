@@ -10,6 +10,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     選択したフォントを、選択中のテキストオブジェクトに即時適用できます。
     リストはデスクトップにテキストファイルとして書き出し可能です。
 
+    Description (English):
+    This script collects fonts used in the document and displays them in a dialog sorted by usage count.
+    You can apply a selected font to the currently selected text objects immediately.
+    You can also export the list of fonts as a text file on your desktop.
+
 作成日：2025-02-25
 最終更新日：
 v1.1 書き出し機能を追加
