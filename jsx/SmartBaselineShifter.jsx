@@ -37,7 +37,8 @@ var LABELS = {
     alertOpenDoc: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
     alertSelectText: { ja: "テキストを選択してください。", en: "Please select text." },
     alertSelectFrame: { ja: "テキストフレームを選択してください。", en: "Please select text frame." },
-    error: { ja: "処理中にエラーが発生しました: ", en: "An error occurred: " }
+    error: { ja: "処理中にエラーが発生しました: ", en: "An error occurred: " },
+    previewLabel: { ja: "シフト量: ", en: "Shift Value: " }
 };
 
 function collectTextFrames(item, array) {
@@ -140,7 +141,7 @@ function main() {
     signOptions.value = true;
     signGroup.margins = [0, 0, 0, 10];
 
-    var resultText = shiftPanel.add("statictext", undefined, "シフト量: 0");
+    var resultText = shiftPanel.add("statictext", undefined, LABELS.previewLabel[lang] + "0");
     resultText.characters = 10; // 表示幅を確保
     resultText.alignment = "center";
 
