@@ -36,3 +36,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5
 - v1.0.5 接尾辞フィールド追加し、ダイアログボックスのUIを変更
 
 ![](png/ss-672-346-72-20250629-205331.png)
+
+SmartBaselineShifter.jsxを追加
+
+
+
+https://note.com/dtp_tranist/n/n2e19ad0bdb83
