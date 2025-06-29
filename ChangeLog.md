@@ -21,3 +21,7 @@
 「ページ番号を挿入」を修正。
 
 https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5a5828c39b6c1d/jsx/AddPageNumberFromTextSelection.jsx
+
+### 20250629
+
+「ドキュメントフォントを適用」スクリプトを追加
