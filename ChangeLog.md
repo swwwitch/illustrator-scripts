@@ -26,3 +26,6 @@ https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5
 
 「[ドキュメントフォントを適用](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplyDocumentFonts.jsx)」スクリプトを追加
 
+![](png/ss-880-632-72-20250629-185729.png)
+
+- [解説記事（note）](https://note.com/dtp_tranist/n/n01d6ef7e9b5f)

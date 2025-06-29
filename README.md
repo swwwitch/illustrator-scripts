@@ -225,6 +225,10 @@ https://youtu.be/8ClvEwyFoAw
 
 [【Illustrator】ドキュメントフォント一覧をテキストファイルで書き出す｜DTP Transit 別館](https://note.com/dtp_tranist/n/neaae531e4281)
 
+グループに対応
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplyDocumentFonts.jsx
+
 ---
 
 ### カテゴリ別ウエイト順にフォントを一覧表示し、フォント見本を一瞬で作成する
