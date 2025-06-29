@@ -19,6 +19,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 最終更新日：
 v1.1 書き出し機能を追加
 v1.1.1 グループ内のテキストにも適用できるように
+v1.1.2 グループ内のフォント数のカウント方法を調整
  */
 
 (function() {
@@ -124,8 +125,10 @@ v1.1.1 グループ内のテキストにも適用できるように
             }
         }
 
-        for (var i = 0; i < doc.textFrames.length; i++) collectFontsFromTextFrame(doc.textFrames[i]);
-        for (var j = 0; j < doc.groupItems.length; j++) collectFontsFromGroup(doc.groupItems[j]);
+        // グループ再帰走査を削除し、textFramesのみでフォント情報を収集
+        for (var i = 0; i < doc.textFrames.length; i++) {
+            collectFontsFromTextFrame(doc.textFrames[i]);
+        }
 
         for (var s = 0; s < app.selection.length; s++) {
             if (app.selection[s].typename === "TextFrame") {
