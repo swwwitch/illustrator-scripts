@@ -39,6 +39,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5
 
 SmartBaselineShifter.jsxを追加
 
+![](png/ss-460-584-72-20250629-225731.png)
 
+https://github.com/swwwitch/illustrator-scripts/blob/807a117b19ac3f623781bb9290b30e8e30cdb51b/jsx/SmartBaselineShifter.jsx
+
+解説記事：
 
 https://note.com/dtp_tranist/n/n2e19ad0bdb83

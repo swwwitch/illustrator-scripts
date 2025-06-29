@@ -9,10 +9,7 @@
 
 [DTP Transitで公開しているスクリプトについて｜DTP Transit 別館](https://note.com/dtp_tranist/n/n60092f59a341)
 
-[TOC]
-
-
-### カラー
+## カラー
 
 ### スウォッチの連続適用
 
@@ -309,6 +306,15 @@ fileName:	sw-B
 
 [【Illustrator】テキストを1文字ごとにバラバラにしたい｜DTP Transit 別館](https://note.com/dtp_tranist/n/n26b329ff743e)
 
+### 特定の文字のベースラインシフトを調整
+
+![](png/ss-460-584-72-20250629-225731.png)
+
+https://github.com/swwwitch/illustrator-scripts/blob/807a117b19ac3f623781bb9290b30e8e30cdb51b/jsx/SmartBaselineShifter.jsx
+
+解説記事：
+
+- [note](https://note.com/dtp_tranist/n/n2e19ad0bdb83)
 
 ## 基本図形
 
