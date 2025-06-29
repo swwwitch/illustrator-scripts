@@ -24,4 +24,5 @@ https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5
 
 ### 20250629
 
-「ドキュメントフォントを適用」スクリプトを追加
+「[ドキュメントフォントを適用](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplyDocumentFonts.jsx)」スクリプトを追加
+
