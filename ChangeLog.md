@@ -29,3 +29,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5
 ![](png/ss-880-632-72-20250629-185729.png)
 
 - [解説記事（note）](https://note.com/dtp_tranist/n/n01d6ef7e9b5f)
+
+「ページ番号を挿入」スクリプトをアップデート
+
+- v1.0.4 「001」のようなゼロ埋め対応
+- v1.0.5 接尾辞フィールド追加し、ダイアログボックスのUIを変更
+
+![](png/ss-672-346-72-20250629-205331.png)

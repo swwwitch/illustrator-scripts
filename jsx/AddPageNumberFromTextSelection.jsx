@@ -6,7 +6,7 @@ AddPageNumberFromTextSelection.jsx
 
 概要:
 _pagenumberレイヤー上で選択されたテキストを基準に、
-すべてのアートボードに連番テキストを複製するスクリプト。
+すべてのアートボードに連番テキストを複製します。
 ユーザーは開始番号・接頭辞・ゼロパディング・総ページ数表示を指定可能。
 アートボード数に応じてページ番号を自動生成します。
 
@@ -20,9 +20,11 @@ _pagenumberレイヤー上で選択されたテキストを基準に、
 - v1.0.1 テキスト複製ロジック修正
 - v1.0.2 ゼロ埋め・接頭辞・総ページ数表示追加
 - v1.0.3 プレビュー機能を追加
+- v1.0.4 「001」のようなゼロ埋め対応
+- v1.0.5 接尾辞フィールド追加し、ダイアログボックスのUIを変更
 
 課題：
-- プレビュー時、元のテキストが残ってしまうため、ダブったように見えます。OKボタンを押せば消えるのですが…
+- プレビュー時、元のテキストが残ってしまい重複して見える問題があります。OKボタンを押すと消えます。
 
 */
 
@@ -43,6 +45,30 @@ var LABELS = {
     errorInvalidSelection: {
         ja: "複製対象のテキストを_pagenumberレイヤーで選択してください",
         en: "Select text in the _pagenumber layer"
+    },
+    prefixLabel: {
+        ja: "接頭辞",
+        en: "Prefix"
+    },
+    suffixLabel: {
+        ja: "接尾辞",
+        en: "Suffix"
+    },
+    zeroPadLabel: {
+        ja: "ゼロ埋め",
+        en: "Zero pad"
+    },
+    totalPageLabel: {
+        ja: "総ページ",
+        en: "Show total pages"
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    ok: {
+        ja: "OK",
+        en: "OK"
     }
 };
 
@@ -82,12 +108,12 @@ function buildPageNumberString(num, maxDigits, prefix, zeroPad, totalPageNum, sh
     return numStr;
 }
 
-// テキスト複製&内容更新（再利用性向上のため小関数化）
-function generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNum, prefix, zeroPad, showTotal) {
+// テキスト複製＆内容更新（再利用性向上のため関数化）
+function generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNum, prefix, zeroPad, showTotal, customDigits, suffix) {
     removeOtherTextFrames(pagenumberLayer, targetText);
     var abCount = doc.artboards.length;
     var maxNum = startNum + abCount - 1;
-    var maxDigits = String(maxNum).length;
+    var maxDigits = customDigits ? customDigits : String(maxNum).length;
     for (var i = 0; i < abCount; i++) {
         var abRect = doc.artboards[i].artboardRect;
         var newTF = targetText.duplicate(pagenumberLayer, ElementPlacement.PLACEATBEGINNING);
@@ -96,32 +122,13 @@ function generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNu
             targetText.position[1] + (abRect[1] - baseRect[1])
         ];
         var numStr = buildPageNumberString(startNum + i, maxDigits, prefix, zeroPad, maxNum, showTotal);
+        numStr += suffix;
         newTF.contents = numStr;
     }
     app.redraw();
 }
 
 function main() {
-    // ダイアログ作成
-    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
-    dialog.orientation = "column";
-    dialog.alignChildren = "left";
-
-    var prefixGroup = dialog.add("group");
-    prefixGroup.orientation = "row";
-    prefixGroup.add("statictext", undefined, "接頭辞");
-    var prefixField = prefixGroup.add("edittext", undefined, "");
-    prefixField.characters = 10;
-
-    var inputGroup = dialog.add("group");
-    inputGroup.orientation = "row";
-    inputGroup.add("statictext", undefined, LABELS.promptMessage[lang]);
-    var inputField = inputGroup.add("edittext", undefined, "1");
-    inputField.characters = 5;
-
-    var zeroPadCheckbox = dialog.add("checkbox", undefined, "ゼロパディング");
-    var totalPageCheckbox = dialog.add("checkbox", undefined, "総ページ数を表示");
-
     if (app.documents.length === 0) return;
     var doc = app.activeDocument;
 
@@ -145,7 +152,8 @@ function main() {
     var abIndexToKeep = 0;
     var baseArtboard = doc.artboards[abIndexToKeep];
     var baseRect = baseArtboard.artboardRect;
-    // アートボード上にあるテキストフレームを探す
+
+    // 1つ目のアートボード上にあるテキストフレームを探す
     for (var i = 0; i < pagenumberLayer.textFrames.length; i++) {
         var tf = pagenumberLayer.textFrames[i];
         var pos = tf.position;
@@ -154,7 +162,7 @@ function main() {
             break;
         }
     }
-    // 1つ目のアートボード以外も検索
+    // 見つからなければ他のアートボードも探索
     if (!targetText) {
         for (var j = 1; j < doc.artboards.length; j++) {
             var abRect = doc.artboards[j].artboardRect;
@@ -191,26 +199,77 @@ function main() {
         return;
     }
 
-    // プレビュー更新
+    // ダイアログ作成
+    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    dialog.orientation = "column";
+    dialog.alignChildren = "left";
+
+    // 親グループ（横並び）
+    var columnsGroup = dialog.add("group");
+    columnsGroup.orientation = "row";
+    columnsGroup.alignChildren = "top";
+
+    // 左カラム: 接頭辞
+    var leftGroup = columnsGroup.add("group");
+    leftGroup.orientation = "column";
+    leftGroup.alignChildren = "left";
+    leftGroup.add("statictext", undefined, LABELS.prefixLabel[lang]);
+    var prefixField = leftGroup.add("edittext", undefined, "");
+    prefixField.characters = 10;
+
+    // 中央カラム: 開始番号 + ゼロ埋め
+    var centerGroup = columnsGroup.add("group");
+    centerGroup.orientation = "column";
+    centerGroup.alignChildren = "left";
+    var inputGroup = centerGroup.add("group");
+    inputGroup.orientation = "column";
+    inputGroup.add("statictext", undefined, LABELS.promptMessage[lang]);
+    var inputField = inputGroup.add("edittext", undefined, "1");
+    inputField.characters = 5;
+    var zeroPadCheckbox = centerGroup.add("checkbox", undefined, LABELS.zeroPadLabel[lang]);
+
+    // 右カラム: 接尾辞 + 総ページ数
+    var rightGroup = columnsGroup.add("group");
+    rightGroup.orientation = "column";
+    rightGroup.alignChildren = "left";
+    rightGroup.add("statictext", undefined, LABELS.suffixLabel[lang]);
+    var suffixField = rightGroup.add("edittext", undefined, "");
+    suffixField.characters = 10;
+    var totalPageCheckbox = rightGroup.add("checkbox", undefined, LABELS.totalPageLabel[lang]);
+
+    // プレビュー更新関数
     function previewUpdate() {
-        var startNum = parseInt(inputField.text, 10);
+        var startNumStr = inputField.text;
+        var startNum = parseInt(startNumStr, 10);
         if (isNaN(startNum)) return;
         var prefix = prefixField.text;
         var zeroPad = zeroPadCheckbox.value;
         var showTotal = totalPageCheckbox.value;
+        var suffix = suffixField.text;
+
+        // 入力がゼロ始まりの場合、桁数を取得しゼロパディングを強制ON
+        var customDigits = 0;
+        if (startNumStr.match(/^0/)) {
+            customDigits = startNumStr.length;
+            zeroPad = true;
+        }
+
         targetText.visible = false;
-        generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNum, prefix, zeroPad, showTotal);
+        generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNum, prefix, zeroPad, showTotal, customDigits, suffix);
     }
 
     zeroPadCheckbox.onClick = previewUpdate;
     totalPageCheckbox.onClick = previewUpdate;
     prefixField.onChanging = previewUpdate;
     inputField.onChanging = previewUpdate;
+    suffixField.onChanging = previewUpdate;
 
+    // ボタン作成
     var buttonGroup = dialog.add("group");
     buttonGroup.orientation = "row";
-    var cancelBtn = buttonGroup.add("button", undefined, "Cancel");
-    var okBtn = buttonGroup.add("button", undefined, "OK");
+    buttonGroup.alignment = "center";
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
+    var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang]);
 
     okBtn.onClick = function() {
         if (targetText && !targetText.locked && targetText.editable) {
