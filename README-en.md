@@ -17,6 +17,15 @@ The user is prompted to enter a starting number, and page numbers are assigned a
 
 https://github.com/swwwitch/illustrator-scripts/blob/839e5bd54cbed5093bec13f92d3e8a0a46438689/jsx/AddPageNumberFromTextSelection.jsx
 
+### Updated
+
+- Preview
+- Zero padding
+- Prefix/Suffix
+- 001
+
+![](png/ss-702-354-72-20250629-211422.png)
+
 ## ApplyDocumentFonts.jsx
 
 This script collects fonts used in the document and displays them in a dialog sorted by usage count. You can apply a selected font to the currently selected text objects immediately.
