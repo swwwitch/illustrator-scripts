@@ -142,7 +142,7 @@ function main() {
     signGroup.margins = [0, 0, 0, 10];
 
     var resultText = shiftPanel.add("statictext", undefined, LABELS.previewLabel[lang] + "0");
-    resultText.characters = 10; // 表示幅を確保
+    resultText.characters = 20; // 表示幅を広くする
     resultText.alignment = "center";
 
     signOptions.onClick = signOptionsNeg.onClick = function() {
@@ -189,7 +189,7 @@ function main() {
         if (signOptionsNeg.value && shiftValue > 0) {
             displayValue = "-" + displayValue;
         }
-        resultText.text = "シフト量: " + displayValue;
+        resultText.text = LABELS.previewLabel[lang] + displayValue;
 
         if (signOptionsNeg.value && shiftValue > 0) {
             shiftValue = -shiftValue;
