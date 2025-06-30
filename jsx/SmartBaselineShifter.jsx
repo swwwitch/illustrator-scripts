@@ -15,7 +15,6 @@ SmartBaselineShifter.jsx
 
 対象環境: ポイント文字・エリア文字を含む選択中のテキストフレーム
 推奨環境: Illustrator 2025以降
-
 Overview (English):
 Applies baseline shift individually by point value to specified characters in selected text frames.
 Allows users to set target characters, shift amount (integer and decimal), sign, and reset options in a dialog with instant preview.
@@ -35,6 +34,7 @@ Recommended: Illustrator 2025 or later
 - v1.0.3（2024-06-29）+/-ボタン追加
 - v1.0.4（2024-06-29）ダイアログを2カラム化、正規表現対応
 - v1.0.5（2024-06-30）選択中の TextRange を含む単一の TextFrame を選択し直すユーティリティ関数追加
+- v1.0.6（2024-06-30）正規表現対応を削除、微調整
 */
 
 
@@ -51,7 +51,6 @@ var LABELS = {
     positive: { ja: "正", en: "Positive" },
     negative: { ja: "負", en: "Negative" },
     resetAll: { ja: "すべてをリセット", en: "Reset All" },
-    regex: { ja: "正規表現対応", en: "Regex" },
     resetBtn: { ja: "初期化", en: "Reset" },
     cancel: { ja: "キャンセル", en: "Cancel" },
     ok: { ja: "OK", en: "OK" },
@@ -168,10 +167,12 @@ function main() {
     resetCheckbox.onClick = function() {
         if (resetCheckbox.value) {
             resetBaselineShift(textFrames);
+            lastTarget = "";
+            lastShift = 0;
             shiftIntInput.text = "0";
             shiftDecInput.text = "0";
             signPositive.value = true;
-            previewShiftAll();
+            resultText.text = LABELS.previewLabel[lang] + "0.0";
             app.redraw();
         }
     };
@@ -183,9 +184,6 @@ function main() {
 
     var targetInput = targetPanel.add("edittext", undefined, defaultTarget);
     targetInput.characters = 15;
-
-    var regexCheckbox = targetPanel.add("checkbox", undefined, LABELS.regex[lang]);
-    regexCheckbox.value = false;
 
     var shiftPanel = leftPanel.add("panel", undefined, LABELS.dialogTitle[lang]);
     shiftPanel.orientation = "column";
@@ -296,7 +294,7 @@ function main() {
     };
 
     cancelBtn.onClick = function() {
-        resetBaselineShift(textFrames, lastTarget);
+        resetBaselineShift(textFrames);
         dialog.close();
     };
 
@@ -321,41 +319,25 @@ function main() {
         resultText.text = LABELS.previewLabel[lang] + displayVal;
 
         if (!targetText || isNaN(shiftValue)) {
-            resetBaselineShift(textFrames, lastTarget);
-            lastTarget = targetText;
+            resetBaselineShift(textFrames);
+            lastTarget = "";
             lastShift = 0;
             app.redraw();
             return;
         }
 
-        resetBaselineShift(textFrames, lastTarget);
-
-        var regex;
-        if (regexCheckbox.value) {
-            try {
-                regex = new RegExp(targetText, "g");
-            } catch (e) {
-                alert(LABELS.error[lang] + e);
-                return;
-            }
-        } else {
-            try {
-                regex = new RegExp(targetText.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"), "g");
-            } catch (e) {
-                alert(LABELS.error[lang] + e);
-                return;
-            }
-        }
+        resetBaselineShift(textFrames);
 
         for (var j = 0; j < textFrames.length; j++) {
             var tf = textFrames[j];
             var contents = tf.contents;
-            regex.lastIndex = 0; // 正規表現の検索開始位置をリセット
-            var match;
-            while ((match = regex.exec(contents)) !== null) {
-                var index = match.index;
-                for (var i = 0; i < match[0].length; i++) {
-                    tf.textRange.characters[index + i].characterAttributes.baselineShift = shiftValue;
+            // indexOfによる高速検索ロジックのみ
+            for (var c = 0; c < targetText.length; c++) {
+                var ch = targetText.charAt(c);
+                var pos = contents.indexOf(ch);
+                while (pos !== -1) {
+                    tf.textRange.characters[pos].characterAttributes.baselineShift = shiftValue;
+                    pos = contents.indexOf(ch, pos + 1);
                 }
             }
         }
@@ -368,4 +350,4 @@ function main() {
     dialog.show();
 }
 
-main();
+main(); 
