@@ -26,16 +26,19 @@ Process:
 3. Preview changes; apply with OK or revert with Cancel
 
 Target Environment: Selected text frames (point and area text supported)
-Last Updated: 2024-06-29
+Last Updated: 2025-06-30
 Recommended: Illustrator 2025 or later
 
 作成日：2024-06-29
 更新日：
 - v1.0.0（2024-06-29）初版
-- v1.0.1（2024-06-29）+/-ボタン追加
-- v1.0.2（2024-06-29）ダイアログを2カラム化、正規表現対応
+- v1.0.3（2024-06-29）+/-ボタン追加
+- v1.0.4（2024-06-29）ダイアログを2カラム化、正規表現対応
+- v1.0.5（2024-06-30）選択中の TextRange を含む単一の TextFrame を選択し直すユーティリティ関数追加
 */
 
+
+// 現在の環境言語を判定（日本語か英語）
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
@@ -59,6 +62,21 @@ var LABELS = {
     previewLabel: { ja: "シフト量: ", en: "Shift Value: " }
 };
 
+// 選択中の TextRange を含む単一の TextFrame を選択し直す
+function selectSingleTextFrameFromTextRange() {
+    if (app.selection.constructor.name === "TextRange") {
+        var textFramesInStory = app.selection.story.textFrames;
+        if (textFramesInStory.length === 1) {
+            app.executeMenuCommand("deselectall"); // 現在の選択を解除
+            app.selection = [textFramesInStory[0]]; // 該当の TextFrame を選択
+            try {
+                app.selectTool("Adobe Select Tool"); // 選択ツールに戻す
+            } catch (e) {}
+        }
+    }
+}
+
+// 指定アイテムからテキストフレームを再帰的に収集
 function collectTextFrames(item, array) {
     if (item.typename === "TextFrame") {
         array.push(item);
@@ -69,30 +87,31 @@ function collectTextFrames(item, array) {
     }
 }
 
+// 指定テキストフレーム群のベースラインシフトをリセット（対象文字列指定可）
 function resetBaselineShift(frames, targetStr) {
     for (var i = 0; i < frames.length; i++) {
         var tf = frames[i];
         var contents = tf.contents;
         try {
+            var chars = tf.textRange.characters;
             if (!targetStr) {
-                // Reset baseline shift for all characters
-                var chars = tf.textRange.characters;
+                // 全文字のベースラインシフトをリセット
                 for (var j = 0; j < chars.length; j++) {
                     chars[j].characterAttributes.baselineShift = 0;
                 }
             } else {
-                // Reset baseline shift only for characters in targetStr
-                for (var k = 0; k < targetStr.length; k++) {
-                    var ch = targetStr.charAt(k);
-                    var index = contents.indexOf(ch);
-                    while (index !== -1) {
-                        tf.textRange.characters[index].characterAttributes.baselineShift = 0;
-                        index = contents.indexOf(ch, index + 1);
+                // 対象文字列にマッチする箇所のみリセット（エスケープ済み正規表現使用）
+                var regex = new RegExp(targetStr.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"), "g");
+                var match;
+                while ((match = regex.exec(contents)) !== null) {
+                    var index = match.index;
+                    for (var k = 0; k < match[0].length; k++) {
+                        chars[index + k].characterAttributes.baselineShift = 0;
                     }
                 }
             }
         } catch (e) {
-            // Ignore errors silently
+            // エラーは無視
         }
     }
 }
@@ -110,6 +129,8 @@ function main() {
         return;
     }
 
+    selectSingleTextFrameFromTextRange();
+
     var textFrames = [];
     for (var i = 0; i < doc.selection.length; i++) {
         collectTextFrames(doc.selection[i], textFrames);
@@ -121,6 +142,7 @@ function main() {
 
     resetBaselineShift(textFrames);
 
+    // 対象文字列の初期値設定（数字と空白以外のユニーク文字）
     var defaultTarget = "";
     var contents = textFrames[0].contents;
     var matches = contents.match(/[^0-9\s]/g);
@@ -182,7 +204,6 @@ function main() {
     signGroup.margins = [0, 10, 0, 0];
 
     var shiftGroup = shiftPanel.add("group");
-    // shiftGroup.add("statictext", undefined, LABELS.shiftValue[lang]);
 
     var shiftIntInput = shiftGroup.add("edittext", undefined, "0");
     shiftIntInput.characters = 3;
@@ -192,9 +213,9 @@ function main() {
     intSignGroup.alignment = "center";
     intSignGroup.spacing = 2;
     var plusIntBtn = intSignGroup.add("button", undefined, "+");
-    plusIntBtn.preferredSize = [25, 20];
+    plusIntBtn.preferredSize = [18, 18];
     var minusIntBtn = intSignGroup.add("button", undefined, "−");
-    minusIntBtn.preferredSize = [25, 20];
+    minusIntBtn.preferredSize = [18, 18];
 
     plusIntBtn.onClick = function() {
         var val = parseInt(shiftIntInput.text, 10);
@@ -218,9 +239,9 @@ function main() {
     decSignGroup.alignment = "center";
     decSignGroup.spacing = 2;
     var plusDecBtn = decSignGroup.add("button", undefined, "+");
-    plusDecBtn.preferredSize = [25, 20];
+    plusDecBtn.preferredSize = [18, 18];
     var minusDecBtn = decSignGroup.add("button", undefined, "−");
-    minusDecBtn.preferredSize = [25, 20];
+    minusDecBtn.preferredSize = [18, 18];
 
     plusDecBtn.onClick = function() {
         var val = parseInt(shiftDecInput.text, 10);
@@ -283,6 +304,7 @@ function main() {
         dialog.close();
     };
 
+    // ベースラインシフトのプレビュー適用処理
     function previewShiftAll() {
         var targetText = targetInput.text;
         var intPart = parseInt(shiftIntInput.text, 10);
@@ -317,12 +339,18 @@ function main() {
                 return;
             }
         } else {
-            regex = new RegExp(targetText.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"), "g");
+            try {
+                regex = new RegExp(targetText.replace(/([.*+?^=!:${}()|\[\]\/\\])/g, "\\$1"), "g");
+            } catch (e) {
+                alert(LABELS.error[lang] + e);
+                return;
+            }
         }
 
         for (var j = 0; j < textFrames.length; j++) {
             var tf = textFrames[j];
             var contents = tf.contents;
+            regex.lastIndex = 0; // 正規表現の検索開始位置をリセット
             var match;
             while ((match = regex.exec(contents)) !== null) {
                 var index = match.index;
