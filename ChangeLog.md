@@ -46,3 +46,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/807a117b19ac3f623781bb9290b
 解説記事：
 
 https://note.com/dtp_tranist/n/n2e19ad0bdb83
+
+### 20250702
+
+「グループ化」スクリプトにアートボード変換を追加
+
+![](png/ss-882-652-72-20250702-162914.png)
+
+https://github.com/swwwitch/illustrator-scripts/blob/d07214f51eb2695fe0c9117f092b0c5bc46a48c2/jsx/SmartAutoGroup.jsx
