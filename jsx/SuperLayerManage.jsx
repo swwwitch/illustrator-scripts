@@ -16,7 +16,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     更新履歴：
     - v1.0.0（2025-07-03） : 初版リリース
-    - v1.0.1（2025-07-06） : 表記・ロジック整理
 */
 
 // Unlock, unhide, and move item
@@ -45,7 +44,7 @@ function main() {
         selectedObj: { ja: "選択中", en: "Selected" },
         allObj: { ja: "すべて", en: "All Objects" },
         allText: { ja: "テキストのみ", en: "All Text" },
-        deleteEmpty: { ja: "空のレイヤーを削除", en: "Delete Empty Layers" },
+        deleteEmpty: { ja: "空レイヤーを削除", en: "Delete Empty Layers" },
         layerList: { ja: "移動先のレイヤー", en: "Target Layer" },
         move: { ja: "移動", en: "Move" },
         close: { ja: "閉じる", en: "Close" },
@@ -77,7 +76,7 @@ function main() {
     var deleteGroup = leftGroup.add("group");
     deleteGroup.orientation = "row";
     deleteGroup.alignChildren = ["center", "center"];
-    deleteGroup.margins = [0, 5, 0, 0];
+    deleteGroup.margins = [5, 5, 0, 0];
 
     var deleteEmptyLayersCheckbox = deleteGroup.add("checkbox", undefined, LABELS.deleteEmpty[lang]);
     deleteEmptyLayersCheckbox.value = true;
