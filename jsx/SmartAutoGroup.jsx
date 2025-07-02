@@ -2,28 +2,27 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-SmartAutoGroup.jsx
+  SmartAutoGroup.jsx
 
-選択オブジェクトを自動的にグループ化するIllustrator用スクリプト。
-グループ化条件は以下から選択可能：
+  選択したオブジェクトを以下のいずれかの条件で自動的にグループ化します：
   - 重なり（のみ）
-  - 垂直方向（近接）
-  - 水平方向（近接）
-  - 近接度（距離しきい値指定）
+  - 垂直方向（近接しているもの）
+  - 水平方向（近接しているもの）
+  - 近接度（距離しきい値に応じて）
 
-【主な機能】
-- UIでモード選択・しきい値設定
-- Illustrator標準groupコマンドでグループ化
-- グループ化後は新規グループのみを選択状態に
-- 未グループ化がある場合、再実行確認ダイアログを表示（「重なり（のみ）」以外）
+  【機能】
+  - UIでモード選択＋しきい値スライダー（「重なり（のみ）」以外で有効）
+  - グループ化単位ごとに Illustrator 標準の group コマンドで結合
+  - グループ化後のオブジェクトのみ選択状態に
+  - 未グループ化がある場合、再実行を促す確認ダイアログ付き（「重なり（のみ）」除く）
 
-【対象】
-- 複数選択オブジェクト（グループ含む）
-- アクティブドキュメント必須
+  【対象】
+  - 複数選択されたオブジェクト（グループ含む）
+  - アクティブドキュメントがあること
 
-【更新履歴】
--v1.0.0（2025-06-11）初版リリース
--v1.0.1（2025-06-12）ダイアログUIの改善、アートボード変換オプション追加
+  作成日：2025-06-11
+  更新日：2025-06-11
+  バージョン：1.0.0
 */
 
 var groupMode = "horizontal";
@@ -34,15 +33,11 @@ function getCurrentLang() {
 
 var lang = getCurrentLang();
 
-// UI表示用ラベル（日英・使用順）
+// 日英ラベル定義（UI表示順）
 var LABELS = {
     modeGroupTitle: {
-        ja: "グループ化からのアートボード変換",
+        ja: "グループ化",
         en: "Group"
-    },
-    overlapOnly: {
-        ja: "重なり（のみ）",
-        en: "Overlap Only"
     },
     vertical: {
         ja: "垂直方向",
@@ -52,9 +47,9 @@ var LABELS = {
         ja: "水平方向",
         en: "Horizontal"
     },
-    proximity: {
-        ja: "近接度",
-        en: "Proximity"
+    overlapOnly: {
+        ja: "重なり（のみ）",
+        en: "Overlap Only"
     },
     threshold: {
         ja: "しきい値（px）",
@@ -76,109 +71,39 @@ var LABELS = {
         ja: "グループ化されなかったオブジェクトが {0} 個あります。\n再実行しますか？",
         en: "{0} objects were not grouped.\nDo you want to retry?"
     },
-    artboardPanel: {
-        ja: "アートボード化",
-        en: "Artboard"
-    },
-    convertToArtboard: {
-        ja: "アートボードに変換",
-        en: "Convert to Artboard"
-    },
-    margin: {
-        ja: "マージン",
-        en: "Margin"
+    proximity: {
+        ja: "近接度",
+        en: "Proximity"
     }
 };
 
-// ダイアログUI表示・ユーザー選択取得
+// function getTopmostPath is unused and can be removed.
+
+
+// ダイアログUIの表示とユーザー選択取得
 function showDialog(prevThreshold, prevGroupMode) {
     var dialog = new Window("dialog", LABELS.modeGroupTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
-    dialog.margins = [15, 20, 15, 10];
-    dialog.spacing = 10;
+    dialog.margins = [25, 10, 25, 10];
 
-
-    // ドキュメントの rulerUnits を判定し、表示用の単位文字列を取得
-    var unitMap = {};
-    unitMap[RulerUnits.Inches] = "in";
-    unitMap[RulerUnits.Millimeters] = "mm";
-    unitMap[RulerUnits.Points] = "pt";
-    unitMap[RulerUnits.Picas] = "pica";
-    unitMap[RulerUnits.Centimeters] = "cm";
-    unitMap[RulerUnits.Pixels] = "px";
-    unitMap[RulerUnits.Feet] = "ft";
-    unitMap[RulerUnits.Meters] = "m";
-    unitMap[RulerUnits.Yards] = "yd";
-    var rulerType = app.activeDocument.rulerUnits;
-    var rulerUnit = unitMap[rulerType] ? unitMap[rulerType] : "pt";
-
-    // メイン3カラムグループ
-    var mainGroup = dialog.add("group");
-    mainGroup.orientation = "row";
-    mainGroup.alignChildren = "top";
-
-    // 左カラム
-    var leftColumn = mainGroup.add("group");
-    leftColumn.orientation = "column";
-    leftColumn.alignChildren = "left";
-
-    // グループ化モードラジオボタン
-    var modeGroup = leftColumn.add("group");
+    var modeGroup = dialog.add("group");
     modeGroup.orientation = "column";
     modeGroup.alignChildren = "left";
     modeGroup.margins = [15, 10, 15, 10];
+
     var radioButtons = {
         overlapOnly: modeGroup.add("radiobutton", undefined, LABELS.overlapOnly[lang]),
         vertical: modeGroup.add("radiobutton", undefined, LABELS.vertical[lang]),
         horizontal: modeGroup.add("radiobutton", undefined, LABELS.horizontal[lang]),
         proximity: modeGroup.add("radiobutton", undefined, LABELS.proximity[lang])
     };
-
-    // しきい値設定パネル
-    var thresholdGroup = leftColumn.add("panel", undefined, LABELS.threshold[lang]);
+    var thresholdGroup = dialog.add("panel", undefined, LABELS.threshold[lang]);
     thresholdGroup.orientation = "column";
     thresholdGroup.alignChildren = "left";
     thresholdGroup.margins = [15, 20, 15, 10];
     thresholdGroup.enabled = true;
 
-    // アートボード関連パネル（中央カラムに移動）
-    // 中央カラム（空）
-    var centerColumn = mainGroup.add("group");
-    centerColumn.orientation = "column";
-    centerColumn.alignChildren = "left";
-
-    var artboardPanel = centerColumn.add("panel", undefined, LABELS.artboardPanel[lang]);
-    artboardPanel.orientation = "column";
-    artboardPanel.alignChildren = "left";
-    artboardPanel.margins = [15, 25, 15, 10];
-    var convertCheck = artboardPanel.add("checkbox", undefined, LABELS.convertToArtboard[lang]);
-    convertCheck.value = false;
-    // プレビュー境界チェックボックスを追加
-    var previewBoundsCheck = artboardPanel.add("checkbox", undefined, "プレビュー境界");
-    previewBoundsCheck.value = false;
-    // マージン入力欄
-    var marginGroup = artboardPanel.add("group");
-    marginGroup.orientation = "column";
-    marginGroup.alignChildren = "left";
-    var marginLabel = marginGroup.add("statictext", undefined, LABELS.margin[lang] + ":");
-    var inputGroup = marginGroup.add("group");
-    inputGroup.orientation = "row";
-    var marginInput = inputGroup.add("edittext", undefined, "0");
-    marginInput.characters = 5;
-    var marginUnitLabel = inputGroup.add("statictext", undefined, rulerUnit);
-    // 既存のアートボードを削除チェックボックスを追加（順序をマージンの後に変更）
-    var deleteArtboardsCheck = artboardPanel.add("checkbox", undefined, "既存のアートボードを削除");
-    deleteArtboardsCheck.value = false;
-
-    // （中央カラムの定義はアートボードパネル追加に移動済み）
-
-    // 右カラム（空）
-    var rightColumn = mainGroup.add("group");
-    rightColumn.orientation = "column";
-    rightColumn.alignChildren = "left";
-
-    // モード選択時のしきい値有効/無効切替
     radioButtons.vertical.onClick = function() {
         thresholdGroup.enabled = true;
     };
@@ -192,7 +117,6 @@ function showDialog(prevThreshold, prevGroupMode) {
         thresholdGroup.enabled = true;
     };
 
-    // 直前のモード・値を反映
     if (prevGroupMode === "vertical") {
         radioButtons.vertical.value = true;
         thresholdGroup.enabled = true;
@@ -207,53 +131,47 @@ function showDialog(prevThreshold, prevGroupMode) {
         thresholdGroup.enabled = true;
     }
 
-    // しきい値スライダー
     var thresholdSlider = thresholdGroup.add("slider", undefined, 10, 0, 100);
     thresholdSlider.value = prevThreshold;
     thresholdSlider.preferredSize.width = 150;
     var thresholdLabel = thresholdGroup.add("statictext", undefined, Math.round(thresholdSlider.value) + " pt");
     thresholdLabel.alignment = "center";
     thresholdLabel.characters = 5;
-    thresholdSlider.onChanging = function() {
-        thresholdLabel.text = Math.round(thresholdSlider.value) + " pt";
-    };
 
-    // ボタンをダイアログ下部に横並びで配置
     var buttonGroup = dialog.add("group");
     buttonGroup.orientation = "row";
     buttonGroup.alignment = "right";
-    buttonGroup.margins = [0, 10, 0, 10];
+    buttonGroup.margins = [0, 10, 0, 10]
     var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-    var okBtn = buttonGroup.add("button", undefined, "OK", {
+    var okBtn = buttonGroup.add("button", undefined, LABELS.group[lang], {
         name: "ok"
     });
 
     dialog.text = LABELS.modeGroupTitle[lang];
 
-    // ボタンクリック時処理
-    var dialogResult = null;
+    thresholdSlider.onChanging = function() {
+        thresholdLabel.text = Math.round(thresholdSlider.value) + " pt";
+    };
+
     cancelBtn.onClick = function() {
         dialog.close();
     };
     okBtn.onClick = function() {
         overlapThreshold = thresholdSlider.value;
-        if (radioButtons.vertical.value) groupMode = "vertical";
-        else if (radioButtons.horizontal.value) groupMode = "horizontal";
-        else if (radioButtons.overlapOnly.value) groupMode = "overlapOnly";
-        else if (radioButtons.proximity.value) groupMode = "proximity";
-        dialogResult = {
-            overlapThreshold: thresholdSlider.value,
-            groupMode: groupMode,
-            convertToArtboard: convertCheck.value,
-            marginValue: marginInput.text,
-            deleteArtboards: deleteArtboardsCheck.value,
-            usePreviewBounds: previewBoundsCheck.value
-        };
+        if (radioButtons.vertical.value) {
+            groupMode = "vertical";
+        } else if (radioButtons.horizontal.value) {
+            groupMode = "horizontal";
+        } else if (radioButtons.overlapOnly.value) {
+            groupMode = "overlapOnly";
+        } else if (radioButtons.proximity.value) {
+            groupMode = "proximity";
+        }
         dialog.close(1);
     };
+
     var result = dialog.show();
-    if (result !== 1) return null;
-    return dialogResult;
+    return result;
 }
 
 // 汎用DFS探索でグループ化（方向指定可）
@@ -361,32 +279,60 @@ function getOverlapRatio(a, b) {
     return overlapArea / maxArea;
 }
 
-// ※sortByZOrder関数は未使用のため削除
+// アイテムの配列を zOrderPosition に基づいて昇順ソート
+function sortByZOrder(items) {
+    return items.slice().sort(function(a, b) {
+        var za = -1,
+            zb = -1;
+        try {
+            za = a.zOrderPosition;
+        } catch (e) {}
+        try {
+            zb = b.zOrderPosition;
+        } catch (e) {}
+        return za - zb;
+    });
+}
+
+// アイテムを zOrder でソートしてグループに移動
 
 // 共通グループ化処理（direction: "horizontal"|"vertical"）
 function groupOverlappingObjectsByDirection(direction) {
     if (!app.documents.length) return;
     var items = app.activeDocument.selection;
     if (!items || items.length === 0) return;
+
     var threshold = -2;
     var groups = getGroupedOverlappingItems(items, threshold, direction);
+
     var doc = app.activeDocument;
     var newGroups = [];
     for (var i = 0; i < groups.length; i++) {
         var group = groups[i];
         if (group.length <= 1) continue;
-        // グループ化前のレイヤーを保持
+
+        // Save the original layer before grouping
         var originalLayer = group[0].layer;
+
         app.executeMenuCommand('deselectall');
         for (var j = 0; j < group.length; j++) {
             group[j].selected = true;
         }
         app.executeMenuCommand('group');
         var newGroup = app.activeDocument.selection[0];
-        // グループを元レイヤーへ戻す
+        // Restore the new group's layer to the original layer
         newGroup.layer = originalLayer;
         newGroups.push(newGroup);
     }
+    // The following block is no longer needed since the group is now placed in the original layer:
+    /*
+    for (var i = 0; i < newGroups.length; i++) {
+        try {
+            newGroups[i].move(doc, ElementPlacement.PLACEATEND);
+        } catch (e) {}
+    }
+    */
+
     // グループ化されなかった単独オブジェクト数をカウントし再実行確認
     var ungroupedCount = 0;
     for (var i = 0; i < groups.length; i++) {
@@ -412,60 +358,22 @@ function groupOverlappingObjectsByDirection(direction) {
     return newGroups;
 }
 
-// メイン処理
 function main(prevThreshold, prevGroupMode) {
     overlapThreshold = (typeof prevThreshold === "number") ? prevThreshold : 10;
     if (!app.documents.length) return;
     var selection = app.activeDocument.selection;
     if (!selection || selection.length === 0) return;
-    var dialogResult = showDialog(overlapThreshold, prevGroupMode);
-    if (!dialogResult) return;
-    // ダイアログ結果を取得
-    overlapThreshold = dialogResult.overlapThreshold;
-    groupMode = dialogResult.groupMode;
-    var convertToArtboard = dialogResult.convertToArtboard;
-    var marginValue = dialogResult.marginValue;
-    var deleteArtboards = dialogResult.deleteArtboards;
-    var usePreviewBounds = dialogResult.usePreviewBounds;
-    var newGroups = [];
-    // グループ化本体
+    var result = showDialog(overlapThreshold, prevGroupMode);
+    if (result !== 1) return;
+    // overlapThreshold は showDialog() 内で更新される
     if (groupMode === "vertical") {
-        newGroups = groupOverlappingObjectsByDirection("vertical");
+        groupOverlappingObjectsByDirection("vertical");
     } else if (groupMode === "overlapOnly") {
-        newGroups = groupOverlappingObjectsByOverlap();
+        groupOverlappingObjectsByOverlap();
     } else if (groupMode === "proximity") {
-        newGroups = groupOverlappingObjectsByProximity();
+        groupOverlappingObjectsByProximity();
     } else {
-        newGroups = groupOverlappingObjectsByDirection("horizontal");
-    }
-    // アートボード変換（オプション）
-    if (convertToArtboard && newGroups && newGroups.length > 0) {
-        var doc = app.activeDocument;
-        var margin = parseFloat(marginValue);
-        if (isNaN(margin)) margin = 0;
-        // 既存アートボード数を保持
-        var initialCount = doc.artboards.length;
-        // 先にアートボードを追加
-        for (var i = 0; i < newGroups.length; i++) {
-            var bounds = usePreviewBounds ? newGroups[i].visibleBounds : newGroups[i].geometricBounds;
-            var left = bounds[0] - margin;
-            var top = bounds[1] + margin;
-            var right = bounds[2] + margin;
-            var bottom = bounds[3] - margin;
-            // Illustratorのアートボード：[左, 上, 右, 下]
-            try {
-                doc.artboards.add([left, top, right, bottom]);
-            } catch (e) {
-                // エラー時は何もしない
-            }
-        }
-        // 既存アートボードを削除（オプション）
-        if (deleteArtboards) {
-            // 新規アートボード以外を削除（先頭から initialCount 個を削除）
-            for (var i = initialCount - 1; i >= 0; i--) {
-                doc.artboards.remove(i);
-            }
-        }
+        groupOverlappingObjectsByDirection("horizontal");
     }
 }
 
@@ -473,14 +381,16 @@ function main(prevThreshold, prevGroupMode) {
 var defaultGroupMode = detectDefaultGroupMode();
 main(10, defaultGroupMode);
 
-// 選択範囲の縦横比からデフォルトグループモードを自動判定
+// デフォルトグループモードを選択範囲から自動判定
 function detectDefaultGroupMode() {
     if (!app.documents.length) return "horizontal";
     var sel = app.activeDocument.selection;
     if (!sel || sel.length === 0) return "horizontal";
+
     var bounds = getCombinedBounds(sel);
     var width = bounds[2] - bounds[0];
     var height = bounds[1] - bounds[3];
+
     return (width >= height) ? "horizontal" : "vertical";
 }
 
@@ -499,18 +409,21 @@ function getCombinedBounds(items) {
     }
     return [left, top, right, bottom];
 }
-// 重なりのみでグループ化（overlapOnlyモード）
+// 重なりのみでグループ化する関数（overlapOnlyモード用）
 function groupOverlappingObjectsByOverlap() {
     if (!app.documents.length) return;
     var sel = app.activeDocument.selection;
     if (!sel || sel.length === 0) return;
-    var threshold = -1; // 重なりのみ
+
+    var threshold = -1; // 重なりのみで判定するため
     var groups = getGroupedOverlappingItems(sel, threshold);
     var doc = app.activeDocument;
     var newGroups = [];
+
     for (var i = 0; i < groups.length; i++) {
         var group = groups[i];
         if (group.length <= 1) continue;
+
         app.executeMenuCommand('deselectall');
         for (var j = 0; j < group.length; j++) {
             group[j].selected = true;
@@ -519,11 +432,13 @@ function groupOverlappingObjectsByOverlap() {
         var newGroup = app.activeDocument.selection[0];
         newGroups.push(newGroup);
     }
+
     for (var i = 0; i < newGroups.length; i++) {
         try {
             newGroups[i].move(doc, ElementPlacement.PLACEATEND);
         } catch (e) {}
     }
+
     app.activeDocument.selection = null;
     for (var i = 0; i < newGroups.length; i++) {
         newGroups[i].selected = true;
@@ -538,17 +453,20 @@ function groupOverlappingObjectsByOverlap() {
     return newGroups;
 }
 
-// 近接度によるグループ化（proximityモード）
+// 近接度によるグループ化（proximity モード）
 function groupOverlappingObjectsByProximity() {
     if (!app.documents.length) return;
     var sel = app.activeDocument.selection;
     if (!sel || sel.length === 0) return;
+
     var groups = getGroupedOverlappingItems(sel, overlapThreshold);
     var doc = app.activeDocument;
     var newGroups = [];
+
     for (var i = 0; i < groups.length; i++) {
         var group = groups[i];
         if (group.length <= 1) continue;
+
         app.executeMenuCommand('deselectall');
         for (var j = 0; j < group.length; j++) {
             group[j].selected = true;
@@ -557,11 +475,13 @@ function groupOverlappingObjectsByProximity() {
         var newGroup = app.activeDocument.selection[0];
         newGroups.push(newGroup);
     }
+
     for (var i = 0; i < newGroups.length; i++) {
         try {
             newGroups[i].move(doc, ElementPlacement.PLACEATEND);
         } catch (e) {}
     }
+
     // グループ化されなかった単独オブジェクト数をカウントし再実行確認
     var ungroupedCount = 0;
     for (var i = 0; i < groups.length; i++) {
@@ -576,10 +496,12 @@ function groupOverlappingObjectsByProximity() {
         }
         return;
     }
+
     app.activeDocument.selection = null;
     for (var i = 0; i < newGroups.length; i++) {
         newGroups[i].selected = true;
     }
+
     if (newGroups.length === 0) {
         alert((lang === "ja") ? "グループ化は行われませんでした" : "No groups were created.");
     } else {
@@ -587,5 +509,7 @@ function groupOverlappingObjectsByProximity() {
         app.redraw();
         alert(alertMsg);
     }
+
     return newGroups;
 }
+
