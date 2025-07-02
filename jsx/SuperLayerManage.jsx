@@ -1,34 +1,30 @@
+// Illustratorスクリプトとして実行（必須）
 #target illustrator
+// JSX外部スクリプト警告を非表示
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
     スクリプト名：SuperLayerManage.jsx
 
     概要:
-    Illustrator ドキュメント内のオブジェクトを指定レイヤーに一括移動するスクリプトです。
-    「選択オブジェクト」「すべてのオブジェクト」「すべてのテキストオブジェクト」から移動対象を選べます。
-    オプションで空レイヤーを削除できます（"bg" および "//" で始まるレイヤーは削除対象外）。
-    移動後、対象レイヤーのカラーを RGB(79, 128, 255) に設定します。
-
-    English Description:
-    Move objects in an Illustrator document to a specified layer in bulk.
-    You can choose "Selected Objects", "All Objects", or "All Text Objects".
-    Optionally delete empty layers (except those named "bg" or starting with "//").
-    After moving, the layer color is set to RGB(79, 128, 255).
+    Illustratorドキュメント内のオブジェクトを指定レイヤーへ一括移動するツール。
+    モード: 「選択オブジェクト」「すべてのオブジェクト」「すべてのテキストオブジェクト」
+    オプション: 空レイヤー削除（"bg" および "//" で始まるレイヤーは除外）
+    移動先レイヤーのカラーを RGB(79, 128, 255) に変更
 
     更新履歴：
     - v1.0.0（2025-07-03）: 初版リリース
-    - v1.0.1（2025-07-03） : レイヤーカラーを変更
-    - v1.0.2（2025-07-03） : 選択していないとき、自動的に「すべて」を選択、空レイヤーのロジックを調整
+    - v1.0.1（2025-07-03）: レイヤーカラー変更機能追加
+    - v1.0.2（2025-07-03）: 自動選択判定、空レイヤー削除ロジック改善
 */
 
-// Unlock and unhide all objects in the document
+// すべてのロックと非表示を解除
 function unlockAndShowAll() {
     app.executeMenuCommand('unlockAll');
     app.executeMenuCommand('showAll');
 }
 
-// Unlock, unhide, and move a single item to the target layer
+// 個別アイテムのロック解除・表示・移動
 function prepareAndMoveItem(item, targetLayer) {
     try {
         item.locked = false;
@@ -50,17 +46,18 @@ function main() {
         layerNames[i] = layers[i].name;
     }
 
+    // UIラベル定義（未使用項目は削除済み）
     var LABELS = {
         dialogTitle: { ja: "レイヤー管理ツール", en: "Layer Management Tool" },
         panelTitle: { ja: "対象オブジェクト", en: "Target Objects" },
-        selectedObj: { ja: "選択中", en: "Selected" },
-        allObj: { ja: "すべて", en: "All Objects" },
-        allText: { ja: "テキストのみ", en: "All Text" },
+        selectedObj: { ja: "選択オブジェクト", en: "Selected Objects" },
+        allObj: { ja: "すべてのオブジェクト", en: "All Objects" },
+        allText: { ja: "テキストオブジェクト", en: "Text Only" },
         deleteEmpty: { ja: "空レイヤーを削除", en: "Delete Empty Layers" },
-        layerList: { ja: "移動先のレイヤー", en: "Target Layer" },
+        layerList: { ja: "移動先レイヤー", en: "Target Layer" },
         move: { ja: "移動", en: "Move" },
         close: { ja: "閉じる", en: "Close" },
-        noLayerSelected: { ja: "移動先のレイヤーを選択してください。", en: "Please select a target layer." },
+        noLayerSelected: { ja: "移動先レイヤーを選択してください。", en: "Please select a target layer." },
         noSelection: { ja: "オブジェクトが選択されていません。", en: "No objects selected." }
     };
 
@@ -86,6 +83,7 @@ function main() {
     var sel = doc.selection;
     var hasSelection = sel && sel.length > 0;
 
+    // デフォルト選択：オブジェクト選択有無で自動判定
     radioSelected.value = hasSelection;
     radioAll.value = !hasSelection;
 
@@ -128,6 +126,7 @@ function main() {
     var closeBtn = buttonGroup.add("button", undefined, LABELS.close[lang]);
 
     moveBtn.onClick = function() {
+        // 移動先レイヤー取得
         var targetLayerName = null;
         for (var i = 0; i < radioButtons.length; i++) {
             if (radioButtons[i].value) {
@@ -141,8 +140,8 @@ function main() {
         }
         var targetLayer = doc.layers.getByName(targetLayerName);
 
+        // 移動対象アイテム収集
         var itemsToMove = [];
-
         if (radioSelected.value) {
             var sel = doc.selection;
             if (!sel || sel.length === 0) {
@@ -154,26 +153,25 @@ function main() {
             itemsToMove = doc.textFrames;
         } else {
             unlockAndShowAll();
-            // Collect all pageItems recursively from all layers and sublayers
             for (var l = 0; l < doc.layers.length; l++) {
                 collectAllItemsFromLayerRecursive(doc.layers[l], itemsToMove);
             }
         }
 
+        // アイテムを移動
         for (var k = 0; k < itemsToMove.length; k++) {
             prepareAndMoveItem(itemsToMove[k], targetLayer);
         }
 
-        // Delete empty layers except those named "bg" or starting with "//"
+        // 空レイヤー削除（bg, // 除外）
         if (deleteEmptyLayersCheckbox.value) {
             for (var l = layers.length - 1; l >= 0; l--) {
                 deleteEmptyLayersRecursive(layers[l]);
             }
         }
 
-        // Set the target layer color to RGB(79, 128, 255)
+        // レイヤーカラー変更
         changeSelectedLayerColorToRGB(targetLayer, 79, 128, 255);
-
         dlg.close();
     };
 
@@ -184,7 +182,7 @@ function main() {
     dlg.show();
 }
 
-// Recursively collect all pageItems (including inside groups) into arr
+// コンテナ（グループなど）から全pageItemsを再帰的に収集
 function collectAllItemsRecursive(container, arr) {
     for (var i = 0; i < container.pageItems.length; i++) {
         var item = container.pageItems[i];
@@ -195,9 +193,8 @@ function collectAllItemsRecursive(container, arr) {
     }
 }
 
-// Recursively collect all pageItems (including inside groups) from layers and sublayers
+// レイヤー・サブレイヤーから全pageItemsを収集
 function collectAllItemsFromLayerRecursive(layer, arr) {
-    // layer 自身の pageItems
     for (var i = 0; i < layer.pageItems.length; i++) {
         var item = layer.pageItems[i];
         arr.push(item);
@@ -205,24 +202,22 @@ function collectAllItemsFromLayerRecursive(layer, arr) {
             collectAllItemsRecursive(item, arr);
         }
     }
-    // サブレイヤー
     for (var j = 0; j < layer.layers.length; j++) {
         collectAllItemsFromLayerRecursive(layer.layers[j], arr);
     }
 }
 
-// Recursively delete empty layers except those named "bg" or starting with "//"
+// 空レイヤーを再帰的に削除（bg, // で始まるレイヤーは除外）
 function deleteEmptyLayersRecursive(layer) {
     for (var i = layer.layers.length - 1; i >= 0; i--) {
-        var subLayer = layer.layers[i];
-        deleteEmptyLayersRecursive(subLayer);
+        deleteEmptyLayersRecursive(layer.layers[i]);
     }
     if (layer.pageItems.length === 0 && layer.layers.length === 0 && layer.name !== "bg" && layer.name.indexOf("//") !== 0) {
         layer.remove();
     }
 }
 
-// Change the color of one or more layers to the specified RGB color
+// レイヤーカラーをRGBで変更
 function changeSelectedLayerColorToRGB(targetLayers, r, g, b) {
     if (!targetLayers) {
         alert("レイヤーが指定されていません。");
