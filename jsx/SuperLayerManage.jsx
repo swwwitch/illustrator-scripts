@@ -4,21 +4,30 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
     スクリプト名：SuperLayerManage.jsx
 
-    概要: 
-    Illustrator ドキュメント内のオブジェクトを指定レイヤーへ一括移動します。
-    対象は「選択オブジェクト」「すべてのオブジェクト」「すべてのテキストオブジェクト」から選べます。
-    オプションで空レイヤーの削除が可能です（"bg" と "//" で始まるレイヤーは削除対象外）。
+    概要:
+    Illustrator ドキュメント内のオブジェクトを指定レイヤーに一括移動するスクリプトです。
+    「選択オブジェクト」「すべてのオブジェクト」「すべてのテキストオブジェクト」から移動対象を選べます。
+    オプションで空レイヤーを削除できます（"bg" および "//" で始まるレイヤーは削除対象外）。
+    移動後、対象レイヤーのカラーを RGB(79, 128, 255) に設定します。
 
     English Description:
     Move objects in an Illustrator document to a specified layer in bulk.
-    You can choose between "Selected Objects", "All Objects", or "All Text Objects".
-    Optionally delete empty layers (layers named "bg" or starting with "//" are excluded).
+    You can choose "Selected Objects", "All Objects", or "All Text Objects".
+    Optionally delete empty layers (except those named "bg" or starting with "//").
+    After moving, the layer color is set to RGB(79, 128, 255).
 
     更新履歴：
-    - v1.0.0（2025-07-03） : 初版リリース
+    - v1.0.0（2025-07-03）: 初版リリース
+    - v1.0.1（2025-07-03） : レイヤーカラーを変更
 */
 
-// Unlock, unhide, and move item
+// Unlock and unhide all objects in the document
+function unlockAndShowAll() {
+    app.executeMenuCommand('unlockAll');
+    app.executeMenuCommand('showAll');
+}
+
+// Unlock, unhide, and move a single item to the target layer
 function prepareAndMoveItem(item, targetLayer) {
     try {
         item.locked = false;
@@ -36,7 +45,9 @@ function main() {
     var doc = app.activeDocument;
     var layers = doc.layers;
     var layerNames = [];
-    for (var i = 0; i < layers.length; i++) layerNames[i] = layers[i].name;
+    for (var i = 0; i < layers.length; i++) {
+        layerNames[i] = layers[i].name;
+    }
 
     var LABELS = {
         dialogTitle: { ja: "レイヤー管理ツール", en: "Layer Management Tool" },
@@ -119,41 +130,30 @@ function main() {
         }
         var targetLayer = doc.layers.getByName(targetLayerName);
 
-        // Move selected objects
+        var itemsToMove = [];
+
         if (radioSelected.value) {
             var sel = doc.selection;
             if (!sel || sel.length === 0) {
                 alert(LABELS.noSelection[lang]);
                 return;
             }
-            for (var i = 0; i < sel.length; i++) {
-                prepareAndMoveItem(sel[i], targetLayer);
-            }
-
-        // Move all text objects
+            itemsToMove = sel;
         } else if (radioAllText.value) {
-            var allTextItems = doc.textFrames;
-            for (var j = 0; j < allTextItems.length; j++) {
-                prepareAndMoveItem(allTextItems[j], targetLayer);
-            }
-
-        // Move all objects
+            itemsToMove = doc.textFrames;
         } else {
-            app.executeMenuCommand('unlockAll');
-            app.executeMenuCommand('showAll');
-
-            // Collect all items recursively from all layers
-            var allItems = [];
+            unlockAndShowAll();
+            // Collect all pageItems recursively from all layers
             for (var l = 0; l < doc.layers.length; l++) {
-                collectAllItemsRecursive(doc.layers[l], allItems);
-            }
-
-            for (var k = 0; k < allItems.length; k++) {
-                prepareAndMoveItem(allItems[k], targetLayer);
+                collectAllItemsRecursive(doc.layers[l], itemsToMove);
             }
         }
 
-        // Optionally delete empty layers except "bg" and layers starting with "//"
+        for (var k = 0; k < itemsToMove.length; k++) {
+            prepareAndMoveItem(itemsToMove[k], targetLayer);
+        }
+
+        // Delete empty layers except those named "bg" or starting with "//"
         if (deleteEmptyLayersCheckbox.value) {
             for (var l = layers.length - 1; l >= 0; l--) {
                 var lyr = layers[l];
@@ -163,6 +163,9 @@ function main() {
                 }
             }
         }
+
+        // Set the target layer color to RGB(79, 128, 255)
+        changeSelectedLayerColorToRGB(targetLayer, 79, 128, 255);
 
         dlg.close();
     };
@@ -174,8 +177,7 @@ function main() {
     dlg.show();
 }
 
-main();
-// Recursively collect all items (including inside groups) into arr
+// Recursively collect all pageItems (including inside groups) into arr
 function collectAllItemsRecursive(container, arr) {
     for (var i = 0; i < container.pageItems.length; i++) {
         var item = container.pageItems[i];
@@ -185,3 +187,26 @@ function collectAllItemsRecursive(container, arr) {
         }
     }
 }
+
+// Change the color of one or more layers to the specified RGB color
+function changeSelectedLayerColorToRGB(targetLayers, r, g, b) {
+    if (!targetLayers) {
+        alert("レイヤーが指定されていません。");
+        return;
+    }
+    if (targetLayers.typename === "Layer") {
+        targetLayers = [targetLayers];
+    }
+    var newColor = new RGBColor();
+    newColor.red = r;
+    newColor.green = g;
+    newColor.blue = b;
+    for (var i = 0; i < targetLayers.length; i++) {
+        var layer = targetLayers[i];
+        if (layer.visible && !layer.locked) {
+            layer.color = newColor;
+        }
+    }
+}
+
+main();
