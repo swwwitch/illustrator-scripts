@@ -19,6 +19,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     更新履歴：
     - v1.0.0（2025-07-03）: 初版リリース
     - v1.0.1（2025-07-03） : レイヤーカラーを変更
+    - v1.0.2（2025-07-03） : 選択していないとき、自動的に「すべて」を選択、空レイヤーのロジックを調整
 */
 
 // Unlock and unhide all objects in the document
@@ -82,7 +83,11 @@ function main() {
     var radioSelected = objPanel.add("radiobutton", undefined, LABELS.selectedObj[lang]);
     var radioAll = objPanel.add("radiobutton", undefined, LABELS.allObj[lang]);
     var radioAllText = objPanel.add("radiobutton", undefined, LABELS.allText[lang]);
-    radioSelected.value = true;
+    var sel = doc.selection;
+    var hasSelection = sel && sel.length > 0;
+
+    radioSelected.value = hasSelection;
+    radioAll.value = !hasSelection;
 
     var deleteGroup = leftGroup.add("group");
     deleteGroup.orientation = "row";
@@ -102,11 +107,17 @@ function main() {
     radioLayerGroup.margins = [15, 20, 15, 10];
 
     var radioButtons = [];
+    var firstAvailableIndex = -1;
     for (var i = 0; i < layerNames.length; i++) {
         radioButtons[i] = radioLayerGroup.add("radiobutton", undefined, layerNames[i]);
+        if (layers[i].locked) {
+            radioButtons[i].enabled = false;
+        } else if (firstAvailableIndex === -1) {
+            firstAvailableIndex = i;
+        }
     }
-    if (radioButtons.length > 0) {
-        radioButtons[0].value = true;
+    if (firstAvailableIndex !== -1) {
+        radioButtons[firstAvailableIndex].value = true;
     }
 
     var buttonGroup = dlg.add("group");
@@ -143,9 +154,9 @@ function main() {
             itemsToMove = doc.textFrames;
         } else {
             unlockAndShowAll();
-            // Collect all pageItems recursively from all layers
+            // Collect all pageItems recursively from all layers and sublayers
             for (var l = 0; l < doc.layers.length; l++) {
-                collectAllItemsRecursive(doc.layers[l], itemsToMove);
+                collectAllItemsFromLayerRecursive(doc.layers[l], itemsToMove);
             }
         }
 
@@ -156,11 +167,7 @@ function main() {
         // Delete empty layers except those named "bg" or starting with "//"
         if (deleteEmptyLayersCheckbox.value) {
             for (var l = layers.length - 1; l >= 0; l--) {
-                var lyr = layers[l];
-                var name = lyr.name;
-                if (lyr.pageItems.length === 0 && name !== "bg" && name.indexOf("//") !== 0) {
-                    lyr.remove();
-                }
+                deleteEmptyLayersRecursive(layers[l]);
             }
         }
 
@@ -185,6 +192,33 @@ function collectAllItemsRecursive(container, arr) {
         if (item.typename === "GroupItem") {
             collectAllItemsRecursive(item, arr);
         }
+    }
+}
+
+// Recursively collect all pageItems (including inside groups) from layers and sublayers
+function collectAllItemsFromLayerRecursive(layer, arr) {
+    // layer 自身の pageItems
+    for (var i = 0; i < layer.pageItems.length; i++) {
+        var item = layer.pageItems[i];
+        arr.push(item);
+        if (item.typename === "GroupItem") {
+            collectAllItemsRecursive(item, arr);
+        }
+    }
+    // サブレイヤー
+    for (var j = 0; j < layer.layers.length; j++) {
+        collectAllItemsFromLayerRecursive(layer.layers[j], arr);
+    }
+}
+
+// Recursively delete empty layers except those named "bg" or starting with "//"
+function deleteEmptyLayersRecursive(layer) {
+    for (var i = layer.layers.length - 1; i >= 0; i--) {
+        var subLayer = layer.layers[i];
+        deleteEmptyLayersRecursive(subLayer);
+    }
+    if (layer.pageItems.length === 0 && layer.layers.length === 0 && layer.name !== "bg" && layer.name.indexOf("//") !== 0) {
+        layer.remove();
     }
 }
 
