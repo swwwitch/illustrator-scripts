@@ -1,6 +1,4 @@
-// Illustratorスクリプトとして実行（必須）
 #target illustrator
-// JSX外部スクリプト警告を非表示
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -8,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     概要:
     Illustratorドキュメント内のオブジェクトを指定レイヤーへ一括移動するツール。
-    モード: 「選択オブジェクト」「すべてのオブジェクト」「すべてのテキストオブジェクト」
+    モード: 「選択中」「全テキスト」「すべて」「すべて（強制）」
     オプション: 空レイヤー削除（"bg" および "//" で始まるレイヤーは除外）
     移動先レイヤーのカラーを RGB(79, 128, 255) に変更
 
@@ -16,15 +14,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     - v1.0.0（2025-07-03）: 初版リリース
     - v1.0.1（2025-07-03）: レイヤーカラー変更機能追加
     - v1.0.2（2025-07-03）: 自動選択判定、空レイヤー削除ロジック改善
+    - v1.0.3（2025-07-04）: 「すべて（強制）」モード追加（すべてのレイヤーを結合）
 */
 
-// すべてのロックと非表示を解除
+// 全ロック解除と全表示
 function unlockAndShowAll() {
     app.executeMenuCommand('unlockAll');
     app.executeMenuCommand('showAll');
 }
 
-// 個別アイテムのロック解除・表示・移動
+// アイテムのロック解除・非表示解除・移動
 function prepareAndMoveItem(item, targetLayer) {
     try {
         item.locked = false;
@@ -46,13 +45,14 @@ function main() {
         layerNames[i] = layers[i].name;
     }
 
-    // UIラベル定義（未使用項目は削除済み）
+    // UIラベル（使用しているもののみ）
     var LABELS = {
         dialogTitle: { ja: "レイヤー管理ツール", en: "Layer Management Tool" },
         panelTitle: { ja: "対象オブジェクト", en: "Target Objects" },
-        selectedObj: { ja: "選択オブジェクト", en: "Selected Objects" },
-        allObj: { ja: "すべてのオブジェクト", en: "All Objects" },
-        allText: { ja: "テキストオブジェクト", en: "Text Only" },
+        selectedObj: { ja: "選択中", en: "Selected Objects" },
+        allText: { ja: "全テキスト", en: "Text Only" },
+        allObj: { ja: "すべて", en: "All Objects" },
+        allForce: { ja: "すべて（強制）", en: "All (Force)" },
         deleteEmpty: { ja: "空レイヤーを削除", en: "Delete Empty Layers" },
         layerList: { ja: "移動先レイヤー", en: "Target Layer" },
         move: { ja: "移動", en: "Move" },
@@ -78,12 +78,13 @@ function main() {
     objPanel.margins = [15, 20, 15, 10];
 
     var radioSelected = objPanel.add("radiobutton", undefined, LABELS.selectedObj[lang]);
-    var radioAll = objPanel.add("radiobutton", undefined, LABELS.allObj[lang]);
     var radioAllText = objPanel.add("radiobutton", undefined, LABELS.allText[lang]);
+    var radioAll = objPanel.add("radiobutton", undefined, LABELS.allObj[lang]);
+    var radioAllForce = objPanel.add("radiobutton", undefined, LABELS.allForce[lang]);
     var sel = doc.selection;
     var hasSelection = sel && sel.length > 0;
 
-    // デフォルト選択：オブジェクト選択有無で自動判定
+    // デフォルト選択は選択有無で自動判定
     radioSelected.value = hasSelection;
     radioAll.value = !hasSelection;
 
@@ -151,6 +152,8 @@ function main() {
             itemsToMove = sel;
         } else if (radioAllText.value) {
             itemsToMove = doc.textFrames;
+        } else if (radioAllForce.value) {
+            flattenArtwork();
         } else {
             unlockAndShowAll();
             for (var l = 0; l < doc.layers.length; l++) {
@@ -163,14 +166,14 @@ function main() {
             prepareAndMoveItem(itemsToMove[k], targetLayer);
         }
 
-        // 空レイヤー削除（bg, // 除外）
+        // 空レイヤー削除（"bg" と "//" で始まるレイヤーは除外）
         if (deleteEmptyLayersCheckbox.value) {
             for (var l = layers.length - 1; l >= 0; l--) {
                 deleteEmptyLayersRecursive(layers[l]);
             }
         }
 
-        // レイヤーカラー変更
+        // 移動先レイヤーのカラーを変更
         changeSelectedLayerColorToRGB(targetLayer, 79, 128, 255);
         dlg.close();
     };
@@ -182,7 +185,7 @@ function main() {
     dlg.show();
 }
 
-// コンテナ（グループなど）から全pageItemsを再帰的に収集
+// グループなどのコンテナから全pageItemsを再帰的に収集
 function collectAllItemsRecursive(container, arr) {
     for (var i = 0; i < container.pageItems.length; i++) {
         var item = container.pageItems[i];
@@ -193,7 +196,7 @@ function collectAllItemsRecursive(container, arr) {
     }
 }
 
-// レイヤー・サブレイヤーから全pageItemsを収集
+// レイヤーとサブレイヤーから全pageItemsを収集
 function collectAllItemsFromLayerRecursive(layer, arr) {
     for (var i = 0; i < layer.pageItems.length; i++) {
         var item = layer.pageItems[i];
@@ -207,7 +210,7 @@ function collectAllItemsFromLayerRecursive(layer, arr) {
     }
 }
 
-// 空レイヤーを再帰的に削除（bg, // で始まるレイヤーは除外）
+// 空レイヤーを再帰的に削除（"bg" と "//" で始まるレイヤーは除外）
 function deleteEmptyLayersRecursive(layer) {
     for (var i = layer.layers.length - 1; i >= 0; i--) {
         deleteEmptyLayersRecursive(layer.layers[i]);
@@ -235,6 +238,31 @@ function changeSelectedLayerColorToRGB(targetLayers, r, g, b) {
         if (layer.visible && !layer.locked) {
             layer.color = newColor;
         }
+    }
+}
+
+function flattenArtwork() {
+    var actionSetName = "レイヤー";
+    var actionName = "すべてのレイヤーを結合";
+
+    // アクション定義テキスト
+    var actionCode ='''
+    /version 3 /name [ 12 e383ace382a4e383a4e383bc ] /isOpen 1 /actionCount 1 /action-1 { /name [ 33 e38199e381b9e381a6e381aee383ace382a4e383a4e383bce38292e7b590e590 88 ] /keyIndex 0 /colorIndex 0 /isOpen 1 /eventCount 1 /event-1 { /useRulersIn1stQuadrant 0 /internalName (ai_plugin_Layer) /localizedName [ 9 e8a1a8e7a4ba203a20 ] /isOpen 0 /isOn 1 /hasDialog 0 /parameterCount 2 /parameter-1 { /key 1836411236 /showInPalette 4294967295 /type (integer) /value 14 } /parameter-2 { /key 1851878757 /showInPalette 4294967295 /type (ustring) /value [ 33 e38199e381b9e381a6e381aee383ace382a4e383a4e383bce38292e7b590e590 88 ] } } }
+''';
+
+    try {
+        var tempFile = new File(Folder.temp + "/temp_action.aia");
+        tempFile.open("w");
+        tempFile.write(actionCode);
+        tempFile.close();
+
+        app.loadAction(tempFile);
+        app.doScript(actionName, actionSetName);
+        app.unloadAction(actionSetName, "");
+        tempFile.remove();
+
+    } catch (e) {
+        alert("エラーが発生しました: " + e);
     }
 }
 
