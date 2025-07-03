@@ -2,7 +2,7 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプト名：AutoAdjustBaseline.jsx
+スクリプト名：AdjustBaselineVerticalCenter.jsx
 
 概要:
 選択したテキストフレーム内の指定した1文字を、基準文字に合わせてベースライン（垂直位置）を調整します。
