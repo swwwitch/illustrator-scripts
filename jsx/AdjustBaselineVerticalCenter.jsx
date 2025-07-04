@@ -6,6 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 概要:
 選択したテキストフレーム内の指定文字を、基準文字に合わせて垂直方向（ベースライン）を調整します。
+Adjusts the baseline of specified characters in one or multiple text frames to align with a reference character.
 
 処理の流れ:
 1. ダイアログで対象文字と基準文字を指定
@@ -17,6 +18,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 限定条件:
 - アウトライン済みや非テキストオブジェクトは対象外
+
+オリジナルアイデア：
+Egor Chistyakov https://x.com/tchegr
+
+オリジナルからの変更点：
+- 対象文字は自動入力（複数ある場合には最頻出記号を選択）
+- 手動での上書き入力も可能
+- 複数のテキストオブジェクトに対しても一括適用可能
+
+Changes from original:
+- Target character is auto-filled (if multiple, the most frequent symbol is selected)
+- Manual override input is also possible
+- Can be applied to multiple text objects at once
 
 更新履歴:
 - v1.0.0 (2025-07-04): 初版リリース
