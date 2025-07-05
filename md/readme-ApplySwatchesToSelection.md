@@ -1,7 +1,8 @@
 # スウォッチの連続適用
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-ApplySwatchesToSelection.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplySwatchesToSelection.jsx)
-[![Direct](https://img.shields.io/badge/Back to home-ccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+
+[![Direct](https://img.shields.io/badge/Back to home-All scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 
