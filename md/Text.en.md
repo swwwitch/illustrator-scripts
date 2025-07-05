@@ -1,6 +1,6 @@
 # Text | Adobe Illustrator Scripts
 
-[![Twitter URL](https://img.shields.io/twitter/url?label=%40DTP_Transit&style=social&url=https%3A%2F%2Ftwitter.com%2FDTP_Tranist)](https://twitter.com/DTP_Transit)　[![](https://img.shields.io/badge/note-follow us-white?labelColor=yellow)](https://note.com/dtp_tranist)
+[![Twitter URL](https://img.shields.io/twitter/url?label=%40DTP_Transit&style=social&url=https%3A%2F%2Ftwitter.com%2FDTP_Tranist)]
 
 ## Adjust Baseline Vertical Center
 
@@ -10,6 +10,6 @@ Adjusts the baseline of one or more specified characters in one or multiple text
 
 Orignail idea by Egor Chistyakov https://x.com/tchegr
 
-![](png-en/ss-536-392-72-20250704-053323.png)
 
+![](/png-en/ss-536-392-72-20250704-053323.png)
 
