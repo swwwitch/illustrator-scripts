@@ -1,6 +1,10 @@
-# Adobe Illustrator Scripts
+# AddPageNumberFromTextSelection.jsx
+
+![Twitter URL](https://img.shields.io/twitter/url?label=%40DTP_Transit&style=social&url=https%3A%2F%2Ftwitter.com%2FDTP_Tranist) ![Twitter URL](https://img.shields.io/twitter/url?label=%40swwwitch&style=social&url=https%3A%2F%2Ftwitter.com%2Fswwwitch)
 
 ## AddPageNumberFromTextSelection.jsx
+
+[![Direct](https://img.shields.io/badge/Direct Link-AdjustBaselineVerticalCenter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/b62f2d91d5347a0c1208b9d92bd44a98e8d90938/jsx/AdjustBaselineVerticalCenter.jsx)
 
 ### Overview:
 
@@ -13,11 +17,11 @@ The user is prompted to enter a starting number, and page numbers are assigned a
 - The selected text must be point text in the _pagenumber layer.
 - Paragraph alignment will not be changed.
 
-![](png/ss-2432-1434-72-20250628-074603b.png)
+![](../png/ss-2432-1434-72-20250628-074603b.png)
 
 https://github.com/swwwitch/illustrator-scripts/blob/839e5bd54cbed5093bec13f92d3e8a0a46438689/jsx/AddPageNumberFromTextSelection.jsx
 
-### Updated
+### Updated:
 
 - Preview
 - Zero padding

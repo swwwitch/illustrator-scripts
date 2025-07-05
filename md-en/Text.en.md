@@ -24,7 +24,7 @@ Adjusts the baseline (vertical position) of one or more specified characters in 
 
 Egor Chistyakov https://x.com/tchegr
 
-### Changes from the original
+### Changes from the original:
 
 - The target character is auto-filled (the most frequent symbol is chosen if there are multiple).
 - Manual override of the target character is possible.
