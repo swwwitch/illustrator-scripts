@@ -1,4 +1,5 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
  * スクリプト名 / Script Name: ExportFontInfoFromXMP.jsx

@@ -1,3 +1,6 @@
+#target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
 /*
 ReleaseClipMask.jsx
 

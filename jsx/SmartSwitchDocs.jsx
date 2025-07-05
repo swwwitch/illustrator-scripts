@@ -1,4 +1,5 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // ファイル名：SmartSwitchDocs.jsx
 // =======================================================================================
