@@ -76,6 +76,10 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [アートボード名の一括変更](readme.ja/RenameArtboardsPlus.md)
 
 
+## レイヤー
+
+- [オブジェクトを指定レイヤーへ移動](readme.ja/SuperLayerManage.md)
+
 ## マスク
 
 - [オブジェクトのまとまりごとにグループ化したり、マスクする](readme.ja/SmartClipAndGroup.md)
