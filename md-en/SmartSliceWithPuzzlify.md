@@ -1,8 +1,6 @@
-# Adobe Illustrator Scripts
+# SmartSlice with Puzzlify
 
-This is a collection of JS scripts for Adobe Illustrator. 
-
-## SmartSlice-with-Puzzlify
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartSliceWithPuzzlify.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/SmartSliceWithPuzzlify.jsx)
 
 This script allows you to split selected images or vector artwork in Adobe Illustrator into grid or jigsaw puzzle shapes. Each piece can be offset and individually masked. The jigsaw shapes can include randomized connectivity for more natural puzzle designs.
 
@@ -10,8 +8,6 @@ Originally created by Jongware on 7-Oct-2010
 https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shapes-out-of-image-simultaneously/td-p/8709621#9185144
 
 ![ss-2092-1082-72-20250608-151834](https://github.com/user-attachments/assets/b57117df-bfbc-49d7-b648-c6a89984999c)
-
-
 
 ### Features
 
