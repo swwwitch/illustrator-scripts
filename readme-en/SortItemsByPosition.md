@@ -10,7 +10,7 @@
 
 - Sort page items by X or Y coordinate and update stacking order.
 
-![](https://www.dtp-transit.jp/images/ss-684-546-72-20250706-194927.png)
+![](https://www.dtp-transit.jp/images/ss-684-604-72-20250706-211330.png)
 
 ### Main Features
 
