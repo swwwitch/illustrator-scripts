@@ -75,6 +75,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Rename artboards based on the topmost text or text from a specific layer](readme.en/SmartArtboardRenamer.md)
 - [Insert page numbers](readme.en/AddPageNumberFromTextSelection.md)
 - [Batch rename artboards](readme.en/RenameArtboardsPlus.md)
+- [Reorder Artboards By Position](readme-en/ReorderArtboardsByPosition.md)
 
 ## Layers, Z-order
 

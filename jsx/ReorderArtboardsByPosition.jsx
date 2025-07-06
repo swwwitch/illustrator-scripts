@@ -9,7 +9,7 @@ ReorderArtboardsByPosition.jsx
 ### 概要
 
 - アートボードを名前順や位置順（左上、右上、上左、上右）で並べ替えるスクリプト
-- Adobe Illustrator 用のカスタムツール
+- カンバス（ドキュメント）上の見た目の並びを基に、［アートボード］パネルの順序を変更
 
 ### 主な機能
 
@@ -42,7 +42,7 @@ ReorderArtboardsByPosition.jsx
 ### Overview
 
 - Script to reorder artboards by name or position (Top Left, Top Right, Left Top, Right Top)
-- Custom tool for Adobe Illustrator
+- Reorders the Artboards panel order based on the visual (canvas) arrangement on the document
 
 ### Main Features
 

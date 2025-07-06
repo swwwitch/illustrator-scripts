@@ -74,6 +74,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [アートボード名を最前面のテキストや特定のレイヤーのテキストに設定](readme-ja/SmartArtboardRenamer.md)
 - [ページ番号を挿入](readme-ja/AddPageNumberFromTextSelection.md)
 - [アートボード名の一括変更](readme-ja/RenameArtboardsPlus.md)
+- [カンバス上の並びで［アートボード］パネルの並び順を変更](readme-ja/ReorderArtboardsByPosition.md)
 
 
 ## レイヤー、重ね順

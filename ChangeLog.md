@@ -1,5 +1,10 @@
 # Change Log
 
+### 20250707
+
+- [カンバス上の並びで［アートボード］パネルの並び順を変更](readme-ja/ReorderArtboardsByPosition.md)を追加
+
+![](https://www.dtp-transit.jp/images/ss-544-634-72-20250707-032437.png)
 
 ### 20250706
 
