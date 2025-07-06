@@ -1,31 +1,70 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
 
 /*
-AddPageNumberFromTextSelection.jsx
+### スクリプト名：
 
-概要:
-_pagenumberレイヤー上で選択されたテキストを基準に、
-すべてのアートボードに連番テキストを複製します。
-ユーザーは開始番号・接頭辞・ゼロパディング・総ページ数表示を指定可能。
-アートボード数に応じてページ番号を自動生成します。
+RenameArtboardsPlus.jsx
 
-制約:
-- 複製元テキストは_pagenumberレイヤー上のポイントテキストであること
-- 段落揃えの変更は行いません
+### 概要
 
-作成日：2025-06-25
-更新日: 2025-06-28
-- v1.0.0 初版
-- v1.0.1 テキスト複製ロジック修正
-- v1.0.2 ゼロ埋め・接頭辞・総ページ数表示追加
-- v1.0.3 プレビュー機能を追加
-- v1.0.4 「001」のようなゼロ埋め対応
-- v1.0.5 接尾辞フィールド追加し、ダイアログボックスのUIを変更
+- アートボード名を一括で柔軟に変更できるIllustrator用スクリプトです。
+- 接頭辞、接尾辞、ファイル名、番号、アートボード名を自由に組み合わせて、高度な命名ルールに対応します。
 
-課題：
-- プレビュー時、元のテキストが残ってしまい重複して見える問題があります。OKボタンを押すと消えます。
+### 主な機能
 
+- 接頭辞・接尾辞・アートボード名の有無を自由に選択可能
+- ファイル名の参照、区切り文字設定、プリセット保存・読み込みに対応
+- 連番形式は「数字」「アルファベット（大文字／小文字）」を選択可能
+- 開始番号から桁数（ゼロ埋め）を自動判定
+- プレビュー機能で名称例を事前確認
+- 最大15件のプレビュー表示
+- OK／適用／キャンセルボタンを美しく配置
+- ExtendScript（ES3）互換
+
+### 処理の流れ
+
+1. ダイアログで接頭辞、接尾辞、番号形式などを設定
+2. プレビューで名称例を確認
+3. 「適用」または「OK」をクリックしてアートボード名を一括変更
+
+### 更新履歴
+
+- v1.0.0 (20250420) : 初期バージョン作成
+- v1.0.1 (20250430) : 開始番号から桁数自動判定を追加、プリセットlabel簡素化、ES3対応強化
+
+---
+
+### Script Name:
+
+RenameArtboardsPlus.jsx
+
+### Overview
+
+- An Illustrator script to flexibly batch rename artboards.
+- Allows combining prefixes, suffixes, file names, numbers, and artboard names to support advanced naming rules.
+
+### Main Features
+
+- Freely choose whether to include prefix, suffix, or original artboard name
+- Supports file name reference, custom separators, preset save/load
+- Numbering formats: "Number", "Alphabet (Uppercase)", or "Alphabet (Lowercase)"
+- Automatically detect padding digits from start number (zero-padding)
+- Preview feature to check example names beforehand
+- Displays up to 15 preview items
+- Beautifully aligned OK / Apply / Cancel buttons
+- Compatible with ExtendScript (ES3)
+
+### Process Flow
+
+1. Configure prefix, suffix, numbering format, etc., in the dialog
+2. Check example names using the preview
+3. Click "Apply" or "OK" to batch rename artboards
+
+### Update History
+
+- v1.0.0 (20250420): Initial version created
+- v1.0.1 (20250430): Added auto-detection of padding digits from start number, simplified preset label, improved ES3 support
 */
 
 function getCurrentLang() {

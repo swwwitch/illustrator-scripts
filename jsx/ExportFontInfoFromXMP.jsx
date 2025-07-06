@@ -2,28 +2,62 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * スクリプト名 / Script Name: ExportFontInfoFromXMP.jsx
- * バージョン / Version: 1.0
- * 更新日 / Last Updated: 2025-05-11
- *
- * 概要 / Description:
- * このスクリプトは、現在の Illustrator ドキュメントに埋め込まれている XMP メタデータから、
- * 使用フォント情報（<xmpTPg:Fonts>）を抽出し、TXT / CSV / Markdown のいずれか、
- * またはすべての形式で書き出すことができます。
- *
- * This script extracts font usage information from XMP metadata embedded in the current Illustrator document,
- * and exports it in TXT, CSV, or Markdown format—or all of them at once.
- *
- * - UIは日本語／英語に対応 / UI is localized (Japanese/English)
- * - CSVはUTF-16（BOM付き） / CSV uses UTF-16 with BOM
- * - Markdownはアンダースコア（_）のみエスケープ処理 / Markdown escapes underscore (_) only
- * - 同名ファイルが存在する場合は自動リネーム / Auto-renames if duplicate filenames exist
- * - ラジオボタンは矢印キーで移動可能 / Arrow key navigation between radio buttons enabled
- * - 合成フォントの判定は <stFnt:composite> タグが "True" のみ
- */
+### スクリプト名：
 
-//@target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
+ExportFontInfoFromXMP.jsx
+
+### 概要
+
+- Illustrator ドキュメントに埋め込まれた XMP メタデータから使用フォント情報を抽出し、テキスト / CSV / Markdown の形式で書き出すスクリプトです。
+- 書き出し形式をダイアログで選択でき、すべての形式を一括出力することも可能です。
+
+### 主な機能
+
+- TXT / CSV / Markdown の3種類のフォーマットに対応
+- CSV は UTF-16（BOM付き）で出力
+- Markdown はアンダースコア（_）のみエスケープ処理
+- 同名ファイルが存在する場合、自動でリネーム
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ドキュメントの XMP メタデータからフォント情報を抽出
+2. ダイアログで書き出し形式を選択
+3. 指定した形式でフォント情報をデスクトップに保存
+
+### 更新履歴
+
+- v1.0.0 (20250511) : 初期バージョン
+
+---
+
+### Script Name:
+
+ExportFontInfoFromXMP.jsx
+
+### Overview
+
+- A script that extracts font usage information from XMP metadata embedded in an Illustrator document and exports it as text, CSV, or Markdown.
+- You can select the output format via a dialog, or export all formats at once.
+
+### Main Features
+
+- Supports three formats: TXT, CSV, and Markdown
+- CSV is output in UTF-16 with BOM
+- Markdown escapes underscore (_) only
+- Automatically renames if duplicate filenames exist
+- Japanese and English UI support
+
+### Process Flow
+
+1. Extract font information from document XMP metadata
+2. Select export format in the dialog
+3. Save the font information on the desktop in the specified format
+
+### Update History
+
+- v1.0.0 (20250511): Initial version
+*/
 
 (function () {
 

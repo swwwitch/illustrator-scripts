@@ -1,27 +1,74 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+
 /*
- * SmartShapeMaker.jsx
- *
- * スクリプトの概要：
- * 「長方形ツール」「楕円形ツール」「多角形ツール」「スターツール」の代わりに、ひとつのダイアログでまとめて図形を作成します。
- *
- * ダイアログボックスで、［辺の数］、［幅］を指定できます。
- * 図形はリアルタイムでプレビュー表示され、OKを押すと確定して描かれます。
- * 辺の数はラジオボタンで選択、または手動入力できます。
- * 正多角形の底辺が水平になるように回転角を自動設定。（360 ÷ 辺の数 ÷ 2）※自分で入力も可能（正円のときには45°）
- * 現在の〈塗り〉を参照します。線のカラーや線幅は無視します。
- * Illustratorのドキュメントウインドウの中央に描画します。
- * 幅でサイズを指定（第1半径は削除）
- * スターON時のみ第2半径（比率％）が有効
- * ［五芒星］オプションをONにすると、辺数を5に設定し、5本の線分で構成されるように角度を調整します。
- * ［ライブシェイプ］オプションをONにすると、ライブシェイプとして描画します。
- *
- * オリジナルアイデア：宮澤聖二さん（三階ラボ）
- *
- * 最終更新日: 2025-05-03
- */
+### スクリプト名：
+
+SmartShapeMaker.jsx
+
+### 概要
+
+- 「長方形ツール」「楕円形ツール」「多角形ツール」「スターツール」を一つのダイアログにまとめ、自由にカスタム図形を作成するIllustrator用スクリプトです。
+- リアルタイムプレビューで確認しながら、辺の数、半径、回転角度、ライブシェイプ化など多彩な設定が可能です。
+
+### 主な機能
+
+- 辺数指定（正多角形、円、カスタム）
+- スターおよび五芒星オプション
+- 外半径、内半径（比率％）の調整
+- 回転角度自動計算および手動設定
+- 幅（サイズ）指定、ライブシェイプ生成オプション
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ダイアログで辺の数、サイズ、半径比、回転角度、オプションを設定
+2. リアルタイムプレビューで確認
+3. OKを押すとアートボード中央に図形を描画
+
+### オリジナル、謝辞
+
+オリジナルアイデア：宮澤聖二さん（三階ラボ）
+
+### 更新履歴
+
+- v1.0.0 (20250503) : 初期バージョン
+
+---
+
+### Script Name:
+
+SmartShapeMaker.jsx
+
+### Overview
+
+- An Illustrator script that combines "Rectangle Tool", "Ellipse Tool", "Polygon Tool", and "Star Tool" into a single dialog for flexible shape creation.
+- Allows setting sides, radii, rotation angle, live shape option, with real-time preview.
+
+### Main Features
+
+- Specify number of sides (polygons, circle, custom)
+- Star and pentagram options
+- Adjust outer radius and inner radius (percentage)
+- Automatic or manual rotation angle
+- Specify width (size), option to create as live shape
+- Japanese and English UI support
+
+### Process Flow
+
+1. Configure sides, size, radius ratio, rotation angle, and options in the dialog
+2. Check in real-time preview
+3. Click OK to draw the shape at the center of the artboard
+
+### Original / Acknowledgements
+
+Original idea: Seiji Miyazawa (Sankai Lab)
+
+### Update History
+
+- v1.0.0 (20250503): Initial version
+*/
 
 
 // -------------------------------

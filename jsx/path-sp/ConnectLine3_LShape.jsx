@@ -2,20 +2,65 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  ConnectToLShape.jsx
+### スクリプト名：
 
-  概要：
-  ドキュメント内のロック・非表示でないオープンパス同士で交差するものを見つけ、
-  交点を起点に「コの字（L字型）」に連結するスクリプトです。元の2本のパスは削除されます。
+ConnectToLShape.jsx
 
-  処理の流れ：
-  1. ドキュメント内のロック・非表示でない PathItem を収集
-  2. オープンパスのみ抽出
-  3. 交差点を持つ2本のオープンパスの交点を検出
-  4. 各パスに交点を挿入し、交点を起点にL字型パスを作成
-  5. 元パスを削除し、新しいL字型パスを描画
+### 概要
 
-  更新日：2025-06-15
+- ドキュメント内のロック・非表示でないオープンパス同士で交差するものを検出し、交点を起点にL字型（コの字型）に連結するIllustrator用スクリプトです。
+- 元の2本のパスは削除され、連結後に新しいパスが生成されます。
+
+### 主な機能
+
+- オープンパスの交差検出と交点へのアンカーポイント挿入
+- パス長に基づく主従判定と自動L字型生成
+- 元パス削除後に新パスを追加
+- 太い方のパス属性（線幅・カラー）を適用
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ロック・非表示でないPathItemを収集
+2. オープンパスのみ抽出
+3. 交差点を持つ2本のパスを検出
+4. 交点にアンカーポイントを挿入
+5. L字型パスを作成し、元パスを削除
+
+### 更新履歴
+
+- v1.0.0 (20250615) : 初期バージョン
+
+---
+
+### Script Name:
+
+ConnectToLShape.jsx
+
+### Overview
+
+- An Illustrator script that detects intersecting open paths (not locked or hidden) and connects them into an L-shaped path starting from their intersection point.
+- The original two paths are deleted and replaced with a new connected path.
+
+### Main Features
+
+- Detect intersections and insert anchor points at intersection
+- Automatically determine main and sub paths by length and create L-shaped path
+- Delete original paths and add new path
+- Apply thicker path attributes (stroke width and color)
+- Japanese and English UI support
+
+### Process Flow
+
+1. Collect non-locked, visible PathItems
+2. Extract only open paths
+3. Detect two paths with intersections
+4. Insert anchor points at intersection
+5. Create L-shaped path and remove original paths
+
+### Update History
+
+- v1.0.0 (20250615): Initial version
 */
 
 main();

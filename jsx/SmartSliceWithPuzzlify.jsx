@@ -1,40 +1,82 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
 
 /*
--------------------------------------
-スクリプト名：SmartSlice-with-Puzzlify.jsx
+### スクリプト名：
 
-  概要：選択した画像や図形を、グリッドまたはジグソーパズル形状に分割し、個別にマスクを適用するスクリプト。
-        各ピースには任意のオフセットを設定可能で、ジグソー形状はランダムな接続性を持つ。
-        グリッド／ジグソーのいずれも、画像または図形に対して正確に分割される。
+SmartSliceWithPuzzlify.jsx
 
-  処理の流れ：
-    1. ベースオブジェクトの取得（長方形またはアートボード）
-    2. ユーザー指定の行数・列数に分割å
-    3. 各ピース形状の作成（ジグソーの場合はランダム形状）
-    4. 必要に応じて各ピース形状へオフセット適用
-    5. 対象画像を複製し、マスクとグループ化
-    6. 各ピースを配列に格納（後処理に備える）
+### 概要
 
-対象オブジェクト：
-・Illustratorで選択された単一のパス、シンボル、画像、グループ等のオブジェクト
+- 選択した画像や図形をグリッドまたはジグソーパズル形状に分割し、それぞれにマスクを適用するIllustrator用スクリプトです。
+- 任意の行数・列数設定、オフセットやバラけ効果など柔軟なカスタマイズが可能です。
 
-対象外オブジェクト：
-・複数選択された状態
-・未選択時
-・Illustrator文書が開かれていない状態
+### 主な機能
 
-Originally created by Jongware on 7-Oct-2010
+- グリッド分割、トラディショナル、ランダムなジグソー形状の生成
+- 各ピースに対するオフセットや散乱（バラけ）効果の適用
+- 画像、シンボル、ベクターオブジェクトなど多様なオブジェクトに対応
+- 自動行列算出、複数選択オブジェクトの自動シンボル化処理
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. 対象オブジェクト（画像、シンボル、ベクターなど）を選択
+2. ダイアログで分割設定（形状、ピース数、行数、列数、オフセットなど）を指定
+3. 形状に応じた各ピースを生成
+4. 必要に応じてオフセットやバラけを適用
+5. 元オブジェクトを削除し、新しいピースを配置
+
+### オリジナル、謝辞
+
+Originally created by Jongware on 7-Oct-2010  
 https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shapes-out-of-image-simultaneously/td-p/8709621#9185144
 
-更新日：2025-06-07
-- 1.0.0 初版
-- 1.0.1 シンボル対応
-- 1.0.2 ベクターアートワーク対応
-- 1.0.3 グリッド形状対応
-- 1.0.4 オフセット機能追加、単位コード対応
--------------------------------------
+### 更新履歴
+
+- v1.0.0 (20250607) : 初期バージョン
+- v1.0.1 (20250608) : シンボル対応、ベクターアートワーク対応
+- v1.0.2 (20250609) : グリッド形状対応
+- v1.0.3 (20250610) : オフセット機能追加、単位コード対応
+
+---
+
+### Script Name:
+
+SmartSliceWithPuzzlify.jsx
+
+### Overview
+
+- An Illustrator script to split a selected image or shape into a grid or jigsaw puzzle pieces, each with individual masks.
+- Supports custom rows/columns, offsets, and scatter (explode) effects.
+
+### Main Features
+
+- Generate grid, traditional, or random jigsaw-shaped pieces
+- Apply offset and scatter (explode) effects to each piece
+- Supports images, symbols, vector artwork, and more
+- Auto calculate rows/columns, auto symbolization for multiple selections
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select a target object (image, symbol, vector, etc.)
+2. Configure split settings (shape type, number of pieces, rows, columns, offset, etc.) via dialog
+3. Generate each piece based on chosen shape
+4. Optionally apply offset and scatter effects
+5. Remove original object and place new pieces
+
+### Original / Acknowledgements
+
+Originally created by Jongware on 7-Oct-2010  
+https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shapes-out-of-image-simultaneously/td-p/8709621#9185144
+
+### Update History
+
+- v1.0.0 (20250607): Initial version
+- v1.0.1 (20250608): Added symbol and vector artwork support
+- v1.0.2 (20250609): Added grid shape support
+- v1.0.3 (20250610): Added offset feature and unit code support
 */
 
 function getCurrentLang() {

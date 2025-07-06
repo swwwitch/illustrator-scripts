@@ -2,32 +2,69 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+### スクリプト名：
+
 SwapNearestItem.jsx
 
-概要：
-選択された1つのオブジェクトを起点に、指定方向（右／左／上／下）にある最も近いオブジェクトと
-見た目上の自然な位置で入れ替えるスクリプトです。
+### 概要
 
-処理の流れ：
-1. ドキュメントと選択状態をチェック
-2. 指定方向にある最も近いオブジェクトを検索
-3. 高さや幅、隙間を考慮して自然な位置に2つのオブジェクトを入れ替え
+- 選択したオブジェクトを基準に、指定方向（右／左／上／下）にある最も近いオブジェクトと自然な見た目で位置を入れ替えるIllustrator用スクリプトです。
+- 複数選択時の特別処理や幅・高さ、隙間を考慮した入れ替えに対応します。
 
-対象オブジェクト：
-PathItem, CompoundPathItem, GroupItem, TextFrame, PlacedItem, RasterItem,
-SymbolItem, MeshItem, PluginItem, GraphItem
+### 主な機能
 
-除外オブジェクト：
-LegacyTextItem, NonNativeItem, Guide, Annotation, PathPoint、
-ロック／非表示のオブジェクトやレイヤー、グループや複合パスの内部構造
+- 上下左右方向での最短距離判定によるスワップ
+- 幅・高さ、隙間を考慮した自然な位置調整
+- 複数選択時の手動入れ替え処理対応
+- 日本語／英語インターフェース対応
 
-初版作成日：2025-06-10
-更新履歴：
-- 1.0.0 初版リリース
-- 1.0.1 グループや複合パスの子要素を除外、レイヤーロック対応
-- 1.0.2 getCenter() と getSize() の導入によりロジックを整理
-- 1.0.3 複数選択時の一時グループ化と解除に対応
-- 1.0.4 複数選択時の一時グループ化・解除処理を削除
+### 処理の流れ
+
+1. ドキュメントと選択オブジェクトを確認
+2. 指定方向に最も近いオブジェクトを検索
+3. 高さ・幅・隙間を考慮して位置を入れ替え
+4. 複数選択時は中心座標または端基準で入れ替え
+
+### 更新履歴
+
+- v1.0.0 (20250610) : 初版リリース
+- v1.0.1 (20250612) : グループ・複合パスの除外、ロック対応追加
+- v1.0.2 (20250613) : getCenter() と getSize() の導入による整理
+- v1.0.3 (20250614) : 複数選択時の一時グループ処理追加
+- v1.0.4 (20250615) : 一時グループ化処理の削除、整理
+
+---
+
+### Script Name:
+
+SwapNearestItem.jsx
+
+### Overview
+
+- An Illustrator script that swaps the position of a selected object with the nearest object in a specified direction (right, left, up, or down), maintaining a natural visual layout.
+- Supports special handling for multi-selection and considers widths, heights, and gaps.
+
+### Main Features
+
+- Swap based on shortest distance in four directions
+- Adjust positions naturally considering widths, heights, and gaps
+- Special handling for manual swaps with two selections
+- Japanese and English UI support
+
+### Process Flow
+
+1. Check document and selected objects
+2. Find the nearest object in the specified direction
+3. Swap positions considering sizes and gaps
+4. Handle multi-selection with center or edge-based swaps
+
+### Update History
+
+- v1.0.0 (20250610): Initial release
+- v1.0.1 (20250612): Added exclusion of group/compound path children and lock support
+- v1.0.2 (20250613): Refactored with getCenter() and getSize()
+- v1.0.3 (20250614): Added temporary group handling for multiple selection
+- v1.0.4 (20250615): Removed temporary grouping, cleaned up logic
 */
 
 var directionMap = {

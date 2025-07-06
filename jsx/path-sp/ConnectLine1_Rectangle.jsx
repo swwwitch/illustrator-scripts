@@ -2,29 +2,61 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  スクリプト名：ConnectToLShape.jsx
+### スクリプト名：
 
-  【概要】
-  交差する4本の線を検出し、それらが長方形を構成する場合は新たな長方形パスを作成します。
-  元の線は削除され、生成された長方形パスが選択状態になります。
-  この処理は後続の「線の連結・再構築スクリプト」と連携する前提で、対象パスの構築を補助することを目的としています。
+ConnectLine1_Rectangle.jsx
 
-  【処理の流れ】
-  1. 水平・垂直な線を抽出
-  2. 交差する4本の線の組み合わせを検出
-  3. 長方形を構成可能であれば新しいパスを作成し、元の線を削除
+### 概要
 
-  【対象】
-  - パスアイテム（直線2点から構成される水平線・垂直線）
+- 選択した水平・垂直の直線4本が長方形を構成できる場合、新たな長方形パスを作成するIllustrator用スクリプトです。
+- 元の線は削除され、新しく生成された長方形パスが選択状態になります。
 
-  【除外条件】
-  - 線が4本未満の場合
-  - 交差しない場合（長方形を構成できない）
+### 主な機能
 
-  【更新履歴】
-  - 2025-06-12 初版作成
-  - 2025-06-15 コメント整理・drawCenterLineFromRect 処理の削除
-  - 2025-06-15 JSX警告の無効化設定を追加
+- 4本の直線から長方形構造を検出
+- 太い線の属性（線幅・カラー）を新しい長方形に適用
+- 元の線を削除して整理
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. 水平線・垂直線を抽出
+2. 交差する4本の線を検出
+3. 長方形パスを作成し、元の線を削除
+
+### 更新履歴
+
+- v1.0.0 (20250612) : 初版作成
+- v1.0.1 (20250615) : コメント整理・補助関数整理・JSX警告無効化追加
+
+---
+
+### Script Name:
+
+ConnectLine1_Rectangle.jsx
+
+### Overview
+
+- An Illustrator script that creates a new rectangle path if four selected horizontal and vertical straight lines can form a rectangle.
+- The original lines are deleted, and the new rectangle path becomes selected.
+
+### Main Features
+
+- Detects rectangle structure from four straight lines
+- Applies thicker line attributes (stroke width and color) to the new rectangle
+- Deletes original lines for cleanup
+- Japanese and English UI support
+
+### Process Flow
+
+1. Extract horizontal and vertical lines
+2. Detect four intersecting lines
+3. Create a rectangle path and delete the original lines
+
+### Update History
+
+- v1.0.0 (20250612): Initial version
+- v1.0.1 (20250615): Cleaned comments, refactored helper functions, added JSX warning suppression
 */
 
 // 4線から長方形を構成する

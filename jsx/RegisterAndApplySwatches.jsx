@@ -2,27 +2,63 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  スクリプト名：RegisterAndApplySwatches.jsx
-  概要：
-    選択されたオブジェクト（長方形やテキスト）の〈塗り〉カラー、
-    およびパスオブジェクトの〈線〉カラーをスウォッチ（スポットカラー）として登録し、再適用します。
+### スクリプト名：
 
-  処理の流れ：
-    1. 閉じたPathItem または TextFrame を対象に走査
-    2. RGBまたはCMYKのカラーを検出（塗り／線）
-    3. 各カラーごとにスウォッチ名を生成（例：C=0 M=100 Y=100 K=0）
-    4. 同名のスポットが存在すれば再利用、なければ新規作成
-    5. SpotColor を生成して、該当オブジェクトに適用
+RegisterAndApplySwatches.jsx
 
-  対象：
-    ・PathItem（閉じたパス）
-    ・TextFrame（テキスト）
+### 概要
 
-  限定条件：
-    ・RGB または CMYK カラーのみ対応
-    ・スポット／グレースケールは対象外
+- 選択オブジェクト（閉じたパス、テキスト）の塗りおよび線のカラーをスウォッチ（スポットカラー）として登録し、その場で再適用するIllustrator用スクリプトです。
+- RGBおよびCMYKカラーをサポートし、既存の同名スウォッチを再利用します。
 
-  更新日：2025-06-26
+### 主な機能
+
+- RGB または CMYK カラーのスウォッチ登録
+- 同名スウォッチがある場合は再利用
+- 塗り・線にスポットカラーを即時適用
+- テキストオブジェクトの文字カラーにも対応
+- グループや複合パス内のオブジェクトを再帰処理
+
+### 処理の流れ
+
+1. 対象オブジェクトを選択
+2. RGB または CMYK カラーを検出
+3. スウォッチ名を生成し、既存スウォッチがあれば再利用
+4. スポットカラーを作成してオブジェクトに適用
+
+### 更新履歴
+
+- v1.0.0 (20250626) : 初期バージョン
+
+---
+
+### Script Name:
+
+RegisterAndApplySwatches.jsx
+
+### Overview
+
+- An Illustrator script to register fill and stroke colors of selected objects (closed paths, text) as swatches (spot colors) and reapply them immediately.
+- Supports RGB and CMYK colors, and reuses existing swatches with the same name.
+
+### Main Features
+
+- Register swatches from RGB or CMYK colors
+- Reuse existing swatches with matching names
+- Immediately apply spot colors to fills and strokes
+- Supports text object character colors
+- Recursively process groups and compound paths
+
+### Process Flow
+
+1. Select target objects
+2. Detect RGB or CMYK colors
+3. Generate swatch names and reuse existing swatches if found
+4. Create and apply spot colors to objects
+
+### Update History
+
+- v1.0.0 (20250626): Initial version
 */
 
 function createColorCopy(color) {

@@ -2,29 +2,75 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  スクリプト名：SortTextByColumn.jsx
+### スクリプト名：
 
-  概要：
-  テキストフレーム内のタブ区切りテキストを指定列の値で並び替えます。
-  数値・文字列の昇順・降順・ランダム順に対応しています。
+SortTextByColumn.jsx
 
-  処理概要：
-  1. テキストフレームが1つ選択されているか確認
-  2. テキストを行単位で分割し、空行を除去
-  3. ダイアログで並び替え対象の列、順序、見出し行の有無を設定
-  4. 指定列で並び替えを実行
-  5. 見出し行ありの場合はヘッダーと本文でテキストフレームを分割し再構築
-  6. 結果をテキストフレームに反映（Undo対応）
+### 概要
 
-  作成日：2025-06-15
-  最終更新日：2025-06-17
-  - v1.0.0 初版
-  - v1.0.1 ［1行目を見出し行として扱う］オプションを追加
-  - v1.0.2 数値の抽出処理を改善し、カンマ区切りの数値も対応
-  - v1.0.3 ランダムソートの実装を追加
-  - v1.0.4 数字だけの列を自動的に選択する機能を追加  
-  - v1.0.5 見出し行の有無を自動判定する機能を追加
-    - v1.0.6 見出し行にtabコード不完全でもスルー
+- テキストフレーム内のタブ区切りテキストを指定列の値で並び替えるIllustrator用スクリプトです。
+- 数値、文字列の昇順・降順、ランダム順に対応し、見出し行の自動判定にも対応しています。
+
+### 主な機能
+
+- タブ区切りテキストの列指定ソート
+- 数値列の自動検出、カンマ区切り数値対応
+- 昇順、降順、ランダム並び替え
+- 見出し行の有無を自動判定
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. テキストフレームを選択
+2. ダイアログでソート対象列と順序、見出し行設定を選択
+3. 指定列でテキスト行を並び替え
+4. 必要に応じてヘッダーと本文を分割し再構築
+
+### 更新履歴
+
+- v1.0.0 (20250615) : 初期バージョン
+- v1.0.1 (20250617) : 見出し行オプション追加
+- v1.0.2 (20250617) : カンマ区切り数値対応
+- v1.0.3 (20250617) : ランダムソート機能追加
+- v1.0.4 (20250617) : 数字列自動選択機能追加
+- v1.0.5 (20250617) : 見出し行自動判定機能追加
+- v1.0.6 (20250617) : 見出し行の不完全タブ許容
+
+---
+
+### Script Name:
+
+SortTextByColumn.jsx
+
+### Overview
+
+- An Illustrator script that sorts tab-delimited text in a text frame based on a specified column.
+- Supports numeric, string, ascending, descending, and random sorting, and can automatically detect header rows.
+
+### Main Features
+
+- Column-specific sorting for tab-delimited text
+- Auto-detect numeric columns, supports comma-separated numbers
+- Ascending, descending, and random sort orders
+- Auto-detect header row presence
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select a text frame
+2. Configure sort column, order, and header settings in dialog
+3. Sort text lines by specified column
+4. Optionally split header and body and reconstruct
+
+### Update History
+
+- v1.0.0 (20250615): Initial version
+- v1.0.1 (20250617): Added header option
+- v1.0.2 (20250617): Supported comma-separated numbers
+- v1.0.3 (20250617): Added random sort function
+- v1.0.4 (20250617): Auto-select numeric column
+- v1.0.5 (20250617): Auto-detect header row
+- v1.0.6 (20250617): Allow incomplete tabs in header
 */
 
 function main() {

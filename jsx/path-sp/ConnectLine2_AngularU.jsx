@@ -2,29 +2,65 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  スクリプト名：ConnectToAngularU.jsx
+### スクリプト名：
 
-  【概要】
-  アンカーポイントが2つの直線パス（オープン）を複数選択し、
-  「コの字」構造となる交差関係を検出して1つの連続パスとして連結します。
+ConnectToAngularU.jsx
 
-  【処理の流れ】
-  1. ドキュメント全体から2点直線のオープンパスを収集（ロック／非表示は除外）
-  2. パス3本の組み合わせの中から、交点を2つ持つグループを抽出
-  3. 水平2本＋垂直1本（またはその逆）で構成される場合に、
-     コの字形状に再構成した新しいパスを作成
-  4. 元のパス3本を削除
+### 概要
 
-  【対象オブジェクト】
-  - PathItem（アンカーポイント数2／オープン／線のみ）
+- アンカーポイントが2つの直線パス（オープン）を複数選択し、「コの字」構造となる3本の組み合わせを検出して1つの連続パスに連結するIllustrator用スクリプトです。
+- 元の3本のパスは削除され、新しい「コの字」パスが生成されます。
 
-  【除外対象】
-  - ロックされたパス、非表示パス
-  - クローズパスや曲線、塗り付きオブジェクト
+### 主な機能
 
-  【更新履歴】
-  - 2025-06-13 「コの字」パス作成処理を追加
-  - 2025-06-13 中心線描画処理・長方形構成処理を削除
+- オープンパス3本の組み合わせから2つの交点を検出
+- 水平・垂直線の自動判定とコの字構造の再構築
+- 太い方のパス属性（線幅・カラー）を新パスに適用
+- 元のパスを削除して整理
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ロック・非表示でない2点オープンパスを収集
+2. 交点が2つ存在する3本のパスを検出
+3. コの字型に再構築した新しいパスを生成
+4. 元の3本のパスを削除
+
+### 更新履歴
+
+- v1.0.0 (20250613) : 初期バージョン
+- v1.0.1 (20250613) : コの字パス作成処理追加、不要処理削除
+
+---
+
+### Script Name:
+
+ConnectToAngularU.jsx
+
+### Overview
+
+- An Illustrator script that connects three selected open straight-line paths (each with two anchor points) into a single U-shaped (angular) continuous path.
+- The original three paths are removed and a new U-shaped path is generated.
+
+### Main Features
+
+- Detects two intersections from a combination of three open paths
+- Automatically identifies horizontal and vertical lines to reconstruct the U shape
+- Applies thicker path attributes (stroke width and color) to the new path
+- Deletes original paths for cleanup
+- Japanese and English UI support
+
+### Process Flow
+
+1. Collect non-locked, visible two-point open paths
+2. Detect three paths with two intersections
+3. Create a new U-shaped path from those paths
+4. Delete the original three paths
+
+### Update History
+
+- v1.0.0 (20250613): Initial version
+- v1.0.1 (20250613): Added U-shaped path creation, removed unused processes
 */
 
 function main() {

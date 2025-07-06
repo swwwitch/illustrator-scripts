@@ -2,27 +2,69 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  スクリプト名：SmartClipAndGroup.jsx
-  概要：Illustratorで選択オブジェクトを条件に応じてグループ化またはクリッピングマスクを実行するスクリプト
+### スクリプト名：
 
-  【機能概要】
-  - 距離しきい値または重なり率に基づくグループ化（未グループ時は再実行可）
-  - 最前面／最背面オブジェクトによるクリッピングマスク
-  - 配置画像の矩形／正方形マスク対応
-  - 日英ローカライズ対応（LABELS定義）
+SmartClipAndGroup.jsx
 
-  【対象オブジェクト】
-  - パス、配置画像、ラスター画像、グループなど
-  【対象外】
-  - ロック、非表示、ガイド、テンプレートのオブジェクト
+### 概要
 
-  作成日：2024年6月5日
-  更新日：2025年6月10日
-    - 0.0.1: 初版リリース
-    - 0.0.2: UI簡略化と構造整理
-    - 0.0.3: 配置画像のみ処理・正方形マスク追加
-    - 0.0.4: 「重なり」によるグループ化処理追加
-    - 0.0.5: 重ね順保持／再実行対応／初期しきい値復元機能を追加
+- Illustratorで選択オブジェクトを重なり率や距離しきい値に基づいてグループ化、または最前面／最背面のオブジェクトを基準にクリッピングマスクを作成するスクリプトです。
+- 配置画像限定のクリップや正方形マスクなど、柔軟なマスク処理に対応しています。
+
+### 主な機能
+
+- 重なり率または近接度によるグループ化
+- 最前面・最背面オブジェクトによるクリッピングマスク作成
+- 配置画像限定の矩形・正方形マスク
+- 再実行時に初期しきい値を復元可能
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ダイアログで処理モード（グループ化／クリッピング）としきい値を選択
+2. ユーザーの選択に基づき、グループ化またはマスク処理を実行
+3. 結果を選択状態に更新
+
+### 更新履歴
+
+- v0.0.1 (20240605) : 初版リリース
+- v0.0.2 (20240610) : UI簡略化と構造整理
+- v0.0.3 (20240610) : 配置画像限定処理・正方形マスク追加
+- v0.0.4 (20240610) : 「重なり」によるグループ化処理追加
+- v0.0.5 (20240610) : 重ね順保持、再実行対応、初期しきい値復元追加
+
+---
+
+### Script Name:
+
+SmartClipAndGroup.jsx
+
+### Overview
+
+- An Illustrator script to group selected objects based on overlap ratio or distance threshold, or to create clipping masks using the topmost or bottommost object as a reference.
+- Supports flexible mask processing including placed-image-only clipping and square masks.
+
+### Main Features
+
+- Grouping by overlap ratio or proximity
+- Clipping masks using topmost or bottommost object
+- Placed-image-only rectangular or square masks
+- Restore initial threshold value on re-execution
+- Japanese and English UI support
+
+### Process Flow
+
+1. Choose processing mode (grouping or clipping) and threshold in dialog
+2. Execute grouping or mask processing based on user choice
+3. Update selection with resulting objects
+
+### Update History
+
+- v0.0.1 (20240605): Initial release
+- v0.0.2 (20240610): Simplified UI and restructured
+- v0.0.3 (20240610): Added placed-only and square mask options
+- v0.0.4 (20240610): Added overlap-based grouping
+- v0.0.5 (20240610): Improved z-order retention, re-execution support, and threshold restore
 */
 
 var overlapThreshold = 10;

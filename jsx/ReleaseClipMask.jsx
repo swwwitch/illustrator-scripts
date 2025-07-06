@@ -2,22 +2,61 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+### スクリプト名：
+
 ReleaseClipMask.jsx
 
-クリッピングマスクの解除ダイアログ / Release Clipping Mask Dialog
-===================================
-選択中のオブジェクトに対し、指定したモードでクリッピングマスクを処理します。
-Handles selected objects by releasing clipping masks based on selected mode.
+### 概要
 
-モード / Mode：
-- 単純に解除（Simply release）：クリップ状態を解除（グループは維持） / Release clipping, keep group
-- パスを削除（Remove mask path）：マスク用パスのみ削除し、グループ解除 / Delete mask path and ungroup
-- マスク対象を削除（Remove masked object）：マスク対象のみ削除し、パスは保持（グループ解除）/ Keep mask path and delete masked object
+- 選択オブジェクトのクリッピングマスクを複数のモードで解除するIllustrator用スクリプトです。
+- 単純解除、マスクパス削除、マスク対象削除など柔軟な操作が可能です。
 
-オプション / Option：
-- 解除時、パスにカラーを設定 / Set fill color to path when releasing
+### 主な機能
 
-更新日 / Last Update：2025-06-06
+- 単純解除（グループ維持）
+- マスクパス削除（配置画像を残す）
+- マスク対象削除（パスを残す）
+- 解除時にパスへ塗りカラー設定オプション
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. モードとオプションをダイアログで選択
+2. 選択内容に応じてクリッピングマスクを解除
+3. 必要に応じてパスにカラーを設定
+
+### 更新履歴
+
+- v1.0.0 (20250606) : 初期バージョン
+
+---
+
+### Script Name:
+
+ReleaseClipMask.jsx
+
+### Overview
+
+- An Illustrator script to release clipping masks on selected objects with multiple flexible modes.
+- Supports simple release, remove mask path, or remove masked content.
+
+### Main Features
+
+- Simple release (keep group)
+- Remove mask path (keep placed content)
+- Remove masked object (keep path)
+- Option to set fill color on path when releasing
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select mode and option in dialog
+2. Release clipping masks based on selected mode
+3. Optionally set fill color to paths
+
+### Update History
+
+- v1.0.0 (20250606): Initial version
 */
 
 function main() {

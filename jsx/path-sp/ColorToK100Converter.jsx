@@ -2,24 +2,65 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  スクリプト名：ColorToK100Converter.jsx
+### スクリプト名：
 
-  【概要】
-  ドキュメント全体に対して、RGBまたはCMYKで構成された「黒」を安定したK100の黒に変換します。
-  テキスト（ポイント文字・エリア内文字・パス上文字）、パス、スウォッチの塗りおよび線のカラーが対象です。
+ColorToK100Converter.jsx
 
-  【K100変換の条件】
-  - RGB：赤・緑・青のすべてが39未満 → 黒と判定しK100に変換
-  - CMYK：
-    ・K=100 かつ C/M/Y がすべて10以下 → 墨ベタとして許容（変換しない）
-    ・C/M/Y のすべてが70以上 → 多色ブラックと判定しK100に変換
-    ・CMYKの合計が310以上 → 多色ブラックと判定しK100に変換
+### 概要
 
-  【処理の流れ】
-  1. テキスト（文字単位）の塗り・線カラーをK100に変換
-  2. パスオブジェクトの塗り・線カラーをK100に変換
-  3. スウォッチ定義のカラーをK100に変換
-  
+- RGB または CMYK で構成された黒を安定した K100 の黒に変換する Illustrator 用スクリプトです。
+- テキスト、パス、スウォッチの塗りおよび線カラーが一括対象になります。
+
+### 主な機能
+
+- RGB 黒（RGB 各値が 39 未満）を K100 に変換
+- CMYK の多色ブラック（CMY 全てが 70 以上 または合計が 310 以上）を K100 に変換
+- テキストの文字単位での変換対応
+- スウォッチカラーも自動変換
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. テキストの文字単位の塗り・線カラーを変換
+2. パス、コンパウンドパスの塗り・線カラーを変換
+3. グループ内オブジェクトを再帰的に変換
+4. スウォッチのカラー定義を変換
+
+### 更新履歴
+
+- v1.0.0 (20250612) : 初期バージョン
+- v1.0.1 (20250615) : 処理構造とコメント整理
+
+---
+
+### Script Name:
+
+ColorToK100Converter.jsx
+
+### Overview
+
+- An Illustrator script that converts RGB or CMYK-based blacks into stable K100 black.
+- Targets fills and strokes in text, paths, and swatches all at once.
+
+### Main Features
+
+- Converts RGB blacks (each channel under 39) to K100
+- Converts CMYK rich blacks (all CMY ≥ 70 or total ≥ 310) to K100
+- Supports per-character conversion for text
+- Also converts swatch colors automatically
+- Japanese and English UI support
+
+### Process Flow
+
+1. Convert text character fill/stroke colors
+2. Convert path and compound path fill/stroke colors
+3. Recursively convert objects in groups
+4. Convert swatch color definitions
+
+### Update History
+
+- v1.0.0 (20250612): Initial version
+- v1.0.1 (20250615): Refined structure and cleaned comments
 */
 
 // ロック／非表示オブジェクトの除外が必要な場合は、ここで判定を追加すると良い（現状は全対象）

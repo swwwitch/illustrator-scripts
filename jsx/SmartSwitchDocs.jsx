@@ -1,22 +1,69 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-// ファイル名：SmartSwitchDocs.jsx
-// =======================================================================================
-// スクリプトの概要：複数のIllustratorドキュメントが開かれている場合に、すばやく別のドキュメントへ切り替えるユーティリティです。
-// 対象：開いている.aiファイル（アクティブなものを除く）
-//
-// 【処理の流れ】
-// 1. 開いているドキュメント数を確認：
-//    - 0件または1件 → 何もせず終了
-//    - 2件 → アクティブでない方へ自動で切り替え
-//    - 3件以上 → アクティブでないドキュメントをリスト表示し、選択で切り替え
-//
-// 作成日：2025-03-25
-// 更新日：2025-05-25
-//  - 0.5.1 ［キャンセル］ボタンを追加、UIを調整
-//  - 0.5.2 矢印キーで選択後にフォーカスが失われないように修正
-// =======================================================================================
+/*
+### スクリプト名：
+
+SmartSwitchDocs.jsx
+
+### 概要
+
+- 複数のIllustratorドキュメントが開いている場合に、素早く別のドキュメントへ切り替えるためのスクリプトです。
+- 2つだけ開いているときは自動切り替え、3つ以上のときはダイアログで選択可能です。
+
+### 主な機能
+
+- 開いているドキュメント数に応じた自動切り替え
+- 3件以上のときにリストボックスから選択して切り替え
+- ダイアログ内で即時プレビュー切り替え
+- キャンセル時には元のドキュメントに戻る
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ドキュメント数を確認
+2. 2件なら非アクティブなドキュメントへ自動切り替え
+3. 3件以上ならダイアログを表示しリストから選択
+4. 選択後にOKまたはキャンセルを押して切り替え
+
+### 更新履歴
+
+- v1.0.0 (20250325) : 初期バージョン
+- v0.5.1 (20250525) : ［キャンセル］ボタン追加、UI調整
+- v0.5.2 (20250525) : 矢印キー選択後のフォーカス維持修正
+
+---
+
+### Script Name:
+
+SmartSwitchDocs.jsx
+
+### Overview
+
+- A script to quickly switch to another Illustrator document when multiple documents are open.
+- Automatically switches if only two documents are open; shows a dialog for selection when there are three or more.
+
+### Main Features
+
+- Auto switch depending on the number of open documents
+- Select from a list when there are three or more documents
+- Immediate preview switching inside the dialog
+- Revert to original document on cancel
+- Japanese and English UI support
+
+### Process Flow
+
+1. Check the number of open documents
+2. If two, automatically switch to the inactive document
+3. If three or more, show dialog and select from the list
+4. Switch after pressing OK or Cancel
+
+### Update History
+
+- v1.0.0 (20250325): Initial version
+- v0.5.1 (20250525): Added Cancel button and adjusted UI
+- v0.5.2 (20250525): Fixed focus maintenance after arrow key selection
+*/
 
 // -------------------------------
 // 日英ラベル定義　Define labels for ja/en

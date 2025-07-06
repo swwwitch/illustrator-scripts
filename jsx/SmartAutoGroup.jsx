@@ -2,27 +2,63 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  SmartAutoGroup.jsx
+### スクリプト名：
 
-  選択したオブジェクトを以下のいずれかの条件で自動的にグループ化します：
-  - 重なり（のみ）
-  - 垂直方向（近接しているもの）
-  - 水平方向（近接しているもの）
-  - 近接度（距離しきい値に応じて）
+SmartAutoGroup.jsx
 
-  【機能】
-  - UIでモード選択＋しきい値スライダー（「重なり（のみ）」以外で有効）
-  - グループ化単位ごとに Illustrator 標準の group コマンドで結合
-  - グループ化後のオブジェクトのみ選択状態に
-  - 未グループ化がある場合、再実行を促す確認ダイアログ付き（「重なり（のみ）」除く）
+### 概要
 
-  【対象】
-  - 複数選択されたオブジェクト（グループ含む）
-  - アクティブドキュメントがあること
+- 選択オブジェクトを自動的に「重なり」「垂直方向」「水平方向」「近接度」などの条件に応じてグループ化するIllustrator用スクリプトです。
+- UI でモードとしきい値を指定し、再実行時には未グループオブジェクトを再確認できます。
 
-  作成日：2025-06-11
-  更新日：2025-06-11
-  バージョン：1.0.0
+### 主な機能
+
+- 重なり・垂直・水平・近接度モード切替
+- しきい値スライダーによる距離設定（重なりのみ除く）
+- グループ化後の自動選択
+- 未グループオブジェクトの再実行確認
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ダイアログでモードとしきい値を設定
+2. DFS探索に基づきグループ単位を抽出
+3. Illustrator標準 group コマンドで結合
+4. グループ化されなかったオブジェクトがある場合に再実行を促す
+
+### 更新履歴
+
+- v1.0.0 (20250611) : 初期バージョン
+
+---
+
+### Script Name:
+
+SmartAutoGroup.jsx
+
+### Overview
+
+- An Illustrator script to automatically group selected objects based on conditions like "overlap", "vertical", "horizontal", or "proximity".
+- Allows selecting mode and threshold via UI, and checks for ungrouped objects on retry.
+
+### Main Features
+
+- Switch modes: overlap, vertical, horizontal, proximity
+- Threshold slider for distance (except overlap only)
+- Auto-select grouped objects after grouping
+- Prompt to retry if ungrouped objects remain
+- Japanese and English UI support
+
+### Process Flow
+
+1. Configure mode and threshold in dialog
+2. Extract groups using DFS traversal
+3. Group objects using Illustrator's group command
+4. Prompt to retry if any ungrouped objects remain
+
+### Update History
+
+- v1.0.0 (20250611): Initial version
 */
 
 var groupMode = "horizontal";

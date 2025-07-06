@@ -2,21 +2,63 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+### スクリプト名：
+
 Group2Artboards.jsx
 
-【日本語説明】
-選択したグループオブジェクトの境界に指定したマージンを加え、その範囲をアートボードとして自動追加するIllustrator用スクリプトです。複数グループ選択に対応し、アートボード名の自動連番やファイル名参照、既存アートボードの削除も行えます。
+### 概要
 
-【English Description】
-This script creates new artboards in Adobe Illustrator around each selected group object, expanding their bounds by a user-specified margin. It supports multiple group selections, automatic sequential naming with optional file name prefix and custom symbols, and can delete existing artboards before adding new ones.
+- 選択したグループオブジェクトの境界に指定したマージンを加え、その範囲をアートボードとして自動追加するIllustrator用スクリプトです。
+- 複数のグループ選択に対応し、名前の連番付与やファイル名参照、既存アートボードの削除オプションも搭載しています。
 
-【更新履歴 / Change Log】
-- v1.0.1 (2025-07-04) コメント整理と最適化 / Cleaned comments, optimized logic
+### 主な機能
 
-【制限事項 / Limitations】
-- グループ以外のオブジェクトは対象外です。Only group objects are processed.
-- マージンは数値入力のみ対応。Margin value must be a number.
-- Illustrator専用。For Adobe Illustrator only.
+- グループオブジェクトを基にアートボードを自動生成
+- マージン値と使用境界（プレビュー/ジオメトリ）の切り替え
+- アートボード名に接頭辞、記号、連番、ファイル名参照を組み合わせ可能
+- 既存アートボードの一括削除機能
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. グループオブジェクトを選択
+2. ダイアログでマージンやアートボード名設定などを指定
+3. OKでアートボードを自動追加
+
+### 更新履歴
+
+- v1.0.0 (20250703) : 初期バージョン
+- v1.0.1 (20250704) : コメント整理と最適化
+
+---
+
+### Script Name:
+
+Group2Artboards.jsx
+
+### Overview
+
+- A script for Illustrator that automatically adds new artboards around each selected group object with an optional margin.
+- Supports multiple group selections, sequential naming, file name reference, and deletion of existing artboards.
+
+### Main Features
+
+- Automatically generate artboards based on group objects
+- Set margin value and choose between preview or geometric bounds
+- Flexible naming: prefix, symbol, sequence number, file name reference
+- Option to delete existing artboards
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select group objects
+2. Configure margin and artboard name options in the dialog
+3. Click OK to add artboards automatically
+
+### Update History
+
+- v1.0.0 (20250703): Initial version
+- v1.0.1 (20250704): Cleaned comments and optimized logic
 */
 
 // 単位コードから単位ラベルを取得

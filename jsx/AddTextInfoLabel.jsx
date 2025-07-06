@@ -2,34 +2,66 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * スクリプトの概要：
- * 選択されたテキストオブジェクトの下または右に、フォント情報を表示します。
- * 表示形式：「詳細」（エリア内文字・右揃え）または「簡易版」（ポイント文字・左揃え）を選択可能。
- * ダイアログでは表示項目を個別にON/OFFでき、すべてON／すべてOFF／最小セットのボタンも用意されています。
- * 「簡易版」を選択中は、表示項目セクションをディム表示します（無効化）。
- *
- * 【詳細表示】（エリア内文字）：
- * - 行数に応じて自動で高さを計算し、さらに2行分の余白を追加します。
- * - 「下」を選ぶとアウトライン化を想定した下端に、「右」を選ぶと左下基準で右に配置します。
- * - spacing に 2mm の余白が自動で追加されます。
- * - 情報は右揃えで整形されます。
- * - 行送りは「フォントサイズ × 1.6」で固定されます。
- *
- * 【簡易表示】（ポイント文字）：
- * - 文字サイズ分下、または右に配置され、左揃えで表示されます。
- * - 文字ツメには「%」を付けて表示します。
- * - 行送りは「フォントサイズ × 1.6」で固定されます。
- *
- * 【共通仕様】：
- * - 行送りは「自動（xx pt）」または「xx pt」で表示。
- * - 行送り（%）は実際の行送り値 ÷ フォントサイズ で計算し、小数第2位で四捨五入・ゼロも保持して表示。
- * - 文字ツメは小数第2位で四捨五入、末尾.0は省略（例：21 → 21、20.1 → 20.1）。
- * - 情報は「フォント情報」レイヤーに配置され、生成されたテキストは選択状態になります。
- *
- * 作成日：2025-04-20
- * 更新日：2025-04-23（表示項目の無効化制御とspacing設定を追加）
- * 最終更新日：2025-04-24（行送り（%）の誤判定を修正し、正確な表示に対応）
- */
+### スクリプト名：
+
+AddTextInfoLabel.jsx
+
+### 概要
+
+- 選択したテキストオブジェクトの下または右に、フォント情報を表示するスクリプトです。
+- 詳細表示（エリア内文字）と簡易表示（ポイント文字）を切り替えられ、表示項目を個別にカスタマイズできます。
+
+### 主な機能
+
+- フォント名、スタイル、サイズ、行送り、カーニング、トラッキングなど、詳細なフォント情報を表示
+- 表示項目のON/OFF切り替え、全ON／全OFF／最小セットのボタンを用意
+- プレビューと位置設定（下・右）の選択
+- 生成した情報テキストは「フォント情報」レイヤーに配置
+- ES3準拠（Illustrator ExtendScript対応）
+
+### 処理の流れ
+
+1. ダイアログで表示形式や項目を選択
+2. プレビューを確認
+3. OKを押すと情報テキストを生成し配置
+
+### 更新履歴
+
+- v1.0.0 (20250420) : 初期バージョン
+- v1.0.1 (20250423) : 表示項目の無効化制御とspacing設定を追加
+- v1.0.2 (20250424) : 行送り（%）の誤判定を修正し、正確な表示に対応
+
+---
+
+### Script Name:
+
+AddTextInfoLabel.jsx
+
+### Overview
+
+- A script that displays font information below or to the right of selected text objects.
+- You can switch between detailed display (area text) and compact display (point text), and customize which information to show.
+
+### Main Features
+
+- Displays detailed font info: font name, style, size, leading, kerning, tracking, etc.
+- Toggle each display item on/off, plus buttons for All ON, All OFF, or Minimal Set
+- Option to choose preview and position (bottom or right)
+- Generated info text is placed on a "Font Info" layer
+- ES3 compliant (Illustrator ExtendScript compatible)
+
+### Process Flow
+
+1. Choose display mode and items in the dialog
+2. Check the preview
+3. Press OK to generate and place the info text
+
+### Update History
+
+- v1.0.0 (20250420): Initial version
+- v1.0.1 (20250423): Added item disable control and spacing settings
+- v1.0.2 (20250424): Fixed incorrect leading (%) detection for accurate display
+*/
 
 main();
 

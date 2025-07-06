@@ -1,38 +1,71 @@
-#target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/**************************************************
-カラーランダム適用スクリプト for Adobe Illustrator
+/*
+### スクリプト名：
 
-【概要】
-選択オブジェクト（パス／テキスト／複合シェイプ／グループ）に対して、
-塗り／線カラーをランダムに再適用します。
-除外条件（黒・白）や、カラーの使用比率を保つオプションも搭載。
+ShuffleObjectColors.jsx
 
-【処理の流れ】
+### 概要
+
+- 選択オブジェクト（パス、テキスト、グループ、複合シェイプ）の塗り・線カラーをランダムに再適用するIllustrator用スクリプトです。
+- 黒・白の除外やカラー使用比率の維持、文字単位のランダム適用など、多様なオプションを備えています。
+
+### 主な機能
+
+- 塗り・線それぞれの適用可否選択
+- 黒・白の除外オプション
+- カラー使用比率保持（バランスモード）
+- ランダムまたは順番適用切り替え
+- テキスト内文字単位のランダムカラー適用
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
 1. 対象オブジェクトを収集（グループ・複合パス含む）
 2. 指定条件に基づいてカラーを収集
-3. カラーをシャッフル
-4. 対象オブジェクトに塗り／線を再適用
+3. カラーをシャッフルまたは順番に整理
+4. 対象オブジェクトにカラーを再適用
 
-【対象】
-- 選択中の PathItem / TextFrame / GroupItem / CompoundPathItem
+### 更新履歴
 
-【限定条件】
-- RGB / CMYK カラーモード対応（内部的に RGB に変換して処理）
+- v1.0.0 (20240624) : 初版リリース
+- v1.0.1 (20240624) : バグフィックス
+- v1.0.2 (20240624) : ランダム適用・順番適用の切替対応
+- v1.0.3 (20240625) : ローカライズ調整
 
-【バグ】
-- CMYK カラーの変換精度に注意（特に黒・白の扱い）
-- 白、黒の保持の挙動に注意（除外条件の設定）
+---
 
-作成日：2025-06-24
-更新日：2025-06-25
-更新履歴：
-- v1.0.0 初版リリース
-- v1.0.1 バグフィックス
-- v1.0.2 ランダム適用・順番適用の切替対応
-- v1.0.3 ローカライズを調整
-**************************************************/
+### Script Name:
+
+ShuffleObjectColors.jsx
+
+### Overview
+
+- An Illustrator script to reapply fill and stroke colors randomly to selected objects (paths, text, groups, compound shapes).
+- Offers options to exclude black and white, preserve color balance, and apply colors per character in text.
+
+### Main Features
+
+- Choose whether to apply to fill and/or stroke
+- Options to exclude black and white
+- Preserve color usage ratio (balance mode)
+- Toggle between random or sequential application
+- Random color application per character in text frames
+- Japanese and English UI support
+
+### Process Flow
+
+1. Collect target objects (including groups and compound paths)
+2. Collect colors based on specified conditions
+3. Shuffle or order colors accordingly
+4. Reapply colors to target objects
+
+### Update History
+
+- v1.0.0 (20240624): Initial release
+- v1.0.1 (20240624): Bug fixes
+- v1.0.2 (20240624): Added toggle for random/sequential application
+- v1.0.3 (20240625): Localization adjustments
+*/
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';

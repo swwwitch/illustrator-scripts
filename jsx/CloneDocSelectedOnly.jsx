@@ -1,6 +1,73 @@
 #target indesign
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
+### スクリプト名：
+
+CloneDocSelectedOnly.jsx
+
+### 概要
+
+- 選択オブジェクトのみを残した複製ドキュメントを作成するInDesign用スクリプトです。
+- 元ドキュメントを一時保存後、不要なオブジェクトを削除して新しいドキュメントを生成します。
+
+### 主な機能
+
+- 選択オブジェクトのみを保持した複製ドキュメント作成
+- 非表示・非選択オブジェクトの削除
+- ロックアイテム削除オプション
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. アクティブドキュメントと選択オブジェクトを確認
+2. 一時ファイル名を生成してドキュメントを保存
+3. 複製ドキュメントを開く
+4. 非選択オブジェクトや非表示アイテムを削除
+5. 必要に応じてロックアイテムを削除
+
+### 更新履歴
+
+- v1.0.0 (20231226) : 初版リリース
+- v1.0.1 (20250702) : 処理微調整
+
+---
+
+### Script Name:
+
+CloneDocSelectedOnly.jsx
+
+### Overview
+
+- An InDesign script that creates a duplicate document containing only the selected objects.
+- Saves the original document temporarily, then removes unnecessary objects to create a clean copy.
+
+### Main Features
+
+- Create a duplicate document with only selected objects
+- Remove hidden and unselected objects
+- Option to remove locked items
+- Japanese and English UI support
+
+### Process Flow
+
+1. Check active document and selected objects
+2. Generate temporary file name and save document
+3. Open the duplicate document
+4. Remove unselected and hidden items
+5. Optionally remove locked items
+
+### Update History
+
+- v1.0.0 (20231226): Initial release
+- v1.0.1 (20250702): Minor adjustments
+*/
+
+
+
+// ===== 設定セクション ===== // Settings section
+var REMOVE_LOCKED_ITEMS = false; // true: ロックされたアイテムやレイヤーも削除 / Remove locked items and layers if true
+
 // -------------------------------
 // 日英ラベル定義 Define labels
 // -------------------------------
@@ -15,31 +82,6 @@ var LABELS = {
     noSelection: { ja: "選択されているオブジェクトがありません。", en: "No objects are selected." }
 };
 
-/*
-
-スクリプト名：CloneDocSelectedOnly.jsx // Script Name: CloneDocSelectedOnly.jsx
-
-概要: 現在のドキュメントを一時保存し、選択オブジェクトのみ残した複製ドキュメントを作成するスクリプト。 // Description: This script temporarily saves the current document, duplicates it, and keeps only the selected objects in the new document.
-
-処理の流れ: // Process flow:
- 1. アクティブドキュメントを取得 // Get active document
- 2. 選択オブジェクトを取得 // Get selected objects
- 3. 一時ファイル名を生成し保存 // Generate temporary file name and save
- 4. 複製ドキュメントを開く // Open duplicated document
- 5. 選択されていない非表示オブジェクトを削除 // Remove unselected hidden objects
-
-限定条件: // Limitations:
- - InDesign 2025 以降推奨 // Recommended for InDesign 2025 or later
- - 選択オブジェクトがある場合のみ有効 // Only works if objects are selected
-
-更新履歴: // Update history:
- - v1.0.0 2023-12-26 初版リリース // Initial release
- - v1.0.1 2025-07-02 微調整 // Minor adjustments
-
-*/
-
-// ===== 設定セクション ===== // Settings section
-var REMOVE_LOCKED_ITEMS = false; // true: ロックされたアイテムやレイヤーも削除 / Remove locked items and layers if true
 
 // スクリプト開始 // Script start
 function main() {

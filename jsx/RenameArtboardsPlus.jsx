@@ -1,26 +1,69 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
 
 /*
-スクリプトの概要：
-アートボード名を一括変更します。
- *
-【主な機能】
-- 接頭辞・接尾辞・元のアートボード名の有無を指定可能
-- アートボード名と番号の組み合わせ（番号、名称、番号-名称、番号_名称）に対応
-- 連番は「数字」「アルファベット（大文字／小文字）」に対応
-- 「開始番号」の入力文字列から桁数（ゼロ埋め）を自動判定
-- 「ファイル名の参照」や「区切り文字」など柔軟な命名に対応
-- プレビュー機能により変更内容を事前確認可能（最大15件）
-- OK／適用／キャンセルボタンを左右に美しく配置
-- プリセット書き出し・組み込みプリセット選択に対応（*.txt形式、labelは単一文字列）
-- ExtendScript/Illustrator環境向けにES3互換（map未使用）で実装
- *
-作成日：2025-04-20
-最終更新日：2025-04-30（開始番号から桁数自動判定、プリセットlabel簡素化、ES3対応強化）
- */
+### スクリプト名：
 
-//@target illustrator
+RenameArtboardsPlus.jsx
+
+### 概要
+
+- アートボード名を一括で柔軟に変更できるIllustrator用スクリプトです。
+- 接頭辞・接尾辞・ファイル名・連番・元アートボード名を自由に組み合わせて、高度な命名ルールを実現できます。
+
+### 主な機能
+
+- 接頭辞・接尾辞・元アートボード名の有無を選択可能
+- ファイル名参照、区切り文字設定、プリセット保存／選択対応
+- 連番形式（数字、大文字アルファベット、小文字アルファベット）選択
+- 開始番号に基づく桁数（ゼロ埋め）の自動判定
+- プレビュー機能で変更結果を事前確認
+- 最大15件のプレビュー表示、ボタン配置美化
+- ExtendScript（ES3）互換
+
+### 処理の流れ
+
+1. ダイアログで設定（接頭辞、接尾辞、連番形式など）を選択
+2. プレビューで名称例を確認
+3. 「適用」または「OK」でアートボード名を変更
+
+### 更新履歴
+
+- v1.0.0 (20250420) : 初期バージョン作成
+- v1.0.1 (20250430) : 開始番号から桁数自動判定追加、プリセットラベル簡素化、ES3対応強化
+
+---
+
+### Script Name:
+
+RenameArtboardsPlus.jsx
+
+### Overview
+
+- A script to flexibly batch rename artboards in Illustrator.
+- Combine prefixes, suffixes, file name, numbers, and original artboard names to create advanced naming rules.
+
+### Main Features
+
+- Freely choose whether to include prefix, suffix, or original artboard name
+- Supports file name reference, separator settings, preset save/load
+- Numbering formats: number, uppercase alphabet, lowercase alphabet
+- Auto-detect padding digits based on start number (zero-padding)
+- Preview feature to check the renaming result beforehand
+- Displays up to 15 preview items, improved button layout
+- Compatible with ExtendScript (ES3)
+
+### Process Flow
+
+1. Configure options (prefix, suffix, numbering format, etc.) in dialog
+2. Check name examples with the preview
+3. Click "Apply" or "OK" to rename artboards
+
+### Update History
+
+- v1.0.0 (20250420): Initial version created
+- v1.0.1 (20250430): Added auto-detection of padding digits, simplified preset labels, enhanced ES3 support
+*/
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';

@@ -2,19 +2,71 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-    スクリプト名：SuperLayerManage.jsx
+### スクリプト名：
 
-    概要:
-    Illustratorドキュメント内のオブジェクトを指定レイヤーへ一括移動するツール。
-    モード: 「選択中」「全テキスト」「すべて」「すべて（強制）」
-    オプション: 空レイヤー削除（"bg" および "//" で始まるレイヤーは除外）
-    移動先レイヤーのカラーを RGB(79, 128, 255) に変更
+SuperLayerManage.jsx
 
-    更新履歴：
-    - v1.0.0（2025-07-03）: 初版リリース
-    - v1.0.1（2025-07-03）: レイヤーカラー変更機能追加
-    - v1.0.2（2025-07-03）: 自動選択判定、空レイヤー削除ロジック改善
-    - v1.0.3（2025-07-04）: 「すべて（強制）」モード追加（すべてのレイヤーを結合）
+### 概要
+
+- オブジェクトを指定レイヤーに一括移動できるIllustrator用スクリプトです。
+- モード切替により選択オブジェクト、全テキスト、すべて、すべて（強制）を選択可能です。
+
+### 主な機能
+
+- モード選択（選択中／全テキスト／すべて／すべて（強制））
+- 空レイヤー削除オプション（bg および // で始まるレイヤーを除外）
+- 移動先レイヤーのカラーをRGB(79,128,255)に自動変更
+- ロック解除、非表示解除、再帰的収集処理
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ダイアログでモードと移動先レイヤーを選択
+2. 対象オブジェクトを収集
+3. 選択レイヤーに移動
+4. オプション選択時、空レイヤーを削除
+5. 移動先レイヤーのカラーを変更
+
+### 更新履歴
+
+- v1.0.0 (20250703) : 初版リリース
+- v1.0.1 (20250703) : レイヤーカラー変更機能追加
+- v1.0.2 (20250703) : 自動選択判定、空レイヤー削除ロジック改善
+- v1.0.3 (20250704) : 「すべて（強制）」モード追加（すべてのレイヤーを結合）
+
+---
+
+### Script Name:
+
+SuperLayerManage.jsx
+
+### Overview
+
+- An Illustrator script to batch move objects to a specified layer.
+- Supports switching modes: selected objects, all text, all objects, or all (force).
+
+### Main Features
+
+- Mode selection (Selected / Text Only / All / All (Force))
+- Option to delete empty layers (excluding layers starting with bg or //)
+- Automatically change target layer color to RGB(79,128,255)
+- Unlocking, showing, and recursive item collection
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select mode and target layer in the dialog
+2. Collect target objects
+3. Move objects to the selected layer
+4. Optionally delete empty layers
+5. Change target layer color
+
+### Update History
+
+- v1.0.0 (20250703): Initial release
+- v1.0.1 (20250703): Added layer color change function
+- v1.0.2 (20250703): Improved auto selection detection and empty layer deletion logic
+- v1.0.3 (20250704): Added "All (Force)" mode (merge all layers)
 */
 
 // 全ロック解除と全表示

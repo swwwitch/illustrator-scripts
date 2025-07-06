@@ -2,31 +2,76 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * スクリプト名：SmartObjectDistributor.jsx
- * バージョン: 0.5.8
- * 概要 / Overview：
- * アートボードまたは「_target」レイヤー内の図形を基準にグリッド分割し、
- * 選択オブジェクトを各セル中央に配置するスクリプト。
- * 背景長方形の描画、ガイド化、アートボード化、リアルタイムプレビューに対応。
- *
- * 主な機能 / Features：
- * - グリッド分割（行・列・マージン・ガター）
- * - 背景長方形の描画（色／不透明度／透過）とガイド・アートボード変換
- * - オブジェクトの中央配置とランダム配置
- * - プレビュー対応、UIリアルタイム反映、アンドゥ可能
- * - 「_target」レイヤー図形の一時アートボード化／非表示処理
- *
- * 対象 / Target：アクティブなアートボード、または _target レイヤー内の長方形
- *
- * 作成日：2025-05-20
- * 更新日：2025-06-05
- * - 0.5.3 行間と列間を統一し、マージンも共通値のみに簡素化
- * - 0.5.4 UI構造とラベル整理、cell-background レイヤーの自動削除を追加
- * - 0.5.5 行列、行間・段間、マージンを簡易化、直前に実行したセルを削除
- * - 0.5.6 UI構成と有効制御を調整
- * - 0.5.7 マージンの変更が即時プレビューに反映されるよう調整
- * - 0.5.8 _targetレイヤーの長方形をアートボードとして一時使用／非表示化処理を追加
- */
+### スクリプト名：
+
+SmartObjectDistributor.jsx
+
+### 概要
+
+- 選択オブジェクトを指定した行数・列数のグリッドに沿ってアートボードまたは「_target」レイヤー内の長方形内に整列配置するIllustrator用スクリプトです。
+- 背景長方形の描画、ガイド化、アートボード化、ランダム配置、リアルタイムプレビューに対応します。
+
+### 主な機能
+
+- グリッド分割（行数・列数・マージン・ガター）設定
+- 背景長方形描画とガイド・アートボード変換
+- セル中央配置およびランダム配置モード
+- 即時プレビューとUNDO可能設計
+- 「_target」レイヤー内長方形をアートボードとして一時使用
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. 対象オブジェクトと配置先（アートボード or _target レイヤー）を確認
+2. ダイアログでグリッド設定、背景設定、配置オプションを指定
+3. プレビューで確認後、確定またはキャンセル
+4. 必要に応じてアートボード生成や背景ガイド描画を実行
+
+### 更新履歴
+
+- v0.5.3 (20250605) : 行間・列間統一、マージン共通化
+- v0.5.4 (20250605) : UI構造とラベル整理、cell-background レイヤーの自動削除追加
+- v0.5.5 (20250605) : 行列設定の簡素化、直前セル削除処理追加
+- v0.5.6 (20250605) : UI制御改善
+- v0.5.7 (20250605) : マージン即時プレビュー反映
+- v0.5.8 (20250605) : _target レイヤーのアートボード一時使用追加
+
+---
+
+### Script Name:
+
+SmartObjectDistributor.jsx
+
+### Overview
+
+- An Illustrator script to distribute selected objects into a grid on the artboard or within a rectangle in the "_target" layer.
+- Supports drawing background rectangles, converting them to guides or artboards, random placement, and real-time preview.
+
+### Main Features
+
+- Grid division (rows, columns, margin, gutter) settings
+- Draw background rectangles with guide or artboard conversion
+- Center placement and random placement modes
+- Instant preview with undoable design
+- Temporary use of rectangle in "_target" layer as artboard
+- Japanese and English UI support
+
+### Process Flow
+
+1. Check selected objects and target area (artboard or _target layer)
+2. Configure grid, background, and placement options in dialog
+3. Preview and confirm or cancel
+4. Optionally generate artboards or draw background guides
+
+### Update History
+
+- v0.5.3 (20250605): Unified gutter and margin settings
+- v0.5.4 (20250605): Refined UI and label structure, auto-remove cell-background layer
+- v0.5.5 (20250605): Simplified grid settings, added previous cell removal
+- v0.5.6 (20250605): Improved UI control
+- v0.5.7 (20250605): Immediate preview update for margin changes
+- v0.5.8 (20250605): Added temporary artboard usage from _target layer
+*/
 
 // 言語判定関数とラベル定義（グローバル）
 function getCurrentLang() {

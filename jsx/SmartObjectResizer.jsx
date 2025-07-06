@@ -2,25 +2,67 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプト名：SmartObjectResizer.jsx
+### スクリプト名：
 
-概要：
-選択中のオブジェクトを、指定した基準（最大／最小／指定サイズ／アートボード／裁ち落とし／面積）に基づいてリサイズします。
-モードは「縦横比保持」と「片辺のみ」を切り替え可能です。整列機能、リアルタイムプレビュー、入力値に基づくリサイズにも対応しています。
+SmartObjectResizer.jsx
 
-処理の流れ：
-1. ユーザーがダイアログでリサイズモードおよび基準を選択
-2. 選択されたモードに従ってスケーリングを実行（必要に応じて一時グループ化）
+### 概要
+
+- 選択中のオブジェクトを指定した基準（最大、最小、指定サイズ、アートボード、裁ち落とし、面積）に基づいて柔軟にリサイズできるIllustrator用スクリプトです。
+- 縦横比保持モードや片辺のみモード、整列オプション、リアルタイムプレビュー機能を備えています。
+
+### 主な機能
+
+- 縦横比保持と片辺のみの切り替え
+- 各種基準（最大、最小、指定サイズ、アートボード、裁ち落とし、面積）でのスケーリング
+- 整列オプション（左、中央、均等、0間隔、上、中央、横均等、横0間隔）
+- リアルタイムプレビューとリセット機能
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ダイアログでリサイズモードと基準を選択
+2. 選択モードに従ってスケーリング実行（必要に応じて一時グループ化）
 3. 整列オプションや面積一致処理を適用
-4. OKで確定、キャンセルまたはリセットで元に戻す
+4. OKで確定、キャンセルやリセットで元に戻す
 
-対象オブジェクト：
-- Illustrator上で選択された長方形・パス・テキストフレームなど
+### 更新履歴
 
-更新日：2025-06-01
-- 1.0 「片辺のみ」選択時に「指定サイズ」オプションをディム制御
-- 1.1 バグ解消
-- 1.2 「片辺のみ」＋「サイズ指定」での変形をサポート
+- v1.0.0 (20250601) : 初期バージョン
+- v1.1.0 (20250601) : 「片辺のみ」＋「指定サイズ」での変形サポート
+- v1.2.0 (20250601) : バグ修正、細部改善
+
+---
+
+### Script Name:
+
+SmartObjectResizer.jsx
+
+### Overview
+
+- An Illustrator script that flexibly resizes selected objects based on criteria such as Max, Min, Fixed Size, Artboard, Bleed, or Area.
+- Supports "Keep Aspect" and "One Side Only" modes, alignment options, and real-time preview.
+
+### Main Features
+
+- Toggle between "Keep Aspect" and "One Side Only"
+- Scaling based on Max, Min, Fixed Size, Artboard, Bleed, or Area
+- Alignment options (Left, Center, Evenly, Zero Gap, Top, Middle, Horizontal Evenly, Horizontal Zero Gap)
+- Real-time preview and reset function
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select resize mode and base in the dialog
+2. Execute scaling according to selected mode (temporarily grouping if necessary)
+3. Apply alignment or area-matching options
+4. Confirm with OK, or revert with Cancel or Reset
+
+### Update History
+
+- v1.0.0 (20250601): Initial version
+- v1.1.0 (20250601): Supported "One Side Only" with "Fixed Size"
+- v1.2.0 (20250601): Bug fixes and improvements
 */
 
 (function() {

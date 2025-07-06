@@ -2,44 +2,68 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * スクリプト名：SmartArtboardRenamer.jsx
- *
- * スクリプトの概要：
- * Adobe Illustrator のアートボード名を一括でリネームするツールです。
- * 接頭辞・接尾辞・参照テキストの組み合わせにより、柔軟な命名が可能です。
- * 「最前面のテキスト」モードでは、アートボードごとに最も上にあるテキストフレーム（Z順で前面）を1つ参照します。
- * 「レイヤーを指定」モードでは、指定レイヤー以下のすべてのテキストフレームを、
- * 見た目の上から順（Z順）に結合して使用します。
- *
- * 【主な機能】（日本語）
- * - 接頭辞・接尾辞には連番（1, 01, A, a）、ファイル名（#FN）を含めることが可能
- * - 「最前面のテキスト」ではアートボードごとにZ順で最前面のテキストフレームを参照
- * - 「レイヤーを指定」ではレイヤー以下の全テキストをZ順で結合
- * - 非表示レイヤーのオブジェクトは無視
- * - アートボードの対象範囲（すべて／一部）を選択可能
- * - 同名が重複する場合は "_2", "_3" などを自動付加
- *
- * Script Name: SmartArtboardRenamer.jsx
- *
- * Description (English):
- * This script batch-renames artboards in Adobe Illustrator.
- * You can flexibly construct artboard names using a prefix, suffix, and reference text.
- *
- * [Key Features] (English)
- * - Prefix/suffix supports sequential formats (1, 01, A, a) and file name (#FN)
- * - Use either the "frontmost text" or "text in a selected layer" as the name
- * - Layer mode includes a popup menu to choose from all layers
- * - Only objects in the selected layer are used when in layer mode
- * - You can target all or specific artboards by number range
- * - If names conflict, "_2", "_3", etc. are appended to make them unique
- * - Hidden layers are ignored
- *
- * 作成日：2025-05-09
- * 最終更新日：2025-05-12（読込確認・調整準備）
- */
+### スクリプト名：
 
-//@target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
+SmartArtboardRenamer.jsx
+
+### 概要
+
+- Illustratorのアートボード名を一括で柔軟にリネームできるスクリプトです。
+- 接頭辞・接尾辞・テキスト参照を組み合わせて、カスタムルールで命名が可能です。
+
+### 主な機能
+
+- 接頭辞・接尾辞に連番（1, 01, A, a）、ファイル名（#FN）を含めることが可能
+- 「最前面のテキスト」モードで各アートボード最前面テキストを参照
+- 「レイヤーを指定」モードで指定レイヤー内のテキストを結合して参照
+- 同名が重複する場合は "_2", "_3" などを自動付加
+- 非表示レイヤーは無視
+- 対象アートボードの範囲を選択可能
+
+### 処理の流れ
+
+1. モード・接頭辞・接尾辞などをダイアログで設定
+2. テキスト参照方法とアートボード対象範囲を選択
+3. 設定に従ってアートボード名を一括変更
+4. 必要に応じて重複名を自動補正
+
+### 更新履歴
+
+- v1.0.0 (20250509) : 初期バージョン
+- v1.0.1 (20250512) : レイヤー参照改善、UI調整
+
+---
+
+### Script Name:
+
+SmartArtboardRenamer.jsx
+
+### Overview
+
+- A script to batch rename artboards in Illustrator with flexible custom rules.
+- Allows combining prefix, suffix, and reference text for advanced naming.
+
+### Main Features
+
+- Prefix/suffix can include sequential numbers (1, 01, A, a) and file name (#FN)
+- "Frontmost text" mode uses the topmost text frame per artboard
+- "Specify layer" mode combines text from a chosen layer
+- Automatically appends "_2", "_3", etc. to avoid duplicate names
+- Ignores hidden layers
+- Supports specifying target artboards by range
+
+### Process Flow
+
+1. Configure mode, prefix, suffix, and other settings in the dialog
+2. Select text reference method and artboard range
+3. Rename artboards based on settings
+4. Automatically adjust duplicate names if needed
+
+### Update History
+
+- v1.0.0 (20250509): Initial version
+- v1.0.1 (20250512): Improved layer reference and UI adjustments
+*/
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';

@@ -2,35 +2,69 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプト名：AdjustBaselineVerticalCenter.jsx
+### スクリプト名：
 
-概要:
-選択したテキストフレーム内の指定した文字（1文字以上）を、基準文字に合わせてベースライン（垂直位置）を調整します。
-Adjusts the baseline of one or more specified characters in one or multiple text frames to align vertically with a reference character.
+AdjustBaselineVerticalCenter.jsx
 
-処理の流れ:
-1. ダイアログで対象文字と基準文字を指定（対象文字は自動入力、複数ある場合は最頻出記号。手動上書きも可）
-2. 複製とアウトライン化で中心Y座標を比較
-3. 差分をすべての対象文字に適用
+### 概要
 
-対象:
-- テキストフレーム（複数選択可、一括適用対応）
+- 指定した文字（1文字以上）を、基準文字に合わせて縦位置（ベースライン）を調整するスクリプトです。
+- 複数のテキストフレームに対して一括適用が可能です。
 
-対象外:
-- アウトライン済み、非テキストオブジェクト
+### 主な機能
 
-オリジナルアイデア:
+- 複数文字の対象指定に対応
+- 基準文字の中心に合わせてベースラインシフトを自動調整
+- 最頻出記号を自動抽出し、デフォルト対象文字に設定
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ダイアログで対象文字と基準文字を指定
+2. 各文字のアウトライン複製から中心Y座標を取得
+3. 差分に応じてベースラインシフトを自動適用
+
+### オリジナル、謝辞
+
 Egor Chistyakov https://x.com/tchegr
 
-オリジナルからの変更点:
-- 対象文字は自動入力（複数ある場合には最頻出記号を選択）
-- 手動での上書き入力も可能
-- 複数のテキストオブジェクトに対しても一括適用可能
-- 対象文字に複数文字を同時指定できるよう対応
+### 更新履歴
 
-更新履歴:
-- v1.0.0(2025-07-04): 初版リリース
-- v1.0.6(2025-07-05): 複数の対象文字を指定し、一括で調整可能に対応
+- v1.0.0 (20250704) : 初版リリース
+- v1.0.6 (20250705) : 複数の対象文字を指定し、一括調整に対応
+
+---
+
+### Script Name:
+
+AdjustBaselineVerticalCenter.jsx
+
+### Overview
+
+- A script to adjust the vertical position (baseline) of specified characters to align with a reference character.
+- Can be applied to multiple text frames at once.
+
+### Main Features
+
+- Supports specifying multiple target characters
+- Automatically adjusts baseline shift to match the center of the reference character
+- Automatically detects the most frequent symbol as default target
+- Japanese and English UI support
+
+### Process Flow
+
+1. Specify target and reference characters in the dialog
+2. Duplicate outlines to calculate center Y positions
+3. Automatically apply baseline shift based on the difference
+
+### Original / Acknowledgements
+
+Egor Chistyakov https://x.com/tchegr
+
+### Update History
+
+- v1.0.0 (20250704): Initial release
+- v1.0.6 (20250705): Supported multiple target characters and batch adjustment
 */
 
 /*

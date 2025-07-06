@@ -2,25 +2,64 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * スクリプト名 / Script Name: ConvertFontInfoUI.jsx
- *
- * 概要 / Overview:
- * このスクリプトは、Illustrator 上で選択されたテキストの内容をフォント情報に変換します。
- * ダイアログから形式を選び、選択中テキストを即時に書き換えるリアルタイム変換機能を備えています。
- * フォントサイズは環境設定「文字の単位」に基づいて換算され、小数点第2位までで表示されます。
- * 「3行表示」ではラベルを10pt、内容行は元のサイズを保持。
- * ダイアログでキャンセルした場合、変換前の内容と書式を復元します。
- *
- * 対応形式：
- * - ファミリー名（.family）
- * - スタイル（.style）
- * - PostScript 名（.name）
- * - フルネーム＋サイズ（.fullName + size）
- * - ラベル付き詳細（3行表示）
- *
- * 対応言語：日本語 / English（UI自動切替）
- * 最終更新日 / Last Update：2025-05-09
- */
+### スクリプト名：
+
+ConvertFontInfoUI.jsx
+
+### 概要
+
+- 選択したテキストの内容をフォント情報に変換するIllustrator用スクリプトです。
+- ダイアログで形式を選択し、選択中テキストをリアルタイムに書き換えることができます。
+
+### 主な機能
+
+- フォントファミリー名、スタイル、PostScript名、フルネーム＋サイズ、3行詳細表示を選択可能
+- 変換後のプレビューを即時表示
+- フォントサイズは環境設定「文字の単位」に従い小数第2位まで換算表示
+- キャンセル時には元のテキスト内容と書式を復元
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. 選択中のテキストを解析しフォント情報を取得
+2. ダイアログで変換形式を選択
+3. 選択に応じて即座にプレビュー表示
+4. OKで確定、キャンセルで元に戻す
+
+### 更新履歴
+
+- v1.0.0 (20250509) : 初期バージョン
+
+---
+
+### Script Name:
+
+ConvertFontInfoUI.jsx
+
+### Overview
+
+- An Illustrator script to convert the contents of selected text into font information.
+- Allows you to select format via dialog and rewrite text content in real time.
+
+### Main Features
+
+- Choose from font family name, style, PostScript name, full name + size, or detailed 3-line view
+- Instantly preview the converted text
+- Font size is converted based on "Type Units" preference, rounded to two decimals
+- Restore original text and formatting when canceled
+- Japanese and English UI support
+
+### Process Flow
+
+1. Analyze selected text and retrieve font information
+2. Choose conversion format in the dialog
+3. Preview changes instantly as you select
+4. Confirm with OK, or revert with Cancel
+
+### Update History
+
+- v1.0.0 (20250509): Initial version
+*/
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';

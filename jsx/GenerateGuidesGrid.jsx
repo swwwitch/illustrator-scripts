@@ -1,35 +1,78 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+
 /*
- * スクリプトの概要 / Script Overview：
- * Illustratorのアートボードを、指定した行数・列数に分割してガイドを自動生成します。
- * 必要に応じて、分割されたセルごとに長方形を描画することもできます。
- * ダイアログは日本語／英語に自動対応し、各種オプションをリアルタイムでプレビュー可能です。
- *
- * 主な機能 / Main Features：
- * - 行数・列数・ガター（行間／列間）・上下左右マージン・ガイドの伸張距離を自由に設定可能
- * - セルごとの長方形描画（K100またはR0G0B0、不透明度15%）
- * - ガイドを描画するか選択可能（デフォルトON）
- * - 裁ち落としガイドを描画可能（デフォルトOFF・3mm）
- * - セル長方形のプレビューにも対応（本番作成前に確認）
- * - 「すべてのアートボードに適用」オプションあり
- * - 「すべて同じにする」チェックON時、マージン個別入力欄をディム表示
- * - 現在の設定をプリセットとしてコード書き出し（ファイル名＝プリセット名、拡張子自動付与）
- * - プリセットに「ガイドを引く」「裁ち落としのガイド」も含められる
- * - 日本語／英語環境自動切り替え対応（$.localeによる判定）
- *
- * その他仕様 / Other Specifications：
- * - ガイドと長方形は、それぞれ「grid_guides」「cell-rectangle」レイヤーに整理して作成
- * - プリセット書き出し時、拡張子がない場合は.txtを自動付与
- * - カラーモード（CMYK/RGB）に応じて長方形の塗り色を自動調整
- *
- * オリジナルアイデア：スガサワ君β
- * https://note.com/sgswkn/n/nee8c3ec1a14c
- *
- * Created: 2025-04-24
- * Updated: 2025-04-27（ガイドを引く・裁ち落としガイド・プリセット対応版）
- */
+### スクリプト名：
+
+GenerateGuidesGrid.jsx
+
+### 概要
+
+- Illustrator のアートボードを指定した行数・列数に分割し、自動でガイドを生成するスクリプトです。
+- 必要に応じてセルごとの長方形や裁ち落としガイドを描画でき、プリセットの書き出しにも対応します。
+
+### 主な機能
+
+- 行数・列数、ガター、上下左右マージン、ガイド伸張距離を自由に設定
+- セルごとの長方形描画（不透明度15%）
+- 裁ち落としガイドの追加描画
+- 現在設定をプリセットとして書き出し
+- すべてのアートボードに一括適用可能
+- 日本語／英語インターフェース自動切替
+
+### 処理の流れ
+
+1. ダイアログで行数、列数、マージンなどを設定
+2. プレビューを確認
+3. OK または適用をクリックしてガイド・長方形を作成
+
+### オリジナル、謝辞
+
+スガサワ君β  
+https://note.com/sgswkn/n/nee8c3ec1a14c
+
+### 更新履歴
+
+- v1.0.0 (20250424) : 初期バージョン
+- v1.0.1 (20250427) : ガイド、裁ち落としガイド、プリセット書き出し機能追加
+
+---
+
+### Script Name:
+
+GenerateGuidesGrid.jsx
+
+### Overview
+
+- A script for Illustrator that divides artboards into specified rows and columns, and automatically generates guides.
+- Optionally draws cell rectangles and bleed guides, and supports exporting presets.
+
+### Main Features
+
+- Freely set rows, columns, gutter, margins, and guide extension
+- Draw cell rectangles (15% opacity)
+- Add optional bleed guides
+- Export current settings as presets
+- Apply to all artboards at once
+- Automatic Japanese / English UI switching
+
+### Process Flow
+
+1. Configure rows, columns, margins, etc. in the dialog
+2. Check the preview
+3. Click OK or Apply to create guides and rectangles
+
+### Original / Acknowledgements
+
+Sugasawa-kun β  
+https://note.com/sgswkn/n/nee8c3ec1a14c
+
+### Update History
+
+- v1.0.0 (20250424): Initial version
+- v1.0.1 (20250427): Added guides, bleed guides, and preset export feature
+*/
 
 (function () {
     if (app.documents.length === 0) {

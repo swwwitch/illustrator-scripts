@@ -2,18 +2,73 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプト名：SmartBatchImporter.jsx
-作成日：2025-05-29
-更新日：2025-05-29
-- 1.0.1：フォルダー指定で読む込むときの挙動を変更、ラベルテキストを「_label」レイヤーに
-- 1.0.2：読み込むファイル数を表示、プログレスバーとキャンセル機能を追加
-- 1.0.3：プログレスバーに進捗数表示（n/N）を追加
+### スクリプト名：
 
-スクリプトの概要：
-複数の Illustrator ファイル（.ai/.svg）を一括で読み込み、表示中かつロック解除されたオブジェクトを新規ドキュメントに貼り付けて整列配置します。
-ファイル名ラベル（オプション）や拡張子表示、読み込み後に元ファイルを閉じるか保持するかなどのオプションも指定可能です。
-フォルダー読み込み時は対象ファイルを1件ずつ開いて処理し、メモリ負荷を軽減します。
-実行中はプログレスバーと進捗数（n/N）を表示し、キャンセルも可能です。
+SmartBatchImporter.jsx
+
+### 概要
+
+- 複数のIllustratorファイル（.ai/.svg）を一括で読み込み、ロック解除済みオブジェクトのみを新規ドキュメントに貼り付け整列配置するスクリプトです。
+- ファイル名ラベル追加や拡張子表示、読み込み後の動作指定、フォルダ単位処理、プログレスバーなど多彩なオプションを備えています。
+
+### 主な機能
+
+- フォルダ選択による一括読み込み
+- ロック解除済みオブジェクトのみ抽出
+- ファイル名ラベル（拡張子表示オプションあり）の追加
+- 読み込み後にファイルを閉じる・保持するオプション
+- カラースペース、ドキュメントサイズプリセット、カスタム設定
+- プログレスバーとキャンセル対応
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. フォルダまたは開いているファイルを選択
+2. ダイアログでカラー・サイズ・ラベル・動作オプションを設定
+3. プログレスバーを表示しながら読み込みと配置を実行
+4. 完了後に新規ドキュメントで配置結果を確認
+
+### 更新履歴
+
+- v1.0.0 (20250529) : 初期バージョン
+- v1.0.1 (20250529) : フォルダ読み込み挙動変更、ラベルを「_label」レイヤーに
+- v1.0.2 (20250529) : ファイル数表示、プログレスバーとキャンセル追加
+- v1.0.3 (20250529) : プログレスバーに進捗数表示（n/N）追加
+
+---
+
+### Script Name:
+
+SmartBatchImporter.jsx
+
+### Overview
+
+- A script to batch import multiple Illustrator files (.ai/.svg), paste only unlocked objects into a new document, and arrange them neatly.
+- Supports adding filename labels, showing extensions, folder-based processing, progress bar, and various options.
+
+### Main Features
+
+- Batch import by folder selection
+- Extract only unlocked objects
+- Add filename labels (optionally show extensions)
+- Choose to close or keep source files after import
+- Color space, document size presets, and custom size
+- Progress bar with cancel support
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select folder or open files
+2. Configure color, size, label, and behavior options in dialog
+3. Show progress bar and execute import and placement
+4. Review result in a new document after completion
+
+### Update History
+
+- v1.0.0 (20250529): Initial version
+- v1.0.1 (20250529): Changed folder import behavior, moved labels to "_label" layer
+- v1.0.2 (20250529): Added file count display, progress bar, and cancel option
+- v1.0.3 (20250529): Added progress count display (n/N)
 */
 
 // -------------------------------

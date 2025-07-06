@@ -2,37 +2,75 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-■ スクリプト名：ApplyShearAppearance.jsx
+### スクリプト名：
 
-■ 概要：
-選択オブジェクトにアピアランスとしてシアー（傾斜）変形を適用します。
-角度（-44°〜44°）と方向（水平方向または垂直方向）を指定でき、リアルタイムプレビューが可能です。
+ApplyShearAppearance.jsx
 
-■ 処理の流れ：
+### 概要
+
+- 選択オブジェクトにアピアランスとしてシアー（傾斜）変形を適用するスクリプトです。
+- 角度（-44°〜44°）と方向（水平方向または垂直方向）を指定し、リアルタイムプレビューが可能です。
+
+### 主な機能
+
+- 角度指定と方向（水平方向／垂直方向）の選択
+- リアルタイムプレビューとUndo対応
+- + / - ボタンによる角度微調整
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
 1. オブジェクトを選択
-2. ダイアログで角度と方向を指定
-3. プレビューで即反映（Undo可能）
+2. ダイアログで角度と方向を設定
+3. プレビューで即座に効果を確認
 4. OKで確定、キャンセルで元に戻す
 
-■ 対象：
-- PathItem や GroupItem など applyEffect() が使えるアートワーク
-- テキストや画像など applyEffect を持たないものは対象外
+### オリジナル、謝辞
 
-■ クレジット：
-Originally created by kawamoto_α（あるふぁ（仮））さん
-アピアランスでシアー.jsx
+Originally created by kawamoto_α（あるふぁ（仮））さん  
+アピアランスでシアー.jsx  
 https://sysys.blog.shinobi.jp/Entry/53/
 
-■ 変更点
-・プレビュー機能を追加
-・選択しているオブジェクトから水平／垂直を判断
-・en/ja ラベル対応
-・ダイアログボックスを開いたら、値入力フィールドをアクティブに
-・値変更の+ボタン、ｰボタンを追加
+### 更新履歴
 
-■ 更新履歴：
-- v1.0.0（2025-06-09）初版
-- v1.1.0（2025-07-05）+ / - ボタン追加、説明コメント整理
+- v1.0.0 (20250609) : 初版
+- v1.1.0 (20250705) : + / - ボタン追加、説明コメント整理
+
+---
+
+### Script Name:
+
+ApplyShearAppearance.jsx
+
+### Overview
+
+- A script to apply shear (slant) transformation as an appearance to selected objects.
+- Supports specifying angle (-44° to 44°) and direction (horizontal or vertical) with real-time preview.
+
+### Main Features
+
+- Angle input and direction selection (horizontal/vertical)
+- Real-time preview with Undo support
+- Fine-tuning angle using + / - buttons
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select object(s)
+2. Configure angle and direction in the dialog
+3. Check the effect immediately via preview
+4. Confirm with OK or revert with Cancel
+
+### Original / Acknowledgements
+
+Originally created by kawamoto_α (Alpha (temporary))  
+Appearance Shear.jsx  
+https://sysys.blog.shinobi.jp/Entry/53/
+
+### Update History
+
+- v1.0.0 (20250609): Initial release
+- v1.1.0 (20250705): Added + / - buttons, cleaned up comments
 */
 
 // -------------------------------

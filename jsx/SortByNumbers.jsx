@@ -2,29 +2,65 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  グループ内のテキストから数値を抽出し、
-  指定した数値グループに基づきグループを並び替え、縦に整列するスクリプト。
+### スクリプト名：
 
-  処理の流れ：
-  1. 選択中のグループから数値テキストを抽出しフォントごとに分類
-  2. ユーザーが数値グループと並び順を選択
-  3. 選択に基づきグループを並び替え
-  4. 並び替えたグループを縦方向に整列
+SortByNumbers.jsx
 
-  限定条件：
-- GroupItem オブジェクトは縦方向に並んでいる
-- 各グループ内に数字を含むテキストが入っている
-- 数値は数または小数（カンマ区切りは除去）
-- フォントやスタイルから数字を判断し、グループ化
-- 数値のグループをダイアログボックスのラジオボタンに反映
+### 概要
 
-作成日：2025年6月15日
-修正日：2025年6月16日
+- グループ内のテキストから数値を抽出し、数値に基づいてグループを並び替え縦方向に整列するIllustrator用スクリプトです。
+- フォント情報によるグループ分けと、昇順・降順・ランダムソートに対応します。
 
-更新履歴
-ｰ 1.0.0 初版
-ｰ 1.1.0 ラジオボタンの選択状態を保持
+### 主な機能
 
+- テキストから数値抽出（カンマ除去、小数対応）
+- フォント名ごとのグループ選択とソート
+- 昇順、降順、ランダムの並び替えオプション
+- スペーシング（フィットまたはカスタム値）選択
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. 数値を含むグループオブジェクトを選択
+2. ダイアログでフォント、ソート順、スペーシングを設定
+3. グループをソートし縦方向に配置
+4. 全体位置を元の開始位置に補正
+
+### 更新履歴
+
+- v1.0.0 (20250615) : 初期バージョン
+- v1.1.0 (20250616) : ラジオボタン選択状態保持機能追加
+
+---
+
+### Script Name:
+
+SortByNumbers.jsx
+
+### Overview
+
+- An Illustrator script that extracts numbers from text inside groups, sorts groups based on those numbers, and arranges them vertically.
+- Supports grouping by font info and sorting in ascending, descending, or random order.
+
+### Main Features
+
+- Extract numbers from text (ignores commas, supports decimals)
+- Group and sort by font name
+- Ascending, descending, or random sorting options
+- Choose spacing mode: fit or custom value
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select group objects containing numbers
+2. Configure font, sort order, and spacing in dialog
+3. Sort and arrange groups vertically
+4. Adjust overall position to original start point
+
+### Update History
+
+- v1.0.0 (20250615): Initial version
+- v1.1.0 (20250616): Added radio button state retention
 */
 
 var LABELS = {

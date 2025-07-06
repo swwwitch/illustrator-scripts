@@ -2,29 +2,65 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+### スクリプト名：
 
 MimicDynamicText.jsx
 
-【スクリプトの概要】
-選択されたエリア内文字をポイント文字に変換し、改行ごとに分割して個別のテキストフレームとして再配置します。
-その後、分割されたポイント文字を連結し、最終的に再びエリア内文字としてまとめ直す処理を行います。
+### 概要
 
-【処理の流れ】
-1. エリア内文字が選択されているかを確認
-2. エリア内文字をポイント文字に変換し、改行ごとに分割して再配置
-3. 分割されたポイント文字を連結して一つのテキストフレームにまとめる
-4. 最終的にポイント文字をエリア内文字に再変換し、元の幅や自動行送りを設定
+- エリア内文字をポイント文字に変換し、改行ごとに分割して個別に再配置するIllustrator用スクリプトです。
+- 最終的にポイント文字を連結してエリア内文字に戻すことで、より柔軟な再編集が可能になります。
 
-【対象オブジェクト】
-- エリア内文字（AREATEXT）
+### 主な機能
 
-【対象外】
-- ポイント文字（POINTTEXT）
-- パス上文字（PATHTEXT）
+- エリア内文字をポイント文字に変換
+- 改行ごとに分割してポイント文字フレームを生成
+- 複数のテキストフレームを連結して再構築
+- 再びエリア内文字に変換して自動行送りを設定
+- 日本語／英語インターフェース対応
 
-【更新履歴】
-2025-06-18: 初版作成
-2025-06-18: 最終的にエリア内文字へ戻す処理を追加
+### 処理の流れ
+
+1. エリア内文字が選択されているか確認
+2. ポイント文字に変換後、改行で分割し再配置
+3. 分割されたテキストフレームを連結
+4. エリア内文字に再変換して調整
+
+### 更新履歴
+
+- v1.0.0 (20250618) : 初期バージョン
+- v1.0.1 (20250618) : エリア内文字へ戻す処理を追加
+
+---
+
+### Script Name:
+
+MimicDynamicText.jsx
+
+### Overview
+
+- An Illustrator script that converts area text to point text, splits it line by line, and repositions each line individually.
+- Finally merges the point texts and converts them back into area text for flexible editing.
+
+### Main Features
+
+- Convert area text to point text
+- Split by line breaks and create individual point text frames
+- Merge multiple text frames back into one
+- Convert back to area text and apply auto leading
+- Japanese and English UI support
+
+### Process Flow
+
+1. Check if area text is selected
+2. Convert to point text, split by line, and reposition
+3. Merge split text frames
+4. Convert back to area text and adjust
+
+### Update History
+
+- v1.0.0 (20250618): Initial version
+- v1.0.1 (20250618): Added process to convert back to area text
 */
 
 #target illustrator

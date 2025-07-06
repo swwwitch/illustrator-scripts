@@ -2,50 +2,69 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * スクリプト名：TypefaceSampler.jsx
- *
- * スクリプトの概要：
- * Illustrator で使用可能なフォントを一覧表示し、
- * ウエイト（太さ）順やスタイル（装飾）順に従ってアートボード上に整然と描画します。
- *
- * 機能概要：
- * - font.style をもとにウエイトや装飾キーワードを判定
- * - Ultra Light〜Black などのウエイト分類は weightGroups により定義
- * - Italic や Condensed、Wide などの装飾語には加点処理
- * - "25 Ultra Light" や "W300" のように数値スタイルにも対応（数値優先）
- * - 表示テキストにスコア（rank）を含める debug モードあり
- *
- * - キーワード検索によるフォントの絞り込みに対応：
- *   ● 検索対象：font.name / font.family / font.style
- *   ● 入力例と意味：
- *     ・`新ゴ 游`           → OR（新ゴ または 游 を含む）
- *     ・`^DIN+Bold`         → AND（DINで始まり、Boldを含む）
- *     ・`Helvetica -Now`    → NOT（Helvetica を含み、Now を含まない）
- *     ・`新ゴ+游 -Light`     → 新ゴかつ游を含み、Lightを含まない
- *     ・`^DIN+Bold -Condensed` → 複合条件（先頭一致＋AND＋NOT）
- *   ● 構文仕様：
- *     - 「^」：先頭一致
- *     - 「+」：AND条件
- *     - 「,」またはスペース：OR条件（全角スペース・カンマもOK）
- *     - 「-」：除外（NOT条件）
- *   ● スペース・カンマ・全角空白混在でも正しく処理されます
- *
- * 処理の流れ：
- * 1. ダイアログで出力形式・列数・カテゴリ分けなどのオプションを取得
- * 2. Illustrator が現在利用可能なすべてのフォントから条件に合致するフォントを収集
- * 3. 評価スコア順に並べてアートボード左上から描画
- *
- * 作成日：2025-04-20
- * 最終更新日：2025-05-08 17:05
+### スクリプト名：
 
- 更新履歴
- v1.0.0 (2025-04-20)
- v1.3.0 (2025-05-08) ロジック修正
- v1.3.1 (2025-07-06) ローカライズを調整
- */
+TypefaceSampler.jsx
 
-//@target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
+### 概要
+
+- Illustrator で利用可能なフォントを一覧表示し、ウエイトやスタイル順にアートボード上へ整列描画するスクリプトです。
+- フォント名、PostScript名、サンプルテキスト、カスタムテキストなど柔軟に出力内容を切り替えられます。
+
+### 主な機能
+
+- ウエイト・スタイル評価によるスコアリングとソート
+- フォント名、PostScript名、アルファベット、数字、カスタムテキスト表示に対応
+- キーワード検索（AND/OR/NOT/先頭一致）によるフォント絞り込み
+- カテゴリ（family）単位のグループ化と表示
+- ウエイト数やスコアの表示切り替え
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ダイアログで出力形式やキーワード、オプションを設定
+2. 検索条件に合致するフォントを収集
+3. スコア順にソートし、アートボードに整列描画
+
+### 更新履歴
+
+- v1.0.0 (20250420) : 初期バージョン
+- v1.3.0 (20250508) : 評価ロジック修正、条件絞り込み機能強化
+- v1.3.1 (20250706) : ローカライズ調整
+
+---
+
+### Script Name:
+
+TypefaceSampler.jsx
+
+### Overview
+
+- A script for Illustrator to list available fonts and draw them on the artboard sorted by weight and style.
+- Supports flexible output options such as font name, PostScript name, sample text, and custom text.
+
+### Main Features
+
+- Weight/style score evaluation and sorting
+- Supports display of font name, PostScript name, alphabet, numbers, or custom text
+- Keyword search with AND/OR/NOT/prefix matching for font filtering
+- Grouping by category (family) and display
+- Toggle display of weight count and score
+- Japanese and English UI support
+
+### Process Flow
+
+1. Configure output format, keywords, and options in dialog
+2. Collect fonts matching search criteria
+3. Sort by score and draw aligned on artboard
+
+### Update History
+
+- v1.0.0 (20250420): Initial version
+- v1.3.0 (20250508): Improved evaluation logic and filter features
+- v1.3.1 (20250706): Localization adjustments
+*/
+
 
 // -------------------------------
 // 言語設定の取得

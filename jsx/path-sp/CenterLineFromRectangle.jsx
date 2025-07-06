@@ -2,30 +2,63 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  スクリプト名: CenterLineFromRect.jsx
+### スクリプト名：
 
-  概要:
-  選択した長方形の中心に縦線または横線を描画します。
-  描画された線は、同一フォルダ内のスクリプトに引き継がれて連結・再構築処理されます。
+CenterLineFromRect.jsx
 
-  処理の流れ:
-  1. 選択オブジェクトの中から、閉じたパスでアンカーポイントが4点の長方形を抽出
-  2. 対象長方形の縦横比に基づいて、中心線（縦または横）を描画
-  3. 元の長方形を削除し、描画された線のみを選択状態にする
+### 概要
 
-  対象:
-  - PathItem（閉じたパスでアンカーポイントが4点の長方形）
-  - CompoundPathItem 内の同様の長方形
+- 選択した長方形の中心に縦線または横線を描画する Illustrator 用スクリプトです。
+- 描画後、元の長方形は削除され、線のみが選択状態になります。
 
-  除外条件:
-  - 正方形に近い形状（縦横差が5%未満）
-  - 短辺 × 1.5 ＞ 長辺 の形状
+### 主な機能
 
-  更新履歴:
-  - 2025-06-12 初版作成（縦長・横長対応、複数オブジェクト対応、CMYK割れ判定付き）
-  - 2025-06-15 除外条件追加・コメント整理
-  - 2025-06-15 中心線描画機能のみを残し、長方形再構築ロジックを削除
-  - 2025-06-15 回転補正ロジックをアンカーポイントベースに変更、短辺 × 1.8 を 1.5 に修正
+- 縦長または横長の長方形に対応し、適切な方向の中心線を描画
+- 回転補正ロジックにより角度ズレを修正
+- 複数オブジェクト同時処理対応
+- 除外条件（正方形に近い形状、短辺が長辺の1.5倍以上など）あり
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. 閉じた4点パスの長方形を抽出
+2. 縦横比に基づき中央に線を描画
+3. 元の長方形を削除し、線を選択状態にする
+
+### 更新履歴
+
+- v1.0.0 (20250612) : 初版作成
+- v1.0.1 (20250615) : 除外条件追加、コメント整理、回転補正ロジック改善
+
+---
+
+### Script Name:
+
+CenterLineFromRect.jsx
+
+### Overview
+
+- An Illustrator script that draws a vertical or horizontal center line inside a selected rectangle.
+- The original rectangle is deleted, and only the line remains selected.
+
+### Main Features
+
+- Supports both vertical and horizontal rectangles, draws appropriate center line
+- Rotation correction logic to fix angle misalignments
+- Supports processing multiple objects at once
+- Exclusion conditions for near-square shapes or shapes where short side × 1.5 > long side
+- Japanese and English UI support
+
+### Process Flow
+
+1. Extract closed 4-point rectangle paths
+2. Draw center line based on aspect ratio
+3. Delete original rectangle and select the line
+
+### Update History
+
+- v1.0.0 (20250612): Initial version
+- v1.0.1 (20250615): Added exclusion conditions, cleaned comments, improved rotation correction
 */
 
 // 長方形の中心に線を描画し、元の長方形を削除する関数

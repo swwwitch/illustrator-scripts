@@ -2,33 +2,72 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * スクリプト名：SmartObjectExporter.jsx
- *
- * 概要：
- * Adobe Illustrator の選択オブジェクトを一時アートボードとプレビュー用レイヤーに複製し、
- * 背景・余白・罫線・書き出し倍率・ファイル名構成などを指定して PNG ファイルとして書き出します。
- * ダイアログではリアルタイムプレビューやプリセット保存が可能です。
- *
- * 【主な機能】
- * - 選択オブジェクトを一時アートボードに複製して PNG 書き出し
- * - 背景設定（透過・白・黒・任意カラー・透明グリッド）
- * - 書き出し倍率または幅指定（1x〜4x／カスタム倍率／px幅）
- * - 余白設定（なし／左右／上下／四辺）
- * - 罫線の追加（色・太さ指定、黒／白／任意カラー）
- * - ファイル名構成（区切り記号・接尾辞）＋リアルタイムプレビュー
- * - 書き出し先の選択（デスクトップ／元ファイルのフォルダ）
- * - 書き出し後に Finder でフォルダ表示（Mac のみ）
- * - 設定のプリセット保存（.txt ファイル形式）
- * - プレビュー用レイヤー「__preview」は常に削除（キャンセル時含む）
- * - レイヤー順を維持したままプレビュー用レイヤーへ複製
- * - 元の非表示レイヤーを自動で再表示
- *
- * 更新履歴：
- * - 0.5.0  : 初版作成
- * - 0.5.13 : 選択オブジェクトの重ね順を維持したまま複製（PLACEATEND 使用）
- * - 0.5.14 : 余白オプション（左右／上下／四辺）を追加
- * - 更新日：2025-05-27
- */
+### スクリプト名：
+
+SmartObjectExporter.jsx
+
+### 概要
+
+- 選択オブジェクトを一時アートボードとプレビュー用レイヤーに複製し、背景、余白、罫線、倍率、ファイル名設定などを自由に指定してPNGとして書き出すスクリプトです。
+- リアルタイムプレビューとプリセット保存により、効率的に多用途な書き出しが可能です。
+
+### 主な機能
+
+- 一時アートボード作成と選択オブジェクト複製
+- 背景（透過、白、黒、任意カラー、透明グリッド）設定
+- 余白（なし、左右、上下、四辺）の柔軟設定
+- 罫線追加（色・太さ指定可能）
+- 書き出し倍率または横幅指定
+- ファイル名構成（区切り記号、接尾辞）、プレビュー表示
+- 書き出し先選択（デスクトップまたは同フォルダ）
+- Finder表示（Macのみ）、プリセット保存
+
+### 処理の流れ
+
+1. オプションダイアログで各項目を設定
+2. プレビューで確認
+3. OKでPNGを書き出し、キャンセルで復帰
+
+### 更新履歴
+
+- v0.5.0 (20240527) : 初版作成
+- v0.5.13 (20240527) : 重ね順維持で複製（PLACEATEND）
+- v0.5.14 (20240527) : 余白オプション追加
+
+---
+
+### Script Name:
+
+SmartObjectExporter.jsx
+
+### Overview
+
+- A script to duplicate selected objects to a temporary artboard and preview layer, then export them as PNG with customizable background, margin, border, scale, and filename options.
+- Real-time preview and preset saving allow versatile and efficient exports.
+
+### Main Features
+
+- Create temporary artboard and duplicate selection
+- Background options (transparent, white, black, custom color, transparency grid)
+- Flexible margin settings (none, horizontal, vertical, all sides)
+- Add border (customizable color and thickness)
+- Export by scale or specific width
+- Filename configuration (delimiter, suffix), live preview
+- Choose export location (desktop or same folder)
+- Show folder in Finder (Mac only), save presets
+
+### Process Flow
+
+1. Configure settings in option dialog
+2. Preview the result
+3. Export as PNG with OK, or cancel to revert
+
+### Update History
+
+- v0.5.0 (20240527): Initial version
+- v0.5.13 (20240527): Duplicate with z-order preserved (PLACEATEND)
+- v0.5.14 (20240527): Added margin options
+*/
  
 
 // -------------------------------

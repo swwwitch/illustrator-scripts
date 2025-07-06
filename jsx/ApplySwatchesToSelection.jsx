@@ -2,28 +2,75 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプト名：ApplySwatchesToSelection.jsx
+### スクリプト名：
 
-概要：
-スウォッチパネルで選択されているスウォッチ、または全スウォッチの中からプロセスカラーを使い、
-選択オブジェクトやテキストに順またはランダムでカラーを適用します。
+ApplySwatchesToSelection.jsx
 
-処理の流れ：
-1. ドキュメントと選択状態の確認
-2. スウォッチの取得（未選択時はプロセスカラーからランダム取得）
-3. テキスト1つ選択時は文字ごとにスウォッチを適用
-4. 複数オブジェクト選択時は位置順に並べ替えてスウォッチを適用
+### 概要
 
-対象：TextFrame, PathItem, CompoundPathItem（内部のPathItem含む）
-限定条件：オブジェクトが選択されていること
+- 選択中のオブジェクトやテキストに、スウォッチパネルのスウォッチまたは全プロセススウォッチからカラーを適用するスクリプトです。
+- 適用方法は順番またはランダムから選択でき、文字単位やオブジェクト単位でカラーを変えることができます。
 
-謝辞：
-sort_by_position.jsx（shspage氏）を参考にしました。
+### 主な機能
+
+- スウォッチパネルの選択スウォッチ、または全プロセススウォッチを使用
+- 単一テキストの場合は文字ごとに色分け
+- 複数オブジェクトの場合は位置順にカラー適用
+- 3色以上ではスウォッチをランダムシャッフル
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ドキュメントと選択オブジェクトの確認
+2. スウォッチ取得（選択されていなければ全プロセススウォッチ）
+3. 単一テキストは文字単位、複数オブジェクトは位置順に色を適用
+4. 必要に応じてランダムシャッフル
+
+### オリジナル、謝辞
+
+sort_by_position.jsx（shspage氏）を参考にしました  
 https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 
-作成日：2024年11月03日
-最終更新日：2025年06月25日
-- v1.1 スウォッチを選択していないときには、全スウォッチを対象に
+### 更新履歴
+
+- v1.0.0 (20241103) : 初期バージョン
+- v1.1.0 (20250625) : スウォッチ未選択時に全プロセススウォッチ対応
+
+---
+
+### Script Name:
+
+ApplySwatchesToSelection.jsx
+
+### Overview
+
+- A script that applies colors from selected swatches or all process swatches to selected objects or text.
+- You can choose to apply colors sequentially or randomly, and assign colors per character or per object.
+
+### Main Features
+
+- Uses selected swatches from the Swatches panel or all process swatches
+- Colors individual characters for single text frame
+- Colors objects in order when multiple objects are selected
+- Random shuffle if there are more than 3 colors
+- Japanese and English UI support
+
+### Process Flow
+
+1. Check document and selection
+2. Get swatches (if none selected, use all process swatches)
+3. Apply colors per character for single text, or in order for multiple objects
+4. Shuffle randomly if needed
+
+### Original / Acknowledgements
+
+Inspired by sort_by_position.jsx by shspage  
+https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
+
+### Update History
+
+- v1.0.0 (20241103): Initial version
+- v1.1.0 (20250625): Supported all process swatches when no swatches are selected
 */
 
 function getCurrentLang() {

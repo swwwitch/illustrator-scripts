@@ -2,28 +2,67 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプト名：TextSplitterPro.jsx
+### スクリプト名：
 
-概要：
-選択したテキスト（ポイントテキスト／エリアテキスト／直線パス上のテキスト）を
-1文字ずつ分割し、「等間隔」または「視覚的な位置（トラッキング考慮）」で再配置します。
-複数行の場合は行単位に分割して処理します。
+TextSplitterPro.jsx
 
-対象：
-- PointText／AreaText／直線パス上のTextPath
-- 複数オブジェクトおよび複数行対応
+### 概要
 
-処理の流れ：
-1. 配置方法の選択ダイアログを表示
-2. 複数行の場合は行単位に分割
+- 選択したテキストを1文字ずつ分割し、等間隔または見た目どおりに再配置するIllustrator用スクリプトです。
+- ポイントテキスト、エリアテキスト、パス上テキストに対応し、複数行や複数オブジェクトを処理できます。
+
+### 主な機能
+
+- 等間隔配置またはトラッキング考慮の視覚的配置を選択
+- 行単位での分割と再構築
+- グループ化オプション（なし／行単位／全体）
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. 配置モード選択ダイアログを表示
+2. 行単位に分割（複数行テキストの場合）
 3. 各行を1文字ずつ分割して再配置
-4. グループ化オプションに対応
+4. グループ化設定に従ってまとめる
 
-更新履歴：
-- 2025-06-09 1.0.0 初期バージョン
-- 2025-06-09 1.0.1 テキストフレームの位置を考慮して配置するよう修正
-- 2025-06-10 1.0.3 特定の文字を選択しているとき、テキストオブジェクトを選択するロジックを追加
-- v1.0.4 ローカライズを調整
+### 更新履歴
+
+- v1.0.0 (20250609) : 初期バージョン
+- v1.0.1 (20250609) : テキストフレームの位置考慮処理を追加
+- v1.0.3 (20250610) : 選択文字対応ロジック追加
+- v1.0.4 (20250706) : ローカライズ調整
+
+---
+
+### Script Name:
+
+TextSplitterPro.jsx
+
+### Overview
+
+- An Illustrator script that splits selected text into individual characters and rearranges them either evenly or visually considering tracking.
+- Supports point text, area text, and text on a path, handling multi-line and multiple objects.
+
+### Main Features
+
+- Choose between evenly spaced or visually positioned arrangement
+- Split and reconstruct by line
+- Grouping options (none, by line, all together)
+- Japanese and English UI support
+
+### Process Flow
+
+1. Show placement mode selection dialog
+2. Split by line (for multi-line text)
+3. Split each line into characters and rearrange
+4. Group according to selected option
+
+### Update History
+
+- v1.0.0 (20250609): Initial version
+- v1.0.1 (20250609): Added text frame position consideration
+- v1.0.3 (20250610): Added logic for selected characters
+- v1.0.4 (20250706): Localization adjustments
 */
 
 var LABELS = {

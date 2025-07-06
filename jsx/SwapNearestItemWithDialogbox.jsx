@@ -2,20 +2,69 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  スクリプト名：SwapNearestItem.jsx
-  
-  概要：
-    選択中のオブジェクトと、指定方向（上下左右）にある最も近いオブジェクトの位置を入れ替える。
-    ダイアログボックスを表示中、↑↓キーで上下、←→キーで左右のオブジェクトを入れ替える
-  処理の流れ：
-    1. ドキュメントと選択状態を確認
-    2. 指定方向にある最も近いPageItemを検索
-    3. 該当オブジェクトがあれば、元のオブジェクトと座標を交換する
-  備考：
-  ・Escapeキーでダイアログボックスを閉じる
-  ・⌘ + returnキー、option + returnキーでもOS が特別に解釈してkeyイベントとして伝えるため閉じる
-  謝辞：
-  @ken https://x.com/ken_rainy
+### スクリプト名：
+
+SwapNearestItemWithDialogbox.jsx
+
+### 概要
+
+- 選択中のオブジェクトと指定方向（上下左右）にある最も近いオブジェクトの位置を入れ替えるIllustrator用スクリプトです。
+- ダイアログを表示し、矢印キー操作で即座に入れ替え可能です。
+
+### 主な機能
+
+- 上下左右の方向キー入力で対象オブジェクトを即座にスワップ
+- Escapeキー、Enterキー、Returnキーでダイアログを閉じる
+- オブジェクトのロック・非表示・レイヤー状態を考慮
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. ドキュメントと選択オブジェクトを確認
+2. 指定方向に最も近いオブジェクトを検索
+3. 矢印キー操作に応じて位置を入れ替え
+4. ダイアログで操作を続行または終了
+
+### 謝辞
+
+@ken https://x.com/ken_rainy
+
+### 更新履歴
+
+- v1.0.0 (20250706) : 初期バージョン
+
+---
+
+### Script Name:
+
+SwapNearestItemWithDialogbox.jsx
+
+### Overview
+
+- An Illustrator script that swaps the position of the selected object with the nearest object in a specified direction (up, down, left, or right).
+- Displays a dialog allowing immediate swaps using arrow keys.
+
+### Main Features
+
+- Instantly swap objects using arrow keys (up/down/left/right)
+- Close dialog with Escape, Enter, or Return keys
+- Considers locked, hidden objects and layer states
+- Japanese and English UI support
+
+### Process Flow
+
+1. Check document and selected object
+2. Find the nearest object in the specified direction
+3. Swap positions based on arrow key input
+4. Continue or exit using the dialog
+
+### Acknowledgements
+
+@ken https://x.com/ken_rainy
+
+### Update History
+
+- v1.0.0 (20250706): Initial version
 */
 
 var directionMap = {

@@ -2,39 +2,71 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+### スクリプト名：
+
 SmartBaselineShifter.jsx
 
-概要（日本語）:
-選択したテキストフレーム内の指定文字にポイント単位でベースラインシフトを個別適用します。
-ダイアログで対象文字列、シフト量（整数・小数）、符号、リセットを設定し、即時プレビューが可能です。
+### 概要
 
-処理の流れ:
+- 選択したテキストフレーム内の指定文字に、ポイント単位のベースラインシフトを個別適用するIllustrator用スクリプトです。
+- 対象文字列、シフト量（整数・小数）、符号、リセットオプションをダイアログで設定し、即時プレビューが可能です。
+
+### 主な機能
+
+- 対象文字の選択と指定
+- シフト量の整数・小数単位指定、符号切り替え
+- 全リセット機能
+- 即時プレビューと元に戻す操作
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
 1. テキストフレームを選択
-2. ダイアログで設定を入力
-3. プレビュー確認後、OKで適用、キャンセルで元に戻す
+2. ダイアログで対象文字列とシフト量を設定
+3. プレビューを確認
+4. OKで確定、キャンセルで元に戻す
 
-対象環境: ポイント文字・エリア文字を含む選択中のテキストフレーム
-推奨環境: Illustrator 2025以降
-Overview (English):
-Applies baseline shift individually by point value to specified characters in selected text frames.
-Allows users to set target characters, shift amount (integer and decimal), sign, and reset options in a dialog with instant preview.
+### 更新履歴
 
-Process:
+- v1.0.0 (20240629) : 初期バージョン
+- v1.0.3 (20240629) : +/-ボタン追加
+- v1.0.4 (20240629) : ダイアログ2カラム化、正規表現対応
+- v1.0.5 (20240630) : TextRange選択用関数追加
+- v1.0.6 (20240630) : 正規表現対応削除、微調整
+
+---
+
+### Script Name:
+
+SmartBaselineShifter.jsx
+
+### Overview
+
+- An Illustrator script to individually apply baseline shift (in points) to specified characters in selected text frames.
+- Allows setting target characters, shift amount (integer and decimal), sign, and reset options in a dialog with instant preview.
+
+### Main Features
+
+- Specify and select target characters
+- Set shift amount in integer and decimal points, toggle sign
+- Reset all baseline shifts
+- Instant preview and undo functionality
+- Japanese and English UI support
+
+### Process Flow
+
 1. Select text frames
-2. Input settings in the dialog
-3. Preview changes; apply with OK or revert with Cancel
+2. Configure target characters and shift amount in dialog
+3. Check preview
+4. Confirm with OK or revert with Cancel
 
-Target Environment: Selected text frames (point and area text supported)
-Last Updated: 2025-06-30
-Recommended: Illustrator 2025 or later
+### Update History
 
-作成日：2024-06-29
-更新日：
-- v1.0.0（2024-06-29）初版
-- v1.0.3（2024-06-29）+/-ボタン追加
-- v1.0.4（2024-06-29）ダイアログを2カラム化、正規表現対応
-- v1.0.5（2024-06-30）選択中の TextRange を含む単一の TextFrame を選択し直すユーティリティ関数追加
-- v1.0.6（2024-06-30）正規表現対応を削除、微調整
+- v1.0.0 (20240629): Initial version
+- v1.0.3 (20240629): Added +/- buttons
+- v1.0.4 (20240629): Two-column dialog layout, regex support
+- v1.0.5 (20240630): Added function for TextRange selection
+- v1.0.6 (20240630): Removed regex support, fine adjustments
 */
 
 

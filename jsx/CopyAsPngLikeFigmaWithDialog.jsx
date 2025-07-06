@@ -2,17 +2,68 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * スクリプトの概要：
- * 選択中のオブジェクトを高解像度でラスタライズし、PNG相当のビットマップとしてコピーします。
- * 実行時に設定ダイアログを表示し、解像度・背景色・アンチエイリアスを選択可能です。
- * 処理中はプログレスバーを表示し、完了後にクリップボードへコピーされます。
- *
- * 対象：選択中のオブジェクト（グループ・テキスト含む）
- * 非対象：未選択状態、ロック・非表示オブジェクト
- *
- * 作成日：2025-05-02
- * 最終更新日：2025-06-03（ラベル整理と拡大率補正）
- */
+### スクリプト名：
+
+CopyAsPngLikeFigmaWithDialog.jsx
+
+### 概要
+
+- 選択オブジェクトを高解像度でラスタライズし、PNG相当のビットマップとしてクリップボードにコピーするIllustrator用スクリプトです。
+- 実行時にダイアログで解像度、背景色、アンチエイリアス、余白を設定できます。
+
+### 主な機能
+
+- 解像度（dpi）を選択可能（72〜1200）
+- 背景色（透明・白・黒）を指定
+- アンチエイリアスON/OFF切替
+- 余白の設定
+- 日本語／英語インターフェース対応
+
+### 処理の流れ
+
+1. 対象オブジェクトを選択
+2. ダイアログで各種設定を指定
+3. 一時レイヤーに複製し、ラスタライズと拡大を実行
+4. クリップボードにコピー
+5. 一時オブジェクトを削除し、選択を復元
+
+### 更新履歴
+
+- v1.0.0 (20250502) : 初期バージョン
+- v1.0.1 (20250603) : ラベル整理と拡大率補正
+
+---
+
+### Script Name:
+
+CopyAsPngLikeFigmaWithDialog.jsx
+
+### Overview
+
+- An Illustrator script that rasterizes selected objects at high resolution and copies them as a PNG-like bitmap to the clipboard.
+- Allows configuring resolution, background color, anti-aliasing, and margin via a dialog at runtime.
+
+### Main Features
+
+- Selectable resolution (dpi) from 72 to 1200
+- Choose background color (transparent, white, black)
+- Toggle anti-aliasing on/off
+- Set margin
+- Japanese and English UI support
+
+### Process Flow
+
+1. Select target objects
+2. Configure settings via dialog
+3. Duplicate to temporary layer, rasterize and resize
+4. Copy to clipboard
+5. Delete temporary objects and restore selection
+
+### Update History
+
+- v1.0.0 (20250502): Initial version
+- v1.0.1 (20250603): Refined labels and scaling adjustments
+*/
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
