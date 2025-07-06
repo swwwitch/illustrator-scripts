@@ -1,6 +1,20 @@
 #target indesign
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+// -------------------------------
+// 日英ラベル定義 Define labels
+// -------------------------------
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+}
+
+var lang = getCurrentLang();
+var LABELS = {
+    noDocument: { ja: "開いているドキュメントがありません。", en: "No documents are open." },
+    notSaved: { ja: "ドキュメントが一度も保存されていません。先に保存してください。", en: "The document has never been saved. Please save it first." },
+    noSelection: { ja: "選択されているオブジェクトがありません。", en: "No objects are selected." }
+};
+
 /*
 
 スクリプト名：CloneDocSelectedOnly.jsx // Script Name: CloneDocSelectedOnly.jsx
@@ -28,27 +42,35 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 var REMOVE_LOCKED_ITEMS = false; // true: ロックされたアイテムやレイヤーも削除 / Remove locked items and layers if true
 
 // スクリプト開始 // Script start
-if (app.documents.length > 0) {
-    var originalDoc = app.activeDocument;
-    var originalFilePath = originalDoc.fullName;
-    var originalFileName = originalDoc.name;
+function main() {
+    if (app.documents.length > 0) {
+        var originalDoc = app.activeDocument;
+        // Check if the document has been saved at least once
+        if (!originalDoc.saved) {
+            alert(LABELS.notSaved[lang]);
+            return;
+        }
+        var originalFilePath = originalDoc.fullName;
+        var originalFileName = originalDoc.name;
 
-    var selectedItems = getSelectedItems(originalDoc);
-    if (selectedItems.length === 0) {
-        alert("選択されているオブジェクトがありません。"); // No objects are selected.
+        var selectedItems = getSelectedItems(originalDoc);
+        if (selectedItems.length === 0) {
+            alert(LABELS.noSelection[lang]);
+        } else {
+            var tempFileName = generateTempFileName(originalFilePath, getBaseName(originalFileName), getExtension(originalFileName));
+            var tempFilePath = new File(originalFilePath.path + "/" + tempFileName);
+
+            originalDoc.saveAs(tempFilePath);
+            var duplicateDoc = app.open(tempFilePath);
+
+            removeUnselectedHiddenItems(duplicateDoc.layers, selectedItems);
+        }
     } else {
-        var tempFileName = generateTempFileName(originalFilePath, getBaseName(originalFileName), getExtension(originalFileName));
-        var tempFilePath = new File(originalFilePath.path + "/" + tempFileName);
-
-        originalDoc.saveAs(tempFilePath);
-        var duplicateDoc = app.open(tempFilePath);
-
-        removeUnselectedHiddenItems(duplicateDoc.layers, selectedItems);
+        alert(LABELS.noDocument[lang]);
     }
-} else {
-    alert("開いているドキュメントがありません。"); // No documents are open.
 }
 // スクリプト終了 // Script end
+
 
 // 選択されているオブジェクトを配列で取得 // Get selected items as array
 function getSelectedItems(doc) {
@@ -127,3 +149,5 @@ function generateTempFileName(originalFilePath, baseName, extension) {
     }
     return tempFileName;
 }
+
+main();

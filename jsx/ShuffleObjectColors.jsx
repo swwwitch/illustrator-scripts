@@ -28,9 +28,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 作成日：2025-06-24
 更新日：2025-06-25
 更新履歴：
-- v1.0 初版リリース
-- v1.1 バグフィックス
-- v1.2 ランダム適用・順番適用の切替対応
+- v1.0.0 初版リリース
+- v1.0.1 バグフィックス
+- v1.0.2 ランダム適用・順番適用の切替対応
+- v1.0.3 ローカライズを調整
 **************************************************/
 
 function getCurrentLang() {
@@ -147,7 +148,7 @@ function main() {
     var textGroup = optionPanel.add("group");
     textGroup.orientation = "row";
     textGroup.alignChildren = "left";
-    textCheckbox = textGroup.add("checkbox", undefined, "テキスト");
+    textCheckbox = textGroup.add("checkbox", undefined, LABELS.fill[lang]);
     textCheckbox.value = true;
 
     var excludePanel = leftGroup.add("panel", undefined, LABELS.panelExclude[lang]);

@@ -116,8 +116,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     ratioGroup.alignment = ["center", "top"]; // 中央揃え
 
     // 「縦横比保持」「片辺のみ」ラジオボタン
-    var keepRatioRadio = ratioGroup.add("radiobutton", undefined, "縦横比保持");
-    var oneSideOnlyRadio = ratioGroup.add("radiobutton", undefined, "片辺のみ");
+    var keepRatioRadio = ratioGroup.add("radiobutton", undefined, labels.keepAspect[lang]);
+    var oneSideOnlyRadio = ratioGroup.add("radiobutton", undefined, labels.oneSideOnly[lang]);
     // ラジオボタン間のスペースを明示的に設定
     keepRatioRadio.margins = [0, 0, 20, 0]; // 右側に20px相当の余白
     oneSideOnlyRadio.margins = [0, 0, 0, 0];

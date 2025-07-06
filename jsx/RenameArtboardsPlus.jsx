@@ -21,7 +21,35 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  */
 
 //@target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
+
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+}
+
+// -------------------------------
+// 日英ラベル定義 Define label
+// -------------------------------
+var lang = getCurrentLang();
+var LABELS = {
+    dialogTitle: { ja: "アートボード名の一括設定", en: "Batch Rename Artboards" },
+    prefixPanel: { ja: "接頭辞", en: "Prefix" },
+    fileNameLabel: { ja: "ファイル名：", en: "File Name:" },
+    useFileNo: { ja: "参照しない", en: "Do not use" },
+    useFileYes: { ja: "参照する", en: "Use" },
+    separatorLabel: { ja: "区切り文字：", en: "Separator:" },
+    stringLabel: { ja: "文字列：", en: "String:" },
+    namePanel: { ja: "アートボード名と番号", en: "Artboard Name & Number" },
+    suffixPanel: { ja: "接尾辞", en: "Suffix" },
+    formatLabel: { ja: "連番形式：", en: "Numbering Format:" },
+    startLabel: { ja: "開始番号：", en: "Start Number:" },
+    incrementLabel: { ja: "増分：", en: "Increment:" },
+    preview: { ja: "プレビュー", en: "Preview" },
+    cancel: { ja: "キャンセル", en: "Cancel" },
+    apply: { ja: "適用", en: "Apply" },
+    ok: { ja: "OK", en: "OK" },
+    savePreset: { ja: "プリセット書き出し", en: "Export Preset" },
+    presetNone: { ja: "（未選択）", en: "(None)" }
+};
 
 (function () {
     if (app.documents.length === 0) return;
@@ -33,7 +61,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var originalNames = [];
     for (var i = 0; i < total; i++) originalNames.push(artboards[i].name);
 
-    var dialog = new Window("dialog", "アートボード名の一括設定");
+    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.alignChildren = "fill";
 
     var mainGroup = dialog.add("group");
@@ -53,7 +81,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 { label: "ファイル名+連番3", useFilename: true, prefixSeparator: "-", prefix: "", nameStyle: "（なし）", separator: "", format: "数字", start: "01", increment: "1", suffix: "" },
 { label: "アートボード名と連番", useFilename: false, prefixSeparator: "-", prefix: "", nameStyle: "名称", separator: "-", format: "数字", start: "1", increment: "1", suffix: "" } ];
 
-    var presetItems = ["（未選択）"];
+    var presetItems = [LABELS.presetNone[lang]];
     for (var i = 0; i < builtinPresets.length; i++) {
         presetItems.push(builtinPresets[i].label);
     }
@@ -62,7 +90,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     presetDropdown.selection = 0;
     presetDropdown.enabled = true;
 
-    var savePresetBtn = presetGroup.add("button", undefined, "プリセット書き出し");
+    var savePresetBtn = presetGroup.add("button", undefined, LABELS.savePreset[lang]);
 
     presetDropdown.onChange = function () {
         var index = presetDropdown.selection.index;
@@ -105,21 +133,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     };
 
     // ▼ 接頭辞パネル
-    var prefixPanel = inputGroup.add("panel", undefined, "接頭辞");
+    var prefixPanel = inputGroup.add("panel", undefined, LABELS.prefixPanel[lang]);
     prefixPanel.margins = [20, 20, 20, 10];
     prefixPanel.orientation = "column";
     prefixPanel.alignChildren = "left";
 
     var filenameGroup = prefixPanel.add("group");
-    filenameGroup.add("statictext", undefined, "ファイル名：");
+    filenameGroup.add("statictext", undefined, LABELS.fileNameLabel[lang]);
     var useFilenameRadios = [
-        filenameGroup.add("radiobutton", undefined, "参照しない"),
-        filenameGroup.add("radiobutton", undefined, "参照する")
+        filenameGroup.add("radiobutton", undefined, LABELS.useFileNo[lang]),
+        filenameGroup.add("radiobutton", undefined, LABELS.useFileYes[lang])
     ];
     useFilenameRadios[0].value = true;
 
     var separatorGroup1 = prefixPanel.add("group");
-    separatorGroup1.add("statictext", undefined, "区切り文字：");
+    separatorGroup1.add("statictext", undefined, LABELS.separatorLabel[lang]);
     var prefixSeparatorRadios = [
         separatorGroup1.add("radiobutton", undefined, "なし"),
         separatorGroup1.add("radiobutton", undefined, "-"),
@@ -129,12 +157,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     for (var i = 0; i < 3; i++) prefixSeparatorRadios[i].enabled = false;
 
     var prefixGroup = prefixPanel.add("group");
-    prefixGroup.add("statictext", undefined, "文字列：");
+    prefixGroup.add("statictext", undefined, LABELS.stringLabel[lang]);
     var prefixInput = prefixGroup.add("edittext", undefined, "");
     prefixInput.characters = 16;
 
     // ▼ アートボード名と番号パネル
-    var namePanel = inputGroup.add("panel", undefined, "アートボード名と番号");
+    var namePanel = inputGroup.add("panel", undefined, LABELS.namePanel[lang]);
     namePanel.margins = [20, 20, 20, 10];
     namePanel.orientation = "row";
     namePanel.alignChildren = "left";
@@ -144,13 +172,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     nameStyleDropdown.selection = 0;
 
     // ▼ 接尾辞パネル
-    var suffixPanel = inputGroup.add("panel", undefined, "接尾辞");
+    var suffixPanel = inputGroup.add("panel", undefined, LABELS.suffixPanel[lang]);
     suffixPanel.margins = [20, 20, 20, 10];
     suffixPanel.orientation = "column";
     suffixPanel.alignChildren = "left";
 
     var separatorGroup2 = suffixPanel.add("group");
-    separatorGroup2.add("statictext", undefined, "区切り文字：");
+    separatorGroup2.add("statictext", undefined, LABELS.separatorLabel[lang]);
     var separatorRadios2 = [
         separatorGroup2.add("radiobutton", undefined, "なし"),
         separatorGroup2.add("radiobutton", undefined, "-"),
@@ -159,29 +187,29 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     separatorRadios2[0].value = true;
 
     var formatGroup = suffixPanel.add("group");
-    formatGroup.add("statictext", undefined, "連番形式：");
+    formatGroup.add("statictext", undefined, LABELS.formatLabel[lang]);
     var formatDropdown = formatGroup.add("dropdownlist", undefined, [
         "数字", "アルファベット（大文字）", "アルファベット（小文字）"
     ]);
     formatDropdown.selection = 0;
 
     var startGroup = suffixPanel.add("group");
-    startGroup.add("statictext", undefined, "開始番号：");
+    startGroup.add("statictext", undefined, LABELS.startLabel[lang]);
     var startNumberInput = startGroup.add("edittext", undefined, "1");
     startNumberInput.characters = 5;
 
     var incrementGroup = suffixPanel.add("group");
-    incrementGroup.add("statictext", undefined, "増分：");
+    incrementGroup.add("statictext", undefined, LABELS.incrementLabel[lang]);
     var incrementInput = incrementGroup.add("edittext", undefined, "1");
     incrementInput.characters = 5;
 
     var suffixGroup = suffixPanel.add("group");
-    suffixGroup.add("statictext", undefined, "文字列：");
+    suffixGroup.add("statictext", undefined, LABELS.stringLabel[lang]);
     var suffixInput = suffixGroup.add("edittext", undefined, "");
     suffixInput.characters = 16;
 
     // ▼ プレビューエリア
-    var previewGroup = mainGroup.add("panel", undefined, "プレビュー");
+    var previewGroup = mainGroup.add("panel", undefined, LABELS.preview[lang]);
     previewGroup.alignChildren = "fill";
     previewGroup.margins = [10, 20, 10, 10];
     previewGroup.preferredSize.width = 250;
@@ -203,7 +231,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var leftGroup = outerGroup.add("group");
     leftGroup.orientation = "row";
     leftGroup.alignChildren = "left";
-    var cancelBtn = leftGroup.add("button", undefined, "キャンセル", { name: "cancel" });
+    var cancelBtn = leftGroup.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
 
     var spacer = outerGroup.add("group");
     spacer.alignment = ["fill", "fill"];
@@ -213,8 +241,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     rightGroup.orientation = "row";
     rightGroup.alignChildren = ["right", "center"];
     rightGroup.spacing = 10;
-    var applyBtn = rightGroup.add("button", undefined, "適用");
-    var okBtn = rightGroup.add("button", undefined, "OK", { name: "ok" });
+    var applyBtn = rightGroup.add("button", undefined, LABELS.apply[lang]);
+    var okBtn = rightGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
 
     // ▼ プリセット保存処理（label: デコード済み）
 

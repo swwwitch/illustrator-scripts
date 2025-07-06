@@ -37,6 +37,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  *
  * 作成日：2025-04-20
  * 最終更新日：2025-05-08 17:05
+
+ 更新履歴
+ v1.0.0 (2025-04-20)
+ v1.3.0 (2025-05-08) ロジック修正
+ v1.3.1 (2025-07-06) ローカライズを調整
  */
 
 //@target illustrator
@@ -246,7 +251,7 @@ function showFontListDialog() {
     enableArrowKeyNavigation(displayOptions);
 
     // 新しいパネル「表示オプション」
-    var optionPanel = dialog.add("panel", undefined, "表示オプション");
+    var optionPanel = dialog.add("panel", undefined, LABELS.outputContent[lang]);
     optionPanel.orientation = "column";
     optionPanel.alignChildren = "left";
     optionPanel.margins = [15, 20, 15, 15];

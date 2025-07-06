@@ -23,6 +23,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 2025-06-09 1.0.0 初期バージョン
 - 2025-06-09 1.0.1 テキストフレームの位置を考慮して配置するよう修正
 - 2025-06-10 1.0.3 特定の文字を選択しているとき、テキストオブジェクトを選択するロジックを追加
+- v1.0.4 ローカライズを調整
 */
 
 var LABELS = {
@@ -192,7 +193,7 @@ function showPlacementModeDialog(lang, isMultiLine) {
     var evenBtn = panel.add("radiobutton", undefined, LABELS[lang].even);
     visualBtn.value = true;
 
-    var groupPanel = dlg.add("panel", undefined, "グループ化");
+    var groupPanel = dlg.add("panel", undefined, LABELS[lang].groupLabel);
     groupPanel.orientation = "column";
     groupPanel.alignChildren = "left";
     groupPanel.margins = [15, 20, 15, 10];
