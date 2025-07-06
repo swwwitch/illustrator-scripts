@@ -267,8 +267,13 @@ function main() {
     var buttonWidth = 100;
     var okBtn = rightGroup.add("button", undefined, LABELS.ok[lang], { name: "OK" });
     okBtn.preferredSize.width = buttonWidth;
+
     var reverseBtn = rightGroup.add("button", undefined, LABELS.reverse[lang]);
     reverseBtn.preferredSize.width = buttonWidth;
+
+    var spacer = rightGroup.add("statictext", undefined, "");
+    spacer.preferredSize.height = 100;
+
     var cancelBtn = rightGroup.add("button", undefined, LABELS.cancel[lang]);
     cancelBtn.preferredSize.width = buttonWidth;
 
