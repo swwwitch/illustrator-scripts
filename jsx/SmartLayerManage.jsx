@@ -33,6 +33,7 @@ SuperLayerManage.jsx
 - v1.0.1 (20250703) : レイヤーカラー変更機能追加
 - v1.0.2 (20250703) : 自動選択判定、空レイヤー削除ロジック改善
 - v1.0.3 (20250704) : 「すべて（強制）」モード追加（すべてのレイヤーを結合）
+- v1.0.4 (20250706) : 「新規」ラジオボタンを追加し、レイヤー作成・移動処理追加
 
 ---
 
@@ -67,6 +68,7 @@ SuperLayerManage.jsx
 - v1.0.1 (20250703): Added layer color change function
 - v1.0.2 (20250703): Improved auto selection detection and empty layer deletion logic
 - v1.0.3 (20250704): Added "All (Force)" mode (merge all layers)
+- v1.0.4 (20250706): Added "New" radio button to make new layer and move objects
 */
 
 // 全ロック解除と全表示
@@ -159,17 +161,49 @@ function main() {
 
     var radioButtons = [];
     var firstAvailableIndex = -1;
+    // 先頭に「新規」ラジオボタン＋テキストフィールドを追加
+    var newLayerGroup = radioLayerGroup.add("group");
+    newLayerGroup.orientation = "row";
+    var radioNewLayer = newLayerGroup.add("radiobutton", undefined, "新規");
+    var newLayerNameField = newLayerGroup.add("edittext", undefined, "New Layer");
+    newLayerNameField.characters = 12;
+    radioButtons.push(radioNewLayer);
+    // 既存レイヤーのラジオボタンを追加
     for (var i = 0; i < layerNames.length; i++) {
-        radioButtons[i] = radioLayerGroup.add("radiobutton", undefined, layerNames[i]);
+        var rb = radioLayerGroup.add("radiobutton", undefined, layerNames[i]);
+        radioButtons.push(rb);
         if (layers[i].locked) {
-            radioButtons[i].enabled = false;
+            rb.enabled = false;
         } else if (firstAvailableIndex === -1) {
-            firstAvailableIndex = i;
+            firstAvailableIndex = i + 1; // 「新規」分インデックスを+1
         }
     }
     if (firstAvailableIndex !== -1) {
         radioButtons[firstAvailableIndex].value = true;
     }
+
+    // ---- 新規ラジオボタンの排他制御とテキストフィールド有効化 ----
+    // Ensure mutual exclusivity (should already work, but be explicit)
+    function selectRadio(index) {
+        for (var i = 0; i < radioButtons.length; i++) {
+            radioButtons[i].value = (i === index);
+        }
+        // Enable text field only if "新規" is selected
+        newLayerNameField.enabled = radioNewLayer.value;
+    }
+    // Attach listeners
+    radioNewLayer.onClick = function() {
+        selectRadio(0);
+    };
+    for (var i = 1; i < radioButtons.length; i++) {
+        (function(idx){
+            radioButtons[idx].onClick = function() {
+                selectRadio(idx);
+            };
+        })(i);
+    }
+    // Set initial enabled state
+    newLayerNameField.enabled = radioNewLayer.value;
 
     var buttonGroup = dlg.add("group");
     buttonGroup.orientation = "column";
@@ -179,19 +213,32 @@ function main() {
     var closeBtn = buttonGroup.add("button", undefined, LABELS.close[lang]);
 
     moveBtn.onClick = function() {
-        // 移動先レイヤー取得
-        var targetLayerName = null;
-        for (var i = 0; i < radioButtons.length; i++) {
-            if (radioButtons[i].value) {
-                targetLayerName = radioButtons[i].text;
-                break;
+        var targetLayer = null;
+
+        if (radioNewLayer.value) {
+            var newName = newLayerNameField.text;
+            if (!newName || newName === "") {
+                alert("新しいレイヤー名を入力してください。");
+                return;
             }
+            // 新規レイヤーを一番上（index 0）に作成
+            targetLayer = doc.layers.add();
+            targetLayer.name = newName;
+            targetLayer.zOrder(ZOrderMethod.BRINGTOFRONT); // 一番上に移動
+        } else {
+            var targetLayerName = null;
+            for (var i = 1; i < radioButtons.length; i++) {
+                if (radioButtons[i].value) {
+                    targetLayerName = radioButtons[i].text;
+                    break;
+                }
+            }
+            if (!targetLayerName) {
+                alert(LABELS.noLayerSelected[lang]);
+                return;
+            }
+            targetLayer = doc.layers.getByName(targetLayerName);
         }
-        if (!targetLayerName) {
-            alert(LABELS.noLayerSelected[lang]);
-            return;
-        }
-        var targetLayer = doc.layers.getByName(targetLayerName);
 
         // 移動対象アイテム収集
         var itemsToMove = [];
@@ -203,7 +250,11 @@ function main() {
             }
             itemsToMove = sel;
         } else if (radioAllText.value) {
-            itemsToMove = doc.textFrames;
+            // 全テキストフレームを再帰的に収集
+            itemsToMove = [];
+            for (var l = 0; l < doc.layers.length; l++) {
+                collectAllTextFramesRecursive(doc.layers[l], itemsToMove);
+            }
         } else if (radioAllForce.value) {
             flattenArtwork();
         } else {
@@ -299,7 +350,7 @@ function flattenArtwork() {
 
     // アクション定義テキスト
     var actionCode ='''
-    /version 3 /name [ 12 e383ace382a4e383a4e383bc ] /isOpen 1 /actionCount 1 /action-1 { /name [ 33 e38199e381b9e381a6e381aee383ace382a4e383a4e383bce38292e7b590e590 88 ] /keyIndex 0 /colorIndex 0 /isOpen 1 /eventCount 1 /event-1 { /useRulersIn1stQuadrant 0 /internalName (ai_plugin_Layer) /localizedName [ 9 e8a1a8e7a4ba203a20 ] /isOpen 0 /isOn 1 /hasDialog 0 /parameterCount 2 /parameter-1 { /key 1836411236 /showInPalette 4294967295 /type (integer) /value 14 } /parameter-2 { /key 1851878757 /showInPalette 4294967295 /type (ustring) /value [ 33 e38199e381b9e381a6e381aee383ace382a4e383a4e383bce38292e7b590e590 88 ] } } }
+/version 3 /name [ 12 e383ace382a4e383a4e383bc ] /isOpen 1 /actionCount 1 /action-1 { /name [ 33 e38199e381b9e381a6e381aee383ace382a4e383a4e383bce38292e7b590e590 88 ] /keyIndex 0 /colorIndex 0 /isOpen 1 /eventCount 1 /event-1 { /useRulersIn1stQuadrant 0 /internalName (ai_plugin_Layer) /localizedName [ 9 e8a1a8e7a4ba203a20 ] /isOpen 0 /isOn 1 /hasDialog 0 /parameterCount 2 /parameter-1 { /key 1836411236 /showInPalette 4294967295 /type (integer) /value 14 } /parameter-2 { /key 1851878757 /showInPalette 4294967295 /type (ustring) /value [ 33 e38199e381b9e381a6e381aee383ace382a4e383a4e383bce38292e7b590e590 88 ] } } }
 ''';
 
     try {
@@ -319,3 +370,12 @@ function flattenArtwork() {
 }
 
 main();
+// レイヤーとサブレイヤーから全テキストフレームを再帰的に収集
+function collectAllTextFramesRecursive(layer, arr) {
+    for (var i = 0; i < layer.textFrames.length; i++) {
+        arr.push(layer.textFrames[i]);
+    }
+    for (var j = 0; j < layer.layers.length; j++) {
+        collectAllTextFramesRecursive(layer.layers[j], arr);
+    }
+}
