@@ -1,26 +1,17 @@
 # Change Log
 
-## 20250624
+### 20250706
 
-- [「スウォッチの連続適用」スクリプト](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplySwatchesToSelection.jsx)を追加
-- [「カラーのランダム適用」スクリプト](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ShuffleObjectColors.jsx)を追加
+- 日本語版のREADMEを整備（スクリプトごとにMDファイルを分割）
+- ローカライズの甘いスクリプトを調整
 
-## 20250625
+### 20250702
 
-- [「スウォッチの連続適用」スクリプト](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplySwatchesToSelection.jsx)に、スウォッチを選択していないときには、全スウォッチを対象にする機能を追加
+「グループ化」スクリプトにアートボード変換を追加
 
-## 20250627
+![](png/ss-882-652-72-20250702-162914.png)
 
-- [オブジェクトを入れ替え（ダイアログボックス版）](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/SwapNearestItemWithDialogbox.jsx)を追加
-- 「ページ番号を挿入」スクリプト（初版）
-
-![](png/ss-664-440-72-20250627-114603.png)
-
-### 20250628
-
-「ページ番号を挿入」を修正。
-
-https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5a5828c39b6c1d/jsx/AddPageNumberFromTextSelection.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/d07214f51eb2695fe0c9117f092b0c5bc46a48c2/jsx/SmartAutoGroup.jsx
 
 ### 20250629
 
@@ -47,10 +38,25 @@ https://github.com/swwwitch/illustrator-scripts/blob/807a117b19ac3f623781bb9290b
 
 https://note.com/dtp_tranist/n/n2e19ad0bdb83
 
-### 20250702
+### 20250628
 
-「グループ化」スクリプトにアートボード変換を追加
+「ページ番号を挿入」を修正。
 
-![](png/ss-882-652-72-20250702-162914.png)
+https://github.com/swwwitch/illustrator-scripts/blob/9606b06755b8ddb24f229bd09e5a5828c39b6c1d/jsx/AddPageNumberFromTextSelection.jsx
 
-https://github.com/swwwitch/illustrator-scripts/blob/d07214f51eb2695fe0c9117f092b0c5bc46a48c2/jsx/SmartAutoGroup.jsx
+## 20250627
+
+- [オブジェクトを入れ替え（ダイアログボックス版）](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/SwapNearestItemWithDialogbox.jsx)を追加
+- 「ページ番号を挿入」スクリプト（初版）
+
+![](png/ss-664-440-72-20250627-114603.png)
+
+## 20250625
+
+- [「スウォッチの連続適用」スクリプト](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplySwatchesToSelection.jsx)に、スウォッチを選択していないときには、全スウォッチを対象にする機能を追加
+
+## 20250624
+
+- [「スウォッチの連続適用」スクリプト](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplySwatchesToSelection.jsx)を追加
+- [「カラーのランダム適用」スクリプト](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ShuffleObjectColors.jsx)を追加
+
