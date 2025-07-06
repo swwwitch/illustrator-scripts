@@ -78,7 +78,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 ## レイヤー、重ね順
 
-- [オブジェクトを指定レイヤーへ移動](readme-ja/SuperLayerManage.md)
+- [オブジェクトを指定レイヤーへ移動](readme-ja/SmartLayerManage.md)
 - [選択しているオブジェクトを新規レイヤーに移動し、そのレイヤーを最背面に移動してロック](readme-ja/SendToBgLayer.md)
 - [座標を基準に重ね順を変更](readme-ja/SortItemsByPosition.md)
 

@@ -78,7 +78,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 
 ## Layers, Z-order
 
-- [Move objects to a specified layer](readme.en/SuperLayerManage.md)
+- [Move objects to a specified layer](readme.en/SmartLayerManage.md)
 - [Move selected objects to a new layer, send it to the back, and lock it](readme.en/SendToBgLayer.md)
 - [Reorder objects by coordinates](readme-en/SortItemsByPosition.md)
 
