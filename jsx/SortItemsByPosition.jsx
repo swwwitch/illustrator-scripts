@@ -28,6 +28,7 @@ SortItemsByPosition.jsx
 ### 更新履歴
 
 - v1.0.0 (20250706) : 初期バージョン
+- v1.0.1 (20250707) : ランダム機能を追加
 
 ---
 
@@ -56,6 +57,7 @@ SortItemsByPosition.jsx
 ### Changelog
 
 - v1.0.0 (20250706) : Initial version
+- v1.0.1 (20250707) : Added random button functionality
 */
 
 function getCurrentLang() {
@@ -68,6 +70,7 @@ var LABELS = {
     sortPanel:   { ja: "ソート基準", en: "Sort Criteria" },
     xLeft:       { ja: "X座標（左右）", en: "X (Horizontal)" },
     yTop:        { ja: "Y座標（上下）", en: "Y (Vertical)" },
+    random:      { ja: "ランダム", en: "Random" },
     targetPanel: { ja: "対象", en: "Target" },
     selection:   { ja: "選択オブジェクト", en: "Selection" },
     artboard:    { ja: "現在のアートボードに限定", en: "Limit to Current Artboard" },
@@ -216,6 +219,7 @@ function main() {
 
     var sortRadioXLeft = radioPanel.add("radiobutton", undefined, LABELS.xLeft[lang]);
     var sortRadioYTop = radioPanel.add("radiobutton", undefined, LABELS.yTop[lang]);
+    var sortRadioRandom = radioPanel.add("radiobutton", undefined, LABELS.random[lang]);
     if (autoMode === "y") {
         sortRadioYTop.value = true;
     } else {
@@ -295,10 +299,15 @@ function main() {
     sortRadioYTop.onClick = function() {
         previewWithMode("yDesc");
     };
+    sortRadioRandom.onClick = function() {
+        previewWithMode("random");
+    };
 
     /* 現在のソートモード取得 */
     function getCurrentMode() {
-        return sortRadioYTop.value ? "yDesc" : "xAsc";
+        if (sortRadioYTop.value) return "yDesc";
+        if (sortRadioRandom.value) return "random";
+        return "xAsc";
     }
 
     /* 対象切り替え時のプレビュー更新 */

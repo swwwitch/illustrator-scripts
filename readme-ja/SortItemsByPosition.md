@@ -10,7 +10,7 @@
 
 - ページアイテムをX座標またはY座標で並べ替え、重ね順を更新します。
 
-![](https://www.dtp-transit.jp/images/ss-696-532-72-20250706-195040.png)
+![](https://www.dtp-transit.jp/images/ss-696-588-72-20250706-210814.png)
 
 ### 主な機能
 
