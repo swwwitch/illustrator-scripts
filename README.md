@@ -79,6 +79,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 ## レイヤー
 
 - [オブジェクトを指定レイヤーへ移動](readme.ja/SuperLayerManage.md)
+- [選択しているオブジェクトを新規レイヤーに移動し、そのレイヤーを最背面に移動してロック](readme.ja/SendToBgLayer.md)
 
 ## マスク
 

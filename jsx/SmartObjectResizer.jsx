@@ -2,7 +2,7 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-スクリプト名：SmartObjectScaler.jsx
+スクリプト名：SmartObjectResizer.jsx
 
 概要：
 選択中のオブジェクトを、指定した基準（最大／最小／指定サイズ／アートボード／裁ち落とし／面積）に基づいてリサイズします。
@@ -58,7 +58,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         alignMiddle: { ja: "中央", en: "Middle" },
         ok: { ja: "OK", en: "OK" },
         cancel: { ja: "キャンセル", en: "Cancel" },
-        selectObject: { ja: "オブジェクトを選択してください。", en: "Please select an object." }
+        selectObject: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
+        reset: { ja: "リセット", en: "Reset" },
+        dialogTitle: { ja: "オブジェクトのリサイズ", en: "SmartObjectResizer" }
     };
 
     var doc = app.activeDocument;
@@ -103,7 +105,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             break;
     }
 
-    var dialog = new Window("dialog", "SmartObjectScaler");
+    var dialog = new Window("dialog", labels.dialogTitle ? labels.dialogTitle[lang] : "SmartObjectResizer");
     dialog.alignChildren = ["left", "top"];
     dialog.margins = [0, 0, 0, 10];
 
@@ -778,7 +780,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     // --- リセットボタン追加 ---
     // リセットボタンはキャンセルボタンの直前に配置
-    var resetButton = rightPane.add("button", undefined, "リセット");
+    var resetButton = rightPane.add("button", undefined, labels.reset ? labels.reset[lang] : "Reset");
     resetButton.onClick = function() {
         restoreOriginalSizes();
 
