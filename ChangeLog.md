@@ -1,5 +1,12 @@
 # Change Log
 
+
+### 20250706
+
+- [座標を基準に重ね順を変更](readme-ja/SortItemsByPosition.md)
+
+![](https://www.dtp-transit.jp/images/ss-696-532-72-20250706-195040.png)
+
 ### 20250706
 
 - 日本語版のREADMEを整備（スクリプトごとにMDファイルを分割）

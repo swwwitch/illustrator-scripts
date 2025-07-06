@@ -10,7 +10,6 @@ SortItemsByPosition.jsx
 ### 概要
 
 - ページアイテムをX座標またはY座標で並べ替え、重ね順を更新します。
-- 視覚的な整理やレイアウト確認を効率化できます。
 
 ### 主な機能
 
@@ -39,7 +38,6 @@ SortItemsByPosition.jsx
 ### Overview
 
 - Sort page items by X or Y coordinate and update stacking order.
-- Helps efficiently organize and visually check layouts.
 
 ### Main Features
 

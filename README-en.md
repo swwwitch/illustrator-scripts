@@ -76,10 +76,11 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Insert page numbers](readme.en/AddPageNumberFromTextSelection.md)
 - [Batch rename artboards](readme.en/RenameArtboardsPlus.md)
 
-## Layers
+## Layers, Z-order
 
 - [Move objects to a specified layer](readme.en/SuperLayerManage.md)
 - [Move selected objects to a new layer, send it to the back, and lock it](readme.en/SendToBgLayer.md)
+- [Reorder objects by coordinates](readme-en/SortItemsByPosition.md)
 
 ## Masks
 
