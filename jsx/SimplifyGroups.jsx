@@ -27,6 +27,7 @@ SimplifyGroups.jsx
 ### 更新履歴
 
 - v1.0.0 (20250707) : 初版公開
+- v1.0.1 (20250707) : 実行後の選択状態を調整
 
 ---
 
@@ -77,6 +78,7 @@ function main() {
         var newSel = app.activeDocument.selection;
         if (newSel.length === 1 && newSel[0].typename === "GroupItem") {
             ungroupSubGroups(newSel[0]);
+            app.selection = [newSel[0]]; // 最終的に残ったグループを選択
         }
         return;
     }
@@ -86,6 +88,7 @@ function main() {
         var item = sel[i];
         if (item.typename === "GroupItem") {
             ungroupSubGroups(item);
+            app.selection = [item]; // 最終的に残ったグループを選択
         }
     }
 }
