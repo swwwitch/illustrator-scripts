@@ -1,5 +1,11 @@
 # Change Log
 
+### 20250708
+
+新しいスクリプトを追加
+
+- [アートボード外のオブジェクトを削除](readme-ja/DeleteOutsideArtboard.md)
+
 ### 20250707
 
 - [カンバス上の並びで［アートボード］パネルの並び順を変更](readme-ja/ReorderArtboardsByPosition.md)を追加

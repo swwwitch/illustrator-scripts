@@ -77,6 +77,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Insert page numbers](readme.en/AddPageNumberFromTextSelection.md)
 - [Batch rename artboards](readme.en/RenameArtboardsPlus.md)
 - [Reorder Artboards By Position](readme-en/ReorderArtboardsByPosition.md)
+- [Delete Objects Outside Artboards](readme-en/DeleteOutsideArtboard.md)
 
 ## Layers, Z-order
 

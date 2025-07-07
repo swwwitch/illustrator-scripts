@@ -75,6 +75,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [ページ番号を挿入](readme-ja/AddPageNumberFromTextSelection.md)
 - [アートボード名の一括変更](readme-ja/RenameArtboardsPlus.md)
 - [カンバス上の並びで［アートボード］パネルの並び順を変更](readme-ja/ReorderArtboardsByPosition.md)
+- [アートボード外のオブジェクトを削除](readme-ja/DeleteOutsideArtboard.md)
 
 ## レイヤー、重ね順
 
