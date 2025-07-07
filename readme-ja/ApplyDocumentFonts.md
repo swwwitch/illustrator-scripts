@@ -1,6 +1,6 @@
 # ドキュメントフォントを適用
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyDocumentFonts.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplyDocumentFonts.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ApplyDocumentFonts.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ApplyDocumentFonts.jsx)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

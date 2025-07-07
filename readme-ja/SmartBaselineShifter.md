@@ -1,6 +1,6 @@
 # 特定の文字のベースラインシフトを調整
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartBaselineShifter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/SmartBaselineShifter.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SmartBaselineShifter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SmartBaselineShifter.jsx)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

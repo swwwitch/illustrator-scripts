@@ -1,6 +1,6 @@
 # 指定文字のベースラインを自動的に天地中央にする
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-AdjustBaselineVerticalCenter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/AdjustBaselineVerticalCenter.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-AdjustBaselineVerticalCenter.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AdjustBaselineVerticalCenter.jsx)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 

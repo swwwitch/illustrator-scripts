@@ -1,6 +1,6 @@
 # カテゴリ別ウエイト順にフォントを一覧表示し、フォント見本を一瞬で作成する
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-TypefaceSampler.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/TypefaceSampler.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-TypefaceSampler.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TypefaceSampler.jsx)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
