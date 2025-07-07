@@ -35,6 +35,7 @@ https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 
 - v1.0.0 (20241103) : 初期バージョン
 - v1.1.0 (20250625) : スウォッチ未選択時に全プロセススウォッチ対応
+- v1.2.0 (20250708) : 微調整
 
 ---
 
@@ -110,8 +111,8 @@ function main() {
         if (selectedItems.length > 0) {
             var selectedSwatches = activeDoc.swatches.getSelected();
 
-            // スウォッチが選択されていない場合はプロセスカラースウォッチをすべて取得し、ランダムに利用
-            if (selectedSwatches.length === 0) {
+            // スウォッチが選択されていない、または白のみ選択の場合はプロセスカラースウォッチをすべて取得し、ランダムに利用
+            if (!selectedSwatches || selectedSwatches.length === 0 || allWhiteSwatches(selectedSwatches)) {
                 selectedSwatches = getAvailableProcessSwatches(activeDoc);
             }
 
@@ -164,11 +165,25 @@ function getAvailableProcessSwatches(doc) {
     var swatches = doc.swatches;
     for (var i = 0; i < swatches.length; i++) {
         var col = swatches[i].color;
-        if (!(col.typename === "SpotColor" || col.typename === "GradientColor" || col.typename === "PatternColor")) {
+        if (
+            !(col.typename === "SpotColor" || col.typename === "GradientColor" || col.typename === "PatternColor" || col.typename === "GrayColor")
+            && swatches[i].name !== "[Registration]"
+            && !isWhiteColor(col)
+        ) {
             result.push(swatches[i]);
         }
     }
     return result;
+}
+
+// 白色(CMYK=0,0,0,0またはRGB=255,255,255)かどうか判定
+function isWhiteColor(color) {
+    if (color.typename === "CMYKColor") {
+        return color.cyan === 0 && color.magenta === 0 && color.yellow === 0 && color.black === 0;
+    } else if (color.typename === "RGBColor") {
+        return color.red === 255 && color.green === 255 && color.blue === 255;
+    }
+    return false;
 }
 
 // オブジェクトを位置順に並べ替える（横幅が広ければ左→右、縦幅が広ければ上→下）
@@ -212,3 +227,13 @@ function getSwatchColor(index, swatches) {
 }
 
 main();
+
+// 白のみ選択されている場合に true を返す
+function allWhiteSwatches(swatches) {
+    for (var i = 0; i < swatches.length; i++) {
+        if (!isWhiteColor(swatches[i].color)) {
+            return false;
+        }
+    }
+    return true;
+}
