@@ -27,7 +27,6 @@ SimplifyGroups.jsx
 ### 更新履歴
 
 - v1.0.0 (20250707) : 初版公開
-- v1.0.1 (20250707) : 多言語対応（日本語／英語）追加
 
 ---
 
@@ -56,7 +55,7 @@ SimplifyGroups.jsx
 ### Change Log
 
 - v1.0.0 (20250707): Initial release
-- v1.0.1 (20250707): Added multi-language support (Japanese/English)
+
 */
 
 function main() {

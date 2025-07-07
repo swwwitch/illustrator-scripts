@@ -6,6 +6,8 @@
 
 ![](https://www.dtp-transit.jp/images/ss-544-634-72-20250707-032437.png)
 
+- [選択したグループ内のサブグループを解除して、グループ構造を簡素化](readme-ja/SimplifyGroups.md)
+
 ### 20250706
 
 - [座標を基準に重ね順を変更](readme-ja/SortItemsByPosition.md)

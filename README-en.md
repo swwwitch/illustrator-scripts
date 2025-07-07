@@ -54,6 +54,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Arrange placed objects into a grid](readme.en/SmartObjectDistributor.md)
 - [Sort selected objects by width, height, opacity, or color](readme.en/SmartObjectSorter.md)
 - [Swap objects](readme.en/SwapNearestItemWithDialogbox.md)
+- [Ungroup subgroups inside the selected group to simplify the group structure](readme-en/SimplifyGroups.md)
 
 ## Basic shapes
 

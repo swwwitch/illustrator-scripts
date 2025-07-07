@@ -76,12 +76,12 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [アートボード名の一括変更](readme-ja/RenameArtboardsPlus.md)
 - [カンバス上の並びで［アートボード］パネルの並び順を変更](readme-ja/ReorderArtboardsByPosition.md)
 
-
 ## レイヤー、重ね順
 
 - [オブジェクトを指定レイヤーへ移動](readme-ja/SmartLayerManage.md)
 - [選択しているオブジェクトを新規レイヤーに移動し、そのレイヤーを最背面に移動してロック](readme-ja/SendToBgLayer.md)
 - [座標を基準に重ね順を変更](readme-ja/SortItemsByPosition.md)
+- [選択したグループ内のサブグループを解除して、グループ構造を簡素化](readme-ja/SimplifyGroups.md)
 
 ## マスク
 
