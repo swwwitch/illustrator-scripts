@@ -1,3 +1,5 @@
+#target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 ### スクリプト名：
@@ -6,31 +8,31 @@ ShuffleObjectColors.jsx
 
 ### 概要
 
-- 選択オブジェクト（パス、テキスト、グループ、複合シェイプ）の塗り・線カラーをランダムに再適用するIllustrator用スクリプトです。
-- 黒・白の除外やカラー使用比率の維持、文字単位のランダム適用など、多様なオプションを備えています。
+- 選択オブジェクト（パス、グループ、複合シェイプ）の塗り・線カラーを再配色します。
+- 黒・白の除外、カラー比率（バランス）保持、ランダム適用が可能です。
+- 日本語／英語UIに対応。
 
 ### 主な機能
 
-- 塗り・線それぞれの適用可否選択
-- 黒・白の除外オプション
-- カラー使用比率保持（バランスモード）
-- ランダムまたは順番適用切り替え
-- テキスト内文字単位のランダムカラー適用
-- 日本語／英語インターフェース対応
+- 塗り・線の適用切替
+- 黒・白の除外
+- カラー比率保持オプション
+- ランダム／順番適用切替
 
 ### 処理の流れ
 
-1. 対象オブジェクトを収集（グループ・複合パス含む）
-2. 指定条件に基づいてカラーを収集
-3. カラーをシャッフルまたは順番に整理
-4. 対象オブジェクトにカラーを再適用
+1. 対象オブジェクトを収集
+2. 使用カラーを抽出
+3. プールを生成・並べ替え
+4. カラーを再適用
 
 ### 更新履歴
 
-- v1.0.0 (20240624) : 初版リリース
-- v1.0.1 (20240624) : バグフィックス
-- v1.0.2 (20240624) : ランダム適用・順番適用の切替対応
+- v1.0.0 (20240624) : 初期バージョン
+- v1.0.1 (20240624) : バグ修正
+- v1.0.2 (20240624) : ランダム／順番適用切替追加
 - v1.0.3 (20240625) : ローカライズ調整
+- v1.1 (20250708) : テキスト機能削除、構造整理
 
 ---
 
@@ -40,41 +42,41 @@ ShuffleObjectColors.jsx
 
 ### Overview
 
-- An Illustrator script to reapply fill and stroke colors randomly to selected objects (paths, text, groups, compound shapes).
-- Offers options to exclude black and white, preserve color balance, and apply colors per character in text.
+- Reapplies fill and stroke colors to selected objects (paths, groups, compound shapes).
+- Supports excluding black/white, preserving color balance, and random application.
+- Supports Japanese and English UI.
 
 ### Main Features
 
-- Choose whether to apply to fill and/or stroke
-- Options to exclude black and white
-- Preserve color usage ratio (balance mode)
-- Toggle between random or sequential application
-- Random color application per character in text frames
-- Japanese and English UI support
+- Toggle fill and stroke application
+- Exclude black and white
+- Preserve color balance option
+- Random or sequential color application
 
-### Process Flow
+### Workflow
 
-1. Collect target objects (including groups and compound paths)
-2. Collect colors based on specified conditions
-3. Shuffle or order colors accordingly
-4. Reapply colors to target objects
+1. Collect target objects
+2. Extract used colors
+3. Create and shuffle color pool
+4. Reapply colors
 
-### Update History
+### Changelog
 
 - v1.0.0 (20240624): Initial release
 - v1.0.1 (20240624): Bug fixes
-- v1.0.2 (20240624): Added toggle for random/sequential application
-- v1.0.3 (20240625): Localization adjustments
+- v1.0.2 (20240624): Added random/sequential application
+- v1.0.3 (20240625): Localization updates
+- v1.1 (20250708): Removed text feature, refactored structure
 */
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 
-/*** 日英ラベル定義 Define label（UI出現順に整理） ***/
+/* ラベル定義（UI出現順） */
 var lang = getCurrentLang();
 var LABELS = {
-    dialogTitle: { ja: "カラーをランダムに再適用", en: "Reapply Colors Randomly" },
+    dialogTitle: { ja: "カラーをランダムに再適用 v1.1", en: "Reapply Colors Randomly v1.1" },
     panelTarget: { ja: "対象", en: "Target" },
     fill: { ja: "塗り", en: "Fill" },
     stroke: { ja: "線", en: "Stroke" },
@@ -90,15 +92,15 @@ var LABELS = {
     alertChoice: { ja: "塗りまたは線のいずれか一方を選択してください。", en: "Please select either fill or stroke." }
 };
 
-// グローバル変数としてUIパーツを宣言
-var fillCheckbox, strokeCheckbox, textCheckbox;
+// UIパーツ
+var fillCheckbox, strokeCheckbox;
 var blackCheckbox, whiteCheckbox;
-var balanceCheckbox; // ←追加
-var randomCheckbox; // ランダムチェックボックス
+var balanceCheckbox;
+var randomCheckbox;
 
 main();
 
-// 塗り・線のカラー適用を共通化
+// 塗り・線のカラー適用
 function applyColorIfEligible(target, isFill, changeFlag, colorArray, colorIndex, excludeBlack, excludeWhite) {
     if (!changeFlag) return { color: null, index: colorIndex };
 
@@ -111,44 +113,16 @@ function applyColorIfEligible(target, isFill, changeFlag, colorArray, colorIndex
 
     if (isFill) {
         target.filled = true;
-        if (target.typename === "TextFrame") {
-            target.textRange.characterAttributes.fillColor = nextColor;
-        } else {
-            target.fillColor = nextColor;
-        }
-        // --- 文字ごとランダム適用 ---
-        if (target.typename === "TextFrame" && typeof changeText !== "undefined" && changeText) {
-            var chars = target.textRange.characters;
-            for (var c = 0; c < chars.length; c++) {
-                var color = getOriginalColor(colorArray[colorIndex % colorArray.length]);
-                chars[c].characterAttributes.fillColor = color;
-                colorIndex++;
-            }
-        }
+        target.fillColor = nextColor;
     } else {
         target.stroked = true;
-        if (target.typename === "TextFrame") {
-            target.textRange.characterAttributes.strokeColor = nextColor;
-        } else {
-            target.strokeColor = nextColor;
-        }
-        // --- 文字ごとランダム適用 ---
-        if (target.typename === "TextFrame" && typeof changeText !== "undefined" && changeText) {
-            var chars = target.textRange.characters;
-            for (var c = 0; c < chars.length; c++) {
-                var color = getOriginalColor(colorArray[colorIndex % colorArray.length]);
-                chars[c].characterAttributes.strokeColor = color;
-                colorIndex++;
-            }
-        }
+        target.strokeColor = nextColor;
     }
     colorIndex++;
     return { color: nextColor, index: colorIndex };
 }
 
-/***********
-メイン処理
-***********/
+/* メイン処理 */
 function main() {
     if (app.documents.length === 0 || !app.activeDocument.selection || app.activeDocument.selection.length === 0) {
         alert(LABELS.alertSelect[lang]);
@@ -178,12 +152,6 @@ function main() {
     strokeCheckbox = checkGroup.add("checkbox", undefined, LABELS.stroke[lang]);
     strokeCheckbox.value = true;
 
-    var textGroup = optionPanel.add("group");
-    textGroup.orientation = "row";
-    textGroup.alignChildren = "left";
-    textCheckbox = textGroup.add("checkbox", undefined, LABELS.fill[lang]);
-    textCheckbox.value = true;
-
     var excludePanel = leftGroup.add("panel", undefined, LABELS.panelExclude[lang]);
     excludePanel.preferredSize.width = 120;
     excludePanel.orientation = "column";
@@ -200,13 +168,11 @@ function main() {
     whiteCheckbox = excludeGroup.add("checkbox", undefined, LABELS.white[lang]);
     whiteCheckbox.value = true;
 
-    // 「ランダム」チェックボックス（パネル外・左下に追加）
     randomCheckbox = leftGroup.add("checkbox", undefined, LABELS.random[lang]);
     randomCheckbox.value = true;
 
-    // 「バランスを保持」チェックボックス（パネル外・左下に追加）
     balanceCheckbox = leftGroup.add("checkbox", undefined, LABELS.balance[lang]);
-    balanceCheckbox.value = false;
+    balanceCheckbox.value = true;
 
     var rightGroup = dialog.add("group");
     rightGroup.orientation = "column";
@@ -232,6 +198,7 @@ function main() {
     cancelBtn.preferredSize.width = 80;
 
     cancelBtn.onClick = function() {
+        app.undo();
         dialog.close(0);
     };
     okBtn.onClick = function() {
@@ -239,13 +206,12 @@ function main() {
         dialog.close(1);
     };
 
-    if (dialog.show() !== 1) return;
+    dialog.show();
 }
 
 function applyColors() {
     var changeFill = fillCheckbox.value;
     var changeStroke = strokeCheckbox.value;
-    var changeText = textCheckbox.value;
     var excludeBlack = blackCheckbox.value;
     var excludeWhite = whiteCheckbox.value;
     var balancePreserve = balanceCheckbox.value;
@@ -258,16 +224,16 @@ function applyColors() {
 
     var selection = app.activeDocument.selection;
     var targetItems = [];
-    collectAllTargetItems(selection, targetItems, changeText);
+    collectAllTargetItems(selection, targetItems);
 
     var colorCountMap = {};
     var uniqueColorKeys = {};
 
-    // カラー収集処理（共通）
+    // カラー収集
     for (var i = 0; i < targetItems.length; i++) {
         var item = targetItems[i];
 
-        if (changeFill && (item.filled || item.typename === "TextFrame")) {
+        if (changeFill && (item.filled)) {
             var fillColor = getOriginalColor(item.fillColor);
             if (
                 fillColor &&
@@ -277,21 +243,8 @@ function applyColors() {
                 collectColor(fillColor, colorCountMap, uniqueColorKeys, balancePreserve);
             }
         }
-        if (changeFill && item.typename === "TextFrame" && changeText) {
-            var chars = item.textRange.characters;
-            for (var c = 0; c < chars.length; c++) {
-                var charColor = getOriginalColor(chars[c].characterAttributes.fillColor);
-                if (
-                    charColor &&
-                    !(excludeBlack && isBlack(charColor)) &&
-                    !(excludeWhite && isWhite(charColor))
-                ) {
-                    collectColor(charColor, colorCountMap, uniqueColorKeys, balancePreserve);
-                }
-            }
-        }
 
-        if (changeStroke && (item.stroked || item.typename === "TextFrame") && item.strokeWidth >= 1) {
+        if (changeStroke && (item.stroked) && item.strokeWidth >= 1) {
             var strokeColor = getOriginalColor(item.strokeColor);
             if (
                 strokeColor &&
@@ -299,19 +252,6 @@ function applyColors() {
                 !(excludeWhite && isWhite(strokeColor))
             ) {
                 collectColor(strokeColor, colorCountMap, uniqueColorKeys, balancePreserve);
-            }
-        }
-        if (changeStroke && item.typename === "TextFrame" && changeText) {
-            var chars = item.textRange.characters;
-            for (var c = 0; c < chars.length; c++) {
-                var charStroke = getOriginalColor(chars[c].characterAttributes.strokeColor);
-                if (
-                    charStroke &&
-                    !(excludeBlack && isBlack(charStroke)) &&
-                    !(excludeWhite && isWhite(charStroke))
-                ) {
-                    collectColor(charStroke, colorCountMap, uniqueColorKeys, balancePreserve);
-                }
             }
         }
     }
@@ -353,7 +293,7 @@ function createColorPool(colorCountMap, uniqueColorKeys, balancePreserve) {
     return pool;
 }
 
-// カラー収集処理（共通）
+// カラー収集
 function collectColor(color, colorCountMap, uniqueColorKeys, balancePreserve) {
     var key;
     if (color.typename === "RGBColor") {
@@ -363,31 +303,32 @@ function collectColor(color, colorCountMap, uniqueColorKeys, balancePreserve) {
     } else {
         return;
     }
+    if (!uniqueColorKeys[key]) {
+        uniqueColorKeys[key] = getOriginalColor(color);
+    }
     if (balancePreserve) {
         if (!colorCountMap[key]) {
             colorCountMap[key] = { color: getOriginalColor(color), count: 0 };
         }
         colorCountMap[key].count++;
-    } else if (!uniqueColorKeys[key]) {
-        uniqueColorKeys[key] = getOriginalColor(color);
     }
 }
 
-// 再帰的に PathItem, TextFrame を収集
-function collectAllTargetItems(items, results, includeText) {
+// 対象アイテム収集（再帰）
+function collectAllTargetItems(items, results) {
     for (var i = 0; i < items.length; i++) {
         var item = items[i];
         if (item.typename === "GroupItem") {
-            collectAllTargetItems(item.pageItems, results, includeText);
+            collectAllTargetItems(item.pageItems, results);
         } else if (item.typename === "CompoundPathItem") {
-            collectAllTargetItems(item.pathItems, results, includeText);
-        } else if (item.typename === "PathItem" || (item.typename === "TextFrame" && includeText)) {
+            collectAllTargetItems(item.pathItems, results);
+        } else if (item.typename === "PathItem") {
             results.push(item);
         }
     }
 }
 
-// 配列をシャッフル（Fisher–Yatesアルゴリズム）
+// 配列シャッフル（Fisher–Yates）
 function shuffleArray(arr) {
     var copy = arr.slice();
     for (var i = copy.length - 1; i > 0; i--) {
@@ -399,7 +340,7 @@ function shuffleArray(arr) {
     return copy;
 }
 
-// 任意のカラーをそのままコピー（RGB/CMYK対応）
+// カラー複製（RGB/CMYK対応）
 function getOriginalColor(color) {
     if (!color || !color.typename) return null;
     if (color.typename === "RGBColor") return copyRGBColor(color);
@@ -416,31 +357,30 @@ function copyCMYKColor(original) {
     return newColor;
 }
 
-function isBlack(color) {
-    if (color.typename === "RGBColor") {
-        return color.red <= 51 && color.green <= 51 && color.blue <= 51;
-    } else if (color.typename === "CMYKColor") {
-        // 黒に近いか判定（CMYKで黒判定は厳密には難しいが単純判定）
-        return color.black >= 0.8 || (color.cyan <= 0.2 && color.magenta <= 0.2 && color.yellow <= 0.2 && color.black >= 0.7);
-    }
-    return false;
-}
-
-function isWhite(color) {
-    if (color.typename === "RGBColor") {
-        return color.red === 255 && color.green === 255 && color.blue === 255;
-    } else if (color.typename === "CMYKColor") {
-        // CMYKで白は全て0
-        return color.cyan === 0 && color.magenta === 0 && color.yellow === 0 && color.black === 0;
-    }
-    return false;
-}
-
-// RGBColorの複製
 function copyRGBColor(original) {
     var newColor = new RGBColor();
     newColor.red = original.red;
     newColor.green = original.green;
     newColor.blue = original.blue;
     return newColor;
+}
+
+// 黒判定
+function isBlack(color) {
+    if (color.typename === "RGBColor") {
+        return color.red <= 51 && color.green <= 51 && color.blue <= 51;
+    } else if (color.typename === "CMYKColor") {
+        return color.black >= 0.8 || (color.cyan <= 0.2 && color.magenta <= 0.2 && color.yellow <= 0.2 && color.black >= 0.7);
+    }
+    return false;
+}
+
+// 白判定
+function isWhite(color) {
+    if (color.typename === "RGBColor") {
+        return color.red === 255 && color.green === 255 && color.blue === 255;
+    } else if (color.typename === "CMYKColor") {
+        return color.cyan === 0 && color.magenta === 0 && color.yellow === 0 && color.black === 0;
+    }
+    return false;
 }
