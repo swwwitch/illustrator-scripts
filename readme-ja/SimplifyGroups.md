@@ -1,6 +1,6 @@
 # 選択したグループ内のサブグループを解除して、グループ構造を簡素化
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SimplifyGroups.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/SimplifyGroups.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-SimplifyGroups.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/group/SimplifyGroups.jsx)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
