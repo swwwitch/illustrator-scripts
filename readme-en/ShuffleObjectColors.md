@@ -1,6 +1,6 @@
 # ShuffleObjectColors
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-ShuffleObjectColors.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ShuffleObjectColors.jsx)
+[![Direct](https://img.shields.io/badge/Direct%20Link-ShuffleObjectColors.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/color/ShuffleObjectColors.jsx)
 
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
