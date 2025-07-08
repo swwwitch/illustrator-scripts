@@ -2,18 +2,19 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### スクリプト名：
 
 DeleteOutsideArtboard.jsx
 
 ### 概要
 
-- ドキュメント内のオブジェクトをアートボードとの重なり条件で判定し、外側のオブジェクトを削除または保管用レイヤーに移動
+- ドキュメント内のオブジェクトをアートボードとの重なり条件で判定し、外側のオブジェクトを削除または保管用レイヤーに移動します。
 - 「現在のアートボードのみ」または「すべてのアートボード」を対象に選択できます。
 
 ### 主な機能
 
-- デフォルトは「すべてのアートボード」。「現在のアートボードのみ」にも変更できます。
+- デフォルトは「すべてのアートボード」。「現在のアートボードのみ」にも変更可能。
 - オブジェクトを選択しておく必要はありません。
 - ロックされたオブジェクト、非表示のオブジェクトも対象です。
 - ［保管用レイヤーに移す］オプションをONにすると、「// backup」レイヤーに移動します。「// backup」レイヤーは非表示になります。
@@ -24,20 +25,10 @@ DeleteOutsideArtboard.jsx
 2. オブジェクトとアートボードの重なりを判定
 3. 重なっていないオブジェクトを削除または保管用レイヤーに移動
 
-### 課題
-
-- ロックされたオブジェクト、非表示のオブジェクトを無視するオプション
-- テキストを無視するオプション
-
 ### 更新履歴
 
 - v1.0.0 (20250708) : 初期バージョン
-
-### note
-
-https://note.com/dtp_tranist/n/n735a61bfe6c1
-
----
+- v1.0.1 (20250708) : 微調整
 
 ### Script Name:
 
@@ -45,14 +36,15 @@ DeleteOutsideArtboard.jsx
 
 ### Overview
 
-- This script checks objects in the document against artboards and deletes or moves objects outside to a backup layer.
-- You can select "Current Artboard Only" or "All Artboards" as target.
+- Checks objects in the document against artboards and deletes or moves objects outside to a backup layer.
+- Allows selection of "Current Artboard Only" or "All Artboards" as target.
 
 ### Main Features
 
-- Delete objects outside artboards
-- Option to move to backup layer
-- Japanese/English interface support
+- Default is "All Artboards"; can be changed to "Current Artboard Only".
+- No need to pre-select objects.
+- Locked and hidden objects are included.
+- Option to move outside objects to a hidden "// backup" layer.
 
 ### Workflow
 
@@ -63,6 +55,8 @@ DeleteOutsideArtboard.jsx
 ### Changelog
 
 - v1.0.0 (20250708): Initial version
+- v1.0.1 (20250708): Minor adjustments
+
 */
 
 // -------------------------------
@@ -182,6 +176,17 @@ function isOverlappingArtboard(item, artboard) {
     return overlapRatio > 0;
 }
 
+// 指定したオブジェクトが対象のアートボード群のいずれかと重なっているか判定
+// Check if item overlaps any of the artboards
+function checkOverlapWithArtboards(item, artboards) {
+    for (var i = 0; i < artboards.length; i++) {
+        if (isOverlappingArtboard(item, artboards[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
 // アートボード外オブジェクトを収集 / Collect objects outside artboards
 function collectOutsideItems(items, artboards, currentOnly, ab, result) {
     for (var i = items.length - 1; i >= 0; i--) {
@@ -191,24 +196,43 @@ function collectOutsideItems(items, artboards, currentOnly, ab, result) {
             continue;
         }
 
-        // 子アイテムを先に再帰処理
-        if (item.typename === "GroupItem" && item.pageItems.length > 0) {
-            collectOutsideItems(item.pageItems, artboards, currentOnly, ab, result);
-        }
-
         if (item.locked) item.locked = false;
         if (!item.visible) item.visible = true;
 
-        var overlaps = false;
-        if (currentOnly) {
-            if (isOverlappingArtboard(item, ab)) overlaps = true;
-        } else {
-            for (var j = 0; j < artboards.length; j++) {
-                if (isOverlappingArtboard(item, artboards[j])) {
-                    overlaps = true;
-                    break;
+        if (item.typename === "GroupItem") {
+            var groupTarget = item;
+            // If clipped group, use the clipping path for bounds
+            if (item.clipped) {
+                for (var k = 0; k < item.pageItems.length; k++) {
+                    if (item.pageItems[k].clipping) {
+                        groupTarget = item.pageItems[k];
+                        break;
+                    }
                 }
             }
+
+            var overlapsGroup = false;
+            if (currentOnly) {
+                overlapsGroup = isOverlappingArtboard(groupTarget, ab);
+            } else {
+                overlapsGroup = checkOverlapWithArtboards(groupTarget, artboards);
+            }
+
+            if (!overlapsGroup) {
+                result.push(item);
+                continue; // Skip inside items if group added
+            }
+
+            // If group overlaps, check inside
+            collectOutsideItems(item.pageItems, artboards, currentOnly, ab, result);
+            continue;
+        }
+
+        var overlaps = false;
+        if (currentOnly) {
+            overlaps = isOverlappingArtboard(item, ab);
+        } else {
+            overlaps = checkOverlapWithArtboards(item, artboards);
         }
 
         if (!overlaps) {
@@ -234,17 +258,20 @@ function removeOutsideObjects(currentOnly, moveToBackup) {
     }
 
     for (var i = 0; i < outsideItems.length; i++) {
-        if (outsideItems[i].layer && outsideItems[i].layer.locked) {
-            outsideItems[i].layer.locked = false;
-        }
-        if (outsideItems[i].locked) {
-            outsideItems[i].locked = false;
-        }
+        var item = outsideItems[i];
 
-        if (moveToBackup) {
-            moveItemToBackupLayer(outsideItems[i], doc);
-        } else {
-            outsideItems[i].remove();
+        try {
+            if (item.locked) item.locked = false;
+            if (!item.visible) item.visible = true;
+            if (item.layer && item.layer.locked) item.layer.locked = false;
+
+            if (moveToBackup) {
+                moveItemToBackupLayer(item, doc);
+            } else {
+                item.remove();
+            }
+        } catch(e) {
+            $.writeln("Skipped invalid object: " + e);
         }
     }
 }
