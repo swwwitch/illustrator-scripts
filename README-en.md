@@ -78,6 +78,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Batch rename artboards](readme.en/RenameArtboardsPlus.md)
 - [Reorder Artboards By Position](readme-en/ReorderArtboardsByPosition.md)
 - [Delete Objects Outside Artboards](readme-en/DeleteOutsideArtboard.md)
+- [FitArtboardWithMargin.jsx](readme-en/FitArtboardWithMargin.md)
 
 ## Layers, Z-order
 

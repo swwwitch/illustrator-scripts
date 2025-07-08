@@ -40,6 +40,10 @@ https://gorolib.blog.jp/archives/71820861.html
 - アートボードの座標・サイズをピクセルベースで整数値に
 - オブジェクトを選択していない場合には、すべてのオブジェクトを対象に
 
+### note
+
+https://note.com/dtp_tranist/n/n15d3c6c5a1e5
+
 ### 更新履歴
 
 - v1.0 (20250420) : 初期バージョン

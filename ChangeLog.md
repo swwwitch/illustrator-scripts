@@ -1,5 +1,13 @@
 # Change Log
 
+### 20250709
+
+新しいスクリプトを追加
+
+- [選択オブジェクトに合わせてアートボードサイズを設定するときにマージンを付ける](readme-ja/FitArtboardWithMargin.md)を追加
+
+![](https://www.dtp-transit.jp/images/ss-406-318-72-20250709-065622.png)
+
 ### 20250708
 
 新しいスクリプトを追加
