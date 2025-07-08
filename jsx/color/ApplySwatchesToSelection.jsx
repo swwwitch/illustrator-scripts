@@ -2,40 +2,35 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### スクリプト名：
 
 ApplySwatchesToSelection.jsx
 
 ### 概要
 
-- 選択中のオブジェクトやテキストに、スウォッチパネルのスウォッチまたは全プロセススウォッチからカラーを適用するスクリプトです。
-- 適用方法は順番またはランダムから選択でき、文字単位やオブジェクト単位でカラーを変えることができます。
+- 選択したオブジェクトまたはテキストに、スウォッチや定義済みカラーを自動適用するスクリプトです。
+- CMYK / RGB カラーモードに応じてカラーを使い分けます。
 
 ### 主な機能
 
-- スウォッチパネルの選択スウォッチ、または全プロセススウォッチを使用
-- 単一テキストの場合は文字ごとに色分け
-- 複数オブジェクトの場合は位置順にカラー適用
-- 3色以上ではスウォッチをランダムシャッフル
-- 日本語／英語インターフェース対応
+- スウォッチパネル選択スウォッチ、またはプロセススウォッチの利用
+- テキスト単体は文字単位、複数オブジェクトは位置順にカラーを適用
+- 3色以上のスウォッチ時にはランダム適用
+- 日本語／英語UI切替対応
 
 ### 処理の流れ
 
-1. ドキュメントと選択オブジェクトの確認
-2. スウォッチ取得（選択されていなければ全プロセススウォッチ）
-3. 単一テキストは文字単位、複数オブジェクトは位置順に色を適用
+1. ドキュメントと選択確認
+2. スウォッチ取得（未選択時は定義済みカラーを使用）
+3. テキストは文字単位、オブジェクトは位置順にカラー適用
 4. 必要に応じてランダムシャッフル
-
-### オリジナル、謝辞
-
-sort_by_position.jsx（shspage氏）を参考にしました  
-https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 
 ### 更新履歴
 
 - v1.0.0 (20241103) : 初期バージョン
-- v1.1.0 (20250625) : スウォッチ未選択時に全プロセススウォッチ対応
-- v1.2.0 (20250708) : 微調整
+- v1.1.0 (20250625) : スウォッチ未選択時の全プロセス対応
+- v1.2.0 (20250708) : CMYK/RGB切替対応
 
 ---
 
@@ -45,33 +40,29 @@ ApplySwatchesToSelection.jsx
 
 ### Overview
 
-- A script that applies colors from selected swatches or all process swatches to selected objects or text.
-- You can choose to apply colors sequentially or randomly, and assign colors per character or per object.
+- A script to automatically apply swatches or predefined colors to selected objects or text.
+- Switches colors depending on document color mode (CMYK or RGB).
 
 ### Main Features
 
-- Uses selected swatches from the Swatches panel or all process swatches
-- Colors individual characters for single text frame
-- Colors objects in order when multiple objects are selected
-- Random shuffle if there are more than 3 colors
-- Japanese and English UI support
+- Use selected swatches from panel or all process swatches
+- Apply per character for single text, or per object in order
+- Random shuffle when more than 3 swatches
+- Supports Japanese / English UI
 
 ### Process Flow
 
 1. Check document and selection
-2. Get swatches (if none selected, use all process swatches)
-3. Apply colors per character for single text, or in order for multiple objects
+2. Get swatches (use predefined colors if none selected)
+3. Apply per character or per object in order
 4. Shuffle randomly if needed
-
-### Original / Acknowledgements
-
-Inspired by sort_by_position.jsx by shspage  
-https://gist.github.com/shspage/02c6d8654cf6b3798b6c0b69d976a891
 
 ### Update History
 
 - v1.0.0 (20241103): Initial version
-- v1.1.0 (20250625): Supported all process swatches when no swatches are selected
+- v1.1.0 (20250625): Added process swatch fallback when no swatches selected
+- v1.2.0 (20250708): Added CMYK/RGB mode switch support
+
 */
 
 function getCurrentLang() {
@@ -82,6 +73,7 @@ function getCurrentLang() {
     return 'en';
 }
 
+// エラーメッセージなどのラベル（UI表示順に整理）
 var LABELS = {
     errNoDoc: {
         ja: "ドキュメントが開かれていません。",
@@ -99,72 +91,108 @@ var LABELS = {
 
 function main() {
     var lang = getCurrentLang();
+
     try {
+        // ドキュメントが開かれているか確認
         if (app.documents.length === 0) {
             alert(LABELS.errNoDoc[lang]);
             return;
         }
         var activeDoc = app.activeDocument;
-
         var selectedItems = app.selection;
 
-        if (selectedItems.length > 0) {
-            var selectedSwatches = activeDoc.swatches.getSelected();
+        // 選択オブジェクトがあるか確認
+        if (selectedItems.length === 0) {
+            alert(LABELS.errNoSelection[lang]);
+            return;
+        }
 
-            // スウォッチが選択されていない、または白のみ選択の場合はプロセスカラースウォッチをすべて取得し、ランダムに利用
-            if (!selectedSwatches || selectedSwatches.length === 0 || allWhiteSwatches(selectedSwatches)) {
-                selectedSwatches = getAvailableProcessSwatches(activeDoc);
+        // 選択されたスウォッチを取得
+        var selectedSwatches = activeDoc.swatches.getSelected();
+
+        // 定義済みのカラーセット（CMYK / RGB）
+        var predefinedColors = [];
+        if (activeDoc.documentColorSpace === DocumentColorSpace.CMYK) {
+            var cmyk1 = new CMYKColor();
+            cmyk1.cyan = 9; cmyk1.magenta = 80; cmyk1.yellow = 95; cmyk1.black = 0;
+            predefinedColors.push(cmyk1);
+            var cmyk2 = new CMYKColor();
+            cmyk2.cyan = 7; cmyk2.magenta = 3; cmyk2.yellow = 86; cmyk2.black = 0;
+            predefinedColors.push(cmyk2);
+            var cmyk3 = new CMYKColor();
+            cmyk3.cyan = 76; cmyk3.magenta = 8; cmyk3.yellow = 100; cmyk3.black = 0;
+            predefinedColors.push(cmyk3);
+            var cmyk4 = new CMYKColor();
+            cmyk4.cyan = 72; cmyk4.magenta = 22; cmyk4.yellow = 6; cmyk4.black = 0;
+            predefinedColors.push(cmyk4);
+        } else {
+            var rgb1 = new RGBColor();
+            rgb1.red = 222; rgb1.green = 84; rgb1.blue = 25;
+            predefinedColors.push(rgb1);
+            var rgb2 = new RGBColor();
+            rgb2.red = 245; rgb2.green = 233; rgb2.blue = 40;
+            predefinedColors.push(rgb2);
+            var rgb3 = new RGBColor();
+            rgb3.red = 41; rgb3.green = 163; rgb3.blue = 57;
+            predefinedColors.push(rgb3);
+            var rgb4 = new RGBColor();
+            rgb4.red = 53; rgb4.green = 157; rgb4.blue = 209;
+            predefinedColors.push(rgb4);
+        }
+
+        // スウォッチが未選択、または1色以下、または白のみの場合は定義済みカラーを使用
+        if (!selectedSwatches || selectedSwatches.length <= 1 || allWhiteSwatches(selectedSwatches)) {
+            selectedSwatches = [];
+            for (var i = 0; i < predefinedColors.length; i++) {
+                var dummySwatch = {};
+                dummySwatch.color = predefinedColors[i];
+                selectedSwatches.push(dummySwatch);
             }
+        }
 
-            // スウォッチ数が3色より多い場合はランダムにシャッフル
-            if (selectedSwatches.length > 3) {
-                selectedSwatches = shuffleArray(selectedSwatches);
-            }
+        // スウォッチ数が3色より多い場合はランダムにシャッフル
+        if (selectedSwatches.length > 3) {
+            selectedSwatches = shuffleArray(selectedSwatches);
+        }
 
-            if (selectedSwatches.length > 0) {
-                if (selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") {
-                    var selectedTextFrame = selectedItems[0];
-                    var charCount = selectedTextFrame.contents.length;
-                    for (var i = 0; i < charCount; i++) {
-                        var swatchColor = getSwatchColor(i, selectedSwatches);
-                        selectedTextFrame.characters[i].fillColor = swatchColor;
-                    }
-                } else {
-                    // 複数オブジェクトは位置順に並べ替えてスウォッチを適用
-                    sortByPosition(selectedItems);
-                    for (var i = 0; i < selectedItems.length; i++) {
-                        var swatchColor = getSwatchColor(i, selectedSwatches);
-                        var currentItem = selectedItems[i];
-                        if (currentItem.typename === "PathItem") {
-                            currentItem.fillColor = swatchColor;
-                        } else if (currentItem.typename === "CompoundPathItem" && currentItem.pathItems.length > 0) {
-                            var pathItems = currentItem.pathItems;
-                            for (var j = 0; j < pathItems.length; j++) {
-                                pathItems[j].fillColor = swatchColor;
-                            }
-                        } else if (currentItem.typename === "TextFrame") {
-                            currentItem.textRange.fillColor = swatchColor;
-                        }
-                    }
-                }
-            } else {
-                // ここは実質発生しないが念のため
-                alert(LABELS.errNoSelection[lang]);
+        // 選択が単一テキストフレームの場合は文字単位で色付け
+        if (selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") {
+            var selectedTextFrame = selectedItems[0];
+            var charCount = selectedTextFrame.contents.length;
+            for (var i = 0; i < charCount; i++) {
+                var swatchColor = getSwatchColor(i, selectedSwatches);
+                selectedTextFrame.characters[i].fillColor = swatchColor;
             }
         } else {
-            alert(LABELS.errNoSelection[lang]);
+            // 複数オブジェクトは位置順に並べ替えて色付け
+            sortByPosition(selectedItems);
+            for (var i = 0; i < selectedItems.length; i++) {
+                var swatchColor = getSwatchColor(i, selectedSwatches);
+                var currentItem = selectedItems[i];
+                if (currentItem.typename === "PathItem") {
+                    currentItem.fillColor = swatchColor;
+                } else if (currentItem.typename === "CompoundPathItem" && currentItem.pathItems.length > 0) {
+                    var pathItems = currentItem.pathItems;
+                    for (var j = 0; j < pathItems.length; j++) {
+                        pathItems[j].fillColor = swatchColor;
+                    }
+                } else if (currentItem.typename === "TextFrame") {
+                    currentItem.textRange.fillColor = swatchColor;
+                }
+            }
         }
     } catch (e) {
         alert(LABELS.errUnexpected[lang] + e.message);
     }
 }
 
-// 使用可能なスウォッチ（プロセスカラー）だけを取得
+// 指定ドキュメントから使用可能なプロセススウォッチを取得
 function getAvailableProcessSwatches(doc) {
     var result = [];
     var swatches = doc.swatches;
     for (var i = 0; i < swatches.length; i++) {
         var col = swatches[i].color;
+        // スポットカラー、グラデーション、パターン、グレースケール以外で、登録色でなく、白色でないもの
         if (
             !(col.typename === "SpotColor" || col.typename === "GradientColor" || col.typename === "PatternColor" || col.typename === "GrayColor")
             && swatches[i].name !== "[Registration]"
@@ -176,7 +204,7 @@ function getAvailableProcessSwatches(doc) {
     return result;
 }
 
-// 白色(CMYK=0,0,0,0またはRGB=255,255,255)かどうか判定
+// 色が白かどうか判定（CMYK=0,0,0,0 または RGB=255,255,255）
 function isWhiteColor(color) {
     if (color.typename === "CMYKColor") {
         return color.cyan === 0 && color.magenta === 0 && color.yellow === 0 && color.black === 0;
@@ -186,7 +214,7 @@ function isWhiteColor(color) {
     return false;
 }
 
-// オブジェクトを位置順に並べ替える（横幅が広ければ左→右、縦幅が広ければ上→下）
+// オブジェクト配列を位置順にソート（横幅が広ければ左→右、縦幅が広ければ上→下）
 function sortByPosition(items) {
     var hMin = Infinity, hMax = -Infinity, vMin = Infinity, vMax = -Infinity;
     for (var i = 0, len = items.length; i < len; i++) {
@@ -198,18 +226,20 @@ function sortByPosition(items) {
         if (top > vMax) vMax = top;
     }
     if (hMax - hMin > vMax - vMin) {
+        // 横幅が広い場合は左から右へ
         items.sort(function(a, b) { return compPosition(a.left, b.left, b.top, a.top); });
     } else {
+        // 縦幅が広い場合は上から下へ
         items.sort(function(a, b) { return compPosition(b.top, a.top, a.left, b.left); });
     }
 }
 
-// 並べ替え用の比較関数
+// ソート用比較関数（主キー比較、同値なら副キー比較）
 function compPosition(a1, b1, a2, b2) {
     return a1 == b1 ? a2 - b2 : a1 - b1;
 }
 
-// 配列をシャッフルする処理
+// 配列をランダムシャッフルして返す
 function shuffleArray(arr) {
     var result = arr.slice();
     for (var i = result.length - 1; i > 0; i--) {
@@ -221,14 +251,12 @@ function shuffleArray(arr) {
     return result;
 }
 
-// インデックスに応じてスウォッチの色を取得
+// インデックスに応じてスウォッチの色を取得（ループ）
 function getSwatchColor(index, swatches) {
     return swatches[index % swatches.length].color;
 }
 
-main();
-
-// 白のみ選択されている場合に true を返す
+// 全スウォッチが白色のみか判定
 function allWhiteSwatches(swatches) {
     for (var i = 0; i < swatches.length; i++) {
         if (!isWhiteColor(swatches[i].color)) {
@@ -237,3 +265,5 @@ function allWhiteSwatches(swatches) {
     }
     return true;
 }
+
+main();
