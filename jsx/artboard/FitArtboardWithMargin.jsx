@@ -2,28 +2,29 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### スクリプト名：
 
-FitArtboardWithMargin
+FitArtboardWithMargin.jsx
 
 ### 概要
 
-- 選択オブジェクトの外接範囲にマージンを加えたサイズで、アートボードを自動調整します。
-- マージンは単位に応じた初期値が自動設定され、ダイアログで即時プレビュー確認が可能です。
+- 選択オブジェクトの外接範囲にマージンを加えてアートボードサイズを自動調整
+- 単位に応じたマージン初期値を設定し、即時プレビュー可能なダイアログを提供
 
 ### 主な機能
 
-- 定規単位に基づくマージン初期値の自動設定
+- 定規単位ごとのマージン初期値設定
 - 外接バウンディングボックス計算
-- 即時プレビュー機能つきダイアログ
-- アートボードサイズの自動更新
+- 即時プレビュー付きダイアログ
+- ピクセル整数値への丸め
 
 ### 処理の流れ
 
-1. 選択オブジェクトがない場合は全オブジェクトを対象にする
-2. 定規単位に応じてマージン初期値を設定
-3. ダイアログでマージンを指定（リアルタイムプレビュー）
-4. バウンディングボックス計算とマージン加算
+1. 選択オブジェクトがない場合は全オブジェクトを対象
+2. 単位に応じて初期マージン値を設定
+3. ダイアログでマージンを入力（即時プレビュー）
+4. バウンディングボックスとマージン適用
 5. アートボードを更新
 
 ### オリジナル、謝辞
@@ -31,51 +32,59 @@ FitArtboardWithMargin
 Gorolib Design
 https://gorolib.blog.jp/archives/71820861.html
 
-### オリジナルからの変更点
-
 ### 更新履歴
 
-- v1.0.0 (20250420) : 初期バージョン
-- v1.0.1 (20250708) : ポイント単位の初期値変更、UI改善
+- v1.0 (20250420) : 初期バージョン
+- v1.1 (20250708) : UI改善、ポイント初期値変更
+- v1.2 (20250709) : UI改善とバグ修正
 
 ---
 
 ### Script Name:
 
-FitArtboardToSelectedObjectsWithMargin.jsx
+FitArtboardWithMargin.jsx
 
 ### Overview
 
-- Automatically resizes the artboard to fit the bounding box of selected objects with an added margin.
-- Margin value is auto-set based on the current ruler unit and can be previewed instantly in a dialog.
+- Automatically resizes the artboard to fit the bounding box of selected objects with margin
+- Sets default margin value by ruler units and provides an instant preview dialog
 
 ### Main Features
 
-- Auto margin defaults based on ruler units
+- Margin defaults per ruler units
 - Bounding box calculation
-- Instant preview dialog
-- Automatic artboard resizing
+- Live preview dialog
+- Rounds to integer pixel values
 
 ### Workflow
 
-1. If no objects are selected, all objects are targeted
-2. Set default margin value based on ruler units
-3. Input margin in dialog (with live preview)
-4. Calculate bounding box and add margin
+1. Use all objects if nothing is selected
+2. Set default margin value by units
+3. Input margin in dialog (live preview)
+4. Apply bounding box and margin
 5. Update artboard
 
 ### Changelog
 
-- v1.0.0 (20250420) : Initial version
-- v1.0.1 (20250708) : Changed default point value, UI improvements
+- v1.0 (20250420) : Initial version
+- v1.1 (20250708) : UI improvements, default point value updated
+- v1.2 (20250709) : UI improvements and bug fixes
+
 */
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 
-// ラベル定義（UI用） // UI label definitions
+// スクリプトバージョン
+var SCRIPT_VERSION = "v1.2";
+
+// UIラベル定義 / UI Label Definitions
 var LABELS = {
+    dialogTitle: {
+        ja: "アートボードサイズを調整 " + SCRIPT_VERSION,
+        en: "Adjust Artboard Size " + SCRIPT_VERSION
+    },
     marginLabel: {
         ja: "マージン",
         en: "Margin"
@@ -84,38 +93,85 @@ var LABELS = {
         ja: "数値を入力してください。",
         en: "Please enter a number."
     },
-    dialogTitle: {
-        ja: "マージン設定",
-        en: "Margin Setup"
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    ok: {
+        ja: "OK",
+        en: "OK"
     }
 };
 
 /*
-マージンダイアログを表示
-Show margin input dialog (ScriptUI)
+マージンダイアログ表示（ScriptUI）
+Show margin input dialog with live preview
 */
 function showMarginDialog(defaultValue, unit, lang) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
     dlg.alignChildren = "fill";
+    dlg.margins = [10, 15, 10, 10];
 
     var inputGroup = dlg.add("group");
-    inputGroup.orientation = "row";
-    inputGroup.alignChildren = ["left", "center"];
+    inputGroup.orientation = "column";
+    inputGroup.alignChildren = ["center", "top"];
+    inputGroup.spacing = 15;
 
-    var labelPre = LABELS.marginLabel[lang];
-    var labelPost = " " + unit;
+    var labelText = LABELS.marginLabel[lang] + " (" + unit + ")";
+    inputGroup.add("statictext", undefined, labelText);
 
-    inputGroup.add("statictext", undefined, labelPre + ":");
-    var input = inputGroup.add("edittext", undefined, defaultValue);
+    var inputSubGroup = inputGroup.add("group");
+    inputSubGroup.orientation = "row";
+
+    var input = inputSubGroup.add("edittext", undefined, defaultValue);
     input.characters = 4;
-    var postLabel = inputGroup.add("statictext", undefined, labelPost);
-    postLabel.characters = 5;
 
-    /*
-    プレビューを更新
-    Update preview
-    */
+    var buttonGroup = inputSubGroup.add("group");
+    buttonGroup.orientation = "row";
+    buttonGroup.spacing = 1;
+
+    var plusMinusGroup = buttonGroup.add("group");
+    plusMinusGroup.orientation = "column";
+    plusMinusGroup.spacing = 1;
+
+    var plusBtn = plusMinusGroup.add("button", [0, 0, 20, 15], "+");
+    var minusBtn = plusMinusGroup.add("button", [0, 0, 20, 15], "-");
+
+    var zeroGroup = buttonGroup.add("group");
+    zeroGroup.orientation = "column";
+    zeroGroup.alignChildren = ["center", "center"];
+
+    var zeroBtn = zeroGroup.add("button", [0, 0, 20, 31], "0");
+
+    // 保存しておくアートボード座標 / Save original artboard coordinates
+    var abIndex = app.activeDocument.artboards.getActiveArtboardIndex();
+    var originalRect = app.activeDocument.artboards[abIndex].artboardRect.slice();
+
+    zeroBtn.onClick = function() {
+        input.text = "0";
+        updatePreview(input.text);
+    };
+
+    plusBtn.onClick = function() {
+        var val = parseFloat(input.text);
+        if (!isNaN(val)) {
+            val += 1;
+            input.text = val.toString();
+            updatePreview(input.text);
+        }
+    };
+
+    minusBtn.onClick = function() {
+        var val = parseFloat(input.text);
+        if (!isNaN(val)) {
+            val = Math.max(0, val - 1);
+            input.text = val.toString();
+            updatePreview(input.text);
+        }
+    };
+
+    // プレビュー更新 / Update preview of artboard size
     function updatePreview(value) {
         var previewValue = parseFloat(value);
         if (!isNaN(previewValue)) {
@@ -126,21 +182,6 @@ function showMarginDialog(defaultValue, unit, lang) {
             previewBounds[2] += previewMarginInPoints;
             previewBounds[3] -= previewMarginInPoints;
 
-            // --- 座標と幅・高さを整数に丸める ---
-            var x0 = Math.round(previewBounds[0]);
-            var y1 = Math.round(previewBounds[1]);
-            var x2 = Math.round(previewBounds[2]);
-            var y3 = Math.round(previewBounds[3]);
-            var width = Math.round(x2 - x0);
-            var height = Math.round(y1 - y3);
-            x2 = x0 + width;
-            y3 = y1 - height;
-            previewBounds[0] = x0;
-            previewBounds[1] = y1;
-            previewBounds[2] = x2;
-            previewBounds[3] = y3;
-
-            var abIndex = app.activeDocument.artboards.getActiveArtboardIndex();
             app.activeDocument.artboards[abIndex].artboardRect = previewBounds;
             app.redraw();
         }
@@ -152,8 +193,13 @@ function showMarginDialog(defaultValue, unit, lang) {
 
     var btnGroup = dlg.add("group");
     btnGroup.alignment = "center";
-    var cancelBtn = btnGroup.add("button", undefined, "Cancel", {name: "cancel"});
-    var okBtn = btnGroup.add("button", undefined, "OK", {name: "ok"});
+    var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel[lang], {
+        name: "cancel"
+    });
+    var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang], {
+        name: "ok"
+    });
+    btnGroup.margins = [0, 5, 0, 0];
 
     var result = null;
 
@@ -166,12 +212,13 @@ function showMarginDialog(defaultValue, unit, lang) {
             alert(LABELS.numberAlert[lang]);
         }
     };
+
     cancelBtn.onClick = function() {
+        app.activeDocument.artboards[abIndex].artboardRect = originalRect;
+        app.redraw();
         dlg.close();
     };
 
-    // ダイアログが開いたときに即プレビュー
-    // Apply initial preview when dialog opens
     updatePreview(defaultValue);
 
     dlg.show();
@@ -179,8 +226,7 @@ function showMarginDialog(defaultValue, unit, lang) {
 }
 
 /*
-メイン処理
-Main process
+メイン処理 / Main process
 */
 function main() {
     var selectedItems, artboards, rulerType, marginUnit, marginValue;
@@ -200,8 +246,7 @@ function main() {
         rulerType = app.preferences.getIntegerPreference("rulerType");
         marginUnit = supportedUnits[rulerType];
 
-        // 単位ごとの初期マージン値設定
-        // Set default margin value based on unit
+        // 単位ごとの初期マージン値設定 / Set default margin value based on unit
         defaultMarginValue = '0';
         if (marginUnit === 'mm') {
             defaultMarginValue = '5';
@@ -211,41 +256,38 @@ function main() {
             defaultMarginValue = '10';
         }
 
-        // ユーザーにマージンを入力させる（ScriptUI ダイアログ）
-        // Show margin input dialog (ScriptUI)
+        // ユーザーにマージンを入力させる（ScriptUI ダイアログ）/ Show margin input dialog with live preview
         var userInput = showMarginDialog(defaultMarginValue, marginUnit, lang);
         if (!userInput) return;
 
         marginValue = parseFloat(userInput);
         marginInPoints = new UnitValue(marginValue, marginUnit).as('pt');
 
-        // 選択範囲のバウンディングボックス計算
-        // Calculate bounding box of selected items
+        // 選択範囲のバウンディングボックス計算 / Calculate bounding box of selected items
         selectedBounds = getMaxBounds(selectedItems);
         selectedBounds[0] -= marginInPoints;
         selectedBounds[1] += marginInPoints;
         selectedBounds[2] += marginInPoints;
         selectedBounds[3] -= marginInPoints;
 
-        // --- 座標と幅・高さを整数に丸める ---
-        // 左上座標 (x0, y1)、右下座標 (x2, y3)
+        // 座標と幅・高さを整数に丸める / Round coordinates and size to integers
         var x0 = Math.round(selectedBounds[0]);
         var y1 = Math.round(selectedBounds[1]);
         var x2 = Math.round(selectedBounds[2]);
         var y3 = Math.round(selectedBounds[3]);
-        // 幅と高さを整数に丸める
+
         var width = Math.round(x2 - x0);
         var height = Math.round(y1 - y3);
-        // 右下座標を再計算
+
         x2 = x0 + width;
         y3 = y1 - height;
-        // 更新後の座標
+
         selectedBounds[0] = x0;
         selectedBounds[1] = y1;
         selectedBounds[2] = x2;
         selectedBounds[3] = y3;
 
-        // アートボードの更新
+        // アートボードの更新 / Update artboard
         artboardIndex = artboards.getActiveArtboardIndex();
         artboards[artboardIndex].artboardRect = selectedBounds;
 
@@ -275,9 +317,9 @@ function getMaxBounds(items) {
 Get bounding box of a single object
 */
 function getBounds(item) {
-    // 常に visibleBounds を使用して境界を取得
-    var bounds = item.visibleBounds;
-    return bounds;
+    // visibleBounds を使用して境界を取得 / Always use visibleBounds to get bounds
+    return item.visibleBounds;
 }
 
 main();
+app.selectTool("Adobe Select Tool");
