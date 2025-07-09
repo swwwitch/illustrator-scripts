@@ -148,15 +148,13 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
         radioSelection.value = true;
     }
 
-    var inputGroup = dlg.add("group");
-    inputGroup.orientation = "column";
-    inputGroup.alignChildren = ["center", "top"];
-    inputGroup.spacing = 15;
+    // --- Margin input panel ---
+    var marginPanel = dlg.add("panel", undefined, LABELS.marginLabel[lang]+ " (" + unit + ")");
+    marginPanel.orientation = "column";
+    marginPanel.alignChildren = ["center", "top"];
+    marginPanel.margins = [15, 20, 15, 10];
 
-    var labelText = LABELS.marginLabel[lang] + " (" + unit + ")";
-    inputGroup.add("statictext", undefined, labelText);
-
-    var inputSubGroup = inputGroup.add("group");
+    var inputSubGroup = marginPanel.add("group");
     inputSubGroup.orientation = "row";
 
     var input = inputSubGroup.add("edittext", undefined, defaultValue);
