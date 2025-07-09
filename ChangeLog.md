@@ -1,25 +1,27 @@
 # Change Log
 
-### 20250709
+[TOC]
 
-新しいスクリプトを追加
+## 20250709
+
+### 新しいスクリプトを追加
 
 - [選択オブジェクトに合わせてアートボードサイズを設定するときにマージンを付ける](readme-ja/FitArtboardWithMargin.md)を追加
 
 ![](https://www.dtp-transit.jp/images/ss-406-318-72-20250709-065622.png)
 
 
-調整
+### 調整
 
-/Users/takano/Git/ai-scripts/jsx/artboard/Group2Artboards.jsx
+[グループをアートボードに変換するスクリプトを調整](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/Group2Artboards.jsx)
 
-### 20250708
+## 20250708
 
-新しいスクリプトを追加
+### 新しいスクリプトを追加
 
 - [アートボード外のオブジェクトを削除](readme-ja/DeleteOutsideArtboard.md)
 
-### 20250707
+## 20250707
 
 - [カンバス上の並びで［アートボード］パネルの並び順を変更](readme-ja/ReorderArtboardsByPosition.md)を追加
 
@@ -27,24 +29,24 @@
 
 - [選択したグループ内のサブグループを解除して、グループ構造を簡素化](readme-ja/SimplifyGroups.md)
 
-### 20250706
+## 20250706
 
 - [座標を基準に重ね順を変更](readme-ja/SortItemsByPosition.md)
 
 ![](https://www.dtp-transit.jp/images/ss-696-532-72-20250706-195040.png)
 
-### 20250706
+## 20250706
 
 - 日本語版のREADMEを整備（スクリプトごとにMDファイルを分割）
 - ローカライズの甘いスクリプトを調整
 
-### 20250704
+## 20250704
 
 指定文字のベースラインを自動的に天地中央にするスクリプトを追加
 
 - [指定文字のベースラインを自動的に天地中央にする](readme.ja/AdjustBaselineVerticalCenter.md)
 
-### 20250703
+## 20250703
 
 特定の文字のベースラインシフトを調整するスクリプトを追加
 
@@ -54,7 +56,7 @@
 
 - [オブジェクトを指定レイヤーへ移動](readme.ja/SuperLayerManage.md)
 
-### 20250702
+## 20250702
 
 「グループ化」スクリプトにアートボード変換を追加
 
@@ -62,7 +64,7 @@
 
 https://github.com/swwwitch/illustrator-scripts/blob/d07214f51eb2695fe0c9117f092b0c5bc46a48c2/jsx/SmartAutoGroup.jsx
 
-### 20250629
+## 20250629
 
 「[ドキュメントフォントを適用](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/ApplyDocumentFonts.jsx)」スクリプトを追加
 
@@ -87,7 +89,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/807a117b19ac3f623781bb9290b
 
 https://note.com/dtp_tranist/n/n2e19ad0bdb83
 
-### 20250628
+## 20250628
 
 「ページ番号を挿入」を修正。
 
