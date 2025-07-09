@@ -33,9 +33,10 @@ https://note.com/dtp_tranist/n/n45797beb72bb
 
 ### 更新履歴
 
-- v1.0.0 (20250707) : 初版公開
-- v1.0.1 (20250707) : 実行後の選択状態を調整
-- v1.0.2 (20250707) : 非グループを既存グループに追加する際の挙動を変更
+- v1.0 (20250707) : 初版公開
+- v1.1 (20250707) : 実行後の選択状態を調整
+- v1.2 (20250707) : 非グループを既存グループに追加する際の挙動を変更
+- v1.3 (20250707) : クリップグループに選択オブジェクトを追加する機能を追加
 
 ---
 
@@ -66,9 +67,10 @@ SimplifyGroups.jsx
 
 ### Change Log
 
-- v1.0.0 (20250707): Initial release
-- v1.0.2 (20250707): Added feature to add non-groups to existing single group
-- v1.0.2 (20250707): Improved behavior when adding non-groups to existing group
+- v1.0 (20250707): Initial release
+- v1.１ (20250707): Added feature to add non-groups to existing single group
+- v1.2 (20250707): Improved behavior when adding non-groups to existing group
+- v1.3 (20250707): Added functionality to add selected objects to clip groups
 
 */
 
@@ -90,12 +92,39 @@ function main() {
         }
     }
 
+    // クリップグループとオブジェクトが選択されている場合
+    if (groupCount === 1 && nonGroupCount > 0 && firstGroup.clipped) {
+        for (var i = sel.length - 1; i >= 0; i--) {
+            var item = sel[i];
+            if (item !== firstGroup && !item.locked && !item.hidden) {
+                // クリップグループの場合は無条件で先頭に配置
+                item.move(firstGroup, ElementPlacement.PLACEATBEGINNING);
+            }
+        }
+        bringMaskPathToFront(firstGroup);
+        ungroupSubGroups(firstGroup);
+        app.selection = [firstGroup]; // 最終的に残ったグループを選択
+        return;
+    }
+
     // 1つだけグループがあり、他が非グループの場合
     if (groupCount === 1 && nonGroupCount > 0) {
         for (var i = sel.length - 1; i >= 0; i--) {
             var item = sel[i];
-            if (item !== firstGroup) {
-                item.move(firstGroup, ElementPlacement.PLACEATEND);
+            if (item !== firstGroup && !item.locked && !item.hidden) {
+                var posA = firstGroup.zOrderPosition;
+                var posB;
+                try {
+                    posB = item.zOrderPosition;
+                } catch (e) {
+                    posB = posA + 1; // デフォルトで A より背面扱い
+                }
+
+                if (posB < posA) {
+                    item.move(firstGroup, ElementPlacement.PLACEATBEGINNING);
+                } else {
+                    item.move(firstGroup, ElementPlacement.PLACEATEND);
+                }
             }
         }
         ungroupSubGroups(firstGroup);
@@ -134,6 +163,33 @@ function ungroupSubGroups(group) {
             app.executeMenuCommand("ungroup");
         }
     }
+}
+
+function bringMaskPathToFront(clipGroup) {
+  if (!(clipGroup instanceof GroupItem) || !clipGroup.clipped) {
+    alert("有効なクリップグループを指定してください。");
+    return;
+  }
+
+  var maskPath = null;
+
+  // クリップグループ内のマスクパスを探す
+  for (var i = 0; i < clipGroup.pageItems.length; i++) {
+    var item = clipGroup.pageItems[i];
+    if (item.clipping) {
+      maskPath = item;
+      break;
+    }
+  }
+
+  if (!maskPath) {
+    alert("マスクパスが見つかりません。");
+    return;
+  }
+
+  // マスクパスをグループ内の最上位に移動
+  maskPath.zOrder(ZOrderMethod.BRINGTOFRONT);
+  // alert("マスクパスを最上位に移動しました。");
 }
 
 main();
