@@ -1,12 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/*
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.2";
-*/
-
-/*
 ### スクリプト名：
 
 Group2Artboards.jsx
@@ -33,8 +27,8 @@ Group2Artboards.jsx
 ### 更新履歴
 
 - v1.0 (20250703) : 初期バージョン
-- v1.0 (20250704) : コメント整理と最適化
-- v1.1 (20250705) : クリップグループ選択時の挙動を調整
+- v1.1 (20250704) : コメント整理と最適化
+- v1.2 (20250705) : クリップグループ選択時の挙動を調整
 
 ---
 
@@ -65,10 +59,11 @@ Group2Artboards.jsx
 
 - v1.0 (20250703): Initial version
 - v1.１ (20250704): Cleaned comments and optimized logic
+- v1.2 (20250705): Adjusted behavior for clip groups
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.１１";
+var SCRIPT_VERSION = "v1.2";
 
 // 単位コードから単位ラベルを取得
 var unitLabelMap = {
