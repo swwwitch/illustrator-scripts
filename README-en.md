@@ -91,6 +91,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Group or mask objects in logical sets](readme.en/SmartClipAndGroup.md)
 - [Advanced release clipping masks](readme.en/ReleaseClipMask.md)
 - [Puzzle-like slicing](readme.en/SmartSliceWithPuzzlify.md)
+- [Resize Clip Mask](readme-en/ResizeClipMask.md)
 
 ## Document
 

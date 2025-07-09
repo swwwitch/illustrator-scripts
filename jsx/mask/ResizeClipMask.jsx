@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 ### スクリプト名：
 
-ResizeClipMasks.jsx
+ResizeClipMask.jsx
 
 ### 概要
 
@@ -33,7 +33,7 @@ ResizeClipMasks.jsx
 
 ### Script Name:
 
-ResizeClipMasks.jsx
+ResizeClipMask.jsx
 
 ### Overview
 

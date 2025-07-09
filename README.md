@@ -90,6 +90,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [オブジェクトのまとまりごとにグループ化したり、マスクする](readme-ja/SmartClipAndGroup.md)
 - [〈クリッピングマスクを解除〉を拡張](readme-ja/ReleaseClipMask.md)
 - [パズル](readme-ja/SmartSliceWithPuzzlify.md)
+- [マスクパスのサイズ変更](readme-ja/ResizeClipMask.md)
 
 ## ドキュメント
 
