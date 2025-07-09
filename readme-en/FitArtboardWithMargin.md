@@ -8,28 +8,28 @@
 
 ### Overview
 
-- Automatically resizes the artboard to fit the bounding box of selected objects with margin
-- Sets default margin value by ruler units and provides an instant preview dialog
+- Automatically resize the artboard to fit the bounding box of selected or all objects with margin.
+- Provides unit-based initial margin values and an immediate preview dialog.
+- Applies artboard size rounded to pixel integer values.
 
-![](https://www.dtp-transit.jp/images/ss-380-322-72-20250709-070541.png)
+![](https://www.dtp-transit.jp/images/ss-400-616-72-20250710-033811.png)
 
 ### Main Features
 
-- Margin defaults per ruler units
+- Default margin values based on ruler units
 - Bounding box calculation
-- Live preview dialog
-- Rounds to integer pixel values
+- Dialog with instant preview
+- Rounding to integer pixels
 
 ### Workflow
 
-1. Use all objects if nothing is selected
-2. Set default margin value by units
-3. Input margin in dialog (live preview)
-4. Apply bounding box and margin
-5. Update artboard
+1. Select target (selection or artboard)
+2. Set margin value in dialog (with live preview)
+3. Adjust artboard size automatically based on settings
 
 ### Changelog
 
-- v1.0 (20250420) : Initial version
-- v1.1 (20250708) : UI improvements, default point value updated
-- v1.2 (20250709) : UI improvements and bug fixes
+- v1.3 (2025-07-10): UI improvements, added panel and radio buttons
+- v1.2 (2025-07-09): UI improvements and bug fixes
+- v1.1 (2025-07-08): UI improvements, updated default point value
+- v1.0 (2025-04-20): Initial version
