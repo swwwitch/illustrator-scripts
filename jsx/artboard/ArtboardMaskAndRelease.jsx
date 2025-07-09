@@ -33,6 +33,7 @@ ArtboardMaskAndRelease.jsx
 ### 更新履歴
 
 - v1.0 (20250710) : 初期バージョン
+- v1.1 (20250710) : アートボード外のオブジェクトを削除機能を追加、ロック／非表示オブジェクトのオプションを追加
 
 ---------------------------------------
 ### Script Name:
@@ -65,11 +66,12 @@ ArtboardMaskAndRelease.jsx
 ### Change Log
 
 - v1.0.0 (20250710) : Initial version
+- v1.1.0 (20250710) : Added option to remove objects outside artboards, options for locked/hidden objects
 
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 // -------------------------------
 // 言語判定関数 / Function to get current language
@@ -109,12 +111,12 @@ function getCurrentLang() {
     dialog.alignChildren = "fill";
 
     var panel = dialog.add("panel", undefined, LABELS.modePanel[lang]);
-    panel.orientation = "column";
+    panel.orientation = "row"; // 横並びに変更
     panel.alignChildren = "left";
     panel.margins = [15, 20, 15, 10];
 
-    var rbMask = panel.add("radiobutton", undefined, LABELS.mask[lang]);
-    var rbRelease = panel.add("radiobutton", undefined, LABELS.release[lang]);
+    var rbMask = panel.add("radiobutton", undefined, lang == "ja" ? "マスク" : "Mask");
+    var rbRelease = panel.add("radiobutton", undefined, lang == "ja" ? "マスク解除" : "Release Mask");
     rbMask.value = true;
 
     // ラジオボタン切り替え時のパネル有効/無効制御
@@ -128,10 +130,13 @@ function getCurrentLang() {
     };
 
     var marginGroup = dialog.add("panel", undefined, LABELS.maskOption[lang]);
-    marginGroup.orientation = "row";
+    marginGroup.orientation = "column";
     marginGroup.alignChildren = "left";
     marginGroup.margins = [15, 20, 15, 10];
-    marginGroup.add("statictext", undefined, LABELS.margin[lang] + ":");
+    var marginRow = marginGroup.add("group");
+    marginRow.orientation = "row";
+    marginRow.alignChildren = "left";
+    marginRow.add("statictext", undefined, LABELS.margin[lang] + ":");
     // --- 単位ラベル追加 ---
     var unitLabelMap = {
         0: "in", 1: "mm", 2: "pt", 3: "pica", 4: "cm", 5: "Q/H", 6: "px",
@@ -141,11 +146,22 @@ function getCurrentLang() {
         var unitCode = app.preferences.getIntegerPreference("rulerType");
         return unitLabelMap[unitCode] || "pt";
     }
-    var unitLabel = getCurrentUnitLabel();
-    marginGroup.add("statictext", undefined, "(" + unitLabel + ")");
-    var marginInput = marginGroup.add("edittext", undefined, "0");
+
+    var marginInput = marginRow.add("edittext", undefined, "0");
     marginInput.characters = 5;
     marginInput.active = true;
+    var unitLabel = getCurrentUnitLabel();
+    marginRow.add("statictext", undefined, "(" + unitLabel + ")");
+    
+    var cbRemoveOutside = marginGroup.add("checkbox", undefined, lang == "ja" ? "アートボード外のオブジェクトを削除" : "Remove objects outside artboards");
+    cbRemoveOutside.alignment = "left";
+
+    var cbIncludeLocked = marginGroup.add("checkbox", undefined, lang == "ja" ? "ロックされたオブジェクトを含める" : "Include locked objects");
+    cbIncludeLocked.value = true; // デフォルトをONに設定
+
+    // チェックボックス追加
+    var cbIncludeHidden = marginGroup.add("checkbox", undefined, lang == "ja" ? "非表示のオブジェクトを含める" : "Include hidden objects");
+    cbIncludeHidden.value = true; // デフォルトをONに設定
 
     var releasePanel = dialog.add("panel", undefined, LABELS.releaseOption[lang]);
     releasePanel.orientation = "column";
@@ -175,21 +191,57 @@ function getCurrentLang() {
     }
 
     if (rbMask.value) {
-        applyMasks(marginValue);
+        applyMasks(marginValue, cbRemoveOutside.value, cbIncludeLocked.value, cbIncludeHidden.value);
     } else if (rbRelease.value) {
         releaseMasks(cbUngroup.value);
     }
 })();
 
-function applyMasks(margin){
+function applyMasks(margin, removeOutside, includeLocked, includeHidden){
     var doc = app.activeDocument;
     var abCount = doc.artboards.length;
 
     var allItems = [];
     for (var j = 0; j < doc.pageItems.length; j++) {
         var item = doc.pageItems[j];
-        if (!item.locked && !item.hidden && item.parent.typename !== "GroupItem") {
+        var wasHidden = item.hidden;
+        var includeItem = false;
+
+        if (!item.locked || includeLocked) {
+            if (!item.hidden || includeHidden) {
+                includeItem = true;
+            }
+        }
+
+        if (includeItem && item.parent.typename !== "GroupItem") {
+            // hidden の場合、一時的に表示
+            if (item.hidden && includeHidden) {
+                item.hidden = false;
+            }
             allItems.push(item);
+        }
+
+        // 元の hidden 状態に戻す（後の安全のため）
+        if (includeHidden && wasHidden) {
+            item.hidden = true;
+        }
+    }
+
+    if (removeOutside) {
+        for (var i = allItems.length - 1; i >= 0; i--) {
+            var item = allItems[i];
+            var isInsideAny = false;
+            for (var abIdx = 0; abIdx < abCount; abIdx++) {
+                var abRect = doc.artboards[abIdx].artboardRect;
+                if (!(item.visibleBounds[2] < abRect[0] || item.visibleBounds[0] > abRect[2] || item.visibleBounds[3] > abRect[1] || item.visibleBounds[1] < abRect[3])) {
+                    isInsideAny = true;
+                    break;
+                }
+            }
+            if (!isInsideAny) {
+                item.remove();
+                allItems.splice(i, 1);
+            }
         }
     }
 
