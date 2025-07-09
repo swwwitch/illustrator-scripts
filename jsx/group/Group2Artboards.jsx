@@ -2,6 +2,11 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+// スクリプトバージョン
+var SCRIPT_VERSION = "v1.2";
+*/
+
+/*
 ### スクリプト名：
 
 Group2Artboards.jsx
@@ -27,8 +32,9 @@ Group2Artboards.jsx
 
 ### 更新履歴
 
-- v1.0.0 (20250703) : 初期バージョン
-- v1.0.1 (20250704) : コメント整理と最適化
+- v1.0 (20250703) : 初期バージョン
+- v1.0 (20250704) : コメント整理と最適化
+- v1.1 (20250705) : クリップグループ選択時の挙動を調整
 
 ---
 
@@ -57,9 +63,12 @@ Group2Artboards.jsx
 
 ### Update History
 
-- v1.0.0 (20250703): Initial version
-- v1.0.1 (20250704): Cleaned comments and optimized logic
+- v1.0 (20250703): Initial version
+- v1.１ (20250704): Cleaned comments and optimized logic
 */
+
+// スクリプトバージョン
+var SCRIPT_VERSION = "v1.１１";
 
 // 単位コードから単位ラベルを取得
 var unitLabelMap = {
@@ -97,7 +106,7 @@ var lang = getCurrentLang();
 
 // UIラベル（表示順に並べる）
 var LABELS = {
-    artboardPanel: { ja: "アートボード化", en: "Artboard" },
+    artboardPanel: { ja: "グループをアートボードに", en: "Convert Groups to Artboards" },
     previewBounds: { ja: "プレビュー境界", en: "Preview bounds" },
     margin: { ja: "マージン", en: "Margin" },
     deleteArtboards: { ja: "既存のアートボードを削除", en: "Delete existing artboards" },
@@ -112,7 +121,11 @@ var LABELS = {
     zeroPadding: { ja: "ゼロ埋め", en: "Zero Padding" },
     example: { ja: "例：", en: "Example: " },
     cancel: { ja: "キャンセル", en: "Cancel" },
-    ok: { ja: "OK", en: "OK" }
+    ok: { ja: "OK", en: "OK" },
+    dialogTitle: {
+        ja: "アートボード化 " + SCRIPT_VERSION,
+        en: "Artboard " + SCRIPT_VERSION
+    }
 };
 
 // アートボード名を生成する共通関数
@@ -134,7 +147,7 @@ function buildArtboardName(prefix, symbol, seq, zeroPadding, useFileName, fileNa
 }
 
 function showDialog() {
-    var dialog = new Window("dialog", LABELS.artboardPanel[lang]);
+    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
     dialog.margins = [15, 20, 15, 10];
@@ -288,7 +301,15 @@ function main() {
     // 選択されたグループごとにアートボードを追加
     for (var i = 0; i < selection.length; i++) {
         if (selection[i].typename === "GroupItem") {
-            var bounds = dialogResult.usePreviewBounds ? selection[i].visibleBounds : selection[i].geometricBounds;
+            var bounds;
+            if (dialogResult.usePreviewBounds && selection[i].clipped) {
+                // クリップグループの場合はマスクパスのジオメトリを使う
+                var maskItem = selection[i].pageItems[0];
+                bounds = maskItem.geometricBounds;
+            } else {
+                bounds = dialogResult.usePreviewBounds ? selection[i].visibleBounds : selection[i].geometricBounds;
+            }
+
             var left = bounds[0] - margin;
             var top = bounds[1] + margin;
             var right = bounds[2] + margin;
