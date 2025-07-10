@@ -27,11 +27,22 @@ Slice2Artboards.jsx
 3. 必要に応じてアートボードを追加・リネーム
 4. 元画像の削除（オプション）
 
+### 処理の流れ
+
+このスクリプトを実行後、次の流れを想定しています。
+
+1. Illustratorの標準の機能でアートボードを再配置
+2. ResizeClipMaskスクリプトでマスクパスの大きさを調整
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipMask.jsx
+
+
 ### 更新履歴
 
 - v1.0 (20250710): 初期バージョン
 - v1.1 (20250710): アートボード変換とオプション追加
 - v1.2 (20250710): 形状バリエーション追加、カスタム設定対応
+- v1.3 (20250710): 微調整
+- v1.4 (20250710): アスペクト比の候補を調整
 
 ### Script Name:
 
@@ -58,13 +69,24 @@ Slice2Artboards.jsx
 3. Optionally add and rename artboards
 4. Delete original artwork (optional)
 
+### Workflow
+After running this script, the expected workflow is:
+
+1. Rearrange artboards using Illustrator's standard features
+2. Adjust mask path size using the ResizeClipMask script
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipMask.jsx
+
 ### Change Log
 
 - v1.0 (20250710): Initial version
 - v1.1 (20250710): Added artboard conversion and options
 - v1.2 (20250710): Added shape variations and custom settings
+- v1.3 (20250710): Minor adjustments
+- v1.4 (20250710): Adjusted aspect ratio options
+
 */
 
+var SCRIPT_VERSION = "v1.3";
 
 (function(global) {
     /**
@@ -99,6 +121,14 @@ Slice2Artboards.jsx
         shapeLetter: {
             ja: "US Letter",
             en: "US Letter"
+        },
+        shapeLegal: {
+            ja: "US Legal (8.5 x 14)",
+            en: "US Legal (8.5 x 14)"
+        },
+        shapeTabloid: {
+            ja: "Tabloid (11 x 17)",
+            en: "Tabloid (11 x 17)"
         },
         shape169: {
             ja: "16:9",
@@ -165,8 +195,6 @@ var DEFAULT_ROW_COUNT = 5;
 var DEFAULT_OFFSET = -20;
 var DEFAULT_MARGIN = 0;
 var DEFAULT_START_NUMBER = 1;
-
-var SCRIPT_VERSION = "v1.2";
 
 /*
 定数・ユーティリティ群 / Constants and utility functions
@@ -284,7 +312,11 @@ function main() {
         shapePanel.margins = [15, 20, 15, 10];
         var shapeRadioA4 = shapePanel.add("radiobutton", undefined, LABELS.shapeA4[lang]);
         var shapeRadioSquare = shapePanel.add("radiobutton", undefined, LABELS.shapeSquare[lang]);
-        var shapeRadioLetter = shapePanel.add("radiobutton", undefined, LABELS.shapeLetter[lang]);
+        if (lang !== "ja") {
+            var shapeRadioLetter = shapePanel.add("radiobutton", undefined, LABELS.shapeLetter[lang]);
+            var shapeRadioLegal = shapePanel.add("radiobutton", undefined, LABELS.shapeLegal[lang]);
+            var shapeRadioTabloid = shapePanel.add("radiobutton", undefined, LABELS.shapeTabloid[lang]);
+        }
         var shapeRadio169 = shapePanel.add("radiobutton", undefined, LABELS.shape169[lang]);
         var shapeRadio89 = shapePanel.add("radiobutton", undefined, LABELS.shape89[lang]);
         var shapeRadioCustom = shapePanel.add("radiobutton", undefined, (lang === "ja" ? "カスタム" : "Custom"));
@@ -451,8 +483,12 @@ function main() {
                 targetAspect = 210 / 297;
             } else if (shapeRadioSquare.value) {
                 targetAspect = 1.0;
-            } else if (shapeRadioLetter.value) {
+            } else if (typeof shapeRadioLetter !== "undefined" && shapeRadioLetter.value) {
                 targetAspect = 8.5 / 11;
+            } else if (typeof shapeRadioLegal !== "undefined" && shapeRadioLegal.value) {
+                targetAspect = 8.5 / 14;
+            } else if (typeof shapeRadioTabloid !== "undefined" && shapeRadioTabloid.value) {
+                targetAspect = 11 / 17;
             } else if (shapeRadio169.value) {
                 targetAspect = 16 / 9;
             } else if (shapeRadio89.value) {
@@ -475,9 +511,21 @@ function main() {
         shapeRadioSquare.onClick = function() {
             updateGridByShape();
         };
-        shapeRadioLetter.onClick = function() {
-            updateGridByShape();
-        };
+        if (typeof shapeRadioLetter !== "undefined") {
+            shapeRadioLetter.onClick = function() {
+                updateGridByShape();
+            };
+        }
+        if (typeof shapeRadioLegal !== "undefined") {
+            shapeRadioLegal.onClick = function() {
+                updateGridByShape();
+            };
+        }
+        if (typeof shapeRadioTabloid !== "undefined") {
+            shapeRadioTabloid.onClick = function() {
+                updateGridByShape();
+            };
+        }
         shapeRadio169.onClick = function() {
             updateGridByShape();
         };
@@ -552,6 +600,10 @@ function main() {
                     maskAspectRatio = 1.0;
                 } else if (typeof shapeRadioLetter !== "undefined" && shapeRadioLetter.value) {
                     maskAspectRatio = 8.5 / 11;
+                } else if (typeof shapeRadioLegal !== "undefined" && shapeRadioLegal.value) {
+                    maskAspectRatio = 8.5 / 14;
+                } else if (typeof shapeRadioTabloid !== "undefined" && shapeRadioTabloid.value) {
+                    maskAspectRatio = 11 / 17;
                 } else if (typeof shapeRadio169 !== "undefined" && shapeRadio169.value) {
                     maskAspectRatio = 16 / 9;
                 } else if (typeof shapeRadio89 !== "undefined" && shapeRadio89.value) {
@@ -626,6 +678,11 @@ function main() {
                             gridMask.selected = true;
                         }
                     }
+                }
+
+                // --- 追加: 生成したクリップグループの重ね順を逆に / Reverse stacking order ---
+                for (var i = 0; i < generatedPieces.length; i++) {
+                    generatedPieces[i].zOrder(ZOrderMethod.SENDTOBACK);
                 }
 
                 // --- 追加: アートボードに変換 / Convert to Artboards ---
@@ -771,6 +828,22 @@ function applyOffsetPathToSelection(offsetVal) {
 main();
 
 /**
+ * シンボル化できるオブジェクトのみ選別 / Filter symbolizable objects
+ * @param {Array} items
+ * @return {Array}
+ */
+function filterSymbolizableItems(items) {
+    var validItems = [];
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (!item.locked && item.visible && !item.guides && !item.clipping) {
+            validItems.push(item);
+        }
+    }
+    return validItems;
+}
+
+/**
  * 選択オブジェクトをシンボル化し、必要なら矩形を生成して返す / Symbolize selected object(s), create rectangle if needed
  * @param {Array|Object} selection - app.selection
  * @return {Object} {symbolItem, maskRect, origImageObj, isTempRect}
@@ -783,18 +856,17 @@ function convertToSymbol(selection) {
         isTempRect: false
     };
     var doc = app.activeDocument;
-    var sel;
-    if (selection instanceof Array || selection.length > 1) {
-        /*
-         複数選択時: グループ化してシンボル化 / When multiple selected: group and symbolize
-        */
-        safeExecute(function() {
+    var selectedObj = null;
+
+    // --- 複数選択時はグループ化してシンボル化（重ね順を保持） ---
+    if (selection.length > 1) {
+        try {
             var tempGroup = doc.groupItems.add();
             var selectedItems = [];
             for (var i = 0; i < selection.length; i++) {
                 selectedItems.push(selection[i]);
             }
-            // 重ね順保持 / Keep stacking order
+            // 後ろのものから先に移動することで重ね順を保持
             for (var j = selectedItems.length - 1; j >= 0; j--) {
                 selectedItems[j].move(tempGroup, ElementPlacement.PLACEATBEGINNING);
             }
@@ -806,55 +878,86 @@ function convertToSymbol(selection) {
             symbolItem.left = groupLeft;
             symbolItem.top = groupTop;
             tempGroup.remove();
-            sel = symbolItem;
-        }, "複数オブジェクトのシンボル化");
+            selectedObj = symbolItem;
+        } catch (e) {
+            alert("複数オブジェクトのシンボル化に失敗しました: " + e);
+            return result;
+        }
     } else {
-        sel = selection[0];
+        selectedObj = selection[0];
     }
 
-    // ラスターやベクターの場合はシンボル化 / Symbolize if raster or vector
-    if (sel.typename === "RasterItem") {
-        safeExecute(function() {
-            var rasterLeft = sel.left;
-            var rasterTop = sel.top;
-            var rasterParent = sel.parent;
-            var tempSymbol = doc.symbols.add(sel);
+    // --- リンク画像の場合は複製してマスク、元のオブジェクトを削除 / Duplicate linked image and delete original ---
+    if (selectedObj.typename === "PlacedItem" && !selectedObj.embedded) {
+        var placedCopy = selectedObj.duplicate();
+        selectedObj.remove(); // 元のリンクオブジェクト削除
+        result.symbolItem = placedCopy;
+
+        // 矩形作成
+        var gb = placedCopy.geometricBounds;
+        var rectWidth = gb[2] - gb[0];
+        var rectHeight = gb[1] - gb[3];
+        if (rectHeight < 0) rectHeight = -rectHeight;
+        var rect = doc.pathItems.rectangle(gb[1], gb[0], rectWidth, rectHeight);
+
+        result.maskRect = rect;
+        result.origImageObj = placedCopy;
+        result.isTempRect = true;
+
+        return result;
+    }
+
+    // --- 埋め込み画像(RasterItem)をSymbolItemに変換 ---
+    if (selectedObj.typename === "RasterItem") {
+        try {
+            var rasterLeft = selectedObj.left;
+            var rasterTop = selectedObj.top;
+            var rasterParent = selectedObj.parent;
+            var tempSymbol = doc.symbols.add(selectedObj);
             var symbolItem = rasterParent.symbolItems.add(tempSymbol);
             symbolItem.left = rasterLeft;
             symbolItem.top = rasterTop;
-            sel.remove();
-            sel = symbolItem;
-        }, "埋め込み画像のシンボル化");
-    } else if (
-        sel.typename === "PathItem" ||
-        sel.typename === "GroupItem" ||
-        sel.typename === "CompoundPathItem"
+            selectedObj.remove();
+            selectedObj = symbolItem;
+        } catch (e) {
+            alert("埋め込み画像のシンボル化に失敗しました: " + e);
+            return result;
+        }
+    }
+    // --- ベクターオブジェクトをSymbolItemに変換 ---
+    else if (
+        selectedObj.typename === "PathItem" ||
+        selectedObj.typename === "GroupItem" ||
+        selectedObj.typename === "CompoundPathItem"
     ) {
-        safeExecute(function() {
-            var vectorLeft = sel.left;
-            var vectorTop = sel.top;
-            var vectorParent = sel.parent;
-            var vectorSymbol = doc.symbols.add(sel);
+        try {
+            var vectorLeft = selectedObj.left;
+            var vectorTop = selectedObj.top;
+            var vectorParent = selectedObj.parent;
+            var vectorSymbol = doc.symbols.add(selectedObj);
             var vectorSymbolItem = vectorParent.symbolItems.add(vectorSymbol);
             vectorSymbolItem.left = vectorLeft;
             vectorSymbolItem.top = vectorTop;
-            sel.remove();
-            sel = vectorSymbolItem;
-        }, "ベクターオブジェクトのシンボル化");
+            selectedObj.remove();
+            selectedObj = vectorSymbolItem;
+        } catch (e) {
+            alert("ベクターオブジェクトのシンボル化に失敗しました: " + e);
+            return result;
+        }
     }
 
-    // シンボル/画像の場合は矩形を作成 / Create rectangle if symbol/image
-    var selType = sel.typename;
+    // PlacedItemまたはRasterItemまたはSymbolItemの場合は矩形化
+    var selType = selectedObj.typename;
     if (selType == "PlacedItem" || selType == "RasterItem" || selType == "SymbolItem") {
-        var gb = sel.geometricBounds;
+        var gb = selectedObj.geometricBounds;
         var rectWidth = gb[2] - gb[0];
         var rectHeight = gb[1] - gb[3];
         if (rectHeight < 0) rectHeight = -rectHeight;
         var rect = doc.pathItems.rectangle(gb[1], gb[0], rectWidth, rectHeight);
         result.maskRect = rect;
-        result.origImageObj = sel;
+        result.origImageObj = selectedObj;
         result.isTempRect = true;
     }
-    result.symbolItem = sel;
+    result.symbolItem = selectedObj;
     return result;
 }
