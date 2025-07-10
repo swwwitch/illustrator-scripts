@@ -6,6 +6,12 @@
 
 ### 新しいスクリプトを追加
 
+- [画像を分割してアートボード化](readme-ja/Slice2Artboards.md)を追加
+
+![](https://www.dtp-transit.jp/images/ss-832-724-72-20250711-004617.png)
+
+### 新しいスクリプトを追加
+
 [マスクパスのサイズ変更](readme-ja/ResizeClipMask.md)を追加
 
 ![](https://www.dtp-transit.jp/images/ss-442-260-72-20250710-044750.png)

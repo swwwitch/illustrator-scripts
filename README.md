@@ -77,6 +77,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [カンバス上の並びで［アートボード］パネルの並び順を変更](readme-ja/ReorderArtboardsByPosition.md)
 - [アートボード外のオブジェクトを削除](readme-ja/DeleteOutsideArtboard.md)
 - [選択オブジェクトに合わせてアートボードサイズを設定するときにマージンを付ける](readme-ja/FitArtboardWithMargin.md)
+- [画像を分割してアートボード化](readme-ja/Slice2Artboards.md)
 
 ## レイヤー、重ね順
 

@@ -79,6 +79,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Reorder Artboards By Position](readme-en/ReorderArtboardsByPosition.md)
 - [Delete Objects Outside Artboards](readme-en/DeleteOutsideArtboard.md)
 - [FitArtboardWithMargin.jsx](readme-en/FitArtboardWithMargin.md)
+- [Slice2Artboards](/Users/takano/Git/ai-scripts/readme-ja/Slice2Artboards.md)
 
 ## Layers, Z-order
 
