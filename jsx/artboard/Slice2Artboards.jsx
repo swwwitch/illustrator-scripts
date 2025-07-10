@@ -8,41 +8,32 @@ Slice2Artboards.jsx
 
 ### 概要
 
-- 選択した画像やオブジェクトを指定した行数・列数に分割し、各ピースを矩形マスクでクリッピングします。
-- さらに各ピースをアートボードとして変換・生成できます。
+- 選択画像やオブジェクトを指定した行数・列数で分割し、各ピースを矩形マスクでクリッピングします。
+- 各ピースをアートボードとして自動生成できます。
 - 印刷面付け、パズル風レイアウト、複数アートボード化に便利です。
 
 ### 主な機能
 
 - グリッド分割（行数・列数指定）
 - オフセットによるサイズ調整
-- アスペクト比選択（A4、スクエア、US Letter、16:9、8:9、カスタム）
-- アートボードへの自動変換、名前設定、ゼロ埋め
+- アスペクト比選択（A4, スクエア, US Letter, US Legal, Tabloid, 16:9, 8:9, カスタム）
+- アートボード名設定・ゼロ埋め・記号選択
 - マージン設定
 
 ### 処理の流れ
 
-1. ダイアログで行数・列数、形状（アスペクト比）などを設定
-2. OK実行時に分割用マスクを生成
-3. 必要に応じてアートボードを追加・リネーム
+1. ダイアログで分割設定
+2. OKで分割用マスク生成
+3. 必要に応じてアートボード追加・リネーム
 4. 元画像の削除（オプション）
-
-### 処理の流れ
-
-このスクリプトを実行後、次の流れを想定しています。
-
-1. Illustratorの標準の機能でアートボードを再配置
-2. ResizeClipMaskスクリプトでマスクパスの大きさを調整
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipMask.jsx
-
 
 ### 更新履歴
 
 - v1.0 (20250710): 初期バージョン
 - v1.1 (20250710): アートボード変換とオプション追加
 - v1.2 (20250710): 形状バリエーション追加、カスタム設定対応
-- v1.3 (20250710): 微調整
-- v1.4 (20250710): アスペクト比の候補を調整
+- v1.3 (20250710): 記号オプション・ファイル名参照機能追加、UI改善
+- v1.4 (20250710): アートボード名の生成ロジックとUIを変更
 
 ### Script Name:
 
@@ -50,43 +41,36 @@ Slice2Artboards.jsx
 
 ### Overview
 
-- Splits selected image or objects into grid pieces using specified rows and columns, masking each piece with a rectangle.
-- Each piece can be converted into an artboard automatically.
-- Useful for imposition, puzzle layouts, and creating multiple artboards.
+- Splits selected image or object into grid pieces using specified rows/columns, masks each piece.
+- Can convert each piece to an artboard automatically.
+- Useful for print imposition, puzzle-like layouts, multi-artboard creation.
 
-### Features
+### Main Features
 
-- Grid splitting with row/column settings
-- Offset-based size adjustments
-- Aspect ratio presets (A4, Square, US Letter, 16:9, 8:9, Custom)
-- Automatic conversion to artboards, naming, zero padding
-- Margin setting
-
-### Workflow
-
-1. Configure grid, aspect ratio, and options in the dialog
-2. Generate grid masks on execution
-3. Optionally add and rename artboards
-4. Delete original artwork (optional)
+- Grid splitting (rows/columns)
+- Offset-based size adjustment
+- Aspect ratio presets (A4, Square, US Letter, US Legal, Tabloid, 16:9, 8:9, Custom)
+- Artboard naming with prefix, zero-padding, symbol options
+- Margin settings
 
 ### Workflow
-After running this script, the expected workflow is:
 
-1. Rearrange artboards using Illustrator's standard features
-2. Adjust mask path size using the ResizeClipMask script
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipMask.jsx
+1. Configure grid and options in dialog
+2. Generate grid masks on OK
+3. Add/rename artboards as needed
+4. Optionally delete original
 
 ### Change Log
 
 - v1.0 (20250710): Initial version
 - v1.1 (20250710): Added artboard conversion and options
 - v1.2 (20250710): Added shape variations and custom settings
-- v1.3 (20250710): Minor adjustments
-- v1.4 (20250710): Adjusted aspect ratio options
+- v1.3 (20250711): Added symbol options, file name reference, UI improvements
+- v1.4 (20250711): Changed artboard name generation logic and UI
 
 */
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
 
 (function(global) {
     /**
@@ -97,9 +81,9 @@ var SCRIPT_VERSION = "v1.3";
         return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    // -------------------------------
-    // 日英ラベル定義 / Define labels (JA/EN)
-    // -------------------------------
+    /*
+     ラベル定義（UI表示順で整理）/ Label definitions (ordered by UI appearance)
+    */
     var lang = getCurrentLang();
     var LABELS = {
         dialogTitle: {
@@ -150,28 +134,20 @@ var SCRIPT_VERSION = "v1.3";
             ja: "オフセット",
             en: "Offset"
         },
-        okBtn: {
-            ja: "実行",
-            en: "Run"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
         convertArtboard: {
             ja: "アートボードに変換",
             en: "Convert to Artboards"
         },
         options: {
-            ja: "オプション",
-            en: "Options"
+            ja: "アートボード名",
+            en: "Artboard Name"
         },
         artboardName: {
-            ja: "アートボード名：",
-            en: "Artboard Name:"
+            ja: "接頭辞：",
+            en: "Prefix:"
         },
         startNumber: {
-            ja: "連番の初期値：",
+            ja: "開始番号：",
             en: "Starting Number:"
         },
         zeroPad: {
@@ -181,6 +157,14 @@ var SCRIPT_VERSION = "v1.3";
         margin: {
             ja: "マージン：",
             en: "Margin:"
+        },
+        okBtn: {
+            ja: "実行",
+            en: "Run"
+        },
+        cancel: {
+            ja: "キャンセル",
+            en: "Cancel"
         }
     };
 
@@ -189,19 +173,18 @@ var SCRIPT_VERSION = "v1.3";
     global.LABELS = LABELS;
 })(this);
 
-// マジックナンバーの定数化 / Magic number constants
+/*
+定数定義 / Constant values
+*/
 var DEFAULT_COLUMN_COUNT = 5;
 var DEFAULT_ROW_COUNT = 5;
 var DEFAULT_OFFSET = -20;
 var DEFAULT_MARGIN = 0;
 var DEFAULT_START_NUMBER = 1;
 
-/*
-定数・ユーティリティ群 / Constants and utility functions
-*/
-
 /**
- * 汎用例外ラッパー / General try-catch wrapper
+ * 汎用例外ラッパー
+ * General try-catch wrapper
  * @param {Function} fn
  * @param {string} errMsg
  */
@@ -214,7 +197,8 @@ function safeExecute(fn, errMsg) {
 }
 
 /**
- * 単位コードとラベルのマップ / Map from unit code to label
+ * 単位コードとラベルのマッピング
+ * Map from unit code to label
  */
 var unitLabelMap = {
     0: "in",
@@ -231,7 +215,8 @@ var unitLabelMap = {
 };
 
 /**
- * 現在の単位ラベルを取得 / Get current document unit label
+ * 現在の単位ラベルを取得
+ * Get current document unit label
  * @return {string}
  */
 function getCurrentUnitLabel() {
@@ -240,7 +225,8 @@ function getCurrentUnitLabel() {
 }
 
 /**
- * 列・行数入力検証 / Validate grid input
+ * 列・行数入力検証
+ * Validate grid input
  * @param {number} columnCount
  * @param {number} rowCount
  * @return {boolean}
@@ -254,7 +240,8 @@ function validateGridInput(columnCount, rowCount) {
 }
 
 /**
- * 矩形の座標をオフセット調整（左右・上下独立） / Offset rectangle bounds (independent X/Y)
+ * 矩形の座標をオフセット調整（左右・上下独立）
+ * Offset rectangle bounds (independent X/Y)
  * @param {PathItem} pathItem
  * @param {number} offsetX
  * @param {number} offsetY
@@ -272,8 +259,30 @@ function offsetRectangle(pathItem, offsetX, offsetY) {
 }
 
 /*
-ここから main() 以下のメイン処理 / Main processing below main()
+ここから main() 以下のメイン処理
+Main processing below main()
 */
+
+/**
+ * アートボード名生成
+ * Build artboard name string
+ */
+function buildArtboardName(prefix, symbol, seq, zeroPadding, useFileName, fileNameNoExt, padLen) {
+    var seqNum = parseInt(seq, 10);
+    if (isNaN(seqNum)) seqNum = 1;
+    var numStr = seqNum.toString();
+    if (zeroPadding && padLen > 0) {
+        while (numStr.length < padLen) numStr = "0" + numStr;
+    }
+    if (useFileName) {
+        if (prefix === "") {
+            return fileNameNoExt + symbol + numStr;
+        } else {
+            return fileNameNoExt + symbol + prefix + symbol + numStr;
+        }
+    }
+    return prefix + symbol + numStr;
+}
 
 function main() {
     var lang = getCurrentLang();
@@ -282,7 +291,8 @@ function main() {
         var lang = getCurrentLang();
 
         /*
-         ダイアログ作成 / Create dialog
+         ダイアログ作成
+         Create dialog
         */
         var dialogTitle = LABELS.dialogTitle[lang] + " " + SCRIPT_VERSION;
         var Dialog = new Window('dialog', dialogTitle);
@@ -290,21 +300,24 @@ function main() {
         Dialog.alignment = 'right';
 
         /*
-         メイングループ（2カラム） / Main group (2 columns)
+         メイングループ（2カラム）
+         Main group (2 columns)
         */
         var mainGroup = Dialog.add('group');
         mainGroup.orientation = 'row';
         mainGroup.alignChildren = 'top';
 
         /*
-         左カラム / Left column
+         左カラム
+         Left column
         */
         var inputPanel = mainGroup.add('group');
         inputPanel.orientation = 'column';
         inputPanel.alignChildren = 'left';
 
         /*
-         形状パネル / Shape panel (A4/Square/Letter/16:9/8:9/Custom)
+         形状パネル
+         Shape panel (A4/Square/Letter/16:9/8:9/Custom)
         */
         var shapePanel = inputPanel.add("panel", undefined, LABELS.shapePanel[lang]);
         shapePanel.orientation = "column";
@@ -323,7 +336,8 @@ function main() {
         shapeRadioA4.value = true; // デフォルトA4 / Default is A4
 
         /*
-         ピース設定グループ / Piece setting group
+         ピース設定グループ
+         Piece setting group
         */
         var pieceSettingGroup = inputPanel.add("group");
         pieceSettingGroup.orientation = "column";
@@ -331,7 +345,8 @@ function main() {
         pieceSettingGroup.margins = [10, 5, 10, 15];
 
         /*
-         行数・列数入力欄 / Row and Column Inputs
+         行数・列数入力欄
+         Row and Column Inputs
         */
         var rowColGroup = pieceSettingGroup.add('group');
         rowColGroup.orientation = 'row';
@@ -350,7 +365,8 @@ function main() {
         rowText.characters = 3;
 
         /*
-         オフセットグループ / Offset Group
+         オフセットグループ
+         Offset Group
         */
         var offsetGroup = inputPanel.add("group");
         offsetGroup.orientation = "row";
@@ -369,48 +385,63 @@ function main() {
         };
 
         /*
-         右カラム / Right column
+         右カラム
+         Right column
         */
         var artboardColumnGroup = mainGroup.add('group');
         artboardColumnGroup.orientation = 'column';
         artboardColumnGroup.alignChildren = 'left';
 
-        // artboardCheckbox を artboardColumnGroup 内に追加
+        // アートボード変換チェックボックス
         var artboardCheckbox = artboardColumnGroup.add('checkbox', undefined, LABELS.convertArtboard[lang]);
         artboardCheckbox.value = true;
 
-        // artboardPanel を artboardColumnGroup 内に追加
+        // アートボード名・連番・ゼロ埋め設定パネル
         var artboardPanel = artboardColumnGroup.add("panel", undefined, LABELS.options[lang]);
         artboardPanel.orientation = "column";
         artboardPanel.alignChildren = "left";
         artboardPanel.margins = [15, 20, 15, 10];
-        // --- アートボード名入力欄追加 / Add artboard name input ---
+        // ファイル名参照チェックボックス
+        var useFileNameCheckbox = artboardPanel.add("checkbox", undefined, "ファイル名を参照");
+        useFileNameCheckbox.value = false;
+        // アートボード名入力欄
         var artboardNameGroup = artboardPanel.add("group");
-        artboardNameGroup.orientation = "column";
+        artboardNameGroup.orientation = "row";
+        artboardNameGroup.alignChildren = "center";
         artboardNameGroup.add("statictext", undefined, LABELS.artboardName[lang]);
         var artboardNameInput = artboardNameGroup.add("edittext", undefined, "");
-        artboardNameInput.characters = 10;
-        // --- 連番の初期値入力欄追加 / Add starting number input ---
+        artboardNameInput.characters = 14;
+
+        // 記号セパレータラジオボタン
+        var separatorGroup = artboardPanel.add("group");
+        separatorGroup.orientation = "row";
+        separatorGroup.alignChildren = "center";
+        separatorGroup.add("statictext", undefined, "記号：");
+        var radioDash = separatorGroup.add("radiobutton", undefined, "-");
+        var radioUnderscore = separatorGroup.add("radiobutton", undefined, "_");
+        var radioNone = separatorGroup.add("radiobutton", undefined, "なし");
+        radioDash.value = true; // Default
+
+        // 連番の初期値・ゼロ埋めチェックボックス
         var artboardNumberGroup = artboardPanel.add("group");
         artboardNumberGroup.orientation = "row";
+        artboardNumberGroup.alignChildren = "center";
         artboardNumberGroup.add("statictext", undefined, LABELS.startNumber[lang]);
         var artboardNumberInput = artboardNumberGroup.add("edittext", undefined, String(DEFAULT_START_NUMBER));
         artboardNumberInput.characters = 3;
-
-        // --- ゼロ埋めチェックボックス追加 / Add zero padding checkbox ---
-        var zeroPadCheckbox = artboardPanel.add('checkbox', undefined, LABELS.zeroPad[lang]);
+        var zeroPadCheckbox = artboardNumberGroup.add('checkbox', undefined, LABELS.zeroPad[lang]);
         zeroPadCheckbox.value = true; // デフォルトON / Default ON
 
-        // --- マージン入力欄追加 / Add margin input ---
-        var artboardMarginGroup = artboardPanel.add("group");
+        // マージン入力欄
+        var artboardMarginGroup = artboardColumnGroup.add("group");
         artboardMarginGroup.orientation = "row";
         artboardMarginGroup.add("statictext", undefined, LABELS.margin[lang]);
         var artboardMarginInput = artboardMarginGroup.add("edittext", undefined, String(DEFAULT_MARGIN));
         artboardMarginInput.characters = 5;
-        // 単位ラベルを追加
+        // 単位ラベル
         var artboardMarginUnitLabel = artboardMarginGroup.add("statictext", undefined, getCurrentUnitLabel());
 
-        // --- マージン初期値をオフセット値に連動 / Link margin value to offset ---
+        // マージン初期値をオフセット値に連動
         if (offsetCheckbox.value) {
             var offsetVal = parseFloat(offsetValueInput.text);
             if (!isNaN(offsetVal)) {
@@ -418,7 +449,7 @@ function main() {
             }
         }
 
-        // --- 「アートボードに変換」チェックボックスで他オプション有効/無効切り替え / Enable/disable options by artboard checkbox ---
+        // 「アートボードに変換」チェックボックスで他オプション有効/無効切り替え
         artboardCheckbox.onClick = function() {
             var enabled = artboardCheckbox.value;
             artboardNameInput.enabled = enabled;
@@ -428,7 +459,8 @@ function main() {
         };
 
         /*
-         OK・キャンセルボタン / OK & Cancel Buttons
+         OK・キャンセルボタン
+         OK & Cancel Buttons
         */
         var groupButtons = Dialog.add('group');
         groupButtons.orientation = 'row';
@@ -440,7 +472,8 @@ function main() {
         okBtn.active = true;
 
         /*
-         選択画像やベクターアートワークがあれば初期値を自動設定 / Auto-set grid if artwork selected
+         選択画像やベクターアートワークがあれば初期値を自動設定
+         Auto-set grid if artwork selected
         */
         function getSelectedArtworkItem() {
             if (app.documents.length > 0 && app.selection.length == 1) {
@@ -466,7 +499,8 @@ function main() {
             return null;
         }
         /*
-         行列数の自動計算（A4比率/Square/Letter/16:9/8:9） / Auto-calc grid by shape
+         行列数の自動計算（A4比率/Square/Letter/16:9/8:9）
+         Auto-calc grid by shape
         */
         var selectedImage = getSelectedArtworkItem();
 
@@ -545,7 +579,7 @@ function main() {
             shapeRadioCustom.value = true;
         };
 
-        // --- メイン処理（OK押下時） / Main logic on OK ---
+        // メイン処理（OK押下時）
         if (
             app.documents.length > 0 &&
             app.selection.length > 0 &&
@@ -557,7 +591,7 @@ function main() {
             var selectedObjectForPuzzle;
             var isTempRect = false;
 
-            // シンボル化処理を共通関数で実行
+            // シンボル化処理
             var symbolResult = convertToSymbol(app.selection);
             selectedObj = symbolResult.symbolItem;
             selectedObjectForPuzzle = symbolResult.maskRect ? symbolResult.maskRect : selectedObj;
@@ -565,15 +599,15 @@ function main() {
             isTempRect = symbolResult.isTempRect ? true : false;
             selectedImage = app.selection[0];
 
-            // 列・行数取得 / Get row and column count
+            // 列・行数取得
             var columnCount = Math.round(Number(columnText.text));
             var rowCount = Math.round(Number(rowText.text));
 
-            // 入力値検証 / Validate input
+            // 入力値検証
             if (validateGridInput(columnCount, rowCount)) {
                 selectedObjectForPuzzle.selected = false;
 
-                // 列または行が0の場合は比率で自動算出 / Auto-calc if row/col is zero
+                // 列または行が0の場合は比率で自動算出
                 var aspectRatio;
                 if (columnCount == 0) {
                     aspectRatio = Math.abs(
@@ -591,7 +625,8 @@ function main() {
                 }
 
                 /*
-                 マスク矩形のアスペクト比決定 / Mask aspect ratio by shape radio
+                 マスク矩形のアスペクト比決定
+                 Mask aspect ratio by shape radio
                 */
                 var maskAspectRatio = 1.0;
                 if (shapeRadioA4.value) {
@@ -610,14 +645,14 @@ function main() {
                     maskAspectRatio = 8 / 9;
                 }
 
-                // オブジェクト左上座標（上端揃え） / Top-left coordinate (align to top)
+                // オブジェクト左上座標（上端揃え）
                 var originX = selectedObjectForPuzzle.geometricBounds[0];
                 var originY = selectedObjectForPuzzle.geometricBounds[1];
                 var objWidth = selectedObjectForPuzzle.geometricBounds[2] - selectedObjectForPuzzle.geometricBounds[0];
                 var objHeight = selectedObjectForPuzzle.geometricBounds[1] - selectedObjectForPuzzle.geometricBounds[3];
                 if (objHeight < 0) objHeight = -objHeight;
 
-                // --- カスタム選択時はアスペクト比ではなく、行列数で等分割 / If custom, ignore aspect ratio
+                // カスタム選択時はアスペクト比ではなく、行列数で等分割
                 var pieceWidth, pieceHeight;
                 var gridTotalWidth, gridTotalHeight;
                 if (shapeRadioCustom.value) {
@@ -644,7 +679,8 @@ function main() {
                 originY = selectedObjectForPuzzle.geometricBounds[1];
 
                 /*
-                 グリッド形状（矩形マスク）モード / Grid mask mode
+                 グリッド形状（矩形マスク）モード
+                 Grid mask mode
                 */
                 var generatedPieces = [];
                 for (var y = 0; y < rowCount; y++) {
@@ -655,7 +691,7 @@ function main() {
                             pieceWidth,
                             pieceHeight
                         );
-                        // オフセット適用 / Apply offset if enabled
+                        // オフセット適用
                         if (offsetCheckbox.value) {
                             var offsetVal = parseFloat(offsetValueInput.text);
                             gridMask = offsetRectangle(gridMask, offsetVal, offsetVal);
@@ -663,7 +699,7 @@ function main() {
                         gridMask.closed = true;
                         gridMask.filled = false;
                         gridMask.stroked = false;
-                        // 画像やシンボルならクリッピング / Clip if image or symbol
+                        // 画像やシンボルならクリッピング
                         if (origImageObj && (origImageObj.typename === "PlacedItem" || origImageObj.typename === "SymbolItem")) {
                             var placedCopy = origImageObj.duplicate();
                             var group = app.activeDocument.groupItems.add();
@@ -680,14 +716,14 @@ function main() {
                     }
                 }
 
-                // --- 追加: 生成したクリップグループの重ね順を逆に / Reverse stacking order ---
+                // 生成したクリップグループの重ね順を逆に
                 for (var i = 0; i < generatedPieces.length; i++) {
                     generatedPieces[i].zOrder(ZOrderMethod.SENDTOBACK);
                 }
 
-                // --- 追加: アートボードに変換 / Convert to Artboards ---
+                // アートボードに変換
                 if (artboardCheckbox.value) {
-                    // クリップグループ（generatedPieces）をマスク矩形の見た目順（Y降順, X昇順）で並べ替え
+                    // クリップグループをマスク矩形の見た目順（Y降順, X昇順）で並べ替え
                     var sortItems = [];
                     for (var i = 0; i < generatedPieces.length; i++) {
                         var item = generatedPieces[i];
@@ -727,7 +763,7 @@ function main() {
                         if (a.top != b.top) return b.top - a.top;
                         return a.left - b.left;
                     });
-                    // アートボード追加 & リネーム（ゼロ埋め対応）/ Add artboards & rename (zero padding)
+                    // アートボード追加 & リネーム（ゼロ埋め対応）
                     var doc = app.activeDocument;
                     var baseName = artboardNameInput.text;
                     var startNumberStr = artboardNumberInput.text;
@@ -750,26 +786,37 @@ function main() {
                         var bottom = gb[3] - marginVal;
                         // IllustratorのaddArtboardは [left, top, right, bottom]
                         doc.artboards.add([left, top, right, bottom]);
-                        // ゼロ埋め連番
-                        var numStr = String(startNumber + k);
-                        if (zeroPadCheckbox.value && numStr.length < digitCount) {
-                            numStr = Array(digitCount - numStr.length + 1).join("0") + numStr;
-                        }
-                        var abName = baseName + numStr;
+                        // 記号セパレータ取得
+                        var symbolChar = radioDash.value ? "-" : (radioUnderscore.value ? "_" : "");
+                        var fileNameNoExt = "Artboard";
+                        try {
+                            if (app.documents.length > 0) {
+                                fileNameNoExt = app.activeDocument.name.replace(/\.[^\.]+$/, "");
+                            }
+                        } catch (e) {}
+                        var abName = buildArtboardName(
+                            baseName,
+                            symbolChar,
+                            String(startNumber + k),
+                            zeroPadCheckbox.value,
+                            useFileNameCheckbox.value,
+                            fileNameNoExt,
+                            digitCount
+                        );
                         doc.artboards[doc.artboards.length - 1].name = abName;
-                        // --- クリップグループの名前もアートボード名に設定 ---
+                        // クリップグループの名前もアートボード名に設定
                         var grp = sortItems[k].item;
                         if (grp && typeof grp.name !== "undefined") {
                             grp.name = abName;
                         }
                     }
-                    // 元のアートボード削除 / Remove original artboards
+                    // 元のアートボード削除
                     for (var ai = doc.artboards.length - sortItems.length - 1; ai >= 0; ai--) {
                         doc.artboards.remove(ai);
                     }
                 }
 
-                // 元画像・一時矩形削除 / Remove original image and temp rect
+                // 元画像・一時矩形削除
                 if (origImageObj && typeof origImageObj.remove === "function") {
                     origImageObj.remove();
                 }
@@ -788,9 +835,8 @@ function main() {
 Offset Path Effect Utility
 */
 /**
- * Offset PathエフェクトXMLを生成 / Generate Offset Path effect XML
- * @param {number} offsetVal
- * @return {string}
+ * Offset PathエフェクトXMLを生成
+ * Generate Offset Path effect XML
  */
 function createOffsetEffectXML(offsetVal) {
     var xml = '<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst value I jntp 2 "/></LiveEffect>';
@@ -798,9 +844,8 @@ function createOffsetEffectXML(offsetVal) {
 }
 
 /**
- * 選択アイテムにオフセットパス効果を適用 / Apply Offset Path effect to selection
- * @param {number} offsetVal
- * @return {Object|null}
+ * 選択アイテムにオフセットパス効果を適用
+ * Apply Offset Path effect to selection
  */
 function applyOffsetPathToSelection(offsetVal) {
     var result = null;
@@ -828,9 +873,8 @@ function applyOffsetPathToSelection(offsetVal) {
 main();
 
 /**
- * シンボル化できるオブジェクトのみ選別 / Filter symbolizable objects
- * @param {Array} items
- * @return {Array}
+ * シンボル化できるオブジェクトのみ選別
+ * Filter symbolizable objects
  */
 function filterSymbolizableItems(items) {
     var validItems = [];
@@ -844,9 +888,8 @@ function filterSymbolizableItems(items) {
 }
 
 /**
- * 選択オブジェクトをシンボル化し、必要なら矩形を生成して返す / Symbolize selected object(s), create rectangle if needed
- * @param {Array|Object} selection - app.selection
- * @return {Object} {symbolItem, maskRect, origImageObj, isTempRect}
+ * 選択オブジェクトをシンボル化し、必要なら矩形を生成して返す
+ * Symbolize selected object(s), create rectangle if needed
  */
 function convertToSymbol(selection) {
     var result = {
@@ -858,7 +901,7 @@ function convertToSymbol(selection) {
     var doc = app.activeDocument;
     var selectedObj = null;
 
-    // --- 複数選択時はグループ化してシンボル化（重ね順を保持） ---
+    // 複数選択時はグループ化してシンボル化（重ね順を保持）
     if (selection.length > 1) {
         try {
             var tempGroup = doc.groupItems.add();
@@ -887,7 +930,7 @@ function convertToSymbol(selection) {
         selectedObj = selection[0];
     }
 
-    // --- リンク画像の場合は複製してマスク、元のオブジェクトを削除 / Duplicate linked image and delete original ---
+    // リンク画像の場合は複製してマスク、元のオブジェクトを削除
     if (selectedObj.typename === "PlacedItem" && !selectedObj.embedded) {
         var placedCopy = selectedObj.duplicate();
         selectedObj.remove(); // 元のリンクオブジェクト削除
@@ -907,7 +950,7 @@ function convertToSymbol(selection) {
         return result;
     }
 
-    // --- 埋め込み画像(RasterItem)をSymbolItemに変換 ---
+    // 埋め込み画像(RasterItem)をSymbolItemに変換
     if (selectedObj.typename === "RasterItem") {
         try {
             var rasterLeft = selectedObj.left;
@@ -924,7 +967,7 @@ function convertToSymbol(selection) {
             return result;
         }
     }
-    // --- ベクターオブジェクトをSymbolItemに変換 ---
+    // ベクターオブジェクトをSymbolItemに変換
     else if (
         selectedObj.typename === "PathItem" ||
         selectedObj.typename === "GroupItem" ||
