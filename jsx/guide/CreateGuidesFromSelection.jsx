@@ -34,8 +34,9 @@ CreateGuidesFromSelection
 - v1.1 (20250711) : 複数選択、クリップグループ、日英対応追加
 - v1.2 (20250711) : プレビュー境界OFF時の安定化、テキスト処理修正
 - v1.3 (20250711) : アートボード外のオブジェクト自動カンバス選択、テキストアウトライン処理改善
-- v1.4 (20250712) : アートボード外のオブジェクト選択時のアラート削除、カンバス選択時のはみだし無効化
-- v1.5 (20250712) : 左上、左下、右上、右下モードを追加（それぞれ2本のガイドを作成）
+- v1.4 (20250711) : アートボード外のオブジェクト選択時のアラート削除、カンバス選択時のはみだし無効化
+- v1.4 (20250711) : アートボード外のオブジェクト選択時のアラート削除、カンバス選択時のはみだし無効化
+- v1.5 (20250711) : 左上、左下、右上、右下モードを追加（それぞれ2本のガイドを作成）
 
 ---
 
@@ -69,10 +70,10 @@ CreateGuidesFromSelection
 
 - v1.0 (20250711): Initial version
 - v1.1 (20250711): Added multi-selection, clip group, language support
-- v1.2 (20250712): Stabilized visible bounds OFF, improved text processing
-- v1.3 (20250712): Auto canvas selection for out-of-artboard objects, improved text outline handling
-- v1.4 (20250712): Removed alert for out-of-artboard objects, disabled overflow for canvas selection
-- v1.5 (20250712): Added modes for Top Left, Bottom Left, Top Right, Bottom Right (each creates 2 guides)
+- v1.2 (20250711): Stabilized visible bounds OFF, improved text processing
+- v1.3 (20250711): Auto canvas selection for out-of-artboard objects, improved text outline handling
+- v1.4 (20250711): Removed alert for out-of-artboard objects, disabled overflow for canvas selection
+- v1.5 (20250711): Added modes for Top Left, Bottom Left, Top Right, Bottom Right (each creates 2 guides)
 
 */
 
