@@ -8,28 +8,29 @@ CreateGuidesFromSelection
 
 ### 概要
 
-- 選択オブジェクトの中央またはエッジを基準にアートボード全体にガイドを作成します。
-- プレビュー境界の使用、はみだし、マージン設定が可能です。
+- 選択したオブジェクトの中央、エッジ、左右のみ、上下のみを基準にガイドを作成します。
+- プレビュー境界、はみだし、マージン、ガイド削除、クリップグループやテキストアウトライン化に対応。
 
 ### 主な機能
 
-- 中央・エッジモード切替
+- モード切替（中央、エッジ、左右のみ、上下のみ）
 - プレビュー境界使用オプション
-- はみだし・マージン設定
-- 既存ガイド削除オプション
-- 多言語（日英）対応
+- はみだし、マージン設定
+- 「_guide」レイヤー内のガイド削除
+- テキストアウトライン処理と復元
+- 多言語対応（日本語・英語）
 
 ### 処理の流れ
 
-1. ダイアログでオプションを選択
-2. オブジェクトの境界座標を取得
-3. 中央またはエッジ基準でガイドを作成
+1. ダイアログでオプション選択
+2. 境界座標を取得
+3. 指定モードでガイド作成
 
 ### 更新履歴
 
 - v1.0 (20250711) : 初期バージョン
-- v1.1 (20250711) : 複数選択、クリップグループ対応、日英対応追加
-- v1.2 (20250711) : はみだし・マージン設定、ガイド削除オプション追加
+- v1.1 (20250711) : 複数選択、クリップグループ、日英対応追加
+- v1.2 (20250711) : はみだし、マージン設定、左右/上下モード、ガイド削除機能追加
 
 ---
 
@@ -39,20 +40,21 @@ CreateGuidesFromSelection
 
 ### Overview
 
-- Creates guides across the artboard based on the center or edges of selected objects.
-- Supports visible bounds, overflow, and margin options.
+- Creates guides based on center, edge, sides only, or top/bottom only of selected objects.
+- Supports visible bounds, overflow, margin, clearing "_guide" layer, clip groups, and text outline handling.
 
 ### Features
 
-- Center or edge mode
+- Mode switching (Center, Edge, Sides Only, Top/Bottom Only)
 - Use visible bounds option
 - Overflow and margin settings
-- Clear existing guides option
+- Clear guides in "_guide" layer
+- Temporary text outline and restore
 - Multi-language support (Japanese/English)
 
 ### Workflow
 
-1. Select options in dialog
+1. Choose options in dialog
 2. Get object bounds
 3. Create guides based on selected mode
 
@@ -60,7 +62,7 @@ CreateGuidesFromSelection
 
 - v1.0 (20250711): Initial version
 - v1.1 (20250711): Multiple selection, clip group, language support
-- v1.2 (20250711): Added overflow & margin, clear guides option
+- v1.2 (20250711): Added overflow & margin, sides/top-bottom modes, clear guides option
 */
 
 var SCRIPT_VERSION = "v1.2";
@@ -70,7 +72,7 @@ function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 
-// ラベル定義 / UI Label Definitions
+// ラベル定義 / UI Label Definitions (ordered by UI appearance)
 var lang = getCurrentLang();
 var LABELS = {
     dialogTitle: {
@@ -182,6 +184,25 @@ function getPtFactorFromUnitCode(code) {
     }
 }
 
+// bounds 計算用関数 / Function to calculate bounds
+function calculateBounds(items, useVisible) {
+    var bounds = useVisible ? items[0].visibleBounds.concat() : items[0].geometricBounds.concat();
+    for (var i = 1; i < items.length; i++) {
+        var itemBounds = useVisible ? items[i].visibleBounds : items[i].geometricBounds;
+        if (itemBounds[0] < bounds[0]) bounds[0] = itemBounds[0];
+        if (itemBounds[1] > bounds[1]) bounds[1] = itemBounds[1];
+        if (itemBounds[2] > bounds[2]) bounds[2] = itemBounds[2];
+        if (itemBounds[3] < bounds[3]) bounds[3] = itemBounds[3];
+    }
+    return bounds;
+}
+
+// 共通定義まとめ / Common definitions
+var unitCode = app.preferences.getIntegerPreference("rulerType");
+var factor = getPtFactorFromUnitCode(unitCode);
+var selectionItems = app.selection;
+
+// 中央基準ガイド作成 / Create center guides
 function createCenterGuides(bounds, artboardRect, guideLayer) {
     var centerX = bounds[0] + ((bounds[2] - bounds[0]) / 2);
     var centerY = bounds[1] - ((bounds[1] - bounds[3]) / 2);
@@ -195,6 +216,7 @@ function createCenterGuides(bounds, artboardRect, guideLayer) {
     hGuide.guides = true;
 }
 
+// エッジ基準ガイド作成 / Create edge guides
 function createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, mode) {
     var leftX = bounds[0] - marginValue;
     var rightX = bounds[2] + marginValue;
@@ -235,7 +257,7 @@ function main() {
         var activeIndex = artboards.getActiveArtboardIndex();
         var artboardRect = artboards[activeIndex].artboardRect;
 
-        // 「_guide」レイヤーを取得または作成
+        // 「_guide」レイヤーを取得または作成 / Get or create "_guide" layer
         var guideLayer = null;
         for (var i = 0; i < doc.layers.length; i++) {
             if (doc.layers[i].name === "_guide") {
@@ -250,15 +272,15 @@ function main() {
             guideLayer.locked = false;
         }
 
-        if (app.selection.length < 1) {
+        if (selectionItems.length < 1) {
             alert(LABELS.alertSelect[lang]);
             isValid = false;
         }
 
-        var rbCenter, rbEdge, cbUseVisible, cbClearGuides, offsetInput, marginInput;
+        var rbCenter, rbEdge, rbSidesOnly, rbTopBottomOnly, cbUseVisible, cbClearGuides, offsetInput, marginInput;
 
         if (isValid) {
-            // ダイアログ作成
+            // ダイアログ作成 / Create dialog
             var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
             dlg.orientation = "column";
             dlg.alignChildren = "left";
@@ -278,10 +300,32 @@ function main() {
 
             rbCenter = col1.add("radiobutton", undefined, LABELS.center[lang]);
             rbEdge = col1.add("radiobutton", undefined, LABELS.edge[lang]);
-            var rbSidesOnly = col2.add("radiobutton", undefined, LABELS.sidesOnly[lang]);
-            var rbTopBottomOnly = col2.add("radiobutton", undefined, LABELS.topBottomOnly[lang]);
+            rbSidesOnly = col2.add("radiobutton", undefined, LABELS.sidesOnly[lang]);
+            rbTopBottomOnly = col2.add("radiobutton", undefined, LABELS.topBottomOnly[lang]);
             rbCenter.value = false;
             rbEdge.value = true;
+
+            // 排他的動作にするための onClick イベント
+            rbCenter.onClick = function () {
+                rbEdge.value = false;
+                rbSidesOnly.value = false;
+                rbTopBottomOnly.value = false;
+            };
+            rbEdge.onClick = function () {
+                rbCenter.value = false;
+                rbSidesOnly.value = false;
+                rbTopBottomOnly.value = false;
+            };
+            rbSidesOnly.onClick = function () {
+                rbCenter.value = false;
+                rbEdge.value = false;
+                rbTopBottomOnly.value = false;
+            };
+            rbTopBottomOnly.onClick = function () {
+                rbCenter.value = false;
+                rbEdge.value = false;
+                rbSidesOnly.value = false;
+            };
 
             cbUseVisible = dlg.add("checkbox", undefined, LABELS.useVisible[lang]);
             cbUseVisible.value = true;
@@ -322,9 +366,6 @@ function main() {
             }
         }
 
-        var unitCode = app.preferences.getIntegerPreference("rulerType");
-        var factor = getPtFactorFromUnitCode(unitCode);
-
         var offsetValue = parseFloat(offsetInput.text);
         if (isNaN(offsetValue)) offsetValue = 0;
         offsetValue *= factor;
@@ -333,9 +374,7 @@ function main() {
         if (isNaN(marginValue)) marginValue = 0;
         marginValue *= factor;
 
-        var selectionItems = app.selection;
-
-        // テキストオブジェクトを事前に複製し、hidden 配列で管理
+        // テキストオブジェクトを事前に複製し、hidden 配列で管理 / Duplicate text frames and hide originals
         var textCopies = [];
         var originalTexts = [];
         for (var i = 0; i < selectionItems.length; i++) {
@@ -349,90 +388,55 @@ function main() {
             }
         }
 
-        // bounds 計算用の itemsForBounds を共通ロジックで決定
-        var itemsForBounds = [];
-        // itemsForBounds 構築
-        if (textCopies.length > 0) {
-            // 非テキストオブジェクトを含める
+        // クリップグループのマスクパス取得関数 / Get clipping mask path from group
+        function getClipMask(groupItem) {
+            for (var i = 0; i < groupItem.pageItems.length; i++) {
+                if (groupItem.pageItems[i].clipping) {
+                    return groupItem.pageItems[i];
+                }
+            }
+            return null;
+        }
+
+        // itemsForBounds 構築処理の関数化 / Build items array for bounds calculation
+        function buildItemsForBounds(selectionItems, textCopies) {
+            var items = [];
             for (var i = 0; i < selectionItems.length; i++) {
                 var item = selectionItems[i];
                 if (item.typename !== "TextFrame") {
-                    // クリップグループの場合はマスクパスを使う
                     if (item.typename === "GroupItem" && item.clipped) {
-                        var mask = null;
-                        for (var j = 0; j < item.pageItems.length; j++) {
-                            if (item.pageItems[j].clipping) {
-                                mask = item.pageItems[j];
-                                break;
-                            }
-                        }
-                        if (mask) {
-                            itemsForBounds.push(mask);
-                        } else {
-                            itemsForBounds.push(item);
-                        }
+                        var mask = getClipMask(item);
+                        items.push(mask ? mask : item);
                     } else {
-                        itemsForBounds.push(item);
+                        items.push(item);
                     }
                 }
             }
-            // アウトライン化したテキストも含める
             for (var i = 0; i < textCopies.length; i++) {
-                itemsForBounds.push(textCopies[i]);
+                items.push(textCopies[i]);
             }
-        } else {
-            // テキストオブジェクトがない場合でもクリップグループ処理
-            for (var i = 0; i < selectionItems.length; i++) {
-                var item = selectionItems[i];
-                if (item.typename === "GroupItem" && item.clipped) {
-                    var mask = null;
-                    for (var j = 0; j < item.pageItems.length; j++) {
-                        if (item.pageItems[j].clipping) {
-                            mask = item.pageItems[j];
-                            break;
-                        }
-                    }
-                    if (mask) {
-                        itemsForBounds.push(mask);
-                    } else {
-                        itemsForBounds.push(item);
-                    }
-                } else {
-                    itemsForBounds.push(item);
-                }
-            }
+            return items;
         }
 
-        // bounds 計算共通化
-        var bounds;
-        if (cbUseVisible.value) {
-            bounds = itemsForBounds[0].visibleBounds.concat();
-        } else {
-            bounds = itemsForBounds[0].geometricBounds.concat();
-        }
-        for (var i = 1; i < itemsForBounds.length; i++) {
-            var item = itemsForBounds[i];
-            var itemBounds = cbUseVisible.value ? item.visibleBounds : item.geometricBounds;
-            if (itemBounds[0] < bounds[0]) bounds[0] = itemBounds[0];
-            if (itemBounds[1] > bounds[1]) bounds[1] = itemBounds[1];
-            if (itemBounds[2] > bounds[2]) bounds[2] = itemBounds[2];
-            if (itemBounds[3] < bounds[3]) bounds[3] = itemBounds[3];
-        }
+        // bounds 計算用の itemsForBounds を構築 / Build items for bounds calculation
+        var itemsForBounds = buildItemsForBounds(selectionItems, textCopies);
+        // bounds 計算関数を使用 / Calculate bounds
+        var bounds = calculateBounds(itemsForBounds, cbUseVisible.value);
 
-        // オブジェクトがアートボード外にある場合、アラートを出す
+        // オブジェクトがアートボード外にある場合、アラートを出す / Alert if objects are outside artboard
         if (
-            bounds[2] < artboardRect[0] || // 右端がアートボード左より左
-            bounds[0] > artboardRect[2] || // 左端がアートボード右より右
-            bounds[1] < artboardRect[3] || // 上端がアートボード下より下
-            bounds[3] > artboardRect[1]    // 下端がアートボード上より上
+            bounds[2] < artboardRect[0] || // 右端がアートボード左より左 / right edge left of artboard left
+            bounds[0] > artboardRect[2] || // 左端がアートボード右より右 / left edge right of artboard right
+            bounds[1] < artboardRect[3] || // 上端がアートボード下より下 / top edge below artboard bottom
+            bounds[3] > artboardRect[1]    // 下端がアートボード上より上 / bottom edge above artboard top
         ) {
             alert("オブジェクトがアートボード外にあります。");
             guideLayer.locked = true;
-            // 元のテキストを再表示
+            // 元のテキストを再表示 / Restore original text visibility
             for (var i = 0; i < originalTexts.length; i++) {
                 originalTexts[i].hidden = false;
             }
-            // アウトライン化した複製オブジェクトを削除
+            // アウトライン化した複製オブジェクトを削除 / Remove outlined duplicates
             for (var i = 0; i < textCopies.length; i++) {
                 textCopies[i].remove();
             }
@@ -450,11 +454,11 @@ function main() {
         }
         guideLayer.locked = true;
 
-        // ガイド作成後、元のテキストを再表示
+        // ガイド作成後、元のテキストを再表示 / Restore original text visibility
         for (var i = 0; i < originalTexts.length; i++) {
             originalTexts[i].hidden = false;
         }
-        // アウトライン化した複製オブジェクトを削除
+        // アウトライン化した複製オブジェクトを削除 / Remove outlined duplicates
         for (var i = 0; i < textCopies.length; i++) {
             textCopies[i].remove();
         }
