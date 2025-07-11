@@ -9,29 +9,32 @@ CreateGuidesFromSelection
 
 ### 概要
 
-- 選択したオブジェクトの中央、エッジ、左右のみ、上下のみを基準にアートボードにガイドを作成します。
-- プレビュー境界、はみだし、マージン、ガイド削除、クリップグループやテキストアウトライン処理に対応。
+- 選択オブジェクトの中央、エッジ、左右のみ、上下のみを基準にガイドを作成します。
+- アートボードまたはカンバスを基準に選択可能。
+- プレビュー境界、はみだし、マージン設定、ガイド削除、クリップグループやテキストアウトラインに対応。
 
 ### 主な機能
 
-- モード切替（中央、エッジ、左右のみ、上下のみ）
+- 基準選択（アートボード / カンバス）
+- モード切替（中央 / エッジ / 左右のみ / 上下のみ）
 - プレビュー境界使用オプション
 - はみだし & マージン設定
-- 「_guide」レイヤー内ガイド削除
-- テキストアウトライン化と復元
+- 「_guide」レイヤーのガイド削除
+- テキストアウトライン処理
 - 多言語対応（日本語・英語）
 
 ### 処理の流れ
 
 1. ダイアログでオプションを選択
 2. オブジェクトの境界を取得
-3. 選択したモードでガイドを作成
+3. 選択モードと基準でガイド作成
 
 ### 更新履歴
 
-- v1.0 (20250711): 初期バージョン
-- v1.1 (20250711): 複数選択、クリップグループ、日英対応追加
-- v1.2 (20250712): プレビュー境界OFF時の安定化、テキスト処理の修正
+- v1.0 (20250711) : 初期バージョン
+- v1.1 (20250711) : 複数選択、クリップグループ、日英対応追加
+- v1.2 (20250711) : プレビュー境界OFF時の安定化、テキスト処理修正
+- v1.3 (20250711) : アートボード外のオブジェクト自動カンバス選択、テキストアウトライン処理改善
 
 ---
 
@@ -41,29 +44,32 @@ CreateGuidesFromSelection
 
 ### Overview
 
-- Creates guides on the artboard based on center, edge, sides only, or top/bottom only of selected objects.
-- Supports visible bounds, overflow, margin, clearing guides, clip group masks, and text outline handling.
+- Creates guides based on center, edge, sides only, or top/bottom only of selected objects.
+- Can choose artboard or canvas as basis.
+- Supports visible bounds, overflow, margin settings, clearing guides, clip groups, and text outline handling.
 
 ### Features
 
-- Mode switching (Center, Edge, Sides Only, Top/Bottom Only)
+- Basis selection (Artboard / Canvas)
+- Mode switching (Center / Edge / Sides Only / Top/Bottom Only)
 - Use visible bounds option
 - Overflow & margin settings
-- Clear guides in "_guide" layer
-- Temporary text outline and restore
-- Multi-language support (Japanese/English)
+- Clear "_guide" layer guides
+- Text outline handling
+- Multi-language support (Japanese / English)
 
 ### Workflow
 
 1. Choose options in dialog
 2. Get object bounds
-3. Create guides based on selected mode
+3. Create guides based on selected mode and basis
 
 ### Update History
 
 - v1.0 (20250711): Initial version
-- v1.1 (20250711): Multiple selection, clip group, language support
-- v1.2 (20250712): Stabilized behavior when visible bounds option is OFF, fixed text processing
+- v1.1 (20250711): Added multi-selection, clip group, language support
+- v1.2 (20250712): Stabilized visible bounds OFF, improved text processing
+- v1.3 (20250712): Auto canvas selection for out-of-artboard objects, improved text outline handling
 */
 
 var SCRIPT_VERSION = "v1.2";
@@ -73,26 +79,25 @@ function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 
-// ラベル定義 / UI Label Definitions (UI appearance order, unused removed, ja/en both)
+/* ラベル定義 / UI Label Definitions (UI order, unused removed, ja/en both) */
 var lang = getCurrentLang();
 var LABELS = {
     dialogTitle: {
         ja: "ガイド作成 " + SCRIPT_VERSION,
         en: "Create Guides " + SCRIPT_VERSION
     },
-    panelTitle: { ja: "対象", en: "Target" },
-    center:     { ja: "中央", en: "Center" },
-    edge:       { ja: "エッジ", en: "Edge" },
-    sidesOnly:  { ja: "左右のみ", en: "Sides Only" },
+    center: { ja: "中央", en: "Center" },
+    edge: { ja: "エッジ", en: "Edge" },
+    sidesOnly: { ja: "左右のみ", en: "Sides Only" },
     topBottomOnly: { ja: "上下のみ", en: "Top/Bottom Only" },
     useVisible: { ja: "プレビュー境界を使用", en: "Use visible bounds" },
     clearGuides: { ja: "「_guide」のガイドを削除", en: "Clear guides in '_guide' layer" },
-    offset:     { ja: "はみだし:", en: "Overflow:" },
-    margin:     { ja: "マージン:", en: "Margin:" },
-    cancel:     { ja: "キャンセル", en: "Cancel" },
-    ok:         { ja: "OK", en: "OK" },
+    offset: { ja: "はみだし:", en: "Overflow:" },
+    margin: { ja: "マージン:", en: "Margin:" },
+    cancel: { ja: "キャンセル", en: "Cancel" },
+    ok: { ja: "OK", en: "OK" },
     alertSelect: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
-    error:      { ja: "エラーが発生しました: ", en: "An error occurred: " }
+    error: { ja: "エラーが発生しました: ", en: "An error occurred: " }
 };
 
 // 単位コードとラベルのマップ / Unit code to label map (for ruler units)
@@ -247,7 +252,18 @@ function main() {
             dlg.orientation = "column";
             dlg.alignChildren = "left";
 
-            var modePanel = dlg.add("panel", undefined, LABELS.panelTitle[lang]);
+            // === 追加: アートボード/カンバス選択パネル ===
+            var targetPanel = dlg.add("panel", undefined, (lang === "ja" ? "基準" : "Basis"));
+            targetPanel.orientation = "row";
+            targetPanel.alignChildren = "left";
+            targetPanel.margins = [15, 20, 15, 10];
+
+            var rbArtboard = targetPanel.add("radiobutton", undefined, (lang === "ja" ? "アートボード" : "Artboard"));
+            var rbCanvas = targetPanel.add("radiobutton", undefined, (lang === "ja" ? "カンバス" : "Canvas"));
+            rbArtboard.value = true;
+
+            // === モードパネル ===
+            var modePanel = dlg.add("panel", undefined, (lang === "ja" ? "対象" : "Target"));
             modePanel.orientation = "row";
             modePanel.alignChildren = "top";
             modePanel.margins = [15, 20, 15, 10];
@@ -413,35 +429,36 @@ function main() {
         }
         var bounds = calculateBounds(itemsForBounds, cbUseVisible.value);
 
-        // オブジェクトがアートボード外の場合アラート / Alert if objects are outside artboard
-        if (
-            bounds[2] < artboardRect[0] || // 右端がアートボード左より左 / right edge left of artboard left
-            bounds[0] > artboardRect[2] || // 左端がアートボード右より右 / left edge right of artboard right
-            bounds[1] < artboardRect[3] || // 上端がアートボード下より下 / top edge below artboard bottom
-            bounds[3] > artboardRect[1]    // 下端がアートボード上より上 / bottom edge above artboard top
-        ) {
-            alert("オブジェクトがアートボード外にあります。");
-            guideLayer.locked = true;
-            // プレビュー境界を使用時のみテキストの再表示・複製削除 / Restore text if outlined
-            if (cbUseVisible && cbUseVisible.value && originalTexts && textCopies) {
-                for (var i = 0; i < originalTexts.length; i++) {
-                    if (originalTexts[i]) originalTexts[i].hidden = false;
-                }
-                for (var i = 0; i < textCopies.length; i++) {
-                    if (textCopies[i]) textCopies[i].remove();
-                }
-            }
-            return;
+        // カンバス矩形（227inch = 16344pt）
+        var canvasSize = 227 * 72;
+        var halfCanvas = canvasSize / 2;
+        var canvasRect = [-halfCanvas, halfCanvas, halfCanvas, -halfCanvas];
+
+        // 対象矩形: アートボード or カンバス
+        var targetRect = rbArtboard.value ? artboardRect : canvasRect;
+
+        // オブジェクトがアートボード外の場合、自動的にカンバスを選択
+        if (rbArtboard.value && (
+            bounds[2] < artboardRect[0] || 
+            bounds[0] > artboardRect[2] || 
+            bounds[1] < artboardRect[3] || 
+            bounds[3] > artboardRect[1]
+        )) {
+            rbCanvas.value = true;
+            rbArtboard.value = false;
+            // targetRect を再設定
+            targetRect = canvasRect;
         }
 
+        // === ここからガイド作成対象矩形を targetRect に ===
         if (rbCenter.value) {
-            createCenterGuides(bounds, artboardRect, guideLayer);
+            createCenterGuides(bounds, targetRect, guideLayer);
         } else if (rbEdge.value) {
-            createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, "full");
+            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "full");
         } else if (rbSidesOnly.value) {
-            createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, "sides");
+            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "sides");
         } else if (rbTopBottomOnly.value) {
-            createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, "topBottom");
+            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "topBottom");
         }
         guideLayer.locked = true;
 
