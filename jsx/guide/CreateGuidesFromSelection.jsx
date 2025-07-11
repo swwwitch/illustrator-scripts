@@ -1,7 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-
 /*
 ### スクリプト名：
 
@@ -35,6 +34,7 @@ CreateGuidesFromSelection
 - v1.1 (20250711) : 複数選択、クリップグループ、日英対応追加
 - v1.2 (20250711) : プレビュー境界OFF時の安定化、テキスト処理修正
 - v1.3 (20250711) : アートボード外のオブジェクト自動カンバス選択、テキストアウトライン処理改善
+- v1.4 (20250712) : アートボード外のオブジェクト選択時のアラート削除、カンバス選択時のはみだし無効化
 
 ---
 
@@ -70,9 +70,13 @@ CreateGuidesFromSelection
 - v1.1 (20250711): Added multi-selection, clip group, language support
 - v1.2 (20250712): Stabilized visible bounds OFF, improved text processing
 - v1.3 (20250712): Auto canvas selection for out-of-artboard objects, improved text outline handling
-*/
+- v1.4 (20250712): Removed alert for out-of-artboard objects, disabled overflow for canvas selection
 
-var SCRIPT_VERSION = "v1.2";
+// === デフォルト設定（ここを編集） ===
+var DEFAULT_BASIS = "artboard"; // "artboard" または "canvas"
+var DEFAULT_MODE = "edge";      // "center", "edge", "sides", "topBottom"
+
+var SCRIPT_VERSION = "v1.4";
 
 // 言語取得 / Get current language (ja/en)
 function getCurrentLang() {
@@ -87,7 +91,7 @@ var LABELS = {
         en: "Create Guides " + SCRIPT_VERSION
     },
     center: { ja: "中央", en: "Center" },
-    edge: { ja: "エッジ", en: "Edge" },
+    edge: { ja: "エッジ（四辺）", en: "Edge (All Sides)" },
     sidesOnly: { ja: "左右のみ", en: "Sides Only" },
     topBottomOnly: { ja: "上下のみ", en: "Top/Bottom Only" },
     useVisible: { ja: "プレビュー境界を使用", en: "Use visible bounds" },
@@ -239,10 +243,8 @@ function main() {
             guideLayer.locked = false;
         }
 
-        if (selectionItems.length < 1) {
-            alert(LABELS.alertSelect[lang]);
-            isValid = false;
-        }
+        // 選択がない場合はアートボード全体を対象にガイド作成
+        var useArtboardAsTarget = (selectionItems.length < 1);
 
         var rbCenter, rbEdge, rbSidesOnly, rbTopBottomOnly, cbUseVisible, cbClearGuides, offsetInput, marginInput;
 
@@ -260,7 +262,8 @@ function main() {
 
             var rbArtboard = targetPanel.add("radiobutton", undefined, (lang === "ja" ? "アートボード" : "Artboard"));
             var rbCanvas = targetPanel.add("radiobutton", undefined, (lang === "ja" ? "カンバス" : "Canvas"));
-            rbArtboard.value = true;
+            rbArtboard.value = (DEFAULT_BASIS === "artboard");
+            rbCanvas.value = (DEFAULT_BASIS === "canvas");
 
             // === モードパネル ===
             var modePanel = dlg.add("panel", undefined, (lang === "ja" ? "対象" : "Target"));
@@ -280,8 +283,10 @@ function main() {
             rbEdge = col1.add("radiobutton", undefined, LABELS.edge[lang]);
             rbSidesOnly = col2.add("radiobutton", undefined, LABELS.sidesOnly[lang]);
             rbTopBottomOnly = col2.add("radiobutton", undefined, LABELS.topBottomOnly[lang]);
-            rbCenter.value = false;
-            rbEdge.value = true;
+            rbCenter.value = (DEFAULT_MODE === "center");
+            rbEdge.value = (DEFAULT_MODE === "edge");
+            rbSidesOnly.value = (DEFAULT_MODE === "sides");
+            rbTopBottomOnly.value = (DEFAULT_MODE === "topBottom");
 
             // ラジオボタン排他制御 / Radio button exclusivity
             rbCenter.onClick = function () {
@@ -323,6 +328,25 @@ function main() {
             marginInput.characters = 3;
             marginGroup.add("statictext", undefined, getCurrentUnitLabel());
 
+            // === offset/margin有効・無効切替関数 ===
+            // カンバス選択時は offset（はみだし）のみ無効化 / Disable offset only when Canvas is selected
+            function updateOffsetMarginState() {
+                var disable = rbCanvas.value;
+                offsetInput.enabled = !disable;
+                // marginInput は常に有効
+            }
+
+            // ラジオボタン切替イベントで呼び出し
+            rbArtboard.onClick = function() {
+                updateOffsetMarginState();
+            };
+            rbCanvas.onClick = function() {
+                updateOffsetMarginState();
+            };
+
+            // 初期状態も更新
+            updateOffsetMarginState();
+
             var btnGroup = dlg.add("group");
             btnGroup.alignment = "right";
             var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel[lang]);
@@ -347,6 +371,10 @@ function main() {
         var offsetValue = parseFloat(offsetInput.text);
         if (isNaN(offsetValue)) offsetValue = 0;
         offsetValue *= factor;
+        if (useArtboardAsTarget) {
+            // 10mm = 28.35pt
+            offsetValue = 28.35;
+        }
 
         var marginValue = parseFloat(marginInput.text);
         if (isNaN(marginValue)) marginValue = 0;
@@ -420,14 +448,19 @@ function main() {
         }
 
         // bounds計算用配列構築とバウンディングボックス算出 / Build array and calculate bounds
-        var itemsForBounds;
-        if (cbUseVisible.value) {
-            itemsForBounds = buildItemsForBounds(selectionItems, textCopies, true);
+        var bounds;
+        if (useArtboardAsTarget) {
+            bounds = artboardRect.concat();
         } else {
-            // プレビュー境界OFF時は textCopies を使わない
-            itemsForBounds = buildItemsForBounds(selectionItems, [], false);
+            var itemsForBounds;
+            if (cbUseVisible.value) {
+                itemsForBounds = buildItemsForBounds(selectionItems, textCopies, true);
+            } else {
+                // プレビュー境界OFF時は textCopies を使わない
+                itemsForBounds = buildItemsForBounds(selectionItems, [], false);
+            }
+            bounds = calculateBounds(itemsForBounds, cbUseVisible.value);
         }
-        var bounds = calculateBounds(itemsForBounds, cbUseVisible.value);
 
         // カンバス矩形（227inch = 16344pt）
         var canvasSize = 227 * 72;
@@ -437,17 +470,16 @@ function main() {
         // 対象矩形: アートボード or カンバス
         var targetRect = rbArtboard.value ? artboardRect : canvasRect;
 
-        // オブジェクトがアートボード外の場合、自動的にカンバスを選択
+        // オブジェクトがアートボード外の場合、自動的にカンバスを選択（alertなし）
         if (rbArtboard.value && (
-            bounds[2] < artboardRect[0] || 
-            bounds[0] > artboardRect[2] || 
-            bounds[1] < artboardRect[3] || 
+            bounds[2] < artboardRect[0] ||
+            bounds[0] > artboardRect[2] ||
+            bounds[1] < artboardRect[3] ||
             bounds[3] > artboardRect[1]
         )) {
             rbCanvas.value = true;
             rbArtboard.value = false;
-            // targetRect を再設定
-            targetRect = canvasRect;
+            targetRect = canvasRect; // カンバス矩形に切り替え
         }
 
         // === ここからガイド作成対象矩形を targetRect に ===
