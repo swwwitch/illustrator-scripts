@@ -89,6 +89,14 @@ var LABELS = {
         ja: "エッジ",
         en: "Edge"
     },
+    sidesOnly: {
+        ja: "左右のみ",
+        en: "Sides Only"
+    },
+    topBottomOnly: {
+        ja: "上下のみ",
+        en: "Top/Bottom Only"
+    },
     useVisible: {
         ja: "プレビュー境界を使用",
         en: "Use visible bounds"
@@ -270,8 +278,8 @@ function main() {
 
             rbCenter = col1.add("radiobutton", undefined, LABELS.center[lang]);
             rbEdge = col1.add("radiobutton", undefined, LABELS.edge[lang]);
-            var rbSidesOnly = col2.add("radiobutton", undefined, "左右のみ");
-            var rbTopBottomOnly = col2.add("radiobutton", undefined, "上下のみ");
+            var rbSidesOnly = col2.add("radiobutton", undefined, LABELS.sidesOnly[lang]);
+            var rbTopBottomOnly = col2.add("radiobutton", undefined, LABELS.topBottomOnly[lang]);
             rbCenter.value = false;
             rbEdge.value = true;
 
