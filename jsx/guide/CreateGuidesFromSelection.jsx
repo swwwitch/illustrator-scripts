@@ -72,6 +72,8 @@ CreateGuidesFromSelection
 - v1.3 (20250712): Auto canvas selection for out-of-artboard objects, improved text outline handling
 - v1.4 (20250712): Removed alert for out-of-artboard objects, disabled overflow for canvas selection
 
+*/
+
 // === デフォルト設定（ここを編集） ===
 var DEFAULT_BASIS = "artboard"; // "artboard" または "canvas"
 var DEFAULT_MODE = "edge";      // "center", "edge", "sides", "topBottom"
