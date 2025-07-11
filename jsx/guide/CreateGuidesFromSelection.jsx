@@ -80,7 +80,7 @@ CreateGuidesFromSelection
 var DEFAULT_BASIS = "artboard"; // "artboard" または "canvas"
 var DEFAULT_MODE = "edge"; // "center", "edge", "sides", "topBottom"
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 // 言語取得 / Get current language (ja/en)
 function getCurrentLang() {
