@@ -523,78 +523,98 @@ commonMarginInput.characters = 5;
             var guideBottom = abBottom - ext;
 
             if (drawGuidesNow) {
-                // 通常ガイド描画（行・列）
-                var y = baseTop;
-                var line = doc.pathItems.add();
-                line.setEntirePath([[guideLeft, y], [guideRight, y]]);
-                line.stroked = false;
-                line.filled = false;
-                line.guides = true;
-                line.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                // 「中心」用の水平・垂直ガイドを追加
+                if (xDiv === 1 && yDiv === 1) {
+                    var centerX = (baseLeft + baseRight) / 2;
+                    var centerY = (baseTop + baseBottom) / 2;
 
-                for (var j = 0; j < yDiv; j++) {
-                    y -= cellHeight;
-                    var line1 = doc.pathItems.add();
-                    line1.setEntirePath([[guideLeft, y], [guideRight, y]]);
-                    line1.stroked = false;
-                    line1.filled = false;
-                    line1.guides = true;
-                    line1.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                    var vCenter = doc.pathItems.add();
+                    vCenter.setEntirePath([[centerX, abTop + ext], [centerX, abBottom - ext]]);
+                    vCenter.stroked = false;
+                    vCenter.filled = false;
+                    vCenter.guides = true;
+                    vCenter.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
 
-                    if (j < yDiv - 1) {
-                        y -= rowGutter;
-                        var line2 = doc.pathItems.add();
-                        line2.setEntirePath([[guideLeft, y], [guideRight, y]]);
-                        line2.stroked = false;
-                        line2.filled = false;
-                        line2.guides = true;
-                        line2.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                    var hCenter = doc.pathItems.add();
+                    hCenter.setEntirePath([[abLeft - ext, centerY], [abRight + ext, centerY]]);
+                    hCenter.stroked = false;
+                    hCenter.filled = false;
+                    hCenter.guides = true;
+                    hCenter.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                } else {
+                    // 通常ガイド描画（行・列）
+                    var y = baseTop;
+                    var line = doc.pathItems.add();
+                    line.setEntirePath([[guideLeft, y], [guideRight, y]]);
+                    line.stroked = false;
+                    line.filled = false;
+                    line.guides = true;
+                    line.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+
+                    for (var j = 0; j < yDiv; j++) {
+                        y -= cellHeight;
+                        var line1 = doc.pathItems.add();
+                        line1.setEntirePath([[guideLeft, y], [guideRight, y]]);
+                        line1.stroked = false;
+                        line1.filled = false;
+                        line1.guides = true;
+                        line1.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+
+                        if (j < yDiv - 1) {
+                            y -= rowGutter;
+                            var line2 = doc.pathItems.add();
+                            line2.setEntirePath([[guideLeft, y], [guideRight, y]]);
+                            line2.stroked = false;
+                            line2.filled = false;
+                            line2.guides = true;
+                            line2.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                        }
                     }
-                }
 
-                y = baseBottom;
-                var lineBottom = doc.pathItems.add();
-                lineBottom.setEntirePath([[guideLeft, y], [guideRight, y]]);
-                lineBottom.stroked = false;
-                lineBottom.filled = false;
-                lineBottom.guides = true;
-                lineBottom.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                    y = baseBottom;
+                    var lineBottom = doc.pathItems.add();
+                    lineBottom.setEntirePath([[guideLeft, y], [guideRight, y]]);
+                    lineBottom.stroked = false;
+                    lineBottom.filled = false;
+                    lineBottom.guides = true;
+                    lineBottom.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
 
-                var x = baseLeft;
-                var vline = doc.pathItems.add();
-                vline.setEntirePath([[x, guideTop], [x, guideBottom]]);
-                vline.stroked = false;
-                vline.filled = false;
-                vline.guides = true;
-                vline.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                    var x = baseLeft;
+                    var vline = doc.pathItems.add();
+                    vline.setEntirePath([[x, guideTop], [x, guideBottom]]);
+                    vline.stroked = false;
+                    vline.filled = false;
+                    vline.guides = true;
+                    vline.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
 
-                for (var i = 0; i < xDiv; i++) {
-                    x += cellWidth;
-                    var vline1 = doc.pathItems.add();
-                    vline1.setEntirePath([[x, guideTop], [x, guideBottom]]);
-                    vline1.stroked = false;
-                    vline1.filled = false;
-                    vline1.guides = true;
-                    vline1.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                    for (var i = 0; i < xDiv; i++) {
+                        x += cellWidth;
+                        var vline1 = doc.pathItems.add();
+                        vline1.setEntirePath([[x, guideTop], [x, guideBottom]]);
+                        vline1.stroked = false;
+                        vline1.filled = false;
+                        vline1.guides = true;
+                        vline1.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
 
-                    if (i < xDiv - 1) {
-                        x += colGutter;
-                        var vline2 = doc.pathItems.add();
-                        vline2.setEntirePath([[x, guideTop], [x, guideBottom]]);
-                        vline2.stroked = false;
-                        vline2.filled = false;
-                        vline2.guides = true;
-                        vline2.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                        if (i < xDiv - 1) {
+                            x += colGutter;
+                            var vline2 = doc.pathItems.add();
+                            vline2.setEntirePath([[x, guideTop], [x, guideBottom]]);
+                            vline2.stroked = false;
+                            vline2.filled = false;
+                            vline2.guides = true;
+                            vline2.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                        }
                     }
-                }
 
-                x = baseRight;
-                var vlineRight = doc.pathItems.add();
-                vlineRight.setEntirePath([[x, guideTop], [x, guideBottom]]);
-                vlineRight.stroked = false;
-                vlineRight.filled = false;
-                vlineRight.guides = true;
-                vlineRight.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                    x = baseRight;
+                    var vlineRight = doc.pathItems.add();
+                    vlineRight.setEntirePath([[x, guideTop], [x, guideBottom]]);
+                    vlineRight.stroked = false;
+                    vlineRight.filled = false;
+                    vlineRight.guides = true;
+                    vlineRight.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                }
             }
 
             if (drawGuidesNow && drawBleedGuide) {
