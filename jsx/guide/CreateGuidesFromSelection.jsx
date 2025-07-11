@@ -35,6 +35,7 @@ CreateGuidesFromSelection
 - v1.2 (20250711) : プレビュー境界OFF時の安定化、テキスト処理修正
 - v1.3 (20250711) : アートボード外のオブジェクト自動カンバス選択、テキストアウトライン処理改善
 - v1.4 (20250712) : アートボード外のオブジェクト選択時のアラート削除、カンバス選択時のはみだし無効化
+- v1.5 (20250712) : 左上、左下、右上、右下モードを追加（それぞれ2本のガイドを作成）
 
 ---
 
@@ -71,12 +72,13 @@ CreateGuidesFromSelection
 - v1.2 (20250712): Stabilized visible bounds OFF, improved text processing
 - v1.3 (20250712): Auto canvas selection for out-of-artboard objects, improved text outline handling
 - v1.4 (20250712): Removed alert for out-of-artboard objects, disabled overflow for canvas selection
+- v1.5 (20250712): Added modes for Top Left, Bottom Left, Top Right, Bottom Right (each creates 2 guides)
 
 */
 
 // === デフォルト設定（ここを編集） ===
 var DEFAULT_BASIS = "artboard"; // "artboard" または "canvas"
-var DEFAULT_MODE = "edge";      // "center", "edge", "sides", "topBottom"
+var DEFAULT_MODE = "edge"; // "center", "edge", "sides", "topBottom"
 
 var SCRIPT_VERSION = "v1.4";
 
@@ -92,18 +94,54 @@ var LABELS = {
         ja: "ガイド作成 " + SCRIPT_VERSION,
         en: "Create Guides " + SCRIPT_VERSION
     },
-    center: { ja: "中央", en: "Center" },
-    edge: { ja: "エッジ（四辺）", en: "Edge (All Sides)" },
-    sidesOnly: { ja: "左右のみ", en: "Sides Only" },
-    topBottomOnly: { ja: "上下のみ", en: "Top/Bottom Only" },
-    useVisible: { ja: "プレビュー境界を使用", en: "Use visible bounds" },
-    clearGuides: { ja: "「_guide」のガイドを削除", en: "Clear guides in '_guide' layer" },
-    offset: { ja: "はみだし:", en: "Overflow:" },
-    margin: { ja: "マージン:", en: "Margin:" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    ok: { ja: "OK", en: "OK" },
-    alertSelect: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
-    error: { ja: "エラーが発生しました: ", en: "An error occurred: " }
+    center: {
+        ja: "中央",
+        en: "Center"
+    },
+    edge: {
+        ja: "エッジ（四辺）",
+        en: "Edge (All Sides)"
+    },
+    sidesOnly: {
+        ja: "左右のみ",
+        en: "Sides Only"
+    },
+    topBottomOnly: {
+        ja: "上下のみ",
+        en: "Top/Bottom Only"
+    },
+    useVisible: {
+        ja: "プレビュー境界を使用",
+        en: "Use visible bounds"
+    },
+    clearGuides: {
+        ja: "「_guide」のガイドを削除",
+        en: "Clear guides in '_guide' layer"
+    },
+    offset: {
+        ja: "はみだし:",
+        en: "Overflow:"
+    },
+    margin: {
+        ja: "マージン:",
+        en: "Margin:"
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    ok: {
+        ja: "OK",
+        en: "OK"
+    },
+    alertSelect: {
+        ja: "オブジェクトを選択してください。",
+        en: "Please select an object."
+    },
+    error: {
+        ja: "エラーが発生しました: ",
+        en: "An error occurred: "
+    }
 };
 
 // 単位コードとラベルのマップ / Unit code to label map (for ruler units)
@@ -181,15 +219,21 @@ function createCenterGuides(bounds, artboardRect, guideLayer) {
     var centerY = bounds[1] - ((bounds[1] - bounds[3]) / 2);
 
     var vGuide = guideLayer.pathItems.add();
-    vGuide.setEntirePath([[centerX, artboardRect[1]], [centerX, artboardRect[3]]]);
+    vGuide.setEntirePath([
+        [centerX, artboardRect[1]],
+        [centerX, artboardRect[3]]
+    ]);
     vGuide.guides = true;
 
     var hGuide = guideLayer.pathItems.add();
-    hGuide.setEntirePath([[artboardRect[0], centerY], [artboardRect[2], centerY]]);
+    hGuide.setEntirePath([
+        [artboardRect[0], centerY],
+        [artboardRect[2], centerY]
+    ]);
     hGuide.guides = true;
 }
 
-// エッジ基準ガイド作成 / Create edge guides (edge/sides/top-bottom)
+// エッジ基準ガイド作成 / Create edge guides (edge/sides/top-bottom/topLeft)
 function createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, mode) {
     var leftX = bounds[0] - marginValue;
     var rightX = bounds[2] + marginValue;
@@ -201,23 +245,117 @@ function createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginV
     var guideTop = artboardRect[1] + offsetValue;
     var guideBottom = artboardRect[3] - offsetValue;
 
-    if (mode === "full" || mode === "sides") {
+    if (mode === "full") {
         var leftGuide = guideLayer.pathItems.add();
-        leftGuide.setEntirePath([[leftX, guideTop], [leftX, guideBottom]]);
+        leftGuide.setEntirePath([
+            [leftX, guideTop],
+            [leftX, guideBottom]
+        ]);
         leftGuide.guides = true;
 
         var rightGuide = guideLayer.pathItems.add();
-        rightGuide.setEntirePath([[rightX, guideTop], [rightX, guideBottom]]);
+        rightGuide.setEntirePath([
+            [rightX, guideTop],
+            [rightX, guideBottom]
+        ]);
         rightGuide.guides = true;
-    }
 
-    if (mode === "full" || mode === "topBottom") {
         var topGuide = guideLayer.pathItems.add();
-        topGuide.setEntirePath([[guideLeft, topY], [guideRight, topY]]);
+        topGuide.setEntirePath([
+            [guideLeft, topY],
+            [guideRight, topY]
+        ]);
         topGuide.guides = true;
 
         var bottomGuide = guideLayer.pathItems.add();
-        bottomGuide.setEntirePath([[guideLeft, bottomY], [guideRight, bottomY]]);
+        bottomGuide.setEntirePath([
+            [guideLeft, bottomY],
+            [guideRight, bottomY]
+        ]);
+        bottomGuide.guides = true;
+    } else if (mode === "sides") {
+        var leftGuide = guideLayer.pathItems.add();
+        leftGuide.setEntirePath([
+            [leftX, guideTop],
+            [leftX, guideBottom]
+        ]);
+        leftGuide.guides = true;
+
+        var rightGuide = guideLayer.pathItems.add();
+        rightGuide.setEntirePath([
+            [rightX, guideTop],
+            [rightX, guideBottom]
+        ]);
+        rightGuide.guides = true;
+    } else if (mode === "topBottom") {
+        var topGuide = guideLayer.pathItems.add();
+        topGuide.setEntirePath([
+            [guideLeft, topY],
+            [guideRight, topY]
+        ]);
+        topGuide.guides = true;
+
+        var bottomGuide = guideLayer.pathItems.add();
+        bottomGuide.setEntirePath([
+            [guideLeft, bottomY],
+            [guideRight, bottomY]
+        ]);
+        bottomGuide.guides = true;
+    } else if (mode === "topLeft") {
+        var leftGuide = guideLayer.pathItems.add();
+        leftGuide.setEntirePath([
+            [leftX, guideTop],
+            [leftX, guideBottom]
+        ]);
+        leftGuide.guides = true;
+
+        var topGuide = guideLayer.pathItems.add();
+        topGuide.setEntirePath([
+            [guideLeft, topY],
+            [guideRight, topY]
+        ]);
+        topGuide.guides = true;
+    } else if (mode === "bottomLeft") {
+        var leftGuide = guideLayer.pathItems.add();
+        leftGuide.setEntirePath([
+            [leftX, guideTop],
+            [leftX, guideBottom]
+        ]);
+        leftGuide.guides = true;
+
+        var bottomGuide = guideLayer.pathItems.add();
+        bottomGuide.setEntirePath([
+            [guideLeft, bottomY],
+            [guideRight, bottomY]
+        ]);
+        bottomGuide.guides = true;
+    } else if (mode === "topRight") {
+        var rightGuide = guideLayer.pathItems.add();
+        rightGuide.setEntirePath([
+            [rightX, guideTop],
+            [rightX, guideBottom]
+        ]);
+        rightGuide.guides = true;
+
+        var topGuide = guideLayer.pathItems.add();
+        topGuide.setEntirePath([
+            [guideLeft, topY],
+            [guideRight, topY]
+        ]);
+        topGuide.guides = true;
+    } else if (mode === "bottomRight") {
+        var rightGuide = guideLayer.pathItems.add();
+        rightGuide.setEntirePath([
+            [rightX, guideTop],
+            [rightX, guideBottom]
+        ]);
+        rightGuide.guides = true;
+
+        var bottomGuide = guideLayer.pathItems.add();
+        bottomGuide.setEntirePath([
+            [guideLeft, bottomY],
+            [guideRight, bottomY]
+        ]);
         bottomGuide.guides = true;
     }
 }
@@ -283,33 +421,93 @@ function main() {
 
             rbCenter = col1.add("radiobutton", undefined, LABELS.center[lang]);
             rbEdge = col1.add("radiobutton", undefined, LABELS.edge[lang]);
-            rbSidesOnly = col2.add("radiobutton", undefined, LABELS.sidesOnly[lang]);
-            rbTopBottomOnly = col2.add("radiobutton", undefined, LABELS.topBottomOnly[lang]);
+            rbSidesOnly = col1.add("radiobutton", undefined, LABELS.sidesOnly[lang]);
+            rbTopBottomOnly = col1.add("radiobutton", undefined, LABELS.topBottomOnly[lang]);
+            var rbTopLeft = col2.add("radiobutton", undefined, (lang === "ja" ? "左上" : "Top Left"));
             rbCenter.value = (DEFAULT_MODE === "center");
             rbEdge.value = (DEFAULT_MODE === "edge");
             rbSidesOnly.value = (DEFAULT_MODE === "sides");
             rbTopBottomOnly.value = (DEFAULT_MODE === "topBottom");
+            rbTopLeft.value = false;
+            var rbBottomLeft = col2.add("radiobutton", undefined, (lang === "ja" ? "左下" : "Bottom Left"));
+            rbBottomLeft.value = false;
+            var rbTopRight = col2.add("radiobutton", undefined, (lang === "ja" ? "右上" : "Top Right"));
+            rbTopRight.value = false;
+
+            var rbBottomRight = col2.add("radiobutton", undefined, (lang === "ja" ? "右下" : "Bottom Right"));
+            rbBottomRight.value = false;
 
             // ラジオボタン排他制御 / Radio button exclusivity
-            rbCenter.onClick = function () {
+            rbCenter.onClick = function() {
                 rbEdge.value = false;
                 rbSidesOnly.value = false;
                 rbTopBottomOnly.value = false;
+                rbTopLeft.value = false;
+                rbBottomLeft.value = false;
+                rbTopRight.value = false;
+                rbBottomRight.value = false;
             };
-            rbEdge.onClick = function () {
+            rbEdge.onClick = function() {
                 rbCenter.value = false;
                 rbSidesOnly.value = false;
                 rbTopBottomOnly.value = false;
+                rbTopLeft.value = false;
+                rbBottomLeft.value = false;
+                rbTopRight.value = false;
+                rbBottomRight.value = false;
             };
-            rbSidesOnly.onClick = function () {
+            rbSidesOnly.onClick = function() {
                 rbCenter.value = false;
                 rbEdge.value = false;
                 rbTopBottomOnly.value = false;
+                rbTopLeft.value = false;
+                rbBottomLeft.value = false;
+                rbTopRight.value = false;
+                rbBottomRight.value = false;
             };
-            rbTopBottomOnly.onClick = function () {
+            rbTopBottomOnly.onClick = function() {
                 rbCenter.value = false;
                 rbEdge.value = false;
                 rbSidesOnly.value = false;
+                rbTopLeft.value = false;
+                rbBottomLeft.value = false;
+                rbTopRight.value = false;
+                rbBottomRight.value = false;
+            };
+            rbTopLeft.onClick = function() {
+                rbCenter.value = false;
+                rbEdge.value = false;
+                rbSidesOnly.value = false;
+                rbTopBottomOnly.value = false;
+                rbBottomLeft.value = false;
+                rbTopRight.value = false;
+                rbBottomRight.value = false;
+            };
+            rbBottomLeft.onClick = function() {
+                rbCenter.value = false;
+                rbEdge.value = false;
+                rbSidesOnly.value = false;
+                rbTopBottomOnly.value = false;
+                rbTopLeft.value = false;
+            };
+            rbTopRight.onClick = function() {
+                rbCenter.value = false;
+                rbEdge.value = false;
+                rbSidesOnly.value = false;
+                rbTopBottomOnly.value = false;
+                rbTopLeft.value = false;
+                rbBottomLeft.value = false;
+                rbBottomRight.value = false;
+            };
+
+            rbBottomRight.onClick = function() {
+                rbCenter.value = false;
+                rbEdge.value = false;
+                rbSidesOnly.value = false;
+                rbTopBottomOnly.value = false;
+                rbTopLeft.value = false;
+                rbBottomLeft.value = false;
+                rbTopRight.value = false;
             };
 
             cbUseVisible = dlg.add("checkbox", undefined, LABELS.useVisible[lang]);
@@ -474,11 +672,11 @@ function main() {
 
         // オブジェクトがアートボード外の場合、自動的にカンバスを選択（alertなし）
         if (rbArtboard.value && (
-            bounds[2] < artboardRect[0] ||
-            bounds[0] > artboardRect[2] ||
-            bounds[1] < artboardRect[3] ||
-            bounds[3] > artboardRect[1]
-        )) {
+                bounds[2] < artboardRect[0] ||
+                bounds[0] > artboardRect[2] ||
+                bounds[1] < artboardRect[3] ||
+                bounds[3] > artboardRect[1]
+            )) {
             rbCanvas.value = true;
             rbArtboard.value = false;
             targetRect = canvasRect; // カンバス矩形に切り替え
@@ -493,6 +691,14 @@ function main() {
             createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "sides");
         } else if (rbTopBottomOnly.value) {
             createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "topBottom");
+        } else if (rbTopLeft.value) {
+            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "topLeft");
+        } else if (rbBottomLeft.value) {
+            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "bottomLeft");
+        } else if (rbTopRight.value) {
+            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "topRight");
+        } else if (rbBottomRight.value) {
+            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "bottomRight");
         }
         guideLayer.locked = true;
 
