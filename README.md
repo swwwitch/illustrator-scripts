@@ -49,7 +49,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 ## オブジェクトの配置や整列
 
-- [グリッド状にガイドを生成](readme-ja/GenerateGuidesGrid.md)
 - [配置したオブジェクトをグリッド状に配置する](readme-ja/SmartObjectDistributor.md)
 - [選択したオブジェクトを幅や高さ、不透明度、カラーでソート](readme-ja/SmartObjectSorter.md)
 - [オブジェクトを入れ替え](readme-ja/SwapNearestItemWithDialogbox.md)
@@ -92,6 +91,10 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [〈クリッピングマスクを解除〉を拡張](readme-ja/ReleaseClipMask.md)
 - [パズル](readme-ja/SmartSliceWithPuzzlify.md)
 - [マスクパスのサイズ変更](readme-ja/ResizeClipMask.md)
+
+## ガイド
+
+- [グリッド状にガイドを生成](readme-ja/GenerateGuidesGrid.md)
 
 ## ドキュメント
 

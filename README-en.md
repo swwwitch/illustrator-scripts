@@ -50,7 +50,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 
 ## Object arrangement and alignment
 
-- [Generate guides in a grid](readme.en/GenerateGuidesGrid.md)
 - [Arrange placed objects into a grid](readme.en/SmartObjectDistributor.md)
 - [Sort selected objects by width, height, opacity, or color](readme.en/SmartObjectSorter.md)
 - [Swap objects](readme.en/SwapNearestItemWithDialogbox.md)
@@ -93,6 +92,10 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Advanced release clipping masks](readme.en/ReleaseClipMask.md)
 - [Puzzle-like slicing](readme.en/SmartSliceWithPuzzlify.md)
 - [Resize Clip Mask](readme-en/ResizeClipMask.md)
+
+## Guides
+
+- [Generate guides in a grid](readme.en/GenerateGuidesGrid.md)
 
 ## Document
 
