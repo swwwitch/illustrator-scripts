@@ -94,7 +94,7 @@ var LABELS = {
         en: "Use visible bounds"
     },
     clearGuides: {
-        ja: "「_guide」レイヤー内のガイドを削除",
+        ja: "「_guide」のガイドを削除",
         en: "Clear guides in '_guide' layer"
     },
     offset: {
@@ -187,7 +187,7 @@ function createCenterGuides(bounds, artboardRect, guideLayer) {
     hGuide.guides = true;
 }
 
-function createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue) {
+function createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, mode) {
     var leftX = bounds[0] - marginValue;
     var rightX = bounds[2] + marginValue;
     var topY = bounds[1] + marginValue;
@@ -198,21 +198,25 @@ function createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginV
     var guideTop = artboardRect[1] + offsetValue;
     var guideBottom = artboardRect[3] - offsetValue;
 
-    var leftGuide = guideLayer.pathItems.add();
-    leftGuide.setEntirePath([[leftX, guideTop], [leftX, guideBottom]]);
-    leftGuide.guides = true;
+    if (mode === "full" || mode === "sides") {
+        var leftGuide = guideLayer.pathItems.add();
+        leftGuide.setEntirePath([[leftX, guideTop], [leftX, guideBottom]]);
+        leftGuide.guides = true;
 
-    var rightGuide = guideLayer.pathItems.add();
-    rightGuide.setEntirePath([[rightX, guideTop], [rightX, guideBottom]]);
-    rightGuide.guides = true;
+        var rightGuide = guideLayer.pathItems.add();
+        rightGuide.setEntirePath([[rightX, guideTop], [rightX, guideBottom]]);
+        rightGuide.guides = true;
+    }
 
-    var topGuide = guideLayer.pathItems.add();
-    topGuide.setEntirePath([[guideLeft, topY], [guideRight, topY]]);
-    topGuide.guides = true;
+    if (mode === "full" || mode === "topBottom") {
+        var topGuide = guideLayer.pathItems.add();
+        topGuide.setEntirePath([[guideLeft, topY], [guideRight, topY]]);
+        topGuide.guides = true;
 
-    var bottomGuide = guideLayer.pathItems.add();
-    bottomGuide.setEntirePath([[guideLeft, bottomY], [guideRight, bottomY]]);
-    bottomGuide.guides = true;
+        var bottomGuide = guideLayer.pathItems.add();
+        bottomGuide.setEntirePath([[guideLeft, bottomY], [guideRight, bottomY]]);
+        bottomGuide.guides = true;
+    }
 }
 
 function main() {
@@ -253,11 +257,21 @@ function main() {
 
             var modePanel = dlg.add("panel", undefined, LABELS.panelTitle[lang]);
             modePanel.orientation = "row";
-            modePanel.alignChildren = "left";
+            modePanel.alignChildren = "top";
             modePanel.margins = [15, 20, 15, 10];
 
-            rbCenter = modePanel.add("radiobutton", undefined, LABELS.center[lang]);
-            rbEdge = modePanel.add("radiobutton", undefined, LABELS.edge[lang]);
+            var col1 = modePanel.add("group");
+            col1.orientation = "column";
+            col1.alignChildren = "left";
+
+            var col2 = modePanel.add("group");
+            col2.orientation = "column";
+            col2.alignChildren = "left";
+
+            rbCenter = col1.add("radiobutton", undefined, LABELS.center[lang]);
+            rbEdge = col1.add("radiobutton", undefined, LABELS.edge[lang]);
+            var rbSidesOnly = col2.add("radiobutton", undefined, "左右のみ");
+            var rbTopBottomOnly = col2.add("radiobutton", undefined, "上下のみ");
             rbCenter.value = false;
             rbEdge.value = true;
 
@@ -270,13 +284,13 @@ function main() {
             var offsetGroup = dlg.add("group");
             offsetGroup.add("statictext", undefined, LABELS.offset[lang]);
             offsetInput = offsetGroup.add("edittext", undefined, "6");
-            offsetInput.characters = 5;
+            offsetInput.characters = 3;
             offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
 
             var marginGroup = dlg.add("group");
             marginGroup.add("statictext", undefined, LABELS.margin[lang]);
             marginInput = marginGroup.add("edittext", undefined, "0");
-            marginInput.characters = 5;
+            marginInput.characters = 3;
             marginGroup.add("statictext", undefined, getCurrentUnitLabel());
 
             var btnGroup = dlg.add("group");
@@ -420,7 +434,11 @@ function main() {
         if (rbCenter.value) {
             createCenterGuides(bounds, artboardRect, guideLayer);
         } else if (rbEdge.value) {
-            createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue);
+            createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, "full");
+        } else if (rbSidesOnly.value) {
+            createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, "sides");
+        } else if (rbTopBottomOnly.value) {
+            createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, "topBottom");
         }
         guideLayer.locked = true;
 
