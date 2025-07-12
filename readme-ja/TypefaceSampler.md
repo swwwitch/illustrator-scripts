@@ -8,6 +8,8 @@
 
 Illustrator で使用可能なフォントを一覧表示し、ウエイト（太さ）順やスタイル（装飾）順に従ってアートボード上に整然と描画します。
 
+<img alt="" src="https://www.dtp-transit.jp/images/ss-776-1010-72-20250713-082053.png" width="70%" />
+
 ### 機能概要：
 
 - font.style をもとにウエイトや装飾キーワードを判定
@@ -36,7 +38,6 @@ Illustrator で使用可能なフォントを一覧表示し、ウエイト（�
 2. Illustrator が現在利用可能なすべてのフォントから条件に合致するフォントを収集
 3. 評価スコア順に並べてアートボード左上から描画
 
-作成日：2025-04-20
-最終更新日：2025-05-08 17:05
+### note
 
-[【Illustrator】カテゴリ別ウエイト順にフォントを一覧表示し、フォント見本を一瞬で作成するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n103ac6622657)
+- [【Illustrator】カテゴリ別ウエイト順にフォントを一覧表示し、フォント見本を一瞬で作成するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n103ac6622657)

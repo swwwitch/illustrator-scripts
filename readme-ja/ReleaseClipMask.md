@@ -9,6 +9,8 @@
 選択中のオブジェクトに対し、指定したモードでクリッピングマスクを処理します。
 Handles selected objects by releasing clipping masks based on selected mode.
 
+<img alt="" src="https://www.dtp-transit.jp/images/ss-548-530-72-20250713-080827.png" width="50%" />
+
 ### モード / Mode：
 
 - 単純に解除（Simply release）：クリップ状態を解除（グループは維持） / Release clipping, keep group

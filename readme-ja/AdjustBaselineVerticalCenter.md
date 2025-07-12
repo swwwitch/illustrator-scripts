@@ -8,7 +8,7 @@
 
 選択したテキストフレーム内の指定した文字（1文字以上）を、基準文字に合わせてベースライン（垂直位置）を調整します。
 
-Adjusts the baseline of one or more specified characters in one or multiple text frames to align vertically with a reference character.
+<img alt="" src="https://www.dtp-transit.jp/images/ss-426-384-72-20250713-082008.png" width="50%" />
 
 ### 処理の流れ:
 

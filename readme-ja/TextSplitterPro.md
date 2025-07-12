@@ -15,10 +15,10 @@
 
 そこで今回、これらすべての要素をひとつのスクリプトで包括的に扱えるよう、統合的な実装に取り組んでみました（※パス上文字への対応については現在調整中）。
 
-![](https://assets.st-note.com/img/1749491359-fRcWiIJBUvpTlQOYAytnD1og.png)
+<img alt="" src="https://assets.st-note.com/img/1749491359-fRcWiIJBUvpTlQOYAytnD1og.png" width="50%" />
 
 特定の文字を選択しているとき、テキストオブジェクトを選択するロジックを追加しました。
 
 ### note
 
-[【Illustrator】テキストを1文字ごとにバラバラにしたい｜DTP Transit 別館](https://note.com/dtp_tranist/n/n26b329ff743e)
+- [【Illustrator】テキストを1文字ごとにバラバラにしたい｜DTP Transit 別館](https://note.com/dtp_tranist/n/n26b329ff743e)

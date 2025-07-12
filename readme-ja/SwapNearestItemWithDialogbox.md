@@ -11,10 +11,6 @@
 - 選択中のオブジェクトと、指定方向（上下左右）にある最も近いオブジェクトの位置を入れ替える
 - ダイアログボックスを表示中、↑↓キーで上下、←→キーで左右のオブジェクトを入れ替える
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/SwapNearestItemWithDialogbox.jsx
-
-![](https://github.com/swwwitch/illustrator-scripts/blob/62637fb44f3091ec94b5c4b48094221be9e07686/png/ss-294-226-72-20250627-000819.png)
-
 ### 概要：
 選択された1つのオブジェクトを起点に、指定方向（右／左／上／下）にある最も近いオブジェクトと
 見た目上の自然な位置で入れ替えるスクリプトです。

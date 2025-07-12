@@ -10,4 +10,6 @@
 
 Figmaの⌘ + shift + Cと同様に、ビットマップとしてコピーします。
 
-[【Illustrator】Figmaの⌘ + shift + C（ビットマップとしてコピー）をIllustratorでも｜DTP Transit 別館](https://note.com/dtp_tranist/n/nf5f269788086)
+### note
+
+- [【Illustrator】Figmaの⌘ + shift + C（ビットマップとしてコピー）をIllustratorでも｜DTP Transit 別館](https://note.com/dtp_tranist/n/nf5f269788086)

@@ -27,7 +27,8 @@ ResizeClipMask.jsx
 
 ### 更新履歴
 
-- v1.0.0 (20250710) : 初期バージョン
+- v1.0 (20250710) : 初期バージョン
+- v1.1 (20250713) : ↑↓キー、shift + ↑↓キーでの値の増減機能を追加
 
 ---
 
@@ -56,11 +57,13 @@ ResizeClipMask.jsx
 
 ### Change Log
 
-- v1.0.0 (20250710): Initial release
+- v1.0 (20250710): Initial release
+- v1.1 (20250713): Added functionality for incrementing/decrementing values with arrow keys and shift + arrow keys
+
 */
 
 // スクリプトバージョン / Script version
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 // UIラベル定義（未使用項目は省略、出現順に整理）/ UI label definitions (unused items omitted, ordered as in UI)
 var LABELS = {
@@ -154,6 +157,7 @@ function showMarginDialog(defaultValue, unitLabel) {
 
     var input = inputSubGroup.add("edittext", undefined, defaultValue);
     input.characters = 4;
+    changeValueByArrowKey(input);
 
     var buttonGroup = inputSubGroup.add("group");
     buttonGroup.orientation = "row";
@@ -279,3 +283,22 @@ function main() {
 }
 
 main();
+
+function changeValueByArrowKey(editText) {
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+
+        var keyboard = ScriptUI.environment.keyboardState;
+        var delta = keyboard.shiftKey ? 10 : 1;
+
+        if (event.keyName == "Up") {
+            value += delta;
+            event.preventDefault();
+        } else if (event.keyName == "Down") {
+            value -= delta;
+            event.preventDefault();
+        }
+        editText.text = value;
+    });
+}

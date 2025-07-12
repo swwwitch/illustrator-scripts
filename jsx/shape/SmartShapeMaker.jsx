@@ -1,101 +1,50 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-
 /*
-### スクリプト名：
-
 SmartShapeMaker.jsx
 
-### 概要
+Illustrator script to create custom shapes by combining Rectangle, Ellipse, Polygon, and Star tools into one dialog.
+Features include real-time preview, adjustable sides, radii, rotation angle, and live shape option.
+Supports Japanese and English UI.
 
-- 「長方形ツール」「楕円形ツール」「多角形ツール」「スターツール」を一つのダイアログにまとめ、自由にカスタム図形を作成するIllustrator用スクリプトです。
-- リアルタイムプレビューで確認しながら、辺の数、半径、回転角度、ライブシェイプ化など多彩な設定が可能です。
-
-### 主な機能
-
-- 辺数指定（正多角形、円、カスタム）
-- スターおよび五芒星オプション
-- 外半径、内半径（比率％）の調整
-- 回転角度自動計算および手動設定
-- 幅（サイズ）指定、ライブシェイプ生成オプション
-- 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. ダイアログで辺の数、サイズ、半径比、回転角度、オプションを設定
-2. リアルタイムプレビューで確認
-3. OKを押すとアートボード中央に図形を描画
-
-### オリジナル、謝辞
-
-オリジナルアイデア：宮澤聖二さん（三階ラボ）
-
-### 更新履歴
-
-- v1.0.0 (20250503) : 初期バージョン
-
----
-
-### Script Name:
-
-SmartShapeMaker.jsx
-
-### Overview
-
-- An Illustrator script that combines "Rectangle Tool", "Ellipse Tool", "Polygon Tool", and "Star Tool" into a single dialog for flexible shape creation.
-- Allows setting sides, radii, rotation angle, live shape option, with real-time preview.
-
-### Main Features
-
-- Specify number of sides (polygons, circle, custom)
+Main Features:
+- Specify number of sides (including circle and custom)
 - Star and pentagram options
 - Adjust outer radius and inner radius (percentage)
 - Automatic or manual rotation angle
-- Specify width (size), option to create as live shape
-- Japanese and English UI support
+- Specify width (size) and option to create live shape
 
-### Process Flow
+Usage Flow:
+1. Set sides, size, radius ratio, rotation, and options in dialog
+2. Preview shape in real-time
+3. Click OK to draw shape at artboard center
 
-1. Configure sides, size, radius ratio, rotation angle, and options in the dialog
-2. Check in real-time preview
-3. Click OK to draw the shape at the center of the artboard
-
-### Original / Acknowledgements
-
-Original idea: Seiji Miyazawa (Sankai Lab)
-
-### Update History
-
-- v1.0.0 (20250503): Initial version
+Original Idea: Seiji Miyazawa (Sankai Lab)
+Version: v1.0.0 (20250503)
 */
 
-
-// -------------------------------
-// 日英ラベル定義 / Define labels
-// -------------------------------
+// Language detection
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 var lang = getCurrentLang();
 
 var LABELS = {
-    dialogTitle:     { ja: "図形の作成", en: "Create Shape" },
-    shapeType:       { ja: "辺の数", en: "Sides" },
-    starPanel:       { ja: "スター", en: "Star" },
-    outerRadius:     { ja: "第1半径：", en: "Outer Radius:" },
-    innerRadius:     { ja: "第2半径：", en: "Inner Radius:" },
-    percent:         { ja: "%", en: "%" },
-    custom:          { ja: "それ以外", en: "Other" },
-    rotation:        { ja: "回転", en: "Rotate" },
-    width:           { ja: "幅：", en: "Width:" },
-    unitLabel:       { ja: "（単位）", en: "(unit)" },
-    liveShape:       { ja: "ライブシェイプ", en: "Live Shape" },
-    ok:              { ja: "OK", en: "OK" },
-    cancel:          { ja: "キャンセル", en: "Cancel" },
-    pentagram:       { ja: "五芒星", en: "Pentagram" },
-    star:            { ja: "スター", en: "Star" },
-    circle:            { ja: "円", en: "Circle" }
+    dialogTitle: { ja: "図形の作成", en: "Create Shape" },
+    shapeType: { ja: "辺の数", en: "Sides" },
+    circle: { ja: "円", en: "Circle" },
+    custom: { ja: "それ以外", en: "Other" },
+    starPanel: { ja: "スター", en: "Star" },
+    star: { ja: "スター", en: "Star" },
+    innerRadius: { ja: "第2半径：", en: "Inner Radius:" },
+    percent: { ja: "%", en: "%" },
+    pentagram: { ja: "五芒星", en: "Pentagram" },
+    rotation: { ja: "回転", en: "Rotate" },
+    width: { ja: "幅：", en: "Width:" },
+    liveShape: { ja: "ライブシェイプ", en: "Live Shape" },
+    ok: { ja: "OK", en: "OK" },
+    cancel: { ja: "キャンセル", en: "Cancel" }
 };
 
 var previewShape = null;
@@ -111,6 +60,25 @@ function main() {
     if (applyLiveShape) app.executeMenuCommand('Convert to Shape');
 }
 
+// Adjust value with arrow keys (Up/Down)
+function changeValueByArrowKey(editText) {
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+        var keyboard = ScriptUI.environment.keyboardState;
+        var delta = keyboard.shiftKey ? 10 : 1;
+        if (event.keyName == "Up") {
+            value += delta;
+            event.preventDefault();
+        } else if (event.keyName == "Down") {
+            value -= delta;
+            event.preventDefault();
+        }
+        editText.text = value;
+    });
+}
+
+// Get ruler unit label and factor for conversion
 function getRulerUnitInfo() {
     var t = app.preferences.getIntegerPreference("rulerType");
     var u = { label: "pt", factor: 1.0 };
@@ -123,11 +91,13 @@ function getRulerUnitInfo() {
     return u;
 }
 
+// Format angle display with up to 3 decimals or integer
 function formatAngle(value) {
     var rounded = Math.round(value * 1000) / 1000;
     return (rounded % 1 === 0) ? String(Math.round(rounded)) : String(rounded);
 }
 
+// Get selected side count from radio buttons or custom input
 function getSelectedSideValue(radios, input) {
     for (var i = 0; i < radios.length; i++) {
         if (radios[i].value) {
@@ -137,12 +107,14 @@ function getSelectedSideValue(radios, input) {
     return 4;
 }
 
+// Finalize shape selection and clear preview reference
 function finalizeShape(doc) {
     if (!previewShape) return;
     doc.selection = [previewShape];
     previewShape = null;
 }
 
+// Create shape based on parameters
 function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle) {
     var layer = doc.activeLayer;
     layer.locked = false;
@@ -177,6 +149,7 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
     return shape;
 }
 
+// Show input dialog and handle UI and events
 function showInputDialog(unitLabel, unitFactor) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
@@ -203,6 +176,7 @@ function showInputDialog(unitLabel, unitFactor) {
     customInput = customGroup.add("edittext", undefined, "12");
     customInput.characters = 3;
     customInput.enabled = false;
+    changeValueByArrowKey(customInput);
     radios[2].value = true;
 
     var rotatePanel = dlg.add("group");
@@ -212,6 +186,7 @@ function showInputDialog(unitLabel, unitFactor) {
     var rotateCheck = rotatePanel.add("checkbox", undefined, LABELS.rotation[lang]);
     var rotateInput = rotatePanel.add("edittext", undefined, "90");
     rotateInput.characters = 4;
+    changeValueByArrowKey(rotateInput);
     var rotateLabel = rotatePanel.add("statictext", undefined, "°");
 
     var right = main.add("panel", undefined, LABELS.starPanel[lang]);
@@ -226,6 +201,7 @@ function showInputDialog(unitLabel, unitFactor) {
     innerGroup.add("statictext", undefined, LABELS.innerRadius[lang]);
     var innerRatioInput = innerGroup.add("edittext", undefined, "30");
     innerRatioInput.characters = 4;
+    changeValueByArrowKey(innerRatioInput);
     innerGroup.add("statictext", undefined, LABELS.percent[lang]);
 
     var pentagramCheck = right.add("checkbox", undefined, LABELS.pentagram[lang]);
@@ -243,19 +219,20 @@ function showInputDialog(unitLabel, unitFactor) {
 
     bottomGroup.add("statictext", undefined, LABELS.width[lang]);
     bottomGroup.orientation = "row";
-    bottomGroup.alignChildren = ["left", "center"]; 
+    bottomGroup.alignChildren = ["left", "center"];
     var sizeInput = bottomGroup.add("edittext", undefined, "100");
     sizeInput.characters = 5;
+    changeValueByArrowKey(sizeInput);
     bottomGroup.add("statictext", undefined, "(" + unitLabel + ")");
 
     var liveShapeCheck = bottomGroup.add("checkbox", undefined, LABELS.liveShape[lang]);
     liveShapeCheck.value = true;
 
+    // Enable/disable star and pentagram options
     function validateStarAndPentagram() {
         starCheck.enabled = true;
         if (!starCheck.value) pentagramCheck.value = false;
         pentagramCheck.enabled = starCheck.value;
-
         if (pentagramCheck.value) {
             for (var i = 0; i < 6; i++) radios[i].value = false;
             radios[3].value = true;
@@ -263,6 +240,7 @@ function showInputDialog(unitLabel, unitFactor) {
         }
     }
 
+    // Update preview shape based on inputs
     function updatePreview() {
         validateStarAndPentagram();
 
@@ -294,7 +272,7 @@ function showInputDialog(unitLabel, unitFactor) {
         }
     }
 
-    // イベント設定
+    // Event bindings
     starCheck.onClick = updatePreview;
     pentagramCheck.onClick = updatePreview;
     innerRatioInput.onChanging = function () {
@@ -332,16 +310,15 @@ function showInputDialog(unitLabel, unitFactor) {
         dlg.location = [dlg.location[0] + 300, dlg.location[1]];
     });
 
-var btnArea = dlg.add("group");
-btnArea.orientation = "row";
-btnArea.alignChildren = ["right", "center"]; // ★ 右寄せに変更
-btnArea.alignment = "right";                // ★ ダイアログ内で右寄せ
-btnArea.margins = [0, 10, 0, 0];
-btnArea.spacing = 10; // ボタン間のスペース
+    var btnArea = dlg.add("group");
+    btnArea.orientation = "row";
+    btnArea.alignChildren = ["right", "center"];
+    btnArea.alignment = "right";
+    btnArea.margins = [0, 10, 0, 0];
+    btnArea.spacing = 10;
 
-
-var btnCancel = btnArea.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
-var btnOK     = btnArea.add("button", undefined, LABELS.ok[lang],     { name: "ok" });
+    var btnCancel = btnArea.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
+    var btnOK = btnArea.add("button", undefined, LABELS.ok[lang], { name: "ok" });
 
     var confirmed = false;
     btnCancel.onClick = function () { dlg.close(); };
@@ -367,4 +344,5 @@ var btnOK     = btnArea.add("button", undefined, LABELS.ok[lang],     { name: "o
         rotateAngle: parseFloat(rotateInput.text)
     };
 }
+
 main();

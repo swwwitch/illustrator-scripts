@@ -8,4 +8,6 @@
 
 アートボードまたは選択オブジェクトに対してトリムマークを作成し、「トンボ」レイヤーに配置してロックします。あわせて対象オブジェクトを複製し、ガイドに変換します。
 
-[【Illustrator】塗り足し部分を隠すオブジェクト作成をスクプトを使って1ステップで準備する（Illustratorのアクション、スクリプト）｜DTP Transit 別館](https://note.com/dtp_tranist/n/n602696048b72)
+### note
+
+- [【Illustrator】塗り足し部分を隠すオブジェクト作成をスクプトを使って1ステップで準備する（Illustratorのアクション、スクリプト）｜DTP Transit 別館](https://note.com/dtp_tranist/n/n602696048b72)

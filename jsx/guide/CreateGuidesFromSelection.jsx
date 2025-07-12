@@ -46,6 +46,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGuid
 - v1.6 (20250712) : コードリファクタリング、ラジオボタンの表示切り替え機能追加
 - v1.7 (20250712) : 複数オブジェクトごとにガイドを作成するオプション追加、アートボード基準のガイド作成機能改善
 - v1.8 (20250712) : 中心線（垂直のみ）、中心線（水平のみ）の描画ロジックを追加
+- v1.9 (20250712) : ↑↓キー、shift + ↑↓キーでの値の増減機能を追加
 
 ### Script Name:
 
@@ -85,13 +86,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuid
 - v1.6 (20250712): refactored code, added radio button visibility toggle feature
 - v1.7 (20250712): Added option to create guides per object, improved artboard-based guide creation
 - v1.8 (20250712): Added center line (vertical only) and center line (horizontal only) drawing logic
+- v1.9 (20250712): Added up/down arrow key and shift + up/down key value increment/decrement functionality
 
 */
 
 // --- グローバル定義 / Global definitions ---
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.8";
+var SCRIPT_VERSION = "v1.9";
 
 
 // --- 右側ラジオボタン定義と出し入れ設定 / Add right-side radio buttons in dialog order ---
@@ -682,6 +684,7 @@ function buildDialog() {
     var marginInput = marginGroup.add("edittext", undefined, "20");
     marginInput.characters = 3;
     marginGroup.add("statictext", undefined, getCurrentUnitLabel());
+    changeValueByArrowKey(marginInput);
 
     var axisGroup = leftGroup.add("panel", undefined, undefined, {
         name: "axisGroup"
@@ -895,6 +898,7 @@ function buildDialog() {
     offsetInput.characters = 3;
     offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
     offsetInput.active = true;
+    changeValueByArrowKey(offsetInput);
     // --- 「裁ち落とし」(marginInput) を「カンバス」選択時にディム表示する制御を追加 / Disable margin input if canvas is selected ---
     function updateMarginEnabled() {
         if (rbCanvas.value) {
@@ -1000,3 +1004,26 @@ function buildDialog() {
 }
 
 buildDialog();
+
+/**
+ * テキストフィールドで上下矢印キーによる数値増減を可能にする
+ * Enable value change with up/down arrow keys in an edittext
+ */
+function changeValueByArrowKey(editText) {
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+
+        var keyboard = ScriptUI.environment.keyboardState;
+        var delta = keyboard.shiftKey ? 10 : 1;
+
+        if (event.keyName == "Up") {
+            value += delta;
+            event.preventDefault();
+        } else if (event.keyName == "Down") {
+            value -= delta;
+            event.preventDefault();
+        }
+        editText.text = value;
+    });
+}

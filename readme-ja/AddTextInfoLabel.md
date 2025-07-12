@@ -39,9 +39,7 @@
 更新日：2025-04-23（表示項目の無効化制御とspacing設定を追加）
 最終更新日：2025-04-24（行送り（%）の誤判定を修正し、正確な表示に対応）
 
- https://youtu.be/8ClvEwyFoAw
-
-![ss-446-742-72-20250430-182416](https://github.com/user-attachments/assets/cec5ce38-37d4-4248-bd61-9daec334a213)
+<img alt="" src="ss-446-742-72-20250430-182416](https://github.com/user-attachments/assets/cec5ce38-37d4-4248-bd61-9daec334a213" width="50%" />
 
 - 表示形式は「詳細表示」と「簡易表示」から選択可能
 - 詳細表示はエリア内文字、簡易版はポイント文字で出力される
@@ -63,4 +61,10 @@
 
 簡易版のときには「 *」が対象です。
 
+### note
+
 [【Illustrator】選択したテキストのフォント名、フォントサイズなどをテキストとして生成する｜DTP Transit 別館](https://note.com/dtp_tranist/n/n607ef418877f)
+
+### 動画
+
+[https://youtu.be/8ClvEwyFoAw](https://youtu.be/8ClvEwyFoAw)

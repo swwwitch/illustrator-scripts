@@ -24,7 +24,11 @@
 - 整列方向：選択した基準に応じて「左」「右」「上」「下」を指定可能
     
     使用できない整列方向は自動的に無効化される
-    
-![ss-562-720-72-20250602-073450](https://github.com/user-attachments/assets/7eb7dab5-fdf4-45c4-94d4-ecc33cde8277)
 
-[【Illustrator】選択したオブジェクトを幅や高さ、不透明度、カラーでソートするスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n663264db75ff)
+
+![](https://www.dtp-transit.jp/images/ss-1038-924-72-20250713-081248.png)
+
+
+### note
+
+- [【Illustrator】選択したオブジェクトを幅や高さ、不透明度、カラーでソートするスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n663264db75ff)

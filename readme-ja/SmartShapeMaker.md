@@ -6,7 +6,11 @@
 
 ---
 
+### ムービー
+
 https://youtu.be/EoUUIdbC0IU
+
+<img alt="" src="https://www.dtp-transit.jp/images/ss-736-878-72-20250713-075733.png" width="50%" />
 
 - ダイアログボックスで、［辺の数］、［幅］を指定できます。
 - 図形はリアルタイムでプレビュー表示され、OKを押すと確定して描かれます。
