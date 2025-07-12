@@ -2,15 +2,16 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### スクリプト名：
 
 FitArtboardWithMargin.jsx
 
 ### 概要
 
-- 選択オブジェクトまたは全オブジェクトの外接バウンディングボックスにマージンを加え、アートボードを自動調整します。
-- 定規単位に応じた初期マージン値設定と即時プレビュー可能なダイアログを提供します。
-- ピクセル整数値に丸めたアートボードサイズを適用します。
+- 選択オブジェクトまたはすべてのオブジェクトのバウンディングボックスにマージンを加え、アートボードを自動調整します。
+- 定規単位に応じた初期マージン値と即時プレビュー付きダイアログを提供します。
+- ピクセル整数値に丸めてアートボードを設定します。
 
 ### 主な機能
 
@@ -21,22 +22,14 @@ FitArtboardWithMargin.jsx
 
 ### 処理の流れ
 
-1. 選択オブジェクトまたはアートボードを対象に選択
-2. マージン値をダイアログで設定（即時プレビュー対応）
-3. 設定値に基づきアートボードサイズを自動調整
+1. 対象（選択オブジェクトまたはアートボード）を選択
+2. ダイアログでマージン値を設定（即時プレビュー対応）
+3. 設定に基づきアートボードを自動調整
 
 ### オリジナル、謝辞
 
 Gorolib Design
 https://gorolib.blog.jp/archives/71820861.html
-
-### オリジナルからの変更点
-
-- 数字入力支援（+/-ボタン、0ボタン）
-- ダイアログボックスを閉じずにプレビュー更新
-- 単位系（mm、px など）によってデフォルト値を切り替え
-- アートボードの座標・サイズをピクセルベースで整数値に
-- オブジェクトを選択していない場合には、すべてのオブジェクトを対象に
 
 ### note
 
@@ -44,10 +37,13 @@ https://note.com/dtp_tranist/n/n15d3c6c5a1e5
 
 ### 更新履歴
 
-- v1.3 (2025-07-10) : 「対象：現在のアートボート、すべてのアートボード」を追加
-- v1.2 (2025-07-09) : UI改善とバグ修正
-- v1.1 (2025-07-08) : UI改善、ポイント初期値変更
-- v1.0 (2025-04-20) : 初期バージョン
+- v1.0 (20250420) : 初期バージョン
+- v1.1 (20250708) : UI改善、ポイント初期値変更
+- v1.2 (20250709) : UI改善とバグ修正
+- v1.3 (20250710) : 「対象：現在のアートボード、すべてのアートボード」を追加
+- v1.4 (20250713) : 矢印キーによる値変更機能を追加、UI改善
+
+---
 
 ### Script Name:
 
@@ -56,28 +52,29 @@ FitArtboardWithMargin.jsx
 ### Overview
 
 - Automatically resize the artboard to fit the bounding box of selected or all objects with margin.
-- Provides unit-based initial margin values and an immediate preview dialog.
-- Applies artboard size rounded to pixel integer values.
+- Provides unit-based default margin values and an instant preview dialog.
+- Sets the artboard size rounded to pixel integers.
 
 ### Main Features
 
 - Default margin values based on ruler units
 - Bounding box calculation
-- Dialog with instant preview
-- Rounding to integer pixels
+- Dialog with live preview
+- Integer pixel rounding
 
 ### Workflow
 
 1. Select target (selection or artboard)
 2. Set margin value in dialog (with live preview)
-3. Adjust artboard size automatically based on settings
+3. Automatically adjust artboard size based on settings
 
 ### Changelog
 
-- v1.3 (2025-07-10): UI improvements, added panel and radio buttons
-- v1.2 (2025-07-09): UI improvements and bug fixes
-- v1.1 (2025-07-08): UI improvements, updated default point value
-- v1.0 (2025-04-20): Initial version
+- v1.0 (20250420): Initial version
+- v1.1 (20250708): UI improvements, updated default point value
+- v1.2 (20250709): UI improvements and bug fixes
+- v1.3 (20250710): Added "Target: Current Artboard, All Artboards" options
+- v1.4 (20250713): Added arrow key value change feature, UI improvements
 
 */
 
@@ -86,10 +83,13 @@ function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 
-// スクリプトバージョン / Script version
-var SCRIPT_VERSION = "v1.3";
+/* スクリプトバージョン / Script version */
+var SCRIPT_VERSION = "v1.4";
 
-// UIラベル定義 / UI Label Definitions
+/*
+UIラベル定義 / UI Label Definitions
+必要なキーのみを保持し、表示順序をUIに合わせる
+*/
 var LABELS = {
     dialogTitle: {
         ja: "アートボードサイズを調整 " + SCRIPT_VERSION,
@@ -120,12 +120,16 @@ var LABELS = {
 /*
 マージンダイアログ表示 / Show margin input dialog with live preview
 */
+/*
+マージンダイアログ表示 / Show margin input dialog with live preview
+*/
 function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
     dlg.alignChildren = "fill";
     dlg.margins = 15;
 
+    /* 対象選択パネル / Target selection panel */
     var targetPanel = dlg.add("panel", undefined, lang === 'ja' ? "対象" : "Target");
     targetPanel.orientation = "column";
     targetPanel.alignChildren = "left";
@@ -140,6 +144,7 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
     var radioArtboard = radioGroup.add("radiobutton", undefined, LABELS.targetArtboard[lang]);
     var radioAllArtboards = radioGroup.add("radiobutton", undefined, LABELS.targetAllArtboards[lang]);
 
+    // 対象選択の初期値設定 / Set initial radio selection
     if (!hasSelection && artboardCount === 1) {
         radioArtboard.value = true;
     } else if (!hasSelection && artboardCount > 1) {
@@ -148,156 +153,100 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
         radioSelection.value = true;
     }
 
-    // --- Margin input panel ---
-    var marginPanel = dlg.add("panel", undefined, LABELS.marginLabel[lang]+ " (" + unit + ")");
-    marginPanel.orientation = "column";
-    marginPanel.alignChildren = ["center", "top"];
-    marginPanel.margins = [15, 20, 15, 10];
-
-    var inputSubGroup = marginPanel.add("group");
+    /* マージン入力グループ / Margin input group */
+    var inputSubGroup = dlg.add("group");
     inputSubGroup.orientation = "row";
-
+    var label = inputSubGroup.add("statictext", undefined, LABELS.marginLabel[lang] + ":");
     var input = inputSubGroup.add("edittext", undefined, defaultValue);
     input.characters = 4;
+    var unitLabel = inputSubGroup.add("statictext", undefined, unit);
 
-    var buttonGroup = inputSubGroup.add("group");
-    buttonGroup.orientation = "row";
-    buttonGroup.spacing = 1;
-
-    var plusMinusGroup = buttonGroup.add("group");
-    plusMinusGroup.orientation = "column";
-    plusMinusGroup.spacing = 1;
-
-    var plusBtn = plusMinusGroup.add("button", [0, 0, 20, 15], "+");
-    var minusBtn = plusMinusGroup.add("button", [0, 0, 20, 15], "-");
-
-    var zeroGroup = buttonGroup.add("group");
-    zeroGroup.orientation = "column";
-    zeroGroup.alignChildren = ["center", "center"];
-
-    var zeroBtn = zeroGroup.add("button", [0, 0, 20, 31], "0");
-
-    /* アートボード座標を保存 / Save original artboard coordinates */
+    /* 現在のアートボードrectと全アートボードrectを保存（プレビュー用に復元） */
     var abIndex = app.activeDocument.artboards.getActiveArtboardIndex();
-    var originalRect = app.activeDocument.artboards[abIndex].artboardRect.slice();
-    /* 全アートボードのrectも保存 / Save all artboard rects */
     var originalRects = [];
     for (var i = 0; i < app.activeDocument.artboards.length; i++) {
         originalRects.push(app.activeDocument.artboards[i].artboardRect.slice());
     }
 
-    zeroBtn.onClick = function() {
-        input.text = "0";
-        updatePreview(input.text);
-    };
-
-    plusBtn.onClick = function() {
-        var val = parseFloat(input.text);
-        if (!isNaN(val)) {
-            val += 1;
-            input.text = val.toString();
-            updatePreview(input.text);
-        }
-    };
-
-    minusBtn.onClick = function() {
-        var val = parseFloat(input.text);
-        if (!isNaN(val)) {
-            val = Math.max(0, val - 1);
-            input.text = val.toString();
-            updatePreview(input.text);
-        }
-    };
-
-    /* プレビュー更新 / Update artboard preview */
+    /*
+    プレビュー更新関数 / Update artboard preview for dialog
+    入力値・対象に応じてアートボードを一時的に調整
+    */
     function updatePreview(value) {
         var previewValue = parseFloat(value);
-        if (!isNaN(previewValue)) {
-            var previewMarginInPoints = new UnitValue(previewValue, unit).as('pt');
-            var targetMode = radioSelection.value ? "selection" : (radioArtboard.value ? "artboard" : "allArtboards");
+        if (isNaN(previewValue)) return;
+        var previewMarginInPoints = new UnitValue(previewValue, unit).as('pt');
+        var targetMode = radioSelection.value ? "selection" : (radioArtboard.value ? "artboard" : "allArtboards");
 
-            if (targetMode === "allArtboards") {
-                for (var i = 0; i < app.activeDocument.artboards.length; i++) {
-                    /* 元のrectからマージンを加減 / Adjust margin from original rect */
-                    var baseRect = originalRects[i].slice();
-                    var bounds = baseRect;
-                    bounds[0] -= previewMarginInPoints;
-                    bounds[1] += previewMarginInPoints;
-                    bounds[2] += previewMarginInPoints;
-                    bounds[3] -= previewMarginInPoints;
-                    app.activeDocument.artboards[i].artboardRect = bounds;
-                }
-                app.redraw();
-                return;
-            }
-            if (targetMode === "artboard") {
-                /* 現在アクティブアートボードの元のrectからマージンを加減 / Adjust margin from active artboard rect */
-                var baseRect = originalRects[abIndex].slice();
+        if (targetMode === "allArtboards") {
+            for (var i = 0; i < app.activeDocument.artboards.length; i++) {
+                var baseRect = originalRects[i].slice();
                 var bounds = baseRect;
                 bounds[0] -= previewMarginInPoints;
                 bounds[1] += previewMarginInPoints;
                 bounds[2] += previewMarginInPoints;
                 bounds[3] -= previewMarginInPoints;
-                app.activeDocument.artboards[abIndex].artboardRect = bounds;
-                app.redraw();
-                return;
+                app.activeDocument.artboards[i].artboardRect = bounds;
             }
-
-            /* selectionモードの場合 / If selection mode */
-            var previewItems = app.activeDocument.selection.length === 0 ? app.activeDocument.pageItems : app.activeDocument.selection;
-            var tempItems = [];
-            for (var i = 0; i < previewItems.length; i++) {
-                var item = previewItems[i];
-                if (item.typename === "GroupItem" && item.clipped) {
-                    for (var j = 0; j < item.pageItems.length; j++) {
-                        var child = item.pageItems[j];
-                        if (child.clipping) {
-                            tempItems.push(child);
-                            break;
-                        }
-                    }
-                } else {
-                    tempItems.push(item);
-                }
-            }
-            if (tempItems.length === 0) return;
-            var previewBounds = getMaxBounds(tempItems);
-            previewBounds[0] -= previewMarginInPoints;
-            previewBounds[1] += previewMarginInPoints;
-            previewBounds[2] += previewMarginInPoints;
-            previewBounds[3] -= previewMarginInPoints;
-
-            app.activeDocument.artboards[abIndex].artboardRect = previewBounds;
             app.redraw();
+            return;
         }
+        if (targetMode === "artboard") {
+            var baseRect = originalRects[abIndex].slice();
+            var bounds = baseRect;
+            bounds[0] -= previewMarginInPoints;
+            bounds[1] += previewMarginInPoints;
+            bounds[2] += previewMarginInPoints;
+            bounds[3] -= previewMarginInPoints;
+            app.activeDocument.artboards[abIndex].artboardRect = bounds;
+            app.redraw();
+            return;
+        }
+        // selectionモード
+        var previewItems = app.activeDocument.selection.length === 0 ? app.activeDocument.pageItems : app.activeDocument.selection;
+        var tempItems = [];
+        for (var i = 0; i < previewItems.length; i++) {
+            var item = previewItems[i];
+            if (item.typename === "GroupItem" && item.clipped) {
+                for (var j = 0; j < item.pageItems.length; j++) {
+                    var child = item.pageItems[j];
+                    if (child.clipping) {
+                        tempItems.push(child);
+                        break;
+                    }
+                }
+            } else {
+                tempItems.push(item);
+            }
+        }
+        if (tempItems.length === 0) return;
+        var previewBounds = getMaxBounds(tempItems);
+        previewBounds[0] -= previewMarginInPoints;
+        previewBounds[1] += previewMarginInPoints;
+        previewBounds[2] += previewMarginInPoints;
+        previewBounds[3] -= previewMarginInPoints;
+        app.activeDocument.artboards[abIndex].artboardRect = previewBounds;
+        app.redraw();
     }
 
+    // 入力欄で矢印キーによる増減を可能に / Enable arrow key increment/decrement in input
+    changeValueByArrowKey(input, updatePreview);
+    input.active = true;
     input.onChanging = function() {
         updatePreview(input.text);
     };
+    radioSelection.onClick = function() { updatePreview(input.text); };
+    radioArtboard.onClick = function() { updatePreview(input.text); };
+    radioAllArtboards.onClick = function() { updatePreview(input.text); };
 
-    radioSelection.onClick = function() {
-        updatePreview(input.text);
-    };
-    radioArtboard.onClick = function() {
-        updatePreview(input.text);
-    };
-    radioAllArtboards.onClick = function() {
-        updatePreview(input.text);
-    };
-
+    /* ボタングループ / Button group */
     var btnGroup = dlg.add("group");
     btnGroup.alignment = "center";
-    var cancelBtn = btnGroup.add("button", undefined, lang === 'ja' ? "キャンセル" : "Cancel", {
-        name: "cancel"
-    });
-    var okBtn = btnGroup.add("button", undefined, lang === 'ja' ? "OK" : "OK", {
-        name: "ok"
-    });
+    var cancelBtn = btnGroup.add("button", undefined, lang === 'ja' ? "キャンセル" : "Cancel", { name: "cancel" });
+    var okBtn = btnGroup.add("button", undefined, lang === 'ja' ? "OK" : "OK", { name: "ok" });
     btnGroup.margins = [0, 5, 0, 0];
 
     var result = null;
-
     okBtn.onClick = function() {
         if (!isNaN(parseFloat(input.text))) {
             result = {
@@ -310,7 +259,6 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
             alert(LABELS.numberAlert[lang]);
         }
     };
-
     cancelBtn.onClick = function() {
         /* プレビューで変更した全アートボードrectを元に戻す / Restore all artboard rects after preview */
         for (var i = 0; i < app.activeDocument.artboards.length; i++) {
@@ -319,9 +267,7 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
         app.redraw();
         dlg.close();
     };
-
     updatePreview(defaultValue);
-
     dlg.show();
     return result;
 }
@@ -435,11 +381,14 @@ function main() {
         }
 
         if (targetMode === "selection") {
+            /*
+            グループ内の clipping=true のみ抽出し直す
+            Only add path with clipping=true in group
+            */
             var tempItems = [];
             for (var i = 0; i < selectedItems.length; i++) {
                 var item = selectedItems[i];
                 if (item.typename === "GroupItem" && item.clipped) {
-                    /* グループ内の clipping=true のパスのみ追加 / Only add path with clipping=true in group */
                     for (var j = 0; j < item.pageItems.length; j++) {
                         var child = item.pageItems[j];
                         if (child.clipping) {
@@ -505,10 +454,34 @@ function getMaxBounds(items) {
 
 /*
 オブジェクトのバウンディングボックスを取得 / Get bounding box of a single object
+visibleBounds を常に使用
 */
 function getBounds(item) {
-    /* visibleBounds を使用して境界を取得 / Always use visibleBounds to get bounds */
     return item.visibleBounds;
+}
+
+/*
+edittextに矢印キーで値を増減する機能を追加
+Add arrow key increment/decrement to edittext
+*/
+function changeValueByArrowKey(editText, onUpdate) {
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+        var keyboard = ScriptUI.environment.keyboardState;
+        var delta = keyboard.shiftKey ? 10 : 1;
+        if (event.keyName == "Up") {
+            value += delta;
+            event.preventDefault();
+        } else if (event.keyName == "Down") {
+            value -= delta;
+            event.preventDefault();
+        }
+        editText.text = value;
+        if (typeof onUpdate === "function") {
+            onUpdate(editText.text);
+        }
+    });
 }
 
 main();
