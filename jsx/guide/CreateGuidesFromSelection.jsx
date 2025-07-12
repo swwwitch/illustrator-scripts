@@ -38,6 +38,7 @@ CreateGuidesFromSelection.jsx
 - v1.5 (20250711) : 左上、左下、右上、右下モードを追加（それぞれ2本のガイドを作成）
 - v1.6 (20250712) : コードリファクタリング、ラジオボタンの表示切り替え機能追加
 - v1.6.1 (20250712) : 微調整
+- v1.6.2 (20250712) : 単位設定
 
 ### Script Name:
 
@@ -72,10 +73,12 @@ CreateGuidesFromSelection.jsx
 - v1.3 (20250712): Code refactor and radio button visibility toggle
 - v1.6 (20250712): refactored code, added radio button visibility toggle feature
 - v1.6.1 (20250712): Minor adjustments
+- v1.6.2 (20250712): Unit settings
 
 */
 
 // --- グローバル定義 / Global definitions ---
+
 // スクリプトバージョン
 var SCRIPT_VERSION = "v1.6";
 
@@ -230,6 +233,29 @@ var LABELS = {
     }
 };
 
+// --- 単位コードとラベルのマップ / Unit code and label map ---
+var unitLabelMap = {
+    0: "in",
+    1: "mm",
+    2: "pt",
+    3: "pica",
+    4: "cm",
+    5: "H",
+    6: "px",
+    7: "ft/in",
+    8: "m",
+    9: "yd",
+    10: "ft"
+};
+
+/**
+ * 現在の単位ラベルを取得
+ * Get current ruler unit label
+ */
+function getCurrentUnitLabel() {
+    var unitCode = app.preferences.getIntegerPreference("rulerType");
+    return unitLabelMap[unitCode] || "pt";
+}
 
 var canvasSize = 227 * 72; // カンバスサイズ（pt）/ canvas size (pt)
 
@@ -414,6 +440,23 @@ function createGuide(layer, pos, orientation, useCanvas, marginValue) {
     guide.guides = true;
 }
 
+function getPtFactorFromUnitCode(code) {
+    switch (code) {
+        case 0: return 72.0;                        // in
+        case 1: return 72.0 / 25.4;                 // mm
+        case 2: return 1.0;                         // pt
+        case 3: return 12.0;                        // pica
+        case 4: return 72.0 / 2.54;                 // cm
+        case 5: return 72.0 / 25.4 * 0.25;          // Q or H
+        case 6: return 1.0;                         // px
+        case 7: return 72.0 * 12.0;                 // ft/in
+        case 8: return 72.0 / 25.4 * 1000.0;        // m
+        case 9: return 72.0 * 36.0;                 // yd
+        case 10: return 72.0 * 12.0;                // ft
+        default: return 1.0;
+    }
+}
+
 /**
  * メインダイアログを構築・表示 / Build and show the main dialog
  */
@@ -458,7 +501,7 @@ function buildDialog() {
     marginGroup.add("statictext", undefined, LABELS.margin[lang]);
     var marginInput = marginGroup.add("edittext", undefined, "20");
     marginInput.characters = 3;
-    marginGroup.add("statictext", undefined, "pt");
+    marginGroup.add("statictext", undefined, getCurrentUnitLabel());
 
     var axisGroup = leftGroup.add("panel", undefined, undefined, {
         name: "axisGroup"
@@ -636,7 +679,8 @@ function buildDialog() {
     offsetGroup.add("statictext", undefined, LABELS.offset[lang]);
     var offsetInput = offsetGroup.add("edittext", undefined, "0");
     offsetInput.characters = 3;
-    offsetGroup.add("statictext", undefined, "pt");
+    offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
+    offsetInput.active = true;
     // --- 「裁ち落とし」(marginInput) を「カンバス」選択時にディム表示する制御を追加 / Disable margin input if canvas is selected ---
     function updateMarginEnabled() {
         if (rbCanvas.value) {
@@ -692,7 +736,11 @@ function buildDialog() {
             if (isNaN(offsetVal)) offsetVal = 0;
             var marginVal = parseFloat(marginInput.text);
             if (isNaN(marginVal)) marginVal = 0;
-            createGuidesFromSelection(options, useCanvas, offsetVal, marginVal);
+            var unitCode = app.preferences.getIntegerPreference("rulerType");
+            var ptFactor = getPtFactorFromUnitCode(unitCode);
+            var offsetValPt = offsetVal * ptFactor;
+            var marginValPt = marginVal * ptFactor;
+            createGuidesFromSelection(options, useCanvas, offsetValPt, marginValPt);
         } catch (e) {
             alert(LABELS.alertGuideError[lang] + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
         }
