@@ -31,6 +31,10 @@ CreateGuidesFromSelection.jsx
 
 https://note.com/dtp_tranist/n/nd1359cf41a2c
 
+### GitHub
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGuidesFromSelection.md
+
 ### 更新履歴
 
 - v1.0 (20250711) : 初期バージョン
@@ -41,6 +45,7 @@ https://note.com/dtp_tranist/n/nd1359cf41a2c
 - v1.5 (20250711) : 左上、左下、右上、右下モードを追加（それぞれ2本のガイドを作成）
 - v1.6 (20250712) : コードリファクタリング、ラジオボタンの表示切り替え機能追加
 - v1.7 (20250712) : 複数オブジェクトごとにガイドを作成するオプション追加、アートボード基準のガイド作成機能改善
+- v1.8 (20250712) : 中心線（垂直のみ）、中心線（水平のみ）の描画ロジックを追加
 
 ### Script Name:
 
@@ -67,6 +72,10 @@ CreateGuidesFromSelection.jsx
 - Temporarily outline and expand appearance for text, then restore
 - Add guides to "_guide" layer and lock
 
+### GitHub
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuidesFromSelection.md
+
 ### Update History
 
 - v1.0 (20250711): Initial version
@@ -75,24 +84,28 @@ CreateGuidesFromSelection.jsx
 - v1.3 (20250712): Code refactor and radio button visibility toggle
 - v1.6 (20250712): refactored code, added radio button visibility toggle feature
 - v1.7 (20250712): Added option to create guides per object, improved artboard-based guide creation
+- v1.8 (20250712): Added center line (vertical only) and center line (horizontal only) drawing logic
 
 */
 
 // --- グローバル定義 / Global definitions ---
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.7";
+var SCRIPT_VERSION = "v1.8";
 
 // --- 右側ラジオボタン表示設定（必要に応じて true/false 切り替え） ---
-var showRbAllOn      = true;   // すべて / All
-var showRbShihen     = true;   // 四辺 / Edges
-var showRbTopBottom  = true;   // 上下 / Top & Bottom
-var showRbLeftRight  = true;   // 左右 / Left & Right
-var showRbTopLeft    = true;   // 左上 / Top Left
-var showRbBottomLeft = false;  // 左下 / Bottom Left
-var showRbTopRight   = false;  // 右上 / Top Right
+var showRbAllOn = true; // すべて / All
+var showRbShihen = true; // 四辺 / Edges
+var showRbTopBottom = true; // 上下 / Top & Bottom
+var showRbLeftRight = true; // 左右 / Left & Right
+var showRbTopLeft = true; // 左上 / Top Left
+var showRbBottomLeft = false; // 左下 / Bottom Left
+var showRbTopRight = false; // 右上 / Top Right
 var showRbBottomRight = false; // 右下 / Bottom Right
-var showRbClear      = true;   // クリア / Clear
+var showRbClear = true; // クリア / Clear
+var showRbCenterBoth = true; // 中心 / Center (both)
+var showRbCenterV = true; // 中心線（垂直） / Center line (vertical)
+var showRbCenterH = true; // 中心線（水平） / Center line (horizontal)
 
 /**
  * 現在のロケールを取得 / Get current locale
@@ -108,6 +121,18 @@ var lang = getCurrentLang();
  * LABELS: UIラベル。UI出現順に定義 / UI labels, defined in dialog appearance order.
  */
 var LABELS = {
+    centerBothRb: {
+        ja: "中心",
+        en: "Center"
+    },
+    centerVRb: {
+        ja: "中心線（垂直）",
+        en: "Center line (vertical)"
+    },
+    centerHRb: {
+        ja: "中心線（水平）",
+        en: "Center line (horizontal)"
+    },
     dialogTitle: {
         ja: "ガイド作成ツール " + SCRIPT_VERSION,
         en: "Guide Drawer " + SCRIPT_VERSION
@@ -321,18 +346,23 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
                 { flag: options.top, pos: top, orientation: "horizontal" },
                 { flag: options.bottom, pos: bottom, orientation: "horizontal" }
             ];
+            // Add center guides based on consistent logic
             if (options.center) {
                 directions.push({ flag: true, pos: centerX, orientation: "vertical" });
                 directions.push({ flag: true, pos: centerY, orientation: "horizontal" });
             }
-
-            for (var j = 0; j < directions.length; j++) {
-                if (directions[j].flag) {
-                    createGuide(layer, directions[j].pos, directions[j].orientation, useCanvas, marginValue);
+            if (options.centerMode === "vertical") {
+                directions.push({ flag: true, pos: centerX, orientation: "vertical" });
+            }
+            if (options.centerMode === "horizontal") {
+                directions.push({ flag: true, pos: centerY, orientation: "horizontal" });
+            }
+            for (var d = 0; d < directions.length; d++) {
+                if (directions[d].flag) {
+                    createGuide(layer, directions[d].pos, directions[d].orientation, useCanvas, marginValue);
                 }
             }
         }
-
         layer.locked = true;
         return;
     }
@@ -438,8 +468,15 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
         { flag: options.top, pos: top, orientation: "horizontal" },
         { flag: options.bottom, pos: bottom, orientation: "horizontal" }
     ];
+    // Add center guides based on consistent logic
     if (options.center) {
         directions.push({ flag: true, pos: centerX, orientation: "vertical" });
+        directions.push({ flag: true, pos: centerY, orientation: "horizontal" });
+    }
+    if (options.centerMode === "vertical") {
+        directions.push({ flag: true, pos: centerX, orientation: "vertical" });
+    }
+    if (options.centerMode === "horizontal") {
         directions.push({ flag: true, pos: centerY, orientation: "horizontal" });
     }
 
@@ -470,10 +507,16 @@ function createGuide(layer, pos, orientation, useCanvas, marginValue) {
         var big = 8000;
         if (orientation === "horizontal") {
             guide = layer.pathItems.add();
-            guide.setEntirePath([[-big, pos], [big, pos]]);
+            guide.setEntirePath([
+                [-big, pos],
+                [big, pos]
+            ]);
         } else {
             guide = layer.pathItems.add();
-            guide.setEntirePath([[pos, big], [pos, -big]]);
+            guide.setEntirePath([
+                [pos, big],
+                [pos, -big]
+            ]);
         }
     } else {
         // アートボード基準 / Use artboard bounds
@@ -489,10 +532,16 @@ function createGuide(layer, pos, orientation, useCanvas, marginValue) {
         var ab = doc.artboards[abIndex].artboardRect;
         if (orientation === "horizontal") {
             guide = layer.pathItems.add();
-            guide.setEntirePath([[ab[0] - marginValue, pos], [ab[2] + marginValue, pos]]);
+            guide.setEntirePath([
+                [ab[0] - marginValue, pos],
+                [ab[2] + marginValue, pos]
+            ]);
         } else {
             guide = layer.pathItems.add();
-            guide.setEntirePath([[pos, ab[1] + marginValue], [pos, ab[3] - marginValue]]);
+            guide.setEntirePath([
+                [pos, ab[1] + marginValue],
+                [pos, ab[3] - marginValue]
+            ]);
         }
     }
     guide.guides = true;
@@ -500,18 +549,30 @@ function createGuide(layer, pos, orientation, useCanvas, marginValue) {
 
 function getPtFactorFromUnitCode(code) {
     switch (code) {
-        case 0: return 72.0;                        // in
-        case 1: return 72.0 / 25.4;                 // mm
-        case 2: return 1.0;                         // pt
-        case 3: return 12.0;                        // pica
-        case 4: return 72.0 / 2.54;                 // cm
-        case 5: return 72.0 / 25.4 * 0.25;          // Q or H
-        case 6: return 1.0;                         // px
-        case 7: return 72.0 * 12.0;                 // ft/in
-        case 8: return 72.0 / 25.4 * 1000.0;        // m
-        case 9: return 72.0 * 36.0;                 // yd
-        case 10: return 72.0 * 12.0;                // ft
-        default: return 1.0;
+        case 0:
+            return 72.0; // in
+        case 1:
+            return 72.0 / 25.4; // mm
+        case 2:
+            return 1.0; // pt
+        case 3:
+            return 12.0; // pica
+        case 4:
+            return 72.0 / 2.54; // cm
+        case 5:
+            return 72.0 / 25.4 * 0.25; // Q or H
+        case 6:
+            return 1.0; // px
+        case 7:
+            return 72.0 * 12.0; // ft/in
+        case 8:
+            return 72.0 / 25.4 * 1000.0; // m
+        case 9:
+            return 72.0 * 36.0; // yd
+        case 10:
+            return 72.0 * 12.0; // ft
+        default:
+            return 1.0;
     }
 }
 
@@ -519,6 +580,8 @@ function getPtFactorFromUnitCode(code) {
  * メインダイアログを構築・表示 / Build and show the main dialog
  */
 function buildDialog() {
+    // --- Declare global center mode variable ---
+    var centerModeGlobal = "";
     var dialog = new Window("dialog");
     dialog.text = LABELS.dialogTitle[lang];
     dialog.orientation = "column";
@@ -609,6 +672,8 @@ function buildDialog() {
         name: "cbCenter"
     });
     cbCenter.text = LABELS.center[lang];
+    cbCenter.value = false;
+    // for horizontal center line
     var cbBottom = colCenter.add("checkbox", undefined, undefined, {
         name: "cbBottom"
     });
@@ -652,7 +717,36 @@ function buildDialog() {
     var rbBottomLeft = createRadioButton(rightGroup, LABELS.bottomLeft[lang], showRbBottomLeft);
     var rbTopRight = createRadioButton(rightGroup, LABELS.topRight[lang], showRbTopRight);
     var rbBottomRight = createRadioButton(rightGroup, LABELS.bottomRight[lang], showRbBottomRight);
+    // --- 新しい中心ラジオボタンを追加（ローカライズ） ---
+    var rbCenterBoth = createRadioButton(rightGroup, LABELS.centerBothRb[lang], showRbCenterBoth);
+    var rbCenterV = createRadioButton(rightGroup, LABELS.centerVRb[lang], showRbCenterV);
+    var rbCenterH = createRadioButton(rightGroup, LABELS.centerHRb[lang], showRbCenterH);
+    // --- クリアラジオボタンを最後に追加 ---
     var rbClear = createRadioButton(rightGroup, LABELS.clear[lang], showRbClear);
+    // --- 中心ラジオボタンのイベントハンドラ ---
+    if (rbCenterBoth) {
+        rbCenterBoth.onClick = function() {
+            if (rbCenterBoth.value) setCheckboxState(false, false, false, false, true);
+        };
+    }
+
+    // --- Insert event handlers for center line radio buttons ---
+    if (rbCenterV) {
+        rbCenterV.onClick = function() {
+            if (rbCenterV.value) {
+                setCheckboxState(false, false, false, false, false);
+                centerModeGlobal = "vertical";
+            }
+        };
+    }
+    if (rbCenterH) {
+        rbCenterH.onClick = function() {
+            if (rbCenterH.value) {
+                setCheckboxState(false, false, false, false, false);
+                centerModeGlobal = "horizontal";
+            }
+        };
+    }
 
     // デフォルト選択は表示中の最初のボタンに自動設定（Shihen優先） / Default selection (prefer "Edges")
     if (rbShihen) {
@@ -756,6 +850,35 @@ function buildDialog() {
     // 初期状態に合わせる
     updateMarginEnabled();
 
+    // --- 選択オブジェクトがアートボード外にある場合、自動的にカンバス選択 ---
+    var doc = app.activeDocument;
+    var selItems = app.selection;
+    if (selItems.length > 0 && doc.artboards.length > 0) {
+        var abIndex = doc.artboards.getActiveArtboardIndex();
+        var ab = doc.artboards[abIndex].artboardRect;
+        var abLeft = ab[0];
+        var abTop = ab[1];
+        var abRight = ab[2];
+        var abBottom = ab[3];
+
+        var allOutside = true;
+
+        for (var i = 0; i < selItems.length; i++) {
+            var item = selItems[i];
+            var b = item.geometricBounds;
+            if (!(b[0] > abRight || b[2] < abLeft || b[1] < abBottom || b[3] > abTop)) {
+                allOutside = false;
+                break;
+            }
+        }
+
+        if (allOutside) {
+            rbCanvas.value = true;
+            rbArtboard.value = false;
+            updateMarginEnabled();
+        }
+    }
+
     var btnGroup = dialog.add("group");
     btnGroup.alignment = ["center", "top"];
     var btnCancel = btnGroup.add("button", undefined, LABELS.cancelButton[lang]);
@@ -775,14 +898,17 @@ function buildDialog() {
                 top: cbTop.value,
                 bottom: cbBottom.value,
                 center: cbCenter.value,
+                centerMode: centerModeGlobal,
                 usePreviewBounds: cbUsePreview.value,
                 individual: cbIndividual.value
             };
             var useCanvas = rbCanvas.value;
+
             // --- _guideレイヤー取得または作成 / Get or create "_guide" layer ---
             var layer = getOrCreateGuideLayer();
             var wasLocked = layer.locked;
             if (wasLocked) layer.locked = false;
+
             // --- 削除チェックON時、既存ガイド削除 / Remove existing guides if checked ---
             if (cbDeleteGuide.value) {
                 try {
@@ -795,6 +921,7 @@ function buildDialog() {
                     alert(LABELS.alertDeleteGuideError[lang] + "\n" + ex.message);
                 }
             }
+
             var offsetVal = parseFloat(offsetInput.text);
             if (isNaN(offsetVal)) offsetVal = 0;
             var marginVal = parseFloat(marginInput.text);
@@ -803,11 +930,12 @@ function buildDialog() {
             var ptFactor = getPtFactorFromUnitCode(unitCode);
             var offsetValPt = offsetVal * ptFactor;
             var marginValPt = marginVal * ptFactor;
+
             createGuidesFromSelection(options, useCanvas, offsetValPt, marginValPt);
+            dialog.close();
         } catch (e) {
             alert(LABELS.alertGuideError[lang] + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
         }
-        dialog.close();
     };
 
     dialog.show();
