@@ -2,6 +2,14 @@
 
 [TOC]
 
+## 20250712
+
+### 新しいスクリプトを追加
+
+- [選択したオブジェクトに対してガイドを自動作成](readme-ja/CreateGuidesFromSelection.md)
+- [すべてのガイドを削除](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
+
+
 ## 20250710
 
 ### 新しいスクリプトを追加

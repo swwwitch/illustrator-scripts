@@ -28,7 +28,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 アップデート情報（新規／アップデート）は、noteが一番早いです。
 
-[DTP Transit 別館｜note](https://note.com/dtp_tranist)
+- [DTP Transit 別館｜note](https://note.com/dtp_tranist)
 
 公開後、日々の作業で使う中でバグフィックや調整を行っています。
 
@@ -95,6 +95,8 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 ## ガイド
 
 - [グリッド状にガイドを生成](readme-ja/GenerateGuidesGrid.md)
+- [選択したオブジェクトに対してガイドを自動作成](readme-ja/CreateGuidesFromSelection.md)
+- [すべてのガイドを削除](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
 
 ## ドキュメント
 
