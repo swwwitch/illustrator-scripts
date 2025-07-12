@@ -219,6 +219,14 @@ var LABELS = {
     alertGuideError: {
         ja: "ガイド作成中にエラーが発生しました。",
         en: "An error occurred while creating guides."
+    },
+    okButton: {
+        ja: "ガイドを描画",
+        en: "Draw Guides"
+    },
+    cancelButton: {
+        ja: "キャンセル",
+        en: "Cancel"
     }
 };
 
@@ -644,8 +652,8 @@ function buildDialog() {
 
     var btnGroup = dialog.add("group");
     btnGroup.alignment = ["center", "top"];
-    var btnCancel = btnGroup.add("button", undefined, "キャンセル");
-    var btnCreateGuides = btnGroup.add("button", undefined, "ガイドを描画", {
+    var btnCancel = btnGroup.add("button", undefined, LABELS.cancelButton[lang]);
+    var btnCreateGuides = btnGroup.add("button", undefined, LABELS.okButton[lang], {
         name: "ok"
     });
 
