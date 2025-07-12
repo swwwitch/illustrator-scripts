@@ -37,6 +37,7 @@ CreateGuidesFromSelection.jsx
 - v1.4 (20250711) : アートボード外のオブジェクト選択時のアラート削除、カンバス選択時のはみだし無効化
 - v1.5 (20250711) : 左上、左下、右上、右下モードを追加（それぞれ2本のガイドを作成）
 - v1.6 (20250712) : コードリファクタリング、ラジオボタンの表示切り替え機能追加
+- v1.6.1 (20250712) : 微調整
 
 ### Script Name:
 
@@ -70,9 +71,11 @@ CreateGuidesFromSelection.jsx
 - v1.2 (20250711): Added appearance expansion, UI improvements, enhanced error handling
 - v1.3 (20250712): Code refactor and radio button visibility toggle
 - v1.6 (20250712): refactored code, added radio button visibility toggle feature
+- v1.6.1 (20250712): Minor adjustments
 
 */
 
+// --- グローバル定義 / Global definitions ---
 // スクリプトバージョン
 var SCRIPT_VERSION = "v1.6";
 
@@ -96,6 +99,7 @@ function getCurrentLang() {
 
 var lang = getCurrentLang();
 
+// --- UIラベル定義（日本語 / 英語） / UI label definitions (Japanese / English) ---
 /*
  * LABELS: UIラベル。UI出現順に定義 / UI labels, defined in dialog appearance order.
  */
@@ -179,11 +183,67 @@ var LABELS = {
     usePreviewBounds: {
         ja: "プレビュー境界を使用",
         en: "Use Preview Bounds"
+    },
+    margin: {
+        ja: "裁ち落とし",
+        en: "Margin"
+    },
+    deleteGuides: {
+        ja: "「_guide」のガイドを削除",
+        en: "Delete guides in \"_guide\""
+    },
+    offset: {
+        ja: "オフセット",
+        en: "Offset"
+    },
+    alertNoSelection: {
+        ja: "オブジェクトを選択してください。",
+        en: "Please select an object."
+    },
+    alertExpandError: {
+        ja: "アピアランス展開中にエラーが発生しました。",
+        en: "An error occurred while expanding appearance."
+    },
+    alertNoArtboard: {
+        ja: "アートボードが存在しません。",
+        en: "No artboard exists."
+    },
+    alertInvalidArtboard: {
+        ja: "有効なアートボードが選択されていません。",
+        en: "No valid artboard selected."
+    },
+    alertDeleteGuideError: {
+        ja: "既存ガイド削除時にエラーが発生しました。",
+        en: "An error occurred while deleting existing guides."
+    },
+    alertGuideError: {
+        ja: "ガイド作成中にエラーが発生しました。",
+        en: "An error occurred while creating guides."
     }
 };
 
 
 var canvasSize = 227 * 72; // カンバスサイズ（pt）/ canvas size (pt)
+
+/**
+ * _guideレイヤーを取得または作成
+ * Get or create "_guide" layer.
+ */
+function getOrCreateGuideLayer() {
+    var doc = app.activeDocument;
+    var layer = null;
+    for (var i = 0; i < doc.layers.length; i++) {
+        if (doc.layers[i].name === "_guide") {
+            layer = doc.layers[i];
+            break;
+        }
+    }
+    if (!layer) {
+        layer = doc.layers.add();
+        layer.name = "_guide";
+    }
+    return layer;
+}
 
 /**
  * 選択オブジェクトからガイドを作成する
@@ -196,7 +256,7 @@ var canvasSize = 227 * 72; // カンバスサイズ（pt）/ canvas size (pt)
 function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue) {
     var doc = app.activeDocument;
     if (app.selection.length === 0) {
-        alert("オブジェクトを選択してください。\nPlease select an object.");
+        alert(LABELS.alertNoSelection[lang]);
         return;
     }
     var selItems = app.selection;
@@ -224,7 +284,7 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
             try {
                 app.executeMenuCommand('expandStyle');
             } catch (e) {
-                alert("アピアランス展開中にエラーが発生しました。\n" + e.message);
+                alert(LABELS.alertExpandError[lang] + "\n" + e.message);
             }
             // コピーをアウトライン化
             for (var k = 0; k < tempCopies.length; k++) {
@@ -276,17 +336,7 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
     var centerX = (left + right) / 2;
     var centerY = (top + bottom) / 2;
     // --- _guideレイヤー取得または作成 / Get or create "_guide" layer ---
-    var layer = null;
-    for (var i = 0; i < doc.layers.length; i++) {
-        if (doc.layers[i].name === "_guide") {
-            layer = doc.layers[i];
-            break;
-        }
-    }
-    if (!layer) {
-        layer = doc.layers.add();
-        layer.name = "_guide";
-    }
+    var layer = getOrCreateGuideLayer();
     var wasLocked = layer.locked;
     if (wasLocked) layer.locked = false;
     // --- ガイド描画方向リスト / List of guides to draw ---
@@ -305,6 +355,7 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
             createGuide(layer, directions[i].pos, directions[i].orientation, useCanvas, marginValue);
         }
     }
+    // --- 元テキストを復帰 / Restore original texts ---
     // --- 元テキスト復帰＆アウトライン削除 / Restore original text and remove outlines ---
     if (textCopies.length > 0) {
         for (var i = 0; i < textCopies.length; i++) {
@@ -335,12 +386,12 @@ function createGuide(layer, pos, orientation, useCanvas, marginValue) {
     } else {
         // アートボード基準 / Use artboard bounds
         if (doc.artboards.length === 0) {
-            alert("アートボードが存在しません。");
+            alert(LABELS.alertNoArtboard[lang]);
             return;
         }
         var abIndex = doc.artboards.getActiveArtboardIndex();
         if (abIndex < 0 || abIndex >= doc.artboards.length) {
-            alert("有効なアートボードが選択されていません。");
+            alert(LABELS.alertInvalidArtboard[lang]);
             return;
         }
         var ab = doc.artboards[abIndex].artboardRect;
@@ -396,7 +447,7 @@ function buildDialog() {
     var marginGroup = targetPanel.add("group");
     marginGroup.orientation = "row";
     marginGroup.alignChildren = ["left", "center"];
-    marginGroup.add("statictext", undefined, "裁ち落とし");
+    marginGroup.add("statictext", undefined, LABELS.margin[lang]);
     var marginInput = marginGroup.add("edittext", undefined, "20");
     marginInput.characters = 3;
     marginGroup.add("statictext", undefined, "pt");
@@ -501,6 +552,7 @@ function buildDialog() {
         rbAllOn.value = true;
     }
 
+    // --- チェックボックス一括設定関数 / Function to set checkboxes at once ---
     // チェックボックス群の状態をまとめてセット / Set checkboxes easily
     function setCheckboxState(l, t, r, b, c) {
         cbLeft.value = l;
@@ -566,14 +618,14 @@ function buildDialog() {
 
     var cbUsePreview = optionsGroup.add("checkbox", undefined, LABELS.usePreviewBounds[lang]);
     cbUsePreview.value = true;
-    var cbDeleteGuide = optionsGroup.add("checkbox", undefined, "「_guide」のガイドを削除");
+    var cbDeleteGuide = optionsGroup.add("checkbox", undefined, LABELS.deleteGuides[lang]);
     cbDeleteGuide.value = true;
 
     // --- オフセット入力欄追加 / Add offset input field ---
     var offsetGroup = optionsGroup.add("group");
     offsetGroup.orientation = "row";
     offsetGroup.alignChildren = ["left", "center"];
-    offsetGroup.add("statictext", undefined, "オフセット");
+    offsetGroup.add("statictext", undefined, LABELS.offset[lang]);
     var offsetInput = offsetGroup.add("edittext", undefined, "0");
     offsetInput.characters = 3;
     offsetGroup.add("statictext", undefined, "pt");
@@ -612,20 +664,8 @@ function buildDialog() {
                 usePreviewBounds: cbUsePreview.value
             };
             var useCanvas = rbCanvas.value;
-
             // --- _guideレイヤー取得または作成 / Get or create "_guide" layer ---
-            var doc = app.activeDocument;
-            var layer = null;
-            for (var i = 0; i < doc.layers.length; i++) {
-                if (doc.layers[i].name === "_guide") {
-                    layer = doc.layers[i];
-                    break;
-                }
-            }
-            if (!layer) {
-                layer = doc.layers.add();
-                layer.name = "_guide";
-            }
+            var layer = getOrCreateGuideLayer();
             var wasLocked = layer.locked;
             if (wasLocked) layer.locked = false;
             // --- 削除チェックON時、既存ガイド削除 / Remove existing guides if checked ---
@@ -637,7 +677,7 @@ function buildDialog() {
                         }
                     }
                 } catch (ex) {
-                    alert("既存ガイド削除時にエラーが発生しました。\n" + ex.message);
+                    alert(LABELS.alertDeleteGuideError[lang] + "\n" + ex.message);
                 }
             }
             var offsetVal = parseFloat(offsetInput.text);
@@ -646,7 +686,7 @@ function buildDialog() {
             if (isNaN(marginVal)) marginVal = 0;
             createGuidesFromSelection(options, useCanvas, offsetVal, marginVal);
         } catch (e) {
-            alert("ガイド作成中にエラーが発生しました。\n" + (e && e.message ? e.message : e));
+            alert(LABELS.alertGuideError[lang] + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
         }
         dialog.close();
     };
