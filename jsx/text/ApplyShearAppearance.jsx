@@ -8,33 +8,32 @@ ApplyShearAppearance.jsx
 
 ### 概要
 
-- 選択オブジェクトにアピアランスとしてシアー（傾斜）変形を適用するスクリプトです。
-- 角度（-44°〜44°）と方向（水平方向または垂直方向）を指定し、リアルタイムプレビューが可能です。
+- 選択オブジェクトにアピアランスとしてシアー（傾斜）を適用するスクリプト
+- 角度（-44°〜44°）と方向（水平方向／垂直方向）を指定し、リアルタイムプレビュー可能
 
 ### 主な機能
 
-- 角度指定と方向（水平方向／垂直方向）の選択
+- 角度入力と方向選択
 - リアルタイムプレビューとUndo対応
-- + / - ボタンによる角度微調整
-- 日本語／英語インターフェース対応
+- 日本語／英語UI対応
 
 ### 処理の流れ
 
 1. オブジェクトを選択
 2. ダイアログで角度と方向を設定
-3. プレビューで即座に効果を確認
+3. プレビューで確認
 4. OKで確定、キャンセルで元に戻す
 
 ### オリジナル、謝辞
 
-Originally created by kawamoto_α（あるふぁ（仮））さん  
-アピアランスでシアー.jsx  
+Originally created by kawamoto_α（あるふぁ（仮））
 https://sysys.blog.shinobi.jp/Entry/53/
 
 ### 更新履歴
 
-- v1.0.0 (20250609) : 初版
-- v1.1.0 (20250705) : + / - ボタン追加、説明コメント整理
+- v1.0 (20250609) : 初版
+- v1.1 (20250705) : + / - ボタン追加、コメント整理
+- v1.2 (20250801) : ↑↓キーおよびShift + ↑↓キー対応、UI改善
 
 ---
 
@@ -44,33 +43,32 @@ ApplyShearAppearance.jsx
 
 ### Overview
 
-- A script to apply shear (slant) transformation as an appearance to selected objects.
-- Supports specifying angle (-44° to 44°) and direction (horizontal or vertical) with real-time preview.
+- A script to apply shear (slant) as an appearance to selected objects
+- Supports angle (-44° to 44°) and direction (horizontal/vertical) with real-time preview
 
 ### Main Features
 
-- Angle input and direction selection (horizontal/vertical)
+- Angle input and direction selection
 - Real-time preview with Undo support
-- Fine-tuning angle using + / - buttons
 - Japanese and English UI support
 
 ### Process Flow
 
 1. Select object(s)
 2. Configure angle and direction in the dialog
-3. Check the effect immediately via preview
+3. Check via preview
 4. Confirm with OK or revert with Cancel
 
 ### Original / Acknowledgements
 
-Originally created by kawamoto_α (Alpha (temporary))  
-Appearance Shear.jsx  
+Originally created by kawamoto_α (Alpha (temporary))
 https://sysys.blog.shinobi.jp/Entry/53/
 
 ### Update History
 
-- v1.0.0 (20250609): Initial release
-- v1.1.0 (20250705): Added + / - buttons, cleaned up comments
+- v1.0 (20250609): Initial release
+- v1.1 (20250705): Added + / - buttons, comments cleanup
+- v1.2 (20250801): Added ↑↓ and Shift + ↑↓ keys, UI improvements
 */
 
 // -------------------------------
@@ -80,8 +78,12 @@ function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 var lang = getCurrentLang();
+var SCRIPT_VERSION = "v1.2";
 var LABELS = {
-    dialogTitle:       { ja: "アピアランスでシアー", en: "Shear with Appearance" },
+    dialogTitle: {
+        ja: "アピアランスでシアー " + SCRIPT_VERSION,
+        en: "Shear with Appearance " + SCRIPT_VERSION
+    },
     angleLabel:        { ja: "角度（-44°～44°）:", en: "Angle (-44° to 44°):" },
     horizontal:        { ja: "水平", en: "Horizontal" },
     vertical:          { ja: "垂直", en: "Vertical" },
@@ -119,32 +121,9 @@ function main() {
         var angleInput = angleGroup.add("edittext", undefined, "0");
         angleInput.characters = 3;
 
-        // + / - ボタンを縦に配置するグループを angleInput の右隣に追加
-        var buttonColumn = angleGroup.add("group");
-        buttonColumn.orientation = "column";
-        var plusBtn = buttonColumn.add("button", [0, 0, 23, 20], "+");
-        var minusBtn = buttonColumn.add("button", [0, 0, 23, 20], "-");
-        buttonColumn.spacing = 2; // ボタン間のスペースを設定
 
-        // ＋ボタン押下時の処理
-        plusBtn.onClick = function () {
-            var angle = parseFloat(angleInput.text);
-            if (angle !== angle) angle = 0;
-            angle += 1;
-            if (angle > 44) angle = 44;
-            angleInput.text = angle.toString();
-            applyPreviewIfNeeded();
-        };
-
-        // −ボタン押下時の処理
-        minusBtn.onClick = function () {
-            var angle = parseFloat(angleInput.text);
-            if (angle !== angle) angle = 0;
-            angle -= 1;
-            if (angle < -44) angle = -44;
-            angleInput.text = angle.toString();
-            applyPreviewIfNeeded();
-        };
+        // キー操作で角度変更を可能にする
+        changeValueByArrowKey(angleInput, applyPreviewIfNeeded);
 
         // 方向選択グループ
         var directionGroup = dlg.add("group");
@@ -285,4 +264,26 @@ function createTransformXML(scaleH, scaleV, rotateDeg) {
     xml += 'R rotate_Radians ' + toRadians(rotateDeg);
     xml += '"/></LiveEffect>';
     return xml;
+}
+// EditTextで上下キーにより値を増減する関数
+function changeValueByArrowKey(editText, onUpdate) {
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+
+        var keyboard = ScriptUI.environment.keyboardState;
+        var delta = keyboard.shiftKey ? 10 : 1;
+
+        if (event.keyName == "Up") {
+            value += delta;
+            event.preventDefault();
+        } else if (event.keyName == "Down") {
+            value -= delta;
+            event.preventDefault();
+        }
+        editText.text = value;
+        if (typeof onUpdate === "function") {
+            onUpdate(editText.text);
+        }
+    });
 }
