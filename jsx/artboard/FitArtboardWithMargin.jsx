@@ -31,6 +31,14 @@ FitArtboardWithMargin.jsx
 Gorolib Design
 https://gorolib.blog.jp/archives/71820861.html
 
+### オリジナルからの変更点
+
+- ダイアログボックスを閉じずにプレビュー更新
+- 単位系（mm、px など）によってデフォルト値を切り替え
+- アートボードの座標・サイズをピクセルベースで整数値に
+- オブジェクトを選択していない場合には、すべてのオブジェクトを対象に
+- ↑↓キー、shift + ↑↓キーによる入力
+
 ### note
 
 https://note.com/dtp_tranist/n/n15d3c6c5a1e5

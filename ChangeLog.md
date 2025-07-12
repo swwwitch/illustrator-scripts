@@ -1,6 +1,13 @@
 # Change Log
 
-[TOC]
+
+## 20250713
+
+### 調整
+
+- [選択したオブジェクトに合わせてアートボードを調整に ↑↓キー、shift + ↑↓キーによる入力機能を追加](readme-ja//FitArtboardWithMargin.md)
+
+![](https://www.dtp-transit.jp/images/ss-426-508-72-20250713-072422.png)
 
 ## 20250712
 
