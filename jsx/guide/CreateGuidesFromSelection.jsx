@@ -93,19 +93,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuid
 // スクリプトバージョン
 var SCRIPT_VERSION = "v1.8";
 
-// --- 右側ラジオボタン表示設定（必要に応じて true/false 切り替え） ---
-var showRbAllOn = true; // すべて / All
-var showRbShihen = true; // 四辺 / Edges
-var showRbTopBottom = true; // 上下 / Top & Bottom
-var showRbLeftRight = true; // 左右 / Left & Right
-var showRbTopLeft = true; // 左上 / Top Left
-var showRbBottomLeft = false; // 左下 / Bottom Left
-var showRbTopRight = false; // 右上 / Top Right
-var showRbBottomRight = false; // 右下 / Bottom Right
-var showRbClear = true; // クリア / Clear
-var showRbCenterBoth = true; // 中心 / Center (both)
-var showRbCenterV = true; // 中心線（垂直） / Center line (vertical)
-var showRbCenterH = true; // 中心線（水平） / Center line (horizontal)
+
+// --- 右側ラジオボタン定義と出し入れ設定 / Add right-side radio buttons in dialog order ---
+// Only keep show flags for dynamically shown buttons
+var showRbTopBottom = false;
+var showRbLeftRight = false;
+var showRbTopLeft = true;
+var showRbBottomLeft = false;
+var showRbTopRight = false;
+var showRbBottomRight = false;
+
 
 /**
  * 現在のロケールを取得 / Get current locale
@@ -340,22 +337,53 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
             var centerX = (left + right) / 2;
             var centerY = (top + bottom) / 2;
 
-            var directions = [
-                { flag: options.left, pos: left, orientation: "vertical" },
-                { flag: options.right, pos: right, orientation: "vertical" },
-                { flag: options.top, pos: top, orientation: "horizontal" },
-                { flag: options.bottom, pos: bottom, orientation: "horizontal" }
+            var directions = [{
+                    flag: options.left,
+                    pos: left,
+                    orientation: "vertical"
+                },
+                {
+                    flag: options.right,
+                    pos: right,
+                    orientation: "vertical"
+                },
+                {
+                    flag: options.top,
+                    pos: top,
+                    orientation: "horizontal"
+                },
+                {
+                    flag: options.bottom,
+                    pos: bottom,
+                    orientation: "horizontal"
+                }
             ];
             // Add center guides based on consistent logic
             if (options.center) {
-                directions.push({ flag: true, pos: centerX, orientation: "vertical" });
-                directions.push({ flag: true, pos: centerY, orientation: "horizontal" });
+                directions.push({
+                    flag: true,
+                    pos: centerX,
+                    orientation: "vertical"
+                });
+                directions.push({
+                    flag: true,
+                    pos: centerY,
+                    orientation: "horizontal"
+                });
             }
             if (options.centerMode === "vertical") {
-                directions.push({ flag: true, pos: centerX, orientation: "vertical" });
+                directions.push({
+                    flag: true,
+                    pos: centerX,
+                    orientation: "vertical"
+                });
             }
             if (options.centerMode === "horizontal") {
-                directions.push({ flag: true, pos: centerY, orientation: "horizontal" });
+                directions.push({
+                    flag: true,
+                    pos: centerY,
+                    orientation: "horizontal"
+                });
             }
             for (var d = 0; d < directions.length; d++) {
                 if (directions[d].flag) {
@@ -462,22 +490,53 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
     var wasLocked = layer.locked;
     if (wasLocked) layer.locked = false;
 
-    var directions = [
-        { flag: options.left, pos: left, orientation: "vertical" },
-        { flag: options.right, pos: right, orientation: "vertical" },
-        { flag: options.top, pos: top, orientation: "horizontal" },
-        { flag: options.bottom, pos: bottom, orientation: "horizontal" }
+    var directions = [{
+            flag: options.left,
+            pos: left,
+            orientation: "vertical"
+        },
+        {
+            flag: options.right,
+            pos: right,
+            orientation: "vertical"
+        },
+        {
+            flag: options.top,
+            pos: top,
+            orientation: "horizontal"
+        },
+        {
+            flag: options.bottom,
+            pos: bottom,
+            orientation: "horizontal"
+        }
     ];
     // Add center guides based on consistent logic
     if (options.center) {
-        directions.push({ flag: true, pos: centerX, orientation: "vertical" });
-        directions.push({ flag: true, pos: centerY, orientation: "horizontal" });
+        directions.push({
+            flag: true,
+            pos: centerX,
+            orientation: "vertical"
+        });
+        directions.push({
+            flag: true,
+            pos: centerY,
+            orientation: "horizontal"
+        });
     }
     if (options.centerMode === "vertical") {
-        directions.push({ flag: true, pos: centerX, orientation: "vertical" });
+        directions.push({
+            flag: true,
+            pos: centerX,
+            orientation: "vertical"
+        });
     }
     if (options.centerMode === "horizontal") {
-        directions.push({ flag: true, pos: centerY, orientation: "horizontal" });
+        directions.push({
+            flag: true,
+            pos: centerY,
+            orientation: "horizontal"
+        });
     }
 
     for (var i = 0; i < directions.length; i++) {
@@ -703,26 +762,25 @@ function buildDialog() {
     edgeGroup.alignment = ["center", "top"];
 
 
-    // --- 右側ラジオボタン定義と出し入れ設定 / Add right-side radio buttons in dialog order ---
+
     function createRadioButton(group, label, show) {
-        if (!show) return null;
+        if (typeof show !== "undefined" && !show) return null;
         return group.add("radiobutton", undefined, label);
     }
 
-    var rbAllOn = createRadioButton(rightGroup, LABELS.allOn[lang], showRbAllOn);
-    var rbShihen = createRadioButton(rightGroup, LABELS.edges[lang], showRbShihen);
+    // Always-shown buttons: no show argument, no flags
+    var rbAllOn = createRadioButton(rightGroup, LABELS.allOn[lang]);
+    var rbShihen = createRadioButton(rightGroup, LABELS.edges[lang]);
     var rbTopBottom = createRadioButton(rightGroup, LABELS.vertical[lang], showRbTopBottom);
     var rbLeftRight = createRadioButton(rightGroup, LABELS.horizontal[lang], showRbLeftRight);
     var rbTopLeft = createRadioButton(rightGroup, LABELS.topLeft[lang], showRbTopLeft);
     var rbBottomLeft = createRadioButton(rightGroup, LABELS.bottomLeft[lang], showRbBottomLeft);
     var rbTopRight = createRadioButton(rightGroup, LABELS.topRight[lang], showRbTopRight);
     var rbBottomRight = createRadioButton(rightGroup, LABELS.bottomRight[lang], showRbBottomRight);
-    // --- 新しい中心ラジオボタンを追加（ローカライズ） ---
-    var rbCenterBoth = createRadioButton(rightGroup, LABELS.centerBothRb[lang], showRbCenterBoth);
-    var rbCenterV = createRadioButton(rightGroup, LABELS.centerVRb[lang], showRbCenterV);
-    var rbCenterH = createRadioButton(rightGroup, LABELS.centerHRb[lang], showRbCenterH);
-    // --- クリアラジオボタンを最後に追加 ---
-    var rbClear = createRadioButton(rightGroup, LABELS.clear[lang], showRbClear);
+    var rbCenterBoth = createRadioButton(rightGroup, LABELS.centerBothRb[lang]);
+    var rbCenterV = createRadioButton(rightGroup, LABELS.centerVRb[lang]);
+    var rbCenterH = createRadioButton(rightGroup, LABELS.centerHRb[lang]);
+    var rbClear = createRadioButton(rightGroup, LABELS.clear[lang]);
     // --- 中心ラジオボタンのイベントハンドラ ---
     if (rbCenterBoth) {
         rbCenterBoth.onClick = function() {
