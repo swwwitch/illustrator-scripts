@@ -4,718 +4,654 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 ### スクリプト名：
 
-CreateGuidesFromSelection
+CreateGuidesFromSelection.jsx
 
 ### 概要
 
-- 選択オブジェクトの中央、エッジ、左右のみ、上下のみを基準にガイドを作成します。
-- アートボードまたはカンバスを基準に選択可能。
-- プレビュー境界、はみだし、マージン設定、ガイド削除、クリップグループやテキストアウトラインに対応。
+- Illustrator の選択オブジェクトからガイドを作成するスクリプト。
+- ダイアログ上で上下左右中央のガイドを自由に指定して描画可能。
 
 ### 主な機能
 
-- 基準選択（アートボード / カンバス）
-- モード切替（中央 / エッジ / 左右のみ / 上下のみ）
-- プレビュー境界使用オプション
-- はみだし & マージン設定
-- 「_guide」レイヤーのガイド削除
-- テキストアウトライン処理
-- 多言語対応（日本語・英語）
+- プレビュー境界または幾何境界の選択
+- 一時アウトライン化とアピアランス展開による正確なテキスト処理
+- オフセットと裁ち落とし指定
+- 「_guide」レイヤー管理とガイド削除オプション
+- クリップグループと複数選択対応
 
 ### 処理の流れ
 
-1. ダイアログでオプションを選択
-2. オブジェクトの境界を取得
-3. 選択モードと基準でガイド作成
+- ダイアログボックスでオプションを設定
+- 選択オブジェクトの外接矩形を取得
+- ガイドを描画
+- テキストオブジェクトは一時アウトライン化およびアピアランス展開して計算後復元
+- 「_guide」レイヤーにガイドを追加後ロック
 
 ### 更新履歴
+
 
 - v1.0 (20250711) : 初期バージョン
 - v1.1 (20250711) : 複数選択、クリップグループ、日英対応追加
 - v1.2 (20250711) : プレビュー境界OFF時の安定化、テキスト処理修正
 - v1.3 (20250711) : アートボード外のオブジェクト自動カンバス選択、テキストアウトライン処理改善
 - v1.4 (20250711) : アートボード外のオブジェクト選択時のアラート削除、カンバス選択時のはみだし無効化
-- v1.4 (20250711) : アートボード外のオブジェクト選択時のアラート削除、カンバス選択時のはみだし無効化
 - v1.5 (20250711) : 左上、左下、右上、右下モードを追加（それぞれ2本のガイドを作成）
-
----
+- v1.6 (20250712) : コードリファクタリング、ラジオボタンの表示切り替え機能追加
 
 ### Script Name:
 
-CreateGuidesFromSelection
+CreateGuidesFromSelection.jsx
 
-### Overview
+### Description
 
-- Creates guides based on center, edge, sides only, or top/bottom only of selected objects.
-- Can choose artboard or canvas as basis.
-- Supports visible bounds, overflow, margin settings, clearing guides, clip groups, and text outline handling.
+- Script to create guides from selected objects in Illustrator.
+- Flexible dialog UI to specify top, bottom, left, right, and center guides.
 
-### Features
+### Main Features
 
-- Basis selection (Artboard / Canvas)
-- Mode switching (Center / Edge / Sides Only / Top/Bottom Only)
-- Use visible bounds option
-- Overflow & margin settings
-- Clear "_guide" layer guides
-- Text outline handling
-- Multi-language support (Japanese / English)
+- Use preview or geometric bounds
+- Temporary outlining and appearance expansion for text objects
+- Offset and bleed (margin) support
+- "_guide" layer management and guide removal option
+- Supports clip groups and multi-selection
 
 ### Workflow
 
-1. Choose options in dialog
-2. Get object bounds
-3. Create guides based on selected mode and basis
+- Configure options in dialog
+- Get bounding box of selected objects
+- Draw guides
+- Temporarily outline and expand appearance for text, then restore
+- Add guides to "_guide" layer and lock
 
 ### Update History
 
 - v1.0 (20250711): Initial version
-- v1.1 (20250711): Added multi-selection, clip group, language support
-- v1.2 (20250711): Stabilized visible bounds OFF, improved text processing
-- v1.3 (20250711): Auto canvas selection for out-of-artboard objects, improved text outline handling
-- v1.4 (20250711): Removed alert for out-of-artboard objects, disabled overflow for canvas selection
-- v1.5 (20250711): Added modes for Top Left, Bottom Left, Top Right, Bottom Right (each creates 2 guides)
+- v1.1 (20250711): Multi-selection & clip group support, offset & bleed features, text outline support
+- v1.2 (20250711): Added appearance expansion, UI improvements, enhanced error handling
+- v1.3 (20250712): Code refactor and radio button visibility toggle
+- v1.6 (20250712): refactored code, added radio button visibility toggle feature
 
 */
 
-// === デフォルト設定（ここを編集） ===
-var DEFAULT_BASIS = "artboard"; // "artboard" または "canvas"
-var DEFAULT_MODE = "edge"; // "center", "edge", "sides", "topBottom"
+// スクリプトバージョン
+var SCRIPT_VERSION = "v1.6";
 
-var SCRIPT_VERSION = "v1.5";
+// --- 右側ラジオボタン表示設定（必要に応じて true/false 切り替え） ---
+var showRbAllOn      = true;   // すべて / All
+var showRbShihen     = true;   // 四辺 / Edges
+var showRbTopBottom  = true;   // 上下 / Top & Bottom
+var showRbLeftRight  = true;   // 左右 / Left & Right
+var showRbTopLeft    = true;   // 左上 / Top Left
+var showRbBottomLeft = false;  // 左下 / Bottom Left
+var showRbTopRight   = false;  // 右上 / Top Right
+var showRbBottomRight = false; // 右下 / Bottom Right
+var showRbClear      = true;   // クリア / Clear
 
-// 言語取得 / Get current language (ja/en)
+/**
+ * 現在のロケールを取得 / Get current locale
+ */
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 
-/* ラベル定義 / UI Label Definitions (UI order, unused removed, ja/en both) */
 var lang = getCurrentLang();
+
+/*
+ * LABELS: UIラベル。UI出現順に定義 / UI labels, defined in dialog appearance order.
+ */
 var LABELS = {
     dialogTitle: {
-        ja: "ガイド作成 " + SCRIPT_VERSION,
-        en: "Create Guides " + SCRIPT_VERSION
+        ja: "ガイド作成ツール " + SCRIPT_VERSION,
+        en: "Guide Drawer " + SCRIPT_VERSION
+    },
+    targetPanel: {
+        ja: "対象",
+        en: "Target"
+    },
+    artboard: {
+        ja: "アートボード",
+        en: "Artboard"
+    },
+    canvas: {
+        ja: "カンバス（擬似）",
+        en: "Canvas"
+    },
+    axisGroup: {
+        ja: "辺と中央",
+        en: "Axis & Edges"
+    },
+    left: {
+        ja: "左",
+        en: "Left"
+    },
+    top: {
+        ja: "上",
+        en: "Top"
     },
     center: {
         ja: "中央",
         en: "Center"
     },
-    edge: {
-        ja: "エッジ（四辺）",
-        en: "Edge (All Sides)"
+    bottom: {
+        ja: "下",
+        en: "Bottom"
     },
-    sidesOnly: {
-        ja: "左右のみ",
-        en: "Sides Only"
+    right: {
+        ja: "右",
+        en: "Right"
     },
-    topBottomOnly: {
-        ja: "上下のみ",
-        en: "Top/Bottom Only"
+    allOn: {
+        ja: "すべて",
+        en: "All"
     },
-    useVisible: {
+    edges: {
+        ja: "四辺",
+        en: "Edges"
+    },
+    vertical: {
+        ja: "上下",
+        en: "Top & Bottom"
+    },
+    horizontal: {
+        ja: "左右",
+        en: "Left & Right"
+    },
+    topLeft: {
+        ja: "左上",
+        en: "Top Left"
+    },
+    bottomLeft: {
+        ja: "左下",
+        en: "Bottom Left"
+    },
+    topRight: {
+        ja: "右上",
+        en: "Top Right"
+    },
+    bottomRight: {
+        ja: "右下",
+        en: "Bottom Right"
+    },
+    clear: {
+        ja: "クリア",
+        en: "Clear"
+    },
+    usePreviewBounds: {
         ja: "プレビュー境界を使用",
-        en: "Use visible bounds"
-    },
-    clearGuides: {
-        ja: "「_guide」のガイドを削除",
-        en: "Clear guides in '_guide' layer"
-    },
-    offset: {
-        ja: "はみだし:",
-        en: "Overflow:"
-    },
-    margin: {
-        ja: "マージン:",
-        en: "Margin:"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    },
-    ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    alertSelect: {
-        ja: "オブジェクトを選択してください。",
-        en: "Please select an object."
-    },
-    error: {
-        ja: "エラーが発生しました: ",
-        en: "An error occurred: "
+        en: "Use Preview Bounds"
     }
 };
 
-// 単位コードとラベルのマップ / Unit code to label map (for ruler units)
-var unitLabelMap = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
-    5: "Q/H",
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
-};
 
-// 現在の単位ラベル取得 / Get current unit label (for UI)
-function getCurrentUnitLabel() {
-    var unitCode = app.preferences.getIntegerPreference("rulerType");
-    return unitLabelMap[unitCode] || "pt";
-}
+var canvasSize = 227 * 72; // カンバスサイズ（pt）/ canvas size (pt)
 
-// 単位コードからpt変換係数取得 / Get pt factor from unit code
-function getPtFactorFromUnitCode(code) {
-    switch (code) {
-        case 0:
-            return 72.0;
-        case 1:
-            return 72.0 / 25.4;
-        case 2:
-            return 1.0;
-        case 3:
-            return 12.0;
-        case 4:
-            return 72.0 / 2.54;
-        case 5:
-            return 72.0 / 25.4 * 0.25;
-        case 6:
-            return 1.0;
-        case 7:
-            return 72.0 * 12.0;
-        case 8:
-            return 72.0 / 25.4 * 1000.0;
-        case 9:
-            return 72.0 * 36.0;
-        case 10:
-            return 72.0 * 12.0;
-        default:
-            return 1.0;
+/**
+ * 選択オブジェクトからガイドを作成する
+ * Create guides from selected objects.
+ * @param {Object} options - ガイド描画の指定 / Guide drawing options
+ * @param {boolean} useCanvas - カンバス基準か / Use canvas as reference
+ * @param {number} offsetValue - オフセット値 / Offset value
+ * @param {number} marginValue - 裁ち落とし値 / Bleed (margin) value
+ */
+function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue) {
+    var doc = app.activeDocument;
+    if (app.selection.length === 0) {
+        alert("オブジェクトを選択してください。\nPlease select an object.");
+        return;
     }
-}
-
-// 選択アイテム配列からバウンディングボックスを計算 / Calculate bounds from items array
-function calculateBounds(items, useVisible) {
-    var bounds = useVisible ? items[0].visibleBounds.concat() : items[0].geometricBounds.concat();
-    for (var i = 1; i < items.length; i++) {
-        var itemBounds = useVisible ? items[i].visibleBounds : items[i].geometricBounds;
-        if (itemBounds[0] < bounds[0]) bounds[0] = itemBounds[0];
-        if (itemBounds[1] > bounds[1]) bounds[1] = itemBounds[1];
-        if (itemBounds[2] > bounds[2]) bounds[2] = itemBounds[2];
-        if (itemBounds[3] < bounds[3]) bounds[3] = itemBounds[3];
-    }
-    return bounds;
-}
-
-// 共通定義まとめ / Common definitions
-var unitCode = app.preferences.getIntegerPreference("rulerType");
-var factor = getPtFactorFromUnitCode(unitCode);
-var selectionItems = app.selection;
-
-// 中央基準ガイド作成 / Create center guides (vertical/horizontal)
-function createCenterGuides(bounds, artboardRect, guideLayer) {
-    var centerX = bounds[0] + ((bounds[2] - bounds[0]) / 2);
-    var centerY = bounds[1] - ((bounds[1] - bounds[3]) / 2);
-
-    var vGuide = guideLayer.pathItems.add();
-    vGuide.setEntirePath([
-        [centerX, artboardRect[1]],
-        [centerX, artboardRect[3]]
-    ]);
-    vGuide.guides = true;
-
-    var hGuide = guideLayer.pathItems.add();
-    hGuide.setEntirePath([
-        [artboardRect[0], centerY],
-        [artboardRect[2], centerY]
-    ]);
-    hGuide.guides = true;
-}
-
-// エッジ基準ガイド作成 / Create edge guides (edge/sides/top-bottom/topLeft)
-function createEdgeGuides(bounds, artboardRect, guideLayer, offsetValue, marginValue, mode) {
-    var leftX = bounds[0] - marginValue;
-    var rightX = bounds[2] + marginValue;
-    var topY = bounds[1] + marginValue;
-    var bottomY = bounds[3] - marginValue;
-
-    var guideLeft = artboardRect[0] - offsetValue;
-    var guideRight = artboardRect[2] + offsetValue;
-    var guideTop = artboardRect[1] + offsetValue;
-    var guideBottom = artboardRect[3] - offsetValue;
-
-    if (mode === "full") {
-        var leftGuide = guideLayer.pathItems.add();
-        leftGuide.setEntirePath([
-            [leftX, guideTop],
-            [leftX, guideBottom]
-        ]);
-        leftGuide.guides = true;
-
-        var rightGuide = guideLayer.pathItems.add();
-        rightGuide.setEntirePath([
-            [rightX, guideTop],
-            [rightX, guideBottom]
-        ]);
-        rightGuide.guides = true;
-
-        var topGuide = guideLayer.pathItems.add();
-        topGuide.setEntirePath([
-            [guideLeft, topY],
-            [guideRight, topY]
-        ]);
-        topGuide.guides = true;
-
-        var bottomGuide = guideLayer.pathItems.add();
-        bottomGuide.setEntirePath([
-            [guideLeft, bottomY],
-            [guideRight, bottomY]
-        ]);
-        bottomGuide.guides = true;
-    } else if (mode === "sides") {
-        var leftGuide = guideLayer.pathItems.add();
-        leftGuide.setEntirePath([
-            [leftX, guideTop],
-            [leftX, guideBottom]
-        ]);
-        leftGuide.guides = true;
-
-        var rightGuide = guideLayer.pathItems.add();
-        rightGuide.setEntirePath([
-            [rightX, guideTop],
-            [rightX, guideBottom]
-        ]);
-        rightGuide.guides = true;
-    } else if (mode === "topBottom") {
-        var topGuide = guideLayer.pathItems.add();
-        topGuide.setEntirePath([
-            [guideLeft, topY],
-            [guideRight, topY]
-        ]);
-        topGuide.guides = true;
-
-        var bottomGuide = guideLayer.pathItems.add();
-        bottomGuide.setEntirePath([
-            [guideLeft, bottomY],
-            [guideRight, bottomY]
-        ]);
-        bottomGuide.guides = true;
-    } else if (mode === "topLeft") {
-        var leftGuide = guideLayer.pathItems.add();
-        leftGuide.setEntirePath([
-            [leftX, guideTop],
-            [leftX, guideBottom]
-        ]);
-        leftGuide.guides = true;
-
-        var topGuide = guideLayer.pathItems.add();
-        topGuide.setEntirePath([
-            [guideLeft, topY],
-            [guideRight, topY]
-        ]);
-        topGuide.guides = true;
-    } else if (mode === "bottomLeft") {
-        var leftGuide = guideLayer.pathItems.add();
-        leftGuide.setEntirePath([
-            [leftX, guideTop],
-            [leftX, guideBottom]
-        ]);
-        leftGuide.guides = true;
-
-        var bottomGuide = guideLayer.pathItems.add();
-        bottomGuide.setEntirePath([
-            [guideLeft, bottomY],
-            [guideRight, bottomY]
-        ]);
-        bottomGuide.guides = true;
-    } else if (mode === "topRight") {
-        var rightGuide = guideLayer.pathItems.add();
-        rightGuide.setEntirePath([
-            [rightX, guideTop],
-            [rightX, guideBottom]
-        ]);
-        rightGuide.guides = true;
-
-        var topGuide = guideLayer.pathItems.add();
-        topGuide.setEntirePath([
-            [guideLeft, topY],
-            [guideRight, topY]
-        ]);
-        topGuide.guides = true;
-    } else if (mode === "bottomRight") {
-        var rightGuide = guideLayer.pathItems.add();
-        rightGuide.setEntirePath([
-            [rightX, guideTop],
-            [rightX, guideBottom]
-        ]);
-        rightGuide.guides = true;
-
-        var bottomGuide = guideLayer.pathItems.add();
-        bottomGuide.setEntirePath([
-            [guideLeft, bottomY],
-            [guideRight, bottomY]
-        ]);
-        bottomGuide.guides = true;
-    }
-}
-
-function main() {
-    try {
-        var isValid = true;
-        var doc = app.activeDocument;
-        var artboards = doc.artboards;
-        var activeIndex = artboards.getActiveArtboardIndex();
-        var artboardRect = artboards[activeIndex].artboardRect;
-
-        // 「_guide」レイヤーを取得または作成 / Get or create "_guide" layer
-        var guideLayer = null;
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === "_guide") {
-                guideLayer = doc.layers[i];
-                break;
+    var selItems = app.selection;
+    var bounds;
+    // --- テキストオブジェクトのアウトライン化（プレビュー境界時のみ）およびアピアランス展開 / Outline and expand appearance if using preview bounds ---
+    var textCopies = [];
+    var originalTexts = [];
+    if (options.usePreviewBounds) {
+        var tempCopies = [];
+        for (var i = 0; i < selItems.length; i++) {
+            var item = selItems[i];
+            if (item && item.typename === "TextFrame") {
+                var copy = item.duplicate();
+                item.hidden = true;
+                tempCopies.push(copy);
+                originalTexts.push(item);
             }
         }
-        if (!guideLayer) {
-            guideLayer = doc.layers.add();
-            guideLayer.name = "_guide";
+        // まとめて選択
+        if (tempCopies.length > 0) {
+            app.selection = null;
+            for (var j = 0; j < tempCopies.length; j++) {
+                tempCopies[j].selected = true;
+            }
+            try {
+                app.executeMenuCommand('expandStyle');
+            } catch (e) {
+                alert("アピアランス展開中にエラーが発生しました。\n" + e.message);
+            }
+            // コピーをアウトライン化
+            for (var k = 0; k < tempCopies.length; k++) {
+                var outlined = tempCopies[k].createOutline();
+                if (outlined) {
+                    textCopies.push(outlined);
+                } else {
+                    textCopies.push(tempCopies[k]);
+                }
+            }
+            selItems = textCopies.length > 0 ? textCopies : selItems;
+        }
+    }
+    // --- 複数選択時、クリップグループはマスクパス優先 / If group is clipped, use mask path bounds ---
+    var first = true;
+    for (var i = 0; i < selItems.length; i++) {
+        var item = selItems[i];
+        var b;
+        if (item.typename === "GroupItem" && item.clipped) {
+            var mask = null;
+            for (var j = 0; j < item.pageItems.length; j++) {
+                if (item.pageItems[j].clipping) {
+                    mask = item.pageItems[j];
+                    break;
+                }
+            }
+            if (mask) {
+                b = options.usePreviewBounds ? mask.visibleBounds : mask.geometricBounds;
+            } else {
+                b = options.usePreviewBounds ? item.visibleBounds : item.geometricBounds;
+            }
         } else {
-            guideLayer.locked = false;
+            b = options.usePreviewBounds ? item.visibleBounds : item.geometricBounds;
         }
-
-        // 選択がない場合はアートボード全体を対象にガイド作成
-        var useArtboardAsTarget = (selectionItems.length < 1);
-
-        var rbCenter, rbEdge, rbSidesOnly, rbTopBottomOnly, cbUseVisible, cbClearGuides, offsetInput, marginInput;
-
-        if (isValid) {
-            // ダイアログ作成 / Create dialog (UI)
-            var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
-            dlg.orientation = "column";
-            dlg.alignChildren = "left";
-
-            // === 追加: アートボード/カンバス選択パネル ===
-            var targetPanel = dlg.add("panel", undefined, (lang === "ja" ? "基準" : "Basis"));
-            targetPanel.orientation = "row";
-            targetPanel.alignChildren = "left";
-            targetPanel.margins = [15, 20, 15, 10];
-
-            var rbArtboard = targetPanel.add("radiobutton", undefined, (lang === "ja" ? "アートボード" : "Artboard"));
-            var rbCanvas = targetPanel.add("radiobutton", undefined, (lang === "ja" ? "カンバス" : "Canvas"));
-            rbArtboard.value = (DEFAULT_BASIS === "artboard");
-            rbCanvas.value = (DEFAULT_BASIS === "canvas");
-
-            // === モードパネル ===
-            var modePanel = dlg.add("panel", undefined, (lang === "ja" ? "対象" : "Target"));
-            modePanel.orientation = "row";
-            modePanel.alignChildren = "top";
-            modePanel.margins = [15, 20, 15, 10];
-
-            var col1 = modePanel.add("group");
-            col1.orientation = "column";
-            col1.alignChildren = "left";
-
-            var col2 = modePanel.add("group");
-            col2.orientation = "column";
-            col2.alignChildren = "left";
-
-            rbCenter = col1.add("radiobutton", undefined, LABELS.center[lang]);
-            rbEdge = col1.add("radiobutton", undefined, LABELS.edge[lang]);
-            rbSidesOnly = col1.add("radiobutton", undefined, LABELS.sidesOnly[lang]);
-            rbTopBottomOnly = col1.add("radiobutton", undefined, LABELS.topBottomOnly[lang]);
-            var rbTopLeft = col2.add("radiobutton", undefined, (lang === "ja" ? "左上" : "Top Left"));
-            rbCenter.value = (DEFAULT_MODE === "center");
-            rbEdge.value = (DEFAULT_MODE === "edge");
-            rbSidesOnly.value = (DEFAULT_MODE === "sides");
-            rbTopBottomOnly.value = (DEFAULT_MODE === "topBottom");
-            rbTopLeft.value = false;
-            var rbBottomLeft = col2.add("radiobutton", undefined, (lang === "ja" ? "左下" : "Bottom Left"));
-            rbBottomLeft.value = false;
-            var rbTopRight = col2.add("radiobutton", undefined, (lang === "ja" ? "右上" : "Top Right"));
-            rbTopRight.value = false;
-
-            var rbBottomRight = col2.add("radiobutton", undefined, (lang === "ja" ? "右下" : "Bottom Right"));
-            rbBottomRight.value = false;
-
-            // ラジオボタン排他制御 / Radio button exclusivity
-            rbCenter.onClick = function() {
-                rbEdge.value = false;
-                rbSidesOnly.value = false;
-                rbTopBottomOnly.value = false;
-                rbTopLeft.value = false;
-                rbBottomLeft.value = false;
-                rbTopRight.value = false;
-                rbBottomRight.value = false;
-            };
-            rbEdge.onClick = function() {
-                rbCenter.value = false;
-                rbSidesOnly.value = false;
-                rbTopBottomOnly.value = false;
-                rbTopLeft.value = false;
-                rbBottomLeft.value = false;
-                rbTopRight.value = false;
-                rbBottomRight.value = false;
-            };
-            rbSidesOnly.onClick = function() {
-                rbCenter.value = false;
-                rbEdge.value = false;
-                rbTopBottomOnly.value = false;
-                rbTopLeft.value = false;
-                rbBottomLeft.value = false;
-                rbTopRight.value = false;
-                rbBottomRight.value = false;
-            };
-            rbTopBottomOnly.onClick = function() {
-                rbCenter.value = false;
-                rbEdge.value = false;
-                rbSidesOnly.value = false;
-                rbTopLeft.value = false;
-                rbBottomLeft.value = false;
-                rbTopRight.value = false;
-                rbBottomRight.value = false;
-            };
-            rbTopLeft.onClick = function() {
-                rbCenter.value = false;
-                rbEdge.value = false;
-                rbSidesOnly.value = false;
-                rbTopBottomOnly.value = false;
-                rbBottomLeft.value = false;
-                rbTopRight.value = false;
-                rbBottomRight.value = false;
-            };
-            rbBottomLeft.onClick = function() {
-                rbCenter.value = false;
-                rbEdge.value = false;
-                rbSidesOnly.value = false;
-                rbTopBottomOnly.value = false;
-                rbTopLeft.value = false;
-            };
-            rbTopRight.onClick = function() {
-                rbCenter.value = false;
-                rbEdge.value = false;
-                rbSidesOnly.value = false;
-                rbTopBottomOnly.value = false;
-                rbTopLeft.value = false;
-                rbBottomLeft.value = false;
-                rbBottomRight.value = false;
-            };
-
-            rbBottomRight.onClick = function() {
-                rbCenter.value = false;
-                rbEdge.value = false;
-                rbSidesOnly.value = false;
-                rbTopBottomOnly.value = false;
-                rbTopLeft.value = false;
-                rbBottomLeft.value = false;
-                rbTopRight.value = false;
-            };
-
-            cbUseVisible = dlg.add("checkbox", undefined, LABELS.useVisible[lang]);
-            cbUseVisible.value = true;
-
-            cbClearGuides = dlg.add("checkbox", undefined, LABELS.clearGuides[lang]);
-            cbClearGuides.value = true;
-
-            var offsetGroup = dlg.add("group");
-            offsetGroup.add("statictext", undefined, LABELS.offset[lang]);
-            offsetInput = offsetGroup.add("edittext", undefined, "6");
-            offsetInput.characters = 3;
-            offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
-
-            var marginGroup = dlg.add("group");
-            marginGroup.add("statictext", undefined, LABELS.margin[lang]);
-            marginInput = marginGroup.add("edittext", undefined, "0");
-            marginInput.characters = 3;
-            marginGroup.add("statictext", undefined, getCurrentUnitLabel());
-
-            // === offset/margin有効・無効切替関数 ===
-            // カンバス選択時は offset（はみだし）のみ無効化 / Disable offset only when Canvas is selected
-            function updateOffsetMarginState() {
-                var disable = rbCanvas.value;
-                offsetInput.enabled = !disable;
-                // marginInput は常に有効
-            }
-
-            // ラジオボタン切替イベントで呼び出し
-            rbArtboard.onClick = function() {
-                updateOffsetMarginState();
-            };
-            rbCanvas.onClick = function() {
-                updateOffsetMarginState();
-            };
-
-            // 初期状態も更新
-            updateOffsetMarginState();
-
-            var btnGroup = dlg.add("group");
-            btnGroup.alignment = "right";
-            var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel[lang]);
-            var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang]);
-
-            if (dlg.show() != 1) {
-                isValid = false;
-            }
+        if (first) {
+            bounds = b.concat();
+            first = false;
+        } else {
+            bounds[0] = Math.min(bounds[0], b[0]);
+            bounds[1] = Math.max(bounds[1], b[1]);
+            bounds[2] = Math.max(bounds[2], b[2]);
+            bounds[3] = Math.min(bounds[3], b[3]);
         }
+    }
+    var top = bounds[1] + offsetValue;
+    var left = bounds[0] - offsetValue;
+    var bottom = bounds[3] - offsetValue;
+    var right = bounds[2] + offsetValue;
+    var centerX = (left + right) / 2;
+    var centerY = (top + bottom) / 2;
+    // --- _guideレイヤー取得または作成 / Get or create "_guide" layer ---
+    var layer = null;
+    for (var i = 0; i < doc.layers.length; i++) {
+        if (doc.layers[i].name === "_guide") {
+            layer = doc.layers[i];
+            break;
+        }
+    }
+    if (!layer) {
+        layer = doc.layers.add();
+        layer.name = "_guide";
+    }
+    var wasLocked = layer.locked;
+    if (wasLocked) layer.locked = false;
+    // --- ガイド描画方向リスト / List of guides to draw ---
+    var directions = [
+        { flag: options.left, pos: left, orientation: "vertical" },
+        { flag: options.right, pos: right, orientation: "vertical" },
+        { flag: options.top, pos: top, orientation: "horizontal" },
+        { flag: options.bottom, pos: bottom, orientation: "horizontal" }
+    ];
+    if (options.center) {
+        directions.push({ flag: true, pos: centerX, orientation: "vertical" });
+        directions.push({ flag: true, pos: centerY, orientation: "horizontal" });
+    }
+    for (var i = 0; i < directions.length; i++) {
+        if (directions[i].flag) {
+            createGuide(layer, directions[i].pos, directions[i].orientation, useCanvas, marginValue);
+        }
+    }
+    // --- 元テキスト復帰＆アウトライン削除 / Restore original text and remove outlines ---
+    if (textCopies.length > 0) {
+        for (var i = 0; i < textCopies.length; i++) {
+            textCopies[i].remove();
+            originalTexts[i].hidden = false;
+        }
+    }
+    layer.locked = true;
+}
 
-        if (!isValid) {
-            guideLayer.locked = true;
+/**
+ * ガイド1本を作成
+ * Create a single guide path.
+ */
+function createGuide(layer, pos, orientation, useCanvas, marginValue) {
+    var doc = app.activeDocument;
+    var guide;
+    if (useCanvas) {
+        // カンバス基準：±8000 pt固定 / Use ±8000pt for canvas
+        var big = 8000;
+        if (orientation === "horizontal") {
+            guide = layer.pathItems.add();
+            guide.setEntirePath([[-big, pos], [big, pos]]);
+        } else {
+            guide = layer.pathItems.add();
+            guide.setEntirePath([[pos, big], [pos, -big]]);
+        }
+    } else {
+        // アートボード基準 / Use artboard bounds
+        if (doc.artboards.length === 0) {
+            alert("アートボードが存在しません。");
             return;
         }
-
-        if (cbClearGuides.value) {
-            for (var i = guideLayer.pageItems.length - 1; i >= 0; i--) {
-                guideLayer.pageItems[i].remove();
-            }
+        var abIndex = doc.artboards.getActiveArtboardIndex();
+        if (abIndex < 0 || abIndex >= doc.artboards.length) {
+            alert("有効なアートボードが選択されていません。");
+            return;
         }
-
-        var offsetValue = parseFloat(offsetInput.text);
-        if (isNaN(offsetValue)) offsetValue = 0;
-        offsetValue *= factor;
-        if (useArtboardAsTarget) {
-            // 10mm = 28.35pt
-            offsetValue = 28.35;
-        }
-
-        var marginValue = parseFloat(marginInput.text);
-        if (isNaN(marginValue)) marginValue = 0;
-        marginValue *= factor;
-
-        // テキストオブジェクトのアウトライン化処理（プレビュー境界を使用時のみ）/ Outline text objects if using visible bounds
-        var textCopies = [];
-        var originalTexts = [];
-        if (cbUseVisible.value) {
-            for (var i = 0; i < selectionItems.length; i++) {
-                var item = selectionItems[i];
-                if (item && item.typename === "TextFrame") {
-                    var copy = item.duplicate();
-                    item.hidden = true;
-                    var outlined = copy.createOutline();
-                    if (outlined) {
-                        textCopies.push(outlined);
-                        originalTexts.push(item);
-                    }
-                }
-            }
-        }
-
-        // クリップグループのマスクパス取得 / Get clipping mask path from group (if any)
-        function getClipMask(groupItem) {
-            for (var i = 0; i < groupItem.pageItems.length; i++) {
-                if (groupItem.pageItems[i].clipping) {
-                    return groupItem.pageItems[i];
-                }
-            }
-            return null;
-        }
-
-        // bounds計算用アイテム配列構築 / Build items array for bounds calculation
-        function buildItemsForBounds(selectionItems, textCopies, useVisible) {
-            var items = [];
-            for (var i = 0; i < selectionItems.length; i++) {
-                var item = selectionItems[i];
-                if (item) {
-                    if (item.typename === "GroupItem" && item.clipped) {
-                        var mask = getClipMask(item);
-                        if (mask) {
-                            items.push(mask);
-                        } else {
-                            items.push(item);
-                        }
-                    } else if (item.typename === "TextFrame") {
-                        // useVisible が true なら textCopies（後で追加）、false なら元テキストをそのまま使用
-                        if (!useVisible) {
-                            items.push(item);
-                        }
-                    } else {
-                        items.push(item);
-                    }
-                }
-            }
-            if (useVisible && textCopies && textCopies.length > 0) {
-                for (var i = 0; i < textCopies.length; i++) {
-                    if (textCopies[i]) {
-                        items.push(textCopies[i]);
-                    }
-                }
-            }
-            var validItems = [];
-            for (var i = 0; i < items.length; i++) {
-                if (items[i]) {
-                    validItems.push(items[i]);
-                }
-            }
-            return validItems;
-        }
-
-        // bounds計算用配列構築とバウンディングボックス算出 / Build array and calculate bounds
-        var bounds;
-        if (useArtboardAsTarget) {
-            bounds = artboardRect.concat();
+        var ab = doc.artboards[abIndex].artboardRect;
+        if (orientation === "horizontal") {
+            guide = layer.pathItems.add();
+            guide.setEntirePath([[ab[0] - marginValue, pos], [ab[2] + marginValue, pos]]);
         } else {
-            var itemsForBounds;
-            if (cbUseVisible.value) {
-                itemsForBounds = buildItemsForBounds(selectionItems, textCopies, true);
-            } else {
-                // プレビュー境界OFF時は textCopies を使わない
-                itemsForBounds = buildItemsForBounds(selectionItems, [], false);
-            }
-            bounds = calculateBounds(itemsForBounds, cbUseVisible.value);
+            guide = layer.pathItems.add();
+            guide.setEntirePath([[pos, ab[1] + marginValue], [pos, ab[3] - marginValue]]);
         }
-
-        // カンバス矩形（227inch = 16344pt）
-        var canvasSize = 227 * 72;
-        var halfCanvas = canvasSize / 2;
-        var canvasRect = [-halfCanvas, halfCanvas, halfCanvas, -halfCanvas];
-
-        // 対象矩形: アートボード or カンバス
-        var targetRect = rbArtboard.value ? artboardRect : canvasRect;
-
-        // オブジェクトがアートボード外の場合、自動的にカンバスを選択（alertなし）
-        if (rbArtboard.value && (
-                bounds[2] < artboardRect[0] ||
-                bounds[0] > artboardRect[2] ||
-                bounds[1] < artboardRect[3] ||
-                bounds[3] > artboardRect[1]
-            )) {
-            rbCanvas.value = true;
-            rbArtboard.value = false;
-            targetRect = canvasRect; // カンバス矩形に切り替え
-        }
-
-        // === ここからガイド作成対象矩形を targetRect に ===
-        if (rbCenter.value) {
-            createCenterGuides(bounds, targetRect, guideLayer);
-        } else if (rbEdge.value) {
-            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "full");
-        } else if (rbSidesOnly.value) {
-            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "sides");
-        } else if (rbTopBottomOnly.value) {
-            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "topBottom");
-        } else if (rbTopLeft.value) {
-            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "topLeft");
-        } else if (rbBottomLeft.value) {
-            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "bottomLeft");
-        } else if (rbTopRight.value) {
-            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "topRight");
-        } else if (rbBottomRight.value) {
-            createEdgeGuides(bounds, targetRect, guideLayer, offsetValue, marginValue, "bottomRight");
-        }
-        guideLayer.locked = true;
-
-        // ガイド作成後、元のテキストを再表示・複製削除（プレビュー境界を使用時のみ）/ Restore original text after guides
-        if (cbUseVisible && cbUseVisible.value && originalTexts && textCopies) {
-            for (var i = 0; i < originalTexts.length; i++) {
-                if (originalTexts[i]) originalTexts[i].hidden = false;
-            }
-            for (var i = 0; i < textCopies.length; i++) {
-                if (textCopies[i]) textCopies[i].remove();
-            }
-        }
-
-    } catch (e) {
-        alert(LABELS.error[lang] + e);
     }
+    guide.guides = true;
 }
 
-main();
+/**
+ * メインダイアログを構築・表示 / Build and show the main dialog
+ */
+function buildDialog() {
+    var dialog = new Window("dialog");
+    dialog.text = LABELS.dialogTitle[lang];
+    dialog.orientation = "column";
+    dialog.alignChildren = ["center", "top"];
+    dialog.spacing = 10;
+    dialog.margins = [15, 15, 30, 15];
+
+    var mainGroup = dialog.add("group");
+    mainGroup.orientation = "row";
+    mainGroup.alignChildren = ["fill", "top"];
+    mainGroup.spacing = 20;
+    mainGroup.margins = 0;
+
+    var leftGroup = mainGroup.add("group");
+    leftGroup.orientation = "column";
+    leftGroup.alignChildren = ["left", "top"];
+    leftGroup.spacing = 10;
+
+    var rightGroup = mainGroup.add("group");
+    rightGroup.orientation = "column";
+    rightGroup.alignChildren = ["left", "top"];
+    rightGroup.spacing = 10;
+    rightGroup.alignment = ["left", "center"];
+
+    var targetPanel = leftGroup.add("panel", undefined, LABELS.targetPanel[lang]);
+    targetPanel.orientation = "column";
+    targetPanel.alignChildren = ["left", "top"];
+    targetPanel.spacing = 10;
+    targetPanel.margins = [10, 20, 20, 15];
+    // カンバス→アートボードの順にラジオボタンを追加し、デフォルトをアートボードに
+    var rbCanvas = targetPanel.add("radiobutton", undefined, LABELS.canvas[lang]);
+    var rbArtboard = targetPanel.add("radiobutton", undefined, LABELS.artboard[lang]);
+    rbArtboard.value = true;
+    // --- 「裁ち落とし」グループを targetPanel 内に追加 / Add margin (bleed) group to targetPanel ---
+    var marginGroup = targetPanel.add("group");
+    marginGroup.orientation = "row";
+    marginGroup.alignChildren = ["left", "center"];
+    marginGroup.add("statictext", undefined, "裁ち落とし");
+    var marginInput = marginGroup.add("edittext", undefined, "20");
+    marginInput.characters = 3;
+    marginGroup.add("statictext", undefined, "pt");
+
+    var axisGroup = leftGroup.add("panel", undefined, undefined, {
+        name: "axisGroup"
+    });
+    axisGroup.text = LABELS.axisGroup[lang];
+    axisGroup.orientation = "column";
+    axisGroup.alignChildren = ["left", "top"];
+    axisGroup.spacing = 10;
+    axisGroup.margins = [10, 20, 10, 5];
+
+    var diamondGroup = axisGroup.add("group", undefined, {
+        name: "diamondGroup"
+    });
+    diamondGroup.orientation = "row";
+    diamondGroup.alignChildren = ["left", "center"];
+    diamondGroup.spacing = 20;
+    diamondGroup.margins = 0;
+    diamondGroup.alignment = ["fill", "top"];
+
+    var colLeft = diamondGroup.add("group", undefined, {
+        name: "colLeft"
+    });
+    colLeft.orientation = "row";
+    colLeft.alignChildren = ["left", "center"];
+    colLeft.spacing = 10;
+    colLeft.margins = 0;
+    var cbLeft = colLeft.add("checkbox", undefined, undefined, {
+        name: "cbLeft"
+    });
+    cbLeft.text = LABELS.left[lang];
+    cbLeft.value = true;
+
+    var colCenter = diamondGroup.add("group", undefined, {
+        name: "colCenter"
+    });
+
+    colCenter.orientation = "column";
+    colCenter.alignChildren = ["left", "center"];
+    colCenter.spacing = 10;
+    colCenter.margins = 0;
+    var cbTop = colCenter.add("checkbox", undefined, undefined, {
+        name: "cbTop"
+    });
+    cbTop.text = LABELS.top[lang];
+    cbTop.value = true;
+    var cbCenter = colCenter.add("checkbox", undefined, undefined, {
+        name: "cbCenter"
+    });
+    cbCenter.text = LABELS.center[lang];
+    var cbBottom = colCenter.add("checkbox", undefined, undefined, {
+        name: "cbBottom"
+    });
+    cbBottom.text = LABELS.bottom[lang];
+    cbBottom.value = true;
+
+    var colRight = diamondGroup.add("group", undefined, {
+        name: "colRight"
+    });
+    colRight.orientation = "row";
+    colRight.alignChildren = ["left", "center"];
+    colRight.spacing = 10;
+    colRight.margins = 0;
+    var cbRight = colRight.add("checkbox", undefined, undefined, {
+        name: "cbRight"
+    });
+    cbRight.text = LABELS.right[lang];
+    cbRight.value = true;
+
+    var edgeGroup = axisGroup.add("group", undefined, {
+        name: "edgeGroup"
+    });
+    edgeGroup.orientation = "row";
+    edgeGroup.alignChildren = ["left", "center"];
+    edgeGroup.spacing = 10;
+    edgeGroup.margins = [0, 15, 0, 5];
+    edgeGroup.alignment = ["center", "top"];
+
+
+    // --- 右側ラジオボタン定義と出し入れ設定 / Add right-side radio buttons in dialog order ---
+    function createRadioButton(group, label, show) {
+        if (!show) return null;
+        return group.add("radiobutton", undefined, label);
+    }
+
+    var rbAllOn = createRadioButton(rightGroup, LABELS.allOn[lang], showRbAllOn);
+    var rbShihen = createRadioButton(rightGroup, LABELS.edges[lang], showRbShihen);
+    var rbTopBottom = createRadioButton(rightGroup, LABELS.vertical[lang], showRbTopBottom);
+    var rbLeftRight = createRadioButton(rightGroup, LABELS.horizontal[lang], showRbLeftRight);
+    var rbTopLeft = createRadioButton(rightGroup, LABELS.topLeft[lang], showRbTopLeft);
+    var rbBottomLeft = createRadioButton(rightGroup, LABELS.bottomLeft[lang], showRbBottomLeft);
+    var rbTopRight = createRadioButton(rightGroup, LABELS.topRight[lang], showRbTopRight);
+    var rbBottomRight = createRadioButton(rightGroup, LABELS.bottomRight[lang], showRbBottomRight);
+    var rbClear = createRadioButton(rightGroup, LABELS.clear[lang], showRbClear);
+
+    // デフォルト選択は表示中の最初のボタンに自動設定（Shihen優先） / Default selection (prefer "Edges")
+    if (rbShihen) {
+        rbShihen.value = true;
+    } else if (rbAllOn) {
+        rbAllOn.value = true;
+    }
+
+    // チェックボックス群の状態をまとめてセット / Set checkboxes easily
+    function setCheckboxState(l, t, r, b, c) {
+        cbLeft.value = l;
+        cbTop.value = t;
+        cbRight.value = r;
+        cbBottom.value = b;
+        cbCenter.value = c;
+    }
+
+    if (rbShihen) {
+        rbShihen.onClick = function() {
+            if (rbShihen.value) setCheckboxState(true, true, true, true, false);
+        };
+    }
+    if (rbAllOn) {
+        rbAllOn.onClick = function() {
+            if (rbAllOn.value) setCheckboxState(true, true, true, true, true);
+        };
+    }
+    if (rbTopBottom) {
+        rbTopBottom.onClick = function() {
+            if (rbTopBottom.value) setCheckboxState(false, true, false, true, false);
+        };
+    }
+    if (rbLeftRight) {
+        rbLeftRight.onClick = function() {
+            if (rbLeftRight.value) setCheckboxState(true, false, true, false, false);
+        };
+    }
+    if (rbTopLeft) {
+        rbTopLeft.onClick = function() {
+            if (rbTopLeft.value) setCheckboxState(true, true, false, false, false);
+        };
+    }
+    if (rbBottomLeft) {
+        rbBottomLeft.onClick = function() {
+            if (rbBottomLeft.value) setCheckboxState(true, false, false, true, false);
+        };
+    }
+    if (rbTopRight) {
+        rbTopRight.onClick = function() {
+            if (rbTopRight.value) setCheckboxState(false, true, true, false, false);
+        };
+    }
+    if (rbBottomRight) {
+        rbBottomRight.onClick = function() {
+            if (rbBottomRight.value) setCheckboxState(false, false, true, true, false);
+        };
+    }
+    if (rbClear) {
+        rbClear.onClick = function() {
+            if (rbClear.value) setCheckboxState(false, false, false, false, false);
+        };
+    }
+
+    var optionsGroup = dialog.add("group", undefined, {
+        name: "optionsGroup"
+    });
+    optionsGroup.orientation = "column";
+    optionsGroup.alignChildren = ["left", "center"];
+    optionsGroup.margins = [10, 15, 10, 20];
+    optionsGroup.spacing = 10;
+
+    var cbUsePreview = optionsGroup.add("checkbox", undefined, LABELS.usePreviewBounds[lang]);
+    cbUsePreview.value = true;
+    var cbDeleteGuide = optionsGroup.add("checkbox", undefined, "「_guide」のガイドを削除");
+    cbDeleteGuide.value = true;
+
+    // --- オフセット入力欄追加 / Add offset input field ---
+    var offsetGroup = optionsGroup.add("group");
+    offsetGroup.orientation = "row";
+    offsetGroup.alignChildren = ["left", "center"];
+    offsetGroup.add("statictext", undefined, "オフセット");
+    var offsetInput = offsetGroup.add("edittext", undefined, "0");
+    offsetInput.characters = 3;
+    offsetGroup.add("statictext", undefined, "pt");
+    // --- 「裁ち落とし」(marginInput) を「カンバス」選択時にディム表示する制御を追加 / Disable margin input if canvas is selected ---
+    function updateMarginEnabled() {
+        if (rbCanvas.value) {
+            marginInput.enabled = false;
+        } else {
+            marginInput.enabled = true;
+        }
+    }
+    rbArtboard.onClick = updateMarginEnabled;
+    rbCanvas.onClick = updateMarginEnabled;
+    // 初期状態に合わせる
+    updateMarginEnabled();
+
+    var btnGroup = dialog.add("group");
+    btnGroup.alignment = ["center", "top"];
+    var btnCancel = btnGroup.add("button", undefined, "キャンセル");
+    var btnCreateGuides = btnGroup.add("button", undefined, "ガイドを描画", {
+        name: "ok"
+    });
+
+    btnCancel.onClick = function() {
+        dialog.close();
+    };
+
+    btnCreateGuides.onClick = function() {
+        try {
+            var options = {
+                left: cbLeft.value,
+                right: cbRight.value,
+                top: cbTop.value,
+                bottom: cbBottom.value,
+                center: cbCenter.value,
+                usePreviewBounds: cbUsePreview.value
+            };
+            var useCanvas = rbCanvas.value;
+
+            // --- _guideレイヤー取得または作成 / Get or create "_guide" layer ---
+            var doc = app.activeDocument;
+            var layer = null;
+            for (var i = 0; i < doc.layers.length; i++) {
+                if (doc.layers[i].name === "_guide") {
+                    layer = doc.layers[i];
+                    break;
+                }
+            }
+            if (!layer) {
+                layer = doc.layers.add();
+                layer.name = "_guide";
+            }
+            var wasLocked = layer.locked;
+            if (wasLocked) layer.locked = false;
+            // --- 削除チェックON時、既存ガイド削除 / Remove existing guides if checked ---
+            if (cbDeleteGuide.value) {
+                try {
+                    for (var i = layer.pageItems.length - 1; i >= 0; i--) {
+                        if (layer.pageItems[i].guides) {
+                            layer.pageItems[i].remove();
+                        }
+                    }
+                } catch (ex) {
+                    alert("既存ガイド削除時にエラーが発生しました。\n" + ex.message);
+                }
+            }
+            var offsetVal = parseFloat(offsetInput.text);
+            if (isNaN(offsetVal)) offsetVal = 0;
+            var marginVal = parseFloat(marginInput.text);
+            if (isNaN(marginVal)) marginVal = 0;
+            createGuidesFromSelection(options, useCanvas, offsetVal, marginVal);
+        } catch (e) {
+            alert("ガイド作成中にエラーが発生しました。\n" + (e && e.message ? e.message : e));
+        }
+        dialog.close();
+    };
+
+    dialog.show();
+}
+
+buildDialog();
