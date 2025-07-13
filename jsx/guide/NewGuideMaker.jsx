@@ -145,6 +145,26 @@ var canvasSize = 227 * 72;
 function buildDialog() {
     var doc = app.activeDocument;
 
+    // --- Shared unit options and selection ---
+    var unitOptions = [];
+    for (var code in unitLabelMap) {
+        if (unitLabelMap.hasOwnProperty(code)) {
+            unitOptions.push(unitLabelMap[code]);
+        }
+    }
+    var currentLabel = getCurrentUnitLabel();
+    var foundIndex = null;
+    for (var i = 0; i < unitOptions.length; i++) {
+        if (unitOptions[i] === currentLabel) {
+            foundIndex = i;
+            break;
+        }
+    }
+    if (foundIndex === null) {
+        foundIndex = 0;
+    }
+    // --- End shared unit options ---
+
     /* _guide レイヤー取得または作成・ロック解除 / Get or create and unlock _guide layer */
     var guideLayer = null;
     var docLayers = doc.layers;
@@ -275,8 +295,12 @@ function buildDialog() {
     changeValueByArrowKey(repeatDistanceEdit, function() {
         drawPreviewLine();
     });
-    /* ユニット表示（ラベルのみ、ドロップダウンなし）/ Unit label only (no dropdown) */
-    var distanceUnitLabel = repeatDistanceGroup.add("statictext", undefined, getCurrentUnitLabel());
+    /* 距離単位ドロップダウン / Distance unit dropdown */
+    var distanceUnitDropdown = repeatDistanceGroup.add("dropdownlist", undefined, unitOptions);
+    distanceUnitDropdown.selection = foundIndex;
+    distanceUnitDropdown.onChange = function() {
+        drawPreviewLine();
+    };
 
     /* 位置と単位選択 / Position and unit selection */
     var positionGroup = directionPanel.add("group");
@@ -293,24 +317,7 @@ function buildDialog() {
     });
 
     /* 単位ドロップダウンを unitLabelMap ですべての単位に変更 / Populate unit dropdown with all units */
-    var unitOptions = [];
-    for (var code in unitLabelMap) {
-        if (unitLabelMap.hasOwnProperty(code)) {
-            unitOptions.push(unitLabelMap[code]);
-        }
-    }
     var unitDropdown = positionGroup.add("dropdownlist", undefined, unitOptions);
-    var currentLabel = getCurrentUnitLabel();
-    var foundIndex = null;
-    for (var i = 0; i < unitDropdown.items.length; i++) {
-        if (unitDropdown.items[i].text === currentLabel) {
-            foundIndex = i;
-            break;
-        }
-    }
-    if (foundIndex === null) {
-        foundIndex = 0;
-    }
     unitDropdown.selection = foundIndex;
 
     /* ボタン群 / Button group */
@@ -364,7 +371,7 @@ function buildDialog() {
         if (isNaN(repeatCount) || repeatCount < 1) repeatCount = 1;
         var repeatDistance = parseFloat(repeatDistanceEdit.text);
         if (isNaN(repeatDistance) || repeatDistance <= 0) repeatDistance = 0;
-        var repeatDistancePt = convertToPt(repeatDistance, unitDropdown.selection.text);
+        var repeatDistancePt = convertToPt(repeatDistance, distanceUnitDropdown.selection.text);
 
         /* レイヤー選択ロジック / Layer selection logic */
         var targetLayer = null;
@@ -510,6 +517,10 @@ function buildDialog() {
                 previewLine.guides = true;
                 previewLine.strokeWidth = 0.1;
             }
+        }
+        // "_guide"レイヤーが存在し、名前が"_guide"ならロック
+        if (guideLayer && guideLayer.name === "_guide") {
+            guideLayer.locked = true;
         }
         previewLine = null;
         dlg.close();
