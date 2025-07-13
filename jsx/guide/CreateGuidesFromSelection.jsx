@@ -605,6 +605,9 @@ function createGuide(layer, pos, orientation, useCanvas, marginValue) {
             ]);
         }
     }
+    // Remove fill and stroke before converting to a guide
+    guide.filled = false;
+    guide.stroked = false;
     guide.guides = true;
 }
 
