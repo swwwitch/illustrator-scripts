@@ -72,6 +72,29 @@ NewGuideMaker.jsx
 
 var SCRIPT_VERSION = "v1.0";
 
+/* 単位コードとラベルのマップ / Map of unit codes and labels (US Illustrator) */
+var unitLabelMap = {
+    0: "Inches",
+    1: "Millimeters",
+    2: "Points",
+    3: "Picas",
+    4: "Centimeters",
+    5: "Q/H",
+    6: "Pixels",
+    8: "Meters"
+};
+// US Illustrator固有の単位を追加（既存定義を残して追加）
+unitLabelMap[7] = "Feet & Inches";
+unitLabelMap[9] = "Yards";
+unitLabelMap[10] = "Feet";
+/* 単位ラベルからコードへの逆引きマップ / Reverse map: label to code */
+var unitLabelToCodeMap = {};
+for (var code in unitLabelMap) {
+    if (unitLabelMap.hasOwnProperty(code)) {
+        unitLabelToCodeMap[unitLabelMap[code]] = parseInt(code, 10);
+    }
+}
+
 function getCurrentLang() {
     try {
         var lang = app.locale || app.language || "ja";
@@ -411,29 +434,6 @@ function changeValueByArrowKey(editText, onUpdate) {
             onUpdate(editText.text);
         }
     });
-}
-
-/* 単位コードとラベルのマップ / Map of unit codes and labels (US Illustrator) */
-var unitLabelMap = {
-    0: "Inches",
-    1: "Millimeters",
-    2: "Points",
-    3: "Picas",
-    4: "Centimeters",
-    5: "Q/H",
-    6: "Pixels",
-    8: "Meters"
-};
-// US Illustrator固有の単位を追加（既存定義を残して追加）
-unitLabelMap[7] = "Feet & Inches";
-unitLabelMap[9] = "Yards";
-unitLabelMap[10] = "Feet";
-/* 単位ラベルからコードへの逆引きマップ / Reverse map: label to code */
-var unitLabelToCodeMap = {};
-for (var code in unitLabelMap) {
-    if (unitLabelMap.hasOwnProperty(code)) {
-        unitLabelToCodeMap[unitLabelMap[code]] = parseInt(code, 10);
-    }
 }
 
 /* 現在の単位ラベルを取得 / Get current unit label */
