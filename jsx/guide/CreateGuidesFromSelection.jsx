@@ -213,8 +213,8 @@ var LABELS = {
         en: "Use Preview Bounds"
     },
     margin: {
-        ja: "裁ち落とし",
-        en: "Margin"
+        ja: "はみ出し",
+        en: "Overflow"
     },
     deleteGuides: {
         ja: "「_guide」のガイドを削除",

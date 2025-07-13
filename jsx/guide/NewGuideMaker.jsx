@@ -109,79 +109,29 @@ function getCurrentLang() {
 /*
   UIラベル定義 / UI label definitions
 */
+/*
+  UIラベル定義 / UI label definitions
+  - UI順に並べる / Ordered as appears in UI
+*/
 var LABELS = {
-    dialogTitle: {
-        ja: "ガイド作成 " + SCRIPT_VERSION,
-        en: "Create Guide " + SCRIPT_VERSION
-    },
-    target: {
-        ja: "対象",
-        en: "Target"
-    },
-    canvas: {
-        ja: "カンバス",
-        en: "Canvas"
-    },
-    artboard: {
-        ja: "アートボード",
-        en: "Artboard"
-    },
-    bleed: {
-        ja: "はみ出し",
-        en: "Bleed"
-    },
-    direction: {
-        ja: "方向",
-        en: "Direction"
-    },
-    horizontal: {
-        ja: "水平方向",
-        en: "Horizontal"
-    },
-    vertical: {
-        ja: "垂直方向",
-        en: "Vertical"
-    },
-    // --- Inserted new labels for layer selection ---
-    layer: {
-        ja: "作成レイヤー",
-        en: "Target Layer"
-    },
-    guideLayer: {
-        ja: "_guideレイヤー",
-        en: "_guide Layer"
-    },
-    currentLayer: {
-        ja: "現在のレイヤー",
-        en: "Current Layer"
-    },
-    // --- End layer selection labels ---
-    // --- Inserted new labels for repeat panel ---
-    repeat: {
-        ja: "リピート",
-        en: "Repeat"
-    },
-    guideCount: {
-        ja: "ガイド数",
-        en: "Guide Count"
-    },
-    distance: {
-        ja: "距離",
-        en: "Distance"
-    },
-    // --- End repeat panel labels ---
-    position: {
-        ja: "位置:",
-        en: "Position:"
-    },
-    ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    }
+    dialogTitle: { ja: "ガイド作成 " + SCRIPT_VERSION, en: "Create Guide " + SCRIPT_VERSION },
+    target: { ja: "対象", en: "Target" },
+    canvas: { ja: "カンバス", en: "Canvas" },
+    artboard: { ja: "アートボード", en: "Artboard" },
+    bleed: { ja: "はみ出し", en: "Bleed" },
+    direction: { ja: "方向", en: "Direction" },
+    horizontal: { ja: "水平方向", en: "Horizontal" },
+    vertical: { ja: "垂直方向", en: "Vertical" },
+    position: { ja: "位置:", en: "Position:" },
+    layer: { ja: "作成レイヤー", en: "Target Layer" },
+    guideLayer: { ja: "_guideレイヤー", en: "_guide Layer" },
+    currentLayer: { ja: "現在のレイヤー", en: "Current Layer" },
+    repeat: { ja: "リピート", en: "Repeat" },
+    guideCount: { ja: "ガイド数", en: "Guide Count" },
+    distance: { ja: "距離", en: "Distance" },
+    ok: { ja: "OK", en: "OK" },
+    cancel: { ja: "キャンセル", en: "Cancel" },
+    alertLocked: { ja: "アクティブレイヤーがロックされています。", en: "The active layer is locked." }
 };
 
 var lang = getCurrentLang();
@@ -191,10 +141,11 @@ var canvasSize = 227 * 72;
 /* 
   ダイアログの構築 / Build dialog UI 
 */
+/* ダイアログの構築 / Build dialog UI */
 function buildDialog() {
     var doc = app.activeDocument;
 
-    // --- _guide レイヤー取得または作成・ロック解除 ---
+    /* _guide レイヤー取得または作成・ロック解除 / Get or create and unlock _guide layer */
     var guideLayer = null;
     var docLayers = doc.layers;
     var found = false;
@@ -223,7 +174,7 @@ function buildDialog() {
     leftGroup.alignChildren = ["left", "top"];
     leftGroup.spacing = 10;
 
-    // 対象選択パネル / Target selection panel
+    /* 対象選択パネル / Target selection panel */
     var targetPanel = leftGroup.add("panel");
     targetPanel.text = LABELS.target[lang];
     targetPanel.orientation = "column";
@@ -237,7 +188,7 @@ function buildDialog() {
     var artboardRadio = targetRadioGroup.add("radiobutton", undefined, LABELS.artboard[lang]);
     artboardRadio.value = true;
 
-    // 裁ち落とし（マージン）入力 / Bleed (margin) input
+    /* 裁ち落とし（マージン）入力 / Bleed (margin) input */
     var marginGroup = targetPanel.add("group");
     marginGroup.orientation = "row";
     marginGroup.alignChildren = ["left", "center"];
@@ -254,7 +205,7 @@ function buildDialog() {
 
     marginEdit.enabled = true;
 
-    // 方向選択パネル / Direction selection panel
+    /* 方向選択パネル / Direction selection panel */
     var directionPanel = leftGroup.add("panel");
     directionPanel.text = LABELS.direction[lang];
     directionPanel.orientation = "column";
@@ -268,9 +219,9 @@ function buildDialog() {
     var verticalRadio = radioGroup.add("radiobutton", undefined, LABELS.vertical[lang]);
     horizontalRadio.value = true;
 
-    // 作成レイヤーパネル / Target layer panel
+    /* 作成レイヤーパネル / Target layer panel */
     var layerPanel = leftGroup.add("panel");
-    layerPanel.text = "作成レイヤー";
+    layerPanel.text = LABELS.layer[lang];
     layerPanel.orientation = "column";
     layerPanel.alignChildren = ["left", "top"];
     layerPanel.margins = [15, 20, 15, 10];
@@ -278,11 +229,11 @@ function buildDialog() {
     var layerRadioGroup = layerPanel.add("group");
     layerRadioGroup.orientation = "column";
     layerRadioGroup.alignChildren = ["left", "center"];
-    var guideLayerRadio = layerRadioGroup.add("radiobutton", undefined, "_guideレイヤー");
-    var currentLayerRadio = layerRadioGroup.add("radiobutton", undefined, "現在のレイヤー");
+    var guideLayerRadio = layerRadioGroup.add("radiobutton", undefined, LABELS.guideLayer[lang]);
+    var currentLayerRadio = layerRadioGroup.add("radiobutton", undefined, LABELS.currentLayer[lang]);
     guideLayerRadio.value = true; // default
 
-    // レイヤーラジオボタン切り替え時にプレビュー線を即時更新 / Update preview immediately when switching layer radio
+    /* レイヤーラジオボタン切り替え時にプレビュー線を即時更新 / Update preview immediately when switching layer radio */
     currentLayerRadio.onClick = function() {
         removePreviewLine();
         drawPreviewLine();
@@ -292,9 +243,9 @@ function buildDialog() {
         drawPreviewLine();
     };
 
-    // リピートパネル / Repeat panel
+    /* リピートパネル / Repeat panel */
     var repeatPanel = leftGroup.add("panel");
-    repeatPanel.text = "リピート";
+    repeatPanel.text = LABELS.repeat[lang];
     repeatPanel.orientation = "column";
     repeatPanel.alignChildren = ["left", "top"];
     repeatPanel.margins = [15, 20, 15, 10];
@@ -303,31 +254,31 @@ function buildDialog() {
     repeatRadioGroup.orientation = "column";
     repeatRadioGroup.alignChildren = ["left", "center"];
 
-    // リピート数入力欄 / Repeat count input
+    /* リピート数入力欄 / Repeat count input */
     var repeatCountGroup = repeatRadioGroup.add("group");
     repeatCountGroup.orientation = "row";
     repeatCountGroup.alignChildren = ["left", "center"];
-    repeatCountGroup.add("statictext", undefined, "ガイド数");
+    repeatCountGroup.add("statictext", undefined, LABELS.guideCount[lang]);
     var repeatCountEdit = repeatCountGroup.add('edittext {characters: 4}');
     repeatCountEdit.text = "1";
     changeValueByArrowKey(repeatCountEdit, function() {
         drawPreviewLine();
     });
 
-    // 距離入力欄 / Distance input
+    /* 距離入力欄 / Distance input */
     var repeatDistanceGroup = repeatRadioGroup.add("group");
     repeatDistanceGroup.orientation = "row";
     repeatDistanceGroup.alignChildren = ["left", "center"];
-    repeatDistanceGroup.add("statictext", undefined, "距離");
+    repeatDistanceGroup.add("statictext", undefined, LABELS.distance[lang]);
     var repeatDistanceEdit = repeatDistanceGroup.add('edittext {characters: 4}');
     repeatDistanceEdit.text = "0";
     changeValueByArrowKey(repeatDistanceEdit, function() {
         drawPreviewLine();
     });
-    // ユニット表示（ラベルのみ、ドロップダウンなし）
+    /* ユニット表示（ラベルのみ、ドロップダウンなし）/ Unit label only (no dropdown) */
     var distanceUnitLabel = repeatDistanceGroup.add("statictext", undefined, getCurrentUnitLabel());
 
-    // 位置と単位選択 / Position and unit selection
+    /* 位置と単位選択 / Position and unit selection */
     var positionGroup = directionPanel.add("group");
     positionGroup.orientation = "row";
     positionGroup.alignChildren = ["left", "center"];
@@ -341,7 +292,7 @@ function buildDialog() {
         drawPreviewLine();
     });
 
-    // 単位ドロップダウンを unitLabelMap ですべての単位に変更
+    /* 単位ドロップダウンを unitLabelMap ですべての単位に変更 / Populate unit dropdown with all units */
     var unitOptions = [];
     for (var code in unitLabelMap) {
         if (unitLabelMap.hasOwnProperty(code)) {
@@ -362,7 +313,7 @@ function buildDialog() {
     }
     unitDropdown.selection = foundIndex;
 
-    // ボタン群 / Button group
+    /* ボタン群 / Button group */
     var buttonGroup = dlg.add("group");
     buttonGroup.orientation = "column";
     buttonGroup.alignChildren = ["left", "center"];
@@ -373,10 +324,10 @@ function buildDialog() {
     var cancelButton = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
     cancelButton.preferredSize.width = 90;
 
-    // プレビュー線保持用 / Preview line holder
+    /* プレビュー線保持用 / Preview line holder */
     var previewLine = null;
 
-    // プレビュー線を削除 / Remove preview line
+    /* プレビュー線を削除 / Remove preview line */
     function removePreviewLine() {
         if (previewLine) {
             // previewLine may be an array or a single path
@@ -398,7 +349,7 @@ function buildDialog() {
         }
     }
 
-    // プレビュー線を描画 / Draw preview line
+    /* プレビュー線を描画 / Draw preview line */
     function drawPreviewLine() {
         removePreviewLine();
         var pos = parseFloat(positionEdit.text);
@@ -415,7 +366,7 @@ function buildDialog() {
         if (isNaN(repeatDistance) || repeatDistance <= 0) repeatDistance = 0;
         var repeatDistancePt = convertToPt(repeatDistance, unitDropdown.selection.text);
 
-        // レイヤー選択ロジック / Layer selection logic
+        /* レイヤー選択ロジック / Layer selection logic */
         var targetLayer = null;
         var origLock = false;
         var guideLayer = null;
@@ -441,7 +392,7 @@ function buildDialog() {
             // Directly use the current active layer as target
             targetLayer = doc.activeLayer;
             if (targetLayer.locked) {
-                alert("アクティブレイヤーがロックされています。");
+                alert(LABELS.alertLocked[lang]);
                 if (guideLayerRadio.value) {
                     guideLayer.locked = origLock;
                 }
@@ -505,7 +456,7 @@ function buildDialog() {
             p.guides = false; // プレビューはガイド化しない / Preview is not a guide
             previewPaths.push(p);
         }
-        // シングルプレビュー時は previewLine = path 互換性
+        /* シングルプレビュー時は previewLine = path 互換性 / Use single path for single preview */
         if (previewPaths.length === 1) {
             previewLine = previewPaths[0];
         } else {
@@ -517,7 +468,7 @@ function buildDialog() {
         app.redraw();
     }
 
-    // プレビュー用カラー（カラーモードに応じて）/ Preview color depending on document color mode
+    /* プレビュー用カラー（カラーモードに応じて）/ Preview color depending on document color mode */
     function makePreviewColor() {
         var colorSpace = app.activeDocument.documentColorSpace;
         if (colorSpace === DocumentColorSpace.CMYK) {
@@ -543,9 +494,9 @@ function buildDialog() {
         }
     }
 
-    // OKボタンクリック時の処理 / OK button click handler
+    /* OKボタンクリック時の処理 / OK button click handler */
     okButton.onClick = function() {
-        // プレビュー線がある場合、それをガイド化 / Convert preview line to guide if exists
+        /* プレビュー線がある場合、それをガイド化 / Convert preview line to guide if exists */
         if (previewLine) {
             if (previewLine instanceof Array) {
                 for (var i = 0; i < previewLine.length; i++) {
@@ -564,7 +515,7 @@ function buildDialog() {
         dlg.close();
     };
 
-    // 対象ラジオボタンの切り替えで裁ち落とし入力の有効/無効切り替え / Enable/disable margin input based on target
+    /* 対象ラジオボタンの切り替えで裁ち落とし入力の有効/無効切り替え / Enable/disable margin input based on target */
     canvasRadio.onClick = function() {
         marginEdit.enabled = false;
         drawPreviewLine();
@@ -574,7 +525,7 @@ function buildDialog() {
         drawPreviewLine();
     };
 
-    // プレビュー更新イベントを各UIに追加 / Add preview update events to UI elements
+    /* プレビュー更新イベントを各UIに追加 / Add preview update events to UI elements */
     positionEdit.addEventListener("changing", function() {
         drawPreviewLine();
     });
@@ -590,7 +541,7 @@ function buildDialog() {
     verticalRadio.onClick = function() {
         drawPreviewLine();
     };
-    // --- リピート数・距離変更時もプレビュー更新 / Update preview on repeat count/distance change ---
+    /* リピート数・距離変更時もプレビュー更新 / Update preview on repeat count/distance change */
     repeatCountEdit.addEventListener("changing", function() {
         drawPreviewLine();
     });
@@ -598,7 +549,7 @@ function buildDialog() {
         drawPreviewLine();
     });
 
-    // --- H/Vキーで方向切り替え / Switch direction with H/V keys ---
+    /* H/Vキーで方向切り替え / Switch direction with H/V keys */
     dlg.addEventListener("keydown", function(event) {
         if (event.keyName == "H" || event.keyName == "h") {
             horizontalRadio.value = true;
@@ -613,11 +564,11 @@ function buildDialog() {
         }
     });
 
-    // ダイアログ表示時に「位置」テキストフィールドにフォーカスを設定 / Focus position input on dialog show
+    /* ダイアログ表示時に「位置」テキストフィールドにフォーカスを設定 / Focus position input on dialog show */
     positionEdit.active = true;
-    // 初回プレビュー / Initial preview
+    /* 初回プレビュー / Initial preview */
     drawPreviewLine();
-    // ダイアログ閉じたらプレビュー線消す / Remove preview line on dialog close
+    /* ダイアログ閉じたらプレビュー線消す / Remove preview line on dialog close */
     dlg.onClose = function() {
         removePreviewLine();
     };
