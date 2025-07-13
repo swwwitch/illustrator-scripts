@@ -413,20 +413,21 @@ function changeValueByArrowKey(editText, onUpdate) {
     });
 }
 
-/* 単位コードとラベルのマップ / Map of unit codes and labels */
+/* 単位コードとラベルのマップ / Map of unit codes and labels (US Illustrator) */
 var unitLabelMap = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
+    0: "Inches",
+    1: "Millimeters",
+    2: "Points",
+    3: "Picas",
+    4: "Centimeters",
     5: "Q/H",
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
+    6: "Pixels",
+    8: "Meters"
 };
+// US Illustrator固有の単位を追加（既存定義を残して追加）
+unitLabelMap[7] = "Feet & Inches";
+unitLabelMap[9] = "Yards";
+unitLabelMap[10] = "Feet";
 /* 単位ラベルからコードへの逆引きマップ / Reverse map: label to code */
 var unitLabelToCodeMap = {};
 for (var code in unitLabelMap) {
