@@ -438,7 +438,11 @@ for (var code in unitLabelMap) {
 /* 現在の単位ラベルを取得 / Get current unit label */
 function getCurrentUnitLabel() {
     var unitCode = app.preferences.getIntegerPreference("rulerType");
-    return unitLabelMap[unitCode] || "pt";
+    if (unitLabelMap.hasOwnProperty(unitCode)) {
+        return unitLabelMap[unitCode];
+    } else {
+        return "pt";
+    }
 }
 
 /* 単位ラベルから単位コードを取得 / Get unit code from unit label */
