@@ -29,18 +29,17 @@ NewGuideMaker.jsx
 Photoshopの［新規ガイド］ダイアログを参考に、次の点を
 
 - アートボード、カンバスの選択
-- 裁ち落とし（マージン）の入力
-- 水平・垂直の選択（Hキー、Vキー）
+- アートボード選択時には裁ち落とし（マージン）を設定可能
+- 水平・垂直をHキー、Vキーで切替
 - ↑↓キー、shift + ↑↓での数値調整
 - ガイドのプレビュー線を描画
 - ガイド化時の色は設定不可（Illustratorの仕様）
-- ガイド化時の線幅は 0.1pt
 - ガイドは「_guide」レイヤーに作成し、ロック
 
 ### 更新履歴
 
 - v1.0 (20250713) : 初期バージョン
-
+- v1.1 (20250714) : レイヤー選択機能追加、リピート機能追加
 
 ### Script Name:
 
@@ -67,26 +66,26 @@ NewGuideMaker.jsx
 ### Change Log
 
 - v1.0 (20250713): Initial version
+- v1.1 (20250714): Added layer selection and repeat functionality
 
 */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
-/* 単位コードとラベルのマップ / Map of unit codes and labels (US Illustrator) */
+/* 単位コードとラベルのマップ / Map of unit codes and labels */
 var unitLabelMap = {
-    0: "Inches",
-    1: "Millimeters",
-    2: "Points",
-    3: "Picas",
-    4: "Centimeters",
+    0: "in",
+    1: "mm",
+    2: "pt",
+    3: "pica",
+    4: "cm",
     5: "Q/H",
-    6: "Pixels",
-    8: "Meters"
+    6: "px",
+    7: "ft/in",
+    8: "m",
+    9: "yd",
+    10: "ft"
 };
-// US Illustrator固有の単位を追加（既存定義を残して追加）
-unitLabelMap[7] = "Feet & Inches";
-unitLabelMap[9] = "Yards";
-unitLabelMap[10] = "Feet";
 /* 単位ラベルからコードへの逆引きマップ / Reverse map: label to code */
 var unitLabelToCodeMap = {};
 for (var code in unitLabelMap) {
@@ -107,21 +106,82 @@ function getCurrentLang() {
     return "ja";
 }
 
+/*
+  UIラベル定義 / UI label definitions
+*/
 var LABELS = {
     dialogTitle: {
         ja: "ガイド作成 " + SCRIPT_VERSION,
         en: "Create Guide " + SCRIPT_VERSION
     },
-    target: { ja: "対象", en: "Target" },
-    canvas: { ja: "カンバス", en: "Canvas" },
-    artboard: { ja: "アートボード", en: "Artboard" },
-    bleed: { ja: "裁ち落とし:", en: "Bleed:" },
-    direction: { ja: "方向", en: "Direction" },
-    horizontal: { ja: "水平方向", en: "Horizontal" },
-    vertical: { ja: "垂直方向", en: "Vertical" },
-    position: { ja: "位置:", en: "Position:" },
-    ok: { ja: "OK", en: "OK" },
-    cancel: { ja: "キャンセル", en: "Cancel" }
+    target: {
+        ja: "対象",
+        en: "Target"
+    },
+    canvas: {
+        ja: "カンバス",
+        en: "Canvas"
+    },
+    artboard: {
+        ja: "アートボード",
+        en: "Artboard"
+    },
+    bleed: {
+        ja: "はみ出し",
+        en: "Bleed"
+    },
+    direction: {
+        ja: "方向",
+        en: "Direction"
+    },
+    horizontal: {
+        ja: "水平方向",
+        en: "Horizontal"
+    },
+    vertical: {
+        ja: "垂直方向",
+        en: "Vertical"
+    },
+    // --- Inserted new labels for layer selection ---
+    layer: {
+        ja: "作成レイヤー",
+        en: "Target Layer"
+    },
+    guideLayer: {
+        ja: "_guideレイヤー",
+        en: "_guide Layer"
+    },
+    currentLayer: {
+        ja: "現在のレイヤー",
+        en: "Current Layer"
+    },
+    // --- End layer selection labels ---
+    // --- Inserted new labels for repeat panel ---
+    repeat: {
+        ja: "リピート",
+        en: "Repeat"
+    },
+    guideCount: {
+        ja: "ガイド数",
+        en: "Guide Count"
+    },
+    distance: {
+        ja: "距離",
+        en: "Distance"
+    },
+    // --- End repeat panel labels ---
+    position: {
+        ja: "位置:",
+        en: "Position:"
+    },
+    ok: {
+        ja: "OK",
+        en: "OK"
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    }
 };
 
 var lang = getCurrentLang();
@@ -186,7 +246,9 @@ function buildDialog() {
     var marginLabel = marginGroup.add("statictext", undefined, LABELS.bleed[lang]);
     var marginEdit = marginGroup.add('edittext {characters: 5}');
     marginEdit.text = "0";
-    changeValueByArrowKey(marginEdit, function(){ drawPreviewLine(); });
+    changeValueByArrowKey(marginEdit, function() {
+        drawPreviewLine();
+    });
 
     var marginUnitLabel = marginGroup.add("statictext", undefined, getCurrentUnitLabel());
 
@@ -206,6 +268,65 @@ function buildDialog() {
     var verticalRadio = radioGroup.add("radiobutton", undefined, LABELS.vertical[lang]);
     horizontalRadio.value = true;
 
+    // 作成レイヤーパネル / Target layer panel
+    var layerPanel = leftGroup.add("panel");
+    layerPanel.text = "作成レイヤー";
+    layerPanel.orientation = "column";
+    layerPanel.alignChildren = ["left", "top"];
+    layerPanel.margins = [15, 20, 15, 10];
+
+    var layerRadioGroup = layerPanel.add("group");
+    layerRadioGroup.orientation = "column";
+    layerRadioGroup.alignChildren = ["left", "center"];
+    var guideLayerRadio = layerRadioGroup.add("radiobutton", undefined, "_guideレイヤー");
+    var currentLayerRadio = layerRadioGroup.add("radiobutton", undefined, "現在のレイヤー");
+    guideLayerRadio.value = true; // default
+
+    // レイヤーラジオボタン切り替え時にプレビュー線を即時更新 / Update preview immediately when switching layer radio
+    currentLayerRadio.onClick = function() {
+        removePreviewLine();
+        drawPreviewLine();
+    };
+    guideLayerRadio.onClick = function() {
+        removePreviewLine();
+        drawPreviewLine();
+    };
+
+    // リピートパネル / Repeat panel
+    var repeatPanel = leftGroup.add("panel");
+    repeatPanel.text = "リピート";
+    repeatPanel.orientation = "column";
+    repeatPanel.alignChildren = ["left", "top"];
+    repeatPanel.margins = [15, 20, 15, 10];
+
+    var repeatRadioGroup = repeatPanel.add("group");
+    repeatRadioGroup.orientation = "column";
+    repeatRadioGroup.alignChildren = ["left", "center"];
+
+    // リピート数入力欄 / Repeat count input
+    var repeatCountGroup = repeatRadioGroup.add("group");
+    repeatCountGroup.orientation = "row";
+    repeatCountGroup.alignChildren = ["left", "center"];
+    repeatCountGroup.add("statictext", undefined, "ガイド数");
+    var repeatCountEdit = repeatCountGroup.add('edittext {characters: 4}');
+    repeatCountEdit.text = "1";
+    changeValueByArrowKey(repeatCountEdit, function() {
+        drawPreviewLine();
+    });
+
+    // 距離入力欄 / Distance input
+    var repeatDistanceGroup = repeatRadioGroup.add("group");
+    repeatDistanceGroup.orientation = "row";
+    repeatDistanceGroup.alignChildren = ["left", "center"];
+    repeatDistanceGroup.add("statictext", undefined, "距離");
+    var repeatDistanceEdit = repeatDistanceGroup.add('edittext {characters: 4}');
+    repeatDistanceEdit.text = "0";
+    changeValueByArrowKey(repeatDistanceEdit, function() {
+        drawPreviewLine();
+    });
+    // ユニット表示（ラベルのみ、ドロップダウンなし）
+    var distanceUnitLabel = repeatDistanceGroup.add("statictext", undefined, getCurrentUnitLabel());
+
     // 位置と単位選択 / Position and unit selection
     var positionGroup = directionPanel.add("group");
     positionGroup.orientation = "row";
@@ -216,7 +337,9 @@ function buildDialog() {
     var positionLabel = positionGroup.add("statictext", undefined, LABELS.position[lang]);
     var positionEdit = positionGroup.add('edittext {characters: 5}');
     positionEdit.text = "0";
-    changeValueByArrowKey(positionEdit, function(){ drawPreviewLine(); });
+    changeValueByArrowKey(positionEdit, function() {
+        drawPreviewLine();
+    });
 
     // 単位ドロップダウンを unitLabelMap ですべての単位に変更
     var unitOptions = [];
@@ -255,8 +378,22 @@ function buildDialog() {
 
     // プレビュー線を削除 / Remove preview line
     function removePreviewLine() {
-        if (previewLine && !previewLine.locked && previewLine.layer && !previewLine.layer.locked) {
-            try { previewLine.remove(); } catch(e){}
+        if (previewLine) {
+            // previewLine may be an array or a single path
+            if (previewLine instanceof Array) {
+                for (var i = 0; i < previewLine.length; i++) {
+                    var p = previewLine[i];
+                    if (p && !p.locked && p.layer && !p.layer.locked) {
+                        try {
+                            p.remove();
+                        } catch (e) {}
+                    }
+                }
+            } else if (previewLine && !previewLine.locked && previewLine.layer && !previewLine.layer.locked) {
+                try {
+                    previewLine.remove();
+                } catch (e) {}
+            }
             previewLine = null;
         }
     }
@@ -271,93 +408,157 @@ function buildDialog() {
         var unit = unitDropdown.selection.text;
         var posPt = convertToPt(pos, unit);
 
-        // --- _guide レイヤー取得または作成・ロック管理 ---
+        // リピート数・距離取得
+        var repeatCount = parseInt(repeatCountEdit.text, 10);
+        if (isNaN(repeatCount) || repeatCount < 1) repeatCount = 1;
+        var repeatDistance = parseFloat(repeatDistanceEdit.text);
+        if (isNaN(repeatDistance) || repeatDistance <= 0) repeatDistance = 0;
+        var repeatDistancePt = convertToPt(repeatDistance, unitDropdown.selection.text);
+
+        // レイヤー選択ロジック / Layer selection logic
+        var targetLayer = null;
+        var origLock = false;
         var guideLayer = null;
         var docLayers = doc.layers;
-        var found = false;
+        // Find or create _guide layer for possible use and lock management
         for (var i = 0; i < docLayers.length; i++) {
             if (docLayers[i].name === "_guide") {
                 guideLayer = docLayers[i];
-                found = true;
                 break;
             }
         }
-        var origLock = false;
         if (!guideLayer) {
             guideLayer = docLayers.add();
             guideLayer.name = "_guide";
-        } else {
-            origLock = guideLayer.locked;
-            guideLayer.locked = false;
         }
+        origLock = guideLayer.locked;
+        guideLayer.locked = false;
 
-        var path;
-        if (canvasRadio.value) {
-            var size = canvasSize;
-            if (horizontalRadio.value) {
-                path = guideLayer.pathItems.add();
-                path.setEntirePath([
-                    [-size, -posPt],
-                    [size, -posPt]
-                ]);
-            } else {
-                path = guideLayer.pathItems.add();
-                path.setEntirePath([
-                    [posPt, size],
-                    [posPt, -size]
-                ]);
-            }
-        } else {
-            var margin = parseFloat(marginEdit.text);
-            if (isNaN(margin)) {
-                guideLayer.locked = origLock; // 念のため
+        if (guideLayerRadio.value) {
+            // _guide layer logic (default)
+            targetLayer = guideLayer;
+        } else if (currentLayerRadio.value) {
+            // Directly use the current active layer as target
+            targetLayer = doc.activeLayer;
+            if (targetLayer.locked) {
+                alert("アクティブレイヤーがロックされています。");
+                if (guideLayerRadio.value) {
+                    guideLayer.locked = origLock;
+                }
                 return;
             }
-            var marginPt = convertToPt(margin, unit);
-            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-            var abRect = ab.artboardRect;
-            var abLeft = abRect[0];
-            var abTop = abRect[1];
-            var abRight = abRect[2];
-            var abBottom = abRect[3];
-            if (horizontalRadio.value) {
-                path = guideLayer.pathItems.add();
-                path.setEntirePath([
-                    [abLeft - marginPt, abTop - posPt],
-                    [abRight + marginPt, abTop - posPt]
-                ]);
-            } else {
-                path = guideLayer.pathItems.add();
-                path.setEntirePath([
-                    [abLeft + posPt, abTop + marginPt],
-                    [abLeft + posPt, abBottom - marginPt]
-                ]);
-            }
         }
-        path.stroked = true;
-        path.filled = false;
-        path.strokeWidth = 1.0;
-        path.strokeColor = makeBlackColor();
-        path.guides = false; // プレビューはガイド化しない / Preview is not a guide
-        previewLine = path;
-        guideLayer.locked = origLock;
+
+        var previewPaths = [];
+        for (var i = 0; i < repeatCount; i++) {
+            var offset = i * repeatDistancePt;
+            var newPosPt = posPt + offset;
+            var p;
+            if (canvasRadio.value) {
+                var size = canvasSize;
+                if (horizontalRadio.value) {
+                    p = targetLayer.pathItems.add();
+                    p.setEntirePath([
+                        [-size, -newPosPt],
+                        [size, -newPosPt]
+                    ]);
+                } else {
+                    p = targetLayer.pathItems.add();
+                    p.setEntirePath([
+                        [newPosPt, size],
+                        [newPosPt, -size]
+                    ]);
+                }
+            } else {
+                var margin = parseFloat(marginEdit.text);
+                if (isNaN(margin)) {
+                    if (guideLayerRadio.value) {
+                        guideLayer.locked = origLock; // 念のため
+                    }
+                    return;
+                }
+                var marginPt = convertToPt(margin, unit);
+                var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+                var abRect = ab.artboardRect;
+                var abLeft = abRect[0];
+                var abTop = abRect[1];
+                var abRight = abRect[2];
+                var abBottom = abRect[3];
+                if (horizontalRadio.value) {
+                    p = targetLayer.pathItems.add();
+                    p.setEntirePath([
+                        [abLeft - marginPt, abTop - newPosPt],
+                        [abRight + marginPt, abTop - newPosPt]
+                    ]);
+                } else {
+                    p = targetLayer.pathItems.add();
+                    p.setEntirePath([
+                        [abLeft + newPosPt, abTop + marginPt],
+                        [abLeft + newPosPt, abBottom - marginPt]
+                    ]);
+                }
+            }
+            p.stroked = true;
+            p.filled = false;
+            p.strokeWidth = 1.0;
+            p.strokeColor = makePreviewColor();
+            p.guides = false; // プレビューはガイド化しない / Preview is not a guide
+            previewPaths.push(p);
+        }
+        // シングルプレビュー時は previewLine = path 互換性
+        if (previewPaths.length === 1) {
+            previewLine = previewPaths[0];
+        } else {
+            previewLine = previewPaths;
+        }
+        if (guideLayerRadio.value) {
+            guideLayer.locked = origLock;
+        }
         app.redraw();
     }
 
-    // プレビュー用ブラック(K100)カラー / Black color for preview (K100)
-    function makeBlackColor() {
-        var c = new GrayColor();
-        c.gray = 100;
-        return c;
+    // プレビュー用カラー（カラーモードに応じて）/ Preview color depending on document color mode
+    function makePreviewColor() {
+        var colorSpace = app.activeDocument.documentColorSpace;
+        if (colorSpace === DocumentColorSpace.CMYK) {
+            var cmyk = new CMYKColor();
+            cmyk.cyan = 70;
+            cmyk.magenta = 50;
+            cmyk.yellow = 0;
+            cmyk.black = 0;
+            return cmyk;
+        } else if (colorSpace === DocumentColorSpace.RGB) {
+            var rgb = new RGBColor();
+            rgb.red = 74;
+            rgb.green = 132;
+            rgb.blue = 255;
+            return rgb;
+        } else {
+            // その他のカラーモード（念のためRGBに）
+            var rgb2 = new RGBColor();
+            rgb2.red = 74;
+            rgb2.green = 132;
+            rgb2.blue = 255;
+            return rgb2;
+        }
     }
 
     // OKボタンクリック時の処理 / OK button click handler
     okButton.onClick = function() {
         // プレビュー線がある場合、それをガイド化 / Convert preview line to guide if exists
-        if (previewLine && previewLine.layer && !previewLine.layer.locked) {
-            previewLine.guides = true;
-            previewLine.strokeWidth = 0.1;
-            // 色はガイド化時は不要 / Color not needed when guide
+        if (previewLine) {
+            if (previewLine instanceof Array) {
+                for (var i = 0; i < previewLine.length; i++) {
+                    var p = previewLine[i];
+                    if (p && p.layer && !p.layer.locked) {
+                        p.guides = true;
+                        p.strokeWidth = 0.1;
+                    }
+                }
+            } else if (previewLine.layer && !previewLine.layer.locked) {
+                previewLine.guides = true;
+                previewLine.strokeWidth = 0.1;
+            }
         }
         previewLine = null;
         dlg.close();
@@ -374,13 +575,30 @@ function buildDialog() {
     };
 
     // プレビュー更新イベントを各UIに追加 / Add preview update events to UI elements
-    positionEdit.addEventListener("changing", function(){ drawPreviewLine(); });
-    marginEdit.addEventListener("changing", function(){ drawPreviewLine(); });
-    unitDropdown.onChange = function(){ drawPreviewLine(); };
-    horizontalRadio.onClick = function(){ drawPreviewLine(); };
-    verticalRadio.onClick = function(){ drawPreviewLine(); };
+    positionEdit.addEventListener("changing", function() {
+        drawPreviewLine();
+    });
+    marginEdit.addEventListener("changing", function() {
+        drawPreviewLine();
+    });
+    unitDropdown.onChange = function() {
+        drawPreviewLine();
+    };
+    horizontalRadio.onClick = function() {
+        drawPreviewLine();
+    };
+    verticalRadio.onClick = function() {
+        drawPreviewLine();
+    };
+    // --- リピート数・距離変更時もプレビュー更新 / Update preview on repeat count/distance change ---
+    repeatCountEdit.addEventListener("changing", function() {
+        drawPreviewLine();
+    });
+    repeatDistanceEdit.addEventListener("changing", function() {
+        drawPreviewLine();
+    });
 
-    // --- H/Vキーで方向切り替え ---
+    // --- H/Vキーで方向切り替え / Switch direction with H/V keys ---
     dlg.addEventListener("keydown", function(event) {
         if (event.keyName == "H" || event.keyName == "h") {
             horizontalRadio.value = true;
@@ -400,7 +618,9 @@ function buildDialog() {
     // 初回プレビュー / Initial preview
     drawPreviewLine();
     // ダイアログ閉じたらプレビュー線消す / Remove preview line on dialog close
-    dlg.onClose = function() { removePreviewLine(); };
+    dlg.onClose = function() {
+        removePreviewLine();
+    };
     return dlg;
 }
 
