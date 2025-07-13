@@ -3,11 +3,18 @@
 
 ## 20250713
 
+### 新しいスクリプトを追加
+
+- [Photoshopの「新規ガイド」をIllustratorでも可能にする](readme-ja/NewGuideMaker.md)
+
+
+<img alt="" src="https://www.dtp-transit.jp/images/ss-662-964-72-20250713-213514.png" width="70%" />
+
 ### 調整
 
 - [選択したオブジェクトに合わせてアートボードを調整に ↑↓キー、shift + ↑↓キーによる入力機能を追加](readme-ja//FitArtboardWithMargin.md)
 
-![](https://www.dtp-transit.jp/images/ss-426-508-72-20250713-072422.png)
+<img alt="" src="https://www.dtp-transit.jp/images/ss-426-508-72-20250713-072422.png" width="60%" />
 
 ## 20250712
 

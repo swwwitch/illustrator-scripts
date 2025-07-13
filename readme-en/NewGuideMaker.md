@@ -12,6 +12,8 @@
 
 - Script to create guides in Illustrator by specifying direction, position, unit, and target (canvas or artboard) via dialog
 
+<img alt="" src="https://www.dtp-transit.jp/images/ss-688-986-72-20250713-213605.png" width="70%" />
+
 ### Features
 
 - Create horizontal or vertical guides

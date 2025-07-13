@@ -98,6 +98,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Generate guides in a grid](readme.en/GenerateGuidesGrid.md)
 - [Create Guides From Selection](readme-en/CreateGuidesFromSelection.md)
 - [Delete All Guides](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
+- [New Guide Maker](readme-en/NewGuideMaker.md)
 
 ## Document
 
