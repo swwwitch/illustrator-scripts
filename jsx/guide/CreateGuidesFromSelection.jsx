@@ -1016,17 +1016,19 @@ function changeValueByArrowKey(editText) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);
         if (isNaN(value)) return;
-
         var keyboard = ScriptUI.environment.keyboardState;
-        var delta = keyboard.shiftKey ? 10 : 1;
 
-        if (event.keyName == "Up") {
-            value += delta;
+        if (event.keyName == "Up" || event.keyName == "Down") {
+            if (keyboard.shiftKey) {
+                // Shift押下時は10の倍数スナップ
+                value = Math.round(value / 10) * 10 + (event.keyName == "Up" ? 10 : -10);
+            } else {
+                var delta = event.keyName == "Up" ? 1 : -1;
+                value += delta;
+            }
+
             event.preventDefault();
-        } else if (event.keyName == "Down") {
-            value -= delta;
-            event.preventDefault();
+            editText.text = value;
         }
-        editText.text = value;
     });
 }
