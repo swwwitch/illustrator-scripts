@@ -1,6 +1,9 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+// スクリプトバージョン
+var SCRIPT_VERSION = "v1.2";
+
 
 /*
 ### スクリプト名：
@@ -34,8 +37,9 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### 更新履歴
 
-- v1.0.0 (20250424) : 初期バージョン
-- v1.0.1 (20250427) : ガイド、裁ち落としガイド、プリセット書き出し機能追加
+- v1.0 (20250424) : 初期バージョン
+- v1.1 (20250427) : ガイド、裁ち落としガイド、プリセット書き出し機能追加
+- v1.2 (20250501) : 矢印キーでの数値増減機能追加
 
 ---
 
@@ -70,8 +74,10 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### Update History
 
-- v1.0.0 (20250424): Initial version
-- v1.0.1 (20250427): Added guides, bleed guides, and preset export feature
+- v1.0 (20250424): Initial version
+- v1.1 (20250427): Added guides, bleed guides, and preset export feature
+- v1.2 (20250501): Added arrow key value increment feature
+
 */
 
 (function () {
@@ -99,7 +105,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
         { label: (lang === 'ja') ? "長方形のみ" : "just rectangle", x: 1, y: 1, ext: 10, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: false, drawBleedGuide: false }
     ];
     // UIラベル定義
-    var dialogTitle = (lang === 'ja') ? '段組設定Pro' : 'Split into Grid Pro';
+    var dialogTitle = (lang === 'ja') ? '段組設定Pro ' + SCRIPT_VERSION : 'Split into Grid Pro ' + SCRIPT_VERSION;
     var presetLabel = (lang === 'ja') ? 'プリセット：' : 'Preset:';
     var rowTitle = (lang === 'ja') ? '行（─ 横線）' : 'Rows (─ Horizontal)';
     var columnTitle = (lang === 'ja') ? '列（│ 縦線）' : 'Columns (│ Vertical)';
@@ -331,6 +337,46 @@ commonMarginInput.characters = 5;
     var inputBleed = bleedGroup.add("edittext", undefined, "3"); // デフォルト3mm
     inputBleed.characters = 4;
     bleedGroup.add("statictext", undefined, "(mm)");
+    // --- 矢印キーで値を増減する関数 ---
+    // Shiftキー押下時は10の倍数スナップ
+    function changeValueByArrowKey(editText) {
+        editText.addEventListener("keydown", function(event) {
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+
+            if (event.keyName == "Up" || event.keyName == "Down") {
+                var isUp = event.keyName == "Up";
+                var delta = 1;
+
+                if (keyboard.shiftKey) {
+                    // Shiftキー押下時は10の倍数にスナップ
+                    value = Math.floor(value / 10) * 10;
+                    delta = 10;
+                }
+
+                value += isUp ? delta : -delta;
+                if (value < 0) value = 0; // 必要なら下限チェック
+
+                event.preventDefault();
+                editText.text = value;
+            }
+        });
+    }
+
+    // --- 各数値editTextに矢印キー増減機能を追加 ---
+    changeValueByArrowKey(inputXText);
+    changeValueByArrowKey(inputYText);
+    changeValueByArrowKey(inputExt);
+    changeValueByArrowKey(inputTop);
+    changeValueByArrowKey(inputBottom);
+    changeValueByArrowKey(inputLeft);
+    changeValueByArrowKey(inputRight);
+    changeValueByArrowKey(inputRowGutter);
+    changeValueByArrowKey(inputColGutter);
+    changeValueByArrowKey(commonMarginInput);
+    changeValueByArrowKey(inputBleed);
 
     var allBoardsCheckbox = optGroup.add("checkbox", undefined, allBoardsLabel);
 
