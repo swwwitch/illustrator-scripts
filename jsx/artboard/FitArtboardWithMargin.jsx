@@ -476,18 +476,29 @@ function changeValueByArrowKey(editText, onUpdate) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);
         if (isNaN(value)) return;
+
         var keyboard = ScriptUI.environment.keyboardState;
-        var delta = keyboard.shiftKey ? 10 : 1;
-        if (event.keyName == "Up") {
-            value += delta;
+
+        if (event.keyName == "Up" || event.keyName == "Down") {
+            if (keyboard.shiftKey) {
+                // 10の倍数にスナップ
+                var base = Math.round(value / 10) * 10;
+                if (event.keyName == "Up") {
+                    value = base + 10;
+                } else {
+                    value = base - 10;
+                    if (value < 0) value = 0; // 負数を防ぐ（必要なら）
+                }
+            } else {
+                var delta = event.keyName == "Up" ? 1 : -1;
+                value += delta;
+            }
+
             event.preventDefault();
-        } else if (event.keyName == "Down") {
-            value -= delta;
-            event.preventDefault();
-        }
-        editText.text = value;
-        if (typeof onUpdate === "function") {
-            onUpdate(editText.text);
+            editText.text = value;
+            if (typeof onUpdate === "function") {
+                onUpdate(editText.text);
+            }
         }
     });
 }

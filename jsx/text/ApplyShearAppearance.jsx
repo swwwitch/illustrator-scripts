@@ -268,20 +268,33 @@ function createTransformXML(scaleH, scaleV, rotateDeg) {
 // EditTextで上下キーにより値を増減する関数
 function changeValueByArrowKey(editText, onUpdate) {
     editText.addEventListener("keydown", function(event) {
+        // ↑↓キー以外では処理しない
+        if (event.keyName !== "Up" && event.keyName !== "Down") {
+            return;
+        }
+
         var value = Number(editText.text);
         if (isNaN(value)) return;
 
+        var isUp = event.keyName == "Up";
         var keyboard = ScriptUI.environment.keyboardState;
-        var delta = keyboard.shiftKey ? 10 : 1;
+        var delta = 1;
 
-        if (event.keyName == "Up") {
-            value += delta;
-            event.preventDefault();
-        } else if (event.keyName == "Down") {
-            value -= delta;
-            event.preventDefault();
+        if (keyboard.shiftKey) {
+            // Shift + ↑↓ のときだけ 10 単位
+            value = Math.round(value / 10) * 10;
+            delta = 10;
         }
+
+        value += isUp ? delta : -delta;
+
+        // 制限に合わせる（-44〜44）
+        if (value < -44) value = -44;
+        if (value > 44) value = 44;
+
+        event.preventDefault();
         editText.text = value;
+
         if (typeof onUpdate === "function") {
             onUpdate(editText.text);
         }

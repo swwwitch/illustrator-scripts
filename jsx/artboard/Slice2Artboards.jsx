@@ -357,12 +357,14 @@ function main() {
         colGroup.add('statictext', undefined, LABELS.columns[lang]);
         var columnText = colGroup.add('edittext', undefined, String(DEFAULT_COLUMN_COUNT));
         columnText.characters = 3;
+        changeValueByArrowKey(columnText);
         // 行数 / Rows
         var rowGroup = rowColGroup.add('group');
         rowGroup.orientation = 'row';
         rowGroup.add('statictext', undefined, LABELS.rows[lang]);
         var rowText = rowGroup.add('edittext', undefined, String(DEFAULT_ROW_COUNT));
         rowText.characters = 3;
+        changeValueByArrowKey(rowText);
 
         /*
          オフセットグループ
@@ -376,6 +378,7 @@ function main() {
         offsetCheckbox.value = true;
         var offsetValueInput = offsetGroup.add("edittext", undefined, String(DEFAULT_OFFSET));
         offsetValueInput.characters = 4;
+        changeValueByArrowKey(offsetValueInput, true);
         var offsetUnitLabel = offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
         offsetValueInput.enabled = offsetCheckbox.value;
         offsetUnitLabel.enabled = offsetCheckbox.value;
@@ -429,6 +432,7 @@ function main() {
         artboardNumberGroup.add("statictext", undefined, LABELS.startNumber[lang]);
         var artboardNumberInput = artboardNumberGroup.add("edittext", undefined, String(DEFAULT_START_NUMBER));
         artboardNumberInput.characters = 3;
+        changeValueByArrowKey(artboardNumberInput);
         var zeroPadCheckbox = artboardNumberGroup.add('checkbox', undefined, LABELS.zeroPad[lang]);
         zeroPadCheckbox.value = true; // デフォルトON / Default ON
 
@@ -438,6 +442,7 @@ function main() {
         artboardMarginGroup.add("statictext", undefined, LABELS.margin[lang]);
         var artboardMarginInput = artboardMarginGroup.add("edittext", undefined, String(DEFAULT_MARGIN));
         artboardMarginInput.characters = 5;
+        changeValueByArrowKey(artboardMarginInput);
         // 単位ラベル
         var artboardMarginUnitLabel = artboardMarginGroup.add("statictext", undefined, getCurrentUnitLabel());
 
@@ -1003,4 +1008,32 @@ function convertToSymbol(selection) {
     }
     result.symbolItem = selectedObj;
     return result;
+}
+// Enable up/down arrow key increment/decrement on edittext inputs
+function changeValueByArrowKey(editText, allowNegative) {
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+
+        var keyboard = ScriptUI.environment.keyboardState;
+
+        if (event.keyName == "Up" || event.keyName == "Down") {
+            var isUp = event.keyName == "Up";
+            var delta = 1;
+
+            if (keyboard.shiftKey) {
+                // 10の倍数にスナップ
+                value = Math.floor(value / 10) * 10;
+                delta = 10;
+            }
+
+            value += isUp ? delta : -delta;
+
+            // 負数許可されない場合は0未満を禁止
+            if (!allowNegative && value < 0) value = 0;
+
+            event.preventDefault();
+            editText.text = value;
+        }
+    });
 }
