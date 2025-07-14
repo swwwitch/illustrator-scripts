@@ -8,6 +8,8 @@ var SCRIPT_VERSION = "v1.7";
 
 SmartBaselineShifter.jsx
 
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SmartBaselineShifter.jsx
+
 ### Readme （GitHub）：
 
 https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBaselineShifter.md
@@ -24,6 +26,18 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartBasel
 - すべてをリセット
 - 即時プレビュー、元に戻す操作
 - 日本語／英語UI対応
+
+#### 対象文字列の指定
+
+- 選択しているテキストから、数字やスペースなどを除いたものが自動的に入ります。
+- 編集可能です。
+- 「:-」と入力すれば「:」と「-」の両方が対象になります。
+
+#### 値の変更
+
+- ↑↓キーで±1増減
+- shiftキーを併用すると±10増減
+- optionキーを併用すると±0.1増減
 
 ### 処理の流れ：
 
@@ -50,6 +64,8 @@ https://note.com/dtp_tranist/n/n2e19ad0bdb83
 ### Script Name:
 
 SmartBaselineShifter.jsx
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/SmartBaselineShifter.jsx
 
 ### Readme (GitHub):
 
