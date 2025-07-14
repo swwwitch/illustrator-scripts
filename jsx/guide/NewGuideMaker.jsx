@@ -44,6 +44,7 @@ https://note.com/dtp_tranist/n/n1085336d7265
 
 - v1.0 (20250713) : 初期バージョン
 - v1.1 (20250714) : レイヤー選択機能追加、リピート機能追加
+- v1.2 (20250715) : shift + ↑↓キーで値の増減ロジックを調整
 
 ### Script Name:
 
@@ -71,10 +72,11 @@ NewGuideMaker.jsx
 
 - v1.0 (20250713): Initial version
 - v1.1 (20250714): Added layer selection and repeat functionality
+- v1.2 (20250715): Adjusted increment/decrement logic for shift + up/down keys
 
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 /* 単位コードとラベルのマップ / Map of unit codes and labels */
 var unitLabelMap = {
@@ -607,17 +609,22 @@ function changeValueByArrowKey(editText, onUpdate) {
         var value = Number(editText.text);
         if (isNaN(value)) return;
         var keyboard = ScriptUI.environment.keyboardState;
-        var delta = keyboard.shiftKey ? 10 : 1;
-        if (event.keyName == "Up") {
-            value += delta;
+
+        if (event.keyName == "Up" || event.keyName == "Down") {
+            var delta = 1;
+            if (keyboard.shiftKey) {
+                // Shift押下時は「10の倍数」スナップ、制限なし
+                value = Math.round(value / 10) * 10 + (event.keyName == "Up" ? 10 : -10);
+            } else {
+                delta = event.keyName == "Up" ? 1 : -1;
+                value += delta;
+            }
+
             event.preventDefault();
-        } else if (event.keyName == "Down") {
-            value -= delta;
-            event.preventDefault();
-        }
-        editText.text = value;
-        if (typeof onUpdate === "function") {
-            onUpdate(editText.text);
+            editText.text = value;
+            if (typeof onUpdate === "function") {
+                onUpdate(editText.text);
+            }
         }
     });
 }
