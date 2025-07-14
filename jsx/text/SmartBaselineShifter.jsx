@@ -249,7 +249,7 @@ function main() {
 
     var defaultTarget = "";
     var contents = textFrames[0].contents;
-    var matches = contents.match(/[^0-9\s]/g);
+    var matches = contents.match(/[^\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF0-9\s]/g);
     if (matches) {
         var uniqueChars = {};
         for (var i = 0; i < matches.length; i++) {

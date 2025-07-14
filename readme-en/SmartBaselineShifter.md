@@ -6,30 +6,37 @@
 
 ---
 
-### Overview
+### Readme (GitHub):
 
-- An Illustrator script to individually apply baseline shift (in points) to specified characters in selected text frames.
-- Allows setting target characters, shift amount (integer and decimal), sign, and reset options in a dialog with instant preview.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBaselineShifter.md
 
-### Main Features
+### Overview:
 
-- Specify and select target characters
-- Set shift amount in integer and decimal points, toggle sign
+- Apply baseline shift (points) individually to specified characters in selected text frames
+- Configure target characters and shift amount in dialog with instant preview
+
+<img alt="" src="https://www.dtp-transit.jp/images/ss-484-440-72-20250715-062111.png" width="50%" />
+
+### Main Features:
+
+- Specify target characters
+- Set shift amount as integer/decimal
 - Reset all baseline shifts
-- Instant preview and undo functionality
-- Japanese and English UI support
+- Instant preview and undo
+- Japanese/English UI support
 
-### Process Flow
+### Process Flow:
 
 1. Select text frames
-2. Configure target characters and shift amount in dialog
+2. Configure in dialog
 3. Check preview
 4. Confirm with OK or revert with Cancel
 
-### Update History
+### Update History:
 
-- v1.0.0 (20240629): Initial version
-- v1.0.3 (20240629): Added +/- buttons
-- v1.0.4 (20240629): Two-column dialog layout, regex support
-- v1.0.5 (20240630): Added function for TextRange selection
-- v1.0.6 (20240630): Removed regex support, fine adjustments
+- v1.0 (20240629): Initial version
+- v1.3 (20240629): Added +/- buttons
+- v1.4 (20240629): Two-column dialog layout, regex support
+- v1.5 (20240630): Added function for TextRange selection
+- v1.6 (20240630): Removed regex support, fine adjustments
+*/
