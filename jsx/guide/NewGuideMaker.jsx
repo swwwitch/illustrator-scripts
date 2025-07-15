@@ -1,6 +1,7 @@
-#.localize = true;
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
+$.localize = true;
 
 /*
 ### スクリプト名：

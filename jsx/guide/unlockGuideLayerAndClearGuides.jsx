@@ -1,4 +1,6 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
 $.localize = true;
 
 /*
@@ -18,7 +20,6 @@ v1.0 (20250716) : 初期バージョン / Initial version
 */
 
 var SCRIPT_VERSION = "v1.0";
-app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 // 「_guide」レイヤーがあれば、そのロックを解除して、ガイドを解除後、「UnlockedGuides」レイヤーに移動し再ロックする
 function unlockGuideLayerAndClearGuides() {

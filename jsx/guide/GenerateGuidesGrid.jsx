@@ -1,8 +1,10 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-// スクリプトバージョン
-var SCRIPT_VERSION = "v1.2";
+$.localize = true;
+
+// スクリプトバージョン / Script version
+var SCRIPT_VERSION = "v1.0";
 
 
 /*
@@ -39,7 +41,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 - v1.0 (20250424) : 初期バージョン
 - v1.1 (20250427) : ガイド、裁ち落としガイド、プリセット書き出し機能追加
-- v1.2 (20250501) : 矢印キーでの数値増減機能追加
+- v1.2 (20250716) : 矢印キーでの数値増減機能追加
 
 ---
 
@@ -80,103 +82,99 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 */
 
-(function () {
-    if (app.documents.length === 0) {
-        alert("ドキュメントを開いてください。\nPlease open a document.");
-        return;
-    }
+if (app.documents.length === 0) {
+    alert("ドキュメントを開いてください。\nPlease open a document.");
+    return;
+}
 
-    // 言語判定
-    function getCurrentLang() {
-        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-    }
-    var lang = getCurrentLang();
+// ラベル定義 / Label definitions
+var LABELS = {
+    dialogTitle: '段組設定Pro v1.0 / Split into Grid Pro v1.0',
+    presetLabel: 'プリセット： / Preset:',
+    rowTitle: '行（─ 横線） / Rows (─ Horizontal)',
+    columnTitle: '列（│ 縦線） / Columns (│ Vertical)',
+    rowsLabel: '行数： / Rows:',
+    rowGutterLabel: '行間 / Row Gutter',
+    columnsLabel: '列数： / Columns:',
+    colGutterLabel: '列間 / Column Gutter',
+    marginTitle: 'マージン設定 / Margin Settings',
+    topLabel: '上： / Top:',
+    leftLabel: '左： / Left:',
+    bottomLabel: '下： / Bottom:',
+    rightLabel: '右： / Right:',
+    commonMarginLabel: 'すべて同じ値にする / Same Value',
+    guideExtensionLabel: 'ガイドの伸張： / Guide Extension:',
+    bleedGuideLabel: '裁ち落としのガイド： / Bleed Guide:',
+    allBoardsLabel: 'すべてのアートボードに適用 / Apply to All Artboards',
+    cellRectLabel: 'セルを長方形化 / Create Cell Rectangles',
+    drawGuidesLabel: 'ガイドを引く / Draw Guides',
+    clearGuidesLabel: 'grid_guidesレイヤーをクリア / Clear grid_guides Layer',
+    cancelLabel: 'キャンセル / Cancel',
+    applyLabel: '適用 / Apply',
+    okLabel: 'OK / OK',
+    exportPresetLabel: 'プリセット書き出し / Export Preset'
+};
 
-    // プリセット定義（drawGuides, drawBleedGuide追加）
-    var presets = [
-        { label: (lang === 'ja') ? "十字" : "Cross", x: 2, y: 2, ext: 0, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: false, drawGuides: true, drawBleedGuide: false },
-        { label: (lang === 'ja') ? "シングル" : "Single", x: 1, y: 1, ext: 50, top: 100, bottom: 100, left: 100, right: 100, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: true, drawBleedGuide: false },
-        { label: (lang === 'ja') ? "2行×2列" : "2 Rows × 2 Columns", x: 2, y: 2, ext: 20, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 50, colGutter: 50, drawCells: true, drawGuides: true, drawBleedGuide: false },
-        { label: (lang === 'ja') ? "1行×3列" : "1 Row × 3 Columns", x: 3, y: 1, ext: 0, top: 30, bottom: 30, left: 30, right: 30, rowGutter: 0, colGutter: 30, drawCells: true, drawGuides: true, drawBleedGuide: false },
-        { label: (lang === 'ja') ? "4行×4列" : "4 Rows × 4 Columns", x: 4, y: 4, ext: 0, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 20, colGutter: 20, drawCells: true, drawGuides: true, drawBleedGuide: false },
-        { label: (lang === 'ja') ? "2行×3列" : "3 Rows × 3 Columns", x: 3, y: 2, ext: 0, top: 100, bottom: 100, left: 100, right: 100, rowGutter: 20, colGutter: 20, drawCells: true, drawGuides: true, drawBleedGuide: false },
-        { label: (lang === 'ja') ? "3行×3列" : "3 Rows × 3 Columns", x: 3, y: 3, ext: 0, top: 0, bottom: 0, left: 200, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: true, drawBleedGuide: false },
-        { label: (lang === 'ja') ? "sp" : "sp", x: 1, y: 1, ext: 0, top: 220, bottom: 220, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: true, drawBleedGuide: false },
-        { label: (lang === 'ja') ? "長方形のみ" : "just rectangle", x: 1, y: 1, ext: 10, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: false, drawBleedGuide: false }
-    ];
-    // UIラベル定義
-    var dialogTitle = (lang === 'ja') ? '段組設定Pro ' + SCRIPT_VERSION : 'Split into Grid Pro ' + SCRIPT_VERSION;
-    var presetLabel = (lang === 'ja') ? 'プリセット：' : 'Preset:';
-    var rowTitle = (lang === 'ja') ? '行（─ 横線）' : 'Rows (─ Horizontal)';
-    var columnTitle = (lang === 'ja') ? '列（│ 縦線）' : 'Columns (│ Vertical)';
-    var rowsLabel = (lang === 'ja') ? '行数：' : 'Rows:';
-    var rowGutterLabel = (lang === 'ja') ? '行間' : 'Row Gutter';
-    var columnsLabel = (lang === 'ja') ? '列数：' : 'Columns:';
-    var colGutterLabel = (lang === 'ja') ? '列間' : 'Column Gutter';
-    var marginTitle = (lang === 'ja') ? 'マージン設定' : 'Margin Settings';
-    var topLabel = (lang === 'ja') ? '上：' : 'Top:';
-    var leftLabel = (lang === 'ja') ? '左：' : 'Left:';
-    var bottomLabel = (lang === 'ja') ? '下：' : 'Bottom:';
-    var rightLabel = (lang === 'ja') ? '右：' : 'Right:';
-    var commonMarginLabel = (lang === 'ja') ? 'すべて同じ値にする' : 'Same Value';
-    var guideExtensionLabel = (lang === 'ja') ? 'ガイドの伸張：' : 'Guide Extension:';
-    var bleedGuideLabel = (lang === 'ja') ? '裁ち落としのガイド：' : 'Bleed Guide:';
-    var allBoardsLabel = (lang === 'ja') ? 'すべてのアートボードに適用' : 'Apply to All Artboards';
-    var cellRectLabel = (lang === 'ja') ? 'セルを長方形化' : 'Create Cell Rectangles';
-    var drawGuidesLabel = (lang === 'ja') ? 'ガイドを引く' : 'Draw Guides';
-    var clearGuidesLabel = (lang === 'ja') ? 'grid_guidesレイヤーをクリア' : 'Clear grid_guides Layer';
-    var cancelLabel = (lang === 'ja') ? 'キャンセル' : 'Cancel';
-    var applyLabel = (lang === 'ja') ? '適用' : 'Apply';
-    var okLabel = (lang === 'ja') ? 'OK' : 'OK';
-    var exportPresetLabel = (lang === 'ja') ? 'プリセット書き出し' : 'Export Preset';
+// プリセット定義（drawGuides, drawBleedGuide追加） / Preset definitions (drawGuides, drawBleedGuide added)
+var presets = [
+    { label: "十字 / Cross", x: 2, y: 2, ext: 0, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: false, drawGuides: true, drawBleedGuide: false },
+    { label: "シングル / Single", x: 1, y: 1, ext: 50, top: 100, bottom: 100, left: 100, right: 100, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: true, drawBleedGuide: false },
+    { label: "2行×2列 / 2 Rows × 2 Columns", x: 2, y: 2, ext: 20, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 50, colGutter: 50, drawCells: true, drawGuides: true, drawBleedGuide: false },
+    { label: "1行×3列 / 1 Row × 3 Columns", x: 3, y: 1, ext: 0, top: 30, bottom: 30, left: 30, right: 30, rowGutter: 0, colGutter: 30, drawCells: true, drawGuides: true, drawBleedGuide: false },
+    { label: "4行×4列 / 4 Rows × 4 Columns", x: 4, y: 4, ext: 0, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 20, colGutter: 20, drawCells: true, drawGuides: true, drawBleedGuide: false },
+    { label: "2行×3列 / 3 Rows × 3 Columns", x: 3, y: 2, ext: 0, top: 100, bottom: 100, left: 100, right: 100, rowGutter: 20, colGutter: 20, drawCells: true, drawGuides: true, drawBleedGuide: false },
+    { label: "3行×3列 / 3 Rows × 3 Columns", x: 3, y: 3, ext: 0, top: 0, bottom: 0, left: 200, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: true, drawBleedGuide: false },
+    { label: "sp / sp", x: 1, y: 1, ext: 0, top: 220, bottom: 220, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: true, drawBleedGuide: false },
+    { label: "長方形のみ / just rectangle", x: 1, y: 1, ext: 10, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: false, drawBleedGuide: false }
+];
 
-    var doc = app.activeDocument;
-    var rulerUnit = app.preferences.getIntegerPreference("rulerType");
-    var unitLabel = "pt";
-    var unitFactor = 1.0;
+var doc = app.activeDocument;
+var rulerUnit = app.preferences.getIntegerPreference("rulerType");
+var unitLabel = "pt";
+var unitFactor = 1.0;
 
-    // 単位設定
-    if (rulerUnit === 0) { unitLabel = "inch"; unitFactor = 72.0; }
-    else if (rulerUnit === 1) { unitLabel = "mm"; unitFactor = 72.0 / 25.4; }
-    else if (rulerUnit === 2) { unitLabel = "pt"; unitFactor = 1.0; }
-    else if (rulerUnit === 3) { unitLabel = "pica"; unitFactor = 12.0; }
-    else if (rulerUnit === 4) { unitLabel = "cm"; unitFactor = 72.0 / 2.54; }
-    else if (rulerUnit === 5) { unitLabel = "Q"; unitFactor = 72.0 / 25.4 * 0.25; }
-    else if (rulerUnit === 6) { unitLabel = "px"; unitFactor = 1.0; }
-    // ダイアログ作成
-    var dlg = new Window("dialog", dialogTitle);
+// 単位設定
+if (rulerUnit === 0) { unitLabel = "inch"; unitFactor = 72.0; }
+else if (rulerUnit === 1) { unitLabel = "mm"; unitFactor = 72.0 / 25.4; }
+else if (rulerUnit === 2) { unitLabel = "pt"; unitFactor = 1.0; }
+else if (rulerUnit === 3) { unitLabel = "pica"; unitFactor = 12.0; }
+else if (rulerUnit === 4) { unitLabel = "cm"; unitFactor = 72.0 / 2.54; }
+else if (rulerUnit === 5) { unitLabel = "Q"; unitFactor = 72.0 / 25.4 * 0.25; }
+else if (rulerUnit === 6) { unitLabel = "px"; unitFactor = 1.0; }
+    // ダイアログ作成 / Create dialog
+    var dlg = new Window("dialog", LABELS.dialogTitle);
     dlg.orientation = "column";
     dlg.alignChildren = "left";
 
-    // grid_guidesレイヤークリアチェックボックス
-    var clearGuidesCheckbox = dlg.add("checkbox", undefined, clearGuidesLabel);
+    // grid_guidesレイヤークリアチェックボックス / Clear grid_guides layer checkbox
+    var clearGuidesCheckbox = dlg.add("checkbox", undefined, LABELS.clearGuidesLabel);
     clearGuidesCheckbox.value = true;
 
-    // プリセット選択＋書き出しボタングループ
+    // プリセット選択＋書き出しボタングループ / Preset selection and export group
     var presetGroup = dlg.add("group");
     presetGroup.orientation = "row";
     presetGroup.alignChildren = "center";
     presetGroup.margins = [0, 5, 0, 10];
 
-    presetGroup.add("statictext", undefined, presetLabel);
+    presetGroup.add("statictext", undefined, LABELS.presetLabel);
     var presetDropdown = presetGroup.add("dropdownlist", undefined, []);
     presetDropdown.selection = 0;
-    var btnExportPreset = presetGroup.add("button", undefined, exportPresetLabel);
+    var btnExportPreset = presetGroup.add("button", undefined, LABELS.exportPresetLabel);
 
 
 btnExportPreset.onClick = function () {
-    var saveFile = File.saveDialog((lang === 'ja') ? "プリセットを書き出す場所と名前を指定してください" : "Choose where to save the preset", "*.txt");
+    var saveFile = File.saveDialog("プリセットを書き出す場所と名前を指定してください / Choose where to save the preset", "*.txt");
     if (!saveFile) {
         return;
     }
 
-    // 拡張子がない場合は.txtをつける
+    // 拡張子がない場合は.txtをつける / Add .txt extension if missing
     if (saveFile.name.indexOf(".") === -1) {
         saveFile = new File(saveFile.fsName + ".txt");
     }
 
-    // ★ファイル名から.txtを正しく除去！
-    var fileName = saveFile.name.replace(/\\.txt$/i, "");
+    // ★ファイル名から.txtを正しく除去！ / Remove .txt extension from file name
+    var fileName = saveFile.name.replace(/\.txt$/i, "");
 
     var currentPreset = {
         x: parseInt(inputXText.text, 10),
@@ -193,7 +191,7 @@ btnExportPreset.onClick = function () {
         drawBleedGuide: bleedGuideCheckbox.value
     };
 
-    var presetString = '{ label: (lang === \'ja\') ? "' + fileName + '" : "' + fileName + '", ' +
+    var presetString = '{ label: "' + fileName + '", ' +
         'x: ' + currentPreset.x + ', ' +
         'y: ' + currentPreset.y + ', ' +
         'ext: ' + currentPreset.ext + ', ' +
@@ -211,130 +209,130 @@ btnExportPreset.onClick = function () {
     if (saveFile.open("w")) {
         saveFile.write(presetString);
         saveFile.close();
-        alert((lang === 'ja') ? "プリセットを書き出しました！" : "Preset exported!");
+        alert("プリセットを書き出しました！ / Preset exported!");
     } else {
-        alert((lang === 'ja') ? "ファイルを書き込めませんでした。" : "Failed to write the file.");
+        alert("ファイルを書き込めませんでした。 / Failed to write the file.");
     }
 };
 
-    // グリッド設定グループ
+    // グリッド設定グループ / Grid settings group
     var gridGroup = dlg.add("group");
     gridGroup.orientation = "row";
     gridGroup.alignChildren = "top";
     gridGroup.spacing = 20;
 
-    // 行設定パネル
-    var rowBlock = gridGroup.add("panel", undefined, rowTitle);
+    // 行設定パネル / Row settings panel
+    var rowBlock = gridGroup.add("panel", undefined, LABELS.rowTitle);
     rowBlock.orientation = "column";
     rowBlock.alignChildren = "left";
     rowBlock.margins = [15, 20, 15, 15];
 
     var inputY = rowBlock.add("group");
-    inputY.add("statictext", undefined, rowsLabel);
+    inputY.add("statictext", undefined, LABELS.rowsLabel);
     var inputYText = inputY.add("edittext", undefined, "2");
     inputYText.characters = 3;
 
     var rowGutterGroup = rowBlock.add("group");
-    rowGutterGroup.add("statictext", undefined, rowGutterLabel + "：");
+    rowGutterGroup.add("statictext", undefined, LABELS.rowGutterLabel + "：");
     var inputRowGutter = rowGutterGroup.add("edittext", undefined, "0");
     inputRowGutter.characters = 4;
     rowGutterGroup.add("statictext", undefined, unitLabel);
 
-    // 列設定パネル
-    var colBlock = gridGroup.add("panel", undefined, columnTitle);
+    // 列設定パネル / Column settings panel
+    var colBlock = gridGroup.add("panel", undefined, LABELS.columnTitle);
     colBlock.orientation = "column";
     colBlock.alignChildren = "left";
     colBlock.margins = [15, 20, 15, 15];
 
     var inputX = colBlock.add("group");
-    inputX.add("statictext", undefined, columnsLabel);
+    inputX.add("statictext", undefined, LABELS.columnsLabel);
     var inputXText = inputX.add("edittext", undefined, "2");
     inputXText.characters = 3;
 
     var colGutterGroup = colBlock.add("group");
-    colGutterGroup.add("statictext", undefined, colGutterLabel + "：");
+    colGutterGroup.add("statictext", undefined, LABELS.colGutterLabel + "：");
     var inputColGutter = colGutterGroup.add("edittext", undefined, "0");
     inputColGutter.characters = 4;
     colGutterGroup.add("statictext", undefined, unitLabel);
 
-// マージン全体パネル
-var marginPanel = dlg.add("panel", undefined, marginTitle + " (" + unitLabel + ")");
-marginPanel.orientation = "column"; // ★ここがcolumnに（横並び→縦並びに変更）
+// マージン全体パネル / Margin panel
+var marginPanel = dlg.add("panel", undefined, LABELS.marginTitle + " (" + unitLabel + ")");
+marginPanel.orientation = "column";
 marginPanel.alignChildren = "left";
 marginPanel.margins = [10, 15, 10, 15];
 
-// --- 上段グループ（左／上下／右） ---
+// --- 上段グループ（左／上下／右） / Upper group (left/up-down/right) ---
 var upperGroup = marginPanel.add("group");
-upperGroup.orientation = "row"; // 横並び
+upperGroup.orientation = "row";
 upperGroup.alignChildren = "top";
 
-// --- 左だけグループ ---
-var leftGroup = upperGroup.add("group"); // 枠なしグループ
+// --- 左だけグループ / Left only group ---
+var leftGroup = upperGroup.add("group");
 leftGroup.orientation = "row";
 leftGroup.alignChildren = "center";
-leftGroup.margins = [0, 12, 0, 10]; 
+leftGroup.margins = [0, 12, 0, 10];
 
-leftGroup.add("statictext", undefined, leftLabel);
+leftGroup.add("statictext", undefined, LABELS.leftLabel);
 var inputLeft = leftGroup.add("edittext", undefined, "0");
 inputLeft.characters = 5;
 
-// --- 上下グループ ---
-var topBottomGroup = upperGroup.add("group"); // 枠なしグループ
-topBottomGroup.orientation = "column"; // 縦に並べる
+// --- 上下グループ / Up-down group ---
+var topBottomGroup = upperGroup.add("group");
+topBottomGroup.orientation = "column";
 topBottomGroup.alignChildren = "left";
-topBottomGroup.margins = [5, 0, 5, 0]; // 右にスペース
+topBottomGroup.margins = [5, 0, 5, 0];
 
 var topGroup = topBottomGroup.add("group");
 topGroup.orientation = "row";
-topGroup.add("statictext", undefined, topLabel);
+topGroup.add("statictext", undefined, LABELS.topLabel);
 var inputTop = topGroup.add("edittext", undefined, "0");
 inputTop.characters = 5;
 
 var bottomGroup = topBottomGroup.add("group");
 bottomGroup.orientation = "row";
-bottomGroup.add("statictext", undefined, bottomLabel);
+bottomGroup.add("statictext", undefined, LABELS.bottomLabel);
 var inputBottom = bottomGroup.add("edittext", undefined, "0");
 inputBottom.characters = 5;
 
-// --- 右だけグループ ---
-var rightGroup = upperGroup.add("group"); // 枠なしグループ
+// --- 右だけグループ / Right only group ---
+var rightGroup = upperGroup.add("group");
 rightGroup.orientation = "row";
 rightGroup.alignChildren = "center";
-rightGroup.margins = [0, 12, 0, 10]; 
+rightGroup.margins = [0, 12, 0, 10];
 
-rightGroup.add("statictext", undefined, rightLabel);
+rightGroup.add("statictext", undefined, LABELS.rightLabel);
 var inputRight = rightGroup.add("edittext", undefined, "0");
 inputRight.characters = 5;
 
-// --- 共通マージングループ（下段に追加） ---
+// --- 共通マージングループ（下段に追加） / Common margin group (bottom) ---
 var commonGroup = marginPanel.add("group");
 commonGroup.orientation = "row";
 commonGroup.alignChildren = "center";
 commonGroup.margins = [0, 10, 0, 0];
 
-var commonMarginCheckbox = commonGroup.add("checkbox", undefined, commonMarginLabel);
+var commonMarginCheckbox = commonGroup.add("checkbox", undefined, LABELS.commonMarginLabel);
 var commonMarginInput = commonGroup.add("edittext", undefined, "0");
 commonMarginInput.characters = 5;
 
-    // オプション設定グループ（ガイドの伸張・裁ち落としガイド・セル長方形化・ガイドを引く）
+    // オプション設定グループ（ガイドの伸張・裁ち落としガイド・セル長方形化・ガイドを引く）/ Options group (guide extension, bleed guide, cell rectangle, draw guides)
     var optGroup = dlg.add("group");
     optGroup.orientation = "column";
     optGroup.alignChildren = "left";
 
-    // ガイドの伸張設定
+    // ガイドの伸張設定 / Guide extension
     var extGroup = optGroup.add("group");
     extGroup.margins = [0, 0, 0, 10];
-    extGroup.add("statictext", undefined, guideExtensionLabel);
+    extGroup.add("statictext", undefined, LABELS.guideExtensionLabel);
     var inputExt = extGroup.add("edittext", undefined, "10");
     inputExt.characters = 5;
     extGroup.add("statictext", undefined, unitLabel);
 
-    // 裁ち落としガイド設定
+    // 裁ち落としガイド設定 / Bleed guide
     var bleedGroup = optGroup.add("group");
     bleedGroup.margins = [0, 0, 0, 10];
-    var bleedGuideCheckbox = bleedGroup.add("checkbox", undefined, bleedGuideLabel);
-    bleedGuideCheckbox.value = false; // デフォルトOFF
-    var inputBleed = bleedGroup.add("edittext", undefined, "3"); // デフォルト3mm
+    var bleedGuideCheckbox = bleedGroup.add("checkbox", undefined, LABELS.bleedGuideLabel);
+    bleedGuideCheckbox.value = false;
+    var inputBleed = bleedGroup.add("edittext", undefined, "3");
     inputBleed.characters = 4;
     bleedGroup.add("statictext", undefined, "(mm)");
     // --- 矢印キーで値を増減する関数 ---
@@ -378,46 +376,45 @@ commonMarginInput.characters = 5;
     changeValueByArrowKey(commonMarginInput);
     changeValueByArrowKey(inputBleed);
 
-    var allBoardsCheckbox = optGroup.add("checkbox", undefined, allBoardsLabel);
+    var allBoardsCheckbox = optGroup.add("checkbox", undefined, LABELS.allBoardsLabel);
 
-    // セル長方形化・ガイドを引くを横並び
+    // セル長方形化・ガイドを引くを横並び / Cell rectangle and draw guides (side by side)
     var cellGuideGroup = optGroup.add("group");
     cellGuideGroup.orientation = "row";
     cellGuideGroup.alignChildren = "left";
 
-    var cellRectCheckbox = cellGuideGroup.add("checkbox", undefined, cellRectLabel);
-    var drawGuidesCheckbox = cellGuideGroup.add("checkbox", undefined, drawGuidesLabel);
+    var cellRectCheckbox = cellGuideGroup.add("checkbox", undefined, LABELS.cellRectLabel);
+    var drawGuidesCheckbox = cellGuideGroup.add("checkbox", undefined, LABELS.drawGuidesLabel);
     drawGuidesCheckbox.value = true;
 
-    // === ボタンエリア（レイアウト変更版）===
+    // === ボタンエリア（レイアウト変更版）/ Button area (layout updated)
     var outerGroup = dlg.add("group");
     outerGroup.orientation = "row";
     outerGroup.alignChildren = ["fill", "center"];
     outerGroup.margins = [0, 10, 0, 0];
     outerGroup.spacing = 0;
 
-    // 左グループ（キャンセルボタン）
+    // 左グループ（キャンセルボタン）/ Left group (Cancel button)
     var leftGroup = outerGroup.add("group");
     leftGroup.orientation = "row";
     leftGroup.alignChildren = "left";
-    // leftGroup.spacing = 10;
-    var btnCancel = leftGroup.add("button", undefined, cancelLabel, { name: "cancel" });
+    var btnCancel = leftGroup.add("button", undefined, LABELS.cancelLabel, { name: "cancel" });
 
-    // スペーサー（横に伸びる空白）
+    // スペーサー（横に伸びる空白）/ Spacer (horizontal stretch)
     var spacer = outerGroup.add("group");
     spacer.alignment = ["fill", "fill"];
     spacer.minimumSize.width = 70;
     spacer.maximumSize.height = 0;
 
-    // 右グループ（適用・OKボタン）
+    // 右グループ（適用・OKボタン）/ Right group (Apply/OK buttons)
     var rightGroup = outerGroup.add("group");
     rightGroup.orientation = "row";
     rightGroup.alignChildren = "right";
     rightGroup.spacing = 10;
-    var btnApply = rightGroup.add("button", undefined, applyLabel);
-    var btnOK = rightGroup.add("button", undefined, okLabel, { name: "ok" });
+    var btnApply = rightGroup.add("button", undefined, LABELS.applyLabel);
+    var btnOK = rightGroup.add("button", undefined, LABELS.okLabel, { name: "ok" });
 
-    // プリセットをドロップダウンに追加
+    // プリセットをドロップダウンに追加 / Add presets to dropdown
     for (var i = 0; i < presets.length; i++) {
         presetDropdown.add("item", presets[i].label);
     }
@@ -442,7 +439,7 @@ commonMarginInput.characters = 5;
         syncCommonMargin();
         drawGuides(true);
     };
-    // 「すべて同じにする」同期処理
+    // 「すべて同じにする」同期処理 / Sync for "Same Value"
     function syncCommonMargin() {
         if (commonMarginCheckbox.value) {
             var val = commonMarginInput.text;
@@ -465,7 +462,7 @@ commonMarginInput.characters = 5;
     commonMarginInput.onChanging = syncCommonMargin;
     commonMarginCheckbox.onClick = syncCommonMargin;
 
-    // ガター有効無効切り替え
+    // ガター有効無効切り替え / Enable/disable gutter fields
     function updateGutterEnable() {
         var xVal = parseInt(inputXText.text, 10);
         var yVal = parseInt(inputYText.text, 10);
@@ -476,7 +473,7 @@ commonMarginInput.characters = 5;
         updateGutterEnable();
     };
 
-    // 「ガイドを引く」オプション切り替え時、伸張・裁ち落としをディム制御
+    // 「ガイドを引く」オプション切り替え時、伸張・裁ち落としをディム制御 / Enable/disable extension and bleed on draw guides toggle
     drawGuidesCheckbox.onClick = function () {
         var enable = drawGuidesCheckbox.value;
         inputExt.enabled = enable;
@@ -485,7 +482,7 @@ commonMarginInput.characters = 5;
         drawGuides(true);
     };
 
-    // 適用ボタン押下時
+    // 適用ボタン押下時 / Apply button pressed
     btnApply.onClick = function () {
         updateGutterEnable();
         if (clearGuidesCheckbox.value) {
@@ -494,7 +491,7 @@ commonMarginInput.characters = 5;
         drawGuides(true);
     };
 
-    // OKボタン押下時
+    // OKボタン押下時 / OK button pressed
     btnOK.onClick = function () {
         updateGutterEnable();
         if (clearGuidesCheckbox.value) {
@@ -502,7 +499,7 @@ commonMarginInput.characters = 5;
         }
         dlg.close(1);
     };
-    // ガイド＆セル長方形＆裁ち落としガイドを描画
+    // ガイド＆セル長方形＆裁ち落としガイドを描画 / Draw guides, cell rectangles, and bleed guides
     function drawGuides(isPreview) {
         if (isPreview) {
             removePreviewGuides();
@@ -702,7 +699,7 @@ commonMarginInput.characters = 5;
             app.redraw();
         }
     }
-    // 黒色作成（CMYK／RGB対応）
+    // 黒色作成（CMYK／RGB対応）/ Create black color (CMYK/RGB)
     function createBlackColor() {
         if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
             var cmyk = new CMYKColor();
@@ -720,7 +717,7 @@ commonMarginInput.characters = 5;
         }
     }
 
-    // プレビューガイド削除
+    // プレビューガイド削除 / Remove preview guides
     function removePreviewGuides() {
         try {
             var previewLayer = doc.layers.getByName("_Preview_Guides");
@@ -728,7 +725,7 @@ commonMarginInput.characters = 5;
         } catch (e) {}
     }
 
-    // grid_guidesレイヤーのガイドだけ削除
+    // grid_guidesレイヤーのガイドだけ削除 / Remove only guides from grid_guides layer
     function clearGuidesLayer() {
         var guidesLayer = null;
         for (var i = 0; i < doc.layers.length; i++) {
@@ -750,7 +747,7 @@ commonMarginInput.characters = 5;
         }
     }
 
-    // ダイアログ初期プレビュー＆終了時処理
+    // ダイアログ初期プレビュー＆終了時処理 / Initial dialog preview & post-process
     updateGutterEnable();
     syncCommonMargin();
     drawGuides(true);
@@ -765,4 +762,3 @@ commonMarginInput.characters = 5;
         removePreviewGuides();
     }
 
-})();
