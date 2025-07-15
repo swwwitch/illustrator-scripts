@@ -107,7 +107,7 @@ function getCurrentLang() {
 
 var LABELS = {
     dialogTitle: { ja: "ベースラインシフトの調整 " + SCRIPT_VERSION, en: "Adjust Baseline Shift " + SCRIPT_VERSION },
-    shiftSectionTitle: { ja: "シフト量", en: "Shift Value" },
+    shiftSectionTitle: { ja: "ベースラインシフト", en: "Baseline Shift" },
     targetText: { ja: "対象文字列:", en: "Target Text:" },
     shiftValue: { ja: "シフト量:", en: "Shift Value:" },
     resetAll: { ja: "すべてをリセット", en: "Reset All" },
