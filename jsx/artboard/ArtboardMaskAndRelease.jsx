@@ -148,9 +148,39 @@ function main() {
         return unitLabelMap[unitCode] || "pt";
     }
 
+// Enable up/down arrow key increment/decrement on edittext inputs
+function changeValueByArrowKey(editText, allowNegative) {
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+
+        var keyboard = ScriptUI.environment.keyboardState;
+
+        if (event.keyName == "Up" || event.keyName == "Down") {
+            var isUp = event.keyName == "Up";
+            var delta = 1;
+
+            if (keyboard.shiftKey) {
+                // 10の倍数にスナップ
+                value = Math.floor(value / 10) * 10;
+                delta = 10;
+            }
+
+            value += isUp ? delta : -delta;
+
+            // 負数許可されない場合は0未満を禁止
+            if (!allowNegative && value < 0) value = 0;
+
+            event.preventDefault();
+            editText.text = value;
+        }
+    });
+}
+
     var marginInput = marginRow.add("edittext", undefined, "0");
     marginInput.characters = 5;
     marginInput.active = true;
+    changeValueByArrowKey(marginInput, false);
     var unitLabel = getCurrentUnitLabel();
     marginRow.add("statictext", undefined, "(" + unitLabel + ")");
     

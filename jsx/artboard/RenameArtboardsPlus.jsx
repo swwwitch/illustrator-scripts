@@ -3,6 +3,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 $.localize = true;
 
+var lang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+
 /*
 ### スクリプト名：
 
@@ -176,10 +178,39 @@ var LABELS = {
     alphaLower: {
         ja: "アルファベット（小文字）",
         en: "Alphabet (Lower)"
+    },
+    // ▼ エラー・ダイアログ等
+    errorTitle: {
+        ja: "エラー",
+        en: "Error"
+    },
+    errorInput: {
+        ja: "入力内容に誤りがあります。\n正しい数値を指定してください。",
+        en: "There is an error in your input.\nPlease enter valid numbers."
+    },
+    exportSuccess: {
+        ja: "プリセットを書き出しました：\n",
+        en: "Preset exported:\n"
+    },
+    exportFailed: {
+        ja: "ファイルを書き込めませんでした。",
+        en: "Could not write the file."
+    },
+    exportError: {
+        ja: "プリセットの保存に失敗しました：\n",
+        en: "Failed to save preset:\n"
+    },
+    applyError: {
+        ja: "エラーが発生しました（適用時）：\n",
+        en: "An error occurred (during apply):\n"
+    },
+    generalError: {
+        ja: "エラーが発生しました：\n",
+        en: "An error occurred:\n"
     }
 };
 
-(function() {
+function main() {
     if (app.documents.length === 0) return;
 
     var doc = app.activeDocument;
@@ -436,12 +467,12 @@ var LABELS = {
             if (saveFile.open("w")) {
                 saveFile.write(presetString);
                 saveFile.close();
-                alert("プリセットを書き出しました：\n" + saveFile.fsName);
+                alert(LABELS.exportSuccess[lang] + saveFile.fsName);
             } else {
-                alert("ファイルを書き込めませんでした。");
+                alert(LABELS.exportFailed[lang]);
             }
         } catch (e) {
-            alert("プリセットの保存に失敗しました：\n" + e.message);
+            alert(LABELS.exportError[lang] + e.message);
         }
     };
 
@@ -582,7 +613,7 @@ var LABELS = {
             var nameStyle = nameStyleDropdown.selection.text;
 
             if (isNaN(startNum) || startNum <= 0 || (format === "数字" && (isNaN(increment) || increment <= 0))) {
-                alert("入力内容に誤りがあります。\n正しい数値を指定してください。", "エラー");
+                alert(LABELS.errorInput[lang], LABELS.errorTitle[lang]);
                 return;
             }
 
@@ -601,7 +632,7 @@ var LABELS = {
 
             app.redraw(); // 反映
         } catch (e) {
-            alert("エラーが発生しました（適用時）：\n" + e.message);
+            alert(LABELS.applyError[lang] + e.message);
         }
     };
 
@@ -614,7 +645,7 @@ var LABELS = {
         var nameStyle = nameStyleDropdown.selection.text;
 
         if (isNaN(startNum) || startNum <= 0 || (format === "数字" && (isNaN(increment) || increment <= 0))) {
-            alert("入力内容に誤りがあります。\n正しい数値を指定してください。", "エラー");
+            alert(LABELS.errorInput[lang], LABELS.errorTitle[lang]);
             return;
         }
 
@@ -632,7 +663,7 @@ var LABELS = {
                 current += (format === "数字") ? increment : 1;
             }
         } catch (e) {
-            alert("エラーが発生しました：\n" + e.message);
+            alert(LABELS.generalError[lang] + e.message);
         }
 
         dialog.close();
@@ -640,4 +671,6 @@ var LABELS = {
 
     formatDropdown.onChange(); // 初期プレビュー反映
     dialog.show();
-})();
+}
+
+main();
