@@ -92,7 +92,12 @@ var SCRIPT_VERSION = "v1.1";
         ungroup: { ja: "グループ解除", en: "Ungroup" },
         cancel: { ja: "キャンセル", en: "Cancel" },
         ok: { ja: "OK", en: "OK" },
-        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
+        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+        removeOutside: { ja: "アートボード外のオブジェクトを削除", en: "Remove objects outside artboards" },
+        includeLocked: { ja: "ロックされたオブジェクトを含める", en: "Include locked objects" },
+        includeHidden: { ja: "非表示のオブジェクトを含める", en: "Include hidden objects" },
+        ungroupLabel: { ja: "グループ解除", en: "Ungroup" },
+        maskRelease: { ja: "マスク解除", en: "Release Mask" }
     };
 
 function main() {
@@ -112,7 +117,7 @@ function main() {
     panel.margins = [15, 20, 15, 10];
 
     var rbMask = panel.add("radiobutton", undefined, LABELS.mask);
-    var rbRelease = panel.add("radiobutton", undefined, "マスク解除");
+    var rbRelease = panel.add("radiobutton", undefined, LABELS.maskRelease);
     rbMask.value = true;
 
     // ラジオボタン切り替え時のパネル有効/無効制御
@@ -149,14 +154,14 @@ function main() {
     var unitLabel = getCurrentUnitLabel();
     marginRow.add("statictext", undefined, "(" + unitLabel + ")");
     
-    var cbRemoveOutside = marginGroup.add("checkbox", undefined, "アートボード外のオブジェクトを削除");
+    var cbRemoveOutside = marginGroup.add("checkbox", undefined, LABELS.removeOutside);
     cbRemoveOutside.alignment = "left";
 
-    var cbIncludeLocked = marginGroup.add("checkbox", undefined, "ロックされたオブジェクトを含める");
+    var cbIncludeLocked = marginGroup.add("checkbox", undefined, LABELS.includeLocked);
     cbIncludeLocked.value = true; // デフォルトをONに設定
 
     // チェックボックス追加
-    var cbIncludeHidden = marginGroup.add("checkbox", undefined, "非表示のオブジェクトを含める");
+    var cbIncludeHidden = marginGroup.add("checkbox", undefined, LABELS.includeHidden);
     cbIncludeHidden.value = true; // デフォルトをONに設定
 
     var releasePanel = dialog.add("panel", undefined, LABELS.releaseOption);
@@ -164,7 +169,7 @@ function main() {
     releasePanel.alignChildren = "left";
     releasePanel.margins = [15, 20, 15, 10];
 
-    var cbUngroup = releasePanel.add("checkbox", undefined, LABELS.ungroup);
+    var cbUngroup = releasePanel.add("checkbox", undefined, LABELS.ungroupLabel);
     cbUngroup.value = true;
     releasePanel.enabled = false;
 
