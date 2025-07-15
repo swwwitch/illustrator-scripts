@@ -1,4 +1,5 @@
 #target illustrator
+$.localize = true;
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -104,16 +105,6 @@ var showRbTopLeft = true;
 var showRbBottomLeft = false;
 var showRbTopRight = false;
 var showRbBottomRight = false;
-
-
-/**
- * 現在のロケールを取得 / Get current locale
- */
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
-
-var lang = getCurrentLang();
 
 // --- UIラベル定義（日本語 / 英語） / UI label definitions (Japanese / English) ---
 /*
@@ -401,12 +392,12 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
     if (selItems.length === 0) {
         // 選択がない場合はアートボード基準
         if (doc.artboards.length === 0) {
-            alert(LABELS.alertNoArtboard[lang]);
+            alert(LABELS.alertNoArtboard);
             return;
         }
         var abIndex = doc.artboards.getActiveArtboardIndex();
         if (abIndex < 0 || abIndex >= doc.artboards.length) {
-            alert(LABELS.alertInvalidArtboard[lang]);
+            alert(LABELS.alertInvalidArtboard);
             return;
         }
         var ab = doc.artboards[abIndex].artboardRect;
@@ -435,7 +426,7 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
                 try {
                     app.executeMenuCommand('expandStyle');
                 } catch (e) {
-                    alert(LABELS.alertExpandError[lang] + "\n" + e.message);
+                    alert(LABELS.alertExpandError + "\n" + e.message);
                 }
                 for (var k = 0; k < tempCopies.length; k++) {
                     var outlined = tempCopies[k].createOutline();
@@ -582,12 +573,12 @@ function createGuide(layer, pos, orientation, useCanvas, marginValue) {
     } else {
         // アートボード基準 / Use artboard bounds
         if (doc.artboards.length === 0) {
-            alert(LABELS.alertNoArtboard[lang]);
+            alert(LABELS.alertNoArtboard);
             return;
         }
         var abIndex = doc.artboards.getActiveArtboardIndex();
         if (abIndex < 0 || abIndex >= doc.artboards.length) {
-            alert(LABELS.alertInvalidArtboard[lang]);
+            alert(LABELS.alertInvalidArtboard);
             return;
         }
         var ab = doc.artboards[abIndex].artboardRect;
@@ -647,7 +638,7 @@ function buildDialog() {
     // --- Declare global center mode variable ---
     var centerModeGlobal = "";
     var dialog = new Window("dialog");
-    dialog.text = LABELS.dialogTitle[lang];
+    dialog.text = LABELS.dialogTitle;
     dialog.orientation = "column";
     dialog.alignChildren = ["center", "top"];
     dialog.spacing = 10;
@@ -670,20 +661,20 @@ function buildDialog() {
     rightGroup.spacing = 10;
     rightGroup.alignment = ["left", "center"];
 
-    var targetPanel = leftGroup.add("panel", undefined, LABELS.targetPanel[lang]);
+    var targetPanel = leftGroup.add("panel", undefined, LABELS.targetPanel);
     targetPanel.orientation = "column";
     targetPanel.alignChildren = ["left", "top"];
     targetPanel.spacing = 10;
     targetPanel.margins = [10, 20, 20, 15];
     // カンバス→アートボードの順にラジオボタンを追加し、デフォルトをアートボードに
-    var rbCanvas = targetPanel.add("radiobutton", undefined, LABELS.canvas[lang]);
-    var rbArtboard = targetPanel.add("radiobutton", undefined, LABELS.artboard[lang]);
+    var rbCanvas = targetPanel.add("radiobutton", undefined, LABELS.canvas);
+    var rbArtboard = targetPanel.add("radiobutton", undefined, LABELS.artboard);
     rbArtboard.value = true;
     // --- 「裁ち落とし」グループを targetPanel 内に追加 / Add margin (bleed) group to targetPanel ---
     var marginGroup = targetPanel.add("group");
     marginGroup.orientation = "row";
     marginGroup.alignChildren = ["left", "center"];
-    marginGroup.add("statictext", undefined, LABELS.margin[lang]);
+    marginGroup.add("statictext", undefined, LABELS.margin);
     var marginInput = marginGroup.add("edittext", undefined, "20");
     marginInput.characters = 3;
     marginGroup.add("statictext", undefined, getCurrentUnitLabel());
@@ -692,7 +683,7 @@ function buildDialog() {
     var axisGroup = leftGroup.add("panel", undefined, undefined, {
         name: "axisGroup"
     });
-    axisGroup.text = LABELS.axisGroup[lang];
+    axisGroup.text = LABELS.axisGroup;
     axisGroup.orientation = "column";
     axisGroup.alignChildren = ["left", "top"];
     axisGroup.spacing = 10;
@@ -717,7 +708,7 @@ function buildDialog() {
     var cbLeft = colLeft.add("checkbox", undefined, undefined, {
         name: "cbLeft"
     });
-    cbLeft.text = LABELS.left[lang];
+    cbLeft.text = LABELS.left;
     cbLeft.value = true;
 
     var colCenter = diamondGroup.add("group", undefined, {
@@ -731,18 +722,18 @@ function buildDialog() {
     var cbTop = colCenter.add("checkbox", undefined, undefined, {
         name: "cbTop"
     });
-    cbTop.text = LABELS.top[lang];
+    cbTop.text = LABELS.top;
     cbTop.value = true;
     var cbCenter = colCenter.add("checkbox", undefined, undefined, {
         name: "cbCenter"
     });
-    cbCenter.text = LABELS.center[lang];
+    cbCenter.text = LABELS.center;
     cbCenter.value = false;
     // for horizontal center line
     var cbBottom = colCenter.add("checkbox", undefined, undefined, {
         name: "cbBottom"
     });
-    cbBottom.text = LABELS.bottom[lang];
+    cbBottom.text = LABELS.bottom;
     cbBottom.value = true;
 
     var colRight = diamondGroup.add("group", undefined, {
@@ -755,7 +746,7 @@ function buildDialog() {
     var cbRight = colRight.add("checkbox", undefined, undefined, {
         name: "cbRight"
     });
-    cbRight.text = LABELS.right[lang];
+    cbRight.text = LABELS.right;
     cbRight.value = true;
 
     var edgeGroup = axisGroup.add("group", undefined, {
@@ -775,18 +766,18 @@ function buildDialog() {
     }
 
     // Always-shown buttons: no show argument, no flags
-    var rbAllOn = createRadioButton(rightGroup, LABELS.allOn[lang]);
-    var rbShihen = createRadioButton(rightGroup, LABELS.edges[lang]);
-    var rbTopBottom = createRadioButton(rightGroup, LABELS.vertical[lang], showRbTopBottom);
-    var rbLeftRight = createRadioButton(rightGroup, LABELS.horizontal[lang], showRbLeftRight);
-    var rbTopLeft = createRadioButton(rightGroup, LABELS.topLeft[lang], showRbTopLeft);
-    var rbBottomLeft = createRadioButton(rightGroup, LABELS.bottomLeft[lang], showRbBottomLeft);
-    var rbTopRight = createRadioButton(rightGroup, LABELS.topRight[lang], showRbTopRight);
-    var rbBottomRight = createRadioButton(rightGroup, LABELS.bottomRight[lang], showRbBottomRight);
-    var rbCenterBoth = createRadioButton(rightGroup, LABELS.centerBothRb[lang]);
-    var rbCenterV = createRadioButton(rightGroup, LABELS.centerVRb[lang]);
-    var rbCenterH = createRadioButton(rightGroup, LABELS.centerHRb[lang]);
-    var rbClear = createRadioButton(rightGroup, LABELS.clear[lang]);
+    var rbAllOn = createRadioButton(rightGroup, LABELS.allOn);
+    var rbShihen = createRadioButton(rightGroup, LABELS.edges);
+    var rbTopBottom = createRadioButton(rightGroup, LABELS.vertical, showRbTopBottom);
+    var rbLeftRight = createRadioButton(rightGroup, LABELS.horizontal, showRbLeftRight);
+    var rbTopLeft = createRadioButton(rightGroup, LABELS.topLeft, showRbTopLeft);
+    var rbBottomLeft = createRadioButton(rightGroup, LABELS.bottomLeft, showRbBottomLeft);
+    var rbTopRight = createRadioButton(rightGroup, LABELS.topRight, showRbTopRight);
+    var rbBottomRight = createRadioButton(rightGroup, LABELS.bottomRight, showRbBottomRight);
+    var rbCenterBoth = createRadioButton(rightGroup, LABELS.centerBothRb);
+    var rbCenterV = createRadioButton(rightGroup, LABELS.centerVRb);
+    var rbCenterH = createRadioButton(rightGroup, LABELS.centerHRb);
+    var rbClear = createRadioButton(rightGroup, LABELS.clear);
     // --- 中心ラジオボタンのイベントハンドラ ---
     if (rbCenterBoth) {
         rbCenterBoth.onClick = function() {
@@ -883,20 +874,20 @@ function buildDialog() {
     optionsGroup.margins = [10, 15, 10, 20];
     optionsGroup.spacing = 10;
 
-    var cbUsePreview = optionsGroup.add("checkbox", undefined, LABELS.usePreviewBounds[lang]);
+    var cbUsePreview = optionsGroup.add("checkbox", undefined, LABELS.usePreviewBounds);
     cbUsePreview.value = true;
-    var cbDeleteGuide = optionsGroup.add("checkbox", undefined, LABELS.deleteGuides[lang]);
+    var cbDeleteGuide = optionsGroup.add("checkbox", undefined, LABELS.deleteGuides);
     cbDeleteGuide.value = true;
 
     // --- 個別ガイドチェックボックス追加 / Add individual guide checkbox ---
-    var cbIndividual = optionsGroup.add("checkbox", undefined, LABELS.individual[lang]);
+    var cbIndividual = optionsGroup.add("checkbox", undefined, LABELS.individual);
     cbIndividual.value = false;
 
     // --- オフセット入力欄追加 / Add offset input field ---
     var offsetGroup = optionsGroup.add("group");
     offsetGroup.orientation = "row";
     offsetGroup.alignChildren = ["left", "center"];
-    offsetGroup.add("statictext", undefined, LABELS.offset[lang]);
+    offsetGroup.add("statictext", undefined, LABELS.offset);
     var offsetInput = offsetGroup.add("edittext", undefined, "0");
     offsetInput.characters = 3;
     offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
@@ -946,8 +937,8 @@ function buildDialog() {
 
     var btnGroup = dialog.add("group");
     btnGroup.alignment = ["center", "top"];
-    var btnCancel = btnGroup.add("button", undefined, LABELS.cancelButton[lang]);
-    var btnCreateGuides = btnGroup.add("button", undefined, LABELS.okButton[lang], {
+    var btnCancel = btnGroup.add("button", undefined, LABELS.cancelButton);
+    var btnCreateGuides = btnGroup.add("button", undefined, LABELS.okButton, {
         name: "ok"
     });
 
@@ -983,7 +974,7 @@ function buildDialog() {
                         }
                     }
                 } catch (ex) {
-                    alert(LABELS.alertDeleteGuideError[lang] + "\n" + ex.message);
+                    alert(LABELS.alertDeleteGuideError + "\n" + ex.message);
                 }
             }
 
@@ -999,7 +990,7 @@ function buildDialog() {
             createGuidesFromSelection(options, useCanvas, offsetValPt, marginValPt);
             dialog.close();
         } catch (e) {
-            alert(LABELS.alertGuideError[lang] + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
+            alert(LABELS.alertGuideError + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
         }
     };
 

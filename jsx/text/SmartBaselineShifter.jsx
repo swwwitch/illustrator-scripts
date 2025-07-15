@@ -1,4 +1,5 @@
 #target illustrator
+$.localize = true;
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 var SCRIPT_VERSION = "v1.7";
@@ -100,26 +101,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 - v1.6 (20240630): Removed regex support, fine adjustments
 */
 
-// 現在の環境言語を判定（日本語か英語）
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
-
-var LABELS = {
-    dialogTitle: { ja: "ベースラインシフトの調整 " + SCRIPT_VERSION, en: "Adjust Baseline Shift " + SCRIPT_VERSION },
-    shiftSectionTitle: { ja: "ベースラインシフト", en: "Baseline Shift" },
-    targetText: { ja: "対象文字列:", en: "Target Text:" },
-    shiftValue: { ja: "シフト量:", en: "Shift Value:" },
-    resetAll: { ja: "すべてをリセット", en: "Reset All" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    ok: { ja: "OK", en: "OK" },
-    alertOpenDoc: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
-    alertSelectText: { ja: "テキストを選択してください。", en: "Please select text." },
-    alertSelectFrame: { ja: "テキストフレームを選択してください。", en: "Please select text frame." },
-    error: { ja: "処理中にエラーが発生しました: ", en: "An error occurred: " }
-};
-
-// 選択中の TextRange を含む単一の TextFrame を選択し直す
+// 選択中の TextRange を含む単一の TextFrame を選択し直す / Re-select a single TextFrame containing the selected TextRange
 function selectSingleTextFrameFromTextRange() {
     if (app.selection.constructor.name === "TextRange") {
         var textFramesInStory = app.selection.story.textFrames;
@@ -133,7 +115,7 @@ function selectSingleTextFrameFromTextRange() {
     }
 }
 
-// 指定アイテムからテキストフレームを再帰的に収集
+// 指定アイテムからテキストフレームを再帰的に収集 / Recursively collect TextFrames from specified item
 function collectTextFrames(item, array) {
     if (item.typename === "TextFrame") {
         array.push(item);
@@ -144,7 +126,7 @@ function collectTextFrames(item, array) {
     }
 }
 
-// 指定テキストフレーム群のベースラインシフトをリセット（対象文字列指定可）
+// 指定テキストフレーム群のベースラインシフトをリセット（対象文字列指定可） / Reset baseline shift for specified TextFrames (optional target characters)
 function resetBaselineShift(frames, targetStr) {
     for (var i = 0; i < frames.length; i++) {
         var tf = frames[i];
@@ -166,7 +148,7 @@ function resetBaselineShift(frames, targetStr) {
                 }
             }
         } catch (e) {
-            // エラーは無視
+            // エラーは無視 / Ignore errors
         }
     }
 }
@@ -221,16 +203,30 @@ function changeValueByArrowKey(editText, onUpdate) {
     });
 }
 
+var LABELS = {
+    dialogTitle: "ベースラインシフトの調整 " + SCRIPT_VERSION,
+    shiftSectionTitle: "ベースラインシフト",
+    targetText: "対象文字列:",
+    shiftValue: "シフト量:",
+    resetAll: "すべてをリセット",
+    cancel: "キャンセル",
+    ok: "OK",
+    alertOpenDoc: "ドキュメントを開いてください。",
+    alertSelectText: "テキストを選択してください。",
+    alertSelectFrame: "テキストフレームを選択してください。",
+    error: "処理中にエラーが発生しました: "
+};
+
+// メイン処理 / Main process
 function main() {
-    var lang = getCurrentLang();
 
     if (app.documents.length === 0) {
-        alert(LABELS.alertOpenDoc[lang]);
+        alert(LABELS.alertOpenDoc);
         return;
     }
     var doc = app.activeDocument;
     if (!doc.selection || doc.selection.length === 0) {
-        alert(LABELS.alertSelectText[lang]);
+        alert(LABELS.alertSelectText);
         return;
     }
 
@@ -241,7 +237,7 @@ function main() {
         collectTextFrames(doc.selection[i], textFrames);
     }
     if (textFrames.length === 0) {
-        alert(LABELS.alertSelectFrame[lang]);
+        alert(LABELS.alertSelectFrame);
         return;
     }
 
@@ -260,7 +256,7 @@ function main() {
         }
     }
 
-    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    var dialog = new Window("dialog", LABELS.dialogTitle);
     dialog.orientation = "column";
     dialog.alignChildren = "top";
 
@@ -271,7 +267,7 @@ function main() {
     var resetGroup = leftPanel.add("group");
     resetGroup.orientation = "row";
     resetGroup.alignment = "center";
-    var resetCheckbox = resetGroup.add("checkbox", undefined, LABELS.resetAll[lang]);
+    var resetCheckbox = resetGroup.add("checkbox", undefined, LABELS.resetAll);
     resetCheckbox.value = false;
     resetCheckbox.onClick = function() {
         if (resetCheckbox.value) {
@@ -283,14 +279,14 @@ function main() {
         }
     };
 
-    var shiftPanel = leftPanel.add("panel", undefined, LABELS.shiftSectionTitle[lang]);
+    var shiftPanel = leftPanel.add("panel", undefined, LABELS.shiftSectionTitle);
     shiftPanel.orientation = "column";
     shiftPanel.alignChildren = "fill";
     shiftPanel.margins = [15, 20, 15, 10];
 
     var targetGroup = shiftPanel.add("group");
     targetGroup.orientation = "row";
-    var targetLabel = targetGroup.add("statictext", undefined, LABELS.targetText[lang]);
+    var targetLabel = targetGroup.add("statictext", undefined, LABELS.targetText);
     targetLabel.preferredSize.width = 80;
     targetLabel.justify = "right";
     var targetInput = targetGroup.add("edittext", undefined, defaultTarget);
@@ -298,7 +294,7 @@ function main() {
 
     var shiftLabelGroup = shiftPanel.add("group");
     shiftLabelGroup.orientation = "row";
-    var shiftLabel = shiftLabelGroup.add("statictext", undefined, LABELS.shiftValue[lang]);
+    var shiftLabel = shiftLabelGroup.add("statictext", undefined, LABELS.shiftValue);
     shiftLabel.preferredSize.width = 80;
     shiftLabel.justify = "right";
     var shiftInput = shiftLabelGroup.add("edittext", undefined, "0");
@@ -307,8 +303,8 @@ function main() {
     var buttonGroup = leftPanel.add("group");
     buttonGroup.orientation = "row";
     buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-    var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang]);
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel);
+    var okBtn = buttonGroup.add("button", undefined, LABELS.ok);
 
     var lastTarget = "";
     var lastShift = 0;

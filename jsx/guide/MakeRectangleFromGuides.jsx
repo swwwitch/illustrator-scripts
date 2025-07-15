@@ -1,4 +1,5 @@
 #target illustrator
+$.localize = true;
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -65,15 +66,8 @@ MakeRectangleFromGuides.jsx
 
 var SCRIPT_VERSION = "v1.0";
 
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
-
 var LABELS = {
-    dialogTitle: {
-        ja: "ガイドから長方形を作成 " + SCRIPT_VERSION,
-        en: "Create Rectangles from Guides " + SCRIPT_VERSION
-    },
+    dialogTitle: { ja: "ガイドから長方形を作成 " + SCRIPT_VERSION, en: "Create Rectangles from Guides " + SCRIPT_VERSION },
     panelTitle: { ja: "ガイドの種類", en: "Guide Type" },
     allGuides: { ja: "すべて", en: "All Guides" },
     rulerGuides: { ja: "ルーラーガイドのみ", en: "Ruler Guides Only" },
@@ -84,8 +78,7 @@ var LABELS = {
 };
 
 function main() {
-    /* ユーティリティ: ロック解除かつ表示されているレイヤーを取得
-       Utility: Get an unlocked and visible layer */
+    /* ユーティリティ: ロック解除かつ表示されているレイヤーを取得 / Utility: Get an unlocked and visible layer */
     function getUnlockedVisibleLayer(doc) {
         for (var i = 0; i < doc.layers.length; i++) {
             if (!doc.layers[i].locked && doc.layers[i].visible) {
@@ -99,35 +92,33 @@ function main() {
         return;
     }
 
-    var lang = getCurrentLang();
-
-    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+    var dlg = new Window("dialog", LABELS.dialogTitle.ja);
     dlg.orientation = "column";
     dlg.alignChildren = "left";
 
-    var guidePanel = dlg.add("panel", undefined, LABELS.panelTitle[lang]);
+    var guidePanel = dlg.add("panel", undefined, LABELS.panelTitle.ja);
     guidePanel.orientation = "column";
     guidePanel.alignChildren = "left";
     guidePanel.alignment = "fill";
     guidePanel.margins = [15, 20, 15, 10];
-    var rbAll = guidePanel.add("radiobutton", undefined, LABELS.allGuides[lang]);
-    var rbRuler = guidePanel.add("radiobutton", undefined, LABELS.rulerGuides[lang]);
+    var rbAll = guidePanel.add("radiobutton", undefined, LABELS.allGuides.ja);
+    var rbRuler = guidePanel.add("radiobutton", undefined, LABELS.rulerGuides.ja);
     rbAll.value = true;
 
-    var cbLocked = dlg.add("checkbox", undefined, LABELS.includeLocked[lang]);
+    var cbLocked = dlg.add("checkbox", undefined, LABELS.includeLocked.ja);
     cbLocked.value = true;
 
-    var cbMerge = dlg.add("checkbox", undefined, LABELS.mergeAdjacent[lang]);
+    var cbMerge = dlg.add("checkbox", undefined, LABELS.mergeAdjacent.ja);
     cbMerge.value = true;
 
     var btnGroup = dlg.add("group");
     btnGroup.orientation = "row";
     btnGroup.alignChildren = ["center", "center"];
     btnGroup.alignment = "center";
-    var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel[lang], {
+    var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel.ja, {
         name: "cancel"
     });
-    var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang], {
+    var okBtn = btnGroup.add("button", undefined, LABELS.ok.ja, {
         name: "ok"
     });
 
@@ -141,8 +132,7 @@ function main() {
 
     var doc = app.activeDocument;
     var guides = [];
-    var rectOpacity = 50; /* 不透明度（0〜100）, 必要に応じてここで変更
-                             Opacity (0-100), change here if needed */
+    var rectOpacity = 50; /* 不透明度（0〜100） / Opacity (0-100), change here if needed */
 
     /* アートボードサイズ取得 / Get artboard size */
     var artboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
@@ -152,8 +142,7 @@ function main() {
 
     var lockedLayers = [];
     if (includeLocked) {
-        /* ロックされたレイヤーのロックを一時的に解除
-           Temporarily unlock locked layers */
+        /* ロックされたレイヤーのロックを一時的に解除 / Temporarily unlock locked layers */
         for (var i = 0; i < doc.layers.length; i++) {
             if (doc.layers[i].locked) {
                 doc.layers[i].locked = false;
@@ -163,8 +152,7 @@ function main() {
     }
 
     /*
-    ガイドを収集 (includeLocked=falseならロックガイド除外)
-    Collect guides (exclude guides on locked layers if includeLocked is false)
+    ガイドを収集 (includeLocked=falseならロックガイド除外) / Collect guides (exclude guides on locked layers if includeLocked is false)
     */
     for (var i = 0; i < doc.pathItems.length; i++) {
         var p = doc.pathItems[i];
@@ -195,21 +183,18 @@ function main() {
     }
 
     if (includeLocked) {
-        /* 元に戻す: ロック状態を復元
-           Restore locked state */
+        /* 元に戻す: ロック状態を復元 / Restore locked state */
         for (var i = 0; i < lockedLayers.length; i++) {
             lockedLayers[i].locked = true;
         }
-        /* アクティブレイヤーがロックまたは非表示の場合は、ロック解除かつ表示されているレイヤーを設定
-           If active layer is locked or hidden, set unlocked visible layer as active */
+        /* アクティブレイヤーがロックまたは非表示の場合は、ロック解除かつ表示されているレイヤーを設定 / If active layer is locked or hidden, set unlocked visible layer as active */
         var targetLayer = doc.activeLayer;
         if (targetLayer.locked || !targetLayer.visible) {
             var newLayer = getUnlockedVisibleLayer(doc);
             if (newLayer) {
                 doc.activeLayer = newLayer;
             } else {
-                var msg = (lang === 'ja') ? "ロック解除かつ表示されているレイヤーがありません。" : "No unlocked and visible layers found.";
-                alert(msg);
+                alert("ロック解除かつ表示されているレイヤーがありません。");
                 return;
             }
         }
@@ -219,8 +204,7 @@ function main() {
     var horizontals = [];
 
     /*
-    ガイドを縦横に分類
-    Classify guides into vertical and horizontal
+    ガイドを縦横に分類 / Classify guides into vertical and horizontal
     */
     for (var j = 0; j < guides.length; j++) {
         var g = guides[j];
@@ -235,12 +219,11 @@ function main() {
     }
 
     if (verticals.length < 2 || horizontals.length < 2) {
-        alert(lang === 'ja' ? "縦ガイド2本以上、横ガイド2本以上が必要です。" : "At least two vertical and two horizontal guides are required.");
+        alert("縦ガイド2本以上、横ガイド2本以上が必要です。");
         return;
     }
 
-    /* 小さい順にソート（縦は昇順、横は降順）
-       Sort ascending verticals, descending horizontals */
+    /* 小さい順にソート（縦は昇順、横は降順） / Sort ascending verticals, descending horizontals */
     verticals.sort(function(a, b) {
         return a - b;
     });
@@ -248,8 +231,7 @@ function main() {
         return b - a;
     });
 
-    /* レイヤーのロック状態と表示状態を考慮し、描画対象レイヤーを取得
-       Get target layer considering lock and visibility */
+    /* レイヤーのロック状態と表示状態を考慮し、描画対象レイヤーを取得 / Get target layer considering lock and visibility */
     var targetLayer = doc.activeLayer;
     if (targetLayer.locked || !targetLayer.visible) {
         var newLayer = getUnlockedVisibleLayer(doc);
@@ -257,14 +239,12 @@ function main() {
             doc.activeLayer = newLayer;
             targetLayer = newLayer;
         } else {
-            var msg = (lang === 'ja') ? "ロック解除かつ表示されているレイヤーがありません。" : "No unlocked and visible layers found.";
-            alert(msg);
+            alert("ロック解除かつ表示されているレイヤーがありません。");
             return;
         }
     }
 
-    /* 新規レイヤーを作成してアクティブにする
-       Create a new layer and make it active */
+    /* 新規レイヤーを作成してアクティブにする / Create a new layer and make it active */
     var newDrawLayer = doc.layers.add();
     newDrawLayer.name = "Generated Rectangles";
     doc.activeLayer = newDrawLayer;
@@ -272,8 +252,7 @@ function main() {
     var createdRects = [];
 
     /*
-    交差点を基に長方形を作成
-    Create rectangles based on intersections
+    交差点を基に長方形を作成 / Create rectangles based on intersections
     */
     for (var xi = 0; xi < verticals.length - 1; xi++) {
         for (var yi = 0; yi < horizontals.length - 1; yi++) {

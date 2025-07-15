@@ -1,6 +1,8 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+$.localize = true;
+
 /*
 ### スクリプト名：
 
@@ -63,10 +65,13 @@ MimicDynamicText.jsx
 - v1.0.1 (20250618): Added process to convert back to area text
 */
 
-#target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+var LABELS = {
+    alertSelectAreaText: { ja: "エリア内文字を選択してください。", en: "Please select area text." },
+    alertSortError: { ja: "ソート中にエラーが発生しました: ", en: "An error occurred during sorting: " }
+};
 
-// エリア内文字をポイント文字に変換し、変換後のTextFrameを取得
+
+// エリア内文字をポイント文字に変換し、変換後のTextFrameを取得 / Convert area text to point text and get the resulting TextFrame
 function convertAreaTextToPointText(areaTextFrame, originalContents, originalPosition) {
     areaTextFrame.convertAreaObjectToPointObject();
 
@@ -83,7 +88,7 @@ function convertAreaTextToPointText(areaTextFrame, originalContents, originalPos
     return null;
 }
 
-// エリア内文字を行単位に分割し、ポイント文字のTextFrameとして再配置
+// エリア内文字を行単位に分割し、ポイント文字のTextFrameとして再配置 / Split area text by lines and reposition as point text frames
 function splitTextFrameIntoLines(textFrame) {
     var lines = textFrame.contents.split('\r');
     var originalPosition = textFrame.position;
@@ -115,7 +120,7 @@ function splitTextFrameIntoLines(textFrame) {
     }
     var mergedFrame = mergeTextFramesVertically(splitLines);
     if (mergedFrame) {
-        // 行間を自動に設定し、autoLeadingAmount を 100 に設定
+        // 行間を自動に設定し、autoLeadingAmount を 100 に設定 / Set auto leading and autoLeadingAmount to 110
         mergedFrame.textRange.characterAttributes.autoLeading = true;
 
         var paragraphs = mergedFrame.paragraphs;
@@ -129,20 +134,20 @@ function splitTextFrameIntoLines(textFrame) {
     }
 }
 
-// 垂直比率を水平比率に合わせて統一
+// 垂直比率を水平比率に合わせて統一 / Match vertical scale to horizontal scale
 function matchVerticalScaleToHorizontal(item) {
     var currentHorizontalScale = item.textRange.characterAttributes.horizontalScale;
     item.textRange.characterAttributes.verticalScale = currentHorizontalScale;
 }
 
-// テキストフレームのみをリストに追加
+// テキストフレームのみをリストに追加 / Add only text frames to list
 function collectTextFrame(item, list) {
     if (item.typename === 'TextFrame') {
         list.push(item);
     }
 }
 
-// 複数のテキストフレームを縦方向に連結して再構成
+// 複数のテキストフレームを縦方向に連結して再構成 / Merge multiple text frames vertically
 function mergeTextFramesVertically(frames) {
     if (frames.length < 2) {
         return;
@@ -156,7 +161,7 @@ function mergeTextFramesVertically(frames) {
             if (lines[j] !== "") {
                 var tf = sortedFrames[i].duplicate();
                 tf.contents = lines[j];
-                tf.top -= j * 2000; // 行順を維持するために位置調整
+                tf.top -= j * 2000; // 行順を維持するために位置調整 / Adjust position to maintain line order
                 splitFrames.push(tf);
             }
         }
@@ -176,7 +181,7 @@ function mergeTextFramesVertically(frames) {
     return baseFrame;
 }
 
-// テキストフレームを位置情報（上→下、左→右）でソート
+// テキストフレームを位置情報（上→下、左→右）でソート / Sort text frames by position (top to bottom, left to right)
 function sortTextFramesByPosition(frameList) {
     try {
         var copyList = [];
@@ -204,31 +209,32 @@ function sortTextFramesByPosition(frameList) {
         });
         return copyList;
     } catch (e) {
-        alert("ソート中にエラーが発生しました: " + e.message);
+        alert(LABELS.alertSortError + e.message);
         return frameList;
     }
 }
 
+// メイン処理 / Main process
 function main() {
-    // 選択確認
+    // 選択確認 / Check selection
     if (app.documents.length === 0 || app.activeDocument.selection.length === 0) {
-        alert("エリア内文字を選択してください。");
+        alert(LABELS.alertSelectAreaText);
         return;
     }
 
     var areaTextFrame = app.activeDocument.selection[0];
 
     if (areaTextFrame.typename !== "TextFrame" || areaTextFrame.kind !== TextType.AREATEXT) {
-        alert("エリア内文字を選択してください。");
+        alert(LABELS.alertSelectAreaText);
         return;
     }
 
     var areaWidth = areaTextFrame.width;
 
-    // 分割
+    // 分割 / Split
     splitTextFrameIntoLines(areaTextFrame);
 
-    // 連結
+    // 連結 / Merge
     var selectionItems = app.activeDocument.selection;
     if (selectionItems.length >= 2) {
         var textFrames = [];

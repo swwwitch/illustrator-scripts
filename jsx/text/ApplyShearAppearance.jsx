@@ -1,4 +1,5 @@
 #target illustrator
+$.localize = true;
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -72,12 +73,8 @@ https://sysys.blog.shinobi.jp/Entry/53/
 */
 
 // -------------------------------
-// 日英ラベル定義
+// 日英ラベル定義 / Japanese-English label definitions
 // -------------------------------
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
-var lang = getCurrentLang();
 var SCRIPT_VERSION = "v1.2";
 var LABELS = {
     dialogTitle: {
@@ -104,34 +101,34 @@ function main() {
         var previewEnabled = false;
         var lastPreviewParams = null;
 
-        // 選択オブジェクトのサイズ取得
+        // 選択オブジェクトのサイズ取得 / Get size of selected object
         var bounds = selectedItems[0].geometricBounds; // [y1, x1, y2, x2]
         var width = Math.abs(bounds[2] - bounds[0]);
         var height = Math.abs(bounds[3] - bounds[1]);
 
-        // ダイアログ作成
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+        // ダイアログ作成 / Create dialog
+        var dlg = new Window("dialog", LABELS.dialogTitle);
         dlg.orientation = "column";
         dlg.alignChildren = "left";
 
-        // 角度入力グループ
+        // 角度入力グループ / Angle input group
         var angleGroup = dlg.add("group");
         angleGroup.orientation = "row";
-        var angleLabel = angleGroup.add("statictext", undefined, LABELS.angleLabel[lang]);
+        var angleLabel = angleGroup.add("statictext", undefined, LABELS.angleLabel);
         var angleInput = angleGroup.add("edittext", undefined, "0");
         angleInput.characters = 3;
 
 
-        // キー操作で角度変更を可能にする
+        // キー操作で角度変更を可能にする / Enable angle change by key operation
         changeValueByArrowKey(angleInput, applyPreviewIfNeeded);
 
-        // 方向選択グループ
+        // 方向選択グループ / Direction selection group
         var directionGroup = dlg.add("group");
         directionGroup.orientation = "row";
-        directionGroup.alignment = "center"; // 中央揃えに変更
-        var horizontalRadio = directionGroup.add("radiobutton", undefined, LABELS.horizontal[lang]);
-        var verticalRadio = directionGroup.add("radiobutton", undefined, LABELS.vertical[lang]);
-        // サイズに基づき方向を自動設定
+        directionGroup.alignment = "center"; // 中央揃えに変更 / Align center
+        var horizontalRadio = directionGroup.add("radiobutton", undefined, LABELS.horizontal);
+        var verticalRadio = directionGroup.add("radiobutton", undefined, LABELS.vertical);
+        // サイズに基づき方向を自動設定 / Auto set direction based on size
         if (width > height) {
             horizontalRadio.value = true;
             verticalRadio.value = false;
@@ -140,14 +137,14 @@ function main() {
             verticalRadio.value = true;
         }
 
-        // ボタングループ
+        // ボタングループ / Button group
         var buttonGroup = dlg.add("group");
         buttonGroup.orientation = "row";
         buttonGroup.alignment = "right";
-        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+        var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel);
+        var okBtn = buttonGroup.add("button", undefined, LABELS.ok, { name: "ok" });
 
-        // プレビュー適用処理
+        // プレビュー適用処理 / Apply preview process
         function applyPreviewIfNeeded() {
             var angle = parseFloat(angleInput.text);
             var horiz = horizontalRadio.value;
@@ -156,7 +153,7 @@ function main() {
             var newParams = angle + "_" + (horiz ? "H" : "V");
             if (newParams === lastPreviewParams) return;
 
-            undoPreview(); // 前のプレビューをUndo
+            undoPreview(); // 前のプレビューをUndo / Undo previous preview
 
             applyShearEffect(selectedItems, angle, horiz);
             app.redraw();
@@ -172,7 +169,7 @@ function main() {
             }
         }
 
-        // イベント監視
+        // イベント監視 / Event monitoring
         angleInput.onChanging = function () {
             applyPreviewIfNeeded();
         };
@@ -183,23 +180,23 @@ function main() {
             applyPreviewIfNeeded();
         };
 
-        // OKボタン処理
+        // OKボタン処理 / OK button process
         okBtn.onClick = function () {
             var angle = parseFloat(angleInput.text);
             var horiz = horizontalRadio.value;
             if (angle <= -45 || angle >= 45 || angle !== angle) {
-                alert(LABELS.errorInvalidAngle[lang]);
+                alert(LABELS.errorInvalidAngle);
                 return;
             }
             if (previewEnabled) {
-                lastPreviewParams = null; // 適用済みをそのまま使用
+                lastPreviewParams = null; // 適用済みをそのまま使用 / Use applied as is
             } else {
                 applyShearEffect(selectedItems, angle, horiz);
             }
             dlg.close();
         };
 
-        // キャンセルボタン処理
+        // キャンセルボタン処理 / Cancel button process
         cancelBtn.onClick = function () {
             undoPreview();
             dlg.close();
@@ -209,11 +206,11 @@ function main() {
         dlg.show();
 
     } catch (e) {
-        alert(LABELS.errorOccurred[lang] + e);
+        alert(LABELS.errorOccurred + e);
     }
 }
 
-// シアー変形適用関数
+// シアー変形適用関数 / Apply shear transform function
 function applyShearEffect(targets, angleDeg, isHorizontal) {
     var angleRad = toRadians(angleDeg);
     var n = Math.tan((2 * Math.asin(Math.tan(-angleRad)) + Math.PI) / 4);
@@ -235,7 +232,7 @@ function applyShearEffect(targets, angleDeg, isHorizontal) {
     }
 }
 
-// 角度変換
+// 角度変換 / Angle conversion
 function toRadians(deg) {
     return deg * Math.PI / 180;
 }
@@ -243,7 +240,7 @@ function toDegrees(rad) {
     return rad * 180 / Math.PI;
 }
 
-// Adobe Transform用XML生成
+// Adobe Transform用XML生成 / Create XML for Adobe Transform
 function createTransformXML(scaleH, scaleV, rotateDeg) {
     var xml = '<LiveEffect name="Adobe Transform"><Dict data="';
     xml += 'B transformPatterns 0 ';
@@ -265,10 +262,10 @@ function createTransformXML(scaleH, scaleV, rotateDeg) {
     xml += '"/></LiveEffect>';
     return xml;
 }
-// EditTextで上下キーにより値を増減する関数
+// EditTextで上下キーにより値を増減する関数 / Function to increment/decrement value by up/down keys in EditText
 function changeValueByArrowKey(editText, onUpdate) {
     editText.addEventListener("keydown", function(event) {
-        // ↑↓キー以外では処理しない
+        // ↑↓キー以外では処理しない / Do nothing except up/down keys
         if (event.keyName !== "Up" && event.keyName !== "Down") {
             return;
         }
@@ -281,14 +278,14 @@ function changeValueByArrowKey(editText, onUpdate) {
         var delta = 1;
 
         if (keyboard.shiftKey) {
-            // Shift + ↑↓ のときだけ 10 単位
+            // Shift + ↑↓ のときだけ 10 単位 / 10 unit step only for Shift + up/down
             value = Math.round(value / 10) * 10;
             delta = 10;
         }
 
         value += isUp ? delta : -delta;
 
-        // 制限に合わせる（-44〜44）
+        // 制限に合わせる（-44〜44） / Clamp to range (-44 to 44)
         if (value < -44) value = -44;
         if (value > 44) value = 44;
 

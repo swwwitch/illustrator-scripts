@@ -1,4 +1,5 @@
 #target illustrator
+$.localize = true;
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -27,10 +28,10 @@ TextSplitterPro.jsx
 
 ### 更新履歴
 
-- v1.0.0 (20250609) : 初期バージョン
-- v1.0.1 (20250609) : テキストフレームの位置考慮処理を追加
-- v1.0.3 (20250610) : 選択文字対応ロジック追加
-- v1.0.4 (20250706) : ローカライズ調整
+- v1.0 (20250609) : 初期バージョン
+- v1.1 (20250609) : テキストフレームの位置考慮処理を追加
+- v1.3 (20250610) : 選択文字対応ロジック追加
+- v1.4 (20250706) : ローカライズ調整
 
 ---
 
@@ -59,50 +60,34 @@ TextSplitterPro.jsx
 
 ### Update History
 
-- v1.0.0 (20250609): Initial version
-- v1.0.1 (20250609): Added text frame position consideration
-- v1.0.3 (20250610): Added logic for selected characters
-- v1.0.4 (20250706): Localization adjustments
+- v1.0 (20250609): Initial version
+- v1.1 (20250609): Added text frame position consideration
+- v1.3 (20250610): Added logic for selected characters
+- v1.4 (20250706): Localization adjustments
 */
 
 var LABELS = {
-    ja: {
-        dialogTitle: "テキスト分割",
-        groupLabel: "分割方法",
-        even: "等間隔で並べる",
-        visual: "見た目どおり",
-        groupNone: "グループ化しない",
-        groupEachLine: "各行ごとにグループ化",
-        groupAll: "全体をグループ化",
-        ok: "OK",
-        cancel: "キャンセル",
-        alertSelectOne: "テキストオブジェクトを1つ以上選択してください。"
-    },
-    en: {
-        dialogTitle: "Select Placement Mode",
-        groupLabel: "Placement Method",
-        even: "Distribute Evenly",
-        visual: "Preserve Visual Position",
-        groupNone: "No grouping",
-        groupEachLine: "Group by line",
-        groupAll: "Group all together",
-        ok: "OK",
-        cancel: "Cancel",
-        alertSelectOne: "Please select one or more text objects."
-    }
+    dialogTitle: { ja: "テキスト分割", en: "Select Placement Mode" },
+    groupLabel: { ja: "分割方法", en: "Placement Method" },
+    even: { ja: "等間隔で並べる", en: "Distribute Evenly" },
+    visual: { ja: "見た目どおり", en: "Preserve Visual Position" },
+    groupNone: { ja: "グループ化しない", en: "No grouping" },
+    groupEachLine: { ja: "各行ごとにグループ化", en: "Group by line" },
+    groupAll: { ja: "全体をグループ化", en: "Group all together" },
+    ok: { ja: "OK", en: "OK" },
+    cancel: { ja: "キャンセル", en: "Cancel" },
+    alertSelectOne: { ja: "テキストオブジェクトを1つ以上選択してください。", en: "Please select one or more text objects." }
 };
 
-// 現在の言語設定を判定し、'ja' または 'en' を返す
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
+// 現在の言語設定を取得 / Get current language
+var lang = $.locale.indexOf("ja") === 0 ? "ja" : "en";
 
-// 縦組みかどうかを判定
+// 縦組みかどうかを判定 / Check if text frame is vertical
 function isVerticalTextFrame(textFrame) {
     return textFrame.orientation === TextOrientation.VERTICAL;
 }
 
-// 選択中の TextRange を含む単一の TextFrame を選択し直すユーティリティ関数
+// 選択中の TextRange を含む単一の TextFrame を選択し直すユーティリティ関数 / Re-select single TextFrame if a TextRange is selected
 function selectSingleTextFrameFromTextRange() {
     if (app.selection.constructor.name === "TextRange") {
         var textFramesInStory = app.selection.story.textFrames;
@@ -119,17 +104,15 @@ function selectSingleTextFrameFromTextRange() {
 function main() {
     selectSingleTextFrameFromTextRange();
 
-    var lang = getCurrentLang();
-
     if (app.documents.length === 0 || app.activeDocument.selection.length === 0) {
-        alert(LABELS[lang].alertSelectOne);
+        alert(LABELS.alertSelectOne[lang]);
         return;
     }
 
     var doc = app.activeDocument;
     var selection = doc.selection;
 
-    // 選択中のテキストに複数行が含まれるか判定
+    // 選択中のテキストに複数行が含まれるか判定 / Check if selected text contains multiple lines
     var hasMultiLine = false;
     for (var s = 0; s < selection.length; s++) {
         if (selection[s].typename === "TextFrame" && selection[s].contents.indexOf("\r") !== -1) {
@@ -174,7 +157,7 @@ function main() {
             var lastLayer = allCharFrames[0].layer;
             groupItemsIfNeeded(allCharFrames, lastLayer);
         }
-        // groupMode が "none" または "each" の場合は既に個別処理済み
+        // groupMode が "none" または "each" の場合は既に個別処理済み / Already handled individually
     }
 }
 
@@ -218,28 +201,29 @@ function splitPathText(textFrame, mode, groupMode) {
     finalizeCharacterFrames(charFrames, groupMode, layer);
 }
 
+// ダイアログ作成 / Create dialog
 function showPlacementModeDialog(lang, isMultiLine) {
-    var dlg = new Window("dialog", LABELS[lang].dialogTitle);
+    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
     dlg.alignChildren = "left";
 
-    var panel = dlg.add("panel", undefined, LABELS[lang].groupLabel);
+    var panel = dlg.add("panel", undefined, LABELS.groupLabel[lang]);
     panel.orientation = "column";
     panel.alignChildren = "left";
     panel.margins = [15, 20, 15, 10];
 
-    var visualBtn = panel.add("radiobutton", undefined, LABELS[lang].visual);
-    var evenBtn = panel.add("radiobutton", undefined, LABELS[lang].even);
+    var visualBtn = panel.add("radiobutton", undefined, LABELS.visual[lang]);
+    var evenBtn = panel.add("radiobutton", undefined, LABELS.even[lang]);
     visualBtn.value = true;
 
-    var groupPanel = dlg.add("panel", undefined, LABELS[lang].groupLabel);
+    var groupPanel = dlg.add("panel", undefined, LABELS.groupLabel[lang]);
     groupPanel.orientation = "column";
     groupPanel.alignChildren = "left";
     groupPanel.margins = [15, 20, 15, 10];
 
-    var groupNoneBtn = groupPanel.add("radiobutton", undefined, LABELS[lang].groupNone);
-    var groupEachBtn = groupPanel.add("radiobutton", undefined, LABELS[lang].groupEachLine);
-    var groupAllBtn = groupPanel.add("radiobutton", undefined, LABELS[lang].groupAll);
+    var groupNoneBtn = groupPanel.add("radiobutton", undefined, LABELS.groupNone[lang]);
+    var groupEachBtn = groupPanel.add("radiobutton", undefined, LABELS.groupEachLine[lang]);
+    var groupAllBtn = groupPanel.add("radiobutton", undefined, LABELS.groupAll[lang]);
     groupNoneBtn.value = true;
 
     groupEachBtn.enabled = isMultiLine;
@@ -248,8 +232,8 @@ function showPlacementModeDialog(lang, isMultiLine) {
     var btnGroup = dlg.add("group");
     btnGroup.alignment = "right";
 
-    var cancelBtn = btnGroup.add("button", undefined, LABELS[lang].cancel);
-    var okBtn = btnGroup.add("button", undefined, LABELS[lang].ok, {
+    var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel[lang]);
+    var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang], {
         name: "ok"
     });
 
@@ -270,7 +254,7 @@ function showPlacementModeDialog(lang, isMultiLine) {
     return result;
 }
 
-// テキストフレームを行単位で分割し、それぞれ新規テキストフレームを作成
+// テキストフレームを行単位で分割し、それぞれ新規テキストフレームを作成 / Split text frame by line and create new frames
 function splitTextFrameByLine(originalText, isVertical) {
     var doc = app.activeDocument;
     var lines = originalText.lines;
@@ -286,7 +270,7 @@ function splitTextFrameByLine(originalText, isVertical) {
     var result = [];
 
     for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].contents.replace(/[\r\n]+$/, ""); // 改行削除
+        var line = lines[i].contents.replace(/[\r\n]+$/, ""); // 改行削除 / Remove line breaks
         if (line === "") continue;
 
         var tf = doc.textFrames.add();
@@ -302,8 +286,8 @@ function splitTextFrameByLine(originalText, isVertical) {
         attr.stroked = false;
 
         tf.orientation = originalText.orientation;
-        tf.position = [baseX, baseY]; // 一時設定
-        app.redraw(); // bounding box 計算のため必要
+        tf.position = [baseX, baseY]; // 一時設定 / Temporary position
+        app.redraw(); // bounding box 計算のため必要 / Needed for bounding box calculation
 
         var bounds = tf.visibleBounds;
         var width = bounds[2] - bounds[0];
@@ -323,7 +307,7 @@ function splitTextFrameByLine(originalText, isVertical) {
     return result;
 }
 
-// 文字単位に分割し、トラッキングをpt単位に変換して視覚的な位置で配置、グループ化対応
+// 文字単位に分割し、トラッキングをpt単位に変換して視覚的な位置で配置、グループ化対応 / Split text into characters with visual positioning and grouping
 function splitTextToCharacters(textItem, groupMode, isMultiLine) {
     var doc = app.activeDocument;
     var charCount = textItem.characters.length;
@@ -336,7 +320,7 @@ function splitTextToCharacters(textItem, groupMode, isMultiLine) {
     var layer = textItem.layer;
 
     var isVertical = isVerticalTextFrame(textItem);
-    // 縦組かつ複数行の場合はX位置を保持
+    // 縦組かつ複数行の場合はX位置を保持 / Preserve X position if vertical and multiline
     var preserveX = isMultiLine && isVertical;
 
     var lastBaseline = textItem.characters[0].baseline;
@@ -375,7 +359,7 @@ function splitTextToCharacters(textItem, groupMode, isMultiLine) {
     return charFrames;
 }
 
-// 文字を等間隔に分割配置、グループ化対応
+// 文字を等間隔に分割配置、グループ化対応 / Split characters evenly with grouping
 function splitEvenly(textItem, groupMode) {
     var charCount = textItem.characters.length;
     var size = textItem.textRange.characterAttributes.size;
@@ -401,14 +385,14 @@ function splitEvenly(textItem, groupMode) {
     return charFrames;
 }
 
-// 指定文字を複製し位置を設定
+// 指定文字を複製し位置を設定 / Duplicate specified character and set position
 function createCharacterFrame(textItem, charIndex, x, y) {
     var charFrame = textItem.duplicate();
     try {
         var orientation = textItem.textRange.characterAttributes.textOrientation;
         charFrame.textRange.characterAttributes.textOrientation = orientation;
     } catch (e) {
-        // 何もしない
+        // 何もしない / Do nothing
     }
     charFrame.contents = textItem.characters[charIndex].contents;
     charFrame.position = [x, y];
@@ -416,12 +400,12 @@ function createCharacterFrame(textItem, charIndex, x, y) {
         var srcKerning = textItem.characters[charIndex].characterAttributes.kerning;
         charFrame.textRange.characterAttributes.kerning = srcKerning;
     } catch (e) {
-        // 何もしない
+        // 何もしない / Do nothing
     }
     return charFrame;
 }
 
-// トラッキング値をpt単位に変換して取得
+// トラッキング値をpt単位に変換して取得 / Convert tracking value to points
 function getTrackingInPt(charRange, size) {
     var tracking = 0;
     try {
@@ -432,7 +416,7 @@ function getTrackingInPt(charRange, size) {
     return tracking / 1000 * size;
 }
 
-// 複数アイテムをグループ化または単純に選択
+// 複数アイテムをグループ化または単純に選択 / Group multiple items or simply select
 function groupItemsIfNeeded(items, layer) {
     if (items.length <= 1) {
         for (var i = 0; i < items.length; i++) {

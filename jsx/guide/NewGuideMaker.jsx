@@ -1,3 +1,4 @@
+#.localize = true;
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -100,21 +101,7 @@ for (var code in unitLabelMap) {
     }
 }
 
-function getCurrentLang() {
-    try {
-        var lang = app.locale || app.language || "ja";
-        if (lang.indexOf("en") === 0) {
-            return "en";
-        }
-    } catch (e) {
-        // fallback
-    }
-    return "ja";
-}
 
-/*
-  UIラベル定義 / UI label definitions
-*/
 /*
   UIラベル定義 / UI label definitions
   - UI順に並べる / Ordered as appears in UI
@@ -140,13 +127,11 @@ var LABELS = {
     alertLocked: { ja: "アクティブレイヤーがロックされています。", en: "The active layer is locked." }
 };
 
-var lang = getCurrentLang();
+// 言語設定 / Language setting
+var lang = "ja";
 
 var canvasSize = 227 * 72;
 
-/* 
-  ダイアログの構築 / Build dialog UI 
-*/
 /* ダイアログの構築 / Build dialog UI */
 function buildDialog() {
     var doc = app.activeDocument;
@@ -189,7 +174,7 @@ function buildDialog() {
     guideLayer.locked = false;
 
     var dlg = new Window("dialog");
-    dlg.text = LABELS.dialogTitle[lang];
+    dlg.text = LABELS.dialogTitle.ja;
     dlg.orientation = "row";
     dlg.alignChildren = ["center", "top"];
     dlg.spacing = 20;
@@ -200,7 +185,7 @@ function buildDialog() {
     leftGroup.alignChildren = ["left", "top"];
     leftGroup.spacing = 10;
 
-    /* 対象選択パネル / Target selection panel */
+    /* 対象選択パネル / Target selection panel / Target selection panel */
     var targetPanel = leftGroup.add("panel");
     targetPanel.text = LABELS.target[lang];
     targetPanel.orientation = "column";
@@ -601,8 +586,7 @@ function main() {
 main();
 
 /*
-  edittext に上下キーで値を増減させるイベントを追加（コールバック対応版）
-  Add event to increment/decrement value in edittext by up/down arrow keys (with onUpdate callback)
+  edittext に上下キーで値を増減させるイベントを追加（コールバック対応版）/ Add event to increment/decrement value in edittext by up/down arrow keys (with onUpdate callback)
 */
 function changeValueByArrowKey(editText, onUpdate) {
     editText.addEventListener("keydown", function(event) {

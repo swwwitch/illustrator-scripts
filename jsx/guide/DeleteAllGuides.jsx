@@ -1,4 +1,5 @@
 #target illustrator
+$.localize = true;
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -63,26 +64,18 @@ None
 - v1.0 (20250711) : Initial version
 */
 
-// スクリプトバージョン
+// スクリプトバージョン / Script Version
 var SCRIPT_VERSION = "v1.0";
-
-// UIラベル定義 / UI Label Definitions
-var LABELS = {
-    dialogTitle: {
-        ja: "ガイドを削除 " + SCRIPT_VERSION,
-        en: "Delete Guides " + SCRIPT_VERSION
-    }
-};
 
 function main() {
     if (app.documents.length === 0) {
-        alert("ドキュメントを開いてください。 / Please open a document.");
+        alert(LABELS.dialogTitle.ja + " / " + LABELS.dialogTitle.en); // ドキュメントが開かれていません / No document open
         return;
     }
 
     var doc = app.activeDocument;
 
-    // すべてのレイヤーのロック状態を保存 / Save lock states
+    // すべてのレイヤーのロック状態を保存 / Save lock states of all layers
     var layers = doc.layers;
     var lockStates = [];
     for (var i = 0; i < layers.length; i++) {
