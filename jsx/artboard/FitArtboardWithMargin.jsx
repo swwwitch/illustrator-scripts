@@ -50,6 +50,7 @@ https://note.com/dtp_tranist/n/n15d3c6c5a1e5
 - v1.2 (20250709) : UI改善とバグ修正
 - v1.3 (20250710) : 「対象：現在のアートボード、すべてのアートボード」を追加
 - v1.4 (20250713) : 矢印キーによる値変更機能を追加、UI改善
+- v1.5 (20250715) : 上下・左右個別に設定できるように
 
 ---
 
@@ -83,8 +84,12 @@ FitArtboardWithMargin.jsx
 - v1.2 (20250709): UI improvements and bug fixes
 - v1.3 (20250710): Added "Target: Current Artboard, All Artboards" options
 - v1.4 (20250713): Added arrow key value change feature, UI improvements
+- v1.5 (20250715): Enabled separate settings for vertical and horizontal margins
 
 */
+
+var offsetX = 300;
+var dialogOpacity = 0.97;
 
 function getCurrentLang() {
     // 言語判定 / Language detection
@@ -92,7 +97,7 @@ function getCurrentLang() {
 }
 
 /* スクリプトバージョン / Script version */
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 /*
 UIラベル定義 / UI Label Definitions
@@ -119,6 +124,18 @@ var LABELS = {
         ja: "マージン",
         en: "Margin"
     },
+    marginVertical: {
+        ja: "上下",
+        en: "Vertical"
+    },
+    marginHorizontal: {
+        ja: "左右",
+        en: "Horizontal"
+    },
+    linked: {
+        ja: "連動",
+        en: "Linked"
+    },
     numberAlert: {
         ja: "数値を入力してください。",
         en: "Please enter a number."
@@ -133,6 +150,25 @@ var LABELS = {
 */
 function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+    // --- dialog offset and opacity customization ---
+
+
+    function shiftDialogPosition(dlg, offsetX, offsetY) {
+        dlg.onShow = function() {
+            var currentX = dlg.location[0];
+            var currentY = dlg.location[1];
+            dlg.location = [currentX + offsetX, currentY + offsetY];
+        };
+    }
+
+    function setDialogOpacity(dlg, opacityValue) {
+        dlg.opacity = opacityValue;
+    }
+
+    setDialogOpacity(dlg, dialogOpacity);
+    shiftDialogPosition(dlg, offsetX, 0);
+    // --- end dialog offset and opacity customization ---
+
     dlg.orientation = "column";
     dlg.alignChildren = "fill";
     dlg.margins = 15;
@@ -161,13 +197,38 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
         radioSelection.value = true;
     }
 
-    /* マージン入力グループ / Margin input group */
-    var inputSubGroup = dlg.add("group");
-    inputSubGroup.orientation = "row";
-    var label = inputSubGroup.add("statictext", undefined, LABELS.marginLabel[lang] + ":");
-    var input = inputSubGroup.add("edittext", undefined, defaultValue);
-    input.characters = 4;
-    var unitLabel = inputSubGroup.add("statictext", undefined, unit);
+    /* マージン入力パネル / Margin input panel */
+    var marginPanel = dlg.add("panel", undefined, (lang === 'ja' ? "マージン" : "Margin") + " (" + unit + ")");
+    marginPanel.orientation = "row";
+    marginPanel.alignChildren = ["fill", "top"];
+    marginPanel.margins = [15, 20, 15, 10];
+
+    var leftColumn = marginPanel.add("group");
+    leftColumn.orientation = "column";
+    leftColumn.alignChildren = ["left", "center"];
+
+    var rightColumn = marginPanel.add("group");
+    rightColumn.orientation = "column";
+    rightColumn.alignChildren = ["left", "center"];
+    rightColumn.alignment = ["fill", "center"];
+
+    // 上下 group
+    var verticalGroup = leftColumn.add("group");
+    verticalGroup.orientation = "row";
+    var labelV = verticalGroup.add("statictext", undefined, LABELS.marginVertical[lang] + ":");
+    var inputV = verticalGroup.add("edittext", undefined, defaultValue);
+    inputV.characters = 4;
+
+    // 左右 group
+    var horizontalGroup = leftColumn.add("group");
+    horizontalGroup.orientation = "row";
+    var labelH = horizontalGroup.add("statictext", undefined, LABELS.marginHorizontal[lang] + ":");
+    var inputH = horizontalGroup.add("edittext", undefined, defaultValue);
+    inputH.characters = 4;
+
+    // 連動チェックボックス
+    var linkCheckbox = rightColumn.add("checkbox", undefined, LABELS.linked[lang]);
+    linkCheckbox.value = true;
 
     /* 現在のアートボードrectと全アートボードrectを保存（プレビュー用に復元） */
     var abIndex = app.activeDocument.artboards.getActiveArtboardIndex();
@@ -180,20 +241,23 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
     プレビュー更新関数 / Update artboard preview for dialog
     入力値・対象に応じてアートボードを一時的に調整
     */
-    function updatePreview(value) {
-        var previewValue = parseFloat(value);
-        if (isNaN(previewValue)) return;
-        var previewMarginInPoints = new UnitValue(previewValue, unit).as('pt');
+    function updatePreview(valueV, valueH) {
+        var previewValueV = parseFloat(valueV);
+        var previewValueH = parseFloat(valueH);
+        if (isNaN(previewValueV)) return;
+        if (isNaN(previewValueH)) previewValueH = previewValueV;
+        var previewMarginV = new UnitValue(previewValueV, unit).as('pt');
+        var previewMarginH = new UnitValue(previewValueH, unit).as('pt');
         var targetMode = radioSelection.value ? "selection" : (radioArtboard.value ? "artboard" : "allArtboards");
 
         if (targetMode === "allArtboards") {
             for (var i = 0; i < app.activeDocument.artboards.length; i++) {
                 var baseRect = originalRects[i].slice();
                 var bounds = baseRect;
-                bounds[0] -= previewMarginInPoints;
-                bounds[1] += previewMarginInPoints;
-                bounds[2] += previewMarginInPoints;
-                bounds[3] -= previewMarginInPoints;
+                bounds[0] -= previewMarginH;
+                bounds[1] += previewMarginV;
+                bounds[2] += previewMarginH;
+                bounds[3] -= previewMarginV;
                 app.activeDocument.artboards[i].artboardRect = bounds;
             }
             app.redraw();
@@ -202,10 +266,10 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
         if (targetMode === "artboard") {
             var baseRect = originalRects[abIndex].slice();
             var bounds = baseRect;
-            bounds[0] -= previewMarginInPoints;
-            bounds[1] += previewMarginInPoints;
-            bounds[2] += previewMarginInPoints;
-            bounds[3] -= previewMarginInPoints;
+            bounds[0] -= previewMarginH;
+            bounds[1] += previewMarginV;
+            bounds[2] += previewMarginH;
+            bounds[3] -= previewMarginV;
             app.activeDocument.artboards[abIndex].artboardRect = bounds;
             app.redraw();
             return;
@@ -229,39 +293,65 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
         }
         if (tempItems.length === 0) return;
         var previewBounds = getMaxBounds(tempItems);
-        previewBounds[0] -= previewMarginInPoints;
-        previewBounds[1] += previewMarginInPoints;
-        previewBounds[2] += previewMarginInPoints;
-        previewBounds[3] -= previewMarginInPoints;
+        previewBounds[0] -= previewMarginH;
+        previewBounds[1] += previewMarginV;
+        previewBounds[2] += previewMarginH;
+        previewBounds[3] -= previewMarginV;
         app.activeDocument.artboards[abIndex].artboardRect = previewBounds;
         app.redraw();
     }
 
     // 入力欄で矢印キーによる増減を可能に / Enable arrow key increment/decrement in input
-    changeValueByArrowKey(input, updatePreview);
-    input.active = true;
-    input.onChanging = function() {
-        updatePreview(input.text);
+    changeValueByArrowKey(inputV, function(val) {
+        if (linkCheckbox.value) inputH.text = val;
+        updatePreview(inputV.text, inputH.text);
+    });
+    changeValueByArrowKey(inputH, function(val) {
+        if (linkCheckbox.value) inputV.text = val;
+        updatePreview(inputV.text, inputH.text);
+    });
+    inputV.active = true;
+    inputV.onChanging = function() {
+        if (linkCheckbox.value) inputH.text = inputV.text;
+        updatePreview(inputV.text, inputH.text);
     };
-    radioSelection.onClick = function() { updatePreview(input.text); };
-    radioArtboard.onClick = function() { updatePreview(input.text); };
-    radioAllArtboards.onClick = function() { updatePreview(input.text); };
+    inputH.onChanging = function() {
+        if (linkCheckbox.value) inputV.text = inputH.text;
+        updatePreview(inputV.text, inputH.text);
+    };
+    linkCheckbox.onClick = function() {
+        if (linkCheckbox.value) inputH.text = inputV.text;
+    };
+    radioSelection.onClick = function() {
+        updatePreview(inputV.text, inputH.text);
+    };
+    radioArtboard.onClick = function() {
+        updatePreview(inputV.text, inputH.text);
+    };
+    radioAllArtboards.onClick = function() {
+        updatePreview(inputV.text, inputH.text);
+    };
 
     /* ボタングループ / Button group */
     var btnGroup = dlg.add("group");
     btnGroup.alignment = "center";
-    var cancelBtn = btnGroup.add("button", undefined, lang === 'ja' ? "キャンセル" : "Cancel", { name: "cancel" });
-    var okBtn = btnGroup.add("button", undefined, lang === 'ja' ? "OK" : "OK", { name: "ok" });
+    var cancelBtn = btnGroup.add("button", undefined, lang === 'ja' ? "キャンセル" : "Cancel", {
+        name: "cancel"
+    });
+    var okBtn = btnGroup.add("button", undefined, lang === 'ja' ? "OK" : "OK", {
+        name: "ok"
+    });
     btnGroup.margins = [0, 5, 0, 0];
 
     var result = null;
     okBtn.onClick = function() {
-        if (!isNaN(parseFloat(input.text))) {
+        if (!isNaN(parseFloat(inputV.text)) && !isNaN(parseFloat(inputH.text))) {
             result = {
-                margin: input.text,
+                marginV: inputV.text,
+                marginH: inputH.text,
                 target: radioSelection.value ? "selection" : (radioArtboard.value ? "artboard" : "allArtboards")
             };
-            updatePreview(result.margin);
+            updatePreview(result.marginV, result.marginH);
             dlg.close();
         } else {
             alert(LABELS.numberAlert[lang]);
@@ -275,7 +365,7 @@ function showMarginDialog(defaultValue, unit, lang, artboardCount, hasSelection)
         app.redraw();
         dlg.close();
     };
-    updatePreview(defaultValue);
+    updatePreview(inputV.text, inputH.text);
     dlg.show();
     return result;
 }
@@ -326,17 +416,20 @@ function main() {
             defaultMarginValue = '0';
         }
 
-        marginValue = parseFloat(userInput.margin);
+        // 新しいUI: userInput.marginV, userInput.marginH
+        var marginV = parseFloat(userInput.marginV);
+        var marginH = parseFloat(userInput.marginH);
         var targetMode = userInput.target;
-        marginInPoints = new UnitValue(marginValue, marginUnit).as('pt');
+        var marginVInPoints = new UnitValue(marginV, marginUnit).as('pt');
+        var marginHInPoints = new UnitValue(marginH, marginUnit).as('pt');
 
         if (targetMode === "artboard") {
             var artRect = artboards[artboards.getActiveArtboardIndex()].artboardRect;
             var bounds = artRect.slice();
-            bounds[0] -= marginInPoints;
-            bounds[1] += marginInPoints;
-            bounds[2] += marginInPoints;
-            bounds[3] -= marginInPoints;
+            bounds[0] -= marginHInPoints;
+            bounds[1] += marginVInPoints;
+            bounds[2] += marginHInPoints;
+            bounds[3] -= marginVInPoints;
 
             var x0 = Math.round(bounds[0]);
             var y1 = Math.round(bounds[1]);
@@ -362,10 +455,10 @@ function main() {
             for (var i = 0; i < artboards.length; i++) {
                 var artRect = artboards[i].artboardRect;
                 var bounds = artRect.slice();
-                bounds[0] -= marginInPoints;
-                bounds[1] += marginInPoints;
-                bounds[2] += marginInPoints;
-                bounds[3] -= marginInPoints;
+                bounds[0] -= marginHInPoints;
+                bounds[1] += marginVInPoints;
+                bounds[2] += marginHInPoints;
+                bounds[3] -= marginVInPoints;
 
                 var x0 = Math.round(bounds[0]);
                 var y1 = Math.round(bounds[1]);
@@ -414,10 +507,10 @@ function main() {
 
         /* 選択範囲のバウンディングボックス計算 / Calculate bounding box of selected items */
         selectedBounds = getMaxBounds(selectedItems);
-        selectedBounds[0] -= marginInPoints;
-        selectedBounds[1] += marginInPoints;
-        selectedBounds[2] += marginInPoints;
-        selectedBounds[3] -= marginInPoints;
+        selectedBounds[0] -= marginHInPoints;
+        selectedBounds[1] += marginVInPoints;
+        selectedBounds[2] += marginHInPoints;
+        selectedBounds[3] -= marginVInPoints;
 
         /* 座標と幅・高さを整数に丸める / Round coordinates and size to integers */
         var x0 = Math.round(selectedBounds[0]);
