@@ -180,7 +180,7 @@ function changeValueByArrowKey(editText, allowNegative) {
     var marginInput = marginRow.add("edittext", undefined, "0");
     marginInput.characters = 5;
     marginInput.active = true;
-    changeValueByArrowKey(marginInput, false);
+    changeValueByArrowKey(marginInput, true);
     var unitLabel = getCurrentUnitLabel();
     marginRow.add("statictext", undefined, "(" + unitLabel + ")");
     
