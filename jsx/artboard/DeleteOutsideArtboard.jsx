@@ -1,6 +1,8 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+$.localize = true;
+
 /*
 
 ### スクリプト名：
@@ -33,11 +35,11 @@ DeleteOutsideArtboard.jsx
 
 ### 更新履歴
 
-- v1.0.0 (20250708) : 初期バージョン
-- v1.0.1 (20250708) : 微調整
-- v1.0.2 (20250713) : 「選択オブジェクト以外（現在のアートボード内）」モードを追加
-- v1.0.3 (20250713) : 「ロックされたオブジェクトを無視する」オプションを追加
-- v1.0.4 (202507xx) : 「ロックされたオブジェクトを含む」オプションに変更しデフォルトONに
+- v1.0 (20250708) : 初期バージョン
+- v1.1 (20250708) : 微調整
+- v1.2 (20250713) : 「選択オブジェクト以外（現在のアートボード内）」モードを追加
+- v1.3 (20250713) : 「ロックされたオブジェクトを無視する」オプションを追加
+- v1.4 (202507xx) : 「ロックされたオブジェクトを含む」オプションに変更しデフォルトONに
 
 ### Script Name:
 
@@ -69,34 +71,51 @@ DeleteOutsideArtboard.jsx
 
 ### Changelog
 
-- v1.0.0 (20250708): Initial version
-- v1.0.1 (20250708): Minor adjustments
-- v1.0.2 (20250713): Added 'Exclude Selected (Current Artboard)' mode option
-- v1.0.3 (20250713): Added 'Ignore locked objects' option
-- v1.0.4 (202507xx): Changed to 'Include locked objects' option with default ON
+- v1.0 (20250708): Initial version
+- v1.1 (20250708): Minor adjustments
+- v1.2 (20250713): Added 'Exclude Selected (Current Artboard)' mode option
+- v1.3 (20250713): Added 'Ignore locked objects' option
+- v1.4 (202507xx): Changed to 'Include locked objects' option with default ON
 
 */
 
 // -------------------------------
-// 日英ラベル定義を削除しました / Removed localization logic
+// Localization labels
 // -------------------------------
+var lang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+var LABELS = {
+    dialogTitle: { ja: "オブジェクトを削除", en: "Delete Objects" },
+    scopePanel: { ja: "アートボード内", en: "Inside Artboard" },
+    excludeSelectedRadio: { ja: "選択オブジェクトを残す", en: "Exclude Selected Objects" },
+    allObjectsRadio: { ja: "すべて残す", en: "Keep All Objects" },
+    outsidePanel: { ja: "アートボード外", en: "Outside Artboard" },
+    deleteRadio: { ja: "削除", en: "Delete" },
+    ignoreRadio: { ja: "無視（残す）", en: "Ignore (Keep)" },
+    includeLockedCheckbox: { ja: "ロックされたオブジェクトを含む", en: "Include Locked Objects" },
+    backupCheckbox: { ja: "保管用レイヤーに移す", en: "Move to Backup Layer" },
+    cancelButton: { ja: "キャンセル", en: "Cancel" },
+    okButton: { ja: "削除", en: "Delete" },
+    alertNoSelection: { ja: "選択オブジェクトがありません。", en: "No objects selected." },
+    alertNoTargets: { ja: "削除対象のオブジェクトはありません。", en: "No objects to delete." }
+};
 
 // ダイアログを表示し、ユーザーの選択を取得
 function showDialog() {
     // ダイアログタイトル（日本語固定）
-    var dialog = new Window("dialog", "オブジェクトを削除");
+    var dialog = new Window("dialog", LABELS.dialogTitle);
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
 
     // 対象範囲パネル / Target scope panel
-    var scopeGroup = dialog.add("panel", undefined, "アートボード内");
+    var scopeGroup = dialog.add("panel", undefined, LABELS.scopePanel);
     scopeGroup.orientation = "column";
     scopeGroup.alignChildren = "left";
     scopeGroup.margins = [15, 20, 15, 10];
 
     var scopeRadios = {
-        excludeSelected: scopeGroup.add("radiobutton", undefined, "選択オブジェクトを残す"),
-        allObjects: scopeGroup.add("radiobutton", undefined, "すべて残す")
+        excludeSelected: scopeGroup.add("radiobutton", undefined, LABELS.excludeSelectedRadio),
+        allObjects: scopeGroup.add("radiobutton", undefined, LABELS.allObjectsRadio)
     };
 
     // Set radio default based on selection
@@ -113,13 +132,13 @@ function showDialog() {
     }
 
     // アートボード外処理パネル / Outside artboard action panel
-    var abGroup = dialog.add("panel", undefined, "アートボード外");
+    var abGroup = dialog.add("panel", undefined, LABELS.outsidePanel);
     abGroup.orientation = "column";
     abGroup.alignChildren = "left";
     abGroup.margins = [15, 20, 15, 10];
 
-    var deleteRadio = abGroup.add("radiobutton", undefined, "削除");
-    var ignoreRadio = abGroup.add("radiobutton", undefined, "無視（残す）");
+    var deleteRadio = abGroup.add("radiobutton", undefined, LABELS.deleteRadio);
+    var ignoreRadio = abGroup.add("radiobutton", undefined, LABELS.ignoreRadio);
     ignoreRadio.value = true;
 
     // オプション（保管用レイヤー、ロック含む） / Option (backup layer, include locked)
@@ -128,18 +147,18 @@ function showDialog() {
     optionGroup.alignChildren = "left";
     optionGroup.margins = [15, 0, 15, 10];
 
-    var ignoreLockedCheckbox = optionGroup.add("checkbox", undefined, "ロックされたオブジェクトを含む");
+    var ignoreLockedCheckbox = optionGroup.add("checkbox", undefined, LABELS.includeLockedCheckbox);
     ignoreLockedCheckbox.value = true;
 
-    var backupCheckbox = optionGroup.add("checkbox", undefined, "保管用レイヤーに移す");
+    var backupCheckbox = optionGroup.add("checkbox", undefined, LABELS.backupCheckbox);
     backupCheckbox.value = false;
 
     // ボタン / Buttons
     var buttonGroup = dialog.add("group");
     buttonGroup.orientation = "row";
     buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add("button", undefined, "キャンセル");
-    var okBtn = buttonGroup.add("button", undefined, "削除", {
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelButton);
+    var okBtn = buttonGroup.add("button", undefined, LABELS.okButton, {
         name: "ok"
     });
 
@@ -276,11 +295,12 @@ function removeOutsideObjects(currentOnly, moveToBackup, mode, includeLocked) {
         // 「選択オブジェクトを残す」: Delete/move all objects inside current artboard except selected
         var sel = doc.selection;
         if (!sel || sel.length === 0) {
-            alert("選択オブジェクトがありません。");
+            alert(LABELS.alertNoSelection);
             return;
         }
         // Collect all objects inside current artboard (including locked/hidden as per includeLocked)
         var insideItems = [];
+
         function collectInsideItems(items) {
             for (var i = items.length - 1; i >= 0; i--) {
                 var item = items[i];
@@ -334,7 +354,7 @@ function removeOutsideObjects(currentOnly, moveToBackup, mode, includeLocked) {
     }
 
     if (outsideItems.length === 0) {
-        alert("削除対象のオブジェクトはありません。");
+        alert(LABELS.alertNoTargets);
         return;
     }
 

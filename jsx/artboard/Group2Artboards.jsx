@@ -1,6 +1,8 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+$.localize = true;
+
 /*
 ### スクリプト名：
 
@@ -68,17 +70,17 @@ var SCRIPT_VERSION = "v1.2";
 
 // 単位コードから単位ラベルを取得
 var unitLabelMap = {
-  0: "in",
-  1: "mm",
-  2: "pt",
-  3: "pica",
-  4: "cm",
-  5: "Q/H",
-  6: "px",
-  7: "ft/in",
-  8: "m",
-  9: "yd",
-  10: "ft"
+    0: "in",
+    1: "mm",
+    2: "pt",
+    3: "pica",
+    4: "cm",
+    5: "Q/H",
+    6: "px",
+    7: "ft/in",
+    8: "m",
+    9: "yd",
+    10: "ft"
 };
 
 function getUnitLabel(code, prefKey) {
@@ -93,31 +95,72 @@ function getUnitLabel(code, prefKey) {
     return unitLabelMap[code] || "不明";
 }
 
-// 現在の言語を判定（日本語か英語）
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
-
-var lang = getCurrentLang();
-
 // UIラベル（表示順に並べる）
 var LABELS = {
-    artboardPanel: { ja: "グループをアートボードに", en: "Convert Groups to Artboards" },
-    previewBounds: { ja: "プレビュー境界", en: "Preview bounds" },
-    margin: { ja: "マージン", en: "Margin" },
-    deleteArtboards: { ja: "既存のアートボードを削除", en: "Delete existing artboards" },
-    namePanel: { ja: "アートボード名", en: "Artboard Name" },
-    useFileName: { ja: "ファイル名を参照", en: "Use file name" },
-    prefix: { ja: "接頭辞", en: "Prefix" },
-    symbol: { ja: "記号", en: "Symbol" },
-    dash: { ja: "-", en: "-" },
-    underscore: { ja: "_", en: "_" },
-    none: { ja: "なし", en: "None" },
-    startNumber: { ja: "開始番号", en: "Start Number" },
-    zeroPadding: { ja: "ゼロ埋め", en: "Zero Padding" },
-    example: { ja: "例：", en: "Example: " },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    ok: { ja: "OK", en: "OK" },
+    artboardPanel: {
+        ja: "グループをアートボードに",
+        en: "Convert Groups to Artboards"
+    },
+    previewBounds: {
+        ja: "プレビュー境界",
+        en: "Preview bounds"
+    },
+    margin: {
+        ja: "マージン",
+        en: "Margin"
+    },
+    deleteArtboards: {
+        ja: "既存のアートボードを削除",
+        en: "Delete existing artboards"
+    },
+    namePanel: {
+        ja: "アートボード名",
+        en: "Artboard Name"
+    },
+    useFileName: {
+        ja: "ファイル名を参照",
+        en: "Use file name"
+    },
+    prefix: {
+        ja: "接頭辞",
+        en: "Prefix"
+    },
+    symbol: {
+        ja: "記号",
+        en: "Symbol"
+    },
+    dash: {
+        ja: "-",
+        en: "-"
+    },
+    underscore: {
+        ja: "_",
+        en: "_"
+    },
+    none: {
+        ja: "なし",
+        en: "None"
+    },
+    startNumber: {
+        ja: "開始番号",
+        en: "Start Number"
+    },
+    zeroPadding: {
+        ja: "ゼロ埋め",
+        en: "Zero Padding"
+    },
+    example: {
+        ja: "例：",
+        en: "Example: "
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    ok: {
+        ja: "OK",
+        en: "OK"
+    },
     dialogTitle: {
         ja: "アートボード化 " + SCRIPT_VERSION,
         en: "Artboard " + SCRIPT_VERSION
@@ -143,7 +186,7 @@ function buildArtboardName(prefix, symbol, seq, zeroPadding, useFileName, fileNa
 }
 
 function showDialog() {
-    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    var dialog = new Window("dialog", LABELS.dialogTitle);
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
     dialog.margins = [15, 20, 15, 10];
@@ -154,60 +197,60 @@ function showDialog() {
     var controlGroup = dialog.add("group");
     controlGroup.orientation = "column";
     controlGroup.alignChildren = "left";
-    controlGroup.margins = [15,5, 15, 10];
+    controlGroup.margins = [15, 5, 15, 10];
     controlGroup.spacing = 10;
 
-    var previewBoundsCheck = controlGroup.add("checkbox", undefined, LABELS.previewBounds[lang]);
+    var previewBoundsCheck = controlGroup.add("checkbox", undefined, LABELS.previewBounds);
     previewBoundsCheck.value = true;
 
     var marginGroup = controlGroup.add("group");
     marginGroup.orientation = "row";
     marginGroup.alignChildren = "center";
-    marginGroup.add("statictext", undefined, LABELS.margin[lang]);
+    marginGroup.add("statictext", undefined, LABELS.margin);
     var marginInput = marginGroup.add("edittext", undefined, "0");
     marginInput.characters = 5;
     marginGroup.add("statictext", undefined, rulerUnit);
 
-    var deleteArtboardsCheck = controlGroup.add("checkbox", undefined, LABELS.deleteArtboards[lang]);
+    var deleteArtboardsCheck = controlGroup.add("checkbox", undefined, LABELS.deleteArtboards);
     deleteArtboardsCheck.value = true;
 
     // アートボード名パネル
     var namePanel = dialog.add("panel");
-    namePanel.text = LABELS.namePanel[lang];
+    namePanel.text = LABELS.namePanel;
     namePanel.orientation = "row";
     namePanel.alignChildren = "center";
-    namePanel.margins = [15,25, 15, 10];
+    namePanel.margins = [15, 25, 15, 10];
 
     var nameGroup = namePanel.add("group");
     nameGroup.orientation = "column";
     nameGroup.alignChildren = "left";
 
-    var useFileNameCheck = nameGroup.add("checkbox", undefined, LABELS.useFileName[lang]);
+    var useFileNameCheck = nameGroup.add("checkbox", undefined, LABELS.useFileName);
     useFileNameCheck.value = false;
 
     var prefixRow = nameGroup.add("group");
     prefixRow.orientation = "row";
     prefixRow.alignChildren = "center";
-    prefixRow.add("statictext", undefined, LABELS.prefix[lang]);
+    prefixRow.add("statictext", undefined, LABELS.prefix);
     var nameInput = prefixRow.add("edittext", undefined, "");
     nameInput.characters = 15;
 
     var symbolGroup = nameGroup.add("group");
     symbolGroup.orientation = "row";
     symbolGroup.alignChildren = "center";
-    symbolGroup.add("statictext", undefined, LABELS.symbol[lang]);
-    var radioDash = symbolGroup.add("radiobutton", undefined, LABELS.dash[lang]);
-    var radioUnderscore = symbolGroup.add("radiobutton", undefined, LABELS.underscore[lang]);
-    var radioNone = symbolGroup.add("radiobutton", undefined, LABELS.none[lang]);
+    symbolGroup.add("statictext", undefined, LABELS.symbol);
+    var radioDash = symbolGroup.add("radiobutton", undefined, LABELS.dash);
+    var radioUnderscore = symbolGroup.add("radiobutton", undefined, LABELS.underscore);
+    var radioNone = symbolGroup.add("radiobutton", undefined, LABELS.none);
     radioDash.value = true;
 
     var seqRow = nameGroup.add("group");
     seqRow.orientation = "row";
     seqRow.alignChildren = "center";
-    seqRow.add("statictext", undefined, LABELS.startNumber[lang]);
+    seqRow.add("statictext", undefined, LABELS.startNumber);
     var seqInput = seqRow.add("edittext", undefined, "01");
     seqInput.characters = 5;
-    var zeroPaddingCheck = seqRow.add("checkbox", undefined, LABELS.zeroPadding[lang]);
+    var zeroPaddingCheck = seqRow.add("checkbox", undefined, LABELS.zeroPadding);
     zeroPaddingCheck.value = true;
 
     var previewText = nameGroup.add("statictext", undefined, "");
@@ -226,7 +269,7 @@ function showDialog() {
             var lastDot = docName.lastIndexOf(".");
             fileNameNoExt = lastDot > 0 ? docName.substring(0, lastDot) : docName;
         }
-        previewText.text = LABELS.example[lang] + buildArtboardName(prefix, symbol, seq, zeroPadding, useFileNameCheck.value, fileNameNoExt, seq.length);
+        previewText.text = LABELS.example + buildArtboardName(prefix, symbol, seq, zeroPadding, useFileNameCheck.value, fileNameNoExt, seq.length);
     }
 
     // イベント登録
@@ -243,11 +286,15 @@ function showDialog() {
     buttonGroup.orientation = "row";
     buttonGroup.alignment = "right";
     buttonGroup.margins = [0, 10, 0, 10];
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-    var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel);
+    var okBtn = buttonGroup.add("button", undefined, LABELS.ok, {
+        name: "ok"
+    });
 
     var dialogResult = null;
-    cancelBtn.onClick = function() { dialog.close(); };
+    cancelBtn.onClick = function() {
+        dialog.close();
+    };
     okBtn.onClick = function() {
         var selectedSymbol = radioDash.value ? "-" : (radioUnderscore.value ? "_" : "");
         dialogResult = {

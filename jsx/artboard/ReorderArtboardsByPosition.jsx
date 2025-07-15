@@ -1,6 +1,8 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+$.localize = true;
+
 /*
 ### スクリプト名：
 
@@ -30,8 +32,8 @@ ReorderArtboardsByPosition.jsx
 
 ### 更新履歴
 
-- v1.0.0 (20231115) : 初期バージョン（Andrew_BJ による UI 改良と上限拡張）
-- v1.1.0 (20231116) : 許容差の自動計算機能とスライダーを追加、ロジック整理
+- v1.0 (20231115) : 初期バージョン（Andrew_BJ による UI 改良と上限拡張）
+- v1.0 (20231116) : 許容差の自動計算機能とスライダーを追加、ロジック整理
 
 ---
 
@@ -63,8 +65,8 @@ ReorderArtboardsByPosition.jsx
 
 ### Changelog
 
-- v1.0.0 (20231115): Initial version (UI improvements and limit extension by Andrew_BJ)
-- v1.1.0 (20231116): Added tolerance auto-calculation feature, slider support, and logic cleanup
+- v1.0 (20231115): Initial version (UI improvements and limit extension by Andrew_BJ)
+- v1.0 (20231116): Added tolerance auto-calculation feature, slider support, and logic cleanup
 */
 
 /*
@@ -72,9 +74,6 @@ ReorderArtboardsByPosition.jsx
 UI構築、ソートメソッド定義、メイン処理、ソート関数群を含む
 */
 
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
 
 var LABELS = {
     dialogTitle: {
@@ -96,10 +95,10 @@ var LABELS = {
     tolerance: {
         ja: "許容差",
         en: "Tolerance"
-    }
+    },
+    noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+    noArtboards: { ja: "アートボードが存在しません。", en: "No artboards found." }
 };
-
-var lang = getCurrentLang();
 
 var SortMethod = {
     NAME: {
@@ -148,6 +147,16 @@ var settings = {
 main();
 
 function main() {
+    if (app.documents.length === 0) {
+        alert(LABELS.noDocument.ja);
+        return;
+    }
+    var doc = app.activeDocument;
+    if (doc.artboards.length === 0) {
+        alert(LABELS.noArtboards.ja);
+        return;
+    }
+
     var sortMethods = [];
     for (var key in SortMethod) {
         if (SortMethod.hasOwnProperty(key)) {
@@ -155,7 +164,7 @@ function main() {
         }
     }
 
-    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    var dialog = new Window("dialog", LABELS.dialogTitle);
     dialog.orientation = "row";
     dialog.spacing = 15;
 
@@ -163,14 +172,14 @@ function main() {
     leftColumn.orientation = "column";
     leftColumn.alignChildren = ['fill', 'top'];
 
-    // radioGroup を leftColumn 内に panel で追加し、タイトルを LABELS.sortMethod[lang] に設定
-    var radioGroup = leftColumn.add("panel", undefined, LABELS.sortMethod[lang]);
+    // radioGroup を leftColumn 内に panel で追加し、タイトルを LABELS.sortMethod に設定
+    var radioGroup = leftColumn.add("panel", undefined, LABELS.sortMethod);
     radioGroup.orientation = "column";
     radioGroup.alignChildren = ['left', 'top'];
     radioGroup.margins = [15, 20, 15, 10];
 
     // 許容差パネルを leftColumn 内に追加
-    var toleranceGroup = leftColumn.add("panel", undefined, LABELS.tolerance[lang]);
+    var toleranceGroup = leftColumn.add("panel", undefined, LABELS.tolerance);
     toleranceGroup.orientation = "column";
     toleranceGroup.alignChildren = ['fill', 'top'];
     toleranceGroup.margins = [15, 20, 15, 10];
@@ -181,7 +190,6 @@ function main() {
 
     // スライダー初期値を自動計算値×1.1に設定
     var tempArtboards = [];
-    var doc = app.activeDocument;
     for (var i = 0; i < doc.artboards.length; i++) {
         tempArtboards.push({
             artboardRect: doc.artboards[i].artboardRect
@@ -207,9 +215,9 @@ function main() {
     var select = 0;
     for (var i = 0; i < sortMethods.length; i++) {
         var method = sortMethods[i];
-        var rb = radioGroup.add("radiobutton", undefined, method.displayName[lang]);
+        var rb = radioGroup.add("radiobutton", undefined, method.displayName);
         radioButtons.push(rb);
-        if (settings.sortMethod.displayName && settings.sortMethod.displayName[lang] === method.displayName[lang]) {
+        if (settings.sortMethod.displayName && settings.sortMethod.displayName === method.displayName) {
             select = i;
         }
     }
@@ -219,7 +227,7 @@ function main() {
     for (var i = 0; i < radioButtons.length; i++) {
         (function(index) {
             radioButtons[index].onClick = function() {
-                var selectedLabel = sortMethods[index].displayName[lang];
+                var selectedLabel = sortMethods[index].displayName;
                 var isNameSort = selectedLabel.indexOf("名前") !== -1 || selectedLabel.indexOf("Name") !== -1;
                 toleranceSlider.enabled = !isNameSort;
                 toleranceValue.enabled = !isNameSort;
@@ -228,16 +236,16 @@ function main() {
     }
     // 初期状態も反映
     (function() {
-        var selectedLabel = sortMethods[select].displayName[lang];
+        var selectedLabel = sortMethods[select].displayName;
         var isNameSort = selectedLabel.indexOf("名前") !== -1 || selectedLabel.indexOf("Name") !== -1;
         toleranceSlider.enabled = !isNameSort;
         toleranceValue.enabled = !isNameSort;
     })();
 
-    var okBtn = buttonGroup.add('button', undefined, LABELS.sort[lang], {
+    var okBtn = buttonGroup.add('button', undefined, LABELS.sort, {
         name: 'ok'
     });
-    var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel[lang], {
+    var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel, {
         name: 'cancel'
     });
 
@@ -252,15 +260,15 @@ function main() {
                 settings.sortMethod = sortMethods[i];
                 // Top Left または Top Right の場合、許容差機能付きソートに置き換え
                 if (
-                    settings.sortMethod.displayName[lang].indexOf("左上") !== -1 ||
-                    settings.sortMethod.displayName[lang].indexOf("Top Left") !== -1
+                    settings.sortMethod.displayName.indexOf("左上") !== -1 ||
+                    settings.sortMethod.displayName.indexOf("Top Left") !== -1
                 ) {
                     settings.sortMethod.sorter = function(_artboards, decimalPlaces) {
                         sortByPositionTopLeftWithTolerance(_artboards, decimalPlaces, tolerance);
                     };
                 } else if (
-                    settings.sortMethod.displayName[lang].indexOf("右上") !== -1 ||
-                    settings.sortMethod.displayName[lang].indexOf("Top Right") !== -1
+                    settings.sortMethod.displayName.indexOf("右上") !== -1 ||
+                    settings.sortMethod.displayName.indexOf("Top Right") !== -1
                 ) {
                     settings.sortMethod.sorter = function(_artboards, decimalPlaces) {
                         sortByPositionTopRightWithTolerance(_artboards, decimalPlaces, tolerance);
@@ -268,15 +276,15 @@ function main() {
                 }
                 // 上左・上右のときはスライダー値の tolerance を使う
                 else if (
-                    settings.sortMethod.displayName[lang].indexOf("上左") !== -1 ||
-                    settings.sortMethod.displayName[lang].indexOf("Left Top") !== -1
+                    settings.sortMethod.displayName.indexOf("上左") !== -1 ||
+                    settings.sortMethod.displayName.indexOf("Left Top") !== -1
                 ) {
                     settings.sortMethod.sorter = function(_artboards, decimalPlaces) {
                         sortByPositionLeftTopWithTolerance(_artboards, decimalPlaces, tolerance);
                     };
                 } else if (
-                    settings.sortMethod.displayName[lang].indexOf("上右") !== -1 ||
-                    settings.sortMethod.displayName[lang].indexOf("Right Top") !== -1
+                    settings.sortMethod.displayName.indexOf("上右") !== -1 ||
+                    settings.sortMethod.displayName.indexOf("Right Top") !== -1
                 ) {
                     settings.sortMethod.sorter = function(_artboards, decimalPlaces) {
                         sortByPositionRightTopWithTolerance(_artboards, decimalPlaces, tolerance);

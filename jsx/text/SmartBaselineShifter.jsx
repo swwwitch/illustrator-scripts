@@ -1,6 +1,7 @@
 #target illustrator
-$.localize = true;
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
+$.localize = true;
 
 var SCRIPT_VERSION = "v1.7";
 

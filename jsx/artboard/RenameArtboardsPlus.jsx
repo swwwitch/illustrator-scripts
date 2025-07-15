@@ -1,5 +1,7 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
+$.localize = true;
 
 /*
 ### スクリプト名：
@@ -29,8 +31,8 @@ RenameArtboardsPlus.jsx
 
 ### 更新履歴
 
-- v1.0.0 (20250420) : 初期バージョン作成
-- v1.0.1 (20250430) : 開始番号から桁数自動判定追加、プリセットラベル簡素化、ES3対応強化
+- v1.0 (20250420) : 初期バージョン作成
+- v1.1 (20250430) : 開始番号から桁数自動判定追加、プリセットラベル簡素化、ES3対応強化
 
 ---
 
@@ -61,40 +63,123 @@ RenameArtboardsPlus.jsx
 
 ### Update History
 
-- v1.0.0 (20250420): Initial version created
-- v1.0.1 (20250430): Added auto-detection of padding digits, simplified preset labels, enhanced ES3 support
+- v1.0 (20250420): Initial version created
+- v1.1 (20250430): Added auto-detection of padding digits, simplified preset labels, enhanced ES3 support
 */
-
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
 
 // -------------------------------
 // 日英ラベル定義 Define label
 // -------------------------------
-var lang = getCurrentLang();
+
 var LABELS = {
-    dialogTitle: { ja: "アートボード名の一括設定", en: "Batch Rename Artboards" },
-    prefixPanel: { ja: "接頭辞", en: "Prefix" },
-    fileNameLabel: { ja: "ファイル名：", en: "File Name:" },
-    useFileNo: { ja: "参照しない", en: "Do not use" },
-    useFileYes: { ja: "参照する", en: "Use" },
-    separatorLabel: { ja: "区切り文字：", en: "Separator:" },
-    stringLabel: { ja: "文字列：", en: "String:" },
-    namePanel: { ja: "アートボード名と番号", en: "Artboard Name & Number" },
-    suffixPanel: { ja: "接尾辞", en: "Suffix" },
-    formatLabel: { ja: "連番形式：", en: "Numbering Format:" },
-    startLabel: { ja: "開始番号：", en: "Start Number:" },
-    incrementLabel: { ja: "増分：", en: "Increment:" },
-    preview: { ja: "プレビュー", en: "Preview" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    apply: { ja: "適用", en: "Apply" },
-    ok: { ja: "OK", en: "OK" },
-    savePreset: { ja: "プリセット書き出し", en: "Export Preset" },
-    presetNone: { ja: "（未選択）", en: "(None)" }
+    dialogTitle: {
+        ja: "アートボード名の一括設定",
+        en: "Batch Rename Artboards"
+    },
+    prefixPanel: {
+        ja: "接頭辞",
+        en: "Prefix"
+    },
+    fileNameLabel: {
+        ja: "ファイル名：",
+        en: "File Name:"
+    },
+    useFileNo: {
+        ja: "参照しない",
+        en: "Do not use"
+    },
+    useFileYes: {
+        ja: "参照する",
+        en: "Use"
+    },
+    separatorLabel: {
+        ja: "区切り文字：",
+        en: "Separator:"
+    },
+    stringLabel: {
+        ja: "文字列：",
+        en: "String:"
+    },
+    namePanel: {
+        ja: "アートボード名と番号",
+        en: "Artboard Name & Number"
+    },
+    suffixPanel: {
+        ja: "接尾辞",
+        en: "Suffix"
+    },
+    formatLabel: {
+        ja: "連番形式：",
+        en: "Numbering Format:"
+    },
+    startLabel: {
+        ja: "開始番号：",
+        en: "Start Number:"
+    },
+    incrementLabel: {
+        ja: "増分：",
+        en: "Increment:"
+    },
+    preview: {
+        ja: "プレビュー",
+        en: "Preview"
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    apply: {
+        ja: "適用",
+        en: "Apply"
+    },
+    ok: {
+        ja: "OK",
+        en: "OK"
+    },
+    savePreset: {
+        ja: "プリセット書き出し",
+        en: "Export Preset"
+    },
+    presetNone: {
+        ja: "（未選択）",
+        en: "(None)"
+    },
+    // ▼ 追加ラベル
+    none: {
+        ja: "なし",
+        en: "None"
+    },
+    number: {
+        ja: "番号",
+        en: "Number"
+    },
+    name: {
+        ja: "名称",
+        en: "Name"
+    },
+    numberDashName: {
+        ja: "番号-名称",
+        en: "Number-Name"
+    },
+    numberUnderscoreName: {
+        ja: "番号_名称",
+        en: "Number_Name"
+    },
+    numeric: {
+        ja: "数字",
+        en: "Number"
+    },
+    alphaUpper: {
+        ja: "アルファベット（大文字）",
+        en: "Alphabet (Upper)"
+    },
+    alphaLower: {
+        ja: "アルファベット（小文字）",
+        en: "Alphabet (Lower)"
+    }
 };
 
-(function () {
+(function() {
     if (app.documents.length === 0) return;
 
     var doc = app.activeDocument;
@@ -104,7 +189,7 @@ var LABELS = {
     var originalNames = [];
     for (var i = 0; i < total; i++) originalNames.push(artboards[i].name);
 
-    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    var dialog = new Window("dialog", LABELS.dialogTitle);
     dialog.alignChildren = "fill";
 
     var mainGroup = dialog.add("group");
@@ -120,11 +205,33 @@ var LABELS = {
     presetGroup.orientation = "row";
     presetGroup.alignChildren = "left";
 
-    var builtinPresets = [
-{ label: "ファイル名+連番3", useFilename: true, prefixSeparator: "-", prefix: "", nameStyle: "（なし）", separator: "", format: "数字", start: "01", increment: "1", suffix: "" },
-{ label: "アートボード名と連番", useFilename: false, prefixSeparator: "-", prefix: "", nameStyle: "名称", separator: "-", format: "数字", start: "1", increment: "1", suffix: "" } ];
+    var builtinPresets = [{
+            label: "ファイル名+連番3",
+            useFilename: true,
+            prefixSeparator: "-",
+            prefix: "",
+            nameStyle: "（なし）",
+            separator: "",
+            format: "数字",
+            start: "01",
+            increment: "1",
+            suffix: ""
+        },
+        {
+            label: "アートボード名と連番",
+            useFilename: false,
+            prefixSeparator: "-",
+            prefix: "",
+            nameStyle: "名称",
+            separator: "-",
+            format: "数字",
+            start: "1",
+            increment: "1",
+            suffix: ""
+        }
+    ];
 
-    var presetItems = [LABELS.presetNone[lang]];
+    var presetItems = [LABELS.presetNone];
     for (var i = 0; i < builtinPresets.length; i++) {
         presetItems.push(builtinPresets[i].label);
     }
@@ -133,9 +240,9 @@ var LABELS = {
     presetDropdown.selection = 0;
     presetDropdown.enabled = true;
 
-    var savePresetBtn = presetGroup.add("button", undefined, LABELS.savePreset[lang]);
+    var savePresetBtn = presetGroup.add("button", undefined, LABELS.savePreset);
 
-    presetDropdown.onChange = function () {
+    presetDropdown.onChange = function() {
         var index = presetDropdown.selection.index;
         if (index <= 0) return;
 
@@ -176,21 +283,21 @@ var LABELS = {
     };
 
     // ▼ 接頭辞パネル
-    var prefixPanel = inputGroup.add("panel", undefined, LABELS.prefixPanel[lang]);
+    var prefixPanel = inputGroup.add("panel", undefined, LABELS.prefixPanel);
     prefixPanel.margins = [20, 20, 20, 10];
     prefixPanel.orientation = "column";
     prefixPanel.alignChildren = "left";
 
     var filenameGroup = prefixPanel.add("group");
-    filenameGroup.add("statictext", undefined, LABELS.fileNameLabel[lang]);
+    filenameGroup.add("statictext", undefined, LABELS.fileNameLabel);
     var useFilenameRadios = [
-        filenameGroup.add("radiobutton", undefined, LABELS.useFileNo[lang]),
-        filenameGroup.add("radiobutton", undefined, LABELS.useFileYes[lang])
+        filenameGroup.add("radiobutton", undefined, LABELS.useFileNo),
+        filenameGroup.add("radiobutton", undefined, LABELS.useFileYes)
     ];
     useFilenameRadios[0].value = true;
 
     var separatorGroup1 = prefixPanel.add("group");
-    separatorGroup1.add("statictext", undefined, LABELS.separatorLabel[lang]);
+    separatorGroup1.add("statictext", undefined, LABELS.separatorLabel);
     var prefixSeparatorRadios = [
         separatorGroup1.add("radiobutton", undefined, "なし"),
         separatorGroup1.add("radiobutton", undefined, "-"),
@@ -200,59 +307,59 @@ var LABELS = {
     for (var i = 0; i < 3; i++) prefixSeparatorRadios[i].enabled = false;
 
     var prefixGroup = prefixPanel.add("group");
-    prefixGroup.add("statictext", undefined, LABELS.stringLabel[lang]);
+    prefixGroup.add("statictext", undefined, LABELS.stringLabel);
     var prefixInput = prefixGroup.add("edittext", undefined, "");
     prefixInput.characters = 16;
 
     // ▼ アートボード名と番号パネル
-    var namePanel = inputGroup.add("panel", undefined, LABELS.namePanel[lang]);
+    var namePanel = inputGroup.add("panel", undefined, LABELS.namePanel);
     namePanel.margins = [20, 20, 20, 10];
     namePanel.orientation = "row";
     namePanel.alignChildren = "left";
     var nameStyleDropdown = namePanel.add("dropdownlist", undefined, [
-        "（なし）", "番号", "名称", "番号-名称", "番号_名称"
+        LABELS.none.ja, LABELS.number.ja, LABELS.name.ja, LABELS.numberDashName.ja, LABELS.numberUnderscoreName.ja
     ]);
     nameStyleDropdown.selection = 0;
 
     // ▼ 接尾辞パネル
-    var suffixPanel = inputGroup.add("panel", undefined, LABELS.suffixPanel[lang]);
+    var suffixPanel = inputGroup.add("panel", undefined, LABELS.suffixPanel);
     suffixPanel.margins = [20, 20, 20, 10];
     suffixPanel.orientation = "column";
     suffixPanel.alignChildren = "left";
 
     var separatorGroup2 = suffixPanel.add("group");
-    separatorGroup2.add("statictext", undefined, LABELS.separatorLabel[lang]);
+    separatorGroup2.add("statictext", undefined, LABELS.separatorLabel);
     var separatorRadios2 = [
-        separatorGroup2.add("radiobutton", undefined, "なし"),
+        separatorGroup2.add("radiobutton", undefined, LABELS.none.ja),
         separatorGroup2.add("radiobutton", undefined, "-"),
         separatorGroup2.add("radiobutton", undefined, "_")
     ];
     separatorRadios2[0].value = true;
 
     var formatGroup = suffixPanel.add("group");
-    formatGroup.add("statictext", undefined, LABELS.formatLabel[lang]);
+    formatGroup.add("statictext", undefined, LABELS.formatLabel);
     var formatDropdown = formatGroup.add("dropdownlist", undefined, [
-        "数字", "アルファベット（大文字）", "アルファベット（小文字）"
+        LABELS.numeric.ja, LABELS.alphaUpper.ja, LABELS.alphaLower.ja
     ]);
     formatDropdown.selection = 0;
 
     var startGroup = suffixPanel.add("group");
-    startGroup.add("statictext", undefined, LABELS.startLabel[lang]);
+    startGroup.add("statictext", undefined, LABELS.startLabel);
     var startNumberInput = startGroup.add("edittext", undefined, "1");
     startNumberInput.characters = 5;
 
     var incrementGroup = suffixPanel.add("group");
-    incrementGroup.add("statictext", undefined, LABELS.incrementLabel[lang]);
+    incrementGroup.add("statictext", undefined, LABELS.incrementLabel);
     var incrementInput = incrementGroup.add("edittext", undefined, "1");
     incrementInput.characters = 5;
 
     var suffixGroup = suffixPanel.add("group");
-    suffixGroup.add("statictext", undefined, LABELS.stringLabel[lang]);
+    suffixGroup.add("statictext", undefined, LABELS.stringLabel);
     var suffixInput = suffixGroup.add("edittext", undefined, "");
     suffixInput.characters = 16;
 
     // ▼ プレビューエリア
-    var previewGroup = mainGroup.add("panel", undefined, LABELS.preview[lang]);
+    var previewGroup = mainGroup.add("panel", undefined, LABELS.preview);
     previewGroup.alignChildren = "fill";
     previewGroup.margins = [10, 20, 10, 10];
     previewGroup.preferredSize.width = 250;
@@ -274,7 +381,9 @@ var LABELS = {
     var leftGroup = outerGroup.add("group");
     leftGroup.orientation = "row";
     leftGroup.alignChildren = "left";
-    var cancelBtn = leftGroup.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
+    var cancelBtn = leftGroup.add("button", undefined, LABELS.cancel, {
+        name: "cancel"
+    });
 
     var spacer = outerGroup.add("group");
     spacer.alignment = ["fill", "fill"];
@@ -284,55 +393,57 @@ var LABELS = {
     rightGroup.orientation = "row";
     rightGroup.alignChildren = ["right", "center"];
     rightGroup.spacing = 10;
-    var applyBtn = rightGroup.add("button", undefined, LABELS.apply[lang]);
-    var okBtn = rightGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+    var applyBtn = rightGroup.add("button", undefined, LABELS.apply);
+    var okBtn = rightGroup.add("button", undefined, LABELS.ok, {
+        name: "ok"
+    });
 
     // ▼ プリセット保存処理（label: デコード済み）
 
-savePresetBtn.onClick = function () {
-    var saveFile = File.saveDialog("プリセットを書き出す場所と名前を指定してください", "*.txt");
-    if (!saveFile) return;
+    savePresetBtn.onClick = function() {
+        var saveFile = File.saveDialog("プリセットを書き出す場所と名前を指定してください", "*.txt");
+        if (!saveFile) return;
 
-    if (saveFile.name.indexOf(".") === -1) {
-        saveFile = new File(saveFile.fsName + ".txt");
-    }
-
-    var rawName = saveFile.name;
-    var fileName = rawName.replace(/\.txt$/i, "");
-    var labelName = decodeURIComponent(fileName); // 日本語ファイル名もOK
-
-    var prefixSep = "";
-    if (prefixSeparatorRadios[1].value) prefixSep = "-";
-    else if (prefixSeparatorRadios[2].value) prefixSep = "_";
-
-    var suffixSep = "";
-    if (separatorRadios2[1].value) suffixSep = "-";
-    else if (separatorRadios2[2].value) suffixSep = "_";
-
-    var presetString =
-        '{ label: "' + labelName + '", ' +
-        'useFilename: ' + (useFilenameRadios[1].value ? 'true' : 'false') + ', ' +
-        'prefixSeparator: "' + prefixSep + '", ' +
-        'prefix: "' + prefixInput.text + '", ' +
-        'nameStyle: "' + nameStyleDropdown.selection.text + '", ' +
-        'separator: "' + suffixSep + '", ' +
-        'format: "' + formatDropdown.selection.text + '", ' +
-        'start: "' + startNumberInput.text + '", ' +
-        'increment: "' + incrementInput.text + '", ' +
-        'suffix: "' + suffixInput.text + '" }';
-
-    try {
-        if (saveFile.open("w")) {
-            saveFile.write(presetString);
-            saveFile.close();
-            alert("プリセットを書き出しました：\n" + saveFile.fsName);
-        } else {
-            alert("ファイルを書き込めませんでした。");
+        if (saveFile.name.indexOf(".") === -1) {
+            saveFile = new File(saveFile.fsName + ".txt");
         }
-    } catch (e) {
-        alert("プリセットの保存に失敗しました：\n" + e.message);
-    }
-};
+
+        var rawName = saveFile.name;
+        var fileName = rawName.replace(/\.txt$/i, "");
+        var labelName = decodeURIComponent(fileName); // 日本語ファイル名もOK
+
+        var prefixSep = "";
+        if (prefixSeparatorRadios[1].value) prefixSep = "-";
+        else if (prefixSeparatorRadios[2].value) prefixSep = "_";
+
+        var suffixSep = "";
+        if (separatorRadios2[1].value) suffixSep = "-";
+        else if (separatorRadios2[2].value) suffixSep = "_";
+
+        var presetString =
+            '{ label: "' + labelName + '", ' +
+            'useFilename: ' + (useFilenameRadios[1].value ? 'true' : 'false') + ', ' +
+            'prefixSeparator: "' + prefixSep + '", ' +
+            'prefix: "' + prefixInput.text + '", ' +
+            'nameStyle: "' + nameStyleDropdown.selection.text + '", ' +
+            'separator: "' + suffixSep + '", ' +
+            'format: "' + formatDropdown.selection.text + '", ' +
+            'start: "' + startNumberInput.text + '", ' +
+            'increment: "' + incrementInput.text + '", ' +
+            'suffix: "' + suffixInput.text + '" }';
+
+        try {
+            if (saveFile.open("w")) {
+                saveFile.write(presetString);
+                saveFile.close();
+                alert("プリセットを書き出しました：\n" + saveFile.fsName);
+            } else {
+                alert("ファイルを書き込めませんでした。");
+            }
+        } catch (e) {
+            alert("プリセットの保存に失敗しました：\n" + e.message);
+        }
+    };
 
     // ▼ 補助関数群
 
@@ -369,22 +480,27 @@ savePresetBtn.onClick = function () {
         return total;
     }
 
-function getPadLengthFromStart(str) {
-    if (/^\d+$/.test(str)) {
-        return str.length; // 数字であればその桁数で判断（ゼロ含む）
+    function getPadLengthFromStart(str) {
+        if (/^\d+$/.test(str)) {
+            return str.length; // 数字であればその桁数で判断（ゼロ含む）
+        }
+        return 0;
     }
-    return 0;
-}
 
     function getNameComponent(index, nameStyle) {
         var abNum = (index + 1).toString();
         var abName = originalNames[index];
         switch (nameStyle) {
-            case "番号": return abNum;
-            case "名称": return abName;
-            case "番号-名称": return abNum + "-" + abName;
-            case "番号_名称": return abNum + "_" + abName;
-            default: return "";
+            case LABELS.number.ja:
+                return abNum;
+            case LABELS.name.ja:
+                return abName;
+            case LABELS.numberDashName.ja:
+                return abNum + "-" + abName;
+            case LABELS.numberUnderscoreName.ja:
+                return abNum + "_" + abName;
+            default:
+                return "";
         }
     }
 
@@ -419,77 +535,77 @@ function getPadLengthFromStart(str) {
 
     // ▼ イベントハンドラ
 
- useFilenameRadios[0].onClick = useFilenameRadios[1].onClick = function () {
-    for (var i = 0; i < 3; i++) prefixSeparatorRadios[i].enabled = useFilenameRadios[1].value;
-    updatePreview();
-};
+    useFilenameRadios[0].onClick = useFilenameRadios[1].onClick = function() {
+        for (var i = 0; i < 3; i++) prefixSeparatorRadios[i].enabled = useFilenameRadios[1].value;
+        updatePreview();
+    };
 
-for (var i = 0; i < prefixSeparatorRadios.length; i++) {
-    prefixSeparatorRadios[i].onClick = updatePreview;
-}
-for (var i = 0; i < separatorRadios2.length; i++) {
-    separatorRadios2[i].onClick = updatePreview;
-}
-
-formatDropdown.onChange = function () {
-    var format = formatDropdown.selection.text;
-    var isAlpha = format.indexOf("アルファベット") === 0;
-    incrementInput.enabled = !isAlpha;
-
-    if (format === "数字") {
-        startNumberInput.text = "1";
-    } else if (format === "アルファベット（大文字）") {
-        startNumberInput.text = "A";
-    } else if (format === "アルファベット（小文字）") {
-        startNumberInput.text = "a";
+    for (var i = 0; i < prefixSeparatorRadios.length; i++) {
+        prefixSeparatorRadios[i].onClick = updatePreview;
+    }
+    for (var i = 0; i < separatorRadios2.length; i++) {
+        separatorRadios2[i].onClick = updatePreview;
     }
 
-    updatePreview();
-};
-
-// ▼ 入力変更時にプレビューを即時更新
-prefixInput.onChanging = updatePreview;
-startNumberInput.onChanging = updatePreview;
-incrementInput.onChanging = updatePreview;
-suffixInput.onChanging = updatePreview;
-nameStyleDropdown.onChange = updatePreview;
-
-
-applyBtn.onClick = function () {
-    updatePreview();
-    try {
+    formatDropdown.onChange = function() {
         var format = formatDropdown.selection.text;
-        var rawStart = startNumberInput.text;
-        var startNum = (format.indexOf("アルファベット") === 0) ? getAlphaIndex(rawStart) : parseInt(rawStart, 10);
-        var increment = parseInt(incrementInput.text, 10);
-        var padLength = getPadLengthFromStart(rawStart);
-        var nameStyle = nameStyleDropdown.selection.text;
+        var isAlpha = format.indexOf("アルファベット") === 0;
+        incrementInput.enabled = !isAlpha;
 
-        if (isNaN(startNum) || startNum <= 0 || (format === "数字" && (isNaN(increment) || increment <= 0))) {
-            alert("入力内容に誤りがあります。\n正しい数値を指定してください。", "エラー");
-            return;
+        if (format === "数字") {
+            startNumberInput.text = "1";
+        } else if (format === "アルファベット（大文字）") {
+            startNumberInput.text = "A";
+        } else if (format === "アルファベット（小文字）") {
+            startNumberInput.text = "a";
         }
 
-        var prefixCombined = getPrefixCombined();
-        var sep2 = separatorRadios2[1].value ? "-" : (separatorRadios2[2].value ? "_" : "");
-        var current = startNum;
-        for (var i = 0; i < artboards.length; i++) {
-            var label = (format === "数字")
-                ? padNumber(current, padLength)
-                : getAlphaLabel(current - 1, format);
-            var nameComponent = getNameComponent(i, nameStyle);
-            var finalName = prefixCombined + nameComponent + sep2 + label + suffixInput.text;
-            artboards[i].name = finalName;
-            current += (format === "数字") ? increment : 1;
+        updatePreview();
+    };
+
+    // ▼ 入力変更時にプレビューを即時更新
+    prefixInput.onChanging = updatePreview;
+    startNumberInput.onChanging = updatePreview;
+    incrementInput.onChanging = updatePreview;
+    suffixInput.onChanging = updatePreview;
+    nameStyleDropdown.onChange = updatePreview;
+
+
+    applyBtn.onClick = function() {
+        updatePreview();
+        try {
+            var format = formatDropdown.selection.text;
+            var rawStart = startNumberInput.text;
+            var startNum = (format.indexOf("アルファベット") === 0) ? getAlphaIndex(rawStart) : parseInt(rawStart, 10);
+            var increment = parseInt(incrementInput.text, 10);
+            var padLength = getPadLengthFromStart(rawStart);
+            var nameStyle = nameStyleDropdown.selection.text;
+
+            if (isNaN(startNum) || startNum <= 0 || (format === "数字" && (isNaN(increment) || increment <= 0))) {
+                alert("入力内容に誤りがあります。\n正しい数値を指定してください。", "エラー");
+                return;
+            }
+
+            var prefixCombined = getPrefixCombined();
+            var sep2 = separatorRadios2[1].value ? "-" : (separatorRadios2[2].value ? "_" : "");
+            var current = startNum;
+            for (var i = 0; i < artboards.length; i++) {
+                var label = (format === "数字") ?
+                    padNumber(current, padLength) :
+                    getAlphaLabel(current - 1, format);
+                var nameComponent = getNameComponent(i, nameStyle);
+                var finalName = prefixCombined + nameComponent + sep2 + label + suffixInput.text;
+                artboards[i].name = finalName;
+                current += (format === "数字") ? increment : 1;
+            }
+
+            app.redraw(); // 反映
+        } catch (e) {
+            alert("エラーが発生しました（適用時）：\n" + e.message);
         }
+    };
 
-        app.redraw(); // 反映
-    } catch (e) {
-        alert("エラーが発生しました（適用時）：\n" + e.message);
-    }
-};
-
-    okBtn.onClick = function () {
+    okBtn.onClick = function() {
         var format = formatDropdown.selection.text;
         var rawStart = startNumberInput.text;
         var startNum = (format.indexOf("アルファベット") === 0) ? getAlphaIndex(rawStart) : parseInt(rawStart, 10);
@@ -507,9 +623,9 @@ applyBtn.onClick = function () {
             var sep2 = separatorRadios2[1].value ? "-" : (separatorRadios2[2].value ? "_" : "");
             var current = startNum;
             for (var i = 0; i < artboards.length; i++) {
-                var label = (format === "数字")
-                    ? padNumber(current, padLength)
-                    : getAlphaLabel(current - 1, format);
+                var label = (format === "数字") ?
+                    padNumber(current, padLength) :
+                    getAlphaLabel(current - 1, format);
                 var nameComponent = getNameComponent(i, nameStyle);
                 var finalName = prefixCombined + nameComponent + sep2 + label + suffixInput.text;
                 artboards[i].name = finalName;

@@ -1,6 +1,8 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+$.localize = true;
+
 /*
 
 ### スクリプト名：
@@ -87,10 +89,6 @@ FitArtboardWithMargin.jsx
 - v1.5 (20250715): Enabled separate settings for vertical and horizontal margins
 
 */
-#target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
-$.localize = true;
 
 var SCRIPT_VERSION = "v1.5";
 
@@ -103,7 +101,8 @@ var LABELS = {
     marginVertical: { ja: "上下", en: "Vertical" },
     marginHorizontal: { ja: "左右", en: "Horizontal" },
     linked: { ja: "連動", en: "Linked" },
-    numberAlert: { ja: "数値を入力してください。", en: "Please enter a number." }
+    numberAlert: { ja: "数値を入力してください。", en: "Please enter a number." },
+    errorOccurred: { ja: "エラーが発生しました: ", en: "An error occurred: " }
 };
 
 var offsetX = 300;
@@ -503,7 +502,7 @@ function main() {
         artboards[artboardIndex].artboardRect = selectedBounds;
 
     } catch (e) {
-        alert(($.locale.indexOf('ja') === 0 ? "エラーが発生しました: " : "An error occurred: ") + e.message);
+        alert(LABELS.errorOccurred + e.message);
     }
 }
 

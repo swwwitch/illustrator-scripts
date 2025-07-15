@@ -1,6 +1,8 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+$.localize = true;
+
 /*
 ### スクリプト名：
 
@@ -29,8 +31,8 @@ SmartArtboardRenamer.jsx
 
 ### 更新履歴
 
-- v1.0.0 (20250509) : 初期バージョン
-- v1.0.1 (20250512) : レイヤー参照改善、UI調整
+- v1.0 (20250509) : 初期バージョン
+- v1.1 (20250512) : レイヤー参照改善、UI調整
 
 ---
 
@@ -61,8 +63,8 @@ SmartArtboardRenamer.jsx
 
 ### Update History
 
-- v1.0.0 (20250509): Initial version
-- v1.0.1 (20250512): Improved layer reference and UI adjustments
+- v1.0 (20250509): Initial version
+- v1.1 (20250512): Improved layer reference and UI adjustments
 */
 
 function getCurrentLang() {
@@ -163,7 +165,7 @@ function showDialog() {
         applyButton:       { ja: "適用", en: "Apply" }
     };
 
-    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+    var dlg = new Window("dialog", LABELS.dialogTitle);
     dlg.orientation = "column";
     dlg.alignChildren = "fill";
 
@@ -172,28 +174,28 @@ function showDialog() {
     mainGroup.alignChildren = "top";
 
     // 接頭辞
-    var leftCol = mainGroup.add("panel", undefined, LABELS.prefixLabel[lang]);
+    var leftCol = mainGroup.add("panel", undefined, LABELS.prefixLabel);
     leftCol.orientation = "column";
     leftCol.alignChildren = "left";
     leftCol.margins = [15, 20, 15, 10];
     var prefixInput = leftCol.add("edittext", undefined, "");
     prefixInput.characters = 12;
     prefixInput.active = true;
-    var prefixHint = leftCol.add("statictext", undefined, LABELS.exampleFormatHint[lang], { multiline: true });
+    var prefixHint = leftCol.add("statictext", undefined, LABELS.exampleFormatHint, { multiline: true });
     // prefixHint.preferredSize.width = 160;
     prefixHint.preferredSize.height = 80;
     prefixHint.enabled = true;
 
     // 参照テキスト
-    var centerCol = mainGroup.add("panel", undefined, LABELS.sourceLabel[lang]);
+    var centerCol = mainGroup.add("panel", undefined, LABELS.sourceLabel);
     centerCol.orientation = "column";
     centerCol.alignChildren = "left";
     centerCol.margins = [15, 25, 15, 15];
     centerCol.preferredSize.height = 65;
 
-    var r1 = centerCol.add("radiobutton", undefined, LABELS.frontmostOption[lang]);
-    var r3 = centerCol.add("radiobutton", undefined, LABELS.ignoreOption[lang]);
-    var r2 = centerCol.add("radiobutton", undefined, LABELS.layerOption[lang]);
+    var r1 = centerCol.add("radiobutton", undefined, LABELS.frontmostOption);
+    var r3 = centerCol.add("radiobutton", undefined, LABELS.ignoreOption);
+    var r2 = centerCol.add("radiobutton", undefined, LABELS.layerOption);
     r1.value = true;
     r3.value = false;
 
@@ -228,13 +230,13 @@ function showDialog() {
     };
 
     // 接尾辞
-    var rightCol = mainGroup.add("panel", undefined, LABELS.suffixLabel[lang]);
+    var rightCol = mainGroup.add("panel", undefined, LABELS.suffixLabel);
     rightCol.orientation = "column";
     rightCol.alignChildren = "left";
     rightCol.margins = [15, 20, 15, 10];
     var suffixInput = rightCol.add("edittext", undefined, "");
     suffixInput.characters = 12;
-    var suffixHint = rightCol.add("statictext", undefined, LABELS.exampleFormatHint[lang], { multiline: true });
+    var suffixHint = rightCol.add("statictext", undefined, LABELS.exampleFormatHint, { multiline: true });
     // suffixHint.preferredSize.width = 100;
     suffixHint.preferredSize.height = 80;
     suffixHint.enabled = true;
@@ -245,9 +247,9 @@ function showDialog() {
     targetGroup.orientation = "row";
     targetGroup.alignChildren = ["left", "center"];
     targetGroup.margins = [15,0, 15, 0];
-    targetGroup.add("statictext", undefined, LABELS.targetLabel[lang]);
-    var abAll = targetGroup.add("radiobutton", undefined, LABELS.allBoards[lang]);
-    var abNumbered = targetGroup.add("radiobutton", undefined, LABELS.specificBoards[lang]);
+    targetGroup.add("statictext", undefined, LABELS.targetLabel);
+    var abAll = targetGroup.add("radiobutton", undefined, LABELS.allBoards);
+    var abNumbered = targetGroup.add("radiobutton", undefined, LABELS.specificBoards);
     abAll.value = true;
     var abNumbersInput = targetGroup.add("edittext", undefined, "");
     abNumbersInput.characters = 10;
@@ -271,7 +273,7 @@ buttonRow.alignment = "fill";
 buttonRow.margins = [0, 15, 0, 0];
 buttonRow.spacing = 10;
 
-var btnCancel = buttonRow.add("button", undefined, LABELS.cancelButton[lang], { name: "cancel" });
+var btnCancel = buttonRow.add("button", undefined, LABELS.cancelButton, { name: "cancel" });
 btnCancel.preferredSize.width = 80;
 
 var spacer = buttonRow.add("group");
@@ -281,7 +283,7 @@ spacer.preferredSize.width = 160;
 var rightButtons = buttonRow.add("group");
 rightButtons.orientation = "row";
 rightButtons.alignChildren = ["right", "center"];
-var btnApply = rightButtons.add("button", undefined, LABELS.applyButton[lang]);
+var btnApply = rightButtons.add("button", undefined, LABELS.applyButton);
 btnApply.onClick = function () {
     var mode = r1.value ? "frontmost" : (r2.value ? "layer" : "none");
     var prefix = prefixInput.text;
@@ -317,7 +319,7 @@ btnApply.onClick = function () {
     // Ensure UI redraw is the last executed statement
     app.redraw();
 };
-var btnOK = rightButtons.add("button", undefined, LABELS.okButton[lang], { name: "ok" });
+var btnOK = rightButtons.add("button", undefined, LABELS.okButton, { name: "ok" });
 
     if (dlg.show() !== 1) return null;
 

@@ -1,6 +1,8 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+$.localize = true;
+
 /*
 ### スクリプト名：
 
@@ -72,229 +74,227 @@ Slice2Artboards.jsx
 
 var SCRIPT_VERSION = "v1.4";
 
-(function(global) {
+/*
+     ラベル定義（UI表示順で整理）/ Label definitions (ordered by UI appearance)
+    */
+
+var LABELS = {
+    dialogTitle: {
+        ja: "分割してアートボード化",
+        en: "Slice and Create Artboards"
+    },
+    shapePanel: {
+        ja: "アスペクト比",
+        en: "Aspect Ratio"
+    },
+    shapeA4: {
+        ja: "A4 (210 x 297)",
+        en: "A4 (210 x 297)"
+    },
+    shapeSquare: {
+        ja: "スクエア",
+        en: "Square"
+    },
+    shapeLetter: {
+        ja: "US Letter",
+        en: "US Letter"
+    },
+    shapeLegal: {
+        ja: "US Legal (8.5 x 14)",
+        en: "US Legal (8.5 x 14)"
+    },
+    shapeTabloid: {
+        ja: "Tabloid (11 x 17)",
+        en: "Tabloid (11 x 17)"
+    },
+    shape169: {
+        ja: "16:9",
+        en: "16:9"
+    },
+    shape89: {
+        ja: "8:9",
+        en: "8:9"
+    },
+    columns: {
+        ja: "列数",
+        en: "Columns"
+    },
+    rows: {
+        ja: "行数",
+        en: "Rows"
+    },
+    offsetLabel: {
+        ja: "オフセット",
+        en: "Offset"
+    },
+    convertArtboard: {
+        ja: "アートボードに変換",
+        en: "Convert to Artboards"
+    },
+    options: {
+        ja: "アートボード名",
+        en: "Artboard Name"
+    },
+    artboardName: {
+        ja: "接頭辞：",
+        en: "Prefix:"
+    },
+    startNumber: {
+        ja: "開始番号：",
+        en: "Starting Number:"
+    },
+    zeroPad: {
+        ja: "ゼロ埋め",
+        en: "Zero Padding"
+    },
+    margin: {
+        ja: "マージン：",
+        en: "Margin:"
+    },
+    okBtn: {
+        ja: "実行",
+        en: "Run"
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    errorDefault: {
+        ja: "エラーが発生しました",
+        en: "An error occurred"
+    }
+};
+
+var lang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+function main() {
     /**
      * 現在のロケールから日本語か英語かを判定 / Determine language by locale
      * @return {string} 'ja' or 'en'
      */
-    function getCurrentLang() {
-        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+
+
+
+    /*
+    定数定義 / Constant values
+    */
+    var DEFAULT_COLUMN_COUNT = 5;
+    var DEFAULT_ROW_COUNT = 5;
+    var DEFAULT_OFFSET = -20;
+    var DEFAULT_MARGIN = 0;
+    var DEFAULT_START_NUMBER = 1;
+
+    /**
+     * 汎用例外ラッパー
+     * General try-catch wrapper
+     * @param {Function} fn
+     * @param {string} errMsg
+     */
+    function safeExecute(fn, errMsg) {
+        try {
+            fn();
+        } catch (e) {
+            alert((errMsg || LABELS.errorDefault[lang]) + ":\n" + e.message);
+        }
+    }
+
+    /**
+     * 単位コードとラベルのマッピング
+     * Map from unit code to label
+     */
+    var unitLabelMap = {
+        0: "in",
+        1: "mm",
+        2: "pt",
+        3: "pica",
+        4: "cm",
+        5: "Q/H",
+        6: "px",
+        7: "ft/in",
+        8: "m",
+        9: "yd",
+        10: "ft"
+    };
+
+    /**
+     * 現在の単位ラベルを取得
+     * Get current document unit label
+     * @return {string}
+     */
+    function getCurrentUnitLabel() {
+        var unitCode = app.preferences.getIntegerPreference("rulerType");
+        return unitLabelMap[unitCode] || "pt";
+    }
+
+    /**
+     * 列・行数入力検証
+     * Validate grid input
+     * @param {number} columnCount
+     * @param {number} rowCount
+     * @return {boolean}
+     */
+    function validateGridInput(columnCount, rowCount) {
+        return (
+            (columnCount >= 1 && rowCount >= 1) ||
+            (columnCount == 0 && rowCount >= 1) ||
+            (columnCount >= 1 && rowCount == 0)
+        );
+    }
+
+    /**
+     * 矩形の座標をオフセット調整（左右・上下独立）
+     * Offset rectangle bounds (independent X/Y)
+     * @param {PathItem} pathItem
+     * @param {number} offsetX
+     * @param {number} offsetY
+     * @return {PathItem}
+     */
+    function offsetRectangle(pathItem, offsetX, offsetY) {
+        var gb = pathItem.geometricBounds;
+        var newWidth = (gb[2] - gb[0]) + offsetX * 2;
+        var newHeight = (gb[1] - gb[3]) + offsetY * 2;
+        pathItem.left = pathItem.left - offsetX;
+        pathItem.top = pathItem.top + offsetY;
+        pathItem.width = newWidth;
+        pathItem.height = newHeight;
+        return pathItem;
     }
 
     /*
-     ラベル定義（UI表示順で整理）/ Label definitions (ordered by UI appearance)
+    ここから main() 以下のメイン処理
+    Main processing below main()
     */
-    var lang = getCurrentLang();
-    var LABELS = {
-        dialogTitle: {
-            ja: "分割してアートボード化",
-            en: "Slice and Create Artboards"
-        },
-        shapePanel: {
-            ja: "アスペクト比",
-            en: "Aspect Ratio"
-        },
-        shapeA4: {
-            ja: "A4 (210 x 297)",
-            en: "A4 (210 x 297)"
-        },
-        shapeSquare: {
-            ja: "スクエア",
-            en: "Square"
-        },
-        shapeLetter: {
-            ja: "US Letter",
-            en: "US Letter"
-        },
-        shapeLegal: {
-            ja: "US Legal (8.5 x 14)",
-            en: "US Legal (8.5 x 14)"
-        },
-        shapeTabloid: {
-            ja: "Tabloid (11 x 17)",
-            en: "Tabloid (11 x 17)"
-        },
-        shape169: {
-            ja: "16:9",
-            en: "16:9"
-        },
-        shape89: {
-            ja: "8:9",
-            en: "8:9"
-        },
-        columns: {
-            ja: "列数",
-            en: "Columns"
-        },
-        rows: {
-            ja: "行数",
-            en: "Rows"
-        },
-        offsetLabel: {
-            ja: "オフセット",
-            en: "Offset"
-        },
-        convertArtboard: {
-            ja: "アートボードに変換",
-            en: "Convert to Artboards"
-        },
-        options: {
-            ja: "アートボード名",
-            en: "Artboard Name"
-        },
-        artboardName: {
-            ja: "接頭辞：",
-            en: "Prefix:"
-        },
-        startNumber: {
-            ja: "開始番号：",
-            en: "Starting Number:"
-        },
-        zeroPad: {
-            ja: "ゼロ埋め",
-            en: "Zero Padding"
-        },
-        margin: {
-            ja: "マージン：",
-            en: "Margin:"
-        },
-        okBtn: {
-            ja: "実行",
-            en: "Run"
-        },
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
+
+    /**
+     * アートボード名生成
+     * Build artboard name string
+     */
+    function buildArtboardName(prefix, symbol, seq, zeroPadding, useFileName, fileNameNoExt, padLen) {
+        var seqNum = parseInt(seq, 10);
+        if (isNaN(seqNum)) seqNum = 1;
+        var numStr = seqNum.toString();
+        if (zeroPadding && padLen > 0) {
+            while (numStr.length < padLen) numStr = "0" + numStr;
         }
-    };
-
-    // グローバルへ公開
-    global.getCurrentLang = getCurrentLang;
-    global.LABELS = LABELS;
-})(this);
-
-/*
-定数定義 / Constant values
-*/
-var DEFAULT_COLUMN_COUNT = 5;
-var DEFAULT_ROW_COUNT = 5;
-var DEFAULT_OFFSET = -20;
-var DEFAULT_MARGIN = 0;
-var DEFAULT_START_NUMBER = 1;
-
-/**
- * 汎用例外ラッパー
- * General try-catch wrapper
- * @param {Function} fn
- * @param {string} errMsg
- */
-function safeExecute(fn, errMsg) {
-    try {
-        fn();
-    } catch (e) {
-        alert((errMsg || "エラーが発生しました") + ":\n" + e.message);
-    }
-}
-
-/**
- * 単位コードとラベルのマッピング
- * Map from unit code to label
- */
-var unitLabelMap = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
-    5: "Q/H",
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
-};
-
-/**
- * 現在の単位ラベルを取得
- * Get current document unit label
- * @return {string}
- */
-function getCurrentUnitLabel() {
-    var unitCode = app.preferences.getIntegerPreference("rulerType");
-    return unitLabelMap[unitCode] || "pt";
-}
-
-/**
- * 列・行数入力検証
- * Validate grid input
- * @param {number} columnCount
- * @param {number} rowCount
- * @return {boolean}
- */
-function validateGridInput(columnCount, rowCount) {
-    return (
-        (columnCount >= 1 && rowCount >= 1) ||
-        (columnCount == 0 && rowCount >= 1) ||
-        (columnCount >= 1 && rowCount == 0)
-    );
-}
-
-/**
- * 矩形の座標をオフセット調整（左右・上下独立）
- * Offset rectangle bounds (independent X/Y)
- * @param {PathItem} pathItem
- * @param {number} offsetX
- * @param {number} offsetY
- * @return {PathItem}
- */
-function offsetRectangle(pathItem, offsetX, offsetY) {
-    var gb = pathItem.geometricBounds;
-    var newWidth = (gb[2] - gb[0]) + offsetX * 2;
-    var newHeight = (gb[1] - gb[3]) + offsetY * 2;
-    pathItem.left = pathItem.left - offsetX;
-    pathItem.top = pathItem.top + offsetY;
-    pathItem.width = newWidth;
-    pathItem.height = newHeight;
-    return pathItem;
-}
-
-/*
-ここから main() 以下のメイン処理
-Main processing below main()
-*/
-
-/**
- * アートボード名生成
- * Build artboard name string
- */
-function buildArtboardName(prefix, symbol, seq, zeroPadding, useFileName, fileNameNoExt, padLen) {
-    var seqNum = parseInt(seq, 10);
-    if (isNaN(seqNum)) seqNum = 1;
-    var numStr = seqNum.toString();
-    if (zeroPadding && padLen > 0) {
-        while (numStr.length < padLen) numStr = "0" + numStr;
-    }
-    if (useFileName) {
-        if (prefix === "") {
-            return fileNameNoExt + symbol + numStr;
-        } else {
-            return fileNameNoExt + symbol + prefix + symbol + numStr;
+        if (useFileName) {
+            if (prefix === "") {
+                return fileNameNoExt + symbol + numStr;
+            } else {
+                return fileNameNoExt + symbol + prefix + symbol + numStr;
+            }
         }
+        return prefix + symbol + numStr;
     }
-    return prefix + symbol + numStr;
-}
 
-function main() {
-    var lang = getCurrentLang();
     app.undoGroup = (lang === "ja" ? "アートボード分割と作成" : "Slice and Create Artboards");
     safeExecute(function() {
-        var lang = getCurrentLang();
+        // getCurrentLang and LABELS already defined above in main()
 
         /*
          ダイアログ作成
          Create dialog
         */
-        var dialogTitle = LABELS.dialogTitle[lang] + " " + SCRIPT_VERSION;
+        var dialogTitle = LABELS.dialogTitle + " " + SCRIPT_VERSION;
         var Dialog = new Window('dialog', dialogTitle);
         Dialog.orientation = 'column';
         Dialog.alignment = 'right';
@@ -319,19 +319,19 @@ function main() {
          形状パネル
          Shape panel (A4/Square/Letter/16:9/8:9/Custom)
         */
-        var shapePanel = inputPanel.add("panel", undefined, LABELS.shapePanel[lang]);
+        var shapePanel = inputPanel.add("panel", undefined, LABELS.shapePanel);
         shapePanel.orientation = "column";
         shapePanel.alignChildren = "left";
         shapePanel.margins = [15, 20, 15, 10];
-        var shapeRadioA4 = shapePanel.add("radiobutton", undefined, LABELS.shapeA4[lang]);
-        var shapeRadioSquare = shapePanel.add("radiobutton", undefined, LABELS.shapeSquare[lang]);
+        var shapeRadioA4 = shapePanel.add("radiobutton", undefined, LABELS.shapeA4);
+        var shapeRadioSquare = shapePanel.add("radiobutton", undefined, LABELS.shapeSquare);
         if (lang !== "ja") {
-            var shapeRadioLetter = shapePanel.add("radiobutton", undefined, LABELS.shapeLetter[lang]);
-            var shapeRadioLegal = shapePanel.add("radiobutton", undefined, LABELS.shapeLegal[lang]);
-            var shapeRadioTabloid = shapePanel.add("radiobutton", undefined, LABELS.shapeTabloid[lang]);
+            var shapeRadioLetter = shapePanel.add("radiobutton", undefined, LABELS.shapeLetter);
+            var shapeRadioLegal = shapePanel.add("radiobutton", undefined, LABELS.shapeLegal);
+            var shapeRadioTabloid = shapePanel.add("radiobutton", undefined, LABELS.shapeTabloid);
         }
-        var shapeRadio169 = shapePanel.add("radiobutton", undefined, LABELS.shape169[lang]);
-        var shapeRadio89 = shapePanel.add("radiobutton", undefined, LABELS.shape89[lang]);
+        var shapeRadio169 = shapePanel.add("radiobutton", undefined, LABELS.shape169);
+        var shapeRadio89 = shapePanel.add("radiobutton", undefined, LABELS.shape89);
         var shapeRadioCustom = shapePanel.add("radiobutton", undefined, (lang === "ja" ? "カスタム" : "Custom"));
         shapeRadioA4.value = true; // デフォルトA4 / Default is A4
 
@@ -354,14 +354,14 @@ function main() {
         // 列数 / Columns
         var colGroup = rowColGroup.add('group');
         colGroup.orientation = 'row';
-        colGroup.add('statictext', undefined, LABELS.columns[lang]);
+        colGroup.add('statictext', undefined, LABELS.columns);
         var columnText = colGroup.add('edittext', undefined, String(DEFAULT_COLUMN_COUNT));
         columnText.characters = 3;
         changeValueByArrowKey(columnText);
         // 行数 / Rows
         var rowGroup = rowColGroup.add('group');
         rowGroup.orientation = 'row';
-        rowGroup.add('statictext', undefined, LABELS.rows[lang]);
+        rowGroup.add('statictext', undefined, LABELS.rows);
         var rowText = rowGroup.add('edittext', undefined, String(DEFAULT_ROW_COUNT));
         rowText.characters = 3;
         changeValueByArrowKey(rowText);
@@ -374,7 +374,7 @@ function main() {
         offsetGroup.orientation = "row";
         offsetGroup.alignChildren = "left";
         offsetGroup.margins = [10, 0, 10, 10];
-        var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel[lang]);
+        var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel);
         offsetCheckbox.value = true;
         var offsetValueInput = offsetGroup.add("edittext", undefined, String(DEFAULT_OFFSET));
         offsetValueInput.characters = 4;
@@ -396,11 +396,11 @@ function main() {
         artboardColumnGroup.alignChildren = 'left';
 
         // アートボード変換チェックボックス
-        var artboardCheckbox = artboardColumnGroup.add('checkbox', undefined, LABELS.convertArtboard[lang]);
+        var artboardCheckbox = artboardColumnGroup.add('checkbox', undefined, LABELS.convertArtboard);
         artboardCheckbox.value = true;
 
         // アートボード名・連番・ゼロ埋め設定パネル
-        var artboardPanel = artboardColumnGroup.add("panel", undefined, LABELS.options[lang]);
+        var artboardPanel = artboardColumnGroup.add("panel", undefined, LABELS.options);
         artboardPanel.orientation = "column";
         artboardPanel.alignChildren = "left";
         artboardPanel.margins = [15, 20, 15, 10];
@@ -411,7 +411,7 @@ function main() {
         var artboardNameGroup = artboardPanel.add("group");
         artboardNameGroup.orientation = "row";
         artboardNameGroup.alignChildren = "center";
-        artboardNameGroup.add("statictext", undefined, LABELS.artboardName[lang]);
+        artboardNameGroup.add("statictext", undefined, LABELS.artboardName);
         var artboardNameInput = artboardNameGroup.add("edittext", undefined, "");
         artboardNameInput.characters = 14;
 
@@ -429,17 +429,17 @@ function main() {
         var artboardNumberGroup = artboardPanel.add("group");
         artboardNumberGroup.orientation = "row";
         artboardNumberGroup.alignChildren = "center";
-        artboardNumberGroup.add("statictext", undefined, LABELS.startNumber[lang]);
+        artboardNumberGroup.add("statictext", undefined, LABELS.startNumber);
         var artboardNumberInput = artboardNumberGroup.add("edittext", undefined, String(DEFAULT_START_NUMBER));
         artboardNumberInput.characters = 3;
         changeValueByArrowKey(artboardNumberInput);
-        var zeroPadCheckbox = artboardNumberGroup.add('checkbox', undefined, LABELS.zeroPad[lang]);
+        var zeroPadCheckbox = artboardNumberGroup.add('checkbox', undefined, LABELS.zeroPad);
         zeroPadCheckbox.value = true; // デフォルトON / Default ON
 
         // マージン入力欄
         var artboardMarginGroup = artboardColumnGroup.add("group");
         artboardMarginGroup.orientation = "row";
-        artboardMarginGroup.add("statictext", undefined, LABELS.margin[lang]);
+        artboardMarginGroup.add("statictext", undefined, LABELS.margin);
         var artboardMarginInput = artboardMarginGroup.add("edittext", undefined, String(DEFAULT_MARGIN));
         artboardMarginInput.characters = 5;
         changeValueByArrowKey(artboardMarginInput);
@@ -470,8 +470,8 @@ function main() {
         var groupButtons = Dialog.add('group');
         groupButtons.orientation = 'row';
         groupButtons.alignment = "right";
-        groupButtons.add('button', undefined, LABELS.cancel[lang]);
-        var okBtn = groupButtons.add('button', undefined, LABELS.okBtn[lang], {
+        groupButtons.add('button', undefined, LABELS.cancel);
+        var okBtn = groupButtons.add('button', undefined, LABELS.okBtn, {
             name: "ok"
         });
         okBtn.active = true;

@@ -1,5 +1,7 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
+$.localize = true;
 
 /*
 
@@ -65,26 +67,17 @@ ArtboardMaskAndRelease.jsx
 
 ### Change Log
 
-- v1.0.0 (20250710) : Initial version
-- v1.1.0 (20250710) : Added option to remove objects outside artboards, options for locked/hidden objects
+- v1.0 (20250710) : Initial version
+- v1.1 (20250710) : Added option to remove objects outside artboards, options for locked/hidden objects
 
 */
 
 // スクリプトバージョン
 var SCRIPT_VERSION = "v1.1";
 
-// -------------------------------
-// 言語判定関数 / Function to get current language
-// -------------------------------
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
-
-(function () {
     // -------------------------------
     // 日英ラベル定義 / Define labels
     // -------------------------------
-    var lang = getCurrentLang();
     var LABELS = {
         dialogTitle: {
             ja: "アートボードでマスク " + SCRIPT_VERSION,
@@ -98,25 +91,28 @@ function getCurrentLang() {
         releaseOption: { ja: "解除オプション", en: "Release Options" },
         ungroup: { ja: "グループ解除", en: "Ungroup" },
         cancel: { ja: "キャンセル", en: "Cancel" },
-        ok: { ja: "OK", en: "OK" }
+        ok: { ja: "OK", en: "OK" },
+        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
     };
 
+function main() {
+
     if (app.documents.length == 0) {
-        alert(lang == "ja" ? "ドキュメントが開かれていません。" : "No document is open.");
+        alert(LABELS.noDocument);
         return;
     }
 
-    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    var dialog = new Window("dialog", LABELS.dialogTitle);
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
 
-    var panel = dialog.add("panel", undefined, LABELS.modePanel[lang]);
+    var panel = dialog.add("panel", undefined, LABELS.modePanel);
     panel.orientation = "row"; // 横並びに変更
     panel.alignChildren = "left";
     panel.margins = [15, 20, 15, 10];
 
-    var rbMask = panel.add("radiobutton", undefined, lang == "ja" ? "マスク" : "Mask");
-    var rbRelease = panel.add("radiobutton", undefined, lang == "ja" ? "マスク解除" : "Release Mask");
+    var rbMask = panel.add("radiobutton", undefined, LABELS.mask);
+    var rbRelease = panel.add("radiobutton", undefined, "マスク解除");
     rbMask.value = true;
 
     // ラジオボタン切り替え時のパネル有効/無効制御
@@ -129,14 +125,14 @@ function getCurrentLang() {
         releasePanel.enabled = true;
     };
 
-    var marginGroup = dialog.add("panel", undefined, LABELS.maskOption[lang]);
+    var marginGroup = dialog.add("panel", undefined, LABELS.maskOption);
     marginGroup.orientation = "column";
     marginGroup.alignChildren = "left";
     marginGroup.margins = [15, 20, 15, 10];
     var marginRow = marginGroup.add("group");
     marginRow.orientation = "row";
     marginRow.alignChildren = "left";
-    marginRow.add("statictext", undefined, LABELS.margin[lang] + ":");
+    marginRow.add("statictext", undefined, LABELS.margin + ":");
     // --- 単位ラベル追加 ---
     var unitLabelMap = {
         0: "in", 1: "mm", 2: "pt", 3: "pica", 4: "cm", 5: "Q/H", 6: "px",
@@ -153,22 +149,22 @@ function getCurrentLang() {
     var unitLabel = getCurrentUnitLabel();
     marginRow.add("statictext", undefined, "(" + unitLabel + ")");
     
-    var cbRemoveOutside = marginGroup.add("checkbox", undefined, lang == "ja" ? "アートボード外のオブジェクトを削除" : "Remove objects outside artboards");
+    var cbRemoveOutside = marginGroup.add("checkbox", undefined, "アートボード外のオブジェクトを削除");
     cbRemoveOutside.alignment = "left";
 
-    var cbIncludeLocked = marginGroup.add("checkbox", undefined, lang == "ja" ? "ロックされたオブジェクトを含める" : "Include locked objects");
+    var cbIncludeLocked = marginGroup.add("checkbox", undefined, "ロックされたオブジェクトを含める");
     cbIncludeLocked.value = true; // デフォルトをONに設定
 
     // チェックボックス追加
-    var cbIncludeHidden = marginGroup.add("checkbox", undefined, lang == "ja" ? "非表示のオブジェクトを含める" : "Include hidden objects");
+    var cbIncludeHidden = marginGroup.add("checkbox", undefined, "非表示のオブジェクトを含める");
     cbIncludeHidden.value = true; // デフォルトをONに設定
 
-    var releasePanel = dialog.add("panel", undefined, LABELS.releaseOption[lang]);
+    var releasePanel = dialog.add("panel", undefined, LABELS.releaseOption);
     releasePanel.orientation = "column";
     releasePanel.alignChildren = "left";
     releasePanel.margins = [15, 20, 15, 10];
 
-    var cbUngroup = releasePanel.add("checkbox", undefined, LABELS.ungroup[lang]);
+    var cbUngroup = releasePanel.add("checkbox", undefined, LABELS.ungroup);
     cbUngroup.value = true;
     releasePanel.enabled = false;
 
@@ -176,8 +172,8 @@ function getCurrentLang() {
     buttonGroup.orientation = "row";
     buttonGroup.alignment = "right";
 
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
-    var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel, { name: "cancel" });
+    var okBtn = buttonGroup.add("button", undefined, LABELS.ok, { name: "ok" });
 
     var result = dialog.show();
 
@@ -195,7 +191,7 @@ function getCurrentLang() {
     } else if (rbRelease.value) {
         releaseMasks(cbUngroup.value);
     }
-})();
+}
 
 function applyMasks(margin, removeOutside, includeLocked, includeHidden){
     var doc = app.activeDocument;
@@ -319,3 +315,5 @@ function releaseMasks(ungroup){
         }
     }
 }
+
+main();

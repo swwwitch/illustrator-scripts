@@ -1,5 +1,7 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
+$.localize = true; 
 
 /*
 ### スクリプト名：
@@ -29,12 +31,12 @@ AddPageNumberFromTextSelection.jsx
 
 ### 更新履歴
 
-- v1.0.0 (20240401) : 初期バージョン
-- v1.0.1 (20240405) : テキスト複製ロジック修正
-- v1.0.2 (20240410) : ゼロ埋め・接頭辞・総ページ数表示追加
-- v1.0.3 (20240415) : プレビュー機能追加
-- v1.0.4 (20240420) : 「001」形式のゼロ埋め対応
-- v1.0.5 (20240425) : 接尾辞フィールド追加、UI改善
+- v1.0 (20240401) : 初期バージョン
+- v1.1 (20240405) : テキスト複製ロジック修正
+- v1.2 (20240410) : ゼロ埋め・接頭辞・総ページ数表示追加
+- v1.3 (20240415) : プレビュー機能追加
+- v1.4 (20240420) : 「001」形式のゼロ埋め対応
+- v1.5 (20240425) : 接尾辞フィールド追加、UI改善
 
 ---
 
@@ -65,19 +67,14 @@ AddPageNumberFromTextSelection.jsx
 
 ### Update History
 
-- v1.0.0 (20240401): Initial version
-- v1.0.1 (20240405): Fixed text duplication logic
-- v1.0.2 (20240410): Added zero padding, prefix, and total page display
-- v1.0.3 (20240415): Added preview feature
-- v1.0.4 (20240420): Supported "001"-style zero padding
-- v1.0.5 (20240425): Added suffix field, improved UI
+- v1.0 (20240401): Initial version
+- v1.1 (20240405): Fixed text duplication logic
+- v1.2 (20240410): Added zero padding, prefix, and total page display
+- v1.3 (20240415): Added preview feature
+- v1.4 (20240420): Supported "001"-style zero padding
+- v1.5 (20240425): Added suffix field, improved UI
 */
 
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
-
-var lang = getCurrentLang();
 var LABELS = {
     dialogTitle: {
         ja: "ページ番号を追加",
@@ -114,6 +111,14 @@ var LABELS = {
     ok: {
         ja: "OK",
         en: "OK"
+    },
+    noDocument: {
+        ja: "ドキュメントを開いてください。",
+        en: "Please open a document."
+    },
+    invalidNumber: {
+        ja: "開始番号に有効な数値を入力してください。",
+        en: "Please enter a valid number for the starting number."
     }
 };
 
@@ -174,7 +179,10 @@ function generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNu
 }
 
 function main() {
-    if (app.documents.length === 0) return;
+    if (app.documents.length === 0) {
+        alert(LABELS.noDocument);
+        return;
+    }
     var doc = app.activeDocument;
 
     // _pagenumberレイヤー取得または作成
@@ -223,7 +231,7 @@ function main() {
         }
     }
     if (!targetText) {
-        alert(LABELS.errorInvalidSelection[lang]);
+        alert(LABELS.errorInvalidSelection);
         return;
     }
 
@@ -240,12 +248,12 @@ function main() {
 
     // レイヤー・型チェック
     if (targetText.layer.name !== "_pagenumber" || targetText.typename !== "TextFrame") {
-        alert(LABELS.errorInvalidSelection[lang]);
+        alert(LABELS.errorInvalidSelection);
         return;
     }
 
     // ダイアログ作成
-    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    var dialog = new Window("dialog", LABELS.dialogTitle);
     dialog.orientation = "column";
     dialog.alignChildren = "left";
 
@@ -258,7 +266,7 @@ function main() {
     var leftGroup = columnsGroup.add("group");
     leftGroup.orientation = "column";
     leftGroup.alignChildren = "left";
-    leftGroup.add("statictext", undefined, LABELS.prefixLabel[lang]);
+    leftGroup.add("statictext", undefined, LABELS.prefixLabel);
     var prefixField = leftGroup.add("edittext", undefined, "");
     prefixField.characters = 10;
 
@@ -268,25 +276,28 @@ function main() {
     centerGroup.alignChildren = "left";
     var inputGroup = centerGroup.add("group");
     inputGroup.orientation = "column";
-    inputGroup.add("statictext", undefined, LABELS.promptMessage[lang]);
+    inputGroup.add("statictext", undefined, LABELS.promptMessage);
     var inputField = inputGroup.add("edittext", undefined, "1");
     inputField.characters = 5;
-    var zeroPadCheckbox = centerGroup.add("checkbox", undefined, LABELS.zeroPadLabel[lang]);
+    var zeroPadCheckbox = centerGroup.add("checkbox", undefined, LABELS.zeroPadLabel);
 
     // 右カラム: 接尾辞 + 総ページ数
     var rightGroup = columnsGroup.add("group");
     rightGroup.orientation = "column";
     rightGroup.alignChildren = "left";
-    rightGroup.add("statictext", undefined, LABELS.suffixLabel[lang]);
+    rightGroup.add("statictext", undefined, LABELS.suffixLabel);
     var suffixField = rightGroup.add("edittext", undefined, "");
     suffixField.characters = 10;
-    var totalPageCheckbox = rightGroup.add("checkbox", undefined, LABELS.totalPageLabel[lang]);
+    var totalPageCheckbox = rightGroup.add("checkbox", undefined, LABELS.totalPageLabel);
 
     // プレビュー更新関数
     function previewUpdate() {
         var startNumStr = inputField.text;
         var startNum = parseInt(startNumStr, 10);
-        if (isNaN(startNum)) return;
+        if (isNaN(startNum)) {
+            alert(LABELS.invalidNumber);
+            return;
+        }
         var prefix = prefixField.text;
         var zeroPad = zeroPadCheckbox.value;
         var showTotal = totalPageCheckbox.value;
@@ -313,8 +324,8 @@ function main() {
     var buttonGroup = dialog.add("group");
     buttonGroup.orientation = "row";
     buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-    var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang]);
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel);
+    var okBtn = buttonGroup.add("button", undefined, LABELS.ok);
 
     okBtn.onClick = function() {
         if (targetText && !targetText.locked && targetText.editable) {

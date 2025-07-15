@@ -4,8 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 $.localize = true;
 
 // スクリプトバージョン / Script version
-var SCRIPT_VERSION = "v1.0";
-
+var SCRIPT_VERSION = "v1.2";
 
 /*
 ### スクリプト名：
@@ -82,65 +81,278 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 */
 
-if (app.documents.length === 0) {
-    alert("ドキュメントを開いてください。\nPlease open a document.");
-    return;
-}
-
 // ラベル定義 / Label definitions
 var LABELS = {
-    dialogTitle: '段組設定Pro v1.0 / Split into Grid Pro v1.0',
-    presetLabel: 'プリセット： / Preset:',
-    rowTitle: '行（─ 横線） / Rows (─ Horizontal)',
-    columnTitle: '列（│ 縦線） / Columns (│ Vertical)',
-    rowsLabel: '行数： / Rows:',
-    rowGutterLabel: '行間 / Row Gutter',
-    columnsLabel: '列数： / Columns:',
-    colGutterLabel: '列間 / Column Gutter',
-    marginTitle: 'マージン設定 / Margin Settings',
-    topLabel: '上： / Top:',
-    leftLabel: '左： / Left:',
-    bottomLabel: '下： / Bottom:',
-    rightLabel: '右： / Right:',
-    commonMarginLabel: 'すべて同じ値にする / Same Value',
-    guideExtensionLabel: 'ガイドの伸張： / Guide Extension:',
-    bleedGuideLabel: '裁ち落としのガイド： / Bleed Guide:',
-    allBoardsLabel: 'すべてのアートボードに適用 / Apply to All Artboards',
-    cellRectLabel: 'セルを長方形化 / Create Cell Rectangles',
-    drawGuidesLabel: 'ガイドを引く / Draw Guides',
-    clearGuidesLabel: 'grid_guidesレイヤーをクリア / Clear grid_guides Layer',
-    cancelLabel: 'キャンセル / Cancel',
-    applyLabel: '適用 / Apply',
-    okLabel: 'OK / OK',
-    exportPresetLabel: 'プリセット書き出し / Export Preset'
+    dialogTitle: {
+        ja: "段組設定Pro " + SCRIPT_VERSION,
+        en: "Split into Grid Pro " + SCRIPT_VERSION
+    },
+    presetLabel: {
+        ja: "プリセット：",
+        en: "Preset:"
+    },
+    rowTitle: {
+        ja: "行（─ 横線）",
+        en: "Rows (─ Horizontal)"
+    },
+    columnTitle: {
+        ja: "列（│ 縦線）",
+        en: "Columns (│ Vertical)"
+    },
+    rowsLabel: {
+        ja: "行数：",
+        en: "Rows:"
+    },
+    rowGutterLabel: {
+        ja: "行間",
+        en: "Row Gutter"
+    },
+    columnsLabel: {
+        ja: "列数：",
+        en: "Columns:"
+    },
+    colGutterLabel: {
+        ja: "列間",
+        en: "Column Gutter"
+    },
+    marginTitle: {
+        ja: "マージン設定",
+        en: "Margin Settings"
+    },
+    topLabel: {
+        ja: "上：",
+        en: "Top:"
+    },
+    leftLabel: {
+        ja: "左：",
+        en: "Left:"
+    },
+    bottomLabel: {
+        ja: "下：",
+        en: "Bottom:"
+    },
+    rightLabel: {
+        ja: "右：",
+        en: "Right:"
+    },
+    commonMarginLabel: {
+        ja: "すべて同じ値にする",
+        en: "Same Value"
+    },
+    guideExtensionLabel: {
+        ja: "ガイドの伸張：",
+        en: "Guide Extension:"
+    },
+    bleedGuideLabel: {
+        ja: "裁ち落としのガイド：",
+        en: "Bleed Guide:"
+    },
+    allBoardsLabel: {
+        ja: "すべてのアートボードに適用",
+        en: "Apply to All Artboards"
+    },
+    cellRectLabel: {
+        ja: "セルを長方形化",
+        en: "Create Cell Rectangles"
+    },
+    drawGuidesLabel: {
+        ja: "ガイドを引く",
+        en: "Draw Guides"
+    },
+    clearGuidesLabel: {
+        ja: "grid_guidesレイヤーをクリア",
+        en: "Clear grid_guides Layer"
+    },
+    cancelLabel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    applyLabel: {
+        ja: "適用",
+        en: "Apply"
+    },
+    okLabel: {
+        ja: "OK",
+        en: "OK"
+    },
+    exportPresetLabel: {
+        ja: "プリセット書き出し",
+        en: "Export Preset"
+    }
 };
 
 // プリセット定義（drawGuides, drawBleedGuide追加） / Preset definitions (drawGuides, drawBleedGuide added)
-var presets = [
-    { label: "十字 / Cross", x: 2, y: 2, ext: 0, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: false, drawGuides: true, drawBleedGuide: false },
-    { label: "シングル / Single", x: 1, y: 1, ext: 50, top: 100, bottom: 100, left: 100, right: 100, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: true, drawBleedGuide: false },
-    { label: "2行×2列 / 2 Rows × 2 Columns", x: 2, y: 2, ext: 20, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 50, colGutter: 50, drawCells: true, drawGuides: true, drawBleedGuide: false },
-    { label: "1行×3列 / 1 Row × 3 Columns", x: 3, y: 1, ext: 0, top: 30, bottom: 30, left: 30, right: 30, rowGutter: 0, colGutter: 30, drawCells: true, drawGuides: true, drawBleedGuide: false },
-    { label: "4行×4列 / 4 Rows × 4 Columns", x: 4, y: 4, ext: 0, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 20, colGutter: 20, drawCells: true, drawGuides: true, drawBleedGuide: false },
-    { label: "2行×3列 / 3 Rows × 3 Columns", x: 3, y: 2, ext: 0, top: 100, bottom: 100, left: 100, right: 100, rowGutter: 20, colGutter: 20, drawCells: true, drawGuides: true, drawBleedGuide: false },
-    { label: "3行×3列 / 3 Rows × 3 Columns", x: 3, y: 3, ext: 0, top: 0, bottom: 0, left: 200, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: true, drawBleedGuide: false },
-    { label: "sp / sp", x: 1, y: 1, ext: 0, top: 220, bottom: 220, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: true, drawBleedGuide: false },
-    { label: "長方形のみ / just rectangle", x: 1, y: 1, ext: 10, top: 0, bottom: 0, left: 0, right: 0, rowGutter: 0, colGutter: 0, drawCells: true, drawGuides: false, drawBleedGuide: false }
-];
+    var presets = [{
+            label: "十字 / Cross",
+            x: 2,
+            y: 2,
+            ext: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            rowGutter: 0,
+            colGutter: 0,
+            drawCells: false,
+            drawGuides: true,
+            drawBleedGuide: false
+        },
+        {
+            label: "シングル / Single",
+            x: 1,
+            y: 1,
+            ext: 50,
+            top: 100,
+            bottom: 100,
+            left: 100,
+            right: 100,
+            rowGutter: 0,
+            colGutter: 0,
+            drawCells: true,
+            drawGuides: true,
+            drawBleedGuide: false
+        },
+        {
+            label: "2行×2列 / 2 Rows × 2 Columns",
+            x: 2,
+            y: 2,
+            ext: 20,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            rowGutter: 50,
+            colGutter: 50,
+            drawCells: true,
+            drawGuides: true,
+            drawBleedGuide: false
+        },
+        {
+            label: "1行×3列 / 1 Row × 3 Columns",
+            x: 3,
+            y: 1,
+            ext: 0,
+            top: 30,
+            bottom: 30,
+            left: 30,
+            right: 30,
+            rowGutter: 0,
+            colGutter: 30,
+            drawCells: true,
+            drawGuides: true,
+            drawBleedGuide: false
+        },
+        {
+            label: "4行×4列 / 4 Rows × 4 Columns",
+            x: 4,
+            y: 4,
+            ext: 0,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            rowGutter: 20,
+            colGutter: 20,
+            drawCells: true,
+            drawGuides: true,
+            drawBleedGuide: false
+        },
+        {
+            label: "2行×3列 / 3 Rows × 3 Columns",
+            x: 3,
+            y: 2,
+            ext: 0,
+            top: 100,
+            bottom: 100,
+            left: 100,
+            right: 100,
+            rowGutter: 20,
+            colGutter: 20,
+            drawCells: true,
+            drawGuides: true,
+            drawBleedGuide: false
+        },
+        {
+            label: "3行×3列 / 3 Rows × 3 Columns",
+            x: 3,
+            y: 3,
+            ext: 0,
+            top: 0,
+            bottom: 0,
+            left: 200,
+            right: 0,
+            rowGutter: 0,
+            colGutter: 0,
+            drawCells: true,
+            drawGuides: true,
+            drawBleedGuide: false
+        },
+        {
+            label: "sp / sp",
+            x: 1,
+            y: 1,
+            ext: 0,
+            top: 220,
+            bottom: 220,
+            left: 0,
+            right: 0,
+            rowGutter: 0,
+            colGutter: 0,
+            drawCells: true,
+            drawGuides: true,
+            drawBleedGuide: false
+        },
+        {
+            label: "長方形のみ / just rectangle",
+            x: 1,
+            y: 1,
+            ext: 10,
+            top: 0,
+            bottom: 0,
+            left: 0,
+            right: 0,
+            rowGutter: 0,
+            colGutter: 0,
+            drawCells: true,
+            drawGuides: false,
+            drawBleedGuide: false
+        }
+    ];
 
-var doc = app.activeDocument;
-var rulerUnit = app.preferences.getIntegerPreference("rulerType");
-var unitLabel = "pt";
-var unitFactor = 1.0;
+function main() {
+    if (app.documents.length === 0) {
+        alert("ドキュメントを開いてください。\nPlease open a document.");
+        return;
+    }
 
-// 単位設定
-if (rulerUnit === 0) { unitLabel = "inch"; unitFactor = 72.0; }
-else if (rulerUnit === 1) { unitLabel = "mm"; unitFactor = 72.0 / 25.4; }
-else if (rulerUnit === 2) { unitLabel = "pt"; unitFactor = 1.0; }
-else if (rulerUnit === 3) { unitLabel = "pica"; unitFactor = 12.0; }
-else if (rulerUnit === 4) { unitLabel = "cm"; unitFactor = 72.0 / 2.54; }
-else if (rulerUnit === 5) { unitLabel = "Q"; unitFactor = 72.0 / 25.4 * 0.25; }
-else if (rulerUnit === 6) { unitLabel = "px"; unitFactor = 1.0; }
+    var doc = app.activeDocument;
+    var rulerUnit = app.preferences.getIntegerPreference("rulerType");
+    var unitLabel = "pt";
+    var unitFactor = 1.0;
+
+    // 単位設定
+    if (rulerUnit === 0) {
+        unitLabel = "inch";
+        unitFactor = 72.0;
+    } else if (rulerUnit === 1) {
+        unitLabel = "mm";
+        unitFactor = 72.0 / 25.4;
+    } else if (rulerUnit === 2) {
+        unitLabel = "pt";
+        unitFactor = 1.0;
+    } else if (rulerUnit === 3) {
+        unitLabel = "pica";
+        unitFactor = 12.0;
+    } else if (rulerUnit === 4) {
+        unitLabel = "cm";
+        unitFactor = 72.0 / 2.54;
+    } else if (rulerUnit === 5) {
+        unitLabel = "Q";
+        unitFactor = 72.0 / 25.4 * 0.25;
+    } else if (rulerUnit === 6) {
+        unitLabel = "px";
+        unitFactor = 1.0;
+    }
     // ダイアログ作成 / Create dialog
     var dlg = new Window("dialog", LABELS.dialogTitle);
     dlg.orientation = "column";
@@ -162,58 +374,58 @@ else if (rulerUnit === 6) { unitLabel = "px"; unitFactor = 1.0; }
     var btnExportPreset = presetGroup.add("button", undefined, LABELS.exportPresetLabel);
 
 
-btnExportPreset.onClick = function () {
-    var saveFile = File.saveDialog("プリセットを書き出す場所と名前を指定してください / Choose where to save the preset", "*.txt");
-    if (!saveFile) {
-        return;
-    }
+    btnExportPreset.onClick = function() {
+        var saveFile = File.saveDialog("プリセットを書き出す場所と名前を指定してください / Choose where to save the preset", "*.txt");
+        if (!saveFile) {
+            return;
+        }
 
-    // 拡張子がない場合は.txtをつける / Add .txt extension if missing
-    if (saveFile.name.indexOf(".") === -1) {
-        saveFile = new File(saveFile.fsName + ".txt");
-    }
+        // 拡張子がない場合は.txtをつける / Add .txt extension if missing
+        if (saveFile.name.indexOf(".") === -1) {
+            saveFile = new File(saveFile.fsName + ".txt");
+        }
 
-    // ★ファイル名から.txtを正しく除去！ / Remove .txt extension from file name
-    var fileName = saveFile.name.replace(/\.txt$/i, "");
+        // ★ファイル名から.txtを正しく除去！ / Remove .txt extension from file name
+        var fileName = saveFile.name.replace(/\.txt$/i, "");
 
-    var currentPreset = {
-        x: parseInt(inputXText.text, 10),
-        y: parseInt(inputYText.text, 10),
-        ext: parseFloat(inputExt.text),
-        top: parseFloat(inputTop.text),
-        bottom: parseFloat(inputBottom.text),
-        left: parseFloat(inputLeft.text),
-        right: parseFloat(inputRight.text),
-        rowGutter: parseFloat(inputRowGutter.text),
-        colGutter: parseFloat(inputColGutter.text),
-        drawCells: cellRectCheckbox.value,
-        drawGuides: drawGuidesCheckbox.value,
-        drawBleedGuide: bleedGuideCheckbox.value
+        var currentPreset = {
+            x: parseInt(inputXText.text, 10),
+            y: parseInt(inputYText.text, 10),
+            ext: parseFloat(inputExt.text),
+            top: parseFloat(inputTop.text),
+            bottom: parseFloat(inputBottom.text),
+            left: parseFloat(inputLeft.text),
+            right: parseFloat(inputRight.text),
+            rowGutter: parseFloat(inputRowGutter.text),
+            colGutter: parseFloat(inputColGutter.text),
+            drawCells: cellRectCheckbox.value,
+            drawGuides: drawGuidesCheckbox.value,
+            drawBleedGuide: bleedGuideCheckbox.value
+        };
+
+        var presetString = '{ label: "' + fileName + '", ' +
+            'x: ' + currentPreset.x + ', ' +
+            'y: ' + currentPreset.y + ', ' +
+            'ext: ' + currentPreset.ext + ', ' +
+            'top: ' + currentPreset.top + ', ' +
+            'bottom: ' + currentPreset.bottom + ', ' +
+            'left: ' + currentPreset.left + ', ' +
+            'right: ' + currentPreset.right + ', ' +
+            'rowGutter: ' + currentPreset.rowGutter + ', ' +
+            'colGutter: ' + currentPreset.colGutter + ', ' +
+            'drawCells: ' + currentPreset.drawCells + ', ' +
+            'drawGuides: ' + currentPreset.drawGuides + ', ' +
+            'drawBleedGuide: ' + currentPreset.drawBleedGuide +
+            ' }';
+
+        if (saveFile.open("w")) {
+            saveFile.write(presetString);
+            saveFile.close();
+            alert("プリセットを書き出しました！ / Preset exported!");
+        } else {
+            alert("ファイルを書き込めませんでした。 / Failed to write the file.");
+        }
     };
-
-    var presetString = '{ label: "' + fileName + '", ' +
-        'x: ' + currentPreset.x + ', ' +
-        'y: ' + currentPreset.y + ', ' +
-        'ext: ' + currentPreset.ext + ', ' +
-        'top: ' + currentPreset.top + ', ' +
-        'bottom: ' + currentPreset.bottom + ', ' +
-        'left: ' + currentPreset.left + ', ' +
-        'right: ' + currentPreset.right + ', ' +
-        'rowGutter: ' + currentPreset.rowGutter + ', ' +
-        'colGutter: ' + currentPreset.colGutter + ', ' +
-        'drawCells: ' + currentPreset.drawCells + ', ' +
-        'drawGuides: ' + currentPreset.drawGuides + ', ' +
-        'drawBleedGuide: ' + currentPreset.drawBleedGuide +
-        ' }';
-
-    if (saveFile.open("w")) {
-        saveFile.write(presetString);
-        saveFile.close();
-        alert("プリセットを書き出しました！ / Preset exported!");
-    } else {
-        alert("ファイルを書き込めませんでした。 / Failed to write the file.");
-    }
-};
 
     // グリッド設定グループ / Grid settings group
     var gridGroup = dlg.add("group");
@@ -255,64 +467,64 @@ btnExportPreset.onClick = function () {
     inputColGutter.characters = 4;
     colGutterGroup.add("statictext", undefined, unitLabel);
 
-// マージン全体パネル / Margin panel
-var marginPanel = dlg.add("panel", undefined, LABELS.marginTitle + " (" + unitLabel + ")");
-marginPanel.orientation = "column";
-marginPanel.alignChildren = "left";
-marginPanel.margins = [10, 15, 10, 15];
+    // マージン全体パネル / Margin panel
+    var marginPanel = dlg.add("panel", undefined, LABELS.marginTitle + " (" + unitLabel + ")");
+    marginPanel.orientation = "column";
+    marginPanel.alignChildren = "left";
+    marginPanel.margins = [10, 15, 10, 15];
 
-// --- 上段グループ（左／上下／右） / Upper group (left/up-down/right) ---
-var upperGroup = marginPanel.add("group");
-upperGroup.orientation = "row";
-upperGroup.alignChildren = "top";
+    // --- 上段グループ（左／上下／右） / Upper group (left/up-down/right) ---
+    var upperGroup = marginPanel.add("group");
+    upperGroup.orientation = "row";
+    upperGroup.alignChildren = "top";
 
-// --- 左だけグループ / Left only group ---
-var leftGroup = upperGroup.add("group");
-leftGroup.orientation = "row";
-leftGroup.alignChildren = "center";
-leftGroup.margins = [0, 12, 0, 10];
+    // --- 左だけグループ / Left only group ---
+    var leftGroup = upperGroup.add("group");
+    leftGroup.orientation = "row";
+    leftGroup.alignChildren = "center";
+    leftGroup.margins = [0, 12, 0, 10];
 
-leftGroup.add("statictext", undefined, LABELS.leftLabel);
-var inputLeft = leftGroup.add("edittext", undefined, "0");
-inputLeft.characters = 5;
+    leftGroup.add("statictext", undefined, LABELS.leftLabel);
+    var inputLeft = leftGroup.add("edittext", undefined, "0");
+    inputLeft.characters = 5;
 
-// --- 上下グループ / Up-down group ---
-var topBottomGroup = upperGroup.add("group");
-topBottomGroup.orientation = "column";
-topBottomGroup.alignChildren = "left";
-topBottomGroup.margins = [5, 0, 5, 0];
+    // --- 上下グループ / Up-down group ---
+    var topBottomGroup = upperGroup.add("group");
+    topBottomGroup.orientation = "column";
+    topBottomGroup.alignChildren = "left";
+    topBottomGroup.margins = [5, 0, 5, 0];
 
-var topGroup = topBottomGroup.add("group");
-topGroup.orientation = "row";
-topGroup.add("statictext", undefined, LABELS.topLabel);
-var inputTop = topGroup.add("edittext", undefined, "0");
-inputTop.characters = 5;
+    var topGroup = topBottomGroup.add("group");
+    topGroup.orientation = "row";
+    topGroup.add("statictext", undefined, LABELS.topLabel);
+    var inputTop = topGroup.add("edittext", undefined, "0");
+    inputTop.characters = 5;
 
-var bottomGroup = topBottomGroup.add("group");
-bottomGroup.orientation = "row";
-bottomGroup.add("statictext", undefined, LABELS.bottomLabel);
-var inputBottom = bottomGroup.add("edittext", undefined, "0");
-inputBottom.characters = 5;
+    var bottomGroup = topBottomGroup.add("group");
+    bottomGroup.orientation = "row";
+    bottomGroup.add("statictext", undefined, LABELS.bottomLabel);
+    var inputBottom = bottomGroup.add("edittext", undefined, "0");
+    inputBottom.characters = 5;
 
-// --- 右だけグループ / Right only group ---
-var rightGroup = upperGroup.add("group");
-rightGroup.orientation = "row";
-rightGroup.alignChildren = "center";
-rightGroup.margins = [0, 12, 0, 10];
+    // --- 右だけグループ / Right only group ---
+    var rightGroup = upperGroup.add("group");
+    rightGroup.orientation = "row";
+    rightGroup.alignChildren = "center";
+    rightGroup.margins = [0, 12, 0, 10];
 
-rightGroup.add("statictext", undefined, LABELS.rightLabel);
-var inputRight = rightGroup.add("edittext", undefined, "0");
-inputRight.characters = 5;
+    rightGroup.add("statictext", undefined, LABELS.rightLabel);
+    var inputRight = rightGroup.add("edittext", undefined, "0");
+    inputRight.characters = 5;
 
-// --- 共通マージングループ（下段に追加） / Common margin group (bottom) ---
-var commonGroup = marginPanel.add("group");
-commonGroup.orientation = "row";
-commonGroup.alignChildren = "center";
-commonGroup.margins = [0, 10, 0, 0];
+    // --- 共通マージングループ（下段に追加） / Common margin group (bottom) ---
+    var commonGroup = marginPanel.add("group");
+    commonGroup.orientation = "row";
+    commonGroup.alignChildren = "center";
+    commonGroup.margins = [0, 10, 0, 0];
 
-var commonMarginCheckbox = commonGroup.add("checkbox", undefined, LABELS.commonMarginLabel);
-var commonMarginInput = commonGroup.add("edittext", undefined, "0");
-commonMarginInput.characters = 5;
+    var commonMarginCheckbox = commonGroup.add("checkbox", undefined, LABELS.commonMarginLabel);
+    var commonMarginInput = commonGroup.add("edittext", undefined, "0");
+    commonMarginInput.characters = 5;
 
     // オプション設定グループ（ガイドの伸張・裁ち落としガイド・セル長方形化・ガイドを引く）/ Options group (guide extension, bleed guide, cell rectangle, draw guides)
     var optGroup = dlg.add("group");
@@ -398,7 +610,9 @@ commonMarginInput.characters = 5;
     var leftGroup = outerGroup.add("group");
     leftGroup.orientation = "row";
     leftGroup.alignChildren = "left";
-    var btnCancel = leftGroup.add("button", undefined, LABELS.cancelLabel, { name: "cancel" });
+    var btnCancel = leftGroup.add("button", undefined, LABELS.cancelLabel, {
+        name: "cancel"
+    });
 
     // スペーサー（横に伸びる空白）/ Spacer (horizontal stretch)
     var spacer = outerGroup.add("group");
@@ -412,7 +626,9 @@ commonMarginInput.characters = 5;
     rightGroup.alignChildren = "right";
     rightGroup.spacing = 10;
     var btnApply = rightGroup.add("button", undefined, LABELS.applyLabel);
-    var btnOK = rightGroup.add("button", undefined, LABELS.okLabel, { name: "ok" });
+    var btnOK = rightGroup.add("button", undefined, LABELS.okLabel, {
+        name: "ok"
+    });
 
     // プリセットをドロップダウンに追加 / Add presets to dropdown
     for (var i = 0; i < presets.length; i++) {
@@ -421,7 +637,7 @@ commonMarginInput.characters = 5;
     presetDropdown.selection = 0;
 
     // プリセット選択時、入力値を反映
-    presetDropdown.onChange = function () {
+    presetDropdown.onChange = function() {
         var p = presets[presetDropdown.selection.index];
         inputXText.text = p.x;
         inputYText.text = p.y;
@@ -469,12 +685,12 @@ commonMarginInput.characters = 5;
         inputRowGutter.enabled = (yVal > 1);
         inputColGutter.enabled = (xVal > 1);
     }
-    inputXText.onChanging = inputYText.onChanging = function () {
+    inputXText.onChanging = inputYText.onChanging = function() {
         updateGutterEnable();
     };
 
     // 「ガイドを引く」オプション切り替え時、伸張・裁ち落としをディム制御 / Enable/disable extension and bleed on draw guides toggle
-    drawGuidesCheckbox.onClick = function () {
+    drawGuidesCheckbox.onClick = function() {
         var enable = drawGuidesCheckbox.value;
         inputExt.enabled = enable;
         bleedGuideCheckbox.enabled = enable;
@@ -483,7 +699,7 @@ commonMarginInput.characters = 5;
     };
 
     // 適用ボタン押下時 / Apply button pressed
-    btnApply.onClick = function () {
+    btnApply.onClick = function() {
         updateGutterEnable();
         if (clearGuidesCheckbox.value) {
             clearGuidesLayer();
@@ -492,7 +708,7 @@ commonMarginInput.characters = 5;
     };
 
     // OKボタン押下時 / OK button pressed
-    btnOK.onClick = function () {
+    btnOK.onClick = function() {
         updateGutterEnable();
         if (clearGuidesCheckbox.value) {
             clearGuidesLayer();
@@ -547,7 +763,10 @@ commonMarginInput.characters = 5;
 
             var ab = doc.artboards[b];
             var rect = ab.artboardRect;
-            var abLeft = rect[0], abTop = rect[1], abRight = rect[2], abBottom = rect[3];
+            var abLeft = rect[0],
+                abTop = rect[1],
+                abRight = rect[2],
+                abBottom = rect[3];
             var baseLeft = abLeft + left;
             var baseRight = abRight - right;
             var baseTop = abTop - top;
@@ -572,14 +791,20 @@ commonMarginInput.characters = 5;
                     var centerY = (baseTop + baseBottom) / 2;
 
                     var vCenter = doc.pathItems.add();
-                    vCenter.setEntirePath([[centerX, abTop + ext], [centerX, abBottom - ext]]);
+                    vCenter.setEntirePath([
+                        [centerX, abTop + ext],
+                        [centerX, abBottom - ext]
+                    ]);
                     vCenter.stroked = false;
                     vCenter.filled = false;
                     vCenter.guides = true;
                     vCenter.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
 
                     var hCenter = doc.pathItems.add();
-                    hCenter.setEntirePath([[abLeft - ext, centerY], [abRight + ext, centerY]]);
+                    hCenter.setEntirePath([
+                        [abLeft - ext, centerY],
+                        [abRight + ext, centerY]
+                    ]);
                     hCenter.stroked = false;
                     hCenter.filled = false;
                     hCenter.guides = true;
@@ -588,7 +813,10 @@ commonMarginInput.characters = 5;
                     // 通常ガイド描画（行・列）
                     var y = baseTop;
                     var line = doc.pathItems.add();
-                    line.setEntirePath([[guideLeft, y], [guideRight, y]]);
+                    line.setEntirePath([
+                        [guideLeft, y],
+                        [guideRight, y]
+                    ]);
                     line.stroked = false;
                     line.filled = false;
                     line.guides = true;
@@ -597,7 +825,10 @@ commonMarginInput.characters = 5;
                     for (var j = 0; j < yDiv; j++) {
                         y -= cellHeight;
                         var line1 = doc.pathItems.add();
-                        line1.setEntirePath([[guideLeft, y], [guideRight, y]]);
+                        line1.setEntirePath([
+                            [guideLeft, y],
+                            [guideRight, y]
+                        ]);
                         line1.stroked = false;
                         line1.filled = false;
                         line1.guides = true;
@@ -606,7 +837,10 @@ commonMarginInput.characters = 5;
                         if (j < yDiv - 1) {
                             y -= rowGutter;
                             var line2 = doc.pathItems.add();
-                            line2.setEntirePath([[guideLeft, y], [guideRight, y]]);
+                            line2.setEntirePath([
+                                [guideLeft, y],
+                                [guideRight, y]
+                            ]);
                             line2.stroked = false;
                             line2.filled = false;
                             line2.guides = true;
@@ -616,7 +850,10 @@ commonMarginInput.characters = 5;
 
                     y = baseBottom;
                     var lineBottom = doc.pathItems.add();
-                    lineBottom.setEntirePath([[guideLeft, y], [guideRight, y]]);
+                    lineBottom.setEntirePath([
+                        [guideLeft, y],
+                        [guideRight, y]
+                    ]);
                     lineBottom.stroked = false;
                     lineBottom.filled = false;
                     lineBottom.guides = true;
@@ -624,7 +861,10 @@ commonMarginInput.characters = 5;
 
                     var x = baseLeft;
                     var vline = doc.pathItems.add();
-                    vline.setEntirePath([[x, guideTop], [x, guideBottom]]);
+                    vline.setEntirePath([
+                        [x, guideTop],
+                        [x, guideBottom]
+                    ]);
                     vline.stroked = false;
                     vline.filled = false;
                     vline.guides = true;
@@ -633,7 +873,10 @@ commonMarginInput.characters = 5;
                     for (var i = 0; i < xDiv; i++) {
                         x += cellWidth;
                         var vline1 = doc.pathItems.add();
-                        vline1.setEntirePath([[x, guideTop], [x, guideBottom]]);
+                        vline1.setEntirePath([
+                            [x, guideTop],
+                            [x, guideBottom]
+                        ]);
                         vline1.stroked = false;
                         vline1.filled = false;
                         vline1.guides = true;
@@ -642,7 +885,10 @@ commonMarginInput.characters = 5;
                         if (i < xDiv - 1) {
                             x += colGutter;
                             var vline2 = doc.pathItems.add();
-                            vline2.setEntirePath([[x, guideTop], [x, guideBottom]]);
+                            vline2.setEntirePath([
+                                [x, guideTop],
+                                [x, guideBottom]
+                            ]);
                             vline2.stroked = false;
                             vline2.filled = false;
                             vline2.guides = true;
@@ -652,7 +898,10 @@ commonMarginInput.characters = 5;
 
                     x = baseRight;
                     var vlineRight = doc.pathItems.add();
-                    vlineRight.setEntirePath([[x, guideTop], [x, guideBottom]]);
+                    vlineRight.setEntirePath([
+                        [x, guideTop],
+                        [x, guideBottom]
+                    ]);
                     vlineRight.stroked = false;
                     vlineRight.filled = false;
                     vlineRight.guides = true;
@@ -761,4 +1010,6 @@ commonMarginInput.characters = 5;
     } else {
         removePreviewGuides();
     }
+}
 
+main();
