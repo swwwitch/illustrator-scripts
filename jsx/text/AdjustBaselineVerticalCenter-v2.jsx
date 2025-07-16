@@ -1,4 +1,3 @@
-// Illustrator Script Target & Preferences
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -8,7 +7,7 @@ $.localize = true;
 
 ### スクリプト名：
 
-SmartBaselineShifter.jsx
+AdjustBaselineVerticalCenter-v2.jsx
 
 ### Readme （GitHub）：
 
@@ -16,20 +15,20 @@ https://github.com/creold/illustrator-scripts
 
 ### 概要：
 
-- 指定した文字を基準文字の位置に合わせてベースラインを調整
-- 選択中の複数テキストフレームに一括適用可能
+- 指定した文字（複数可）を基準文字に合わせて縦方向（ベースライン）を調整
+- 複数テキストフレームに一括適用可能
 
 ### 主な機能：
 
-- 対象文字と基準文字の指定
-- 自動計算と手動シフト量指定
+- 複数対象文字の指定と一括調整
+- 自動的に最頻出記号を対象文字に設定
 - 日本語／英語 UI 対応
 
 ### 処理の流れ：
 
-1. ダイアログで文字とシフト量を指定
-2. 必要に応じて自動計算でシフト量を算出
-3. 各テキストフレーム内の対象文字にベースラインシフトを適用
+1. ダイアログで文字を指定
+2. アウトライン作成し中心Yを取得
+3. 差分に基づきベースラインシフトを適用
 
 ### オリジナル、謝辞：
 
@@ -38,13 +37,13 @@ Egor Chistyakov https://x.com/tchegr
 ### 更新履歴：
 
 - v1.0 (20250704): 初版リリース
-- v1.7 (20250716): コード整理、プレビュー改善
+- v1.6 (20250705): 複数対象文字対応、一括調整対応
 
 ---
 
 ### Script Name:
 
-SmartBaselineShifter.jsx
+AdjustBaselineVerticalCenter-v2.jsx
 
 ### Readme (GitHub):
 
@@ -52,20 +51,20 @@ https://github.com/creold/illustrator-scripts
 
 ### Overview:
 
-- Adjust baseline of specified characters to align with reference character
-- Supports batch application to multiple selected text frames
+- Adjust vertical (baseline) position of specified characters to match a reference character
+- Supports batch application to multiple text frames
 
 ### Main Features:
 
-- Specify target and reference characters
-- Supports automatic calculation and manual shift input
+- Supports multiple target characters and batch adjustment
+- Automatically detects most frequent symbol as default
 - Japanese / English UI support
 
 ### Process Flow:
 
-1. Specify characters and shift amount in dialog
-2. Optionally calculate shift amount automatically
-3. Apply baseline shift to target characters in text frames
+1. Specify characters in dialog
+2. Create outlines and get center Y
+3. Apply baseline shift based on difference
 
 ### Original / Acknowledgements:
 
@@ -74,12 +73,12 @@ Egor Chistyakov https://x.com/tchegr
 ### Update History:
 
 - v1.0 (20250704): Initial release
-- v1.7 (20250716): Refactoring, improved preview
+- v1.6 (20250705): Support for multiple target characters and batch adjustment
 
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.7";
+var SCRIPT_VERSION = "v1.6";
 
 var LABELS = {
     dialogTitle: {
@@ -97,10 +96,6 @@ var LABELS = {
     okBtnLabel: {
         ja: "調整",
         en: "Adjust"
-    },
-    adjustBtnLabel: {
-        ja: "計算",
-        en: "Calculate"
     },
     cancelBtnLabel: {
         ja: "キャンセル",
@@ -135,8 +130,8 @@ var LABELS = {
         en: "Shift Amount:"
     },
     autoPanelTitle: {
-        ja: "自動調整（天地）",
-        en: "Auto Adjust (Vertical)"
+        ja: "自動調整",
+        en: "Auto Adjust"
     },
     numericErrorMsg: {
         ja: "シフト量は数値で入力してください。",
@@ -170,8 +165,37 @@ function getCurrentUnitLabel() {
     return unitLabelMap[unitCode] || "pt";
 }
 
+/* 単位コードからポイント換算係数を取得 / Get point factor from unit code */
+function getPtFactorFromUnitCode(code) {
+    switch (code) {
+        case 0:
+            return 72.0; // in
+        case 1:
+            return 72.0 / 25.4; // mm
+        case 2:
+            return 1.0; // pt
+        case 3:
+            return 12.0; // pica
+        case 4:
+            return 72.0 / 2.54; // cm
+        case 5:
+            return 72.0 / 25.4 * 0.25; // Q or H
+        case 6:
+            return 1.0; // px
+        case 7:
+            return 72.0 * 12.0; // ft/in
+        case 8:
+            return 72.0 / 25.4 * 1000.0; // m
+        case 9:
+            return 72.0 * 36.0; // yd
+        case 10:
+            return 72.0 * 12.0; // ft
+        default:
+            return 1.0;
+    }
+}
 
-/* EditTextで上下キーによる値の増減を実装 / Enable arrow key increment/decrement on EditText */
+/* EditTextで上下キーによる値の増減を実装 / Enable arrow key increment/decrement on edittext */
 function changeValueByArrowKey(editText, allowNegative, targetInput, textFrames) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);
@@ -210,31 +234,19 @@ function changeValueByArrowKey(editText, allowNegative, targetInput, textFrames)
         }
 
         if (keyboard.altKey) {
-            value = Math.round(value * 10) / 10; /* 小数第1位まで / Round to 1 decimal */
+            value = Math.round(value * 10) / 10; // 小数第1位まで / Round to 1 decimal
         } else {
-            value = Math.round(value); /* 整数に丸め / Round to integer */
+            value = Math.round(value); // 整数に丸め / Round to integer
         }
 
         if (!allowNegative && value < 0) value = 0;
 
         event.preventDefault();
         editText.text = value;
-        /* プレビュー更新 / Update preview */
         if (typeof previewShiftAll === "function" && targetInput && textFrames) {
             previewShiftAll(targetInput, editText, textFrames);
         }
     });
-}
-
-/* 指定テキストフレームの特定文字にベースラインシフトを適用 / Apply baseline shift to specific characters in a text frame */
-function applyBaselineShiftToChars(textFrame, targetChar, yOffset) {
-    var chars = textFrame.textRange.characters;
-    for (var j = 0; j < chars.length; j++) {
-        var ch = chars[j].contents;
-        if (ch && ch === targetChar) {
-            chars[j].characterAttributes.baselineShift = -yOffset;
-        }
-    }
 }
 
 /* プレビューとして全選択テキストのベースラインシフトを更新 / Preview baseline shift for all selected text */
@@ -245,6 +257,8 @@ function previewShiftAll(targetInput, shiftInput, textFrames) {
 
     if (!targetText || isNaN(shiftValue)) {
         resetBaselineShift(textFrames);
+        lastTarget = "";
+        lastShift = 0;
         app.redraw();
         return;
     }
@@ -254,14 +268,18 @@ function previewShiftAll(targetInput, shiftInput, textFrames) {
     for (var j = 0; j < textFrames.length; j++) {
         var tf = textFrames[j];
         var contents = tf.contents;
-        /* 対象文字を検出 / Detect target character */
         for (var c = 0; c < targetText.length; c++) {
             var ch = targetText.charAt(c);
-            // Instead of duplicating logic, use the helper function
-            applyBaselineShiftToChars(tf, ch, -shiftValue);
+            var pos = contents.indexOf(ch);
+            while (pos !== -1) {
+                tf.textRange.characters[pos].characterAttributes.baselineShift = shiftValue;
+                pos = contents.indexOf(ch, pos + 1);
+            }
         }
     }
 
+    lastTarget = targetText;
+    lastShift = shiftValue;
     app.redraw();
 }
 
@@ -319,9 +337,6 @@ function showDialog() {
     dialog.orientation = "column";
     dialog.alignChildren = "left";
 
-    // 1️⃣ プレビュー制御用フラグ / Preview control flag
-    var enablePreview = true;
-
     var mainGroup = dialog.add("group");
     mainGroup.orientation = "row";
     mainGroup.alignChildren = ["fill", "top"];
@@ -357,9 +372,7 @@ function showDialog() {
     var unitLabel = shiftGroup.add("statictext", undefined, getCurrentUnitLabel());
     shiftInput.characters = 6;
     changeValueByArrowKey(shiftInput, true, targetInput, app.activeDocument.selection);
-    // 2️⃣ プレビュー制御フラグを用いたonChanging / Use preview control flag in onChanging
     shiftInput.onChanging = function() {
-        if (!enablePreview) return;
         previewShiftAll(targetInput, shiftInput, app.activeDocument.selection);
     };
     shiftInput.active = true;
@@ -374,7 +387,7 @@ function showDialog() {
     refGroup.add("statictext", undefined, LABELS.baseCharLabel[lang]);
     var refInput = refGroup.add("edittext", undefined, "0");
     refInput.characters = 3;
-    var calBtn = refGroup.add("button", [0, 0, 60, 25], LABELS.adjustBtnLabel[lang]);
+    var okBtn = refGroup.add("button", [0, 0, 60, 25], LABELS.okBtnLabel[lang]);
 
     var buttonGroup = mainGroup.add("group");
     buttonGroup.orientation = "column";
@@ -385,7 +398,7 @@ function showDialog() {
     });
     var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtnLabel[lang]);
 
-    buttonGroup.add("statictext", [0, 0, 0, 30], " "); // Spacer
+    buttonGroup.add("statictext", [0, 0, 0, 20], " "); // Spacer
     var resetBtn = buttonGroup.add("button", undefined, LABELS.resetBtnLabel[lang]);
 
     resetBtn.onClick = function() {
@@ -400,7 +413,7 @@ function showDialog() {
     };
 
     /* 自動調整ボタンのクリック処理 / Auto adjust button click */
-    calBtn.onClick = function() {
+    okBtn.onClick = function() {
         if (targetInput.text.length == 0) {
             alert(LABELS.invalidCharMsg[lang]);
             return;
@@ -418,7 +431,7 @@ function showDialog() {
             alert(LABELS.selectFrameMsg[lang]);
             return;
         }
-        /* 最初の該当文字で基準文字とのY座標差分を計算し、シフト量を設定 / Calculate offset for first valid character */
+        // 最初の該当文字で基準文字とのY座標差分を計算し、シフト量を設定 / Calculate offset for first valid character
         for (var i = 0; i < selection.length; i++) {
             var item = selection[i];
             if (item.typename == "TextFrame") {
@@ -445,13 +458,15 @@ function showDialog() {
             alert(LABELS.invalidCharMsg[lang]);
             return;
         }
+        if (refInput.text.length != 1) {
+            alert(LABELS.invalidCharMsg[lang]);
+            return;
+        }
         var shiftValue = Number(shiftInput.text);
         if (isNaN(shiftValue)) {
             alert(LABELS.numericErrorMsg[lang]);
             return;
         }
-        // 3️⃣ OKボタン押下時にプレビュー無効化 / Disable preview on OK
-        enablePreview = false;
         dialog.close(1);
     };
 
@@ -487,6 +502,29 @@ function main() {
 
         var input = showDialog();
         if (!input) return;
+
+        for (var i = 0; i < selection.length; i++) {
+            var item = selection[i];
+            if (item.typename == "TextFrame") {
+                var contents = item.contents;
+                for (var c = 0; c < input.target.length; c++) {
+                    var targetChar = input.target.charAt(c);
+                    if (contents.indexOf(targetChar) == -1) {
+                        continue;
+                    }
+                    var refCenterY = createOutlineAndGetCenterY(item, input.reference);
+                    var targetCenterY = createOutlineAndGetCenterY(item, targetChar);
+                    var yOffset = targetCenterY - refCenterY;
+                    var chars = item.textRange.characters;
+                    for (var j = 0; j < chars.length; j++) {
+                        var ch = chars[j].contents;
+                        if (ch && ch === targetChar) {
+                            chars[j].characterAttributes.baselineShift = -yOffset;
+                        }
+                    }
+                }
+            }
+        }
 
     } catch (e) {
         alert(LABELS.errorMsg[getLang()] + e);
