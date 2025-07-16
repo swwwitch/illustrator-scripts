@@ -35,6 +35,10 @@ https://github.com/creold/illustrator-scripts
 
 Egor Chistyakov https://x.com/tchegr
 
+### note
+
+https://note.com/dtp_tranist/n/n5e41727cf265
+
 ### 更新履歴：
 
 - v1.0 (20250704): 初版リリース

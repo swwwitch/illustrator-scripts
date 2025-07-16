@@ -15,7 +15,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 - Apply baseline shift (points) individually to specified characters in selected text frames
 - Configure target characters and shift amount in dialog with instant preview
 
-<img alt="" src="https://www.dtp-transit.jp/images/ss-484-440-72-20250715-062111.png" width="50%" />
+<img alt="" src="https://www.dtp-transit.jp/images/ss-742-402-72-20250716-205309.png" width="80%" />
 
 ### Main Features:
 
@@ -39,4 +39,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartBasel
 - v1.4 (20240629): Two-column dialog layout, regex support
 - v1.5 (20240630): Added function for TextRange selection
 - v1.6 (20240630): Removed regex support, fine adjustments
+- v1.7 (20250716): Refactoring, improved preview
+- v1.8 (20250720): Added automatic calculation feature
+
 */

@@ -11,7 +11,7 @@
 - 選択したテキストフレーム内の指定文字にポイント単位でベースラインシフトを個別適用
 - ダイアログで対象文字列とシフト量を設定し、即時プレビュー可能
 
-<img alt="" src="https://www.dtp-transit.jp/images/ss-524-430-72-20250715-060247.png" width="70%" />
+<img alt="" src="https://www.dtp-transit.jp/images/ss-742-402-72-20250716-205309.png" width="70%" />
 
 ### 主な機能：
 
@@ -40,9 +40,13 @@
 3. プレビュー確認
 4. OKで確定、キャンセルで元に戻す
 
+### オリジナル、謝辞：
+
+Egor Chistyakov https://x.com/tchegr
+
 ### note
 
-https://note.com/dtp_tranist/n/n2e19ad0bdb83
+https://note.com/dtp_tranist/n/n5e41727cf265
 
 ### 更新履歴：
 
@@ -52,3 +56,4 @@ https://note.com/dtp_tranist/n/n2e19ad0bdb83
 - v1.5 (20240630) : TextRange選択用関数追加
 - v1.6 (20240630) : 正規表現対応削除、微調整
 - v1.7 (20240630) : ↑↓キーでの値の変更機能追加、UIの再設計
+- - v1.8 (20250720): 自動計算機能を追加
