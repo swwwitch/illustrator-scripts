@@ -460,6 +460,24 @@ function showDialog() {
         dialog.close(0);
     };
 
+    var offsetX = 300;
+    var dialogOpacity = 0.97;
+
+    function shiftDialogPosition(dlg, offsetX, offsetY) {
+        dlg.onShow = function () {
+            var currentX = dlg.location[0];
+            var currentY = dlg.location[1];
+            dlg.location = [currentX + offsetX, currentY + offsetY];
+        };
+    }
+
+    function setDialogOpacity(dlg, opacityValue) {
+        dlg.opacity = opacityValue;
+    }
+
+    setDialogOpacity(dialog, dialogOpacity);
+    shiftDialogPosition(dialog, offsetX, 0);
+
     if (dialog.show() == 1) {
         var shiftValue = Number(shiftInput.text);
         return {
