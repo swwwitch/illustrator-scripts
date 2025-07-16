@@ -46,7 +46,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 
 - [Split text into individual characters](readme.en/TextSplitterPro.md)
 - [Adjust baseline shift for specific characters](readme.en/SmartBaselineShifter.md)
-- [Automatically center specified characters vertically](readme.en/AdjustBaselineVerticalCenter.md)
 
 ## Object arrangement and alignment
 

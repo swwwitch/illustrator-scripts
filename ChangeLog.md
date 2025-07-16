@@ -1,5 +1,10 @@
 # Change Log
 
+### 20250716
+
+### 調整
+
+[特定の文字のベースラインシフトを調整](readme-ja/SmartBaselineShifter.md)をアップデート。自動調整版とマージ。
 
 ## 20250713
 

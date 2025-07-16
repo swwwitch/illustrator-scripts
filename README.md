@@ -45,7 +45,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 - [文字ばらし](readme-ja/TextSplitterPro.md)
 - [特定の文字のベースラインシフトを調整](readme-ja/SmartBaselineShifter.md)
-- [指定文字のベースラインを自動的に天地中央にする](readme-ja/AdjustBaselineVerticalCenter.md)
 
 ## オブジェクトの配置や整列
 
