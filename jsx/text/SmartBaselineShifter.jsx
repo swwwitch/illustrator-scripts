@@ -285,7 +285,8 @@ function createOutlineAndGetCenterY(textFrame, character) {
     return centerY;
 }
 
-/* 選択テキスト内の記号・非英数字の出現頻度を集計 / Count frequency of non-alphanumeric symbols */
+/* 選択テキスト内の全文字の出現頻度を集計し、デフォルト対象文字選択時は非英数字・非日本語のみ考慮 / 
+   Count frequency of all characters; when selecting default target, only consider non-alphanumeric, non-kanji, non-hiragana, non-katakana */
 function getSymbolFrequency(sel) {
     var charCount = {};
     for (var i = 0; i < sel.length; i++) {
@@ -294,9 +295,8 @@ function getSymbolFrequency(sel) {
             var selText = item.contents;
             for (var j = 0; j < selText.length; j++) {
                 var c = selText.charAt(j);
-                if (!c.match(/^[A-Za-z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]$/)) {
-                    charCount[c] = (charCount[c] || 0) + 1;
-                }
+                // Count all characters
+                charCount[c] = (charCount[c] || 0) + 1;
             }
         }
     }
@@ -328,18 +328,21 @@ function showDialog() {
     mainGroup.orientation = "row";
     mainGroup.alignChildren = ["fill", "top"];
 
-    /* デフォルト対象文字を最頻出記号から抽出 / Default target from most frequent symbol */
+    /* デフォルト対象文字を全ユニークな非英数字・非日本語記号から抽出 / Default target from all unique non-alphanumeric, non-Japanese symbols */
     var defaultTarget = "";
     var sel = app.activeDocument.selection;
     if (sel && sel.length > 0) {
         var charCount = getSymbolFrequency(sel);
-        var maxCount = 0;
+        var targetChars = "";
         for (var key in charCount) {
-            if (charCount[key] > maxCount) {
-                maxCount = charCount[key];
-                defaultTarget = key;
+            // Only consider non-alphanumeric, non-kanji, non-hiragana, non-katakana
+            if (!key.match(/^[A-Za-z0-9\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]$/)) {
+                if (targetChars.indexOf(key) === -1) {
+                    targetChars += key;
+                }
             }
         }
+        defaultTarget = targetChars;
     }
 
     var inputGroup = mainGroup.add("group");
