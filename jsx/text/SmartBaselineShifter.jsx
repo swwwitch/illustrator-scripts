@@ -39,6 +39,7 @@ Egor Chistyakov https://x.com/tchegr
 
 - v1.0 (20250704): 初版リリース
 - v1.7 (20250716): コード整理、プレビュー改善
+- v1.8 (20250720): 自動計算機能を追加
 
 ---
 
@@ -75,11 +76,12 @@ Egor Chistyakov https://x.com/tchegr
 
 - v1.0 (20250704): Initial release
 - v1.7 (20250716): Refactoring, improved preview
+- v1.8 (20250720): Added automatic calculation feature
 
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.7";
+var SCRIPT_VERSION = "v1.8";
 
 var LABELS = {
     dialogTitle: {
