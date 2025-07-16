@@ -1,3 +1,23 @@
+// 再帰的に選択内のすべての TextFrame を抽出
+function getAllTextFrames(selection) {
+    var textFrames = [];
+
+    function extractTextFrames(item) {
+        if (item.typename === "TextFrame") {
+            textFrames.push(item);
+        } else if (item.typename === "GroupItem") {
+            for (var i = 0; i < item.pageItems.length; i++) {
+                extractTextFrames(item.pageItems[i]);
+            }
+        }
+    }
+
+    for (var i = 0; i < selection.length; i++) {
+        extractTextFrames(selection[i]);
+    }
+
+    return textFrames;
+}
 // Illustrator Script Target & Preferences
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
@@ -347,7 +367,7 @@ function resetBaselineShift(textFrames) {
 }
 
 /* 対象文字と基準文字を入力するダイアログを表示 / Show dialog to input target and reference characters */
-function showDialog() {
+function showDialog(textFrames) {
     var lang = getLang();
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
@@ -362,9 +382,8 @@ function showDialog() {
 
     /* デフォルト対象文字を全ユニークな非英数字・非日本語記号から抽出 / Default target from all unique non-alphanumeric, non-Japanese symbols */
     var defaultTarget = "";
-    var sel = app.activeDocument.selection;
-    if (sel && sel.length > 0) {
-        var charCount = getSymbolFrequency(sel);
+    if (textFrames && textFrames.length > 0) {
+        var charCount = getSymbolFrequency(textFrames);
         var targetChars = "";
         for (var key in charCount) {
             // Only consider non-alphanumeric, non-kanji, non-hiragana, non-katakana
@@ -394,11 +413,11 @@ function showDialog() {
     var shiftInput = shiftGroup.add("edittext", undefined, "0");
     var unitLabel = shiftGroup.add("statictext", undefined, getCurrentUnitLabel());
     shiftInput.characters = 6;
-    changeValueByArrowKey(shiftInput, true, targetInput, app.activeDocument.selection);
+    changeValueByArrowKey(shiftInput, true, targetInput, textFrames);
     // 2️⃣ プレビュー制御フラグを用いたonChanging / Use preview control flag in onChanging
     shiftInput.onChanging = function() {
         if (!enablePreview) return;
-        previewShiftAll(targetInput, shiftInput, app.activeDocument.selection);
+        previewShiftAll(targetInput, shiftInput, textFrames);
     };
     shiftInput.active = true;
     shiftGroup.margins = [0, 0, 0, 10];
@@ -421,23 +440,24 @@ function showDialog() {
     buttonGroup.orientation = "column";
     buttonGroup.alignChildren = "fill";
 
-    var finalOkBtn = buttonGroup.add("button", undefined, "OK", {
+    var finalOkBtn = buttonGroup.add("button", undefined, LABELS.okBtnLabel[lang], {
         name: "ok"
     });
     finalOkBtn.helpTip = LABELS.helpTips.finalOkBtn[lang];
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtnLabel[lang]);
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtnLabel[lang], {
+        name: "cancel"
+    });
 
     buttonGroup.add("statictext", [0, 0, 0, 30], " "); // Spacer
     var resetBtn = buttonGroup.add("button", undefined, LABELS.resetBtnLabel[lang]);
     resetBtn.helpTip = LABELS.helpTips.resetBtn[lang];
 
     resetBtn.onClick = function() {
-        var selection = app.activeDocument.selection;
-        if (!selection || selection.length == 0) {
+        if (!textFrames || textFrames.length == 0) {
             alert(LABELS.selectFrameMsg[lang]);
             return;
         }
-        resetBaselineShift(selection);
+        resetBaselineShift(textFrames);
         shiftInput.text = "0";
         app.redraw();
     };
@@ -456,14 +476,13 @@ function showDialog() {
             alert(LABELS.docOpenMsg[lang]);
             return;
         }
-        var selection = app.activeDocument.selection;
-        if (!selection || selection.length == 0) {
+        if (!textFrames || textFrames.length == 0) {
             alert(LABELS.selectFrameMsg[lang]);
             return;
         }
         /* 最初の該当文字で基準文字とのY座標差分を計算し、シフト量を設定 / Calculate offset for first valid character */
-        for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
+        for (var i = 0; i < textFrames.length; i++) {
+            var item = textFrames[i];
             if (item.typename == "TextFrame") {
                 var contents = item.contents;
                 for (var c = 0; c < targetInput.text.length; c++) {
@@ -475,7 +494,7 @@ function showDialog() {
                     var targetCenterY = createOutlineAndGetCenterY(item, targetChar);
                     var yOffset = refCenterY - targetCenterY;
                     shiftInput.text = yOffset.toFixed(4);
-                    previewShiftAll(targetInput, shiftInput, app.activeDocument.selection);
+                    previewShiftAll(targetInput, shiftInput, textFrames);
                     return;
                 }
             }
@@ -541,13 +560,32 @@ function main() {
             return;
         }
 
+        // --- 追加: テキスト範囲が選択されている場合は、そのストーリーの唯一のテキストフレームを選択し直す ---
+        if (app.documents.length && app.selection && app.selection.constructor && app.selection.constructor.name === "TextRange") {
+            var textFramesInStory = app.selection.story.textFrames;
+            if (textFramesInStory.length === 1) {
+                app.executeMenuCommand("deselectall");
+                app.selection = [textFramesInStory[0]];
+                try {
+                    app.selectTool("Adobe Select Tool");
+                } catch (e) {}
+            }
+        }
+        // -----------------------------------------------------------------------
+
         var selection = app.activeDocument.selection;
         if (!selection || selection.length == 0) {
             alert(LABELS.selectFrameMsg[getLang()]);
             return;
         }
 
-        var input = showDialog();
+        var textFrames = getAllTextFrames(selection);
+        if (textFrames.length == 0) {
+            alert(LABELS.selectFrameMsg[getLang()]);
+            return;
+        }
+
+        var input = showDialog(textFrames);
         if (!input) return;
 
     } catch (e) {
