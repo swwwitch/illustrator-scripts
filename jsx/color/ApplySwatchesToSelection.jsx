@@ -125,6 +125,12 @@ function main() {
             var cmyk4 = new CMYKColor();
             cmyk4.cyan = 72; cmyk4.magenta = 22; cmyk4.yellow = 6; cmyk4.black = 0;
             predefinedColors.push(cmyk4);
+            var cmyk5 = new CMYKColor();
+            cmyk5.cyan = 38; cmyk5.magenta = 54; cmyk5.yellow = 79; cmyk5.black = 0;
+            predefinedColors.push(cmyk5);
+            var cmyk6 = new CMYKColor();
+            cmyk6.cyan = 6; cmyk6.magenta = 36; cmyk6.yellow = 84; cmyk6.black = 0;
+            predefinedColors.push(cmyk6);
         } else {
             var rgb1 = new RGBColor();
             rgb1.red = 222; rgb1.green = 84; rgb1.blue = 25;
@@ -138,6 +144,12 @@ function main() {
             var rgb4 = new RGBColor();
             rgb4.red = 53; rgb4.green = 157; rgb4.blue = 209;
             predefinedColors.push(rgb4);
+            var rgb5 = new RGBColor();
+            rgb5.red = 173; rgb5.green = 127; rgb5.blue = 71;
+            predefinedColors.push(rgb5);
+            var rgb6 = new RGBColor();
+            rgb6.red = 238; rgb6.green = 176; rgb6.blue = 51;
+            predefinedColors.push(rgb6);
         }
 
         // スウォッチが未選択、または1色以下、または白のみの場合は定義済みカラーを使用
@@ -146,6 +158,7 @@ function main() {
             for (var i = 0; i < predefinedColors.length; i++) {
                 var dummySwatch = {};
                 dummySwatch.color = predefinedColors[i];
+                // 削除: dummySwatch.opacity = 100; // 不透明度100%を明示的に設定
                 selectedSwatches.push(dummySwatch);
             }
         }
@@ -162,6 +175,7 @@ function main() {
             for (var i = 0; i < charCount; i++) {
                 var swatchColor = getSwatchColor(i, selectedSwatches);
                 selectedTextFrame.characters[i].fillColor = swatchColor;
+                selectedTextFrame.characters[i].opacity = 100;
             }
         } else {
             // 複数オブジェクトは位置順に並べ替えて色付け
@@ -171,13 +185,16 @@ function main() {
                 var currentItem = selectedItems[i];
                 if (currentItem.typename === "PathItem") {
                     currentItem.fillColor = swatchColor;
+                    currentItem.opacity = 100;
                 } else if (currentItem.typename === "CompoundPathItem" && currentItem.pathItems.length > 0) {
                     var pathItems = currentItem.pathItems;
                     for (var j = 0; j < pathItems.length; j++) {
                         pathItems[j].fillColor = swatchColor;
+                        pathItems[j].opacity = 100;
                     }
                 } else if (currentItem.typename === "TextFrame") {
                     currentItem.textRange.fillColor = swatchColor;
+                    currentItem.textRange.opacity = 100;
                 }
             }
         }
@@ -253,7 +270,15 @@ function shuffleArray(arr) {
 
 // インデックスに応じてスウォッチの色を取得（ループ）
 function getSwatchColor(index, swatches) {
-    return swatches[index % swatches.length].color;
+    var swatch = swatches[index % swatches.length];
+    var color = swatch.color;
+    // 定義済みカラーの場合、常に100%不透明度を返す
+    if (typeof swatch.opacity !== "undefined") {
+        color.opacity = swatch.opacity;
+    } else {
+        color.opacity = 100;
+    }
+    return color;
 }
 
 // 全スウォッチが白色のみか判定
