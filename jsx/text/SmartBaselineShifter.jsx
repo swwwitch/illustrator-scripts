@@ -44,6 +44,7 @@ https://note.com/dtp_tranist/n/n5e41727cf265
 - v1.0 (20250704): 初版リリース
 - v1.7 (20250716): コード整理、プレビュー改善
 - v1.8 (20250720): 自動計算機能を追加
+- v1.9 (20250721): ツールチップを実装
 
 ---
 
@@ -81,11 +82,12 @@ Egor Chistyakov https://x.com/tchegr
 - v1.0 (20250704): Initial release
 - v1.7 (20250716): Refactoring, improved preview
 - v1.8 (20250720): Added automatic calculation feature
+- v1.9 (20250721): Implemented tooltips
 
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.8";
+var SCRIPT_VERSION = "v1.9";
 
 var LABELS = {
     dialogTitle: {
@@ -147,6 +149,32 @@ var LABELS = {
     numericErrorMsg: {
         ja: "シフト量は数値で入力してください。",
         en: "Shift amount must be a number."
+    },
+    helpTips: {
+        targetInput: {
+            ja: "ベースラインをシフトする対象文字を入力します。",
+            en: "Enter the character(s) to shift."
+        },
+        shiftInput: {
+            ja: "手動で指定するベースラインシフト量（数値）です。",
+            en: "Specify the baseline shift amount manually."
+        },
+        refInput: {
+            ja: "基準となる文字を1文字入力します。",
+            en: "Enter the reference character (1 character)."
+        },
+        calBtn: {
+            ja: "対象文字と基準文字からシフト量を自動計算します。",
+            en: "Calculate shift amount automatically."
+        },
+        finalOkBtn: {
+            ja: "指定したシフト量を確定して適用します。",
+            en: "Apply the specified shift amount."
+        },
+        resetBtn: {
+            ja: "選択しているテキストのベースラインシフトを全リセットします。",
+            en: "Reset baseline shifts in all text frames."
+        }
     }
 };
 
@@ -359,6 +387,7 @@ function showDialog() {
     var targetInput = targetGroup.add("edittext", undefined, defaultTarget);
     targetInput.characters = 6;
     targetInput.active = true;
+    targetInput.helpTip = LABELS.helpTips.targetInput[lang];
 
     var shiftGroup = inputGroup.add("group");
     shiftGroup.add("statictext", undefined, LABELS.shiftAmountLabel[lang]);
@@ -373,6 +402,7 @@ function showDialog() {
     };
     shiftInput.active = true;
     shiftGroup.margins = [0, 0, 0, 10];
+    shiftInput.helpTip = LABELS.helpTips.shiftInput[lang];
 
     var autoPanel = inputGroup.add("panel", undefined, LABELS.autoPanelTitle[lang]);
     autoPanel.orientation = "column";
@@ -383,7 +413,9 @@ function showDialog() {
     refGroup.add("statictext", undefined, LABELS.baseCharLabel[lang]);
     var refInput = refGroup.add("edittext", undefined, "0");
     refInput.characters = 3;
+    refInput.helpTip = LABELS.helpTips.refInput[lang];
     var calBtn = refGroup.add("button", [0, 0, 60, 25], LABELS.adjustBtnLabel[lang]);
+    calBtn.helpTip = LABELS.helpTips.calBtn[lang];
 
     var buttonGroup = mainGroup.add("group");
     buttonGroup.orientation = "column";
@@ -392,10 +424,12 @@ function showDialog() {
     var finalOkBtn = buttonGroup.add("button", undefined, "OK", {
         name: "ok"
     });
+    finalOkBtn.helpTip = LABELS.helpTips.finalOkBtn[lang];
     var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelBtnLabel[lang]);
 
     buttonGroup.add("statictext", [0, 0, 0, 30], " "); // Spacer
     var resetBtn = buttonGroup.add("button", undefined, LABELS.resetBtnLabel[lang]);
+    resetBtn.helpTip = LABELS.helpTips.resetBtn[lang];
 
     resetBtn.onClick = function() {
         var selection = app.activeDocument.selection;
@@ -483,6 +517,7 @@ function showDialog() {
     function setDialogOpacity(dlg, opacityValue) {
         dlg.opacity = opacityValue;
     }
+
 
     setDialogOpacity(dialog, dialogOpacity);
     shiftDialogPosition(dialog, offsetX, 0);
