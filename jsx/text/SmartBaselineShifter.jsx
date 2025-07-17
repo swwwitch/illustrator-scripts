@@ -1,24 +1,3 @@
-// 再帰的に選択内のすべての TextFrame を抽出
-function getAllTextFrames(selection) {
-    var textFrames = [];
-
-    function extractTextFrames(item) {
-        if (item.typename === "TextFrame") {
-            textFrames.push(item);
-        } else if (item.typename === "GroupItem") {
-            for (var i = 0; i < item.pageItems.length; i++) {
-                extractTextFrames(item.pageItems[i]);
-            }
-        }
-    }
-
-    for (var i = 0; i < selection.length; i++) {
-        extractTextFrames(selection[i]);
-    }
-
-    return textFrames;
-}
-// Illustrator Script Target & Preferences
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -201,6 +180,27 @@ var LABELS = {
 /* 言語判定 / Determine language from locale */
 function getLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+}
+
+// 再帰的に選択内のすべての TextFrame を抽出
+function getAllTextFrames(selection) {
+    var textFrames = [];
+
+    function extractTextFrames(item) {
+        if (item.typename === "TextFrame") {
+            textFrames.push(item);
+        } else if (item.typename === "GroupItem") {
+            for (var i = 0; i < item.pageItems.length; i++) {
+                extractTextFrames(item.pageItems[i]);
+            }
+        }
+    }
+
+    for (var i = 0; i < selection.length; i++) {
+        extractTextFrames(selection[i]);
+    }
+
+    return textFrames;
 }
 
 /* 単位コードとラベルのマップ / Unit code to label map */
