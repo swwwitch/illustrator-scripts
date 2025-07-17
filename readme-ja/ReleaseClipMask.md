@@ -6,23 +6,35 @@
 
 ---
 
-選択中のオブジェクトに対し、指定したモードでクリッピングマスクを処理します。
-Handles selected objects by releasing clipping masks based on selected mode.
+
+### 概要：
+
+- 選択オブジェクトのクリッピングマスクをモード別に解除できるIllustrator用スクリプト。
+- 単純解除、パスのみ削除、画像のみ削除の3つの方法に対応。
 
 <img alt="" src="https://www.dtp-transit.jp/images/ss-548-530-72-20250713-080827.png" width="50%" />
 
-### モード / Mode：
+### 主な機能：
 
-- 単純に解除（Simply release）：クリップ状態を解除（グループは維持） / Release clipping, keep group
-- パスを削除（Remove mask path）：マスク用パスのみ削除し、グループ解除 / Delete mask path and ungroup
-- マスク対象を削除（Remove masked object）：マスク対象のみ削除し、パスは保持（グループ解除）/ Keep mask path and delete masked object
+- 単純に解除（パスと画像を残す）
+- 配置画像を残してパスを削除
+- パスを残して配置画像を削除
+- パスにK100の塗り（不透明度15%）を適用するオプション付き
+- 日本語／英語UI対応
+- Q/W/Eキーによるモード切替ショートカット対応
 
-### オプション / Option：
+### 処理の流れ：
 
-- 解除時、パスにカラーを設定 / Set fill color to path when releasing
+1. ダイアログでモードとオプションを選択
+2. 選択されたモードに従ってマスクを解除
+3. 必要に応じてパスに塗りを適用
 
-### 更新日
+### note
 
-Last Update：2025-06-06
+https://note.com/dtp_tranist/n/nebc832e574f7
 
-[【Illustrator】〈クリッピングマスクを解除〉を拡張するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/nebc832e574f7)
+### 更新履歴：
+
+- v1.0 (20250606) : 初期バージョン
+- v1.1 (20250607) : 安定化と仕様調整
+- v1.2 (20250717) : コメント整備

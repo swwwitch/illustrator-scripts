@@ -8,7 +8,7 @@ ReleaseClipMask.jsx
 
 ### Readme （GitHub）：
 
-https://github.com/yourname/ai-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ReleaseClipMask.jsx
 
 ### 概要：
 
@@ -29,6 +29,10 @@ https://github.com/yourname/ai-scripts
 1. ダイアログでモードとオプションを選択
 2. 選択されたモードに従ってマスクを解除
 3. 必要に応じてパスに塗りを適用
+
+### note
+
+https://note.com/dtp_tranist/n/nebc832e574f7
 
 ### 更新履歴：
 
@@ -97,6 +101,20 @@ var lang = getCurrentLang();
         releaseModeTitle: { ja: "解除方法", en: "Release Mode" }
     };
 
+function onlyPathItemsInSelection(selectionItems) {
+  for (var i = 0; i < selectionItems.length; i++) {
+    var group = selectionItems[i];
+    if (group.typename === "GroupItem" && group.clipped) {
+      for (var j = 0; j < group.pageItems.length; j++) {
+        if (group.pageItems[j].typename !== "PathItem") {
+          return false;
+        }
+      }
+    }
+  }
+  return true;
+}
+
 function main() {
     /* 日英ラベル定義 / Define Japanese-English labels */
    
@@ -116,6 +134,10 @@ function main() {
     var radioRemovePath = modeGroup.add("radiobutton", undefined, LABELS.removePath[lang]);
     var radioRemoveMasked = modeGroup.add("radiobutton", undefined, LABELS.removeMasked[lang]);
     radioSimple.value = true;
+
+    if (onlyPathItemsInSelection(app.activeDocument.selection)) {
+      radioRemoveMasked.enabled = false;
+    }
 
     /* 解除時に塗りカラーを適用するチェックボックスグループ / Checkbox group for fill color on release */
     var fillGroup = dlg.add("group");
@@ -168,12 +190,14 @@ function releaseSimpleMask(selectionItems) {
 function applyFillToPaths(item) {
   if (!item || !item.pageItems) return;
 
+  // 一番上のパスアイテムにのみ適用 / Apply only to the topmost path item
   for (var i = 0; i < item.pageItems.length; i++) {
     var child = item.pageItems[i];
     if (child.typename === "PathItem") {
       child.filled = true;
       child.fillColor = getK100Black();
       child.opacity = 15;
+      break;
     }
   }
 }
@@ -203,47 +227,64 @@ function executeRelease(mode, lang, applyFill) {
     }
 
     if (mode === "removePath") {
-        for (var i = selectionItems.length - 1; i >= 0; i--) {
-            var group = selectionItems[i];
-            if (group.typename === "GroupItem" && group.clipped) {
-                /* クリッピングパスを削除 / Remove clipping path */
-                for (var j = group.pageItems.length - 1; j >= 0; j--) {
-                    var item = group.pageItems[j];
+        for (var i = 0; i < selectionItems.length; i++) {
+            var currentItem = selectionItems[i];
+            if (currentItem.typename === "GroupItem" && currentItem.clipped === true) {
+                for (var j = 0; j < currentItem.pageItems.length; j++) {
+                    var item = currentItem.pageItems[j];
                     if (item.typename === "PathItem" && item.clipping) {
                         item.remove();
                         break;
                     }
                 }
-
-                if (group.pageItems.length > 1) {
-                    group.clipped = false;
-                }
-
-                /* グループ解除（中身を親へ移動） / Ungroup (move contents to parent) */
-                var parent = group.parent;
-                while (group.pageItems.length > 0) {
-                    group.pageItems[0].move(parent, ElementPlacement.PLACEATEND);
-                }
-                group.remove();
+                ungroup(currentItem);
             }
         }
     }
 
     if (mode === "removeMasked") {
-         for (var i = 0; i < selectionItems.length; i++) {
+        for (var i = 0; i < selectionItems.length; i++) {
             var currentItem = selectionItems[i];
-
             if (currentItem.typename === "GroupItem" && currentItem.clipped === true) {
                 currentItem.clipped = false;
+
+                var topPath = null;
+                var fillColor, filled, opacity;
+                for (var j = 0; j < currentItem.pageItems.length; j++) {
+                    var item = currentItem.pageItems[j];
+                    if (item.typename === "PathItem" && !topPath) {
+                        topPath = item;
+                        fillColor = item.fillColor;
+                        filled = item.filled;
+                        opacity = item.opacity;
+                    }
+                }
+
                 removePlacedItems(currentItem);
+
+                var allPaths = true;
+                for (var k = 0; k < currentItem.pageItems.length; k++) {
+                    if (currentItem.pageItems[k].typename !== "PathItem") {
+                        allPaths = false;
+                        break;
+                    }
+                }
+
+                if (topPath && allPaths) {
+                    topPath.fillColor = fillColor;
+                    topPath.filled = filled;
+                    topPath.opacity = opacity;
+                }
+
                 if (applyFill) {
                     applyFillToPaths(currentItem);
                 }
+
                 ungroup(currentItem);
             }
         }
-        }
-        return;
+    }
+    return;
     
 }
 
