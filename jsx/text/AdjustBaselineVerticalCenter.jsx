@@ -1,8 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
 /*
 ### スクリプト名：
 
@@ -69,10 +67,13 @@ Egor Chistyakov https://x.com/tchegr
 - v1.0.6 (20250705): Supported multiple target characters and batch adjustment
 */
 
-/*
-UIラベルを定義。
-表示順に並べ替え、使用されていないラベルは削除。
-*/
+/* ロケール判定 / Locale detection */
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日本語 / English */
 var LABELS = {
     dialogTitle: { ja: "ベースライン調整", en: "Adjust Baseline" },
     infoTextMsg: { ja: "対象文字を縦方向に揃えます。", en: "This will align selected symbol vertically." },
@@ -87,13 +88,7 @@ var LABELS = {
     errorMsg: { ja: "エラー: ", en: "Error: " }
 };
 
-function getLang() {
-    /*
-    ロケールから言語を判定。日本語なら'ja'、それ以外は'en'。
-    */
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
-
+/* アイテムのジオメトリック境界から中心のY座標を計算して返す / Calculate and return the center Y coordinate from item's geometric bounds */
 function getCenterY(item) {
     /*
     アイテムのジオメトリック境界から中心のY座標を計算して返す。
@@ -102,6 +97,7 @@ function getCenterY(item) {
     return bounds[1] - (bounds[1] - bounds[3]) / 2;
 }
 
+/* 指定文字を含むテキストフレームを複製し、アウトライン化後に中心Y座標を取得 / Duplicate text frame with specified character, outline it, then get center Y */
 function createOutlineAndGetCenterY(textFrame, character) {
     /*
     指定文字を含むテキストフレームを複製し、アウトライン化後に中心Y座標を取得する。
@@ -116,6 +112,7 @@ function createOutlineAndGetCenterY(textFrame, character) {
     return centerY;
 }
 
+/* 選択テキスト内の記号・非英数字の出現頻度を集計して返す / Count frequency of symbols and non-alphanumeric chars in selection */
 function getSymbolFrequency(sel) {
     /*
     選択テキスト内の記号・非英数字の出現頻度を集計して返す。
@@ -136,11 +133,11 @@ function getSymbolFrequency(sel) {
     return charCount;
 }
 
+/* ユーザーに対象文字と基準文字を入力させるダイアログを表示し、入力結果を返す / Show dialog to input target and reference characters, return input */
 function showDialog() {
     /*
     ユーザーに対象文字と基準文字を入力させるダイアログを表示し、入力結果を返す。
     */
-    var lang = getLang();
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "left";
@@ -148,7 +145,7 @@ function showDialog() {
     var infoText = dialog.add("statictext", undefined, LABELS.infoTextMsg[lang]);
     infoText.alignment = "left";
 
-    /* デフォルト対象文字（複数選択でも最頻出記号を抽出） */
+    /* デフォルト対象文字（複数選択でも最頻出記号を抽出） / Default target character (most frequent symbol even in multiple selection) */
     var defaultTarget = "";
     var sel = app.activeDocument.selection;
     if (sel && sel.length > 0) {
@@ -202,19 +199,20 @@ function showDialog() {
     return null;
 }
 
+/* メイン処理。ドキュメントと選択状態をチェックし、ダイアログを表示して調整を実行 / Main process: check document and selection, show dialog and apply adjustments */
 function main() {
     /*
     メイン処理。ドキュメントと選択状態をチェックし、ダイアログを表示して調整を実行。
     */
     try {
         if (app.documents.length == 0) {
-            alert(LABELS.docOpenMsg[getLang()]);
+            alert(LABELS.docOpenMsg[lang]);
             return;
         }
 
         var selection = app.activeDocument.selection;
         if (!selection || selection.length == 0) {
-            alert(LABELS.selectFrameMsg[getLang()]);
+            alert(LABELS.selectFrameMsg[lang]);
             return;
         }
 
@@ -247,8 +245,9 @@ function main() {
         }
 
     } catch (e) {
-        alert(LABELS.errorMsg[getLang()] + e);
+        alert(LABELS.errorMsg[lang] + e);
     }
 }
 
+/* メイン処理の実行 / Execute main process */
 main();

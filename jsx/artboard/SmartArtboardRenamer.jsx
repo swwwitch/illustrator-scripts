@@ -1,8 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
 /*
 ### スクリプト名：
 
@@ -67,50 +65,358 @@ SmartArtboardRenamer.jsx
 - v1.1 (20250512): Improved layer reference and UI adjustments
 */
 
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
+var SCRIPT_VERSION = "v1.1";
 
-function main() {
-    if (app.documents.length === 0) return;
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
+
+var LABELS = {
+    dialogTitle: {
+        ja: "アートボード名一括リネーム " + SCRIPT_VERSION,
+        en: "Smart Artboard Renamer " + SCRIPT_VERSION
+    },
+    prefixLabel: {
+        ja: "接頭辞",
+        en: "Prefix"
+    },
+    suffixLabel: {
+        ja: "接尾辞",
+        en: "Suffix"
+    },
+    sourceLabel: {
+        ja: "参照するテキスト",
+        en: "Source Text"
+    },
+    layerOption: {
+        ja: "レイヤーを指定",
+        en: "Specify Layer"
+    },
+    frontmostOption: {
+        ja: "最前面のテキスト",
+        en: "Frontmost Text"
+    },
+    ignoreOption: {
+        ja: "参照しない",
+        en: "Ignore"
+    },
+    targetLabel: {
+        ja: "対象：",
+        en: "Target:"
+    },
+    allBoards: {
+        ja: "すべて",
+        en: "All"
+    },
+    specificBoards: {
+        ja: "指定",
+        en: "Range"
+    },
+    cancelButton: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    okButton: {
+        ja: "OK",
+        en: "OK"
+    },
+    exampleFormatHint: {
+        ja: "例：\n1, 01\n#FN（ファイル名）\n#DT（日付）",
+        en: "Example:\n1, 01\n#FN (FileName)\n#DT (Date)"
+    },
+    applyButton: {
+        ja: "適用",
+        en: "Apply"
+    },
+    alertNoLayer: {
+        ja: "指定されたレイヤーが見つからないか、非表示です。",
+        en: "The specified layer was not found or is hidden."
+    },
+    alertNeedSettings: {
+        ja: "いずれの設定が必要です",
+        en: "At least one setting is required."
+    }
+};
+
+// ダイアログボックス作成処理を直接スクリプト内に展開
+if (app.documents.length !== 0) {
     var doc = app.activeDocument;
     // Store original artboard names before dialog
     var originalNames = [];
     for (var i = 0; i < doc.artboards.length; i++) {
         originalNames.push(doc.artboards[i].name);
     }
-    var dialogResult = showDialog();
+
+    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+    dlg.orientation = "column";
+    dlg.alignChildren = "fill";
+
+    var mainGroup = dlg.add("group");
+    mainGroup.orientation = "row";
+    mainGroup.alignChildren = "top";
+
+    // 接頭辞
+    var leftCol = mainGroup.add("panel", undefined, LABELS.prefixLabel[lang]);
+    leftCol.orientation = "column";
+    leftCol.alignChildren = "left";
+    leftCol.margins = [15, 20, 15, 10];
+    var prefixInput = leftCol.add("edittext", undefined, "");
+    prefixInput.characters = 12;
+    prefixInput.active = true;
+    var prefixHint = leftCol.add("statictext", undefined, LABELS.exampleFormatHint[lang], {
+        multiline: true
+    });
+    prefixHint.preferredSize.height = 80;
+    prefixHint.enabled = true;
+
+    // 参照テキスト
+    var centerCol = mainGroup.add("panel", undefined, LABELS.sourceLabel[lang]);
+    centerCol.orientation = "column";
+    centerCol.alignChildren = "left";
+    centerCol.margins = [15, 25, 15, 15];
+    centerCol.preferredSize.height = 65;
+
+    var r1 = centerCol.add("radiobutton", undefined, LABELS.frontmostOption[lang]);
+    var r3 = centerCol.add("radiobutton", undefined, LABELS.ignoreOption[lang]);
+    var r2 = centerCol.add("radiobutton", undefined, LABELS.layerOption[lang]);
+    r1.value = true;
+    r3.value = false;
+
+    // ポップアップ：全レイヤー
+    var layerDropdown = centerCol.add("dropdownlist", undefined, []);
+    layerDropdown.minimumSize.width = 130;
+    var allLayers = app.activeDocument.layers;
+    for (var i = 0; i < allLayers.length; i++) {
+        layerDropdown.add("item", allLayers[i].name);
+    }
+    if (layerDropdown.items.length > 0) layerDropdown.selection = 0;
+    layerDropdown.enabled = false;
+
+    r1.onClick = function() {
+        layerDropdown.enabled = false;
+        btnApply.notify();
+    };
+    r2.onClick = function() {
+        layerDropdown.enabled = true;
+        btnApply.notify();
+    };
+    r3.onClick = function() {
+        layerDropdown.enabled = false;
+        // btnApply.notify();
+    };
+    layerDropdown.onChange = function() {
+        if (r2.value) btnApply.notify();
+    };
+
+    // 接尾辞
+    var rightCol = mainGroup.add("panel", undefined, LABELS.suffixLabel[lang]);
+    rightCol.orientation = "column";
+    rightCol.alignChildren = "left";
+    rightCol.margins = [15, 20, 15, 10];
+    var suffixInput = rightCol.add("edittext", undefined, "");
+    suffixInput.characters = 12;
+    var suffixHint = rightCol.add("statictext", undefined, LABELS.exampleFormatHint[lang], {
+        multiline: true
+    });
+    suffixHint.preferredSize.height = 80;
+    suffixHint.enabled = true;
+
+    // 対象アートボード選択
+    var targetGroup = dlg.add("group");
+    targetGroup.orientation = "row";
+    targetGroup.alignChildren = ["left", "center"];
+    targetGroup.margins = [15, 0, 15, 0];
+    targetGroup.add("statictext", undefined, LABELS.targetLabel[lang]);
+    var abAll = targetGroup.add("radiobutton", undefined, LABELS.allBoards[lang]);
+    var abNumbered = targetGroup.add("radiobutton", undefined, LABELS.specificBoards[lang]);
+    abAll.value = true;
+    var abNumbersInput = targetGroup.add("edittext", undefined, "");
+    abNumbersInput.characters = 10;
+    abNumbersInput.enabled = false;
+    abNumbered.onClick = function() {
+        abNumbersInput.enabled = true;
+    };
+    abAll.onClick = function() {
+        abNumbersInput.enabled = false;
+    };
+
+    // ボタンエリア（左右グループ配置：キャンセル・コピー・適用・OK）/ Button area (Cancel, Copy, Apply, OK)
+    var outerGroup = dlg.add("group");
+    outerGroup.orientation = "column";
+    outerGroup.alignChildren = ["fill", "center"];
+    outerGroup.spacing = 10;
+    outerGroup.margins = 0;
+
+    var buttonRow = outerGroup.add("group");
+    buttonRow.orientation = "row";
+    buttonRow.alignChildren = ["fill", "center"];
+    buttonRow.alignment = "fill";
+    buttonRow.margins = [0, 15, 0, 0];
+    buttonRow.spacing = 10;
+
+    var btnCancel = buttonRow.add("button", undefined, LABELS.cancelButton[lang], {name: "cancel"});
+    btnCancel.preferredSize.width = 80;
+
+    // コピー用ボタン / Copy button
+    var btnCopy = buttonRow.add("button", undefined, "コピー / Copy");
+    btnCopy.preferredSize.width = 80;
+
+    var spacer = buttonRow.add("group");
+    spacer.alignment = "fill";
+    spacer.preferredSize.width = 80;
+
+    var rightButtons = buttonRow.add("group");
+    rightButtons.orientation = "row";
+    rightButtons.alignChildren = ["right", "center"];
+    var btnApply = rightButtons.add("button", undefined, LABELS.applyButton[lang]);
+    var btnOK = rightButtons.add("button", undefined, LABELS.okButton[lang], {name: "ok"});
+
+    // テキスト情報収集関数 / Gather preview text info for copy
+    function collectPreviewInfo() {
+        var mode = r1.value ? "frontmost" : (r2.value ? "layer" : "none");
+        var prefix = prefixInput.text;
+        var suffix = suffixInput.text;
+        var targetType = abAll.value ? "all" : "numbered";
+        var numberInput = abNumbersInput.text;
+        var layerName = r2.value && layerDropdown.selection ? layerDropdown.selection.text : null;
+        var doc = app.activeDocument;
+
+        var textFrames;
+        if (mode === "layer") {
+            var namingLayer = getNamingLayerByName(doc, layerName);
+            if (!namingLayer || !namingLayer.visible) {
+                alert(LABELS.alertNoLayer[lang]);
+                return "";
+            }
+            textFrames = getTextFramesInLayer(namingLayer);
+        } else if (mode === "frontmost") {
+            textFrames = getFrontmostTextFramesPerArtboard(doc);
+        } else {
+            textFrames = [];
+        }
+        var targetIndices = getTargetArtboardIndices(doc.artboards.length, targetType, numberInput);
+        var artboardTextMap = mapTextToArtboards(textFrames, doc.artboards, mode);
+
+        // Preview output
+        var result = [];
+        var count = 1;
+        for (var i = 0; i < doc.artboards.length; i++) {
+            if (!contains(targetIndices, i)) continue;
+            var prefixVal = formatWithAlphaNumeric(prefix, count);
+            var suffixVal = formatWithAlphaNumeric(suffix, count);
+            var textPart = (artboardTextMap[i] && artboardTextMap[i].length > 0) ? artboardTextMap[i].join(" ") : "";
+            if (prefixVal || suffixVal || textPart) {
+                var baseName = (prefixVal ? prefixVal : "") + textPart + (suffixVal ? suffixVal : "");
+                result.push("[" + (i+1) + "] " + baseName);
+                count++;
+            }
+        }
+        return result.join("\r\n");
+    }
+
+    // コピー処理 / Copy handler
+    btnCopy.onClick = function() {
+        var info = collectPreviewInfo();
+        if (info) {
+            copyToClipboard(info);
+            alert("プレビュー内容をコピーしました。\nPreview copied to clipboard.");
+        }
+    };
+
+    // 適用処理 / Apply handler
+    btnApply.onClick = function() {
+        var mode = r1.value ? "frontmost" : (r2.value ? "layer" : "none");
+        var prefix = prefixInput.text;
+        var suffix = suffixInput.text;
+        var targetType = abAll.value ? "all" : "numbered";
+        var numberInput = abNumbersInput.text;
+        var layerName = r2.value && layerDropdown.selection ? layerDropdown.selection.text : null;
+
+        var textFrames;
+        if (mode === "layer") {
+            var namingLayer = getNamingLayerByName(app.activeDocument, layerName);
+            if (!namingLayer || !namingLayer.visible) {
+                alert(LABELS.alertNoLayer[lang]);
+                return;
+            }
+            textFrames = getTextFramesInLayer(namingLayer);
+        } else if (mode === "frontmost") {
+            textFrames = getFrontmostTextFramesPerArtboard(app.activeDocument);
+        } else {
+            textFrames = []; // "none" モードでは空の配列
+        }
+
+        var targetIndices = getTargetArtboardIndices(app.activeDocument.artboards.length, targetType, numberInput);
+        var artboardTextMap = mapTextToArtboards(textFrames, app.activeDocument.artboards, mode);
+
+        // Validation: If mode is "none" and both prefix and suffix are empty, alert and stop.
+        if (mode === "none" && prefix === "" && suffix === "") {
+            alert(LABELS.alertNeedSettings[lang]);
+            return;
+        }
+
+        renameArtboards(app.activeDocument.artboards, artboardTextMap, prefix, suffix, targetIndices);
+        app.redraw();
+    };
+
+    // --- ダイアログ定義ここまで ---
+
+    // ダイアログ表示 / Show dialog
+    var dialogResult = null;
+    if (dlg.show() === 1) {
+        dialogResult = {
+            mode: r1.value ? "frontmost" : (r2.value ? "layer" : "none"),
+            prefix: prefixInput.text,
+            suffix: suffixInput.text,
+            artboardTarget: abAll.value ? "all" : "numbered",
+            numberInput: abNumbersInput.text,
+            selectedLayerName: r2.value && layerDropdown.selection ? layerDropdown.selection.text : null
+        };
+    }
+
     if (!dialogResult) {
-        // Restore original artboard names if dialog was cancelled
+        // ダイアログキャンセル時は元の名前に戻す / Restore original artboard names if dialog was cancelled
         for (var i = 0; i < doc.artboards.length; i++) {
             doc.artboards[i].name = originalNames[i];
         }
-        return;
-    }
-
-    var mode = dialogResult.mode;
-    var prefixInput = dialogResult.prefix;
-    var suffixInput = dialogResult.suffix;
-    var targetType = dialogResult.artboardTarget;
-    var numberInput = dialogResult.numberInput;
-
-    var textFrames;
-    if (mode === "layer") {
-        var namingLayer = getNamingLayerByName(doc, dialogResult.selectedLayerName);
-        if (!namingLayer || !namingLayer.visible) {
-            alert("指定されたレイヤーが見つからないか、非表示です。");
-            return;
-        }
-        textFrames = getTextFramesInLayer(namingLayer);
-    } else if (mode === "frontmost") {
-        textFrames = getFrontmostTextFramesPerArtboard(doc);
     } else {
-        textFrames = []; // "none" モードでは空の配列
-    }
+        var mode = dialogResult.mode;
+        var prefixInputVal = dialogResult.prefix;
+        var suffixInputVal = dialogResult.suffix;
+        var targetType = dialogResult.artboardTarget;
+        var numberInputVal = dialogResult.numberInput;
 
-    var targetIndices = getTargetArtboardIndices(doc.artboards.length, targetType, numberInput);
-    var artboardTextMap = mapTextToArtboards(textFrames, doc.artboards, mode);
-    renameArtboards(doc.artboards, artboardTextMap, prefixInput, suffixInput, targetIndices);
+        var textFrames;
+        if (mode === "layer") {
+            var namingLayer = getNamingLayerByName(doc, dialogResult.selectedLayerName);
+            if (!namingLayer || !namingLayer.visible) {
+                alert(LABELS.alertNoLayer[lang]);
+            } else {
+                textFrames = getTextFramesInLayer(namingLayer);
+            }
+        } else if (mode === "frontmost") {
+            textFrames = getFrontmostTextFramesPerArtboard(doc);
+        } else {
+            textFrames = [];
+        }
+
+        var targetIndices = getTargetArtboardIndices(doc.artboards.length, targetType, numberInputVal);
+        var artboardTextMap = mapTextToArtboards(textFrames, doc.artboards, mode);
+        renameArtboards(doc.artboards, artboardTextMap, prefixInputVal, suffixInputVal, targetIndices);
+    }
+}
+
+// クリップボードにコピー / Copy to clipboard
+function copyToClipboard(text) {
+    var tempFile = new File(Folder.temp + "/_ai_clipboard.txt");
+    tempFile.open("w");
+    tempFile.encoding = "UTF-8";
+    tempFile.write(text);
+    tempFile.close();
+    tempFile.execute(); // OSのエディタで開いてCtrl+Cできる (JSXの制約)
 }
 
 function getNamingLayerByName(doc, name) {
@@ -141,196 +447,6 @@ function getAllTextFrames(doc) {
         }
     }
     return results;
-}
-
-function showDialog() {
-    var lang = getCurrentLang();
-    var LABELS = {
-        dialogTitle:       { ja: "アートボードのリネーム", en: "Rename Artboards" },
-        prefixLabel:       { ja: "接頭辞", en: "Prefix" },
-        suffixLabel:       { ja: "接尾辞", en: "Suffix" },
-        sourceLabel:       { ja: "参照するテキスト", en: "Source Text" },
-        layerOption:       { ja: "レイヤーを指定", en: "Specify Layer" },
-        frontmostOption:   { ja: "最前面のテキスト", en: "Frontmost Text" },
-        ignoreOption:      { ja: "参照しない", en: "Ignore" },
-        targetLabel:       { ja: "対象：", en: "Target:" },
-        allBoards:         { ja: "すべて", en: "All" },
-        specificBoards:    { ja: "指定", en: "Range" },
-        cancelButton:      { ja: "キャンセル", en: "Cancel" },
-        okButton:          { ja: "OK", en: "OK" },
-        exampleFormatHint: {
-            ja: "例：\n1, 01\n#FN（ファイル名）\n#DT（日付）",
-            en: "Example:\n1, 01\n#FN (FileName)\n#DT (Date)"
-        },
-        applyButton:       { ja: "適用", en: "Apply" }
-    };
-
-    var dlg = new Window("dialog", LABELS.dialogTitle);
-    dlg.orientation = "column";
-    dlg.alignChildren = "fill";
-
-    var mainGroup = dlg.add("group");
-    mainGroup.orientation = "row";
-    mainGroup.alignChildren = "top";
-
-    // 接頭辞
-    var leftCol = mainGroup.add("panel", undefined, LABELS.prefixLabel);
-    leftCol.orientation = "column";
-    leftCol.alignChildren = "left";
-    leftCol.margins = [15, 20, 15, 10];
-    var prefixInput = leftCol.add("edittext", undefined, "");
-    prefixInput.characters = 12;
-    prefixInput.active = true;
-    var prefixHint = leftCol.add("statictext", undefined, LABELS.exampleFormatHint, { multiline: true });
-    // prefixHint.preferredSize.width = 160;
-    prefixHint.preferredSize.height = 80;
-    prefixHint.enabled = true;
-
-    // 参照テキスト
-    var centerCol = mainGroup.add("panel", undefined, LABELS.sourceLabel);
-    centerCol.orientation = "column";
-    centerCol.alignChildren = "left";
-    centerCol.margins = [15, 25, 15, 15];
-    centerCol.preferredSize.height = 65;
-
-    var r1 = centerCol.add("radiobutton", undefined, LABELS.frontmostOption);
-    var r3 = centerCol.add("radiobutton", undefined, LABELS.ignoreOption);
-    var r2 = centerCol.add("radiobutton", undefined, LABELS.layerOption);
-    r1.value = true;
-    r3.value = false;
-
-    // ポップアップ：全レイヤー
-    // Ensure dropdown is below "レイヤーを指定" radio (r2)
-    var layerDropdown = centerCol.add("dropdownlist", undefined, []);
-    layerDropdown.minimumSize.width = 130;
-    var allLayers = app.activeDocument.layers;
-    for (var i = 0; i < allLayers.length; i++) {
-        layerDropdown.add("item", allLayers[i].name);
-    }
-    if (layerDropdown.items.length > 0) layerDropdown.selection = 0;
-    layerDropdown.enabled = false;
-
-    // ラジオ切替で有効化
-    r1.onClick = function () {
-        layerDropdown.enabled = false;
-        btnApply.notify();
-    };
-    r2.onClick = function () {
-        layerDropdown.enabled = true;
-        btnApply.notify();
-    };
-    r3.onClick = function () {
-        layerDropdown.enabled = false;
-        // btnApply.notify();
-    };
-
-    // ドロップダウン変更時のイベント
-    layerDropdown.onChange = function () {
-        if (r2.value) btnApply.notify();
-    };
-
-    // 接尾辞
-    var rightCol = mainGroup.add("panel", undefined, LABELS.suffixLabel);
-    rightCol.orientation = "column";
-    rightCol.alignChildren = "left";
-    rightCol.margins = [15, 20, 15, 10];
-    var suffixInput = rightCol.add("edittext", undefined, "");
-    suffixInput.characters = 12;
-    var suffixHint = rightCol.add("statictext", undefined, LABELS.exampleFormatHint, { multiline: true });
-    // suffixHint.preferredSize.width = 100;
-    suffixHint.preferredSize.height = 80;
-    suffixHint.enabled = true;
-
-
-    // 対象アートボード選択
-    var targetGroup = dlg.add("group");
-    targetGroup.orientation = "row";
-    targetGroup.alignChildren = ["left", "center"];
-    targetGroup.margins = [15,0, 15, 0];
-    targetGroup.add("statictext", undefined, LABELS.targetLabel);
-    var abAll = targetGroup.add("radiobutton", undefined, LABELS.allBoards);
-    var abNumbered = targetGroup.add("radiobutton", undefined, LABELS.specificBoards);
-    abAll.value = true;
-    var abNumbersInput = targetGroup.add("edittext", undefined, "");
-    abNumbersInput.characters = 10;
-    abNumbersInput.enabled = false;
-    abNumbered.onClick = function () { abNumbersInput.enabled = true; };
-    abAll.onClick = function () { abNumbersInput.enabled = false; };
-
-   
-
-// ボタンエリア（左右グループ配置：キャンセルは左、適用とOKは右）
-var outerGroup = dlg.add("group");
-outerGroup.orientation = "column";
-outerGroup.alignChildren = ["fill", "center"];
-outerGroup.spacing = 10;
-outerGroup.margins = 0;
-
-var buttonRow = outerGroup.add("group");
-buttonRow.orientation = "row";
-buttonRow.alignChildren = ["fill", "center"];
-buttonRow.alignment = "fill";
-buttonRow.margins = [0, 15, 0, 0];
-buttonRow.spacing = 10;
-
-var btnCancel = buttonRow.add("button", undefined, LABELS.cancelButton, { name: "cancel" });
-btnCancel.preferredSize.width = 80;
-
-var spacer = buttonRow.add("group");
-spacer.alignment = "fill";
-spacer.preferredSize.width = 160;
-
-var rightButtons = buttonRow.add("group");
-rightButtons.orientation = "row";
-rightButtons.alignChildren = ["right", "center"];
-var btnApply = rightButtons.add("button", undefined, LABELS.applyButton);
-btnApply.onClick = function () {
-    var mode = r1.value ? "frontmost" : (r2.value ? "layer" : "none");
-    var prefix = prefixInput.text;
-    var suffix = suffixInput.text;
-    var targetType = abAll.value ? "all" : "numbered";
-    var numberInput = abNumbersInput.text;
-    var layerName = r2.value && layerDropdown.selection ? layerDropdown.selection.text : null;
-
-    var textFrames;
-    if (mode === "layer") {
-        var namingLayer = getNamingLayerByName(app.activeDocument, layerName);
-        if (!namingLayer || !namingLayer.visible) {
-            alert("指定されたレイヤーが見つからないか、非表示です。");
-            return;
-        }
-        textFrames = getTextFramesInLayer(namingLayer);
-    } else if (mode === "frontmost") {
-        textFrames = getFrontmostTextFramesPerArtboard(app.activeDocument);
-    } else {
-        textFrames = []; // "none" モードでは空の配列
-    }
-
-    var targetIndices = getTargetArtboardIndices(app.activeDocument.artboards.length, targetType, numberInput);
-    var artboardTextMap = mapTextToArtboards(textFrames, app.activeDocument.artboards, mode);
-
-    // Validation: If mode is "none" and both prefix and suffix are empty, alert and stop.
-    if (mode === "none" && prefix === "" && suffix === "") {
-        alert("いずれの設定が必要です");
-        return;
-    }
-
-    renameArtboards(app.activeDocument.artboards, artboardTextMap, prefix, suffix, targetIndices);
-    // Ensure UI redraw is the last executed statement
-    app.redraw();
-};
-var btnOK = rightButtons.add("button", undefined, LABELS.okButton, { name: "ok" });
-
-    if (dlg.show() !== 1) return null;
-
-    return {
-        mode: r1.value ? "frontmost" : (r2.value ? "layer" : "none"),
-        prefix: prefixInput.text,
-        suffix: suffixInput.text,
-        artboardTarget: abAll.value ? "all" : "numbered",
-        numberInput: abNumbersInput.text,
-        selectedLayerName: r2.value && layerDropdown.selection ? layerDropdown.selection.text : null
-    };
 }
 
 function getNamingLayer(doc) {
@@ -438,8 +554,8 @@ function formatWithAlphaNumeric(template, index) {
     var fileName = app.activeDocument.name.replace(/\.[^\.]+$/, "");
     var now = new Date();
     var dateString = now.getFullYear().toString() +
-                     ("0" + (now.getMonth() + 1)).slice(-2) +
-                     ("0" + now.getDate()).slice(-2);
+        ("0" + (now.getMonth() + 1)).slice(-2) +
+        ("0" + now.getDate()).slice(-2);
 
     // Temporarily hide #FN and #DT for matching
     var fnPlaceholder = "<<<FILENAME>>>";
@@ -457,9 +573,9 @@ function formatWithAlphaNumeric(template, index) {
         if (/^\d+$/.test(token)) {
             var base = parseInt(token, 10);
             var value = base + index - 1;
-            replacement = (token.charAt(0) === "0" && token.length > 1)
-                ? ("0000000000" + value).slice(-token.length)
-                : value.toString();
+            replacement = (token.charAt(0) === "0" && token.length > 1) ?
+                ("0000000000" + value).slice(-token.length) :
+                value.toString();
         } else {
             replacement = token;
         }
@@ -527,5 +643,3 @@ function getFrontmostTextFramesPerArtboard(doc) {
 
     return result;
 }
-
-main();

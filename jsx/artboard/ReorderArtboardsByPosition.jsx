@@ -1,8 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
 /*
 ### スクリプト名：
 
@@ -33,7 +31,7 @@ ReorderArtboardsByPosition.jsx
 ### 更新履歴
 
 - v1.0 (20231115) : 初期バージョン（Andrew_BJ による UI 改良と上限拡張）
-- v1.0 (20231116) : 許容差の自動計算機能とスライダーを追加、ロジック整理
+- v1.1 (20231116) : 許容差の自動計算機能とスライダーを追加、ロジック整理
 
 ---
 
@@ -66,19 +64,24 @@ ReorderArtboardsByPosition.jsx
 ### Changelog
 
 - v1.0 (20231115): Initial version (UI improvements and limit extension by Andrew_BJ)
-- v1.0 (20231116): Added tolerance auto-calculation feature, slider support, and logic cleanup
+- v1.1 (20231116): Added tolerance auto-calculation feature, slider support, and logic cleanup
 */
 
-/*
-ラベル定義 (日本語 / 英語)
-UI構築、ソートメソッド定義、メイン処理、ソート関数群を含む
-*/
+var SCRIPT_VERSION = "v1.0";
 
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* ------------------------------- */
+/* 日英ラベル定義 / Japanese-English label definitions */
+/* ------------------------ */
 
 var LABELS = {
     dialogTitle: {
-        ja: "アートボードを並べ替え v1.1",
-        en: "Sort Artboards"
+        ja: "数値入力（上下キー対応） " + SCRIPT_VERSION,
+        en: "Numeric Input (Arrow Key Supported) " + SCRIPT_VERSION
     },
     sortMethod: { ja: "ソート方法", en: "Sort Method" },
     sort: { ja: "ソート", en: "Sort" },
@@ -138,12 +141,12 @@ function main() {
     var lang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     if (app.documents.length === 0) {
-        alert(LABELS.noDocument);
+        alert(LABELS.noDocument[lang]);
         return;
     }
     var doc = app.activeDocument;
     if (doc.artboards.length === 0) {
-        alert(LABELS.noArtboards);
+        alert(LABELS.noArtboards[lang]);
         return;
     }
 
@@ -154,7 +157,7 @@ function main() {
         }
     }
 
-    var dialog = new Window("dialog", LABELS.dialogTitle);
+    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "row";
     dialog.spacing = 15;
 
@@ -162,14 +165,14 @@ function main() {
     leftColumn.orientation = "column";
     leftColumn.alignChildren = ['fill', 'top'];
 
-    // radioGroup を leftColumn 内に panel で追加し、タイトルを LABELS.sortMethod に設定
-    var radioGroup = leftColumn.add("panel", undefined, LABELS.sortMethod);
+    /* radioGroup を leftColumn 内に panel で追加し、タイトルを LABELS.sortMethod に設定 */
+    var radioGroup = leftColumn.add("panel", undefined, LABELS.sortMethod[lang]);
     radioGroup.orientation = "column";
     radioGroup.alignChildren = ['left', 'top'];
     radioGroup.margins = [15, 20, 15, 10];
 
-    // 許容差パネルを leftColumn 内に追加
-    var toleranceGroup = leftColumn.add("panel", undefined, LABELS.tolerance);
+    /* 許容差パネルを leftColumn 内に追加 */
+    var toleranceGroup = leftColumn.add("panel", undefined, LABELS.tolerance[lang]);
     toleranceGroup.orientation = "column";
     toleranceGroup.alignChildren = ['fill', 'top'];
     toleranceGroup.margins = [15, 20, 15, 10];
@@ -178,7 +181,7 @@ function main() {
     tolRow.orientation = "row";
     tolRow.alignChildren = ['left', 'center'];
 
-    // スライダー初期値を自動計算値×1.1に設定
+    /* スライダー初期値を自動計算値×1.1に設定 */
     var tempArtboards = [];
     for (var i = 0; i < doc.artboards.length; i++) {
         tempArtboards.push({
@@ -213,7 +216,7 @@ function main() {
     }
     radioButtons[select].value = true;
 
-    // ラジオボタンの onClick で「名前順」選択時に許容差をディム表示
+    /* ラジオボタンの onClick で「名前順」選択時に許容差をディム表示 */
     for (var i = 0; i < radioButtons.length; i++) {
         (function(index) {
             radioButtons[index].onClick = function() {
@@ -224,7 +227,7 @@ function main() {
             };
         })(i);
     }
-    // 初期状態も反映
+    /* 初期状態も反映 */
     (function() {
         var selectedLabel = sortMethods[select].displayName[lang];
         var isNameSort = selectedLabel.indexOf("名前") !== -1 || selectedLabel.indexOf("Name") !== -1;
@@ -232,10 +235,10 @@ function main() {
         toleranceValue.enabled = !isNameSort;
     })();
 
-    var okBtn = buttonGroup.add('button', undefined, LABELS.sort, {
+    var okBtn = buttonGroup.add('button', undefined, LABELS.sort[lang], {
         name: 'ok'
     });
-    var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel, {
+    var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel[lang], {
         name: 'cancel'
     });
 
@@ -248,7 +251,7 @@ function main() {
         for (var i = 0; i < radioButtons.length; i++) {
             if (radioButtons[i].value) {
                 settings.sortMethod = sortMethods[i];
-                // Top Left または Top Right の場合、許容差機能付きソートに置き換え
+                /* Top Left または Top Right の場合、許容差機能付きソートに置き換え */
                 if (
                     settings.sortMethod.displayName[lang].indexOf("左上") !== -1 ||
                     settings.sortMethod.displayName[lang].indexOf("Top Left") !== -1
@@ -264,7 +267,7 @@ function main() {
                         sortByPositionTopRightWithTolerance(_artboards, decimalPlaces, tolerance);
                     };
                 }
-                // 上左・上右のときはスライダー値の tolerance を使う
+                /* 上左・上右のときはスライダー値の tolerance を使う */
                 else if (
                     settings.sortMethod.displayName[lang].indexOf("上左") !== -1 ||
                     settings.sortMethod.displayName[lang].indexOf("Left Top") !== -1
@@ -285,31 +288,31 @@ function main() {
         }
         dialog.close(1);
     };
-// 横方向（left座標）の差から tolerance を自動計算
-function calculateAutoToleranceHorizontal(_artboards) {
-    var lefts = [];
-    for (var i = 0; i < _artboards.length; i++) {
-        lefts.push(_artboards[i].artboardRect[0]);
-    }
-    lefts.sort(function(a, b) {
-        return a - b;
-    }); // 左から右に並べる
-
-    var diffs = [];
-    for (var i = 1; i < lefts.length; i++) {
-        var diff = Math.abs(lefts[i] - lefts[i - 1]);
-        if (diff > 0) {
-            diffs.push(diff);
+    /* 横方向（left座標）の差から tolerance を自動計算 */
+    function calculateAutoToleranceHorizontal(_artboards) {
+        var lefts = [];
+        for (var i = 0; i < _artboards.length; i++) {
+            lefts.push(_artboards[i].artboardRect[0]);
         }
-    }
+        lefts.sort(function(a, b) {
+            return a - b;
+        }); /* 左から右に並べる */
 
-    if (diffs.length === 0) {
-        return 5; // 差が無ければデフォルト
-    }
+        var diffs = [];
+        for (var i = 1; i < lefts.length; i++) {
+            var diff = Math.abs(lefts[i] - lefts[i - 1]);
+            if (diff > 0) {
+                diffs.push(diff);
+            }
+        }
 
-    var minDiff = Math.min.apply(null, diffs);
-    return minDiff + 2;
-}
+        if (diffs.length === 0) {
+            return 5; /* 差が無ければデフォルト */
+        }
+
+        var minDiff = Math.min.apply(null, diffs);
+        return minDiff + 2;
+    }
 
     cancelBtn.onClick = function() {
         dialog.close(-1);
@@ -322,10 +325,11 @@ function calculateAutoToleranceHorizontal(_artboards) {
     }
 }
 
+/* 名前順ソート / Sort by name */
 function sortArtboards(doc, sortFunction) {
     var decimalPlaces = Math.pow(10, settings.decimalPlaces);
 
-    // アートボード情報を配列に格納
+    /* アートボード情報を配列に格納 / Store artboard info in array */
     var _artboards = [];
     for (var i = 0; i < doc.artboards.length; i++) {
         var a = doc.artboards[i];
@@ -336,10 +340,10 @@ function sortArtboards(doc, sortFunction) {
         });
     }
 
-    // ソート実行
+    /* ソート実行 / Execute sort */
     sortFunction(_artboards, decimalPlaces);
 
-    // アートボードを再配置しつつsrcIndexを更新（最適化の余地あり）
+    /* アートボードを再配置しつつsrcIndexを更新（最適化の余地あり） / Reorder artboards and update srcIndex (optimization possible) */
     for (var i = 0; i < _artboards.length; i++) {
         var s = _artboards[i];
         var a = doc.artboards[s.srcIndex];
@@ -352,7 +356,7 @@ function sortArtboards(doc, sortFunction) {
         b.showSafeAreas = a.showSafeAreas;
         a.remove();
 
-        // srcIndex更新を1回のループ内で実行
+        /* srcIndex更新を1回のループ内で実行 / Update srcIndex within same loop */
         for (var j = 0; j < _artboards.length; j++) {
             if (_artboards[j].srcIndex > s.srcIndex) {
                 _artboards[j].srcIndex--;
@@ -361,7 +365,7 @@ function sortArtboards(doc, sortFunction) {
     }
 }
 
-// 名前順ソート
+/* 名前順ソート / Sort by name */
 function sortByName(_artboards) {
     _artboards.sort(function(a, b) {
         if (a.name < b.name) return -1;
@@ -370,7 +374,7 @@ function sortByName(_artboards) {
     });
 }
 
-// 共通位置ソート関数
+/* 共通位置ソート関数 / Common position sort function */
 function sortByPosition(_artboards, decimalPlaces, primaryIndex, primaryAsc, secondaryIndex, secondaryAsc) {
     decimalPlaces = decimalPlaces || 1000;
     _artboards.sort(function(a, b) {
@@ -380,27 +384,27 @@ function sortByPosition(_artboards, decimalPlaces, primaryIndex, primaryAsc, sec
     });
 }
 
-// 位置順: 左上基準
+/* 位置順: 左上基準 / Position order: Top Left base */
 function sortByPositionTopLeft(_artboards, decimalPlaces) {
     sortByPosition(_artboards, decimalPlaces, 1, false, 0, true);
 }
 
-// 位置順: 右上基準
+/* 位置順: 右上基準 / Position order: Top Right base */
 function sortByPositionTopRight(_artboards, decimalPlaces) {
     sortByPosition(_artboards, decimalPlaces, 1, false, 0, false);
 }
 
-// 許容差付き 左上基準ソート
+/* 許容差付き 左上基準ソート / With tolerance Top Left base */
 function sortByPositionTopLeftWithTolerance(_artboards, decimalPlaces, tolerance) {
     sortByPositionWithTolerance(_artboards, decimalPlaces, 1, false, 0, true, tolerance);
 }
 
-// 許容差付き 右上基準ソート
+/* 許容差付き 右上基準ソート / With tolerance Top Right base */
 function sortByPositionTopRightWithTolerance(_artboards, decimalPlaces, tolerance) {
     sortByPositionWithTolerance(_artboards, decimalPlaces, 1, false, 0, false, tolerance);
 }
 
-// 許容差を考慮した共通位置ソート関数
+/* 許容差を考慮した共通位置ソート関数 / Common position sort function with tolerance */
 function sortByPositionWithTolerance(_artboards, decimalPlaces, primaryIndex, primaryAsc, secondaryIndex, secondaryAsc, tolerance) {
     decimalPlaces = decimalPlaces || 1000;
     _artboards.sort(function(a, b) {
@@ -409,7 +413,7 @@ function sortByPositionWithTolerance(_artboards, decimalPlaces, primaryIndex, pr
         var secondaryA = Math.round(a.artboardRect[secondaryIndex] * decimalPlaces) / decimalPlaces;
         var secondaryB = Math.round(b.artboardRect[secondaryIndex] * decimalPlaces) / decimalPlaces;
 
-        // 上辺の差が tolerance 以内なら、secondary で比較
+        /* 上辺の差が tolerance 以内なら、secondary で比較 / If top edge difference within tolerance, compare secondary */
         if (Math.abs(primaryA - primaryB) <= tolerance) {
             return (secondaryAsc ? secondaryA - secondaryB : secondaryB - secondaryA);
         }
@@ -417,17 +421,17 @@ function sortByPositionWithTolerance(_artboards, decimalPlaces, primaryIndex, pr
     });
 }
 
-// 位置順: 上左基準
+/* 位置順: 上左基準 / Position order: Left Top base */
 function sortByPositionLeftTop(_artboards, decimalPlaces) {
     sortByPosition(_artboards, decimalPlaces, 0, true, 1, false);
 }
 
-// 位置順: 上右基準
+/* 位置順: 上右基準 / Position order: Right Top base */
 function sortByPositionRightTop(_artboards, decimalPlaces) {
     sortByPosition(_artboards, decimalPlaces, 0, false, 1, false);
 }
 
-// 許容差自動計算関数
+/* 許容差自動計算関数 / Auto calculate tolerance function */
 function calculateAutoTolerance(_artboards) {
     var tops = [];
     for (var i = 0; i < _artboards.length; i++) {
@@ -435,7 +439,7 @@ function calculateAutoTolerance(_artboards) {
     }
     tops.sort(function(a, b) {
         return b - a;
-    }); // 上から下に並べる
+    }); /* 上から下に並べる / Sort top to bottom */
 
     var diffs = [];
     for (var i = 1; i < tops.length; i++) {
@@ -446,18 +450,18 @@ function calculateAutoTolerance(_artboards) {
     }
 
     if (diffs.length === 0) {
-        return 5; // 差が無ければデフォルト
+        return 5; /* 差が無ければデフォルト / Default if no difference */
     }
 
     var minDiff = Math.min.apply(null, diffs);
-    return minDiff + 2; // 少しマージンを加える
+    return minDiff + 2; /* 少しマージンを加える / Add some margin */
 }
-// 許容差付き 上左基準ソート
+/* 許容差付き 上左基準ソート / With tolerance Left Top base */
 function sortByPositionLeftTopWithTolerance(_artboards, decimalPlaces, tolerance) {
     sortByPositionWithTolerance(_artboards, decimalPlaces, 0, true, 1, false, tolerance);
 }
 
-// 許容差付き 上右基準ソート
+/* 許容差付き 上右基準ソート / With tolerance Right Top base */
 function sortByPositionRightTopWithTolerance(_artboards, decimalPlaces, tolerance) {
     sortByPositionWithTolerance(_artboards, decimalPlaces, 0, false, 1, false, tolerance);
 }

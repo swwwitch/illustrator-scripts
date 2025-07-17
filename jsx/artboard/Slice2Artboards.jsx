@@ -1,8 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
 /*
 ### スクリプト名：
 
@@ -74,9 +72,12 @@ Slice2Artboards.jsx
 
 var SCRIPT_VERSION = "v1.4";
 
-/*
-     ラベル定義（UI表示順で整理）/ Label definitions (ordered by UI appearance)
-    */
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
 
 var LABELS = {
     dialogTitle: {
@@ -164,8 +165,6 @@ var LABELS = {
         en: "An error occurred"
     }
 };
-
-var lang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 
 function main() {
     /**
@@ -288,93 +287,70 @@ function main() {
 
     app.undoGroup = (lang === "ja" ? "アートボード分割と作成" : "Slice and Create Artboards");
     safeExecute(function() {
-        // getCurrentLang and LABELS already defined above in main()
-
-        /*
-         ダイアログ作成
-         Create dialog
-        */
-        var dialogTitle = LABELS.dialogTitle + " " + SCRIPT_VERSION;
+        /* ダイアログ作成 / Create dialog */
+        var dialogTitle = LABELS.dialogTitle[lang] + " " + SCRIPT_VERSION;
         var Dialog = new Window('dialog', dialogTitle);
         Dialog.orientation = 'column';
         Dialog.alignment = 'right';
 
-        /*
-         メイングループ（2カラム）
-         Main group (2 columns)
-        */
+        /* メイングループ（2カラム） / Main group (2 columns) */
         var mainGroup = Dialog.add('group');
         mainGroup.orientation = 'row';
         mainGroup.alignChildren = 'top';
 
-        /*
-         左カラム
-         Left column
-        */
+        /* 左カラム / Left column */
         var inputPanel = mainGroup.add('group');
         inputPanel.orientation = 'column';
         inputPanel.alignChildren = 'left';
 
-        /*
-         形状パネル
-         Shape panel (A4/Square/Letter/16:9/8:9/Custom)
-        */
-        var shapePanel = inputPanel.add("panel", undefined, LABELS.shapePanel);
+        /* 形状パネル / Shape panel (A4/Square/Letter/16:9/8:9/Custom) */
+        var shapePanel = inputPanel.add("panel", undefined, LABELS.shapePanel[lang]);
         shapePanel.orientation = "column";
         shapePanel.alignChildren = "left";
         shapePanel.margins = [15, 20, 15, 10];
-        var shapeRadioA4 = shapePanel.add("radiobutton", undefined, LABELS.shapeA4);
-        var shapeRadioSquare = shapePanel.add("radiobutton", undefined, LABELS.shapeSquare);
+        var shapeRadioA4 = shapePanel.add("radiobutton", undefined, LABELS.shapeA4[lang]);
+        var shapeRadioSquare = shapePanel.add("radiobutton", undefined, LABELS.shapeSquare[lang]);
         if (lang !== "ja") {
-            var shapeRadioLetter = shapePanel.add("radiobutton", undefined, LABELS.shapeLetter);
-            var shapeRadioLegal = shapePanel.add("radiobutton", undefined, LABELS.shapeLegal);
-            var shapeRadioTabloid = shapePanel.add("radiobutton", undefined, LABELS.shapeTabloid);
+            var shapeRadioLetter = shapePanel.add("radiobutton", undefined, LABELS.shapeLetter[lang]);
+            var shapeRadioLegal = shapePanel.add("radiobutton", undefined, LABELS.shapeLegal[lang]);
+            var shapeRadioTabloid = shapePanel.add("radiobutton", undefined, LABELS.shapeTabloid[lang]);
         }
-        var shapeRadio169 = shapePanel.add("radiobutton", undefined, LABELS.shape169);
-        var shapeRadio89 = shapePanel.add("radiobutton", undefined, LABELS.shape89);
+        var shapeRadio169 = shapePanel.add("radiobutton", undefined, LABELS.shape169[lang]);
+        var shapeRadio89 = shapePanel.add("radiobutton", undefined, LABELS.shape89[lang]);
         var shapeRadioCustom = shapePanel.add("radiobutton", undefined, (lang === "ja" ? "カスタム" : "Custom"));
         shapeRadioA4.value = true; // デフォルトA4 / Default is A4
 
-        /*
-         ピース設定グループ
-         Piece setting group
-        */
+        /* ピース設定グループ / Piece setting group */
         var pieceSettingGroup = inputPanel.add("group");
         pieceSettingGroup.orientation = "column";
         pieceSettingGroup.alignChildren = "left";
         pieceSettingGroup.margins = [10, 5, 10, 15];
 
-        /*
-         行数・列数入力欄
-         Row and Column Inputs
-        */
+        /* 行数・列数入力欄 / Row and Column Inputs */
         var rowColGroup = pieceSettingGroup.add('group');
         rowColGroup.orientation = 'row';
         rowColGroup.alignChildren = 'left';
-        // 列数 / Columns
+        /* 列数 / Columns */
         var colGroup = rowColGroup.add('group');
         colGroup.orientation = 'row';
-        colGroup.add('statictext', undefined, LABELS.columns);
+        colGroup.add('statictext', undefined, LABELS.columns[lang]);
         var columnText = colGroup.add('edittext', undefined, String(DEFAULT_COLUMN_COUNT));
         columnText.characters = 3;
         changeValueByArrowKey(columnText);
-        // 行数 / Rows
+        /* 行数 / Rows */
         var rowGroup = rowColGroup.add('group');
         rowGroup.orientation = 'row';
-        rowGroup.add('statictext', undefined, LABELS.rows);
+        rowGroup.add('statictext', undefined, LABELS.rows[lang]);
         var rowText = rowGroup.add('edittext', undefined, String(DEFAULT_ROW_COUNT));
         rowText.characters = 3;
         changeValueByArrowKey(rowText);
 
-        /*
-         オフセットグループ
-         Offset Group
-        */
+        /* オフセットグループ / Offset Group */
         var offsetGroup = inputPanel.add("group");
         offsetGroup.orientation = "row";
         offsetGroup.alignChildren = "left";
         offsetGroup.margins = [10, 0, 10, 10];
-        var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel);
+        var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel[lang]);
         offsetCheckbox.value = true;
         var offsetValueInput = offsetGroup.add("edittext", undefined, String(DEFAULT_OFFSET));
         offsetValueInput.characters = 4;
@@ -387,31 +363,28 @@ function main() {
             offsetUnitLabel.enabled = offsetCheckbox.value;
         };
 
-        /*
-         右カラム
-         Right column
-        */
+        /* 右カラム / Right column */
         var artboardColumnGroup = mainGroup.add('group');
         artboardColumnGroup.orientation = 'column';
         artboardColumnGroup.alignChildren = 'left';
 
-        // アートボード変換チェックボックス
-        var artboardCheckbox = artboardColumnGroup.add('checkbox', undefined, LABELS.convertArtboard);
+        /* アートボード変換チェックボックス / Convert to Artboards checkbox */
+        var artboardCheckbox = artboardColumnGroup.add('checkbox', undefined, LABELS.convertArtboard[lang]);
         artboardCheckbox.value = true;
 
-        // アートボード名・連番・ゼロ埋め設定パネル
-        var artboardPanel = artboardColumnGroup.add("panel", undefined, LABELS.options);
+        /* アートボード名・連番・ゼロ埋め設定パネル / Artboard name, sequence, zero padding panel */
+        var artboardPanel = artboardColumnGroup.add("panel", undefined, LABELS.options[lang]);
         artboardPanel.orientation = "column";
         artboardPanel.alignChildren = "left";
         artboardPanel.margins = [15, 20, 15, 10];
         // ファイル名参照チェックボックス
         var useFileNameCheckbox = artboardPanel.add("checkbox", undefined, "ファイル名を参照");
         useFileNameCheckbox.value = false;
-        // アートボード名入力欄
+        /* アートボード名入力欄 / Artboard name input */
         var artboardNameGroup = artboardPanel.add("group");
         artboardNameGroup.orientation = "row";
         artboardNameGroup.alignChildren = "center";
-        artboardNameGroup.add("statictext", undefined, LABELS.artboardName);
+        artboardNameGroup.add("statictext", undefined, LABELS.artboardName[lang]);
         var artboardNameInput = artboardNameGroup.add("edittext", undefined, "");
         artboardNameInput.characters = 14;
 
@@ -425,21 +398,21 @@ function main() {
         var radioNone = separatorGroup.add("radiobutton", undefined, "なし");
         radioDash.value = true; // Default
 
-        // 連番の初期値・ゼロ埋めチェックボックス
+        /* 連番の初期値・ゼロ埋めチェックボックス / Sequence start & zero padding */
         var artboardNumberGroup = artboardPanel.add("group");
         artboardNumberGroup.orientation = "row";
         artboardNumberGroup.alignChildren = "center";
-        artboardNumberGroup.add("statictext", undefined, LABELS.startNumber);
+        artboardNumberGroup.add("statictext", undefined, LABELS.startNumber[lang]);
         var artboardNumberInput = artboardNumberGroup.add("edittext", undefined, String(DEFAULT_START_NUMBER));
         artboardNumberInput.characters = 3;
         changeValueByArrowKey(artboardNumberInput);
-        var zeroPadCheckbox = artboardNumberGroup.add('checkbox', undefined, LABELS.zeroPad);
+        var zeroPadCheckbox = artboardNumberGroup.add('checkbox', undefined, LABELS.zeroPad[lang]);
         zeroPadCheckbox.value = true; // デフォルトON / Default ON
 
-        // マージン入力欄
+        /* マージン入力欄 / Margin input */
         var artboardMarginGroup = artboardColumnGroup.add("group");
         artboardMarginGroup.orientation = "row";
-        artboardMarginGroup.add("statictext", undefined, LABELS.margin);
+        artboardMarginGroup.add("statictext", undefined, LABELS.margin[lang]);
         var artboardMarginInput = artboardMarginGroup.add("edittext", undefined, String(DEFAULT_MARGIN));
         artboardMarginInput.characters = 5;
         changeValueByArrowKey(artboardMarginInput);
@@ -454,7 +427,7 @@ function main() {
             }
         }
 
-        // 「アートボードに変換」チェックボックスで他オプション有効/無効切り替え
+        /* 「アートボードに変換」チェックボックスで他オプション有効/無効切り替え / Enable/disable options by artboard checkbox */
         artboardCheckbox.onClick = function() {
             var enabled = artboardCheckbox.value;
             artboardNameInput.enabled = enabled;
@@ -463,23 +436,17 @@ function main() {
             artboardMarginInput.enabled = enabled;
         };
 
-        /*
-         OK・キャンセルボタン
-         OK & Cancel Buttons
-        */
+        /* OK・キャンセルボタン / OK & Cancel Buttons */
         var groupButtons = Dialog.add('group');
         groupButtons.orientation = 'row';
         groupButtons.alignment = "right";
-        groupButtons.add('button', undefined, LABELS.cancel);
-        var okBtn = groupButtons.add('button', undefined, LABELS.okBtn, {
+        groupButtons.add('button', undefined, LABELS.cancel[lang]);
+        var okBtn = groupButtons.add('button', undefined, LABELS.okBtn[lang], {
             name: "ok"
         });
         okBtn.active = true;
 
-        /*
-         選択画像やベクターアートワークがあれば初期値を自動設定
-         Auto-set grid if artwork selected
-        */
+        /* 選択画像やベクターアートワークがあれば初期値を自動設定 / Auto-set grid if artwork selected */
         function getSelectedArtworkItem() {
             if (app.documents.length > 0 && app.selection.length == 1) {
                 var sel = app.selection[0];
@@ -503,10 +470,7 @@ function main() {
             }
             return null;
         }
-        /*
-         行列数の自動計算（A4比率/Square/Letter/16:9/8:9）
-         Auto-calc grid by shape
-        */
+        /* 行列数の自動計算（A4比率/Square/Letter/16:9/8:9） / Auto-calc grid by shape */
         var selectedImage = getSelectedArtworkItem();
 
         function updateGridByShape() {
@@ -584,7 +548,7 @@ function main() {
             shapeRadioCustom.value = true;
         };
 
-        // メイン処理（OK押下時）
+        /* メイン処理（OK押下時） / Main logic on OK */
         if (
             app.documents.length > 0 &&
             app.selection.length > 0 &&
@@ -596,7 +560,7 @@ function main() {
             var selectedObjectForPuzzle;
             var isTempRect = false;
 
-            // シンボル化処理
+            /* シンボル化処理 / Symbolize process */
             var symbolResult = convertToSymbol(app.selection);
             selectedObj = symbolResult.symbolItem;
             selectedObjectForPuzzle = symbolResult.maskRect ? symbolResult.maskRect : selectedObj;
@@ -604,15 +568,15 @@ function main() {
             isTempRect = symbolResult.isTempRect ? true : false;
             selectedImage = app.selection[0];
 
-            // 列・行数取得
+            /* 列・行数取得 / Get column/row count */
             var columnCount = Math.round(Number(columnText.text));
             var rowCount = Math.round(Number(rowText.text));
 
-            // 入力値検証
+            /* 入力値検証 / Validate input */
             if (validateGridInput(columnCount, rowCount)) {
                 selectedObjectForPuzzle.selected = false;
 
-                // 列または行が0の場合は比率で自動算出
+                /* 列または行が0の場合は比率で自動算出 / Auto-calculate if col/row is 0 */
                 var aspectRatio;
                 if (columnCount == 0) {
                     aspectRatio = Math.abs(
@@ -629,10 +593,7 @@ function main() {
                     rowCount = Math.round(aspectRatio * columnCount);
                 }
 
-                /*
-                 マスク矩形のアスペクト比決定
-                 Mask aspect ratio by shape radio
-                */
+                /* マスク矩形のアスペクト比決定 / Mask aspect ratio by shape radio */
                 var maskAspectRatio = 1.0;
                 if (shapeRadioA4.value) {
                     maskAspectRatio = 210 / 297;
@@ -683,10 +644,7 @@ function main() {
                 originX = selectedObjectForPuzzle.geometricBounds[0];
                 originY = selectedObjectForPuzzle.geometricBounds[1];
 
-                /*
-                 グリッド形状（矩形マスク）モード
-                 Grid mask mode
-                */
+                /* グリッド形状（矩形マスク）モード / Grid mask mode */
                 var generatedPieces = [];
                 for (var y = 0; y < rowCount; y++) {
                     for (var x = 0; x < columnCount; x++) {
@@ -721,14 +679,14 @@ function main() {
                     }
                 }
 
-                // 生成したクリップグループの重ね順を逆に
+                /* 生成したクリップグループの重ね順を逆に / Reverse stacking order */
                 for (var i = 0; i < generatedPieces.length; i++) {
                     generatedPieces[i].zOrder(ZOrderMethod.SENDTOBACK);
                 }
 
-                // アートボードに変換
+                /* アートボードに変換 / Convert to artboards */
                 if (artboardCheckbox.value) {
-                    // クリップグループをマスク矩形の見た目順（Y降順, X昇順）で並べ替え
+                    /* クリップグループをマスク矩形の見た目順（Y降順, X昇順）で並べ替え / Sort by visual order */
                     var sortItems = [];
                     for (var i = 0; i < generatedPieces.length; i++) {
                         var item = generatedPieces[i];
@@ -768,7 +726,7 @@ function main() {
                         if (a.top != b.top) return b.top - a.top;
                         return a.left - b.left;
                     });
-                    // アートボード追加 & リネーム（ゼロ埋め対応）
+                    /* アートボード追加 & リネーム（ゼロ埋め対応） / Add & rename artboards */
                     var doc = app.activeDocument;
                     var baseName = artboardNameInput.text;
                     var startNumberStr = artboardNumberInput.text;
@@ -815,13 +773,13 @@ function main() {
                             grp.name = abName;
                         }
                     }
-                    // 元のアートボード削除
+                    /* 元のアートボード削除 / Remove old artboards */
                     for (var ai = doc.artboards.length - sortItems.length - 1; ai >= 0; ai--) {
                         doc.artboards.remove(ai);
                     }
                 }
 
-                // 元画像・一時矩形削除
+                /* 元画像・一時矩形削除 / Remove original image and temp rect */
                 if (origImageObj && typeof origImageObj.remove === "function") {
                     origImageObj.remove();
                 }
@@ -833,15 +791,12 @@ function main() {
         } else {
             Dialog.hide();
         }
-    }, "スクリプト実行中");
+    }, "スクリプト実行中 / Running script");
 }
 
-/*
-Offset Path Effect Utility
-*/
+/* Offset Path Effect Utility / Offset Path Effect Utility */
 /**
- * Offset PathエフェクトXMLを生成
- * Generate Offset Path effect XML
+ * Offset PathエフェクトXMLを生成 / Generate Offset Path effect XML
  */
 function createOffsetEffectXML(offsetVal) {
     var xml = '<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst value I jntp 2 "/></LiveEffect>';
@@ -849,8 +804,7 @@ function createOffsetEffectXML(offsetVal) {
 }
 
 /**
- * 選択アイテムにオフセットパス効果を適用
- * Apply Offset Path effect to selection
+ * 選択アイテムにオフセットパス効果を適用 / Apply Offset Path effect to selection
  */
 function applyOffsetPathToSelection(offsetVal) {
     var result = null;
@@ -871,15 +825,14 @@ function applyOffsetPathToSelection(offsetVal) {
         } else {
             result = null;
         }
-    }, "オフセットパスエフェクト適用");
+    }, "オフセットパスエフェクト適用 / Apply Offset Path effect");
     return result;
 }
 
 main();
 
 /**
- * シンボル化できるオブジェクトのみ選別
- * Filter symbolizable objects
+ * シンボル化できるオブジェクトのみ選別 / Filter symbolizable objects
  */
 function filterSymbolizableItems(items) {
     var validItems = [];
@@ -893,8 +846,7 @@ function filterSymbolizableItems(items) {
 }
 
 /**
- * 選択オブジェクトをシンボル化し、必要なら矩形を生成して返す
- * Symbolize selected object(s), create rectangle if needed
+ * 選択オブジェクトをシンボル化し、必要なら矩形を生成して返す / Symbolize selected object(s), create rectangle if needed
  */
 function convertToSymbol(selection) {
     var result = {
@@ -928,7 +880,7 @@ function convertToSymbol(selection) {
             tempGroup.remove();
             selectedObj = symbolItem;
         } catch (e) {
-            alert("複数オブジェクトのシンボル化に失敗しました: " + e);
+            alert("複数オブジェクトのシンボル化に失敗しました: " + e); /* Failed to symbolize multiple objects */
             return result;
         }
     } else {
@@ -968,7 +920,7 @@ function convertToSymbol(selection) {
             selectedObj.remove();
             selectedObj = symbolItem;
         } catch (e) {
-            alert("埋め込み画像のシンボル化に失敗しました: " + e);
+            alert("埋め込み画像のシンボル化に失敗しました: " + e); /* Failed to symbolize embedded image */
             return result;
         }
     }
@@ -989,7 +941,7 @@ function convertToSymbol(selection) {
             selectedObj.remove();
             selectedObj = vectorSymbolItem;
         } catch (e) {
-            alert("ベクターオブジェクトのシンボル化に失敗しました: " + e);
+            alert("ベクターオブジェクトのシンボル化に失敗しました: " + e); /* Failed to symbolize vector object */
             return result;
         }
     }
@@ -1009,7 +961,7 @@ function convertToSymbol(selection) {
     result.symbolItem = selectedObj;
     return result;
 }
-// Enable up/down arrow key increment/decrement on edittext inputs
+// Enable up/down arrow key increment/decrement on edittext inputs / 編集テキストで上下キー増減を有効化
 function changeValueByArrowKey(editText, allowNegative) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);

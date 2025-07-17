@@ -1,7 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
 
 /*
 
@@ -92,6 +91,16 @@ FitArtboardWithMargin.jsx
 
 var SCRIPT_VERSION = "v1.5";
 
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+// -------------------------------
+// 日英ラベル定義 / Japanese-English label definitions
+// -------------------------------
+
+
 var LABELS = {
     dialogTitle: { ja: "アートボードサイズを調整 " + SCRIPT_VERSION, en: "Adjust Artboard Size " + SCRIPT_VERSION },
     targetSelection: { ja: "選択したオブジェクト", en: "Selected Objects" },
@@ -112,8 +121,8 @@ var dialogOpacity = 0.95;
 マージンダイアログ表示 / Show margin input dialog with live preview
 */
 function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
-    var dlg = new Window("dialog", LABELS.dialogTitle);
-    // --- dialog offset and opacity customization ---
+    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+    /* ダイアログ位置と不透明度のカスタマイズ / Customize dialog offset and opacity */
 
     function shiftDialogPosition(dlg, offsetX, offsetY) {
         dlg.onShow = function() {
@@ -137,14 +146,14 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
 
     setDialogOpacity(dlg, dialogOpacity);
     shiftDialogPosition(dlg, offsetX, 0);
-    // --- end dialog offset and opacity customization ---
+    /* ダイアログ位置と不透明度のカスタマイズ 終了 / End dialog offset and opacity customization */
 
     dlg.orientation = "column";
     dlg.alignChildren = "fill";
     dlg.margins = 15;
 
     /* 対象選択パネル / Target selection panel */
-    var targetPanel = dlg.add("panel", undefined, ($.locale.indexOf('ja') === 0 ? "対象" : "Target"));
+    var targetPanel = dlg.add("panel", undefined, (lang === "ja" ? "対象" : "Target"));
     targetPanel.orientation = "column";
     targetPanel.alignChildren = "left";
     targetPanel.margins = [15, 20, 15, 10];
@@ -153,12 +162,12 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
     radioGroup.orientation = "column";
     radioGroup.alignChildren = "left";
 
-    var radioSelection = radioGroup.add("radiobutton", undefined, LABELS.targetSelection);
+    var radioSelection = radioGroup.add("radiobutton", undefined, LABELS.targetSelection[lang]);
     radioSelection.enabled = hasSelection;
-    var radioArtboard = radioGroup.add("radiobutton", undefined, LABELS.targetArtboard);
-    var radioAllArtboards = radioGroup.add("radiobutton", undefined, LABELS.targetAllArtboards);
+    var radioArtboard = radioGroup.add("radiobutton", undefined, LABELS.targetArtboard[lang]);
+    var radioAllArtboards = radioGroup.add("radiobutton", undefined, LABELS.targetAllArtboards[lang]);
 
-    // 対象選択の初期値設定 / Set initial radio selection
+    /* 対象選択の初期値設定 / Set initial radio selection */
     if (!hasSelection && artboardCount === 1) {
         radioArtboard.value = true;
     } else if (!hasSelection && artboardCount > 1) {
@@ -168,7 +177,7 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
     }
 
     /* マージン入力パネル / Margin input panel */
-    var marginPanel = dlg.add("panel", undefined, (($.locale.indexOf('ja') === 0 ? "マージン" : "Margin") + " (" + unit + ")"));
+    var marginPanel = dlg.add("panel", undefined, (lang === "ja" ? "マージン" : "Margin") + " (" + unit + ")");
     marginPanel.orientation = "row";
     marginPanel.alignChildren = ["fill", "top"];
     marginPanel.margins = [15, 20, 15, 10];
@@ -182,22 +191,22 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
     rightColumn.alignChildren = ["left", "center"];
     rightColumn.alignment = ["fill", "center"];
 
-    // 上下 group
+    /* 上下マージン入力欄 / Vertical margin input */
     var verticalGroup = leftColumn.add("group");
     verticalGroup.orientation = "row";
-    var labelV = verticalGroup.add("statictext", undefined, LABELS.marginVertical + ":");
+    var labelV = verticalGroup.add("statictext", undefined, LABELS.marginVertical[lang] + ":");
     var inputV = verticalGroup.add("edittext", undefined, defaultValue);
     inputV.characters = 4;
 
-    // 左右 group
+    /* 左右マージン入力欄 / Horizontal margin input */
     var horizontalGroup = leftColumn.add("group");
     horizontalGroup.orientation = "row";
-    var labelH = horizontalGroup.add("statictext", undefined, LABELS.marginHorizontal + ":");
+    var labelH = horizontalGroup.add("statictext", undefined, LABELS.marginHorizontal[lang] + ":");
     var inputH = horizontalGroup.add("edittext", undefined, defaultValue);
     inputH.characters = 4;
 
-    // 連動チェックボックス
-    var linkCheckbox = rightColumn.add("checkbox", undefined, LABELS.linked);
+    /* 連動チェックボックス / Linked checkbox */
+    var linkCheckbox = rightColumn.add("checkbox", undefined, LABELS.linked[lang]);
     linkCheckbox.value = true;
 
     /* 現在のアートボードrectと全アートボードrectを保存（プレビュー用に復元） / Save current and all artboard rects for preview restore */
@@ -271,7 +280,7 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
         app.redraw();
     }
 
-    // 入力欄で矢印キーによる増減を可能に / Enable arrow key increment/decrement in input
+    /* 入力欄で矢印キーによる増減を可能に / Enable arrow key increment/decrement in input */
     changeValueByArrowKey(inputV, function(val) {
         if (linkCheckbox.value) inputH.text = val;
         updatePreview(inputV.text, inputH.text);
@@ -305,10 +314,10 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
     /* ボタングループ / Button group */
     var btnGroup = dlg.add("group");
     btnGroup.alignment = "center";
-    var cancelBtn = btnGroup.add("button", undefined, ($.locale.indexOf('ja') === 0 ? "キャンセル" : "Cancel"), {
+    var cancelBtn = btnGroup.add("button", undefined, (lang === "ja" ? "キャンセル" : "Cancel"), {
         name: "cancel"
     });
-    var okBtn = btnGroup.add("button", undefined, ($.locale.indexOf('ja') === 0 ? "OK" : "OK"), {
+    var okBtn = btnGroup.add("button", undefined, (lang === "ja" ? "OK" : "OK"), {
         name: "ok"
     });
     btnGroup.margins = [0, 5, 0, 0];
@@ -324,7 +333,7 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
             updatePreview(result.marginV, result.marginH);
             dlg.close();
         } else {
-            alert(LABELS.numberAlert);
+            alert(LABELS.numberAlert[lang]);
         }
     };
     cancelBtn.onClick = function() {
@@ -340,9 +349,7 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
     return result;
 }
 
-/*
-メイン処理 / Main process
-*/
+/* メイン処理 / Main process */
 function main() {
     var selectedItems, artboards, rulerType, marginUnit, marginValue;
     var marginInPoints, defaultMarginValue, artboardIndex, selectedBounds;
@@ -451,9 +458,7 @@ function main() {
         }
 
         if (targetMode === "selection") {
-            /*
-            グループ内の clipping=true のみ抽出し直す / Only add path with clipping=true in group
-            */
+            /* グループ内の clipping=true のみ抽出し直す / Only add path with clipping=true in group */
             var tempItems = [];
             for (var i = 0; i < selectedItems.length; i++) {
                 var item = selectedItems[i];
@@ -502,13 +507,11 @@ function main() {
         artboards[artboardIndex].artboardRect = selectedBounds;
 
     } catch (e) {
-        alert(LABELS.errorOccurred + e.message);
+        alert(LABELS.errorOccurred[lang] + e.message);
     }
 }
 
-/*
-選択オブジェクト群から最大のバウンディングボックスを取得 / Get maximum bounding box from multiple items
-*/
+/* 選択オブジェクト群から最大のバウンディングボックスを取得 / Get maximum bounding box from multiple items */
 function getMaxBounds(items) {
     var bounds = getBounds(items[0]);
     for (var i = 1; i < items.length; i++) {
@@ -521,17 +524,13 @@ function getMaxBounds(items) {
     return bounds;
 }
 
-/*
-オブジェクトのバウンディングボックスを取得 / Get bounding box of a single object
-visibleBounds を常に使用 / Always use visibleBounds
-*/
+/* オブジェクトのバウンディングボックスを取得 / Get bounding box of a single object
+   visibleBounds を常に使用 / Always use visibleBounds */
 function getBounds(item) {
     return item.visibleBounds;
 }
 
-/*
-edittextに矢印キーで値を増減する機能を追加 / Add arrow key increment/decrement to edittext
-*/
+/* edittextに矢印キーで値を増減する機能を追加 / Add arrow key increment/decrement to edittext */
 function changeValueByArrowKey(editText, onUpdate) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);

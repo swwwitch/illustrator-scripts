@@ -1,8 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true; 
-
 /*
 ### スクリプト名：
 
@@ -75,10 +73,19 @@ AddPageNumberFromTextSelection.jsx
 - v1.5 (20240425): Added suffix field, improved UI
 */
 
+var SCRIPT_VERSION = "v1.5";
+
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
+
 var LABELS = {
     dialogTitle: {
-        ja: "ページ番号を追加",
-        en: "Add Page Numbers"
+        ja: "数値入力（上下キー対応） " + SCRIPT_VERSION,
+        en: "Numeric Input (Arrow Key Supported) " + SCRIPT_VERSION
     },
     promptMessage: {
         ja: "開始番号",
@@ -122,7 +129,7 @@ var LABELS = {
     }
 };
 
-// 指定レイヤー上の他のテキストフレームを削除（exceptを除く）
+/* 指定レイヤー上の他のテキストフレームを削除（exceptを除く） / Remove other text frames on specified layer except 'except' */
 function removeOtherTextFrames(layer, except) {
     for (var i = layer.textFrames.length - 1; i >= 0; i--) {
         var item = layer.textFrames[i];
@@ -132,7 +139,7 @@ function removeOtherTextFrames(layer, except) {
     }
 }
 
-// 座標からアートボードインデックスを取得
+/* 座標からアートボードインデックスを取得 / Get artboard index by position */
 function getArtboardIndexByPosition(doc, pos) {
     for (var i = 0; i < doc.artboards.length; i++) {
         var abRect = doc.artboards[i].artboardRect;
@@ -143,7 +150,7 @@ function getArtboardIndexByPosition(doc, pos) {
     return -1;
 }
 
-// ページ番号文字列生成
+/* ページ番号文字列生成 / Build page number string */
 function buildPageNumberString(num, maxDigits, prefix, zeroPad, totalPageNum, showTotal) {
     var numStr = String(num);
     if (zeroPad && numStr.length < maxDigits) {
@@ -158,7 +165,7 @@ function buildPageNumberString(num, maxDigits, prefix, zeroPad, totalPageNum, sh
     return numStr;
 }
 
-// テキスト複製＆内容更新（再利用性向上のため関数化）
+/* テキスト複製＆内容更新（再利用性向上のため関数化） / Duplicate text & update contents (function for reusability) */
 function generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNum, prefix, zeroPad, showTotal, customDigits, suffix) {
     removeOtherTextFrames(pagenumberLayer, targetText);
     var abCount = doc.artboards.length;
@@ -180,12 +187,12 @@ function generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNu
 
 function main() {
     if (app.documents.length === 0) {
-        alert(LABELS.noDocument);
+        alert(LABELS.noDocument[lang]);
         return;
     }
     var doc = app.activeDocument;
 
-    // _pagenumberレイヤー取得または作成
+    /* _pagenumberレイヤー取得または作成 / Get or create _pagenumber layer */
     var pagenumberLayer;
     try {
         pagenumberLayer = doc.layers.getByName("_pagenumber");
@@ -194,19 +201,19 @@ function main() {
         pagenumberLayer.name = "_pagenumber";
     }
 
-    // 選択テキストを_pagenumberレイヤーへ移動
+    /* 選択テキストを_pagenumberレイヤーへ移動 / Move selected text to _pagenumber layer */
     var sel = doc.selection;
     if (sel.length > 0 && sel[0].typename === "TextFrame") {
         sel[0].move(pagenumberLayer, ElementPlacement.PLACEATBEGINNING);
     }
 
-    // 基準となるテキストフレームを取得
+    /* 基準となるテキストフレームを取得 / Get reference text frame */
     var targetText = null;
     var abIndexToKeep = 0;
     var baseArtboard = doc.artboards[abIndexToKeep];
     var baseRect = baseArtboard.artboardRect;
 
-    // 1つ目のアートボード上にあるテキストフレームを探す
+    /* 1つ目のアートボード上にあるテキストフレームを探す / Search for text frame on first artboard */
     for (var i = 0; i < pagenumberLayer.textFrames.length; i++) {
         var tf = pagenumberLayer.textFrames[i];
         var pos = tf.position;
@@ -215,7 +222,7 @@ function main() {
             break;
         }
     }
-    // 見つからなければ他のアートボードも探索
+    /* 見つからなければ他のアートボードも探索 / If not found, search other artboards */
     if (!targetText) {
         for (var j = 1; j < doc.artboards.length; j++) {
             var abRect = doc.artboards[j].artboardRect;
@@ -231,11 +238,11 @@ function main() {
         }
     }
     if (!targetText) {
-        alert(LABELS.errorInvalidSelection);
+        alert(LABELS.errorInvalidSelection[lang]);
         return;
     }
 
-    // テキスト位置を1アートボード目基準に補正
+    /* テキスト位置を1アートボード目基準に補正 / Adjust text position relative to first artboard */
     var pos = targetText.position;
     var ab = doc.artboards[abIndexToKeep].artboardRect;
     doc.artboards.setActiveArtboardIndex(abIndexToKeep);
@@ -246,56 +253,56 @@ function main() {
         targetText.position = [pos[0] + offset[0], pos[1] + offset[1]];
     }
 
-    // レイヤー・型チェック
+    /* レイヤー・型チェック / Layer and type check */
     if (targetText.layer.name !== "_pagenumber" || targetText.typename !== "TextFrame") {
-        alert(LABELS.errorInvalidSelection);
+        alert(LABELS.errorInvalidSelection[lang]);
         return;
     }
 
-    // ダイアログ作成
-    var dialog = new Window("dialog", LABELS.dialogTitle);
+    /* ダイアログ作成 / Create dialog */
+    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "left";
 
-    // 親グループ（横並び）
+    /* 親グループ（横並び） / Parent group (horizontal layout) */
     var columnsGroup = dialog.add("group");
     columnsGroup.orientation = "row";
     columnsGroup.alignChildren = "top";
 
-    // 左カラム: 接頭辞
+    /* 左カラム: 接頭辞 / Left column: Prefix */
     var leftGroup = columnsGroup.add("group");
     leftGroup.orientation = "column";
     leftGroup.alignChildren = "left";
-    leftGroup.add("statictext", undefined, LABELS.prefixLabel);
+    leftGroup.add("statictext", undefined, LABELS.prefixLabel[lang]);
     var prefixField = leftGroup.add("edittext", undefined, "");
     prefixField.characters = 10;
 
-    // 中央カラム: 開始番号 + ゼロ埋め
+    /* 中央カラム: 開始番号 + ゼロ埋め / Center column: Starting number + Zero pad */
     var centerGroup = columnsGroup.add("group");
     centerGroup.orientation = "column";
     centerGroup.alignChildren = "left";
     var inputGroup = centerGroup.add("group");
     inputGroup.orientation = "column";
-    inputGroup.add("statictext", undefined, LABELS.promptMessage);
+    inputGroup.add("statictext", undefined, LABELS.promptMessage[lang]);
     var inputField = inputGroup.add("edittext", undefined, "1");
     inputField.characters = 5;
-    var zeroPadCheckbox = centerGroup.add("checkbox", undefined, LABELS.zeroPadLabel);
+    var zeroPadCheckbox = centerGroup.add("checkbox", undefined, LABELS.zeroPadLabel[lang]);
 
-    // 右カラム: 接尾辞 + 総ページ数
+    /* 右カラム: 接尾辞 + 総ページ数 / Right column: Suffix + Total pages */
     var rightGroup = columnsGroup.add("group");
     rightGroup.orientation = "column";
     rightGroup.alignChildren = "left";
-    rightGroup.add("statictext", undefined, LABELS.suffixLabel);
+    rightGroup.add("statictext", undefined, LABELS.suffixLabel[lang]);
     var suffixField = rightGroup.add("edittext", undefined, "");
     suffixField.characters = 10;
-    var totalPageCheckbox = rightGroup.add("checkbox", undefined, LABELS.totalPageLabel);
+    var totalPageCheckbox = rightGroup.add("checkbox", undefined, LABELS.totalPageLabel[lang]);
 
-    // プレビュー更新関数
+    /* プレビュー更新関数 / Preview update function */
     function previewUpdate() {
         var startNumStr = inputField.text;
         var startNum = parseInt(startNumStr, 10);
         if (isNaN(startNum)) {
-            alert(LABELS.invalidNumber);
+            alert(LABELS.invalidNumber[lang]);
             return;
         }
         var prefix = prefixField.text;
@@ -303,7 +310,7 @@ function main() {
         var showTotal = totalPageCheckbox.value;
         var suffix = suffixField.text;
 
-        // 入力がゼロ始まりの場合、桁数を取得しゼロパディングを強制ON
+        /* 入力がゼロ始まりの場合、桁数を取得しゼロパディングを強制ON / If input starts with zero, get digit count and force zero padding ON */
         var customDigits = 0;
         if (startNumStr.match(/^0/)) {
             customDigits = startNumStr.length;
@@ -320,12 +327,12 @@ function main() {
     inputField.onChanging = previewUpdate;
     suffixField.onChanging = previewUpdate;
 
-    // ボタン作成
+    /* ボタン作成 / Create buttons */
     var buttonGroup = dialog.add("group");
     buttonGroup.orientation = "row";
     buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel);
-    var okBtn = buttonGroup.add("button", undefined, LABELS.ok);
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
+    var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang]);
 
     okBtn.onClick = function() {
         if (targetText && !targetText.locked && targetText.editable) {

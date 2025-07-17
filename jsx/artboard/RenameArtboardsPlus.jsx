@@ -1,10 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
-var lang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
-
 /*
 ### スクリプト名：
 
@@ -69,9 +65,14 @@ RenameArtboardsPlus.jsx
 - v1.1 (20250430): Added auto-detection of padding digits, simplified preset labels, enhanced ES3 support
 */
 
-// -------------------------------
-// 日英ラベル定義 Define label
-// -------------------------------
+
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日本語 / 英語: 日英ラベル定義 / Japanese-English label definitions */
+
 
 var LABELS = {
     dialogTitle: {
@@ -220,7 +221,7 @@ function main() {
     var originalNames = [];
     for (var i = 0; i < total; i++) originalNames.push(artboards[i].name);
 
-    var dialog = new Window("dialog", LABELS.dialogTitle);
+    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.alignChildren = "fill";
 
     var mainGroup = dialog.add("group");
@@ -262,7 +263,7 @@ function main() {
         }
     ];
 
-    var presetItems = [LABELS.presetNone];
+    var presetItems = [LABELS.presetNone[lang]];
     for (var i = 0; i < builtinPresets.length; i++) {
         presetItems.push(builtinPresets[i].label);
     }
@@ -271,7 +272,7 @@ function main() {
     presetDropdown.selection = 0;
     presetDropdown.enabled = true;
 
-    var savePresetBtn = presetGroup.add("button", undefined, LABELS.savePreset);
+    var savePresetBtn = presetGroup.add("button", undefined, LABELS.savePreset[lang]);
 
     presetDropdown.onChange = function() {
         var index = presetDropdown.selection.index;
@@ -313,24 +314,24 @@ function main() {
         updatePreview();
     };
 
-    // ▼ 接頭辞パネル
-    var prefixPanel = inputGroup.add("panel", undefined, LABELS.prefixPanel);
+    /* 日本語 / 英語: ▼ 接頭辞パネル */
+    var prefixPanel = inputGroup.add("panel", undefined, LABELS.prefixPanel[lang]);
     prefixPanel.margins = [20, 20, 20, 10];
     prefixPanel.orientation = "column";
     prefixPanel.alignChildren = "left";
 
     var filenameGroup = prefixPanel.add("group");
-    filenameGroup.add("statictext", undefined, LABELS.fileNameLabel);
+    filenameGroup.add("statictext", undefined, LABELS.fileNameLabel[lang]);
     var useFilenameRadios = [
-        filenameGroup.add("radiobutton", undefined, LABELS.useFileNo),
-        filenameGroup.add("radiobutton", undefined, LABELS.useFileYes)
+        filenameGroup.add("radiobutton", undefined, LABELS.useFileNo[lang]),
+        filenameGroup.add("radiobutton", undefined, LABELS.useFileYes[lang])
     ];
     useFilenameRadios[0].value = true;
 
     var separatorGroup1 = prefixPanel.add("group");
-    separatorGroup1.add("statictext", undefined, LABELS.separatorLabel);
+    separatorGroup1.add("statictext", undefined, LABELS.separatorLabel[lang]);
     var prefixSeparatorRadios = [
-        separatorGroup1.add("radiobutton", undefined, "なし"),
+        separatorGroup1.add("radiobutton", undefined, LABELS.none[lang]),
         separatorGroup1.add("radiobutton", undefined, "-"),
         separatorGroup1.add("radiobutton", undefined, "_")
     ];
@@ -338,59 +339,59 @@ function main() {
     for (var i = 0; i < 3; i++) prefixSeparatorRadios[i].enabled = false;
 
     var prefixGroup = prefixPanel.add("group");
-    prefixGroup.add("statictext", undefined, LABELS.stringLabel);
+    prefixGroup.add("statictext", undefined, LABELS.stringLabel[lang]);
     var prefixInput = prefixGroup.add("edittext", undefined, "");
     prefixInput.characters = 16;
 
-    // ▼ アートボード名と番号パネル
-    var namePanel = inputGroup.add("panel", undefined, LABELS.namePanel);
+    /* 日本語 / 英語: ▼ アートボード名と番号パネル */
+    var namePanel = inputGroup.add("panel", undefined, LABELS.namePanel[lang]);
     namePanel.margins = [20, 20, 20, 10];
     namePanel.orientation = "row";
     namePanel.alignChildren = "left";
     var nameStyleDropdown = namePanel.add("dropdownlist", undefined, [
-        LABELS.none.ja, LABELS.number.ja, LABELS.name.ja, LABELS.numberDashName.ja, LABELS.numberUnderscoreName.ja
+        LABELS.none[lang], LABELS.number[lang], LABELS.name[lang], LABELS.numberDashName[lang], LABELS.numberUnderscoreName[lang]
     ]);
     nameStyleDropdown.selection = 0;
 
-    // ▼ 接尾辞パネル
-    var suffixPanel = inputGroup.add("panel", undefined, LABELS.suffixPanel);
+    /* 日本語 / 英語: ▼ 接尾辞パネル */
+    var suffixPanel = inputGroup.add("panel", undefined, LABELS.suffixPanel[lang]);
     suffixPanel.margins = [20, 20, 20, 10];
     suffixPanel.orientation = "column";
     suffixPanel.alignChildren = "left";
 
     var separatorGroup2 = suffixPanel.add("group");
-    separatorGroup2.add("statictext", undefined, LABELS.separatorLabel);
+    separatorGroup2.add("statictext", undefined, LABELS.separatorLabel[lang]);
     var separatorRadios2 = [
-        separatorGroup2.add("radiobutton", undefined, LABELS.none.ja),
+        separatorGroup2.add("radiobutton", undefined, LABELS.none[lang]),
         separatorGroup2.add("radiobutton", undefined, "-"),
         separatorGroup2.add("radiobutton", undefined, "_")
     ];
     separatorRadios2[0].value = true;
 
     var formatGroup = suffixPanel.add("group");
-    formatGroup.add("statictext", undefined, LABELS.formatLabel);
+    formatGroup.add("statictext", undefined, LABELS.formatLabel[lang]);
     var formatDropdown = formatGroup.add("dropdownlist", undefined, [
-        LABELS.numeric.ja, LABELS.alphaUpper.ja, LABELS.alphaLower.ja
+        LABELS.numeric[lang], LABELS.alphaUpper[lang], LABELS.alphaLower[lang]
     ]);
     formatDropdown.selection = 0;
 
     var startGroup = suffixPanel.add("group");
-    startGroup.add("statictext", undefined, LABELS.startLabel);
+    startGroup.add("statictext", undefined, LABELS.startLabel[lang]);
     var startNumberInput = startGroup.add("edittext", undefined, "1");
     startNumberInput.characters = 5;
 
     var incrementGroup = suffixPanel.add("group");
-    incrementGroup.add("statictext", undefined, LABELS.incrementLabel);
+    incrementGroup.add("statictext", undefined, LABELS.incrementLabel[lang]);
     var incrementInput = incrementGroup.add("edittext", undefined, "1");
     incrementInput.characters = 5;
 
     var suffixGroup = suffixPanel.add("group");
-    suffixGroup.add("statictext", undefined, LABELS.stringLabel);
+    suffixGroup.add("statictext", undefined, LABELS.stringLabel[lang]);
     var suffixInput = suffixGroup.add("edittext", undefined, "");
     suffixInput.characters = 16;
 
-    // ▼ プレビューエリア
-    var previewGroup = mainGroup.add("panel", undefined, LABELS.preview);
+    /* 日本語 / 英語: ▼ プレビューエリア */
+    var previewGroup = mainGroup.add("panel", undefined, LABELS.preview[lang]);
     previewGroup.alignChildren = "fill";
     previewGroup.margins = [10, 20, 10, 10];
     previewGroup.preferredSize.width = 250;
@@ -402,7 +403,7 @@ function main() {
     });
     previewList.preferredSize.height = 320;
 
-    // ▼ 下部ボタンエリア
+    /* 日本語 / 英語: ▼ 下部ボタンエリア */
     var outerGroup = dialog.add("group");
     outerGroup.orientation = "row";
     outerGroup.alignChildren = ["fill", "center"];
@@ -412,7 +413,7 @@ function main() {
     var leftGroup = outerGroup.add("group");
     leftGroup.orientation = "row";
     leftGroup.alignChildren = "left";
-    var cancelBtn = leftGroup.add("button", undefined, LABELS.cancel, {
+    var cancelBtn = leftGroup.add("button", undefined, LABELS.cancel[lang], {
         name: "cancel"
     });
 
@@ -424,12 +425,12 @@ function main() {
     rightGroup.orientation = "row";
     rightGroup.alignChildren = ["right", "center"];
     rightGroup.spacing = 10;
-    var applyBtn = rightGroup.add("button", undefined, LABELS.apply);
-    var okBtn = rightGroup.add("button", undefined, LABELS.ok, {
+    var applyBtn = rightGroup.add("button", undefined, LABELS.apply[lang]);
+    var okBtn = rightGroup.add("button", undefined, LABELS.ok[lang], {
         name: "ok"
     });
 
-    // ▼ プリセット保存処理（label: デコード済み）
+    /* 日本語 / 英語: ▼ プリセット保存処理（label: デコード済み） */
 
     savePresetBtn.onClick = function() {
         var saveFile = File.saveDialog("プリセットを書き出す場所と名前を指定してください", "*.txt");
@@ -476,7 +477,7 @@ function main() {
         }
     };
 
-    // ▼ 補助関数群
+    /* 日本語 / 英語: ▼ 補助関数群 */
 
     function getPrefixCombined() {
         var base = prefixInput.text;
@@ -522,13 +523,13 @@ function main() {
         var abNum = (index + 1).toString();
         var abName = originalNames[index];
         switch (nameStyle) {
-            case LABELS.number.ja:
+            case LABELS.number[lang]:
                 return abNum;
-            case LABELS.name.ja:
+            case LABELS.name[lang]:
                 return abName;
-            case LABELS.numberDashName.ja:
+            case LABELS.numberDashName[lang]:
                 return abNum + "-" + abName;
-            case LABELS.numberUnderscoreName.ja:
+            case LABELS.numberUnderscoreName[lang]:
                 return abNum + "_" + abName;
             default:
                 return "";
@@ -564,7 +565,7 @@ function main() {
         if (total > 15) previewList.add("item", "...（以下省略）");
     }
 
-    // ▼ イベントハンドラ
+    /* 日本語 / 英語: ▼ イベントハンドラ */
 
     useFilenameRadios[0].onClick = useFilenameRadios[1].onClick = function() {
         for (var i = 0; i < 3; i++) prefixSeparatorRadios[i].enabled = useFilenameRadios[1].value;
@@ -594,7 +595,7 @@ function main() {
         updatePreview();
     };
 
-    // ▼ 入力変更時にプレビューを即時更新
+    /* 日本語 / 英語: ▼ 入力変更時にプレビューを即時更新 */
     prefixInput.onChanging = updatePreview;
     startNumberInput.onChanging = updatePreview;
     incrementInput.onChanging = updatePreview;

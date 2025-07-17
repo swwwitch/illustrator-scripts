@@ -1,8 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
 /*
 
 ### スクリプト名：
@@ -79,10 +77,12 @@ DeleteOutsideArtboard.jsx
 
 */
 
-// -------------------------------
-// Localization labels
-// -------------------------------
-var lang = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
 
 var LABELS = {
     dialogTitle: { ja: "オブジェクトを削除", en: "Delete Objects" },
@@ -100,25 +100,25 @@ var LABELS = {
     alertNoTargets: { ja: "削除対象のオブジェクトはありません。", en: "No objects to delete." }
 };
 
-// ダイアログを表示し、ユーザーの選択を取得
+/* ダイアログを表示し、ユーザーの選択を取得 / Show dialog and get user selection */
 function showDialog() {
-    // ダイアログタイトル（日本語固定）
-    var dialog = new Window("dialog", LABELS.dialogTitle);
+    /* ダイアログタイトル（日本語固定） / Dialog title (fixed Japanese) */
+    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
 
-    // 対象範囲パネル / Target scope panel
-    var scopeGroup = dialog.add("panel", undefined, LABELS.scopePanel);
+    /* 対象範囲パネル / Target scope panel */
+    var scopeGroup = dialog.add("panel", undefined, LABELS.scopePanel[lang]);
     scopeGroup.orientation = "column";
     scopeGroup.alignChildren = "left";
     scopeGroup.margins = [15, 20, 15, 10];
 
     var scopeRadios = {
-        excludeSelected: scopeGroup.add("radiobutton", undefined, LABELS.excludeSelectedRadio),
-        allObjects: scopeGroup.add("radiobutton", undefined, LABELS.allObjectsRadio)
+        excludeSelected: scopeGroup.add("radiobutton", undefined, LABELS.excludeSelectedRadio[lang]),
+        allObjects: scopeGroup.add("radiobutton", undefined, LABELS.allObjectsRadio[lang])
     };
 
-    // Set radio default based on selection
+    /* Set radio default based on selection */
     var hasSelection = false;
     try {
         hasSelection = app.documents.length > 0 && app.activeDocument.selection && app.activeDocument.selection.length > 0;
@@ -131,34 +131,34 @@ function showDialog() {
         scopeRadios.allObjects.value = true;
     }
 
-    // アートボード外処理パネル / Outside artboard action panel
-    var abGroup = dialog.add("panel", undefined, LABELS.outsidePanel);
+    /* アートボード外処理パネル / Outside artboard action panel */
+    var abGroup = dialog.add("panel", undefined, LABELS.outsidePanel[lang]);
     abGroup.orientation = "column";
     abGroup.alignChildren = "left";
     abGroup.margins = [15, 20, 15, 10];
 
-    var deleteRadio = abGroup.add("radiobutton", undefined, LABELS.deleteRadio);
-    var ignoreRadio = abGroup.add("radiobutton", undefined, LABELS.ignoreRadio);
+    var deleteRadio = abGroup.add("radiobutton", undefined, LABELS.deleteRadio[lang]);
+    var ignoreRadio = abGroup.add("radiobutton", undefined, LABELS.ignoreRadio[lang]);
     ignoreRadio.value = true;
 
-    // オプション（保管用レイヤー、ロック含む） / Option (backup layer, include locked)
+    /* オプション（保管用レイヤー、ロック含む） / Option (backup layer, include locked) */
     var optionGroup = dialog.add("group");
     optionGroup.orientation = "column";
     optionGroup.alignChildren = "left";
     optionGroup.margins = [15, 0, 15, 10];
 
-    var ignoreLockedCheckbox = optionGroup.add("checkbox", undefined, LABELS.includeLockedCheckbox);
+    var ignoreLockedCheckbox = optionGroup.add("checkbox", undefined, LABELS.includeLockedCheckbox[lang]);
     ignoreLockedCheckbox.value = true;
 
-    var backupCheckbox = optionGroup.add("checkbox", undefined, LABELS.backupCheckbox);
+    var backupCheckbox = optionGroup.add("checkbox", undefined, LABELS.backupCheckbox[lang]);
     backupCheckbox.value = false;
 
-    // ボタン / Buttons
+    /* ボタン / Buttons */
     var buttonGroup = dialog.add("group");
     buttonGroup.orientation = "row";
     buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelButton);
-    var okBtn = buttonGroup.add("button", undefined, LABELS.okButton, {
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancelButton[lang]);
+    var okBtn = buttonGroup.add("button", undefined, LABELS.okButton[lang], {
         name: "ok"
     });
 
@@ -170,7 +170,7 @@ function showDialog() {
         if (scopeRadios.excludeSelected.value) {
             resultCode += 100;
         }
-        // Only two options: 削除 (deleteRadio) or 無視 (ignoreRadio)
+        /* Only two options: 削除 (deleteRadio) or 無視 (ignoreRadio) */
         if (deleteRadio.value) {
             resultCode += 1;
         } else if (ignoreRadio.value) {
@@ -185,8 +185,7 @@ function showDialog() {
     return result;
 }
 
-// バウンディングボックスの重なり率（大きい方の面積に対する割合）を返す
-// Return overlap ratio of bounding boxes (relative to larger area)
+/* バウンディングボックスの重なり率（大きい方の面積に対する割合）を返す / Return overlap ratio of bounding boxes (relative to larger area) */
 function getOverlapRatio(a, b) {
     var ax = Math.max(0, Math.min(a[2], b[2]) - Math.max(a[0], b[0]));
     var ay = Math.max(0, Math.min(a[1], b[1]) - Math.max(a[3], b[3]));
@@ -198,8 +197,7 @@ function getOverlapRatio(a, b) {
     return overlapArea / maxArea;
 }
 
-// オブジェクトがアートボードと重なっているか判定
-// Check if object overlaps artboard
+/* オブジェクトがアートボードと重なっているか判定 / Check if object overlaps artboard */
 function isOverlappingArtboard(item, artboard) {
     var itemBounds = item.visibleBounds;
     var abBounds = artboard.artboardRect;
@@ -207,8 +205,7 @@ function isOverlappingArtboard(item, artboard) {
     return overlapRatio > 0;
 }
 
-// 指定したオブジェクトが対象のアートボード群のいずれかと重なっているか判定
-// Check if item overlaps any of the artboards
+/* 指定したオブジェクトが対象のアートボード群のいずれかと重なっているか判定 / Check if item overlaps any of the artboards */
 function checkOverlapWithArtboards(item, artboards) {
     for (var i = 0; i < artboards.length; i++) {
         if (isOverlappingArtboard(item, artboards[i])) {
@@ -218,7 +215,7 @@ function checkOverlapWithArtboards(item, artboards) {
     return false;
 }
 
-// アートボード外オブジェクトを収集 / Collect objects outside artboards
+/* アートボード外オブジェクトを収集 / Collect objects outside artboards */
 function collectOutsideItems(items, artboards, currentOnly, ab, result, includeLocked) {
     for (var i = items.length - 1; i >= 0; i--) {
         var item = items[i];
@@ -234,7 +231,7 @@ function collectOutsideItems(items, artboards, currentOnly, ab, result, includeL
 
         if (item.typename === "GroupItem") {
             var groupTarget = item;
-            // If clipped group, use the clipping path for bounds
+            /* If clipped group, use the clipping path for bounds */
             if (item.clipped) {
                 for (var k = 0; k < item.pageItems.length; k++) {
                     if (item.pageItems[k].clipping) {
@@ -253,10 +250,10 @@ function collectOutsideItems(items, artboards, currentOnly, ab, result, includeL
 
             if (!overlapsGroup) {
                 result.push(item);
-                continue; // Skip inside items if group added
+                continue; /* Skip inside items if group added */
             }
 
-            // If group overlaps, check inside
+            /* If group overlaps, check inside */
             collectOutsideItems(item.pageItems, artboards, currentOnly, ab, result, includeLocked);
             continue;
         }
@@ -274,9 +271,8 @@ function collectOutsideItems(items, artboards, currentOnly, ab, result, includeL
     }
 }
 
-// アートボード外オブジェクトを削除または保管用レイヤーに移動
-// Remove or move objects outside artboards
-// mode: 0=All Objects, 1=Exclude Selected (Current Artboard)
+/* アートボード外オブジェクトを削除または保管用レイヤーに移動 / Remove or move objects outside artboards */
+/* mode: 0=All Objects, 1=Exclude Selected (Current Artboard) */
 function removeOutsideObjects(currentOnly, moveToBackup, mode, includeLocked) {
     if (!app.documents.length) return;
     var doc = app.activeDocument;
@@ -284,7 +280,7 @@ function removeOutsideObjects(currentOnly, moveToBackup, mode, includeLocked) {
     var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
 
     if (currentOnly === null) {
-        // "無視" 選択時は何もしないで終了
+        /* "無視" 選択時は何もしないで終了 / Do nothing and exit when ignore mode selected */
         return;
     }
 
@@ -292,13 +288,13 @@ function removeOutsideObjects(currentOnly, moveToBackup, mode, includeLocked) {
     collectOutsideItems(doc.pageItems, artboards, currentOnly, ab, outsideItems, includeLocked);
 
     if (mode === 1) {
-        // 「選択オブジェクトを残す」: Delete/move all objects inside current artboard except selected
+        /* 「選択オブジェクトを残す」: Delete/move all objects inside current artboard except selected */
         var sel = doc.selection;
         if (!sel || sel.length === 0) {
-            alert(LABELS.alertNoSelection);
+            alert(LABELS.alertNoSelection[lang]);
             return;
         }
-        // Collect all objects inside current artboard (including locked/hidden as per includeLocked)
+        /* Collect all objects inside current artboard (including locked/hidden as per includeLocked) */
         var insideItems = [];
 
         function collectInsideItems(items) {
@@ -320,7 +316,7 @@ function removeOutsideObjects(currentOnly, moveToBackup, mode, includeLocked) {
                     }
                     if (isOverlappingArtboard(groupTarget, ab)) {
                         insideItems.push(item);
-                        // Also check inside group for further items
+                        /* Also check inside group for further items */
                         collectInsideItems(item.pageItems);
                     }
                     continue;
@@ -331,12 +327,12 @@ function removeOutsideObjects(currentOnly, moveToBackup, mode, includeLocked) {
             }
         }
         collectInsideItems(doc.pageItems);
-        // Exclude selected objects
+        /* Exclude selected objects */
         var selectedSet = {};
         for (var si = 0; si < sel.length; si++) {
             selectedSet[sel[si]] = true;
         }
-        // For ExtendScript, compare by reference
+        /* For ExtendScript, compare by reference */
         var filteredItems = [];
         for (var ii = 0; ii < insideItems.length; ii++) {
             var isSelected = false;
@@ -354,7 +350,7 @@ function removeOutsideObjects(currentOnly, moveToBackup, mode, includeLocked) {
     }
 
     if (outsideItems.length === 0) {
-        alert(LABELS.alertNoTargets);
+        alert(LABELS.alertNoTargets[lang]);
         return;
     }
 
@@ -377,8 +373,7 @@ function removeOutsideObjects(currentOnly, moveToBackup, mode, includeLocked) {
     }
 }
 
-// オブジェクトを保管用レイヤーに移動（ロック・非表示解除を含む、グループも対応）
-// Move object to backup layer (unlock/show, supports group)
+/* オブジェクトを保管用レイヤーに移動（ロック・非表示解除を含む、グループも対応） / Move object to backup layer (unlock/show, supports group) */
 function moveItemToBackupLayer(item, doc) {
     var backupLayerName = "// backup";
     var backupLayer = null;
@@ -408,7 +403,7 @@ function moveItemToBackupLayer(item, doc) {
     backupLayer.visible = false;
 }
 
-// メイン処理 / Main process
+/* メイン処理 / Main process */
 function main() {
     var dialogResult = showDialog();
     if (dialogResult === 0 || dialogResult === undefined) return;
@@ -426,13 +421,13 @@ function main() {
 
     var currentOnly = null;
     if (mode === 1) {
-        // 「選択オブジェクトを残す」モードの場合は必ず現在のアートボードのみを対象とする
+        /* 「選択オブジェクトを残す」モードの場合は必ず現在のアートボードのみを対象とする / In 'Exclude Selected' mode, always target current artboard only */
         currentOnly = true;
     } else {
         if (dialogResult === 1) {
             currentOnly = true;
         } else if (dialogResult === 3) {
-            currentOnly = null; // 無視モード
+            currentOnly = null; /* 無視モード / Ignore mode */
         }
     }
 

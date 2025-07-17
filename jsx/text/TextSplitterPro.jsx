@@ -1,72 +1,60 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
 /*
-### スクリプト名：
+### スクリプト名 / Script Name：
 
 TextSplitterPro.jsx
 
-### 概要
+### 概要 / Overview
 
 - 選択したテキストを1文字ずつ分割し、等間隔または見た目どおりに再配置するIllustrator用スクリプトです。
 - ポイントテキスト、エリアテキスト、パス上テキストに対応し、複数行や複数オブジェクトを処理できます。
+- An Illustrator script that splits selected text into individual characters and rearranges them either evenly or visually considering tracking.
+- Supports point text, area text, and text on a path, handling multi-line and multiple objects.
 
-### 主な機能
+### 主な機能 / Main Features
 
 - 等間隔配置またはトラッキング考慮の視覚的配置を選択
 - 行単位での分割と再構築
 - グループ化オプション（なし／行単位／全体）
 - 日本語／英語インターフェース対応
-
-### 処理の流れ
-
-1. 配置モード選択ダイアログを表示
-2. 行単位に分割（複数行テキストの場合）
-3. 各行を1文字ずつ分割して再配置
-4. グループ化設定に従ってまとめる
-
-### 更新履歴
-
-- v1.0 (20250609) : 初期バージョン
-- v1.1 (20250609) : テキストフレームの位置考慮処理を追加
-- v1.3 (20250610) : 選択文字対応ロジック追加
-- v1.4 (20250706) : ローカライズ調整
-
----
-
-### Script Name:
-
-TextSplitterPro.jsx
-
-### Overview
-
-- An Illustrator script that splits selected text into individual characters and rearranges them either evenly or visually considering tracking.
-- Supports point text, area text, and text on a path, handling multi-line and multiple objects.
-
-### Main Features
-
 - Choose between evenly spaced or visually positioned arrangement
 - Split and reconstruct by line
 - Grouping options (none, by line, all together)
 - Japanese and English UI support
 
-### Process Flow
+### 処理の流れ / Process Flow
 
+1. 配置モード選択ダイアログを表示
+2. 行単位に分割（複数行テキストの場合）
+3. 各行を1文字ずつ分割して再配置
+4. グループ化設定に従ってまとめる
 1. Show placement mode selection dialog
 2. Split by line (for multi-line text)
 3. Split each line into characters and rearrange
 4. Group according to selected option
 
-### Update History
+### 更新履歴 / Update History
 
+- v1.0 (20250609) : 初期バージョン
+- v1.1 (20250609) : テキストフレームの位置考慮処理を追加
+- v1.3 (20250610) : 選択文字対応ロジック追加
+- v1.4 (20250706) : ローカライズ調整
 - v1.0 (20250609): Initial version
 - v1.1 (20250609): Added text frame position consideration
 - v1.3 (20250610): Added logic for selected characters
 - v1.4 (20250706): Localization adjustments
 */
 
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* -------------------------------
+   日英ラベル定義 / Japanese-English label definitions
+-------------------------------- */
 var LABELS = {
     dialogTitle: { ja: "テキスト分割", en: "Select Placement Mode" },
     groupLabel: { ja: "分割方法", en: "Placement Method" },
@@ -80,15 +68,12 @@ var LABELS = {
     alertSelectOne: { ja: "テキストオブジェクトを1つ以上選択してください。", en: "Please select one or more text objects." }
 };
 
-// 現在の言語設定を取得 / Get current language
-var lang = $.locale.indexOf("ja") === 0 ? "ja" : "en";
-
-// 縦組みかどうかを判定 / Check if text frame is vertical
+/* 縦組みかどうかを判定 / Check if text frame is vertical */
 function isVerticalTextFrame(textFrame) {
     return textFrame.orientation === TextOrientation.VERTICAL;
 }
 
-// 選択中の TextRange を含む単一の TextFrame を選択し直すユーティリティ関数 / Re-select single TextFrame if a TextRange is selected
+/* 選択中の TextRange を含む単一の TextFrame を選択し直すユーティリティ関数 / Re-select single TextFrame if a TextRange is selected */
 function selectSingleTextFrameFromTextRange() {
     if (app.selection.constructor.name === "TextRange") {
         var textFramesInStory = app.selection.story.textFrames;
@@ -113,7 +98,7 @@ function main() {
     var doc = app.activeDocument;
     var selection = doc.selection;
 
-    // 選択中のテキストに複数行が含まれるか判定 / Check if selected text contains multiple lines
+    /* 選択中のテキストに複数行が含まれるか判定 / Check if selected text contains multiple lines */
     var hasMultiLine = false;
     for (var s = 0; s < selection.length; s++) {
         if (selection[s].typename === "TextFrame" && selection[s].contents.indexOf("\r") !== -1) {
@@ -158,10 +143,11 @@ function main() {
             var lastLayer = allCharFrames[0].layer;
             groupItemsIfNeeded(allCharFrames, lastLayer);
         }
-        // groupMode が "none" または "each" の場合は既に個別処理済み / Already handled individually
+        /* groupMode が "none" または "each" の場合は既に個別処理済み / Already handled individually */
     }
 }
 
+/* パステキストを分割して配置 / Split text on path and arrange */
 function splitPathText(textFrame, mode, groupMode) {
     var doc = app.activeDocument;
     var path = textFrame.textPath;
@@ -171,7 +157,7 @@ function splitPathText(textFrame, mode, groupMode) {
     var fillColor = textFrame.textRange.characterAttributes.fillColor;
     var layer = textFrame.layer;
 
-    // Approximate the path into point segments
+    /* パスを点群に近似 / Approximate the path into point segments */
     var sampleCount = Math.max(20, charCount * 10);
     var points = [];
     for (var i = 0; i <= sampleCount; i++) {
@@ -202,7 +188,7 @@ function splitPathText(textFrame, mode, groupMode) {
     finalizeCharacterFrames(charFrames, groupMode, layer);
 }
 
-// ダイアログ作成 / Create dialog
+/* ダイアログ作成 / Create dialog */
 function showPlacementModeDialog(lang, isMultiLine) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
@@ -255,7 +241,7 @@ function showPlacementModeDialog(lang, isMultiLine) {
     return result;
 }
 
-// テキストフレームを行単位で分割し、それぞれ新規テキストフレームを作成 / Split text frame by line and create new frames
+/* テキストフレームを行単位で分割し、それぞれ新規テキストフレームを作成 / Split text frame by line and create new frames */
 function splitTextFrameByLine(originalText, isVertical) {
     var doc = app.activeDocument;
     var lines = originalText.lines;
@@ -271,7 +257,7 @@ function splitTextFrameByLine(originalText, isVertical) {
     var result = [];
 
     for (var i = 0; i < lines.length; i++) {
-        var line = lines[i].contents.replace(/[\r\n]+$/, ""); // 改行削除 / Remove line breaks
+        var line = lines[i].contents.replace(/[\r\n]+$/, ""); /* 改行削除 / Remove line breaks */
         if (line === "") continue;
 
         var tf = doc.textFrames.add();
@@ -287,8 +273,8 @@ function splitTextFrameByLine(originalText, isVertical) {
         attr.stroked = false;
 
         tf.orientation = originalText.orientation;
-        tf.position = [baseX, baseY]; // 一時設定 / Temporary position
-        app.redraw(); // bounding box 計算のため必要 / Needed for bounding box calculation
+        tf.position = [baseX, baseY]; /* 一時設定 / Temporary position */
+        app.redraw(); /* bounding box 計算のため必要 / Needed for bounding box calculation */
 
         var bounds = tf.visibleBounds;
         var width = bounds[2] - bounds[0];
@@ -308,7 +294,7 @@ function splitTextFrameByLine(originalText, isVertical) {
     return result;
 }
 
-// 文字単位に分割し、トラッキングをpt単位に変換して視覚的な位置で配置、グループ化対応 / Split text into characters with visual positioning and grouping
+/* 文字単位に分割し、トラッキングをpt単位に変換して視覚的な位置で配置、グループ化対応 / Split text into characters with visual positioning and grouping */
 function splitTextToCharacters(textItem, groupMode, isMultiLine) {
     var doc = app.activeDocument;
     var charCount = textItem.characters.length;
@@ -321,7 +307,7 @@ function splitTextToCharacters(textItem, groupMode, isMultiLine) {
     var layer = textItem.layer;
 
     var isVertical = isVerticalTextFrame(textItem);
-    // 縦組かつ複数行の場合はX位置を保持 / Preserve X position if vertical and multiline
+    /* 縦組かつ複数行の場合はX位置を保持 / Preserve X position if vertical and multiline */
     var preserveX = isMultiLine && isVertical;
 
     var lastBaseline = textItem.characters[0].baseline;
@@ -360,7 +346,7 @@ function splitTextToCharacters(textItem, groupMode, isMultiLine) {
     return charFrames;
 }
 
-// 文字を等間隔に分割配置、グループ化対応 / Split characters evenly with grouping
+/* 文字を等間隔に分割配置、グループ化対応 / Split characters evenly with grouping */
 function splitEvenly(textItem, groupMode) {
     var charCount = textItem.characters.length;
     var size = textItem.textRange.characterAttributes.size;
@@ -378,7 +364,7 @@ function splitEvenly(textItem, groupMode) {
         var frame = createCharacterFrame(textItem, i, x + offsetX, y + offsetY);
         charFrames.push(frame);
     }
-    // Remove the original text frame after creating character frames
+    /* 元のテキストフレームは削除 / Remove the original text frame after creating character frames */
     textItem.remove();
     if (groupMode !== "all") {
         finalizeCharacterFrames(charFrames, groupMode, layer);
@@ -386,14 +372,14 @@ function splitEvenly(textItem, groupMode) {
     return charFrames;
 }
 
-// 指定文字を複製し位置を設定 / Duplicate specified character and set position
+/* 指定文字を複製し位置を設定 / Duplicate specified character and set position */
 function createCharacterFrame(textItem, charIndex, x, y) {
     var charFrame = textItem.duplicate();
     try {
         var orientation = textItem.textRange.characterAttributes.textOrientation;
         charFrame.textRange.characterAttributes.textOrientation = orientation;
     } catch (e) {
-        // 何もしない / Do nothing
+        /* 何もしない / Do nothing */
     }
     charFrame.contents = textItem.characters[charIndex].contents;
     charFrame.position = [x, y];
@@ -401,12 +387,12 @@ function createCharacterFrame(textItem, charIndex, x, y) {
         var srcKerning = textItem.characters[charIndex].characterAttributes.kerning;
         charFrame.textRange.characterAttributes.kerning = srcKerning;
     } catch (e) {
-        // 何もしない / Do nothing
+        /* 何もしない / Do nothing */
     }
     return charFrame;
 }
 
-// トラッキング値をpt単位に変換して取得 / Convert tracking value to points
+/* トラッキング値をpt単位に変換して取得 / Convert tracking value to points */
 function getTrackingInPt(charRange, size) {
     var tracking = 0;
     try {
@@ -417,7 +403,7 @@ function getTrackingInPt(charRange, size) {
     return tracking / 1000 * size;
 }
 
-// 複数アイテムをグループ化または単純に選択 / Group multiple items or simply select
+/* 複数アイテムをグループ化または単純に選択 / Group multiple items or simply select */
 function groupItemsIfNeeded(items, layer) {
     if (items.length <= 1) {
         for (var i = 0; i < items.length; i++) {

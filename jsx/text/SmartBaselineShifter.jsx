@@ -1,8 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
 /*
 
 ### スクリプト名：
@@ -87,6 +85,11 @@ Egor Chistyakov https://x.com/tchegr
 
 // スクリプトバージョン
 var SCRIPT_VERSION = "v1.9";
+
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
 
 var LABELS = {
     dialogTitle: {
@@ -178,11 +181,9 @@ var LABELS = {
 };
 
 /* 言語判定 / Determine language from locale */
-function getLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
+// (Removed old getLang, using getCurrentLang and lang variable)
 
-// 再帰的に選択内のすべての TextFrame を抽出
+// 再帰的に選択内のすべての TextFrame を抽出 / Recursively extract all TextFrames in selection
 function getAllTextFrames(selection) {
     var textFrames = [];
 
@@ -337,7 +338,7 @@ function createOutlineAndGetCenterY(textFrame, character) {
     return centerY;
 }
 
-/* 選択テキスト内の全文字の出現頻度を集計し、デフォルト対象文字選択時は非英数字・非日本語のみ考慮 / 
+/* 選択テキスト内の全文字の出現頻度を集計し、デフォルト対象文字選択時は非英数字・非日本語のみ考慮 /
    Count frequency of all characters; when selecting default target, only consider non-alphanumeric, non-kanji, non-hiragana, non-katakana */
 function getSymbolFrequency(sel) {
     var charCount = {};
@@ -368,7 +369,7 @@ function resetBaselineShift(textFrames) {
 
 /* 対象文字と基準文字を入力するダイアログを表示 / Show dialog to input target and reference characters */
 function showDialog(textFrames) {
-    var lang = getLang();
+    // var lang = getLang(); // Use global lang
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "left";
@@ -537,7 +538,6 @@ function showDialog(textFrames) {
         dlg.opacity = opacityValue;
     }
 
-
     setDialogOpacity(dialog, dialogOpacity);
     shiftDialogPosition(dialog, offsetX, 0);
 
@@ -556,7 +556,7 @@ function showDialog(textFrames) {
 function main() {
     try {
         if (app.documents.length == 0) {
-            alert(LABELS.docOpenMsg[getLang()]);
+            alert(LABELS.docOpenMsg[lang]);
             return;
         }
 
@@ -575,13 +575,13 @@ function main() {
 
         var selection = app.activeDocument.selection;
         if (!selection || selection.length == 0) {
-            alert(LABELS.selectFrameMsg[getLang()]);
+            alert(LABELS.selectFrameMsg[lang]);
             return;
         }
 
         var textFrames = getAllTextFrames(selection);
         if (textFrames.length == 0) {
-            alert(LABELS.selectFrameMsg[getLang()]);
+            alert(LABELS.selectFrameMsg[lang]);
             return;
         }
 
@@ -589,7 +589,7 @@ function main() {
         if (!input) return;
 
     } catch (e) {
-        alert(LABELS.errorMsg[getLang()] + e);
+        alert(LABELS.errorMsg[lang] + e);
     }
 }
 
