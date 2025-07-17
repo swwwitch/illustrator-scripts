@@ -28,8 +28,8 @@ AddTrimMark.jsx
 
 ### 更新履歴
 
-- v1.0.0 (20250205) : 初期バージョン
-- v1.0.1 (20250603) : コメント整理と処理安定化
+- v1.0 (20250205) : 初期バージョン
+- v1.1 (20250603) : コメント整理と処理安定化
 
 ---
 
@@ -59,19 +59,19 @@ AddTrimMark.jsx
 
 ### Update History
 
-- v1.0.0 (20250205): Initial version
-- v1.0.1 (20250603): Refined comments and stabilized process
+- v1.0 (20250205): Initial version
+- v1.1 (20250603): Refined comments and stabilized process
 */
 
 function main() {
     var doc = app.activeDocument;
     var targetObj = null;
 
+    /* 選択オブジェクトがある場合 / If a selected object exists */
     if (doc.selection.length > 0) {
-        // 選択オブジェクトがある場合
         targetObj = doc.selection[0];
     } else {
-        // 選択オブジェクトがない場合、アクティブなアートボードを基に処理
+        /* 選択オブジェクトがない場合、アクティブなアートボードを基に処理 / If no object is selected, use the active artboard */
         var artboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
         var rect = artboard.artboardRect; // [左, 上, 右, 下]
 
@@ -82,20 +82,20 @@ function main() {
 
     var duplicatedObj = targetObj.duplicate();
 
-    // 塗りと線をなしにする
+    /* 塗りと線をなしにする / Remove fill and stroke */
     duplicatedObj.filled = false;
     duplicatedObj.stroked = false;
 
-    // 複製オブジェクトを選択状態にする
+    /* 複製オブジェクトを選択状態にする / Select the duplicated object */
     doc.selection = [duplicatedObj];
 
-    // トリムマークを作成
+    /* トリムマークを作成 / Create trim marks */
     app.executeMenuCommand('TrimMark v25');
 
-    // 複製オブジェクトを削除
+    /* 複製オブジェクトを削除 / Remove duplicated object */
     duplicatedObj.remove();
 
-    // 「トンボ」レイヤーを取得（なければ作成）
+    /* 「トンボ」レイヤーを取得（なければ作成） / Get "Trim" layer (create if not exists) */
     var trimLayer = null;
     for (var i = 0; i < doc.layers.length; i++) {
         if (doc.layers[i].name === "トンボ") {
@@ -108,21 +108,21 @@ function main() {
         trimLayer.name = "トンボ";
     }
 
-    // 「トンボ」レイヤーをロック解除（移動処理のため）
+    /* 「トンボ」レイヤーをロック解除（移動処理のため） / Unlock "Trim" layer (for moving objects) */
     trimLayer.locked = false;
 
-    // トリムマークを「トンボ」レイヤーに移動
+    /* トリムマークを「トンボ」レイヤーに移動 / Move trim marks to "Trim" layer */
     for (var j = 0; j < doc.selection.length; j++) {
         doc.selection[j].move(trimLayer, ElementPlacement.PLACEATBEGINNING);
     }
 
-    // 「トンボ」レイヤーをロック
+    /* 「トンボ」レイヤーをロック / Lock "Trim" layer */
     trimLayer.locked = true;
 
-    // 元のオブジェクトを再選択
+    /* 元のオブジェクトを再選択 / Reselect the original object */
     doc.selection = [targetObj];
 
-    // 元のオブジェクトを複製し、ガイド化する
+    /* 元のオブジェクトを複製し、ガイド化する / Duplicate and convert the original object to a guide */
     var guideObj = targetObj.duplicate();
     guideObj.guides = true;
 }

@@ -6,28 +6,35 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ReleaseClipMask.jsx
 
-### 概要
+### Readme （GitHub）：
 
-- 選択オブジェクトのクリッピングマスクを複数のモードで解除するIllustrator用スクリプトです。
-- 単純解除、マスクパス削除、マスク対象削除など柔軟な操作が可能です。
+https://github.com/yourname/ai-scripts
 
-### 主な機能
+### 概要：
 
-- 単純解除（グループ維持）
-- マスクパス削除（配置画像を残す）
-- マスク対象削除（パスを残す）
-- 解除時にパスへ塗りカラー設定オプション
-- 日本語／英語インターフェース対応
+- 選択オブジェクトのクリッピングマスクをモード別に解除できるIllustrator用スクリプト。
+- 単純解除、パスのみ削除、画像のみ削除の3つの方法に対応。
 
-### 処理の流れ
+### 主な機能：
 
-1. モードとオプションをダイアログで選択
-2. 選択内容に応じてクリッピングマスクを解除
-3. 必要に応じてパスにカラーを設定
+- 単純に解除（パスと画像を残す）
+- 配置画像を残してパスを削除
+- パスを残して配置画像を削除
+- パスにK100の塗り（不透明度15%）を適用するオプション付き
+- 日本語／英語UI対応
+- Q/W/Eキーによるモード切替ショートカット対応
 
-### 更新履歴
+### 処理の流れ：
 
-- v1.0.0 (20250606) : 初期バージョン
+1. ダイアログでモードとオプションを選択
+2. 選択されたモードに従ってマスクを解除
+3. 必要に応じてパスに塗りを適用
+
+### 更新履歴：
+
+- v1.0 (20250606) : 初期バージョン
+- v1.1 (20250607) : 安定化と仕様調整
+- v1.2 (20250717) : コメント整備
 
 ---
 
@@ -35,37 +42,51 @@ ReleaseClipMask.jsx
 
 ReleaseClipMask.jsx
 
-### Overview
+### Readme (GitHub):
 
-- An Illustrator script to release clipping masks on selected objects with multiple flexible modes.
-- Supports simple release, remove mask path, or remove masked content.
+https://github.com/yourname/ai-scripts
 
-### Main Features
+### Overview:
 
-- Simple release (keep group)
-- Remove mask path (keep placed content)
-- Remove masked object (keep path)
-- Option to set fill color on path when releasing
-- Japanese and English UI support
+- Illustrator script to release clipping masks based on selected modes.
+- Supports simple release, remove mask path only, or remove masked image only.
 
-### Process Flow
+### Main Features:
 
-1. Select mode and option in dialog
-2. Release clipping masks based on selected mode
-3. Optionally set fill color to paths
+- Simple release (keep both path and image)
+- Remove mask path (keep placed image)
+- Remove masked image (keep path)
+- Optional K100 fill color (15% opacity) to path
+- Japanese/English UI support
+- Q/W/E hotkeys for mode selection
 
-### Update History
+### Process Flow:
 
-- v1.0.0 (20250606): Initial version
+1. Choose mode and option in dialog
+2. Release clipping mask accordingly
+3. Optionally apply fill color to path
+
+### Update History:
+
+- v1.0 (20250606) : Initial release
+- v1.1 (20250607) : Stabilization and adjustments
+- v1.2 (20250717) : Comments refactored
 */
 
-function main() {
-    // -------------------------------
-    // 日英ラベル定義　Define label
-    // -------------------------------
-    var lang = getCurrentLang();
+var SCRIPT_VERSION = "v1.2";
+
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Define Japanese-English labels */
+
     var LABELS = {
-        dialogTitle: { ja: "クリッピングマスクの解除", en: "Release Clipping Mask" },
+        dialogTitle: {
+            ja: "クリッピングマスクの解除 " + SCRIPT_VERSION,
+            en: "Release Clipping Mask " + SCRIPT_VERSION
+        },
         simpleRelease: { ja: "単純に解除", en: "Simply release" },
         removePath: { ja: "配置画像を残して、パスを削除", en: "Remove mask path" },
         removeMasked: { ja: "パスを残して、配置画像を削除", en: "Remove masked object" },
@@ -75,6 +96,10 @@ function main() {
         noSelection: { ja: "オブジェクトが選択されていません。", en: "No objects selected." },
         releaseModeTitle: { ja: "解除方法", en: "Release Mode" }
     };
+
+function main() {
+    /* 日英ラベル定義 / Define Japanese-English labels */
+   
 
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
@@ -92,12 +117,21 @@ function main() {
     var radioRemoveMasked = modeGroup.add("radiobutton", undefined, LABELS.removeMasked[lang]);
     radioSimple.value = true;
 
-    // Checkbox group for fill color on release
+    /* 解除時に塗りカラーを適用するチェックボックスグループ / Checkbox group for fill color on release */
     var fillGroup = dlg.add("group");
     fillGroup.orientation = "column";
     fillGroup.alignChildren = "left";
     fillGroup.margins = [20, 5, 0, 10];
     var fillCheckbox = fillGroup.add("checkbox", undefined, LABELS.fillOnRelease[lang]);
+    fillCheckbox.value = true;
+
+    function updateFillCheckboxState() {
+        fillCheckbox.enabled = !radioRemovePath.value;
+    }
+    radioSimple.onClick = updateFillCheckboxState;
+    radioRemoveMasked.onClick = updateFillCheckboxState;
+    radioRemovePath.onClick = updateFillCheckboxState;
+    updateFillCheckboxState();
 
     var btnGroup = dlg.add("group");
     btnGroup.orientation = "row";
@@ -121,24 +155,27 @@ function main() {
     dlg.show();
 }
 
-function releaseSimpleMask(selectionItems, applyFill) {
+function releaseSimpleMask(selectionItems) {
     for (var i = 0; i < selectionItems.length; i++) {
         var currentItem = selectionItems[i];
         if (currentItem.typename === "GroupItem" && currentItem.clipped === true) {
             currentItem.clipped = false;
-            for (var j = 0; j < currentItem.pageItems.length; j++) {
-                if (currentItem.pageItems[j].clipping === true) {
-                    if (applyFill) {
-                        currentItem.pageItems[j].filled = true;
-                        currentItem.pageItems[j].fillColor = getColor(0, 0, 0, 0, 0, 0, 100); // K100
-                        currentItem.pageItems[j].opacity = 15;
-                    }
-                    break;
-                }
-            }
+            app.executeMenuCommand("ungroup");
         }
     }
-    app.executeMenuCommand("ungroup"); // Ungroup after release
+}
+
+function applyFillToPaths(item) {
+  if (!item || !item.pageItems) return;
+
+  for (var i = 0; i < item.pageItems.length; i++) {
+    var child = item.pageItems[i];
+    if (child.typename === "PathItem") {
+      child.filled = true;
+      child.fillColor = getK100Black();
+      child.opacity = 15;
+    }
+  }
 }
 
 function executeRelease(mode, lang, applyFill) {
@@ -150,56 +187,77 @@ function executeRelease(mode, lang, applyFill) {
     var selectionItems = app.activeDocument.selection;
 
     if (mode === "simple") {
-        releaseSimpleMask(selectionItems, applyFill);
+        if (applyFill) {
+            for (var i = 0; i < selectionItems.length; i++) {
+                var currentItem = selectionItems[i];
+                if (currentItem.typename === "GroupItem" && currentItem.clipped === true) {
+                    currentItem.clipped = false;
+                    applyFillToPaths(currentItem);
+                    ungroup(currentItem);
+                }
+            }
+        } else {
+            releaseSimpleMask(selectionItems);
+        }
         return;
     }
 
     if (mode === "removePath") {
-        for (var i = 0; i < selectionItems.length; i++) {
-            var currentItem = selectionItems[i];
-
-            if (currentItem.typename === "GroupItem" && currentItem.clipped === true) {
-                currentItem.clipped = false;
-                if (currentItem.pageItems.length > 0) {
-                    currentItem.pageItems[0].remove(); // Remove mask path (topmost item)
-                }
-            }
-        }
-        app.executeMenuCommand("ungroup"); // Ungroup after release
-    }
-
-    if (mode === "removeMasked") {
-        for (var i = 0; i < selectionItems.length; i++) {
-            var currentItem = selectionItems[i];
-            if (currentItem.typename === "GroupItem" && currentItem.clipped === true) {
-                currentItem.clipped = false;
-                for (var j = 0; j < currentItem.pageItems.length; j++) {
-                    if (currentItem.pageItems[j].clipping === true) {
-                        if (applyFill) {
-                            currentItem.pageItems[j].filled = true;
-                            currentItem.pageItems[j].fillColor = getColor(0, 0, 0, 0, 0, 0, 100); // K100
-                            currentItem.pageItems[j].opacity = 15;
-                        }
+        for (var i = selectionItems.length - 1; i >= 0; i--) {
+            var group = selectionItems[i];
+            if (group.typename === "GroupItem" && group.clipped) {
+                /* クリッピングパスを削除 / Remove clipping path */
+                for (var j = group.pageItems.length - 1; j >= 0; j--) {
+                    var item = group.pageItems[j];
+                    if (item.typename === "PathItem" && item.clipping) {
+                        item.remove();
                         break;
                     }
                 }
-                var groupItems = currentItem.pageItems;
-                if (groupItems.length > 0) {
-                    var originalLayer = currentItem.layer;
-                    groupItems[0].move(originalLayer, ElementPlacement.PLACEATEND);
+
+                if (group.pageItems.length > 1) {
+                    group.clipped = false;
                 }
-                // Remove remaining items (e.g. placed images)
-                while (groupItems.length > 0) {
-                    groupItems[0].remove();
+
+                /* グループ解除（中身を親へ移動） / Ungroup (move contents to parent) */
+                var parent = group.parent;
+                while (group.pageItems.length > 0) {
+                    group.pageItems[0].move(parent, ElementPlacement.PLACEATEND);
                 }
+                group.remove();
             }
         }
-        return;
     }
+
+    if (mode === "removeMasked") {
+         for (var i = 0; i < selectionItems.length; i++) {
+            var currentItem = selectionItems[i];
+
+            if (currentItem.typename === "GroupItem" && currentItem.clipped === true) {
+                currentItem.clipped = false;
+                removePlacedItems(currentItem);
+                if (applyFill) {
+                    applyFillToPaths(currentItem);
+                }
+                ungroup(currentItem);
+            }
+        }
+        }
+        return;
+    
 }
 
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+function removePlacedItems(groupItem) {
+    var itemsToRemove = [];
+    for (var i = 0; i < groupItem.pageItems.length; i++) {
+        var item = groupItem.pageItems[i];
+        if (item.typename === "PlacedItem") {
+            itemsToRemove.push(item);
+        }
+    }
+    for (var j = 0; j < itemsToRemove.length; j++) {
+        itemsToRemove[j].remove();
+    }
 }
 
 function getColor(r, g, b, c, m, y, k) {
@@ -217,6 +275,30 @@ function getColor(r, g, b, c, m, y, k) {
         tmpColor.blue = b;
         return tmpColor;
     }
+}
+
+function releaseAndStyleClippingGroup(groupItem) {
+  groupItem.clipped = false;
+  removePlacedItems(groupItem);
+  applyFillToPaths(groupItem);
+  ungroup(groupItem);
+}
+
+function getK100Black() {
+  var cmykColor = new CMYKColor();
+  cmykColor.cyan = 0;
+  cmykColor.magenta = 0;
+  cmykColor.yellow = 0;
+  cmykColor.black = 100;
+  return cmykColor;
+}
+
+function ungroup(groupItem) {
+  var parent = groupItem.parent;
+  while (groupItem.pageItems.length > 0) {
+    groupItem.pageItems[0].move(parent, ElementPlacement.PLACEATEND);
+  }
+  groupItem.remove();
 }
 
 main();

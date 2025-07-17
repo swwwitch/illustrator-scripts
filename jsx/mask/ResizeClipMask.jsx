@@ -2,70 +2,81 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### スクリプト名：
 
 ResizeClipMask.jsx
 
-### 概要
+### Readme （GitHub）：
 
-- クリップグループ内のマスクパスを自動検出し、マージンを調整した新しいマスクに置き換えます。
-- 複数クリップグループに一括適用可能で、長方形マスクのみ対応。
+（準備中）
 
-### 主な機能
+### 概要：
 
-- マスクパス検出と選択
-- ユーザー指定マージンのダイアログ入力
-- 正負切替ボタンによる値反転
-- 長方形判定とスキップ処理
+- クリップマスク付きグループに対し、マージンを設定してマスクの矩形サイズを調整します。
+- プレビュー機能を備え、OKで確定、Cancelで元に戻せます。
 
-### 処理の流れ
+### 主な機能：
 
-1. クリップグループを選択
-2. ダイアログでマージンを指定
-3. 長方形マスクを検出し、新しいマスクに置換
-4. 元のマスクパスを削除
+- マスクが矩形かどうかを判定し、対象のみ処理
+- マージン量を±ボタン・±キー・±反転で直感的に操作可能
+- キャンセル時には元のサイズへ復元
 
-### 更新履歴
+### 処理の流れ：
 
-- v1.0 (20250710) : 初期バージョン
-- v1.1 (20250713) : ↑↓キー、shift + ↑↓キーでの値の増減機能を追加
+1. 選択オブジェクトからマスクパスを収集
+2. プレビューとしてマージンを加えたサイズに一時変更
+3. OKで確定、Cancelで元に戻す
+
+### 更新履歴：
+
+- v1.0 (20250710) : 初版
+- v1.1 (20250718) : ↑↓入力に対応
+- v1.2 (20250717) : プレビュー反映ロジックを調整
 
 ---
-
 ### Script Name:
 
 ResizeClipMask.jsx
 
-### Overview
+### Readme (GitHub):
 
-- Automatically detects mask paths inside clip groups and replaces them with new masks adjusted by user-defined margins.
-- Supports batch processing of multiple clip groups (rectangular masks only).
+(Coming soon)
 
-### Main Features
+### Overview:
 
-- Detect and select mask paths
-- Margin input via dialog
-- Sign toggle button for margin inversion
-- Rectangle detection and skip logic
+- Adjusts rectangle clip mask size by applying margin to clipped groups
+- Includes preview and cancel support
 
-### Workflow
+### Main Features:
 
-1. Select clip groups
-2. Specify margin in dialog
-3. Detect rectangular masks and replace with new mask
-4. Delete original mask path
+- Detects rectangular clipping masks only
+- Intuitive margin control via ± buttons, arrow keys, and polarity switch
+- Restores original state when canceled
 
-### Change Log
+### Workflow:
 
-- v1.0 (20250710): Initial release
-- v1.1 (20250713): Added functionality for incrementing/decrementing values with arrow keys and shift + arrow keys
+1. Collect clipping masks from selected objects
+2. Apply temporary margin as preview
+3. Confirm with OK, restore with Cancel
+
+### Update History:
+
+- v1.0 (20250710): Initial version
+- v1.1 (20250718): Arrow key input supported
+- v1.2 (20250717): Adjusted preview application logic
 
 */
 
-// スクリプトバージョン / Script version
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
-// UIラベル定義（未使用項目は省略、出現順に整理）/ UI label definitions (unused items omitted, ordered as in UI)
+/* 現在の言語取得 / Get current language */
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* UIラベル定義 / UI label definitions */
 var LABELS = {
     notRect: { ja: "このマスクは長方形ではありません。処理をスキップします。", en: "This mask is not a rectangle. Skipping." },
     noMask: { ja: "マスクパスが見つかりませんでした。", en: "No mask path found." },
@@ -79,11 +90,7 @@ var LABELS = {
     margin: { ja: "マージン", en: "Margin" }
 };
 
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
-var lang = getCurrentLang();
-
+/* 単位コードとラベルのマッピング / Unit code to label mapping */
 var unitLabelMap = {
     0: "in",
     1: "mm",
@@ -98,52 +105,52 @@ var unitLabelMap = {
     10: "ft"
 };
 
+/* 現在の単位ラベル取得 / Get current unit label */
 function getCurrentUnitLabel() {
     var unitCode = app.preferences.getIntegerPreference("rulerType");
     return unitLabelMap[unitCode] || "pt";
 }
 
-// 長方形判定 / Check if path is rectangle
-function isRectangle(pathItem) {
-    if (pathItem.pathPoints.length != 4) {
-        return false;
-    }
-    for (var i = 0; i < 4; i++) {
-        var pt = pathItem.pathPoints[i];
-        if (pt.pointType != PointType.CORNER) {
-            return false;
-        }
-        if (!pointsEqual(pt.anchor, pt.leftDirection) || !pointsEqual(pt.anchor, pt.rightDirection)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-// 2点が等しいか判定 / Check if two points are equal
+/* 2点が等しいか判定 / Check if two points are equal */
 function pointsEqual(p1, p2) {
     return p1[0] == p2[0] && p1[1] == p2[1];
 }
 
-// 増減・反転ボタンのイベント処理 / Button event handlers for plus, minus, swap
+/* プラスボタン処理 / Handle plus button */
 function handlePlus(input) {
     var val = parseFloat(input.text);
     if (isNaN(val)) val = 0;
-    input.text = String(val + 1);
+    var keyboard = ScriptUI.environment.keyboardState;
+    var delta = keyboard.altKey ? 0.1 : 1;
+    val += delta;
+    val = keyboard.altKey ? Math.round(val * 10) / 10 : Math.round(val);
+    input.text = String(val);
+    if (typeof input.onChangeValue === "function") input.onChangeValue(val);
 }
+
+/* マイナスボタン処理 / Handle minus button */
 function handleMinus(input) {
     var val = parseFloat(input.text);
     if (isNaN(val)) val = 0;
-    input.text = String(val - 1);
+    var keyboard = ScriptUI.environment.keyboardState;
+    var delta = keyboard.altKey ? 0.1 : 1;
+    val -= delta;
+    val = keyboard.altKey ? Math.round(val * 10) / 10 : Math.round(val);
+    input.text = String(val);
+    if (typeof input.onChangeValue === "function") input.onChangeValue(val);
 }
+
+/* 反転ボタン処理 / Handle swap button */
 function handleSwap(input) {
     var val = parseFloat(input.text);
     if (isNaN(val)) val = 0;
-    input.text = String(val * -1);
+    val = -val;
+    input.text = String(val);
+    if (typeof input.onChangeValue === "function") input.onChangeValue(val);
 }
 
-// マージンダイアログを表示 / Show margin dialog
-function showMarginDialog(defaultValue, unitLabel) {
+/* マージンダイアログ表示 / Show margin dialog */
+function showMarginDialog(defaultValue, unitLabel, previewCallback) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
     dlg.alignChildren = "left";
@@ -158,6 +165,7 @@ function showMarginDialog(defaultValue, unitLabel) {
     var input = inputSubGroup.add("edittext", undefined, defaultValue);
     input.characters = 4;
     changeValueByArrowKey(input);
+    input.onChangeValue = previewCallback;
 
     var buttonGroup = inputSubGroup.add("group");
     buttonGroup.orientation = "row";
@@ -180,6 +188,14 @@ function showMarginDialog(defaultValue, unitLabel) {
     minusBtn.onClick = function() { handleMinus(input); };
     swapBtn.onClick = function() { handleSwap(input); };
 
+    input.addEventListener("changing", function() {
+        var val = parseFloat(input.text);
+        if (!isNaN(val) && typeof previewCallback === "function") {
+            previewCallback(val);
+            app.redraw();
+        }
+    });
+
     var btns = dlg.add("group");
     btns.alignment = "right";
     var cancel = btns.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
@@ -187,7 +203,10 @@ function showMarginDialog(defaultValue, unitLabel) {
 
     input.active = true;
     var result = dlg.show();
-    if (result != 1) return null;
+    if (result != 1) {
+        if (typeof previewCallback === "function") restoreOriginalMaskRects();
+        return null;
+    }
 
     var margin = parseFloat(input.text);
     if (isNaN(margin)) {
@@ -197,7 +216,7 @@ function showMarginDialog(defaultValue, unitLabel) {
     return margin;
 }
 
-// 選択からマスクパスを抽出 / Collect mask paths from selection
+/* 選択からマスクパスを抽出 / Collect mask paths from selection */
 function collectMaskPaths(selection) {
     var masks = [];
     for (var i = 0; i < selection.length; i++) {
@@ -215,7 +234,7 @@ function collectMaskPaths(selection) {
     return masks;
 }
 
-// マスク矩形の座標情報取得 / Get rectangle info from mask
+/* マスク矩形の座標情報取得 / Get rectangle info from mask */
 function getRectInfo(mask) {
     return {
         left: mask.left,
@@ -225,80 +244,102 @@ function getRectInfo(mask) {
     };
 }
 
-// マスクを置換 / Replace mask with new rectangle
-function replaceMask(mask, margin) {
-    if (!isRectangle(mask)) {
-        alert(LABELS.notRect[lang]);
-        return;
+/* 元のマスク矩形情報保存用 / Store original mask rectangles */
+var originalRects = [];
+
+/* マスクに一時的にマージンを適用 / Apply temporary margin to masks */
+function applyTemporaryMarginToMasks(masks, margin) {
+    restoreOriginalMaskRects(); // ★追加：まず元に戻す
+    originalRects = [];
+    for (var i = 0; i < masks.length; i++) {
+        var mask = masks[i];
+        if (!mask.clipping) continue;
+
+        originalRects.push({
+            mask: mask,
+            top: mask.top,
+            left: mask.left,
+            width: mask.width,
+            height: mask.height
+        });
+
+        mask.top += margin;
+        mask.left -= margin;
+        mask.width += margin * 2;
+        mask.height += margin * 2;
     }
-    var parentGroup = mask.parent;
-    var rect = getRectInfo(mask);
-    var newRect = parentGroup.pathItems.rectangle(
-        rect.top + margin,
-        rect.left - margin,
-        rect.width + (margin * 2),
-        rect.height + (margin * 2)
-    );
-    newRect.filled = false;
-    newRect.stroked = false;
-    newRect.clipping = true;
-    newRect.move(parentGroup, ElementPlacement.PLACEATBEGINNING);
-    mask.remove();
-    parentGroup.selected = true;
 }
 
+/* 元のマスクサイズに戻す / Restore original mask rectangles */
+function restoreOriginalMaskRects() {
+    for (var i = 0; i < originalRects.length; i++) {
+        var info = originalRects[i];
+        info.mask.top = info.top;
+        info.mask.left = info.left;
+        info.mask.width = info.width;
+        info.mask.height = info.height;
+    }
+}
+
+/* メイン処理 / Main function */
 function main() {
-    // ドキュメントが開かれていない場合 / No document open
     if (app.documents.length === 0) {
         alert(LABELS.noSelection[lang]);
         return;
     }
     var sel = app.activeDocument.selection;
-    // 選択がない場合 / No selection
     if (sel.length === 0) {
         alert(LABELS.noSelection[lang]);
         return;
     }
+    var newSelection = collectMaskPaths(sel);
     var marginUnit = getCurrentUnitLabel();
     var defaultMarginValue = '0';
-    if (marginUnit === 'mm') {
-        defaultMarginValue = '-5';
-    } else if (marginUnit === 'px') {
-        defaultMarginValue = '-20';
-    } else if (marginUnit === 'pt') {
-        defaultMarginValue = '-10';
-    }
-    // マージンダイアログを表示 / Show margin dialog
-    var margin = showMarginDialog(defaultMarginValue, marginUnit);
+    var margin = showMarginDialog(defaultMarginValue, marginUnit, function(previewMargin) {
+        applyTemporaryMarginToMasks(newSelection, previewMargin);
+        app.redraw();
+    });
     if (margin === null) return;
-    // マスクパスを収集 / Collect mask paths
-    var newSelection = collectMaskPaths(sel);
-    if (newSelection.length > 0) {
-        for (var i = 0; i < newSelection.length; i++) {
-            replaceMask(newSelection[i], margin);
-        }
-    } else {
+    app.redraw();
+    if (newSelection.length === 0) {
         alert(LABELS.noMask[lang]);
     }
 }
-
 main();
 
+/* 矢印キーで値を増減 / Change value by arrow key */
 function changeValueByArrowKey(editText) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);
         if (isNaN(value)) return;
 
         var keyboard = ScriptUI.environment.keyboardState;
-        var delta = keyboard.shiftKey ? 10 : 1;
+        var delta = 1;
 
-        if (event.keyName == "Up") {
-            value += delta;
-            event.preventDefault();
-        } else if (event.keyName == "Down") {
-            value -= delta;
-            event.preventDefault();
+        if (keyboard.shiftKey) {
+            delta = 10;
+            if (event.keyName == "Up") {
+                value = Math.ceil(value / delta) * delta + delta;
+                event.preventDefault();
+            } else if (event.keyName == "Down") {
+                value = Math.floor(value / delta) * delta - delta;
+                event.preventDefault();
+            }
+        } else {
+            if (event.keyName == "Up") {
+                value += delta;
+                event.preventDefault();
+            } else if (event.keyName == "Down") {
+                value -= delta;
+                event.preventDefault();
+            }
         }
+
+        value = Math.round(value);
         editText.text = value;
+        if (typeof editText.onChangeValue === "function") {
+            editText.onChangeValue(value);
+            app.redraw();
+        }
     });
 }

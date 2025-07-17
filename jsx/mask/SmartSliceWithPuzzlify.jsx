@@ -34,10 +34,10 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 
 ### 更新履歴
 
-- v1.0.0 (20250607) : 初期バージョン
-- v1.0.1 (20250608) : シンボル対応、ベクターアートワーク対応
-- v1.0.2 (20250609) : グリッド形状対応
-- v1.0.3 (20250610) : オフセット機能追加、単位コード対応
+- v1.0 (20250607) : 初期バージョン
+- v1.1 (20250608) : シンボル対応、ベクターアートワーク対応
+- v1.2 (20250609) : グリッド形状対応
+- v1.3 (20250610) : オフセット機能追加、単位コード対応
 
 ---
 
@@ -73,15 +73,38 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 
 ### Update History
 
-- v1.0.0 (20250607): Initial version
-- v1.0.1 (20250608): Added symbol and vector artwork support
-- v1.0.2 (20250609): Added grid shape support
-- v1.0.3 (20250610): Added offset feature and unit code support
+- v1.0 (20250607): Initial version
+- v1.1 (20250608): Added symbol and vector artwork support
+- v1.2 (20250609): Added grid shape support
+- v1.3 (20250610): Added offset feature and unit code support
 */
 
+var SCRIPT_VERSION = "v1.3";
+
 function getCurrentLang() {
-  return ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
+
+var LABELS = {
+  shapePanel: { ja: "形状", en: "Shape" },
+  shapeTraditional: { ja: "トラディショナル", en: "Traditional" },
+  shapeRandom: { ja: "ランダム", en: "Random" },
+  shapeGrid: { ja: "グリッド", en: "Grid" },
+  totalPieces: { ja: "ピース数", en: "Total pieces" },
+  columns: { ja: "列数", en: "Columns" },
+  rows: { ja: "行数", en: "Rows" },
+  explode: { ja: "バラけ処理", en: "Explode" },
+  offsetLabel: { ja: "オフセット", en: "Offset" },
+  dialogTitle: {
+    ja: "ジグソー作成 " + SCRIPT_VERSION,
+    en: "Create Jigsaw " + SCRIPT_VERSION
+  },
+  okBtn: { ja: "実行", en: "Run" },
+  cancel: { ja: "キャンセル", en: "Cancel" }
+};
 
 // 単位コードとラベルのマップ
 var unitLabelMap = {
@@ -104,20 +127,6 @@ function getCurrentUnitLabel() {
   return unitLabelMap[unitCode] || "pt";
 }
 
-var LABELS = {
-  shapePanel: { ja: "形状", en: "Shape" },
-  shapeTraditional: { ja: "トラディショナル", en: "Traditional" },
-  shapeRandom: { ja: "ランダム", en: "Random" },
-  shapeGrid: { ja: "グリッド", en: "Grid" },
-  totalPieces: { ja: "ピース数", en: "Total pieces" },
-  columns: { ja: "列数", en: "Columns" },
-  rows: { ja: "行数", en: "Rows" },
-  explode: { ja: "バラけ処理", en: "Explode" },
-  offsetLabel: { ja: "オフセット", en: "Offset" },
-  okBtn: { ja: "実行", en: "Run" },
-  cancel: { ja: "キャンセル", en: "Cancel" }
-};
-
 // 画像サイズに基づく初期グリッドサイズを計算
 function getInitialGridSize(imageWidth, imageHeight, totalPieces) {
   var aspectRatio = imageWidth / imageHeight;
@@ -129,55 +138,53 @@ function getInitialGridSize(imageWidth, imageHeight, totalPieces) {
 }
 
 function main() {
-  // Undoグループで全体をまとめる
+  /* Undoグループで全体をまとめる / Group the entire operation with undo */
   app.undoGroup = "ジグソー作成";
   try {
 
-  var lang = getCurrentLang();
-
-  // ダイアログ作成
-  var puzzlifyDialog = new Window('dialog', 'Puzzlify');
+  /* ダイアログ作成 / Create dialog */
+  var puzzlifyDialog = new Window('dialog', LABELS.dialogTitle[lang]);
   puzzlifyDialog.orientation = 'column';
   puzzlifyDialog.alignment = 'right';
 
-  // 入力パネル（順序調整用のグループ）
+  /* 入力パネル（順序調整用のグループ） / Input panel (group for layout) */
   var inputPanel = puzzlifyDialog.add('group');
   inputPanel.orientation = 'column';
   inputPanel.alignChildren = 'left';
 
-  // --- ピース設定グループ（ピース数＋行列入力欄） ---
+  /* ピース設定グループ（ピース数＋行列入力欄） / Piece settings group (piece count + row/col inputs) */
   var pieceSettingGroup = inputPanel.add("group");
   pieceSettingGroup.orientation = "column";
   pieceSettingGroup.alignChildren = "left";
   pieceSettingGroup.margins = [10, 5, 10, 15];
 
-  // ピース数（目安）入力欄
+  /* ピース数（目安）入力欄 / Total pieces input */
   var totalPiecesGroup = pieceSettingGroup.add("group");
   totalPiecesGroup.alignment = "left";
   totalPiecesGroup.add("statictext", undefined, LABELS.totalPieces[lang]);
   var totalPiecesInput = totalPiecesGroup.add("edittext", undefined, "25");
   totalPiecesInput.characters = 4;
 
-  // 「行数」「列数」入力欄を group にまとめて1行に並べる
+  /* 「行数」「列数」入力欄を group にまとめて1行に並べる / Row and column input fields in a group */
   var rowColGroup = pieceSettingGroup.add('group');
   rowColGroup.orientation = 'row';
   rowColGroup.alignChildren = 'left';
 
-  // 列数入力欄
+  /* 列数入力欄 / Column count input */
   var colGroup = rowColGroup.add('group');
   colGroup.orientation = 'row';
   colGroup.add('statictext', undefined, LABELS.columns[lang]);
   var columnText = colGroup.add('edittext', undefined, "5");
   columnText.characters = 3;
 
-  // 行数入力欄
+  /* 行数入力欄 / Row count input */
   var rowGroup = rowColGroup.add('group');
   rowGroup.orientation = 'row';
   rowGroup.add('statictext', undefined, LABELS.rows[lang]);
   var rowText = rowGroup.add('edittext', undefined, "5");
   rowText.characters = 3;
 
-  // 選択画像やベクターアートワークがあれば初期値を自動設定
+  /* 選択画像やベクターアートワークがあれば初期値を自動設定 / Set initial values based on selected image/artwork */
   function getSelectedArtworkItem() {
     if (app.documents.length > 0 && app.selection.length == 1) {
       var sel = app.selection[0];
@@ -190,7 +197,7 @@ function main() {
         sel.typename === "CompoundPathItem"
       ) {
         var gb = sel.geometricBounds;
-        // [左, 上, 右, 下]
+        // [左, 上, 右, 下] / [left, top, right, bottom]
         var width = gb[2] - gb[0];
         var height = gb[1] - gb[3];
         if (height < 0) height = -height;
@@ -206,8 +213,8 @@ function main() {
     columnText.text = String(grid[1]);
   }
 
-  // --- 画像・シンボル・ベクターアートワーク選択時の自動計算ロジック ---
-  // 指定の条件でピース数から行・列を自動算出
+  /* 画像・シンボル・ベクターアートワーク選択時の自動計算ロジック / Auto-calculate rows/cols for image, symbol, vector selection */
+  /* 指定の条件でピース数から行・列を自動算出 / Auto-calculate rows/cols from total pieces */
   function autoCalcRowsCols() {
     if (
       app.documents.length > 0 &&
@@ -221,11 +228,11 @@ function main() {
         selItem.typename === "GroupItem" ||
         selItem.typename === "CompoundPathItem"
       ) {
-        // ピース数が明示的に入力されたときのみ行列数を再計算
+        // ピース数が明示的に入力されたときのみ行列数を再計算 / Only recalc if total pieces entered
         if (!isNaN(parseInt(totalPiecesInput.text, 10)) && parseInt(totalPiecesInput.text, 10) > 0) {
           var pieceCount = parseInt(totalPiecesInput.text, 10);
         } else {
-          return; // 行数・列数が直接指定されている場合は何もしない
+          return; // 行数・列数が直接指定されている場合は何もしない / Do nothing if row/col manually entered
         }
         var bounds = selItem.geometricBounds;
         var w = bounds[2] - bounds[0];
@@ -242,7 +249,7 @@ function main() {
     }
   }
 
-  // ピース数入力変更時、行・列数を自動更新（ベクターアートワーク含む）
+  /* ピース数入力変更時、行・列数を自動更新（ベクターアートワーク含む） / Update rows/cols on total pieces change (includes vector artwork) */
   totalPiecesInput.onChanging = function () {
     var val = parseInt(totalPiecesInput.text, 10);
     if (isNaN(val) || val < 1) return;
@@ -252,15 +259,15 @@ function main() {
       rowText.text = String(grid[0]);
       columnText.text = String(grid[1]);
     }
-    // 追加: ベクターアートワーク/Placed/Symbol時の自動計算
+    // 追加: ベクターアートワーク/Placed/Symbol時の自動計算 / Also auto-calc for vector/placed/symbol
     autoCalcRowsCols();
   };
 
-  // 行・列数入力変更時には自動計算を行わない
-  columnText.onChanging = function () {}; // 手動入力時には自動計算を行わない
-  rowText.onChanging = function () {}; // 手動入力時には自動計算を行わない
+  /* 行・列数入力変更時には自動計算を行わない / Don't auto-calc for manual row/col input */
+  columnText.onChanging = function () {}; // 手動入力時には自動計算を行わない / No auto-calc for manual input
+  rowText.onChanging = function () {}; // 手動入力時には自動計算を行わない / No auto-calc for manual input
 
-  // 分割方式（形状パネル内ラジオボタンを上下に並べる）
+  /* 分割方式（形状パネル内ラジオボタンを上下に並べる） / Split type (shape panel radio buttons vertical) */
   var shapePanel = inputPanel.add("panel", undefined, LABELS.shapePanel[lang]);
   shapePanel.orientation = "column";
   shapePanel.alignChildren = "left";
@@ -270,56 +277,56 @@ function main() {
   var shapeRadioGrid = shapePanel.add("radiobutton", undefined, LABELS.shapeGrid[lang]);
   shapeRadioTraditional.value = true;
 
-  // --- ばらけ調整グループ ---
+  /* ばらけ調整グループ / Scatter adjustment group */
   var scatterGroup = inputPanel.add("group");
   scatterGroup.orientation = "row";
   scatterGroup.alignChildren = "left";
   scatterGroup.margins = [10, 5, 3, 10];
-  // オプションチェックボックス
+  /* オプションチェックボックス / Option checkbox */
   var scatterCheckbox = scatterGroup.add('checkbox', undefined, LABELS.explode[lang]);
   scatterCheckbox.value = false;
-  // バラけさせる強さ入力欄
+  /* バラけさせる強さ入力欄 / Scatter strength input */
   var scatterStrengthInput = scatterGroup.add("edittext", undefined, "30");
   scatterStrengthInput.characters = 4;
-  // 初期状態でチェックボックスがオフなら入力欄を無効化
+  /* 初期状態でチェックボックスがオフなら入力欄を無効化 / Disable input if checkbox off by default */
   scatterStrengthInput.enabled = scatterCheckbox.value;
-  // チェックボックスの onClick で有効/無効を切り替え
+  /* チェックボックスの onClick で有効/無効を切り替え / Enable/disable input on checkbox click */
   scatterCheckbox.onClick = function () {
     scatterStrengthInput.enabled = scatterCheckbox.value;
   };
-  // --- オフセット調整グループ（非パネル） ---
+  /* オフセット調整グループ（非パネル） / Offset adjustment group (non-panel) */
   var offsetGroup = inputPanel.add("group");
   offsetGroup.orientation = "row";
   offsetGroup.alignChildren = "left";
   offsetGroup.margins = [10, 0, 10, 10];
-  // オプションチェックボックス
+  /* オプションチェックボックス / Option checkbox */
   var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel[lang]);
   offsetCheckbox.value = true;
-  // オフセット値入力欄
+  /* オフセット値入力欄 / Offset value input */
   var offsetValueInput = offsetGroup.add("edittext", undefined, "-2");
   offsetValueInput.characters = 4;
-  // 単位ラベルを変数で保持
+  /* 単位ラベルを変数で保持 / Unit label variable */
   var offsetUnitLabel = offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
-  // 初期状態でチェックボックスがオフなら入力欄と単位ラベルを無効化
+  /* 初期状態でチェックボックスがオフなら入力欄と単位ラベルを無効化 / Disable input and label if checkbox off */
   offsetValueInput.enabled = offsetCheckbox.value;
   offsetUnitLabel.enabled = offsetCheckbox.value;
-  // チェックボックスの onClick で有効/無効を切り替え
+  /* チェックボックスの onClick で有効/無効を切り替え / Enable/disable input and label on checkbox click */
   offsetCheckbox.onClick = function () {
     offsetValueInput.enabled = offsetCheckbox.value;
     offsetUnitLabel.enabled = offsetCheckbox.value;
   };
 
-  // OK・キャンセルボタン
+  /* OK・キャンセルボタン / OK and Cancel buttons */
   var groupButtons = puzzlifyDialog.add('group');
   groupButtons.orientation = 'row';
   groupButtons.alignment = "right";
   groupButtons.add('button', undefined, LABELS.cancel[lang]);
-  // OKボタンの定義を show() の戻り値が "ok" になるよう name: "ok" を追加
+  /* OKボタンの定義を show() の戻り値が "ok" になるよう name: "ok" を追加 / OK button with name: "ok" for dialog result */
   var okBtn = groupButtons.add('button', undefined, LABELS.okBtn[lang], { name: "ok" });
   okBtn.active = true;
 
-  // Illustrator状態とダイアログ入力チェック
-  // 画像選択時の変数を事前宣言
+  /* Illustrator状態とダイアログ入力チェック / Illustrator state and dialog input check */
+  /* 画像選択時の変数を事前宣言 / Predeclare selected image variable */
   var selectedImage = null;
   if (
     app.documents.length > 0 &&
@@ -327,13 +334,13 @@ function main() {
     puzzlifyDialog.show() == 1 &&
     (columnText.text || rowText.text)
   ) {
-    // 選択オブジェクト取得
+    // 選択オブジェクト取得 / Get selected object
     var selectedObj;
     var origImageObj = null;
     var selectedObjectForPuzzle;
     var isTempRect = false;
 
-    // --- 複数選択時はグループ化してシンボル化（重ね順を保持） ---
+    /* 複数選択時はグループ化してシンボル化（重ね順を保持） / Group and symbolize when multiple objects selected (preserve stacking order) */
     if (app.selection.length > 1) {
       try {
         var tempGroup = app.activeDocument.groupItems.add();
@@ -363,7 +370,7 @@ function main() {
     }
     selectedObjectForPuzzle = selectedObj;
 
-    // --- 埋め込み画像(RasterItem)をSymbolItemに変換 ---
+    /* 埋め込み画像(RasterItem)をSymbolItemに変換 / Convert embedded image (RasterItem) to SymbolItem */
     if (selectedObj.typename === "RasterItem") {
       try {
         var rasterGB = selectedObj.geometricBounds;
@@ -381,7 +388,7 @@ function main() {
         return;
       }
     }
-    // --- ベクターオブジェクト(PathItem, GroupItem, CompoundPathItem)をSymbolItemに変換 ---
+    /* ベクターオブジェクト(PathItem, GroupItem, CompoundPathItem)をSymbolItemに変換 / Convert vector object (PathItem, GroupItem, CompoundPathItem) to SymbolItem */
     else if (
       selectedObj.typename === "PathItem" ||
       selectedObj.typename === "GroupItem" ||
@@ -403,7 +410,7 @@ function main() {
       }
     }
 
-    // PlacedItemまたはRasterItemまたはSymbolItemの場合は矩形化
+    /* PlacedItemまたはRasterItemまたはSymbolItemの場合は矩形化 / Convert PlacedItem, RasterItem, or SymbolItem to rectangle */
     var selType = selectedObj.typename;
     if (selType == "PlacedItem" || selType == "RasterItem" || selType == "SymbolItem") {
       var gb = selectedObj.geometricBounds;
@@ -420,20 +427,20 @@ function main() {
       selectedImage = app.selection[0];
     }
 
-    // 列・行数取得
+    /* 列・行数取得 / Get column and row count */
     var columnCount = Math.round(Number(columnText.text));
     var rowCount = Math.round(Number(rowText.text));
 
-    // 入力値検証
+    /* 入力値検証 / Input value validation */
     if (
       (columnCount >= 1 && rowCount >= 1) ||
       (columnCount == 0 && rowCount >= 1) ||
       (columnCount >= 1 && rowCount == 0)
     ) {
-      // 選択解除
+      /* 選択解除 / Deselect object */
       selectedObjectForPuzzle.selected = false;
 
-      // 列または行が0の場合は比率で自動算出
+      /* 列または行が0の場合は比率で自動算出 / Auto-calculate rows/cols from aspect ratio if either is 0 */
       var aspectRatio;
       if (columnCount == 0) {
         aspectRatio = Math.abs(
@@ -450,21 +457,21 @@ function main() {
         rowCount = Math.round(aspectRatio * columnCount);
       }
 
-      // オブジェクト左上座標
+      /* オブジェクト左上座標 / Top-left coordinates of object */
       var originX = selectedObjectForPuzzle.geometricBounds[0];
       var originY = selectedObjectForPuzzle.geometricBounds[3];
 
-      // ピース1つあたりの幅・高さ
+      /* ピース1つあたりの幅・高さ / Width and height per piece */
       var pieceWidth = (selectedObjectForPuzzle.geometricBounds[2] - selectedObjectForPuzzle.geometricBounds[0]) / columnCount;
       var pieceHeight = (selectedObjectForPuzzle.geometricBounds[3] - selectedObjectForPuzzle.geometricBounds[1]) / rowCount;
 
-      // ジグソー突起用定数
+      /* ジグソー突起用定数 / Constants for jigsaw nubs */
       var oneThirdWide = pieceWidth / 3;
       var oneQuarterHigh = pieceHeight / 4;
       var oneThirdHigh = pieceHeight / 3;
       var oneQuarterWide = pieceWidth / 4;
 
-      // 突起方向・ジッター配列
+      /* 突起方向・ジッター配列 / Array for nub direction and jitter */
       var nubDirArray = new Array(rowCount);
       if (shapeRadioRandom.value) {
         // ランダム方式
@@ -496,7 +503,7 @@ function main() {
         }
       }
 
-      // グリッド形状（矩形マスク）モード
+      /* グリッド形状（矩形マスク）モード / Grid shape (rectangle mask) mode */
       if (shapeRadioGrid.value) {
         var generatedPieces = [];
         for (var y = 0; y < rowCount; y++) {
@@ -507,7 +514,7 @@ function main() {
               pieceWidth,
               pieceHeight
             );
-            // --- Apply offset effect if enabled ---
+            /* オフセット効果を適用（有効な場合） / Apply offset effect if enabled */
             if (offsetCheckbox.value) {
               var offsetVal = parseFloat(offsetValueInput.text);
               gridMask = offsetRectangleBounds(gridMask, offsetVal);
@@ -553,16 +560,16 @@ function main() {
         }
         return;
       }
-      /* 各ピース生成・配置処理 */
+      /* 各ピース生成・配置処理 / Generate and place each piece */
       var generatedPieces = [];
       for (var y = 0; y < rowCount; y++) {
         for (var x = 0; x < columnCount; x++) {
-          // マスク用パス作成
+          /* マスク用パス作成 / Create mask path */
           var maskPath = app.activeDocument.pathItems.add();
-          // 左上点
+          /* 左上点 / Top-left point */
           addPoint(maskPath, originX + x * pieceWidth, originY - (y + 1) * pieceHeight);
 
-          // 上辺突起
+          /* 上辺突起 / Top edge nub */
           if (y < rowCount - 1) {
             if (nubDirArray[y + 1][x][0]) {
               // 上突起（上向き）
@@ -617,10 +624,10 @@ function main() {
             }
           }
 
-          // 右上点
+          /* 右上点 / Top-right point */
           addPoint(maskPath, originX + (x + 1) * pieceWidth, originY - (y + 1) * pieceHeight);
 
-          // 右辺突起
+          /* 右辺突起 / Right edge nub */
           if (x < columnCount - 1) {
             if (nubDirArray[y][x + 1][1]) {
               // 右突起（右向き）
@@ -675,10 +682,10 @@ function main() {
             }
           }
 
-          // 右下点
+          /* 右下点 / Bottom-right point */
           addPoint(maskPath, originX + (x + 1) * pieceWidth, originY - y * pieceHeight);
 
-          // 下辺突起
+          /* 下辺突起 / Bottom edge nub */
           if (y > 0) {
             if (nubDirArray[y][x][0]) {
               // 下突起（上向き）
@@ -733,10 +740,10 @@ function main() {
             }
           }
 
-          // 左下点
+          /* 左下点 / Bottom-left point */
           addPoint(maskPath, originX + x * pieceWidth, originY - y * pieceHeight);
 
-          // 左辺突起
+          /* 左辺突起 / Left edge nub */
           if (x > 0) {
             if (nubDirArray[y][x][1]) {
               // 左突起（右向き）
@@ -791,14 +798,15 @@ function main() {
             }
           }
 
-          // パスを閉じる
+          /* パスを閉じる / Close path */
           maskPath.closed = true;
 
-          // 元の長方形（baseRectやpieceRectなど）は remove する（この場合、isTempRect/selectedObjectForPuzzle のみが該当）
-          // → ピースごとには不要（ピース生成用一時矩形は main の最後で削除）
-          // もし baseRect や pieceBase を作成していた場合は remove() を呼び出す（このスクリプトではピース生成用一時矩形は未使用）
+          /* 元の長方形（baseRectやpieceRectなど）は remove する（この場合、isTempRect/selectedObjectForPuzzle のみが該当）
+             → ピースごとには不要（ピース生成用一時矩形は main の最後で削除）
+             もし baseRect や pieceBase を作成していた場合は remove() を呼び出す（このスクリプトではピース生成用一時矩形は未使用）
+             / Remove base rectangle if created (not used here) */
 
-          // --- Apply offset effect if enabled (before grouping/masking) ---
+          /* オフセット効果を適用（グループ化/マスク前） / Apply offset effect if enabled (before grouping/masking) */
           if (offsetCheckbox.value && maskPath) {
             var offsetVal = parseFloat(offsetValueInput.text);
             app.selection = null;
@@ -826,8 +834,8 @@ function main() {
               alert("オフセット適用中にエラーが発生しました：" + e.message);
             }
           }
-          // --- 画像クリッピンググループ処理 ---
-          // 複製画像の位置は元のまま、マスクパスを画像と同じ位置に重ねてマスク
+          /* 画像クリッピンググループ処理 / Image clipping group process */
+          /* 複製画像の位置は元のまま、マスクパスを画像と同じ位置に重ねてマスク / Overlay mask path at original image position */
           if (origImageObj && (origImageObj.typename === "PlacedItem" || origImageObj.typename === "SymbolItem")) {
             var placedCopy = origImageObj.duplicate();
             // グループ作成、画像とパスを追加（位置は変更しない）
@@ -852,7 +860,7 @@ function main() {
             }
             group.selected = true;
           } else {
-            // 通常パスのみ
+            /* 通常パスのみ / Just the mask path */
             generatedPieces.push(maskPath);
             if (scatterCheckbox.value) {
               var strength = parseFloat(scatterStrengthInput.text);
@@ -866,12 +874,11 @@ function main() {
         }
       }
 
-
-      // 元画像削除（PlacedItem/RasterItemの場合）
+      /* 元画像削除（PlacedItem/RasterItemの場合） / Delete original image (PlacedItem/RasterItem) */
       if (origImageObj && typeof origImageObj.remove === "function") {
         origImageObj.remove();
       }
-      // 一時的に作成した矩形があれば削除
+      /* 一時的に作成した矩形があれば削除 / Remove temp rectangle if created */
       if (isTempRect && selectedObjectForPuzzle && typeof selectedObjectForPuzzle.remove === "function") {
         selectedObjectForPuzzle.remove();
       }
@@ -880,7 +887,7 @@ function main() {
     puzzlifyDialog.hide();
   }
 
-  // パス上に点を追加する関数
+  /* パス上に点を追加する関数 / Function to add a point to the path */
   function addPoint(obj, x, y) {
     var np = obj.pathPoints.add();
     np.anchor = [x, y];
@@ -889,13 +896,13 @@ function main() {
     np.pointType = PointType.CORNER;
   }
 
-  // --- end main
+  /* --- end main --- */
   } catch (e) {
     alert("スクリプト実行中にエラーが発生しました: " + e);
   }
 }
 
-// --- Offset Path Effect Utility ---
+/* オフセットパスエフェクトユーティリティ / Offset Path Effect Utility */
 function createOffsetEffectXML(offsetVal) {
   var xml = '<LiveEffect name="Adobe Offset Path"><Dict data="R mlim 4 R ofst value I jntp 2 "/></LiveEffect>';
   return xml.replace("value", offsetVal);
@@ -933,7 +940,7 @@ function applyOffsetPathToSelection(offsetVal) {
 
 main();
 
-
+/* 矩形の座標をオフセットする関数 / Function to offset rectangle bounds */
 function offsetRectangleBounds(pathItem, offsetVal) {
   var gb = pathItem.geometricBounds;
   var newWidth = (gb[2] - gb[0]) + offsetVal * 2;
