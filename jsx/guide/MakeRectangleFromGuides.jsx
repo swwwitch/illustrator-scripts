@@ -1,7 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
 /*
 
 ### スクリプト名：
@@ -66,6 +65,13 @@ MakeRectangleFromGuides.jsx
 
 var SCRIPT_VERSION = "v1.0";
 
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
+
 var LABELS = {
     dialogTitle: { ja: "ガイドから長方形を作成 " + SCRIPT_VERSION, en: "Create Rectangles from Guides " + SCRIPT_VERSION },
     panelTitle: { ja: "ガイドの種類", en: "Guide Type" },
@@ -92,33 +98,33 @@ function main() {
         return;
     }
 
-    var dlg = new Window("dialog", LABELS.dialogTitle.ja);
+    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
     dlg.alignChildren = "left";
 
-    var guidePanel = dlg.add("panel", undefined, LABELS.panelTitle.ja);
+    var guidePanel = dlg.add("panel", undefined, LABELS.panelTitle[lang]);
     guidePanel.orientation = "column";
     guidePanel.alignChildren = "left";
     guidePanel.alignment = "fill";
     guidePanel.margins = [15, 20, 15, 10];
-    var rbAll = guidePanel.add("radiobutton", undefined, LABELS.allGuides.ja);
-    var rbRuler = guidePanel.add("radiobutton", undefined, LABELS.rulerGuides.ja);
+    var rbAll = guidePanel.add("radiobutton", undefined, LABELS.allGuides[lang]);
+    var rbRuler = guidePanel.add("radiobutton", undefined, LABELS.rulerGuides[lang]);
     rbAll.value = true;
 
-    var cbLocked = dlg.add("checkbox", undefined, LABELS.includeLocked.ja);
+    var cbLocked = dlg.add("checkbox", undefined, LABELS.includeLocked[lang]);
     cbLocked.value = true;
 
-    var cbMerge = dlg.add("checkbox", undefined, LABELS.mergeAdjacent.ja);
+    var cbMerge = dlg.add("checkbox", undefined, LABELS.mergeAdjacent[lang]);
     cbMerge.value = true;
 
     var btnGroup = dlg.add("group");
     btnGroup.orientation = "row";
     btnGroup.alignChildren = ["center", "center"];
     btnGroup.alignment = "center";
-    var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel.ja, {
+    var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel[lang], {
         name: "cancel"
     });
-    var okBtn = btnGroup.add("button", undefined, LABELS.ok.ja, {
+    var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang], {
         name: "ok"
     });
 

@@ -1,5 +1,12 @@
+// Illustrator用ターゲット指定 / Target Illustrator
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
+/* ロケール取得関数 / Get current language */
+function getCurrentLang() {
+  return ($.locale === "ja") ? "ja" : "en";
+}
+var lang = getCurrentLang();
 
 $.localize = true;
 
@@ -80,29 +87,7 @@ NewGuideMaker.jsx
 
 var SCRIPT_VERSION = "v1.2";
 
-/* 単位コードとラベルのマップ / Map of unit codes and labels */
-var unitLabelMap = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
-    5: "Q/H",
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
-};
-/* 単位ラベルからコードへの逆引きマップ / Reverse map: label to code */
-var unitLabelToCodeMap = {};
-for (var code in unitLabelMap) {
-    if (unitLabelMap.hasOwnProperty(code)) {
-        unitLabelToCodeMap[unitLabelMap[code]] = parseInt(code, 10);
-    }
-}
-
-
+/* 日英ラベル定義 / Japanese-English label definitions */
 /*
   UIラベル定義 / UI label definitions
   - UI順に並べる / Ordered as appears in UI
@@ -128,8 +113,27 @@ var LABELS = {
     alertLocked: { ja: "アクティブレイヤーがロックされています。", en: "The active layer is locked." }
 };
 
-// 言語設定 / Language setting
-var lang = "ja";
+/* 単位コードとラベルのマップ / Map of unit codes and labels */
+var unitLabelMap = {
+    0: "in",
+    1: "mm",
+    2: "pt",
+    3: "pica",
+    4: "cm",
+    5: "Q/H",
+    6: "px",
+    7: "ft/in",
+    8: "m",
+    9: "yd",
+    10: "ft"
+};
+/* 単位ラベルからコードへの逆引きマップ / Reverse map: label to code */
+var unitLabelToCodeMap = {};
+for (var code in unitLabelMap) {
+    if (unitLabelMap.hasOwnProperty(code)) {
+        unitLabelToCodeMap[unitLabelMap[code]] = parseInt(code, 10);
+    }
+}
 
 var canvasSize = 227 * 72;
 
@@ -137,7 +141,7 @@ var canvasSize = 227 * 72;
 function buildDialog() {
     var doc = app.activeDocument;
 
-    // --- Shared unit options and selection ---
+    /* 単位オプションと選択肢の準備 / Prepare unit options and selection */
     var unitOptions = [];
     for (var code in unitLabelMap) {
         if (unitLabelMap.hasOwnProperty(code)) {
@@ -155,7 +159,7 @@ function buildDialog() {
     if (foundIndex === null) {
         foundIndex = 0;
     }
-    // --- End shared unit options ---
+    /* 単位オプションここまで / End unit options */
 
     /* _guide レイヤー取得または作成・ロック解除 / Get or create and unlock _guide layer */
     var guideLayer = null;
@@ -175,7 +179,7 @@ function buildDialog() {
     guideLayer.locked = false;
 
     var dlg = new Window("dialog");
-    dlg.text = LABELS.dialogTitle.ja;
+    dlg.text = LABELS.dialogTitle[lang];
     dlg.orientation = "row";
     dlg.alignChildren = ["center", "top"];
     dlg.spacing = 20;
@@ -186,7 +190,7 @@ function buildDialog() {
     leftGroup.alignChildren = ["left", "top"];
     leftGroup.spacing = 10;
 
-    /* 対象選択パネル / Target selection panel / Target selection panel */
+    /* 対象選択パネル / Target selection panel */
     var targetPanel = leftGroup.add("panel");
     targetPanel.text = LABELS.target[lang];
     targetPanel.orientation = "column";
@@ -243,7 +247,7 @@ function buildDialog() {
     layerRadioGroup.alignChildren = ["left", "center"];
     var guideLayerRadio = layerRadioGroup.add("radiobutton", undefined, LABELS.guideLayer[lang]);
     var currentLayerRadio = layerRadioGroup.add("radiobutton", undefined, LABELS.currentLayer[lang]);
-    guideLayerRadio.value = true; // default
+    guideLayerRadio.value = true; /* デフォルト / default */
 
     /* レイヤーラジオボタン切り替え時にプレビュー線を即時更新 / Update preview immediately when switching layer radio */
     currentLayerRadio.onClick = function() {
@@ -329,7 +333,7 @@ function buildDialog() {
     /* プレビュー線を削除 / Remove preview line */
     function removePreviewLine() {
         if (previewLine) {
-            // previewLine may be an array or a single path
+            /* previewLine は配列または単一パスの可能性あり / previewLine may be an array or a single path */
             if (previewLine instanceof Array) {
                 for (var i = 0; i < previewLine.length; i++) {
                     var p = previewLine[i];
@@ -358,7 +362,7 @@ function buildDialog() {
         var unit = unitDropdown.selection.text;
         var posPt = convertToPt(pos, unit);
 
-        // リピート数・距離取得
+        /* リピート数・距離取得 / Get repeat count and distance */
         var repeatCount = parseInt(repeatCountEdit.text, 10);
         if (isNaN(repeatCount) || repeatCount < 1) repeatCount = 1;
         var repeatDistance = parseFloat(repeatDistanceEdit.text);
@@ -370,7 +374,7 @@ function buildDialog() {
         var origLock = false;
         var guideLayer = null;
         var docLayers = doc.layers;
-        // Find or create _guide layer for possible use and lock management
+        /* _guideレイヤーを探すか作成（ロック管理も）/ Find or create _guide layer for possible use and lock management */
         for (var i = 0; i < docLayers.length; i++) {
             if (docLayers[i].name === "_guide") {
                 guideLayer = docLayers[i];
@@ -385,10 +389,10 @@ function buildDialog() {
         guideLayer.locked = false;
 
         if (guideLayerRadio.value) {
-            // _guide layer logic (default)
+            /* _guideレイヤーを使う（デフォルト）/ Use _guide layer (default) */
             targetLayer = guideLayer;
         } else if (currentLayerRadio.value) {
-            // Directly use the current active layer as target
+            /* 現在のアクティブレイヤーを直接ターゲットに / Use current active layer as target */
             targetLayer = doc.activeLayer;
             if (targetLayer.locked) {
                 alert(LABELS.alertLocked[lang]);
@@ -423,7 +427,7 @@ function buildDialog() {
                 var margin = parseFloat(marginEdit.text);
                 if (isNaN(margin)) {
                     if (guideLayerRadio.value) {
-                        guideLayer.locked = origLock; // 念のため
+                        guideLayer.locked = origLock; /* 念のため / Just in case */
                     }
                     return;
                 }
@@ -452,7 +456,7 @@ function buildDialog() {
             p.filled = false;
             p.strokeWidth = 1.0;
             p.strokeColor = makePreviewColor();
-            p.guides = false; // プレビューはガイド化しない / Preview is not a guide
+            p.guides = false; /* プレビューはガイド化しない / Preview is not a guide */
             previewPaths.push(p);
         }
         /* シングルプレビュー時は previewLine = path 互換性 / Use single path for single preview */
@@ -484,7 +488,7 @@ function buildDialog() {
             rgb.blue = 255;
             return rgb;
         } else {
-            // その他のカラーモード（念のためRGBに）
+            /* その他のカラーモード（念のためRGBに）/ Other color modes (force RGB) */
             var rgb2 = new RGBColor();
             rgb2.red = 74;
             rgb2.green = 132;
@@ -510,7 +514,7 @@ function buildDialog() {
                 previewLine.strokeWidth = 0.1;
             }
         }
-        // "_guide"レイヤーが存在し、名前が"_guide"ならロック
+        /* "_guide"レイヤーが存在し、名前が"_guide"ならロック / Lock "_guide" layer if exists and named "_guide" */
         if (guideLayer && guideLayer.name === "_guide") {
             guideLayer.locked = true;
         }
@@ -598,7 +602,7 @@ function changeValueByArrowKey(editText, onUpdate) {
         if (event.keyName == "Up" || event.keyName == "Down") {
             var delta = 1;
             if (keyboard.shiftKey) {
-                // Shift押下時は「10の倍数」スナップ、制限なし
+                /* Shift押下時は「10の倍数」スナップ、制限なし / Snap to multiples of 10 when Shift is pressed */
                 value = Math.round(value / 10) * 10 + (event.keyName == "Up" ? 10 : -10);
             } else {
                 delta = event.keyName == "Up" ? 1 : -1;

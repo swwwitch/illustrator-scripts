@@ -1,8 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
 /*
 ### スクリプトの説明 / Script Description
 
@@ -21,7 +19,7 @@ v1.0 (20250716) : 初期バージョン / Initial version
 
 var SCRIPT_VERSION = "v1.0";
 
-// 「_guide」レイヤーがあれば、そのロックを解除して、ガイドを解除後、「UnlockedGuides」レイヤーに移動し再ロックする
+/* 「_guide」レイヤーがあれば、そのロックを解除して、ガイドを解除後、「UnlockedGuides」レイヤーに移動し再ロックする / If a "_guide" layer exists, unlock it, remove guides, move to "UnlockedGuides" layer, and relock */
 function unlockGuideLayerAndClearGuides() {
     var doc = app.activeDocument;
     var guideLayer = null;
@@ -34,19 +32,19 @@ function unlockGuideLayerAndClearGuides() {
     if (guideLayer) {
         guideLayer.locked = false; /* ロックを解除 / Unlock the layer */
 
-        // 「UnlockedGuides」レイヤーを探す
+        /* 「UnlockedGuides」レイヤーを探す / Find "UnlockedGuides" layer */
         var newLayer = null;
         for (var i = 0; i < doc.layers.length; i++) {
             if (doc.layers[i].name == "UnlockedGuides") {
                 newLayer = doc.layers[i];
-                // ロック解除が必要なら解除
+                /* ロック解除が必要なら解除 / Unlock if necessary */
                 if (newLayer.locked) {
                     newLayer.locked = false; /* ロックを解除 / Unlock the layer */
                 }
                 break;
             }
         }
-        // 見つからなければ作成
+        /* 見つからなければ作成 / Create if not found */
         if (!newLayer) {
             newLayer = doc.layers.add();
             newLayer.name = "UnlockedGuides";
@@ -54,7 +52,7 @@ function unlockGuideLayerAndClearGuides() {
 
         var items = guideLayer.pageItems;
         for (var j = items.length - 1; j >= 0; j--) {
-            // ガイドフラグがあれば解除
+            /* ガイドフラグがあれば解除 / Remove guide flag if present */
             if (items[j].guides) {
                 items[j].guides = false; /* ガイドを解除 / Remove guide flag */
             }
@@ -64,7 +62,7 @@ function unlockGuideLayerAndClearGuides() {
             items[j].strokeColor = new GrayColor();
             items[j].strokeColor.gray = 100;
             items[j].strokeWidth = 1;
-            // 「UnlockedGuides」レイヤーに移動
+            /* 「UnlockedGuides」レイヤーに移動 / Move to "UnlockedGuides" layer */
             items[j].move(newLayer, ElementPlacement.PLACEATBEGINNING);
         }
 

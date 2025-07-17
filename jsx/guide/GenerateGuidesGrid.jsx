@@ -1,11 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
-// スクリプトバージョン / Script version
-var SCRIPT_VERSION = "v1.2";
-
 /*
 ### スクリプト名：
 
@@ -80,6 +75,15 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 - v1.2 (20250501): Added arrow key value increment feature
 
 */
+
+var SCRIPT_VERSION = "v1.2";
+
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
 
 // ラベル定義 / Label definitions
 var LABELS = {
@@ -354,12 +358,12 @@ function main() {
         unitFactor = 1.0;
     }
     // ダイアログ作成 / Create dialog
-    var dlg = new Window("dialog", LABELS.dialogTitle);
+    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
     dlg.alignChildren = "left";
 
     // grid_guidesレイヤークリアチェックボックス / Clear grid_guides layer checkbox
-    var clearGuidesCheckbox = dlg.add("checkbox", undefined, LABELS.clearGuidesLabel);
+    var clearGuidesCheckbox = dlg.add("checkbox", undefined, LABELS.clearGuidesLabel[lang]);
     clearGuidesCheckbox.value = true;
 
     // プリセット選択＋書き出しボタングループ / Preset selection and export group
@@ -368,10 +372,10 @@ function main() {
     presetGroup.alignChildren = "center";
     presetGroup.margins = [0, 5, 0, 10];
 
-    presetGroup.add("statictext", undefined, LABELS.presetLabel);
+    presetGroup.add("statictext", undefined, LABELS.presetLabel[lang]);
     var presetDropdown = presetGroup.add("dropdownlist", undefined, []);
     presetDropdown.selection = 0;
-    var btnExportPreset = presetGroup.add("button", undefined, LABELS.exportPresetLabel);
+    var btnExportPreset = presetGroup.add("button", undefined, LABELS.exportPresetLabel[lang]);
 
 
     btnExportPreset.onClick = function() {
@@ -434,41 +438,41 @@ function main() {
     gridGroup.spacing = 20;
 
     // 行設定パネル / Row settings panel
-    var rowBlock = gridGroup.add("panel", undefined, LABELS.rowTitle);
+    var rowBlock = gridGroup.add("panel", undefined, LABELS.rowTitle[lang]);
     rowBlock.orientation = "column";
     rowBlock.alignChildren = "left";
     rowBlock.margins = [15, 20, 15, 15];
 
     var inputY = rowBlock.add("group");
-    inputY.add("statictext", undefined, LABELS.rowsLabel);
+    inputY.add("statictext", undefined, LABELS.rowsLabel[lang]);
     var inputYText = inputY.add("edittext", undefined, "2");
     inputYText.characters = 3;
 
     var rowGutterGroup = rowBlock.add("group");
-    rowGutterGroup.add("statictext", undefined, LABELS.rowGutterLabel + "：");
+    rowGutterGroup.add("statictext", undefined, LABELS.rowGutterLabel[lang] + "：");
     var inputRowGutter = rowGutterGroup.add("edittext", undefined, "0");
     inputRowGutter.characters = 4;
     rowGutterGroup.add("statictext", undefined, unitLabel);
 
     // 列設定パネル / Column settings panel
-    var colBlock = gridGroup.add("panel", undefined, LABELS.columnTitle);
+    var colBlock = gridGroup.add("panel", undefined, LABELS.columnTitle[lang]);
     colBlock.orientation = "column";
     colBlock.alignChildren = "left";
     colBlock.margins = [15, 20, 15, 15];
 
     var inputX = colBlock.add("group");
-    inputX.add("statictext", undefined, LABELS.columnsLabel);
+    inputX.add("statictext", undefined, LABELS.columnsLabel[lang]);
     var inputXText = inputX.add("edittext", undefined, "2");
     inputXText.characters = 3;
 
     var colGutterGroup = colBlock.add("group");
-    colGutterGroup.add("statictext", undefined, LABELS.colGutterLabel + "：");
+    colGutterGroup.add("statictext", undefined, LABELS.colGutterLabel[lang] + "：");
     var inputColGutter = colGutterGroup.add("edittext", undefined, "0");
     inputColGutter.characters = 4;
     colGutterGroup.add("statictext", undefined, unitLabel);
 
     // マージン全体パネル / Margin panel
-    var marginPanel = dlg.add("panel", undefined, LABELS.marginTitle + " (" + unitLabel + ")");
+    var marginPanel = dlg.add("panel", undefined, LABELS.marginTitle[lang] + " (" + unitLabel + ")");
     marginPanel.orientation = "column";
     marginPanel.alignChildren = "left";
     marginPanel.margins = [10, 15, 10, 15];
@@ -484,7 +488,7 @@ function main() {
     leftGroup.alignChildren = "center";
     leftGroup.margins = [0, 12, 0, 10];
 
-    leftGroup.add("statictext", undefined, LABELS.leftLabel);
+    leftGroup.add("statictext", undefined, LABELS.leftLabel[lang]);
     var inputLeft = leftGroup.add("edittext", undefined, "0");
     inputLeft.characters = 5;
 
@@ -496,13 +500,13 @@ function main() {
 
     var topGroup = topBottomGroup.add("group");
     topGroup.orientation = "row";
-    topGroup.add("statictext", undefined, LABELS.topLabel);
+    topGroup.add("statictext", undefined, LABELS.topLabel[lang]);
     var inputTop = topGroup.add("edittext", undefined, "0");
     inputTop.characters = 5;
 
     var bottomGroup = topBottomGroup.add("group");
     bottomGroup.orientation = "row";
-    bottomGroup.add("statictext", undefined, LABELS.bottomLabel);
+    bottomGroup.add("statictext", undefined, LABELS.bottomLabel[lang]);
     var inputBottom = bottomGroup.add("edittext", undefined, "0");
     inputBottom.characters = 5;
 
@@ -512,7 +516,7 @@ function main() {
     rightGroup.alignChildren = "center";
     rightGroup.margins = [0, 12, 0, 10];
 
-    rightGroup.add("statictext", undefined, LABELS.rightLabel);
+    rightGroup.add("statictext", undefined, LABELS.rightLabel[lang]);
     var inputRight = rightGroup.add("edittext", undefined, "0");
     inputRight.characters = 5;
 
@@ -522,7 +526,7 @@ function main() {
     commonGroup.alignChildren = "center";
     commonGroup.margins = [0, 10, 0, 0];
 
-    var commonMarginCheckbox = commonGroup.add("checkbox", undefined, LABELS.commonMarginLabel);
+    var commonMarginCheckbox = commonGroup.add("checkbox", undefined, LABELS.commonMarginLabel[lang]);
     var commonMarginInput = commonGroup.add("edittext", undefined, "0");
     commonMarginInput.characters = 5;
 
@@ -534,7 +538,7 @@ function main() {
     // ガイドの伸張設定 / Guide extension
     var extGroup = optGroup.add("group");
     extGroup.margins = [0, 0, 0, 10];
-    extGroup.add("statictext", undefined, LABELS.guideExtensionLabel);
+    extGroup.add("statictext", undefined, LABELS.guideExtensionLabel[lang]);
     var inputExt = extGroup.add("edittext", undefined, "10");
     inputExt.characters = 5;
     extGroup.add("statictext", undefined, unitLabel);
@@ -542,7 +546,7 @@ function main() {
     // 裁ち落としガイド設定 / Bleed guide
     var bleedGroup = optGroup.add("group");
     bleedGroup.margins = [0, 0, 0, 10];
-    var bleedGuideCheckbox = bleedGroup.add("checkbox", undefined, LABELS.bleedGuideLabel);
+    var bleedGuideCheckbox = bleedGroup.add("checkbox", undefined, LABELS.bleedGuideLabel[lang]);
     bleedGuideCheckbox.value = false;
     var inputBleed = bleedGroup.add("edittext", undefined, "3");
     inputBleed.characters = 4;
@@ -588,15 +592,15 @@ function main() {
     changeValueByArrowKey(commonMarginInput);
     changeValueByArrowKey(inputBleed);
 
-    var allBoardsCheckbox = optGroup.add("checkbox", undefined, LABELS.allBoardsLabel);
+    var allBoardsCheckbox = optGroup.add("checkbox", undefined, LABELS.allBoardsLabel[lang]);
 
     // セル長方形化・ガイドを引くを横並び / Cell rectangle and draw guides (side by side)
     var cellGuideGroup = optGroup.add("group");
     cellGuideGroup.orientation = "row";
     cellGuideGroup.alignChildren = "left";
 
-    var cellRectCheckbox = cellGuideGroup.add("checkbox", undefined, LABELS.cellRectLabel);
-    var drawGuidesCheckbox = cellGuideGroup.add("checkbox", undefined, LABELS.drawGuidesLabel);
+    var cellRectCheckbox = cellGuideGroup.add("checkbox", undefined, LABELS.cellRectLabel[lang]);
+    var drawGuidesCheckbox = cellGuideGroup.add("checkbox", undefined, LABELS.drawGuidesLabel[lang]);
     drawGuidesCheckbox.value = true;
 
     // === ボタンエリア（レイアウト変更版）/ Button area (layout updated)
@@ -610,7 +614,7 @@ function main() {
     var leftGroup = outerGroup.add("group");
     leftGroup.orientation = "row";
     leftGroup.alignChildren = "left";
-    var btnCancel = leftGroup.add("button", undefined, LABELS.cancelLabel, {
+    var btnCancel = leftGroup.add("button", undefined, LABELS.cancelLabel[lang], {
         name: "cancel"
     });
 
@@ -625,8 +629,8 @@ function main() {
     rightGroup.orientation = "row";
     rightGroup.alignChildren = "right";
     rightGroup.spacing = 10;
-    var btnApply = rightGroup.add("button", undefined, LABELS.applyLabel);
-    var btnOK = rightGroup.add("button", undefined, LABELS.okLabel, {
+    var btnApply = rightGroup.add("button", undefined, LABELS.applyLabel[lang]);
+    var btnOK = rightGroup.add("button", undefined, LABELS.okLabel[lang], {
         name: "ok"
     });
 

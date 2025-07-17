@@ -1,8 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-$.localize = true;
-
 /*
 ### スクリプト名：
 
@@ -97,20 +95,13 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuid
 // スクリプトバージョン
 var SCRIPT_VERSION = "v1.9";
 
+function getCurrentLang() {
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
 
-// --- 右側ラジオボタン定義と出し入れ設定 / Add right-side radio buttons in dialog order ---
-// Only keep show flags for dynamically shown buttons
-var showRbTopBottom = false;
-var showRbLeftRight = false;
-var showRbTopLeft = true;
-var showRbBottomLeft = false;
-var showRbTopRight = false;
-var showRbBottomRight = false;
+/* 日英ラベル定義 / Japanese-English label definitions */
 
-// --- UIラベル定義（日本語 / 英語） / UI label definitions (Japanese / English) ---
-/*
- * LABELS: UIラベル。UI出現順に定義 / UI labels, defined in dialog appearance order.
- */
 var LABELS = {
     centerBothRb: {
         ja: "中心",
@@ -253,6 +244,15 @@ var LABELS = {
         en: "Create guides per object"
     }
 };
+
+// --- 右側ラジオボタン定義と出し入れ設定 / Add right-side radio buttons in dialog order ---
+// Only keep show flags for dynamically shown buttons
+var showRbTopBottom = false;
+var showRbLeftRight = false;
+var showRbTopLeft = true;
+var showRbBottomLeft = false;
+var showRbTopRight = false;
+var showRbBottomRight = false;
 
 // --- 単位コードとラベルのマップ / Unit code and label map ---
 var unitLabelMap = {
@@ -636,10 +636,10 @@ function getPtFactorFromUnitCode(code) {
  * メインダイアログを構築・表示 / Build and show the main dialog
  */
 function buildDialog() {
-    // --- Declare global center mode variable ---
+    /* グローバル中心モード変数宣言 / Declare global center mode variable */
     var centerModeGlobal = "";
     var dialog = new Window("dialog");
-    dialog.text = LABELS.dialogTitle;
+    dialog.text = LABELS.dialogTitle[lang];
     dialog.orientation = "column";
     dialog.alignChildren = ["center", "top"];
     dialog.spacing = 10;
@@ -662,20 +662,20 @@ function buildDialog() {
     rightGroup.spacing = 10;
     rightGroup.alignment = ["left", "center"];
 
-    var targetPanel = leftGroup.add("panel", undefined, LABELS.targetPanel);
+    var targetPanel = leftGroup.add("panel", undefined, LABELS.targetPanel[lang]);
     targetPanel.orientation = "column";
     targetPanel.alignChildren = ["left", "top"];
     targetPanel.spacing = 10;
     targetPanel.margins = [10, 20, 20, 15];
-    // カンバス→アートボードの順にラジオボタンを追加し、デフォルトをアートボードに
-    var rbCanvas = targetPanel.add("radiobutton", undefined, LABELS.canvas);
-    var rbArtboard = targetPanel.add("radiobutton", undefined, LABELS.artboard);
+    /* カンバス→アートボードの順にラジオボタンを追加し、デフォルトをアートボードに / Add radio buttons in order: Canvas → Artboard, default to Artboard */
+    var rbCanvas = targetPanel.add("radiobutton", undefined, LABELS.canvas[lang]);
+    var rbArtboard = targetPanel.add("radiobutton", undefined, LABELS.artboard[lang]);
     rbArtboard.value = true;
-    // --- 「裁ち落とし」グループを targetPanel 内に追加 / Add margin (bleed) group to targetPanel ---
+    /* 「裁ち落とし」グループを targetPanel 内に追加 / Add margin (bleed) group to targetPanel */
     var marginGroup = targetPanel.add("group");
     marginGroup.orientation = "row";
     marginGroup.alignChildren = ["left", "center"];
-    marginGroup.add("statictext", undefined, LABELS.margin);
+    marginGroup.add("statictext", undefined, LABELS.margin[lang]);
     var marginInput = marginGroup.add("edittext", undefined, "20");
     marginInput.characters = 3;
     marginGroup.add("statictext", undefined, getCurrentUnitLabel());
@@ -684,7 +684,7 @@ function buildDialog() {
     var axisGroup = leftGroup.add("panel", undefined, undefined, {
         name: "axisGroup"
     });
-    axisGroup.text = LABELS.axisGroup;
+    axisGroup.text = LABELS.axisGroup[lang];
     axisGroup.orientation = "column";
     axisGroup.alignChildren = ["left", "top"];
     axisGroup.spacing = 10;
@@ -709,7 +709,7 @@ function buildDialog() {
     var cbLeft = colLeft.add("checkbox", undefined, undefined, {
         name: "cbLeft"
     });
-    cbLeft.text = LABELS.left;
+    cbLeft.text = LABELS.left[lang];
     cbLeft.value = true;
 
     var colCenter = diamondGroup.add("group", undefined, {
@@ -723,18 +723,18 @@ function buildDialog() {
     var cbTop = colCenter.add("checkbox", undefined, undefined, {
         name: "cbTop"
     });
-    cbTop.text = LABELS.top;
+    cbTop.text = LABELS.top[lang];
     cbTop.value = true;
     var cbCenter = colCenter.add("checkbox", undefined, undefined, {
         name: "cbCenter"
     });
-    cbCenter.text = LABELS.center;
+    cbCenter.text = LABELS.center[lang];
     cbCenter.value = false;
-    // for horizontal center line
+    /* for horizontal center line / 水平中心線用 */
     var cbBottom = colCenter.add("checkbox", undefined, undefined, {
         name: "cbBottom"
     });
-    cbBottom.text = LABELS.bottom;
+    cbBottom.text = LABELS.bottom[lang];
     cbBottom.value = true;
 
     var colRight = diamondGroup.add("group", undefined, {
@@ -747,7 +747,7 @@ function buildDialog() {
     var cbRight = colRight.add("checkbox", undefined, undefined, {
         name: "cbRight"
     });
-    cbRight.text = LABELS.right;
+    cbRight.text = LABELS.right[lang];
     cbRight.value = true;
 
     var edgeGroup = axisGroup.add("group", undefined, {
@@ -759,34 +759,33 @@ function buildDialog() {
     edgeGroup.margins = [0, 15, 0, 5];
     edgeGroup.alignment = ["center", "top"];
 
-
-
+    /* ラジオボタン生成関数 / Function to create radio buttons */
     function createRadioButton(group, label, show) {
         if (typeof show !== "undefined" && !show) return null;
         return group.add("radiobutton", undefined, label);
     }
 
     // Always-shown buttons: no show argument, no flags
-    var rbAllOn = createRadioButton(rightGroup, LABELS.allOn);
-    var rbShihen = createRadioButton(rightGroup, LABELS.edges);
-    var rbTopBottom = createRadioButton(rightGroup, LABELS.vertical, showRbTopBottom);
-    var rbLeftRight = createRadioButton(rightGroup, LABELS.horizontal, showRbLeftRight);
-    var rbTopLeft = createRadioButton(rightGroup, LABELS.topLeft, showRbTopLeft);
-    var rbBottomLeft = createRadioButton(rightGroup, LABELS.bottomLeft, showRbBottomLeft);
-    var rbTopRight = createRadioButton(rightGroup, LABELS.topRight, showRbTopRight);
-    var rbBottomRight = createRadioButton(rightGroup, LABELS.bottomRight, showRbBottomRight);
-    var rbCenterBoth = createRadioButton(rightGroup, LABELS.centerBothRb);
-    var rbCenterV = createRadioButton(rightGroup, LABELS.centerVRb);
-    var rbCenterH = createRadioButton(rightGroup, LABELS.centerHRb);
-    var rbClear = createRadioButton(rightGroup, LABELS.clear);
-    // --- 中心ラジオボタンのイベントハンドラ ---
+    var rbAllOn = createRadioButton(rightGroup, LABELS.allOn[lang]);
+    var rbShihen = createRadioButton(rightGroup, LABELS.edges[lang]);
+    var rbTopBottom = createRadioButton(rightGroup, LABELS.vertical[lang], showRbTopBottom);
+    var rbLeftRight = createRadioButton(rightGroup, LABELS.horizontal[lang], showRbLeftRight);
+    var rbTopLeft = createRadioButton(rightGroup, LABELS.topLeft[lang], showRbTopLeft);
+    var rbBottomLeft = createRadioButton(rightGroup, LABELS.bottomLeft[lang], showRbBottomLeft);
+    var rbTopRight = createRadioButton(rightGroup, LABELS.topRight[lang], showRbTopRight);
+    var rbBottomRight = createRadioButton(rightGroup, LABELS.bottomRight[lang], showRbBottomRight);
+    var rbCenterBoth = createRadioButton(rightGroup, LABELS.centerBothRb[lang]);
+    var rbCenterV = createRadioButton(rightGroup, LABELS.centerVRb[lang]);
+    var rbCenterH = createRadioButton(rightGroup, LABELS.centerHRb[lang]);
+    var rbClear = createRadioButton(rightGroup, LABELS.clear[lang]);
+    /* 中心ラジオボタンのイベントハンドラ / Center radio button event handler */
     if (rbCenterBoth) {
         rbCenterBoth.onClick = function() {
             if (rbCenterBoth.value) setCheckboxState(false, false, false, false, true);
         };
     }
 
-    // --- Insert event handlers for center line radio buttons ---
+    /* 中心線ラジオボタンのイベントハンドラ追加 / Insert event handlers for center line radio buttons */
     if (rbCenterV) {
         rbCenterV.onClick = function() {
             if (rbCenterV.value) {
@@ -804,15 +803,15 @@ function buildDialog() {
         };
     }
 
-    // デフォルト選択は表示中の最初のボタンに自動設定（Shihen優先） / Default selection (prefer "Edges")
+    /* デフォルト選択は表示中の最初のボタンに自動設定（Shihen優先） / Default selection (prefer "Edges") */
     if (rbShihen) {
         rbShihen.value = true;
     } else if (rbAllOn) {
         rbAllOn.value = true;
     }
 
-    // --- チェックボックス一括設定関数 / Function to set checkboxes at once ---
-    // チェックボックス群の状態をまとめてセット / Set checkboxes easily
+    /* チェックボックス一括設定関数 / Function to set checkboxes at once */
+    /* チェックボックス群の状態をまとめてセット / Set checkboxes easily */
     function setCheckboxState(l, t, r, b, c) {
         cbLeft.value = l;
         cbTop.value = t;
@@ -875,26 +874,26 @@ function buildDialog() {
     optionsGroup.margins = [10, 15, 10, 20];
     optionsGroup.spacing = 10;
 
-    var cbUsePreview = optionsGroup.add("checkbox", undefined, LABELS.usePreviewBounds);
+    var cbUsePreview = optionsGroup.add("checkbox", undefined, LABELS.usePreviewBounds[lang]);
     cbUsePreview.value = true;
-    var cbDeleteGuide = optionsGroup.add("checkbox", undefined, LABELS.deleteGuides);
+    var cbDeleteGuide = optionsGroup.add("checkbox", undefined, LABELS.deleteGuides[lang]);
     cbDeleteGuide.value = true;
 
-    // --- 個別ガイドチェックボックス追加 / Add individual guide checkbox ---
-    var cbIndividual = optionsGroup.add("checkbox", undefined, LABELS.individual);
+    /* 個別ガイドチェックボックス追加 / Add individual guide checkbox */
+    var cbIndividual = optionsGroup.add("checkbox", undefined, LABELS.individual[lang]);
     cbIndividual.value = false;
 
-    // --- オフセット入力欄追加 / Add offset input field ---
+    /* オフセット入力欄追加 / Add offset input field */
     var offsetGroup = optionsGroup.add("group");
     offsetGroup.orientation = "row";
     offsetGroup.alignChildren = ["left", "center"];
-    offsetGroup.add("statictext", undefined, LABELS.offset);
+    offsetGroup.add("statictext", undefined, LABELS.offset[lang]);
     var offsetInput = offsetGroup.add("edittext", undefined, "0");
     offsetInput.characters = 3;
     offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
     offsetInput.active = true;
     changeValueByArrowKey(offsetInput);
-    // --- 「裁ち落とし」(marginInput) を「カンバス」選択時にディム表示する制御を追加 / Disable margin input if canvas is selected ---
+    /* 「裁ち落とし」(marginInput) を「カンバス」選択時にディム表示する制御を追加 / Disable margin input if canvas is selected */
     function updateMarginEnabled() {
         if (rbCanvas.value) {
             marginInput.enabled = false;
@@ -904,10 +903,10 @@ function buildDialog() {
     }
     rbArtboard.onClick = updateMarginEnabled;
     rbCanvas.onClick = updateMarginEnabled;
-    // 初期状態に合わせる
+    /* 初期状態に合わせる / Set initial state */
     updateMarginEnabled();
 
-    // --- 選択オブジェクトがアートボード外にある場合、自動的にカンバス選択 ---
+    /* 選択オブジェクトがアートボード外にある場合、自動的にカンバス選択 / Auto-select Canvas if selection is outside artboard */
     var doc = app.activeDocument;
     var selItems = app.selection;
     if (selItems.length > 0 && doc.artboards.length > 0) {
@@ -938,8 +937,8 @@ function buildDialog() {
 
     var btnGroup = dialog.add("group");
     btnGroup.alignment = ["center", "top"];
-    var btnCancel = btnGroup.add("button", undefined, LABELS.cancelButton);
-    var btnCreateGuides = btnGroup.add("button", undefined, LABELS.okButton, {
+    var btnCancel = btnGroup.add("button", undefined, LABELS.cancelButton[lang]);
+    var btnCreateGuides = btnGroup.add("button", undefined, LABELS.okButton[lang], {
         name: "ok"
     });
 
@@ -961,12 +960,12 @@ function buildDialog() {
             };
             var useCanvas = rbCanvas.value;
 
-            // --- _guideレイヤー取得または作成 / Get or create "_guide" layer ---
+            /* _guideレイヤー取得または作成 / Get or create "_guide" layer */
             var layer = getOrCreateGuideLayer();
             var wasLocked = layer.locked;
             if (wasLocked) layer.locked = false;
 
-            // --- 削除チェックON時、既存ガイド削除 / Remove existing guides if checked ---
+            /* 削除チェックON時、既存ガイド削除 / Remove existing guides if checked */
             if (cbDeleteGuide.value) {
                 try {
                     for (var i = layer.pageItems.length - 1; i >= 0; i--) {
@@ -975,7 +974,7 @@ function buildDialog() {
                         }
                     }
                 } catch (ex) {
-                    alert(LABELS.alertDeleteGuideError + "\n" + ex.message);
+                    alert(LABELS.alertDeleteGuideError[lang] + "\n" + ex.message);
                 }
             }
 
@@ -991,7 +990,7 @@ function buildDialog() {
             createGuidesFromSelection(options, useCanvas, offsetValPt, marginValPt);
             dialog.close();
         } catch (e) {
-            alert(LABELS.alertGuideError + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
+            alert(LABELS.alertGuideError[lang] + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
         }
     };
 
@@ -1000,10 +999,7 @@ function buildDialog() {
 
 buildDialog();
 
-/**
- * テキストフィールドで上下矢印キーによる数値増減を可能にする
- * Enable value change with up/down arrow keys in an edittext
- */
+/* テキストフィールドで上下矢印キーによる数値増減を可能にする / Enable value change with up/down arrow keys in an edittext */
 function changeValueByArrowKey(editText) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);
@@ -1012,7 +1008,7 @@ function changeValueByArrowKey(editText) {
 
         if (event.keyName == "Up" || event.keyName == "Down") {
             if (keyboard.shiftKey) {
-                // Shift押下時は10の倍数スナップ
+                /* Shift押下時は10の倍数スナップ / Snap to tens if Shift is pressed */
                 value = Math.round(value / 10) * 10 + (event.keyName == "Up" ? 10 : -10);
             } else {
                 var delta = event.keyName == "Up" ? 1 : -1;
