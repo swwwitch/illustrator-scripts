@@ -46,6 +46,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 
 - [Split text into individual characters](readme.en/TextSplitterPro.md)
 - [Adjust baseline shift for specific characters](readme.en/SmartBaselineShifter.md)
+- [Text Merge To AreaBox](readme-en/TextMergeToAreaBox.md)
 
 ## Object arrangement and alignment
 

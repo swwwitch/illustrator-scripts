@@ -45,6 +45,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 - [文字ばらし](readme-ja/TextSplitterPro.md)
 - [特定の文字のベースラインシフトを調整](readme-ja/SmartBaselineShifter.md)
+- [PDFをイラレで開いたときのバラバラ文字を、ひとつのエリア内文字に再構成するスクリプト](readme-ja/TextMergeToAreaBox.md)
 
 ## オブジェクトの配置や整列
 
