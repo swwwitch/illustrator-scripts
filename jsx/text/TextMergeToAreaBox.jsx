@@ -27,7 +27,7 @@ TextMergeToAreaBox.jsx
 
 ### 謝辞
 
-倉田タカシさん
+倉田タカシさん（イラレで便利）
 https://d-p.2-d.jp/ai-js/
 
 ### note
@@ -38,6 +38,7 @@ https://note.com/dtp_tranist/n/ne8d31278c266
 
 - v1.0 (20250717) : 初期バージョン
 - v1.1 (20250718) : 1行だけに対応、禁則を設定
+- v1.2 (20250719) : 行末が英単語の場合の改行処理を追加
 
 ---
 
@@ -67,10 +68,11 @@ TextMergeToAreaBox.jsx
 
 - v1.0 (20250718): Initial release
 - v1.1 (20250719): Added support for single line text, set kinsoku rules
+- v1.2 (20250720): Added handling for line breaks after English words
 
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 var LINE_Y_THRESHOLD = 5; // 行分類のY座標差の閾値（ポイント単位）
 var MIN_LEADING_RATIO = 1.2; // 最小の行送り倍率
 
@@ -149,6 +151,21 @@ function main() {
             var content = mergedTextFrames[i].contents;
 
             finalText += content;
+
+            // 次の行の先頭が英単語の場合、末尾と先頭の間にスペースを挿入
+            if (i < mergedTextFrames.length - 1) {
+                var nextContent = mergedTextFrames[i + 1].contents;
+                var endsWithENWord = /[A-Za-z0-9)]$/.test(content);
+                var startsWithENWord = /^[A-Za-z0-9(]/.test(nextContent);
+                if (endsWithENWord && startsWithENWord) {
+                    finalText += " ";
+                }
+                // 英単語がハイフンで分断されている場合、ハイフンを除去して結合
+                if (/[A-Za-z0-9)]-$/.test(content) && /^[A-Za-z0-9(]/.test(nextContent)) {
+                    // ハイフンを削除して連結（末尾のハイフンを除去済みのcontentを使う）
+                    finalText = finalText.replace(/-$/, "");
+                }
+            }
 
             // 内容に応じて改行を追加
             var endsWithJP = /[。！？]$/.test(content);
