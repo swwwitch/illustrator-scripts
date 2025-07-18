@@ -75,16 +75,16 @@ var LINE_Y_THRESHOLD = 5; // 行分類のY座標差の閾値（ポイント単�
 var MIN_LEADING_RATIO = 1.2; // 最小の行送り倍率
 
 function getCurrentLang() {
-  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
 /* ラベル定義 / Label definitions */
 var LABELS = {
-  errorNoText: {
-    ja: "変換できるテキストはありません。",
-    en: "No convertible text found."
-  }
+    errorNoText: {
+        ja: "変換できるテキストはありません。",
+        en: "No convertible text found."
+    }
 };
 
 
@@ -143,18 +143,22 @@ function main() {
           ただし英単語の末尾がピリオド「.」、疑問符「?」、感嘆符「!」の場合は改行しない
         */
         var finalText = "";
+        var fontSize = mergedTextFrames[0].textRange.characterAttributes.size;
+
         for (var i = 0; i < mergedTextFrames.length; i++) {
             var content = mergedTextFrames[i].contents;
+
             finalText += content;
+
+            // 内容に応じて改行を追加
             var endsWithJP = /[。！？]$/.test(content);
             var endsWithEN = /[.!?]$/.test(content);
             var isEnglish = /^[\x00-\x7F]+$/.test(content.replace(/[\s\r\n]/g, ""));
 
-            if (i < mergedTextFrames.length - 1 && endsWithJP) {
-                finalText += "\r";
-            } else if (i < mergedTextFrames.length - 1 && endsWithEN && !isEnglish) {
-                // 英文でない場合のみ .!? で改行
-                finalText += "\r";
+            if (i < mergedTextFrames.length - 1) {
+                if (endsWithJP || (endsWithEN && !isEnglish)) {
+                    finalText += "\r";
+                }
             }
         }
 
@@ -169,7 +173,7 @@ function main() {
         var selBottom = selectionBounds[3];
         var selWidth = selRight - selLeft;
         // 長方形（エリアテキスト）の作成幅を1文字分縮める
-        var fontSize = mergedTextFrames[0].textRange.characterAttributes.size;
+        // var fontSize = mergedTextFrames[0].textRange.characterAttributes.size;  ← 削除済み
         selWidth = selWidth - fontSize;
         var selHeight = selTop - selBottom;
 
@@ -199,7 +203,7 @@ function main() {
         if (mergedTextFrames.length >= 2) {
             var y1 = mergedTextFrames[0].position[1];
             var y2 = mergedTextFrames[1].position[1];
-            var fontSize = mergedTextFrames[0].textRange.characterAttributes.size;
+            // var fontSize = mergedTextFrames[0].textRange.characterAttributes.size;  ← この行を削除
             leading = Math.abs(y1 - y2); // 行送りとして y 差を使用
             if (leading < fontSize) {
                 leading = fontSize * MIN_LEADING_RATIO; // 最小でも MIN_LEADING_RATIO にする
@@ -216,7 +220,9 @@ function main() {
         }
 
         // 生成されたエリア内文字を選択状態にする
-        app.selection = [newTextFrame];
+        app.selection = null; // 選択を一度解除
+        app.selection = [newTextFrame]; // 再度選択
+        app.redraw();
 
     } else {
         /* エラーメッセージの表示 / Show error message */
