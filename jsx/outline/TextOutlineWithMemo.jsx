@@ -6,6 +6,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 TextOutlineMemo.jsx
 
+This script supports only Japanese language.
+
 ### Readme （GitHub）：
 
 https://github.com/swwwitch/illustrator-scripts
@@ -36,68 +38,20 @@ https://note.com/dtp_tranist/n/n3e0f241508db
 - v1.0 (20240723) : 初期バージョン
 - v1.1 (20250721) : ローカライズ
 
----
-### Script Name:
-
-TextOutlineMemo.jsx
-
-### Readme (GitHub):
-
-https://github.com/yourname/illustrator-scripts/
-
-### Description:
-
-- Converts selected text frames to outlines and saves metadata in the note
-- Useful for tracking font info after conversion
-
-### Features:
-
-- Extracts content, font, size, leading, kerning, tracking, orientation, coordinates
-- Stores extracted info into outlined object’s note field
-
-### Workflow:
-
-1. Select text frame(s)
-2. Extract text and font data
-3. Create outline
-4. Attach memo text to outline’s note
-
-### Update History:
-
-- v1.0 (20240723): Initial version
-- v1.1 (20250721): Localization support added
-
 */
 
-// スクリプトバージョン / Script version
+// スクリプトバージョン
 var SCRIPT_VERSION = "v1.1";
 
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
-var lang = getCurrentLang();
-
-/* 日英ラベル定義 / Japanese-English label definitions */
-var LABELS = {
-    noTextSelected: {
-        ja: "テキストオブジェクトが選択されていません。",
-        en: "No text object is selected."
-    },
-    noDocumentOpen: {
-        ja: "ドキュメントが開かれていません。",
-        en: "No document is open."
-    }
-};
-
 function main() {
-    // ドキュメントが開かれていることを確認 / Ensure a document is open
+    // ドキュメントが開かれていることを確認
     if (app.documents.length > 0) {
         var doc = app.activeDocument;
         var selection = doc.selection;
 
-        // 選択されたオブジェクトが存在するか確認 / Check if any object is selected
+        // 選択されたオブジェクトが存在するか確認
         if (selection.length > 0) {
-            // 元の選択を保存 / Save original selection
+            // 元の選択を保存
             var originalSelection = selection.slice();
 
             for (var i = 0; i < originalSelection.length; i++) {
@@ -106,17 +60,17 @@ function main() {
                 }
             }
         } else {
-            alert(LABELS.noTextSelected[lang]);
+            alert("テキストオブジェクトが選択されていません。");
         }
     } else {
-        alert(LABELS.noDocumentOpen[lang]);
+        alert("ドキュメントが開かれていません。");
     }
 }
 
 function processTextFrame(textFrame) {
     var textRange = textFrame.textRange;
 
-    // テキスト情報を取得 / Get text information
+    // テキスト情報を取得
     var content = textRange.contents;
     var fontName = textRange.characterAttributes.textFont.name;
     var fontSize = roundToTwoDecimals(textRange.characterAttributes.size);
@@ -126,7 +80,7 @@ function processTextFrame(textFrame) {
     var trackingValue = textRange.characterAttributes.tracking;
     var orientation = textFrame.orientation == TextOrientation.VERTICAL ? "縦組み" : "横組み";
 
-    // カーニングメソッドの文字列表現を取得 / Get string representation of kerning method
+    // カーニングメソッドの文字列表現を取得
     var kerningMethodText;
     switch (kerningMethod) {
         case AutoKernType.AUTO:
@@ -142,15 +96,15 @@ function processTextFrame(textFrame) {
             kerningMethodText = "なし";
     }
 
-    // プロポーショナルメトリクスの文字列表現を取得 / Get string representation of proportional metrics
+    // プロポーショナルメトリクスの文字列表現を取得
     var proportionalMetricsText = proportionalMetrics ? "true" : "false";
 
-    // 座標を取得 / Get coordinates
+    // 座標を取得
     var position = textFrame.position;
     var x = roundToTwoDecimals(position[0]);
     var y = roundToTwoDecimals(position[1]);
 
-    // メモ用のテキストを作成 / Create memo text
+    // メモ用のテキストを作成
     var memoText = "文字列：\n" + content + "\n\n" +
                    "フォント：\n" + fontName + "\n\n" +
                    "フォントサイズ：\n" + fontSize + "\n\n" +
@@ -161,17 +115,17 @@ function processTextFrame(textFrame) {
                    "組み方向：\n" + orientation + "\n\n" +
                    "座標：\nX = " + x + ", Y = " + y;
 
-    // 元の選択をクリアし、現在のテキストフレームを選択 / Clear original selection and select current text frame
+    // 元の選択をクリアし、現在のテキストフレームを選択
     app.activeDocument.selection = null;
     textFrame.selected = true;
 
-    // テキストをアウトライン化 / Create outline from text
+    // テキストをアウトライン化
     textFrame.createOutline();
 
-    // アウトライン化したオブジェクトを取得 / Get outlined object
+    // アウトライン化したオブジェクトを取得
     var outlinedObject = app.activeDocument.selection[0];
 
-    // メモに情報を入力 / Add info to note
+    // メモに情報を入力
     outlinedObject.note = memoText;
 }
 
@@ -179,6 +133,6 @@ function roundToTwoDecimals(value) {
     return Math.round(value * 100) / 100;
 }
 
-// スクリプトを実行 / Execute script
+// スクリプトを実行
 
 main();

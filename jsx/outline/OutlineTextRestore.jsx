@@ -1,7 +1,8 @@
 #target illustrator
-app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+This script supports only Japanese language.
 
 ### スクリプト名：
 
@@ -13,102 +14,34 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### 概要：
 
-- アウトライン化されたパスまたはグループの note 情報をもとに、元のテキストを復元するスクリプト
-- フォント、サイズ、行送り、トラッキング、組み方向、座標などを再現可能
+- アウトライン化されたテキストの復元を支援するスクリプト
+- オブジェクトに埋め込まれたメモ情報から、元のテキストとスタイルを再構築
 
 ### 主な機能：
 
-- note に含まれるテキスト情報を抽出
-- テキストフレームを作成し属性を適用
-- 元のアウトラインオブジェクトは非表示処理
+- PathItem または GroupItem の note 情報からテキスト内容、フォント情報、座標などを抽出
+- 新しいテキストフレームを元の位置に再生成し、元のアウトラインを非表示または移動
+- メモが存在しない・情報が不正な場合には警告を表示
 
 ### 処理の流れ：
 
-1. 選択オブジェクトを判定（PathItem または GroupItem）
-2. note から属性情報を抽出
-3. テキストフレームを復元・位置調整
-4. 元オブジェクトを outlined-text レイヤーへ移動
+1. 対象オブジェクトを選択（アウトライン化された Path または Group）
+2. メモ情報を解析し、属性データを抽出
+3. 指定位置にテキストフレームを再構築
+4. 元オブジェクトを「outlined-text」レイヤーへ移動または透明化
 
 ### 更新履歴：
 
-- v1.0 (20240721) : 初期バージョン
-- v1.1 (20250721) : 日本語/英語のローカライズ対応
-
----
-
-### Script Name:
-
-OutlineTextRestore.jsx
-
-### Readme (GitHub):
-
-https://github.com/swwwitch/illustrator-scripts
-
-### Description:
-
-- Restores original text from outlined objects using metadata in note
-- Supports restoration of font, size, leading, tracking, orientation, and position
-
-### Features:
-
-- Extracts text and style info from note field
-- Recreates a text frame and applies attributes
-- Moves original outline to a dedicated layer
-
-### Workflow:
-
-1. Identify selected object (PathItem or GroupItem)
-2. Extract attributes from note
-3. Create and position text frame
-4. Move original object to "outlined-text" layer
-
-### Update History:
-
-- v1.0 (20240721): Initial release
-- v1.1 (20250721): Added Japanese/English localization support
+- v1.0 (20240811) : 初期バージョン
+- v1.1 (20250721) : 微調整
 
 */
+
+// スクリプトバージョン
 var SCRIPT_VERSION = "v1.1";
 
-// ロケール取得関数 / Get current locale
-function getCurrentLang() {
-    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-}
-var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
-var LABELS = {
-    noSelection: {
-        ja: "オブジェクトが選択されていません。",
-        en: "No object is selected."
-    },
-    notPathOrGroup: {
-        ja: "選択されたオブジェクトはパスまたはグループではありません。",
-        en: "The selected object is not a path or group."
-    },
-    noNoteOnPath: {
-        ja: "選択されたパスにはメモが付いていません。",
-        en: "The selected path has no note."
-    },
-    noNoteOnGroup: {
-        ja: "選択されたグループにはメモが付いていません。",
-        en: "The selected group has no note."
-    },
-    invalidAttributesInNote: {
-        ja: "メモに有効な属性情報が含まれていません。",
-        en: "The note does not contain valid attribute information."
-    },
-    invalidAttributesInGroupNote: {
-        ja: "グループのメモに有効な属性情報が含まれていません。",
-        en: "The group note does not contain valid attribute information."
-    },
-    fallbackFont: {
-        ja: "指定されたフォントやその他の属性が見つかりませんでした。デフォルトの設定が使用されます。",
-        en: "Specified font or other attributes were not found. Default settings will be used."
-    }
-};
-
-// メモからテキスト属性（文字列、フォント、フォントサイズなど）を抽出する関数 / Extract text attributes (string, font, font size, etc.) from note
+// メモからテキスト属性（文字列、フォント、フォントサイズなど）を抽出する関数
 function extractTextAttributes(noteText) {
     var lines = noteText.split("\n");
     var attributes = {
@@ -119,8 +52,8 @@ function extractTextAttributes(noteText) {
         orientation: null,
         tracking: null,
         proportionalMetrics: null,
-        x: null, // X座標 / X coordinate
-        y: null  // Y座標 / Y coordinate
+        x: null, // X座標
+        y: null // Y座標
     };
 
     for (var i = 0; i < lines.length; i++) {
@@ -146,20 +79,20 @@ function extractTextAttributes(noteText) {
             attributes.proportionalMetrics = lines[i + 1] === "true";
         }
         if (lines[i].match(/^座標：\s*X\s*=\s*([-]?\d+(\.\d+)?),\s*Y\s*=\s*([-]?\d+(\.\d+)?)/)) {
-            attributes.x = parseFloat(RegExp.$1); // X座標 / X coordinate
-            attributes.y = parseFloat(RegExp.$3); // Y座標 / Y coordinate
+            attributes.x = parseFloat(RegExp.$1); // X座標
+            attributes.y = parseFloat(RegExp.$3); // Y座標
         }
     }
 
     return attributes;
 }
 
-// テキストフレームの位置を調整する関数 / Adjust text frame position
+// テキストフレームの位置を調整する関数
 function adjustTextFramePosition(textFrame, attributes) {
-    textFrame.top += attributes.fontSize / 50; // 文字サイズの2%下に移動 / Move down by 2% of font size
+    textFrame.top += attributes.fontSize / 50; // 文字サイズの2%下に移動
 }
 
-// outlined-textレイヤーを取得または作成し、ロック解除および表示する関数 / Get or create outlined-text layer, unlock and make visible
+// outlined-textレイヤーを取得または作成し、ロック解除および表示する関数
 function getOrCreateOutlinedTextLayer(doc) {
     var outlinedTextLayer = null;
 
@@ -186,7 +119,7 @@ function getOrCreateOutlinedTextLayer(doc) {
     return outlinedTextLayer;
 }
 
-// パスオブジェクトを処理する関数 / Process path object
+// パスオブジェクトを処理する関数
 function processPathItem(pathItem, outlinedTextLayer) {
     var noteText = pathItem.note;
 
@@ -197,14 +130,14 @@ function processPathItem(pathItem, outlinedTextLayer) {
             adjustTextFramePosition(textFrame, attributes);
             moveToOutlinedTextLayer(pathItem, outlinedTextLayer);
         } else {
-            alert(LABELS.invalidAttributesInNote[lang]);
+            alert("メモに有効な属性情報が含まれていません。");
         }
     } else {
-        alert(LABELS.noNoteOnPath[lang]);
+        alert("選択されたパスにはメモが付いていません。");
     }
 }
 
-// グループオブジェクトを処理する関数 / Process group object
+// グループオブジェクトを処理する関数
 function processGroupItem(groupItem, outlinedTextLayer) {
     var noteText = groupItem.note;
 
@@ -217,20 +150,20 @@ function processGroupItem(groupItem, outlinedTextLayer) {
             groupItem.locked = true;
             moveToOutlinedTextLayer(groupItem, outlinedTextLayer);
         } else {
-            alert(LABELS.invalidAttributesInGroupNote[lang]);
+            alert("グループのメモに有効な属性情報が含まれていません。");
         }
     } else {
-        alert(LABELS.noNoteOnGroup[lang]);
+        alert("選択されたグループにはメモが付いていません。");
     }
 }
 
-// テキストフレームを作成する関数 / Create text frame
+// テキストフレームを作成する関数
 function createTextFrame(item, attributes) {
     var originalLayer = item.layer;
     var textFrame = originalLayer.textFrames.add();
     textFrame.contents = attributes.text;
 
-    // X, Y座標がある場合は使用し、なければ元のオブジェクトの座標を使用 / Use X, Y coordinates if available, otherwise use original object's coordinates
+    // X, Y座標がある場合は使用し、なければ元のオブジェクトの座標を使用
     var posX = (attributes.x !== null) ? attributes.x : item.left;
     var posY = (attributes.y !== null) ? attributes.y : item.top;
 
@@ -247,40 +180,57 @@ function createTextFrame(item, attributes) {
 
         textFrame.orientation = (attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL;
     } catch (e) {
-        alert(LABELS.fallbackFont[lang]);
+        alert("指定されたフォントやその他の属性が見つかりませんでした。デフォルトの設定が使用されます。");
     }
 
     return textFrame;
 }
 
-// パスまたはグループを outlined-text レイヤーに移動する関数 / Move path or group to outlined-text layer
+// パスまたはグループを outlined-text レイヤーに移動する関数
 function moveToOutlinedTextLayer(item, outlinedTextLayer) {
     item.moveToBeginning(outlinedTextLayer.groupItems.add());
 }
 
-// オブジェクトを再帰的に処理する関数 / Recursively process object
+// オブジェクトを再帰的に処理する関数
 function processObject(obj, outlinedTextLayer) {
     if (obj.typename == "GroupItem") {
         processGroupItem(obj, outlinedTextLayer);
     } else if (obj.typename == "PathItem") {
         processPathItem(obj, outlinedTextLayer);
     } else {
-        alert(LABELS.notPathOrGroup[lang]);
+        alert("選択されたオブジェクトはパスまたはグループではありません。");
     }
 }
 
-// メイン処理 / Main process
 function main() {
     var doc = app.activeDocument;
-    var selection = doc.selection;
+    if (app.selection.length === 0) {
+        alert("オブジェクトが選択されていません。");
+        return;
+    }
+    var selection = app.selection;
 
-    if (selection.length > 0) {
-        var outlinedTextLayer = getOrCreateOutlinedTextLayer(doc);
-        for (var i = 0; i < selection.length; i++) {
-            processObject(selection[i], outlinedTextLayer);
+    var hasProcessableObject = false;
+    for (var i = 0; i < selection.length; i++) {
+        var item = selection[i];
+        if (item.typename === "GroupItem" || item.typename === "PathItem") {
+            hasProcessableObject = true;
+            break;
         }
-    } else {
-        alert(LABELS.noSelection[lang]);
+    }
+
+    if (!hasProcessableObject) {
+        alert("Path または Group を選択してください。");
+        return;
+    }
+
+    var outlinedTextLayer = getOrCreateOutlinedTextLayer(doc);
+
+    for (var i = 0; i < selection.length; i++) {
+        var item = selection[i];
+        if (item.typename === "GroupItem" || item.typename === "PathItem") {
+            processObject(item, outlinedTextLayer);
+        }
     }
 }
 
