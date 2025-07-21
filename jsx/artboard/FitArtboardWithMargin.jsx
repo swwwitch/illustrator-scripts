@@ -1,7 +1,6 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-
 /*
 
 ### スクリプト名：
@@ -52,6 +51,7 @@ https://note.com/dtp_tranist/n/n15d3c6c5a1e5
 - v1.3 (20250710) : 「対象：現在のアートボード、すべてのアートボード」を追加
 - v1.4 (20250713) : 矢印キーによる値変更機能を追加、UI改善
 - v1.5 (20250715) : 上下・左右個別に設定できるように
+- v1.6 (20250716) : テキストを含む場合、実行時にアウトライン化して再計測
 
 ---
 
@@ -86,10 +86,11 @@ FitArtboardWithMargin.jsx
 - v1.3 (20250710): Added "Target: Current Artboard, All Artboards" options
 - v1.4 (20250713): Added arrow key value change feature, UI improvements
 - v1.5 (20250715): Enabled separate settings for vertical and horizontal margins
+- v1.6 (20250716): Outlines text at runtime for accurate measurement
 
 */
 
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v1.6";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -458,7 +459,7 @@ function main() {
         }
 
         if (targetMode === "selection") {
-            /* グループ内の clipping=true のみ抽出し直す / Only add path with clipping=true in group */
+            // グループ内の clipping=true のみ抽出し直す
             var tempItems = [];
             for (var i = 0; i < selectedItems.length; i++) {
                 var item = selectedItems[i];
@@ -467,7 +468,7 @@ function main() {
                         var child = item.pageItems[j];
                         if (child.clipping) {
                             tempItems.push(child);
-                            break; // 最初に見つけた clipping=true を追加後に終了
+                            break;
                         }
                     }
                 } else {
@@ -476,35 +477,71 @@ function main() {
             }
             selectedItems = tempItems;
             if (selectedItems.length === 0) return;
+
+            // TextFrame のアウトライン化結果とその他アイテムを明確に分離
+            var originalTextFrames = [];
+            var outlinedTextFrames = [];
+            var otherItems = [];
+
+            for (var i = 0; i < selectedItems.length; i++) {
+                var item = selectedItems[i];
+                if (item.typename === "TextFrame") {
+                    var dup = item.duplicate();
+                    dup.hidden = true;
+                    originalTextFrames.push(dup);
+
+                    var outlined = item.createOutline();
+                    // createOutline() が複数パス返す場合に対応
+                    if (outlined.length && outlined.length > 0) {
+                        for (var j = 0; j < outlined.length; j++) {
+                            outlinedTextFrames.push(outlined[j]);
+                        }
+                    } else {
+                        outlinedTextFrames.push(outlined);
+                    }
+                } else {
+                    otherItems.push(item);
+                }
+            }
+
+            // アウトライン化したTextFrameとその他アイテムを合成してバウンディングボックスを取得
+            var tempItemsForBounds = outlinedTextFrames.concat(otherItems);
+            selectedBounds = getMaxBounds(tempItemsForBounds);
+            selectedBounds[0] -= marginHInPoints;
+            selectedBounds[1] += marginVInPoints;
+            selectedBounds[2] += marginHInPoints;
+            selectedBounds[3] -= marginVInPoints;
+
+            // outlinedTextFrames のみ remove()
+            for (var i = 0; i < outlinedTextFrames.length; i++) {
+                try { outlinedTextFrames[i].remove(); } catch (e) {}
+            }
+            // originalTextFrames のみ hidden=false で復元
+            for (var i = 0; i < originalTextFrames.length; i++) {
+                try { originalTextFrames[i].hidden = false; } catch (e) {}
+            }
+
+            // 座標と幅・高さを整数に丸める
+            var x0 = Math.round(selectedBounds[0]);
+            var y1 = Math.round(selectedBounds[1]);
+            var x2 = Math.round(selectedBounds[2]);
+            var y3 = Math.round(selectedBounds[3]);
+
+            var width = Math.round(x2 - x0);
+            var height = Math.round(y1 - y3);
+
+            x2 = x0 + width;
+            y3 = y1 - height;
+
+            selectedBounds[0] = x0;
+            selectedBounds[1] = y1;
+            selectedBounds[2] = x2;
+            selectedBounds[3] = y3;
+
+            // アートボードの更新
+            artboardIndex = artboards.getActiveArtboardIndex();
+            artboards[artboardIndex].artboardRect = selectedBounds;
         }
-
-        /* 選択範囲のバウンディングボックス計算 / Calculate bounding box of selected items */
-        selectedBounds = getMaxBounds(selectedItems);
-        selectedBounds[0] -= marginHInPoints;
-        selectedBounds[1] += marginVInPoints;
-        selectedBounds[2] += marginHInPoints;
-        selectedBounds[3] -= marginVInPoints;
-
-        /* 座標と幅・高さを整数に丸める / Round coordinates and size to integers */
-        var x0 = Math.round(selectedBounds[0]);
-        var y1 = Math.round(selectedBounds[1]);
-        var x2 = Math.round(selectedBounds[2]);
-        var y3 = Math.round(selectedBounds[3]);
-
-        var width = Math.round(x2 - x0);
-        var height = Math.round(y1 - y3);
-
-        x2 = x0 + width;
-        y3 = y1 - height;
-
-        selectedBounds[0] = x0;
-        selectedBounds[1] = y1;
-        selectedBounds[2] = x2;
-        selectedBounds[3] = y3;
-
-        /* アートボードの更新 / Update artboard */
-        artboardIndex = artboards.getActiveArtboardIndex();
-        artboards[artboardIndex].artboardRect = selectedBounds;
 
     } catch (e) {
         alert(LABELS.errorOccurred[lang] + e.message);
