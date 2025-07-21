@@ -4,16 +4,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 
 ### スクリプト名：
+
 AdjustArtboardByRatio.jsx
 
-### Readme （GitHub）：
-https://github.com/swwwitch/illustrator-scripts
+### GitHub：
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRatioScaler.jsx
 
 ### 概要：
+
 - 選択オブジェクトの比率に基づいてアートボードサイズを調整
 - プレビュー機能を備えたダイアログボックスUIに対応
 
 ### 主な機能：
+
 - 16:9、1:1、カスタム比率から選択可能
 - 「縦」または「横」基準で比率調整
 - ピクセルグリッド整合オプション
@@ -21,11 +25,17 @@ https://github.com/swwwitch/illustrator-scripts
 - プレビュー反映と数値の矢印キー操作による調整
 
 ### 処理の流れ：
+
 - ダイアログを表示し、比率・基準・整合オプションを選択
 - プレビューで対象をリアルタイムにシミュレーション
 - OKボタンで処理確定、アートボード作成（または調整）
 
+### note：
+
+https://note.com/dtp_tranist/n/n4a212e6eacf1
+
 ### 更新履歴：
+
 - v1.0 (20250720) : 初期バージョン
 - v1.1 (20250721) : アートボード変換・カスタム比率機能を追加
 - v1.2 (20250722) : ダイアログ構成改善・ローカライズ・キー操作追加
@@ -38,13 +48,15 @@ https://github.com/swwwitch/illustrator-scripts
 AdjustArtboardByRatio.jsx
 
 ### Readme (GitHub)：
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRatioScaler.jsx
 
 ### Description：
+
 - Adjusts the artboard size based on the selected object’s aspect ratio
 - Supports a preview-enabled dialog box UI
 
 ### Main Features：
+
 - Choose from 16:9, 1:1, or custom ratio
 - Ratio adjustment based on "height" or "width"
 - Option to align to pixel grid
@@ -52,11 +64,13 @@ https://github.com/swwwitch/illustrator-scripts
 - Real-time preview and value adjustment via arrow keys
 
 ### Workflow：
+
 - Display dialog to select ratio, basis, and options
 - Simulate resizing in real time as preview
 - Apply final settings by pressing OK
 
 ### Update History：
+
 - v1.0 (20250720): Initial release
 - v1.1 (20250721): Added artboard conversion & custom ratio
 - v1.2 (20250722): Improved dialog structure, localization, and key input
@@ -73,8 +87,8 @@ var lang = getCurrentLang();
 
 var LABELS = {
     dialogTitle: {
-        ja: "アートボードサイズを調整 " + SCRIPT_VERSION,
-        en: "Adjust Artboard Size " + SCRIPT_VERSION
+        ja: "アスペクト比で調整 " + SCRIPT_VERSION,
+        en: "Adjust by Aspect Ratio" + SCRIPT_VERSION
     },
     ratio169: {
         ja: "16:9",
