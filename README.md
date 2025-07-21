@@ -53,9 +53,10 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したオブジェクトを幅や高さ、不透明度、カラーでソート](readme-ja/SmartObjectSorter.md)
 - [オブジェクトを入れ替え](readme-ja/SwapNearestItemWithDialogbox.md)
 
-## 基本図形
+## 基本図形と変形
 
 - [正方形や正円、正三角形を作成するスクリプト](readme-ja/SmartShapeMaker.md)
+- [アスペクト比で変形](readme-ja/AspectRatioScaler.md)
 
 ## アートワークやファイル
 

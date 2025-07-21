@@ -13,7 +13,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRati
 
 ### 概要：
 
-- 選択オブジェクトの比率に基づいてアートボードサイズを調整
+- 選択オブジェクトを比率に基づいて変形
 - プレビュー機能を備えたダイアログボックスUIに対応
 
 ### 主な機能：
@@ -52,7 +52,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRati
 
 ### Description：
 
-- Adjusts the artboard size based on the selected object’s aspect ratio
+- Transforms selected objects based on aspect ratio
 - Supports a preview-enabled dialog box UI
 
 ### Main Features：

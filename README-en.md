@@ -55,9 +55,10 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Swap objects](readme.en/SwapNearestItemWithDialogbox.md)
 - [Ungroup subgroups inside the selected group to simplify the group structure](readme-en/SimplifyGroups.md)
 
-## Basic shapes
+## Basic shapes and Ajust
 
 - [Create squares, circles, equilateral triangles, and more](readme.en/SmartShapeMaker.md)
+- [Adjust by Aspect Ratio](readme-en/AspectRatioScaler.md)
 
 ## Artwork and files
 

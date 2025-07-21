@@ -11,11 +11,11 @@
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRatioScaler.jsx
 
 
-<img alt="" src="https://www.dtp-transit.jp/images/ss-508-694-72-20250722-042112.png" width="60%" />
+<img alt="" src="https://www.dtp-transit.jp/images/ss-508-694-72-20250722-042613.png" width="60%" />
 
 ### Description：
 
-- Adjusts the artboard size based on the selected object’s aspect ratio
+- Transforms selected objects based on aspect ratio
 - Supports a preview-enabled dialog box UI
 
 ### Main Features：

@@ -1,5 +1,13 @@
 # Change Log
 
+## 20250722
+
+### 新しいスクリプトを追加
+
+- [アスペクト比で変形](readme-ja/AspectRatioScaler.md)
+
+<img alt="" src="https://www.dtp-transit.jp/images/ss-542-676-72-20250722-042518.png" width="65%" />
+
 ## 20250718
 
 ### 新しいスクリプトを追加
