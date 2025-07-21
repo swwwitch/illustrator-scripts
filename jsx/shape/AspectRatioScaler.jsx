@@ -85,8 +85,8 @@ var LABELS = {
         en: "1:1"
     },
     ratioA4: {
-        ja: "A4（1.414:1）",
-        en: "1.414:1"
+        ja: "A4（1:1.414）",
+        en: "1:1.414"
     },
     ratioCustom: {
         ja: "カスタム",
@@ -142,6 +142,21 @@ var LABELS = {
 var baseWidthRadio, baseHeightRadio;
 var ratio169, ratio11, ratioA4, ratioCustom;
 var editTextWidth, editTextHeight;
+
+// ラジオボタンの水平方向・垂直方向切り替えキーハンドラ追加
+function addDirectionKeyHandler(dialog, horizontalRadio, verticalRadio) {
+    dialog.addEventListener("keydown", function(event) {
+        if (event.keyName == "H") {
+            horizontalRadio.value = true;
+            verticalRadio.value = false;
+            event.preventDefault();
+        } else if (event.keyName == "V") {
+            horizontalRadio.value = false;
+            verticalRadio.value = true;
+            event.preventDefault();
+        }
+    });
+}
 
 /* プレビュー更新 / Update preview */
 function updatePreview() {
@@ -330,6 +345,9 @@ function main() {
     }
 
     var dialogResult = createDialog();
+
+    // ラジオボタンのキーボード操作を有効化
+    addDirectionKeyHandler(dialogResult.dialog, dialogResult.baseHorizontal, dialogResult.baseVertical);
 
     /* アスペクト比選択時のプレビュー更新 / Preview update on aspect ratio selection */
     dialogResult.ratio169.onClick = function() {
