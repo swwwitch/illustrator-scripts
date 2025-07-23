@@ -2,77 +2,61 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：AdjustTextScale.jsx
+### スクリプト名 / Script name:
+AdjustTextScale.jsx
 
-### 概要：
-- 選択したテキストオブジェクトの水平・垂直スケールまたは文字サイズを調整します。
-- 増減値を指定して、比率やサイズを調整可能。
-- 入力に応じて見かけの文字サイズを表示。
+### Readme （GitHub）/ Readme (GitHub):
+https://github.com/swwwitch/illustrator-scripts
 
-### 主な機能：
-- 水平／垂直スケール、文字サイズのいずれかを調整。
-- 増減ステップ指定。
-- 単位表示。
-- プレビュー表示。
-- 「リセット」「キャンセル」「OK」ボタン対応。
+### 概要 / Overview:
+- テキストのフォントサイズまたは横比率を数値入力で調整する / Adjust font size or horizontal scale by numeric input
+- キーボードでの微調整にも対応（上下キー） / Supports fine-tuning with keyboard (up/down keys)
 
-### 更新履歴：
-- v0.1 (20250723): 初期バージョン
-- v0.4 (20250723): 
+### 主な機能 / Main features:
+- フォントサイズまたはスケール比率での編集 / Edit by font size or scale ratio
+- 見かけのサイズ表示 / Apparent size display
+- リアルタイムプレビュー / Real-time preview
+- リセット、キャンセル対応 / Reset and cancel support
+
+### 処理の流れ / Processing flow:
+1. ダイアログボックスを表示し、数値を入力 / Show dialog and input value
+2. 現在の選択テキストのサイズ情報を取得 / Get size info of current selected text
+3. 入力値に応じてスケーリング処理 / Scale processing by input value
+4. OK押下時に値を確定、Cancel/Reset対応 / Confirm on OK, support Cancel/Reset
+
+### 更新履歴 / Update history:
+- v1.0 (20250723) : 初期バージョン / Initial version
 */
 
-var SCRIPT_VERSION = "v0.4";
-
-var apparentSizeDisplay; // グローバルに定義
+var SCRIPT_VERSION = "v1.0"; // スクリプトのバージョン / Script version
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
-// --- ラベル定義 / Label definitions (Japanese/English, UI order) ---
 var LABELS = {
     dialogTitle: {
-        ja: "文字サイズと比率の調整 " + SCRIPT_VERSION,
-        en: "Adjust Font Size and Scale " + SCRIPT_VERSION
+        ja: "フォント情報を追加",
+        en: "Add Font Info"
     },
-    targetCharsLabel: {
+    targetChar: {
         ja: "対象文字：",
-        en: "Target Characters:"
+        en: "Target Char:"
     },
-    applyTargetPanel: {
-        ja: "適用対象",
-        en: "Apply To"
+    adjust: {
+        ja: "調整",
+        en: "Adjust"
     },
-    modeScale: {
-        ja: "水平比率／垂直比率",
-        en: "Horizontal / Vertical Scale"
-    },
-    modeFontSize: {
-        ja: "文字サイズ",
+    fontSize: {
+        ja: "フォントサイズ",
         en: "Font Size"
     },
-    incrementLabel: {
-        ja: "増減値：",
-        en: "Step:"
-    },
-    scaleRatioPanel: {
-        ja: "サイズと比率",
-        en: "Size & Scale"
-    },
-    size: {
-        ja: "サイズ:",
-        en: "Size:"
-    },
     scale: {
-        ja: "比率:",
-        en: "Scale:"
+        ja: "比率",
+        en: "Scale"
     },
-    vScale: {
-        ja: "垂直比率",
-        en: "Vertical Scale"
-    },
-    apparentSizeLabel: {
+    apparent: {
         ja: "見かけ",
         en: "Apparent"
     },
@@ -88,22 +72,28 @@ var LABELS = {
         ja: "リセット",
         en: "Reset"
     },
-    alertNoText: {
+    selectTextAlert: {
         ja: "テキストを選択してください",
-        en: "Please select a text object"
+        en: "Please select text"
     },
-    alertNegativeScale: {
-        ja: "負のスケール値は非推奨です",
-        en: "Negative scale may flip text"
+    baselineShiftLabel: {
+        ja: "ベースラインシフト",
+        en: "Baseline Shift"
     }
 };
 
-// 対象文字の一致判定 / Check if character matches target
+var apparentSizeDisplay; // グローバルに定義 / Global definition
+
+/*
+文字選択状態を取得 / Get selected characters from current document
+*/
 function isTargetChar(ch, targetChar, hasTargetChar) {
     return !hasTargetChar || targetChar.indexOf(ch.contents) !== -1;
 }
 
-// 選択されたテキスト範囲を取得 / Get selected text ranges (TextFrame / TextRange)
+/*
+文字選択状態を取得 / Get selected characters from current document
+*/
 function getTextSelection() {
     var sel = app.selection;
     var res = [];
@@ -116,14 +106,19 @@ function getTextSelection() {
             res.push(item);
         }
     }
-    /* sel が配列でない（単体 TextRange の場合）も対応 / Also handle single TextRange if sel is not array */
+    /*
+    文字選択状態を取得
+    Get selected characters from current document
+    */
     if (!(sel instanceof Array) && sel instanceof TextRange) {
         res.push(sel);
     }
     return res;
 }
 
-// 英数字を除いたユニークな文字列を取得 / Get unique non-alphanumeric characters from text
+/*
+英数字を除いたユニークな文字列を取得 / Get unique non-alphanumeric characters from text
+*/
 function getUniqueNonAlphanumerics(text) {
     var stripped = text.replace(/[0-9A-Za-z]/g, "");
     var result = "";
@@ -136,7 +131,9 @@ function getUniqueNonAlphanumerics(text) {
     return result;
 }
 
-// 対象文字に一致する文字だけに処理を適用 / Apply callback to matching characters in text range
+/*
+対象文字に一致する文字だけに処理を適用 / Apply callback to matching characters in text range
+*/
 function applyToTargetCharacters(range, targetChar, hasTargetChar, callback) {
     var chars = range.characters;
     for (var j = 0; j < chars.length; j++) {
@@ -147,7 +144,27 @@ function applyToTargetCharacters(range, targetChar, hasTargetChar, callback) {
     }
 }
 
-// ダイアログの表示位置をオフセット / Shift dialog position by offsetX and offsetY
+/*
+指定文字にだけベースラインシフトを適用 / Apply baseline shift only to matching characters
+*/
+function applyBaselineShiftToChars(range, targetChar, hasTargetChar) {
+    if (!range || !range.characters || targetChar === undefined) return;
+
+    var val = parseFloat(baselineInput.text);
+    if (isNaN(val)) return;
+
+    var chars = range.characters;
+    for (var i = 0; i < chars.length; i++) {
+        var ch = chars[i];
+        if (isTargetChar(ch, targetChar, hasTargetChar)) {
+            ch.characterAttributes.baselineShift = val;
+        }
+    }
+}
+
+/*
+ダイアログの表示位置をオフセット / Shift dialog position by offsetX and offsetY
+*/
 function shiftDialogPosition(dlg, offsetX, offsetY) {
     dlg.onShow = function() {
         var currentX = dlg.location[0];
@@ -156,97 +173,89 @@ function shiftDialogPosition(dlg, offsetX, offsetY) {
     };
 }
 
-// ダイアログの透明度を設定 / Set dialog opacity
+/*
+ダイアログの透明度を設定 / Set dialog opacity
+*/
 function setDialogOpacity(dlg, opacityValue) {
     dlg.opacity = opacityValue;
 }
 
-// 増減値入力 / Step value input
-// 入力欄で上下キーによる値の増減を可能にする / Enable arrow key increment/decrement on edittext
-// Shiftキー押下で10単位増減 / Shift key changes by 10
-// Altキー押下で小数点1桁まで許可 / Alt key allows one decimal place
-function changeValueByArrowKey(editText) {
+/*
+上下キーによる数値の増減を有効にする関数 / Enable value increment/decrement by arrow keys
+*/
+function changeValueByArrowKey(editText, options) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);
         if (isNaN(value)) return;
         var keyboard = ScriptUI.environment.keyboardState;
         var delta = 1;
+        var precision = 0;
+
         if (keyboard.shiftKey) {
-            delta = 10;
-            if (event.keyName == "Up") {
-                value = Math.ceil((value + 1) / delta) * delta;
-                event.preventDefault();
-            } else if (event.keyName == "Down") {
-                value = Math.floor((value - 1) / delta) * delta;
-                event.preventDefault();
-            }
+            delta = options.shiftStep || 10;
         } else if (keyboard.altKey) {
-            delta = 0.1;
-            if (event.keyName == "Up") {
-                value += delta;
-                event.preventDefault();
-            } else if (event.keyName == "Down") {
-                value -= delta;
-                event.preventDefault();
-            }
+            delta = options.altStep || 0.1;
+            precision = 1;
         } else {
-            delta = 1;
-            if (event.keyName == "Up") {
-                value += delta;
-                event.preventDefault();
-            } else if (event.keyName == "Down") {
-                value -= delta;
-                event.preventDefault();
-            }
+            delta = options.step || 1;
         }
-        if (keyboard.altKey) {
-            value = Math.round(value * 10) / 10; /* 小数第1位まで / Round to 1 decimal */
+
+        if (event.keyName == "Up") {
+            value += delta;
+        } else if (event.keyName == "Down") {
+            value -= delta;
         } else {
-            value = Math.round(value); /* 整数に丸め / Round to integer */
+            return;
         }
+
+        if (precision > 0) {
+            var factor = Math.pow(10, precision);
+            value = Math.round(value * factor) / factor;
+        } else {
+            value = Math.round(value);
+        }
+
         event.preventDefault();
-        /* 値を更新してから onChange を通知 / Update value first, then notify */
         editText.text = value;
         editText.notify("onChange");
-        /* プレビュー更新 / Update preview */
-        if (typeof handleInputChange === "function") {
-            handleInputChange(); /* 最新の値で再評価 / Re-evaluate with latest value */
+        /*
+        数値変更時にリアルタイムプレビューを実行
+        Apply real-time preview when value changes
+        */
+        if (
+            (typeof sizeInput !== "undefined" && editText === sizeInput) ||
+            (typeof hScaleInput !== "undefined" && editText === hScaleInput) ||
+            (typeof baselineInput !== "undefined" && editText === baselineInput)
+        ) {
+            /*
+            ベースラインシフト入力時は即時プレビューを適用
+            Apply baseline shift preview on change
+            */
+            if (typeof baselineInput !== "undefined" && editText === baselineInput) {
+                baselineInput.text = editText.text; // 明示的に更新
+                applyBaselineShiftToTargetChar();
+            }
         }
     });
 }
 
-
-// --- ユーティリティ関数・定数群（スクリプト末尾に整理） ---
-
-// ラベルを言語に応じて取得 / Get label text according to language
-function getLabelText(labelObj) {
-    try {
-        if (app.locale && app.locale.indexOf("ja") === 0) {
-            return labelObj.ja;
-        }
-    } catch (e) {}
-    return labelObj.en;
-}
-
-// 単位コードとラベルのマップ / Unit code to label map
-var unitMap = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
-    5: "Q/H", // getUnitLabel で補正される
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
-};
-
-// 単位コードとプリファレンスキーに応じて単位ラベルを返す関数 / Get unit label for code and pref key
+/*
+単位コードとプリファレンスキーに応じて単位ラベルを返す関数 / Get unit label for code and pref key
+*/
 function getUnitLabel(code, prefKey) {
-    if (typeof unitMap !== "object") return "不明";
-
+    var unitMap = {
+        0: "in",
+        1: "mm",
+        2: "pt",
+        3: "pica",
+        4: "cm",
+        5: "Q/H",
+        6: "px",
+        7: "ft/in",
+        8: "m",
+        9: "yd",
+        10: "ft"
+    };
     if (code === 5) {
         var hKeys = {
             "text/asianunits": true,
@@ -258,20 +267,21 @@ function getUnitLabel(code, prefKey) {
     return unitMap[code] || "不明";
 }
 
-// 現在のテキスト単位ラベルを取得 / Get current text unit label
+/*
+現在のテキスト単位ラベルを取得 / Get current text unit label
+*/
 function getCurrentUnitLabel() {
     var unitCode = app.preferences.getIntegerPreference("text/units");
     return getUnitLabel(unitCode, "text/units");
 }
 
-// 数値入力バリデーション処理を共通化 / Common function for numeric input validation
-function parseInputValue(inputField, fallback) {
-    var val = parseFloat(inputField.text);
-    return isNaN(val) ? fallback : val;
-}
 
-// メイン処理 / Main function
+/* メイン処理 / Main function */
 function main() {
+    // 事前宣言：sizeInput, hScaleInput, baselineInput（未定義エラー回避のため）
+    var sizeInput; // フォントサイズ入力
+    var hScaleInput; // 水平スケール入力
+    var baselineInput; // ベースラインシフト入力
     // ドキュメントが開かれていなければ終了 / Exit if no document is open
     if (app.documents.length <= 0) {
         return;
@@ -280,7 +290,7 @@ function main() {
     var targetRanges = getTextSelection();
     // 選択が空のときに警告を表示 / Show alert if no text selected
     if (targetRanges.length === 0) {
-        alert(getLabelText(LABELS.alertNoText));
+        alert(LABELS.selectTextAlert[lang]);
         return;
     }
 
@@ -289,7 +299,7 @@ function main() {
         allSelText += targetRanges[i].contents;
     }
 
-    // 選択テキストから共通の文字列を取得 / Get common characters from selected texts
+    /* 選択テキストから共通の文字列を取得 / Get common characters from selected texts */
     function getCommonCharacters(textArray) {
         if (textArray.length === 0) return "";
         var common = textArray[0];
@@ -315,21 +325,32 @@ function main() {
     var commonChars = getCommonCharacters(textArray);
     var uniqueNonAN = getUniqueNonAlphanumerics(commonChars);
 
-    // 入力値取得 / Get current state from inputs
+    /* 入力値取得 / Get current state from inputs */
     function getState() {
-        var mode = (modeScale.value) ? "scale" : "fontSize";
-        var increment = parseFloat(input.text);
         var targetChar = targetCharInput.text;
         var hasTargetChar = targetChar && targetChar.length > 0;
+        // originalSize: 選択範囲から対象文字の最初のサイズを取得 / Get first size of target character from selection
+        var originalSize = null;
+        for (var i = 0, len = targetRanges.length; i < len; i++) {
+            var chars = targetRanges[i].characters;
+            for (var j = 0; j < chars.length; j++) {
+                var ch = chars[j];
+                if (isTargetChar(ch, targetChar, hasTargetChar)) {
+                    originalSize = ch.size;
+                    break;
+                }
+            }
+            if (originalSize !== null) break;
+        }
         return {
-            mode: mode,
-            increment: increment,
             targetChar: targetChar,
-            hasTargetChar: hasTargetChar
+            hasTargetChar: hasTargetChar,
+            originalSize: originalSize
+            // chars: chars
         };
     }
 
-    // 対象文字に一致する最初の文字を取得 / Find first character matching target
+    /* 対象文字に一致する最初の文字を取得 / Find first character matching target */
     function findFirstMatchingChar(targetChar, hasTargetChar) {
         for (var i = 0, len = targetRanges.length; i < len; i++) {
             var chars = targetRanges[i].characters;
@@ -343,43 +364,9 @@ function main() {
         return null;
     }
 
-    // 変更を適用 / Apply changes based on mode and increment
-    function applyChanges(mode, increment, targetChar, hasTargetChar) {
-        /* 負のスケール値で警告を表示 / Warn if negative scale */
-        if (mode === "scale" && increment < -99) {
-            alert(getLabelText(LABELS.alertNegativeScale));
-        }
-        if (increment === 0) return; // 0のときは処理しない / Skip if increment is zero
-        var changed = false; // 変更があれば redraw
-        for (var i = 0, len = targetRanges.length; i < len; i++) {
-            var range = targetRanges[i];
-            if (mode === "fontSize") {
-                applyToTargetCharacters(range, targetChar, hasTargetChar, function(ch) {
-                    var before = ch.size;
-                    ch.size += increment;
-                    if (ch.size !== before) changed = true;
-                });
-            } else {
-                applyToTargetCharacters(range, targetChar, hasTargetChar, function(ch) {
-                    var v = ch.characterAttributes.verticalScale;
-                    var h = ch.characterAttributes.horizontalScale;
-                    /* 縦横比を統一してから調整 / Unify aspect ratio before applying scale */
-                    if (v !== h) h = v;
-                    var newV = v + increment;
-                    var newH = h + increment;
-                    if (ch.characterAttributes.verticalScale !== newV || ch.characterAttributes.horizontalScale !== newH) {
-                        ch.characterAttributes.verticalScale = newV;
-                        ch.characterAttributes.horizontalScale = newH;
-                        changed = true;
-                    }
-                });
-            }
-        }
-        if (changed) app.redraw();
-        updateInfoText();
-    }
+    // applyChanges() 関数は不要のため削除 / applyChanges() function not needed, removed
 
-    // 情報テキストを更新 / Update info text with example character
+    /* 情報テキストを更新 / Update info text with example character */
     function updateInfoText() {
         var state = getState();
         var exampleChar = findFirstMatchingChar(state.targetChar, state.hasTargetChar);
@@ -387,7 +374,7 @@ function main() {
             /* 情報をクリア / Clear info fields */
             sizeInput.text = "";
             hScaleInput.text = "";
-            apparentSizeDisplay.text = "—";
+            apparentSizeText.text = "--";
             return;
         }
         var size = exampleChar.size;
@@ -399,11 +386,11 @@ function main() {
         /* 情報を更新 / Update information */
         sizeInput.text = size + "";
         hScaleInput.text = h + "";
-        updateApparentSize();
+        updateApparentSizeDisplay(unitLabel);
     }
 
-    // 見かけサイズ計算ロジックを共通関数化 / Function to update apparent size display
-    function updateApparentSizeDisplay() {
+    /* 見かけサイズ計算ロジックを共通関数化 / Function to update apparent size display */
+    function updateApparentSizeDisplay(unitLabel) {
         var size = parseFloat(sizeInput.text, 10);
         var scale = parseFloat(hScaleInput.text, 10);
         if (isNaN(size) || isNaN(scale)) {
@@ -414,309 +401,344 @@ function main() {
         }
     }
 
-    // 入力変更時の処理 / Handle input changes
-    function handleInputChange() {
-        var state = getState();
-        // 入力値が不正な場合エラー表示 / Show error if NaN
-        if (isNaN(state.increment)) {
-            /* 無効な数値をクリア / Clear on invalid number */
-            sizeInput.text = "";
-            hScaleInput.text = "";
-            return;
-        }
-        // input.text = "0" のときも updateInfoText() を実行 / Also update info on "0"
-        if (!isNaN(state.increment)) {
-            if (state.increment !== 0) {
-                applyChanges(state.mode, state.increment, state.targetChar, state.hasTargetChar);
-            }
-            updateInfoText();
-        }
-        // --- 増減値変更時に「サイズ」「比率」も再計算してフィールド反映 / Also recalc fields on increment change ---
-        // currentStateの更新 / Update currentState
-        var exampleChar = findFirstMatchingChar(state.targetChar, state.hasTargetChar);
-        if (exampleChar) {
-            currentState.size = exampleChar.size;
-            currentState.h = exampleChar.characterAttributes.horizontalScale;
-        }
-        // modeScale/radio選択時は比率を、modeFont/radio選択時はサイズを再表示 / Show scale or size by mode
-        if (modeScale.value) {
-            hScaleInput.text = Math.round(currentState.h);
-        } else if (modeFont.value) {
-            sizeInput.text = Math.round(currentState.size * 10) / 10;
-        }
-    }
+    // handleInputChange() は updateInfoText() に統合するため削除 / handleInputChange() merged into updateInfoText, removed
 
-    var dialog = new Window("dialog", getLabelText(LABELS.dialogTitle));
+    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.alignChildren = "left";
 
-    // 位置と透明度の調整 / Adjust position and opacity
+    /*
+    位置と透明度の調整 / Adjust position and opacity
+    */
     var offsetX = 300;
     var dialogOpacity = 0.97;
     setDialogOpacity(dialog, dialogOpacity);
     shiftDialogPosition(dialog, offsetX, 0);
 
+    // キーボードでラジオボタン切り替えを有効にする / Enable radio button switching by keyboard
+    // dialog, modeFontRadio, modeScaleRadio は下で定義されるため、ラジオボタン定義後に呼ぶ / Call after radio button definition
+
     var contentGroup = dialog.add("group");
     contentGroup.orientation = "row";
     contentGroup.alignChildren = "top";
+    contentGroup.spacing = 20;
 
     var leftCol = contentGroup.add("group");
     leftCol.orientation = "column";
     leftCol.alignChildren = "left";
+    leftCol.spacing = 20;
 
     var rightCol = contentGroup.add("group");
     rightCol.orientation = "column";
     rightCol.alignChildren = "right";
 
-    // 対象文字入力グループ / Target characters input group
+    /*
+    対象文字入力グループ / Target characters input group
+    */
     var targetTextGroup = leftCol.add("group");
     targetTextGroup.orientation = "row";
-    targetTextGroup.add("statictext", undefined, getLabelText(LABELS.targetCharsLabel));
+    targetTextGroup.add("statictext", undefined, LABELS.targetChar[lang]);
     var targetCharInput = targetTextGroup.add("edittext", undefined, uniqueNonAN);
     targetCharInput.characters = 10;
 
-    // 適用対象グループ / Apply to group
-    var modeGroup = leftCol.add("panel", undefined, getLabelText(LABELS.applyTargetPanel));
-    modeGroup.orientation = "column";
-    modeGroup.alignChildren = "left";
-    modeGroup.margins = [15, 20, 15, 10];
-    var modeScale = modeGroup.add("radiobutton", undefined, getLabelText(LABELS.modeScale));
-    var modeFont = modeGroup.add("radiobutton", undefined, getLabelText(LABELS.modeFontSize));
-    modeScale.value = true;
-
-    // 増減値入力グループ / Step value input group
-    var stepGroup = leftCol.add("group");
-    stepGroup.orientation = "row";
-    stepGroup.add("statictext", undefined, getLabelText(LABELS.incrementLabel));
-    var input = stepGroup.add("edittext", undefined, "0");
-    input.characters = 5;
-
-    // 4. 文字サイズ・比率グループ
-    var infoPanel = leftCol.add("panel", undefined, LABELS.scaleRatioPanel ? LABELS.scaleRatioPanel[lang] : "サイズと比率");
+    /*
+    文字サイズ・比率グループ / Font size & scale group
+    */
+    var infoPanel = leftCol.add("panel", undefined, LABELS.adjust[lang]);
     infoPanel.orientation = "column";
     infoPanel.alignChildren = ["left", "top"];
     infoPanel.margins = [15, 10, 15, 10];
 
-    /* サイズと比率の入力欄を横に並べる / Arrange size and scale fields horizontally */
-    var rowGroup = infoPanel.add("group");
-    rowGroup.orientation = "row";
+    // --- ラジオボタングループを作成し、infoPanelの直下に追加 / Add radio button group under infoPanel ---
+    var modeGroup = infoPanel.add("group");
+    modeGroup.orientation = "column";
+    modeGroup.alignChildren = "left";
 
-    /* サイズ入力 / Size input */
-    var sizeGroup = rowGroup.add("group");
-    sizeGroup.orientation = "column";
-    sizeGroup.add("statictext", undefined, LABELS.size ? LABELS.size[lang] || "サイズ:" : "サイズ:");
-    var sizeInput = sizeGroup.add("edittext", undefined, "0");
-    sizeInput.characters = 3;
+    // ラジオボタングループを削除し、statictext追加 / Remove radio button group and add statictext
+    var radioGroup = modeGroup.add("group");
+    radioGroup.orientation = "column";
+    radioGroup.alignChildren = "left";
+
+    /*
+    サイズ入力グループ / Font size input group
+    */
+    var labelWidth = 120;
+    var sizeGroup = radioGroup.add("group", undefined, {
+        orientation: "row"
+    });
+    sizeGroup.margins = [0, 10, 0, 0];
+    sizeGroup.alignChildren = "left";
+    var sizeLabel = sizeGroup.add("statictext", undefined, LABELS.fontSize[lang]);
+    sizeLabel.justify = "right";
+    sizeInput = sizeGroup.add("edittext", undefined, "0");
+    sizeInput.characters = 4;
     sizeInput.enabled = true;
-    sizeGroup.add("statictext", undefined, getUnitLabel(app.preferences.getIntegerPreference("text/units"), "text/units"));
 
-    /* 比率入力 / Scale input */
-    var scaleGroup = rowGroup.add("group");
-    scaleGroup.orientation = "column";
-    scaleGroup.alignChildren = ["center", "top"];
-    scaleGroup.alignment = ["left", "top"];
-    scaleGroup.add("statictext", undefined, LABELS.scale ? LABELS.scale[lang] || "比率:" : "比率:");
-    var hScaleInput = scaleGroup.add("edittext", undefined, "100");
+    // 単位ラベルを一度だけ取得し再利用 / Get unit label once and reuse
+    var unitLabel = getUnitLabel(app.preferences.getIntegerPreference("text/units"), "text/units");
+    sizeGroup.add("statictext", undefined, unitLabel);
+
+    /*
+    比率入力グループ / Scale input group
+    */
+    var scaleGroup = radioGroup.add("group", undefined, {
+        orientation: "row"
+    });
+    scaleGroup.margins = [0, 0, 0, 6];
+    var scaleLabel = scaleGroup.add("statictext", undefined, LABELS.scale[lang]);
+    scaleLabel.justify = "right";
+    hScaleInput = scaleGroup.add("edittext", undefined, "100");
     hScaleInput.characters = 4;
     scaleGroup.add("statictext", undefined, "%");
+    // 入力欄はどちらも有効化 / Both input fields enabled
+    sizeInput.enabled = true;
+    hScaleInput.enabled = true;
 
-    /* 見かけのサイズを表示する欄 / Apparent size display section */
-    var displayGroup = rowGroup.add("group");
-    displayGroup.orientation = "column";
-    displayGroup.alignChildren = ["left", "top"];
-    displayGroup.add("statictext", undefined, LABELS.apparentSize ? LABELS.apparentSize[lang] : "見かけ:");
-    var apparentSizeText = displayGroup.add("statictext", undefined, "0");
+
+
+
+    /*
+    見かけサイズ表示グループ / Apparent size display group
+    */
+    var displayGroup = infoPanel.add("group", undefined, {
+        orientation: "row"
+    });
+    var apparentLabel = displayGroup.add("statictext", undefined, LABELS.apparent[lang]);
+    apparentLabel.justify = "right";
+    var apparentSizeText = displayGroup.add("statictext", undefined, "--");
     apparentSizeText.characters = 5;
+    displayGroup.add("statictext", undefined, unitLabel);
 
-    // 増減値フィールドのキー操作 / Step field arrow key
-    changeValueByArrowKey(input);
 
-    // ボタングループ / Button group
+    /*
+    ベースラインシフト / Baseline Shift
+    */
+    var baselineGroup = infoPanel.add("group");
+    baselineGroup.orientation = "row";
+    baselineGroup.alignChildren = ["right", "center"];
+
+    var baselineLabel = baselineGroup.add("statictext", undefined, LABELS.baselineShiftLabel[lang]);
+    baselineLabel.justify = "right";
+
+    // ラベル幅を共通化する関数
+    function setUnifiedLabelWidth() {
+        var labelWidth = 100;
+        sizeLabel.preferredSize.width = labelWidth;
+        scaleLabel.preferredSize.width = labelWidth;
+        apparentLabel.preferredSize.width = labelWidth;
+        baselineLabel.preferredSize.width = labelWidth;
+    }
+
+    baselineInput = baselineGroup.add("edittext", undefined, "0");
+    baselineInput.characters = 4;
+    baselineInput.justify = "right";
+    baselineGroup.add("statictext", undefined, unitLabel);
+
+
+    /*
+    ベースラインシフトのプレビュー反映処理
+    Apply baseline shift preview on change
+    */
+    function applyBaselineShiftToTargetChar() {
+        var state = getState();
+        for (var i = 0; i < targetRanges.length; i++) {
+            applyBaselineShiftToChars(targetRanges[i], state.targetChar, state.hasTargetChar);
+        }
+        app.redraw();
+    }
+    baselineInput.onChange = applyBaselineShiftToTargetChar;
+    baselineInput.onChanging = function() {
+        applyBaselineShiftToTargetChar();
+        updateBaselineShift();
+    };
+    // 上下キー対応
+    changeValueByArrowKey(baselineInput, {
+        step: 1,
+        shiftStep: 10,
+        altStep: 0.1
+    });
+
+    /*
+    入力欄で上下キーによる数値調整を有効化
+    Enable up/down key adjustment for input fields
+    */
+    function addKeyEvents(input) {
+        changeValueByArrowKey(input, {
+            step: 1,
+            shiftStep: 10,
+            altStep: 0.1
+        });
+    }
+    addKeyEvents(baselineInput);
+
+
+
+    /*
+    ボタングループ / Button group
+    */
     var buttonGroup = rightCol.add("group");
     buttonGroup.alignment = "right";
     buttonGroup.orientation = "column";
-    var okBtn = buttonGroup.add("button", undefined, getLabelText(LABELS.ok));
-    var cancelBtn = buttonGroup.add("button", undefined, getLabelText(LABELS.cancel));
-    buttonGroup.add("statictext", undefined, " ");
-    var resetBtn = buttonGroup.add("button", undefined, getLabelText(LABELS.reset));
-    // 3ボタンの幅を揃える
-    resetBtn.preferredSize.width = 80;
-    cancelBtn.preferredSize.width = 80;
-    okBtn.preferredSize.width = 80;
-    resetBtn.onClick = function() {
-        input.text = "0";
+    var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang]);
+    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
+    // スペーサーの高さを大きく (例: 20) / Increase spacer height (e.g. 20)
+    var cancelResetSpacer = buttonGroup.add("statictext", undefined, "");
+    cancelResetSpacer.preferredSize.height = 50;
+    var resetBtn = buttonGroup.add("button", undefined, LABELS.reset[lang]);
+    // 3ボタンの幅を揃える / Set same width for 3 buttons
+    resetBtn.preferredSize.width = 90;
+    cancelBtn.preferredSize.width = 90;
+    okBtn.preferredSize.width = 90;
+
+    /*
+    入力値と選択文字を初期状態にリセット
+    Reset all fields and selection to initial state
+    */
+    function resetToInitial() {
         targetCharInput.text = uniqueNonAN;
-        modeScale.value = true;
-        modeFont.value = false;
-        // スケールをリセット / Reset scale to 100%
+        var state = getState();
+        var exampleChar = findFirstMatchingChar(state.targetChar, state.hasTargetChar);
+        if (!exampleChar) return;
+        var initialSize = exampleChar.size;
+        sizeInput.text = Math.round(initialSize * 10) / 10 + "";
+        hScaleInput.text = "100";
+        baselineInput.text = "0"; // ベースラインシフトも初期値 0 にリセット
+        var sel = app.activeDocument.selection;
+        if (sel.length > 0 && sel[0].typename === "TextFrame") {
+            sel[0].textRange.characterAttributes.baselineShift = 0;
+        }
         for (var i = 0, len = targetRanges.length; i < len; i++) {
             var chars = targetRanges[i].characters;
             for (var j = 0; j < chars.length; j++) {
-                chars[j].characterAttributes.horizontalScale = 100;
-                chars[j].characterAttributes.verticalScale = 100;
+                var ch = chars[j];
+                ch.characterAttributes.size = initialSize;
+                ch.characterAttributes.horizontalScale = 100;
+                ch.characterAttributes.verticalScale = 100;
+                ch.characterAttributes.baselineShift = 0;
             }
         }
-        updateInfoText(); // プレビュー更新のみ
+        updateInfoText();
         app.redraw();
+    }
+    resetBtn.onClick = function() {
+        resetToInitial();
     };
     cancelBtn.onClick = function() {
         dialog.close(2);
     };
 
-    // --- UI制御関数（スケール・サイズ有効化切替） / UI control for enabling/disabling fields ---
-    function updateFieldState() {
-        var isScaleMode = modeScale.value;
-        hScaleInput.enabled = isScaleMode;
-        sizeInput.enabled = !isScaleMode;
-    }
 
-    // --- 即時プレビュー用イベントハンドラ登録 / Set live preview event handlers ---
-    input.onChange = handleInputChange;
-    modeScale.onClick = function() {
-        updateFieldState();
-        handleInputChange();
-    };
-    modeFont.onClick = function() {
-        updateFieldState();
-        handleInputChange();
-    };
-    targetCharInput.onChange = handleInputChange;
+    /*
+    対象文字欄の変更で情報を更新
+    Update info fields when target character input changes
+    */
+    targetCharInput.onChange = updateInfoText;
 
-    // OK時にイベントハンドラを解除 / Remove handlers on OK
+    /*
+    OKボタン押下時にイベントハンドラ解除・ダイアログ終了
+    Remove handlers and close dialog on OK
+    */
     okBtn.onClick = function() {
-        input.onChange = null;
-        modeScale.onClick = null;
-        modeFont.onClick = null;
         targetCharInput.onChange = null;
         dialog.close();
     };
 
-    // 対象文字の現在のサイズ・比率を初期値として設定 / Set current size/scale as initial values
-    function setInitialSizeInput() {
-        var state = getState();
-        var exampleChar = findFirstMatchingChar(state.targetChar, state.hasTargetChar);
-        if (exampleChar) {
-            var size = Math.round(exampleChar.size * 10) / 10;
-            var h = Math.round(exampleChar.characterAttributes.horizontalScale * 10) / 10;
-            sizeInput.text = size + "";
-            hScaleInput.text = h + "";
+    // 初期設定: getState直後に originalSize があれば sizeInput.text に設定 / Set sizeInput.text if originalSize exists after getState
+    var state = getState();
+    if (state.originalSize) {
+        sizeInput.text = state.originalSize.toFixed(2);
+    }
+    // ラベル幅を統一
+    setUnifiedLabelWidth();
+    // 初期設定として明示的に呼び出し / Explicitly call as initial setting
+    updateInfoText();
+
+    /*
+    共通適用ロジック: サイズまたはスケールを対象文字に適用
+    Apply size or scale to target characters
+    */
+    function applyPropertyToCharacters(propertyName, value, state) {
+        for (var i = 0, len = targetRanges.length; i < len; i++) {
+            applyToTargetCharacters(targetRanges[i], state.targetChar, state.hasTargetChar, function(ch) {
+                if (propertyName === "size") {
+                    ch.size = value;
+                } else if (propertyName === "scale") {
+                    ch.characterAttributes.horizontalScale = value;
+                    ch.characterAttributes.verticalScale = value;
+                }
+            });
         }
     }
 
-    // 初期設定として明示的に呼び出し
-    setInitialSizeInput();
-
-    // --- sizeInput, hScaleInput の onChange: 値変更で applyChanges を呼び出す / Call applyChanges on value change ---
-    var currentState = {
-        mode: (modeScale.value) ? "scale" : "fontSize",
-        increment: parseInputValue(input, 0),
-        targetChar: targetCharInput.text,
-        hasTargetChar: targetCharInput.text && targetCharInput.text.length > 0,
-        size: parseInputValue(sizeInput, 12),
-        h: parseInputValue(hScaleInput, 100)
-    };
-
-    // 文字サイズ直接入力 / Font size direct input
+    /*
+    文字サイズ直接入力時の処理
+    Handle direct input of font size
+    */
     sizeInput.onChange = function() {
-        var val = parseInputValue(sizeInput, 12);
+        var val = Number(sizeInput.text) || 12;
         if (!isNaN(val)) {
-            currentState.size = val;
-            for (var i = 0, len = targetRanges.length; i < len; i++) {
-                applyToTargetCharacters(targetRanges[i], currentState.targetChar, currentState.hasTargetChar, function(ch) {
-                    ch.size = val;
-                });
-            }
+            var state = getState();
+            applyPropertyToCharacters("size", val, state);
             app.redraw();
             updateInfoText();
         }
-        updateApparentSizeDisplay(sizeInput, hScaleInput, apparentSizeText);
+        updateApparentSizeDisplay(unitLabel);
     };
-    // サイズフィールドのキー操作によるプレビュー更新 / Preview update on key in size field
-    sizeInput.addEventListener("keydown", function(event) {
-        if (event.keyName == "Up" || event.keyName == "Down") {
-            var current = parseInputValue(sizeInput, 12);
-            if (!isNaN(current)) {
-                if (event.keyName == "Up") {
-                    current += 0.1;
-                } else if (event.keyName == "Down") {
-                    current -= 0.1;
-                }
-                current = Math.round(current * 10) / 10;
-                sizeInput.text = current;
-                currentState.size = current;
-                for (var i = 0, len = targetRanges.length; i < len; i++) {
-                    applyToTargetCharacters(targetRanges[i], currentState.targetChar, currentState.hasTargetChar, function(ch) {
-                        ch.size = current;
-                    });
-                }
-                app.redraw();
-                updateInfoText();
-            }
-            updateApparentSizeDisplay(sizeInput, hScaleInput, apparentSizeText);
-            event.preventDefault();
-        }
+    // 上下キーによる数値の増減を有効にする（小数第1位まで対応）
+    // Enable up/down key for value adjustment (to 1 decimal place)
+    changeValueByArrowKey(sizeInput, {
+        step: 1,
+        shiftStep: 10,
+        altStep: 0.1
     });
 
-    // 比率直接入力 / Scale direct input
+    /*
+    スケール比率直接入力時の処理
+    Handle direct input of scale ratio
+    */
     hScaleInput.onChange = function() {
-        var val = parseInputValue(hScaleInput, 100);
+        var val = Number(hScaleInput.text) || 100;
         if (!isNaN(val)) {
-            currentState.h = val;
-            for (var i = 0, len = targetRanges.length; i < len; i++) {
-                applyToTargetCharacters(targetRanges[i], currentState.targetChar, currentState.hasTargetChar, function(ch) {
-                    ch.characterAttributes.horizontalScale = val;
-                    ch.characterAttributes.verticalScale = val;
-                });
-            }
+            var state = getState();
+            applyPropertyToCharacters("scale", val, state);
             app.redraw();
             updateInfoText();
         }
-        updateApparentSizeDisplay(sizeInput, hScaleInput, apparentSizeText);
+        updateApparentSizeDisplay(unitLabel);
     };
-    // 比率フィールドのキー操作によるプレビュー更新 / Preview update on key in scale field
-    hScaleInput.addEventListener("keydown", function(event) {
-        if (event.keyName == "Up" || event.keyName == "Down") {
-            var current = parseInputValue(hScaleInput, 100);
-            if (!isNaN(current)) {
-                if (event.keyName == "Up") {
-                    current += 1;
-                } else if (event.keyName == "Down") {
-                    current -= 1;
-                }
-                current = Math.round(current);
-                hScaleInput.text = current;
-                currentState.h = current;
-                for (var i = 0, len = targetRanges.length; i < len; i++) {
-                    applyToTargetCharacters(targetRanges[i], currentState.targetChar, currentState.hasTargetChar, function(ch) {
-                        ch.characterAttributes.horizontalScale = current;
-                        ch.characterAttributes.verticalScale = current;
-                    });
-                }
-                app.redraw();
-                updateInfoText();
-            }
-            updateApparentSizeDisplay(sizeInput, hScaleInput, apparentSizeText);
-            event.preventDefault();
-        }
+    // 上下キーによる数値の増減を有効にする（整数単位）
+    // Enable up/down key for value adjustment (integer)
+    changeValueByArrowKey(hScaleInput, {
+        step: 1,
+        shiftStep: 10,
+        altStep: 5
     });
 
-    // sizeInput, hScaleInput の onChanging で見かけサイズを更新 / Update apparent size on changing
+    /*
+    sizeInput, hScaleInput の onChanging で見かけサイズを更新
+    Update apparent size on changing of size or scale input
+    */
     sizeInput.onChanging = function() {
-        updateApparentSizeDisplay(sizeInput, hScaleInput, apparentSizeText);
+        updateApparentSizeDisplay(unitLabel);
     };
     hScaleInput.onChanging = function() {
-        updateApparentSizeDisplay(sizeInput, hScaleInput, apparentSizeText);
+        updateApparentSizeDisplay(unitLabel);
     };
 
-    // 「増減値」フィールドを選択状態にする / Focus step field
-    input.active = true;
-    // ダイアログ表示前にUI状態を初期化
-    updateFieldState();
-    // ダイアログ初期化直後にも見かけサイズ表示を更新
-    updateApparentSizeDisplay(sizeInput, hScaleInput, apparentSizeText);
+    // ダイアログ初期化直後にも見かけサイズ表示を更新 / Update apparent size display immediately after dialog initialization
+    updateApparentSizeDisplay(unitLabel);
+    // ダイアログ表示後に比率入力欄をハイライト / Highlight scale input after dialog is shown
+    dialog.onShow = (function(origOnShow) {
+        return function() {
+            if (typeof origOnShow === "function") origOnShow();
+            hScaleInput.active = true;
+        };
+    })(dialog.onShow);
     dialog.show();
-    // プレビュー済みの内容を確定 / No re-processing needed on OK
+    // プレビュー済みの内容を確定 / Confirm previewed content
     return;
 }
 
-// メイン実行部 / Entry point
+/*
+メイン実行部 / Entry point
+*/
 main();
