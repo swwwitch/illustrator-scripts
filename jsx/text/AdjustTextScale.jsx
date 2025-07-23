@@ -2,33 +2,41 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名 / Script name:
+### スクリプト名：
+
 AdjustTextScale.jsx
 
-### Readme （GitHub）/ Readme (GitHub):
+### Readme （GitHub）：
+
 https://github.com/swwwitch/illustrator-scripts
 
-### 概要 / Overview:
-- テキストのフォントサイズまたは横比率を数値入力で調整する / Adjust font size or horizontal scale by numeric input
-- キーボードでの微調整にも対応（上下キー） / Supports fine-tuning with keyboard (up/down keys)
+### 概要：
 
-### 主な機能 / Main features:
-- フォントサイズまたはスケール比率での編集 / Edit by font size or scale ratio
-- 見かけのサイズ表示 / Apparent size display
-- リアルタイムプレビュー / Real-time preview
-- リセット、キャンセル対応 / Reset and cancel support
+- テキストのフォントサイズ、スケール、ベースラインシフト、カーニングを数値で調整
+- 入力中にリアルタイムでプレビュー反映され、上下キー・修飾キー対応で操作性向上
 
-### 処理の流れ / Processing flow:
-1. ダイアログボックスを表示し、数値を入力 / Show dialog and input value
-2. 現在の選択テキストのサイズ情報を取得 / Get size info of current selected text
-3. 入力値に応じてスケーリング処理 / Scale processing by input value
-4. OK押下時に値を確定、Cancel/Reset対応 / Confirm on OK, support Cancel/Reset
+### 主な機能：
 
-### 更新履歴 / Update history:
-- v1.0 (20250723) : 初期バージョン / Initial version
+- サイズ／比率／ベースラインシフト／カーニングの数値指定と即時反映
+- 見かけのサイズ自動計算と100%時のディム表示
+- 対象文字の選択と適用範囲の制御
+- 上下キー操作（Shift/Alt対応）、リセット／キャンセルサポート
+
+### 処理の流れ：
+
+1. テキストオブジェクトを選択
+2. 対象文字と調整値を入力
+3. プレビューを見ながら数値を変更
+4. OKで確定、リセット／キャンセル対応
+
+### 更新履歴：
+
+- v1.0 (20250723) : 初期バージョン
+- v1.1 (20250724) : ベースラインシフトとカーニング対応
+- v1.2 (20250723) : プレビュー反映の強化、100%時の見かけディム処理、shiftキー刻み修正
 */
 
-var SCRIPT_VERSION = "v1.0"; // スクリプトのバージョン / Script version
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -37,8 +45,8 @@ var lang = getCurrentLang();
 
 var LABELS = {
     dialogTitle: {
-        ja: "フォント情報を追加",
-        en: "Add Font Info"
+        ja: "フォントサイズとベースライン調整 " + SCRIPT_VERSION,
+        en: "Font Size & Baseline Adjuster" + SCRIPT_VERSION
     },
     targetChar: {
         ja: "対象文字：",
@@ -53,7 +61,7 @@ var LABELS = {
         en: "Font Size"
     },
     scale: {
-        ja: "比率",
+        ja: "水平比率/垂直比率",
         en: "Scale"
     },
     apparent: {
@@ -79,21 +87,21 @@ var LABELS = {
     baselineShiftLabel: {
         ja: "ベースラインシフト",
         en: "Baseline Shift"
+    },
+    kerning: {
+        ja: "カーニング",
+        en: "Kerning"
     }
 };
 
 var apparentSizeDisplay; // グローバルに定義 / Global definition
 
-/*
-文字選択状態を取得 / Get selected characters from current document
-*/
+/* 文字選択状態を取得 / Get selected characters from current document */
 function isTargetChar(ch, targetChar, hasTargetChar) {
     return !hasTargetChar || targetChar.indexOf(ch.contents) !== -1;
 }
 
-/*
-文字選択状態を取得 / Get selected characters from current document
-*/
+/* 文字選択状態を取得 / Get selected characters from current document */
 function getTextSelection() {
     var sel = app.selection;
     var res = [];
@@ -106,19 +114,14 @@ function getTextSelection() {
             res.push(item);
         }
     }
-    /*
-    文字選択状態を取得
-    Get selected characters from current document
-    */
+    /* 文字選択状態を取得 / Get selected characters from current document */
     if (!(sel instanceof Array) && sel instanceof TextRange) {
         res.push(sel);
     }
     return res;
 }
 
-/*
-英数字を除いたユニークな文字列を取得 / Get unique non-alphanumeric characters from text
-*/
+/* 英数字を除いたユニークな文字列を取得 / Get unique non-alphanumeric characters from text */
 function getUniqueNonAlphanumerics(text) {
     var stripped = text.replace(/[0-9A-Za-z]/g, "");
     var result = "";
@@ -131,9 +134,7 @@ function getUniqueNonAlphanumerics(text) {
     return result;
 }
 
-/*
-対象文字に一致する文字だけに処理を適用 / Apply callback to matching characters in text range
-*/
+/* 対象文字に一致する文字だけに処理を適用 / Apply callback to matching characters in text range */
 function applyToTargetCharacters(range, targetChar, hasTargetChar, callback) {
     var chars = range.characters;
     for (var j = 0; j < chars.length; j++) {
@@ -144,9 +145,7 @@ function applyToTargetCharacters(range, targetChar, hasTargetChar, callback) {
     }
 }
 
-/*
-指定文字にだけベースラインシフトを適用 / Apply baseline shift only to matching characters
-*/
+/* 指定文字にだけベースラインシフトを適用 / Apply baseline shift only to matching characters */
 function applyBaselineShiftToChars(range, targetChar, hasTargetChar) {
     if (!range || !range.characters || targetChar === undefined) return;
 
@@ -157,14 +156,13 @@ function applyBaselineShiftToChars(range, targetChar, hasTargetChar) {
     for (var i = 0; i < chars.length; i++) {
         var ch = chars[i];
         if (isTargetChar(ch, targetChar, hasTargetChar)) {
+            ch.characterAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
             ch.characterAttributes.baselineShift = val;
         }
     }
 }
 
-/*
-ダイアログの表示位置をオフセット / Shift dialog position by offsetX and offsetY
-*/
+/* ダイアログの表示位置をオフセット / Shift dialog position by offsetX and offsetY */
 function shiftDialogPosition(dlg, offsetX, offsetY) {
     dlg.onShow = function() {
         var currentX = dlg.location[0];
@@ -173,16 +171,12 @@ function shiftDialogPosition(dlg, offsetX, offsetY) {
     };
 }
 
-/*
-ダイアログの透明度を設定 / Set dialog opacity
-*/
+/* ダイアログの透明度を設定 / Set dialog opacity */
 function setDialogOpacity(dlg, opacityValue) {
     dlg.opacity = opacityValue;
 }
 
-/*
-上下キーによる数値の増減を有効にする関数 / Enable value increment/decrement by arrow keys
-*/
+/* 上下キーによる数値の増減を有効にする関数 / Enable value increment/decrement by arrow keys */
 function changeValueByArrowKey(editText, options) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);
@@ -201,9 +195,19 @@ function changeValueByArrowKey(editText, options) {
         }
 
         if (event.keyName == "Up") {
-            value += delta;
+            if (keyboard.shiftKey) {
+                /* shift: integer step up, snap to next delta / shift: integer step up, snap to next delta */
+                value = Math.floor(value / delta) * delta + delta;
+            } else {
+                value += delta;
+            }
         } else if (event.keyName == "Down") {
-            value -= delta;
+            if (keyboard.shiftKey) {
+                /* shift: integer step down, snap to prev delta / shift: integer step down, snap to prev delta */
+                value = Math.ceil(value / delta) * delta - delta;
+            } else {
+                value -= delta;
+            }
         } else {
             return;
         }
@@ -218,19 +222,13 @@ function changeValueByArrowKey(editText, options) {
         event.preventDefault();
         editText.text = value;
         editText.notify("onChange");
-        /*
-        数値変更時にリアルタイムプレビューを実行
-        Apply real-time preview when value changes
-        */
+        /* 数値変更時にリアルタイムプレビューを実行 / Apply real-time preview when value changes */
         if (
             (typeof sizeInput !== "undefined" && editText === sizeInput) ||
             (typeof hScaleInput !== "undefined" && editText === hScaleInput) ||
             (typeof baselineInput !== "undefined" && editText === baselineInput)
         ) {
-            /*
-            ベースラインシフト入力時は即時プレビューを適用
-            Apply baseline shift preview on change
-            */
+            /* ベースラインシフト入力時は即時プレビューを適用 / Apply baseline shift preview on change */
             if (typeof baselineInput !== "undefined" && editText === baselineInput) {
                 baselineInput.text = editText.text; // 明示的に更新
                 applyBaselineShiftToTargetChar();
@@ -239,9 +237,7 @@ function changeValueByArrowKey(editText, options) {
     });
 }
 
-/*
-単位コードとプリファレンスキーに応じて単位ラベルを返す関数 / Get unit label for code and pref key
-*/
+/* 単位コードとプリファレンスキーに応じて単位ラベルを返す関数 / Get unit label for code and pref key */
 function getUnitLabel(code, prefKey) {
     var unitMap = {
         0: "in",
@@ -267,9 +263,7 @@ function getUnitLabel(code, prefKey) {
     return unitMap[code] || "不明";
 }
 
-/*
-現在のテキスト単位ラベルを取得 / Get current text unit label
-*/
+/* 現在のテキスト単位ラベルを取得 / Get current text unit label */
 function getCurrentUnitLabel() {
     var unitCode = app.preferences.getIntegerPreference("text/units");
     return getUnitLabel(unitCode, "text/units");
@@ -282,13 +276,13 @@ function main() {
     var sizeInput; // フォントサイズ入力
     var hScaleInput; // 水平スケール入力
     var baselineInput; // ベースラインシフト入力
-    // ドキュメントが開かれていなければ終了 / Exit if no document is open
+    /* ドキュメントが開かれていなければ終了 / Exit if no document is open */
     if (app.documents.length <= 0) {
         return;
     }
 
     var targetRanges = getTextSelection();
-    // 選択が空のときに警告を表示 / Show alert if no text selected
+    /* 選択が空のときに警告を表示 / Show alert if no text selected */
     if (targetRanges.length === 0) {
         alert(LABELS.selectTextAlert[lang]);
         return;
@@ -399,16 +393,21 @@ function main() {
             var apparent = Math.round(size * scale) / 100;
             apparentSizeText.text = apparent + "";
         }
+
+        // スケールが 100% のときのみディム表示 / Only dim display when scale is 100%
+        var isDimmed = (scale === 100);
+        apparentLabel.enabled = !isDimmed;
+        apparentSizeText.enabled = !isDimmed;
+        displayGroup.children[2].enabled = !isDimmed; // 単位ラベル
     }
+
 
     // handleInputChange() は updateInfoText() に統合するため削除 / handleInputChange() merged into updateInfoText, removed
 
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.alignChildren = "left";
 
-    /*
-    位置と透明度の調整 / Adjust position and opacity
-    */
+    /* 位置と透明度の調整 / Adjust position and opacity */
     var offsetX = 300;
     var dialogOpacity = 0.97;
     setDialogOpacity(dialog, dialogOpacity);
@@ -431,18 +430,14 @@ function main() {
     rightCol.orientation = "column";
     rightCol.alignChildren = "right";
 
-    /*
-    対象文字入力グループ / Target characters input group
-    */
+    /* 対象文字入力グループ / Target characters input group */
     var targetTextGroup = leftCol.add("group");
     targetTextGroup.orientation = "row";
     targetTextGroup.add("statictext", undefined, LABELS.targetChar[lang]);
     var targetCharInput = targetTextGroup.add("edittext", undefined, uniqueNonAN);
     targetCharInput.characters = 10;
 
-    /*
-    文字サイズ・比率グループ / Font size & scale group
-    */
+    /* 文字サイズ・比率グループ / Font size & scale group */
     var infoPanel = leftCol.add("panel", undefined, LABELS.adjust[lang]);
     infoPanel.orientation = "column";
     infoPanel.alignChildren = ["left", "top"];
@@ -458,9 +453,7 @@ function main() {
     radioGroup.orientation = "column";
     radioGroup.alignChildren = "left";
 
-    /*
-    サイズ入力グループ / Font size input group
-    */
+    /* サイズ入力グループ / Font size input group */
     var labelWidth = 120;
     var sizeGroup = radioGroup.add("group", undefined, {
         orientation: "row"
@@ -473,13 +466,11 @@ function main() {
     sizeInput.characters = 4;
     sizeInput.enabled = true;
 
-    // 単位ラベルを一度だけ取得し再利用 / Get unit label once and reuse
+    /* 単位ラベルを一度だけ取得し再利用 / Get unit label once and reuse */
     var unitLabel = getUnitLabel(app.preferences.getIntegerPreference("text/units"), "text/units");
     sizeGroup.add("statictext", undefined, unitLabel);
 
-    /*
-    比率入力グループ / Scale input group
-    */
+    /* 比率入力グループ / Scale input group */
     var scaleGroup = radioGroup.add("group", undefined, {
         orientation: "row"
     });
@@ -489,16 +480,14 @@ function main() {
     hScaleInput = scaleGroup.add("edittext", undefined, "100");
     hScaleInput.characters = 4;
     scaleGroup.add("statictext", undefined, "%");
-    // 入力欄はどちらも有効化 / Both input fields enabled
+    /* 入力欄はどちらも有効化 / Both input fields enabled */
     sizeInput.enabled = true;
     hScaleInput.enabled = true;
 
 
 
 
-    /*
-    見かけサイズ表示グループ / Apparent size display group
-    */
+    /* 見かけサイズ表示グループ / Apparent size display group */
     var displayGroup = infoPanel.add("group", undefined, {
         orientation: "row"
     });
@@ -509,9 +498,7 @@ function main() {
     displayGroup.add("statictext", undefined, unitLabel);
 
 
-    /*
-    ベースラインシフト / Baseline Shift
-    */
+    /* ベースラインシフト / Baseline Shift */
     var baselineGroup = infoPanel.add("group");
     baselineGroup.orientation = "row";
     baselineGroup.alignChildren = ["right", "center"];
@@ -519,13 +506,14 @@ function main() {
     var baselineLabel = baselineGroup.add("statictext", undefined, LABELS.baselineShiftLabel[lang]);
     baselineLabel.justify = "right";
 
-    // ラベル幅を共通化する関数
+    // ラベル幅を共通化する関数 / Function to unify label width
     function setUnifiedLabelWidth() {
-        var labelWidth = 100;
+        var labelWidth = 120;
         sizeLabel.preferredSize.width = labelWidth;
         scaleLabel.preferredSize.width = labelWidth;
         apparentLabel.preferredSize.width = labelWidth;
         baselineLabel.preferredSize.width = labelWidth;
+        kerningLabel.preferredSize.width = labelWidth;
     }
 
     baselineInput = baselineGroup.add("edittext", undefined, "0");
@@ -534,33 +522,26 @@ function main() {
     baselineGroup.add("statictext", undefined, unitLabel);
 
 
-    /*
-    ベースラインシフトのプレビュー反映処理
-    Apply baseline shift preview on change
-    */
+    /* ベースラインシフトのプレビュー反映処理 / Apply baseline shift preview on change */
     function applyBaselineShiftToTargetChar() {
         var state = getState();
         for (var i = 0; i < targetRanges.length; i++) {
-            applyBaselineShiftToChars(targetRanges[i], state.targetChar, state.hasTargetChar);
+            applyBaselineShiftToChars(targetRanges[i], state.targetChar, true);
         }
         app.redraw();
     }
     baselineInput.onChange = applyBaselineShiftToTargetChar;
     baselineInput.onChanging = function() {
         applyBaselineShiftToTargetChar();
-        updateBaselineShift();
     };
-    // 上下キー対応
+    /* 上下キー対応 / Enable up/down key adjustment */
     changeValueByArrowKey(baselineInput, {
         step: 1,
         shiftStep: 10,
         altStep: 0.1
     });
 
-    /*
-    入力欄で上下キーによる数値調整を有効化
-    Enable up/down key adjustment for input fields
-    */
+    /* 入力欄で上下キーによる数値調整を有効化 / Enable up/down key adjustment for input fields */
     function addKeyEvents(input) {
         changeValueByArrowKey(input, {
             step: 1,
@@ -570,29 +551,58 @@ function main() {
     }
     addKeyEvents(baselineInput);
 
+    /* カーニング / Kerning */
+    var kerningGroup = infoPanel.add("group");
+    kerningGroup.orientation = "row";
+    kerningGroup.alignChildren = ["right", "center"];
 
+    var kerningLabel = kerningGroup.add("statictext", undefined, LABELS.kerning[lang]);
+    kerningLabel.justify = "right";
 
-    /*
-    ボタングループ / Button group
-    */
+    var kerningInput = kerningGroup.add("edittext", undefined, "0");
+    kerningInput.characters = 4;
+    kerningInput.justify = "right";
+
+    /* 上下キーでの調整 / Enable up/down key adjustment */
+    changeValueByArrowKey(kerningInput, {
+        step: 1,
+        shiftStep: 10,
+        altStep: 0.1
+    });
+
+    /* カーニング値の変更時も onChanging と同様の処理を実行 / Apply kerning preview on value change */
+    kerningInput.onChange = function() {
+        var state = getState();
+        for (var i = 0; i < targetRanges.length; i++) {
+            applyKerningToChars(targetRanges[i], state.targetChar, state.hasTargetChar);
+        }
+        app.redraw();
+    };
+    /* カーニング入力欄の即時プレビュー / Apply kerning preview on changing */
+    kerningInput.onChanging = function() {
+        var state = getState();
+        for (var i = 0; i < targetRanges.length; i++) {
+            applyKerningToChars(targetRanges[i], state.targetChar, state.hasTargetChar);
+        }
+        app.redraw();
+    };
+
+    /* ボタングループ / Button group */
     var buttonGroup = rightCol.add("group");
     buttonGroup.alignment = "right";
     buttonGroup.orientation = "column";
     var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang]);
     var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-    // スペーサーの高さを大きく (例: 20) / Increase spacer height (e.g. 20)
+    /* スペーサーの高さを大きく (例: 20) / Increase spacer height (e.g. 20) */
     var cancelResetSpacer = buttonGroup.add("statictext", undefined, "");
     cancelResetSpacer.preferredSize.height = 50;
     var resetBtn = buttonGroup.add("button", undefined, LABELS.reset[lang]);
-    // 3ボタンの幅を揃える / Set same width for 3 buttons
+    /* 3ボタンの幅を揃える / Set same width for 3 buttons */
     resetBtn.preferredSize.width = 90;
     cancelBtn.preferredSize.width = 90;
     okBtn.preferredSize.width = 90;
 
-    /*
-    入力値と選択文字を初期状態にリセット
-    Reset all fields and selection to initial state
-    */
+    /* 入力値と選択文字を初期状態にリセット / Reset all fields and selection to initial state */
     function resetToInitial() {
         targetCharInput.text = uniqueNonAN;
         var state = getState();
@@ -602,6 +612,7 @@ function main() {
         sizeInput.text = Math.round(initialSize * 10) / 10 + "";
         hScaleInput.text = "100";
         baselineInput.text = "0"; // ベースラインシフトも初期値 0 にリセット
+        kerningInput.text = "0"; // カーニングも初期値 0 にリセット
         var sel = app.activeDocument.selection;
         if (sel.length > 0 && sel[0].typename === "TextFrame") {
             sel[0].textRange.characterAttributes.baselineShift = 0;
@@ -614,6 +625,8 @@ function main() {
                 ch.characterAttributes.horizontalScale = 100;
                 ch.characterAttributes.verticalScale = 100;
                 ch.characterAttributes.baselineShift = 0;
+                ch.characterAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
+                ch.kerning = 0;
             }
         }
         updateInfoText();
@@ -627,35 +640,26 @@ function main() {
     };
 
 
-    /*
-    対象文字欄の変更で情報を更新
-    Update info fields when target character input changes
-    */
+    /* 対象文字欄の変更で情報を更新 / Update info fields when target character input changes */
     targetCharInput.onChange = updateInfoText;
 
-    /*
-    OKボタン押下時にイベントハンドラ解除・ダイアログ終了
-    Remove handlers and close dialog on OK
-    */
+    /* OKボタン押下時にイベントハンドラ解除・ダイアログ終了 / Remove handlers and close dialog on OK */
     okBtn.onClick = function() {
         targetCharInput.onChange = null;
         dialog.close();
     };
 
-    // 初期設定: getState直後に originalSize があれば sizeInput.text に設定 / Set sizeInput.text if originalSize exists after getState
+    /* 初期設定: getState直後に originalSize があれば sizeInput.text に設定 / Set sizeInput.text if originalSize exists after getState */
     var state = getState();
     if (state.originalSize) {
         sizeInput.text = state.originalSize.toFixed(2);
     }
-    // ラベル幅を統一
+    /* ラベル幅を統一 / Set unified label width */
     setUnifiedLabelWidth();
-    // 初期設定として明示的に呼び出し / Explicitly call as initial setting
+    /* 初期設定として明示的に呼び出し / Explicitly call as initial setting */
     updateInfoText();
 
-    /*
-    共通適用ロジック: サイズまたはスケールを対象文字に適用
-    Apply size or scale to target characters
-    */
+    /* 共通適用ロジック: サイズまたはスケールを対象文字に適用 / Apply size or scale to target characters */
     function applyPropertyToCharacters(propertyName, value, state) {
         for (var i = 0, len = targetRanges.length; i < len; i++) {
             applyToTargetCharacters(targetRanges[i], state.targetChar, state.hasTargetChar, function(ch) {
@@ -669,10 +673,7 @@ function main() {
         }
     }
 
-    /*
-    文字サイズ直接入力時の処理
-    Handle direct input of font size
-    */
+    /* 文字サイズ直接入力時の処理 / Handle direct input of font size */
     sizeInput.onChange = function() {
         var val = Number(sizeInput.text) || 12;
         if (!isNaN(val)) {
@@ -683,18 +684,14 @@ function main() {
         }
         updateApparentSizeDisplay(unitLabel);
     };
-    // 上下キーによる数値の増減を有効にする（小数第1位まで対応）
-    // Enable up/down key for value adjustment (to 1 decimal place)
+    // 上下キーによる数値の増減を有効にする（小数第1位まで対応）/ Enable up/down key for value adjustment (to 1 decimal place)
     changeValueByArrowKey(sizeInput, {
         step: 1,
         shiftStep: 10,
         altStep: 0.1
     });
 
-    /*
-    スケール比率直接入力時の処理
-    Handle direct input of scale ratio
-    */
+    /* スケール比率直接入力時の処理 / Handle direct input of scale ratio */
     hScaleInput.onChange = function() {
         var val = Number(hScaleInput.text) || 100;
         if (!isNaN(val)) {
@@ -705,18 +702,14 @@ function main() {
         }
         updateApparentSizeDisplay(unitLabel);
     };
-    // 上下キーによる数値の増減を有効にする（整数単位）
-    // Enable up/down key for value adjustment (integer)
+    // 上下キーによる数値の増減を有効にする（整数単位）/ Enable up/down key for value adjustment (integer)
     changeValueByArrowKey(hScaleInput, {
         step: 1,
         shiftStep: 10,
         altStep: 5
     });
 
-    /*
-    sizeInput, hScaleInput の onChanging で見かけサイズを更新
-    Update apparent size on changing of size or scale input
-    */
+    /* sizeInput, hScaleInput の onChanging で見かけサイズを更新 / Update apparent size on changing of size or scale input */
     sizeInput.onChanging = function() {
         updateApparentSizeDisplay(unitLabel);
     };
@@ -724,9 +717,9 @@ function main() {
         updateApparentSizeDisplay(unitLabel);
     };
 
-    // ダイアログ初期化直後にも見かけサイズ表示を更新 / Update apparent size display immediately after dialog initialization
+    /* ダイアログ初期化直後にも見かけサイズ表示を更新 / Update apparent size display immediately after dialog initialization */
     updateApparentSizeDisplay(unitLabel);
-    // ダイアログ表示後に比率入力欄をハイライト / Highlight scale input after dialog is shown
+    /* ダイアログ表示後に比率入力欄をハイライト / Highlight scale input after dialog is shown */
     dialog.onShow = (function(origOnShow) {
         return function() {
             if (typeof origOnShow === "function") origOnShow();
@@ -734,11 +727,25 @@ function main() {
         };
     })(dialog.onShow);
     dialog.show();
-    // プレビュー済みの内容を確定 / Confirm previewed content
+    /* プレビュー済みの内容を確定 / Confirm previewed content */
     return;
 }
 
-/*
-メイン実行部 / Entry point
-*/
+/* メイン実行部 / Entry point */
 main();
+/* カーニングを対象文字に適用 / Apply kerning to matching characters */
+function applyKerningToChars(range, targetChar, hasTargetChar) {
+    if (!range || !range.characters || targetChar === undefined) return;
+
+    var val = parseFloat(kerningInput.text);
+    if (isNaN(val)) return;
+
+    var chars = range.characters;
+    for (var i = 0; i < chars.length; i++) {
+        var ch = chars[i];
+        if (isTargetChar(ch, targetChar, hasTargetChar)) {
+            ch.characterAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
+            ch.kerning = val;
+        }
+    }
+}
