@@ -18,7 +18,9 @@ AdjustTextScale.jsx
 - 日本語・英語ラベル切替対応
 
 ### 更新履歴 / Change Log：
-- v0.2 (2025/07/23): 初期バージョン
+- v0.1 (20250723): 初期バージョン
+- v0.2 (20250723): 調整
+- v0.3 (20250723): 調整
 */
 
 var SCRIPT_VERSION = "v0.2";
@@ -309,6 +311,7 @@ function main() {
             /* 情報をクリア / Clear info fields */
             sizeInput.text = "";
             hScaleInput.text = "";
+            apparentSizeDisplay.text = "—";
             return;
         }
         var size = exampleChar.size;
@@ -320,6 +323,19 @@ function main() {
         /* 情報を更新 / Update information */
         sizeInput.text = size + "";
         hScaleInput.text = h + "";
+        updateApparentSize();
+    }
+
+    // 「見かけ」サイズを計算して表示する関数
+    function updateApparentSize() {
+        var size = parseFloat(sizeInput.text);
+        var scale = parseFloat(hScaleInput.text);
+        if (!isNaN(size) && !isNaN(scale)) {
+            var apparent = size * scale / 100;
+            apparentSizeDisplay.text = apparent.toFixed(2);
+        } else {
+            apparentSizeDisplay.text = "—";
+        }
     }
 
     /* 入力変更時の処理 / Handle input changes */
@@ -426,6 +442,17 @@ function main() {
     hScaleInput.characters = 4;
     scaleGroup.add("statictext", undefined, "%");
 
+    // 見かけのサイズ表示グループ（右）
+    var displayGroup = rowGroup.add("group");
+    displayGroup.orientation = "column";
+
+    displayGroup.alignChildren = ["center", "top"];
+    scaleGroup.alignment = ["left", "top"];
+
+    displayGroup.add("statictext", undefined, LABELS.apparentSizeLabel ? LABELS.apparentSizeLabel[lang] : "見かけ");
+    var apparentSizeDisplay = displayGroup.add("statictext", undefined, "—");
+    apparentSizeDisplay.characters = 6;
+
 
     changeValueByArrowKey(input);
 
@@ -508,6 +535,7 @@ function main() {
             app.redraw();
             updateInfoText();
         }
+        updateApparentSize();
     };
 
     // サイズフィールドのキー操作によるプレビュー更新 / Preview update on key in size field
@@ -532,6 +560,7 @@ function main() {
                 app.redraw();
                 updateInfoText();
             }
+            updateApparentSize();
             event.preventDefault();
         }
     });
@@ -550,6 +579,7 @@ function main() {
             app.redraw();
             updateInfoText();
         }
+        updateApparentSize();
     };
 
     // 比率フィールドのキー操作によるプレビュー更新 / Preview update on key in scale field
@@ -575,9 +605,14 @@ function main() {
                 app.redraw();
                 updateInfoText();
             }
+            updateApparentSize();
             event.preventDefault();
         }
     });
+
+    // sizeInput, hScaleInput の onChanging で見かけサイズを更新
+    sizeInput.onChanging = updateApparentSize;
+    hScaleInput.onChanging = updateApparentSize;
 
     // 「増減値」フィールドを選択状態にする
     input.active = true;
