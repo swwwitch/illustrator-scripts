@@ -2,6 +2,7 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### スクリプト名：
 
 AdjustTextScale.jsx
@@ -12,31 +13,63 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### 概要：
 
-- テキストのフォントサイズ、スケール、ベースラインシフト、カーニングを数値で調整
-- 入力中にリアルタイムでプレビュー反映され、上下キー・修飾キー対応で操作性向上
+- Illustrator上で選択文字のフォントサイズ、拡大率、ベースラインシフト、カーニング、トラッキングを調整
+- ダイアログボックスで数値入力し、即時プレビューと適用が可能
 
 ### 主な機能：
 
-- サイズ／比率／ベースラインシフト／カーニングの数値指定と即時反映
-- 見かけのサイズ自動計算と100%時のディム表示
-- 対象文字の選択と適用範囲の制御
-- 上下キー操作（Shift/Alt対応）、リセット／キャンセルサポート
-
-### 処理の流れ：
-
-1. テキストオブジェクトを選択
-2. 対象文字と調整値を入力
-3. プレビューを見ながら数値を変更
-4. OKで確定、リセット／キャンセル対応
+- 見かけのサイズとフォントサイズの変換
+- 水平・垂直比率を個別調整可能
+- ベースラインシフト、カーニング、トラッキングの指定
+- OKで確定、リセットで初期状態に復元
 
 ### 更新履歴：
 
 - v1.0 (20250723) : 初期バージョン
 - v1.1 (20250724) : ベースラインシフトとカーニング対応
 - v1.2 (20250723) : プレビュー反映の強化、100%時の見かけディム処理、shiftキー刻み修正
+- v1.3 (20250724) : トラッキング機能追加、UI微調整
 */
 
-var SCRIPT_VERSION = "v1.2";
+/*
+
+### Script Name:
+
+AdjustTextScale.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AdjustTextScale.jsx
+
+### Description:
+
+- Adjust font size, horizontal/vertical scale, baseline shift, kerning, and tracking of selected text in Illustrator
+- Realtime preview and numeric input via dialog box
+
+### Main Features:
+
+- Convert between apparent size and font size
+- Individually adjust horizontal/vertical scale
+- Modify baseline shift, kerning, and tracking
+- Confirm with OK, restore with Reset
+
+### Processing Flow:
+
+1. Build UI and define labels (ja/en)
+2. Get initial state of selected text
+3. Apply changes in realtime on input
+4. Confirm with OK, cancel or reset to revert
+
+### Change Log:
+
+- v1.0 (20250720): Initial release
+- v1.1 (20250724): Added kerning, baseline shift, and tracking; refactored UI and event logic
+- v1.2 (20250725): Enhanced preview handling, dim apparent size at 100% scale, fixed shift key increments
+- v1.3 (20250726): Added tracking feature, UI adjustments
+
+*/
+
+var SCRIPT_VERSION = "v1.3";
 
 // UI要素をまとめるオブジェクト / UI element references
 var uiElements = {
@@ -46,6 +79,8 @@ var uiElements = {
     kerningInput: null,
     apparentSizeText: null
 };
+
+var apparentSizeDisplay; // グローバルに定義 / Global definition
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -100,10 +135,13 @@ var LABELS = {
     kerning: {
         ja: "カーニング",
         en: "Kerning"
+    },
+    tracking: {
+        ja: "トラッキング",
+        en: "Tracking"
     }
 };
 
-var apparentSizeDisplay; // グローバルに定義 / Global definition
 
 /* 文字選択状態を取得 / Get selected characters from current document */
 function isTargetChar(ch, targetChar, hasTargetChar) {
@@ -281,6 +319,8 @@ function getCurrentUnitLabel() {
 
 /* メイン処理 / Main function */
 function main() {
+    // 初期フォントサイズを記録する変数
+    var initialFontSize = null;
     // 事前宣言：sizeInput, hScaleInput, baselineInput（未定義エラー回避のため）
     /* ドキュメントが開かれていなければ終了 / Exit if no document is open */
     if (app.documents.length <= 0) {
@@ -376,6 +416,10 @@ function main() {
             return;
         }
         var size = exampleChar.size;
+        // 最初の呼び出し時に initialFontSize を保存
+        if (initialFontSize === null) {
+            initialFontSize = size;
+        }
         var h = exampleChar.characterAttributes.horizontalScale;
         var v = exampleChar.characterAttributes.verticalScale;
         size = Math.round(size * 10) / 10;
@@ -596,6 +640,43 @@ function main() {
         app.redraw();
     };
 
+    /* --- trackingGroup追加 --- */
+    /* トラッキング / Tracking */
+    var trackingGroup = infoPanel.add("group");
+    trackingGroup.orientation = "row";
+    trackingGroup.alignChildren = ["right", "center"];
+
+    var trackingLabel = trackingGroup.add("statictext", undefined, LABELS.tracking[lang]);
+    trackingLabel.justify = "right";
+    trackingLabel.preferredSize.width = 120;
+
+    var trackingInput = trackingGroup.add("edittext", undefined, "0");
+    trackingInput.characters = 4;
+    trackingInput.justify = "right";
+    trackingGroup.add("statictext", undefined, "/1000");
+
+    // 上下キー調整対応
+    changeValueByArrowKey(trackingInput, {
+        step: 1,
+        shiftStep: 10,
+        altStep: 0.1
+    });
+
+    // トラッキング値の変更時に即時反映
+    trackingInput.onChange = function() {
+        var state = getTargetCharState();
+        var val = parseFloat(trackingInput.text);
+        if (isNaN(val)) return;
+        for (var i = 0; i < targetRanges.length; i++) {
+            applyToTargetCharacters(targetRanges[i], state.targetChar, state.hasTargetChar, function(ch) {
+                ch.characterAttributes.tracking = val;
+            });
+        }
+        app.redraw();
+    };
+
+    trackingInput.onChanging = trackingInput.onChange;
+
     /* ボタングループ / Button group */
     var buttonGroup = rightCol.add("group");
     buttonGroup.alignment = "right";
@@ -614,14 +695,14 @@ function main() {
     /* 入力値と選択文字を初期状態にリセット / Reset all fields and selection to initial state */
     function resetToInitial() {
         targetCharInput.text = uniqueNonAN;
-        var state = getTargetCharState();
-        var exampleChar = findFirstMatchingChar(state.targetChar, state.hasTargetChar);
-        if (!exampleChar) return;
-        var initialSize = exampleChar.size;
-        uiElements.sizeInput.text = Math.round(initialSize * 10) / 10 + "";
+        // フォントサイズを初期値にリセット
+        if (initialFontSize !== null) {
+            uiElements.sizeInput.text = initialFontSize;
+        }
         uiElements.hScaleInput.text = "100";
         uiElements.baselineInput.text = "0"; // ベースラインシフトも初期値 0 にリセット
         uiElements.kerningInput.text = "0"; // カーニングも初期値 0 にリセット
+        trackingInput.text = "0";
         var sel = app.activeDocument.selection;
         if (sel.length > 0 && sel[0].typename === "TextFrame") {
             sel[0].textRange.characterAttributes.baselineShift = 0;
@@ -630,12 +711,14 @@ function main() {
             var chars = targetRanges[i].characters;
             for (var j = 0; j < chars.length; j++) {
                 var ch = chars[j];
-                ch.characterAttributes.size = initialSize;
+                // ch.characterAttributes.size = initialSize;
+                ch.characterAttributes.size = initialFontSize;
                 ch.characterAttributes.horizontalScale = 100;
                 ch.characterAttributes.verticalScale = 100;
                 ch.characterAttributes.baselineShift = 0;
                 ch.characterAttributes.kerningMethod = AutoKernType.NOAUTOKERN;
                 ch.kerning = 0;
+                ch.characterAttributes.tracking = 0;
             }
         }
         updateInfoText();
