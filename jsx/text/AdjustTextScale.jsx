@@ -18,10 +18,10 @@ AdjustTextScale.jsx
 - 日本語・英語ラベル切替対応
 
 ### 更新履歴 / Change Log：
-- v0.1 (2025/07/23): 初期バージョン
+- v0.2 (2025/07/23): 初期バージョン
 */
 
-var SCRIPT_VERSION = "v0.1 はい";
+var SCRIPT_VERSION = "v0.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -399,21 +399,33 @@ function main() {
     input.characters = 5;
 
     // 4. 文字サイズ・比率グループ
-    var infoGroup = leftCol.add("group");
-    infoGroup.orientation = "column";
-    // サイズ入力
-    // サイズ・比率を上下2つのサブグループで分けて表示
-    var sizeGroup = infoGroup.add("group");
-    sizeGroup.orientation = "row";
-    sizeGroup.add("statictext", undefined, "サイズ:");
-    var sizeInput = sizeGroup.add("edittext", undefined, "0");
-    sizeInput.characters = 6;
+    var infoPanel = leftCol.add("panel", undefined, LABELS.scaleRatioPanel ? LABELS.scaleRatioPanel[lang] : "サイズと比率");
+    infoPanel.orientation = "column";
+    infoPanel.alignChildren = ["left", "top"];
+    infoPanel.margins = [15, 10, 15, 10];
 
-    var scaleGroup = infoGroup.add("group");
-    scaleGroup.orientation = "row";
-    scaleGroup.add("statictext", undefined, "比率:");
+    // サイズ・比率を横並びで
+    var rowGroup = infoPanel.add("group");
+    rowGroup.orientation = "row";
+
+    // サイズ入力フィールド
+    var sizeGroup = rowGroup.add("group");
+    sizeGroup.orientation = "column";
+    sizeGroup.add("statictext", undefined, LABELS.size ? LABELS.size[lang] || "サイズ:" : "サイズ:");
+    var sizeInput = sizeGroup.add("edittext", undefined, "0");
+    sizeInput.characters = 3;
+    sizeGroup.add("statictext", undefined, getUnitLabel(app.preferences.getIntegerPreference("typeUnits"), "typeUnits"));
+
+    // 比率入力フィールド
+    var scaleGroup = rowGroup.add("group");
+    scaleGroup.orientation = "column";
+    scaleGroup.alignChildren = ["center", "top"];
+    scaleGroup.alignment = ["left", "top"];
+    scaleGroup.add("statictext", undefined, LABELS.scale ? LABELS.scale[lang] || "比率:" : "比率:");
     var hScaleInput = scaleGroup.add("edittext", undefined, "100");
-    hScaleInput.characters = 6;
+    hScaleInput.characters = 4;
+    scaleGroup.add("statictext", undefined, "%");
+
 
     changeValueByArrowKey(input);
 
@@ -438,6 +450,7 @@ function main() {
             }
         }
         updateInfoText(); // プレビュー更新のみ / Preview only, no reapplication
+        app.redraw();
     };
     cancelBtn.onClick = function() {
         dialog.close(2);
@@ -566,6 +579,8 @@ function main() {
         }
     });
 
+    // 「増減値」フィールドを選択状態にする
+    input.active = true;
     dialog.show();
     /* プレビュー済みの内容を確定 / No re-processing needed on OK */
     return;
@@ -579,6 +594,33 @@ function getLabelText(labelObj) {
         }
     } catch (e) {}
     return labelObj.en;
+}
+// 単位コードとラベルのマップ
+var unitMap = {
+    0: "in",
+    1: "mm",
+    2: "pt",
+    3: "pica",
+    4: "cm",
+    5: "Q/H", // 特別処理される
+    6: "px",
+    7: "ft/in",
+    8: "m",
+    9: "yd",
+    10: "ft"
+};
+
+// 単位コードとプリファレンスキーに応じて単位ラベルを返す関数
+function getUnitLabel(code, prefKey) {
+    if (code === 5) {
+        var hKeys = {
+            "text/asianunits": true,
+            "rulerType": true,
+            "strokeUnits": true
+        };
+        return hKeys[prefKey] ? "H" : "Q";
+    }
+    return unitMap[code] || "pt";
 }
 
 // メイン実行部 / Entry point
