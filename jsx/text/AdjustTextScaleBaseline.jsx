@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### スクリプト名：
 
-AdjustTextScale.jsx
+AdjustTextScaleBaseline.jsx
 
 ### Readme （GitHub）：
 
@@ -35,7 +35,7 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### Script Name:
 
-AdjustTextScale.jsx
+AdjustTextScaleBaseline.jsx
 
 ### GitHub:
 
