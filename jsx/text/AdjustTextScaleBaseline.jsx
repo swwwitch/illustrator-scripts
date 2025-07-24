@@ -9,7 +9,7 @@ AdjustTextScaleBaseline.jsx
 
 ### Readme （GitHub）：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AdjustTextScaleBaseline.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AdjustTextScaleBaseline.md
 
 ### 概要：
 
@@ -39,7 +39,7 @@ AdjustTextScaleBaseline.jsx
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/AdjustTextScaleBaseline.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AdjustTextScaleBaseline.md
 
 ### Description:
 

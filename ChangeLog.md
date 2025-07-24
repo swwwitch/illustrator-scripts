@@ -1,5 +1,13 @@
 # Change Log
 
+## 20250724
+
+### 新しいスクリプトを追加
+
+- [特定の文字のフォントサイズやベースラインの調整](readme-ja/AdjustTextScaleBaseline.md)
+
+<img alt="" src="https://www.dtp-transit.jp/images/ss-806-638-72-20250724-075951.png" width="80%" />
+
 ## 20250722
 
 ### 新しいスクリプトを追加
