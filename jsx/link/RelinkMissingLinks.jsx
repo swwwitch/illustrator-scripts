@@ -8,9 +8,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Detect missing linked images in Illustrator, prompt user to specify a folder,
 and automatically relink if a file with the same name is found.
 
+更新日 / Last Updated: 2025-08-02
+
 更新履歴 / Update History:
 - v1.0 (20250718): 初版作成 / Initial version
 - v1.1 (20250730): ダイアログオプション（拡張子完全一致/ファイル名のみ/拡張子優先）追加
+- v1.2 (20250731): 処理対象「すべて」を選択した場合、リンクが有効なファイルも更新可能に変更
 */
 
 // スクリプトバージョン
@@ -48,8 +51,8 @@ var LABELS = {
         en: "Missing Links Only"
     },
     chkAll: {
-        ja: "すべて",
-        en: "All"
+        ja: "リンク変更",
+        en: "Relink Existing"
     },
     ok: {
         ja: "OK",
@@ -84,7 +87,7 @@ function showRelinkDialog() {
     matchGroup.alignment = "left";
     matchGroup.margins = [15, 20, 15, 10];
 
-    // --- ここから追加: 対象パネル ---
+    // --- 対象パネル ---
     var targetGroup = dialog.add("panel", undefined, LABELS.targetGroup[lang]);
     targetGroup.orientation = "column";
     targetGroup.alignment = "left";
@@ -96,31 +99,39 @@ function showRelinkDialog() {
 
     var chkAll = targetGroup.add("checkbox", undefined, LABELS.chkAll[lang]);
     chkAll.alignment = "left";
-    // --- ここまで追加 ---
 
-    var options = [{
-            label: "完全一致",
-            value: "exact"
-        },
-        {
-            label: "ファイル名のみで調べる",
-            value: "nameOnly"
-        },
-        {
-            label: "pngを優先",
-            value: "priority",
-            ext: "png"
-        },
-        {
-            label: "psdを優先",
-            value: "priority",
-            ext: "psd"
-        },
-        {
-            label: "jpgを優先",
-            value: "priority",
-            ext: "jpg"
+    // --- 追加: リンク切れ/有効リンクの有無をチェック ---
+    try {
+        var doc = app.activeDocument;
+        var hasMissing = false;
+        var hasAlive = false;
+        for (var i = 0; i < doc.placedItems.length; i++) {
+            var pi = doc.placedItems[i];
+            if (isLinkBroken(pi)) {
+                hasMissing = true;
+            } else {
+                hasAlive = true;
+            }
         }
+        if (!hasMissing) {
+            chkMissingOnly.enabled = false;
+            chkMissingOnly.value = false;
+        }
+        if (!hasAlive) {
+            chkAll.enabled = false;
+            chkAll.value = false;
+        } else {
+            // リンクが生きているものがあればONにする
+            chkAll.value = true;
+        }
+    } catch (e) {}
+
+    var options = [
+        { label: "完全一致", value: "exact" },
+        { label: "ファイル名のみで調べる", value: "nameOnly" },
+        { label: "pngを優先", value: "priority", ext: "png" },
+        { label: "psdを優先", value: "priority", ext: "psd" },
+        { label: "jpgを優先", value: "priority", ext: "jpg" }
     ];
 
     var radioButtons = [];
@@ -177,27 +188,62 @@ function main() {
     if (!dialogResult) return;
 
     var doc = app.activeDocument;
-    var x = new XML(doc.XMPString);
-    var m = x.xpath('//stRef:filePath');
 
-    if (m !== '') {
-        for (var i = 0, len = m.length(); i < len; i++) {
-            var pathStr = m[i].toString();
-            var fname = pathStr.replace(/^.*[\/\\]/, "");
-            var fileObj = File(pathStr);
-            // ユーザーの選択に応じて処理対象を分岐
-            if (
-                dialogResult.targetAll ||
-                (!fileObj.exists && dialogResult.targetMissingOnly)
-            ) {
-                relinkSingleItem(
-                    doc.placedItems,
-                    fname,
-                    dialogResult.targetFolder,
-                    dialogResult.mode,
-                    dialogResult.priorityExt
-                );
+    // XMPメタデータからfilePathノードを抽出しファイル名リスト化
+    var xmp;
+    try {
+        xmp = new XML(doc.XMPString);
+    } catch (e) {
+        xmp = null;
+    }
+    var paths = [];
+    if (xmp) {
+        try {
+            var nodes = xmp.xpath('//stRef:filePath');
+            for (var i = 0; i < nodes.length(); i++) {
+                var pathStr = nodes[i].toString();
+                var fname = pathStr.replace(/^.*[\/\\]/, "");
+                paths.push(fname);
             }
+        } catch (e) {}
+    }
+
+    for (var j = 0; j < doc.placedItems.length; j++) {
+        var pi = doc.placedItems[j];
+
+        var shouldRelink = false;
+        if (dialogResult.targetAll) {
+            shouldRelink = true;
+        } else if (dialogResult.targetMissingOnly && isLinkBroken(pi)) {
+            shouldRelink = true;
+        }
+
+        if (shouldRelink) {
+            var fname = "";
+            try {
+                if (pi.file && pi.file.name) {
+                    fname = pi.file.name;
+                } else if (isLinkBroken(pi)) {
+                    // XMPから収集したファイル名を利用
+                    if (paths[j]) {
+                        fname = paths[j];
+                    } else if (pi.name) {
+                        fname = pi.name;
+                    }
+                }
+            } catch (e) {
+                if (paths[j]) {
+                    fname = paths[j];
+                }
+            }
+            relinkSingleItem(
+                pi,
+                fname,
+                dialogResult.targetFolder,
+                dialogResult.mode,
+                dialogResult.priorityExt,
+                dialogResult
+            );
         }
     }
 }
@@ -205,62 +251,76 @@ function main() {
 main();
 
 // 個別再リンク処理 / Function to relink a single missing file
-// 個別再リンク処理 / Function to relink a single missing file
-function relinkSingleItem(items, brokenName, targetFolder, mode, priorityExt) {
+function relinkSingleItem(item, brokenName, targetFolder, mode, priorityExt, dialogResult) {
+    if (!(item instanceof PlacedItem)) return;
+
+    var shouldRelink = false;
+
+    // 「リンク切れのみ」の場合 → リンク切れのみ対象
+    if (dialogResult.targetMissingOnly && isLinkBroken(item)) {
+        shouldRelink = true;
+    }
+
+    // 「リンク変更」の場合 → リンクが生きている場合のみ対象
+    if (dialogResult.targetAll && !isLinkBroken(item)) {
+        shouldRelink = true;
+    }
+
+    if (!shouldRelink) return;
+
+    var originalName = "";
+    try {
+        if (item.file && item.file.name) {
+            originalName = item.file.name.toLowerCase();
+        } else if (brokenName) {
+            originalName = brokenName.toLowerCase();
+        }
+    } catch (e) {
+        if (brokenName) originalName = brokenName.toLowerCase();
+    }
+    if (!originalName) return;
+
+    var originalBase = stripExt(originalName);
+
     var filesInFolder = targetFolder.getFiles();
+    var candidates = [];
+    for (var k = 0; k < filesInFolder.length; k++) {
+        var candidate = filesInFolder[k];
+        if (!(candidate instanceof File)) continue;
 
-    var brokenNameLower = brokenName.toLowerCase();
-    var brokenBase = stripExt(brokenNameLower);
+        var candidateName = candidate.name.toLowerCase();
+        if (matchCandidate(candidateName, originalName, originalBase, mode, priorityExt)) {
+            candidates.push(candidate);
+        }
+    }
 
-    for (var i = 0; i < items.length; i++) {
-        var item = items[i];
-        if (!(item instanceof PlacedItem)) continue;
+    if (candidates.length === 1) {
+        try {
+            item.file = candidates[0];
+        } catch (e) {
+            alert("再リンク失敗：" + candidates[0].name + "\n" + e);
+        }
+    } else if (candidates.length > 1) {
+        var chooseDlg = new Window("dialog", "候補を選択");
+        chooseDlg.alignChildren = "fill";
+        chooseDlg.add("statictext", undefined, "再リンクするファイルを選んでください:");
 
-        if (isLinkBroken(item)) {
-            var candidates = [];
-            for (var k = 0; k < filesInFolder.length; k++) {
-                var candidate = filesInFolder[k];
-                if (!(candidate instanceof File)) continue;
+        var list = chooseDlg.add("listbox", [0,0,400,150]);
+        for (var c = 0; c < candidates.length; c++) {
+            list.add("item", candidates[c].name);
+        }
+        list.selection = 0;
 
-                var candidateName = candidate.name.toLowerCase();
-                if (matchCandidate(candidateName, brokenNameLower, brokenBase, mode, priorityExt)) {
-                    candidates.push(candidate);
-                }
-            }
+        var btnGroup = chooseDlg.add("group");
+        btnGroup.alignment = "right";
+        btnGroup.add("button", undefined, "キャンセル", {name:"cancel"});
+        var okBtn = btnGroup.add("button", undefined, "OK");
 
-            if (candidates.length === 1) {
-                // 候補が1件 → 即決
-                try {
-                    item.file = candidates[0];
-                } catch (e) {
-                    alert("再リンク失敗：" + candidates[0].name + "\n" + e);
-                }
-                return;
-            } else if (candidates.length > 1) {
-                // 候補が複数 → ダイアログで選択
-                var chooseDlg = new Window("dialog", "候補を選択");
-                chooseDlg.alignChildren = "fill";
-                chooseDlg.add("statictext", undefined, "再リンクするファイルを選んでください:");
-
-                var list = chooseDlg.add("listbox", [0,0,400,150]);
-                for (var c = 0; c < candidates.length; c++) {
-                    list.add("item", candidates[c].name);
-                }
-                list.selection = 0;
-
-                var btnGroup = chooseDlg.add("group");
-                btnGroup.alignment = "right";
-                btnGroup.add("button", undefined, "キャンセル", {name:"cancel"});
-                var okBtn = btnGroup.add("button", undefined, "OK");
-
-                if (chooseDlg.show() == 1 && list.selection) {
-                    try {
-                        item.file = candidates[list.selection.index];
-                    } catch (e) {
-                        alert("再リンク失敗：" + candidates[list.selection.index].name + "\n" + e);
-                    }
-                }
-                return;
+        if (chooseDlg.show() == 1 && list.selection) {
+            try {
+                item.file = candidates[list.selection.index];
+            } catch (e) {
+                alert("再リンク失敗：" + candidates[list.selection.index].name + "\n" + e);
             }
         }
     }
@@ -284,7 +344,9 @@ function isLinkBroken(item) {
 // 候補ファイルと比較 / Match candidate file
 function matchCandidate(candidateName, brokenName, brokenBase, mode, priorityExt) {
     var candidateBase = stripExt(candidateName); // キャッシュ
+
     if (mode === "exact") {
+        // 拡張子を含めたファイル名が完全一致の場合のみ
         return candidateName === brokenName;
     } else if (mode === "nameOnly") {
         return candidateBase === brokenBase;
