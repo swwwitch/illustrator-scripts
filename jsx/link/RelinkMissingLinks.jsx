@@ -14,10 +14,11 @@ and automatically relink if a file with the same name is found.
 - v1.0 (20250718): 初版作成 / Initial version
 - v1.1 (20250730): ダイアログオプション（拡張子完全一致/ファイル名のみ/拡張子優先）追加
 - v1.2 (20250731): 処理対象「すべて」を選択した場合、リンクが有効なファイルも更新可能に変更
+
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.4";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -35,8 +36,8 @@ var LABELS = {
         en: "Relink Folder:"
     },
     chooseButton: {
-        ja: "フォルダー指定",
-        en: "Choose Folder"
+        ja: "指定",
+        en: "Choose"
     },
     matchGroup: {
         ja: "拡張子の扱い",
@@ -55,8 +56,8 @@ var LABELS = {
         en: "Relink Existing"
     },
     ok: {
-        ja: "OK",
-        en: "OK"
+        ja: "再リンク",
+        en: "Relink"
     },
     cancel: {
         ja: "キャンセル",
@@ -69,28 +70,34 @@ function showRelinkDialog() {
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.alignChildren = "fill";
 
-    var folderGroup = dialog.add("group");
+    var folderGroup = dialog.add("panel", undefined, LABELS.folderLabel[lang]);
     folderGroup.orientation = "column";
-    folderGroup.margins = [0, 3, 0, 10];
-    folderGroup.add("statictext", undefined, LABELS.folderLabel[lang]);
+    folderGroup.alignment = "fill";
+    folderGroup.margins = [5, 20, 5, 10];
 
     var folderPath = folderGroup.add("edittext", undefined, "");
-    folderPath.characters = 20;
+    folderPath.characters = 30;
+
     var chooseBtn = folderGroup.add("button", undefined, LABELS.chooseButton[lang]);
     chooseBtn.onClick = function() {
         var target = Folder.selectDialog(LABELS.folderLabel[lang]);
         if (target) folderPath.text = target.fsName;
     };
 
-    var matchGroup = dialog.add("panel", undefined, LABELS.matchGroup[lang]);
+    var middleGroup = dialog.add("group");
+    middleGroup.orientation = "row";
+    middleGroup.alignment = "center";
+    middleGroup.spacing = 20;
+
+    var matchGroup = middleGroup.add("panel", undefined, LABELS.matchGroup[lang]);
     matchGroup.orientation = "column";
-    matchGroup.alignment = "left";
+    matchGroup.alignment = "top";
     matchGroup.margins = [15, 20, 15, 10];
 
     // --- 対象パネル ---
-    var targetGroup = dialog.add("panel", undefined, LABELS.targetGroup[lang]);
+    var targetGroup = middleGroup.add("panel", undefined, LABELS.targetGroup[lang]);
     targetGroup.orientation = "column";
-    targetGroup.alignment = "left";
+    targetGroup.alignment = "top";
     targetGroup.margins = [15, 20, 15, 10];
 
     var chkMissingOnly = targetGroup.add("checkbox", undefined, LABELS.chkMissing[lang]);
@@ -128,7 +135,7 @@ function showRelinkDialog() {
 
     var options = [
         { label: "完全一致", value: "exact" },
-        { label: "ファイル名のみで調べる", value: "nameOnly" },
+        { label: "ファイル名のみ", value: "nameOnly" },
         { label: "pngを優先", value: "priority", ext: "png" },
         { label: "psdを優先", value: "priority", ext: "psd" },
         { label: "jpgを優先", value: "priority", ext: "jpg" }
@@ -143,9 +150,9 @@ function showRelinkDialog() {
 
     var btnGroup = dialog.add("group");
     btnGroup.orientation = "row";
-    btnGroup.alignment = "right";
+    btnGroup.alignment = "center";
     btnGroup.add("button", undefined, LABELS.cancel[lang], {name:"cancel"});
-    var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang]);
+    var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang], {name:"ok"});
 
     return validateDialogInput(dialog, folderPath, options, radioButtons, chkMissingOnly, chkAll);
 }
