@@ -63,6 +63,23 @@ var LABELS = {
         ja: "キャンセル",
         en: "Cancel"
     }
+    ,
+    options: {
+        ja: [
+            { label: "完全一致", value: "exact" },
+            { label: "ファイル名のみ", value: "nameOnly" },
+            { label: "pngを優先", value: "priority", ext: "png" },
+            { label: "psdを優先", value: "priority", ext: "psd" },
+            { label: "jpgを優先", value: "priority", ext: "jpg" }
+        ],
+        en: [
+            { label: "Exact Match", value: "exact" },
+            { label: "Name Only", value: "nameOnly" },
+            { label: "Prefer PNG", value: "priority", ext: "png" },
+            { label: "Prefer PSD", value: "priority", ext: "psd" },
+            { label: "Prefer JPG", value: "priority", ext: "jpg" }
+        ]
+    }
 };
 
 /* ダイアログを表示してユーザーに設定を選ばせる / Show dialog and get user settings */
@@ -133,13 +150,7 @@ function showRelinkDialog() {
         }
     } catch (e) {}
 
-    var options = [
-        { label: "完全一致", value: "exact" },
-        { label: "ファイル名のみ", value: "nameOnly" },
-        { label: "pngを優先", value: "priority", ext: "png" },
-        { label: "psdを優先", value: "priority", ext: "psd" },
-        { label: "jpgを優先", value: "priority", ext: "jpg" }
-    ];
+    var options = LABELS.options[lang];
 
     var radioButtons = [];
     for (var i = 0; i < options.length; i++) {
