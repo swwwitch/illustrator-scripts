@@ -31,12 +31,22 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/AlignA
 - プレビュー更新
 - 実行時に配置確定
 
+### オリジナルアイデア
+
+John Wundes 
+Distribute Stacked Objects v1.1
+https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
+
+Gorolib Design
+https://gorolib.blog.jp/archives/77282974.html
+
 ### 更新履歴：
 
 - v1.0 (20250716) : 初期バージョン
 - v1.1 (20250717) : 安定性改善、行数ロジック修正
 - v1.2 (20250718) : コメント整理、ローカライズ統一、ランダム基準位置補正改善
-- v1.3 (20250719) : グリッド機能の追加、ガターを縦横個別に設定
+- v1.3 (20250801) : グリッド機能の追加、ガターを縦横個別に設定
+- v1.4 (20250801) : ローカライズを調整
 
 ---
 
@@ -74,13 +84,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/AlignA
 - v1.0 (2025-07-16): Initial version
 - v1.1 (2025-07-17): Stability improvements, row logic fix
 - v1.2 (2025-07-18): Comment refinement, localization update, improved random positioning correction
-- v1.3 (2025-07-19): Added grid functionality, separate gutter settings for horizontal and vertical spacing
+- v1.3 (2025-08-01): Added grid feature, separate gutter settings for horizontal and vertical spacing
+- v1.4 (2025-08-01): Adjusted localization
 */
 
-// バージョン変数を追加 / Script version variable
-var SCRIPT_VERSION = "v1.3";
+/* バージョン変数を追加 / Script version variable */
+var SCRIPT_VERSION = "v1.4";
 
-// Dialog position and appearance variables
+/* ダイアログ位置と外観変数 / Dialog position and appearance variables */
 var offsetX = 300;
 var offsetY = 0;
 var dialogOpacity = 0.97;
@@ -93,8 +104,8 @@ var lang = getCurrentLang();
 /* LABELS 定義（ダイアログUIの順序に合わせて並べ替え）/ Label definitions (ordered to match dialog UI) */
 var LABELS = {
     dialogTitle: {
-        ja: "ぴったり整列（横） " + SCRIPT_VERSION,
-        en: "Align Precisely " + SCRIPT_VERSION
+        ja: "整列と分布（グリッド対応）" + SCRIPT_VERSION,
+        en: "Align & Distribute (Horizontal) " + SCRIPT_VERSION
     },
     rows: {
         ja: "行数:",
@@ -159,7 +170,7 @@ var LABELS = {
 };
 
 
-// 単位コードとラベルのマップ / Map of unit codes to labels
+/* 単位コードとラベルのマップ / Map of unit codes to labels */
 var unitLabelMap = {
     0: "in",
     1: "mm",
@@ -174,13 +185,13 @@ var unitLabelMap = {
     10: "ft"
 };
 
-// 現在の単位ラベルを取得 / Get current unit label
+/* 現在の単位ラベルを取得 / Get current unit label */
 function getCurrentUnitLabel() {
     var unitCode = app.preferences.getIntegerPreference("rulerType");
     return unitLabelMap[unitCode] || "pt";
 }
 
-// 単位コードからポイント換算係数を取得 / Get point factor from unit code
+/* 単位コードからポイント換算係数を取得 / Get point factor from unit code */
 function getPtFactorFromUnitCode(code) {
     switch (code) {
         case 0:
@@ -210,7 +221,7 @@ function getPtFactorFromUnitCode(code) {
     }
 }
 
-// Helper to shift dialog position by offsetX/offsetY
+/* ダイアログ位置をオフセットするヘルパー / Helper to shift dialog position by offsetX/offsetY */
 function shiftDialogPosition(dlg, offsetX, offsetY) {
     dlg.onShow = function() {
         var currentX = dlg.location[0];
@@ -219,7 +230,7 @@ function shiftDialogPosition(dlg, offsetX, offsetY) {
     };
 }
 
-// Helper to set dialog opacity
+/* ダイアログの不透明度を設定するヘルパー / Helper to set dialog opacity */
 function setDialogOpacity(dlg, opacityValue) {
     dlg.opacity = opacityValue;
 }
@@ -227,11 +238,11 @@ function setDialogOpacity(dlg, opacityValue) {
 /* ダイアログ表示関数 / Show dialog with language support */
 function showArrangeDialog() {
     var lang = getCurrentLang();
-    var dlg = new Window("dialog", LABELS.dialogTitle);
+    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
     dlg.alignChildren = "fill";
 
-    // Set dialog opacity and position
+    /* ダイアログの不透明度と位置を設定 / Set dialog opacity and position */
     setDialogOpacity(dlg, dialogOpacity);
     shiftDialogPosition(dlg, offsetX, offsetY);
 
@@ -278,14 +289,14 @@ function showArrangeDialog() {
     alignPanel.alignChildren = ["left", "center"];
     alignPanel.margins = [15, 20, 15, 10];
 
-    // 上下方向揃えグループ
+    /* 上下方向揃えグループ / Vertical align group */
     var vAlignGroup = alignPanel.add("group");
     vAlignGroup.orientation = "row";
     vAlignGroup.alignChildren = ["left", "center"];
     var rbTop = vAlignGroup.add("radiobutton", undefined, LABELS.vAlignTop[lang]);
     var rbMiddle = vAlignGroup.add("radiobutton", undefined, LABELS.vAlignMiddle[lang]);
     var rbBottom = vAlignGroup.add("radiobutton", undefined, LABELS.vAlignBottom[lang]);
-    rbTop.value = true; // デフォルトを「上」に
+    rbTop.value = true; /* デフォルトを「上」に / Default to Top */
 
     rbTop.onClick = function() {
         updatePreview();
@@ -297,14 +308,14 @@ function showArrangeDialog() {
         updatePreview();
     };
 
-    // 左右方向揃えグループ
+    /* 左右方向揃えグループ / Horizontal align group */
     var hAlignGroup = alignPanel.add("group");
     hAlignGroup.orientation = "row";
     hAlignGroup.alignChildren = ["left", "center"];
     var rbHLeft = hAlignGroup.add("radiobutton", undefined, LABELS.hAlignLeft[lang]);
     var rbHCenter = hAlignGroup.add("radiobutton", undefined, LABELS.hAlignCenter[lang]);
     var rbHRight = hAlignGroup.add("radiobutton", undefined, LABELS.hAlignRight[lang]);
-    rbHLeft.value = true; // デフォルトを「左」に
+    rbHLeft.value = true; /* デフォルトを「左」に / Default to Left */
     rbHLeft.onClick = function() {
         updatePreview();
     };
@@ -344,10 +355,10 @@ function showArrangeDialog() {
     var buttonGroup2 = dlg.add("group");
     buttonGroup2.alignment = "right";
     buttonGroup2.alignChildren = ["right", "center"];
-    var cancelButton = buttonGroup2.add("button", undefined, LABELS.cancel, {
+    var cancelButton = buttonGroup2.add("button", undefined, LABELS.cancel[lang], {
         name: "cancel"
     });
-    var okButton = buttonGroup2.add("button", undefined, LABELS.ok, {
+    var okButton = buttonGroup2.add("button", undefined, LABELS.ok[lang], {
         name: "ok"
     });
 
@@ -386,7 +397,7 @@ function showArrangeDialog() {
                 sortedItems[i] = sortedItems[j];
                 sortedItems[j] = temp;
             }
-            // ランダム配置時の基準位置を固定する補正 / Fix base position for random layout
+            /* ランダム配置時の基準位置を固定する補正 / Fix base position for random layout */
             var baseLeft = originalPositions[0][0];
             var baseTop = originalPositions[0][1];
             for (var i = 1; i < originalPositions.length; i++) {
@@ -459,7 +470,7 @@ function showArrangeDialog() {
             }
         }
         if (randomCheckbox.value) {
-            // 基準座標との差分で補正 / Adjust positions using saved baseLeft/baseTop
+            /* 基準座標との差分で補正 / Adjust positions using saved baseLeft/baseTop */
             var offsetX = baseLeft - sortedItems[0].left;
             var offsetY = baseTop - sortedItems[0].top;
             for (var i = 0; i < sortedItems.length; i++) {
@@ -567,19 +578,31 @@ function resetPositions(items, positions) {
 /* メイン処理 / Main function */
 function main() {
     try {
+        var lang = getCurrentLang();
         var selectedItems = activeDocument.selection;
         if (!selectedItems || selectedItems.length === 0) {
-            alert("オブジェクトを選択してください。\nPlease select objects.");
+            alert(
+                (lang === "ja"
+                    ? "オブジェクトを選択してください。"
+                    : "Please select objects."
+                )
+            );
             return;
         }
 
         var arrangeOptions = showArrangeDialog();
         if (!arrangeOptions) return;
 
-        // プレビュー結果をそのまま使用 / Use preview result as final
+        /* プレビュー結果をそのまま使用 / Use preview result as final */
         return;
     } catch (e) {
-        alert("エラーが発生しました: " + e.message + "\nAn error has occurred.");
+        var lang = getCurrentLang();
+        alert(
+            (lang === "ja"
+                ? "エラーが発生しました: " + e.message
+                : "An error has occurred: " + e.message
+            )
+        );
     }
 }
 
