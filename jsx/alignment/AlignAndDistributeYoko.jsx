@@ -8,7 +8,7 @@ AlignAndDistributeYoko.jsx
 
 ### Readme （GitHub）：
 
-https://github.com/your-repo/AlignAndDistributeYoko
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/AlignAndDistributeYoko.jsx
 
 ### 概要：
 
@@ -46,7 +46,7 @@ AlignAndDistributeYoko.jsx
 
 ### Readme (GitHub):
 
-https://github.com/your-repo/AlignAndDistributeYoko
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/AlignAndDistributeYoko.jsx
 
 ### Overview:
 
