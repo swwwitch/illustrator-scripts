@@ -316,7 +316,7 @@ function showArrangeDialog() {
     };
 
     /* プレビュー境界チェックボックス / Preview bounds checkbox */
-    var boundsCheckbox = dlg.add("checkbox", undefined, LABELS.useBounds);
+    var boundsCheckbox = dlg.add("checkbox", undefined, LABELS.useBounds[lang]);
     boundsCheckbox.value = true;
     boundsCheckbox.onClick = function() {
         updatePreview();
@@ -337,7 +337,7 @@ function showArrangeDialog() {
     rbHLeft.enabled = rbHCenter.enabled = rbHRight.enabled = gridCheckbox.value;
 
     /* ランダム配置チェックボックス / Random arrangement checkbox */
-    var randomCheckbox = dlg.add("checkbox", undefined, LABELS.random);
+    var randomCheckbox = dlg.add("checkbox", undefined, LABELS.random[lang]);
     randomCheckbox.value = false;
 
     /* ボタン配置グループ / Button group */
