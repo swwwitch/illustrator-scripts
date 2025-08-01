@@ -86,58 +86,78 @@ var offsetY = 0;
 var dialogOpacity = 0.97;
 
 function getCurrentLang() {
-  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
 /* LABELS 定義（ダイアログUIの順序に合わせて並べ替え）/ Label definitions (ordered to match dialog UI) */
 var LABELS = {
-    // ダイアログタイトル / Dialog title
     dialogTitle: {
         ja: "ぴったり整列（横） " + SCRIPT_VERSION,
         en: "Align Precisely " + SCRIPT_VERSION
     },
-    // 行数 / Rows
     rows: {
         ja: "行数:",
         en: "Rows:"
     },
-    // 横間隔 / Horizontal margin
     hMargin: {
         ja: "間隔(横):",
         en: "Spacing (H):"
     },
-    // 縦間隔 / Vertical margin
     vMargin: {
         ja: "間隔(縦):",
         en: "Spacing (V):"
     },
-    // プレビュー境界を使用 / Use preview bounds
     useBounds: {
         ja: "プレビュー境界を使用",
         en: "Use preview bounds"
     },
-    // グリッド / Grid
     grid: {
         ja: "グリッド",
         en: "Grid"
     },
-    // ランダム / Random
     random: {
         ja: "ランダム",
         en: "Random"
     },
-    // キャンセル / Cancel
+    alignPanel: {
+        ja: "揃え",
+        en: "Align"
+    },
+    vAlignTop: {
+        ja: "上",
+        en: "Top"
+    },
+    vAlignMiddle: {
+        ja: "中央",
+        en: "Middle"
+    },
+    vAlignBottom: {
+        ja: "下",
+        en: "Bottom"
+    },
+    hAlignLeft: {
+        ja: "左",
+        en: "Left"
+    },
+    hAlignCenter: {
+        ja: "中央",
+        en: "Center"
+    },
+    hAlignRight: {
+        ja: "右",
+        en: "Right"
+    },
     cancel: {
         ja: "キャンセル",
         en: "Cancel"
     },
-    // OK
     ok: {
         ja: "OK",
         en: "OK"
     }
 };
+
 
 // 単位コードとラベルのマップ / Map of unit codes to labels
 var unitLabelMap = {
@@ -192,7 +212,7 @@ function getPtFactorFromUnitCode(code) {
 
 // Helper to shift dialog position by offsetX/offsetY
 function shiftDialogPosition(dlg, offsetX, offsetY) {
-    dlg.onShow = function () {
+    dlg.onShow = function() {
         var currentX = dlg.location[0];
         var currentY = dlg.location[1];
         dlg.location = [currentX + offsetX, currentY + offsetY];
@@ -252,7 +272,8 @@ function showArrangeDialog() {
 
 
     /* 揃えパネル / Align panel */
-    var alignPanel = dlg.add("panel", undefined, "揃え");
+    var alignPanel = dlg.add("panel", undefined, LABELS.alignPanel[lang]);
+
     alignPanel.orientation = "column";
     alignPanel.alignChildren = ["left", "center"];
     alignPanel.margins = [15, 20, 15, 10];
@@ -261,26 +282,38 @@ function showArrangeDialog() {
     var vAlignGroup = alignPanel.add("group");
     vAlignGroup.orientation = "row";
     vAlignGroup.alignChildren = ["left", "center"];
-    var rbTop = vAlignGroup.add("radiobutton", undefined, "上");
-    var rbMiddle = vAlignGroup.add("radiobutton", undefined, "中央");
-    var rbBottom = vAlignGroup.add("radiobutton", undefined, "下");
+    var rbTop = vAlignGroup.add("radiobutton", undefined, LABELS.vAlignTop[lang]);
+    var rbMiddle = vAlignGroup.add("radiobutton", undefined, LABELS.vAlignMiddle[lang]);
+    var rbBottom = vAlignGroup.add("radiobutton", undefined, LABELS.vAlignBottom[lang]);
     rbTop.value = true; // デフォルトを「上」に
 
-    rbTop.onClick = function() { updatePreview(); };
-    rbMiddle.onClick = function() { updatePreview(); };
-    rbBottom.onClick = function() { updatePreview(); };
+    rbTop.onClick = function() {
+        updatePreview();
+    };
+    rbMiddle.onClick = function() {
+        updatePreview();
+    };
+    rbBottom.onClick = function() {
+        updatePreview();
+    };
 
     // 左右方向揃えグループ
     var hAlignGroup = alignPanel.add("group");
     hAlignGroup.orientation = "row";
     hAlignGroup.alignChildren = ["left", "center"];
-    var rbHLeft = hAlignGroup.add("radiobutton", undefined, "左");
-    var rbHCenter = hAlignGroup.add("radiobutton", undefined, "中央");
-    var rbHRight = hAlignGroup.add("radiobutton", undefined, "右");
+    var rbHLeft = hAlignGroup.add("radiobutton", undefined, LABELS.hAlignLeft[lang]);
+    var rbHCenter = hAlignGroup.add("radiobutton", undefined, LABELS.hAlignCenter[lang]);
+    var rbHRight = hAlignGroup.add("radiobutton", undefined, LABELS.hAlignRight[lang]);
     rbHLeft.value = true; // デフォルトを「左」に
-    rbHLeft.onClick = function() { updatePreview(); };
-    rbHCenter.onClick = function() { updatePreview(); };
-    rbHRight.onClick = function() { updatePreview(); };
+    rbHLeft.onClick = function() {
+        updatePreview();
+    };
+    rbHCenter.onClick = function() {
+        updatePreview();
+    };
+    rbHRight.onClick = function() {
+        updatePreview();
+    };
 
     /* プレビュー境界チェックボックス / Preview bounds checkbox */
     var boundsCheckbox = dlg.add("checkbox", undefined, LABELS.useBounds);
