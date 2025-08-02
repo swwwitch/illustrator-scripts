@@ -47,6 +47,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGuid
 - v1.7 (20250712) : 複数オブジェクトごとにガイドを作成するオプション追加、アートボード基準のガイド作成機能改善
 - v1.8 (20250712) : 中心線（垂直のみ）、中心線（水平のみ）の描画ロジックを追加
 - v1.9 (20250712) : ↑↓キー、shift + ↑↓キーでの値の増減機能を追加
+- v1.10 (20250802) : クリップグループ選択時の挙動を調整
 
 ### Script Name:
 
@@ -87,13 +88,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuid
 - v1.7 (20250712): Added option to create guides per object, improved artboard-based guide creation
 - v1.8 (20250712): Added center line (vertical only) and center line (horizontal only) drawing logic
 - v1.9 (20250712): Added up/down arrow key and shift + up/down key value increment/decrement functionality
+- v1.10 (20250802): Adjusted behavior for clip group selection
 
 */
 
 // --- グローバル定義 / Global definitions ---
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.9";
+var SCRIPT_VERSION = "v1.10";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -322,7 +324,24 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
 
         for (var i = 0; i < selItems.length; i++) {
             var item = selItems[i];
-            var b = options.usePreviewBounds ? item.visibleBounds : item.geometricBounds;
+            var b;
+            if (item.typename === "GroupItem" && item.clipped) {
+                var mask = null;
+                for (var j = 0; j < item.pageItems.length; j++) {
+                    if (item.pageItems[j].clipping) {
+                        mask = item.pageItems[j];
+                        break;
+                    }
+                }
+                if (mask) {
+                    b = options.usePreviewBounds ? mask.visibleBounds : mask.geometricBounds;
+                } else {
+                    // マスクが見つからない場合は通常のグループ境界を使用 / Fallback to group bounds if no mask found
+                    b = options.usePreviewBounds ? item.visibleBounds : item.geometricBounds;
+                }
+            } else {
+                b = options.usePreviewBounds ? item.visibleBounds : item.geometricBounds;
+            }
 
             var top = b[1] + offsetValue;
             var left = b[0] - offsetValue;
@@ -456,6 +475,7 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
                 if (mask) {
                     b = options.usePreviewBounds ? mask.visibleBounds : mask.geometricBounds;
                 } else {
+                    // マスクが見つからない場合は通常のグループ境界を使用 / Fallback to group bounds if no mask found
                     b = options.usePreviewBounds ? item.visibleBounds : item.geometricBounds;
                 }
             } else {
