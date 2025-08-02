@@ -1,0 +1,599 @@
+#target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
+
+/*
+
+### スクリプト名：
+
+RandomizeObjects.jsx
+
+### GitHub：
+
+https://github.com/swwwitch/illustrator-scripts
+
+### 概要：
+
+- 選択したオブジェクトをランダムに移動・変形・回転・不透明度を変更するスクリプト
+- UIから各種パラメータを指定し、即時プレビューで結果を確認可能
+
+### 主な機能：
+
+- 移動距離を横・縦方向に個別設定、または連動
+- 中央揃えオプションでオブジェクトを一箇所に集約
+- 拡大縮小（変形）、回転、不透明度のランダム化
+- プレビュー反映、キャンセルで元の状態に完全リセット
+
+### 処理の流れ：
+
+1. ドキュメントと選択状態を確認
+2. ダイアログを表示（移動距離・変形率・回転・不透明度を入力）
+3. 入力値をもとにランダム変形や移動を即時プレビュー
+4. OKで確定、キャンセルでダイアログ起動前にリセット
+
+### 更新履歴：
+
+- v1.0 (20250802): 初期バージョン
+
+---
+
+### Script Name:
+
+RandomizeObjects.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts
+
+### Overview:
+
+- Randomly move, scale, rotate, and change opacity of selected objects
+- Specify parameters via UI with immediate preview
+
+### Main Features:
+
+- Set horizontal/vertical move distances individually or linked
+- Gather all objects to center option
+- Random scaling, rotation, and opacity
+- Live preview, cancel restores original state completely
+
+### Process Flow:
+
+1. Check document and selection
+2. Show dialog (distance, scale, rotate, opacity)
+3. Preview random transform based on inputs
+4. OK confirms, Cancel restores state before dialog
+
+### Update History:
+
+- v1.0 (20250802): Initial version
+
+*/
+
+var SCRIPT_VERSION = "v1.0";
+
+function getCurrentLang() {
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
+
+var LABELS = {
+    dialogTitle: {
+        ja: "ランダム化 " + SCRIPT_VERSION,
+        en: "Randomize" + SCRIPT_VERSION
+    },
+    ok: {
+        ja: "OK",
+        en: "OK"
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    distance: {
+        ja: "移動距離",
+        en: "Distance"
+    },
+    horizontal: {
+        ja: "横:",
+        en: "Horizontal:"
+    },
+    vertical: {
+        ja: "縦:",
+        en: "Vertical:"
+    },
+    link: {
+        ja: "連動",
+        en: "Link"
+    },
+    center: {
+        ja: "中央に集める",
+        en: "Gather to Center"
+    },
+    scale: {
+        ja: "変形",
+        en: "Scale"
+    },
+    rotate: {
+        ja: "回転",
+        en: "Rotate"
+    },
+    opacity: {
+        ja: "不透明度",
+        en: "Opacity"
+    }
+}
+/* ダイアログ設定を共通化 / Configure dialog position and opacity */
+function configureDialog(dlg, options) {
+    if (options.opacity !== undefined) {
+        dlg.opacity = options.opacity;
+    }
+    if (options.offsetX !== undefined || options.offsetY !== undefined) {
+        dlg.onShow = function() {
+            var currentX = dlg.location[0];
+            var currentY = dlg.location[1];
+            dlg.location = [
+                currentX + (options.offsetX || 0),
+                currentY + (options.offsetY || 0)
+            ];
+        };
+    }
+}
+
+/* 矢印キーによる新しい値を返す補助関数 / Helper to calculate new value */
+function getNewValueByKey(event, value, keyboard) {
+    var delta = 1;
+    if (keyboard.shiftKey) {
+        delta = 10;
+        if (event.keyName == "Up") {
+            return Math.ceil((value + 1) / delta) * delta;
+        } else if (event.keyName == "Down") {
+            return Math.floor((value - 1) / delta) * delta;
+        }
+    } else if (keyboard.altKey) {
+        delta = 0.1;
+        if (event.keyName == "Up") {
+            return value + delta;
+        } else if (event.keyName == "Down") {
+            return Math.max(0, value - delta);
+        }
+    } else {
+        delta = 1;
+        if (event.keyName == "Up") {
+            return value + delta;
+        } else if (event.keyName == "Down") {
+            return Math.max(0, value - delta);
+        }
+    }
+    return value;
+}
+
+/* 矢印キーで数値を増減 / Change numeric value with arrow keys */
+function changeValueByArrowKey(editText, previewFunc) {
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+
+        var keyboard = ScriptUI.environment.keyboardState;
+        var newValue = getNewValueByKey(event, value, keyboard);
+
+        if (newValue !== value) {
+            event.preventDefault();
+            if (keyboard.altKey) {
+                newValue = Math.round(newValue * 10) / 10;
+            } else {
+                newValue = Math.round(newValue);
+            }
+            editText.text = newValue;
+            if (previewFunc) previewFunc();
+        }
+    });
+}
+
+/* メイン処理 / Main process */
+function main() {
+    try {
+        if (app.documents.length === 0) {
+            alert("ドキュメントが開かれていません。 / No document is open.");
+            return;
+        }
+
+        var doc = app.activeDocument;
+        if (doc.selection.length === 0) {
+            alert("オブジェクトが選択されていません。 / No object is selected.");
+            return;
+        }
+
+        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+        dialog.orientation = "column";
+        dialog.alignChildren = "left";
+
+        configureDialog(dialog, {
+            offsetX: 300,
+            offsetY: 0,
+            opacity: 0.97
+        });
+
+        /* UI生成部分を以下に維持 */
+
+        /* 移動距離パネル / Distance panel */
+        var panelDistance = dialog.add("panel", undefined, LABELS.distance[lang]);
+        panelDistance.orientation = "column";
+        panelDistance.alignChildren = "center";
+        panelDistance.margins = [15, 20, 15, 10];
+
+
+        var groupContainer = panelDistance.add("group");
+        groupContainer.orientation = "row";
+        groupContainer.alignChildren = "top";
+
+        // 左カラム
+        var leftColumn = groupContainer.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = "left";
+
+        var groupX = leftColumn.add("group");
+        groupX.orientation = "row";
+        groupX.alignChildren = "center";
+        var chkDistanceX = groupX.add("checkbox", undefined, LABELS.horizontal[lang]);
+        chkDistanceX.value = true;
+        var inputDistanceX = groupX.add("edittext", undefined, "0");
+        inputDistanceX.characters = 4;
+        inputDistanceX.enabled = chkDistanceX.value;
+        groupX.add("statictext", undefined, "pt");
+
+        var groupY = leftColumn.add("group");
+        groupY.orientation = "row";
+        groupY.alignChildren = "center";
+        var chkDistanceY = groupY.add("checkbox", undefined, LABELS.vertical[lang]);
+        chkDistanceY.value = true;
+        var inputDistanceY = groupY.add("edittext", undefined, "0");
+        inputDistanceY.characters = 4;
+        inputDistanceY.enabled = chkDistanceY.value;
+        groupY.add("statictext", undefined, "pt");
+
+        // 右カラム
+        var rightColumn = groupContainer.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = "center";
+        rightColumn.alignment = ["fill", "center"];
+
+        var chkLinkX = rightColumn.add("checkbox", undefined, LABELS.link[lang]);
+        chkLinkX.value = false;
+
+        var groupCenter = panelDistance.add("group");
+        groupCenter.orientation = "row";
+        groupCenter.alignChildren = "left";
+        groupCenter.margins = [0, 10, 0, 0];
+        var chkCenter = groupCenter.add("checkbox", undefined, LABELS.center[lang]);
+        chkCenter.value = false;
+
+        // チェックボックスと入力欄を紐付け、プレビューも反映する関数 / Link checkbox & input with preview
+        function bindInput(chk, input, previewFunc, linkInput) {
+            chk.onClick = function() {
+                input.enabled = chk.value;
+                if (previewFunc) previewFunc();
+            };
+            input.onChanging = function() {
+                if (linkInput && chkLinkX.value) {
+                    linkInput.text = input.text;
+                }
+                if (previewFunc) previewFunc();
+            };
+            changeValueByArrowKey(input, function() {
+                if (linkInput && chkLinkX.value) {
+                    linkInput.text = input.text;
+                }
+                if (previewFunc) previewFunc();
+            });
+        }
+
+        // 「連動」チェックボックス（横）のON/OFFで縦の入力欄をディム、値をコピー
+        chkLinkX.onClick = function() {
+            if (chkLinkX.value) {
+                chkDistanceY.value = false;
+                chkDistanceY.enabled = false;
+                inputDistanceY.enabled = false;
+                inputDistanceY.text = inputDistanceX.text;
+            } else {
+                chkDistanceY.enabled = true;
+                inputDistanceY.enabled = chkDistanceY.value;
+            }
+        };
+
+        bindInput(chkDistanceX, inputDistanceX, previewDistance, inputDistanceY);
+        bindInput(chkDistanceY, inputDistanceY, previewDistance);
+
+        /* 共通ラベル幅 / Common label width */
+        var LABEL_WIDTH = 72;
+
+        // チェックボックス＋入力欄の生成を簡素化する関数 / Simplify creation of checkbox + input
+        function createCheckInput(parent, label, width, unit, defaultVal, isChecked) {
+            var group = parent.add("group");
+            group.orientation = "row";
+            group.alignChildren = "center";
+
+            var chk = group.add("checkbox", undefined, label);
+            chk.value = isChecked;
+            chk.preferredSize.width = width;
+
+            group.add("statictext", undefined, "");
+
+            var input = group.add("edittext", undefined, defaultVal);
+            input.characters = 4;
+            input.enabled = isChecked;
+
+            if (unit) group.add("statictext", undefined, unit);
+
+            chk.onClick = function() {
+                input.enabled = chk.value;
+            };
+
+            return {
+                chk: chk,
+                input: input
+            };
+        }
+
+        /* 変形・回転・不透明度をまとめたグループ / Group: Scale, Rotate, Opacity */
+        var groupTransform = dialog.add("group");
+        groupTransform.orientation = "column";
+        groupTransform.alignChildren = "left";
+        groupTransform.margins = [15, 5, 15, 10];
+
+        /* 変形 / Scale */
+        var scaleUI = createCheckInput(groupTransform, LABELS.scale[lang], LABEL_WIDTH, "（%）", "0", true);
+        var chkScale = scaleUI.chk;
+        var inputScale = scaleUI.input;
+
+        /* 回転 / Rotate */
+        var rotateUI = createCheckInput(groupTransform, LABELS.rotate[lang], LABEL_WIDTH, "（°）", "0", true);
+        var chkRotate = rotateUI.chk;
+        var inputRotate = rotateUI.input;
+
+        /* 不透明度 / Opacity */
+        var opacityUI = createCheckInput(groupTransform, LABELS.opacity[lang], LABEL_WIDTH, "（%）", "0", true);
+        var chkOpacity = opacityUI.chk;
+        var inputOpacity = opacityUI.input;
+
+        /* 選択オブジェクトの初期状態を記録 / Record initial state of selected objects */
+        var originalStates = [];
+        for (var i = 0; i < doc.selection.length; i++) {
+            var item = doc.selection[i];
+            var bounds = item.visibleBounds;
+            originalStates.push({
+                item: item,
+                position: [item.position[0], item.position[1]],
+                width: bounds[2] - bounds[0],
+                height: bounds[1] - bounds[3],
+                matrix: item.matrix,
+                opacity: (item.opacity !== undefined) ? item.opacity : 100
+            });
+        }
+
+        /* 移動距離のプレビュー処理（リセット→再適用） / Preview distance (reset → reapply) */
+        function previewDistance() {
+            if (!chkDistanceX.value && !chkDistanceY.value && !chkLinkX.value && !chkCenter.value) return;
+            var valX = chkDistanceX.value ? parseFloat(inputDistanceX.text) : 0;
+            var valY;
+            if (chkLinkX.value) {
+                valY = parseFloat(inputDistanceX.text);
+            } else {
+                valY = chkDistanceY.value ? parseFloat(inputDistanceY.text) : 0;
+            }
+            if ((chkDistanceX.value && isNaN(valX)) || (chkDistanceY.value && isNaN(valY))) return;
+            try {
+                for (var i = 0; i < originalStates.length; i++) {
+                    var st = originalStates[i];
+                    // リセット
+                    st.item.position = [st.position[0], st.position[1]];
+                }
+
+                // 中央に集めるオプション
+                var centerX = 0,
+                    centerY = 0;
+                if (chkCenter.value) {
+                    var totalLeft = Infinity,
+                        totalTop = -Infinity;
+                    var totalRight = -Infinity,
+                        totalBottom = Infinity;
+                    for (var i = 0; i < originalStates.length; i++) {
+                        var bounds = originalStates[i].item.visibleBounds;
+                        if (bounds[0] < totalLeft) totalLeft = bounds[0];
+                        if (bounds[1] > totalTop) totalTop = bounds[1];
+                        if (bounds[2] > totalRight) totalRight = bounds[2];
+                        if (bounds[3] < totalBottom) totalBottom = bounds[3];
+                    }
+                    centerX = (totalLeft + totalRight) / 2;
+                    centerY = (totalTop + totalBottom) / 2;
+                }
+
+                // 横・縦方向を個別に適用
+                for (var i = 0; i < originalStates.length; i++) {
+                    var st = originalStates[i];
+                    var newX = st.position[0];
+                    var newY = st.position[1];
+
+                    if (chkCenter.value) {
+                        var itemBounds = st.item.visibleBounds;
+                        var itemCenterX = (itemBounds[0] + itemBounds[2]) / 2;
+                        var itemCenterY = (itemBounds[1] + itemBounds[3]) / 2;
+
+                        // 中央に集める：必ず中心方向に val/2 以上移動
+                        if (itemCenterX > centerX) {
+                            var randX = -(valX / 2 + Math.random() * (valX / 2)); // 右 → 左方向
+                            newX = st.position[0] + randX;
+                        } else if (itemCenterX < centerX) {
+                            var randX = (valX / 2 + Math.random() * (valX / 2)); // 左 → 右方向
+                            newX = st.position[0] + randX;
+                        }
+                        // itemCenterX == centerX の場合は newX 変更なし
+
+                        if (itemCenterY > centerY) {
+                            var randY = -(valY / 2 + Math.random() * (valY / 2)); // 上 → 下方向
+                            newY = st.position[1] + randY;
+                        } else if (itemCenterY < centerY) {
+                            var randY = (valY / 2 + Math.random() * (valY / 2)); // 下 → 上方向
+                            newY = st.position[1] + randY;
+                        }
+                        // itemCenterY == centerY の場合は newY 変更なし
+                    } else {
+                        if (chkDistanceX.value) {
+                            var randX = (Math.random() * 2 - 1) * valX;
+                            newX = st.position[0] + randX;
+                        }
+                        if (chkLinkX.value || chkDistanceY.value) {
+                            var randY = (Math.random() * 2 - 1) * valY;
+                            newY = st.position[1] + randY;
+                        }
+                    }
+
+                    st.item.position = [newX, newY];
+                }
+                app.redraw();
+            } catch (e) {}
+        }
+
+        /* 変形率のプレビュー処理（リセット→再適用） / Preview scale (reset → reapply) */
+        function previewScale() {
+            if (!chkScale.value) return;
+            var val = parseFloat(inputScale.text);
+            if (isNaN(val)) return;
+            try {
+                for (var i = 0; i < originalStates.length; i++) {
+                    var st = originalStates[i];
+                    // 元のサイズにリセット
+                    st.item.width = st.width;
+                    st.item.height = st.height;
+                }
+                for (var i = 0; i < originalStates.length; i++) {
+                    var st = originalStates[i];
+                    var factor = 1 + (Math.random() * 2 - 1) * (val / 100);
+                    var randScale = 100 * factor;
+                    if (randScale < 1) randScale = 1;
+                    st.item.resize(randScale, randScale);
+                }
+                app.redraw();
+            } catch (e) {}
+        }
+
+        function previewOpacity() {
+            if (!chkOpacity.value) return;
+            var val = parseFloat(inputOpacity.text);
+            if (isNaN(val)) return;
+            if (val < 0) val = 0;
+            if (val > 100) val = 100;
+            try {
+                for (var i = 0; i < originalStates.length; i++) {
+                    var st = originalStates[i];
+                    if (st.item.opacity !== undefined) {
+                        var baseOpacity = st.item.opacity;
+                        // baseOpacity ± val の範囲でランダム
+                        var minOpacity = baseOpacity - val;
+                        var maxOpacity = baseOpacity + val;
+                        if (minOpacity < 0) minOpacity = 0;
+                        if (maxOpacity > 100) maxOpacity = 100;
+                        var newOpacity = minOpacity + Math.random() * (maxOpacity - minOpacity);
+                        st.item.opacity = newOpacity;
+                    }
+                }
+                app.redraw();
+            } catch (e) {}
+        }
+
+        /* 回転プレビュー処理 / Preview rotation */
+        function previewRotate() {
+            if (!chkRotate.value) return;
+            var val = parseFloat(inputRotate.text);
+            if (isNaN(val)) return;
+            try {
+                for (var i = 0; i < originalStates.length; i++) {
+                    var st = originalStates[i];
+                    // -val ～ +val の範囲でランダムに回転
+                    var randRotate = (Math.random() * 2 - 1) * val;
+                    st.item.rotate(randRotate);
+                }
+                app.redraw();
+            } catch (e) {}
+        }
+
+        /* プレビュー関数をまとめる配列 / Array of preview functions */
+        var previewFuncs = [{
+                chk: chkDistanceX,
+                func: previewDistance
+            },
+            {
+                chk: chkScale,
+                func: previewScale
+            },
+            {
+                chk: chkOpacity,
+                func: previewOpacity
+            },
+            {
+                chk: chkRotate,
+                func: previewRotate
+            }
+        ];
+
+        // 一括プレビュー実行関数 / Run all previews
+        function runAllPreviews() {
+            for (var i = 0; i < previewFuncs.length; i++) {
+                if (previewFuncs[i].chk && previewFuncs[i].chk.value && previewFuncs[i].func) {
+                    previewFuncs[i].func();
+                }
+            }
+        }
+
+        bindInput(chkScale, inputScale, runAllPreviews);
+        bindInput(chkRotate, inputRotate, runAllPreviews);
+        bindInput(chkOpacity, inputOpacity, runAllPreviews);
+
+        /* ボタン群 / Buttons */
+        var btnGroup = dialog.add("group");
+        btnGroup.alignment = "center";
+        btnGroup.orientation = "row";
+
+        var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel[lang], {
+            name: "cancel"
+        });
+        btnGroup.add("statictext", undefined, "    "); // スペーサー
+        var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang]);
+        okBtn.alignment = "right";
+
+        /* 元の状態に戻す関数 / Restore original states */
+        function restoreOriginalStates(states) {
+            for (var i = 0; i < states.length; i++) {
+                var st = states[i];
+                if (st.matrix) {
+                    st.item.matrix = st.matrix;
+                }
+                if (st.opacity !== undefined) {
+                    st.item.opacity = st.opacity;
+                }
+            }
+            app.redraw();
+        }
+
+        cancelBtn.onClick = function() {
+            try {
+                restoreOriginalStates(originalStates);
+            } catch (e) {}
+            dialog.close();
+        };
+
+        okBtn.onClick = function() {
+            // プレビューで反映済みなので一括実行で最終反映
+            runAllPreviews();
+            dialog.close();
+        };
+
+        dialog.show();
+
+    } catch (e) {
+        alert("エラーが発生しました：" + e.message + " / An error occurred: " + e.message);
+    }
+}
+
+main();
