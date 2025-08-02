@@ -9,7 +9,7 @@ RandomizeObjects.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/RandomizeObjects.jsx
 
 ### 概要：
 
@@ -42,7 +42,7 @@ RandomizeObjects.jsx
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/RandomizeObjects.jsx
 
 ### Overview:
 
