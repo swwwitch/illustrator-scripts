@@ -1,8 +1,11 @@
+#targetengine "TypeScalerEngine"
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 
 var persistentBaseSize = null;
+$.global.__sizeValue = $.global.__sizeValue || "12";
+$.global.__ratioIndex = ($.global.__ratioIndex !== undefined) ? $.global.__ratioIndex : 3;
 
 /*
 ### スクリプト名：
@@ -40,6 +43,7 @@ https://note.com/hiro_design_n/n/nc95a1d2d86a4
 
 - v1.0 (20250728) : 初期バージョン
 - v1.1 (20250729) : UI改善とローカライズ対応
+- v1.2 (20250801) : ダイアログボックスを再度開いたときに値を記憶する機能を追加
 */
 
 /*
@@ -74,11 +78,12 @@ https://github.com/swwwitch/illustrator-scripts
 
 - v1.0 (20250728) : Initial version
 - v1.1 (20250729) : UI improvements and localization support
+- v1.2 (20250801) : Added functionality to remember values when reopening the dialog
 
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -243,7 +248,6 @@ var ratioValues = [1.067, 1.125, 1.2, 1.25, 1.309, 1.333, 1.414, 1.618];
 function main() {
   var previewFrame = null;
 
-
   // =========================
   // UI構築
   // =========================
@@ -258,13 +262,13 @@ function main() {
   sizeGroup.margins = [0, 0, 0, 15];
   sizeGroup.spacing = 5;
   sizeGroup.add("statictext", undefined, LABELS.baseLabel[lang]);
-  var sizeInput = sizeGroup.add("edittext", undefined, "12");
+  var sizeInput = sizeGroup.add("edittext", undefined, $.global.__sizeValue);
   sizeInput.characters = 4;
   sizeGroup.add("statictext", undefined, LABELS.unitLabel[lang].replace("単位", textUnitLabel));
   changeValueByArrowKey(sizeInput);
 
   var ratioPopup = sizeGroup.add("dropdownlist", undefined, ratioLabels);
-  ratioPopup.selection = 3; // "Major Third 1.25"
+  ratioPopup.selection = $.global.__ratioIndex;
 
 
   sizeGroup.alignment = "center";
@@ -317,7 +321,9 @@ function main() {
     var inputValue = parseFloat(sizeInput.text);
     if (!isNaN(inputValue) && inputValue > 0) {
       persistentBaseSize = inputValue;
+      $.global.__sizeInput = sizeInput;
     }
+    $.global.__sizeValue = sizeInput.text;
     updateSizeList(sizeList, ratioPopup, inputValue, textUnitLabel);
   };
 
@@ -325,6 +331,8 @@ function main() {
   ratioPopup.onChange = function () {
     var inputValue = parseFloat(sizeInput.text);
     updateSizeList(sizeList, ratioPopup, inputValue, textUnitLabel);
+    $.global.__ratioPopup = ratioPopup;
+    $.global.__ratioIndex = ratioPopup.selection ? ratioPopup.selection.index : 0;
   };
 
   // OKボタン押下時（選択テキストにサイズ適用）
@@ -364,6 +372,8 @@ function main() {
       }
     }
     app.redraw(); // ← この行を追加
+    $.global.__sizeValue = sizeInput.text;
+    $.global.__ratioIndex = ratioPopup.selection ? ratioPopup.selection.index : 0;
     // Remove previewFrame if present before closing dialog
     if (previewFrame && previewFrame.isValid) {
       try { previewFrame.remove(); } catch (e) {}
@@ -387,6 +397,8 @@ function main() {
       baseSize = parseFloat(sizeInput.text);
     }
     persistentBaseSize = baseSize;
+    $.global.__sizeValue = sizeInput.text;
+    $.global.__ratioIndex = ratioPopup.selection ? ratioPopup.selection.index : 0;
     if (isNaN(baseSize) || baseSize <= 0) {
       alert(LABELS.alertInvalidBase[lang]);
       return;
