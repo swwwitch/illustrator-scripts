@@ -1,5 +1,5 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
@@ -33,6 +33,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 ### 更新履歴：
 
 - v1.0 (20250802): 初期バージョン
+- v1.1 (20250803): 長方形を水平にする機能追加、UIの改善 
 
 ---
 
@@ -66,10 +67,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 ### Update History:
 
 - v1.0 (20250802): Initial version
+- v1.1 (20250803): Added horizontal rectangle alignment, improved UI
 
 */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -129,17 +131,22 @@ function configureDialog(dlg, options) {
     if (options.opacity !== undefined) {
         dlg.opacity = options.opacity;
     }
-    if (options.offsetX !== undefined || options.offsetY !== undefined) {
-        dlg.onShow = function() {
-            var currentX = dlg.location[0];
-            var currentY = dlg.location[1];
-            dlg.location = [
-                currentX + (options.offsetX || 0),
-                currentY + (options.offsetY || 0)
-            ];
-        };
+}
+
+function makeRectangleEdgeHorizontal(item) {
+    if (item.typename === "PathItem" && item.closed && item.pathPoints.length === 4) {
+        var p0 = item.pathPoints[0].anchor;
+        var p1 = item.pathPoints[1].anchor;
+
+        var dx = p1[0] - p0[0];
+        var dy = p1[1] - p0[1];
+        var angleRad = Math.atan2(dy, dx);
+        var angleDeg = angleRad * 180 / Math.PI;
+
+        item.rotate(-angleDeg);
     }
 }
+
 
 /* 矢印キーによる新しい値を返す補助関数 / Helper to calculate new value */
 function getNewValueByKey(event, value, keyboard) {
@@ -191,9 +198,19 @@ function changeValueByArrowKey(editText, previewFunc) {
     });
 }
 
+var savedBounds = $.global.__RandomizeObjectsBounds || null;
+function storeWinBounds(dlg) {
+    $.global.__RandomizeObjectsBounds = [
+        dlg.bounds.left, dlg.bounds.top,
+        dlg.bounds.right, dlg.bounds.bottom
+    ];
+}
+var winBounds = savedBounds instanceof Array ? savedBounds : undefined;
+
 /* メイン処理 / Main process */
 function main() {
     try {
+
         if (app.documents.length === 0) {
             alert("ドキュメントが開かれていません。 / No document is open.");
             return;
@@ -205,20 +222,31 @@ function main() {
             return;
         }
 
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
-        dialog.orientation = "column";
-        dialog.alignChildren = "left";
+        var dialog = new Window("dialog", LABELS.dialogTitle[lang], winBounds);
+        dialog.orientation = "row";
+        dialog.alignChildren = "top";
+        dialog.spacing = 20;
+
+        // 左カラム
+        var leftPanel = dialog.add("group");
+        leftPanel.orientation = "column";
+        leftPanel.alignChildren = "left";
+        leftPanel.alignment = ["fill", "fill"];
+
+        // 右カラム
+        var rightPanel = dialog.add("group");
+        rightPanel.orientation = "column";
+        rightPanel.alignChildren = "right";
+        rightPanel.alignment = ["right", "fill"];
 
         configureDialog(dialog, {
-            offsetX: 300,
-            offsetY: 0,
             opacity: 0.97
         });
 
         /* UI生成部分を以下に維持 */
 
         /* 移動距離パネル / Distance panel */
-        var panelDistance = dialog.add("panel", undefined, LABELS.distance[lang]);
+        var panelDistance = leftPanel.add("panel", undefined, LABELS.distance[lang]);
         panelDistance.orientation = "column";
         panelDistance.alignChildren = "center";
         panelDistance.margins = [15, 20, 15, 10];
@@ -260,7 +288,12 @@ function main() {
         rightColumn.alignment = ["fill", "center"];
 
         var chkLinkX = rightColumn.add("checkbox", undefined, LABELS.link[lang]);
-        chkLinkX.value = false;
+        chkLinkX.value = true;
+        // Disable vertical checkbox and input so they're dimmed when dialog opens
+        chkDistanceY.value = false;
+        chkDistanceY.enabled = false;
+        inputDistanceY.enabled = false;
+        inputDistanceY.text = inputDistanceX.text;
 
         var groupCenter = panelDistance.add("group");
         groupCenter.orientation = "row";
@@ -269,6 +302,15 @@ function main() {
         var chkCenter = groupCenter.add("checkbox", undefined, LABELS.center[lang]);
         chkCenter.value = false;
 
+
+        // 入力値を更新し、リンクされた入力とプレビューを処理 / Update input, linked input, and preview
+        function updateLinkedInputAndPreview(input, linkInput, previewFunc) {
+            if (linkInput && chkLinkX.value) {
+                linkInput.text = input.text;
+            }
+            if (previewFunc) previewFunc();
+        }
+
         // チェックボックスと入力欄を紐付け、プレビューも反映する関数 / Link checkbox & input with preview
         function bindInput(chk, input, previewFunc, linkInput) {
             chk.onClick = function() {
@@ -276,16 +318,10 @@ function main() {
                 if (previewFunc) previewFunc();
             };
             input.onChanging = function() {
-                if (linkInput && chkLinkX.value) {
-                    linkInput.text = input.text;
-                }
-                if (previewFunc) previewFunc();
+                updateLinkedInputAndPreview(input, linkInput, previewFunc);
             };
             changeValueByArrowKey(input, function() {
-                if (linkInput && chkLinkX.value) {
-                    linkInput.text = input.text;
-                }
-                if (previewFunc) previewFunc();
+                updateLinkedInputAndPreview(input, linkInput, previewFunc);
             });
         }
 
@@ -297,8 +333,9 @@ function main() {
                 inputDistanceY.enabled = false;
                 inputDistanceY.text = inputDistanceX.text;
             } else {
+                chkDistanceY.value = true;
                 chkDistanceY.enabled = true;
-                inputDistanceY.enabled = chkDistanceY.value;
+                inputDistanceY.enabled = true;
             }
         };
 
@@ -337,23 +374,28 @@ function main() {
         }
 
         /* 変形・回転・不透明度をまとめたグループ / Group: Scale, Rotate, Opacity */
-        var groupTransform = dialog.add("group");
+        // var groupTransform = dialog.add("group");
+        var groupTransform = leftPanel.add("panel", undefined, undefined);
+
         groupTransform.orientation = "column";
         groupTransform.alignChildren = "left";
-        groupTransform.margins = [15, 5, 15, 10];
+        groupTransform.margins = [15, 15, 15, 10];
+
+
+
 
         /* 変形 / Scale */
-        var scaleUI = createCheckInput(groupTransform, LABELS.scale[lang], LABEL_WIDTH, "（%）", "0", true);
+        var scaleUI = createCheckInput(groupTransform, LABELS.scale[lang], LABEL_WIDTH, "%", "0", true);
         var chkScale = scaleUI.chk;
         var inputScale = scaleUI.input;
 
         /* 回転 / Rotate */
-        var rotateUI = createCheckInput(groupTransform, LABELS.rotate[lang], LABEL_WIDTH, "（°）", "0", true);
+        var rotateUI = createCheckInput(groupTransform, LABELS.rotate[lang], LABEL_WIDTH, "°", "0", true);
         var chkRotate = rotateUI.chk;
         var inputRotate = rotateUI.input;
 
         /* 不透明度 / Opacity */
-        var opacityUI = createCheckInput(groupTransform, LABELS.opacity[lang], LABEL_WIDTH, "（%）", "0", true);
+        var opacityUI = createCheckInput(groupTransform, LABELS.opacity[lang], LABEL_WIDTH, "%", "0", true);
         var chkOpacity = opacityUI.chk;
         var inputOpacity = opacityUI.input;
 
@@ -384,32 +426,28 @@ function main() {
             }
             if ((chkDistanceX.value && isNaN(valX)) || (chkDistanceY.value && isNaN(valY))) return;
             try {
+                // Combine reset and bounding box calculation into a single loop
+                var totalLeft = Infinity, totalTop = -Infinity;
+                var totalRight = -Infinity, totalBottom = Infinity;
                 for (var i = 0; i < originalStates.length; i++) {
                     var st = originalStates[i];
-                    // リセット
                     st.item.position = [st.position[0], st.position[1]];
-                }
-
-                // 中央に集めるオプション
-                var centerX = 0,
-                    centerY = 0;
-                if (chkCenter.value) {
-                    var totalLeft = Infinity,
-                        totalTop = -Infinity;
-                    var totalRight = -Infinity,
-                        totalBottom = Infinity;
-                    for (var i = 0; i < originalStates.length; i++) {
-                        var bounds = originalStates[i].item.visibleBounds;
+                    if (chkCenter.value) {
+                        var bounds = st.item.visibleBounds;
                         if (bounds[0] < totalLeft) totalLeft = bounds[0];
                         if (bounds[1] > totalTop) totalTop = bounds[1];
                         if (bounds[2] > totalRight) totalRight = bounds[2];
                         if (bounds[3] < totalBottom) totalBottom = bounds[3];
                     }
+                }
+
+                var centerX = 0, centerY = 0;
+                if (chkCenter.value) {
                     centerX = (totalLeft + totalRight) / 2;
                     centerY = (totalTop + totalBottom) / 2;
                 }
 
-                // 横・縦方向を個別に適用
+                // 位置の適用
                 for (var i = 0; i < originalStates.length; i++) {
                     var st = originalStates[i];
                     var newX = st.position[0];
@@ -551,16 +589,65 @@ function main() {
         bindInput(chkOpacity, inputOpacity, runAllPreviews);
 
         /* ボタン群 / Buttons */
-        var btnGroup = dialog.add("group");
-        btnGroup.alignment = "center";
-        btnGroup.orientation = "row";
+        var btnGroup = rightPanel.add("group");
+        btnGroup.alignment = "top";
+        btnGroup.orientation = "column";
 
+        // OK button
+        var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang], {
+            name: "ok"
+        });
+
+        // Cancel button
         var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel[lang], {
             name: "cancel"
         });
-        btnGroup.add("statictext", undefined, "    "); // スペーサー
-        var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang]);
-        okBtn.alignment = "right";
+
+        // Spacer
+        btnGroup.add("statictext", undefined, " ");
+
+        // Reset button
+        var resetBtn = btnGroup.add("button", undefined, "リセット");
+
+        // 共通のボタン幅を設定 / Set common button width
+        var BUTTON_WIDTH = 100;
+        okBtn.preferredSize.width = BUTTON_WIDTH;
+        cancelBtn.preferredSize.width = BUTTON_WIDTH;
+        resetBtn.preferredSize.width = BUTTON_WIDTH;
+
+        // Reset action: restore state from before dialog and set rotation to 0°
+        resetBtn.onClick = function() {
+            try {
+                // 元の状態に復元
+                restoreOriginalStates(originalStates);
+
+                // 長方形を水平に
+                for (var i = 0; i < originalStates.length; i++) {
+                    try {
+                        makeRectangleEdgeHorizontal(originalStates[i].item);
+                    } catch (e2) {}
+                }
+
+                // 入力フィールドを0に戻す / Reset all input fields to 0
+                inputDistanceX.text = "0";
+                inputDistanceY.text = "0";
+                inputScale.text = "0";
+                inputRotate.text = "0";
+                inputOpacity.text = "0";
+
+                chkDistanceX.value = false;
+                chkDistanceY.value = false;
+                chkLinkX.value = false;
+                chkCenter.value = false;
+                chkScale.value = false;
+                chkRotate.value = false;
+                chkOpacity.value = false;
+
+                app.redraw();
+            } catch (e) {
+                alert("リセット処理中にエラーが発生しました: " + e.message);
+            }
+        };
 
         /* 元の状態に戻す関数 / Restore original states */
         function restoreOriginalStates(states) {
@@ -576,16 +663,23 @@ function main() {
             app.redraw();
         }
 
+        // Store bounds on move
+        dialog.onMove = function() {
+            storeWinBounds(dialog);
+        };
+
         cancelBtn.onClick = function() {
             try {
                 restoreOriginalStates(originalStates);
             } catch (e) {}
+            storeWinBounds(dialog);
             dialog.close();
         };
 
         okBtn.onClick = function() {
             // プレビューで反映済みなので一括実行で最終反映
-            runAllPreviews();
+            // runAllPreviews();
+            storeWinBounds(dialog);
             dialog.close();
         };
 
