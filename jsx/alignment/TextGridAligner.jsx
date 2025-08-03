@@ -2,38 +2,70 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-============================================================
-スクリプト名: TextGridAligner-v2.jsx
-Script Name: TextGridAligner-v2.jsx
-============================================================
+### スクリプト名：
 
-概要 / Overview:
-Illustratorでテキストフレームを行・列単位で整列またはグループ化するスクリプトです。
-行方向・列方向ごとに独立したしきい値スライダーを備え、整列・グループ化を制御できます。
-This script aligns or groups text frames in Illustrator by row or column units.
-Separate threshold sliders for row and column directions allow independent alignment or grouping.
+TextGridAligner-v2.jsx
 
-- 行方向: 天地中央に整列、またはグループ化
-- 列方向: 左右中央に整列、またはグループ化
-- 行・列スライダーは独立動作
-- Row: Align or group to vertical center
-- Column: Align or group to horizontal center
-- Row/Column sliders operate independently
+### GitHub：
 
-処理の流れ / Flow:
-1. ダイアログを表示して設定を取得 / Show dialog to get settings
-2. 選択したテキストフレームを対象に処理 / Process selected text frames
-3. 行・列ごとに整列またはグループ化を実行 / Align or group by row and column
+https://github.com/swwwitch/illustrator-scripts
 
-対象オブジェクト / Target:
-- TextFrame のみ（図形や線は対象外）
-- Only TextFrame objects (shapes and lines are not targeted)
+### 概要：
 
-更新履歴 / Update History:
-- v1.0 (20250802): 初期バージョン / Initial version
+- Illustratorでテキストフレームを行・列単位で整列またはグループ化するスクリプト
+- 行方向と列方向のしきい値を独立して調整可能
+
+### 主な機能：
+
+- 行方向：天地中央に整列、またはグループ化
+- 列方向：左右中央に整列、またはグループ化
+- 行・列のアキを均等に配置するオプション
+
+### 処理の流れ：
+
+1. ダイアログを表示して設定を取得
+2. 選択したテキストフレームを対象に処理
+3. 行・列ごとに整列またはグループ化を実行
+
+### 更新履歴：
+
+- v1.0 (20250802) : 初期バージョン
+- v1.1 (20250803) : ダイアログUI改善とコード整理
 */
 
-var SCRIPT_VERSION = "v1.0";
+/*
+### Script Name:
+
+TextGridAligner-v2.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts
+
+### Overview:
+
+- Script for aligning or grouping text frames in Illustrator by rows or columns
+- Independent threshold adjustment for row and column directions
+
+### Key Features:
+
+- Row: Align or group to vertical center
+- Column: Align or group to horizontal center
+- Option to distribute spacing evenly for rows or columns
+
+### Process Flow:
+
+1. Show dialog to get settings
+2. Process selected text frames
+3. Execute alignment or grouping by row/column
+
+### Update History:
+
+- v1.0 (20250802) : Initial version
+- v1.1 (20250803) : Improved dialog UI and code organization
+*/
+
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
@@ -148,7 +180,6 @@ function distributeSpacingBetweenGroups(groups, direction) {
 }
 
 /* ダイアログUIの表示とユーザー選択取得 / Show dialog UI and get user selections */
-/* ダイアログUIの表示とユーザー選択取得 / Show dialog UI and get user selections */
 function showDialog(prevThreshold, prevGroupMode) {
     /* ダイアログを開く前に元の位置を保存 / Save original positions before showing dialog */
     var originalStates = [];
@@ -169,11 +200,10 @@ function showDialog(prevThreshold, prevGroupMode) {
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
-    dialog.margins = [25, 10, 25, 10];
 
     /* ダイアログの位置と透明度 / Dialog position and opacity */
     var offsetX = 300;
-    var dialogOpacity = 0.97;
+    var dialogOpacity = 0.95;
 
     /* ダイアログ用ヘルパー関数 / Helper functions for dialog */
     function shiftDialogPosition(dlg, offsetX, offsetY) {
@@ -188,14 +218,10 @@ function showDialog(prevThreshold, prevGroupMode) {
         dlg.opacity = opacityValue;
     }
 
-    /* オプショングループ / Option group */
-    var optionGroup = dialog.add("group");
-    optionGroup.orientation = "column";
-    optionGroup.alignChildren = "left";
-    optionGroup.margins = [15, 10, 15, 10];
+
 
     /* 行しきい値パネル / Row Threshold Panel */
-    var thresholdGroup = optionGroup.add("panel", undefined, LABELS.threshold[lang]);
+    var thresholdGroup = dialog.add("panel", undefined, LABELS.threshold[lang]);
     thresholdGroup.orientation = "column";
     thresholdGroup.alignChildren = "left";
     thresholdGroup.margins = [15, 20, 15, 10];
@@ -255,7 +281,7 @@ function showDialog(prevThreshold, prevGroupMode) {
     rowGroupCheck.enabled = rowCheck.value;
 
     /* 列しきい値パネル / Column Threshold Panel */
-    var colThresholdGroup = optionGroup.add("panel", undefined, LABELS.colThreshold[lang]);
+    var colThresholdGroup = dialog.add("panel", undefined, LABELS.colThreshold[lang]);
     colThresholdGroup.orientation = "column";
     colThresholdGroup.alignChildren = "left";
     colThresholdGroup.margins = [15, 20, 15, 10];
