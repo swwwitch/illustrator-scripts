@@ -308,7 +308,11 @@ function showArrangeDialog() {
     spacingRightGroup.alignChildren = ["left", "center"];
 
     var linkCheckbox = spacingRightGroup.add("checkbox", undefined, "連動");
-    linkCheckbox.value = false;
+    linkCheckbox.value = true; // ダイアログを開いたときにON
+
+    // 初期状態で縦入力をディムし、横の値を同期
+    vMarginInput.enabled = false;
+    vMarginInput.text = hMarginInput.text;
 
     // 横・縦間隔の連動とプレビュー更新
     function syncMarginsAndPreview() {
