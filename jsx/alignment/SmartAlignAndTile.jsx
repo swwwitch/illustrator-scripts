@@ -8,7 +8,7 @@ AlignAndDistributeYoko.jsx
 
 ### Readme （GitHub）：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/AlignAndDistributeYoko.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile.jsx
 
 ### 概要：
 
@@ -47,6 +47,7 @@ https://gorolib.blog.jp/archives/77282974.html
 - v1.2 (20250718) : コメント整理、ローカライズ統一、ランダム基準位置補正改善
 - v1.3 (20250801) : グリッド機能の追加、ガターを縦横個別に設定
 - v1.4 (20250801) : ローカライズを調整
+- v1.5 (20250802) : 横／縦の連動機能を追加、プレビュー境界を使用のロジックを調整
 
 ---
 
@@ -56,7 +57,7 @@ AlignAndDistributeYoko.jsx
 
 ### Readme (GitHub):
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/AlignAndDistributeYoko.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartAlignAndTile.jsx
 
 ### Overview:
 
@@ -86,10 +87,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/AlignA
 - v1.2 (2025-07-18): Comment refinement, localization update, improved random positioning correction
 - v1.3 (2025-08-01): Added grid feature, separate gutter settings for horizontal and vertical spacing
 - v1.4 (2025-08-01): Adjusted localization
+- v1.5 (2025-08-02): Added horizontal/vertical linking feature, adjusted preview bounds logic
 */
 
 /* バージョン変数を追加 / Script version variable */
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 /* ダイアログ位置と外観変数 / Dialog position and appearance variables */
 var offsetX = 300;
@@ -112,12 +114,12 @@ var LABELS = {
         en: "Rows:"
     },
     hMargin: {
-        ja: "間隔(横):",
-        en: "Spacing (H):"
+        ja: "横:",
+        en: "H:"
     },
     vMargin: {
-        ja: "間隔(縦):",
-        en: "Spacing (V):"
+        ja: "縦:",
+        en: "V:"
     },
     useBounds: {
         ja: "プレビュー境界を使用",
@@ -251,40 +253,86 @@ function showArrangeDialog() {
     /* 行数入力UI: ラベルとテキストフィールドを横並びで配置 / Rows input UI: label and field side by side */
     var rowsGroup = dlg.add("group");
     rowsGroup.orientation = "row";
-    rowsGroup.alignChildren = ["left", "center"];
+    rowsGroup.alignChildren = ["center", "center"];
+    rowsGroup.alignment = ["fill", "center"];
 
     var rowsLabel = rowsGroup.add("statictext", undefined, LABELS.rows[lang]);
     var rowsInput = rowsGroup.add("edittext", undefined, "1");
     rowsInput.characters = 3;
     changeValueByArrowKey(rowsInput, true, updatePreview);
 
-    /* 横方向マージン入力 */
-    var hMarginGroup = dlg.add("group");
+    /* 間隔パネル / Spacing panel */
+    var unit = getCurrentUnitLabel();
+    var spacingPanel = dlg.add("panel", undefined, "間隔 (" + unit + ")");
+    spacingPanel.orientation = "row";
+    spacingPanel.alignChildren = ["fill", "top"];
+    spacingPanel.margins = [15, 20, 15, 10];
+
+    // 左カラム (入力グループ) / Left column (input groups)
+    var spacingLeftGroup = spacingPanel.add("group");
+    spacingLeftGroup.orientation = "column";
+    spacingLeftGroup.alignChildren = ["left", "center"];
+
+    // 横方向マージン入力
+    var hMarginGroup = spacingLeftGroup.add("group");
     hMarginGroup.orientation = "row";
     hMarginGroup.alignChildren = ["left", "center"];
-
-    var unit = getCurrentUnitLabel();
     var hMarginLabel = hMarginGroup.add("statictext", undefined, LABELS.hMargin[lang]);
     var hMarginInput = hMarginGroup.add("edittext", undefined, "0");
     hMarginInput.characters = 3;
-    changeValueByArrowKey(hMarginInput, true, updatePreview);
-    var hUnitLabel = hMarginGroup.add("statictext", undefined, "(" + unit + ")");
+    changeValueByArrowKey(hMarginInput, true, function() {
+        if (linkCheckbox.value) {
+            vMarginInput.text = hMarginInput.text;
+        }
+        updatePreview();
+    });
+    // 単位ラベルは削除
 
-    /* 縦方向マージン入力 */
-    var vMarginGroup = dlg.add("group");
+    // 縦方向マージン入力
+    var vMarginGroup = spacingLeftGroup.add("group");
     vMarginGroup.orientation = "row";
     vMarginGroup.alignChildren = ["left", "center"];
-
     var vMarginLabel = vMarginGroup.add("statictext", undefined, LABELS.vMargin[lang]);
     var vMarginInput = vMarginGroup.add("edittext", undefined, "0");
     vMarginInput.characters = 3;
     changeValueByArrowKey(vMarginInput, true, updatePreview);
-    var vUnitLabel = vMarginGroup.add("statictext", undefined, "(" + unit + ")");
+    // 単位ラベルは削除
 
+    // 右カラム (チェックボックス) / Right column (checkbox)
+    var spacingRightWrapper = spacingPanel.add("group");
+    spacingRightWrapper.alignment = ["fill", "fill"];
+    spacingRightWrapper.alignChildren = ["left", "center"];
+
+    var spacingRightGroup = spacingRightWrapper.add("group");
+    spacingRightGroup.orientation = "column";
+    spacingRightGroup.alignChildren = ["left", "center"];
+
+    var linkCheckbox = spacingRightGroup.add("checkbox", undefined, "連動");
+    linkCheckbox.value = false;
+
+    // 横・縦間隔の連動とプレビュー更新
+    function syncMarginsAndPreview() {
+        if (linkCheckbox.value) {
+            vMarginInput.text = hMarginInput.text;
+        }
+        updatePreview();
+    }
+
+    // 「連動」チェックボックスの動作 / Link checkbox behavior
+    linkCheckbox.onClick = function() {
+        vMarginInput.enabled = !linkCheckbox.value;
+        if (linkCheckbox.value) {
+            vMarginInput.text = hMarginInput.text;
+        }
+        updatePreview();
+    };
+
+    // 横方向入力変更時に縦方向へ反映（連動がONのとき） / Sync V to H when linked
+    hMarginInput.onChanging = syncMarginsAndPreview;
+    hMarginInput.onChange = syncMarginsAndPreview;
 
     /* 揃えパネル / Align panel */
     var alignPanel = dlg.add("panel", undefined, LABELS.alignPanel[lang]);
-
     alignPanel.orientation = "column";
     alignPanel.alignChildren = ["left", "center"];
     alignPanel.margins = [15, 20, 15, 10];
@@ -421,12 +469,11 @@ function showArrangeDialog() {
         var refHeight = 0;
         var refWidth = 0;
         for (var i = 0; i < sortedItems.length; i++) {
-            if (sortedItems[i].height > refHeight) {
-                refHeight = sortedItems[i].height;
-            }
-            if (sortedItems[i].width > refWidth) {
-                refWidth = sortedItems[i].width;
-            }
+            var vb = sortedItems[i].visibleBounds; // [left, top, right, bottom]
+            var width = vb[2] - vb[0];
+            var height = vb[1] - vb[3];
+            if (height > refHeight) refHeight = height;
+            if (width > refWidth) refWidth = width;
         }
 
         var align = "top";
@@ -442,21 +489,24 @@ function showArrangeDialog() {
             var currentX = startX;
             for (var c = 0; c < itemsPerRow && index < sortedItems.length; c++, index++) {
                 var item = sortedItems[index];
+                var vb = item.visibleBounds;
+                var itemWidth = vb[2] - vb[0];
+                var itemHeight = vb[1] - vb[3];
 
                 // X位置調整
                 if (hAlign === "center") {
-                    item.left = currentX + (refWidth - item.width) / 2;
+                    item.left = currentX + (refWidth - itemWidth) / 2;
                 } else if (hAlign === "right") {
-                    item.left = currentX + (refWidth - item.width);
+                    item.left = currentX + (refWidth - itemWidth);
                 } else {
                     item.left = currentX;
                 }
 
                 var baseY = startY;
                 if (align === "middle") {
-                    baseY = startY - (refHeight / 2) + (item.height / 2);
+                    baseY = startY - (refHeight / 2) + (itemHeight / 2);
                 } else if (align === "bottom") {
-                    baseY = startY - refHeight + item.height;
+                    baseY = startY - refHeight + itemHeight;
                 }
                 item.top = baseY - (r * (refHeight + vMarginPt));
 
@@ -464,7 +514,7 @@ function showArrangeDialog() {
                     if (gridCheckbox.value) {
                         currentX += refWidth + hMarginPt;
                     } else {
-                        currentX += item.width + hMarginPt;
+                        currentX += itemWidth + hMarginPt;
                     }
                 }
             }
@@ -483,9 +533,7 @@ function showArrangeDialog() {
 
     updatePreview();
 
-    hMarginInput.onChanging = function() {
-        updatePreview();
-    };
+    // (hMarginInput.onChanging is handled above for syncing)
     vMarginInput.onChanging = function() {
         updatePreview();
     };
