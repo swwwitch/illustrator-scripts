@@ -130,6 +130,14 @@ var LABELS = {
         en: "Opacity"
     }
 }
+
+/* 入力値を更新し、リンクされた入力とプレビューを処理 / Update input, linked input, and preview */
+function updateLinkedInputAndPreview(input, linkInput, previewFunc) {
+    if (linkInput && linkInput.enabled) {
+        linkInput.text = input.text;
+    }
+    if (previewFunc) previewFunc();
+}
 /* ダイアログ設定を共通化 / Configure dialog position and opacity */
 function configureDialog(dlg, options) {
     if (options.opacity !== undefined) {
@@ -197,12 +205,15 @@ function changeValueByArrowKey(editText, previewFunc) {
                 newValue = Math.round(newValue);
             }
             editText.text = newValue;
-            if (previewFunc) previewFunc();
+            if (previewFunc) {
+                updateLinkedInputAndPreview(editText, null, previewFunc);
+            }
         }
     });
 }
 
 var savedBounds = $.global.__RandomizeObjectsBounds || null;
+
 function storeWinBounds(dlg) {
     $.global.__RandomizeObjectsBounds = [
         dlg.bounds.left, dlg.bounds.top,
@@ -254,7 +265,8 @@ function main() {
         /* UI生成部分を以下に維持 */
 
         /* 移動距離パネル / Distance panel */
-        var panelDistance = leftPanel.add("panel", undefined, LABELS.distance[lang]);
+        var unitLabel = "pt";
+        var panelDistance = leftPanel.add("panel", undefined, LABELS.distance[lang] + " (" + unitLabel + ")");
         panelDistance.orientation = "column";
         panelDistance.alignChildren = ["center", "center"];
         panelDistance.alignment = ["fill", "center"];
@@ -278,7 +290,6 @@ function main() {
         var inputDistanceX = groupX.add("edittext", undefined, "0");
         inputDistanceX.characters = 4;
         inputDistanceX.enabled = chkDistanceX.value;
-        groupX.add("statictext", undefined, "pt");
 
         var groupY = leftColumn.add("group");
         groupY.orientation = "row";
@@ -288,7 +299,6 @@ function main() {
         var inputDistanceY = groupY.add("edittext", undefined, "0");
         inputDistanceY.characters = 4;
         inputDistanceY.enabled = chkDistanceY.value;
-        groupY.add("statictext", undefined, "pt");
 
         // 右カラム
         var rightColumn = groupContainer.add("group");
@@ -318,8 +328,10 @@ function main() {
                 chkCenter.value = false;
 
                 // 全オブジェクトのバウンディングボックスを取得
-                var totalLeft = Infinity, totalTop = -Infinity;
-                var totalRight = -Infinity, totalBottom = Infinity;
+                var totalLeft = Infinity,
+                    totalTop = -Infinity;
+                var totalRight = -Infinity,
+                    totalBottom = Infinity;
                 for (var i = 0; i < originalStates.length; i++) {
                     var bounds = originalStates[i].item.visibleBounds;
                     if (bounds[0] < totalLeft) totalLeft = bounds[0];
@@ -363,13 +375,7 @@ function main() {
         };
 
 
-        // 入力値を更新し、リンクされた入力とプレビューを処理 / Update input, linked input, and preview
-        function updateLinkedInputAndPreview(input, linkInput, previewFunc) {
-            if (linkInput && chkLinkX.value) {
-                linkInput.text = input.text;
-            }
-            if (previewFunc) previewFunc();
-        }
+
 
         // チェックボックスと入力欄を紐付け、プレビューも反映する関数 / Link checkbox & input with preview
         function bindInput(chk, input, previewFunc, linkInput) {
@@ -488,6 +494,14 @@ function main() {
             });
         }
 
+        /* ポジションをリセットする共通関数 / Common function to reset positions */
+        function resetPositions(states) {
+            for (var i = 0; i < states.length; i++) {
+                var st = states[i];
+                st.item.position = [st.position[0], st.position[1]];
+            }
+        }
+
         /* 移動距離のプレビュー処理（リセット→再適用） / Preview distance (reset → reapply) */
         function previewDistance() {
             if (!chkDistanceX.value && !chkDistanceY.value && !chkLinkX.value && !chkCenter.value) return;
@@ -500,14 +514,13 @@ function main() {
             }
             if ((chkDistanceX.value && isNaN(valX)) || (chkDistanceY.value && isNaN(valY))) return;
             try {
-                // Combine reset and bounding box calculation into a single loop
-                var totalLeft = Infinity, totalTop = -Infinity;
-                var totalRight = -Infinity, totalBottom = Infinity;
-                for (var i = 0; i < originalStates.length; i++) {
-                    var st = originalStates[i];
-                    st.item.position = [st.position[0], st.position[1]];
-                    if (chkCenter.value) {
-                        var bounds = st.item.visibleBounds;
+                var totalLeft = Infinity,
+                    totalTop = -Infinity;
+                var totalRight = -Infinity,
+                    totalBottom = Infinity;
+                if (chkCenter.value) {
+                    for (var i = 0; i < originalStates.length; i++) {
+                        var bounds = originalStates[i].item.visibleBounds;
                         if (bounds[0] < totalLeft) totalLeft = bounds[0];
                         if (bounds[1] > totalTop) totalTop = bounds[1];
                         if (bounds[2] > totalRight) totalRight = bounds[2];
@@ -515,15 +528,18 @@ function main() {
                     }
                 }
 
-                var centerX = 0, centerY = 0;
+                var centerX = 0,
+                    centerY = 0;
                 if (chkCenter.value) {
                     centerX = (totalLeft + totalRight) / 2;
                     centerY = (totalTop + totalBottom) / 2;
                 }
 
-                // 位置の適用
+                // 位置のリセット＆適用
                 for (var i = 0; i < originalStates.length; i++) {
                     var st = originalStates[i];
+                    // Reset position
+                    st.item.position = [st.position[0], st.position[1]];
                     var newX = st.position[0];
                     var newY = st.position[1];
 
@@ -578,9 +594,7 @@ function main() {
                     // 元のサイズにリセット
                     st.item.width = st.width;
                     st.item.height = st.height;
-                }
-                for (var i = 0; i < originalStates.length; i++) {
-                    var st = originalStates[i];
+                    // ランダム拡大縮小
                     var factor = 1 + (Math.random() * 2 - 1) * (val / 100);
                     var randScale = 100 * factor;
                     if (randScale < 1) randScale = 1;
@@ -600,10 +614,11 @@ function main() {
                 for (var i = 0; i < originalStates.length; i++) {
                     var st = originalStates[i];
                     if (st.item.opacity !== undefined) {
-                        var baseOpacity = st.item.opacity;
+                        // Restore base opacity first
+                        st.item.opacity = st.opacity;
                         // baseOpacity ± val の範囲でランダム
-                        var minOpacity = baseOpacity - val;
-                        var maxOpacity = baseOpacity + val;
+                        var minOpacity = st.opacity - val;
+                        var maxOpacity = st.opacity + val;
                         if (minOpacity < 0) minOpacity = 0;
                         if (maxOpacity > 100) maxOpacity = 100;
                         var newOpacity = minOpacity + Math.random() * (maxOpacity - minOpacity);
@@ -622,6 +637,10 @@ function main() {
             try {
                 for (var i = 0; i < originalStates.length; i++) {
                     var st = originalStates[i];
+                    // Reset rotation (restore matrix)
+                    if (st.matrix) {
+                        st.item.matrix = st.matrix;
+                    }
                     // -val ～ +val の範囲でランダムに回転
                     var randRotate = (Math.random() * 2 - 1) * val;
                     st.item.rotate(randRotate);
@@ -677,8 +696,9 @@ function main() {
             name: "cancel"
         });
 
-        // Spacer
-        btnGroup.add("statictext", undefined, " ");
+        // Spacer with larger height
+        var spacer = btnGroup.add("statictext", undefined, "");
+        spacer.preferredSize.height = 100; // increase height as needed
 
         // Reset button
         var resetBtn = btnGroup.add("button", undefined, "リセット");
@@ -686,7 +706,7 @@ function main() {
         // Random button
         var randomBtn = btnGroup.add("button", undefined, "ランダム");
 
-        
+
 
         randomBtn.onClick = function() {
             try {
@@ -699,7 +719,7 @@ function main() {
 
                 chkDistanceX.value = true;
                 chkDistanceY.value = true;
-                chkLinkX.value = true;  // ランダム時は連動をON
+                chkLinkX.value = true; // ランダム時は連動をON
                 chkScale.value = true;
                 chkRotate.value = true;
                 chkOpacity.value = true;
@@ -723,7 +743,7 @@ function main() {
         okBtn.preferredSize.width = BUTTON_WIDTH;
         cancelBtn.preferredSize.width = BUTTON_WIDTH;
         resetBtn.preferredSize.width = BUTTON_WIDTH;
-randomBtn.preferredSize.width = BUTTON_WIDTH;
+        randomBtn.preferredSize.width = BUTTON_WIDTH;
 
         // Reset action: restore state from before dialog and set rotation to 0°
         resetBtn.onClick = function() {
@@ -761,6 +781,7 @@ randomBtn.preferredSize.width = BUTTON_WIDTH;
 
         /* 元の状態に戻す関数 / Restore original states */
         function restoreOriginalStates(states) {
+            resetPositions(states);
             for (var i = 0; i < states.length; i++) {
                 var st = states[i];
                 if (st.matrix) {
