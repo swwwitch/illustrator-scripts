@@ -35,6 +35,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 - v1.0 (20250802): 初期バージョン
 - v1.1 (20250803): 長方形を水平にする機能追加、UIの改善
 - v1.2 (20250803): 強制的に中央に集める機能を追加
+- v1.3 (20250804): ランダムボタンを追加
 
 ---
 
@@ -70,10 +71,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 - v1.0 (20250802): Initial version
 - v1.1 (20250803): Added horizontal rectangle alignment, improved UI
 - v1.2 (20250803): Added forced gather to center option
+- v1.3 (20250804): Added random button for quick setup
 
 */
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -225,6 +227,10 @@ function main() {
         }
 
         var dialog = new Window("dialog", LABELS.dialogTitle[lang], winBounds);
+        // ダイアログを開いたら Live Corner Annotator を実行
+        try {
+            app.executeMenuCommand('Live Corner Annotator');
+        } catch (e) {}
         dialog.orientation = "row";
         dialog.alignChildren = "top";
         dialog.spacing = 20;
@@ -250,7 +256,8 @@ function main() {
         /* 移動距離パネル / Distance panel */
         var panelDistance = leftPanel.add("panel", undefined, LABELS.distance[lang]);
         panelDistance.orientation = "column";
-        panelDistance.alignChildren = "center";
+        panelDistance.alignChildren = ["center", "center"];
+        panelDistance.alignment = ["fill", "center"];
         panelDistance.margins = [15, 20, 15, 10];
 
 
@@ -308,7 +315,7 @@ function main() {
         btnForceCenter.preferredSize = [40, 26];
         btnForceCenter.onClick = function() {
             try {
-                chkCenter.value = true;
+                chkCenter.value = false;
 
                 // 全オブジェクトのバウンディングボックスを取得
                 var totalLeft = Infinity, totalTop = -Infinity;
@@ -335,6 +342,19 @@ function main() {
                     var shiftY = centerY - itemCenterY;
                     st.item.position = [st.item.position[0] + shiftX, st.item.position[1] + shiftY];
                 }
+
+                // 中央に集めた位置を新たな基準として originalStates を更新
+                for (var j = 0; j < originalStates.length; j++) {
+                    var st = originalStates[j];
+                    st.position = [st.item.position[0], st.item.position[1]];
+                    var boundsAfter = st.item.visibleBounds;
+                    st.width = boundsAfter[2] - boundsAfter[0];
+                    st.height = boundsAfter[1] - boundsAfter[3];
+                }
+
+                // 横・縦の入力値を0にリセット
+                inputDistanceX.text = "0";
+                inputDistanceY.text = "0";
 
                 app.redraw();
             } catch (e) {
@@ -439,18 +459,32 @@ function main() {
         var chkOpacity = opacityUI.chk;
         var inputOpacity = opacityUI.input;
 
-        /* 選択オブジェクトの初期状態を記録 / Record initial state of selected objects */
-        var originalStates = [];
+        /* 選択オブジェクトの初期状態を記録（ダイアログ開始時点） */
+        var initialStates = [];
         for (var i = 0; i < doc.selection.length; i++) {
             var item = doc.selection[i];
             var bounds = item.visibleBounds;
-            originalStates.push({
+            initialStates.push({
                 item: item,
                 position: [item.position[0], item.position[1]],
                 width: bounds[2] - bounds[0],
                 height: bounds[1] - bounds[3],
                 matrix: item.matrix,
                 opacity: (item.opacity !== undefined) ? item.opacity : 100
+            });
+        }
+        // originalStatesはプレビュー等で編集可。initialStatesはダイアログ開始時点を保持
+        var originalStates = [];
+        for (var i = 0; i < initialStates.length; i++) {
+            // ディープコピー（item参照は同じだが値は複製）
+            var st = initialStates[i];
+            originalStates.push({
+                item: st.item,
+                position: [st.position[0], st.position[1]],
+                width: st.width,
+                height: st.height,
+                matrix: st.matrix,
+                opacity: st.opacity
             });
         }
 
@@ -649,11 +683,47 @@ function main() {
         // Reset button
         var resetBtn = btnGroup.add("button", undefined, "リセット");
 
+        // Random button
+        var randomBtn = btnGroup.add("button", undefined, "ランダム");
+
+        
+
+        randomBtn.onClick = function() {
+            try {
+                // 各フィールドにランダム推奨値をセット
+                inputDistanceX.text = "50";
+                inputDistanceY.text = "50";
+                inputScale.text = "20";
+                inputRotate.text = "10";
+                inputOpacity.text = "10";
+
+                chkDistanceX.value = true;
+                chkDistanceY.value = true;
+                chkLinkX.value = true;  // ランダム時は連動をON
+                chkScale.value = true;
+                chkRotate.value = true;
+                chkOpacity.value = true;
+                chkCenter.value = false; // ランダム時は中央揃えをOFF
+
+                // 連動ON時は縦入力をディムして値を同期
+                chkDistanceY.value = false;
+                chkDistanceY.enabled = false;
+                inputDistanceY.enabled = false;
+                inputDistanceY.text = inputDistanceX.text;
+
+                // プレビューを実行
+                runAllPreviews();
+            } catch (e) {
+                alert("ランダム処理中にエラーが発生しました: " + e.message);
+            }
+        };
+
         // 共通のボタン幅を設定 / Set common button width
         var BUTTON_WIDTH = 100;
         okBtn.preferredSize.width = BUTTON_WIDTH;
         cancelBtn.preferredSize.width = BUTTON_WIDTH;
         resetBtn.preferredSize.width = BUTTON_WIDTH;
+randomBtn.preferredSize.width = BUTTON_WIDTH;
 
         // Reset action: restore state from before dialog and set rotation to 0°
         resetBtn.onClick = function() {
@@ -675,13 +745,13 @@ function main() {
                 inputRotate.text = "0";
                 inputOpacity.text = "0";
 
-                chkDistanceX.value = false;
-                chkDistanceY.value = false;
-                chkLinkX.value = false;
+                chkDistanceX.value = true;
+                chkDistanceY.value = true;
+                chkLinkX.value = true;
                 chkCenter.value = false;
-                chkScale.value = false;
-                chkRotate.value = false;
-                chkOpacity.value = false;
+                chkScale.value = true;
+                chkRotate.value = true;
+                chkOpacity.value = true;
 
                 app.redraw();
             } catch (e) {
@@ -710,8 +780,11 @@ function main() {
 
         cancelBtn.onClick = function() {
             try {
-                restoreOriginalStates(originalStates);
+                restoreOriginalStates(initialStates);
             } catch (e) {}
+            try {
+                app.executeMenuCommand('Live Corner Annotator');
+            } catch (e2) {}
             storeWinBounds(dialog);
             dialog.close();
         };
@@ -719,6 +792,9 @@ function main() {
         okBtn.onClick = function() {
             // プレビューで反映済みなので一括実行で最終反映
             // runAllPreviews();
+            try {
+                app.executeMenuCommand('Live Corner Annotator');
+            } catch (e2) {}
             storeWinBounds(dialog);
             dialog.close();
         };
