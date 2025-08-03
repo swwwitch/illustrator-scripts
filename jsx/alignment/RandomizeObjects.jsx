@@ -33,7 +33,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 ### 更新履歴：
 
 - v1.0 (20250802): 初期バージョン
-- v1.1 (20250803): 長方形を水平にする機能追加、UIの改善 
+- v1.1 (20250803): 長方形を水平にする機能追加、UIの改善
+- v1.2 (20250803): 強制的に中央に集める機能を追加
 
 ---
 
@@ -68,10 +69,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 
 - v1.0 (20250802): Initial version
 - v1.1 (20250803): Added horizontal rectangle alignment, improved UI
+- v1.2 (20250803): Added forced gather to center option
 
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -301,6 +303,44 @@ function main() {
         groupCenter.margins = [0, 10, 0, 0];
         var chkCenter = groupCenter.add("checkbox", undefined, LABELS.center[lang]);
         chkCenter.value = false;
+        // [強制]ボタン追加
+        var btnForceCenter = groupCenter.add("button", undefined, "強制");
+        btnForceCenter.preferredSize = [40, 26];
+        btnForceCenter.onClick = function() {
+            try {
+                chkCenter.value = true;
+
+                // 全オブジェクトのバウンディングボックスを取得
+                var totalLeft = Infinity, totalTop = -Infinity;
+                var totalRight = -Infinity, totalBottom = Infinity;
+                for (var i = 0; i < originalStates.length; i++) {
+                    var bounds = originalStates[i].item.visibleBounds;
+                    if (bounds[0] < totalLeft) totalLeft = bounds[0];
+                    if (bounds[1] > totalTop) totalTop = bounds[1];
+                    if (bounds[2] > totalRight) totalRight = bounds[2];
+                    if (bounds[3] < totalBottom) totalBottom = bounds[3];
+                }
+
+                var centerX = (totalLeft + totalRight) / 2;
+                var centerY = (totalTop + totalBottom) / 2;
+
+                // 各オブジェクトを中央に配置
+                for (var i = 0; i < originalStates.length; i++) {
+                    var st = originalStates[i];
+                    var itemBounds = st.item.visibleBounds;
+                    var itemCenterX = (itemBounds[0] + itemBounds[2]) / 2;
+                    var itemCenterY = (itemBounds[1] + itemBounds[3]) / 2;
+
+                    var shiftX = centerX - itemCenterX;
+                    var shiftY = centerY - itemCenterY;
+                    st.item.position = [st.item.position[0] + shiftX, st.item.position[1] + shiftY];
+                }
+
+                app.redraw();
+            } catch (e) {
+                alert("強制処理中にエラーが発生しました: " + e.message);
+            }
+        };
 
 
         // 入力値を更新し、リンクされた入力とプレビューを処理 / Update input, linked input, and preview
