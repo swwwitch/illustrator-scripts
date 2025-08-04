@@ -33,6 +33,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartV
 ### 更新履歴：
 
 - v1.0 (20250804) : 初期バージョン
+- v1.1 (20250804) : ダイアログボックスを開くときのロジックを調整
 
 */
 
@@ -68,11 +69,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartV
 ### Update History:
 
 - v1.0 (20250804): Initial version
+- v1.1 (20250804): Adjusted dialog opening logic
 
 */
 
 // スクリプトバージョン / Script Version
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 // 現在のUI言語を取得 / Get the current UI language
 function getCurrentLang() {
@@ -102,6 +104,10 @@ var LABELS = {
         en: 'Alignment',
         ja: '整列'
     },
+    glyphBounds: {
+        en: 'Align to Glyph Bounds',
+        ja: '字形の境界に整列'
+    },
     radioTop: {
         en: 'Top',
         ja: '上'
@@ -128,21 +134,25 @@ var LABELS = {
     }
 }
 
-// TextFrameかどうかを判定する / Check if object is a TextFrame
-function isTextFrame(obj) {
-    return obj && obj.typename === "TextFrame";
+// テキストや図形などを対象とするか判定 / Check if object is a target
+function isTargetObject(obj) {
+    if (!obj) return false;
+    return (obj.typename === "TextFrame" ||
+            obj.typename === "PathItem" ||
+            obj.typename === "GroupItem" ||
+            obj.typename === "CompoundPathItem");
 }
 
-// 選択中のTextFrameを配列で取得 / Get all selected TextFrames
-function getSelectedTextFrames() {
+// 選択中の対象オブジェクトを配列で取得 / Get all selected target objects
+function getSelectedObjects() {
     var selection = app.activeDocument.selection;
-    var frames = [];
+    var targets = [];
     for (var i = 0; i < selection.length; i++) {
-        if (isTextFrame(selection[i])) {
-            frames.push(selection[i]);
+        if (isTargetObject(selection[i])) {
+            targets.push(selection[i]);
         }
     }
-    return frames;
+    return targets;
 }
 
 // 複数チェックボックスを環境設定キーにバインド / Bind multiple checkboxes to preference keys
@@ -151,6 +161,7 @@ function bindCheckboxes(pairs) {
         (function(pair) {
             pair.checkbox.onClick = function() {
                 app.preferences.setBooleanPreference(pair.prefKey, pair.checkbox.value === true);
+                applyPreviewAlignment(); // 共通で呼び出す
             };
         })(pairs[i]);
     }
@@ -163,14 +174,6 @@ function main() {
     var pref = app.preferences;
     var pointGlyph = pref.getBooleanPreference(pointText);
     var areaGlyph = pref.getBooleanPreference(areaText);
-    showDialog(pointGlyph, areaGlyph);
-}
-
-// ダイアログUIを構築 / Build the dialog UI
-function showDialog(pointGlyph, areaGlyph) {
-    var pref = app.preferences;
-    $.localize = true;
-    var ui = LABELS;
 
     var dialog = new Window('dialog');
     dialog.text = LABELS.dialogTitle[lang];
@@ -196,7 +199,7 @@ function showDialog(pointGlyph, areaGlyph) {
     setDialogOpacity(dialog, dialogOpacity);
     shiftDialogPosition(dialog, offsetX, 0);
 
-    var glyphPanel = dialog.add('panel', undefined, '字形の境界に整列');
+    var glyphPanel = dialog.add('panel', undefined, LABELS.glyphBounds[lang]);
     glyphPanel.orientation = 'column';
     glyphPanel.alignChildren = ['left', 'top'];
     glyphPanel.margins = [15, 20, 15, 15];
@@ -216,20 +219,11 @@ function showDialog(pointGlyph, areaGlyph) {
             prefKey: 'EnableActualAreaTextSpaceAlign'
         }
     ]);
-    // Override onClick handlers to trigger preview update
-    checkboxPoint.onClick = function() {
-        app.preferences.setBooleanPreference('EnableActualPointTextSpaceAlign', checkboxPoint.value);
-        // 現在の整列を再実行 / Re-apply current alignment
-        applyPreviewAlignment();
-    };
-    checkboxArea.onClick = function() {
-        app.preferences.setBooleanPreference('EnableActualAreaTextSpaceAlign', checkboxArea.value);
-        // 現在の整列を再実行 / Re-apply current alignment
-        applyPreviewAlignment();
-    };
+
+    // まず選択オブジェクトを取得 / Get selected objects first
+    var frames = getSelectedObjects();
 
     // 選択中のテキストタイプを判定し、該当しないチェックボックスを無効化 / Disable irrelevant checkboxes based on selected text type
-    var frames = getSelectedTextFrames();
     if (frames.length > 0) {
         if (frames[0].kind === TextType.POINTTEXT) {
             checkboxArea.enabled = false; // エリア内文字をディム / Dim Area Text
@@ -249,35 +243,53 @@ function showDialog(pointGlyph, areaGlyph) {
     var radioCenter = alignPanel.add('radiobutton', undefined, LABELS.radioCenter[lang]);
     var radioBottom = alignPanel.add('radiobutton', undefined, LABELS.radioBottom[lang]);
 
+    // 選択内容に応じたデフォルト設定 / Set defaults based on selection
+    var hasText = false;
+    var hasShape = false;
+    for (var i = 0; i < frames.length; i++) {
+        if (frames[i].typename === "TextFrame") {
+            hasText = true;
+        } else {
+            hasShape = true;
+        }
+    }
+
+    if (hasText && hasShape) {
+        // ［A］テキストと図形の場合
+        checkboxPoint.value = true;
+        radioCenter.value = true;
+        radioTop.value = false;
+        radioBottom.value = false;
+    } else if (hasText && !hasShape) {
+        // ［B］テキストのみ
+        checkboxPoint.value = false;
+        radioBottom.value = true;
+        radioTop.value = false;
+        radioCenter.value = false;
+    } else {
+        // その他は中央に
+        radioCenter.value = true;
+        radioTop.value = false;
+        radioBottom.value = false;
+    }
+
     // キー入力でラジオボタンを選択 / Select radio buttons with key input
-    function addAlignKeyHandler(dlg, topRadio, centerRadio, bottomRadio) {
+    function addAlignKeyHandler(dlg, radios) {
         dlg.addEventListener("keydown", function(event) {
-            if (event.keyName === "T") {
-                topRadio.value = true;
-                centerRadio.value = false;
-                bottomRadio.value = false;
-                applyPreviewAlignment();
-                event.preventDefault();
-            } else if (event.keyName === "M") {
-                topRadio.value = false;
-                centerRadio.value = true;
-                bottomRadio.value = false;
-                applyPreviewAlignment();
-                event.preventDefault();
-            } else if (event.keyName === "B") {
-                topRadio.value = false;
-                centerRadio.value = false;
-                bottomRadio.value = true;
+            var keyMap = { T: 0, M: 1, B: 2 };
+            if (keyMap[event.keyName] != null) {
+                for (var i = 0; i < radios.length; i++) {
+                    radios[i].value = (i === keyMap[event.keyName]);
+                }
                 applyPreviewAlignment();
                 event.preventDefault();
             }
         });
     }
 
-    addAlignKeyHandler(dialog, radioTop, radioCenter, radioBottom);
+    addAlignKeyHandler(dialog, [radioTop, radioCenter, radioBottom]);
 
-    // デフォルトで「中央」を選択 / Default selection is "中央"
-    radioCenter.value = true;
+    // (removed: デフォルトで「中央」を選択 / Default selection is "中央")
 
     // プレビュー境界チェックボックスを追加 / Add Preview Bounds checkbox
     var previewGroup = dialog.add('group');
@@ -297,25 +309,13 @@ function showDialog(pointGlyph, areaGlyph) {
         applyPreviewAlignment();
     };
 
-    // 前回の整列状態を記録 / Track the last applied alignment
-    var lastAlign = null;
-    var lastSelectionLength = 0; // 前回の選択数を記録 / Track last selection count
-
     // 整列プレビュー処理 / Apply alignment preview immediately
     function applyPreviewAlignment() {
-        var frames = getSelectedTextFrames();
-
-        // 選択が変わったら lastAlign をリセット / Reset lastAlign if selection changed
-        if (frames.length !== lastSelectionLength) {
-            lastAlign = null;
-            lastSelectionLength = frames.length;
-        }
+        var frames = getSelectedObjects();
 
         var currentAlign = radioTop.value ? "Top" :
             radioCenter.value ? "Center" :
             radioBottom.value ? "Bottom" : null;
-
-        lastAlign = currentAlign; // 選択変更時は常に実行 / Always execute on selection change
 
         if (frames.length > 0) {
             if (radioTop.value) {
@@ -340,10 +340,10 @@ function showDialog(pointGlyph, areaGlyph) {
     group2.orientation = 'row';
     group2.alignChildren = ['fill', 'center'];
     group2.alignment = ['right', 'bottom'];
-    group2.spacing = 10;
-    group2.margins = [15, 15, 15, 15];
+    // group2.spacing = 10;
+    // group2.margins = [15, 15, 15, 15];
 
-    var cancelBtn = group2.add('button', undefined, L("cancel"), {
+    var cancelBtn = group2.add('button', undefined, LABELS.cancel[lang], {
         name: 'cancel'
     });
     cancelBtn.preferredSize.width = 90;
@@ -351,7 +351,7 @@ function showDialog(pointGlyph, areaGlyph) {
         dialog.close();
     };
 
-    var okBtn = group2.add('button', undefined, L("ok"), {
+    var okBtn = group2.add('button', undefined, LABELS.ok[lang], {
         name: 'ok'
     });
     okBtn.preferredSize.width = 90;
@@ -363,8 +363,3 @@ function showDialog(pointGlyph, areaGlyph) {
 }
 
 main();
-
-// ラベル取得関数 / Label getter for localization
-function L(key) {
-    return LABELS[key] && LABELS[key][lang] ? LABELS[key][lang] : key;
-}
