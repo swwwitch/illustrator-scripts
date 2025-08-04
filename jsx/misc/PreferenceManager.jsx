@@ -23,13 +23,14 @@ PreferenceManager.jsx
 https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3ba5b801d86fba7877
 
 ### 更新履歴 / Change Log：
-- v1.0 (20240801): 初期バージョン / Initial version
+- v1.0 (20250804): 初期バージョン / Initial version
 - v1.1 (20250804): ダイアログを2カラムに改修、単位とフォント設定を追加 / Dialog changed to two columns; added units and font settings
+- v1.2 (20250804): 角の拡大のロジックを修正 / Fixed logic for corner scaling
 */
 
 
 /* スクリプトバージョン / Script Version */
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 /* 現在のUI言語を取得 / Get the current UI language */
 function getCurrentLang() {
@@ -106,15 +107,11 @@ var LABELS = {
         en: "Scale Corners"
     },
     scaleStroke: {
-        ja: "線幅を拡大・縮小",
+        ja: "線幅と効果も拡大・縮小",
         en: "Scale Strokes"
     },
-    scaleEffects: {
-        ja: "効果を拡大・縮小",
-        en: "Scale Effects"
-    },
     realtimeDrawing: {
-        ja: "リアルタイムに描画と編集",
+        ja: "リアルタイムの描画と編集",
         en: "Real-time Drawing & Editing"
     },
     glyphBounds: {
@@ -662,38 +659,40 @@ function main() {
     otherPanel.alignChildren = ['left', 'top'];
     otherPanel.margins = [15, 20, 15, 15];
 
+    //　プレビュー境界
     var checkboxPreview = otherPanel.add('checkbox', undefined, LABELS.previewBounds[lang]);
     checkboxPreview.value = app.preferences.getBooleanPreference("includeStrokeInBounds");
     checkboxPreview.onClick = function() {
         app.preferences.setBooleanPreference("includeStrokeInBounds", checkboxPreview.value === true);
     };
 
+
+    // パターンを変形
     var checkboxPattern = otherPanel.add('checkbox', undefined, LABELS.transformPattern[lang]);
     checkboxPattern.value = app.preferences.getBooleanPreference("transformPatterns");
     checkboxPattern.onClick = function() {
         app.preferences.setBooleanPreference("transformPatterns", checkboxPattern.value === true);
     };
 
+    // 角を拡大・縮小
     var checkboxCorner = otherPanel.add('checkbox', undefined, LABELS.scaleCorners[lang]);
-    checkboxCorner.value = app.preferences.getBooleanPreference("scaleCorners");
+    // 初期値を取得（1=ON, 2=OFF）
+    checkboxCorner.value = (app.preferences.getIntegerPreference("policyForPreservingCorners") === 1);
     checkboxCorner.onClick = function() {
-        app.preferences.setBooleanPreference("scaleCorners", checkboxCorner.value === true);
+        app.preferences.setIntegerPreference(
+            "policyForPreservingCorners",
+            checkboxCorner.value ? 1 : 2
+        );
     };
 
-    /* 線幅を拡大・縮小 */
+    /* 線幅と効果も拡大・縮小 */
     var checkboxStroke = otherPanel.add('checkbox', undefined, LABELS.scaleStroke[lang]);
     checkboxStroke.value = app.preferences.getBooleanPreference("scaleLineWeight");
     checkboxStroke.onClick = function() {
         app.preferences.setBooleanPreference("scaleLineWeight", checkboxStroke.value === true);
     };
 
-    /* 効果を拡大・縮小 */
-    var checkboxEffect = otherPanel.add('checkbox', undefined, LABELS.scaleEffects[lang]);
-    checkboxEffect.value = app.preferences.getBooleanPreference("includeStrokeInBounds");
-    checkboxEffect.onClick = function() {
-        app.preferences.setBooleanPreference("includeStrokeInBounds", checkboxEffect.value === true);
-    };
-
+    /* リアルタイムの描画と編集 */
     var checkboxRealtime = otherPanel.add('checkbox', undefined, LABELS.realtimeDrawing[lang]);
     checkboxRealtime.value = app.preferences.getBooleanPreference("LiveEdit_State_Machine");
     checkboxRealtime.onClick = function() {
@@ -722,10 +721,3 @@ function main() {
 }
 
 main();
-
-/*
-▼ 最適化の提案 / Optimization Suggestions
-- cancelBtn と okBtn の onClick はデフォルト挙動のため省略可能。
-- value変換処理は refreshValues() に統合し、重複を削減可能。
-- LABELS 定義を外部ファイル化し、他のスクリプトでも再利用可能。
-*/
