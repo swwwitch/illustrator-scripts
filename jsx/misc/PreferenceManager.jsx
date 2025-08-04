@@ -156,8 +156,8 @@ var LABELS = {
         en: "Corner Radius:"
     },
     textDetailTitle: {
-        ja: "テキスト詳細",
-        en: "Text Details"
+        ja: "テキスト",
+        en: "Text"
     }
 };
 
