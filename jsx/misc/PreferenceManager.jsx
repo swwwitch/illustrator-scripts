@@ -71,11 +71,11 @@ var LABELS = {
     },
     textUnit: {
         ja: "文字",
-        en: "Text"
+        en: "Type"
     },
     asianUnit: {
         ja: "東アジア言語",
-        en: "East Asian"
+        en: "East Asian Type"
     },
     // -----------------------------------------------
     textTitle: {
@@ -84,11 +84,11 @@ var LABELS = {
     },
     fontEnglish: {
         ja: "フォント名を英語表記",
-        en: "Show font names in English"
+        en: "Show Font Names in English"
     },
     recentFonts: {
         ja: "最近使用したフォント",
-        en: "Recent fonts"
+        en: "Recent Fonts"
     },
     transformTitle: {
         ja: "変形と整列",
@@ -100,7 +100,7 @@ var LABELS = {
     },
     transformPattern: {
         ja: "パターンを変形",
-        en: "Transform Patterns"
+        en: "Transform Pattern Tiles"
     },
     scaleCorners: {
         ja: "角を拡大・縮小",
@@ -108,7 +108,7 @@ var LABELS = {
     },
     scaleStroke: {
         ja: "線幅と効果も拡大・縮小",
-        en: "Scale Strokes"
+        en: "Scale Strokes & Effects"
     },
     realtimeDrawing: {
         ja: "リアルタイムの描画と編集",
@@ -120,11 +120,11 @@ var LABELS = {
     },
     pointText: {
         ja: "ポイント文字",
-        en: "Point Text"
+        en: "Point Type"
     },
     areaText: {
         ja: "エリア内文字",
-        en: "Area Text"
+        en: "Area Type"
     },
     ok: {
         ja: "OK",
@@ -136,11 +136,11 @@ var LABELS = {
     },
     leadingLabel: {
         ja: "サイズ/行送り：",
-        en: "Size / Leading:"
+        en: "Size/Leading:"
     },
     baselineLabel: {
         ja: "ベースライン：",
-        en: "Baseline:"
+        en: "Baseline Shift:"
     },
     // ---- Added missing localized labels ----
     generalTitle: {
@@ -149,7 +149,7 @@ var LABELS = {
     },
     keyInputLabel: {
         ja: "キー入力：",
-        en: "Key Input:"
+        en: "Keyboard Increment::"
     },
     cornerRadiusLabel: {
         ja: "角丸の半径：",
