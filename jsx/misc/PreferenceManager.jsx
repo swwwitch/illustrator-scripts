@@ -53,8 +53,8 @@ var LABELS = {
         en: "Print (Q)"
     },
     modeOnscreen: {
-        ja: "オンスクリーン",
-        en: "Onscreen"
+        ja: "オンスクリーン（px）",
+        en: "Onscreen (px)"
     },
     unitsTitle: {
         ja: "単位",
@@ -133,6 +133,31 @@ var LABELS = {
     cancel: {
         ja: "キャンセル",
         en: "Cancel"
+    },
+    leadingLabel: {
+        ja: "サイズ/行送り：",
+        en: "Size / Leading:"
+    },
+    baselineLabel: {
+        ja: "ベースライン：",
+        en: "Baseline:"
+    },
+    // ---- Added missing localized labels ----
+    generalTitle: {
+        ja: "一般",
+        en: "General"
+    },
+    keyInputLabel: {
+        ja: "キー入力：",
+        en: "Key Input:"
+    },
+    cornerRadiusLabel: {
+        ja: "角丸の半径：",
+        en: "Corner Radius:"
+    },
+    textDetailTitle: {
+        ja: "テキスト詳細",
+        en: "Text Details"
     }
 };
 
@@ -312,13 +337,13 @@ function main() {
     var unitsPanel = leftColumn.add('panel', undefined, LABELS.unitsTitle[lang]);
     unitsPanel.orientation = 'column';
     unitsPanel.alignChildren = ['left', 'top'];
-    unitsPanel.margins = [15, 20, 15, 15];
+    unitsPanel.margins = [8, 20, 8, 15];
 
     /* 一般パネルを追加 / Add "General" panel */
-    var generalPanel = leftColumn.add('panel', undefined, "一般");
+    var generalPanel = leftColumn.add('panel', undefined, LABELS.generalTitle[lang]);
     generalPanel.orientation = 'column';
     generalPanel.alignChildren = ['left', 'top'];
-    generalPanel.margins = [15, 20, 15, 15];
+    generalPanel.margins = [8, 20, 8, 15];
 
     // 単位ラベル取得ヘルパー
     function getUnitLabel() {
@@ -329,8 +354,8 @@ function main() {
     // キー入力
     var groupKeyInput = generalPanel.add('group');
     groupKeyInput.orientation = 'row';
-    var labelKey = groupKeyInput.add('statictext', undefined, "キー入力：");
-    labelKey.characters = 10;
+    var labelKey = groupKeyInput.add('statictext', undefined, LABELS.keyInputLabel[lang]);
+    labelKey.characters = 12;
     labelKey.justify = 'right';
     var unitCodeKey = app.preferences.getIntegerPreference("rulerType");
     var keyValuePt = pref.getRealPreference("cursorKeyLength");
@@ -338,7 +363,7 @@ function main() {
     var inputKey = groupKeyInput.add('edittext', undefined, keyValue.toFixed(1));
     inputKey.characters = 4;
     var unitLabelKey = groupKeyInput.add('statictext', undefined, getUnitLabel());
-    unitLabelKey.characters = 5; // 幅を広げる
+    unitLabelKey.characters = 4; // 幅を広げる
     inputKey.onChange = function() {
         var value = parseFloat(inputKey.text);
         if (!isNaN(value)) {
@@ -354,8 +379,8 @@ function main() {
     // 角丸の半径
     var groupCornerRadius = generalPanel.add('group');
     groupCornerRadius.orientation = 'row';
-    var labelCorner = groupCornerRadius.add('statictext', undefined, "角丸の半径：");
-    labelCorner.characters = 10;
+    var labelCorner = groupCornerRadius.add('statictext', undefined, LABELS.cornerRadiusLabel[lang]);
+    labelCorner.characters = 12;
     labelCorner.justify = 'right';
     var cornerUnitCode = app.preferences.getIntegerPreference("rulerType");
     var cornerValuePt = pref.getRealPreference("ovalRadius");
@@ -363,7 +388,7 @@ function main() {
     var inputCornerRadius = groupCornerRadius.add('edittext', undefined, cornerValue.toFixed(1));
     inputCornerRadius.characters = 4;
     var unitLabelCorner = groupCornerRadius.add('statictext', undefined, getUnitLabel());
-    unitLabelCorner.characters = 5; // 幅を広げる
+    unitLabelCorner.characters = 4; // 幅を広げる
     inputCornerRadius.onChange = function() {
         var value = parseFloat(inputCornerRadius.text);
         if (!isNaN(value)) {
@@ -387,15 +412,15 @@ function main() {
         var code = app.preferences.getIntegerPreference("text/asianunits");
         return unitLabelMap[code] || "pt";
     }
-    var textDetailPanel = leftColumn.add('panel', undefined, "テキスト");
+    var textDetailPanel = leftColumn.add('panel', undefined, LABELS.textDetailTitle[lang]);
     textDetailPanel.orientation = 'column';
     textDetailPanel.alignChildren = ['left', 'top'];
-    textDetailPanel.margins = [15, 20, 15, 15];
+    textDetailPanel.margins = [8, 20, 8, 15];
 
     // サイズ行送り
     var groupLeading = textDetailPanel.add('group');
     groupLeading.orientation = 'row';
-    var labelLeading = groupLeading.add('statictext', undefined, "サイズ行送り：");
+    var labelLeading = groupLeading.add('statictext', undefined, LABELS.leadingLabel[lang]);
     labelLeading.characters = 12;
     labelLeading.justify = 'right';
     var sizeUnitCode = app.preferences.getIntegerPreference("text/units");
@@ -404,7 +429,7 @@ function main() {
     var inputLeading = groupLeading.add('edittext', undefined, sizeValue.toFixed(1));
     inputLeading.characters = 4;
     var unitLabelLeading = groupLeading.add('statictext', undefined, getTextUnitLabel());
-    unitLabelLeading.characters = 6; // 幅を広げる
+    unitLabelLeading.characters = 4; // 幅を広げる
     inputLeading.onChange = function() {
         var value = parseFloat(inputLeading.text);
         if (!isNaN(value)) {
@@ -421,7 +446,7 @@ function main() {
     // ベースラインシフト
     var groupBaseline = textDetailPanel.add('group');
     groupBaseline.orientation = 'row';
-    var labelBaseline = groupBaseline.add('statictext', undefined, "ベースラインシフト：");
+    var labelBaseline = groupBaseline.add('statictext', undefined, LABELS.baselineLabel[lang]);
     labelBaseline.characters = 12;
     labelBaseline.justify = 'right';
     var baselineUnitCode = app.preferences.getIntegerPreference("text/asianunits");
@@ -430,7 +455,7 @@ function main() {
     var inputBaseline = groupBaseline.add('edittext', undefined, baselineValue.toFixed(1));
     inputBaseline.characters = 4;
     var unitLabelBaseline = groupBaseline.add('statictext', undefined, getAsianUnitLabel());
-    unitLabelBaseline.characters = 6; // 幅を広げる
+    unitLabelBaseline.characters = 4; // 幅を広げる
     inputBaseline.onChange = function() {
         var value = parseFloat(inputBaseline.text);
         if (!isNaN(value)) {
@@ -449,10 +474,11 @@ function main() {
         var group = parent.add('group');
         group.orientation = 'row';
         var labelControl = group.add('statictext', undefined, label + "：");
-        labelControl.characters = 11; /* 同一幅に設定 */
-        labelControl.justify = 'right'; /* 右揃え */
+        labelControl.characters = 12;
+        labelControl.justify = 'right';
 
         var dropdown = group.add('dropdownlist', undefined, []);
+        dropdown.characters = 9; // ← 幅を6文字分に指定
         /* ラベルを追加 */
         for (var code in unitLabelMap) {
             var labelText = unitLabelMap[code];
@@ -585,7 +611,7 @@ function main() {
     var textPanel = rightColumn.add('panel', undefined, LABELS.textTitle[lang]);
     textPanel.orientation = 'column';
     textPanel.alignChildren = ['left', 'top'];
-    textPanel.margins = [15, 20, 15, 15];
+    textPanel.margins = [8, 20, 8, 15];
 
     var checkboxFontEnglish = textPanel.add('checkbox', undefined, LABELS.fontEnglish[lang]);
     checkboxFontEnglish.value = app.preferences.getBooleanPreference("text/useEnglishFontNames");
@@ -629,11 +655,10 @@ function main() {
     };
 
 
-
     var glyphPanel = rightColumn.add('panel', undefined, LABELS.glyphBounds[lang]);
     glyphPanel.orientation = 'column';
     glyphPanel.alignChildren = ['left', 'top'];
-    glyphPanel.margins = [15, 20, 15, 15];
+    glyphPanel.margins = [8, 20, 8, 15];
 
     var checkboxPoint = glyphPanel.add('checkbox', undefined, LABELS.pointText[lang]);
     checkboxPoint.value = app.preferences.getBooleanPreference('EnableActualPointTextSpaceAlign');
@@ -657,7 +682,7 @@ function main() {
     var otherPanel = rightColumn.add('panel', undefined, LABELS.transformTitle[lang]);
     otherPanel.orientation = 'column';
     otherPanel.alignChildren = ['left', 'top'];
-    otherPanel.margins = [15, 20, 15, 15];
+    otherPanel.margins = [8, 20, 8, 15];
 
     //　プレビュー境界
     var checkboxPreview = otherPanel.add('checkbox', undefined, LABELS.previewBounds[lang]);
