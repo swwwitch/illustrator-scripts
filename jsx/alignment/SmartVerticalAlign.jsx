@@ -8,7 +8,7 @@ SmartVerticalAlign
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartVerticalAlign.jsx
 
 ### 概要：
 
@@ -43,7 +43,7 @@ SmartVerticalAlign
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartVerticalAlign.jsx
 
 ### Overview:
 
