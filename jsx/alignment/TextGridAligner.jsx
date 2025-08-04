@@ -8,7 +8,7 @@ TextGridAligner-v2.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/TextGridAligner.jsx
 
 ### 概要：
 
@@ -40,7 +40,7 @@ TextGridAligner-v2.jsx
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/TextGridAligner.jsx
 
 ### Overview:
 

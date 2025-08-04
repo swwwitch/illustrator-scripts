@@ -36,6 +36,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 - v1.1 (20250803): 長方形を水平にする機能追加、UIの改善
 - v1.2 (20250803): 強制的に中央に集める機能を追加
 - v1.3 (20250804): ランダムボタンを追加
+- v1.4 (20250805): 重なりを避ける機能を追加、UIの微調整
 
 ---
 
@@ -72,10 +73,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 - v1.1 (20250803): Added horizontal rectangle alignment, improved UI
 - v1.2 (20250803): Added forced gather to center option
 - v1.3 (20250804): Added random button for quick setup
+- v1.4 (20250805): Added avoid overlap feature, minor UI tweaks
 
 */
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -353,6 +355,83 @@ function main() {
         groupAvoidOverlap.margins = [0, 5, 0, 0];
         var chkAvoidOverlap = groupAvoidOverlap.add("checkbox", undefined, LABELS.avoidOverlap[lang]);
         chkAvoidOverlap.value = true; // デフォルトON
+        var btnForceAvoid = groupAvoidOverlap.add("button", undefined, "強制");
+        btnForceAvoid.preferredSize = [40, 26];
+        btnForceAvoid.onClick = function() {
+            try {
+                var padding = 5; // 最低限の間隔（pt）
+                var placedItems = [];
+
+                var baseX = parseFloat(inputDistanceX.text || "50");
+                var baseY = parseFloat(inputDistanceY.text || "50");
+                if (isNaN(baseX) || baseX <= 0) baseX = 50;
+                if (isNaN(baseY) || baseY <= 0) baseY = 50;
+
+                var success = false;
+                var scaleFactor = 1;
+
+                // 横の値を徐々に拡大しながら必ず非重複配置を試みる
+                while (!success && scaleFactor <= 20) {
+                    placedItems = [];
+                    success = true;
+
+                    for (var i = 0; i < originalStates.length; i++) {
+                        var st = originalStates[i];
+                        var attempts = 0;
+                        var placed = false;
+
+                        while (attempts < 300) {
+                            var randX = (Math.random() * 2 - 1) * baseX * scaleFactor;
+                            var randY = (Math.random() * 2 - 1) * baseY * scaleFactor;
+                            var newX = st.position[0] + randX;
+                            var newY = st.position[1] + randY;
+
+                            st.item.position = [newX, newY];
+                            var vb = st.item.visibleBounds;
+                            var overlap = false;
+
+                            for (var j = 0; j < placedItems.length; j++) {
+                                var vb2 = placedItems[j];
+                                if (!(vb[2] + padding < vb2[0] ||
+                                      vb[0] - padding > vb2[2] ||
+                                      vb[1] + padding < vb2[3] ||
+                                      vb[3] - padding > vb2[1])) {
+                                    overlap = true;
+                                    break;
+                                }
+                            }
+
+                            if (!overlap) {
+                                placedItems.push(vb);
+                                placed = true;
+                                break;
+                            }
+                            attempts++;
+                        }
+
+                        if (!placed) {
+                            success = false;
+                            break;
+                        }
+                    }
+
+                    if (!success) {
+                        scaleFactor += 1; // 横の値を大きくして再トライ
+                        inputDistanceX.text = String(Math.round(baseX * scaleFactor));
+                        inputDistanceY.text = String(Math.round(baseY * scaleFactor));
+                    }
+                }
+
+                if (!success) {
+                    alert("十分な距離を確保できず、完全に非重複で配置できませんでした。");
+                } else {
+                    app.redraw();
+                    // Success: no alert
+                }
+            } catch (e) {
+                alert("強制処理中にエラーが発生しました: " + e.message);
+            }
+        };
 
         btnForceCenter.onClick = function() {
             try {
@@ -415,10 +494,18 @@ function main() {
                 if (previewFunc) previewFunc();
             };
             input.onChanging = function() {
-                updateLinkedInputAndPreview(input, linkInput, previewFunc);
+                if (chkLinkX.value && linkInput) {
+                    updateLinkedInputAndPreview(input, linkInput, previewFunc);
+                } else {
+                    if (previewFunc) previewFunc();
+                }
             };
             changeValueByArrowKey(input, function() {
-                updateLinkedInputAndPreview(input, linkInput, previewFunc);
+                if (chkLinkX.value && linkInput) {
+                    updateLinkedInputAndPreview(input, linkInput, previewFunc);
+                } else {
+                    if (previewFunc) previewFunc();
+                }
             });
         }
 

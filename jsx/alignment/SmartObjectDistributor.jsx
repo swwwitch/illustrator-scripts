@@ -29,13 +29,13 @@ SmartObjectDistributor.jsx
 
 ### 更新履歴
 
-- v0.5.3 (20250605) : 行間・列間統一、マージン共通化
-- v0.5.4 (20250605) : UI構造とラベル整理、cell-background レイヤーの自動削除追加
-- v0.5.5 (20250605) : 行列設定の簡素化、直前セル削除処理追加
-- v0.5.6 (20250605) : UI制御改善
-- v0.5.7 (20250605) : マージン即時プレビュー反映
-- v0.5.8 (20250605) : _target レイヤーのアートボード一時使用追加
-
+- v1.0 (20250605) : 行間・列間統一、マージン共通化
+- v1.1 (20250605) : UI構造とラベル整理、cell-background レイヤーの自動削除追加
+- v1.2 (20250605) : 行列設定の簡素化、直前セル削除処理追加
+- v1.3 (20250605) : UI制御改善
+- v1.4 (20250605) : マージン即時プレビュー反映
+- v1.5 (20250605) : _target レイヤーのアートボード一時使用追加
+- v1.6 (20250804) : ↑↓キーでの値変更を追加
 ---
 
 ### Script Name:
@@ -65,24 +65,28 @@ SmartObjectDistributor.jsx
 
 ### Update History
 
-- v0.5.3 (20250605): Unified gutter and margin settings
-- v0.5.4 (20250605): Refined UI and label structure, auto-remove cell-background layer
-- v0.5.5 (20250605): Simplified grid settings, added previous cell removal
-- v0.5.6 (20250605): Improved UI control
-- v0.5.7 (20250605): Immediate preview update for margin changes
-- v0.5.8 (20250605): Added temporary artboard usage from _target layer
+- v1.0 (20250605) : Unified row and column spacing, common margin
+- v1.1 (20250605) : UI structure and label cleanup, auto-delete cell-background layer
+- v1.2 (20250605) : Simplified row/column settings, added immediate cell deletion
+- v1.3 (20250605) : Improved UI control
+- v1.4 (20250605) : Immediate margin preview reflection
+- v1.5 (20250605) : Temporary use of _target layer for artboard addition
+- v1.6 (20250804) : Added ↑↓ key value change support
+
 */
+
+var SCRIPT_VERSION = "v1.6";
 
 // 言語判定関数とラベル定義（グローバル）
 function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
 var labels = {
     dialogTitle: {
-        ja: "グリッド状に配置",
-        en: "Distribute in Grid"
+        ja: "グリッド状に配置 " + SCRIPT_VERSION,
+        en: "Distribute in Grid "+ SCRIPT_VERSION
     },
     infoText: {
         ja: "「_target」レイヤーの長方形を優先",
@@ -888,6 +892,64 @@ function main() {
     // ダイアログ初期プレビュー＆終了時処理
     updateGutterEnable();
     renderGrid(true, true, convertToGuideCheckbox.value); // プレビュー時は仮でtrue
+
+    // 値を矢印キーで増減する関数
+    function changeValueByArrowKey(editText) {
+        editText.addEventListener("keydown", function(event) {
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
+
+            if (keyboard.shiftKey) {
+                delta = 10;
+                if (event.keyName == "Up") {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                    event.preventDefault();
+                } else if (event.keyName == "Down") {
+                    value = Math.floor((value - 1) / delta) * delta;
+                    if (value < 0) value = 0;
+                    event.preventDefault();
+                }
+            } else if (keyboard.altKey) {
+                delta = 0.1;
+                if (event.keyName == "Up") {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName == "Down") {
+                    value -= delta;
+                    event.preventDefault();
+                }
+            } else {
+                delta = 1;
+                if (event.keyName == "Up") {
+                    value += delta;
+                    event.preventDefault();
+                } else if (event.keyName == "Down") {
+                    value -= delta;
+                    if (value < 0) value = 0;
+                    event.preventDefault();
+                }
+            }
+
+            if (keyboard.altKey) {
+                value = Math.round(value * 10) / 10;
+            } else {
+                value = Math.round(value);
+            }
+
+            editText.text = value;
+            renderGrid(true, true, convertToGuideCheckbox.value);
+        });
+    }
+
+    // 各入力欄に適用
+    changeValueByArrowKey(inputYText);
+    changeValueByArrowKey(inputXText);
+    changeValueByArrowKey(inputRowGutter);
+    changeValueByArrowKey(marginInput);
+    changeValueByArrowKey(inputOpacity);
 
     dlg.show();
 }
