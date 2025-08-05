@@ -39,6 +39,7 @@ https://note.com/dtp_tranist/n/n4a212e6eacf1
 - v1.0 (20250720) : 初期バージョン
 - v1.1 (20250721) : アートボード変換・カスタム比率機能を追加
 - v1.2 (20250722) : ダイアログ構成改善・ローカライズ・キー操作追加
+- v1.3 (20250723) : プレビュー更新の安定性向上・UI調整
 
 */
 
@@ -74,11 +75,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRati
 - v1.0 (20250720): Initial release
 - v1.1 (20250721): Added artboard conversion & custom ratio
 - v1.2 (20250722): Improved dialog structure, localization, and key input
+- v1.3 (20250723): Enhanced preview stability and UI adjustments
 
 */
 
 // スクリプトバージョン / Script Version
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -439,32 +441,18 @@ function main() {
 
     /* OKボタンが押された場合 / If OK pressed */
     if (result === 1) {
-        var ratio = dialogResult.ratio169.value ? 1.777777 : (dialogResult.ratio11.value ? 1.0 : (function() {
-            var w = parseFloat(dialogResult.customWidthInput.text);
-            var h = parseFloat(dialogResult.customHeightInput.text);
-            return (h === 0) ? 1 : w / h;
-        })());
-        var isVertical = dialogResult.baseVertical.value;
         for (var i = 0; i < selectedItems.length; i++) {
             selectedItems[i].hidden = false;
-            if (isVertical) {
-                var h = originalHeights[i];
-                selectedItems[i].width = h * ratio;
-            } else {
-                var w = originalWidths[i];
-                selectedItems[i].height = w / ratio;
-            }
             if (dialogResult.alignToPixel.value) {
                 app.selection = [selectedItems[i]];
                 app.executeMenuCommand('Make Pixel Perfect');
             }
             previewCopies[i].remove();
         }
-        /* アートボードに変換 / Convert to artboard */
         if (dialogResult.convertToArtboard.value) {
             for (var i = 0; i < selectedItems.length; i++) {
                 var item = selectedItems[i];
-                var vb = item.visibleBounds; // [y1, x1, y2, x2]
+                var vb = item.visibleBounds;
                 var abRect = [vb[0], vb[1], vb[2], vb[3]];
                 app.activeDocument.artboards.add(abRect);
             }
