@@ -1,24 +1,80 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
+### スクリプト名：
+
 SelectionInspector.jsx
 
-選択中のオブジェクトおよびドキュメント全体の統計情報を表示するスクリプト
-This script displays statistics of selected objects and the entire document.
+### GitHub：
 
-- オブジェクト数、アートボード数を表示 / Display object and artboard counts
-- テキストの詳細（文字数、段落数、テキスト種類） / Text details (characters, paragraphs, text types)
-- 画像の詳細（リンク、埋め込み、リンク切れ） / Image details (linked, embedded, broken links)
-- グループの詳細（グループ、クリップグループ） / Group details (groups, clipping groups)
-- パスの詳細（総数、オープンパス、クローズパス、アンカーポイント） / Path details (total, open, closed, anchor points)
+https://github.com/swwwitch/illustrator-scripts
 
-作成日: 2025-08-06 / Created: 2025-08-06
-更新日: 2025-08-07 : コメントを日英併記に整理、UI改善、カウント項目追加
-Updated: 2025-08-07 : Comments bilingual, UI improvements, added count items
+### 概要：
+
+- 選択中および全体のオブジェクト数をカウント
+- テキスト・画像・グループ・パスの詳細情報を表示
+- 統計情報をダイアログで表示、書き出し可能
+
+### 主な機能：
+
+- オブジェクト数、アートボード数を表示
+- 文字数、段落数、テキスト種類の表示
+- リンク画像／埋め込み画像／リンク切れの検出
+- グループ／クリップグループのカウント
+- パス（オープン／クローズ／アンカーポイント）のカウント
+- 「書き出し」ボタンでテキストファイルとして保存
+
+### 処理の流れ：
+
+- ドキュメントと選択オブジェクトを解析し、各種情報を取得
+- ダイアログに2カラムで情報を整然と表示
+- 書き出し機能でデスクトップにテキスト保存
+
+### 更新履歴：
+
+- v1.0 (20250806) : 初期バージョン
+- v1.1 (20250806) : 書き出し機能を追加
+
+---
+
+### Script Name:
+
+SelectionInspector.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts
+
+### Overview:
+
+- Count selected and total objects in the document
+- Display detailed stats for text, images, groups, and paths
+- Show statistics in a dialog and export as a text file
+
+### Main Features:
+
+- Display number of objects and artboards
+- Show characters, paragraphs, text type counts
+- Detect linked/embedded/broken images
+- Count groups and clipping groups
+- Count paths, open/closed paths, and anchor points
+- Export button writes stats to desktop as a text file
+
+### Process Flow:
+
+- Analyze document and selected objects
+- Display data in a two-column dialog UI
+- Export stats to desktop text file
+
+### Changelog:
+
+- v1.0 (20250806): Initial version
+- v1.1 (20250806): Added export feature
+
 */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -61,11 +117,11 @@ var LABELS = {
     },
     pointText: {
         ja: "ポイント文字：",
-        en: "Point Text:"
+        en: "Point Type:"
     },
     areaText: {
         ja: "エリア内文字：",
-        en: "Area Text:"
+        en: "Area Type:"
     },
     pathText: {
         ja: "パス上文字：",
@@ -500,15 +556,114 @@ function main() {
 
         /* ボタングループを追加 / Add button group */
         var buttonGroup = dlg.add("group");
-        buttonGroup.alignment = "center"; // グループを中央に配置
-        buttonGroup.alignChildren = ["center", "center"];
+        buttonGroup.alignment = "fill"; 
+        buttonGroup.alignChildren = ["fill", "center"];
 
-        var btn = buttonGroup.add("button", undefined, LABELS.ok[lang], {
-            name: "ok"
-        });
-        // btn.preferredSize.width = 60;
-        // btn.preferredSize.height = 26;
-        btn.onClick = function() {
+        var exportBtn = buttonGroup.add("button", undefined, "書き出し");
+        exportBtn.alignment = "left";
+
+        var spacer = buttonGroup.add("statictext", undefined, "");
+        spacer.preferredSize.width = 200; // スペーサーで左右に配置調整
+
+        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+        okBtn.alignment = "right";
+
+        exportBtn.onClick = function() {
+            try {
+                var docName = app.activeDocument.name.replace(/\.[^\.]+$/, ""); // 拡張子を除いたファイル名
+                var today = new Date();
+                var yyyy = today.getFullYear();
+                var mm = ("0" + (today.getMonth() + 1)).slice(-2);
+                var dd = ("0" + today.getDate()).slice(-2);
+                var dateStr = yyyy + mm + dd;
+
+                var desktopPath = Folder.desktop + "/count-" + docName + "-" + dateStr + ".txt";
+                var file = new File(desktopPath);
+                if (file.open("w")) {
+                    file.writeln("Selection Inspector Report (All Counts)");
+                    file.writeln("-------------------------------");
+                    file.writeln("");
+
+                    if (lang === "ja") {
+                        file.writeln("その他");
+                        file.writeln(LABELS.artboards.ja + " " + artboardCount);
+                        file.writeln(LABELS.objects.ja + " " + totalObjAll);
+                        file.writeln("");
+
+                        file.writeln("文字");
+                        file.writeln(LABELS.texts.ja + " " + textCountAll);
+                        file.writeln(LABELS.chars.ja + " " + totalCharAll);
+                        file.writeln("");
+
+                        file.writeln("テキストオブジェクト");
+                        file.writeln(LABELS.paras.ja + " " + paraCountAll);
+                        file.writeln(LABELS.pointText.ja + " " + pointTextAll);
+                        file.writeln(LABELS.areaText.ja + " " + areaTextAll);
+                        file.writeln(LABELS.pathText.ja + " " + pathTextAll);
+                        file.writeln("");
+
+                        file.writeln("画像");
+                        file.writeln(LABELS.linked.ja + " " + linkedAll);
+                        file.writeln(LABELS.embed.ja + " " + embeddedAll);
+                        file.writeln(LABELS.broken.ja + " " + brokenLinkAll);
+                        file.writeln("");
+
+                        file.writeln("グループ");
+                        file.writeln(LABELS.group.ja + " " + groupAll);
+                        file.writeln(LABELS.clipGroup.ja + " " + clipGroupAll);
+                        file.writeln("");
+
+                        file.writeln("パス");
+                        file.writeln(LABELS.pathCount.ja + " " + pathCountAll);
+                        file.writeln(LABELS.openPath.ja + " " + openPathAll);
+                        file.writeln(LABELS.closedPath.ja + " " + closedPathAll);
+                        file.writeln(LABELS.anchors.ja + " " + anchorCountAll);
+                    } else {
+                        file.writeln("Misc");
+                        file.writeln("Artboards: " + artboardCount);
+                        file.writeln("Objects: " + totalObjAll);
+                        file.writeln("");
+
+                        file.writeln("Character");
+                        file.writeln("Text Frames: " + textCountAll);
+                        file.writeln("Characters: " + totalCharAll);
+                        file.writeln("");
+
+                        file.writeln("Text Objects");
+                        file.writeln("Paragraphs: " + paraCountAll);
+                        file.writeln("Point Text: " + pointTextAll);
+                        file.writeln("Area Text: " + areaTextAll);
+                        file.writeln("Path Text: " + pathTextAll);
+                        file.writeln("");
+
+                        file.writeln("Images");
+                        file.writeln("Linked Images: " + linkedAll);
+                        file.writeln("Embedded Images: " + embeddedAll);
+                        file.writeln("Broken Links: " + brokenLinkAll);
+                        file.writeln("");
+
+                        file.writeln("Groups");
+                        file.writeln("Groups: " + groupAll);
+                        file.writeln("Clipping Groups: " + clipGroupAll);
+                        file.writeln("");
+
+                        file.writeln("Paths");
+                        file.writeln("Paths: " + pathCountAll);
+                        file.writeln("Open Paths: " + openPathAll);
+                        file.writeln("Closed Paths: " + closedPathAll);
+                        file.writeln("Anchor Points: " + anchorCountAll);
+                    }
+
+                    file.close();
+                    alert("書き出しました: " + desktopPath);
+                } else {
+                    alert("ファイルを開けませんでした。");
+                }
+            } catch (err) {
+                alert("書き出し中にエラー: " + err);
+            }
+        };
+        okBtn.onClick = function() {
             dlg.close();
         };
 
