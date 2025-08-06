@@ -9,7 +9,7 @@ ZIndexSorter.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/sort/ZIndexSorter.jsx
 
 ### 概要：
 
@@ -46,7 +46,7 @@ ZIndexSorter.jsx
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/sort/ZIndexSorter.jsx
 
 ### Overview:
 
