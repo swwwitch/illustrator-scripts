@@ -26,12 +26,11 @@ https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3
 - v1.0 (20250804): 初期バージョン / Initial version
 - v1.1 (20250804): ダイアログを2カラムに改修、単位とフォント設定を追加 / Dialog changed to two columns; added units and font settings
 - v1.2 (20250804): 角の拡大のロジックを修正 / Fixed logic for corner scaling
-- v1.3 (20250805): 単位と増減値のUIとロジックを削除
 */
 
 
 /* スクリプトバージョン / Script Version */
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.2";
 
 /* 現在のUI言語を取得 / Get the current UI language */
 function getCurrentLang() {
@@ -329,11 +328,300 @@ function main() {
     setDialogOpacity(dialog, dialogOpacity);
     shiftDialogPosition(dialog, offsetX, 0);
 
+    /* モード選択ラジオボタン / Mode Selection Radio Buttons */
+    var modeGroup = dialog.add('group');
+    modeGroup.orientation = 'row';
+    modeGroup.alignChildren = ['center', 'center']; // 中央揃え
+    modeGroup.alignment = ['center', 'top']; // グループ自体を中央に配置
+    modeGroup.margins = [15, 10, 15, 10];
+
+    var radioPrintPt = modeGroup.add('radiobutton', undefined, LABELS.modePrintPt[lang]);
+    var radioPrintQ = modeGroup.add('radiobutton', undefined, LABELS.modePrintQ[lang]);
+    var radioOnscreen = modeGroup.add('radiobutton', undefined, LABELS.modeOnscreen[lang]);
+    // radioPrintPt.value = true; // デフォルト選択を無効化
+    // None selected by default; set all to false on dialog show
+    dialog.onShow = function() {
+        radioPrintPt.value = false;
+        radioPrintQ.value = false;
+        radioOnscreen.value = false;
+    };
 
     /* 2カラムのメインコンテナ / Two-column main container */
     var mainGroup = dialog.add('group');
     mainGroup.orientation = 'row';
     mainGroup.alignChildren = ['fill', 'top'];
+
+    /* 左カラム / Left column */
+    var leftColumn = mainGroup.add('group');
+    leftColumn.orientation = 'column';
+    leftColumn.alignChildren = ['fill', 'top'];
+
+    /* 単位パネルを追加 / Add "Units" panel */
+    var unitsPanel = leftColumn.add('panel', undefined, LABELS.unitsTitle[lang]);
+    unitsPanel.orientation = 'column';
+    unitsPanel.alignChildren = ['left', 'top'];
+    unitsPanel.margins = [8, 20, 8, 15];
+
+    /* 一般パネルを追加 / Add "General" panel */
+    var generalPanel = leftColumn.add('panel', undefined, LABELS.generalTitle[lang]);
+    generalPanel.orientation = 'column';
+    generalPanel.alignChildren = ['left', 'top'];
+    generalPanel.margins = [8, 20, 8, 15];
+
+    // 単位ラベル取得ヘルパー
+    function getGeneralUnitLabel() {
+        var code = app.preferences.getIntegerPreference("rulerType");
+        return getUnitLabel(code, "rulerType");
+    }
+
+    // キー入力
+    var groupKeyInput = generalPanel.add('group');
+    groupKeyInput.orientation = 'row';
+    var labelKey = groupKeyInput.add('statictext', undefined, LABELS.keyInputLabel[lang]);
+    labelKey.characters = 12;
+    labelKey.justify = 'right';
+    var unitCodeKey = app.preferences.getIntegerPreference("rulerType");
+    var keyValuePt = pref.getRealPreference("cursorKeyLength");
+    var keyValue = convertFromPt(keyValuePt, unitCodeKey);
+    var inputKey = groupKeyInput.add('edittext', undefined, keyValue.toFixed(1));
+    inputKey.characters = 4;
+    var unitLabelKey = groupKeyInput.add('statictext', undefined, getGeneralUnitLabel());
+    unitLabelKey.characters = 4; // 幅を広げる
+    inputKey.onChange = function() {
+        var value = parseFloat(inputKey.text);
+        if (!isNaN(value)) {
+            var ptValue = convertToPt(value, app.preferences.getIntegerPreference("rulerType"));
+            pref.setRealPreference("cursorKeyLength", ptValue);
+            refreshValues();
+        }
+    };
+    /* ↑↓キー操作を適用 / Apply arrow key value change */
+    changeValueByArrowKey(inputKey);
+
+
+    // 角丸の半径
+    var groupCornerRadius = generalPanel.add('group');
+    groupCornerRadius.orientation = 'row';
+    var labelCorner = groupCornerRadius.add('statictext', undefined, LABELS.cornerRadiusLabel[lang]);
+    labelCorner.characters = 12;
+    labelCorner.justify = 'right';
+    var cornerUnitCode = app.preferences.getIntegerPreference("rulerType");
+    var cornerValuePt = pref.getRealPreference("ovalRadius");
+    var cornerValue = convertFromPt(cornerValuePt, cornerUnitCode);
+    var inputCornerRadius = groupCornerRadius.add('edittext', undefined, cornerValue.toFixed(1));
+    inputCornerRadius.characters = 4;
+    var unitLabelCorner = groupCornerRadius.add('statictext', undefined, getGeneralUnitLabel());
+    unitLabelCorner.characters = 4; // 幅を広げる
+    inputCornerRadius.onChange = function() {
+        var value = parseFloat(inputCornerRadius.text);
+        if (!isNaN(value)) {
+            var ptValue = convertToPt(value, app.preferences.getIntegerPreference("rulerType"));
+            pref.setRealPreference("ovalRadius", ptValue);
+            refreshValues();
+        }
+    };
+    /* ↑↓キー操作を適用 / Apply arrow key value change */
+    changeValueByArrowKey(inputCornerRadius);
+
+
+    /* テキスト詳細パネルを追加 / Add "Text Details" panel */
+    // --- Unit label helpers for text detail panel ---
+    function getTextUnitLabel() {
+        var code = app.preferences.getIntegerPreference("text/units");
+        return getUnitLabel(code, "text/units");
+    }
+
+    function getAsianUnitLabel() {
+        var code = app.preferences.getIntegerPreference("text/asianunits");
+        return getUnitLabel(code, "text/asianunits");
+    }
+    var textDetailPanel = leftColumn.add('panel', undefined, LABELS.textDetailTitle[lang]);
+    textDetailPanel.orientation = 'column';
+    textDetailPanel.alignChildren = ['left', 'top'];
+    textDetailPanel.margins = [8, 20, 8, 15];
+
+    // サイズ行送り
+    var groupLeading = textDetailPanel.add('group');
+    groupLeading.orientation = 'row';
+    var labelLeading = groupLeading.add('statictext', undefined, LABELS.leadingLabel[lang]);
+    labelLeading.characters = 12;
+    labelLeading.justify = 'right';
+    var sizeUnitCode = app.preferences.getIntegerPreference("text/units");
+    var sizeValuePt = pref.getRealPreference("text/sizeIncrement");
+    var sizeValue = convertFromPt(sizeValuePt, sizeUnitCode);
+    var inputLeading = groupLeading.add('edittext', undefined, sizeValue.toFixed(1));
+    inputLeading.characters = 4;
+    var unitLabelLeading = groupLeading.add('statictext', undefined, getTextUnitLabel());
+    unitLabelLeading.characters = 4; // 幅を広げる
+    inputLeading.onChange = function() {
+        var value = parseFloat(inputLeading.text);
+        if (!isNaN(value)) {
+            var ptValue = convertToPt(value, app.preferences.getIntegerPreference("text/units"));
+            pref.setRealPreference("text/sizeIncrement", ptValue);
+            refreshValues();
+        }
+    };
+    /* ↑↓キー操作を適用 / Apply arrow key value change */
+    changeValueByArrowKey(inputLeading);
+
+
+
+    // ベースラインシフト
+    var groupBaseline = textDetailPanel.add('group');
+    groupBaseline.orientation = 'row';
+    var labelBaseline = groupBaseline.add('statictext', undefined, LABELS.baselineLabel[lang]);
+    labelBaseline.characters = 12;
+    labelBaseline.justify = 'right';
+    var baselineUnitCode = app.preferences.getIntegerPreference("text/asianunits");
+    var baselineValuePt = pref.getRealPreference("text/riseIncrement");
+    var baselineValue = convertFromPt(baselineValuePt, baselineUnitCode);
+    var inputBaseline = groupBaseline.add('edittext', undefined, baselineValue.toFixed(1));
+    inputBaseline.characters = 4;
+    var unitLabelBaseline = groupBaseline.add('statictext', undefined, getAsianUnitLabel());
+    unitLabelBaseline.characters = 4; // 幅を広げる
+    inputBaseline.onChange = function() {
+        var value = parseFloat(inputBaseline.text);
+        if (!isNaN(value)) {
+            var ptValue = convertToPt(value, app.preferences.getIntegerPreference("text/asianunits"));
+            pref.setRealPreference("text/riseIncrement", ptValue);
+            refreshValues();
+        }
+    };
+    /* ↑↓キー操作を適用 / Apply arrow key value change */
+    changeValueByArrowKey(inputBaseline);
+
+
+    var unitDropdowns = {};
+
+    function createUnitDropdown(parent, label, prefKey) {
+        var group = parent.add('group');
+        group.orientation = 'row';
+        var labelControl = group.add('statictext', undefined, label + "：");
+        labelControl.characters = 12;
+        labelControl.justify = 'right';
+
+        var dropdown = group.add('dropdownlist', undefined, []);
+        dropdown.characters = 9; // ← 幅を6文字分に指定
+        /* ラベルを追加 */
+        for (var code in unitLabelMap) {
+            var labelText = getUnitLabel(Number(code), prefKey);
+            dropdown.add('item', labelText);
+        }
+
+        var currentCode = app.preferences.getIntegerPreference(prefKey);
+        dropdown.selection = dropdown.find(getUnitLabel(currentCode, prefKey)) || dropdown.find("pt");
+
+        dropdown.onChange = function() {
+            var selectedLabel = dropdown.selection.text;
+            for (var c in unitLabelMap) {
+                if (getUnitLabel(Number(c), prefKey) === selectedLabel) {
+                    app.preferences.setIntegerPreference(prefKey, parseInt(c, 10));
+                    break;
+                }
+            }
+        };
+
+        unitDropdowns[prefKey] = dropdown;
+    }
+
+    /* 各プルダウンを作成 */
+    createUnitDropdown(unitsPanel, LABELS.generalUnit[lang], "rulerType");
+    createUnitDropdown(unitsPanel, LABELS.strokeUnit[lang], "strokeUnits");
+    createUnitDropdown(unitsPanel, LABELS.textUnit[lang], "text/units");
+    createUnitDropdown(unitsPanel, LABELS.asianUnit[lang], "text/asianunits");
+
+    function setUnitsForMode(mode) {
+        if (mode === "printPt") {
+            unitDropdowns["rulerType"].selection = unitDropdowns["rulerType"].find("mm"); // 一般は mm
+            unitDropdowns["strokeUnits"].selection = unitDropdowns["strokeUnits"].find("pt");
+            unitDropdowns["text/units"].selection = unitDropdowns["text/units"].find("pt");
+            unitDropdowns["text/asianunits"].selection = unitDropdowns["text/asianunits"].find("pt");
+
+            // 値を更新（すべてptで保存、UIはmm/pt表示）
+            var rulerCode = 1; // mm
+            var textCode = 2; // pt
+            var asianCode = 2; // pt
+            pref.setRealPreference("cursorKeyLength", convertToPt(0.1, rulerCode));
+            pref.setRealPreference("ovalRadius", convertToPt(1, rulerCode));
+            pref.setRealPreference("text/sizeIncrement", convertToPt(1.0, textCode));
+            pref.setRealPreference("text/riseIncrement", convertToPt(0.1, asianCode));
+
+        } else if (mode === "printQ") {
+            unitDropdowns["rulerType"].selection = unitDropdowns["rulerType"].find("mm");
+            unitDropdowns["strokeUnits"].selection = unitDropdowns["strokeUnits"].find("mm");
+            var qhUnitCode = 5;
+            unitDropdowns["text/units"].selection = unitDropdowns["text/units"].find(getUnitLabel(qhUnitCode, "text/units"));
+            unitDropdowns["text/asianunits"].selection = unitDropdowns["text/asianunits"].find(getUnitLabel(qhUnitCode, "text/asianunits"));
+
+            // 値を更新（すべてptで保存、UIはmm/Q/H表示）
+            var rulerCodeQ = 1; // mm
+            pref.setRealPreference("cursorKeyLength", convertToPt(1, rulerCodeQ));
+            pref.setRealPreference("ovalRadius", convertToPt(2, rulerCodeQ));
+            pref.setRealPreference("text/sizeIncrement", convertToPt(1, qhUnitCode));
+            pref.setRealPreference("text/riseIncrement", convertToPt(0.1, qhUnitCode));
+
+        } else if (mode === "onscreen") {
+            unitDropdowns["rulerType"].selection = unitDropdowns["rulerType"].find("px");
+            unitDropdowns["strokeUnits"].selection = unitDropdowns["strokeUnits"].find("px");
+            unitDropdowns["text/units"].selection = unitDropdowns["text/units"].find("px");
+            unitDropdowns["text/asianunits"].selection = unitDropdowns["text/asianunits"].find("px");
+
+            // 値を更新
+            var pxCode = 6;
+            pref.setRealPreference("cursorKeyLength", convertToPt(1, pxCode));
+            pref.setRealPreference("ovalRadius", convertToPt(1, pxCode));
+            pref.setRealPreference("text/sizeIncrement", convertToPt(1, pxCode));
+            pref.setRealPreference("text/riseIncrement", convertToPt(0.5, pxCode));
+        }
+
+        /* Trigger onChange manually to update preferences */
+        for (var key in unitDropdowns) {
+            if (unitDropdowns[key].selection) {
+                unitDropdowns[key].onChange();
+            }
+        }
+
+        refreshUnitLabels();
+        refreshValues();
+    }
+
+    // --- Helper to refresh unit labels in panels ---
+    function refreshUnitLabels() {
+        // Update General panel unit labels
+        groupKeyInput.children[groupKeyInput.children.length - 1].text = getGeneralUnitLabel();
+        groupCornerRadius.children[groupCornerRadius.children.length - 1].text = getGeneralUnitLabel();
+        // Update Text Detail panel unit labels
+        groupLeading.children[groupLeading.children.length - 1].text = getTextUnitLabel();
+        groupBaseline.children[groupBaseline.children.length - 1].text = getAsianUnitLabel();
+    }
+
+    // --- Helper to refresh numeric field values with unit conversion ---
+    function refreshValues() {
+        var unitCodeKey = app.preferences.getIntegerPreference("rulerType");
+        inputKey.text = convertFromPt(pref.getRealPreference("cursorKeyLength"), unitCodeKey).toFixed(1);
+
+        var cornerUnitCode = app.preferences.getIntegerPreference("rulerType");
+        inputCornerRadius.text = convertFromPt(pref.getRealPreference("ovalRadius"), cornerUnitCode).toFixed(1);
+
+        var sizeUnitCode = app.preferences.getIntegerPreference("text/units");
+        inputLeading.text = convertFromPt(pref.getRealPreference("text/sizeIncrement"), sizeUnitCode).toFixed(1);
+
+        var baselineUnitCode = app.preferences.getIntegerPreference("text/asianunits");
+        inputBaseline.text = convertFromPt(pref.getRealPreference("text/riseIncrement"), baselineUnitCode).toFixed(1);
+    }
+
+    radioPrintPt.onClick = function() {
+        setUnitsForMode("printPt");
+        refreshUnitLabels();
+    };
+    radioPrintQ.onClick = function() {
+        setUnitsForMode("printQ");
+        refreshUnitLabels();
+    };
+    radioOnscreen.onClick = function() {
+        setUnitsForMode("onscreen");
+        refreshUnitLabels();
+    };
 
 
     /* 右カラム / Right column */

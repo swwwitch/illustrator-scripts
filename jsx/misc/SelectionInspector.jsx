@@ -31,28 +31,94 @@ var LABELS = {
         ja: "選択／全体オブジェクト数 " + SCRIPT_VERSION,
         en: "Selection / All Objects Count " + SCRIPT_VERSION
     },
-    other: { ja: "その他", en: "Other" },
-    artboards: { ja: "アートボード：", en: "Artboards:" },
-    objects: { ja: "オブジェクト：", en: "Objects:" },
-    charPara: { ja: "文字・段落", en: "Characters & Paragraphs" },
-    chars: { ja: "文字数：", en: "Characters:" },
-    paras: { ja: "段落数：", en: "Paragraphs:" },
-    texts: { ja: "テキスト：", en: "Text Frames:" },
-    pointText: { ja: "ポイント文字：", en: "Point Text:" },
-    areaText: { ja: "エリア内文字：", en: "Area Text:" },
-    pathText: { ja: "パス上文字：", en: "Path Text:" },
-    link: { ja: "リンク", en: "Images" },
-    linked: { ja: "リンク：", en: "Linked Images:" },
-    embed: { ja: "埋め込み：", en: "Embedded Images:" },
-    broken: { ja: "リンク切れ：", en: "Broken Links:" },
-    group: { ja: "グループ", en: "Groups" },
-    clipGroup: { ja: "クリップグループ：", en: "Clipping Groups:" },
-    path: { ja: "パス", en: "Paths" },
-    pathCount: { ja: "パス：", en: "Paths:" },
-    openPath: { ja: "オープンパス：", en: "Open Paths:" },
-    closedPath: { ja: "クローズパス：", en: "Closed Paths:" },
-    anchors: { ja: "アンカーポイント：", en: "Anchor Points:" },
-    ok: { ja: "OK", en: "OK" }
+    other: {
+        ja: "その他",
+        en: "Other"
+    },
+    artboards: {
+        ja: "アートボード：",
+        en: "Artboards:"
+    },
+    objects: {
+        ja: "オブジェクト：",
+        en: "Objects:"
+    },
+    charPara: {
+        ja: "文字・段落",
+        en: "Characters & Paragraphs"
+    },
+    chars: {
+        ja: "文字数：",
+        en: "Characters:"
+    },
+    paras: {
+        ja: "段落数：",
+        en: "Paragraphs:"
+    },
+    texts: {
+        ja: "テキスト：",
+        en: "Text Frames:"
+    },
+    pointText: {
+        ja: "ポイント文字：",
+        en: "Point Text:"
+    },
+    areaText: {
+        ja: "エリア内文字：",
+        en: "Area Text:"
+    },
+    pathText: {
+        ja: "パス上文字：",
+        en: "Path Text:"
+    },
+    link: {
+        ja: "配置画像",
+        en: "Images"
+    },
+    linked: {
+        ja: "リンク：",
+        en: "Linked Images:"
+    },
+    embed: {
+        ja: "埋め込み：",
+        en: "Embedded Images:"
+    },
+    broken: {
+        ja: "リンク切れ：",
+        en: "Broken Links:"
+    },
+    group: {
+        ja: "グループ：",
+        en: "Groups:"
+    },
+    clipGroup: {
+        ja: "クリップグループ：",
+        en: "Clipping Groups:"
+    },
+    path: {
+        ja: "パス",
+        en: "Paths"
+    },
+    pathCount: {
+        ja: "パス：",
+        en: "Paths:"
+    },
+    openPath: {
+        ja: "オープンパス：",
+        en: "Open Paths:"
+    },
+    closedPath: {
+        ja: "クローズパス：",
+        en: "Closed Paths:"
+    },
+    anchors: {
+        ja: "アンカーポイント：",
+        en: "Anchor Points:"
+    },
+    ok: {
+        ja: "OK",
+        en: "OK"
+    }
 };
 
 function main() {
@@ -167,7 +233,7 @@ function main() {
         var panelOther = leftCol.add("panel", undefined, LABELS.other[lang]);
         panelOther.orientation = "column";
         panelOther.alignChildren = ["fill", "top"];
-        panelOther.margins = [15,20,15,10];
+        panelOther.margins = [15, 20, 0, 10];
 
         function addOtherRow(label, value) {
             var row = panelOther.add("group");
@@ -190,13 +256,13 @@ function main() {
         var panelText = leftCol.add("panel", undefined, LABELS.texts[lang]);
         panelText.orientation = "column";
         panelText.alignChildren = ["fill", "top"];
-        panelText.margins = [15, 20, 15, 10];
+        panelText.margins = [15, 20, 0, 10];
 
         /* 文字・段落の詳細を表示するパネル / Panel to display character and paragraph details */
         var panelCharPara = leftCol.add("panel", undefined, LABELS.charPara[lang]);
         panelCharPara.orientation = "column";
         panelCharPara.alignChildren = ["fill", "top"];
-        panelCharPara.margins = [15, 20, 15, 10];
+        panelCharPara.margins = [15, 20, 0, 10];
 
         function addCharParaRow(label, value) {
             var row = panelCharPara.add("group");
@@ -277,7 +343,7 @@ function main() {
         var panelImage = rightCol.add("panel", undefined, LABELS.link[lang]);
         panelImage.orientation = "column";
         panelImage.alignChildren = ["fill", "top"];
-        panelImage.margins = [15, 20, 15, 10];
+        panelImage.margins = [15, 20, 0, 10];
 
         var linkedSel = 0,
             linkedAll = 0;
@@ -342,7 +408,7 @@ function main() {
         var panelGroup = rightCol.add("panel", undefined, LABELS.group[lang]);
         panelGroup.orientation = "column";
         panelGroup.alignChildren = ["fill", "top"];
-        panelGroup.margins = [15, 20, 15, 10];
+        panelGroup.margins = [15, 20, 0, 10];
 
         var groupSel = 0,
             groupAll = 0;
@@ -386,7 +452,7 @@ function main() {
         var panelPath = rightCol.add("panel", undefined, LABELS.path[lang]);
         panelPath.orientation = "column";
         panelPath.alignChildren = ["fill", "top"];
-        panelPath.margins = [15, 20, 15, 10];
+        panelPath.margins = [15, 20, 0, 10];
 
         /* パス総数表示行を最上部に追加 / Add total path count row at top */
         function addPathRow(label, value) {
@@ -437,10 +503,12 @@ function main() {
         buttonGroup.alignment = "center"; // グループを中央に配置
         buttonGroup.alignChildren = ["center", "center"];
 
-        var btn = buttonGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+        var btn = buttonGroup.add("button", undefined, LABELS.ok[lang], {
+            name: "ok"
+        });
         // btn.preferredSize.width = 60;
         // btn.preferredSize.height = 26;
-        btn.onClick = function () {
+        btn.onClick = function() {
             dlg.close();
         };
 
