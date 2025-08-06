@@ -164,6 +164,10 @@ var LABELS = {
         ja: "数字",
         en: "Number"
     },
+    byZOrder: {
+        ja: "重ね順",
+        en: "Z-Order"
+    },
     directionTitle: {
         ja: "ソート順",
         en: "Sort Order"
@@ -349,7 +353,8 @@ attrParams = {
     'o': "opacity", // 不透明度
     'x': "left", // X座標
     'y': "top", // Y座標
-    'color': "color" // カラー
+    'color': "color", // カラー
+    'z': "zOrderPosition", // 重ね順
 };
 numericSort = function(a, b) {
     return a - b;
@@ -471,6 +476,8 @@ function getSortValue(obj, selectedAttr) {
         } else {
             return 0;
         }
+    } else if (selectedAttr === "zOrderPosition") {
+        return obj.zOrderPosition;
     }
     return 0;
 }
@@ -745,7 +752,10 @@ function main() {
         var numberRadio = byGroup.add("radiobutton", undefined, LABELS.byNumber[lang]);
         numberRadio.value = false;
         numberRadio.helpTip = "n";
-        var byRadioButtons = [heightRadio, widthRadio, opacityRadio, colorRadio, numberRadio];
+        var zOrderRadio = byGroup.add("radiobutton", undefined, LABELS.byZOrder[lang]);
+        zOrderRadio.value = false;
+        zOrderRadio.helpTip = "z";
+        var byRadioButtons = [heightRadio, widthRadio, opacityRadio, colorRadio, numberRadio, zOrderRadio];
 
         // 並び順パネル
         directionGroup = leftGroup.add("panel", undefined, LABELS.directionTitle[lang]);

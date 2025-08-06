@@ -1,0 +1,1 @@
+では、KeyboardMaestroからAppleScriptを実行したいと思いますので、そのAppleScriptのコードだけをください。

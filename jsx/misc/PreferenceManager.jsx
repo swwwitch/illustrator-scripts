@@ -220,13 +220,32 @@ var unitLabelMap = {
     2: "pt",
     3: "pica",
     4: "cm",
-    5: "Q/H",
+    5: "Q/H", // Use a neutral value for code 5
     6: "px",
     7: "ft/in",
     8: "m",
     9: "yd",
     10: "ft"
 };
+
+/**
+ * Get the unit label for a given code and preference key.
+ * @param {number} code - The unit code.
+ * @param {string} [prefKey] - The preference key (e.g., "text/units", "text/asianunits").
+ * @returns {string} The appropriate label.
+ */
+function getUnitLabel(code, prefKey) {
+    // If code is not 5, just return mapping
+    if (code !== 5) return unitLabelMap[code] || "pt";
+    // For code 5, determine by prefKey context
+    if (prefKey === "text/units") {
+        return "Q";
+    } else if (prefKey === "text/asianunits") {
+        return "H";
+    }
+    // Otherwise, use neutral or fallback
+    return "Q/H";
+}
 
 /* 単位換算ユーティリティ / Unit conversion utilities */
 function getPtFactorFromUnitCode(code) {
@@ -319,9 +338,13 @@ function main() {
     var radioPrintPt = modeGroup.add('radiobutton', undefined, LABELS.modePrintPt[lang]);
     var radioPrintQ = modeGroup.add('radiobutton', undefined, LABELS.modePrintQ[lang]);
     var radioOnscreen = modeGroup.add('radiobutton', undefined, LABELS.modeOnscreen[lang]);
-
-    /* デフォルトをプリント（pt）に設定 / Default selection */
-    radioPrintPt.value = true;
+    // radioPrintPt.value = true; // デフォルト選択を無効化
+    // None selected by default; set all to false on dialog show
+    dialog.onShow = function() {
+        radioPrintPt.value = false;
+        radioPrintQ.value = false;
+        radioOnscreen.value = false;
+    };
 
     /* 2カラムのメインコンテナ / Two-column main container */
     var mainGroup = dialog.add('group');
@@ -346,9 +369,9 @@ function main() {
     generalPanel.margins = [8, 20, 8, 15];
 
     // 単位ラベル取得ヘルパー
-    function getUnitLabel() {
+    function getGeneralUnitLabel() {
         var code = app.preferences.getIntegerPreference("rulerType");
-        return unitLabelMap[code] || "pt";
+        return getUnitLabel(code, "rulerType");
     }
 
     // キー入力
@@ -362,7 +385,7 @@ function main() {
     var keyValue = convertFromPt(keyValuePt, unitCodeKey);
     var inputKey = groupKeyInput.add('edittext', undefined, keyValue.toFixed(1));
     inputKey.characters = 4;
-    var unitLabelKey = groupKeyInput.add('statictext', undefined, getUnitLabel());
+    var unitLabelKey = groupKeyInput.add('statictext', undefined, getGeneralUnitLabel());
     unitLabelKey.characters = 4; // 幅を広げる
     inputKey.onChange = function() {
         var value = parseFloat(inputKey.text);
@@ -387,7 +410,7 @@ function main() {
     var cornerValue = convertFromPt(cornerValuePt, cornerUnitCode);
     var inputCornerRadius = groupCornerRadius.add('edittext', undefined, cornerValue.toFixed(1));
     inputCornerRadius.characters = 4;
-    var unitLabelCorner = groupCornerRadius.add('statictext', undefined, getUnitLabel());
+    var unitLabelCorner = groupCornerRadius.add('statictext', undefined, getGeneralUnitLabel());
     unitLabelCorner.characters = 4; // 幅を広げる
     inputCornerRadius.onChange = function() {
         var value = parseFloat(inputCornerRadius.text);
@@ -405,12 +428,12 @@ function main() {
     // --- Unit label helpers for text detail panel ---
     function getTextUnitLabel() {
         var code = app.preferences.getIntegerPreference("text/units");
-        return unitLabelMap[code] || "pt";
+        return getUnitLabel(code, "text/units");
     }
 
     function getAsianUnitLabel() {
         var code = app.preferences.getIntegerPreference("text/asianunits");
-        return unitLabelMap[code] || "pt";
+        return getUnitLabel(code, "text/asianunits");
     }
     var textDetailPanel = leftColumn.add('panel', undefined, LABELS.textDetailTitle[lang]);
     textDetailPanel.orientation = 'column';
@@ -481,17 +504,17 @@ function main() {
         dropdown.characters = 9; // ← 幅を6文字分に指定
         /* ラベルを追加 */
         for (var code in unitLabelMap) {
-            var labelText = unitLabelMap[code];
+            var labelText = getUnitLabel(Number(code), prefKey);
             dropdown.add('item', labelText);
         }
 
         var currentCode = app.preferences.getIntegerPreference(prefKey);
-        dropdown.selection = dropdown.find(unitLabelMap[currentCode]) || dropdown.find("pt");
+        dropdown.selection = dropdown.find(getUnitLabel(currentCode, prefKey)) || dropdown.find("pt");
 
         dropdown.onChange = function() {
             var selectedLabel = dropdown.selection.text;
             for (var c in unitLabelMap) {
-                if (unitLabelMap[c] === selectedLabel) {
+                if (getUnitLabel(Number(c), prefKey) === selectedLabel) {
                     app.preferences.setIntegerPreference(prefKey, parseInt(c, 10));
                     break;
                 }
@@ -526,17 +549,16 @@ function main() {
         } else if (mode === "printQ") {
             unitDropdowns["rulerType"].selection = unitDropdowns["rulerType"].find("mm");
             unitDropdowns["strokeUnits"].selection = unitDropdowns["strokeUnits"].find("mm");
-            unitDropdowns["text/units"].selection = unitDropdowns["text/units"].find("Q/H");
-            unitDropdowns["text/asianunits"].selection = unitDropdowns["text/asianunits"].find("Q/H");
+            var qhUnitCode = 5;
+            unitDropdowns["text/units"].selection = unitDropdowns["text/units"].find(getUnitLabel(qhUnitCode, "text/units"));
+            unitDropdowns["text/asianunits"].selection = unitDropdowns["text/asianunits"].find(getUnitLabel(qhUnitCode, "text/asianunits"));
 
             // 値を更新（すべてptで保存、UIはmm/Q/H表示）
             var rulerCodeQ = 1; // mm
-            var textCodeQ = 5; // Q/H
-            var asianCodeQ = 5; // Q/H
             pref.setRealPreference("cursorKeyLength", convertToPt(1, rulerCodeQ));
             pref.setRealPreference("ovalRadius", convertToPt(2, rulerCodeQ));
-            pref.setRealPreference("text/sizeIncrement", convertToPt(1, textCodeQ));
-            pref.setRealPreference("text/riseIncrement", convertToPt(0.1, asianCodeQ));
+            pref.setRealPreference("text/sizeIncrement", convertToPt(1, qhUnitCode));
+            pref.setRealPreference("text/riseIncrement", convertToPt(0.1, qhUnitCode));
 
         } else if (mode === "onscreen") {
             unitDropdowns["rulerType"].selection = unitDropdowns["rulerType"].find("px");
@@ -566,8 +588,8 @@ function main() {
     // --- Helper to refresh unit labels in panels ---
     function refreshUnitLabels() {
         // Update General panel unit labels
-        groupKeyInput.children[groupKeyInput.children.length - 1].text = getUnitLabel();
-        groupCornerRadius.children[groupCornerRadius.children.length - 1].text = getUnitLabel();
+        groupKeyInput.children[groupKeyInput.children.length - 1].text = getGeneralUnitLabel();
+        groupCornerRadius.children[groupCornerRadius.children.length - 1].text = getGeneralUnitLabel();
         // Update Text Detail panel unit labels
         groupLeading.children[groupLeading.children.length - 1].text = getTextUnitLabel();
         groupBaseline.children[groupBaseline.children.length - 1].text = getAsianUnitLabel();
