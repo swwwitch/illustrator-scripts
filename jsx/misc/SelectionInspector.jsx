@@ -35,6 +35,7 @@ https://github.com/swwwitch/illustrator-scripts
 
 - v1.0 (20250806) : 初期バージョン
 - v1.1 (20250806) : 書き出し機能を追加
+- v1.2 (20250807) : UI調整
 
 ---
 
@@ -71,10 +72,11 @@ https://github.com/swwwitch/illustrator-scripts
 
 - v1.0 (20250806): Initial version
 - v1.1 (20250806): Added export feature
+- v1.2 (20250807): UI adjustments
 
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -174,6 +176,14 @@ var LABELS = {
     ok: {
         ja: "OK",
         en: "OK"
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    export: {
+        ja: "書き出し",
+        en: "Export"
     }
 };
 
@@ -554,21 +564,36 @@ function main() {
         addPathRow(LABELS.closedPath[lang], closedPathSel + " / " + closedPathAll);
         addPathRow(LABELS.anchors[lang], anchorCountSel + " / " + anchorCountAll);
 
-        /* ボタングループを追加 / Add button group */
-        var buttonGroup = dlg.add("group");
-        buttonGroup.alignment = "fill"; 
-        buttonGroup.alignChildren = ["fill", "center"];
+        // メイングループ（横並び） / Main group (horizontal layout)
+        var btnRowGroup = dlg.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignChildren = ["fill", "center"];
+        btnRowGroup.margins = [10, 10, 10, 0];
+        btnRowGroup.alignment = ["fill", "bottom"];
 
-        var exportBtn = buttonGroup.add("button", undefined, "書き出し");
-        exportBtn.alignment = "left";
+        // 左側グループ / Left-side button group
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var btnCancel = btnLeftGroup.add("button", undefined, LABELS.cancel[lang], {
+            name: "cancel"
+        });
 
-        var spacer = buttonGroup.add("statictext", undefined, "");
-        spacer.preferredSize.width = 200; // スペーサーで左右に配置調整
+        // スペーサー（伸縮）/ Spacer (stretchable)
+        var spacer = btnRowGroup.add("statictext", undefined, "");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
-        var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
-        okBtn.alignment = "right";
+        // 右側グループ / Right-side button group
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        var btnExport = btnRightGroup.add("button", undefined, LABELS.export[lang], {
+            name: "preview"
+        });
+        var btnOK = btnRightGroup.add("button", undefined, LABELS.ok[lang], {
+            name: "ok"
+        });
 
-        exportBtn.onClick = function() {
+        btnExport.onClick = function() {
             try {
                 var docName = app.activeDocument.name.replace(/\.[^\.]+$/, ""); // 拡張子を除いたファイル名
                 var today = new Date();
@@ -663,7 +688,7 @@ function main() {
                 alert("書き出し中にエラー: " + err);
             }
         };
-        okBtn.onClick = function() {
+        btnOK.onClick = function() {
             dlg.close();
         };
 

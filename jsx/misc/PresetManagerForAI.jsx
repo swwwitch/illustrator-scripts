@@ -1,3 +1,4 @@
+// 既に #target illustrator, ShowExternalJSXWarning の記述があるか確認し、なければ冒頭に挿入
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -10,13 +11,124 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   - v1.0 (20250807): 初期リリース
 */
 
+var SCRIPT_VERSION = "v1.0";
+
+function getCurrentLang() {
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+/* 日英ラベル定義 / Japanese-English label definitions */
+
+var LABELS = {
+    dialogTitle: {
+        ja: "環境設定をまとめて変更",
+        en: "Batch Preferences Dialog"
+    },
+    OK: {
+        ja: "OK",
+        en: "OK"
+    },
+    Cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+
+    // ［一般］
+    cbToolTips: {
+        ja: "詳細なツールヒントを表示",
+        en: "Show Rich Tool Tips"
+    },
+    cbHomeScreen: {
+        ja: "ドキュメントを開いていないときにホーム画面を表示",
+        en: "Show The Home Screen When No Documents Are Open"
+    },
+    cbLegacyNewDoc: {
+        ja: "以前の「新規ドキュメント」インターフェイスを使用",
+        en: "Use legacy “File New” interface"
+    },
+    cbBleedAI: {
+        ja: "裁ち落とし部分に「裁ち落としを印刷」生成AIボタンを表示",
+        en: "Show 'Print Bleed' generative AI buttons on Bleed"
+    },
+
+    // ［選択範囲・アンカー表示］
+    cbMoveLocked: {
+        ja: "ロックまたは非表示オブジェクトをアートボードと一緒に移動",
+        en: "Move Locked and Hidden Artwork with Artboard"
+    },
+    cbHitShape: {
+        ja: "オブジェクトの選択範囲をパスに制限",
+        en: "Object Selection by Path Only"
+    },
+    cbZoomToSel: {
+        ja: "選択範囲へズーム",
+        en: "Zoom to Selection"
+    },
+    cbHighlightAnchor: {
+        ja: "カーソルを合わせたときにアンカーを強調表示",
+        en: "Highlight anchors on mouse over"
+    },
+
+    // テキスト
+    cbHitTypeShape: {
+        ja: "テキストオブジェクトの選択範囲をパスに制限",
+        en: "Type Object Selection by Path Only"
+    },
+    cbAutoSizing: {
+        ja: "新規エリア内文字の自動サイズ調整",
+        en: "Auto Size New Area Type"
+    },
+    cbRecentFonts: {
+        ja: "最近使用したフォントの表示数",
+        en: "Number of Recent Fonts"
+    },
+    cbFontLocking: {
+        ja: "見つからない字形の保護を有効にする",
+        en: "Enable Missing Glyph Protection"
+    },
+    cbAlternateGlyph: {
+        ja: "選択された文字の異体字を表示",
+        en: "Show Character Alternates"
+    },
+
+    // ユーザーインターフェイス
+    canvasColor: {
+        ja: "カンバスカラー",
+        en: "Canvas Color"
+    },
+
+    // パフォーマンス
+    cbAnimZoom: {
+        ja: "アニメーションズーム",
+        en: "Animated Zoom"
+    },
+    cbLiveEdit: {
+        ja: "リアルタイムの描画と編集",
+        en: "Real-Time Drawing and Editing"
+    },
+    cbHistoryLabel: {
+        ja: "ヒストリー数",
+        en: "History States"
+    },
+
+    // ファイル管理
+    cbEditOriginal: {
+        ja: "「オリジナルの編集」にシステムデフォルトを使用",
+        en: "Use System Defaults for ‘Edit Original’"
+    },
+    cbFontsAuto: {
+        ja: "Adobe Fonts を自動アクティベート",
+        en: "Auto-activate Adobe Fonts"
+    }
+};
 
 function main() {
 
     /*
       Illustrator 環境設定ダイアログを作成
     */
-    var dlg = new Window("dialog", "Illustrator 環境設定");
+    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     /*
       メイングループ（縦方向）を作成
     */
@@ -31,11 +143,11 @@ function main() {
     groupPreset.name = "groupPreset";
     groupPreset.alignment = "center";
     groupPreset.orientation = "row";
-    groupPreset.margins = [0, 10, 20, 20]; // 上、右、下、左のマージン
+    groupPreset.margins = [0, 10, 20, 20];
     var groupPresetInner = groupPreset.add("group");
     groupPresetInner.orientation = "row";
     groupPresetInner.alignChildren = "center";
-    groupPresetInner.add("statictext", undefined, "プリセット："); // ラベル / Label
+    groupPresetInner.add("statictext", undefined, "プリセット：");
     var presetItems = ["無指定", "デフォルト", "プリセット1"];
     var ddPreset = groupPresetInner.add("dropdownlist", undefined, presetItems);
     ddPreset.selection = 0; // 初期選択を「無指定」に
@@ -106,10 +218,10 @@ function main() {
             cbLegacyNewDoc.value = false;
             cbBleedAI.value = true;
             cbMoveLocked.value = false;
-            cbHitShape.value = false;
+            cbHitShape.value = true;
             cbZoomToSel.value = true;
             cbHighlightAnchor.value = true;
-            cbHitTypeShape.value = false;
+            cbHitTypeShape.value = true;
             cbAutoSizing.value = false;
             cbRecentFonts.value = true;
             etRecentFonts.text = "10";
@@ -127,7 +239,7 @@ function main() {
         }
     }
 
-    
+
 
     ddPreset.onChange = function() {
         if (ddPreset.selection && ddPreset.selection.text) {
@@ -214,26 +326,26 @@ function main() {
     /*
       「詳細なツールヒント」チェックボックスを作成
     */
-    var cbToolTips = panelGeneral.add("checkbox", undefined, "ツールヒント（動画付き）");
-    cbToolTips.helpTip = "詳細なツールヒントを表示 / Show detailed tooltips";
+    var cbToolTips = panelGeneral.add("checkbox", undefined, LABELS.cbToolTips[lang]);
+    cbToolTips.helpTip = LABELS.cbToolTips.ja + " / " + LABELS.cbToolTips.en;
 
     /*
       「ホーム画面」チェックボックスを作成
     */
-    var cbHomeScreen = panelGeneral.add("checkbox", undefined, "ホーム画面の表示");
-    cbHomeScreen.helpTip = "ドキュメントを開いていないときにホーム画面を表示 / Show Home Screen when no document is open";
+    var cbHomeScreen = panelGeneral.add("checkbox", undefined, LABELS.cbHomeScreen[lang]);
+    cbHomeScreen.helpTip = LABELS.cbHomeScreen.ja + " / " + LABELS.cbHomeScreen.en;
 
     /*
       「以前の新規ドキュメント」チェックボックスを作成
     */
-    var cbLegacyNewDoc = panelGeneral.add("checkbox", undefined, "以前の「新規ドキュメント」");
-    cbLegacyNewDoc.helpTip = "以前の「新規ドキュメント」インターフェイスを使用 / Use legacy New Document interface";
+    var cbLegacyNewDoc = panelGeneral.add("checkbox", undefined, LABELS.cbLegacyNewDoc[lang]);
+    cbLegacyNewDoc.helpTip = LABELS.cbLegacyNewDoc.ja + " / " + LABELS.cbLegacyNewDoc.en;
 
     /*
       「裁ち落としを印刷」生成AIボタンチェックボックスを作成
     */
-    var cbBleedAI = panelGeneral.add("checkbox", undefined, "「裁ち落としを印刷」ボタン");
-    cbBleedAI.helpTip = "裁ち落とし部分に「裁ち落としを印刷」生成AIボタンを表示 / Show AI button for bleed printing";
+    var cbBleedAI = panelGeneral.add("checkbox", undefined, LABELS.cbBleedAI[lang]);
+    cbBleedAI.helpTip = LABELS.cbBleedAI.ja + " / " + LABELS.cbBleedAI.en;
 
     /*
       ［選択範囲・アンカー表示］パネル（左カラム）
@@ -246,22 +358,20 @@ function main() {
     /*
       「アートボードと一緒に移動」チェックボックスを作成
     */
-    var cbMoveLocked = panelSelectAnchor.add("checkbox", undefined, "アートボードと一緒に移動");
-    cbMoveLocked.helpTip = "ロックまたは非表示オブジェクトをアートボードと一緒に移動 / Move locked or hidden objects with artboard";
+    var cbMoveLocked = panelSelectAnchor.add("checkbox", undefined, LABELS.cbMoveLocked[lang]);
+    cbMoveLocked.helpTip = LABELS.cbMoveLocked.ja + " / " + LABELS.cbMoveLocked.en;
 
     /*
       「選択範囲へズーム」チェックボックスを作成
     */
-    var cbZoomToSel = panelSelectAnchor.add("checkbox", undefined, "選択範囲へズーム");
-    cbZoomToSel.helpTip = "選択範囲へズーム / Zoom to selection";
+    var cbZoomToSel = panelSelectAnchor.add("checkbox", undefined, LABELS.cbZoomToSel[lang]);
+    cbZoomToSel.helpTip = LABELS.cbZoomToSel.ja + " / " + LABELS.cbZoomToSel.en;
 
     /*
       「アンカーを強調表示」チェックボックスを作成
     */
-    var cbHighlightAnchor = panelSelectAnchor.add("checkbox", undefined, "アンカーポイントを強調表示");
-    cbHighlightAnchor.helpTip = "カーソルを合わせたときにアンカーを強調表示 / Highlight anchor when cursor is over";
-
-
+    var cbHighlightAnchor = panelSelectAnchor.add("checkbox", undefined, LABELS.cbHighlightAnchor[lang]);
+    cbHighlightAnchor.helpTip = LABELS.cbHighlightAnchor.ja + " / " + LABELS.cbHighlightAnchor.en;
 
     /*
       テキスト関連UIを左カラムの下部にパネルとして追加
@@ -274,8 +384,8 @@ function main() {
     /*
       「新規エリア内文字の自動サイズ調整」チェックボックスを作成
     */
-    var cbAutoSizing = panelTextRight.add("checkbox", undefined, "エリア内文字の自動サイズ調整");
-    cbAutoSizing.helpTip = "新規エリア内文字の自動サイズ調整 / Auto size new area text";
+    var cbAutoSizing = panelTextRight.add("checkbox", undefined, LABELS.cbAutoSizing[lang]);
+    cbAutoSizing.helpTip = LABELS.cbAutoSizing.ja + " / " + LABELS.cbAutoSizing.en;
 
 
     /*
@@ -288,8 +398,8 @@ function main() {
     /*
       「最近使用したフォント」チェックボックスを作成
     */
-    var cbRecentFonts = groupRecentFonts.add("checkbox", undefined, "最近使用したフォント");
-    cbRecentFonts.helpTip = "最近使用したフォントの表示数 / Number of recent fonts to show";
+    var cbRecentFonts = groupRecentFonts.add("checkbox", undefined, LABELS.cbRecentFonts[lang]);
+    cbRecentFonts.helpTip = LABELS.cbRecentFonts.ja + " / " + LABELS.cbRecentFonts.en;
     cbRecentFonts.value = (currentRecentCount > 0);
 
     /*
@@ -319,14 +429,14 @@ function main() {
     /*
       「見つからない字形の保護」チェックボックスを作成
     */
-    var cbFontLocking = panelTextRight.add("checkbox", undefined, "字形の保護");
-    cbFontLocking.helpTip = "見つからない字形の保護を有効にする / Enable protection for missing glyphs";
+    var cbFontLocking = panelTextRight.add("checkbox", undefined, LABELS.cbFontLocking[lang]);
+    cbFontLocking.helpTip = LABELS.cbFontLocking.ja + " / " + LABELS.cbFontLocking.en;
 
     /*
       「選択された文字の異体字」チェックボックスを作成
     */
-    var cbAlternateGlyph = panelTextRight.add("checkbox", undefined, "異体字ウィジェット");
-    cbAlternateGlyph.helpTip = "選択された文字の異体字を表示 / Show alternate glyphs for selected character";
+    var cbAlternateGlyph = panelTextRight.add("checkbox", undefined, LABELS.cbAlternateGlyph[lang]);
+    cbAlternateGlyph.helpTip = LABELS.cbAlternateGlyph.ja + " / " + LABELS.cbAlternateGlyph.en;
 
 
     /*
@@ -340,16 +450,18 @@ function main() {
     /*
       カンバスカラー設定
     */
-    panelUI.add("statictext", undefined, "カンバスカラー");
-
-// カンバスカラーパネル内に横並びのグループを作成
-var rbCanvasGroup = panelUI.add("group", undefined, "");
-rbCanvasGroup.orientation = "row";
-rbCanvasGroup.alignChildren = "left";
-
-// グループ内にラジオボタンを追加
-var rbCanvasMatch = rbCanvasGroup.add("radiobutton", undefined, "UIに合わせる");
-var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
+    panelUI.add("statictext", undefined, LABELS.canvasColor[lang]);
+    /*
+      カンバスカラーパネル内に横並びのグループを作成
+    */
+    var rbCanvasGroup = panelUI.add("group", undefined, "");
+    rbCanvasGroup.orientation = "row";
+    rbCanvasGroup.alignChildren = "left";
+    /*
+      グループ内にラジオボタンを追加
+    */
+    var rbCanvasMatch = rbCanvasGroup.add("radiobutton", undefined, "UIに合わせる");
+    var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
 
     /*
       初期状態を反映
@@ -357,7 +469,6 @@ var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
     var currentCanvas = app.preferences.getIntegerPreference("uiCanvasIsWhite");
     rbCanvasWhite.value = (currentCanvas === 1);
     rbCanvasMatch.value = (currentCanvas !== 1);
-
     /*
       ラジオボタン変更時の設定
     */
@@ -372,7 +483,7 @@ var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
     /*
       ［パフォーマンス］パネル（右カラム）
     */
-    var panelPerf = colRight.add("panel", undefined, "［パフォーマンス］");
+    var panelPerf = colRight.add("panel", undefined, "［パフォーマンス］カテゴリ");
     panelPerf.orientation = "column";
     panelPerf.alignChildren = "left";
     panelPerf.margins = [15, 25, 15, 10];
@@ -380,14 +491,14 @@ var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
     /*
       「アニメーションズーム」チェックボックスを作成
     */
-    var cbAnimZoom = panelPerf.add("checkbox", undefined, "アニメーションズーム");
-    cbAnimZoom.helpTip = "アニメーションズーム / Animated zoom";
+    var cbAnimZoom = panelPerf.add("checkbox", undefined, LABELS.cbAnimZoom[lang]);
+    cbAnimZoom.helpTip = LABELS.cbAnimZoom.ja + " / " + LABELS.cbAnimZoom.en;
 
     /*
       「ヒストリー数」入力欄を作成
     */
     var groupHistory = panelPerf.add("group");
-    groupHistory.add("statictext", undefined, "ヒストリー数：");
+    groupHistory.add("statictext", undefined, LABELS.cbHistoryLabel[lang] + "：");
     var etHistory = groupHistory.add("edittext", undefined, "50");
     etHistory.characters = 4;
     etHistory.helpTip = "ヒストリー数を設定 / Set history steps";
@@ -395,8 +506,8 @@ var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
     /*
       「リアルタイムの描画と編集」チェックボックスを作成
     */
-    var cbLiveEdit = panelPerf.add("checkbox", undefined, "リアルタイムの描画と編集");
-    cbLiveEdit.helpTip = "リアルタイムの描画と編集 / Real-time drawing and editing";
+    var cbLiveEdit = panelPerf.add("checkbox", undefined, LABELS.cbLiveEdit[lang]);
+    cbLiveEdit.helpTip = LABELS.cbLiveEdit.ja + " / " + LABELS.cbLiveEdit.en;
 
     /*
       ［ファイル管理］パネル（右カラム）
@@ -409,14 +520,14 @@ var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
     /*
       「オリジナルの編集にシステムデフォルトを使用」チェックボックスを作成
     */
-    var cbEditOriginal = panelFile.add("checkbox", undefined, "システムデフォルトで編集");
-    cbEditOriginal.helpTip = "「オリジナルの編集」にシステムデフォルトを使用 / Use system default for 'Edit Original'";
+    var cbEditOriginal = panelFile.add("checkbox", undefined, LABELS.cbEditOriginal[lang]);
+    cbEditOriginal.helpTip = LABELS.cbEditOriginal.ja + " / " + LABELS.cbEditOriginal.en;
 
     /*
       「Adobe Fontsを自動アクティベート」チェックボックスを作成
     */
-    var cbFontsAuto = panelFile.add("checkbox", undefined, "Adobe Fontsの自動アクティベート");
-    cbFontsAuto.helpTip = "Adobe Fontsを自動アクティベート / Auto-activate Adobe Fonts";
+    var cbFontsAuto = panelFile.add("checkbox", undefined, LABELS.cbFontsAuto[lang]);
+    cbFontsAuto.helpTip = LABELS.cbFontsAuto.ja + " / " + LABELS.cbFontsAuto.en;
 
     /*
       右カラムの一番下に「パスに制限」パネルを追加
@@ -429,8 +540,8 @@ var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
     /*
       「オブジェクトの選択範囲をパスに制限」チェックボックスを panelLimitPath に追加
     */
-    var cbHitShape = panelLimitPath.add("checkbox", undefined, "オブジェクト");
-    cbHitShape.helpTip = "オブジェクトの選択範囲をパスに制限 / Limit selection area to path";
+    var cbHitShape = panelLimitPath.add("checkbox", undefined, LABELS.cbHitShape[lang]);
+    cbHitShape.helpTip = LABELS.cbHitShape.ja + " / " + LABELS.cbHitShape.en;
     /*
       設定読み込み（初期値代入）
       ※最適化案: UI構築と初期値代入を関数化して整理可能
@@ -441,24 +552,37 @@ var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
     /*
       「テキストをパスに制限」チェックボックスを panelLimitPath に追加
     */
-    var cbHitTypeShape = panelLimitPath.add("checkbox", undefined, "テキスト");
-    cbHitTypeShape.helpTip = "テキストオブジェクトの選択範囲をパスに制限 / Limit selection area of text objects to path";
+    var cbHitTypeShape = panelLimitPath.add("checkbox", undefined, LABELS.cbHitTypeShape[lang]);
+    cbHitTypeShape.helpTip = LABELS.cbHitTypeShape.ja + " / " + LABELS.cbHitTypeShape.en;
     // hitTypeShapeOnPreview: 0がON（true）、1がOFF（false）
     var val = app.preferences.getIntegerPreference("hitTypeShapeOnPreview");
     cbHitTypeShape.value = (val === 0); // 0がON（true）、1がOFF（false）
 
     /*
-      ボタン行を mainGroup の下部に追加
+      ボタン行を mainGroup の下部に追加（テンプレート形式：左：書き出し、中央スペーサー、右：キャンセル・OK）
     */
-    var groupBtns = mainGroup.add("group");
-    groupBtns.margins = [0, 20, 0, 10];
-    groupBtns.alignment = "center";
-    var btnCancel = groupBtns.add("button", undefined, "キャンセル", {
-        name: "cancel"
-    });
-    var btnOK = groupBtns.add("button", undefined, "OK", {
-        name: "ok"
-    });
+    var outerGroup = mainGroup.add("group"); // 親groupに追加
+    outerGroup.orientation = "row";
+outerGroup.alignChildren = ["fill", "center"];
+outerGroup.alignment = ["fill", "bottom"];
+
+    // 左側グループ（書き出し）
+    var leftGroup = outerGroup.add("group");
+    leftGroup.orientation = "row";
+    leftGroup.alignChildren = "left";
+    var btnExport = leftGroup.add("button", undefined, "書き出し", { name: "export" });
+
+    // 真ん中スペーサー（伸縮する空白）
+    var spacer = outerGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+
+    // 右側グループ（キャンセル・OK）
+    var rightGroup = outerGroup.add("group");
+    rightGroup.orientation = "row";
+    rightGroup.alignChildren = ["right", "center"];
+    rightGroup.spacing = 10;
+    var btnCancel = rightGroup.add("button", undefined, LABELS.Cancel[lang], { name: "cancel" });
+    var btnOK = rightGroup.add("button", undefined, LABELS.OK[lang], { name: "ok" });
 
     btnOK.onClick = function() {
         try {
@@ -550,15 +674,35 @@ var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
       環境設定値をUIに反映
     */
     if (cbHitShape && app.preferences.getIntegerPreference) {
-      cbHitShape.value = (app.preferences.getIntegerPreference("hitShapeOnPreview") === 0);
+        cbHitShape.value = (app.preferences.getIntegerPreference("hitShapeOnPreview") === 0);
     }
     if (cbHitTypeShape && app.preferences.getIntegerPreference) {
-      cbHitTypeShape.value = (app.preferences.getIntegerPreference("hitTypeShapeOnPreview") === 0);
+        cbHitTypeShape.value = (app.preferences.getIntegerPreference("hitTypeShapeOnPreview") === 0);
     }
     /*
       初期状態として現状の環境設定を読み込み
     */
     applyPresetSettings("無指定");
+    /*
+      ダイアログの透明度と位置を調整 / Adjust dialog opacity and position
+    */
+    var offsetX = 300;
+    var dialogOpacity = 0.97;
+
+    function shiftDialogPosition(dlg, offsetX, offsetY) {
+        dlg.onShow = function() {
+            var currentX = dlg.location[0];
+            var currentY = dlg.location[1];
+            dlg.location = [currentX + offsetX, currentY + offsetY];
+        };
+    }
+
+    function setDialogOpacity(dlg, opacityValue) {
+        dlg.opacity = opacityValue;
+    }
+
+    setDialogOpacity(dlg, dialogOpacity);
+    shiftDialogPosition(dlg, offsetX, 0);
     /*
       最後に表示
     */
