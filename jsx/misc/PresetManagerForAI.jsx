@@ -206,7 +206,7 @@ function main() {
     /*
       ［一般］パネル（左カラム）
     */
-    var panelGeneral = colLeft.add("panel", undefined, "［一般］");
+    var panelGeneral = colLeft.add("panel", undefined, "［一般］カテゴリ");
     panelGeneral.orientation = "column";
     panelGeneral.alignChildren = "left";
     panelGeneral.margins = [15, 25, 15, 10]; // 上、右、下、左のマージン
@@ -238,7 +238,7 @@ function main() {
     /*
       ［選択範囲・アンカー表示］パネル（左カラム）
     */
-    var panelSelectAnchor = colLeft.add("panel", undefined, "［選択範囲・アンカー表示］");
+    var panelSelectAnchor = colLeft.add("panel", undefined, "［選択範囲・アンカー表示］カテゴリ");
     panelSelectAnchor.orientation = "column";
     panelSelectAnchor.alignChildren = "left";
     panelSelectAnchor.margins = [15, 25, 15, 10];
@@ -266,7 +266,7 @@ function main() {
     /*
       テキスト関連UIを左カラムの下部にパネルとして追加
     */
-    var panelTextRight = colLeft.add("panel", undefined, "［テキスト］");
+    var panelTextRight = colLeft.add("panel", undefined, "［テキスト］カテゴリ");
     panelTextRight.orientation = "column";
     panelTextRight.alignChildren = "left";
     panelTextRight.margins = [15, 25, 15, 10];
@@ -332,7 +332,7 @@ function main() {
     /*
       ユーザーインターフェイスパネル
     */
-    var panelUI = colRight.add("panel", undefined, "ユーザーインターフェイス");
+    var panelUI = colRight.add("panel", undefined, "［ユーザーインターフェイス］カテゴリ");
     panelUI.orientation = "column";
     panelUI.alignChildren = "left";
     panelUI.margins = [15, 25, 15, 10]; // 上、右、下、左のマージン
@@ -342,8 +342,14 @@ function main() {
     */
     panelUI.add("statictext", undefined, "カンバスカラー");
 
-    var rbCanvasMatch = panelUI.add("radiobutton", undefined, "UIに合わせる");
-    var rbCanvasWhite = panelUI.add("radiobutton", undefined, "ホワイト");
+// カンバスカラーパネル内に横並びのグループを作成
+var rbCanvasGroup = panelUI.add("group", undefined, "");
+rbCanvasGroup.orientation = "row";
+rbCanvasGroup.alignChildren = "left";
+
+// グループ内にラジオボタンを追加
+var rbCanvasMatch = rbCanvasGroup.add("radiobutton", undefined, "UIに合わせる");
+var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
 
     /*
       初期状態を反映
@@ -395,7 +401,7 @@ function main() {
     /*
       ［ファイル管理］パネル（右カラム）
     */
-    var panelFile = colRight.add("panel", undefined, "［ファイル管理］");
+    var panelFile = colRight.add("panel", undefined, "［ファイル管理］カテゴリ");
     panelFile.orientation = "column";
     panelFile.alignChildren = "left";
     panelFile.margins = [15, 25, 15, 10];
@@ -445,6 +451,7 @@ function main() {
       ボタン行を mainGroup の下部に追加
     */
     var groupBtns = mainGroup.add("group");
+    groupBtns.margins = [0, 20, 0, 10];
     groupBtns.alignment = "center";
     var btnCancel = groupBtns.add("button", undefined, "キャンセル", {
         name: "cancel"
