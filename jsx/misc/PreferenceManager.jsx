@@ -12,21 +12,15 @@ PreferenceManager.jsx
 - Units, text settings, transform/align settings can be adjusted in one panel.
 
 ### 主な機能 / Main Features：
-- 単位（一般・線・文字・東アジア言語）の設定 / Set units (general, stroke, text, East Asian)
 - 最近使用したフォント数とフォント表記切替 / Recent fonts count and font name localization
 - 変形と整列の各種オプション / Various transform and align options
 - 字形の境界に整列の設定 / Align to glyph bounds setting
-- モード切替（プリント pt／プリント Q／オンスクリーン） / Mode switch (Print pt / Print Q / Onscreen)
-
-### 参考・謝辞
-
-https://judicious-night-bca.notion.site/app-getIntegerPreference-e4088e6caef64b3ba5b801d86fba7877
 
 ### 更新履歴 / Change Log：
 - v1.0 (20250804): 初期バージョン / Initial version
 - v1.1 (20250804): ダイアログを2カラムに改修、単位とフォント設定を追加 / Dialog changed to two columns; added units and font settings
 - v1.2 (20250804): 角の拡大のロジックを修正 / Fixed logic for corner scaling
-- v1.3 (20250805): 単位と増減値のUIとロジックを削除
+- v1.3 (20250805): 単位と増減値のUIとロジックを削除 / Removed unit and increment UI and logic
 */
 
 
@@ -57,28 +51,6 @@ var LABELS = {
         ja: "オンスクリーン（px）",
         en: "Onscreen (px)"
     },
-    unitsTitle: {
-        ja: "単位",
-        en: "Units"
-    },
-    // --- Inserted localization for unit dropdowns ---
-    generalUnit: {
-        ja: "一般",
-        en: "General"
-    },
-    strokeUnit: {
-        ja: "線",
-        en: "Stroke"
-    },
-    textUnit: {
-        ja: "文字",
-        en: "Type"
-    },
-    asianUnit: {
-        ja: "東アジア言語",
-        en: "East Asian Type"
-    },
-    // -----------------------------------------------
     textTitle: {
         ja: "テキスト",
         en: "Text"
@@ -134,158 +106,8 @@ var LABELS = {
     cancel: {
         ja: "キャンセル",
         en: "Cancel"
-    },
-    leadingLabel: {
-        ja: "サイズ/行送り：",
-        en: "Size/Leading:"
-    },
-    baselineLabel: {
-        ja: "ベースライン：",
-        en: "Baseline Shift:"
-    },
-    // ---- Added missing localized labels ----
-    generalTitle: {
-        ja: "一般",
-        en: "General"
-    },
-    keyInputLabel: {
-        ja: "キー入力：",
-        en: "Keyboard Increment::"
-    },
-    cornerRadiusLabel: {
-        ja: "角丸の半径：",
-        en: "Corner Radius:"
-    },
-    textDetailTitle: {
-        ja: "テキスト",
-        en: "Text"
     }
 };
-
-
-/* ↑↓キーで値を増減 / Change value with arrow keys */
-function changeValueByArrowKey(editText) {
-    editText.addEventListener("keydown", function(event) {
-        var value = Number(editText.text);
-        if (isNaN(value)) return;
-
-        var keyboard = ScriptUI.environment.keyboardState;
-        var delta = 1;
-
-        if (keyboard.shiftKey) {
-            delta = 10;
-            if (event.keyName == "Up") {
-                value = Math.ceil((value + 1) / delta) * delta;
-                event.preventDefault();
-            } else if (event.keyName == "Down") {
-                value = Math.floor((value - 1) / delta) * delta;
-                if (value < 0) value = 0;
-                event.preventDefault();
-            }
-        } else if (keyboard.altKey) {
-            delta = 0.1;
-            if (event.keyName == "Up") {
-                value += delta;
-                event.preventDefault();
-            } else if (event.keyName == "Down") {
-                value -= delta;
-                event.preventDefault();
-            }
-        } else {
-            delta = 1;
-            if (event.keyName == "Up") {
-                value += delta;
-                event.preventDefault();
-            } else if (event.keyName == "Down") {
-                value -= delta;
-                if (value < 0) value = 0;
-                event.preventDefault();
-            }
-        }
-
-        if (keyboard.altKey) {
-            value = Math.round(value * 10) / 10; /* 小数第1位まで / Round to 1 decimal place */
-        } else {
-            value = Math.round(value);
-        }
-
-        editText.text = value;
-        editText.notify("onChange"); /* 値変更をトリガー / Trigger value change */
-    });
-}
-
-/* 単位コードとラベルのマップ / Unit Code to Label Map */
-var unitLabelMap = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
-    5: "Q/H", // Use a neutral value for code 5
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
-};
-
-/**
- * Get the unit label for a given code and preference key.
- * @param {number} code - The unit code.
- * @param {string} [prefKey] - The preference key (e.g., "text/units", "text/asianunits").
- * @returns {string} The appropriate label.
- */
-function getUnitLabel(code, prefKey) {
-    // If code is not 5, just return mapping
-    if (code !== 5) return unitLabelMap[code] || "pt";
-    // For code 5, determine by prefKey context
-    if (prefKey === "text/units") {
-        return "Q";
-    } else if (prefKey === "text/asianunits") {
-        return "H";
-    }
-    // Otherwise, use neutral or fallback
-    return "Q/H";
-}
-
-/* 単位換算ユーティリティ / Unit conversion utilities */
-function getPtFactorFromUnitCode(code) {
-    switch (code) {
-        case 0:
-            return 72.0; // in
-        case 1:
-            return 72.0 / 25.4; // mm
-        case 2:
-            return 1.0; // pt
-        case 3:
-            return 12.0; // pica
-        case 4:
-            return 72.0 / 2.54; // cm
-        case 5:
-            return 72.0 / 25.4 * 0.25; // Q or H
-        case 6:
-            return 1.0; // px
-        case 7:
-            return 72.0 * 12.0; // ft/in
-        case 8:
-            return 72.0 / 25.4 * 1000.0; // m
-        case 9:
-            return 72.0 * 36.0; // yd
-        case 10:
-            return 72.0 * 12.0; // ft
-        default:
-            return 1.0;
-    }
-}
-
-function convertFromPt(valuePt, unitCode) {
-    return valuePt / getPtFactorFromUnitCode(unitCode);
-}
-
-function convertToPt(valueUnit, unitCode) {
-    return valueUnit * getPtFactorFromUnitCode(unitCode);
-}
-
 
 
 /* 複数チェックボックスを環境設定キーにバインド / Bind multiple checkboxes to preference keys */
@@ -353,7 +175,7 @@ function main() {
         app.preferences.setBooleanPreference("text/useEnglishFontNames", checkboxFontEnglish.value === true);
     };
 
-    /* --- 新しい 最近使用したフォントの表示数 ロジック（UI調整） --- */
+    /* 最近使用したフォントの表示数 ロジック（UI調整） / Recent fonts count logic (UI adjustment) */
     var currentRecentCount = app.preferences.getIntegerPreference("text/recentFontMenu/showNEntries");
     var groupRecentFonts = textPanel.add('group');
     groupRecentFonts.orientation = 'row';
@@ -368,7 +190,7 @@ function main() {
     checkboxRecentFonts.onClick = function() {
         if (checkboxRecentFonts.value) {
             if (parseInt(inputRecentFonts.text, 10) === 0 || isNaN(parseInt(inputRecentFonts.text, 10))) {
-                inputRecentFonts.text = "1";
+                inputRecentFonts.text = "15";
             }
             inputRecentFonts.enabled = true;
             app.preferences.setIntegerPreference("text/recentFontMenu/showNEntries", parseInt(inputRecentFonts.text, 10));
@@ -389,6 +211,7 @@ function main() {
     };
 
 
+    /* 字形の境界に整列パネル / Align to glyph bounds panel */
     var glyphPanel = rightColumn.add('panel', undefined, LABELS.glyphBounds[lang]);
     glyphPanel.orientation = 'column';
     glyphPanel.alignChildren = ['left', 'top'];
@@ -412,13 +235,13 @@ function main() {
 
 
 
-    /* その他パネルを追加 / Add "Transform & Align" panel */
+    /* 変形と整列パネル / Transform & Align panel */
     var otherPanel = rightColumn.add('panel', undefined, LABELS.transformTitle[lang]);
     otherPanel.orientation = 'column';
     otherPanel.alignChildren = ['left', 'top'];
     otherPanel.margins = [8, 20, 8, 15];
 
-    //　プレビュー境界
+    /* プレビュー境界 / Preview bounds */
     var checkboxPreview = otherPanel.add('checkbox', undefined, LABELS.previewBounds[lang]);
     checkboxPreview.value = app.preferences.getBooleanPreference("includeStrokeInBounds");
     checkboxPreview.onClick = function() {
@@ -426,16 +249,16 @@ function main() {
     };
 
 
-    // パターンを変形
+    /* パターンを変形 / Transform pattern tiles */
     var checkboxPattern = otherPanel.add('checkbox', undefined, LABELS.transformPattern[lang]);
     checkboxPattern.value = app.preferences.getBooleanPreference("transformPatterns");
     checkboxPattern.onClick = function() {
         app.preferences.setBooleanPreference("transformPatterns", checkboxPattern.value === true);
     };
 
-    // 角を拡大・縮小
+    /* 角を拡大・縮小 / Scale corners */
     var checkboxCorner = otherPanel.add('checkbox', undefined, LABELS.scaleCorners[lang]);
-    // 初期値を取得（1=ON, 2=OFF）
+    /* 初期値を取得（1=ON, 2=OFF） / Get initial value (1=ON, 2=OFF) */
     checkboxCorner.value = (app.preferences.getIntegerPreference("policyForPreservingCorners") === 1);
     checkboxCorner.onClick = function() {
         app.preferences.setIntegerPreference(
@@ -444,14 +267,14 @@ function main() {
         );
     };
 
-    /* 線幅と効果も拡大・縮小 */
+    /* 線幅と効果も拡大・縮小 / Scale strokes and effects */
     var checkboxStroke = otherPanel.add('checkbox', undefined, LABELS.scaleStroke[lang]);
     checkboxStroke.value = app.preferences.getBooleanPreference("scaleLineWeight");
     checkboxStroke.onClick = function() {
         app.preferences.setBooleanPreference("scaleLineWeight", checkboxStroke.value === true);
     };
 
-    /* リアルタイムの描画と編集 */
+    /* リアルタイムの描画と編集 / Real-time drawing and editing */
     var checkboxRealtime = otherPanel.add('checkbox', undefined, LABELS.realtimeDrawing[lang]);
     checkboxRealtime.value = app.preferences.getBooleanPreference("LiveEdit_State_Machine");
     checkboxRealtime.onClick = function() {
@@ -463,8 +286,8 @@ function main() {
         name: 'group2'
     });
     group2.orientation = 'row';
-    group2.alignChildren = ['center', 'center']; /* 中央揃え */
-    group2.alignment = ['center', 'bottom']; /* ダイアログ内で中央に配置 */
+    group2.alignChildren = ['center', 'center']; /* 中央揃え / Center align */
+    group2.alignment = ['center', 'bottom']; /* ダイアログ内で中央に配置 / Center in dialog */
 
     var cancelBtn = group2.add('button', undefined, LABELS.cancel[lang], {
         name: 'cancel'
