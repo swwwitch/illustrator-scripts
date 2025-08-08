@@ -86,19 +86,19 @@ var LABELS = {
         en: "Characters & Paragraphs"
     },
     chars: {
-        ja: "文字数：",
+        ja: "文字：",
         en: "Characters:"
     },
     paras: {
-        ja: "段落数：",
+        ja: "段落：",
         en: "Paragraphs:"
     },
     lines: {
-        ja: "行数：",
+        ja: "行：",
         en: "Lines:"
     },
     words: {
-        ja: "英単語数：",
+        ja: "英単語：",
         en: "English Words:"
     },
     checkTitle: {
@@ -106,11 +106,11 @@ var LABELS = {
         en: "Check Items"
     },
     fullwidth: {
-        ja: "全角文字数：",
+        ja: "全角文字：",
         en: "Fullwidth Chars:"
     },
     hankakuKana: {
-        ja: "半角カナ数：",
+        ja: "半角カナ：",
         en: "Half-width Kana:"
     },
     kindTitle: {
@@ -134,7 +134,7 @@ var LABELS = {
         en: "Other"
     },
     fonts: {
-        ja: "使用フォント数：",
+        ja: "使用フォント：",
         en: "Fonts Used:"
     },
     ok: {
@@ -146,6 +146,26 @@ var LABELS = {
         en: "Cancel"
     }
 };
+
+// 定数定義
+var LABEL_WIDTH = 110;
+var PANEL_MARGINS = [15, 20, 15, 10];
+var DIALOG_OFFSET_X = 300;
+var DIALOG_OPACITY = 0.97;
+
+// 汎用：ラベル＋値行追加
+function addRow(panel, labelText, valueText) {
+    var row = panel.add("group");
+    row.orientation = "row";
+    row.alignChildren = ["left", "center"];
+
+    var label = row.add("statictext", undefined, labelText);
+    label.preferredSize.width = LABEL_WIDTH;
+    label.justify = "right";
+    var value = row.add("statictext", undefined, valueText);
+    value.justify = "left";
+    return value;
+}
 
 function main() {
     try {
@@ -185,8 +205,12 @@ function main() {
             anchorCountAll = 0;
 
         /* 種別のカウント（選択と全体） / Count text kinds (selected and all) */
-        var pointTextSel = 0, areaTextSel = 0, pathTextSel = 0;
-        var pointTextAll = 0, areaTextAll = 0, pathTextAll = 0;
+        var pointTextSel = 0,
+            areaTextSel = 0,
+            pathTextSel = 0;
+        var pointTextAll = 0,
+            areaTextAll = 0,
+            pathTextAll = 0;
 
         /* フォントセットを作成 / Create font set */
         var fontSet = {};
@@ -244,22 +268,6 @@ function main() {
         dlg.orientation = "column";
         dlg.alignChildren = "center";
 
-        var LABEL_WIDTH = 140; /* 全ラベルの幅を統一 / Set uniform label width */
-
-        /* ラベルと値を2カラムで表示 / Display label and value in two columns */
-        var group = dlg.add("group");
-        group.orientation = "column";
-        group.alignChildren = ["fill", "top"];
-
-        // addRow: ラベル、値、カスタム幅（省略可） / label, value, customWidth (optional)
-        function addRow(labelText, valueText, customWidth) {
-            var g = group.add("group");
-            g.orientation = "row";
-            var label = g.add("statictext", undefined, labelText);
-            label.justify = "right";
-            label.preferredSize.width = (customWidth !== undefined) ? customWidth : LABEL_WIDTH;
-            g.add("statictext", undefined, valueText);
-        }
 
         var totalObjSel = count;
         var totalObjAll = allCount;
@@ -274,67 +282,36 @@ function main() {
         var panelCharPara = columnGroup.add("panel", undefined, LABELS.charPara[lang]);
         panelCharPara.orientation = "column";
         panelCharPara.alignChildren = ["fill", "top"];
-        panelCharPara.margins = [15, 20, 0, 10];
-        function addCharParaRow(label, value) {
-            var row = panelCharPara.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
+        panelCharPara.margins = PANEL_MARGINS;
 
-        // 2. チェック項目パネル / Check items panel
         var panelCheck = columnGroup.add("panel", undefined, LABELS.checkTitle[lang]);
         panelCheck.orientation = "column";
         panelCheck.alignChildren = ["fill", "top"];
-        panelCheck.margins = [15, 20, 0, 10];
-        function addCheckRow(label, value) {
-            var row = panelCheck.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
+        panelCheck.margins = PANEL_MARGINS;
 
-        // 3. 種別パネルを追加 / Add kinds panel
         var panelKinds = columnGroup.add("panel", undefined, LABELS.kindTitle[lang]);
         panelKinds.orientation = "column";
         panelKinds.alignChildren = ["fill", "top"];
-        panelKinds.margins = [15, 20, 0, 10];
-        function addKindRow(label, value) {
-            var row = panelKinds.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
+        panelKinds.margins = PANEL_MARGINS;
 
-        // 4. その他パネル / Other panel
         var panelOther = columnGroup.add("panel", undefined, LABELS.otherTitle[lang]);
         panelOther.orientation = "column";
         panelOther.alignChildren = ["fill", "top"];
-        panelOther.margins = [15, 20, 0, 10];
-        function addOtherRow(label, value) {
-            var row = panelOther.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
+        panelOther.margins = PANEL_MARGINS;
 
         var totalCharSel = 0,
             totalCharAll = 0;
         var paraCountSel = 0,
             paraCountAll = 0;
-        var wordCountSel = 0, wordCountAll = 0;
-        var fullwidthCountSel = 0, fullwidthCountAll = 0;
-        var hankakuKanaCountSel = 0, hankakuKanaCountAll = 0;
+        var wordCountSel = 0,
+            wordCountAll = 0;
+        var fullwidthCountSel = 0,
+            fullwidthCountAll = 0;
+        var hankakuKanaCountSel = 0,
+            hankakuKanaCountAll = 0;
         // 行数カウント用変数 / Line count variables
-        var lineCountSel = 0, lineCountAll = 0;
+        var lineCountSel = 0,
+            lineCountAll = 0;
 
         /* 選択オブジェクト / Selected objects */
         for (var i = 0; i < sel.length; i++) {
@@ -416,20 +393,19 @@ function main() {
         }
 
         // 1. 文字・段落パネルに行を追加
-        addCharParaRow(LABELS.chars[lang], totalCharSel + " / " + totalCharAll);
-        addCharParaRow(LABELS.paras[lang], paraCountSel + " / " + paraCountAll);
-        // 行数の行を追加
-        addCharParaRow(LABELS.lines[lang], lineCountSel + " / " + lineCountAll);
-        addCharParaRow(LABELS.words[lang], wordCountSel + " / " + wordCountAll);
+        addRow(panelCharPara, LABELS.chars[lang], totalCharSel + " / " + totalCharAll);
+        addRow(panelCharPara, LABELS.paras[lang], paraCountSel + " / " + paraCountAll);
+        addRow(panelCharPara, LABELS.lines[lang], lineCountSel + " / " + lineCountAll);
+        addRow(panelCharPara, LABELS.words[lang], wordCountSel + " / " + wordCountAll);
 
         // 2. チェック項目パネルに行を追加
-        addCheckRow(LABELS.fullwidth[lang], fullwidthCountSel + " / " + fullwidthCountAll);
-        addCheckRow(LABELS.hankakuKana[lang], hankakuKanaCountSel + " / " + hankakuKanaCountAll);
+        addRow(panelCheck, LABELS.fullwidth[lang], fullwidthCountSel + " / " + fullwidthCountAll);
+        addRow(panelCheck, LABELS.hankakuKana[lang], hankakuKanaCountSel + " / " + hankakuKanaCountAll);
 
         // 3. 種別パネルに行を追加
-        addKindRow(LABELS.pointText[lang], pointTextSel + " / " + pointTextAll);
-        addKindRow(LABELS.areaText[lang], areaTextSel + " / " + areaTextAll);
-        addKindRow(LABELS.pathText[lang], pathTextSel + " / " + pathTextAll);
+        addRow(panelKinds, LABELS.pointText[lang], pointTextSel + " / " + pointTextAll);
+        addRow(panelKinds, LABELS.areaText[lang], areaTextSel + " / " + areaTextAll);
+        addRow(panelKinds, LABELS.pathText[lang], pathTextSel + " / " + pathTextAll);
 
         // 4. その他パネルに行を追加
         // フォント数をカウント / Count font usage
@@ -437,7 +413,7 @@ function main() {
         for (var key in fontSet) {
             if (fontSet.hasOwnProperty(key)) fontCount++;
         }
-        addOtherRow(LABELS.fonts[lang], fontCount.toString());
+        addRow(panelOther, LABELS.fonts[lang], fontCount.toString());
 
         // メイングループ（横並び） / Main group (horizontal layout)
         var btnRowGroup = dlg.add("group");
@@ -457,6 +433,8 @@ function main() {
         var spacer = btnRowGroup.add("statictext", undefined, "");
         spacer.alignment = ["fill", "fill"];
         spacer.minimumSize.width = 0;
+        // もし他のラベル(statictext)を直接追加している場合は右寄せを明示
+        spacer.justify = "right";
 
         // 右側グループ / Right-side button group
         var btnRightGroup = btnRowGroup.add("group");
@@ -468,7 +446,7 @@ function main() {
             dlg.close();
         };
 
-        /* ダイアログ位置と透明度を調整 / Adjust dialog position and opacity */
+        // --- ダイアログ位置・透明度調整コードここから ---
         var offsetX = 300;
         var dialogOpacity = 0.97;
 
@@ -486,6 +464,7 @@ function main() {
 
         setDialogOpacity(dlg, dialogOpacity);
         shiftDialogPosition(dlg, offsetX, 0);
+        // --- ダイアログ位置・透明度調整コードここまで ---
 
         dlg.center();
         dlg.show();
