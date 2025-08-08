@@ -1,5 +1,4 @@
 #target illustrator
-
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -10,65 +9,59 @@ TextCountStats.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/TextCountStats.jsx
 
 ### 概要：
 
-- 選択中および全体のオブジェクト数をカウント
-- テキスト・画像・グループ・パスの詳細情報を表示
-- 統計情報をダイアログで表示、書き出し可能
+- Illustratorの選択テキストや全体の文字情報を統計的に可視化
+- 文字数、段落数、行数、英単語数、全角文字数、半角カナ、種別（ポイント／エリア／パス上）、フォント数などをカウント
 
 ### 主な機能：
 
-- オブジェクト数、アートボード数を表示
-- 文字数、段落数、テキスト種類の表示
-- リンク画像／埋め込み画像／リンク切れの検出
-- グループ／クリップグループのカウント
-- パス（オープン／クローズ／アンカーポイント）のカウント
-- 「書き出し」ボタンでテキストファイルとして保存
+- 選択したテキストオブジェクトの各種統計をUI上に一覧表示
+- 選択がない場合はドキュメント全体のテキストを対象に集計
+- UIは日本語／英語対応
 
 ### 処理の流れ：
 
-- ドキュメントと選択オブジェクトを解析し、各種情報を取得
-- ダイアログに2カラムで情報を整然と表示
-- 書き出し機能でデスクトップにテキスト保存
+1. ダイアログボックスで統計情報を表示
+2. 各パネルに分類（文字・段落、チェック項目、種別、その他）
+3. 自動的に選択／全体を切り替えてカウント
 
 ### 更新履歴：
 
 - v1.0 (20250806) : 初期バージョン
 
----
+*/
+
+/*
 
 ### Script Name:
 
-SelectionInspector.jsx
+TextCountStats.jsx
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/TextCountStats.jsx
 
-### Overview:
+### Description:
 
-- Count selected and total objects in the document
-- Display detailed stats for text, images, groups, and paths
-- Show statistics in a dialog and export as a text file
+- Visualize statistics of selected or all text objects in Illustrator
+- Count characters, paragraphs, lines, English words, full-width characters, half-width kana, type (point/area/path), and fonts
 
 ### Main Features:
 
-- Display number of objects and artboards
-- Show characters, paragraphs, text type counts
-- Detect linked/embedded/broken images
-- Count groups and clipping groups
-- Count paths, open/closed paths, and anchor points
-- Export button writes stats to desktop as a text file
+- Shows a summary of various counts in a dialog
+- Automatically switches between selected objects and all content
+- UI supports Japanese and English
 
-### Process Flow:
+### Flow:
 
-- Analyze document and selected objects
-- Display data in a two-column dialog UI
-- Export stats to desktop text file
+1. Show dialog displaying text statistics
+2. Divide stats into panels (Text & Paragraphs, Checks, Types, Others)
+3. Auto-select between selection or whole document
 
-### Changelog:
+### Change Log:
 
 - v1.0 (20250806): Initial version
 
@@ -85,8 +78,8 @@ var lang = getCurrentLang();
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     dialogTitle: {
-        ja: "文字数カウント " + SCRIPT_VERSION,
-        en: "Selection / All Objects Count " + SCRIPT_VERSION
+        ja: "テキスト統計情報表示 " + SCRIPT_VERSION,
+        en: "Text Count Stats " + SCRIPT_VERSION
     },
     charPara: {
         ja: "文字・段落",
