@@ -78,7 +78,7 @@ var lang = getCurrentLang();
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     dialogTitle: {
-        ja: "テキスト統計情報表示 " + SCRIPT_VERSION,
+        ja: "文字数カウント " + SCRIPT_VERSION,
         en: "Text Count Stats " + SCRIPT_VERSION
     },
     charPara: {
