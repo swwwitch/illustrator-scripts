@@ -181,7 +181,7 @@ var LABELS = {
         ja: "キャンセル",
         en: "Cancel"
     },
-    export: {
+    exportPreset: {
         ja: "書き出し",
         en: "Export"
     }
@@ -586,7 +586,7 @@ function main() {
         // 右側グループ / Right-side button group
         var btnRightGroup = btnRowGroup.add("group");
         btnRightGroup.alignChildren = ["right", "center"];
-        var btnExport = btnRightGroup.add("button", undefined, LABELS.export[lang], {
+        var btnExport = btnRightGroup.add("button", undefined, LABELS.exportPreset[lang], {
             name: "preview"
         });
         var btnOK = btnRightGroup.add("button", undefined, LABELS.ok[lang], {
