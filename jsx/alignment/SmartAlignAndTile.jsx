@@ -41,13 +41,14 @@ Gorolib Design
 https://gorolib.blog.jp/archives/77282974.html
 
 ### 更新履歴：
-
+- v1.6 (20250809) : 「プレビュー境界を使用」をOFFのとき geometricBounds を使用するように調整
 - v1.0 (20250716) : 初期バージョン
 - v1.1 (20250717) : 安定性改善、行数ロジック修正
 - v1.2 (20250718) : コメント整理、ローカライズ統一、ランダム基準位置補正改善
 - v1.3 (20250801) : グリッド機能の追加、ガターを縦横個別に設定
 - v1.4 (20250801) : ローカライズを調整
 - v1.5 (20250802) : 横／縦の連動機能を追加、プレビュー境界を使用のロジックを調整
+- v1.6 (20250809) : 「プレビュー境界を使用」をOFFのとき geometricBounds を使用するように調整
 
 ---
 
@@ -81,17 +82,18 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 - Confirm to apply
 
 ### Update History:
-
+- v1.6 (2025-08-09): When "Use preview bounds" is OFF, use geometricBounds (OFF = geometric, ON = visible).
 - v1.0 (2025-07-16): Initial version
 - v1.1 (2025-07-17): Stability improvements, row logic fix
 - v1.2 (2025-07-18): Comment refinement, localization update, improved random positioning correction
 - v1.3 (2025-08-01): Added grid feature, separate gutter settings for horizontal and vertical spacing
 - v1.4 (2025-08-01): Adjusted localization
 - v1.5 (2025-08-02): Added horizontal/vertical linking feature, adjusted preview bounds logic
+- v1.6 (2025-08-09): Adjusted to use geometricBounds when "Use preview bounds" is OFF
 */
 
 /* バージョン変数を追加 / Script version variable */
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v1.6";
 
 /* ダイアログ位置と外観変数 / Dialog position and appearance variables */
 var offsetX = 300;
@@ -235,6 +237,11 @@ function shiftDialogPosition(dlg, offsetX, offsetY) {
 /* ダイアログの不透明度を設定するヘルパー / Helper to set dialog opacity */
 function setDialogOpacity(dlg, opacityValue) {
     dlg.opacity = opacityValue;
+}
+
+/* アイテムの境界を取得（プレビュー境界ONならvisible、OFFならgeometric） / Get item bounds (visible when preview ON, geometric when OFF) */
+function getItemBounds(item, usePreviewBounds) {
+    return usePreviewBounds ? item.visibleBounds : item.geometricBounds;
 }
 
 /* ダイアログ表示関数 / Show dialog with language support */
@@ -467,13 +474,19 @@ function showArrangeDialog() {
         if (rows < 1) rows = 1;
         var itemsPerRow = Math.ceil(sortedItems.length / rows);
 
-        var startX = sortedItems[0].left;
-        var startY = sortedItems[0].top;
+        // 垂直方向・水平方向の基準は選択された境界タイプに合わせる / Use selected bounds type for both baselines
+        var startBounds = getItemBounds(sortedItems[0], boundsCheckbox.value);
+        var startLeftBound = startBounds[0];
+        var startTopBound = startBounds[1];
+        var startRightBound = startBounds[2];
+        var startBottomBound = startBounds[3];
+        var startX = startLeftBound; // 水平方向も選択境界で開始 / Start X from chosen bounds
+        var startY = startTopBound;
 
         var refHeight = 0;
         var refWidth = 0;
         for (var i = 0; i < sortedItems.length; i++) {
-            var vb = sortedItems[i].visibleBounds; // [left, top, right, bottom]
+            var vb = getItemBounds(sortedItems[i], boundsCheckbox.value); // [left, top, right, bottom]
             var width = vb[2] - vb[0];
             var height = vb[1] - vb[3];
             if (height > refHeight) refHeight = height;
@@ -493,26 +506,51 @@ function showArrangeDialog() {
             var currentX = startX;
             for (var c = 0; c < itemsPerRow && index < sortedItems.length; c++, index++) {
                 var item = sortedItems[index];
-                var vb = item.visibleBounds;
+                var vb = getItemBounds(item, boundsCheckbox.value);
                 var itemWidth = vb[2] - vb[0];
                 var itemHeight = vb[1] - vb[3];
 
-                // X位置調整
-                if (hAlign === "center") {
-                    item.left = currentX + (refWidth - itemWidth) / 2;
-                } else if (hAlign === "right") {
-                    item.left = currentX + (refWidth - itemWidth);
-                } else {
-                    item.left = currentX;
-                }
+                /* セルのX範囲（選択境界ベース）/ Cell X range based on chosen bounds */
+                var cellLeft = currentX;
+                var cellRight = currentX + (gridCheckbox.value ? refWidth : itemWidth);
+                var cellCenterX = (cellLeft + cellRight) / 2;
 
-                var baseY = startY;
-                if (align === "middle") {
-                    baseY = startY - (refHeight / 2) + (itemHeight / 2);
-                } else if (align === "bottom") {
-                    baseY = startY - refHeight + itemHeight;
+                /* 現在のXアンカー（選択境界）/ Current X anchors using chosen bounds */
+                var currentLeftX = vb[0];
+                var currentRightX = vb[2];
+                var currentCenterX = (vb[0] + vb[2]) / 2;
+
+                /* 横方向アライン差分 / Horizontal alignment delta */
+                var deltaX = 0;
+                if (hAlign === "center") {
+                    deltaX = cellCenterX - currentCenterX;
+                } else if (hAlign === "right") {
+                    deltaX = cellRight - currentRightX;
+                } else {
+                    deltaX = cellLeft - currentLeftX; // left
                 }
-                item.top = baseY - (r * (refHeight + vMarginPt));
+                item.left = item.left + deltaX;
+
+                /* セルの目標位置を境界タイプに合わせて算出 / Compute target cell position based on chosen bounds type */
+                var cellTop = startTopBound - (r * (refHeight + vMarginPt));
+                var cellBottom = startBottomBound - (r * (refHeight + vMarginPt));
+                var cellCenter = (cellTop + cellBottom) / 2;
+
+                /* 現在位置（選択境界）/ Current position using chosen bounds */
+                var currentTop = vb[1];
+                var currentBottom = vb[3];
+                var currentCenter = (vb[1] + vb[3]) / 2;
+
+                /* アラインごとの差分を計算し、相対移動 / Compute delta per align and move relatively */
+                var deltaY = 0;
+                if (align === "middle") {
+                    deltaY = cellCenter - currentCenter;
+                } else if (align === "bottom") {
+                    deltaY = cellBottom - currentBottom;
+                } else { // top
+                    deltaY = cellTop - currentTop;
+                }
+                item.top = item.top + deltaY;
 
                 if (c < itemsPerRow - 1) {
                     if (gridCheckbox.value) {
