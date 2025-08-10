@@ -9,9 +9,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
   更新履歴：
   - v1.0 (20250807): 初期リリース
+  - v1.1 (20250915): ファイルの保存先を追加
 */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -121,6 +122,18 @@ var LABELS = {
         ja: "Adobe Fonts を自動アクティベート",
         en: "Auto-activate Adobe Fonts"
     }
+    , saveDest: {
+        ja: "ファイルの保存先",
+        en: "Save Location"
+    },
+    saveLocal: {
+        ja: "コンピューター",
+        en: "Computer"
+    },
+    saveCloud: {
+        ja: "クラウド",
+        en: "Cloud"
+    }
 };
 
 function main() {
@@ -188,6 +201,17 @@ function main() {
             var currentCanvas = app.preferences.getIntegerPreference("uiCanvasIsWhite");
             rbCanvasWhite.value = (currentCanvas === 1);
             rbCanvasMatch.value = (currentCanvas !== 1);
+            /*
+              ファイルの保存先（現在値をUIに反映）
+            */
+            var curCloud = false;
+            try {
+                curCloud = app.preferences.getBooleanPreference("AdobeSaveAsCloudDocumentPreference");
+            } catch (e) {
+                curCloud = false;
+            }
+            rbSaveCloud.value = curCloud;
+            rbSaveLocal.value = !curCloud;
         } else if (presetName === "プリセット1") {
             cbToolTips.value = false;
             cbHomeScreen.value = false;
@@ -212,6 +236,10 @@ function main() {
             rbCanvasWhite.value = true;
             rbCanvasMatch.value = false;
             app.preferences.setIntegerPreference("uiCanvasIsWhite", 1);
+            // ファイルの保存先：コンピューター（false）
+            rbSaveLocal.value = true;
+            rbSaveCloud.value = false;
+            try { app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", false); } catch (e) {}
         } else if (presetName === "デフォルト") {
             cbToolTips.value = true;
             cbHomeScreen.value = true;
@@ -236,6 +264,10 @@ function main() {
             rbCanvasWhite.value = false;
             rbCanvasMatch.value = true;
             app.preferences.setIntegerPreference("uiCanvasIsWhite", 0);
+            // ファイルの保存先：クラウド（true）
+            rbSaveLocal.value = false;
+            rbSaveCloud.value = true;
+            try { app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", true); } catch (e) {}
         }
     }
 
@@ -449,19 +481,17 @@ function main() {
 
     /*
       カンバスカラー設定
+      （1行レイアウトでラベルとラジオボタンを横並びにする）
     */
-    panelUI.add("statictext", undefined, LABELS.canvasColor[lang]);
-    /*
-      カンバスカラーパネル内に横並びのグループを作成
-    */
-    var rbCanvasGroup = panelUI.add("group", undefined, "");
-    rbCanvasGroup.orientation = "row";
-    rbCanvasGroup.alignChildren = "left";
-    /*
-      グループ内にラジオボタンを追加
-    */
-    var rbCanvasMatch = rbCanvasGroup.add("radiobutton", undefined, "UIに合わせる");
-    var rbCanvasWhite = rbCanvasGroup.add("radiobutton", undefined, "ホワイト");
+    // カンバスカラー（1行レイアウト）
+    var canvasRow = panelUI.add("group", undefined, "");
+    canvasRow.orientation = "row";
+    canvasRow.alignChildren = ["left", "center"];
+    canvasRow.spacing = 10;
+
+    canvasRow.add("statictext", undefined, LABELS.canvasColor[lang] + "：");
+    var rbCanvasMatch = canvasRow.add("radiobutton", undefined, "UIに合わせる");
+    var rbCanvasWhite = canvasRow.add("radiobutton", undefined, "ホワイト");
 
     /*
       初期状態を反映
@@ -509,6 +539,7 @@ function main() {
     var cbLiveEdit = panelPerf.add("checkbox", undefined, LABELS.cbLiveEdit[lang]);
     cbLiveEdit.helpTip = LABELS.cbLiveEdit.ja + " / " + LABELS.cbLiveEdit.en;
 
+
     /*
       ［ファイル管理］パネル（右カラム）
     */
@@ -528,6 +559,34 @@ function main() {
     */
     var cbFontsAuto = panelFile.add("checkbox", undefined, LABELS.cbFontsAuto[lang]);
     cbFontsAuto.helpTip = LABELS.cbFontsAuto.ja + " / " + LABELS.cbFontsAuto.en;
+
+    // ファイルの保存先（テキスト＋ラジオを［ファイル管理］に統合）/ Save location inside [File Management]
+    var saveRow2 = panelFile.add("group", undefined, "");
+    saveRow2.orientation = "row";
+    saveRow2.alignChildren = ["left", "center"];
+    saveRow2.spacing = 10;
+
+    saveRow2.add("statictext", undefined, LABELS.saveDest[lang] + "：");
+    var rbSaveLocal = saveRow2.add("radiobutton", undefined, LABELS.saveLocal[lang]);
+    var rbSaveCloud = saveRow2.add("radiobutton", undefined, LABELS.saveCloud[lang]);
+
+    // 初期状態（true=クラウド、false=コンピューター）/ Initial state
+    var prefCloud = false;
+    try {
+        prefCloud = app.preferences.getBooleanPreference("AdobeSaveAsCloudDocumentPreference");
+    } catch (e) {
+        prefCloud = false;
+    }
+    rbSaveCloud.value = prefCloud;
+    rbSaveLocal.value = !prefCloud;
+
+    // 変更時に保存 / Apply on change
+    rbSaveLocal.onClick = function () {
+        try { app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", false); } catch (e) {}
+    };
+    rbSaveCloud.onClick = function () {
+        try { app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", true); } catch (e) {}
+    };
 
     /*
       右カラムの一番下に「パスに制限」パネルを追加
@@ -642,9 +701,9 @@ outerGroup.alignment = ["fill", "bottom"];
             */
             app.preferences.setBooleanPreference("text/enableAlternateGlyph", cbAlternateGlyph.value);
             /*
-              カンバス白設定を保存
+              カンバス白設定を保存（ラジオ選択に基づく）
             */
-            app.preferences.setIntegerPreference("uiCanvasIsWhite", 1);
+            app.preferences.setIntegerPreference("uiCanvasIsWhite", rbCanvasWhite.value ? 1 : 0);
             /*
               「アニメーションズーム」設定を保存
             */
@@ -665,6 +724,12 @@ outerGroup.alignment = ["fill", "bottom"];
               「Adobe Fontsを自動アクティベート」設定を保存
             */
             app.preferences.setBooleanPreference("AutoActivateMissingFont", cbFontsAuto.value);
+            /*
+              ファイルの保存先を保存（OK押下時にも明示保存）
+            */
+            try {
+                app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", rbSaveCloud.value ? true : false);
+            } catch (e) {}
         } catch (e) {
             alert("環境設定の保存に失敗しました: " + e + "\nFailed to save preferences: " + e);
         }
