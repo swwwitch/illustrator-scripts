@@ -3,7 +3,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 ### スクリプト名 / Script Name：
-PreferenceManager.jsx
+PreferenceManagerForTransformAndAlign.jsx
 
 ### 概要 / Overview：
 - Illustrator の各種環境設定をダイアログボックスから変更可能にします。
