@@ -618,6 +618,12 @@ function updatePreview(doc, layerName, start, prefix, suffix, zeroPad, showTotal
 
 function main() {
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    // _pagenumber レイヤーの事前作成（プレビュー対応のため） / Ensure _pagenumber layer exists for preview
+    if (app.documents.length > 0) {
+        try {
+            getOrCreatePagenumberLayer(app.activeDocument);
+        } catch (_eEnsure) {}
+    }
     dialog.orientation = "column";
     dialog.alignChildren = "left";
 
