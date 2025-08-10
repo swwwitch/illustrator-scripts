@@ -1,15 +1,74 @@
-// 既に #target illustrator, ShowExternalJSXWarning の記述があるか確認し、なければ冒頭に挿入
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  スクリプト名：Illustrator環境設定ユーティリティ
-  概要：Illustratorの各種環境設定をGUIからまとめて変更できます。
-       ユニット、キャンバスカラー、ヒットテスト条件などをプリセットや現在値から制御可能です。
 
-  更新履歴：
-  - v1.0 (20250807): 初期リリース
-  - v1.1 (20250915): ファイルの保存先を追加
+### スクリプト名：
+
+Illustrator環境設定ユーティリティ
+
+### GitHub：
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/PresetManagerForAI.jsx
+
+### 概要：
+
+- Illustrator の各種環境設定を GUI から一括で確認・変更します。
+- プリセット（無指定／デフォルト／プリセット1）を選ぶだけで推奨セットを適用できます。
+- カンバスカラー、選択範囲・アンカー表示、テキスト、パフォーマンス、ファイル管理（保存先を含む）をカバーします。
+
+### 主な機能：
+
+- 詳細なツールヒント／ホーム画面／レガシー新規ドキュメント UI の切替
+- アートボード移動時のロック/非表示オブジェクト追従、ズーム先、アンカー強調表示
+- テキスト：エリア内文字の自動サイズ、最近使用フォントの件数、異体字・見つからない字形の保護
+- ユーザーインターフェイス：カンバスカラー（UIに合わせる／ホワイト）
+- パフォーマンス：アニメーションズーム、ヒストリー数、リアルタイム描画
+- ファイル管理：編集の既定アプリ、Adobe Fonts 自動アクティベート、ファイルの保存先（コンピューター／クラウド）
+
+### 処理の流れ：
+
+1) ダイアログ生成 → 2) 現在の環境設定を読み込み UI に反映 → 3) プリセット選択で UI を上書き → 4) ［OK］で各プリファレンスキーへ保存。
+
+### 更新履歴：
+
+- v1.0 (20250807) : 初期リリース
+- v1.1 (20250915) : ファイルの保存先を追加
+
+---
+
+### Script Name:
+
+Illustrator Preferences Utility
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/PresetManagerForAI.jsx
+
+### Overview:
+
+- View and change multiple Illustrator preferences at once via a single GUI.
+- Apply recommended presets (None/Default/Preset 1) with one selection.
+- Covers Canvas Color, Selection & Anchor Display, Type, Performance, and File Management (including Save Location).
+
+### Key Features:
+
+- Rich Tool Tips / Home Screen / Legacy New Document toggle
+- Move Locked/Hidden with Artboard, Zoom to Selection, Highlight Anchors on Hover
+- Type: Auto Size Area Type, Recent Fonts count, Alternate Glyphs & Missing Glyph Protection
+- UI: Canvas Color (Match UI / White)
+- Performance: Animated Zoom, History States, Real-Time Drawing
+- File Management: Edit Original default app, Auto-activate Adobe Fonts, Save Location (Computer/Cloud)
+
+### Flow:
+
+1) Build dialog → 2) Load current preferences into UI → 3) Apply preset to UI → 4) Save preferences when pressing OK.
+
+### Changelog:
+
+- v1.0 (2025-08-07): Initial release
+- v1.1 (2025-09-15): Added Save Location
+
 */
 
 var SCRIPT_VERSION = "v1.1";
@@ -23,8 +82,8 @@ var lang = getCurrentLang();
 
 var LABELS = {
     dialogTitle: {
-        ja: "環境設定をまとめて変更",
-        en: "Batch Preferences Dialog"
+        ja: "環境設定をまとめて変更 " + SCRIPT_VERSION,
+        en: "Batch Preferences Dialog " + SCRIPT_VERSION
     },
     OK: {
         ja: "OK",
@@ -121,8 +180,8 @@ var LABELS = {
     cbFontsAuto: {
         ja: "Adobe Fonts を自動アクティベート",
         en: "Auto-activate Adobe Fonts"
-    }
-    , saveDest: {
+    },
+    saveDest: {
         ja: "ファイルの保存先",
         en: "Save Location"
     },
@@ -239,7 +298,9 @@ function main() {
             // ファイルの保存先：コンピューター（false）
             rbSaveLocal.value = true;
             rbSaveCloud.value = false;
-            try { app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", false); } catch (e) {}
+            try {
+                app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", false);
+            } catch (e) {}
         } else if (presetName === "デフォルト") {
             cbToolTips.value = true;
             cbHomeScreen.value = true;
@@ -267,7 +328,9 @@ function main() {
             // ファイルの保存先：クラウド（true）
             rbSaveLocal.value = false;
             rbSaveCloud.value = true;
-            try { app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", true); } catch (e) {}
+            try {
+                app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", true);
+            } catch (e) {}
         }
     }
 
@@ -581,11 +644,15 @@ function main() {
     rbSaveLocal.value = !prefCloud;
 
     // 変更時に保存 / Apply on change
-    rbSaveLocal.onClick = function () {
-        try { app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", false); } catch (e) {}
+    rbSaveLocal.onClick = function() {
+        try {
+            app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", false);
+        } catch (e) {}
     };
-    rbSaveCloud.onClick = function () {
-        try { app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", true); } catch (e) {}
+    rbSaveCloud.onClick = function() {
+        try {
+            app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", true);
+        } catch (e) {}
     };
 
     /*
@@ -622,14 +689,16 @@ function main() {
     */
     var outerGroup = mainGroup.add("group"); // 親groupに追加
     outerGroup.orientation = "row";
-outerGroup.alignChildren = ["fill", "center"];
-outerGroup.alignment = ["fill", "bottom"];
+    outerGroup.alignChildren = ["fill", "center"];
+    outerGroup.alignment = ["fill", "bottom"];
 
     // 左側グループ（書き出し）
     var leftGroup = outerGroup.add("group");
     leftGroup.orientation = "row";
     leftGroup.alignChildren = "left";
-    var btnExport = leftGroup.add("button", undefined, "書き出し", { name: "export" });
+    var btnExport = leftGroup.add("button", undefined, "書き出し", {
+        name: "export"
+    });
 
     // 真ん中スペーサー（伸縮する空白）
     var spacer = outerGroup.add("group");
@@ -640,8 +709,12 @@ outerGroup.alignment = ["fill", "bottom"];
     rightGroup.orientation = "row";
     rightGroup.alignChildren = ["right", "center"];
     rightGroup.spacing = 10;
-    var btnCancel = rightGroup.add("button", undefined, LABELS.Cancel[lang], { name: "cancel" });
-    var btnOK = rightGroup.add("button", undefined, LABELS.OK[lang], { name: "ok" });
+    var btnCancel = rightGroup.add("button", undefined, LABELS.Cancel[lang], {
+        name: "cancel"
+    });
+    var btnOK = rightGroup.add("button", undefined, LABELS.OK[lang], {
+        name: "ok"
+    });
 
     btnOK.onClick = function() {
         try {
