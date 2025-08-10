@@ -6,201 +6,367 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 AddPageNumberFromTextSelection.jsx
 
-### 概要
+### GitHub：
 
-- _pagenumberレイヤーで選択したテキストを基準に、すべてのアートボードにページ番号テキストを複製・配置するIllustrator用スクリプトです。
-- 開始番号、接頭辞、接尾辞、ゼロ埋め、総ページ数表示のカスタマイズが可能です。
+https://github.com/swwwitch/illustrator-scripts
 
-### 主な機能
+### 概要：
 
-- 選択テキストを基にページ番号を生成
-- 開始番号、接頭辞、接尾辞の指定
-- ゼロパディング（ゼロ埋め）対応
-- 総ページ数の表示オプション
-- プレビュー機能
-- 日本語／英語インターフェース対応
+- 選択中のポイントテキスト（_pagenumber レイヤー推奨）を雛形に、すべてのアートボードへ連番テキストを配置します。
+- 値の変更（接頭辞・開始番号・接尾辞・ゼロパディング・総ページ）や ↑↓/Shift+↑↓ による数値変更で、ドキュメント上のプレビューが即時更新されます（OK は確定のみ、キャンセルでプレビューを破棄）。
 
-### 処理の流れ
+### 主な機能：
 
-1. _pagenumberレイヤーにテキストを選択
-2. ダイアログで開始番号や接頭辞などを設定
-3. プレビューを確認
-4. OKでページ番号テキストを全アートボードに配置
+- 開始番号／接頭辞／接尾辞／ゼロパディング／総ページの指定
+- 3カラムUI、ダイアログの透明度・表示位置の調整
+- テンプレートが1件のみでも、プレビュー中に全アートボードへ仮増殖して確認可能（内部: pasteInAllArtboard）
+- ダイアログタイトルにバージョン番号を表示（SCRIPT_VERSION）
 
-### 更新履歴
+### 処理の流れ：
 
-- v1.0 (20240401) : 初期バージョン
-- v1.1 (20240405) : テキスト複製ロジック修正
-- v1.2 (20240410) : ゼロ埋め・接頭辞・総ページ数表示追加
-- v1.3 (20240415) : プレビュー機能追加
-- v1.4 (20240420) : 「001」形式のゼロ埋め対応
-- v1.5 (20240425) : 接尾辞フィールド追加、UI改善
-- v1.6 (20250810) : プレビュー開始時に元テキストを一時待避して非表示ではなく削除。キャンセル時は復元、OKで待避を破棄。
-- v1.7 (20250815) : 開始番号を↑↓キーで変更可能に（Shiftで±10、Optionは未対応）
+1) 適当なポイントテキストを選択（_pagenumber レイヤー推奨）
+2) ダイアログで各値を設定（↑↓/Shift+↑↓で数値調整、Zでゼロ埋め、Aで総ページ表示を切替）
+3) 値変更ごとにライブプレビューを確認
+4) OK で確定／キャンセルでプレビューを破棄して復元
+
+### note：
+
+- 対象はポイントテキストです。段落揃えなどの体裁変更は行いません。
+
+### 更新履歴：
+
+- v1.0 (20250625) : 初期バージョン
+- v1.8 (20250815) : リファクタリング、ライブプレビューと全ABプレビュー複製に対応、UI整理
 
 ---
 
-### Script Name:
+### Script Name：
 
 AddPageNumberFromTextSelection.jsx
 
-### Overview
+### GitHub：
 
-- An Illustrator script to duplicate and place page number text on all artboards using selected text in the _pagenumber layer as a reference.
-- Supports customizing starting number, prefix, suffix, zero-padding, and total page display.
+https://github.com/swwwitch/illustrator-scripts
 
-### Main Features
+### Overview：
 
-- Generate page numbers based on selected text
-- Specify starting number, prefix, and suffix
-- Supports zero padding
-- Option to show total pages
-- Preview feature
-- Japanese and English UI support
+- Places sequential page-number text on all artboards using the currently selected point text as a template (the _pagenumber layer is recommended).
+- Live preview updates instantly when values change (prefix, start number, suffix, zero padding, total pages) and on Up/Down or Shift+Up/Down. OK commits; Cancel discards the preview.
 
-### Process Flow
+### Main Features：
 
-1. Select text in the _pagenumber layer
-2. Configure starting number, prefix, etc., in dialog
-3. Check the preview
-4. Click OK to place page numbers on all artboards
+- Configure start number / prefix / suffix / zero padding / total pages
+- 3-column dialog UI; adjustable dialog opacity and position
+- Even with a single template, preview can temporarily duplicate it across all artboards for checking (internally: pasteInAllArtboard)
+- Version number shown in the dialog title (SCRIPT_VERSION)
 
-### Update History
+### Flow：
 
-- v1.0 (20240401): Initial version
-- v1.1 (20240405): Fixed text duplication logic
-- v1.2 (20240410): Added zero padding, prefix, and total page display
-- v1.3 (20240415): Added preview feature
-- v1.4 (20240420): Supported "001"-style zero padding
-- v1.5 (20240425): Added suffix field, improved UI
-- v1.6 (20250810): Remove original selection at preview start (backed up to temp layer). Restore on Cancel, discard on OK.
-- v1.7 (20250815): Enabled changing starting number with Up/Down keys (Shift for ±10, no Option support)
+1) Select a point text object (the _pagenumber layer is recommended)
+2) Set values in the dialog (use Up/Down or Shift+Up/Down; Z toggles zero-pad; A toggles total pages)
+3) See live preview update with every change
+4) Click OK to commit, or Cancel to discard the preview and restore
+
+### Notes：
+
+- Target must be a point text. This script does not change paragraph alignment or styling.
+
+### Update History：
+
+- v1.0 (20250625): Initial release
+- v1.8 (20250815): Refactor; added live preview and all-artboards preview duplication; UI cleanup
 */
 
-var SCRIPT_VERSION = "v1.7";
+var SCRIPT_VERSION = "v1.8";
 
 function getCurrentLang() {
-  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
+
+// プレビュー用一時レイヤー名 / Temp layer for preview backup
+var TMP_LAYER_NAME = "_pagenumber_preview";
 var lang = getCurrentLang();
 
-var TMP_LAYER_NAME = "_pagenumber_backup";
-var backupTF = null; // 復元用の待避コピー / backup clone for cancel-restore
-var originalRemoved = false; // プレビュー開始時に元テキストをremoveしたか / removed original at preview?
-
-/* 日英ラベル定義 / Japanese-English label definitions */
-
 var LABELS = {
+    // 1) ダイアログタイトル / Dialog title
     dialogTitle: {
-        ja: "数値入力（上下キー対応） " + SCRIPT_VERSION,
-        en: "Numeric Input (Arrow Key Supported) " + SCRIPT_VERSION
+        ja: "ページ番号を追加 " + SCRIPT_VERSION,
+        en: "Add Page Numbers " + SCRIPT_VERSION
     },
-    promptMessage: {
-        ja: "開始番号",
-        en: "Starting number"
-    },
-    errorInvalidSelection: {
-        ja: "複製対象のテキストを_pagenumberレイヤーで選択してください",
-        en: "Select text in the _pagenumber layer"
-    },
+    // 2) 接頭辞 / Prefix
     prefixLabel: {
         ja: "接頭辞",
         en: "Prefix"
     },
+    // 3) 開始番号 / Starting number
+    promptMessage: {
+        ja: "開始番号",
+        en: "Starting number"
+    },
+    // 4) ゼロパディング / Zero pad
+    zeroPadLabel: {
+        ja: "ゼロパディング",
+        en: "Zero pad"
+    },
+    // 5) 接尾辞 / Suffix
     suffixLabel: {
         ja: "接尾辞",
         en: "Suffix"
     },
-    zeroPadLabel: {
-        ja: "ゼロ埋め",
-        en: "Zero pad"
-    },
+    // 6) 総ページ数を表示 / Show total pages
     totalPageLabel: {
-        ja: "総ページ",
+        ja: "総ページ数を表示",
         en: "Show total pages"
     },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    },
-    ok: {
+    // 7) OK / Cancel ボタン
+    okLabel: {
         ja: "OK",
         en: "OK"
     },
-    noDocument: {
-        ja: "ドキュメントを開いてください。",
-        en: "Please open a document."
+    cancelLabel: {
+        ja: "キャンセル",
+        en: "Cancel"
     },
-    invalidNumber: {
-        ja: "開始番号に有効な数値を入力してください。",
-        en: "Please enter a valid number for the starting number."
+    // 8) エラーメッセージ / Error messages
+    errorNotNumber: {
+        ja: "有効な数字を入力してください",
+        en: "Please enter a valid number"
+    },
+    errorInvalidSelection: {
+        ja: "ポイントテキストを選択してください（_pagenumber レイヤー推奨）",
+        en: "Please select a point text (the _pagenumber layer is recommended)."
     }
 };
 
-/* ↑↓で値を変更（Shiftで±10、Optionは未対応） / Change value with arrow keys (Shift=±10, no Option) */
-function changeValueByArrowKey(editText) {
-    editText.addEventListener("keydown", function (event) {
-        var text = editText.text;
-        var hadLeadingZeros = (text && text.length > 1 && text.charAt(0) === "0"); // 先頭ゼロ保持
-        var digits = hadLeadingZeros ? text.length : 0;
-        var value = Number(text);
-        if (isNaN(value)) { value = 0; }
-
-        var keyboard = ScriptUI.environment.keyboardState;
-        var delta = keyboard.shiftKey ? 10 : 1;
-        var handled = false;
-
-        if (event.keyName === "Up") {
-            value += delta;
-            handled = true;
-        } else if (event.keyName === "Down") {
-            value -= delta;
-            if (value < 0) { value = 0; }
-            handled = true;
-        }
-
-        if (handled) {
-            // 整数に丸め / Round to integer
-            value = Math.round(value);
-
-            // 先頭ゼロの桁数を維持 / Keep digit width when had leading zeros
-            var out = String(value);
-            if (digits > 0) {
-                while (out.length < digits) { out = "0" + out; }
-            }
-            editText.text = out;
-            // onChanging を通知して双方向で更新 / Notify onChanging to keep behaviors consistent
-            try { if (editText.notify) { editText.notify('onChanging'); } } catch (eN) {}
-            // 即時プレビュー更新 / Immediate preview update
-            try { previewUpdate(); } catch (e2) {}
-            try { app.redraw(); } catch (e3) {}
-
-            // 既定動作抑止（キャレット移動防止） / Suppress default behavior
-            if (event.preventDefault) { event.preventDefault(); }
-            event.returnValue = false;
-        }
-    });
-    // 念のため keyup でも更新 / Also update on keyup as a fallback
-    editText.addEventListener("keyup", function (ev) {
-        if (ev.keyName === "Up" || ev.keyName === "Down") {
-            try { previewUpdate(); } catch (e) {}
-            if (ev.preventDefault) { ev.preventDefault(); }
-            ev.returnValue = false;
-        }
-    });
+/* レイヤー取得 or 作成 / Get or create a layer by name */
+function getOrCreateLayer(doc, name) {
+    var layer = null;
+    try {
+        layer = doc.layers.getByName(name);
+    } catch (e) {
+        layer = doc.layers.add();
+        layer.name = name;
+    }
+    return layer;
 }
 
-/* 指定レイヤー上の他のテキストフレームを削除（exceptを除く） / Remove other text frames on specified layer except 'except' */
+/* レイヤーを確実に削除（unlock→内容削除→remove）/ Force-remove a layer by name */
+function forceRemoveLayerByName(doc, name) {
+    try {
+        var ly = doc.layers.getByName(name);
+        try {
+            ly.locked = false;
+        } catch (_l0) {}
+        try {
+            ly.visible = true;
+        } catch (_v0) {}
+        try {
+            for (var i = ly.pageItems.length - 1; i >= 0; i--) {
+                trySet(ly.pageItems[i], 'locked', false);
+                tryCall(function() {
+                    ly.pageItems[i].remove();
+                });
+            }
+            for (var j = ly.layers.length - 1; j >= 0; j--) {
+                tryCall(function() {
+                    ly.layers[j].remove();
+                });
+            }
+        } catch (_purge) {}
+        try {
+            ly.remove();
+        } catch (_r3) {}
+    } catch (_no) {}
+}
+
+// --- Safe helpers to reduce repetitive try/catch ---
+function trySet(obj, prop, value) {
+    try {
+        if (obj) obj[prop] = value;
+    } catch (_) {}
+}
+
+function tryCall(fn) {
+    try {
+        fn && fn();
+    } catch (_) {}
+}
+
+
+/* =========================================================
+   処理ヘルパー / Processing Helpers (no behavior change)
+   ========================================================= */
+
+/* _pagenumber レイヤー取得 or 作成 / Get or create the _pagenumber layer */
+function getOrCreatePagenumberLayer(doc) {
+    var ly = null;
+    try {
+        ly = doc.layers.getByName("_pagenumber");
+    } catch (e) {
+        ly = doc.layers.add();
+        ly.name = "_pagenumber";
+    }
+    return ly;
+}
+
+/* 選択を指定レイヤーへ移動（先頭へ）/ Move current selection into layer (place at beginning) */
+function moveSelectionToLayer(doc, layer) {
+    var sel = doc.selection;
+    if (sel && sel.length > 0 && sel[0].typename === "TextFrame") {
+        try {
+            sel[0].move(layer, ElementPlacement.PLACEATBEGINNING);
+        } catch (_) {}
+        return sel[0];
+    }
+    return null;
+}
+
+/* 指定アートボード上の最初のTextFrameを取得 / Get first TextFrame on a given artboard */
+function getFirstTextFrameOnArtboard(layer, doc, abIndex) {
+    var rect = doc.artboards[abIndex].artboardRect;
+    for (var i = 0; i < layer.textFrames.length; i++) {
+        var tf = layer.textFrames[i];
+        var p = tf.position;
+        if (p[0] >= rect[0] && p[0] <= rect[2] && p[1] <= rect[1] && p[1] >= rect[3]) {
+            return tf;
+        }
+    }
+    return null;
+}
+
+/* どのアートボードでも最初に見つかったTextFrameを返す / Find first TextFrame on any artboard */
+function findTextFrameOnAnyArtboard(layer, doc) {
+    var tf = getFirstTextFrameOnArtboard(layer, doc, 0);
+    if (tf) return tf;
+    for (var j = 1; j < doc.artboards.length; j++) {
+        tf = getFirstTextFrameOnArtboard(layer, doc, j);
+        if (tf) return tf;
+    }
+    return null;
+}
+
+/* 位置を基準ABへ合わせる / Rebase a text frame to the base artboard (index) */
+function rebaseToArtboard(doc, textFrame, targetABIndex) {
+    var pos = textFrame.position;
+    var baseRect = doc.artboards[targetABIndex].artboardRect;
+    var currentIndex = getArtboardIndexByPosition(doc, pos);
+    if (currentIndex >= 0) {
+        var currentRect = doc.artboards[currentIndex].artboardRect;
+        var dx = baseRect[0] - currentRect[0];
+        var dy = baseRect[1] - currentRect[1];
+        textFrame.position = [pos[0] + dx, pos[1] + dy];
+    }
+}
+
+/* カット＆全AB貼付（安全化付き）/ Cut & paste in all artboards (temporarily unlock/show) */
+function seedAndPasteAll(doc, targetText, startNum) {
+    // 内容を初期化 / Seed contents
+    trySet(targetText, 'contents', String(startNum));
+
+    var srcLayer = null;
+    var prevLyLocked = null,
+        prevLyVisible = null;
+    try {
+        srcLayer = targetText.layer;
+    } catch (_) {
+        srcLayer = null;
+    }
+    if (srcLayer) {
+        try {
+            prevLyLocked = srcLayer.locked;
+        } catch (_) {
+            prevLyLocked = null;
+        }
+        try {
+            prevLyVisible = srcLayer.visible;
+        } catch (_) {
+            prevLyVisible = null;
+        }
+    }
+    trySet(targetText, 'locked', false);
+    if (srcLayer) {
+        trySet(srcLayer, 'locked', false);
+        trySet(srcLayer, 'visible', true);
+    }
+
+    // 元のアートボードをアクティブ化 / Activate the source artboard
+    try {
+        var srcIdx = getArtboardIndexByPosition(doc, targetText.position);
+        if (srcIdx >= 0) {
+            doc.artboards.setActiveArtboardIndex(srcIdx);
+        }
+    } catch (_) {}
+
+    // 選択→カット→全AB貼付 / Select → Cut → Paste in all artboards
+    tryCall(function() {
+        app.selection = null;
+    });
+    trySet(targetText, 'selected', true);
+    tryCall(function() {
+        app.cut();
+    });
+
+    // 貼付先レイヤーを明示（対象テキストの所属レイヤーへ）/ ensure paste target layer
+    try {
+        if (targetText.layer) doc.activeLayer = targetText.layer;
+    } catch (_) {}
+
+    tryCall(function() {
+        app.executeMenuCommand('pasteInAllArtboard');
+    });
+
+    // レイヤーの一時状態を復元 / Restore layer state
+    if (srcLayer) {
+        if (prevLyLocked !== null) trySet(srcLayer, 'locked', prevLyLocked);
+        if (prevLyVisible !== null) trySet(srcLayer, 'visible', prevLyVisible);
+    }
+}
+
+/* _pagenumber 上のTFを AB順に収集 / Collect text frames on _pagenumber sorted by AB index */
+function collectTextFramesSorted(doc, layer, exclude) {
+    var list = [];
+    for (var i = 0; i < layer.textFrames.length; i++) {
+        var tf = layer.textFrames[i];
+        if (exclude && tf === exclude) continue;
+        var idx = getArtboardIndexByPosition(doc, tf.position);
+        list.push({
+            frame: tf,
+            abIdx: idx
+        });
+    }
+    list.sort(function(a, b) {
+        return a.abIdx - b.abIdx;
+    });
+    return list;
+}
+
+/* 連番を流し込む / Apply numbering contents */
+function applyNumbering(framesList, startNum, maxDigits, prefix, suffix, zeroPad, maxNum, showTotal) {
+    for (var i = 0; i < framesList.length; i++) {
+        var num = startNum + i;
+        var txt = buildPageNumberString(num, maxDigits, prefix, suffix, zeroPad, maxNum, showTotal);
+        try {
+            framesList[i].frame.contents = txt;
+        } catch (_) {}
+    }
+}
+
 function removeOtherTextFrames(layer, except) {
-    for (var i = layer.textFrames.length - 1; i >= 0; i--) {
-        var item = layer.textFrames[i];
-        if (item !== except && item.typename === "TextFrame") {
-            item.remove();
+    var frames = layer.textFrames;
+    for (var i = frames.length - 1; i >= 0; i--) {
+        var f = frames[i];
+        if (f === except) continue; // keep target
+        if (f.typename === "TextFrame") {
+            try {
+                f.locked = false;
+            } catch (_) {}
+            try {
+                f.remove();
+            } catch (_) {}
         }
     }
 }
 
-/* 座標からアートボードインデックスを取得 / Get artboard index by position */
 function getArtboardIndexByPosition(doc, pos) {
     for (var i = 0; i < doc.artboards.length; i++) {
         var abRect = doc.artboards[i].artboardRect;
@@ -211,269 +377,499 @@ function getArtboardIndexByPosition(doc, pos) {
     return -1;
 }
 
-/* ページ番号文字列生成 / Build page number string */
-function buildPageNumberString(num, maxDigits, prefix, zeroPad, totalPageNum, showTotal) {
-    var numStr = String(num);
-    if (zeroPad && numStr.length < maxDigits) {
-        while (numStr.length < maxDigits) {
-            numStr = "0" + numStr;
-        }
+
+function buildPageNumberString(num, maxDigits, prefix, suffix, zeroPad, totalPageNum, showTotal) {
+    var s = String(num);
+    if (zeroPad && s.length < maxDigits) {
+        s = Array(maxDigits - s.length + 1).join("0") + s; // ES3-safe zero pad
     }
-    numStr = prefix + numStr;
-    if (showTotal) {
-        numStr += "/" + totalPageNum;
-    }
-    return numStr;
+    var out = (prefix || "") + s + (suffix || "");
+    if (showTotal) out += "/" + totalPageNum;
+    return out;
 }
 
-/* テキスト複製＆内容更新（再利用性向上のため関数化） / Duplicate text & update contents (function for reusability) */
-function generatePageNumbers(doc, pagenumberLayer, targetText, baseRect, startNum, prefix, zeroPad, showTotal, customDigits, suffix) {
-    removeOtherTextFrames(pagenumberLayer, targetText);
-    var abCount = doc.artboards.length;
-    var maxNum = startNum + abCount - 1;
-    var maxDigits = customDigits ? customDigits : String(maxNum).length;
-    for (var i = 0; i < abCount; i++) {
-        var abRect = doc.artboards[i].artboardRect;
-        var newTF = targetText.duplicate(pagenumberLayer, ElementPlacement.PLACEATBEGINNING);
-        // 複製物は必ず編集可能に / Ensure duplicates are editable
-        try { newTF.locked = false; } catch (e) {}
-        try { newTF.editable = true; } catch (e) {}
-        newTF.position = [
-            targetText.position[0] + (abRect[0] - baseRect[0]),
-            targetText.position[1] + (abRect[1] - baseRect[1])
-        ];
-        var numStr = buildPageNumberString(startNum + i, maxDigits, prefix, zeroPad, maxNum, showTotal);
-        numStr += suffix;
-        newTF.contents = numStr;
+/* 値の増減（↑↓／Shift+↑↓）/ Increment-Decrement by Arrow Keys (Shift for ±10) */
+function changeValueByArrowKey(editText, onChanged) {
+    if (!editText || !editText.addEventListener) return;
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+
+        var keyboard = ScriptUI.environment.keyboardState;
+        var delta = keyboard.shiftKey ? 10 : 1;
+        var k = event.keyName;
+        var isUp = (k === "Up" || k === "UpArrow");
+        var isDown = (k === "Down" || k === "DownArrow");
+
+        if (isUp) {
+            if (keyboard.shiftKey) {
+                value = Math.ceil((value + 1) / delta) * delta; // 10の倍数へスナップ / snap to 10s
+            } else {
+                value += delta;
+            }
+            if (value < 0) value = 0;
+            editText.text = Math.round(value);
+            event.preventDefault();
+            if (typeof onChanged === "function") {
+                try {
+                    onChanged();
+                } catch (_e1) {}
+            }
+        } else if (isDown) {
+            if (keyboard.shiftKey) {
+                value = Math.floor((value - 1) / delta) * delta; // 10の倍数へスナップ / snap to 10s
+            } else {
+                value -= delta;
+            }
+            if (value < 0) value = 0;
+            editText.text = Math.round(value);
+            event.preventDefault();
+            if (typeof onChanged === "function") {
+                try {
+                    onChanged();
+                } catch (_e2) {}
+            }
+        }
+    });
+}
+
+/* キー入力でゼロパディングON/OFF / Toggle zero-padding via keyboard (Z) */
+/* 任意キーでチェックボックスをトグル / Generic checkbox toggle by key */
+function addToggleKeyHandler(dlg, keyChar, checkbox, onChanged, skipWhenEditTextFocus) {
+    if (!dlg || !checkbox || !dlg.addEventListener) return;
+    dlg.addEventListener("keydown", function(event) {
+        // Aキーなど、入力欄フォーカス中は無視したい場合に限りスキップ / Skip only when requested
+        if (skipWhenEditTextFocus) {
+            try {
+                if (event.target && event.target.type === "edittext") return;
+            } catch (_) {}
+        }
+        var k = (event.keyName || "").toUpperCase();
+        if (k === String(keyChar).toUpperCase()) {
+            checkbox.value = !checkbox.value;
+            if (typeof onChanged === "function") {
+                try {
+                    onChanged();
+                } catch (_) {}
+            }
+            event.preventDefault();
+        }
+    });
+}
+
+
+
+
+/* =============================
+   UI ヘルパー / UI Helpers
+   ============================= */
+function addColumn(parent, align) {
+    var col = parent.add("group");
+    col.orientation = "column";
+    col.alignChildren = align || "left";
+    return col;
+}
+
+function addLabeledEditText(parent, label, initValue, width) {
+    parent.add("statictext", undefined, label);
+    var field = parent.add("edittext", undefined, initValue);
+    field.characters = width;
+    return field;
+}
+
+function addCheckbox(parent, label) {
+    return parent.add("checkbox", undefined, label);
+}
+
+/* ライブプレビュー本体 / Live preview core (decoupled from UI) */
+function updatePreview(doc, layerName, start, prefix, suffix, zeroPad, showTotal) {
+    if (!doc) return;
+    var layer = null;
+    try {
+        layer = doc.layers.getByName(layerName);
+    } catch (e) {
+        layer = null;
     }
-    app.redraw();
+    if (!layer) return;
+
+    var frames = layer.textFrames;
+    if (isNaN(start)) return;
+
+    // まず選択中のテキストを優先（レイヤー無関係）/ Prefer the currently selected TextFrame (layer-agnostic)
+    var selectedTemplate = null;
+    try {
+        if (app.selection && app.selection.length > 0 && app.selection[0].typename === 'TextFrame') {
+            selectedTemplate = app.selection[0];
+        }
+    } catch (_sel) {}
+
+    // 選択が無い場合は従来どおり _pagenumber の最初（AB順）/ otherwise fallback to first in _pagenumber by AB order
+    var needToPickFromLayer = !selectedTemplate;
+
+    // 常にプレビューでクリーン複製 / Always rebuild via preview duplication
+    if (selectedTemplate || (frames && frames.length >= 1)) {
+        var tmpLayer = getOrCreateLayer(doc, TMP_LAYER_NAME);
+        trySet(tmpLayer, 'visible', false);
+        trySet(tmpLayer, 'locked', false);
+
+        // テンプレートを決定 / decide template
+        var template = selectedTemplate;
+        if (!template) {
+            var pick = [];
+            for (var pi = 0; pi < frames.length; pi++) {
+                var pf = frames[pi];
+                pick.push({
+                    f: pf,
+                    idx: getArtboardIndexByPosition(doc, pf.position)
+                });
+            }
+            pick.sort(function(a, b) {
+                return a.idx - b.idx;
+            });
+            template = pick.length ? pick[0].f : null;
+        }
+        if (!template) return;
+        // バックアップ作成（非表示）/ make hidden backup
+        var backup = null;
+        tryCall(function() {
+            backup = template.duplicate(tmpLayer, ElementPlacement.PLACEATBEGINNING);
+        });
+        trySet(backup, 'visible', false);
+        trySet(backup, 'locked', true);
+
+        // 一時アンロック＆可視化 / temporarily unlock/show
+        trySet(template, 'locked', false);
+        var srcLayer = null;
+        try {
+            srcLayer = template.layer;
+        } catch (_) {
+            srcLayer = null;
+        }
+        if (srcLayer) {
+            trySet(srcLayer, 'locked', false);
+            trySet(srcLayer, 'visible', true);
+        }
+
+        // テンプレの属するABをアクティブ化 / activate source AB
+        try {
+            var srcIdx = getArtboardIndexByPosition(doc, template.position);
+            if (srcIdx >= 0) doc.artboards.setActiveArtboardIndex(srcIdx);
+        } catch (_) {}
+
+        // select → cut（クリップボードへ）/ select → cut (to clipboard)
+        tryCall(function() {
+            app.selection = null;
+        });
+        trySet(template, 'selected', true);
+        tryCall(function() {
+            app.cut();
+        });
+
+        // 既存のテキストを全削除（クリーンにしてから貼付）/ clear existing before paste
+        try {
+            removeOtherTextFrames(layer, null);
+        } catch (_) {}
+
+        // 貼付先レイヤーを明示 / ensure paste target layer
+        try {
+            doc.activeLayer = layer;
+        } catch (_) {}
+
+        // 全ABに貼付 / paste to all artboards
+        tryCall(function() {
+            app.executeMenuCommand('pasteInAllArtboard');
+        });
+
+        // 取得し直し / refresh refs
+        frames = layer.textFrames;
+    }
+
+    // 計算準備 / Precompute
+    var totalAB = doc.artboards.length;
+    var maxNum = start + totalAB - 1;
+    var maxDigits = String(maxNum).length;
+    prefix = prefix || "";
+    suffix = suffix || "";
+    zeroPad = !!zeroPad;
+    showTotal = !!showTotal;
+
+    // AB順で並べ替え / Sort by artboard index
+    var list = [];
+    for (var i = 0; i < frames.length; i++) {
+        var f = frames[i];
+        var abIdx = getArtboardIndexByPosition(doc, f.position);
+        list.push({
+            frame: f,
+            abIdx: abIdx
+        });
+    }
+    list.sort(function(a, b) {
+        return a.abIdx - b.abIdx;
+    });
+
+    for (var j = 0; j < list.length; j++) {
+        var num = start + j;
+        list[j].frame.contents = buildPageNumberString(num, maxDigits, prefix, suffix, zeroPad, maxNum, showTotal);
+    }
+    try {
+        app.redraw();
+    } catch (_e) {}
 }
 
 function main() {
-    if (app.documents.length === 0) {
-        alert(LABELS.noDocument[lang]);
-        return;
-    }
-    var doc = app.activeDocument;
-
-    /* _pagenumberレイヤー取得または作成 / Get or create _pagenumber layer */
-    var pagenumberLayer;
-    try {
-        pagenumberLayer = doc.layers.getByName("_pagenumber");
-    } catch (e) {
-        pagenumberLayer = doc.layers.add();
-        pagenumberLayer.name = "_pagenumber";
-    }
-
-    /* 選択テキストを_pagenumberレイヤーへ移動 / Move selected text to _pagenumber layer */
-    var sel = doc.selection;
-    if (sel.length > 0 && sel[0].typename === "TextFrame") {
-        sel[0].move(pagenumberLayer, ElementPlacement.PLACEATBEGINNING);
-    }
-
-    /* 基準となるテキストフレームを取得 / Get reference text frame */
-    var targetText = null;
-    var abIndexToKeep = 0;
-    var baseArtboard = doc.artboards[abIndexToKeep];
-    var baseRect = baseArtboard.artboardRect;
-
-    /* 1つ目のアートボード上にあるテキストフレームを探す / Search for text frame on first artboard */
-    for (var i = 0; i < pagenumberLayer.textFrames.length; i++) {
-        var tf = pagenumberLayer.textFrames[i];
-        var pos = tf.position;
-        if (pos[0] >= baseRect[0] && pos[0] <= baseRect[2] && pos[1] <= baseRect[1] && pos[1] >= baseRect[3]) {
-            targetText = tf;
-            break;
-        }
-    }
-    /* 見つからなければ他のアートボードも探索 / If not found, search other artboards */
-    if (!targetText) {
-        for (var j = 1; j < doc.artboards.length; j++) {
-            var abRect = doc.artboards[j].artboardRect;
-            for (var i = 0; i < pagenumberLayer.textFrames.length; i++) {
-                var tf = pagenumberLayer.textFrames[i];
-                var pos = tf.position;
-                if (pos[0] >= abRect[0] && pos[0] <= abRect[2] && pos[1] <= abRect[1] && pos[1] >= abRect[3]) {
-                    targetText = tf;
-                    break;
-                }
-            }
-            if (targetText) break;
-        }
-    }
-    if (!targetText) {
-        alert(LABELS.errorInvalidSelection[lang]);
-        return;
-    }
-
-    /* テキスト位置を1アートボード目基準に補正 / Adjust text position relative to first artboard */
-    var pos = targetText.position;
-    var ab = doc.artboards[abIndexToKeep].artboardRect;
-    doc.artboards.setActiveArtboardIndex(abIndexToKeep);
-    var currentABIndex = getArtboardIndexByPosition(doc, pos);
-    if (currentABIndex >= 0) {
-        var currentAB = doc.artboards[currentABIndex].artboardRect;
-        var offset = [ab[0] - currentAB[0], ab[1] - currentAB[1]];
-        targetText.position = [pos[0] + offset[0], pos[1] + offset[1]];
-    }
-
-    /* レイヤー・型チェック / Layer and type check */
-    if (targetText.layer.name !== "_pagenumber" || targetText.typename !== "TextFrame") {
-        alert(LABELS.errorInvalidSelection[lang]);
-        return;
-    }
-
-    /* ダイアログ作成 / Create dialog */
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "left";
 
-    /* 親グループ（横並び） / Parent group (horizontal layout) */
+    // 親（3カラム）/ 3-column layout
     var columnsGroup = dialog.add("group");
     columnsGroup.orientation = "row";
     columnsGroup.alignChildren = "top";
 
-    /* 左カラム: 接頭辞 / Left column: Prefix */
-    var leftGroup = columnsGroup.add("group");
-    leftGroup.orientation = "column";
-    leftGroup.alignChildren = "left";
-    leftGroup.add("statictext", undefined, LABELS.prefixLabel[lang]);
-    var prefixField = leftGroup.add("edittext", undefined, "");
-    prefixField.characters = 10;
+    // 左: 接頭辞 / Left: Prefix
+    var leftGroup = addColumn(columnsGroup);
+    var prefixField = addLabeledEditText(leftGroup, LABELS.prefixLabel[lang], "", 10);
 
-    /* 中央カラム: 開始番号 + ゼロ埋め / Center column: Starting number + Zero pad */
-    var centerGroup = columnsGroup.add("group");
-    centerGroup.orientation = "column";
-    centerGroup.alignChildren = "left";
-    var inputGroup = centerGroup.add("group");
-    inputGroup.orientation = "column";
-    inputGroup.add("statictext", undefined, LABELS.promptMessage[lang]);
-    var inputField = inputGroup.add("edittext", undefined, "1");
-    inputField.characters = 5;
-    // ↑↓/Shift+↑↓ 対応（Optionは未実装） / Enable Up/Down and Shift+Up/Down (no Option)
-    changeValueByArrowKey(inputField);
-    var zeroPadCheckbox = centerGroup.add("checkbox", undefined, LABELS.zeroPadLabel[lang]);
+    // 中央: 開始番号 + ゼロ埋め / Center: Starting number + Zero pad
+    var centerGroup = addColumn(columnsGroup);
+    var inputField = addLabeledEditText(centerGroup, LABELS.promptMessage[lang], "1", 6);
+    var zeroPadCheckbox = addCheckbox(centerGroup, LABELS.zeroPadLabel[lang]);
+    // 矢印キーでの増減を有効化 / Enable arrow-key increment-decrement
+    changeValueByArrowKey(inputField, function() {
+        triggerPreview();
+    });
 
-    /* 右カラム: 接尾辞 + 総ページ数 / Right column: Suffix + Total pages */
-    var rightGroup = columnsGroup.add("group");
-    rightGroup.orientation = "column";
-    rightGroup.alignChildren = "left";
-    rightGroup.add("statictext", undefined, LABELS.suffixLabel[lang]);
-    var suffixField = rightGroup.add("edittext", undefined, "");
-    suffixField.characters = 10;
-    var totalPageCheckbox = rightGroup.add("checkbox", undefined, LABELS.totalPageLabel[lang]);
+    // 右: 接尾辞 + 総ページ / Right: Suffix + Total pages
+    var rightGroup = addColumn(columnsGroup);
+    var suffixField = addLabeledEditText(rightGroup, LABELS.suffixLabel[lang], "", 10);
+    var totalPageCheckbox = addCheckbox(rightGroup, LABELS.totalPageLabel[lang]);
 
-    /* プレビュー更新関数 / Preview update function */
-    function previewUpdate() {
-        var startNumStr = inputField.text;
-        var startNum = parseInt(startNumStr, 10);
-        if (isNaN(startNum)) {
-            alert(LABELS.invalidNumber[lang]);
-            return;
-        }
-        var prefix = prefixField.text;
-        var zeroPad = zeroPadCheckbox.value;
-        var showTotal = totalPageCheckbox.value;
-        var suffix = suffixField.text;
-
-        /* 入力がゼロ始まりの場合、桁数を取得しゼロパディングを強制ON / If input starts with zero, get digit count and force zero padding ON */
-        var customDigits = 0;
-        if (startNumStr.match(/^0/)) {
-            customDigits = startNumStr.length;
-            zeroPad = true;
-        }
-
-        // プレビュー開始時に元テキストを待避して削除 / On first preview, backup & remove original
-        if (!originalRemoved) {
-            // 一時レイヤー取得 / Get or create temp layer
-            var tmpLayer;
-            try {
-                tmpLayer = doc.layers.getByName(TMP_LAYER_NAME);
-            } catch (e) {
-                tmpLayer = doc.layers.add();
-                tmpLayer.name = TMP_LAYER_NAME;
-            }
-            // 待避コピー作成（位置・外観を維持）/ Make backup clone (keeps position/appearance)
-            backupTF = targetText.duplicate(tmpLayer, ElementPlacement.PLACEATBEGINNING);
-            backupTF.locked = true;
-            backupTF.visible = false;
-            // 元テキスト削除 / Remove original
-            if (!targetText.locked && targetText.editable) {
-                try { targetText.remove(); } catch (e2) {}
-            }
-            originalRemoved = true;
-            try { app.redraw(); } catch (e3) {}
-        }
-        // 以降は待避コピーをテンプレートに使用 / Use backup clone as template
-        var templateTF = originalRemoved && backupTF ? backupTF : targetText;
-        // 非表示化（保険）/ Ensure hidden (just in case)
-        if (templateTF) { templateTF.visible = false; }
-        generatePageNumbers(doc, pagenumberLayer, templateTF, baseRect, startNum, prefix, zeroPad, showTotal, customDigits, suffix);
-        try { app.redraw(); } catch (e4) {}
+    // --- ライブプレビューラッパー / Live preview wrapper ---
+    function triggerPreview() {
+        if (app.documents.length === 0) return;
+        var doc = app.activeDocument;
+        var start = parseInt(inputField.text, 10);
+        if (isNaN(start)) return;
+        updatePreview(
+            doc,
+            "_pagenumber",
+            start,
+            (prefixField.text || ""),
+            (suffixField.text || ""),
+            !!zeroPadCheckbox.value,
+            !!totalPageCheckbox.value
+        );
     }
 
-    zeroPadCheckbox.onClick = previewUpdate;
-    totalPageCheckbox.onClick = previewUpdate;
-    prefixField.onChanging = previewUpdate;
-    inputField.onChanging = previewUpdate;
-    suffixField.onChanging = previewUpdate;
+    // 値変更でプレビュー更新 / Update preview on value changes
+    if (prefixField && prefixField.addEventListener) {
+        prefixField.addEventListener("changing", function() {
+            triggerPreview();
+        });
+    }
+    if (inputField && inputField.addEventListener) {
+        inputField.addEventListener("changing", function() {
+            triggerPreview();
+        });
+    }
+    if (suffixField && suffixField.addEventListener) {
+        suffixField.addEventListener("changing", function() {
+            triggerPreview();
+        });
+    }
+    if (zeroPadCheckbox) {
+        zeroPadCheckbox.onClick = function() {
+            triggerPreview();
+        };
+    }
+    if (totalPageCheckbox) {
+        totalPageCheckbox.onClick = function() {
+            triggerPreview();
+        };
+    }
+    // Zキーでゼロパディング、Aキーで総ページ表示を切替 / Toggle with keys
+    addToggleKeyHandler(dialog, "Z", zeroPadCheckbox, function() {
+        triggerPreview();
+    }, false);
+    addToggleKeyHandler(dialog, "A", totalPageCheckbox, function() {
+        triggerPreview();
+    }, true);
 
-    /* ボタン作成 / Create buttons */
-    var buttonGroup = dialog.add("group");
-    buttonGroup.orientation = "row";
-    buttonGroup.alignment = "center";
-    var cancelBtn = buttonGroup.add("button", undefined, LABELS.cancel[lang]);
-    var okBtn = buttonGroup.add("button", undefined, LABELS.ok[lang]);
+    // メイングループ（横並び） / Main group (horizontal layout)
+    var btnRowGroup = dialog.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.alignChildren = ["fill", "center"];
+    btnRowGroup.margins = [10, 10, 10, 0];
+    btnRowGroup.alignment = ["fill", "bottom"];
 
-    okBtn.onClick = function() {
-        // 念のため最終プレビューを反映 / Ensure latest preview before commit
-        try { previewUpdate(); } catch (e0) {}
-        // 元テキストはプレビュー時に削除済み。待避があれば破棄 / Original already removed at preview; discard backup if exists
-        if (backupTF) {
-            try { backupTF.locked = false; backupTF.remove(); } catch (e) {}
-            backupTF = null;
-        }
-        // 空の一時レイヤーを削除 / Clean up temp layer if empty
+    // 左側グループ / Left-side button group
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.alignChildren = ["left", "center"];
+    // キャンセルボタン / Cancel button
+    var btnCancel = btnLeftGroup.add("button", undefined, LABELS.cancelLabel[lang], {
+        name: "cancel"
+    });
+
+    // スペーサー（伸縮）/ Spacer (stretchable)
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    // 右側グループ / Right-side button group
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+    // OKボタン / OK button
+    var btnOK = btnRightGroup.add("button", undefined, LABELS.okLabel[lang], {
+        name: "ok"
+    });
+
+    // ハンドラ / Handlers
+    btnOK.onClick = function() {
+        // プレビュー用バックアップを破棄 / discard preview backup if any
         try {
-            var tmp = doc.layers.getByName(TMP_LAYER_NAME);
-            if (tmp.pageItems.length === 0) { tmp.remove(); }
-        } catch (e2) {}
+            if (app.documents.length) {
+                forceRemoveLayerByName(app.activeDocument, TMP_LAYER_NAME);
+            }
+        } catch (_) {}
         dialog.close(1);
     };
-    cancelBtn.onClick = function() {
-        // 生成物をクリア / Clear generated numbers
-        if (pagenumberLayer && targetText) {
-            removeOtherTextFrames(pagenumberLayer, null);
-        } else {
-            removeOtherTextFrames(pagenumberLayer, null);
-        }
-        // 復元処理 / Restore original if we removed it
-        if (originalRemoved && backupTF) {
-            try {
-                backupTF.locked = false;
-                backupTF.visible = true;
-                backupTF.move(pagenumberLayer, ElementPlacement.PLACEATBEGINNING);
-                // 復元後、参照をtargetTextへ差し替え / Hand back to targetText
-                targetText = backupTF;
-                backupTF = null;
-            } catch (e) {}
-        }
-        // 空の一時レイヤーを削除 / Remove temp layer if empty
+    btnCancel.onClick = function() {
+        // プレビューを元に戻す（バックアップがある場合のみ）/ Restore previewed state only if backup exists
         try {
-            var tmp = doc.layers.getByName(TMP_LAYER_NAME);
-            if (tmp.pageItems.length === 0) { tmp.remove(); }
-        } catch (e) {}
+            if (!app.documents.length) {
+                dialog.close(0);
+                return;
+            }
+            var doc = app.activeDocument;
+            var tmp = null;
+            try {
+                tmp = doc.layers.getByName(TMP_LAYER_NAME);
+            } catch (_nf) {
+                tmp = null;
+            }
+            if (!tmp) {
+                dialog.close(0);
+                return;
+            }
+
+            var pgl = getOrCreateLayer(doc, "_pagenumber");
+            // プレビューフレームを削除 / remove preview clones
+            try {
+                removeOtherTextFrames(pgl, null);
+            } catch (_r) {}
+
+            // バックアップを戻す / move back from backup
+            try {
+                tmp.locked = false;
+            } catch (_l) {}
+            try {
+                tmp.visible = true;
+            } catch (_v) {}
+            for (var bi = tmp.pageItems.length - 1; bi >= 0; bi--) {
+                try {
+                    var it = tmp.pageItems[bi];
+                    try {
+                        it.locked = false;
+                    } catch (_il) {}
+                    it.move(pgl, ElementPlacement.PLACEATBEGINNING);
+                    try {
+                        it.visible = true;
+                    } catch (_iv) {}
+                } catch (_mv) {}
+            }
+            // 一時レイヤー削除 / remove temp layer
+            forceRemoveLayerByName(doc, TMP_LAYER_NAME);
+            try {
+                app.redraw();
+            } catch (_rd) {}
+        } catch (_e) {}
         dialog.close(0);
     };
 
-    // ダイアログ表示時に［開始番号］へフォーカス / Focus starting number on dialog show
-    dialog.onShow = function () {
-        try { inputField.active = true; } catch (e) {}
-    };
-    previewUpdate();
+    inputField.active = true;
+
+    // ダイアログの透明度と位置調整 / Adjust dialog opacity and position
+    var offsetX = 300;
+    var dialogOpacity = 0.97;
+
+    function shiftDialogPosition(dlg, offsetX, offsetY) {
+        dlg.onShow = function() {
+            var currentX = dlg.location[0];
+            var currentY = dlg.location[1];
+            dlg.location = [currentX + offsetX, currentY + offsetY];
+        };
+    }
+
+    function setDialogOpacity(dlg, opacityValue) {
+        dlg.opacity = opacityValue;
+    }
+
+    setDialogOpacity(dialog, dialogOpacity);
+    shiftDialogPosition(dialog, offsetX, 0);
+
+    // 初回プレビュー / First preview pass
+    try {
+        triggerPreview();
+    } catch (_initPrev) {}
+
     if (dialog.show() !== 1) {
         return;
     }
+
+    var startNum = parseInt(inputField.text, 10);
+    if (isNaN(startNum)) {
+        alert(LABELS.errorNotNumber[lang]);
+        return;
+    }
+
+    if (app.documents.length === 0) return;
+    var doc = app.activeDocument;
+
+    var pagenumberLayer = getOrCreatePagenumberLayer(doc);
+
+    var moved = moveSelectionToLayer(doc, pagenumberLayer);
+    removeOtherTextFrames(pagenumberLayer, moved);
+
+    // 選択を優先。なければ _pagenumber 内から探索 / Prefer selected text, otherwise pick from _pagenumber
+    var targetText = null;
+    if (app.selection && app.selection.length > 0 && app.selection[0].typename === 'TextFrame') {
+        targetText = app.selection[0];
+    } else {
+        targetText = findTextFrameOnAnyArtboard(pagenumberLayer, doc);
+    }
+
+    if (!targetText) {
+        alert(LABELS.errorInvalidSelection[lang]);
+        return;
+    }
+
+    // _pagenumber レイヤーに置く（確定時）/ Ensure it's on _pagenumber (for commit)
+    try {
+        if (targetText.layer.name !== '_pagenumber') targetText.move(pagenumberLayer, ElementPlacement.PLACEATBEGINNING);
+    } catch (_mv) {}
+
+    // ここではアートボードの付け替えは行わない / Do not rebase to artboard 1 here
+    removeOtherTextFrames(pagenumberLayer, targetText);
+
+    if (targetText.layer.name !== "_pagenumber") {
+        alert(LABELS.errorInvalidSelection[lang]);
+        return;
+    }
+
+    if (targetText.typename !== "TextFrame") {
+        alert(LABELS.errorInvalidSelection[lang]);
+        return;
+    }
+
+    seedAndPasteAll(doc, targetText, startNum);
+
+    var framesList = collectTextFramesSorted(doc, pagenumberLayer, targetText);
+    var maxNum = startNum + doc.artboards.length - 1;
+    var maxDigits = String(maxNum).length;
+    applyNumbering(framesList, startNum, maxDigits, prefixField.text, suffixField.text, zeroPadCheckbox.value, maxNum, totalPageCheckbox.value);
+
+    // (removed redundant addToggleKeyHandler calls)
+
 }
 
 main();
