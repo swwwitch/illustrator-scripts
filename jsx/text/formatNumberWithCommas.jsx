@@ -14,7 +14,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/formatNumberWithCommas.jsx
 
 ### 概要：
 
@@ -47,7 +47,7 @@ Add Thousand Separators to Numbers (with Exclusions)
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/formatNumberWithCommas.jsx
 
 ### Overview:
 
