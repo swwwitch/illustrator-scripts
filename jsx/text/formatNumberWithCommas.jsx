@@ -6,7 +6,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 郵便番号・電話番号・MAC アドレス・クレジットカード番号などは除外対象とし、
 必要に応じて2段階ダイアログで対象確認を行えます。
 ポイント文字・エリア内文字・パス上文字・グループやクリップグループ内のテキストにも対応します。
-*/
 
 ### スクリプト名：
 
@@ -71,6 +70,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/formatNumbe
 ### Update History:
 
 - v1.0 (20250812) : Initial version
+
+*/
 
 var SCRIPT_VERSION = "v1.0";
 
