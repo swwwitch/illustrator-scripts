@@ -48,7 +48,7 @@ ReleaseClipMask.jsx
 
 ### Readme (GitHub):
 
-https://github.com/yourname/ai-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ReleaseClipMask.jsx
 
 ### Overview:
 
@@ -157,7 +157,7 @@ function main() {
 
     var btnGroup = dlg.add("group");
     btnGroup.orientation = "row";
-    btnGroup.alignment = "right";
+    btnGroup.alignment = "center";
 
     var btnCancel = btnGroup.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
     var btnOk = btnGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });

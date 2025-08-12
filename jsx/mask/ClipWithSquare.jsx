@@ -30,7 +30,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipWithSqu
 
 ### 更新履歴：
 
-- v1.0 (20250403) : 初期バージョン
+- v1.0 (20231126) : 初期バージョン
 - v1.1 (20250813) : クリッピング解除→再構築の安定化、コメント整理
 */
 
@@ -63,7 +63,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipWithSqu
 
 ### Changelog:
 
-- v1.0 (20250403) : Initial version
+- v1.0 (20231126) : Initial version
 - v1.1 (20250813) : Stabilized release→rebuild of clipping, comment cleanup
 */
 
