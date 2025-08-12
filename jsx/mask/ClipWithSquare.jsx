@@ -8,7 +8,7 @@ ClipWithSquare.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/mask/blob/main/ClipWithSquare.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipWithSquare.jsx
 
 ### 概要：
 
@@ -41,7 +41,7 @@ ClipWithSquare.jsx
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ClipWithSquare.jsx
 
 ### Overview:
 
