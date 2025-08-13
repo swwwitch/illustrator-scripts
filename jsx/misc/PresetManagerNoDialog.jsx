@@ -101,6 +101,21 @@ function main() {
     // true=クラウド, false=コンピューター
     // app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", true); // default
     app.preferences.setBooleanPreference("AdobeSaveAsCloudDocumentPreference", false);
+
+    // コンテキストタスクバー
+    // true=有効, false=無効
+    // app.preferences.setBooleanPreference('ContextualTaskBarEnabled', true);
+    app.preferences.setBooleanPreference('ContextualTaskBarEnabled', false);
+
+    //  パスファインダー適用時のアラートをOFFに
+    // true=有効, false=無効
+    // app.preferences.setBooleanPreference('plugin/DontShowWarningAgain/ShowPathfinderGroupWarning', true);
+    app.preferences.setBooleanPreference('plugin/DontShowWarningAgain/ShowPathfinderGroupWarning', false);
+
+    //［シェイプ形成ツール］の［次のカラー］をオブジェクトに
+    // 再起動が必要
+    // app.preferences.setIntegerPreference("Planar/MergeTool/PaintFills", 1); // 1：スウォッチ
+    app.preferences.setIntegerPreference("Planar/MergeTool/PaintFills", 0); // 0：オブジェクト
 }
 
 main();
