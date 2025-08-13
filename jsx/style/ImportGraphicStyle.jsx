@@ -41,6 +41,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ImportGrap
 ### 更新履歴：
 
 - v1.0 (20250814) : 初期バージョン
+- v1.1 (20250815) : CANDIDATESに読み込み後に削除のON/OFFを記録
 
 ---
 
@@ -83,10 +84,35 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ImportGrap
 ### Changelog:
 
 - v1.0 (20250814) : Initial release
+- v1.1 (20250815) : Added delete option in CANDIDATES to remember after loading
 */
 
 // スクリプトバージョン / Script Version
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
+
+/* =========================
+   設定 / Settings
+   ========================= */
+// ベースディレクトリ / Base directory
+var DIRECTORY = "~/sw Dropbox/takano masahiro/sync-setting/ai/graphic_style/";
+
+// ダイアログに表示する候補（ラベルとファイル名）/ Candidates (label & filename only)
+var CANDIDATES = [{
+        label: "オープンパス",
+        path: "オープンパス.ai",
+        check: 1
+    },
+    {
+        label: "矢印",
+        path: "矢印.ai",
+        check: 0
+    },
+    {
+        label: "丸数字",
+        path: "丸数字.ai",
+        check: 1
+    }
+];
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
@@ -140,27 +166,6 @@ var LABELS = {
 function T(key) {
     return (LABELS[key] && LABELS[key][LANG]) ? LABELS[key][LANG] : ("[" + key + "]");
 }
-
-/* =========================
-   設定 / Settings
-   ========================= */
-// ベースディレクトリ / Base directory
-var DIRECTORY = "~/sw Dropbox/takano masahiro/sync-setting/ai/New Document Profiles/";
-
-// ダイアログに表示する候補（ラベルとファイル名）/ Candidates (label & filename only)
-var CANDIDATES = [{
-        label: "基本アピアランス",
-        path: "sw.ai"
-    },
-    {
-        label: "矢印",
-        path: "矢印.ai"
-    },
-    {
-        label: "丸数字",
-        path: "丸数字.ai"
-    }
-];
 
 /* =========================
    ユーティリティ / Utilities
@@ -271,7 +276,10 @@ function chooseFileFromList(candidates) {
         // 1列目：本物のチェックボックス / Real checkbox
         var cb = row.add('checkbox', undefined, '');
         cb.preferredSize = [colW.del, -1];
-        cb.value = true; // 既定：読み込み後に削除
+        cb.value = !!c.check; // Set initial value from candidate's check property
+        cb.onClick = function () {
+            c.check = cb.value ? 1 : 0;
+        };
 
         // 2列目：選択用ラジオボタン（コンテンツ名をラベルに）/ Radio for selection
         var rb = row.add('radiobutton', undefined, c.label);
