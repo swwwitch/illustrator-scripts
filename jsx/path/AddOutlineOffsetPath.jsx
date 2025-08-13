@@ -2,36 +2,6 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名
-AddOutlineOffsetPath.jsx
-
-### GitHub
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/AddOutlineOffsetPath.jsx
-
-### 概要
-選択オブジェクトを複製→背面配置→オフセットパス（Live Effect）→アウトライン→合体→拡張。
-最後に、元オブジェクトと結果をグループ化し、Subtract を実行して白で塗りつぶします。
-
-### 主な機能
-- 複数選択対応
-- 単位対応（pt, mm, in, cm など）
-- 角の形状（マイター、ラウンド、ベベル）設定可能
-- オフセット値のダイアログ入力
-- ダイアログの位置調整と透明度設定
-- Shift/Optionキーによる数値入力の増減制御
-
-### 処理の流れ
-1) 選択オブジェクトを複製し、背面へ移動
-2) オフセットパス（Live Effect）を適用
-3) アウトライン化し、合体（Unite）後に拡張（Expand）
-4) 元オブジェクトと結果をグループ化し、Subtract を実行
-5) 結果を白で塗りつぶす
-
-### 更新履歴
-- v1.0 (20250813): 初期バージョン
-*/
-
-/*
 ### Script name
 AddOutlineOffsetPath.jsx
 
@@ -57,9 +27,52 @@ Finally, group the original with the result, run Subtract, and fill the result w
 4) Group original and result, then execute Subtract
 5) Fill the result with white
 
+### Inspiration
+
+Portions of this script were developed with reference to:
+Outline.jsx (illustrator-outline-script) by Oğuzhan Yıldırım @oguzhanyildirim01
+https://github.com/oguzhanyildirim01/illustrator-outline-script/blob/main/Outline.jsx
+
 ### Change log
 
 - v1.0 (20250813): Initial version
+
+*/
+/*
+### スクリプト名
+AddOutlineOffsetPath.jsx
+
+### GitHub
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/AddOutlineOffsetPath.jsx
+
+### 概要
+選択オブジェクトを複製→背面配置→オフセットパス（Live Effect）→アウトライン→合体→拡張。
+最後に、元オブジェクトと結果をグループ化し、Subtract を実行して白で塗りつぶします。
+
+### 主な機能
+- 複数選択対応
+- 単位対応（pt, mm, in, cm など）
+- 角の形状（マイター、ラウンド、ベベル）設定可能
+- オフセット値のダイアログ入力
+- ダイアログの位置調整と透明度設定
+- Shift/Optionキーによる数値入力の増減制御
+
+### 処理の流れ
+1) 選択オブジェクトを複製し、背面へ移動
+2) オフセットパス（Live Effect）を適用
+3) アウトライン化し、合体（Unite）後に拡張（Expand）
+4) 元オブジェクトと結果をグループ化し、Subtract を実行
+5) 結果を白で塗りつぶす
+
+###　謝辞
+
+このスクリプトの一部は、以下のスクリプトを参考にして開発しました。
+Outline.jsx（illustrator-outline-script） 作者：Oğuzhan Yıldırım @oguzhanyildirim01
+https://github.com/oguzhanyildirim01/illustrator-outline-script/blob/main/Outline.jsx
+
+### 更新履歴
+- v1.0 (20250813): 初期バージョン
+
 */
 
 var SCRIPT_VERSION = "v1.0";
