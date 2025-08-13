@@ -36,6 +36,7 @@ https://github.com/oguzhanyildirim01/illustrator-outline-script/blob/main/Outlin
 ### Change log
 
 - v1.0 (20250813): Initial version
+- v1.1 (20250813): Automatic calculation of offset value
 
 */
 /*
@@ -72,10 +73,11 @@ https://github.com/oguzhanyildirim01/illustrator-outline-script/blob/main/Outlin
 
 ### 更新履歴
 - v1.0 (20250813): 初期バージョン
+- v1.1 (20250813):オフセット値の自動計算
 
 */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -87,10 +89,10 @@ var lang = getCurrentLang();
 var LABELS = {
   dialogTitle: { ja: "アウトライン オフセットパス " + SCRIPT_VERSION, en: "Outline Offset Path " + SCRIPT_VERSION },
   offsetPanelTitle: { ja: "オフセット設定", en: "Offset settings" },
-  joinPanelTitle: { ja: "角の形状", en: "Join" },
-  joinMiter: { ja: "マイター", en: "Miter" },
-  joinRound: { ja: "ラウンド", en: "Round" },
-  joinBevel: { ja: "ベベル", en: "Bevel" },
+  joinPanelTitle: { ja: "角の形状", en: "Corner" },
+  joinMiter: { ja: "マイター結合", en: "Miter Join" },
+  joinRound: { ja: "ラウンド結合", en: "Round Join" },
+  joinBevel: { ja: "ベベル結合", en: "Bevel Join" },
   cancel: { ja: "キャンセル", en: "Cancel" },
   ok: { ja: "OK", en: "OK" },
   alertNoSelection: { ja: "オブジェクトが選択されていません。", en: "Please select at least one object." },
@@ -187,6 +189,20 @@ function changeValueByArrowKey(editText) {
     });
 }
 
+function getSelectionWidthPt(items, useVisible) {
+    var left = null, right = null;
+    for (var i = 0; i < items.length; i++) {
+        try {
+            var b = useVisible ? items[i].visibleBounds : items[i].geometricBounds; // [left, top, right, bottom]
+            if (!b) continue;
+            if (left === null || b[0] < left) left = b[0];
+            if (right === null || b[2] > right) right = b[2];
+        } catch (e) {}
+    }
+    if (left === null || right === null) return 0;
+    return right - left;
+}
+
 function main() {
     var doc = app.activeDocument;
     /* 未選択時のガード / Guard when nothing is selected */
@@ -198,6 +214,9 @@ function main() {
     var unitCode = app.preferences.getIntegerPreference("rulerType");
     var unitLabel = getCurrentUnitLabel();
     var ptFactor = getPtFactorFromUnitCode(unitCode);
+
+    var selWidthPt = getSelectionWidthPt(doc.selection, true); // true => visibleBounds
+    var defaultOffsetInCurrentUnit = Math.max(0, Math.round(((selWidthPt / 30) / ptFactor) * 10) / 10);
 
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.alignChildren = ["left", "top"];
@@ -230,7 +249,7 @@ function main() {
     offsetPanel.orientation = "row";
     offsetPanel.alignChildren = ["left", "center"];
     offsetPanel.margins = [15, 20, 15,10]
-    var et = offsetPanel.add("edittext", undefined, "4");
+    var et = offsetPanel.add("edittext", undefined, String(defaultOffsetInCurrentUnit));
     var editTextWidth = et;
     changeValueByArrowKey(editTextWidth);
     offsetPanel.add("statictext", undefined, unitLabel);
@@ -239,7 +258,7 @@ function main() {
 
     // Join type (jntp) radio buttons
     var joinGroup = dlg.add("panel", undefined, LABELS.joinPanelTitle[lang]);
-    joinGroup.orientation = "row";
+    joinGroup.orientation = "column";
     joinGroup.alignChildren = ["left", "center"];
     joinGroup.margins = [15, 20, 15,10]
     var rbMiter = joinGroup.add("radiobutton", undefined, LABELS.joinMiter[lang]);
