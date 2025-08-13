@@ -8,7 +8,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ImportGraphicStyle.jsx
 
 ### 概要：
 
@@ -50,7 +50,7 @@ Copy from Working Artboard and Import Styles (with Dialog)
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/style/ImportGraphicStyle.jsx
 
 ### Overview:
 
