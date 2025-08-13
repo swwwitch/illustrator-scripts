@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 AddOutlineOffsetPath.jsx
 
 ### GitHub
-https://github.com/takano3/ai-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/AddOutlineOffsetPath.jsx
 
 ### 概要
 選択オブジェクトを複製→背面配置→オフセットパス（Live Effect）→アウトライン→合体→拡張。
@@ -36,7 +36,7 @@ https://github.com/takano3/ai-scripts
 AddOutlineOffsetPath.jsx
 
 ### GitHub
-https://github.com/takano3/ai-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/AddOutlineOffsetPath.jsx
 
 ### Overview
 Duplicate selection → send to back → Offset Path (Live Effect) → Outline Stroke → Unite → Expand.
