@@ -371,6 +371,15 @@ function chooseFileFromList(candidates) {
     dlg.orientation = 'column';
     dlg.alignChildren = ['fill', 'top'];
 
+    // ---- Category filter (top) / 上部カテゴリ選択ラジオ ----
+    var filterGroup = dlg.add('group');
+    filterGroup.orientation = 'row';
+    filterGroup.alignChildren = ['left', 'center'];
+    filterGroup.alignment = ['center', 'top']; // ダイアログ中央揃え / Center within dialog
+    var rbFilterStyle = filterGroup.add('radiobutton', undefined, T('optCategoryStyle')); // グラフィックスタイル
+    var rbFilterFont  = filterGroup.add('radiobutton', undefined, T('optCategoryFont'));  // フォント
+    // 既定ではどちらも未選択（全件表示）/ No filter by default
+
     // ヘッダ行 / Header
     var header = dlg.add('group');
     header.orientation = 'row';
@@ -378,7 +387,7 @@ function chooseFileFromList(candidates) {
 
     var colW = {
         del: 30,
-        cat: 120,
+        cat: 140,
         content: 150,
         fname: 160
     };
@@ -412,19 +421,58 @@ function chooseFileFromList(candidates) {
     var MAX_VISIBLE_ROWS = 8; // これ以上はスクロール
     var ROW_H = 22;           // 行の目安高さ（checkbox+radio+label）
     var V_PAD = 16;           // panel の上下マージン分
+
+    function getVisibleRowCount() {
+        var cnt = 0;
+        for (var i = 0; i < rows.length; i++) {
+            if (rows[i].group.visible !== false) cnt++;
+        }
+        return cnt;
+    }
+    function isRowVisible(idx) {
+        return rows[idx] && rows[idx].group.visible !== false;
+    }
+    function selectFirstVisible() {
+        for (var i = 0; i < rows.length; i++) {
+            if (isRowVisible(i)) {
+                selectIndex(i);
+                return;
+            }
+        }
+    }
+
     function updatePanelHeight() {
-        var visibleRows = Math.min(rows.length, MAX_VISIBLE_ROWS);
+        var visibleRows = Math.min(getVisibleRowCount(), MAX_VISIBLE_ROWS);
         var dynamicHeight = (visibleRows * ROW_H) + V_PAD;
         listPanel.preferredSize = [panelWidth, dynamicHeight];
     }
 
-    function selectIndex(i) {
-        if (i < 0 || i >= rows.length) return;
-        for (var r = 0; r < rows.length; r++) {
-            rows[r].rb.value = (r === i);
-        }
-        selectedIndex = i;
+function selectIndex(i) {
+    if (i < 0 || i >= rows.length) return;
+    for (var r = 0; r < rows.length; r++) {
+        rows[r].rb.value = (r === i);
     }
+    selectedIndex = i;
+    updateRowHighlights(); // ← 選択変更時にハイライト更新
+}
+
+    // 行のハイライト更新
+function updateRowHighlights() {
+    for (var r = 0; r < rows.length; r++) {
+        var rowPanel = rows[r].group; // 行コンテナ（panel）
+        try {
+            if (r === selectedIndex && isRowVisible(r)) {
+                // 選択行のみ淡いブルー
+                rowPanel.graphics.backgroundColor =
+                    rowPanel.graphics.newBrush(rowPanel.graphics.BrushType.SOLID_COLOR, [0.85, 0.90, 1, 1]);
+            } else {
+                // 既定に戻す（undefinedでOK）
+                rowPanel.graphics.backgroundColor = undefined;
+            }
+            rowPanel.graphics.invalidate(); // 再描画
+        } catch (e) {}
+    }
+}
 
     function activateRow(i) {
         selectIndex(i);
@@ -434,9 +482,17 @@ function chooseFileFromList(candidates) {
     for (var i = 0; i < candidates.length; i++) {
         var c = candidates[i];
 
-        var row = rowsContainer.add('group');
-        row.orientation = 'row';
-        row.alignChildren = ['left', 'center'];
+// 変更前
+// var row = rowsContainer.add('group');
+// row.orientation = 'row';
+// row.alignChildren = ['left', 'center'];
+
+// 変更後
+var row = rowsContainer.add('panel', undefined, ''); // panelなら背景色が効く
+row.margins = [0, 0, 0, 0];
+row.orientation = 'row';
+row.alignChildren = ['left', 'center'];
+row.minimumSize.height = ROW_H; // 行高さの目安
 
         // 1列目：本物のチェックボックス / Real checkbox
         var cb = row.add('checkbox', undefined, '');
@@ -445,7 +501,11 @@ function chooseFileFromList(candidates) {
         if (c.category === 'フォント') {
             cb.enabled = false; // 固定OFF（操作不可）
         } else {
-            cb.onClick = function () { c.check = cb.value ? 1 : 0; };
+            (function(cand, checkbox){
+                checkbox.onClick = function () {
+                    cand.check = checkbox.value ? 1 : 0;
+                };
+            })(c, cb);
         }
 
         // 2列目：カテゴリ表示 / Category
@@ -498,11 +558,27 @@ function chooseFileFromList(candidates) {
         });
     }
 
+    // カテゴリフィルター適用 / Apply category filter
+    function applyCategoryFilter(categoryName) {
+        for (var i = 0; i < rows.length; i++) {
+            var show = (rows[i].candidate && rows[i].candidate.category === categoryName);
+            rows[i].group.visible = show;
+            // ラジオ自体の状態は保持（表示/非表示のみ）/ keep rb state
+        }
+        updatePanelHeight();
+        dlg.layout.layout(true);
+        selectFirstVisible();
+        updateRowHighlights();
+    }
+    rbFilterStyle.onClick = function () { applyCategoryFilter('グラフィックスタイル'); };
+    rbFilterFont.onClick  = function () { applyCategoryFilter('フォント'); };
+
     // === ダイナミック高さ計算 / Dynamic height with max cap ===
     updatePanelHeight();
 
     // 既定選択（先頭） / Default selection
-    if (rows.length > 0) selectIndex(0);
+    if (rows.length > 0) selectFirstVisible();
+    updateRowHighlights();
 
     // キーボード操作：↑↓で選択行移動、Enterで決定 / Keyboard navigation
     if (dlg.addEventListener) {
@@ -510,10 +586,14 @@ function chooseFileFromList(candidates) {
             try {
                 var k = evt.keyName;
                 if (k === 'Up') {
-                    if (selectedIndex > 0) selectIndex(selectedIndex - 1);
+                    var u = selectedIndex;
+                    do { u--; } while (u >= 0 && !isRowVisible(u));
+                    if (u >= 0) selectIndex(u);
                     evt.preventDefault && evt.preventDefault();
                 } else if (k === 'Down') {
-                    if (selectedIndex < rows.length - 1) selectIndex(selectedIndex + 1);
+                    var d = selectedIndex;
+                    do { d++; } while (d < rows.length && !isRowVisible(d));
+                    if (d < rows.length) selectIndex(d);
                     evt.preventDefault && evt.preventDefault();
                 } else if (k === 'Enter') {
                     activateRow(selectedIndex);
@@ -557,7 +637,7 @@ function chooseFileFromList(candidates) {
 
     var btnRightGroup = btnRowGroup.add('group');
     btnRightGroup.alignChildren = ['right', 'center'];
-    var btnAdd = btnRightGroup.add('button', undefined, T('btnDeleteStyles'), '');
+    var btnAdd = btnRightGroup.add('button', undefined, T('btnAdd'), '');
     btnAdd.onClick = function () {
         try {
             // 1) ファイル選択
@@ -648,9 +728,11 @@ function chooseFileFromList(candidates) {
                     // 新規行を作成して追加
                     var chkVal2 = (selectedCat === 'フォント') ? 0 : 1;
                     var c = { label: userLabel, path: dest.name, check: chkVal2, category: selectedCat };
-                    var row = rowsContainer.add('group');
+                    var row = rowsContainer.add('panel', undefined, '');
+                    row.margins = [0, 0, 0, 0];
                     row.orientation = 'row';
                     row.alignChildren = ['left', 'center'];
+                    row.minimumSize.height = ROW_H;
 
                     var cb = row.add('checkbox', undefined, '');
                     cb.preferredSize = [colW.del, -1];
@@ -658,7 +740,11 @@ function chooseFileFromList(candidates) {
                     if (c.category === 'フォント') {
                         cb.enabled = false;
                     } else {
-                        cb.onClick = function () { c.check = cb.value ? 1 : 0; };
+                        (function(cand, checkbox){
+                            checkbox.onClick = function () {
+                                cand.check = checkbox.value ? 1 : 0;
+                            };
+                        })(c, cb);
                     }
 
                     var sc2 = row.add('statictext', undefined, String(c.category || 'グラフィックスタイル'));
