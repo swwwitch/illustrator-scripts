@@ -37,10 +37,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotati
 - 回転はオブジェクト中心（Transformation.CENTER）。  
 - ロック/非表示等で回転不可の場合はスキップ（例外は握りつぶし）。
 
-### 動画：
-
 ### 更新履歴：
 
+- v1.1 (20250815) : しきい値UI、矢印キー増減、クリップグループ対応、画像の鏡像補正、回転直後の Reset Bounding Box を実装
 - v1.0 (20250815) : 初期バージョン  
 
 ---
@@ -79,15 +78,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotati
 - Rotation is performed about object center (Transformation.CENTER).  
 - Skips locked/hidden objects that cannot be rotated (exceptions are suppressed).
 
-### Movie:
-
 ### Changelog:
 
+- v1.1 (20250815) : Added tolerance UI and arrow-key increments, clipping-group rotation, mirrored image handling, and per-item Reset Bounding Box after rotation
 - v1.0 (20250815) : Initial release  
 
 */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -121,9 +119,25 @@ var LABELS = {
         ja: "長方形（パス）",
         en: "Rectangle (Path)"
     },
+    clipGroup: {
+        ja: "クリップグループ",
+        en: "Clipping Group"
+    },
+    clipScopePanel: {
+        ja: "クリップ範囲",
+        en: "Clip Scope"
+    },
+    clipScopeNearest: {
+        ja: "直近のクリップ",
+        en: "Nearest Clipped"
+    },
+    clipScopeTopmost: {
+        ja: "最上位のクリップ",
+        en: "Topmost Clipped"
+    },
     epsilon: {
-        ja: "水平とみなす範囲",
-        en: "Level Tolerance"
+        ja: "水平とみなす範囲(°)",
+        en: "Level Tolerance (°)"
     },
     ok: {
         ja: "OK",
@@ -142,7 +156,9 @@ var CONFIG = {
         image: true,
         rect: true
     },
-    epsilonDeg: 0.1 // ほぼ水平とみなす閾値（度）
+    epsilonDeg: 0.1, // ほぼ水平とみなす閾値（度）
+    clipGroup: true, // クリップグループをデフォルトON
+    clipScope: 'nearest' // 'nearest' | 'topmost'
 };
 
 function isNearlyLevel(deg) {
@@ -210,7 +226,8 @@ function showTargetDialog(defaults) {
     var pTargets = w.add("panel", undefined, LABELS.panelTargets[lang]);
     pTargets.orientation = "column";
     pTargets.alignChildren = "left";
-    pTargets.margins = [15, 20, 15, 10]
+    pTargets.margins = [15, 20, 15, 10];
+    pTargets.alignment = "left";
 
     var cbText = pTargets.add("checkbox", undefined, LABELS.text[lang]);
     var cbImage = pTargets.add("checkbox", undefined, LABELS.image[lang]);
@@ -220,11 +237,28 @@ function showTargetDialog(defaults) {
     cbImage.value = !!defaults.image;
     cbRect.value = !!defaults.rect;
 
+    // 対象パネル内にクリップグループのチェックボックスを配置
+    var cbClip = pTargets.add("checkbox", undefined, LABELS.clipGroup[lang]);
+    cbClip.value = !!(typeof defaults.clipGroup !== 'undefined' ? defaults.clipGroup : CONFIG.clipGroup);
+
+    // クリップ範囲（直近 / 最上位）
+    var pScope = pTargets.add("panel", undefined, LABELS.clipScopePanel[lang]);
+    pScope.orientation = "row";
+    pScope.alignChildren = "left";
+    pScope.margins = [12, 10, 12, 10];
+    var rbNearest = pScope.add("radiobutton", undefined, LABELS.clipScopeNearest[lang]);
+    var rbTopmost = pScope.add("radiobutton", undefined, LABELS.clipScopeTopmost[lang]);
+
+    var scopeDefault = (typeof defaults.clipScope !== 'undefined') ? defaults.clipScope : CONFIG.clipScope;
+    rbNearest.value = (scopeDefault === 'nearest');
+    rbTopmost.value = (scopeDefault === 'topmost');
+
     // オプション：しきい値
     var pOpts = w.add("panel", undefined, LABELS.panelOptions[lang]);
     pOpts.orientation = "column";
     pOpts.alignChildren = "left";
-    pOpts.margins = [15, 20, 15, 10]
+    pOpts.margins = [15, 20, 15, 10];
+    pOpts.alignment = "left";
     var gEps = pOpts.add("group");
     gEps.orientation = "row";
     gEps.alignChildren = "left";
@@ -232,6 +266,8 @@ function showTargetDialog(defaults) {
     var etEps = gEps.add("edittext", undefined, String((typeof defaults.epsilonDeg !== 'undefined') ? defaults.epsilonDeg : CONFIG.epsilonDeg));
     etEps.characters = 6;
     changeValueByArrowKey(etEps);
+
+    // (Mode panel removed, rbClip now in Targets panel)
 
     var gBtns = w.add("group");
     gBtns.alignment = "center";
@@ -267,7 +303,9 @@ function showTargetDialog(defaults) {
             image: cbImage.value,
             rect: cbRect.value
         },
-        epsilonDeg: epsVal
+        epsilonDeg: epsVal,
+        clipGroup: cbClip.value
+        ,clipScope: (rbTopmost.value ? 'topmost' : 'nearest')
     };
 }
 
@@ -302,6 +340,41 @@ function getImageTransformHost(item) {
     return host;
 }
 
+function getNearestClippingGroupHost(item) {
+    // 親を辿って最初に見つかった clipped=true の GroupItem を返す
+    try {
+        var p = item.parent;
+        while (p) {
+            if (p.typename === 'GroupItem' && p.clipped) return p;
+            p = p.parent;
+        }
+    } catch (e) {}
+    return item; // 見つからなければ自身
+}
+
+function getTopmostClippingGroupHost(item) {
+    // 親を辿って最上位の clipped=true の GroupItem を返す
+    var host = null;
+    try {
+        var p = item.parent;
+        while (p) {
+            if (p.typename === 'GroupItem' && p.clipped) host = p;
+            p = p.parent;
+        }
+    } catch (e) {}
+    return host || item; // 見つからなければ自身
+}
+
+function getClippingGroupHost(item, scope) {
+    return (scope === 'topmost') ? getTopmostClippingGroupHost(item) : getNearestClippingGroupHost(item);
+}
+
+function resolveHost(item) {
+    // クリップグループモードならグループをホストに、そうでなければ自身
+    return CONFIG.clipGroup ? getClippingGroupHost(item, CONFIG.clipScope) : item;
+    // ※ clipGroup=true: グループを回転 / clipGroup=false: 個別オブジェクトを回転
+}
+
 function isVertical(tf) {
     try {
         var attr = tf.textRanges[0].characterAttributes;
@@ -324,20 +397,35 @@ function processTextFrames(textFrames) {
         skippedVertical = 0,
         alreadyLevel = 0;
     var rotated = [];
+    var seen = {};
     for (var i = 0; i < textFrames.length; i++) {
         var tf = textFrames[i];
-        if (isVertical(tf)) {
-            skippedVertical++;
-            continue;
+        var host = resolveHost(tf);
+
+        // クリップグループ外（= 自身が TextFrame）のときのみ縦書きスキップ判定
+        if (host === tf) {
+            if (isVertical(tf)) {
+                skippedVertical++;
+                continue;
+            }
         }
-        var ang = getRotationDegrees(tf);
+
+        // 同一ホストは一度だけ処理
+        var id = host.uuid || (host.toString() + '|' + host.index);
+        if (seen[id]) continue;
+        seen[id] = true;
+
+        var ang = getRotationDegrees(host);
         var norm = normalizeAngle(ang);
         if (isNearlyLevel(norm)) {
             alreadyLevel++;
             continue;
         }
-        rotateBy(tf, -norm);
-        rotated.push(tf);
+        // 画像と同様、ホストが鏡像の可能性を考慮（Group にも反転が載ることがある）
+        var mirrored = isMirroredTransform(host);
+        var delta = mirrored ? norm : -norm;
+        rotateBy(host, delta);
+        rotated.push(host);
         fixed++;
     }
     return {
@@ -355,7 +443,8 @@ function processImages(items) {
     var seen = {};
     var rotated = [];
     for (var i = 0; i < items.length; i++) {
-        var host = getImageTransformHost(items[i]);
+        // クリップグループONならグループ、OFFなら画像単体を回転
+        var host = resolveHost(items[i]);
         var id = host.uuid || (host.toString() + '|' + host.index);
         if (seen[id]) continue; // 同一ホストの重複回避
         seen[id] = true;
@@ -385,16 +474,24 @@ function processItems(items) {
     var fixed = 0,
         alreadyLevel = 0;
     var rotated = [];
+    var seen = {};
     for (var i = 0; i < items.length; i++) {
         var it = items[i];
-        var ang = getRotationDegrees(it);
+        var host = resolveHost(it);
+        var id = host.uuid || (host.toString() + '|' + host.index);
+        if (seen[id]) continue;
+        seen[id] = true;
+
+        var ang = getRotationDegrees(host);
         var norm = normalizeAngle(ang);
         if (isNearlyLevel(norm)) {
             alreadyLevel++;
             continue;
         }
-        rotateBy(it, -norm);
-        rotated.push(it);
+        var mirrored = isMirroredTransform(host);
+        var delta = mirrored ? norm : -norm;
+        rotateBy(host, delta);
+        rotated.push(host);
         fixed++;
     }
     return {
@@ -404,18 +501,60 @@ function processItems(items) {
     };
 }
 
+
+function getGroupProxyAngle(grp) {
+    // クリップグループの見かけ角度を子要素から推定
+    // 優先順：クリッピングパス → 配置/埋め込み画像 → 任意のパス → ネストグループ
+    try {
+        // 1) クリッピングパスの角度
+        for (var i = 0; i < grp.pageItems.length; i++) {
+            var it = grp.pageItems[i];
+            if (it.typename === 'PathItem' && it.clipping) {
+                return getRotationDegrees(it);
+            }
+        }
+        // 2) 配置/埋め込み画像
+        for (var j = 0; j < grp.pageItems.length; j++) {
+            var it2 = grp.pageItems[j];
+            if (it2.typename === 'PlacedItem' || it2.typename === 'RasterItem') {
+                return getRotationDegrees(it2);
+            }
+        }
+        // 3) 任意のパス（非クリッピング）
+        for (var k = 0; k < grp.pageItems.length; k++) {
+            var it3 = grp.pageItems[k];
+            if (it3.typename === 'PathItem' && !it3.clipping) {
+                return getRotationDegrees(it3);
+            }
+        }
+        // 4) ネストされたグループ
+        for (var m = 0; m < grp.pageItems.length; m++) {
+            var it4 = grp.pageItems[m];
+            if (it4.typename === 'GroupItem') {
+                var a = getGroupProxyAngle(it4);
+                if (!isNearlyLevel(a)) return a;
+            }
+        }
+    } catch (e) {}
+    return 0;
+}
+
 function getRotationDegrees(item) {
     // Prefer the transformation matrix if available
     var m = null;
-    try {
-        m = item.matrix;
-    } catch (e) {
-        m = null;
-    }
+    try { m = item.matrix; } catch (e) { m = null; }
 
     if (m && m.mValueA !== undefined && m.mValueB !== undefined) {
         var rad = Math.atan2(m.mValueB, m.mValueA);
-        return rad * 180 / Math.PI;
+        var deg = rad * 180 / Math.PI;
+        // GroupItem の場合、見かけは子の回転に依存することがある
+        if (item && item.typename === 'GroupItem') {
+            if (isNearlyLevel(deg)) {
+                var proxy = getGroupProxyAngle(item);
+                if (!isNearlyLevel(proxy)) return proxy;
+            }
+        }
+        return deg;
     }
 
     // Fallback for PathItem: infer angle from the first segment (anchor0 -> anchor1)
@@ -426,6 +565,12 @@ function getRotationDegrees(item) {
             var rad2 = Math.atan2(p1[1] - p0[1], p1[0] - p0[0]);
             return rad2 * 180 / Math.PI;
         } catch (e2) {}
+    }
+
+    // GroupItem で matrix が無い/読めない場合のフォールバック
+    if (item && item.typename === 'GroupItem') {
+        var proxy2 = getGroupProxyAngle(item);
+        if (!isNearlyLevel(proxy2)) return proxy2;
     }
 
     // As a last resort, assume 0° (prevents crash on exotic items)
@@ -486,13 +631,17 @@ function main() {
         text: CONFIG.defaultTargets.text,
         image: CONFIG.defaultTargets.image,
         rect: CONFIG.defaultTargets.rect,
-        epsilonDeg: CONFIG.epsilonDeg
+        epsilonDeg: CONFIG.epsilonDeg,
+        clipGroup: CONFIG.clipGroup,
+        clipScope: CONFIG.clipScope
     });
     if (!dlg.ok) {
         return;
     }
     var targets = dlg.targets;
     CONFIG.epsilonDeg = dlg.epsilonDeg;
+    CONFIG.clipGroup = dlg.clipGroup;
+    CONFIG.clipScope = dlg.clipScope;
 
     // 選択を走査してタイプ別に収集
     var sel = app.selection;
@@ -517,7 +666,13 @@ function main() {
 
             if (targets.text && it.typename === 'TextFrame') textArr.push(it);
             if (targets.image && (isPlacedImage(it) || isEmbeddedImage(it))) imageArr.push(it);
-            if (targets.rect && isRectangle(it)) rectArr.push(it);
+            if (targets.rect && isRectangle(it)) {
+                if (CONFIG.clipGroup && it.clipping) {
+                    // クリップグループモードではマスクパスは個別対象にしない
+                } else {
+                    rectArr.push(it);
+                }
+            }
         }
     }
     collect(sel);
