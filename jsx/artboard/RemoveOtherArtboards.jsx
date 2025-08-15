@@ -8,7 +8,7 @@ RemoveOtherArtboards
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/RemoveOtherArtboards.jsx
 
 ### 概要：
 
@@ -46,7 +46,7 @@ RemoveOtherArtboards
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/RemoveOtherArtboards.jsx
 
 ### Description:
 
