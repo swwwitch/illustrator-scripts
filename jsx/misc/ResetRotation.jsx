@@ -15,12 +15,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotati
 - 選択オブジェクトの回転を水平(0°)に補正。
 - テキスト、配置画像（リンク/埋め込み）、長方形（パス）を対象に、見かけ上の回転を0°に補正。
 - 画像がクリッピンググループ内にある場合は、回転が乗っている“親（ホスト）”を自動で検出して補正。
+- クリップ範囲は「最上位のクリップ」に固定（UIからの選択は不可）。
 - 縦書きテキストはスキップ。ほぼ水平（許容角度内）は無視。
 
 ### 主な機能：
 
 - 対象の選択：テキスト / 配置画像 / 長方形（チェックボックス）
 - 補正条件：水平とみなす範囲（°）を指定。↑/↓=±1、Shift+↑/↓=±10、Option+↑/↓=±0.1 のキー操作に対応。
+- テキスト：縦横比（1:1）を保持するオプション（デフォルトON）。
 
 ### 処理の流れ：
 
@@ -39,8 +41,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotati
 
 ### 更新履歴：
 
+- v1.3 (20250815) : テキストフレームの縦横比保持オプション追加
+- v1.2 (20250815) : クリップ範囲を「最上位のクリップ」に固定。UIから選択を削除
 - v1.1 (20250815) : しきい値UI、矢印キー増減、クリップグループ対応、画像の鏡像補正、回転直後の Reset Bounding Box を実装
-- v1.0 (20250815) : 初期バージョン  
+- v1.0 (20250815) : 初期バージョン
 
 ---
 
@@ -56,12 +60,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotati
 - Level selected objects to horizontal (0°).  
 - Targets text, placed/embedded images, and rectangles (paths).  
 - Automatically detects and corrects rotation on parent (host) when images are inside clipping groups.  
+- Clip scope is fixed to Topmost (no UI selection).  
 - Skips vertical text and ignores nearly horizontal objects (within tolerance).
 
 ### Main features:
 
 - Selection options: Text / Placed Image / Rectangle (checkboxes).  
 - Correction tolerance range (degrees) adjustable via dialog with keyboard shortcuts (↑/↓=±1, Shift+↑/↓=±10, Option+↑/↓=±0.1).
+- Text option: keep aspect ratio (1:1) enabled by default.
 
 ### Processing flow:
 
@@ -80,20 +86,27 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotati
 
 ### Changelog:
 
+- v1.3 (20250815) : Added text frame aspect ratio keep option
+- v1.2 (20250815) : Fixed clip scope to "Topmost" and removed scope selection from UI
 - v1.1 (20250815) : Added tolerance UI and arrow-key increments, clipping-group rotation, mirrored image handling, and per-item Reset Bounding Box after rotation
 - v1.0 (20250815) : Initial release  
 
 */
 
-var SCRIPT_VERSION = "v1.2";
+
+/* =============================
+   基本情報 / Script Basics
+   ============================= */
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
-
+/* =============================
+   ラベル定義 / UI Labels
+   ============================= */
 var LABELS = {
     dialogTitle: {
         ja: "水平補正 " + SCRIPT_VERSION,
@@ -106,6 +119,14 @@ var LABELS = {
     panelOptions: {
         ja: "補正条件",
         en: "Correction Options"
+    },
+    panelText: {
+        ja: "テキスト",
+        en: "Text"
+    },
+    keepRatio: {
+        ja: "縦横比を正す",
+        en: "Keep aspect ratio"
     },
     text: {
         ja: "テキスト",
@@ -149,7 +170,10 @@ var LABELS = {
     }
 };
 
-// デフォルト選択（全部オン）およびしきい値
+/* =============================
+   設定 / Configuration
+   ============================= */
+/* デフォルト選択と各種しきい値 / Default target selection and tolerances */
 var CONFIG = {
     defaultTargets: {
         text: true,
@@ -158,8 +182,31 @@ var CONFIG = {
     },
     epsilonDeg: 0.1, // ほぼ水平とみなす閾値（度）
     clipGroup: true, // クリップグループをデフォルトON
-    clipScope: 'nearest' // 'nearest' | 'topmost'
+    clipScope: 'topmost', // 固定: 'topmost'
+    textKeepRatio: true // テキストの縦横比を1:1に（デフォルトON）
 };
+
+/* =============================
+   キャッシュ / Caches
+   ============================= */
+var HOST_CACHE = {
+    map: {}
+};
+
+function _hostCacheKey(item) {
+    // オブジェクト固有キーを生成 / Build a stable-ish key per item
+    try {
+        if (item.uuid) return 'u:' + item.uuid;
+    } catch (e) {}
+    try {
+        if (item.toString && (item.index !== undefined)) return item.toString() + '|' + item.index;
+    } catch (e2) {}
+    return '' + item; // 最後の手段 / Fallback
+}
+
+function resetHostCache() {
+    HOST_CACHE.map = {};
+}
 
 function isNearlyLevel(deg) {
     var d = Math.abs(deg);
@@ -220,6 +267,9 @@ function changeValueByArrowKey(editText) {
     });
 }
 
+/* =============================
+   ダイアログ生成 / Dialog Construction
+   ============================= */
 function showTargetDialog(defaults) {
     var w = new Window("dialog", LABELS.dialogTitle[lang]);
 
@@ -241,17 +291,16 @@ function showTargetDialog(defaults) {
     var cbClip = pTargets.add("checkbox", undefined, LABELS.clipGroup[lang]);
     cbClip.value = !!(typeof defaults.clipGroup !== 'undefined' ? defaults.clipGroup : CONFIG.clipGroup);
 
-    // クリップ範囲（直近 / 最上位）
-    var pScope = pTargets.add("panel", undefined, LABELS.clipScopePanel[lang]);
-    pScope.orientation = "row";
-    pScope.alignChildren = "left";
-    pScope.margins = [12, 10, 12, 10];
-    var rbNearest = pScope.add("radiobutton", undefined, LABELS.clipScopeNearest[lang]);
-    var rbTopmost = pScope.add("radiobutton", undefined, LABELS.clipScopeTopmost[lang]);
+    /* クリップ範囲 UI は廃止（常に Topmost） / Clip scope UI removed (always Topmost) */
 
-    var scopeDefault = (typeof defaults.clipScope !== 'undefined') ? defaults.clipScope : CONFIG.clipScope;
-    rbNearest.value = (scopeDefault === 'nearest');
-    rbTopmost.value = (scopeDefault === 'topmost');
+    // テキスト設定パネル
+    var pText = w.add("panel", undefined, LABELS.panelText[lang]);
+    pText.orientation = "column";
+    pText.alignChildren = "left";
+    pText.margins = [15, 20, 15, 10];
+    pText.alignment = "left";
+    var cbKeepRatio = pText.add("checkbox", undefined, LABELS.keepRatio[lang]);
+    cbKeepRatio.value = (typeof defaults.textKeepRatio !== 'undefined') ? !!defaults.textKeepRatio : CONFIG.textKeepRatio;
 
     // オプション：しきい値
     var pOpts = w.add("panel", undefined, LABELS.panelOptions[lang]);
@@ -267,7 +316,6 @@ function showTargetDialog(defaults) {
     etEps.characters = 6;
     changeValueByArrowKey(etEps);
 
-    // (Mode panel removed, rbClip now in Targets panel)
 
     var gBtns = w.add("group");
     gBtns.alignment = "center";
@@ -304,29 +352,36 @@ function showTargetDialog(defaults) {
             rect: cbRect.value
         },
         epsilonDeg: epsVal,
-        clipGroup: cbClip.value
-        ,clipScope: (rbTopmost.value ? 'topmost' : 'nearest')
+        clipGroup: cbClip.value,
+        clipScope: 'topmost',
+        textKeepRatio: cbKeepRatio.value
     };
 }
 
+/* =============================
+   型判定 / Type Guards
+   ============================= */
 function isPlacedImage(obj) {
-    // リンク配置画像
+    // リンク配置画像 / Placed (linked) image
     return obj && obj.typename === "PlacedItem";
 }
 
 function isEmbeddedImage(obj) {
-    // 埋め込みラスタ
+    // 埋め込みラスタ画像 / Embedded raster image
     return obj && obj.typename === "RasterItem";
 }
 
 function isRectangle(obj) {
-    // 単純な長方形（閉じた4点）を想定
+    // 単純な長方形（閉じた4点）を判定 / Simple rectangle (closed 4 points)
     if (!obj || obj.typename !== "PathItem") return false;
     if (!obj.closed) return false;
     if (obj.pathPoints.length !== 4) return false;
     return true;
 }
 
+/* =============================
+   クリップグループ関連 / Clipping Group Utilities
+   ============================= */
 function getImageTransformHost(item) {
     // 画像がクリッピンググループ内にある場合、回転はグループ側に乗っていることが多い
     var host = item;
@@ -370,9 +425,15 @@ function getClippingGroupHost(item, scope) {
 }
 
 function resolveHost(item) {
-    // クリップグループモードならグループをホストに、そうでなければ自身
-    return CONFIG.clipGroup ? getClippingGroupHost(item, CONFIG.clipScope) : item;
-    // ※ clipGroup=true: グループを回転 / clipGroup=false: 個別オブジェクトを回転
+    // clipGroup=true: グループを回転 / false: 個別オブジェクトを回転
+    // clipGroup=true rotates the group; false rotates the item itself
+    if (!CONFIG.clipGroup) return item;
+    var key = _hostCacheKey(item);
+    var cached = HOST_CACHE.map[key];
+    if (cached) return cached;
+    var host = getClippingGroupHost(item, CONFIG.clipScope);
+    HOST_CACHE.map[key] = host;
+    return host;
 }
 
 function isVertical(tf) {
@@ -384,14 +445,58 @@ function isVertical(tf) {
     }
 }
 
+/* =============================
+   幾何ユーティリティ / Geometry Utilities
+   ============================= */
 function normalizeAngle(deg) {
-    // → (-180, 180]
+    // 角度を (-180, 180] に正規化 / Normalize angle to (-180, 180]
     var a = deg % 360;
     if (a <= -180) a += 360;
     if (a > 180) a -= 360;
     return a;
 }
 
+/**
+ * 必要回転角を計算 / Compute required rotation delta for a host item
+ * Returns: { isLevel: boolean, delta: number, mirrored: boolean, norm: number, angle: number }
+ */
+function getNeededDelta(host) {
+    var ang = getRotationDegrees(host);
+    var norm = normalizeAngle(ang);
+    if (isNearlyLevel(norm)) {
+        return {
+            isLevel: true,
+            delta: 0,
+            mirrored: isMirroredTransform(host),
+            norm: norm,
+            angle: ang
+        };
+    }
+    var mirrored = isMirroredTransform(host);
+    var delta = mirrored ? norm : -norm;
+    return {
+        isLevel: false,
+        delta: delta,
+        mirrored: mirrored,
+        norm: norm,
+        angle: ang
+    };
+}
+
+function resetTextScaling(tf) {
+    try {
+        var tr = tf.textRange;
+        // 文字スケールは % 指定 / Character scaling is in percent
+        var ca = tr.characterAttributes;
+        ca.horizontalScale = 100;
+        ca.verticalScale = 100;
+        // 参考: ユーザー指定案 `txtRange.scaling = [1,1];`
+    } catch (e) {}
+}
+
+/* =============================
+   処理ロジック / Processing Routines
+   ============================= */
 function processTextFrames(textFrames) {
     var fixed = 0,
         skippedVertical = 0,
@@ -410,21 +515,22 @@ function processTextFrames(textFrames) {
             }
         }
 
+        if (CONFIG.textKeepRatio) {
+            // テキストフレーム自身に対して縦横比を1:1へ
+            resetTextScaling(tf);
+        }
+
         // 同一ホストは一度だけ処理
         var id = host.uuid || (host.toString() + '|' + host.index);
         if (seen[id]) continue;
         seen[id] = true;
 
-        var ang = getRotationDegrees(host);
-        var norm = normalizeAngle(ang);
-        if (isNearlyLevel(norm)) {
+        var nd = getNeededDelta(host);
+        if (nd.isLevel) {
             alreadyLevel++;
             continue;
         }
-        // 画像と同様、ホストが鏡像の可能性を考慮（Group にも反転が載ることがある）
-        var mirrored = isMirroredTransform(host);
-        var delta = mirrored ? norm : -norm;
-        rotateBy(host, delta);
+        rotateBy(host, nd.delta);
         rotated.push(host);
         fixed++;
     }
@@ -449,17 +555,12 @@ function processImages(items) {
         if (seen[id]) continue; // 同一ホストの重複回避
         seen[id] = true;
 
-        var ang = getRotationDegrees(host);
-        var norm = normalizeAngle(ang);
-        if (isNearlyLevel(norm)) {
+        var nd = getNeededDelta(host);
+        if (nd.isLevel) {
             alreadyLevel++;
             continue;
         }
-
-        // 鏡像（負のスケール・反転）を含む場合は回転の符号が逆になることがあるため補正
-        var mirrored = isMirroredTransform(host);
-        var delta = mirrored ? norm : -norm;
-        rotateBy(host, delta);
+        rotateBy(host, nd.delta);
         rotated.push(host);
         fixed++;
     }
@@ -482,15 +583,12 @@ function processItems(items) {
         if (seen[id]) continue;
         seen[id] = true;
 
-        var ang = getRotationDegrees(host);
-        var norm = normalizeAngle(ang);
-        if (isNearlyLevel(norm)) {
+        var nd = getNeededDelta(host);
+        if (nd.isLevel) {
             alreadyLevel++;
             continue;
         }
-        var mirrored = isMirroredTransform(host);
-        var delta = mirrored ? norm : -norm;
-        rotateBy(host, delta);
+        rotateBy(host, nd.delta);
         rotated.push(host);
         fixed++;
     }
@@ -503,8 +601,8 @@ function processItems(items) {
 
 
 function getGroupProxyAngle(grp) {
-    // クリップグループの見かけ角度を子要素から推定
-    // 優先順：クリッピングパス → 配置/埋め込み画像 → 任意のパス → ネストグループ
+    /* クリップグループの見かけ角度を子要素から推定 / Estimate apparent angle of a clipping group from children
+       優先順 / Priority: Clip path → Placed/Embedded image → Any path → Nested group */
     try {
         // 1) クリッピングパスの角度
         for (var i = 0; i < grp.pageItems.length; i++) {
@@ -527,12 +625,14 @@ function getGroupProxyAngle(grp) {
                 return getRotationDegrees(it3);
             }
         }
-        // 4) ネストされたグループ
+        // 4) ネストされたグループ（早期リターン）
         for (var m = 0; m < grp.pageItems.length; m++) {
             var it4 = grp.pageItems[m];
             if (it4.typename === 'GroupItem') {
                 var a = getGroupProxyAngle(it4);
-                if (!isNearlyLevel(a)) return a;
+                // proxy が 0 以外なら即返す（isNearlyLevel 判定前にショートサーキット）
+                if (a !== 0) return a;
+                // 0 の場合のみ続行 / only continue if exactly 0
             }
         }
     } catch (e) {}
@@ -540,9 +640,13 @@ function getGroupProxyAngle(grp) {
 }
 
 function getRotationDegrees(item) {
-    // Prefer the transformation matrix if available
+    // 行列が読める場合は最優先 / Prefer transformation matrix when available
     var m = null;
-    try { m = item.matrix; } catch (e) { m = null; }
+    try {
+        m = item.matrix;
+    } catch (e) {
+        m = null;
+    }
 
     if (m && m.mValueA !== undefined && m.mValueB !== undefined) {
         var rad = Math.atan2(m.mValueB, m.mValueA);
@@ -578,7 +682,7 @@ function getRotationDegrees(item) {
 }
 
 function isMirroredTransform(item) {
-    // 判定: 行列の行列式 < 0 なら反転（鏡像）を含む
+    // 行列式 < 0 なら鏡像（反転） / Determinant < 0 means mirrored
     try {
         var m = item.matrix;
         if (m && m.mValueA !== undefined) {
@@ -597,10 +701,11 @@ function rotateBy(item, deg) {
         prevSel = null;
     }
     try {
-        // 回転（changePositions=true, patterns/gradients/strokes rotate=true, center about）
+        /* 回転実行 / Apply rotation
+           changePositions=true, patterns/gradients/strokes rotate=true, about center */
         item.rotate(deg, true, true, true, true, Transformation.CENTER);
 
-        // 回転直後に対象のみ選択して Reset Bounding Box を実行
+        // 回転後に対象のみ選択して BB をリセット / Select target and Reset Bounding Box
         try {
             app.selection = null;
             app.selection = [item];
@@ -609,13 +714,15 @@ function rotateBy(item, deg) {
     } catch (e) {
         // ignore rotation errors (e.g., locked/hidden)
     }
-    // 元の選択へ復帰
+    // 元の選択に復帰 / Restore previous selection
     try {
         if (prevSel) app.selection = prevSel;
     } catch (e2) {}
 }
 
-
+/* =============================
+   エントリーポイント / Entry Point
+   ============================= */
 function main() {
     if (!app.documents.length) {
         alert('ドキュメントが開いていません / No document open');
@@ -633,7 +740,8 @@ function main() {
         rect: CONFIG.defaultTargets.rect,
         epsilonDeg: CONFIG.epsilonDeg,
         clipGroup: CONFIG.clipGroup,
-        clipScope: CONFIG.clipScope
+        clipScope: CONFIG.clipScope,
+        textKeepRatio: CONFIG.textKeepRatio
     });
     if (!dlg.ok) {
         return;
@@ -642,6 +750,8 @@ function main() {
     CONFIG.epsilonDeg = dlg.epsilonDeg;
     CONFIG.clipGroup = dlg.clipGroup;
     CONFIG.clipScope = dlg.clipScope;
+    CONFIG.textKeepRatio = dlg.textKeepRatio;
+    resetHostCache(); // 設定変更に伴いホスト解決キャッシュをクリア / Clear cache after settings are applied
 
     // 選択を走査してタイプ別に収集
     var sel = app.selection;
