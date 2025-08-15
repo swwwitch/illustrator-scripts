@@ -8,6 +8,8 @@ ResetRotation.jsx
 
 ### GitHub：
 
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotation.jsx
+
 ### 概要：
 
 - 選択オブジェクトの回転を水平(0°)に補正。
@@ -40,9 +42,6 @@ ResetRotation.jsx
 ### 更新履歴：
 
 - v1.0 (20250815) : 初期バージョン  
-- v1.1 (20250815) : ダイアログに「水平とみなす範囲(°)」を追加し、↑/↓/Shift/Optionでの増減に対応。  
-  配置画像の鏡像（負スケール）を考慮して逆回転を防止。  
-  回転直後に各オブジェクトごと Reset Bounding Box を実行（rotateBy に統合）。
 
 ---
 
@@ -50,6 +49,8 @@ ResetRotation.jsx
 ResetRotation.jsx
 
 ### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotation.jsx
 
 ### Overview:
 
@@ -83,13 +84,10 @@ ResetRotation.jsx
 ### Changelog:
 
 - v1.0 (20250815) : Initial release  
-- v1.1 (20250815) : Added tolerance range to dialog with keyboard adjustment support.  
-  Consider mirrored transforms for placed images to prevent reverse rotation.  
-  Execute Reset Bounding Box individually after rotation (integrated into rotateBy).
 
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
