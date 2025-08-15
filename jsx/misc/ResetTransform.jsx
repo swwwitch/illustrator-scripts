@@ -8,7 +8,7 @@ ResetTransform.jsx（回転／シアー／スケールのリセット）
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetTransform.jsx
 
 ### 概要：
 
@@ -57,7 +57,7 @@ ResetTransform.jsx (Reset Rotate / Shear / Scale)
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetTransform.jsx
 
 ### Overview:
 
