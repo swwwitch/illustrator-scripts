@@ -8,7 +8,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ImageScaler.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ImageScaler.jsx
 
 ### 概要：
 
@@ -46,7 +46,7 @@ Placed Image Scale
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ImageScaler.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ImageScaler.jsx
 
 ### Overview:
 

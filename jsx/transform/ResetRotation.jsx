@@ -8,7 +8,7 @@ ResetRotation.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotation.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetRotation.jsx
 
 ### 概要：
 
@@ -53,7 +53,7 @@ ResetRotation.jsx
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/ResetRotation.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetRotation.jsx
 
 ### Overview:
 
