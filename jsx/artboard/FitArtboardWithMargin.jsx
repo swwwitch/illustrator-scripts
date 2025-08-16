@@ -111,6 +111,8 @@ var LABELS = {
     marginVertical: { ja: "上下", en: "Vertical" },
     marginHorizontal: { ja: "左右", en: "Horizontal" },
     linked: { ja: "連動", en: "Linked" },
+    // 最下部プレビュー境界チェックボックス用 / For preview bounds checkbox
+    previewBounds: { ja: "プレビュー境界", en: "Preview bounds" },
     numberAlert: { ja: "数値を入力してください。", en: "Please enter a number." },
     errorOccurred: { ja: "エラーが発生しました: ", en: "An error occurred: " }
 };
@@ -205,6 +207,7 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
     var labelH = horizontalGroup.add("statictext", undefined, LABELS.marginHorizontal[lang] + ":");
     var inputH = horizontalGroup.add("edittext", undefined, defaultValue);
     inputH.characters = 4;
+    inputH.enabled = !true; // 連動ONなら左右はディム
 
     /* 連動チェックボックス / Linked checkbox */
     var linkCheckbox = rightColumn.add("checkbox", undefined, LABELS.linked[lang]);
@@ -272,7 +275,7 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
             }
         }
         if (tempItems.length === 0) return;
-        var previewBounds = getMaxBounds(tempItems);
+        var previewBounds = getMaxBounds(tempItems, previewBoundsCheckbox.value);
         previewBounds[0] -= previewMarginH;
         previewBounds[1] += previewMarginV;
         previewBounds[2] += previewMarginH;
@@ -287,7 +290,7 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
         updatePreview(inputV.text, inputH.text);
     });
     changeValueByArrowKey(inputH, function(val) {
-        if (linkCheckbox.value) inputV.text = val;
+        if (linkCheckbox.value) return;
         updatePreview(inputV.text, inputH.text);
     });
     inputV.active = true;
@@ -296,11 +299,19 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
         updatePreview(inputV.text, inputH.text);
     };
     inputH.onChanging = function() {
-        if (linkCheckbox.value) inputV.text = inputH.text;
+        if (linkCheckbox.value) return; // 連動中は水平の直接編集は無効
         updatePreview(inputV.text, inputH.text);
     };
     linkCheckbox.onClick = function() {
-        if (linkCheckbox.value) inputH.text = inputV.text;
+        var linked = linkCheckbox.value;
+        // 連動ONのときは左右をディム、値は上下に追随
+        if (linked) {
+            inputH.text = inputV.text;
+            inputH.enabled = false;
+        } else {
+            inputH.enabled = true;
+        }
+        updatePreview(inputV.text, inputH.text);
     };
     radioSelection.onClick = function() {
         updatePreview(inputV.text, inputH.text);
@@ -309,6 +320,16 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
         updatePreview(inputV.text, inputH.text);
     };
     radioAllArtboards.onClick = function() {
+        updatePreview(inputV.text, inputH.text);
+    };
+
+    // 最下部（ボタンの上）に配置するチェックボックス / Checkbox above buttons at the bottom
+    var previewBoundsCheckbox = dlg.add("checkbox", undefined, LABELS.previewBounds[lang]);
+    previewBoundsCheckbox.alignment = "left";
+    previewBoundsCheckbox.value = false; // ロジックは追って / logic to be added later
+    previewBoundsCheckbox.margins = [0, 5, 0, 0];
+    // チェック状態の変更でプレビューを更新 / Refresh preview when checkbox toggled
+    previewBoundsCheckbox.onClick = function () {
         updatePreview(inputV.text, inputH.text);
     };
 
@@ -329,7 +350,8 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
             result = {
                 marginV: inputV.text,
                 marginH: inputH.text,
-                target: radioSelection.value ? "selection" : (radioArtboard.value ? "artboard" : "allArtboards")
+                target: radioSelection.value ? "selection" : (radioArtboard.value ? "artboard" : "allArtboards"),
+                previewBounds: previewBoundsCheckbox.value // 追加: プレビュー境界チェックボックスの状態
             };
             updatePreview(result.marginV, result.marginH);
             dlg.close();
@@ -506,7 +528,7 @@ function main() {
 
             // アウトライン化したTextFrameとその他アイテムを合成してバウンディングボックスを取得
             var tempItemsForBounds = outlinedTextFrames.concat(otherItems);
-            selectedBounds = getMaxBounds(tempItemsForBounds);
+            selectedBounds = getMaxBounds(tempItemsForBounds, userInput.previewBounds);
             selectedBounds[0] -= marginHInPoints;
             selectedBounds[1] += marginVInPoints;
             selectedBounds[2] += marginHInPoints;
@@ -549,10 +571,10 @@ function main() {
 }
 
 /* 選択オブジェクト群から最大のバウンディングボックスを取得 / Get maximum bounding box from multiple items */
-function getMaxBounds(items) {
-    var bounds = getBounds(items[0]);
+function getMaxBounds(items, usePreviewBounds) {
+    var bounds = getBounds(items[0], usePreviewBounds);
     for (var i = 1; i < items.length; i++) {
-        var itemBounds = getBounds(items[i]);
+        var itemBounds = getBounds(items[i], usePreviewBounds);
         bounds[0] = Math.min(bounds[0], itemBounds[0]);
         bounds[1] = Math.max(bounds[1], itemBounds[1]);
         bounds[2] = Math.max(bounds[2], itemBounds[2]);
@@ -562,9 +584,10 @@ function getMaxBounds(items) {
 }
 
 /* オブジェクトのバウンディングボックスを取得 / Get bounding box of a single object
-   visibleBounds を常に使用 / Always use visibleBounds */
-function getBounds(item) {
-    return item.visibleBounds;
+   usePreviewBounds=true なら visibleBounds（プレビュー境界: 塗り/線を含む）
+   usePreviewBounds=false なら geometricBounds（幾何境界: パス外形のみ） */
+function getBounds(item, usePreviewBounds) {
+    return usePreviewBounds ? item.visibleBounds : item.geometricBounds;
 }
 
 /* edittextに矢印キーで値を増減する機能を追加 / Add arrow key increment/decrement to edittext */
