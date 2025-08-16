@@ -9,7 +9,7 @@ Illustrator環境設定ユーティリティ
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/PresetManager.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/PresetManager.jsx
 
 ### 概要：
 
@@ -43,7 +43,7 @@ Illustrator Preferences Utility
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/PresetManager.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/PresetManager.jsx
 
 ### Overview:
 

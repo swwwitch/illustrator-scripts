@@ -241,6 +241,7 @@ var LABELS = {
 };
 
 // 既定候補（ファイル未提供時のフォールバック）/ Default candidates (fallback)
+
 var DEFAULT_CANDIDATES = [{
         label: "オープンパス",
         path: "オープンパス.ai",
@@ -262,6 +263,31 @@ var DEFAULT_CANDIDATES = [{
         category: "フォント"
     }
 ];
+
+/* カテゴリ名の正規化 / Normalize category label (JP/EN legacy variants) */
+function normalizeCategory(raw) {
+    // Defensive normalization
+    var s = String(raw != null ? raw : '').toLowerCase();
+    // Remove spaces and common separators for comparison
+    var compact = s.replace(/\s+/g, '').replace(/[／\/|]/g, '/');
+
+    // Heuristics: treat anything that looks like "font(s)" or contains the JP word as Fonts
+    var isFonts = /font/.test(compact) || /\u30d5\u30a9\u30f3\u30c8/.test(raw) || /\u30d5\u30a9\u30f3\u30c4/.test(raw) || /\u30d5\u30a9\u30f3\u30c8\u985e/.test(raw) || /\u30d5\u30a9\u30f3\u30c8s?/.test(compact);
+    if (isFonts) return 'フォント';
+
+    // English legacy labels for the other bucket → unify
+    // e.g., "style", "styles", "brush", "symbol", any combination
+    var isStyleBrushSymbol = /style|brush|symbol/.test(compact);
+    if (isStyleBrushSymbol) return 'スタイル／ブラシ／シンボル';
+
+    // Japanese variants that should collapse to Style/Brush/Symbol
+    if (/\u30b9\u30bf\u30a4\u30eb/.test(raw) || /\u30d6\u30e9\u30b7/.test(raw) || /\u30b7\u30f3\u30dc\u30eb/.test(raw)) {
+        return 'スタイル／ブラシ／シンボル';
+    }
+
+    // Fallback: default bucket is Style/Brush/Symbol
+    return 'スタイル／ブラシ／シンボル';
+}
 
 /* 取り込み先レイヤーを取得 / Get or create the destination layer (create if missing) */
 // - 名前: "// _imported"
