@@ -1,6 +1,8 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+#targetengine "DialogEngine"
+
 /*
 
 ### スクリプト名：
@@ -52,6 +54,7 @@ https://note.com/dtp_tranist/n/n15d3c6c5a1e5
 - v1.4 (20250713) : 矢印キーによる値変更機能を追加、UI改善
 - v1.5 (20250715) : 上下・左右個別に設定できるように
 - v1.6 (20250716) : テキストを含む場合、実行時にアウトライン化して再計測
+- v1.7 (20250717) : プレビュー境界チェックボックスを追加
 
 ---
 
@@ -87,10 +90,11 @@ FitArtboardWithMargin.jsx
 - v1.4 (20250713): Added arrow key value change feature, UI improvements
 - v1.5 (20250715): Enabled separate settings for vertical and horizontal margins
 - v1.6 (20250716): Outlines text at runtime for accurate measurement
+- v1.7 (20250717): Added preview bounds checkbox
 
 */
 
-var SCRIPT_VERSION = "v1.6";
+var SCRIPT_VERSION = "v1.7";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -117,6 +121,24 @@ var LABELS = {
     errorOccurred: { ja: "エラーが発生しました: ", en: "An error occurred: " }
 };
 
+
+/*
+共通エンジン名を使用 / Use a common engine name
+複数スクリプト間で位置記憶を共有しつつ、key で保存先を分離します。
+Share session state across scripts; separate each dialog by key.
+*/
+function _getSavedLoc(key){ return $.global[key] && $.global[key].length === 2 ? $.global[key] : null; }
+function _setSavedLoc(key, loc){ $.global[key] = [loc[0], loc[1]]; }
+function _clampToScreen(loc){
+    try {
+        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0,0,1920,1080];
+        var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
+        var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
+        return [x, y];
+    } catch (e) { return loc; }
+}
+
+
 var offsetX = 300;
 var dialogOpacity = 0.95;
 
@@ -125,6 +147,29 @@ var dialogOpacity = 0.95;
 */
 function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+    // ---- Dialog position persistence / 位置の記憶 ----
+    var dlgPositionKey = "__FitArtboardWithMargin_Dialog"; // 固有キー / unique key for this dialog
+    if ($.global[dlgPositionKey] === undefined) $.global[dlgPositionKey] = null; // ensure slot
+    var __savedLoc = _getSavedLoc(dlgPositionKey);
+
+    // apply saved location (fallback to existing centering/offset if none)
+    if (__savedLoc) {
+        dlg.onShow = (function(prev){
+            return function(){
+                try { if (typeof prev === 'function') prev(); } catch(_) {}
+                dlg.location = _clampToScreen(__savedLoc);
+            };
+        })(dlg.onShow);
+    }
+
+    // save on move
+    var __saveDlgLoc = function(){ _setSavedLoc(dlgPositionKey, [dlg.location[0], dlg.location[1]]); };
+    dlg.onMove = (function(prev){
+        return function(){
+            try { if (typeof prev === 'function') prev(); } catch(_) {}
+            __saveDlgLoc();
+        };
+    })(dlg.onMove);
     /* ダイアログ位置と不透明度のカスタマイズ / Customize dialog offset and opacity */
 
     function shiftDialogPosition(dlg, offsetX, offsetY) {
@@ -148,7 +193,10 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
     }
 
     setDialogOpacity(dlg, dialogOpacity);
-    shiftDialogPosition(dlg, offsetX, 0);
+    if (!__savedLoc) {
+        // 初回のみセンターからのオフセットを適用 / Apply offset only on first run (no saved location)
+        shiftDialogPosition(dlg, offsetX, 0);
+    }
     /* ダイアログ位置と不透明度のカスタマイズ 終了 / End dialog offset and opacity customization */
 
     dlg.orientation = "column";
@@ -326,7 +374,7 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
     // 最下部（ボタンの上）に配置するチェックボックス / Checkbox above buttons at the bottom
     var previewBoundsCheckbox = dlg.add("checkbox", undefined, LABELS.previewBounds[lang]);
     previewBoundsCheckbox.alignment = "left";
-    previewBoundsCheckbox.value = false; // ロジックは追って / logic to be added later
+    previewBoundsCheckbox.value = true; // デフォルトON / default ON
     previewBoundsCheckbox.margins = [0, 5, 0, 0];
     // チェック状態の変更でプレビューを更新 / Refresh preview when checkbox toggled
     previewBoundsCheckbox.onClick = function () {
@@ -367,6 +415,25 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
         app.redraw();
         dlg.close();
     };
+
+    // persist location on close
+    okBtn.onClick = (function(prev){
+        return function(){
+            try { __saveDlgLoc(); } catch(_) {}
+            if (typeof prev === 'function') return prev();
+            dlg.close(1);
+        };
+    })(okBtn.onClick);
+
+    if (typeof cancelBtn !== 'undefined' && cancelBtn) {
+        cancelBtn.onClick = (function(prev){
+            return function(){
+                try { __saveDlgLoc(); } catch(_) {}
+                if (typeof prev === 'function') return prev();
+                dlg.close(0);
+            };
+        })(cancelBtn.onClick);
+    }
     updatePreview(inputV.text, inputH.text);
     dlg.show();
     return result;
