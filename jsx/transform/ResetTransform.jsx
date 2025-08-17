@@ -164,6 +164,10 @@ var LABELS = {
             ja: "縦横比",
             en: "Aspect Ratio"
         },
+        flip: {
+            ja: "反転",
+            en: "Flip"
+        },
         scale100: {
             ja: "スケール",
             en: "Scale"
@@ -372,11 +376,13 @@ function showOptionsDialog() {
     var cbRotate = pnlReset.add('checkbox', undefined, LABELS.checks.rotate[lang]);
     var cbSkew = pnlReset.add('checkbox', undefined, LABELS.checks.skew[lang]);
     var cbRatio = pnlReset.add('checkbox', undefined, LABELS.checks.ratio[lang]);
+    var cbFlip  = pnlReset.add('checkbox', undefined, LABELS.checks.flip[lang]);
     var cbScale = pnlReset.add('checkbox', undefined, LABELS.checks.scale100[lang]);
     cbRotate.value = (prefs.rotate !== false);
     cbSkew.value = (prefs.skew !== false);
-    cbScale.value = (prefs.scale !== false);
     cbRatio.value = true;
+    cbFlip.value = false;
+    cbScale.value = (prefs.scale !== false);
     // Add scale percent field + % label after cbScale
     var gScale = pnlReset.add('group');
     gScale.orientation = 'row';
@@ -414,6 +420,7 @@ function showOptionsDialog() {
     cbRotate.enabled = caps.placedOrRaster;
     cbSkew.enabled = caps.placedOrRaster;
     cbRatio.enabled = caps.placedOrRaster;
+    cbFlip.enabled = false; // temporarily disabled until logic is implemented
     cbScale.enabled = caps.placedOrRaster;
     etScale.enabled = caps.placedOrRaster && cbScale.value;
     stPercent.enabled = caps.placedOrRaster && cbScale.value;
@@ -433,6 +440,8 @@ function showOptionsDialog() {
             } catch (e) {}
         }
     });
+    // Hotkey: 'F' toggles Flip / Fキーで反転ON/OFF
+    addHotkeyToggle(dlg, 'F', cbFlip);
 
     /* Panel: Clip Group / クリップグループ */
     var pnlClipGroup = colLeft.add('panel', undefined, LABELS.panels.clip[lang]);
@@ -514,6 +523,7 @@ function showOptionsDialog() {
         rotate: cbRotate.value,
         skew: cbSkew.value,
         ratio: cbRatio.value,
+        flip: cbFlip.value,
         scale: cbScale.value,
         textRotate: cbTextRotate.value,
         textSkew: cbTextSkew.value,
