@@ -10,7 +10,7 @@ ResetTransform.jsx（回転／シアー／スケール／縦横比のリセッ�
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetTransform.jsx
 
 ### 概要：
 
@@ -39,6 +39,7 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### 更新履歴：
 
+- v1.5 (20250818) : 反転（上下／左右）の対応を追加
 - v1.4 (20250817) : クリップグループの縦横比（配置画像＋マスクパスへ同時適用）を実装。複合パス・ネストに対応し、変形の確実性を向上。
 - v1.3 (20250817) : 配置/ラスタの［縦横比］オプションを追加（100%/100% 基準の等比化、整数％丸め）。
 - v1.2 (20250816) : スケール％入力とホットキー、選択内容によるパネル自動ディム、安定化（atan2・EPS 集約）。
@@ -53,7 +54,7 @@ ResetTransform.jsx (Reset Rotate / Shear / Scale / Aspect Ratio)
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetTransform.jsx
 
 ### Overview:
 
@@ -83,6 +84,7 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### Changelog:
 
+- v1.5 (20250818): Added Flip (horizontal/vertical) support.
 - v1.4 (20250817): Implemented Clip Group aspect-ratio equalization (applies same delta to placed image + clipping path). Added nested/compound support and improved robustness.
 - v1.3 (20250817): Added Placed/Raster "Aspect Ratio" option (equalization with integer rounding).
 - v1.2 (20250816): Added Scale % input & hotkeys, selection-aware panel dimming, stability improvements (atan2 & EPS consolidation).
@@ -91,7 +93,7 @@ https://github.com/swwwitch/illustrator-scripts
 
 */
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 var CONFIG = {
     rectSnapMin: 0.5, // degrees
@@ -100,15 +102,23 @@ var CONFIG = {
 };
 
 // --- Dialog position memory helpers (shared across scripts via targetengine) ---
-function _getSavedLoc(key){ return $.global[key] && $.global[key].length === 2 ? $.global[key] : null; }
-function _setSavedLoc(key, loc){ $.global[key] = [loc[0], loc[1]]; }
-function _clampToScreen(loc){
+function _getSavedLoc(key) {
+    return $.global[key] && $.global[key].length === 2 ? $.global[key] : null;
+}
+
+function _setSavedLoc(key, loc) {
+    $.global[key] = [loc[0], loc[1]];
+}
+
+function _clampToScreen(loc) {
     try {
-        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0,0,1920,1080];
+        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0, 0, 1920, 1080];
         var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
         var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
         return [x, y];
-    } catch (e) { return loc; }
+    } catch (e) {
+        return loc;
+    }
 }
 // A unique storage key for this script's main dialog
 var DLG_STORE_KEY = "__ResetTransform_OptionsDialog";
@@ -332,20 +342,22 @@ function showOptionsDialog() {
     shiftDialogPosition(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
 
     // Override onShow to restore last position (or apply first-run offset)
-    (function(){
+    (function() {
         var saved = _getSavedLoc(DLG_STORE_KEY);
-        dlg.onShow = function(){
+        dlg.onShow = function() {
             try {
                 if (saved) {
                     dlg.location = _clampToScreen(saved);
                 } else {
                     dlg.location = [dlg.location[0] + DIALOG_OFFSET_X, dlg.location[1] + DIALOG_OFFSET_Y];
                 }
-            } catch(e) {}
+            } catch (e) {}
         };
         // Save whenever the dialog is moved
-        dlg.onMove = function(){
-            try { _setSavedLoc(DLG_STORE_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {}
+        dlg.onMove = function() {
+            try {
+                _setSavedLoc(DLG_STORE_KEY, [dlg.location[0], dlg.location[1]]);
+            } catch (e) {}
         };
     })();
 
@@ -376,12 +388,12 @@ function showOptionsDialog() {
     var cbRotate = pnlReset.add('checkbox', undefined, LABELS.checks.rotate[lang]);
     var cbSkew = pnlReset.add('checkbox', undefined, LABELS.checks.skew[lang]);
     var cbRatio = pnlReset.add('checkbox', undefined, LABELS.checks.ratio[lang]);
-    var cbFlip  = pnlReset.add('checkbox', undefined, LABELS.checks.flip[lang]);
+    var cbFlip = pnlReset.add('checkbox', undefined, LABELS.checks.flip[lang]);
     var cbScale = pnlReset.add('checkbox', undefined, LABELS.checks.scale100[lang]);
     cbRotate.value = (prefs.rotate !== false);
     cbSkew.value = (prefs.skew !== false);
     cbRatio.value = true;
-    cbFlip.value = false;
+    cbFlip.value = true;
     cbScale.value = (prefs.scale !== false);
     // Add scale percent field + % label after cbScale
     var gScale = pnlReset.add('group');
@@ -420,7 +432,7 @@ function showOptionsDialog() {
     cbRotate.enabled = caps.placedOrRaster;
     cbSkew.enabled = caps.placedOrRaster;
     cbRatio.enabled = caps.placedOrRaster;
-    cbFlip.enabled = false; // temporarily disabled until logic is implemented
+    cbFlip.enabled = caps.placedOrRaster;
     cbScale.enabled = caps.placedOrRaster;
     etScale.enabled = caps.placedOrRaster && cbScale.value;
     stPercent.enabled = caps.placedOrRaster && cbScale.value;
@@ -451,12 +463,15 @@ function showOptionsDialog() {
     pnlClipGroup.margins = [15, 20, 15, 10];
     var cbClipGroupRotate = pnlClipGroup.add('checkbox', undefined, LABELS.checks.rotate[lang]);
     var cbClipGroupRatio = pnlClipGroup.add('checkbox', undefined, LABELS.checks.ratio[lang]);
-    cbClipGroupRatio.value = true; // default ON
-
+    var cbClipGroupFlip = pnlClipGroup.add('checkbox', undefined, LABELS.checks.flip[lang]);
     cbClipGroupRotate.value = true; // default ON
+    cbClipGroupRatio.value = true; // default ON
+    cbClipGroupFlip.value = true; // default ON
+
     pnlClipGroup.enabled = caps.clipGroup;
     cbClipGroupRotate.enabled = caps.clipGroup;
     cbClipGroupRatio.enabled = caps.clipGroup;
+    cbClipGroupFlip.enabled = caps.clipGroup;
 
     /* Panel: Text / テキスト */
     var pnlText = colRight.add('panel', undefined, LABELS.panels.text[lang]);
@@ -512,10 +527,20 @@ function showOptionsDialog() {
     // Persist position on button clicks (OK / Cancel)
     try {
         var btnCancel = gBtns.children[0];
-        var btnOk     = gBtns.children[1];
-        btnOk.onClick = function(){ try { _setSavedLoc(DLG_STORE_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {} dlg.close(1); };
-        btnCancel.onClick = function(){ try { _setSavedLoc(DLG_STORE_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {} dlg.close(0); };
-    } catch(e) {}
+        var btnOk = gBtns.children[1];
+        btnOk.onClick = function() {
+            try {
+                _setSavedLoc(DLG_STORE_KEY, [dlg.location[0], dlg.location[1]]);
+            } catch (e) {}
+            dlg.close(1);
+        };
+        btnCancel.onClick = function() {
+            try {
+                _setSavedLoc(DLG_STORE_KEY, [dlg.location[0], dlg.location[1]]);
+            } catch (e) {}
+            dlg.close(0);
+        };
+    } catch (e) {}
 
     if (dlg.show() !== 1) return null; // cancelled
 
@@ -532,6 +557,7 @@ function showOptionsDialog() {
         lineRotate: cbLineRotate.value,
         clipGroupRotate: cbClipGroupRotate.value,
         clipGroupRatio: cbClipGroupRatio.value,
+        clipGroupFlip: cbClipGroupFlip.value,
         scalePercent: (function() {
             var n = parseFloat(etScale.text, 10);
             if (isNaN(n)) n = 100;
@@ -587,13 +613,26 @@ function makeHandlers(opts) {
 
     function handleClipGroup(item) {
         var did = false;
-        if (opts.clipGroupRotate && item.clipped === true) {
-            var r1 = processClippedGroupChildren(item, opts);
-            if (r1) did = true;
-        }
-        if (opts.clipGroupRatio && item.clipped === true) {
-            var r2 = processClippedGroupAspect(item);
-            if (r2) did = true;
+        if (item.clipped === true) {
+            // 1) 回転を正す / Fix rotation first
+            if (opts.clipGroupRotate) {
+                var r1 = processClippedGroupChildren(item, opts);
+                if (r1) did = true;
+            }
+            // 1.5) BBoxリセット / Reset BBox before flip detection
+            if (opts.clipGroupRotate && opts.clipGroupFlip) {
+                resetBBoxOnly(item);
+            }
+            // 2) 反転を調整 / Then handle flip
+            if (opts.clipGroupFlip) {
+                var rF = processClippedGroupFlip(item);
+                if (rF) did = true;
+            }
+            // 3) 縦横比の等比化 / Aspect ratio
+            if (opts.clipGroupRatio) {
+                var r2 = processClippedGroupAspect(item);
+                if (r2) did = true;
+            }
         }
         return did ? res(1, 0, 0, 0) : res(0, 1, 0, 0);
     }
@@ -698,29 +737,15 @@ function getAreaSafe(it) {
 
 /* Clip group: child-wise reset (rotate only) / クリップグループ：子要素単位の回転リセット */
 function processClippedGroupChildren(groupItem, opts) {
-    /* Find placed/raster & clip-path by maximum area */
-    var placedOrRaster = null,
-        prArea = -1;
-    var clipPath = null,
-        cpArea = -1;
-    for (var i = 0; i < groupItem.pageItems.length; i++) {
-        var it = groupItem.pageItems[i];
-        if (!it) continue;
-        var t = it.typename;
-        if (t === 'PlacedItem' || t === 'RasterItem') {
-            var a = getAreaSafe(it);
-            if (a > prArea) {
-                placedOrRaster = it;
-                prArea = a;
-            }
-        } else if (t === 'PathItem' && it.clipping) {
-            var b = getAreaSafe(it);
-            if (b > cpArea) {
-                clipPath = it;
-                cpArea = b;
-            }
-        }
-    }
+    // Ensure BBox is up-to-date before reading matrices
+    resetBBoxOnly(groupItem);
+
+    // Recursively find representative placed/raster and clipping path
+    var found = findPlacedAndClipRecursive(groupItem);
+    var placedOrRaster = found.placed;
+    var clipPath = found.clip;
+    var clipTarget = resolveClipTransformTarget(clipPath);
+
     // Compute a shared rotation delta from the representative child
     var rotDelta = 0;
     var haveDelta = false;
@@ -729,27 +754,18 @@ function processClippedGroupChildren(groupItem, opts) {
         var psign = (placedOrRaster.typename === 'RasterItem') ? -1 : 1;
         rotDelta = getRotationAngleDeg(pm.mValueA, pm.mValueB, psign);
         haveDelta = Math.abs(rotDelta) > 0.0001;
-    } else if (clipPath && hasMatrix(clipPath)) {
-        var cm = clipPath.matrix;
+    } else if (clipTarget && hasMatrix(clipTarget)) {
+        var cm = clipTarget.matrix;
         rotDelta = getRotationAngleDeg(cm.mValueA, cm.mValueB, +1);
         haveDelta = Math.abs(rotDelta) > 0.0001;
     }
+
     var did = false;
-    if (placedOrRaster && opts.clipGroupRotate) {
-        // Placed/Raster: normal rotation reset
-        resetPlacedOrRasterRotationAndShear(placedOrRaster, true, false);
-        did = true;
-    }
-    if (clipPath && opts.clipGroupRotate) {
-        if (hasMatrix(clipPath)) {
-            // Regular path rotation reset when matrix available
-            resetPathRotationAndShear(clipPath, true, false);
-        } else if (haveDelta) {
-            // Fallback: rotate by the same delta as representative child
-            withBBoxResetAndRecenter(clipPath, function() {
-                rotateBy(clipPath, rotDelta);
-            });
-        }
+    if (opts.clipGroupRotate && haveDelta) {
+        // Rotate the GROUP once so children keep their relative alignment
+        withBBoxResetAndRecenter(groupItem, function () {
+            rotateBy(groupItem, rotDelta);
+        });
         did = true;
     }
     return did;
@@ -852,6 +868,15 @@ function withUnlockedVisible(item, fn) {
             if (wasHidden) item.hidden = true;
         } catch (e) {}
     }
+}
+
+// Reset only the bounding box for a given item (no recenter) / バウンディングボックスのみをリセット（位置は維持）
+function resetBBoxOnly(item) {
+    try {
+        app.selection = null;
+        app.selection = [item];
+        app.executeMenuCommand("AI Reset Bounding Box");
+    } catch (e) {}
 }
 
 // Resolve actual transform target for a clipping path: if CompoundPathItem, use its clipping PathItem
@@ -1140,6 +1165,57 @@ function hasMatrix(obj) {
     }
 }
 
+// --- Flip detection helpers (no rotation/shear assumed) / 反転検出ヘルパー（回転・シアーなし前提） ---
+function isFlippedHorizontal(mat) {
+    // 左右反転: mValueA が負
+    return mat && mat.mValueA < 0;
+}
+// NOTE: Placed/Raster はデフォルトで mValueD が負になり得るため、上下反転は mValueD &gt; 0 を基準に判定
+function isFlippedVertical(mat) {
+    // 上下反転: mValueD が正（Placed/Raster の基準に合わせる）
+    return mat && mat.mValueD > 0;
+}
+
+// --- Flip correction operations / 反転解除処理 ---
+function unflipHorizontal(item) {
+    if (!item) return;
+    item.transform(
+        app.getScaleMatrix(-100, 100), // 左右のみ反転を打ち消す
+        true, // changePositions
+        true, // changeFillPatterns
+        true, // changeFillGradients
+        true, // changeStrokePattern
+        true, // changeLineWidths
+        Transformation.CENTER
+    );
+}
+
+function unflipVertical(item) {
+    if (!item) return;
+    item.transform(
+        app.getScaleMatrix(100, -100), // 上下のみ反転を打ち消す
+        true, // changePositions
+        true, // changeFillPatterns
+        true, // changeFillGradients
+        true, // changeStrokePattern
+        true, // changeLineWidths
+        Transformation.CENTER
+    );
+}
+
+function unflipBoth(item) {
+    if (!item) return;
+    item.transform(
+        app.getScaleMatrix(-100, -100), // 左右・上下の両反転を同時に打ち消す
+        true, // changePositions
+        true, // changeFillPatterns
+        true, // changeFillGradients
+        true, // changeStrokePattern
+        true, // changeLineWidths
+        Transformation.CENTER
+    );
+}
+
 function cancelRotation(item, sign) {
     if (!hasMatrix(item)) return 0; // safety: some items may not expose matrix
     var a = item.matrix.mValueA;
@@ -1198,8 +1274,12 @@ function resetTextScaleRatio(item) {
         // Also set legacy attributes for robustness across builds
         var ca = item.textRange.characterAttributes;
         if (ca) {
-            try { ca.horizontalScale = 100; } catch (e1) {}
-            try { ca.verticalScale   = 100; } catch (e2) {}
+            try {
+                ca.horizontalScale = 100;
+            } catch (e1) {}
+            try {
+                ca.verticalScale = 100;
+            } catch (e2) {}
         }
         // Pass 2: re-apply to kill residual rounding noise
         item.textRange.scaling = [1, 1];
@@ -1317,12 +1397,28 @@ function setScaleTo100(item, objectType, opts) {
     var sign = (objectType === "RasterItem") ? -1 : 1;
     if (!opts) opts = {};
     // Fast path: do nothing if no operations are enabled
-    if (!opts.rotate && !opts.skew && !opts.scale && !opts.ratio) return;
+    if (!opts.rotate && !opts.skew && !opts.scale && !opts.ratio && !opts.flip) return;
 
     withBBoxResetAndRecenter(item, function() {
         // 1) Rotate first (stabilize orientation)
         if (opts.rotate && hasMatrix(item)) {
             cancelRotation(item, sign);
+        }
+
+        // 1.5) Flip reset (assumes no rotation/shear for detection; run **after** rotation cancel)
+        if (opts.flip && hasMatrix(item)) {
+            try {
+                var mNow = item.matrix;
+                var fh = isFlippedHorizontal(mNow);
+                var fv = isFlippedVertical(mNow);
+                if (fh && fv) {
+                    unflipBoth(item);
+                } else if (fh) {
+                    unflipHorizontal(item);
+                } else if (fv) {
+                    unflipVertical(item);
+                }
+            } catch (e) {}
         }
 
         // 2) Equalize aspect ratio (if requested)
@@ -1353,6 +1449,53 @@ function setScaleTo100(item, objectType, opts) {
         }
     });
     // When rotate is ON, we exit with rotation at 0°. If OFF, original rotation is preserved.
+}
+
+
+// Clip group: flip reset for placed/raster & clipping path
+// クリップグループ：配置画像＋マスクパスの反転を同時に解除
+function processClippedGroupFlip(groupItem) {
+    // Ensure matrices reflect post-rotation state / 回転補正後の行列で正しく判定するためにBBoxを更新
+    resetBBoxOnly(groupItem);
+    var found = findPlacedAndClipRecursive(groupItem);
+    var placedOrRaster = found.placed;
+    var clipPath = found.clip;
+    var clipTarget = resolveClipTransformTarget(clipPath);
+    var haveAny = !!(placedOrRaster || clipTarget);
+    if (!haveAny) return false;
+
+    // Prefer detection from placed/raster when available; otherwise fall back to clip
+    var mat = null,
+        src = null;
+    if (placedOrRaster && hasMatrix(placedOrRaster)) {
+        mat = placedOrRaster.matrix;
+        src = 'placed';
+    } else if (clipTarget && hasMatrix(clipTarget)) {
+        mat = clipTarget.matrix;
+        src = 'clip';
+    }
+    if (!mat) return false;
+
+    var fh = isFlippedHorizontal(mat);
+    var fv = isFlippedVertical(mat);
+    if (!fh && !fv) return false;
+
+    // Apply identical unflip to both placed and clip (if present)
+    function applyUnflip(it) {
+        if (!it) return;
+        withUnlockedVisible(it, function() {
+            if (fh && fv) {
+                unflipBoth(it);
+            } else if (fh) {
+                unflipHorizontal(it);
+            } else if (fv) {
+                unflipVertical(it);
+            }
+        });
+    }
+    applyUnflip(placedOrRaster);
+    applyUnflip(clipTarget);
+    return true;
 }
 
 main();
