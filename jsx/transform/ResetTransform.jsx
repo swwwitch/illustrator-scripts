@@ -2,20 +2,6 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "DialogEngine"
 
-// --- Dialog position memory helpers (shared across scripts via targetengine) ---
-function _getSavedLoc(key){ return $.global[key] && $.global[key].length === 2 ? $.global[key] : null; }
-function _setSavedLoc(key, loc){ $.global[key] = [loc[0], loc[1]]; }
-function _clampToScreen(loc){
-    try {
-        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0,0,1920,1080];
-        var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
-        var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
-        return [x, y];
-    } catch (e) { return loc; }
-}
-// A unique storage key for this script's main dialog
-var DLG_STORE_KEY = "__ResetTransform_OptionsDialog";
-
 /*
 
 ### スクリプト名：
@@ -112,6 +98,20 @@ var CONFIG = {
     rectSnapMax: 10, // degrees
     eps: 1e-8 // numerical epsilon for matrix ops
 };
+
+// --- Dialog position memory helpers (shared across scripts via targetengine) ---
+function _getSavedLoc(key){ return $.global[key] && $.global[key].length === 2 ? $.global[key] : null; }
+function _setSavedLoc(key, loc){ $.global[key] = [loc[0], loc[1]]; }
+function _clampToScreen(loc){
+    try {
+        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0,0,1920,1080];
+        var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
+        var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
+        return [x, y];
+    } catch (e) { return loc; }
+}
+// A unique storage key for this script's main dialog
+var DLG_STORE_KEY = "__ResetTransform_OptionsDialog";
 
 
 /*
@@ -1182,16 +1182,53 @@ function resetTextRotation(item) {
 
 function resetTextScaleRatio(item) {
     if (!item || !item.textRange) return; // safe guard
-    // 水平・垂直スケーリングを 100% に（= [1, 1]）
-    item.textRange.scaling = [1, 1];
+    try {
+        // Pass 1: primary API
+        item.textRange.scaling = [1, 1];
+        // Also set legacy attributes for robustness across builds
+        var ca = item.textRange.characterAttributes;
+        if (ca) {
+            try { ca.horizontalScale = 100; } catch (e1) {}
+            try { ca.verticalScale   = 100; } catch (e2) {}
+        }
+        // Pass 2: re-apply to kill residual rounding noise
+        item.textRange.scaling = [1, 1];
+    } catch (e) {}
 }
 
 function resetTextOps(item, doRot, doShear, doRatio) {
     // One-shot BBox + recenter for text ops / テキスト処理を1回のBBoxでまとめて実行
     withBBoxResetAndRecenter(item, function() {
+        // 1) Rotate first (stabilize orientation for text) / まず回転を0°へ
         if (doRot) cancelRotation(item, -1); // Text rotation (Raster-like sign)
-        if (doShear) removeSkewOnly(item); // Remove shear
-        if (doRatio) resetTextScaleRatio(item); // Reset H/V ratio
+
+        // 2) Shear removal (before ratio) / シアー除去を先に
+        if (doShear) {
+            removeSkewOnly(item);
+            // Safety: minute residual shear → remove once more
+            try {
+                if (hasMatrix(item)) {
+                    var m = item.matrix;
+                    var d = decomposeQR(m.mValueA, m.mValueB, m.mValueC, m.mValueD);
+                    if (Math.abs(d.shear) > 1e-6) removeSkewOnly(item);
+                }
+            } catch (e) {}
+        }
+
+        // 3) Ratio equalization LAST / 比率（水平・垂直）を最後に
+        if (doRatio) {
+            resetTextScaleRatio(item); // pass 1
+            // Best-effort verification and second pass
+            try {
+                var sc = item.textRange && item.textRange.scaling;
+                if (!sc || Math.abs(sc[0] - 1) > 1e-6 || Math.abs(sc[1] - 1) > 1e-6) {
+                    resetTextScaleRatio(item); // pass 2
+                }
+            } catch (e) {
+                // Fallback: second pass anyway
+                resetTextScaleRatio(item);
+            }
+        }
     });
 }
 
@@ -1273,41 +1310,39 @@ function setScaleTo100(item, objectType, opts) {
     if (!opts.rotate && !opts.skew && !opts.scale && !opts.ratio) return;
 
     withBBoxResetAndRecenter(item, function() {
+        // 1) Rotate first (stabilize orientation)
         if (opts.rotate && hasMatrix(item)) {
-            // 水平化（回転=0）
             cancelRotation(item, sign);
         }
 
-        // --- Shear first (if requested), using stable route ---
-        if (opts.skew) {
-            if (opts.rotate) {
-                if (opts.scale) {
-                    // 回転＋シアー＋スケール：一括反転で安定（スケールも100%に戻す）
-                    cancelSkew(item, sign);
-                } else {
-                    // スケールOFF：スケールを変えずにシアーだけ除去
-                    removeSkewOnly(item);
-                }
-            } else {
-                // 回転なし：スケールを保持したままシアーのみ除去
-                removeSkewOnly(item);
-            }
-        }
-
-        // --- Aspect Ratio handling (reset H/V scales to 100% without changing overall percent) ---
-        if (opts.ratio && !opts.scale) {
-            // Make horizontal/vertical scales equal by lifting the smaller to the larger
+        // 2) Equalize aspect ratio (if requested)
+        //    Do this BEFORE absolute scaling so that uniformity survives normalization
+        if (opts.ratio) {
             equalizeScaleToMax(item);
         }
 
-        // --- Scale handling (absolute percent) ---
+        // 3) Absolute scale handling (normalize to 100% → apply desired %)
         if (opts.scale) {
-            // 目標が絶対%なので、まずスケールを100%に正規化してから所望%を適用
             normalizeScaleOnly(item);
             applyUniformScalePercent(item, opts.scalePercent);
         }
+
+        // 4) Shear removal LAST to eliminate any tiny shear reintroduced by the above
+        if (opts.skew) {
+            removeSkewOnly(item);
+            // Safety: if a minute shear remains due to numeric noise, remove once more
+            try {
+                if (hasMatrix(item)) {
+                    var m = item.matrix;
+                    var d = decomposeQR(m.mValueA, m.mValueB, m.mValueC, m.mValueD);
+                    if (Math.abs(d.shear) > 1e-6) {
+                        removeSkewOnly(item);
+                    }
+                }
+            } catch (e) {}
+        }
     });
-    // 回転ONのときは“回転0のまま”終了。OFFなら何もしない（元の回転を保持）。
+    // When rotate is ON, we exit with rotation at 0°. If OFF, original rotation is preserved.
 }
 
 main();
