@@ -11,17 +11,17 @@ ResetTransform.jsx（回転／シアー／スケールのリセット）
 https://github.com/swwwitch/illustrator-scripts/blob/master/transform/misc/ResetTransform.jsx
 
 ### 概要：
-
+更新日: 2025-08-17
 - 配置画像・テキスト・長方形（パス）・クリップグループ・直線パスに対して、回転／シアー（せん断）／スケールを安全にリセット
 - BBox リセットと左上基準の位置復元により、見た目の位置を安定して維持
 
 ### 主な機能：
 
-- 配置画像／ラスタ：回転・シアー・スケール（指定％）の個別／同時リセット
+- 配置画像／ラスタ：回転・シアー・縦横比（100%/100%）・スケール（指定％）の個別／同時リセット
 - テキスト：回転・シアー・水平/垂直比率（100%）のリセット
 - 長方形（4点パス）：近傍角度のみスナップして回転0°/90°へ補正
 - 直線（2点パス）：近傍軸（0°/90°）へスナップして補正
-- クリップグループ：子要素（配置/ラスタ、クリップパス）の回転のみリセット（シアーは対象外）
+- クリップグループ：子要素（配置/ラスタ、クリップパス）の回転リセット＋縦横比（UIのみ）
 - UI：2カラム、対象別パネル、ホットキー、数値入力（↑↓/Shift+↑↓）、ダイアログ位置/透明度
 
 ### 処理の流れ：
@@ -45,9 +45,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/transform/misc/Reset
 
 ### 更新履歴：
 
-- v1.0 (20250805) : 初期バージョン（基本機能、ダイアログ、配置/ラスタ/テキスト/長方形対応）
-- v1.1 (20250810) : クリップグループ回転の子要素処理、2カラムUI、最大面積代表子選定
+- v1.3 (20250817): Added Placed/Raster "Aspect Ratio" option (100%/100%) in UI and processing; Clip Group "Aspect Ratio" option (UI only)
 - v1.2 (20250816) : スケール％入力とホットキー、選択内容によるパネル自動ディム、安定化（atan2・EPS 集約）
+- v1.1 (20250810) : クリップグループ回転の子要素処理、2カラムUI、最大面積代表子選定
+- v1.0 (20250805) : 初期バージョン（基本機能、ダイアログ、配置/ラスタ/テキスト/長方形対応）
 
 ---
 
@@ -60,17 +61,17 @@ ResetTransform.jsx (Reset Rotate / Shear / Scale)
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetTransform.jsx
 
 ### Overview:
-
+Updated: 2025-08-17
 - Safely reset rotation/shear/scale for Placed Images, Text, Rectangles (paths), Clipping Groups, and straight Paths
 - Keeps visual position stable via BBox reset and top-left recentering
 
 ### Key Features:
 
-- Placed/Raster: reset rotation, shear, and scale (target percent) individually or together
+- Placed/Raster: reset rotation, shear, aspect ratio (100%/100%), and scale (target percent) individually or together
 - Text: reset rotation, shear, and horizontal/vertical scaling ratios (100%)
 - Rectangle (4-point path): snap near angles to 0°/90°
 - Line (2-point path): snap to nearest axis (0°/90°)
-- Clip Group: reset rotation for children (placed/raster & clip path), shear excluded
+- Clip Group: reset rotation for children (placed/raster & clip path); aspect ratio option available (UI only)
 - UI: two-column panels per target, hotkeys, numeric nudge (↑↓/Shift+↑↓), dialog position/opacity
 
 ### Flow:
@@ -94,12 +95,13 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetT
 
 ### Changelog:
 
-- v1.0 (20250805): Initial release (core features, dialog, placed/raster/text/rect)
-- v1.1 (20250810): Clip group child-wise rotation, two-column UI, largest-area child picking
+- v1.3 (20250817): Added Placed/Raster "Aspect Ratio" option (100%/100%) in UI and processing; added Clip Group "Aspect Ratio" option (UI only)
 - v1.2 (20250816): Scale % input & hotkey, selection-aware panel dimming, stability (atan2 & EPS consolidation)
+- v1.1 (20250810): Clip group child-wise rotation, two-column UI, largest-area child picking
+- v1.0 (20250805): Initial release (core features, dialog, placed/raster/text/rect)
 */
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 var CONFIG = {
     rectSnapMin: 0.5, // degrees
@@ -153,6 +155,10 @@ var LABELS = {
         skew: {
             ja: "シアー",
             en: "Shear"
+        },
+        ratio: {
+            ja: "縦横比",
+            en: "Aspect Ratio"
         },
         scale100: {
             ja: "スケール",
@@ -248,7 +254,7 @@ function changeValueByArrowKey(editText) {
                 value = Math.ceil((value + 1) / delta) * delta;
                 event.preventDefault();
             } else if (event.keyName == "Down") {
-                value = Math.floor((value - 1) / delta) * delta;
+                value = Math.round((value - 1) / delta) * delta;
                 if (value < 0) value = 0;
                 event.preventDefault();
             }
@@ -291,7 +297,10 @@ function addHotkeyToggle(dialog, keyChar, checkbox, onToggle) {
     dialog.addEventListener('keydown', function(event) {
         var k = (event.keyName || '').toUpperCase();
         if (k === String(keyChar).toUpperCase()) {
-            if (!checkbox.enabled) { event.preventDefault(); return; }
+            if (!checkbox.enabled) {
+                event.preventDefault();
+                return;
+            }
             checkbox.value = !checkbox.value;
             if (typeof onToggle === 'function') onToggle(checkbox.value);
             event.preventDefault();
@@ -340,10 +349,12 @@ function showOptionsDialog() {
     pnlReset.margins = [15, 20, 15, 10];
     var cbRotate = pnlReset.add('checkbox', undefined, LABELS.checks.rotate[lang]);
     var cbSkew = pnlReset.add('checkbox', undefined, LABELS.checks.skew[lang]);
+    var cbRatio = pnlReset.add('checkbox', undefined, LABELS.checks.ratio[lang]);
     var cbScale = pnlReset.add('checkbox', undefined, LABELS.checks.scale100[lang]);
     cbRotate.value = (prefs.rotate !== false);
     cbSkew.value = (prefs.skew !== false);
     cbScale.value = (prefs.scale !== false);
+    cbRatio.value = true;
     // Add scale percent field + % label after cbScale
     var gScale = pnlReset.add('group');
     gScale.orientation = 'row';
@@ -363,7 +374,7 @@ function showOptionsDialog() {
         stPercent.enabled = on;
         if (on) {
             try {
-                etScale.active = true;                // focus
+                etScale.active = true; // focus
                 // select all text (best-effort across ScriptUI versions)
                 if (typeof etScale.select === 'function') {
                     etScale.select();
@@ -379,13 +390,14 @@ function showOptionsDialog() {
     // Enable state based on selection capabilities
     pnlReset.enabled = caps.placedOrRaster;
     cbRotate.enabled = caps.placedOrRaster;
-    cbSkew.enabled   = caps.placedOrRaster;
-    cbScale.enabled  = caps.placedOrRaster;
-    etScale.enabled  = caps.placedOrRaster && cbScale.value;
-    stPercent.enabled= caps.placedOrRaster && cbScale.value;
+    cbSkew.enabled = caps.placedOrRaster;
+    cbRatio.enabled = caps.placedOrRaster;
+    cbScale.enabled = caps.placedOrRaster;
+    etScale.enabled = caps.placedOrRaster && cbScale.value;
+    stPercent.enabled = caps.placedOrRaster && cbScale.value;
 
     // Hotkey: 'S' toggles Scale / SキーでスケールON/OFF
-    addHotkeyToggle(dlg, 'S', cbScale, function(enabled){
+    addHotkeyToggle(dlg, 'S', cbScale, function(enabled) {
         etScale.enabled = enabled;
         stPercent.enabled = enabled;
         if (enabled) {
@@ -407,10 +419,13 @@ function showOptionsDialog() {
     pnlClipGroup.alignChildren = 'left';
     pnlClipGroup.margins = [15, 20, 15, 10];
     var cbClipGroupRotate = pnlClipGroup.add('checkbox', undefined, LABELS.checks.rotate[lang]);
+    var cbClipGroupRatio = pnlClipGroup.add('checkbox', undefined, LABELS.checks.ratio[lang]);
+    cbClipGroupRatio.value = true; // default ON
 
     cbClipGroupRotate.value = true; // default ON
     pnlClipGroup.enabled = caps.clipGroup;
     cbClipGroupRotate.enabled = caps.clipGroup;
+    cbClipGroupRatio.enabled = caps.clipGroup;
 
     /* Panel: Text / テキスト */
     var pnlText = colRight.add('panel', undefined, LABELS.panels.text[lang]);
@@ -427,7 +442,7 @@ function showOptionsDialog() {
     cbTextScaleRatio.value = true;
     pnlText.enabled = caps.text;
     cbTextRotate.enabled = caps.text;
-    cbTextSkew.enabled   = caps.text;
+    cbTextSkew.enabled = caps.text;
     cbTextScaleRatio.enabled = caps.text;
 
     /* Panel: Rectangle (Path) / 長方形（パス） */
@@ -468,6 +483,7 @@ function showOptionsDialog() {
     var out = {
         rotate: cbRotate.value,
         skew: cbSkew.value,
+        ratio: cbRatio.value,
         scale: cbScale.value,
         textRotate: cbTextRotate.value,
         textSkew: cbTextSkew.value,
@@ -475,10 +491,12 @@ function showOptionsDialog() {
         rectRotate: cbRectRotate.value,
         lineRotate: cbLineRotate.value,
         clipGroupRotate: cbClipGroupRotate.value,
+        clipGroupRatio: cbClipGroupRatio.value,
         scalePercent: (function() {
             var n = parseFloat(etScale.text, 10);
             if (isNaN(n)) n = 100;
             if (n <= 0) n = 100;
+            n = Math.floor(n); // 整数％に統一（例：16.3 → 16）
             return n;
         })()
     };
@@ -520,12 +538,12 @@ function makeHandlers(opts) {
     }
 
     function handleLine(item) {
-    if (opts.lineRotate && !item.closed && item.pathPoints.length === 2) {
-        var ok = applyRotationCorrectionLine(item);
-        return ok ? res(1,0,0,0) : res(0,1,0,0);
+        if (opts.lineRotate && !item.closed && item.pathPoints.length === 2) {
+            var ok = applyRotationCorrectionLine(item);
+            return ok ? res(1, 0, 0, 0) : res(0, 1, 0, 0);
+        }
+        return res(0, 1, 0, 0);
     }
-    return res(0,1,0,0);
-}
 
     function handleClipGroup(item) {
         if (opts.clipGroupRotate && item.clipped === true) {
@@ -545,11 +563,11 @@ function makeHandlers(opts) {
 
     return {
         TextFrame: handleText,
-        PathItem: function(item){
+        PathItem: function(item) {
             if (!item.closed && item.pathPoints && item.pathPoints.length === 2) {
-                return handleLine(item);    // 直線（2点）なら直線用ハンドラ
+                return handleLine(item); // 直線（2点）なら直線用ハンドラ
             }
-            return handleRect(item);        // それ以外は長方形（4点）など既存処理
+            return handleRect(item); // それ以外は長方形（4点）など既存処理
         },
         GroupItem: handleClipGroup,
         PlacedItem: function(item) {
@@ -850,11 +868,27 @@ function removeSkewOnly(item) {
     applyDeltaToMatch(item, target);
 }
 
+
 function normalizeScaleOnly(item) {
     if (!item || !hasMatrix(item)) return;
     var m = item.matrix;
     var dec = decomposeQR(m.mValueA, m.mValueB, m.mValueC, m.mValueD);
     var target = buildFromQR(dec.q1x, dec.q1y, dec.q2x, dec.q2y, 1, 1, dec.shear);
+    applyDeltaToMatch(item, target);
+}
+
+// Make horizontal/vertical scales equal by lifting the smaller to the larger (preserving orientation/shear)
+function equalizeScaleToMax(item) {
+    if (!item || !hasMatrix(item)) return;
+    var m = item.matrix;
+    var dec = decomposeQR(m.mValueA, m.mValueB, m.mValueC, m.mValueD);
+    var u = Math.max(dec.sx, dec.sy); // choose the larger of current scales
+
+    // ▼追加：整数％にスナップ（例：16.321%→16%、16.3%→16%）
+    var uPercent = Math.round(u * 100); // 四捨五入（例：16.321%→16%、16.5%→17%）
+    u = uPercent / 100;
+
+    var target = buildFromQR(dec.q1x, dec.q1y, dec.q2x, dec.q2y, u, u, dec.shear);
     applyDeltaToMatch(item, target);
 }
 
@@ -982,21 +1016,33 @@ function applyRotationCorrectionLine(line) {
     var a = angleRad * 180 / Math.PI;
 
     // Compute minimal deltas to 0° (horizontal) and 90° (vertical)
-    function norm180(x){ while (x > 180) x -= 360; while (x < -180) x += 360; return x; }
-    function clamp90(x){ x = norm180(x); if (x > 90) x -= 180; if (x < -90) x += 180; return x; }
+    function norm180(x) {
+        while (x > 180) x -= 360;
+        while (x < -180) x += 360;
+        return x;
+    }
 
-    var d0  = clamp90(-a);       // rotate by this to reach 0°
-    var d90 = clamp90(90 - a);   // rotate by this to reach 90°
+    function clamp90(x) {
+        x = norm180(x);
+        if (x > 90) x -= 180;
+        if (x < -90) x += 180;
+        return x;
+    }
 
-    var abs0  = Math.abs(d0);
+    var d0 = clamp90(-a); // rotate by this to reach 0°
+    var d90 = clamp90(90 - a); // rotate by this to reach 90°
+
+    var abs0 = Math.abs(d0);
     var abs90 = Math.abs(d90);
-    var dist  = Math.min(abs0, abs90);
+    var dist = Math.min(abs0, abs90);
 
     // Optional: only snap when reasonably close to axis, mirroring rectangle rule
     if (dist < CONFIG.rectSnapMin || dist > CONFIG.rectSnapMax) return false;
 
     var rot = (abs0 <= abs90) ? d0 : d90;
-    withBBoxResetAndRecenter(line, function(){ rotateBy(line, rot); });
+    withBBoxResetAndRecenter(line, function() {
+        rotateBy(line, rot);
+    });
     return true;
 }
 
@@ -1004,7 +1050,7 @@ function setScaleTo100(item, objectType, opts) {
     var sign = (objectType === "RasterItem") ? -1 : 1;
     if (!opts) opts = {};
     // Fast path: do nothing if no operations are enabled
-    if (!opts.rotate && !opts.skew && !opts.scale) return;
+    if (!opts.rotate && !opts.skew && !opts.scale && !opts.ratio) return;
 
     withBBoxResetAndRecenter(item, function() {
         if (opts.rotate && hasMatrix(item)) {
@@ -1028,13 +1074,16 @@ function setScaleTo100(item, objectType, opts) {
             }
         }
 
+        // --- Aspect Ratio handling (reset H/V scales to 100% without changing overall percent) ---
+        if (opts.ratio && !opts.scale) {
+            // Make horizontal/vertical scales equal by lifting the smaller to the larger
+            equalizeScaleToMax(item);
+        }
+
         // --- Scale handling (absolute percent) ---
         if (opts.scale) {
             // 目標が絶対%なので、まずスケールを100%に正規化してから所望%を適用
-            if (!(opts.rotate && opts.skew)) {
-                // 上の cancelSkew が実行された場合は既に100%
-                normalizeScaleOnly(item);
-            }
+            normalizeScaleOnly(item);
             applyUniformScalePercent(item, opts.scalePercent);
         }
     });
