@@ -93,7 +93,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetT
 
 */
 
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v1.5.1";
 
 var CONFIG = {
     rectSnapMin: 0.5, // degrees
@@ -1029,6 +1029,17 @@ function rotateBy(item, deg) {
     item.transform(mat);
 }
 
+// Rotate TextFrame by deg, prefer Illustrator's native rotate with full flags and center origin
+function rotateTextBy(item, deg) {
+    try {
+        // Use Illustrator's native rotate for TextFrame with full flags and center origin
+        item.rotate(deg, true, true, true, true, Transformation.CENTER);
+    } catch (e) {
+        // Fallback to matrix-based rotation
+        rotateBy(item, deg);
+    }
+}
+
 function multiply2x2(a1, b1, c1, d1, a2, b2, c2, d2) {
     return {
         a: a1 * a2 + c1 * b2,
@@ -1216,6 +1227,7 @@ function unflipBoth(item) {
     );
 }
 
+
 function cancelRotation(item, sign) {
     if (!hasMatrix(item)) return 0; // safety: some items may not expose matrix
     var a = item.matrix.mValueA;
@@ -1223,6 +1235,20 @@ function cancelRotation(item, sign) {
     var rot = getRotationAngleDeg(a, b, sign);
     rotateBy(item, rot);
     return rot;
+}
+
+// Sign-agnostic cancel: always rotate by the negative of the current angle to zero out rotation
+function cancelRotationToZero(item) {
+    if (!hasMatrix(item)) return 0;
+    var a = item.matrix.mValueA;
+    var b = item.matrix.mValueB;
+    var ang = Math.atan2(b, a) * 180 / Math.PI;
+    if (item.typename === 'TextFrame') {
+        rotateTextBy(item, -ang);
+    } else {
+        rotateBy(item, -ang);
+    }
+    return ang;
 }
 
 /* Cancel skew & scale in one shot / スキューと拡大縮小を一括で打ち消す */
@@ -1261,8 +1287,8 @@ function recenterToTopLeft(item, tl, w1, h1) {
 
 function resetTextRotation(item) {
     withBBoxResetAndRecenter(item, function() {
-        // Text rotates with Raster-like sign (逆方向補正)
-        cancelRotation(item, -1);
+        // Use sign-agnostic cancel to handle both PointText and AreaText uniformly
+        cancelRotationToZero(item);
     });
 }
 
@@ -1290,7 +1316,7 @@ function resetTextOps(item, doRot, doShear, doRatio) {
     // One-shot BBox + recenter for text ops / テキスト処理を1回のBBoxでまとめて実行
     withBBoxResetAndRecenter(item, function() {
         // 1) Rotate first (stabilize orientation for text) / まず回転を0°へ
-        if (doRot) cancelRotation(item, -1); // Text rotation (Raster-like sign)
+        if (doRot) cancelRotationToZero(item); // Robust for PointText and AreaText
 
         // 2) Shear removal (before ratio) / シアー除去を先に
         if (doShear) {
