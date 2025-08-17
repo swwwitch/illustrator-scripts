@@ -1,107 +1,111 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+#targetengine "DialogEngine"
+
+// --- Dialog position memory helpers (shared across scripts via targetengine) ---
+function _getSavedLoc(key){ return $.global[key] && $.global[key].length === 2 ? $.global[key] : null; }
+function _setSavedLoc(key, loc){ $.global[key] = [loc[0], loc[1]]; }
+function _clampToScreen(loc){
+    try {
+        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0,0,1920,1080];
+        var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
+        var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
+        return [x, y];
+    } catch (e) { return loc; }
+}
+// A unique storage key for this script's main dialog
+var DLG_STORE_KEY = "__ResetTransform_OptionsDialog";
 
 /*
+
 ### スクリプト名：
 
-ResetTransform.jsx（回転／シアー／スケールのリセット）
+ResetTransform.jsx（回転／シアー／スケール／縦横比のリセット）
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/transform/misc/ResetTransform.jsx
+https://github.com/swwwitch/illustrator-scripts
 
 ### 概要：
-更新日: 2025-08-17
-- 配置画像・テキスト・長方形（パス）・クリップグループ・直線パスに対して、回転／シアー（せん断）／スケールを安全にリセット
-- BBox リセットと左上基準の位置復元により、見た目の位置を安定して維持
+
+- 更新日: 2025-08-17
+- 配置画像・テキスト・長方形（パス）・クリップグループ・直線パスに対して、回転／シアー（せん断）／スケール／縦横比を安全にリセットします。
+- BBox リセットと左上基準の再配置により、見た目の位置を安定して維持します。
 
 ### 主な機能：
 
-- 配置画像／ラスタ：回転・シアー・縦横比（100%/100%）・スケール（指定％）の個別／同時リセット
-- テキスト：回転・シアー・水平/垂直比率（100%）のリセット
-- 長方形（4点パス）：近傍角度のみスナップして回転0°/90°へ補正
-- 直線（2点パス）：近傍軸（0°/90°）へスナップして補正
-- クリップグループ：子要素（配置/ラスタ、クリップパス）の回転リセット＋縦横比（UIのみ）
-- UI：2カラム、対象別パネル、ホットキー、数値入力（↑↓/Shift+↑↓）、ダイアログ位置/透明度
+- **配置画像／ラスタ**：回転・シアー・縦横比（小さい軸を大きい軸へ揃え、％は四捨五入の整数）・スケール（指定％）の個別／同時リセット。
+- **テキスト**：回転・シアー・水平/垂直比率（100%）のリセット。
+- **長方形（4点パス）**：近傍角度のみスナップして回転0°/90°へ補正。
+- **直線（2点パス）**：近傍軸（0°/90°）へスナップして補正。
+- **クリップグループ**：子要素（配置/ラスタ **＋ マスクパス**）の回転リセット＋縦横比（配置画像から導出した等比化Δを、配置画像とマスクパスに同時適用）。
+- **UI**：2カラム、対象別パネル、ホットキー、数値入力（↑↓/Shift+↑↓）、ダイアログ位置/透明度。
 
 ### 処理の流れ：
 
-1) ユーザー選択の解析 → 対応パネルの自動ディム表示
-2) パネルで操作項目を選択 → OK
-3) 各ハンドラが変形を適用 → BBox リセット → 左上基準で再配置
+1) 選択内容を解析し、対応パネルを自動ディム表示。
+2) パネルで操作項目を選択 → OK。
+3) 各ハンドラが変形を適用 → BBox リセット → 左上基準で再配置。
 
-### オリジナル、謝辞：
+### 謝辞：
 
-（該当なし）
-
-### note：
-
-- スケールの微調整（Alt+↑↓による0.1%増減）は廃止
-- 角度スナップの許容範囲は CONFIG.rectSnapMin / rectSnapMax で調整可能
-
-### 動画：
-
-（該当なし）
+フジタノリアキさん
 
 ### 更新履歴：
 
-- v1.3 (20250817): Added Placed/Raster "Aspect Ratio" option (100%/100%) in UI and processing; Clip Group "Aspect Ratio" option (UI only)
-- v1.2 (20250816) : スケール％入力とホットキー、選択内容によるパネル自動ディム、安定化（atan2・EPS 集約）
-- v1.1 (20250810) : クリップグループ回転の子要素処理、2カラムUI、最大面積代表子選定
-- v1.0 (20250805) : 初期バージョン（基本機能、ダイアログ、配置/ラスタ/テキスト/長方形対応）
+- v1.4 (20250817) : クリップグループの縦横比（配置画像＋マスクパスへ同時適用）を実装。複合パス・ネストに対応し、変形の確実性を向上。
+- v1.3 (20250817) : 配置/ラスタの［縦横比］オプションを追加（100%/100% 基準の等比化、整数％丸め）。
+- v1.2 (20250816) : スケール％入力とホットキー、選択内容によるパネル自動ディム、安定化（atan2・EPS 集約）。
+- v1.1 (20250810) : クリップグループ回転の子要素処理、2カラムUI、最大面積代表子選定。
+- v1.0 (20250805) : 初期バージョン（基本機能、ダイアログ、配置/ラスタ/テキスト/長方形対応）。
 
 ---
 
 ### Script Name:
 
-ResetTransform.jsx (Reset Rotate / Shear / Scale)
+ResetTransform.jsx (Reset Rotate / Shear / Scale / Aspect Ratio)
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/transform/ResetTransform.jsx
+https://github.com/swwwitch/illustrator-scripts
 
 ### Overview:
-Updated: 2025-08-17
-- Safely reset rotation/shear/scale for Placed Images, Text, Rectangles (paths), Clipping Groups, and straight Paths
-- Keeps visual position stable via BBox reset and top-left recentering
+
+- Updated: 2025-08-17
+- Safely resets rotation / shear / scale / aspect ratio for Placed Images, Text, Rectangles (paths), Clip Groups, and straight Paths.
+- Keeps visual position stable via BBox reset and top-left recentering.
 
 ### Key Features:
 
-- Placed/Raster: reset rotation, shear, aspect ratio (100%/100%), and scale (target percent) individually or together
-- Text: reset rotation, shear, and horizontal/vertical scaling ratios (100%)
-- Rectangle (4-point path): snap near angles to 0°/90°
-- Line (2-point path): snap to nearest axis (0°/90°)
-- Clip Group: reset rotation for children (placed/raster & clip path); aspect ratio option available (UI only)
-- UI: two-column panels per target, hotkeys, numeric nudge (↑↓/Shift+↑↓), dialog position/opacity
+- **Placed/Raster**: Reset rotation, shear, aspect ratio (lift smaller axis to the larger; integer-rounded percent), and absolute scale, individually or together.
+- **Text**: Reset rotation, shear, and horizontal/vertical scaling ratios (100%).
+- **Rectangle (4-point path)**: Snap near angles to 0°/90°.
+- **Line (2-point path)**: Snap to nearest axis (0°/90°).
+- **Clip Group**: For children (placed/raster **and** clipping path), reset rotation and equalize aspect ratio; the uniformizing delta derived from the placed image is applied **to both** the placed image and the clipping path simultaneously. Supports nested groups and compound paths.
+- **UI**: Two-column panels per target, hotkeys, numeric nudge (↑↓/Shift+↑↓), dialog position/opacity.
 
 ### Flow:
 
-1) Analyze current selection → dim unsupported panels
-2) User selects operations → OK
-3) Apply transforms per handler → reset BBox → recenter to top-left
-
-### Original / Credits:
-
-(n/a)
+1) Analyze selection → dim unsupported panels.
+2) Choose operations → OK.
+3) Apply transforms per handler → reset BBox → recenter to top-left.
 
 ### Notes:
 
-- Fine scale tweak with Alt+Arrow (±0.1%) has been removed
-- Angle snap tolerance configurable via CONFIG.rectSnapMin / rectSnapMax
-
-### Video:
-
-(n/a)
+- Fine scale tweak with Alt+Arrow (±0.1%) is removed.
+- Angle snap tolerance configurable via `CONFIG.rectSnapMin` / `CONFIG.rectSnapMax`.
 
 ### Changelog:
 
-- v1.3 (20250817): Added Placed/Raster "Aspect Ratio" option (100%/100%) in UI and processing; added Clip Group "Aspect Ratio" option (UI only)
-- v1.2 (20250816): Scale % input & hotkey, selection-aware panel dimming, stability (atan2 & EPS consolidation)
-- v1.1 (20250810): Clip group child-wise rotation, two-column UI, largest-area child picking
-- v1.0 (20250805): Initial release (core features, dialog, placed/raster/text/rect)
+- v1.4 (20250817): Implemented Clip Group aspect-ratio equalization (applies same delta to placed image + clipping path). Added nested/compound support and improved robustness.
+- v1.3 (20250817): Added Placed/Raster "Aspect Ratio" option (equalization with integer rounding).
+- v1.2 (20250816): Added Scale % input & hotkeys, selection-aware panel dimming, stability improvements (atan2 & EPS consolidation).
+- v1.1 (20250810): Clip group child-wise rotation, two-column UI, largest-area child picking.
+- v1.0 (20250805): Initial release (core features, dialog, placed/raster/text/rect).
+
 */
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
 
 var CONFIG = {
     rectSnapMin: 0.5, // degrees
@@ -323,6 +327,24 @@ function showOptionsDialog() {
     setDialogOpacity(dlg, DIALOG_OPACITY);
     shiftDialogPosition(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
 
+    // Override onShow to restore last position (or apply first-run offset)
+    (function(){
+        var saved = _getSavedLoc(DLG_STORE_KEY);
+        dlg.onShow = function(){
+            try {
+                if (saved) {
+                    dlg.location = _clampToScreen(saved);
+                } else {
+                    dlg.location = [dlg.location[0] + DIALOG_OFFSET_X, dlg.location[1] + DIALOG_OFFSET_Y];
+                }
+            } catch(e) {}
+        };
+        // Save whenever the dialog is moved
+        dlg.onMove = function(){
+            try { _setSavedLoc(DLG_STORE_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {}
+        };
+    })();
+
     /* Main group: two-column layout / 2カラムレイアウト */
     var gMain = dlg.add('group');
     gMain.orientation = 'row';
@@ -478,6 +500,14 @@ function showOptionsDialog() {
         name: 'ok'
     });
 
+    // Persist position on button clicks (OK / Cancel)
+    try {
+        var btnCancel = gBtns.children[0];
+        var btnOk     = gBtns.children[1];
+        btnOk.onClick = function(){ try { _setSavedLoc(DLG_STORE_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {} dlg.close(1); };
+        btnCancel.onClick = function(){ try { _setSavedLoc(DLG_STORE_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {} dlg.close(0); };
+    } catch(e) {}
+
     if (dlg.show() !== 1) return null; // cancelled
 
     var out = {
@@ -496,7 +526,7 @@ function showOptionsDialog() {
             var n = parseFloat(etScale.text, 10);
             if (isNaN(n)) n = 100;
             if (n <= 0) n = 100;
-            n = Math.floor(n); // 整数％に統一（例：16.3 → 16）
+            n = Math.round(n); // 整数％に統一（例：16.3 → 16）
             return n;
         })()
     };
@@ -546,11 +576,16 @@ function makeHandlers(opts) {
     }
 
     function handleClipGroup(item) {
+        var did = false;
         if (opts.clipGroupRotate && item.clipped === true) {
-            var didGrp = processClippedGroupChildren(item, opts);
-            return didGrp ? res(1, 0, 0, 0) : res(0, 1, 0, 0);
+            var r1 = processClippedGroupChildren(item, opts);
+            if (r1) did = true;
         }
-        return res(0, 1, 0, 0);
+        if (opts.clipGroupRatio && item.clipped === true) {
+            var r2 = processClippedGroupAspect(item);
+            if (r2) did = true;
+        }
+        return did ? res(1, 0, 0, 0) : res(0, 1, 0, 0);
     }
 
     function handleImage(item, typename) {
@@ -708,6 +743,191 @@ function processClippedGroupChildren(groupItem, opts) {
         did = true;
     }
     return did;
+}
+
+// Recursively find the largest placed/raster and the clipping path (PathItem or CompoundPathItem) within a clipped group
+function findPlacedAndClipRecursive(container) {
+    var bestPlaced = null,
+        bestPlacedArea = -1;
+    var bestClip = null,
+        bestClipArea = -1;
+    var items = (container.pageItems || []);
+    for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        if (!it) continue;
+        var t = it.typename;
+        if (t === 'PlacedItem' || t === 'RasterItem') {
+            var ap = getAreaSafe(it);
+            if (ap > bestPlacedArea) {
+                bestPlaced = it;
+                bestPlacedArea = ap;
+            }
+        } else if (t === 'PathItem') {
+            if (it.clipping) {
+                var ac1 = getAreaSafe(it);
+                if (ac1 > bestClipArea) {
+                    bestClip = it;
+                    bestClipArea = ac1;
+                }
+            }
+        } else if (t === 'CompoundPathItem') {
+            // CompoundPathItem itself may not expose `.clipping`; check its children
+            var subPaths = it.pathItems || [];
+            for (var k = 0; k < subPaths.length; k++) {
+                var sp = subPaths[k];
+                try {
+                    if (sp && sp.clipping) {
+                        var ac2 = getAreaSafe(it); // use compound's area as proxy
+                        if (ac2 > bestClipArea) {
+                            bestClip = it;
+                            bestClipArea = ac2;
+                        }
+                        break;
+                    }
+                } catch (e) {}
+            }
+        } else if (t === 'GroupItem') {
+            var found = findPlacedAndClipRecursive(it);
+            if (found.placed && getAreaSafe(found.placed) > bestPlacedArea) {
+                bestPlaced = found.placed;
+                bestPlacedArea = getAreaSafe(found.placed);
+            }
+            if (found.clip && getAreaSafe(found.clip) > bestClipArea) {
+                bestClip = found.clip;
+                bestClipArea = getAreaSafe(found.clip);
+            }
+        }
+    }
+    return {
+        placed: bestPlaced,
+        clip: bestClip
+    };
+}
+
+// Apply transform with full flags and center origin; fallback safely if enum not available
+function transformAll(item, mat) {
+    try {
+        item.transform(mat, true, true, true, true, true, Transformation.CENTER);
+    } catch (e) {
+        try {
+            item.transform(mat, true, true, true, true, true);
+        } catch (e2) {
+            item.transform(mat);
+        }
+    }
+}
+// Temporarily unlock/unhide while applying a function, then restore
+function withUnlockedVisible(item, fn) {
+    var wasLocked = false,
+        wasHidden = false;
+    try {
+        wasLocked = !!item.locked;
+    } catch (e) {}
+    try {
+        wasHidden = !!item.hidden;
+    } catch (e) {}
+    try {
+        try {
+            item.locked = false;
+        } catch (e) {}
+        try {
+            item.hidden = false;
+        } catch (e) {}
+        fn();
+    } finally {
+        try {
+            if (wasLocked) item.locked = true;
+        } catch (e) {}
+        try {
+            if (wasHidden) item.hidden = true;
+        } catch (e) {}
+    }
+}
+
+// Resolve actual transform target for a clipping path: if CompoundPathItem, use its clipping PathItem
+function resolveClipTransformTarget(clipCandidate) {
+    if (!clipCandidate) return null;
+    try {
+        if (clipCandidate.typename === 'CompoundPathItem') {
+            var subs = clipCandidate.pathItems || [];
+            for (var i = 0; i < subs.length; i++) {
+                var sp = subs[i];
+                try {
+                    if (sp && sp.clipping) return sp; // prefer the actual clipping child
+                } catch (e) {}
+            }
+            // fallback: transform the compound itself if no child flagged
+            return clipCandidate;
+        }
+        return clipCandidate; // PathItem or others
+    } catch (e) {
+        return clipCandidate;
+    }
+}
+
+// Clip group: aspect ratio equalization for placed/raster & clipping path
+// クリップグループ：配置画像＋マスクパス（PathItem/CompoundPathItem）に再帰的に同じ等比化を適用
+function processClippedGroupAspect(groupItem) {
+    // Find placed/raster and (PathItem or CompoundPathItem) clipping path recursively
+    var found = findPlacedAndClipRecursive(groupItem);
+    var placedOrRaster = found.placed;
+    var clipPath = found.clip;
+    var clipTarget = resolveClipTransformTarget(clipPath);
+    // Proceed if we have at least the placed/raster; clipPath is optional
+    if (!placedOrRaster) return false;
+    if (!hasMatrix(placedOrRaster)) return false; // needed to compute delta from placed image
+    var haveClip = !!clipTarget; // we can still transform a clip even if it lacks `.matrix`
+    var clipHasMatrix = !!(haveClip && hasMatrix(clipTarget));
+
+    // Build target uniform scale from placed image: lift smaller axis to larger, snap to integer percent
+    var pm = placedOrRaster.matrix;
+    var dec = decomposeQR(pm.mValueA, pm.mValueB, pm.mValueC, pm.mValueD);
+    var u = Math.max(dec.sx, dec.sy);
+    var uPercent = Math.round(u * 100); // round to integer percent
+    u = uPercent / 100;
+
+    // Delta matrix from current to (u,u) with same orientation/shear
+    var target = buildFromQR(dec.q1x, dec.q1y, dec.q2x, dec.q2y, u, u, dec.shear);
+    var cur = {
+        a: pm.mValueA,
+        b: pm.mValueB,
+        c: pm.mValueC,
+        d: pm.mValueD
+    };
+    var inv = invert2x2(cur.a, cur.b, cur.c, cur.d);
+    var delta = multiply2x2(inv.a, inv.b, inv.c, inv.d, target.a, target.b, target.c, target.d);
+    var deltaMat = toMatrix(delta);
+
+    // Always apply to placed/raster; also apply to clipTarget if present (even without `.matrix`)
+    withUnlockedVisible(placedOrRaster, function() {
+        transformAll(placedOrRaster, deltaMat);
+    });
+    if (haveClip) {
+        withUnlockedVisible(clipTarget, function() {
+            transformAll(clipTarget, deltaMat);
+        });
+    }
+
+    // Verify and fallback per-item to guarantee uniform scale
+    try {
+        var mPl = placedOrRaster.matrix,
+            dPl = decomposeQR(mPl.mValueA, mPl.mValueB, mPl.mValueC, mPl.mValueD);
+        if (Math.abs(dPl.sx - dPl.sy) > 1e-6) {
+            withUnlockedVisible(placedOrRaster, function() {
+                equalizeScaleToMax(placedOrRaster);
+            });
+        }
+        if (clipHasMatrix) {
+            var mCp = clipTarget.matrix,
+                dCp = decomposeQR(mCp.mValueA, mCp.mValueB, mCp.mValueC, mCp.mValueD);
+            if (Math.abs(dCp.sx - dCp.sy) > 1e-6) {
+                withUnlockedVisible(clipTarget, function() {
+                    equalizeScaleToMax(clipTarget);
+                });
+            }
+        }
+    } catch (e) {}
+    return true;
 }
 
 function resetPlacedOrRasterRotationAndShear(item, doRotate, doShear) {
