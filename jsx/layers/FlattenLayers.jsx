@@ -13,7 +13,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
 
 ### 概要：
 
@@ -49,7 +49,7 @@ Adjust Artboard Size Script
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
 
 ### Overview:
 
