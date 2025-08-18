@@ -2,14 +2,14 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); 
 
 /*
-アートボードサイズを調整するIllustrator用スクリプト。
-選択範囲やアートボード全体を対象に、ユーザー入力に基づいてサイズを調整できます。
-プレビュー機能付きの処理を備え、数値入力を直感的に操作可能です。
+レイヤー統合（フラット化）を行うIllustrator用スクリプト。
+除外名（例：bg/背景/background）を持つレイヤーを残しつつ、その他のレイヤー配下の全オブジェクトを
+「_mergedLayer」に集約（移動）します。その後、空になったレイヤーを再帰的に検出して削除します。
 */
 
 ### スクリプト名：
 
-アートボードサイズ調整スクリプト
+レイヤー統合（フラット化） / Flatten Layers
 
 ### GitHub：
 
@@ -17,35 +17,39 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 ### 概要：
 
-- Illustrator内のアートボードサイズを数値入力で調整
-- プレビューを確認しながら操作可能
+- 除外レイヤーを残し、それ以外のレイヤー配下のオブジェクトを「_mergedLayer」に移動
+- 統合後、空になった最上位レイヤーおよびサブレイヤーを再帰的に削除
 
 ### 主な機能：
 
-- アートボードサイズの数値指定による調整
-- プレビュー境界チェック機能
-- 設定の即時反映
+- レイヤー配下オブジェクトの一括移動（ロック一時解除→移動→再ロック）
+- 除外レイヤー名（bg / 背景 / background）対応
+- 空レイヤーの再帰削除（UI なし／alert なし）
 
 ### 処理の流れ：
 
-1. 数値を入力してプレビュー確認  
-2. 確定後、アートボードサイズを変更  
+1. ドキュメント取得（未オープンなら終了）  
+2. 既存「_mergedLayer」を取得（なければ作成）  
+3. 除外レイヤーを除いて、全レイヤー配下のオブジェクトを「_mergedLayer」に移動  
+4. ドキュメント内の空レイヤーを再帰的に収集し、一括削除
 
 ### 更新履歴：
 
-- v1.0 (20250414) : 初期バージョン
-- v1.1 (20250818) : 微調整
+- v1.0 (20250414) : 初期バージョン  
+- v1.1 (20250818) : 微調整  
+- v1.2 (20250818) : 空レイヤー再帰削除ロジックを組み込み、説明文を再構成
 
 ---
 
 /*
-Illustrator script for adjusting artboard size.
-Allows resizing based on user input with preview support.
+Illustrator script to flatten layers. It consolidates all objects (except in excluded layers
+such as bg/背景/background) into a single layer named "_mergedLayer", then recursively
+removes layers that became empty.
 */
 
 ### Script Name:
 
-Adjust Artboard Size Script
+Flatten Layers
 
 ### GitHub:
 
@@ -53,29 +57,30 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 ### Overview:
 
-- Adjusts Illustrator artboard size via numeric input  
-- Provides preview functionality for intuitive control  
+- Move all objects from non-excluded layers into "_mergedLayer"  
+- Recursively delete empty top-level and sublayers after consolidation
 
 ### Key Features:
 
-- Resize artboard by entering dimensions  
-- Toggle preview boundaries  
-- Real-time update of preview  
+- Bulk move items (temporarily unlock → move → restore lock)  
+- Excluded layer names (bg / 背景 / background)  
+- Recursive empty-layer deletion (no UI / no alerts)
 
 ### Process Flow:
 
-1. Enter values and check preview  
-2. Apply resizing after confirmation  
+1. Get active document (exit if none)  
+2. Ensure or create "_mergedLayer"  
+3. Move items from all non-excluded layers into "_mergedLayer"  
+4. Collect and delete empty layers recursively
 
 ### Update History:
 
-- v1.0 (20250414) : Initial release
-- v1.1 (20250818) : 
-
----
+- v1.0 (20250414) : Initial release  
+- v1.1 (20250818) : Minor adjustments  
+- v1.2 (20250818) : Added recursive empty-layer removal and rewrote the description
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 function main() {
     var documentRef;
@@ -121,19 +126,10 @@ function main() {
         moveItemsToTargetLayer(currentLayer, mergedLayer);
     }
 
-    for (var j = allTopLayers.length - 1; j >= 0; j--) {
-        var layerToCheck = allTopLayers[j];
-
-        if (isExcludedLayer(layerToCheck.name) || layerToCheck === mergedLayer) {
-            continue;
-        }
-
-        if (isLayerEmpty(layerToCheck)) {
-            try {
-                layerToCheck.remove();
-            } catch (error) {}
-        }
-    }
+    // --- 空レイヤーの再帰収集と削除 / Collect and delete empty layers recursively ---
+    var emptyLayerList = [];
+    findEmptyLayers(documentRef, emptyLayerList);
+    deleteLayers(emptyLayerList);
 }
 
 /*
@@ -187,6 +183,37 @@ function isExcludedLayer(layerName) {
     if (!layerName) return false;
     var key = String(layerName).replace(/^\s+|\s+$/g, '').toLowerCase();
     return EXCLUDE[key] === 1;
+}
+
+// ==========================
+// 空レイヤーを収集する関数（再帰処理） / Collect empty layers recursively
+// ==========================
+function findEmptyLayers(container, resultArray) {
+    var layers = container.layers;
+    for (var i = 0; i < layers.length; i++) {
+        var currentLayer = layers[i];
+
+        // 子レイヤーを先にチェック / Recurse into sublayers first
+        if (currentLayer.layers.length > 0) {
+            findEmptyLayers(currentLayer, resultArray);
+        }
+
+        // 直下にページアイテムが存在せず、子レイヤーも空の場合 → 削除対象
+        var hasItems = currentLayer.pageItems.length > 0;
+        var hasChildLayers = currentLayer.layers.length > 0;
+        if (!hasItems && !hasChildLayers) {
+            resultArray.push(currentLayer);
+        }
+    }
+}
+
+// ==========================
+// 指定レイヤー配列を削除する関数 / Delete listed layers
+// ==========================
+function deleteLayers(layerArray) {
+    for (var i = 0; i < layerArray.length; i++) {
+        try { layerArray[i].remove(); } catch (e) {}
+    }
 }
 
 /*
