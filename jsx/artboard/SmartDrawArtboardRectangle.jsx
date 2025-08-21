@@ -11,7 +11,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPageNumberFromTextSelection.jsx
 
 ### 概要：
 
@@ -46,7 +46,7 @@ Adjust Artboard Size
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPageNumberFromTextSelection.jsx
 
 ### Overview:
 
@@ -160,8 +160,8 @@ var LABELS = {
         en: "Current Artboard Only"
     },
     allAB: {
-        ja: "すべて",
-        en: "All"
+        ja: "すべてのアートボード",
+        en: "All Artboards"
     },
     // Buttons
     ok: {
@@ -903,7 +903,7 @@ function showDialog() {
     colorPanel.orientation = 'column';
     colorPanel.alignChildren = 'left';
     colorPanel.margins = [15, 20, 15, 10];
-    colorPanel.spacing = 6; // tighten vertical gap between rows
+    colorPanel.spacing = 10; // increase vertical gap between rows
 
     var noneRadio = colorPanel.add('radiobutton', undefined, LABELS.colorNone[lang]);
     var k100Radio = colorPanel.add('radiobutton', undefined, LABELS.colorK100[lang]);
