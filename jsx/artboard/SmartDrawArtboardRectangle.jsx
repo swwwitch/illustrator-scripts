@@ -1,5 +1,4 @@
 #target illustrator
-// Enable shared engine for dialog memory
 #targetengine "DialogEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -33,6 +32,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
 ### 更新履歴：
 
+- v1.4 (20250821) : 微調整
 - v1.3 (20250821) : UIまわりをブラッシュアップ
 - v1.2 (20250821) : CMYKを独立UI化し、parseCustomColor()から旧CMYK文字列解釈を削除。
 - v1.1 (20250821) : ダイアログの位置・透明度設定を追加。プレビュー破線を1ptに変更。オフセット単位を現在の単位に合わせるよう修正。
@@ -68,6 +68,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
 ### Changelog:
 
+- v1.4 (20250821): Minor adjustments.
 - v1.3 (20250821): UI improvements, including better layout and error handling.
 - v1.2 (20250821): Removed legacy CMYK string parsing from parseCustomColor() since CMYK has its own UI.
 - v1.1 (20250821): Added dialog position/opacity settings. Changed preview stroke to 1pt dashed. Offset unit now matches current ruler setting.
@@ -75,7 +76,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
 */
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
 
 /*
  * Color mode constants / カラーモード定数
@@ -193,16 +194,28 @@ var DIALOG_OFFSET_X = 300; // shift right (+) / left (-)
 var DIALOG_OFFSET_Y = 0; // shift down (+) / up (-)
 var DIALOG_OPACITY = 0.98; // 0.0 - 1.0
 
+// ===== Preview timing (tunable) =====
+// 入力中のプレビュー遅延（タイプしやすさ優先）/ Delay during typing
+var PREVIEW_DELAY_TYPING_MS = 110; // recommend 100–120ms
+
 // ===== Dialog position memory helpers =====
-function _getSavedLoc(key){ return $.global[key] && $.global[key].length === 2 ? $.global[key] : null; }
-function _setSavedLoc(key, loc){ $.global[key] = [loc[0], loc[1]]; }
-function _clampToScreen(loc){
+function _getSavedLoc(key) {
+    return $.global[key] && $.global[key].length === 2 ? $.global[key] : null;
+}
+
+function _setSavedLoc(key, loc) {
+    $.global[key] = [loc[0], loc[1]];
+}
+
+function _clampToScreen(loc) {
     try {
-        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0,0,1920,1080];
+        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0, 0, 1920, 1080];
         var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
         var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
         return [x, y];
-    } catch (e) { return loc; }
+    } catch (e) {
+        return loc;
+    }
 }
 
 function setDialogOpacity(dlg, opacityValue) {
@@ -219,7 +232,7 @@ function shiftDialogPositionOnce(dlg, offsetX, offsetY) {
 }
 
 /* 入力欄の強調表示ヘルパー / Helper to highlight EditText fields */
-function setEditHighlight(et, on){
+function setEditHighlight(et, on) {
     try {
         var g = et.graphics;
         if (on) {
@@ -342,10 +355,14 @@ function applyFillByMode(doc, rect, mode, payload, opts) {
                 y = payload && payload.customCMYK && payload.customCMYK.y,
                 k = payload && payload.customCMYK && payload.customCMYK.k;
             var ok = (typeof c === 'number' && !isNaN(c)) &&
-                     (typeof m === 'number' && !isNaN(m)) &&
-                     (typeof y === 'number' && !isNaN(y)) &&
-                     (typeof k === 'number' && !isNaN(k));
-            if (!ok) { rect.filled = false; rect.stroked = false; return; }
+                (typeof m === 'number' && !isNaN(m)) &&
+                (typeof y === 'number' && !isNaN(y)) &&
+                (typeof k === 'number' && !isNaN(k));
+            if (!ok) {
+                rect.filled = false;
+                rect.stroked = false;
+                return;
+            }
             var color;
             if (doc && doc.documentColorSpace == DocumentColorSpace.RGB) {
                 var rgb = cmykToRgb(c, m, y, k);
@@ -623,7 +640,18 @@ function changeValueByArrowKey(editText, onValueChange) {
 // ===== Preview helpers =====
 var __previewItems = [];
 
+
 var __previewDebounceTask = null;
+// Count how many preview-render steps added to History while dialog is open
+$.global.__previewUndoCount = $.global.__previewUndoCount | 0;
+
+function undoPreviewSteps() {
+    var n = $.global.__previewUndoCount | 0;
+    try {
+        for (var i = 0; i < n; i++) app.executeMenuCommand('undo');
+    } catch (e) {}
+    $.global.__previewUndoCount = 0;
+}
 
 function schedulePreview(choice, delayMs) {
     try {
@@ -652,21 +680,33 @@ function requestPreview(choice, immediate) {
             renderPreview(app.activeDocument, choice);
         } catch (_) {}
     } else {
-        schedulePreview(choice, 75);
+        schedulePreview(choice, PREVIEW_DELAY_TYPING_MS);
     }
 }
 
-function clearPreview() {
+function clearPreview(removeLayer) {
     try {
         var doc = app.activeDocument;
-        var names = [LABELS.previewLayer[lang], "プレビュー", "Preview", "_preview"]; // support legacy names
+        var names = [LABELS.previewLayer[lang], "プレビュー", "Preview", "_preview"]; // legacy names
         for (var i = doc.layers.length - 1; i >= 0; i--) {
-            var nm = doc.layers[i].name;
+            var layer = doc.layers[i];
+            var nm = layer.name;
             for (var j = 0; j < names.length; j++) {
                 if (nm === names[j]) {
-                    try {
-                        doc.layers[i].remove();
-                    } catch (e) {}
+                    if (removeLayer) {
+                        try {
+                            layer.remove();
+                        } catch (e) {}
+                    } else {
+                        // live update: just hide items instead of removing layer itself
+                        try {
+                            for (var k = layer.pathItems.length - 1; k >= 0; k--) {
+                                try {
+                                    layer.pathItems[k].hidden = true;
+                                } catch (_) {}
+                            }
+                        } catch (_) {}
+                    }
                     break;
                 }
             }
@@ -696,6 +736,39 @@ function getOrCreatePreviewLayer(doc) {
     return layer;
 }
 
+// Helper to fetch or create a preview rectangle for a specific artboard index
+function getOrCreatePreviewRect(previewLayer, idx, top, left, width, height) {
+    // Try to reuse existing item named with index suffix
+    var nameBase = LABELS.previewRect[lang] + "#" + idx;
+    var item = null;
+    try {
+        for (var i = 0; i < previewLayer.pathItems.length; i++) {
+            var it = previewLayer.pathItems[i];
+            if (it.name === nameBase) {
+                item = it;
+                break;
+            }
+        }
+    } catch (e) {}
+    if (!item) {
+        // create once
+        item = previewLayer.pathItems.rectangle(top, left, width, height);
+        item.name = nameBase;
+    } else {
+        // update geometry in-place
+        try {
+            item.top = top;
+            item.left = left;
+            item.width = width;
+            item.height = height;
+        } catch (e) {}
+        try {
+            item.hidden = false;
+        } catch (e) {}
+    }
+    return item;
+}
+
 // --- Helper: returns 50% gray/black stroke color matching document color space
 function getPreviewStrokeColor(doc) {
     if (doc.documentColorSpace == DocumentColorSpace.RGB) {
@@ -719,7 +792,8 @@ function getPreviewStrokeColor(doc) {
  * Render live preview into the dedicated Preview layer.
  */
 function renderPreview(doc, choice) {
-    clearPreview();
+    // Hide existing preview items instead of deleting the whole layer
+    clearPreview(false);
     if (!doc || !choice) return;
 
     var prevCS = null;
@@ -742,16 +816,22 @@ function renderPreview(doc, choice) {
         var abWidth = abRect[2] - abRect[0];
         var abHeight = abRect[1] - abRect[3];
         var o = choice.offset || 0;
-        var rect = previewLayer.pathItems.rectangle(
-            abRect[1] + o, abRect[0] - o, abWidth + o * 2, abHeight + o * 2
+        var rect = getOrCreatePreviewRect(
+            previewLayer,
+            idx,
+            abRect[1] + o,
+            abRect[0] - o,
+            abWidth + o * 2,
+            abHeight + o * 2
         );
-
 
         // Unified fill application (preview)
         applyFillByMode(doc, rect, choice.colorMode, {
             customValue: choice.customValue,
             customCMYK: choice.customCMYK
-        }, { k100Opacity: 15 });
+        }, {
+            k100Opacity: 15
+        });
 
         // Common preview stroke (visibility)
         rect.stroked = true;
@@ -761,7 +841,6 @@ function renderPreview(doc, choice) {
         } catch (e) {}
         rect.strokeColor = getPreviewStrokeColor(doc);
 
-        rect.name = LABELS.previewRect[lang];
         rect.selected = false;
         if (choice.zOrder === 'front') rect.zOrder(ZOrderMethod.BRINGTOFRONT);
         else if (choice.zOrder === 'back') rect.zOrder(ZOrderMethod.SENDTOBACK);
@@ -778,8 +857,36 @@ function renderPreview(doc, choice) {
     }
 
     try {
+        // Hide non-target preview items to avoid deletions during typing
+        var maxIdx = (choice.target === 'all') ? doc.artboards.length - 1 : doc.artboards.getActiveArtboardIndex();
+        for (var i = 0; i < previewLayer.pathItems.length; i++) {
+            var it = previewLayer.pathItems[i];
+            // items are named like "__Preview_...#<idx>"
+            var m = /#(\d+)$/.exec(it.name || "");
+            if (m) {
+                var idn = parseInt(m[1], 10);
+                if (choice.target === 'all') {
+                    if (idn < 0 || idn > doc.artboards.length - 1) {
+                        try {
+                            it.hidden = true;
+                        } catch (_) {}
+                    }
+                } else {
+                    var active = doc.artboards.getActiveArtboardIndex();
+                    if (idn !== active) {
+                        try {
+                            it.hidden = true;
+                        } catch (_) {}
+                    }
+                }
+            }
+        }
+    } catch (e) {}
+
+    try {
         if (prevCS !== null) app.coordinateSystem = prevCS;
     } catch (e) {}
+    $.global.__previewUndoCount = ($.global.__previewUndoCount | 0) + 1;
     app.redraw();
 }
 
@@ -873,7 +980,7 @@ function showDialog() {
         }
     }
 
-    dlg.onShow = function(){
+    dlg.onShow = function() {
         try {
             if (__savedLoc) {
                 dlg.location = _clampToScreen(__savedLoc);
@@ -881,8 +988,10 @@ function showDialog() {
                 // first run only: apply initial offset
                 shiftDialogPositionOnce(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
             }
-        } catch(e) {}
-        try { offsetInput.active = true; } catch(e) {}
+        } catch (e) {}
+        try {
+            offsetInput.active = true;
+        } catch (e) {}
         // Remember initial value and set field state
         __lastUserOffsetText = String(offsetInput.text);
         if (cbBleed.value) {
@@ -890,12 +999,15 @@ function showDialog() {
         } else {
             offsetInput.enabled = true;
         }
+        $.global.__previewUndoCount = 0; // reset preview undo counter per dialog session
         // Render initial preview
-        updatePreview();
+        updatePreviewCommit();
     };
 
-    dlg.onMove = function(){
-        try { _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {}
+    dlg.onMove = function() {
+        try {
+            _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]);
+        } catch (e) {}
     };
 
     // Add new panel for color
@@ -914,12 +1026,12 @@ function showDialog() {
     hexRow.alignment = 'left';
     hexRow.alignChildren = ['left', 'center'];
     hexRow.spacing = 6;
-   var specifiedRadio = hexRow.add('radiobutton', undefined, LABELS.colorSpecified[lang]);
-   var customInput = hexRow.add('edittext', undefined, '#');
-   customInput.characters = 14; // narrower to avoid column growth
+    var specifiedRadio = hexRow.add('radiobutton', undefined, LABELS.colorSpecified[lang]);
+    var customInput = hexRow.add('edittext', undefined, '#');
+    customInput.characters = 14; // narrower to avoid column growth
 
     // --- HEX validation & feedback ---
-    function setHexWarn(et, warn, msg){
+    function setHexWarn(et, warn, msg) {
         try {
             var g = et.graphics;
             var pen = g.newPen(g.PenType.SOLID_COLOR, warn ? [1, 0, 0] : [0, 0, 0], 1);
@@ -933,19 +1045,27 @@ function showDialog() {
         } catch (e) {}
     }
 
-    customInput.onChanging = function(){
+    customInput.onChanging = function() {
         try {
             var t = String(customInput.text || '').replace(/\s+/g, '');
-            if (t === '') { setHexWarn(customInput, false); updatePreview(); return; }
-            if (t === '#') { setHexWarn(customInput, true, (lang==='ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)'); updatePreview(); return; }
+            if (t === '') {
+                setHexWarn(customInput, false);
+                updatePreviewTyping();
+                return;
+            }
+            if (t === '#') {
+                setHexWarn(customInput, true, (lang === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)');
+                updatePreviewTyping();
+                return;
+            }
             // Validate only exact #RRGGBB on-the-fly
             var valid = /^#([0-9a-fA-F]{6})$/.test(t);
             setHexWarn(customInput, !valid);
-            updatePreview();
+            updatePreviewTyping();
         } catch (e) {}
     };
 
-    customInput.onChange = function(){
+    customInput.onChange = function() {
         try {
             var t = String(customInput.text || '').replace(/\s+/g, '');
             if (/^[0-9a-fA-F]{6}$/.test(t)) {
@@ -956,11 +1076,11 @@ function showDialog() {
                 customInput.text = ('#' + RegExp.$1.toUpperCase());
                 setHexWarn(customInput, false);
             } else if (t === '#') {
-                setHexWarn(customInput, true, (lang==='ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)');
+                setHexWarn(customInput, true, (lang === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)');
             } else {
                 setHexWarn(customInput, true);
             }
-            updatePreview();
+            updatePreviewCommit();
         } catch (e) {}
     };
 
@@ -1041,12 +1161,78 @@ function showDialog() {
             setEtWarn(et, false);
         } catch (e) {}
     }
+    // If the field currently holds exactly "0", clear it on focus for easier typing
+    function clearZeroOnFocus(et) {
+        try {
+            et.addEventListener('focus', function() {
+                try {
+                    if (String(et.text) === '0') {
+                        et.text = '';
+                        // caret will be at the end by default
+                    }
+                } catch (e) {}
+            });
+        } catch (e) {}
+    }
+
+    // If the field shows exactly "0", typing a digit should replace it (avoid "03")
+    function replaceZeroOnFirstDigit(et) {
+        try {
+            et.addEventListener('keydown', function(ev) {
+                var k = String(ev.keyName || '');
+                if (/^[0-9]$/.test(k)) {
+                    try {
+                        var t = String(et.text || '');
+                        if (t === '0') {
+                            et.text = k; // replace instead of append
+                            if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
+                            validateCmykField(et);
+                            updatePreviewTyping();
+                        }
+                    } catch (e) {}
+                }
+            });
+        } catch (e) {}
+    }
+
+    // Bind common handlers to a CMYK EditText
+    function bindCmykField(et) {
+        et.onChanging = function() {
+            // Drop a single leading zero when typing the first digit (avoid "03")
+            try {
+                var t = String(et.text || '');
+                var m = t.match(/^0([0-9])$/);
+                if (m) et.text = m[1];
+            } catch (e) {}
+            validateCmykField(et);
+            updatePreviewTyping();
+        };
+        et.onChange = function() {
+            clampCmykField(et);
+            updatePreviewCommit();
+        };
+        changeValueByArrowKey(et, function() {
+            clampCmykField(et);
+            updatePreviewTyping();
+        });
+    }
 
     // --- Hotkey guard: disable N/K/H/C while typing in fields ---
-    var __hotkeyBlocked = { v: false };
-    function _attachBlockOnFocusBlur(ctrl){
-        try { ctrl.addEventListener('focus', function(){ __hotkeyBlocked.v = true; }); } catch(e) {}
-        try { ctrl.addEventListener('blur', function(){ __hotkeyBlocked.v = false; }); } catch(e) {}
+    var __hotkeyBlocked = {
+        v: false
+    };
+
+    function _attachBlockOnFocusBlur(ctrl) {
+        try {
+            ctrl.addEventListener('focus', function() {
+                __hotkeyBlocked.v = true;
+            });
+        } catch (e) {}
+        try {
+            ctrl.addEventListener('blur', function() {
+                __hotkeyBlocked.v = false;
+            });
+        } catch (e) {}
     }
     // Block on all edit fields
     _attachBlockOnFocusBlur(offsetInput);
@@ -1057,104 +1243,61 @@ function showDialog() {
     _attachBlockOnFocusBlur(etK);
 
 
-    // Update preview on typing/commit with validation
-    etC.onChanging = function() {
-        validateCmykField(etC);
-        updatePreview();
-    };
-    etC.onChange = function() {
-        clampCmykField(etC);
-        updatePreview();
-    };
+    clearZeroOnFocus(etC);
+    clearZeroOnFocus(etM);
+    clearZeroOnFocus(etY);
+    clearZeroOnFocus(etK);
 
-    etM.onChanging = function() {
-        validateCmykField(etM);
-        updatePreview();
-    };
-    etM.onChange = function() {
-        clampCmykField(etM);
-        updatePreview();
-    };
+    replaceZeroOnFirstDigit(etC);
+    replaceZeroOnFirstDigit(etM);
+    replaceZeroOnFirstDigit(etY);
+    replaceZeroOnFirstDigit(etK);
 
-    etY.onChanging = function() {
-        validateCmykField(etY);
-        updatePreview();
-    };
-    etY.onChange = function() {
-        clampCmykField(etY);
-        updatePreview();
-    };
-
-    etK.onChanging = function() {
-        validateCmykField(etK);
-        updatePreview();
-    };
-    etK.onChange = function() {
-        clampCmykField(etK);
-        updatePreview();
-    };
-
-    // Enable Up/Down arrow adjustments for CMYK fields
-    changeValueByArrowKey(etC, function(){
-        clampCmykField(etC);
-        updatePreview();
-    });
-    changeValueByArrowKey(etM, function(){
-        clampCmykField(etM);
-        updatePreview();
-    });
-    changeValueByArrowKey(etY, function(){
-        clampCmykField(etY);
-        updatePreview();
-    });
-    changeValueByArrowKey(etK, function(){
-        clampCmykField(etK);
-        updatePreview();
-    });
+    // --- Bind CMYK fields (common handlers)
+    bindCmykField(etC);
+    bindCmykField(etM);
+    bindCmykField(etY);
+    bindCmykField(etK);
 
     // Default selection
     k100Radio.value = true;
 
     // Enable custom field only when "Custom" is selected
 
-/* HEX 有効/無効を切替 / Enable-Disable HEX input */
-function setHexEnabled(on){
-    try { customInput.enabled = !!on; } catch (e) {}
-}
-
-/* CMYK 有効/無効を切替 / Enable-Disable CMYK inputs */
-function setCmykEnabled(on){
-    var v = !!on;
-    try {
-        etC.enabled = v; lblC.enabled = v;
-        etM.enabled = v; lblM.enabled = v;
-        etY.enabled = v; lblY.enabled = v;
-        etK.enabled = v; lblK.enabled = v;
-        if (!v) {
-            setEtWarn(etC, false);
-            setEtWarn(etM, false);
-            setEtWarn(etY, false);
-            setEtWarn(etK, false);
-        }
-    } catch (e) {}
-}
-
-/* ラジオ選択に応じて一括反映 / Apply enable states from radio values */
-function updateColorEnableFromRadios(){
-    setHexEnabled(!!specifiedRadio.value);
-    setCmykEnabled(!!cmykRadio.value);
-}
-
-    // Helper for edit highlight (dummy if not implemented elsewhere)
-    function setEditHighlight(edit, on) {
+    /* HEX 有効/無効を切替 / Enable-Disable HEX input */
+    function setHexEnabled(on) {
         try {
-            if (edit && edit.graphics && edit.graphics.foregroundColor) {
-                var g = edit.graphics;
-                var pen = g.newPen(g.PenType.SOLID_COLOR, on ? [0,0,1] : [0,0,0], 1);
-                g.foregroundColor = pen;
+            customInput.enabled = !!on;
+        } catch (e) {}
+    }
+
+    /* CMYK 有効/無効を切替 / Enable-Disable CMYK inputs */
+    function setCmykEnabled(on) {
+        var v = !!on;
+        try {
+            etC.enabled = v;
+            lblC.enabled = v;
+            etM.enabled = v;
+            lblM.enabled = v;
+            etY.enabled = v;
+            lblY.enabled = v;
+            etK.enabled = v;
+            lblK.enabled = v;
+            if (!v) {
+                setEtWarn(etC, false);
+                setEtWarn(etM, false);
+                setEtWarn(etY, false);
+                setEtWarn(etK, false);
             }
         } catch (e) {}
     }
+
+    /* ラジオ選択に応じて一括反映 / Apply enable states from radio values */
+    function updateColorEnableFromRadios() {
+        setHexEnabled(!!specifiedRadio.value);
+        setCmykEnabled(!!cmykRadio.value);
+    }
+
 
     updateColorEnableFromRadios();
 
@@ -1243,14 +1386,29 @@ function updateColorEnableFromRadios(){
         };
     }
 
+    function updatePreviewTyping() {
+        try {
+            schedulePreview(buildChoiceFromUI(), PREVIEW_DELAY_TYPING_MS);
+        } catch (e) {}
+    }
+
+    function updatePreviewCommit() {
+        try {
+            if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
+        } catch (_) {}
+        try {
+            renderPreview(app.activeDocument, buildChoiceFromUI());
+        } catch (_) {}
+    }
+
     function updatePreview() {
         try {
             requestPreview(buildChoiceFromUI(), false);
         } catch (e) {}
     }
 
-    offsetInput.onChanging = updatePreview;
-    offsetInput.onChange = updatePreview;
+    offsetInput.onChanging = updatePreviewTyping;
+    offsetInput.onChange = updatePreviewCommit;
 
     noneRadio.onClick = function() {
         // Enforce exclusivity
@@ -1261,7 +1419,7 @@ function updateColorEnableFromRadios(){
         updateColorEnableFromRadios();
         setEditHighlight(customInput, false);
         setEditHighlight(etC, false);
-        updatePreview();
+        updatePreviewCommit();
     };
 
     k100Radio.onClick = function() {
@@ -1272,7 +1430,7 @@ function updateColorEnableFromRadios(){
         updateColorEnableFromRadios();
         setEditHighlight(customInput, false);
         setEditHighlight(etC, false);
-        updatePreview();
+        updatePreviewCommit();
     };
 
     specifiedRadio.onClick = function() {
@@ -1283,11 +1441,13 @@ function updateColorEnableFromRadios(){
         updateColorEnableFromRadios();
         setEditHighlight(customInput, true);
         setEditHighlight(etC, false);
-        try { customInput.active = true; } catch (e) {}
+        try {
+            customInput.active = true;
+        } catch (e) {}
         try {
             requestPreview(buildChoiceFromUI(), true);
         } catch (_) {
-            updatePreview();
+            updatePreviewCommit();
         }
     };
 
@@ -1299,8 +1459,10 @@ function updateColorEnableFromRadios(){
         updateColorEnableFromRadios();
         setEditHighlight(customInput, false);
         setEditHighlight(etC, true);
-        try { etC.active = true; } catch (e) {}
-        updatePreview();
+        try {
+            etC.active = true;
+        } catch (e) {}
+        updatePreviewCommit();
     };
 
     noneRadio.onChanging = function() {
@@ -1311,7 +1473,7 @@ function updateColorEnableFromRadios(){
         updateColorEnableFromRadios();
         setEditHighlight(customInput, false);
         setEditHighlight(etC, false);
-        updatePreview();
+        updatePreviewCommit();
     };
     k100Radio.onChanging = function() {
         noneRadio.value = false;
@@ -1321,7 +1483,7 @@ function updateColorEnableFromRadios(){
         updateColorEnableFromRadios();
         setEditHighlight(customInput, false);
         setEditHighlight(etC, false);
-        updatePreview();
+        updatePreviewCommit();
     };
     specifiedRadio.onChanging = function() {
         noneRadio.value = false;
@@ -1331,11 +1493,13 @@ function updateColorEnableFromRadios(){
         updateColorEnableFromRadios();
         setEditHighlight(customInput, true);
         setEditHighlight(etC, false);
-        try { customInput.active = true; } catch (e) {}
+        try {
+            customInput.active = true;
+        } catch (e) {}
         try {
             requestPreview(buildChoiceFromUI(), true);
         } catch (_) {
-            updatePreview();
+            updatePreviewCommit();
         }
     };
     cmykRadio.onChanging = function() {
@@ -1346,55 +1510,76 @@ function updateColorEnableFromRadios(){
         updateColorEnableFromRadios();
         setEditHighlight(customInput, false);
         setEditHighlight(etC, true);
-        try { etC.active = true; } catch (e) {}
-        updatePreview();
+        try {
+            etC.active = true;
+        } catch (e) {}
+        updatePreviewCommit();
     };
 
     // --- Hotkeys: N/K/H/C to switch color mode radios ---
-    function addColorHotkeys(dialog){
-        dialog.addEventListener('keydown', function(event){
+    function addColorHotkeys(dialog) {
+        dialog.addEventListener('keydown', function(event) {
             if (__hotkeyBlocked.v) return; // typing in a field
             var key = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
-            if (key === 'N') { noneRadio.notify('onClick'); event.preventDefault(); }
-            else if (key === 'K') { k100Radio.notify('onClick'); event.preventDefault(); }
-            else if (key === 'H') { specifiedRadio.notify('onClick'); event.preventDefault(); }
-            else if (key === 'C') { cmykRadio.notify('onClick'); event.preventDefault(); }
+            if (key === 'N') {
+                noneRadio.notify('onClick');
+                event.preventDefault();
+            } else if (key === 'K') {
+                k100Radio.notify('onClick');
+                event.preventDefault();
+            } else if (key === 'H') {
+                specifiedRadio.notify('onClick');
+                event.preventDefault();
+            } else if (key === 'C') {
+                cmykRadio.notify('onClick');
+                event.preventDefault();
+            }
         });
     }
     addColorHotkeys(dlg);
 
     // --- Hotkeys: Target (S/A) and Z-order (F/B/L) ---
     /* 作業アートボード/全体 と 重ね順 をホットキーで切替 / Toggle target & z-order via hotkeys */
-    function addScopeAndZHotkeys(dialog){
-        dialog.addEventListener('keydown', function(event){
+    function addScopeAndZHotkeys(dialog) {
+        dialog.addEventListener('keydown', function(event) {
             if (__hotkeyBlocked.v) return; // ignore when typing in fields
             var key = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
 
             // Target scope: S = current (Single), A = All
             if (key === 'S') {
-                try { currentRadio.notify('onClick'); } catch (_) {}
+                try {
+                    currentRadio.notify('onClick');
+                } catch (_) {}
                 event.preventDefault();
                 return;
             }
             if (key === 'A') {
-                try { allRadio.notify('onClick'); } catch (_) {}
+                try {
+                    allRadio.notify('onClick');
+                } catch (_) {}
                 event.preventDefault();
                 return;
             }
 
             // Z-order: F = Front, B = Back, L = bg Layer
             if (key === 'F') {
-                try { frontRadio.notify('onClick'); } catch (_) {}
+                try {
+                    frontRadio.notify('onClick');
+                } catch (_) {}
                 event.preventDefault();
                 return;
             }
             if (key === 'B') {
-                try { backRadio.notify('onClick'); } catch (_) {}
+                try {
+                    backRadio.notify('onClick');
+                } catch (_) {}
                 event.preventDefault();
                 return;
             }
             if (key === 'L') {
-                try { bgLayerRadio.notify('onClick'); } catch (_) {}
+                try {
+                    bgLayerRadio.notify('onClick');
+                } catch (_) {}
                 event.preventDefault();
                 return;
             }
@@ -1402,14 +1587,14 @@ function updateColorEnableFromRadios(){
     }
     addScopeAndZHotkeys(dlg);
 
-    frontRadio.onClick = updatePreview;
-    backRadio.onClick = updatePreview;
-    bgLayerRadio.onClick = updatePreview;
+    frontRadio.onClick = updatePreviewCommit;
+    backRadio.onClick = updatePreviewCommit;
+    bgLayerRadio.onClick = updatePreviewCommit;
 
-    currentRadio.onClick = updatePreview;
-    allRadio.onClick = updatePreview;
-    currentRadio.onChanging = updatePreview;
-    allRadio.onChanging = updatePreview;
+    currentRadio.onClick = updatePreviewCommit;
+    allRadio.onClick = updatePreviewCommit;
+    currentRadio.onChanging = updatePreviewCommit;
+    allRadio.onChanging = updatePreviewCommit;
 
     cbBleed.onClick = function() {
         if (cbBleed.value) {
@@ -1426,19 +1611,23 @@ function updateColorEnableFromRadios(){
     var okBtn = btnGroup.add('button', undefined, LABELS.ok[lang]);
 
     okBtn.onClick = function() {
-        try { _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {}
+        try {
+            _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]);
+        } catch (e) {}
         try {
             if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
         } catch (e) {}
-        clearPreview();
+        undoPreviewSteps();
         dlg.close(1);
     };
     cancelBtn.onClick = function() {
-        try { _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {}
+        try {
+            _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]);
+        } catch (e) {}
         try {
             if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
         } catch (e) {}
-        clearPreview();
+        undoPreviewSteps();
         dlg.close(0);
     };
 
@@ -1517,6 +1706,32 @@ function updateColorEnableFromRadios(){
 }
 
 /*
+ * 編集可能なレイヤーを取得（なければ作成）/ Get an editable layer or create one
+ */
+function getWritableLayer(doc) {
+    try {
+        var lyr = doc.activeLayer;
+        if (lyr && !lyr.locked && lyr.visible) return lyr;
+    } catch (e) {}
+    // try find first unlocked & visible layer
+    try {
+        for (var i = 0; i < doc.layers.length; i++) {
+            var l = doc.layers[i];
+            if (!l.locked && l.visible) return l;
+        }
+    } catch (e) {}
+    // last resort: create a new layer at top
+    try {
+        var nl = doc.layers.add();
+        nl.name = "_auto_draw";
+        nl.visible = true;
+        nl.locked = false;
+        return nl;
+    } catch (e) {}
+    return doc.activeLayer; // fallback
+}
+
+/*
  * 「bg」レイヤーの取得/作成 / Get or create the "bg" layer
  */
 function getOrCreateBgLayer(doc) {
@@ -1534,10 +1749,13 @@ function getOrCreateBgLayer(doc) {
         layer = doc.layers.add();
         layer.name = name;
     }
-    // 見える＆編集可能に
+    // 見える＆編集可能に / Ensure editable
     layer.visible = true;
     layer.locked = false;
-    // 最背面へ
+    try {
+        layer.printable = true;
+    } catch (e) {}
+    // 最背面へ / Send to back of layer stack
     try {
         layer.move(doc, ElementPlacement.PLACEATEND);
     } catch (e) {}
@@ -1551,20 +1769,37 @@ function drawRectangleForArtboard(doc, ab, choice) {
     var abHeight = abRect[1] - abRect[3];
 
     var o = choice.offset;
-    var targetContainer = doc;
+    var targetLayer;
     if (choice.zOrder === 'bg') {
-        targetContainer = getOrCreateBgLayer(doc);
+        targetLayer = getOrCreateBgLayer(doc);
+    } else {
+        targetLayer = getWritableLayer(doc);
     }
-    var rect = (choice.zOrder === 'bg' ? targetContainer.pathItems : doc.pathItems).rectangle(abRect[1] + o, abRect[0] - o, abWidth + o * 2, abHeight + o * 2);
+    // Create on the chosen layer to avoid "Target layer cannot be modified"
+    var rect = targetLayer.pathItems.rectangle(
+        abRect[1] + o,
+        abRect[0] - o,
+        abWidth + o * 2,
+        abHeight + o * 2
+    );
 
     // Unified fill application (final draw)
     applyFillByMode(doc, rect, choice.colorMode, {
         customValue: choice.customValue,
         customCMYK: choice.customCMYK
-    }, { k100Opacity: 15 });
+    }, {
+        k100Opacity: 15
+    });
 
     rect.name = LABELS.rectName[lang];
     rect.selected = true;
+    try {
+        rect.hidden = false;
+    } catch (e) {}
+    try {
+        targetLayer.visible = true;
+        targetLayer.locked = false;
+    } catch (e) {}
 
     if (choice.zOrder === 'front') {
         rect.zOrder(ZOrderMethod.BRINGTOFRONT);
