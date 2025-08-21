@@ -1,4 +1,6 @@
 #target illustrator
+// Enable shared engine for dialog memory
+#targetengine "DialogEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -13,8 +15,8 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### 概要：
 
-- アクティブまたは全アートボードと**同サイズ**の長方形を、オフセットを考慮して描画します。
-- カラー（なし／K100・15%）・HEX・CMYK、重ね順（最前面／最背面／bgレイヤー）を指定でき、ライブプレビューで確認できます。
+- アクティブまたは全アートボードと同サイズの長方形を、オフセットを考慮して描画します。
+- カラー（なし／K100 15%／HEX／CMYK）、重ね順（最前面／最背面／bgレイヤー）を指定でき、ライブプレビューで確認できます。
 
 ### 主な機能：
 
@@ -25,20 +27,15 @@ https://github.com/swwwitch/illustrator-scripts
 - プレビュー（1ptの破線、50%トーン、専用レイヤー）
 - ダイアログ位置・不透明度の設定（位置記憶に #targetengine 利用）
 
-### 処理の流れ：
-
-1) ダイアログでオプションを入力（オフセット／カラー／重ね順／対象）
-2) 入力と同時にプレビューを更新（デバウンスあり）
-3) OKで本描画（対象アートボードに長方形を生成）
-
 ### note：
 
 - 「ディム表示（指定）」は UI のみ実装。描画ロジックは未実装です。
 
 ### 更新履歴：
 
-- v1.2 (20250821) : CMYKを独立UI化したため、parseCustomColor() から旧CMYK文字列解釈（"C0 M0 Y0 K100" 等）を削除。
-- v1.1 (20250821) : ダイアログの位置・透明度を設定可能に。プレビューの破線を1ptに変更。オフセットの単位を現在の単位に合わせるよう修正。
+- v1.3 (20250821) : UIまわりをブラッシュアップ
+- v1.2 (20250821) : CMYKを独立UI化し、parseCustomColor()から旧CMYK文字列解釈を削除。
+- v1.1 (20250821) : ダイアログの位置・透明度設定を追加。プレビュー破線を1ptに変更。オフセット単位を現在の単位に合わせるよう修正。
 - v1.0 (20250820) : 初期バージョン
 
 ---
@@ -53,8 +50,8 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### Overview:
 
-- Draws rectangles that **match the active or all artboards**, with optional offset.
-- Supports color (None/K100 15%/HEX/CMYK), stacking order (Front/Back/bg layer), and live preview.
+- Draws rectangles that match the active or all artboards, with optional offset.
+- Supports color (None / K100 15% / HEX / CMYK), stacking order (Front / Back / bg layer), and live preview.
 
 ### Key Features:
 
@@ -65,25 +62,20 @@ https://github.com/swwwitch/illustrator-scripts
 - Preview (1pt dashed stroke, 50% tone, dedicated layer)
 - Dialog position & opacity settings (position memory via #targetengine)
 
-### Flow:
-
-1) Enter options (offset/color/z-order/target) in the dialog
-2) Live preview updates with debounce
-3) On OK, draw rectangles for the selected target
-
 ### Notes:
 
 - "Dim" mode is UI-only for now; rendering logic is not implemented yet.
 
 ### Changelog:
 
-- v1.2 (20250821): Removed legacy CMYK string parsing (e.g., "C0 M0 Y0 K100") from parseCustomColor() since CMYK has its own UI.
+- v1.3 (20250821): UI improvements, including better layout and error handling.
+- v1.2 (20250821): Removed legacy CMYK string parsing from parseCustomColor() since CMYK has its own UI.
 - v1.1 (20250821): Added dialog position/opacity settings. Changed preview stroke to 1pt dashed. Offset unit now matches current ruler setting.
 - v1.0 (20250820): Initial version
 
 */
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 /*
  * Color mode constants / カラーモード定数
@@ -146,8 +138,8 @@ var LABELS = {
         en: "CMYK"
     },
     colorCustomHint: {
-        ja: "例: #FF0000 / 255,0,0",
-        en: "e.g., #FF0000 / 255,0,0"
+        ja: "例: #FF0000",
+        en: "e.g., #FF0000"
     },
     // Z-order options
     front: {
@@ -164,7 +156,7 @@ var LABELS = {
     },
     // Target options
     currentAB: {
-        ja: "作業アートボード",
+        ja: "作業中のアートボードのみ",
         en: "Current Artboard Only"
     },
     allAB: {
@@ -201,6 +193,18 @@ var DIALOG_OFFSET_X = 300; // shift right (+) / left (-)
 var DIALOG_OFFSET_Y = 0; // shift down (+) / up (-)
 var DIALOG_OPACITY = 0.98; // 0.0 - 1.0
 
+// ===== Dialog position memory helpers =====
+function _getSavedLoc(key){ return $.global[key] && $.global[key].length === 2 ? $.global[key] : null; }
+function _setSavedLoc(key, loc){ $.global[key] = [loc[0], loc[1]]; }
+function _clampToScreen(loc){
+    try {
+        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0,0,1920,1080];
+        var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
+        var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
+        return [x, y];
+    } catch (e) { return loc; }
+}
+
 function setDialogOpacity(dlg, opacityValue) {
     try {
         dlg.opacity = opacityValue;
@@ -211,6 +215,23 @@ function shiftDialogPositionOnce(dlg, offsetX, offsetY) {
     try {
         var loc = dlg.location;
         dlg.location = [loc[0] + offsetX, loc[1] + offsetY];
+    } catch (e) {}
+}
+
+/* 入力欄の強調表示ヘルパー / Helper to highlight EditText fields */
+function setEditHighlight(et, on){
+    try {
+        var g = et.graphics;
+        if (on) {
+            // Light yellow highlight
+            g.backgroundColor = g.newBrush(g.BrushType.SOLID_COLOR, [1, 1, 0.85]);
+            g.foregroundColor = g.newPen(g.PenType.SOLID_COLOR, [0.2, 0.2, 0], 1);
+        } else {
+            // Reset to default-looking white
+            g.backgroundColor = g.newBrush(g.BrushType.SOLID_COLOR, [1, 1, 1]);
+            g.foregroundColor = g.newPen(g.PenType.SOLID_COLOR, [0, 0, 0], 1);
+        }
+        et.notify('onDraw'); // redraw
     } catch (e) {}
 }
 
@@ -280,6 +301,70 @@ function cmykToRgb(c, m, y, k) {
     return [Math.round(r), Math.round(g), Math.round(b)];
 }
 
+// --- Common fill applier for both preview and final draw ---
+/*
+ * applyFillByMode(doc, rect, mode, payload, opts)
+ * - mode: 'none' | 'k100' | 'hex' | 'cmyk'
+ * - payload: { customValue: String, customCMYK: {c,m,y,k} }
+ * - opts: { k100Opacity: Number }
+ */
+function applyFillByMode(doc, rect, mode, payload, opts) {
+    try {
+        var k100Opacity = (opts && typeof opts.k100Opacity === 'number') ? opts.k100Opacity : 15;
+        if (mode === 'none') {
+            rect.filled = false;
+            rect.stroked = false;
+            return;
+        }
+        if (mode === 'k100') {
+            rect.filled = true;
+            rect.fillColor = createBlackColor(doc);
+            rect.stroked = false;
+            rect.opacity = k100Opacity;
+            return;
+        }
+        if (mode === 'hex') {
+            var col = parseCustomColor(doc, payload && payload.customValue);
+            if (col) {
+                rect.filled = true;
+                rect.fillColor = col;
+                rect.stroked = false;
+                rect.opacity = 100;
+            } else {
+                rect.filled = false;
+                rect.stroked = false;
+            }
+            return;
+        }
+        if (mode === 'cmyk') {
+            var c = payload && payload.customCMYK && payload.customCMYK.c,
+                m = payload && payload.customCMYK && payload.customCMYK.m,
+                y = payload && payload.customCMYK && payload.customCMYK.y,
+                k = payload && payload.customCMYK && payload.customCMYK.k;
+            var ok = (typeof c === 'number' && !isNaN(c)) &&
+                     (typeof m === 'number' && !isNaN(m)) &&
+                     (typeof y === 'number' && !isNaN(y)) &&
+                     (typeof k === 'number' && !isNaN(k));
+            if (!ok) { rect.filled = false; rect.stroked = false; return; }
+            var color;
+            if (doc && doc.documentColorSpace == DocumentColorSpace.RGB) {
+                var rgb = cmykToRgb(c, m, y, k);
+                color = makeRGB(rgb[0], rgb[1], rgb[2]);
+            } else {
+                color = makeCMYK(c, m, y, k);
+            }
+            rect.filled = true;
+            rect.fillColor = color;
+            rect.stroked = false;
+            rect.opacity = 100;
+            return;
+        }
+        // Fallback
+        rect.filled = false;
+        rect.stroked = false;
+    } catch (e) {}
+}
+
 function _toInt(x) {
     var n = parseFloat(x);
     return isNaN(n) ? NaN : n;
@@ -316,22 +401,7 @@ function parseCustomColor(doc, customValue) {
             if (!isNaN(r) && !isNaN(g) && !isNaN(b)) return makeRGB(r, g, b);
         }
 
-        // R,G,B  (commas or spaces)
-        var threeNums = s.split(/[\s\u3000,，\/、]+/);
-        if (threeNums.length === 3 && threeNums.every(function(x) {
-                return /^\d+(?:\.\d+)?$/.test(x);
-            })) {
-            var r2 = _toInt(threeNums[0]),
-                g2 = _toInt(threeNums[1]),
-                b2 = _toInt(threeNums[2]);
-            if (!isNaN(r2) && !isNaN(g2) && !isNaN(b2)) {
-                if (doc && doc.documentColorSpace == DocumentColorSpace.CMYK) {
-                    var cmyk = rgbToCmyk(r2, g2, b2);
-                    return makeCMYK(cmyk[0], cmyk[1], cmyk[2], cmyk[3]);
-                }
-                return makeRGB(r2, g2, b2);
-            }
-        }
+
 
         // Named colors (basic)
         var named = {
@@ -677,55 +747,11 @@ function renderPreview(doc, choice) {
         );
 
 
-        // Map-driven color fill handlers / マップ駆動の塗り設定
-        var previewFillers = {
-            'none': function() {
-                rect.filled = false;
-                rect.stroked = false;
-            },
-            'k100': function() {
-                rect.filled = true;
-                rect.fillColor = createBlackColor(doc);
-                rect.stroked = false;
-                rect.opacity = 15;
-            },
-            'hex': function() {
-                var col = parseCustomColor(doc, choice.customValue);
-                if (col) {
-                    rect.filled = true;
-                    rect.fillColor = col;
-                    rect.stroked = false;
-                    rect.opacity = 100;
-                } else {
-                    rect.filled = false;
-                    rect.stroked = false;
-                }
-            },
-            'cmyk': function() {
-                var c = choice.customCMYK && choice.customCMYK.c,
-                    m = choice.customCMYK && choice.customCMYK.m,
-                    y = choice.customCMYK && choice.customCMYK.y,
-                    k = choice.customCMYK && choice.customCMYK.k;
-                var ok = (typeof c === 'number' && !isNaN(c)) && (typeof m === 'number' && !isNaN(m)) && (typeof y === 'number' && !isNaN(y)) && (typeof k === 'number' && !isNaN(k));
-                if (!ok) {
-                    rect.filled = false;
-                    rect.stroked = false;
-                    return;
-                }
-                var col;
-                if (doc && doc.documentColorSpace == DocumentColorSpace.RGB) {
-                    var rgb = cmykToRgb(c, m, y, k);
-                    col = makeRGB(rgb[0], rgb[1], rgb[2]);
-                } else {
-                    col = makeCMYK(c, m, y, k);
-                }
-                rect.filled = true;
-                rect.fillColor = col;
-                rect.stroked = false;
-                rect.opacity = 100;
-            }
-        };
-        (previewFillers[choice.colorMode] || previewFillers[ColorMode.NONE])();
+        // Unified fill application (preview)
+        applyFillByMode(doc, rect, choice.colorMode, {
+            customValue: choice.customValue,
+            customCMYK: choice.customCMYK
+        }, { k100Opacity: 15 });
 
         // Common preview stroke (visibility)
         rect.stroked = true;
@@ -760,6 +786,9 @@ function renderPreview(doc, choice) {
 function showDialog() {
     var dlg = new Window('dialog', LABELS.dialogTitle[lang]);
     setDialogOpacity(dlg, DIALOG_OPACITY);
+    var __DLG_KEY = "__SmartDrawABRect_Dialog"; // unique key per dialog
+    if ($.global[__DLG_KEY] === undefined) $.global[__DLG_KEY] = null; // ensure slot
+    var __savedLoc = _getSavedLoc(__DLG_KEY);
     dlg.alignChildren = 'left';
 
     // --- Add two-column group container ---
@@ -844,13 +873,16 @@ function showDialog() {
         }
     }
 
-    dlg.onShow = function() {
+    dlg.onShow = function(){
         try {
-            // Focus offset field first
-            offsetInput.active = true;
-        } catch (e) {}
-        // Shift dialog position once on show
-        shiftDialogPositionOnce(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+            if (__savedLoc) {
+                dlg.location = _clampToScreen(__savedLoc);
+            } else {
+                // first run only: apply initial offset
+                shiftDialogPositionOnce(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
+            }
+        } catch(e) {}
+        try { offsetInput.active = true; } catch(e) {}
         // Remember initial value and set field state
         __lastUserOffsetText = String(offsetInput.text);
         if (cbBleed.value) {
@@ -862,50 +894,119 @@ function showDialog() {
         updatePreview();
     };
 
+    dlg.onMove = function(){
+        try { _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {}
+    };
+
     // Add new panel for color
     var colorPanel = rightCol.add('panel', undefined, LABELS.colorTitle[lang]);
     colorPanel.orientation = 'column';
     colorPanel.alignChildren = 'left';
     colorPanel.margins = [15, 20, 15, 10];
+    colorPanel.spacing = 6; // tighten vertical gap between rows
 
     var noneRadio = colorPanel.add('radiobutton', undefined, LABELS.colorNone[lang]);
     var k100Radio = colorPanel.add('radiobutton', undefined, LABELS.colorK100[lang]);
-    var specifiedRadio = colorPanel.add('radiobutton', undefined, LABELS.colorSpecified[lang]);
 
-    // Custom value text field (UI only; logic TBD)
-    var customRow = colorPanel.add('group');
-    customRow.orientation = 'row';
-    customRow.alignment = 'left';
-    var customInput = customRow.add('edittext', undefined, '');
-    customInput.characters = 14; // narrower to avoid column growth
+    // HEX radio + input on the same row
+    var hexRow = colorPanel.add('group');
+    hexRow.orientation = 'row';
+    hexRow.alignment = 'left';
+    hexRow.alignChildren = ['left', 'center'];
+    hexRow.spacing = 6;
+   var specifiedRadio = hexRow.add('radiobutton', undefined, LABELS.colorSpecified[lang]);
+   var customInput = hexRow.add('edittext', undefined, '#');
+   customInput.characters = 14; // narrower to avoid column growth
 
-    // (spacing) separate HEX and CMYK blocks
-    var _hexCmykSpacer = colorPanel.add('group');
-    try {
-        _hexCmykSpacer.preferredSize.height = 6;
-    } catch (e) {}
+    // --- HEX validation & feedback ---
+    function setHexWarn(et, warn, msg){
+        try {
+            var g = et.graphics;
+            var pen = g.newPen(g.PenType.SOLID_COLOR, warn ? [1, 0, 0] : [0, 0, 0], 1);
+            g.foregroundColor = pen; // text color fallback for border
+            if (warn) {
+                et.helpTip = (lang === 'ja') ? (msg || '正しい #RRGGBB を入力してください') : (msg || 'Enter a valid #RRGGBB value');
+            } else {
+                et.helpTip = '';
+            }
+            et.notify('onDraw');
+        } catch (e) {}
+    }
+
+    customInput.onChanging = function(){
+        try {
+            var t = String(customInput.text || '').replace(/\s+/g, '');
+            if (t === '') { setHexWarn(customInput, false); updatePreview(); return; }
+            if (t === '#') { setHexWarn(customInput, true, (lang==='ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)'); updatePreview(); return; }
+            // Validate only exact #RRGGBB on-the-fly
+            var valid = /^#([0-9a-fA-F]{6})$/.test(t);
+            setHexWarn(customInput, !valid);
+            updatePreview();
+        } catch (e) {}
+    };
+
+    customInput.onChange = function(){
+        try {
+            var t = String(customInput.text || '').replace(/\s+/g, '');
+            if (/^[0-9a-fA-F]{6}$/.test(t)) {
+                t = '#' + t.toUpperCase();
+                customInput.text = t;
+                setHexWarn(customInput, false);
+            } else if (/^#([0-9a-fA-F]{6})$/.test(t)) {
+                customInput.text = ('#' + RegExp.$1.toUpperCase());
+                setHexWarn(customInput, false);
+            } else if (t === '#') {
+                setHexWarn(customInput, true, (lang==='ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)');
+            } else {
+                setHexWarn(customInput, true);
+            }
+            updatePreview();
+        } catch (e) {}
+    };
+
 
     // CMYK mode radio
     var cmykRadio = colorPanel.add('radiobutton', undefined, LABELS.colorCustomCMYK[lang]);
 
-    // Custom CMYK input fields (horizontal)
+    // Custom CMYK input fields (two-row grid: labels on top, fields below)
     var cmykRow = colorPanel.add('group');
-    cmykRow.orientation = 'row';
+    cmykRow.orientation = 'column';
     cmykRow.alignment = 'left';
-    cmykRow.spacing = 6;
+    cmykRow.spacing = 4;
 
-    var lblC = cmykRow.add('statictext', undefined, 'C');
-    var etC = cmykRow.add('edittext', undefined, '');
-    etC.characters = 3; // width 3
-    var lblM = cmykRow.add('statictext', undefined, 'M');
-    var etM = cmykRow.add('edittext', undefined, '');
-    etM.characters = 3; // width 3
-    var lblY = cmykRow.add('statictext', undefined, 'Y');
-    var etY = cmykRow.add('edittext', undefined, '');
-    etY.characters = 3; // width 3
-    var lblK = cmykRow.add('statictext', undefined, 'K');
-    var etK = cmykRow.add('edittext', undefined, '');
-    etK.characters = 3; // width 3
+    var cmykHead = cmykRow.add('group');
+    cmykHead.orientation = 'row';
+    cmykHead.alignChildren = ['left', 'center'];
+    cmykHead.spacing = 10;
+
+    var cmykInputs = cmykRow.add('group');
+    cmykInputs.orientation = 'row';
+    cmykInputs.alignChildren = ['left', 'center'];
+    cmykInputs.spacing = 10;
+
+    var colWidth = 40; // fixed width to align columns
+
+    var lblC = cmykHead.add('statictext', undefined, '  C');
+    lblC.preferredSize.width = colWidth;
+    var lblM = cmykHead.add('statictext', undefined, '  M');
+    lblM.preferredSize.width = colWidth;
+    var lblY = cmykHead.add('statictext', undefined, '  Y');
+    lblY.preferredSize.width = colWidth;
+    var lblK = cmykHead.add('statictext', undefined, '  K');
+    lblK.preferredSize.width = colWidth;
+
+    var etC = cmykInputs.add('edittext', undefined, '');
+    etC.characters = 3;
+    etC.preferredSize.width = colWidth;
+    var etM = cmykInputs.add('edittext', undefined, '');
+    etM.characters = 3;
+    etM.preferredSize.width = colWidth;
+    var etY = cmykInputs.add('edittext', undefined, '');
+    etY.characters = 3;
+    etY.preferredSize.width = colWidth;
+    var etK = cmykInputs.add('edittext', undefined, '');
+    etK.characters = 3;
+    etK.preferredSize.width = colWidth;
 
     // --- CMYK validation helpers (empty→0, clamp 0–100, red text warning) ---
     function setEtWarn(et, warn) {
@@ -940,6 +1041,20 @@ function showDialog() {
             setEtWarn(et, false);
         } catch (e) {}
     }
+
+    // --- Hotkey guard: disable N/K/H/C while typing in fields ---
+    var __hotkeyBlocked = { v: false };
+    function _attachBlockOnFocusBlur(ctrl){
+        try { ctrl.addEventListener('focus', function(){ __hotkeyBlocked.v = true; }); } catch(e) {}
+        try { ctrl.addEventListener('blur', function(){ __hotkeyBlocked.v = false; }); } catch(e) {}
+    }
+    // Block on all edit fields
+    _attachBlockOnFocusBlur(offsetInput);
+    _attachBlockOnFocusBlur(customInput);
+    _attachBlockOnFocusBlur(etC);
+    _attachBlockOnFocusBlur(etM);
+    _attachBlockOnFocusBlur(etY);
+    _attachBlockOnFocusBlur(etK);
 
 
     // Update preview on typing/commit with validation
@@ -979,36 +1094,69 @@ function showDialog() {
         updatePreview();
     };
 
+    // Enable Up/Down arrow adjustments for CMYK fields
+    changeValueByArrowKey(etC, function(){
+        clampCmykField(etC);
+        updatePreview();
+    });
+    changeValueByArrowKey(etM, function(){
+        clampCmykField(etM);
+        updatePreview();
+    });
+    changeValueByArrowKey(etY, function(){
+        clampCmykField(etY);
+        updatePreview();
+    });
+    changeValueByArrowKey(etK, function(){
+        clampCmykField(etK);
+        updatePreview();
+    });
+
     // Default selection
     k100Radio.value = true;
 
     // Enable custom field only when "Custom" is selected
 
-    function syncCustomEnable() {
-        var hexOn = !!specifiedRadio.value; // HEX モード
-        var cmykOn = !!cmykRadio.value; // CMYK モード
-        // HEX テキスト欄
-        customInput.enabled = hexOn;
-        // CMYK 入力欄
+/* HEX 有効/無効を切替 / Enable-Disable HEX input */
+function setHexEnabled(on){
+    try { customInput.enabled = !!on; } catch (e) {}
+}
+
+/* CMYK 有効/無効を切替 / Enable-Disable CMYK inputs */
+function setCmykEnabled(on){
+    var v = !!on;
+    try {
+        etC.enabled = v; lblC.enabled = v;
+        etM.enabled = v; lblM.enabled = v;
+        etY.enabled = v; lblY.enabled = v;
+        etK.enabled = v; lblK.enabled = v;
+        if (!v) {
+            setEtWarn(etC, false);
+            setEtWarn(etM, false);
+            setEtWarn(etY, false);
+            setEtWarn(etK, false);
+        }
+    } catch (e) {}
+}
+
+/* ラジオ選択に応じて一括反映 / Apply enable states from radio values */
+function updateColorEnableFromRadios(){
+    setHexEnabled(!!specifiedRadio.value);
+    setCmykEnabled(!!cmykRadio.value);
+}
+
+    // Helper for edit highlight (dummy if not implemented elsewhere)
+    function setEditHighlight(edit, on) {
         try {
-            etC.enabled = cmykOn;
-            lblC.enabled = cmykOn;
-            etM.enabled = cmykOn;
-            lblM.enabled = cmykOn;
-            etY.enabled = cmykOn;
-            lblY.enabled = cmykOn;
-            etK.enabled = cmykOn;
-            lblK.enabled = cmykOn;
-            if (!cmykOn) {
-                setEtWarn(etC, false);
-                setEtWarn(etM, false);
-                setEtWarn(etY, false);
-                setEtWarn(etK, false);
+            if (edit && edit.graphics && edit.graphics.foregroundColor) {
+                var g = edit.graphics;
+                var pen = g.newPen(g.PenType.SOLID_COLOR, on ? [0,0,1] : [0,0,0], 1);
+                g.foregroundColor = pen;
             }
         } catch (e) {}
     }
 
-    syncCustomEnable();
+    updateColorEnableFromRadios();
 
     // Add new panel for zOrder
     var zOrderPanel = leftCol.add('panel', undefined, LABELS.zorderTitle[lang]);
@@ -1022,8 +1170,8 @@ function showDialog() {
 
     backRadio.value = true;
 
-    // Add new panel for target
-    var targetPanel = leftCol.add('panel', undefined, LABELS.targetTitle[lang]);
+    // Add new panel for target (moved to right column)
+    var targetPanel = rightCol.add('panel', undefined, LABELS.targetTitle[lang]);
     targetPanel.orientation = 'column';
     targetPanel.alignChildren = 'left';
     targetPanel.margins = [15, 20, 15, 10];
@@ -1110,7 +1258,9 @@ function showDialog() {
         specifiedRadio.value = false;
         cmykRadio.value = false;
         noneRadio.value = true;
-        syncCustomEnable();
+        updateColorEnableFromRadios();
+        setEditHighlight(customInput, false);
+        setEditHighlight(etC, false);
         updatePreview();
     };
 
@@ -1119,7 +1269,9 @@ function showDialog() {
         specifiedRadio.value = false;
         cmykRadio.value = false;
         k100Radio.value = true;
-        syncCustomEnable();
+        updateColorEnableFromRadios();
+        setEditHighlight(customInput, false);
+        setEditHighlight(etC, false);
         updatePreview();
     };
 
@@ -1128,7 +1280,10 @@ function showDialog() {
         k100Radio.value = false;
         cmykRadio.value = false;
         specifiedRadio.value = true;
-        syncCustomEnable();
+        updateColorEnableFromRadios();
+        setEditHighlight(customInput, true);
+        setEditHighlight(etC, false);
+        try { customInput.active = true; } catch (e) {}
         try {
             requestPreview(buildChoiceFromUI(), true);
         } catch (_) {
@@ -1141,7 +1296,10 @@ function showDialog() {
         k100Radio.value = false;
         specifiedRadio.value = false;
         cmykRadio.value = true;
-        syncCustomEnable();
+        updateColorEnableFromRadios();
+        setEditHighlight(customInput, false);
+        setEditHighlight(etC, true);
+        try { etC.active = true; } catch (e) {}
         updatePreview();
     };
 
@@ -1150,7 +1308,9 @@ function showDialog() {
         specifiedRadio.value = false;
         cmykRadio.value = false;
         noneRadio.value = true;
-        syncCustomEnable();
+        updateColorEnableFromRadios();
+        setEditHighlight(customInput, false);
+        setEditHighlight(etC, false);
         updatePreview();
     };
     k100Radio.onChanging = function() {
@@ -1158,7 +1318,9 @@ function showDialog() {
         specifiedRadio.value = false;
         cmykRadio.value = false;
         k100Radio.value = true;
-        syncCustomEnable();
+        updateColorEnableFromRadios();
+        setEditHighlight(customInput, false);
+        setEditHighlight(etC, false);
         updatePreview();
     };
     specifiedRadio.onChanging = function() {
@@ -1166,7 +1328,10 @@ function showDialog() {
         k100Radio.value = false;
         cmykRadio.value = false;
         specifiedRadio.value = true;
-        syncCustomEnable();
+        updateColorEnableFromRadios();
+        setEditHighlight(customInput, true);
+        setEditHighlight(etC, false);
+        try { customInput.active = true; } catch (e) {}
         try {
             requestPreview(buildChoiceFromUI(), true);
         } catch (_) {
@@ -1178,9 +1343,64 @@ function showDialog() {
         k100Radio.value = false;
         specifiedRadio.value = false;
         cmykRadio.value = true;
-        syncCustomEnable();
+        updateColorEnableFromRadios();
+        setEditHighlight(customInput, false);
+        setEditHighlight(etC, true);
+        try { etC.active = true; } catch (e) {}
         updatePreview();
     };
+
+    // --- Hotkeys: N/K/H/C to switch color mode radios ---
+    function addColorHotkeys(dialog){
+        dialog.addEventListener('keydown', function(event){
+            if (__hotkeyBlocked.v) return; // typing in a field
+            var key = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
+            if (key === 'N') { noneRadio.notify('onClick'); event.preventDefault(); }
+            else if (key === 'K') { k100Radio.notify('onClick'); event.preventDefault(); }
+            else if (key === 'H') { specifiedRadio.notify('onClick'); event.preventDefault(); }
+            else if (key === 'C') { cmykRadio.notify('onClick'); event.preventDefault(); }
+        });
+    }
+    addColorHotkeys(dlg);
+
+    // --- Hotkeys: Target (S/A) and Z-order (F/B/L) ---
+    /* 作業アートボード/全体 と 重ね順 をホットキーで切替 / Toggle target & z-order via hotkeys */
+    function addScopeAndZHotkeys(dialog){
+        dialog.addEventListener('keydown', function(event){
+            if (__hotkeyBlocked.v) return; // ignore when typing in fields
+            var key = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
+
+            // Target scope: S = current (Single), A = All
+            if (key === 'S') {
+                try { currentRadio.notify('onClick'); } catch (_) {}
+                event.preventDefault();
+                return;
+            }
+            if (key === 'A') {
+                try { allRadio.notify('onClick'); } catch (_) {}
+                event.preventDefault();
+                return;
+            }
+
+            // Z-order: F = Front, B = Back, L = bg Layer
+            if (key === 'F') {
+                try { frontRadio.notify('onClick'); } catch (_) {}
+                event.preventDefault();
+                return;
+            }
+            if (key === 'B') {
+                try { backRadio.notify('onClick'); } catch (_) {}
+                event.preventDefault();
+                return;
+            }
+            if (key === 'L') {
+                try { bgLayerRadio.notify('onClick'); } catch (_) {}
+                event.preventDefault();
+                return;
+            }
+        });
+    }
+    addScopeAndZHotkeys(dlg);
 
     frontRadio.onClick = updatePreview;
     backRadio.onClick = updatePreview;
@@ -1206,6 +1426,7 @@ function showDialog() {
     var okBtn = btnGroup.add('button', undefined, LABELS.ok[lang]);
 
     okBtn.onClick = function() {
+        try { _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {}
         try {
             if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
         } catch (e) {}
@@ -1213,6 +1434,7 @@ function showDialog() {
         dlg.close(1);
     };
     cancelBtn.onClick = function() {
+        try { _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]); } catch(e) {}
         try {
             if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
         } catch (e) {}
@@ -1335,55 +1557,11 @@ function drawRectangleForArtboard(doc, ab, choice) {
     }
     var rect = (choice.zOrder === 'bg' ? targetContainer.pathItems : doc.pathItems).rectangle(abRect[1] + o, abRect[0] - o, abWidth + o * 2, abHeight + o * 2);
 
-    // Map-driven color fill for final drawing / 本描画のマップ駆動塗り設定
-    var drawFillers = {
-        'none': function() {
-            rect.filled = false;
-            rect.stroked = false;
-        },
-        'k100': function() {
-            rect.filled = true;
-            rect.fillColor = createBlackColor(doc);
-            rect.stroked = false;
-            rect.opacity = 15;
-        },
-        'hex': function() {
-            var col = parseCustomColor(doc, choice.customValue);
-            if (col) {
-                rect.filled = true;
-                rect.fillColor = col;
-                rect.stroked = false;
-                rect.opacity = 100;
-            } else {
-                rect.filled = false;
-                rect.stroked = false;
-            }
-        },
-        'cmyk': function() {
-            var c = choice.customCMYK && choice.customCMYK.c,
-                m = choice.customCMYK && choice.customCMYK.m,
-                y = choice.customCMYK && choice.customCMYK.y,
-                k = choice.customCMYK && choice.customCMYK.k;
-            var ok = (typeof c === 'number' && !isNaN(c)) && (typeof m === 'number' && !isNaN(m)) && (typeof y === 'number' && !isNaN(y)) && (typeof k === 'number' && !isNaN(k));
-            if (!ok) {
-                rect.filled = false;
-                rect.stroked = false;
-                return;
-            }
-            var col;
-            if (doc && doc.documentColorSpace == DocumentColorSpace.RGB) {
-                var rgb = cmykToRgb(c, m, y, k);
-                col = makeRGB(rgb[0], rgb[1], rgb[2]);
-            } else {
-                col = makeCMYK(c, m, y, k);
-            }
-            rect.filled = true;
-            rect.fillColor = col;
-            rect.stroked = false;
-            rect.opacity = 100;
-        }
-    };
-    (drawFillers[choice.colorMode] || drawFillers[ColorMode.NONE])();
+    // Unified fill application (final draw)
+    applyFillByMode(doc, rect, choice.colorMode, {
+        customValue: choice.customValue,
+        customCMYK: choice.customCMYK
+    }, { k100Opacity: 15 });
 
     rect.name = LABELS.rectName[lang];
     rect.selected = true;
