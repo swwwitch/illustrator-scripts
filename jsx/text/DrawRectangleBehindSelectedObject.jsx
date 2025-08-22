@@ -3,39 +3,79 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "DialogEngine"
 
 /*
-============================================================
-スクリプト名 / Script Name
-------------------------------------------------------------
-背面に長方形を作成 / Draw Rectangle Behind Selection
+### スクリプト名：
 
-説明 / Description
-------------------------------------------------------------
-選択中のオブジェクト（または「グループとして」選択全体）に対して、外接バウンディングボックスを基準に
-オフセットを加えた長方形を選択オブジェクトの属するレイヤーに作成します。作成された長方形は常に最背面に配置されます。
-ライブプレビューにより、数値入力の変更が即座に確認できます。
+背面に長方形を作成
 
-● 主な機能 / Key Features
-- オフセット（現在の定規単位に追従） / Offset respects current ruler units
-- 角丸（ライブエフェクトで適用・非展開） / Corner radius via Live Effect (kept unexpanded)
-- カラー：K100 / ホワイト / HEX / CMYK / Colors: K100, White, HEX, CMYK
-- 対象：個別／グループとして（選択単位の切替） / Target: Individual or as Group (treat selection as one)
-- プレビュー：専用レイヤーに破線で描画、ダイアログ操作中はヒストリーに残りません
-  Preview: dashed temporary shapes on dedicated layer; preview actions do not pollute history
-- ダイアログ位置・不透明度の記憶 / Persist dialog position & opacity
+### GitHub：
 
-注意事項 / Notes
-------------------------------------------------------------
-- 角丸の数値は現状プレビューのみで使用します。実描画ロジックは今後追加します。
-- Zオーダーは常に最背面、ターゲットレイヤーは選択しているオブジェクトです。
+https://github.com/swwwitch/illustrator-scripts
 
-更新履歴 / Update History
-------------------------------------------------------------
-- v1.0 (2025-08-22): 初期バージョン。選択オブジェクトを基準に、オフセット長方形を bg レイヤー最背面に作成。
-  Added initial version: draws offset rectangles behind selection on bg layer with live preview.
-============================================================
+### 概要：
+
+- 選択オブジェクトの外接バウンディングボックスを基準に、オフセットを加えた長方形を生成
+- プレビュー機能で即時確認可能、作成した長方形は常に最背面に配置
+
+### 主な機能：
+
+- オフセット（現在の定規単位に追従）
+- 角丸（ライブエフェクト適用、非展開）
+- 塗り/線 カラー指定（K100 / ホワイト / HEX / CMYK）
+- 対象：個別／グループとして
+- プレビュー（専用レイヤー、ヒストリーに残らない）
+- ダイアログ位置・不透明度の記憶
+
+### 処理の流れ：
+
+1. 対象オブジェクトのバウンディングボックスを計算
+2. オフセット・角丸・塗り/線を適用した長方形を作成
+3. プレビューは専用レイヤーに生成、確定時に本番描画
+4. 「テキストとグループ化」オプションで元テキストとグループ化可能
+
+### 更新履歴：
+
+- v1.0 (2025-08-22) : 初期バージョン
+- v1.1 (2025-08-23) : プレビュー・カラー選択機能を追加
+- v1.2 (2025-08-23) : 種別（塗り/線）、線幅指定、プリセット保存機能を追加
+
+---
+### Script Name:
+
+Draw Rectangle Behind Selection
+
+### GitHub：
+
+https://github.com/swwwitch/illustrator-scripts
+
+### Overview:
+
+- Generate rectangles offset from the bounding box of selected objects
+- Live preview with immediate feedback; created rectangles are always sent to back
+
+### Key Features:
+
+- Offset (follows current ruler units)
+- Corner radius (applied via Live Effect, kept unexpanded)
+- Fill/Stroke color options (K100 / White / HEX / CMYK)
+- Target: Individual or as Group
+- Preview on a dedicated layer (does not pollute history)
+- Dialog position & opacity persistence
+
+### Processing Flow:
+
+1. Compute bounding box of target objects
+2. Apply offset, corner radius, and fill/stroke settings to rectangle
+3. Render preview to dedicated layer; finalize on OK
+4. Optionally group rectangle with original text
+
+### Update History:
+
+- v1.0 (2025-08-22): Initial version
+- v1.1 (2025-08-23): Added preview and color selection
+- v1.2 (2025-08-23): Added type (fill/stroke), stroke width, and preset saving
 */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.2";
 
 /*
  * Color mode constants / カラーモード定数
@@ -63,7 +103,6 @@ var LABELS = {
         ja: "オブジェクトを選択してください。",
         en: "Please select at least one object."
     },
-    // Panels
     offsetTitle: {
         ja: "マージン",
         en: "Margins"
@@ -76,7 +115,6 @@ var LABELS = {
         ja: "角丸",
         en: "Corner Radius"
     },
-
     targetTitle: {
         ja: "対象",
         en: "Target"
@@ -85,6 +123,39 @@ var LABELS = {
         ja: "種別",
         en: "Type"
     },
+    strokeWidth: {
+        ja: "線幅",
+        en: "Stroke Width"
+    },
+    previewBounds: {
+        ja: "テキストとグループ化",
+        en: "Group with Text"
+    },
+    previewOutline: {
+        ja: "テキストをアウトラインで計算",
+        en: "Outline Text for Preview"
+    },
+    ok: {
+        ja: "OK",
+        en: "OK"
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    previewLayer: {
+        ja: "_プレビュー",
+        en: "_preview"
+    },
+    rectName: {
+        ja: "アートボード境界",
+        en: "Artboard Bounds"
+    },
+    previewRect: {
+        ja: "__プレビュー_アートボード境界",
+        en: "__Preview_ArtboardBounds"
+    },
+    // --- Color & type options ---
     typeFill: {
         ja: "塗り",
         en: "Fill"
@@ -93,7 +164,6 @@ var LABELS = {
         ja: "線",
         en: "Stroke"
     },
-    // Color options
     colorK100: {
         ja: "ブラック",
         en: "Black"
@@ -110,11 +180,7 @@ var LABELS = {
         ja: "CMYK",
         en: "CMYK"
     },
-    colorCustomHint: {
-        ja: "例: #FF0000",
-        en: "e.g., #FF0000"
-    },
-    // Target options
+    // --- Target options ---
     currentAB: {
         ja: "個別",
         en: "Create Individually"
@@ -122,41 +188,7 @@ var LABELS = {
     allAB: {
         ja: "グループとして",
         en: "Create as Group"
-    },
-    // Buttons
-    ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    },
-    // Names
-    previewLayer: {
-        ja: "_preview",
-        en: "_preview"
-    },
-    rectName: {
-        ja: "アートボード境界",
-        en: "Artboard Bounds"
-    },
-    previewRect: {
-        ja: "__プレビュー_アートボード境界",
-        en: "__Preview_ArtboardBounds"
-    },
-    previewBounds: {
-        ja: "テキストとグループ化",
-        en: "Group with Text"
-    },
-    previewOutline: {
-        ja: "テキストをアウトラインで計算",
-        en: "Outline Text for Preview"
-    },
-    strokeWidth: {
-        ja: "線幅",
-        en: "Stroke Width"
-    },
+    }
 };
 
 
@@ -165,7 +197,7 @@ var DIALOG_OFFSET_X = 300; // shift right (+) / left (-)
 var DIALOG_OFFSET_Y = 0; // shift down (+) / up (-)
 var DIALOG_OPACITY = 0.98; // 0.0 - 1.0
 
-/* 
+/*
  * プレビュー遅延時間 / Preview delay timings
  * - 入力中は軽め（タイプしやすさ優先）/ Lighter while typing for responsiveness
  * - アウトライン計算時はやや重め / Slightly heavier when outlining text
@@ -175,12 +207,12 @@ var PREVIEW_DELAY_OUTLINE_MS = 240; // heavier when outlining text during previe
 
 /* =========================================
  * DialogPersist util (extractable)
- * ダイアログの不透明度・初期位置・位置記憶を共通化するユーティリティ。
- * 使い方:
+ * ダイアログの不透明度・初期位置・位置記憶を共通化するユーティリティ。 / Utility for dialog opacity, initial position, and remembering position.
+ * 使い方 / Usage:
  *   DialogPersist.setOpacity(dlg, 0.95);
  *   DialogPersist.restorePosition(dlg, "__YourDialogKey", offsetX, offsetY);
  *   DialogPersist.rememberOnMove(dlg, "__YourDialogKey");
- *   DialogPersist.savePosition(dlg, "__YourDialogKey"); // 閉じる直前などに
+ *   DialogPersist.savePosition(dlg, "__YourDialogKey"); // 閉じる直前などに / e.g. just before closing
  * ========================================= */
 (function(g) {
     if (!g.DialogPersist) {
@@ -268,7 +300,7 @@ function createBlackColor(doc) {
     }
 }
 
-// --- Helpers: color constructors & parsers ---
+// --- 色生成・パーサーヘルパー / Helpers: color constructors & parsers ---
 function _clamp(v, min, max) {
     return v < min ? min : (v > max ? max : v);
 }
@@ -291,7 +323,7 @@ function makeCMYK(cy, mg, yl, k) {
     return c;
 }
 
-// --- RGB/CMYK conversion helpers ---
+// --- RGB/CMYK 変換ヘルパー / RGB/CMYK conversion helpers ---
 function rgbToCmyk(r, g, b) {
     // r,g,b: 0-255 → return [C,M,Y,K] 0-100
     r = _clamp(r, 0, 255) / 255;
@@ -317,7 +349,7 @@ function cmykToRgb(c, m, y, k) {
     return [Math.round(r), Math.round(g), Math.round(b)];
 }
 
-// --- Fill helpers split by responsibility ---
+// --- 塗り適用ヘルパー（責務分離）/ Fill helpers split by responsibility ---
 /*
  * resolveFillColor(doc, mode, payload)
  * 目的: カラーオブジェクトの解決のみを担当（不透明度/線は扱わない）
@@ -404,8 +436,8 @@ function _toInt(x) {
 }
 
 /*
- * customValue の解釈と RGBColor/CMYKColor へのマッピング
- * Accepts:
+ * customValue の解釈と RGBColor/CMYKColor へのマッピング / Parse customValue and map to RGBColor/CMYKColor
+ * 受け入れ形式 / Accepts:
  *  - "#RRGGBB"
  *  - "R,G,B"  (0-255)
  *  - 名前色: black, white, red, green, blue, cyan, magenta, yellow, orange, grayXX (0-100)
@@ -562,7 +594,7 @@ function getPtFactorFromUnitCode(code) {
 
 /*
  * Resolve offset display text & internal pt value in one place
- * 単位変換を一元化（Bleedプリセットなし）
+ * 単位変換を一元化（Bleedプリセットなし）/ Centralize unit conversion (no Bleed preset)
  * - offsetText: current edit field text (string)
  * - unitCode: app.preferences.getIntegerPreference("rulerType")
  * Return: { pt: Number, displayText: String, disabled: Boolean }
@@ -633,18 +665,18 @@ function changeValueByArrowKey(editText, onValueChange) {
     });
 }
 
-// ===== Preview helpers =====
+// ===== プレビュー用ヘルパー / Preview helpers =====
 
 
 /* =========================================
  * PreviewHistory util (extractable)
- * ヒストリーを残さないプレビューのための小さなユーティリティ。
- * 他スクリプトでもこのブロックをコピペすれば再利用できます。
- * 使い方:
- *   PreviewHistory.start();     // ダイアログ表示時などにカウンタ初期化
- *   PreviewHistory.bump();      // プレビュー描画ごとにカウント(+1)
- *   PreviewHistory.undo();      // 閉じる/キャンセル時に一括Undo
- *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
+ * ヒストリーを残さないプレビューのための小さなユーティリティ。/ Small utility for previews that do not leave history.
+ * 他スクリプトでもこのブロックをコピペすれば再利用できます。/ You can reuse this block in other scripts.
+ * 使い方 / Usage:
+ *   PreviewHistory.start();     // ダイアログ表示時などにカウンタ初期化 / Initialize counter when dialog appears, etc.
+ *   PreviewHistory.bump();      // プレビュー描画ごとにカウント(+1) / Increment for each preview rendering
+ *   PreviewHistory.undo();      // 閉じる/キャンセル時に一括Undo / Undo all at close/cancel
+ *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助 / Helper to cancel app.scheduleTask
  * ========================================= */
 (function(g) {
     if (!g.PreviewHistory) {
@@ -927,7 +959,7 @@ function withTargetBounds(doc, sel, choice, groupFn, itemFn) {
 }
 
 /*
- * プレビュー描画（Previewレイヤーへ一時オブジェクトを生成）
+ * プレビュー描画（Previewレイヤーへ一時オブジェクトを生成）/ Draw preview shapes in the Preview layer (temporary objects)
  * Render live preview into the dedicated Preview layer.
  */
 function renderPreview(doc, choice) {
