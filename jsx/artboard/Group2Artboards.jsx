@@ -11,6 +11,8 @@ Group2Artboards.jsx
 - 選択したグループオブジェクトの境界に指定したマージンを加え、その範囲をアートボードとして自動追加するIllustrator用スクリプトです。
 - 複数のグループ選択に対応し、名前の連番付与やファイル名参照、既存アートボードの削除オプションも搭載しています。
 
+更新日：2025-08-22（v1.3）
+
 ### 主な機能
 
 - グループオブジェクトを基にアートボードを自動生成
@@ -30,6 +32,7 @@ Group2Artboards.jsx
 - v1.0 (20250703) : 初期バージョン
 - v1.1 (20250704) : コメント整理と最適化
 - v1.2 (20250705) : クリップグループ選択時の挙動を調整
+- v1.3 (20250822) : キー操作（↑/↓、Shift+↑/↓、Option+↑/↓）での数値増減を追加
 
 ---
 
@@ -41,6 +44,8 @@ Group2Artboards.jsx
 
 - A script for Illustrator that automatically adds new artboards around each selected group object with an optional margin.
 - Supports multiple group selections, sequential naming, file name reference, and deletion of existing artboards.
+
+Last Updated: 2025-08-22 (v1.3)
 
 ### Main Features
 
@@ -61,10 +66,11 @@ Group2Artboards.jsx
 - v1.0 (20250703): Initial version
 - v1.1 (20250704): Cleaned comments and optimized logic
 - v1.2 (20250705): Adjusted behavior for clip groups
+- v1.3 (20250822): Added keyboard increments (Up/Down, Shift+Up/Down, Option+Up/Down)
 */
 
 /* スクリプトバージョン / Script version */
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -189,6 +195,62 @@ function buildArtboardName(prefix, symbol, seq, zeroPadding, useFileName, fileNa
     return prefix + symbol + numStr;
 }
 
+function changeValueByArrowKey(editText) {
+    editText.addEventListener("keydown", function(event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+
+        var keyboard = ScriptUI.environment.keyboardState;
+        var delta = 1;
+
+        if (keyboard.shiftKey) {
+            delta = 10;
+            // Shiftキー押下時は10の倍数にスナップ
+            if (event.keyName == "Up") {
+                value = Math.ceil((value + 1) / delta) * delta;
+                event.preventDefault();
+            } else if (event.keyName == "Down") {
+                value = Math.floor((value - 1) / delta) * delta;
+                if (value < 0) value = 0;
+                event.preventDefault();
+            }
+        } else if (keyboard.altKey) {
+            delta = 0.1;
+            // Optionキー押下時は0.1単位で増減
+            if (event.keyName == "Up") {
+                value += delta;
+                event.preventDefault();
+            } else if (event.keyName == "Down") {
+                value -= delta;
+                event.preventDefault();
+            }
+        } else {
+            delta = 1;
+            if (event.keyName == "Up") {
+                value += delta;
+                event.preventDefault();
+            } else if (event.keyName == "Down") {
+                value -= delta;
+                if (value < 0) value = 0;
+                event.preventDefault();
+            }
+        }
+
+        if (keyboard.altKey) {
+            // 小数第1位までに丸め
+            value = Math.round(value * 10) / 10;
+        } else {
+            // 整数に丸め
+            value = Math.round(value);
+        }
+
+        editText.text = value;
+
+        // 追加：プレビュー等の即時反映（onChanging があれば呼ぶ）
+        try { if (typeof editText.onChanging === 'function') editText.onChanging(); } catch (e) {}
+    });
+}
+
 function showDialog() {
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
@@ -214,6 +276,7 @@ function showDialog() {
     var marginInput = marginGroup.add("edittext", undefined, "0");
     marginInput.characters = 5;
     marginGroup.add("statictext", undefined, rulerUnit);
+    changeValueByArrowKey(marginInput);
 
     var deleteArtboardsCheck = controlGroup.add("checkbox", undefined, LABELS.deleteArtboards[lang]);
     deleteArtboardsCheck.value = true;
@@ -254,6 +317,7 @@ function showDialog() {
     seqRow.add("statictext", undefined, LABELS.startNumber[lang]);
     var seqInput = seqRow.add("edittext", undefined, "01");
     seqInput.characters = 5;
+    changeValueByArrowKey(seqInput);
     var zeroPaddingCheck = seqRow.add("checkbox", undefined, LABELS.zeroPadding[lang]);
     zeroPaddingCheck.value = true;
 
