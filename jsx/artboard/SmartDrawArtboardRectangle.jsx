@@ -198,38 +198,63 @@ var DIALOG_OPACITY = 0.98; // 0.0 - 1.0
 // 入力中のプレビュー遅延（タイプしやすさ優先）/ Delay during typing
 var PREVIEW_DELAY_TYPING_MS = 110; // recommend 100–120ms
 
-// ===== Dialog position memory helpers =====
-function _getSavedLoc(key) {
-    return $.global[key] && $.global[key].length === 2 ? $.global[key] : null;
-}
 
-function _setSavedLoc(key, loc) {
-    $.global[key] = [loc[0], loc[1]];
-}
-
-function _clampToScreen(loc) {
-    try {
-        var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0, 0, 1920, 1080];
-        var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
-        var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
-        return [x, y];
-    } catch (e) {
-        return loc;
+/* =========================================
+ * DialogPersist util (extractable)
+ * ダイアログの不透明度・初期位置・位置記憶を共通化するユーティリティ。
+ * 使い方:
+ *   DialogPersist.setOpacity(dlg, 0.95);
+ *   DialogPersist.restorePosition(dlg, "__YourDialogKey", offsetX, offsetY);
+ *   DialogPersist.rememberOnMove(dlg, "__YourDialogKey");
+ *   DialogPersist.savePosition(dlg, "__YourDialogKey"); // 閉じる直前などに
+ * ========================================= */
+(function(g){
+    if (!g.DialogPersist) {
+        g.DialogPersist = {
+            setOpacity: function(dlg, v){
+                try { dlg.opacity = v; } catch (e) {}
+            },
+            _getSaved: function(key){
+                return g[key] && g[key].length === 2 ? g[key] : null;
+            },
+            _setSaved: function(key, loc){
+                g[key] = [loc[0], loc[1]];
+            },
+            _clampToScreen: function(loc){
+                try {
+                    var vb = ($.screens && $.screens.length) ? $.screens[0].visibleBounds : [0, 0, 1920, 1080];
+                    var x = Math.max(vb[0] + 10, Math.min(loc[0], vb[2] - 10));
+                    var y = Math.max(vb[1] + 10, Math.min(loc[1], vb[3] - 10));
+                    return [x, y];
+                } catch (e) {
+                    return loc;
+                }
+            },
+            restorePosition: function(dlg, key, offsetX, offsetY){
+                var loc = this._getSaved(key);
+                try {
+                    if (loc) {
+                        dlg.location = this._clampToScreen(loc);
+                    } else {
+                        var l = dlg.location;
+                        dlg.location = [l[0] + (offsetX|0), l[1] + (offsetY|0)];
+                    }
+                } catch (e) {}
+            },
+            rememberOnMove: function(dlg, key){
+                var self = this;
+                dlg.onMove = function(){
+                    try {
+                        self._setSaved(key, [dlg.location[0], dlg.location[1]]);
+                    } catch (e) {}
+                };
+            },
+            savePosition: function(dlg, key){
+                try { this._setSaved(key, [dlg.location[0], dlg.location[1]]); } catch (e) {}
+            }
+        };
     }
-}
-
-function setDialogOpacity(dlg, opacityValue) {
-    try {
-        dlg.opacity = opacityValue;
-    } catch (e) {}
-}
-
-function shiftDialogPositionOnce(dlg, offsetX, offsetY) {
-    try {
-        var loc = dlg.location;
-        dlg.location = [loc[0] + offsetX, loc[1] + offsetY];
-    } catch (e) {}
-}
+})($.global);
 
 /* 入力欄の強調表示ヘルパー / Helper to highlight EditText fields */
 function setEditHighlight(et, on) {
@@ -638,24 +663,48 @@ function changeValueByArrowKey(editText, onValueChange) {
 }
 
 // ===== Preview helpers =====
+
 var __previewItems = [];
+
+/* =========================================
+ * PreviewHistory util (extractable)
+ * ヒストリーを残さないプレビューのための小さなユーティリティ。
+ * 他スクリプトでもこのブロックをコピペすれば再利用できます。
+ * 使い方:
+ *   PreviewHistory.start();     // ダイアログ表示時などにカウンタ初期化
+ *   PreviewHistory.bump();      // プレビュー描画ごとにカウント(+1)
+ *   PreviewHistory.undo();      // 閉じる/キャンセル時に一括Undo
+ *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
+ * ========================================= */
+(function(g){
+    if (!g.PreviewHistory) {
+        g.PreviewHistory = {
+            start: function(){
+                g.__previewUndoCount = 0;
+            },
+            bump: function(){
+                g.__previewUndoCount = (g.__previewUndoCount | 0) + 1;
+            },
+            undo: function(){
+                var n = g.__previewUndoCount | 0;
+                try {
+                    for (var i = 0; i < n; i++) app.executeMenuCommand('undo');
+                } catch (e) {}
+                g.__previewUndoCount = 0;
+            },
+            cancelTask: function(taskId){
+                try { if (taskId) app.cancelTask(taskId); } catch (e) {}
+            }
+        };
+    }
+})($.global);
 
 
 var __previewDebounceTask = null;
-// Count how many preview-render steps added to History while dialog is open
-$.global.__previewUndoCount = $.global.__previewUndoCount | 0;
-
-function undoPreviewSteps() {
-    var n = $.global.__previewUndoCount | 0;
-    try {
-        for (var i = 0; i < n; i++) app.executeMenuCommand('undo');
-    } catch (e) {}
-    $.global.__previewUndoCount = 0;
-}
 
 function schedulePreview(choice, delayMs) {
     try {
-        if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
+        if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
     } catch (e) {}
     $.global.__lastPreviewChoice = choice;
     var code = 'try{renderPreview(app.activeDocument, $.global.__lastPreviewChoice);}catch(e){}';
@@ -674,7 +723,7 @@ function schedulePreview(choice, delayMs) {
 function requestPreview(choice, immediate) {
     if (immediate) {
         try {
-            if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
+            if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
         } catch (_) {}
         try {
             renderPreview(app.activeDocument, choice);
@@ -886,16 +935,15 @@ function renderPreview(doc, choice) {
     try {
         if (prevCS !== null) app.coordinateSystem = prevCS;
     } catch (e) {}
-    $.global.__previewUndoCount = ($.global.__previewUndoCount | 0) + 1;
+    PreviewHistory.bump();
     app.redraw();
 }
 
 function showDialog() {
     var dlg = new Window('dialog', LABELS.dialogTitle[lang]);
-    setDialogOpacity(dlg, DIALOG_OPACITY);
+    DialogPersist.setOpacity(dlg, DIALOG_OPACITY);
     var __DLG_KEY = "__SmartDrawABRect_Dialog"; // unique key per dialog
     if ($.global[__DLG_KEY] === undefined) $.global[__DLG_KEY] = null; // ensure slot
-    var __savedLoc = _getSavedLoc(__DLG_KEY);
     dlg.alignChildren = 'left';
 
     // --- Add two-column group container ---
@@ -981,14 +1029,7 @@ function showDialog() {
     }
 
     dlg.onShow = function() {
-        try {
-            if (__savedLoc) {
-                dlg.location = _clampToScreen(__savedLoc);
-            } else {
-                // first run only: apply initial offset
-                shiftDialogPositionOnce(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
-            }
-        } catch (e) {}
+        DialogPersist.restorePosition(dlg, __DLG_KEY, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
         try {
             offsetInput.active = true;
         } catch (e) {}
@@ -999,16 +1040,11 @@ function showDialog() {
         } else {
             offsetInput.enabled = true;
         }
-        $.global.__previewUndoCount = 0; // reset preview undo counter per dialog session
+        PreviewHistory.start(); // reset preview history counter
         // Render initial preview
         updatePreviewCommit();
     };
-
-    dlg.onMove = function() {
-        try {
-            _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]);
-        } catch (e) {}
-    };
+    DialogPersist.rememberOnMove(dlg, __DLG_KEY);
 
     // Add new panel for color
     var colorPanel = rightCol.add('panel', undefined, LABELS.colorTitle[lang]);
@@ -1394,7 +1430,7 @@ function showDialog() {
 
     function updatePreviewCommit() {
         try {
-            if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
+            if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
         } catch (_) {}
         try {
             renderPreview(app.activeDocument, buildChoiceFromUI());
@@ -1611,23 +1647,19 @@ function showDialog() {
     var okBtn = btnGroup.add('button', undefined, LABELS.ok[lang]);
 
     okBtn.onClick = function() {
+        DialogPersist.savePosition(dlg, __DLG_KEY);
         try {
-            _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]);
+            if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
         } catch (e) {}
-        try {
-            if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
-        } catch (e) {}
-        undoPreviewSteps();
+        PreviewHistory.undo();
         dlg.close(1);
     };
     cancelBtn.onClick = function() {
+        DialogPersist.savePosition(dlg, __DLG_KEY);
         try {
-            _setSavedLoc(__DLG_KEY, [dlg.location[0], dlg.location[1]]);
+            if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
         } catch (e) {}
-        try {
-            if (__previewDebounceTask) app.cancelTask(__previewDebounceTask);
-        } catch (e) {}
-        undoPreviewSteps();
+        PreviewHistory.undo();
         dlg.close(0);
     };
 
@@ -1782,6 +1814,10 @@ function drawRectangleForArtboard(doc, ab, choice) {
         abWidth + o * 2,
         abHeight + o * 2
     );
+    // Ensure the new rect is selected before running a selection-based menu command
+    try { rect.selected = true; } catch (e) {}
+    // Apply Effect > Convert to Shape using the last-used parameters
+    try { app.executeMenuCommand('Convert to Shape'); } catch (e) {}
 
     // Unified fill application (final draw)
     applyFillByMode(doc, rect, choice.colorMode, {
