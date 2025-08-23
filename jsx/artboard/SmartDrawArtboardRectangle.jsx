@@ -32,11 +32,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
 ### 更新履歴：
 
-- v1.4 (20250821) : 微調整
-- v1.3 (20250821) : UIまわりをブラッシュアップ
-- v1.2 (20250821) : CMYKを独立UI化し、parseCustomColor()から旧CMYK文字列解釈を削除。
-- v1.1 (20250821) : ダイアログの位置・透明度設定を追加。プレビュー破線を1ptに変更。オフセット単位を現在の単位に合わせるよう修正。
 - v1.0 (20250820) : 初期バージョン
+- v1.1 (20250821) : ダイアログの位置・透明度設定を追加。プレビュー破線を1ptに変更。オフセット単位を現在の単位に合わせるよう修正。
+- v1.2 (20250821) : CMYKを独立UI化し、parseCustomColor()から旧CMYK文字列解釈を削除。
+- v1.3 (20250821) : UIまわりをブラッシュアップ
+- v1.4 (20250821) : 微調整
+- v1.5（20250824）：カラーまわりのロジックを調整
 
 ---
 
@@ -68,15 +69,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
 ### Changelog:
 
-- v1.4 (20250821): Minor adjustments.
-- v1.3 (20250821): UI improvements, including better layout and error handling.
-- v1.2 (20250821): Removed legacy CMYK string parsing from parseCustomColor() since CMYK has its own UI.
-- v1.1 (20250821): Added dialog position/opacity settings. Changed preview stroke to 1pt dashed. Offset unit now matches current ruler setting.
 - v1.0 (20250820): Initial version
+- v1.1 (20250821): Added dialog position/opacity settings. Changed preview stroke to 1pt dashed. Offset unit now matches current ruler setting.
+- v1.2 (20250821): Removed legacy CMYK string parsing from parseCustomColor() since CMYK has its own UI.
+- v1.3 (20250821): UI improvements, including better layout and error handling.
+- v1.4 (20250821): Minor adjustments.
+- v1.5（20250824）
 
 */
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 /*
  * Color mode constants / カラーモード定数
@@ -434,6 +436,21 @@ function parseCustomColor(doc, customValue) {
         });
         s = s.replace(/．/g, '.'); // full-width period
         s = s.replace(/／/g, '/'); // full-width slash
+
+        // Expand shorthand HEX notations
+        // #RGB → #RRGGBB, #RR → #RRRRRR, #R → #RRRRRR
+        if (s.charAt(0) === '#') {
+            if (s.length === 4) { // #RGB
+                var r1 = s.charAt(1), g1 = s.charAt(2), b1 = s.charAt(3);
+                s = '#' + r1 + r1 + g1 + g1 + b1 + b1;
+            } else if (s.length === 3) { // #RR
+                var r2 = s.charAt(1), r3 = s.charAt(2);
+                s = '#' + r2 + r3 + r2 + r3 + r2 + r3;
+            } else if (s.length === 2) { // #R
+                var r4 = s.charAt(1);
+                s = '#' + r4 + r4 + r4 + r4 + r4 + r4; // #3 → #333333
+            }
+        }
 
         // #RRGGBB
         if (s.charAt(0) === '#' && s.length === 7) {
@@ -1211,22 +1228,32 @@ function showDialog() {
         } catch (e) {}
     }
 
-    // If the field shows exactly "0", typing a digit should replace it (avoid "03")
+    // Prevent any leading-zero integer like "03" from being typed (but allow decimals like "0.5")
     function replaceZeroOnFirstDigit(et) {
         try {
             et.addEventListener('keydown', function(ev) {
                 var k = String(ev.keyName || '');
-                if (/^[0-9]$/.test(k)) {
-                    try {
-                        var t = String(et.text || '');
-                        if (t === '0') {
-                            et.text = k; // replace instead of append
-                            if (ev && typeof ev.preventDefault === 'function') ev.preventDefault();
-                            validateCmykField(et);
-                            updatePreviewTyping();
-                        }
-                    } catch (e) {}
-                }
+                // Only care about single digit keys 0-9
+                if (!/^[0-9]$/.test(k)) return;
+                try {
+                    var t = String(et.text || '');
+                    // If user is composing a decimal number, do nothing here
+                    if (/\./.test(t)) return;
+
+                    // If the field is exactly "0" (or series of zeros), clear it **before** the new digit is inserted
+                    // so typing "3" results directly in "3" (never "03").
+                    if (/^0+$/.test(t)) {
+                        et.text = '';
+                        return; // let default insertion append the digit
+                    }
+
+                    // If there are leading zeros with other digits (e.g. "007"), normalize immediately.
+                    if (/^0\d+$/.test(t)) {
+                        et.text = t.replace(/^0+/, '');
+                        // Do not prevent the default; allow the typed digit to insert normally after normalization.
+                        return;
+                    }
+                } catch (e) {}
             });
         } catch (e) {}
     }
@@ -1234,11 +1261,14 @@ function showDialog() {
     // Bind common handlers to a CMYK EditText
     function bindCmykField(et) {
         et.onChanging = function() {
-            // Drop a single leading zero when typing the first digit (avoid "03")
             try {
                 var t = String(et.text || '');
-                var m = t.match(/^0([0-9])$/);
-                if (m) et.text = m[1];
+                // Normalize leading zeros for integers: "03" -> "3", "007" -> "7"
+                // Do NOT touch decimals like "0.5" (only pure digits)
+                if (/^0\d+$/.test(t)) {
+                    et.text = t.replace(/^0+/, '');
+                    t = String(et.text || '');
+                }
             } catch (e) {}
             validateCmykField(et);
             updatePreviewTyping();
@@ -1366,6 +1396,14 @@ function showDialog() {
     } else {
         currentRadio.value = false;
         allRadio.value = true; // 複数あるときは「すべて」
+    }
+
+    // 1枚しかない場合は「すべてのアートボード」をディム（無効化）
+    if (abCount <= 1) {
+        try {
+            allRadio.enabled = false;
+            allRadio.helpTip = (lang === 'ja') ? 'アートボードが1つのため選択できません' : 'Disabled: only one artboard exists';
+        } catch (e) {}
     }
 
     function buildChoiceFromUI() {
@@ -1591,7 +1629,7 @@ function showDialog() {
             }
             if (key === 'A') {
                 try {
-                    allRadio.notify('onClick');
+                    if (allRadio.enabled) allRadio.notify('onClick');
                 } catch (_) {}
                 event.preventDefault();
                 return;
