@@ -14,13 +14,13 @@ https://github.com/swwwitch/illustrator-scripts
 ### 概要：
 
 - 選択オブジェクトを指定したアスペクト比に合わせて変形します。
-- プレビュー可能なダイアログ、縦置き/横置き（ポートレート/ランドスケープ）切替に対応。
-- 「サイズ＞横幅」に目標幅を入力（現在のルーラー単位：px/mm/pt 等）。
+- プレビュー対応のダイアログと、縦置き／横置き（Portrait／Landscape）の切り替えに対応。
+- 「サイズ＞横幅」に目標幅を入力（現在のルーラー単位：px/mm/pt など）。
 
 ### 主な機能：
 
 - 比率プリセット：16:9、1:1、A4、カスタム
-- 基準：縦置き/横置き（必要に応じて比率を自動反転）
+- 基準：縦置き／横置き（必要に応じて比率を自動反転）
 - 目標幅指定＋単位に応じた丸め（px=整数、mm=0.1mm）
 - ピクセルグリッド整合（任意）、アートボードへの変換（任意）
 
@@ -32,11 +32,11 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### 更新履歴：
 
-- v1.0 (20250720) : 初期バージョン
-- v1.1 (20250721) : アートボード変換・カスタム比率を追加
-- v1.2 (20250722) : ダイアログ構成・ローカライズ・キー入力を改善
-- v1.3 (20250723) : プレビュー安定化、UI微調整、サイズ入力＆丸め処理
-- v1.4（20250824）：ロジック修正
+- v1.0 (2025-07-20) : 初期バージョン
+- v1.1 (2025-07-21) : アートボード変換・カスタム比率を追加
+- v1.2 (2025-07-22) : ダイアログ構成・ローカライズ・キー入力を改善
+- v1.3 (2025-07-23) : プレビュー安定化、UI微調整、サイズ入力＆丸め処理
+- v1.4 (2025-08-24) : ロジック修正、ラベルのローカライズ整理、コメント整備
 
 ---
 
@@ -50,30 +50,30 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### Overview:
 
-- Transforms selected objects to a chosen aspect ratio.
-- Dialog with live preview and Portrait/Landscape orientation switch.
-- Target width input under "Size" (uses current ruler unit: px/mm/pt, etc.).
+- Transforms selected objects to a specified aspect ratio.
+- Dialog with live preview and Portrait/Landscape switch.
+- Enter target width under "Size" (uses current ruler unit: px/mm/pt, etc.).
 
 ### Main Features:
 
 - Ratio presets: 16:9, 1:1, A4, Custom
 - Orientation: Portrait/Landscape (auto-inverts ratio when needed)
-- Target width with unit-aware rounding (px=int, mm=0.1mm)
+- Target width with unit-aware rounding (px = integer, mm = 0.1mm)
 - Optional: Align to Pixel Grid, Convert to Artboard
 
 ### Workflow:
 
 1) Configure ratio, orientation, width, and options in the dialog
 2) Preview updates in real time
-3) Apply to selection with [Apply]; optionally add an artboard
+3) Apply to the selection with [Apply]; optionally add an artboard
 
 ### Update History:
 
-- v1.0 (20250720): Initial release
-- v1.1 (20250721): Added artboard conversion & custom ratio
-- v1.2 (20250722): Improved dialog structure, localization, key input
-- v1.3 (20250723): Preview stability, minor UI tweaks, size input & rounding
-- v1.4
+- v1.0 (2025-07-20): Initial release
+- v1.1 (2025-07-21): Added artboard conversion & custom ratio
+- v1.2 (2025-07-22): Improved dialog structure, localization, key input
+- v1.3 (2025-07-23): Preview stability, minor UI tweaks, size input & rounding
+- v1.4 (2025-08-24): Logic fixes, label localization cleanup, comment pass
 
 */
 
@@ -86,9 +86,16 @@ function getCurrentLang() {
 var lang = getCurrentLang();
 
 var LABELS = {
+    // Dialog title / ダイアログタイトル
     dialogTitle: {
-        ja: "アスペクト比で調整 " + SCRIPT_VERSION,
-        en: "Adjust by Aspect Ratio " + SCRIPT_VERSION
+        ja: "アスペクト比で調整",
+        en: "Adjust by Aspect Ratio"
+    },
+
+    // Aspect panel / アスペクト比パネル
+    aspectLabel: {
+        ja: "アスペクト比",
+        en: "Aspect Ratio"
     },
     ratio169: {
         ja: "16:9",
@@ -106,26 +113,22 @@ var LABELS = {
         ja: "カスタム",
         en: "Custom"
     },
-    widthRatio: {
-        ja: "幅比率",
-        en: "Width Ratio"
-    },
-    heightRatio: {
-        ja: "高さ比率",
-        en: "Height Ratio"
-    },
+
+    // Base (orientation) panel / 基準（向き）パネル
     baseLabel: {
         ja: "基準",
         en: "Base"
-    },
-    baseHeight: {
-        ja: "縦置き",
-        en: "Portrait"
     },
     baseWidth: {
         ja: "横置き",
         en: "Landscape"
     },
+    baseHeight: {
+        ja: "縦置き",
+        en: "Portrait"
+    },
+
+    // Size panel / サイズパネル
     sizePanel: {
         ja: "サイズ",
         en: "Size"
@@ -134,6 +137,8 @@ var LABELS = {
         ja: "横幅",
         en: "Width"
     },
+
+    // Options / オプション
     alignToPixelGrid: {
         ja: "ピクセルグリッドに最適化",
         en: "Align to Pixel Grid"
@@ -142,14 +147,8 @@ var LABELS = {
         ja: "アートボードに変換",
         en: "Convert to Artboard"
     },
-    aspectLabel: {
-        ja: "アスペクト比",
-        en: "Aspect Ratio"
-    },
-    previewError: {
-        ja: "プレビュー更新エラー：",
-        en: "Preview Update Error:"
-    },
+
+    // Buttons / ボタン
     run: {
         ja: "実行",
         en: "Apply"
@@ -160,10 +159,15 @@ var LABELS = {
     }
 };
 
-// Declare global UI variables
-var baseWidthRadio, baseHeightRadio;
-var ratio169, ratio11, ratioA4, ratioCustom;
-var editTextWidth, editTextHeight;
+// Localization helper
+function L(key) {
+    try {
+        return LABELS[key][lang] || "";
+    } catch (e) {
+        return "";
+    }
+}
+
 
 // Original sizes for preview/apply (global)
 var __origW = [];
@@ -248,10 +252,20 @@ function roundForUnit(valPt) {
     return Math.round(valPt * 100) / 100;
 }
 
-// updatePreview is now a no-op, as base switching logic is removed.
-function updatePreview() {
-    // No-op: base switching logic removed.
+// 自動横幅の既定値（選択なしのとき）/ Default auto width when no selection
+function getDefaultWidthTextForCurrentUnit() {
+    try {
+        var unit = app.preferences.getIntegerPreference("rulerType");
+        if (unit === 6) { // px
+            return "1000";
+        }
+        if (unit === 1) { // mm
+            return "100";
+        }
+    } catch (e) {}
+    return ""; // その他の単位は未指定 / leave empty for other units
 }
+
 
 /* ダイアログ作成 / Create dialog */
 function createDialog() {
@@ -267,9 +281,14 @@ function createDialog() {
         dlg.opacity = opacityValue;
     }
 
+    // UI参照用のローカル変数 / Local variables for UI refs
+    var baseWidthRadio, baseHeightRadio;
+    var ratio169, ratio11, ratioA4, ratioCustom;
+    var editTextWidth, editTextHeight;
+
     var offsetX = 300;
     var dialogOpacity = 0.97;
-    var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
+    var dialog = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
     setDialogOpacity(dialog, dialogOpacity);
     shiftDialogPosition(dialog, offsetX, 0);
     dialog.alignChildren = "left";
@@ -279,7 +298,8 @@ function createDialog() {
     topGroup.alignChildren = "left";
     topGroup.alignChildren = ["fill", "top"];
 
-    // 2-column layout: left = aspect, right = base+size
+    // 2カラム構成：左=アスペクト、右=基準+サイズ
+    // 2-column layout: left = Aspect, right = Base + Size
     var leftCol = topGroup.add("group");
     leftCol.orientation = "column";
     leftCol.alignChildren = ["fill", "top"];
@@ -307,7 +327,6 @@ function createDialog() {
     customRatioGroup.orientation = "row";
     customRatioGroup.alignChildren = "left";
 
-    // (removed per guideline)
     editTextWidth = customRatioGroup.add("edittext", undefined, "3");
     editTextWidth.characters = 5;
 
@@ -354,10 +373,16 @@ function createDialog() {
     var stUnitLabel = sizeRow.add("statictext", undefined, getCurrentUnitLabel());
 
     var pixelGroup = dialog.add("group");
+    pixelGroup.orientation = "column";
+    pixelGroup.alignChildren = "left";
     var alignToPixel = pixelGroup.add("checkbox", undefined, LABELS.alignToPixelGrid[lang]);
-    alignToPixel.value = true;
+    var __isPxRuler = false;
+    try {
+        __isPxRuler = (app.preferences.getIntegerPreference("rulerType") === 6);
+    } catch (e) {}
+    alignToPixel.value = __isPxRuler; // px時のみON、その他はOFF
 
-    var convertToArtboard = dialog.add("checkbox", undefined, LABELS.convertToArtboard[lang]);
+    var convertToArtboard = pixelGroup.add("checkbox", undefined, LABELS.convertToArtboard[lang]);
     convertToArtboard.value = false;
 
     var buttonGroup = dialog.add("group");
@@ -415,6 +440,13 @@ function main() {
     }
 
     var dialogResult = createDialog();
+
+    // 選択がない場合は横幅に自動入力（px:1000 / mm:100）
+    // Auto-fill width when no selection (px:1000, mm:100)
+    if (isNoSelection && (!dialogResult.sizeWidthInput.text || dialogResult.sizeWidthInput.text === "")) {
+        var autoW = getDefaultWidthTextForCurrentUnit();
+        if (autoW !== "") dialogResult.sizeWidthInput.text = autoW;
+    }
 
     function getTargetWidthPt() {
         var txt = dialogResult.sizeWidthInput.text;
@@ -640,7 +672,8 @@ function main() {
 
 /* アスペクト比適用 / Apply aspect ratio */
 function applyAspect(items, ratio, wantPortrait, targetWidthPt) {
-    // Orientation guard: Portrait -> height > width (ratio < 1), Landscape -> width > height (ratio > 1)
+    // 向きのガード：縦置き=高さ>幅（ratio<1）、横置き=幅>高さ（ratio>1）
+    // Orientation guard: Portrait => height>width (ratio<1), Landscape => width>height (ratio>1)
     var r = ratio;
     if (wantPortrait && r > 1) r = 1 / r;
     if (!wantPortrait && r < 1) r = 1 / r;
