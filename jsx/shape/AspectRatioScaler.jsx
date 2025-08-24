@@ -5,82 +5,80 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### スクリプト名：
 
-AdjustArtboardByRatio.jsx
+AspectRatioScaler.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRatioScaler.jsx
+https://github.com/swwwitch/illustrator-scripts
 
 ### 概要：
 
-- 選択オブジェクトを比率に基づいて変形
-- プレビュー機能を備えたダイアログボックスUIに対応
+- 選択オブジェクトを指定したアスペクト比に合わせて変形します。
+- プレビュー可能なダイアログ、縦置き/横置き（ポートレート/ランドスケープ）切替に対応。
+- 「サイズ＞横幅」に目標幅を入力（現在のルーラー単位：px/mm/pt 等）。
 
 ### 主な機能：
 
-- 16:9、1:1、カスタム比率から選択可能
-- 「縦」または「横」基準で比率調整
-- ピクセルグリッド整合オプション
-- アートボードに変換オプション付き
-- プレビュー反映と数値の矢印キー操作による調整
+- 比率プリセット：16:9、1:1、A4、カスタム
+- 基準：縦置き/横置き（必要に応じて比率を自動反転）
+- 目標幅指定＋単位に応じた丸め（px=整数、mm=0.1mm）
+- ピクセルグリッド整合（任意）、アートボードへの変換（任意）
 
 ### 処理の流れ：
 
-- ダイアログを表示し、比率・基準・整合オプションを選択
-- プレビューで対象をリアルタイムにシミュレーション
-- OKボタンで処理確定、アートボード作成（または調整）
-
-### note：
-
-https://note.com/dtp_tranist/n/n4a212e6eacf1
+1) ダイアログで比率・基準・横幅・オプションを設定
+2) プレビューでリアルタイム確認
+3) ［実行］で選択オブジェクトへ適用（必要に応じてアートボード追加）
 
 ### 更新履歴：
 
 - v1.0 (20250720) : 初期バージョン
-- v1.1 (20250721) : アートボード変換・カスタム比率機能を追加
-- v1.2 (20250722) : ダイアログ構成改善・ローカライズ・キー操作追加
-- v1.3 (20250723) : プレビュー更新の安定性向上・UI調整
+- v1.1 (20250721) : アートボード変換・カスタム比率を追加
+- v1.2 (20250722) : ダイアログ構成・ローカライズ・キー入力を改善
+- v1.3 (20250723) : プレビュー安定化、UI微調整、サイズ入力＆丸め処理
+- v1.4（20250824）：ロジック修正
 
-*/
+---
 
-/*
+### Script Name:
 
-### Script Name：
-AdjustArtboardByRatio.jsx
+AspectRatioScaler.jsx
 
-### Readme (GitHub)：
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/shape/AspectRatioScaler.jsx
+### GitHub:
 
-### Description：
+https://github.com/swwwitch/illustrator-scripts
 
-- Transforms selected objects based on aspect ratio
-- Supports a preview-enabled dialog box UI
+### Overview:
 
-### Main Features：
+- Transforms selected objects to a chosen aspect ratio.
+- Dialog with live preview and Portrait/Landscape orientation switch.
+- Target width input under "Size" (uses current ruler unit: px/mm/pt, etc.).
 
-- Choose from 16:9, 1:1, or custom ratio
-- Ratio adjustment based on "height" or "width"
-- Option to align to pixel grid
-- Convert to artboard optionally
-- Real-time preview and value adjustment via arrow keys
+### Main Features:
 
-### Workflow：
+- Ratio presets: 16:9, 1:1, A4, Custom
+- Orientation: Portrait/Landscape (auto-inverts ratio when needed)
+- Target width with unit-aware rounding (px=int, mm=0.1mm)
+- Optional: Align to Pixel Grid, Convert to Artboard
 
-- Display dialog to select ratio, basis, and options
-- Simulate resizing in real time as preview
-- Apply final settings by pressing OK
+### Workflow:
 
-### Update History：
+1) Configure ratio, orientation, width, and options in the dialog
+2) Preview updates in real time
+3) Apply to selection with [Apply]; optionally add an artboard
+
+### Update History:
 
 - v1.0 (20250720): Initial release
 - v1.1 (20250721): Added artboard conversion & custom ratio
-- v1.2 (20250722): Improved dialog structure, localization, and key input
-- v1.3 (20250723): Enhanced preview stability and UI adjustments
+- v1.2 (20250722): Improved dialog structure, localization, key input
+- v1.3 (20250723): Preview stability, minor UI tweaks, size input & rounding
+- v1.4
 
 */
 
 // スクリプトバージョン / Script Version
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -90,7 +88,7 @@ var lang = getCurrentLang();
 var LABELS = {
     dialogTitle: {
         ja: "アスペクト比で調整 " + SCRIPT_VERSION,
-        en: "Adjust by Aspect Ratio" + SCRIPT_VERSION
+        en: "Adjust by Aspect Ratio " + SCRIPT_VERSION
     },
     ratio169: {
         ja: "16:9",
@@ -121,11 +119,19 @@ var LABELS = {
         en: "Base"
     },
     baseHeight: {
-        ja: "高さ",
-        en: "Height"
+        ja: "縦置き",
+        en: "Portrait"
     },
     baseWidth: {
-        ja: "幅",
+        ja: "横置き",
+        en: "Landscape"
+    },
+    sizePanel: {
+        ja: "サイズ",
+        en: "Size"
+    },
+    labelWidth: {
+        ja: "横幅",
         en: "Width"
     },
     alignToPixelGrid: {
@@ -159,70 +165,92 @@ var baseWidthRadio, baseHeightRadio;
 var ratio169, ratio11, ratioA4, ratioCustom;
 var editTextWidth, editTextHeight;
 
-// ラジオボタンの水平方向・垂直方向切り替えキーハンドラ追加
-function addDirectionKeyHandler(dialog, horizontalRadio, verticalRadio) {
-    dialog.addEventListener("keydown", function(event) {
-        if (event.keyName == "H") {
-            horizontalRadio.value = true;
-            verticalRadio.value = false;
-            event.preventDefault();
-        } else if (event.keyName == "V") {
-            horizontalRadio.value = false;
-            verticalRadio.value = true;
-            event.preventDefault();
-        }
-    });
+// Original sizes for preview/apply (global)
+var __origW = [];
+var __origH = [];
+
+// 単位コードとラベルのマップ / Unit code to label map
+var unitLabelMap = {
+    0: "in",
+    1: "mm",
+    2: "pt",
+    3: "pica",
+    4: "cm",
+    5: "Q/H",
+    6: "px",
+    7: "ft/in",
+    8: "m",
+    9: "yd",
+    10: "ft"
+};
+
+// 現在の単位ラベルを取得 / Get current unit label
+function getCurrentUnitLabel() {
+    var unitCode = app.preferences.getIntegerPreference("rulerType");
+    return unitLabelMap[unitCode] || "pt";
 }
 
-/* プレビュー更新 / Update preview */
-function updatePreview() {
-    try {
-        var selection = app.activeDocument.selection;
-        if (!selection || selection.length === 0) return;
-
-        var isWidthBase = baseWidthRadio.value;
-        var ratioW = parseFloat(editTextWidth.text);
-        var ratioH = parseFloat(editTextHeight.text);
-        if (isNaN(ratioW) || isNaN(ratioH) || ratioW <= 0 || ratioH <= 0) return;
-
-        for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
-
-            var originalWidth = item.width;
-            var originalHeight = item.height;
-
-            if (ratioCustom.value) {
-                if (isWidthBase) {
-                    var newHeight = originalWidth * (ratioH / ratioW);
-                    item.height = newHeight;
-                } else {
-                    var newWidth = originalHeight * (ratioW / ratioH);
-                    item.width = newWidth;
-                }
-            } else if (ratio169.value) {
-                if (isWidthBase) {
-                    item.height = item.width / 1.777777;
-                } else {
-                    item.width = item.height * 1.777777;
-                }
-            } else if (ratio11.value) {
-                var size = isWidthBase ? item.width : item.height;
-                item.width = size;
-                item.height = size;
-            } else if (ratioA4.value) {
-                if (isWidthBase) {
-                    item.height = item.width * (297 / 210); // A4 aspect ratio: height = width * 1.414285
-                } else {
-                    item.width = item.height * (210 / 297); // A4 aspect ratio: width = height * 0.70707
-                }
-            }
-
-            app.executeMenuCommand('Make Pixel Perfect');
-        }
-        app.redraw();
-    } catch (e) {
-        alert(LABELS.previewError[lang] + "\n" + e);
+// ルーラー設定に基づく pt 係数を取得 / Get pt factor for current ruler unit
+function getPtFactorFromRuler() {
+    var unitCode = app.preferences.getIntegerPreference("rulerType");
+    switch (unitCode) {
+        case 0:
+            /* in   */
+            return 72.0;
+        case 1:
+            /* mm   */
+            return 72.0 / 25.4;
+        case 2:
+            /* pt   */
+            return 1.0;
+        case 3:
+            /* pica */
+            return 12.0; // 1pc = 12pt
+        case 4:
+            /* cm   */
+            return 72.0 / 2.54;
+        case 5:
+            /* Q/H  */
+            return (72.0 / 25.4) * 0.25; // Q=0.25mm 相当
+        case 6:
+            /* px   */
+            return 1.0; // 72ppi前提
+        case 7:
+            /* ft/in*/
+            return 72.0; // in と同等扱い
+        case 8:
+            /* m    */
+            return 72.0 / 0.0254;
+        case 9:
+            /* yd   */
+            return 72.0 * 36.0;
+        case 10:
+            /* ft   */
+            return 72.0 * 12.0;
+        default:
+            return 1.0;
     }
+}
+
+// 単位に応じた丸め（px=整数、mm=0.1mm刻み、その他=0.01pt刻み） / Unit-aware rounding
+function roundForUnit(valPt) {
+    try {
+        var unit = app.preferences.getIntegerPreference("rulerType");
+        if (unit === 6) { // px -> integer (1px = 1pt assumption)
+            return Math.round(valPt);
+        }
+        if (unit === 1) { // mm -> 0.1mm steps
+            var step = (72.0 / 25.4) * 0.1; // 0.1mm in pt
+            return Math.round(valPt / step) * step;
+        }
+    } catch (e) {}
+    // default: 0.01pt
+    return Math.round(valPt * 100) / 100;
+}
+
+// updatePreview is now a no-op, as base switching logic is removed.
+function updatePreview() {
+    // No-op: base switching logic removed.
 }
 
 /* ダイアログ作成 / Create dialog */
@@ -251,7 +279,16 @@ function createDialog() {
     topGroup.alignChildren = "left";
     topGroup.alignChildren = ["fill", "top"];
 
-    var aspectPanel = topGroup.add("panel", undefined, LABELS.aspectLabel[lang]);
+    // 2-column layout: left = aspect, right = base+size
+    var leftCol = topGroup.add("group");
+    leftCol.orientation = "column";
+    leftCol.alignChildren = ["fill", "top"];
+
+    var rightCol = topGroup.add("group");
+    rightCol.orientation = "column";
+    rightCol.alignChildren = ["fill", "top"];
+
+    var aspectPanel = leftCol.add("panel", undefined, LABELS.aspectLabel[lang]);
     aspectPanel.orientation = "column";
     aspectPanel.alignChildren = "left";
     aspectPanel.margins = [15, 20, 15, 10];
@@ -265,22 +302,18 @@ function createDialog() {
     ratioA4 = aspectGroup.add("radiobutton", undefined, LABELS.ratioA4[lang]);
     ratioCustom = aspectGroup.add("radiobutton", undefined, LABELS.ratioCustom[lang]);
 
-    // Add event listener for A4 aspect ratio button
-    ratioA4.onClick = function() {
-        updatePreview();
-    };
 
     var customRatioGroup = aspectPanel.add("group");
     customRatioGroup.orientation = "row";
     customRatioGroup.alignChildren = "left";
 
-    // customRatioGroup.add("statictext", undefined, LABELS.widthRatio[lang]);
+    // (removed per guideline)
     editTextWidth = customRatioGroup.add("edittext", undefined, "3");
-    editTextWidth.characters = 3;
+    editTextWidth.characters = 5;
 
     customRatioGroup.add("statictext", undefined, ":");
     editTextHeight = customRatioGroup.add("edittext", undefined, "2");
-    editTextHeight.characters = 3;
+    editTextHeight.characters = 5;
 
     editTextWidth.enabled = false;
     editTextHeight.enabled = false;
@@ -290,17 +323,35 @@ function createDialog() {
 
     ratio169.value = true;
 
-    var basePanel = topGroup.add("panel", undefined, LABELS.baseLabel[lang]);
+    var basePanel = rightCol.add("panel", undefined, LABELS.baseLabel[lang]);
     basePanel.orientation = "column";
     basePanel.alignChildren = "left";
     basePanel.margins = [15, 20, 15, 10];
+    basePanel.alignment = ["fill", "top"];
 
     var baseGroup = basePanel.add("group");
     baseGroup.orientation = "column";
     baseGroup.alignChildren = "left";
     baseWidthRadio = baseGroup.add("radiobutton", undefined, LABELS.baseWidth[lang]);
     baseHeightRadio = baseGroup.add("radiobutton", undefined, LABELS.baseHeight[lang]);
-    baseHeightRadio.value = true;
+    baseWidthRadio.value = true; // default Landscape
+    baseHeightRadio.value = false;
+
+    // --- Size panel under Base ---
+    var sizePanel = rightCol.add("panel", undefined, LABELS.sizePanel[lang]);
+    sizePanel.orientation = "column";
+    sizePanel.alignChildren = "left";
+    sizePanel.margins = [15, 20, 15, 10];
+    sizePanel.alignment = ["fill", "top"];
+
+    var sizeRow = sizePanel.add("group");
+    sizeRow.orientation = "row";
+    sizeRow.alignChildren = ["left", "center"];
+
+    var stWidthLabel = sizeRow.add("statictext", undefined, LABELS.labelWidth[lang]);
+    var etWidthValue = sizeRow.add("edittext", undefined, "");
+    etWidthValue.characters = 5; // 少し広め / slightly wider
+    var stUnitLabel = sizeRow.add("statictext", undefined, getCurrentUnitLabel());
 
     var pixelGroup = dialog.add("group");
     var alignToPixel = pixelGroup.add("checkbox", undefined, LABELS.alignToPixelGrid[lang]);
@@ -333,7 +384,11 @@ function createDialog() {
         btnOk: btnOk,
         btnCancel: btnCancel,
         customWidthInput: editTextWidth,
-        customHeightInput: editTextHeight
+        customHeightInput: editTextHeight,
+        sizePanel: sizePanel,
+        sizeWidthLabel: stWidthLabel,
+        sizeWidthInput: etWidthValue,
+        sizeUnitLabel: stUnitLabel,
     };
 }
 
@@ -341,41 +396,115 @@ function createDialog() {
 function main() {
     /* 選択したオブジェクトを取得する / Get selected objects */
     var selectedItems = app.activeDocument.selection;
-    if (!selectedItems || selectedItems.length === 0) {
-        alert(LABELS.cancel ? LABELS.cancel[lang] : "オブジェクトを選択してください。");
-        return;
-    }
+    var isNoSelection = (!selectedItems || selectedItems.length === 0);
 
-    // プレビュー用コピーを作成し、元は非表示にする / Create preview copies and hide originals
+    // プレビュー用コピーを作成し、元は非表示にする / Create preview copies and hide originals (if any)
     var previewCopies = [];
-    var originalWidths = [];
-    var originalHeights = [];
-    for (var i = 0; i < selectedItems.length; i++) {
-        var dup = selectedItems[i].duplicate();
-        dup.hidden = false;
-        dup.zOrder(ZOrderMethod.BRINGTOFRONT);
-        previewCopies.push(dup);
-        selectedItems[i].hidden = true;
-        originalWidths.push(selectedItems[i].width); // 幅を保存 / Save width
-        originalHeights.push(selectedItems[i].height); // 高さを保存 / Save height
+    __origW = [];
+    __origH = [];
+    if (!isNoSelection) {
+        for (var i = 0; i < selectedItems.length; i++) {
+            var dup = selectedItems[i].duplicate();
+            dup.hidden = false;
+            dup.zOrder(ZOrderMethod.BRINGTOFRONT);
+            previewCopies.push(dup);
+            selectedItems[i].hidden = true;
+            __origW.push(selectedItems[i].width); // 幅を保存 / Save width
+            __origH.push(selectedItems[i].height); // 高さを保存 / Save height
+        }
     }
 
     var dialogResult = createDialog();
 
-    // ラジオボタンのキーボード操作を有効化
-    addDirectionKeyHandler(dialogResult.dialog, dialogResult.baseHorizontal, dialogResult.baseVertical);
+    function getTargetWidthPt() {
+        var txt = dialogResult.sizeWidthInput.text;
+        if (!txt) return null;
+        var v = parseFloat(txt);
+        if (isNaN(v) || v <= 0) return null;
+        return v * getPtFactorFromRuler();
+    }
+
+    // サイズパネル「横幅」入力のライブプレビュー / Live preview for width field
+    dialogResult.sizeWidthInput.onChanging = function() {
+        applyAspect(previewCopies, getCurrentRatio(), dialogResult.baseVertical.value, getTargetWidthPt());
+    };
+
+    // 何も選択されていない場合は、プレビュー用の長方形を新規作成 / Create a preview rectangle when no selection
+    if (isNoSelection) {
+        // 初期比率と目標幅を取得
+        var initR;
+        if (dialogResult.ratio169.value) initR = 1.777777;
+        else if (dialogResult.ratio11.value) initR = 1.0;
+        else if (dialogResult.ratioA4.value) initR = (210 / 297);
+        else {
+            var _w = parseFloat(dialogResult.customWidthInput.text);
+            var _h = parseFloat(dialogResult.customHeightInput.text);
+            initR = (isNaN(_w) || isNaN(_h) || _h === 0) ? 1 : _w / _h;
+        }
+        var wantPortraitInit = dialogResult.baseVertical.value;
+        var rAdj = initR;
+        if (wantPortraitInit && rAdj > 1) rAdj = 1 / rAdj;
+        if (!wantPortraitInit && rAdj < 1) rAdj = 1 / rAdj;
+
+        var targetW = getTargetWidthPt();
+        if (targetW == null) targetW = 200; // デフォルト幅 200pt
+        var targetH = roundForUnit(targetW / rAdj);
+
+        var doc = app.activeDocument;
+        var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; // [L,T,R,B]
+        var cx = (ab[0] + ab[2]) / 2;
+        var cy = (ab[1] + ab[3]) / 2;
+        var left = cx - targetW / 2;
+        var top = cy + targetH / 2;
+
+        var rect = doc.pathItems.rectangle(top, left, targetH, targetW);
+        rect.stroked = false;
+        rect.filled = true;
+
+        previewCopies = [rect];
+        __origW = [targetW];
+        __origH = [targetH];
+    }
+
+    function getCurrentRatio() {
+        if (dialogResult.ratio169.value) return 1.777777;
+        if (dialogResult.ratio11.value) return 1.0;
+        if (dialogResult.ratioA4.value) return (210 / 297);
+        var w = parseFloat(dialogResult.customWidthInput.text);
+        var h = parseFloat(dialogResult.customHeightInput.text);
+        if (isNaN(w) || isNaN(h) || h === 0) return 1;
+        return w / h;
+    }
 
     /* アスペクト比選択時のプレビュー更新 / Preview update on aspect ratio selection */
+    // 16:9
     dialogResult.ratio169.onClick = function() {
         dialogResult.customWidthInput.enabled = false;
         dialogResult.customHeightInput.enabled = false;
-        applyAspect(previewCopies, 1.777777, dialogResult.baseVertical.value, originalWidths, originalHeights);
+        // 16:9 選択時は「横置き」に切替 / Force Landscape on 16:9
+        dialogResult.baseHorizontal.value = true;
+        dialogResult.baseVertical.value = false;
+        applyAspect(previewCopies, 1.777777, dialogResult.baseVertical.value, getTargetWidthPt());
     };
+
+    // 1:1
     dialogResult.ratio11.onClick = function() {
         dialogResult.customWidthInput.enabled = false;
         dialogResult.customHeightInput.enabled = false;
-        applyAspect(previewCopies, 1.0, dialogResult.baseVertical.value, originalWidths, originalHeights);
+        applyAspect(previewCopies, 1.0, dialogResult.baseVertical.value, getTargetWidthPt());
     };
+
+    // A4
+    dialogResult.ratioA4.onClick = function() {
+        dialogResult.customWidthInput.enabled = false;
+        dialogResult.customHeightInput.enabled = false;
+        // A4 選択時は「縦置き」に切替 / Force Portrait on A4
+        dialogResult.baseVertical.value = true;
+        dialogResult.baseHorizontal.value = false;
+        applyAspect(previewCopies, (210 / 297), dialogResult.baseVertical.value, getTargetWidthPt());
+    };
+
+    // カスタム
     dialogResult.ratioCustom.onClick = function() {
         dialogResult.customWidthInput.enabled = true;
         dialogResult.customHeightInput.enabled = true;
@@ -383,7 +512,7 @@ function main() {
             var w = parseFloat(dialogResult.customWidthInput.text);
             var h = parseFloat(dialogResult.customHeightInput.text);
             var r = (h === 0) ? 1 : w / h;
-            applyAspect(previewCopies, r, dialogResult.baseVertical.value, originalWidths, originalHeights);
+            applyAspect(previewCopies, r, dialogResult.baseVertical.value, getTargetWidthPt());
         }
     };
 
@@ -393,7 +522,8 @@ function main() {
             var w = parseFloat(dialogResult.customWidthInput.text);
             var h = parseFloat(dialogResult.customHeightInput.text);
             var r = (h === 0) ? 1 : w / h;
-            applyAspect(previewCopies, r, dialogResult.baseVertical.value, originalWidths, originalHeights);
+            applyAspect(previewCopies, r, dialogResult.baseVertical.value, getTargetWidthPt());
+
         }
     };
     dialogResult.customHeightInput.onChanging = function() {
@@ -401,32 +531,16 @@ function main() {
             var w = parseFloat(dialogResult.customWidthInput.text);
             var h = parseFloat(dialogResult.customHeightInput.text);
             var r = (h === 0) ? 1 : w / h;
-            applyAspect(previewCopies, r, dialogResult.baseVertical.value, originalWidths, originalHeights);
+            applyAspect(previewCopies, r, dialogResult.baseVertical.value, getTargetWidthPt());
         }
     };
 
-    /* 基準切り替え時のプレビュー更新 / Preview update on base switch */
     dialogResult.baseVertical.onClick = function() {
-        var ratio = dialogResult.ratio169.value ? 1.777777 :
-            dialogResult.ratio11.value ? 1.0 :
-            dialogResult.ratioA4.value ? (210 / 297) :
-            (function() {
-                var w = parseFloat(dialogResult.customWidthInput.text);
-                var h = parseFloat(dialogResult.customHeightInput.text);
-                return (h === 0) ? 1 : w / h;
-            })();
-        applyAspect(previewCopies, ratio, true, originalWidths, originalHeights);
+        applyAspect(previewCopies, getCurrentRatio(), true, getTargetWidthPt());
+
     };
     dialogResult.baseHorizontal.onClick = function() {
-        var ratio = dialogResult.ratio169.value ? 1.777777 :
-            dialogResult.ratio11.value ? 1.0 :
-            dialogResult.ratioA4.value ? (210 / 297) :
-            (function() {
-                var w = parseFloat(dialogResult.customWidthInput.text);
-                var h = parseFloat(dialogResult.customHeightInput.text);
-                return (h === 0) ? 1 : w / h;
-            })();
-        applyAspect(previewCopies, ratio, false, originalWidths, originalHeights);
+        applyAspect(previewCopies, getCurrentRatio(), false, getTargetWidthPt());
     };
 
     /* 初期プレビュー / Initial preview */
@@ -435,52 +549,109 @@ function main() {
         var h = parseFloat(dialogResult.customHeightInput.text);
         return (h === 0) ? 1 : w / h;
     })());
-    applyAspect(previewCopies, initialRatio, dialogResult.baseVertical.value, originalWidths, originalHeights);
+    applyAspect(previewCopies, initialRatio, dialogResult.baseVertical.value, getTargetWidthPt());
 
     var result = dialogResult.dialog.show();
 
-    /* OKボタンが押された場合 / If OK pressed */
     if (result === 1) {
-        for (var i = 0; i < selectedItems.length; i++) {
-            selectedItems[i].hidden = false;
+        if (isNoSelection) {
+            // 新規作成したプレビュー矩形を最終物として扱う / Keep the preview rectangle as final
+            var finalIt = previewCopies[0];
+            // ピクセルグリッド整合 / Align to pixel grid (optional)
             if (dialogResult.alignToPixel.value) {
-                app.selection = [selectedItems[i]];
+                app.selection = [finalIt];
                 app.executeMenuCommand('Make Pixel Perfect');
             }
-            previewCopies[i].remove();
-        }
-        if (dialogResult.convertToArtboard.value) {
-            for (var i = 0; i < selectedItems.length; i++) {
-                var item = selectedItems[i];
-                var vb = item.visibleBounds;
-                var abRect = [vb[0], vb[1], vb[2], vb[3]];
-                app.activeDocument.artboards.add(abRect);
+            // 必要に応じてアートボードを作成 / Convert to artboard if requested
+            if (dialogResult.convertToArtboard.value) {
+                var vb0 = finalIt.visibleBounds;
+                var abRect0 = [vb0[0], vb0[1], vb0[2], vb0[3]];
+                app.activeDocument.artboards.add(abRect0);
             }
+            app.selection = [finalIt];
+            app.redraw();
+        } else {
+            for (var i = 0; i < selectedItems.length; i++) {
+                // 元オブジェクトを再表示 / Unhide original
+                selectedItems[i].hidden = false;
+
+                // プレビューの形状を反映（拡大縮小＋位置合わせ） / Apply by scaling and repositioning
+                try {
+                    var origW = __origW[i];
+                    var origH = __origH[i];
+                    var prevW = previewCopies[i].width;
+                    var prevH = previewCopies[i].height;
+
+                    // 安全ガード / guards
+                    if (origW > 0 && origH > 0) {
+                        var sx = (prevW / origW) * 100.0;
+                        var sy = (prevH / origH) * 100.0;
+                        // 中心基準で拡大縮小 / scale from center
+                        selectedItems[i].resize(sx, sy);
+                    }
+
+                    // 位置合わせ（左上座標） / align position using top-left
+                    try {
+                        selectedItems[i].position = previewCopies[i].position;
+                    } catch (pErr) {}
+                } catch (e) {}
+
+                // ピクセルグリッド整合 / Align to pixel grid (optional)
+                if (dialogResult.alignToPixel.value) {
+                    app.selection = [selectedItems[i]];
+                    app.executeMenuCommand('Make Pixel Perfect');
+                }
+
+                // プレビューを削除 / Remove preview copy
+                try {
+                    previewCopies[i].remove();
+                } catch (e3) {}
+            }
+
+            // 必要に応じてアートボードを作成 / Convert to artboard if requested
+            if (dialogResult.convertToArtboard.value) {
+                for (var j = 0; j < selectedItems.length; j++) {
+                    var it = selectedItems[j];
+                    var vb = it.visibleBounds;
+                    var abRect = [vb[0], vb[1], vb[2], vb[3]];
+                    app.activeDocument.artboards.add(abRect);
+                }
+            }
+
+            // 最終的にオリジナルを選択状態に / Keep originals selected
+            app.selection = selectedItems;
+            app.redraw();
         }
-        app.selection = selectedItems;
-    }
-    /* キャンセル時は元に戻す / Restore on cancel */
-    else {
+    } else {
+        // キャンセル時：プレビューを片付け、非表示化を解除 / On cancel, cleanup preview and unhide originals
         for (var i = 0; i < previewCopies.length; i++) {
-            previewCopies[i].remove();
+            try {
+                previewCopies[i].remove();
+            } catch (e) {}
         }
-        for (var i = 0; i < selectedItems.length; i++) {
-            selectedItems[i].hidden = false;
+        if (!isNoSelection) {
+            for (var i = 0; i < selectedItems.length; i++) {
+                selectedItems[i].hidden = false;
+            }
         }
         return;
     }
 }
 
 /* アスペクト比適用 / Apply aspect ratio */
-function applyAspect(items, ratio, isVertical, originalWidths, originalHeights) {
+function applyAspect(items, ratio, wantPortrait, targetWidthPt) {
+    // Orientation guard: Portrait -> height > width (ratio < 1), Landscape -> width > height (ratio > 1)
+    var r = ratio;
+    if (wantPortrait && r > 1) r = 1 / r;
+    if (!wantPortrait && r < 1) r = 1 / r;
+
+    var useTarget = (typeof targetWidthPt === 'number' && isFinite(targetWidthPt) && targetWidthPt > 0);
+
     for (var i = 0; i < items.length; i++) {
-        if (isVertical) {
-            items[i].height = originalHeights[i];
-            items[i].width = originalHeights[i] * ratio;
-        } else {
-            items[i].width = originalWidths[i];
-            items[i].height = originalWidths[i] / ratio;
-        }
+        var w = useTarget ? targetWidthPt : __origW[i];
+        items[i].width = w;
+        var h = w / r;
+        items[i].height = roundForUnit(h);
     }
     app.redraw();
 }
@@ -507,7 +678,11 @@ function changeValueByArrowKey(editText) {
         value = Math.round(value);
 
         editText.text = value;
-        updatePreview(); // Reflect the value change in preview
+        if (typeof editText.onChanging === 'function') {
+            try {
+                editText.onChanging();
+            } catch (e) {}
+        }
     });
 }
 
