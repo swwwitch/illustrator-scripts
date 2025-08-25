@@ -11,7 +11,7 @@ Fit Artboard Height to Selection (Same Width)
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/FitArtboardHeight.jsx
 
 ### 概要：
 
@@ -53,7 +53,7 @@ Fit Artboard Height to Selection (Same Width)
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/FitArtboardHeight.jsx
 
 ### Overview:
 
