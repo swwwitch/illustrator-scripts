@@ -3,92 +3,81 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "DialogEngine"
 
 /*
+
 ### スクリプト名：
 
 背面に長方形を作成
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/DrawRectangleBehindSelectedObject.jsx
+https://github.com/swwwitch/illustrator-scripts
 
 ### 概要：
 
-更新日：2025-08-23
-
-- 選択オブジェクト（テキスト含む）の外接バウンディングボックスを基準に、任意のマージン（現在の定規単位に追従）を加えた長方形を生成
-- プレビューは専用レイヤーに描画し、ヒストリーを汚さず即時に確認可能。確定時のみ本体を生成して最背面へ送背
-- 角丸はライブエフェクト（Adobe Round Corners）で適用し、展開は行わない（非破壊）
-- 色は K100／ホワイト／HEX／CMYK を選択可能。種別は「塗り」または「線」（線幅対応）
-- 対象は「個別」または「グループとして」を選択可能。元テキストとグループ化のオプションあり
-- ダイアログ位置・不透明度の記憶、プリセット保存／読み込みをサポート
+- 選択オブジェクトの外接バウンディングボックスを基準に、オフセットを加えた長方形を生成
+- プレビュー機能で即時確認可能、作成した長方形は常に最背面に配置
 
 ### 主な機能：
 
-- マージン（上下・左右、連動オプション）
-- 角丸（数値指定／ピル形状、高さの半分を自動算出）
-- 塗り／線、線幅指定
-- カラー指定（K100／ホワイト／HEX／CMYK）
-- 対象スコープ（個別／グループ）とグループ化オプション
-- プレビュー（専用レイヤー、Undo カウント抑制）
-- ダイアログ位置・不透明度の永続化、プリセット登録
+- オフセット（現在の定規単位に追従）
+- 角丸（ライブエフェクト適用、非展開）
+- 塗り/線 カラー指定（K100 / ホワイト / HEX / CMYK）
+- 対象：個別／グループとして
+- プレビュー（専用レイヤー、ヒストリーに残らない）
+- ダイアログ位置・不透明度・各パラメーターの記憶
 
 ### 処理の流れ：
 
-1. 対象の境界を計算（テキストはアウトライン化で正確化）
-2. マージン・角丸・塗り／線の設定からプレビュー矩形を生成
-3. OK 時に本番レイヤーへ長方形を作成して背面へ送る（プレビューレイヤーをクリーンアップ）
-4. オプションで元テキストと長方形をグループ化
+1. 対象オブジェクトのバウンディングボックスを計算
+2. オフセット・角丸・塗り/線を適用した長方形を作成
+3. プレビューは専用レイヤーに生成、確定時に本番描画
+4. 「テキストとグループ化」オプションで元テキストとグループ化可能
 
 ### 更新履歴：
 
 - v1.0 (2025-08-22) : 初期バージョン
 - v1.1 (2025-08-23) : プレビュー・カラー選択機能を追加
 - v1.2 (2025-08-23) : 種別（塗り/線）、線幅指定、プリセット保存機能を追加
-- v1.3（20250823）:微調整
+- v1.3 (2025-08-28) : ダイアログ位置・不透明度・各パラメーター記憶機能を追加
 
 ---
+
 ### Script Name:
 
 Draw Rectangle Behind Selection
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/DrawRectangleBehindSelectedObject.jsx
+https://github.com/swwwitch/illustrator-scripts
 
 ### Overview:
 
-Last Updated: 2025-08-23
-
-- Generate rectangles offset from the bounding box of selected objects (including text), following current ruler units
-- Live preview on a dedicated layer without polluting history; on confirmation, create the final rectangle and send to back
-- Corner radius is applied via Live Effect (Adobe Round Corners) and kept unexpanded (non-destructive)
-- Color modes: K100 / White / HEX / CMYK. Type: Fill or Stroke (with stroke width)
-- Target scope: Individual or Group; option to group the rectangle with the original text
-- Dialog position & opacity persistence with preset save/load
+- Generate rectangles offset from the bounding box of selected objects
+- Live preview with immediate feedback; created rectangles are always sent to back
 
 ### Key Features:
 
-- Margins (vertical/horizontal with link option)
-- Corner radius (numeric / pill shape with auto height/2)
-- Fill/Stroke and stroke width
-- Color selection (K100 / White / HEX / CMYK)
-- Target scope (Individual / Group) & Group-with-text option
-- Preview (dedicated layer, undo-safe)
-- Dialog persistence & presets
+- Offset (follows current ruler units)
+- Corner radius (applied via Live Effect, kept unexpanded)
+- Fill/Stroke color options (K100 / White / HEX / CMYK)
+- Target: Individual or as Group
+- Preview on a dedicated layer (does not pollute history)
+- Dialog position, opacity, and parameter persistence
 
 ### Processing Flow:
 
-1. Compute bounds (text via outline for accuracy)
-2. Generate preview rectangle from margin/radius/fill-stroke settings
-3. On OK, draw the final rectangle to the document and send to back; clean up preview
-4. Optionally group with the original text
+1. Compute bounding box of target objects
+2. Apply offset, corner radius, and fill/stroke settings to rectangle
+3. Render preview to dedicated layer; finalize on OK
+4. Optionally group rectangle with original text
 
 ### Update History:
 
 - v1.0 (2025-08-22): Initial version
 - v1.1 (2025-08-23): Added preview and color selection
 - v1.2 (2025-08-23): Added type (fill/stroke), stroke width, and preset saving
-- v1.3  
+- v1.3 (2025-08-28): Added dialog position, opacity, and parameter persistence
+
 */
 
 var SCRIPT_VERSION = "v1.3";
@@ -112,6 +101,53 @@ var lang = getCurrentLang();
 /* ラベル定義 / Label definitions (UI order) */
 var LABELS = {
     dialogTitle: {
+        ja: "背面に長方形を作成 " + SCRIPT_VERSION,
+        en: "Draw Rectangle Behind Selection " + SCRIPT_VERSION
+    },
+    alertNoSelection: { ja: "オブジェクトを選択してください。", en: "Please select at least one object." },
+
+    // --- Margin ---
+    offsetTitle: { ja: "マージン", en: "Margins" },
+    offsetV: { ja: "上下", en: "Vertical" },
+    offsetH: { ja: "左右", en: "Horizontal" },
+    linkMargins: { ja: "連動", en: "Link" },
+
+    // --- Corner ---
+    roundTitle: { ja: "角丸", en: "Corner Radius" },
+    pillShape: { ja: "ピル形状", en: "Pill Shape" },
+
+    // --- Color ---
+    colorTitle: { ja: "塗り", en: "Fill" },
+    colorK100: { ja: "ブラック", en: "Black" },
+    colorWhite: { ja: "ホワイト", en: "White" },
+    colorSpecified: { ja: "HEX", en: "HEX" },
+    colorCustomCMYK: { ja: "CMYK", en: "CMYK" },
+
+    // --- Opacity ---
+    opacityTitle: { ja: "不透明度", en: "Opacity" },
+
+    // --- Type ---
+    typeTitle: { ja: "種別", en: "Type" },
+    typeFill: { ja: "塗り", en: "Fill" },
+    typeStroke: { ja: "線", en: "Stroke" },
+    strokeWidth: { ja: "線幅", en: "Stroke Width" },
+
+    // --- Target ---
+    targetTitle: { ja: "対象", en: "Target" },
+    currentAB: { ja: "個別", en: "Create Individually" },
+    allAB: { ja: "グループとして", en: "Create as Group" },
+
+    // --- Options ---
+    previewBounds: { ja: "テキストとグループ化", en: "Group with Text" },
+
+    // --- Buttons ---
+    ok: { ja: "OK", en: "OK" },
+    cancel: { ja: "キャンセル", en: "Cancel" },
+
+    // --- Preview internal names ---
+    previewLayer: { ja: "_preview", en: "_preview" },
+    previewRect: { ja: "__プレビュー_アートボード境界", en: "__Preview_ArtboardBounds" }
+};    dialogTitle: {
         ja: "背面に長方形を作成" + " " + SCRIPT_VERSION,
         en: "Draw Rectangle Behind Selection" + " " + SCRIPT_VERSION
     },
@@ -147,9 +183,9 @@ var LABELS = {
         ja: "テキストとグループ化",
         en: "Group with Text"
     },
-    previewOutline: {
-        ja: "テキストをアウトラインで計算",
-        en: "Outline Text for Preview"
+    opacityTitle: {
+        ja: "不透明度",
+        en: "Opacity"
     },
     ok: {
         ja: "OK",
@@ -160,12 +196,8 @@ var LABELS = {
         en: "Cancel"
     },
     previewLayer: {
-        ja: "_プレビュー",
+        ja: "_preview",
         en: "_preview"
-    },
-    rectName: {
-        ja: "アートボード境界",
-        en: "Artboard Bounds"
     },
     previewRect: {
         ja: "__プレビュー_アートボード境界",
@@ -563,108 +595,49 @@ var unitLabelMap = {
     10: "ft"
 };
 
-// --- Cached unit utility (label/code/factor) ---
-(function(g) {
-    if (!g.UnitUtil) {
-        g.UnitUtil = (function() {
-            var _cache = null;
-
-            function _factorFromCode(code) {
-                switch (code) {
-                    case 0:
-                        return 72.0; // in
-                    case 1:
-                        return 72.0 / 25.4; // mm
-                    case 2:
-                        return 1.0; // pt
-                    case 3:
-                        return 12.0; // pica
-                    case 4:
-                        return 72.0 / 2.54; // cm
-                    case 5:
-                        return 72.0 / 25.4 * 0.25; // Q/H
-                    case 6:
-                        return 1.0; // px (Illustrator=1px=1pt)
-                    case 7:
-                        return 72.0 * 12.0; // ft/in
-                    case 8:
-                        return 72.0 / 25.4 * 1000.0; // m
-                    case 9:
-                        return 72.0 * 36.0; // yd
-                    case 10:
-                        return 72.0 * 12.0; // ft
-                    default:
-                        return 1.0;
-                }
-            }
-
-            function _compute() {
-                var code;
-                try {
-                    code = app.preferences.getIntegerPreference("rulerType");
-                } catch (e) {
-                    code = 2;
-                }
-                var label = unitLabelMap[code] || "pt";
-                var factor = _factorFromCode(code);
-                return {
-                    code: code,
-                    label: label,
-                    factor: factor
-                };
-            }
-            return {
-                // Get cached unit info; refresh automatically if rulerType changed
-                get: function() {
-                    var cur;
-                    try {
-                        cur = app.preferences.getIntegerPreference("rulerType");
-                    } catch (e) {
-                        cur = 2;
-                    }
-                    if (!_cache || _cache.code !== cur) {
-                        _cache = _compute();
-                    }
-                    return _cache;
-                },
-                // Build info object from an explicit code (no cache write)
-                fromCode: function(code) {
-                    return {
-                        code: code,
-                        label: (unitLabelMap[code] || "pt"),
-                        factor: _factorFromCode(code)
-                    };
-                },
-                // Manual invalidation hook (in case prefs are changed elsewhere)
-                invalidate: function() {
-                    _cache = null;
-                }
-            };
-        })();
-    }
-})($.global);
-
 // 現在の単位ラベルを取得 / Get current unit label from prefs
 function getCurrentUnitLabel() {
-    var info = $.global.UnitUtil.get();
-    return info.label;
+    var unitCode = app.preferences.getIntegerPreference("rulerType");
+    return unitLabelMap[unitCode] || "pt";
 }
 
 // 現在の単位コードを取得 / Get current rulerType code
 function getCurrentUnitCode() {
     try {
-        return $.global.UnitUtil.get().code;
+        return app.preferences.getIntegerPreference("rulerType");
     } catch (e) {
-        return 2;
+        return 2; // fallback to pt
     }
 }
 
 // 単位コード→pt係数 / Convert unit code to points factor
 function getPtFactorFromUnitCode(code) {
-    if (typeof code === 'number') {
-        return $.global.UnitUtil.fromCode(code).factor;
+    switch (code) {
+        case 0:
+            return 72.0; // in
+        case 1:
+            return 72.0 / 25.4; // mm
+        case 2:
+            return 1.0; // pt
+        case 3:
+            return 12.0; // pica
+        case 4:
+            return 72.0 / 2.54; // cm
+        case 5:
+            return 72.0 / 25.4 * 0.25; // Q or H
+        case 6:
+            return 1.0; // px (Illustrator=1px=1pt)
+        case 7:
+            return 72.0 * 12.0; // ft/in
+        case 8:
+            return 72.0 / 25.4 * 1000.0; // m
+        case 9:
+            return 72.0 * 36.0; // yd
+        case 10:
+            return 72.0 * 12.0; // ft
+        default:
+            return 1.0;
     }
-    return $.global.UnitUtil.get().factor;
 }
 
 /*
@@ -674,10 +647,11 @@ function getPtFactorFromUnitCode(code) {
  * - unitCode: app.preferences.getIntegerPreference("rulerType")
  * Return: { pt: Number, displayText: String, disabled: Boolean }
  */
+// Replace the whole function
 function resolveOffsetToPt(offsetText, unitCode) {
     var displayText = String(offsetText == null ? '' : offsetText);
     var n = parseFloat(displayText);
-    if (isNaN(n)) n = 0;
+    if (isNaN(n) || n < 0) n = 0; // clamp negatives to 0
     var pt = n * getPtFactorFromUnitCode(unitCode);
     return {
         pt: pt,
@@ -686,56 +660,116 @@ function resolveOffsetToPt(offsetText, unitCode) {
     };
 }
 
+// Replace the whole function
 function changeValueByArrowKey(editText, onValueChange) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);
-        if (isNaN(value)) return;
+        if (isNaN(value)) value = 0;
 
         var keyboard = ScriptUI.environment.keyboardState;
-        var delta = 1;
 
         if (keyboard.shiftKey) {
-            delta = 10;
-            // Shiftキー押下時は10の倍数にスナップ
+            // ±10（スナップ）
             if (event.keyName == "Up") {
-                value = Math.ceil((value + 1) / delta) * delta;
+                value = Math.ceil((value + 1) / 10) * 10;
                 event.preventDefault();
             } else if (event.keyName == "Down") {
-                value = Math.floor((value - 1) / delta) * delta;
+                value = Math.floor((value - 1) / 10) * 10;
                 event.preventDefault();
             }
         } else if (keyboard.altKey) {
-            delta = 0.1;
-            // Optionキー押下時は0.1単位で増減
+            // ±0.1
             if (event.keyName == "Up") {
-                value += delta;
+                value += 0.1;
                 event.preventDefault();
             } else if (event.keyName == "Down") {
-                value -= delta;
+                value -= 0.1;
                 event.preventDefault();
             }
         } else {
-            delta = 1;
+            // ±1
             if (event.keyName == "Up") {
-                value += delta;
+                value += 1;
                 event.preventDefault();
             } else if (event.keyName == "Down") {
-                value -= delta;
+                value -= 1;
                 event.preventDefault();
             }
         }
 
-        if (keyboard.altKey) {
-            // 小数第1位までに丸め
-            value = Math.round(value * 10) / 10;
-        } else {
-            // 整数に丸め
-            value = Math.round(value);
-        }
+        // --- 最小値0にクランプ ---
+        if (value < 0) value = 0;
+
+        // 端数処理（Option時は小数1桁）
+        if (keyboard.altKey) value = Math.round(value * 10) / 10;
+        else value = Math.round(value);
 
         editText.text = value;
         try {
             if (typeof onValueChange === 'function') onValueChange();
+        } catch (e) {}
+    });
+}
+
+// ---- Common numeric binder (min/max clamp, integer option, optional mirror) ----
+function bindNumericField(et, opts) {
+    opts = opts || {};
+    var min = (typeof opts.min === 'number') ? opts.min : -Infinity;
+    var max = (typeof opts.max === 'number') ? opts.max : +Infinity;
+    var integer = !!opts.integer; // true: 整数化（Alt+↑↓は0.1刻みはchangeValueByArrowKeyが担当）
+    var onTyping = (typeof opts.onTyping === 'function') ? opts.onTyping : function() {};
+    var onCommit = (typeof opts.onCommit === 'function') ? opts.onCommit : function() {};
+    var mirror = (typeof opts.mirror === 'function') ? opts.mirror : null; // 値を他欄に反映（連動など）
+
+    function clampNum(n, roundInt) {
+        if (isNaN(n)) n = 0;
+        if (n < min) n = min;
+        if (n > max) n = max;
+        if (roundInt) n = Math.round(n);
+        return n;
+    }
+
+    // 入力中のガード（−の禁止／範囲内に収める）
+    et.onChanging = function() {
+        try {
+            var t = String(et.text || '');
+            t = t.replace(/^-+/, ''); // 先頭の'-'禁止
+            et.text = t;
+            var n = parseFloat(et.text);
+            if (!isNaN(n)) {
+                var nv = clampNum(n, false);
+                et.text = String(nv);
+                if (mirror) mirror(et.text);
+            }
+        } catch (e) {}
+        try {
+            onTyping();
+        } catch (e) {}
+    };
+
+    // 確定時のクランプ
+    et.onChange = function() {
+        try {
+            var n = parseFloat(et.text);
+            var nv = clampNum(n, integer);
+            et.text = String(nv);
+            if (mirror) mirror(et.text);
+        } catch (e) {}
+        try {
+            onCommit();
+        } catch (e) {}
+    };
+
+    // ↑↓操作後のクランプ＋反映
+    changeValueByArrowKey(et, function() {
+        try {
+            var n = parseFloat(et.text);
+            var nv = clampNum(n, integer);
+            et.text = String(nv);
+            if (mirror) mirror(et.text);
+        } catch (e) {}
+        try {
+            onTyping();
         } catch (e) {}
     });
 }
@@ -763,39 +797,11 @@ function changeValueByArrowKey(editText, onValueChange) {
                 g.__previewUndoCount = (g.__previewUndoCount | 0) + 1;
             },
             undo: function() {
-                // 1) Fast path: delete preview/outline layers directly (keeps UI snappy)
+                var n = g.__previewUndoCount | 0;
                 try {
-                    clearPreview(true);
+                    for (var i = 0; i < n; i++) app.executeMenuCommand('undo');
                 } catch (e) {}
-                try {
-                    var doc = app.activeDocument;
-                    for (var i = doc.layers.length - 1; i >= 0; i--) {
-                        var lyr = doc.layers[i];
-                        if (lyr && lyr.name === '__tmp_outline_bounds__') {
-                            try {
-                                lyr.remove();
-                            } catch (_) {}
-                            break;
-                        }
-                    }
-                } catch (e) {}
-
-                // 2) Compact undo sweep: remove a small number of preview-created history states
-                //    Round Corners (Live Effect) and zOrder during preview can add history entries in some environments.
-                //    Use the counter as an upper bound, but cap to avoid long loops.
-                try {
-                    var n = ($.global.__previewUndoCount | 0);
-                    var limit = Math.min(n, 8); // hard cap to avoid sluggishness
-                    for (var k = 0; k < limit; k++) {
-                        try {
-                            app.executeMenuCommand('undo');
-                        } catch (__) {
-                            break;
-                        }
-                    }
-                } catch (e) {}
-
-                $.global.__previewUndoCount = 0;
+                g.__previewUndoCount = 0;
             },
             cancelTask: function(taskId) {
                 try {
@@ -808,12 +814,6 @@ function changeValueByArrowKey(editText, onValueChange) {
 
 
 var __previewDebounceTask = null;
-var __suppressRedraw = false; // suppress app.redraw() during/after OK/Cancel cleanup
-
-// Batch outline (final commit only)
-var __BATCH_OUTLINE_ONCE = false; // true only for the commit right after OK
-var __batchBoundsMap = null; // index -> [L,T,R,B]
-var __batchGroupBounds = null; // combined [L,T,R,B]
 
 function schedulePreview(choice, delayMs) {
     try {
@@ -967,7 +967,7 @@ function boundsToRectSpec(boundsArr) {
  * @returns {PathItem|null}
  */
 function buildPreviewRect(previewLayer, idx, rectSpec, choice, doc) {
-    // Assumes rectSpec is always valid (null checking is done upstream)
+    if (!rectSpec) return null;
     var L = rectSpec.left,
         T = rectSpec.top,
         w = rectSpec.width,
@@ -1006,6 +1006,12 @@ function buildPreviewRect(previewLayer, idx, rectSpec, choice, doc) {
         } catch (e) {}
     }
 
+    // Apply opacity to preview rectangle (0–100)
+    try {
+        var __op = (choice && typeof choice.opacity === 'number') ? choice.opacity : 100;
+        rect.opacity = _clamp(Math.round(__op), 0, 100);
+    } catch (e) {}
+
     // Corner radius via Live Effect (kept unexpanded)
     try {
         var r = (choice && typeof choice.roundPt === 'number') ? choice.roundPt : 0;
@@ -1020,7 +1026,9 @@ function buildPreviewRect(previewLayer, idx, rectSpec, choice, doc) {
     try {
         rect.selected = false;
     } catch (e) {}
-    // NOTE: Do not change z-order during preview to avoid extra history states.
+    try {
+        rect.zOrder(ZOrderMethod.SENDTOBACK);
+    } catch (e) {}
     return rect;
 }
 
@@ -1049,25 +1057,15 @@ function withTargetBounds(doc, sel, choice, groupFn, itemFn) {
         var useOutline = !!choice.usePreviewOutline;
         var usePreview = !!choice.usePreviewBounds;
         var G = makeBoundsGetter(doc, useOutline, usePreview);
-        // Batch outline path: compute once after OK for faster final drawing
-        if (useOutline && $.global.__BATCH_OUTLINE_ONCE === true) {
-            try {
-                computeBatchOutlinedBounds(doc, sel, usePreview);
-            } catch (e) {}
-        }
         if (choice.target === 'group') {
-            var gb = null;
-            if (useOutline && __batchGroupBounds) gb = __batchGroupBounds;
-            else gb = G.group(sel);
+            var gb = G.group(sel);
             var rs = boundsToRectSpec(gb);
             if (rs && typeof groupFn === 'function') groupFn(rs);
         } else {
             for (var i = 0; i < sel.length; i++) {
                 var it = sel[i];
                 if (!it) continue;
-                var ib = null;
-                if (useOutline && __batchBoundsMap && __batchBoundsMap.hasOwnProperty(i)) ib = __batchBoundsMap[i];
-                else ib = G.item(it);
+                var ib = G.item(it);
                 var rs2 = boundsToRectSpec(ib);
                 if (rs2 && typeof itemFn === 'function') itemFn(it, rs2, i);
             }
@@ -1114,9 +1112,7 @@ function renderPreview(doc, choice) {
         if (prevCS !== null) app.coordinateSystem = prevCS;
     } catch (e) {}
     PreviewHistory.bump();
-    try {
-        if (!__suppressRedraw) app.redraw();
-    } catch (e) {}
+    app.redraw();
 }
 
 function showDialog() {
@@ -1125,165 +1121,6 @@ function showDialog() {
     var __DLG_KEY = "__SmartDrawABRect_Dialog"; // unique key per dialog
     if ($.global[__DLG_KEY] === undefined) $.global[__DLG_KEY] = null; // ensure slot
     dlg.alignChildren = 'left';
-
-    // ==== Top bar: Preset dropdown + Register button (logic to be added later) ====
-    var topBar = dlg.add('group');
-    topBar.orientation = 'row';
-    topBar.alignChildren = ['center', 'center'];
-    topBar.alignment = ['center', 'top'];
-    topBar.spacing = 10;
-
-    // Preset dropdown (placeholder items; populated later)
-    var presetDropdown = topBar.add('dropdownlist', undefined, []);
-    try {
-        presetDropdown.preferredSize = {
-            width: 200,
-            height: -1
-        };
-    } catch (e) {}
-
-    // Register button
-    var btnRegister = topBar.add('button', undefined, '登録');
-    try {
-        btnRegister.preferredSize = {
-            width: 60,
-            height: 20
-        };
-    } catch (e) {}
-
-    // ==== Preset helpers =====================================================
-    var __presetFile = (function() {
-        try {
-            var folder = Folder.userData.fsName + "/ai-scripts";
-            var f = new Folder(folder);
-            if (!f.exists) f.create();
-            return folder + "/DrawRectangleBehindSelectedObject_presets.json";
-        } catch (e) {
-            return Folder.myDocuments.fsName + "/DrawRectangleBehindSelectedObject_presets.json";
-        }
-    })();
-
-    function __readPresets() {
-        var list = [];
-        try {
-            var file = new File(__presetFile);
-            if (file.exists) {
-                if (file.open('r')) {
-                    var txt = file.read();
-                    file.close();
-                    try {
-                        list = JSON.parse(txt) || [];
-                    } catch (__) {
-                        list = [];
-                    }
-                }
-            }
-        } catch (e) {}
-        if (!(list instanceof Array)) list = [];
-        return list;
-    }
-
-    function __writePresets(list) {
-        try {
-            var file = new File(__presetFile);
-            if (file.open('w')) {
-                file.write(JSON.stringify(list, null, 2));
-                file.close();
-                return true;
-            }
-        } catch (e) {}
-        return false;
-    }
-
-    function __refreshPresetDropdown(list, selectName) {
-        try {
-            while (presetDropdown.items.length) presetDropdown.remove(0);
-            for (var i = 0; i < list.length; i++) {
-                presetDropdown.add('item', list[i].name);
-            }
-            if (selectName) {
-                for (var j = 0; j < presetDropdown.items.length; j++) {
-                    if (presetDropdown.items[j].text === selectName) {
-                        presetDropdown.selection = j;
-                        break;
-                    }
-                }
-            } else if (presetDropdown.items.length) {
-                presetDropdown.selection = 0;
-            }
-        } catch (e) {}
-    }
-
-    function __promptPresetName(defaultName) {
-        var w = new Window('dialog', 'プリセット名 / Preset Name');
-        w.orientation = 'column';
-        w.alignChildren = ['fill', 'center'];
-        w.margins = 15;
-        var g1 = w.add('group');
-        g1.orientation = 'row';
-        g1.alignChildren = ['left', 'center'];
-        g1.add('statictext', undefined, '名称');
-        var et = g1.add('edittext', undefined, defaultName || '');
-        et.characters = 24;
-        try {
-            et.active = true;
-        } catch (e) {}
-        var g2 = w.add('group');
-        g2.alignment = ['center', 'center'];
-        var bOk = g2.add('button', undefined, 'OK');
-        var bCancel = g2.add('button', undefined, 'キャンセル');
-        var result = null;
-        bOk.onClick = function() {
-            result = String(et.text || '').replace(/^\s+|\s+$/g, '');
-            w.close(1);
-        };
-        bCancel.onClick = function() {
-            result = null;
-            w.close(0);
-        };
-        var r = w.show();
-        if (r == 1 && result) return result;
-        return null;
-    }
-
-    var __presets = __readPresets();
-    __refreshPresetDropdown(__presets);
-
-    btnRegister.onClick = function() {
-        try {
-            var name = __promptPresetName('');
-            if (!name) return; // cancelled
-            var choiceNow = __collectChoice(true);
-            // store only necessary fields (avoid circulars)
-            var entry = {
-                name: name,
-                choice: serializeChoice(choiceNow)
-            };
-            // Upsert by name
-            var replaced = false;
-            for (var i = 0; i < __presets.length; i++) {
-                if (__presets[i].name === name) {
-                    __presets[i] = entry;
-                    replaced = true;
-                    break;
-                }
-            }
-            if (!replaced) __presets.push(entry);
-            __writePresets(__presets);
-            __refreshPresetDropdown(__presets, name);
-        } catch (e) {}
-    };
-
-    // Preset dropdown selection handler: restore settings from preset into UI
-    presetDropdown.onChange = function() {
-        try {
-            var selIdx = presetDropdown.selection ? presetDropdown.selection.index : -1;
-            if (selIdx < 0 || selIdx >= __presets.length) return;
-            var chosen = __presets[selIdx];
-            if (!chosen || !chosen.choice) return;
-            applyChoiceToUI(chosen.choice);
-        } catch (e) {}
-    };
 
     // --- Two-column layout container ---
     var mainRow = dlg.add('group');
@@ -1306,14 +1143,14 @@ function showDialog() {
     var offsetPanel = leftCol.add('panel', undefined, LABELS.offsetTitle[lang]);
     offsetPanel.orientation = 'row';
     offsetPanel.alignChildren = ['left', 'top'];
-    offsetPanel.spacing = 5;
+    offsetPanel.spacing = 10;
     offsetPanel.margins = [15, 15, 20, 15];
 
     // LEFTCOL container (row)
     var marginLeftCol = offsetPanel.add('group');
     marginLeftCol.orientation = 'row';
     marginLeftCol.alignChildren = ['left', 'center'];
-    marginLeftCol.spacing = 20;
+    marginLeftCol.spacing = 10;
     marginLeftCol.margins = 0;
 
     // GROUP1 (column for two rows: 上下 / 左右)
@@ -1330,28 +1167,30 @@ function showDialog() {
     groupV.spacing = 10;
     groupV.margins = 0;
 
-    var offsetVInputLabel = groupV.add('statictext', undefined, '上下');
+    var offsetVInputLabel = groupV.add('statictext', undefined, LABELS.offsetV[lang]);
     var offsetVInput = groupV.add('edittext', undefined, '2');
     offsetVInput.preferredSize = {
         width: 35,
         height: -1
     }; // widen a bit
     offsetVInput.characters = 3;
-    changeValueByArrowKey(offsetVInput, function() {
-        updatePreview();
-    });
-    offsetVInput.addEventListener('keydown', function(e) {
-        if (e.keyName == 'Enter') {
+
+    bindNumericField(offsetVInput, {
+        min: 0,
+        integer: true,
+        mirror: function(val) {
             try {
-                if (cbLinkMargins.value) {
-                    offsetHInput.text = String(offsetVInput.text);
-                }
-            } catch (__) {}
-            try {
-                requestPreview(buildChoiceFromUI(), true);
-            } catch (_) {}
+                if (cbLinkMargins.value) offsetHInput.text = String(val);
+            } catch (e) {}
+        },
+        onTyping: function() {
+            updatePreviewTyping();
+        },
+        onCommit: function() {
+            updatePreviewCommit();
         }
     });
+
     groupV.add('statictext', undefined, getCurrentUnitLabel());
 
     // GROUP3 (row: 左右)
@@ -1361,28 +1200,29 @@ function showDialog() {
     groupH.spacing = 10;
     groupH.margins = 0;
 
-    var offsetHInputLabel = groupH.add('statictext', undefined, '左右');
+    var offsetHInputLabel = groupH.add('statictext', undefined, LABELS.offsetH[lang]);
     var offsetHInput = groupH.add('edittext', undefined, '2');
     offsetHInput.preferredSize = {
         width: 35,
         height: -1
     }; // widen a bit
     offsetHInput.characters = 3;
-    changeValueByArrowKey(offsetHInput, function() {
-        updatePreview();
-    });
-    offsetHInput.addEventListener('keydown', function(e) {
-        if (e.keyName == 'Enter') {
+    bindNumericField(offsetHInput, {
+        min: 0,
+        integer: true,
+        mirror: function(val) {
             try {
-                if (cbLinkMargins.value) {
-                    offsetVInput.text = String(offsetHInput.text);
-                }
-            } catch (__) {}
-            try {
-                requestPreview(buildChoiceFromUI(), true);
-            } catch (_) {}
+                if (cbLinkMargins.value) offsetVInput.text = String(val);
+            } catch (e) {}
+        },
+        onTyping: function() {
+            updatePreviewTyping();
+        },
+        onCommit: function() {
+            updatePreviewCommit();
         }
     });
+
     groupH.add('statictext', undefined, getCurrentUnitLabel());
 
     // GROUP4 (right column in the same row: checkbox "連動")
@@ -1393,7 +1233,7 @@ function showDialog() {
     groupLink.margins = 0;
     groupLink.alignment = ['left', 'center'];
 
-    var cbLinkMargins = groupLink.add('checkbox', undefined, '連動');
+    var cbLinkMargins = groupLink.add('checkbox', undefined, LABELS.linkMargins[lang]);
     cbLinkMargins.value = true; // default ON
 
     function __updateLinkDim() {
@@ -1521,23 +1361,25 @@ function showDialog() {
         height: -1
     }; // widen a bit
     roundInput.characters = 3;
-    changeValueByArrowKey(roundInput, function() {
-        updatePreview(); // UIのみ。描画ロジックは後日実装
-    });
 
-    roundInput.addEventListener('keydown', function(e) {
-        if (e.keyName == 'Enter') {
-            try {
-                requestPreview(buildChoiceFromUI(), true);
-            } catch (_) {}
+
+    bindNumericField(roundInput, {
+        min: 0,
+        integer: true,
+        onTyping: function() {
+            updatePreviewTyping();
+        },
+        onCommit: function() {
+            updatePreviewCommit();
         }
     });
+
 
     var unitLabel2 = getCurrentUnitLabel();
     var roundUnitLabel = roundRow.add('statictext', undefined, unitLabel2);
 
     // --- Pill shape option: move pill checkbox to same row as input/unit ---
-    var cbPill = roundRow.add('checkbox', undefined, 'ピル形状');
+    var cbPill = roundRow.add('checkbox', undefined, LABELS.pillShape[lang]);
     // Vertically center controls in the round row
     try {
         roundRow.alignment = ['fill', 'center'];
@@ -1579,6 +1421,11 @@ function showDialog() {
 
 
     dlg.onShow = function() {
+        // Restore last dialog parameters (if any)
+        try {
+            var __last = __loadLastChoice();
+            if (__last) applyChoiceToUI(__last);
+        } catch (e) {}
         try {
             if (typeof setStrokeWidthUIEnabled === 'function') setStrokeWidthUIEnabled(!!typeStrokeRadio.value);
         } catch (e) {}
@@ -1792,23 +1639,32 @@ function showDialog() {
     }
 
     // Bind common handlers to a CMYK EditText
+    // Replace only the bindCmykField function body
     function bindCmykField(et) {
         et.onChanging = function() {
-            // Drop a single leading zero when typing the first digit (avoid "03")
             try {
+                // 先頭のマイナスは全面禁止
                 var t = String(et.text || '');
+                t = t.replace(/^-+/, ''); // strip any leading '-'
+                // 先頭ゼロの1桁置換（03 → 3）も維持
                 var m = t.match(/^0([0-9])$/);
-                if (m) et.text = m[1];
+                if (m) t = m[1];
+                et.text = t;
             } catch (e) {}
-            validateCmykField(et);
+            validateCmykField(et); // 0–100 以外は赤表示
             updatePreviewTyping();
         };
         et.onChange = function() {
-            clampCmykField(et);
+            clampCmykField(et); // 0–100にクランプ
+            // 念のための下限ガード
+            try {
+                var n = parseFloat(et.text);
+                if (isNaN(n) || n < 0) et.text = '0';
+            } catch (e) {}
             updatePreviewCommit();
         };
         changeValueByArrowKey(et, function() {
-            clampCmykField(et);
+            clampCmykField(et); // 矢印操作後も 0–100 に収める
             updatePreviewTyping();
         });
     }
@@ -2031,28 +1887,107 @@ function showDialog() {
                     return true;
                 }
             })(),
+            opacity: (function() {
+                try {
+                    var n = parseFloat(opacityInput.text);
+                    if (isNaN(n)) n = 100;
+                    return _clamp(Math.round(n), 0, 100);
+                } catch (e) {
+                    return 100;
+                }
+            })(),
             usePreviewBounds: true, // always on
             usePreviewOutline: true
         };
         return choice;
     }
 
+    // ===== Last dialog state persistence (save on close, restore on next open) =====
+    // Store a lightweight snapshot of the UI choice to a small file under userData.
+    // Use ExtendScript's toSource()/eval for compatibility (no JSON dependency).
+    function __getStateFile() {
+        try {
+            var base = Folder.userData; // e.g., ~/Library/Application Support
+            var dir = new Folder(base.fsName + "/ai-scripts");
+            if (!dir.exists) {
+                try {
+                    dir.create();
+                } catch (e) {}
+            }
+            return new File(dir.fsName + "/DrawRectangleBehindSelectedObject.state");
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function __saveLastChoice(choiceObj) {
+        try {
+            var f = __getStateFile();
+            if (!f) return;
+            if (f.open('w')) {
+                f.write((choiceObj && typeof choiceObj === 'object') ? choiceObj.toSource() : '({})');
+                f.close();
+            }
+        } catch (e) {}
+    }
+
+    function __loadLastChoice() {
+        try {
+            var f = __getStateFile();
+            if (!f || !f.exists) return null;
+            if (f.open('r')) {
+                var s = f.read();
+                f.close();
+                try {
+                    var obj = eval(s);
+                    return (obj && typeof obj === 'object') ? obj : null;
+                } catch (e) {
+                    return null;
+                }
+            }
+        } catch (e) {}
+        return null;
+    }
+
     // ---- Preset schema helpers (centralize what to save & how to apply) ----
     function serializeChoice(choice) {
-        // Save offset, rounding, type (fill/stroke), strokeWidth, group; exclude color and target
+        // Keep only stable, serializable fields
         return {
+            colorMode: choice.colorMode,
+            customValue: choice.customValue,
+            customCMYK: choice.customCMYK,
             offsetV: choice.offsetV,
             offsetH: choice.offsetH,
             roundPt: choice.roundPt,
             isPill: !!choice.isPill,
             type: choice.type,
             strokeWidth: choice.strokeWidth,
-            groupWithText: !!choice.groupWithText
+            target: choice.target,
+            groupWithText: !!choice.groupWithText,
+            opacity: _clamp((typeof choice.opacity === 'number' ? choice.opacity : 100), 0, 100)
         };
     }
 
     function applyChoiceToUI(c) {
         if (!c) return;
+        // Color mode
+        if (c.colorMode === ColorMode.K100) k100Radio.notify('onClick');
+        else if (c.colorMode === ColorMode.WHITE) whiteRadio.notify('onClick');
+        else if (c.colorMode === ColorMode.HEX) {
+            specifiedRadio.notify('onClick');
+            try {
+                customInput.text = c.customValue || '#';
+            } catch (e) {}
+        } else if (c.colorMode === ColorMode.CMYK) {
+            cmykRadio.notify('onClick');
+            try {
+                etC.text = c.customCMYK.c;
+                etM.text = c.customCMYK.m;
+                etY.text = c.customCMYK.y;
+                etK.text = c.customCMYK.k;
+            } catch (e) {}
+        }
+
         // Margins (pt → current unit display)
         try {
             offsetVInput.text = String(Math.round(c.offsetV / getPtFactorFromUnitCode(getCurrentUnitCode())));
@@ -2071,24 +2006,31 @@ function showDialog() {
 
         // Type (fill/stroke)
         try {
-            typeFillRadio.value = (c.type !== 'stroke');
-            typeStrokeRadio.value = (c.type === 'stroke');
-            setStrokeWidthUIEnabled(typeStrokeRadio.value);
+            if (c.type === 'stroke') typeStrokeRadio.notify('onClick');
+            else typeFillRadio.notify('onClick');
         } catch (e) {}
 
         // Stroke width
         try {
-            if (c.strokeWidth) {
-                strokeWidthInput.text = String(Math.round(c.strokeWidth / getPtFactorFromUnitCode(getCurrentUnitCode())));
-            }
+            strokeWidthInput.text = String(Math.round((c.strokeWidth || 1) / getPtFactorFromUnitCode(getCurrentUnitCode())));
+        } catch (e) {}
+
+        // Target
+        try {
+            if (c.target === 'group') allRadio.notify('onClick');
+            else currentRadio.notify('onClick');
         } catch (e) {}
 
         // Group with text
         try {
             cbGroupWithText.value = !!c.groupWithText;
         } catch (e) {}
+        // Opacity
+        try {
+            opacityInput.text = String(_clamp((typeof c.opacity === 'number' ? c.opacity : 100), 0, 100));
+        } catch (e) {}
 
-        // Only set above fields; do not set color or target radios
+        // Refresh preview
         updatePreviewCommit();
     }
 
@@ -2123,38 +2065,7 @@ function showDialog() {
         } catch (e) {}
     }
 
-    offsetVInput.onChanging = function() {
-        try {
-            if (cbLinkMargins.value) {
-                offsetHInput.text = String(offsetVInput.text);
-            }
-        } catch (e) {}
-        updatePreviewTyping();
-    };
-    offsetVInput.onChange = function() {
-        try {
-            if (cbLinkMargins.value) {
-                offsetHInput.text = String(offsetVInput.text);
-            }
-        } catch (e) {}
-        updatePreviewCommit();
-    };
-    offsetHInput.onChanging = function() {
-        try {
-            if (cbLinkMargins.value) {
-                offsetVInput.text = String(offsetHInput.text);
-            }
-        } catch (e) {}
-        updatePreviewTyping();
-    };
-    offsetHInput.onChange = function() {
-        try {
-            if (cbLinkMargins.value) {
-                offsetVInput.text = String(offsetHInput.text);
-            }
-        } catch (e) {}
-        updatePreviewCommit();
-    };
+
 
     k100Radio.onClick = function() {
         selectColorMode(ColorMode.K100);
@@ -2204,6 +2115,33 @@ function showDialog() {
     }
     addColorHotkeys(dlg);
 
+    // ==== Opacity panel (under Fill panel) ====
+    var opacityPanel = rightCol.add('panel', undefined, LABELS.opacityTitle[lang]);
+    opacityPanel.orientation = 'row';
+    opacityPanel.alignChildren = ['left', 'center'];
+    opacityPanel.margins = [15, 20, 15, 10];
+    opacityPanel.spacing = 6;
+
+    var opacityInput = opacityPanel.add('edittext', undefined, '100');
+    opacityInput.characters = 3;
+    opacityInput.preferredSize = {
+        width: 40,
+        height: -1
+    };
+    var opacityPct = opacityPanel.add('statictext', undefined, '%');
+
+    bindNumericField(opacityInput, {
+        min: 0,
+        max: 100,
+        integer: true,
+        onTyping: function() {
+            updatePreviewTyping();
+        },
+        onCommit: function() {
+            updatePreviewCommit();
+        }
+    });
+
     // Add new panel for type (under color panel)
     var typePanel = rightCol.add('panel', undefined, LABELS.typeTitle[lang]);
     typePanel.orientation = 'row';
@@ -2227,6 +2165,18 @@ function showDialog() {
         height: -1
     };
     strokeWidthInput.characters = 3;
+
+    bindNumericField(strokeWidthInput, {
+        min: 0,
+        integer: true,
+        onTyping: function() {
+            updatePreviewTyping();
+        },
+        onCommit: function() {
+            updatePreviewCommit();
+        }
+    });
+
     var strokeWidthUnit = strokeWidthRow.add('statictext', undefined, getCurrentUnitLabel());
 
     // Enable/disable stroke width depending on type selection
@@ -2255,15 +2205,7 @@ function showDialog() {
     typeStrokeRadio.onChanging = updateTypeEnableAndPreview;
 
     // Stroke width field handlers
-    changeValueByArrowKey(strokeWidthInput, function() {
-        updatePreviewTyping();
-    });
-    strokeWidthInput.onChanging = function() {
-        updatePreviewTyping();
-    };
-    strokeWidthInput.onChange = function() {
-        updatePreviewCommit();
-    };
+
 
     // Default selection: Fill
     typeFillRadio.value = true;
@@ -2323,24 +2265,38 @@ function showDialog() {
     var okBtn = btnGroup.add('button', undefined, LABELS.ok[lang]);
 
     okBtn.onClick = function() {
-        __suppressRedraw = true;
         DialogPersist.savePosition(dlg, __DLG_KEY);
         try {
             if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
         } catch (e) {}
         PreviewHistory.undo();
+        clearPreview(true); // remove the _preview / _プレビュー layer on OK
         try {
-            $.global.__BATCH_OUTLINE_ONCE = true;
+            __saveLastChoice(serializeChoice(buildChoiceFromUI()));
         } catch (e) {}
         dlg.close(1);
+        // Delete temporary outline layer after dialog closes
+        try {
+            var doc = app.activeDocument;
+            for (var i = doc.layers.length - 1; i >= 0; i--) {
+                if (doc.layers[i].name === '__tmp_outline_bounds__') {
+                    try {
+                        doc.layers[i].remove();
+                    } catch (e) {}
+                }
+            }
+        } catch (e) {}
     };
     cancelBtn.onClick = function() {
-        __suppressRedraw = true;
         DialogPersist.savePosition(dlg, __DLG_KEY);
         try {
             if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
         } catch (e) {}
         PreviewHistory.undo();
+        clearPreview(true); // remove the _preview / _プレビュー layer on Cancel
+        try {
+            __saveLastChoice(serializeChoice(buildChoiceFromUI()));
+        } catch (e) {}
         dlg.close(0);
     };
 
@@ -2422,128 +2378,8 @@ function getItemBounds(it, usePreview) {
     }
 }
 
-function computeBatchOutlinedBounds(doc, sel, usePreview) {
-    __batchBoundsMap = {};
-    __batchGroupBounds = null;
-    if (!doc || !sel || !sel.length) return;
-
-    var tmp = getOrCreateTempOutlineLayer(doc);
-    ensureLayerEditable(doc, tmp);
-
-    var prevSel = [];
-    try {
-        if (doc.selection && doc.selection.length)
-            for (var i = 0; i < doc.selection.length; i++) prevSel.push(doc.selection[i]);
-    } catch (e) {}
-
-    var dups = []; // duplicate text frames (in original order of sel)
-    var idxMap = []; // indices in selection that correspond to text frames
-
-    // 1) Duplicate all text frames to tmp layer; get non-text bounds immediately
-    for (var i = 0; i < sel.length; i++) {
-        var it = sel[i];
-        if (!it) {
-            __batchBoundsMap[i] = null;
-            continue;
-        }
-        try {
-            if (it.typename === 'TextFrame') {
-                var dup = it.duplicate(tmp, ElementPlacement.PLACEATBEGINNING);
-                try {
-                    dup.hidden = false;
-                    dup.locked = false;
-                } catch (_) {}
-                dups.push(dup);
-                idxMap.push(i);
-            } else {
-                // Non-text: use geometric/visible bounds as-is
-                var b = usePreview && it.visibleBounds ? it.visibleBounds : it.geometricBounds;
-                __batchBoundsMap[i] = b || null;
-            }
-        } catch (e) {
-            __batchBoundsMap[i] = null;
-        }
-    }
-
-    // 2) Outline all duplicated text frames in one go
-    var outlinedItems = [];
-    if (dups.length) {
-        try {
-            app.executeMenuCommand('deselectall');
-            for (var j = 0; j < dups.length; j++) {
-                try {
-                    dups[j].selected = true;
-                } catch (_) {}
-            }
-            try {
-                app.executeMenuCommand('createOutlines');
-            } catch (_) {}
-            // Now selection should contain outlined groups for duplicates, in order
-            try {
-                var selNow = doc.selection || [];
-                for (var k = 0; k < selNow.length; k++) outlinedItems.push(selNow[k]);
-            } catch (__) {}
-        } catch (e) {}
-    }
-
-    // 3) Map outlined bounds back to original indices
-    for (var m = 0; m < idxMap.length; m++) {
-        var srcIdx = idxMap[m];
-        var outItem = outlinedItems[m];
-        var gb = null;
-        try {
-            gb = usePreview && outItem && outItem.visibleBounds ? outItem.visibleBounds : (outItem ? outItem.geometricBounds : null);
-        } catch (e) {
-            gb = null;
-        }
-        __batchBoundsMap[srcIdx] = gb;
-    }
-
-    // 4) Build group combined bounds
-    for (var t = 0; t < sel.length; t++) {
-        var b2 = __batchBoundsMap[t];
-        if (!b2 || b2.length !== 4) continue;
-        if (!__batchGroupBounds) {
-            __batchGroupBounds = [b2[0], b2[1], b2[2], b2[3]];
-        } else {
-            if (b2[0] < __batchGroupBounds[0]) __batchGroupBounds[0] = b2[0];
-            if (b2[1] > __batchGroupBounds[1]) __batchGroupBounds[1] = b2[1];
-            if (b2[2] > __batchGroupBounds[2]) __batchGroupBounds[2] = b2[2];
-            if (b2[3] < __batchGroupBounds[3]) __batchGroupBounds[3] = b2[3];
-        }
-    }
-
-    // 5) Cleanup duplicates and outlined items, restore selection
-    try {
-        // Remove outlined items (currently selected)
-        var selNow2 = doc.selection || [];
-        for (var r = selNow2.length - 1; r >= 0; r--) {
-            try {
-                selNow2[r].remove();
-            } catch (_) {}
-        }
-    } catch (e) {}
-    try {
-        app.executeMenuCommand('deselectall');
-    } catch (e) {}
-    try {
-        for (var q = 0; q < dups.length; q++) {
-            try {
-                if (dups[q] && dups[q].remove) dups[q].remove();
-            } catch (_) {}
-        }
-    } catch (e) {}
-
-    // restore original selection
-    try {
-        for (var s = 0; s < prevSel.length; s++) prevSel[s].selected = true;
-    } catch (e) {}
-}
-
 // --- Helper: Get bounds for a TextFrame by outlining (for final drawing) ---
 function getTextOutlinedBounds(doc, tf, usePreview) {
-    // Compute outlined bounds for the whole selection in one pass (menu call once)
-
     try {
         if (!tf || tf.typename !== 'TextFrame') return null;
         var tmp = getOrCreateTempOutlineLayer(doc);
@@ -2816,7 +2652,7 @@ function drawRectangleForItem(doc, itemOrRect, choice) {
         targetLayer.locked = false;
     } catch (e) {}
 
-    // rect.zOrder(ZOrderMethod.SENDTOBACK); // 常に最背面
+    rect.zOrder(ZOrderMethod.SENDTOBACK); // 常に最背面
     return rect;
 }
 
@@ -2925,16 +2761,6 @@ function main() {
 
     try {
         if (__prevCS !== null) app.coordinateSystem = __prevCS;
-    } catch (e) {}
-    // Re-enable redraw after commit/cleanup is fully done
-    try {
-        __suppressRedraw = false;
-    } catch (e) {}
-    // Reset batch-outline state so it doesn't leak to future runs
-    try {
-        __BATCH_OUTLINE_ONCE = false;
-        __batchBoundsMap = null;
-        __batchGroupBounds = null;
     } catch (e) {}
 }
 main();
