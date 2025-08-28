@@ -101,116 +101,46 @@ var lang = getCurrentLang();
 /* ラベル定義 / Label definitions (UI order) */
 var LABELS = {
     dialogTitle: {
-        ja: "背面に長方形を作成 " + SCRIPT_VERSION,
-        en: "Draw Rectangle Behind Selection " + SCRIPT_VERSION
-    },
-    alertNoSelection: { ja: "オブジェクトを選択してください。", en: "Please select at least one object." },
-
-    // --- Margin ---
-    offsetTitle: { ja: "マージン", en: "Margins" },
-    offsetV: { ja: "上下", en: "Vertical" },
-    offsetH: { ja: "左右", en: "Horizontal" },
-    linkMargins: { ja: "連動", en: "Link" },
-
-    // --- Corner ---
-    roundTitle: { ja: "角丸", en: "Corner Radius" },
-    pillShape: { ja: "ピル形状", en: "Pill Shape" },
-
-    // --- Color ---
-    colorTitle: { ja: "塗り", en: "Fill" },
-    colorK100: { ja: "ブラック", en: "Black" },
-    colorWhite: { ja: "ホワイト", en: "White" },
-    colorSpecified: { ja: "HEX", en: "HEX" },
-    colorCustomCMYK: { ja: "CMYK", en: "CMYK" },
-
-    // --- Opacity ---
-    opacityTitle: { ja: "不透明度", en: "Opacity" },
-
-    // --- Type ---
-    typeTitle: { ja: "種別", en: "Type" },
-    typeFill: { ja: "塗り", en: "Fill" },
-    typeStroke: { ja: "線", en: "Stroke" },
-    strokeWidth: { ja: "線幅", en: "Stroke Width" },
-
-    // --- Target ---
-    targetTitle: { ja: "対象", en: "Target" },
-    currentAB: { ja: "個別", en: "Create Individually" },
-    allAB: { ja: "グループとして", en: "Create as Group" },
-
-    // --- Options ---
-    previewBounds: { ja: "テキストとグループ化", en: "Group with Text" },
-
-    // --- Buttons ---
-    ok: { ja: "OK", en: "OK" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-
-    // --- Preview internal names ---
-    previewLayer: { ja: "_preview", en: "_preview" },
-    previewRect: { ja: "__プレビュー_アートボード境界", en: "__Preview_ArtboardBounds" }
-};    dialogTitle: {
-        ja: "背面に長方形を作成" + " " + SCRIPT_VERSION,
+                ja: "背面に長方形を作成" + " " + SCRIPT_VERSION,
         en: "Draw Rectangle Behind Selection" + " " + SCRIPT_VERSION
     },
     alertNoSelection: {
         ja: "オブジェクトを選択してください。",
         en: "Please select at least one object."
     },
+
+    // --- Margin ---
     offsetTitle: {
         ja: "マージン",
         en: "Margins"
     },
-    colorTitle: {
-        ja: "塗り",
-        en: "Fill"
+    offsetV: {
+        ja: "上下",
+        en: "Vertical"
     },
+    offsetH: {
+        ja: "左右",
+        en: "Horizontal"
+    },
+    linkMargins: {
+        ja: "連動",
+        en: "Link"
+    },
+
+    // --- Corner ---
     roundTitle: {
         ja: "角丸",
         en: "Corner Radius"
     },
-    targetTitle: {
-        ja: "対象",
-        en: "Target"
+    pillShape: {
+        ja: "ピル形状",
+        en: "Pill Shape"
     },
-    typeTitle: {
-        ja: "種別",
-        en: "Type"
-    },
-    strokeWidth: {
-        ja: "線幅",
-        en: "Stroke Width"
-    },
-    previewBounds: {
-        ja: "テキストとグループ化",
-        en: "Group with Text"
-    },
-    opacityTitle: {
-        ja: "不透明度",
-        en: "Opacity"
-    },
-    ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    },
-    previewLayer: {
-        ja: "_preview",
-        en: "_preview"
-    },
-    previewRect: {
-        ja: "__プレビュー_アートボード境界",
-        en: "__Preview_ArtboardBounds"
-    },
-    // --- Color & type options ---
-    typeFill: {
+
+    // --- Color ---
+    colorTitle: {
         ja: "塗り",
         en: "Fill"
-    },
-    typeStroke: {
-        ja: "線",
-        en: "Stroke"
     },
     colorK100: {
         ja: "ブラック",
@@ -228,7 +158,36 @@ var LABELS = {
         ja: "CMYK",
         en: "CMYK"
     },
-    // --- Target options ---
+
+    // --- Opacity ---
+    opacityTitle: {
+        ja: "不透明度",
+        en: "Opacity"
+    },
+
+    // --- Type ---
+    typeTitle: {
+        ja: "種別",
+        en: "Type"
+    },
+    typeFill: {
+        ja: "塗り",
+        en: "Fill"
+    },
+    typeStroke: {
+        ja: "線",
+        en: "Stroke"
+    },
+    strokeWidth: {
+        ja: "線幅",
+        en: "Stroke Width"
+    },
+
+    // --- Target ---
+    targetTitle: {
+        ja: "対象",
+        en: "Target"
+    },
     currentAB: {
         ja: "個別",
         en: "Create Individually"
@@ -236,6 +195,32 @@ var LABELS = {
     allAB: {
         ja: "グループとして",
         en: "Create as Group"
+    },
+
+    // --- Options ---
+    previewBounds: {
+        ja: "テキストとグループ化",
+        en: "Group with Text"
+    },
+
+    // --- Buttons ---
+    ok: {
+        ja: "OK",
+        en: "OK"
+    },
+    cancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+
+    // --- Preview internal names ---
+    previewLayer: {
+        ja: "_preview",
+        en: "_preview"
+    },
+    previewRect: {
+        ja: "__プレビュー_アートボード境界",
+        en: "__Preview_ArtboardBounds"
     }
 };
 
@@ -2663,7 +2648,7 @@ function main() {
         alert(LABELS.alertNoSelection[lang]);
         return;
     }
-
+　
     var choice = showDialog();
     if (choice === null) return;
 
