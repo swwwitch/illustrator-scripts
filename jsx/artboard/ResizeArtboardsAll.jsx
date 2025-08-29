@@ -2,74 +2,82 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "DialogEngine"
 
-var SCRIPT_VERSION = "v1.2";
-
 /*
-===============================================================================
-スクリプト名 / Script Name
-  Fit Artboard Size to Specified Width/Height
 
-GitHub
-  https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/ResizeArtboardsAll.jsx
+### スクリプト名：
 
-概要 / Overview
-  JP: ダイアログで指定した「幅」「高さ」に、アートボードを即時プレビューしながら変形します。
-      選択がない場合は、各アートボード内のオブジェクトを基準に、すべてのアートボードを個別に調整します。
-  EN: Resize artboards to the specified width and height with live preview.
-      When nothing is selected, each artboard is adjusted individually based on items inside it.
+アートボードサイズを調整 / Fit Artboard Size to Specified Width/Height
 
-主な機能 / Key Features
-  - ライブプレビュー（高速化のため app.redraw をデバウンス）
-  - 「対象」パネル（作業ABのみ／すべてのAB）
-  - 「基準」パネル（左上／中央）
-  - テキストは一時的にアウトライン化して境界を精密取得（処理後に復元）
-  - 入力フィールドは単位ラベル付き（値は数値のみ）／ダイアログ位置を記憶
+### GitHub：
 
-使い方 / Flow
-  1) ダイアログで幅・高さを入力（↑↓: ±1、Shift: ±10、Option: ±0.1 ※最終的に整数）
-  2) プレビューで即時にアートボードを更新
-  3) OKで確定、Cancelで元に戻す
+https://github.com/swwwitch/illustrator-scripts
 
-注意 / Notes
-  - プレビューはパフォーマンス重視。画面描画は間引き（throttle）ています。
-  - 単位はドキュメントの定規単位に追従します（値はフィールド内で単位なし表示）。
+### 概要：
 
-更新履歴 / Changelog
-  - v1.0 (2025-08-29): 初期バージョン / Initial release
-===============================================================================
+- ダイアログで指定した「幅」「高さ」に、アートボードをライブプレビューしながら変形します。
+- 選択がない場合は、各アートボード内のオブジェクトを基準に、すべてのアートボードを個別に調整します。
+
+### 主な機能：
+
+- ライブプレビュー（app.redraw のデバウンスで高速化）
+- 対象のアートボード（作業のみ／すべて／指定（1始まりの範囲・カンマ列：例 1-3 / 1,3 / 2-4,7））
+- 基準点の切替（左上／中央）
+- 単位はドキュメントの定規単位に追従（px時は左上座標を整数にスナップ）
+- ダイアログ位置・不透明度の記憶（セッション間で復元）
+- 矢印キー操作：↑↓=±1、Shift+↑↓=10の倍数にスナップ、Option(Alt)+↑↓=±0.1（最終的に整数化）
+
+### 処理の流れ：
+
+1. ダイアログで幅・高さを入力（必要なら対象・基準点を選択）
+2. プレビューで即時にアートボードを更新
+3. OKで確定、Cancelで元に戻す
+
+### note：
+
+- 「指定」は 1 始まりで解釈し、内部で 0 始まりに変換します。
+- px/pt 表示は整数、小数単位（mm/cm/inch/pica）は小数2桁で表示します。
+
+### 更新履歴：
+
+- v1.0 (20250829) : 初期バージョン
+
+---
+
+### Script Name:
+
+Fit Artboard Size to Specified Width/Height
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts
+
+### Overview:
+
+- Resize artboards to the specified width/height with live preview.
+- When nothing is selected, each artboard is adjusted individually based on items inside it.
+
+### Key Features:
+
+- Live preview (debounced app.redraw for performance)
+- Target artboards: Active only / All / Specify (1-based ranges & lists, e.g., 1-3 / 1,3 / 2-4,7)
+- Anchor: Top-Left / Center
+- Units follow the document ruler (snap top-left to integer when in px)
+- Dialog position & opacity persistence across sessions
+- Arrow keys: Up/Down = ±1, Shift = snap to multiples of 10, Option(Alt) = ±0.1 (rounded to integer at commit)
+
+### Flow:
+
+1. Enter width/height (optionally choose target & anchor)
+2. See instant preview of artboard updates
+3. Press OK to commit, Cancel to restore
+
+### Changelog:
+
+- v1.0 (2025-08-29): Initial release
+
 */
 
-// --- Core references & defaults ---
-var doc = (app.documents.length > 0) ? app.activeDocument : null;
-if (!doc) {
-    alert(LABELS.alertNoDoc[lang]);
-    throw new Error("No document");
-}
-var artboards = doc.artboards;
-
-function _detectUnitString() {
-    try {
-        var ru = doc.rulerUnits;
-        switch (ru) {
-            case RulerUnits.Millimeters:
-                return 'mm';
-            case RulerUnits.Centimeters:
-                return 'cm';
-            case RulerUnits.Inches:
-                return 'inch';
-            case RulerUnits.Points:
-                return 'pt';
-            case RulerUnits.Picas:
-                return 'pica';
-            case RulerUnits.Pixels:
-                return 'px';
-            default:
-                return 'pt';
-        }
-    } catch (e) {
-        return 'pt';
-    }
-}
+var SCRIPT_VERSION = "v1.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -77,7 +85,6 @@ function getCurrentLang() {
 var lang = getCurrentLang();
 
 /* 日英ラベル定義 / Japanese–English label definitions */
-
 
 var LABELS = {
     // 1) Dialog title
@@ -87,8 +94,8 @@ var LABELS = {
     },
     // 4) Target panel
     targetPanelTitle: {
-        ja: "対象",
-        en: "Target"
+        ja: "対象のアートボード",
+        en: "Target Artboard"
     },
     targetActiveArtboard: {
         ja: "作業アートボードのみ",
@@ -97,6 +104,10 @@ var LABELS = {
     targetAllArtboards: {
         ja: "すべてのアートボード",
         en: "All artboards"
+    },
+    targetSpecify: {
+        ja: "指定",
+        en: "Specify"
     },
     // 6) Buttons
     okBtn: {
@@ -148,6 +159,31 @@ var LABELS = {
     }
 };
 
+function _detectUnitString() {
+    try {
+        var d = app.activeDocument;
+        var ru = d.rulerUnits;
+        switch (ru) {
+            case RulerUnits.Millimeters:
+                return 'mm';
+            case RulerUnits.Centimeters:
+                return 'cm';
+            case RulerUnits.Inches:
+                return 'inch';
+            case RulerUnits.Points:
+                return 'pt';
+            case RulerUnits.Picas:
+                return 'pica';
+            case RulerUnits.Pixels:
+                return 'px';
+            default:
+                return 'pt';
+        }
+    } catch (e) {
+        return 'pt';
+    }
+}
+
 /*
 エラー整形ヘルパー / Error formatting helper
 Illustrator/ExtendScript の Error から行番号などを含めて読みやすく整形。
@@ -162,7 +198,6 @@ function formatError(e) {
         return String(e);
     }
 }
-
 
 /*
 共通エンジン名を使用 / Use a common engine name
@@ -188,8 +223,6 @@ function _clampToScreen(loc) {
     }
 }
 
-
-
 // -------------------------------
 // 設定定数 / Configuration constants
 // -------------------------------
@@ -198,14 +231,13 @@ var CONFIG = {
     offsetX: 300
 };
 
-
 /*
 ダイアログ表示 / Show dialog with live preview
 */
 function showMarginDialog(defaultValue, unit) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     // スクリプト名＋バージョンでキーをネームスペース化 / Namespace the key by script name + version
-    var dlgPositionKey = "__FitArtboardHeightToSelection_" + SCRIPT_VERSION + "__Dialog";
+    var dlgPositionKey = "__ResizeArtboardsAll_" + SCRIPT_VERSION + "__Dialog";
     if ($.global[dlgPositionKey] === undefined) $.global[dlgPositionKey] = null; // ensure slot
     var __savedLoc = _getSavedLoc(dlgPositionKey);
 
@@ -213,9 +245,7 @@ function showMarginDialog(defaultValue, unit) {
     if (__savedLoc) {
         dlg.onShow = (function(prev) {
             return function() {
-                try {
-                    if (typeof prev === 'function') prev();
-                } catch (_) {}
+                if (typeof prev === 'function') prev();
                 dlg.location = _clampToScreen(__savedLoc);
             };
         })(dlg.onShow);
@@ -227,9 +257,7 @@ function showMarginDialog(defaultValue, unit) {
     };
     dlg.onMove = (function(prev) {
         return function() {
-            try {
-                if (typeof prev === 'function') prev();
-            } catch (_) {}
+            if (typeof prev === 'function') prev();
             __saveDlgLoc();
         };
     })(dlg.onMove);
@@ -263,7 +291,27 @@ function showMarginDialog(defaultValue, unit) {
     /* ダイアログ位置と不透明度のカスタマイズ: ここまで / Dialog offset & opacity: end */
 
     /* サイズ表示パネル / Size display panel */
-    var sizePanel = dlg.add("panel", undefined, LABELS.sizePanelTitle[lang]);
+    // === Two-column layout container ===
+    dlg.orientation = "column";
+    dlg.alignChildren = "fill";
+    dlg.margins = 15;
+
+    var cols = dlg.add("group");
+    cols.orientation = "row";
+    cols.alignChildren = ["fill", "top"]; // fill width per column, align to top
+    cols.spacing = 15;
+
+    var leftCol = cols.add("group");
+    leftCol.orientation = "column";
+    leftCol.alignChildren = "fill";
+    leftCol.spacing = 10;
+
+    var rightCol = cols.add("group");
+    rightCol.orientation = "column";
+    rightCol.alignChildren = "fill";
+    rightCol.spacing = 10;
+
+    var sizePanel = leftCol.add("panel", undefined, LABELS.sizePanelTitle[lang] + "（" + unit + "）");
     sizePanel.orientation = "row";
     sizePanel.alignChildren = ["left", "center"];
     sizePanel.margins = [15, 20, 15, 10];
@@ -279,7 +327,7 @@ function showMarginDialog(defaultValue, unit) {
     var wLabel = wRow.add("statictext", undefined, LABELS.widthLabel[lang] + "：");
     var wValue = wRow.add("edittext", undefined, "-");
     wValue.characters = 5;
-    var wUnitLabel = wRow.add("statictext", undefined, unit);
+    // var wUnitLabel = wRow.add("statictext", undefined, unit);
 
     // Height row
     var hRow = sizeGroup.add("group");
@@ -287,7 +335,7 @@ function showMarginDialog(defaultValue, unit) {
     var hLabel = hRow.add("statictext", undefined, LABELS.heightLabel[lang] + "：");
     var hValue = hRow.add("edittext", undefined, "-");
     hValue.characters = 5;
-    var hUnitLabel = hRow.add("statictext", undefined, unit);
+    // var hUnitLabel = hRow.add("statictext", undefined, unit);
 
     // --- Align label widths and right-justify ---
     try {
@@ -314,12 +362,8 @@ function showMarginDialog(defaultValue, unit) {
     // 初期フォーカス：幅 / Set initial focus to Width field on open (preserve any existing onShow)
     dlg.onShow = (function(prev) {
         return function() {
-            try {
-                if (typeof prev === 'function') prev();
-            } catch (_) {}
-            try {
-                wValue.active = true;
-            } catch (_) {}
+            if (typeof prev === 'function') prev();
+            wValue.active = true;
         };
     })(dlg.onShow);
 
@@ -365,13 +409,8 @@ function showMarginDialog(defaultValue, unit) {
         }
     }
 
-
-    dlg.orientation = "column";
-    dlg.alignChildren = "fill";
-    dlg.margins = 15;
-
     /* 基準パネル / Anchor selection panel */
-    var anchorPanel = dlg.add("panel", undefined, LABELS.anchorPanelTitle[lang]);
+    var anchorPanel = leftCol.add("panel", undefined, LABELS.anchorPanelTitle[lang]);
     anchorPanel.orientation = "row";
     anchorPanel.alignChildren = ["left", "top"];
     anchorPanel.margins = [15, 20, 15, 10];
@@ -393,7 +432,7 @@ function showMarginDialog(defaultValue, unit) {
     radioAnchorCenter.onClick = applyResizePreview;
 
     /* 対象パネル / Target selection panel */
-    var targetPanel = dlg.add("panel", undefined, LABELS.targetPanelTitle[lang]);
+    var targetPanel = rightCol.add("panel", undefined, LABELS.targetPanelTitle[lang]);
     targetPanel.orientation = "row";
     targetPanel.alignChildren = ["left", "top"];
     targetPanel.margins = [15, 20, 15, 10];
@@ -404,35 +443,100 @@ function showMarginDialog(defaultValue, unit) {
 
     var radioActive = targetGroup.add("radiobutton", undefined, LABELS.targetActiveArtboard[lang]);
     var radioAll = targetGroup.add("radiobutton", undefined, LABELS.targetAllArtboards[lang]);
+
+    // 指定（縦配置：下に入力） / Specify (vertical: input below)
+    var radioSpecify = targetGroup.add("radiobutton", undefined, LABELS.targetSpecify[lang]);
+    radioSpecify.alignment = "left";
+
+    // 入力フィールド（ロジックは後で） / Input field (logic to be added later)
+    var inputSpecify = targetGroup.add("edittext", undefined, "");
+    inputSpecify.characters = 12; // visible width
+    inputSpecify.alignment = "left";
+    inputSpecify.helpTip = (lang === "ja") ? "例: 1-3 / 1,3 / 2-4,7（1始まり）" : "e.g., 1-3 / 1,3 / 2-4,7 (1-based)";
+
+    // 指定入力はデフォルト無効（Active/All選択時）
+    inputSpecify.enabled = false;
+
+    // "1-3,5,7-9" 形式を 0-based index 配列にパース / Parse to zero-based indices
+    function parseSpecifyInput(txt, abCount) {
+        var s = String(txt || "").replace(/\s+/g, "");
+        if (!s) return [];
+        var parts = s.split(',');
+        var out = {};
+        for (var i = 0; i < parts.length; i++) {
+            var p = parts[i];
+            if (!p) continue;
+            var m = p.match(/^(\d+)-(\d+)$/); // range a-b
+            if (m) {
+                var a = parseInt(m[1], 10);
+                var b = parseInt(m[2], 10);
+                if (isNaN(a) || isNaN(b)) continue;
+                if (a > b) { var t = a; a = b; b = t; }
+                for (var v = a; v <= b; v++) {
+                    var idx = v - 1; // 1-based -> 0-based
+                    if (idx >= 0 && idx < abCount) out[idx] = true;
+                }
+            } else {
+                var n = parseInt(p, 10);
+                if (!isNaN(n)) {
+                    var idx2 = n - 1; // 1-based -> 0-based
+                    if (idx2 >= 0 && idx2 < abCount) out[idx2] = true;
+                }
+            }
+        }
+        // return unique, sorted
+        var arr = [];
+        for (var k in out) if (out.hasOwnProperty(k)) arr.push(parseInt(k,10));
+        arr.sort(function(a,b){return a-b;});
+        return arr;
+    }
+
+    function getSpecifiedIndices() {
+        return parseSpecifyInput(inputSpecify.text, app.activeDocument.artboards.length);
+    }
+
+    function updateSpecifyEnabled() {
+        var useSpecify = (radioSpecify && radioSpecify.value === true);
+        if (inputSpecify) inputSpecify.enabled = !!useSpecify;
+    }
+
     radioActive.alignment = "left";
     radioAll.alignment = "left";
 
-    // アートボードが1つなら「すべてのアートボード」をディム / Dim "All artboards" if only one artboard
+    // ラジオ切替で有効/無効を反映
+    radioActive.onClick = function(){ updateSpecifyEnabled(); applyResizePreview(); };
+    radioAll.onClick    = function(){ updateSpecifyEnabled(); applyResizePreview(); };
+    radioSpecify.onClick= function(){ updateSpecifyEnabled(); applyResizePreview(); };
+
+    // 入力中もプレビュー反映（ロジックは選択がSpecifyのときのみ効く）
+    inputSpecify.onChanging = function(){ if (radioSpecify.value) applyResizePreview(); };
+    inputSpecify.onChange   = function(){ if (radioSpecify.value) applyResizePreview(); };
+
+    // 初期状態を反映
+    updateSpecifyEnabled();
+
+    // アートボードが1つなら「すべてのアートボード」「指定」をディム / Dim "All artboards" and "Specify" if only one artboard
     var __abCount = app.activeDocument.artboards.length;
     if (__abCount <= 1) {
         radioAll.enabled = false;
+        if (typeof radioSpecify !== 'undefined' && radioSpecify) radioSpecify.enabled = false;
+        if (typeof inputSpecify !== 'undefined' && inputSpecify) inputSpecify.enabled = false;
         radioActive.value = true; // ensure default stays active
     }
 
     // デフォルト：作業アートボードのみ / Default: active artboard only
     radioActive.value = true;
-
+    // 既定選択を反映してディム状態を最終更新 / Finalize dim state after defaults
+    updateSpecifyEnabled();
 
     /* 再描画をデバウンス / Throttle redraw to reduce jank */
     var __redrawLast = 0;
     var __redrawInterval = 40; // ms（約25fpsで十分）
     function throttledRedraw() {
-        try {
-            var now = (new Date()).getTime();
-            if (now - __redrawLast >= __redrawInterval) {
-                app.redraw();
-                __redrawLast = now;
-            }
-        } catch (e) {
-            // フォールバック：念のためプレビューが壊れないように
-            try {
-                app.redraw();
-            } catch (_) {}
+        var now = (new Date()).getTime();
+        if (now - __redrawLast >= __redrawInterval) {
+            try { app.redraw(); } catch (e) {}
+            __redrawLast = now;
         }
     }
 
@@ -472,14 +576,33 @@ function showMarginDialog(defaultValue, unit) {
                 var halfH = hPt / 2;
                 newRect = [cx - halfW, cy + halfH, cx + halfW, cy - halfH];
             }
+            // ピクセル単位のときは左上を整数座標にスナップ / If unit is px, snap top-left to integer
+            if (String(unit).toLowerCase() === 'px') {
+                var snappedL = Math.round(newRect[0]);
+                var snappedT = Math.round(newRect[1]);
+                // preserve width/height (wPt/hPt are already in pt units corresponding to px)
+                newRect = [snappedL, snappedT, snappedL + wPt, snappedT - hPt];
+            }
             app.activeDocument.artboards[abIdx].artboardRect = newRect;
         }
 
-        if (scopeAll) {
-            for (var i = 0; i < abCount; i++) _resizeOne(i);
-        } else {
-            var idx = app.activeDocument.artboards.getActiveArtboardIndex();
-            _resizeOne(idx);
+        var used = false;
+        if (radioSpecify && radioSpecify.value === true) {
+            var list = getSpecifiedIndices();
+            if (list && list.length) {
+                for (var li = 0; li < list.length; li++) {
+                    _resizeOne(list[li]);
+                }
+                used = true;
+            }
+        }
+        if (!used) {
+            if (scopeAll) {
+                for (var i = 0; i < abCount; i++) _resizeOne(i);
+            } else {
+                var idx = app.activeDocument.artboards.getActiveArtboardIndex();
+                _resizeOne(idx);
+            }
         }
         throttledRedraw();
         updateSizePanelDisplay();
@@ -513,8 +636,13 @@ function showMarginDialog(defaultValue, unit) {
 
     okBtn.onClick = function() {
         applyResizePreview();
+        var mode = "active";
+        var specified = null;
+        if (radioAll.value) mode = "all";
+        else if (radioSpecify.value) { mode = "specify"; specified = getSpecifiedIndices(); }
         result = {
-            targetScope: (radioActive.value ? "active" : "all")
+            targetScope: mode,
+            specifiedIndexes: specified // 0-based indices if specify-mode
         };
         dlg.close();
     };
@@ -530,9 +658,7 @@ function showMarginDialog(defaultValue, unit) {
 
     okBtn.onClick = (function(prev) {
         return function() {
-            try {
-                __saveDlgLoc();
-            } catch (_) {}
+            __saveDlgLoc();
             if (typeof prev === 'function') return prev();
             dlg.close(1);
         };
@@ -541,9 +667,7 @@ function showMarginDialog(defaultValue, unit) {
     if (typeof cancelBtn !== 'undefined' && cancelBtn) {
         cancelBtn.onClick = (function(prev) {
             return function() {
-                try {
-                    __saveDlgLoc();
-                } catch (_) {}
+                __saveDlgLoc();
                 if (typeof prev === 'function') return prev();
                 dlg.close(0);
             };
@@ -557,122 +681,13 @@ function showMarginDialog(defaultValue, unit) {
 
 /* メイン処理 / Main process */
 function main() {
+    if (app.documents.length === 0) {
+        alert(LABELS.alertNoDoc[lang]);
+        return;
+    }
     var userInput = showMarginDialog(null, _detectUnitString());
     if (!userInput) return;
     // All resizing already applied in preview; nothing to do here.
-}
-
-/*
-選択アイテムの正規化 / Normalize selected items
-- クリップグループ(GroupItem.clipped=true)はクリッピングパスのみを採用
-- それ以外はそのまま
-This unifies item collection for preview/runtime to avoid duplication.
-*/
-function collectEffectiveItems(items) {
-    var out = [];
-    for (var i = 0; i < items.length; i++) {
-        var it = items[i];
-        if (it && it.typename === "GroupItem" && it.clipped) {
-            // クリップグループはクリッピングパスのみ採用 / For clipped group, include only the clipping path
-            try {
-                for (var j = 0; j < it.pageItems.length; j++) {
-                    var child = it.pageItems[j];
-                    if (child.clipping) {
-                        out.push(child);
-                        break;
-                    }
-                }
-            } catch (e) {
-                /* ignore */
-            }
-        } else {
-            out.push(it);
-        }
-    }
-    return out;
-}
-
-/*
-テキストの一時アウトライン化ユーティリティ / Temporary outlining utility for text frames
-- outlineTextItems(items):
-    与えられた items を走査し、TextFrame は duplicate+hidden → createOutline() で図形化し、
-    それ以外はそのまま集約して bounds 計算用の tempItems にまとめる。
-    戻り値: { tempItems, originals, outlines }
-- cleanupOutlinedText(outlines, originals):
-    createOutline で作成したアウトラインを削除し、hidden にした元 TextFrame を再表示。
-*/
-function outlineTextItems(items) {
-    var originals = [];
-    var outlines = [];
-    var tempItems = [];
-    for (var i = 0; i < items.length; i++) {
-        var it = items[i];
-        if (!it) continue;
-        if (it.typename === "TextFrame") {
-            try {
-                var dup = it.duplicate();
-                dup.hidden = true;
-                originals.push(dup);
-                var out = it.createOutline();
-                if (out && out.length && out.length > 0) {
-                    for (var q = 0; q < out.length; q++) {
-                        outlines.push(out[q]);
-                        tempItems.push(out[q]);
-                    }
-                } else if (out) {
-                    outlines.push(out);
-                    tempItems.push(out);
-                }
-            } catch (e) {
-                // 失敗時は元のテキストをそのまま使う（visibleBoundsの誤差は許容）
-                tempItems.push(it);
-            }
-        } else {
-            tempItems.push(it);
-        }
-    }
-    return {
-        tempItems: tempItems,
-        originals: originals,
-        outlines: outlines
-    };
-}
-
-function cleanupOutlinedText(outlines, originals) {
-    for (var i = 0; i < outlines.length; i++) {
-        try {
-            outlines[i].remove();
-        } catch (e) {}
-    }
-    for (var j = 0; j < originals.length; j++) {
-        try {
-            originals[j].hidden = false;
-        } catch (e) {}
-    }
-}
-
-/*
-作業アートボード内のオブジェクトを収集 / Collect items within an artboard
-- usePreviewBounds=true: visibleBounds（塗り/線を含む）で判定
-- usePreviewBounds=false: geometricBounds（パス形状）で判定
-*/
-function getItemsInArtboard(abIndex, usePreviewBounds) {
-    var abRect = artboards[abIndex].artboardRect; // [L, T, R, B]
-    var result = [];
-    var n = doc.pageItems.length;
-    for (var i = 0; i < n; i++) {
-        var it = doc.pageItems[i];
-        try {
-            if (!it || it.locked || it.hidden || it.guides) continue;
-            var b = getBounds(it, usePreviewBounds); // [L, T, R, B]
-            // 交差判定（どこか一辺でも外れていれば非交差）
-            var outside = (b[2] <= abRect[0]) || (b[0] >= abRect[2]) || (b[3] >= abRect[1]) || (b[1] <= abRect[3]);
-            if (!outside) result.push(it);
-        } catch (e) {
-            /* ignore */
-        }
-    }
-    return result;
 }
 
 /*
@@ -711,7 +726,6 @@ function toPt(val, unit) {
     }
 }
 
-
 /* 選択オブジェクト群から最大のバウンディングボックスを取得 / Get maximum bounding box from multiple items */
 function getMaxBounds(items, usePreviewBounds) {
     var bounds = getBounds(items[0], usePreviewBounds);
@@ -743,18 +757,32 @@ function changeValueByArrowKey(editText, onUpdate) {
         if (isNaN(num)) num = 0;
 
         var kb = ScriptUI.environment.keyboardState;
-        var step = 1;
-        // Option(Alt) = 0.1, Shift = 10. If both held, Option優先で0.1。
-        if (kb.altKey || kb.optionKey) {
-            step = 0.1;
-        } else if (kb.shiftKey) {
-            step = 10;
+        var isAlt = (kb.altKey || kb.optionKey);
+        var isShift = kb.shiftKey && !isAlt; // Alt優先
+
+        var next;
+        if (isAlt) {
+            // Option(Alt): ±0.1（最終的に整数丸めは下で実施）
+            var stepSmall = 0.1;
+            var deltaSmall = (event.keyName === "Up") ? stepSmall : -stepSmall;
+            next = num + deltaSmall;
+        } else if (isShift) {
+            // Shift: 10の倍数へスナップ
+            var n = Math.max(0, num);
+            var up = (event.keyName === "Up");
+            var isMultiple = (n % 10 === 0);
+            if (up) {
+                next = isMultiple ? (n + 10) : (Math.ceil(n / 10) * 10);
+            } else {
+                next = isMultiple ? (Math.max(0, n - 10)) : (Math.floor(n / 10) * 10);
+            }
+        } else {
+            // 通常: ±1
+            var delta = (event.keyName === "Up") ? 1 : -1;
+            next = num + delta;
         }
 
-        var delta = (event.keyName === "Up") ? step : -step;
-        var next = num + delta;
         if (next < 0) next = 0; // prevent negative
-
         // ↑↓操作では常に整数へ丸める
         next = Math.round(next);
 
