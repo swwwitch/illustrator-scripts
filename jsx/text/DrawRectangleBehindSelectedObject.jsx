@@ -16,6 +16,9 @@ https://github.com/swwwitch/illustrator-scripts
 
 - 選択オブジェクトの外接バウンディングボックスを基準に、オフセットを加えた長方形を生成
 - プレビュー機能で即時確認可能、作成した長方形は常に最背面に配置
+- 不透明度はプレビューだけでなく、確定後に作成される長方形にも適用
+
+更新日：2025-09-02
 
 ### 主な機能：
 
@@ -39,6 +42,7 @@ https://github.com/swwwitch/illustrator-scripts
 - v1.1 (2025-08-23) : プレビュー・カラー選択機能を追加
 - v1.2 (2025-08-23) : 種別（塗り/線）、線幅指定、プリセット保存機能を追加
 - v1.3 (2025-08-28) : ダイアログ位置・不透明度・各パラメーター記憶機能を追加
+- v1.4 (2025-09-02) : ロジック調整
 
 ---
 
@@ -54,6 +58,9 @@ https://github.com/swwwitch/illustrator-scripts
 
 - Generate rectangles offset from the bounding box of selected objects
 - Live preview with immediate feedback; created rectangles are always sent to back
+- Opacity applies to both preview and the finalized rectangle
+
+Last updated: 2025-09-02
 
 ### Key Features:
 
@@ -77,10 +84,101 @@ https://github.com/swwwitch/illustrator-scripts
 - v1.1 (2025-08-23): Added preview and color selection
 - v1.2 (2025-08-23): Added type (fill/stroke), stroke width, and preset saving
 - v1.3 (2025-08-28): Added dialog position, opacity, and parameter persistence
+- v1.4 (2025-09-02): 
 
 */
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
+
+/*
+ * Debug logger for error handling
+ * - In normal mode: silent
+ * - When DEBUG_MODE=true: logs error messages to ExtendScript console
+ */
+var DEBUG_MODE = false;
+
+function logError(context, e) {
+    if (!DEBUG_MODE) return;
+    try {
+        $.writeln("[ERROR] " + context + ": " + e);
+    } catch (_) {}
+}
+// --- Helper: Draw the finalized rectangle behind the selection ---
+/**
+ * buildFinalRect(targetLayer, rectSpec, choice, doc)
+ * Actually draws the rectangle (fill or stroke) in the bg layer for finalized output.
+ * @param {Layer} targetLayer
+ * @param {Object} rectSpec
+ * @param {Object} choice
+ * @param {Document} doc
+ * @returns {PathItem|null}
+ */
+function buildFinalRect(targetLayer, rectSpec, choice, doc) {
+    if (!rectSpec) return null;
+    var L = rectSpec.left,
+        T = rectSpec.top,
+        w = rectSpec.width,
+        h = rectSpec.height;
+    var oV = (choice && typeof choice.offsetV === 'number') ? choice.offsetV : 0;
+    var oH = (choice && typeof choice.offsetH === 'number') ? choice.offsetH : 0;
+    var rect = targetLayer.pathItems.rectangle(T + oV, L - oH, w + oH * 2, h + oV * 2);
+    // Resolve color for fill or stroke
+    var col = resolveFillColor(doc, choice.colorMode, {
+        customValue: choice.customValue,
+        customCMYK: choice.customCMYK
+    });
+    if (choice && choice.type === 'stroke') {
+        try {
+            rect.filled = false;
+        } catch (e) {
+            logError("buildFinalRect.fill", e);
+        }
+        try {
+            rect.stroked = !!col;
+            if (col) rect.strokeColor = col;
+            rect.strokeWidth = (choice && typeof choice.strokeWidth === 'number' && choice.strokeWidth > 0) ? choice.strokeWidth : 1;
+        } catch (e) {
+            logError("buildFinalRect.stroke", e);
+        }
+    } else {
+        applyFill(rect, col, true);
+        try {
+            rect.stroked = false;
+        } catch (e) {
+            logError("buildFinalRect.strokeOff", e);
+        }
+    }
+    // Apply opacity to final rectangle (0–100)
+    try {
+        var __opFinal = (choice && typeof choice.opacity === 'number') ? choice.opacity : 100;
+        rect.opacity = _clamp(Math.round(__opFinal), 0, 100);
+    } catch (e) {
+        logError("buildFinalRect.opacity", e);
+    }
+    // Corner radius via Live Effect (kept unexpanded)
+    try {
+        var r = (choice && typeof choice.roundPt === 'number') ? choice.roundPt : 0;
+        if (choice && choice.isPill) {
+            r = (h + oV * 2) / 2;
+        }
+        if (r > 0) {
+            applyLiveEffect(rect, "Adobe Round Corners", "R radius " + r + " ");
+        }
+    } catch (e) {
+        logError("buildFinalRect.corner", e);
+    }
+    try {
+        rect.selected = false;
+    } catch (e) {
+        logError("buildFinalRect.selected", e);
+    }
+    try {
+        rect.zOrder(ZOrderMethod.SENDTOBACK);
+    } catch (e) {
+        logError("buildFinalRect.zOrder", e);
+    }
+    return rect;
+}
 
 /*
  * Color mode constants / カラーモード定数
@@ -101,7 +199,7 @@ var lang = getCurrentLang();
 /* ラベル定義 / Label definitions (UI order) */
 var LABELS = {
     dialogTitle: {
-                ja: "背面に長方形を作成" + " " + SCRIPT_VERSION,
+        ja: "背面に長方形を作成" + " " + SCRIPT_VERSION,
         en: "Draw Rectangle Behind Selection" + " " + SCRIPT_VERSION
     },
     alertNoSelection: {
@@ -211,6 +309,16 @@ var LABELS = {
     cancel: {
         ja: "キャンセル",
         en: "Cancel"
+    },
+
+    // --- Opacity ---
+    opacityTitle: {
+        ja: "不透明度",
+        en: "Opacity"
+    },
+    opacityEnable: {
+        ja: "適用",
+        en: "Apply"
     },
 
     // --- Preview internal names ---
@@ -425,7 +533,9 @@ function resolveFillColor(doc, mode, payload) {
                 return makeCMYK(c, m, y, k);
             }
         }
-    } catch (e) {}
+    } catch (e) {
+        logError("resolveFillColor", e);
+    }
     return null;
 }
 
@@ -447,7 +557,9 @@ function applyFill(rect, color, strokeOff) {
             rect.stroked = false;
         }
         // 不透明度は設定しない / Do not touch opacity
-    } catch (e) {}
+    } catch (e) {
+        logError("applyFill", e);
+    }
 }
 
 /* applyLiveEffect: ライブエフェクトを適用（展開しない） */
@@ -459,7 +571,7 @@ function applyLiveEffect(item, effectName, dictData) {
             '</LiveEffect>'
         );
     } catch (e) {
-        alert("エフェクト適用エラー: " + e);
+        logError("applyLiveEffect", e);
     }
 }
 
@@ -632,7 +744,11 @@ function getPtFactorFromUnitCode(code) {
  * - unitCode: app.preferences.getIntegerPreference("rulerType")
  * Return: { pt: Number, displayText: String, disabled: Boolean }
  */
-// Replace the whole function
+/*
+ * 単位変換（表示→pt）/ Unit conversion (display → pt)
+ * - 入力文字列を解析し、現在の単位設定に基づいて pt 値を返す
+ * - 0 未満は 0 に丸め、displayText は元文字列をそのまま返す
+ */
 function resolveOffsetToPt(offsetText, unitCode) {
     var displayText = String(offsetText == null ? '' : offsetText);
     var n = parseFloat(displayText);
@@ -645,7 +761,10 @@ function resolveOffsetToPt(offsetText, unitCode) {
     };
 }
 
-// Replace the whole function
+/*
+ * ↑/↓ キーでの数値操作 / Arrow-key numeric nudging
+ * Shift=±10, Alt=±0.1, 通常=±1。テキストを更新後にコールバックを1回だけ呼ぶ（プレビューは二重発火しない）。
+ */
 function changeValueByArrowKey(editText, onValueChange) {
     editText.addEventListener("keydown", function(event) {
         var value = Number(editText.text);
@@ -714,6 +833,9 @@ function bindNumericField(et, opts) {
         return n;
     }
 
+    function safeTyping() { try { onTyping(); } catch(e){} }
+    function safeCommit() { try { onCommit(); } catch(e){} }
+
     // 入力中のガード（−の禁止／範囲内に収める）
     et.onChanging = function() {
         try {
@@ -727,9 +849,7 @@ function bindNumericField(et, opts) {
                 if (mirror) mirror(et.text);
             }
         } catch (e) {}
-        try {
-            onTyping();
-        } catch (e) {}
+        safeTyping();
     };
 
     // 確定時のクランプ
@@ -740,9 +860,7 @@ function bindNumericField(et, opts) {
             et.text = String(nv);
             if (mirror) mirror(et.text);
         } catch (e) {}
-        try {
-            onCommit();
-        } catch (e) {}
+        safeCommit();
     };
 
     // ↑↓操作後のクランプ＋反映
@@ -753,9 +871,7 @@ function bindNumericField(et, opts) {
             et.text = String(nv);
             if (mirror) mirror(et.text);
         } catch (e) {}
-        try {
-            onTyping();
-        } catch (e) {}
+        safeTyping();
     });
 }
 
@@ -849,7 +965,9 @@ function clearPreview(removeLayer) {
                     if (removeLayer) {
                         try {
                             layer.remove();
-                        } catch (e) {}
+                        } catch (e) {
+                            logError("clearPreview.remove", e);
+                        }
                     } else {
                         // live update: just hide items instead of removing layer itself
                         try {
@@ -864,10 +982,13 @@ function clearPreview(removeLayer) {
                 }
             }
         }
-    } catch (e) {}
+    } catch (e) {
+        logError("clearPreview", e);
+    }
 }
 
-function getOrCreatePreviewLayer(doc) {
+
+function getOrCreatePreviewLayer(doc, refLayer) {
     var name = LABELS.previewLayer[lang];
     var layer = null;
     for (var i = 0; i < doc.layers.length; i++) {
@@ -882,19 +1003,81 @@ function getOrCreatePreviewLayer(doc) {
     }
     layer.visible = true;
     layer.locked = false;
+    // Ensure preview layer renders at full strength (no blend quirks)
     try {
-        layer.move(doc, ElementPlacement.PLACEATEND);
+        layer.opacity = 100;
+    } catch (e) {}
+    try {
+        layer.blendingMode = BlendingMode.NORMAL;
+    } catch (e) {}
+    try {
+        layer.transparencyIsolated = false;
+    } catch (e) {}
+    try {
+        layer.transparencyKnockoutGroup = false;
+    } catch (e) {}
+    try {
+        if (refLayer && refLayer.typename === 'Layer') {
+            // Place _preview immediately below the reference layer
+            layer.move(refLayer, ElementPlacement.PLACEAFTER);
+        } else {
+            // Fallback: keep at the end
+            layer.move(doc, ElementPlacement.PLACEATEND);
+        }
     } catch (e) {}
     return layer;
 }
 
+/*
+ * プレビュー矩形名の生成/解析 / Generate & parse preview rectangle names
+ * - makePreviewName(idx): "<base>#<idx>" を返す（言語別ベース名に対応）
+ * - parsePreviewIndex(name): ベース名に続く "#<idx>" を解析して数値を返す
+ */
+function makePreviewName(idx) {
+    var base = LABELS.previewRect[lang];
+    return String(base) + "#" + String(idx | 0);
+}
+
+function parsePreviewIndex(name) {
+    var s = String(name || '');
+    var bases = [];
+    try {
+        bases.push(LABELS.previewRect[lang]);
+    } catch (e) {}
+    try {
+        if (LABELS.previewRect.ja && bases.indexOf(LABELS.previewRect.ja) < 0) bases.push(LABELS.previewRect.ja);
+    } catch (e) {}
+    try {
+        if (LABELS.previewRect.en && bases.indexOf(LABELS.previewRect.en) < 0) bases.push(LABELS.previewRect.en);
+    } catch (e) {}
+    for (var i = 0; i < bases.length; i++) {
+        var b = String(bases[i] || '');
+        if (!b) continue;
+        // Escape regex meta safely for ExtendScript (no char-class literal)
+        function __escRegex(t) {
+            var specials = "-\\/^$*+?.()|[]{}"; // plain string, not a regex
+            var out = "";
+            for (var ii = 0; ii < t.length; ii++) {
+                var ch = t.charAt(ii);
+                out += (specials.indexOf(ch) !== -1) ? ("\\" + ch) : ch;
+            }
+            return out;
+        }
+        var esc = __escRegex(b);
+        var re = new RegExp("^" + esc + "#(\\d+)$");
+        var m = re.exec(s);
+        if (m) return parseInt(m[1], 10);
+    }
+    return null;
+}
+
 function getOrCreatePreviewRect(previewLayer, idx, top, left, width, height) {
-    var nameBase = LABELS.previewRect[lang] + "#" + idx;
-    // Remove existing item to avoid stacking Live Effects across previews
+    var nameBase = makePreviewName(idx);
+    // Remove existing item with the same name to avoid stacking Live Effects across previews
     try {
         for (var i = previewLayer.pathItems.length - 1; i >= 0; i--) {
             var it = previewLayer.pathItems[i];
-            if (it.name === nameBase) {
+            if (String(it.name || '') === nameBase) {
                 try {
                     it.remove();
                 } catch (_) {}
@@ -906,6 +1089,271 @@ function getOrCreatePreviewRect(previewLayer, idx, top, left, width, height) {
     var item = previewLayer.pathItems.rectangle(top, left, width, height);
     item.name = nameBase;
     return item;
+}
+
+function findPreviewLayer(doc) {
+    try {
+        var names = [LABELS.previewLayer[lang], 'プレビュー', 'Preview', '_preview'];
+        for (var i = 0; i < doc.layers.length; i++) {
+            var layer = doc.layers[i];
+            for (var j = 0; j < names.length; j++) {
+                if (layer.name === names[j]) return layer;
+            }
+        }
+    } catch (e) {}
+    return null;
+}
+
+function getRepresentativeTargetLayerFromSelection(doc, sel) {
+    var first = null;
+    try {
+        first = (sel && sel.length && sel[0] && sel[0].layer) ? sel[0].layer : null;
+    } catch (e) {
+        first = null;
+    }
+    if (!sel || !sel.length) return first || doc.activeLayer;
+    var common = first;
+    try {
+        for (var i = 1; i < sel.length; i++) {
+            var li = null;
+            try {
+                li = sel[i].layer;
+            } catch (_) {
+                li = null;
+            }
+            if (li !== common) {
+                common = null;
+                break;
+            }
+        }
+    } catch (e) {
+        common = null;
+    }
+    return common || (first || doc.activeLayer);
+}
+
+// Helper to collect unique layers from selection
+function getUniqueLayersFromSelection(sel) {
+    var out = [],
+        seen = {};
+    try {
+        for (var i = 0; i < sel.length; i++) {
+            var lyr = null;
+            try {
+                lyr = sel[i].layer;
+            } catch (e) {
+                lyr = null;
+            }
+            if (!lyr) continue;
+            var key = (lyr.name || "") + "#" + (lyr.typename || "");
+            if (!seen[key]) {
+                seen[key] = true;
+                out.push(lyr);
+            }
+        }
+    } catch (e) {}
+    return out;
+}
+
+/*
+ * finalizeRectPlacement: 終了処理を一元化 / unify finalize (move/duplicate/z-order/group)
+ * opts = {
+ *   mode: 'group' | 'individual',
+ *   doc: Document,
+ *   layers: Layer[],              // unique layers involved
+ *   selection: Array,             // selected items
+ *   groupWithText: Boolean,
+ *   rectForGroup: PathItem|null,  // when mode==='group'
+ *   rectsForItems: Array<PathItem|null> // when mode==='individual' (same length as selection)
+ * }
+ */
+function finalizeRectPlacement(opts) {
+    if (!opts || !opts.doc) return;
+    var doc = opts.doc;
+    var layers = opts.layers || [];
+    var sel = opts.selection || [];
+
+    function sendToLayerBack(it, layer) {
+        try {
+            it.move(layer, ElementPlacement.PLACEATBEGINNING);
+        } catch (e) {}
+        try {
+            it.zOrder(ZOrderMethod.SENDTOBACK);
+        } catch (e) {}
+    }
+
+    if (opts.mode === 'group') {
+        var rect = opts.rectForGroup;
+        if (!rect) return;
+        if (!layers || !layers.length) return;
+
+        // 複数レイヤーなら矩形をレイヤー毎に複製配置 / Duplicate per layer when selection spans layers
+        for (var i = 0; i < layers.length; i++) {
+            var L = layers[i];
+            if (!L) continue;
+            ensureLayerEditable(doc, L);
+            var r = (i === 0) ? rect : rect.duplicate();
+            try {
+                r.hidden = false;
+            } catch (e) {}
+            try {
+                r.name = (LABELS.rectName && LABELS.rectName[lang]) ? LABELS.rectName[lang] : 'BG_Rect';
+            } catch (e) {}
+            sendToLayerBack(r, L);
+        }
+
+        // 全て同一レイヤーの場合のみグループ化 / Group only when all items already on one layer
+        var singleLayer = (layers.length === 1);
+        if (singleLayer && opts.groupWithText) {
+            var repLayer = layers[0] || getRepresentativeTargetLayerFromSelection(doc, sel);
+            try {
+                var g = repLayer.groupItems.add();
+                // move selection first
+                for (var si = 0; si < sel.length; si++) {
+                    try {
+                        sel[si].move(g, ElementPlacement.PLACEATEND);
+                    } catch (_) {}
+                }
+                // move one of the rects into the group and send back
+                try {
+                    rect.move(g, ElementPlacement.PLACEATBEGINNING);
+                } catch (_) {}
+                try {
+                    rect.zOrder(ZOrderMethod.SENDTOBACK);
+                } catch (_) {}
+            } catch (_) {}
+        }
+        return;
+    }
+
+    if (opts.mode === 'individual') {
+        var rects = opts.rectsForItems || [];
+        for (var k = 0; k < sel.length; k++) {
+            var it = sel[k];
+            var rct = rects[k];
+            if (!it || !rct) continue;
+            var tgtLayer = null;
+            try {
+                tgtLayer = it.layer;
+            } catch (__) {
+                tgtLayer = null;
+            }
+            if (!tgtLayer) tgtLayer = doc.activeLayer;
+            ensureLayerEditable(doc, tgtLayer);
+            try {
+                rct.hidden = false;
+            } catch (e) {}
+            try {
+                rct.name = (LABELS.rectName && LABELS.rectName[lang]) ? LABELS.rectName[lang] : 'BG_Rect';
+            } catch (e) {}
+            sendToLayerBack(rct, tgtLayer);
+            if (opts.groupWithText) {
+                try {
+                    var g2 = tgtLayer.groupItems.add();
+                    try {
+                        it.move(g2, ElementPlacement.PLACEATEND);
+                    } catch (__) {}
+                    try {
+                        rct.move(g2, ElementPlacement.PLACEATBEGINNING);
+                    } catch (__) {}
+                    try {
+                        rct.zOrder(ZOrderMethod.SENDTOBACK);
+                    } catch (__) {}
+                } catch (__) {}
+            }
+        }
+        return;
+    }
+}
+
+function convertPreviewToFinal(doc, sel, choice) {
+    if (!doc || !choice) return;
+    var prevLayer = findPreviewLayer(doc);
+    if (!prevLayer) return;
+
+    function applyFinalStyle(rect) {
+        var col = resolveFillColor(doc, choice.colorMode, {
+            customValue: choice.customValue,
+            customCMYK: choice.customCMYK
+        });
+        if (choice.type === 'stroke') {
+            try {
+                rect.filled = false;
+            } catch (e) {}
+            try {
+                rect.stroked = !!col;
+                if (col) rect.strokeColor = col;
+                rect.strokeWidth = (choice && typeof choice.strokeWidth === 'number' && choice.strokeWidth > 0) ? choice.strokeWidth : 1;
+            } catch (e) {}
+        } else {
+            applyFill(rect, col, true);
+        }
+        try {
+            var op = (typeof choice.opacity === 'number') ? choice.opacity : 100;
+            rect.opacity = _clamp(Math.round(op), 0, 100);
+        } catch (e) {}
+    }
+
+    var mapByIdx = {};
+    try {
+        for (var i = 0; i < prevLayer.pathItems.length; i++) {
+            var it = prevLayer.pathItems[i];
+            var idx = parsePreviewIndex(it.name);
+            if (idx == null || isNaN(idx)) idx = i; // fallback by order
+            mapByIdx[idx] = it;
+        }
+    } catch (e) {}
+
+    // Prepare options for finalizeRectPlacement, only call once at end
+    var opts = null;
+    if (choice.target === 'group') {
+        var rect = mapByIdx[0];
+        if (!rect) return;
+        try {
+            rect.hidden = false;
+        } catch (e) {}
+        applyFinalStyle(rect);
+
+        // Unique layers for selection (fallback to representative layer)
+        var layers = getUniqueLayersFromSelection(sel);
+        if (!layers || !layers.length) layers = [getRepresentativeTargetLayerFromSelection(doc, sel)];
+
+        opts = {
+            mode: 'group',
+            doc: doc,
+            layers: layers,
+            selection: sel,
+            groupWithText: !!choice.groupWithText,
+            rectForGroup: rect
+        };
+    } else {
+        // individual: prepare rect array aligned to selection indexes
+        var rects = [];
+        for (var k = 0; k < sel.length; k++) {
+            var srcRect = mapByIdx[k];
+            if (srcRect) {
+                try {
+                    srcRect.hidden = false;
+                } catch (e) {}
+                applyFinalStyle(srcRect);
+            }
+            rects[k] = srcRect || null;
+        }
+        opts = {
+            mode: 'individual',
+            doc: doc,
+            layers: [], // not needed here
+            selection: sel,
+            groupWithText: !!choice.groupWithText,
+            rectsForItems: rects
+        };
+    }
+
+    if (opts) finalizeRectPlacement(opts);
+
+    try {
+        prevLayer.remove();
+    } catch (e) {}
 }
 
 // --- Helper: returns 50% gray/black stroke color matching document color space
@@ -981,13 +1429,40 @@ function buildPreviewRect(previewLayer, idx, rectSpec, choice, doc) {
             if (col) rect.strokeColor = col;
             rect.strokeWidth = (choice && typeof choice.strokeWidth === 'number' && choice.strokeWidth > 0) ? choice.strokeWidth : 1;
         } catch (e) {}
-    } else {
-        // Default: fill color + subtle gray outline
-        applyFill(rect, col, true);
+        // Prevent overprint or blend artifacts in preview (White must look pure)
         try {
-            rect.stroked = true;
-            rect.strokeColor = getPreviewStrokeColor(doc);
-            rect.strokeWidth = 0.5;
+            rect.fillOverprint = false;
+        } catch (e) {}
+        try {
+            rect.strokeOverprint = false;
+        } catch (e) {}
+        // Ensure preview path uses Normal blend (avoid accidental fading)
+        try {
+            rect.blendingMode = BlendingMode.NORMAL;
+        } catch (e) {}
+    } else {
+        // Fill preview (including White) exactly as final, but add gray outline for White for visibility
+        applyFill(rect, col, true);
+        // 補助線（ホワイト時のみ視認性確保）/ Add helper stroke when White for preview visibility
+        try {
+            if (choice && choice.colorMode === ColorMode.WHITE) {
+                rect.stroked = true;
+                rect.strokeColor = getPreviewStrokeColor(doc);
+                rect.strokeWidth = 0.5;
+            } else {
+                rect.stroked = false;
+            }
+        } catch (e) {}
+        // Prevent overprint or blend artifacts in preview (White must look pure)
+        try {
+            rect.fillOverprint = false;
+        } catch (e) {}
+        try {
+            rect.strokeOverprint = false;
+        } catch (e) {}
+        // Ensure preview path uses Normal blend (avoid accidental fading of White)
+        try {
+            rect.blendingMode = BlendingMode.NORMAL;
         } catch (e) {}
     }
 
@@ -1031,31 +1506,52 @@ function makeBoundsGetter(doc, useOutline, usePreview) {
     };
 }
 
-/**
- * withTargetBounds: Iterate selection and provide rectSpec from the start.
- * - For group mode: calls groupFn(rectSpec)
- * - For individual mode: calls itemFn(item, rectSpec, index)
+/*
+ * iterateSelection: selection traversal unified for group/individual
+ * - Calls visitor({ kind: 'group'|'item', rectSpec, item, index })
+ * - Resolves bounds once via makeBoundsGetter based on choice flags
  */
-function withTargetBounds(doc, sel, choice, groupFn, itemFn) {
+function iterateSelection(doc, sel, choice, visitor) {
     try {
-        if (!doc || !choice) return;
+        if (!doc || !choice || typeof visitor !== 'function') return;
         var useOutline = !!choice.usePreviewOutline;
         var usePreview = !!choice.usePreviewBounds;
         var G = makeBoundsGetter(doc, useOutline, usePreview);
         if (choice.target === 'group') {
             var gb = G.group(sel);
             var rs = boundsToRectSpec(gb);
-            if (rs && typeof groupFn === 'function') groupFn(rs);
+            if (rs) visitor({
+                kind: 'group',
+                rectSpec: rs,
+                item: null,
+                index: 0
+            });
         } else {
             for (var i = 0; i < sel.length; i++) {
                 var it = sel[i];
                 if (!it) continue;
                 var ib = G.item(it);
                 var rs2 = boundsToRectSpec(ib);
-                if (rs2 && typeof itemFn === 'function') itemFn(it, rs2, i);
+                if (rs2) visitor({
+                    kind: 'item',
+                    rectSpec: rs2,
+                    item: it,
+                    index: i
+                });
             }
         }
-    } catch (e) {}
+    } catch (e) {
+        logError("iterateSelection", e);
+    }
+}
+
+function withTargetBounds(doc, sel, choice, groupFn, itemFn) {
+    iterateSelection(doc, sel, choice, function(info) {
+        try {
+            if (info.kind === 'group' && typeof groupFn === 'function') groupFn(info.rectSpec);
+            if (info.kind === 'item' && typeof itemFn === 'function') itemFn(info.item, info.rectSpec, info.index);
+        } catch (e) {}
+    });
 }
 
 /*
@@ -1074,23 +1570,24 @@ function renderPreview(doc, choice) {
         app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
     } catch (e) {}
 
-    var previewLayer = getOrCreatePreviewLayer(doc);
     var sel = [];
     try {
         sel = doc.selection || [];
     } catch (e) {
         sel = [];
     }
+    // Place _preview right under the representative layer of current selection
+    var repLayer = getRepresentativeTargetLayerFromSelection(doc, sel);
+    var previewLayer = getOrCreatePreviewLayer(doc, repLayer);
 
     try {
-        withTargetBounds(doc, sel, choice,
-            function(rectSpec) {
-                buildPreviewRect(previewLayer, 0, rectSpec, choice, doc);
-            },
-            function(it, rectSpec, idx) {
-                buildPreviewRect(previewLayer, idx, rectSpec, choice, doc);
+        iterateSelection(doc, sel, choice, function(info) {
+            if (info.kind === 'group') {
+                buildPreviewRect(previewLayer, 0, info.rectSpec, choice, doc);
+            } else {
+                buildPreviewRect(previewLayer, info.index, info.rectSpec, choice, doc);
             }
-        );
+        });
     } catch (e) {}
 
     try {
@@ -1123,7 +1620,9 @@ function showDialog() {
     rightCol.alignChildren = 'fill';
     rightCol.spacing = 12;
 
-    // ==== Margin panel layout adjusted (referenced structure) ====
+    /*
+     * マージンパネル（構成調整）/ Margin panel (layout adjusted)
+     */
     // PANEL1 (offsetPanel)
     var offsetPanel = leftCol.add('panel', undefined, LABELS.offsetTitle[lang]);
     offsetPanel.orientation = 'row';
@@ -1243,13 +1742,13 @@ function showDialog() {
 
     var roundPanel = leftCol.add('panel', undefined, LABELS.roundTitle[lang]);
     roundPanel.orientation = 'column';
-    roundPanel.alignChildren = 'left';
+    roundPanel.alignChildren = ['left', 'top'];
     roundPanel.margins = [15, 20, 15, 10];
 
     var roundRow = roundPanel.add('group');
     roundRow.orientation = 'row';
     roundRow.alignChildren = ['left', 'center'];
-    roundRow.alignment = ['center', 'top'];
+    // roundRow.alignment = ['center', 'top'];
     // Checkbox before the numeric field (UI only for now)
     var cbRoundEnable = roundRow.add('checkbox', undefined, '');
     var __lastRoundValue = '2'; // will be updated after roundInput is created
@@ -1347,7 +1846,6 @@ function showDialog() {
     }; // widen a bit
     roundInput.characters = 3;
 
-
     bindNumericField(roundInput, {
         min: 0,
         integer: true,
@@ -1359,25 +1857,14 @@ function showDialog() {
         }
     });
 
-
     var unitLabel2 = getCurrentUnitLabel();
     var roundUnitLabel = roundRow.add('statictext', undefined, unitLabel2);
 
-    // --- Pill shape option: move pill checkbox to same row as input/unit ---
-    var cbPill = roundRow.add('checkbox', undefined, LABELS.pillShape[lang]);
-    // Vertically center controls in the round row
-    try {
-        roundRow.alignment = ['fill', 'center'];
-    } catch (e) {}
-    try {
-        roundInput.alignment = ['left', 'center'];
-    } catch (e) {}
-    try {
-        roundUnitLabel.alignment = ['left', 'center'];
-    } catch (e) {}
-    try {
-        cbPill.alignment = ['left', 'center'];
-    } catch (e) {}
+    // --- Pill shape option: now on its own row ---
+    var pillRow = roundPanel.add('group');
+    pillRow.orientation = 'row';
+    pillRow.alignChildren = ['left', 'center'];
+    var cbPill = pillRow.add('checkbox', undefined, LABELS.pillShape[lang]);
     cbPill.value = false; // default OFF
     cbPill.onClick = function() {
         try {
@@ -1438,7 +1925,9 @@ function showDialog() {
     };
     DialogPersist.rememberOnMove(dlg, __DLG_KEY);
 
-    // Add new panel for color
+    /*
+     * カラーパネル / Color panel
+     */
     var colorPanel = rightCol.add('panel', undefined, LABELS.colorTitle[lang]);
     colorPanel.orientation = 'column';
     colorPanel.alignChildren = 'left';
@@ -1458,7 +1947,9 @@ function showDialog() {
     var customInput = hexRow.add('edittext', undefined, '#');
     customInput.characters = 14; // narrower to avoid column growth
 
-    // --- HEX validation & feedback ---
+    /*
+     * HEX 入力のバリデーションとフィードバック / HEX validation & feedback
+     */
     function setHexWarn(et, warn, msg) {
         try {
             var g = et.graphics;
@@ -1473,50 +1964,87 @@ function showDialog() {
         } catch (e) {}
     }
 
-    customInput.onChanging = function() {
+    /*
+     * validateHex: 共通HEXバリデーション
+     * - 入力文字列を検証し、必要なら大文字化
+     * - {coerceUpper:true} で大文字に正規化
+     * Return: {valid:Boolean, text:String, message:String|null}
+     */
+    function validateHex(t, opts) {
+        if (!t) return {
+            valid: false,
+            text: "",
+            message: null
+        };
+        var s = String(t).trim();
+        if (s === "#") return {
+            valid: false,
+            text: s,
+            message: (lang === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)'
+        };
+        if (/^#([0-9a-fA-F]{6})$/.test(s)) {
+            var hexPart = RegExp.$1;
+            if (opts && opts.coerceUpper) s = "#" + hexPart.toUpperCase();
+            return {
+                valid: true,
+                text: s,
+                message: null
+            };
+        }
+        if (/^[0-9a-fA-F]{6}$/.test(s)) {
+            var hexPart2 = s;
+            if (opts && opts.coerceUpper) s = "#" + hexPart2.toUpperCase();
+            else s = "#" + hexPart2;
+            return {
+                valid: true,
+                text: s,
+                message: null
+            };
+        }
+        return {
+            valid: false,
+            text: s,
+            message: (lang === 'ja') ? '正しい #RRGGBB を入力してください' : 'Enter a valid #RRGGBB value'
+        };
+    }
+
+    function handleHex(et, coerceUpper, commit) {
+        var res = validateHex(et.text, {
+            coerceUpper: !!coerceUpper
+        });
         try {
-            var t = String(customInput.text || '').replace(/\s+/g, '');
-            if (t === '') {
-                setHexWarn(customInput, false);
-                updatePreviewTyping();
-                return;
-            }
-            if (t === '#') {
-                setHexWarn(customInput, true, (lang === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)');
-                updatePreviewTyping();
-                return;
-            }
-            // Validate only exact #RRGGBB on-the-fly
-            var valid = /^#([0-9a-fA-F]{6})$/.test(t);
-            setHexWarn(customInput, !valid);
-            updatePreviewTyping();
+            et.text = res.text || et.text;
         } catch (e) {}
-    };
-
-    customInput.onChange = function() {
+        setHexWarn(et, !res.valid, res.message);
         try {
-            var t = String(customInput.text || '').replace(/\s+/g, '');
-            if (/^[0-9a-fA-F]{6}$/.test(t)) {
-                t = '#' + t.toUpperCase();
-                customInput.text = t;
-                setHexWarn(customInput, false);
-            } else if (/^#([0-9a-fA-F]{6})$/.test(t)) {
-                customInput.text = ('#' + RegExp.$1.toUpperCase());
-                setHexWarn(customInput, false);
-            } else if (t === '#') {
-                setHexWarn(customInput, true, (lang === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)');
-            } else {
-                setHexWarn(customInput, true);
-            }
-            updatePreviewCommit();
+            (commit ? updatePreviewCommit : updatePreviewTyping)();
         } catch (e) {}
-    };
+    }
+
+    // --- Unified HEX field binder ---
+    function bindHexField(et) {
+        et.onChanging = function() {
+            handleHex(et, false, false);
+        };
+        et.onChange = function() {
+            handleHex(et, true, true);
+        };
+        changeValueByArrowKey(et, function() {
+            handleHex(et, true, false);
+        });
+    }
+
+    bindHexField(customInput);
 
 
-    // CMYK mode radio
+    /*
+     * CMYK モード選択 / CMYK mode radio
+     */
     var cmykRadio = colorPanel.add('radiobutton', undefined, LABELS.colorCustomCMYK[lang]);
 
-    // Custom CMYK input fields (two-row grid: labels on top, fields below)
+    /*
+     * CMYK 入力フィールド（2行グリッド：上にラベル、下に入力）/ Custom CMYK input fields
+     */
     var cmykRow = colorPanel.add('group');
     cmykRow.orientation = 'column';
     cmykRow.alignment = 'left';
@@ -1556,7 +2084,9 @@ function showDialog() {
     etK.characters = 3;
     etK.preferredSize.width = colWidth;
 
-    // --- CMYK validation helpers (empty→0, clamp 0–100, red text warning) ---
+    /*
+     * CMYK バリデーション（空は0、0–100に制限、警告表示）/ CMYK validation helpers
+     */
     function setEtWarn(et, warn) {
         try {
             var g = et.graphics;
@@ -1589,7 +2119,9 @@ function showDialog() {
             setEtWarn(et, false);
         } catch (e) {}
     }
-    // If the field currently holds exactly "0", clear it on focus for easier typing
+    /*
+     * フォーカス時に "0" を空にして入力しやすく / Clear "0" on focus
+     */
     function clearZeroOnFocus(et) {
         try {
             et.addEventListener('focus', function() {
@@ -1603,7 +2135,9 @@ function showDialog() {
         } catch (e) {}
     }
 
-    // If the field shows exactly "0", typing a digit should replace it (avoid "03")
+    /*
+     * 先頭ゼロの1桁上書き（"03" を回避）/ Replace leading single zero with typed digit
+     */
     function replaceZeroOnFirstDigit(et) {
         try {
             et.addEventListener('keydown', function(ev) {
@@ -1623,8 +2157,15 @@ function showDialog() {
         } catch (e) {}
     }
 
-    // Bind common handlers to a CMYK EditText
-    // Replace only the bindCmykField function body
+    /*
+     * CMYK 入力欄の共通ハンドラをバインド / Bind common handlers to CMYK EditText
+     */
+    /*
+     * CMYK 入力の共通バインド / Common binder for CMYK fields
+     * - 入力中は 0–100 の範囲チェックのみ（赤表示）
+     * - 確定/矢印操作後は 0–100 にクランプ
+     * - 変更時にプレビューを更新
+     */
     function bindCmykField(et) {
         et.onChanging = function() {
             try {
@@ -1654,7 +2195,9 @@ function showDialog() {
         });
     }
 
-    // --- Hotkey guard: disable N/K/H/C while typing in fields ---
+    /*
+     * ホットキーガード：入力中は N/K/H/C を無効化 / Hotkey guard while typing
+     */
     var __hotkeyGuard = {
         active: false
     };
@@ -1671,7 +2214,9 @@ function showDialog() {
             });
         } catch (e) {}
     }
-    // Block hotkeys while typing in these fields
+    /*
+     * 入力欄フォーカス中はホットキー無効 / Block hotkeys while typing
+     */
     attachTypingBlockOnFocusBlur(offsetVInput);
     attachTypingBlockOnFocusBlur(offsetHInput);
     attachTypingBlockOnFocusBlur(customInput);
@@ -1691,17 +2236,25 @@ function showDialog() {
     replaceZeroOnFirstDigit(etY);
     replaceZeroOnFirstDigit(etK);
 
-    // --- Bind CMYK fields (common handlers)
-    bindCmykField(etC);
-    bindCmykField(etM);
-    bindCmykField(etY);
-    bindCmykField(etK);
+    // --- Helper: Bind multiple CMYK fields at once
+    function bindCmykFields(fields) {
+        for (var i = 0; i < fields.length; i++) {
+            bindCmykField(fields[i]);
+        }
+    }
 
-    // Default selection
+    // --- Bind CMYK fields (common handlers)
+    bindCmykFields([etC, etM, etY, etK]);
+
+    /*
+     * 初期選択 / Default selection
+     */
     k100Radio.value = true;
     whiteRadio.value = false;
 
-    // Enable custom field only when "Custom" is selected
+    /*
+     * 選択に応じて入力欄の有効/無効を切替 / Enable inputs based on selection
+     */
 
     /* HEX 有効/無効を切替 / Enable-Disable HEX input */
     function setHexEnabled(on) {
@@ -1738,24 +2291,22 @@ function showDialog() {
     }
 
 
-    updateColorEnableFromRadios();
-
-    // --- Centralized color-mode selector (K100 / WHITE / HEX / CMYK) ---
-    function selectColorMode(mode) {
+    // --- Unified color mode handler ---
+    function applyColorMode(mode){
         // 1) Toggle radios
-        k100Radio.value = (mode === ColorMode.K100);
-        if (typeof whiteRadio !== 'undefined') whiteRadio.value = (mode === ColorMode.WHITE);
+        k100Radio.value      = (mode === ColorMode.K100);
+        whiteRadio.value     = (mode === ColorMode.WHITE);
         specifiedRadio.value = (mode === ColorMode.HEX);
-        cmykRadio.value = (mode === ColorMode.CMYK);
+        cmykRadio.value      = (mode === ColorMode.CMYK);
 
         // 2) Enable/disable inputs
         updateColorEnableFromRadios();
 
         // 3) Field highlights
         setEditHighlight(customInput, mode === ColorMode.HEX);
-        setEditHighlight(etC, mode === ColorMode.CMYK);
+        setEditHighlight(etC,        mode === ColorMode.CMYK);
 
-        // 4) Defaults / focus per mode
+        // 4) Focus defaults
         try {
             if (mode === ColorMode.HEX) {
                 var t = String(customInput.text || '').trim();
@@ -1766,9 +2317,24 @@ function showDialog() {
             }
         } catch (e) {}
 
+        // 4.5) When WHITE is chosen, nudge Type to Fill once（ユーザー変更は可）
+        try { if (mode === ColorMode.WHITE && typeof typeFillRadio !== 'undefined') typeFillRadio.notify('onClick'); } catch (e) {}
+
         // 5) Commit preview
         updatePreviewCommit();
     }
+
+    updateColorEnableFromRadios();
+
+    // --- Centralized color-mode selector (K100 / WHITE / HEX / CMYK) ---
+    function selectColorMode(mode) {
+        applyColorMode(mode);
+    }
+    // Bind color radio clicks to unified handler
+    k100Radio.onClick      = function(){ applyColorMode(ColorMode.K100); };
+    whiteRadio.onClick     = function(){ applyColorMode(ColorMode.WHITE); };
+    specifiedRadio.onClick = function(){ applyColorMode(ColorMode.HEX); };
+    cmykRadio.onClick      = function(){ applyColorMode(ColorMode.CMYK); };
 
     // Add new panel for target (moved back to left column)
     var targetPanel = leftCol.add('panel', undefined, LABELS.targetTitle[lang]);
@@ -1873,12 +2439,27 @@ function showDialog() {
                 }
             })(),
             opacity: (function() {
+                // OFF のときは 100% として扱う（入力欄は 60 をディム表示）
+                var enabled = true;
+                try {
+                    enabled = !!opacityEnable.value;
+                } catch (e) {
+                    enabled = true;
+                }
+                if (!enabled) return 100;
                 try {
                     var n = parseFloat(opacityInput.text);
                     if (isNaN(n)) n = 100;
                     return _clamp(Math.round(n), 0, 100);
                 } catch (e) {
                     return 100;
+                }
+            })(),
+            opacityEnabled: (function() {
+                try {
+                    return !!opacityEnable.value;
+                } catch (e) {
+                    return true;
                 }
             })(),
             usePreviewBounds: true, // always on
@@ -1949,7 +2530,8 @@ function showDialog() {
             strokeWidth: choice.strokeWidth,
             target: choice.target,
             groupWithText: !!choice.groupWithText,
-            opacity: _clamp((typeof choice.opacity === 'number' ? choice.opacity : 100), 0, 100)
+            opacity: _clamp((typeof choice.opacity === 'number' ? choice.opacity : 100), 0, 100),
+            opacityEnabled: (typeof choice.opacityEnabled === 'boolean' ? choice.opacityEnabled : true)
         };
     }
 
@@ -2012,7 +2594,10 @@ function showDialog() {
         } catch (e) {}
         // Opacity
         try {
-            opacityInput.text = String(_clamp((typeof c.opacity === 'number' ? c.opacity : 100), 0, 100));
+            if (typeof opacityEnable !== 'undefined') {
+                opacityEnable.value = (typeof c.opacityEnabled === 'boolean') ? c.opacityEnabled : true;
+                setOpacityUIEnabled(opacityEnable.value);
+            }
         } catch (e) {}
 
         // Refresh preview
@@ -2100,12 +2685,15 @@ function showDialog() {
     }
     addColorHotkeys(dlg);
 
-    // ==== Opacity panel (under Fill panel) ====
     var opacityPanel = rightCol.add('panel', undefined, LABELS.opacityTitle[lang]);
     opacityPanel.orientation = 'row';
     opacityPanel.alignChildren = ['left', 'center'];
     opacityPanel.margins = [15, 20, 15, 10];
-    opacityPanel.spacing = 6;
+    opacityPanel.spacing = 10;
+
+    // New: enable checkbox (ON=apply entered value, OFF=dim to "60" and ignore in preview)
+    var opacityEnable = opacityPanel.add('checkbox', undefined, LABELS.opacityEnable[lang]);
+    opacityEnable.value = true; // default ON
 
     var opacityInput = opacityPanel.add('edittext', undefined, '100');
     opacityInput.characters = 3;
@@ -2114,6 +2702,31 @@ function showDialog() {
         height: -1
     };
     var opacityPct = opacityPanel.add('statictext', undefined, '%');
+
+    function setOpacityUIEnabled(on) {
+        var v = !!on;
+        try {
+            opacityInput.enabled = v;
+        } catch (e) {}
+        try {
+            opacityPct.enabled = v;
+        } catch (e) {}
+        try {
+            setEditHighlight(opacityInput, v);
+        } catch (e) {}
+        if (!v) {
+            // OFF時は視覚的に"60%"を表示（ディム）、ロジック上は 100% 扱い
+            try {
+                opacityInput.text = '60';
+            } catch (e) {}
+        }
+    }
+
+    opacityEnable.onClick = function() {
+        setOpacityUIEnabled(opacityEnable.value);
+        updatePreviewCommit();
+    };
+    opacityEnable.onChanging = opacityEnable.onClick;
 
     bindNumericField(opacityInput, {
         min: 0,
@@ -2127,7 +2740,9 @@ function showDialog() {
         }
     });
 
-    // Add new panel for type (under color panel)
+    /*
+     * 種別（塗り/線）パネル / Type (Fill/Stroke) panel
+     */
     var typePanel = rightCol.add('panel', undefined, LABELS.typeTitle[lang]);
     typePanel.orientation = 'row';
     typePanel.alignChildren = ['left', 'center'];
@@ -2137,7 +2752,9 @@ function showDialog() {
     var typeFillRadio = typePanel.add('radiobutton', undefined, LABELS.typeFill[lang]);
     var typeStrokeRadio = typePanel.add('radiobutton', undefined, LABELS.typeStroke[lang]);
 
-    // Stroke width row (under type radios)
+    /*
+     * 線幅行（タイプのラジオの下）/ Stroke width row (under type radios)
+     */
     var strokeWidthRow = typePanel.add('group');
     strokeWidthRow.orientation = 'row';
     strokeWidthRow.alignChildren = ['left', 'center'];
@@ -2153,7 +2770,7 @@ function showDialog() {
 
     bindNumericField(strokeWidthInput, {
         min: 0,
-        integer: true,
+        integer: false,
         onTyping: function() {
             updatePreviewTyping();
         },
@@ -2162,9 +2779,21 @@ function showDialog() {
         }
     });
 
+    // ↑↓ キー操作に対応（Shift=±10, Alt=±0.1, 通常=±1）
+    changeValueByArrowKey(strokeWidthInput, function() {
+        try {
+            var n = parseFloat(strokeWidthInput.text);
+            if (isNaN(n) || n < 0) n = 0; // 負値は禁止
+            strokeWidthInput.text = String(n);
+        } catch (e) {}
+        updatePreviewTyping();
+    });
+
     var strokeWidthUnit = strokeWidthRow.add('statictext', undefined, getCurrentUnitLabel());
 
-    // Enable/disable stroke width depending on type selection
+    /*
+     * 種別（塗り/線）に応じて線幅の有効/無効を切替 / Enable or disable stroke width depending on type selection
+     */
     function setStrokeWidthUIEnabled(on) {
         var v = !!on;
         try {
@@ -2183,7 +2812,9 @@ function showDialog() {
         updatePreviewCommit();
     }
 
-    // Radios toggle enable + refresh preview
+    /*
+     * ラジオ切替で有効状態を更新しプレビューを再描画 / Radios toggle enable state and refresh preview
+     */
     typeFillRadio.onClick = updateTypeEnableAndPreview;
     typeFillRadio.onChanging = updateTypeEnableAndPreview;
     typeStrokeRadio.onClick = updateTypeEnableAndPreview;
@@ -2196,7 +2827,9 @@ function showDialog() {
     typeFillRadio.value = true;
     typeStrokeRadio.value = false;
 
-    // --- Hotkeys: Target (S/A) and Z-order (F/B/L) ---
+    /*
+     * ホットキー: 対象（I/G, S/A） / Hotkeys: Target (I/G, legacy S/A)
+     */
     /* 対象スコープ: I/G（個別/グループ）、S/A（レガシー対応）ホットキー */
     function addScopeAndZHotkeys(dialog) {
         dialog.addEventListener('keydown', function(event) {
@@ -2230,7 +2863,9 @@ function showDialog() {
     currentRadio.onChanging = updatePreviewCommit;
     allRadio.onChanging = updatePreviewCommit;
 
-    // Grouping option (formerly preview bounds)
+    /*
+     * グループ化オプション（従来のプレビュー境界項目）/ Grouping option (formerly preview-bounds)
+     */
     var groupRow = leftCol.add('group');
     groupRow.orientation = 'column';
     groupRow.alignment = 'center';
@@ -2254,42 +2889,170 @@ function showDialog() {
         try {
             if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
         } catch (e) {}
-        PreviewHistory.undo();
-        clearPreview(true); // remove the _preview / _プレビュー layer on OK
         try {
             __saveLastChoice(serializeChoice(buildChoiceFromUI()));
         } catch (e) {}
         dlg.close(1);
-        // Delete temporary outline layer after dialog closes
-        try {
-            var doc = app.activeDocument;
-            for (var i = doc.layers.length - 1; i >= 0; i--) {
-                if (doc.layers[i].name === '__tmp_outline_bounds__') {
-                    try {
-                        doc.layers[i].remove();
-                    } catch (e) {}
-                }
-            }
-        } catch (e) {}
     };
+
+
     cancelBtn.onClick = function() {
         DialogPersist.savePosition(dlg, __DLG_KEY);
         try {
             if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
         } catch (e) {}
-        PreviewHistory.undo();
-        clearPreview(true); // remove the _preview / _プレビュー layer on Cancel
+        // On cancel: undo preview and remove preview layer
         try {
-            __saveLastChoice(serializeChoice(buildChoiceFromUI()));
+            PreviewHistory.undo();
+        } catch (e) {}
+        try {
+            clearPreview(true);
         } catch (e) {}
         dlg.close(0);
     };
 
-    var result = dlg.show();
-    if (result != 1) {
-        return null;
+    var __dlgResult = dlg.show();
+    if (__dlgResult != 1) {
+        return null; // canceled
     }
-    return __collectChoice(true);
+    var __choiceFinal = __collectChoice(true);
+    __choiceFinal.__usePreviewAsFinal = true; // ★これが重要
+    return __choiceFinal;
+
+
+
+    // Converter: Reuse preview rectangles as final output
+    function convertPreviewToFinal(doc, sel, choice) {
+        if (!doc || !choice) return;
+        var prevLayer = findPreviewLayer(doc);
+        if (!prevLayer) return; // fallback handled by caller if needed
+
+        try {
+            rect.hidden = false;
+        } catch (e) {}
+
+        function applyFinalStyle(rect) {
+            // Color
+            var col = resolveFillColor(doc, choice.colorMode, {
+                customValue: choice.customValue,
+                customCMYK: choice.customCMYK
+            });
+            if (choice.type === 'stroke') {
+                try {
+                    rect.filled = false;
+                } catch (e) {}
+                try {
+                    rect.stroked = !!col;
+                    if (col) rect.strokeColor = col;
+                    rect.strokeWidth = (choice && typeof choice.strokeWidth === 'number' && choice.strokeWidth > 0) ? choice.strokeWidth : 1;
+                } catch (e) {}
+            } else {
+                applyFill(rect, col, true);
+            }
+            // Opacity
+            try {
+                var op = (typeof choice.opacity === 'number') ? choice.opacity : 100;
+                rect.opacity = _clamp(Math.round(op), 0, 100);
+            } catch (e) {}
+            // Corner live effect is already on the preview rect if any; keep as-is.
+            // Rename & send to back later (after moving to target layer)
+        }
+
+        // Build index → preview item map using name suffix "#idx"
+        var mapByIdx = {};
+        try {
+            for (var i = 0; i < prevLayer.pathItems.length; i++) {
+                var it = prevLayer.pathItems[i];
+                var nm = String(it.name || '');
+                var m = nm.match(/#(\d+)$/);
+                var idx = m ? parseInt(m[1], 10) : (i);
+                mapByIdx[idx] = it;
+            }
+        } catch (e) {}
+
+        if (choice.target === 'group') {
+            // Expect one rect for the group (idx 0)
+            var rect = mapByIdx[0];
+            if (!rect) return;
+            var repLayer = null;
+
+            var repLayer = getRepresentativeTargetLayerFromSelection(doc, sel);
+
+            ensureLayerEditable(doc, repLayer);
+            applyFinalStyle(rect);
+            try {
+                rect.move(repLayer, ElementPlacement.PLACEATBEGINNING);
+            } catch (e) {}
+            rect.name = LABELS.rectName[lang];
+            try {
+                rect.zOrder(ZOrderMethod.SENDTOBACK);
+            } catch (e) {}
+
+            if (choice.groupWithText) {
+                try {
+                    var g = repLayer.groupItems.add();
+                    // move originals
+                    for (var si = 0; si < sel.length; si++) {
+                        try {
+                            sel[si].move(g, ElementPlacement.PLACEATEND);
+                        } catch (__) {}
+                    }
+                    // move rect to the group and push to back
+                    try {
+                        rect.move(g, ElementPlacement.PLACEATBEGINNING);
+                    } catch (__) {}
+                    try {
+                        rect.zOrder(ZOrderMethod.SENDTOBACK);
+                    } catch (__) {}
+                } catch (__) {}
+            }
+        } else {
+            // Individual: one rect per item index
+            for (var k = 0; k < sel.length; k++) {
+                var srcRect = mapByIdx[k];
+                if (!srcRect) continue;
+                var tgtItem = sel[k];
+                var tgtLayer = null;
+
+                try {
+                    tgtLayer = tgtItem.layer;
+                } catch (__) {
+                    tgtLayer = null;
+                }
+                if (!tgtLayer) tgtLayer = doc.activeLayer;
+
+                ensureLayerEditable(doc, tgtLayer);
+                applyFinalStyle(srcRect);
+                try {
+                    srcRect.move(tgtLayer, ElementPlacement.PLACEATBEGINNING);
+                } catch (e) {}
+                srcRect.name = LABELS.rectName[lang];
+                try {
+                    srcRect.zOrder(ZOrderMethod.SENDTOBACK);
+                } catch (e) {}
+
+                if (choice.groupWithText) {
+                    try {
+                        var g2 = tgtLayer.groupItems.add();
+                        try {
+                            tgtItem.move(g2, ElementPlacement.PLACEATEND);
+                        } catch (__) {}
+                        try {
+                            srcRect.move(g2, ElementPlacement.PLACEATBEGINNING);
+                        } catch (__) {}
+                        try {
+                            srcRect.zOrder(ZOrderMethod.SENDTOBACK);
+                        } catch (__) {}
+                    } catch (__) {}
+                }
+            }
+        }
+
+        // Remove the (now mostly empty) preview layer
+        try {
+            prevLayer.remove();
+        } catch (e) {}
+    }
 }
 
 /*
@@ -2607,14 +3370,19 @@ function drawRectangleForItem(doc, itemOrRect, choice) {
         customCMYK: choice.customCMYK
     });
     if (choice && choice.type === 'stroke') {
+        // Preview as stroke-only in chosen color
         try {
             rect.filled = false;
-            rect.stroked = !!__finalColor;
-            if (__finalColor) rect.strokeColor = __finalColor;
+        } catch (e) {}
+        try {
+            rect.stroked = !!col;
+            if (col) rect.strokeColor = col;
             rect.strokeWidth = (choice && typeof choice.strokeWidth === 'number' && choice.strokeWidth > 0) ? choice.strokeWidth : 1;
         } catch (e) {}
+
     } else {
-        applyFill(rect, __finalColor, true); // filled; stroke off
+        // 塗りモード（White / Black / HEX / CMYK など）
+        applyFill(rect, col, true);
     }
     // 角丸をライブエフェクトで適用（非展開）
     try {
@@ -2644,108 +3412,53 @@ function drawRectangleForItem(doc, itemOrRect, choice) {
 function main() {
     if (app.documents.length === 0) return;
     var doc = app.activeDocument;
-    if (!doc.selection || doc.selection.length === 0) {
-        alert(LABELS.alertNoSelection[lang]);
-        return;
-    }
-　
-    var choice = showDialog();
-    if (choice === null) return;
+    if (!doc) return;
 
-    // Save current selection BEFORE deselecting
+    var choice = showDialog();
+    if (choice === null) return; // canceled
+
+    // OK 前の選択から対象レイヤーを確定するために退避
     var sel = [];
     try {
         if (doc.selection && doc.selection.length) {
-            // Robust copy for Illustrator's array-like Selection
             for (var i = 0; i < doc.selection.length; i++) sel.push(doc.selection[i]);
         }
     } catch (e) {}
-
-    var __prevCS = null;
-    try {
-        __prevCS = app.coordinateSystem;
-    } catch (e) {}
-    try {
-        app.coordinateSystem = CoordinateSystem.DOCUMENTCOORDINATESYSTEM;
-    } catch (e) {}
-
-    // 選択解除（描画中の誤操作を避ける）
     app.executeMenuCommand('deselectall');
 
-    withTargetBounds(doc, sel, choice,
-        function(rectSpec) {
-            // Group mode: use representative layer (first selection's layer or active)
-            var repLayer = null;
-            try {
-                repLayer = (sel && sel.length && sel[0] && sel[0].layer) ? sel[0].layer : doc.activeLayer;
-            } catch (__) {
-                repLayer = doc.activeLayer;
-            }
-            rectSpec.layer = repLayer;
-            var rectDrawn = drawRectangleForItem(doc, rectSpec, choice);
-            try {
-                if (choice.groupWithText && rectDrawn) {
-                    var grp = repLayer.groupItems.add();
-                    for (var gi = 0; gi < sel.length; gi++) {
-                        try {
-                            sel[gi].move(grp, ElementPlacement.PLACEATEND);
-                        } catch (__) {}
-                    }
-                    try {
-                        rectDrawn.move(grp, ElementPlacement.PLACEATBEGINNING);
-                    } catch (__) {}
-                    try {
-                        rectDrawn.zOrder(ZOrderMethod.SENDTOBACK);
-                    } catch (__) {}
-                }
-            } catch (__) {}
-        },
-        function(it, rectSpec, idx) {
-            rectSpec.layer = (function() {
+    if (choice.__usePreviewAsFinal) {
+        // ★ここが走ればOK：プレビュー→確定へ（グループ時はレイヤーごと複製ロジックを使用）
+        convertPreviewToFinal(doc, sel, choice);
+        clearPreview(true);
+    } else {
+        // フォールバック（現状維持）
+        withTargetBounds(doc, sel, choice,
+            function(rectSpec) {
+                var repLayer = getRepresentativeTargetLayerFromSelection(doc, sel);
+                var rectDrawn = buildFinalRect(repLayer, rectSpec, choice, doc);
                 try {
-                    return it.layer;
+                    rectDrawn.zOrder(ZOrderMethod.SENDTOBACK);
+                } catch (__) {}
+            },
+            function(it, rectSpec) {
+                var tgtLayer = null;
+                try {
+                    tgtLayer = it.layer;
                 } catch (__) {
-                    return null;
+                    tgtLayer = null;
                 }
-            })();
-            var rectDrawn2 = drawRectangleForItem(doc, rectSpec, choice);
-            try {
-                if (choice.groupWithText && rectDrawn2) {
-                    var tgtLayer = null;
-                    try {
-                        tgtLayer = it.layer || rectDrawn2.layer;
-                    } catch (__) {
-                        tgtLayer = rectDrawn2.layer;
-                    }
-                    ensureLayerEditable(doc, tgtLayer);
-                    var gi2 = tgtLayer.groupItems.add();
-                    try {
-                        it.move(gi2, ElementPlacement.PLACEATEND);
-                    } catch (__) {}
-                    try {
-                        rectDrawn2.move(gi2, ElementPlacement.PLACEATBEGINNING);
-                    } catch (__) {}
-                    try {
-                        rectDrawn2.zOrder(ZOrderMethod.SENDTOBACK);
-                    } catch (__) {}
-                }
-            } catch (__) {}
-        }
-    );
-
-    // Remove temporary outline layer if exists
-    try {
-        for (var i = doc.layers.length - 1; i >= 0; i--) {
-            if (doc.layers[i].name === '__tmp_outline_bounds__') {
+                if (!tgtLayer) tgtLayer = doc.activeLayer;
+                var rectDrawn2 = buildFinalRect(tgtLayer, rectSpec, choice, doc);
                 try {
-                    doc.layers[i].remove();
-                } catch (e) {}
+                    rectDrawn2.zOrder(ZOrderMethod.SENDTOBACK);
+                } catch (__) {}
             }
-        }
-    } catch (e) {}
-
-    try {
-        if (__prevCS !== null) app.coordinateSystem = __prevCS;
-    } catch (e) {}
+        );
+        clearPreview(true);
+    }
 }
-main();
+try {
+    main();
+    } catch (e) {
+        logError("parseCustomColor", e);
+    }
