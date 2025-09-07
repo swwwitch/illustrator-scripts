@@ -98,8 +98,8 @@ var lang = getCurrentLang();
 /* ラベル定義 / Label definitions (UI order) */
 var LABELS = {
     dialogTitle: {
-        ja: "アートボードサイズを調整 " + SCRIPT_VERSION,
-        en: "Adjust Artboard Size " + SCRIPT_VERSION
+        ja: "アートボードサイズの長方形を描画 " + SCRIPT_VERSION,
+        en: "Draw Artboard-Sized Rectangle " + SCRIPT_VERSION
     },
     // Panels
     offsetTitle: {
