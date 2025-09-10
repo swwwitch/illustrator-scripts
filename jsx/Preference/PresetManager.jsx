@@ -34,6 +34,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 
 - v1.0 (20250807) : 初期リリース
 - v1.1 (20250915) : ファイルの保存先を追加
+- v1.2（20250910）：ガイドのカラー、スタイルを追加
 
 ---
 
@@ -68,10 +69,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 
 - v1.0 (2025-08-07): Initial release
 - v1.1 (2025-09-15): Added Save Location
+- v1.2（20250910）：Added Guide Color
 
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -260,7 +262,23 @@ function main() {
             var currentCanvas = app.preferences.getIntegerPreference("uiCanvasIsWhite");
             rbCanvasWhite.value = (currentCanvas === 1);
             rbCanvasMatch.value = (currentCanvas !== 1);
+            // ガイド色の現在値でラジオ表示だけ合わせる（書き込みなし）
+            try {
+                var r = app.preferences.getRealPreference("Guide/Color/red");
+                var g = app.preferences.getRealPreference("Guide/Color/green");
+                var b = app.preferences.getRealPreference("Guide/Color/blue");
+
+                function approx(a, b) {
+                    return Math.abs(a - b) < 0.02;
+                }
+                var isLightBlue = approx(r, 0.29) && approx(g, 0.52) && approx(b, 1.0);
+                if (typeof rbGuideLightBlue !== 'undefined' && typeof rbGuideCyan !== 'undefined') {
+                    rbGuideLightBlue.value = !!isLightBlue;
+                    rbGuideCyan.value = !isLightBlue;
+                }
+            } catch (e) {}
             /*
+        
               ファイルの保存先（現在値をUIに反映）
             */
             var curCloud = false;
@@ -295,6 +313,14 @@ function main() {
             rbCanvasWhite.value = true;
             rbCanvasMatch.value = false;
             app.preferences.setIntegerPreference("uiCanvasIsWhite", 1);
+            app.preferences.setRealPreference("Guide/Color/red", 0.29);
+            app.preferences.setRealPreference("Guide/Color/green", 0.52);
+            app.preferences.setRealPreference("Guide/Color/blue", 1.0);
+            // ガイド色ラジオをUI同期（ライトブルー）
+            if (typeof rbGuideLightBlue !== 'undefined' && typeof rbGuideCyan !== 'undefined') {
+                rbGuideLightBlue.value = true;
+                rbGuideCyan.value = false;
+            }
             // ファイルの保存先：コンピューター（false）
             rbSaveLocal.value = true;
             rbSaveCloud.value = false;
@@ -325,6 +351,14 @@ function main() {
             rbCanvasWhite.value = false;
             rbCanvasMatch.value = true;
             app.preferences.setIntegerPreference("uiCanvasIsWhite", 0);
+            app.preferences.setRealPreference("Guide/Color/red", 0.0);
+            app.preferences.setRealPreference("Guide/Color/green", 1.0);
+            app.preferences.setRealPreference("Guide/Color/blue", 1.0);
+            // ガイド色ラジオをUI同期（シアン）
+            if (typeof rbGuideLightBlue !== 'undefined' && typeof rbGuideCyan !== 'undefined') {
+                rbGuideCyan.value = true;
+                rbGuideLightBlue.value = false;
+            }
             // ファイルの保存先：クラウド（true）
             rbSaveLocal.value = false;
             rbSaveCloud.value = true;
@@ -333,8 +367,6 @@ function main() {
             } catch (e) {}
         }
     }
-
-
 
     ddPreset.onChange = function() {
         if (ddPreset.selection && ddPreset.selection.text) {
@@ -532,6 +564,114 @@ function main() {
     */
     var cbAlternateGlyph = panelTextRight.add("checkbox", undefined, LABELS.cbAlternateGlyph[lang]);
     cbAlternateGlyph.helpTip = LABELS.cbAlternateGlyph.ja + " / " + LABELS.cbAlternateGlyph.en;
+
+
+    // ［ガイド］パネル（左カラム、テキストの直下）
+    var panelGuides = colLeft.add("panel", undefined, "ガイド");
+    panelGuides.orientation = "column";
+    panelGuides.alignChildren = "left";
+    panelGuides.margins = [15, 25, 15, 10];
+
+    // ガイド：カラー設定（1行レイアウト）
+    var guideColorRow = panelGuides.add("group", undefined, "");
+    guideColorRow.orientation = "row";
+    guideColorRow.alignChildren = ["left", "center"];
+    guideColorRow.spacing = 10;
+
+    guideColorRow.add("statictext", undefined, "カラー：");
+    var rbGuideCyan = guideColorRow.add("radiobutton", undefined, "シアン");
+    var rbGuideLightBlue = guideColorRow.add("radiobutton", undefined, "ライトブルー");
+
+    // 既知のプリセット（0..1の実数値）
+    var GUIDE_CYAN = {
+        r: 0.0,
+        g: 1.0,
+        b: 1.0
+    };
+    var GUIDE_LIGHTBLUE = {
+        r: 0.29,
+        g: 0.52,
+        b: 1.0
+    };
+
+    function setGuideColor(r01, g01, b01) {
+        try {
+            app.preferences.setRealPreference("Guide/Color/red", r01);
+        } catch (e) {}
+        try {
+            app.preferences.setRealPreference("Guide/Color/green", g01);
+        } catch (e) {}
+        try {
+            app.preferences.setRealPreference("Guide/Color/blue", b01);
+        } catch (e) {}
+    }
+
+    function approx(a, b) {
+        return Math.abs(a - b) < 0.02;
+    } // 許容誤差
+
+    // 現在設定を読み込み、初期選択に反映（なければシアンを既定）
+    var curR = 0,
+        curG = 1,
+        curB = 1; // 既定はシアン
+    try {
+        curR = app.preferences.getRealPreference("Guide/Color/red");
+    } catch (e) {}
+    try {
+        curG = app.preferences.getRealPreference("Guide/Color/green");
+    } catch (e) {}
+    try {
+        curB = app.preferences.getRealPreference("Guide/Color/blue");
+    } catch (e) {}
+
+    if (approx(curR, GUIDE_LIGHTBLUE.r) && approx(curG, GUIDE_LIGHTBLUE.g) && approx(curB, GUIDE_LIGHTBLUE.b)) {
+        rbGuideLightBlue.value = true;
+    } else {
+        rbGuideCyan.value = true; // 既定
+    }
+
+
+    rbGuideCyan.onClick = function() {
+        if (rbGuideCyan.value) setGuideColor(GUIDE_CYAN.r, GUIDE_CYAN.g, GUIDE_CYAN.b);
+    };
+    rbGuideLightBlue.onClick = function() {
+        if (rbGuideLightBlue.value) setGuideColor(GUIDE_LIGHTBLUE.r, GUIDE_LIGHTBLUE.g, GUIDE_LIGHTBLUE.b);
+    };
+
+    // ガイド：スタイル設定（1行レイアウト）
+    var guideStyleRow = panelGuides.add("group", undefined, "");
+    guideStyleRow.orientation = "row";
+    guideStyleRow.alignChildren = ["left", "center"];
+    guideStyleRow.spacing = 10;
+
+    guideStyleRow.add("statictext", undefined, "スタイル：");
+    var rbGuideStyleLine = guideStyleRow.add("radiobutton", undefined, "ライン");
+    var rbGuideStyleDots = guideStyleRow.add("radiobutton", undefined, "点線");
+
+    // Guide/Style: 0 = Lines, 1 = Dots
+    var curStyle = 0;
+    try {
+        curStyle = app.preferences.getIntegerPreference("Guide/Style");
+    } catch (e) {
+        curStyle = 0;
+    }
+    rbGuideStyleLine.value = (curStyle !== 1);
+    rbGuideStyleDots.value = (curStyle === 1);
+
+    rbGuideStyleLine.onClick = function() {
+        if (rbGuideStyleLine.value) {
+            try {
+                app.preferences.setIntegerPreference("Guide/Style", 0);
+            } catch (e) {}
+        }
+    };
+    rbGuideStyleDots.onClick = function() {
+        if (rbGuideStyleDots.value) {
+            try {
+                app.preferences.setIntegerPreference("Guide/Style", 1);
+            } catch (e) {}
+        }
+    };
 
 
     /*
