@@ -888,25 +888,34 @@ function bindNumericField(et, opts) {
  *   PreviewHistory.undo();      // 閉じる/キャンセル時に一括Undo / Undo all at close/cancel
  *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助 / Helper to cancel app.scheduleTask
  * ========================================= */
+// Single-slot PreviewHistory (replaces multi-count implementation)
 (function(g) {
     if (!g.PreviewHistory) {
         g.PreviewHistory = {
+            /* 履歴を残さないプレビュー管理 / Single-slot preview history guard */
             start: function() {
-                g.__previewUndoCount = 0;
+                g.__previewHasActive = false;
             },
-            bump: function() {
-                g.__previewUndoCount = (g.__previewUndoCount | 0) + 1;
-            },
-            undo: function() {
-                var n = g.__previewUndoCount | 0;
+            /* 新しいプレビューを描く直前に呼ぶ。前回のプレビューが残っていたらUndoで消してから描く。 */
+            beforeRender: function() {
                 try {
-                    for (var i = 0; i < n; i++) app.executeMenuCommand('undo');
+                    if (g.__previewHasActive) {
+                        app.executeMenuCommand('undo');
+                        g.__previewHasActive = false;
+                    }
                 } catch (e) {}
-                g.__previewUndoCount = 0;
             },
-            cancelTask: function(taskId) {
+            /* プレビュー描画直後に呼ぶ。以降、履歴は1ステップのみ保持。 */
+            afterRender: function() {
+                g.__previewHasActive = true;
+            },
+            /* OK/Cancel/Close時に現行プレビューだけを1回のUndoで消す。 */
+            undo: function() {
                 try {
-                    if (taskId) app.cancelTask(taskId);
+                    if (g.__previewHasActive) {
+                        app.executeMenuCommand('undo');
+                        g.__previewHasActive = false;
+                    }
                 } catch (e) {}
             }
         };
