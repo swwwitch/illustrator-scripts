@@ -1388,15 +1388,10 @@ function showDialog() {
     var currentRadio = targetPanel.add('radiobutton', undefined, LABELS.currentAB[lang]);
     var allRadio = targetPanel.add('radiobutton', undefined, LABELS.allAB[lang]);
 
-    // 自動選択: アートボード数で切り替え
+    // 常に「作業中のアートボードのみ」をデフォルト選択
     var abCount = (app.documents.length ? app.activeDocument.artboards.length : 0);
-    if (abCount <= 1) {
-        currentRadio.value = true; // 1つ以下のときは「現在のみ」
-        allRadio.value = false;
-    } else {
-        currentRadio.value = false;
-        allRadio.value = true; // 複数あるときは「すべて」
-    }
+    currentRadio.value = true;
+    allRadio.value = false;
 
     // 1枚しかない場合は「すべてのアートボード」をディム（無効化）
     if (abCount <= 1) {
