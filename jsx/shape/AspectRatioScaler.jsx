@@ -584,11 +584,8 @@ function main() {
     dialogResult.ratio169.onClick = function() {
         dialogResult.customWidthInput.enabled = false;
         dialogResult.customHeightInput.enabled = false;
-        // 16:9 選択時は「横置き」に切替 / Force Landscape on 16:9
-        dialogResult.baseHorizontal.value = true;
-        dialogResult.baseVertical.value = false;
+        // ※ 向きは変更しない（ユーザー選択を保持）
         dialogResult.updateSizeLabel();
-
         applyAspect(previewCopies, 1.777777, dialogResult.baseVertical.value, dialogResult.basisVertical.value, getTargetPrimaryPt());
     };
 
@@ -604,9 +601,7 @@ function main() {
     dialogResult.ratioA4.onClick = function() {
         dialogResult.customWidthInput.enabled = false;
         dialogResult.customHeightInput.enabled = false;
-        // A4 選択時は「縦置き」に切替 / Force Portrait on A4
-        dialogResult.baseVertical.value = true;
-        dialogResult.baseHorizontal.value = false;
+        // ※ 向きは変更しない（ユーザー選択を保持）
         dialogResult.updateSizeLabel();
         applyAspect(previewCopies, (210 / 297), dialogResult.baseVertical.value, dialogResult.basisVertical.value, getTargetPrimaryPt());
     };
