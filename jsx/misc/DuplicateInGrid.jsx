@@ -26,7 +26,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 /* 言語判定 / Locale detection */
 function getCurrentLang() {
@@ -43,6 +43,14 @@ var LABELS = {
     repeatCount: {
         ja: "繰り返し数",
         en: "Count"
+    },
+    repeatCountH: {
+        ja: "横",
+        en: "Count (X)"
+    },
+    repeatCountV: {
+        ja: "縦",
+        en: "Count (Y)"
     },
     gap: {
         ja: "間隔",
@@ -116,9 +124,8 @@ function L(key, params) {
     return text;
 }
 
-/* ガイドの設定 / Set guide properties
-   ※（このスクリプトでは未使用の見出し例。以降もコメントは日英併記） */
-// テキストフィールドで上下キー押下時に数値を増減できるようにする
+/* テキストフィールドの数値操作 / Arrow key increment–decrement for numeric fields */
+
 function changeValueByArrowKey(edittext) {
     edittext.addEventListener("keydown", function(e) {
         var v = Number(edittext.text);
@@ -262,7 +269,6 @@ function clearPreview(doc) {
     }
 }
 
-
 function buildPreview(doc, sourceItem, rows, cols, gapX, gapY, width, height, direction, vDirection) {
     var lyr = getPreviewLayer(doc);
     clearPreview(doc);
@@ -309,14 +315,73 @@ function showDialog(doc, sourceItem, width, height) {
     var unitCode = getCurrentUnitCode();
     var unitLabel = getCurrentUnitLabel();
 
-    var repeatGroup = dlg.add("group");
-    var repeatLabel = repeatGroup.add("statictext", undefined, L("repeatCount") + ":");
-    repeatLabel.preferredSize = [80, 20];
-    repeatLabel.justify = "right";
-    var countInput = repeatGroup.add("edittext", undefined, "2");
-    countInput.characters = 4;
-    countInput.isInteger = true;
-    changeValueByArrowKey(countInput);
+    // パネル：繰り返し数 / Panel: Repeat Count
+    var repeatPanel = dlg.add("panel", undefined, L("repeatCount"));
+    repeatPanel.orientation = "row"; // 2カラム（左右）
+    repeatPanel.alignChildren = "top";
+    repeatPanel.margins = [20, 20, 20, 10];
+    repeatPanel.spacing = 20;
+
+    // 左右カラム用のグループ
+    var repeatLeftCol = repeatPanel.add("group");
+    repeatLeftCol.orientation = "column";
+    repeatLeftCol.alignChildren = "left";
+
+    var repeatRightCol = repeatPanel.add("group");
+    repeatRightCol.orientation = "column";
+    repeatRightCol.alignChildren = "left";
+    /* 繰り返し数パネル内での縦位置センター / Vertically center within the Repeat panel */
+    repeatRightCol.alignment = ["left", "center"];
+
+    // 繰り返し数（横）
+    var repeatXGroup = repeatLeftCol.add("group");
+    var repeatLabelX = repeatXGroup.add("statictext", undefined, L("repeatCountH") + ":");
+    var countXInput = repeatXGroup.add("edittext", undefined, "2");
+    countXInput.characters = 4;
+    countXInput.isInteger = true;
+    changeValueByArrowKey(countXInput);
+
+    // 繰り返し数（縦）
+    var repeatYGroup = repeatLeftCol.add("group");
+    var repeatLabelY = repeatYGroup.add("statictext", undefined, L("repeatCountV") + ":");
+    var countYInput = repeatYGroup.add("edittext", undefined, "2");
+    countYInput.characters = 4;
+    countYInput.isInteger = true;
+    changeValueByArrowKey(countYInput);
+
+    // 連動チェック / Link checkbox
+    var linkGroup = repeatRightCol.add("group");
+    /* 右カラム内で上下センター / Center vertically inside the right column */
+    linkGroup.alignment = ["left", "center"];
+    var linkCheck = linkGroup.add("checkbox", undefined, (lang === "ja" ? "連動" : "Link X and Y"));
+
+    linkCheck.value = true; // ← これを追加（デフォルトON）
+
+    // 連動の有効/無効と同期
+    function syncCounts() {
+        if (linkCheck.value) {
+            countYInput.enabled = false;
+            countYInput.text = countXInput.text;
+            if (typeof countYInput.onChanging === "function") {
+                try {
+                    countYInput.onChanging();
+                } catch (_) {}
+            }
+        } else {
+            countYInput.enabled = true;
+        }
+    }
+
+    // チェック切り替えで同期＋プレビュー
+    linkCheck.onClick = function() {
+        syncCounts();
+        applyPreview();
+    };
+
+    syncCounts(); // 起動時に一度状態反映
+
+    /* 間隔入力（現在の定規単位で表示し、内部では pt に変換）
+   / Gap input (shown in current ruler units, converted to pt internally) */
 
     var gapGroup = dlg.add("group");
     var gapLabel = gapGroup.add("statictext", undefined, L("unitFmt", {
@@ -328,9 +393,10 @@ function showDialog(doc, sourceItem, width, height) {
     gapInput.characters = 4;
     changeValueByArrowKey(gapInput);
 
-    /* 方向パネル / Direction panel */
+    /* 方向パネル（横・縦の展開方向を指定）
+       / Direction panel (horizontal & vertical placement) */
     var dirPanel = dlg.add("panel", undefined, L("directionTitle"));
-    dirPanel.orientation = "column"; // ← 縦積み
+    dirPanel.orientation = "column";
     dirPanel.alignChildren = "left";
     dirPanel.margins = [20, 15, 20, 10];
 
@@ -362,19 +428,38 @@ function showDialog(doc, sourceItem, width, height) {
     dirDown.onClick = applyPreview;
 
     function applyPreview() {
-        var c = parseInt(countInput.text, 10);
+        var cx = parseInt(countXInput.text, 10);
+        var cy = parseInt(countYInput.text, 10);
         var g = parseFloat(gapInput.text);
-        if (isNaN(c) || c < 1) return;
+        if (isNaN(cx) || cx < 1) return;
+        if (isNaN(cy) || cy < 1) return;
         if (isNaN(g)) return;
 
         var gpt = unitToPoints(unitCode, g);
         var hDir = dirRight.value ? "right" : "left";
         var vDir = dirUp && dirUp.value ? "up" : "down";
-        buildPreview(doc, sourceItem, c, c, gpt, gpt, width, height, hDir, vDir);
+        buildPreview(doc, sourceItem, cy, cx, gpt, gpt, width, height, hDir, vDir);
     }
-    countInput.onChanging = applyPreview;
+    // X変更：連動ONならYへミラー、その後プレビュー
+    countXInput.onChanging = function() {
+        if (linkCheck.value) {
+            countYInput.text = countXInput.text;
+        }
+        applyPreview();
+    };
+    countXInput.onChange = function() {
+        if (linkCheck.value) {
+            countYInput.text = countXInput.text;
+        }
+        applyPreview();
+    };
+
+    // Y変更：普通にプレビュー（※ onChanging も必須）
+    countYInput.onChanging = applyPreview;
+    countYInput.onChange = applyPreview;
+
+    // Gap
     gapInput.onChanging = applyPreview;
-    countInput.onChange = applyPreview;
     gapInput.onChange = applyPreview;
 
     var btnGroup = dlg.add("group");
@@ -386,9 +471,14 @@ function showDialog(doc, sourceItem, width, height) {
 
     var result = null;
     okBtn.onClick = function() {
-        var c = parseInt(countInput.text, 10);
+        var cx = parseInt(countXInput.text, 10);
+        var cy = parseInt(countYInput.text, 10);
         var g = parseFloat(gapInput.text);
-        if (isNaN(c) || c < 1) {
+        if (isNaN(cx) || cx < 1) {
+            alert(L("alertCountInvalid"));
+            return;
+        }
+        if (isNaN(cy) || cy < 1) {
             alert(L("alertCountInvalid"));
             return;
         }
@@ -397,7 +487,8 @@ function showDialog(doc, sourceItem, width, height) {
             return;
         }
         result = {
-            count: c,
+            cols: cx,
+            rows: cy,
             gap: unitToPoints(unitCode, g), // store as pt
             direction: dirRight.value ? "right" : "left",
             vDirection: (dirUp && dirUp.value) ? "up" : "down"
@@ -421,7 +512,7 @@ function showDialog(doc, sourceItem, width, height) {
             $.sleep(0);
             applyPreview();
             // ダイアログ表示時に「繰り返し数」フィールドをアクティブに
-            countInput.active = true;
+            countXInput.active = true;
         };
     })(dlg.onShow);
 
@@ -451,8 +542,8 @@ function main() {
     var settings = showDialog(doc, sel[0], width, height);
     if (!settings) return;
 
-    var rows = settings.count;
-    var cols = settings.count;
+    var rows = settings.rows;
+    var cols = settings.cols;
     var gapX = settings.gap;
     var gapY = settings.gap;
     var direction = settings.direction || "right";
