@@ -4,7 +4,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /* ロケール取得関数 / Get current language */
 function getCurrentLang() {
-  return ($.locale === "ja") ? "ja" : "en";
+  var loc = ($.locale || "") + ""; // ensure string
+  // Treat locales starting with "ja" (e.g., "ja", "ja_JP") as Japanese
+  if (loc.indexOf("ja") === 0) {
+    return "ja";
+  }
+  return "en";
 }
 var lang = getCurrentLang();
 

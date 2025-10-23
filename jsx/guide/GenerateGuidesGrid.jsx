@@ -180,8 +180,8 @@ var LABELS = {
         en: "OK"
     },
     exportPresetLabel: {
-        ja: "プリセット書き出し",
-        en: "Export Preset"
+        ja: "書き出し",
+        en: "Export"
     }
 };
 
@@ -634,9 +634,16 @@ function main() {
         name: "ok"
     });
 
+    // 表示用ラベルをローカライズ / Localize display label for dropdown
+    function presetDisplayLabel(raw) {
+        // 日本語UIのときは「 / 」以降を隠す / In Japanese UI, hide text after " / "
+        if (lang === "ja") return String(raw).replace(/\s*\/.*$/, "");
+        return raw;
+    }
     // プリセットをドロップダウンに追加 / Add presets to dropdown
     for (var i = 0; i < presets.length; i++) {
-        presetDropdown.add("item", presets[i].label);
+        var display = presetDisplayLabel(presets[i].label);
+        presetDropdown.add("item", display);
     }
     presetDropdown.selection = 0;
 
