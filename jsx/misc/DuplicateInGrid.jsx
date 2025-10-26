@@ -1,23 +1,32 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
 /*
   グリッド複製ツール / Duplicate in Grid
-  Version: SCRIPT_VERSION（変数にて管理）
+  Version: SCRIPT_VERSION（変数で管理）
 
   概要 / Overview
   - 選択中のオブジェクトを、指定した「繰り返し数 × 繰り返し数」のグリッドで複製します。
-  - 間隔は現在の定規単位（rulerType）で入力できます。内部では pt に変換して処理します。
-  - ダイアログの値変更（入力・↑↓キー・Shift/Option併用）でライブプレビューが更新されます。
-  - ローカライズ（日本語/英語）とバージョン表記に対応。ダイアログタイトルにバージョンを表示します。
+  - 間隔は現在の定規単位（rulerType）で入力し、内部では pt に変換して処理します。
+  - ダイアログの値変更（入力・↑↓キー・Shift/Option 併用）でライブプレビューが更新されます。
+  - ローカライズ（日本語/英語）とバージョン表記に対応し、ダイアログタイトルにバージョンを表示します。
+  - Fill パネル：［アートボードの端まで］に対応します。UIとして［アートボードいっぱいに］を追加（選択オブジェクトを基準に行列を計算し、OK時に複製を含む全体をアートボード中央へ移動）。
+  - 方向（横：右/左、縦：上/下）を指定できます。
+  - クリッピングマスクを優先して境界を取得（なければ可視境界）します。
 
-  操作 / Usage
-  1) 複製したいオブジェクトを選択してスクリプトを実行
-  2) ダイアログで「繰り返し数」「間隔」を入力
-     - ↑↓ で ±1、Shift+↑↓ で ±10、Option(Alt)+↑↓ で ±0.1
-     - 「繰り返し数」は常に整数として扱われます
-  3) OK で確定（プレビューは自動消去）、キャンセルで中止（プレビューを消去）
+  更新日 / Last Updated: 2025-10-26
 
-  変更履歴 / Changelog
+- 2025-10-26: 「アートボードいっぱいに」ON時に「端まで」を自動OFF、方向（横・縦）をディム表示に変更（UI挙動のみ、機能変更なし）。
+ 変更履歴 / Changelog
+  - 2025-10-26: 英語ラベルの略語を廃止し「Link Horizontal & Vertical」に統一（UIテキストのみ変更、機能変更なし）。
+  - 2025-10-26: 「アートボードいっぱいに」のロジックを実装：選択オブジェクトを基準に行数・列数を算出し、OK時に全体をアートボード中央へ配置。
+  - 2025-10-26: Fill パネルに「アートボードいっぱいに」チェックを UI 追加（ロジック未実装、今後対応予定）。
+  - 2025-10-26: 英語ラベルを「Fill to Artboard Edge」に変更（機能変更なし）。
+  - 2025-10-25: 「アートボードの端まで」実行時に (0,0) セルの複製を常にスキップするよう修正（元オブジェクトの二重化バグ修正）。
+  - 2025-10-25: 「アートボードの端まで」選択時に方向を自動で［右・下］に設定。機能追加（既存既定値の明示化）。
+  - 2025-10-25: Fill パネルの見出しをローカライズ対応（JA/EN）。機能変更なし。
+  - 2025-10-25: オプション「最背面のオブジェクト」「方向を無視して端まで」を削除。ドキュメント更新。機能の他部分は変更なし。
+  - 2025-10-25: ドキュメント整備（概要更新、コメントの粒度調整、不要コメント削除、コメントアウトコード整理）。機能変更なし。
   - 2025-10-23: ローカライズ（JA/EN）、SCRIPT_VERSION 導入、ダイアログタイトルにバージョン表示を追加
   - 2025-10-23: rulerType に基づく単位ラベル表示と、単位→pt 変換を実装
   - 2025-10-23: ライブプレビュー（_preview レイヤー）を追加、再描画の安定化（app.redraw）
@@ -26,7 +35,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.9";
 
 /* 言語判定 / Locale detection */
 function getCurrentLang() {
@@ -36,78 +45,25 @@ var lang = getCurrentLang();
 
 /* ラベル定義 / Label definitions (JA/EN) */
 var LABELS = {
-    dialogTitle: {
-        ja: "グリッド状に複製",
-        en: "Duplicate in Grid"
-    },
-    repeatCount: {
-        ja: "繰り返し数",
-        en: "Count"
-    },
-    repeatCountH: {
-        ja: "横",
-        en: "Count (X)"
-    },
-    repeatCountV: {
-        ja: "縦",
-        en: "Count (Y)"
-    },
-    gap: {
-        ja: "間隔",
-        en: "Gap"
-    },
-    unitFmt: {
-        ja: "間隔（{unit}）:",
-        en: "Gap ({unit}):"
-    },
-    ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    },
-    alertNoDoc: {
-        ja: "ドキュメントが開かれていません。",
-        en: "No document is open."
-    },
-    alertNoSel: {
-        ja: "オブジェクトを選択してください。",
-        en: "Please select an object."
-    },
-    alertCountInvalid: {
-        ja: "繰り返し数は1以上の整数を入力してください。",
-        en: "Enter an integer count of 1 or more."
-    },
-    alertGapInvalid: {
-        ja: "間隔は数値で入力してください。",
-        en: "Enter a numeric gap value."
-    },
-    directionTitle: {
-        ja: "方向",
-        en: "Direction"
-    },
-    dirRight: {
-        ja: "右",
-        en: "Right"
-    },
-    dirLeft: {
-        ja: "左",
-        en: "Left"
-    },
-    verticalTitle: {
-        ja: "縦方向",
-        en: "Vertical"
-    },
-    dirUp: {
-        ja: "上",
-        en: "Up"
-    },
-    dirDown: {
-        ja: "下",
-        en: "Down"
-    },
+    dialogTitle: { ja: "グリッド状に複製", en: "Duplicate in Grid" },
+    repeatCount: { ja: "繰り返し数", en: "Count" },
+    repeatCountH:{ ja: "横", en: "Horizontal" },
+    repeatCountV:{ ja: "縦", en: "Vertical" },
+    gap:         { ja: "間隔", en: "Gap" },
+    unitFmt:     { ja: "間隔（{unit}）:", en: "Gap ({unit}):" },
+    fillTitle:   { ja: "敷き詰め", en: "Fill" },
+    ok:          { ja: "OK", en: "OK" },
+    cancel:      { ja: "キャンセル", en: "Cancel" },
+    alertNoDoc:  { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+    alertNoSel:  { ja: "オブジェクトを選択してください。", en: "Please select an object." },
+    alertCountInvalid:{ ja: "繰り返し数は1以上の整数を入力してください。", en: "Enter an integer count of 1 or more." },
+    alertGapInvalid:  { ja: "間隔は数値で入力してください。", en: "Enter a numeric gap value." },
+    directionTitle:   { ja: "方向", en: "Direction" },
+    dirRight:   { ja: "右", en: "Right" },
+    dirLeft:    { ja: "左", en: "Left" },
+    verticalTitle:{ ja: "縦方向", en: "Vertical" },
+    dirUp:      { ja: "上", en: "Up" },
+    dirDown:    { ja: "下", en: "Down" }
 };
 
 /* ラベル取得関数 / Label resolver */
@@ -115,452 +71,465 @@ function L(key, params) {
     var table = LABELS[key];
     var text = (table && table[lang]) ? table[lang] : key;
     if (params) {
-        for (var k in params) {
-            if (params.hasOwnProperty(k)) {
-                text = text.replace(new RegExp("\\{" + k + "\\}", "g"), params[k]);
-            }
+        for (var k in params) if (params.hasOwnProperty(k)) {
+            text = text.replace(new RegExp("\\{" + k + "\\}", "g"), params[k]);
         }
     }
     return text;
 }
 
 /* テキストフィールドの数値操作 / Arrow key increment–decrement for numeric fields */
-
 function changeValueByArrowKey(edittext) {
     edittext.addEventListener("keydown", function(e) {
         var v = Number(edittext.text);
         if (isNaN(v)) return;
-
-        var keyboard = ScriptUI.environment.keyboardState;
-        var delta = 1;
-
-        if (keyboard.shiftKey) {
-            delta = 10;
-            if (e.keyName == "Up") {
-                v = Math.ceil((v + 1) / delta) * delta;
-                e.preventDefault();
-            } else if (e.keyName == "Down") {
-                v = Math.floor((v - 1) / delta) * delta;
-                if (v < 0) v = 0;
-                e.preventDefault();
-            }
-        } else if (keyboard.altKey) {
-            delta = 0.1;
-            if (e.keyName == "Up") {
-                v += delta;
-                e.preventDefault();
-            } else if (e.keyName == "Down") {
-                v -= delta;
-                e.preventDefault();
-            }
+        var kb = ScriptUI.environment.keyboardState, d = 1;
+        if (kb.shiftKey) {
+            d = 10;
+            if (e.keyName == "Up") { v = Math.ceil((v + 1)/d)*d; e.preventDefault(); }
+            else if (e.keyName == "Down") { v = Math.floor((v - 1)/d)*d; e.preventDefault(); }
+        } else if (kb.altKey) {
+            d = 0.1;
+            if (e.keyName == "Up") { v += d; e.preventDefault(); }
+            else if (e.keyName == "Down") { v -= d; e.preventDefault(); }
         } else {
-            delta = 1;
-            if (e.keyName == "Up") {
-                v += delta;
-                e.preventDefault();
-            } else if (e.keyName == "Down") {
-                v -= delta;
-                if (v < 0) v = 0;
-                e.preventDefault();
-            }
+            d = 1;
+            if (e.keyName == "Up") { v += d; e.preventDefault(); }
+            else if (e.keyName == "Down") { v -= d; e.preventDefault(); }
         }
-
-        if (keyboard.altKey) {
-            v = Math.round(v * 10) / 10;
-        } else {
-            v = Math.round(v);
-        }
-
-        if (edittext.isInteger) {
-            v = Math.round(v);
-        }
-
+        v = kb.altKey ? Math.round(v*10)/10 : Math.round(v);
+        if (edittext.isInteger) v = Math.max(0, Math.round(v));
         edittext.text = v;
-        if (typeof edittext.onChanging === "function") {
-            try {
-                edittext.onChanging();
-            } catch (_) {}
-        }
+        if (typeof edittext.onChanging === "function") { try { edittext.onChanging(); } catch(_){} }
     });
 }
 
-// 単位コードとラベルのマップ
-var unitLabelMap = {
-    0: "in",
-    1: "mm",
-    2: "pt",
-    3: "pica",
-    4: "cm",
-    5: "Q/H",
-    6: "px",
-    7: "ft/in",
-    8: "m",
-    9: "yd",
-    10: "ft"
-};
-// 現在の単位ラベルを取得
-function getCurrentUnitLabel() {
-    var unitCode = app.preferences.getIntegerPreference("rulerType");
-    return unitLabelMap[unitCode] || "pt";
-}
-// 単位コードを取得
-function getCurrentUnitCode() {
-    return app.preferences.getIntegerPreference("rulerType");
-}
-// 単位→ポイント変換（座標系はpt基準）
+/* 単位ユーティリティ / Units */
+var unitLabelMap = {0:"in",1:"mm",2:"pt",3:"pica",4:"cm",5:"Q/H",6:"px",7:"ft/in",8:"m",9:"yd",10:"ft"};
+function getCurrentUnitLabel(){ var c = app.preferences.getIntegerPreference("rulerType"); return unitLabelMap[c]||"pt"; }
+function getCurrentUnitCode(){ return app.preferences.getIntegerPreference("rulerType"); }
 function unitToPoints(unitCode, value) {
-    var PT_PER_IN = 72;
-    var MM_TO_PT = PT_PER_IN / 25.4;
-    switch (unitCode) {
-        case 0: // in
-            return value * PT_PER_IN;
-        case 1: // mm
-            return value * MM_TO_PT;
-        case 2: // pt
-            return value;
-        case 3: // pica
-            return value * 12; // 1 pica = 12 pt
-        case 4: // cm
-            return value * (MM_TO_PT * 10);
-        case 5: // Q/H （Q=0.25mm換算）
-            return value * (MM_TO_PT * 0.25);
-        case 6: // px（Illustratorは1px≒1ptとして扱う）
-            return value;
-        case 7: // ft/in（複合だが便宜上 in と同等に扱う）
-            return value * PT_PER_IN;
-        case 8: // m
-            return value * (MM_TO_PT * 1000);
-        case 9: // yd
-            return value * (PT_PER_IN * 36); // 1yd=36in
-        case 10: // ft
-            return value * (PT_PER_IN * 12); // 1ft=12in
-        default:
-            return value; // fallback pt
+    var PT_IN=72, MM_PT=PT_IN/25.4;
+    switch(unitCode){
+        case 0: return value*PT_IN;           // in
+        case 1: return value*MM_PT;           // mm
+        case 2: return value;                 // pt
+        case 3: return value*12;              // pica
+        case 4: return value*(MM_PT*10);      // cm
+        case 5: return value*(MM_PT*0.25);    // Q/H
+        case 6: return value;                 // px ≒ pt
+        case 7: return value*PT_IN;           // ft/in → in
+        case 8: return value*(MM_PT*1000);    // m
+        case 9: return value*(PT_IN*36);      // yd
+        case 10:return value*(PT_IN*12);      // ft
+        default:return value;
     }
+}
+
+/* クリッピングマスク優先の境界取得 / Bounds preferring clipping mask */
+function getMaskedBounds(item){
+    try{
+        if (item.typename==="GroupItem" && item.clipped){
+            for (var i=0;i<item.pageItems.length;i++){
+                var pi=item.pageItems[i];
+                if (pi.typename==="PathItem" && pi.clipping) return pi.geometricBounds;
+                if (pi.typename==="CompoundPathItem" && pi.pathItems.length>0 && pi.pathItems[0].clipping)
+                    return pi.pathItems[0].geometricBounds;
+            }
+        }
+        if (item.typename==="PathItem" && item.clipping) return item.geometricBounds;
+        if (item.typename==="CompoundPathItem" && item.pathItems.length>0 && item.pathItems[0].clipping)
+            return item.pathItems[0].geometricBounds;
+    }catch(_){}
+    return item.visibleBounds;
 }
 
 /* プレビュー用ユーティリティ / Preview utilities */
-function getPreviewLayer(doc) {
-    var name = "_preview";
-    var lyr;
-    try {
-        lyr = doc.layers.getByName(name);
-    } catch (e) {
-        lyr = doc.layers.add();
-        lyr.name = name;
-    }
-    lyr.visible = true;
-    lyr.locked = false;
-    try {
-        lyr.zOrder(ZOrderMethod.BRINGTOFRONT);
-    } catch (_) {}
+function getPreviewLayer(doc){
+    var name="_preview", lyr;
+    try{ lyr=doc.layers.getByName(name); }
+    catch(e){ lyr=doc.layers.add(); lyr.name=name; }
+    lyr.visible=true; lyr.locked=false;
+    try{ lyr.zOrder(ZOrderMethod.BRINGTOFRONT); }catch(_){}
     return lyr;
 }
-
-function clearPreview(doc) {
-    try {
-        var lyr = doc.layers.getByName("_preview");
-        while (lyr.pageItems.length > 0) {
-            lyr.pageItems[0].remove();
-        }
+function clearPreview(doc){
+    try{
+        var lyr=doc.layers.getByName("_preview");
+        while(lyr.pageItems.length>0){ lyr.pageItems[0].remove(); }
         app.redraw();
-    } catch (e) {
-        // layer may not exist; ignore
-    }
+    }catch(e){}
 }
-
-function buildPreview(doc, sourceItem, rows, cols, gapX, gapY, width, height, direction, vDirection) {
-    var lyr = getPreviewLayer(doc);
+function buildPreview(doc, sourceItem, rows, cols, gapX, gapY, w, h, hDir, vDir, baseL, baseT){
+    var lyr=getPreviewLayer(doc);
     clearPreview(doc);
-    for (var row = 0; row < rows; row++) {
-        for (var col = 0; col < cols; col++) {
-            if (row === 0 && col === 0) continue; // keep original as-is
-            var dup = sourceItem.duplicate(lyr, ElementPlacement.PLACEATBEGINNING);
-            var offsetX = (width + gapX) * col;
-            if (direction === "left") offsetX = -offsetX;
-            dup.left = sourceItem.left + offsetX;
-            var offsetY = (height + gapY) * row;
-            dup.top = (vDirection === "up") ?
-                (sourceItem.top + offsetY) :
-                (sourceItem.top - offsetY);
+    for (var r=0;r<rows;r++){
+        for (var c=0;c<cols;c++){
+            if (r===0 && c===0) continue;
+            var dup=sourceItem.duplicate(lyr, ElementPlacement.PLACEATBEGINNING);
+            var offX=(w+gapX)*c; if (hDir==="left") offX=-offX;
+            var offY=(h+gapY)*r;
+            var desiredL=baseL+offX;
+            var desiredT=(vDir==="up")?(baseT+offY):(baseT-offY);
+            var mb=getMaskedBounds(dup); // [L,T,R,B]
+            var dx=desiredL-mb[0], dy=desiredT-mb[1];
+            dup.left+=dx; dup.top+=dy;
         }
     }
     app.redraw();
 }
 
-/* ダイアログの作成とプレビュー制御
-   / Build dialog and preview wiring */
-function showDialog(doc, sourceItem, width, height) {
-    var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-    var offsetX = 300;
-    var dialogOpacity = 0.98;
+/* ダイアログ生成＆プレビュー結線 / Build dialog and preview wiring */
+function showDialog(doc, sourceItem, w, h){
+    var dlg=new Window("dialog", L("dialogTitle")+" "+SCRIPT_VERSION);
+    var offsetX=300, dialogOpacity=0.98;
+    dlg.onShow=function(){ var loc=dlg.location; dlg.location=[loc[0]+offsetX, loc[1]]; };
+    dlg.opacity=dialogOpacity;
+    dlg.orientation="column"; dlg.alignChildren="fill";
 
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-        dlg.onShow = function() {
-            var currentX = dlg.location[0];
-            var currentY = dlg.location[1];
-            dlg.location = [currentX + offsetX, currentY + offsetY];
-        };
+    var unitCode=getCurrentUnitCode(), unitLabel=getCurrentUnitLabel();
+
+    /* 繰り返し数 / Repeat Count */
+    var repeatPanel=dlg.add("panel", undefined, L("repeatCount"));
+    repeatPanel.orientation="row"; repeatPanel.alignChildren="top";
+    repeatPanel.margins=[20,20,20,10]; repeatPanel.spacing=20;
+
+    var repeatLeftCol=repeatPanel.add("group"); repeatLeftCol.orientation="column"; repeatLeftCol.alignChildren="left";
+    var repeatRightCol=repeatPanel.add("group"); repeatRightCol.orientation="column"; repeatRightCol.alignChildren="left"; repeatRightCol.alignment=["left","center"];
+
+    var repeatXGroup=repeatLeftCol.add("group");
+    repeatXGroup.add("statictext", undefined, L("repeatCountH")+":");
+    var countXInput=repeatXGroup.add("edittext", undefined, "2"); countXInput.characters=4; countXInput.isInteger=true; changeValueByArrowKey(countXInput);
+
+    var repeatYGroup=repeatLeftCol.add("group");
+    repeatYGroup.add("statictext", undefined, L("repeatCountV")+":");
+    var countYInput=repeatYGroup.add("edittext", undefined, "2"); countYInput.characters=4; countYInput.isInteger=true; changeValueByArrowKey(countYInput);
+
+    var linkGroup=repeatRightCol.add("group"); linkGroup.alignment=["left","center"];
+    var linkCheck=linkGroup.add("checkbox", undefined, (lang==="ja"?"連動":"Link Horizontal & Vertical"));
+    linkCheck.value=true;
+    function syncCounts(){
+        if (linkCheck.value){
+            countYInput.enabled=false;
+            countYInput.text=countXInput.text;
+            if (typeof countYInput.onChanging==="function"){ try{ countYInput.onChanging(); }catch(_){} }
+        } else { countYInput.enabled=true; }
     }
+    linkCheck.onClick=function(){ syncCounts(); applyPreview(); };
+    syncCounts();
 
-    function setDialogOpacity(dlg, opacityValue) {
-        dlg.opacity = opacityValue;
-    }
+    /* パネル：Fill（アートボードの端まで／アートボードいっぱいに） / Panel: Fill */
+    var fillPanel=dlg.add("panel", undefined, L("fillTitle"));
+    fillPanel.orientation="column"; fillPanel.alignChildren="left";
+    fillPanel.margins=[20,15,20,10]; fillPanel.spacing=8;
 
-    setDialogOpacity(dlg, dialogOpacity);
-    shiftDialogPosition(dlg, offsetX, 0);
-    dlg.orientation = "column";
-    dlg.alignChildren = "fill";
+    var fillABGroup=fillPanel.add("group"); fillABGroup.alignment=["left","center"];
+    var fillToArtboardCheck=fillABGroup.add("checkbox", undefined, (lang==="ja"?"アートボードの端まで":"Fill to Artboard Edge"));
+    fillToArtboardCheck.value=false;
+    fillToArtboardCheck.onClick=function(){
+        if (fillToArtboardCheck.value){
+            // 「アートボードの端まで」選択時は方向を［右・下］に固定
+            if (typeof dirRight !== "undefined") { dirRight.value = true; }
+            if (typeof dirLeft  !== "undefined") { dirLeft.value  = false; }
+            if (typeof dirDown  !== "undefined") { dirDown.value  = true; }
+            if (typeof dirUp    !== "undefined") { dirUp.value    = false; }
+            // 方向コントロールは有効化
+            if (typeof dirRight !== "undefined") dirRight.enabled = true;
+            if (typeof dirLeft  !== "undefined") dirLeft.enabled  = true;
+            if (typeof dirUp    !== "undefined") dirUp.enabled    = true;
+            if (typeof dirDown  !== "undefined") dirDown.enabled  = true;
+            linkCheck.value=false; 
+            syncCounts();
+            recalcCountsForArtboard();
+        }
+        if (typeof fillToArtboardFullCheck !== "undefined" && fillToArtboardCheck.value) {
+            fillToArtboardFullCheck.value = false;
+        }
+        applyPreview();
+    };
 
-    var unitCode = getCurrentUnitCode();
-    var unitLabel = getCurrentUnitLabel();
-
-    // パネル：繰り返し数 / Panel: Repeat Count
-    var repeatPanel = dlg.add("panel", undefined, L("repeatCount"));
-    repeatPanel.orientation = "row"; // 2カラム（左右）
-    repeatPanel.alignChildren = "top";
-    repeatPanel.margins = [20, 20, 20, 10];
-    repeatPanel.spacing = 20;
-
-    // 左右カラム用のグループ
-    var repeatLeftCol = repeatPanel.add("group");
-    repeatLeftCol.orientation = "column";
-    repeatLeftCol.alignChildren = "left";
-
-    var repeatRightCol = repeatPanel.add("group");
-    repeatRightCol.orientation = "column";
-    repeatRightCol.alignChildren = "left";
-    /* 繰り返し数パネル内での縦位置センター / Vertically center within the Repeat panel */
-    repeatRightCol.alignment = ["left", "center"];
-
-    // 繰り返し数（横）
-    var repeatXGroup = repeatLeftCol.add("group");
-    var repeatLabelX = repeatXGroup.add("statictext", undefined, L("repeatCountH") + ":");
-    var countXInput = repeatXGroup.add("edittext", undefined, "2");
-    countXInput.characters = 4;
-    countXInput.isInteger = true;
-    changeValueByArrowKey(countXInput);
-
-    // 繰り返し数（縦）
-    var repeatYGroup = repeatLeftCol.add("group");
-    var repeatLabelY = repeatYGroup.add("statictext", undefined, L("repeatCountV") + ":");
-    var countYInput = repeatYGroup.add("edittext", undefined, "2");
-    countYInput.characters = 4;
-    countYInput.isInteger = true;
-    changeValueByArrowKey(countYInput);
-
-    // 連動チェック / Link checkbox
-    var linkGroup = repeatRightCol.add("group");
-    /* 右カラム内で上下センター / Center vertically inside the right column */
-    linkGroup.alignment = ["left", "center"];
-    var linkCheck = linkGroup.add("checkbox", undefined, (lang === "ja" ? "連動" : "Link X and Y"));
-
-    linkCheck.value = true; // ← これを追加（デフォルトON）
-
-    // 連動の有効/無効と同期
-    function syncCounts() {
-        if (linkCheck.value) {
-            countYInput.enabled = false;
-            countYInput.text = countXInput.text;
-            if (typeof countYInput.onChanging === "function") {
-                try {
-                    countYInput.onChanging();
-                } catch (_) {}
-            }
+    // 追加：アートボードいっぱいに
+    var fillABFullGroup = fillPanel.add("group"); fillABFullGroup.alignment=["left","center"];
+    var fillToArtboardFullCheck = fillABFullGroup.add("checkbox", undefined, (lang==="ja"?"アートボードいっぱいに":"Fill Full Artboard"));
+    fillToArtboardFullCheck.value = false;
+    fillToArtboardFullCheck.onClick = function(){
+        if (fillToArtboardFullCheck.value){
+            // 端までと排他
+            if (typeof fillToArtboardCheck !== "undefined") fillToArtboardCheck.value = false;
+            // 方向は任意。既定を右・下へ
+            if (typeof dirRight !== "undefined") { dirRight.value = true; }
+            if (typeof dirLeft  !== "undefined") { dirLeft.value  = false; }
+            if (typeof dirDown  !== "undefined") { dirDown.value  = true; }
+            if (typeof dirUp    !== "undefined") { dirUp.value    = false; }
+            // 方向コントロールをディム（無効化）
+            if (typeof dirRight !== "undefined") dirRight.enabled = false;
+            if (typeof dirLeft  !== "undefined") dirLeft.enabled  = false;
+            if (typeof dirUp    !== "undefined") dirUp.enabled    = false;
+            if (typeof dirDown  !== "undefined") dirDown.enabled  = false;
+            // 行列をアートボード内に収まる最大値で自動計算
+            recalcCountsForArtboardFull();
         } else {
-            countYInput.enabled = true;
+            // チェック解除時は方向コントロールを再有効化
+            if (typeof dirRight !== "undefined") dirRight.enabled = true;
+            if (typeof dirLeft  !== "undefined") dirLeft.enabled  = true;
+            if (typeof dirUp    !== "undefined") dirUp.enabled    = true;
+            if (typeof dirDown  !== "undefined") dirDown.enabled  = true;
         }
+        applyPreview();
+    };
+
+    /* 間隔（現在単位表記） / Gap (show in current ruler units) */
+    var gapPanel=dlg.add("panel", undefined, (lang==="ja"?("間隔（"+unitLabel+"）"):("Gap ("+unitLabel+")")));
+    gapPanel.orientation="row"; gapPanel.alignChildren="top";
+    gapPanel.margins=[20,15,20,10]; gapPanel.spacing=20;
+
+    var gapLeftCol=gapPanel.add("group"); gapLeftCol.orientation="column"; gapLeftCol.alignChildren="left";
+    var gapRightCol=gapPanel.add("group"); gapRightCol.orientation="column"; gapRightCol.alignChildren="left"; gapRightCol.alignment=["left","center"];
+
+    var gapXGroup=gapLeftCol.add("group");
+    gapXGroup.add("statictext", undefined, (lang==="ja"?"左右:":"Horizontal:"));
+    var gapXInput=gapXGroup.add("edittext", undefined, "10"); gapXInput.characters=4; changeValueByArrowKey(gapXInput);
+
+    var gapYGroup=gapLeftCol.add("group");
+    gapYGroup.add("statictext", undefined, (lang==="ja"?"上下:":"Vertical:"));
+    var gapYInput=gapYGroup.add("edittext", undefined, "10"); gapYInput.characters=4; changeValueByArrowKey(gapYInput);
+
+    var gapLinkGroup=gapRightCol.add("group"); gapLinkGroup.alignment=["left","center"];
+    var gapLink=gapLinkGroup.add("checkbox", undefined, (lang==="ja"?"連動":"Link Horizontal & Vertical")); gapLink.value=true;
+    function syncGaps(){
+        if (gapLink.value){
+            gapYInput.enabled=false; gapYInput.text=gapXInput.text;
+            if (typeof gapYInput.onChanging==="function"){ try{ gapYInput.onChanging(); }catch(_){} }
+        } else { gapYInput.enabled=true; }
+    }
+    gapLink.onClick=function(){ syncGaps(); applyPreview(); };
+    syncGaps();
+
+    if (fillToArtboardCheck.value){ recalcCountsForArtboard(); }
+
+    // 初期状態の有効/無効を同期
+    if (fillToArtboardFullCheck.value){
+        if (typeof dirRight !== "undefined") dirRight.enabled = false;
+        if (typeof dirLeft  !== "undefined") dirLeft.enabled  = false;
+        if (typeof dirUp    !== "undefined") dirUp.enabled    = false;
+        if (typeof dirDown  !== "undefined") dirDown.enabled  = false;
+    } else {
+        if (typeof dirRight !== "undefined") dirRight.enabled = true;
+        if (typeof dirLeft  !== "undefined") dirLeft.enabled  = true;
+        if (typeof dirUp    !== "undefined") dirUp.enabled    = true;
+        if (typeof dirDown  !== "undefined") dirDown.enabled  = true;
     }
 
-    // チェック切り替えで同期＋プレビュー
-    linkCheck.onClick = function() {
-        syncCounts();
-        applyPreview();
-    };
+    /* 方向パネル（横・縦の展開方向を指定） / Direction panel (horizontal & vertical placement) */
+    var dirPanel=dlg.add("panel", undefined, L("directionTitle"));
+    dirPanel.orientation="column"; dirPanel.alignChildren="left"; dirPanel.margins=[20,15,20,10];
 
-    syncCounts(); // 起動時に一度状態反映
+    var hGroup=dirPanel.add("group"); hGroup.orientation="row"; hGroup.alignChildren="left";
+    hGroup.add("statictext", undefined, (lang==="ja"?"横方向":"Horizontal"));
+    var dirRight=hGroup.add("radiobutton", undefined, L("dirRight"));
+    var dirLeft =hGroup.add("radiobutton", undefined, L("dirLeft"));
+    dirRight.value=true; dirRight.onClick=applyPreview; dirLeft.onClick=applyPreview;
 
-    /* 間隔入力（現在の定規単位で表示し、内部では pt に変換）
-   / Gap input (shown in current ruler units, converted to pt internally) */
+    var vGroup=dirPanel.add("group"); vGroup.orientation="row"; vGroup.alignChildren="left";
+    vGroup.add("statictext", undefined, (lang==="ja"?"縦方向":"Vertical"));
+    var dirUp  =vGroup.add("radiobutton", undefined, L("dirUp"));
+    var dirDown=vGroup.add("radiobutton", undefined, L("dirDown"));
+    dirDown.value=true; dirUp.onClick=applyPreview; dirDown.onClick=applyPreview;
 
-    var gapGroup = dlg.add("group");
-    var gapLabel = gapGroup.add("statictext", undefined, L("unitFmt", {
-        unit: unitLabel
-    }));
-    gapLabel.preferredSize = [80, 20];
-    gapLabel.justify = "right";
-    var gapInput = gapGroup.add("edittext", undefined, "10");
-    gapInput.characters = 4;
-    changeValueByArrowKey(gapInput);
-
-    /* 方向パネル（横・縦の展開方向を指定）
-       / Direction panel (horizontal & vertical placement) */
-    var dirPanel = dlg.add("panel", undefined, L("directionTitle"));
-    dirPanel.orientation = "column";
-    dirPanel.alignChildren = "left";
-    dirPanel.margins = [20, 15, 20, 10];
-
-    // 横方向ラベル＆ラジオ / Horizontal direction
-    var hGroup = dirPanel.add("group");
-    hGroup.orientation = "row";
-    hGroup.alignChildren = "left";
-    var hLabel = hGroup.add("statictext", undefined, (lang === "ja" ? "横方向" : "Horizontal"));
-    var dirRight = hGroup.add("radiobutton", undefined, L("dirRight"));
-    var dirLeft = hGroup.add("radiobutton", undefined, L("dirLeft"));
-    dirRight.value = true; // default: right
-    dirRight.onClick = applyPreview;
-    dirLeft.onClick = applyPreview;
-
-
-    // 縦方向ラベル＆ラジオ / Vertical direction
-    var vGroup = dirPanel.add("group");
-    vGroup.orientation = "row";
-    vGroup.alignChildren = "left";
-
-    var vLabel = vGroup.add("statictext", undefined, (lang === "ja" ? "縦方向" : "Vertical"));
-
-    var dirUp = vGroup.add("radiobutton", undefined, L("dirUp"));
-    var dirDown = vGroup.add("radiobutton", undefined, L("dirDown"));
-    dirDown.value = true; // デフォルトは「下」
-
-    // クリックでプレビュー更新
-    dirUp.onClick = applyPreview;
-    dirDown.onClick = applyPreview;
-
-    function applyPreview() {
-        var cx = parseInt(countXInput.text, 10);
-        var cy = parseInt(countYInput.text, 10);
-        var g = parseFloat(gapInput.text);
-        if (isNaN(cx) || cx < 1) return;
-        if (isNaN(cy) || cy < 1) return;
-        if (isNaN(g)) return;
-
-        var gpt = unitToPoints(unitCode, g);
-        var hDir = dirRight.value ? "right" : "left";
-        var vDir = dirUp && dirUp.value ? "up" : "down";
-        buildPreview(doc, sourceItem, cy, cx, gpt, gpt, width, height, hDir, vDir);
+    function applyPreview(){
+        var cx=parseInt(countXInput.text,10), cy=parseInt(countYInput.text,10);
+        var gx=parseFloat(gapXInput.text),  gy=parseFloat(gapYInput.text);
+        if (isNaN(cx)||cx<1) return; if (isNaN(cy)||cy<1) return; if (isNaN(gx)||isNaN(gy)) return;
+        var gptX=unitToPoints(unitCode,gx), gptY=unitToPoints(unitCode,gy);
+        var hDir=dirRight.value?"right":"left";
+        var vDir=(dirUp&&dirUp.value)?"up":"down";
+        var baseMask=getMaskedBounds(sourceItem), baseLeft=baseMask[0], baseTop=baseMask[1];
+        buildPreview(doc, sourceItem, cy, cx, gptX, gptY, w, h, hDir, vDir, baseLeft, baseTop);
     }
-    // X変更：連動ONならYへミラー、その後プレビュー
-    countXInput.onChanging = function() {
-        if (linkCheck.value) {
-            countYInput.text = countXInput.text;
-        }
-        applyPreview();
-    };
-    countXInput.onChange = function() {
-        if (linkCheck.value) {
-            countYInput.text = countXInput.text;
-        }
-        applyPreview();
-    };
 
-    // Y変更：普通にプレビュー（※ onChanging も必須）
-    countYInput.onChanging = applyPreview;
-    countYInput.onChange = applyPreview;
+    // アートボードの端まで：列・行の自動計算
+    function recalcCountsForArtboard(){
+        try{
+            var tgt=doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; // [L,T,R,B]
+            var tgtL=tgt[0], tgtT=tgt[1], tgtR=tgt[2], tgtB=tgt[3];
+            var baseMask=getMaskedBounds(sourceItem), baseLeft=baseMask[0], baseTop=baseMask[1];
 
-    // Gap
-    gapInput.onChanging = applyPreview;
-    gapInput.onChange = applyPreview;
+            var gx=parseFloat(gapXInput.text), gy=parseFloat(gapYInput.text);
+            if (isNaN(gx)||isNaN(gy)) return;
+            var gptX=unitToPoints(unitCode,gx), gptY=unitToPoints(unitCode,gy);
+            var stepX=w+gptX, stepY=h+gptY;
 
-    var btnGroup = dlg.add("group");
-    btnGroup.alignment = "center";
-    var cancelBtn = btnGroup.add("button", undefined, L("cancel"), {
-        name: "cancel"
-    });
-    var okBtn = btnGroup.add("button", undefined, L("ok"));
+            var hDir=dirRight.value?"right":"left";
+            var vDir=(typeof dirUp!=="undefined" && dirUp.value)?"up":"down";
 
-    var result = null;
-    okBtn.onClick = function() {
-        var cx = parseInt(countXInput.text, 10);
-        var cy = parseInt(countYInput.text, 10);
-        var g = parseFloat(gapInput.text);
-        if (isNaN(cx) || cx < 1) {
-            alert(L("alertCountInvalid"));
-            return;
-        }
-        if (isNaN(cy) || cy < 1) {
-            alert(L("alertCountInvalid"));
-            return;
-        }
-        if (isNaN(g)) {
-            alert(L("alertGapInvalid"));
-            return;
-        }
-        result = {
-            cols: cx,
-            rows: cy,
-            gap: unitToPoints(unitCode, g), // store as pt
-            direction: dirRight.value ? "right" : "left",
-            vDirection: (dirUp && dirUp.value) ? "up" : "down"
-        };
-        clearPreview(doc);
-        dlg.close();
-    };
-    cancelBtn.onClick = function() {
-        clearPreview(doc);
-        dlg.close();
-    };
-
-    dlg.onShow = (function(origOnShow) {
-        return function() {
-            if (typeof origOnShow === "function") {
-                try {
-                    origOnShow();
-                } catch (_) {}
+            var cols=1, rows=1;
+            if (stepX>0){
+                if (hDir==="right"){ var availW=tgtR-baseLeft; cols=Math.floor((availW+gptX)/stepX); }
+                else { var availWL=baseLeft-tgtL; cols=Math.floor((availWL+gptX)/stepX); }
+                if (cols<1) cols=1;
             }
-            // Let Illustrator settle the dialog placement first, then draw
-            $.sleep(0);
-            applyPreview();
-            // ダイアログ表示時に「繰り返し数」フィールドをアクティブに
-            countXInput.active = true;
+            if (stepY>0){
+                if (vDir==="down"){ var availH=baseTop-tgtB; rows=Math.floor((availH+gptY)/stepY); }
+                else { var availHU=tgtT-baseTop; rows=Math.floor((availHU+gptY)/stepY); }
+                if (rows<1) rows=1;
+            }
+            countXInput.text=String(cols);
+            countYInput.text=String(rows);
+        }catch(e){}
+    }
+
+    // アートボードいっぱいに：アートボード内に収まる最大の列・行を計算（方向は無視）
+    function recalcCountsForArtboardFull(){
+        try{
+            var tgt = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; // [L,T,R,B]
+            var tgtW = Math.abs(tgt[2] - tgt[0]);
+            var tgtH = Math.abs(tgt[1] - tgt[3]);
+            var gx = parseFloat(gapXInput.text), gy = parseFloat(gapYInput.text);
+            if (isNaN(gx) || isNaN(gy)) return;
+            var gptX = unitToPoints(unitCode, gx), gptY = unitToPoints(unitCode, gy);
+            var stepX = w + gptX, stepY = h + gptY;
+            var cols = (stepX > 0) ? Math.floor((tgtW + gptX) / stepX) : 1;
+            var rows = (stepY > 0) ? Math.floor((tgtH + gptY) / stepY) : 1;
+            if (cols < 1) cols = 1;
+            if (rows < 1) rows = 1;
+            countXInput.text = String(cols);
+            countYInput.text = String(rows);
+        }catch(e){}
+    }
+
+    // 値変更時のプレビュー更新と再計算
+    countXInput.onChanging=function(){ if (linkCheck.value) countYInput.text=countXInput.text; applyPreview(); };
+    countXInput.onChange  =function(){ if (linkCheck.value) countYInput.text=countXInput.text; applyPreview(); };
+    countYInput.onChanging=applyPreview;
+    countYInput.onChange  =applyPreview;
+
+    gapXInput.onChanging=function(){
+        if (gapLink.value) gapYInput.text=gapXInput.text;
+        if (fillToArtboardCheck.value) recalcCountsForArtboard();
+        if (fillToArtboardFullCheck.value) recalcCountsForArtboardFull();
+        applyPreview();
+    };
+    gapXInput.onChange=function(){
+        if (gapLink.value) gapYInput.text=gapXInput.text;
+        if (fillToArtboardCheck.value) recalcCountsForArtboard();
+        if (fillToArtboardFullCheck.value) recalcCountsForArtboardFull();
+        applyPreview();
+    };
+    gapYInput.onChanging=function(){
+        if (fillToArtboardCheck.value) recalcCountsForArtboard();
+        if (fillToArtboardFullCheck.value) recalcCountsForArtboardFull();
+        applyPreview();
+    };
+    gapYInput.onChange=function(){
+        if (fillToArtboardCheck.value) recalcCountsForArtboard();
+        if (fillToArtboardFullCheck.value) recalcCountsForArtboardFull();
+        applyPreview();
+    };
+
+    var btnGroup=dlg.add("group"); btnGroup.alignment="center";
+    var cancelBtn=btnGroup.add("button", undefined, L("cancel"), {name:"cancel"});
+    var okBtn    =btnGroup.add("button", undefined, L("ok"));
+
+    var result=null;
+    okBtn.onClick=function(){
+        var cx=parseInt(countXInput.text,10), cy=parseInt(countYInput.text,10);
+        var gx=parseFloat(gapXInput.text), gy=parseFloat(gapYInput.text);
+        if (isNaN(cx)||cx<1){ alert(L("alertCountInvalid")); return; }
+        if (isNaN(cy)||cy<1){ alert(L("alertCountInvalid")); return; }
+        if (isNaN(gx)||isNaN(gy)){ alert(L("alertGapInvalid")); return; }
+        result={
+            cols:cx, rows:cy,
+            gapX:unitToPoints(unitCode,gx),
+            gapY:unitToPoints(unitCode,gy),
+            direction:dirRight.value?"right":"left",
+            vDirection:(dirUp&&dirUp.value)?"up":"down",
+            fillToArtboard:fillToArtboardCheck.value,
+            fillFullArtboard: (typeof fillToArtboardFullCheck !== "undefined" ? fillToArtboardFullCheck.value : false)
         };
-    })(dlg.onShow);
+        clearPreview(doc); dlg.close();
+    };
+    cancelBtn.onClick=function(){ clearPreview(doc); dlg.close(); };
+
+    var origOnShow=dlg.onShow;
+    dlg.onShow=function(){
+        if (typeof origOnShow==="function"){ try{ origOnShow(); }catch(_){} }
+        $.sleep(0); applyPreview(); countXInput.active=true;
+    };
 
     dlg.show();
     return result;
 }
 
-/* 選択オブジェクトをグリッド状に複製（横2×縦2） */
-/* メイン処理：検証→ダイアログ→複製実行
-   / Main flow: validate → dialog → duplication */
-function main() {
-    if (app.documents.length === 0) {
-        alert(L("alertNoDoc"));
-        return;
-    }
-    var doc = app.activeDocument;
-    if (doc.selection.length === 0) {
-        alert(L("alertNoSel"));
-        return;
-    }
+/* メイン：検証→ダイアログ→複製 / Main: validate → dialog → duplicate */
+function main(){
+    if (app.documents.length===0){ alert(L("alertNoDoc")); return; }
+    var doc=app.activeDocument;
+    if (doc.selection.length===0){ alert(L("alertNoSel")); return; }
 
-    var sel = doc.selection;
-    var bounds = sel[0].visibleBounds; // [左, 上, 右, 下]
-    var width = bounds[2] - bounds[0];
-    var height = bounds[1] - bounds[3];
+    var sel=doc.selection;
+    var bounds=getMaskedBounds(sel[0]);
+    var w=bounds[2]-bounds[0], h=bounds[1]-bounds[3];
 
-    var settings = showDialog(doc, sel[0], width, height);
+    var settings=showDialog(doc, sel[0], w, h);
     if (!settings) return;
 
-    var rows = settings.rows;
-    var cols = settings.cols;
-    var gapX = settings.gap;
-    var gapY = settings.gap;
-    var direction = settings.direction || "right";
-    var vDirection = settings.vDirection || "down";
+    var rows=settings.rows, cols=settings.cols;
+    var gapX=settings.gapX, gapY=settings.gapY;
+    var direction=settings.direction||"right";
+    var vDirection=settings.vDirection||"down";
 
-    for (var row = 0; row < rows; row++) {
-        for (var col = 0; col < cols; col++) {
-            if (row === 0 && col === 0) continue; // 元の位置はスキップ
-            var dup = sel[0].duplicate();
-            var offsetX = (width + gapX) * col;
-            if (direction === "left") offsetX = -offsetX;
-            dup.left = sel[0].left + offsetX;
-            var offsetY = (height + gapY) * row;
-            dup.top = (vDirection === "up") ?
-                (sel[0].top + offsetY) :
-                (sel[0].top - offsetY);
+    var baseMask0=getMaskedBounds(sel[0]);
+    var baseLeftMain=baseMask0[0], baseTopMain=baseMask0[1];
+
+    var dupItems = [];
+
+    for (var row=0; row<rows; row++){
+        for (var col=0; col<cols; col++){
+            // 元オブジェクトと同じセルは常にスキップ（ダブり防止）
+            if (row===0 && col===0) continue;
+            var dup=sel[0].duplicate();
+            var offX=(w+gapX)*col; if (direction==="left") offX=-offX;
+            var offY=(h+gapY)*row;
+            var desiredL=baseLeftMain+offX;
+            var desiredT=(vDirection==="up")?(baseTopMain+offY):(baseTopMain-offY);
+            var mb=getMaskedBounds(dup);
+            var dx=desiredL-mb[0], dy=desiredT-mb[1];
+            dup.left += dx; dup.top += dy;
+            dupItems.push(dup);
         }
+    }
+
+    if (settings.fillFullArtboard){
+        try{
+            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect; // [L,T,R,B]
+            var abCX = (ab[0] + ab[2]) / 2.0;
+            var abCY = (ab[1] + ab[3]) / 2.0;
+
+            // ユニオン境界を計算（選択元 + 複製）
+            var unionL = +Infinity, unionT = -Infinity, unionR = -Infinity, unionB = +Infinity;
+            function expandBy(bounds){
+                if (bounds[0] < unionL) unionL = bounds[0];
+                if (bounds[1] > unionT) unionT = bounds[1];
+                if (bounds[2] > unionR) unionR = bounds[2];
+                if (bounds[3] < unionB) unionB = bounds[3];
+            }
+            expandBy(getMaskedBounds(sel[0]));
+            for (var i=0; i<dupItems.length; i++){
+                expandBy(getMaskedBounds(dupItems[i]));
+            }
+
+            var grpCX = (unionL + unionR) / 2.0;
+            var grpCY = (unionT + unionB) / 2.0;
+
+            var dx = abCX - grpCX;
+            var dy = abCY - grpCY;
+
+            // 全アイテムを同量移動（選択元＋複製）
+            sel[0].left += dx; sel[0].top += dy;
+            for (var j=0; j<dupItems.length; j++){
+                dupItems[j].left += dx; dupItems[j].top += dy;
+            }
+        }catch(e){}
     }
 }
 main();
