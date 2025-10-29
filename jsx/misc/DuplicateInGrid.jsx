@@ -13,11 +13,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   - Fill パネル：［アートボードの端まで］に対応します。UIとして［アートボードいっぱいに］を追加（選択オブジェクトを基準に行列を計算し、OK時に複製を含む全体をアートボード中央へ移動）。
   - 方向（横：右/左、縦：上/下）を指定できます。
   - クリッピングマスクを優先して境界を取得（なければ可視境界）します。
+    - プレビュー描画は一時オブジェクトのみ削除（noteタグで管理）し、既存の「_preview」レイヤー上の他要素は削除しません。
+  - 複数選択時は自動でグループ化してから処理（以降の挙動は単一オブジェクトと同じ）。/ When multiple objects are selected, they are grouped first and processed like a single object.
 
-  更新日 / Last Updated: 2025-10-26
+  更新日 / Last Updated: 2025-10-29
 
-- 2025-10-26: 「アートボードいっぱいに」ON時に「端まで」を自動OFF、方向（横・縦）をディム表示に変更（UI挙動のみ、機能変更なし）。
+ - 2025-10-26: 「アートボードいっぱいに」ON時に「端まで」を自動OFF、方向（横・縦）をディム表示に変更（UI挙動のみ、機能変更なし）。
+  - 2025-10-29: 複数オブジェクト選択時に自動でグループ化してから実行する挙動を追加（既存機能は変更なし）。
+  - 2025-10-29: 既存の「_preview」レイヤー内容が消える不具合を修正（プレビューにnoteタグを付与し、そのタグのみ削除）。
  変更履歴 / Changelog
+  - 2025-10-26: 「方向」を左または上に変更した場合、「アートボードの端まで」を自動OFFにする挙動を追加（UI挙動のみ、機能変更なし）。
   - 2025-10-26: 英語ラベルの略語を廃止し「Link Horizontal & Vertical」に統一（UIテキストのみ変更、機能変更なし）。
   - 2025-10-26: 「アートボードいっぱいに」のロジックを実装：選択オブジェクトを基準に行数・列数を算出し、OK時に全体をアートボード中央へ配置。
   - 2025-10-26: Fill パネルに「アートボードいっぱいに」チェックを UI 追加（ロジック未実装、今後対応予定）。
@@ -42,6 +47,7 @@ function getCurrentLang() {
     return ($.locale && $.locale.toLowerCase().indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
+var PREVIEW_TAG = "__grid_preview__";
 
 /* ラベル定義 / Label definitions (JA/EN) */
 var LABELS = {
@@ -155,8 +161,14 @@ function getPreviewLayer(doc){
 }
 function clearPreview(doc){
     try{
-        var lyr=doc.layers.getByName("_preview");
-        while(lyr.pageItems.length>0){ lyr.pageItems[0].remove(); }
+        var lyr = doc.layers.getByName("_preview");
+        // Remove only items we created (note tagged)
+        for (var i = lyr.pageItems.length - 1; i >= 0; i--) {
+            try {
+                var it = lyr.pageItems[i];
+                if (it.note === PREVIEW_TAG) it.remove();
+            } catch(_) {}
+        }
         app.redraw();
     }catch(e){}
 }
@@ -167,6 +179,7 @@ function buildPreview(doc, sourceItem, rows, cols, gapX, gapY, w, h, hDir, vDir,
         for (var c=0;c<cols;c++){
             if (r===0 && c===0) continue;
             var dup=sourceItem.duplicate(lyr, ElementPlacement.PLACEATBEGINNING);
+            dup.note = PREVIEW_TAG;
             var offX=(w+gapX)*c; if (hDir==="left") offX=-offX;
             var offY=(h+gapY)*r;
             var desiredL=baseL+offX;
@@ -328,13 +341,39 @@ function showDialog(doc, sourceItem, w, h){
     hGroup.add("statictext", undefined, (lang==="ja"?"横方向":"Horizontal"));
     var dirRight=hGroup.add("radiobutton", undefined, L("dirRight"));
     var dirLeft =hGroup.add("radiobutton", undefined, L("dirLeft"));
-    dirRight.value=true; dirRight.onClick=applyPreview; dirLeft.onClick=applyPreview;
+    dirRight.value = true;
+    dirRight.onClick = function(){
+        // 右選択時はそのままプレビュー
+        applyPreview();
+    };
+    dirLeft.onClick = function(){
+        // 左を選んだら「アートボードの端まで」を自動OFF
+        try{
+            if (typeof fillToArtboardCheck !== "undefined" && fillToArtboardCheck.value){
+                fillToArtboardCheck.value = false;
+            }
+        }catch(_){}
+        applyPreview();
+    };
 
     var vGroup=dirPanel.add("group"); vGroup.orientation="row"; vGroup.alignChildren="left";
     vGroup.add("statictext", undefined, (lang==="ja"?"縦方向":"Vertical"));
     var dirUp  =vGroup.add("radiobutton", undefined, L("dirUp"));
     var dirDown=vGroup.add("radiobutton", undefined, L("dirDown"));
-    dirDown.value=true; dirUp.onClick=applyPreview; dirDown.onClick=applyPreview;
+    dirDown.value = true;
+    dirUp.onClick = function(){
+        // 上を選んだら「アートボードの端まで」を自動OFF
+        try{
+            if (typeof fillToArtboardCheck !== "undefined" && fillToArtboardCheck.value){
+                fillToArtboardCheck.value = false;
+            }
+        }catch(_){}
+        applyPreview();
+    };
+    dirDown.onClick = function(){
+        // 下選択時はそのままプレビュー
+        applyPreview();
+    };
 
     function applyPreview(){
         var cx=parseInt(countXInput.text,10), cy=parseInt(countYInput.text,10);
@@ -467,6 +506,23 @@ function main(){
     if (doc.selection.length===0){ alert(L("alertNoSel")); return; }
 
     var sel=doc.selection;
+    // 複数選択時は自動でグループ化してから処理 / Auto-group when multiple items are selected
+    if (sel.length > 1) {
+        try {
+            var grp = doc.groupItems.add();
+            // 既存の選択配列はライブで変化し得るため、コピーを回して移動
+            var toMove = [];
+            for (var i = 0; i < sel.length; i++) toMove.push(sel[i]);
+            for (var j = 0; j < toMove.length; j++) {
+                try { toMove[j].move(grp, ElementPlacement.PLACEATEND); } catch(_) {}
+            }
+            // グループを選択対象にして以降の処理を単一オブジェクトと同様に
+            doc.selection = null;
+            grp.selected = true;
+            sel = [grp];
+        } catch(e) {}
+    }
+
     var bounds=getMaskedBounds(sel[0]);
     var w=bounds[2]-bounds[0], h=bounds[1]-bounds[3];
 
