@@ -12,15 +12,6 @@ Purpose (EN):
   Fills the container's bounding box with an even grid of tile duplicates, then keeps only tiles fully inside the container (no mask).
   The two original items remain untouched.
 
-Usage (JP):
-  ・ちょうど2つのオブジェクトを選択して実行してください。
-  ・ダイアログの単位は Illustrator のルーラー設定（rulerType）に追従します。
-  結果はマスクなしで、容器の内側に収まるタイルのみ残します。元の2オブジェクトは残します。
-Usage (EN):
-  ・Select exactly two objects and run the script.
-  ・Spacing units follow Illustrator's current ruler units (rulerType).
-  The result keeps only tiles fully inside the container (no mask). The two original items remain.
-
 更新日 / Updated: 2025-10-30
 
 更新履歴 / Changelog
