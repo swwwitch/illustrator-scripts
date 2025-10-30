@@ -1,13 +1,17 @@
-var SCRIPT_VERSION = "v1.3.0"; // バージョン
+#target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
+var SCRIPT_VERSION = "v1.3.4"; // バージョン
 
 /*
 概要 / Overview
-JP: 2つのオブジェクトを選択し、大きい方を「容器」、小さい方を「タイル」として、容器のバウンディングボックス内にタイルを等間隔で敷き詰めます。完全に内側に収まるタイルのみ残し、元の2オブジェクトは残します。単位はIllustratorのルーラー設定に追従します。
-EN: Select two objects; the larger becomes the container and the smaller the tile. The script fills the container’s bounding box with an even grid of tile duplicates, keeping only those fully inside (no mask). Original two items remain. Spacing units follow the current ruler settings.
+JP: 2つのオブジェクトを選択し、大きい方を「容器」、小さい方を「タイル」として、容器のバウンディングボックス内にタイルを等間隔で敷き詰めます。完全に内側に収まるタイルのみ残し、元の2オブジェクトは残します。単位はIllustratorのルーラー設定に追従します。オプション「シンボル化」はデフォルトONです（プレビューは従来どおりダイレクト複製を使用）。
+EN: Select two objects; the larger becomes the container and the smaller the tile. The script fills the container’s bounding box with an even grid of tile duplicates, keeping only those fully inside (no mask). Original two items remain. Spacing units follow the current ruler settings. The “Symbolize” option is ON by default (preview still uses direct duplicates).
 
-更新日 / Updated: 2025-10-29
-
-更新履歴 / Changelog
+- 2025-10-30 v1.3.4: 「基準」X/Y をタイル数の計算に反映（指定がある軸はその枚数を優先、未指定軸は従来ロジック）。 / Basis X/Y now control tile counts: when provided, use as counts; the other axis uses the previous calculation.
+- 2025-10-30 v1.3.3: 「基準」の X / Y をテキストフィールド化（UIのみ、挙動は従来どおり）。 / Changed "Basis" X / Y from radio buttons to text fields (UI only; behavior unchanged).
+- 2025-10-30 v1.3.2: 「基準」パネル（X / Y）を「間隔」の上に追加（UIのみ、挙動は従来どおり）。 / Added a new "Basis" panel (X / Y) above "Spacing" (UI only; behavior unchanged).
+- 2025-10-30 v1.3.1: 「シンボル化して複製」→「シンボル化」（UIラベル変更）／デフォルトON。 / Renamed option label from "Duplicate as Symbol" to "Symbolize" and set default to ON.
 - 2025-10-29 v1.3.0: 「シンボル化して複製」オプションを追加（プレビューは従来どおり） / Added "Duplicate as Symbol" option (preview still uses direct duplicates).
 - 2025-10-29 v1.2.0: UIラベル「レンガ」→「レンガ状」に変更（機能は不変） / Changed UI label from "レンガ" to "レンガ状" (no functional change).
 - 2025-10-29 v1.1.0: スケールUIとロジックを削除 / Removed Scale UI and logic.
@@ -120,8 +124,6 @@ var TG = {
 
 function main() {
     // Illustrator用のJavaScript
-    #target illustrator
-    app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /*
     Script: TileSmallIntoLarge.jsx
@@ -209,8 +211,17 @@ function main() {
         var stepXp = tileW + gapXpt;
         var stepYp = tileH + gapYpt;
         if (stepXp <= 0 || stepYp <= 0) return;
-        var colsPrev = Math.max(1, Math.ceil((cInfo.width + (brick ? stepXp * 0.5 : 0)) / stepXp));
-        var rowsPrev = Math.max(1, Math.ceil(cInfo.height / stepYp));
+        var colsPrev, rowsPrev;
+        if (typeof basisXVal !== 'undefined' && basisXVal > 0) {
+            colsPrev = Math.max(1, Math.round(basisXVal));
+        } else {
+            colsPrev = Math.max(1, Math.ceil((cInfo.width + (brick ? stepXp * 0.5 : 0)) / stepXp));
+        }
+        if (typeof basisYVal !== 'undefined' && basisYVal > 0) {
+            rowsPrev = Math.max(1, Math.round(basisYVal));
+        } else {
+            rowsPrev = Math.max(1, Math.ceil(cInfo.height / stepYp));
+        }
 
         var targetLayer = container.layer;
         var group = targetLayer.groupItems.add();
@@ -291,7 +302,9 @@ function main() {
         gapY = 0,
         marginVal = 0, // margin (pt)
         brickMode = false, // レンガ配置
-        useSymbolDup = false; // シンボル化して複製
+        useSymbolDup = false, // シンボル化（複製をシンボルアイテムで行う）
+        basisXVal = 0, // 基準X（未使用：UIのみ）
+        basisYVal = 0; // 基準Y（未使用：UIのみ）
     var _cancel = false;
     (function createSpacingDialog() {
         /* ダイアログボックス / Dialog Window */
@@ -320,6 +333,19 @@ function main() {
         // Common label width & right align for rows
         var labelWidth = 60; // px
 
+
+        // --- Basis panel: X / Y text fields (UI only for now) ---
+        var pnlBasis = dlg.add('panel', undefined, '基準');
+        pnlBasis.alignment = ['fill', 'top'];
+        pnlBasis.alignChildren = ['left', 'center'];
+        var grpBasis = pnlBasis.add('group');
+        grpBasis.alignChildren = ['left', 'center'];
+        var baseXLabel = grpBasis.add('statictext', undefined, 'X');
+        var baseXEdit = grpBasis.add('edittext', undefined, '0');
+        baseXEdit.characters = 4;
+        var baseYLabel = grpBasis.add('statictext', undefined, 'Y');
+        var baseYEdit = grpBasis.add('edittext', undefined, '0');
+        baseYEdit.characters = 4;
 
         // Spacing row (panel removed; controls kept)
         var rowS = dlg.add('group');
@@ -441,21 +467,16 @@ function main() {
             updatePreviewFromFields();
         };
 
-        // Symbolize option
+        // Symbolize option（ラベル短縮＋デフォルトON）
         var rowSym = rowBWrap.add('group');
         rowSym.alignChildren = ['left', 'center'];
-        var symChk = rowSym.add('checkbox', undefined, 'シンボル化して複製');
-        symChk.value = false;
-
+        var symChk = rowSym.add('checkbox', undefined, 'シンボル化');
+        symChk.value = true;
 
         var btns = dlg.add('group');
         btns.alignment = 'right';
-        btns.add('button', undefined, 'Cancel', {
-            name: 'cancel'
-        });
-        btns.add('button', undefined, 'OK', {
-            name: 'ok'
-        });
+        btns.add('button', undefined, 'Cancel', { name: 'cancel' });
+        btns.add('button', undefined, 'OK', { name: 'ok' });
 
         var res = dlg.show();
         if (res !== 1) {
@@ -466,9 +487,14 @@ function main() {
 
         var unitCode = TG.getRulerType();
         var sVal = Math.max(0, parseFloat(gapEdit.text) || 0);
-        // No scalePct anymore
         brickMode = !!(brickChk && brickChk.value);
         useSymbolDup = !!(symChk && symChk.value);
+
+        // 基準X/Yは未使用（UIのみ）だが値を保持
+        basisXVal = parseFloat(baseXEdit.text);
+        if (isNaN(basisXVal)) basisXVal = 0;
+        basisYVal = parseFloat(baseYEdit.text);
+        if (isNaN(basisYVal)) basisYVal = 0;
 
         marginVal = parseFloat(marginEdit.text);
         if (isNaN(marginVal)) marginVal = 0;
@@ -504,8 +530,17 @@ function main() {
     var tileHFinal = tInfo.height;
     var stepX = tileWFinal + gapX;
     var stepY = tileHFinal + gapY;
-    var cols = Math.max(1, Math.ceil((cInfo.width + (brickMode ? stepX * 0.5 : 0)) / stepX));
-    var rows = Math.max(1, Math.ceil(cInfo.height / stepY));
+    var cols, rows;
+    if (basisXVal > 0) {
+        cols = Math.max(1, Math.round(basisXVal));
+    } else {
+        cols = Math.max(1, Math.ceil((cInfo.width + (brickMode ? stepX * 0.5 : 0)) / stepX));
+    }
+    if (basisYVal > 0) {
+        rows = Math.max(1, Math.round(basisYVal));
+    } else {
+        rows = Math.max(1, Math.ceil(cInfo.height / stepY));
+    }
 
     app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
     app.redraw();
@@ -519,11 +554,19 @@ function main() {
     var originLeft = cInfo.left;
     var originTop = cInfo.top;
 
+    // Remember original tile position to avoid overlapping one instance on top of it
+    var origTileLeft = tInfo.left;
+    var origTileTop  = tInfo.top;
+
     // Duplicate in a grid with specified spacing
     for (var r = 0; r < rows; r++) {
         var yTop = originTop - r * stepY;
         for (var c = 0; c < cols; c++) {
             var xLeft = originLeft + c * stepX + ((brickMode && (r % 2 === 1)) ? stepX * 0.5 : 0);
+            // Skip if this placement would overlap the original tile position (avoid "double" at same spot)
+            if (Math.abs(xLeft - origTileLeft) < 0.01 && Math.abs(yTop - origTileTop) < 0.01) {
+                continue;
+            }
             if (useSymbolDup && symDef) {
                 var si = doc.symbolItems.add(symDef);
                 si.move(gridGroup, ElementPlacement.PLACEATBEGINNING);
@@ -606,7 +649,7 @@ function __runMain() {
         main();
     } catch (e) {
         try {
-            alert('[TileSmallIntoLarge] Error:\n' + e);
+            alert('[TileSmallIntoLarge] Error:\\n' + e);
         } catch (_) {}
     }
 }
