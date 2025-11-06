@@ -10,6 +10,7 @@ GenerateGuidesGrid.jsx
 
 - Illustrator のアートボードを指定した行数・列数に分割し、自動でガイドを生成するスクリプトです。
 - 必要に応じてセルごとの長方形や裁ち落としガイドを描画でき、プリセットの書き出しにも対応します。
+- すべての入力変更（キーボード/矢印キーを含む）でプレビューが即時更新
 
 ### 主な機能
 
@@ -24,7 +25,7 @@ GenerateGuidesGrid.jsx
 
 1. ダイアログで行数、列数、マージンなどを設定
 2. プレビューを確認
-3. OK または適用をクリックしてガイド・長方形を作成
+3. OK をクリックしてガイド・長方形を作成
 
 ### オリジナル、謝辞
 
@@ -33,9 +34,10 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### 更新履歴
 
-- v1.0 (20250424) : 初期バージョン
-- v1.1 (20250427) : ガイド、裁ち落としガイド、プリセット書き出し機能追加
+- v1.3 (20251106) : すべてのUI入力（矢印キー含む）でリアルタイムプレビュー更新
 - v1.2 (20250716) : 矢印キーでの数値増減機能追加
+- v1.1 (20250427) : ガイド、裁ち落としガイド、プリセット書き出し機能追加
+- v1.0 (20250424) : 初期バージョン
 
 ---
 
@@ -47,6 +49,7 @@ GenerateGuidesGrid.jsx
 
 - A script for Illustrator that divides artboards into specified rows and columns, and automatically generates guides.
 - Optionally draws cell rectangles and bleed guides, and supports exporting presets.
+- Live preview updates on every input change (including keyboard/arrow keys)
 
 ### Main Features
 
@@ -61,7 +64,7 @@ GenerateGuidesGrid.jsx
 
 1. Configure rows, columns, margins, etc. in the dialog
 2. Check the preview
-3. Click OK or Apply to create guides and rectangles
+3. Click OK to create guides and rectangles
 
 ### Original / Acknowledgements
 
@@ -70,13 +73,14 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### Update History
 
-- v1.0 (20250424): Initial version
+- v1.3 (20251106): Live preview refresh on all UI changes (including arrow keys)
+- v1.2 (20250716): Added arrow key value increment feature
 - v1.1 (20250427): Added guides, bleed guides, and preset export feature
-- v1.2 (20250501): Added arrow key value increment feature
+- v1.0 (20250424): Initial version
 
 */
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -88,7 +92,7 @@ var lang = getCurrentLang();
 // ラベル定義 / Label definitions
 var LABELS = {
     dialogTitle: {
-        ja: "段組設定Pro " + SCRIPT_VERSION,
+        ja: "グリッドに分割 Pro " + SCRIPT_VERSION,
         en: "Split into Grid Pro " + SCRIPT_VERSION
     },
     presetLabel: {
@@ -262,7 +266,7 @@ var LABELS = {
             drawBleedGuide: false
         },
         {
-            label: "2行×3列 / 3 Rows × 3 Columns",
+            label: "2行×3列 / 2 Rows × 3 Columns",
             x: 3,
             y: 2,
             ext: 0,
@@ -376,7 +380,6 @@ function main() {
     var presetDropdown = presetGroup.add("dropdownlist", undefined, []);
     presetDropdown.selection = 0;
     var btnExportPreset = presetGroup.add("button", undefined, LABELS.exportPresetLabel[lang]);
-
 
     btnExportPreset.onClick = function() {
         var saveFile = File.saveDialog("プリセットを書き出す場所と名前を指定してください / Choose where to save the preset", "*.txt");
@@ -575,8 +578,23 @@ function main() {
 
                 event.preventDefault();
                 editText.text = value;
+                // 「すべて同じ値にする」ON時は同期してからプレビュー / When "Same Value" is ON, sync first
+                try {
+                    if (commonMarginCheckbox && commonMarginCheckbox.value) {
+                        syncCommonMargin();
+                    }
+                } catch (e) {}
+                // 入力変更を即時プレビューに反映 / Refresh preview immediately
+                try { drawGuides(true); } catch (e) {}
             }
         });
+    }
+
+    // 入力値変更で即時プレビュー / Live preview on any input change
+    function attachLivePreview(editText) {
+        editText.onChanging = function() {
+            try { drawGuides(true); } catch (e) {}
+        };
     }
 
     // --- 各数値editTextに矢印キー増減機能を追加 ---
@@ -592,6 +610,19 @@ function main() {
     changeValueByArrowKey(commonMarginInput);
     changeValueByArrowKey(inputBleed);
 
+    // --- 入力中の変更もリアルタイム反映 / Attach onChanging for live preview ---
+    attachLivePreview(inputXText);
+    attachLivePreview(inputYText);
+    attachLivePreview(inputExt);
+    attachLivePreview(inputTop);
+    attachLivePreview(inputBottom);
+    attachLivePreview(inputLeft);
+    attachLivePreview(inputRight);
+    attachLivePreview(inputRowGutter);
+    attachLivePreview(inputColGutter);
+    attachLivePreview(commonMarginInput);
+    attachLivePreview(inputBleed);
+
     var allBoardsCheckbox = optGroup.add("checkbox", undefined, LABELS.allBoardsLabel[lang]);
 
     // セル長方形化・ガイドを引くを横並び / Cell rectangle and draw guides (side by side)
@@ -605,16 +636,17 @@ function main() {
 
     // === ボタンエリア（レイアウト変更版）/ Button area (layout updated)
     var outerGroup = dlg.add("group");
+    outerGroup.alignment = ["fill", "top"];
     outerGroup.orientation = "row";
     outerGroup.alignChildren = ["fill", "center"];
     outerGroup.margins = [0, 10, 0, 0];
     outerGroup.spacing = 0;
 
     // 左グループ（キャンセルボタン）/ Left group (Cancel button)
-    var leftGroup = outerGroup.add("group");
-    leftGroup.orientation = "row";
-    leftGroup.alignChildren = "left";
-    var btnCancel = leftGroup.add("button", undefined, LABELS.cancelLabel[lang], {
+    var buttonLeftGroup = outerGroup.add("group");
+    buttonLeftGroup.orientation = "row";
+    buttonLeftGroup.alignChildren = "left";
+    var btnCancel = buttonLeftGroup.add("button", undefined, LABELS.cancelLabel[lang], {
         name: "cancel"
     });
 
@@ -625,14 +657,15 @@ function main() {
     spacer.maximumSize.height = 0;
 
     // 右グループ（適用・OKボタン）/ Right group (Apply/OK buttons)
-    var rightGroup = outerGroup.add("group");
-    rightGroup.orientation = "row";
-    rightGroup.alignChildren = "right";
-    rightGroup.spacing = 10;
-    var btnApply = rightGroup.add("button", undefined, LABELS.applyLabel[lang]);
-    var btnOK = rightGroup.add("button", undefined, LABELS.okLabel[lang], {
+    var rightGroup2 = outerGroup.add("group");
+    rightGroup2.alignment = ["right", "center"];
+    rightGroup2.orientation = "row";
+    rightGroup2.alignChildren = "right";
+    rightGroup2.spacing = 10;
+    var btnOK = rightGroup2.add("button", undefined, LABELS.okLabel[lang], {
         name: "ok"
     });
+    btnOK.alignment = ["right", "center"];
 
     // 表示用ラベルをローカライズ / Localize display label for dropdown
     function presetDisplayLabel(raw) {
@@ -696,11 +729,13 @@ function main() {
         inputRowGutter.enabled = (yVal > 1);
         inputColGutter.enabled = (xVal > 1);
     }
+    // ← ガター有効切替時も即時プレビュー
     inputXText.onChanging = inputYText.onChanging = function() {
         updateGutterEnable();
+        try { drawGuides(true); } catch (e) {}
     };
 
-    // 「ガイドを引く」オプション切り替え時、伸張・裁ち落としをディム制御 / Enable/disable extension and bleed on draw guides toggle
+    // 「ガイドを引く」切り替え：伸張・裁ち落としをディム制御 + プレビュー
     drawGuidesCheckbox.onClick = function() {
         var enable = drawGuidesCheckbox.value;
         inputExt.enabled = enable;
@@ -709,14 +744,10 @@ function main() {
         drawGuides(true);
     };
 
-    // 適用ボタン押下時 / Apply button pressed
-    btnApply.onClick = function() {
-        updateGutterEnable();
-        if (clearGuidesCheckbox.value) {
-            clearGuidesLayer();
-        }
-        drawGuides(true);
-    };
+    // ★未定義だったトグルにもプレビュー反映
+    bleedGuideCheckbox.onClick = function(){ try { drawGuides(true); } catch (e) {} };
+    cellRectCheckbox.onClick  = function(){ try { drawGuides(true); } catch (e) {} };
+    allBoardsCheckbox.onClick = function(){ try { drawGuides(true); } catch (e) {} };
 
     // OKボタン押下時 / OK button pressed
     btnOK.onClick = function() {
@@ -726,6 +757,7 @@ function main() {
         }
         dlg.close(1);
     };
+
     // ガイド＆セル長方形＆裁ち落としガイドを描画 / Draw guides, cell rectangles, and bleed guides
     function drawGuides(isPreview) {
         if (isPreview) {
@@ -881,7 +913,7 @@ function main() {
                     vline.guides = true;
                     vline.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
 
-                    for (var i = 0; i < xDiv; i++) {
+                    for (var i2 = 0; i2 < xDiv; i2++) {
                         x += cellWidth;
                         var vline1 = doc.pathItems.add();
                         vline1.setEntirePath([
@@ -893,7 +925,7 @@ function main() {
                         vline1.guides = true;
                         vline1.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
 
-                        if (i < xDiv - 1) {
+                        if (i2 < xDiv - 1) {
                             x += colGutter;
                             var vline2 = doc.pathItems.add();
                             vline2.setEntirePath([
@@ -941,11 +973,11 @@ function main() {
                     var cellY = startY - (cellHeight + rowGutter) * row;
                     for (var col = 0; col < xDiv; col++) {
                         var cellX = startX + (cellWidth + colGutter) * col;
-                        var rect = cellLayer.pathItems.rectangle(cellY, cellX, cellWidth, cellHeight);
-                        rect.stroked = false;
-                        rect.filled = true;
-                        rect.fillColor = createBlackColor();
-                        rect.opacity = 15;
+                        var rect2 = cellLayer.pathItems.rectangle(cellY, cellX, cellWidth, cellHeight);
+                        rect2.stroked = false;
+                        rect2.filled = true;
+                        rect2.fillColor = createBlackColor();
+                        rect2.opacity = 15;
                     }
                 }
             }
@@ -988,9 +1020,9 @@ function main() {
     // grid_guidesレイヤーのガイドだけ削除 / Remove only guides from grid_guides layer
     function clearGuidesLayer() {
         var guidesLayer = null;
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === "grid_guides") {
-                guidesLayer = doc.layers[i];
+        for (var i3 = 0; i3 < doc.layers.length; i3++) {
+            if (doc.layers[i3].name === "grid_guides") {
+                guidesLayer = doc.layers[i3];
                 break;
             }
         }
