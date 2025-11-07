@@ -34,6 +34,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### 更新履歴
 
+- v1.4 (20251107) : Number/Gutter のラベルを右揃え＋共通幅に統一、Top/Bottom のラベル幅微調整、1×1 時は中央線ではなく四辺ガイドを描画、英語UIの Rows/Columns を Number に統一
 - v1.3 (20251106) : すべてのUI入力（矢印キー含む）でリアルタイムプレビュー更新
 - v1.2 (20250716) : 矢印キーでの数値増減機能追加
 - v1.1 (20250427) : ガイド、裁ち落としガイド、プリセット書き出し機能追加
@@ -73,6 +74,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### Update History
 
+- v1.4 (20251107): Unified Number/Gutter labels to right-aligned fixed width, fine-tuned Top/Bottom label width, draw four edge guides (not center lines) when 1×1, and unified EN UI Rows/Columns to Number
 - v1.3 (20251106): Live preview refresh on all UI changes (including arrow keys)
 - v1.2 (20250716): Added arrow key value increment feature
 - v1.1 (20250427): Added guides, bleed guides, and preset export feature
@@ -80,10 +82,10 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 */
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
 
 function getCurrentLang() {
-  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
@@ -190,142 +192,142 @@ var LABELS = {
 };
 
 // プリセット定義（drawGuides, drawBleedGuide追加） / Preset definitions (drawGuides, drawBleedGuide added)
-    var presets = [{
-            label: "十字 / Cross",
-            x: 2,
-            y: 2,
-            ext: 0,
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            rowGutter: 0,
-            colGutter: 0,
-            drawCells: false,
-            drawGuides: true,
-            drawBleedGuide: false
-        },
-        {
-            label: "シングル / Single",
-            x: 1,
-            y: 1,
-            ext: 50,
-            top: 100,
-            bottom: 100,
-            left: 100,
-            right: 100,
-            rowGutter: 0,
-            colGutter: 0,
-            drawCells: true,
-            drawGuides: true,
-            drawBleedGuide: false
-        },
-        {
-            label: "2行×2列 / 2 Rows × 2 Columns",
-            x: 2,
-            y: 2,
-            ext: 20,
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            rowGutter: 50,
-            colGutter: 50,
-            drawCells: true,
-            drawGuides: true,
-            drawBleedGuide: false
-        },
-        {
-            label: "1行×3列 / 1 Row × 3 Columns",
-            x: 3,
-            y: 1,
-            ext: 0,
-            top: 30,
-            bottom: 30,
-            left: 30,
-            right: 30,
-            rowGutter: 0,
-            colGutter: 30,
-            drawCells: true,
-            drawGuides: true,
-            drawBleedGuide: false
-        },
-        {
-            label: "4行×4列 / 4 Rows × 4 Columns",
-            x: 4,
-            y: 4,
-            ext: 0,
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            rowGutter: 20,
-            colGutter: 20,
-            drawCells: true,
-            drawGuides: true,
-            drawBleedGuide: false
-        },
-        {
-            label: "2行×3列 / 2 Rows × 3 Columns",
-            x: 3,
-            y: 2,
-            ext: 0,
-            top: 100,
-            bottom: 100,
-            left: 100,
-            right: 100,
-            rowGutter: 20,
-            colGutter: 20,
-            drawCells: true,
-            drawGuides: true,
-            drawBleedGuide: false
-        },
-        {
-            label: "3行×3列 / 3 Rows × 3 Columns",
-            x: 3,
-            y: 3,
-            ext: 0,
-            top: 0,
-            bottom: 0,
-            left: 200,
-            right: 0,
-            rowGutter: 0,
-            colGutter: 0,
-            drawCells: true,
-            drawGuides: true,
-            drawBleedGuide: false
-        },
-        {
-            label: "sp / sp",
-            x: 1,
-            y: 1,
-            ext: 0,
-            top: 220,
-            bottom: 220,
-            left: 0,
-            right: 0,
-            rowGutter: 0,
-            colGutter: 0,
-            drawCells: true,
-            drawGuides: true,
-            drawBleedGuide: false
-        },
-        {
-            label: "長方形のみ / just rectangle",
-            x: 1,
-            y: 1,
-            ext: 10,
-            top: 0,
-            bottom: 0,
-            left: 0,
-            right: 0,
-            rowGutter: 0,
-            colGutter: 0,
-            drawCells: true,
-            drawGuides: false,
-            drawBleedGuide: false
-        }
-    ];
+var presets = [{
+        label: "十字 / Cross",
+        x: 2,
+        y: 2,
+        ext: 0,
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        rowGutter: 0,
+        colGutter: 0,
+        drawCells: false,
+        drawGuides: true,
+        drawBleedGuide: false
+    },
+    {
+        label: "シングル / Single",
+        x: 1,
+        y: 1,
+        ext: 50,
+        top: 100,
+        bottom: 100,
+        left: 100,
+        right: 100,
+        rowGutter: 0,
+        colGutter: 0,
+        drawCells: true,
+        drawGuides: true,
+        drawBleedGuide: false
+    },
+    {
+        label: "2行×2列 / 2 Rows × 2 Columns",
+        x: 2,
+        y: 2,
+        ext: 20,
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        rowGutter: 50,
+        colGutter: 50,
+        drawCells: true,
+        drawGuides: true,
+        drawBleedGuide: false
+    },
+    {
+        label: "1行×3列 / 1 Row × 3 Columns",
+        x: 3,
+        y: 1,
+        ext: 0,
+        top: 30,
+        bottom: 30,
+        left: 30,
+        right: 30,
+        rowGutter: 0,
+        colGutter: 30,
+        drawCells: true,
+        drawGuides: true,
+        drawBleedGuide: false
+    },
+    {
+        label: "4行×4列 / 4 Rows × 4 Columns",
+        x: 4,
+        y: 4,
+        ext: 0,
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        rowGutter: 20,
+        colGutter: 20,
+        drawCells: true,
+        drawGuides: true,
+        drawBleedGuide: false
+    },
+    {
+        label: "2行×3列 / 2 Rows × 3 Columns",
+        x: 3,
+        y: 2,
+        ext: 0,
+        top: 100,
+        bottom: 100,
+        left: 100,
+        right: 100,
+        rowGutter: 20,
+        colGutter: 20,
+        drawCells: true,
+        drawGuides: true,
+        drawBleedGuide: false
+    },
+    {
+        label: "3行×3列 / 3 Rows × 3 Columns",
+        x: 3,
+        y: 3,
+        ext: 0,
+        top: 0,
+        bottom: 0,
+        left: 200,
+        right: 0,
+        rowGutter: 0,
+        colGutter: 0,
+        drawCells: true,
+        drawGuides: true,
+        drawBleedGuide: false
+    },
+    {
+        label: "sp / sp",
+        x: 1,
+        y: 1,
+        ext: 0,
+        top: 220,
+        bottom: 220,
+        left: 0,
+        right: 0,
+        rowGutter: 0,
+        colGutter: 0,
+        drawCells: true,
+        drawGuides: true,
+        drawBleedGuide: false
+    },
+    {
+        label: "長方形のみ / just rectangle",
+        x: 1,
+        y: 1,
+        ext: 10,
+        top: 0,
+        bottom: 0,
+        left: 0,
+        right: 0,
+        rowGutter: 0,
+        colGutter: 0,
+        drawCells: true,
+        drawGuides: false,
+        drawBleedGuide: false
+    }
+];
 
 function main() {
     if (app.documents.length === 0) {
@@ -439,7 +441,7 @@ function main() {
     gridGroup.orientation = "row";
     gridGroup.alignChildren = "top";
     gridGroup.spacing = 20;
-    var gridLabelWidth = (lang === "ja") ? 40 : 64; // unify Number/Gutter label width and right-align
+    var gridLabelWidth = (lang === "ja") ? 40 : 50; // unify Number/Gutter label width and right-align
 
     // 行設定パネル / Row settings panel
     var rowBlock = gridGroup.add("panel", undefined, LABELS.rowTitle[lang]);
@@ -491,7 +493,7 @@ function main() {
     var marginPanel = dlg.add("panel", undefined, LABELS.marginTitle[lang] + " (" + unitLabel + ")");
     marginPanel.orientation = "column";
     marginPanel.alignChildren = "left";
-    var marginLabelWidth = (lang === "ja") ? 26 : 64; // slightly shorter Top/Bottom label width
+    var marginLabelWidth = (lang === "ja") ? 26 : 50; // slightly shorter Top/Bottom label width
     marginPanel.margins = [10, 15, 10, 15];
 
     // --- 上段グループ（左／上下／右） / Upper group (left/up-down/right) ---
@@ -605,7 +607,9 @@ function main() {
                     }
                 } catch (e) {}
                 // 入力変更を即時プレビューに反映 / Refresh preview immediately
-                try { drawGuides(true); } catch (e) {}
+                try {
+                    drawGuides(true);
+                } catch (e) {}
             }
         });
     }
@@ -613,7 +617,9 @@ function main() {
     // 入力値変更で即時プレビュー / Live preview on any input change
     function attachLivePreview(editText) {
         editText.onChanging = function() {
-            try { drawGuides(true); } catch (e) {}
+            try {
+                drawGuides(true);
+            } catch (e) {}
         };
     }
 
@@ -752,7 +758,9 @@ function main() {
     // ← ガター有効切替時も即時プレビュー
     inputXText.onChanging = inputYText.onChanging = function() {
         updateGutterEnable();
-        try { drawGuides(true); } catch (e) {}
+        try {
+            drawGuides(true);
+        } catch (e) {}
     };
 
     // 「ガイドを引く」切り替え：伸張・裁ち落としをディム制御 + プレビュー
@@ -765,9 +773,21 @@ function main() {
     };
 
     // ★未定義だったトグルにもプレビュー反映
-    bleedGuideCheckbox.onClick = function(){ try { drawGuides(true); } catch (e) {} };
-    cellRectCheckbox.onClick  = function(){ try { drawGuides(true); } catch (e) {} };
-    allBoardsCheckbox.onClick = function(){ try { drawGuides(true); } catch (e) {} };
+    bleedGuideCheckbox.onClick = function() {
+        try {
+            drawGuides(true);
+        } catch (e) {}
+    };
+    cellRectCheckbox.onClick = function() {
+        try {
+            drawGuides(true);
+        } catch (e) {}
+    };
+    allBoardsCheckbox.onClick = function() {
+        try {
+            drawGuides(true);
+        } catch (e) {}
+    };
 
     // OKボタン押下時 / OK button pressed
     btnOK.onClick = function() {
@@ -850,28 +870,46 @@ function main() {
             if (drawGuidesNow) {
                 // 「中心」用の水平・垂直ガイドを追加
                 if (xDiv === 1 && yDiv === 1) {
-                    var centerX = (baseLeft + baseRight) / 2;
-                    var centerY = (baseTop + baseBottom) / 2;
-
-                    var vCenter = doc.pathItems.add();
-                    vCenter.setEntirePath([
-                        [centerX, abTop + ext],
-                        [centerX, abBottom - ext]
+                    // 四辺（マージン適用後の有効領域）をガイド化
+                    var topLine = doc.pathItems.add();
+                    topLine.setEntirePath([
+                        [guideLeft, baseTop],
+                        [guideRight, baseTop]
                     ]);
-                    vCenter.stroked = false;
-                    vCenter.filled = false;
-                    vCenter.guides = true;
-                    vCenter.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                    topLine.stroked = false;
+                    topLine.filled = false;
+                    topLine.guides = true;
+                    topLine.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
 
-                    var hCenter = doc.pathItems.add();
-                    hCenter.setEntirePath([
-                        [abLeft - ext, centerY],
-                        [abRight + ext, centerY]
+                    var bottomLine = doc.pathItems.add();
+                    bottomLine.setEntirePath([
+                        [guideLeft, baseBottom],
+                        [guideRight, baseBottom]
                     ]);
-                    hCenter.stroked = false;
-                    hCenter.filled = false;
-                    hCenter.guides = true;
-                    hCenter.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+                    bottomLine.stroked = false;
+                    bottomLine.filled = false;
+                    bottomLine.guides = true;
+                    bottomLine.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+
+                    var leftLine = doc.pathItems.add();
+                    leftLine.setEntirePath([
+                        [baseLeft, guideTop],
+                        [baseLeft, guideBottom]
+                    ]);
+                    leftLine.stroked = false;
+                    leftLine.filled = false;
+                    leftLine.guides = true;
+                    leftLine.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
+
+                    var rightLine = doc.pathItems.add();
+                    rightLine.setEntirePath([
+                        [baseRight, guideTop],
+                        [baseRight, guideBottom]
+                    ]);
+                    rightLine.stroked = false;
+                    rightLine.filled = false;
+                    rightLine.guides = true;
+                    rightLine.move(gridLayer, ElementPlacement.PLACEATBEGINNING);
                 } else {
                     // 通常ガイド描画（行・列）
                     var y = baseTop;
