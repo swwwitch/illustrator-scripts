@@ -113,7 +113,7 @@ var LABELS = {
     },
     rowGutterLabel: {
         ja: "行間",
-        en: "Row Gutter"
+        en: "Gutter"
     },
     columnsLabel: {
         ja: "列数：",
@@ -121,7 +121,7 @@ var LABELS = {
     },
     colGutterLabel: {
         ja: "列間",
-        en: "Column Gutter"
+        en: "Gutter"
     },
     marginTitle: {
         ja: "マージン設定",
@@ -478,6 +478,7 @@ function main() {
     var marginPanel = dlg.add("panel", undefined, LABELS.marginTitle[lang] + " (" + unitLabel + ")");
     marginPanel.orientation = "column";
     marginPanel.alignChildren = "left";
+    var marginLabelWidth = (lang === "ja") ? 30 : 70; // unify Top/Bottom label width and right-align
     marginPanel.margins = [10, 15, 10, 15];
 
     // --- 上段グループ（左／上下／右） / Upper group (left/up-down/right) ---
@@ -503,13 +504,19 @@ function main() {
 
     var topGroup = topBottomGroup.add("group");
     topGroup.orientation = "row";
-    topGroup.add("statictext", undefined, LABELS.topLabel[lang]);
+    var lblTop = topGroup.add("statictext", undefined, LABELS.topLabel[lang]);
+    lblTop.justification = "right";
+    lblTop.minimumSize.width = marginLabelWidth;
+    lblTop.maximumSize.width = marginLabelWidth;
     var inputTop = topGroup.add("edittext", undefined, "0");
     inputTop.characters = 5;
 
     var bottomGroup = topBottomGroup.add("group");
     bottomGroup.orientation = "row";
-    bottomGroup.add("statictext", undefined, LABELS.bottomLabel[lang]);
+    var lblBottom = bottomGroup.add("statictext", undefined, LABELS.bottomLabel[lang]);
+    lblBottom.justification = "right";
+    lblBottom.minimumSize.width = marginLabelWidth;
+    lblBottom.maximumSize.width = marginLabelWidth;
     var inputBottom = bottomGroup.add("edittext", undefined, "0");
     inputBottom.characters = 5;
 
