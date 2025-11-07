@@ -109,7 +109,7 @@ var LABELS = {
     },
     rowsLabel: {
         ja: "行数：",
-        en: "Rows:"
+        en: "Number:"
     },
     rowGutterLabel: {
         ja: "行間",
@@ -117,7 +117,7 @@ var LABELS = {
     },
     columnsLabel: {
         ja: "列数：",
-        en: "Columns:"
+        en: "Number:"
     },
     colGutterLabel: {
         ja: "列間",
@@ -439,6 +439,7 @@ function main() {
     gridGroup.orientation = "row";
     gridGroup.alignChildren = "top";
     gridGroup.spacing = 20;
+    var gridLabelWidth = (lang === "ja") ? 40 : 64; // unify Number/Gutter label width and right-align
 
     // 行設定パネル / Row settings panel
     var rowBlock = gridGroup.add("panel", undefined, LABELS.rowTitle[lang]);
@@ -447,12 +448,18 @@ function main() {
     rowBlock.margins = [15, 20, 15, 15];
 
     var inputY = rowBlock.add("group");
-    inputY.add("statictext", undefined, LABELS.rowsLabel[lang]);
+    var lblRows = inputY.add("statictext", undefined, LABELS.rowsLabel[lang]);
+    lblRows.justification = "right";
+    lblRows.minimumSize.width = gridLabelWidth;
+    lblRows.maximumSize.width = gridLabelWidth;
     var inputYText = inputY.add("edittext", undefined, "2");
     inputYText.characters = 3;
 
     var rowGutterGroup = rowBlock.add("group");
-    rowGutterGroup.add("statictext", undefined, LABELS.rowGutterLabel[lang] + "：");
+    var lblRowGutter = rowGutterGroup.add("statictext", undefined, LABELS.rowGutterLabel[lang] + "：");
+    lblRowGutter.justification = "right";
+    lblRowGutter.minimumSize.width = gridLabelWidth;
+    lblRowGutter.maximumSize.width = gridLabelWidth;
     var inputRowGutter = rowGutterGroup.add("edittext", undefined, "0");
     inputRowGutter.characters = 4;
     rowGutterGroup.add("statictext", undefined, unitLabel);
@@ -464,12 +471,18 @@ function main() {
     colBlock.margins = [15, 20, 15, 15];
 
     var inputX = colBlock.add("group");
-    inputX.add("statictext", undefined, LABELS.columnsLabel[lang]);
+    var lblCols = inputX.add("statictext", undefined, LABELS.columnsLabel[lang]);
+    lblCols.justification = "right";
+    lblCols.minimumSize.width = gridLabelWidth;
+    lblCols.maximumSize.width = gridLabelWidth;
     var inputXText = inputX.add("edittext", undefined, "2");
     inputXText.characters = 3;
 
     var colGutterGroup = colBlock.add("group");
-    colGutterGroup.add("statictext", undefined, LABELS.colGutterLabel[lang] + "：");
+    var lblColGutter = colGutterGroup.add("statictext", undefined, LABELS.colGutterLabel[lang] + "：");
+    lblColGutter.justification = "right";
+    lblColGutter.minimumSize.width = gridLabelWidth;
+    lblColGutter.maximumSize.width = gridLabelWidth;
     var inputColGutter = colGutterGroup.add("edittext", undefined, "0");
     inputColGutter.characters = 4;
     colGutterGroup.add("statictext", undefined, unitLabel);
@@ -478,7 +491,7 @@ function main() {
     var marginPanel = dlg.add("panel", undefined, LABELS.marginTitle[lang] + " (" + unitLabel + ")");
     marginPanel.orientation = "column";
     marginPanel.alignChildren = "left";
-    var marginLabelWidth = (lang === "ja") ? 30 : 70; // unify Top/Bottom label width and right-align
+    var marginLabelWidth = (lang === "ja") ? 26 : 64; // slightly shorter Top/Bottom label width
     marginPanel.margins = [10, 15, 10, 15];
 
     // --- 上段グループ（左／上下／右） / Upper group (left/up-down/right) ---
