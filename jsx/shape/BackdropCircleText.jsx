@@ -48,24 +48,78 @@ var __BTN_LABELS = {
 
 // ラベル定義 / Labels
 var LABELS = {
-    dialogTitle: { ja: "テキストの背面に正円を作成", en: "Create Circle Behind Text" },
-    axisPanel:   { ja: "座標",                      en: "Axis" },
-    scalePanel:  { ja: "スケール",                  en: "Scale" },
-    magnification:{ja: "倍率",                      en: "Scale" },
-    groupPanel:  { ja: "グループ",                  en: "Group" },
-    groupWithText:{ja: "テキストとグループ化",      en: "Group with Text" },
-    exclude:     { ja: "中マド処理",                en: "Exclude" },
-    kindPanel:   { ja: "種別",                      en: "Kind" },
-    fill:        { ja: "塗り",                      en: "Fill" },
-    stroke:      { ja: "線",                        en: "Stroke" },
-    strokeWidth: { ja: "線幅",                      en: "Stroke Width" },
-    colorPanel:  { ja: "カラー",                    en: "Color" },
-    opacityPanel:{ ja: "不透明度",                  en: "Opacity" },
-    textColorRef:{ ja: "テキストカラーを参照",      en: "Use Text Color" },
-    black:       { ja: "ブラック",                  en: "Black" },
-    white:       { ja: "ホワイト",                  en: "White" },
-    cmyk:        { ja: "CMYK",                      en: "CMYK" },
-    oneChar:     { ja: "1文字",                      en: "Single Character" }
+    dialogTitle: {
+        ja: "テキストの背面に正円を作成",
+        en: "Create Circle Behind Text"
+    },
+    axisPanel: {
+        ja: "座標",
+        en: "Axis"
+    },
+    scalePanel: {
+        ja: "スケール",
+        en: "Scale"
+    },
+    magnification: {
+        ja: "倍率",
+        en: "Scale"
+    },
+    groupPanel: {
+        ja: "グループ",
+        en: "Group"
+    },
+    groupWithText: {
+        ja: "テキストとグループ化",
+        en: "Group with Text"
+    },
+    exclude: {
+        ja: "中マド処理",
+        en: "Exclude"
+    },
+    kindPanel: {
+        ja: "種別",
+        en: "Kind"
+    },
+    fill: {
+        ja: "塗り",
+        en: "Fill"
+    },
+    stroke: {
+        ja: "線",
+        en: "Stroke"
+    },
+    strokeWidth: {
+        ja: "線幅",
+        en: "Stroke Width"
+    },
+    colorPanel: {
+        ja: "カラー",
+        en: "Color"
+    },
+    opacityPanel: {
+        ja: "不透明度",
+        en: "Opacity"
+    },
+    textColorRef: {
+        ja: "テキストカラー",
+        en: "Use Text Color"
+    },
+    black: {
+        ja: "ブラック",
+        en: "Black"
+    },
+    white: {
+        ja: "ホワイト",
+        en: "White"
+    },
+    cmyk: {
+        ja: "CMYK",
+        en: "CMYK"
+    },
+    oneChar: {
+        ja: "1文字",
+        en: "Single Character"
+    }
 };
 
 function L(key) {
@@ -116,28 +170,31 @@ function getUnitLabel(code, prefKey) {
 // 初期シフト量と不透明度
 var __DIALOG_OFFSET_X = 300;
 var __DIALOG_OFFSET_Y = 0;
-var __DIALOG_OPACITY  = 0.95;
+var __DIALOG_OPACITY = 0.95;
 
 // 透明度設定（tryガード付き）
-function setDialogOpacity(dlg, opacityValue){
-  try { dlg.opacity = opacityValue; } catch(e){}
+function setDialogOpacity(dlg, opacityValue) {
+    try {
+        dlg.opacity = opacityValue;
+    } catch (e) {}
 }
 
 /**
  * 初回表示時だけ位置をずらすヘルパ
  * すでに保存済みのboundsがある場合は、ズレ続けを避けるためシフトしない
  */
-function shiftDialogPositionOnceOnShow(dlg, dx, dy){
-  if (__savedDlgBounds instanceof Array && __savedDlgBounds.length === 4) return;
-  dlg.onShow = (function(prev){
-    return function(){
-      try { if (typeof prev === 'function') prev(); } catch(_){}
-      try {
-        var l = dlg.location;
-        dlg.location = [ l[0] + (dx|0), l[1] + (dy|0) ];
-      } catch(_){}
-    };
-  })(dlg.onShow);
+function shiftDialogPositionOnceOnShow(dlg, dx, dy) {
+    dlg.onShow = (function(prev) {
+        return function() {
+            try {
+                if (typeof prev === 'function') prev();
+            } catch (_) {}
+            try {
+                var l = dlg.location;
+                dlg.location = [l[0] + (dx | 0), l[1] + (dy | 0)];
+            } catch (_) {}
+        };
+    })(dlg.onShow);
 }
 
 // --- Arrow-key value changer for EditText ---
@@ -213,22 +270,14 @@ function bindPreview(editText, onUpdate) {
     changeValueByArrowKey(editText, onUpdate);
 }
 
-// --- Window position memory (bounds) ---
-var __DLG_BOUNDS_KEY = '__BackdropCircleText_bounds';
-var __savedDlgBounds = $.global[__DLG_BOUNDS_KEY] || null;
-function __storeDlgBounds(dlg){
-    try{ $.global[__DLG_BOUNDS_KEY] = [dlg.bounds.left, dlg.bounds.top, dlg.bounds.right, dlg.bounds.bottom]; }catch(e){}
-}
-
 /* =============================================================================
  * main entry
  * ========================================================================== */
 function main() {
     // ダイアログ作成
-    var __initialBounds = (__savedDlgBounds instanceof Array && __savedDlgBounds.length===4) ? __savedDlgBounds : undefined;
-    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION, __initialBounds);
-setDialogOpacity(dlg, __DIALOG_OPACITY);
-shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
+    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+    setDialogOpacity(dlg, __DIALOG_OPACITY);
+    shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
 
     dlg.orientation = 'column';
     dlg.alignChildren = ['fill', 'top'];
@@ -442,7 +491,7 @@ shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
     fillM.onChanging = updatePreview;
     fillY.onChanging = updatePreview;
     fillK.onChanging = updatePreview;
-    cbOpacityApply.onClick = function(){
+    cbOpacityApply.onClick = function() {
         opacityInput.enabled = cbOpacityApply.value;
         updatePreview();
     };
@@ -544,12 +593,21 @@ shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
         if (!cbOneChar.value) {
             // 通常：見た目寸法を使用（アウトライン計測のキャッシュ）
             var m = measureTextVisualBoundsOnce();
-            left = m.left; top = m.top; right = m.right; bottom = m.bottom; w = m.w; h = m.h;
+            left = m.left;
+            top = m.top;
+            right = m.right;
+            bottom = m.bottom;
+            w = m.w;
+            h = m.h;
         } else {
             // 1文字モード：幾何境界＋フォントサイズベース
             var gb0 = textItem.geometricBounds; // [l,t,r,b]
-            left = gb0[0]; top = gb0[1]; right = gb0[2]; bottom = gb0[3];
-            w = right - left; h = top - bottom; // 参照用（A取得失敗時のフォールバック）
+            left = gb0[0];
+            top = gb0[1];
+            right = gb0[2];
+            bottom = gb0[3];
+            w = right - left;
+            h = top - bottom; // 参照用（A取得失敗時のフォールバック）
         }
 
         var cx = left + w / 2;
@@ -709,14 +767,14 @@ shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
     cancelBtn.name = 'cancel';
     var okBtn = btns.add('button', undefined, __BTN_LABELS.ok[__lang]);
     okBtn.name = 'ok';
-    dlg.onMove = function(){ __storeDlgBounds(dlg); };
+
 
     // 明示的にキャンセルを処理（プレビュー掃除→ダイアログを閉じる）
     cancelBtn.onClick = function() {
         try {
             removePreview();
         } catch (_) {}
-        __storeDlgBounds(dlg);
+
         try {
             dlg.close(0);
         } catch (_) {}
@@ -724,6 +782,68 @@ shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
 
     // 初期プレビュー
     updatePreview();
+
+    // 最終確定時にスタイルを再適用するヘルパ
+    function applyStyleToItem(item) {
+        if (!item) return;
+        // 色適用ロジック（updatePreview 内の applyColor と同等）
+        function _applyColor(setter) {
+            // テキストカラー参照
+            if (rbTextColor.value) {
+                var tcol = null;
+                try {
+                    tcol = textItem.textRange.characterAttributes.fillColor;
+                } catch (e) {}
+                if (tcol) {
+                    setter(tcol);
+                    return;
+                }
+            }
+            if (rbBlack.value || rbTextColor.value) {
+                var kcol = new GrayColor();
+                kcol.gray = 100;
+                setter(kcol);
+            } else if (rbWhite.value) {
+                var wcol = new GrayColor();
+                wcol.gray = 0;
+                setter(wcol);
+            } else if (rbCMYK.value) {
+                var c = Math.min(100, Math.max(0, parseInt(fillC.text, 10) || 0));
+                var m = Math.min(100, Math.max(0, parseInt(fillM.text, 10) || 0));
+                var y = Math.min(100, Math.max(0, parseInt(fillY.text, 10) || 0));
+                var k = Math.min(100, Math.max(0, parseInt(fillK.text, 10) || 0));
+                var cmyk = new CMYKColor();
+                cmyk.cyan = c;
+                cmyk.magenta = m;
+                cmyk.yellow = y;
+                cmyk.black = k;
+                setter(cmyk);
+            }
+        }
+        if (rbFill.value) {
+            item.filled = true;
+            item.stroked = false;
+            _applyColor(function(col) {
+                item.fillColor = col;
+            });
+        } else {
+            item.filled = false;
+            item.stroked = true;
+            var sw = parseFloat(strokeWInput.text);
+            if (isNaN(sw) || sw < 0) sw = 1;
+            item.strokeWidth = sw;
+            _applyColor(function(col) {
+                item.strokeColor = col;
+            });
+        }
+        // 不透明度
+        try {
+            var opv = parseFloat(opacityInput.text);
+            if (isNaN(opv)) opv = 100;
+            opv = Math.max(0, Math.min(100, opv));
+            item.opacity = cbOpacityApply.value ? opv : 100;
+        } catch (_) {}
+    }
 
     if (dlg.show() !== 1) {
         removePreview();
@@ -757,13 +877,20 @@ shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
             previewCircle.move(textItem, ElementPlacement.PLACEAFTER);
         } catch (_) {}
     }
-    // 正円をライブシェイプに変換（Convert to Shape）
+    // 正円をライブシェイプに変換（Convert to Shape）し、外観を再適用
     try {
         if (previewCircle) {
             app.selection = null;
             previewCircle.selected = true;
             app.executeMenuCommand('Convert to Shape');
-
+            // 変換後のオブジェクト（選択状態の先頭）を取得
+            var converted = null;
+            try {
+                converted = app.selection && app.selection.length ? app.selection[0] : null;
+            } catch (_) {}
+            if (!converted) converted = previewCircle; // フォールバック
+            // 外観を再適用（線が消える/初期化されるのを防ぐ）
+            applyStyleToItem(converted);
             app.selection = null;
         }
     } catch (e) {
@@ -783,8 +910,7 @@ shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
             } catch (_) {}
         }
     }
-    // 記憶：最終位置
-    __storeDlgBounds(dlg);
+
     return;
 }
 
