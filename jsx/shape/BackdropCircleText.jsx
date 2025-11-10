@@ -170,7 +170,7 @@ function getUnitLabel(code, prefKey) {
 // 初期シフト量と不透明度
 var __DIALOG_OFFSET_X = 300;
 var __DIALOG_OFFSET_Y = 0;
-var __DIALOG_OPACITY = 0.95;
+var __DIALOG_OPACITY = 0.97;
 
 // 透明度設定（tryガード付き）
 function setDialogOpacity(dlg, opacityValue) {
