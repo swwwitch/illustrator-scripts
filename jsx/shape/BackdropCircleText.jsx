@@ -355,9 +355,19 @@ function main() {
     var cbExclude = pnlGroup.add('checkbox', undefined, L('exclude'));
     cbExclude.value = false;
 
-    // ロジック：中マド=ONなら自動で「テキストとグループ化」をON
+    // ロジック：中マド=ONなら自動でグループ化し、カラーを「テキストカラー」に強制
     cbExclude.onClick = function() {
-        if (cbExclude.value) cbGroup.value = true;
+        if (cbExclude.value) {
+            // 中マド=ONなら自動でグループ化し、カラーを「テキストカラー」に強制
+            cbGroup.value = true;
+            try {
+                rbTextColor.value = true;
+                rbBlack.value = false;
+                rbWhite.value = false;
+                rbCMYK.value = false;
+                if (typeof syncColorUI === 'function') syncColorUI();
+            } catch (_) {}
+        }
         if (typeof updatePreview === 'function') updatePreview();
     };
     cbExclude.onChanging = cbExclude.onClick;
@@ -469,12 +479,15 @@ function main() {
 
     function syncColorUI() {
         var cmykOn = rbCMYK.value;
+        // 個別フィールドの有効/無効
         fillC.enabled = cmykOn;
         fillM.enabled = cmykOn;
         fillY.enabled = cmykOn;
         fillK.enabled = cmykOn;
+        // 非表示にはせず、CMYK以外のときはグループごとディム表示
         try {
-            grpCMYK.visible = cmykOn;
+            grpCMYK.visible = true; // 常に表示
+            grpCMYK.enabled = cmykOn; // CMYK選択時のみ操作可（ラベルも含めてディム制御）
         } catch (_) {}
     }
     syncColorUI();
