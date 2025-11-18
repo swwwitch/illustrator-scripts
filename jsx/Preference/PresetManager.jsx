@@ -206,8 +206,7 @@ var LABELS = {
     saveCloud: {
         ja: "クラウド",
         en: "Cloud"
-    }
-    ,
+    },
     // パネルタイトル / Panel titles
     panelGeneralTitle: {
         ja: "［一般］カテゴリ",
@@ -240,8 +239,7 @@ var LABELS = {
     panelLimitPathTitle: {
         ja: "パスに制限",
         en: "Limit to Path"
-    }
-    ,
+    },
     // ガイドパネル内ラベル / Guides panel inner labels
     guideColorLabel: {
         ja: "カラー：",
@@ -1146,7 +1144,7 @@ function main() {
     applyPresetSettings("現在の設定");
     /* Adjust dialog opacity & position / ダイアログの不透明度と位置 */
     var offsetX = 300;
-    var dialogOpacity = 0.97;
+    var dialogOpacity = 0.98;
 
     function shiftDialogPosition(dlg, offsetX, offsetY) {
         dlg.onShow = function() {
