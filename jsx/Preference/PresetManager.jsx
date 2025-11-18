@@ -24,6 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 - テキスト：エリア内文字の自動サイズ、最近使用フォントの件数、異体字・見つからない字形の保護
 - ユーザーインターフェイス：カンバスカラー（UIに合わせる／ホワイト）
 - パフォーマンス：アニメーションズーム、ヒストリー数、リアルタイム描画
+- スマートガイド：オブジェクトのハイライト表示のオン／オフ
 - ファイル管理：編集の既定アプリ、Adobe Fonts 自動アクティベート、ファイルの保存先（コンピューター／クラウド）
 
 ### 処理の流れ：
@@ -37,6 +38,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 - v1.2（20250910）：ガイドのカラー、スタイルを追加
 - v1.3（20250911）：微調整
 - v1.4（20250912）：クリップボード（SVGコードを含める）UIとロジックを削除
+- v1.5（2025-11-19）：スマートガイド（オブジェクトのハイライト表示）を追加し、プリセットおよびパネル／ガイド関連のローカライズを拡充
 
 ---
 
@@ -61,6 +63,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 - Type: Auto Size Area Type, Recent Fonts count, Alternate Glyphs & Missing Glyph Protection
 - UI: Canvas Color (Match UI / White)
 - Performance: Animated Zoom, History States, Real-Time Drawing
+- Smart Guides: Object Highlighting on/off
 - File Management: Edit Original default app, Auto-activate Adobe Fonts, Save Location (Computer/Cloud)
 
 ### Flow:
@@ -74,10 +77,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 - v1.2（20250910）：Added Guide Color
 - v1.3 (20250911) : Minor Changes
 - v1.4 (2025-09-12): Removed Clipboard "Include SVG code" UI and logic
+- v1.5 (2025-11-19): Added Smart Guides panel (Object Highlighting), updated presets, and expanded panel/guide localization
 
 */
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -135,7 +139,11 @@ var LABELS = {
         ja: "カーソルを合わせたときにアンカーを強調表示",
         en: "Highlight anchors on mouse over"
     },
-
+    // スマートガイド
+    smartHighlight: {
+        ja: "オブジェクトのハイライト表示",
+        en: "Object Highlighting"
+    },
     // テキスト
     cbHitTypeShape: {
         ja: "テキストオブジェクトの選択範囲をパスに制限",
@@ -207,6 +215,11 @@ var LABELS = {
         ja: "クラウド",
         en: "Cloud"
     },
+    cbIncludeSVG: {
+        ja: "SVGコードを含める",
+        en: "Include SVG Code"
+    },
+
     // パネルタイトル / Panel titles
     panelGeneralTitle: {
         ja: "［一般］カテゴリ",
@@ -236,9 +249,17 @@ var LABELS = {
         ja: "［ファイル管理］カテゴリ",
         en: "[File Management] Category"
     },
+    panelClipboardTitle: {
+        ja: "クリップボードの処理",
+        en: "Clipboard Handling"
+    },
     panelLimitPathTitle: {
         ja: "パスに制限",
         en: "Limit to Path"
+    },
+    panelSmartGuideTitle: {
+        ja: "スマートガイド",
+        en: "Smart Guides"
     },
     // ガイドパネル内ラベル / Guides panel inner labels
     guideColorLabel: {
@@ -544,8 +565,20 @@ function main() {
 
 
     /*
-  UI panel (right) / ［ユーザーインターフェイス］
+  Smart Guides panel (right) / ［スマートガイド］
 */
+    var panelSmartGuide = colRight.add("panel", undefined, LABELS.panelSmartGuideTitle[lang]);
+    panelSmartGuide.orientation = "column";
+    panelSmartGuide.alignChildren = ["fill", "top"];
+    panelSmartGuide.alignment = ["fill", "top"];
+    panelSmartGuide.margins = [15, 25, 15, 10];
+
+    var cbSmartHighlight = panelSmartGuide.add("checkbox", undefined, LABELS.smartHighlight[lang]);
+    cbSmartHighlight.helpTip = LABELS.smartHighlight.ja + " / " + LABELS.smartHighlight.en;
+
+    /*
+  UI panel (right) / ［ユーザーインターフェイス］
+  */
     var panelUI = colRight.add("panel", undefined, LABELS.panelUITitle[lang]);
     panelUI.orientation = "column";
     panelUI.alignChildren = ["fill", "top"];
@@ -652,6 +685,17 @@ function main() {
         // UI only; persist on OK
     };
 
+    /*
+      Clipboard Handling panel (right) / ［クリップボードの処理］
+    */
+    var panelClipboard = colRight.add("panel", undefined, LABELS.panelClipboardTitle[lang]);
+    panelClipboard.orientation = "column";
+    panelClipboard.alignChildren = ["fill", "top"];
+    panelClipboard.alignment = ["fill", "top"];
+    panelClipboard.margins = [15, 25, 15, 10];
+
+    var cbIncludeSVG = panelClipboard.add("checkbox", undefined, LABELS.cbIncludeSVG[lang]);
+    cbIncludeSVG.helpTip = LABELS.cbIncludeSVG.ja + " / " + LABELS.cbIncludeSVG.en;
 
     /*
   Limit to Path panel (right) / 「パスに制限」
@@ -721,6 +765,11 @@ function main() {
             ui: cbHitTypeShape
         },
         {
+            key: "smartGuides/showObjectHighlighting",
+            type: "bool",
+            ui: cbSmartHighlight
+        },
+        {
             key: "text/autoSizing",
             type: "bool",
             ui: cbAutoSizing
@@ -759,6 +808,11 @@ function main() {
             key: "AutoActivateMissingFont",
             type: "bool",
             ui: cbFontsAuto
+        },
+        {
+            key: "plugin/FileClipboard/copySVGCode",
+            type: "bool",
+            ui: cbIncludeSVG
         },
         {
             key: "text/recentFontMenu/showNEntries",
@@ -919,12 +973,13 @@ function main() {
         }
         if (typeof p.cbFontLocking !== 'undefined') cbFontLocking.value = !!p.cbFontLocking;
         if (typeof p.cbAlternateGlyph !== 'undefined') cbAlternateGlyph.value = !!p.cbAlternateGlyph;
+        if (typeof p.cbSmartHighlight !== 'undefined') cbSmartHighlight.value = !!p.cbSmartHighlight;
         if (typeof p.cbAnimZoom !== 'undefined') cbAnimZoom.value = !!p.cbAnimZoom;
         if (typeof p.etHistory !== 'undefined') etHistory.text = String(p.etHistory);
         if (typeof p.cbLiveEdit !== 'undefined') cbLiveEdit.value = !!p.cbLiveEdit;
         if (typeof p.cbEditOriginal !== 'undefined') cbEditOriginal.value = !!p.cbEditOriginal;
         if (typeof p.cbFontsAuto !== 'undefined') cbFontsAuto.value = !!p.cbFontsAuto;
-        // cbIncludeSVG removed
+        if (typeof p.cbIncludeSVG !== 'undefined') cbIncludeSVG.value = !!p.cbIncludeSVG;
 
         // カンバス（ラジオ）
         if (typeof p.canvasWhite !== 'undefined') {
@@ -970,12 +1025,14 @@ function main() {
         cbAlternateGlyph: false,
         cbAnimZoom: false,
         etHistory: 50,
-        cbLiveEdit: true,
+        cbLiveEdit: false,
         cbEditOriginal: true,
         cbFontsAuto: true,
         canvasWhite: true,
         guideColor: 'lightblue',
-        saveCloud: false
+        saveCloud: false,
+        cbSmartHighlight: false,
+        cbIncludeSVG: true
     };
 
     var DEFAULT_DEF = {
@@ -1000,7 +1057,9 @@ function main() {
         cbFontsAuto: false,
         canvasWhite: false,
         guideColor: 'cyan',
-        saveCloud: true
+        saveCloud: true,
+        cbSmartHighlight: true,
+        cbIncludeSVG: false
     };
     // ===== End Preset Applier =====
 
@@ -1110,6 +1169,10 @@ function main() {
                 safeSetInt("Guide/Style", 1);
             }
             /*
+              「オブジェクトのハイライト表示（スマートガイド）」設定を保存
+            */
+            safeSetBool("smartGuides/showObjectHighlighting", cbSmartHighlight.value);
+            /*
               「アニメーションズーム」設定を保存
             */
             safeSetBool("Performance/AnimZoom", cbAnimZoom.value);
@@ -1129,6 +1192,10 @@ function main() {
               「Adobe Fontsを自動アクティベート」設定を保存
             */
             safeSetBool("AutoActivateMissingFont", cbFontsAuto.value);
+            /*
+              「SVGコードを含める」設定を保存
+            */
+            safeSetBool("plugin/FileClipboard/copySVGCode", cbIncludeSVG.value);
             /*
               ファイルの保存先を保存（OK押下時にも明示保存）
             */
