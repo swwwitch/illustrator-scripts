@@ -163,6 +163,14 @@ var LABELS = {
         ja: "カンバスカラー",
         en: "Canvas Color"
     },
+    canvasMatch: {
+        ja: "UIに合わせる",
+        en: "Match Brightness"
+    },
+    canvasWhite: {
+        ja: "ホワイト",
+        en: "White"
+    },
 
     // パフォーマンス
     cbAnimZoom: {
@@ -555,8 +563,8 @@ function main() {
     canvasRow.spacing = 10;
 
     canvasRow.add("statictext", undefined, LABELS.canvasColor[lang] + "：");
-    var rbCanvasMatch = canvasRow.add("radiobutton", undefined, "UIに合わせる");
-    var rbCanvasWhite = canvasRow.add("radiobutton", undefined, "ホワイト");
+    var rbCanvasMatch = canvasRow.add("radiobutton", undefined, LABELS.canvasMatch[lang]);
+    var rbCanvasWhite = canvasRow.add("radiobutton", undefined, LABELS.canvasWhite[lang]);
 
     /*
       初期状態を反映
