@@ -199,6 +199,66 @@ var LABELS = {
         ja: "クラウド",
         en: "Cloud"
     }
+    ,
+    // パネルタイトル / Panel titles
+    panelGeneralTitle: {
+        ja: "［一般］カテゴリ",
+        en: "[General] Category"
+    },
+    panelSelectAnchorTitle: {
+        ja: "［選択範囲・アンカー表示］カテゴリ",
+        en: "[Selection & Anchor Display] Category"
+    },
+    panelTextTitle: {
+        ja: "［テキスト］カテゴリ",
+        en: "[Text] Category"
+    },
+    panelGuidesTitle: {
+        ja: "ガイド",
+        en: "Guides"
+    },
+    panelUITitle: {
+        ja: "［ユーザーインターフェイス］カテゴリ",
+        en: "[User Interface] Category"
+    },
+    panelPerfTitle: {
+        ja: "［パフォーマンス］カテゴリ",
+        en: "[Performance] Category"
+    },
+    panelFileTitle: {
+        ja: "［ファイル管理］カテゴリ",
+        en: "[File Management] Category"
+    },
+    panelLimitPathTitle: {
+        ja: "パスに制限",
+        en: "Limit to Path"
+    }
+    ,
+    // ガイドパネル内ラベル / Guides panel inner labels
+    guideColorLabel: {
+        ja: "カラー：",
+        en: "Color:"
+    },
+    guideColorCyan: {
+        ja: "シアン",
+        en: "Cyan"
+    },
+    guideColorLightBlue: {
+        ja: "ライトブルー",
+        en: "Light Blue"
+    },
+    guideStyleLabel: {
+        ja: "スタイル：",
+        en: "Style:"
+    },
+    guideStyleLine: {
+        ja: "ライン",
+        en: "Lines"
+    },
+    guideStyleDots: {
+        ja: "点線",
+        en: "Dots"
+    }
 };
 
 function main() {
@@ -301,7 +361,7 @@ function main() {
     /*
   General panel (left) / ［一般］
 */
-    var panelGeneral = colLeft.add("panel", undefined, "［一般］カテゴリ");
+    var panelGeneral = colLeft.add("panel", undefined, LABELS.panelGeneralTitle[lang]);
     panelGeneral.orientation = "column";
     panelGeneral.alignChildren = ["fill", "top"];
     panelGeneral.alignment = ["fill", "top"];
@@ -322,7 +382,7 @@ function main() {
     /*
   Selection & Anchor panel (left) / ［選択範囲・アンカー表示］
 */
-    var panelSelectAnchor = colLeft.add("panel", undefined, "［選択範囲・アンカー表示］カテゴリ");
+    var panelSelectAnchor = colLeft.add("panel", undefined, LABELS.panelSelectAnchorTitle[lang]);
     panelSelectAnchor.orientation = "column";
     panelSelectAnchor.alignChildren = ["fill", "top"];
     panelSelectAnchor.alignment = ["fill", "top"];
@@ -340,7 +400,7 @@ function main() {
     /*
   Text panel (left) / ［テキスト］
 */
-    var panelTextRight = colLeft.add("panel", undefined, "［テキスト］カテゴリ");
+    var panelTextRight = colLeft.add("panel", undefined, LABELS.panelTextTitle[lang]);
     panelTextRight.orientation = "column";
     panelTextRight.alignChildren = ["fill", "top"];
     panelTextRight.alignment = ["fill", "top"];
@@ -388,7 +448,7 @@ function main() {
     /*
   Guides panel (left) / ［ガイド］
 */
-    var panelGuides = colLeft.add("panel", undefined, "ガイド");
+    var panelGuides = colLeft.add("panel", undefined, LABELS.panelGuidesTitle[lang]);
     panelGuides.orientation = "column";
     panelGuides.alignChildren = ["fill", "top"];
     panelGuides.alignment = ["fill", "top"];
@@ -403,11 +463,11 @@ function main() {
     guideColorRow.alignChildren = ["left", "center"];
     guideColorRow.spacing = 10;
 
-    var lblGuideColor = guideColorRow.add("statictext", undefined, "カラー：");
+    var lblGuideColor = guideColorRow.add("statictext", undefined, LABELS.guideColorLabel[lang]);
     lblGuideColor.preferredSize = [GUIDE_LABEL_WIDTH, lblGuideColor.preferredSize ? lblGuideColor.preferredSize[1] : 20];
     lblGuideColor.justify = "right";
-    var rbGuideCyan = guideColorRow.add("radiobutton", undefined, "シアン");
-    var rbGuideLightBlue = guideColorRow.add("radiobutton", undefined, "ライトブルー");
+    var rbGuideCyan = guideColorRow.add("radiobutton", undefined, LABELS.guideColorCyan[lang]);
+    var rbGuideLightBlue = guideColorRow.add("radiobutton", undefined, LABELS.guideColorLightBlue[lang]);
 
     /* Known color presets (0..1) / 既知の色プリセット */
     var GUIDE_CYAN = {
@@ -453,11 +513,11 @@ function main() {
     guideStyleRow.alignChildren = ["left", "center"];
     guideStyleRow.spacing = 10;
 
-    var lblGuideStyle = guideStyleRow.add("statictext", undefined, "スタイル：");
+    var lblGuideStyle = guideStyleRow.add("statictext", undefined, LABELS.guideStyleLabel[lang]);
     lblGuideStyle.preferredSize = [GUIDE_LABEL_WIDTH, lblGuideStyle.preferredSize ? lblGuideStyle.preferredSize[1] : 20];
     lblGuideStyle.justify = "right";
-    var rbGuideStyleLine = guideStyleRow.add("radiobutton", undefined, "ライン");
-    var rbGuideStyleDots = guideStyleRow.add("radiobutton", undefined, "点線");
+    var rbGuideStyleLine = guideStyleRow.add("radiobutton", undefined, LABELS.guideStyleLine[lang]);
+    var rbGuideStyleDots = guideStyleRow.add("radiobutton", undefined, LABELS.guideStyleDots[lang]);
 
     // Guide/Style: 0 = Lines, 1 = Dots
     var curStyle = 0;
@@ -480,7 +540,7 @@ function main() {
     /*
   UI panel (right) / ［ユーザーインターフェイス］
 */
-    var panelUI = colRight.add("panel", undefined, "［ユーザーインターフェイス］カテゴリ");
+    var panelUI = colRight.add("panel", undefined, LABELS.panelUITitle[lang]);
     panelUI.orientation = "column";
     panelUI.alignChildren = ["fill", "top"];
     panelUI.alignment = ["fill", "top"];
@@ -518,7 +578,7 @@ function main() {
     /*
   Performance panel (right) / ［パフォーマンス］
 */
-    var panelPerf = colRight.add("panel", undefined, "［パフォーマンス］カテゴリ");
+    var panelPerf = colRight.add("panel", undefined, LABELS.panelPerfTitle[lang]);
     panelPerf.orientation = "column";
     panelPerf.alignChildren = ["fill", "top"];
     panelPerf.alignment = ["fill", "top"];
@@ -545,7 +605,7 @@ function main() {
     /*
   File Management panel (right) / ［ファイル管理］
 */
-    var panelFile = colRight.add("panel", undefined, "［ファイル管理］カテゴリ");
+    var panelFile = colRight.add("panel", undefined, LABELS.panelFileTitle[lang]);
     panelFile.orientation = "column";
     panelFile.alignChildren = ["fill", "top"];
     panelFile.alignment = ["fill", "top"];
@@ -590,7 +650,7 @@ function main() {
     /*
   Limit to Path panel (right) / 「パスに制限」
 */
-    var panelLimitPath = colRight.add("panel", undefined, "パスに制限");
+    var panelLimitPath = colRight.add("panel", undefined, LABELS.panelLimitPathTitle[lang]);
     panelLimitPath.orientation = "column";
     panelLimitPath.alignChildren = ["fill", "top"];
     panelLimitPath.alignment = ["fill", "top"];
