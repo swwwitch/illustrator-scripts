@@ -21,7 +21,7 @@ Usage Flow:
 3. Click OK to draw shape at artboard center
 
 Original Idea: Seiji Miyazawa (Sankai Lab)
-Version: v1.0.0 (20250503)
+Version: v1.1.0 (20250503)
 */
 
 // Language detection
@@ -31,18 +31,22 @@ function getCurrentLang() {
 var lang = getCurrentLang();
 
 var LABELS = {
-    dialogTitle: { ja: "図形の作成", en: "Create Shape" },
+    dialogTitle: { ja: "図形の作成 v1.1", en: "Create Shape v1.1" },
     shapeType: { ja: "辺の数", en: "Sides" },
     circle: { ja: "円", en: "Circle" },
     custom: { ja: "それ以外", en: "Other" },
     starPanel: { ja: "スター", en: "Star" },
+    trianglePanel: { ja: "三角形", en: "Triangle" },
+    triangleRight: { ja: "右", en: "Right" },
+    triangleLeft: { ja: "左", en: "Left" },
+    triangleDown: { ja: "下", en: "Down" },
     star: { ja: "スター", en: "Star" },
     innerRadius: { ja: "第2半径：", en: "Inner Radius:" },
     percent: { ja: "%", en: "%" },
     pentagram: { ja: "五芒星", en: "Pentagram" },
     rotation: { ja: "回転", en: "Rotate" },
     width: { ja: "幅：", en: "Width:" },
-    liveShape: { ja: "ライブシェイプ", en: "Live Shape" },
+    liveShape: { ja: "ライブシェイプ化", en: "Live Shape" },
     ok: { ja: "OK", en: "OK" },
     cancel: { ja: "キャンセル", en: "Cancel" }
 };
@@ -179,33 +183,64 @@ function showInputDialog(unitLabel, unitFactor) {
     changeValueByArrowKey(customInput);
     radios[2].value = true;
 
+    // Rotation panel (moved below sides panel)
     var rotatePanel = dlg.add("group");
     rotatePanel.orientation = "row";
     rotatePanel.alignChildren = "center";
-    rotatePanel.margins = [20, 0, 20, 0];
+    rotatePanel.margins = [15, 10, 15, 0];
+
     var rotateCheck = rotatePanel.add("checkbox", undefined, LABELS.rotation[lang]);
     var rotateInput = rotatePanel.add("edittext", undefined, "90");
     rotateInput.characters = 4;
     changeValueByArrowKey(rotateInput);
     var rotateLabel = rotatePanel.add("statictext", undefined, "°");
 
-    var right = main.add("panel", undefined, LABELS.starPanel[lang]);
+    // Right column container
+    var right = main.add("group");
     right.orientation = "column";
-    right.alignChildren = "left";
+    right.alignChildren = "fill";
     right.alignment = "top";
-    right.margins = [20, 20, 10, 10];
 
-    var starCheck = right.add("checkbox", undefined, LABELS.star[lang]);
+    // Star panel
+    var starPanel = right.add("panel", undefined, LABELS.starPanel[lang]);
+    starPanel.orientation = "column";
+    starPanel.alignChildren = "left";
+    starPanel.margins = [20, 20, 10, 10];
 
-    var innerGroup = right.add("group");
+    var starCheck = starPanel.add("checkbox", undefined, LABELS.star[lang]);
+
+    var innerGroup = starPanel.add("group");
     innerGroup.add("statictext", undefined, LABELS.innerRadius[lang]);
     var innerRatioInput = innerGroup.add("edittext", undefined, "30");
     innerRatioInput.characters = 4;
     changeValueByArrowKey(innerRatioInput);
     innerGroup.add("statictext", undefined, LABELS.percent[lang]);
 
-    var pentagramCheck = right.add("checkbox", undefined, LABELS.pentagram[lang]);
+    var pentagramCheck = starPanel.add("checkbox", undefined, LABELS.pentagram[lang]);
     pentagramCheck.value = false;
+
+    // Triangle panel placed under the Star panel
+    var trianglePanel = right.add("panel", undefined, LABELS.trianglePanel[lang]);
+    trianglePanel.orientation = "column";
+    trianglePanel.alignChildren = "left";
+    trianglePanel.margins = [15, 20, 15, 10];
+
+    var triangleRightRadio = trianglePanel.add("radiobutton", undefined, LABELS.triangleRight[lang]);
+    var triangleLeftRadio  = trianglePanel.add("radiobutton", undefined, LABELS.triangleLeft[lang]);
+    var triangleDownRadio  = trianglePanel.add("radiobutton", undefined, LABELS.triangleDown[lang]);
+    triangleRightRadio.value = true;
+
+    function onTriangleDirectionChange() {
+        // Ensure rotation is enabled when changing triangle direction
+        rotateCheck.value = true;
+        rotateInput.enabled = true;
+        rotateLabel.enabled = true;
+        updatePreview();
+    }
+
+    triangleRightRadio.onClick = onTriangleDirectionChange;
+    triangleLeftRadio.onClick  = onTriangleDirectionChange;
+    triangleDownRadio.onClick  = onTriangleDirectionChange;
 
     var divider = dlg.add("panel");
     divider.alignment = "fill";
@@ -245,6 +280,8 @@ function showInputDialog(unitLabel, unitFactor) {
         validateStarAndPentagram();
 
         var sides = getSelectedSideValue(radios, customInput);
+        trianglePanel.enabled = (sides === 3);
+
         var size = parseFloat(sizeInput.text) * unitFactor;
         var ratio = parseFloat(innerRatioInput.text);
         var isStar = starCheck.value;
@@ -257,6 +294,19 @@ function showInputDialog(unitLabel, unitFactor) {
             rotateInput.text = "45";
         } else if (sides >= 3) {
             angle = 360 / (sides * 2);
+            rotateInput.text = formatAngle(angle);
+        }
+
+        // Triangle-specific rotation:
+        // Right = -90°, Left = 90°, Down = 60°
+        if (sides === 3 && trianglePanel.enabled) {
+            if (triangleRightRadio.value) {
+                angle = -90; // swapped
+            } else if (triangleLeftRadio.value) {
+                angle = 90; // swapped
+            } else if (triangleDownRadio.value) {
+                angle = 60;
+            }
             rotateInput.text = formatAngle(angle);
         }
 
