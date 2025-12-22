@@ -457,17 +457,27 @@ function showDialog() {
     // ケイ線：角丸の値も↑↓で変更
     changeValueByArrowKey(etKeisenRoundRadius);
 
-    // 再配置ONのときは他をディム
+    // 再配置ONのときは他をディム（ただし「スケール」は指定可能）
     function updateResetPanelEnabled() {
-        var othersOn = !cbReplaceReset.value;
-        cbRotate.enabled = othersOn;
-        cbSkew.enabled = othersOn;
-        cbRatio.enabled = othersOn;
-        cbFlip.enabled = othersOn;
-        cbScale.enabled = othersOn;
+        var replaceOn = cbReplaceReset.value;
 
-        etScale.enabled = othersOn && cbScale.value;
-        stPercent.enabled = othersOn && cbScale.value;
+        // 再配置ONのときは「スケール」を自動ON（デフォルト100%のまま指定可能に）
+        if (replaceOn) {
+            cbScale.value = true;
+        }
+
+        // 再配置ONのときは回転/シアー/縦横比/反転を無効化
+        cbRotate.enabled = !replaceOn;
+        cbSkew.enabled = !replaceOn;
+        cbRatio.enabled = !replaceOn;
+        cbFlip.enabled = !replaceOn;
+
+        // スケールは再配置ONでも指定可能
+        cbScale.enabled = true;
+
+        // スケール入力欄は cbScale に追従（再配置ONでも可）
+        etScale.enabled = cbScale.value;
+        stPercent.enabled = cbScale.value;
     }
     cbReplaceReset.onClick = function () { updateResetPanelEnabled(); };
     updateResetPanelEnabled();
@@ -716,8 +726,14 @@ function resetTransformOne(item, objectType, opts) {
     if (!opts.rotate && !opts.skew && !opts.scale && !opts.ratio && !opts.flip && !opts.replaceReset) return;
 
     // Re-place reset (PlacedItem only)
+    // ※再配置後にスケール（%）指定がある場合は、その値を適用できるようにする
     if (opts.replaceReset && objectType === 'PlacedItem') {
-        replacePlacedItemToReset(item);
+        var replaced = replacePlacedItemToReset(item); // old item is removed inside
+        if (replaced && opts.scale) {
+            // 念のため：基準を正規化してから指定%を適用
+            try { normalizeScaleOnly(replaced); } catch (eNS) { }
+            try { applyUniformScalePercent(replaced, opts.scalePercent); } catch (eSP) { }
+        }
         return;
     }
 

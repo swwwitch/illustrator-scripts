@@ -2,13 +2,14 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // バージョン / Version
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.2";
 
 /*
 【概要 / Overview】
 選択したテキストの背面に、見た目寸法に基づく「正円」を自動生成して背面配置します。直径はテキストの幅・高さのうち大きい方を基準に算出し、テキストの中心に揃えます。OK 時に作成した円は［Convert to Shape］でライブシェイプ化されます。
 
 - 対象 / Target: pointText または areaText（複数選択時は最初のテキストを対象）
+- オプション / Options: 「正円」「スーパー楕円」をラジオ選択（スーパー楕円は指数 n=2.5 のスーパー楕円で作成）
 - 位置 / Position: テキスト直後（背面側 / PLACEAFTER）に配置。X/Y オフセットはアプリの rulerType 単位（負値可）
 - スケール / Scale: ％入力（例: 100 = 等倍）。専用パネルに「倍率」「1文字」チェックを配置
 - 種別 / Kind: 塗り or 線（線のときは線幅を指定）。線選択中は「中マド処理」を自動でディム＆OFF
@@ -27,7 +28,9 @@ var SCRIPT_VERSION = "v1.0";
 - 2025-11-11: プレビュー最適化：見た目寸法の再アウトライン化は初回のみ計測してキャッシュ。
 - 2025-11-11: 全 UI ラベルをローカライズ対応（Axis / Scale / Exclude など）。
 - 2025-11-11: ダイアログのウィンドウ位置（bounds）を記憶・復元する機能を追加。
-（更新日 / Updated: 2025-11-11）
+- 2025-12-23: 「オプション」パネル（正円 / スーパー楕円）を追加。
+- 2025-12-23: 「スーパー楕円」選択時にスーパー楕円パスを生成するロジックを追加（n=2.5）。
+（更新日 / Updated: 2025-12-23）
 */
 
 // --- UI Labels (JP/EN) ---
@@ -49,9 +52,23 @@ var __BTN_LABELS = {
 // ラベル定義 / Labels
 var LABELS = {
     dialogTitle: {
-        ja: "テキストの背面に正円を作成",
+        ja: "テキストの背面に円を作成",
         en: "Create Circle Behind Text"
     },
+    // --- New Option Panel Labels ---
+    optionsPanel: {
+        ja: "オプション",
+        en: "Options"
+    },
+    perfectCircle: {
+        ja: "正円",
+        en: "Circle"
+    },
+    superEllipse: {
+        ja: "スーパー楕円",
+        en: "Superellipse"
+    },
+    // ---
     axisPanel: {
         ja: "座標",
         en: "Axis"
@@ -129,6 +146,36 @@ function L(key) {
     } catch (e) {
         return key;
     }
+}
+
+// --- Geometry helpers ---
+function sign(x) {
+    return ((x > 0) - (x < 0)) || +x;
+}
+
+/**
+ * スーパー楕円（Superellipse）のアンカーポイント配列を生成
+ */
+function buildSuperellipsePoints(cx, cy, width, height, n) {
+    var anchorpoint = [];
+    for (var t = 0; t < 6.28318530718; t += 0.01) {
+        var ct = Math.cos(t);
+        var st = Math.sin(t);
+        var x = Math.pow(Math.abs(ct), 2 / n) * (width / 2) * sign(ct);
+        var y = Math.pow(Math.abs(st), 2 / n) * (height / 2) * sign(st);
+        anchorpoint.push([cx + x, cy + y]);
+    }
+    return anchorpoint;
+}
+
+/**
+ * 既存の PathItem をスーパー楕円形状に変形
+ */
+function morphPathToSuperellipse(pathItem, cx, cy, width, height, n) {
+    if (!pathItem) return;
+    var pts = buildSuperellipsePoints(cx, cy, width, height, n);
+    pathItem.setEntirePath(pts);
+    pathItem.closed = true;
 }
 
 // --- Illustrator 単位ユーティリティ関数群 ---
@@ -300,6 +347,24 @@ function main() {
     var rightCol = cols.add('group');
     rightCol.orientation = 'column';
     rightCol.alignChildren = ['fill', 'top'];
+
+    // パネル：オプション（座標パネルの上）
+    var pnlOptions = leftCol.add('panel', undefined, L('optionsPanel'));
+    pnlOptions.orientation = 'column';
+    pnlOptions.alignChildren = ['fill', 'top'];
+    pnlOptions.margins = [15, 20, 15, 10];
+
+    var grpOptions = pnlOptions.add('group');
+    grpOptions.orientation = 'column';
+    grpOptions.alignChildren = ['left', 'top'];
+
+    var rbPerfectCircle = grpOptions.add('radiobutton', undefined, L('perfectCircle'));
+    var rbSuperEllipse = grpOptions.add('radiobutton', undefined, L('superEllipse'));
+    rbPerfectCircle.value = true; // デフォルトは正円
+    rbPerfectCircle.onClick = function() { if (typeof updatePreview === 'function') updatePreview(); };
+    rbSuperEllipse.onClick = rbPerfectCircle.onClick;
+    rbPerfectCircle.onChanging = rbPerfectCircle.onClick;
+    rbSuperEllipse.onChanging = rbPerfectCircle.onClick;
 
     // パネル：座標調整
     var pnlOffset = leftCol.add('panel', undefined, L('axisPanel') + '（' + __rulerLabel + '）');
@@ -666,7 +731,15 @@ function main() {
         var p = computeParams();
         var circleLeft = p.cx - p.d / 2;
         var circleTop = p.cy + p.d / 2;
+
+        // まずは通常の円（Ellipse）を作成し、その形状を必要に応じて変形する
         previewCircle = doc.pathItems.ellipse(circleTop, circleLeft, p.d, p.d);
+
+        // 形状変更（スーパー楕円）
+        if (rbSuperEllipse.value) {
+            var n = 2.5; // スーパー楕円の指数（固定。後でUI化）
+            morphPathToSuperellipse(previewCircle, p.cx, p.cy, p.d, p.d, n);
+        }
         // 塗り色：カラーpanelに従う（ブラック／ホワイト／CMYK）
 
         // スタイル適用：種別（塗り/線）とカラー設定
@@ -890,21 +963,27 @@ function main() {
             previewCircle.move(textItem, ElementPlacement.PLACEAFTER);
         } catch (_) {}
     }
-    // 正円をライブシェイプに変換（Convert to Shape）し、外観を再適用
+    // 正円のみライブシェイプに変換（Convert to Shape）し、外観を再適用
     try {
         if (previewCircle) {
-            app.selection = null;
-            previewCircle.selected = true;
-            app.executeMenuCommand('Convert to Shape');
-            // 変換後のオブジェクト（選択状態の先頭）を取得
-            var converted = null;
-            try {
-                converted = app.selection && app.selection.length ? app.selection[0] : null;
-            } catch (_) {}
-            if (!converted) converted = previewCircle; // フォールバック
-            // 外観を再適用（線が消える/初期化されるのを防ぐ）
-            applyStyleToItem(converted);
-            app.selection = null;
+            // スーパー楕円は PathItem のため Convert to Shape は不要（実行すると崩れる可能性がある）
+            if (rbPerfectCircle.value) {
+                app.selection = null;
+                previewCircle.selected = true;
+                app.executeMenuCommand('Convert to Shape');
+                // 変換後のオブジェクト（選択状態の先頭）を取得
+                var converted = null;
+                try {
+                    converted = app.selection && app.selection.length ? app.selection[0] : null;
+                } catch (_) {}
+                if (!converted) converted = previewCircle; // フォールバック
+                // 外観を再適用（線が消える/初期化されるのを防ぐ）
+                applyStyleToItem(converted);
+                app.selection = null;
+            } else {
+                // スーパー楕円：外観はそのまま／念のため再適用
+                applyStyleToItem(previewCircle);
+            }
         }
     } catch (e) {
         // 失敗しても処理継続
