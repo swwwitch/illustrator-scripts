@@ -175,6 +175,7 @@ function main() {
             for (var i = 0; i < charCount; i++) {
                 var swatchColor = getSwatchColor(i, selectedSwatches);
                 selectedTextFrame.characters[i].fillColor = swatchColor;
+                selectedTextFrame.characters[i].strokeColor = new NoColor();
                 selectedTextFrame.characters[i].opacity = 100;
             }
         } else {
@@ -185,15 +186,18 @@ function main() {
                 var currentItem = selectedItems[i];
                 if (currentItem.typename === "PathItem") {
                     currentItem.fillColor = swatchColor;
+                    currentItem.stroked = false;
                     currentItem.opacity = 100;
                 } else if (currentItem.typename === "CompoundPathItem" && currentItem.pathItems.length > 0) {
                     var pathItems = currentItem.pathItems;
                     for (var j = 0; j < pathItems.length; j++) {
                         pathItems[j].fillColor = swatchColor;
+                        pathItems[j].stroked = false;
                         pathItems[j].opacity = 100;
                     }
                 } else if (currentItem.typename === "TextFrame") {
                     currentItem.textRange.fillColor = swatchColor;
+                    currentItem.textRange.strokeColor = new NoColor();
                     currentItem.textRange.opacity = 100;
                 }
             }

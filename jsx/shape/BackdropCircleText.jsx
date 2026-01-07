@@ -2,7 +2,7 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // バージョン / Version
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 /*
 【概要 / Overview】
@@ -30,6 +30,7 @@ var SCRIPT_VERSION = "v1.2";
 - 2025-11-11: ダイアログのウィンドウ位置（bounds）を記憶・復元する機能を追加。
 - 2025-12-23: 「オプション」パネル（正円 / スーパー楕円）を追加。
 - 2025-12-23: 「スーパー楕円」選択時にスーパー楕円パスを生成するロジックを追加（n=2.5）。
++ 2025-12-23: スーパー楕円の生成ロジックを改善（少ない点数＋スムーズハンドル付与で軽量化）。
 （更新日 / Updated: 2025-12-23）
 */
 
@@ -154,28 +155,80 @@ function sign(x) {
 }
 
 /**
- * スーパー楕円（Superellipse）のアンカーポイント配列を生成
+ * スーパー楕円（Superellipse）のアンカーポイント配列を生成（固定点数サンプリング）
+ * - 旧: t を細かく刻んで大量ポイント
+ * - 新: 少ない点数 + スムーズハンドル付与で軽量化
  */
-function buildSuperellipsePoints(cx, cy, width, height, n) {
-    var anchorpoint = [];
-    for (var t = 0; t < 6.28318530718; t += 0.01) {
-        var ct = Math.cos(t);
-        var st = Math.sin(t);
+function buildSuperellipseAnchorPoints(cx, cy, width, height, n, numPoints) {
+    var pts = [];
+    var TWO_PI = Math.PI * 2;
+    var N = (numPoints && numPoints > 3) ? Math.round(numPoints) : 32;
+
+    for (var i = 0; i < N; i++) {
+        var theta = (TWO_PI * i) / N;
+        var ct = Math.cos(theta);
+        var st = Math.sin(theta);
         var x = Math.pow(Math.abs(ct), 2 / n) * (width / 2) * sign(ct);
         var y = Math.pow(Math.abs(st), 2 / n) * (height / 2) * sign(st);
-        anchorpoint.push([cx + x, cy + y]);
+        pts.push([cx + x, cy + y]);
     }
-    return anchorpoint;
+    return pts;
 }
 
 /**
- * 既存の PathItem をスーパー楕円形状に変形
+ * PathItem をスーパー楕円形状に変形し、スムーズなハンドルを付与
  */
 function morphPathToSuperellipse(pathItem, cx, cy, width, height, n) {
     if (!pathItem) return;
-    var pts = buildSuperellipsePoints(cx, cy, width, height, n);
-    pathItem.setEntirePath(pts);
+
+    // 扱いやすさと滑らかさのバランス（必要なら後でUI化）
+    var NUM_POINTS = 8;
+
+    var anchorPoints = buildSuperellipseAnchorPoints(cx, cy, width, height, n, NUM_POINTS);
+    pathItem.setEntirePath(anchorPoints);
     pathItem.closed = true;
+
+    // 角を減らすために各ポイントをスムーズ化し、接線方向からハンドルを推定
+    try {
+        var pp = pathItem.pathPoints;
+        var len = pp.length;
+        if (len >= 4) {
+            for (var i = 0; i < len; i++) {
+                var prev = anchorPoints[(i - 1 + len) % len];
+                var cur  = anchorPoints[i];
+                var next = anchorPoints[(i + 1) % len];
+
+                // 接線（next - prev）
+                var tx = next[0] - prev[0];
+                var ty = next[1] - prev[1];
+                var tlen = Math.sqrt(tx * tx + ty * ty);
+                if (tlen === 0) continue;
+                tx /= tlen;
+                ty /= tlen;
+
+                // 前後セグメント長
+                var d1x = cur[0] - prev[0];
+                var d1y = cur[1] - prev[1];
+                var d2x = next[0] - cur[0];
+                var d2y = next[1] - cur[1];
+                var d1 = Math.sqrt(d1x * d1x + d1y * d1y);
+                var d2 = Math.sqrt(d2x * d2x + d2y * d2y);
+
+                // ハンドル長係数（小さいほど角ばる／大きいほど丸くなる）
+                var h = Math.min(d1, d2) * 0.35;
+
+                var left  = [cur[0] - tx * h, cur[1] - ty * h];
+                var right = [cur[0] + tx * h, cur[1] + ty * h];
+
+                pp[i].anchor = cur;
+                pp[i].leftDirection = left;
+                pp[i].rightDirection = right;
+                pp[i].pointType = PointType.SMOOTH;
+            }
+        }
+    } catch (e) {
+        // ignore (環境差など)
+    }
 }
 
 // --- Illustrator 単位ユーティリティ関数群 ---

@@ -4,24 +4,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 SmartShapeMaker.jsx
 
-Illustrator script to create custom shapes by combining Rectangle, Ellipse, Polygon, and Star tools into one dialog.
-Features include real-time preview, adjustable sides, radii, rotation angle, and live shape option.
-Supports Japanese and English UI.
+Illustrator script to create custom shapes from a single dialog (Circle / Polygon / Star).
+Real-time preview, adjustable sides, width, rotation, and options are supported.
+Japanese / English UI.
 
 Main Features:
-- Specify number of sides (including circle and custom)
-- Star and pentagram options
-- Adjust outer radius and inner radius (percentage)
-- Automatic or manual rotation angle
-- Specify width (size) and option to create live shape
+- Specify number of sides (0 = Circle, 3/4/5/6/8, or custom)
+- Star option + Pentagram option (automatic inner ratio for pentagram)
+- Triangle direction options (Left / Right / Down) when sides = 3
+- Width (size) input with unit display (moved into the Width panel)
+- Rotation: auto angle when OFF, manual angle when ON (arrow-key editing supported)
+- Options:
+  - Live Shape conversion (Convert to Shape) on finalize
+  - Split at Anchor Points:
+    split the created path into open segments (stroke: black 0.3pt, RGB/CMYK supported),
+    and automatically disables Live Shape (dimmed)
+
+Keyboard Shortcuts:
+- E : Circle (0)
+- A : Toggle Rotate
+- S : Toggle Star
+- P : Toggle Pentagram
+- L : Triangle Left (also sets sides = 3)
+- R : Triangle Right (also sets sides = 3)
+- B : Triangle Down (also sets sides = 3)
+- D : Toggle Split at Anchor Points
 
 Usage Flow:
-1. Set sides, size, radius ratio, rotation, and options in dialog
-2. Preview shape in real-time
-3. Click OK to draw shape at artboard center
+1. Set sides, width, star options, rotation, and options in the dialog
+2. Preview updates in real-time
+3. Click OK to finalize the preview object at the artboard center
 
 Original Idea: Seiji Miyazawa (Sankai Lab)
-Version: v1.1.0 (20250503)
+Version: v1.2.0 (20260103)
 */
 
 // Language detection
@@ -31,7 +46,7 @@ function getCurrentLang() {
 var lang = getCurrentLang();
 
 var LABELS = {
-    dialogTitle: { ja: "図形の作成 v1.1", en: "Create Shape v1.1" },
+    dialogTitle: { ja: "図形の作成 v1.2", en: "Create Shape v1.2" },
     shapeType: { ja: "辺の数", en: "Sides" },
     circle: { ja: "円", en: "Circle" },
     custom: { ja: "それ以外", en: "Other" },
@@ -46,6 +61,9 @@ var LABELS = {
     pentagram: { ja: "五芒星", en: "Pentagram" },
     rotation: { ja: "回転", en: "Rotate" },
     width: { ja: "幅：", en: "Width:" },
+    widthPanel: { ja: "幅", en: "Width" },
+    optionPanel: { ja: "オプション", en: "Options" },
+    splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
     liveShape: { ja: "ライブシェイプ化", en: "Live Shape" },
     ok: { ja: "OK", en: "OK" },
     cancel: { ja: "キャンセル", en: "Cancel" }
@@ -79,6 +97,11 @@ function changeValueByArrowKey(editText) {
             event.preventDefault();
         }
         editText.text = value;
+
+        // If an onChanging handler exists (used for preview), invoke it so arrow-key edits update the preview.
+        if (typeof editText.onChanging === "function") {
+            try { editText.onChanging(); } catch (e) {}
+        }
     });
 }
 
@@ -119,7 +142,7 @@ function finalizeShape(doc) {
 }
 
 // Create shape based on parameters
-function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle) {
+function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors) {
     var layer = doc.activeLayer;
     layer.locked = false;
     layer.visible = true;
@@ -148,14 +171,167 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
     if (rotateEnabled && !isNaN(rotateAngle)) {
         shape.rotate(rotateAngle, true, true, true, true, Transformation.CENTER);
     }
-
+    if (splitAtAnchors) {
+        shape = splitPathAtAnchors(doc, shape);
+    }
     doc.selection = [shape];
     return shape;
+}
+
+// Split a path into segments at each anchor point.
+// Returns a GroupItem containing open PathItems (one per segment).
+function splitPathAtAnchors(doc, pathItem) {
+    if (!pathItem || !pathItem.pathPoints || pathItem.pathPoints.length < 2) return pathItem;
+
+    var layer = doc.activeLayer;
+    var group = layer.groupItems.add();
+
+    var pts = pathItem.pathPoints;
+    var n = pts.length;
+    var closed = pathItem.closed;
+
+    for (var i = 0; i < n; i++) {
+        var j = i + 1;
+        if (j >= n) {
+            if (!closed) break;
+            j = 0;
+        }
+
+        var p0 = pts[i];
+        var p1 = pts[j];
+
+        // Create an open path for this segment
+        var seg = group.pathItems.add();
+        seg.closed = false;
+
+        // Set anchors first
+        seg.setEntirePath([p0.anchor, p1.anchor]);
+
+        // Copy bezier handles for the segment
+        // For an open 2-point path: p0 uses rightDirection, p1 uses leftDirection.
+        seg.pathPoints[0].leftDirection  = p0.anchor;
+        seg.pathPoints[0].rightDirection = p0.rightDirection;
+        seg.pathPoints[0].pointType = p0.pointType;
+
+        seg.pathPoints[1].leftDirection  = p1.leftDirection;
+        seg.pathPoints[1].rightDirection = p1.anchor;
+        seg.pathPoints[1].pointType = p1.pointType;
+
+        // Appearance: segments should be stroked (fill doesn't make sense for open paths)
+        seg.filled = false;
+        seg.stroked = true;
+
+        // Stroke: black, 0.3pt (RGB / CMYK supported)
+        try {
+            var color;
+            if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
+                color = new CMYKColor();
+                color.cyan = 0; color.magenta = 0; color.yellow = 0; color.black = 100;
+            } else {
+                color = new RGBColor();
+                color.red = 0; color.green = 0; color.blue = 0;
+            }
+            seg.strokeColor = color;
+        } catch (e) {}
+        try { seg.strokeWidth = 0.3; } catch (e) {}
+    }
+
+    // Remove original path
+    try { pathItem.remove(); } catch (e) {}
+
+    return group;
 }
 
 // Show input dialog and handle UI and events
 function showInputDialog(unitLabel, unitFactor) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+    // Keyboard shortcuts
+    dlg.addEventListener("keydown", function (e) {
+        if (!e || !e.keyName) return;
+
+        switch (e.keyName.toUpperCase()) {
+
+            case "E":
+                // 0 sides (Circle)
+                for (var i = 0; i < radios.length; i++) radios[i].value = false;
+                radios[0].value = true;
+                customInput.enabled = false;
+                updatePreview();
+                e.preventDefault();
+                break;
+
+            // Triangle directions and split toggle (inserted here)
+            case "L":
+                // Triangle Left
+                for (var i = 0; i < radios.length; i++) radios[i].value = false;
+                radios[1].value = true; // sides = 3
+                customInput.enabled = false;
+                triangleLeftRadio.value = true;
+                onTriangleDirectionChange();
+                e.preventDefault();
+                break;
+
+            case "R":
+                // Triangle Right
+                for (var i = 0; i < radios.length; i++) radios[i].value = false;
+                radios[1].value = true; // sides = 3
+                customInput.enabled = false;
+                triangleRightRadio.value = true;
+                onTriangleDirectionChange();
+                e.preventDefault();
+                break;
+
+            case "B":
+                // Triangle Down (Bottom)
+                for (var i = 0; i < radios.length; i++) radios[i].value = false;
+                radios[1].value = true; // sides = 3
+                customInput.enabled = false;
+                triangleDownRadio.value = true;
+                onTriangleDirectionChange();
+                e.preventDefault();
+                break;
+
+            case "D":
+                // Toggle Split at Anchor Points
+                splitAtAnchorsCheck.value = !splitAtAnchorsCheck.value;
+                if (typeof splitAtAnchorsCheck.onClick === "function") {
+                    splitAtAnchorsCheck.onClick();
+                } else {
+                    updatePreview();
+                }
+                e.preventDefault();
+                break;
+
+            case "A":
+                // Rotate toggle
+                rotateCheck.value = !rotateCheck.value;
+                rotateInput.enabled = rotateCheck.value;
+                rotateLabel.enabled = rotateCheck.value;
+                updatePreview();
+                e.preventDefault();
+                break;
+
+            case "S":
+                // Star toggle
+                starCheck.value = !starCheck.value;
+                if (!starCheck.value) {
+                    pentagramCheck.value = false;
+                }
+                updatePreview();
+                e.preventDefault();
+                break;
+
+            case "P":
+                // Pentagram toggle (only when Star is enabled)
+                if (!starCheck.value) {
+                    starCheck.value = true;
+                }
+                pentagramCheck.value = !pentagramCheck.value;
+                updatePreview();
+                e.preventDefault();
+                break;
+        }
+    });
     dlg.orientation = "column";
     dlg.alignChildren = "fill";
 
@@ -163,7 +339,13 @@ function showInputDialog(unitLabel, unitFactor) {
     var main = dlg.add("group");
     main.orientation = "row";
 
-    var left = main.add("panel", undefined, LABELS.shapeType[lang]);
+    // Left column container (panel + rotation row)
+    var leftCol = main.add("group");
+    leftCol.orientation = "column";
+    leftCol.alignChildren = "fill";
+    leftCol.alignment = "top";
+
+    var left = leftCol.add("panel", undefined, LABELS.shapeType[lang]);
     left.orientation = "column";
     left.alignChildren = "left";
     left.margins = [20, 20, 10, 10];
@@ -183,17 +365,38 @@ function showInputDialog(unitLabel, unitFactor) {
     changeValueByArrowKey(customInput);
     radios[2].value = true;
 
-    // Rotation panel (moved below sides panel)
-    var rotatePanel = dlg.add("group");
+    // Rotation panel placed under the sides panel (left column)
+    var rotatePanel = leftCol.add("group");
     rotatePanel.orientation = "row";
     rotatePanel.alignChildren = "center";
-    rotatePanel.margins = [15, 10, 15, 0];
+    rotatePanel.alignment = "center";
+    rotatePanel.margins = [0, 6, 0, 0];
 
     var rotateCheck = rotatePanel.add("checkbox", undefined, LABELS.rotation[lang]);
     var rotateInput = rotatePanel.add("edittext", undefined, "90");
     rotateInput.characters = 4;
     changeValueByArrowKey(rotateInput);
     var rotateLabel = rotatePanel.add("statictext", undefined, "°");
+    // Initial state: manual rotation only when checked
+    rotateInput.enabled = rotateCheck.value;
+    rotateLabel.enabled = rotateCheck.value;
+
+    // Width panel placed under the rotation row (left column)
+    var widthPanel = leftCol.add("panel", undefined, LABELS.widthPanel[lang]);
+    widthPanel.orientation = "column";
+    widthPanel.alignChildren = "left";
+    widthPanel.margins = [15, 20, 15, 10];
+
+    // Width input moved from bottom area into this panel
+    var widthRow = widthPanel.add("group");
+    widthRow.orientation = "row";
+    widthRow.alignChildren = ["left", "center"];
+
+    // widthRow.add("statictext", undefined, LABELS.width[lang]);
+    var sizeInput = widthRow.add("edittext", undefined, "100");
+    sizeInput.characters = 5;
+    changeValueByArrowKey(sizeInput);
+    widthRow.add("statictext", undefined, "(" + unitLabel + ")");
 
     // Right column container
     var right = main.add("group");
@@ -225,6 +428,29 @@ function showInputDialog(unitLabel, unitFactor) {
     trianglePanel.alignChildren = "left";
     trianglePanel.margins = [15, 20, 15, 10];
 
+    // Options panel placed under the Triangle panel
+    var optionPanel = right.add("panel", undefined, LABELS.optionPanel[lang]);
+    optionPanel.orientation = "column";
+    optionPanel.alignChildren = "left";
+    optionPanel.margins = [15, 20, 15, 10];
+
+    // Live shape option moved here
+    var liveShapeCheck = optionPanel.add("checkbox", undefined, LABELS.liveShape[lang]);
+    liveShapeCheck.value = true;
+
+    // Split at anchor points
+    var splitAtAnchorsCheck = optionPanel.add("checkbox", undefined, LABELS.splitAtAnchors[lang]);
+    splitAtAnchorsCheck.value = false;
+    splitAtAnchorsCheck.onClick = function () {
+        if (splitAtAnchorsCheck.value) {
+            liveShapeCheck.value = false;
+            liveShapeCheck.enabled = false; // dim
+        } else {
+            liveShapeCheck.enabled = true;
+        }
+        updatePreview();
+    };
+
     var triangleRightRadio = trianglePanel.add("radiobutton", undefined, LABELS.triangleRight[lang]);
     var triangleLeftRadio  = trianglePanel.add("radiobutton", undefined, LABELS.triangleLeft[lang]);
     var triangleDownRadio  = trianglePanel.add("radiobutton", undefined, LABELS.triangleDown[lang]);
@@ -242,26 +468,7 @@ function showInputDialog(unitLabel, unitFactor) {
     triangleLeftRadio.onClick  = onTriangleDirectionChange;
     triangleDownRadio.onClick  = onTriangleDirectionChange;
 
-    var divider = dlg.add("panel");
-    divider.alignment = "fill";
-    divider.minimumSize.height = 1;
-    divider.margins = [0, 10, 0, 10];
 
-    var bottomGroup = dlg.add("group");
-    bottomGroup.orientation = "row";
-    bottomGroup.alignChildren = ["left", "center"];
-    bottomGroup.margins = [20, 0, 20, 10];
-
-    bottomGroup.add("statictext", undefined, LABELS.width[lang]);
-    bottomGroup.orientation = "row";
-    bottomGroup.alignChildren = ["left", "center"];
-    var sizeInput = bottomGroup.add("edittext", undefined, "100");
-    sizeInput.characters = 5;
-    changeValueByArrowKey(sizeInput);
-    bottomGroup.add("statictext", undefined, "(" + unitLabel + ")");
-
-    var liveShapeCheck = bottomGroup.add("checkbox", undefined, LABELS.liveShape[lang]);
-    liveShapeCheck.value = true;
 
     // Enable/disable star and pentagram options
     function validateStarAndPentagram() {
@@ -288,13 +495,17 @@ function showInputDialog(unitLabel, unitFactor) {
         var isPenta = pentagramCheck.value;
         var rotate = rotateCheck.value;
         var angle = parseFloat(rotateInput.text);
+        var splitAtAnchors = splitAtAnchorsCheck.value;
 
-        if (sides === 0) {
-            angle = 45;
-            rotateInput.text = "45";
-        } else if (sides >= 3) {
-            angle = 360 / (sides * 2);
-            rotateInput.text = formatAngle(angle);
+        // Auto-rotation only when Rotate is OFF (manual mode keeps user-entered angle)
+        if (!rotate) {
+            if (sides === 0) {
+                angle = 45;
+                rotateInput.text = "45";
+            } else if (sides >= 3) {
+                angle = 360 / (sides * 2);
+                rotateInput.text = formatAngle(angle);
+            }
         }
 
         // Triangle-specific rotation:
@@ -317,7 +528,7 @@ function showInputDialog(unitLabel, unitFactor) {
 
         if (!isNaN(size) && !isNaN(ratio)) {
             if (previewShape) try { previewShape.remove(); } catch (e) {}
-            previewShape = createShape(app.activeDocument, size, sides, isStar, ratio, rotate, angle);
+            previewShape = createShape(app.activeDocument, size, sides, isStar, ratio, rotate, angle, splitAtAnchors);
             app.redraw();
         }
     }
@@ -362,8 +573,8 @@ function showInputDialog(unitLabel, unitFactor) {
 
     var btnArea = dlg.add("group");
     btnArea.orientation = "row";
-    btnArea.alignChildren = ["right", "center"];
-    btnArea.alignment = "right";
+    btnArea.alignChildren = ["center", "center"];
+    btnArea.alignment = "center";
     btnArea.margins = [0, 10, 0, 0];
     btnArea.spacing = 10;
 
@@ -373,6 +584,9 @@ function showInputDialog(unitLabel, unitFactor) {
     var confirmed = false;
     btnCancel.onClick = function () { dlg.close(); };
     btnOK.onClick = function () {
+        // Ensure latest UI state is reflected in the preview object before closing
+        try { updatePreview(); } catch (e) {}
+
         confirmed = true;
         dlg.close();
     };
