@@ -8,7 +8,7 @@ AddPageNumberFromTextSelection.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPageNumberFromTextSelection.jsx
 
 ### 概要：
 
@@ -51,7 +51,7 @@ AddPageNumberFromTextSelection.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPageNumberFromTextSelection.jsx
 
 ### Overview：
 
