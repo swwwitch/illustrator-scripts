@@ -13,6 +13,7 @@ https://github.com/swwwitch/illustrator-scripts
 ### 概要：
 
 - 選択中のポイントテキスト（_pagenumber レイヤー推奨）を雛形に、すべてのアートボードへ連番テキストを配置します。
+- 更新日：20260108
 - 値の変更（接頭辞・開始番号・接尾辞・ゼロパディング・総ページ）や ↑↓/Shift+↑↓ による数値変更で、ドキュメント上のプレビューが即時更新されます（OK は確定のみ、キャンセルでプレビューを破棄）。
 - _pagenumber レイヤーが無い場合は自動作成し、プレビュー中は一時的にロック解除・可視化・最前面移動して安全に処理します。OK/キャンセル時に元のロック／可視状態と重ね順を確実に復元します。
 
@@ -37,6 +38,7 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### 更新履歴：
 
+- v2.0 (20260108) : プレビュー時にUndo履歴を汚しにくいよう、app.undo() を用いたロールバック型プレビュー管理（PreviewManager）を追加。OK時は一括Undo後に本処理を1回で再実行し、取り消しを1回で戻せるように改善。
 - v1.9 (20250810) : _pagenumber の自動作成、ロック/可視の一時解除、最前面化、OK/キャンセル時の重ね順・可視・ロックの完全復元を追加。プレビュー耐性を強化。
 - v1.8 (20250625) : リファクタリング、ライブプレビューと全ABプレビュー複製に対応、UI整理
 - v1.0 (20250625) : 初期バージョン
@@ -54,6 +56,7 @@ https://github.com/swwwitch/illustrator-scripts
 ### Overview：
 
 - Places sequential page-number text on all artboards using the currently selected point text as a template (the _pagenumber layer is recommended).
+- Updated: 2026-01-08
 - Live preview updates instantly when values change (prefix, start number, suffix, zero padding, total pages) and on Up/Down or Shift+Up/Down. OK commits; Cancel discards the preview.
 - If the _pagenumber layer doesn’t exist, it is auto-created. During preview, the layer is temporarily unlocked, shown, and moved to the top; on OK/Cancel, its lock/visibility and stacking order are fully restored.
 
@@ -78,12 +81,13 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### Update History：
 
+- v2.0 (2026-01-08): Added rollback-based preview history management using app.undo() (PreviewManager). On OK, undo preview steps and re-run the final action once so users can undo the whole operation with a single Ctrl/Cmd+Z.
 - v1.9 (2025-08-10): Added auto-create for _pagenumber, temporary unlock/visibility, move-to-top during preview, and full restoration of stacking order & visibility/lock on OK/Cancel; improved preview robustness.
 - v1.8 (2025-06-25): Refactor; added live preview and all-artboards preview duplication; UI cleanup
 - v1.0 (2025-06-25): Initial release
 */
 
-var SCRIPT_VERSION = "v1.9";
+var SCRIPT_VERSION = "v2.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -186,6 +190,7 @@ function forceRemoveLayerByName(doc, name) {
 }
 
 // --- Safe helpers to reduce repetitive try/catch ---
+
 function trySet(obj, prop, value) {
     try {
         if (obj) obj[prop] = value;
@@ -196,6 +201,51 @@ function tryCall(fn) {
     try {
         fn && fn();
     } catch (_) {}
+}
+
+/* =========================================================
+   汎用 Undo/Preview 管理クラス / Generic Undo/Preview Manager
+   ========================================================= */
+
+function PreviewManager() {
+    this.undoDepth = 0; // プレビュー中に実行されたアクション回数 / number of preview actions executed
+
+    // 変更操作を実行し、履歴としてカウント / Run an action and count it as one preview step
+    this.addStep = function(func) {
+        try {
+            if (typeof func === "function") func();
+            this.undoDepth++;
+            try { app.redraw(); } catch (_) {}
+        } catch (e) {
+            alert("Preview Error: " + e);
+        }
+    };
+
+    // プレビューのための変更を全て取り消す / Roll back all preview steps
+    this.rollback = function() {
+        try {
+            while (this.undoDepth > 0) {
+                try { app.undo(); } catch (_) { break; }
+                this.undoDepth--;
+            }
+            try { app.redraw(); } catch (_) {}
+        } catch (_) {}
+    };
+
+    // OK時の確定：必要なら一度全Undoしてから本処理を1回実行 / Confirm: optionally undo all preview steps then run final action once
+    this.confirm = function(finalAction) {
+        if (finalAction) {
+            this.rollback();
+            try {
+                finalAction();
+            } catch (e) {
+                alert("Final Error: " + e);
+            }
+        } else {
+            // プレビュー状態をそのまま採用する場合
+            this.undoDepth = 0;
+        }
+    };
 }
 
 /* 型ガード / Type guards */
@@ -744,6 +794,10 @@ function main() {
     dialog.orientation = "column";
     dialog.alignChildren = "left";
 
+    // プレビュー管理 / Preview manager
+    var previewMgr = new PreviewManager();
+    var okHandled = false;
+
     // 親（3カラム）/ 3-column layout
     var columnsGroup = dialog.add("group");
     columnsGroup.orientation = "row";
@@ -773,15 +827,99 @@ function main() {
         var doc = app.activeDocument;
         var start = parseInt(inputField.text, 10);
         if (isNaN(start)) return;
-        updatePreview(
-            doc,
-            "_pagenumber",
-            start,
+
+        // まず前回プレビュー分を巻き戻す / rollback previous preview first
+        previewMgr.rollback();
+
+        // 新しいプレビューを1ステップとして実行 / run new preview as one step
+        previewMgr.addStep(function() {
+            updatePreview(
+                doc,
+                "_pagenumber",
+                start,
+                (prefixField.text || ""),
+                (suffixField.text || ""),
+                !!zeroPadCheckbox.value,
+                !!totalPageCheckbox.value
+            );
+        });
+    }
+
+    // 本番処理（確定用）/ Final commit action
+    function runFinalAction() {
+        var startNum = parseInt(inputField.text, 10);
+        if (isNaN(startNum)) {
+            alert(LABELS.errorNotNumber[lang]);
+            return;
+        }
+        if (app.documents.length === 0) return;
+        var doc = app.activeDocument;
+
+        // プレビュー用バックアップを破棄（あれば）/ discard preview backup layer if any
+        try { forceRemoveLayerByName(doc, TMP_LAYER_NAME); } catch (_) {}
+
+        // _pagenumber レイヤー取得 / ensure _pagenumber
+        var _pgl = null;
+        try { _pgl = getOrCreatePagenumberLayer(doc); } catch (_) { _pgl = null; }
+        if (!_pgl) return;
+
+        // 選択テキストを _pagenumber へ移動（必要時）/ move selection to _pagenumber if needed
+        var moved = moveSelectionToLayer(doc, _pgl);
+        removeOtherTextFrames(_pgl, moved);
+
+        // 選択を優先。なければ _pagenumber 内から探索 / Prefer selected text, otherwise pick from _pagenumber
+        var targetText = getSelectedTextFrame();
+        if (!targetText) {
+            targetText = findTextFrameOnAnyArtboard(_pgl, doc);
+        }
+        if (!targetText) {
+            alert(LABELS.errorInvalidSelection[lang]);
+            return;
+        }
+
+        // _pagenumber レイヤーに置く（確定時）/ Ensure it's on _pagenumber (for commit)
+        try {
+            if (targetText.layer.name !== '_pagenumber') targetText.move(_pgl, ElementPlacement.PLACEATBEGINNING);
+        } catch (_mv) {}
+
+        // ここではアートボードの付け替えは行わない / Do not rebase to artboard 1 here
+        removeOtherTextFrames(_pgl, targetText);
+
+        if (targetText.layer.name !== "_pagenumber") {
+            alert(LABELS.errorInvalidSelection[lang]);
+            return;
+        }
+        if (targetText.typename !== "TextFrame") {
+            alert(LABELS.errorInvalidSelection[lang]);
+            return;
+        }
+
+        seedAndPasteAll(doc, targetText, startNum);
+
+        var framesList = collectTextFramesSorted(doc, _pgl, targetText);
+        var maxNum = startNum + doc.artboards.length - 1;
+        var maxDigits = String(maxNum).length;
+        applyNumbering(
+            framesList,
+            startNum,
+            maxDigits,
             (prefixField.text || ""),
             (suffixField.text || ""),
             !!zeroPadCheckbox.value,
+            maxNum,
             !!totalPageCheckbox.value
         );
+
+        try { app.redraw(); } catch (_) {}
+
+        // 追加：_pagenumber の状態を復元 / restore _pagenumber layer state
+        try {
+            if (PG_STATE) {
+                var __doc = doc;
+                var __pgl = pgl || getOrCreatePagenumberLayer(__doc);
+                restorePagenumberState(__doc, __pgl, PG_STATE);
+            }
+        } catch (_restFinal) {}
     }
 
     // 値変更でプレビュー更新 / Update preview on value changes
@@ -818,56 +956,41 @@ function main() {
         triggerPreview();
     }, true);
 
-    // メイングループ（横並び） / Main group (horizontal layout)
+    // ボタン（右寄せで並べる）/ Buttons (right-aligned)
     var btnRowGroup = dialog.add("group");
     btnRowGroup.orientation = "row";
-    btnRowGroup.alignChildren = ["fill", "center"];
+    btnRowGroup.alignChildren = ["right", "center"];
     btnRowGroup.margins = [10, 10, 10, 0];
-    btnRowGroup.alignment = ["fill", "bottom"];
+    btnRowGroup.alignment = ["right", "bottom"];
 
-    // 左側グループ / Left-side button group
-    var btnLeftGroup = btnRowGroup.add("group");
-    btnLeftGroup.alignChildren = ["left", "center"];
-    // キャンセルボタン / Cancel button
-    var btnCancel = btnLeftGroup.add("button", undefined, LABELS.cancelLabel[lang], {
-        name: "cancel"
-    });
-
-    // スペーサー（伸縮）/ Spacer (stretchable)
-    var spacer = btnRowGroup.add("group");
-    spacer.alignment = ["fill", "fill"];
-    spacer.minimumSize.width = 0;
-
-    // 右側グループ / Right-side button group
-    var btnRightGroup = btnRowGroup.add("group");
-    btnRightGroup.alignChildren = ["right", "center"];
-    // OKボタン / OK button
-    var btnOK = btnRightGroup.add("button", undefined, LABELS.okLabel[lang], {
-        name: "ok"
-    });
+    // キャンセル → OK の順で右に並ぶ（OKが一番右）/ Cancel then OK (OK is rightmost)
+    var btnCancel = btnRowGroup.add("button", undefined, LABELS.cancelLabel[lang], { name: "cancel" });
+    var btnOK = btnRowGroup.add("button", undefined, LABELS.okLabel[lang], { name: "ok" });
 
     // ハンドラ / Handlers
     btnOK.onClick = function() {
-        // プレビュー用バックアップを破棄 / discard preview backup if any
+        okHandled = true;
+
+        // OK時は「一度プレビュー分を全Undo → 本処理を1回だけ実行」
+        previewMgr.confirm(function() {
+            runFinalAction();
+        });
+
+        // 念のため：プレビュー用退避レイヤーを削除 / discard preview backup if any
         try {
             if (app.documents.length) {
                 forceRemoveLayerByName(app.activeDocument, TMP_LAYER_NAME);
             }
         } catch (_) {}
 
-        // 追加：_pagenumber の状態を復元 / restore _pagenumber layer state
-        try {
-            if (app.documents.length && PG_STATE) {
-                var __doc = app.activeDocument;
-                var __pgl = pgl || getOrCreatePagenumberLayer(__doc);
-                restorePagenumberState(__doc, __pgl, PG_STATE);
-            }
-        } catch (_restOK) {}
-
+        // ダイアログを閉じる
         dialog.close(1);
     };
     btnCancel.onClick = function() {
-        // （既存）プレビューの復元ロジック
+        // まずUndoでプレビュー分を巻き戻す / rollback preview via undo first
+        previewMgr.rollback();
+
+        // （既存）プレビューの復元ロジック（フォールバック）
         try {
             if (!app.documents.length) {
                 dialog.close(0);
@@ -880,35 +1003,21 @@ function main() {
             } catch (_nf) {
                 tmp = null;
             }
-            if (!tmp) {
-                // バックアップが無い場合でも状態復元は行う
-            } else {
+            if (tmp) {
                 var pgl = getOrCreateLayer(doc, "_pagenumber");
-                try {
-                    removeOtherTextFrames(pgl, null);
-                } catch (_r) {}
-                try {
-                    tmp.locked = false;
-                } catch (_l) {}
-                try {
-                    tmp.visible = true;
-                } catch (_v) {}
+                try { removeOtherTextFrames(pgl, null); } catch (_r) {}
+                try { tmp.locked = false; } catch (_l) {}
+                try { tmp.visible = true; } catch (_v) {}
                 for (var bi = tmp.pageItems.length - 1; bi >= 0; bi--) {
                     try {
                         var it = tmp.pageItems[bi];
-                        try {
-                            it.locked = false;
-                        } catch (_il) {}
+                        try { it.locked = false; } catch (_il) {}
                         it.move(pgl, ElementPlacement.PLACEATBEGINNING);
-                        try {
-                            it.visible = true;
-                        } catch (_iv) {}
+                        try { it.visible = true; } catch (_iv) {}
                     } catch (_mv) {}
                 }
                 forceRemoveLayerByName(doc, TMP_LAYER_NAME);
-                try {
-                    app.redraw();
-                } catch (_rd) {}
+                try { app.redraw(); } catch (_rd) {}
             }
         } catch (_e) {}
 
@@ -954,56 +1063,10 @@ function main() {
         return;
     }
 
-    var startNum = parseInt(inputField.text, 10);
-    if (isNaN(startNum)) {
-        alert(LABELS.errorNotNumber[lang]);
+    // OKボタン側で確定処理を実行済み / Final action is executed in OK handler
+    if (okHandled) {
         return;
     }
-
-    if (app.documents.length === 0) return;
-    var doc = app.activeDocument;
-
-    pgl = pgl || getOrCreatePagenumberLayer(doc);
-
-    var moved = moveSelectionToLayer(doc, pgl);
-    removeOtherTextFrames(pgl, moved);
-
-    // 選択を優先。なければ _pagenumber 内から探索 / Prefer selected text, otherwise pick from _pagenumber
-    var targetText = getSelectedTextFrame();
-    if (!targetText) {
-        targetText = findTextFrameOnAnyArtboard(pgl, doc);
-    }
-
-    if (!targetText) {
-        alert(LABELS.errorInvalidSelection[lang]);
-        return;
-    }
-
-    // _pagenumber レイヤーに置く（確定時）/ Ensure it's on _pagenumber (for commit)
-    try {
-        if (targetText.layer.name !== '_pagenumber') targetText.move(pgl, ElementPlacement.PLACEATBEGINNING);
-    } catch (_mv) {}
-
-    // ここではアートボードの付け替えは行わない / Do not rebase to artboard 1 here
-    removeOtherTextFrames(pgl, targetText);
-
-    if (targetText.layer.name !== "_pagenumber") {
-        alert(LABELS.errorInvalidSelection[lang]);
-        return;
-    }
-
-    if (targetText.typename !== "TextFrame") {
-        alert(LABELS.errorInvalidSelection[lang]);
-        return;
-    }
-
-    seedAndPasteAll(doc, targetText, startNum);
-
-    var framesList = collectTextFramesSorted(doc, pgl, targetText);
-    var maxNum = startNum + doc.artboards.length - 1;
-    var maxDigits = String(maxNum).length;
-    applyNumbering(framesList, startNum, maxDigits, prefixField.text, suffixField.text, zeroPadCheckbox.value, maxNum, totalPageCheckbox.value);
-
 }
 
 main();
