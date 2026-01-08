@@ -1,28 +1,50 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
 /*
  * 連番振り直し / Smart Renumber
  * 
  * [概要 / Summary]
- * 選択した数値テキストを並び替えて連番を振り直します。
+ * 更新日: 2026-01-09
+ * 選択した数値テキストを、指定した並び順でソートして連番を振り直します。
  * 接頭辞・接尾辞の追加、ゼロ埋め、逆順などのオプションが利用可能です。
- * Sorts selected numeric text frames and renumbers them.
+ * 
+ * プレビューは app.undo() を使って「巻き戻し→再適用」するため、操作中のUndo履歴を汚しません。
+ * OK確定時は一度すべて巻き戻してから本番を1回だけ適用し、Undo 1回で取り消せます。
+ * 
+ * ダイアログは見やすさのため、表示位置を右へオフセットし、透明度をわずかに下げています。
+ * 
+ * Sorts selected numeric text frames by the chosen order and renumbers them.
  * Supports prefix/suffix, zero padding, and reverse order.
  * 
- * [ショートカットキー / Shortcut Keys]
- * - D: 現在の数値順 / Current Value Order
- * - V: 垂直方向（上から下） / Vertical (Top to Bottom)
- * - H: 水平方向（左から右） / Horizontal (Left to Right)
- * - Z: Z方向（左→右、上→下） / Z-Pattern (Left to Right, Row by Row)
- * - N: N方向（上→下、左→右） / N-Pattern (Top to Bottom, Column by Column)
- * - A: 重ね順（前面から） / Layer Order (Front to Back)
- * - R: 逆順の切り替え / Toggle Reverse Order
- * - P: ゼロ埋めの切り替え / Toggle Zero Padding
- * - Up/Down Arrows: 開始番号の増減 ($$ \pm 1 $$, Shift: $$ \pm 10 $$, Alt: $$ \pm 0.1 $$)
+ * Preview rolls back via app.undo() (rollback → reapply), so it doesn't pollute the Undo history.
+ * On OK, rolls back and applies once so the whole operation is undoable in a single step.
+ * 
+ * The dialog is shifted to the right and slightly transparent for better visibility.
  */
 
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+var SCRIPT_VERSION = "v2.0";
 
-var SCRIPT_VERSION = "v1.9";
+// ダイアログ表示位置・透明度
+var DIALOG_OFFSET_X = 300;
+var DIALOG_OFFSET_Y = 0;
+var DIALOG_OPACITY = 0.98;
+
+function shiftDialogPosition(dlg, offsetX, offsetY) {
+    var prevOnShow = dlg.onShow;
+    dlg.onShow = function () {
+        try { if (prevOnShow) prevOnShow(); } catch (e) {}
+        try {
+            var currentX = dlg.location[0];
+            var currentY = dlg.location[1];
+            dlg.location = [currentX + offsetX, currentY + offsetY];
+        } catch (e2) {}
+    };
+}
+
+function setDialogOpacity(dlg, opacityValue) {
+    try { dlg.opacity = opacityValue; } catch (e) {}
+}
 
 /**
  * 現在の言語を取得
@@ -90,12 +112,19 @@ function main() {
 
     if (textObjects.length === 0) { alert(L('errNoNumeric')); return; }
 
+    // プレビュー時のUndo管理
+    var previewMgr = new PreviewManager();
+
     /* ダイアログボックスの作成 */
     var win = new Window("dialog", L('dialogTitle') + ' ' + SCRIPT_VERSION);
     win.orientation = "row";
     win.alignChildren = ["left", "top"];
     win.spacing = 20;
     win.margins = 20;
+
+    // ダイアログの透明度と位置を調整
+    setDialogOpacity(win, DIALOG_OPACITY);
+    shiftDialogPosition(win, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
 
     /* 左カラム */
     var leftCol = win.add("group");
@@ -163,69 +192,105 @@ function main() {
     var btnOK = rightCol.add("button", undefined, L('ok'), { name: "ok" });
     var btnCancel = rightCol.add("button", undefined, L('cancel'), { name: "cancel" });
 
-    /* プレビュー更新 */
-    var updatePreview = function () {
-        var startNum = parseFloat(inputNumber.text);
-        if (isNaN(startNum)) return;
-
-        var prefix = inputPrefix.text;
-        var suffix = inputSuffix.text;
-
-        var sortedList = textObjects.slice();
-        var threshold = 10;
-
-        sortedList.sort(function (a, b) {
-            if (rbIgnore.value) return a.value - b.value;
-            if (rbVertical.value) return b.y - a.y;
-            if (rbHorizontal.value) return a.x - b.x;
-            if (rbStackTop.value) return a.stackOrder - b.stackOrder;
-
-            if (rbZ.value) {
-                if (Math.abs(a.y - b.y) > threshold) return b.y - a.y;
-                return a.x - b.x;
-            }
-            if (rbN.value) {
-                if (Math.abs(a.x - b.x) > threshold) return a.x - b.x;
-                return b.y - a.y;
-            }
-            return 0;
-        });
-
-        if (chkReverse.value) sortedList.reverse();
-
-        var maxNum = startNum + sortedList.length - 1;
-        var maxDigits = Math.floor(Math.abs(maxNum)).toString().length;
-
-        for (var j = 0; j < sortedList.length; j++) {
-            var newNum = startNum + j;
-            var numStr = chkZeroPad.value ? zeroPad(newNum, maxDigits) : newNum.toString();
-            sortedList[j].obj.contents = prefix + numStr + suffix;
-        }
-        app.redraw();
+    btnCancel.onClick = function () {
+        previewMgr.rollback();
+        win.close(0);
     };
 
-    /* キー入力ハンドラ */
-    win.addEventListener("keydown", function (event) {
-        var key = event.keyName;
-        var handled = false;
+    btnOK.onClick = function () {
+        // 一度プレビューを全てUndoしてから、最後に1回だけ本番適用（Undo 1回で戻せる）
+        previewMgr.confirm(function () {
+            var startNum = parseFloat(inputNumber.text);
+            if (isNaN(startNum)) return;
 
-        // テキスト入力中はショートカットを無効化
-        if (win.activeElement instanceof EditText && (key !== "Enter" && key !== "Escape")) {
-            return;
-        }
+            var prefix = inputPrefix.text;
+            var suffix = inputSuffix.text;
 
-        switch (key) {
-            case "D": rbIgnore.value = true; handled = true; break;
-            case "V": rbVertical.value = true; handled = true; break;
-            case "H": rbHorizontal.value = true; handled = true; break;
-            case "Z": rbZ.value = true; handled = true; break;
-            case "N": rbN.value = true; handled = true; break;
-            case "A": rbStackTop.value = true; handled = true; break; // 重ね順
-            case "R": chkReverse.value = !chkReverse.value; handled = true; break; // 逆順
-            case "P": chkZeroPad.value = !chkZeroPad.value; handled = true; break; // ゼロ埋め
-        }
-        if (handled) { updatePreview(); event.preventDefault(); }
-    });
+            var sortedList = textObjects.slice();
+            var threshold = 10;
+
+            sortedList.sort(function (a, b) {
+                if (rbIgnore.value) return a.value - b.value;
+                if (rbVertical.value) return b.y - a.y;
+                if (rbHorizontal.value) return a.x - b.x;
+                if (rbStackTop.value) return a.stackOrder - b.stackOrder;
+
+                if (rbZ.value) {
+                    if (Math.abs(a.y - b.y) > threshold) return b.y - a.y;
+                    return a.x - b.x;
+                }
+                if (rbN.value) {
+                    if (Math.abs(a.x - b.x) > threshold) return a.x - b.x;
+                    return b.y - a.y;
+                }
+                return 0;
+            });
+
+            if (chkReverse.value) sortedList.reverse();
+
+            var maxNum = startNum + sortedList.length - 1;
+            var maxDigits = Math.floor(Math.abs(maxNum)).toString().length;
+
+            for (var j = 0; j < sortedList.length; j++) {
+                var newNum = startNum + j;
+                var numStr = chkZeroPad.value ? zeroPad(newNum, maxDigits) : newNum.toString();
+                sortedList[j].obj.contents = prefix + numStr + suffix;
+            }
+            app.redraw();
+        });
+        win.close(1);
+    };
+
+    // ダイアログを×で閉じた場合もロールバック
+    win.onClose = function () {
+        previewMgr.rollback();
+        return true;
+    };
+
+    /* プレビュー更新（Undo履歴を汚さない） */
+    var updatePreview = function () {
+        // 直前のプレビューを必ず巻き戻す
+        previewMgr.rollback();
+
+        previewMgr.addStep(function () {
+            var startNum = parseFloat(inputNumber.text);
+            if (isNaN(startNum)) return;
+
+            var prefix = inputPrefix.text;
+            var suffix = inputSuffix.text;
+
+            var sortedList = textObjects.slice();
+            var threshold = 10;
+
+            sortedList.sort(function (a, b) {
+                if (rbIgnore.value) return a.value - b.value;
+                if (rbVertical.value) return b.y - a.y;
+                if (rbHorizontal.value) return a.x - b.x;
+                if (rbStackTop.value) return a.stackOrder - b.stackOrder;
+
+                if (rbZ.value) {
+                    if (Math.abs(a.y - b.y) > threshold) return b.y - a.y;
+                    return a.x - b.x;
+                }
+                if (rbN.value) {
+                    if (Math.abs(a.x - b.x) > threshold) return a.x - b.x;
+                    return b.y - a.y;
+                }
+                return 0;
+            });
+
+            if (chkReverse.value) sortedList.reverse();
+
+            var maxNum = startNum + sortedList.length - 1;
+            var maxDigits = Math.floor(Math.abs(maxNum)).toString().length;
+
+            for (var j = 0; j < sortedList.length; j++) {
+                var newNum = startNum + j;
+                var numStr = chkZeroPad.value ? zeroPad(newNum, maxDigits) : newNum.toString();
+                sortedList[j].obj.contents = prefix + numStr + suffix;
+            }
+        });
+    };
 
     /* イベントリスナー */
     changeValueByArrowKey(inputNumber, updatePreview);
@@ -238,12 +303,48 @@ function main() {
 
     updatePreview();
 
-    if (win.show() === 1) { /* 確定 */ } else {
-        for (var k = 0; k < textObjects.length; k++) {
-            textObjects[k].obj.contents = textObjects[k].original;
+    win.show();
+}
+
+/**
+ * プレビュー時の履歴管理と一括Undoを制御するクラス
+ * - updatePreview() のたびに rollback() → addStep() で「履歴を汚さないプレビュー」を実現
+ * - OK確定時は confirm(finalAction) で「1回のUndo」で戻せるようにする
+ */
+function PreviewManager() {
+    this.undoDepth = 0;
+
+    this.addStep = function (func) {
+        try {
+            func();
+            this.undoDepth++;
+            app.redraw();
+        } catch (e) {
+            alert("Preview Error: " + e);
+        }
+    };
+
+    this.rollback = function () {
+        while (this.undoDepth > 0) {
+            try {
+                app.undo();
+            } catch (e) {
+                // 何らかの理由でUndoできない場合は中断
+                break;
+            }
+            this.undoDepth--;
         }
         app.redraw();
-    }
+    };
+
+    this.confirm = function (finalAction) {
+        if (finalAction) {
+            this.rollback();
+            finalAction();
+        } else {
+            this.undoDepth = 0;
+        }
+    };
 }
 
 /**
