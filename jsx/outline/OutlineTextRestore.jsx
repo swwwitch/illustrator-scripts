@@ -2,7 +2,7 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-This script supports only Japanese language.
+UI messages support Japanese/English. (Note format remains Japanese for compatibility.)
 
 ### スクリプト名：
 
@@ -34,11 +34,44 @@ https://github.com/swwwitch/illustrator-scripts
 
 - v1.0 (20240811) : 初期バージョン
 - v1.1 (20250721) : 微調整
+- v1.2 (20260111) : ローカライズ（アラート文言の英語対応）
 
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
+
+// ==============================
+// Localization (JP / EN)
+// ==============================
+var LOCALE = (app.locale && app.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+
+var I18N = {
+    ja: {
+        ERR_NO_DOC: 'ドキュメントが開かれていません。',
+        ERR_NO_SELECTION: 'オブジェクトが選択されていません。',
+        ERR_NO_NOTE_PATH: '選択されたパスにはメモが付いていません。',
+        ERR_NO_NOTE_GROUP: '選択されたグループにはメモが付いていません。',
+        ERR_INVALID_NOTE_PATH: 'メモに有効な属性情報が含まれていません。',
+        ERR_INVALID_NOTE_GROUP: 'グループのメモに有効な属性情報が含まれていません。',
+        ERR_INVALID_SELECTION: 'Path または Group を選択してください。',
+        WARN_FONT_FALLBACK: '指定されたフォントやその他の属性が見つかりませんでした。デフォルトの設定が使用されます。'
+    },
+    en: {
+        ERR_NO_DOC: 'No document is open.',
+        ERR_NO_SELECTION: 'No objects are selected.',
+        ERR_NO_NOTE_PATH: 'The selected path has no note.',
+        ERR_NO_NOTE_GROUP: 'The selected group has no note.',
+        ERR_INVALID_NOTE_PATH: 'The note does not contain valid attribute data.',
+        ERR_INVALID_NOTE_GROUP: 'The group note does not contain valid attribute data.',
+        ERR_INVALID_SELECTION: 'Please select a Path or Group.',
+        WARN_FONT_FALLBACK: 'The specified font or attributes were not found. Default settings were used.'
+    }
+};
+
+function _(key) {
+    return (I18N[LOCALE] && I18N[LOCALE][key]) ? I18N[LOCALE][key] : key;
+}
 
 
 // メモからテキスト属性（文字列、フォント、フォントサイズなど）を抽出する関数
@@ -53,7 +86,8 @@ function extractTextAttributes(noteText) {
         tracking: null,
         proportionalMetrics: null,
         x: null, // X座標
-        y: null // Y座標
+        y: null, // Y座標
+        savedBounds: null // [L, T, R, B]（geometricBounds）
     };
 
     for (var i = 0; i < lines.length; i++) {
@@ -82,14 +116,51 @@ function extractTextAttributes(noteText) {
             attributes.x = parseFloat(RegExp.$1); // X座標
             attributes.y = parseFloat(RegExp.$3); // Y座標
         }
+        // 座標（geometricBounds）：L/T/R/B を note から復元（複製時のズレ対策：最優先で使用）
+        // 例："L = 12.34, T = 56.78, R = 90.12, B = 34.56"
+        if (lines[i].match(/L\s*=\s*([-]?\d+(?:\.\d+)?),\s*T\s*=\s*([-]?\d+(?:\.\d+)?),\s*R\s*=\s*([-]?\d+(?:\.\d+)?),\s*B\s*=\s*([-]?\d+(?:\.\d+)?)/)) {
+            attributes.savedBounds = [
+                parseFloat(RegExp.$1),
+                parseFloat(RegExp.$2),
+                parseFloat(RegExp.$3),
+                parseFloat(RegExp.$4)
+            ];
+        }
     }
 
     return attributes;
 }
 
-// テキストフレームの位置を調整する関数
-function adjustTextFramePosition(textFrame, attributes) {
-    textFrame.top += attributes.fontSize / 50; // 文字サイズの2%下に移動
+// 位置合わせ（geometricBounds ベース）
+// 参考スクリプトに準拠：
+// 1) いったん position で置く
+// 2) フォント/サイズ等を適用
+// 3) geometricBounds の left/top 差分で translate して見た目位置を揃える
+function alignTextFrameToTargetByGeometricBounds(target, textFrame) {
+    try {
+        // bounds が更新されない環境対策（不要な場合もあります）
+        app.redraw();
+
+        var b1;
+        // target が [L,T,R,B] 配列のとき
+        if (target && target.length === 4 && typeof target[0] === 'number') {
+            b1 = target;
+        } else if (target && target.geometricBounds) {
+            // target が PageItem のとき
+            b1 = target.geometricBounds;
+        } else {
+            return;
+        }
+
+        var b2 = textFrame.geometricBounds;  // [left, top, right, bottom]
+
+        var dx = b1[0] - b2[0];
+        var dy = b1[1] - b2[1];
+
+        textFrame.translate(dx, dy);
+    } catch (e) {
+        // 位置合わせに失敗しても処理を止めない
+    }
 }
 
 // outlined-textレイヤーを取得または作成し、ロック解除および表示する関数
@@ -127,13 +198,13 @@ function processPathItem(pathItem, outlinedTextLayer) {
         var attributes = extractTextAttributes(noteText);
         if (attributes) {
             var textFrame = createTextFrame(pathItem, attributes);
-            adjustTextFramePosition(textFrame, attributes);
+            alignTextFrameToTargetByGeometricBounds(attributes.savedBounds || pathItem, textFrame);
             moveToOutlinedTextLayer(pathItem, outlinedTextLayer);
         } else {
-            alert("メモに有効な属性情報が含まれていません。");
+            alert(_("ERR_INVALID_NOTE_PATH"));
         }
     } else {
-        alert("選択されたパスにはメモが付いていません。");
+        alert(_("ERR_NO_NOTE_PATH"));
     }
 }
 
@@ -145,15 +216,15 @@ function processGroupItem(groupItem, outlinedTextLayer) {
         var attributes = extractTextAttributes(noteText);
         if (attributes) {
             var textFrame = createTextFrame(groupItem, attributes);
-            adjustTextFramePosition(textFrame, attributes);
+            alignTextFrameToTargetByGeometricBounds(attributes.savedBounds || groupItem, textFrame);
             groupItem.opacity = 30;
             groupItem.locked = true;
             moveToOutlinedTextLayer(groupItem, outlinedTextLayer);
         } else {
-            alert("グループのメモに有効な属性情報が含まれていません。");
+            alert(_("ERR_INVALID_NOTE_GROUP"));
         }
     } else {
-        alert("選択されたグループにはメモが付いていません。");
+        alert(_("ERR_NO_NOTE_GROUP"));
     }
 }
 
@@ -180,7 +251,7 @@ function createTextFrame(item, attributes) {
 
         textFrame.orientation = (attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL;
     } catch (e) {
-        alert("指定されたフォントやその他の属性が見つかりませんでした。デフォルトの設定が使用されます。");
+        alert(_("WARN_FONT_FALLBACK"));
     }
 
     return textFrame;
@@ -198,14 +269,18 @@ function processObject(obj, outlinedTextLayer) {
     } else if (obj.typename == "PathItem") {
         processPathItem(obj, outlinedTextLayer);
     } else {
-        alert("選択されたオブジェクトはパスまたはグループではありません。");
+        alert(_("ERR_INVALID_SELECTION"));
     }
 }
 
 function main() {
+    if (app.documents.length === 0) {
+        alert(_("ERR_NO_DOC"));
+        return;
+    }
     var doc = app.activeDocument;
     if (app.selection.length === 0) {
-        alert("オブジェクトが選択されていません。");
+        alert(_("ERR_NO_SELECTION"));
         return;
     }
     var selection = app.selection;
@@ -220,7 +295,7 @@ function main() {
     }
 
     if (!hasProcessableObject) {
-        alert("Path または Group を選択してください。");
+        alert(_("ERR_INVALID_SELECTION"));
         return;
     }
 

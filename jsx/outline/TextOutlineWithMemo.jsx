@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 TextOutlineMemo.jsx
 
-This script supports only Japanese language.
+UI messages support Japanese/English. (Note format remains Japanese for compatibility.)
 
 ### Readme （GitHub）：
 
@@ -27,7 +27,7 @@ https://github.com/swwwitch/illustrator-scripts
 1. テキストフレームを選択
 2. 各種情報を取得
 3. テキストをアウトライン化
-4. 取得した情報を outlined オブジェクトの note に格納
+4. 取得した情報を outlined オブジェクトのメモに格納
 
 ### note
 
@@ -37,11 +37,32 @@ https://note.com/dtp_tranist/n/n3e0f241508db
 
 - v1.0 (20240723) : 初期バージョン
 - v1.1 (20250721) : ローカライズ
+- v1.2 (20260111) : ローカライズ（アラート文言の英語対応）
 
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
+
+// ==============================
+// Localization (JP / EN)
+// ==============================
+var LOCALE = (app.locale && app.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+
+var I18N = {
+    ja: {
+        ERR_NO_DOC: 'ドキュメントが開かれていません。',
+        ERR_NO_SELECTION: 'テキストオブジェクトが選択されていません。'
+    },
+    en: {
+        ERR_NO_DOC: 'No document is open.',
+        ERR_NO_SELECTION: 'No text objects are selected.'
+    }
+};
+
+function _(key) {
+    return (I18N[LOCALE] && I18N[LOCALE][key]) ? I18N[LOCALE][key] : key;
+}
 
 function main() {
     // ドキュメントが開かれていることを確認
@@ -60,10 +81,10 @@ function main() {
                 }
             }
         } else {
-            alert("テキストオブジェクトが選択されていません。");
+            alert(_("ERR_NO_SELECTION"));
         }
     } else {
-        alert("ドキュメントが開かれていません。");
+        alert(_("ERR_NO_DOC"));
     }
 }
 
@@ -99,10 +120,15 @@ function processTextFrame(textFrame) {
     // プロポーショナルメトリクスの文字列表現を取得
     var proportionalMetricsText = proportionalMetrics ? "true" : "false";
 
-    // 座標を取得
-    var position = textFrame.position;
-    var x = roundToTwoDecimals(position[0]);
-    var y = roundToTwoDecimals(position[1]);
+    // 座標を取得（見た目＝geometricBounds 基準）
+    // ※フォント/サイズ等が確定した後の bounds を使うのがポイント
+    app.redraw(); // bounds が更新されない環境対策（不要な場合もあります）
+
+    var bounds = textFrame.geometricBounds; // [left, top, right, bottom]
+    var x = roundToTwoDecimals(bounds[0]);
+    var y = roundToTwoDecimals(bounds[1]);
+    var r = roundToTwoDecimals(bounds[2]);
+    var b = roundToTwoDecimals(bounds[3]);
 
     // メモ用のテキストを作成
     var memoText = "文字列：\n" + content + "\n\n" +
@@ -113,7 +139,7 @@ function processTextFrame(textFrame) {
                    "プロポーショナルメトリクス：\n" + proportionalMetricsText + "\n\n" +
                    "トラッキング：\n" + trackingValue + "\n\n" +
                    "組み方向：\n" + orientation + "\n\n" +
-                   "座標：\nX = " + x + ", Y = " + y;
+                   "座標（geometricBounds）：\nL = " + x + ", T = " + y + ", R = " + r + ", B = " + b;
 
     // 元の選択をクリアし、現在のテキストフレームを選択
     app.activeDocument.selection = null;
