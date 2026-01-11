@@ -10,7 +10,7 @@ UI messages support Japanese/English. (Note format remains Japanese for compatib
 
 ### Readme （GitHub）：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/TextOutlineWithMemo.jsx
 
 ### 概要：
 
