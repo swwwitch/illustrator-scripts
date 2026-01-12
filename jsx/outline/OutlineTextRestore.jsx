@@ -15,7 +15,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/OutlineT
 ### 概要：
 
 - アウトライン化されたテキストを、メモ情報（note）をもとに元のテキストとして復元するスクリプトです。
-- 選択しているパス／グループのみを対象とし、復元されたテキストは毎回「新規レイヤー」に作成されます。
+- 選択しているパス／グループのみを対象とし、復元されたテキストは「restored_text」レイヤーに統合して作成されます。
 - 元のアウトライン（選択オブジェクトのみ）は、新規作成した退避レイヤーに移動され、そのレイヤーを「outlined_text」として最背面に配置し、テンプレートレイヤーに設定します。
 
 ### 更新日：
@@ -430,34 +430,63 @@ function getOrCreateOutlinedTextLayer(doc) {
     return createNewOutlineStashLayer(doc);
 }
 
-// 復元テキスト用：毎回新規レイヤーを作成して返す
+// 復元テキスト用：常に restored_text レイヤーに統合（既存があれば再利用）
 function createNewRestoredTextLayer(doc) {
     var baseName = "restored_text";
-    var name = baseName;
+    var target = null;
 
-    function layerNameExists(nm) {
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === nm) { return true; }
+    // 1) Find or create target
+    for (var i = 0; i < doc.layers.length; i++) {
+        if (doc.layers[i].name === baseName) {
+            target = doc.layers[i];
+            break;
         }
-        return false;
+    }
+    if (!target) {
+        target = doc.layers.add();
+        target.name = baseName;
     }
 
-    if (layerNameExists(name)) {
-        var idx = 2;
-        while (layerNameExists(baseName + "_" + idx)) {
-            idx++;
+    // Ensure usable
+    try { target.locked = false; } catch (e0) {}
+    try { target.visible = true; } catch (e1) {}
+
+    // 2) Consolidate older duplicates into target
+    // Matches: restored_text2 / restored_text_2 / restored_text_3 ...
+    var re = /^restored_text_?\d+$/;
+
+    for (var j = doc.layers.length - 1; j >= 0; j--) {
+        var lyr = doc.layers[j];
+        if (!lyr || lyr === target) { continue; }
+        if (!lyr.name || !re.test(lyr.name)) { continue; }
+
+        // Unlock to allow moving/removal
+        try { lyr.locked = false; } catch (e2) {}
+        try { lyr.visible = true; } catch (e3) {}
+
+        // Move all pageItems into target
+        try {
+            while (lyr.pageItems.length > 0) {
+                lyr.pageItems[0].move(target, ElementPlacement.PLACEATBEGINNING);
+            }
+        } catch (e4) {
+            // ignore
         }
-        name = baseName + "_" + idx;
+
+        // Remove empty sublayers if any
+        try {
+            while (lyr.layers && lyr.layers.length > 0) {
+                lyr.layers[0].remove();
+            }
+        } catch (e5) {
+            // ignore
+        }
+
+        // Remove the layer itself
+        try { lyr.remove(); } catch (e6) { }
     }
 
-    var lyr = doc.layers.add();
-    lyr.name = name;
-
-    // Make sure it's usable
-    try { lyr.locked = false; } catch (e) { }
-    try { lyr.visible = true; } catch (e2) { }
-
-    return lyr;
+    return target;
 }
 
 // Ensure the given layer is actually the active layer (some environments may ignore the assignment)
