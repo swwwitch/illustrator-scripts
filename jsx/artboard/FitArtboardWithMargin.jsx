@@ -58,6 +58,7 @@ https://note.com/dtp_transit/n/n15d3c6c5a1e5
 - v1.7 (20250717) : プレビュー境界チェックボックスを追加
 - v1.7.1 (20250817): 微調整
 - v1.8 (20260116) : プレビュー時のUndo履歴汚染を抑制、OK後に一括Undo可能な形に調整
+- v1.8.1 (20260116) : マージンに負の値を入力・矢印キー操作で許容
 
 ---
 
@@ -97,10 +98,11 @@ FitArtboardWithMargin.jsx
 - v1.7 (20250817): Added preview bounds checkbox
 - v1.7.1 (20250818): Minor adjustments
 - v1.8 (20260116): Prevents preview from polluting Undo history; keeps final action as a single Undo step
+- v1.8.1 (20260116): Allow negative margin values (including arrow-key changes)
 
 */
 
-var SCRIPT_VERSION = "v1.8";
+var SCRIPT_VERSION = "v1.8.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -878,7 +880,6 @@ function changeValueByArrowKey(editText, onUpdate) {
                     value = base + 10;
                 } else {
                     value = base - 10;
-                    if (value < 0) value = 0; // 負数を防ぐ（必要なら）
                 }
             } else {
                 var delta = event.keyName == "Up" ? 1 : -1;
