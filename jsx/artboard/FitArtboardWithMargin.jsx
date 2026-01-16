@@ -11,6 +11,7 @@ FitArtboardWithMargin.jsx
 
 ### 概要
 
+- 更新日：20260116
 - 選択オブジェクトまたはすべてのオブジェクトのバウンディングボックスにマージンを加え、アートボードを自動調整します。
 - 定規単位に応じた初期マージン値と即時プレビュー付きダイアログを提供します。
 - ピクセル整数値に丸めてアートボードを設定します。
@@ -56,6 +57,7 @@ https://note.com/dtp_transit/n/n15d3c6c5a1e5
 - v1.6 (20250716) : テキストを含む場合、実行時にアウトライン化して再計測
 - v1.7 (20250717) : プレビュー境界チェックボックスを追加
 - v1.7.1 (20250817): 微調整
+- v1.8 (20260116) : プレビュー時のUndo履歴汚染を抑制、OK後に一括Undo可能な形に調整
 
 ---
 
@@ -65,6 +67,7 @@ FitArtboardWithMargin.jsx
 
 ### Overview
 
+- Last Updated: 20260116
 - Automatically resize the artboard to fit the bounding box of selected or all objects with margin.
 - Provides unit-based default margin values and an instant preview dialog.
 - Sets the artboard size rounded to pixel integers.
@@ -93,10 +96,11 @@ FitArtboardWithMargin.jsx
 - v1.6 (20250716): Outlines text at runtime for accurate measurement
 - v1.7 (20250817): Added preview bounds checkbox
 - v1.7.1 (20250818): Minor adjustments
+- v1.8 (20260116): Prevents preview from polluting Undo history; keeps final action as a single Undo step
 
 */
 
-var SCRIPT_VERSION = "v1.7.1";
+var SCRIPT_VERSION = "v1.8";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -169,6 +173,58 @@ function formatError(e) {
     } catch (_) {
         return String(e);
     }
+}
+
+
+/**
+ * プレビュー時の履歴管理と一括Undoを制御するクラス / Preview Undo/History manager
+ *
+ * - updatePreview() のたびに rollback() してから addStep() で最新状態を1回だけ適用
+ * - OK/Cancel 時に rollback() してプレビュー操作を履歴から取り除く
+ */
+function PreviewManager() {
+    this.undoDepth = 0; // プレビュー中に実行されたアクションの回数
+
+    /**
+     * 変更操作を実行し、履歴としてカウントする
+     * @param {Function} func - 実行したい処理（無名関数で渡す）
+     */
+    this.addStep = function(func) {
+        try {
+            func();
+            this.undoDepth++;
+            app.redraw();
+        } catch (e) {
+            // 失敗時はカウントしない
+            try { $.writeln("[PreviewManager] addStep error: " + e); } catch (_) {}
+        }
+    };
+
+    /**
+     * プレビューのために行った変更を全て取り消す（キャンセル時など）
+     */
+    this.rollback = function() {
+        try {
+            while (this.undoDepth > 0) {
+                app.undo();
+                this.undoDepth--;
+            }
+        } catch (e) {
+            // undo が効かない/失敗した場合はここで止める
+            try { $.writeln("[PreviewManager] rollback error: " + e); } catch (_) {}
+            this.undoDepth = 0;
+        }
+        try { app.redraw(); } catch (_) {}
+    };
+
+    /**
+     * 現在の状態を確定する（OK時）
+     * このスクリプトでは、OK時に一度 rollback() してから main() 側で本処理を1回だけ実行するため、
+     * ここでは rollback のみを行う。
+     */
+    this.confirm = function() {
+        this.rollback();
+    };
 }
 
 
@@ -353,6 +409,9 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
         originalRects.push(app.activeDocument.artboards[i].artboardRect.slice());
     }
 
+    // プレビュー時のUndo履歴管理 / Preview undo/history manager
+    var previewMgr = new PreviewManager();
+
     // --- Preview helpers / プレビュー用小関数 ---
     function previewAllArtboards(previewMarginV, previewMarginH) {
         for (var i = 0; i < app.activeDocument.artboards.length; i++) {
@@ -393,25 +452,31 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
 
     /*
     プレビュー更新関数 / Update artboard preview for dialog
-    入力値・対象に応じてアートボードを一時的に調整 / Temporarily adjust artboard for preview
+    Undoによる履歴クリーンアップとプレビュー反映をPreviewManager経由で行う
     */
     function updatePreview(valueV, valueH) {
+        // 直前のプレビューをUndoで巻き戻して履歴を汚さない
+        previewMgr.rollback();
+
         var parsed = parseMarginPair(valueV, valueH, unit);
         if (!parsed.valid) return;
         var previewMarginV = parsed.vPt;
         var previewMarginH = parsed.hPt;
 
         var targetMode = radioSelection.value ? "selection" : (radioArtboard.value ? "artboard" : "allArtboards");
-        if (targetMode === "allArtboards") {
-            previewAllArtboards(previewMarginV, previewMarginH);
-            return;
-        }
-        if (targetMode === "artboard") {
-            previewArtboard(previewMarginV, previewMarginH);
-            return;
-        }
-        // default: selection
-        previewSelection(previewMarginV, previewMarginH);
+
+        previewMgr.addStep(function() {
+            if (targetMode === "allArtboards") {
+                previewAllArtboards(previewMarginV, previewMarginH);
+                return;
+            }
+            if (targetMode === "artboard") {
+                previewArtboard(previewMarginV, previewMarginH);
+                return;
+            }
+            // default: selection
+            previewSelection(previewMarginV, previewMarginH);
+        });
     }
 
     /* 入力欄で矢印キーによる増減を可能に / Enable arrow key increment/decrement in input */
@@ -484,18 +549,16 @@ function showMarginDialog(defaultValue, unit, artboardCount, hasSelection) {
                 target: radioSelection.value ? "selection" : (radioArtboard.value ? "artboard" : "allArtboards"),
                 previewBounds: previewBoundsCheckbox.value
             };
-            updatePreview(result.marginV, result.marginH);
+            // プレビューによる履歴を一括Undoしてから閉じる
+            previewMgr.confirm();
             dlg.close();
         } else {
             alert(LABELS.numberAlert[lang]);
         }
     };
     cancelBtn.onClick = function() {
-        /* プレビューで変更した全アートボードrectを元に戻す / Restore all artboard rects after preview */
-        for (var i = 0; i < app.activeDocument.artboards.length; i++) {
-            app.activeDocument.artboards[i].artboardRect = originalRects[i];
-        }
-        app.redraw();
+        // キャンセル時は必ずロールバックして閉じる（プレビューによる履歴を残さない）
+        previewMgr.rollback();
         dlg.close();
     };
 
