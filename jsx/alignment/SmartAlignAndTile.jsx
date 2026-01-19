@@ -12,8 +12,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 
 ### 概要：
 
+- 更新日：2026-01-19
 - 選択したオブジェクトを横方向に整列し、指定した間隔と縦方向の数（行数）で再配置するスクリプト。
 - プレビュー時に境界線を含むオプション、ランダム配置、単位の自動取得、上下キーでの数値変更に対応。
+- プレビュー時にUndo履歴を汚さないように管理し、OK時は1回のUndoで取り消せるように確定します。
 
 ### 主な機能：
 
@@ -23,6 +25,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 - プレビュー時の境界含む切替
 - 単位自動対応
 - キーボードで間隔・行数調整
+- Undoを汚さないプレビューと一括取り消し（1回のUndo）
 
 ### 処理の流れ：
 
@@ -41,6 +44,7 @@ Gorolib Design
 https://gorolib.blog.jp/archives/77282974.html
 
 ### 更新履歴：
+- v1.7 (20260119) : プレビュー時にUndo履歴を汚さないように管理し、OK時は1回のUndoで取り消せるように確定
 - v1.6 (20250809) : 「プレビュー境界を使用」をOFFのとき geometricBounds を使用するように調整
 - v1.0 (20250716) : 初期バージョン
 - v1.1 (20250717) : 安定性改善、行数ロジック修正
@@ -62,8 +66,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 
 ### Overview:
 
+- Updated: 2026-01-19
 - Arrange selected objects horizontally and re-distribute by specified spacing and number of rows.
 - Supports preview bounds option, random arrangement, auto unit detection, and keyboard adjustments.
+- Uses an undo-safe preview workflow and confirms the result so it can be undone with a single Undo step.
 
 ### Main Features:
 
@@ -73,6 +79,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 - Toggle including preview bounds
 - Automatic unit detection
 - Keyboard adjustment for spacing and rows
+- Undo-safe preview and single-step Undo on confirm
 
 ### Workflow:
 
@@ -82,6 +89,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 - Confirm to apply
 
 ### Update History:
+- v1.7 (2026-01-19): Undo-safe preview management and single-step Undo on confirm.
 - v1.6 (2025-08-09): When "Use preview bounds" is OFF, use geometricBounds (OFF = geometric, ON = visible).
 - v1.0 (2025-07-16): Initial version
 - v1.1 (2025-07-17): Stability improvements, row logic fix
@@ -93,7 +101,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartA
 */
 
 /* バージョン変数を追加 / Script version variable */
-var SCRIPT_VERSION = "v1.6";
+var SCRIPT_VERSION = "v1.7";
 
 /* ダイアログ位置と外観変数 / Dialog position and appearance variables */
 var offsetX = 300;
@@ -172,6 +180,51 @@ var LABELS = {
         en: "OK"
     }
 };
+
+
+/* 汎用 Undo/Preview 管理クラス / Generic Undo-safe preview manager */
+function PreviewManager() {
+    this.undoDepth = 0; // プレビュー中に実行されたアクションの回数 / Number of preview actions executed
+
+    /**
+     * 変更操作を実行し、履歴としてカウントする / Execute a change and count it as a preview step
+     * @param {Function} func - 実行したい処理（無名関数で渡す） / The action to execute
+     */
+    this.addStep = function(func) {
+        try {
+            func();
+            this.undoDepth++;
+            app.redraw();
+        } catch (e) {
+            alert("Preview Error: " + e);
+        }
+    };
+
+    /**
+     * プレビューのために行った変更を全て取り消す（キャンセル時など） / Roll back all preview changes
+     */
+    this.rollback = function() {
+        while (this.undoDepth > 0) {
+            app.undo();
+            this.undoDepth--;
+        }
+        app.redraw();
+    };
+
+    /**
+     * 現在の状態を確定する（OK時） / Confirm current state
+     * @param {Function} [finalAction] - (任意) 全てUndoした後に実行する「本番」の処理 / Optional final action
+     */
+    this.confirm = function(finalAction) {
+        if (finalAction) {
+            this.rollback();
+            finalAction();
+            this.undoDepth = 0;
+        } else {
+            this.undoDepth = 0;
+        }
+    };
+}
 
 
 /* 単位コードとラベルのマップ / Map of unit codes to labels */
@@ -256,6 +309,11 @@ function showArrangeDialog() {
     shiftDialogPosition(dlg, offsetX, offsetY);
 
 
+    // Undo-safe preview manager
+    var previewMgr = new PreviewManager();
+
+    // Preserve current preference so cancel can restore it
+    var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
 
     /* 行数入力UI: ラベルとテキストフィールドを横並びで配置 / Rows input UI: label and field side by side */
     var rowsGroup = dlg.add("group");
@@ -421,18 +479,13 @@ function showArrangeDialog() {
         name: "ok"
     });
 
+    // Keep a snapshot of the selection reference array (used for preview/final)
     var originalSelection = activeDocument.selection.slice();
-    var originalPositions = [];
-    for (var i = 0; i < originalSelection.length; i++) {
-        var item = originalSelection[i];
-        originalPositions.push([item.left, item.top]);
-    }
 
-    /* プレビュー更新処理 / Update preview positioning */
-    function updatePreview() {
-        resetPositions(originalSelection, originalPositions);
-
-        app.preferences.setBooleanPreference("includeStrokeInBounds", boundsCheckbox.value);
+    /* 実際の配置処理（プレビュー／確定共通）/ Layout function used by both preview and final */
+    function applyLayoutToSelection() {
+        // Guard
+        if (!originalSelection || originalSelection.length === 0) return;
 
         var hMarginValue = parseFloat(hMarginInput.text);
         if (isNaN(hMarginValue)) hMarginValue = 0;
@@ -444,54 +497,8 @@ function showArrangeDialog() {
         var hMarginPt = hMarginValue * ptFactor;
         var vMarginPt = vMarginValue * ptFactor;
 
-        var mode = "horizontal"; // 固定 / fixed
-
-        var sortedItems;
-        if (randomCheckbox.value) {
-            /* ランダム並び替え / Random sort */
-            sortedItems = originalSelection.slice();
-            for (var i = sortedItems.length - 1; i > 0; i--) {
-                var j = Math.floor(Math.random() * (i + 1));
-                var temp = sortedItems[i];
-                sortedItems[i] = sortedItems[j];
-                sortedItems[j] = temp;
-            }
-            /* ランダム配置時の基準位置を固定する補正 / Fix base position for random layout */
-            var baseLeft = originalPositions[0][0];
-            var baseTop = originalPositions[0][1];
-            for (var i = 1; i < originalPositions.length; i++) {
-                if (originalPositions[i][0] < baseLeft) baseLeft = originalPositions[i][0];
-                if (originalPositions[i][1] > baseTop) baseTop = originalPositions[i][1];
-            }
-        } else {
-            sortedItems = sortByX(originalSelection);
-        }
-
         var rowsValue = parseInt(rowsInput.text, 10);
         if (isNaN(rowsValue) || rowsValue < 1) rowsValue = 1;
-
-        var rows = rowsValue;
-        if (rows < 1) rows = 1;
-        var itemsPerRow = Math.ceil(sortedItems.length / rows);
-
-        // 垂直方向・水平方向の基準は選択された境界タイプに合わせる / Use selected bounds type for both baselines
-        var startBounds = getItemBounds(sortedItems[0], boundsCheckbox.value);
-        var startLeftBound = startBounds[0];
-        var startTopBound = startBounds[1];
-        var startRightBound = startBounds[2];
-        var startBottomBound = startBounds[3];
-        var startX = startLeftBound; // 水平方向も選択境界で開始 / Start X from chosen bounds
-        var startY = startTopBound;
-
-        var refHeight = 0;
-        var refWidth = 0;
-        for (var i = 0; i < sortedItems.length; i++) {
-            var vb = getItemBounds(sortedItems[i], boundsCheckbox.value); // [left, top, right, bottom]
-            var width = vb[2] - vb[0];
-            var height = vb[1] - vb[3];
-            if (height > refHeight) refHeight = height;
-            if (width > refWidth) refWidth = width;
-        }
 
         var align = "top";
         if (rbMiddle.value) align = "middle";
@@ -501,57 +508,109 @@ function showArrangeDialog() {
         if (rbHCenter.value) hAlign = "center";
         else if (rbHRight.value) hAlign = "right";
 
+        // Sort items (or shuffle)
+        var sortedItems;
+        var baseLeft = null;
+        var baseTop = null;
+
+        if (randomCheckbox.value) {
+            sortedItems = originalSelection.slice();
+            for (var i = sortedItems.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = sortedItems[i];
+                sortedItems[i] = sortedItems[j];
+                sortedItems[j] = temp;
+            }
+            // Preserve a stable base position (top-left) from the current (rolled-back) state
+            for (var k = 0; k < originalSelection.length; k++) {
+                var it = originalSelection[k];
+                if (!it) continue;
+                if (baseLeft === null || it.left < baseLeft) baseLeft = it.left;
+                if (baseTop === null || it.top > baseTop) baseTop = it.top;
+            }
+            if (baseLeft === null) baseLeft = sortedItems[0].left;
+            if (baseTop === null) baseTop = sortedItems[0].top;
+        } else {
+            sortedItems = sortByX(originalSelection);
+        }
+
+        var rows = rowsValue;
+        if (rows < 1) rows = 1;
+        var itemsPerRow = Math.ceil(sortedItems.length / rows);
+
+        // Use selected bounds type (visible/geometric)
+        var startBounds = getItemBounds(sortedItems[0], boundsCheckbox.value);
+        var startLeftBound = startBounds[0];
+        var startTopBound = startBounds[1];
+        var startRightBound = startBounds[2];
+        var startBottomBound = startBounds[3];
+        var startX = startLeftBound;
+        var startY = startTopBound;
+
+        var refHeight = 0;
+        var refWidth = 0;
+        for (var m = 0; m < sortedItems.length; m++) {
+            var vb0 = getItemBounds(sortedItems[m], boundsCheckbox.value);
+            var w0 = vb0[2] - vb0[0];
+            var h0 = vb0[1] - vb0[3];
+            if (h0 > refHeight) refHeight = h0;
+            if (w0 > refWidth) refWidth = w0;
+        }
+
         var index = 0;
         for (var r = 0; r < rows; r++) {
             var currentX = startX;
             for (var c = 0; c < itemsPerRow && index < sortedItems.length; c++, index++) {
                 var item = sortedItems[index];
+                if (!item) continue;
+
                 var vb = getItemBounds(item, boundsCheckbox.value);
                 var itemWidth = vb[2] - vb[0];
                 var itemHeight = vb[1] - vb[3];
 
-                /* セルのX範囲（選択境界ベース）/ Cell X range based on chosen bounds */
+                // Cell X range
                 var cellLeft = currentX;
                 var cellRight = currentX + (gridCheckbox.value ? refWidth : itemWidth);
                 var cellCenterX = (cellLeft + cellRight) / 2;
 
-                /* 現在のXアンカー（選択境界）/ Current X anchors using chosen bounds */
+                // Current anchors
                 var currentLeftX = vb[0];
                 var currentRightX = vb[2];
                 var currentCenterX = (vb[0] + vb[2]) / 2;
 
-                /* 横方向アライン差分 / Horizontal alignment delta */
+                // Horizontal delta
                 var deltaX = 0;
                 if (hAlign === "center") {
                     deltaX = cellCenterX - currentCenterX;
                 } else if (hAlign === "right") {
                     deltaX = cellRight - currentRightX;
                 } else {
-                    deltaX = cellLeft - currentLeftX; // left
+                    deltaX = cellLeft - currentLeftX;
                 }
                 item.left = item.left + deltaX;
 
-                /* セルの目標位置を境界タイプに合わせて算出 / Compute target cell position based on chosen bounds type */
+                // Cell Y positions
                 var cellTop = startTopBound - (r * (refHeight + vMarginPt));
                 var cellBottom = startBottomBound - (r * (refHeight + vMarginPt));
                 var cellCenter = (cellTop + cellBottom) / 2;
 
-                /* 現在位置（選択境界）/ Current position using chosen bounds */
+                // Current Y anchors
                 var currentTop = vb[1];
                 var currentBottom = vb[3];
                 var currentCenter = (vb[1] + vb[3]) / 2;
 
-                /* アラインごとの差分を計算し、相対移動 / Compute delta per align and move relatively */
+                // Vertical delta
                 var deltaY = 0;
                 if (align === "middle") {
                     deltaY = cellCenter - currentCenter;
                 } else if (align === "bottom") {
                     deltaY = cellBottom - currentBottom;
-                } else { // top
+                } else {
                     deltaY = cellTop - currentTop;
                 }
                 item.top = item.top + deltaY;
 
+                // Advance X
                 if (c < itemsPerRow - 1) {
                     if (gridCheckbox.value) {
                         currentX += refWidth + hMarginPt;
@@ -561,16 +620,31 @@ function showArrangeDialog() {
                 }
             }
         }
-        if (randomCheckbox.value) {
-            /* 基準座標との差分で補正 / Adjust positions using saved baseLeft/baseTop */
+
+        // Random base correction
+        if (randomCheckbox.value && sortedItems.length > 0) {
             var offsetX = baseLeft - sortedItems[0].left;
             var offsetY = baseTop - sortedItems[0].top;
-            for (var i = 0; i < sortedItems.length; i++) {
-                sortedItems[i].left += offsetX;
-                sortedItems[i].top += offsetY;
+            for (var t = 0; t < sortedItems.length; t++) {
+                if (!sortedItems[t]) continue;
+                sortedItems[t].left += offsetX;
+                sortedItems[t].top += offsetY;
             }
         }
-        app.redraw();
+    }
+
+    /* プレビュー更新処理（Undoを汚さない） / Update preview without polluting Undo history */
+    function updatePreview() {
+        // Roll back previous preview step(s)
+        previewMgr.rollback();
+
+        // Apply current preference for bounds calculation (this is not undoable, so we restore only on Cancel)
+        app.preferences.setBooleanPreference("includeStrokeInBounds", boundsCheckbox.value);
+
+        // Apply as one preview step
+        previewMgr.addStep(function() {
+            applyLayoutToSelection();
+        });
     }
 
     updatePreview();
@@ -586,7 +660,9 @@ function showArrangeDialog() {
     /* ダイアログを開く前に rowsInput をアクティブにする / Activate rows input before showing dialog */
     rowsInput.active = true;
     if (dlg.show() !== 1) {
-        resetPositions(originalSelection, originalPositions);
+        // Cancel: roll back preview changes and restore preference
+        previewMgr.rollback();
+        app.preferences.setBooleanPreference("includeStrokeInBounds", originalIncludeStrokeInBounds);
         app.redraw();
         return null;
     }
@@ -611,6 +687,15 @@ function showArrangeDialog() {
     if (rbHCenter.value) hAlign = "center";
     else if (rbHRight.value) hAlign = "right";
 
+    // Confirm as a single undoable action: rollback preview then run once
+    previewMgr.confirm(function() {
+        // keep the current preference value on OK (existing behavior effectively leaves it as-is)
+        app.preferences.setBooleanPreference("includeStrokeInBounds", boundsCheckbox.value);
+        applyLayoutToSelection();
+        app.redraw();
+    });
+
+    // Return values are kept for compatibility (main() currently just exits)
     return {
         mode: "horizontal",
         hMargin: hMarginPt,
