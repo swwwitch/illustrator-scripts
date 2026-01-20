@@ -8,9 +8,11 @@ GenerateGuidesGrid.jsx
 
 ### 概要
 
+- 更新日：20260121
 - Illustrator のアートボードを指定した行数・列数に分割し、自動でガイドを生成するスクリプトです。
 - 必要に応じてセルごとの長方形や裁ち落としガイドを描画でき、プリセットの書き出しにも対応します。
 - すべての入力変更（キーボード/矢印キーを含む）でプレビューが即時更新
+- プレビュー更新は Undo で巻き戻してから再描画するため、履歴（Undo）を汚しにくい設計です（OK時は1回のUndoで戻せるよう整理）
 
 ### 主な機能
 
@@ -34,6 +36,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### 更新履歴
 
+- v1.5 (20260121) : プレビュー更新時にUndoで巻き戻して履歴を汚さない／OK時は1回のUndoで戻せるようにヒストリーを整理
 - v1.4 (20251107) : Number/Gutter のラベルを右揃え＋共通幅に統一、Top/Bottom のラベル幅微調整、1×1 時は中央線ではなく四辺ガイドを描画、英語UIの Rows/Columns を Number に統一
 - v1.3 (20251106) : すべてのUI入力（矢印キー含む）でリアルタイムプレビュー更新
 - v1.2 (20250716) : 矢印キーでの数値増減機能追加
@@ -48,9 +51,11 @@ GenerateGuidesGrid.jsx
 
 ### Overview
 
+- Updated: 20260121
 - A script for Illustrator that divides artboards into specified rows and columns, and automatically generates guides.
 - Optionally draws cell rectangles and bleed guides, and supports exporting presets.
 - Live preview updates on every input change (including keyboard/arrow keys)
+- Live preview is Undo-safe: each update rolls back via Undo then redraws; OK is applied as a single undoable action
 
 ### Main Features
 
@@ -74,6 +79,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### Update History
 
+- v1.5 (20260121): Undo-safe live preview (rollback each update) and clean history so one Undo reverts the final result
 - v1.4 (20251107): Unified Number/Gutter labels to right-aligned fixed width, fine-tuned Top/Bottom label width, draw four edge guides (not center lines) when 1×1, and unified EN UI Rows/Columns to Number
 - v1.3 (20251106): Live preview refresh on all UI changes (including arrow keys)
 - v1.2 (20250716): Added arrow key value increment feature
@@ -82,7 +88,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 */
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -329,6 +335,46 @@ var presets = [{
     }
 ];
 
+// --- Undo-safe preview manager (PreviewManager) ---
+// プレビュー時にapp.undo()で巻き戻して履歴を汚さない / Manage preview with rollback using app.undo()
+function PreviewManager() {
+    this.undoDepth = 0; // number of preview actions applied
+
+    // Run an action as a preview step and count it
+    this.addStep = function(func) {
+        try {
+            func();
+            this.undoDepth++;
+            app.redraw();
+        } catch (e) {
+            alert("Preview Error: " + e);
+        }
+    };
+
+    // Roll back all preview actions
+    this.rollback = function() {
+        while (this.undoDepth > 0) {
+            try {
+                app.undo();
+            } catch (e) {
+                break;
+            }
+            this.undoDepth--;
+        }
+        app.redraw();
+    };
+
+    // Confirm current state. If finalAction is provided, rollback then execute it once.
+    this.confirm = function(finalAction) {
+        if (finalAction) {
+            this.rollback();
+            finalAction();
+        } else {
+            this.undoDepth = 0;
+        }
+    };
+}
+
 function main() {
     if (app.documents.length === 0) {
         alert("ドキュメントを開いてください。\nPlease open a document.");
@@ -336,6 +382,10 @@ function main() {
     }
 
     var doc = app.activeDocument;
+
+    // Preview manager (Undo-safe live preview)
+    var previewMgr = new PreviewManager();
+
     var rulerUnit = app.preferences.getIntegerPreference("rulerType");
     var unitLabel = "pt";
     var unitFactor = 1.0;
@@ -363,6 +413,7 @@ function main() {
         unitLabel = "px";
         unitFactor = 1.0;
     }
+
     // ダイアログ作成 / Create dialog
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     dlg.orientation = "column";
@@ -383,6 +434,9 @@ function main() {
     presetDropdown.selection = 0;
     var btnExportPreset = presetGroup.add("button", undefined, LABELS.exportPresetLabel[lang]);
 
+    // ------------------------------------------------------------
+    // (Export preset) - existing behavior retained
+    // ------------------------------------------------------------
     btnExportPreset.onClick = function() {
         var saveFile = File.saveDialog("プリセットを書き出す場所と名前を指定してください / Choose where to save the preset", "*.txt");
         if (!saveFile) {
@@ -576,6 +630,7 @@ function main() {
     var inputBleed = bleedGroup.add("edittext", undefined, "3");
     inputBleed.characters = 4;
     bleedGroup.add("statictext", undefined, "(mm)");
+
     // --- 矢印キーで値を増減する関数 ---
     // Shiftキー押下時は10の倍数スナップ
     function changeValueByArrowKey(editText) {
@@ -606,9 +661,9 @@ function main() {
                         syncCommonMargin();
                     }
                 } catch (e) {}
-                // 入力変更を即時プレビューに反映 / Refresh preview immediately
+                // 入力変更を即時プレビューに反映 / Refresh preview immediately (Undo-safe)
                 try {
-                    drawGuides(true);
+                    updatePreview();
                 } catch (e) {}
             }
         });
@@ -618,9 +673,22 @@ function main() {
     function attachLivePreview(editText) {
         editText.onChanging = function() {
             try {
-                drawGuides(true);
+                updatePreview();
             } catch (e) {}
         };
+    }
+
+    // プレビュー更新（Undoで巻き戻してから1回だけ描画）/ Update preview (rollback then draw once)
+    function updatePreview() {
+        try {
+            // If there was a previous preview step, rollback first
+            previewMgr.rollback();
+        } catch (e) {}
+
+        // Draw preview as one undoable step
+        previewMgr.addStep(function() {
+            drawGuides(true, true); // true = preview, true = skip internal preview cleanup
+        });
     }
 
     // --- 各数値editTextに矢印キー増減機能を追加 ---
@@ -699,6 +767,7 @@ function main() {
         if (lang === "ja") return String(raw).replace(/\s*\/.*$/, "");
         return raw;
     }
+
     // プリセットをドロップダウンに追加 / Add presets to dropdown
     for (var i = 0; i < presets.length; i++) {
         var display = presetDisplayLabel(presets[i].label);
@@ -723,8 +792,9 @@ function main() {
         bleedGuideCheckbox.value = (typeof p.drawBleedGuide !== "undefined") ? p.drawBleedGuide : false;
         updateGutterEnable();
         syncCommonMargin();
-        drawGuides(true);
+        updatePreview();
     };
+
     // 「すべて同じにする」同期処理 / Sync for "Same Value"
     function syncCommonMargin() {
         if (commonMarginCheckbox.value) {
@@ -743,7 +813,7 @@ function main() {
             inputLeft.enabled = true;
             inputRight.enabled = true;
         }
-        drawGuides(true);
+        updatePreview();
     }
     commonMarginInput.onChanging = syncCommonMargin;
     commonMarginCheckbox.onClick = syncCommonMargin;
@@ -755,11 +825,12 @@ function main() {
         inputRowGutter.enabled = (yVal > 1);
         inputColGutter.enabled = (xVal > 1);
     }
+
     // ← ガター有効切替時も即時プレビュー
     inputXText.onChanging = inputYText.onChanging = function() {
         updateGutterEnable();
         try {
-            drawGuides(true);
+            updatePreview();
         } catch (e) {}
     };
 
@@ -769,23 +840,23 @@ function main() {
         inputExt.enabled = enable;
         bleedGuideCheckbox.enabled = enable;
         inputBleed.enabled = enable;
-        drawGuides(true);
+        updatePreview();
     };
 
     // ★未定義だったトグルにもプレビュー反映
     bleedGuideCheckbox.onClick = function() {
         try {
-            drawGuides(true);
+            updatePreview();
         } catch (e) {}
     };
     cellRectCheckbox.onClick = function() {
         try {
-            drawGuides(true);
+            updatePreview();
         } catch (e) {}
     };
     allBoardsCheckbox.onClick = function() {
         try {
-            drawGuides(true);
+            updatePreview();
         } catch (e) {}
     };
 
@@ -798,9 +869,16 @@ function main() {
         dlg.close(1);
     };
 
+    // キャンセルボタン押下時（dialogを閉じるだけ。最終処理はdlg.show()後の分岐でrollback）
+    btnCancel.onClick = function() {
+        dlg.close(0);
+    };
+
     // ガイド＆セル長方形＆裁ち落としガイドを描画 / Draw guides, cell rectangles, and bleed guides
-    function drawGuides(isPreview) {
-        if (isPreview) {
+    function drawGuides(isPreview, skipPreviewCleanup) {
+        // NOTE: For live preview, we normally rollback via PreviewManager (app.undo()).
+        // This avoids polluting history. As a fallback, we can still remove the preview layer.
+        if (isPreview && !skipPreviewCleanup) {
             removePreviewGuides();
         }
 
@@ -841,6 +919,7 @@ function main() {
             }
             cellLayer.locked = false;
         }
+
         for (var b = 0; b < doc.artboards.length; b++) {
             if (!allBoards && b !== doc.artboards.getActiveArtboardIndex()) continue;
 
@@ -868,7 +947,6 @@ function main() {
             var guideBottom = abBottom - ext;
 
             if (drawGuidesNow) {
-                // 「中心」用の水平・垂直ガイドを追加
                 if (xDiv === 1 && yDiv === 1) {
                     // 四辺（マージン適用後の有効領域）をガイド化
                     var topLine = doc.pathItems.add();
@@ -1049,6 +1127,7 @@ function main() {
             app.redraw();
         }
     }
+
     // 黒色作成（CMYK／RGB対応）/ Create black color (CMYK/RGB)
     function createBlackColor() {
         if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
@@ -1100,15 +1179,22 @@ function main() {
     // ダイアログ初期プレビュー＆終了時処理 / Initial dialog preview & post-process
     updateGutterEnable();
     syncCommonMargin();
-    drawGuides(true);
+    updatePreview();
 
     if (dlg.show() === 1) {
+        // OK: rollback preview and execute final drawing once so user can undo in one step
+        previewMgr.confirm(function() {
+            if (clearGuidesCheckbox.value) {
+                clearGuidesLayer();
+            }
+            drawGuides(false);
+        });
+        // Cleanup preview layer just in case (fallback)
         removePreviewGuides();
-        if (clearGuidesCheckbox.value) {
-            clearGuidesLayer();
-        }
-        drawGuides(false);
     } else {
+        // Cancel: rollback preview changes
+        previewMgr.rollback();
+        // Cleanup preview layer just in case (fallback)
         removePreviewGuides();
     }
 }

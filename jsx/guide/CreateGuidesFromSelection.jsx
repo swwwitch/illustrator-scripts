@@ -8,6 +8,7 @@ CreateGuidesFromSelection.jsx
 
 ### 概要
 
+- 更新日：20260121
 - Illustrator の選択オブジェクトからガイドを作成するスクリプト。
 - ダイアログ上で上下左右中央のガイドを自由に指定して描画可能。
 
@@ -18,6 +19,7 @@ CreateGuidesFromSelection.jsx
 - オフセットと裁ち落とし指定
 - 「_guide」レイヤー管理とガイド削除オプション
 - クリップグループと複数選択対応
+- プレビュー時のUndo履歴汚染を抑制し、OK時に一括Undoで戻せる（PreviewManager）
 
 ### 処理の流れ
 
@@ -48,6 +50,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGuid
 - v1.8 (20250712) : 中心線（垂直のみ）、中心線（水平のみ）の描画ロジックを追加
 - v1.9 (20250712) : ↑↓キー、shift + ↑↓キーでの値の増減機能を追加
 - v1.10 (20250802) : クリップグループ選択時の挙動を調整
+- v1.11 (20260121) : プレビュー時にUndo履歴を汚さない処理を追加、一括取り消し対応
+- v1.12 (20260121) : suspendHistory を使い、プレビュー/確定を1ステップUndoに修正
 
 ### Script Name:
 
@@ -55,8 +59,10 @@ CreateGuidesFromSelection.jsx
 
 ### Description
 
+- Last Updated: 2026-01-21
 - Script to create guides from selected objects in Illustrator.
 - Flexible dialog UI to specify top, bottom, left, right, and center guides.
+- Adds undo-safe preview and single-step undo on OK (PreviewManager)
 
 ### Main Features
 
@@ -82,20 +88,97 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuid
 
 - v1.0 (20250711): Initial version
 - v1.1 (20250711): Multi-selection & clip group support, offset & bleed features, text outline support
-- v1.2 (20250711): Added appearance expansion, UI improvements, enhanced error handling
+- v1.2 (20250712): Added appearance expansion, UI improvements, enhanced error handling
 - v1.3 (20250712): Code refactor and radio button visibility toggle
 - v1.6 (20250712): refactored code, added radio button visibility toggle feature
 - v1.7 (20250712): Added option to create guides per object, improved artboard-based guide creation
 - v1.8 (20250712): Added center line (vertical only) and center line (horizontal only) drawing logic
 - v1.9 (20250712): Added up/down arrow key and shift + up/down key value increment/decrement functionality
 - v1.10 (20250802): Adjusted behavior for clip group selection
+- v1.11 (2026-01-21): Added undo-safe preview (PreviewManager) and single-step undo on OK
+- v1.12 (2026-01-21): Use suspendHistory so preview/OK become single-step undo
 
 */
 
 // --- グローバル定義 / Global definitions ---
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.10";
+var SCRIPT_VERSION = "v1.12";
+
+// --- suspendHistory bridge (global) ---
+// Illustrator's suspendHistory accepts only a string of code, so we bridge a function call via a global variable.
+var __PREVIEWMGR_ACTION__ = null;
+function __runPreviewMgrAction__() {
+    if (__PREVIEWMGR_ACTION__) {
+        __PREVIEWMGR_ACTION__();
+    }
+}
+
+/**
+ * プレビュー時の履歴管理と一括Undoを制御するクラス
+ * Undo-safe preview manager for ScriptUI dialogs.
+ */
+function PreviewManager() {
+    this.undoDepth = 0; // プレビュー中に実行されたアクションの回数
+
+    /**
+     * 変更操作を実行し、履歴としてカウントする
+     * @param {Function} func - 実行したい処理（無名関数で渡す）
+     */
+    this.addStep = function(func) {
+        try {
+            var doc = app.activeDocument;
+            __PREVIEWMGR_ACTION__ = func;
+            // 1回のヒストリーにまとめる（プレビュー1回 = Undo1回）
+            doc.suspendHistory("Preview", "__runPreviewMgrAction__()");
+            __PREVIEWMGR_ACTION__ = null;
+            this.undoDepth++;
+            app.redraw();
+        } catch (e) {
+            __PREVIEWMGR_ACTION__ = null;
+            alert("Preview Error: " + (e && e.message ? e.message : e));
+        }
+    };
+
+    /**
+     * プレビューのために行った変更を全て取り消す
+     */
+    this.rollback = function() {
+        try {
+            while (this.undoDepth > 0) {
+                app.undo();
+                this.undoDepth--;
+            }
+        } catch (e) {
+            // Ignore undo errors, but reset depth to avoid infinite loops
+            this.undoDepth = 0;
+        }
+        try { app.redraw(); } catch (_) {}
+    };
+
+    /**
+     * OK時に確定する
+     * @param {Function} [finalAction] - (任意) 全てUndoした後に実行する「本番」の処理
+     */
+    this.confirm = function(finalAction) {
+        if (finalAction) {
+            // プレビュー分を一度Undoしてから、本番を1回のヒストリーにまとめて実行
+            this.rollback();
+            try {
+                var doc = app.activeDocument;
+                __PREVIEWMGR_ACTION__ = finalAction;
+                doc.suspendHistory("Create Guides", "__runPreviewMgrAction__()");
+                __PREVIEWMGR_ACTION__ = null;
+                try { app.redraw(); } catch (_) {}
+            } catch (e) {
+                __PREVIEWMGR_ACTION__ = null;
+                throw e;
+            }
+        } else {
+            this.undoDepth = 0;
+        }
+    };
+}
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -412,12 +495,12 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
     if (selItems.length === 0) {
         // 選択がない場合はアートボード基準
         if (doc.artboards.length === 0) {
-            alert(LABELS.alertNoArtboard);
+            alert(LABELS.alertNoArtboard[lang]);
             return;
         }
         var abIndex = doc.artboards.getActiveArtboardIndex();
         if (abIndex < 0 || abIndex >= doc.artboards.length) {
-            alert(LABELS.alertInvalidArtboard);
+            alert(LABELS.alertInvalidArtboard[lang]);
             return;
         }
         var ab = doc.artboards[abIndex].artboardRect;
@@ -446,7 +529,7 @@ function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue)
                 try {
                     app.executeMenuCommand('expandStyle');
                 } catch (e) {
-                    alert(LABELS.alertExpandError + "\n" + e.message);
+                    alert(LABELS.alertExpandError[lang] + "\n" + e.message);
                 }
                 for (var k = 0; k < tempCopies.length; k++) {
                     var outlined = tempCopies[k].createOutline();
@@ -594,12 +677,12 @@ function createGuide(layer, pos, orientation, useCanvas, marginValue) {
     } else {
         // アートボード基準 / Use artboard bounds
         if (doc.artboards.length === 0) {
-            alert(LABELS.alertNoArtboard);
+            alert(LABELS.alertNoArtboard[lang]);
             return;
         }
         var abIndex = doc.artboards.getActiveArtboardIndex();
         if (abIndex < 0 || abIndex >= doc.artboards.length) {
-            alert(LABELS.alertInvalidArtboard);
+            alert(LABELS.alertInvalidArtboard[lang]);
             return;
         }
         var ab = doc.artboards[abIndex].artboardRect;
@@ -658,6 +741,8 @@ function getPtFactorFromUnitCode(code) {
 function buildDialog() {
     /* グローバル中心モード変数宣言 / Declare global center mode variable */
     var centerModeGlobal = "";
+    var previewMgr = new PreviewManager();
+
     var dialog = new Window("dialog");
     dialog.text = LABELS.dialogTitle[lang];
     dialog.orientation = "column";
@@ -687,10 +772,12 @@ function buildDialog() {
     targetPanel.alignChildren = ["left", "top"];
     targetPanel.spacing = 10;
     targetPanel.margins = [10, 20, 20, 15];
+
     /* カンバス→アートボードの順にラジオボタンを追加し、デフォルトをアートボードに / Add radio buttons in order: Canvas → Artboard, default to Artboard */
     var rbCanvas = targetPanel.add("radiobutton", undefined, LABELS.canvas[lang]);
     var rbArtboard = targetPanel.add("radiobutton", undefined, LABELS.artboard[lang]);
     rbArtboard.value = true;
+
     /* 「裁ち落とし」グループを targetPanel 内に追加 / Add margin (bleed) group to targetPanel */
     var marginGroup = targetPanel.add("group");
     marginGroup.orientation = "row";
@@ -701,78 +788,58 @@ function buildDialog() {
     marginGroup.add("statictext", undefined, getCurrentUnitLabel());
     changeValueByArrowKey(marginInput);
 
-    var axisGroup = leftGroup.add("panel", undefined, undefined, {
-        name: "axisGroup"
-    });
+    var axisGroup = leftGroup.add("panel", undefined, undefined, { name: "axisGroup" });
     axisGroup.text = LABELS.axisGroup[lang];
     axisGroup.orientation = "column";
     axisGroup.alignChildren = ["left", "top"];
     axisGroup.spacing = 10;
     axisGroup.margins = [10, 20, 10, 5];
 
-    var diamondGroup = axisGroup.add("group", undefined, {
-        name: "diamondGroup"
-    });
+    var diamondGroup = axisGroup.add("group", undefined, { name: "diamondGroup" });
     diamondGroup.orientation = "row";
     diamondGroup.alignChildren = ["left", "center"];
     diamondGroup.spacing = 20;
     diamondGroup.margins = 0;
     diamondGroup.alignment = ["fill", "top"];
 
-    var colLeft = diamondGroup.add("group", undefined, {
-        name: "colLeft"
-    });
+    var colLeft = diamondGroup.add("group", undefined, { name: "colLeft" });
     colLeft.orientation = "row";
     colLeft.alignChildren = ["left", "center"];
     colLeft.spacing = 10;
     colLeft.margins = 0;
-    var cbLeft = colLeft.add("checkbox", undefined, undefined, {
-        name: "cbLeft"
-    });
+    var cbLeft = colLeft.add("checkbox", undefined, undefined, { name: "cbLeft" });
     cbLeft.text = LABELS.left[lang];
     cbLeft.value = true;
 
-    var colCenter = diamondGroup.add("group", undefined, {
-        name: "colCenter"
-    });
-
+    var colCenter = diamondGroup.add("group", undefined, { name: "colCenter" });
     colCenter.orientation = "column";
     colCenter.alignChildren = ["left", "center"];
     colCenter.spacing = 10;
     colCenter.margins = 0;
-    var cbTop = colCenter.add("checkbox", undefined, undefined, {
-        name: "cbTop"
-    });
+
+    var cbTop = colCenter.add("checkbox", undefined, undefined, { name: "cbTop" });
     cbTop.text = LABELS.top[lang];
     cbTop.value = true;
-    var cbCenter = colCenter.add("checkbox", undefined, undefined, {
-        name: "cbCenter"
-    });
+
+    var cbCenter = colCenter.add("checkbox", undefined, undefined, { name: "cbCenter" });
     cbCenter.text = LABELS.center[lang];
     cbCenter.value = false;
+
     /* for horizontal center line / 水平中心線用 */
-    var cbBottom = colCenter.add("checkbox", undefined, undefined, {
-        name: "cbBottom"
-    });
+    var cbBottom = colCenter.add("checkbox", undefined, undefined, { name: "cbBottom" });
     cbBottom.text = LABELS.bottom[lang];
     cbBottom.value = true;
 
-    var colRight = diamondGroup.add("group", undefined, {
-        name: "colRight"
-    });
+    var colRight = diamondGroup.add("group", undefined, { name: "colRight" });
     colRight.orientation = "row";
     colRight.alignChildren = ["left", "center"];
     colRight.spacing = 10;
     colRight.margins = 0;
-    var cbRight = colRight.add("checkbox", undefined, undefined, {
-        name: "cbRight"
-    });
+    var cbRight = colRight.add("checkbox", undefined, undefined, { name: "cbRight" });
     cbRight.text = LABELS.right[lang];
     cbRight.value = true;
 
-    var edgeGroup = axisGroup.add("group", undefined, {
-        name: "edgeGroup"
-    });
+    var edgeGroup = axisGroup.add("group", undefined, { name: "edgeGroup" });
     edgeGroup.orientation = "row";
     edgeGroup.alignChildren = ["left", "center"];
     edgeGroup.spacing = 10;
@@ -798,29 +865,14 @@ function buildDialog() {
     var rbCenterV = createRadioButton(rightGroup, LABELS.centerVRb[lang]);
     var rbCenterH = createRadioButton(rightGroup, LABELS.centerHRb[lang]);
     var rbClear = createRadioButton(rightGroup, LABELS.clear[lang]);
-    /* 中心ラジオボタンのイベントハンドラ / Center radio button event handler */
-    if (rbCenterBoth) {
-        rbCenterBoth.onClick = function() {
-            if (rbCenterBoth.value) setCheckboxState(false, false, false, false, true);
-        };
-    }
 
-    /* 中心線ラジオボタンのイベントハンドラ追加 / Insert event handlers for center line radio buttons */
-    if (rbCenterV) {
-        rbCenterV.onClick = function() {
-            if (rbCenterV.value) {
-                setCheckboxState(false, false, false, false, false);
-                centerModeGlobal = "vertical";
-            }
-        };
-    }
-    if (rbCenterH) {
-        rbCenterH.onClick = function() {
-            if (rbCenterH.value) {
-                setCheckboxState(false, false, false, false, false);
-                centerModeGlobal = "horizontal";
-            }
-        };
+    /* チェックボックス一括設定関数 / Function to set checkboxes at once */
+    function setCheckboxState(l, t, r, b, c) {
+        cbLeft.value = l;
+        cbTop.value = t;
+        cbRight.value = r;
+        cbBottom.value = b;
+        cbCenter.value = c;
     }
 
     /* デフォルト選択は表示中の最初のボタンに自動設定（Shihen優先） / Default selection (prefer "Edges") */
@@ -830,72 +882,20 @@ function buildDialog() {
         rbAllOn.value = true;
     }
 
-    /* チェックボックス一括設定関数 / Function to set checkboxes at once */
-    /* チェックボックス群の状態をまとめてセット / Set checkboxes easily */
-    function setCheckboxState(l, t, r, b, c) {
-        cbLeft.value = l;
-        cbTop.value = t;
-        cbRight.value = r;
-        cbBottom.value = b;
-        cbCenter.value = c;
-    }
-
-    if (rbShihen) {
-        rbShihen.onClick = function() {
-            if (rbShihen.value) setCheckboxState(true, true, true, true, false);
-        };
-    }
-    if (rbAllOn) {
-        rbAllOn.onClick = function() {
-            if (rbAllOn.value) setCheckboxState(true, true, true, true, true);
-        };
-    }
-    if (rbTopBottom) {
-        rbTopBottom.onClick = function() {
-            if (rbTopBottom.value) setCheckboxState(false, true, false, true, false);
-        };
-    }
-    if (rbLeftRight) {
-        rbLeftRight.onClick = function() {
-            if (rbLeftRight.value) setCheckboxState(true, false, true, false, false);
-        };
-    }
-    if (rbTopLeft) {
-        rbTopLeft.onClick = function() {
-            if (rbTopLeft.value) setCheckboxState(true, true, false, false, false);
-        };
-    }
-    if (rbBottomLeft) {
-        rbBottomLeft.onClick = function() {
-            if (rbBottomLeft.value) setCheckboxState(true, false, false, true, false);
-        };
-    }
-    if (rbTopRight) {
-        rbTopRight.onClick = function() {
-            if (rbTopRight.value) setCheckboxState(false, true, true, false, false);
-        };
-    }
-    if (rbBottomRight) {
-        rbBottomRight.onClick = function() {
-            if (rbBottomRight.value) setCheckboxState(false, false, true, true, false);
-        };
-    }
-    if (rbClear) {
-        rbClear.onClick = function() {
-            if (rbClear.value) setCheckboxState(false, false, false, false, false);
-        };
-    }
-
-    var optionsGroup = dialog.add("group", undefined, {
-        name: "optionsGroup"
-    });
+    // ---- options group (below mainGroup) ----
+    var optionsGroup = dialog.add("group", undefined, { name: "optionsGroup" });
     optionsGroup.orientation = "column";
     optionsGroup.alignChildren = ["left", "center"];
     optionsGroup.margins = [10, 15, 10, 20];
     optionsGroup.spacing = 10;
 
+    // Preview toggle (undo-safe)
+    var cbPreview = optionsGroup.add("checkbox", undefined, "Preview");
+    cbPreview.value = true;
+
     var cbUsePreview = optionsGroup.add("checkbox", undefined, LABELS.usePreviewBounds[lang]);
     cbUsePreview.value = true;
+
     var cbDeleteGuide = optionsGroup.add("checkbox", undefined, LABELS.deleteGuides[lang]);
     cbDeleteGuide.value = true;
 
@@ -913,6 +913,7 @@ function buildDialog() {
     offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
     offsetInput.active = true;
     changeValueByArrowKey(offsetInput);
+
     /* 「裁ち落とし」(marginInput) を「カンバス」選択時にディム表示する制御を追加 / Disable margin input if canvas is selected */
     function updateMarginEnabled() {
         if (rbCanvas.value) {
@@ -921,10 +922,6 @@ function buildDialog() {
             marginInput.enabled = true;
         }
     }
-    rbArtboard.onClick = updateMarginEnabled;
-    rbCanvas.onClick = updateMarginEnabled;
-    /* 初期状態に合わせる / Set initial state */
-    updateMarginEnabled();
 
     /* 選択オブジェクトがアートボード外にある場合、自動的にカンバス選択 / Auto-select Canvas if selection is outside artboard */
     var doc = app.activeDocument;
@@ -951,63 +948,210 @@ function buildDialog() {
         if (allOutside) {
             rbCanvas.value = true;
             rbArtboard.value = false;
-            updateMarginEnabled();
         }
     }
 
+    // Initial state reflect
+    updateMarginEnabled();
+
+    // ---- preview apply helpers ----
+
+    // 現在のUI状態でガイド作成を1回だけ実行する（プレビュー/OK共通）
+    function applyCurrentSettingsOnce() {
+        var options = {
+            left: cbLeft.value,
+            right: cbRight.value,
+            top: cbTop.value,
+            bottom: cbBottom.value,
+            center: cbCenter.value,
+            centerMode: centerModeGlobal,
+            usePreviewBounds: cbUsePreview.value,
+            individual: cbIndividual.value
+        };
+        var useCanvas = rbCanvas.value;
+
+        // _guideレイヤー取得または作成 / Get or create "_guide" layer
+        var layer = getOrCreateGuideLayer();
+        var wasLocked = layer.locked;
+        if (wasLocked) layer.locked = false;
+
+        // 削除チェックON時、既存ガイド削除 / Remove existing guides if checked
+        if (cbDeleteGuide.value) {
+            try {
+                for (var i = layer.pageItems.length - 1; i >= 0; i--) {
+                    if (layer.pageItems[i].guides) {
+                        layer.pageItems[i].remove();
+                    }
+                }
+            } catch (ex) {
+                alert(LABELS.alertDeleteGuideError[lang] + "\n" + ex.message);
+            }
+        }
+
+        var offsetVal = parseFloat(offsetInput.text);
+        if (isNaN(offsetVal)) offsetVal = 0;
+        var marginVal = parseFloat(marginInput.text);
+        if (isNaN(marginVal)) marginVal = 0;
+        var unitCode = app.preferences.getIntegerPreference("rulerType");
+        var ptFactor = getPtFactorFromUnitCode(unitCode);
+        var offsetValPt = offsetVal * ptFactor;
+        var marginValPt = marginVal * ptFactor;
+
+        createGuidesFromSelection(options, useCanvas, offsetValPt, marginValPt);
+
+        // lock restore
+        layer.locked = wasLocked;
+    }
+
+    function updatePreview() {
+        // まず、前のプレビューがあれば元に戻す
+        previewMgr.rollback();
+
+        // Preview ON のときだけ、現在値で1回適用
+        if (cbPreview.value) {
+            previewMgr.addStep(function() {
+                applyCurrentSettingsOnce();
+            });
+        }
+    }
+
+    // ---- radio handlers (keep behavior + update preview) ----
+    if (rbCenterBoth) {
+        rbCenterBoth.onClick = function() {
+            if (rbCenterBoth.value) {
+                setCheckboxState(false, false, false, false, true);
+                centerModeGlobal = "";
+            }
+            updatePreview();
+        };
+    }
+
+    if (rbCenterV) {
+        rbCenterV.onClick = function() {
+            if (rbCenterV.value) {
+                setCheckboxState(false, false, false, false, false);
+                centerModeGlobal = "vertical";
+            }
+            updatePreview();
+        };
+    }
+
+    if (rbCenterH) {
+        rbCenterH.onClick = function() {
+            if (rbCenterH.value) {
+                setCheckboxState(false, false, false, false, false);
+                centerModeGlobal = "horizontal";
+            }
+            updatePreview();
+        };
+    }
+
+    if (rbShihen) {
+        rbShihen.onClick = function() {
+            if (rbShihen.value) setCheckboxState(true, true, true, true, false);
+            centerModeGlobal = "";
+            updatePreview();
+        };
+    }
+    if (rbAllOn) {
+        rbAllOn.onClick = function() {
+            if (rbAllOn.value) setCheckboxState(true, true, true, true, true);
+            centerModeGlobal = "";
+            updatePreview();
+        };
+    }
+    if (rbTopBottom) {
+        rbTopBottom.onClick = function() {
+            if (rbTopBottom.value) setCheckboxState(false, true, false, true, false);
+            centerModeGlobal = "";
+            updatePreview();
+        };
+    }
+    if (rbLeftRight) {
+        rbLeftRight.onClick = function() {
+            if (rbLeftRight.value) setCheckboxState(true, false, true, false, false);
+            centerModeGlobal = "";
+            updatePreview();
+        };
+    }
+    if (rbTopLeft) {
+        rbTopLeft.onClick = function() {
+            if (rbTopLeft.value) setCheckboxState(true, true, false, false, false);
+            centerModeGlobal = "";
+            updatePreview();
+        };
+    }
+    if (rbBottomLeft) {
+        rbBottomLeft.onClick = function() {
+            if (rbBottomLeft.value) setCheckboxState(true, false, false, true, false);
+            centerModeGlobal = "";
+            updatePreview();
+        };
+    }
+    if (rbTopRight) {
+        rbTopRight.onClick = function() {
+            if (rbTopRight.value) setCheckboxState(false, true, true, false, false);
+            centerModeGlobal = "";
+            updatePreview();
+        };
+    }
+    if (rbBottomRight) {
+        rbBottomRight.onClick = function() {
+            if (rbBottomRight.value) setCheckboxState(false, false, true, true, false);
+            centerModeGlobal = "";
+            updatePreview();
+        };
+    }
+    if (rbClear) {
+        rbClear.onClick = function() {
+            if (rbClear.value) setCheckboxState(false, false, false, false, false);
+            centerModeGlobal = "";
+            updatePreview();
+        };
+    }
+
+    // ---- target radio handlers ----
+    rbArtboard.onClick = function() {
+        updateMarginEnabled();
+        updatePreview();
+    };
+    rbCanvas.onClick = function() {
+        updateMarginEnabled();
+        updatePreview();
+    };
+
+    // Preview update hooks (checkboxes / inputs)
+    cbPreview.onClick = updatePreview;
+    cbUsePreview.onClick = updatePreview;
+    cbDeleteGuide.onClick = updatePreview;
+    cbIndividual.onClick = updatePreview;
+
+    cbLeft.onClick = updatePreview;
+    cbTop.onClick = updatePreview;
+    cbRight.onClick = updatePreview;
+    cbBottom.onClick = updatePreview;
+    cbCenter.onClick = updatePreview;
+
+    offsetInput.onChange = updatePreview;
+    marginInput.onChange = updatePreview;
+
+    // ---- buttons ----
     var btnGroup = dialog.add("group");
     btnGroup.alignment = ["center", "top"];
     var btnCancel = btnGroup.add("button", undefined, LABELS.cancelButton[lang]);
-    var btnCreateGuides = btnGroup.add("button", undefined, LABELS.okButton[lang], {
-        name: "ok"
-    });
+    var btnCreateGuides = btnGroup.add("button", undefined, LABELS.okButton[lang], { name: "ok" });
 
     btnCancel.onClick = function() {
+        previewMgr.rollback();
         dialog.close();
     };
 
     btnCreateGuides.onClick = function() {
         try {
-            var options = {
-                left: cbLeft.value,
-                right: cbRight.value,
-                top: cbTop.value,
-                bottom: cbBottom.value,
-                center: cbCenter.value,
-                centerMode: centerModeGlobal,
-                usePreviewBounds: cbUsePreview.value,
-                individual: cbIndividual.value
-            };
-            var useCanvas = rbCanvas.value;
-
-            /* _guideレイヤー取得または作成 / Get or create "_guide" layer */
-            var layer = getOrCreateGuideLayer();
-            var wasLocked = layer.locked;
-            if (wasLocked) layer.locked = false;
-
-            /* 削除チェックON時、既存ガイド削除 / Remove existing guides if checked */
-            if (cbDeleteGuide.value) {
-                try {
-                    for (var i = layer.pageItems.length - 1; i >= 0; i--) {
-                        if (layer.pageItems[i].guides) {
-                            layer.pageItems[i].remove();
-                        }
-                    }
-                } catch (ex) {
-                    alert(LABELS.alertDeleteGuideError[lang] + "\n" + ex.message);
-                }
-            }
-
-            var offsetVal = parseFloat(offsetInput.text);
-            if (isNaN(offsetVal)) offsetVal = 0;
-            var marginVal = parseFloat(marginInput.text);
-            if (isNaN(marginVal)) marginVal = 0;
-            var unitCode = app.preferences.getIntegerPreference("rulerType");
-            var ptFactor = getPtFactorFromUnitCode(unitCode);
-            var offsetValPt = offsetVal * ptFactor;
-            var marginValPt = marginVal * ptFactor;
-
-            createGuidesFromSelection(options, useCanvas, offsetValPt, marginValPt);
+            // OK時は、プレビューを一度すべてUndoしてから1回だけ実行（Ctrl/Cmd+Z 1回で戻せる）
+            previewMgr.confirm(function() {
+                applyCurrentSettingsOnce();
+            });
             dialog.close();
         } catch (e) {
             alert(LABELS.alertGuideError[lang] + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
