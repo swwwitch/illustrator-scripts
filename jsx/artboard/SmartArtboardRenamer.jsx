@@ -260,9 +260,6 @@ if (app.documents.length !== 0) {
     var btnCancel = buttonRow.add("button", undefined, LABELS.cancelButton[lang], {name: "cancel"});
     btnCancel.preferredSize.width = 80;
 
-    // コピー用ボタン / Copy button
-    var btnCopy = buttonRow.add("button", undefined, "コピー / Copy");
-    btnCopy.preferredSize.width = 80;
 
     var spacer = buttonRow.add("group");
     spacer.alignment = "fill";
@@ -274,57 +271,7 @@ if (app.documents.length !== 0) {
     var btnApply = rightButtons.add("button", undefined, LABELS.applyButton[lang]);
     var btnOK = rightButtons.add("button", undefined, LABELS.okButton[lang], {name: "ok"});
 
-    // テキスト情報収集関数 / Gather preview text info for copy
-    function collectPreviewInfo() {
-        var mode = r1.value ? "frontmost" : (r2.value ? "layer" : "none");
-        var prefix = prefixInput.text;
-        var suffix = suffixInput.text;
-        var targetType = abAll.value ? "all" : "numbered";
-        var numberInput = abNumbersInput.text;
-        var layerName = r2.value && layerDropdown.selection ? layerDropdown.selection.text : null;
-        var doc = app.activeDocument;
 
-        var textFrames;
-        if (mode === "layer") {
-            var namingLayer = getNamingLayerByName(doc, layerName);
-            if (!namingLayer || !namingLayer.visible) {
-                alert(LABELS.alertNoLayer[lang]);
-                return "";
-            }
-            textFrames = getTextFramesInLayer(namingLayer);
-        } else if (mode === "frontmost") {
-            textFrames = getFrontmostTextFramesPerArtboard(doc);
-        } else {
-            textFrames = [];
-        }
-        var targetIndices = getTargetArtboardIndices(doc.artboards.length, targetType, numberInput);
-        var artboardTextMap = mapTextToArtboards(textFrames, doc.artboards, mode);
-
-        // Preview output
-        var result = [];
-        var count = 1;
-        for (var i = 0; i < doc.artboards.length; i++) {
-            if (!contains(targetIndices, i)) continue;
-            var prefixVal = formatWithAlphaNumeric(prefix, count);
-            var suffixVal = formatWithAlphaNumeric(suffix, count);
-            var textPart = (artboardTextMap[i] && artboardTextMap[i].length > 0) ? artboardTextMap[i].join(" ") : "";
-            if (prefixVal || suffixVal || textPart) {
-                var baseName = (prefixVal ? prefixVal : "") + textPart + (suffixVal ? suffixVal : "");
-                result.push("[" + (i+1) + "] " + baseName);
-                count++;
-            }
-        }
-        return result.join("\r\n");
-    }
-
-    // コピー処理 / Copy handler
-    btnCopy.onClick = function() {
-        var info = collectPreviewInfo();
-        if (info) {
-            copyToClipboard(info);
-            alert("プレビュー内容をコピーしました。\nPreview copied to clipboard.");
-        }
-    };
 
     // 適用処理 / Apply handler
     btnApply.onClick = function() {
@@ -409,15 +356,6 @@ if (app.documents.length !== 0) {
     }
 }
 
-// クリップボードにコピー / Copy to clipboard
-function copyToClipboard(text) {
-    var tempFile = new File(Folder.temp + "/_ai_clipboard.txt");
-    tempFile.open("w");
-    tempFile.encoding = "UTF-8";
-    tempFile.write(text);
-    tempFile.close();
-    tempFile.execute(); // OSのエディタで開いてCtrl+Cできる (JSXの制約)
-}
 
 function getNamingLayerByName(doc, name) {
     for (var i = 0; i < doc.layers.length; i++) {
