@@ -8,7 +8,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -56,6 +56,10 @@ var LABELS = {
   horizontal: {
     ja: "水平",
     en: "Horizontal"
+  },
+  zOrder: {
+    ja: "重ね順",
+    en: "Z-Order"
   },
   ok: {
     ja: "OK",
@@ -151,38 +155,44 @@ function PreviewManager() {
 
 /* 方向推定の設定 / Direction detection settings */
 var DIRECTION_THRESHOLD = 1.20; // しきい値（1.20 = 20%差） / Threshold ratio
-var PREF_KEY_LAST_DIR = "AlternateSelect.LastDirectionIsVertical";
+var PREF_KEY_LAST_DIR = "AlternateSelect.LastDirectionMode";
 
-/* 前回の方向を取得 / Load last direction (custom options)
+/* 前回の方向モードを取得 / Load last direction mode (custom options)
    - 取得できない場合は null を返す
+   - mode: "vertical" | "horizontal" | "zorder"
 */
-function loadLastDirectionIsVertical() {
+function loadLastDirectionMode() {
     try {
         var desc = app.getCustomOptions(PREF_KEY_LAST_DIR);
-        if (desc && desc.hasKey(stringIDToTypeID("isVertical"))) {
-            return desc.getBoolean(stringIDToTypeID("isVertical"));
+        if (desc && desc.hasKey(stringIDToTypeID("mode"))) {
+            return desc.getString(stringIDToTypeID("mode"));
         }
     } catch (e) {}
     return null;
 }
 
-/* 前回の方向を保存 / Save last direction (custom options) */
-function saveLastDirectionIsVertical(isVertical) {
+/* 前回の方向モードを保存 / Save last direction mode (custom options) */
+function saveLastDirectionMode(mode) {
     try {
+        var m = String(mode);
+        if (m !== "vertical" && m !== "horizontal" && m !== "zorder") return;
         var desc = new ActionDescriptor();
-        desc.putBoolean(stringIDToTypeID("isVertical"), !!isVertical);
+        desc.putString(stringIDToTypeID("mode"), m);
         app.putCustomOptions(PREF_KEY_LAST_DIR, desc, true);
     } catch (e) {}
 }
 
 /* 方向の自動推定 / Auto detect direction (initial)
    - 中心点のX/Yレンジで判定（外れ値耐性あり）
-   - rangeX が rangeY の DIRECTION_THRESHOLD 倍より大きい → 水平
-   - rangeY が rangeX の DIRECTION_THRESHOLD 倍より大きい → 垂直
-   - それ以外（僅差/グリッド等）は「前回値優先」
+   - rangeX が rangeY の DIRECTION_THRESHOLD 倍より大きい → "horizontal"
+   - rangeY が rangeX の DIRECTION_THRESHOLD 倍より大きい → "vertical"
+   - それ以外（僅差/グリッド等）は「前回mode優先（fallback）」を返す
 */
-function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
-    if (!items || items.length < 2) return (fallbackIsVertical !== undefined) ? fallbackIsVertical : true;
+function guessInitialDirectionMode(items, fallbackMode) {
+    var fb = (fallbackMode !== undefined && fallbackMode !== null) ? String(fallbackMode) : "vertical";
+    if (fb !== "vertical" && fb !== "horizontal" && fb !== "zorder") fb = "vertical";
+
+    if (!items || items.length < 2) return fb;
 
     var xs = [];
     var ys = [];
@@ -193,11 +203,7 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
 
         // geometricBounds: [left, top, right, bottom]
         var b;
-        try {
-            b = it.geometricBounds;
-        } catch (e) {
-            continue;
-        }
+        try { b = it.geometricBounds; } catch (e) { continue; }
         if (!b || b.length < 4) continue;
 
         var cx = (b[0] + b[2]) / 2;
@@ -206,7 +212,7 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
         ys.push(cy);
     }
 
-    if (xs.length < 2 || ys.length < 2) return (fallbackIsVertical !== undefined) ? fallbackIsVertical : true;
+    if (xs.length < 2 || ys.length < 2) return fb;
 
     xs.sort(function (a, b) { return a - b; });
     ys.sort(function (a, b) { return a - b; });
@@ -226,11 +232,11 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
     var rangeY = maxY - minY;
 
     // しきい値判定（明確な差があるときだけ自動切替）
-    if (rangeX > rangeY * DIRECTION_THRESHOLD) return false; // 水平
-    if (rangeY > rangeX * DIRECTION_THRESHOLD) return true;  // 垂直
+    if (rangeX > rangeY * DIRECTION_THRESHOLD) return "horizontal";
+    if (rangeY > rangeX * DIRECTION_THRESHOLD) return "vertical";
 
-    // 僅差（グリッド等）は前回値優先
-    return (fallbackIsVertical !== undefined) ? fallbackIsVertical : true;
+    // 僅差（グリッド等）は前回mode優先
+    return fb;
 }
 
 (function () {
@@ -274,15 +280,23 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
         // 今回のプレビューを適用（選択変更は通常 Undoable ではないので undoable=false）
         previewMgr.addStep(function () {
             var selectOdd = rbOdd.value;
-            var isVertical = rbVertical.value;
+            var mode = rbVertical.value ? "vertical" : (rbHorizontal.value ? "horizontal" : "zorder");
 
             /* 並び順ソート / Sort order */
-            if (isVertical) {
+            if (mode === "vertical") {
                 /* 垂直：Y降順（上→下） / Vertical: Y desc (top to bottom) */
                 items.sort(function (a, b) { return b.position[1] - a.position[1]; });
-            } else {
+            } else if (mode === "horizontal") {
                 /* 水平：X昇順（左→右） / Horizontal: X asc (left to right) */
                 items.sort(function (a, b) { return a.position[0] - b.position[0]; });
+            } else {
+                /* 重ね順：zOrderPosition 昇順 / Z-order: zOrderPosition asc */
+                items.sort(function (a, b) {
+                    var za = 0, zb = 0;
+                    try { za = a.zOrderPosition; } catch (e) { za = 0; }
+                    try { zb = b.zOrderPosition; } catch (e) { zb = 0; }
+                    return za - zb;
+                });
             }
 
             /* 互い違い選択 / Alternate selection */
@@ -299,7 +313,7 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
     /* ダイアログ表示調整用パラメータ / Dialog display adjustment parameters */
     var offsetX = 300;
     var offsetY = 0;
-    var dialogOpacity = 0.98;
+    var dialogOpacity = 0.975;
 
     function shiftDialogPosition(dlg, offsetX, offsetY) {
         dlg.onShow = function () {
@@ -315,6 +329,57 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
         } catch (e) {
             // opacity 非対応環境対策（無視） / Ignore if opacity not supported
         }
+    }
+
+    /* キー入力でラジオ切替 / Key handler for radio buttons
+       Odd: O / Even: E / Vertical: V / Horizontal: H / Z-Order: A
+    */
+    function addRadioKeyHandler(dialog) {
+        dialog.addEventListener("keydown", function (event) {
+            var k = event.keyName;
+
+            // 奇数 / 偶数
+            if (k === "O") {
+                rbOdd.value = true;
+                rbEven.value = false;
+                applySelectionPreview();
+                event.preventDefault();
+                return;
+            } else if (k === "E") {
+                rbOdd.value = false;
+                rbEven.value = true;
+                applySelectionPreview();
+                event.preventDefault();
+                return;
+            }
+
+            // 方向（垂直 / 水平 / 重ね順）
+            if (k === "V") {
+                rbVertical.value = true;
+                rbHorizontal.value = false;
+                rbZOrder.value = false;
+                saveLastDirectionMode("vertical");
+                applySelectionPreview();
+                event.preventDefault();
+                return;
+            } else if (k === "H") {
+                rbVertical.value = false;
+                rbHorizontal.value = true;
+                rbZOrder.value = false;
+                saveLastDirectionMode("horizontal");
+                applySelectionPreview();
+                event.preventDefault();
+                return;
+            } else if (k === "A") {
+                rbVertical.value = false;
+                rbHorizontal.value = false;
+                rbZOrder.value = true;
+                saveLastDirectionMode("zorder");
+                applySelectionPreview();
+                event.preventDefault();
+                return;
+            }
+        });
     }
 
     /* ダイアログボックス / Dialog box */
@@ -349,13 +414,17 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
 
     var rbVertical = dirGroup.add("radiobutton", undefined, L("vertical"));
     var rbHorizontal = dirGroup.add("radiobutton", undefined, L("horizontal"));
+    var rbZOrder = dirGroup.add("radiobutton", undefined, L("zOrder"));
     // 前回値を基本にし、差が明確なときだけ自動切替 / Prefer last value; auto-switch only if clear
-    var lastIsVertical = loadLastDirectionIsVertical();
-    if (lastIsVertical === null) lastIsVertical = true;
+    var lastMode = loadLastDirectionMode();
+    if (lastMode === null) lastMode = "vertical";
 
-    var initialIsVertical = guessInitialDirectionIsVertical(items, lastIsVertical);
-    rbVertical.value = initialIsVertical;
-    rbHorizontal.value = !initialIsVertical;
+    var initialMode = guessInitialDirectionMode(items, lastMode);
+    rbVertical.value = (initialMode === "vertical");
+    rbHorizontal.value = (initialMode === "horizontal");
+    rbZOrder.value = (initialMode === "zorder");
+
+    addRadioKeyHandler(dlg);
 
     var btnGroup = dlg.add("group");
     btnGroup.alignment = "right";
@@ -365,11 +434,15 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
     rbOdd.onClick = applySelectionPreview;
     rbEven.onClick = applySelectionPreview;
     rbVertical.onClick = function () {
-        saveLastDirectionIsVertical(true);
+        saveLastDirectionMode("vertical");
         applySelectionPreview();
     };
     rbHorizontal.onClick = function () {
-        saveLastDirectionIsVertical(false);
+        saveLastDirectionMode("horizontal");
+        applySelectionPreview();
+    };
+    rbZOrder.onClick = function () {
+        saveLastDirectionMode("zorder");
         applySelectionPreview();
     };
 
@@ -385,12 +458,19 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
         previewMgr.confirm(doc, function () {
             // 最終適用（1回） / Final apply (single step)
             var selectOdd = rbOdd.value;
-            var isVertical = rbVertical.value;
+            var mode = rbVertical.value ? "vertical" : (rbHorizontal.value ? "horizontal" : "zorder");
 
-            if (isVertical) {
+            if (mode === "vertical") {
                 items.sort(function (a, b) { return b.position[1] - a.position[1]; });
-            } else {
+            } else if (mode === "horizontal") {
                 items.sort(function (a, b) { return a.position[0] - b.position[0]; });
+            } else {
+                items.sort(function (a, b) {
+                    var za = 0, zb = 0;
+                    try { za = a.zOrderPosition; } catch (e) { za = 0; }
+                    try { zb = b.zOrderPosition; } catch (e) { zb = 0; }
+                    return za - zb;
+                });
             }
 
             doc.selection = null;
@@ -402,7 +482,8 @@ function guessInitialDirectionIsVertical(items, fallbackIsVertical) {
             }
             app.redraw();
         });
-        saveLastDirectionIsVertical(rbVertical.value);
+        var modeToSave = rbVertical.value ? "vertical" : (rbHorizontal.value ? "horizontal" : "zorder");
+        saveLastDirectionMode(modeToSave);
         dlg.close(1);
     };
 
