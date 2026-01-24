@@ -17,6 +17,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * - 見出し：指定モードで一部の線幅/背景を強調（モードにより有効/無効が変わります）
  */
 
+/*
+ * スクリプト名：TableMaker / Script name: TableMaker
+ *
+ * スクリプトの概要：選択中のテキストフレームの見た目（位置/幅/行数）に基づいて、
+ *               外枠や横罫線、または行ごとの背景（塗り）を生成します。
+ *               ※テキスト（タブ/文字/スタイル）には一切手を加えません。
+ * 作成日：2026-01-24
+ * 更新日：2026-01-24（v1.0） / Updated: 2026-01-24 (v1.0)
+ * 最終更新日：2026-01-24 / Last updated: 2026-01-24
+ * 行ごとに長方形を作成
+ * 罫線ではなく「塗り」で作る（線はなし）
+ * 上から奇数行はK10、偶数行はK30
+ */
+
 var SCRIPT_VERSION = "v1.0";
 
 function getCurrentLang() {
@@ -108,20 +122,6 @@ function setDialogOpacity(dlg, opacityValue) {
         // opacity をサポートしない環境では無視
     }
 }
-
-/*
- * スクリプト名：TableMaker / Script name: TableMaker
- *
- * スクリプトの概要：選択中のテキストフレームの見た目（位置/幅/行数）に基づいて、
- *               外枠や横罫線、または行ごとの背景（塗り）を生成します。
- *               ※テキスト（タブ/文字/スタイル）には一切手を加えません。
- * 作成日：2026-01-24
- * 更新日：2026-01-24（v1.0） / Updated: 2026-01-24 (v1.0)
- * 最終更新日：2026-01-24 / Last updated: 2026-01-24
- * 行ごとに長方形を作成
- * 罫線ではなく「塗り」で作る（線はなし）
- * 上から奇数行はK10、偶数行はK30
- */
 
 function createRowRectangles(textBounds, textWidth, halfGap, leading, paragraphCount, targetLayer, strokeWidthPt) {
     var leftX = textBounds[0] - halfGap;

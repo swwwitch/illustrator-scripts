@@ -2,14 +2,35 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-Illustrator グリッド再間隔スクリプト（プレビュー常時ON・連動対応版）
+### スクリプト名 / Script name:
+RegridObjects
+
+### GitHub:
+https://github.com/swwwitch/illustrator-scripts
+
+### 概要 / Overview:
+- 選択中のオブジェクトが「だいたいグリッド状」に並んでいることを前提に、左右・上下の間隔で再配置します。
+- ダイアログは日本語／英語の自動切り替えに対応（$.locale）。
+- ［連動］で左右の値を上下に反映できます。
+- ［行列入れ替え］をONにすると、歯抜け（欠け）を許容しつつ行⇄列を転置します。
+
+### 更新日 / Updated:
+- 2026-01-25
+
 Illustrator Grid Re-spacing Script (always-on preview, link option)
 
-選択中のオブジェクトが「だいたいグリッド状」に並んでいることを前提に、
-ダイアログで入力した「左右・上下の間隔」で再配置します。
-ダイアログは日本語／英語の自動切り替えに対応しています（$.localeを参照）。
+- Assumes the selected objects are arranged in an "approximately grid-like" layout.
+- Repositions them using the horizontal/vertical gaps entered in the dialog.
+- The dialog supports automatic Japanese/English switching (based on $.locale).
+- The "Link" option mirrors the horizontal value to the vertical value.
+- When "Swap Rows/Columns" is ON, it transposes rows/columns while tolerating missing cells.
+
+### Updated:
+- 2026-01-25
 
 更新履歴 / Update history
+- 2026-01-25: v1.3 ［行列入れ替え］のロジックを実装（歯抜け対応・左上基準）
+- 2026-01-25: v1.2 ［行列入れ替え］チェックボックス（UIのみ）を追加、冒頭コメントを更新
 - 2025-10-31: v1.1 ローカライズ対応、タイトルにバージョン表示、コメントを日英に整理
 - 2025-10-31: v1.0 プレビューの常時ON、連動（上下ディム）、↑↓キーでの増減
 */
@@ -17,7 +38,7 @@ Illustrator Grid Re-spacing Script (always-on preview, link option)
 //
 // バージョン / Version
 //
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.3";
 
 //
 // 言語判定 / Detect current language
@@ -50,6 +71,10 @@ var LABELS = {
     link: {
         ja: "連動",
         en: "Link"
+    },
+    transpose: {
+        ja: "行列入れ替え",
+        en: "Swap Rows/Columns"
     },
     ok: {
         ja: "OK",
@@ -160,7 +185,7 @@ function changeValueByArrowKey(editText) {
 /*
 ダイアログの生成と表示 / Build & show dialog
 */
-function showGridSpacingDialog(applySpacing, restoreOriginalPositions, getCurrentUnitLabel, changeValueByArrowKey, initialGapX) {
+function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOriginalPositions, getCurrentUnitLabel, changeValueByArrowKey, initialGapX) {
     // ここでタイトルとバージョンを合成 / combine title and version here
     var dlgTitle = L('dialogTitle') + ' ' + SCRIPT_VERSION;
 
@@ -200,6 +225,14 @@ function showGridSpacingDialog(applySpacing, restoreOriginalPositions, getCurren
     spacer.alignment = ['fill', 'fill'];
     var chkLink = colRight.add('checkbox', undefined, L('link'));
 
+    // 行列入れ替え（UIのみ・ロジックは後日）/ Swap rows/columns (UI only; logic later)
+    var gTranspose = dlg.add('group');
+    gTranspose.orientation = 'row';
+    gTranspose.alignChildren = 'left';
+    gTranspose.margins = [15, 0, 15, 0];
+    var chkTranspose = gTranspose.add('checkbox', undefined, L('transpose'));
+    chkTranspose.value = false;
+
     // 初期状態 / initial state
     chkLink.value = true;
     inputH.active = true;
@@ -215,7 +248,7 @@ function showGridSpacingDialog(applySpacing, restoreOriginalPositions, getCurren
     /*
     プレビュー更新 / update preview
     */
-    function updatePreview() {
+    function updatePreviewImpl() {
         if (chkLink.value) {
             inputV.enabled = false;
             inputV.text = inputH.text;
@@ -229,22 +262,28 @@ function showGridSpacingDialog(applySpacing, restoreOriginalPositions, getCurren
         if (isNaN(gy)) gy = 0;
 
         applySpacing(gx, gy);
+        if (chkTranspose.value) {
+            runTransposeIfNeeded();
+        }
     }
 
-    // グローバルに見えるようにする（↑↓キーから呼ぶため）/ expose to arrow-key handler
-    this.updatePreview = updatePreview;
+    // changeValueByArrowKey() から呼べるようにグローバルへ / expose for arrow-key handler
+    updatePreview = updatePreviewImpl;
+    $.global.updatePreview = updatePreviewImpl;
 
     // イベント / events
-    inputH.onChanging = function () { updatePreview(); };
+    inputH.onChanging = function () { updatePreviewImpl(); };
     inputV.onChanging = function () {
         if (!chkLink.value) {
-            updatePreview();
+            updatePreviewImpl();
         }
     };
-    chkLink.onClick = function () { updatePreview(); };
+    chkLink.onClick = function () { updatePreviewImpl(); };
+    // 行列入れ替え / swap rows & columns
+    chkTranspose.onClick = function () { updatePreviewImpl(); };
 
     // 開いたときに一度プレビュー / first preview when opened
-    updatePreview();
+    updatePreviewImpl();
 
     var result = dlg.show();
 
@@ -256,6 +295,9 @@ function showGridSpacingDialog(applySpacing, restoreOriginalPositions, getCurren
         if (isNaN(gy2)) gy2 = 0;
         if (chkLink.value) gy2 = gx2;
         applySpacing(gx2, gy2);
+        if (chkTranspose.value) {
+            runTransposeIfNeeded();
+        }
     } else {
         // キャンセル時は元に戻す / restore when canceled
         restoreOriginalPositions();
@@ -423,6 +465,124 @@ function main() {
 
     var layoutInfo = buildLayoutInfo();
 
+    /*
+    行列入れ替え（歯抜け対応）/ Transpose rows & columns (tolerate missing cells)
+    - 選択の可視境界（visibleBounds）の left/top を基準に、行・列をクラスタリングして推定
+    - 推定したピッチ（隣接差の中央値）で左上基準に再配置
+    */
+    function transposeGridWithHoles() {
+        if (!items || items.length < 1) return;
+
+        // ---- 調整パラメータ / tuning params
+        var SNAP_X_TOL = 8.0;   // X方向の「同じ列」とみなす許容（pt）
+        var SNAP_Y_TOL = 8.0;   // Y方向の「同じ行」とみなす許容（pt）
+
+        // visibleBounds: [left, top, right, bottom]
+        function leftX(it) { return it.visibleBounds[0]; }
+        function topY(it) { return it.visibleBounds[1]; }
+
+        // 近い値をクラスタリングして中心値配列を作る / cluster near values into centers
+        function clusterValues(values, tol) {
+            values.sort(function (a, b) { return a - b; });
+            var centers = [];
+            for (var i = 0; i < values.length; i++) {
+                var v = values[i];
+                var found = -1;
+                for (var c = 0; c < centers.length; c++) {
+                    if (Math.abs(v - centers[c]) <= tol) { found = c; break; }
+                }
+                if (found < 0) centers.push(v);
+                else centers[found] = (centers[found] + v) / 2.0;
+            }
+            centers.sort(function (a, b) { return a - b; });
+            return centers;
+        }
+
+        function nearestIndex(arr, v) {
+            var best = 0;
+            var bestD = Math.abs(v - arr[0]);
+            for (var i = 1; i < arr.length; i++) {
+                var d = Math.abs(v - arr[i]);
+                if (d < bestD) { bestD = d; best = i; }
+            }
+            return best;
+        }
+
+        // 値の差分（隣接）の中央値 / median of adjacent diffs
+        function medianDiff(sortedDescOrAsc) {
+            if (sortedDescOrAsc.length < 2) return 0;
+            var diffs = [];
+            for (var i = 1; i < sortedDescOrAsc.length; i++) {
+                diffs.push(Math.abs(sortedDescOrAsc[i] - sortedDescOrAsc[i - 1]));
+            }
+            diffs.sort(function (a, b) { return a - b; });
+            return diffs[Math.floor(diffs.length / 2)];
+        }
+
+        // left/top を集める / collect left/top
+        var xs = [], ys = [];
+        for (var k = 0; k < items.length; k++) {
+            xs.push(leftX(items[k]));
+            ys.push(topY(items[k]));
+        }
+
+        var colXs = clusterValues(xs, SNAP_X_TOL); // left -> right
+        var rowYs = clusterValues(ys, SNAP_Y_TOL); // will sort top -> bottom next
+
+        // Illustrator座標では上ほどYが大きいことが多いので「上→下」/ sort top -> bottom
+        rowYs.sort(function (a, b) { return b - a; });
+
+        // 各オブジェクトを(行,列)に割り当て / assign each item to (row, col)
+        var occupancy = {}; // key "r,c" -> item
+        var mapping = [];   // {item, r, c}
+        for (var m = 0; m < items.length; m++) {
+            var it = items[m];
+            var r = nearestIndex(rowYs, topY(it));
+            var c = nearestIndex(colXs, leftX(it));
+            var key = r + "," + c;
+            if (occupancy[key]) {
+                alert((lang === "ja")
+                    ? "同一セルに複数オブジェクトが割り当てられました。\n許容値を下げるか、整列状態を確認してください。\n衝突セル: (" + r + "," + c + ")"
+                    : "Multiple objects were assigned to the same cell.\nReduce tolerances or check alignment.\nConflict cell: (" + r + "," + c + ")");
+                return;
+            }
+            occupancy[key] = it;
+            mapping.push({ item: it, r: r, c: c });
+        }
+
+        var pitchX = medianDiff(colXs);
+        var pitchY = medianDiff(rowYs);
+        if (pitchX === 0 || pitchY === 0) {
+            // 行または列が1つしかない場合は何もしない / nothing meaningful to transpose
+            return;
+        }
+
+        // 転置後グリッドの基準（左上固定）/ origin at top-left
+        var originLeft = colXs[0];
+        var originTop = rowYs[0];
+
+        // 転置: newCol = oldRow, newRow = oldCol
+        for (var t = 0; t < mapping.length; t++) {
+            var obj = mapping[t].item;
+            var r0 = mapping[t].r;
+            var c0 = mapping[t].c;
+
+            var newCol = r0;
+            var newRow = c0;
+
+            var targetLeft = originLeft + newCol * pitchX;
+            var targetTop = originTop - newRow * pitchY;
+
+            var b = obj.visibleBounds;
+            var curLeft = b[0];
+            var curTop = b[1];
+
+            obj.translate(targetLeft - curLeft, targetTop - curTop);
+        }
+
+        app.redraw();
+    }
+
     /* 元位置に戻す / restore original positions */
     function restoreOriginalPositions() {
         for (var i2 = 0; i2 < originals.length; i2++) {
@@ -508,7 +668,7 @@ function main() {
     }
 
     // ダイアログ表示 / show dialog
-    showGridSpacingDialog(applySpacing, restoreOriginalPositions, getCurrentUnitLabel, changeValueByArrowKey, initialGapX);
+    showGridSpacingDialog(applySpacing, transposeGridWithHoles, restoreOriginalPositions, getCurrentUnitLabel, changeValueByArrowKey, initialGapX);
 }
 
 // 実行 / run
