@@ -6,30 +6,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 SplitBackgroundForTwo
 
 ### 更新日：
-20260124
+20260126
 
 ### 概要：
 2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に左右2分割の背景を作成します。
 実行時に高さ倍率（%）を指定するダイアログが表示され、閉じる前にプレビューを確認できます（デフォルトは200%）。
-左右の突き出し量は「2つのテキスト間ギャップの半分」を基準にします。
+
+左右の背景幅は、2つのオブジェクト間のギャップを基準に計算されます。
+［バランス］パネルで「なし／左／右」を選択すると、
+- 「なし」：左右均等（中央分割）
+- 「左」　：左側のマージンを［幅］で指定（右側は自動計算）
+- 「右」　：右側のマージンを［幅］で指定（左側は自動計算）
+
+［幅］はスライダーおよび数値入力で指定でき、選択中の2オブジェクト間ギャップを最大値として自動設定されます。
 テキストのサイドベアリング等によるズレを減らすため、
 一時的にテキストをアウトライン化して外接矩形を計算し、計算後すぐに一時生成物を削除します。
-その上で背景長方形を選択テキストの背面に配置し、ダイアログ内でプレビュー表示します（元のテキストは変更しません）。
-高さ（%）入力欄では、↑↓キーで±1、Shift+↑↓で±10（10刻みスナップ）、Option+↑↓で±0.1 の増減ができます。
+その上で背景長方形を選択オブジェクトの背面に配置し、ダイアログ内でリアルタイムにプレビュー表示します（元のオブジェクトは変更しません）。
 
-### 主な機能：
-- 2つのオブジェクトの左右関係を自動判定（左＝item1、右＝item2）
-- アウトライン化した複製から外接矩形（geometricBounds）を取得して計算
-- テキスト間ギャップの半分を基準に、左右2分割の背景長方形を描画
-- 背景はテキストのレイヤー内で背面へ送る（SENDTOBACK）
-- 一時生成したアウトラインを削除してクリーンアップ
-- ダイアログで背景の高さ倍率（%）を指定（デフォルト 200%）
-- ダイアログ内でプレビュー表示（OKで確定／キャンセルで破棄）
-- ［全体の枠］オプションで、2つの背景長方形を囲む罫線（1pt / K100）を追加
-- ［区切り線］オプションで、左右背景の境界（中央）に罫線（1pt / K100）を追加
-- ［塗り］オプションで、左右2分割の背景長方形（塗り）をON/OFF
+高さ（%）および［幅］入力欄では、↑↓キーで±1、Shift+↑↓で±10（10刻みスナップ）、Option+↑↓で±0.1 の増減が可能です。
 
+### 更新履歴：
 - v1.0 (20260124) : 初期バージョン
+- v1.1 (20260126) : ［バランス］（なし／左／右）と［幅］指定による左右背景の比率調整に対応。［幅］はオブジェクト間ギャップを最大値として自動計算し、スライダー／数値入力／矢印キー操作に対応
 */
 
 // --- Version / バージョン ---
@@ -39,7 +37,7 @@ var DIALOG_OFFSET_X = 300;
 var DIALOG_OFFSET_Y = 0;
 var DIALOG_OPACITY = 0.98;
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -104,6 +102,37 @@ var LABELS = {
         ja: "オプション",
         en: "Options"
     },
+    // --- 固定パネルラベル追加 ---
+    panelFixed: {
+        ja: "バランス",
+        en: "Balance"
+    },
+    fixedNone: {
+        ja: "なし",
+        en: "None"
+    },
+    fixedLeft: {
+        ja: "左",
+        en: "Left"
+    },
+    fixedRight: {
+        ja: "右",
+        en: "Right"
+    },
+    // --- 幅パネルラベル追加 ---
+    panelWidth: {
+        ja: "幅",
+        en: "Width"
+    },
+    labelWidth: {
+        ja: "幅",
+        en: "Width"
+    },
+    labelPercentSign: {
+        ja: "%",
+        en: "%"
+    },
+    // ------------------------
     labelStrokeWidth: {
         ja: "線幅",
         en: "Stroke width"
@@ -584,6 +613,8 @@ function setDialogOpacity(dlg, opacityValue) {
     var lastFillRight = true;
     var lastStrokeWidth = 1;
     var lastCornerRadius = 0;
+    var lastBalanceMode = 'none'; // 'none' | 'left' | 'right'
+    var lastWidthPercent = 0;     // Width in pt (from rulerType UI)
 
     function clearPreviewRects() {
         // 参照が残っている場合はそれを優先して削除
@@ -642,8 +673,7 @@ function setDialogOpacity(dlg, opacityValue) {
      * @param {number} cornerRadius
      * @returns {{rect1:PathItem|null, rect2:PathItem|null, frame:PathItem|null, divider:PathItem|null}}
      */
-    function drawBackgroundRects(leftText, rightText, heightRatioValue, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidthValue, cornerRadius) {
-        // --- 一時グループ（アウトライン生成用）---
+    function drawBackgroundRects(leftText, rightText, heightRatioValue, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidthValue, cornerRadius, balanceMode, widthPercent) {        // --- 一時グループ（アウトライン生成用）---
         var originalActiveLayer = doc.activeLayer;
 
         // 一時グループを「既存レイヤー」内に作る（レイヤー残留問題を回避）
@@ -704,11 +734,41 @@ function setDialogOpacity(dlg, opacityValue) {
             var gapDist = item2Left - item1Right;
             if (gapDist < 0) gapDist = 0;
 
-            var halfGap = gapDist / 2;
-            gapCenter = item1Right + halfGap;
+            // --- Balance / margin control ---
+            // widthPercent is treated as an absolute margin in pt.
+            function clamp(v, mn, mx) {
+                if (v < mn) return mn;
+                if (v > mx) return mx;
+                return v;
+            }
 
-            rectLeftStart = item1Left - halfGap;
-            rectRightEnd = item2Right + halfGap;
+            var wPt = Number(widthPercent);
+            if (isNaN(wPt) || wPt < 0) wPt = 0;
+
+            var marginLeft = gapDist / 2;
+            var marginRight = gapDist / 2;
+
+            if (balanceMode === 'left') {
+                // 左の左右マージン = スライダー値
+                marginLeft = clamp(wPt, 0, gapDist);
+                // 右の左右マージン = gap - 左
+                marginRight = gapDist - marginLeft;
+
+            } else if (balanceMode === 'right') {
+                // 右の左右マージン = スライダー値
+                marginRight = clamp(wPt, 0, gapDist);
+                // 左の左右マージン = gap - 右
+                marginLeft = gapDist - marginRight;
+
+            } else {
+                // none => centered
+                marginLeft = gapDist / 2;
+                marginRight = gapDist / 2;
+            }
+
+            gapCenter = item1Right + marginLeft;
+            rectLeftStart = item1Left - marginLeft;
+            rectRightEnd = item2Right + marginRight;
 
         } finally {
             // 一時グループを確実に削除（レイヤー削除ではなくグループ削除で残留を防ぐ）
@@ -966,10 +1026,16 @@ function setDialogOpacity(dlg, opacityValue) {
         cbDivider.value = false;
 
         // --- 線オプション / Stroke options (Right column) ---
-        var linePanel = columns.add('panel', undefined, L('panelLine'));
+        var rightCol = columns.add('group');
+        rightCol.orientation = 'column';
+        rightCol.alignChildren = ['fill', 'top'];
+        rightCol.spacing = 12;
+
+        var linePanel = rightCol.add('panel', undefined, L('panelLine'));
         linePanel.orientation = 'column';
         linePanel.alignChildren = ['left', 'top'];
         linePanel.margins = [15, 20, 15, 10];
+
 
         var lineRow = linePanel.add('group');
         lineRow.orientation = 'row';
@@ -1010,6 +1076,173 @@ function setDialogOpacity(dlg, opacityValue) {
         updateStrokeWidthEnabled();
         updateCornerEnabled();
 
+        // --- バランス / Balance (full-width, spanning both columns) ---
+        var pinPanel = dlg.add('panel', undefined, L('panelFixed'));
+        pinPanel.orientation = 'column';
+        pinPanel.alignChildren = ['fill', 'top'];
+        pinPanel.margins = [15, 20, 15, 10];
+        pinPanel.alignment = ['fill', 'top'];
+
+        var pinRadioRow = pinPanel.add('group');
+        pinRadioRow.orientation = 'row';
+        pinRadioRow.alignChildren = ['left', 'center'];
+
+        var rbPinNone = pinRadioRow.add('radiobutton', undefined, L('fixedNone'));
+        var rbPinLeft = pinRadioRow.add('radiobutton', undefined, L('fixedLeft'));
+        var rbPinRight = pinRadioRow.add('radiobutton', undefined, L('fixedRight'));
+        rbPinNone.value = true;
+
+        // --- 幅 / Width (inside Balance panel) ---
+        var pinWidthCol = pinPanel.add('group');
+        pinWidthCol.orientation = 'column';
+        pinWidthCol.alignChildren = ['fill', 'top'];
+        pinWidthCol.spacing = 6;
+
+        // Value row : 幅 [ value ] unit
+        var pinWidthValueRow = pinWidthCol.add('group');
+        pinWidthValueRow.orientation = 'row';
+        pinWidthValueRow.alignChildren = ['left', 'center'];
+
+        pinWidthValueRow.add('statictext', undefined, L('labelWidth'));
+
+        var etWidth = pinWidthValueRow.add('edittext', undefined, '0');
+        etWidth.characters = 6;
+        // ↑↓ / Shift+↑↓ / Option+↑↓ で幅を増減（プレビュー更新）
+        changeValueByArrowKey(etWidth, false, applyPreview);
+
+        pinWidthValueRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("rulerType"));
+
+        // Slider row
+        var pinWidthSliderRow = pinWidthCol.add('group');
+        pinWidthSliderRow.orientation = 'row';
+        pinWidthSliderRow.alignChildren = ['fill', 'center'];
+
+        // Slider: 0 - max (will be set dynamically)
+        var slWidth = pinWidthSliderRow.add('slider', undefined, 0, 0, 0); // max will be set dynamically
+        slWidth.preferredSize = [220, 20];
+
+        // Keep slider and edittext in sync (UI only)
+        function clampWidthValue(v, forceInteger) {
+            v = Number(v);
+            if (isNaN(v)) return 0;
+            if (v < 0) v = 0;
+
+            var maxV = 0;
+            try { maxV = Number(slWidth.maxvalue); } catch (eMax0) { maxV = 0; }
+            if (isNaN(maxV) || maxV < 0) maxV = 0;
+
+            if (v > maxV) v = maxV;
+
+            if (forceInteger) {
+                return Math.round(v); // integer
+            }
+            return Math.round(v * 10) / 10; // keep 0.1 precision
+        }
+
+        function syncWidthUIFromSlider() {
+            var kb = ScriptUI.environment.keyboardState;
+            var forceInt = !!(kb && kb.altKey);
+            var v = clampWidthValue(slWidth.value, forceInt);
+            slWidth.value = v;
+            etWidth.text = String(v);
+        }
+
+        function syncWidthUIFromEdit() {
+            var v = clampWidthValue(etWidth.text, false);
+            slWidth.value = v;
+            etWidth.text = String(v);
+        }
+
+        // --- Compute and set the max value for the width slider based on selection ---
+        function updateWidthSliderMaxBySelection() {
+            // Width max should be the gap distance between the two objects (in rulerType units)
+            // Use outline bounds for TextFrame to avoid side-bearing issues (same as main logic)
+            var maxUnit = 0;
+            var tempGroupForMax = null;
+            try {
+                var hostLayer2 = null;
+                try { hostLayer2 = item1.layer; } catch (eHLm) { hostLayer2 = null; }
+                if (!hostLayer2) {
+                    try { hostLayer2 = doc.activeLayer; } catch (eHLm2) { hostLayer2 = null; }
+                }
+                if (!hostLayer2) hostLayer2 = doc.layers[0];
+
+                unlockAndShow(hostLayer2);
+                tempGroupForMax = hostLayer2.groupItems.add();
+                tempGroupForMax.name = "__temp_outline_group_for_max__";
+                markTemp(tempGroupForMax);
+                try { tempGroupForMax.opacity = 0; } catch (eOpM) { }
+
+                var bi1 = getBoundsInfo(item1, tempGroupForMax);
+                var bi2 = getBoundsInfo(item2, tempGroupForMax);
+                var b1 = bi1.bounds;
+                var b2 = bi2.bounds;
+
+                // ensure left/right by x
+                var item1Right = b1[2];
+                var item2Left = b2[0];
+                var gapPt = item2Left - item1Right;
+                if (gapPt < 0) gapPt = 0;
+
+                maxUnit = ptToUnit(gapPt, "rulerType");
+                if (isNaN(maxUnit) || maxUnit < 0) maxUnit = 0;
+                // keep 0.1 in UI
+                maxUnit = Math.round(maxUnit * 10) / 10;
+
+            } catch (eMax) {
+                maxUnit = 0;
+            } finally {
+                // cleanup temp group
+                try { removeMarkedTempItems(doc); } catch (eRmTmp0) { }
+                try {
+                    if (tempGroupForMax && tempGroupForMax.isValid) {
+                        unlockAndShow(tempGroupForMax);
+                        for (var giM = tempGroupForMax.pageItems.length - 1; giM >= 0; giM--) {
+                            try {
+                                unlockAndShow(tempGroupForMax.pageItems[giM]);
+                                tempGroupForMax.pageItems[giM].remove();
+                            } catch (eRmPI2) { }
+                        }
+                        tempGroupForMax.remove();
+                    }
+                } catch (eRmTmp1) { }
+                try { removeMarkedTempItems(doc); } catch (eRmTmp2) { }
+            }
+
+            try { slWidth.maxvalue = maxUnit; } catch (eSetMax) { }
+            // If max becomes 0, keep slider usable but effectively fixed at 0
+            try { if (slWidth.maxvalue < 0) slWidth.maxvalue = 0; } catch (eSetMax2) { }
+
+            // Clamp current UI value to new max
+            syncWidthUIFromEdit();
+
+            // When "None" is selected, row is disabled anyway; this is just the upper bound.
+        }
+
+        slWidth.onChanging = function () {
+            syncWidthUIFromSlider();
+            applyPreview(); // NOTE: logic will be wired later; keep preview refresh for now
+        };
+
+        etWidth.addEventListener('changing', function () {
+            syncWidthUIFromEdit();
+            applyPreview();
+        });
+
+        // --- Helpers: enable/disable width slider by balance selection ---
+        function updateWidthEnabled() {
+            // Disable width slider when "None" is selected
+            try { pinWidthCol.enabled = !rbPinNone.value; } catch (e) { }
+        }
+
+        rbPinNone.onClick = function () { updateWidthEnabled(); applyPreview(); };
+        rbPinLeft.onClick = function () { updateWidthEnabled(); applyPreview(); };
+        rbPinRight.onClick = function () { updateWidthEnabled(); applyPreview(); };
+
+        // Initial state
+        updateWidthEnabled();
+
+
         // プレビューは一番下 / Preview at the bottom
         var cbPreview = dlg.add('checkbox', undefined, L('labelPreview'));
         cbPreview.value = true;
@@ -1044,6 +1277,32 @@ function setDialogOpacity(dlg, opacityValue) {
             return vPt;
         }
 
+        function getBalanceMode() {
+            if (rbPinLeft.value) return 'left';
+            if (rbPinRight.value) return 'right';
+            return 'none';
+        }
+
+        function parseWidthPercent() {
+            // NOTE: 「幅」は距離（rulerType単位）として扱い、内部はptに変換する
+            var vUnit = Number(etWidth.text);
+            if (isNaN(vUnit) || vUnit < 0) vUnit = 0;
+
+            // keep 0.1 in UI units
+            vUnit = Math.round(vUnit * 10) / 10;
+
+            // keep UI in sync
+            try { slWidth.value = vUnit; } catch (e0) { }
+            try { etWidth.text = String(vUnit); } catch (e1) { }
+
+            var vPt = unitToPt(vUnit, "rulerType");
+            if (isNaN(vPt) || vPt < 0) vPt = 0;
+
+            // internal pt: keep 0.1pt precision
+            vPt = Math.round(vPt * 10) / 10;
+            return vPt;
+        }
+
         function applyPreview() {
             var v = parsePercent();
             if (v === null) {
@@ -1061,7 +1320,9 @@ function setDialogOpacity(dlg, opacityValue) {
                 clearPreviewFn();
                 return;
             }
-            previewFn(v, cbPreview.value, cbOverallFrame.value, cbDivider.value, cbFillLeft.value, cbFillRight.value, sw, cr);
+            var bm = getBalanceMode();
+            var wp = parseWidthPercent();
+            previewFn(v, cbPreview.value, cbOverallFrame.value, cbDivider.value, cbFillLeft.value, cbFillRight.value, sw, cr, bm, wp);
         }
 
         // ダイアログ表示直後に初回プレビューを実行 / Run initial preview on dialog show
@@ -1071,6 +1332,7 @@ function setDialogOpacity(dlg, opacityValue) {
                 if (typeof prevOnShow === "function") {
                     try { prevOnShow(); } catch (ePrevShow) { }
                 }
+                try { updateWidthSliderMaxBySelection(); } catch (eMaxInit) { }
                 try { applyPreview(); } catch (eInitPrev) { }
             };
         })();
@@ -1150,14 +1412,14 @@ function setDialogOpacity(dlg, opacityValue) {
     var DEFAULT_HEIGHT_PERCENT = 200; // ダイアログ初期値（%）
     var heightRatio = DEFAULT_HEIGHT_PERCENT / 100; // 高さ倍率（内部計算用）
 
-    function previewFn(percent, enabled, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius) {
+    function previewFn(percent, enabled, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius, balanceMode, widthPercent) {
         clearPreviewRects();
         if (!enabled) {
             return;
         }
         try {
             var hr = percent / 100;
-            var result = drawBackgroundRects(item1, item2, hr, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius);
+            var result = drawBackgroundRects(item1, item2, hr, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius, balanceMode, widthPercent);
             previewRect1 = result.rect1;
             previewRect2 = result.rect2;
             previewFrame = result.frame;
@@ -1175,6 +1437,8 @@ function setDialogOpacity(dlg, opacityValue) {
             lastFillRight = !!addFillRight;
             lastStrokeWidth = strokeWidth;
             lastCornerRadius = cornerRadius;
+            lastBalanceMode = balanceMode || 'none';
+            lastWidthPercent = (widthPercent !== undefined && widthPercent !== null) ? widthPercent : 0;
             safeRedraw();
         } catch (ePrev) {
             // 途中生成が残らないように
@@ -1193,8 +1457,7 @@ function setDialogOpacity(dlg, opacityValue) {
     // プレビューが有効で既に描画済みなら、それをそのまま採用する
     if (!(previewApplied && lastPreviewPercent === heightPercent)) {
         // 既存プレビューがない、または別の値のプレビューだった場合はここで描画
-        var finalResult = drawBackgroundRects(item1, item2, heightRatio, lastOverallFrame, lastDivider, lastFillLeft, lastFillRight, lastStrokeWidth, lastCornerRadius);
-        previewRect1 = finalResult.rect1;
+        var finalResult = drawBackgroundRects(item1, item2, heightRatio, lastOverallFrame, lastDivider, lastFillLeft, lastFillRight, lastStrokeWidth, lastCornerRadius, lastBalanceMode, lastWidthPercent); previewRect1 = finalResult.rect1;
         previewRect2 = finalResult.rect2;
         previewFrame = finalResult.frame;
         previewDivider = finalResult.divider;
@@ -1209,424 +1472,425 @@ function setDialogOpacity(dlg, opacityValue) {
     // 選択を解除
     doc.selection = null;
 
-// ==============================
-// Round Any Corner / 角丸アルゴリズム（選択アンカーのみ丸める）
-// Based on: Hiroyuki Sato (MIT) https://github.com/shspage
-// ==============================
+    // ==============================
+    // Round Any Corner / 角丸アルゴリズム（選択アンカーのみ丸める）
+    // Based on: Hiroyuki Sato (MIT) https://github.com/shspage
+    // ==============================
 
-function roundAnyCorner( s, conf ){
-    var rr = conf.rr;
-    
- // var tim = new Date();
-  var p, op, pnts;
-  var skipList, adjRdirAtEnd, redrawFlg;
-  var i, nxi, pvi, q, d,ds, r, g, t, qb;
-  var anc1, ldir1, rdir1, anc2, ldir2, rdir2;
-  
-  var hanLen = 4 * (Math.sqrt(2) - 1) / 3;
-  var ptyp = PointType.SMOOTH;
+    function roundAnyCorner(s, conf) {
+        var rr = conf.rr;
 
-  for(var j = 0; j < s.length; j++){
-    p = s[j].pathPoints;
-   if(readjustAnchors(p) < 2) continue; // reduce anchors
-    op = !s[j].closed;
-    pnts = op ? [getDat(p[0])] : [];
-    redrawFlg = false;
-    adjRdirAtEnd = 0;
+        // var tim = new Date();
+        var p, op, pnts;
+        var skipList, adjRdirAtEnd, redrawFlg;
+        var i, nxi, pvi, q, d, ds, r, g, t, qb;
+        var anc1, ldir1, rdir1, anc2, ldir2, rdir2;
 
-    skipList = [(op || !isSelected(p[0]) || ! isCorner(p, 0))];
-    for(i = 1; i < p.length; i++){
-      skipList.push((! isSelected(p[i])
-                     || ! isCorner(p,i)
-                     || (op && i == p.length - 1)));
-    }
-    
-    for(i = 0; i < p.length; i++){
-      nxi = parseIdx(p, i + 1);
-      if(nxi < 0) break;
-      
-      pvi = parseIdx(p, i - 1);
+        var hanLen = 4 * (Math.sqrt(2) - 1) / 3;
+        var ptyp = PointType.SMOOTH;
 
-      q = [p[i].anchor,          p[i].rightDirection,
-           p[nxi].leftDirection, p[nxi].anchor];
+        for (var j = 0; j < s.length; j++) {
+            p = s[j].pathPoints;
+            if (readjustAnchors(p) < 2) continue; // reduce anchors
+            op = !s[j].closed;
+            pnts = op ? [getDat(p[0])] : [];
+            redrawFlg = false;
+            adjRdirAtEnd = 0;
 
-      ds = dist(q[0], q[3]) / 2;
-      if(arrEq(q[0], q[1]) && arrEq(q[2], q[3])){  // straight side
-        r = Math.min(ds, rr);
-        g = getRad(q[0], q[3]);
-        anc1 = getPnt(q[0], g, r);
-        ldir1 = getPnt(anc1, g + Math.PI, r * hanLen);
-        
-        if(skipList[nxi]){
-          if(!skipList[i]){
-            pnts.push([anc1, anc1, ldir1, ptyp]);
-            redrawFlg = true;
-          }
-          pnts.push(getDat(p[nxi]));
-        } else {
-          if(r<rr){  // when the length of the side is less than rr * 2
-            pnts.push([anc1,
-                       getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
-                       ldir1,
-                       ptyp]);
-          } else {
-            if(!skipList[i]) pnts.push([anc1, anc1, ldir1, ptyp]);
-            anc2 = getPnt(q[3], g+Math.PI, r);
-            pnts.push([anc2,
-                       getPnt(anc2, g, r * hanLen),
-                       anc2,
-                       ptyp]);
-          }
-          redrawFlg = true;
-        }
-      } else {  // not straight side
-        d = getT4Len(q, 0) / 2;
-        r = Math.min(d,rr);
-        t = getT4Len(q, r);
-        anc1 = bezier(q, t);
-        rdir1 = defHan(t, q, 1);
-        ldir1 = getPnt(anc1, getRad(rdir1, anc1), r * hanLen);
+            skipList = [(op || !isSelected(p[0]) || !isCorner(p, 0))];
+            for (i = 1; i < p.length; i++) {
+                skipList.push((!isSelected(p[i])
+                    || !isCorner(p, i)
+                    || (op && i == p.length - 1)));
+            }
 
-        if(skipList[nxi]){
-          if(skipList[i]){
-            pnts.push(getDat(p[nxi]));
-          } else {
-            pnts.push([anc1, rdir1, ldir1, ptyp]);
-            with(p[nxi]) pnts.push([anchor,
-                                    rightDirection,
-                                    adjHan(anchor, leftDirection, 1 - t),
+            for (i = 0; i < p.length; i++) {
+                nxi = parseIdx(p, i + 1);
+                if (nxi < 0) break;
+
+                pvi = parseIdx(p, i - 1);
+
+                q = [p[i].anchor, p[i].rightDirection,
+                p[nxi].leftDirection, p[nxi].anchor];
+
+                ds = dist(q[0], q[3]) / 2;
+                if (arrEq(q[0], q[1]) && arrEq(q[2], q[3])) {  // straight side
+                    r = Math.min(ds, rr);
+                    g = getRad(q[0], q[3]);
+                    anc1 = getPnt(q[0], g, r);
+                    ldir1 = getPnt(anc1, g + Math.PI, r * hanLen);
+
+                    if (skipList[nxi]) {
+                        if (!skipList[i]) {
+                            pnts.push([anc1, anc1, ldir1, ptyp]);
+                            redrawFlg = true;
+                        }
+                        pnts.push(getDat(p[nxi]));
+                    } else {
+                        if (r < rr) {  // when the length of the side is less than rr * 2
+                            pnts.push([anc1,
+                                getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
+                                ldir1,
+                                ptyp]);
+                        } else {
+                            if (!skipList[i]) pnts.push([anc1, anc1, ldir1, ptyp]);
+                            anc2 = getPnt(q[3], g + Math.PI, r);
+                            pnts.push([anc2,
+                                getPnt(anc2, g, r * hanLen),
+                                anc2,
+                                ptyp]);
+                        }
+                        redrawFlg = true;
+                    }
+                } else {  // not straight side
+                    d = getT4Len(q, 0) / 2;
+                    r = Math.min(d, rr);
+                    t = getT4Len(q, r);
+                    anc1 = bezier(q, t);
+                    rdir1 = defHan(t, q, 1);
+                    ldir1 = getPnt(anc1, getRad(rdir1, anc1), r * hanLen);
+
+                    if (skipList[nxi]) {
+                        if (skipList[i]) {
+                            pnts.push(getDat(p[nxi]));
+                        } else {
+                            pnts.push([anc1, rdir1, ldir1, ptyp]);
+                            with (p[nxi]) pnts.push([anchor,
+                                rightDirection,
+                                adjHan(anchor, leftDirection, 1 - t),
+                                ptyp]);
+                            redrawFlg = true;
+                        }
+                    } else { // skipList[nxi] = false
+                        if (r < rr) {  // the length of the side is less than rr * 2
+                            if (skipList[i]) {
+                                if (!op && i == 0) {
+                                    adjRdirAtEnd = t;
+                                } else {
+                                    pnts[pnts.length - 1][1] = adjHan(q[0], q[1], t);
+                                }
+                                pnts.push([anc1,
+                                    getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
+                                    defHan(t, q, 0),
                                     ptyp]);
-            redrawFlg = true;
-          }
-        } else { // skipList[nxi] = false
-          if(r < rr){  // the length of the side is less than rr * 2
-            if(skipList[i]){
-              if(!op && i == 0){
-                adjRdirAtEnd = t;
-              } else {
-                pnts[pnts.length-1][1] = adjHan(q[0], q[1], t);
-              }
-              pnts.push([anc1,
-                         getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
-                         defHan(t, q, 0),
-                         ptyp]);
-            } else {
-              pnts.push([anc1,
-                         getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
-                         ldir1,
-                         ptyp]);
+                            } else {
+                                pnts.push([anc1,
+                                    getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
+                                    ldir1,
+                                    ptyp]);
+                            }
+                        } else {  // round the corner with the radius rr
+                            if (skipList[i]) {
+                                t = getT4Len(q, -r);
+                                anc2 = bezier(q, t);
+
+                                if (!op && i == 0) {
+                                    adjRdirAtEnd = t;
+                                } else {
+                                    pnts[pnts.length - 1][1] = adjHan(q[0], q[1], t);
+                                }
+
+                                ldir2 = defHan(t, q, 0);
+                                rdir2 = getPnt(anc2, getRad(ldir2, anc2), r * hanLen);
+
+                                pnts.push([anc2, rdir2, ldir2, ptyp]);
+                            } else {
+                                qb = [anc1, rdir1, adjHan(q[3], q[2], 1 - t), q[3]];
+                                t = getT4Len(qb, -r);
+                                anc2 = bezier(qb, t);
+                                ldir2 = defHan(t, qb, 0);
+                                rdir2 = getPnt(anc2, getRad(ldir2, anc2), r * hanLen);
+                                rdir1 = adjHan(anc1, rdir1, t);
+
+                                pnts.push([anc1, rdir1, ldir1, ptyp],
+                                    [anc2, rdir2, ldir2, ptyp]);
+                            }
+                        }
+                        redrawFlg = true;
+                    }
+                }
             }
-          } else {  // round the corner with the radius rr
-            if(skipList[i]){
-              t = getT4Len(q, -r);
-              anc2 = bezier(q, t);
-              
-              if(!op && i==0) {
-                adjRdirAtEnd = t;
-              } else {
-                pnts[pnts.length - 1][1] = adjHan(q[0], q[1], t);
-              }
-
-              ldir2 = defHan(t, q, 0);
-              rdir2 = getPnt(anc2, getRad(ldir2, anc2), r * hanLen);
-
-              pnts.push([anc2, rdir2, ldir2 , ptyp]);
-            } else {
-              qb = [anc1, rdir1, adjHan(q[3], q[2], 1 - t), q[3]];
-              t = getT4Len(qb, -r);
-              anc2 = bezier(qb, t);
-              ldir2 = defHan(t,qb,0);
-              rdir2 = getPnt(anc2, getRad(ldir2, anc2), r*hanLen);
-              rdir1 = adjHan(anc1, rdir1, t);
-
-              pnts.push([anc1, rdir1, ldir1, ptyp],
-                        [anc2, rdir2, ldir2, ptyp]);
+            if (adjRdirAtEnd > 0) {
+                pnts[pnts.length - 1][1] = adjHan(p[0].anchor, p[0].rightDirection, adjRdirAtEnd);
             }
-          }
-          redrawFlg = true;
+
+            if (redrawFlg) {
+                // redraw
+                for (i = p.length - 1; i > 0; i--) p[i].remove();
+
+                for (i = 0; i < pnts.length; i++) {
+                    pt = i > 0 ? p.add() : p[0];
+                    with (pt) {
+                        anchor = pnts[i][0];
+                        rightDirection = pnts[i][1];
+                        leftDirection = pnts[i][2];
+                        pointType = pnts[i][3];
+                    }
+                }
+            }
         }
-      }
+        activeDocument.selection = s;
+        // alert(new Date() - tim);
     }
-    if(adjRdirAtEnd > 0){
-      pnts[pnts.length - 1][1] = adjHan(p[0].anchor, p[0].rightDirection, adjRdirAtEnd);
+
+    // ------------------------------------------------
+    // return [x,y] of the distance "len" and the angle "rad"(in radian)
+    // from "pt"=[x,y]
+    function getPnt(pt, rad, len) {
+        return [pt[0] + Math.cos(rad) * len,
+        pt[1] + Math.sin(rad) * len];
     }
-    
-    if(redrawFlg){
-      // redraw
-      for(i = p.length-1; i > 0; i--) p[i].remove();
-      
-      for(i = 0; i < pnts.length; i++){
-        pt = i > 0 ? p.add() : p[0];
-        with(pt){
-          anchor         = pnts[i][0];
-          rightDirection = pnts[i][1];
-          leftDirection  = pnts[i][2];
-          pointType      = pnts[i][3];
+
+    // ------------------------------------------------
+    // return the [x, y] coordinate of the handle of the point on the bezier curve
+    // that corresponds to the parameter "t"
+    // n=0:leftDir, n=1:rightDir
+    function defHan(t, q, n) {
+        return [t * (t * (q[n][0] - 2 * q[n + 1][0] + q[n + 2][0]) + 2 * (q[n + 1][0] - q[n][0])) + q[n][0],
+        t * (t * (q[n][1] - 2 * q[n + 1][1] + q[n + 2][1]) + 2 * (q[n + 1][1] - q[n][1])) + q[n][1]];
+    }
+
+    // -----------------------------------------------
+    // return the [x, y] coordinate on the bezier curve
+    // that corresponds to the paramter "t"
+    function bezier(q, t) {
+        var u = 1 - t;
+        return [u * u * u * q[0][0] + 3 * u * t * (u * q[1][0] + t * q[2][0]) + t * t * t * q[3][0],
+        u * u * u * q[0][1] + 3 * u * t * (u * q[1][1] + t * q[2][1]) + t * t * t * q[3][1]];
+    }
+
+    // ------------------------------------------------
+    // adjust the length of the handle "dir"
+    // by the magnification ratio "m",
+    // returns the modified [x, y] coordinate of the handle
+    // "anc" is the anchor [x, y]
+    function adjHan(anc, dir, m) {
+        return [anc[0] + (dir[0] - anc[0]) * m,
+        anc[1] + (dir[1] - anc[1]) * m];
+    }
+
+    // ------------------------------------------------
+    // return true if the pathPoints "p[idx]" is a corner
+    function isCorner(p, idx) {
+        var pnt0 = getAnglePnt(p, idx, -1);
+        var pnt1 = getAnglePnt(p, idx, 1);
+        if (!pnt0 || !pnt1) return false;                    // at the end of a open-path
+        if (pnt0.length < 1 || pnt1.length < 1) return false;   // anchor is overlapping, so cannot determine the angle
+        var rad = getRad2(pnt0, p[idx].anchor, pnt1, true);
+        if (rad > Math.PI - 0.1) return false;   // set the angle tolerance here
+        return true;
+    }
+    // ------------------------------------------------
+    // "p"=pathPoints, "idx1"=index of pathpoint
+    // "dir" = -1, returns previous point [x,y] to get the angle of tangent at pathpoints[idx1]
+    // "dir" =  1, returns next ...
+    function getAnglePnt(p, idx1, dir) {
+        if (!dir) dir = -1;
+        var idx2 = parseIdx(p, idx1 + dir);
+        if (idx2 < 0) return null;  // at the end of a open-path
+        var p2 = p[idx2];
+        with (p[idx1]) {
+            if (dir < 0) {
+                if (arrEq(leftDirection, anchor)) {
+                    if (arrEq(p2.anchor, anchor)) return [];
+                    if (arrEq(p2.anchor, p2.rightDirection)
+                        || arrEq(p2.rightDirection, anchor)) return p2.anchor;
+                    else return p2.rightDirection;
+                } else {
+                    return leftDirection;
+                }
+            } else {
+                if (arrEq(anchor, rightDirection)) {
+                    if (arrEq(anchor, p2.anchor)) return [];
+                    if (arrEq(p2.anchor, p2.leftDirection)
+                        || arrEq(anchor, p2.leftDirection)) return p2.anchor;
+                    else return p2.leftDirection;
+                } else {
+                    return rightDirection;
+                }
+            }
         }
-      }
     }
-  }
-  activeDocument.selection = s;
-  // alert(new Date() - tim);
-}
-
-// ------------------------------------------------
-// return [x,y] of the distance "len" and the angle "rad"(in radian)
-// from "pt"=[x,y]
-function getPnt(pt, rad, len){
-  return [pt[0] + Math.cos(rad) * len,
-          pt[1] + Math.sin(rad) * len];
-}
-
-// ------------------------------------------------
-// return the [x, y] coordinate of the handle of the point on the bezier curve
-// that corresponds to the parameter "t"
-// n=0:leftDir, n=1:rightDir
-function defHan(t, q, n){
-  return [t * (t * (q[n][0] - 2 * q[n+1][0] + q[n+2][0]) + 2 * (q[n+1][0] - q[n][0])) + q[n][0],
-          t * (t * (q[n][1] - 2 * q[n+1][1] + q[n+2][1]) + 2 * (q[n+1][1] - q[n][1])) + q[n][1]];
-}
-
-// -----------------------------------------------
-// return the [x, y] coordinate on the bezier curve
-// that corresponds to the paramter "t"
-function bezier(q, t) {
-  var u = 1 - t;
-  return [u*u*u * q[0][0] + 3*u*t*(u* q[1][0] + t* q[2][0]) + t*t*t * q[3][0],
-          u*u*u * q[0][1] + 3*u*t*(u* q[1][1] + t* q[2][1]) + t*t*t * q[3][1]];
-}
-
-// ------------------------------------------------
-// adjust the length of the handle "dir"
-// by the magnification ratio "m",
-// returns the modified [x, y] coordinate of the handle
-// "anc" is the anchor [x, y]
-function adjHan(anc, dir, m){
-  return [anc[0] + (dir[0] - anc[0]) * m,
-          anc[1] + (dir[1] - anc[1]) * m];
-}
-
-// ------------------------------------------------
-// return true if the pathPoints "p[idx]" is a corner
-function isCorner(p, idx){
-  var pnt0 = getAnglePnt(p, idx, -1);
-  var pnt1 = getAnglePnt(p, idx,  1);
-  if(! pnt0 || ! pnt1) return false;                    // at the end of a open-path
-  if(pnt0.length < 1 || pnt1.length<1) return false;   // anchor is overlapping, so cannot determine the angle
-  var rad = getRad2(pnt0, p[idx].anchor, pnt1, true);
-  if(rad > Math.PI - 0.1) return false;   // set the angle tolerance here
-  return true;
-}
-// ------------------------------------------------
-// "p"=pathPoints, "idx1"=index of pathpoint
-// "dir" = -1, returns previous point [x,y] to get the angle of tangent at pathpoints[idx1]
-// "dir" =  1, returns next ...
-function getAnglePnt(p, idx1, dir){
-  if(!dir) dir = -1;
-  var idx2 = parseIdx(p, idx1 + dir);
-  if(idx2 < 0) return null;  // at the end of a open-path
-  var p2 = p[idx2];
-  with(p[idx1]){
-    if(dir<0){
-      if(arrEq(leftDirection, anchor)){
-        if(arrEq(p2.anchor, anchor)) return [];
-        if(arrEq(p2.anchor, p2.rightDirection)
-           || arrEq(p2.rightDirection, anchor)) return p2.anchor;
-        else return p2.rightDirection;
-      } else {
-        return leftDirection;
-      }
-    } else {
-      if(arrEq(anchor, rightDirection)){
-        if(arrEq(anchor, p2.anchor)) return [];
-        if(arrEq(p2.anchor, p2.leftDirection)
-           || arrEq(anchor, p2.leftDirection)) return p2.anchor;
-        else return p2.leftDirection;
-      } else {
-        return rightDirection;
-      }
+    // --------------------------------------
+    // if the contents of both arrays are equal, return true (lengthes must be same)
+    function arrEq(arr1, arr2) {
+        for (var i = 0; i < arr1.length; i++) {
+            if (arr1[i] != arr2[i]) return false;
+        }
+        return true;
     }
-  }
-}
-// --------------------------------------
-// if the contents of both arrays are equal, return true (lengthes must be same)
-function arrEq(arr1, arr2) {
-  for(var i = 0; i < arr1.length; i++){
-    if (arr1[i] != arr2[i]) return false;
-  }
-  return true;
-}
 
-// ------------------------------------------------
-// return the distance between p1=[x,y] and p2=[x,y]
-function dist(p1, p2) {
-  return Math.sqrt(Math.pow(p1[0] - p2[0], 2)
-                   + Math.pow(p1[1] - p2[1], 2));
-}
-// ------------------------------------------------
-// return the squared distance between p1=[x,y] and p2=[x,y]
-function dist2(p1, p2) {
-  return Math.pow(p1[0] - p2[0],2)
-       + Math.pow(p1[1] - p2[1],2);
-}
-// --------------------------------------
-// return the angle in radian
-// of the line drawn from p1=[x,y] from p2
-function getRad(p1,p2) {
-  return Math.atan2(p2[1] - p1[1],
-                    p2[0] - p1[0]);
-}
-
-// --------------------------------------
-// return the angle between two line segments
-// o-p1 and o-p2 ( 0 - Math.PI)
-function getRad2(p1, o, p2){
-  var v1 = normalize(p1, o);
-  var v2 = normalize(p2, o);
-  return Math.acos(v1[0] * v2[0] + v1[1] * v2[1]);
-}
-// ------------------------------------------------
-function normalize(p, o){
-  var d = dist(p, o);
-  return d == 0 ? [0, 0] : [(p[0] - o[0]) / d,
-                            (p[1] - o[1]) / d];
-}
-
-// ------------------------------------------------
-// return the bezier curve parameter "t"
-// at the point which the length of the bezier curve segment
-// (from the point start drawing) is "len"
-// when "len" is 0, return the length of whole this segment.
-function getT4Len(q, len){
-  var m = [ q[3][0] - q[0][0] + 3 * (q[1][0] - q[2][0]),
-            q[0][0] - 2 * q[1][0] + q[2][0],
-            q[1][0] - q[0][0] ];
-  var n = [ q[3][1] - q[0][1] + 3 * (q[1][1] - q[2][1]),
-            q[0][1] - 2 * q[1][1] + q[2][1],
-            q[1][1] - q[0][1] ];
-  var k = [ m[0] * m[0] + n[0] * n[0],
-            4 * (m[0] * m[1] + n[0] * n[1]),
-            2 * ((m[0] * m[2] + n[0] * n[2]) + 2 * (m[1] * m[1] + n[1] * n[1])),
-            4 * (m[1] * m[2] + n[1] * n[2]),
-            m[2] * m[2] + n[2] * n[2] ];
-  
-   var fullLen = getLength(k, 1);
-
-  if(len == 0){
-    return fullLen;
-    
-  } else if(len < 0){
-    len += fullLen;
-    if(len < 0) return 0;
-
-  } else if(len > fullLen){
-    return 1;
-  }
-  
-  var t, d;
-  var t0 = 0;
-  var t1 = 1;
-  var torelance = 0.001;
-  
-  for(var h = 1; h < 30; h++){
-    t = t0 + (t1 - t0) / 2;
-    d = len - getLength(k, t);
-    if(Math.abs(d) < torelance) break;
-    else if(d < 0) t1 = t;
-    else t0 = t;
-  }
-  return t;
-}
-
-// ------------------------------------------------
-// return the length of bezier curve segment
-// in range of parameter from 0 to "t"
-function getLength(k, t){
-  var h = t / 128;
-  var hh = h * 2;
-  var fc = function(t, k){
-    return Math.sqrt(t * (t * (t * (t * k[0] + k[1]) + k[2]) + k[3]) + k[4]) || 0 };
-  var total = (fc(0, k) - fc(t, k)) / 2;
-  for(var i = h; i < t; i += hh) total += 2 * fc(i, k) + fc(i + h, k);
-  return total * hh;
-}
-
-// --------------------------------------
-// merge nearly overlapped anchor points 
-// return the length of pathpoints after merging
-function readjustAnchors(p){
-  // Settings ==========================
-
-  // merge the anchor points when the distance between
-  // 2 points is within ### square root ### of this value (in point)
-  var minDist = 0.0025; 
-  
-  // ===================================
-  if(p.length < 2) return 1;
-  var i;
-
-  if(p.parent.closed){
-    for(i = p.length - 1; i >= 1; i--){
-      if(dist2(p[0].anchor, p[i].anchor) < minDist){
-        p[0].leftDirection = p[i].leftDirection;
-        p[i].remove();
-      } else {
-        break;
-      }
+    // ------------------------------------------------
+    // return the distance between p1=[x,y] and p2=[x,y]
+    function dist(p1, p2) {
+        return Math.sqrt(Math.pow(p1[0] - p2[0], 2)
+            + Math.pow(p1[1] - p2[1], 2));
     }
-  }
-  
-  for(i = p.length - 1; i >= 1; i--){
-    if(dist2(p[i].anchor, p[i - 1].anchor) < minDist){
-      p[i - 1].rightDirection = p[i].rightDirection;
-      p[i].remove();
+    // ------------------------------------------------
+    // return the squared distance between p1=[x,y] and p2=[x,y]
+    function dist2(p1, p2) {
+        return Math.pow(p1[0] - p2[0], 2)
+            + Math.pow(p1[1] - p2[1], 2);
     }
-  }
-  
-  return p.length;
-}
-// -----------------------------------------------
-// return pathpoint's index. when the argument is out of bounds,
-// fixes it if the path is closed (ex. next of last index is 0),
-// or return -1 if the path is not closed.
-function parseIdx(p, n){ // PathPoints, number for index
-  var len = p.length;
-  if(p.parent.closed){
-    return n >= 0 ? n % len : len - Math.abs(n % len);
-  } else {
-    return (n < 0 || n > len - 1) ? -1 : n;
-  }
-}
-// -----------------------------------------------
-function getDat(p){ // pathPoint
-  with(p) return [anchor, rightDirection, leftDirection, pointType];
-}
-// -----------------------------------------------
-function isSelected(p){ // PathPoint
-  return p.selected == PathPointSelection.ANCHORPOINT;
-}
-
-function selectLeftCornersForRectangles(paths) {
-    for (var i = 0; i < paths.length; i++) {
-        var it = paths[i];
-        if (!it || it.typename !== "PathItem" || !it.closed) continue;
-        var pp = it.pathPoints;
-        if (!pp || pp.length !== 4) continue;
-
-        var sel = 0;
-        for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
-        if (sel > 0 && sel < 4) continue; // respect partial anchor selection
-
-        var idx = [0, 1, 2, 3];
-        idx.sort(function (x, y) { return pp[x].anchor[0] - pp[y].anchor[0]; });
-        var a0 = idx[0], a1 = idx[1];
-        var top = (pp[a0].anchor[1] >= pp[a1].anchor[1]) ? a0 : a1;
-        var bot = (top === a0) ? a1 : a0;
-
-        for (a = 0; a < 4; a++) pp[a].selected = PathPointSelection.NOSELECTION;
-        pp[top].selected = PathPointSelection.ANCHORPOINT;
-        pp[bot].selected = PathPointSelection.ANCHORPOINT;
+    // --------------------------------------
+    // return the angle in radian
+    // of the line drawn from p1=[x,y] from p2
+    function getRad(p1, p2) {
+        return Math.atan2(p2[1] - p1[1],
+            p2[0] - p1[0]);
     }
-}
+
+    // --------------------------------------
+    // return the angle between two line segments
+    // o-p1 and o-p2 ( 0 - Math.PI)
+    function getRad2(p1, o, p2) {
+        var v1 = normalize(p1, o);
+        var v2 = normalize(p2, o);
+        return Math.acos(v1[0] * v2[0] + v1[1] * v2[1]);
+    }
+    // ------------------------------------------------
+    function normalize(p, o) {
+        var d = dist(p, o);
+        return d == 0 ? [0, 0] : [(p[0] - o[0]) / d,
+        (p[1] - o[1]) / d];
+    }
+
+    // ------------------------------------------------
+    // return the bezier curve parameter "t"
+    // at the point which the length of the bezier curve segment
+    // (from the point start drawing) is "len"
+    // when "len" is 0, return the length of whole this segment.
+    function getT4Len(q, len) {
+        var m = [q[3][0] - q[0][0] + 3 * (q[1][0] - q[2][0]),
+        q[0][0] - 2 * q[1][0] + q[2][0],
+        q[1][0] - q[0][0]];
+        var n = [q[3][1] - q[0][1] + 3 * (q[1][1] - q[2][1]),
+        q[0][1] - 2 * q[1][1] + q[2][1],
+        q[1][1] - q[0][1]];
+        var k = [m[0] * m[0] + n[0] * n[0],
+        4 * (m[0] * m[1] + n[0] * n[1]),
+        2 * ((m[0] * m[2] + n[0] * n[2]) + 2 * (m[1] * m[1] + n[1] * n[1])),
+        4 * (m[1] * m[2] + n[1] * n[2]),
+        m[2] * m[2] + n[2] * n[2]];
+
+        var fullLen = getLength(k, 1);
+
+        if (len == 0) {
+            return fullLen;
+
+        } else if (len < 0) {
+            len += fullLen;
+            if (len < 0) return 0;
+
+        } else if (len > fullLen) {
+            return 1;
+        }
+
+        var t, d;
+        var t0 = 0;
+        var t1 = 1;
+        var torelance = 0.001;
+
+        for (var h = 1; h < 30; h++) {
+            t = t0 + (t1 - t0) / 2;
+            d = len - getLength(k, t);
+            if (Math.abs(d) < torelance) break;
+            else if (d < 0) t1 = t;
+            else t0 = t;
+        }
+        return t;
+    }
+
+    // ------------------------------------------------
+    // return the length of bezier curve segment
+    // in range of parameter from 0 to "t"
+    function getLength(k, t) {
+        var h = t / 128;
+        var hh = h * 2;
+        var fc = function (t, k) {
+            return Math.sqrt(t * (t * (t * (t * k[0] + k[1]) + k[2]) + k[3]) + k[4]) || 0
+        };
+        var total = (fc(0, k) - fc(t, k)) / 2;
+        for (var i = h; i < t; i += hh) total += 2 * fc(i, k) + fc(i + h, k);
+        return total * hh;
+    }
+
+    // --------------------------------------
+    // merge nearly overlapped anchor points 
+    // return the length of pathpoints after merging
+    function readjustAnchors(p) {
+        // Settings ==========================
+
+        // merge the anchor points when the distance between
+        // 2 points is within ### square root ### of this value (in point)
+        var minDist = 0.0025;
+
+        // ===================================
+        if (p.length < 2) return 1;
+        var i;
+
+        if (p.parent.closed) {
+            for (i = p.length - 1; i >= 1; i--) {
+                if (dist2(p[0].anchor, p[i].anchor) < minDist) {
+                    p[0].leftDirection = p[i].leftDirection;
+                    p[i].remove();
+                } else {
+                    break;
+                }
+            }
+        }
+
+        for (i = p.length - 1; i >= 1; i--) {
+            if (dist2(p[i].anchor, p[i - 1].anchor) < minDist) {
+                p[i - 1].rightDirection = p[i].rightDirection;
+                p[i].remove();
+            }
+        }
+
+        return p.length;
+    }
+    // -----------------------------------------------
+    // return pathpoint's index. when the argument is out of bounds,
+    // fixes it if the path is closed (ex. next of last index is 0),
+    // or return -1 if the path is not closed.
+    function parseIdx(p, n) { // PathPoints, number for index
+        var len = p.length;
+        if (p.parent.closed) {
+            return n >= 0 ? n % len : len - Math.abs(n % len);
+        } else {
+            return (n < 0 || n > len - 1) ? -1 : n;
+        }
+    }
+    // -----------------------------------------------
+    function getDat(p) { // pathPoint
+        with (p) return [anchor, rightDirection, leftDirection, pointType];
+    }
+    // -----------------------------------------------
+    function isSelected(p) { // PathPoint
+        return p.selected == PathPointSelection.ANCHORPOINT;
+    }
+
+    function selectLeftCornersForRectangles(paths) {
+        for (var i = 0; i < paths.length; i++) {
+            var it = paths[i];
+            if (!it || it.typename !== "PathItem" || !it.closed) continue;
+            var pp = it.pathPoints;
+            if (!pp || pp.length !== 4) continue;
+
+            var sel = 0;
+            for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
+            if (sel > 0 && sel < 4) continue; // respect partial anchor selection
+
+            var idx = [0, 1, 2, 3];
+            idx.sort(function (x, y) { return pp[x].anchor[0] - pp[y].anchor[0]; });
+            var a0 = idx[0], a1 = idx[1];
+            var top = (pp[a0].anchor[1] >= pp[a1].anchor[1]) ? a0 : a1;
+            var bot = (top === a0) ? a1 : a0;
+
+            for (a = 0; a < 4; a++) pp[a].selected = PathPointSelection.NOSELECTION;
+            pp[top].selected = PathPointSelection.ANCHORPOINT;
+            pp[bot].selected = PathPointSelection.ANCHORPOINT;
+        }
+    }
 
 })();
