@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 SmartTableMaker
 
 ### GitHub：
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SmartTableMaker.jsx
 
 ### 概要：
 - 選択したテキストフレーム群から行・列を推定し、表の罫線を生成します。
@@ -28,7 +28,7 @@ https://github.com/swwwitch/illustrator-scripts
 SmartTableMaker
 
 ### GitHub:
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/stroke-table/SmartTableMaker.jsx
 
 ### Summary:
 - Estimates a table grid from selected text frames and draws table lines.
