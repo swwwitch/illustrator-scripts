@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "SplitBackgroundForTwoEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -31,10 +32,15 @@ SplitBackgroundForTwo
 - v1.1 (20260126) : ［バランス］（なし／左／右）と［幅］指定による左右背景の比率調整に対応。［幅］はオブジェクト間ギャップを最大値として自動計算し、スライダー／数値入力／矢印キー操作に対応
 - v2.0 (20260126) : ［方向］（左右／上下）に対応。上下配置時は背景を上下2分割で作成し、バランス（なし／上／下）と幅でギャップ内の分割位置を調整可能。
 - v2.1 (20260126) : 選択オブジェクトの位置関係から左右／上下を自動判別し、ダイアログの［方向］UIを省略。
+- v2.2 (20260126) : #targetengine を追加し、Illustrator再起動までは前回閉じたダイアログ値を復元。
+- v2.3 (20260126) : PreviewHistory によるプレビュー一括Undoを追加（プレビューでヒストリーを汚さない）。
+- v2.4 (20260126) : ［OK］時にプレビューUndo後も必ず最終描画を行い、直前の見た目で確定するよう修正。
+- v2.5 (20260126) : ［OK］時にプレビュー削除で last 値が初期化される不具合を修正（角丸等が反映されない問題）。
+- v2.6 (20260126) : PreviewHistory.undo() 後に一時アウトライン生成物が復活するケースを除去（TEMPマーカーを即掃除）。
 */
 
 // --- Version / バージョン ---
-var SCRIPT_VERSION = "v2.1";
+var SCRIPT_VERSION = "v2.6";
 
 // --- Dialog UI prefs / ダイアログUI設定 ---
 var DIALOG_OFFSET_X = 300;
@@ -303,6 +309,46 @@ function setDialogOpacity(dlg, opacityValue) {
     try { dlg.opacity = opacityValue; } catch (e) { }
 }
 
+// --- Session settings (kept until Illustrator restart) / セッション設定（Ai再起動まで保持） ---
+var SETTINGS_KEY = "SplitBackgroundForTwo_settings";
+
+function getSessionSettings() {
+    try {
+        if (!$.global[SETTINGS_KEY]) {
+            $.global[SETTINGS_KEY] = {
+                percent: 200,
+                preview: true,
+                overallFrame: false,
+                divider: false,
+                fillLeft: true,
+                fillRight: true,
+                strokeUnit: formatUnitValue(ptToUnit(1, "strokeUnits")),
+                cornerUnit: formatUnitValue(ptToUnit(0, "rulerType")),
+                balanceMode: 'none',
+                widthUnit: 0
+            };
+        }
+        return $.global[SETTINGS_KEY];
+    } catch (e) {
+        return {
+            percent: 200,
+            preview: true,
+            overallFrame: false,
+            divider: false,
+            fillLeft: true,
+            fillRight: true,
+            strokeUnit: formatUnitValue(ptToUnit(1, "strokeUnits")),
+            cornerUnit: formatUnitValue(ptToUnit(0, "rulerType")),
+            balanceMode: 'none',
+            widthUnit: 0
+        };
+    }
+}
+
+function saveSessionSettings(s) {
+    try { $.global[SETTINGS_KEY] = s; } catch (e) { }
+}
+
 (function () {
     if (app.documents.length === 0) {
         alert(L("alertOpenDoc"));
@@ -335,7 +381,7 @@ function setDialogOpacity(dlg, opacityValue) {
 
             unlockAndShow(hostLayer);
             tempGroup = hostLayer.groupItems.add();
-            tempGroup.name = "__temp_outline_group_for_direction__";
+            tempGroup.name = TEMP_NAME_PREFIX + "__temp_outline_group_for_direction__";
             markTemp(tempGroup);
             try { tempGroup.opacity = 0; } catch (eOp) { }
 
@@ -379,9 +425,37 @@ function setDialogOpacity(dlg, opacityValue) {
 
     // --- Temporary marker (cleanup) / 一時生成物マーカー（後片付け） ---
     var TEMP_NOTE = "__SplitBackgroundForTwo_TEMP__";
+    var TEMP_NAME_PREFIX = "__SplitBackgroundForTwo_TEMP__";
 
     // --- Preview marker (cleanup) / プレビューマーカー（後片付け） ---
     var PREVIEW_NOTE = "__SplitBackgroundForTwo_PREVIEW__";
+
+    /* =========================================
+ * PreviewHistory util (extractable)
+ * ヒストリーを残さないプレビューのための小さなユーティリティ。
+ * 他スクリプトでもこのブロックをコピペすれば再利用できます。
+ * 使い方:
+ *   PreviewHistory.start();      // ダイアログ表示時などにカウンタ初期化
+ *   PreviewHistory.bump();       // プレビュー描画ごとにカウント(+1)
+ *   PreviewHistory.undo();       // 閉じる/キャンセル時に一括Undo
+ *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
+ * ========================================= */
+    (function (g) {
+        if (!g.PreviewHistory) {
+            g.PreviewHistory = {
+                start: function () { g.__previewUndoCount = 0; },
+                bump: function () { g.__previewUndoCount = (g.__previewUndoCount | 0) + 1; },
+                undo: function () {
+                    var n = g.__previewUndoCount | 0;
+                    try { for (var i = 0; i < n; i++) app.executeMenuCommand('undo'); } catch (e) { }
+                    g.__previewUndoCount = 0;
+                },
+                cancelTask: function (taskId) {
+                    try { if (taskId) app.cancelTask(taskId); } catch (e) { }
+                }
+            };
+        }
+    })($.global);
 
     function markPreview(item) {
         if (!item) return;
@@ -420,8 +494,22 @@ function setDialogOpacity(dlg, opacityValue) {
 
     function markTemp(item) {
         if (!item) return;
+
+        // note（従来）
         try { item.note = TEMP_NOTE; } catch (e0) { }
 
+        // name（Undoでnoteが失われる対策）
+        try {
+            if (item.name !== undefined) {
+                var nm = "";
+                try { nm = String(item.name || ""); } catch (eN0) { nm = ""; }
+                if (nm.indexOf(TEMP_NAME_PREFIX) !== 0) {
+                    item.name = TEMP_NAME_PREFIX;
+                }
+            }
+        } catch (eName) { }
+
+        // 子要素もマーキング
         try {
             if (item.pageItems && item.pageItems.length) {
                 for (var i = item.pageItems.length - 1; i >= 0; i--) {
@@ -432,55 +520,104 @@ function setDialogOpacity(dlg, opacityValue) {
     }
 
     function removeMarkedTempItems(doc) {
+        if (!doc) return;
+
+        // pageItems: note または name プレフィックスで消す
         try {
             for (var i = doc.pageItems.length - 1; i >= 0; i--) {
                 var it = doc.pageItems[i];
                 var isMarked = false;
+
                 try { isMarked = (it.note === TEMP_NOTE); } catch (eNote) { isMarked = false; }
+
+                if (!isMarked) {
+                    try {
+                        if (it.name !== undefined) {
+                            var nm = String(it.name || "");
+                            isMarked = (nm.indexOf(TEMP_NAME_PREFIX) === 0);
+                        }
+                    } catch (eNm) { }
+                }
+
                 if (isMarked) {
                     unlockAndShow(it);
                     try { it.remove(); } catch (eRm) { }
                 }
             }
         } catch (eLoop) { }
+
+        // groupItems: 念のため group 名でも掃除（Undo後に漏れる保険）
+        try {
+            for (var g = doc.groupItems.length - 1; g >= 0; g--) {
+                var gi = doc.groupItems[g];
+                var hit = false;
+                try {
+                    if (gi.name !== undefined) {
+                        var gnm = String(gi.name || "");
+                        hit = (gnm.indexOf(TEMP_NAME_PREFIX) === 0) || (gnm.indexOf("__temp_outline_group") === 0);
+                    }
+                } catch (eGnm) { }
+                if (hit) {
+                    try { unlockAndShow(gi); } catch (eUG) { }
+                    try { gi.remove(); } catch (eRG) { }
+                }
+            }
+        } catch (eGrp) { }
     }
 
     /**
      * テキストを「一時グループ」へ複製→アウトライン化し、その外接矩形を返す。
      */
     function getOutlineBoundsFromText(tf, tempGroup) {
-        var dup = tf.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
-
-        markTemp(dup);
-        unlockAndShow(dup);
-
+        var dup = null;
         var outlineItem = null;
+        var b;
+
         try {
-            outlineItem = dup.createOutline();
-            if (outlineItem) {
-                markTemp(outlineItem);
-                unlockAndShow(outlineItem);
-                try {
-                    if (outlineItem.parent !== tempGroup) {
-                        outlineItem.move(tempGroup, ElementPlacement.PLACEATBEGINNING);
-                    }
-                } catch (eMove) { }
-            }
-        } catch (eOutline) {
-            outlineItem = null;
-        }
-
-        if (!outlineItem) {
+            dup = tf.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
             markTemp(dup);
+            unlockAndShow(dup);
+
+            try {
+                outlineItem = dup.createOutline();
+                if (outlineItem) {
+                    markTemp(outlineItem);
+                    unlockAndShow(outlineItem);
+                    try {
+                        if (outlineItem.parent !== tempGroup) {
+                            outlineItem.move(tempGroup, ElementPlacement.PLACEATBEGINNING);
+                        }
+                    } catch (eMove) { }
+                }
+            } catch (eOutline) {
+                outlineItem = null;
+            }
+
+            var target = outlineItem ? outlineItem : dup;
+            b = target.geometricBounds; // [left, top, right, bottom]
+
+        } finally {
+            // ★ 取得後に即削除（残留防止）
+            try {
+                if (outlineItem && outlineItem.isValid) {
+                    unlockAndShow(outlineItem);
+                    outlineItem.remove();
+                }
+            } catch (eRmO) { }
+            try {
+                if (dup && dup.isValid) {
+                    unlockAndShow(dup);
+                    dup.remove();
+                }
+            } catch (eRmD) { }
         }
 
-        var target = outlineItem ? outlineItem : dup;
-        var b = target.geometricBounds; // [left, top, right, bottom]
+        if (!b || b.length < 4) b = [0, 0, 0, 0];
 
         return {
             bounds: [b[0], b[1], b[2], b[3]],
-            outline: outlineItem,
-            duplicateText: dup
+            outline: null,
+            duplicateText: null
         };
     }
 
@@ -502,15 +639,27 @@ function setDialogOpacity(dlg, opacityValue) {
             };
         }
 
-        var dup = item.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
-        markTemp(dup);
-        unlockAndShow(dup);
+        var dup = null;
+        var b;
+        try {
+            dup = item.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
+            markTemp(dup);
+            unlockAndShow(dup);
+            b = dup.geometricBounds;
+        } finally {
+            try {
+                if (dup && dup.isValid) {
+                    unlockAndShow(dup);
+                    dup.remove();
+                }
+            } catch (eRmDup) { }
+        }
 
-        var b = dup.geometricBounds;
+        if (!b || b.length < 4) b = [0, 0, 0, 0];
         return {
             bounds: [b[0], b[1], b[2], b[3]],
             outline: null,
-            duplicateItem: dup
+            duplicateItem: null
         };
     }
 
@@ -756,10 +905,10 @@ function setDialogOpacity(dlg, opacityValue) {
 
         unlockAndShow(hostLayer);
         var tempGroup = hostLayer.groupItems.add();
-        tempGroup.name = "__temp_outline_group__";
+
         markTemp(tempGroup);
         try { tempGroup.opacity = 0; } catch (eOp) { }
-
+        tempGroup.name = TEMP_NAME_PREFIX + "__temp_outline_group__";
         // 計算結果
         var rectTop, rectHeight;
         var rectLeftStart, gapCenter, rectRightEnd;
@@ -1116,6 +1265,10 @@ function setDialogOpacity(dlg, opacityValue) {
         dlg.alignChildren = ['fill', 'top'];
         dlg.margins = 18;
 
+        try { PreviewHistory.start(); } catch (ePH0) { }
+
+        var ss = getSessionSettings();
+
         setDialogOpacity(dlg, DIALOG_OPACITY);
         shiftDialogPosition(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
 
@@ -1127,7 +1280,7 @@ function setDialogOpacity(dlg, opacityValue) {
         // Main size label (will be swapped by direction)
         var stMainSizeLabel = row.add('statictext', undefined, L('labelHeight'));
 
-        var et = row.add('edittext', undefined, String(defaultPercent));
+        var et = row.add('edittext', undefined, String((ss && ss.percent !== undefined) ? ss.percent : defaultPercent));
         et.characters = 6;
         et.active = true;
         changeValueByArrowKey(et, false, applyPreview);
@@ -1153,16 +1306,16 @@ function setDialogOpacity(dlg, opacityValue) {
 
         // Keep variable names; label text will be swapped for vertical mode
         var cbFillLeft = drawPanel.add('checkbox', undefined, L('labelFillLeft'));
-        cbFillLeft.value = true;
+        cbFillLeft.value = (ss.fillLeft !== undefined) ? !!ss.fillLeft : true;
 
         var cbFillRight = drawPanel.add('checkbox', undefined, L('labelFillRight'));
-        cbFillRight.value = true;
+        cbFillRight.value = (ss.fillRight !== undefined) ? !!ss.fillRight : true;
 
         var cbOverallFrame = drawPanel.add('checkbox', undefined, L('labelOverallFrame'));
-        cbOverallFrame.value = false;
+        cbOverallFrame.value = (ss.overallFrame !== undefined) ? !!ss.overallFrame : false;
 
         var cbDivider = drawPanel.add('checkbox', undefined, L('labelDivider'));
-        cbDivider.value = false;
+        cbDivider.value = (ss.divider !== undefined) ? !!ss.divider : false;
 
         // --- 線オプション / Stroke options (Right column) ---
         var rightCol = columns.add('group');
@@ -1180,7 +1333,7 @@ function setDialogOpacity(dlg, opacityValue) {
         lineRow.alignChildren = ['left', 'center'];
 
         lineRow.add('statictext', undefined, L('labelStrokeWidth'));
-        var etStroke = lineRow.add('edittext', undefined, formatUnitValue(ptToUnit(1, "strokeUnits")));
+        var etStroke = lineRow.add('edittext', undefined, (ss && ss.strokeUnit !== undefined) ? String(ss.strokeUnit) : formatUnitValue(ptToUnit(1, "strokeUnits")));
         etStroke.characters = 4;
         changeValueByArrowKey(etStroke, false, applyPreview);
         lineRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("strokeUnits"));
@@ -1190,7 +1343,7 @@ function setDialogOpacity(dlg, opacityValue) {
         cornerRow.alignChildren = ['left', 'center'];
 
         cornerRow.add('statictext', undefined, L('labelCornerRadius'));
-        var etCorner = cornerRow.add('edittext', undefined, formatUnitValue(ptToUnit(0, "rulerType")));
+        var etCorner = cornerRow.add('edittext', undefined, (ss && ss.cornerUnit !== undefined) ? String(ss.cornerUnit) : formatUnitValue(ptToUnit(0, "rulerType")));
         etCorner.characters = 4;
         cornerRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("rulerType"));
         changeValueByArrowKey(etCorner, false, applyPreview);
@@ -1223,7 +1376,10 @@ function setDialogOpacity(dlg, opacityValue) {
         var rbPinNone = pinRadioRow.add('radiobutton', undefined, L('fixedNone'));
         var rbPinLeft = pinRadioRow.add('radiobutton', undefined, L('fixedLeft'));
         var rbPinRight = pinRadioRow.add('radiobutton', undefined, L('fixedRight'));
-        rbPinNone.value = true;
+        rbPinNone.value = (ss.balanceMode === 'none');
+        rbPinLeft.value = (ss.balanceMode === 'left');
+        rbPinRight.value = (ss.balanceMode === 'right');
+        if (!rbPinNone.value && !rbPinLeft.value && !rbPinRight.value) rbPinNone.value = true;
 
         // --- 幅 / Width (inside Balance panel) ---
         var pinWidthCol = pinPanel.add('group');
@@ -1237,7 +1393,10 @@ function setDialogOpacity(dlg, opacityValue) {
 
         pinWidthValueRow.add('statictext', undefined, L('labelWidth'));
 
-        var etWidth = pinWidthValueRow.add('edittext', undefined, '0');
+        var defaultWidthUnit = (ss && ss.widthUnit !== undefined)
+            ? ss.widthUnit
+            : ((AUTO_DIRECTION_MODE === 'vertical') ? 130 : 0);
+        var etWidth = pinWidthValueRow.add('edittext', undefined, String(defaultWidthUnit));
         etWidth.characters = 6;
         changeValueByArrowKey(etWidth, false, applyPreview);
 
@@ -1293,7 +1452,7 @@ function setDialogOpacity(dlg, opacityValue) {
 
                 unlockAndShow(hostLayer2);
                 tempGroupForMax = hostLayer2.groupItems.add();
-                tempGroupForMax.name = "__temp_outline_group_for_max__";
+                tempGroupForMax.name = TEMP_NAME_PREFIX + "__temp_outline_group_for_max__";
                 markTemp(tempGroupForMax);
                 try { tempGroupForMax.opacity = 0; } catch (eOpM) { }
 
@@ -1388,7 +1547,7 @@ function setDialogOpacity(dlg, opacityValue) {
         updateDirectionUILabels();
 
         var cbPreview = dlg.add('checkbox', undefined, L('labelPreview'));
-        cbPreview.value = true;
+        cbPreview.value = (ss.preview !== undefined) ? !!ss.preview : true;
 
         function parsePercent() {
             var v = Number(et.text);
@@ -1464,6 +1623,30 @@ function setDialogOpacity(dlg, opacityValue) {
             );
         }
 
+        function persistCurrentUIToSession() {
+            try {
+                var s = getSessionSettings();
+                s.percent = Number(et.text);
+                if (isNaN(s.percent) || s.percent <= 0) s.percent = 200;
+
+                s.preview = !!cbPreview.value;
+                s.overallFrame = !!cbOverallFrame.value;
+                s.divider = !!cbDivider.value;
+                s.fillLeft = !!cbFillLeft.value;
+                s.fillRight = !!cbFillRight.value;
+
+                s.strokeUnit = String(etStroke.text);
+                s.cornerUnit = String(etCorner.text);
+
+                s.balanceMode = getBalanceMode();
+                s.widthUnit = Number(etWidth.text);
+                if (isNaN(s.widthUnit) || s.widthUnit < 0) s.widthUnit = 0;
+                s.widthUnit = Math.round(s.widthUnit * 10) / 10;
+
+                saveSessionSettings(s);
+            } catch (e) { }
+        }
+
         (function () {
             var prevOnShow = dlg.onShow;
             dlg.onShow = function () {
@@ -1499,19 +1682,43 @@ function setDialogOpacity(dlg, opacityValue) {
                 alert(L('alertHeightInvalid'));
                 return;
             }
-            if (!cbPreview.value) {
-                clearPreviewFn();
-            }
+            // プレビューはヒストリーを汚さないように一括Undoしてから確定描画する
+            try { PreviewHistory.undo(); } catch (ePHU1) { }
+            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
+            try { removeMarkedTempItems(doc); } catch (eTmpU1) { }
+
+            // NOTE: clearPreviewFn() は last* 状態を初期化してしまうため、OK時には呼ばない。
+            // プレビュー生成物は undo 済みで存在しないので、参照だけクリアしておく。
+            previewRect1 = null;
+            previewRect2 = null;
+            previewFrame = null;
+            previewDivider = null;
+            previewApplied = false;
+            lastPreviewPercent = null;
+
+            persistCurrentUIToSession();
             dlg.close(1);
         };
 
         cancelBtn.onClick = function () {
+            try { PreviewHistory.undo(); } catch (ePHU2) { }
+            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
+            try { removeMarkedTempItems(doc); } catch (eTmpU2) { }
             clearPreviewFn();
+            persistCurrentUIToSession();
             dlg.close(0);
         };
 
         dlg.defaultElement = okBtn;
         dlg.cancelElement = cancelBtn;
+
+        dlg.onClose = function () {
+            try { PreviewHistory.undo(); } catch (ePHU3) { }
+            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
+            try { removeMarkedTempItems(doc); } catch (eTmpU3) { }
+            persistCurrentUIToSession();
+            return true;
+        };
 
         var result = dlg.show();
         if (result !== 1) return null;
@@ -1522,7 +1729,7 @@ function setDialogOpacity(dlg, opacityValue) {
         return percent;
     }
 
-    var DEFAULT_HEIGHT_PERCENT = 200;
+    var DEFAULT_HEIGHT_PERCENT = (AUTO_DIRECTION_MODE === 'vertical') ? 130 : 200;
 
     function previewFn(percent, enabled, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius, balanceMode, widthPercent, directionMode) {
         clearPreviewRects();
@@ -1541,6 +1748,8 @@ function setDialogOpacity(dlg, opacityValue) {
             if (previewRect2) markPreview(previewRect2);
             if (previewFrame) markPreview(previewFrame);
             if (previewDivider) markPreview(previewDivider);
+
+            try { PreviewHistory.bump(); } catch (ePH1) { }
 
             previewApplied = true;
             lastPreviewPercent = percent;
@@ -1567,27 +1776,27 @@ function setDialogOpacity(dlg, opacityValue) {
     var sizeRatio = heightPercent / 100;
 
     // --- 確定処理 ---
-    if (!(previewApplied && lastPreviewPercent === heightPercent)) {
-        var finalResult = drawBackgroundRects(
-            itemA, itemB,
-            sizeRatio,
-            lastOverallFrame, lastDivider,
-            lastFillLeft, lastFillRight,
-            lastStrokeWidth, lastCornerRadius,
-            lastBalanceMode, lastWidthPercent,
-            lastDirectionMode
-        );
-        previewRect1 = finalResult.rect1;
-        previewRect2 = finalResult.rect2;
-        previewFrame = finalResult.frame;
-        previewDivider = finalResult.divider;
+    // ［OK］時は PreviewHistory.undo() によりプレビュー生成物は消えているため、
+    // 必ずここで最終描画を行い「OK直前の見た目」で確定する。
+    var finalResult = drawBackgroundRects(
+        itemA, itemB,
+        sizeRatio,
+        lastOverallFrame, lastDivider,
+        lastFillLeft, lastFillRight,
+        lastStrokeWidth, lastCornerRadius,
+        lastBalanceMode, lastWidthPercent,
+        lastDirectionMode
+    );
+    previewRect1 = finalResult.rect1;
+    previewRect2 = finalResult.rect2;
+    previewFrame = finalResult.frame;
+    previewDivider = finalResult.divider;
 
-    } else {
-        if (previewRect1) unmarkPreview(previewRect1);
-        if (previewRect2) unmarkPreview(previewRect2);
-        unmarkPreview(previewFrame);
-        unmarkPreview(previewDivider);
-    }
+    // 確定描画はプレビュー扱いにしない
+    if (previewRect1) unmarkPreview(previewRect1);
+    if (previewRect2) unmarkPreview(previewRect2);
+    if (previewFrame) unmarkPreview(previewFrame);
+    if (previewDivider) unmarkPreview(previewDivider);
 
     doc.selection = null;
 
