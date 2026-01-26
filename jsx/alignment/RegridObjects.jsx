@@ -13,9 +13,10 @@ https://github.com/swwwitch/illustrator-scripts
 - ダイアログは日本語／英語の自動切り替えに対応（$.locale）。
 - ［連動］で左右の値を上下に反映できます。
 - ［行列入れ替え］をONにすると、歯抜け（欠け）を許容しつつ行⇄列を転置します。
+- 1行だけ→1列、1列だけ→1行の転置にも対応します。
 
 ### 更新日 / Updated:
-- 2026-01-25
+- 2026-01-26
 
 Illustrator Grid Re-spacing Script (always-on preview, link option)
 
@@ -24,11 +25,13 @@ Illustrator Grid Re-spacing Script (always-on preview, link option)
 - The dialog supports automatic Japanese/English switching (based on $.locale).
 - The "Link" option mirrors the horizontal value to the vertical value.
 - When "Swap Rows/Columns" is ON, it transposes rows/columns while tolerating missing cells.
+- Supports transposing a single row into a single column, and a single column into a single row.
 
 ### Updated:
-- 2026-01-25
+- 2026-01-26
 
 更新履歴 / Update history
+- 2026-01-26: v1.4 1行→1列、1列→1行の転置に対応（行列入れ替え）
 - 2026-01-25: v1.3 ［行列入れ替え］のロジックを実装（歯抜け対応・左上基準）
 - 2026-01-25: v1.2 ［行列入れ替え］チェックボックス（UIのみ）を追加、冒頭コメントを更新
 - 2025-10-31: v1.1 ローカライズ対応、タイトルにバージョン表示、コメントを日英に整理
@@ -38,7 +41,37 @@ Illustrator Grid Re-spacing Script (always-on preview, link option)
 //
 // バージョン / Version
 //
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
+
+/* =========================================
+ * PreviewHistory util (extractable)
+ * ヒストリーを残さないプレビューのための小さなユーティリティ。
+ * 他スクリプトでもこのブロックをコピペすれば再利用できます。
+ * 使い方:
+ *   PreviewHistory.start();      // ダイアログ表示時などにカウンタ初期化
+ *   PreviewHistory.bump();       // プレビュー描画ごと（または操作ごと）にカウント(+1)
+ *   PreviewHistory.undo();       // 閉じる/キャンセル時に一括Undo
+ *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
+ * ========================================= */
+
+(function(g){
+    if (!g.PreviewHistory) {
+        g.PreviewHistory = {
+            start: function(){ g.__previewUndoCount = 0; },
+            bump:  function(){ g.__previewUndoCount = (g.__previewUndoCount | 0) + 1; },
+            undo:  function(){
+                var n = g.__previewUndoCount | 0;
+                try { for (var i = 0; i < n; i++) app.executeMenuCommand('undo'); } catch (e) {}
+                g.__previewUndoCount = 0;
+            },
+            cancelTask: function(taskId){
+                try { if (taskId) app.cancelTask(taskId); } catch (e) {}
+            }
+        };
+    }
+})($.global);
+
+
 
 //
 // 言語判定 / Detect current language
@@ -140,7 +173,6 @@ function changeValueByArrowKey(editText) {
                 event.preventDefault();
             } else if (event.keyName == "Down") {
                 value = Math.floor((value - 1) / delta) * delta;
-                if (value < 0) value = 0;
                 event.preventDefault();
             }
         } else if (keyboard.altKey) {
@@ -161,7 +193,6 @@ function changeValueByArrowKey(editText) {
                 event.preventDefault();
             } else if (event.keyName == "Down") {
                 value -= delta;
-                if (value < 0) value = 0;
                 event.preventDefault();
             }
         }
@@ -185,13 +216,18 @@ function changeValueByArrowKey(editText) {
 /*
 ダイアログの生成と表示 / Build & show dialog
 */
-function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOriginalPositions, getCurrentUnitLabel, changeValueByArrowKey, initialGapX) {
-    // ここでタイトルとバージョンを合成 / combine title and version here
+function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOriginalPositions, restoreInitialPositions, resetBaselineToCurrent, getCurrentUnitLabel, changeValueByArrowKey, initialGapX) {    // ここでタイトルとバージョンを合成 / combine title and version here
     var dlgTitle = L('dialogTitle') + ' ' + SCRIPT_VERSION;
 
     var dlg = new Window('dialog', dlgTitle);
     dlg.orientation = 'column';
     dlg.alignChildren = 'fill';
+
+    // プレビュー用ヒストリー管理を開始 / Start preview history counter
+    PreviewHistory.start();
+
+    // 行列入れ替えが実行済みか（プレビュー状態）/ whether transpose has been triggered (preview state)
+    var didTranspose = false;
 
     // パネル名に単位を出す / show unit in panel title
     var pGap = dlg.add('panel', undefined, L('panelSpacing') + ' (' + getCurrentUnitLabel() + ')');
@@ -212,7 +248,8 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
 
     var g2 = colLeft.add('group');
     g2.add('statictext', undefined, L('vertical'));
-    var inputV = g2.add('edittext', undefined, '20');
+    // 初期表示では負の値を使わない
+    var inputV = g2.add('edittext', undefined, '0');
     inputV.characters = 6;
     changeValueByArrowKey(inputV);
 
@@ -225,7 +262,7 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
     spacer.alignment = ['fill', 'fill'];
     var chkLink = colRight.add('checkbox', undefined, L('link'));
 
-    // 行列入れ替え（UIのみ・ロジックは後日）/ Swap rows/columns (UI only; logic later)
+    // 行列入れ替え / Swap rows/columns
     var gTranspose = dlg.add('group');
     gTranspose.orientation = 'row';
     gTranspose.alignChildren = 'left';
@@ -233,11 +270,18 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
     var chkTranspose = gTranspose.add('checkbox', undefined, L('transpose'));
     chkTranspose.value = false;
 
+    // 転置ON時はマージンを0に固定（UIも0表示）/ When transposing, force margins to 0
+    var prevGapHText = null;
+    var prevGapVText = null;
+
+
+
     // 初期状態 / initial state
     chkLink.value = true;
     inputH.active = true;
     inputV.enabled = false;
     inputV.text = inputH.text;
+
 
     // ボタン行 / buttons
     var gBtn = dlg.add('group');
@@ -249,6 +293,20 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
     プレビュー更新 / update preview
     */
     function updatePreviewImpl() {
+        // 直前のプレビューを一括Undo（ヒストリーを汚さない）/ Undo previous preview
+        PreviewHistory.undo();
+
+        // Undo後の現在位置を基準として originals/layoutInfo を作り直す
+        resetBaselineToCurrent();
+
+        if (chkTranspose.value) {
+            // チェックON中は表示上0にする（実処理はクリック時に1回だけ実行）
+            if (inputH.text !== "0") inputH.text = "0";
+            if (inputV.text !== "0") inputV.text = "0";
+        }
+
+        // 通常時 / normal
+
         if (chkLink.value) {
             inputV.enabled = false;
             inputV.text = inputH.text;
@@ -261,9 +319,29 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
         if (isNaN(gx)) gx = 0;
         if (isNaN(gy)) gy = 0;
 
-        applySpacing(gx, gy);
-        if (chkTranspose.value) {
+        // 転置時は左右/上下のマージンを入れ替える（連動OFFのときのみ）/ Swap H/V margins when transposing (only if not linked)
+        if (didTranspose && !chkLink.value) {
+            var tmpG = gx;
+            gx = gy;
+            gy = tmpG;
+        }
+
+        if (didTranspose) {
+            // 転置はマージン0で実行し、その後マージンを適用 / Transpose with 0 margins then apply margins
+            applySpacing(0, 0);
+            PreviewHistory.bump();
+
             runTransposeIfNeeded();
+            PreviewHistory.bump();
+
+            // 転置後の配置を新しい基準に / adopt transposed layout as baseline for spacing
+            resetBaselineToCurrent();
+
+            applySpacing(gx, gy);
+            PreviewHistory.bump();
+        } else {
+            applySpacing(gx, gy);
+            PreviewHistory.bump();
         }
     }
 
@@ -280,7 +358,29 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
     };
     chkLink.onClick = function () { updatePreviewImpl(); };
     // 行列入れ替え / swap rows & columns
-    chkTranspose.onClick = function () { updatePreviewImpl(); };
+    chkTranspose.onClick = function () {
+        if (chkTranspose.value) {
+            // 転置フラグON（ワンショット扱い）/ set transpose flag (one-shot)
+            didTranspose = true;
+            chkTranspose.value = false;
+
+            // 直前のマージンを保持（UIはそのまま）
+            prevGapHText = inputH.text;
+            prevGapVText = inputV.text;
+
+            // 連動OFFなら左右/上下の値をUI上でも入れ替える / Swap UI values when Link is OFF
+            if (!chkLink.value) {
+                var _h = inputH.text;
+                var _v = inputV.text;
+                inputH.text = _v;
+                inputV.text = _h;
+            }
+
+            updatePreviewImpl();
+            return;
+        }
+        // OFFは特に何もしない（ワンショットなので）
+    };
 
     // 開いたときに一度プレビュー / first preview when opened
     updatePreviewImpl();
@@ -294,14 +394,35 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
         if (isNaN(gx2)) gx2 = 0;
         if (isNaN(gy2)) gy2 = 0;
         if (chkLink.value) gy2 = gx2;
-        applySpacing(gx2, gy2);
-        if (chkTranspose.value) {
+
+        // 転置確定時は左右/上下のマージンを入れ替える（連動OFFのときのみ）/ Swap margins on final apply when transposing (only if not linked)
+        if (didTranspose && !chkLink.value) {
+            var tmp2 = gx2;
+            gx2 = gy2;
+            gy2 = tmp2;
+        }
+
+        // プレビュー分を一括Undoしてから確定適用 / Clear preview history before final apply
+        PreviewHistory.undo();
+        resetBaselineToCurrent();
+        if (didTranspose) {
+            applySpacing(0, 0);
             runTransposeIfNeeded();
+            resetBaselineToCurrent();
+            applySpacing(gx2, gy2);
+        } else {
+            applySpacing(gx2, gy2);
         }
     } else {
-        // キャンセル時は元に戻す / restore when canceled
-        restoreOriginalPositions();
+        // キャンセル時：プレビュー分を一括Undoしてから初期状態へ / Undo preview then restore
+        PreviewHistory.undo();
+        restoreInitialPositions();
     }
+
+    // 念のためカウンタ初期化 / reset counter
+    PreviewHistory.start();
+
+    // (removed global focus cleanup)
 }
 
 /*
@@ -331,7 +452,7 @@ function main() {
     }
 
     // Sort selected items by top (Y) descending and left (X) ascending within same row
-    var sortedByPosition = items.slice().sort(function(a, b) {
+    var sortedByPosition = items.slice().sort(function (a, b) {
         var ga = a.geometricBounds;
         var gb = b.geometricBounds;
         if (Math.abs(ga[1] - gb[1]) < 1) {
@@ -342,6 +463,7 @@ function main() {
 
     var gb1 = sortedByPosition[0].geometricBounds;
     var gb2 = sortedByPosition[1].geometricBounds;
+    // ダイアログ初期値では負の値を使わない
     var initialGapX = gb2[0] - gb1[2];
     if (initialGapX < 0) initialGapX = 0;
 
@@ -354,6 +476,27 @@ function main() {
             left: gb[0],
             top: gb[1]
         });
+    }
+
+    // ダイアログ開始時点の位置を保持（キャンセルで必ずここへ戻す）/ Snapshot for Cancel
+    var initialOriginals = [];
+    for (var k0 = 0; k0 < originals.length; k0++) {
+        initialOriginals.push({
+            item: originals[k0].item,
+            left: originals[k0].left,
+            top: originals[k0].top
+        });
+    }
+
+    // 任意のスナップショットへ復元 / Restore from a given snapshot
+    function restoreFrom(snapshot) {
+        for (var iR = 0; iR < snapshot.length; iR++) {
+            var oR = snapshot[iR];
+            var gbR = oR.item.geometricBounds;
+            var curLeftR = gbR[0];
+            var curTopR = gbR[1];
+            oR.item.translate(oR.left - curLeftR, oR.top - curTopR);
+        }
     }
 
     /*
@@ -465,10 +608,21 @@ function main() {
 
     var layoutInfo = buildLayoutInfo();
 
+    // 現在位置を新しい基準（originals + layoutInfo）として再設定 / Reset baseline to current layout
+    function resetBaselineToCurrent() {
+        originals = [];
+        for (var kB = 0; kB < items.length; kB++) {
+            var gbB = items[kB].geometricBounds;
+            originals.push({ item: items[kB], left: gbB[0], top: gbB[1] });
+        }
+        layoutInfo = buildLayoutInfo();
+    }
+
     /*
     行列入れ替え（歯抜け対応）/ Transpose rows & columns (tolerate missing cells)
     - 選択の可視境界（visibleBounds）の left/top を基準に、行・列をクラスタリングして推定
     - 推定したピッチ（隣接差の中央値）で左上基準に再配置
+    - 1行→1列 / 1列→1行 も対応（ピッチ流用）
     */
     function transposeGridWithHoles() {
         if (!items || items.length < 1) return;
@@ -532,6 +686,9 @@ function main() {
         // Illustrator座標では上ほどYが大きいことが多いので「上→下」/ sort top -> bottom
         rowYs.sort(function (a, b) { return b - a; });
 
+        var rowCount = rowYs.length;
+        var colCount = colXs.length;
+
         // 各オブジェクトを(行,列)に割り当て / assign each item to (row, col)
         var occupancy = {}; // key "r,c" -> item
         var mapping = [];   // {item, r, c}
@@ -550,11 +707,35 @@ function main() {
             mapping.push({ item: it, r: r, c: c });
         }
 
-        var pitchX = medianDiff(colXs);
-        var pitchY = medianDiff(rowYs);
-        if (pitchX === 0 || pitchY === 0) {
-            // 行または列が1つしかない場合は何もしない / nothing meaningful to transpose
+        // 元の列/行のピッチを推定（隣接差の中央値）
+        // ※行や列が1つしかない場合は0になる
+        var pitchX = (colXs.length >= 2) ? medianDiff(colXs) : 0;
+        var pitchY = (rowYs.length >= 2) ? medianDiff(rowYs) : 0;
+
+        // 1行→1列、1列→1行にも対応
+        // - 1行しかない場合: 横方向ピッチ(pitchX)を縦方向の並び間隔として流用
+        // - 1列しかない場合: 縦方向ピッチ(pitchY)を横方向の並び間隔として流用
+        var pitchXEff = pitchX;
+        var pitchYEff = pitchY;
+
+        if (rowCount === 1 && colCount === 1) {
+            // ほぼ重なり等で1セル扱いになったケース
             return;
+        }
+
+        if (rowCount === 1 && colCount > 1) {
+            // 1行 → 1列
+            if (pitchX === 0) return;
+            pitchXEff = pitchX;
+            pitchYEff = pitchX; // 横ピッチを縦へ流用
+        } else if (colCount === 1 && rowCount > 1) {
+            // 1列 → 1行
+            if (pitchY === 0) return;
+            pitchXEff = pitchY; // 縦ピッチを横へ流用
+            pitchYEff = pitchY;
+        } else {
+            // 通常（2行以上 かつ 2列以上）
+            if (pitchX === 0 || pitchY === 0) return;
         }
 
         // 転置後グリッドの基準（左上固定）/ origin at top-left
@@ -570,8 +751,8 @@ function main() {
             var newCol = r0;
             var newRow = c0;
 
-            var targetLeft = originLeft + newCol * pitchX;
-            var targetTop = originTop - newRow * pitchY;
+            var targetLeft = originLeft + newCol * pitchXEff;
+            var targetTop = originTop - newRow * pitchYEff;
 
             var b = obj.visibleBounds;
             var curLeft = b[0];
@@ -583,15 +764,14 @@ function main() {
         app.redraw();
     }
 
-    /* 元位置に戻す / restore original positions */
+    /* 元位置に戻す（プレビュー基準）/ restore baseline positions for preview */
     function restoreOriginalPositions() {
-        for (var i2 = 0; i2 < originals.length; i2++) {
-            var o = originals[i2];
-            var gb4 = o.item.geometricBounds;
-            var curLeft = gb4[0];
-            var curTop = gb4[1];
-            o.item.translate(o.left - curLeft, o.top - curTop);
-        }
+        restoreFrom(originals);
+    }
+
+    /* キャンセル時に戻す（ダイアログ開始時点）/ restore initial positions on Cancel */
+    function restoreInitialPositions() {
+        restoreFrom(initialOriginals);
     }
 
     /* 間隔を適用 / apply spacing */
@@ -668,7 +848,16 @@ function main() {
     }
 
     // ダイアログ表示 / show dialog
-    showGridSpacingDialog(applySpacing, transposeGridWithHoles, restoreOriginalPositions, getCurrentUnitLabel, changeValueByArrowKey, initialGapX);
+    showGridSpacingDialog(
+        applySpacing,
+        transposeGridWithHoles,
+        restoreOriginalPositions,
+        restoreInitialPositions,
+        resetBaselineToCurrent,
+        getCurrentUnitLabel,
+        changeValueByArrowKey,
+        initialGapX
+    );
 }
 
 // 実行 / run
