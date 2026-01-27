@@ -9,10 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   その順序をもとにグラデーションを自動生成します。
 
   ・グループ／複合パス／テキストは再帰的に処理
-  ・線色（ストローク）は対象外
+  ・線色（ストローク）も対象
+  ・抽出した色はすべてグローバルカラー（プロセス）に変換してスウォッチ登録
+  ・生成するグラデーションの各ストップには登録済みのグローバルカラーを設定
   ・作成したグラデーションはスウォッチに追加
   ・ビュー中央に長方形を作成し、生成したグラデーションを適用
+  ・ドキュメントが無い／選択が無い／色が1色以下の場合やエラー発生時は無言で終了
 
+  Version: v1.2
   更新日: 2026-01-27
 */
 
@@ -21,36 +25,9 @@ function getCurrentLang() {
 }
 var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
-var LABELS = {
-  noDocument: {
-    ja: "ドキュメントが開かれていません。",
-    en: "No document is open."
-  },
-  noSelection: {
-    ja: "オブジェクトが選択されていません。\n塗り色（フィル）のあるオブジェクトを2つ以上選択してください。",
-    en: "No objects are selected.\nPlease select two or more objects with fill colors."
-  },
-  needTwoFill: {
-    ja: "塗り色（フィル）のあるオブジェクトを2つ以上選択してください。\n※グループ/複合パス/テキストは再帰的に参照します。\n※線色は対象外です。",
-    en: "Please select two or more objects with fill colors.\n* Groups/compound paths/text are traversed recursively.\n* Stroke colors are not included."
-  },
-  errorPrefix: {
-    ja: "エラーが発生しました: ",
-    en: "An error occurred: "
-  }
-};
-
-function L(key) {
-  if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
-  if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
-  return "";
-}
-
-(function() {
+function main() {
     // ドキュメントが開かれているか確認
     if (app.documents.length === 0) {
-        alert(L('noDocument'));
         return;
     }
 
@@ -58,7 +35,6 @@ function L(key) {
 
     // 選択があるか確認
     if (!doc.selection || doc.selection.length === 0) {
-        alert(L('noSelection'));
         return;
     }
 
@@ -148,21 +124,45 @@ function L(key) {
 
             // テキスト
             if (item.typename === "TextFrame") {
-                var tc = item.textRange.characterAttributes.fillColor;
-                if (!isNoColor(tc)) {
-                    var pT = getItemTopLeft(item);
-                    outEntries.push({ left: pT.left, top: pT.top, color: tc });
+                var pT = getItemTopLeft(item);
+
+                // Fill
+                var tf = item.textRange.characterAttributes.fillColor;
+                if (!isNoColor(tf)) {
+                    outEntries.push({ left: pT.left, top: pT.top, color: tf });
                 }
+
+                // Stroke
+                try {
+                    var ts = item.textRange.characterAttributes.strokeColor;
+                    if (!isNoColor(ts)) {
+                        outEntries.push({ left: pT.left, top: pT.top, color: ts });
+                    }
+                } catch (eTS) {}
+
                 return;
             }
 
             // PathItem など
-            if (typeof item.filled !== "undefined" && item.filled) {
-                var fc = item.fillColor;
-                if (!isNoColor(fc)) {
-                    var p = getItemTopLeft(item);
-                    outEntries.push({ left: p.left, top: p.top, color: fc });
+            if (typeof item.filled !== "undefined" || typeof item.stroked !== "undefined") {
+                var p = getItemTopLeft(item);
+
+                // Fill
+                if (typeof item.filled !== "undefined" && item.filled) {
+                    var fc = item.fillColor;
+                    if (!isNoColor(fc)) {
+                        outEntries.push({ left: p.left, top: p.top, color: fc });
+                    }
                 }
+
+                // Stroke
+                if (typeof item.stroked !== "undefined" && item.stroked) {
+                    var sc = item.strokeColor;
+                    if (!isNoColor(sc)) {
+                        outEntries.push({ left: p.left, top: p.top, color: sc });
+                    }
+                }
+
                 return;
             }
         } catch (e) {
@@ -238,11 +238,33 @@ function L(key) {
         }
     }
 
+// カラーを「グローバルカラー（プロセス）」に変換して返す
+function toGlobalProcessColor(doc, baseColor, baseName) {
+    try {
+        var spot = doc.spots.add();
+        spot.name = baseName;
+        spot.colorType = ColorModel.PROCESS; // グローバル（プロセス）
+        spot.color = baseColor;
+
+        var sc = new SpotColor();
+        sc.spot = spot;
+        sc.tint = 100;
+        return sc;
+    } catch (e) {
+        // 失敗時は元のカラーを返す（無言）
+        return baseColor;
+    }
+}
+
     function addSwatchForColor(colorObj, baseName) {
         var s = doc.swatches.add();
         var nm = uniqueName(baseName, swatchExists);
         s.name = nm;
-        s.color = colorObj;
+
+        // グローバルカラー（プロセス）に変換して登録
+        var globalColor = toGlobalProcessColor(doc, colorObj, nm);
+        s.color = globalColor;
+
         try { s.selected = false; } catch (e) {}
         return s;
     }
@@ -263,7 +285,6 @@ function L(key) {
     var colors = collectColorsFromSelection(doc.selection);
 
     if (colors.length < 2) {
-        alert(L('needTwoFill'));
         return;
     }
 
@@ -307,8 +328,17 @@ function L(key) {
             var location = (j / (colors.length - 1)) * 100;
             stop.rampPoint = location;
 
-            // 色を適用
-            stop.color = colors[j];
+            // 色を適用（スウォッチ登録時に作成したグローバルカラーを優先）
+            try {
+                if (createdSwatches && createdSwatches[j] && createdSwatches[j].color) {
+                    stop.color = createdSwatches[j].color; // SpotColor（グローバル）を渡す
+                } else {
+                    stop.color = colors[j];
+                }
+            } catch (eStopColor) {
+                // 無言フォールバック
+                try { stop.color = colors[j]; } catch (e2) {}
+            }
 
             // 中間点（MidPoint）をデフォルトの50に設定
             stop.midPoint = 50;
@@ -370,6 +400,8 @@ function L(key) {
 
 
     } catch (e) {
-        alert(L('errorPrefix') + e.message);
+        // 無言（エラー通知しない）
     }
-})();
+}
+
+main();
