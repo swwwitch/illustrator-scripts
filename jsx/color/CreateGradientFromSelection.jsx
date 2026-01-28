@@ -1,6 +1,8 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+var SCRIPT_VERSION = "v1.4";
+
 /*
   CreateGradientFromSelection.jsx
 
@@ -161,7 +163,7 @@ function main() {
     };
 
     try {
-        var dlg = new Window('dialog', L('dialogTitle'));
+        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
 
