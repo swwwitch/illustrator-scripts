@@ -1,7 +1,9 @@
 #target illustrator
+// Use a script-specific engine for session-persistent values (not across restarts)
+#targetengine "CreateGradientFromSelectionEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v1.6";
 
 /*
   CreateGradientFromSelection.jsx
@@ -20,7 +22,7 @@ var SCRIPT_VERSION = "v1.5";
   ・（任意）長方形の見た目をグラフィックスタイルに登録
   ・ドキュメントが無い／選択が無い／色が1色以下の場合やエラー発生時は無言で終了
 
-  Version: v1.5
+  Version: v1.6
   更新日: 2026-01-29
 */
 
@@ -160,12 +162,37 @@ function main() {
      * Options dialog / オプションダイアログ
      * ========================================= */
 
+    // Persist dialog values in this targetengine (session-only) / ダイアログ値をエンジン内に保持（Illustrator再起動では消える）
+    function getSessionSettings() {
+        try {
+            if (!$.global.__CGFS_SETTINGS) {
+                $.global.__CGFS_SETTINGS = {};
+            }
+            return $.global.__CGFS_SETTINGS;
+        } catch (e) {
+            return {};
+        }
+    }
+    function loadBool(key, defVal) {
+        try {
+            var s = getSessionSettings();
+            if (typeof s[key] === 'boolean') return s[key];
+        } catch (e) { }
+        return defVal;
+    }
+    function saveBool(key, val) {
+        try {
+            var s = getSessionSettings();
+            s[key] = !!val;
+        } catch (e) { }
+    }
+
     var opts = {
-        makeGlobal: true,
-        makeGradient: true,
-        makeRect: true,
-        useSelectionSize: true,
-        registerGraphicStyle: true
+        makeGlobal: loadBool('makeGlobal', true),
+        makeGradient: loadBool('makeGradient', true),
+        makeRect: loadBool('makeRect', true),
+        useSelectionSize: loadBool('useSelectionSize', true),
+        registerGraphicStyle: loadBool('registerGraphicStyle', true)
     };
 
     try {
@@ -179,10 +206,10 @@ function main() {
         pColor.margins = [15, 20, 15, 10];
 
         var cbGlobal = pColor.add('checkbox', undefined, L('globalColor'));
-        cbGlobal.value = true;
+        cbGlobal.value = opts.makeGlobal;
 
         var cbGradient = pColor.add('checkbox', undefined, L('createGradient'));
-        cbGradient.value = true;
+        cbGradient.value = opts.makeGradient;
 
         var pRect = dlg.add('panel', undefined, L('panelRect'));
         pRect.orientation = 'column';
@@ -190,13 +217,13 @@ function main() {
         pRect.margins = [15, 20, 15, 10];
 
         var cbRect = pRect.add('checkbox', undefined, L('createRect'));
-        cbRect.value = true;
+        cbRect.value = opts.makeRect;
 
         var cbSelSize = pRect.add('checkbox', undefined, L('useSelectionSize'));
-        cbSelSize.value = true;
+        cbSelSize.value = opts.useSelectionSize;
 
         var cbGStyle = pRect.add('checkbox', undefined, L('registerGraphicStyle'));
-        cbGStyle.value = true;
+        cbGStyle.value = opts.registerGraphicStyle;
 
         function syncEnable() {
             cbRect.enabled = cbGradient.value;
@@ -220,6 +247,17 @@ function main() {
         var cancelBtn = btns.add('button', undefined, L('cancel'), { name: 'cancel' });
         var okBtn = btns.add('button', undefined, L('ok'), { name: 'ok' });
 
+        function persistFromUI() {
+            saveBool('makeGlobal', cbGlobal.value);
+            saveBool('makeGradient', cbGradient.value);
+            saveBool('makeRect', cbRect.value);
+            saveBool('useSelectionSize', cbSelSize.value);
+            saveBool('registerGraphicStyle', cbGStyle.value);
+        }
+        dlg.onClose = function () {
+            try { persistFromUI(); } catch (e) { }
+        };
+
         if (dlg.show() !== 1) {
             return; // キャンセル時は無言で終了
         }
@@ -229,6 +267,7 @@ function main() {
         opts.makeRect = !!cbRect.value;
         opts.useSelectionSize = !!cbSelSize.value;
         opts.registerGraphicStyle = !!cbGStyle.value;
+        try { persistFromUI(); } catch (ePersist) { }
     } catch (eDlg) {
         // ダイアログ生成に失敗しても無言で既定値のまま続行
     }
