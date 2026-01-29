@@ -1,7 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 /*
   CreateGradientFromSelection.jsx
@@ -17,10 +17,11 @@ var SCRIPT_VERSION = "v1.4";
   ・長方形を作成する場合、サイズは「固定(100)」または「選択オブジェクトに合わせる」を選択可能
   ・長方形の配置は、選択が横並びなら下方向へ、縦並びなら右方向へ“長方形1個分”ずらして配置
   ・縦並び判定時は、アクション（gradient/90degree）で角度調整を実行（アクションが無い場合は無言でスキップ）
+  ・（任意）長方形の見た目をグラフィックスタイルに登録
   ・ドキュメントが無い／選択が無い／色が1色以下の場合やエラー発生時は無言で終了
 
-  Version: v1.4
-  更新日: 2026-01-28
+  Version: v1.5
+  更新日: 2026-01-29
 */
 
 function getCurrentLang() {
@@ -49,6 +50,10 @@ var LABELS = {
     useSelectionSize: {
         ja: "選択オブジェクトに合わせてサイズ指定",
         en: "Match rectangle size to selection"
+    },
+    registerGraphicStyle: {
+        ja: "グラフィックスタイルに登録",
+        en: "Save as Graphic Style"
     },
     ok: {
         ja: "OK",
@@ -159,7 +164,8 @@ function main() {
         makeGlobal: true,
         makeGradient: true,
         makeRect: true,
-        useSelectionSize: true
+        useSelectionSize: true,
+        registerGraphicStyle: true
     };
 
     try {
@@ -189,14 +195,21 @@ function main() {
         var cbSelSize = pRect.add('checkbox', undefined, L('useSelectionSize'));
         cbSelSize.value = true;
 
+        var cbGStyle = pRect.add('checkbox', undefined, L('registerGraphicStyle'));
+        cbGStyle.value = true;
+
         function syncEnable() {
             cbRect.enabled = cbGradient.value;
             cbSelSize.enabled = cbGradient.value && cbRect.value;
+            // Graphic style can be created even if rectangle output is OFF (temporary rectangle)
+            cbGStyle.enabled = cbGradient.value;
 
             if (!cbGradient.value) cbRect.value = false;
             if (!cbGradient.value) cbSelSize.value = false;
+            if (!cbGradient.value) cbGStyle.value = false;
 
             cbSelSize.enabled = cbGradient.value && cbRect.value;
+            cbGStyle.enabled = cbGradient.value;
         }
         cbGradient.onClick = syncEnable;
         cbRect.onClick = syncEnable;
@@ -215,6 +228,7 @@ function main() {
         opts.makeGradient = !!cbGradient.value;
         opts.makeRect = !!cbRect.value;
         opts.useSelectionSize = !!cbSelSize.value;
+        opts.registerGraphicStyle = !!cbGStyle.value;
     } catch (eDlg) {
         // ダイアログ生成に失敗しても無言で既定値のまま続行
     }
@@ -284,37 +298,37 @@ function main() {
     }
 
     // 選択範囲の外接バウンディングを取得 / Get union bounds of selection
-// 戻り値: { left:Number, top:Number, right:Number, bottom:Number } または null
-function getSelectionBounds(selection) {
-    try {
-        if (!selection || selection.length === 0) return null;
+    // 戻り値: { left:Number, top:Number, right:Number, bottom:Number } または null
+    function getSelectionBounds(selection) {
+        try {
+            if (!selection || selection.length === 0) return null;
 
-        var left =  1e12, top = -1e12, right = -1e12, bottom =  1e12;
-        var got = false;
+            var left = 1e12, top = -1e12, right = -1e12, bottom = 1e12;
+            var got = false;
 
-        for (var i = 0; i < selection.length; i++) {
-            var it = selection[i];
-            if (!it) continue;
-            try {
-                var b = it.geometricBounds; // [left, top, right, bottom]
-                if (b[0] < left) left = b[0];
-                if (b[1] > top) top = b[1];
-                if (b[2] > right) right = b[2];
-                if (b[3] < bottom) bottom = b[3];
-                got = true;
-            } catch (eB) {
-                // 無視
+            for (var i = 0; i < selection.length; i++) {
+                var it = selection[i];
+                if (!it) continue;
+                try {
+                    var b = it.geometricBounds; // [left, top, right, bottom]
+                    if (b[0] < left) left = b[0];
+                    if (b[1] > top) top = b[1];
+                    if (b[2] > right) right = b[2];
+                    if (b[3] < bottom) bottom = b[3];
+                    got = true;
+                } catch (eB) {
+                    // 無視
+                }
             }
+
+            if (!got) return null;
+            if (left > right || bottom > top) return null;
+
+            return { left: left, top: top, right: right, bottom: bottom };
+        } catch (e) {
+            return null;
         }
-
-        if (!got) return null;
-        if (left > right || bottom > top) return null;
-
-        return { left: left, top: top, right: right, bottom: bottom };
-    } catch (e) {
-        return null;
     }
-}
 
     // 選択オブジェクトが横並びか縦並びかを推定 / Detect whether selection is horizontal or vertical
     // 戻り値: { orientation: "horizontal"|"vertical"|"mixed"|"unknown", dx: Number, dy: Number, ratio: Number }
@@ -476,6 +490,127 @@ function getSelectionBounds(selection) {
         }
 
         return colors;
+    }
+
+
+    // Run Graphic Style creation via Action (ai_plugin_styles) / アクションでグラフィックスタイル作成
+    function runGraphicStyleAction() {
+        try {
+            var CR = String.fromCharCode(13);
+            var actionCode = [
+                " /version 3",
+                "/name [ 12",
+                "\t477261706869635374796c65",
+                "]",
+                "/isOpen 1",
+                "/actionCount 1",
+                "/action-1 {",
+                "\t/name [ 3",
+                "\t\t6e6577",
+                "\t]",
+                "\t/keyIndex 0",
+                "\t/colorIndex 0",
+                "\t/isOpen 1",
+                "\t/eventCount 1",
+                "\t/event-1 {",
+                "\t\t/useRulersIn1stQuadrant 0",
+                "\t\t/internalName (ai_plugin_styles)",
+                "\t\t/localizedName [ 30",
+                "\t\t\te382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382a4e383ab",
+                "\t\t]",
+                "\t\t/isOpen 1",
+                "\t\t/isOn 1",
+                "\t\t/hasDialog 1",
+                "\t\t/showDialog 0",
+                "\t\t/parameterCount 1",
+                "\t\t/parameter-1 {",
+                "\t\t\t/key 1835363957",
+                "\t\t\t/showInPalette 4294967295",
+                "\t\t\t/type (enumerated)",
+                "\t\t\t/name [ 36",
+                "\t\t\t\te696b0e8a68fe382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382",
+                "\t\t\t\ta4e383ab",
+                "\t\t\t]",
+                "\t\t\t/value 1",
+                "\t\t}",
+                "\t}",
+                "}",
+                ""
+            ].join(CR);
+
+            var actionSetName = "GraphicStyle";
+            var actionName = "new";
+            var tempFile = new File(Folder.temp + "/temp_graphicstyle.aia");
+            tempFile.open("w");
+            tempFile.write(actionCode);
+            tempFile.close();
+
+            app.loadAction(tempFile);
+            app.doScript(actionName, actionSetName);
+            app.unloadAction(actionSetName, "");
+            try { tempFile.remove(); } catch (eDel) { }
+        } catch (e) {
+            try { app.unloadAction("GraphicStyle", ""); } catch (e2) { }
+        }
+    }
+
+    // Register the selected item's appearance as a new Graphic Style / 選択アイテムの見た目をグラフィックスタイルとして登録
+    function registerGraphicStyleFromSelected(baseName) {
+        try {
+            if (!doc.graphicStyles) return;
+
+            // 参照ロジック: 1つだけ選択 → アクション経由で新規スタイル作成
+            var selectedItems = [];
+            try {
+                if (doc.selection && doc.selection.length) {
+                    for (var i = 0; i < doc.selection.length; i++) selectedItems.push(doc.selection[i]);
+                }
+            } catch (eSel) { }
+
+            if (!selectedItems.length) return;
+
+            for (var i = 0; i < selectedItems.length; i++) {
+                try {
+                    var beforeLen = 0;
+                    try { beforeLen = doc.graphicStyles.length; } catch (eLen) { beforeLen = 0; }
+
+                    // 1つだけ選択
+                    try {
+                        doc.selection = null;
+                    } catch (eClr) { }
+                    try {
+                        doc.selection = [selectedItems[i]];
+                    } catch (eSetSel) {
+                        // フォールバック
+                        try {
+                            selectedItems[i].selected = true;
+                        } catch (eSel2) { }
+                    }
+
+                    // 新規グラフィックスタイル（アクション経由）
+                    runGraphicStyleAction();
+
+                    var afterLen = 0;
+                    try { afterLen = doc.graphicStyles.length; } catch (eLen2) { afterLen = beforeLen; }
+                    if (afterLen <= 0) continue;
+
+                    // 追加された（はずの）末尾を取得
+                    var gs = null;
+                    try {
+                        gs = doc.graphicStyles[afterLen - 1];
+                    } catch (eGs) {
+                        gs = null;
+                    }
+                    if (!gs) continue;
+
+                    // グラフィックスタイル名の設定は不要（既定名のまま）
+                } catch (eEach) {
+                    // 1件失敗しても続行
+                }
+            }
+        } catch (e) {
+            // silent
+        }
     }
 
     function uniqueName(baseName, existsFunc) {
@@ -643,11 +778,40 @@ function getSelectionBounds(selection) {
             newGradient.name = gradientName;
         }
 
-        // 参考: ビュー中心に長方形を作成して、作成したグラデーションを適用
-        if (opts.makeRect && newGradient) {
+        // 参考: ビュー中心に長方形を作成して、作成したグラデーションを適用（またはスタイル登録用の一時長方形）
+        if ((opts.makeRect || opts.registerGraphicStyle) && newGradient) {
             try {
                 var targetLayer = getUnlockedVisibleLayer(doc);
                 if (targetLayer) {
+                    // Save state for temporary rectangle flow / 一時長方形用に状態を退避
+                    var tempOnly = (!opts.makeRect && opts.registerGraphicStyle);
+                    var prevSelection = null;
+                    var prevActiveLayer = null;
+                    var tempLayer = null;
+                    try { prevActiveLayer = doc.activeLayer; } catch (eAL) { prevActiveLayer = null; }
+                    try {
+                        if (doc.selection && doc.selection.length) {
+                            prevSelection = [];
+                            for (var ps = 0; ps < doc.selection.length; ps++) prevSelection.push(doc.selection[ps]);
+                        }
+                    } catch (ePS) { prevSelection = null; }
+
+                    // If tempOnly, create a dedicated temp layer and draw there / 一時用レイヤーを作成してそこに作る
+                    if (tempOnly) {
+                        try {
+                            tempLayer = doc.layers.add();
+                            tempLayer.name = "__TempGraphicStyle";
+                            tempLayer.visible = true;
+                            tempLayer.locked = false;
+                            try { doc.activeLayer = tempLayer; } catch (eSetAL) { }
+                        } catch (eTL) {
+                            tempLayer = null;
+                        }
+                    }
+
+                    // Decide drawing layer: normal uses targetLayer, tempOnly uses tempLayer if available
+                    var drawLayer = (tempOnly && tempLayer) ? tempLayer : targetLayer;
+
                     var viewCenterX = doc.activeView.centerPoint[0];
                     var viewCenterY = doc.activeView.centerPoint[1];
 
@@ -660,7 +824,7 @@ function getSelectionBounds(selection) {
                                 rectWidth = Math.abs(selBounds.right - selBounds.left);
                                 rectHeight = Math.abs(selBounds.top - selBounds.bottom);
                             }
-                        } catch (eSize) {}
+                        } catch (eSize) { }
                     }
 
                     // 念のため最小サイズ
@@ -686,9 +850,9 @@ function getSelectionBounds(selection) {
                                 rectTop = selBounds.top;
                             }
                         }
-                    } catch (ePos) {}
+                    } catch (ePos) { }
 
-                    var rect = targetLayer.pathItems.rectangle(rectTop, rectLeft, rectWidth, rectHeight);
+                    var rect = drawLayer.pathItems.rectangle(rectTop, rectLeft, rectWidth, rectHeight);
 
                     // 作成した長方形を選択状態にする
                     try {
@@ -708,6 +872,39 @@ function getSelectionBounds(selection) {
                     var gc = new GradientColor();
                     gc.gradient = newGradient;
                     rect.fillColor = gc;
+
+                    // Optionally register as Graphic Style / （任意）グラフィックスタイルに登録
+                    if (opts.registerGraphicStyle) {
+                        try {
+                            // Ensure the rectangle is selected for the action
+                            doc.selection = null;
+                            rect.selected = true;
+                            registerGraphicStyleFromSelected('AutoStyle');
+                        } catch (eGS) { }
+                    }
+
+                    // If rectangle output is OFF but style registration is ON, delete the temporary rectangle and clean up
+                    if (tempOnly) {
+                        try { rect.remove(); } catch (eRm) { }
+
+                        // Remove temp layer if we created it
+                        if (tempLayer) {
+                            try { tempLayer.remove(); } catch (eLayRm) { }
+                        }
+
+                        // Restore active layer
+                        try {
+                            if (prevActiveLayer) doc.activeLayer = prevActiveLayer;
+                        } catch (eRestoreAL) { }
+
+                        // Restore selection (best-effort)
+                        try {
+                            doc.selection = null;
+                            if (prevSelection && prevSelection.length) {
+                                doc.selection = prevSelection;
+                            }
+                        } catch (eRestoreSel) { }
+                    }
                 }
             } catch (eRect) { }
         }
