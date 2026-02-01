@@ -14,7 +14,7 @@ https://github.com/swwwitch/illustrator-scripts
 - ダイアログは日本語／英語の自動切り替えに対応（$.locale）。
 - ［連動］で左右の値を上下に反映できます。
 - ［レンガ状］：行ごとに左右位置を半ピッチずらして再配置します。
-- ［六角形］：［レンガ状］と併用し、奇数行を（幅+左右の値）の半分だけ横にずらし、行の高さだけ0.75倍にしてハニカム（六角形）状にします（上下の値はそのまま反映）。
+- ［ハニカム］：［レンガ状］と併用し、奇数行を（幅+左右の値）の半分だけ横にずらし、行の高さだけ0.75倍にしてハニカム状にします（上下の値はそのまま反映）。
 - ［強制グリッド］：位置の近さで列/行を推定せず、上→下の行ごとに左→右の順で(行,列)を割り当てて再配置します。
 - ［行列入れ替え］をONにすると、歯抜け（欠け）を許容しつつ行⇄列を転置します。
 - 1行だけ→1列、1列だけ→1行の転置にも対応します。
@@ -30,7 +30,7 @@ Illustrator Grid Re-spacing Script (always-on preview, link option)
 - The dialog supports automatic Japanese/English switching (based on $.locale).
 - The "Link" option mirrors the horizontal value to the vertical value.
 - "Brick": shifts every other row by a half pitch.
-- "Hexagon": used with "Brick"; compresses the vertical pitch (0.75×) to form a honeycomb layout.
+- "Honeycomb": used with "Brick"; shifts odd rows by half of the target cell pitch (width + H gap) and compresses only row height (0.75×) while keeping the V gap as-is, forming a honeycomb layout.
 - "Force Grid": assigns (row, col) by row-major order (top-to-bottom rows, left-to-right within each row) instead of inferring nearest columns/rows by position.
 - When "Swap Rows/Columns" is ON, it transposes rows/columns while tolerating missing cells.
 - Supports transposing a single row into a single column, and a single column into a single row.
@@ -126,7 +126,10 @@ var LABELS = {
         ja: "レンガ状",
         en: "Brick"
     },
-    hexagon: { ja: "六角形", en: "Hexagon" },
+    hexagon: {
+        ja: "ハニカム",
+        en: "Honeycomb"
+    },
     forceGrid: {
         ja: "強制グリッド",
         en: "Force Grid"
@@ -296,7 +299,7 @@ function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexa
     var chkBrick = gBrick.add('checkbox', undefined, L('brick'));
     chkBrick.value = false;
 
-    // 六角形（レンガ状のサブオプション）/ Hexagon (sub-option of Brick)
+    // ハニカム（レンガ状のサブオプション）/ Honeycomb (sub-option of Brick)
     var gHex = dlg.add('group');
     gHex.orientation = 'row';
     gHex.alignChildren = 'left';
