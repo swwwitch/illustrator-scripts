@@ -10,27 +10,41 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### 概要 / Overview:
 - 選択中のオブジェクトが「だいたいグリッド状」に並んでいることを前提に、左右・上下の間隔で再配置します。
+- 実行後に自動でグループ化はしません（選択状態のまま）。
 - ダイアログは日本語／英語の自動切り替えに対応（$.locale）。
 - ［連動］で左右の値を上下に反映できます。
+- ［レンガ状］：行ごとに左右位置を半ピッチずらして再配置します。
+- ［六角形］：［レンガ状］と併用し、奇数行を（幅+左右の値）の半分だけ横にずらし、行の高さだけ0.75倍にしてハニカム（六角形）状にします（上下の値はそのまま反映）。
+- ［強制グリッド］：位置の近さで列/行を推定せず、上→下の行ごとに左→右の順で(行,列)を割り当てて再配置します。
 - ［行列入れ替え］をONにすると、歯抜け（欠け）を許容しつつ行⇄列を転置します。
 - 1行だけ→1列、1列だけ→1行の転置にも対応します。
 
 ### 更新日 / Updated:
-- 2026-01-26
+- 2026-02-01
 
 Illustrator Grid Re-spacing Script (always-on preview, link option)
 
 - Assumes the selected objects are arranged in an "approximately grid-like" layout.
+- Does not auto-group results (keeps items selected).
 - Repositions them using the horizontal/vertical gaps entered in the dialog.
 - The dialog supports automatic Japanese/English switching (based on $.locale).
 - The "Link" option mirrors the horizontal value to the vertical value.
+- "Brick": shifts every other row by a half pitch.
+- "Hexagon": used with "Brick"; compresses the vertical pitch (0.75×) to form a honeycomb layout.
+- "Force Grid": assigns (row, col) by row-major order (top-to-bottom rows, left-to-right within each row) instead of inferring nearest columns/rows by position.
 - When "Swap Rows/Columns" is ON, it transposes rows/columns while tolerating missing cells.
 - Supports transposing a single row into a single column, and a single column into a single row.
 
 ### Updated:
-- 2026-01-26
+- 2026-02-01
 
 更新履歴 / Update history
+- 2026-02-01: v1.5.7 クリップグループはクリップパス基準でグリッド計算（六角形/ハニカムの整列を安定化）
+- 2026-02-01: v1.5.6 ［強制グリッド］オプションを追加（行ごと左→右の順でセル割り当て）
+- 2026-02-01: v1.5.3 ［六角形］オプションを追加（プレビュー/OKの分岐を修正）
+- 2026-02-01: v1.5.2 ［レンガ状］で六角形（ハニカム）配置に対応
+- 2026-02-01: v1.5.1 実行後にグループ化しないように変更
+- 2026-02-01: v1.5 ［レンガ状］チェックボックス（UIのみ）を追加
 - 2026-01-26: v1.4 1行→1列、1列→1行の転置に対応（行列入れ替え）
 - 2026-01-25: v1.3 ［行列入れ替え］のロジックを実装（歯抜け対応・左上基準）
 - 2026-01-25: v1.2 ［行列入れ替え］チェックボックス（UIのみ）を追加、冒頭コメントを更新
@@ -41,7 +55,10 @@ Illustrator Grid Re-spacing Script (always-on preview, link option)
 //
 // バージョン / Version
 //
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5.7";
+
+// 強制グリッド（ダイアログから切替）/ Force Grid mode (toggled from dialog)
+$.global.__regridForceGrid = $.global.__regridForceGrid || false;
 
 /* =========================================
  * PreviewHistory util (extractable)
@@ -54,18 +71,18 @@ var SCRIPT_VERSION = "v1.4";
  *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
  * ========================================= */
 
-(function(g){
+(function (g) {
     if (!g.PreviewHistory) {
         g.PreviewHistory = {
-            start: function(){ g.__previewUndoCount = 0; },
-            bump:  function(){ g.__previewUndoCount = (g.__previewUndoCount | 0) + 1; },
-            undo:  function(){
+            start: function () { g.__previewUndoCount = 0; },
+            bump: function () { g.__previewUndoCount = (g.__previewUndoCount | 0) + 1; },
+            undo: function () {
                 var n = g.__previewUndoCount | 0;
-                try { for (var i = 0; i < n; i++) app.executeMenuCommand('undo'); } catch (e) {}
+                try { for (var i = 0; i < n; i++) app.executeMenuCommand('undo'); } catch (e) { }
                 g.__previewUndoCount = 0;
             },
-            cancelTask: function(taskId){
-                try { if (taskId) app.cancelTask(taskId); } catch (e) {}
+            cancelTask: function (taskId) {
+                try { if (taskId) app.cancelTask(taskId); } catch (e) { }
             }
         };
     }
@@ -104,6 +121,15 @@ var LABELS = {
     link: {
         ja: "連動",
         en: "Link"
+    },
+    brick: {
+        ja: "レンガ状",
+        en: "Brick"
+    },
+    hexagon: { ja: "六角形", en: "Hexagon" },
+    forceGrid: {
+        ja: "強制グリッド",
+        en: "Force Grid"
     },
     transpose: {
         ja: "行列入れ替え",
@@ -216,7 +242,7 @@ function changeValueByArrowKey(editText) {
 /*
 ダイアログの生成と表示 / Build & show dialog
 */
-function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOriginalPositions, restoreInitialPositions, resetBaselineToCurrent, getCurrentUnitLabel, changeValueByArrowKey, initialGapX) {    // ここでタイトルとバージョンを合成 / combine title and version here
+function showGridSpacingDialog(applySpacing, applySpacingBrick, applySpacingHexagon, runTransposeIfNeeded, restoreOriginalPositions, restoreInitialPositions, resetBaselineToCurrent, getCurrentUnitLabel, changeValueByArrowKey, initialGapX) {    // ここでタイトルとバージョンを合成 / combine title and version here
     var dlgTitle = L('dialogTitle') + ' ' + SCRIPT_VERSION;
 
     var dlg = new Window('dialog', dlgTitle);
@@ -262,6 +288,31 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
     spacer.alignment = ['fill', 'fill'];
     var chkLink = colRight.add('checkbox', undefined, L('link'));
 
+    // レンガ状 / Brick
+    var gBrick = dlg.add('group');
+    gBrick.orientation = 'row';
+    gBrick.alignChildren = 'left';
+    gBrick.margins = [15, 0, 15, 0];
+    var chkBrick = gBrick.add('checkbox', undefined, L('brick'));
+    chkBrick.value = false;
+
+    // 六角形（レンガ状のサブオプション）/ Hexagon (sub-option of Brick)
+    var gHex = dlg.add('group');
+    gHex.orientation = 'row';
+    gHex.alignChildren = 'left';
+    gHex.margins = [30, 0, 15, 0];
+    var chkHex = gHex.add('checkbox', undefined, L('hexagon'));
+    chkHex.value = false;
+    chkHex.enabled = false;
+
+    // 強制グリッド / Force Grid
+    var gForce = dlg.add('group');
+    gForce.orientation = 'row';
+    gForce.alignChildren = 'left';
+    gForce.margins = [15, 0, 15, 0];
+    var chkForceGrid = gForce.add('checkbox', undefined, L('forceGrid'));
+    chkForceGrid.value = !!$.global.__regridForceGrid;
+
     // 行列入れ替え / Swap rows/columns
     var gTranspose = dlg.add('group');
     gTranspose.orientation = 'row';
@@ -282,6 +333,8 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
     inputV.enabled = false;
     inputV.text = inputH.text;
 
+    chkHex.enabled = chkBrick.value;
+
 
     // ボタン行 / buttons
     var gBtn = dlg.add('group');
@@ -295,7 +348,8 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
     function updatePreviewImpl() {
         // 直前のプレビューを一括Undo（ヒストリーを汚さない）/ Undo previous preview
         PreviewHistory.undo();
-
+        // 強制グリッドチェックボックスの状態をグローバルに反映
+        $.global.__regridForceGrid = !!chkForceGrid.value;
         // Undo後の現在位置を基準として originals/layoutInfo を作り直す
         resetBaselineToCurrent();
 
@@ -336,11 +390,20 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
 
             // 転置後の配置を新しい基準に / adopt transposed layout as baseline for spacing
             resetBaselineToCurrent();
-
-            applySpacing(gx, gy);
+            if (chkBrick.value) {
+                if (chkHex.value) applySpacingHexagon(gx, gy);
+                else applySpacingBrick(gx, gy);
+            } else {
+                applySpacing(gx, gy);
+            }
             PreviewHistory.bump();
         } else {
-            applySpacing(gx, gy);
+            if (chkBrick.value) {
+                if (chkHex.value) applySpacingHexagon(gx, gy);
+                else applySpacingBrick(gx, gy);
+            } else {
+                applySpacing(gx, gy);
+            }
             PreviewHistory.bump();
         }
     }
@@ -357,6 +420,7 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
         }
     };
     chkLink.onClick = function () { updatePreviewImpl(); };
+    chkForceGrid.onClick = function () { updatePreviewImpl(); };
     // 行列入れ替え / swap rows & columns
     chkTranspose.onClick = function () {
         if (chkTranspose.value) {
@@ -380,6 +444,18 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
             return;
         }
         // OFFは特に何もしない（ワンショットなので）
+    };
+
+    // レンガ状 / Brick
+    chkBrick.onClick = function () {
+        chkHex.enabled = chkBrick.value;
+        if (!chkBrick.value) chkHex.value = false;
+        updatePreviewImpl();
+    };
+
+    // 六角形 / Hexagon
+    chkHex.onClick = function () {
+        updatePreviewImpl();
     };
 
     // 開いたときに一度プレビュー / first preview when opened
@@ -409,9 +485,19 @@ function showGridSpacingDialog(applySpacing, runTransposeIfNeeded, restoreOrigin
             applySpacing(0, 0);
             runTransposeIfNeeded();
             resetBaselineToCurrent();
-            applySpacing(gx2, gy2);
+            if (chkBrick.value) {
+                if (chkHex.value) applySpacingHexagon(gx2, gy2);
+                else applySpacingBrick(gx2, gy2);
+            } else {
+                applySpacing(gx2, gy2);
+            }
         } else {
-            applySpacing(gx2, gy2);
+            if (chkBrick.value) {
+                if (chkHex.value) applySpacingHexagon(gx2, gy2);
+                else applySpacingBrick(gx2, gy2);
+            } else {
+                applySpacing(gx2, gy2);
+            }
         }
     } else {
         // キャンセル時：プレビュー分を一括Undoしてから初期状態へ / Undo preview then restore
@@ -453,16 +539,16 @@ function main() {
 
     // Sort selected items by top (Y) descending and left (X) ascending within same row
     var sortedByPosition = items.slice().sort(function (a, b) {
-        var ga = a.geometricBounds;
-        var gb = b.geometricBounds;
+        var ga = getLayoutBounds(a);
+        var gb = getLayoutBounds(b);
         if (Math.abs(ga[1] - gb[1]) < 1) {
             return ga[0] - gb[0]; // same row → compare left
         }
         return gb[1] - ga[1]; // sort by top descending
     });
 
-    var gb1 = sortedByPosition[0].geometricBounds;
-    var gb2 = sortedByPosition[1].geometricBounds;
+    var gb1 = getLayoutBounds(sortedByPosition[0]);
+    var gb2 = getLayoutBounds(sortedByPosition[1]);
     // ダイアログ初期値では負の値を使わない
     var initialGapX = gb2[0] - gb1[2];
     if (initialGapX < 0) initialGapX = 0;
@@ -470,7 +556,7 @@ function main() {
     // 元位置を保存 / save original positions
     var originals = [];
     for (var k = 0; k < items.length; k++) {
-        var gb = items[k].geometricBounds;
+        var gb = getLayoutBounds(items[k]);
         originals.push({
             item: items[k],
             left: gb[0],
@@ -492,11 +578,44 @@ function main() {
     function restoreFrom(snapshot) {
         for (var iR = 0; iR < snapshot.length; iR++) {
             var oR = snapshot[iR];
-            var gbR = oR.item.geometricBounds;
+            var gbR = getLayoutBounds(oR.item);
             var curLeftR = gbR[0];
             var curTopR = gbR[1];
             oR.item.translate(oR.left - curLeftR, oR.top - curTopR);
         }
+    }
+
+    /*
+レイアウト計算用の境界を取得 / Get bounds for layout calculation
+- クリップグループの場合はクリップパスの geometricBounds を優先
+- それ以外は item.geometricBounds
+*/
+    function getLayoutBounds(item) {
+        try {
+            if (!item) return item.geometricBounds;
+
+            if (item.typename === 'GroupItem' && item.clipped) {
+                // GroupItem の中から clipping パスを探す
+                if (item.pathItems && item.pathItems.length > 0) {
+                    for (var i = 0; i < item.pathItems.length; i++) {
+                        if (item.pathItems[i].clipping) return item.pathItems[i].geometricBounds;
+                    }
+                }
+                // CompoundPath が clipping のケース
+                if (item.compoundPathItems && item.compoundPathItems.length > 0) {
+                    for (var j = 0; j < item.compoundPathItems.length; j++) {
+                        var cpi = item.compoundPathItems[j];
+                        if (cpi.pathItems && cpi.pathItems.length > 0 && cpi.pathItems[0].clipping) {
+                            return cpi.pathItems[0].geometricBounds;
+                        }
+                    }
+                }
+                // fallback
+                return item.geometricBounds;
+            }
+        } catch (e) { }
+
+        return item.geometricBounds;
     }
 
     /*
@@ -508,7 +627,7 @@ function main() {
         var minH = Number.MAX_VALUE;
 
         for (var j = 0; j < items.length; j++) {
-            var b = items[j].geometricBounds;
+            var b = getLayoutBounds(items[j]);
             var w = b[2] - b[0];
             var h = b[1] - b[3];
             if (w < minW) minW = w;
@@ -606,16 +725,120 @@ function main() {
         };
     }
 
-    var layoutInfo = buildLayoutInfo();
+    var layoutInfo = ($.global.__regridForceGrid) ? buildLayoutInfoForceGrid() : buildLayoutInfo();
+
+    /*
+    強制グリッド：行ごと（上→下）に左→右で(行,列)を割り当て / Force Grid: row-major assignment
+    - 行はtop(Y)の近さでクラスタリング
+    - 各行の中はleft(X)でソート
+    - 欠け（歯抜け）は許容（行ごとに列数が異なってよい）
+    */
+    function buildLayoutInfoForceGrid() {
+        var bbs = [];
+        var minW = Number.MAX_VALUE;
+        var minH = Number.MAX_VALUE;
+
+        for (var j = 0; j < items.length; j++) {
+            var b = getLayoutBounds(items[j]);
+            var w = b[2] - b[0];
+            var h = b[1] - b[3];
+            if (w < minW) minW = w;
+            if (h < minH) minH = h;
+            bbs.push({ item: items[j], gb: b });
+        }
+
+        // 行まとめ（上→下）/ group rows (top -> bottom)
+        var rows = [];
+        var rowTolerance = minH * 0.5;
+        if (rowTolerance < 1) rowTolerance = 1;
+
+        var bbsY = bbs.slice().sort(function (a, b) { return b.gb[1] - a.gb[1]; });
+        for (var i = 0; i < bbsY.length; i++) {
+            var bb = bbsY[i];
+            var y = bb.gb[1];
+            var placed = false;
+            for (var r = 0; r < rows.length; r++) {
+                if (Math.abs(rows[r].y - y) <= rowTolerance) {
+                    rows[r].items.push(bb);
+                    rows[r].y = (rows[r].y * (rows[r].items.length - 1) + y) / rows[r].items.length;
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) rows.push({ y: y, items: [bb] });
+        }
+        rows.sort(function (a, b) { return b.y - a.y; });
+
+        // 各行の中を左→右で確定し、rowIndex/colIndexを付与 / sort within row and assign indices
+        var maxCols = 0;
+        for (var r2 = 0; r2 < rows.length; r2++) {
+            rows[r2].items.sort(function (a, b) { return a.gb[0] - b.gb[0]; });
+            if (rows[r2].items.length > maxCols) maxCols = rows[r2].items.length;
+            for (var c2 = 0; c2 < rows[r2].items.length; c2++) {
+                rows[r2].items[c2].rowIndex = r2;
+                rows[r2].items[c2].colIndex = c2;
+            }
+        }
+
+        // colWidths（列ごとの最大幅）/ max width per column index
+        var colWidths = [];
+        for (var c3 = 0; c3 < maxCols; c3++) {
+            var maxW = 0;
+            for (var r3 = 0; r3 < rows.length; r3++) {
+                if (rows[r3].items.length > c3) {
+                    var gb2 = rows[r3].items[c3].gb;
+                    var w2 = gb2[2] - gb2[0];
+                    if (w2 > maxW) maxW = w2;
+                }
+            }
+            colWidths.push(maxW);
+        }
+
+        // rowHeights（行ごとの最大高さ）/ max height per row
+        var rowHeights = [];
+        for (var r4 = 0; r4 < rows.length; r4++) {
+            var maxH = 0;
+            for (var k = 0; k < rows[r4].items.length; k++) {
+                var gb3 = rows[r4].items[k].gb;
+                var h3 = gb3[1] - gb3[3];
+                if (h3 > maxH) maxH = h3;
+            }
+            rowHeights.push(maxH);
+        }
+
+        // baseX/baseY は最左/最上 / baseX/baseY = top-left
+        var baseX = Number.MAX_VALUE;
+        var baseY = Number.MIN_VALUE;
+        for (var q = 0; q < bbs.length; q++) {
+            if (bbs[q].gb[0] < baseX) baseX = bbs[q].gb[0];
+            if (bbs[q].gb[1] > baseY) baseY = bbs[q].gb[1];
+        }
+
+        // ダミーのcolCenters/rowCenters（互換のため）/ dummy centers (compat)
+        var colCenters = [];
+        for (var cc = 0; cc < maxCols; cc++) colCenters.push({ x: baseX, items: [] });
+        var rowCenters = [];
+        for (var rr = 0; rr < rows.length; rr++) rowCenters.push({ y: rows[rr].y, items: rows[rr].items });
+
+        return {
+            bbs: bbs,
+            colCenters: colCenters,
+            rowCenters: rowCenters,
+            colWidths: colWidths,
+            rowHeights: rowHeights,
+            baseX: baseX,
+            baseY: baseY
+        };
+    }
 
     // 現在位置を新しい基準（originals + layoutInfo）として再設定 / Reset baseline to current layout
     function resetBaselineToCurrent() {
         originals = [];
         for (var kB = 0; kB < items.length; kB++) {
-            var gbB = items[kB].geometricBounds;
+            var gbB = getLayoutBounds(items[kB]);
             originals.push({ item: items[kB], left: gbB[0], top: gbB[1] });
         }
-        layoutInfo = buildLayoutInfo();
+        layoutInfo = ($.global.__regridForceGrid) ? buildLayoutInfoForceGrid() : buildLayoutInfo();
     }
 
     /*
@@ -804,25 +1027,25 @@ function main() {
                 origTop = cur.gb[1];
             }
 
-            // 最も近い列 / nearest column
-            var colIndex = 0;
-            var minDX = Number.MAX_VALUE;
-            for (var c2 = 0; c2 < colCenters.length; c2++) {
-                var dx = Math.abs(colCenters[c2].x - cur.gb[0]);
-                if (dx < minDX) {
-                    minDX = dx;
-                    colIndex = c2;
+            // Force Gridでは事前に割り当てた(row,col)を優先 / In Force Grid, prefer pre-assigned (row,col)
+            var colIndex = (typeof cur.colIndex === 'number') ? cur.colIndex : null;
+            var rowIndex = (typeof cur.rowIndex === 'number') ? cur.rowIndex : null;
+
+            if (colIndex === null) {
+                colIndex = 0;
+                var minDX = Number.MAX_VALUE;
+                for (var c2 = 0; c2 < colCenters.length; c2++) {
+                    var dx = Math.abs(colCenters[c2].x - cur.gb[0]);
+                    if (dx < minDX) { minDX = dx; colIndex = c2; }
                 }
             }
 
-            // 最も近い行 / nearest row
-            var rowIndex = 0;
-            var minDY = Number.MAX_VALUE;
-            for (var r2 = 0; r2 < rowCenters.length; r2++) {
-                var dy = Math.abs(rowCenters[r2].y - cur.gb[1]);
-                if (dy < minDY) {
-                    minDY = dy;
-                    rowIndex = r2;
+            if (rowIndex === null) {
+                rowIndex = 0;
+                var minDY = Number.MAX_VALUE;
+                for (var r2 = 0; r2 < rowCenters.length; r2++) {
+                    var dy = Math.abs(rowCenters[r2].y - cur.gb[1]);
+                    if (dy < minDY) { minDY = dy; rowIndex = r2; }
                 }
             }
 
@@ -847,9 +1070,225 @@ function main() {
         app.redraw();
     }
 
+    // 数値配列の隣接差分の中央値 / Median of adjacent diffs (ascending)
+    function medianAdjacentDiff(sortedAsc) {
+        if (!sortedAsc || sortedAsc.length < 2) return 0;
+        var diffs = [];
+        for (var i = 1; i < sortedAsc.length; i++) {
+            diffs.push(Math.abs(sortedAsc[i] - sortedAsc[i - 1]));
+        }
+        diffs.sort(function (a, b) { return a - b; });
+        return diffs[Math.floor(diffs.length / 2)];
+    }
+
+    // 六角形っぽいか判定（PathItem 6点）/ Detect hexagon-like paths (6 points)
+    function isHexagonLike(item) {
+        try {
+            if (!item) return false;
+            if (item.typename === 'PathItem') {
+                return !!item.closed && item.pathPoints && item.pathPoints.length === 6;
+            }
+            if (item.typename === 'CompoundPathItem') {
+                if (item.pathItems && item.pathItems.length > 0) {
+                    var p = item.pathItems[0];
+                    return !!p.closed && p.pathPoints && p.pathPoints.length === 6;
+                }
+            }
+        } catch (e) { }
+        return false;
+    }
+
+    // 選択が六角形中心か（過半数）/ Is the selection mostly hexagons?
+    function isMostlyHexagons(itemsArr) {
+        if (!itemsArr || itemsArr.length === 0) return false;
+        var hexCount = 0;
+        for (var i = 0; i < itemsArr.length; i++) {
+            if (isHexagonLike(itemsArr[i])) hexCount++;
+        }
+        return hexCount >= Math.ceil(itemsArr.length * 0.5);
+    }
+
+    /* 間隔を適用（レンガ状）/ apply spacing (brick layout) */
+    function applySpacingBrick(gapX, gapY) {
+        // いったん元に戻す / restore first
+        restoreOriginalPositions();
+
+        var bbs = layoutInfo.bbs;
+        var colCenters = layoutInfo.colCenters;
+        var rowCenters = layoutInfo.rowCenters;
+        var colWidths = layoutInfo.colWidths;
+        var rowHeights = layoutInfo.rowHeights;
+        var baseX = layoutInfo.baseX;
+        var baseY = layoutInfo.baseY;
+
+        // 列ピッチ（目標）：幅 + gapX を基準にする / Target column pitch: width + gapX
+        var wArr = [];
+        if (colWidths && colWidths.length > 0) {
+            for (var wi = 0; wi < colWidths.length; wi++) wArr.push(colWidths[wi]);
+            wArr.sort(function (a, b) { return a - b; });
+        }
+        var baseW = (wArr.length > 0) ? wArr[Math.floor(wArr.length / 2)] : 0; // median width
+        var pitch = (baseW > 0) ? (baseW + gapX) : 0;
+
+        // fallback：列が1つ等で推定できない場合は現状の列位置差 / fallback to current centers diff
+        if (pitch === 0) {
+            var colX = [];
+            for (var iC = 0; iC < colCenters.length; iC++) colX.push(colCenters[iC].x);
+            colX.sort(function (a, b) { return a - b; });
+            pitch = medianAdjacentDiff(colX);
+        }
+        var halfPitch = pitch / 2.0;
+
+        for (var k2 = 0; k2 < bbs.length; k2++) {
+            var cur = bbs[k2];
+
+            // 元座標を探す / find original
+            var origLeft = null, origTop = null;
+            for (var oo = 0; oo < originals.length; oo++) {
+                if (originals[oo].item === cur.item) {
+                    origLeft = originals[oo].left;
+                    origTop = originals[oo].top;
+                    break;
+                }
+            }
+            if (origLeft === null) {
+                origLeft = cur.gb[0];
+                origTop = cur.gb[1];
+            }
+
+            // Force Gridでは事前に割り当てた(row,col)を優先 / In Force Grid, prefer pre-assigned (row,col)
+            var colIndex = (typeof cur.colIndex === 'number') ? cur.colIndex : null;
+            var rowIndex = (typeof cur.rowIndex === 'number') ? cur.rowIndex : null;
+
+            if (colIndex === null) {
+                colIndex = 0;
+                var minDX = Number.MAX_VALUE;
+                for (var c2 = 0; c2 < colCenters.length; c2++) {
+                    var dx = Math.abs(colCenters[c2].x - cur.gb[0]);
+                    if (dx < minDX) { minDX = dx; colIndex = c2; }
+                }
+            }
+
+            if (rowIndex === null) {
+                rowIndex = 0;
+                var minDY = Number.MAX_VALUE;
+                for (var r2 = 0; r2 < rowCenters.length; r2++) {
+                    var dy = Math.abs(rowCenters[r2].y - cur.gb[1]);
+                    if (dy < minDY) { minDY = dy; rowIndex = r2; }
+                }
+            }
+
+            // 新しいX / new X
+            var newX = baseX;
+            for (var cc2 = 0; cc2 < colIndex; cc2++) {
+                newX += colWidths[cc2] + gapX;
+            }
+
+            // 新しいY / new Y
+            var newY = baseY;
+            for (var rr2 = 0; rr2 < rowIndex; rr2++) {
+                newY -= (rowHeights[rr2] + gapY);
+            }
+
+            // レンガ状：奇数行を半ピッチずらす / Brick: shift odd rows by half pitch
+            if (halfPitch !== 0 && (rowIndex % 2 === 1)) {
+                newX += halfPitch;
+            }
+
+            var dxMove = newX - origLeft;
+            var dyMove = newY - origTop;
+            cur.item.translate(dxMove, dyMove);
+        }
+
+        app.redraw();
+    }
+    /* 間隔を適用（六角形/ハニカム）/ apply spacing (hexagon/honeycomb layout) */
+    function applySpacingHexagon(gapX, gapY) {
+        restoreOriginalPositions();
+
+        var bbs = layoutInfo.bbs;
+        var colCenters = layoutInfo.colCenters;
+        var rowCenters = layoutInfo.rowCenters;
+        var colWidths = layoutInfo.colWidths;
+        var rowHeights = layoutInfo.rowHeights;
+        var baseX = layoutInfo.baseX;
+        var baseY = layoutInfo.baseY;
+
+        // 列ピッチ（目標）：幅 + gapX を基準にする / Target column pitch: width + gapX
+        var wArr = [];
+        if (colWidths && colWidths.length > 0) {
+            for (var wi = 0; wi < colWidths.length; wi++) wArr.push(colWidths[wi]);
+            wArr.sort(function (a, b) { return a - b; });
+        }
+        var baseW = (wArr.length > 0) ? wArr[Math.floor(wArr.length / 2)] : 0; // median width
+        var pitch = (baseW > 0) ? (baseW + gapX) : 0;
+        // fallback：列が1つ等で推定できない場合は現状の列位置差 / fallback to current centers diff
+        if (pitch === 0) {
+            var colX = [];
+            for (var iC = 0; iC < colCenters.length; iC++) colX.push(colCenters[iC].x);
+            colX.sort(function (a, b) { return a - b; });
+            pitch = medianAdjacentDiff(colX);
+        }
+        var halfPitch = pitch / 2.0;
+
+        var rowStepFactor = 0.75;
+
+        for (var k2 = 0; k2 < bbs.length; k2++) {
+            var cur = bbs[k2];
+
+            var origLeft = null, origTop = null;
+            for (var oo = 0; oo < originals.length; oo++) {
+                if (originals[oo].item === cur.item) {
+                    origLeft = originals[oo].left;
+                    origTop = originals[oo].top;
+                    break;
+                }
+            }
+            if (origLeft === null) { origLeft = cur.gb[0]; origTop = cur.gb[1]; }
+
+            // Force Gridでは事前に割り当てた(row,col)を優先 / In Force Grid, prefer pre-assigned (row,col)
+            var colIndex = (typeof cur.colIndex === 'number') ? cur.colIndex : null;
+            var rowIndex = (typeof cur.rowIndex === 'number') ? cur.rowIndex : null;
+
+            if (colIndex === null) {
+                colIndex = 0;
+                var minDX = Number.MAX_VALUE;
+                for (var c2 = 0; c2 < colCenters.length; c2++) {
+                    var dx = Math.abs(colCenters[c2].x - cur.gb[0]);
+                    if (dx < minDX) { minDX = dx; colIndex = c2; }
+                }
+            }
+
+            if (rowIndex === null) {
+                rowIndex = 0;
+                var minDY = Number.MAX_VALUE;
+                for (var r2 = 0; r2 < rowCenters.length; r2++) {
+                    var dy = Math.abs(rowCenters[r2].y - cur.gb[1]);
+                    if (dy < minDY) { minDY = dy; rowIndex = r2; }
+                }
+            }
+
+            var newX = baseX;
+            for (var cc2 = 0; cc2 < colIndex; cc2++) newX += colWidths[cc2] + gapX;
+
+            var newY = baseY;
+            for (var rr2 = 0; rr2 < rowIndex; rr2++) {
+                newY -= (rowHeights[rr2] * rowStepFactor) + gapY;
+            }
+
+            if (halfPitch !== 0 && (rowIndex % 2 === 1)) newX += halfPitch;
+
+            cur.item.translate(newX - origLeft, newY - origTop);
+        }
+
+        app.redraw();
+    }
+
     // ダイアログ表示 / show dialog
     showGridSpacingDialog(
         applySpacing,
+        applySpacingBrick,
+        applySpacingHexagon,
         transposeGridWithHoles,
         restoreOriginalPositions,
         restoreInitialPositions,
