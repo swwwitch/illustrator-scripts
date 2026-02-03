@@ -12,7 +12,7 @@ SmartBaselineShifter.jsx
 https://github.com/creold/illustrator-scripts
 
 ### 概要：
-
+- 更新日: 20260203
 - 指定した文字を基準文字の位置に合わせてベースラインを調整
 - 選択中の複数テキストフレームに一括適用可能
 
@@ -42,6 +42,8 @@ https://note.com/dtp_tranist/n/n5e41727cf265
 - v1.7 (20250716): コード整理、プレビュー改善
 - v1.8 (20250720): 自動計算機能を追加
 - v1.9 (20250721): ツールチップを実装
+- v2.0 (20260203): OK押下後の確定処理を実装
+- v2.1 (20260203): プレビューのUndo汚染を防止（PreviewManager導入）／OKで1回Undo可能に
 
 ---
 
@@ -54,7 +56,7 @@ SmartBaselineShifter.jsx
 https://github.com/creold/illustrator-scripts
 
 ### Overview:
-
+- Updated: 20260203
 - Adjust baseline of specified characters to align with reference character
 - Supports batch application to multiple selected text frames
 
@@ -80,14 +82,16 @@ Egor Chistyakov https://x.com/tchegr
 - v1.7 (20250716): Refactoring, improved preview
 - v1.8 (20250720): Added automatic calculation feature
 - v1.9 (20250721): Implemented tooltips
+- v2.0 (20260203): Implemented final apply on OK
+- v2.1 (20260203): Prevented Undo pollution during preview (introduced PreviewManager) / Single Undo on OK
 
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.9";
+var SCRIPT_VERSION = "v2.1";
 
 function getCurrentLang() {
-  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
@@ -180,6 +184,49 @@ var LABELS = {
     }
 };
 
+/* =========================================
+ * PreviewManager util
+ * プレビュー時の履歴管理と一括Undoを制御するクラス
+ * - addStep(): 変更を実行してUndo回数をカウント
+ * - rollback(): プレビューで行った変更を全てUndo
+ * - confirm(finalAction): rollback後に本番処理を1回だけ実行
+ * ========================================= */
+function PreviewManager() {
+    this.undoDepth = 0;
+
+    this.addStep = function (func) {
+        try {
+            func();
+            this.undoDepth++;
+            app.redraw();
+        } catch (e) {
+            // プレビュー中にアラート連発は邪魔なので黙殺（必要なら一時的にalert復活）
+            // alert("Preview Error: " + e);
+        }
+    };
+
+    this.rollback = function () {
+        while (this.undoDepth > 0) {
+            try {
+                app.undo();
+            } catch (e) {
+                break;
+            }
+            this.undoDepth--;
+        }
+        app.redraw();
+    };
+
+    this.confirm = function (finalAction) {
+        if (finalAction) {
+            this.rollback();
+            finalAction();
+        } else {
+            this.undoDepth = 0;
+        }
+    };
+}
+
 /* 言語判定 / Determine language from locale */
 // (Removed old getLang, using getCurrentLang and lang variable)
 
@@ -227,8 +274,8 @@ function getCurrentUnitLabel() {
 
 
 /* EditTextで上下キーによる値の増減を実装 / Enable arrow key increment/decrement on EditText */
-function changeValueByArrowKey(editText, allowNegative, targetInput, textFrames) {
-    editText.addEventListener("keydown", function(event) {
+function changeValueByArrowKey(editText, allowNegative, targetInput, textFrames, previewMgr) {
+    editText.addEventListener("keydown", function (event) {
         var value = Number(editText.text);
         if (isNaN(value)) return;
 
@@ -276,7 +323,7 @@ function changeValueByArrowKey(editText, allowNegative, targetInput, textFrames)
         editText.text = value;
         /* プレビュー更新 / Update preview */
         if (typeof previewShiftAll === "function" && targetInput && textFrames) {
-            previewShiftAll(targetInput, editText, textFrames);
+            previewShiftAll(targetInput, editText, textFrames, previewMgr || null);
         }
     });
 }
@@ -293,32 +340,49 @@ function applyBaselineShiftToChars(textFrame, targetChar, yOffset) {
 }
 
 /* プレビューとして全選択テキストのベースラインシフトを更新 / Preview baseline shift for all selected text */
-function previewShiftAll(targetInput, shiftInput, textFrames) {
+function previewShiftAll(targetInput, shiftInput, textFrames, previewMgr) {
     var targetText = targetInput.text;
     var shiftValue = parseFloat(shiftInput.text);
     if (isNaN(shiftValue)) shiftValue = 0;
 
-    if (!targetText || isNaN(shiftValue)) {
-        resetBaselineShift(textFrames);
+    if (!previewMgr) {
+        // Fallback（通常はshowDialog内から呼ぶのでここには来ない想定）
+        if (!targetText) {
+            resetBaselineShift(textFrames);
+            app.redraw();
+            return;
+        }
+        applyShiftAll(targetText, shiftValue, textFrames);
         app.redraw();
         return;
     }
 
+    // Always rollback previous preview first
+    previewMgr.rollback();
+
+    if (!targetText) {
+        // Nothing to preview
+        return;
+    }
+
+    previewMgr.addStep(function () {
+        applyShiftAll(targetText, shiftValue, textFrames);
+    });
+}
+
+/* ベースラインシフトを適用（共通処理） / Apply baseline shift (shared) */
+function applyShiftAll(targetText, shiftValue, textFrames) {
     resetBaselineShift(textFrames);
 
     for (var j = 0; j < textFrames.length; j++) {
         var tf = textFrames[j];
-        var contents = tf.contents;
-        /* 対象文字を検出 / Detect target character */
         for (var c = 0; c < targetText.length; c++) {
             var ch = targetText.charAt(c);
-            // Instead of duplicating logic, use the helper function
             applyBaselineShiftToChars(tf, ch, -shiftValue);
         }
     }
-
-    app.redraw();
 }
+
 
 /* アイテムのジオメトリック境界から中心Y座標を取得 / Get center Y coordinate from geometric bounds */
 function getCenterY(item) {
@@ -360,9 +424,24 @@ function getSymbolFrequency(sel) {
 function resetBaselineShift(textFrames) {
     for (var i = 0; i < textFrames.length; i++) {
         var tf = textFrames[i];
-        var chars = tf.textRange.characters;
-        for (var j = 0; j < chars.length; j++) {
-            chars[j].characterAttributes.baselineShift = 0;
+        try {
+            // Strongest: clear per-character overrides in one go
+            tf.textRange.characters.everyItem().characterAttributes.baselineShift = 0;
+        } catch (e) {
+            try {
+                // Next best: apply to the whole range
+                tf.textRange.characterAttributes.baselineShift = 0;
+            } catch (e2) {
+                // Fallback: per-character reset
+                try {
+                    var chars = tf.textRange.characters;
+                    for (var j = 0; j < chars.length; j++) {
+                        chars[j].characterAttributes.baselineShift = 0;
+                    }
+                } catch (e3) {
+                    // Ignore frames that cannot be processed
+                }
+            }
         }
     }
 }
@@ -373,6 +452,9 @@ function showDialog(textFrames) {
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "left";
+
+    // Preview manager (undo-safe preview)
+    var previewMgr = new PreviewManager();
 
     // 1️⃣ プレビュー制御用フラグ / Preview control flag
     var enablePreview = true;
@@ -408,18 +490,24 @@ function showDialog(textFrames) {
     targetInput.characters = 6;
     targetInput.active = true;
     targetInput.helpTip = LABELS.helpTips.targetInput[lang];
+    targetInput.onChanging = updatePreview;
 
     var shiftGroup = inputGroup.add("group");
     shiftGroup.add("statictext", undefined, LABELS.shiftAmountLabel[lang]);
     var shiftInput = shiftGroup.add("edittext", undefined, "0");
     var unitLabel = shiftGroup.add("statictext", undefined, getCurrentUnitLabel());
     shiftInput.characters = 6;
-    changeValueByArrowKey(shiftInput, true, targetInput, textFrames);
+    changeValueByArrowKey(shiftInput, true, targetInput, textFrames, previewMgr);
     // 2️⃣ プレビュー制御フラグを用いたonChanging / Use preview control flag in onChanging
-    shiftInput.onChanging = function() {
-        if (!enablePreview) return;
-        previewShiftAll(targetInput, shiftInput, textFrames);
+    shiftInput.onChanging = function () {
+        updatePreview();
     };
+
+    function updatePreview() {
+        if (!enablePreview) return;
+        previewShiftAll(targetInput, shiftInput, textFrames, previewMgr);
+    }
+
     shiftInput.active = true;
     shiftGroup.margins = [0, 0, 0, 10];
     shiftInput.helpTip = LABELS.helpTips.shiftInput[lang];
@@ -453,18 +541,27 @@ function showDialog(textFrames) {
     var resetBtn = buttonGroup.add("button", undefined, LABELS.resetBtnLabel[lang]);
     resetBtn.helpTip = LABELS.helpTips.resetBtn[lang];
 
-    resetBtn.onClick = function() {
+    resetBtn.onClick = function () {
         if (!textFrames || textFrames.length == 0) {
             alert(LABELS.selectFrameMsg[lang]);
             return;
         }
-        resetBaselineShift(textFrames);
+
+        // Avoid immediate re-preview while resetting UI values
+        enablePreview = false;
+
+        // Rollback any previous preview and apply reset as a single preview step
+        previewMgr.rollback();
+        previewMgr.addStep(function () {
+            resetBaselineShift(textFrames);
+        });
+
         shiftInput.text = "0";
-        app.redraw();
+        enablePreview = true;
     };
 
     /* 自動調整ボタンのクリック処理 / Auto adjust button click */
-    calBtn.onClick = function() {
+    calBtn.onClick = function () {
         if (targetInput.text.length == 0) {
             alert(LABELS.invalidCharMsg[lang]);
             return;
@@ -495,7 +592,7 @@ function showDialog(textFrames) {
                     var targetCenterY = createOutlineAndGetCenterY(item, targetChar);
                     var yOffset = refCenterY - targetCenterY;
                     shiftInput.text = yOffset.toFixed(4);
-                    previewShiftAll(targetInput, shiftInput, textFrames);
+                    updatePreview();
                     return;
                 }
             }
@@ -503,7 +600,7 @@ function showDialog(textFrames) {
     };
 
     /* OKボタンのクリック処理 / Final OK button click */
-    finalOkBtn.onClick = function() {
+    finalOkBtn.onClick = function () {
         if (targetInput.text.length == 0) {
             alert(LABELS.invalidCharMsg[lang]);
             return;
@@ -515,11 +612,22 @@ function showDialog(textFrames) {
         }
         // 3️⃣ OKボタン押下時にプレビュー無効化 / Disable preview on OK
         enablePreview = false;
+
+        // Confirm: rollback preview and apply final action once (single undo step)
+        var t = targetInput.text;
+        var s = Number(shiftInput.text);
+        if (isNaN(s)) s = 0;
+
+        previewMgr.confirm(function () {
+            applyShiftAll(t, s, textFrames);
+        });
+
         dialog.close(1);
     };
 
     /* キャンセルボタンのクリック処理 / Cancel button click */
-    cancelBtn.onClick = function() {
+    cancelBtn.onClick = function () {
+        previewMgr.rollback();
         dialog.close(0);
     };
 
@@ -568,7 +676,7 @@ function main() {
                 app.selection = [textFramesInStory[0]];
                 try {
                     app.selectTool("Adobe Select Tool");
-                } catch (e) {}
+                } catch (e) { }
             }
         }
         // -----------------------------------------------------------------------
@@ -587,6 +695,9 @@ function main() {
 
         var input = showDialog(textFrames);
         if (!input) return;
+
+        // OK時にPreviewManager.confirm()で確定適用済み
+        // (Undoは1回で戻せる)
 
     } catch (e) {
         alert(LABELS.errorMsg[lang] + e);
