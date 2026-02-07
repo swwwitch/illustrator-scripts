@@ -88,7 +88,7 @@ Egor Chistyakov https://x.com/tchegr
 */
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v2.1";
+var SCRIPT_VERSION = "v2.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -210,6 +210,8 @@ function PreviewManager() {
             try {
                 app.undo();
             } catch (e) {
+                // If undo fails, prevent counter drift
+                this.undoDepth = 0;
                 break;
             }
             this.undoDepth--;
@@ -392,13 +394,29 @@ function getCenterY(item) {
 
 /* 指定文字でアウトラインを作成し中心Y座標を取得 / Create outline for character and get center Y */
 function createOutlineAndGetCenterY(textFrame, character) {
-    var tempFrame = textFrame.duplicate();
-    tempFrame.contents = character;
-    tempFrame.filled = false;
-    tempFrame.stroked = false;
-    var outline = tempFrame.createOutline();
-    var centerY = getCenterY(outline);
-    outline.remove();
+    var tempFrame = null;
+    var outline = null;
+    var centerY = 0;
+
+    try {
+        tempFrame = textFrame.duplicate();
+        tempFrame.contents = character;
+        tempFrame.filled = false;
+        tempFrame.stroked = false;
+
+        outline = tempFrame.createOutline();
+        centerY = getCenterY(outline);
+
+    } finally {
+        // Ensure cleanup even if createOutline() fails
+        try {
+            if (outline) outline.remove();
+        } catch (e1) { }
+        try {
+            if (tempFrame) tempFrame.remove();
+        } catch (e2) { }
+    }
+
     return centerY;
 }
 
@@ -447,14 +465,14 @@ function resetBaselineShift(textFrames) {
 }
 
 /* 対象文字と基準文字を入力するダイアログを表示 / Show dialog to input target and reference characters */
-function showDialog(textFrames) {
+function showDialog(textFrames, previewMgr) {
     // var lang = getLang(); // Use global lang
     var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
     dialog.orientation = "column";
     dialog.alignChildren = "left";
 
-    // Preview manager (undo-safe preview)
-    var previewMgr = new PreviewManager();
+    // Preview manager is provided by main()
+    if (!previewMgr) previewMgr = new PreviewManager();
 
     // 1️⃣ プレビュー制御用フラグ / Preview control flag
     var enablePreview = true;
@@ -613,15 +631,7 @@ function showDialog(textFrames) {
         // 3️⃣ OKボタン押下時にプレビュー無効化 / Disable preview on OK
         enablePreview = false;
 
-        // Confirm: rollback preview and apply final action once (single undo step)
-        var t = targetInput.text;
-        var s = Number(shiftInput.text);
-        if (isNaN(s)) s = 0;
-
-        previewMgr.confirm(function () {
-            applyShiftAll(t, s, textFrames);
-        });
-
+        // Do not confirm here; main() will confirm to keep undo as a single step
         dialog.close(1);
     };
 
@@ -693,11 +703,23 @@ function main() {
             return;
         }
 
-        var input = showDialog(textFrames);
-        if (!input) return;
+        // Preview manager shared with dialog (undo-safe preview)
+        var previewMgr = new PreviewManager();
 
-        // OK時にPreviewManager.confirm()で確定適用済み
-        // (Undoは1回で戻せる)
+        var input = showDialog(textFrames, previewMgr);
+        if (!input) {
+            // showDialog already rolled back on cancel
+            return;
+        }
+
+        // Confirm in main: rollback preview and apply final action once (single undo step)
+        var t = input.target;
+        var s = Number(input.shift);
+        if (isNaN(s)) s = 0;
+
+        previewMgr.confirm(function () {
+            applyShiftAll(t, s, textFrames);
+        });
 
     } catch (e) {
         alert(LABELS.errorMsg[lang] + e);

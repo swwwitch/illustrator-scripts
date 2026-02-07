@@ -11,6 +11,7 @@ ApplySwatchesToSelection.jsx
 
 - 選択したオブジェクトまたはテキストに、スウォッチや定義済みカラーを自動適用するスクリプトです。
 - CMYK / RGB カラーモードに応じてカラーを使い分けます。
+- 複数テキストオブジェクトはテキストオブジェクト単位で色付け（単一テキストは文字単位）
 
 ### 主な機能
 
@@ -31,6 +32,7 @@ ApplySwatchesToSelection.jsx
 - v1.0.0 (20241103) : 初期バージョン
 - v1.1.0 (20250625) : スウォッチ未選択時の全プロセス対応
 - v1.2.0 (20250708) : CMYK/RGB切替対応
+- v1.3.0 (20260207) : 複数テキスト選択時はテキストオブジェクト単位で色付け（グループ内も対応）
 
 ---
 
@@ -42,6 +44,7 @@ ApplySwatchesToSelection.jsx
 
 - A script to automatically apply swatches or predefined colors to selected objects or text.
 - Switches colors depending on document color mode (CMYK or RGB).
+- Colors multiple selected text objects per text object (single text is per character).
 
 ### Main Features
 
@@ -62,6 +65,7 @@ ApplySwatchesToSelection.jsx
 - v1.0.0 (20241103): Initial version
 - v1.1.0 (20250625): Added process swatch fallback when no swatches selected
 - v1.2.0 (20250708): Added CMYK/RGB mode switch support
+- v1.3.0 (20260207): Color multiple selected text objects per text object (also supports text inside groups)
 
 */
 
@@ -99,10 +103,13 @@ function main() {
             return;
         }
         var activeDoc = app.activeDocument;
-        var selectedItems = app.selection;
+        // 選択をフラット化（グループ内のテキスト/パスも対象にする）
+        var selectedItems = flattenSelection(app.selection);
+        // テキスト編集中に文字範囲が選択されている場合（TextRange）
+        var selectedTextRange = getSingleSelectedTextRange(app.selection);
 
         // 選択オブジェクトがあるか確認
-        if (selectedItems.length === 0) {
+        if ((selectedItems.length === 0) && !selectedTextRange) {
             alert(LABELS.errNoSelection[lang]);
             return;
         }
@@ -168,8 +175,16 @@ function main() {
             selectedSwatches = shuffleArray(selectedSwatches);
         }
 
-        // 選択が単一テキストフレームの場合は文字単位で色付け
-        if (selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") {
+        // 単一テキスト（テキストフレーム or TextRange）の場合は文字単位で色付け
+        if (selectedTextRange) {
+            var chars = selectedTextRange.characters;
+            for (var i = 0; i < chars.length; i++) {
+                var swatchColor = getSwatchColor(i, selectedSwatches);
+                chars[i].fillColor = swatchColor;
+                chars[i].strokeColor = new NoColor();
+                chars[i].opacity = 100;
+            }
+        } else if (selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") {
             var selectedTextFrame = selectedItems[0];
             var charCount = selectedTextFrame.contents.length;
             for (var i = 0; i < charCount; i++) {
@@ -184,10 +199,12 @@ function main() {
             for (var i = 0; i < selectedItems.length; i++) {
                 var swatchColor = getSwatchColor(i, selectedSwatches);
                 var currentItem = selectedItems[i];
+
                 if (currentItem.typename === "PathItem") {
                     currentItem.fillColor = swatchColor;
                     currentItem.stroked = false;
                     currentItem.opacity = 100;
+
                 } else if (currentItem.typename === "CompoundPathItem" && currentItem.pathItems.length > 0) {
                     var pathItems = currentItem.pathItems;
                     for (var j = 0; j < pathItems.length; j++) {
@@ -195,7 +212,9 @@ function main() {
                         pathItems[j].stroked = false;
                         pathItems[j].opacity = 100;
                     }
+
                 } else if (currentItem.typename === "TextFrame") {
+                    // 複数テキストはテキストオブジェクト単位で色付け
                     currentItem.textRange.fillColor = swatchColor;
                     currentItem.textRange.strokeColor = new NoColor();
                     currentItem.textRange.opacity = 100;
@@ -205,6 +224,48 @@ function main() {
     } catch (e) {
         alert(LABELS.errUnexpected[lang] + e.message);
     }
+}
+
+// 選択をフラット化して、色付け対象（PathItem / CompoundPathItem / TextFrame）だけを収集
+function flattenSelection(selection) {
+    var result = [];
+    if (!selection || selection.length === 0) return result;
+
+    for (var i = 0; i < selection.length; i++) {
+        collectColorTargets(selection[i], result);
+    }
+
+    return result;
+}
+
+function collectColorTargets(item, outArr) {
+    if (!item) return;
+
+    // 直接対象
+    if (item.typename === "PathItem" || item.typename === "CompoundPathItem" || item.typename === "TextFrame") {
+        outArr.push(item);
+        return;
+    }
+
+    // グループ内を再帰的に探索
+    if (item.typename === "GroupItem") {
+        var pageItems = item.pageItems;
+        for (var i = 0; i < pageItems.length; i++) {
+            collectColorTargets(pageItems[i], outArr);
+        }
+        return;
+    }
+
+    // それ以外（PlacedItem 等）は無視
+}
+
+// テキスト編集中に文字範囲が選択されているケース（TextRange）を取得
+function getSingleSelectedTextRange(selection) {
+    try {
+        if (!selection || selection.length !== 1) return null;
+        if (selection[0] && selection[0].typename === "TextRange") return selection[0];
+    } catch (e) {}
+    return null;
 }
 
 // 指定ドキュメントから使用可能なプロセススウォッチを取得
