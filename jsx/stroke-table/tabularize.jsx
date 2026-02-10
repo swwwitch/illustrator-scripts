@@ -12,7 +12,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   - 線：縦ケイ（なし／列間のみ／すべて）＋ ガター0時は連結描画
   - プリセット：代表的な組み合わせを一括適用
   - ダイアログ値はセッション内で復元（Illustrator再起動でリセット）
-  - 更新日: 2026-02-10
+  - 更新日: 2026-02-11
 
   Interpret the selection as a table grid and generate fills and rules (horizontal/vertical).
   - Text is duplicated and outlined for calculation only (original text remains editable).
@@ -27,6 +27,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // セッション内の状態保持（Illustrator再起動でリセット） / Session-only persistence
 // =========================
 // Engine スコープ（#targetengine）で $.global を使って保持
+
 $.global.__tabularizeState = $.global.__tabularizeState || {
     presetIndex: 0,
     // Options
@@ -48,7 +49,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
     var MM_TO_PT = 2.83464567;
 
     // バージョン / Version
-    var SCRIPT_VERSION = "v1.2.1";
+    var SCRIPT_VERSION = "v1.2.3";
 
     // 言語判定 / Language detection
     function getCurrentLang() {
@@ -231,7 +232,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
 
     var lineWeightPt = lineWeightMM * MM_TO_PT;
     var paddingPt = paddingMM * MM_TO_PT;
-    var HEADER_LINE_WEIGHT_MM = 0.25; // チェックON時、上から1本目と2本目だけ太くする(mm)
+    var HEADER_LINE_WEIGHT_MM = 0.3; // チェックON時、上から1本目と2本目だけ太くする(mm)
     var headerLineWeightPt = HEADER_LINE_WEIGHT_MM * MM_TO_PT;
 
     // --- Shared document/layer/color references (must be declared to avoid ReferenceError in ExtendScript) ---
@@ -304,15 +305,28 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         // ガード：プリセット変更で手動へ戻す処理を抑制
         isApplyingPreset = true;
         try {
-            // プリセット（並び替えに強いよう、テキストキー優先で復元）
+            // プリセット復元：まず安定ID（presetKey）で復元、次に旧方式（表示テキスト）で復元
             var restored = false;
             try {
                 if (st.presetKey && controls.ddPreset.items && controls.ddPreset.items.length) {
-                    for (var pi = 0; pi < controls.ddPreset.items.length; pi++) {
-                        if (String(controls.ddPreset.items[pi].text) === String(st.presetKey)) {
-                            controls.ddPreset.selection = pi;
-                            restored = true;
-                            break;
+                    // 1) presetKey is a stable ID
+                    if (PRESET_IDS && PRESET_IDS.length) {
+                        for (var pi = 0; pi < controls.ddPreset.items.length; pi++) {
+                            if (String(PRESET_IDS[pi]) === String(st.presetKey)) {
+                                controls.ddPreset.selection = pi;
+                                restored = true;
+                                break;
+                            }
+                        }
+                    }
+                    // 2) Backward compatibility: presetKey might be the old display text
+                    if (!restored) {
+                        for (var pj = 0; pj < controls.ddPreset.items.length; pj++) {
+                            if (String(controls.ddPreset.items[pj].text) === String(st.presetKey)) {
+                                controls.ddPreset.selection = pj;
+                                restored = true;
+                                break;
+                            }
                         }
                     }
                 }
@@ -363,8 +377,13 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
 
         // プリセット
         st.presetIndex = (controls.ddPreset.selection) ? controls.ddPreset.selection.index : 0;
-        st.presetKey = (controls.ddPreset.selection && controls.ddPreset.selection.text) ? String(controls.ddPreset.selection.text) : '';
-
+        // Store stable preset ID instead of display text (safer across renames)
+        try {
+            var _pi = (controls.ddPreset.selection) ? controls.ddPreset.selection.index : 0;
+            st.presetKey = (PRESET_IDS && PRESET_IDS[_pi]) ? String(PRESET_IDS[_pi]) : '';
+        } catch (_) {
+            st.presetKey = '';
+        }
         // Options
         st.useGutter = !!controls.cbUseGutter.value;
         st.gutterText = String(controls.etHGutter.text || "");
@@ -380,91 +399,6 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         st.doRule = !!controls.cbRule.value;
         st.vRuleMode = controls.rbVruleNone.value ? 'none' : (controls.rbVruleAll.value ? 'all' : 'gapsOnly');
     }
-
-    /* プリセット / Preset */
-    /*
-    プリセット内容一覧（v1.2）
-
-    塗りA
-    ・塗り：ON
-    ・線：OFF
-    ・ガター：ON（1mm）
-    ・1行目をヘッダー行にする：ON
-    ・行方向に連結：OFF
-    ・ヘッダー行のみ：OFF
-    ・縦ケイ：なし（※線OFFのため強制的に「なし」）
-    ・ゼブラ：OFF
-
-    塗りB
-    ・塗り：ON
-    ・線：ON
-    ・ガター：OFF（0扱い）
-    ・1行目をヘッダー行にする：ON
-    ・ヘッダー行のみ：ON
-    ・ゼブラ：OFF（排他制御＋ applyFillHeaderOnly でOFF）
-    ・行方向に連結：OFF（applyFillHeaderOnly でOFF）
-    ・縦ケイ：列間のみ
-
-    塗りC
-    ・塗り：ON
-    ・線：OFF
-    ・ガター：1mm
-    ・1行目をヘッダー行にする：ON
-    ・ヘッダー行のみ：OFF
-    ・ゼブラ：ON
-    ・行方向に連結：OFF
-    ・縦ケイ：なし
-
-    線A-1
-    ・塗り：OFF（→ 塗りオプションも全てOFFにリセット）
-    ・線：ON
-    ・ガター：ON（2mm）
-    ・1行目をヘッダー行にする：ON
-    ・行方向に連結：OFF
-    ・ゼブラ：OFF
-    ・ヘッダー行のみ：OFF
-    ・縦ケイ：すべて
-
-    線A-2
-    ・塗り：OFF（→ 塗りオプションも全てOFFにリセット）
-    ・線：ON
-    ・ガター：ON（1mm）
-    ・1行目をヘッダー行にする：ON
-    ・行方向に連結：OFF
-    ・ゼブラ：OFF
-    ・ヘッダー行のみ：OFF
-    ・縦ケイ：列間のみ
-
-    線B-1
-    ・塗り：OFF（→ 塗りオプションも全てOFFにリセット）
-    ・線：ON
-    ・ガター：OFF（0扱い・連結描画）
-    ・1行目をヘッダー行にする：ON
-    ・行方向に連結：OFF
-    ・ゼブラ：OFF
-    ・ヘッダー行のみ：OFF
-    ・縦ケイ：列間のみ
-
-    線B-2
-    ・塗り：OFF（→ 塗りオプションも全てOFFにリセット）
-    ・線：ON
-    ・ガター：OFF（0扱い・連結描画）
-    ・1行目をヘッダー行にする：ON
-    ・行方向に連結：OFF
-    ・ゼブラ：OFF
-    ・ヘッダー行のみ：OFF
-    ・縦ケイ：なし
-
-    線C
-    ・塗り：OFF（→ 塗りオプションも全てOFFにリセット）
-    ・線：ON
-    ・ガター：OFF（0扱い・連結描画）
-    ・1行目をヘッダー行にする：OFF
-    ・行方向に連結：OFF
-    ・ゼブラ：OFF
-    ・ヘッダー行のみ：OFF
-    ・縦ケイ：すべて
-    */
     var gPreset = dlg.add('group');
     gPreset.orientation = 'row';
     gPreset.alignChildren = ['left', 'center'];
@@ -477,14 +411,43 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         (lang === 'ja') ? '塗りA' : 'Fill A',
         (lang === 'ja') ? '塗りB' : 'Fill B',
         (lang === 'ja') ? '塗りC' : 'Fill C',
-        (lang === 'ja') ? '線A-1' : 'Line A-1',
-        (lang === 'ja') ? '線A-2' : 'Line A-2',
-        (lang === 'ja') ? '線B-1' : 'Line B-1',
-        (lang === 'ja') ? '線B-2' : 'Line B-2',
-        (lang === 'ja') ? '線C' : 'Line C'
+        (lang === 'ja') ? '塗り＋線A' : 'Fill+Stroke A',
+        (lang === 'ja') ? '塗り＋線B' : 'Fill+Stroke B',
+        (lang === 'ja') ? '線A-1' : 'Stroke A-1',
+        (lang === 'ja') ? '線A-2' : 'Stroke A-2',
+        (lang === 'ja') ? '線B-1' : 'Stroke B-1',
+        (lang === 'ja') ? '線B-2' : 'Stroke B-2',
+        (lang === 'ja') ? '線C-1' : 'Stroke C-1',
+        (lang === 'ja') ? '線C-2' : 'Stroke C-2'
     ]);
     ddPreset.selection = 0;
     // 初期状態は手動（＝何もしない）
+
+    // Stable preset IDs aligned with ddPreset items order
+    var PRESET_IDS = [
+        "manual",
+        "fillA",
+        "fillB",
+        "fillC",
+        "fillStrokeA",
+        "fillStrokeB",
+        "strokeA1",
+        "strokeA2",
+        "strokeB1",
+        "strokeB2",
+        "strokeC1",
+        "strokeC2"
+    ];
+
+    function getSelectedPresetId() {
+        try {
+            var i = (ddPreset && ddPreset.selection) ? ddPreset.selection.index : 0;
+            if (i < 0 || i >= PRESET_IDS.length) return "manual";
+            return PRESET_IDS[i] || "manual";
+        } catch (_) {
+            return "manual";
+        }
+    }
 
     // 手動操作が入ったらプリセットを「手動」に戻す / Switch preset to Manual on any manual change
     var isApplyingPreset = false;
@@ -722,8 +685,8 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
     function applyPreset() {
         isApplyingPreset = true;
         try {
-            var idx = ddPreset.selection ? ddPreset.selection.index : 0;
-            if (idx === 0) return; // 手動
+            var presetId = getSelectedPresetId();
+            if (presetId === "manual") return; // 手動
 
             // 共通：1行目ON
             cbHeader.value = true;
@@ -733,8 +696,8 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
             var presetHeaderOnly = false;
             cbFillHeaderOnly.value = presetHeaderOnly;
 
-            // 1) 塗りA
-            if (idx === 1) {
+            // 1) 塗りA：アイテムをセルとして扱い、各セルに塗りを設定
+            if (presetId === "fillA") {
                 cbFill.value = true;
                 applyFillEnabled();
 
@@ -756,49 +719,109 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 return;
             }
 
-            // 2) 塗りB (idx==2): preset ③ ヘッダー行のみ
-            if (idx === 2) {
+            // 2) 塗りB (idx==2): 塗り＋線（ガターOFF）＋見出し行のみ塗り（縦ケイ：列間のみ）
+            if (presetId === "fillB") {
                 cbFill.value = true;
                 applyFillEnabled();
 
-                cbRule.value = true;
+                // 塗りオプション（明示）
+                cbFillJoinRow.value = false;
+                cbFillHeaderOnly.value = false;
+                cbZebra.value = true;
 
-                cbUseGutter.value = false; // 0mm
-                applyGutterEnabled();
-
-                cbHeader.value = true;
-
-                rbVruleGapsOnly.value = true;
-                applyRuleEnabled();
-
-                cbFillHeaderOnly.value = true;
-                applyFillHeaderOnly();
-                return;
-            }
-
-            // 3) 塗りC (idx==3): preset ⑦ ゼブラテーブル
-            if (idx === 3) {
-                cbFill.value = true;
-                applyFillEnabled();
-
-                cbRule.value = false; // 線OFF
+                cbRule.value = false;
                 applyRuleEnabled();
 
                 cbUseGutter.value = true;
                 applyGutterEnabled();
                 setGutterByMm(1);
 
-                cbHeader.value = true;
-
-                cbFillHeaderOnly.value = false;
-                cbFillJoinRow.value = false;
-
-                cbZebra.value = true;
+                // 線OFFのため縦ケイは「なし」
+                rbVruleNone.value = true;
+                applyRuleEnabled();
                 return;
             }
 
-            // 4) 線A-1 (idx==4): preset ②
-            if (idx === 4) {
+            // 3) 塗りC (idx==3): 塗りBの複製（ガターOFF）
+            if (presetId === "fillC") {
+                cbFill.value = true;
+                applyFillEnabled();
+
+                // 塗りオプション（明示）
+                cbFillJoinRow.value = false;
+                cbFillHeaderOnly.value = false;
+                cbZebra.value = true;
+
+
+                cbRule.value = false;
+                applyRuleEnabled();
+
+                cbUseGutter.value = false; // 0扱い（連結）
+                applyGutterEnabled();
+                setGutterByMm(1);
+
+                // 線OFFのため縦ケイは「なし」
+                rbVruleNone.value = true;
+                applyRuleEnabled();
+                return;
+            }
+
+            // 4) 塗り＋線A (idx==4): 塗り＋線（ガターOFF）＋見出し行のみ塗り（縦ケイ：すべて）
+            if (presetId === "fillStrokeA") {
+                cbFill.value = true;
+                applyFillEnabled();
+
+                // 塗りオプション（明示）
+                cbFillJoinRow.value = false;
+                cbZebra.value = false;
+
+                cbRule.value = true;
+                applyRuleEnabled();
+
+                cbUseGutter.value = false; // 0扱い
+                applyGutterEnabled();
+
+                cbHeader.value = true;
+
+                // 縦ケイ：すべて
+                rbVruleAll.value = true;
+                applyRuleEnabled();
+
+                // 見出し行のみ
+                cbFillHeaderOnly.value = true;
+                applyFillHeaderOnly();
+                return;
+            }
+
+            // 5) 塗り＋線B (idx==5): 塗り＋線（ガターOFF）＋見出し行のみ塗り（縦ケイ：列間のみ）
+            if (presetId === "fillStrokeB") {
+                cbFill.value = true;
+                applyFillEnabled();
+
+                // 塗りオプション（明示）
+                cbFillJoinRow.value = false;
+                cbZebra.value = false;
+
+                cbRule.value = true;
+                applyRuleEnabled();
+
+                cbUseGutter.value = false; // 0扱い
+                applyGutterEnabled();
+
+                cbHeader.value = true;
+
+                // 縦ケイ：列間のみ
+                rbVruleGapsOnly.value = true;
+                applyRuleEnabled();
+
+                // 見出し行のみ
+                cbFillHeaderOnly.value = true;
+                applyFillHeaderOnly();
+                return;
+            }
+
+            // 6) 線A-1 (idx==6): セルごとにすべての罫線（ガターあり）
+            if (presetId === "strokeA1") {
                 cbFill.value = false;
                 applyFillEnabled();
                 cbFillHeaderOnly.value = presetHeaderOnly;
@@ -813,8 +836,8 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 return;
             }
 
-            // 5) 線A-2 (idx==5): preset ④
-            if (idx === 5) {
+            // 7) 線A-2 (idx==7): セルごとにすべての罫線（ガターあり）左右の縦ケイなし
+            if (presetId === "strokeA2") {
                 cbFill.value = false;
                 applyFillEnabled();
                 cbFillHeaderOnly.value = presetHeaderOnly;
@@ -829,8 +852,8 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 return;
             }
 
-            // 6) 線B-1 (idx==6): preset ⑤
-            if (idx === 6) {
+            // 8) 線B-1 (idx==8): 罫線（ガターあり）左右の縦ケイなし
+            if (presetId === "strokeB1") {
                 cbFill.value = false;
                 applyFillEnabled();
                 cbFillHeaderOnly.value = presetHeaderOnly;
@@ -844,8 +867,8 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 return;
             }
 
-            // 7) 線B-2 (idx==7): preset ⑥
-            if (idx === 7) {
+            // 9) 線B-2 (idx==9): 罫線（ガターあり）ケイなし
+            if (presetId === "strokeB2") {
                 cbFill.value = false;
                 applyFillEnabled();
                 cbFillHeaderOnly.value = presetHeaderOnly;
@@ -859,8 +882,8 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 return;
             }
 
-            // 8) 線C (idx==8): preset ⑧
-            if (idx === 8) {
+            // 10) 線C-1 (idx==10): すべてのセルに罫線（ガターなし）
+            if (presetId === "strokeC1") {
                 cbFill.value = false;
                 applyFillEnabled();
                 cbFillHeaderOnly.value = presetHeaderOnly;
@@ -872,6 +895,25 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
 
                 // ヘッダーOFF
                 cbHeader.value = false;
+
+                rbVruleAll.value = true;
+                applyRuleEnabled();
+                return;
+            }
+
+            // 11) 線C-2 (idx==11): すべてのセルに罫線（ガターなし）＋見出し行
+            if (presetId === "strokeC2") {
+                cbFill.value = false;
+                applyFillEnabled();
+                cbFillHeaderOnly.value = presetHeaderOnly;
+
+                cbRule.value = true;
+
+                cbUseGutter.value = false; // 0扱い（連結）
+                applyGutterEnabled();
+
+                // ヘッダーON
+                cbHeader.value = true;
 
                 rbVruleAll.value = true;
                 applyRuleEnabled();
@@ -1546,7 +1588,29 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 var globalStartX = minXLeft - paddingPt - extLeft;
                 var globalEndX = maxXRight + paddingPt + extRight;
 
-                for (var iLine = 0; iLine < yUniqGlobal.length; iLine++) {
+                // When gutter is 0 and vertical rules are "all",
+                // draw the outer frame as a single rectangle (avoid 4 separate border lines)
+                var useRectBorder = (vRuleMode === 'all');
+                if (useRectBorder) {
+                    try {
+                        var bw = globalEndX - globalStartX;
+                        var bh = yTopBorder - yBottomBorder;
+                        if (bw > 0 && bh > 0) {
+                            var borderRect = lineLayer.pathItems.rectangle(yTopBorder, globalStartX, bw, bh);
+                            borderRect.filled = false;
+                            borderRect.stroked = true;
+                            borderRect.strokeColor = blackColor;
+                            // If header row is ON, use the header line weight for the outer frame
+                            borderRect.strokeWidth = isHeaderRow ? headerLineWeightPt : lineWeightPt;
+                            try { borderRect.strokeJoin = StrokeJoin.MITERENDJOIN; } catch (_) { }
+                            if (isPreviewing) { try { previewItems.push(borderRect); } catch (_) { } }
+                        }
+                    } catch (_) { }
+                }
+
+                var hStart = useRectBorder ? 1 : 0;
+                var hEnd = useRectBorder ? (yUniqGlobal.length - 1) : yUniqGlobal.length;
+                for (var iLine = hStart; iLine < hEnd; iLine++) {
                     // ヘッダーON時は「上から1本目と2本目」だけ 0.25mm、それ以外は基本 0.1mm
                     var strokeW = lineWeightPt;
                     if (isHeaderRow && iLine < 2) strokeW = headerLineWeightPt;
@@ -1650,6 +1714,11 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 // 先頭/末尾に追加（重複しない順番で）
                 vXs.unshift(xLeftBorder);
                 vXs.push(xRightBorder);
+            }
+
+            // If outer border is drawn as a rectangle, remove the left/right border lines from vXs
+            if ((!cbUseGutter.value || KEEP_GAP_PT === 0) && vRuleMode === 'all' && vXs.length >= 2) {
+                try { vXs = vXs.slice(1, vXs.length - 1); } catch (_) { }
             }
 
             // 縦罫を描画
@@ -1771,6 +1840,13 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
             }
 
             editText.text = value;
+            // Trigger onChanging/onChange so preview updates even when value is changed by arrow keys
+            try {
+                if (typeof editText.onChanging === 'function') editText.onChanging();
+            } catch (_) { }
+            try {
+                if (typeof editText.onChange === 'function') editText.onChange();
+            } catch (_) { }
         });
     }
 
