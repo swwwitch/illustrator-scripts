@@ -48,7 +48,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
     var MM_TO_PT = 2.83464567;
 
     // バージョン / Version
-    var SCRIPT_VERSION = "v1.1";
+    var SCRIPT_VERSION = "v1.2";
 
     // 言語判定 / Language detection
     function getCurrentLang() {
@@ -244,6 +244,8 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
 
     function shiftDialogPosition(dlg, offsetX, offsetY) {
         dlg.onShow = function () {
+            try { requestPreviewUpdate(); } catch (_) { }
+
             try {
                 var currentX = dlg.location[0];
                 var currentY = dlg.location[1];
@@ -256,6 +258,23 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         try {
             dlg.opacity = opacityValue;
         } catch (_) { }
+    }
+
+    // --- Preview state ---
+    var cbPreview = null;
+    var isPreviewing = false;
+    var previewItems = []; // created items for preview (lines + fills)
+    var previewIsCurrent = false;
+
+    function clearPreview() {
+        try {
+            for (var i = 0; i < previewItems.length; i++) {
+                try { previewItems[i].remove(); } catch (_) { }
+            }
+        } catch (_) { }
+        previewItems = [];
+        previewIsCurrent = false;
+        try { app.redraw(); } catch (_) { }
     }
 
     /* ダイアログ / Dialog */
@@ -574,6 +593,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
 
     // プリセット適用（UIのみ。設定ロジックは後で追加可能）
     function applyPreset() {
+        try { requestPreviewUpdate(); } catch (_) { }
         isApplyingPreset = true;
         try {
             var idx = ddPreset.selection ? ddPreset.selection.index : 0;
@@ -703,6 +723,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         control.onClick = function () {
             if (prev) prev();
             setPresetManual();
+            try { requestPreviewUpdate(); } catch (_) { }
         };
     }
 
@@ -723,6 +744,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
     // ガター数値の手動変更
     etHGutter.onChanging = function () {
         setPresetManual();
+        try { requestPreviewUpdate(); } catch (_) { }
     };
 
 
@@ -750,9 +772,23 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
 
 
     var btnGroup = dlg.add('group');
-    btnGroup.alignment = 'right';
+    btnGroup.orientation = 'row';
+    btnGroup.alignChildren = ['left', 'center'];
+
+    // Preview toggle (left)
+    cbPreview = btnGroup.add('checkbox', undefined, (lang === 'ja') ? 'プレビュー' : 'Preview');
+    cbPreview.value = true;
+
+    // Spacer
+    var _sp = btnGroup.add('statictext', undefined, '');
+    _sp.alignment = 'fill';
+
+    // Buttons (right)
     var btnCancel = btnGroup.add('button', undefined, L('cancel'), { name: 'cancel' });
     var btnOK = btnGroup.add('button', undefined, L('ok'), { name: 'ok' });
+    btnCancel.alignment = 'right';
+    btnOK.alignment = 'right';
+
     btnCancel.onClick = function () {
         saveDialogState({
             ddPreset: ddPreset,
@@ -768,6 +804,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
             rbVruleGapsOnly: rbVruleGapsOnly,
             rbVruleAll: rbVruleAll
         });
+        try { clearPreview(); } catch (_) { }
         dlg.close(0);
     };
     btnOK.onClick = function () {
@@ -788,6 +825,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         dlg.close(1);
     };
     dlg.onClose = function () {
+        try { clearPreview(); } catch (_) { }
         try {
             saveDialogState({
                 ddPreset: ddPreset,
@@ -805,6 +843,69 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
             });
         } catch (_) { }
     };
+
+    function requestPreviewUpdate() {
+        try {
+            if (cbPreview && cbPreview.value) {
+                applyPreviewNow();
+            } else {
+                clearPreview();
+            }
+        } catch (_) { }
+    }
+
+    function applyPreviewNow() {
+        if (!cbPreview || !cbPreview.value) {
+            clearPreview();
+            return;
+        }
+
+        // Rebuild preview from current dialog state
+        clearPreview();
+
+        if (app.documents.length === 0) return;
+        var _doc = app.activeDocument;
+        var _sel = _doc.selection;
+        if (!_sel || _sel.length === 0) return;
+
+        try {
+            isPreviewing = true;
+            previewIsCurrent = false;
+
+            // Use current doc/selection
+            doc = _doc;
+            sel = _sel;
+            baseLayer = doc.activeLayer;
+
+            // Columns + params from UI
+            buildCalcColumnsAndParams();
+
+            // Draw preview
+            generateMain();
+            try { app.redraw(); } catch (_) { }
+
+            // Cleanup calc proxies only (outlined duplicates)
+            try {
+                var _pc = 0;
+                try { _pc = (calcCleanups && typeof calcCleanups.length === 'number') ? calcCleanups.length : 0; } catch (eLen2) { _pc = 0; }
+                for (var ii = 0; ii < _pc; ii++) {
+                    try {
+                        var fn2 = null;
+                        try { fn2 = calcCleanups[ii]; } catch (eGet2) { fn2 = null; }
+                        if (fn2) { try { fn2(); } catch (eRun2) { } }
+                    } catch (_) { }
+                }
+            } catch (_) { }
+
+            previewIsCurrent = true;
+            try { app.redraw(); } catch (_) { }
+        } catch (_) {
+            try { clearPreview(); } catch (__) { }
+            previewIsCurrent = false;
+        } finally {
+            isPreviewing = false;
+        }
+    }
 
     // ドキュメントチェック（ダイアログより前に移動）
     if (app.documents.length === 0) {
@@ -897,21 +998,31 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
 
     if (dlg.show() !== 1) return;
 
-    try {
-        // 1. Create/find temp layer at top
-        var calcLayerName = "__TabularizeCalc__";
-        try {
-            calcLayer = doc.layers.getByName(calcLayerName);
-        } catch (e) {
-            calcLayer = doc.layers.add();
-            calcLayer.name = calcLayerName;
-        }
-        // Place at very top
-        try { calcLayer.zOrder(ZOrderMethod.SENDTOFRONT); } catch (_) { }
-        calcLayer.visible = true;
-        calcLayer.locked = false;
+    // OK: if preview is on and current, keep it as final (no regeneration)
+    if (cbPreview && cbPreview.value && previewIsCurrent) {
+        previewItems = [];      // keep objects (do not remove on exit)
+        previewIsCurrent = false;
+        return;
+    }
 
-        // 2. Build proxies for each selection item (unique, group ancestor if needed)
+    function buildCalcColumnsAndParams() {
+        // Reset containers
+        srcItems = [];
+        calcProxyList = [];
+        calcCleanups = [];
+        calcLayer = null;
+        columns = [];
+        calcItems = [];
+
+        // 1) temp layer
+        var calcLayerName = "__TabularizeCalc__";
+        try { calcLayer = doc.layers.getByName(calcLayerName); }
+        catch (e) { calcLayer = doc.layers.add(); calcLayer.name = calcLayerName; }
+        try { calcLayer.zOrder(ZOrderMethod.SENDTOFRONT); } catch (_) { }
+        try { calcLayer.visible = true; } catch (_) { }
+        try { calcLayer.locked = false; } catch (_) { }
+
+        // 2) proxies
         var seenSrc = [];
         for (var i = 0; i < sel.length; i++) {
             var it = sel[i];
@@ -921,119 +1032,83 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
             seenSrc.push(it);
             srcItems.push(it);
 
-            // Build proxy entry
             var proxy = { src: it, calc: it, cleanup: null };
+
             if (it.typename === "TextFrame") {
-                // Duplicate to temp layer
                 var dup = it.duplicate(calcLayer, ElementPlacement.PLACEATBEGINNING);
-                // Outline
                 var outlined = null;
-                try {
-                    outlined = dup.createOutline();
-                } catch (e) {
-                    outlined = null;
-                }
-                // Remove duplicate text frame if still exists (after outline)
+                try { outlined = dup.createOutline(); } catch (eO) { outlined = null; }
                 try { if (dup && dup.parent) dup.remove(); } catch (_) { }
-                // Set opacity 0
                 if (outlined) {
                     try { outlined.opacity = 0; } catch (_) { }
                     proxy.calc = outlined;
-                    proxy.cleanup = (function (g) { return function () { try { g.remove(); } catch (_) { } }; })(outlined);
-                } else {
-                    proxy.calc = it;
-                    proxy.cleanup = null;
+                    proxy.cleanup = (function (gg) { return function () { try { gg.remove(); } catch (_) { } }; })(outlined);
                 }
             } else if (it.typename === "GroupItem" && hasAnyTextFrame(it)) {
-                // Duplicate group to temp layer
                 var dupg = it.duplicate(calcLayer, ElementPlacement.PLACEATBEGINNING);
-                // Outline all descendant text frames in duplicate
-                try {
-                    while (dupg.textFrames.length > 0) {
-                        dupg.textFrames[0].createOutline();
-                    }
-                } catch (_) { }
-                // Set opacity 0
+                try { while (dupg.textFrames.length > 0) { dupg.textFrames[0].createOutline(); } } catch (_) { }
                 try { dupg.opacity = 0; } catch (_) { }
                 proxy.calc = dupg;
-                proxy.cleanup = (function (g) { return function () { try { g.remove(); } catch (_) { } }; })(dupg);
-            } else {
-                // Use as is
-                proxy.calc = it;
-                proxy.cleanup = null;
+                proxy.cleanup = (function (gg2) { return function () { try { gg2.remove(); } catch (_) { } }; })(dupg);
             }
+
             calcProxyList.push(proxy);
             if (proxy.cleanup) calcCleanups.push(proxy.cleanup);
         }
 
-        // 3. Build calcItems from proxies & sort by left
+        // 3) columns
         calcItems = [];
-        for (var ci = 0; ci < calcProxyList.length; ci++) {
-            calcItems.push(calcProxyList[ci].calc);
-        }
-        calcItems.sort(function (a, b) {
-            return a.geometricBounds[0] - b.geometricBounds[0];
-        });
+        for (var ci = 0; ci < calcProxyList.length; ci++) calcItems.push(calcProxyList[ci].calc);
+        calcItems.sort(function (a, b) { return a.geometricBounds[0] - b.geometricBounds[0]; });
 
-        // 4. Build columns from calcItems (like before, with overlap logic)
         columns = [];
         if (calcItems.length > 0) {
             var currentColumn = [calcItems[0]];
             columns.push(currentColumn);
             for (var j = 1; j < calcItems.length; j++) {
                 var item = calcItems[j];
-                var lastItemInCol = currentColumn[currentColumn.length - 1];
                 var itemLeft = item.geometricBounds[0];
                 var prevColMaxRight = getMaxRightInColumn(currentColumn);
-                if (itemLeft < prevColMaxRight) {
-                    currentColumn.push(item);
-                } else {
-                    currentColumn = [item];
-                    columns.push(currentColumn);
-                }
+                if (itemLeft < prevColMaxRight) currentColumn.push(item);
+                else { currentColumn = [item]; columns.push(currentColumn); }
             }
         }
 
-        // --- The rest of the script uses columns, calcItems, etc. ---
-        // 列間の残し幅（ガター pt）
-        var isZebra = cbZebra.value;
-        var isFillJoinRow = cbFillJoinRow.value;
-        var isFillHeaderOnly = cbFillHeaderOnly.value;
-        var isHeaderRow = cbHeader.value;
-        var hGutterVal = cbUseGutter.value ? parseFloat(etHGutter.text) : 0;
-        if (isNaN(hGutterVal) || hGutterVal < 0) hGutterVal = 0;
-        var hGutterPt = hGutterVal * rulerFactorPt;
-        var vRuleMode = rbVruleNone.value ? 'none' : (rbVruleAll.value ? 'all' : 'gapsOnly');
-        var doFill = cbFill.value;
-        var doRule = cbRule.value;
-        var fillMode = (doFill && doRule) ? 'fillAndRule' : (doFill ? 'fillOnly' : 'none');
-        var KEEP_GAP_PT = hGutterPt;
+        // 4) params from UI
+        isZebra = cbZebra.value;
+        isFillJoinRow = cbFillJoinRow.value;
+        isFillHeaderOnly = cbFillHeaderOnly.value;
+        isHeaderRow = cbHeader.value;
 
-        // Call main generator
+        hGutterVal = cbUseGutter.value ? parseFloat(etHGutter.text) : 0;
+        if (isNaN(hGutterVal) || hGutterVal < 0) hGutterVal = 0;
+        hGutterPt = hGutterVal * rulerFactorPt;
+
+        vRuleMode = rbVruleNone.value ? 'none' : (rbVruleAll.value ? 'all' : 'gapsOnly');
+
+        doFill = cbFill.value;
+        doRule = cbRule.value;
+
+        fillMode = (doFill && doRule) ? 'fillAndRule' : (doFill ? 'fillOnly' : 'none');
+        KEEP_GAP_PT = hGutterPt;
+    }
+
+    try {
+        buildCalcColumnsAndParams();
         generateMain();
     } finally {
-        // --- Cleanup proxies and temp layer ---
+        // --- Cleanup calc proxies (outlined duplicates only) ---
         try {
             var _cleanupCount = 0;
-            try {
-                // ExtendScript環境差で参照が壊れることがあるため、length 取得も try/catch
-                _cleanupCount = (calcCleanups && typeof calcCleanups.length === 'number') ? calcCleanups.length : 0;
-            } catch (eLen) {
-                _cleanupCount = 0;
-            }
-
+            try { _cleanupCount = (calcCleanups && typeof calcCleanups.length === 'number') ? calcCleanups.length : 0; } catch (_) { _cleanupCount = 0; }
             for (var cl = 0; cl < _cleanupCount; cl++) {
                 try {
                     var fn = null;
-                    try { fn = calcCleanups[cl]; } catch (eGet) { fn = null; }
-                    if (fn) {
-                        try { fn(); } catch (eRun) { }
-                    }
-                } catch (eOne) { }
+                    try { fn = calcCleanups[cl]; } catch (_) { fn = null; }
+                    if (fn) { try { fn(); } catch (_) { } }
+                } catch (_) { }
             }
-        } catch (eAll) { }
-        // NOTE: ExtendScript の環境差で Layer の参照/削除が不安定なため、レイヤー削除は行わない。
-        // 代わりに calcCleanups により中身（複製アウトライン等）だけ確実に削除する。
+        } catch (_) { }
     }
 
 
@@ -1204,6 +1279,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                     rectH.filled = true;
                     // 塗り色：ヘッダーを優先し、ゼブラONならK50
                     rectH.fillColor = isZebra ? fillGrayHeaderZebra : fillGrayHeader;
+                    if (isPreviewing) { try { previewItems.push(rectH); } catch (_) { } }
                 }
 
             } else if (isFillJoinRow) {
@@ -1236,6 +1312,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                     } else {
                         rect.fillColor = fillGray;
                     }
+                    if (isPreviewing) { try { previewItems.push(rect); } catch (_) { } }
                 }
 
             } else {
@@ -1275,6 +1352,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                         } else {
                             rect2.fillColor = fillGray;
                         }
+                        if (isPreviewing) { try { previewItems.push(rect2); } catch (_) { } }
                     }
                 }
             }
@@ -1591,6 +1669,9 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
         pathItem.strokeWidth = (typeof strokeW === 'number') ? strokeW : lineWeightPt;
         pathItem.strokeColor = blackColor;
         pathItem.filled = false;
+        if (isPreviewing) {
+            try { previewItems.push(pathItem); } catch (_) { }
+        }
     }
 
 })();
