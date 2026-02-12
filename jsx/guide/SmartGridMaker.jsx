@@ -5,6 +5,8 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
   SmartGridMaker.jsx
   囲み罫とグリッド
 
+  更新日: 2026-02-12
+
   長方形またはアートボードを基準に、
   外側エリア（辺の伸縮・線端）、タイトルエリア、
   内側エリアのオフセット（4方向・連動）、
@@ -15,10 +17,11 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
   ・アートボード基準時はマージン指定可能
   ・フレームはアートボード基準で作成（裁ち落としはフレームのみに適用）
   ・UIは日英ローカライズ対応
+  ・内側エリアの［塗り］は手動OFFを優先（ガター変更時の自動ONを抑制）
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 /* 言語判定 / Detect language */
 function getCurrentLang() {
@@ -887,6 +890,9 @@ function L(key) {
     var chkRowDivider = gridRowOpts.add("checkbox", undefined, L("chkDivider"));
     chkRowDivider.value = false;
 
+    // ［塗り］の手動操作を優先するためのフラグ（ガター変更での自動ONを抑制）
+    var _rowFillManuallySet = false;
+
     // 列/行の分割が可能になった瞬間だけ「区切り線」を自動ONにするためのフラグ
     var _prevGridSplittable = false;
     try {
@@ -1153,14 +1159,17 @@ function L(key) {
     };
 
     chkRowFill.onClick = function () {
+        // ユーザーが明示的に操作したら以後は自動ONしない
+        _rowFillManuallySet = true;
         if (chkPreview.value) updatePreview();
     };
 
     // 列のガター変更時
     editColGutter.onChanging = function () {
         var g = parseFloat(editColGutter.text);
-        if (!isNaN(g) && g !== 0) {
-            try { chkRowFill.value = true; } catch (_) { }
+        // ガターが設定されたら塗りを自動ON（ただし手動操作があれば尊重）
+        if (!_rowFillManuallySet && !isNaN(g) && g !== 0) {
+            try { if (!chkRowFill.value) chkRowFill.value = true; } catch (_) { }
         }
         if (chkPreview.value) updatePreview();
     };
@@ -1168,8 +1177,9 @@ function L(key) {
     // 行のガター変更時
     editRowGutter.onChanging = function () {
         var g = parseFloat(editRowGutter.text);
-        if (!isNaN(g) && g !== 0) {
-            try { chkRowFill.value = true; } catch (_) { }
+        // ガターが設定されたら塗りを自動ON（ただし手動操作があれば尊重）
+        if (!_rowFillManuallySet && !isNaN(g) && g !== 0) {
+            try { if (!chkRowFill.value) chkRowFill.value = true; } catch (_) { }
         }
         if (chkPreview.value) updatePreview();
     };
@@ -2073,9 +2083,9 @@ function L(key) {
         if (colGutterPt < 0) colGutterPt = 0;
         if (rowGutterPt < 0) rowGutterPt = 0;
 
-        // ガターが設定されたら塗りを自動ON
-        if ((colGutterPt && colGutterPt !== 0) || (rowGutterPt && rowGutterPt !== 0)) {
-            try { chkRowFill.value = true; } catch (_) { }
+        // ガターが設定されたら塗りを自動ON（ただし手動操作があれば尊重）
+        if (!_rowFillManuallySet && ((colGutterPt && colGutterPt !== 0) || (rowGutterPt && rowGutterPt !== 0))) {
+            try { if (!chkRowFill.value) chkRowFill.value = true; } catch (_) { }
         }
 
         // 0 のときは分割しない（元のオブジェクトを表示したまま）
