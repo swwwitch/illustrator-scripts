@@ -748,7 +748,7 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
                 applyFillEnabled();
 
                 // 塗りオプション（明示）
-                cbFillJoinRow.value = false;
+                cbFillJoinRow.value = true;
                 cbFillHeaderOnly.value = false;
                 cbZebra.value = true;
 
