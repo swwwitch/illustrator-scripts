@@ -25,10 +25,13 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
   ・外側エリアに角丸オプション（UIのみ／rulerType単位）を追加
   ・内側エリアのオフセットUIを3段組レイアウトに変更
   ・マージンを上下左右に分割し、連動（3段組レイアウト）に対応
+  ・UI生成を関数分割（MarginUI / OuterUI / InnerUI）
+  ・セッション復元の保存形式を構造体化（旧フラット形式もフォールバック）
+  ・プレビュー処理と生成処理を分離（計算→生成→描画）
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.0.6";
+var SCRIPT_VERSION = "v1.0.10";
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)
@@ -329,231 +332,442 @@ function L(key) {
     leftCol.alignChildren = ["fill", "top"];
     leftCol.spacing = 8;
 
-    // マージン（アートボード基準のときだけ有効）
-    var marginPanel = leftCol.add("panel", undefined, L("panelMargin"));
-    marginPanel.orientation = "column";
-    marginPanel.alignChildren = ["fill", "top"];
-    marginPanel.margins = [15, 20, 15, 10];
-    marginPanel.spacing = 10;
+    // =========================================
+    // UI builders (split): MarginUI / OuterUI / InnerUI
+    // =========================================
 
-    // マージン入力：3段組（上 / 左＋連動＋右 / 下）
-    var marginUnitLabel = getCurrentRulerUnitLabel();
-
-    // 1段目：上（中央寄せ）
-    var marginRowTop = marginPanel.add("group");
-    marginRowTop.orientation = "row";
-    marginRowTop.alignChildren = ["center", "center"];
-    marginRowTop.alignment = ["fill", "top"];
-
-    var marginTopGroup = marginRowTop.add("group");
-    marginTopGroup.orientation = "row";
-    marginTopGroup.alignChildren = ["left", "center"];
-    marginTopGroup.add("statictext", undefined, L("offsetTop"));
-    var editArtboardMarginTop = marginTopGroup.add("edittext", undefined, "15");
-    editArtboardMarginTop.characters = 4;
-    changeValueByArrowKey(editArtboardMarginTop, false);
-    marginTopGroup.add("statictext", undefined, marginUnitLabel);
-
-    // 2段目：左 ＋ 連動（中央）＋ 右
-    var marginRowMid = marginPanel.add("group");
-    marginRowMid.orientation = "row";
-    marginRowMid.alignChildren = ["center", "center"];
-    marginRowMid.alignment = ["fill", "top"];
-    marginRowMid.spacing = 12;
-
-    var marginLeftGroup = marginRowMid.add("group");
-    marginLeftGroup.orientation = "row";
-    marginLeftGroup.alignChildren = ["left", "center"];
-    marginLeftGroup.add("statictext", undefined, L("offsetLeft"));
-    var editArtboardMarginLeft = marginLeftGroup.add("edittext", undefined, "15");
-    editArtboardMarginLeft.characters = 4;
-    changeValueByArrowKey(editArtboardMarginLeft, false);
-
-    var chkArtboardMarginLink = marginRowMid.add("checkbox", undefined, L("chkLink"));
-    chkArtboardMarginLink.value = true;
-
-    var marginRightGroup = marginRowMid.add("group");
-    marginRightGroup.orientation = "row";
-    marginRightGroup.alignChildren = ["left", "center"];
-    marginRightGroup.add("statictext", undefined, L("offsetRight"));
-    var editArtboardMarginRight = marginRightGroup.add("edittext", undefined, "15");
-    editArtboardMarginRight.characters = 4;
-    changeValueByArrowKey(editArtboardMarginRight, false);
-
-    // 3段目：下（中央寄せ）
-    var marginRowBottom = marginPanel.add("group");
-    marginRowBottom.orientation = "row";
-    marginRowBottom.alignChildren = ["center", "center"];
-    marginRowBottom.alignment = ["fill", "top"];
-
-    var marginBottomGroup = marginRowBottom.add("group");
-    marginBottomGroup.orientation = "row";
-    marginBottomGroup.alignChildren = ["left", "center"];
-    marginBottomGroup.add("statictext", undefined, L("offsetBottom"));
-    var editArtboardMarginBottom = marginBottomGroup.add("edittext", undefined, "15");
-    editArtboardMarginBottom.characters = 4;
-    changeValueByArrowKey(editArtboardMarginBottom, false);
-    marginBottomGroup.add("statictext", undefined, marginUnitLabel);
-
-    // 連動の同期フラグ（無限ループ防止）
+    // --- Margin UI handles ---
+    var marginPanel;
+    var editArtboardMarginTop, editArtboardMarginBottom, editArtboardMarginLeft, editArtboardMarginRight;
+    var chkArtboardMarginLink;
     var _syncingArtboardMargins = false;
+    var applyArtboardMarginLinkState;
 
-    function applyArtboardMarginLinkState() {
-        var linked = !!chkArtboardMarginLink.value;
+    // --- Outer UI handles ---
+    var outerPanel;
+    var chkKeepOuter;
+    var chkEnableLen;
+    var inputGroup;
+    var editVal;
+    var stUnit;
+    var chkOuterRound;
+    var editOuterRound;
+    var stOuterRoundUnit;
+    var applyEdgeScaleEnabledState;
+    var applyOuterLinePanelEnabledState;
+    var applyOuterRoundEnabledState;
+    var capPanel;
+    var rbCapButt, rbCapRound, rbCapProject;
 
-        // 連動ON: 下/左/右はディム表示（操作不可）
-        try { marginBottomGroup.enabled = !linked; } catch (_) { }
-        try { marginLeftGroup.enabled = !linked; } catch (_) { }
-        try { marginRightGroup.enabled = !linked; } catch (_) { }
+    // --- Inner UI handles ---
+    var innerPanel;
+    var editInnerOffsetTop, editInnerOffsetBottom, editInnerOffsetLeft, editInnerOffsetRight;
+    var chkInnerOffsetLink;
+    var _syncingInnerOffsets = false;
+    var applyInnerOffsetLinkState;
 
-        // 値も揃える
-        if (linked) {
-            var v = editArtboardMarginTop.text;
-            _syncingArtboardMargins = true;
-            try { editArtboardMarginBottom.text = v; } catch (_) { }
-            try { editArtboardMarginLeft.text = v; } catch (_) { }
-            try { editArtboardMarginRight.text = v; } catch (_) { }
-            _syncingArtboardMargins = false;
-        }
-    }
+    var editInnerColumns, editInnerRows;
+    var editColGutter, editRowGutter;
+    var chkRowFill, chkRowDivider;
+    var innerCapPanel;
+    var rbInnerLineSolid, rbInnerLineDash, rbInnerLineDotDash;
 
-    // アートボードが対象のときだけアクティブ
-    marginPanel.enabled = !!_usingArtboardBase;
+    // Builder: MarginUI
+    function buildMarginUI(parent) {
+        // マージン（アートボード基準のときだけ有効）
+        marginPanel = parent.add("panel", undefined, L("panelMargin"));
+        marginPanel.orientation = "column";
+        marginPanel.alignChildren = ["fill", "top"];
+        marginPanel.margins = [15, 20, 15, 10];
+        marginPanel.spacing = 10;
 
-    // 初期反映
-    applyArtboardMarginLinkState();
+        // マージン入力：3段組（上 / 左＋連動＋右 / 下）
+        var marginUnitLabel = getCurrentRulerUnitLabel();
 
+        // 1段目：上（中央寄せ）
+        var marginRowTop = marginPanel.add("group");
+        marginRowTop.orientation = "row";
+        marginRowTop.alignChildren = ["center", "center"];
+        marginRowTop.alignment = ["fill", "top"];
 
-    // 外枠パネル
-    var outerPanel = leftCol.add("panel", undefined, L("panelOuter"));
-    outerPanel.orientation = "column";
-    outerPanel.alignChildren = ["fill", "top"];
-    outerPanel.margins = [15, 20, 15, 10];
-    outerPanel.spacing = 10;
+        var marginTopGroup = marginRowTop.add("group");
+        marginTopGroup.orientation = "row";
+        marginTopGroup.alignChildren = ["left", "center"];
+        marginTopGroup.add("statictext", undefined, L("offsetTop"));
+        editArtboardMarginTop = marginTopGroup.add("edittext", undefined, "15");
+        editArtboardMarginTop.characters = 4;
+        changeValueByArrowKey(editArtboardMarginTop, false);
+        marginTopGroup.add("statictext", undefined, marginUnitLabel);
 
-    // 外枠を残す
-    var chkKeepOuter = outerPanel.add("checkbox", undefined, L("chkKeepOuter"));
-    chkKeepOuter.value = true; // デフォルトON
+        // 2段目：左 ＋ 連動（中央）＋ 右
+        var marginRowMid = marginPanel.add("group");
+        marginRowMid.orientation = "row";
+        marginRowMid.alignChildren = ["center", "center"];
+        marginRowMid.alignment = ["fill", "top"];
+        marginRowMid.spacing = 12;
 
-    function applyEdgeScaleEnabledState() {
-        try {
-            var enabled = !!chkKeepOuter.value;
-            chkEnableLen.enabled = enabled;
-            inputGroup.enabled = (enabled && chkEnableLen.value);
-        } catch (_) { }
-    }
+        var marginLeftGroup = marginRowMid.add("group");
+        marginLeftGroup.orientation = "row";
+        marginLeftGroup.alignChildren = ["left", "center"];
+        marginLeftGroup.add("statictext", undefined, L("offsetLeft"));
+        editArtboardMarginLeft = marginLeftGroup.add("edittext", undefined, "15");
+        editArtboardMarginLeft.characters = 4;
+        changeValueByArrowKey(editArtboardMarginLeft, false);
 
-    // 辺の長さ調整（1行）
-    var lenRow = outerPanel.add("group");
-    lenRow.orientation = "row";
-    lenRow.alignChildren = ["left", "center"];
+        chkArtboardMarginLink = marginRowMid.add("checkbox", undefined, L("chkLink"));
+        chkArtboardMarginLink.value = true;
 
-    var chkEnableLen = lenRow.add("checkbox", undefined, L("chkEdgeScale"));
-    chkEnableLen.value = true;
+        var marginRightGroup = marginRowMid.add("group");
+        marginRightGroup.orientation = "row";
+        marginRightGroup.alignChildren = ["left", "center"];
+        marginRightGroup.add("statictext", undefined, L("offsetRight"));
+        editArtboardMarginRight = marginRightGroup.add("edittext", undefined, "15");
+        editArtboardMarginRight.characters = 4;
+        changeValueByArrowKey(editArtboardMarginRight, false);
 
-    // 値入力（チェックがOFFのときだけディム表示）
-    var inputGroup = lenRow.add("group");
-    inputGroup.orientation = "row";
-    inputGroup.alignChildren = ["left", "center"];
+        // 3段目：下（中央寄せ）
+        var marginRowBottom = marginPanel.add("group");
+        marginRowBottom.orientation = "row";
+        marginRowBottom.alignChildren = ["center", "center"];
+        marginRowBottom.alignment = ["fill", "top"];
 
-    var editVal = inputGroup.add("edittext", undefined, "-5");
-    editVal.characters = 4;
-    var stUnit = inputGroup.add("statictext", undefined, getCurrentRulerUnitLabel());
-    editVal.active = true;
-    // ↑↓ / shift+↑↓ / option+↑↓ で値を増減
-    changeValueByArrowKey(editVal, true);
+        var marginBottomGroup = marginRowBottom.add("group");
+        marginBottomGroup.orientation = "row";
+        marginBottomGroup.alignChildren = ["left", "center"];
+        marginBottomGroup.add("statictext", undefined, L("offsetBottom"));
+        editArtboardMarginBottom = marginBottomGroup.add("edittext", undefined, "15");
+        editArtboardMarginBottom.characters = 4;
+        changeValueByArrowKey(editArtboardMarginBottom, false);
+        marginBottomGroup.add("statictext", undefined, marginUnitLabel);
 
-    // 初期状態反映
-    applyEdgeScaleEnabledState();
+        // 連動（無限ループ防止は外側の _syncingArtboardMargins を使用）
+        applyArtboardMarginLinkState = function () {
+            var linked = !!chkArtboardMarginLink.value;
+            // 連動ON: 下/左/右はディム表示（操作不可）
+            try { marginBottomGroup.enabled = !linked; } catch (_) { }
+            try { marginLeftGroup.enabled = !linked; } catch (_) { }
+            try { marginRightGroup.enabled = !linked; } catch (_) { }
 
-    // 外側エリア：角丸（UIのみ。ロジックは後で適用）
-    var outerRoundRow = outerPanel.add("group");
-    outerRoundRow.orientation = "row";
-    outerRoundRow.alignChildren = ["left", "center"];
-
-    var chkOuterRound = outerRoundRow.add("checkbox", undefined, "角丸");
-    chkOuterRound.value = false;
-
-    var editOuterRound = outerRoundRow.add("edittext", undefined, "0");
-    editOuterRound.characters = 4;
-    changeValueByArrowKey(editOuterRound, false);
-
-    var stOuterRoundUnit = outerRoundRow.add("statictext", undefined, getCurrentRulerUnitLabel());
-
-    function applyOuterRoundEnabledState() {
-        try {
-            // 「辺の伸縮」がONのときは角丸は使えない（ディム表示）
-            var usable = (!!chkKeepOuter.value && !(chkEnableLen && chkEnableLen.value));
-
-            chkOuterRound.enabled = usable;
-
-            // 使えない場合はOFF扱いにして値も0に戻す
-            if (!usable) {
-                chkOuterRound.value = false;
-                editOuterRound.text = "0";
+            if (linked) {
+                var v = editArtboardMarginTop.text;
+                _syncingArtboardMargins = true;
+                try { editArtboardMarginBottom.text = v; } catch (_) { }
+                try { editArtboardMarginLeft.text = v; } catch (_) { }
+                try { editArtboardMarginRight.text = v; } catch (_) { }
+                _syncingArtboardMargins = false;
             }
+        };
 
-            editOuterRound.enabled = (usable && !!chkOuterRound.value);
-            if (usable && !chkOuterRound.value) editOuterRound.text = "0";
-        } catch (_) { }
+        // アートボードが対象のときだけアクティブ
+        marginPanel.enabled = !!_usingArtboardBase;
+        applyArtboardMarginLinkState();
     }
 
-    applyOuterRoundEnabledState();
+    // Builder: OuterUI
+    function buildOuterUI(parent) {
+        // 外枠パネル
+        outerPanel = parent.add("panel", undefined, L("panelOuter"));
+        outerPanel.orientation = "column";
+        outerPanel.alignChildren = ["fill", "top"];
+        outerPanel.margins = [15, 20, 15, 10];
+        outerPanel.spacing = 10;
 
-    chkOuterRound.onClick = function () {
-        try {
-            if (chkOuterRound.value) {
-                var v = parseFloat(editOuterRound.text);
-                if (isNaN(v) || v === 0) {
-                    editOuterRound.text = "2";
+        // 外枠を残す
+        chkKeepOuter = outerPanel.add("checkbox", undefined, L("chkKeepOuter"));
+        chkKeepOuter.value = true;
+
+        // 辺の長さ調整（1行）
+        var lenRow = outerPanel.add("group");
+        lenRow.orientation = "row";
+        lenRow.alignChildren = ["left", "center"];
+
+        chkEnableLen = lenRow.add("checkbox", undefined, L("chkEdgeScale"));
+        chkEnableLen.value = true;
+
+        // 値入力（チェックがOFFのときだけディム表示）
+        inputGroup = lenRow.add("group");
+        inputGroup.orientation = "row";
+        inputGroup.alignChildren = ["left", "center"];
+
+        editVal = inputGroup.add("edittext", undefined, "-5");
+        editVal.characters = 4;
+        stUnit = inputGroup.add("statictext", undefined, getCurrentRulerUnitLabel());
+        editVal.active = true;
+        changeValueByArrowKey(editVal, true);
+
+        // 辺の伸縮の有効/無効
+        applyEdgeScaleEnabledState = function () {
+            try {
+                var enabled = !!chkKeepOuter.value;
+                chkEnableLen.enabled = enabled;
+                inputGroup.enabled = (enabled && chkEnableLen.value);
+            } catch (_) { }
+        };
+        applyEdgeScaleEnabledState();
+
+        // 外側エリア：角丸（UIのみ。ロジックは後で適用）
+        var outerRoundRow = outerPanel.add("group");
+        outerRoundRow.orientation = "row";
+        outerRoundRow.alignChildren = ["left", "center"];
+
+        chkOuterRound = outerRoundRow.add("checkbox", undefined, "角丸");
+        chkOuterRound.value = false;
+
+        editOuterRound = outerRoundRow.add("edittext", undefined, "0");
+        editOuterRound.characters = 4;
+        changeValueByArrowKey(editOuterRound, false);
+
+        stOuterRoundUnit = outerRoundRow.add("statictext", undefined, getCurrentRulerUnitLabel());
+
+        applyOuterRoundEnabledState = function () {
+            try {
+                // 「辺の伸縮」がONのときは角丸は使えない（ディム表示）
+                var usable = (!!chkKeepOuter.value && !(chkEnableLen && chkEnableLen.value));
+
+                chkOuterRound.enabled = usable;
+
+                if (!usable) {
+                    chkOuterRound.value = false;
+                    editOuterRound.text = "0";
                 }
-            }
-        } catch (_) { }
 
+                editOuterRound.enabled = (usable && !!chkOuterRound.value);
+                if (usable && !chkOuterRound.value) editOuterRound.text = "0";
+            } catch (_) { }
+        };
         applyOuterRoundEnabledState();
-        if (chkPreview && chkPreview.value) updatePreview(false);
-    };
 
-    editOuterRound.onChanging = function () {
-        if (chkPreview && chkPreview.value) updatePreview(false);
-    };
+        chkOuterRound.onClick = function () {
+            try {
+                if (chkOuterRound.value) {
+                    var v = parseFloat(editOuterRound.text);
+                    if (isNaN(v) || v === 0) {
+                        editOuterRound.text = "2";
+                    }
+                }
+            } catch (_) { }
 
-    // 線端（ストロークキャップ）
-    var capPanel = outerPanel.add("panel", undefined, L("panelCap"));
-    capPanel.orientation = "row";
-    capPanel.alignChildren = ["left", "center"];
-    capPanel.margins = [15, 20, 15, 10];
+            applyOuterRoundEnabledState();
+            if (chkPreview && chkPreview.value) updatePreview(false);
+        };
 
-    var rbCapButt = capPanel.add("radiobutton", undefined, L("capNone"));
-    var rbCapRound = capPanel.add("radiobutton", undefined, L("capRound"));
-    var rbCapProject = capPanel.add("radiobutton", undefined, L("capProject"));
+        editOuterRound.onChanging = function () {
+            if (chkPreview && chkPreview.value) updatePreview(false);
+        };
 
-    // 初期値：選択オブジェクトの線端を優先（取得できなければ「線端なし」）
-    (function initCapUI() {
-        var cap = null;
-        try {
-            if (targetItems.length > 0 && targetItems[0].stroked) cap = targetItems[0].strokeCap;
-        } catch (_) { }
+        // 線端（ストロークキャップ）
+        capPanel = outerPanel.add("panel", undefined, L("panelCap"));
+        capPanel.orientation = "row";
+        capPanel.alignChildren = ["left", "center"];
+        capPanel.margins = [15, 20, 15, 10];
 
-        if (cap === StrokeCap.ROUNDENDCAP) {
-            rbCapRound.value = true;
-        } else if (cap === StrokeCap.PROJECTINGENDCAP) {
-            rbCapProject.value = true;
-        } else {
-            rbCapButt.value = true; // StrokeCap.BUTTENDCAP を含む
-        }
-    })();
+        rbCapButt = capPanel.add("radiobutton", undefined, L("capNone"));
+        rbCapRound = capPanel.add("radiobutton", undefined, L("capRound"));
+        rbCapProject = capPanel.add("radiobutton", undefined, L("capProject"));
 
-    // 外側エリア：線パネルの有効/無効を更新
-    function applyOuterLinePanelEnabledState() {
-        try {
-            var lenVal = getEffectiveLenValue();
-            capPanel.enabled = (!!chkKeepOuter.value && !!chkEnableLen.value && lenVal !== 0);
-        } catch (_) { }
+        // 初期値：選択オブジェクトの線端を優先
+        (function initCapUI() {
+            var cap = null;
+            try {
+                if (targetItems.length > 0 && targetItems[0].stroked) cap = targetItems[0].strokeCap;
+            } catch (_) { }
+
+            if (cap === StrokeCap.ROUNDENDCAP) {
+                rbCapRound.value = true;
+            } else if (cap === StrokeCap.PROJECTINGENDCAP) {
+                rbCapProject.value = true;
+            } else {
+                rbCapButt.value = true;
+            }
+        })();
+
+        // 外側エリア：線パネルの有効/無効
+        applyOuterLinePanelEnabledState = function () {
+            try {
+                var lenVal = getEffectiveLenValue();
+                capPanel.enabled = (!!chkKeepOuter.value && !!chkEnableLen.value && lenVal !== 0);
+            } catch (_) { }
+        };
+        applyOuterLinePanelEnabledState();
     }
 
-    // 初期状態
-    applyOuterLinePanelEnabledState();
+    // Builder: InnerUI
+    function buildInnerUI(parent) {
+        // inner box パネル
+        innerPanel = parent.add("panel", undefined, L("panelInnerArea"));
+        innerPanel.orientation = "column";
+        innerPanel.alignChildren = ["fill", "top"];
+        innerPanel.margins = [15, 20, 15, 10];
+
+        // オフセット入力：3段組（上 / 左＋連動＋右 / 下）
+        var innerOffsetPanel = innerPanel.add("panel", undefined, L("panelOffset") + "（" + getCurrentRulerUnitLabel() + "）");
+        innerOffsetPanel.orientation = "column";
+        innerOffsetPanel.alignChildren = ["fill", "top"];
+        innerOffsetPanel.margins = [15, 20, 15, 10];
+
+        // 1段目：上（中央寄せ）
+        var innerOffsetRowTop = innerOffsetPanel.add("group");
+        innerOffsetRowTop.orientation = "row";
+        innerOffsetRowTop.alignChildren = ["center", "center"];
+        innerOffsetRowTop.alignment = ["fill", "top"];
+
+        var innerOffsetTopGroup = innerOffsetRowTop.add("group");
+        innerOffsetTopGroup.orientation = "row";
+        innerOffsetTopGroup.alignChildren = ["left", "center"];
+        innerOffsetTopGroup.add("statictext", undefined, L("offsetTop"));
+        editInnerOffsetTop = innerOffsetTopGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
+        editInnerOffsetTop.characters = 3;
+        changeValueByArrowKey(editInnerOffsetTop, false);
+
+        // 2段目：左 ＋ 連動（中央）＋ 右
+        var innerOffsetRowMid = innerOffsetPanel.add("group");
+        innerOffsetRowMid.orientation = "row";
+        innerOffsetRowMid.alignChildren = ["center", "center"];
+        innerOffsetRowMid.alignment = ["fill", "top"];
+        innerOffsetRowMid.spacing = 12;
+
+        var innerOffsetLeftGroup = innerOffsetRowMid.add("group");
+        innerOffsetLeftGroup.orientation = "row";
+        innerOffsetLeftGroup.alignChildren = ["left", "center"];
+        innerOffsetLeftGroup.add("statictext", undefined, L("offsetLeft"));
+        editInnerOffsetLeft = innerOffsetLeftGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
+        editInnerOffsetLeft.characters = 3;
+        changeValueByArrowKey(editInnerOffsetLeft, false);
+
+        chkInnerOffsetLink = innerOffsetRowMid.add("checkbox", undefined, L("chkLink"));
+        chkInnerOffsetLink.value = true;
+
+        var innerOffsetRightGroup = innerOffsetRowMid.add("group");
+        innerOffsetRightGroup.orientation = "row";
+        innerOffsetRightGroup.alignChildren = ["left", "center"];
+        innerOffsetRightGroup.add("statictext", undefined, L("offsetRight"));
+        editInnerOffsetRight = innerOffsetRightGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
+        editInnerOffsetRight.characters = 3;
+        changeValueByArrowKey(editInnerOffsetRight, false);
+
+        // 3段目：下（中央寄せ）
+        var innerOffsetRowBottom = innerOffsetPanel.add("group");
+        innerOffsetRowBottom.orientation = "row";
+        innerOffsetRowBottom.alignChildren = ["center", "center"];
+        innerOffsetRowBottom.alignment = ["fill", "top"];
+
+        var innerOffsetBottomGroup = innerOffsetRowBottom.add("group");
+        innerOffsetBottomGroup.orientation = "row";
+        innerOffsetBottomGroup.alignChildren = ["left", "center"];
+        innerOffsetBottomGroup.add("statictext", undefined, L("offsetBottom"));
+        editInnerOffsetBottom = innerOffsetBottomGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
+        editInnerOffsetBottom.characters = 3;
+        changeValueByArrowKey(editInnerOffsetBottom, false);
+
+        applyInnerOffsetLinkState = function () {
+            var linked = !!chkInnerOffsetLink.value;
+            // 連動ON: 下/左/右はディム表示（操作不可）
+            try { innerOffsetBottomGroup.enabled = !linked; } catch (_) { }
+            try { innerOffsetLeftGroup.enabled = !linked; } catch (_) { }
+            try { innerOffsetRightGroup.enabled = !linked; } catch (_) { }
+
+            if (linked) {
+                var v = editInnerOffsetTop.text;
+                _syncingInnerOffsets = true;
+                try { editInnerOffsetBottom.text = v; } catch (_) { }
+                try { editInnerOffsetLeft.text = v; } catch (_) { }
+                try { editInnerOffsetRight.text = v; } catch (_) { }
+                _syncingInnerOffsets = false;
+            }
+        };
+        applyInnerOffsetLinkState();
+
+        // 列・行
+        var innerGridWrap = innerPanel.add("group");
+        innerGridWrap.orientation = "row";
+        innerGridWrap.alignChildren = ["left", "top"];
+        innerGridWrap.alignment = ["fill", "top"];
+
+        var innerGridGroup = innerGridWrap.add("group");
+        innerGridGroup.orientation = "column";
+        innerGridGroup.alignChildren = ["left", "top"];
+        innerGridGroup.alignment = ["left", "top"];
+        innerGridGroup.spacing = 12;
+
+        // 列
+        var colPanel = innerGridGroup.add("panel", undefined, L("panelColumns"));
+        colPanel.orientation = "column";
+        colPanel.alignChildren = ["fill", "top"];
+        colPanel.margins = [15, 20, 15, 10];
+        colPanel.spacing = 8;
+
+        var gridColRow = colPanel.add("group");
+        gridColRow.orientation = "row";
+        gridColRow.alignChildren = ["left", "center"];
+
+        gridColRow.add("statictext", undefined, L("colCount"));
+        editInnerColumns = gridColRow.add("edittext", undefined, "1");
+        editInnerColumns.characters = 3;
+        changeValueByArrowKey(editInnerColumns, false);
+
+        gridColRow.add("statictext", undefined, L("spacing"));
+        editColGutter = gridColRow.add("edittext", undefined, "0");
+        editColGutter.characters = 4;
+        changeValueByArrowKey(editColGutter, false);
+        gridColRow.add("statictext", undefined, getCurrentRulerUnitLabel());
+
+        try { editColGutter.enabled = (parseInt(editInnerColumns.text, 10) > 1); } catch (_) { }
+
+        // 行
+        var rowPanel = innerGridGroup.add("panel", undefined, L("panelRows"));
+        rowPanel.orientation = "column";
+        rowPanel.alignChildren = ["fill", "top"];
+        rowPanel.margins = [15, 20, 15, 10];
+        rowPanel.spacing = 8;
+
+        var gridRowRow = rowPanel.add("group");
+        gridRowRow.orientation = "row";
+        gridRowRow.alignChildren = ["left", "center"];
+
+        gridRowRow.add("statictext", undefined, L("rowCount"));
+        editInnerRows = gridRowRow.add("edittext", undefined, "1");
+        editInnerRows.characters = 3;
+        changeValueByArrowKey(editInnerRows, false);
+
+        gridRowRow.add("statictext", undefined, L("spacing"));
+        editRowGutter = gridRowRow.add("edittext", undefined, "0");
+        editRowGutter.characters = 4;
+        changeValueByArrowKey(editRowGutter, false);
+        gridRowRow.add("statictext", undefined, getCurrentRulerUnitLabel());
+
+        // 行オプション
+        var gridRowOptsWrap = innerGridGroup.add("group");
+        gridRowOptsWrap.orientation = "row";
+        gridRowOptsWrap.alignChildren = ["center", "center"];
+        gridRowOptsWrap.alignment = ["fill", "top"];
+
+        var gridRowOpts = gridRowOptsWrap.add("group");
+        gridRowOpts.orientation = "row";
+        gridRowOpts.alignChildren = ["left", "center"];
+        gridRowOpts.alignment = ["center", "center"];
+
+        chkRowFill = gridRowOpts.add("checkbox", undefined, L("chkFill"));
+        chkRowFill.value = false;
+
+        chkRowDivider = gridRowOpts.add("checkbox", undefined, L("chkDivider"));
+        chkRowDivider.value = false;
+
+        // 内側の線種
+        innerCapPanel = innerPanel.add("panel", undefined, L("panelLineType"));
+        innerCapPanel.orientation = "row";
+        innerCapPanel.alignChildren = ["left", "center"];
+        innerCapPanel.margins = [15, 20, 15, 10];
+
+        rbInnerLineSolid = innerCapPanel.add("radiobutton", undefined, L("lineSolid"));
+        rbInnerLineDash = innerCapPanel.add("radiobutton", undefined, L("lineDash"));
+        rbInnerLineDotDash = innerCapPanel.add("radiobutton", undefined, L("lineDotDash"));
+        rbInnerLineSolid.value = true;
+    }
+
+    buildMarginUI(leftCol);
+
+
+    buildOuterUI(leftCol);
 
     // タイトルエリア
     var titlePanel = leftCol.add("panel", undefined, L("panelTitleBand"));
@@ -807,179 +1021,13 @@ function L(key) {
     // 初期反映（関連UIの有効/無効を最終調整）
     applyFrameEnabledState();
 
-    // inner box パネル
-    var innerPanel = colGroup.add("panel", undefined, L("panelInnerArea"));
-    innerPanel.orientation = "column";
-    innerPanel.alignChildren = ["fill", "top"];
-    innerPanel.margins = [15, 20, 15, 10];
 
-    // オフセット入力：3段組（上 / 左＋連動＋右 / 下）
-    var innerOffsetPanel = innerPanel.add("panel", undefined, L("panelOffset") + "（" + getCurrentRulerUnitLabel() + "）");
-    innerOffsetPanel.orientation = "column";
-    innerOffsetPanel.alignChildren = ["fill", "top"];
-    innerOffsetPanel.margins = [15, 20, 15, 10];
-
-    // 1段目：上（中央寄せ）
-    var innerOffsetRowTop = innerOffsetPanel.add("group");
-    innerOffsetRowTop.orientation = "row";
-    innerOffsetRowTop.alignChildren = ["center", "center"];
-    innerOffsetRowTop.alignment = ["fill", "top"];
-
-    var innerOffsetTopGroup = innerOffsetRowTop.add("group");
-    innerOffsetTopGroup.orientation = "row";
-    innerOffsetTopGroup.alignChildren = ["left", "center"];
-    innerOffsetTopGroup.add("statictext", undefined, L("offsetTop"));
-    var editInnerOffsetTop = innerOffsetTopGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
-    editInnerOffsetTop.characters = 3;
-    changeValueByArrowKey(editInnerOffsetTop, false);
-
-    // 2段目：左 ＋ 連動（中央）＋ 右
-    var innerOffsetRowMid = innerOffsetPanel.add("group");
-    innerOffsetRowMid.orientation = "row";
-    innerOffsetRowMid.alignChildren = ["center", "center"];
-    innerOffsetRowMid.alignment = ["fill", "top"];
-    innerOffsetRowMid.spacing = 12;
-
-    var innerOffsetLeftGroup = innerOffsetRowMid.add("group");
-    innerOffsetLeftGroup.orientation = "row";
-    innerOffsetLeftGroup.alignChildren = ["left", "center"];
-    innerOffsetLeftGroup.add("statictext", undefined, L("offsetLeft"));
-    var editInnerOffsetLeft = innerOffsetLeftGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
-    editInnerOffsetLeft.characters = 3;
-    changeValueByArrowKey(editInnerOffsetLeft, false);
-
-    // 連動（中央）
-    var chkInnerOffsetLink = innerOffsetRowMid.add("checkbox", undefined, L("chkLink"));
-    chkInnerOffsetLink.value = true;
-
-    var innerOffsetRightGroup = innerOffsetRowMid.add("group");
-    innerOffsetRightGroup.orientation = "row";
-    innerOffsetRightGroup.alignChildren = ["left", "center"];
-    innerOffsetRightGroup.add("statictext", undefined, L("offsetRight"));
-    var editInnerOffsetRight = innerOffsetRightGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
-    editInnerOffsetRight.characters = 3;
-    changeValueByArrowKey(editInnerOffsetRight, false);
-
-    // 3段目：下（中央寄せ）
-    var innerOffsetRowBottom = innerOffsetPanel.add("group");
-    innerOffsetRowBottom.orientation = "row";
-    innerOffsetRowBottom.alignChildren = ["center", "center"];
-    innerOffsetRowBottom.alignment = ["fill", "top"];
-
-    var innerOffsetBottomGroup = innerOffsetRowBottom.add("group");
-    innerOffsetBottomGroup.orientation = "row";
-    innerOffsetBottomGroup.alignChildren = ["left", "center"];
-    innerOffsetBottomGroup.add("statictext", undefined, L("offsetBottom"));
-    var editInnerOffsetBottom = innerOffsetBottomGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
-    editInnerOffsetBottom.characters = 3;
-    changeValueByArrowKey(editInnerOffsetBottom, false);
-
-    // 連動の同期フラグ（無限ループ防止）
-    var _syncingInnerOffsets = false;
-
-    function applyInnerOffsetLinkState() {
-        var linked = !!chkInnerOffsetLink.value;
-
-        // 連動ON: 下/左/右はディム表示（操作不可）
-        try { innerOffsetBottomGroup.enabled = !linked; } catch (_) { }
-        try { innerOffsetLeftGroup.enabled = !linked; } catch (_) { }
-        try { innerOffsetRightGroup.enabled = !linked; } catch (_) { }
-
-        // 値も揃える
-        if (linked) {
-            var v = editInnerOffsetTop.text;
-            _syncingInnerOffsets = true;
-            try { editInnerOffsetBottom.text = v; } catch (_) { }
-            try { editInnerOffsetLeft.text = v; } catch (_) { }
-            try { editInnerOffsetRight.text = v; } catch (_) { }
-            _syncingInnerOffsets = false;
-        }
-    }
-
-    // 初期反映
-    applyInnerOffsetLinkState();
-
-
-    // 列・行（左寄せ / 2行）
-    var innerGridWrap = innerPanel.add("group");
-    innerGridWrap.orientation = "row";
-    innerGridWrap.alignChildren = ["left", "top"];
-    innerGridWrap.alignment = ["fill", "top"];
-
-    var innerGridGroup = innerGridWrap.add("group");
-    innerGridGroup.orientation = "column";
-    innerGridGroup.alignChildren = ["left", "top"];
-    innerGridGroup.alignment = ["left", "top"];
-    innerGridGroup.spacing = 12;
-
-    // 列（分割数 / ガター）
-    var colPanel = innerGridGroup.add("panel", undefined, L("panelColumns"));
-    colPanel.orientation = "column";
-    colPanel.alignChildren = ["fill", "top"];
-    colPanel.margins = [15, 20, 15, 10];
-    colPanel.spacing = 8;
-
-    var gridColRow = colPanel.add("group");
-    gridColRow.orientation = "row";
-    gridColRow.alignChildren = ["left", "center"];
-
-    gridColRow.add("statictext", undefined, L("colCount"));
-    var editInnerColumns = gridColRow.add("edittext", undefined, "1");
-    editInnerColumns.characters = 3;
-    changeValueByArrowKey(editInnerColumns, false);
-
-    gridColRow.add("statictext", undefined, L("spacing"));
-    var editColGutter = gridColRow.add("edittext", undefined, "0");
-    editColGutter.characters = 4;
-    changeValueByArrowKey(editColGutter, false);
-    gridColRow.add("statictext", undefined, getCurrentRulerUnitLabel());
-
-    // 初期状態：列が1ならガターは無効
-    try { editColGutter.enabled = (parseInt(editInnerColumns.text, 10) > 1); } catch (_) { }
-
-    // 行（分割数 / ガター）
-    var rowPanel = innerGridGroup.add("panel", undefined, L("panelRows"));
-    rowPanel.orientation = "column";
-    rowPanel.alignChildren = ["fill", "top"];
-    rowPanel.margins = [15, 20, 15, 10];
-    rowPanel.spacing = 8;
-
-    var gridRowRow = rowPanel.add("group");
-    gridRowRow.orientation = "row";
-    gridRowRow.alignChildren = ["left", "center"];
-
-    gridRowRow.add("statictext", undefined, L("rowCount"));
-    var editInnerRows = gridRowRow.add("edittext", undefined, "1");
-    editInnerRows.characters = 3;
-    changeValueByArrowKey(editInnerRows, false);
-
-    gridRowRow.add("statictext", undefined, L("spacing"));
-    var editRowGutter = gridRowRow.add("edittext", undefined, "0");
-    editRowGutter.characters = 4;
-    changeValueByArrowKey(editRowGutter, false);
-    gridRowRow.add("statictext", undefined, getCurrentRulerUnitLabel());
-
-    // 行：オプション（塗り / 区切り線）中央寄せ
-    var gridRowOptsWrap = innerGridGroup.add("group");
-    gridRowOptsWrap.orientation = "row";
-    gridRowOptsWrap.alignChildren = ["center", "center"];
-    gridRowOptsWrap.alignment = ["fill", "top"];
-
-    var gridRowOpts = gridRowOptsWrap.add("group");
-    gridRowOpts.orientation = "row";
-    gridRowOpts.alignChildren = ["left", "center"];
-    gridRowOpts.alignment = ["center", "center"];
-
-    var chkRowFill = gridRowOpts.add("checkbox", undefined, L("chkFill"));
-    chkRowFill.value = false;
-
-    var chkRowDivider = gridRowOpts.add("checkbox", undefined, L("chkDivider"));
-    chkRowDivider.value = false;
+    buildInnerUI(colGroup);
 
     // ［塗り］の手動操作を優先するためのフラグ（ガター変更での自動ONを抑制）
     var _rowFillManuallySet = false;
 
-    // 列/行の分割が可能になった瞬間だけ「区切り線」を自動ONにするためのフラグ
+    // 列/行の分割が可能になった瞬間だけ「分割線」を自動ONにするためのフラグ
     var _prevGridSplittable = false;
     try {
         var _c0 = parseInt(editInnerColumns.text, 10);
@@ -994,7 +1042,7 @@ function L(key) {
         try { chkRowDivider.enabled = splittable; } catch (_) { }
 
         if (!splittable) {
-            // 分割できないなら区切り線は不要
+            // 分割できないなら分割線は不要
             try { chkRowDivider.value = false; } catch (_) { }
         } else if (allowAutoOn && !_prevGridSplittable) {
             // 1/1 から分割可能になった瞬間だけ自動ON
@@ -1003,30 +1051,11 @@ function L(key) {
 
         _prevGridSplittable = splittable;
 
-        // 線端パネルも連動
+        // 線パネルも連動
         try { innerCapPanel.enabled = (chkRowDivider.enabled && chkRowDivider.value); } catch (_) { }
     }
 
-    // 区切り線OFFのときは線端パネルをディム表示
-    // （区切り線を使わないなら線端設定も不要）
-    // ※初期状態反映
-
-    // 内側の長方形：線種
-    var innerCapPanel = innerPanel.add("panel", undefined, L("panelLineType"));
-    innerCapPanel.orientation = "row";
-    innerCapPanel.alignChildren = ["left", "center"];
-    innerCapPanel.margins = [15, 20, 15, 10];
-
-
-
-    var rbInnerLineSolid = innerCapPanel.add("radiobutton", undefined, L("lineSolid"));
-    var rbInnerLineDash = innerCapPanel.add("radiobutton", undefined, L("lineDash"));
-    var rbInnerLineDotDash = innerCapPanel.add("radiobutton", undefined, L("lineDotDash"));
-
-    // デフォルト：実線
-    rbInnerLineSolid.value = true;
-
-    // 初期状態：列/行が1/1なら区切り線はディム（OFF）、分割可能ならON/OFFに従う
+    // 初期状態：列/行が1/1なら分割線はディム（OFF）、分割可能ならON/OFFに従う
     try {
         var _cInit = parseInt(editInnerColumns.text, 10);
         var _rInit = parseInt(editInnerRows.text, 10);
@@ -1067,81 +1096,182 @@ function L(key) {
         if (!st) return;
         function safeSet(fn) { try { fn(); } catch (_) { } }
 
+        function getNested(obj, pathArr) {
+            try {
+                var cur = obj;
+                for (var i = 0; i < pathArr.length; i++) {
+                    if (!cur) return undefined;
+                    cur = cur[pathArr[i]];
+                }
+                return cur;
+            } catch (_) { return undefined; }
+        }
+
+        function firstDefined(v1, v2, v3) {
+            return (typeof v1 !== "undefined") ? v1 : ((typeof v2 !== "undefined") ? v2 : v3);
+        }
+
         safeSet(function () { if (typeof st.preview !== "undefined") chkPreview.value = !!st.preview; });
 
-        // Margin (4-way). Fallback from old `st.margin` when present.
+        // Margin (4-way). New nested form: st.margin.{top,bottom,left,right,link}
+        // Fallback from old flat keys: st.marginTop etc, and older single st.margin
         safeSet(function () {
-            var v = (typeof st.marginTop !== "undefined") ? st.marginTop : ((typeof st.margin !== "undefined") ? st.margin : undefined);
+            var v = firstDefined(getNested(st, ["margin", "top"]), st.marginTop, st.margin);
             if (typeof v !== "undefined") editArtboardMarginTop.text = String(v);
         });
         safeSet(function () {
-            var v = (typeof st.marginBottom !== "undefined") ? st.marginBottom : ((typeof st.margin !== "undefined") ? st.margin : undefined);
+            var v = firstDefined(getNested(st, ["margin", "bottom"]), st.marginBottom, st.margin);
             if (typeof v !== "undefined") editArtboardMarginBottom.text = String(v);
         });
         safeSet(function () {
-            var v = (typeof st.marginLeft !== "undefined") ? st.marginLeft : ((typeof st.margin !== "undefined") ? st.margin : undefined);
+            var v = firstDefined(getNested(st, ["margin", "left"]), st.marginLeft, st.margin);
             if (typeof v !== "undefined") editArtboardMarginLeft.text = String(v);
         });
         safeSet(function () {
-            var v = (typeof st.marginRight !== "undefined") ? st.marginRight : ((typeof st.margin !== "undefined") ? st.margin : undefined);
+            var v = firstDefined(getNested(st, ["margin", "right"]), st.marginRight, st.margin);
             if (typeof v !== "undefined") editArtboardMarginRight.text = String(v);
         });
-        safeSet(function () { if (typeof st.marginLink !== "undefined") chkArtboardMarginLink.value = !!st.marginLink; });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["margin", "link"]), st.marginLink, undefined);
+            if (typeof v !== "undefined") chkArtboardMarginLink.value = !!v;
+        });
         safeSet(function () { applyArtboardMarginLinkState(); });
 
-        safeSet(function () { if (typeof st.keepOuter !== "undefined") chkKeepOuter.value = !!st.keepOuter; });
-        safeSet(function () { if (typeof st.enableLen !== "undefined") chkEnableLen.value = !!st.enableLen; });
-        safeSet(function () { if (typeof st.lenVal !== "undefined") editVal.text = String(st.lenVal); });
+        // Outer
         safeSet(function () {
-            if (st.cap === "round") rbCapRound.value = true;
-            else if (st.cap === "project") rbCapProject.value = true;
-            else if (typeof st.cap !== "undefined") rbCapButt.value = true;
+            var v = firstDefined(getNested(st, ["outer", "keepOuter"]), st.keepOuter, undefined);
+            if (typeof v !== "undefined") chkKeepOuter.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["outer", "enableLen"]), st.enableLen, undefined);
+            if (typeof v !== "undefined") chkEnableLen.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["outer", "lenVal"]), st.lenVal, undefined);
+            if (typeof v !== "undefined") editVal.text = String(v);
+        });
+        safeSet(function () {
+            var cap = firstDefined(getNested(st, ["outer", "cap"]), st.cap, undefined);
+            if (cap === "round") rbCapRound.value = true;
+            else if (cap === "project") rbCapProject.value = true;
+            else if (typeof cap !== "undefined") rbCapButt.value = true;
         });
 
-        safeSet(function () { if (typeof st.outerRoundEnable !== "undefined") chkOuterRound.value = !!st.outerRoundEnable; });
-        safeSet(function () { if (typeof st.outerRoundVal !== "undefined") editOuterRound.text = String(st.outerRoundVal); });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["outer", "round", "enable"]), st.outerRoundEnable, undefined);
+            if (typeof v !== "undefined") chkOuterRound.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["outer", "round", "val"]), st.outerRoundVal, undefined);
+            if (typeof v !== "undefined") editOuterRound.text = String(v);
+        });
         safeSet(function () { applyOuterRoundEnabledState(); });
 
-        safeSet(function () { if (typeof st.titleEnable !== "undefined") chkTitleEnable.value = !!st.titleEnable; });
-        safeSet(function () { if (typeof st.titleSize !== "undefined") editTitleSize.text = String(st.titleSize); });
+        // Title
         safeSet(function () {
-            if (st.titlePos === "bottom") rbTitleBottom.value = true;
-            else if (st.titlePos === "left") rbTitleLeft.value = true;
-            else if (st.titlePos === "right") rbTitleRight.value = true;
-            else if (typeof st.titlePos !== "undefined") rbTitleTop.value = true;
+            var v = firstDefined(getNested(st, ["title", "enable"]), st.titleEnable, undefined);
+            if (typeof v !== "undefined") chkTitleEnable.value = !!v;
         });
-        safeSet(function () { if (typeof st.titleFill !== "undefined") chkTitleFill.value = !!st.titleFill; });
-        safeSet(function () { if (typeof st.titleLine !== "undefined") chkTitleLine.value = !!st.titleLine; });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["title", "size"]), st.titleSize, undefined);
+            if (typeof v !== "undefined") editTitleSize.text = String(v);
+        });
+        safeSet(function () {
+            var p = firstDefined(getNested(st, ["title", "pos"]), st.titlePos, undefined);
+            if (p === "bottom") rbTitleBottom.value = true;
+            else if (p === "left") rbTitleLeft.value = true;
+            else if (p === "right") rbTitleRight.value = true;
+            else if (typeof p !== "undefined") rbTitleTop.value = true;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["title", "fill"]), st.titleFill, undefined);
+            if (typeof v !== "undefined") chkTitleFill.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["title", "line"]), st.titleLine, undefined);
+            if (typeof v !== "undefined") chkTitleLine.value = !!v;
+        });
 
-        safeSet(function () { if (typeof st.frameEnable !== "undefined") chkFrameEnable.value = !!st.frameEnable; });
-        safeSet(function () { if (typeof st.frameWidth !== "undefined") editFrameWidth.text = String(st.frameWidth); });
-        safeSet(function () { if (typeof st.bleed !== "undefined") chkBleed.value = !!st.bleed; });
-        safeSet(function () { if (typeof st.frameRound !== "undefined") chkFrameRound.value = !!st.frameRound; });
-        safeSet(function () { if (typeof st.frameRoundVal !== "undefined") editFrameRound.text = String(st.frameRoundVal); });
+        // Frame
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["frame", "enable"]), st.frameEnable, undefined);
+            if (typeof v !== "undefined") chkFrameEnable.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["frame", "width"]), st.frameWidth, undefined);
+            if (typeof v !== "undefined") editFrameWidth.text = String(v);
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["frame", "bleed"]), st.bleed, undefined);
+            if (typeof v !== "undefined") chkBleed.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["frame", "round", "enable"]), st.frameRound, undefined);
+            if (typeof v !== "undefined") chkFrameRound.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["frame", "round", "val"]), st.frameRoundVal, undefined);
+            if (typeof v !== "undefined") editFrameRound.text = String(v);
+        });
 
-        safeSet(function () { if (typeof st.innerLink !== "undefined") chkInnerOffsetLink.value = !!st.innerLink; });
-        safeSet(function () { if (typeof st.offTop !== "undefined") editInnerOffsetTop.text = String(st.offTop); });
-        safeSet(function () { if (typeof st.offBottom !== "undefined") editInnerOffsetBottom.text = String(st.offBottom); });
-        safeSet(function () { if (typeof st.offLeft !== "undefined") editInnerOffsetLeft.text = String(st.offLeft); });
-        safeSet(function () { if (typeof st.offRight !== "undefined") editInnerOffsetRight.text = String(st.offRight); });
-
-        safeSet(function () { if (typeof st.cols !== "undefined") editInnerColumns.text = String(st.cols); });
-        safeSet(function () { if (typeof st.rows !== "undefined") editInnerRows.text = String(st.rows); });
-        safeSet(function () { if (typeof st.colGutter !== "undefined") editColGutter.text = String(st.colGutter); });
-        safeSet(function () { if (typeof st.rowGutter !== "undefined") editRowGutter.text = String(st.rowGutter); });
-        safeSet(function () { if (typeof st.rowFill !== "undefined") chkRowFill.value = !!st.rowFill; });
-        safeSet(function () { if (typeof st.rowDivider !== "undefined") chkRowDivider.value = !!st.rowDivider; });
+        // Inner
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "link"]), st.innerLink, undefined);
+            if (typeof v !== "undefined") chkInnerOffsetLink.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "offset", "top"]), st.offTop, undefined);
+            if (typeof v !== "undefined") editInnerOffsetTop.text = String(v);
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "offset", "bottom"]), st.offBottom, undefined);
+            if (typeof v !== "undefined") editInnerOffsetBottom.text = String(v);
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "offset", "left"]), st.offLeft, undefined);
+            if (typeof v !== "undefined") editInnerOffsetLeft.text = String(v);
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "offset", "right"]), st.offRight, undefined);
+            if (typeof v !== "undefined") editInnerOffsetRight.text = String(v);
+        });
 
         safeSet(function () {
-            if (st.innerLine === "dash") rbInnerLineDash.value = true;
-            else if (st.innerLine === "dotdash") rbInnerLineDotDash.value = true;
-            else if (typeof st.innerLine !== "undefined") rbInnerLineSolid.value = true;
+            var v = firstDefined(getNested(st, ["inner", "grid", "cols"]), st.cols, undefined);
+            if (typeof v !== "undefined") editInnerColumns.text = String(v);
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "grid", "rows"]), st.rows, undefined);
+            if (typeof v !== "undefined") editInnerRows.text = String(v);
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "grid", "gutter", "col"]), st.colGutter, undefined);
+            if (typeof v !== "undefined") editColGutter.text = String(v);
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "grid", "gutter", "row"]), st.rowGutter, undefined);
+            if (typeof v !== "undefined") editRowGutter.text = String(v);
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "grid", "fill"]), st.rowFill, undefined);
+            if (typeof v !== "undefined") chkRowFill.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["inner", "grid", "divider"]), st.rowDivider, undefined);
+            if (typeof v !== "undefined") chkRowDivider.value = !!v;
+        });
+
+        safeSet(function () {
+            var lt = firstDefined(getNested(st, ["inner", "grid", "lineType"]), st.innerLine, undefined);
+            if (lt === "dash") rbInnerLineDash.value = true;
+            else if (lt === "dotdash") rbInnerLineDotDash.value = true;
+            else if (typeof lt !== "undefined") rbInnerLineSolid.value = true;
         });
 
         // Re-apply enabled/disabled states that depend on other controls
         safeSet(function () { applyEdgeScaleEnabledState(); });
+        safeSet(function () { applyArtboardMarginLinkState(); });
         safeSet(function () { applyOuterLinePanelEnabledState(); });
-
         safeSet(function () { applyOuterRoundEnabledState(); });
         safeSet(function () { applyTitleAreaEnabledState(); });
         safeSet(function () { applyFrameEnabledState(); });
@@ -1570,50 +1700,292 @@ function L(key) {
 
     // --- 関数定義 ---
 
+    // -----------------------------
+    // Preview / Generation split
+    // - collectOptions(): read UI, compute pt values
+    // - generateFromOptions(): create objects (core)
+    // - renderPreview()/renderFinal(): preview-specific cleanup/redraw
+    // Public entry remains: updatePreview(isFinal)
+    // -----------------------------
+
+    function collectOptions() {
+        // 入力値チェック
+        var factor = getCurrentRulerPtFactor();
+
+        var val = getEffectiveLenValue();
+        var distPt = val * factor; // rulerType -> pt
+
+        // タイトル領域サイズ（外枠基準）
+        var titleVal = (typeof chkTitleEnable !== "undefined" && chkTitleEnable && !chkTitleEnable.value) ? 0 : parseFloat(editTitleSize && editTitleSize.text);
+        var titleSizePt = (!isNaN(titleVal) ? (titleVal * factor) : 0);
+
+        // フレーム幅（pt）
+        var frameVal = (chkFrameEnable && chkFrameEnable.value) ? parseFloat(editFrameWidth.text) : 0;
+        var framePt = (!isNaN(frameVal) ? (frameVal * factor) : 0);
+        if (framePt < 0) framePt = 0;
+        if (_bleedEnabled) {
+            var bleedPtForFrame = (72.0 / 25.4) * BLEED_MM;
+            framePt += bleedPtForFrame;
+        }
+
+        // 内側オフセット
+        var offTopVal = parseFloat(editInnerOffsetTop.text);
+        var offBottomVal = parseFloat(editInnerOffsetBottom.text);
+        var offLeftVal = parseFloat(editInnerOffsetLeft.text);
+        var offRightVal = parseFloat(editInnerOffsetRight.text);
+
+        var offTopPt = (!isNaN(offTopVal) ? (offTopVal * factor) : 0);
+        var offBottomPt = (!isNaN(offBottomVal) ? (offBottomVal * factor) : 0);
+        var offLeftPt = (!isNaN(offLeftVal) ? (offLeftVal * factor) : 0);
+        var offRightPt = (!isNaN(offRightVal) ? (offRightVal * factor) : 0);
+
+        // 列・行
+        var colVal = parseInt(editInnerColumns.text, 10);
+        if (isNaN(colVal) || colVal < 1) colVal = 1;
+        var rowVal = parseInt(editInnerRows.text, 10);
+        if (isNaN(rowVal) || rowVal < 1) rowVal = 1;
+
+        // ガター（列/行）：列/行が1なら無効（0扱い）
+        try { editColGutter.enabled = (colVal > 1); } catch (_) { }
+        try { editRowGutter.enabled = (rowVal > 1); } catch (_) { }
+
+        var colGutterVal = parseFloat(editColGutter.text);
+        var rowGutterVal = parseFloat(editRowGutter.text);
+        var colGutterPt = (colVal > 1 && !isNaN(colGutterVal)) ? (colGutterVal * factor) : 0;
+        var rowGutterPt = (rowVal > 1 && !isNaN(rowGutterVal)) ? (rowGutterVal * factor) : 0;
+        if (colGutterPt < 0) colGutterPt = 0;
+        if (rowGutterPt < 0) rowGutterPt = 0;
+
+        // ガターが設定されたら塗りを自動ON（ただし手動操作があれば尊重）
+        if (!_rowFillManuallySet && ((colGutterPt && colGutterPt !== 0) || (rowGutterPt && rowGutterPt !== 0))) {
+            try { if (!chkRowFill.value) chkRowFill.value = true; } catch (_) { }
+        }
+
+        // 依存UIの更新
+        try { applyRowDividerEnabledState(colVal, rowVal, false); } catch (_) { }
+        try { applyOuterLinePanelEnabledState(); } catch (_) { }
+
+        return {
+            factor: factor,
+            distPt: distPt,
+            titleSizePt: titleSizePt,
+            framePt: framePt,
+            offTopPt: offTopPt,
+            offBottomPt: offBottomPt,
+            offLeftPt: offLeftPt,
+            offRightPt: offRightPt,
+            colVal: colVal,
+            rowVal: rowVal,
+            colGutterPt: colGutterPt,
+            rowGutterPt: rowGutterPt
+        };
+    }
+
+    function generateFromOptions(opt, isFinal) {
+        // アートボード基準のときは、マージンを反映した一時矩形に更新（裁ち落としはフレームのみに適用）
+        if (_usingArtboardBase) {
+            var mtVal = parseFloat(editArtboardMarginTop.text);
+            var mbVal = parseFloat(editArtboardMarginBottom.text);
+            var mlVal = parseFloat(editArtboardMarginLeft.text);
+            var mrVal = parseFloat(editArtboardMarginRight.text);
+
+            if (isNaN(mtVal) || mtVal < 0) mtVal = 0;
+            if (isNaN(mbVal) || mbVal < 0) mbVal = 0;
+            if (isNaN(mlVal) || mlVal < 0) mlVal = 0;
+            if (isNaN(mrVal) || mrVal < 0) mrVal = 0;
+
+            var mtPt = mtVal * opt.factor;
+            var mbPt = mbVal * opt.factor;
+            var mlPt = mlVal * opt.factor;
+            var mrPt = mrVal * opt.factor;
+
+            try { if (typeof chkBleed !== "undefined") _bleedEnabled = !!chkBleed.value; } catch (_) { }
+            rebuildArtboardBaseRect(mtPt, mrPt, mbPt, mlPt);
+        }
+
+        // distPt===0：分割しない
+        if (opt.distPt === 0) {
+            // フレーム（アートボードサイズ基準）
+            if (opt.framePt > 0) {
+                var abB = getActiveArtboardBounds();
+                if (abB) {
+                    createFrameFill(targetItems[0], opt.framePt, abB);
+                }
+            }
+
+            // タイトル帯（塗り）
+            if (opt.titleSizePt > 0) {
+                for (var i = 0; i < targetItems.length; i++) {
+                    createTitleFill(targetItems[i], opt.titleSizePt);
+                }
+            }
+
+            // タイトル帯の分割線
+            if (opt.titleSizePt > 0) {
+                for (var i = 0; i < targetItems.length; i++) {
+                    createTitleDivider(targetItems[i], opt.titleSizePt, opt.distPt);
+                }
+            }
+
+            // 線端パネルはディム表示
+            try { capPanel.enabled = false; } catch (_) { }
+
+            // 外枠の表示は「外枠を残す」に従う
+            var showOuterRect = !!chkKeepOuter.value;
+            for (var i = 0; i < targetItems.length; i++) {
+                try { targetItems[i].hidden = !showOuterRect; } catch (_) { }
+            }
+
+            // 内側エリア（オフセットが0でも描画）
+            for (var i = 0; i < targetItems.length; i++) {
+                var innerB = getInnerAreaBounds(targetItems[i], opt.titleSizePt);
+                if (innerB) {
+                    createInnerBox(
+                        targetItems[i],
+                        innerB,
+                        opt.offTopPt, opt.offBottomPt, opt.offLeftPt, opt.offRightPt,
+                        opt.colVal, opt.rowVal,
+                        opt.colGutterPt, opt.rowGutterPt
+                    );
+                }
+            }
+
+            return;
+        }
+
+        // distPt!=0：4辺線
+        try { capPanel.enabled = true; } catch (_) { }
+
+        // 分解した4辺を表示するため、元の長方形は常に隠す
+        for (var i = 0; i < targetItems.length; i++) {
+            try { targetItems[i].hidden = true; } catch (_) { }
+        }
+
+        // 外枠を残すONのときのみ4辺罫線を描画
+        if (chkKeepOuter.value) {
+            for (var i = 0; i < targetItems.length; i++) {
+                createShortenedLines(targetItems[i], opt.distPt);
+            }
+        }
+
+        // フレーム（アートボードサイズ基準）
+        if (opt.framePt > 0) {
+            var abB2 = getActiveArtboardBounds();
+            if (abB2) {
+                createFrameFill(targetItems[0], opt.framePt, abB2);
+            }
+        }
+
+        // タイトル帯（塗り）
+        if (opt.titleSizePt > 0) {
+            for (var i = 0; i < targetItems.length; i++) {
+                createTitleFill(targetItems[i], opt.titleSizePt);
+            }
+        }
+
+        // タイトル帯の分割線
+        if (opt.titleSizePt > 0) {
+            for (var i = 0; i < targetItems.length; i++) {
+                createTitleDivider(targetItems[i], opt.titleSizePt, opt.distPt);
+            }
+        }
+
+        // 内側エリア
+        for (var i = 0; i < targetItems.length; i++) {
+            var innerB2 = getInnerAreaBounds(targetItems[i], opt.titleSizePt);
+            if (innerB2) {
+                createInnerBox(
+                    targetItems[i],
+                    innerB2,
+                    opt.offTopPt, opt.offBottomPt, opt.offLeftPt, opt.offRightPt,
+                    opt.colVal, opt.rowVal,
+                    opt.colGutterPt, opt.rowGutterPt
+                );
+            }
+        }
+    }
+
+    function renderPreview() {
+        removeTempItems();
+        var opt = collectOptions();
+        generateFromOptions(opt, false);
+        app.redraw();
+    }
+
+    function renderFinal() {
+        removeTempItems();
+        var opt = collectOptions();
+        generateFromOptions(opt, true);
+        app.redraw();
+    }
+
+    function updatePreview(isFinal) {
+        if (isFinal) renderFinal();
+        else renderPreview();
+    }
+
     function persistUIState() {
         var st = {};
         try {
             st.preview = !!chkPreview.value;
-            st.marginTop = editArtboardMarginTop.text;
-            st.marginBottom = editArtboardMarginBottom.text;
-            st.marginLeft = editArtboardMarginLeft.text;
-            st.marginRight = editArtboardMarginRight.text;
-            st.marginLink = !!chkArtboardMarginLink.value;
 
-            st.keepOuter = !!chkKeepOuter.value;
-            st.enableLen = !!chkEnableLen.value;
-            st.lenVal = editVal.text;
-            st.cap = rbCapRound.value ? "round" : (rbCapProject.value ? "project" : "butt");
+            st.margin = {
+                top: editArtboardMarginTop.text,
+                bottom: editArtboardMarginBottom.text,
+                left: editArtboardMarginLeft.text,
+                right: editArtboardMarginRight.text,
+                link: !!chkArtboardMarginLink.value
+            };
 
-            st.outerRoundEnable = !!chkOuterRound.value;
-            st.outerRoundVal = editOuterRound.text;
+            st.outer = {
+                keepOuter: !!chkKeepOuter.value,
+                enableLen: !!chkEnableLen.value,
+                lenVal: editVal.text,
+                cap: (rbCapRound.value ? "round" : (rbCapProject.value ? "project" : "butt")),
+                round: {
+                    enable: !!chkOuterRound.value,
+                    val: editOuterRound.text
+                }
+            };
 
-            st.titleEnable = !!chkTitleEnable.value;
-            st.titleSize = editTitleSize.text;
-            st.titlePos = rbTitleBottom.value ? "bottom" : (rbTitleLeft.value ? "left" : (rbTitleRight.value ? "right" : "top"));
-            st.titleFill = !!chkTitleFill.value;
-            st.titleLine = !!chkTitleLine.value;
+            st.title = {
+                enable: !!chkTitleEnable.value,
+                size: editTitleSize.text,
+                pos: (rbTitleBottom.value ? "bottom" : (rbTitleLeft.value ? "left" : (rbTitleRight.value ? "right" : "top"))),
+                fill: !!chkTitleFill.value,
+                line: !!chkTitleLine.value
+            };
 
-            st.frameEnable = !!chkFrameEnable.value;
-            st.frameWidth = editFrameWidth.text;
-            st.bleed = !!chkBleed.value;
-            st.frameRound = !!chkFrameRound.value;
-            st.frameRoundVal = editFrameRound.text;
+            st.frame = {
+                enable: !!chkFrameEnable.value,
+                width: editFrameWidth.text,
+                bleed: !!chkBleed.value,
+                round: {
+                    enable: !!chkFrameRound.value,
+                    val: editFrameRound.text
+                }
+            };
 
-            st.innerLink = !!chkInnerOffsetLink.value;
-            st.offTop = editInnerOffsetTop.text;
-            st.offBottom = editInnerOffsetBottom.text;
-            st.offLeft = editInnerOffsetLeft.text;
-            st.offRight = editInnerOffsetRight.text;
-
-            st.cols = editInnerColumns.text;
-            st.rows = editInnerRows.text;
-            st.colGutter = editColGutter.text;
-            st.rowGutter = editRowGutter.text;
-            st.rowFill = !!chkRowFill.value;
-            st.rowDivider = !!chkRowDivider.value;
-
-            st.innerLine = rbInnerLineDash.value ? "dash" : (rbInnerLineDotDash.value ? "dotdash" : "solid");
+            st.inner = {
+                link: !!chkInnerOffsetLink.value,
+                offset: {
+                    top: editInnerOffsetTop.text,
+                    bottom: editInnerOffsetBottom.text,
+                    left: editInnerOffsetLeft.text,
+                    right: editInnerOffsetRight.text
+                },
+                grid: {
+                    cols: editInnerColumns.text,
+                    rows: editInnerRows.text,
+                    gutter: {
+                        col: editColGutter.text,
+                        row: editRowGutter.text
+                    },
+                    fill: !!chkRowFill.value,
+                    divider: !!chkRowDivider.value,
+                    lineType: (rbInnerLineDash.value ? "dash" : (rbInnerLineDotDash.value ? "dotdash" : "solid"))
+                }
+            };
         } catch (_) { }
         __saveState(st);
     }
