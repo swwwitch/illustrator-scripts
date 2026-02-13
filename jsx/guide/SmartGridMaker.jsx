@@ -2,12 +2,11 @@
 #target illustrator
 try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } catch (_) { }
 
-
 /*
   SmartGridMaker.jsx
   囲み罫とグリッド
 
-  更新日: 2026-02-13
+  更新日: 2026-02-14
 
   長方形またはアートボードを基準に、
   外側エリア（辺の伸縮・線端）、タイトルエリア、
@@ -28,10 +27,16 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
   ・UI生成を関数分割（MarginUI / OuterUI / InnerUI）
   ・セッション復元の保存形式を構造体化（旧フラット形式もフォールバック）
   ・プレビュー処理と生成処理を分離（計算→生成→描画）
+    ・プレビュー/最終生成ともに collectOptions() を経由して計算を共通化
+  ・長方形選択で開始した場合はフレームpanelを無効化（アートボード基準のみ有効）
+  ・長方形選択で開始した場合はマージンpanelも非表示（スペースを詰める）
+  ・タイトルエリアに［辺の伸縮］を追加（タイトル帯の線の長さに反映）
+    ・タイトルエリアの［辺の伸縮］は正負を反転（＋で伸ばす／−で短くする）
+  ・タイトルエリアの［線］がOFFのとき［辺の伸縮］をディム表示
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.0.10";
+var SCRIPT_VERSION = "v1.0.17";
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)
@@ -59,7 +64,7 @@ var LABELS = {
     // Panels
     panelMargin: { ja: "マージン", en: "Margin" },
     panelOuter: { ja: "外側エリア", en: "Outer Area" },
-    panelCap: { ja: "線", en: "Line" },
+    panelCap: { ja: "線端", en: "Line Caps" },
     panelLine: { ja: "線", en: "Line" },
     panelTitleBand: { ja: "タイトルエリア", en: "Title Area" },
     panelFrame: { ja: "フレーム", en: "Frame" },
@@ -67,7 +72,7 @@ var LABELS = {
     panelOffset: { ja: "オフセット", en: "Offset" },
     panelColumns: { ja: "列", en: "Columns" },
     panelRows: { ja: "行", en: "Rows" },
-    panelLineType: { ja: "線", en: "Line" },
+    panelLineType: { ja: "線の種類", en: "Line Type" },
 
     // Common
     preview: { ja: "プレビュー", en: "Preview" },
@@ -141,6 +146,25 @@ function L(key) {
         if (sel[i].typename === "PathItem") {
             targetItems.push(sel[i]);
         }
+    }
+
+    // 選択した長方形の初期状態を統一
+    // ・塗り：なし
+    // ・線：黒、1pt
+    for (var ti = 0; ti < targetItems.length; ti++) {
+        try {
+            var item = targetItems[ti];
+            item.filled = false;
+            item.stroked = true;
+            item.strokeWidth = 1;
+
+            var black = new CMYKColor();
+            black.cyan = 0;
+            black.magenta = 0;
+            black.yellow = 0;
+            black.black = 100;
+            item.strokeColor = black;
+        } catch (_) { }
     }
 
     // 選択がない場合は、現在のアートボードを基準にする
@@ -359,6 +383,9 @@ function L(key) {
     var capPanel;
     var rbCapButt, rbCapRound, rbCapProject;
 
+    // --- Title band variable handles ---
+    var chkTitleEdgeScale, editTitleEdgeScale, stTitleEdgeScaleUnit;
+
     // --- Inner UI handles ---
     var innerPanel;
     var editInnerOffsetTop, editInnerOffsetBottom, editInnerOffsetLeft, editInnerOffsetRight;
@@ -460,6 +487,19 @@ function L(key) {
 
         // アートボードが対象のときだけアクティブ
         marginPanel.enabled = !!_usingArtboardBase;
+
+        // 長方形スタート時はパネルを隠し、レイアウト上のスペースも潰す
+        try {
+            marginPanel.visible = !!_usingArtboardBase;
+            if (!_usingArtboardBase) {
+                marginPanel.maximumSize.height = 0;
+                marginPanel.minimumSize.height = 0;
+            } else {
+                marginPanel.maximumSize.height = 10000;
+                marginPanel.minimumSize.height = 0;
+            }
+        } catch (_) { }
+
         applyArtboardMarginLinkState();
     }
 
@@ -819,6 +859,38 @@ function L(key) {
     var chkTitleLine = titleOptionGroup.add("checkbox", undefined, L("panelLine"));
     chkTitleLine.value = true;
 
+    // タイトルエリア：辺の伸縮（UIのみ。ロジックは後で適用）
+    var titleEdgeScaleRow = titlePanel.add("group");
+    titleEdgeScaleRow.orientation = "row";
+    titleEdgeScaleRow.alignChildren = ["left", "center"];
+
+    chkTitleEdgeScale = titleEdgeScaleRow.add("checkbox", undefined, L("chkEdgeScale"));
+    chkTitleEdgeScale.value = false;
+
+    editTitleEdgeScale = titleEdgeScaleRow.add("edittext", undefined, "0");
+    editTitleEdgeScale.characters = 4;
+    changeValueByArrowKey(editTitleEdgeScale, true);
+
+    stTitleEdgeScaleUnit = titleEdgeScaleRow.add("statictext", undefined, getCurrentRulerUnitLabel());
+
+function applyTitleEdgeScaleEnabledState() {
+    try {
+        editTitleEdgeScale.enabled = !!chkTitleEdgeScale.value;
+        if (!chkTitleEdgeScale.value) editTitleEdgeScale.text = "0";
+    } catch (_) { }
+}
+applyTitleEdgeScaleEnabledState();
+
+chkTitleEdgeScale.onClick = function () {
+    applyTitleEdgeScaleEnabledState();
+    if (chkPreview && chkPreview.value) updatePreview(false);
+};
+
+editTitleEdgeScale.onChanging = function () {
+    if (!chkTitleEdgeScale.value) return;
+    if (chkPreview && chkPreview.value) updatePreview(false);
+};
+
     // 0→>0 の瞬間だけ自動ON（ユーザーは後からOFF可）
     var _prevTitleHasSize = (function () {
         var _s = parseFloat(editTitleSize.text);
@@ -839,6 +911,15 @@ function L(key) {
         titleSizeGroup.enabled = areaEnabled;
         titleOptionGroup.enabled = areaEnabled;
 
+        // ［辺の伸縮］は「タイトル有効」かつ「線ON」のときのみ操作可能
+        var edgeRowEnabled = (areaEnabled && !!chkTitleLine.value);
+        try { titleEdgeScaleRow.enabled = edgeRowEnabled; } catch (_) { }
+        if (!edgeRowEnabled) {
+            try { chkTitleEdgeScale.value = false; } catch (_) { }
+            try { editTitleEdgeScale.text = "0"; } catch (_) { }
+            try { applyTitleEdgeScaleEnabledState(); } catch (_) { }
+        }
+
         // 位置は「有効」かつ「サイズ>0」のときのみ
         var sz = parseFloat(editTitleSize.text);
         var hasSize = (!isNaN(sz) && sz > 0);
@@ -856,6 +937,7 @@ function L(key) {
         if (!(areaEnabled && hasSize)) chkTitleLine.value = false;
         _prevTitleHasSize = (hasSize && areaEnabled);
     }
+
 
     // 初期反映
     applyTitleAreaEnabledState();
@@ -940,6 +1022,35 @@ function L(key) {
 
     function applyFrameEnabledState() {
         try {
+            // フレームはアートボード基準のみ有効（長方形選択で開始した場合はパネル全体をディム）
+            if (!_usingArtboardBase) {
+                try {
+                    framePanel.visible = false;
+                    framePanel.maximumSize.height = 0;
+                    framePanel.minimumSize.height = 0;
+                } catch (_) { }
+
+                try { chkFrameEnable.value = false; } catch (_) { }
+                try { editFrameWidth.text = "0"; } catch (_) { }
+
+                try { chkBleed.value = false; } catch (_) { }
+                try { chkFrameRound.value = false; } catch (_) { }
+                try { if (editFrameRound) editFrameRound.text = "0"; } catch (_) { }
+
+                // 依存状態の更新
+                try { editFrameWidth.enabled = false; } catch (_) { }
+                try { if (chkBleed) chkBleed.enabled = false; } catch (_) { }
+                try { if (chkFrameRound) chkFrameRound.enabled = false; } catch (_) { }
+                try { if (editFrameRound) editFrameRound.enabled = false; } catch (_) { }
+                return;
+            } else {
+                try {
+                    framePanel.visible = true;
+                    framePanel.maximumSize.height = 10000;
+                    framePanel.minimumSize.height = 0;
+                } catch (_) { }
+            }
+
             var enabled = !!chkFrameEnable.value;
 
             // 幅フィールド
@@ -972,8 +1083,6 @@ function L(key) {
         } catch (_) { }
     }
 
-    // 初期反映
-    // ※chkPreview はこの時点では未生成のため、ここでは updatePreview() を呼ばない
 
     // 裁ち落とし（アートボード基準のみ表示）
     var bleedRow = framePanel.add("group");
@@ -982,7 +1091,8 @@ function L(key) {
 
     var chkBleed = bleedRow.add("checkbox", undefined, L("chkBleed"));
     chkBleed.value = false;
-    chkBleed.visible = !!_usingArtboardBase;
+    // 常時表示（長方形スタート時は enabled で制御）
+    chkBleed.visible = true;
 
     // 角丸（UIのみ）
     var frameRoundRow = framePanel.add("group");
@@ -1020,12 +1130,23 @@ function L(key) {
 
     // 初期反映（関連UIの有効/無効を最終調整）
     applyFrameEnabledState();
+    try {
+        framePanel.visible = !!_usingArtboardBase;
+        if (!_usingArtboardBase) {
+            framePanel.maximumSize.height = 0;
+            framePanel.minimumSize.height = 0;
+        } else {
+            framePanel.maximumSize.height = 10000;
+            framePanel.minimumSize.height = 0;
+        }
+    } catch (_) { }
 
 
     buildInnerUI(colGroup);
 
     // ［塗り］の手動操作を優先するためのフラグ（ガター変更での自動ONを抑制）
     var _rowFillManuallySet = false;
+
 
     // 列/行の分割が可能になった瞬間だけ「分割線」を自動ONにするためのフラグ
     var _prevGridSplittable = false;
@@ -1191,6 +1312,15 @@ function L(key) {
             var v = firstDefined(getNested(st, ["title", "line"]), st.titleLine, undefined);
             if (typeof v !== "undefined") chkTitleLine.value = !!v;
         });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["title", "edgeScale", "enable"]), st.titleEdgeScaleEnable, undefined);
+            if (typeof v !== "undefined") chkTitleEdgeScale.value = !!v;
+        });
+        safeSet(function () {
+            var v = firstDefined(getNested(st, ["title", "edgeScale", "val"]), st.titleEdgeScaleVal, undefined);
+            if (typeof v !== "undefined") editTitleEdgeScale.text = String(v);
+        });
+        safeSet(function () { applyTitleEdgeScaleEnabledState(); });
 
         // Frame
         safeSet(function () {
@@ -1475,6 +1605,7 @@ function L(key) {
     };
 
     chkTitleLine.onClick = function () {
+        applyTitleAreaEnabledState();
         if (chkPreview.value) updatePreview();
     };
 
@@ -1715,6 +1846,16 @@ function L(key) {
         var val = getEffectiveLenValue();
         var distPt = val * factor; // rulerType -> pt
 
+        // タイトルエリア：辺の伸縮（タイトル帯の線の長さにのみ反映）
+        var titleLenVal = 0;
+        try {
+            if (chkTitleLine && chkTitleLine.value && chkTitleEdgeScale && chkTitleEdgeScale.value) {
+                var t = parseFloat(editTitleEdgeScale && editTitleEdgeScale.text);
+                if (!isNaN(t)) titleLenVal = t;
+            }
+        } catch (_) { }
+        var titleDistPt = (-titleLenVal) * factor; // 正負を反転
+
         // タイトル領域サイズ（外枠基準）
         var titleVal = (typeof chkTitleEnable !== "undefined" && chkTitleEnable && !chkTitleEnable.value) ? 0 : parseFloat(editTitleSize && editTitleSize.text);
         var titleSizePt = (!isNaN(titleVal) ? (titleVal * factor) : 0);
@@ -1769,6 +1910,7 @@ function L(key) {
             factor: factor,
             distPt: distPt,
             titleSizePt: titleSizePt,
+            titleDistPt: titleDistPt,
             framePt: framePt,
             offTopPt: offTopPt,
             offBottomPt: offBottomPt,
@@ -1823,7 +1965,7 @@ function L(key) {
             // タイトル帯の分割線
             if (opt.titleSizePt > 0) {
                 for (var i = 0; i < targetItems.length; i++) {
-                    createTitleDivider(targetItems[i], opt.titleSizePt, opt.distPt);
+                    createTitleDivider(targetItems[i], opt.titleSizePt, opt.titleDistPt);
                 }
             }
 
@@ -1886,7 +2028,7 @@ function L(key) {
         // タイトル帯の分割線
         if (opt.titleSizePt > 0) {
             for (var i = 0; i < targetItems.length; i++) {
-                createTitleDivider(targetItems[i], opt.titleSizePt, opt.distPt);
+                createTitleDivider(targetItems[i], opt.titleSizePt, opt.titleDistPt);
             }
         }
 
@@ -1953,7 +2095,11 @@ function L(key) {
                 size: editTitleSize.text,
                 pos: (rbTitleBottom.value ? "bottom" : (rbTitleLeft.value ? "left" : (rbTitleRight.value ? "right" : "top"))),
                 fill: !!chkTitleFill.value,
-                line: !!chkTitleLine.value
+                line: !!chkTitleLine.value,
+                edgeScale: {
+                    enable: !!chkTitleEdgeScale.value,
+                    val: editTitleEdgeScale.text
+                }
             };
 
             st.frame = {
@@ -2360,80 +2506,66 @@ function L(key) {
         } catch (_) { }
     }
 
-    // タイトル領域：分割線を作成して tempPreviewItems に登録（外枠基準）
-    function createTitleDivider(pathItem, sizePt, trimPt) {
+    function createTitleDivider(target, titleSizePt, titleDistPt) {
+    try {
+        // タイトル帯の境界線（帯と本文の仕切り線）
+        // titleDistPt:
+        //   + → 両端を短くする
+        //   - → 両端を伸ばす
+        if (!target || target.typename !== "PathItem") return;
+        if (!titleSizePt || titleSizePt === 0) return;
+        if (!(chkTitleLine && chkTitleLine.value)) return;
+
+        var b = target.geometricBounds; // [L, T, R, B]
+        var L = b[0], T = b[1], R = b[2], B = b[3];
+
+        var x1, y1, x2, y2;
+
+        if (rbTitleTop && rbTitleTop.value) {
+            y1 = y2 = T - titleSizePt;
+            x1 = L + titleDistPt;
+            x2 = R - titleDistPt;
+            if (x1 >= x2) { x1 = L; x2 = R; }
+        } else if (rbTitleBottom && rbTitleBottom.value) {
+            y1 = y2 = B + titleSizePt;
+            x1 = L + titleDistPt;
+            x2 = R - titleDistPt;
+            if (x1 >= x2) { x1 = L; x2 = R; }
+        } else if (rbTitleLeft && rbTitleLeft.value) {
+            x1 = x2 = L + titleSizePt;
+            y1 = T - titleDistPt;
+            y2 = B + titleDistPt;
+        } else if (rbTitleRight && rbTitleRight.value) {
+            x1 = x2 = R - titleSizePt;
+            y1 = T - titleDistPt;
+            y2 = B + titleDistPt;
+        } else {
+            y1 = y2 = T - titleSizePt;
+            x1 = L + titleDistPt;
+            x2 = R - titleDistPt;
+            if (x1 >= x2) { x1 = L; x2 = R; }
+        }
+
+        var p = doc.activeLayer.pathItems.add();
+        p.stroked = true;
+        p.filled = false;
+
+        // 黒 1pt
         try {
-            if (!sizePt || sizePt <= 0) return;
-            if (!chkTitleLine || !chkTitleLine.value) return; // 線OFFなら描画しない
-
-            var b = pathItem.geometricBounds; // [L, T, R, B]
-            var L = b[0], T = b[1], R = b[2], B = b[3];
-            var w = R - L;
-            var h = T - B;
-            if (w <= 0 || h <= 0) return;
-
-            var t = (trimPt && trimPt !== 0) ? Math.abs(trimPt) : 0;
-            var extend = (trimPt && trimPt > 0);
-
-            // 罫線の見た目：外枠（元オブジェクト）の線を踏襲。なければ K100 / 1pt
-            var lineColor;
-            var lineWidth;
-            try {
-                if (pathItem.stroked) {
-                    lineColor = pathItem.strokeColor;
-                    lineWidth = pathItem.strokeWidth;
-                }
-            } catch (_) { }
-            if (!lineColor) {
-                var k = new CMYKColor();
-                k.cyan = 0; k.magenta = 0; k.yellow = 0; k.black = 100;
-                lineColor = k;
-            }
-            if (!lineWidth) lineWidth = 1;
-
-            var p1, p2;
-
-            if (rbTitleTop.value) {
-                if (sizePt >= h) return;
-                if (!extend && t * 2 >= w) return;
-                var yTop = T - sizePt;
-                p1 = [extend ? (L - t) : (L + t), yTop];
-                p2 = [extend ? (R + t) : (R - t), yTop];
-            } else if (rbTitleBottom.value) {
-                if (sizePt >= h) return;
-                if (!extend && t * 2 >= w) return;
-                var yBottom = B + sizePt;
-                p1 = [extend ? (L - t) : (L + t), yBottom];
-                p2 = [extend ? (R + t) : (R - t), yBottom];
-            } else if (rbTitleLeft.value) {
-                if (sizePt >= w) return;
-                if (!extend && t * 2 >= h) return;
-                var xLeft = L + sizePt;
-                // 伸ばす場合：上端は T + t / 下端は B - t にする（座標系に注意）
-                p1 = [xLeft, extend ? (T + t) : (T - t)];
-                p2 = [xLeft, extend ? (B - t) : (B + t)];
-            } else {
-                // 右
-                if (sizePt >= w) return;
-                if (!extend && t * 2 >= h) return;
-                var xRight = R - sizePt;
-                p1 = [xRight, extend ? (T + t) : (T - t)];
-                p2 = [xRight, extend ? (B - t) : (B + t)];
-            }
-
-            var ln = pathItem.layer.pathItems.add();
-            ln.setEntirePath([p1, p2]);
-            ln.stroked = true;
-            ln.filled = false;
-            ln.strokeColor = lineColor;
-            ln.strokeWidth = lineWidth;
-            try { ln.strokeCap = getSelectedStrokeCap(); } catch (_) { }
-            try { ln.note = "__TitleDivider__"; } catch (_) { }
-            try { ln.name = "__TitleDivider__"; } catch (_) { }
-
-            tempPreviewItems.push(ln);
+            var k = new CMYKColor();
+            k.cyan = 0; k.magenta = 0; k.yellow = 0; k.black = 100;
+            p.strokeColor = k;
         } catch (_) { }
-    }
+        try { p.strokeWidth = 1; } catch (_) { }
+
+        p.setEntirePath([[x1, y1], [x2, y2]]);
+
+        try { p.note = "__TitleDivider__"; } catch (_) { }
+        try { p.name = "__TitleDivider__"; } catch (_) { }
+
+        try { tempPreviewItems.push(p); } catch (_) { }
+    } catch (_) { }
+}
 
     // タイトル領域を除外した「内側罫線」用の計算領域を返す
     // 戻り値: [L, T, R, B] / 不成立の場合は null
@@ -2679,10 +2811,20 @@ function L(key) {
         }
 
         // 入力値チェック
-        var val = getEffectiveLenValue();
-        var distPt = val * getCurrentRulerPtFactor(); // rulerType -> pt
-
         var factor = getCurrentRulerPtFactor();
+
+        var val = getEffectiveLenValue();
+        var distPt = val * factor; // rulerType -> pt
+
+        // タイトルエリア：辺の伸縮（タイトル帯の線の長さにのみ反映）
+        var titleLenVal = 0;
+        try {
+            if (chkTitleLine && chkTitleLine.value && chkTitleEdgeScale && chkTitleEdgeScale.value) {
+                var t = parseFloat(editTitleEdgeScale && editTitleEdgeScale.text);
+                if (!isNaN(t)) titleLenVal = t;
+            }
+        } catch (_) { }
+        var titleDistPt = (-titleLenVal) * factor; // 正負を反転
 
         // タイトル領域サイズ（外枠基準）
         var titleVal = (typeof chkTitleEnable !== "undefined" && chkTitleEnable && !chkTitleEnable.value) ? 0 : parseFloat(editTitleSize && editTitleSize.text);
@@ -2749,7 +2891,7 @@ function L(key) {
             // タイトル帯の分割線
             if (titleSizePt > 0) {
                 for (var i = 0; i < targetItems.length; i++) {
-                    createTitleDivider(targetItems[i], titleSizePt, distPt);
+                    createTitleDivider(targetItems[i], titleSizePt, titleDistPt);
                 }
             }
             // 線端パネルはディム表示
@@ -2863,7 +3005,7 @@ function L(key) {
         // タイトル帯の分割線
         if (titleSizePt > 0) {
             for (var i = 0; i < targetItems.length; i++) {
-                createTitleDivider(targetItems[i], titleSizePt, distPt);
+                createTitleDivider(targetItems[i], titleSizePt, titleDistPt);
             }
         }
 
