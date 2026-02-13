@@ -1,11 +1,13 @@
+#targetengine "SmartGridMakerEngine"
 #target illustrator
 try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } catch (_) { }
+
 
 /*
   SmartGridMaker.jsx
   囲み罫とグリッド
 
-  更新日: 2026-02-12
+  更新日: 2026-02-13
 
   長方形またはアートボードを基準に、
   外側エリア（辺の伸縮・線端）、タイトルエリア、
@@ -18,10 +20,28 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
   ・フレームはアートボード基準で作成（裁ち落としはフレームのみに適用）
   ・UIは日英ローカライズ対応
   ・内側エリアの［塗り］は手動OFFを優先（ガター変更時の自動ONを抑制）
+  ・プレビュー時のUndo履歴を汚さないための処理（PreviewHistory）を削除
+  ・スクリプト再実行時に前回ダイアログの値を復元（Illustrator再起動でリセット）
+  ・外側エリアに角丸オプション（UIのみ／rulerType単位）を追加
+  ・内側エリアのオフセットUIを3段組レイアウトに変更
+  ・マージンを上下左右に分割し、連動（3段組レイアウト）に対応
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.0.6";
+
+// =========================
+// Session-persistent UI state (kept while Illustrator is running)
+// =========================
+var __ENGINE_KEY = "__SmartGridMaker__";
+$.global[__ENGINE_KEY] = $.global[__ENGINE_KEY] || {};
+function __loadState() {
+    try { return $.global[__ENGINE_KEY] || {}; } catch (_) { return {}; }
+}
+function __saveState(obj) {
+    try { $.global[__ENGINE_KEY] = obj || {}; } catch (_) { }
+}
+
 
 /* 言語判定 / Detect language */
 function getCurrentLang() {
@@ -145,7 +165,7 @@ function L(key) {
     }
 
     // アートボード基準の一時矩形を「マージン」分だけ内側に作り直す
-    function rebuildArtboardBaseRect(marginPt) {
+    function rebuildArtboardBaseRect(mTopPt, mRightPt, mBottomPt, mLeftPt) {
         if (!_usingArtboardBase) return;
         try {
             var abIndex = doc.artboards.getActiveArtboardIndex();
@@ -153,12 +173,16 @@ function L(key) {
             var L = abRect[0], T = abRect[1], R = abRect[2], B = abRect[3];
 
             // ※裁ち落とし（bleed）はここでは適用しない（フレームのみで適用）
+            var mt = (mTopPt && mTopPt > 0) ? mTopPt : 0;
+            var mr = (mRightPt && mRightPt > 0) ? mRightPt : 0;
+            var mb = (mBottomPt && mBottomPt > 0) ? mBottomPt : 0;
+            var ml = (mLeftPt && mLeftPt > 0) ? mLeftPt : 0;
 
-            var m = (marginPt && marginPt > 0) ? marginPt : 0;
-            var iL = L + m;
-            var iT = T - m;
-            var iR = R - m;
-            var iB = B + m;
+            var iL = L + ml;
+            var iT = T - mt;
+            var iR = R - mr;
+            var iB = B + mb;
+
             var w = iR - iL;
             var h = iT - iB;
             if (!(w > 0) || !(h > 0)) {
@@ -258,73 +282,11 @@ function L(key) {
     // 生成した一時オブジェクト（プレビュー用）を管理する配列
     var tempPreviewItems = [];
 
-    /* =========================================
- * PreviewHistory util (extractable)
- * ヒストリーを残さないプレビューのための小さなユーティリティ。
- * 他スクリプトでもこのブロックをコピペすれば再利用できます。
- * 使い方:
- *   PreviewHistory.start();     // ダイアログ表示時などにカウンタ初期化
- *   PreviewHistory.bump();      // プレビュー描画ごとにカウント(+1)
- *   PreviewHistory.undo();      // 閉じる/キャンセル時に一括Undo
- *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
- * ========================================= */
-    (function (g) {
-        if (!g.PreviewHistory) {
-            g.PreviewHistory = {
-                start: function () {
-                    g.__previewUndoCount = 0;
-                    try {
-                        var d = app.activeDocument;
-                        g.__previewBaseState = (d && d.activeHistoryState) ? d.activeHistoryState : null;
-                    } catch (e) {
-                        g.__previewBaseState = null;
-                    }
-                },
-                bump: function () {
-                    try {
-                        var d = app.activeDocument;
-                        var cur = (d && d.historyStates) ? d.historyStates.length : 0;
-                        var base = g.__previewBaseHistLen | 0;
-                        var delta = cur - base;
-                        if (delta < 0) delta = 0;
-                        g.__previewUndoCount = delta;
-                    } catch (e) {
-                        g.__previewUndoCount = (g.__previewUndoCount | 0) + 1;
-                    }
-                },
-                undo: function () {
-                    try {
-                        var d = app.activeDocument;
-                        if (!d || !d.activeHistoryState || !g.__previewBaseState) return;
 
-                        // 開始時の履歴状態に戻るまで undo
-                        while (d.activeHistoryState != g.__previewBaseState) {
-                            app.executeMenuCommand('undo');
-                        }
-                    } catch (e) { }
-
-                    g.__previewUndoCount = 0;
-
-                    try {
-                        var d2 = app.activeDocument;
-                        g.__previewBaseState = (d2 && d2.activeHistoryState) ? d2.activeHistoryState : null;
-                    } catch (e) {
-                        g.__previewBaseState = null;
-                    }
-                },
-                cancelTask: function (taskId) {
-                    try { if (taskId) app.cancelTask(taskId); } catch (e) { }
-                }
-            };
-        }
-    })($.global);
-
-    // PreviewHistory: ここから先のドキュメント変更をプレビュー扱いにする
-    PreviewHistory.start();
 
     // アートボード基準の場合はここで基準矩形を作成（start後なので履歴は後で完全に戻せる）
     if (_usingArtboardBase) {
-        rebuildArtboardBaseRect(0);
+        rebuildArtboardBaseRect(0, 0, 0, 0);
     }
 
     // --- ダイアログ作成 ---
@@ -374,21 +336,92 @@ function L(key) {
     marginPanel.margins = [15, 20, 15, 10];
     marginPanel.spacing = 10;
 
-    var marginRow = marginPanel.add("group");
-    marginRow.orientation = "row";
-    marginRow.alignChildren = ["left", "center"];
+    // マージン入力：3段組（上 / 左＋連動＋右 / 下）
+    var marginUnitLabel = getCurrentRulerUnitLabel();
 
-    // marginRow.add("statictext", undefined, "マージン");
-    var editArtboardMargin = marginRow.add("edittext", undefined, "15");
-    editArtboardMargin.characters = 4;
-    marginRow.add("statictext", undefined, getCurrentRulerUnitLabel());
-    changeValueByArrowKey(editArtboardMargin, false);
+    // 1段目：上（中央寄せ）
+    var marginRowTop = marginPanel.add("group");
+    marginRowTop.orientation = "row";
+    marginRowTop.alignChildren = ["center", "center"];
+    marginRowTop.alignment = ["fill", "top"];
+
+    var marginTopGroup = marginRowTop.add("group");
+    marginTopGroup.orientation = "row";
+    marginTopGroup.alignChildren = ["left", "center"];
+    marginTopGroup.add("statictext", undefined, L("offsetTop"));
+    var editArtboardMarginTop = marginTopGroup.add("edittext", undefined, "15");
+    editArtboardMarginTop.characters = 4;
+    changeValueByArrowKey(editArtboardMarginTop, false);
+    marginTopGroup.add("statictext", undefined, marginUnitLabel);
+
+    // 2段目：左 ＋ 連動（中央）＋ 右
+    var marginRowMid = marginPanel.add("group");
+    marginRowMid.orientation = "row";
+    marginRowMid.alignChildren = ["center", "center"];
+    marginRowMid.alignment = ["fill", "top"];
+    marginRowMid.spacing = 12;
+
+    var marginLeftGroup = marginRowMid.add("group");
+    marginLeftGroup.orientation = "row";
+    marginLeftGroup.alignChildren = ["left", "center"];
+    marginLeftGroup.add("statictext", undefined, L("offsetLeft"));
+    var editArtboardMarginLeft = marginLeftGroup.add("edittext", undefined, "15");
+    editArtboardMarginLeft.characters = 4;
+    changeValueByArrowKey(editArtboardMarginLeft, false);
+
+    var chkArtboardMarginLink = marginRowMid.add("checkbox", undefined, L("chkLink"));
+    chkArtboardMarginLink.value = true;
+
+    var marginRightGroup = marginRowMid.add("group");
+    marginRightGroup.orientation = "row";
+    marginRightGroup.alignChildren = ["left", "center"];
+    marginRightGroup.add("statictext", undefined, L("offsetRight"));
+    var editArtboardMarginRight = marginRightGroup.add("edittext", undefined, "15");
+    editArtboardMarginRight.characters = 4;
+    changeValueByArrowKey(editArtboardMarginRight, false);
+
+    // 3段目：下（中央寄せ）
+    var marginRowBottom = marginPanel.add("group");
+    marginRowBottom.orientation = "row";
+    marginRowBottom.alignChildren = ["center", "center"];
+    marginRowBottom.alignment = ["fill", "top"];
+
+    var marginBottomGroup = marginRowBottom.add("group");
+    marginBottomGroup.orientation = "row";
+    marginBottomGroup.alignChildren = ["left", "center"];
+    marginBottomGroup.add("statictext", undefined, L("offsetBottom"));
+    var editArtboardMarginBottom = marginBottomGroup.add("edittext", undefined, "15");
+    editArtboardMarginBottom.characters = 4;
+    changeValueByArrowKey(editArtboardMarginBottom, false);
+    marginBottomGroup.add("statictext", undefined, marginUnitLabel);
+
+    // 連動の同期フラグ（無限ループ防止）
+    var _syncingArtboardMargins = false;
+
+    function applyArtboardMarginLinkState() {
+        var linked = !!chkArtboardMarginLink.value;
+
+        // 連動ON: 下/左/右はディム表示（操作不可）
+        try { marginBottomGroup.enabled = !linked; } catch (_) { }
+        try { marginLeftGroup.enabled = !linked; } catch (_) { }
+        try { marginRightGroup.enabled = !linked; } catch (_) { }
+
+        // 値も揃える
+        if (linked) {
+            var v = editArtboardMarginTop.text;
+            _syncingArtboardMargins = true;
+            try { editArtboardMarginBottom.text = v; } catch (_) { }
+            try { editArtboardMarginLeft.text = v; } catch (_) { }
+            try { editArtboardMarginRight.text = v; } catch (_) { }
+            _syncingArtboardMargins = false;
+        }
+    }
 
     // アートボードが対象のときだけアクティブ
     marginPanel.enabled = !!_usingArtboardBase;
-    if (!_usingArtboardBase) {
-        try { editArtboardMargin.enabled = false; } catch (_) { }
-    }
+
+    // 初期反映
+    applyArtboardMarginLinkState();
 
 
     // 外枠パネル
@@ -432,6 +465,58 @@ function L(key) {
 
     // 初期状態反映
     applyEdgeScaleEnabledState();
+
+    // 外側エリア：角丸（UIのみ。ロジックは後で適用）
+    var outerRoundRow = outerPanel.add("group");
+    outerRoundRow.orientation = "row";
+    outerRoundRow.alignChildren = ["left", "center"];
+
+    var chkOuterRound = outerRoundRow.add("checkbox", undefined, "角丸");
+    chkOuterRound.value = false;
+
+    var editOuterRound = outerRoundRow.add("edittext", undefined, "0");
+    editOuterRound.characters = 4;
+    changeValueByArrowKey(editOuterRound, false);
+
+    var stOuterRoundUnit = outerRoundRow.add("statictext", undefined, getCurrentRulerUnitLabel());
+
+    function applyOuterRoundEnabledState() {
+        try {
+            // 「辺の伸縮」がONのときは角丸は使えない（ディム表示）
+            var usable = (!!chkKeepOuter.value && !(chkEnableLen && chkEnableLen.value));
+
+            chkOuterRound.enabled = usable;
+
+            // 使えない場合はOFF扱いにして値も0に戻す
+            if (!usable) {
+                chkOuterRound.value = false;
+                editOuterRound.text = "0";
+            }
+
+            editOuterRound.enabled = (usable && !!chkOuterRound.value);
+            if (usable && !chkOuterRound.value) editOuterRound.text = "0";
+        } catch (_) { }
+    }
+
+    applyOuterRoundEnabledState();
+
+    chkOuterRound.onClick = function () {
+        try {
+            if (chkOuterRound.value) {
+                var v = parseFloat(editOuterRound.text);
+                if (isNaN(v) || v === 0) {
+                    editOuterRound.text = "2";
+                }
+            }
+        } catch (_) { }
+
+        applyOuterRoundEnabledState();
+        if (chkPreview && chkPreview.value) updatePreview(false);
+    };
+
+    editOuterRound.onChanging = function () {
+        if (chkPreview && chkPreview.value) updatePreview(false);
+    };
 
     // 線端（ストロークキャップ）
     var capPanel = outerPanel.add("panel", undefined, L("panelCap"));
@@ -728,65 +813,66 @@ function L(key) {
     innerPanel.alignChildren = ["fill", "top"];
     innerPanel.margins = [15, 20, 15, 10];
 
-    // オフセット入力：2カラム（左：上/下、右：左/右 + 連動）
+    // オフセット入力：3段組（上 / 左＋連動＋右 / 下）
     var innerOffsetPanel = innerPanel.add("panel", undefined, L("panelOffset") + "（" + getCurrentRulerUnitLabel() + "）");
     innerOffsetPanel.orientation = "column";
     innerOffsetPanel.alignChildren = ["fill", "top"];
     innerOffsetPanel.margins = [15, 20, 15, 10];
 
-    var innerOffsetCols = innerOffsetPanel.add("group");
-    innerOffsetCols.orientation = "row";
-    innerOffsetCols.alignChildren = ["left", "top"];
-    innerOffsetCols.spacing = 12;
+    // 1段目：上（中央寄せ）
+    var innerOffsetRowTop = innerOffsetPanel.add("group");
+    innerOffsetRowTop.orientation = "row";
+    innerOffsetRowTop.alignChildren = ["center", "center"];
+    innerOffsetRowTop.alignment = ["fill", "top"];
 
-    var innerOffsetColL = innerOffsetCols.add("group");
-    innerOffsetColL.orientation = "column";
-    innerOffsetColL.alignChildren = ["left", "top"];
-
-    var innerOffsetColR = innerOffsetCols.add("group");
-    innerOffsetColR.orientation = "column";
-    innerOffsetColR.alignChildren = ["left", "top"];
-
-    // 内側罫線：オフセット（上）
-    var innerOffsetTopGroup = innerOffsetColL.add("group");
+    var innerOffsetTopGroup = innerOffsetRowTop.add("group");
     innerOffsetTopGroup.orientation = "row";
     innerOffsetTopGroup.alignChildren = ["left", "center"];
     innerOffsetTopGroup.add("statictext", undefined, L("offsetTop"));
     var editInnerOffsetTop = innerOffsetTopGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
-    editInnerOffsetTop.characters = 4;
+    editInnerOffsetTop.characters = 3;
     changeValueByArrowKey(editInnerOffsetTop, false);
 
-    // 内側罫線：オフセット（下）
-    var innerOffsetBottomGroup = innerOffsetColL.add("group");
-    innerOffsetBottomGroup.orientation = "row";
-    innerOffsetBottomGroup.alignChildren = ["left", "center"];
-    innerOffsetBottomGroup.add("statictext", undefined, L("offsetBottom"));
-    var editInnerOffsetBottom = innerOffsetBottomGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
-    editInnerOffsetBottom.characters = 4;
-    changeValueByArrowKey(editInnerOffsetBottom, false);
+    // 2段目：左 ＋ 連動（中央）＋ 右
+    var innerOffsetRowMid = innerOffsetPanel.add("group");
+    innerOffsetRowMid.orientation = "row";
+    innerOffsetRowMid.alignChildren = ["center", "center"];
+    innerOffsetRowMid.alignment = ["fill", "top"];
+    innerOffsetRowMid.spacing = 12;
 
-    // 内側罫線：オフセット（左）
-    var innerOffsetLeftGroup = innerOffsetColR.add("group");
+    var innerOffsetLeftGroup = innerOffsetRowMid.add("group");
     innerOffsetLeftGroup.orientation = "row";
     innerOffsetLeftGroup.alignChildren = ["left", "center"];
     innerOffsetLeftGroup.add("statictext", undefined, L("offsetLeft"));
     var editInnerOffsetLeft = innerOffsetLeftGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
-    editInnerOffsetLeft.characters = 4;
+    editInnerOffsetLeft.characters = 3;
     changeValueByArrowKey(editInnerOffsetLeft, false);
 
-    // 内側罫線：オフセット（右）
-    var innerOffsetRightGroup = innerOffsetColR.add("group");
+    // 連動（中央）
+    var chkInnerOffsetLink = innerOffsetRowMid.add("checkbox", undefined, L("chkLink"));
+    chkInnerOffsetLink.value = true;
+
+    var innerOffsetRightGroup = innerOffsetRowMid.add("group");
     innerOffsetRightGroup.orientation = "row";
     innerOffsetRightGroup.alignChildren = ["left", "center"];
     innerOffsetRightGroup.add("statictext", undefined, L("offsetRight"));
     var editInnerOffsetRight = innerOffsetRightGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
-    editInnerOffsetRight.characters = 4;
+    editInnerOffsetRight.characters = 3;
     changeValueByArrowKey(editInnerOffsetRight, false);
 
+    // 3段目：下（中央寄せ）
+    var innerOffsetRowBottom = innerOffsetPanel.add("group");
+    innerOffsetRowBottom.orientation = "row";
+    innerOffsetRowBottom.alignChildren = ["center", "center"];
+    innerOffsetRowBottom.alignment = ["fill", "top"];
 
-    // 連動（UIのみ。ロジックは後で）
-    var chkInnerOffsetLink = innerOffsetColR.add("checkbox", undefined, L("chkLink"));
-    chkInnerOffsetLink.value = true;
+    var innerOffsetBottomGroup = innerOffsetRowBottom.add("group");
+    innerOffsetBottomGroup.orientation = "row";
+    innerOffsetBottomGroup.alignChildren = ["left", "center"];
+    innerOffsetBottomGroup.add("statictext", undefined, L("offsetBottom"));
+    var editInnerOffsetBottom = innerOffsetBottomGroup.add("edittext", undefined, String(calcDefaultInnerOffset()));
+    editInnerOffsetBottom.characters = 3;
+    changeValueByArrowKey(editInnerOffsetBottom, false);
 
     // 連動の同期フラグ（無限ループ防止）
     var _syncingInnerOffsets = false;
@@ -975,6 +1061,100 @@ function L(key) {
     var cancelBtn = btnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
     var okBtn = btnGroup.add("button", undefined, L("ok"), { name: "ok" });
 
+    // --- Restore last UI state (session only) ---
+    (function restoreUIState() {
+        var st = __loadState();
+        if (!st) return;
+        function safeSet(fn) { try { fn(); } catch (_) { } }
+
+        safeSet(function () { if (typeof st.preview !== "undefined") chkPreview.value = !!st.preview; });
+
+        // Margin (4-way). Fallback from old `st.margin` when present.
+        safeSet(function () {
+            var v = (typeof st.marginTop !== "undefined") ? st.marginTop : ((typeof st.margin !== "undefined") ? st.margin : undefined);
+            if (typeof v !== "undefined") editArtboardMarginTop.text = String(v);
+        });
+        safeSet(function () {
+            var v = (typeof st.marginBottom !== "undefined") ? st.marginBottom : ((typeof st.margin !== "undefined") ? st.margin : undefined);
+            if (typeof v !== "undefined") editArtboardMarginBottom.text = String(v);
+        });
+        safeSet(function () {
+            var v = (typeof st.marginLeft !== "undefined") ? st.marginLeft : ((typeof st.margin !== "undefined") ? st.margin : undefined);
+            if (typeof v !== "undefined") editArtboardMarginLeft.text = String(v);
+        });
+        safeSet(function () {
+            var v = (typeof st.marginRight !== "undefined") ? st.marginRight : ((typeof st.margin !== "undefined") ? st.margin : undefined);
+            if (typeof v !== "undefined") editArtboardMarginRight.text = String(v);
+        });
+        safeSet(function () { if (typeof st.marginLink !== "undefined") chkArtboardMarginLink.value = !!st.marginLink; });
+        safeSet(function () { applyArtboardMarginLinkState(); });
+
+        safeSet(function () { if (typeof st.keepOuter !== "undefined") chkKeepOuter.value = !!st.keepOuter; });
+        safeSet(function () { if (typeof st.enableLen !== "undefined") chkEnableLen.value = !!st.enableLen; });
+        safeSet(function () { if (typeof st.lenVal !== "undefined") editVal.text = String(st.lenVal); });
+        safeSet(function () {
+            if (st.cap === "round") rbCapRound.value = true;
+            else if (st.cap === "project") rbCapProject.value = true;
+            else if (typeof st.cap !== "undefined") rbCapButt.value = true;
+        });
+
+        safeSet(function () { if (typeof st.outerRoundEnable !== "undefined") chkOuterRound.value = !!st.outerRoundEnable; });
+        safeSet(function () { if (typeof st.outerRoundVal !== "undefined") editOuterRound.text = String(st.outerRoundVal); });
+        safeSet(function () { applyOuterRoundEnabledState(); });
+
+        safeSet(function () { if (typeof st.titleEnable !== "undefined") chkTitleEnable.value = !!st.titleEnable; });
+        safeSet(function () { if (typeof st.titleSize !== "undefined") editTitleSize.text = String(st.titleSize); });
+        safeSet(function () {
+            if (st.titlePos === "bottom") rbTitleBottom.value = true;
+            else if (st.titlePos === "left") rbTitleLeft.value = true;
+            else if (st.titlePos === "right") rbTitleRight.value = true;
+            else if (typeof st.titlePos !== "undefined") rbTitleTop.value = true;
+        });
+        safeSet(function () { if (typeof st.titleFill !== "undefined") chkTitleFill.value = !!st.titleFill; });
+        safeSet(function () { if (typeof st.titleLine !== "undefined") chkTitleLine.value = !!st.titleLine; });
+
+        safeSet(function () { if (typeof st.frameEnable !== "undefined") chkFrameEnable.value = !!st.frameEnable; });
+        safeSet(function () { if (typeof st.frameWidth !== "undefined") editFrameWidth.text = String(st.frameWidth); });
+        safeSet(function () { if (typeof st.bleed !== "undefined") chkBleed.value = !!st.bleed; });
+        safeSet(function () { if (typeof st.frameRound !== "undefined") chkFrameRound.value = !!st.frameRound; });
+        safeSet(function () { if (typeof st.frameRoundVal !== "undefined") editFrameRound.text = String(st.frameRoundVal); });
+
+        safeSet(function () { if (typeof st.innerLink !== "undefined") chkInnerOffsetLink.value = !!st.innerLink; });
+        safeSet(function () { if (typeof st.offTop !== "undefined") editInnerOffsetTop.text = String(st.offTop); });
+        safeSet(function () { if (typeof st.offBottom !== "undefined") editInnerOffsetBottom.text = String(st.offBottom); });
+        safeSet(function () { if (typeof st.offLeft !== "undefined") editInnerOffsetLeft.text = String(st.offLeft); });
+        safeSet(function () { if (typeof st.offRight !== "undefined") editInnerOffsetRight.text = String(st.offRight); });
+
+        safeSet(function () { if (typeof st.cols !== "undefined") editInnerColumns.text = String(st.cols); });
+        safeSet(function () { if (typeof st.rows !== "undefined") editInnerRows.text = String(st.rows); });
+        safeSet(function () { if (typeof st.colGutter !== "undefined") editColGutter.text = String(st.colGutter); });
+        safeSet(function () { if (typeof st.rowGutter !== "undefined") editRowGutter.text = String(st.rowGutter); });
+        safeSet(function () { if (typeof st.rowFill !== "undefined") chkRowFill.value = !!st.rowFill; });
+        safeSet(function () { if (typeof st.rowDivider !== "undefined") chkRowDivider.value = !!st.rowDivider; });
+
+        safeSet(function () {
+            if (st.innerLine === "dash") rbInnerLineDash.value = true;
+            else if (st.innerLine === "dotdash") rbInnerLineDotDash.value = true;
+            else if (typeof st.innerLine !== "undefined") rbInnerLineSolid.value = true;
+        });
+
+        // Re-apply enabled/disabled states that depend on other controls
+        safeSet(function () { applyEdgeScaleEnabledState(); });
+        safeSet(function () { applyOuterLinePanelEnabledState(); });
+
+        safeSet(function () { applyOuterRoundEnabledState(); });
+        safeSet(function () { applyTitleAreaEnabledState(); });
+        safeSet(function () { applyFrameEnabledState(); });
+        safeSet(function () {
+            var c = parseInt(editInnerColumns.text, 10);
+            var r = parseInt(editInnerRows.text, 10);
+            if (isNaN(c) || c < 1) c = 1;
+            if (isNaN(r) || r < 1) r = 1;
+            applyRowDividerEnabledState(c, r, false);
+        });
+        safeSet(function () { applyInnerOffsetLinkState(); });
+    })();
+
     // --- イベント処理 ---
 
     // 値が変更されたらプレビュー更新
@@ -989,12 +1169,31 @@ function L(key) {
     chkEnableLen.onClick = function () {
         applyEdgeScaleEnabledState();
         applyOuterLinePanelEnabledState();
+        applyOuterRoundEnabledState();
         if (chkPreview.value) updatePreview();
     };
 
     // マージン（アートボード基準のみ）
-    editArtboardMargin.onChanging = function () {
+    editArtboardMarginTop.onChanging = function () {
         if (!_usingArtboardBase) return;
+        if (_syncingArtboardMargins) return;
+
+        if (chkArtboardMarginLink && chkArtboardMarginLink.value) {
+            var v = editArtboardMarginTop.text;
+            _syncingArtboardMargins = true;
+            try { editArtboardMarginBottom.text = v; } catch (_) { }
+            try { editArtboardMarginLeft.text = v; } catch (_) { }
+            try { editArtboardMarginRight.text = v; } catch (_) { }
+            _syncingArtboardMargins = false;
+        }
+        if (chkPreview.value) updatePreview();
+    };
+    editArtboardMarginBottom.onChanging = function () { if (!_usingArtboardBase) return; if (_syncingArtboardMargins) return; if (chkPreview.value) updatePreview(); };
+    editArtboardMarginLeft.onChanging = function () { if (!_usingArtboardBase) return; if (_syncingArtboardMargins) return; if (chkPreview.value) updatePreview(); };
+    editArtboardMarginRight.onChanging = function () { if (!_usingArtboardBase) return; if (_syncingArtboardMargins) return; if (chkPreview.value) updatePreview(); };
+
+    chkArtboardMarginLink.onClick = function () {
+        applyArtboardMarginLinkState();
         if (chkPreview.value) updatePreview();
     };
 
@@ -1129,6 +1328,7 @@ function L(key) {
     chkKeepOuter.onClick = function () {
         applyEdgeScaleEnabledState();
         applyOuterLinePanelEnabledState();
+        applyOuterRoundEnabledState();
 
         // 外枠を残すOFFなら、タイトルエリアの「線」もOFF
         try {
@@ -1184,14 +1384,21 @@ function L(key) {
         if (chkPreview.value) updatePreview();
     };
 
-    // 初回表示時のプレビュー実行（ヒストリー汚染を防ぐ）
+
     updatePreview(false);
 
     // --- ダイアログ表示 ---
     var result = win.show();
 
+    persistUIState();
+
+    // キャンセル時：プレビュー生成物を削除して終了
+    if (result != 1) {
+        try { clearPreview(); } catch (_) { }
+        return;
+    }
+
     // ダイアログ終了時：プレビューで増えたUndoを戻す（OK時は後で最終生成し直す）
-    PreviewHistory.undo();
 
     if (result == 1) {
         // OKが押された場合
@@ -1207,6 +1414,7 @@ function L(key) {
             && (!isNaN(_okOffLeft) && _okOffLeft <= 0)
             && (!isNaN(_okOffRight) && _okOffRight <= 0)) {
             // 何も変更がない場合はそのまま終了（プレビューは消さない）
+            persistUIState();
             return;
         }
 
@@ -1357,12 +1565,58 @@ function L(key) {
             try { tempPreviewItems[i].selected = true; } catch (_) { }
         }
 
-    } else {
-
     }
 
 
     // --- 関数定義 ---
+
+    function persistUIState() {
+        var st = {};
+        try {
+            st.preview = !!chkPreview.value;
+            st.marginTop = editArtboardMarginTop.text;
+            st.marginBottom = editArtboardMarginBottom.text;
+            st.marginLeft = editArtboardMarginLeft.text;
+            st.marginRight = editArtboardMarginRight.text;
+            st.marginLink = !!chkArtboardMarginLink.value;
+
+            st.keepOuter = !!chkKeepOuter.value;
+            st.enableLen = !!chkEnableLen.value;
+            st.lenVal = editVal.text;
+            st.cap = rbCapRound.value ? "round" : (rbCapProject.value ? "project" : "butt");
+
+            st.outerRoundEnable = !!chkOuterRound.value;
+            st.outerRoundVal = editOuterRound.text;
+
+            st.titleEnable = !!chkTitleEnable.value;
+            st.titleSize = editTitleSize.text;
+            st.titlePos = rbTitleBottom.value ? "bottom" : (rbTitleLeft.value ? "left" : (rbTitleRight.value ? "right" : "top"));
+            st.titleFill = !!chkTitleFill.value;
+            st.titleLine = !!chkTitleLine.value;
+
+            st.frameEnable = !!chkFrameEnable.value;
+            st.frameWidth = editFrameWidth.text;
+            st.bleed = !!chkBleed.value;
+            st.frameRound = !!chkFrameRound.value;
+            st.frameRoundVal = editFrameRound.text;
+
+            st.innerLink = !!chkInnerOffsetLink.value;
+            st.offTop = editInnerOffsetTop.text;
+            st.offBottom = editInnerOffsetBottom.text;
+            st.offLeft = editInnerOffsetLeft.text;
+            st.offRight = editInnerOffsetRight.text;
+
+            st.cols = editInnerColumns.text;
+            st.rows = editInnerRows.text;
+            st.colGutter = editColGutter.text;
+            st.rowGutter = editRowGutter.text;
+            st.rowFill = !!chkRowFill.value;
+            st.rowDivider = !!chkRowDivider.value;
+
+            st.innerLine = rbInnerLineDash.value ? "dash" : (rbInnerLineDotDash.value ? "dotdash" : "solid");
+        } catch (_) { }
+        __saveState(st);
+    }
 
     // --- 単位（rulerType）ユーティリティ ---
     // 単位コード→ラベル（Q/H分岐は rulerType では H 扱い）
@@ -2029,11 +2283,27 @@ function L(key) {
 
         // アートボード基準のときは、マージンを反映した一時矩形に更新（裁ち落としはフレームのみに適用）
         if (_usingArtboardBase) {
-            var mVal = parseFloat(editArtboardMargin.text);
-            if (isNaN(mVal) || mVal < 0) mVal = 0;
-            var mPt = mVal * getCurrentRulerPtFactor();
-            try { if (typeof chkBleed !== "undefined") _bleedEnabled = !!chkBleed.value; } catch (_) { }
-            rebuildArtboardBaseRect(mPt);
+
+            if (_usingArtboardBase) {
+                var mtVal = parseFloat(editArtboardMarginTop.text);
+                var mbVal = parseFloat(editArtboardMarginBottom.text);
+                var mlVal = parseFloat(editArtboardMarginLeft.text);
+                var mrVal = parseFloat(editArtboardMarginRight.text);
+
+                if (isNaN(mtVal) || mtVal < 0) mtVal = 0;
+                if (isNaN(mbVal) || mbVal < 0) mbVal = 0;
+                if (isNaN(mlVal) || mlVal < 0) mlVal = 0;
+                if (isNaN(mrVal) || mrVal < 0) mrVal = 0;
+
+                var factorM = getCurrentRulerPtFactor();
+                var mtPt = mtVal * factorM;
+                var mbPt = mbVal * factorM;
+                var mlPt = mlVal * factorM;
+                var mrPt = mrVal * factorM;
+
+                try { if (typeof chkBleed !== "undefined") _bleedEnabled = !!chkBleed.value; } catch (_) { }
+                rebuildArtboardBaseRect(mtPt, mrPt, mbPt, mlPt);
+            }
         }
 
         // 入力値チェック
@@ -2119,6 +2389,65 @@ function L(key) {
                 try { targetItems[i].hidden = !showOuterRect; } catch (_) { }
             }
 
+            // 外側エリア：角丸（辺の伸縮OFFのときのみ）
+            // フレーム角丸と同様に、プレビュー時は新規の一時オブジェクトへ適用して元を汚さない
+            try {
+                var showOuterRect = !!chkKeepOuter.value;
+
+                var useOuterRound = (showOuterRect
+                    && chkOuterRound && chkOuterRound.value
+                    && chkEnableLen && !chkEnableLen.value);
+
+                var rVal = parseFloat(editOuterRound.text);
+                if (isNaN(rVal) || rVal <= 0) useOuterRound = false;
+
+                if (useOuterRound) {
+                    var rPt = rVal * getCurrentRulerPtFactor();
+                    if (rPt > 0) {
+                        if (isFinal) {
+                            // OK時：元外枠に適用（ライブエフェクト）
+                            for (var i = 0; i < targetItems.length; i++) {
+                                try {
+                                    var it = targetItems[i];
+                                    if (!it || it.typename !== "PathItem") continue;
+                                    applyRoundCornersEffect(it, rPt);
+                                    it.hidden = false;
+                                } catch (_) { }
+                            }
+                        } else {
+                            // プレビュー時：元外枠を隠し、同じboundsの矩形を作って角丸を当てる
+                            for (var i2 = 0; i2 < targetItems.length; i2++) {
+                                try {
+                                    var src = targetItems[i2];
+                                    if (!src || src.typename !== "PathItem") continue;
+
+                                    var b = src.geometricBounds; // [L,T,R,B]
+                                    var L = b[0], T = b[1], R = b[2], B = b[3];
+                                    var w = R - L, h = T - B;
+                                    if (!(w > 0) || !(h > 0)) continue;
+
+                                    try { src.hidden = true; } catch (_) { }
+
+                                    var rr = src.layer.pathItems.rectangle(T, L, w, h);
+                                    // 見た目をsrcに寄せる
+                                    try { rr.stroked = src.stroked; } catch (_) { }
+                                    try { rr.filled = src.filled; } catch (_) { }
+                                    try { rr.strokeColor = src.strokeColor; } catch (_) { }
+                                    try { rr.fillColor = src.fillColor; } catch (_) { }
+                                    try { rr.strokeWidth = src.strokeWidth; } catch (_) { }
+
+                                    try { rr.note = "__OuterRoundPreview__"; } catch (_) { }
+                                    try { rr.name = "__OuterRoundPreview__"; } catch (_) { }
+
+                                    applyRoundCornersEffect(rr, rPt);
+                                    tempPreviewItems.push(rr);
+                                } catch (_) { }
+                            }
+                        }
+                    }
+                }
+            } catch (_) { }
+
             // 内側エリア（オフセットが0でも描画）
             for (var i = 0; i < targetItems.length; i++) {
                 var innerB = getInnerAreaBounds(targetItems[i], titleSizePt);
@@ -2126,8 +2455,6 @@ function L(key) {
             }
 
             app.redraw();
-            if (!isFinal) PreviewHistory.bump();
-
             return;
         }
 
@@ -2175,12 +2502,18 @@ function L(key) {
         }
 
         app.redraw(); // 画面を強制再描画（重要）
-        if (!isFinal) PreviewHistory.bump();
     }
 
     // プレビューを消して元に戻す関数
     function clearPreview() {
         removeTempItems();
+
+        // 外側角丸プレビューで隠した元外枠を復帰
+        try {
+            for (var i = 0; i < targetItems.length; i++) {
+                if (targetItems[i]) targetItems[i].hidden = false;
+            }
+        } catch (_) { }
 
         // アートボード基準の一時矩形は先に破棄（targetItemsに残っていると無効参照になる）
         cleanupArtboardBaseRect();
