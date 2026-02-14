@@ -24,7 +24,7 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 // =========================
 // バージョン / Version
 // =========================
-var SCRIPT_VERSION = "v1.1.1";
+var SCRIPT_VERSION = "v1.1.2";
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -1030,7 +1030,7 @@ function LF(key, unitLabel) {
             setStrokeCapToPreview(previewItem, selCap);
         } catch (e) { }
 
-        // 角丸
+        // 角丸（重複適用を防ぐ）
         try {
             var rr = getRoundRadiusPt();
             if (rr > 0) {
@@ -1208,9 +1208,34 @@ function LF(key, unitLabel) {
 
     function applyRoundCornersEffect(item, radiusPt) {
         if (!item || radiusPt <= 0) return;
-        // Adobe Round Corners live effect (radius in points)
+        // Apply via applyEffect() for reliable rendering, but make it idempotent by removing existing blocks first.
+        try {
+            removeRoundCornersEffect(item);
+        } catch (e) { }
         try {
             item.applyEffect(createRoundCornersEffectXML(radiusPt));
+        } catch (e) { }
+    }
+
+    function removeRoundCornersEffect(item) {
+        // Remove existing "Adobe Round Corners" live effect only (do not wipe other effects).
+        // Illustrator may emit name attribute with single/double quotes, extra attrs, and whitespace/newlines.
+        try {
+            if (!item) return;
+            var ae = item.appliedEffect;
+            if (!ae) return;
+
+            // Match any LiveEffect tag whose name is Adobe Round Corners
+            var re = /<LiveEffect\b[^>]*\bname\s*=\s*(['"])\s*Adobe Round Corners\s*\1[^>]*>[\s\S]*?<\/LiveEffect>/g;
+
+            // Loop until stable (in case Illustrator nests/duplicates blocks)
+            var prev;
+            do {
+                prev = ae;
+                ae = ae.replace(re, "");
+            } while (ae !== prev);
+
+            item.appliedEffect = ae;
         } catch (e) { }
     }
 
@@ -1480,22 +1505,8 @@ function LF(key, unitLabel) {
         if (finalSW !== null) setStrokeWidthToPreview(previewItem, strokeUnitToPt(finalSW));
     } catch (e) { }
 
-    // 最終反映（角丸）
-    try {
-        var finalRR = getRoundRadiusPt();
-        if (finalRR > 0) {
-            if (previewItem && previewItem.typename === "GroupItem") {
-                for (var i = 0; i < previewItem.pageItems.length; i++) {
-                    var it3 = previewItem.pageItems[i];
-                    if (it3 && it3.typename === "PathItem") {
-                        applyRoundCornersEffect(it3, finalRR);
-                    }
-                }
-            } else {
-                applyRoundCornersEffect(previewItem, finalRR);
-            }
-        }
-    } catch (e) { }
+    // 角丸はプレビュー生成（applyPreview）時点で previewItem に反映済み。
+    // ここで再適用すると二重にスタックするため、最終反映では行わない。
 
 
 })();
