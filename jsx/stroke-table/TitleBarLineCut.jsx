@@ -24,7 +24,7 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 // =========================
 // バージョン / Version
 // =========================
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.1.1";
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -1025,10 +1025,10 @@ function LF(key, unitLabel) {
             if (sw !== null) setStrokeWidthToPreview(previewItem, strokeUnitToPt(sw));
         } catch (e) { }
 
-        var selCap = getSelectedCapOrNull();
-        if (selCap !== null) {
-            try { setStrokeCapToPreview(previewItem, selCap); } catch (e) { }
-        }
+        try {
+            var selCap = getSelectedCap();
+            setStrokeCapToPreview(previewItem, selCap);
+        } catch (e) { }
 
         // 角丸
         try {
@@ -1181,10 +1181,11 @@ function LF(key, unitLabel) {
     rbCapRound.value = (__capIdx === 1);
 
 
-    function getSelectedCapOrNull() {
-        // null = 変更しない（元の線端を維持）
+    function getSelectedCap() {
+        // Always return an explicit cap.
+        // 「なし」= BUTT / 「丸型」= ROUND
         if (rbCapRound.value) return StrokeCap.ROUNDENDCAP;
-        return null;
+        return StrokeCap.BUTTENDCAP;
     }
 
     function parseRoundRadius() {
@@ -1469,8 +1470,8 @@ function LF(key, unitLabel) {
 
     // 最終反映（線端）
     try {
-        var finalCap = getSelectedCapOrNull();
-        if (finalCap !== null) setStrokeCapToPreview(previewItem, finalCap);
+        var finalCap = getSelectedCap();
+        setStrokeCapToPreview(previewItem, finalCap);
     } catch (e) { }
 
     // 最終反映（線幅）
