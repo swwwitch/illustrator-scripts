@@ -2,7 +2,7 @@
 #targetengine "SmartCalendarMaker"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -124,12 +124,13 @@ function L(key) {
     }
 }
 
-/* =====================================================
- * SmartCalendarMaker.jsx
- * 概要: 基準日を基準に、指定月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
- *      ダイアログ上の変更はプレビューで即時反映し、OKで確定レイヤーとして残します。
- * 更新日: 2026-02-14
- * ===================================================== */
+    /* =====================================================
+     * SmartCalendarMaker.jsx
+     * バージョン: v1.1
+     * 概要: 基準日を基準に、指定月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
+     *      ダイアログ上の変更はプレビューで即時反映し、OKで確定レイヤーとして残します。
+     * 更新日: 2026-02-14
+     * ===================================================== */
 
 
 (function () {

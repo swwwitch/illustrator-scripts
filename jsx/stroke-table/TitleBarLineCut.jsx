@@ -24,7 +24,7 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 // =========================
 // バージョン / Version
 // =========================
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -48,8 +48,8 @@ var LABELS = {
         en: "Select one text object and one rectangle path."
     },
     alertSelectTypes: {
-        ja: "テキスト（1つ）と、4点の長方形パス（1つ）を選択してください。",
-        en: "Select 1 text object and 1 rectangle path (4 points)."
+        ja: "テキスト（1つ）と、長方形パス（1つ）または欠け罫線（1つ）を選択してください。",
+        en: "Select 1 text object and 1 rectangle path, or 1 already-cut stroke."
     },
     alertMarginNonNegative: {
         ja: "マージン(%u)は0以上の数値で指定してください。",
@@ -102,15 +102,133 @@ function LF(key, unitLabel) {
     }
 
     function isTextItem(it) { return it && it.typename === "TextFrame"; }
+
+    function isPathItem(it) {
+        return it && it.typename === "PathItem";
+    }
+
+    function isGroupItem(it) {
+        return it && it.typename === "GroupItem";
+    }
+
+    function isStrokeCandidate(it) {
+        // Rectangle path, already-cut open path, or a group of open paths (2-edge mode)
+        return isPathItem(it) || isGroupItem(it);
+    }
+
     function isRectPathItem(it) {
-        return it && it.typename === "PathItem" && it.closed === true && it.pathPoints.length === 4;
+        // Strict rectangle: closed + 4 points
+        return isPathItem(it) && it.closed === true && it.pathPoints.length === 4;
+    }
+
+    function extractRectBoundsFromPathItem(p) {
+        // Use anchors (not visibleBounds) to avoid stroke width affecting bounds.
+        // Returns [L,T,R,B]
+        var L = 1e10, T = -1e10, R = -1e10, B = 1e10;
+        try {
+            for (var i = 0; i < p.pathPoints.length; i++) {
+                var a = p.pathPoints[i].anchor;
+                var x = a[0], y = a[1];
+                if (x < L) L = x;
+                if (x > R) R = x;
+                if (y > T) T = y;
+                if (y < B) B = y;
+            }
+        } catch (e) { }
+        return [L, T, R, B];
+    }
+
+    function extractBoundsFromGroupItem(g) {
+        // Returns [L,T,R,B]
+        try {
+            return g.visibleBounds.slice(0);
+        } catch (e) {
+            return [0, 0, 0, 0];
+        }
+    }
+
+    function findFirstPathItemInGroup(g) {
+        try {
+            for (var i = 0; i < g.pageItems.length; i++) {
+                var it = g.pageItems[i];
+                if (it && it.typename === "PathItem") return it;
+            }
+        } catch (e) { }
+        return null;
+    }
+
+    function makeClosedRectFromBounds(bounds, layer) {
+        // bounds: [L,T,R,B]
+        var L = bounds[0], T = bounds[1], R = bounds[2], B = bounds[3];
+        var w = R - L;
+        var h = T - B;
+        var p = doc.pathItems.rectangle(T, L, w, h);
+        p.closed = true;
+        return p;
+    }
+
+    function normalizeRectCandidate(rectCandidate) {
+        // If user selects an already-cut open path / non-rect path / group, reconstruct a 4-pt closed rectangle.
+        // Returns a PathItem that is a closed 4-pt rectangle.
+        if (!rectCandidate) return null;
+
+        // If it's already a strict rectangle, accept as-is
+        if (isRectPathItem(rectCandidate)) return rectCandidate;
+
+        var layer = null;
+        var b = null;
+        var refForAppearance = null;
+
+        if (isPathItem(rectCandidate)) {
+            layer = rectCandidate.layer;
+            b = extractRectBoundsFromPathItem(rectCandidate);
+            refForAppearance = rectCandidate;
+        } else if (isGroupItem(rectCandidate)) {
+            layer = rectCandidate.layer;
+            b = extractBoundsFromGroupItem(rectCandidate);
+            refForAppearance = findFirstPathItemInGroup(rectCandidate) || rectCandidate;
+        } else {
+            return null;
+        }
+
+        var newRect = makeClosedRectFromBounds(b, layer);
+
+        // Copy appearance from the candidate (or first path in group) to the new rectangle
+        try {
+            newRect.stroked = refForAppearance.stroked;
+            newRect.filled = refForAppearance.filled;
+            try { newRect.strokeColor = refForAppearance.strokeColor; } catch (_) { }
+            try { newRect.fillColor = refForAppearance.fillColor; } catch (_) { }
+            try { newRect.strokeWidth = refForAppearance.strokeWidth; } catch (_) { }
+            try { newRect.strokeDashes = refForAppearance.strokeDashes; } catch (_) { }
+            try { newRect.dashOffset = refForAppearance.dashOffset; } catch (_) { }
+            try { newRect.strokeCap = refForAppearance.strokeCap; } catch (_) { }
+            try { newRect.strokeJoin = refForAppearance.strokeJoin; } catch (_) { }
+            try { newRect.miterLimit = refForAppearance.miterLimit; } catch (_) { }
+            try { newRect.strokeOverprint = refForAppearance.strokeOverprint; } catch (_) { }
+            try { newRect.opacity = refForAppearance.opacity; } catch (_) { }
+            try { newRect.blendingMode = refForAppearance.blendingMode; } catch (_) { }
+        } catch (e) { }
+
+        // Keep stacking position roughly similar: put the new rect where the old one was.
+        try { newRect.move(rectCandidate, ElementPlacement.PLACEAFTER); } catch (e) { }
+
+        // Remove old candidate (cut path / group)
+        try { rectCandidate.remove(); } catch (e) { }
+
+        return newRect;
     }
 
     var a = doc.selection[0], b = doc.selection[1];
     var tf = null, rectA = null;
-    if (isTextItem(a) && isRectPathItem(b)) { tf = a; rectA = b; }
-    else if (isTextItem(b) && isRectPathItem(a)) { tf = b; rectA = a; }
+
+    // Accept either a strict rectangle, or an already-cut path (open) / non-4pt path or group and normalize it.
+    if (isTextItem(a) && isStrokeCandidate(b)) { tf = a; rectA = b; }
+    else if (isTextItem(b) && isStrokeCandidate(a)) { tf = b; rectA = a; }
     else { alert(L('alertSelectTypes')); return; }
+
+    rectA = normalizeRectCandidate(rectA);
+    if (!rectA) { alert(L('alertSelectTypes')); return; }
 
     // rulerType を参照して単位ラベルと pt 変換を決める
     var unitLabelMap = {
@@ -234,7 +352,7 @@ function LF(key, unitLabel) {
     try { orig.strokeColor = rectA.strokeColor; } catch (e) { }
     try { orig.fillColor = rectA.fillColor; } catch (e) { }
 
-    var previewItem = null; // 生成したプレビュー用の開いたパス
+    var previewItem = null; // 生成したプレビュー用（PathItem または GroupItem）
 
     // A（元）/ B（塗りのみ）/ C（線のみ）
     var rectB = null;
@@ -504,6 +622,130 @@ function LF(key, unitLabel) {
         try { if (rectC) rectC.hidden = false; } catch (e) { }
     }
 
+    function chooseCutEdge(tb, rL, rT, rR, rBot) {
+        // Decide which rectangle edge (top/bottom/left/right) is closest to text center
+        // tb: [L,T,R,B]
+        try {
+            var cx = (tb[0] + tb[2]) / 2;
+            var cy = (tb[1] + tb[3]) / 2;
+
+            var dTop = Math.abs(rT - cy);
+            var dBottom = Math.abs(cy - rBot);
+            var dLeft = Math.abs(cx - rL);
+            var dRight = Math.abs(rR - cx);
+
+            var min = Math.min(dTop, dBottom, dLeft, dRight);
+            if (min === dTop) return "top";
+            if (min === dBottom) return "bottom";
+            if (min === dLeft) return "left";
+            return "right";
+        } catch (e) {
+            return "top";
+        }
+    }
+
+    function getCutRangeV(addPt) {
+        buildTextBoundsForCalcOnce();
+        var tb = __textBoundsForCalc || tf.visibleBounds; // [L,T,R,B]
+        return { cutT: tb[1] + addPt, cutB: tb[3] - addPt };
+    }
+
+    function clampCutVToRect(cutV, rT, rBot) {
+        var cutT = cutV.cutT, cutB = cutV.cutB;
+        if (cutT > rT) cutT = rT;
+        if (cutB < rBot) cutB = rBot;
+        return { cutT: cutT, cutB: cutB };
+    }
+
+    function chooseCutEdges(tb, rL, rT, rR, rBot, addPt) {
+        // Return 1 edge normally; return 2 *adjacent* edges when near a corner.
+        try {
+            var cx = (tb[0] + tb[2]) / 2;
+            var cy = (tb[1] + tb[3]) / 2;
+            var dTop = Math.abs(rT - cy);
+            var dBottom = Math.abs(cy - rBot);
+            var dLeft = Math.abs(cx - rL);
+            var dRight = Math.abs(rR - cx);
+            var arr = [
+                { e: "top", d: dTop },
+                { e: "bottom", d: dBottom },
+                { e: "left", d: dLeft },
+                { e: "right", d: dRight }
+            ];
+            arr.sort(function (a, b) { return a.d - b.d; });
+            var e1 = arr[0].e, d1 = arr[0].d;
+            var e2 = arr[1].e, d2 = arr[1].d;
+
+            // Threshold: if the 2nd-closest edge is nearly as close as the closest edge, treat as corner.
+            var th = Math.max(2, addPt * 0.8);
+
+            function isAdjacent(a, b) {
+                return ((a === "top" || a === "bottom") && (b === "left" || b === "right")) ||
+                    ((b === "top" || b === "bottom") && (a === "left" || a === "right"));
+            }
+
+            if (isAdjacent(e1, e2) && (d2 - d1) <= th) return [e1, e2];
+            return [e1];
+        } catch (e) {
+            return [chooseCutEdge(tb, rL, rT, rR, rBot)];
+        }
+    }
+
+    function applyAppearanceToPreview(preview, refStrokeObj) {
+        if (!preview) return;
+        try {
+            if (preview.typename === "GroupItem") {
+                for (var i = 0; i < preview.pageItems.length; i++) {
+                    var it = preview.pageItems[i];
+                    if (it && it.typename === "PathItem") {
+                        try { copyAppearance(refStrokeObj, it); } catch (e) { }
+                    }
+                }
+            } else if (preview.typename === "PathItem") {
+                try { copyAppearance(refStrokeObj, preview); } catch (e) { }
+            }
+        } catch (e) { }
+    }
+
+    function setStrokeWidthToPreview(preview, swPt) {
+        if (!preview) return;
+        try {
+            if (preview.typename === "GroupItem") {
+                for (var i = 0; i < preview.pageItems.length; i++) {
+                    var it = preview.pageItems[i];
+                    if (it && it.typename === "PathItem") {
+                        try { it.strokeWidth = swPt; } catch (e) { }
+                    }
+                }
+            } else if (preview.typename === "PathItem") {
+                preview.strokeWidth = swPt;
+            }
+        } catch (e) { }
+    }
+
+    function setStrokeCapToPreview(preview, cap) {
+        if (!preview) return;
+        try {
+            if (preview.typename === "GroupItem") {
+                for (var i = 0; i < preview.pageItems.length; i++) {
+                    var it = preview.pageItems[i];
+                    if (it && it.typename === "PathItem") {
+                        try { it.strokeCap = cap; } catch (e) { }
+                    }
+                }
+            } else if (preview.typename === "PathItem") {
+                preview.strokeCap = cap;
+            }
+        } catch (e) { }
+    }
+
+    function isHorizontalEdge(edge) {
+        return edge === "top" || edge === "bottom";
+    }
+    function isVerticalEdge(edge) {
+        return edge === "left" || edge === "right";
+    }
+
     function applyPreview(marginMM) {
         clearPreview();
 
@@ -516,50 +758,293 @@ function LF(key, unitLabel) {
         var rB = orig.rBounds;
         var rL = rB[0], rT = rB[1], rR = rB[2], rBot = rB[3];
 
+        // Decide which edge(s) to cut based on the text position
+        buildTextBoundsForCalcOnce();
+        var tbEdge = __textBoundsForCalc || tf.visibleBounds;
+        // For 2-edge support, use chooseCutEdges:
+        var cutEdges = chooseCutEdges(tbEdge, rL, rT, rR, rBot, addPt);
+        var cutEdge = cutEdges[0];
         var cut = getCutRange(addPt);
+        var cutV = getCutRangeV(addPt);
 
         // 交差しないなら何もしない（元を表示）
-        if (cut.cutR <= rL || cut.cutL >= rR) {
+        // - top/bottom: need horizontal overlap
+        // - left/right: need vertical overlap
+        var ccTmp = clampCutToRect(cut, rL, rR);
+        var cvTmp = clampCutVToRect(cutV, rT, rBot);
+
+        var needH = false;
+        var needV = false;
+        for (var ei = 0; ei < cutEdges.length; ei++) {
+            if (isHorizontalEdge(cutEdges[ei])) needH = true;
+            if (isVerticalEdge(cutEdges[ei])) needV = true;
+        }
+
+        var okH = (!needH) || (ccTmp.cutR > ccTmp.cutL);
+        var okV = (!needV) || (cvTmp.cutT > cvTmp.cutB);
+
+        if (!okH || !okV) {
             try { if (rectC) rectC.hidden = false; } catch (e) { }
             return;
         }
 
-        var cc = clampCutToRect(cut, rL, rR);
+        var cc = ccTmp;
+        var cv = cvTmp;
 
         // 元rectを隠して、開いたパス（欠け罫線）で見せる
         rectC.hidden = true;
+        function makePath(points) {
+            // Avoid corner dots/artifacts:
+            // - remove consecutive duplicate points
+            // - nudge endpoints toward a *distinct* neighbor
+            // - if degenerate (<2 distinct points), skip creating a path
 
-        previewItem = doc.pathItems.add();
-        previewItem.setEntirePath([
-            [cc.cutR, rT],
-            [rR, rT],
-            [rR, rBot],
-            [rL, rBot],
-            [rL, rT],
-            [cc.cutL, rT]
-        ]);
-        previewItem.closed = false;
-        previewItem.filled = false;
-        previewItem.stroked = true;
+            function samePt(a, b) {
+                return a && b && Math.abs(a[0] - b[0]) < 1e-6 && Math.abs(a[1] - b[1]) < 1e-6;
+            }
 
-        // C（線のみ）の見た目を基準にする
-        try { copyAppearance(rectC, previewItem); } catch (e) { copyAppearance(orig, previewItem); }
+            function compactConsecutive(pts) {
+                if (!pts || pts.length === 0) return [];
+                var out = [pts[0]];
+                for (var i = 1; i < pts.length; i++) {
+                    if (!samePt(pts[i], out[out.length - 1])) out.push(pts[i]);
+                }
+                return out;
+            }
+
+            try {
+                points = compactConsecutive(points);
+
+                // If all points are the same or only one distinct point, do nothing
+                if (!points || points.length < 2) return null;
+
+                var eps = 0.05; // pt
+                try {
+                    var sw0 = (rectC && rectC.stroked) ? rectC.strokeWidth : 1;
+                    eps = Math.max(0.05, sw0 * 0.25);
+                } catch (_) { }
+
+                function nudgeEnd(idx, step) {
+                    // step: +1 to search forward, -1 to search backward for a distinct neighbor
+                    var p0 = points[idx];
+                    var j = idx + step;
+                    while (j >= 0 && j < points.length && samePt(points[j], p0)) {
+                        j += step;
+                    }
+                    if (j < 0 || j >= points.length) return;
+
+                    var p1 = points[j];
+                    var vx = p1[0] - p0[0];
+                    var vy = p1[1] - p0[1];
+                    var len = Math.sqrt(vx * vx + vy * vy);
+                    if (len <= 1e-6) return;
+                    vx /= len; vy /= len;
+                    points[idx] = [p0[0] + vx * eps, p0[1] + vy * eps];
+                }
+
+                // first point nudged toward next distinct
+                nudgeEnd(0, +1);
+                // last point nudged toward previous distinct
+                nudgeEnd(points.length - 1, -1);
+
+                // Re-compact after nudging (in case endpoints collapsed)
+                points = compactConsecutive(points);
+                if (!points || points.length < 2) return null;
+            } catch (e) { }
+
+            var p = doc.pathItems.add();
+            p.setEntirePath(points);
+            p.closed = false;
+            p.filled = false;
+            p.stroked = true;
+            return p;
+        }
+
+        // If only one edge, behave as before
+        if (cutEdges.length === 1) {
+            if (cutEdge === "bottom") {
+                previewItem = makePath([
+                    [cc.cutR, rBot],
+                    [rR, rBot],
+                    [rR, rT],
+                    [rL, rT],
+                    [rL, rBot],
+                    [cc.cutL, rBot]
+                ]);
+            } else if (cutEdge === "left") {
+                previewItem = makePath([
+                    [rL, cv.cutT],
+                    [rL, rT],
+                    [rR, rT],
+                    [rR, rBot],
+                    [rL, rBot],
+                    [rL, cv.cutB]
+                ]);
+            } else if (cutEdge === "right") {
+                previewItem = makePath([
+                    [rR, cv.cutT],
+                    [rR, rT],
+                    [rL, rT],
+                    [rL, rBot],
+                    [rR, rBot],
+                    [rR, cv.cutB]
+                ]);
+            } else {
+                // top (default)
+                previewItem = makePath([
+                    [cc.cutR, rT],
+                    [rR, rT],
+                    [rR, rBot],
+                    [rL, rBot],
+                    [rL, rT],
+                    [cc.cutL, rT]
+                ]);
+            }
+        } else {
+            // corner case: two adjacent edges (top+left, top+right, bottom+left, bottom+right)
+            // Build TWO open paths that split the perimeter, so no segment is duplicated.
+            var e1 = cutEdges[0];
+            var e2 = cutEdges[1];
+
+            // Normalize to (h, v)
+            var h = (e1 === "top" || e1 === "bottom") ? e1 : e2;
+            var v = (h === e1) ? e2 : e1;
+
+            if (!((h === "top" || h === "bottom") && (v === "left" || v === "right"))) {
+                previewItem = null; // unexpected, will fallback
+            } else {
+                var g = doc.groupItems.add();
+
+                if (h === "top" && v === "left") {
+                    // Missing: top [cc.cutL..cc.cutR] and left [cv.cutB..cv.cutT]
+                    // PathA: top-right gap end -> around to left gap bottom
+                    var pA = makePath([
+                        [cc.cutR, rT],
+                        [rR, rT],
+                        [rR, rBot],
+                        [rL, rBot],
+                        [rL, cv.cutB]
+                    ]);
+                    // PathB: left gap top -> corner -> top gap left
+                    var pB = makePath([
+                        [rL, cv.cutT],
+                        [rL, rT],
+                        [cc.cutL, rT]
+                    ]);
+                    if (pA) pA.move(g, ElementPlacement.PLACEATEND);
+                    if (pB) pB.move(g, ElementPlacement.PLACEATEND);
+                } else if (h === "top" && v === "right") {
+                    // Missing: top [cc.cutL..cc.cutR] and right [cv.cutB..cv.cutT]
+                    // PathA: top gap right -> corner -> right gap top
+                    var pA2 = makePath([
+                        [cc.cutR, rT],
+                        [rR, rT],
+                        [rR, cv.cutT]
+                    ]);
+                    // PathB: right gap bottom -> around to top gap left
+                    var pB2 = makePath([
+                        [rR, cv.cutB],
+                        [rR, rBot],
+                        [rL, rBot],
+                        [rL, rT],
+                        [cc.cutL, rT]
+                    ]);
+                    if (pA2) pA2.move(g, ElementPlacement.PLACEATEND);
+                    if (pB2) pB2.move(g, ElementPlacement.PLACEATEND);
+                } else if (h === "bottom" && v === "left") {
+                    // Missing: bottom [cc.cutL..cc.cutR] and left [cv.cutB..cv.cutT]
+                    // PathA: bottom gap right -> around to left gap top
+                    var pA3 = makePath([
+                        [cc.cutR, rBot],
+                        [rR, rBot],
+                        [rR, rT],
+                        [rL, rT],
+                        [rL, cv.cutT]
+                    ]);
+                    // PathB: left gap bottom -> corner -> bottom gap left
+                    var pB3 = makePath([
+                        [rL, cv.cutB],
+                        [rL, rBot],
+                        [cc.cutL, rBot]
+                    ]);
+                    if (pA3) pA3.move(g, ElementPlacement.PLACEATEND);
+                    if (pB3) pB3.move(g, ElementPlacement.PLACEATEND);
+                } else {
+                    // bottom + right
+                    // Missing: bottom [cc.cutL..cc.cutR] and right [cv.cutB..cv.cutT]
+                    // PathA: bottom gap right -> corner -> right gap bottom
+                    var pA4 = makePath([
+                        [cc.cutR, rBot],
+                        [rR, rBot],
+                        [rR, cv.cutB]
+                    ]);
+                    // PathB: right gap top -> around to bottom gap left
+                    var pB4 = makePath([
+                        [rR, cv.cutT],
+                        [rR, rT],
+                        [rL, rT],
+                        [rL, rBot],
+                        [cc.cutL, rBot]
+                    ]);
+                    if (pA4) pA4.move(g, ElementPlacement.PLACEATEND);
+                    if (pB4) pB4.move(g, ElementPlacement.PLACEATEND);
+                }
+
+                // If paths were not created, fallback
+                try {
+                    if (g.pageItems.length === 0) {
+                        g.remove();
+                        previewItem = null;
+                    } else {
+                        previewItem = g;
+                    }
+                } catch (e) {
+                    previewItem = null;
+                }
+            }
+        }
+
+        if (!previewItem) {
+            // Fallback: use the nearest single edge
+            var fe = chooseCutEdge(tbEdge, rL, rT, rR, rBot);
+            if (fe === "bottom") {
+                previewItem = makePath([[cc.cutR, rBot], [rR, rBot], [rR, rT], [rL, rT], [rL, rBot], [cc.cutL, rBot]]);
+            } else if (fe === "left") {
+                previewItem = makePath([[rL, cv.cutT], [rL, rT], [rR, rT], [rR, rBot], [rL, rBot], [rL, cv.cutB]]);
+            } else if (fe === "right") {
+                previewItem = makePath([[rR, cv.cutT], [rR, rT], [rL, rT], [rL, rBot], [rR, rBot], [rR, cv.cutB]]);
+            } else {
+                previewItem = makePath([[cc.cutR, rT], [rR, rT], [rR, rBot], [rL, rBot], [rL, rT], [cc.cutL, rT]]);
+            }
+        }
+        try { applyAppearanceToPreview(previewItem, rectC); } catch (e) { }
 
         // 線幅（入力が有効なら上書き）
         try {
             var sw = parseStrokeWidth();
-            if (sw !== null) previewItem.strokeWidth = strokeUnitToPt(sw);
+            if (sw !== null) setStrokeWidthToPreview(previewItem, strokeUnitToPt(sw));
         } catch (e) { }
 
         var selCap = getSelectedCapOrNull();
         if (selCap !== null) {
-            try { previewItem.strokeCap = selCap; } catch (e) { }
+            try { setStrokeCapToPreview(previewItem, selCap); } catch (e) { }
         }
 
         // 角丸
         try {
             var rr = getRoundRadiusPt();
-            if (rr > 0) applyRoundCornersEffect(previewItem, rr);
+            if (rr > 0) {
+                if (previewItem && previewItem.typename === "GroupItem") {
+                    for (var i = 0; i < previewItem.pageItems.length; i++) {
+                        var it2 = previewItem.pageItems[i];
+                        if (it2 && it2.typename === "PathItem") {
+                            applyRoundCornersEffect(it2, rr);
+                        }
+                    }
+                } else {
+                    applyRoundCornersEffect(previewItem, rr);
+                }
+            }
         } catch (e) { }
 
         // レイヤーを合わせる
@@ -985,19 +1470,30 @@ function LF(key, unitLabel) {
     // 最終反映（線端）
     try {
         var finalCap = getSelectedCapOrNull();
-        if (finalCap !== null) previewItem.strokeCap = finalCap;
+        if (finalCap !== null) setStrokeCapToPreview(previewItem, finalCap);
     } catch (e) { }
 
     // 最終反映（線幅）
     try {
         var finalSW = parseStrokeWidth();
-        if (finalSW !== null) previewItem.strokeWidth = strokeUnitToPt(finalSW);
+        if (finalSW !== null) setStrokeWidthToPreview(previewItem, strokeUnitToPt(finalSW));
     } catch (e) { }
 
     // 最終反映（角丸）
     try {
         var finalRR = getRoundRadiusPt();
-        if (finalRR > 0) applyRoundCornersEffect(previewItem, finalRR);
+        if (finalRR > 0) {
+            if (previewItem && previewItem.typename === "GroupItem") {
+                for (var i = 0; i < previewItem.pageItems.length; i++) {
+                    var it3 = previewItem.pageItems[i];
+                    if (it3 && it3.typename === "PathItem") {
+                        applyRoundCornersEffect(it3, finalRR);
+                    }
+                }
+            } else {
+                applyRoundCornersEffect(previewItem, finalRR);
+            }
+        }
     } catch (e) { }
 
 
