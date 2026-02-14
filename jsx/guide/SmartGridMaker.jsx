@@ -36,7 +36,7 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.0.17";
+var SCRIPT_VERSION = "v1.1";
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)
@@ -341,20 +341,35 @@ function L(key) {
     shiftDialogPosition(win, offsetX, offsetY);
     win.orientation = "column";
     win.alignChildren = ["fill", "top"];
-    win.spacing = 10;
+    win.spacing = 20;
     win.margins = 16;
 
-    // 2カラムレイアウト（左：外枠 / タイトル領域, 右：inner box）
+    // 3カラムレイアウト
+    // 左：マージン / フレーム
+    // 中央：外側エリア / タイトルエリア
+    // 右：内側エリア
     var colGroup = win.add("group");
     colGroup.orientation = "row";
     colGroup.alignChildren = ["left", "top"];
-    colGroup.spacing = 8;
+    colGroup.spacing = 12;
 
-    // 左カラム（外枠 / タイトル領域）
+    // 左カラム（マージン / フレーム）
     var leftCol = colGroup.add("group");
     leftCol.orientation = "column";
     leftCol.alignChildren = ["fill", "top"];
     leftCol.spacing = 8;
+
+    // 中央カラム（外側エリア / タイトルエリア）
+    var midCol = colGroup.add("group");
+    midCol.orientation = "column";
+    midCol.alignChildren = ["fill", "top"];
+    midCol.spacing = 8;
+
+    // 右カラム（内側エリア）
+    var rightCol = colGroup.add("group");
+    rightCol.orientation = "column";
+    rightCol.alignChildren = ["fill", "top"];
+    rightCol.spacing = 8;
 
     // =========================================
     // UI builders (split): MarginUI / OuterUI / InnerUI
@@ -588,10 +603,27 @@ function L(key) {
             } catch (_) { }
 
             applyOuterRoundEnabledState();
+            // 外側エリアの角丸が0以外なら、タイトルエリアの［塗り］をOFF
+            try {
+                var rv = parseFloat(editOuterRound.text);
+                if (chkOuterRound.value && !isNaN(rv) && rv !== 0) {
+                    if (typeof chkTitleFill !== "undefined" && chkTitleFill) {
+                        chkTitleFill.value = false;
+                    }
+                }
+            } catch (_) { }
             if (chkPreview && chkPreview.value) updatePreview(false);
         };
 
         editOuterRound.onChanging = function () {
+            try {
+                var rv = parseFloat(editOuterRound.text);
+                if (chkOuterRound.value && !isNaN(rv) && rv !== 0) {
+                    if (typeof chkTitleFill !== "undefined" && chkTitleFill) {
+                        chkTitleFill.value = false;
+                    }
+                }
+            } catch (_) { }
             if (chkPreview && chkPreview.value) updatePreview(false);
         };
 
@@ -806,11 +838,23 @@ function L(key) {
 
     buildMarginUI(leftCol);
 
+    // 長方形スタート時（アートボード対象でない場合）は左カラム全体を非表示
+    try {
+        if (!_usingArtboardBase) {
+            leftCol.visible = false;
+            leftCol.minimumSize.width = 0;
+            leftCol.maximumSize.width = 0;
+        } else {
+            leftCol.visible = true;
+            leftCol.minimumSize.width = 0;
+            leftCol.maximumSize.width = 10000;
+        }
+    } catch (_) { }
 
-    buildOuterUI(leftCol);
+    buildOuterUI(midCol);
 
     // タイトルエリア
-    var titlePanel = leftCol.add("panel", undefined, L("panelTitleBand"));
+    var titlePanel = midCol.add("panel", undefined, L("panelTitleBand"));
     titlePanel.orientation = "column";
     titlePanel.alignChildren = ["fill", "top"];
     titlePanel.margins = [15, 20, 15, 10];
@@ -1142,7 +1186,7 @@ editTitleEdgeScale.onChanging = function () {
     } catch (_) { }
 
 
-    buildInnerUI(colGroup);
+    buildInnerUI(rightCol);
 
     // ［塗り］の手動操作を優先するためのフラグ（ガター変更での自動ONを抑制）
     var _rowFillManuallySet = false;
@@ -1590,13 +1634,6 @@ editTitleEdgeScale.onChanging = function () {
         applyOuterLinePanelEnabledState();
         applyOuterRoundEnabledState();
 
-        // 外枠を残すOFFなら、タイトルエリアの「線」もOFF
-        try {
-            if (!chkKeepOuter.value && chkTitleLine) {
-                chkTitleLine.value = false;
-            }
-        } catch (_) { }
-
         if (chkPreview.value) updatePreview();
     };
 
@@ -1820,11 +1857,8 @@ editTitleEdgeScale.onChanging = function () {
 
         // アートボード基準の外枠矩形は残す（OK後に消さない）
         // ※キャンセル時は clearPreview() 内で cleanupArtboardBaseRect() が破棄する
-        // 選択状態を整える（新しく作った線を選択）
-        doc.selection = null;
-        for (var i = 0; i < tempPreviewItems.length; i++) {
-            try { tempPreviewItems[i].selected = true; } catch (_) { }
-        }
+        // ダイアログ終了時は何も選択しない状態にする
+        try { doc.selection = null; } catch (_) { }
 
     }
 
