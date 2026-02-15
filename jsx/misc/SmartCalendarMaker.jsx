@@ -2,7 +2,16 @@
 #targetengine "SmartCalendarMaker"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.1";
+/* =====================================================
+ * SmartCalendarMaker.jsx
+ * バージョン: v1.2
+ * 概要: 基準日を基準に、指定月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
+ *      セル幅/高さ・月間隔（左右/上下）などの設定はダイアログで調整し、プレビューで即時反映します。
+ * 更新日: 2026-02-15
+ * ===================================================== */
+
+
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -20,12 +29,17 @@ var LABELS = {
 
     // Panels
     panelBase: { ja: "基本設定", en: "Basics" },
+    panelUnit: { ja: "基本ユニット", en: "Units" },
     panelYear: { ja: "年", en: "Year" },
     panelMonth: { ja: "月", en: "Month" },
     panelWeekday: { ja: "曜日", en: "Weekday" },
+    panelDate: { ja: "日付", en: "Date" },
     panelLayout: { ja: "レイアウト", en: "Layout" },
     panelCell: { ja: "セル", en: "Cell" },
-    panelFormat: { ja: "書式", en: "Style" },
+    panelFormatTab: { ja: "書式", en: "Format" },
+    panelFormat: { ja: "フォント", en: "Font" },
+    panelOption: { ja: "オプション", en: "Options" },
+    panelBasic: { ja: "フォントサイズ", en: "Font Size" },
     panelPreset: { ja: "プリセット", en: "Preset" },
 
     // Basics
@@ -42,9 +56,10 @@ var LABELS = {
     baseLabel: { ja: "基準：", en: "Base:" },
     baseCurrent: { ja: "当月基準", en: "Current month" },
     baseJan: { ja: "1月から", en: "From January" },
+    ghost: { ja: "ゴースト", en: "Ghost" },
 
     // Common UI
-    bottomMargin: { ja: "下マージン", en: "Bottom margin" },
+    bottomMargin: { ja: "下マージン：", en: "Bottom margin: " },
     alignLabel: { ja: "揃え：", en: "Align:" },
     left: { ja: "左", en: "Left" },
     center: { ja: "中央", en: "Center" },
@@ -67,20 +82,21 @@ var LABELS = {
     monday: { ja: "月曜日", en: "Monday" },
     sunday: { ja: "日曜日", en: "Sunday" },
     labelNotation: { ja: "表記", en: "Notation" },
-    labelMargin: { ja: "下マージン", en: "Bottom margin" },
-    labelFontSize: { ja: "フォントサイズ", en: "Font size" },
+    labelMargin: { ja: "下マージン：", en: "Bottom margin: " },
+    labelFontSize: { ja: "基本：", en: "Basic: " },
 
     // Layout
-    months: { ja: "月数:", en: "Months:" },
-    cols: { ja: "列数:", en: "Columns:" },
+    months: { ja: "月数:", en: "Months: " },
+    cols: { ja: "列数:", en: "Columns: " },
     width: { ja: "幅", en: "W" },
     height: { ja: "高さ", en: "H" },
     lr: { ja: "左右", en: "L/R" },
     ud: { ja: "上下", en: "U/D" },
+    cellFill: { ja: "塗り", en: "Fill" },
 
     // Format
-    font: { ja: "フォント", en: "Font" },
-    favorites: { ja: "お気に入り", en: "Favorites" },
+    font: { ja: "フォント：", en: "Font: " },
+    favorites: { ja: "お気に入り：", en: "Favorites: " },
     sundayLabel: { ja: "日曜日", en: "Sunday" },
     holidayLabel: { ja: "祝日", en: "Holidays" },
 
@@ -123,15 +139,6 @@ function L(key) {
         return key;
     }
 }
-
-    /* =====================================================
-     * SmartCalendarMaker.jsx
-     * バージョン: v1.1
-     * 概要: 基準日を基準に、指定月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
-     *      ダイアログ上の変更はプレビューで即時反映し、OKで確定レイヤーとして残します。
-     * 更新日: 2026-02-14
-     * ===================================================== */
-
 
 (function () {
     if (app.documents.length === 0) {
@@ -396,10 +403,48 @@ function L(key) {
     dlg.orientation = "column";
     dlg.alignChildren = "fill";
 
+    dlg.preferredSize.width = 400;
+    dlg.minimumSize.width = 400;
+
+    // ===== タブ（プリセット / 設定） =====
+    var tabs = dlg.add("tabbedpanel");
+    tabs.alignment = "fill";
+    tabs.alignChildren = "fill";
+    // tabs.margins = [15, 20, 15, 10]; // 上に余白を追加
+
+    var tabMain = tabs.add("tab", undefined, L("panelBase"));
+    tabMain.orientation = "column";
+    tabMain.alignChildren = "fill";
+    tabMain.margins = [15, 20, 15, 10];
+
+    var tabUnit = tabs.add("tab", undefined, L("panelUnit"));
+    tabUnit.orientation = "column";
+    tabUnit.alignChildren = "fill";
+    tabUnit.margins = [15, 20, 15, 10];
+
+    var tabFormat = tabs.add("tab", undefined, L("panelFormatTab"));
+    tabFormat.orientation = "column";
+    tabFormat.alignChildren = "fill";
+    tabFormat.margins = [15, 20, 15, 10];
+    tabFormat.spacing = 10;
+
+    var tabOption = tabs.add("tab", undefined, L("panelOption"));
+    tabOption.orientation = "column";
+    tabOption.alignChildren = "fill";
+    tabOption.margins = [15, 20, 15, 10];
+
+    var tabPreset = tabs.add("tab", undefined, L("panelPreset"));
+    tabPreset.orientation = "column";
+    tabPreset.alignChildren = "fill";
+    tabPreset.margins = [15, 20, 15, 10];
+
+    // 既定は「基本設定」タブ
+    try { tabs.selection = tabMain; } catch (_) { }
+
     // ===== プリセット（上部・全幅） =====
-    var pnlPresetTop = dlg.add("panel", undefined, L("panelPreset"));
-    pnlPresetTop.orientation = "row";
-    pnlPresetTop.alignChildren = ["left", "center"];
+    var pnlPresetTop = tabPreset.add("panel", undefined, L("panelPreset"));
+    pnlPresetTop.orientation = "column";
+    pnlPresetTop.alignChildren = ["fill", "top"];
     pnlPresetTop.alignment = "fill";
     pnlPresetTop.margins = [15, 20, 15, 10];
 
@@ -410,10 +455,17 @@ function L(key) {
     var presetLoadBtn = gPresetBtns.add("button", undefined, L("presetLoad"));
     var presetSaveBtn = gPresetBtns.add("button", undefined, L("presetSave"));
 
+    // 2行目：プリセット一覧
+    var gPresetListRow = pnlPresetTop.add("group");
+    gPresetListRow.orientation = "row";
+    gPresetListRow.alignChildren = ["left", "center"];
+    gPresetListRow.alignment = "fill";
+
     // プリセット一覧（読み込んだプリセットを追加）
-    var stPresetList = gPresetBtns.add("statictext", undefined, " ");
-    var ddPresetList = gPresetBtns.add("dropdownlist", undefined, ["-"]);
+    var stPresetList = gPresetListRow.add("statictext", undefined, " ");
+    var ddPresetList = gPresetListRow.add("dropdownlist", undefined, ["-"]);
     ddPresetList.preferredSize = [220, 22];
+    ddPresetList.alignment = "fill";
     try { ddPresetList.selection = 0; } catch (_) { }
 
     // 読み込んだプリセットを保持（セッション中のみ）
@@ -622,9 +674,9 @@ function L(key) {
     };
 
     // ===== 2カラム =====
-    var gCols = dlg.add("group");
-    gCols.orientation = "row";
-    gCols.alignChildren = ["fill", "top"];
+    var gCols = tabMain.add("group");
+    gCols.orientation = "column";
+    gCols.alignChildren = "fill";
 
     var gColL = gCols.add("group");
     gColL.orientation = "column";
@@ -633,6 +685,11 @@ function L(key) {
     var gColR = gCols.add("group");
     gColR.orientation = "column";
     gColR.alignChildren = "fill";
+
+    // ===== オプションタブ内コンテナ =====
+    var gOption = tabOption.add("group");
+    gOption.orientation = "column";
+    gOption.alignChildren = "fill";
 
     // ===== 基本設定パネル =====
     var pnlBaseDate = gColL.add("panel", undefined, L("panelBase"));
@@ -672,6 +729,7 @@ function L(key) {
         try {
             chkTopYear.value = (months === 12);
             chkTopYear.enabled = (months === 12);
+            __SCM_syncYearPanelDimToFontSize();
         } catch (_) { }
 
         try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
@@ -688,7 +746,20 @@ function L(key) {
                 rbStartCurrent.value = false;
             }
         } catch (_) { }
+        // レイアウトの月数/列数は 1ヶ月 のときディム
+        try { gCount.enabled = (months !== 1); } catch (_) { }
+        try {
+            chkGhost.enabled = (months === 1);
+            if (months !== 1) chkGhost.value = false;
+        } catch (_) { }
         try { schedulePreviewRefresh(true); } catch (_) { }
+    }
+
+    function __SCM_syncYearPanelDimToFontSize() {
+        var en = false;
+        try { en = !!(chkTopYear && chkTopYear.enabled); } catch (_) { }
+        try { if (inputYearFontSize) inputYearFontSize.enabled = en; } catch (_) { }
+        try { if (stFSYear) stFSYear.enabled = en; } catch (_) { }
     }
 
     rbPreset1.onClick = function () { applyMonthPreset(1, 1); };
@@ -708,42 +779,97 @@ function L(key) {
     rbStartCurrent.onClick = schedulePreviewRefresh;
     rbStartJan.onClick = schedulePreviewRefresh;
 
+    // ゴースト（ロジックは後で追加）
+    var chkGhost = pnlBaseDate.add("checkbox", undefined, L("ghost"));
+    chkGhost.value = false;
+    chkGhost.onClick = schedulePreviewRefresh;
 
+    chkGhost.enabled = true; // 初期値（refreshPreviewで正しく同期される）
 
+    // ===== 日付（panel） =====
+    var pnlDate = tabUnit.add("panel", undefined, L("panelDate"));
+    pnlDate.orientation = "column";
+    pnlDate.alignChildren = "left";
+    pnlDate.margins = [15, 20, 15, 10];
 
-    // ===== 年パネル =====
-    var pnlYear = gColR.add("panel", undefined, L("panelYear"));
-    pnlYear.orientation = "column";
-    pnlYear.alignChildren = "left";
-    pnlYear.margins = [15, 20, 15, 10];
+    // ===== 揃え =====
+    var gAlign = pnlDate.add("group");
+    gAlign.orientation = "row";
+    gAlign.alignChildren = ["left", "center"];
 
-    var gYear = pnlYear.add("group");
-    gYear.orientation = "row";
-    gYear.alignChildren = ["left", "center"];
+    gAlign.add("statictext", undefined, L("alignLabel"));
 
+    var rbLeft = gAlign.add("radiobutton", undefined, L("left"));
+    var rbCenter = gAlign.add("radiobutton", undefined, L("center"));
+    var rbRight = gAlign.add("radiobutton", undefined, L("right"));
+    rbCenter.value = true; // デフォルト中央
+    rbLeft.onClick = schedulePreviewRefresh;
+    rbCenter.onClick = schedulePreviewRefresh;
+    rbRight.onClick = schedulePreviewRefresh;
 
-    var chkTopYear = gYear.add("checkbox", undefined, L("chkShowYear"));
-    chkTopYear.value = false;      // 12ヶ月のときだけONにする
-    chkTopYear.enabled = false;    // 12ヶ月以外は触れない
-    chkTopYear.onClick = function () {
-        try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
-        schedulePreviewRefresh(true);
-    };
+    // 日曜日・祝日（横並び）
+    var gHoliday = pnlDate.add("group");
+    gHoliday.orientation = "row";
+    gHoliday.alignChildren = ["left", "center"];
 
-    // 年タイトル下のマージン（pt）
-    var gYearMargin = pnlYear.add("group");
-    gYearMargin.orientation = "row";
-    gYearMargin.alignChildren = ["left", "center"];
-    gYearMargin.add("statictext", undefined, L("bottomMargin"));
-    var inputTopYearBottomMargin = gYearMargin.add("edittext", undefined, "3");
-    inputTopYearBottomMargin.characters = 4;
-    gYearMargin.add("statictext", undefined, unitLabel);
-    inputTopYearBottomMargin.onChanging = schedulePreviewRefresh;
+    var chkSundayRed = gHoliday.add("checkbox", undefined, L("sundayLabel"));
+    chkSundayRed.value = true;
+    chkSundayRed.onClick = schedulePreviewRefresh;
 
-    try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
+    var chkHolidayRed = gHoliday.add("checkbox", undefined, L("holidayLabel"));
+    chkHolidayRed.value = true;
+    chkHolidayRed.onClick = schedulePreviewRefresh;
+
+    // ===== 曜日表記（panel） =====
+    var pnlWeekdayLabel = gOption.add("panel", undefined, L("panelWeekday"));
+    pnlWeekdayLabel.orientation = "column";
+    pnlWeekdayLabel.alignChildren = "left";
+    pnlWeekdayLabel.margins = [15, 20, 15, 10];
+
+    // 週の始まり（ラベル + ラジオ）
+    var gWeekStart = pnlWeekdayLabel.add("group");
+    gWeekStart.orientation = "row";
+    gWeekStart.alignChildren = ["left", "center"];
+
+    gWeekStart.add("statictext", undefined, L("weekStart"));
+    var rbWeekMon = gWeekStart.add("radiobutton", undefined, L("monday"));
+    var rbWeekSun = gWeekStart.add("radiobutton", undefined, L("sunday"));
+
+    rbWeekMon.value = true; // デフォルト
+    rbWeekMon.onClick = schedulePreviewRefresh;
+    rbWeekSun.onClick = schedulePreviewRefresh;
+
+    // 曜日ヘッダの表記（ラベル + ラジオ）
+    var gWeekdayLabel = pnlWeekdayLabel.add("group");
+    gWeekdayLabel.orientation = "row";
+    gWeekdayLabel.alignChildren = ["left", "center"];
+
+    gWeekdayLabel.add("statictext", undefined, L("labelNotation"));
+    var rbWdJP = gWeekdayLabel.add("radiobutton", undefined, "月");
+    var rbWdMTW = gWeekdayLabel.add("radiobutton", undefined, "M");
+    var rbWdMon = gWeekdayLabel.add("radiobutton", undefined, "Mon");
+
+    // 曜日ヘッダ下のマージン（pt）
+    var gWeekdayBottomMargin = pnlWeekdayLabel.add("group");
+    gWeekdayBottomMargin.orientation = "row";
+    gWeekdayBottomMargin.alignChildren = ["left", "center"];
+    gWeekdayBottomMargin.add("statictext", undefined, L("labelMargin"));
+    var inputWeekdayBottomMargin = gWeekdayBottomMargin.add("edittext", undefined, "2");
+    inputWeekdayBottomMargin.characters = 4;
+    gWeekdayBottomMargin.add("statictext", undefined, unitLabel);
+    inputWeekdayBottomMargin.onChanging = schedulePreviewRefresh;
+
+    // 曜日フォントサイズ（未入力時は全体フォントサイズを使用）
+    var inputWeekdayFontSize;
+
+    rbWdJP.value = true; // default
+    rbWdJP.onClick = schedulePreviewRefresh;
+    rbWdMTW.onClick = schedulePreviewRefresh;
+    rbWdMon.onClick = schedulePreviewRefresh;
+
 
     // ===== 月パネル =====
-    var pnlMonth = gColR.add("panel", undefined, L("panelMonth"));
+    var pnlMonth = gOption.add("panel", undefined, L("panelMonth"));
     pnlMonth.orientation = "column";
     pnlMonth.alignChildren = "left";
     pnlMonth.margins = [15, 20, 15, 10];
@@ -812,6 +938,37 @@ function L(key) {
     var chkMonthBottomBorder = pnlMonth.add("checkbox", undefined, L("chkBottomBorder"));
     chkMonthBottomBorder.value = true; // デフォルトON
     chkMonthBottomBorder.onClick = schedulePreviewRefresh;
+
+    // ===== 年パネル =====
+    var pnlYear = gOption.add("panel", undefined, L("panelYear"));
+    pnlYear.orientation = "column";
+    pnlYear.alignChildren = "left";
+    pnlYear.margins = [15, 20, 15, 10];
+
+    var gYear = pnlYear.add("group");
+    gYear.orientation = "row";
+    gYear.alignChildren = ["left", "center"];
+
+
+    var chkTopYear = gYear.add("checkbox", undefined, L("chkShowYear"));
+    chkTopYear.value = false;      // 12ヶ月のときだけONにする
+    chkTopYear.enabled = false;    // 12ヶ月以外は触れない
+    chkTopYear.onClick = function () {
+        try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
+        schedulePreviewRefresh(true);
+    };
+
+    // 年タイトル下のマージン（pt）
+    var gYearMargin = pnlYear.add("group");
+    gYearMargin.orientation = "row";
+    gYearMargin.alignChildren = ["left", "center"];
+    gYearMargin.add("statictext", undefined, L("bottomMargin"));
+    var inputTopYearBottomMargin = gYearMargin.add("edittext", undefined, "3");
+    inputTopYearBottomMargin.characters = 4;
+    gYearMargin.add("statictext", undefined, unitLabel);
+    inputTopYearBottomMargin.onChanging = schedulePreviewRefresh;
+
+    try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
     function getWeekdayLabelMode() {
         // "jp" | "mtw" | "mon"
         try {
@@ -845,60 +1002,6 @@ function L(key) {
         return includeYear ? (String(year) + "/" + mm) : mm;
     }
 
-    // 曜日表記（panel）
-    var pnlWeekdayLabel = gColR.add("panel", undefined, L("panelWeekday"));
-    pnlWeekdayLabel.orientation = "column";
-    pnlWeekdayLabel.alignChildren = "left";
-    pnlWeekdayLabel.margins = [15, 20, 15, 10];
-
-    // 週の始まり（ラベル + ラジオ）
-    var gWeekStart = pnlWeekdayLabel.add("group");
-    gWeekStart.orientation = "row";
-    gWeekStart.alignChildren = ["left", "center"];
-
-    gWeekStart.add("statictext", undefined, L("weekStart"));
-    var rbWeekMon = gWeekStart.add("radiobutton", undefined, L("monday"));
-    var rbWeekSun = gWeekStart.add("radiobutton", undefined, L("sunday"));
-
-    rbWeekMon.value = true; // デフォルト
-    rbWeekMon.onClick = schedulePreviewRefresh;
-    rbWeekSun.onClick = schedulePreviewRefresh;
-
-    // 曜日ヘッダの表記（ラベル + ラジオ）
-    var gWeekdayLabel = pnlWeekdayLabel.add("group");
-    gWeekdayLabel.orientation = "row";
-    gWeekdayLabel.alignChildren = ["left", "center"];
-
-    gWeekdayLabel.add("statictext", undefined, L("labelNotation"));
-    var rbWdJP = gWeekdayLabel.add("radiobutton", undefined, "月");
-    var rbWdMTW = gWeekdayLabel.add("radiobutton", undefined, "M");
-    var rbWdMon = gWeekdayLabel.add("radiobutton", undefined, "Mon");
-
-    // 曜日ヘッダ下のマージン（pt）
-    var gWeekdayBottomMargin = pnlWeekdayLabel.add("group");
-    gWeekdayBottomMargin.orientation = "row";
-    gWeekdayBottomMargin.alignChildren = ["left", "center"];
-    gWeekdayBottomMargin.add("statictext", undefined, L("labelMargin"));
-    var inputWeekdayBottomMargin = gWeekdayBottomMargin.add("edittext", undefined, "2");
-    inputWeekdayBottomMargin.characters = 4;
-    gWeekdayBottomMargin.add("statictext", undefined, unitLabel);
-    inputWeekdayBottomMargin.onChanging = schedulePreviewRefresh;
-
-    // 曜日フォントサイズ（未入力時は全体フォントサイズを使用）
-    var gWeekdayFontSize = pnlWeekdayLabel.add("group");
-    gWeekdayFontSize.orientation = "row";
-    gWeekdayFontSize.alignChildren = ["left", "center"];
-    gWeekdayFontSize.add("statictext", undefined, L("labelFontSize"));
-    var inputWeekdayFontSize = gWeekdayFontSize.add("edittext", undefined, "12");
-    inputWeekdayFontSize.characters = 4;
-    gWeekdayFontSize.add("statictext", undefined, textUnitLabel);
-    inputWeekdayFontSize.onChanging = schedulePreviewRefresh;
-    changeValueByArrowKey(inputWeekdayFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
-
-    rbWdJP.value = true; // default
-    rbWdJP.onClick = schedulePreviewRefresh;
-    rbWdMTW.onClick = schedulePreviewRefresh;
-    rbWdMon.onClick = schedulePreviewRefresh;
 
     // ===== レイアウトパネル =====
     var pnlLayout = gColL.add("panel", undefined, L("panelLayout"));
@@ -918,13 +1021,60 @@ function L(key) {
     var inputCols = gCount.add("edittext", undefined, "1");
     inputCols.characters = 3;
 
+    // セル＋月（縦並びコンテナ）
+    var gCellMonth = pnlLayout.add("group");
+    gCellMonth.orientation = "column";
+    gCellMonth.alignChildren = ["fill", "top"];
+    gCellMonth.alignment = "fill";
+
+    // 月（ユニット間マージン）panel
+    var pnlMonthOuter = gCellMonth.add("panel", undefined, L("panelMonth") + "（" + unitLabel + "）");
+    pnlMonthOuter.orientation = "column";
+    pnlMonthOuter.alignChildren = "left";
+    pnlMonthOuter.margins = [15, 20, 15, 10];
+    pnlMonthOuter.enabled = false; // 月数=1 のときはディム（refreshPreviewで同期）
+
+    // 横並びコンテナ
+    var gOuterRow = pnlMonthOuter.add("group");
+    gOuterRow.orientation = "row";
+    gOuterRow.alignChildren = ["left", "center"];
+
+    var gOuterH = gOuterRow.add("group");
+    gOuterH.orientation = "row";
+    gOuterH.alignChildren = ["left", "center"];
+    gOuterH.add("statictext", undefined, L("lr"));
+    var inputOuterMarginX = gOuterH.add("edittext", undefined, "10");
+    inputOuterMarginX.characters = 3;
+    inputOuterMarginX.onChanging = schedulePreviewRefresh;
+
+    var gOuterV = gOuterRow.add("group");
+    gOuterV.orientation = "row";
+    gOuterV.alignChildren = ["left", "center"];
+    gOuterV.add("statictext", undefined, L("ud"));
+    var inputOuterMarginY = gOuterV.add("edittext", undefined, "3");
+    inputOuterMarginY.characters = 3;
+    inputOuterMarginY.onChanging = schedulePreviewRefresh;
+
+    // ===== セル（panel）をレイアウトから移動してフォントパネルの直前に配置 =====
     // セル（panel）
-    var pnlCell = pnlLayout.add("panel", undefined, L("panelCell"));
+    var pnlCell = tabUnit.add("panel", undefined, L("panelCell"));
     pnlCell.orientation = "column";
     pnlCell.alignChildren = "left";
     pnlCell.margins = [15, 20, 15, 10];
 
-    var gCellW = pnlCell.add("group");
+    // セル上段コンテナ（大きさ／セル間隔 横並び）
+    var gCellTopRow = pnlCell.add("group");
+    gCellTopRow.orientation = "row";
+    gCellTopRow.alignChildren = ["fill", "top"];
+    gCellTopRow.alignment = "fill";
+
+    // セル：大きさ（sub panel）
+    var pnlCellSize = gCellTopRow.add("panel", undefined, "大きさ");
+    pnlCellSize.orientation = "column";
+    pnlCellSize.alignChildren = "left";
+    pnlCellSize.margins = [15, 20, 15, 10];
+
+    var gCellW = pnlCellSize.add("group");
     var stCellW = gCellW.add("statictext", undefined, L("width"));
     stCellW.justification = "right";
     stCellW.preferredSize.width = 30;
@@ -938,18 +1088,144 @@ function L(key) {
     var __defaultCellW_pt = Math.round(__fs0 * 1.5);
     var __defaultCellW = Math.round(ptToUnitValue(__defaultCellW_pt));
     var inputCellW = gCellW.add("edittext", undefined, String(__defaultCellW));
-    inputCellW.characters = 5;
+    inputCellW.characters = 3;
     gCellW.add("statictext", undefined, unitLabel);
 
-    var gCellH = pnlCell.add("group");
+    var gCellH = pnlCellSize.add("group");
     var stCellH = gCellH.add("statictext", undefined, L("height"));
     stCellH.justification = "right";
     stCellH.preferredSize.width = 30;
     var __defaultCellH_pt = Math.round(__fs0 * 1.3);
     var __defaultCellH = Math.round(ptToUnitValue(__defaultCellH_pt));
     var inputCellH = gCellH.add("edittext", undefined, String(__defaultCellH));
-    inputCellH.characters = 5;
+    inputCellH.characters = 3;
     gCellH.add("statictext", undefined, unitLabel);
+
+    // セル：間隔（sub panel）
+    var pnlCellGap = gCellTopRow.add("panel", undefined, "セル間隔（" + unitLabel + "）");
+    pnlCellGap.orientation = "column";
+    pnlCellGap.alignChildren = "left";
+    pnlCellGap.margins = [15, 20, 15, 10];
+
+    // 縦並び（左右 / 上下）
+    var gCellGapRow = pnlCellGap.add("group");
+    gCellGapRow.orientation = "column";
+    gCellGapRow.alignChildren = ["left", "center"];
+    gCellGapRow.spacing = 6;
+
+    var gCellGapX = gCellGapRow.add("group");
+    gCellGapX.orientation = "row";
+    gCellGapX.alignChildren = ["left", "center"];
+    gCellGapX.add("statictext", undefined, L("lr"));
+    var inputCellGapX = gCellGapX.add("edittext", undefined, "0");
+    inputCellGapX.characters = 3;
+
+    var gCellGapY = gCellGapRow.add("group");
+    gCellGapY.orientation = "row";
+    gCellGapY.alignChildren = ["left", "center"];
+    gCellGapY.add("statictext", undefined, L("ud"));
+    var inputCellGapY = gCellGapY.add("edittext", undefined, "0");
+    inputCellGapY.characters = 3;
+
+    inputCellGapX.onChanging = schedulePreviewRefresh;
+    inputCellGapY.onChanging = schedulePreviewRefresh;
+
+    changeValueByArrowKey(inputCellGapX, { integer: false, min: 0, max: 2000 }, schedulePreviewRefresh);
+    changeValueByArrowKey(inputCellGapY, { integer: false, min: 0, max: 2000 }, schedulePreviewRefresh);
+
+    // セル位置調整（上下）
+    var gCellPosAdj = pnlCell.add("group");
+    gCellPosAdj.orientation = "row";
+    gCellPosAdj.alignChildren = ["left", "center"];
+    gCellPosAdj.add("statictext", undefined, "セル位置調整");
+    var inputCellPosAdjY = gCellPosAdj.add("edittext", undefined, "0");
+    inputCellPosAdjY.characters = 4;
+    gCellPosAdj.add("statictext", undefined, unitLabel);
+
+    inputCellPosAdjY.onChanging = schedulePreviewRefresh;
+    changeValueByArrowKey(inputCellPosAdjY, { integer: false, min: -2000, max: 2000 }, schedulePreviewRefresh);
+
+    // セル背景の塗り
+    var chkCellFill = pnlCell.add("checkbox", undefined, L("cellFill"));
+    chkCellFill.value = true; // 既定：ON
+    chkCellFill.onClick = schedulePreviewRefresh;
+
+    // 罫線（panel）
+    var pnlCellStroke = pnlCell.add("panel", undefined, "罫線");
+    pnlCellStroke.orientation = "column";
+    pnlCellStroke.alignChildren = "left";
+    pnlCellStroke.margins = [15, 20, 15, 10];
+
+    // 罫線モード
+    var gStrokeMode = pnlCellStroke.add("group");
+    gStrokeMode.orientation = "row";
+    gStrokeMode.alignChildren = ["left", "center"];
+
+    var rbStrokeNone = gStrokeMode.add("radiobutton", undefined, "なし");
+    var rbStrokeAll = gStrokeMode.add("radiobutton", undefined, "すべて");
+    var rbStrokeCustom = gStrokeMode.add("radiobutton", undefined, "個別");
+
+    rbStrokeAll.value = true; // default
+
+    var gStrokeAll = pnlCellStroke.add("group");
+    gStrokeAll.orientation = "row";
+    gStrokeAll.alignChildren = ["left", "center"];
+
+    var chkStrokeTop = gStrokeAll.add("checkbox", undefined, "上");
+    var chkStrokeBottom = gStrokeAll.add("checkbox", undefined, "下");
+    var chkStrokeLeft = gStrokeAll.add("checkbox", undefined, "左");
+    var chkStrokeRight = gStrokeAll.add("checkbox", undefined, "右");
+
+    // デフォルトはすべてON
+    chkStrokeTop.value = true;
+    chkStrokeBottom.value = true;
+    chkStrokeLeft.value = true;
+    chkStrokeRight.value = true;
+
+    chkStrokeTop.onClick = schedulePreviewRefresh;
+    chkStrokeBottom.onClick = schedulePreviewRefresh;
+    chkStrokeLeft.onClick = schedulePreviewRefresh;
+    chkStrokeRight.onClick = schedulePreviewRefresh;
+
+    // 罫線モード切替ロジック
+    function updateStrokeMode() {
+        if (rbStrokeNone.value) {
+            chkStrokeTop.value = false;
+            chkStrokeBottom.value = false;
+            chkStrokeLeft.value = false;
+            chkStrokeRight.value = false;
+
+            chkStrokeTop.enabled = false;
+            chkStrokeBottom.enabled = false;
+            chkStrokeLeft.enabled = false;
+            chkStrokeRight.enabled = false;
+        }
+        else if (rbStrokeAll.value) {
+            chkStrokeTop.value = true;
+            chkStrokeBottom.value = true;
+            chkStrokeLeft.value = true;
+            chkStrokeRight.value = true;
+
+            chkStrokeTop.enabled = false;
+            chkStrokeBottom.enabled = false;
+            chkStrokeLeft.enabled = false;
+            chkStrokeRight.enabled = false;
+        }
+        else {
+            chkStrokeTop.enabled = true;
+            chkStrokeBottom.enabled = true;
+            chkStrokeLeft.enabled = true;
+            chkStrokeRight.enabled = true;
+        }
+        schedulePreviewRefresh(true);
+    }
+
+    rbStrokeNone.onClick = updateStrokeMode;
+    rbStrokeAll.onClick = updateStrokeMode;
+    rbStrokeCustom.onClick = updateStrokeMode;
+
+    // 初期状態に反映
+    updateStrokeMode();
 
     inputCellW.onChanging = schedulePreviewRefresh;
     inputCellH.onChanging = schedulePreviewRefresh;
@@ -957,38 +1233,71 @@ function L(key) {
     changeValueByArrowKey(inputCellW, { integer: false, min: 1, max: 2000 }, schedulePreviewRefresh);
     changeValueByArrowKey(inputCellH, { integer: false, min: 1, max: 2000 }, schedulePreviewRefresh);
 
-    // 月（ユニット間マージン）panel
-    var pnlMonthOuter = pnlLayout.add("panel", undefined, L("panelMonth"));
-    pnlMonthOuter.orientation = "column";
-    pnlMonthOuter.alignChildren = "left";
-    pnlMonthOuter.margins = [15, 20, 15, 10];
-    pnlMonthOuter.enabled = false; // 月数=1 のときはディム（refreshPreviewで同期）
-
-    var gOuterH = pnlMonthOuter.add("group");
-    gOuterH.orientation = "row";
-    gOuterH.alignChildren = ["left", "center"];
-    gOuterH.add("statictext", undefined, L("lr"));
-    var inputOuterMarginX = gOuterH.add("edittext", undefined, "10");
-    inputOuterMarginX.characters = 4;
-    gOuterH.add("statictext", undefined, unitLabel);
-    inputOuterMarginX.onChanging = schedulePreviewRefresh;
-
-    var gOuterV = pnlMonthOuter.add("group");
-    gOuterV.orientation = "row";
-    gOuterV.alignChildren = ["left", "center"];
-    gOuterV.add("statictext", undefined, L("ud"));
-    var inputOuterMarginY = gOuterV.add("edittext", undefined, "3");
-    inputOuterMarginY.characters = 4;
-    gOuterV.add("statictext", undefined, unitLabel);
-    inputOuterMarginY.onChanging = schedulePreviewRefresh;
-
     // ===== 書式パネル =====
-    var pnlFormat = gColL.add("panel", undefined, L("panelFormat"));
+    var pnlFormat = tabFormat.add("panel", undefined, L("panelFormat"));
     pnlFormat.orientation = "column";
-    pnlFormat.alignChildren = "left";
+    // pnlFormat.alignChildren = "right";
     pnlFormat.margins = [15, 20, 15, 10];
 
+    // フォントサイズグリッド用変数宣言
+    var inputFontSize;
+    var inputMonthFontSize;
+    var inputYearFontSize;
+    var stFSYear;
 
+    // フォントサイズ（2行4列）
+    var pnlFontSize = tabFormat.add("panel", undefined, L("panelBasic") + "（" + textUnitLabel + "）");
+    pnlFontSize.orientation = "column";
+    pnlFontSize.alignChildren = "left";
+    pnlFontSize.margins = [15, 20, 15, 10];
+
+    // フォントサイズ（2行4列）
+    var gFSGrid = pnlFontSize.add("group");
+    gFSGrid.orientation = "column";
+    gFSGrid.alignChildren = ["fill", "center"];
+
+    var gFSLabels = gFSGrid.add("group");
+    gFSLabels.orientation = "row";
+    gFSLabels.alignChildren = ["center", "center"];
+    gFSLabels.alignment = ["center", "top"];
+
+    var stFSBasic = gFSLabels.add("statictext", undefined, "基本");
+    var stFSWeek = gFSLabels.add("statictext", undefined, "曜日");
+    var stFSMonth = gFSLabels.add("statictext", undefined, "月");
+    stFSYear = gFSLabels.add("statictext", undefined, "年");
+
+    // ラベル幅を揃えて中央寄せ
+    var __fsLabelW = 42;
+    stFSBasic.preferredSize.width = __fsLabelW; stFSBasic.justification = "center";
+    stFSWeek.preferredSize.width = __fsLabelW; stFSWeek.justification = "center";
+    stFSMonth.preferredSize.width = __fsLabelW; stFSMonth.justification = "center";
+    stFSYear.preferredSize.width = __fsLabelW; stFSYear.justification = "center";
+
+    var gFSInputs = gFSGrid.add("group");
+    gFSInputs.orientation = "row";
+    gFSInputs.alignChildren = ["center", "center"];
+    gFSInputs.alignment = ["center", "top"];
+
+    inputFontSize = gFSInputs.add("edittext", undefined, "12");
+    inputFontSize.characters = 3;
+    inputFontSize.onChanging = schedulePreviewRefresh;
+
+    inputWeekdayFontSize = gFSInputs.add("edittext", undefined, "12");
+    inputWeekdayFontSize.characters = 3;
+    inputWeekdayFontSize.onChanging = schedulePreviewRefresh;
+    changeValueByArrowKey(inputWeekdayFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
+
+    inputMonthFontSize = gFSInputs.add("edittext", undefined, "12");
+    inputMonthFontSize.characters = 3;
+    inputMonthFontSize.onChanging = schedulePreviewRefresh;
+    changeValueByArrowKey(inputMonthFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
+
+    inputYearFontSize = gFSInputs.add("edittext", undefined, "12");
+    inputYearFontSize.characters = 3;
+    inputYearFontSize.onChanging = schedulePreviewRefresh;
+    changeValueByArrowKey(inputYearFontSize, { integer: false, min: 0.1, max: 9999 }, schedulePreviewRefresh);
+
+    try { __SCM_syncYearPanelDimToFontSize(); } catch (_) { }
 
     // フォント（インストール済み）選択
     var gFontName = pnlFormat.add("group");
@@ -1257,11 +1566,6 @@ function L(key) {
     }
 
 
-    var gFont = pnlFormat.add("group");
-    gFont.add("statictext", undefined, L("labelFontSize"));
-    var inputFontSize = gFont.add("edittext", undefined, "12");
-    inputFontSize.characters = 5;
-    gFont.add("statictext", undefined, textUnitLabel);
 
     // デフォルト: DNPShueiMGoStd-B があれば選択、なければ先頭
     var defaultFontName = "DNPShueiMGoStd-B";
@@ -1273,34 +1577,6 @@ function L(key) {
         ddFont.selection = (foundIndex >= 0) ? foundIndex : 0;
     }
 
-    // ===== 揃え =====
-    var gAlign = pnlFormat.add("group");
-    gAlign.orientation = "row";
-    gAlign.alignChildren = ["left", "center"];
-
-    gAlign.add("statictext", undefined, L("alignLabel"));
-
-    var rbLeft = gAlign.add("radiobutton", undefined, L("left"));
-    var rbCenter = gAlign.add("radiobutton", undefined, L("center"));
-    var rbRight = gAlign.add("radiobutton", undefined, L("right"));
-    rbCenter.value = true; // デフォルト中央
-    rbLeft.onClick = schedulePreviewRefresh;
-    rbCenter.onClick = schedulePreviewRefresh;
-    rbRight.onClick = schedulePreviewRefresh;
-
-
-    // 日曜日・祝日（横並び）
-    var gHoliday = pnlFormat.add("group");
-    gHoliday.orientation = "row";
-    gHoliday.alignChildren = ["left", "center"];
-
-    var chkSundayRed = gHoliday.add("checkbox", undefined, L("sundayLabel"));
-    chkSundayRed.value = true;
-    chkSundayRed.onClick = schedulePreviewRefresh;
-
-    var chkHolidayRed = gHoliday.add("checkbox", undefined, L("holidayLabel"));
-    chkHolidayRed.value = true;
-    chkHolidayRed.onClick = schedulePreviewRefresh;
 
 
     // ===== 下部コントロール行（左：プレビュー／右：キャンセル・OK）=====
@@ -1343,7 +1619,7 @@ function L(key) {
     // onChanging が連続発火すると「全消去→大量生成」を連打してしまい重くなるため、
     // 最後の入力から少し待って1回だけ描画する。
     var __PREVIEW_TASK_ID = null;
-    var __PREVIEW_DELAY_MS = 220; // 150〜300ms程度が体感的に良い
+    var __PREVIEW_DELAY_MS = 450; // タイピング中の連打を抑える
 
     // scheduleTask から呼ぶため global に置く（#targetengine で Illustrator 起動中だけ保持）
     $.global.__SCM_doRefreshPreview = function () {
@@ -1433,12 +1709,19 @@ function L(key) {
             weekdayLabelMode: __SCM_getSelectedRadioValue({ jp: rbWdJP, mtw: rbWdMTW, mon: rbWdMon }),
             weekdayBottomMargin: Number(inputWeekdayBottomMargin.text),
             weekdayFontSize: Number(inputWeekdayFontSize.text),
+            monthFontSize: Number(inputMonthFontSize.text),
+            yearFontSize: Number(inputYearFontSize.text),
 
             // layout
             cellW: Number(inputCellW.text),
             cellH: Number(inputCellH.text),
+            cellGapX: Number(inputCellGapX.text),
+            cellGapY: Number(inputCellGapY.text),
+            cellPosAdjY: Number(inputCellPosAdjY.text),
             outerMarginX: Number(inputOuterMarginX.text),
             outerMarginY: Number(inputOuterMarginY.text),
+
+            cellFill: !!(chkCellFill && chkCellFill.value),
 
             // format
             fontName: __SCM_getDropdownText(ddFont),
@@ -1484,12 +1767,19 @@ function L(key) {
         if (obj.weekdayLabelMode) __SCM_setRadioByKey({ jp: rbWdJP, mtw: rbWdMTW, mon: rbWdMon }, obj.weekdayLabelMode);
         setTextSafe(inputWeekdayBottomMargin, obj.weekdayBottomMargin);
         setTextSafe(inputWeekdayFontSize, obj.weekdayFontSize);
+        setTextSafe(inputMonthFontSize, obj.monthFontSize);
+        setTextSafe(inputYearFontSize, obj.yearFontSize);
 
         // layout
         setTextSafe(inputCellW, obj.cellW);
         setTextSafe(inputCellH, obj.cellH);
+        setTextSafe(inputCellGapX, (obj.cellGapX != null) ? obj.cellGapX : 0);
+        setTextSafe(inputCellGapY, (obj.cellGapY != null) ? obj.cellGapY : 0);
         setTextSafe(inputOuterMarginX, obj.outerMarginX);
         setTextSafe(inputOuterMarginY, obj.outerMarginY);
+
+        setTextSafe(inputCellPosAdjY, (obj.cellPosAdjY != null) ? obj.cellPosAdjY : 0);
+        setCheckSafe(chkCellFill, (obj.cellFill != null) ? obj.cellFill : true);
 
         // format
         setTextSafe(inputFontSize, obj.fontSize);
@@ -1639,12 +1929,19 @@ function L(key) {
             if (!__mc || __mc < 1) __mc = 1;
             if (__mc > 24) __mc = 24;
             pnlMonthOuter.enabled = (__mc !== 1);
+            // レイアウトの月数/列数は 1ヶ月 のときディム
+            try { gCount.enabled = (__mc !== 1); } catch (_) { }
+            // ゴーストは 1ヶ月 のときだけ有効
+            try {
+                chkGhost.enabled = (__mc === 1);
+                if (__mc !== 1) chkGhost.value = false;
+            } catch (_) { }
         } catch (_) { }
 
         if (!previewChk.value) return;
 
-        // 既存プレビューを再利用（レイヤーは残し、中身だけ消す）
-        clearLayerContents(doc, PREVIEW_LAYER_NAME);
+        // プレビューレイヤーを全削除して作り直す
+        removeLayerIfExists(doc, PREVIEW_LAYER_NAME);
 
         var base = parseYMDFields(inputY.text, inputM.text, inputD.text);
         if (!base) return; // 不正入力はプレビューしない
@@ -1676,6 +1973,7 @@ function L(key) {
             // 「年」panel: 年表示は 12ヶ月 のときだけON（手入力で一致した場合も含む）
             chkTopYear.value = isP12;
             chkTopYear.enabled = isP12;
+            __SCM_syncYearPanelDimToFontSize();
 
             try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
 
@@ -1697,10 +1995,39 @@ function L(key) {
         var sundayRed = (chkSundayRed && chkSundayRed.value) ? true : false;
         var holidayRed = (chkHolidayRed && chkHolidayRed.value) ? true : false;
 
+        var ghost = (chkGhost && chkGhost.enabled && chkGhost.value) ? true : false;
+
+        var cellFill = !!(chkCellFill && chkCellFill.value);
+
+        // 罫線設定
+        var strokeMode = (rbStrokeNone && rbStrokeNone.value) ? "none"
+            : ((rbStrokeCustom && rbStrokeCustom.value) ? "custom" : "all");
+
+        var strokeTop = !!(chkStrokeTop && chkStrokeTop.value);
+        var strokeBottom = !!(chkStrokeBottom && chkStrokeBottom.value);
+        var strokeLeft = !!(chkStrokeLeft && chkStrokeLeft.value);
+        var strokeRight = !!(chkStrokeRight && chkStrokeRight.value);
+
+        if (strokeMode === "all") {
+            strokeTop = strokeBottom = strokeLeft = strokeRight = true;
+        }
+
         var cellW = toPtFromUI(inputCellW);
         var cellH = toPtFromUI(inputCellH);
         if (!cellW || isNaN(cellW) || cellW <= 0) return;
         if (!cellH || isNaN(cellH) || cellH <= 0) return;
+
+        var cellGapX = toPtFromUI(inputCellGapX);
+        var cellGapY = toPtFromUI(inputCellGapY);
+        if (isNaN(cellGapX) || cellGapX < 0) cellGapX = 0;
+        if (cellGapX > 2000) cellGapX = 2000;
+        if (isNaN(cellGapY) || cellGapY < 0) cellGapY = 0;
+        if (cellGapY > 2000) cellGapY = 2000;
+
+        var cellPosAdjY = toPtFromUI(inputCellPosAdjY);
+        if (isNaN(cellPosAdjY)) cellPosAdjY = 0;
+        if (cellPosAdjY < -2000) cellPosAdjY = -2000;
+        if (cellPosAdjY > 2000) cellPosAdjY = 2000;
 
         var showTopYear = (chkTopYear && chkTopYear.value) ? true : false;
         var includeYearInMonthTitle = (chkMonthYear && chkMonthYear.value) ? true : false;
@@ -1721,6 +2048,12 @@ function L(key) {
         var weekdayFontSize = Number(inputWeekdayFontSize.text);
         if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fs;
 
+        var monthFontSize = Number(inputMonthFontSize.text);
+        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fs;
+
+        var yearFontSize = Number(inputYearFontSize.text);
+        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fs;
+
         var outerMarginX = toPtFromUI(inputOuterMarginX);
         if (isNaN(outerMarginX) || outerMarginX < 0) outerMarginX = 0;
         if (outerMarginX > 5000) outerMarginX = 5000;
@@ -1736,8 +2069,138 @@ function L(key) {
         try { weekStartMonday = (rbWeekSun && rbWeekSun.value) ? false : true; } catch (_) { }
 
         var weekdayLabelMode = getWeekdayLabelMode();
-        buildCalendar(doc, base, PREVIEW_LAYER_NAME, fs, align, monthTitleAlign, fontName, sundayRed, holidayRed, cellW, cellH, showTopYear, includeYearInMonthTitle, monthTitleBottomBorder, topYearBottomMargin, monthCount, colCount, monthTitleMode, monthBottomMargin, weekdayBottomMargin, outerMarginX, outerMarginY, startFromJanuary, weekStartMonday, weekdayLabelMode, weekdayFontSize);
+        try {
+            var opt = {
+                fontSize: fs,
+                align: align,
+                monthTitleAlign: monthTitleAlign,
+                fontName: fontName,
+                sundayRed: sundayRed,
+                holidayRed: holidayRed,
+                ghost: ghost,
+                cell: {
+                    w: cellW,
+                    h: cellH,
+                    gapX: cellGapX,
+                    gapY: cellGapY,
+                    bgOffsetY: cellPosAdjY,
+                    fill: cellFill,
+                    stroke: {
+                        mode: strokeMode,
+                        top: strokeTop,
+                        bottom: strokeBottom,
+                        left: strokeLeft,
+                        right: strokeRight
+                    }
+                },
+                year: {
+                    showTop: showTopYear,
+                    bottomMargin: topYearBottomMargin,
+                    fontSize: yearFontSize
+                },
+                month: {
+                    includeYear: includeYearInMonthTitle,
+                    titleBottomBorder: monthTitleBottomBorder,
+                    titleMode: monthTitleMode,
+                    bottomMargin: monthBottomMargin,
+                    fontSize: monthFontSize
+                },
+                weekday: {
+                    startMonday: weekStartMonday,
+                    labelMode: weekdayLabelMode,
+                    bottomMargin: weekdayBottomMargin,
+                    fontSize: weekdayFontSize
+                },
+                unit: {
+                    outerX: outerMarginX,
+                    outerY: outerMarginY
+                },
+                layout: {
+                    monthCount: monthCount,
+                    colCount: colCount,
+                    startFromJanuary: startFromJanuary
+                }
+            };
+            buildCalendarOpt(doc, base, PREVIEW_LAYER_NAME, opt);
+        } catch (e) {
+            try { removeLayerIfExists(doc, PREVIEW_LAYER_NAME); } catch (_) { }
+            alert("Preview error:\n\n" + e);
+            return;
+        }
         try { app.redraw(); } catch (_) { }
+    }
+
+    // ===== buildCalendar: options object wrapper =====
+    // 引数ズレを防ぐため、呼び出し側は opt だけを組み立てて渡す。
+    function buildCalendarOpt(doc, baseDate, layerName, opt) {
+        opt = opt || {};
+        opt.cell = opt.cell || {};
+        opt.cell.stroke = opt.cell.stroke || {};
+        opt.month = opt.month || {};
+        opt.year = opt.year || {};
+        opt.weekday = opt.weekday || {};
+        opt.unit = opt.unit || {};
+        opt.layout = opt.layout || {};
+
+        // normalize
+        var fs = Number(opt.fontSize); if (!fs || fs <= 0) fs = 12;
+        var align = opt.align || "center";
+        var monthTitleAlign = opt.monthTitleAlign || align;
+        var fontName = opt.fontName || null;
+        var sundayRed = !!opt.sundayRed;
+        var holidayRed = !!opt.holidayRed;
+        var ghost = !!opt.ghost;
+
+        var cellW = Number(opt.cell.w);
+        var cellH = Number(opt.cell.h);
+        var cellGapX = Number(opt.cell.gapX) || 0;
+        var cellGapY = Number(opt.cell.gapY) || 0;
+        var cellPosAdjY = Number(opt.cell.bgOffsetY) || 0; // 背景用
+        var cellFill = !!opt.cell.fill;
+
+        var st = opt.cell.stroke;
+        var strokeMode = st.mode || "none";
+        var strokeTop = !!st.top;
+        var strokeBottom = !!st.bottom;
+        var strokeLeft = !!st.left;
+        var strokeRight = !!st.right;
+
+        var showTopYear = !!opt.year.showTop;
+        var includeYearInMonthTitle = !!opt.month.includeYear;
+        var monthTitleBottomBorder = !!opt.month.titleBottomBorder;
+        var topYearBottomMargin = Number(opt.year.bottomMargin) || 0;
+
+        var monthCount = Math.round(Number(opt.layout.monthCount));
+        if (!monthCount || monthCount < 1) monthCount = 1;
+        var colCount = Math.round(Number(opt.layout.colCount));
+        if (!colCount || colCount < 1) colCount = 1;
+
+        var monthTitleMode = opt.month.titleMode || "pad";
+        var monthBottomMargin = Number(opt.month.bottomMargin) || 0;
+        var weekdayBottomMargin = Number(opt.weekday.bottomMargin) || 0;
+
+        var outerMarginX = Number(opt.unit.outerX) || 0;
+        var outerMarginY = Number(opt.unit.outerY) || 0;
+
+        var startFromJanuary = !!opt.layout.startFromJanuary;
+        var weekStartMonday = (opt.weekday.startMonday !== false);
+        var weekdayLabelMode = opt.weekday.labelMode || "jp";
+
+        var weekdayFontSize = Number(opt.weekday.fontSize);
+        var monthFontSize = Number(opt.month.fontSize);
+        var yearFontSize = Number(opt.year.fontSize);
+        if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fs;
+        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fs;
+        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fs;
+
+        // Delegate to the existing implementation (現行buildCalendarは温存)
+        buildCalendar(doc, baseDate, layerName, fs, align, monthTitleAlign, fontName, sundayRed, holidayRed, ghost,
+            cellW, cellH, cellGapX, cellGapY, cellPosAdjY, cellFill,
+            strokeMode, strokeTop, strokeBottom, strokeLeft, strokeRight,
+            showTopYear, includeYearInMonthTitle, monthTitleBottomBorder, topYearBottomMargin,
+            monthCount, colCount, monthTitleMode, monthBottomMargin, weekdayBottomMargin,
+            outerMarginX, outerMarginY, startFromJanuary, weekStartMonday, weekdayLabelMode,
+            weekdayFontSize, monthFontSize, yearFontSize);
     }
 
     inputY.onChanging = schedulePreviewRefresh;
@@ -1786,6 +2249,8 @@ function L(key) {
             return;
         }
 
+        var ghost = (chkGhost && chkGhost.enabled && chkGhost.value) ? true : false;
+
         // プレビューONで既に描画済みなら、それをそのまま確定（再描画しない）
         var __existingPreview = null;
         try { __existingPreview = getLayerByName(doc, PREVIEW_LAYER_NAME); } catch (_) { }
@@ -1807,10 +2272,37 @@ function L(key) {
         var sundayRed = (chkSundayRed && chkSundayRed.value) ? true : false;
         var holidayRed = (chkHolidayRed && chkHolidayRed.value) ? true : false;
 
+        var cellFill = !!(chkCellFill && chkCellFill.value);
+
+        // 罫線設定
+        var strokeMode = (rbStrokeNone && rbStrokeNone.value) ? "none"
+            : ((rbStrokeCustom && rbStrokeCustom.value) ? "custom" : "all");
+
+        var strokeTop = !!(chkStrokeTop && chkStrokeTop.value);
+        var strokeBottom = !!(chkStrokeBottom && chkStrokeBottom.value);
+        var strokeLeft = !!(chkStrokeLeft && chkStrokeLeft.value);
+        var strokeRight = !!(chkStrokeRight && chkStrokeRight.value);
+
+        if (strokeMode === "all") {
+            strokeTop = strokeBottom = strokeLeft = strokeRight = true;
+        }
+
         var cellW = toPtFromUI(inputCellW);
         var cellH = toPtFromUI(inputCellH);
         if (!cellW || isNaN(cellW) || cellW <= 0) return alert(L("errBadCellW"));
         if (!cellH || isNaN(cellH) || cellH <= 0) return alert(L("errBadCellH"));
+
+        var cellGapX = toPtFromUI(inputCellGapX);
+        var cellGapY = toPtFromUI(inputCellGapY);
+        if (isNaN(cellGapX) || cellGapX < 0) cellGapX = 0;
+        if (cellGapX > 2000) cellGapX = 2000;
+        if (isNaN(cellGapY) || cellGapY < 0) cellGapY = 0;
+        if (cellGapY > 2000) cellGapY = 2000;
+
+        var cellPosAdjY = toPtFromUI(inputCellPosAdjY);
+        if (isNaN(cellPosAdjY)) cellPosAdjY = 0;
+        if (cellPosAdjY < -2000) cellPosAdjY = -2000;
+        if (cellPosAdjY > 2000) cellPosAdjY = 2000;
 
         var showTopYear = (chkTopYear && chkTopYear.value) ? true : false;
         var includeYearInMonthTitle = (chkMonthYear && chkMonthYear.value) ? true : false;
@@ -1843,14 +2335,69 @@ function L(key) {
         try { weekStartMonday = (rbWeekSun && rbWeekSun.value) ? false : true; } catch (_) { }
 
         var weekdayLabelMode = getWeekdayLabelMode();
-        try {
-            buildCalendar(doc, base, PREVIEW_LAYER_NAME, fs, align, monthTitleAlign, fontName, sundayRed, holidayRed, cellW, cellH, showTopYear, includeYearInMonthTitle, monthTitleBottomBorder, topYearBottomMargin, monthCount, colCount, monthTitleMode, monthBottomMargin, weekdayBottomMargin, outerMarginX, outerMarginY, startFromJanuary, weekStartMonday, weekdayLabelMode, weekdayFontSize);
-        } catch (e) {
-            // 生成に失敗した場合、空レイヤーだけ残るのを防ぐ
-            try { removeLayerIfExists(doc, PREVIEW_LAYER_NAME); } catch (_) { }
-            alert(L("errBuild") + "\n\n" + e);
-            return;
-        }
+
+        var weekdayFontSize = Number(inputWeekdayFontSize.text);
+        if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fs;
+
+        var monthFontSize = Number(inputMonthFontSize.text);
+        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fs;
+
+        var yearFontSize = Number(inputYearFontSize.text);
+        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fs;
+
+        var opt = {
+            fontSize: fs,
+            align: align,
+            monthTitleAlign: monthTitleAlign,
+            fontName: fontName,
+            sundayRed: sundayRed,
+            holidayRed: holidayRed,
+            ghost: ghost,
+            cell: {
+                w: cellW,
+                h: cellH,
+                gapX: cellGapX,
+                gapY: cellGapY,
+                bgOffsetY: cellPosAdjY,
+                fill: cellFill,
+                stroke: {
+                    mode: strokeMode,
+                    top: strokeTop,
+                    bottom: strokeBottom,
+                    left: strokeLeft,
+                    right: strokeRight
+                }
+            },
+            year: {
+                showTop: showTopYear,
+                bottomMargin: topYearBottomMargin,
+                fontSize: yearFontSize
+            },
+            month: {
+                includeYear: includeYearInMonthTitle,
+                titleBottomBorder: monthTitleBottomBorder,
+                titleMode: monthTitleMode,
+                bottomMargin: monthBottomMargin,
+                fontSize: monthFontSize
+            },
+            weekday: {
+                startMonday: weekStartMonday,
+                labelMode: weekdayLabelMode,
+                bottomMargin: weekdayBottomMargin,
+                fontSize: weekdayFontSize
+            },
+            unit: {
+                outerX: outerMarginX,
+                outerY: outerMarginY
+            },
+            layout: {
+                monthCount: monthCount,
+                colCount: colCount,
+                startFromJanuary: startFromJanuary
+            }
+        };
+
+        buildCalendarOpt(doc, base, PREVIEW_LAYER_NAME, opt);
 
         // 確定：プレビューレイヤー名を変更して残す
         var lyr = getLayerByName(doc, PREVIEW_LAYER_NAME);
@@ -1933,9 +2480,30 @@ function L(key) {
             if (typeof onChanged === "function") onChanged();
         });
     }
+    function buildCalendar(
+        doc, baseDate, layerName, fontSize, alignMode, monthTitleAlign, fontName,
+        sundayRed, holidayRed, ghost,
+        cellW, cellH, cellGapX, cellGapY, cellPosAdjY, cellFill,
+        strokeMode, strokeTop, strokeBottom, strokeLeft, strokeRight,
 
-    function buildCalendar(doc, baseDate, layerName, fontSize, alignMode, monthTitleAlign, fontName, sundayRed, holidayRed, cellW, cellH, showTopYear, includeYearInMonthTitle, monthTitleBottomBorder, topYearBottomMargin, monthCount, colCount, monthTitleMode, monthBottomMargin, weekdayBottomMargin, outerMarginX, outerMarginY, startFromJanuary, weekStartMonday, weekdayLabelMode, weekdayFontSize) {
+        showTopYear, includeYearInMonthTitle, monthTitleBottomBorder, topYearBottomMargin,
+        monthCount, colCount, monthTitleMode, monthBottomMargin, weekdayBottomMargin,
+        outerMarginX, outerMarginY, startFromJanuary, weekStartMonday, weekdayLabelMode,
+        weekdayFontSize, monthFontSize, yearFontSize
+    ) {
+
+        // ---- safety aliases (legacy name compatibility) ----
+        var base = baseDate; // buildCalendar内で base を参照しても落ちないように
+        var fs = fontSize;   // buildCalendar内で fs を参照しても落ちないように
+        ghost = !!ghost;
+        cellFill = !!cellFill;
         if (!monthTitleMode) monthTitleMode = "pad";
+        monthFontSize = Number(monthFontSize);
+        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fontSize;
+
+        yearFontSize = Number(yearFontSize);
+        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fontSize;
+
         monthBottomMargin = Number(monthBottomMargin);
         if (isNaN(monthBottomMargin) || monthBottomMargin < 0) monthBottomMargin = 0;
         if (monthBottomMargin > 2000) monthBottomMargin = 2000;
@@ -1962,6 +2530,13 @@ function L(key) {
         var abCY = (abRect[1] + abRect[3]) / 2;
 
         weekStartMonday = (weekStartMonday !== false); // default true
+
+        strokeMode = String(strokeMode || "none");
+        strokeTop = !!strokeTop;
+        strokeBottom = !!strokeBottom;
+        strokeLeft = !!strokeLeft;
+        strokeRight = !!strokeRight;
+
         if (!weekdayLabelMode) weekdayLabelMode = "jp";
 
         var headersMon;
@@ -1982,6 +2557,26 @@ function L(key) {
         // 年タイトル（最上部）
         var yearTitleH = showTopYear ? (cellH + topYearBottomMargin) : 0; // 1行 + 下マージン
 
+        // ===== セル塗り（仮）: K10 =====
+        var __K10 = null;
+        try {
+            __K10 = new CMYKColor();
+            __K10.cyan = 0;
+            __K10.magenta = 0;
+            __K10.yellow = 0;
+            __K10.black = 10; // K10
+        } catch (_) { __K10 = null; }
+
+        // ===== ゴースト文字色: K30 =====
+        var __K30 = null;
+        try {
+            __K30 = new CMYKColor();
+            __K30.cyan = 0;
+            __K30.magenta = 0;
+            __K30.yellow = 0;
+            __K30.black = 30; // K30
+        } catch (_) { __K30 = null; }
+
         monthCount = Math.round(Number(monthCount));
         if (!monthCount || monthCount < 1) monthCount = 1;
         if (monthCount > 24) monthCount = 24;
@@ -1998,7 +2593,17 @@ function L(key) {
         startFromJanuary = (startFromJanuary === true);
 
         var monthInfos = [];
-        var totalW = 7 * cellW;
+        cellGapX = Number(cellGapX);
+        if (isNaN(cellGapX) || cellGapX < 0) cellGapX = 0;
+        if (cellGapX > 2000) cellGapX = 2000;
+
+        cellGapY = Number(cellGapY);
+        if (isNaN(cellGapY) || cellGapY < 0) cellGapY = 0;
+        if (cellGapY > 2000) cellGapY = 2000;
+
+        var stepX = cellW + cellGapX;
+        var totalW = 7 * cellW + 6 * cellGapX;
+
         var gapX = outerMarginX; // 月ユニット間の左右マージン
         var gapY = outerMarginY; // 月ユニット間の上下マージン
 
@@ -2029,6 +2634,8 @@ function L(key) {
             var weeks = Math.ceil(dayCells / 7);
             var rows = 1 + weeks;      // 1=曜日ヘッダ
             var totalH = (rows + 1) * cellH + monthBottomMargin + weekdayBottomMargin; // +1=タイトル行 + タイトル下マージン + 曜日下マージン
+            // 日付行は weeks 行なので、間隔は (weeks-1) 回だけ入る
+            if (cellGapY > 0 && weeks > 1) totalH += (weeks - 1) * cellGapY;
 
             if (totalH > maxCellH) maxCellH = totalH;
 
@@ -2043,6 +2650,7 @@ function L(key) {
             });
         }
 
+
         // グリッド配置（列数指定）
         var rowsCount = Math.ceil(monthCount / colCount);
 
@@ -2056,7 +2664,7 @@ function L(key) {
 
         // 年タイトル（最上部）
         if (showTopYear) {
-            addText(layer, String(baseYear), startX0, startY0, fontSize + 6, "center", blockW, fontName, false, null);
+            addText(layer, String(baseYear), startX0, startY0, yearFontSize, "center", blockW, fontName, false, null);
         }
 
         for (var bi = 0; bi < monthInfos.length; bi++) {
@@ -2078,7 +2686,7 @@ function L(key) {
 
             // タイトル
             var titleText = formatMonthTitle(info.year, info.month0, includeYearInMonthTitle, monthTitleMode);
-            addText(layer, titleText, startX, startY, fontSize + 2, monthTitleAlign || alignMode, totalW, fontName, false, monthGroup);
+            addText(layer, titleText, startX, startY, monthFontSize, monthTitleAlign || alignMode, totalW, fontName, false, monthGroup);
 
             // タイトル行の下ボーダー（タイトルと曜日の中間）
             if (monthTitleBottomBorder) {
@@ -2090,37 +2698,143 @@ function L(key) {
             var headerY = startY - cellH - monthBottomMargin;
             for (var c = 0; c < 7; c++) {
                 var isSunH = (sundayRed && c === sundayCol);
-                addText(layer, headers[c], startX + c * cellW, headerY, weekdayFontSize || fontSize, alignMode, cellW, fontName, isSunH, monthGroup);
+                addText(layer, headers[c], startX + c * stepX, headerY, weekdayFontSize || fontSize, alignMode, cellW, fontName, isSunH, monthGroup);
             }
 
-            // 日付
-            var row = 1;
-            var col = info.startIndex;
-            for (var d = 1; d <= info.daysInMonth; d++) {
-                var x = startX + col * cellW;
-                var yy = headerY - weekdayBottomMargin - row * cellH;
-                var isSunD = (sundayRed && col === sundayCol);
-                var hname = getJPHolidayName(info.year, info.month0 + 1, d);
-                var isHol = (holidayRed && hname);
+            // 日付（必要なら前後月も表示）
+            var totalCells = info.weeks * 7;
 
-                var colorFlag = isSunD;
-                var tf = addText(layer, String(d), x, yy, fontSize, alignMode, cellW, fontName, colorFlag, monthGroup);
+            // 前月の日数（ゴースト用）
+            var prevDaysInMonth = 0;
+            if (ghost) {
+                try {
+                    var py = info.year;
+                    var pm0 = info.month0 - 1;
+                    if (pm0 < 0) { pm0 = 11; py--; }
+                    prevDaysInMonth = (new Date(py, pm0 + 1, 0)).getDate();
+                } catch (_) { prevDaysInMonth = 0; }
+            }
 
-                if (isHol) {
+            for (var idx = 0; idx < totalCells; idx++) {
+                var col = idx % 7;
+                var weekRow = Math.floor(idx / 7);
+                var row = 1 + weekRow; // 1=曜日ヘッダの次の行
+
+                // 当月の「日」(1..daysInMonth)
+                var day = (idx - info.startIndex) + 1;
+
+                var isGhostDay = false;
+                var dispDay = day;
+
+                // ゴーストOFF時は、当月外セル（前月/翌月）は完全にスキップ（罫線も描かない）
+                if (!ghost && (day < 1 || day > info.daysInMonth)) {
+                    continue;
+                }
+
+                // はみ出しは前後月
+                if (day < 1 || day > info.daysInMonth) {
+                    if (!ghost) continue; // ゴーストOFFなら描画しない
+                    isGhostDay = true;
+                    if (day < 1) {
+                        dispDay = prevDaysInMonth + day; // 前月
+                    } else {
+                        dispDay = day - info.daysInMonth; // 翌月
+                    }
+                }
+
+                var x = startX + col * stepX;
+                var yy = headerY - weekdayBottomMargin - row * cellH - (row - 1) * cellGapY;
+
+                // 背景の位置調整（背景のみ上下調整）
+                var __bgAdjY = Number(cellPosAdjY);
+                if (isNaN(__bgAdjY)) __bgAdjY = 0;
+
+                // 背景・罫線の基準（背景オフセット込み）
+                var __cellTopY = yy + __bgAdjY;
+                var __cellBotY = __cellTopY - cellH;
+                var __xL = x;
+                var __xR = x + cellW;
+
+                var __cellRect = null;
+                if (cellFill && __K10) {
                     try {
-                        var oc = new RGBColor();
-                        oc.red = 255;
-                        oc.green = 140;
-                        oc.blue = 0; // orange
-                        tf.textRange.characterAttributes.fillColor = oc;
+                        __cellRect = layer.pathItems.rectangle(__cellTopY, x, cellW, cellH);
+                        __cellRect.stroked = false;
+                        __cellRect.filled = true;
+                        __cellRect.fillColor = __K10;
+                        if (monthGroup) {
+                            try { __cellRect.move(monthGroup, ElementPlacement.PLACEATBEGINNING); } catch (_) { }
+                        }
                     } catch (_) { }
                 }
 
-                col++;
-                if (col >= 7) {
-                    col = 0;
-                    row++;
+                // 日曜の赤は当月のみ（ゴーストはK30で上書き）
+                var isSunD = (sundayRed && col === sundayCol);
+                var colorFlag = isSunD && !isGhostDay;
+
+                var tf = addText(layer, String(dispDay), x, yy, fontSize, alignMode, cellW, fontName, colorFlag, monthGroup);
+
+                // ===== 罫線（セル背景に連動 / 背景より前面）=====
+                if (strokeMode !== "none") {
+                    try {
+                        var __strokeW = 0.3; // 固定（必要ならUI化）
+                        var __strokeC = null;
+                        try {
+                            __strokeC = new CMYKColor();
+                            __strokeC.cyan = 0; __strokeC.magenta = 0; __strokeC.yellow = 0; __strokeC.black = 100; // K100
+                        } catch (_) { __strokeC = null; }
+
+                        function __drawLine(x1, y1, x2, y2) {
+                            var ln = layer.pathItems.add();
+                            ln.stroked = true;
+                            ln.filled = false;
+                            ln.strokeWidth = __strokeW;
+                            if (__strokeC) ln.strokeColor = __strokeC;
+                            ln.setEntirePath([[x1, y1], [x2, y2]]);
+                            if (monthGroup) {
+                                try { ln.move(monthGroup, ElementPlacement.PLACEATEND); } catch (_) { }
+                            }
+                            return ln;
+                        }
+
+                        // モードに応じて描画
+                        if (strokeMode === "all") {
+                            __drawLine(__xL, __cellTopY, __xR, __cellTopY); // 上
+                            __drawLine(__xL, __cellBotY, __xR, __cellBotY); // 下
+                            __drawLine(__xL, __cellBotY, __xL, __cellTopY); // 左
+                            __drawLine(__xR, __cellBotY, __xR, __cellTopY); // 右
+                        } else {
+                            if (strokeTop) __drawLine(__xL, __cellTopY, __xR, __cellTopY);
+                            if (strokeBottom) __drawLine(__xL, __cellBotY, __xR, __cellBotY);
+                            if (strokeLeft) __drawLine(__xL, __cellBotY, __xL, __cellTopY);
+                            if (strokeRight) __drawLine(__xR, __cellBotY, __xR, __cellTopY);
+                        }
+                    } catch (_) { }
                 }
+
+                // 祝日（当月のみ）
+                if (!isGhostDay) {
+                    var hname = getJPHolidayName(info.year, info.month0 + 1, day);
+                    var isHol = (holidayRed && hname);
+                    if (isHol) {
+                        try {
+                            var oc = new RGBColor();
+                            oc.red = 255;
+                            oc.green = 140;
+                            oc.blue = 0; // orange
+                            tf.textRange.characterAttributes.fillColor = oc;
+                        } catch (_) { }
+                    }
+                }
+
+                // ゴースト文字色（K30）
+                if (isGhostDay && __K30 && tf) {
+                    try { tf.textRange.characterAttributes.fillColor = __K30; } catch (_) { }
+                }
+
+                // 前後関係を最終確定（背景→最背面、テキスト→最前面）
+                try { if (__cellRect) __cellRect.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
+                try { if (tf) tf.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
             }
         }
     }
