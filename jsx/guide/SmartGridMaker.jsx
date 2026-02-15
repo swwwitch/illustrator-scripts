@@ -1,6 +1,6 @@
 #targetengine "SmartGridMakerEngine"
 #target illustrator
-try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } catch (_) { }
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
   SmartGridMaker.jsx
@@ -9,8 +9,8 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
   更新日: 2026-02-15
 
   長方形またはアートボードを基準に、
-  外側エリア（辺の伸縮・線端）、タイトルエリア、
-  内側エリアのオフセット（4方向・連動）、
+  外側（辺の伸縮・線端）、タイトルエリア、
+  内側のオフセット（4方向・連動）、
   列／行の分割・間隔設定、塗り・分割線・線種（実線・点線・ドット点線）、
   フレーム（裁ち落とし対応）を
   プレビュー付きで一括生成するスクリプト。
@@ -36,7 +36,7 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)
@@ -73,11 +73,15 @@ var LABELS = {
     panelColumns: { ja: "列", en: "Columns" },
     panelRows: { ja: "行", en: "Rows" },
     panelLineType: { ja: "線の種類", en: "Line Type" },
+    panelDisplay: { ja: "画面表示", en: "Display" },
+    panelZoomPan: { ja: "ズームとパン", en: "Pan & Zoom" },
+
 
     // Common
     preview: { ja: "プレビュー", en: "Preview" },
     cancel: { ja: "キャンセル", en: "Cancel" },
     ok: { ja: "実行", en: "OK" },
+    zoomLabel: { ja: "ズーム", en: "Zoom" }, // 「：」なし（UI側で整える）
 
     alertSelectPath: {
         ja: "パスアイテム（長方形など）を選択してください。",
@@ -122,7 +126,11 @@ var LABELS = {
     // Line types
     lineSolid: { ja: "実線", en: "Solid" },
     lineDash: { ja: "点線", en: "Dash" },
-    lineDotDash: { ja: "ドット点線", en: "Dots" }
+    lineDotDash: { ja: "ドット点線", en: "Dots" },
+
+
+    lr: { ja: "左右", en: "Pan L/R" },
+    ud: { ja: "上下", en: "Pan U/D" },
 };
 
 /* ラベル取得 / Get localized label */
@@ -134,11 +142,263 @@ function L(key) {
     return key;
 }
 
+/* =========================================
+ * ViewControl util (extractable)
+ * Zoom + Pan (L/R, U/D) for Illustrator view
+ *
+ * UI (slider only):
+ *   ズーム <===== slider =====>
+ *   左右   <===== slider =====>
+ *   上下   <===== slider =====>
+ *
+ * - Base center: active artboard center
+ * - Pan offsets: relative to base center
+ * - Zoom keeps current pan offsets
+ * - Hold Option(Alt) while dragging => 1/10 speed (delta*0.1)
+ * - Pan range: dynamic (half of artboard W/H), safety clamped
+ *
+ * How to use:
+ *   var vc = ViewControl.create(doc, L);     // L optional
+ *   vc.buildUI(pnlView, { labelWidth:58, sliderWidth:260 });
+ *   // Cancel:
+ *   vc.restore();
+ * ========================================= */
+
+var ViewControl = (function () {
+
+    function clamp(v, mn, mx) { return (v < mn) ? mn : (v > mx) ? mx : v; }
+
+    function getAltKey() {
+        try { return !!(ScriptUI.environment.keyboardState && ScriptUI.environment.keyboardState.altKey); } catch (_) { }
+        return false;
+    }
+
+    function applySliderAltFine(slider, st, applyFn) {
+        try {
+            if (!slider || !st || typeof applyFn !== "function") return;
+
+            var raw = Number(slider.value);
+            if (isNaN(raw)) raw = 0;
+
+            if (st.raw == null || st.eff == null) {
+                st.raw = raw;
+                st.eff = raw;
+            }
+
+            if (getAltKey()) {
+                var d = raw - Number(st.raw);
+                var eff = Number(st.eff) + d * 0.1;
+                st.raw = raw;
+                st.eff = eff;
+                try { slider.value = eff; } catch (_) { }
+                applyFn(eff);
+            } else {
+                st.raw = raw;
+                st.eff = raw;
+                applyFn(raw);
+            }
+        } catch (_) { }
+    }
+
+    function getActiveArtboardCenter(doc, view) {
+        try {
+            var idx = doc.artboards.getActiveArtboardIndex();
+            var r = doc.artboards[idx].artboardRect; // [L, T, R, B]
+            return [r[0] + (r[2] - r[0]) / 2, r[1] + (r[3] - r[1]) / 2];
+        } catch (_) { }
+        try { return (view && view.centerPoint) ? view.centerPoint : [0, 0]; } catch (_) { }
+        return [0, 0];
+    }
+
+    function getPanRangePt(doc) {
+        // half of artboard size, with safety clamps
+        try {
+            var idx = doc.artboards.getActiveArtboardIndex();
+            var r = doc.artboards[idx].artboardRect;
+            var w = Math.abs(r[2] - r[0]);
+            var h = Math.abs(r[1] - r[3]);
+            var xMax = Math.round(w / 2);
+            var yMax = Math.round(h / 2);
+            if (!xMax || xMax < 100) xMax = 100;
+            if (!yMax || yMax < 100) yMax = 100;
+            if (xMax > 50000) xMax = 50000;
+            if (yMax > 50000) yMax = 50000;
+            return { xMax: xMax, yMax: yMax };
+        } catch (_) { }
+        return { xMax: 2000, yMax: 2000 };
+    }
+
+    function clampZoomFactor(z) {
+        // Illustrator zoom factor safety
+        if (z < 0.0313) z = 0.0313;
+        if (z > 640.0) z = 640.0;
+        return z;
+    }
+
+    function create(doc, Lfn) {
+        var vc = {};
+
+        vc.doc = doc;
+        vc.view = null;
+        vc.L = (typeof Lfn === "function") ? Lfn : null;
+
+        vc.orgZoom = null;
+        vc.orgCenter = null;
+
+        vc.panX = 0; // pt
+        vc.panY = 0; // pt (UI positive => down)
+        vc.panRange = { xMax: 2000, yMax: 2000 };
+
+        vc.sldZoom = null;
+        vc.sldPanX = null;
+        vc.sldPanY = null;
+
+        try {
+            vc.view = doc.views[0];
+            vc.orgZoom = vc.view.zoom;
+            vc.orgCenter = vc.view.centerPoint;
+        } catch (_) { }
+
+        vc.t = function (key, fallback) {
+            try { if (vc.L) return vc.L(key); } catch (_) { }
+            return fallback || key;
+        };
+
+        vc.refreshPanRange = function () {
+            try { vc.panRange = getPanRangePt(vc.doc); } catch (_) { }
+            return vc.panRange;
+        };
+
+        vc.applyCenter = function () {
+            try {
+                if (!vc.view) return;
+                var c = getActiveArtboardCenter(vc.doc, vc.view);
+                var x = c[0] + Number(vc.panX || 0);
+                // Illustrator: +Y is up. UI: positive is down => subtract
+                var y = c[1] - Number(vc.panY || 0);
+                vc.view.centerPoint = [x, y];
+                app.redraw();
+            } catch (_) { }
+        };
+
+        vc.setZoomPct = function (pct, zoomMin, zoomMax) {
+            try {
+                if (!vc.view) return;
+                var p = Number(pct);
+                if (isNaN(p)) return;
+                p = clamp(Math.round(p), zoomMin, zoomMax);
+                vc.view.zoom = clampZoomFactor(p / 100.0);
+                vc.applyCenter(); // keep pan
+            } catch (_) { }
+        };
+
+        vc.setPanX = function (v) {
+            try {
+                var n = Number(v); if (isNaN(n)) n = 0;
+                var rg = vc.refreshPanRange();
+                n = clamp(Math.round(n), -rg.xMax, rg.xMax);
+                vc.panX = n;
+                vc.applyCenter();
+            } catch (_) { }
+        };
+
+        vc.setPanY = function (v) {
+            try {
+                var n = Number(v); if (isNaN(n)) n = 0;
+                var rg = vc.refreshPanRange();
+                n = clamp(Math.round(n), -rg.yMax, rg.yMax);
+                vc.panY = n;
+                vc.applyCenter();
+            } catch (_) { }
+        };
+
+        vc.restore = function () {
+            try {
+                if (vc.view && vc.orgZoom != null && vc.orgCenter != null) {
+                    vc.view.zoom = vc.orgZoom;
+                    vc.view.centerPoint = vc.orgCenter;
+                    app.redraw();
+                }
+            } catch (_) { }
+            vc.panX = 0; vc.panY = 0;
+        };
+
+        vc.buildUI = function (parent, opt) {
+            opt = opt || {};
+            var labelW = (typeof opt.labelWidth === "number") ? opt.labelWidth : 58;
+            var sliderW = (typeof opt.sliderWidth === "number") ? opt.sliderWidth : 260;
+
+            var zoomMin = (typeof opt.zoomMin === "number") ? opt.zoomMin : 10;
+            var zoomMax = (typeof opt.zoomMax === "number") ? opt.zoomMax : 1600;
+
+            // labels (prefer L())
+            var labelZoom = vc.t("zoomLabel", "ズーム");
+            var labelLR = vc.t("lr", "左右");
+            var labelUD = vc.t("ud", "上下");
+
+            // initial zoom pct from current view
+            var initZoomPct = 100;
+            try { if (vc.orgZoom != null) initZoomPct = Math.round(Number(vc.orgZoom) * 100); } catch (_) { }
+            if (!initZoomPct || initZoomPct < zoomMin) initZoomPct = 100;
+
+            // pan ranges (UI bounds decided at build time)
+            var pr = vc.refreshPanRange();
+
+            function addRow(lblText) {
+                var g = parent.add("group");
+                g.orientation = "row";
+                g.alignChildren = ["left", "center"];
+                var st = g.add("statictext", undefined, lblText);
+                try { st.preferredSize.width = labelW; } catch (_) { }
+                return g;
+            }
+
+            // Zoom row
+            var gZ = addRow(labelZoom);
+            vc.sldZoom = gZ.add("slider", undefined, initZoomPct, zoomMin, zoomMax);
+            try { vc.sldZoom.preferredSize.width = sliderW; } catch (_) { }
+            var stZ = { raw: null, eff: null };
+            vc.sldZoom.onChanging = function () {
+                applySliderAltFine(this, stZ, function (v) { vc.setZoomPct(v, zoomMin, zoomMax); });
+            };
+
+            // Pan X row
+            var gX = addRow(labelLR);
+            vc.sldPanX = gX.add("slider", undefined, 0, -pr.xMax, pr.xMax);
+            try { vc.sldPanX.preferredSize.width = sliderW; } catch (_) { }
+            var stX = { raw: null, eff: null };
+            vc.sldPanX.onChanging = function () {
+                applySliderAltFine(this, stX, function (v) { vc.setPanX(v); });
+            };
+
+            // Pan Y row
+            var gY = addRow(labelUD);
+            vc.sldPanY = gY.add("slider", undefined, 0, -pr.yMax, pr.yMax);
+            try { vc.sldPanY.preferredSize.width = sliderW; } catch (_) { }
+            var stY = { raw: null, eff: null };
+            vc.sldPanY.onChanging = function () {
+                applySliderAltFine(this, stY, function (v) { vc.setPanY(v); });
+            };
+
+            return vc;
+        };
+
+        return vc;
+    }
+
+    return { create: create };
+})();
+
+
 (function () {
     // --- 準備とチェック ---
     if (app.documents.length === 0) return;
     var doc = app.activeDocument;
     var sel = doc.selection;
+
+    // ViewControl instance (Zoom/Pan)
+    var viewCtl = null;
+    try { viewCtl = ViewControl.create(doc, L); } catch (_) { viewCtl = null; }
 
     // パスアイテムのみを抽出してリスト化
     var targetItems = [];
@@ -351,7 +611,7 @@ function L(key) {
     var tabPanel = win.add("tabbedpanel");
     tabPanel.alignChildren = ["fill", "top"];
     tabPanel.alignment = ["fill", "top"];
-    tabPanel.margins = [5,20,0,0];
+    tabPanel.margins = [5, 20, 0, 0];
     // tabbedpanel は内容量に応じて自動で高さが伸びないことがあるため、最低サイズを与える
     try {
         tabPanel.minimumSize = [300, 460];
@@ -362,6 +622,7 @@ function L(key) {
     var tabLeft = tabPanel.add("tab", undefined, L("panelMargin"));
     var tabMid = tabPanel.add("tab", undefined, L("panelOuter"));
     var tabRight = tabPanel.add("tab", undefined, L("panelInnerArea"));
+    var tabDisplay = tabPanel.add("tab", undefined, L("panelDisplay"));
 
     // Left tab (Margin / Frame)
     tabLeft.orientation = "column";
@@ -392,6 +653,17 @@ function L(key) {
     rightCol.orientation = "column";
     rightCol.alignChildren = ["fill", "top"];
     rightCol.spacing = 8;
+
+    // Display tab
+    tabDisplay.orientation = "column";
+    tabDisplay.alignChildren = ["fill", "top"];
+    tabDisplay.spacing = 8;
+    tabDisplay.margins = 10;
+
+    var displayCol = tabDisplay.add("group");
+    displayCol.orientation = "column";
+    displayCol.alignChildren = ["fill", "top"];
+    displayCol.spacing = 8;
 
     // =========================================
     // UI builders (split): MarginUI / OuterUI / InnerUI
@@ -1208,6 +1480,27 @@ function L(key) {
 
 
     buildInnerUI(rightCol);
+    buildDisplayUI(displayCol);
+
+    // Builder: DisplayUI
+    function buildDisplayUI(parent) {
+        var displayPanel = parent.add("panel", undefined, L("panelZoomPan"));
+        displayPanel.orientation = "column";
+        displayPanel.alignChildren = ["fill", "top"];
+        displayPanel.margins = [15, 20, 15, 10];
+        displayPanel.spacing = 10;
+
+        var pnlView = displayPanel.add("group");
+        pnlView.orientation = "column";
+        pnlView.alignChildren = "left";
+        pnlView.spacing = 8;
+
+        if (viewCtl && typeof viewCtl.buildUI === "function") {
+            viewCtl.buildUI(pnlView, { labelWidth: 58, sliderWidth: 260 });
+        } else {
+            pnlView.add("statictext", undefined, "(ViewControl unavailable)");
+        }
+    }
 
     // ［塗り］の手動操作を優先するためのフラグ（ガター変更での自動ONを抑制）
     var _rowFillManuallySet = false;
@@ -1274,7 +1567,40 @@ function L(key) {
     var btnGroup = bottomRow.add("group");
     btnGroup.alignment = ["right", "center"];
     var cancelBtn = btnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
+
+    // Ensure view is restored when user cancels/closes the dialog
+    try {
+        cancelBtn.onClick = function () {
+            try { if (viewCtl && typeof viewCtl.restore === "function") viewCtl.restore(); } catch (_) { }
+            try { clearPreview(); } catch (_) { }
+            try { win.close(0); } catch (_) { }
+        };
+    } catch (_) { }
+
+    try {
+        win.onClose = function () {
+            try { if (viewCtl && typeof viewCtl.restore === "function") viewCtl.restore(); } catch (_) { }
+            return true;
+        };
+    } catch (_) { }
+
     var okBtn = btnGroup.add("button", undefined, L("ok"), { name: "ok" });
+
+    // Ensure view is restored when user cancels/closes the dialog
+    try {
+        cancelBtn.onClick = function () {
+            try { if (viewCtl && typeof viewCtl.restore === "function") viewCtl.restore(); } catch (_) { }
+            try { clearPreview(); } catch (_) { }
+            try { win.close(0); } catch (_) { }
+        };
+    } catch (_) { }
+
+    try {
+        win.onClose = function () {
+            try { if (viewCtl && typeof viewCtl.restore === "function") viewCtl.restore(); } catch (_) { }
+            return true;
+        };
+    } catch (_) { }
 
     // --- Restore last UI state (session only) ---
     (function restoreUIState() {
@@ -1716,6 +2042,7 @@ function L(key) {
 
     // キャンセル時：プレビュー生成物を削除して終了
     if (result != 1) {
+        try { if (viewCtl && typeof viewCtl.restore === "function") viewCtl.restore(); } catch (_) { }
         try { clearPreview(); } catch (_) { }
         return;
     }
