@@ -6,7 +6,7 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
   SmartGridMaker.jsx
   囲み罫とグリッド
 
-  更新日: 2026-02-14
+  更新日: 2026-02-15
 
   長方形またはアートボードを基準に、
   外側エリア（辺の伸縮・線端）、タイトルエリア、
@@ -36,7 +36,7 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)
@@ -344,29 +344,51 @@ function L(key) {
     win.spacing = 20;
     win.margins = 16;
 
-    // 3カラムレイアウト
+    // 3タブレイアウト
     // 左：マージン / フレーム
     // 中央：外側エリア / タイトルエリア
     // 右：内側エリア
-    var colGroup = win.add("group");
-    colGroup.orientation = "row";
-    colGroup.alignChildren = ["left", "top"];
-    colGroup.spacing = 12;
+    var tabPanel = win.add("tabbedpanel");
+    tabPanel.alignChildren = ["fill", "top"];
+    tabPanel.alignment = ["fill", "top"];
+    tabPanel.margins = [5,20,0,0];
+    // tabbedpanel は内容量に応じて自動で高さが伸びないことがあるため、最低サイズを与える
+    try {
+        tabPanel.minimumSize = [300, 460];
+        tabPanel.preferredSize = [300, 460];
+    } catch (_) { }
 
-    // 左カラム（マージン / フレーム）
-    var leftCol = colGroup.add("group");
+    // Tabs
+    var tabLeft = tabPanel.add("tab", undefined, L("panelMargin"));
+    var tabMid = tabPanel.add("tab", undefined, L("panelOuter"));
+    var tabRight = tabPanel.add("tab", undefined, L("panelInnerArea"));
+
+    // Left tab (Margin / Frame)
+    tabLeft.orientation = "column";
+    tabLeft.alignChildren = ["fill", "top"];
+    tabLeft.spacing = 8;
+    tabLeft.margins = 10;
+    var leftCol = tabLeft.add("group");
     leftCol.orientation = "column";
     leftCol.alignChildren = ["fill", "top"];
     leftCol.spacing = 8;
 
-    // 中央カラム（外側エリア / タイトルエリア）
-    var midCol = colGroup.add("group");
+    // Middle tab (Outer / Title)
+    tabMid.orientation = "column";
+    tabMid.alignChildren = ["fill", "top"];
+    tabMid.spacing = 8;
+    tabMid.margins = 10;
+    var midCol = tabMid.add("group");
     midCol.orientation = "column";
     midCol.alignChildren = ["fill", "top"];
     midCol.spacing = 8;
 
-    // 右カラム（内側エリア）
-    var rightCol = colGroup.add("group");
+    // Right tab (Inner)
+    tabRight.orientation = "column";
+    tabRight.alignChildren = ["fill", "top"];
+    tabRight.spacing = 8;
+    tabRight.margins = 10;
+    var rightCol = tabRight.add("group");
     rightCol.orientation = "column";
     rightCol.alignChildren = ["fill", "top"];
     rightCol.spacing = 8;
@@ -838,16 +860,15 @@ function L(key) {
 
     buildMarginUI(leftCol);
 
-    // 長方形スタート時（アートボード対象でない場合）は左カラム全体を非表示
+    // 長方形スタート時（アートボード対象でない場合）は左タブ全体を非表示
     try {
         if (!_usingArtboardBase) {
-            leftCol.visible = false;
-            leftCol.minimumSize.width = 0;
-            leftCol.maximumSize.width = 0;
+            tabLeft.visible = false;
+            tabLeft.enabled = false;
+            tabPanel.selection = tabMid;
         } else {
-            leftCol.visible = true;
-            leftCol.minimumSize.width = 0;
-            leftCol.maximumSize.width = 10000;
+            tabLeft.visible = true;
+            tabLeft.enabled = true;
         }
     } catch (_) { }
 
@@ -917,23 +938,23 @@ function L(key) {
 
     stTitleEdgeScaleUnit = titleEdgeScaleRow.add("statictext", undefined, getCurrentRulerUnitLabel());
 
-function applyTitleEdgeScaleEnabledState() {
-    try {
-        editTitleEdgeScale.enabled = !!chkTitleEdgeScale.value;
-        if (!chkTitleEdgeScale.value) editTitleEdgeScale.text = "0";
-    } catch (_) { }
-}
-applyTitleEdgeScaleEnabledState();
-
-chkTitleEdgeScale.onClick = function () {
+    function applyTitleEdgeScaleEnabledState() {
+        try {
+            editTitleEdgeScale.enabled = !!chkTitleEdgeScale.value;
+            if (!chkTitleEdgeScale.value) editTitleEdgeScale.text = "0";
+        } catch (_) { }
+    }
     applyTitleEdgeScaleEnabledState();
-    if (chkPreview && chkPreview.value) updatePreview(false);
-};
 
-editTitleEdgeScale.onChanging = function () {
-    if (!chkTitleEdgeScale.value) return;
-    if (chkPreview && chkPreview.value) updatePreview(false);
-};
+    chkTitleEdgeScale.onClick = function () {
+        applyTitleEdgeScaleEnabledState();
+        if (chkPreview && chkPreview.value) updatePreview(false);
+    };
+
+    editTitleEdgeScale.onChanging = function () {
+        if (!chkTitleEdgeScale.value) return;
+        if (chkPreview && chkPreview.value) updatePreview(false);
+    };
 
     // 0→>0 の瞬間だけ自動ON（ユーザーは後からOFF可）
     var _prevTitleHasSize = (function () {
@@ -1683,6 +1704,9 @@ editTitleEdgeScale.onChanging = function () {
     };
 
 
+    // レイアウト確定（tabbedpanel の内容が潰れるのを防ぐ）
+    try { win.layout.layout(true); } catch (_) { }
+    try { win.layout.resize(); } catch (_) { }
     updatePreview(false);
 
     // --- ダイアログ表示 ---
@@ -2541,65 +2565,65 @@ editTitleEdgeScale.onChanging = function () {
     }
 
     function createTitleDivider(target, titleSizePt, titleDistPt) {
-    try {
-        // タイトル帯の境界線（帯と本文の仕切り線）
-        // titleDistPt:
-        //   + → 両端を短くする
-        //   - → 両端を伸ばす
-        if (!target || target.typename !== "PathItem") return;
-        if (!titleSizePt || titleSizePt === 0) return;
-        if (!(chkTitleLine && chkTitleLine.value)) return;
-
-        var b = target.geometricBounds; // [L, T, R, B]
-        var L = b[0], T = b[1], R = b[2], B = b[3];
-
-        var x1, y1, x2, y2;
-
-        if (rbTitleTop && rbTitleTop.value) {
-            y1 = y2 = T - titleSizePt;
-            x1 = L + titleDistPt;
-            x2 = R - titleDistPt;
-            if (x1 >= x2) { x1 = L; x2 = R; }
-        } else if (rbTitleBottom && rbTitleBottom.value) {
-            y1 = y2 = B + titleSizePt;
-            x1 = L + titleDistPt;
-            x2 = R - titleDistPt;
-            if (x1 >= x2) { x1 = L; x2 = R; }
-        } else if (rbTitleLeft && rbTitleLeft.value) {
-            x1 = x2 = L + titleSizePt;
-            y1 = T - titleDistPt;
-            y2 = B + titleDistPt;
-        } else if (rbTitleRight && rbTitleRight.value) {
-            x1 = x2 = R - titleSizePt;
-            y1 = T - titleDistPt;
-            y2 = B + titleDistPt;
-        } else {
-            y1 = y2 = T - titleSizePt;
-            x1 = L + titleDistPt;
-            x2 = R - titleDistPt;
-            if (x1 >= x2) { x1 = L; x2 = R; }
-        }
-
-        var p = doc.activeLayer.pathItems.add();
-        p.stroked = true;
-        p.filled = false;
-
-        // 黒 1pt
         try {
-            var k = new CMYKColor();
-            k.cyan = 0; k.magenta = 0; k.yellow = 0; k.black = 100;
-            p.strokeColor = k;
+            // タイトル帯の境界線（帯と本文の仕切り線）
+            // titleDistPt:
+            //   + → 両端を短くする
+            //   - → 両端を伸ばす
+            if (!target || target.typename !== "PathItem") return;
+            if (!titleSizePt || titleSizePt === 0) return;
+            if (!(chkTitleLine && chkTitleLine.value)) return;
+
+            var b = target.geometricBounds; // [L, T, R, B]
+            var L = b[0], T = b[1], R = b[2], B = b[3];
+
+            var x1, y1, x2, y2;
+
+            if (rbTitleTop && rbTitleTop.value) {
+                y1 = y2 = T - titleSizePt;
+                x1 = L + titleDistPt;
+                x2 = R - titleDistPt;
+                if (x1 >= x2) { x1 = L; x2 = R; }
+            } else if (rbTitleBottom && rbTitleBottom.value) {
+                y1 = y2 = B + titleSizePt;
+                x1 = L + titleDistPt;
+                x2 = R - titleDistPt;
+                if (x1 >= x2) { x1 = L; x2 = R; }
+            } else if (rbTitleLeft && rbTitleLeft.value) {
+                x1 = x2 = L + titleSizePt;
+                y1 = T - titleDistPt;
+                y2 = B + titleDistPt;
+            } else if (rbTitleRight && rbTitleRight.value) {
+                x1 = x2 = R - titleSizePt;
+                y1 = T - titleDistPt;
+                y2 = B + titleDistPt;
+            } else {
+                y1 = y2 = T - titleSizePt;
+                x1 = L + titleDistPt;
+                x2 = R - titleDistPt;
+                if (x1 >= x2) { x1 = L; x2 = R; }
+            }
+
+            var p = doc.activeLayer.pathItems.add();
+            p.stroked = true;
+            p.filled = false;
+
+            // 黒 1pt
+            try {
+                var k = new CMYKColor();
+                k.cyan = 0; k.magenta = 0; k.yellow = 0; k.black = 100;
+                p.strokeColor = k;
+            } catch (_) { }
+            try { p.strokeWidth = 1; } catch (_) { }
+
+            p.setEntirePath([[x1, y1], [x2, y2]]);
+
+            try { p.note = "__TitleDivider__"; } catch (_) { }
+            try { p.name = "__TitleDivider__"; } catch (_) { }
+
+            try { tempPreviewItems.push(p); } catch (_) { }
         } catch (_) { }
-        try { p.strokeWidth = 1; } catch (_) { }
-
-        p.setEntirePath([[x1, y1], [x2, y2]]);
-
-        try { p.note = "__TitleDivider__"; } catch (_) { }
-        try { p.name = "__TitleDivider__"; } catch (_) { }
-
-        try { tempPreviewItems.push(p); } catch (_) { }
-    } catch (_) { }
-}
+    }
 
     // タイトル領域を除外した「内側罫線」用の計算領域を返す
     // 戻り値: [L, T, R, B] / 不成立の場合は null
