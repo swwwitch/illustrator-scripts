@@ -1147,7 +1147,7 @@ function L(key) {
 
     // セル背景の塗り
     var chkCellFill = pnlCell.add("checkbox", undefined, L("cellFill"));
-    chkCellFill.value = true; // 既定：ON
+    chkCellFill.value = false; // 既定：OFF
     chkCellFill.onClick = schedulePreviewRefresh;
 
     // 罫線（panel）
@@ -1165,7 +1165,7 @@ function L(key) {
     var rbStrokeAll = gStrokeMode.add("radiobutton", undefined, "すべて");
     var rbStrokeCustom = gStrokeMode.add("radiobutton", undefined, "個別");
 
-    rbStrokeAll.value = true; // default
+    rbStrokeNone.value = true; // default
 
     var gStrokeAll = pnlCellStroke.add("group");
     gStrokeAll.orientation = "row";

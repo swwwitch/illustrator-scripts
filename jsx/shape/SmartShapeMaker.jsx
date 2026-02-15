@@ -10,7 +10,7 @@ Real-time preview, adjustable sides, width, rotation, and options are supported.
 Japanese / English UI.
 
 ### 更新日 / Updated:
-- 20260108
+- 20260215
 
 Main Features:
 - Specify number of sides (0 = Circle, 3/4/5/6/8, or custom)
@@ -54,7 +54,7 @@ Usage Flow:
 3. Click OK to finalize the preview object at the artboard center
 
 Original Idea: Seiji Miyazawa (Sankai Lab)
-Version: v1.3 (20260108)
+Version: v1.4 (20260215)
 */
 
 // Language detection
@@ -64,7 +64,7 @@ function getCurrentLang() {
 var lang = getCurrentLang();
 
 var LABELS = {
-    dialogTitle: { ja: "図形の作成 v1.3", en: "Create Shape v1.3" },
+    dialogTitle: { ja: "図形の作成 v1.4", en: "Create Shape v1.4" },
     shapeType: { ja: "辺の数", en: "Sides" },
     circle: { ja: "円", en: "Circle" },
     custom: { ja: "それ以外", en: "Other" },
@@ -86,7 +86,8 @@ var LABELS = {
     splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
     liveShape: { ja: "ライブシェイプ化", en: "Live Shape" },
     ok: { ja: "OK", en: "OK" },
-    cancel: { ja: "キャンセル", en: "Cancel" }
+    cancel: { ja: "キャンセル", en: "Cancel" },
+    threeAnchors: { ja: "アンカーポイント3点", en: "3 Anchor Points" }
 };
 
 var previewShape = null;
@@ -274,6 +275,62 @@ function createSuperellipsePath(doc, sizePt, exponent, numPoints) {
     return pathItem;
 }
 
+// Create a 3-anchor-point circle (closed smooth path) to keep anchor count minimal.
+// Uses cubic-bezier handle length k = 4/3 * tan(pi/(2N)) with N=3.
+function createThreeAnchorCirclePath(doc, sizePt) {
+    var layer = doc.activeLayer;
+    layer.locked = false;
+    layer.visible = true;
+
+    var center = doc.activeView.centerPoint;
+    var cx = center[0];
+    var cy = center[1];
+
+    var r = sizePt / 2;
+    var N = 3;
+    var k = (4 / 3) * Math.tan(Math.PI / (2 * N)); // ≈ 0.7698
+    var hlen = r * k;
+
+    // Place anchors evenly around the circle.
+    // Start at -90° so one anchor is at the top (common expectation).
+    var anchors = [];
+    for (var i = 0; i < N; i++) {
+        var a = (-Math.PI / 2) + (2 * Math.PI * i) / N;
+        anchors.push([cx + r * Math.cos(a), cy + r * Math.sin(a)]);
+    }
+
+    var pathItem = layer.pathItems.add();
+    pathItem.setEntirePath(anchors);
+    pathItem.closed = true;
+
+    // Set smooth handles (tangents) for each anchor.
+    try {
+        var pts = pathItem.pathPoints;
+        for (var j = 0; j < N; j++) {
+            var ax = anchors[j][0];
+            var ay = anchors[j][1];
+            var ang = (-Math.PI / 2) + (2 * Math.PI * j) / N;
+
+            // Tangent direction at angle ang is perpendicular to radius: [-sin, cos]
+            var tx = -Math.sin(ang);
+            var ty = Math.cos(ang);
+
+            pts[j].anchor = [ax, ay];
+            pts[j].leftDirection = [ax - tx * hlen, ay - ty * hlen];
+            pts[j].rightDirection = [ax + tx * hlen, ay + ty * hlen];
+            pts[j].pointType = PointType.SMOOTH;
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    pathItem.filled = true;
+    pathItem.fillColor = doc.defaultFillColor;
+    pathItem.stroked = false;
+
+    return pathItem;
+}
+
 // Get selected side count from radio buttons or custom input
 function getSelectedSideValue(radios, input) {
     for (var i = 0; i < radios.length; i++) {
@@ -292,7 +349,7 @@ function finalizeShape(doc) {
 }
 
 // Create shape based on parameters
-function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse) {
+function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, useThreeAnchors) {
     var layer = doc.activeLayer;
     layer.locked = false;
     layer.visible = true;
@@ -304,6 +361,8 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
     if (sides === 0) {
         if (useSuperEllipse) {
             shape = createSuperellipsePath(doc, sizePt, 2.5, 8);
+        } else if (useThreeAnchors) {
+            shape = createThreeAnchorCirclePath(doc, sizePt);
         } else {
             shape = layer.pathItems.ellipse(center[1] + radius, center[0] - radius, sizePt, sizePt);
         }
@@ -607,10 +666,17 @@ function showInputDialog(unitLabel, unitFactor) {
 
     var superEllipseCheck = circlePanel.add("checkbox", undefined, LABELS.superEllipse[lang]);
     superEllipseCheck.value = false;
+    var threeAnchorsCheck = circlePanel.add("checkbox", undefined, LABELS.threeAnchors[lang]);
+    threeAnchorsCheck.value = false;
 
 
     function updateCirclePanelEnabled(sidesValue) {
-        circlePanel.enabled = (sidesValue === 0);
+        var enable = (sidesValue === 0);
+        circlePanel.enabled = enable;
+        if (!enable) {
+            try { superEllipseCheck.value = false; } catch (e) { }
+            try { threeAnchorsCheck.value = false; } catch (e) { }
+        }
     }
 
     function updateStarPanelEnabled(sidesValue) {
@@ -646,8 +712,8 @@ function showInputDialog(unitLabel, unitFactor) {
     var splitAtAnchorsCheck = optionPanel.add("checkbox", undefined, LABELS.splitAtAnchors[lang]);
     splitAtAnchorsCheck.value = false;
 
-    function updateLiveShapeAvailability(isSplit, isSuperEllipseEffective) {
-        if (isSplit || isSuperEllipseEffective) {
+    function updateLiveShapeAvailability(isSplit, isSuperEllipseEffective, isThreeAnchorsEffective) {
+        if (isSplit || isSuperEllipseEffective || isThreeAnchorsEffective) {
             liveShapeCheck.value = false;
             liveShapeCheck.enabled = false;
         } else {
@@ -676,7 +742,7 @@ function showInputDialog(unitLabel, unitFactor) {
     }
 
     splitAtAnchorsCheck.onClick = function () {
-        updateLiveShapeAvailability(splitAtAnchorsCheck.value, false);
+        updateLiveShapeAvailability(splitAtAnchorsCheck.value, false, false);
         updatePreview();
     };
 
@@ -744,7 +810,17 @@ function showInputDialog(unitLabel, unitFactor) {
         var angle = parseFloat(rotateInput.text);
         var splitAtAnchors = splitAtAnchorsCheck.value;
         var superEllipse = superEllipseCheck.value && (sides === 0);
-        updateLiveShapeAvailability(splitAtAnchors, superEllipse);
+
+        // 3-anchor circle is only effective for Circle (sides=0) and not when Superellipse is ON
+        var threeAnchors = threeAnchorsCheck.value && (sides === 0) && !superEllipse;
+
+        // Ensure Superellipse and 3-anchor options are mutually exclusive
+        if (superEllipse && threeAnchorsCheck.value) {
+            threeAnchorsCheck.value = false;
+            threeAnchors = false;
+        }
+
+        updateLiveShapeAvailability(splitAtAnchors, superEllipse, threeAnchors);
 
         // Superellipse (Circle) forces Rotate OFF
         if (superEllipse) {
@@ -788,7 +864,8 @@ function showInputDialog(unitLabel, unitFactor) {
             rotate: rotate,
             angle: angle,
             splitAtAnchors: splitAtAnchors,
-            superEllipse: superEllipse
+            superEllipse: superEllipse,
+            threeAnchors: threeAnchors
         };
     }
 
@@ -801,7 +878,7 @@ function showInputDialog(unitLabel, unitFactor) {
         var p = getCurrentParams();
         if (!isNaN(p.size) && !isNaN(p.ratio)) {
             previewMgr.addStep(function () {
-                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse);
+                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse, p.threeAnchors);
             });
         }
     }
@@ -820,6 +897,15 @@ function showInputDialog(unitLabel, unitFactor) {
         if (superEllipseCheck.value && sidesNow === 0) {
             forceRotateOff();
         }
+        if (superEllipseCheck.value) threeAnchorsCheck.value = false;
+        updatePreview();
+    };
+    threeAnchorsCheck.onClick = function () {
+        // Only effective for Circle (sides=0)
+        var sidesNow = getSelectedSideValue(radios, customInput);
+        var superEff = (superEllipseCheck.value && sidesNow === 0);
+        var threeEff = (threeAnchorsCheck.value && sidesNow === 0 && !superEff);
+        updateLiveShapeAvailability(splitAtAnchorsCheck.value, superEff, threeEff);
         updatePreview();
     };
     innerRatioInput.onChanging = function () {
@@ -883,6 +969,7 @@ function showInputDialog(unitLabel, unitFactor) {
         if (typeof st.pentagramCheck === "boolean") pentagramCheck.value = st.pentagramCheck;
         if (typeof st.innerRatioText === "string") innerRatioInput.text = st.innerRatioText;
         if (typeof st.superEllipseCheck === "boolean") superEllipseCheck.value = st.superEllipseCheck;
+        if (typeof st.threeAnchorsCheck === "boolean") threeAnchorsCheck.value = st.threeAnchorsCheck;
         // Triangle direction
         if (st.triangleDir === "right") {
             triangleRightRadio.value = true;
@@ -896,20 +983,32 @@ function showInputDialog(unitLabel, unitFactor) {
         if (typeof st.splitAtAnchorsCheck === "boolean") splitAtAnchorsCheck.value = st.splitAtAnchorsCheck;
         if (typeof st.liveShapeCheck === "boolean") liveShapeCheck.value = st.liveShapeCheck;
 
-        // Enforce split/live-shape dependency
-        if (splitAtAnchorsCheck.value) {
-            liveShapeCheck.value = false;
-            liveShapeCheck.enabled = false;
-        } else {
-            liveShapeCheck.enabled = true;
+        // Enforce split/live-shape dependency (+ Superellipse / 3-anchor)
+        try {
+            var _sidesNow2 = getSelectedSideValue(radios, customInput);
+            var _superEff2 = (superEllipseCheck.value && _sidesNow2 === 0);
+            var _threeEff2 = (threeAnchorsCheck.value && _sidesNow2 === 0 && !_superEff2);
+            updateLiveShapeAvailability(splitAtAnchorsCheck.value, _superEff2, _threeEff2);
+        } catch (e) {
+            // fallback to previous behavior
+            if (splitAtAnchorsCheck.value) {
+                liveShapeCheck.value = false;
+                liveShapeCheck.enabled = false;
+            } else {
+                liveShapeCheck.enabled = true;
+            }
         }
 
         // Enforce pentagram dependency
         if (!starCheck.value) pentagramCheck.value = false;
 
         // If restored state has Pentagram or Superellipse effective, force Rotate OFF
+        // Also keep Superellipse and 3-anchor mutually exclusive
         try {
             var sidesNow = getSelectedSideValue(radios, customInput);
+            if (superEllipseCheck.value && threeAnchorsCheck.value) {
+                threeAnchorsCheck.value = false;
+            }
             if (pentagramCheck.value || (superEllipseCheck.value && sidesNow === 0)) {
                 forceRotateOff();
             }
@@ -939,6 +1038,7 @@ function showInputDialog(unitLabel, unitFactor) {
         st.pentagramCheck = pentagramCheck.value;
         st.innerRatioText = innerRatioInput.text;
         st.superEllipseCheck = superEllipseCheck.value;
+        st.threeAnchorsCheck = threeAnchorsCheck.value;
 
         // Triangle direction
         st.triangleDir = triangleRightRadio.value ? "right" : (triangleLeftRadio.value ? "left" : "down");
@@ -1006,7 +1106,7 @@ function showInputDialog(unitLabel, unitFactor) {
         previewMgr.confirm(function () {
             if (!pFinal) return;
             if (isNaN(pFinal.size) || isNaN(pFinal.ratio)) return;
-            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse);
+            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse, pFinal.threeAnchors);
         });
     }
 
