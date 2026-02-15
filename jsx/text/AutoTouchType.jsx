@@ -1,10 +1,9 @@
 #target illustrator
-
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 (function () {
     
-    var SCRIPT_VERSION = "v1.0";
+    var SCRIPT_VERSION = "v1.0.1";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -532,6 +531,20 @@ var sldH = gH.add("slider", undefined, 10, 0, 200);
         // clear preview history and restore original text only
         try { PreviewHistory.undo(); } catch (_) { }
         try { restoreOriginals(); } catch (_) { }
+
+        // set scale to 100% (actual text) / 水平・垂直比率を100%に
+        try {
+            for (var i = 0; i < originals.length; i++) {
+                try {
+                    var ca = originals[i].ch.characterAttributes;
+                    ca.horizontalScale = 100;
+                    ca.verticalScale = 100;
+                    originals[i].hScale = 100;
+                    originals[i].vScale = 100;
+                } catch (_) { }
+            }
+        } catch (_) { }
+
         try { app.redraw(); } catch (_) { }
         try { PreviewHistory.start(); } catch (_) { }
 
