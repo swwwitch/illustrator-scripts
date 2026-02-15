@@ -4,14 +4,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /* =====================================================
  * SmartCalendarMaker.jsx
- * バージョン: v1.2
+ * バージョン: v1.3
  * 概要: 基準日を基準に、指定月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
  *      セル幅/高さ・月間隔（左右/上下）などの設定はダイアログで調整し、プレビューで即時反映します。
  * 更新日: 2026-02-15
  * ===================================================== */
 
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -29,6 +29,7 @@ var LABELS = {
 
     // Panels
     panelBase: { ja: "基本設定", en: "Basics" },
+    panelView: { ja: "画面表示", en: "View" },
     panelUnit: { ja: "基本ユニット", en: "Units" },
     panelYear: { ja: "年", en: "Year" },
     panelMonth: { ja: "月", en: "Month" },
@@ -64,6 +65,7 @@ var LABELS = {
     left: { ja: "左", en: "Left" },
     center: { ja: "中央", en: "Center" },
     right: { ja: "右", en: "Right" },
+    zoomLabel: { ja: "ズーム：", en: "Zoom:" },
 
     // Month
     chkIncludeYear: { ja: "年を併記", en: "Include year" },
@@ -147,6 +149,123 @@ function L(key) {
     }
 
     var doc = app.activeDocument;
+
+    // ===== Zoom (view) helpers =====
+    var __SCM_VIEW = null;
+    var __SCM_ORG_ZOOM = null;
+    var __SCM_ORG_CENTER = null;
+
+    try {
+        __SCM_VIEW = doc.views[0];
+        __SCM_ORG_ZOOM = __SCM_VIEW.zoom;
+        __SCM_ORG_CENTER = __SCM_VIEW.centerPoint;
+    } catch (_) { }
+
+    function __SCM_getActiveArtboardCenterPoint() {
+        try {
+            var idx = doc.artboards.getActiveArtboardIndex();
+            var r = doc.artboards[idx].artboardRect; // [L, T, R, B]
+            return [r[0] + (r[2] - r[0]) / 2, r[1] + (r[3] - r[1]) / 2];
+        } catch (_) { }
+        try { return (__SCM_VIEW && __SCM_VIEW.centerPoint) ? __SCM_VIEW.centerPoint : [0, 0]; } catch (_) { }
+        return [0, 0];
+    }
+
+    function __SCM_clampZoomFactor(z) {
+        if (z < 0.0313) z = 0.0313;
+        if (z > 640.0) z = 640.0;
+        return z;
+    }
+
+    function __SCM_applyZoomPct(pct) {
+        try {
+            if (!__SCM_VIEW) return;
+            var p = Number(pct);
+            if (isNaN(p)) return;
+            if (p < 10) p = 10;
+            if (p > 1600) p = 1600;
+            var z = __SCM_clampZoomFactor(p / 100.0);
+            __SCM_VIEW.zoom = z;
+            // Keep current pan offsets when zoom changes
+            __SCM_applyViewCenterWithPan();
+            app.redraw();
+        } catch (_) { }
+    }
+
+    function __SCM_syncZoomUI(inputZoomPct, sldZoom, valPct, apply) {
+        try {
+            var v = Number(valPct);
+            if (isNaN(v)) v = Number(sldZoom.value);
+            v = Math.round(v);
+            if (v < 10) v = 10;
+            if (v > 1600) v = 1600;
+            try { sldZoom.value = v; } catch (_) { }
+            try { inputZoomPct.text = String(v); } catch (_) { }
+            if (apply !== false) __SCM_applyZoomPct(v);
+        } catch (_) { }
+    }
+
+    // ===== Pan (view center) helpers =====
+    var __SCM_PAN_X = 0; // pt
+    var __SCM_PAN_Y = 0; // pt (positive => down)
+
+    function __SCM_getPanRangePt() {
+        // Range is based on active artboard size.
+        // Use half of width/height (pt) as max, with safety clamps.
+        try {
+            var idx = doc.artboards.getActiveArtboardIndex();
+            var r = doc.artboards[idx].artboardRect; // [L, T, R, B]
+            var w = Math.abs(r[2] - r[0]);
+            var h = Math.abs(r[1] - r[3]);
+            var xMax = Math.round(w / 2);
+            var yMax = Math.round(h / 2);
+            if (!xMax || xMax < 100) xMax = 100;
+            if (!yMax || yMax < 100) yMax = 100;
+            // avoid extreme ranges
+            if (xMax > 50000) xMax = 50000;
+            if (yMax > 50000) yMax = 50000;
+            return { xMax: xMax, yMax: yMax };
+        } catch (_) { }
+        return { xMax: 2000, yMax: 2000 };
+    }
+
+    function __SCM_applyViewCenterWithPan() {
+        try {
+            if (!__SCM_VIEW) return;
+            var c = __SCM_getActiveArtboardCenterPoint();
+            var x = c[0] + Number(__SCM_PAN_X || 0);
+            // Illustrator's Y axis increases upward; treat positive panY as "down" for UI.
+            var y = c[1] - Number(__SCM_PAN_Y || 0);
+            __SCM_VIEW.centerPoint = [x, y];
+            app.redraw();
+        } catch (_) { }
+    }
+
+    function __SCM_applyPanX(v) {
+        try {
+            var n = Number(v);
+            if (isNaN(n)) n = 0;
+            var rg = __SCM_getPanRangePt();
+            var mx = rg.xMax;
+            if (n < -mx) n = -mx;
+            if (n > mx) n = mx;
+            __SCM_PAN_X = n;
+            __SCM_applyViewCenterWithPan();
+        } catch (_) { }
+    }
+
+    function __SCM_applyPanY(v) {
+        try {
+            var n = Number(v);
+            if (isNaN(n)) n = 0;
+            var rg = __SCM_getPanRangePt();
+            var my = rg.yMax;
+            if (n < -my) n = -my;
+            if (n > my) n = my;
+            __SCM_PAN_Y = n;
+            __SCM_applyViewCenterWithPan();
+        } catch (_) { }
+    }
 
     // ===== 単位ユーティリティ（Preferences 参照 / Q・H 切替対応）=====
     // ▼ 各設定キーの意味：
@@ -1055,6 +1174,104 @@ function L(key) {
     inputOuterMarginY.characters = 3;
     inputOuterMarginY.onChanging = schedulePreviewRefresh;
 
+    // Slider fine control: hold Option(Alt) to move at 1/10 speed
+    function __SCM_applySliderWithAltFine(slider, st, applyFn) {
+        try {
+            if (!slider || !st || typeof applyFn !== "function") return;
+
+            var ks = null;
+            try { ks = ScriptUI.environment.keyboardState; } catch (_) { ks = null; }
+            var alt = false;
+            try { alt = !!(ks && ks.altKey); } catch (_) { alt = false; }
+
+            var raw = Number(slider.value);
+            if (isNaN(raw)) raw = 0;
+
+            // init
+            if (st.raw == null || st.eff == null) {
+                st.raw = raw;
+                st.eff = raw;
+            }
+
+            if (alt) {
+                var d = raw - Number(st.raw);
+                var eff = Number(st.eff) + d * 0.1;
+                st.raw = raw;
+                st.eff = eff;
+                try { slider.value = eff; } catch (_) { }
+                applyFn(eff);
+            } else {
+                st.raw = raw;
+                st.eff = raw;
+                applyFn(raw);
+            }
+        } catch (_) { }
+    }
+
+    // ===== 画面表示（ズーム） =====
+    var pnlView = gColL.add("panel", undefined, L("panelView"));
+    pnlView.orientation = "column";
+    pnlView.alignChildren = "left";
+    pnlView.margins = [15, 20, 15, 10];
+
+    var gZoom = pnlView.add("group");
+    gZoom.orientation = "row";
+    gZoom.alignChildren = ["left", "center"];
+
+    var stZoom = gZoom.add("statictext", undefined, L("zoomLabel"));
+    try { stZoom.preferredSize.width = 58; } catch (_) { }
+
+    var __initZoomPct = 100;
+    try { if (__SCM_ORG_ZOOM != null) __initZoomPct = Math.round(Number(__SCM_ORG_ZOOM) * 100); } catch (_) { }
+    if (!__initZoomPct || __initZoomPct < 10) __initZoomPct = 100;
+
+    var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
+    try { sldZoom.preferredSize.width = 260; } catch (_) { }
+
+    var __stZoom = { raw: null, eff: null };
+    sldZoom.onChanging = function () {
+        __SCM_applySliderWithAltFine(this, __stZoom, function (v) {
+            __SCM_applyZoomPct(Math.round(v));
+        });
+    };
+
+    // 左右（パン）
+    var gPanX = pnlView.add("group");
+    gPanX.orientation = "row";
+    gPanX.alignChildren = ["left", "center"];
+
+    var stPanX = gPanX.add("statictext", undefined, L("lr"));
+    try { stPanX.preferredSize.width = 58; } catch (_) { }
+
+    var __panRange = __SCM_getPanRangePt();
+    var sldPanX = gPanX.add("slider", undefined, 0, -__panRange.xMax, __panRange.xMax);
+    try { sldPanX.preferredSize.width = 260; } catch (_) { }
+
+    var __stPanX = { raw: null, eff: null };
+    sldPanX.onChanging = function () {
+        __SCM_applySliderWithAltFine(this, __stPanX, function (v) {
+            __SCM_applyPanX(Math.round(v));
+        });
+    };
+
+    // 上下（パン）
+    var gPanY = pnlView.add("group");
+    gPanY.orientation = "row";
+    gPanY.alignChildren = ["left", "center"];
+
+    var stPanY = gPanY.add("statictext", undefined, L("ud"));
+    try { stPanY.preferredSize.width = 58; } catch (_) { }
+
+    var sldPanY = gPanY.add("slider", undefined, 0, -__panRange.yMax, __panRange.yMax);
+    try { sldPanY.preferredSize.width = 260; } catch (_) { }
+
+    var __stPanY = { raw: null, eff: null };
+    sldPanY.onChanging = function () {
+        __SCM_applySliderWithAltFine(this, __stPanY, function (v) {
+            __SCM_applyPanY(Math.round(v));
+        });
+    };
+
     // ===== セル（panel）をレイアウトから移動してフォントパネルの直前に配置 =====
     // セル（panel）
     var pnlCell = tabUnit.add("panel", undefined, L("panelCell"));
@@ -1921,6 +2138,22 @@ function L(key) {
     presetSaveBtn.onClick = function () { __SCM_savePresetToFile(); };
     presetLoadBtn.onClick = function () { __SCM_loadPresetFromFile(); };
 
+    // Cancel handler: restore pan sliders to zero on Cancel along with zoom restore
+    if (cancelBtn) {
+        var origCancelHandler = cancelBtn.onClick;
+        cancelBtn.onClick = function () {
+            try {
+                if (__SCM_VIEW && __SCM_ORG_ZOOM != null && __SCM_ORG_CENTER != null) {
+                    __SCM_VIEW.zoom = __SCM_ORG_ZOOM;
+                    __SCM_VIEW.centerPoint = __SCM_ORG_CENTER;
+                }
+            } catch (_) { }
+            try { __SCM_PAN_X = 0; __SCM_PAN_Y = 0; } catch (_) { }
+            if (typeof origCancelHandler === "function") origCancelHandler();
+            try { dlg.close(); } catch (_) { }
+        };
+    }
+
 
     function refreshPreview() {
         // UI同期（プレビューOFFでも反映）: 月数=1のとき外側マージンをディム
@@ -2408,6 +2641,13 @@ function L(key) {
     };
 
     cancelBtn.onClick = function () {
+        try {
+            if (__SCM_VIEW && __SCM_ORG_ZOOM != null && __SCM_ORG_CENTER != null) {
+                __SCM_VIEW.zoom = __SCM_ORG_ZOOM;
+                __SCM_VIEW.centerPoint = __SCM_ORG_CENTER;
+                app.redraw();
+            }
+        } catch (_) { }
         removeLayerIfExists(doc, PREVIEW_LAYER_NAME);
         app.redraw();
         dlg.close(0);
