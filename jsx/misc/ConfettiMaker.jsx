@@ -5,6 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 紙吹雪を生成 / Generate Confetti
  *
  * 概要 / Overview
+ * - バージョン / Version: v1.0.1
+ * - 更新日 / Updated: 2026-02-17
  * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/三角形/スター/キラキラ）を生成します。
  * - ダイアログ上でプレビューを表示し、OKで確定（Confetti レイヤーに出力）します。
  * - UIは日本語/英語に対応し、タイトルバーにバージョンを表示します。
@@ -23,7 +25,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // コンフェティ（紙吹雪）作成スクリプト
 
 (function () {
-    var SCRIPT_VERSION = "v1.0";
+    var SCRIPT_VERSION = "v1.0.1";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -914,34 +916,34 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
         return;
     }
 
-    clearPreview();
-    try { previewLayer.remove(); } catch (e) { }
+    // OK: プレビューの見た目そのままで確定（再生成しない）
+    // まず、プレビューが空なら念のため一度描画
+    try {
+        if (previewLayer && previewLayer.pageItems && previewLayer.pageItems.length === 0) {
+            drawPreview();
+        }
+    } catch (_) { }
 
-    // 本番出力レイヤー
+    // 出力先レイヤー
     var confettiLayer = doc.layers.add();
     confettiLayer.name = "Confetti";
 
-    var mgFinal = buildMaskGroup(confettiLayer);
-    var finalContainer = mgFinal.container;
+    // プレビュー内容を丸ごと移動（マスクグループ含む）
+    try {
+        if (previewLayer) {
+            while (previewLayer.pageItems.length > 0) {
+                try {
+                    previewLayer.pageItems[0].move(confettiLayer, ElementPlacement.PLACEATEND);
+                } catch (eMove1) {
+                    break;
+                }
+            }
+        }
+    } catch (_) { }
 
-    // コンフェティを生成
-    var __bFinal = getEffectiveBounds();
-    if (!__bFinal) {
-        return;
-    }
+    // プレビューレイヤーを削除
+    try { previewLayer.remove(); } catch (e2) { }
 
-    for (var i = 0; i < confettiCount; i++) {
-        var pt = pickPoint(__bFinal);
-        var x = pt.x;
-        var y = pt.y;
-        var size = getConfettiSize();
-        var color = colors[Math.floor(Math.random() * colors.length)];
-
-        var item = createConfetti(finalContainer, x, y, size, color);
-        if (!item) continue;
-    }
-    if (mgFinal.group && !__useArtboard) {
-        applyMaskToGroup(mgFinal.group, selectedObj);
-    }
+    // 画面ズームはプレビュー操作を尊重（復元しない）
 
 })();
