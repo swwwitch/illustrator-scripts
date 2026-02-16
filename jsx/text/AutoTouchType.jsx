@@ -7,11 +7,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  *       seed付きRNGでプレビューの見た目を安定化する。
  * 作成日: 2026-02-16
  * 更新日: 2026-02-16
- * バージョン: v1.1
+ * バージョン: v1.1.5
  * ========================================= */
 
 (function () {
-    var SCRIPT_VERSION = "v1.1";
+    var SCRIPT_VERSION = "v1.1.5";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -33,12 +33,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         panelTouch: { ja: "文字タッチ", en: "Touch" },
         panelFont: { ja: "フォント", en: "Font" },
         chkFontRandom: { ja: "ランダム", en: "Random" },
-        chkFontJPOnly: { ja: "和文フォントに限る", en: "Japanese only" },
+        chkFontJPOnly: { ja: "和文フォントに限定", en: "Japanese only" },
         chkFontRansom: { ja: "「犯行声明文」風", en: "Ransom-note style" },
         panelRansom: { ja: "「犯行声明文」風", en: "Ransom-note style" },
         chkRansomEnable: { ja: "有効", en: "Enable" },
         chkRansomTrack: { ja: "トラッキング調整", en: "Adjust tracking" },
-        btnRerun: { ja: "再実行", en: "Rerun" },
+        btnRerun: { ja: "ランダム", en: "Random" },
         btnReset: { ja: "リセット", en: "Reset" },
         btnAllOn: { ja: "すべてON", en: "All ON" },
         btnAllOff: { ja: "すべてOFF", en: "All OFF" },
@@ -54,6 +54,49 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         } catch (_) {
             return key;
         }
+    }
+
+    // --- unit utilities (baseline label follows "text/asianunits") ---
+    var __unitMap = {
+        0: "in",
+        1: "mm",
+        2: "pt",
+        3: "pica",
+        4: "cm",
+        6: "px",
+        7: "ft/in",
+        8: "m",
+        9: "yd",
+        10: "ft"
+    };
+
+    function getUnitLabel(code, prefKey) {
+        if (code === 5) {
+            var hKeys = { "text/asianunits": true, "rulerType": true, "strokeUnits": true };
+            return hKeys[prefKey] ? "H" : "Q";
+        }
+        return __unitMap[code] || "pt";
+    }
+
+    function getPtFactorFromUnitCode(code) {
+        switch (code) {
+            case 0: return 72.0;                        // in
+            case 1: return 72.0 / 25.4;                 // mm
+            case 2: return 1.0;                         // pt
+            case 3: return 12.0;                        // pica
+            case 4: return 72.0 / 2.54;                 // cm
+            case 5: return 72.0 / 25.4 * 0.25;          // Q or H
+            case 6: return 1.0;                         // px
+            case 7: return 72.0 * 12.0;                 // ft/in
+            case 8: return 72.0 / 25.4 * 1000.0;        // m
+            case 9: return 72.0 * 36.0;                 // yd
+            case 10: return 72.0 * 12.0;                // ft
+            default: return 1.0;
+        }
+    }
+
+    function getPrefIntSafe(key, fallback) {
+        try { return app.preferences.getIntegerPreference(key); } catch (_) { return fallback; }
     }
 
 
@@ -569,17 +612,43 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     chkBase.value = true;
     chkBase.preferredSize.width = 15;
     var stBase = gBase.add("statictext", undefined, L("labelBaseline"));
-    var defaultBase = 0;
+    // baseline unit follows "text/asianunits" (label + pt conversion)
+    var __baseUnitCode = getPrefIntSafe("text/asianunits", 2); // 2=pt
+    var __baseUnitLabel = getUnitLabel(__baseUnitCode, "text/asianunits");
+    var __baseUnitFactorPt = getPtFactorFromUnitCode(__baseUnitCode); // unit -> pt
+
+    var defaultBasePt = 0;
     try {
         if (originals.length > 0) {
             var fs = originals[0].ch.characterAttributes.size;
-            defaultBase = Math.round(fs / 12);
+            defaultBasePt = Math.round(fs / 12);
         }
     } catch (_) { }
+
+    var defaultBase = 0; // displayed unit value
+    try {
+        defaultBase = Math.round(defaultBasePt / __baseUnitFactorPt);
+        if (isNaN(defaultBase)) defaultBase = 0;
+    } catch (_) { defaultBase = defaultBasePt; }
+
+    // slider range: max = current text size (pt), expressed in current unit
+    var __baseMaxPt = 50;
+    try {
+        if (originals.length > 0) {
+            var __fsPt = originals[0].ch.characterAttributes.size; // pt
+            __baseMaxPt = Math.max(1, Math.round(__fsPt));
+        }
+    } catch (_) { __baseMaxPt = 50; }
+
+    var __baseMax = 50;
+    try {
+        __baseMax = Math.max(1, Math.round(__baseMaxPt / __baseUnitFactorPt));
+    } catch (_) { __baseMax = 50; }
+
     var edtBase = gBase.add("edittext", undefined, String(defaultBase));
     edtBase.characters = 4;
-    var stUnitBase = gBase.add("statictext", undefined, "pt");
-    var sldBase = gBase.add("slider", undefined, defaultBase, 0, 50);
+    var stUnitBase = gBase.add("statictext", undefined, __baseUnitLabel);
+    var sldBase = gBase.add("slider", undefined, defaultBase, 0, __baseMax);
     sldBase.preferredSize.width = 180;
 
     var gH = pnlTouch.add("group");
@@ -609,10 +678,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     chkKern.value = true;
     chkKern.preferredSize.width = 15;
     var stKern = gKern.add("statictext", undefined, L("labelKerning"));
-    var edtKern = gKern.add("edittext", undefined, "-50");
+    var edtKern = gKern.add("edittext", undefined, "50");
     edtKern.characters = 4;
     var stUnitKern = gKern.add("statictext", undefined, "/1000em");
-    var sldKern = gKern.add("slider", undefined, -50, -200, 200);
+    var sldKern = gKern.add("slider", undefined, 50, -200, 200);
     sldKern.preferredSize.width = 180;
 
     // --- buttons inside 文字タッチ panel (bottom) ---
@@ -624,7 +693,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     var btnAllOn = gTouchButtons.add("button", undefined, L("btnAllOn"));
     var btnAllOff = gTouchButtons.add("button", undefined, L("btnAllOff"));
-    var btnReset = gTouchButtons.add("button", undefined, L("btnReset"));
+
+    // Make these utility buttons slightly smaller
+    try {
+        var __smallBtn = [72, 22]; // [width, height]
+        btnAllOn.preferredSize = __smallBtn;
+        btnAllOff.preferredSize = __smallBtn;
+    } catch (_) { }
 
     // --- label width align (left) ---
     try {
@@ -737,6 +812,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     btnLeft.alignChildren = ["left", "center"];
 
     var btnRerun = btnLeft.add("button", undefined, L("btnRerun"));
+    var btnReset = btnLeft.add("button", undefined, L("btnReset"));
 
     function isTouchAllOff() {
         try {
@@ -767,8 +843,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var btnOK = btnRight.add("button", undefined, L("btnOK"));
 
     function updatePreview() {
-        var base = 0;
-        if (chkBase.value) { base = parseNum(edtBase.text); if (base === null) return; }
+        var base = 0; // in pt
+        if (chkBase.value) {
+            var __b = parseNum(edtBase.text);
+            if (__b === null) return;
+            try { base = __b * __baseUnitFactorPt; } catch (_) { base = __b; }
+        }
 
         var hPct = 0;
         if (chkScale.value) { hPct = parseNum(edtH.text); if (hPct === null) return; }
@@ -835,8 +915,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 
     btnOK.onClick = function () {
-        var base = 0;
-        if (chkBase.value) base = parseNum(edtBase.text);
+        var base = 0; // in pt
+        if (chkBase.value) {
+            var __bOK = parseNum(edtBase.text);
+            if (__bOK === null) __bOK = 0;
+            try { base = __bOK * __baseUnitFactorPt; } catch (_) { base = __bOK; }
+        }
 
         var hPct = 0;
         if (chkScale.value) hPct = parseNum(edtH.text);
@@ -949,6 +1033,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     } catch (_) { }
 
                 } catch (_) { }
+            }
+        } catch (_) { }
+
+        // Set all characters' font to the first character's font
+        try {
+            var __f0 = null;
+            try { if (originals.length > 0) __f0 = originals[0].ch.characterAttributes.textFont; } catch (_) { __f0 = null; }
+            if (__f0) {
+                for (var fi = 0; fi < originals.length; fi++) {
+                    try {
+                        var _ct = originals[fi].ch.contents;
+                        if (_ct === "\r" || _ct === "\n") continue;
+                        var _ca = originals[fi].ch.characterAttributes;
+                        _ca.textFont = __f0;
+                        originals[fi].textFont = __f0;
+                    } catch (_) { }
+                }
             }
         } catch (_) { }
 
