@@ -7,11 +7,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  *       seed付きRNGでプレビューの見た目を安定化する。
  * 作成日: 2026-02-16
  * 更新日: 2026-02-16
- * バージョン: v1.0.13
+ * バージョン: v1.1
  * ========================================= */
 
 (function () {
-    var SCRIPT_VERSION = "v1.0.13";
+    var SCRIPT_VERSION = "v1.1";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
