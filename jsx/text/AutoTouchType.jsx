@@ -7,11 +7,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  *       seed付きRNGでプレビューの見た目を安定化する。
  * 作成日: 2026-02-16
  * 更新日: 2026-02-16
- * バージョン: v1.1.5
+ * バージョン: v1.1.6
  * ========================================= */
 
 (function () {
-    var SCRIPT_VERSION = "v1.1.5";
+    var SCRIPT_VERSION = "v1.1.6";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -425,6 +425,9 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
 
     // Close reason flag: prevent onClose cleanup on successful OK
     var __closedByOK = false;
+
+    // If Reset was executed and no new preview was generated, OK should not re-randomize.
+    var __didReset = false;
 
     // --- snapshot originals (per character) ---
     // we store kerning and tracking as well
@@ -897,6 +900,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
     var btnOK = btnRight.add("button", undefined, L("btnOK"));
 
     function updatePreview() {
+        __didReset = false;
         var base = 0; // in pt
         if (chkBase.value) {
             var __b = parseNum(edtBase.text);
@@ -1020,25 +1024,54 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
             }
         }
 
-        // Commit: remove preview step (if any), then apply final once
-        previewMgr.confirm(function () {
-            // apply final settings
-            applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
+        // Commit:
+        // - If Reset was just executed and there is no preview step applied, do NOT re-randomize.
+        // - Otherwise, undo preview and apply final once.
+        if (__didReset && !previewMgr._hasPreview) {
+            // no-op for text attributes (keep reset result)
+        } else {
+            // 1) undo preview step (if any)
+            // 2) apply final once using the SAME originals order (to match preview)
+            // 3) if references were invalidated by undo, rebind and retry once
+            try { previewMgr.cancel(); } catch (_) { }
 
-            // manifesto style: background rects (OK時のみ)
+            var __applied = false;
             try {
-                if (optFont.ransom) createBackgroundRectsByOutlining(selTextFrames);
-                else clearBackgroundRectsIfAny();
-            } catch (_) { }
-        });
+                // First try: keep originals order (most stable / matches preview)
+                applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
+                __applied = true;
+            } catch (_) {
+                __applied = false;
+            }
+
+            if (!__applied) {
+                try {
+                    // Fallback: rebind selection-derived handles after undo
+                    ranges = collectTextRanges(doc.selection);
+                    selTextFrames = getSelectionTextFrames(doc.selection);
+                    snapshotOriginals();
+                } catch (_) { }
+                try {
+                    applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
+                } catch (_) { }
+            }
+        }
+
+        // manifesto style: background rects (OK時のみ)
+        try {
+            if (optFont.ransom) createBackgroundRectsByOutlining(selTextFrames);
+            else clearBackgroundRectsIfAny();
+        } catch (_) { }
 
         // prevent onClose cleanup (OK)
         __closedByOK = true;
+        __didReset = false;
         // close dialog
         w.close(1);
     };
 
     btnRerun.onClick = function () {
+        __didReset = false;
         // rerun
         try { seed = (new Date()).getTime() & 0xffffffff; } catch (_) { }
         try { updatePreview(); } catch (_) { }
@@ -1111,6 +1144,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
         // Keep JP-only auto rule consistent (checkbox state may remain as-is)
         try { autoEnableJPOnlyIfNeeded(); } catch (_) { }
         try { updateRerunEnabled(); } catch (_) { }
+        __didReset = true;
     };
 
     btnCancel.onClick = function () {
