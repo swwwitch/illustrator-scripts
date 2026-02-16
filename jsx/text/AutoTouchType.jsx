@@ -43,7 +43,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         btnAllOn: { ja: "すべてON", en: "All ON" },
         btnAllOff: { ja: "すべてOFF", en: "All OFF" },
         btnCancel: { ja: "キャンセル", en: "Cancel" },
-        btnOK: { ja: "OK", en: "OK" }
+        btnOK: { ja: "OK", en: "OK" },
+        labelZoom: { ja: "ズーム：", en: "Zoom:" }
     };
 
     function L(key) {
@@ -103,6 +104,65 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     if (app.documents.length === 0) { alert(L("alertNoDoc")); return; }
     var doc = app.activeDocument;
     if (!doc.selection || doc.selection.length === 0) { alert(L("alertSelectText")); return; }
+
+    // --- view zoom helpers (used by Zoom slider) ---
+    function _getSelectionBounds(sel) {
+        var left = sel[0].visibleBounds[0];
+        var top = sel[0].visibleBounds[1];
+        var right = sel[0].visibleBounds[2];
+        var bottom = sel[0].visibleBounds[3];
+        for (var i = 1; i < sel.length; i++) {
+            var b = sel[i].visibleBounds;
+            if (b[0] < left) left = b[0];
+            if (b[1] > top) top = b[1];
+            if (b[2] > right) right = b[2];
+            if (b[3] < bottom) bottom = b[3];
+        }
+        return [left, top, right, bottom];
+    }
+
+    function _getBoundsCenter(b) {
+        return [b[0] + (b[2] - b[0]) / 2, b[1] + (b[3] - b[1]) / 2];
+    }
+
+    function _clampZoomFactor(z) {
+        if (z < 0.0313) z = 0.0313;
+        if (z > 640.0) z = 640.0;
+        return z;
+    }
+
+    function _applyZoom(view, percentage, centerPoint) {
+        var zoomFactor = _clampZoomFactor(percentage / 100.0);
+        try { view.zoom = zoomFactor; } catch (_) { }
+        try { if (centerPoint) view.centerPoint = centerPoint; } catch (_) { }
+        try { app.redraw(); } catch (_) { }
+    }
+
+    var __view = null;
+    var __originalZoom = null;
+    var __originalCenter = null;
+    var __zoomTargetCenter = null;
+    try {
+        __view = doc.views[0];
+        __originalZoom = __view.zoom;
+        __originalCenter = __view.centerPoint;
+        try {
+            var __sel0 = doc.selection;
+            if (__sel0 && __sel0.length > 0) {
+                __zoomTargetCenter = _getBoundsCenter(_getSelectionBounds(__sel0));
+            }
+        } catch (_) { }
+        if (!__zoomTargetCenter) __zoomTargetCenter = __originalCenter;
+    } catch (_) { }
+
+    function restoreViewIfNeeded() {
+        try {
+            if (!__view) return;
+            if (__originalZoom != null) __view.zoom = __originalZoom;
+            if (__originalCenter) __view.centerPoint = __originalCenter;
+            app.redraw();
+        } catch (_) { }
+    }
 
     // --- manifesto style backgrounds (per-character rects via outline) ---
     var BG_LAYER_NAME = '__AutoTouchType_BG__';
@@ -858,6 +918,30 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
         });
     }
 
+    // --- zoom row (UI only; logic will be added later) ---
+    var gZoom = w.add("group");
+    gZoom.orientation = "row";
+    gZoom.alignChildren = ["center", "center"];
+    gZoom.margins = [0, 0, 0, 0];
+
+    var stZoom = gZoom.add("statictext", undefined, L("labelZoom"));
+    var __initZoomPct = 100;
+    try { if (__originalZoom != null) __initZoomPct = Math.round(__originalZoom * 100); } catch (_) { }
+    if (__initZoomPct < 10) __initZoomPct = 10;
+    if (__initZoomPct > 1600) __initZoomPct = 1600;
+    var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
+    sldZoom.preferredSize.width = 360;
+
+    sldZoom.onChanging = function () {
+        try {
+            if (!__view) return;
+            var pct = Math.round(this.value);
+            if (pct < 10) pct = 10;
+            if (pct > 1600) pct = 1600;
+            _applyZoom(__view, pct, __zoomTargetCenter);
+        } catch (_) { }
+    };
+
     // --- bottom buttons (left / spacer / right) ---
     var btnRow = w.add("group");
     btnRow.orientation = "row";
@@ -1151,6 +1235,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
         // Cancel: undo preview step (if any) and cleanup BG
         try { previewMgr.cancel(); } catch (_) { }
         try { clearBackgroundRectsIfAny(); } catch (_) { }
+        try { restoreViewIfNeeded(); } catch (_) { }
         try { app.redraw(); } catch (_) { }
         __closedByOK = false;
         w.close(0);
@@ -1224,6 +1309,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
 
         try { previewMgr.cancel(); } catch (_) { }
         try { clearBackgroundRectsIfAny(); } catch (_) { }
+        try { restoreViewIfNeeded(); } catch (_) { }
         return true;
     };
 
