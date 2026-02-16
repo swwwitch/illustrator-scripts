@@ -369,9 +369,59 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
     }
 
-    var ranges = collectTextRanges(doc.selection);
-    var selTextFrames = getSelectionTextFrames(doc.selection);
-    if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
+var ranges = collectTextRanges(doc.selection);
+var selTextFrames = getSelectionTextFrames(doc.selection);
+if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
+
+    // --- PreviewManager (Undo-based) ---
+    // Preview changes should not remain in the Undo stack when the dialog closes.
+    // Strategy: keep at most ONE preview step applied at any time.
+    // - Each preview update: undo the previous preview step (if any), then apply a new preview step.
+    // - Cancel: undo the current preview step (if any).
+    // - OK: undo the current preview step (if any), then apply the final operation once.
+    function PreviewManager() {
+        this._hasPreview = false;
+    }
+
+    PreviewManager.prototype._undoOnce = function () {
+        try {
+            // Illustrator has no app.undo(); use menu command.
+            app.executeMenuCommand('undo');
+            return true;
+        } catch (_) {
+            return false;
+        }
+    };
+
+    PreviewManager.prototype.addStep = function (fn) {
+        if (typeof fn !== 'function') return;
+        // remove previous preview step so history doesn't grow
+        if (this._hasPreview) {
+            this._undoOnce();
+            this._hasPreview = false;
+        }
+        try { fn(); } catch (_) { }
+        this._hasPreview = true;
+    };
+
+    PreviewManager.prototype.cancel = function () {
+        if (!this._hasPreview) return;
+        this._undoOnce();
+        this._hasPreview = false;
+    };
+
+    PreviewManager.prototype.confirm = function (fnFinal) {
+        // clear preview step first
+        if (this._hasPreview) {
+            this._undoOnce();
+            this._hasPreview = false;
+        }
+        if (typeof fnFinal === 'function') {
+            try { fnFinal(); } catch (_) { }
+        }
+    };
+
+    var previewMgr = new PreviewManager();
 
     // --- snapshot originals (per character) ---
     // we store kerning and tracking as well
@@ -521,6 +571,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     snapshotOriginals();
     var seed = (new Date()).getTime() & 0xffffffff;
 
+    // Ensure any previous BG artifacts are cleared at start
     try { clearBackgroundRectsIfAny(); } catch (_) { }
 
     // --- UI ---
@@ -859,8 +910,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var kern = 0;
         if (chkKern.value) { kern = parseNum(edtKern.text); if (kern === null) return; }
 
-
-
         var optFont = {
             fontRandom: (chkFontRandom && chkFontRandom.value),
             jpOnly: (chkFontJPOnly && chkFontJPOnly.value),
@@ -888,11 +937,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         } catch (_) { }
 
-        restoreOriginals();
-
-        // NOTE: 犯行声明文風（背景生成）はプレビューでは行わない
-
-        applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
+        // Apply preview without growing Undo stack: keep only one preview step applied
+        previewMgr.addStep(function () {
+            applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
+        });
     }
 
     edtBase.onChanging = function () { syncFromEdit(edtBase, sldBase); updatePreview(); };
@@ -930,7 +978,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         var kern = 0;
         if (chkKern.value) kern = parseNum(edtKern.text);
-
 
         // ransom tracking fixed value validation (OK時のみ)
         var __rtv = null;
@@ -970,24 +1017,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         }
 
-        // 1) restore originals then apply final settings
-        restoreOriginals();
-        applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
+        // Commit: remove preview step (if any), then apply final once
+        previewMgr.confirm(function () {
+            // apply final settings
+            applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
 
-        // 2) manifesto style: background rects (OK時のみ)
-        try {
-            if (optFont.ransom) createBackgroundRectsByOutlining(selTextFrames);
-            else clearBackgroundRectsIfAny();
-        } catch (_) { }
+            // manifesto style: background rects (OK時のみ)
+            try {
+                if (optFont.ransom) createBackgroundRectsByOutlining(selTextFrames);
+                else clearBackgroundRectsIfAny();
+            } catch (_) { }
+        });
 
-        // 3) close dialog
+        // close dialog
         w.close(1);
     };
 
     btnRerun.onClick = function () {
         // rerun
         try { seed = (new Date()).getTime() & 0xffffffff; } catch (_) { }
-        try { restoreOriginals(); } catch (_) { }
         try { updatePreview(); } catch (_) { }
         try { autoEnableJPOnlyIfNeeded(); } catch (_) { }
         try { updateRerunEnabled(); } catch (_) { }
@@ -995,7 +1043,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     btnReset.onClick = function () {
         // Reset selected text attributes only (do not touch any checkboxes)
-        try { restoreOriginals(); } catch (_) { }
+        try { previewMgr.cancel(); } catch (_) { }
         try { clearBackgroundRectsIfAny(); } catch (_) { }
 
         // Reset baseline / scale / rotation / kerning / tracking
@@ -1061,7 +1109,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     };
 
     btnCancel.onClick = function () {
-        try { restoreOriginals(); } catch (_) { }
+        // Cancel: undo preview step (if any) and cleanup BG
+        try { previewMgr.cancel(); } catch (_) { }
         try { clearBackgroundRectsIfAny(); } catch (_) { }
         try { app.redraw(); } catch (_) { }
         w.close(0);
@@ -1128,5 +1177,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     setDialogOpacity(w, dialogOpacity);
     shiftDialogPosition(w, offsetX, offsetY);
+    // Safety: if dialog is closed by window manager, treat as cancel
+    w.onClose = function () {
+        try { previewMgr.cancel(); } catch (_) { }
+        try { clearBackgroundRectsIfAny(); } catch (_) { }
+        return true;
+    };
+
     w.show();
 })();
