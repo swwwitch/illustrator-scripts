@@ -423,6 +423,9 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
 
     var previewMgr = new PreviewManager();
 
+    // Close reason flag: prevent onClose cleanup on successful OK
+    var __closedByOK = false;
+
     // --- snapshot originals (per character) ---
     // we store kerning and tracking as well
     var originals = []; // { ch, baselineShift, hScale, vScale, rotation, kerning, tracking, textFont }
@@ -1029,6 +1032,8 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
             } catch (_) { }
         });
 
+        // prevent onClose cleanup (OK)
+        __closedByOK = true;
         // close dialog
         w.close(1);
     };
@@ -1113,6 +1118,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
         try { previewMgr.cancel(); } catch (_) { }
         try { clearBackgroundRectsIfAny(); } catch (_) { }
         try { app.redraw(); } catch (_) { }
+        __closedByOK = false;
         w.close(0);
     };
 
@@ -1179,6 +1185,9 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
     shiftDialogPosition(w, offsetX, offsetY);
     // Safety: if dialog is closed by window manager, treat as cancel
     w.onClose = function () {
+        // If closed via OK, do NOT undo/cleanup (would remove committed BG rects)
+        if (__closedByOK) return true;
+
         try { previewMgr.cancel(); } catch (_) { }
         try { clearBackgroundRectsIfAny(); } catch (_) { }
         return true;
