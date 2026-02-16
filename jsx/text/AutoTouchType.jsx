@@ -7,11 +7,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  *       seed付きRNGでプレビューの見た目を安定化する。
  * 作成日: 2026-02-16
  * 更新日: 2026-02-16
- * バージョン: v1.1.6
+ * バージョン: v1.1.7
  * ========================================= */
 
 (function () {
-    var SCRIPT_VERSION = "v1.1.6";
+    var SCRIPT_VERSION = "v1.1.7";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -359,32 +359,90 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var __allFonts = null;
     try { __allFonts = app.textFonts; } catch (_) { __allFonts = null; }
 
+    // Japanese font detection (updated; based on reference script)
+    function hasJapaneseCharacters(str) {
+        try {
+            if (!str) return false;
+            var japanesePattern = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]/;
+            return japanesePattern.test(String(str));
+        } catch (_) {
+            return false;
+        }
+    }
+
+    function isJapaneseFont(font) {
+        if (!font) return false;
+        var fontName = "";
+        var fontFamily = "";
+        var fontFull = "";
+        var fontPS = "";
+        try { fontName = font.name ? String(font.name) : ""; } catch (_) { fontName = ""; }
+        try { fontFamily = font.family ? String(font.family) : ""; } catch (_) { fontFamily = ""; }
+        try { fontFull = font.fullName ? String(font.fullName) : ""; } catch (_) { fontFull = ""; }
+        try { fontPS = font.postScriptName ? String(font.postScriptName) : ""; } catch (_) { fontPS = ""; }
+
+        // Explicit exclusions (Latin / unintended Gothic variants)
+        var _deny = [
+            "Apple LiGothic",
+            "RyoGothicStd",
+            "-KO","-KL","LogoArl",
+            "Kana"
+        ];
+        for (var di = 0; di < _deny.length; di++) {
+            var dn = _deny[di];
+            if (!dn) continue;
+            if (fontName.indexOf(dn) !== -1) return false;
+            if (fontFamily.indexOf(dn) !== -1) return false;
+            if (fontFull.indexOf(dn) !== -1) return false;
+            if (fontPS.indexOf(dn) !== -1) return false;
+        }
+
+        // Direct Japanese-character hit in any identifier
+        if (hasJapaneseCharacters(fontName) || hasJapaneseCharacters(fontFamily) || hasJapaneseCharacters(fontFull)) {
+            return true;
+        }
+
+        // Keyword-based heuristic (JP families + common JP font brands)
+        var jpKeywords = [
+            "ゴシック", "明朝", "丸ゴ", "教科書", "楷書",
+            "Mincho", "Maru",
+            "Hiragino", "ヒラギノ",
+            "Yu Gothic", "Yu Mincho", "游ゴシック", "游明朝",
+            "Meiryo", "メイリオ",
+            "MS Gothic", "MS Mincho", "MS ゴシック", "MS 明朝",
+            "Kozuka", "小塚",
+            "Morisawa", "モリサワ",
+            "Ryumin", "Shin Go", "新ゴ",
+            "Heisei", "平成",
+            "Klee", "クレー",
+            "Tsukushi", "筑紫",
+            "A-OTF", "AP-OTF ", "-OTF",
+            "FOT", "Pr6N", "Pr6",
+            "Noto Sans JP", "Noto Serif JP",
+            "Source Han", "源ノ角", "源ノ明",
+            "Min2"
+        ];
+
+        for (var i = 0; i < jpKeywords.length; i++) {
+            var k = jpKeywords[i];
+            if (!k) continue;
+            if (fontName.indexOf(k) !== -1) return true;
+            if (fontFamily.indexOf(k) !== -1) return true;
+            if (fontFull.indexOf(k) !== -1) return true;
+            if (fontPS.indexOf(k) !== -1) return true;
+        }
+
+        return false;
+    }
+
     function getJPFonts() {
         var list = [];
         if (!__allFonts) return list;
-
-        function matchJAKeyword(s) {
-            if (!s) return false;
-            s = String(s);
-            return (
-                s.indexOf('Pr6N') !== -1 ||
-                s.indexOf('Pr6') !== -1 ||
-                s.indexOf('AB-') !== -1 ||
-                s.indexOf('FOT') !== -1 ||
-                s.indexOf('-OTF') !== -1
-            );
-        }
-
         for (var i = 0; i < __allFonts.length; i++) {
             try {
                 var f = __allFonts[i];
                 if (!f) continue;
-                var n1 = f.fullName ? String(f.fullName) : '';
-                var n2 = f.name ? String(f.name) : '';
-                var n3 = (f.postScriptName) ? String(f.postScriptName) : '';
-                if (matchJAKeyword(n1) || matchJAKeyword(n2) || matchJAKeyword(n3)) {
-                    list.push(f);
-                }
+                if (isJapaneseFont(f)) list.push(f);
             } catch (_) { }
         }
         return list;
