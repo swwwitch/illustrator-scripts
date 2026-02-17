@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 紙吹雪を生成 / Generate Confetti
  *
  * 概要 / Overview
- * - バージョン / Version: v1.0.1
+ * - バージョン / Version: v1.1
  * - 更新日 / Updated: 2026-02-17
  * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/三角形/スター/キラキラ）を生成します。
  * - ダイアログ上でプレビューを表示し、OKで確定（Confetti レイヤーに出力）します。
@@ -25,7 +25,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // コンフェティ（紙吹雪）作成スクリプト
 
 (function () {
-    var SCRIPT_VERSION = "v1.0.1";
+    var SCRIPT_VERSION = "v1.1";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -42,21 +42,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         triangle: { ja: "三角形", en: "Triangle" },
         star: { ja: "スター", en: "Star" },
         sparkle: { ja: "キラキラ", en: "Sparkle" },
+        ribbon: { ja: "リボン", en: "Ribbon" },
 
         pnlDist: { ja: "配置分布", en: "Distribution" },
         distEven: { ja: "全体に均等", en: "Uniform" },
-        distGrad: { ja: "グラデーション（上濃→下薄）", en: "Vertical gradient (top→bottom)" },
-        distHollow: { ja: "中心を空ける", en: "Hollow center" },
+        distGrad: { ja: "グラデーション（上→下）", en: "Vertical gradient (top→bottom)" },
+        distHollow: { ja: "グラデーション（放射状）", en: "Radial gradient" },
 
         pnlCount: { ja: "生成数", en: "Count" },
 
         pnlOption: { ja: "オプション", en: "Options" },
+        pnlRandom: { ja: "ランダム", en: "Random" },
         mask: { ja: "マスク処理", en: "Mask" },
         margin: { ja: "マージン", en: "Margin" },
-        random: { ja: "ランダム", en: "Random" },
-        zoom: { ja: "ズーム", en: "Zoom" },
+        random: { ja: "大きさ", en: "Size" },
+        zoom: { ja: "画面ズーム", en: "Zoom" },
         opacity: { ja: "不透明度", en: "Opacity" },
-
+        skew: { ja: "歪み", en: "Skew" },
         btnCancel: { ja: "キャンセル", en: "Cancel" },
         btnOK: { ja: "OK", en: "OK" }
     };
@@ -80,10 +82,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         __useArtboard = true;
     }
 
-// テキスト選択時フラグ / Flag for text selection
-var __isTextSelection = false;
-try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame"); } catch (_) { __isTextSelection = false; }
-    
+    // テキスト選択時フラグ / Flag for text selection
+    var __isTextSelection = false;
+    try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame"); } catch (_) { __isTextSelection = false; }
+
     // ビュー初期値（ズーム復元用） / Initial view state
     var __initView = null;
     var __initZoom = null;
@@ -116,6 +118,37 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
         try { dlg.opacity = opacityValue; } catch (_) { }
     }
 
+    // チェックボックスのラベル幅を揃える / Unify checkbox label widths
+    function unifyCheckboxLabelWidth(chkList, minWidth) {
+        if (!chkList || !chkList.length) return;
+        var w = (typeof minWidth === "number") ? minWidth : 0;
+
+        for (var i = 0; i < chkList.length; i++) {
+            var c = chkList[i];
+            if (!c) continue;
+            try {
+                var t = (c.text != null) ? String(c.text) : "";
+                var gw = 0;
+                try {
+                    // measureString が使える場合は実測
+                    gw = c.graphics.measureString(t).width;
+                } catch (_) {
+                    // フォールバック: 文字数ベース
+                    gw = t.length * 7;
+                }
+                // 余白を足す
+                var ww = Math.ceil(gw + 18);
+                if (ww > w) w = ww;
+            } catch (_) { }
+        }
+
+        for (var j = 0; j < chkList.length; j++) {
+            var c2 = chkList[j];
+            if (!c2) continue;
+            try { c2.preferredSize.width = w; } catch (_) { }
+        }
+    }
+
     setDialogOpacity(dlg, dialogOpacity);
 
     /* 上段のみ2カラム / Two-column top area */
@@ -134,6 +167,7 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
     var chkTriangle = pnlShape.add("checkbox", undefined, L("triangle"));
     var chkStar = pnlShape.add("checkbox", undefined, L("star"));
     var chkStar4 = pnlShape.add("checkbox", undefined, L("sparkle"));
+    var chkRibbon = pnlShape.add("checkbox", undefined, L("ribbon"));
 
     // デフォルトはすべてON
     chkCircle.value = true;
@@ -141,6 +175,7 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
     chkTriangle.value = true;
     chkStar.value = false;
     chkStar4.value = false;
+    chkRibbon.value = false;
 
     /* Option(Alt)+クリックで単独選択 / Option(Alt)+click to solo */
     function soloShape(activeChk) {
@@ -150,6 +185,7 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
             chkTriangle.value = (activeChk === chkTriangle);
             chkStar.value = (activeChk === chkStar);
             chkStar4.value = (activeChk === chkStar4);
+            chkRibbon.value = (activeChk === chkRibbon);
             activeChk.value = true;
         } catch (_) { }
     }
@@ -181,13 +217,65 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
         if (isAltDown()) soloShape(chkStar4);
         drawPreview();
     };
+    chkRibbon.onClick = function () {
+        if (isAltDown()) soloShape(chkRibbon);
+        drawPreview();
+    };
 
     /* 右カラム / Right column */
     var gRight = gTop.add("group");
     gRight.orientation = "column";
     gRight.alignChildren = "left";
+    /* ランダム / Random */
+    var pnlRandom = dlg.add("panel", undefined, L("pnlRandom"));
+    pnlRandom.orientation = "column";
+    pnlRandom.alignChildren = "left";
+    pnlRandom.margins = [15, 20, 15, 10];
 
+    // 大きさ（□大きさ <=====>）
+    var gRandSize = pnlRandom.add("group");
+    gRandSize.orientation = "row";
+    gRandSize.alignChildren = ["left", "center"];
 
+    var chkRandSize = gRandSize.add("checkbox", undefined, L("random"));
+    chkRandSize.value = true; // デフォルトON（現状の挙動を維持）
+
+    var sldRandSize = gRandSize.add("slider", undefined, 100, 100, 300);
+    sldRandSize.preferredSize.width = 235;
+    sldRandSize.enabled = chkRandSize.value;
+
+    var randSizeStrength = 100;
+
+    // 不透明度（□不透明度 <=====>）
+    var gOpacity = pnlRandom.add("group");
+    gOpacity.orientation = "row";
+    gOpacity.alignChildren = ["left", "center"];
+
+    var chkOpacity = gOpacity.add("checkbox", undefined, L("opacity"));
+    chkOpacity.value = true;
+
+    // 70..100 を指定（ON時のみランダムに適用）
+    var sldOpacity = gOpacity.add("slider", undefined, 30, 0, 100); // reversed: value = (100 - opacityMin)
+    sldOpacity.preferredSize.width = 235;
+    sldOpacity.enabled = chkOpacity.value;
+
+    var opacityMin = 70;
+    try { sldOpacity.value = 100 - opacityMin; } catch (_) { }
+
+    // 歪み（□歪み <=====>）
+    var gSkew = pnlRandom.add("group");
+    gSkew.orientation = "row";
+    gSkew.alignChildren = ["left", "center"];
+
+    var chkSkew = gSkew.add("checkbox", undefined, L("skew"));
+    chkSkew.value = false; // デフォルトOFF（既存の見た目を変えない）
+
+    // 最大歪み角度（度）: 0..45
+    var sldSkew = gSkew.add("slider", undefined, 0, 0, 45);
+    sldSkew.preferredSize.width = 235;
+    sldSkew.enabled = chkSkew.value;
+
+    var skewMaxDeg = 0;
 
 
     /* オプション / Options */
@@ -196,13 +284,10 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
     pnlOption.alignChildren = "left";
     pnlOption.margins = [15, 20, 15, 10];
 
-    // 不透明度 + マスク処理 / Opacity + Mask
+    // マスク処理 / Mask
     var gOptTop = pnlOption.add("group");
     gOptTop.orientation = "row";
     gOptTop.alignChildren = ["left", "center"];
-
-    var chkOpacity = gOptTop.add("checkbox", undefined, L("opacity"));
-    chkOpacity.value = true;
 
     var chkMask = gOptTop.add("checkbox", undefined, L("mask"));
     chkMask.value = true;
@@ -223,24 +308,17 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
     chkMargin.value = false;
 
     var sldMargin = gMargin.add("slider", undefined, 0, 0, 50);
-    sldMargin.preferredSize.width = 200;
+    sldMargin.preferredSize.width = 235;
     sldMargin.enabled = chkMargin.value;
 
     var maskMarginPt = 0;
 
-    // サイズランダム（□ランダム <=====>）
-    var gRandSize = pnlOption.add("group");
-    gRandSize.orientation = "row";
-    gRandSize.alignChildren = ["left", "center"];
+    // ラベル幅を揃える（大きさ/不透明度/歪み/マージン）
+    try {
+        unifyCheckboxLabelWidth([chkRandSize, chkOpacity, chkSkew, chkMargin], 70);
+    } catch (_) { }
 
-    var chkRandSize = gRandSize.add("checkbox", undefined, L("random"));
-    chkRandSize.value = true; // デフォルトON（現状の挙動を維持）
 
-    var sldRandSize = gRandSize.add("slider", undefined, 100, 100, 300);
-    sldRandSize.preferredSize.width = 200;
-    sldRandSize.enabled = chkRandSize.value;
-
-    var randSizeStrength = 100;
 
     /* 配置分布 / Distribution */
     var pnlOpt = gRight.add("panel", undefined, L("pnlDist"));
@@ -270,8 +348,8 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
     rbHollow.value = false;
     rbGradY.value = false;
 
-    // 「中心をだんだんと空ける」以外では操作できない
-    gHollow.enabled = rbHollow.value;
+    // 放射状/上→下 のグラデーションでは強度スライダーを使う
+    gHollow.enabled = (rbHollow.value || rbGradY.value);
 
 
     /* 生成数 / Count */
@@ -299,10 +377,12 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
     gZoom.orientation = "row";
     gZoom.alignChildren = ["center", "center"];
     gZoom.alignment = "center";
+    // 画面ズームの下に余白を追加
+    try { gZoom.margins = [0, 0, 0, 10]; } catch (_) { }
 
     var stZoom = gZoom.add("statictext", undefined, L("zoom"));
     var sldZoom = gZoom.add("slider", undefined, (__initZoom != null ? __initZoom : 1), 0.1, 16);
-    sldZoom.preferredSize.width = 260;
+    sldZoom.preferredSize.width = 240;
 
     function applyZoom(z) {
         try {
@@ -426,12 +506,35 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
         drawPreview();
     };
     rbGradY.onClick = function () {
-        gHollow.enabled = false;
+        gHollow.enabled = true;
         drawPreview();
     };
     chkMask.onClick = function () { drawPreview(); };
 
-    chkOpacity.onClick = function () { drawPreview(); };
+    chkOpacity.onClick = function () {
+        sldOpacity.enabled = chkOpacity.value;
+        drawPreview();
+    };
+
+    sldOpacity.onChanging = function () {
+        // reversed: slider 0..100 => opacityMin 100..0
+        opacityMin = 100 - Math.round(sldOpacity.value);
+        if (opacityMin < 0) opacityMin = 0;
+        if (opacityMin > 100) opacityMin = 100;
+        if (chkOpacity.value) drawPreview();
+    };
+
+    chkSkew.onClick = function () {
+        sldSkew.enabled = chkSkew.value;
+        drawPreview();
+    };
+
+    sldSkew.onChanging = function () {
+        skewMaxDeg = Math.round(sldSkew.value);
+        if (skewMaxDeg < 0) skewMaxDeg = 0;
+        if (skewMaxDeg > 45) skewMaxDeg = 45;
+        if (chkSkew.value) drawPreview();
+    };
 
     chkRandSize.onClick = function () {
         sldRandSize.enabled = chkRandSize.value;
@@ -445,6 +548,14 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
 
     chkMargin.onClick = function () {
         sldMargin.enabled = chkMargin.value;
+
+        // マージンON時はマスク処理をOFF（両立させない）
+        try {
+            if (chkMargin.value && chkMask && chkMask.enabled) {
+                chkMask.value = false;
+            }
+        } catch (_) { }
+
         drawPreview();
     };
 
@@ -455,7 +566,7 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
 
     sldHollow.onChanging = function () {
         hollowStrength = Math.round(sldHollow.value * 10) / 10; // 0.1刻み表示
-        if (rbHollow.value) drawPreview();
+        if (rbHollow.value || rbGradY.value) drawPreview();
     };
 
     dlg.onShow = function () {
@@ -492,7 +603,7 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
             var h = (T - B);
             var u = Math.random(); // 0..1
             // top-bias: u を上側に寄せる
-            var gy = 2.2; // 固定強度（必要ならUI化）
+            var gy = 1 + ((typeof hollowStrength === "number" ? hollowStrength : 2.0) - 1) * 0.6; // 1..4 程度にマップ
             var t2 = 1 - Math.pow(1 - u, gy); // 0(bottom) .. 1(top)
             pt = {
                 x: random(L, R),
@@ -501,7 +612,8 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
             return pt;
         }
 
-        // 中心を空ける：中心から離れるほど出やすい（滑らかに外側へバイアス）
+        // 中心を空ける（中心:薄い / 外側:濃い の滑らかなグラデーション）
+        // hollowStrength: 1..6（1=ほぼ均等 / 6=外側に強く寄せる）
         var ang = random(0, Math.PI * 2);
         var c = Math.cos(ang);
         var s = Math.sin(ang);
@@ -511,22 +623,14 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
         var maxRy = (s === 0) ? 1e12 : (s > 0 ? (T - cy) / s : (B - cy) / s);
         var maxR = Math.min(Math.abs(maxRx), Math.abs(maxRy));
 
-        // 外側寄り＋中心を空ける（リング状）
-        // hollowStrength: 1..6
         var k = (typeof hollowStrength === "number" && hollowStrength > 0) ? hollowStrength : 2.0;
+        if (k < 1) k = 1;
+        if (k > 6) k = 6;
 
-        // 内側半径（中心の空き具合）: 1→0 / 6→0.65 くらい
-        var hs = k;
-        if (hs < 1) hs = 1;
-        if (hs > 6) hs = 6;
-        var innerRatio = (hs - 1) / 5; // 0..1
-        innerRatio = innerRatio * 0.65;
-        var rMin = maxR * innerRatio;
-
-        // rMin..maxR の範囲で外側寄りにサンプル
+        // 0..1 を外側寄りに変換（中心を完全に抜かず、中心ほど出にくい）
         var uu = Math.random(); // 0..1
-        var r01 = 1 - Math.pow(1 - uu, k); // bias to 1
-        var r = rMin + (maxR - rMin) * r01;
+        var r01 = 1 - Math.pow(1 - uu, k); // bias to 1 (outer)
+        var r = maxR * r01;
 
         pt = {
             x: cx + c * r,
@@ -539,6 +643,29 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
     // ランダム関数
     function random(min, max) {
         return Math.random() * (max - min) + min;
+    }
+
+    // 歪み（シアー）を適用（中心基準） / Apply shear (skew) about center
+    function applyShearToItem(item, deg) {
+        if (!item) return;
+        if (!deg || deg === 0) return;
+        var rad = deg * Math.PI / 180;
+        var m = new Matrix();
+        // X方向シアー: [1  tan; 0  1]
+        m.mValueA = 1;
+        m.mValueB = Math.tan(rad);
+        m.mValueC = 0;
+        m.mValueD = 1;
+        m.mValueTX = 0;
+        m.mValueTY = 0;
+
+        // 位置・塗り・線幅などは維持しつつ、中心基準で変形
+        try {
+            item.transform(m, true, true, true, true, 1, Transformation.CENTER);
+        } catch (_) {
+            // フォールバック: shear API（環境によってはこちらが効く）
+            try { item.shear(deg); } catch (__) { }
+        }
     }
 
     function getConfettiSize() {
@@ -837,6 +964,94 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
         return p;
     }
 
+    // リボン（1/4円弧×2 を反転してつなげたS字帯）を生成 / Quarter-arc mirrored S ribbon band
+    function createRibbon(layer, left, top, size) {
+        var cx = left + size * 0.5;
+        var cy = top - size * 0.5;
+
+        // 2つの1/4円弧でS字を作る（中心線）
+        var r = Math.max(0.8, size * 0.72);              // 半径（基本を約150%）
+        var halfW = Math.max(0.25, size * 0.165);         // 帯の半幅（基本を約150%）
+        var seg = 10;                                    // 円弧の分割（滑らかさ）
+
+        // ローカル座標（原点付近）で作ってから中心に寄せる
+        // 1つ目: center (0,0), angle 180→90 で (-r,0)→(0,r)
+        // 2つ目: center (0,2r), angle -90→0 で (0,r)→(r,2r)
+        var centerPts = [];
+
+        function ptCircle(cpx, cpy, deg) {
+            var a = deg * Math.PI / 180;
+            return [cpx + Math.cos(a) * r, cpy + Math.sin(a) * r];
+        }
+
+        for (var i = 0; i <= seg; i++) {
+            var t = i / seg;
+            var deg = 180 - 90 * t;
+            centerPts.push(ptCircle(0, 0, deg));
+        }
+        for (var j = 1; j <= seg; j++) {
+            var t2 = j / seg;
+            var deg2 = -90 + 90 * t2;
+            centerPts.push(ptCircle(0, 2 * r, deg2));
+        }
+
+        // 全体の重心を (cx,cy) に合わせる（中心線の中点で合わせる）
+        // centerPts のYレンジは 0..2r なので、その中心は r
+        var offX = cx - 0;
+        var offY = cy - r;
+
+        // タンジェントから法線を作って、上下にオフセットして帯の輪郭を作る
+        function norm2(vx, vy) {
+            var d = Math.sqrt(vx * vx + vy * vy);
+            if (d === 0) d = 1;
+            return [vx / d, vy / d];
+        }
+
+        var topPts = [];
+        var botPts = [];
+
+        for (var k = 0; k < centerPts.length; k++) {
+            var p0 = centerPts[(k === 0) ? 0 : (k - 1)];
+            var p1 = centerPts[k];
+            var p2 = centerPts[(k === centerPts.length - 1) ? (centerPts.length - 1) : (k + 1)];
+
+            var tx = p2[0] - p0[0];
+            var ty = p2[1] - p0[1];
+            var tn = norm2(tx, ty);
+
+            // 左法線
+            var nx = -tn[1];
+            var ny = tn[0];
+
+            var x = p1[0] + offX;
+            var y = p1[1] + offY;
+
+            topPts.push([x + nx * halfW, y + ny * halfW]);
+            botPts.push([x - nx * halfW, y - ny * halfW]);
+        }
+
+        var pts = [];
+        for (var a = 0; a < topPts.length; a++) pts.push(topPts[a]);
+        for (var b = botPts.length - 1; b >= 0; b--) pts.push(botPts[b]);
+
+        var path = layer.pathItems.add();
+        path.closed = true;
+        path.setEntirePath(pts);
+
+        // 角を立てず滑らかに（S字の帯として自然に見せる）
+        try {
+            var ppts = path.pathPoints;
+            for (var m = 0; m < ppts.length; m++) {
+                try { ppts[m].pointType = PointType.SMOOTH; } catch (_) { }
+            }
+        } catch (_) { }
+
+        try { path.filled = true; } catch (_) { }
+        try { path.stroked = false; } catch (_) { }
+
+        return path;
+    }
+
     // コンフェティの形状をランダムに作成
     function createConfetti(layer, x, y, size, color) {
         var enabledShapes = [];
@@ -845,6 +1060,7 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
         if (chkTriangle.value) enabledShapes.push(2);
         if (chkStar.value) enabledShapes.push(3);
         if (chkStar4.value) enabledShapes.push(4);
+        if (chkRibbon.value) enabledShapes.push(5);
 
         if (enabledShapes.length === 0) return null;
 
@@ -874,25 +1090,56 @@ try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame");
             case 4: // スター（4点）
                 confetti = createStar4(layer, x, y, size);
                 break;
+            case 5: // リボン
+                confetti = createRibbon(layer, x, y, size);
+                break;
         }
 
-        // 色を設定
-        confetti.filled = true;
-        confetti.stroked = false;
+        // 色を設定（リボンはストローク、他は塗り）
         var rgbColor = new RGBColor();
         rgbColor.red = color[0];
         rgbColor.green = color[1];
         rgbColor.blue = color[2];
-        confetti.fillColor = rgbColor;
+
+        try {
+            // open-path はストローク、closed-path は塗り（リボンは閉じパスに変更）
+            var isOpen = false;
+            try { isOpen = (confetti && confetti.closed === false); } catch (_) { isOpen = false; }
+
+            if (isOpen) {
+                try { confetti.filled = false; } catch (_) { }
+                try { confetti.stroked = true; } catch (_) { }
+                try { confetti.strokeColor = rgbColor; } catch (_) { }
+            } else {
+                try { confetti.filled = true; } catch (_) { }
+                try { confetti.stroked = false; } catch (_) { }
+                try { confetti.fillColor = rgbColor; } catch (_) { }
+            }
+        } catch (_) { }
 
         // ランダムに回転
         confetti.rotate(random(0, 360));
 
+        // 歪み / Skew
+        try {
+            if (chkSkew && chkSkew.value) {
+                var _deg = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
+                if (_deg < 0) _deg = 0;
+                if (_deg > 45) _deg = 45;
+                if (_deg > 0) {
+                    applyShearToItem(confetti, random(-_deg, _deg));
+                }
+            }
+        } catch (_) { }
+
         // 不透明度 / Opacity
         try {
             if (chkOpacity && chkOpacity.value) {
-                // 透明度をランダムに設定
-                confetti.opacity = random(70, 100);
+                var _minOp = (typeof opacityMin === "number") ? opacityMin : 70;
+                if (_minOp < 0) _minOp = 0;
+                if (_minOp > 100) _minOp = 100;
+                // 不透明度をランダムに設定（_minOp..100）
+                confetti.opacity = random(_minOp, 100);
             } else {
                 // OFF: 設定しない（=100%）
                 confetti.opacity = 100;
