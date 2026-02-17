@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 紙吹雪を生成 / Generate Confetti
  *
  * 概要 / Overview
- * - バージョン / Version: v1.1
+ * - バージョン / Version: v1.1.6
  * - 更新日 / Updated: 2026-02-17
  * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/三角形/スター/キラキラ）を生成します。
  * - ダイアログ上でプレビューを表示し、OKで確定（Confetti レイヤーに出力）します。
@@ -24,8 +24,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // コンフェティ（紙吹雪）作成スクリプト
 
-(function () {
-    var SCRIPT_VERSION = "v1.1";
+ (function () {
+    var SCRIPT_VERSION = "v1.1.6";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -52,6 +52,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         pnlCount: { ja: "生成数", en: "Count" },
 
         pnlOption: { ja: "オプション", en: "Options" },
+        pnlSymbol: { ja: "シンボル", en: "Symbol" }, // ★追加
         pnlRandom: { ja: "ランダム", en: "Random" },
         mask: { ja: "マスク処理", en: "Mask" },
         margin: { ja: "マージン", en: "Margin" },
@@ -60,7 +61,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         opacity: { ja: "不透明度", en: "Opacity" },
         skew: { ja: "歪み", en: "Skew" },
         btnCancel: { ja: "キャンセル", en: "Cancel" },
-        btnOK: { ja: "OK", en: "OK" }
+        btnOK: { ja: "OK", en: "OK" },
+        // Additions for Symbol dropdown
+        symbol: { ja: "シンボル", en: "Symbol" },
+        symbolNone: { ja: "（なし）", en: "(None)" }
     };
 
     function L(key) {
@@ -190,6 +194,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         } catch (_) { }
     }
 
+    // ⌘+Option(Alt)+クリックで「それ以外」を選択 / Cmd+Option(Alt)+click to select others
+    function selectOthers(activeChk) {
+        try {
+            chkCircle.value = (activeChk !== chkCircle);
+            chkRect.value = (activeChk !== chkRect);
+            chkTriangle.value = (activeChk !== chkTriangle);
+            chkStar.value = (activeChk !== chkStar);
+            chkStar4.value = (activeChk !== chkStar4);
+            chkRibbon.value = (activeChk !== chkRibbon);
+        } catch (_) { }
+    }
+
+    // --- 形状/シンボル相互排他ヘルパー ---
+    function turnOffAllShapes() {
+        try {
+            chkCircle.value = false;
+            chkRect.value = false;
+            chkTriangle.value = false;
+            chkStar.value = false;
+            chkStar4.value = false;
+            chkRibbon.value = false;
+        } catch (_) { }
+    }
+
+    function clearSymbolSelection() {
+        try {
+            if (ddSymbol) {
+                ddSymbol.selection = 0;
+            }
+        } catch (_) { }
+        selectedSymbolRef = null;
+    }
+
     function isAltDown() {
         try {
             return !!(ScriptUI.environment && ScriptUI.environment.keyboardState && ScriptUI.environment.keyboardState.altKey);
@@ -197,28 +234,49 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return false;
     }
 
+    function isCmdAltDown() {
+        try {
+            var ks = ScriptUI.environment && ScriptUI.environment.keyboardState;
+            // macOS: Command = metaKey
+            return !!(ks && ks.metaKey && ks.altKey);
+        } catch (_) { }
+        return false;
+    }
+
     chkCircle.onClick = function () {
-        if (isAltDown()) soloShape(chkCircle);
+        if (isCmdAltDown()) selectOthers(chkCircle);
+        else if (isAltDown()) soloShape(chkCircle);
+        clearSymbolSelection();
         drawPreview();
     };
     chkRect.onClick = function () {
-        if (isAltDown()) soloShape(chkRect);
+        if (isCmdAltDown()) selectOthers(chkRect);
+        else if (isAltDown()) soloShape(chkRect);
+        clearSymbolSelection();
         drawPreview();
     };
     chkTriangle.onClick = function () {
-        if (isAltDown()) soloShape(chkTriangle);
+        if (isCmdAltDown()) selectOthers(chkTriangle);
+        else if (isAltDown()) soloShape(chkTriangle);
+        clearSymbolSelection();
         drawPreview();
     };
     chkStar.onClick = function () {
-        if (isAltDown()) soloShape(chkStar);
+        if (isCmdAltDown()) selectOthers(chkStar);
+        else if (isAltDown()) soloShape(chkStar);
+        clearSymbolSelection();
         drawPreview();
     };
     chkStar4.onClick = function () {
-        if (isAltDown()) soloShape(chkStar4);
+        if (isCmdAltDown()) selectOthers(chkStar4);
+        else if (isAltDown()) soloShape(chkStar4);
+        clearSymbolSelection();
         drawPreview();
     };
     chkRibbon.onClick = function () {
-        if (isAltDown()) soloShape(chkRibbon);
+        if (isCmdAltDown()) selectOthers(chkRibbon);
+        else if (isAltDown()) soloShape(chkRibbon);
+        clearSymbolSelection();
         drawPreview();
     };
 
@@ -226,6 +284,123 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var gRight = gTop.add("group");
     gRight.orientation = "column";
     gRight.alignChildren = "left";
+
+    /* 配置分布 / Distribution */
+    var pnlOpt = gRight.add("panel", undefined, L("pnlDist"));
+    pnlOpt.orientation = "column";
+    pnlOpt.alignChildren = "left";
+    pnlOpt.margins = [15, 20, 15, 10];
+
+    var rbEven = pnlOpt.add("radiobutton", undefined, L("distEven"));
+    var rbGradY = pnlOpt.add("radiobutton", undefined, L("distGrad"));
+    var rbHollow = pnlOpt.add("radiobutton", undefined, L("distHollow"));
+
+    // 中心の空き具合（分布の強度）
+    // 1.0 = ほぼ均等寄り / 6.0 = 強く外側へ
+    var gHollow = pnlOpt.add("group");
+    gHollow.orientation = "row";
+    gHollow.alignChildren = ["left", "center"];
+
+    var sldHollow = gHollow.add("slider", undefined, 2.0, 1.0, 6.0);
+    sldHollow.preferredSize.width = 200;
+
+    // 初期値
+    var hollowStrength = 2.0;
+
+    // デフォルト（今）：均等に
+    rbEven.value = true;
+    rbHollow.value = false;
+    rbGradY.value = false;
+
+    // 放射状/上→下 のグラデーションでは強度スライダーを使う
+    gHollow.enabled = (rbHollow.value || rbGradY.value);
+
+    /* 生成数 / Count */
+    var pnlCount = gRight.add("panel", undefined, L("pnlCount"));
+    pnlCount.orientation = "column";
+    pnlCount.alignChildren = "fill";
+    pnlCount.margins = [15, 20, 15, 10];
+
+    var gCountRow = pnlCount.add("group");
+    gCountRow.orientation = "row";
+    gCountRow.alignChildren = ["left", "center"];
+
+    var sldCount = gCountRow.add("slider", undefined, 150, 10, 500);
+    sldCount.preferredSize.width = 200;
+
+    var confettiCount = 150;
+
+    sldCount.onChanging = function () {
+        confettiCount = Math.round(sldCount.value);
+        requestPreviewDebounced();
+    };
+
+    /* シンボル / Symbol */   // ★追加（ランダムの上）
+    var pnlSymbol = dlg.add("panel", undefined, L("pnlSymbol"));
+    pnlSymbol.orientation = "column";
+    pnlSymbol.alignChildren = "left";
+    pnlSymbol.margins = [15, 20, 15, 10];
+
+    var gSymbol = pnlSymbol.add("group");
+    gSymbol.orientation = "row";
+    gSymbol.alignChildren = ["left", "center"];
+
+    var stSymbol = gSymbol.add("statictext", undefined, L("symbol"));
+    var ddSymbol = gSymbol.add("dropdownlist", undefined, [L("symbolNone")]);
+    ddSymbol.selection = 0;
+    ddSymbol.preferredSize.width = 260;
+
+    // 現在選択中のシンボル名（ロジックは追って）
+    var selectedSymbolName = "";
+
+    function refreshSymbolDropdown() {
+        try {
+            ddSymbol.removeAll();
+        } catch (_) { }
+
+        var hasSymbols = false;
+        try {
+            if (doc && doc.symbols && doc.symbols.length > 0) hasSymbols = true;
+        } catch (_) { hasSymbols = false; }
+
+        // (None)
+        try { ddSymbol.add("item", L("symbolNone")); } catch (_) { }
+
+        if (hasSymbols) {
+            for (var si2 = 0; si2 < doc.symbols.length; si2++) {
+                try {
+                    var s = doc.symbols[si2];
+                    var nm = (s && s.name) ? String(s.name) : ("Symbol " + (si2 + 1));
+                    var it = ddSymbol.add("item", nm);
+try { it._sym = s; } catch (_) { }
+                } catch (_) { }
+            }
+            ddSymbol.enabled = true;
+        } else {
+            ddSymbol.enabled = false;
+        }
+
+        try { ddSymbol.selection = 0; } catch (_) { }
+        selectedSymbolName = "";
+        selectedSymbolRef = null;
+    }
+
+    ddSymbol.onChange = function () {
+        try {
+            if (!ddSymbol.selection) { selectedSymbolName = ""; return; }
+            if (ddSymbol.selection.index === 0) { selectedSymbolName = ""; return; }
+            selectedSymbolName = String(ddSymbol.selection.text);
+        } catch (_) {
+            selectedSymbolName = "";
+        }
+        // シンボル選択時は形状を全てオフ
+        if (selectedSymbolName && selectedSymbolName !== "") {
+            turnOffAllShapes();
+            drawPreview();
+        }
+        // None選択時は何もしない
+    };
+
     /* ランダム / Random */
     var pnlRandom = dlg.add("panel", undefined, L("pnlRandom"));
     pnlRandom.orientation = "column";
@@ -277,7 +452,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     var skewMaxDeg = 0;
 
-
     /* オプション / Options */
     var pnlOption = dlg.add("panel", undefined, L("pnlOption"));
     pnlOption.orientation = "column";
@@ -317,60 +491,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     try {
         unifyCheckboxLabelWidth([chkRandSize, chkOpacity, chkSkew, chkMargin], 70);
     } catch (_) { }
-
-
-
-    /* 配置分布 / Distribution */
-    var pnlOpt = gRight.add("panel", undefined, L("pnlDist"));
-    pnlOpt.orientation = "column";
-    pnlOpt.alignChildren = "left";
-    pnlOpt.margins = [15, 20, 15, 10];
-
-    var rbEven = pnlOpt.add("radiobutton", undefined, L("distEven"));
-    var rbGradY = pnlOpt.add("radiobutton", undefined, L("distGrad"));
-    var rbHollow = pnlOpt.add("radiobutton", undefined, L("distHollow"));
-
-    // 中心の空き具合（分布の強度）
-    // 1.0 = ほぼ均等寄り / 6.0 = 強く外側へ
-    var gHollow = pnlOpt.add("group");
-    gHollow.orientation = "row";
-    gHollow.alignChildren = ["left", "center"];
-
-    var sldHollow = gHollow.add("slider", undefined, 2.0, 1.0, 6.0);
-    sldHollow.preferredSize.width = 200;
-
-
-    // 初期値
-    var hollowStrength = 2.0;
-
-    // デフォルト（今）：均等に
-    rbEven.value = true;
-    rbHollow.value = false;
-    rbGradY.value = false;
-
-    // 放射状/上→下 のグラデーションでは強度スライダーを使う
-    gHollow.enabled = (rbHollow.value || rbGradY.value);
-
-
-    /* 生成数 / Count */
-    var pnlCount = gRight.add("panel", undefined, L("pnlCount"));
-    pnlCount.orientation = "column";
-    pnlCount.alignChildren = "fill";
-    pnlCount.margins = [15, 20, 15, 10];
-
-    var gCountRow = pnlCount.add("group");
-    gCountRow.orientation = "row";
-    gCountRow.alignChildren = ["left", "center"];
-
-    var sldCount = gCountRow.add("slider", undefined, 150, 10, 500);
-    sldCount.preferredSize.width = 200;
-
-    var confettiCount = 150;
-
-    sldCount.onChanging = function () {
-        confettiCount = Math.round(sldCount.value);
-        drawPreview();
-    };
 
     /* ズーム / Zoom */
     var gZoom = dlg.add("group");
@@ -496,6 +616,48 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         try { app.redraw(); } catch (_) { }
     }
 
+    // =========================================
+// Debounced preview (間引き)
+// - Dragging sliders can fire many times; rebuild preview only once after a short pause.
+// =========================================
+var __debounceTaskId = 0;
+var __debounceDelayMs = 140; // 体感で軽くするための遅延（ms）
+
+// Expose drawPreview to scheduleTask (scheduleTask はグローバルスコープで動く)
+try {
+    $.global.__ConfettiMaker_drawPreview = drawPreview;
+    $.global.__ConfettiMaker_runDebouncedPreview = function () {
+        try {
+            if ($.global.__ConfettiMaker_drawPreview) $.global.__ConfettiMaker_drawPreview();
+        } catch (_) { }
+    };
+} catch (_) { }
+
+function requestPreviewDebounced() {
+    // cancel previous scheduled task
+    try {
+        if (__debounceTaskId) {
+            app.cancelTask(__debounceTaskId);
+            __debounceTaskId = 0;
+        }
+    } catch (_) { }
+    try {
+        __debounceTaskId = app.scheduleTask("__ConfettiMaker_runDebouncedPreview()", __debounceDelayMs, false);
+    } catch (_) {
+        // fallback: run immediately
+        try { drawPreview(); } catch (__) { }
+    }
+}
+
+function requestPreviewImmediate() {
+    try {
+        if (__debounceTaskId) {
+            try { app.cancelTask(__debounceTaskId); } catch (_) { }
+            __debounceTaskId = 0;
+        }
+    } catch (_) { }
+    try { drawPreview(); } catch (_) { }
+}
 
     rbEven.onClick = function () {
         gHollow.enabled = false;
@@ -521,7 +683,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         opacityMin = 100 - Math.round(sldOpacity.value);
         if (opacityMin < 0) opacityMin = 0;
         if (opacityMin > 100) opacityMin = 100;
-        if (chkOpacity.value) drawPreview();
+        if (chkOpacity.value) requestPreviewDebounced();
     };
 
     chkSkew.onClick = function () {
@@ -533,7 +695,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         skewMaxDeg = Math.round(sldSkew.value);
         if (skewMaxDeg < 0) skewMaxDeg = 0;
         if (skewMaxDeg > 45) skewMaxDeg = 45;
-        if (chkSkew.value) drawPreview();
+        if (chkSkew.value) requestPreviewDebounced();
     };
 
     chkRandSize.onClick = function () {
@@ -543,7 +705,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     sldRandSize.onChanging = function () {
         randSizeStrength = Math.round(sldRandSize.value);
-        if (chkRandSize.value) drawPreview();
+        if (chkRandSize.value) requestPreviewDebounced();
     };
 
     chkMargin.onClick = function () {
@@ -556,21 +718,22 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         } catch (_) { }
 
-        drawPreview();
+        requestPreviewDebounced();
     };
 
     sldMargin.onChanging = function () {
         maskMarginPt = Math.round(sldMargin.value);
-        drawPreview();
+        requestPreviewDebounced();
     };
 
     sldHollow.onChanging = function () {
         hollowStrength = Math.round(sldHollow.value * 10) / 10; // 0.1刻み表示
-        if (rbHollow.value || rbGradY.value) drawPreview();
+        if (rbHollow.value || rbGradY.value) requestPreviewDebounced();
     };
 
     dlg.onShow = function () {
         shiftDialogPosition(dlg, offsetX, offsetY);
+        try { refreshSymbolDropdown(); } catch (_) { }
         try {
             if (__initView && __initZoom != null) {
                 sldZoom.value = __initView.zoom;
@@ -1054,6 +1217,85 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     // コンフェティの形状をランダムに作成
     function createConfetti(layer, x, y, size, color) {
+        // シンボル選択時はシンボルを優先して生成
+        try {
+            if (selectedSymbolName && selectedSymbolName !== "") {
+                var sym = null;
+                try {
+                    if (doc && doc.symbols && doc.symbols.length > 0) {
+                        for (var ss = 0; ss < doc.symbols.length; ss++) {
+                            try {
+                                if (String(doc.symbols[ss].name) === String(selectedSymbolName)) {
+                                    sym = doc.symbols[ss];
+                                    break;
+                                }
+                            } catch (_) { }
+                        }
+                    }
+                } catch (_) { sym = null; }
+
+                if (sym) {
+                    var si = null;
+                    try {
+                        // 可能なら container（group）に入れる
+                        if (layer && layer.symbolItems && layer.symbolItems.add) {
+                            si = layer.symbolItems.add(sym);
+                        } else if (doc && doc.activeLayer && doc.activeLayer.symbolItems) {
+                            si = doc.activeLayer.symbolItems.add(sym);
+                        }
+                    } catch (_) { si = null; }
+
+                    if (si) {
+                        // 位置（既存形状と同様に left/top 基準）
+                        try { si.left = x; } catch (_) { }
+                        try { si.top = y; } catch (_) { }
+
+                        // size に合わせて等比スケール（最大辺= size）
+                        try {
+                            var w0 = Number(si.width);
+                            var h0 = Number(si.height);
+                            var m0 = Math.max(w0, h0);
+                            if (m0 && m0 > 0) {
+                                var pct = (Number(size) / m0) * 100;
+                                if (pct < 1) pct = 1;
+                                si.resize(pct, pct);
+                            }
+                        } catch (_) { }
+
+                        // ランダムに回転
+                        try { si.rotate(random(0, 360)); } catch (_) { }
+
+                        // 歪み / Skew
+                        try {
+                            if (chkSkew && chkSkew.value) {
+                                var _degS = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
+                                if (_degS < 0) _degS = 0;
+                                if (_degS > 45) _degS = 45;
+                                if (_degS > 0) {
+                                    applyShearToItem(si, random(-_degS, _degS));
+                                }
+                            }
+                        } catch (_) { }
+
+                        // 不透明度 / Opacity
+                        try {
+                            if (chkOpacity && chkOpacity.value) {
+                                var _minOpS = (typeof opacityMin === "number") ? opacityMin : 70;
+                                if (_minOpS < 0) _minOpS = 0;
+                                if (_minOpS > 100) _minOpS = 100;
+                                si.opacity = random(_minOpS, 100);
+                            } else {
+                                si.opacity = 100;
+                            }
+                        } catch (_) { }
+
+                        return si;
+                    }
+                }
+                // シンボルが見つからない/作れない場合はフォールバックで通常形状へ
+            }
+        } catch (_) { }
+
         var enabledShapes = [];
         if (chkRect.value) enabledShapes.push(0);
         if (chkCircle.value) enabledShapes.push(1);
@@ -1151,6 +1393,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     var result = dlg.show();
 
+try {
+    if (__debounceTaskId) { app.cancelTask(__debounceTaskId); __debounceTaskId = 0; }
+} catch (_) { }
+
     if (result !== 1) {
         clearPreview();
         try { previewLayer.remove(); } catch (e) { }
@@ -1190,6 +1436,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     // プレビューレイヤーを削除
     try { previewLayer.remove(); } catch (e2) { }
+
+    // 実行後、生成したコンフェティ全体を選択状態にする
+    try {
+        doc.selection = null;
+        for (var si = 0; si < confettiLayer.pageItems.length; si++) {
+            try { confettiLayer.pageItems[si].selected = true; } catch (_) { }
+        }
+    } catch (_) { }
 
     // 画面ズームはプレビュー操作を尊重（復元しない）
 
