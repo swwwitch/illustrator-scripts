@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 紙吹雪を生成 / Generate Confetti
  *
  * 概要 / Overview
- * - バージョン / Version: v1.1.6
+ * - バージョン / Version: v1.2
  * - 更新日 / Updated: 2026-02-17
  * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/三角形/スター/キラキラ）を生成します。
  * - ダイアログ上でプレビューを表示し、OKで確定（Confetti レイヤーに出力）します。
@@ -25,7 +25,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // コンフェティ（紙吹雪）作成スクリプト
 
  (function () {
-    var SCRIPT_VERSION = "v1.1.6";
+    var SCRIPT_VERSION = "v1.2";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
