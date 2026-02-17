@@ -5,8 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 紙吹雪を生成 / Generate Confetti
  *
  * 概要 / Overview
- * - バージョン / Version: v1.2
- * - 更新日 / Updated: 2026-02-17
+ * - バージョン / Version: v1.3.1
+ * - 更新日 / Updated: 2026-02-18
  * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/三角形/スター/キラキラ）を生成します。
  * - ダイアログ上でプレビューを表示し、OKで確定（Confetti レイヤーに出力）します。
  * - UIは日本語/英語に対応し、タイトルバーにバージョンを表示します。
@@ -20,12 +20,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * - マージンは生成エリアのみ拡張します（マスク領域は拡張しません）。
  * - TextFrame（テキスト）選択時はマスク処理を無効化します。
  * - プレビュー用レイヤー（__ConfettiPreview__）は終了時に削除されます。
+ * - 既に Confetti レイヤーがある場合は新規作成せず再利用します。
+ * - マージンの最大値は（幅+高さ）/6 を基準に動的に設定します。
  * ========================================= */
 
 // コンフェティ（紙吹雪）作成スクリプト
 
- (function () {
-    var SCRIPT_VERSION = "v1.2";
+(function () {
+    var SCRIPT_VERSION = "v1.3.1";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -46,13 +48,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         pnlDist: { ja: "配置分布", en: "Distribution" },
         distEven: { ja: "全体に均等", en: "Uniform" },
-        distGrad: { ja: "グラデーション（上→下）", en: "Vertical gradient (top→bottom)" },
-        distHollow: { ja: "グラデーション（放射状）", en: "Radial gradient" },
+        distGrad: { ja: "垂直方向", en: "Vertical" },
+        distHollow: { ja: "放射状", en: "Radial" },
+        distStrength: { ja: "強度", en: "Strength" },
+        distLabel: { ja: "分布", en: "Distribution" },
 
         pnlCount: { ja: "生成数", en: "Count" },
 
+        // --- Base size panel labels ---
+        pnlBaseSize: { ja: "基準サイズ", en: "Base size" },
+        pnlBasic: { ja: "基本設定", en: "Basic" },
+        baseSize: { ja: "基準", en: "Base" },
+        ptUnit: { ja: "pt", en: "pt" },
+
         pnlOption: { ja: "オプション", en: "Options" },
-        pnlSymbol: { ja: "シンボル", en: "Symbol" }, // ★追加
+        pnlSymbol: { ja: "シンボル", en: "Symbol" },
         pnlRandom: { ja: "ランダム", en: "Random" },
         mask: { ja: "マスク処理", en: "Mask" },
         margin: { ja: "マージン", en: "Margin" },
@@ -104,6 +114,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
     dlg.orientation = "column";
     dlg.alignChildren = "left";
+    try { dlg.spacing = 15; } catch (_) { }
 
     // ダイアログの位置・透明度 / Dialog position & opacity
     var offsetX = 300;
@@ -155,23 +166,194 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     setDialogOpacity(dlg, dialogOpacity);
 
-    /* 上段のみ2カラム / Two-column top area */
-    var gTop = dlg.add("group");
-    gTop.orientation = "row";
-    gTop.alignChildren = ["left", "top"];
+    /* 基本設定 / Basic（ダイアログ最上部・全幅） */
+    var pnlBaseSize = dlg.add("panel", undefined, L("pnlBasic"));
+    pnlBaseSize.orientation = "column";
+    pnlBaseSize.alignChildren = "fill";
+    pnlBaseSize.margins = [15, 20, 15, 10];
+
+    // 1行構成：ラベル + スライダー
+    var gBaseRow = pnlBaseSize.add("group");
+    gBaseRow.orientation = "row";
+    gBaseRow.alignChildren = ["left", "center"];
+
+    var stBaseSizeLabel = gBaseRow.add("statictext", undefined, L("pnlBaseSize"));
+
+    // baseSizePt（例：6）がスライダーの 0 に対応（相対調整）
+    var baseSizePt = 6;
+    var sldBaseSize = gBaseRow.add("slider", undefined, 0, -5, 45); // 0 => 6pt, -5..45 => 1..51pt
+    try { sldBaseSize.preferredSize.width = 240; } catch (_) { }
+
+    function getBaseSizePt() {
+        var v = baseSizePt + Number(sldBaseSize.value);
+        if (isNaN(v)) v = baseSizePt;
+        if (v < 0.1) v = 0.1;
+        // 見た目は 0.1pt 刻み
+        v = Math.round(v * 10) / 10;
+        return v;
+    }
+
+    sldBaseSize.onChanging = function () {
+        requestPreviewDebounced();
+    };
+
+    /* 生成数 / Count（基本設定panel内） */
+    var gCountRow = pnlBaseSize.add("group");
+    gCountRow.orientation = "row";
+    gCountRow.alignChildren = ["left", "center"];
+
+    var stCountLabel = gCountRow.add("statictext", undefined, L("pnlCount"));
+    // ラベル幅を揃える（基準サイズ / 生成数）
+    try {
+        var maxLabelWidth = Math.max(
+            stBaseSizeLabel.preferredSize.width || 0,
+            stCountLabel.preferredSize.width || 0
+        );
+        stBaseSizeLabel.preferredSize.width = maxLabelWidth;
+        stCountLabel.preferredSize.width = maxLabelWidth;
+    } catch (_) { }
+
+    var confettiCount = 150;
+    var sldCount = gCountRow.add("slider", undefined, 150, 10, 500);
+    try { sldCount.preferredSize.width = 240; } catch (_) { }
+
+    sldCount.onChanging = function () {
+        confettiCount = Math.round(sldCount.value);
+        requestPreviewDebounced();
+    };
+
+
+    /* マスク処理 / Mask（基本設定panel内に移動） */
+    // マスク処理 + マージン をまとめる
+    var gMaskMargin = pnlBaseSize.add("group");
+    gMaskMargin.orientation = "column";
+    gMaskMargin.alignChildren = "left";
+    try { gMaskMargin.margins = [0, 10, 0, 10]; } catch (_) { }
+
+    var gMaskRow = gMaskMargin.add("group");
+
+    gMaskRow.orientation = "row";
+    gMaskRow.alignChildren = ["left", "center"];
+
+    var chkMask = gMaskRow.add("checkbox", undefined, L("mask"));
+    chkMask.value = true;
+    try {
+        if (__isTextSelection || __useArtboard) {
+            chkMask.value = false;
+            chkMask.enabled = false;
+        }
+    } catch (_) { }
+
+    /* マージン（生成エリア用） */
+    var gMarginRow = gMaskMargin.add("group");
+    gMarginRow.orientation = "row";
+    gMarginRow.alignChildren = ["left", "center"];
+
+    var chkMargin = gMarginRow.add("checkbox", undefined, L("margin"));
+    chkMargin.value = false;
+
+    var sldMargin = gMarginRow.add("slider", undefined, 0, 0, 50);
+    try { sldMargin.preferredSize.width = 240; } catch (_) { }
+    sldMargin.enabled = chkMargin.value;
+
+    var maskMarginPt = 0;
+
+    // マージン最大値を対象サイズから設定
+    try { applyMarginMaxToUI(); } catch (_) { }
+
+
+    /* 配置分布 / Distribution（基本設定panel内・group） */
+    var gDistWrap = pnlBaseSize.add("group");
+    gDistWrap.orientation = "column";
+    gDistWrap.alignChildren = "left";
+
+    var gDistRow = gDistWrap.add("group");
+    gDistRow.orientation = "row";
+    gDistRow.alignChildren = ["left", "center"];
+
+    var stDistLabel = gDistRow.add("statictext", undefined, L("distLabel"));
+
+    var rbEven = gDistRow.add("radiobutton", undefined, L("distEven"));
+    var rbGradY = gDistRow.add("radiobutton", undefined, L("distGrad"));
+    var rbHollow = gDistRow.add("radiobutton", undefined, L("distHollow"));
+
+    var gHollow = gDistWrap.add("group");
+    gHollow.orientation = "row";
+    gHollow.alignChildren = ["left", "center"];
+
+    var stHollowLabel = gHollow.add("statictext", undefined, L("distStrength"));
+
+    var sldHollow = gHollow.add("slider", undefined, 2.0, 1.0, 6.0);
+    try { sldHollow.preferredSize.width = 200; } catch (_) { }
+
+    var hollowStrength = 2.0;
+
+    rbEven.value = true;
+    rbHollow.value = false;
+    rbGradY.value = false;
+
+    gHollow.enabled = (rbHollow.value || rbGradY.value);
+
 
     /* 形状 / Shapes */
-    var pnlShape = gTop.add("panel", undefined, L("pnlShape"));
+    var pnlShape = dlg.add("panel", undefined, L("pnlShape"));
     pnlShape.orientation = "column";
     pnlShape.alignChildren = "left";
     pnlShape.margins = [15, 20, 15, 10];
+    try { pnlShape.alignment = ["fill", "top"]; } catch (_) { }
 
-    var chkCircle = pnlShape.add("checkbox", undefined, L("circle"));
-    var chkRect = pnlShape.add("checkbox", undefined, L("rect"));
-    var chkTriangle = pnlShape.add("checkbox", undefined, L("triangle"));
-    var chkStar = pnlShape.add("checkbox", undefined, L("star"));
-    var chkStar4 = pnlShape.add("checkbox", undefined, L("sparkle"));
-    var chkRibbon = pnlShape.add("checkbox", undefined, L("ribbon"));
+    // --- 3カラム構成 ---
+    var gShapeCols = pnlShape.add("group");
+    gShapeCols.orientation = "row";
+    gShapeCols.alignChildren = ["left", "top"];
+
+    // 左カラム
+    var colLeft = gShapeCols.add("group");
+    colLeft.orientation = "column";
+    colLeft.alignChildren = "left";
+
+    var chkCircle = colLeft.add("checkbox", undefined, L("circle"));
+    var chkRect = colLeft.add("checkbox", undefined, L("rect"));
+
+    // 中央カラム
+    var colCenter = gShapeCols.add("group");
+    colCenter.orientation = "column";
+    colCenter.alignChildren = "left";
+
+    var chkTriangle = colCenter.add("checkbox", undefined, L("triangle"));
+    var chkRibbon = colCenter.add("checkbox", undefined, L("ribbon"));
+
+    // 右カラム
+    var colRight = gShapeCols.add("group");
+    colRight.orientation = "column";
+    colRight.alignChildren = "left";
+
+    var chkStar = colRight.add("checkbox", undefined, L("star"));
+    var chkStar4 = colRight.add("checkbox", undefined, L("sparkle"));
+
+    // シンボル行（チェック + ドロップダウン）
+    var gSymbolRow = pnlShape.add("group");
+    gSymbolRow.orientation = "row";
+    gSymbolRow.alignChildren = ["left", "center"];
+
+    var chkSymbolShape = gSymbolRow.add("checkbox", undefined, L("symbol"));
+
+    var ddSymbol = gSymbolRow.add("dropdownlist", undefined, [L("symbolNone")]);
+
+    // 形状ラベル幅を揃える
+    try {
+        unifyCheckboxLabelWidth([
+            chkCircle,
+            chkRect,
+            chkTriangle,
+            chkRibbon,
+            chkStar,
+            chkStar4,
+            chkSymbolShape
+        ]);
+    } catch (_) { }
+    ddSymbol.selection = 0;
+    ddSymbol.preferredSize.width = 200;
 
     // デフォルトはすべてON
     chkCircle.value = true;
@@ -180,6 +362,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     chkStar.value = false;
     chkStar4.value = false;
     chkRibbon.value = false;
+    chkSymbolShape.value = false;
+    // 初期状態ではシンボル未選択のためディム
+    chkSymbolShape.enabled = false;
 
     /* Option(Alt)+クリックで単独選択 / Option(Alt)+click to solo */
     function soloShape(activeChk) {
@@ -190,6 +375,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             chkStar.value = (activeChk === chkStar);
             chkStar4.value = (activeChk === chkStar4);
             chkRibbon.value = (activeChk === chkRibbon);
+            chkSymbolShape.value = (activeChk === chkSymbolShape);
             activeChk.value = true;
         } catch (_) { }
     }
@@ -203,6 +389,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             chkStar.value = (activeChk !== chkStar);
             chkStar4.value = (activeChk !== chkStar4);
             chkRibbon.value = (activeChk !== chkRibbon);
+            chkSymbolShape.value = (activeChk !== chkSymbolShape);
         } catch (_) { }
     }
 
@@ -215,6 +402,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             chkStar.value = false;
             chkStar4.value = false;
             chkRibbon.value = false;
+            chkSymbolShape.value = false;
         } catch (_) { }
     }
 
@@ -246,109 +434,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     chkCircle.onClick = function () {
         if (isCmdAltDown()) selectOthers(chkCircle);
         else if (isAltDown()) soloShape(chkCircle);
-        clearSymbolSelection();
         drawPreview();
     };
     chkRect.onClick = function () {
         if (isCmdAltDown()) selectOthers(chkRect);
         else if (isAltDown()) soloShape(chkRect);
-        clearSymbolSelection();
         drawPreview();
     };
     chkTriangle.onClick = function () {
         if (isCmdAltDown()) selectOthers(chkTriangle);
         else if (isAltDown()) soloShape(chkTriangle);
-        clearSymbolSelection();
         drawPreview();
     };
     chkStar.onClick = function () {
         if (isCmdAltDown()) selectOthers(chkStar);
         else if (isAltDown()) soloShape(chkStar);
-        clearSymbolSelection();
         drawPreview();
     };
     chkStar4.onClick = function () {
         if (isCmdAltDown()) selectOthers(chkStar4);
         else if (isAltDown()) soloShape(chkStar4);
-        clearSymbolSelection();
         drawPreview();
     };
     chkRibbon.onClick = function () {
         if (isCmdAltDown()) selectOthers(chkRibbon);
         else if (isAltDown()) soloShape(chkRibbon);
-        clearSymbolSelection();
         drawPreview();
     };
-
-    /* 右カラム / Right column */
-    var gRight = gTop.add("group");
-    gRight.orientation = "column";
-    gRight.alignChildren = "left";
-
-    /* 配置分布 / Distribution */
-    var pnlOpt = gRight.add("panel", undefined, L("pnlDist"));
-    pnlOpt.orientation = "column";
-    pnlOpt.alignChildren = "left";
-    pnlOpt.margins = [15, 20, 15, 10];
-
-    var rbEven = pnlOpt.add("radiobutton", undefined, L("distEven"));
-    var rbGradY = pnlOpt.add("radiobutton", undefined, L("distGrad"));
-    var rbHollow = pnlOpt.add("radiobutton", undefined, L("distHollow"));
-
-    // 中心の空き具合（分布の強度）
-    // 1.0 = ほぼ均等寄り / 6.0 = 強く外側へ
-    var gHollow = pnlOpt.add("group");
-    gHollow.orientation = "row";
-    gHollow.alignChildren = ["left", "center"];
-
-    var sldHollow = gHollow.add("slider", undefined, 2.0, 1.0, 6.0);
-    sldHollow.preferredSize.width = 200;
-
-    // 初期値
-    var hollowStrength = 2.0;
-
-    // デフォルト（今）：均等に
-    rbEven.value = true;
-    rbHollow.value = false;
-    rbGradY.value = false;
-
-    // 放射状/上→下 のグラデーションでは強度スライダーを使う
-    gHollow.enabled = (rbHollow.value || rbGradY.value);
-
-    /* 生成数 / Count */
-    var pnlCount = gRight.add("panel", undefined, L("pnlCount"));
-    pnlCount.orientation = "column";
-    pnlCount.alignChildren = "fill";
-    pnlCount.margins = [15, 20, 15, 10];
-
-    var gCountRow = pnlCount.add("group");
-    gCountRow.orientation = "row";
-    gCountRow.alignChildren = ["left", "center"];
-
-    var sldCount = gCountRow.add("slider", undefined, 150, 10, 500);
-    sldCount.preferredSize.width = 200;
-
-    var confettiCount = 150;
-
-    sldCount.onChanging = function () {
-        confettiCount = Math.round(sldCount.value);
-        requestPreviewDebounced();
+    chkSymbolShape.onClick = function () {
+        if (isCmdAltDown()) selectOthers(chkSymbolShape);
+        else if (isAltDown()) soloShape(chkSymbolShape);
+        drawPreview();
     };
-
-    /* シンボル / Symbol */   // ★追加（ランダムの上）
-    var pnlSymbol = dlg.add("panel", undefined, L("pnlSymbol"));
-    pnlSymbol.orientation = "column";
-    pnlSymbol.alignChildren = "left";
-    pnlSymbol.margins = [15, 20, 15, 10];
-
-    var gSymbol = pnlSymbol.add("group");
-    gSymbol.orientation = "row";
-    gSymbol.alignChildren = ["left", "center"];
-
-    var stSymbol = gSymbol.add("statictext", undefined, L("symbol"));
-    var ddSymbol = gSymbol.add("dropdownlist", undefined, [L("symbolNone")]);
-    ddSymbol.selection = 0;
-    ddSymbol.preferredSize.width = 260;
 
     // 現在選択中のシンボル名（ロジックは追って）
     var selectedSymbolName = "";
@@ -372,7 +489,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     var s = doc.symbols[si2];
                     var nm = (s && s.name) ? String(s.name) : ("Symbol " + (si2 + 1));
                     var it = ddSymbol.add("item", nm);
-try { it._sym = s; } catch (_) { }
+                    try { it._sym = s; } catch (_) { }
                 } catch (_) { }
             }
             ddSymbol.enabled = true;
@@ -383,22 +500,38 @@ try { it._sym = s; } catch (_) { }
         try { ddSymbol.selection = 0; } catch (_) { }
         selectedSymbolName = "";
         selectedSymbolRef = null;
+        // シンボル未選択なので形状パネルの「シンボル」はディム
+        try {
+            chkSymbolShape.value = false;
+            chkSymbolShape.enabled = false;
+        } catch (_) { }
     }
 
     ddSymbol.onChange = function () {
         try {
-            if (!ddSymbol.selection) { selectedSymbolName = ""; return; }
-            if (ddSymbol.selection.index === 0) { selectedSymbolName = ""; return; }
+            if (!ddSymbol.selection || ddSymbol.selection.index === 0) {
+                selectedSymbolName = "";
+                // None → ディム + OFF
+                try {
+                    chkSymbolShape.value = false;
+                    chkSymbolShape.enabled = false;
+                } catch (_) { }
+                drawPreview();
+                return;
+            }
+
+            // 実在するシンボルが選択された
             selectedSymbolName = String(ddSymbol.selection.text);
+
+            try {
+                chkSymbolShape.enabled = true;
+                chkSymbolShape.value = true; // 自動でON
+            } catch (_) { }
         } catch (_) {
             selectedSymbolName = "";
         }
-        // シンボル選択時は形状を全てオフ
-        if (selectedSymbolName && selectedSymbolName !== "") {
-            turnOffAllShapes();
-            drawPreview();
-        }
-        // None選択時は何もしない
+
+        drawPreview();
     };
 
     /* ランダム / Random */
@@ -452,45 +585,7 @@ try { it._sym = s; } catch (_) { }
 
     var skewMaxDeg = 0;
 
-    /* オプション / Options */
-    var pnlOption = dlg.add("panel", undefined, L("pnlOption"));
-    pnlOption.orientation = "column";
-    pnlOption.alignChildren = "left";
-    pnlOption.margins = [15, 20, 15, 10];
 
-    // マスク処理 / Mask
-    var gOptTop = pnlOption.add("group");
-    gOptTop.orientation = "row";
-    gOptTop.alignChildren = ["left", "center"];
-
-    var chkMask = gOptTop.add("checkbox", undefined, L("mask"));
-    chkMask.value = true;
-    // テキスト選択時・アートボード使用時はマスク不可
-    try {
-        if (__isTextSelection || __useArtboard) {
-            chkMask.value = false;
-            chkMask.enabled = false;
-        }
-    } catch (_) { }
-
-    // マージン（生成エリア用）
-    var gMargin = pnlOption.add("group");
-    gMargin.orientation = "row";
-    gMargin.alignChildren = ["left", "center"];
-
-    var chkMargin = gMargin.add("checkbox", undefined, L("margin"));
-    chkMargin.value = false;
-
-    var sldMargin = gMargin.add("slider", undefined, 0, 0, 50);
-    sldMargin.preferredSize.width = 235;
-    sldMargin.enabled = chkMargin.value;
-
-    var maskMarginPt = 0;
-
-    // ラベル幅を揃える（大きさ/不透明度/歪み/マージン）
-    try {
-        unifyCheckboxLabelWidth([chkRandSize, chkOpacity, chkSkew, chkMargin], 70);
-    } catch (_) { }
 
     /* ズーム / Zoom */
     var gZoom = dlg.add("group");
@@ -557,9 +652,44 @@ try { it._sym = s; } catch (_) { }
         return [L, T, R, B];
     }
 
+    // max = (width + height) / 6
+    function computeMaxMarginFromTarget() {
+        var b = null;
+        try {
+            if (__useArtboard) {
+                var abIndex = doc.artboards.getActiveArtboardIndex();
+                b = doc.artboards[abIndex].artboardRect; // [L, T, R, B]
+            } else if (selectedObj) {
+                b = selectedObj.geometricBounds; // [L, T, R, B]
+            }
+        } catch (_) { b = null; }
+
+        if (!b) return 50;
+
+        var L = Number(b[0]), T = Number(b[1]), R = Number(b[2]), B = Number(b[3]);
+        if (isNaN(L) || isNaN(T) || isNaN(R) || isNaN(B)) return 50;
+
+        var w = Math.abs(R - L);
+        var h = Math.abs(T - B);
+        var maxM = (w + h) / 6;
+
+        if (!maxM || isNaN(maxM) || maxM < 0) maxM = 50;
+        if (maxM > 100000) maxM = 100000; // 念のため上限
+        return maxM;
+    }
+
+    function applyMarginMaxToUI() {
+        if (!sldMargin) return;
+        var maxM = computeMaxMarginFromTarget();
+        try { sldMargin.maxvalue = maxM; } catch (_) { }
+        try { if (Number(sldMargin.value) > maxM) sldMargin.value = maxM; } catch (_) { }
+        try { if (maskMarginPt > maxM) maskMarginPt = maxM; } catch (_) { }
+    }
+
     // 設定
-    var minSize = 3; // 最小サイズ（mm）
-    var maxSize = 8; // 最大サイズ（mm）
+    // 旧 min/max は互換のため残すが、現在は基準サイズ（pt）を中心に計算する
+    var minSize = 3; // (legacy) not used directly
+    var maxSize = 8; // (legacy) not used directly
 
     // カラフルな色の配列
     var colors = [
@@ -617,47 +747,47 @@ try { it._sym = s; } catch (_) { }
     }
 
     // =========================================
-// Debounced preview (間引き)
-// - Dragging sliders can fire many times; rebuild preview only once after a short pause.
-// =========================================
-var __debounceTaskId = 0;
-var __debounceDelayMs = 140; // 体感で軽くするための遅延（ms）
+    // Debounced preview (間引き)
+    // - Dragging sliders can fire many times; rebuild preview only once after a short pause.
+    // =========================================
+    var __debounceTaskId = 0;
+    var __debounceDelayMs = 140; // 体感で軽くするための遅延（ms）
 
-// Expose drawPreview to scheduleTask (scheduleTask はグローバルスコープで動く)
-try {
-    $.global.__ConfettiMaker_drawPreview = drawPreview;
-    $.global.__ConfettiMaker_runDebouncedPreview = function () {
+    // Expose drawPreview to scheduleTask (scheduleTask はグローバルスコープで動く)
+    try {
+        $.global.__ConfettiMaker_drawPreview = drawPreview;
+        $.global.__ConfettiMaker_runDebouncedPreview = function () {
+            try {
+                if ($.global.__ConfettiMaker_drawPreview) $.global.__ConfettiMaker_drawPreview();
+            } catch (_) { }
+        };
+    } catch (_) { }
+
+    function requestPreviewDebounced() {
+        // cancel previous scheduled task
         try {
-            if ($.global.__ConfettiMaker_drawPreview) $.global.__ConfettiMaker_drawPreview();
+            if (__debounceTaskId) {
+                app.cancelTask(__debounceTaskId);
+                __debounceTaskId = 0;
+            }
         } catch (_) { }
-    };
-} catch (_) { }
-
-function requestPreviewDebounced() {
-    // cancel previous scheduled task
-    try {
-        if (__debounceTaskId) {
-            app.cancelTask(__debounceTaskId);
-            __debounceTaskId = 0;
+        try {
+            __debounceTaskId = app.scheduleTask("__ConfettiMaker_runDebouncedPreview()", __debounceDelayMs, false);
+        } catch (_) {
+            // fallback: run immediately
+            try { drawPreview(); } catch (__) { }
         }
-    } catch (_) { }
-    try {
-        __debounceTaskId = app.scheduleTask("__ConfettiMaker_runDebouncedPreview()", __debounceDelayMs, false);
-    } catch (_) {
-        // fallback: run immediately
-        try { drawPreview(); } catch (__) { }
     }
-}
 
-function requestPreviewImmediate() {
-    try {
-        if (__debounceTaskId) {
-            try { app.cancelTask(__debounceTaskId); } catch (_) { }
-            __debounceTaskId = 0;
-        }
-    } catch (_) { }
-    try { drawPreview(); } catch (_) { }
-}
+    function requestPreviewImmediate() {
+        try {
+            if (__debounceTaskId) {
+                try { app.cancelTask(__debounceTaskId); } catch (_) { }
+                __debounceTaskId = 0;
+            }
+        } catch (_) { }
+        try { drawPreview(); } catch (_) { }
+    }
 
     rbEven.onClick = function () {
         gHollow.enabled = false;
@@ -711,14 +841,27 @@ function requestPreviewImmediate() {
     chkMargin.onClick = function () {
         sldMargin.enabled = chkMargin.value;
 
+        // ONのときだけ値を少し右（+30）に調整
+        try {
+            if (chkMargin.value) {
+                var newVal = Number(sldMargin.value) + 30;
+                if (isNaN(newVal)) newVal = 20;
+                var __mx = 50;
+                try { __mx = Number(sldMargin.maxvalue); } catch (_) { __mx = 50; }
+                if (!__mx || isNaN(__mx)) __mx = 50;
+                if (newVal > __mx) newVal = __mx; // 上限
+                sldMargin.value = newVal;
+                try { maskMarginPt = Math.round(Number(sldMargin.value)); } catch (_) { }
+                requestPreviewDebounced();
+            }
+        } catch (_) { }
+
         // マージンON時はマスク処理をOFF（両立させない）
         try {
             if (chkMargin.value && chkMask && chkMask.enabled) {
                 chkMask.value = false;
             }
         } catch (_) { }
-
-        requestPreviewDebounced();
     };
 
     sldMargin.onChanging = function () {
@@ -734,6 +877,7 @@ function requestPreviewImmediate() {
     dlg.onShow = function () {
         shiftDialogPosition(dlg, offsetX, offsetY);
         try { refreshSymbolDropdown(); } catch (_) { }
+        try { applyMarginMaxToUI(); } catch (_) { }
         try {
             if (__initView && __initZoom != null) {
                 sldZoom.value = __initView.zoom;
@@ -831,8 +975,9 @@ function requestPreviewImmediate() {
         }
     }
 
+
     function getConfettiSize() {
-        var base = (minSize + maxSize) * 0.5;
+        var base = (typeof getBaseSizePt === "function") ? getBaseSizePt() : ((minSize + maxSize) * 0.5);
 
         try {
             if (!(chkRandSize && chkRandSize.value)) {
@@ -1217,84 +1362,9 @@ function requestPreviewImmediate() {
 
     // コンフェティの形状をランダムに作成
     function createConfetti(layer, x, y, size, color) {
-        // シンボル選択時はシンボルを優先して生成
-        try {
-            if (selectedSymbolName && selectedSymbolName !== "") {
-                var sym = null;
-                try {
-                    if (doc && doc.symbols && doc.symbols.length > 0) {
-                        for (var ss = 0; ss < doc.symbols.length; ss++) {
-                            try {
-                                if (String(doc.symbols[ss].name) === String(selectedSymbolName)) {
-                                    sym = doc.symbols[ss];
-                                    break;
-                                }
-                            } catch (_) { }
-                        }
-                    }
-                } catch (_) { sym = null; }
-
-                if (sym) {
-                    var si = null;
-                    try {
-                        // 可能なら container（group）に入れる
-                        if (layer && layer.symbolItems && layer.symbolItems.add) {
-                            si = layer.symbolItems.add(sym);
-                        } else if (doc && doc.activeLayer && doc.activeLayer.symbolItems) {
-                            si = doc.activeLayer.symbolItems.add(sym);
-                        }
-                    } catch (_) { si = null; }
-
-                    if (si) {
-                        // 位置（既存形状と同様に left/top 基準）
-                        try { si.left = x; } catch (_) { }
-                        try { si.top = y; } catch (_) { }
-
-                        // size に合わせて等比スケール（最大辺= size）
-                        try {
-                            var w0 = Number(si.width);
-                            var h0 = Number(si.height);
-                            var m0 = Math.max(w0, h0);
-                            if (m0 && m0 > 0) {
-                                var pct = (Number(size) / m0) * 100;
-                                if (pct < 1) pct = 1;
-                                si.resize(pct, pct);
-                            }
-                        } catch (_) { }
-
-                        // ランダムに回転
-                        try { si.rotate(random(0, 360)); } catch (_) { }
-
-                        // 歪み / Skew
-                        try {
-                            if (chkSkew && chkSkew.value) {
-                                var _degS = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
-                                if (_degS < 0) _degS = 0;
-                                if (_degS > 45) _degS = 45;
-                                if (_degS > 0) {
-                                    applyShearToItem(si, random(-_degS, _degS));
-                                }
-                            }
-                        } catch (_) { }
-
-                        // 不透明度 / Opacity
-                        try {
-                            if (chkOpacity && chkOpacity.value) {
-                                var _minOpS = (typeof opacityMin === "number") ? opacityMin : 70;
-                                if (_minOpS < 0) _minOpS = 0;
-                                if (_minOpS > 100) _minOpS = 100;
-                                si.opacity = random(_minOpS, 100);
-                            } else {
-                                si.opacity = 100;
-                            }
-                        } catch (_) { }
-
-                        return si;
-                    }
-                }
-                // シンボルが見つからない/作れない場合はフォールバックで通常形状へ
-            }
-        } catch (_) { }
+        // シンボル（形状パネルの「シンボル」ON かつドロップダウンで選択されている場合のみ候補にする）
+        var __symbolEnabled = false;
+        try { __symbolEnabled = (chkSymbolShape && chkSymbolShape.value && selectedSymbolName && selectedSymbolName !== ""); } catch (_) { __symbolEnabled = false; }
 
         var enabledShapes = [];
         if (chkRect.value) enabledShapes.push(0);
@@ -1303,6 +1373,7 @@ function requestPreviewImmediate() {
         if (chkStar.value) enabledShapes.push(3);
         if (chkStar4.value) enabledShapes.push(4);
         if (chkRibbon.value) enabledShapes.push(5);
+        if (__symbolEnabled) enabledShapes.push(6);
 
         if (enabledShapes.length === 0) return null;
 
@@ -1335,67 +1406,228 @@ function requestPreviewImmediate() {
             case 5: // リボン
                 confetti = createRibbon(layer, x, y, size);
                 break;
+            case 6: // シンボル
+                confetti = null;
+                try {
+                    // シンボル生成（既存ロジックをそのまま実行）
+                    if (selectedSymbolName && selectedSymbolName !== "") {
+                        var sym = null;
+                        try {
+                            if (doc && doc.symbols && doc.symbols.length > 0) {
+                                for (var ss = 0; ss < doc.symbols.length; ss++) {
+                                    try {
+                                        if (String(doc.symbols[ss].name) === String(selectedSymbolName)) {
+                                            sym = doc.symbols[ss];
+                                            break;
+                                        }
+                                    } catch (_) { }
+                                }
+                            }
+                        } catch (_) { sym = null; }
+
+                        if (sym) {
+                            var si = null;
+                            var wrap = null;
+
+                            // wrap（グループ）を先に作る（Layer/Group のどちらでもOK）
+                            try {
+                                if (layer && layer.groupItems && layer.groupItems.add) {
+                                    wrap = layer.groupItems.add();
+                                    try { wrap.name = "__ConfettiSymbol__"; } catch (_) { }
+                                }
+                            } catch (_) { wrap = null; }
+
+                            // SymbolItem は Layer に作るのが確実
+                            try {
+                                if (doc && doc.activeLayer && doc.activeLayer.symbolItems && doc.activeLayer.symbolItems.add) {
+                                    si = doc.activeLayer.symbolItems.add(sym);
+                                }
+                            } catch (_) { si = null; }
+
+                            if (si) {
+                                // wrap が作れなかった場合はフォールバック（単体シンボル）
+                                if (!wrap) {
+                                    // size に合わせて等比スケール（最大辺= size）
+                                    try {
+                                        var w0a = Number(si.width);
+                                        var h0a = Number(si.height);
+                                        var m0a = Math.max(w0a, h0a);
+                                        if (m0a && m0a > 0) {
+                                            var pctA = (Number(size) / m0a) * 100;
+                                            if (pctA < 1) pctA = 1;
+                                            si.resize(pctA, pctA);
+                                        }
+                                    } catch (_) { }
+
+                                    // ランダムに回転
+                                    try { si.rotate(random(0, 360)); } catch (_) { }
+
+                                    // 歪み / Skew
+                                    try {
+                                        if (chkSkew && chkSkew.value) {
+                                            var _degSa = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
+                                            if (_degSa < 0) _degSa = 0;
+                                            if (_degSa > 45) _degSa = 45;
+                                            if (_degSa > 0) {
+                                                applyShearToItem(si, random(-_degSa, _degSa));
+                                            }
+                                        }
+                                    } catch (_) { }
+
+                                    // 位置補正（bounds で左上を合わせる）
+                                    try {
+                                        var gba = si.geometricBounds; // [L, T, R, B]
+                                        var dxa = Number(x) - Number(gba[0]);
+                                        var dya = Number(y) - Number(gba[1]);
+                                        if (!isNaN(dxa) && !isNaN(dya)) {
+                                            try { si.left = Number(si.left) + dxa; } catch (_) { }
+                                            try { si.top = Number(si.top) + dya; } catch (_) { }
+                                        }
+                                    } catch (_) {
+                                        try { si.left = x; } catch (__) { }
+                                        try { si.top = y; } catch (__) { }
+                                    }
+
+                                    // 不透明度 / Opacity
+                                    try {
+                                        if (chkOpacity && chkOpacity.value) {
+                                            var _minOpA = (typeof opacityMin === "number") ? opacityMin : 70;
+                                            if (_minOpA < 0) _minOpA = 0;
+                                            if (_minOpA > 100) _minOpA = 100;
+                                            si.opacity = random(_minOpA, 100);
+                                        } else {
+                                            si.opacity = 100;
+                                        }
+                                    } catch (_) { }
+
+                                    confetti = si;
+                                } else {
+                                    // wrap に移動
+                                    try { si.move(wrap, ElementPlacement.PLACEATEND); } catch (_) { }
+
+                                    // size に合わせて等比スケール（最大辺= size）: wrap 全体に適用
+                                    try {
+                                        var wW = Number(wrap.width);
+                                        var hW = Number(wrap.height);
+                                        var mW = Math.max(wW, hW);
+                                        if (mW && mW > 0) {
+                                            var pct = (Number(size) / mW) * 100;
+                                            if (pct < 1) pct = 1;
+                                            wrap.resize(pct, pct);
+                                        }
+                                    } catch (_) { }
+
+                                    // ランダムに回転
+                                    try { wrap.rotate(random(0, 360)); } catch (_) { }
+
+                                    // 歪み / Skew
+                                    try {
+                                        if (chkSkew && chkSkew.value) {
+                                            var _degS = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
+                                            if (_degS < 0) _degS = 0;
+                                            if (_degS > 45) _degS = 45;
+                                            if (_degS > 0) {
+                                                applyShearToItem(wrap, random(-_degS, _degS));
+                                            }
+                                        }
+                                    } catch (_) { }
+
+                                    // 位置（bounds で左上を合わせる）
+                                    try {
+                                        var gb = wrap.geometricBounds; // [L, T, R, B]
+                                        var dx = Number(x) - Number(gb[0]);
+                                        var dy = Number(y) - Number(gb[1]);
+                                        if (!isNaN(dx) && !isNaN(dy)) {
+                                            try { wrap.left = Number(wrap.left) + dx; } catch (_) { }
+                                            try { wrap.top = Number(wrap.top) + dy; } catch (_) { }
+                                        }
+                                    } catch (_) {
+                                        try { wrap.left = x; } catch (__) { }
+                                        try { wrap.top = y; } catch (__) { }
+                                    }
+
+                                    // 不透明度 / Opacity
+                                    try {
+                                        if (chkOpacity && chkOpacity.value) {
+                                            var _minOp = (typeof opacityMin === "number") ? opacityMin : 70;
+                                            if (_minOp < 0) _minOp = 0;
+                                            if (_minOp > 100) _minOp = 100;
+                                            wrap.opacity = random(_minOp, 100);
+                                        } else {
+                                            wrap.opacity = 100;
+                                        }
+                                    } catch (_) { }
+
+                                    confetti = wrap;
+                                }
+                            }
+                        }
+                    }
+                } catch (_) { confetti = null; }
+                break;
         }
 
         // 色を設定（リボンはストローク、他は塗り）
-        var rgbColor = new RGBColor();
-        rgbColor.red = color[0];
-        rgbColor.green = color[1];
-        rgbColor.blue = color[2];
+        if (shape !== 6) {
+            var rgbColor = new RGBColor();
+            rgbColor.red = color[0];
+            rgbColor.green = color[1];
+            rgbColor.blue = color[2];
 
-        try {
-            // open-path はストローク、closed-path は塗り（リボンは閉じパスに変更）
-            var isOpen = false;
-            try { isOpen = (confetti && confetti.closed === false); } catch (_) { isOpen = false; }
+            try {
+                // open-path はストローク、closed-path は塗り（リボンは閉じパスに変更）
+                var isOpen = false;
+                try { isOpen = (confetti && confetti.closed === false); } catch (_) { isOpen = false; }
 
-            if (isOpen) {
-                try { confetti.filled = false; } catch (_) { }
-                try { confetti.stroked = true; } catch (_) { }
-                try { confetti.strokeColor = rgbColor; } catch (_) { }
-            } else {
-                try { confetti.filled = true; } catch (_) { }
-                try { confetti.stroked = false; } catch (_) { }
-                try { confetti.fillColor = rgbColor; } catch (_) { }
-            }
-        } catch (_) { }
-
-        // ランダムに回転
-        confetti.rotate(random(0, 360));
-
-        // 歪み / Skew
-        try {
-            if (chkSkew && chkSkew.value) {
-                var _deg = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
-                if (_deg < 0) _deg = 0;
-                if (_deg > 45) _deg = 45;
-                if (_deg > 0) {
-                    applyShearToItem(confetti, random(-_deg, _deg));
+                if (isOpen) {
+                    try { confetti.filled = false; } catch (_) { }
+                    try { confetti.stroked = true; } catch (_) { }
+                    try { confetti.strokeColor = rgbColor; } catch (_) { }
+                } else {
+                    try { confetti.filled = true; } catch (_) { }
+                    try { confetti.stroked = false; } catch (_) { }
+                    try { confetti.fillColor = rgbColor; } catch (_) { }
                 }
-            }
-        } catch (_) { }
+            } catch (_) { }
 
-        // 不透明度 / Opacity
-        try {
-            if (chkOpacity && chkOpacity.value) {
-                var _minOp = (typeof opacityMin === "number") ? opacityMin : 70;
-                if (_minOp < 0) _minOp = 0;
-                if (_minOp > 100) _minOp = 100;
-                // 不透明度をランダムに設定（_minOp..100）
-                confetti.opacity = random(_minOp, 100);
-            } else {
-                // OFF: 設定しない（=100%）
-                confetti.opacity = 100;
-            }
-        } catch (_) { }
+            // ランダムに回転
+            confetti.rotate(random(0, 360));
+
+            // 歪み / Skew
+            try {
+                if (chkSkew && chkSkew.value) {
+                    var _deg = (typeof skewMaxDeg === "number") ? skewMaxDeg : 0;
+                    if (_deg < 0) _deg = 0;
+                    if (_deg > 45) _deg = 45;
+                    if (_deg > 0) {
+                        applyShearToItem(confetti, random(-_deg, _deg));
+                    }
+                }
+            } catch (_) { }
+
+            // 不透明度 / Opacity
+            try {
+                if (chkOpacity && chkOpacity.value) {
+                    var _minOp = (typeof opacityMin === "number") ? opacityMin : 70;
+                    if (_minOp < 0) _minOp = 0;
+                    if (_minOp > 100) _minOp = 100;
+                    // 不透明度をランダムに設定（_minOp..100）
+                    confetti.opacity = random(_minOp, 100);
+                } else {
+                    // OFF: 設定しない（=100%）
+                    confetti.opacity = 100;
+                }
+            } catch (_) { }
+        }
 
         return confetti;
     }
 
     var result = dlg.show();
 
-try {
-    if (__debounceTaskId) { app.cancelTask(__debounceTaskId); __debounceTaskId = 0; }
-} catch (_) { }
+    try {
+        if (__debounceTaskId) { app.cancelTask(__debounceTaskId); __debounceTaskId = 0; }
+    } catch (_) { }
 
     if (result !== 1) {
         clearPreview();
@@ -1417,16 +1649,43 @@ try {
         }
     } catch (_) { }
 
-    // 出力先レイヤー
-    var confettiLayer = doc.layers.add();
-    confettiLayer.name = "Confetti";
+    // 出力先レイヤー（既存があれば再利用）
+    var confettiLayer = null;
+    try {
+        for (var li = 0; li < doc.layers.length; li++) {
+            if (doc.layers[li].name === "Confetti") {
+                confettiLayer = doc.layers[li];
+                break;
+            }
+        }
+    } catch (_) { confettiLayer = null; }
+
+    if (!confettiLayer) {
+        confettiLayer = doc.layers.add();
+        confettiLayer.name = "Confetti";
+    }
 
     // プレビュー内容を丸ごと移動（マスクグループ含む）
+    // マスクOFF時は、この実行で生成したものだけをグループ化
+    var __confettiNewGroup = null;
     try {
+        var __doGroup = true;
+        try { __doGroup = !(chkMask && chkMask.value); } catch (_) { __doGroup = true; }
+        if (__doGroup) {
+            try {
+                __confettiNewGroup = confettiLayer.groupItems.add();
+                try { __confettiNewGroup.name = "__ConfettiGroup__"; } catch (_) { }
+            } catch (_) { __confettiNewGroup = null; }
+        }
+
         if (previewLayer) {
             while (previewLayer.pageItems.length > 0) {
                 try {
-                    previewLayer.pageItems[0].move(confettiLayer, ElementPlacement.PLACEATEND);
+                    if (__confettiNewGroup) {
+                        previewLayer.pageItems[0].move(__confettiNewGroup, ElementPlacement.PLACEATEND);
+                    } else {
+                        previewLayer.pageItems[0].move(confettiLayer, ElementPlacement.PLACEATEND);
+                    }
                 } catch (eMove1) {
                     break;
                 }
@@ -1440,8 +1699,12 @@ try {
     // 実行後、生成したコンフェティ全体を選択状態にする
     try {
         doc.selection = null;
-        for (var si = 0; si < confettiLayer.pageItems.length; si++) {
-            try { confettiLayer.pageItems[si].selected = true; } catch (_) { }
+        if (__confettiNewGroup) {
+            try { __confettiNewGroup.selected = true; } catch (_) { }
+        } else {
+            for (var si = 0; si < confettiLayer.pageItems.length; si++) {
+                try { confettiLayer.pageItems[si].selected = true; } catch (_) { }
+            }
         }
     } catch (_) { }
 
