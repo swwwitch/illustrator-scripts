@@ -3,14 +3,14 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-SmartShapeMaker.jsx (v1.4.1)
+SmartShapeMaker.jsx (v1.5)
 
 Illustrator script to create custom shapes from a single dialog (Circle / Polygon / Star / Superellipse).
 Real-time preview, adjustable sides, width, rotation, and options are supported.
 Japanese / English UI.
 
 ### 更新日 / Updated:
-- 20260215
+- 20260217
 
 Main Features:
 - Specify number of sides (0 = Circle, 3/4/5/6/8, or custom)
@@ -38,6 +38,7 @@ Main Features:
   - Split at Anchor Points:
     split the created path into open segments (stroke: black 0.3pt, RGB/CMYK supported),
     and automatically disables Live Shape (dimmed)
+- Add a View Zoom slider row above the OK/Cancel button area.
 
 Keyboard Shortcuts:
 - E : Circle (0)
@@ -55,7 +56,7 @@ Usage Flow:
 3. Click OK to finalize the preview object at the artboard center
 
 Original Idea: Seiji Miyazawa (Sankai Lab)
-Version: v1.4.1 (20260215)
+Version: v1.5 (20260217)
 */
 
 // Language detection
@@ -65,7 +66,7 @@ function getCurrentLang() {
 var lang = getCurrentLang();
 
 var LABELS = {
-    dialogTitle: { ja: "基本図形の作成 v1.4.1", en: "Create Basic Shapes v1.4.1" },
+    dialogTitle: { ja: "基本図形の作成 v1.5", en: "Create Basic Shapes v1.5" },
     shapeType: { ja: "辺の数", en: "Sides" },
     circle: { ja: "円", en: "Circle" },
     custom: { ja: "それ以外", en: "Other" },
@@ -90,6 +91,7 @@ var LABELS = {
     cancel: { ja: "キャンセル", en: "Cancel" },
     anchorPoints: { ja: "アンカーポイント数", en: "Anchor Points" },
     anchorPointsCount: { ja: "点", en: "pts" },
+    viewZoom: { ja: "画面ズーム", en: "View Zoom" },
 };
 
 var previewShape = null;
@@ -111,6 +113,10 @@ function main() {
     var unit = getRulerUnitInfo();
     var result = showInputDialog(unit.label, unit.factor);
     if (!result) return;
+
+    // Re-acquire activeDocument in case user changed documents while the dialog was open
+    doc = app.activeDocument;
+
     finalizeShape(doc);
     if (applyLiveShape) app.executeMenuCommand('Convert to Shape');
 }
@@ -467,6 +473,7 @@ function splitPathAtAnchors(doc, pathItem) {
 function showInputDialog(unitLabel, unitFactor) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     var previewMgr = new PreviewManager();
+    var doc = app.activeDocument;
     // Dialog appearance (opacity) and initial position offset
     var offsetX = 300;
     var offsetY = 0;
@@ -483,9 +490,9 @@ function showInputDialog(unitLabel, unitFactor) {
     function getCircleAnchorCountFromRadios() {
         try {
             return circleAnchorRadios.r2.value ? 2 :
-    (circleAnchorRadios.r3.value ? 3 :
-        (circleAnchorRadios.r5.value ? 5 :
-            (circleAnchorRadios.r6.value ? 6 : 4)));
+                (circleAnchorRadios.r3.value ? 3 :
+                    (circleAnchorRadios.r5.value ? 5 :
+                        (circleAnchorRadios.r6.value ? 6 : 4)));
         } catch (e) {
             return 4;
         }
@@ -1193,6 +1200,8 @@ function showInputDialog(unitLabel, unitFactor) {
         if (!confirmed) {
             try { previewMgr.rollback(); } catch (e) { }
             previewShape = null;
+            // Restore view zoom on cancel
+            try { if (__initView && __initZoom != null) __initView.zoom = __initZoom; } catch (_) { }
         }
     };
 
@@ -1205,6 +1214,36 @@ function showInputDialog(unitLabel, unitFactor) {
         updatePreview();
         dlg.center();
         shiftDialogPosition(dlg, offsetX, offsetY);
+    };
+
+    /* ズーム / Zoom */
+    var __initView = null;
+    var __initZoom = null;
+
+    var gZoom = dlg.add("group");
+    gZoom.orientation = "row";
+    gZoom.alignChildren = ["center", "center"];
+    gZoom.alignment = "center";
+    // 画面ズームの下に余白を追加
+    try { gZoom.margins = [0, 0, 0, 10]; } catch (_) { }
+
+    var stZoom = gZoom.add("statictext", undefined, LABELS.viewZoom[lang]);
+
+    try { __initZoom = (doc && doc.activeView) ? Number(doc.activeView.zoom) : 1; } catch (_) { __initZoom = 1; }
+    var sldZoom = gZoom.add("slider", undefined, (__initZoom != null ? __initZoom : 1), 0.1, 16);
+    sldZoom.preferredSize.width = 240;
+
+    function applyZoom(z) {
+        try {
+            if (!__initView) __initView = doc.activeView;
+            if (!__initView) return;
+            __initView.zoom = z;
+        } catch (_) { }
+    }
+
+    sldZoom.onChanging = function () {
+        applyZoom(Number(sldZoom.value));
+        try { app.redraw(); } catch (_) { }
     };
 
     var btnArea = dlg.add("group");
@@ -1222,11 +1261,14 @@ function showInputDialog(unitLabel, unitFactor) {
         // Cancel: rollback preview changes and close
         try { previewMgr.rollback(); } catch (e) { }
         previewShape = null;
+        // Restore view zoom on cancel
+        try { if (__initView && __initZoom != null) __initView.zoom = __initZoom; } catch (_) { }
         dlg.close();
     };
     btnOK.onClick = function () {
         // Capture current params; final shape will be applied after closing
         confirmed = true;
+
         dlg.close();
     };
 
