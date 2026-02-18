@@ -3,7 +3,7 @@
 #targetengine "CreateGradientFromSelectionEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.8";
+var SCRIPT_VERSION = "v1.9";
 
 /*
   CreateGradientFromSelection.jsx
@@ -22,8 +22,9 @@ var SCRIPT_VERSION = "v1.8";
   ・（任意）長方形の見た目をグラフィックスタイルに登録
   ・ドキュメントが無い／選択が無い／色が1色以下の場合やエラー発生時は無言で終了
   ・オプションで「セパレートグラデーション」（ラジオ）を切り替え可能（2〜4色: 100÷色数で自動分割）
+  ・選択オブジェクトが5つ以上の場合、「セパレートグラデーション」は選択不可（通常のみ）
 
-  Version: v1.8
+  Version: v1.9
   更新日: 2026-02-18
 */
 
@@ -167,6 +168,10 @@ function main() {
 
     var selBounds = getSelectionBounds(doc.selection); // 選択の外接（サイズ算出用）
 
+    // If 5+ objects are selected, disable Separate gradients option
+    var disallowSeparate = false;
+    try { disallowSeparate = (doc.selection && doc.selection.length >= 5); } catch (e) { disallowSeparate = false; }
+
     /* =========================================
      * Options dialog / オプションダイアログ
      * ========================================= */
@@ -202,7 +207,7 @@ function main() {
         makeRect: loadBool('makeRect', true),
         useSelectionSize: loadBool('useSelectionSize', true),
         registerGraphicStyle: loadBool('registerGraphicStyle', true),
-        separateGradient: loadBool('separateGradient', false)
+        separateGradient: (disallowSeparate ? false : loadBool('separateGradient', false))
     };
 
     try {
@@ -251,16 +256,23 @@ function main() {
             cbSelSize.enabled = cbGradient.value && cbRect.value;
             // Graphic style can be created even if rectangle output is OFF (temporary rectangle)
             cbGStyle.enabled = cbGradient.value;
-            gSep.enabled = cbGradient.value;
+
+            // Separate gradient UI: if disallowed, force Normal and disable Separate radio
+            rbGradNormal.enabled = cbGradient.value;
+            rbGradSeparate.enabled = cbGradient.value && !disallowSeparate;
+            gSep.enabled = cbGradient.value; // keep group visible for Normal option
 
             if (!cbGradient.value) cbRect.value = false;
             if (!cbGradient.value) cbSelSize.value = false;
             if (!cbGradient.value) cbGStyle.value = false;
-            if (!cbGradient.value) { rbGradSeparate.value = false; rbGradNormal.value = true; }
+
+            if (!cbGradient.value || disallowSeparate) {
+                rbGradSeparate.value = false;
+                rbGradNormal.value = true;
+            }
 
             cbSelSize.enabled = cbGradient.value && cbRect.value;
             cbGStyle.enabled = cbGradient.value;
-            gSep.enabled = cbGradient.value;
         }
         cbGradient.onClick = syncEnable;
         cbRect.onClick = syncEnable;
@@ -277,7 +289,7 @@ function main() {
             saveBool('makeRect', cbRect.value);
             saveBool('useSelectionSize', cbSelSize.value);
             saveBool('registerGraphicStyle', cbGStyle.value);
-            saveBool('separateGradient', rbGradSeparate.value);
+            saveBool('separateGradient', (disallowSeparate ? false : rbGradSeparate.value));
         }
         dlg.onClose = function () {
             try { persistFromUI(); } catch (e) { }
@@ -292,7 +304,7 @@ function main() {
         opts.makeRect = !!cbRect.value;
         opts.useSelectionSize = !!cbSelSize.value;
         opts.registerGraphicStyle = !!cbGStyle.value;
-        opts.separateGradient = !!rbGradSeparate.value;
+        opts.separateGradient = (disallowSeparate ? false : !!rbGradSeparate.value);
         try { persistFromUI(); } catch (ePersist) { }
     } catch (eDlg) {
         // ダイアログ生成に失敗しても無言で既定値のまま続行
