@@ -3,7 +3,7 @@
 #targetengine "CreateGradientFromSelectionEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.6";
+var SCRIPT_VERSION = "v1.8";
 
 /*
   CreateGradientFromSelection.jsx
@@ -21,9 +21,10 @@ var SCRIPT_VERSION = "v1.6";
   ・縦並び判定時は、アクション（gradient/90degree）で角度調整を実行（アクションが無い場合は無言でスキップ）
   ・（任意）長方形の見た目をグラフィックスタイルに登録
   ・ドキュメントが無い／選択が無い／色が1色以下の場合やエラー発生時は無言で終了
+  ・オプションで「セパレートグラデーション」（ラジオ）を切り替え可能（2〜4色: 100÷色数で自動分割）
 
-  Version: v1.6
-  更新日: 2026-01-29
+  Version: v1.8
+  更新日: 2026-02-18
 */
 
 function getCurrentLang() {
@@ -44,6 +45,14 @@ var LABELS = {
     createGradient: {
         ja: "グラデーションを作成",
         en: "Create gradient"
+    },
+    separateGradient: {
+        ja: "セパレートグラデーション",
+        en: "Separate gradients"
+    },
+    normalGradient: {
+        ja: "通常",
+        en: "Normal"
     },
     createRect: {
         ja: "長方形を作成し、グラデーションを適用",
@@ -192,7 +201,8 @@ function main() {
         makeGradient: loadBool('makeGradient', true),
         makeRect: loadBool('makeRect', true),
         useSelectionSize: loadBool('useSelectionSize', true),
-        registerGraphicStyle: loadBool('registerGraphicStyle', true)
+        registerGraphicStyle: loadBool('registerGraphicStyle', true),
+        separateGradient: loadBool('separateGradient', false)
     };
 
     try {
@@ -210,6 +220,17 @@ function main() {
 
         var cbGradient = pColor.add('checkbox', undefined, L('createGradient'));
         cbGradient.value = opts.makeGradient;
+
+        // Separate gradient option (radio)
+        var gSep = pColor.add('group');
+        gSep.orientation = 'row';
+        gSep.alignChildren = ['left', 'center'];
+
+        var rbGradNormal = gSep.add('radiobutton', undefined, L('normalGradient'));
+        var rbGradSeparate = gSep.add('radiobutton', undefined, L('separateGradient'));
+
+        rbGradSeparate.value = !!opts.separateGradient;
+        rbGradNormal.value = !rbGradSeparate.value;
 
         var pRect = dlg.add('panel', undefined, L('panelRect'));
         pRect.orientation = 'column';
@@ -230,13 +251,16 @@ function main() {
             cbSelSize.enabled = cbGradient.value && cbRect.value;
             // Graphic style can be created even if rectangle output is OFF (temporary rectangle)
             cbGStyle.enabled = cbGradient.value;
+            gSep.enabled = cbGradient.value;
 
             if (!cbGradient.value) cbRect.value = false;
             if (!cbGradient.value) cbSelSize.value = false;
             if (!cbGradient.value) cbGStyle.value = false;
+            if (!cbGradient.value) { rbGradSeparate.value = false; rbGradNormal.value = true; }
 
             cbSelSize.enabled = cbGradient.value && cbRect.value;
             cbGStyle.enabled = cbGradient.value;
+            gSep.enabled = cbGradient.value;
         }
         cbGradient.onClick = syncEnable;
         cbRect.onClick = syncEnable;
@@ -253,6 +277,7 @@ function main() {
             saveBool('makeRect', cbRect.value);
             saveBool('useSelectionSize', cbSelSize.value);
             saveBool('registerGraphicStyle', cbGStyle.value);
+            saveBool('separateGradient', rbGradSeparate.value);
         }
         dlg.onClose = function () {
             try { persistFromUI(); } catch (e) { }
@@ -267,6 +292,7 @@ function main() {
         opts.makeRect = !!cbRect.value;
         opts.useSelectionSize = !!cbSelSize.value;
         opts.registerGraphicStyle = !!cbGStyle.value;
+        opts.separateGradient = !!rbGradSeparate.value;
         try { persistFromUI(); } catch (ePersist) { }
     } catch (eDlg) {
         // ダイアログ生成に失敗しても無言で既定値のまま続行
@@ -427,6 +453,23 @@ function main() {
             return { orientation: orientation, dx: dx, dy: dy, ratio: ratio };
         } catch (e) {
             return { orientation: "unknown", dx: 0, dy: 0, ratio: 0 };
+        }
+    }
+
+    // Separate gradient boundary prompt (0-100). Returns Number or null if canceled/invalid.
+    function promptSeparateBoundary(defaultVal) {
+        try {
+            var defStr = (defaultVal != null) ? String(defaultVal) : "50";
+            var input = prompt((lang === 'ja') ? "境界位置（0〜100）を入力してください" : "Enter boundary position (0-100)", defStr);
+            if (input === null) return null;
+            var p = parseFloat(input);
+            if (isNaN(p)) return null;
+            // clamp 0..100
+            if (p < 0) p = 0;
+            if (p > 100) p = 100;
+            return p;
+        } catch (e) {
+            return null;
         }
     }
 
@@ -764,57 +807,127 @@ function main() {
 
         var newGradient = null;
         if (opts.makeGradient) {
-            // 新しいグラデーションオブジェクトを作成
-            newGradient = doc.gradients.add();
-            newGradient.type = GradientType.LINEAR; // 線形グラデーション（必要に応じてRADIALに変更可）
+            // Separate gradient (auto split, 2..4 colors)
+            if (opts.separateGradient && (colors.length === 2 || colors.length === 3 || colors.length === 4)) {
+                var n = colors.length;
+                var d = 0.01;
 
-            // ストップ数を抽出色数に合わせる
-            while (newGradient.gradientStops.length < colors.length) {
-                newGradient.gradientStops.add();
-            }
-            while (newGradient.gradientStops.length > colors.length) {
-                newGradient.gradientStops[newGradient.gradientStops.length - 1].remove();
-            }
+                // step = 100 / n. For n=3, round to 1 decimal to match 33.3 style.
+                var step = 100 / n;
+                if (n === 3) step = Math.round(step * 10) / 10; // 33.3
 
-            // 抽出色をグラデーションストップに適用
-            for (var j = 0; j < colors.length; j++) {
-                var stop = newGradient.gradientStops[j];
+                // Build stop points/colors for hard edges: total stops = 2n
+                var stopPoints = [];
+                var stopColors = [];
 
-                // 位置（RampPoint）を計算 (0 〜 100)
-                var location = (j / (colors.length - 1)) * 100;
-                stop.rampPoint = location;
+                function pickColor(idx) {
+                    try {
+                        if (createdSwatches && createdSwatches[idx] && createdSwatches[idx].color) return createdSwatches[idx].color;
+                    } catch (_) { }
+                    return colors[idx];
+                }
 
-                // 色を適用（スウォッチ登録時に作成したグローバルカラーを優先）
-                try {
-                    if (createdSwatches && createdSwatches[j] && createdSwatches[j].color) {
-                        stop.color = createdSwatches[j].color; // SpotColor（グローバル）を渡す
-                    } else {
-                        stop.color = colors[j];
+                // Start
+                stopPoints.push(0);
+                stopColors.push(pickColor(0));
+
+                // Boundaries: p = step*k
+                for (var k = 1; k <= n - 1; k++) {
+                    var p = step * k;
+                    if (n === 3) p = Math.round(p * 10) / 10; // 33.3, 66.7
+
+                    var p1 = p - d;
+                    var p2 = p + d;
+
+                    // Clamp safety
+                    if (p1 < 0) p1 = 0;
+                    if (p2 > 100) p2 = 100;
+
+                    // left side keeps previous color, right side switches to next color
+                    stopPoints.push(p1);
+                    stopColors.push(pickColor(k - 1));
+
+                    stopPoints.push(p2);
+                    stopColors.push(pickColor(k));
+                }
+
+                // End
+                stopPoints.push(100);
+                stopColors.push(pickColor(n - 1));
+
+                // Ensure exact stop count
+                newGradient = doc.gradients.add();
+                newGradient.type = GradientType.LINEAR;
+                while (newGradient.gradientStops.length < stopPoints.length) newGradient.gradientStops.add();
+                while (newGradient.gradientStops.length > stopPoints.length) newGradient.gradientStops[newGradient.gradientStops.length - 1].remove();
+
+                for (var j = 0; j < stopPoints.length; j++) {
+                    var stop = newGradient.gradientStops[j];
+                    stop.rampPoint = stopPoints[j];
+                    try {
+                        stop.color = stopColors[j];
+                    } catch (eStopColor) {
+                        // Fallback: best-effort
+                        try { stop.color = colors[Math.min(colors.length - 1, Math.max(0, Math.floor(j / 2)))]; } catch (e2) { }
                     }
-                } catch (eStopColor) {
-                    // 無言フォールバック
-                    try { stop.color = colors[j]; } catch (e2) { }
+                    stop.midPoint = 50;
+                    stop.opacity = 100;
                 }
 
-                // 中間点（MidPoint）をデフォルトの50に設定
-                stop.midPoint = 50;
+                // Do not assign a unique name for separate gradients (keep default)
+            } else {
+                // Normal gradient logic
+                newGradient = doc.gradients.add();
+                newGradient.type = GradientType.LINEAR; // 線形グラデーション（必要に応じてRADIALに変更可）
 
-                // 不透明度
-                stop.opacity = 100;
+                // ストップ数を抽出色数に合わせる
+                while (newGradient.gradientStops.length < colors.length) {
+                    newGradient.gradientStops.add();
+                }
+                while (newGradient.gradientStops.length > colors.length) {
+                    newGradient.gradientStops[newGradient.gradientStops.length - 1].remove();
+                }
+
+                // 抽出色をグラデーションストップに適用
+                for (var j = 0; j < colors.length; j++) {
+                    var stop = newGradient.gradientStops[j];
+
+                    // 位置（RampPoint）を計算 (0 〜 100)
+                    var location = (j / (colors.length - 1)) * 100;
+                    stop.rampPoint = location;
+
+                    // 色を適用（スウォッチ登録時に作成したグローバルカラーを優先）
+                    try {
+                        if (createdSwatches && createdSwatches[j] && createdSwatches[j].color) {
+                            stop.color = createdSwatches[j].color; // SpotColor（グローバル）を渡す
+                        } else {
+                            stop.color = colors[j];
+                        }
+                    } catch (eStopColor) {
+                        // 無言フォールバック
+                        try { stop.color = colors[j]; } catch (e2) { }
+                    }
+
+                    // 中間点（MidPoint）をデフォルトの50に設定
+                    stop.midPoint = 50;
+
+                    // 不透明度
+                    stop.opacity = 100;
+                }
+                // グラデーション名（重複回避）: only for normal gradients or non-2color separate
+                if (!(opts.separateGradient && colors.length === 2)) {
+                    var baseGradientName = "New Gradient";
+                    var gradientName = uniqueName(baseGradientName, function (nm) {
+                        try {
+                            doc.gradients.getByName(nm);
+                            return true;
+                        } catch (e) {
+                            return false;
+                        }
+                    });
+                    newGradient.name = gradientName;
+                }
             }
-
-            // グラデーション名（重複回避）
-            var baseGradientName = "New Gradient";
-            var gradientName = uniqueName(baseGradientName, function (nm) {
-                try {
-                    // gradients.getByName は例外で判定
-                    doc.gradients.getByName(nm);
-                    return true;
-                } catch (e) {
-                    return false;
-                }
-            });
-            newGradient.name = gradientName;
         }
 
         // 参考: ビュー中心に長方形を作成して、作成したグラデーションを適用（またはスタイル登録用の一時長方形）
