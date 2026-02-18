@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 対応アルゴリズム: Tailwind / Lightness / Saturation / Complementary / LCH / すべて / Algorithms: Tailwind / Lightness / Saturation / Complementary / LCH / All
  */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -579,6 +579,9 @@ function main() {
         updatePreview();
     };
     rbAll.onClick = function () {
+        // 「すべて」はステップ数=11で計算（UIも合わせる）
+        inputCount.text = "11";
+        try { sldCount.value = 11; } catch (_) { }
         // 「すべて」選択時はプレビューを無効化（レイアウトは固定）
         setPreviewEnabled(false);
         setStepsEnabled(false);
@@ -843,9 +846,17 @@ function algoSaturation(hsl, count) {
 
 // 4. Complementary (補色 + 輝度変化)
 function algoComplementary(hsl, count) {
+    var n = Math.round(Number(count));
+    if (!isFinite(n) || n < 1) n = 1;
+
     var compH = (hsl.h + 0.5) % 1.0;
-    var res = algoLightness(hsl, Math.floor(count / 2));
-    var compRes = algoLightness({ h: compH, s: hsl.s, l: hsl.l }, Math.floor(count / 2));
+
+    // 常に合計 n 色になるように分配（n=11 なら 6+5 など）
+    var n1 = Math.ceil(n / 2);
+    var n2 = n - n1;
+
+    var res = algoLightness(hsl, n1);
+    var compRes = (n2 > 0) ? algoLightness({ h: compH, s: hsl.s, l: hsl.l }, n2) : [];
     return res.concat(compRes);
 }
 
@@ -1102,13 +1113,16 @@ function drawAllToIllustrator(hsl0, rgb0, outHex, outRgb, contrastShift) {
     var abH = top - bottom;
 
     // 描画順（Tailwind, Lightness, Lightness Geometric, LCH, Saturation, Complementary）
+    // 「すべて」選択時はステップ数=11固定
+    var ALL_STEPS = 11;
+
     var blocks = [
         { name: "Tailwind CSS", data: algoTailwind(hsl0) },
-        { name: "Lightness Scale", data: algoLightness(hsl0, 5) }, // 既定: 5（必要なら後で仕様化）
-        { name: "Lightness Scale (Geometric)", data: algoLightnessGeometric(hsl0, 5) }, // 既定: 5
+        { name: "Lightness Scale", data: algoLightness(hsl0, ALL_STEPS) },
+        { name: "Lightness Scale (Geometric)", data: algoLightnessGeometric(hsl0, ALL_STEPS) },
         { name: "LCH", data: algoLchFromRgb(rgb0) },
-        { name: "Saturation Scale", data: algoSaturation(hsl0, 5) }, // 既定: 5
-        { name: "Complementary", data: algoComplementary(hsl0, 10) } // 既定: 10（=5+5相当）
+        { name: "Saturation Scale", data: algoSaturation(hsl0, ALL_STEPS) },
+        { name: "Complementary", data: algoComplementary(hsl0, ALL_STEPS) }
     ];
 
     var nBlocks = blocks.length;
