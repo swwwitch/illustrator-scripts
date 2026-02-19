@@ -4,16 +4,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /* =========================================
  * AutoTouchType.jsx
  * 概要: 選択したテキストの各文字に対して、ベースライン/比率/回転/カーニング/トラッキングをランダムに付与する「オート文字タッチ」ツール。
- *       seed付きRNGでプレビューの見た目を安定化する。文字回転を適用した場合は、回転角に応じてトラッキングを自動補正する。
+ *       seed付きRNGでプレビューの見た目を安定化する。文字回転を適用した場合は、回転角に応じてトラッキングを自動補正する。画面ズームはドラッグ中の反映を抑制し、ドラッグ完了時に一度だけ適用する。
  * 作成日: 2026-02-16
  * 更新日: 2026-02-19
- * バージョン: v1.2
+ * バージョン: v1.2.1
  * 
  * Special thanks to Egor Chistyakov for the tracking compensation algorithm.
  * ========================================= */
 
 (function () {
-    var SCRIPT_VERSION = "v1.2";
+    var SCRIPT_VERSION = "v1.2.1";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -133,11 +133,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return z;
     }
 
-    function _applyZoom(view, percentage, centerPoint) {
+    function _applyZoom(view, percentage, centerPoint, doRedraw) {
         var zoomFactor = _clampZoomFactor(percentage / 100.0);
         try { view.zoom = zoomFactor; } catch (_) { }
         try { if (centerPoint) view.centerPoint = centerPoint; } catch (_) { }
-        try { app.redraw(); } catch (_) { }
+        if (doRedraw !== false) {
+            try { app.redraw(); } catch (_) { }
+        }
     }
 
     var __view = null;
@@ -1105,13 +1107,19 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
     var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
     sldZoom.preferredSize.width = 360;
 
+    // NOTE: applying zoom on every `onChanging` can be heavy.
+    // Apply only once when the drag is complete (`onChange`).
     sldZoom.onChanging = function () {
+        // intentionally do nothing (lightweight while dragging)
+    };
+
+    sldZoom.onChange = function () {
         try {
             if (!__view) return;
             var pct = Math.round(this.value);
             if (pct < 10) pct = 10;
             if (pct > 1600) pct = 1600;
-            _applyZoom(__view, pct, __zoomTargetCenter);
+            _applyZoom(__view, pct, __zoomTargetCenter, true);
         } catch (_) { }
     };
 
