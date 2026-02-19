@@ -4,16 +4,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /* =========================================
  * AutoTouchType.jsx
  * 概要: 選択したテキストの各文字に対して、ベースライン/比率/回転/カーニング/トラッキングをランダムに付与する「オート文字タッチ」ツール。
- *       seed付きRNGでプレビューの見た目を安定化する。文字回転を適用した場合は、回転角に応じてトラッキングを自動補正する。画面ズームはドラッグ中の反映を抑制し、ドラッグ完了時に一度だけ適用する。
+ *       seed付きRNGでプレビューの見た目を安定化する。文字回転を適用した場合は、回転角に応じてトラッキングを自動補正する。画面ズームは「軽量モード」でドラッグ完了時のみ反映に切り替えできる。
  * 作成日: 2026-02-16
  * 更新日: 2026-02-19
- * バージョン: v1.2.1
+ * バージョン: v1.2.6
  * 
  * Special thanks to Egor Chistyakov for the tracking compensation algorithm.
  * ========================================= */
 
 (function () {
-    var SCRIPT_VERSION = "v1.2.1";
+    var SCRIPT_VERSION = "v1.2.6";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -46,7 +46,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         btnAllOff: { ja: "すべてOFF", en: "All OFF" },
         btnCancel: { ja: "キャンセル", en: "Cancel" },
         btnOK: { ja: "OK", en: "OK" },
-        labelZoom: { ja: "ズーム：", en: "Zoom:" }
+        labelZoom: { ja: "ズーム：", en: "Zoom:" },
+        chkZoomLight: { ja: "軽量モード", en: "Light mode" },
+        chkRotTrackComp: { ja: "文字回転によるトラッキング補正", en: "Tracking compensation for rotation" }
     };
 
     function L(key) {
@@ -389,7 +391,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var _deny = [
             "Apple LiGothic",
             "RyoGothicStd",
-            "-KO","-KL","LogoArl",
+            "-KO", "-KL", "LogoArl",
             "Kana"
         ];
         for (var di = 0; di < _deny.length; di++) {
@@ -491,9 +493,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
     }
 
-var ranges = collectTextRanges(doc.selection);
-var selTextFrames = getSelectionTextFrames(doc.selection);
-if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
+    var ranges = collectTextRanges(doc.selection);
+    var selTextFrames = getSelectionTextFrames(doc.selection);
+    if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
 
     // --- PreviewManager (Undo-based) ---
     // Preview changes should not remain in the Undo stack when the dialog closes.
@@ -793,9 +795,11 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
 
         // If rotation was applied, compensate tracking to visually tighten spacing.
         // Do NOT override when ransom tracking is explicitly in control.
+        // Can be disabled by UI via optFont.rotTrackComp.
         try {
             var __rotationApplied = (typeof maxAbsDeg === "number" && Math.abs(maxAbsDeg) > 0.0001);
-            if (__rotationApplied && !((_ransom && _ransomTrack) || _previewRansomTracking)) {
+            var __compEnabled = !(optFont && optFont.rotTrackComp === false); // default ON
+            if (__rotationApplied && __compEnabled && !((_ransom && _ransomTrack) || _previewRansomTracking)) {
                 __applyTrackingCompForRanges(ranges);
             }
         } catch (_) { }
@@ -817,18 +821,19 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
 
     // --- UI ---
     var w = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-    /* ダイアログの位置と透明度 / Dialog position & opacity */
-    var offsetX = 300;
-    var offsetY = 0;
-    var dialogOpacity = 0.98;
+    // --- dialog position persistence ---
+    var __dlgPrefKeyX = "AutoTouchType/dialogX";
+    var __dlgPrefKeyY = "AutoTouchType/dialogY";
 
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-        dlg.onShow = function () {
-            var currentX = dlg.location[0];
-            var currentY = dlg.location[1];
-            dlg.location = [currentX + offsetX, currentY + offsetY];
-        };
-    }
+    try {
+        var __savedX = app.preferences.getIntegerPreference(__dlgPrefKeyX);
+        var __savedY = app.preferences.getIntegerPreference(__dlgPrefKeyY);
+        if (!isNaN(__savedX) && !isNaN(__savedY)) {
+            w.location = [__savedX, __savedY];
+        }
+    } catch (_) { }
+    /* ダイアログの位置と透明度 / Dialog position & opacity */
+    var dialogOpacity = 0.98;
 
     function setDialogOpacity(dlg, opacityValue) {
         try {
@@ -954,17 +959,6 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
     var sldH = gH.add("slider", undefined, 10, 0, 200);
     sldH.preferredSize.width = 180;
 
-    var gRot = pnlTouch.add("group");
-    var chkRot = gRot.add("checkbox", undefined, "");
-    chkRot.value = true;
-    chkRot.preferredSize.width = 15;
-    var stRot = gRot.add("statictext", undefined, L("labelRotation"));
-    var edtRot = gRot.add("edittext", undefined, "5");
-    edtRot.characters = 4;
-    var stUnitRot = gRot.add("statictext", undefined, "°");
-    var sldRot = gRot.add("slider", undefined, 5, 0, 30);
-    sldRot.preferredSize.width = 180;
-
     var gKern = pnlTouch.add("group");
     var chkKern = gKern.add("checkbox", undefined, "");
     chkKern.value = true;
@@ -976,15 +970,43 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
     var sldKern = gKern.add("slider", undefined, 50, -200, 200);
     sldKern.preferredSize.width = 180;
 
+    var gRot = pnlTouch.add("group");
+    var chkRot = gRot.add("checkbox", undefined, "");
+    chkRot.value = true;
+    chkRot.preferredSize.width = 15;
+    var stRot = gRot.add("statictext", undefined, L("labelRotation"));
+    var edtRot = gRot.add("edittext", undefined, "5");
+    edtRot.characters = 4;
+    var stUnitRot = gRot.add("statictext", undefined, "°");
+    var sldRot = gRot.add("slider", undefined, 5, 0, 30);
+    sldRot.preferredSize.width = 180;
+
     // --- buttons inside 文字タッチ panel (bottom) ---
+    // 2 columns: left = All ON/OFF, right = rotation tracking compensation toggle
     var gTouchButtons = pnlTouch.add("group");
     gTouchButtons.orientation = "row";
-    gTouchButtons.alignChildren = ["right", "center"];
-    gTouchButtons.alignment = "left";
+    gTouchButtons.alignChildren = ["fill", "center"];
+    gTouchButtons.alignment = "fill";
     gTouchButtons.margins = [0, 10, 0, 0];
 
-    var btnAllOn = gTouchButtons.add("button", undefined, L("btnAllOn"));
-    var btnAllOff = gTouchButtons.add("button", undefined, L("btnAllOff"));
+    var gTouchLeft = gTouchButtons.add("group");
+    gTouchLeft.orientation = "row";
+    gTouchLeft.alignChildren = ["left", "center"];
+
+    var btnAllOn = gTouchLeft.add("button", undefined, L("btnAllOn"));
+    var btnAllOff = gTouchLeft.add("button", undefined, L("btnAllOff"));
+
+    var gTouchSpacer = gTouchButtons.add("group");
+    gTouchSpacer.orientation = "row";
+    gTouchSpacer.add("statictext", undefined, "");
+    gTouchSpacer.alignment = "fill";
+
+    var gTouchRight = gTouchButtons.add("group");
+    gTouchRight.orientation = "row";
+    gTouchRight.alignChildren = ["right", "center"];
+
+    var chkRotTrackComp = gTouchRight.add("checkbox", undefined, L("chkRotTrackComp"));
+    chkRotTrackComp.value = true; // default ON
 
     // Make these utility buttons slightly smaller
     try {
@@ -995,7 +1017,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
 
     // --- label width align (left) ---
     try {
-        var labels = [stBase, stH, stRot, stKern];
+        var labels = [stBase, stH, stKern, stRot];
         var maxW = 0;
         for (var i = 0; i < labels.length; i++) {
             try {
@@ -1014,7 +1036,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
 
     // --- unit width align (left) ---
     try {
-        var units = [stUnitBase, stUnitH, stUnitRot, stUnitKern];
+        var units = [stUnitBase, stUnitH, stUnitKern, stUnitRot];
         var maxU = 0;
         for (var ui = 0; ui < units.length; ui++) {
             try {
@@ -1105,22 +1127,51 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
     if (__initZoomPct < 10) __initZoomPct = 10;
     if (__initZoomPct > 1600) __initZoomPct = 1600;
     var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
-    sldZoom.preferredSize.width = 360;
+    sldZoom.preferredSize.width = 270;
+
+    var chkZoomLight = gZoom.add("checkbox", undefined, L("chkZoomLight"));
+    chkZoomLight.value = false;
 
     // NOTE: applying zoom on every `onChanging` can be heavy.
-    // Apply only once when the drag is complete (`onChange`).
-    sldZoom.onChanging = function () {
-        // intentionally do nothing (lightweight while dragging)
-    };
+    // Two modes:
+    // - Normal: throttle updates during dragging
+    // - Light mode: apply only once on release
+    var __zoomLastApply = 0;
+    var __zoomThrottleMs = 150;
 
-    sldZoom.onChange = function () {
+    function __applyZoomFromSlider(valPct) {
         try {
             if (!__view) return;
-            var pct = Math.round(this.value);
+            var pct = Math.round(valPct);
             if (pct < 10) pct = 10;
             if (pct > 1600) pct = 1600;
             _applyZoom(__view, pct, __zoomTargetCenter, true);
         } catch (_) { }
+    }
+
+    sldZoom.onChanging = function () {
+        try {
+            if (chkZoomLight && chkZoomLight.value) {
+                // light mode: do nothing while dragging
+                return;
+            }
+
+            var now = (new Date()).getTime();
+            if (now - __zoomLastApply < __zoomThrottleMs) return;
+            __zoomLastApply = now;
+
+            __applyZoomFromSlider(this.value);
+        } catch (_) { }
+    };
+
+    // Ensure the final value is applied when the drag ends.
+    sldZoom.onChange = function () {
+        __applyZoomFromSlider(this.value);
+    };
+
+    // If toggled while the dialog is open, apply once immediately for consistency.
+    chkZoomLight.onClick = function () {
+        __applyZoomFromSlider(sldZoom.value);
     };
 
     // --- bottom buttons (left / spacer / right) ---
@@ -1186,6 +1237,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
             fontRandom: (chkFontRandom && chkFontRandom.value),
             jpOnly: (chkFontJPOnly && chkFontJPOnly.value),
             ransom: false, // NOTE: 背景生成などはプレビューしない
+            rotTrackComp: (chkRotTrackComp && chkRotTrackComp.value),
             previewRansomTracking: false,
             ransomTrackValue: null,
             allFonts: __allFonts,
@@ -1276,6 +1328,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
             jpOnly: (chkFontJPOnly && chkFontJPOnly.value),
             ransom: (chkFontRansom && chkFontRansom.value),
             ransomTrack: (chkRansomTrack && chkRansomTrack.value),
+            rotTrackComp: (chkRotTrackComp && chkRotTrackComp.value),
             ransomTrackValue: __rtv,
             allFonts: __allFonts,
             jpFonts: null
@@ -1432,6 +1485,7 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
     chkScale.onClick = function () { updatePreview(); updateRerunEnabled(); };
     chkRot.onClick = function () { updatePreview(); updateRerunEnabled(); };
     chkKern.onClick = function () { updatePreview(); updateRerunEnabled(); };
+    chkRotTrackComp.onClick = function () { updatePreview(); };
 
     // 文字タッチ: すべてON / すべてOFF
     btnAllOn.onClick = function () {
@@ -1482,9 +1536,18 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
     updateRerunEnabled();
 
     setDialogOpacity(w, dialogOpacity);
-    shiftDialogPosition(w, offsetX, offsetY);
     // Safety: if dialog is closed by window manager, treat as cancel
     w.onClose = function () {
+
+        // Save dialog position on close
+        try {
+            var __loc = w.location;
+            if (__loc && __loc.length === 2) {
+                app.preferences.setIntegerPreference(__dlgPrefKeyX, Math.round(__loc[0]));
+                app.preferences.setIntegerPreference(__dlgPrefKeyY, Math.round(__loc[1]));
+            }
+        } catch (_) { }
+
         // If closed via OK, do NOT undo/cleanup (would remove committed BG rects)
         if (__closedByOK) return true;
 
@@ -1493,6 +1556,5 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
         try { restoreViewIfNeeded(); } catch (_) { }
         return true;
     };
-
     w.show();
 })();
