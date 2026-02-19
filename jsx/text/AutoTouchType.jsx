@@ -4,14 +4,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /* =========================================
  * AutoTouchType.jsx
  * 概要: 選択したテキストの各文字に対して、ベースライン/比率/回転/カーニング/トラッキングをランダムに付与する「オート文字タッチ」ツール。
- *       seed付きRNGでプレビューの見た目を安定化する。
+ *       seed付きRNGでプレビューの見た目を安定化する。文字回転を適用した場合は、回転角に応じてトラッキングを自動補正する。
  * 作成日: 2026-02-16
- * 更新日: 2026-02-16
- * バージョン: v1.1.7
+ * 更新日: 2026-02-19
+ * バージョン: v1.2
+ * 
+ * Special thanks to Egor Chistyakov for the tracking compensation algorithm.
  * ========================================= */
 
 (function () {
-    var SCRIPT_VERSION = "v1.1.7";
+    var SCRIPT_VERSION = "v1.2";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -598,6 +600,107 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
         }
     }
 
+    // --- tracking compensation for per-character rotation ---
+    // Based on the attached reference script: "Compensate Text Character Rotation with Tracking"
+    // When per-character rotation is applied, the perceived spacing becomes uneven.
+    // This logic calculates and applies tracking values to compensate for the gaps.
+
+    function __calcTrackingCompSpacing(deg, content) {
+        var rad = deg * (Math.PI / 180);
+        var sine = Math.sin(rad);
+        var absSine = Math.abs(sine);
+
+        // GAP AFTER (Current Character)
+        var factorAfter = (deg > 0) ? 680 : 1050;
+        var valCurr = absSine * factorAfter * -1;
+
+        // GAP BEFORE (Previous Character)
+        var factorBefore = 180;
+        var valPrev = sine * factorBefore * -1;
+
+        // CASE CORRECTION (uppercase)
+        try {
+            if (content && content === content.toUpperCase() && content !== content.toLowerCase()) {
+                valPrev = valPrev * 0.6;
+                valCurr = valCurr * 1.05;
+            }
+        } catch (_) { }
+
+        return { prev: valPrev, curr: valCurr };
+    }
+
+    function __getCharRotationDegSafe(ch) {
+        var rot = 0;
+        try {
+            // Some builds expose character.rotation
+            if (typeof ch.rotation === "number") return ch.rotation;
+        } catch (_) { }
+        try {
+            // Our script sets characterAttributes.rotation
+            if (ch && ch.characterAttributes && typeof ch.characterAttributes.rotation === "number") {
+                return ch.characterAttributes.rotation;
+            }
+        } catch (_) { }
+        try {
+            // Legacy fallback
+            if (typeof ch.characterRotation === "number") return ch.characterRotation;
+        } catch (_) { }
+        return rot;
+    }
+
+    function __applyTrackingCompForTextRange(tr) {
+        if (!tr) return;
+        var chars;
+        try { chars = tr.characters; } catch (_) { chars = null; }
+        if (!chars) return;
+
+        var count = 0;
+        try { count = chars.length; } catch (_) { count = 0; }
+        if (count <= 1) return;
+
+        var trackingMods = [];
+        for (var k = 0; k < count; k++) trackingMods[k] = 0;
+
+        // PASS 1: calculate forces
+        for (var i = 0; i < count; i++) {
+            var curChar = chars[i];
+            if (!curChar) continue;
+
+            var rot = __getCharRotationDegSafe(curChar);
+            if (Math.abs(rot) > 1.0) {
+                var ct = "";
+                try { ct = curChar.contents; } catch (_) { ct = ""; }
+                var vals = __calcTrackingCompSpacing(rot, ct);
+
+                trackingMods[i] += vals.curr;
+                if (i > 0) trackingMods[i - 1] += vals.prev;
+            }
+        }
+
+        // PASS 2: apply values
+        for (var j = 0; j < count; j++) {
+            if (Math.abs(trackingMods[j]) > 0.5) {
+                try {
+                    // skip line breaks to avoid odd behavior
+                    var _ct2 = "";
+                    try { _ct2 = chars[j].contents; } catch (_) { _ct2 = ""; }
+                    if (_ct2 === "\r" || _ct2 === "\n") continue;
+
+                    // Set tracking directly (overrides existing tracking for a uniform look)
+                    if (chars[j] && chars[j].characterAttributes) chars[j].characterAttributes.tracking = trackingMods[j];
+                    else chars[j].tracking = trackingMods[j];
+                } catch (_) { }
+            }
+        }
+    }
+
+    function __applyTrackingCompForRanges(rangesList) {
+        if (!rangesList || rangesList.length === 0) return;
+        for (var r = 0; r < rangesList.length; r++) {
+            try { __applyTrackingCompForTextRange(rangesList[r]); } catch (_) { }
+        }
+    }
+
     // --- seeded RNG for stable preview ---
     function makeRng(seed) {
         var s = seed >>> 0;
@@ -673,6 +776,8 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
             }
 
             // tracking
+            // - If ransom tracking is enabled (or preview-only ransom tracking), honor the fixed value.
+            // - Otherwise, keep the baseline behavior here, then (optionally) apply rotation compensation after the loop.
             try {
                 if ((_ransom && _ransomTrack) || _previewRansomTracking) {
                     ca.tracking = (typeof optFont.ransomTrackValue === "number") ? optFont.ransomTrackValue : 200;
@@ -683,6 +788,16 @@ if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
                 // ignore if not supported
             }
         }
+
+        // If rotation was applied, compensate tracking to visually tighten spacing.
+        // Do NOT override when ransom tracking is explicitly in control.
+        try {
+            var __rotationApplied = (typeof maxAbsDeg === "number" && Math.abs(maxAbsDeg) > 0.0001);
+            if (__rotationApplied && !((_ransom && _ransomTrack) || _previewRansomTracking)) {
+                __applyTrackingCompForRanges(ranges);
+            }
+        } catch (_) { }
+
         app.redraw();
     }
 
