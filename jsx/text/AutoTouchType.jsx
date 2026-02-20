@@ -6,14 +6,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 概要: 選択したテキストの各文字に対して、ベースライン/比率/回転/カーニング/トラッキングをランダムに付与する「オート文字タッチ」ツール。
  *       seed付きRNGでプレビューの見た目を安定化する。文字回転を適用した場合は、回転角に応じてトラッキングを自動補正する。画面ズームは「軽量モード」でドラッグ完了時のみ反映に切り替えできる。
  * 作成日: 2026-02-16
- * 更新日: 2026-02-19
- * バージョン: v1.2.6
+ * 更新日: 2026-02-20
+ * バージョン: v1.2.7
  * 
  * Special thanks to Egor Chistyakov for the tracking compensation algorithm.
  * ========================================= */
 
 (function () {
-    var SCRIPT_VERSION = "v1.2.6";
+    var SCRIPT_VERSION = "v1.2.7";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -783,10 +783,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             // - If ransom tracking is enabled (or preview-only ransom tracking), honor the fixed value.
             // - Otherwise, keep the baseline behavior here, then (optionally) apply rotation compensation after the loop.
             try {
+                var baseTracking = originals[i].tracking;
+
                 if ((_ransom && _ransomTrack) || _previewRansomTracking) {
-                    ca.tracking = (typeof optFont.ransomTrackValue === "number") ? optFont.ransomTrackValue : 200;
+
+                    var addVal = (typeof optFont.ransomTrackValue === "number") ? optFont.ransomTrackValue : 200;
+
+                    // 文字回転によるトラッキング補正がONのときは、
+                    // 既存（現在の）トラッキング値に加算する
+                    if (optFont && optFont.rotTrackComp !== false) {
+                        ca.tracking = baseTracking + addVal;
+                    } else {
+                        // 補正OFF時は従来どおり固定値として扱う
+                        ca.tracking = addVal;
+                    }
+
                 } else {
-                    ca.tracking = originals[i].tracking + (randSym(rng) * maxAbsTrk);
+                    ca.tracking = baseTracking + (randSym(rng) * maxAbsTrk);
                 }
             } catch (e) {
                 // ignore if not supported
