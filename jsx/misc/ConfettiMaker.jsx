@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 紙吹雪を生成 / Generate Confetti
  *
  * 概要 / Overview
- * - バージョン / Version: v1.5
+ * - バージョン / Version: v1.5.4
  * - 更新日 / Updated: 2026-02-23
  * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/正方形/三角形/スター/キラキラA/キラキラB/リボン/シンボル）を生成します。
  * - ダイアログ上でプレビューを表示し、OKで確定（Confetti レイヤーに出力）します。
@@ -34,12 +34,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * - v1.4.1: 回転OFF時は最大角度を0にして完全に0固定。
  * - v1.4.2: ランダム（大きさ/不透明度/歪み/回転）のラベル幅を統一。
  * - v1.4.3: 既存のConfettiレイヤー項目より生成物が前面になるよう重なり順を調整。
+ * - v1.5.1: キラキラBをOption+クリックで単独選択時、回転OFF＋大きさを約10にプリセット。
+ * - v1.5.2: キラキラB単独選択プリセット時、ランダム/大きさスライダーを左から約1/3に調整。
+ * - v1.5.3: 円をOption+クリックで単独選択時、ランダム/回転をOFF。
+ * - v1.5.4: キラキラBをOption+クリックで単独選択時、ランダム/歪みをOFF。
  * ========================================= */
 
 // コンフェティ（紙吹雪）作成スクリプト
 
 (function () {
-    var SCRIPT_VERSION = "v1.5";
+    var SCRIPT_VERSION = "v1.5.4";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -465,9 +469,88 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return false;
     }
 
+    // キラキラBをOption+クリックで単独選択したときのプリセット
+    function applySparkleBSoloPreset() {
+        // ランダム/回転をOFF（完全に0固定）
+        try {
+            if (chkRotate) {
+                try { __rotPrevMaxDeg = rotMaxDeg; } catch (_) { }
+                try { chkRotate.value = false; } catch (_) { }
+                try { rotMaxDeg = 0; } catch (_) { }
+                try {
+                    if (sldRotate) {
+                        sldRotate.enabled = false;
+                        sldRotate.value = 0;
+                    }
+                } catch (_) { }
+            }
+        } catch (_) { }
+
+        // ランダム/歪みをOFF
+        try {
+            if (chkSkew) {
+                try { chkSkew.value = false; } catch (_) { }
+                try { skewMaxDeg = 0; } catch (_) { }
+                try {
+                    if (sldSkew) {
+                        sldSkew.enabled = false;
+                        sldSkew.value = 0;
+                    }
+                } catch (_) { }
+            }
+        } catch (_) { }
+
+        // ランダム/大きさ：見た目サイズを約10ptへ（基準サイズを10ptに設定し、揺れを最小に）
+        try {
+            if (sldBaseSize) {
+                var __baseTarget = 10;
+                var __v = __baseTarget - Number(baseSizePt);
+                if (isNaN(__v)) __v = 4;
+                try {
+                    if (typeof sldBaseSize.minvalue === "number" && __v < sldBaseSize.minvalue) __v = sldBaseSize.minvalue;
+                    if (typeof sldBaseSize.maxvalue === "number" && __v > sldBaseSize.maxvalue) __v = sldBaseSize.maxvalue;
+                } catch (_) { }
+                sldBaseSize.value = __v;
+            }
+        } catch (_) { }
+
+        try {
+            if (chkRandSize) chkRandSize.value = true;
+            if (sldRandSize) {
+                sldRandSize.enabled = true;
+                sldRandSize.value = 167;
+            }
+            randSizeStrength = 167;
+        } catch (_) { }
+    }
+
     chkCircle.onClick = function () {
-        if (isCmdAltDown()) selectOthers(chkCircle);
-        else if (isAltDown()) soloShape(chkCircle);
+        if (isCmdAltDown()) {
+            selectOthers(chkCircle);
+            drawPreview();
+            return;
+        }
+        if (isAltDown()) {
+            soloShape(chkCircle);
+
+            // 円をOption+クリックで単独選択したときは、ランダム/回転をOFF（0固定）
+            try {
+                if (chkRotate) {
+                    try { __rotPrevMaxDeg = rotMaxDeg; } catch (_) { __rotPrevMaxDeg = 360; }
+                    try { chkRotate.value = false; } catch (_) { }
+                    try { rotMaxDeg = 0; } catch (_) { }
+                    try {
+                        if (sldRotate) {
+                            sldRotate.enabled = false;
+                            sldRotate.value = 0;
+                        }
+                    } catch (_) { }
+                }
+            } catch (_) { }
+
+            drawPreview();
+            return;
+        }
         drawPreview();
     };
     chkRect.onClick = function () {
@@ -496,8 +579,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         drawPreview();
     };
     chkSparkleB.onClick = function () {
-        if (isCmdAltDown()) selectOthers(chkSparkleB);
-        else if (isAltDown()) soloShape(chkSparkleB);
+        if (isCmdAltDown()) {
+            selectOthers(chkSparkleB);
+            drawPreview();
+            return;
+        }
+        if (isAltDown()) {
+            soloShape(chkSparkleB);
+            // Option+クリック時は、キラキラB向けに回転OFF＋サイズを約10へプリセット
+            applySparkleBSoloPreset();
+            drawPreview();
+            return;
+        }
         drawPreview();
     };
     chkRibbon.onClick = function () {
