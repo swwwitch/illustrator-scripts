@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   SmartGridMaker.jsx
   囲み罫とグリッド
 
-  更新日: 2026-02-15
+  更新日: 2026-02-23
 
   長方形またはアートボードを基準に、
   外側（辺の伸縮・線端）、タイトルエリア、
@@ -33,10 +33,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   ・タイトルエリアに［辺の伸縮］を追加（タイトル帯の線の長さに反映）
     ・タイトルエリアの［辺の伸縮］は正負を反転（＋で伸ばす／−で短くする）
   ・タイトルエリアの［線］がOFFのとき［辺の伸縮］をディム表示
+  ・画面表示tabの［ズームとパン］panel下に［画面表示］panelを追加
+    ・画面表示panelに表示コマンド（fitin / actualsize / fitall）ボタンを追加
+  ・画面表示panelの表示コマンドボタンを縦並びに変更
+  ・タイトルエリアON時のデフォルト高さを外側エリア高の1/5に変更
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.3.6";
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)
@@ -131,6 +135,10 @@ var LABELS = {
 
     lr: { ja: "左右", en: "Pan L/R" },
     ud: { ja: "上下", en: "Pan U/D" },
+
+    btnFitIn: { ja: "アートボード全体表示", en: "Fit Artboard" },
+    btnActualSize: { ja: "100%表示", en: "Actual Size" },
+    btnFitAll: { ja: "全アートボード全体表示", en: "Fit All" },
 };
 
 /* ラベル取得 / Get localized label */
@@ -1146,6 +1154,36 @@ var ViewControl = (function () {
 
     buildOuterUI(midCol);
 
+    // タイトルエリアのデフォルト高さ：外側エリア高の1/5（現在の rulerType 単位）
+    function calcDefaultTitleSize() {
+        try {
+            var b = null;
+            if (targetItems && targetItems.length > 0) {
+                b = targetItems[0].geometricBounds; // [L, T, R, B]
+            } else {
+                var abIndex = doc.artboards.getActiveArtboardIndex();
+                var abRect = doc.artboards[abIndex].artboardRect; // [L, T, R, B]
+                b = [abRect[0], abRect[1], abRect[2], abRect[3]];
+            }
+
+            var hPt = Math.abs(b[1] - b[3]);
+            if (!(hPt > 0)) return 10;
+
+            var factor = getCurrentRulerPtFactor(); // unit -> pt
+            if (!factor || factor === 0) factor = 1;
+
+            var v = (hPt / factor) / 5;
+            if (!(v > 0)) return 10;
+
+            // 0.1 単位で丸め（整数に近ければ整数化）
+            var r = Math.round(v * 10) / 10;
+            if (Math.abs(r - Math.round(r)) < 1e-6) r = Math.round(r);
+            if (r < 0.1) r = 0.1;
+            return r;
+        } catch (_) { }
+        return 10;
+    }
+
     // タイトルエリア
     var titlePanel = midCol.add("panel", undefined, L("panelTitleBand"));
     titlePanel.orientation = "column";
@@ -1296,12 +1334,12 @@ var ViewControl = (function () {
 
     // 有効切替
     chkTitleEnable.onClick = function () {
-        // ONにしたとき、現在値が0ならデフォルトで「10」（現在の単位系）を入れる
+        // ONにしたとき、現在値が0ならデフォルトで「外側エリア高の1/5」を入れる
         try {
             if (chkTitleEnable.value) {
                 var v = parseFloat(editTitleSize.text);
                 if (isNaN(v) || v === 0) {
-                    editTitleSize.text = "10";
+                    editTitleSize.text = String(calcDefaultTitleSize());
                 }
             }
         } catch (_) { }
@@ -1500,6 +1538,57 @@ var ViewControl = (function () {
         } else {
             pnlView.add("statictext", undefined, "(ViewControl unavailable)");
         }
+
+        // 画面表示（枠のみ。内容は後で追加）
+        var screenPanel = parent.add("panel", undefined, L("panelDisplay"));
+        screenPanel.orientation = "column";
+        screenPanel.alignChildren = ["fill", "top"];
+        screenPanel.margins = [15, 20, 15, 10];
+        screenPanel.spacing = 10;
+
+        // 空でも高さが潰れないようにコンテナだけ用意
+        var screenBody = screenPanel.add("group");
+        screenBody.orientation = "column";
+        screenBody.alignChildren = ["fill", "top"];
+        try { screenBody.minimumSize.height = 10; } catch (_) { }
+
+        // 画面表示：表示コマンド（小さめボタン）
+        try {
+            var gScreenCmd = screenBody.add("group");
+            gScreenCmd.orientation = "column";
+            gScreenCmd.alignChildren = ["fill", "top"];
+            gScreenCmd.spacing = 6;
+            try { gScreenCmd.alignment = ["fill", "top"]; } catch (_) { }
+
+            var btnFitIn = gScreenCmd.add("button", undefined, L("btnFitIn"));
+            try { btnFitIn.alignment = "fill"; } catch (_) { }
+            var btnActualSize = gScreenCmd.add("button", undefined, L("btnActualSize"));
+            try { btnActualSize.alignment = "fill"; } catch (_) { }
+            var btnFitAll = gScreenCmd.add("button", undefined, L("btnFitAll"));
+            try { btnFitAll.alignment = "fill"; } catch (_) { }
+
+            function makeSmallButton(btn) {
+                // size 系プロパティは環境差で落ちることがあるため保護
+                try { btn.preferredSize.height = 22; } catch (_) { }
+                try { btn.minimumSize.height = 22; } catch (_) { }
+                try { btn.maximumSize.height = 22; } catch (_) { }
+                try { btn.minimumSize = [0, 22]; } catch (_) { }
+                try { btn.maximumSize = [10000, 22]; } catch (_) { }
+            }
+            makeSmallButton(btnFitIn);
+            makeSmallButton(btnActualSize);
+            makeSmallButton(btnFitAll);
+
+            btnFitIn.onClick = function () {
+                try { app.executeMenuCommand('fitin'); } catch (_) { }
+            };
+            btnActualSize.onClick = function () {
+                try { app.executeMenuCommand('actualsize'); } catch (_) { }
+            };
+            btnFitAll.onClick = function () {
+                try { app.executeMenuCommand('fitall'); } catch (_) { }
+            };
+        } catch (_) { }
     }
 
     // ［塗り］の手動操作を優先するためのフラグ（ガター変更での自動ONを抑制）
