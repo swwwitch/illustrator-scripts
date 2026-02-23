@@ -56,7 +56,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 // Script version / スクリプトバージョン
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -97,6 +97,16 @@ var LABELS = {
     ja: "間隔",
     en: "Spacing"
   },
+  // --- Duplicate panel labels ---
+  panelDuplicate: {
+    ja: "複製",
+    en: "Duplicate"
+  },
+  duplicateCount: {
+    ja: "複製数",
+    en: "Count"
+  },
+  // --- End Duplicate panel labels ---
   spacingEven: {
     ja: "均等（現状）",
     en: "Even (Current)"
@@ -106,7 +116,7 @@ var LABELS = {
     en: "Random"
   },
   orderCurrent: {
-    ja: "重ね順",
+    ja: "正順",
     en: "Current"
   },
   orderReverse: {
@@ -124,6 +134,14 @@ var LABELS = {
   rotationNone: {
     ja: "0°",
     en: "Do nothing"
+  },
+  rotationPerpendicular: {
+    ja: "それぞれ垂直（-90°）",
+    en: "Perpendicular (-90°)"
+  },
+  rotationPerpendicularReverse: {
+    ja: "それぞれ垂直（+90°）",
+    en: "Perpendicular (+90°)"
   },
   rotationAngle: {
     ja: "角度指定",
@@ -263,6 +281,11 @@ function setDialogOpacity(dlg, opacityValue) {
   // Remember last random spacing so OK matches the latest Preview / ランダム間隔を保持（プレビューとOKを一致）
   var lastRandomSpacing = null; // { totalLen: number, ds: number[] }
 
+  // Seeded shuffle for duplicated-items random order / 複製後のランダム順をシードで一致させる
+  var lastRandomOrderSeed = null;
+  var lastRandomOrderSeedLen = null;
+  var lastRandomOrderSeedDup = null;
+
   // Original visibility backup for preview / プレビュー中の元オブジェクト非表示（退避）
   var previewHiddenItems = [];
   var previewHiddenStates = [];
@@ -370,6 +393,10 @@ function setDialogOpacity(dlg, opacityValue) {
     var orderMode = getOrderMode();
     var orderedSrcItems = applyOrderToArray(srcItems, orderMode, true);
 
+    var dupCount = 1;
+    try { dupCount = getDupCount(); } catch (_) { dupCount = 1; }
+    if (dupCount < 1) dupCount = 1;
+
     // Keep current selection (duplication may change selection) / 選択状態を保持
     var keepSelArr = [];
     try {
@@ -416,11 +443,13 @@ function setDialogOpacity(dlg, opacityValue) {
     // Duplicate items / 配置対象を複製
     var prevItems = [];
     for (var di = 0; di < orderedSrcItems.length; di++) {
-      try {
-        var dup = orderedSrcItems[di].duplicate(gPrev, ElementPlacement.PLACEATEND);
-        prevItems.push(dup);
-      } catch (_) {
-        // skip
+      for (var dc = 0; dc < dupCount; dc++) {
+        try {
+          var dup = orderedSrcItems[di].duplicate(gPrev, ElementPlacement.PLACEATEND);
+          prevItems.push(dup);
+        } catch (_) {
+          // skip
+        }
       }
     }
 
@@ -428,6 +457,19 @@ function setDialogOpacity(dlg, opacityValue) {
       clearPreview();
       alert(L('alertNoItems'));
       return false;
+    }
+
+    // If order is random and duplication is used, shuffle ALL duplicates together.
+    if (orderMode === "random" && dupCount > 1) {
+      var seed = (new Date().getTime() & 0x7fffffff) >>> 0;
+      lastRandomOrderSeed = seed;
+      lastRandomOrderSeedLen = prevItems.length;
+      lastRandomOrderSeedDup = dupCount;
+      shuffleInPlaceWithSeed(prevItems, seed);
+    } else {
+      lastRandomOrderSeed = null;
+      lastRandomOrderSeedLen = null;
+      lastRandomOrderSeedDup = null;
     }
 
     // Arrange duplicates / 複製を配置
@@ -528,8 +570,10 @@ function setDialogOpacity(dlg, opacityValue) {
   gRotRadios.orientation = "column";
   gRotRadios.alignChildren = "left";
 
-  // Rotation modes / 回転モード（順番：何もしない → ランダム → 角度指定）
+  // Rotation modes / 回転モード（順番：何もしない → それぞれ垂直 → それぞれ垂直（逆） → ランダム → 角度指定）
   var rbRotNone = gRotRadios.add("radiobutton", undefined, L('rotationNone'));
+  var rbRotPerp = gRotRadios.add("radiobutton", undefined, L('rotationPerpendicular'));
+  var rbRotPerpRev = gRotRadios.add("radiobutton", undefined, L('rotationPerpendicularReverse'));
   var rbRotRandom = gRotRadios.add("radiobutton", undefined, L('rotationRandom'));
 
   // Angle (single line) / 角度指定（1行）
@@ -592,6 +636,89 @@ function setDialogOpacity(dlg, opacityValue) {
 
   sldSpacingJitter.enabled = false;
   stSpacingJitterVal.enabled = false;
+
+  // Duplicate / 複製
+  var dupPanel = placeObjPanel.add("panel", undefined, L('panelDuplicate'));
+  dupPanel.orientation = "column";
+  dupPanel.alignChildren = "fill";
+  dupPanel.margins = [15, 20, 15, 10];
+
+  var gDupTop = dupPanel.add("group");
+  gDupTop.orientation = "row";
+  gDupTop.alignChildren = ["left", "center"];
+  gDupTop.spacing = 10;
+
+  var cbDupEnable = gDupTop.add("checkbox", undefined, "");
+  cbDupEnable.value = false; // default OFF
+  cbDupEnable.preferredSize.width = 18;
+
+  var stDup = gDupTop.add("statictext", undefined, L('duplicateCount'));
+  var etDupCount = gDupTop.add("edittext", undefined, "1");
+  etDupCount.characters = 4;
+
+  var gDupSld = dupPanel.add("group");
+  gDupSld.orientation = "row";
+  gDupSld.alignChildren = ["left", "center"];
+
+  var sldDupCount = gDupSld.add("slider", undefined, 1, 1, 20);
+  sldDupCount.preferredSize.width = 180;
+
+  function clampDupCount(v) {
+    v = Math.round(Number(v));
+    if (isNaN(v)) v = 1;
+    if (v < 1) v = 1;
+    if (v > 20) v = 20;
+    return v;
+  }
+
+  function getDupCount() {
+    if (!cbDupEnable.value) return 1;
+    return clampDupCount(etDupCount.text);
+  }
+
+  function updateDupUI() {
+    var en = !!cbDupEnable.value;
+    etDupCount.enabled = en;
+    sldDupCount.enabled = en;
+
+    if (!en) {
+      etDupCount.text = "1";
+      sldDupCount.value = 1;
+    }
+  }
+
+  cbDupEnable.onClick = function () {
+    if (cbDupEnable.value) {
+      // ON: set default duplicate count to 5
+      etDupCount.text = "5";
+      sldDupCount.value = 5;
+    }
+    updateDupUI();
+    rebuildPreviewIfNeeded();
+  };
+
+  function syncDupUIFromText(rebuild) {
+    var v = clampDupCount(etDupCount.text);
+    etDupCount.text = String(v);
+    sldDupCount.value = v;
+    // NOTE: duplication logic will be added later
+    if (rebuild) rebuildPreviewIfNeeded();
+  }
+
+  sldDupCount.onChanging = function () {
+    // Update text only while dragging
+    var v = clampDupCount(sldDupCount.value);
+    etDupCount.text = String(v);
+  };
+
+  sldDupCount.onChange = function () {
+    syncDupUIFromText(true);
+  };
+
+  etDupCount.onChange = function () {
+    syncDupUIFromText(true);
+  };
+  updateDupUI();
 
   // Grouping / グループ化（右カラム・中央寄せ）
   var gGroupPlaced = placeObjPanel.add("group");
@@ -668,6 +795,8 @@ function setDialogOpacity(dlg, opacityValue) {
   function setRotationMode(mode) {
     rbRotNone.value = (mode === "none");
     rbRotAngle.value = (mode === "angle");
+    rbRotPerp.value = (mode === "perp");
+    rbRotPerpRev.value = (mode === "perp_rev");
     rbRotRandom.value = (mode === "random");
     updateRotationUI();
   }
@@ -680,6 +809,8 @@ function setDialogOpacity(dlg, opacityValue) {
     var mode = "none";
     try {
       if (rbRotAngle.value) mode = "angle";
+      else if (rbRotPerp.value) mode = "perp";
+      else if (rbRotPerpRev.value) mode = "perp_rev";
       else if (rbRotRandom.value) mode = "random";
     } catch (_) { mode = "none"; }
 
@@ -815,6 +946,28 @@ function setDialogOpacity(dlg, opacityValue) {
     return out;
   }
 
+  function makeRng(seed) {
+    // xorshift32 (ExtendScript friendly)
+    var x = (seed | 0);
+    if (x === 0) x = 123456789;
+    return function () {
+      x ^= (x << 13);
+      x ^= (x >>> 17);
+      x ^= (x << 5);
+      return (x >>> 0) / 4294967296;
+    };
+  }
+
+  function shuffleInPlaceWithSeed(arr, seed) {
+    var rnd = makeRng(seed);
+    for (var i = arr.length - 1; i > 0; i--) {
+      var j = Math.floor(rnd() * (i + 1));
+      var tmp = arr[i];
+      arr[i] = arr[j];
+      arr[j] = tmp;
+    }
+  }
+
   cbPreview.onClick = function () {
     if (cbPreview.value) {
       var ok = buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost);
@@ -849,6 +1002,8 @@ function setDialogOpacity(dlg, opacityValue) {
   }
 
   rbRotNone.onClick = function () { onRotModeChanged("none"); };
+  rbRotPerp.onClick = function () { onRotModeChanged("perp"); };
+  rbRotPerpRev.onClick = function () { onRotModeChanged("perp_rev"); };
   rbRotAngle.onClick = function () { onRotModeChanged("angle"); };
   rbRotRandom.onClick = function () { onRotModeChanged("random"); };
 
@@ -913,6 +1068,10 @@ function setDialogOpacity(dlg, opacityValue) {
       // Force regenerate random results
       lastRandomOrder = null;
       lastRandomSpacing = null;
+
+      lastRandomOrderSeed = null;
+      lastRandomOrderSeedLen = null;
+      lastRandomOrderSeedDup = null;
 
       rebuildPreviewIfNeeded();
       return;
@@ -998,6 +1157,62 @@ function setDialogOpacity(dlg, opacityValue) {
 
   items = applyOrderToArray(items, getOrderMode(), false);
 
+  // Duplicate items (except target path) / 対象パス以外のオブジェクトを複製
+  var dupCountFinal = 1;
+  try { dupCountFinal = getDupCount(); } catch (_) { dupCountFinal = 1; }
+  if (dupCountFinal < 1) dupCountFinal = 1;
+
+  var orderModeFinal = getOrderMode();
+
+  if (dupCountFinal > 1) {
+    var expanded = [];
+
+    for (var ii = 0; ii < items.length; ii++) {
+      var src = items[ii];
+      expanded.push(src);
+
+      // create (dupCountFinal - 1) duplicates
+      for (var cc = 1; cc < dupCountFinal; cc++) {
+        var dup2 = null;
+        try {
+          dup2 = src.duplicate(src.parent, ElementPlacement.PLACEAFTER);
+        } catch (_) {
+          try {
+            dup2 = src.duplicate(doc.activeLayer, ElementPlacement.PLACEATEND);
+          } catch (_) {
+            dup2 = null;
+          }
+        }
+        if (dup2) expanded.push(dup2);
+      }
+    }
+
+    items = expanded;
+
+    // If order is random and duplication is used, shuffle ALL duplicates together.
+    if (orderModeFinal === "random") {
+      var seed2 = lastRandomOrderSeed;
+      var canReuse = (seed2 !== null && lastRandomOrderSeedLen === items.length && lastRandomOrderSeedDup === dupCountFinal);
+      if (!canReuse) {
+        seed2 = (new Date().getTime() & 0x7fffffff) >>> 0;
+        lastRandomOrderSeed = seed2;
+        lastRandomOrderSeedLen = items.length;
+        lastRandomOrderSeedDup = dupCountFinal;
+      }
+      shuffleInPlaceWithSeed(items, seed2);
+    } else {
+      // Not random → clear seed state
+      lastRandomOrderSeed = null;
+      lastRandomOrderSeedLen = null;
+      lastRandomOrderSeedDup = null;
+    }
+  } else {
+    // No duplication → clear duplicated-order seed state
+    lastRandomOrderSeed = null;
+    lastRandomOrderSeedLen = null;
+    lastRandomOrderSeedDup = null;
+  }
+
   // Arrange actual items / 実体を配置
   var rotFinal = getRotationSettings();
   var spacingMode = getSpacingMode();
@@ -1032,6 +1247,10 @@ function setDialogOpacity(dlg, opacityValue) {
   lastRandomOrder = null;
   lastRandomSpacing = null;
 
+  lastRandomOrderSeed = null;
+  lastRandomOrderSeedLen = null;
+  lastRandomOrderSeedDup = null;
+
   /* ヘルパー / Helpers */
 
   function arrangeAlongPath(pathItem, itemsArray, showAlerts, rot, spacingMode, isPreview) {
@@ -1060,6 +1279,28 @@ function setDialogOpacity(dlg, opacityValue) {
     var n = itemsArray.length;
     var ds = [];
     var isClosedPath = !!pathItem.closed;
+
+    // Base center for perpendicular mode / 「それぞれ垂直」用の中心
+    var baseCenter = getItemCenter(pathItem);
+
+    function getItemRotationDegSafe(it) {
+      try {
+        var m = it.matrix;
+        return Math.atan2(m.mValueB, m.mValueA) * 180 / Math.PI;
+      } catch (_) {
+        return 0;
+      }
+    }
+
+    function rotateToDegSafe(it, desiredDeg) {
+      var cur = getItemRotationDegSafe(it);
+      var delta = desiredDeg - cur;
+      while (delta > 180) delta -= 360;
+      while (delta < -180) delta += 360;
+      try {
+        it.rotate(delta, true, true, true, true, Transformation.CENTER);
+      } catch (_) { }
+    }
 
     // Random spacing / ランダム間隔
     if (spacingMode === "random") {
@@ -1183,15 +1424,31 @@ function setDialogOpacity(dlg, opacityValue) {
 
       // Rotation / 回転
       if (rot && rot.mode && rot.mode !== "none") {
-        var angDeg = 0;
         if (rot.mode === "angle") {
-          angDeg = rot.angle || 0;
+          var angDeg = rot.angle || 0;
+          try {
+            itemsArray[j].rotate(angDeg, true, true, true, true, Transformation.CENTER);
+          } catch (_) { }
         } else if (rot.mode === "random") {
-          angDeg = (Math.random() * 360) - 180;
+          var angRnd = (Math.random() * 360) - 180;
+          try {
+            itemsArray[j].rotate(angRnd, true, true, true, true, Transformation.CENTER);
+          } catch (_) { }
+        } else if (rot.mode === "perp") {
+          // Perpendicular to center vector (tangent) / 中心へのベクトルに垂直（接線方向）
+          var cc = getItemCenter(itemsArray[j]);
+          var vx = cc.x - baseCenter.x;
+          var vy = cc.y - baseCenter.y;
+          var desired = Math.atan2(vy, vx) * 180 / Math.PI + 270; // flipped
+          rotateToDegSafe(itemsArray[j], desired);
+        } else if (rot.mode === "perp_rev") {
+          // Perpendicular (reverse, no 180° flip) / それぞれ垂直（逆・180°回転なし）
+          var cc2 = getItemCenter(itemsArray[j]);
+          var vx2 = cc2.x - baseCenter.x;
+          var vy2 = cc2.y - baseCenter.y;
+          var desired2 = Math.atan2(vy2, vx2) * 180 / Math.PI + 90;
+          rotateToDegSafe(itemsArray[j], desired2);
         }
-        try {
-          itemsArray[j].rotate(angDeg, true, true, true, true, Transformation.CENTER);
-        } catch (_) { }
       }
 
       if (rotateAlongTangent) {
