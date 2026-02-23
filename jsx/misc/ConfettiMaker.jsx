@@ -5,9 +5,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 紙吹雪を生成 / Generate Confetti
  *
  * 概要 / Overview
- * - バージョン / Version: v1.3.1
- * - 更新日 / Updated: 2026-02-18
- * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/三角形/スター/キラキラ）を生成します。
+ * - バージョン / Version: v1.5
+ * - 更新日 / Updated: 2026-02-23
+ * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/正方形/三角形/スター/キラキラA/キラキラB/リボン/シンボル）を生成します。
  * - ダイアログ上でプレビューを表示し、OKで確定（Confetti レイヤーに出力）します。
  * - UIは日本語/英語に対応し、タイトルバーにバージョンを表示します。
  *
@@ -22,12 +22,24 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * - プレビュー用レイヤー（__ConfettiPreview__）は終了時に削除されます。
  * - 既に Confetti レイヤーがある場合は新規作成せず再利用します。
  * - マージンの最大値は（幅+高さ）/6 を基準に動的に設定します。
+ * - v1.3.2: 形状パネルを4カラムに変更。
+ * - v1.3.3: 形状に「正方形」を追加。
+ * - v1.3.4: 「キラキラ」を「キラキラA」に変更。
+ * - v1.3.5: 形状に「キラキラB」を追加（ロジックは追って）。
+ * - v1.3.6: 形状パネルのカラム配置を変更（円/三角形、長方形/正方形、スター/リボン、キラキラA/B）。
+ * - v1.3.7: キラキラBの形状ロジックを実装。
+ * - v1.3.8: キラキラBの形状を「トゲ4本」に修正。
+ * - v1.3.9: 添付スクリプト（Bezier四芒星）準拠でキラキラB形状を調整。
+ * - v1.4.0: 「回転」のランダム量（最大角度）を指定できるように。
+ * - v1.4.1: 回転OFF時は最大角度を0にして完全に0固定。
+ * - v1.4.2: ランダム（大きさ/不透明度/歪み/回転）のラベル幅を統一。
+ * - v1.4.3: 既存のConfettiレイヤー項目より生成物が前面になるよう重なり順を調整。
  * ========================================= */
 
 // コンフェティ（紙吹雪）作成スクリプト
 
 (function () {
-    var SCRIPT_VERSION = "v1.3.1";
+    var SCRIPT_VERSION = "v1.5";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -41,9 +53,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         pnlShape: { ja: "形状", en: "Shapes" },
         circle: { ja: "円", en: "Circle" },
         rect: { ja: "長方形", en: "Rectangle" },
+        square: { ja: "正方形", en: "Square" },
         triangle: { ja: "三角形", en: "Triangle" },
         star: { ja: "スター", en: "Star" },
-        sparkle: { ja: "キラキラ", en: "Sparkle" },
+        sparkle: { ja: "キラキラA", en: "Sparkle" },
+        sparkleB: { ja: "キラキラB", en: "Sparkle B" },
         ribbon: { ja: "リボン", en: "Ribbon" },
 
         pnlDist: { ja: "配置分布", en: "Distribution" },
@@ -70,6 +84,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         zoom: { ja: "画面ズーム", en: "Zoom" },
         opacity: { ja: "不透明度", en: "Opacity" },
         skew: { ja: "歪み", en: "Skew" },
+        rotate: { ja: "回転", en: "Rotation" },
         btnCancel: { ja: "キャンセル", en: "Cancel" },
         btnOK: { ja: "OK", en: "OK" },
         // Additions for Symbol dropdown
@@ -302,34 +317,43 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     pnlShape.margins = [15, 20, 15, 10];
     try { pnlShape.alignment = ["fill", "top"]; } catch (_) { }
 
-    // --- 3カラム構成 ---
+    // --- 4カラム構成 ---
     var gShapeCols = pnlShape.add("group");
     gShapeCols.orientation = "row";
     gShapeCols.alignChildren = ["left", "top"];
+    gShapeCols.spacing = 0;
 
-    // 左カラム
+    // 左カラム（円 / 三角形）
     var colLeft = gShapeCols.add("group");
     colLeft.orientation = "column";
     colLeft.alignChildren = "left";
 
     var chkCircle = colLeft.add("checkbox", undefined, L("circle"));
-    var chkRect = colLeft.add("checkbox", undefined, L("rect"));
+    var chkTriangle = colLeft.add("checkbox", undefined, L("triangle"));
 
-    // 中央カラム
-    var colCenter = gShapeCols.add("group");
-    colCenter.orientation = "column";
-    colCenter.alignChildren = "left";
+    // 左から2番目（長方形 / 正方形）
+    var colLeft2 = gShapeCols.add("group");
+    colLeft2.orientation = "column";
+    colLeft2.alignChildren = "left";
 
-    var chkTriangle = colCenter.add("checkbox", undefined, L("triangle"));
-    var chkRibbon = colCenter.add("checkbox", undefined, L("ribbon"));
+    var chkRect = colLeft2.add("checkbox", undefined, L("rect"));
+    var chkSquare = colLeft2.add("checkbox", undefined, L("square"));
 
-    // 右カラム
+    // 右から2番目（スター / リボン）
+    var colRight2 = gShapeCols.add("group");
+    colRight2.orientation = "column";
+    colRight2.alignChildren = "left";
+
+    var chkStar = colRight2.add("checkbox", undefined, L("star"));
+    var chkRibbon = colRight2.add("checkbox", undefined, L("ribbon"));
+
+    // 右カラム（キラキラA / キラキラB）
     var colRight = gShapeCols.add("group");
     colRight.orientation = "column";
     colRight.alignChildren = "left";
 
-    var chkStar = colRight.add("checkbox", undefined, L("star"));
     var chkStar4 = colRight.add("checkbox", undefined, L("sparkle"));
+    var chkSparkleB = colRight.add("checkbox", undefined, L("sparkleB"));
 
     // シンボル行（チェック + ドロップダウン）
     var gSymbolRow = pnlShape.add("group");
@@ -345,22 +369,26 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         unifyCheckboxLabelWidth([
             chkCircle,
             chkRect,
+            chkSquare,
             chkTriangle,
             chkRibbon,
             chkStar,
             chkStar4,
+            chkSparkleB,
             chkSymbolShape
         ]);
     } catch (_) { }
     ddSymbol.selection = 0;
-    ddSymbol.preferredSize.width = 200;
+    ddSymbol.preferredSize.width = 120;
 
     // デフォルトはすべてON
     chkCircle.value = true;
     chkRect.value = true;
+    chkSquare.value = false; // 追加機能なのでデフォルトOFF（既存の出力を変えない）
     chkTriangle.value = true;
     chkStar.value = false;
     chkStar4.value = false;
+    chkSparkleB.value = false; // ロジック未実装のためデフォルトOFF
     chkRibbon.value = false;
     chkSymbolShape.value = false;
     // 初期状態ではシンボル未選択のためディム
@@ -371,9 +399,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         try {
             chkCircle.value = (activeChk === chkCircle);
             chkRect.value = (activeChk === chkRect);
+            chkSquare.value = (activeChk === chkSquare);
             chkTriangle.value = (activeChk === chkTriangle);
             chkStar.value = (activeChk === chkStar);
             chkStar4.value = (activeChk === chkStar4);
+            chkSparkleB.value = (activeChk === chkSparkleB);
             chkRibbon.value = (activeChk === chkRibbon);
             chkSymbolShape.value = (activeChk === chkSymbolShape);
             activeChk.value = true;
@@ -385,9 +415,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         try {
             chkCircle.value = (activeChk !== chkCircle);
             chkRect.value = (activeChk !== chkRect);
+            chkSquare.value = (activeChk !== chkSquare);
             chkTriangle.value = (activeChk !== chkTriangle);
             chkStar.value = (activeChk !== chkStar);
             chkStar4.value = (activeChk !== chkStar4);
+            chkSparkleB.value = (activeChk !== chkSparkleB);
             chkRibbon.value = (activeChk !== chkRibbon);
             chkSymbolShape.value = (activeChk !== chkSymbolShape);
         } catch (_) { }
@@ -398,9 +430,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         try {
             chkCircle.value = false;
             chkRect.value = false;
+            chkSquare.value = false;
             chkTriangle.value = false;
             chkStar.value = false;
             chkStar4.value = false;
+            chkSparkleB.value = false;
             chkRibbon.value = false;
             chkSymbolShape.value = false;
         } catch (_) { }
@@ -441,6 +475,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         else if (isAltDown()) soloShape(chkRect);
         drawPreview();
     };
+    chkSquare.onClick = function () {
+        if (isCmdAltDown()) selectOthers(chkSquare);
+        else if (isAltDown()) soloShape(chkSquare);
+        drawPreview();
+    };
     chkTriangle.onClick = function () {
         if (isCmdAltDown()) selectOthers(chkTriangle);
         else if (isAltDown()) soloShape(chkTriangle);
@@ -454,6 +493,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     chkStar4.onClick = function () {
         if (isCmdAltDown()) selectOthers(chkStar4);
         else if (isAltDown()) soloShape(chkStar4);
+        drawPreview();
+    };
+    chkSparkleB.onClick = function () {
+        if (isCmdAltDown()) selectOthers(chkSparkleB);
+        else if (isAltDown()) soloShape(chkSparkleB);
         drawPreview();
     };
     chkRibbon.onClick = function () {
@@ -585,7 +629,26 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     var skewMaxDeg = 0;
 
+    // 回転（□回転 <=====>）
+    var gRotate = pnlRandom.add("group");
+    gRotate.orientation = "row";
+    gRotate.alignChildren = ["left", "center"];
 
+    var chkRotate = gRotate.add("checkbox", undefined, L("rotate"));
+    chkRotate.value = true; // デフォルトON（従来どおりランダム回転）
+
+    // 最大回転角度（度）: 0..360
+    var sldRotate = gRotate.add("slider", undefined, 360, 0, 360);
+    sldRotate.preferredSize.width = 235;
+    sldRotate.enabled = chkRotate.value;
+
+    var rotMaxDeg = 360;
+    var __rotPrevMaxDeg = 360; // 回転を一時OFFにしたときに復元するための保持値
+
+    // ランダム項目（大きさ/不透明度/歪み/回転）のチェックボックスラベル幅を統一
+    try {
+        unifyCheckboxLabelWidth([chkRandSize, chkOpacity, chkSkew, chkRotate]);
+    } catch (_) { }
 
     /* ズーム / Zoom */
     var gZoom = dlg.add("group");
@@ -826,6 +889,32 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         if (skewMaxDeg < 0) skewMaxDeg = 0;
         if (skewMaxDeg > 45) skewMaxDeg = 45;
         if (chkSkew.value) requestPreviewDebounced();
+    };
+
+    chkRotate.onClick = function () {
+        sldRotate.enabled = chkRotate.value;
+
+        // OFF時は「完全に0固定」：スライダーも内部値も0にする
+        if (!chkRotate.value) {
+            try { __rotPrevMaxDeg = rotMaxDeg; } catch (_) { __rotPrevMaxDeg = 360; }
+            rotMaxDeg = 0;
+            try { sldRotate.value = 0; } catch (_) { }
+        } else {
+            // ONに戻したとき、0のままなら前回値（なければ360）へ復元
+            if (!(typeof rotMaxDeg === "number") || rotMaxDeg <= 0) {
+                rotMaxDeg = (typeof __rotPrevMaxDeg === "number" && __rotPrevMaxDeg > 0) ? __rotPrevMaxDeg : 360;
+            }
+            try { sldRotate.value = rotMaxDeg; } catch (_) { }
+        }
+
+        drawPreview();
+    };
+
+    sldRotate.onChanging = function () {
+        rotMaxDeg = Math.round(sldRotate.value);
+        if (rotMaxDeg < 0) rotMaxDeg = 0;
+        if (rotMaxDeg > 360) rotMaxDeg = 360;
+        if (chkRotate.value) requestPreviewDebounced();
     };
 
     chkRandSize.onClick = function () {
@@ -1272,6 +1361,63 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return p;
     }
 
+    function createSparkleB(layer, left, top, size) {
+        // 添付スクリプト（DrawSparkle_Sharp.jsx）準拠：Bezierで鋭い四芒星を作る
+        // left, top は他形状同様、バウンディングの左上基準
+        // size は外接正方形の一辺
+        var w = size;
+        var h = size;
+
+        // 参照スクリプトの既定値（必要なら後で調整）
+        var curveFactor = 0.8;
+
+        var cx = left + w / 2;
+        var cy = top - h / 2;
+
+        // 各頂点
+        var topPt = [cx, cy + h / 2];
+        var rightPt = [cx + w / 2, cy];
+        var bottomPt = [cx, cy - h / 2];
+        var leftPt = [cx - w / 2, cy];
+
+        // ハンドル長（中心へ引っ張る量）
+        var hV = (h / 2) * curveFactor;
+        var hH = (w / 2) * curveFactor;
+
+        var pathItem = layer.pathItems.add();
+
+        // Point 1: 上 (Top)
+        var p1 = pathItem.pathPoints.add();
+        p1.anchor = topPt;
+        p1.leftDirection = [cx, topPt[1] - hV];
+        p1.rightDirection = [cx, topPt[1] - hV];
+        p1.pointType = PointType.CORNER;
+
+        // Point 2: 右 (Right)
+        var p2 = pathItem.pathPoints.add();
+        p2.anchor = rightPt;
+        p2.leftDirection = [rightPt[0] - hH, cy];
+        p2.rightDirection = [rightPt[0] - hH, cy];
+        p2.pointType = PointType.CORNER;
+
+        // Point 3: 下 (Bottom)
+        var p3 = pathItem.pathPoints.add();
+        p3.anchor = bottomPt;
+        p3.leftDirection = [cx, bottomPt[1] + hV];
+        p3.rightDirection = [cx, bottomPt[1] + hV];
+        p3.pointType = PointType.CORNER;
+
+        // Point 4: 左 (Left)
+        var p4 = pathItem.pathPoints.add();
+        p4.anchor = leftPt;
+        p4.leftDirection = [leftPt[0] + hH, cy];
+        p4.rightDirection = [leftPt[0] + hH, cy];
+        p4.pointType = PointType.CORNER;
+
+        pathItem.closed = true;
+        return pathItem;
+    }
+
     // リボン（1/4円弧×2 を反転してつなげたS字帯）を生成 / Quarter-arc mirrored S ribbon band
     function createRibbon(layer, left, top, size) {
         var cx = left + size * 0.5;
@@ -1368,10 +1514,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         var enabledShapes = [];
         if (chkRect.value) enabledShapes.push(0);
+        if (chkSquare.value) enabledShapes.push(7);
         if (chkCircle.value) enabledShapes.push(1);
         if (chkTriangle.value) enabledShapes.push(2);
         if (chkStar.value) enabledShapes.push(3);
         if (chkStar4.value) enabledShapes.push(4);
+        if (chkSparkleB.value) enabledShapes.push(8);
         if (chkRibbon.value) enabledShapes.push(5);
         if (__symbolEnabled) enabledShapes.push(6);
 
@@ -1383,6 +1531,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         switch (shape) {
             case 0: // 四角形
                 confetti = layer.pathItems.rectangle(y, x, size, size * random(0.3, 0.6));
+                break;
+            case 7: // 正方形
+                confetti = layer.pathItems.rectangle(y, x, size, size);
                 break;
             case 1: // 円
                 confetti = layer.pathItems.ellipse(y, x, size, size);
@@ -1402,6 +1553,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 break;
             case 4: // スター（4点）
                 confetti = createStar4(layer, x, y, size);
+                break;
+            case 8: // キラキラB（四芒星Bezier）
+                confetti = createSparkleB(layer, x, y, size);
                 break;
             case 5: // リボン
                 confetti = createRibbon(layer, x, y, size);
@@ -1460,7 +1614,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                                     } catch (_) { }
 
                                     // ランダムに回転
-                                    try { si.rotate(random(0, 360)); } catch (_) { }
+                                    try {
+                                        if (chkRotate && chkRotate.value) {
+                                            var _rmaxSa = (typeof rotMaxDeg === "number") ? rotMaxDeg : 360;
+                                            if (_rmaxSa < 0) _rmaxSa = 0;
+                                            if (_rmaxSa > 360) _rmaxSa = 360;
+                                            if (_rmaxSa > 0) si.rotate(random(-_rmaxSa, _rmaxSa));
+                                        }
+                                    } catch (_) { }
 
                                     // 歪み / Skew
                                     try {
@@ -1518,7 +1679,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                                     } catch (_) { }
 
                                     // ランダムに回転
-                                    try { wrap.rotate(random(0, 360)); } catch (_) { }
+                                    try {
+                                        if (chkRotate && chkRotate.value) {
+                                            var _rmaxS = (typeof rotMaxDeg === "number") ? rotMaxDeg : 360;
+                                            if (_rmaxS < 0) _rmaxS = 0;
+                                            if (_rmaxS > 360) _rmaxS = 360;
+                                            if (_rmaxS > 0) wrap.rotate(random(-_rmaxS, _rmaxS));
+                                        }
+                                    } catch (_) { }
 
                                     // 歪み / Skew
                                     try {
@@ -1591,7 +1759,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             } catch (_) { }
 
             // ランダムに回転
-            confetti.rotate(random(0, 360));
+            try {
+                if (chkRotate && chkRotate.value) {
+                    var _rmax = (typeof rotMaxDeg === "number") ? rotMaxDeg : 360;
+                    if (_rmax < 0) _rmax = 0;
+                    if (_rmax > 360) _rmax = 360;
+                    if (_rmax > 0) confetti.rotate(random(-_rmax, _rmax));
+                }
+            } catch (_) { }
 
             // 歪み / Skew
             try {
@@ -1678,19 +1853,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             } catch (_) { __confettiNewGroup = null; }
         }
 
+        var __movedItems = [];
         if (previewLayer) {
             while (previewLayer.pageItems.length > 0) {
                 try {
+                    var __it = previewLayer.pageItems[0];
                     if (__confettiNewGroup) {
-                        previewLayer.pageItems[0].move(__confettiNewGroup, ElementPlacement.PLACEATEND);
+                        __it.move(__confettiNewGroup, ElementPlacement.PLACEATEND);
                     } else {
-                        previewLayer.pageItems[0].move(confettiLayer, ElementPlacement.PLACEATEND);
+                        __it.move(confettiLayer, ElementPlacement.PLACEATEND);
                     }
+                    __movedItems.push(__it);
                 } catch (eMove1) {
                     break;
                 }
             }
         }
+
+        // 既存アイテム（例：長方形）より生成物が前面になるようにする
+        try {
+            if (__confettiNewGroup) {
+                __confettiNewGroup.zOrder(ZOrderMethod.BRINGTOFRONT);
+            } else {
+                for (var zi = 0; zi < __movedItems.length; zi++) {
+                    try { __movedItems[zi].zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
+                }
+            }
+        } catch (_) { }
     } catch (_) { }
 
     // プレビューレイヤーを削除
