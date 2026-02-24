@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "SplitBackgroundForTwoEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -9,35 +10,42 @@ SplitBackgroundForTwo
 20260126
 
 ### 概要：
-2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に左右2分割の背景を作成します。
-実行時に高さ倍率（%）を指定するダイアログが表示され、閉じる前にプレビューを確認できます（デフォルトは200%）。
+2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に2分割の背景を作成します。
+ダイアログで［方向］（左右／上下）を切り替えることで、左右2分割（Left/Right）だけでなく上下2分割（Top/Bottom）にも対応します。
+実行時にサイズ倍率（%）を指定するダイアログが表示され、閉じる前にプレビューを確認できます（デフォルトは200%）。
 
-左右の背景幅は、2つのオブジェクト間のギャップを基準に計算されます。
-［バランス］パネルで「なし／左／右」を選択すると、
-- 「なし」：左右均等（中央分割）
-- 「左」　：左側のマージンを［幅］で指定（右側は自動計算）
-- 「右」　：右側のマージンを［幅］で指定（左側は自動計算）
+分割の基準となるギャップは、2つのオブジェクト間の「隙間」を基準に計算されます。
+［バランス］パネルで「なし／左／右（上下モード時は なし／上／下）」を選択すると、
+- 「なし」：均等（中央分割）
+- 「左（上）」：左（上）側のマージンを［幅］で指定（反対側は自動計算）
+- 「右（下）」：右（下）側のマージンを［幅］で指定（反対側は自動計算）
 
 ［幅］はスライダーおよび数値入力で指定でき、選択中の2オブジェクト間ギャップを最大値として自動設定されます。
 テキストのサイドベアリング等によるズレを減らすため、
 一時的にテキストをアウトライン化して外接矩形を計算し、計算後すぐに一時生成物を削除します。
 その上で背景長方形を選択オブジェクトの背面に配置し、ダイアログ内でリアルタイムにプレビュー表示します（元のオブジェクトは変更しません）。
 
-高さ（%）および［幅］入力欄では、↑↓キーで±1、Shift+↑↓で±10（10刻みスナップ）、Option+↑↓で±0.1 の増減が可能です。
+サイズ（%）および［幅］入力欄では、↑↓キーで±1、Shift+↑↓で±10（10刻みスナップ）、Option+↑↓で±0.1 の増減が可能です。
 
 ### 更新履歴：
 - v1.0 (20260124) : 初期バージョン
 - v1.1 (20260126) : ［バランス］（なし／左／右）と［幅］指定による左右背景の比率調整に対応。［幅］はオブジェクト間ギャップを最大値として自動計算し、スライダー／数値入力／矢印キー操作に対応
+- v2.0 (20260126) : ［方向］（左右／上下）に対応。上下配置時は背景を上下2分割で作成し、バランス（なし／上／下）と幅でギャップ内の分割位置を調整可能。
+- v2.1 (20260126) : 選択オブジェクトの位置関係から左右／上下を自動判別し、ダイアログの［方向］UIを省略。
+- v2.2 (20260126) : #targetengine を追加し、Illustrator再起動までは前回閉じたダイアログ値を復元。
+- v2.3 (20260126) : PreviewHistory によるプレビュー一括Undoを追加（プレビューでヒストリーを汚さない）。
+- v2.4 (20260126) : ［OK］時にプレビューUndo後も必ず最終描画を行い、直前の見た目で確定するよう修正。
+- v2.5 (20260126) : ［OK］時にプレビュー削除で last 値が初期化される不具合を修正（角丸等が反映されない問題）。
+- v2.6 (20260126) : PreviewHistory.undo() 後に一時アウトライン生成物が復活するケースを除去（TEMPマーカーを即掃除）。
 */
 
 // --- Version / バージョン ---
+var SCRIPT_VERSION = "v2.6";
 
 // --- Dialog UI prefs / ダイアログUI設定 ---
 var DIALOG_OFFSET_X = 300;
 var DIALOG_OFFSET_Y = 0;
 var DIALOG_OPACITY = 0.98;
-
-var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -54,6 +62,12 @@ var LABELS = {
         ja: "2つのオブジェクトの背景を作成",
         en: "Create Background for Two Objects"
     },
+
+    // Direction
+    panelDirection: { ja: "方向", en: "Direction" },
+    directionHorizontal: { ja: "左右", en: "Left/Right" },
+    directionVertical: { ja: "上下", en: "Top/Bottom" },
+
     alertOpenDoc: {
         ja: "ドキュメントを開いてください。",
         en: "Please open a document."
@@ -70,10 +84,17 @@ var LABELS = {
         ja: "2つのテキストオブジェクト（TextFrame）を選択してください。",
         en: "Please select two text objects (TextFrame)."
     },
+
     labelHeight: {
         ja: "高さ：",
         en: "Height:"
     },
+    // vertical-mode main size label (re-uses the same percent field)
+    labelWidthMain: {
+        ja: "幅：",
+        en: "Width:"
+    },
+
     labelPercent: {
         ja: "%",
         en: "%"
@@ -98,6 +119,16 @@ var LABELS = {
         ja: "塗り（右）",
         en: "Fill (Right)"
     },
+    // vertical-mode fill labels
+    labelFillTop: {
+        ja: "塗り（上）",
+        en: "Fill (Top)"
+    },
+    labelFillBottom: {
+        ja: "塗り（下）",
+        en: "Fill (Bottom)"
+    },
+
     panelLine: {
         ja: "オプション",
         en: "Options"
@@ -119,6 +150,16 @@ var LABELS = {
         ja: "右",
         en: "Right"
     },
+    // vertical-mode balance labels
+    fixedTop: {
+        ja: "上",
+        en: "Top"
+    },
+    fixedBottom: {
+        ja: "下",
+        en: "Bottom"
+    },
+
     // --- 幅パネルラベル追加 ---
     panelWidth: {
         ja: "幅",
@@ -132,7 +173,7 @@ var LABELS = {
         ja: "%",
         en: "%"
     },
-    // ------------------------
+
     labelStrokeWidth: {
         ja: "線幅",
         en: "Stroke width"
@@ -154,11 +195,10 @@ var LABELS = {
         en: "Cancel"
     },
     alertHeightInvalid: {
-        ja: "高さ（%）は0より大きい数値を入力してください。",
-        en: "Enter a height (%) greater than 0."
+        ja: "サイズ（%）は0より大きい数値を入力してください。",
+        en: "Enter a size (%) greater than 0."
     }
 };
-
 
 function L(key) {
     var v = LABELS[key];
@@ -208,7 +248,6 @@ function getCurrentUnitLabelByPrefKey(prefKey) {
 }
 
 /* pt換算ユーティリティ / Unit conversion (to/from pt) */
-// NOTE: Illustrator内部はpt想定。UI入力は各prefKeyの単位で受け取り、内部でptへ変換する。
 var UNIT_FACTOR_TO_PT = {
     0: 72,                 // in
     1: 72 / 25.4,          // mm
@@ -242,7 +281,6 @@ function ptToUnit(ptValue, prefKey) {
 }
 
 function formatUnitValue(v) {
-    // UI表示用：小数第1位まで（整数に近い場合は整数表示）
     if (isNaN(v)) return "";
     var r = Math.round(v * 10) / 10;
     if (Math.abs(r - Math.round(r)) < 1e-9) return String(Math.round(r));
@@ -271,8 +309,47 @@ function setDialogOpacity(dlg, opacityValue) {
     try { dlg.opacity = opacityValue; } catch (e) { }
 }
 
+// --- Session settings (kept until Illustrator restart) / セッション設定（Ai再起動まで保持） ---
+var SETTINGS_KEY = "SplitBackgroundForTwo_settings";
+
+function getSessionSettings() {
+    try {
+        if (!$.global[SETTINGS_KEY]) {
+            $.global[SETTINGS_KEY] = {
+                percent: 200,
+                preview: true,
+                overallFrame: false,
+                divider: false,
+                fillLeft: true,
+                fillRight: true,
+                strokeUnit: formatUnitValue(ptToUnit(1, "strokeUnits")),
+                cornerUnit: formatUnitValue(ptToUnit(0, "rulerType")),
+                balanceMode: 'none',
+                widthUnit: 0
+            };
+        }
+        return $.global[SETTINGS_KEY];
+    } catch (e) {
+        return {
+            percent: 200,
+            preview: true,
+            overallFrame: false,
+            divider: false,
+            fillLeft: true,
+            fillRight: true,
+            strokeUnit: formatUnitValue(ptToUnit(1, "strokeUnits")),
+            cornerUnit: formatUnitValue(ptToUnit(0, "rulerType")),
+            balanceMode: 'none',
+            widthUnit: 0
+        };
+    }
+}
+
+function saveSessionSettings(s) {
+    try { $.global[SETTINGS_KEY] = s; } catch (e) { }
+}
+
 (function () {
-    // ドキュメントが開かれているか確認
     if (app.documents.length === 0) {
         alert(L("alertOpenDoc"));
         return;
@@ -281,17 +358,104 @@ function setDialogOpacity(dlg, opacityValue) {
     var doc = app.activeDocument;
     var sel = doc.selection;
 
-    // 2つのオブジェクトが選択されているか確認
     if (!sel || sel.length !== 2) {
         alert(L("alertSelectTwoItems"));
         return;
     }
 
+    // Keep original two items; ordering depends on direction at draw time
+    var itemA = sel[0];
+    var itemB = sel[1];
+
+    // --- Auto direction detection / 方向を自動判別 ---
+    function detectDirectionModeBySelection(itemA, itemB) {
+        var mode = 'horizontal';
+        var tempGroup = null;
+        try {
+            var hostLayer = null;
+            try { hostLayer = itemA.layer; } catch (e0) { hostLayer = null; }
+            if (!hostLayer) {
+                try { hostLayer = doc.activeLayer; } catch (e1) { hostLayer = null; }
+            }
+            if (!hostLayer) hostLayer = doc.layers[0];
+
+            unlockAndShow(hostLayer);
+            tempGroup = hostLayer.groupItems.add();
+            tempGroup.name = TEMP_NAME_PREFIX + "__temp_outline_group_for_direction__";
+            markTemp(tempGroup);
+            try { tempGroup.opacity = 0; } catch (eOp) { }
+
+            var bi1 = getBoundsInfo(itemA, tempGroup);
+            var bi2 = getBoundsInfo(itemB, tempGroup);
+            var b1 = bi1.bounds;
+            var b2 = bi2.bounds;
+
+            // Horizontal gap
+            var leftB = (b1[0] <= b2[0]) ? b1 : b2;
+            var rightB = (b1[0] <= b2[0]) ? b2 : b1;
+            var gapH = rightB[0] - leftB[2];
+            if (gapH < 0) gapH = 0;
+
+            // Vertical gap
+            var upperB = (b1[1] >= b2[1]) ? b1 : b2;
+            var lowerB = (b1[1] >= b2[1]) ? b2 : b1;
+            var gapV = upperB[3] - lowerB[1];
+            if (gapV < 0) gapV = 0;
+
+            // Decide: larger gap wins (tie => horizontal)
+            mode = (gapV > gapH) ? 'vertical' : 'horizontal';
+        } catch (e) {
+            mode = 'horizontal';
+        } finally {
+            try { removeMarkedTempItems(doc); } catch (e2) { }
+            try {
+                if (tempGroup && tempGroup.isValid) {
+                    unlockAndShow(tempGroup);
+                    try { tempGroup.remove(); } catch (e3) { }
+                }
+            } catch (e4) { }
+            try { removeMarkedTempItems(doc); } catch (e5) { }
+        }
+        return mode;
+    }
+
+    // Decide once per run
+    var AUTO_DIRECTION_MODE = detectDirectionModeBySelection(itemA, itemB);
+    lastDirectionMode = AUTO_DIRECTION_MODE;
+
     // --- Temporary marker (cleanup) / 一時生成物マーカー（後片付け） ---
     var TEMP_NOTE = "__SplitBackgroundForTwo_TEMP__";
+    var TEMP_NAME_PREFIX = "__SplitBackgroundForTwo_TEMP__";
 
     // --- Preview marker (cleanup) / プレビューマーカー（後片付け） ---
     var PREVIEW_NOTE = "__SplitBackgroundForTwo_PREVIEW__";
+
+    /* =========================================
+ * PreviewHistory util (extractable)
+ * ヒストリーを残さないプレビューのための小さなユーティリティ。
+ * 他スクリプトでもこのブロックをコピペすれば再利用できます。
+ * 使い方:
+ *   PreviewHistory.start();      // ダイアログ表示時などにカウンタ初期化
+ *   PreviewHistory.bump();       // プレビュー描画ごとにカウント(+1)
+ *   PreviewHistory.undo();       // 閉じる/キャンセル時に一括Undo
+ *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
+ * ========================================= */
+    (function (g) {
+        if (!g.PreviewHistory) {
+            g.PreviewHistory = {
+                start: function () { g.__previewUndoCount = 0; },
+                bump: function () { g.__previewUndoCount = (g.__previewUndoCount | 0) + 1; },
+                undo: function () {
+                    var n = g.__previewUndoCount | 0;
+                    try { for (var i = 0; i < n; i++) app.executeMenuCommand('undo'); } catch (e) { }
+                    g.__previewUndoCount = 0;
+                },
+                cancelTask: function (taskId) {
+                    try { if (taskId) app.cancelTask(taskId); } catch (e) { }
+                }
+            };
+        }
+    })($.global);
 
     function markPreview(item) {
         if (!item) return;
@@ -303,6 +467,15 @@ function setDialogOpacity(dlg, opacityValue) {
         try {
             if (item.note === PREVIEW_NOTE) item.note = "";
         } catch (e0) { }
+    }
+
+    function unlockAndShow(item) {
+        if (!item) return;
+        try { item.locked = false; } catch (e1) { }
+        try { item.hidden = false; } catch (e2) { }
+        try { item.visible = true; } catch (e3) { }
+        try { item.template = false; } catch (e4) { }
+        try { item.printable = true; } catch (e5) { }
     }
 
     function removeMarkedPreviewItems(doc) {
@@ -319,23 +492,24 @@ function setDialogOpacity(dlg, opacityValue) {
         } catch (eLoop) { }
     }
 
-    function unlockAndShow(item) {
-        if (!item) return;
-        try { item.locked = false; } catch (e1) { }
-        try { item.hidden = false; } catch (e2) { }
-        // Layer / PageItem
-        try { item.visible = true; } catch (e3) { }
-
-        // Layer-specific flags (available on Layer)
-        try { item.template = false; } catch (e4) { }
-        try { item.printable = true; } catch (e5) { }
-    }
-
     function markTemp(item) {
         if (!item) return;
+
+        // note（従来）
         try { item.note = TEMP_NOTE; } catch (e0) { }
 
-        // Mark children if possible (GroupItem etc.)
+        // name（Undoでnoteが失われる対策）
+        try {
+            if (item.name !== undefined) {
+                var nm = "";
+                try { nm = String(item.name || ""); } catch (eN0) { nm = ""; }
+                if (nm.indexOf(TEMP_NAME_PREFIX) !== 0) {
+                    item.name = TEMP_NAME_PREFIX;
+                }
+            }
+        } catch (eName) { }
+
+        // 子要素もマーキング
         try {
             if (item.pageItems && item.pageItems.length) {
                 for (var i = item.pageItems.length - 1; i >= 0; i--) {
@@ -346,99 +520,110 @@ function setDialogOpacity(dlg, opacityValue) {
     }
 
     function removeMarkedTempItems(doc) {
-        // Remove any pageItems in the document that are marked (even if created outside temp layer)
+        if (!doc) return;
+
+        // pageItems: note または name プレフィックスで消す
         try {
             for (var i = doc.pageItems.length - 1; i >= 0; i--) {
                 var it = doc.pageItems[i];
                 var isMarked = false;
+
                 try { isMarked = (it.note === TEMP_NOTE); } catch (eNote) { isMarked = false; }
+
+                if (!isMarked) {
+                    try {
+                        if (it.name !== undefined) {
+                            var nm = String(it.name || "");
+                            isMarked = (nm.indexOf(TEMP_NAME_PREFIX) === 0);
+                        }
+                    } catch (eNm) { }
+                }
+
                 if (isMarked) {
                     unlockAndShow(it);
                     try { it.remove(); } catch (eRm) { }
                 }
             }
         } catch (eLoop) { }
-    }
 
-    function removeAllItemsInLayer(layer) {
-        // As a fallback, aggressively clear contents of a temp layer
-        if (!layer) return;
-        unlockAndShow(layer);
+        // groupItems: 念のため group 名でも掃除（Undo後に漏れる保険）
         try {
-            // Remove pageItems
-            for (var i = layer.pageItems.length - 1; i >= 0; i--) {
-                var it = layer.pageItems[i];
-                unlockAndShow(it);
-                try { it.remove(); } catch (e1) { }
+            for (var g = doc.groupItems.length - 1; g >= 0; g--) {
+                var gi = doc.groupItems[g];
+                var hit = false;
+                try {
+                    if (gi.name !== undefined) {
+                        var gnm = String(gi.name || "");
+                        hit = (gnm.indexOf(TEMP_NAME_PREFIX) === 0) || (gnm.indexOf("__temp_outline_group") === 0);
+                    }
+                } catch (eGnm) { }
+                if (hit) {
+                    try { unlockAndShow(gi); } catch (eUG) { }
+                    try { gi.remove(); } catch (eRG) { }
+                }
             }
-        } catch (e2) { }
-        try {
-            // Remove sublayers
-            for (var j = layer.layers.length - 1; j >= 0; j--) {
-                var sub = layer.layers[j];
-                unlockAndShow(sub);
-                try { sub.remove(); } catch (e3) { }
-            }
-        } catch (e4) { }
+        } catch (eGrp) { }
     }
 
     /**
      * テキストを「一時グループ」へ複製→アウトライン化し、その外接矩形を返す。
-     * 返り値には後片付け用に一時生成物（複製テキスト／アウトライン）も含める。
-     * 元のテキストは変更しない。
-     * @param {TextFrame} tf
-     * @param {GroupItem} tempGroup - 一時生成物を格納するグループ
-     * @returns {{bounds:number[], outline:PageItem|null, duplicateText:TextFrame}}
      */
     function getOutlineBoundsFromText(tf, tempGroup) {
-        // 一時レイヤーへ複製（元の階層を汚さない）
-        var dup = tf.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
-
-        markTemp(dup);
-        unlockAndShow(dup);
-
-        // アウトライン化（結果は一時レイヤー内に生成される想定）
+        var dup = null;
         var outlineItem = null;
+        var b;
+
         try {
-            outlineItem = dup.createOutline();
-            if (outlineItem) {
-                markTemp(outlineItem);
-                unlockAndShow(outlineItem);
-                // In some environments outline may be created outside; move it into tempLayer when possible
-                try {
-                    if (outlineItem.parent !== tempGroup) {
-                        outlineItem.move(tempGroup, ElementPlacement.PLACEATBEGINNING);
-                    }
-                } catch (eMove) { }
-            }
-        } catch (eOutline) {
-            outlineItem = null;
-        }
-
-        if (!outlineItem) {
-            // Ensure the duplicate itself is marked
+            dup = tf.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
             markTemp(dup);
+            unlockAndShow(dup);
+
+            try {
+                outlineItem = dup.createOutline();
+                if (outlineItem) {
+                    markTemp(outlineItem);
+                    unlockAndShow(outlineItem);
+                    try {
+                        if (outlineItem.parent !== tempGroup) {
+                            outlineItem.move(tempGroup, ElementPlacement.PLACEATBEGINNING);
+                        }
+                    } catch (eMove) { }
+                }
+            } catch (eOutline) {
+                outlineItem = null;
+            }
+
+            var target = outlineItem ? outlineItem : dup;
+            b = target.geometricBounds; // [left, top, right, bottom]
+
+        } finally {
+            // ★ 取得後に即削除（残留防止）
+            try {
+                if (outlineItem && outlineItem.isValid) {
+                    unlockAndShow(outlineItem);
+                    outlineItem.remove();
+                }
+            } catch (eRmO) { }
+            try {
+                if (dup && dup.isValid) {
+                    unlockAndShow(dup);
+                    dup.remove();
+                }
+            } catch (eRmD) { }
         }
 
-        // bounds 取得対象：基本はアウトライン化結果、取れない場合は複製テキスト
-        var target = outlineItem ? outlineItem : dup;
-        var b = target.geometricBounds; // [left, top, right, bottom]
+        if (!b || b.length < 4) b = [0, 0, 0, 0];
 
-        // ここでは削除しない（呼び出し側で安全に削除する）
         return {
             bounds: [b[0], b[1], b[2], b[3]],
-            outline: outlineItem,
-            duplicateText: dup
+            outline: null,
+            duplicateText: null
         };
     }
 
     /**
      * 任意オブジェクトの外接矩形（geometricBounds）を取得する。
      * TextFrame の場合はアウトライン化した複製から取得して精度を上げる。
-     * それ以外（パス、グループ等）は複製の geometricBounds を使う。
-     * @param {PageItem} item
-     * @param {GroupItem} tempGroup
-     * @returns {{bounds:number[], outline:PageItem|null, duplicateItem:PageItem}}
      */
     function getBoundsInfo(item, tempGroup) {
         if (!item) {
@@ -454,16 +639,27 @@ function setDialogOpacity(dlg, opacityValue) {
             };
         }
 
-        // Non-text: duplicate and read geometricBounds
-        var dup = item.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
-        markTemp(dup);
-        unlockAndShow(dup);
+        var dup = null;
+        var b;
+        try {
+            dup = item.duplicate(tempGroup, ElementPlacement.PLACEATBEGINNING);
+            markTemp(dup);
+            unlockAndShow(dup);
+            b = dup.geometricBounds;
+        } finally {
+            try {
+                if (dup && dup.isValid) {
+                    unlockAndShow(dup);
+                    dup.remove();
+                }
+            } catch (eRmDup) { }
+        }
 
-        var b = dup.geometricBounds;
+        if (!b || b.length < 4) b = [0, 0, 0, 0];
         return {
             bounds: [b[0], b[1], b[2], b[3]],
             outline: null,
-            duplicateItem: dup
+            duplicateItem: null
         };
     }
 
@@ -480,10 +676,10 @@ function setDialogOpacity(dlg, opacityValue) {
 
     // 色の定義 (RGB)
     var colorLeft = new RGBColor();
-    colorLeft.red = 220; colorLeft.green = 220; colorLeft.blue = 220; // 薄いグレー
+    colorLeft.red = 220; colorLeft.green = 220; colorLeft.blue = 220;
 
     var colorRight = new RGBColor();
-    colorRight.red = 128; colorRight.green = 128; colorRight.blue = 128; // 濃いグレー
+    colorRight.red = 128; colorRight.green = 128; colorRight.blue = 128;
 
     // K100 (CMYK) for frame / 枠線用 K100
     var colorK100 = new CMYKColor();
@@ -492,7 +688,7 @@ function setDialogOpacity(dlg, opacityValue) {
     colorK100.yellow = 0;
     colorK100.black = 100;
 
-    // Round Corners Live Effect (for Overall Frame only) / 角丸（ライブエフェクト：全体の枠のみ）
+    // Round Corners Live Effect (for Overall Frame only)
     function createRoundCornersEffectXML(radius) {
         var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius #value# "/></LiveEffect>';
         return xml.replace('#value#', radius);
@@ -508,7 +704,7 @@ function setDialogOpacity(dlg, opacityValue) {
         } catch (e) { }
     }
 
-    // --- Fill corner rounding (Left: LT/LB, Right: RT/RB) / 塗りの角丸（左=左上/左下、右=右上/右下） ---
+    // --- Fill corner rounding / 塗りの角丸（選択アンカーのみ丸める） ---
     function clearAnchorSelection(pathItem) {
         if (!pathItem || !pathItem.pathPoints) return;
         try {
@@ -528,7 +724,7 @@ function setDialogOpacity(dlg, opacityValue) {
 
             var sel = 0;
             for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
-            if (sel > 0 && sel < 4) continue; // respect partial anchor selection
+            if (sel > 0 && sel < 4) continue;
 
             var idx = [0, 1, 2, 3];
             idx.sort(function (x, y) { return pp[x].anchor[0] - pp[y].anchor[0]; });
@@ -542,17 +738,63 @@ function setDialogOpacity(dlg, opacityValue) {
         }
     }
 
+    function selectTopCornersForRectangles(paths) {
+        for (var i = 0; i < paths.length; i++) {
+            var it = paths[i];
+            if (!it || it.typename !== "PathItem" || !it.closed) continue;
+            var pp = it.pathPoints;
+            if (!pp || pp.length !== 4) continue;
+
+            var sel = 0;
+            for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
+            if (sel > 0 && sel < 4) continue;
+
+            var idx = [0, 1, 2, 3];
+            idx.sort(function (x, y) { return pp[y].anchor[1] - pp[x].anchor[1]; }); // top first
+            var a0 = idx[0], a1 = idx[1];
+
+            for (a = 0; a < 4; a++) pp[a].selected = PathPointSelection.NOSELECTION;
+            pp[a0].selected = PathPointSelection.ANCHORPOINT;
+            pp[a1].selected = PathPointSelection.ANCHORPOINT;
+        }
+    }
+
+    function selectBottomCornersForRectangles(paths) {
+        for (var i = 0; i < paths.length; i++) {
+            var it = paths[i];
+            if (!it || it.typename !== "PathItem" || !it.closed) continue;
+            var pp = it.pathPoints;
+            if (!pp || pp.length !== 4) continue;
+
+            var sel = 0;
+            for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
+            if (sel > 0 && sel < 4) continue;
+
+            var idx = [0, 1, 2, 3];
+            idx.sort(function (x, y) { return pp[x].anchor[1] - pp[y].anchor[1]; }); // bottom first
+            var a0 = idx[0], a1 = idx[1];
+
+            for (a = 0; a < 4; a++) pp[a].selected = PathPointSelection.NOSELECTION;
+            pp[a0].selected = PathPointSelection.ANCHORPOINT;
+            pp[a1].selected = PathPointSelection.ANCHORPOINT;
+        }
+    }
+
     function applyFillCornerRounding(pathItem, side, radiusPt) {
         if (!pathItem) return;
         var r = Number(radiusPt);
         if (isNaN(r) || r <= 0) return;
 
-        // Use roundAnyCorner algorithm: it rounds only selected corner anchors.
         clearAnchorSelection(pathItem);
+
         if (side === "left") {
             selectLeftCornersForRectangles([pathItem]);
         } else if (side === "right") {
             selectRightCornersForRectangles([pathItem]);
+        } else if (side === "top") {
+            selectTopCornersForRectangles([pathItem]);
+        } else if (side === "bottom") {
+            selectBottomCornersForRectangles([pathItem]);
         } else {
             return;
         }
@@ -561,18 +803,7 @@ function setDialogOpacity(dlg, opacityValue) {
             roundAnyCorner([pathItem], { rr: r });
         } catch (e) { }
 
-        // Clean selection on the new rect
         clearAnchorSelection(pathItem);
-    }
-
-    // 選択オブジェクトの位置関係を整理（左側にあるものをitem1、右側をitem2とする）
-    var item1, item2;
-    if (getItemLeft(sel[0]) < getItemLeft(sel[1])) {
-        item1 = sel[0];
-        item2 = sel[1];
-    } else {
-        item1 = sel[1];
-        item2 = sel[0];
     }
 
     // --- 背景を置くターゲットレイヤーの決定 ---
@@ -583,9 +814,7 @@ function setDialogOpacity(dlg, opacityValue) {
         return -1;
     }
 
-    // レイヤーの前後関係をインデックスで推定する
     // Illustratorのlayers配列は基本的に「上（前面）→下（背面）」順で並ぶ想定。
-    // よって、インデックスが大きいほど背面寄りとみなす。
     function getBackmostLayer(doc, layerA, layerB) {
         var ia = getLayerIndex(doc, layerA);
         var ib = getLayerIndex(doc, layerB);
@@ -593,8 +822,6 @@ function setDialogOpacity(dlg, opacityValue) {
         if (ib < 0) return layerA;
         return (ia > ib) ? layerA : layerB;
     }
-
-    var targetLayerForBackground = getBackmostLayer(doc, item1.layer, item2.layer);
 
     function safeRedraw() {
         try { app.redraw(); } catch (e) { }
@@ -615,9 +842,9 @@ function setDialogOpacity(dlg, opacityValue) {
     var lastCornerRadius = 0;
     var lastBalanceMode = 'none'; // 'none' | 'left' | 'right'
     var lastWidthPercent = 0;     // Width in pt (from rulerType UI)
+    var lastDirectionMode = 'horizontal';
 
     function clearPreviewRects() {
-        // 参照が残っている場合はそれを優先して削除
         try {
             if (previewRect1 && previewRect1.isValid) {
                 unlockAndShow(previewRect1);
@@ -643,7 +870,6 @@ function setDialogOpacity(dlg, opacityValue) {
             }
         } catch (e4) { }
 
-        // 念のため、マーク済みプレビュー図形をドキュメント全体から掃除
         removeMarkedPreviewItems(doc);
 
         previewRect1 = null;
@@ -661,48 +887,59 @@ function setDialogOpacity(dlg, opacityValue) {
     }
 
     /**
-     * アウトライン計算→背景長方形を作成（戻り値で生成物を返す）
-     * @param {PageItem} leftText
-     * @param {PageItem} rightText
-     * @param {number} heightRatioValue
-     * @param {boolean} addOverallFrame
-     * @param {boolean} addDivider
-     * @param {boolean} addFillLeft
-     * @param {boolean} addFillRight
-     * @param {number} strokeWidthValue
-     * @param {number} cornerRadius
-     * @returns {{rect1:PathItem|null, rect2:PathItem|null, frame:PathItem|null, divider:PathItem|null}}
+     * アウトライン計算→背景長方形を作成
+     * directionMode: 'horizontal' | 'vertical'
      */
-    function drawBackgroundRects(leftText, rightText, heightRatioValue, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidthValue, cornerRadius, balanceMode, widthPercent) {        // --- 一時グループ（アウトライン生成用）---
+    function drawBackgroundRects(itemA0, itemB0, sizeRatioValue, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidthValue, cornerRadius, balanceMode, widthPercent, directionMode) {
+        directionMode = directionMode || 'horizontal';
+
+        // --- 一時グループ（アウトライン生成用）---
         var originalActiveLayer = doc.activeLayer;
 
-        // 一時グループを「既存レイヤー」内に作る（レイヤー残留問題を回避）
         var hostLayer = null;
-        try { hostLayer = leftText.layer; } catch (eHL) { hostLayer = null; }
+        try { hostLayer = itemA0.layer; } catch (eHL) { hostLayer = null; }
         if (!hostLayer) {
             try { hostLayer = doc.activeLayer; } catch (eHL2) { hostLayer = null; }
         }
-        if (!hostLayer) {
-            hostLayer = doc.layers[0];
-        }
+        if (!hostLayer) hostLayer = doc.layers[0];
 
         unlockAndShow(hostLayer);
         var tempGroup = hostLayer.groupItems.add();
-        tempGroup.name = "__temp_outline_group__";
-        markTemp(tempGroup);
-        // 見えにくくする（万一残っても視覚ノイズを下げる）
-        try { tempGroup.opacity = 0; } catch (eOp) { }
 
-        // 計算結果（この値だけ持ち帰って、アウトラインはすぐ消す）
+        markTemp(tempGroup);
+        try { tempGroup.opacity = 0; } catch (eOp) { }
+        tempGroup.name = TEMP_NAME_PREFIX + "__temp_outline_group__";
+        // 計算結果
         var rectTop, rectHeight;
         var rectLeftStart, gapCenter, rectRightEnd;
 
-        try {
-            var outline1Info = getBoundsInfo(leftText, tempGroup);
-            var outline2Info = getBoundsInfo(rightText, tempGroup);
+        // items ordering will be decided after outline bounds are obtained
+        var firstItem = itemA0;
+        var secondItem = itemB0;
 
-            var b1 = outline1Info.bounds;
-            var b2 = outline2Info.bounds;
+        var b1, b2;
+
+        try {
+            var outline1Info = getBoundsInfo(itemA0, tempGroup);
+            var outline2Info = getBoundsInfo(itemB0, tempGroup);
+
+            b1 = outline1Info.bounds;
+            b2 = outline2Info.bounds;
+
+            // Decide ordering by outline bounds (more accurate for TextFrame)
+            if (directionMode === 'vertical') {
+                // first = upper (higher top)
+                if (b1[1] < b2[1]) {
+                    firstItem = itemB0; secondItem = itemA0;
+                    var tb = b1; b1 = b2; b2 = tb;
+                }
+            } else {
+                // first = left (smaller left)
+                if (b1[0] > b2[0]) {
+                    firstItem = itemB0; secondItem = itemA0;
+                    var xb = b1; b1 = b2; b2 = xb;
+                }
+            }
 
             // --- 計算が済んだら一時生成物を即削除（残留対策）---
             unlockAndShow(outline1Info.outline);
@@ -715,27 +952,6 @@ function setDialogOpacity(dlg, opacityValue) {
             try { if (outline2Info.duplicateItem && outline2Info.duplicateItem.isValid) outline2Info.duplicateItem.remove(); } catch (eD) { }
             removeMarkedTempItems(doc);
 
-            // 1. 高さの計算 (共通)
-            var topLimit = Math.max(b1[1], b2[1]);
-            var bottomLimit = Math.min(b1[3], b2[3]);
-
-            var contentHeight = topLimit - bottomLimit;
-            var centerY = topLimit - (contentHeight / 2);
-
-            rectHeight = contentHeight * heightRatioValue;
-            rectTop = centerY + (rectHeight / 2);
-
-            // 2. 幅と隙間の計算（アウトライン bounds ベース）
-            var item1Left = b1[0];
-            var item1Right = b1[2];
-            var item2Left = b2[0];
-            var item2Right = b2[2];
-
-            var gapDist = item2Left - item1Right;
-            if (gapDist < 0) gapDist = 0;
-
-            // --- Balance / margin control ---
-            // widthPercent is treated as an absolute margin in pt.
             function clamp(v, mn, mx) {
                 if (v < mn) return mn;
                 if (v > mx) return mx;
@@ -745,33 +961,93 @@ function setDialogOpacity(dlg, opacityValue) {
             var wPt = Number(widthPercent);
             if (isNaN(wPt) || wPt < 0) wPt = 0;
 
-            var marginLeft = gapDist / 2;
-            var marginRight = gapDist / 2;
+            if (directionMode === 'vertical') {
+                // ===== Vertical arrangement: split top/bottom =====
+                var top1 = b1[1], bot1 = b1[3], left1 = b1[0], right1 = b1[2];
+                var top2 = b2[1], bot2 = b2[3], left2 = b2[0], right2 = b2[2];
 
-            if (balanceMode === 'left') {
-                // 左の左右マージン = スライダー値
-                marginLeft = clamp(wPt, 0, gapDist);
-                // 右の左右マージン = gap - 左
-                marginRight = gapDist - marginLeft;
+                // Horizontal size (scaled by sizeRatioValue)
+                var leftLimit = Math.min(left1, left2);
+                var rightLimit = Math.max(right1, right2);
+                var contentW = rightLimit - leftLimit;
+                if (contentW < 0) contentW = 0;
 
-            } else if (balanceMode === 'right') {
-                // 右の左右マージン = スライダー値
-                marginRight = clamp(wPt, 0, gapDist);
-                // 左の左右マージン = gap - 右
-                marginLeft = gapDist - marginRight;
+                var centerX = leftLimit + (contentW / 2);
+                var rectW = contentW * sizeRatioValue;
+                var rectL = centerX - (rectW / 2);
+                var rectR = rectL + rectW;
+
+                // Vertical split based on gap
+                var gapDist = bot1 - top2;
+                if (gapDist < 0) gapDist = 0;
+
+                var marginTop = gapDist / 2;
+                var marginBottom = gapDist / 2;
+
+                if (balanceMode === 'left') {
+                    // 'left' UI becomes 'top'
+                    marginTop = clamp(wPt, 0, gapDist);
+                    marginBottom = gapDist - marginTop;
+                } else if (balanceMode === 'right') {
+                    // 'right' UI becomes 'bottom'
+                    marginBottom = clamp(wPt, 0, gapDist);
+                    marginTop = gapDist - marginBottom;
+                } else {
+                    marginTop = gapDist / 2;
+                    marginBottom = gapDist / 2;
+                }
+
+                rectTop = top1 + marginTop;
+                var rectBottom = bot2 - marginBottom;
+                rectHeight = rectTop - rectBottom;
+                if (rectHeight < 0) rectHeight = 0;
+
+                // Split boundary Y inside the gap
+                var splitY = bot1 - marginTop;
+
+                rectLeftStart = rectL;
+                rectRightEnd = rectR;
+                gapCenter = splitY; // reuse as split position (Y)
 
             } else {
-                // none => centered
-                marginLeft = gapDist / 2;
-                marginRight = gapDist / 2;
+                // ===== Horizontal arrangement: split left/right (existing behavior) =====
+                var topLimit = Math.max(b1[1], b2[1]);
+                var bottomLimit = Math.min(b1[3], b2[3]);
+
+                var contentHeight = topLimit - bottomLimit;
+                var centerY = topLimit - (contentHeight / 2);
+
+                rectHeight = contentHeight * sizeRatioValue;
+                rectTop = centerY + (rectHeight / 2);
+
+                var item1Left = b1[0];
+                var item1Right = b1[2];
+                var item2Left = b2[0];
+                var item2Right = b2[2];
+
+                var gapDistH = item2Left - item1Right;
+                if (gapDistH < 0) gapDistH = 0;
+
+                var marginLeft = gapDistH / 2;
+                var marginRight = gapDistH / 2;
+
+                if (balanceMode === 'left') {
+                    marginLeft = clamp(wPt, 0, gapDistH);
+                    marginRight = gapDistH - marginLeft;
+                } else if (balanceMode === 'right') {
+                    marginRight = clamp(wPt, 0, gapDistH);
+                    marginLeft = gapDistH - marginRight;
+                } else {
+                    marginLeft = gapDistH / 2;
+                    marginRight = gapDistH / 2;
+                }
+
+                gapCenter = item1Right + marginLeft;
+                rectLeftStart = item1Left - marginLeft;
+                rectRightEnd = item2Right + marginRight;
             }
 
-            gapCenter = item1Right + marginLeft;
-            rectLeftStart = item1Left - marginLeft;
-            rectRightEnd = item2Right + marginRight;
-
         } finally {
-            // 一時グループを確実に削除（レイヤー削除ではなくグループ削除で残留を防ぐ）
             try { doc.selection = null; } catch (eSel) { }
 
             try {
@@ -780,7 +1056,6 @@ function setDialogOpacity(dlg, opacityValue) {
                 }
             } catch (eRestore) { }
 
-            // グループ内の残骸を掃除してから削除
             try {
                 unlockAndShow(tempGroup);
                 for (var gi = tempGroup.pageItems.length - 1; gi >= 0; gi--) {
@@ -797,54 +1072,85 @@ function setDialogOpacity(dlg, opacityValue) {
                 }
             } catch (eRemoveG) { }
 
-            // 最終保険：マーク付き残骸をもう一度掃除
             removeMarkedTempItems(doc);
         }
 
         // --- ここから描画（アウトラインは既に削除済み）---
-        // 背景長方形は必ずターゲットレイヤー直下に作成
         var leftLayer = null;
         var rightLayer = null;
-        try { leftLayer = leftText.layer; } catch (eLL) { leftLayer = null; }
-        try { rightLayer = rightText.layer; } catch (eRL) { rightLayer = null; }
+        try { leftLayer = firstItem.layer; } catch (eLL) { leftLayer = null; }
+        try { rightLayer = secondItem.layer; } catch (eRL) { rightLayer = null; }
 
         var rect1 = null;
         var rect2 = null;
 
-        if (addFillLeft) {
-            rect1 = (leftLayer ? leftLayer.pathItems : doc.pathItems).rectangle(
-                rectTop,
-                rectLeftStart,
-                gapCenter - rectLeftStart,
-                rectHeight
-            );
-            rect1.fillColor = colorLeft;
-            rect1.stroked = false;
+        if (directionMode === 'vertical') {
+            // Top / Bottom rectangles
+            var rectBottomAll = rectTop - rectHeight;
+
+            if (addFillLeft) {
+                // Top
+                rect1 = (leftLayer ? leftLayer.pathItems : doc.pathItems).rectangle(
+                    rectTop,
+                    rectLeftStart,
+                    rectRightEnd - rectLeftStart,
+                    rectTop - gapCenter
+                );
+                rect1.fillColor = colorLeft;
+                rect1.stroked = false;
+            }
+
+            if (addFillRight) {
+                // Bottom
+                rect2 = (rightLayer ? rightLayer.pathItems : doc.pathItems).rectangle(
+                    gapCenter,
+                    rectLeftStart,
+                    rectRightEnd - rectLeftStart,
+                    gapCenter - rectBottomAll
+                );
+                rect2.fillColor = colorRight;
+                rect2.stroked = false;
+            }
+        } else {
+            // Left / Right rectangles
+            if (addFillLeft) {
+                rect1 = (leftLayer ? leftLayer.pathItems : doc.pathItems).rectangle(
+                    rectTop,
+                    rectLeftStart,
+                    gapCenter - rectLeftStart,
+                    rectHeight
+                );
+                rect1.fillColor = colorLeft;
+                rect1.stroked = false;
+            }
+
+            if (addFillRight) {
+                rect2 = (rightLayer ? rightLayer.pathItems : doc.pathItems).rectangle(
+                    rectTop,
+                    gapCenter,
+                    rectRightEnd - gapCenter,
+                    rectHeight
+                );
+                rect2.fillColor = colorRight;
+                rect2.stroked = false;
+            }
         }
 
-        if (addFillRight) {
-            rect2 = (rightLayer ? rightLayer.pathItems : doc.pathItems).rectangle(
-                rectTop,
-                gapCenter,
-                rectRightEnd - gapCenter,
-                rectHeight
-            );
-            rect2.fillColor = colorRight;
-            rect2.stroked = false;
-        }
-
-        // 塗りの角丸（左=左上/左下、右=右上/右下） / Fill corner rounding
+        // Fill corner rounding
         if (cornerRadius && Number(cornerRadius) > 0) {
-            if (rect1) applyFillCornerRounding(rect1, "left", cornerRadius);
-            if (rect2) applyFillCornerRounding(rect2, "right", cornerRadius);
+            if (directionMode === 'vertical') {
+                if (rect1) applyFillCornerRounding(rect1, "top", cornerRadius);
+                if (rect2) applyFillCornerRounding(rect2, "bottom", cornerRadius);
+            } else {
+                if (rect1) applyFillCornerRounding(rect1, "left", cornerRadius);
+                if (rect2) applyFillCornerRounding(rect2, "right", cornerRadius);
+            }
         }
 
         var frameRect = null;
         if (addOverallFrame) {
-            // Create a single stroked rectangle that surrounds both background rectangles
-            // 枠線：2つの背景を囲む単一の長方形（strokeWidthValue / K100）
             try {
-                var frameLayer = targetLayerForBackground || leftLayer || rightLayer;
+                var frameLayer = getBackmostLayer(doc, leftLayer, rightLayer) || leftLayer || rightLayer;
                 frameRect = (frameLayer ? frameLayer.pathItems : doc.pathItems).rectangle(
                     rectTop,
                     rectLeftStart,
@@ -856,10 +1162,8 @@ function setDialogOpacity(dlg, opacityValue) {
                 frameRect.strokeWidth = strokeWidthValue;
                 frameRect.strokeColor = colorK100;
 
-                // 角丸（全体の枠のみ） / Corner radius (Overall Frame only)
                 applyRoundCornersIfNeeded(frameRect, cornerRadius);
 
-                // Ensure frame is above the fill rectangles
                 try { frameRect.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eFZ) { }
             } catch (eFrame) {
                 frameRect = null;
@@ -868,31 +1172,37 @@ function setDialogOpacity(dlg, opacityValue) {
 
         var dividerLine = null;
         if (addDivider) {
-            // Divider line at the center boundary / 区切り線（中央境界）
             try {
-                var dividerLayer = targetLayerForBackground || leftLayer || rightLayer;
+                var dividerLayer = getBackmostLayer(doc, leftLayer, rightLayer) || leftLayer || rightLayer;
                 dividerLine = (dividerLayer ? dividerLayer.pathItems : doc.pathItems).add();
-                dividerLine.setEntirePath([
-                    [gapCenter, rectTop],
-                    [gapCenter, rectTop - rectHeight]
-                ]);
                 dividerLine.filled = false;
                 dividerLine.stroked = true;
                 dividerLine.strokeWidth = strokeWidthValue;
                 dividerLine.strokeColor = colorK100;
+
+                if (directionMode === 'vertical') {
+                    dividerLine.setEntirePath([
+                        [rectLeftStart, gapCenter],
+                        [rectRightEnd, gapCenter]
+                    ]);
+                } else {
+                    dividerLine.setEntirePath([
+                        [gapCenter, rectTop],
+                        [gapCenter, rectTop - rectHeight]
+                    ]);
+                }
+
                 try { dividerLine.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eDZ) { }
             } catch (eDiv) {
                 dividerLine = null;
             }
         }
 
-        // 背面へ（レイヤー内）
         try { if (rect1) rect1.zOrder(ZOrderMethod.SENDTOBACK); } catch (eZ1) { }
         try { if (rect2) rect2.zOrder(ZOrderMethod.SENDTOBACK); } catch (eZ2) { }
 
-        // テキストを前面へ（同一レイヤー/同一親内での保証）
-        try { leftText.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eT1) { }
-        try { rightText.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eT2) { }
+        try { firstItem.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eT1) { }
+        try { secondItem.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (eT2) { }
 
         safeRedraw();
         return { rect1: rect1, rect2: rect2, frame: frameRect, divider: dividerLine };
@@ -900,18 +1210,11 @@ function setDialogOpacity(dlg, opacityValue) {
 
     /**
      * ↑↓キーで数値を増減するユーティリティ
-     * - ↑↓ : ±1
-     * - Shift + ↑↓ : ±10（10刻みにスナップ）
-     * - Option(Alt) + ↑↓ : ±0.1
-     * @param {EditText} editText
-     * @param {boolean} allowNegative
-     * @param {Function} onChange - 値変更後に呼ぶ（プレビュー更新など）
      */
     function changeValueByArrowKey(editText, allowNegative, onChange) {
         if (!editText) return;
 
         editText.addEventListener("keydown", function (event) {
-            // Up/Down 以外は何もしない
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
             var value = Number(editText.text);
@@ -922,7 +1225,6 @@ function setDialogOpacity(dlg, opacityValue) {
 
             if (keyboard.shiftKey) {
                 delta = 10;
-                // Shiftキー押下時は10の倍数にスナップ
                 if (event.keyName === "Up") {
                     value = Math.ceil((value + 1) / delta) * delta;
                 } else if (event.keyName === "Down") {
@@ -931,48 +1233,31 @@ function setDialogOpacity(dlg, opacityValue) {
                 event.preventDefault();
             } else if (keyboard.altKey) {
                 delta = 0.1;
-                // Option(Alt)キー押下時は0.1単位で増減
-                if (event.keyName === "Up") {
-                    value += delta;
-                } else if (event.keyName === "Down") {
-                    value -= delta;
-                }
+                if (event.keyName === "Up") value += delta;
+                else if (event.keyName === "Down") value -= delta;
                 event.preventDefault();
             } else {
                 delta = 1;
-                if (event.keyName === "Up") {
-                    value += delta;
-                } else if (event.keyName === "Down") {
-                    value -= delta;
-                }
+                if (event.keyName === "Up") value += delta;
+                else if (event.keyName === "Down") value -= delta;
                 event.preventDefault();
             }
 
-            // 丸め
-            if (keyboard.altKey) {
-                value = Math.round(value * 10) / 10; // 小数第1位
-            } else {
-                value = Math.round(value); // 整数
-            }
+            if (keyboard.altKey) value = Math.round(value * 10) / 10;
+            else value = Math.round(value);
 
             if (!allowNegative && value < 0) value = 0;
 
             editText.text = String(value);
 
-            // 値変更後の処理（プレビュー更新など）
             if (typeof onChange === "function") {
                 try { onChange(); } catch (e) { }
             }
         });
     }
 
-    // --- ダイアログ：高さ（%）指定（プレビュー付き）/ Dialog: Height (%) (with preview) ---
     /**
-     * 高さ（%）を指定するダイアログ（プレビュー付き）
-     * @param {number} defaultPercent
-     * @param {Function} previewFn - function(percent:number, enabled:boolean, addOverallFrame:boolean, addDivider:boolean, addFillLeft:boolean, addFillRight:boolean, strokeWidth:number, cornerRadius:number):void
-     * @param {Function} clearPreviewFn - function():void
-     * @returns {number|null} percent (e.g. 140) or null if cancelled
+     * ダイアログ（プレビュー付き）
      */
     function showHeightDialog(defaultPercent, previewFn, clearPreviewFn) {
         var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
@@ -980,25 +1265,32 @@ function setDialogOpacity(dlg, opacityValue) {
         dlg.alignChildren = ['fill', 'top'];
         dlg.margins = 18;
 
-        // ダイアログ透明度・位置調整 / Dialog opacity & position
+        try { PreviewHistory.start(); } catch (ePH0) { }
+
+        var ss = getSessionSettings();
+
         setDialogOpacity(dlg, DIALOG_OPACITY);
         shiftDialogPosition(dlg, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
 
         var row = dlg.add('group');
         row.orientation = 'row';
         row.alignChildren = ['left', 'center'];
-        // 高さ行は左右中央に / Center the height row horizontally
         row.alignment = ['center', 'top'];
 
-        row.add('statictext', undefined, L('labelHeight'));
+        // Main size label (will be swapped by direction)
+        var stMainSizeLabel = row.add('statictext', undefined, L('labelHeight'));
 
-        var et = row.add('edittext', undefined, String(defaultPercent));
+        var et = row.add('edittext', undefined, String((ss && ss.percent !== undefined) ? ss.percent : defaultPercent));
         et.characters = 6;
         et.active = true;
-        // ↑↓ / Shift+↑↓ / Option+↑↓ で値を増減
         changeValueByArrowKey(et, false, applyPreview);
 
         row.add('statictext', undefined, L('labelPercent'));
+
+        // --- Direction UI removed; mode is fixed to AUTO_DIRECTION_MODE ---
+        function getDirectionMode() {
+            return AUTO_DIRECTION_MODE;
+        }
 
         // --- 2カラム：左=描画 / 右=オプション ---
         var columns = dlg.add('group');
@@ -1012,18 +1304,18 @@ function setDialogOpacity(dlg, opacityValue) {
         drawPanel.alignChildren = ['left', 'top'];
         drawPanel.margins = [15, 20, 15, 10];
 
+        // Keep variable names; label text will be swapped for vertical mode
         var cbFillLeft = drawPanel.add('checkbox', undefined, L('labelFillLeft'));
-        cbFillLeft.value = true;
+        cbFillLeft.value = (ss.fillLeft !== undefined) ? !!ss.fillLeft : true;
 
         var cbFillRight = drawPanel.add('checkbox', undefined, L('labelFillRight'));
-        cbFillRight.value = true;
-
+        cbFillRight.value = (ss.fillRight !== undefined) ? !!ss.fillRight : true;
 
         var cbOverallFrame = drawPanel.add('checkbox', undefined, L('labelOverallFrame'));
-        cbOverallFrame.value = false;
+        cbOverallFrame.value = (ss.overallFrame !== undefined) ? !!ss.overallFrame : false;
 
         var cbDivider = drawPanel.add('checkbox', undefined, L('labelDivider'));
-        cbDivider.value = false;
+        cbDivider.value = (ss.divider !== undefined) ? !!ss.divider : false;
 
         // --- 線オプション / Stroke options (Right column) ---
         var rightCol = columns.add('group');
@@ -1036,40 +1328,33 @@ function setDialogOpacity(dlg, opacityValue) {
         linePanel.alignChildren = ['left', 'top'];
         linePanel.margins = [15, 20, 15, 10];
 
-
         var lineRow = linePanel.add('group');
         lineRow.orientation = 'row';
         lineRow.alignChildren = ['left', 'center'];
 
         lineRow.add('statictext', undefined, L('labelStrokeWidth'));
-        var etStroke = lineRow.add('edittext', undefined, formatUnitValue(ptToUnit(1, "strokeUnits")));
+        var etStroke = lineRow.add('edittext', undefined, (ss && ss.strokeUnit !== undefined) ? String(ss.strokeUnit) : formatUnitValue(ptToUnit(1, "strokeUnits")));
         etStroke.characters = 4;
-        // Allow decimals and arrow-key changes (0.1 with Option)
         changeValueByArrowKey(etStroke, false, applyPreview);
         lineRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("strokeUnits"));
 
-        // 角丸 / Corner radius（枠のみロジック対応。塗りは追って）
         var cornerRow = linePanel.add('group');
         cornerRow.orientation = 'row';
         cornerRow.alignChildren = ['left', 'center'];
 
         cornerRow.add('statictext', undefined, L('labelCornerRadius'));
-        var etCorner = cornerRow.add('edittext', undefined, formatUnitValue(ptToUnit(0, "rulerType")));
+        var etCorner = cornerRow.add('edittext', undefined, (ss && ss.cornerUnit !== undefined) ? String(ss.cornerUnit) : formatUnitValue(ptToUnit(0, "rulerType")));
         etCorner.characters = 4;
         cornerRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("rulerType"));
-        // ↑↓ / Shift+↑↓ / Option+↑↓ で角丸値を増減
         changeValueByArrowKey(etCorner, false, applyPreview);
 
-        // --- Helpers: enable/disable UI rows ---
         function updateStrokeWidthEnabled() {
             var on = !!(cbOverallFrame.value || cbDivider.value);
-            // 両方OFFのときは線幅UIをディム表示 / Dim stroke width UI when both are OFF
             try { lineRow.enabled = on; } catch (eEn1) { }
         }
 
         function updateCornerEnabled() {
             var on = !!((cbFillLeft.value || cbFillRight.value) || cbOverallFrame.value);
-            // 両方OFFのときは角丸UIをディム表示 / Dim corner radius UI when both are OFF
             try { cornerRow.enabled = on; } catch (eEn2) { }
         }
 
@@ -1087,10 +1372,14 @@ function setDialogOpacity(dlg, opacityValue) {
         pinRadioRow.orientation = 'row';
         pinRadioRow.alignChildren = ['left', 'center'];
 
+        // Keep variable names; text will be swapped for vertical mode
         var rbPinNone = pinRadioRow.add('radiobutton', undefined, L('fixedNone'));
         var rbPinLeft = pinRadioRow.add('radiobutton', undefined, L('fixedLeft'));
         var rbPinRight = pinRadioRow.add('radiobutton', undefined, L('fixedRight'));
-        rbPinNone.value = true;
+        rbPinNone.value = (ss.balanceMode === 'none');
+        rbPinLeft.value = (ss.balanceMode === 'left');
+        rbPinRight.value = (ss.balanceMode === 'right');
+        if (!rbPinNone.value && !rbPinLeft.value && !rbPinRight.value) rbPinNone.value = true;
 
         // --- 幅 / Width (inside Balance panel) ---
         var pinWidthCol = pinPanel.add('group');
@@ -1098,30 +1387,28 @@ function setDialogOpacity(dlg, opacityValue) {
         pinWidthCol.alignChildren = ['fill', 'top'];
         pinWidthCol.spacing = 6;
 
-        // Value row : 幅 [ value ] unit
         var pinWidthValueRow = pinWidthCol.add('group');
         pinWidthValueRow.orientation = 'row';
         pinWidthValueRow.alignChildren = ['left', 'center'];
 
         pinWidthValueRow.add('statictext', undefined, L('labelWidth'));
 
-        var etWidth = pinWidthValueRow.add('edittext', undefined, '0');
+        var defaultWidthUnit = (ss && ss.widthUnit !== undefined)
+            ? ss.widthUnit
+            : ((AUTO_DIRECTION_MODE === 'vertical') ? 130 : 0);
+        var etWidth = pinWidthValueRow.add('edittext', undefined, String(defaultWidthUnit));
         etWidth.characters = 6;
-        // ↑↓ / Shift+↑↓ / Option+↑↓ で幅を増減（プレビュー更新）
         changeValueByArrowKey(etWidth, false, applyPreview);
 
         pinWidthValueRow.add('statictext', undefined, getCurrentUnitLabelByPrefKey("rulerType"));
 
-        // Slider row
         var pinWidthSliderRow = pinWidthCol.add('group');
         pinWidthSliderRow.orientation = 'row';
         pinWidthSliderRow.alignChildren = ['fill', 'center'];
 
-        // Slider: 0 - max (will be set dynamically)
-        var slWidth = pinWidthSliderRow.add('slider', undefined, 0, 0, 0); // max will be set dynamically
+        var slWidth = pinWidthSliderRow.add('slider', undefined, 0, 0, 0);
         slWidth.preferredSize = [220, 20];
 
-        // Keep slider and edittext in sync (UI only)
         function clampWidthValue(v, forceInteger) {
             v = Number(v);
             if (isNaN(v)) return 0;
@@ -1133,10 +1420,8 @@ function setDialogOpacity(dlg, opacityValue) {
 
             if (v > maxV) v = maxV;
 
-            if (forceInteger) {
-                return Math.round(v); // integer
-            }
-            return Math.round(v * 10) / 10; // keep 0.1 precision
+            if (forceInteger) return Math.round(v);
+            return Math.round(v * 10) / 10;
         }
 
         function syncWidthUIFromSlider() {
@@ -1153,15 +1438,13 @@ function setDialogOpacity(dlg, opacityValue) {
             etWidth.text = String(v);
         }
 
-        // --- Compute and set the max value for the width slider based on selection ---
-        function updateWidthSliderMaxBySelection() {
-            // Width max should be the gap distance between the two objects (in rulerType units)
-            // Use outline bounds for TextFrame to avoid side-bearing issues (same as main logic)
+        function updateWidthSliderMaxBySelection(directionMode) {
             var maxUnit = 0;
             var tempGroupForMax = null;
+
             try {
                 var hostLayer2 = null;
-                try { hostLayer2 = item1.layer; } catch (eHLm) { hostLayer2 = null; }
+                try { hostLayer2 = itemA.layer; } catch (eHLm) { hostLayer2 = null; }
                 if (!hostLayer2) {
                     try { hostLayer2 = doc.activeLayer; } catch (eHLm2) { hostLayer2 = null; }
                 }
@@ -1169,30 +1452,44 @@ function setDialogOpacity(dlg, opacityValue) {
 
                 unlockAndShow(hostLayer2);
                 tempGroupForMax = hostLayer2.groupItems.add();
-                tempGroupForMax.name = "__temp_outline_group_for_max__";
+                tempGroupForMax.name = TEMP_NAME_PREFIX + "__temp_outline_group_for_max__";
                 markTemp(tempGroupForMax);
                 try { tempGroupForMax.opacity = 0; } catch (eOpM) { }
 
-                var bi1 = getBoundsInfo(item1, tempGroupForMax);
-                var bi2 = getBoundsInfo(item2, tempGroupForMax);
+                var bi1 = getBoundsInfo(itemA, tempGroupForMax);
+                var bi2 = getBoundsInfo(itemB, tempGroupForMax);
                 var b1 = bi1.bounds;
                 var b2 = bi2.bounds;
 
-                // ensure left/right by x
-                var item1Right = b1[2];
-                var item2Left = b2[0];
-                var gapPt = item2Left - item1Right;
+                var gapPt = 0;
+                var dirMode = directionMode || AUTO_DIRECTION_MODE;
+
+                if (dirMode === 'vertical') {
+                    // upper = higher top
+                    var upperB = (b1[1] >= b2[1]) ? b1 : b2;
+                    var lowerB = (b1[1] >= b2[1]) ? b2 : b1;
+
+                    var upperBottom = upperB[3];
+                    var lowerTop = lowerB[1];
+                    gapPt = upperBottom - lowerTop;
+                } else {
+                    var leftB = (b1[0] <= b2[0]) ? b1 : b2;
+                    var rightB = (b1[0] <= b2[0]) ? b2 : b1;
+
+                    var leftRight = leftB[2];
+                    var rightLeft = rightB[0];
+                    gapPt = rightLeft - leftRight;
+                }
+
                 if (gapPt < 0) gapPt = 0;
 
                 maxUnit = ptToUnit(gapPt, "rulerType");
                 if (isNaN(maxUnit) || maxUnit < 0) maxUnit = 0;
-                // keep 0.1 in UI
                 maxUnit = Math.round(maxUnit * 10) / 10;
 
             } catch (eMax) {
                 maxUnit = 0;
             } finally {
-                // cleanup temp group
                 try { removeMarkedTempItems(doc); } catch (eRmTmp0) { }
                 try {
                     if (tempGroupForMax && tempGroupForMax.isValid) {
@@ -1210,18 +1507,14 @@ function setDialogOpacity(dlg, opacityValue) {
             }
 
             try { slWidth.maxvalue = maxUnit; } catch (eSetMax) { }
-            // If max becomes 0, keep slider usable but effectively fixed at 0
             try { if (slWidth.maxvalue < 0) slWidth.maxvalue = 0; } catch (eSetMax2) { }
 
-            // Clamp current UI value to new max
             syncWidthUIFromEdit();
-
-            // When "None" is selected, row is disabled anyway; this is just the upper bound.
         }
 
         slWidth.onChanging = function () {
             syncWidthUIFromSlider();
-            applyPreview(); // NOTE: logic will be wired later; keep preview refresh for now
+            applyPreview();
         };
 
         etWidth.addEventListener('changing', function () {
@@ -1229,9 +1522,7 @@ function setDialogOpacity(dlg, opacityValue) {
             applyPreview();
         });
 
-        // --- Helpers: enable/disable width slider by balance selection ---
         function updateWidthEnabled() {
-            // Disable width slider when "None" is selected
             try { pinWidthCol.enabled = !rbPinNone.value; } catch (e) { }
         }
 
@@ -1239,13 +1530,24 @@ function setDialogOpacity(dlg, opacityValue) {
         rbPinLeft.onClick = function () { updateWidthEnabled(); applyPreview(); };
         rbPinRight.onClick = function () { updateWidthEnabled(); applyPreview(); };
 
-        // Initial state
         updateWidthEnabled();
 
+        function updateDirectionUILabels() {
+            var isV = (AUTO_DIRECTION_MODE === 'vertical');
 
-        // プレビューは一番下 / Preview at the bottom
+            try { stMainSizeLabel.text = isV ? L('labelWidthMain') : L('labelHeight'); } catch (e0) { }
+
+            try { cbFillLeft.text = isV ? L('labelFillTop') : L('labelFillLeft'); } catch (e1) { }
+            try { cbFillRight.text = isV ? L('labelFillBottom') : L('labelFillRight'); } catch (e2) { }
+
+            try { rbPinLeft.text = isV ? L('fixedTop') : L('fixedLeft'); } catch (e3) { }
+            try { rbPinRight.text = isV ? L('fixedBottom') : L('fixedRight'); } catch (e4) { }
+        }
+
+        updateDirectionUILabels();
+
         var cbPreview = dlg.add('checkbox', undefined, L('labelPreview'));
-        cbPreview.value = true;
+        cbPreview.value = (ss.preview !== undefined) ? !!ss.preview : true;
 
         function parsePercent() {
             var v = Number(et.text);
@@ -1256,11 +1558,9 @@ function setDialogOpacity(dlg, opacityValue) {
         function parseStrokeWidth() {
             var vUnit = Number(etStroke.text);
             if (isNaN(vUnit) || vUnit <= 0) return null;
-            // round to 0.1 (UI単位)
             vUnit = Math.round(vUnit * 10) / 10;
             var vPt = unitToPt(vUnit, "strokeUnits");
             if (isNaN(vPt) || vPt <= 0) return null;
-            // internal pt: keep 0.1pt precision
             vPt = Math.round(vPt * 10) / 10;
             return vPt;
         }
@@ -1268,11 +1568,9 @@ function setDialogOpacity(dlg, opacityValue) {
         function parseCornerRadius() {
             var vUnit = Number(etCorner.text);
             if (isNaN(vUnit) || vUnit < 0) return null;
-            // round to 0.1 (UI単位)
             vUnit = Math.round(vUnit * 10) / 10;
             var vPt = unitToPt(vUnit, "rulerType");
             if (isNaN(vPt) || vPt < 0) return null;
-            // internal pt: keep 0.1pt precision
             vPt = Math.round(vPt * 10) / 10;
             return vPt;
         }
@@ -1284,92 +1582,93 @@ function setDialogOpacity(dlg, opacityValue) {
         }
 
         function parseWidthPercent() {
-            // NOTE: 「幅」は距離（rulerType単位）として扱い、内部はptに変換する
             var vUnit = Number(etWidth.text);
             if (isNaN(vUnit) || vUnit < 0) vUnit = 0;
-
-            // keep 0.1 in UI units
             vUnit = Math.round(vUnit * 10) / 10;
 
-            // keep UI in sync
             try { slWidth.value = vUnit; } catch (e0) { }
             try { etWidth.text = String(vUnit); } catch (e1) { }
 
             var vPt = unitToPt(vUnit, "rulerType");
             if (isNaN(vPt) || vPt < 0) vPt = 0;
-
-            // internal pt: keep 0.1pt precision
             vPt = Math.round(vPt * 10) / 10;
             return vPt;
         }
 
         function applyPreview() {
             var v = parsePercent();
-            if (v === null) {
-                // 数値として成立しない間は、プレビューを消すだけ
-                clearPreviewFn();
-                return;
-            }
+            if (v === null) { clearPreviewFn(); return; }
+
             var sw = parseStrokeWidth();
-            if (sw === null) {
-                clearPreviewFn();
-                return;
-            }
+            if (sw === null) { clearPreviewFn(); return; }
+
             var cr = parseCornerRadius();
-            if (cr === null) {
-                clearPreviewFn();
-                return;
-            }
+            if (cr === null) { clearPreviewFn(); return; }
+
             var bm = getBalanceMode();
             var wp = parseWidthPercent();
-            previewFn(v, cbPreview.value, cbOverallFrame.value, cbDivider.value, cbFillLeft.value, cbFillRight.value, sw, cr, bm, wp);
+
+            previewFn(
+                v,
+                cbPreview.value,
+                cbOverallFrame.value,
+                cbDivider.value,
+                cbFillLeft.value,
+                cbFillRight.value,
+                sw,
+                cr,
+                bm,
+                wp,
+                getDirectionMode()
+            );
         }
 
-        // ダイアログ表示直後に初回プレビューを実行 / Run initial preview on dialog show
+        function persistCurrentUIToSession() {
+            try {
+                var s = getSessionSettings();
+                s.percent = Number(et.text);
+                if (isNaN(s.percent) || s.percent <= 0) s.percent = 200;
+
+                s.preview = !!cbPreview.value;
+                s.overallFrame = !!cbOverallFrame.value;
+                s.divider = !!cbDivider.value;
+                s.fillLeft = !!cbFillLeft.value;
+                s.fillRight = !!cbFillRight.value;
+
+                s.strokeUnit = String(etStroke.text);
+                s.cornerUnit = String(etCorner.text);
+
+                s.balanceMode = getBalanceMode();
+                s.widthUnit = Number(etWidth.text);
+                if (isNaN(s.widthUnit) || s.widthUnit < 0) s.widthUnit = 0;
+                s.widthUnit = Math.round(s.widthUnit * 10) / 10;
+
+                saveSessionSettings(s);
+            } catch (e) { }
+        }
+
         (function () {
             var prevOnShow = dlg.onShow;
             dlg.onShow = function () {
                 if (typeof prevOnShow === "function") {
                     try { prevOnShow(); } catch (ePrevShow) { }
                 }
-                try { updateWidthSliderMaxBySelection(); } catch (eMaxInit) { }
+                try { updateWidthSliderMaxBySelection(AUTO_DIRECTION_MODE); } catch (eMaxInit) { }
+                try { updateDirectionUILabels(); } catch (eDirInit) { }
                 try { applyPreview(); } catch (eInitPrev) { }
             };
         })();
 
-        // 値変更で即プレビュー
-        et.addEventListener('changing', function () {
-            applyPreview();
-        });
-        etStroke.addEventListener('changing', function () {
-            applyPreview();
-        });
-        etCorner.addEventListener('changing', function () {
-            applyPreview();
-        });
+        et.addEventListener('changing', function () { applyPreview(); });
+        etStroke.addEventListener('changing', function () { applyPreview(); });
+        etCorner.addEventListener('changing', function () { applyPreview(); });
 
-        cbPreview.onClick = function () {
-            applyPreview();
-        };
-        cbOverallFrame.onClick = function () {
-            updateStrokeWidthEnabled();
-            updateCornerEnabled();
-            applyPreview();
-        };
-        cbDivider.onClick = function () {
-            updateStrokeWidthEnabled();
-            applyPreview();
-        };
-        cbFillLeft.onClick = function () {
-            updateCornerEnabled();
-            applyPreview();
-        };
-        cbFillRight.onClick = function () {
-            updateCornerEnabled();
-            applyPreview();
-        };
+        cbPreview.onClick = function () { applyPreview(); };
+        cbOverallFrame.onClick = function () { updateStrokeWidthEnabled(); updateCornerEnabled(); applyPreview(); };
+        cbDivider.onClick = function () { updateStrokeWidthEnabled(); applyPreview(); };
+        cbFillLeft.onClick = function () { updateCornerEnabled(); applyPreview(); };
+        cbFillRight.onClick = function () { updateCornerEnabled(); applyPreview(); };
 
-        // OK/Cancel
         var btns = dlg.add('group');
         btns.orientation = 'row';
         btns.alignment = ['right', 'center'];
@@ -1383,22 +1682,43 @@ function setDialogOpacity(dlg, opacityValue) {
                 alert(L('alertHeightInvalid'));
                 return;
             }
-            // OK：値だけ確定（プレビューは既に反映済み）
-            // プレビューOFFの場合はここで消してから確定
-            if (!cbPreview.value) {
-                clearPreviewFn();
-            }
+            // プレビューはヒストリーを汚さないように一括Undoしてから確定描画する
+            try { PreviewHistory.undo(); } catch (ePHU1) { }
+            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
+            try { removeMarkedTempItems(doc); } catch (eTmpU1) { }
+
+            // NOTE: clearPreviewFn() は last* 状態を初期化してしまうため、OK時には呼ばない。
+            // プレビュー生成物は undo 済みで存在しないので、参照だけクリアしておく。
+            previewRect1 = null;
+            previewRect2 = null;
+            previewFrame = null;
+            previewDivider = null;
+            previewApplied = false;
+            lastPreviewPercent = null;
+
+            persistCurrentUIToSession();
             dlg.close(1);
         };
 
         cancelBtn.onClick = function () {
+            try { PreviewHistory.undo(); } catch (ePHU2) { }
+            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
+            try { removeMarkedTempItems(doc); } catch (eTmpU2) { }
             clearPreviewFn();
+            persistCurrentUIToSession();
             dlg.close(0);
         };
 
-        // Enter / Esc
         dlg.defaultElement = okBtn;
         dlg.cancelElement = cancelBtn;
+
+        dlg.onClose = function () {
+            try { PreviewHistory.undo(); } catch (ePHU3) { }
+            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
+            try { removeMarkedTempItems(doc); } catch (eTmpU3) { }
+            persistCurrentUIToSession();
+            return true;
+        };
 
         var result = dlg.show();
         if (result !== 1) return null;
@@ -1409,26 +1729,28 @@ function setDialogOpacity(dlg, opacityValue) {
         return percent;
     }
 
-    var DEFAULT_HEIGHT_PERCENT = 200; // ダイアログ初期値（%）
-    var heightRatio = DEFAULT_HEIGHT_PERCENT / 100; // 高さ倍率（内部計算用）
+    var DEFAULT_HEIGHT_PERCENT = (AUTO_DIRECTION_MODE === 'vertical') ? 130 : 200;
 
-    function previewFn(percent, enabled, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius, balanceMode, widthPercent) {
+    function previewFn(percent, enabled, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius, balanceMode, widthPercent, directionMode) {
         clearPreviewRects();
-        if (!enabled) {
-            return;
-        }
+        if (!enabled) return;
+
         try {
-            var hr = percent / 100;
-            var result = drawBackgroundRects(item1, item2, hr, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius, balanceMode, widthPercent);
+            var sr = percent / 100;
+            var result = drawBackgroundRects(itemA, itemB, sr, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius, balanceMode, widthPercent, directionMode);
+
             previewRect1 = result.rect1;
             previewRect2 = result.rect2;
             previewFrame = result.frame;
             previewDivider = result.divider;
-            // プレビュー生成物としてマーク（参照が失われても掃除できるように）
+
             if (previewRect1) markPreview(previewRect1);
             if (previewRect2) markPreview(previewRect2);
             if (previewFrame) markPreview(previewFrame);
             if (previewDivider) markPreview(previewDivider);
+
+            try { PreviewHistory.bump(); } catch (ePH1) { }
+
             previewApplied = true;
             lastPreviewPercent = percent;
             lastOverallFrame = !!addOverallFrame;
@@ -1439,37 +1761,43 @@ function setDialogOpacity(dlg, opacityValue) {
             lastCornerRadius = cornerRadius;
             lastBalanceMode = balanceMode || 'none';
             lastWidthPercent = (widthPercent !== undefined && widthPercent !== null) ? widthPercent : 0;
+            lastDirectionMode = directionMode || 'horizontal';
+
             safeRedraw();
         } catch (ePrev) {
-            // 途中生成が残らないように
             clearPreviewRects();
             throw ePrev;
         }
     }
 
     var heightPercent = showHeightDialog(DEFAULT_HEIGHT_PERCENT, previewFn, clearPreviewRects);
-    if (heightPercent === null) {
-        return; // キャンセル
-    }
-    heightRatio = heightPercent / 100;
+    if (heightPercent === null) return;
+
+    var sizeRatio = heightPercent / 100;
 
     // --- 確定処理 ---
-    // プレビューが有効で既に描画済みなら、それをそのまま採用する
-    if (!(previewApplied && lastPreviewPercent === heightPercent)) {
-        // 既存プレビューがない、または別の値のプレビューだった場合はここで描画
-        var finalResult = drawBackgroundRects(item1, item2, heightRatio, lastOverallFrame, lastDivider, lastFillLeft, lastFillRight, lastStrokeWidth, lastCornerRadius, lastBalanceMode, lastWidthPercent); previewRect1 = finalResult.rect1;
-        previewRect2 = finalResult.rect2;
-        previewFrame = finalResult.frame;
-        previewDivider = finalResult.divider;
-    } else {
-        // プレビュー図形をそのまま採用するので、プレビュー用マークを外す
-        if (previewRect1) unmarkPreview(previewRect1);
-        if (previewRect2) unmarkPreview(previewRect2);
-        unmarkPreview(previewFrame);
-        unmarkPreview(previewDivider);
-    }
+    // ［OK］時は PreviewHistory.undo() によりプレビュー生成物は消えているため、
+    // 必ずここで最終描画を行い「OK直前の見た目」で確定する。
+    var finalResult = drawBackgroundRects(
+        itemA, itemB,
+        sizeRatio,
+        lastOverallFrame, lastDivider,
+        lastFillLeft, lastFillRight,
+        lastStrokeWidth, lastCornerRadius,
+        lastBalanceMode, lastWidthPercent,
+        lastDirectionMode
+    );
+    previewRect1 = finalResult.rect1;
+    previewRect2 = finalResult.rect2;
+    previewFrame = finalResult.frame;
+    previewDivider = finalResult.divider;
 
-    // 選択を解除
+    // 確定描画はプレビュー扱いにしない
+    if (previewRect1) unmarkPreview(previewRect1);
+    if (previewRect2) unmarkPreview(previewRect2);
+    if (previewFrame) unmarkPreview(previewFrame);
+    if (previewDivider) unmarkPreview(previewDivider);
+
     doc.selection = null;
 
     // ==============================
@@ -1480,7 +1808,6 @@ function setDialogOpacity(dlg, opacityValue) {
     function roundAnyCorner(s, conf) {
         var rr = conf.rr;
 
-        // var tim = new Date();
         var p, op, pnts;
         var skipList, adjRdirAtEnd, redrawFlg;
         var i, nxi, pvi, q, d, ds, r, g, t, qb;
@@ -1491,7 +1818,7 @@ function setDialogOpacity(dlg, opacityValue) {
 
         for (var j = 0; j < s.length; j++) {
             p = s[j].pathPoints;
-            if (readjustAnchors(p) < 2) continue; // reduce anchors
+            if (readjustAnchors(p) < 2) continue;
             op = !s[j].closed;
             pnts = op ? [getDat(p[0])] : [];
             redrawFlg = false;
@@ -1514,7 +1841,7 @@ function setDialogOpacity(dlg, opacityValue) {
                 p[nxi].leftDirection, p[nxi].anchor];
 
                 ds = dist(q[0], q[3]) / 2;
-                if (arrEq(q[0], q[1]) && arrEq(q[2], q[3])) {  // straight side
+                if (arrEq(q[0], q[1]) && arrEq(q[2], q[3])) {
                     r = Math.min(ds, rr);
                     g = getRad(q[0], q[3]);
                     anc1 = getPnt(q[0], g, r);
@@ -1527,7 +1854,7 @@ function setDialogOpacity(dlg, opacityValue) {
                         }
                         pnts.push(getDat(p[nxi]));
                     } else {
-                        if (r < rr) {  // when the length of the side is less than rr * 2
+                        if (r < rr) {
                             pnts.push([anc1,
                                 getPnt(anc1, getRad(ldir1, anc1), r * hanLen),
                                 ldir1,
@@ -1542,7 +1869,7 @@ function setDialogOpacity(dlg, opacityValue) {
                         }
                         redrawFlg = true;
                     }
-                } else {  // not straight side
+                } else {
                     d = getT4Len(q, 0) / 2;
                     r = Math.min(d, rr);
                     t = getT4Len(q, r);
@@ -1561,8 +1888,8 @@ function setDialogOpacity(dlg, opacityValue) {
                                 ptyp]);
                             redrawFlg = true;
                         }
-                    } else { // skipList[nxi] = false
-                        if (r < rr) {  // the length of the side is less than rr * 2
+                    } else {
+                        if (r < rr) {
                             if (skipList[i]) {
                                 if (!op && i == 0) {
                                     adjRdirAtEnd = t;
@@ -1579,7 +1906,7 @@ function setDialogOpacity(dlg, opacityValue) {
                                     ldir1,
                                     ptyp]);
                             }
-                        } else {  // round the corner with the radius rr
+                        } else {
                             if (skipList[i]) {
                                 t = getT4Len(q, -r);
                                 anc2 = bezier(q, t);
@@ -1615,11 +1942,10 @@ function setDialogOpacity(dlg, opacityValue) {
             }
 
             if (redrawFlg) {
-                // redraw
                 for (i = p.length - 1; i > 0; i--) p[i].remove();
 
                 for (i = 0; i < pnts.length; i++) {
-                    pt = i > 0 ? p.add() : p[0];
+                    var pt = i > 0 ? p.add() : p[0];
                     with (pt) {
                         anchor = pnts[i][0];
                         rightDirection = pnts[i][1];
@@ -1630,64 +1956,43 @@ function setDialogOpacity(dlg, opacityValue) {
             }
         }
         activeDocument.selection = s;
-        // alert(new Date() - tim);
     }
 
-    // ------------------------------------------------
-    // return [x,y] of the distance "len" and the angle "rad"(in radian)
-    // from "pt"=[x,y]
     function getPnt(pt, rad, len) {
         return [pt[0] + Math.cos(rad) * len,
         pt[1] + Math.sin(rad) * len];
     }
 
-    // ------------------------------------------------
-    // return the [x, y] coordinate of the handle of the point on the bezier curve
-    // that corresponds to the parameter "t"
-    // n=0:leftDir, n=1:rightDir
     function defHan(t, q, n) {
         return [t * (t * (q[n][0] - 2 * q[n + 1][0] + q[n + 2][0]) + 2 * (q[n + 1][0] - q[n][0])) + q[n][0],
         t * (t * (q[n][1] - 2 * q[n + 1][1] + q[n + 2][1]) + 2 * (q[n + 1][1] - q[n][1])) + q[n][1]];
     }
 
-    // -----------------------------------------------
-    // return the [x, y] coordinate on the bezier curve
-    // that corresponds to the paramter "t"
     function bezier(q, t) {
         var u = 1 - t;
         return [u * u * u * q[0][0] + 3 * u * t * (u * q[1][0] + t * q[2][0]) + t * t * t * q[3][0],
         u * u * u * q[0][1] + 3 * u * t * (u * q[1][1] + t * q[2][1]) + t * t * t * q[3][1]];
     }
 
-    // ------------------------------------------------
-    // adjust the length of the handle "dir"
-    // by the magnification ratio "m",
-    // returns the modified [x, y] coordinate of the handle
-    // "anc" is the anchor [x, y]
     function adjHan(anc, dir, m) {
         return [anc[0] + (dir[0] - anc[0]) * m,
         anc[1] + (dir[1] - anc[1]) * m];
     }
 
-    // ------------------------------------------------
-    // return true if the pathPoints "p[idx]" is a corner
     function isCorner(p, idx) {
         var pnt0 = getAnglePnt(p, idx, -1);
         var pnt1 = getAnglePnt(p, idx, 1);
-        if (!pnt0 || !pnt1) return false;                    // at the end of a open-path
-        if (pnt0.length < 1 || pnt1.length < 1) return false;   // anchor is overlapping, so cannot determine the angle
+        if (!pnt0 || !pnt1) return false;
+        if (pnt0.length < 1 || pnt1.length < 1) return false;
         var rad = getRad2(pnt0, p[idx].anchor, pnt1, true);
-        if (rad > Math.PI - 0.1) return false;   // set the angle tolerance here
+        if (rad > Math.PI - 0.1) return false;
         return true;
     }
-    // ------------------------------------------------
-    // "p"=pathPoints, "idx1"=index of pathpoint
-    // "dir" = -1, returns previous point [x,y] to get the angle of tangent at pathpoints[idx1]
-    // "dir" =  1, returns next ...
+
     function getAnglePnt(p, idx1, dir) {
         if (!dir) dir = -1;
         var idx2 = parseIdx(p, idx1 + dir);
-        if (idx2 < 0) return null;  // at the end of a open-path
+        if (idx2 < 0) return null;
         var p2 = p[idx2];
         with (p[idx1]) {
             if (dir < 0) {
@@ -1711,8 +2016,7 @@ function setDialogOpacity(dlg, opacityValue) {
             }
         }
     }
-    // --------------------------------------
-    // if the contents of both arrays are equal, return true (lengthes must be same)
+
     function arrEq(arr1, arr2) {
         for (var i = 0; i < arr1.length; i++) {
             if (arr1[i] != arr2[i]) return false;
@@ -1720,46 +2024,33 @@ function setDialogOpacity(dlg, opacityValue) {
         return true;
     }
 
-    // ------------------------------------------------
-    // return the distance between p1=[x,y] and p2=[x,y]
     function dist(p1, p2) {
         return Math.sqrt(Math.pow(p1[0] - p2[0], 2)
             + Math.pow(p1[1] - p2[1], 2));
     }
-    // ------------------------------------------------
-    // return the squared distance between p1=[x,y] and p2=[x,y]
+
     function dist2(p1, p2) {
         return Math.pow(p1[0] - p2[0], 2)
             + Math.pow(p1[1] - p2[1], 2);
     }
-    // --------------------------------------
-    // return the angle in radian
-    // of the line drawn from p1=[x,y] from p2
+
     function getRad(p1, p2) {
         return Math.atan2(p2[1] - p1[1],
             p2[0] - p1[0]);
     }
 
-    // --------------------------------------
-    // return the angle between two line segments
-    // o-p1 and o-p2 ( 0 - Math.PI)
     function getRad2(p1, o, p2) {
         var v1 = normalize(p1, o);
         var v2 = normalize(p2, o);
         return Math.acos(v1[0] * v2[0] + v1[1] * v2[1]);
     }
-    // ------------------------------------------------
+
     function normalize(p, o) {
         var d = dist(p, o);
         return d == 0 ? [0, 0] : [(p[0] - o[0]) / d,
         (p[1] - o[1]) / d];
     }
 
-    // ------------------------------------------------
-    // return the bezier curve parameter "t"
-    // at the point which the length of the bezier curve segment
-    // (from the point start drawing) is "len"
-    // when "len" is 0, return the length of whole this segment.
     function getT4Len(q, len) {
         var m = [q[3][0] - q[0][0] + 3 * (q[1][0] - q[2][0]),
         q[0][0] - 2 * q[1][0] + q[2][0],
@@ -1777,11 +2068,9 @@ function setDialogOpacity(dlg, opacityValue) {
 
         if (len == 0) {
             return fullLen;
-
         } else if (len < 0) {
             len += fullLen;
             if (len < 0) return 0;
-
         } else if (len > fullLen) {
             return 1;
         }
@@ -1801,31 +2090,19 @@ function setDialogOpacity(dlg, opacityValue) {
         return t;
     }
 
-    // ------------------------------------------------
-    // return the length of bezier curve segment
-    // in range of parameter from 0 to "t"
     function getLength(k, t) {
         var h = t / 128;
         var hh = h * 2;
         var fc = function (t, k) {
-            return Math.sqrt(t * (t * (t * (t * k[0] + k[1]) + k[2]) + k[3]) + k[4]) || 0
+            return Math.sqrt(t * (t * (t * (t * k[0] + k[1]) + k[2]) + k[3]) + k[4]) || 0;
         };
         var total = (fc(0, k) - fc(t, k)) / 2;
         for (var i = h; i < t; i += hh) total += 2 * fc(i, k) + fc(i + h, k);
         return total * hh;
     }
 
-    // --------------------------------------
-    // merge nearly overlapped anchor points 
-    // return the length of pathpoints after merging
     function readjustAnchors(p) {
-        // Settings ==========================
-
-        // merge the anchor points when the distance between
-        // 2 points is within ### square root ### of this value (in point)
         var minDist = 0.0025;
-
-        // ===================================
         if (p.length < 2) return 1;
         var i;
 
@@ -1849,11 +2126,8 @@ function setDialogOpacity(dlg, opacityValue) {
 
         return p.length;
     }
-    // -----------------------------------------------
-    // return pathpoint's index. when the argument is out of bounds,
-    // fixes it if the path is closed (ex. next of last index is 0),
-    // or return -1 if the path is not closed.
-    function parseIdx(p, n) { // PathPoints, number for index
+
+    function parseIdx(p, n) {
         var len = p.length;
         if (p.parent.closed) {
             return n >= 0 ? n % len : len - Math.abs(n % len);
@@ -1861,12 +2135,12 @@ function setDialogOpacity(dlg, opacityValue) {
             return (n < 0 || n > len - 1) ? -1 : n;
         }
     }
-    // -----------------------------------------------
-    function getDat(p) { // pathPoint
+
+    function getDat(p) {
         with (p) return [anchor, rightDirection, leftDirection, pointType];
     }
-    // -----------------------------------------------
-    function isSelected(p) { // PathPoint
+
+    function isSelected(p) {
         return p.selected == PathPointSelection.ANCHORPOINT;
     }
 
@@ -1879,7 +2153,7 @@ function setDialogOpacity(dlg, opacityValue) {
 
             var sel = 0;
             for (var a = 0; a < 4; a++) if (pp[a].selected === PathPointSelection.ANCHORPOINT) sel++;
-            if (sel > 0 && sel < 4) continue; // respect partial anchor selection
+            if (sel > 0 && sel < 4) continue;
 
             var idx = [0, 1, 2, 3];
             idx.sort(function (x, y) { return pp[x].anchor[0] - pp[y].anchor[0]; });

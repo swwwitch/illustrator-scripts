@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   SmartGridMaker.jsx
   囲み罫とグリッド
 
-  更新日: 2026-02-23
+  更新日: 2026-02-24
 
   長方形またはアートボードを基準に、
   外側（辺の伸縮・線端）、タイトルエリア、
@@ -37,10 +37,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     ・画面表示panelに表示コマンド（fitin / actualsize / fitall）ボタンを追加
   ・画面表示panelの表示コマンドボタンを縦並びに変更
   ・タイトルエリアON時のデフォルト高さを外側エリア高の1/5に変更
+  ・タイトルエリアの角丸を外側エリアの［角丸］値で適用（位置に応じて2角のみ）
+  ・画面表示panelの表示コマンドボタンの幅を短く
+  ・タイトルエリア角丸の適用対象をタイトル帯（塗り/線）のみに限定（内側エリアには適用しない）
+  ・角丸処理の安定性を改善（Error 23対策）
+  ・Error 23対策：w/h未定義の残存箇所をガード
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.3.6";
+var SCRIPT_VERSION = "v1.3.10";
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)
@@ -480,7 +485,7 @@ var ViewControl = (function () {
 
             var w = iR - iL;
             var h = iT - iB;
-            if (!(w > 0) || !(h > 0)) {
+            if (typeof w === "undefined" || typeof h === "undefined" || !(w > 0) || !(h > 0)) {
                 // マージンが大きすぎる場合は 0 扱い
                 iL = L; iT = T; iR = R; iB = B;
                 w = iR - iL;
@@ -576,6 +581,219 @@ var ViewControl = (function () {
 
     // 生成した一時オブジェクト（プレビュー用）を管理する配列
     var tempPreviewItems = [];
+
+    /* =========================================
+     * Rect corner rounding helpers (pair corners)
+     * - Uses existing roundAnyCorner() in this script
+     * - Intended for 4-point closed rectangles
+     * ========================================= */
+
+    // --- selection helpers ---
+    function clearAnchorSelection(pathItem) {
+        if (!pathItem || !pathItem.pathPoints) return;
+        try {
+            var pp = pathItem.pathPoints;
+            for (var i = 0; i < pp.length; i++) pp[i].selected = PathPointSelection.NOSELECTION;
+        } catch (e) { }
+    }
+
+    // 見た目基準で LT/LB/RT/RB のインデックスを返す（パス方向に依存しない）
+    function getRectCornerIndexMap(rect) {
+        if (!rect || rect.typename !== "PathItem" || !rect.closed) return null;
+        var pp = rect.pathPoints;
+        if (!pp || pp.length !== 4) return null;
+
+        // xでソートして左2点 / 右2点を作る
+        var idx = [0, 1, 2, 3];
+        idx.sort(function (a, b) { return pp[a].anchor[0] - pp[b].anchor[0]; });
+
+        var l0 = idx[0], l1 = idx[1];
+        var r0 = idx[2], r1 = idx[3];
+
+        // yが大きい方が上
+        var LT = (pp[l0].anchor[1] >= pp[l1].anchor[1]) ? l0 : l1;
+        var LB = (LT === l0) ? l1 : l0;
+
+        var RT = (pp[r0].anchor[1] >= pp[r1].anchor[1]) ? r0 : r1;
+        var RB = (RT === r0) ? r1 : r0;
+
+        return { LT: LT, LB: LB, RT: RT, RB: RB };
+    }
+
+    // 指定キー配列（例 ["LT","RT"]）の角だけ選択
+    function selectCornersByKeys(rect, keys, respectPartialSelection) {
+        var pp = rect.pathPoints;
+        var map = getRectCornerIndexMap(rect);
+        if (!map) return false;
+
+        // 既に一部だけアンカー選択がある場合は尊重（安全側）
+        if (respectPartialSelection) {
+            var sel = 0;
+            for (var i = 0; i < 4; i++) if (pp[i].selected === PathPointSelection.ANCHORPOINT) sel++;
+            if (sel > 0 && sel < 4) return false;
+        }
+
+        // 全解除→指定角だけ選択
+        for (var j = 0; j < 4; j++) pp[j].selected = PathPointSelection.NOSELECTION;
+
+        for (var k = 0; k < keys.length; k++) {
+            var idx = map[keys[k]];
+            if (idx === undefined || idx === null) return false;
+            pp[idx].selected = PathPointSelection.ANCHORPOINT;
+        }
+        return true;
+    }
+
+    /**
+     * 指定した2角セットだけ角丸
+     * @param {PathItem} rect 4点矩形
+     * @param {"TOP"|"LEFT"|"RIGHT"|"BOTTOM"} pair
+     * @param {number} radiusPt pt
+     * @param {{respectPartialSelection?:boolean, keepSelection?:boolean}} options
+     * @returns {boolean}
+     */
+    function roundRectCornerPair(rect, pair, radiusPt, options) {
+        options = options || {};
+        var respectPartial = (options.respectPartialSelection !== false); // default true
+        var keepSel = !!options.keepSelection;
+
+        if (!rect || rect.typename !== "PathItem" || !rect.closed) return false;
+        if (!rect.pathPoints || rect.pathPoints.length !== 4) return false;
+
+        var r = Number(radiusPt);
+        if (isNaN(r) || r <= 0) return false;
+
+        var keys;
+        if (pair === "TOP") keys = ["LT", "RT"];           // 左上+右上
+        else if (pair === "LEFT") keys = ["LT", "LB"];     // 左上+左下
+        else if (pair === "RIGHT") keys = ["RT", "RB"];    // 右上+右下
+        else if (pair === "BOTTOM") keys = ["LB", "RB"];   // 左下+右下
+        else return false;
+
+        clearAnchorSelection(rect);
+        var ok = selectCornersByKeys(rect, keys, respectPartial);
+        if (!ok) {
+            if (!keepSel) clearAnchorSelection(rect);
+            return false;
+        }
+
+        // 選択されたアンカーだけ角丸
+        try {
+            // roundAnyCorner() は既存の実装を利用する
+            roundAnyCorner([rect], { rr: r });
+        } catch (e) { }
+
+        if (!keepSel) clearAnchorSelection(rect);
+        return true;
+    }
+
+    // 4点矩形に対して、指定した2角だけ角丸（in-placeで確実に反映）
+    function roundRectCornerPairInPlace(rect, pair, radiusPt) {
+        if (!rect || rect.typename !== "PathItem" || !rect.closed) return false;
+
+        var r0 = Number(radiusPt);
+        if (isNaN(r0) || r0 <= 0) return false;
+
+        var b = rect.geometricBounds; // [L,T,R,B]
+        var L = b[0], T = b[1], R = b[2], B = b[3];
+        var w = R - L, h = T - B;
+        if (typeof w === "undefined" || typeof h === "undefined" || !(w > 0) || !(h > 0)) return false;
+
+        var rr = Math.min(r0, w / 2, h / 2);
+        if (!(rr > 0)) return false;
+
+        var k = rr * 0.5522847498307936;
+        var PT = (typeof PointType !== "undefined") ? PointType : { CORNER: 0, SMOOTH: 1 };
+
+        var roundTL = (pair === "TOP" || pair === "LEFT");
+        var roundTR = (pair === "TOP" || pair === "RIGHT");
+        var roundBR = (pair === "BOTTOM" || pair === "RIGHT");
+        var roundBL = (pair === "BOTTOM" || pair === "LEFT");
+
+        var pts = [];
+        function add(ax, ay, lx, ly, rx, ry, ptType) {
+            pts.push({
+                a: [ax, ay],
+                l: (lx == null) ? [ax, ay] : [lx, ly],
+                r: (rx == null) ? [ax, ay] : [rx, ry],
+                t: ptType
+            });
+        }
+
+        // Start: TL (top edge side)
+        if (roundTL) add(L + rr, T, L + rr - k, T, null, null, PT.SMOOTH);
+        else add(L, T, null, null, null, null, PT.CORNER);
+
+        // TR
+        if (roundTR) {
+            add(R - rr, T, null, null, R - rr + k, T, PT.SMOOTH);
+            add(R, T - rr, R, T - rr + k, null, null, PT.SMOOTH);
+        } else {
+            add(R, T, null, null, null, null, PT.CORNER);
+        }
+
+        // BR
+        if (roundBR) {
+            add(R, B + rr, null, null, R, B + rr - k, PT.SMOOTH);
+            add(R - rr, B, R - rr + k, B, null, null, PT.SMOOTH);
+        } else {
+            add(R, B, null, null, null, null, PT.CORNER);
+        }
+
+        // BL
+        if (roundBL) {
+            add(L + rr, B, null, null, L + rr - k, B, PT.SMOOTH);
+            add(L, B + rr, L, B + rr - k, null, null, PT.SMOOTH);
+        } else {
+            add(L, B, null, null, null, null, PT.CORNER);
+        }
+
+        // Close: TL (left edge side)
+        if (roundTL) add(L, T - rr, null, null, L, T - rr + k, PT.SMOOTH);
+
+        var pathArr = [];
+        for (var pi = 0; pi < pts.length; pi++) {
+            pathArr.push(pts[pi].a);
+        }
+        rect.setEntirePath(pathArr);
+        rect.closed = true;
+
+        for (var i = 0; i < rect.pathPoints.length; i++) {
+            rect.pathPoints[i].leftDirection = pts[i].l;
+            rect.pathPoints[i].rightDirection = pts[i].r;
+            try { rect.pathPoints[i].pointType = pts[i].t; } catch (_) { }
+        }
+        return true;
+    }
+
+    function isTitleBandItem(it) {
+        if (!it) return false;
+        try { if (it.note === "__TitleFill__" || it.note === "__TitleLine__") return true; } catch (_) { }
+        try { if (it.name === "__TitleFill__" || it.name === "__TitleLine__") return true; } catch (_) { }
+        return false;
+    }
+
+    // タイトルエリア用：外側エリアの角丸値を参照して、位置に応じて2角だけ角丸
+    function applyTitleAreaCornerRounding(titleRect, titlePosKey, radiusUnit) {
+        if (!titleRect || titleRect.typename !== "PathItem") return false;
+        if (!isTitleBandItem(titleRect)) return false;
+
+        var ru = Number(radiusUnit);
+        if (isNaN(ru) || ru <= 0) return false;
+
+        var factor = getCurrentRulerPtFactor();
+        if (!factor || factor === 0) factor = 1;
+        var radiusPt = ru * factor;
+
+        var pair = null;
+        if (titlePosKey === "top") pair = "TOP";
+        else if (titlePosKey === "right") pair = "RIGHT";
+        else if (titlePosKey === "bottom") pair = "BOTTOM";
+        else if (titlePosKey === "left") pair = "LEFT";
+        else return false;
+
+        return roundRectCornerPairInPlace(titleRect, pair, radiusPt);
+    }
 
 
 
@@ -878,21 +1096,12 @@ var ViewControl = (function () {
 
         applyOuterRoundEnabledState = function () {
             try {
-                // 「辺の伸縮」がONのときは角丸は使えない（ディム表示）
-                var usable = (!!chkKeepOuter.value && !(chkEnableLen && chkEnableLen.value));
-
-                chkOuterRound.enabled = usable;
-
-                if (!usable) {
-                    chkOuterRound.value = false;
-                    editOuterRound.text = "0";
-                }
-
-                editOuterRound.enabled = (usable && !!chkOuterRound.value);
-                if (usable && !chkOuterRound.value) editOuterRound.text = "0";
+                // タイトル角丸の参照値として使うため、辺の伸縮ONでも入力は可能にする
+                chkOuterRound.enabled = true;
+                editOuterRound.enabled = !!chkOuterRound.value;
+                if (!chkOuterRound.value) editOuterRound.text = "0";
             } catch (_) { }
         };
-        applyOuterRoundEnabledState();
 
         chkOuterRound.onClick = function () {
             try {
@@ -905,27 +1114,18 @@ var ViewControl = (function () {
             } catch (_) { }
 
             applyOuterRoundEnabledState();
-            // 外側エリアの角丸が0以外なら、タイトルエリアの［塗り］をOFF
-            try {
-                var rv = parseFloat(editOuterRound.text);
-                if (chkOuterRound.value && !isNaN(rv) && rv !== 0) {
-                    if (typeof chkTitleFill !== "undefined" && chkTitleFill) {
-                        chkTitleFill.value = false;
-                    }
-                }
-            } catch (_) { }
             if (chkPreview && chkPreview.value) updatePreview(false);
         };
 
         editOuterRound.onChanging = function () {
-            try {
-                var rv = parseFloat(editOuterRound.text);
-                if (chkOuterRound.value && !isNaN(rv) && rv !== 0) {
-                    if (typeof chkTitleFill !== "undefined" && chkTitleFill) {
-                        chkTitleFill.value = false;
-                    }
-                }
-            } catch (_) { }
+            // try {
+            //     var rv = parseFloat(editOuterRound.text);
+            //     if (chkOuterRound.value && !isNaN(rv) && rv !== 0) {
+            //         if (typeof chkTitleFill !== "undefined" && chkTitleFill) {
+            //             chkTitleFill.value = false;
+            //         }
+            //     }
+            // } catch (_) { }
             if (chkPreview && chkPreview.value) updatePreview(false);
         };
 
@@ -1222,6 +1422,26 @@ var ViewControl = (function () {
 
     // デフォルト：上
     rbTitleTop.value = true;
+
+    function getTitlePosKey() {
+        try {
+            if (rbTitleRight && rbTitleRight.value) return "right";
+            if (rbTitleBottom && rbTitleBottom.value) return "bottom";
+            if (rbTitleLeft && rbTitleLeft.value) return "left";
+        } catch (_) { }
+        return "top";
+    }
+
+    function maybeApplyTitleAreaRound(titleRect) {
+        try {
+            if (!titleRect) return false;
+            if (!chkOuterRound || !chkOuterRound.value) return false;
+            var ru = parseFloat(editOuterRound.text);
+            if (isNaN(ru) || ru <= 0) return false;
+            return !!applyTitleAreaCornerRounding(titleRect, getTitlePosKey(), ru);
+        } catch (_) { }
+        return false;
+    }
 
     // 塗り／線
     var titleOptionGroup = titlePanel.add("group");
@@ -1556,24 +1776,30 @@ var ViewControl = (function () {
         try {
             var gScreenCmd = screenBody.add("group");
             gScreenCmd.orientation = "column";
-            gScreenCmd.alignChildren = ["fill", "top"];
+            gScreenCmd.alignChildren = ["left", "top"];
             gScreenCmd.spacing = 6;
             try { gScreenCmd.alignment = ["fill", "top"]; } catch (_) { }
 
             var btnFitIn = gScreenCmd.add("button", undefined, L("btnFitIn"));
-            try { btnFitIn.alignment = "fill"; } catch (_) { }
+            try { btnFitIn.alignment = "left"; } catch (_) { }
             var btnActualSize = gScreenCmd.add("button", undefined, L("btnActualSize"));
-            try { btnActualSize.alignment = "fill"; } catch (_) { }
+            try { btnActualSize.alignment = "left"; } catch (_) { }
             var btnFitAll = gScreenCmd.add("button", undefined, L("btnFitAll"));
-            try { btnFitAll.alignment = "fill"; } catch (_) { }
+            try { btnFitAll.alignment = "left"; } catch (_) { }
 
             function makeSmallButton(btn) {
                 // size 系プロパティは環境差で落ちることがあるため保護
+                var w = 190;
                 try { btn.preferredSize.height = 22; } catch (_) { }
                 try { btn.minimumSize.height = 22; } catch (_) { }
                 try { btn.maximumSize.height = 22; } catch (_) { }
                 try { btn.minimumSize = [0, 22]; } catch (_) { }
                 try { btn.maximumSize = [10000, 22]; } catch (_) { }
+                try { btn.preferredSize.width = w; } catch (_) { }
+                try { btn.minimumSize.width = w; } catch (_) { }
+                try { btn.maximumSize.width = w; } catch (_) { }
+                try { btn.minimumSize = [w, 22]; } catch (_) { }
+                try { btn.maximumSize = [w, 22]; } catch (_) { }
             }
             makeSmallButton(btnFitIn);
             makeSmallButton(btnActualSize);
@@ -2856,7 +3082,7 @@ var ViewControl = (function () {
             var L = b[0], T = b[1], R = b[2], B = b[3];
             var w = R - L;
             var h = T - B;
-            if (!(w > 0) || !(h > 0)) return;
+            if (typeof w === "undefined" || typeof h === "undefined" || !(w > 0) || !(h > 0)) return;
 
             var innerL = L + framePt;
             var innerT = T - framePt;
@@ -2972,8 +3198,14 @@ var ViewControl = (function () {
             rr.stroked = false;
             rr.filled = true;
             rr.fillColor = makeK30Fill();
+
             try { rr.note = "__TitleFill__"; } catch (_) { }
             try { rr.name = "__TitleFill__"; } catch (_) { }
+
+            maybeApplyTitleAreaRound(rr);
+
+
+
             // 背面へ（他の罫線や要素の下に敷く）
             try { rr.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
             tempPreviewItems.push(rr);
@@ -3119,14 +3351,22 @@ var ViewControl = (function () {
 
         // 内側の長方形（塗り）
         // 列数/行数に応じて n×m に分割し、ガター分の空きを作る（n,mが3以上でも反映）
+        // 内側の長方形（塗り）
+        // 列数/行数に応じて n×m に分割し、ガター分の空きを作る（n,mが3以上でも反映）
         function _addFillRect(topY, leftX, w, h) {
-            if (!(w > 0) || !(h > 0)) return;
+            if (typeof w === "undefined" || typeof h === "undefined" || !(w > 0) || !(h > 0)) return;
+
+            // inner fill rect
             var rr = pathItem.layer.pathItems.rectangle(topY, leftX, w, h);
             rr.stroked = false;
             rr.filled = true;
             rr.fillColor = makeK15Fill();
+
+            // 内側エリアには角丸は不要（タイトル角丸は適用しない）
+
             try { rr.note = "__InnerBoxFill__"; } catch (_) { }
             try { rr.name = "__InnerBoxFill__"; } catch (_) { }
+
             // 背面へ（罫線などのパスの下に敷く）
             try { rr.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
             tempPreviewItems.push(rr);
