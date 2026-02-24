@@ -3,7 +3,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
   Long Shadow Maker (Extrude and Merge with Preview)
-  ダイアログで距離・角度・スケールを指定してロングシャドウを生成するスクリプト。プレビュー機能付き。
+  ダイアログで距離・角度・スケールを指定してロングシャドウを生成するスクリプト。プレビュー機能付き。必要に応じて「パスの単純化」を実行できます。
   サンプリング方式で影の側面を生成し、必要に応じてパスファインダーで合体・穴埋めを行います。
 
   対象：閉パスの PathItem / CompoundPathItem / GroupItem / TextFrame
@@ -13,10 +13,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   https://note.com/nice_lotus120/n/nf406fb3ae2b4
 
 
- 更新日: 2026-02-09
+ 更新日: 2026-02-24
 */
 
-var SCRIPT_VERSION = "v1.0.9";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -100,6 +100,10 @@ shape: {
     scale: {
         ja: "スケール",
         en: "Scale"
+    },
+    simplify: {
+        ja: "パスの単純化",
+        en: "Simplify"
     },
     preview: {
         ja: "プレビュー",
@@ -723,6 +727,17 @@ function L(key) {
     var slScale = grpScale.add("slider", undefined, 100, 1, 300);
     slScale.preferredSize.width = 170;
 
+    // パスの単純化（スケールの下）
+    var grpSimplify = mainGroup.add("group");
+    grpSimplify.orientation = "row";
+    grpSimplify.alignChildren = ["center", "center"];
+    grpSimplify.alignment = "center";
+    grpSimplify.margins = [0, 10, 0, 0];
+
+    var chkSimplify = grpSimplify.add("checkbox", undefined, L('simplify'));
+    chkSimplify.value = true;
+    chkSimplify.alignment = "center";
+
     // スライダー連動（edittext <-> slider）
     bindSliderNumber(inputDistance, slDistance, 0, maxDist, false);
     bindSliderNumber(inputAngle, slAngle, -180, 180, true);
@@ -1209,6 +1224,50 @@ function L(key) {
         }
     }
 
+    /* パスの単純化（メニュー実行） / Simplify paths (menu command) */
+    function simplifyPathsInItem(item) {
+        try {
+            if (!item) return;
+            if (!chkSimplify || !chkSimplify.value) return;
+
+            function collectTargets(container, out) {
+                if (!container) return;
+                try {
+                    if (container.typename === 'PathItem') {
+                        out.push(container);
+                        return;
+                    }
+                    if (container.typename === 'CompoundPathItem') {
+                        out.push(container);
+                        return;
+                    }
+                    if (container.typename === 'GroupItem') {
+                        for (var i = 0; i < container.pageItems.length; i++) {
+                            collectTargets(container.pageItems[i], out);
+                        }
+                        return;
+                    }
+                } catch (_) { }
+            }
+
+            var targets = [];
+            collectTargets(item, targets);
+            if (!targets.length) return;
+
+            // Select targets and run Simplify
+            try { doc.selection = null; } catch (_) { }
+            for (var i = 0; i < targets.length; i++) {
+                try { targets[i].selected = true; } catch (_) { }
+            }
+
+            // NOTE: This menu command opens the Simplify dialog (Illustrator limitation)
+            try { app.executeMenuCommand("simplify menu item"); } catch (_) { }
+
+            // clear selection to avoid affecting later operations
+            try { doc.selection = null; } catch (_) { }
+        } catch (_) { }
+    }
+
 
     // Scale special-case: treat 1% as 0.01% for ultra-small extrusion
     function normalizeScalePercent(rawScalePercent) {
@@ -1379,6 +1438,9 @@ function L(key) {
         } catch (_) { cGroup = shadowGroup; }
 
 
+        // パスの単純化（任意）
+        try { simplifyPathsInItem(cGroup); } catch (_) { }
+
         // オフセット（ライブ効果）をCグループに適用
         applyOffsetEffectToCGroup(cGroup);
 
@@ -1448,6 +1510,9 @@ function L(key) {
     inputDistance.onChanging = function () { if (chkPreview.value) updatePreview(); };
     inputAngle.onChanging = function () { if (chkPreview.value) updatePreview(); };
     inputScale.onChanging = function () { if (chkPreview.value) updatePreview(); };
+
+    // 単純化チェックの切替時（プレビューがONなら再描画）
+    if (chkSimplify) chkSimplify.onClick = function () { if (chkPreview.value) updatePreview(); };
 
     // プレビューチェックボックスがクリックされた時
     chkPreview.onClick = updatePreview;
