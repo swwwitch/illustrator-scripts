@@ -4,13 +4,13 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 /*
  * 破線計算機（Gap→Dash）
  * 更新日: 2026-02-25
- * Version: v1.4
+ * Version: v1.4.1
  * 概要: パス（オープン/クローズ）1つを選択し、分割数と間隔から線分長を算出して破線を適用します。
  *      「開始位置（オフセット）」で破線の開始位置（位相）も指定できます。
  */
 
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.4.1";
 
 // --- 前回値の記憶（app.putCustomOptions） ---
 var PREF_KEY = "DashCalcPrefs_GapToDash_v1";
@@ -70,16 +70,16 @@ var LABELS = {
     panelPathInfo: { ja: "選択中のパス情報", en: "Selected Path Info" },
     pathLength: { ja: "パスの長さ:", en: "Path length:" },
 
+    panelSplit: { ja: "パスの分割", en: "Split Path" },
+
     segmentsLabel: { ja: "分割数:", en: "Segments:" },
     gapLabel: { ja: "間隔:", en: "Gap:" },
     dashLabel: { ja: "線分:", en: "Dash:" },
 
-    calcModeLabel: { ja: "計算:", en: "Mode:" },
     modeGapToDash: { ja: "間隔→線分", en: "Gap→Dash" },
     modeDashToGap: { ja: "線分→間隔", en: "Dash→Gap" },
     calcMethodPanel: { ja: "計算方法", en: "Calculation" },
 
-    // offsetLabel: { ja: "開始位置:", en: "Offset:" },
     offsetPanel: { ja: "開始位置", en: "Offset" },
     adjustEnds: { ja: "両端を調整", en: "Adjust ends" },
 
@@ -105,7 +105,7 @@ var LABELS = {
     alertDashInvalid: { ja: "線分 (Dash) は0以上の数値を入力してください。", en: "Enter a number of 0 or greater for Dash." },
     alertOffsetInvalid: { ja: "開始位置 (Offset) は数値を入力してください。", en: "Enter a number for Offset." },
 
-    alertPasteInvalid: { ja: "貼り付け形式が不正です。例: 0,15,20,13", en: "Invalid paste format. Example: 0,15,20,13" },
+    alertPasteInvalid: { ja: "貼り付け形式が不正です。例: 0,100,50,20", en: "Invalid paste format. Example: 0,100,50,20" },
 
     alertGapTooLongDetail: {
         ja: "間隔 (Gap) が長すぎます。線分がゼロまたはマイナスになってしまいます。\n(設定可能な最大Gap: ほぼ {0} {1})",
@@ -235,7 +235,6 @@ function main() {
     // 貼付モード（dash array を直接適用）
     var pasteMode = false;
     var pasteDashPts = null; // pt配列
-    var pasteDisplayIndex = 0; // UI表示に使う先頭インデックス
 
     // 前回値
     var prefs = loadPrefs();
@@ -282,7 +281,7 @@ function main() {
     colRight.alignChildren = "fill";
 
     // パスの分割（左カラム）
-    var splitPanel = colLeft.add("panel", undefined, "パスの分割");
+    var splitPanel = colLeft.add("panel", undefined, L("panelSplit"));
     splitPanel.alignChildren = "left";
     splitPanel.margins = [15, 20, 15, 10];
 
@@ -384,9 +383,6 @@ function main() {
     grpOffset.orientation = "row";
     grpOffset.alignChildren = ["left", "center"];
 
-    // var stOffset = grpOffset.add("statictext", undefined, L("offsetLabel"));
-    // stOffset.preferredSize.width = LABEL_W;
-    // stOffset.justify = "right";
 
     var inpOffset = grpOffset.add("edittext", undefined, fmtFieldNumber(initOffsetUnit));
     inpOffset.characters = 4;
@@ -414,9 +410,6 @@ function main() {
     grpPaste.orientation = "row";
     grpPaste.alignChildren = ["left", "center"];
 
-    // ラベル相当の空き
-    // var stPasteSpacer = grpPaste.add("statictext", undefined, "");
-    // stPasteSpacer.preferredSize.width = LABEL_W;
 
     var inpPaste = grpPaste.add("edittext", undefined, "");
     inpPaste.characters = 12;
@@ -678,7 +671,6 @@ function main() {
     function exitPasteMode() {
         pasteMode = false;
         pasteDashPts = null;
-        pasteDisplayIndex = 0;
         inpPaste.text = "";
     }
 
@@ -748,7 +740,6 @@ function main() {
         }
 
         var di = getPasteDisplayIndexFromUnits(r.dashesUnit);
-        pasteDisplayIndex = di;
 
         // dashes（unit → pt）
         var pts = [];
@@ -806,7 +797,6 @@ function main() {
 
             // 表示は [0,offset,...] の場合、offset から
             var di = getDisplayIndexFromDashPts(finalPts);
-            pasteDisplayIndex = di;
 
             var p0 = (finalPts.length > di) ? finalPts[di] : (finalPts.length >= 1 ? finalPts[0] : 0);
             var p1 = (finalPts.length > di + 1) ? finalPts[di + 1] : (finalPts.length >= 2 ? finalPts[1] : 0);
@@ -903,7 +893,7 @@ function main() {
         // プリセット表示を同期（手入力/分割数変更に追従）
         syncOffsetPreset(offsetUnit);
 
-        var offsetPt = unitToPt(offsetUnit, unitInfo);
+        // var offsetPt = unitToPt(offsetUnit, unitInfo); // unused
 
         // プレビュー適用
         sel.stroked = true;
@@ -965,25 +955,22 @@ function main() {
         updatePreview();
     }
 
-    function updatePreviewOffset() {
-        updatePreview();
-    }
 
     // ↑↓キーによる値変更でもプレビューを更新
     inpSegments._onArrowChange = updatePreviewExitPaste;
     inpGap._onArrowChange = updatePreviewExitPaste;
     inpDash._onArrowChange = updatePreviewExitPaste;
-    inpOffset._onArrowChange = updatePreviewOffset;
+    inpOffset._onArrowChange = updatePreview;
 
     // 入力値や線端の変更でプレビュー更新
     inpSegments.onChanging = updatePreviewExitPaste;
     inpGap.onChanging = updatePreviewExitPaste;
     inpDash.onChanging = updatePreviewExitPaste;
-    inpOffset.onChanging = updatePreviewOffset;
+    inpOffset.onChanging = updatePreview;
     inpSegments.onChange = updatePreviewExitPaste;
     inpGap.onChange = updatePreviewExitPaste;
     inpDash.onChange = updatePreviewExitPaste;
-    inpOffset.onChange = updatePreviewOffset;
+    inpOffset.onChange = updatePreview;
     rbCapNone.onClick = updatePreview;
     rbCapRound.onClick = updatePreview;
     rbCapProject.onClick = updatePreview;
