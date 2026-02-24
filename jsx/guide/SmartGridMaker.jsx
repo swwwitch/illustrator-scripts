@@ -45,7 +45,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.3.10";
+var SCRIPT_VERSION = "v1.4";
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)
