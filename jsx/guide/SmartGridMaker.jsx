@@ -45,7 +45,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.4.1";
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)
@@ -1873,10 +1873,9 @@ var ViewControl = (function () {
     chkPreview.alignment = "left";
 
     // スペーサー（右側のボタンを押し出す）
-    var spacer = bottomRow.add("statictext", undefined, "");
-    spacer.alignment = ["fill", "center"];
+    var spacer = bottomRow.add("group");
+    spacer.alignment = ["fill", "fill"];
     spacer.minimumSize.width = 0;
-    spacer.maximumSize.width = 10000;
 
     // ボタンエリア（右寄せ）
     var btnGroup = bottomRow.add("group");
