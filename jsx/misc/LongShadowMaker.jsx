@@ -5,6 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   Long Shadow Maker (Extrude and Merge with Preview)
   ダイアログで距離・角度・スケールを指定してロングシャドウを生成するスクリプト。プレビュー機能付き。必要に応じて「パスの単純化」を実行できます。
   サンプリング方式で影の側面を生成し、必要に応じてパスファインダーで合体・穴埋めを行います。
+  ボタンエリアを3カラム（左：プレビュー／中央：スペーサー／右：キャンセル・OK）構成に変更。
 
   対象：閉パスの PathItem / CompoundPathItem / GroupItem / TextFrame
 
@@ -12,11 +13,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   こじらせたクマー さん
   https://note.com/nice_lotus120/n/nf406fb3ae2b4
 
-
- 更新日: 2026-02-24
+  更新日: 2026-02-25
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -33,10 +33,10 @@ var LABELS = {
         ja: "ドキュメントを開いてください。",
         en: "Please open a document."
     },
-selectOneClosed: {
-    ja: "閉パス（単一パス／複合パス／グループ）を1つだけ選択してください。",
-    en: "Please select exactly one closed shape (path / compound path / group / text)."
-},
+    selectOneClosed: {
+        ja: "閉パス（単一パス／複合パス／グループ）を1つだけ選択してください。",
+        en: "Please select exactly one closed shape (path / compound path / group / text)."
+    },
     selectClosed: {
         ja: "閉パスを選択してください。",
         en: "Please select a closed path."
@@ -50,29 +50,29 @@ selectOneClosed: {
         en: "Could not build a shape from the group. Please select a group of closed paths."
     },
     notGroupItem: {
-    ja: "GroupItem ではありません。",
-    en: "This is not a GroupItem."
-},
-cannotGetMergedFromGroup: {
-    ja: "グループの合体結果を取得できませんでした。",
-    en: "Could not retrieve the merged result from the group."
-},
-groupMergeError: {
-    ja: "グループの合体中にエラーが発生しました: ",
-    en: "An error occurred while merging the group: "
-},
-notTextFrame: {
-    ja: "TextFrame ではありません。",
-    en: "This is not a TextFrame."
-},
-outlineFailed: {
-    ja: "アウトライン化に失敗しました。",
-    en: "Failed to create outlines."
-},
-textMergeError: {
-    ja: "テキストの合体中にエラーが発生しました: ",
-    en: "An error occurred while processing the text: "
-},
+        ja: "GroupItem ではありません。",
+        en: "This is not a GroupItem."
+    },
+    cannotGetMergedFromGroup: {
+        ja: "グループの合体結果を取得できませんでした。",
+        en: "Could not retrieve the merged result from the group."
+    },
+    groupMergeError: {
+        ja: "グループの合体中にエラーが発生しました: ",
+        en: "An error occurred while merging the group: "
+    },
+    notTextFrame: {
+        ja: "TextFrame ではありません。",
+        en: "This is not a TextFrame."
+    },
+    outlineFailed: {
+        ja: "アウトライン化に失敗しました。",
+        en: "Failed to create outlines."
+    },
+    textMergeError: {
+        ja: "テキストの合体中にエラーが発生しました: ",
+        en: "An error occurred while processing the text: "
+    },
     preset: {
         ja: "プリセット",
         en: "Preset"
@@ -85,10 +85,10 @@ textMergeError: {
         ja: "オフセット",
         en: "Offset"
     },
-shape: {
-    ja: "形状",
-    en: "Join"
-},
+    shape: {
+        ja: "形状",
+        en: "Join"
+    },
     distance: {
         ja: "距離",
         en: "Distance"
@@ -722,7 +722,6 @@ function L(key) {
     var stScaleUnit = grpScale.add("statictext", undefined, "%");
     stScaleUnit.preferredSize.width = 24;
 
-
     // スライダー（スケール）※右側に配置
     var slScale = grpScale.add("slider", undefined, 100, 1, 300);
     slScale.preferredSize.width = 170;
@@ -761,24 +760,34 @@ function L(key) {
         if (chkPreview && chkPreview.value) updatePreview();
     };
 
-    // Buttons（左：プレビュー（無効） / 右：キャンセル・OK）
-    var gBtn = dlg.add("group");
-    gBtn.orientation = "row";
-    gBtn.alignment = ["fill", "top"];
-    gBtn.alignChildren = ["right", "center"];
+    // Buttons（3カラム：左=プレビュー / 中央=スペーサー / 右=キャンセル・OK）
+    var btnRowGroup = dlg.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.alignment = ["fill", "top"];
+    btnRowGroup.alignChildren = ["left", "center"];
 
-    // 左端：プレビュー
-    var chkPreview = gBtn.add("checkbox", undefined, L('preview'));
+    // 左：プレビュー
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.orientation = "row";
+    btnLeftGroup.alignChildren = ["left", "center"];
+
+    var chkPreview = btnLeftGroup.add("checkbox", undefined, L('preview'));
     chkPreview.value = true;   // デフォルトON
     chkPreview.enabled = true; // 有効
 
-    // スペーサー（左右を分離）
-    var spacer = gBtn.add("group");
+    // 中央：スペーサー（3カラムの中央）
+    var spacer = btnRowGroup.add("group");
     spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
 
-    // 右端：キャンセル / OK
-    var btnCancel = gBtn.add("button", undefined, L('cancel'), { name: "cancel" });
-    var btnOk = gBtn.add("button", undefined, L('ok'), { name: "ok" });
+    // 右：キャンセル / OK
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.orientation = "row";
+    btnRightGroup.alignChildren = ["right", "center"];
+    btnRightGroup.alignment = ["right", "center"];
+
+    var btnCancel = btnRightGroup.add("button", undefined, L('cancel'), { name: "cancel" });
+    var btnOk = btnRightGroup.add("button", undefined, L('ok'), { name: "ok" });
     btnOk.active = true;
 
     // --- ↑↓キーで数値を増減（Shift=±10, Option=±0.1） ---
@@ -985,7 +994,6 @@ function L(key) {
         return out;
     }
 
-
     function bezierPoint(p0, p1, p2, p3, t) {
         var u = 1 - t;
         var tt = t * t;
@@ -997,7 +1005,6 @@ function L(key) {
             uuu * p0[1] + 3 * uu * t * p1[1] + 3 * u * tt * p2[1] + ttt * p3[1]
         ];
     }
-
 
     /* 実パス生成（サンプリング面生成） / Build shadow by sampling & bridging */
     var CURVE_SAMPLE_COUNT = 8; // v15 相当（必要なら調整）
@@ -1268,7 +1275,6 @@ function L(key) {
         } catch (_) { }
     }
 
-
     // Scale special-case: treat 1% as 0.01% for ultra-small extrusion
     function normalizeScalePercent(rawScalePercent) {
         var v = Number(rawScalePercent);
@@ -1437,7 +1443,6 @@ function L(key) {
             }
         } catch (_) { cGroup = shadowGroup; }
 
-
         // パスの単純化（任意）
         try { simplifyPathsInItem(cGroup); } catch (_) { }
 
@@ -1469,8 +1474,6 @@ function L(key) {
             try { shadowItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
         })(cGroup, originalPath);
 
-        // （TextFrame/GroupItem の一時ベース削除は baseCleanup() 側に統合）
-
         // 一時ベース（Group由来など）の後始末
         cleanupTempBaseSafely();
 
@@ -1489,7 +1492,6 @@ function L(key) {
 
         app.redraw();
         return;
-
     }
 
     /* プレビュー更新 / Update preview */

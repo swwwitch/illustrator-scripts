@@ -765,11 +765,10 @@ function setDialogOpacity(dlg, opacityValue) {
   gBottomL.margins = [0, 0, 0, 0];
 
   // Middle: spacer / 中央：スペーサー
-  var stSpacer = bottomBar.add("statictext", undefined, "");
-  stSpacer.alignment = "fill";
-  stSpacer.minimumSize.width = 10;
-  stSpacer.maximumSize.width = 10000;
-  stSpacer.preferredSize.width = 170;
+
+var stSpacer = bottomBar.add("group");
+stSpacer.alignment = ["fill", "fill"];
+stSpacer.minimumSize.width = 0;
 
   // Right: Buttons / 右：ボタン
   var btns = bottomBar.add("group");
