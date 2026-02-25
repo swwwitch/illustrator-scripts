@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 ### スクリプト名：
 
-AlignAndDistributeTate.jsx
+AlignAndDistribute-Tate-simple.jsx
 
 ### オリジナルアイデア
 
@@ -19,7 +19,7 @@ https://gorolib.blog.jp/archives/77282974.html
 */
 
 /* バージョン変数を追加 / Script version variable */
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 /* ダイアログ外観変数 / Dialog appearance variable */
 var dialogOpacity = 0.97;
@@ -37,6 +37,10 @@ var LABELS = {
     hMargin: {
         ja: "垂直方向:",
         en: "V:"
+    },
+    spacingLabel: {
+        ja: "間隔",
+        en: "Spacing"
     },
     useBounds: {
         ja: "プレビュー境界を使用",
@@ -171,6 +175,31 @@ function getPtFactorFromUnitCode(code) {
     }
 }
 
+function addAlignKeyHandler(target, rbNone, rbLeft, rbCenter, rbRight, onUpdate) {
+    target.addEventListener("keydown", function (event) {
+        // ScriptUI: event.keyName は "N" などで来ることが多い
+        var k = event.keyName;
+
+        if (k === "N") {
+            rbNone.value = true;
+            event.preventDefault();
+            if (typeof onUpdate === "function") onUpdate();
+        } else if (k === "L") {
+            rbLeft.value = true;
+            event.preventDefault();
+            if (typeof onUpdate === "function") onUpdate();
+        } else if (k === "C") {
+            rbCenter.value = true;
+            event.preventDefault();
+            if (typeof onUpdate === "function") onUpdate();
+        } else if (k === "R") {
+            rbRight.value = true;
+            event.preventDefault();
+            if (typeof onUpdate === "function") onUpdate();
+        }
+    });
+}
+
 /* ダイアログの不透明度を設定するヘルパー / Helper to set dialog opacity */
 function setDialogOpacity(dlg, opacityValue) {
     dlg.opacity = opacityValue;
@@ -218,19 +247,19 @@ function showArrangeDialog() {
     // Preserve current preference so cancel can restore it
     var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
 
-    /* 間隔パネル / Spacing panel */
+    /* 間隔 / Spacing */
     var unit = getCurrentUnitLabel();
-    var spacingPanel = dlg.add("panel", undefined, (lang === "ja" ? "間隔" : "Spacing"));
+    var spacingPanel = dlg.add("group");
     spacingPanel.orientation = "column";
-    spacingPanel.alignChildren = ["left", "center"];
-    spacingPanel.margins = [15, 20, 15, 10];
+    spacingPanel.alignChildren = ["center", "center"];
+    spacingPanel.margins = [15, 5, 15, 5];
 
     // 垂直方向（間隔） / Vertical spacing
     var hMarginGroup = spacingPanel.add("group");
     hMarginGroup.orientation = "row";
     hMarginGroup.alignChildren = ["left", "center"];
 
-    var hMarginLabel = hMarginGroup.add("statictext", undefined, LABELS.hMargin[lang]);
+    var hMarginLabel = hMarginGroup.add("statictext", undefined, LABELS.spacingLabel[lang]);
     var hMarginInput = hMarginGroup.add("edittext", undefined, "0");
     hMarginInput.characters = 3;
     var hMarginUnitLabel = hMarginGroup.add("statictext", undefined, unit);
@@ -453,6 +482,10 @@ function showArrangeDialog() {
             applyLayoutToSelection();
         });
     }
+
+    // N/L/C/R で揃えラジオを切替（dlg + 入力欄の両方に付与して取りこぼし防止）
+    addAlignKeyHandler(dlg, rbHNone, rbHLeft, rbHCenter, rbHRight, updatePreview);
+    addAlignKeyHandler(hMarginInput, rbHNone, rbHLeft, rbHCenter, rbHRight, updatePreview);
 
     updatePreview();
     randomCheckbox.onClick = function () {
