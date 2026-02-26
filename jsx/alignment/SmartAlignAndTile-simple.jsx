@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 ### スクリプト名：
 
-AlignAndDistribute-simple.jsx
+SmartAlignDistribute.jsx
 
 ### オリジナルアイデア
 
