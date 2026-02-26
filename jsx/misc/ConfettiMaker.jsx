@@ -5,8 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 紙吹雪を生成 / Generate Confetti
  *
  * 概要 / Overview
- * - バージョン / Version: v1.5.4
- * - 更新日 / Updated: 2026-02-23
+ * - バージョン / Version: v1.5.5
+ * - 更新日 / Updated: 2026-02-26
  * - 選択オブジェクトの領域を基準に、紙吹雪（円/長方形/正方形/三角形/スター/キラキラA/キラキラB/リボン/シンボル）を生成します。
  * - ダイアログ上でプレビューを表示し、OKで確定（Confetti レイヤーに出力）します。
  * - UIは日本語/英語に対応し、タイトルバーにバージョンを表示します。
@@ -38,12 +38,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * - v1.5.2: キラキラB単独選択プリセット時、ランダム/大きさスライダーを左から約1/3に調整。
  * - v1.5.3: 円をOption+クリックで単独選択時、ランダム/回転をOFF。
  * - v1.5.4: キラキラBをOption+クリックで単独選択時、ランダム/歪みをOFF。
+ * - v1.5.5: 画面ズームUI/ロジックを再利用しやすい形でモジュール化。
  * ========================================= */
 
 // コンフェティ（紙吹雪）作成スクリプト
 
 (function () {
-    var SCRIPT_VERSION = "v1.5.4";
+    var SCRIPT_VERSION = "v1.5.5";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -119,15 +120,89 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var __isTextSelection = false;
     try { __isTextSelection = (selectedObj && selectedObj.typename === "TextFrame"); } catch (_) { __isTextSelection = false; }
 
+    // =========================================
+    // Zoom UI module (reusable)
+    // - Capture/restore view state
+    // - Create a zoom slider UI and apply zoom on drag
+    // =========================================
+
+    function captureViewState(doc) {
+        var st = { view: null, zoom: null, center: null };
+        try {
+            st.view = doc.activeView;
+            st.zoom = st.view.zoom;
+            st.center = st.view.centerPoint;
+        } catch (_) { }
+        return st;
+    }
+
+    function restoreViewState(doc, state) {
+        if (!state) return;
+        try {
+            var v = state.view || doc.activeView;
+            if (v && state.zoom != null) v.zoom = state.zoom;
+            if (v && state.center != null) v.centerPoint = state.center;
+        } catch (_) { }
+    }
+
+    function addZoomControls(parent, doc, labelText, initialState, options) {
+        options = options || {};
+        var minZoom = (typeof options.min === "number") ? options.min : 0.1;
+        var maxZoom = (typeof options.max === "number") ? options.max : 16;
+        var sliderWidth = (typeof options.sliderWidth === "number") ? options.sliderWidth : 240;
+        var doRedraw = (options.redraw !== false);
+
+        // UI
+        var g = parent.add("group");
+        g.orientation = "row";
+        g.alignChildren = ["center", "center"];
+        g.alignment = "center";
+        try { if (options.margins) g.margins = options.margins; } catch (_) { }
+
+        var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
+        var initZoom = 1;
+        try {
+            if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
+            else initZoom = Number(doc.activeView.zoom);
+        } catch (_) { }
+        if (!initZoom || isNaN(initZoom)) initZoom = 1;
+
+        var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
+        try { sld.preferredSize.width = sliderWidth; } catch (_) { }
+
+        function applyZoom(z) {
+            try {
+                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+                if (!v) return;
+                v.zoom = z;
+                if (doRedraw) { try { app.redraw(); } catch (_) { } }
+            } catch (_) { }
+        }
+
+        function syncFromView() {
+            try {
+                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+                if (!v) return;
+                sld.value = v.zoom;
+            } catch (_) { }
+        }
+
+        sld.onChanging = function () {
+            applyZoom(Number(sld.value));
+        };
+
+        return {
+            group: g,
+            label: stLabel,
+            slider: sld,
+            applyZoom: applyZoom,
+            syncFromView: syncFromView,
+            restoreInitial: function () { restoreViewState(doc, initialState); }
+        };
+    }
+
     // ビュー初期値（ズーム復元用） / Initial view state
-    var __initView = null;
-    var __initZoom = null;
-    var __initCenter = null;
-    try {
-        __initView = doc.activeView;
-        __initZoom = __initView.zoom;
-        __initCenter = __initView.centerPoint;
-    } catch (_) { }
+    var __viewState = captureViewState(doc);
 
     // ダイアログ作成
     var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
@@ -744,29 +819,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     } catch (_) { }
 
     /* ズーム / Zoom */
-    var gZoom = dlg.add("group");
-    gZoom.orientation = "row";
-    gZoom.alignChildren = ["center", "center"];
-    gZoom.alignment = "center";
-    // 画面ズームの下に余白を追加
-    try { gZoom.margins = [0, 0, 0, 10]; } catch (_) { }
-
-    var stZoom = gZoom.add("statictext", undefined, L("zoom"));
-    var sldZoom = gZoom.add("slider", undefined, (__initZoom != null ? __initZoom : 1), 0.1, 16);
-    sldZoom.preferredSize.width = 240;
-
-    function applyZoom(z) {
-        try {
-            if (!__initView) __initView = doc.activeView;
-            if (!__initView) return;
-            __initView.zoom = z;
-        } catch (_) { }
-    }
-
-    sldZoom.onChanging = function () {
-        applyZoom(Number(sldZoom.value));
-        try { app.redraw(); } catch (_) { }
-    };
+    var zoomCtrl = addZoomControls(dlg, doc, L("zoom"), __viewState, {
+        min: 0.1,
+        max: 16,
+        sliderWidth: 240,
+        margins: [0, 0, 0, 10],
+        redraw: true
+    });
 
     /* OK / Cancel */
     var gBtns = dlg.add("group");
@@ -1060,11 +1119,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         shiftDialogPosition(dlg, offsetX, offsetY);
         try { refreshSymbolDropdown(); } catch (_) { }
         try { applyMarginMaxToUI(); } catch (_) { }
-        try {
-            if (__initView && __initZoom != null) {
-                sldZoom.value = __initView.zoom;
-            }
-        } catch (_) { }
+        try { if (zoomCtrl && zoomCtrl.syncFromView) zoomCtrl.syncFromView(); } catch (_) { }
         drawPreview();
         try { app.redraw(); } catch (_) { }
     };
@@ -1901,10 +1956,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         clearPreview();
         try { previewLayer.remove(); } catch (e) { }
         try {
-            if (__initView && __initZoom != null) {
-                __initView.zoom = __initZoom;
-                if (__initCenter) __initView.centerPoint = __initCenter;
-            }
+            if (zoomCtrl && zoomCtrl.restoreInitial) zoomCtrl.restoreInitial();
+            else restoreViewState(doc, __viewState);
         } catch (_) { }
         return;
     }
