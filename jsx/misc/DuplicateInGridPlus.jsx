@@ -3,7 +3,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
   グリッド複製ツール / Duplicate in Grid Plus
-  Version: v2.0（SCRIPT_VERSION で管理）
+  Version: v2.0.1（SCRIPT_VERSION で管理）
 
   概要 / Overview
   - 選択中のオブジェクトを、指定した繰り返し数と間隔で複製・配置します（ライブプレビュー対応）。
@@ -30,7 +30,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v2.0";
+var SCRIPT_VERSION = "v2.0.1";
 
 /* 言語判定 / Locale detection */
 function getCurrentLang() {
@@ -64,7 +64,9 @@ var LABELS = {
     repeatMethodGrid: { ja: "グリッド", en: "Grid" },
     repeatMethodRow: { ja: "行", en: "Row" },
     repeatMethodCol: { ja: "列", en: "Column" },
-    repeatMethodRandom: { ja: "ランダム配置", en: "Random" }
+    repeatMethodRandom: { ja: "ランダム配置", en: "Random" },
+    lightMode: { ja: "軽量モード", en: "Light mode" },
+    zoom: { ja: "画面ズーム", en: "Zoom" },
 };
 
 /* ラベル取得関数 / Label resolver */
@@ -125,6 +127,118 @@ function unitToPoints(unitCode, value) {
         case 10: return value * (PT_IN * 12);      // ft
         default: return value;
     }
+}
+
+// =========================================
+// TMK Zoom Module (collision-safe + Light mode)
+// - Light mode: apply zoom only on slider release
+// =========================================
+
+function __TMKZoom_captureViewState(doc) {
+    var st = { view: null, zoom: null, center: null };
+    try {
+        st.view = doc.activeView;
+        st.zoom = st.view.zoom;
+        st.center = st.view.centerPoint;
+    } catch (_) { }
+    return st;
+}
+
+function __TMKZoom_restoreViewState(doc, state) {
+    if (!state) return;
+    try {
+        var v = state.view || doc.activeView;
+        if (v && state.zoom != null) v.zoom = state.zoom;
+        if (v && state.center != null) v.centerPoint = state.center;
+    } catch (_) { }
+}
+
+function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
+    options = options || {};
+    var minZoom = (typeof options.min === "number") ? options.min : 0.1;
+    var maxZoom = (typeof options.max === "number") ? options.max : 16;
+    var sliderWidth = (typeof options.sliderWidth === "number") ? options.sliderWidth : 240;
+    var doRedraw = (options.redraw !== false);
+
+    // Light mode options
+    var showLightMode = (options.lightMode !== false);            // default: show
+    var lightModeLabel = options.lightModeLabel || "Light mode";
+    var lightModeDefault = (options.lightModeDefault === true);   // default: false
+
+    // UI group
+    var g = parent.add("group");
+    g.orientation = "row";
+    g.alignChildren = ["center", "center"];
+    g.alignment = "center";
+    try { if (options.margins) g.margins = options.margins; } catch (_) { }
+
+    var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
+
+    // Initial zoom
+    var initZoom = 1;
+    try {
+        if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
+        else initZoom = Number(doc.activeView.zoom);
+    } catch (_) { }
+    if (!initZoom || isNaN(initZoom)) initZoom = 1;
+
+    var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
+    try { sld.preferredSize.width = sliderWidth; } catch (_) { }
+
+    var chkLight = null;
+    if (showLightMode) {
+        chkLight = g.add("checkbox", undefined, String(lightModeLabel));
+        chkLight.value = lightModeDefault;
+    }
+
+    function isLightMode() {
+        return !!(chkLight && chkLight.value);
+    }
+
+    function applyZoom(z) {
+        try {
+            var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+            if (!v) return;
+            v.zoom = z;
+            if (doRedraw) { try { app.redraw(); } catch (_) { } }
+        } catch (_) { }
+    }
+
+    function syncFromView() {
+        try {
+            var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+            if (!v) return;
+            sld.value = v.zoom;
+        } catch (_) { }
+    }
+
+    // Live drag (disabled in light mode)
+    sld.onChanging = function () {
+        if (isLightMode()) return; // ✅ lightweight: do nothing while dragging
+        applyZoom(Number(sld.value));
+    };
+
+    // Always apply once on release
+    sld.onChange = function () {
+        applyZoom(Number(sld.value));
+    };
+
+    if (chkLight) {
+        chkLight.onClick = function () {
+            // Toggle feels consistent: apply current value immediately
+            try { applyZoom(Number(sld.value)); } catch (_) { }
+        };
+    }
+
+    return {
+        group: g,
+        label: stLabel,
+        slider: sld,
+        lightModeCheckbox: chkLight,
+        applyZoom: applyZoom,
+        syncFromView: syncFromView,
+        restoreInitial: function () { __TMKZoom_restoreViewState(doc, initialState); }
+    };
 }
 
 /* クリッピングマスク優先の境界取得 / Bounds preferring clipping mask */
@@ -910,6 +1024,21 @@ function showDialog(doc, sourceItem, w, h) {
         applyPreview();
     };
 
+    var __zoomState = __TMKZoom_captureViewState(doc);
+
+    var zoomCtrl = __TMKZoom_addControls(dlg, doc, L("zoom"), __zoomState, {
+        min: 0.1,
+        max: 16,
+        sliderWidth: 240,
+        margins: [0, 0, 0, 10],
+        redraw: true,
+
+        // ✅ lightweight mode
+        lightMode: true,
+        lightModeLabel: L("lightMode"),   // 例: ja「軽量モード」/ en「Light mode」
+        lightModeDefault: false           // デフォルトOFF
+    });
+
     var btnGroup = dlg.add("group"); btnGroup.alignment = "center";
     var cancelBtn = btnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
     var okBtn = btnGroup.add("button", undefined, L("ok"));
@@ -938,7 +1067,19 @@ function showDialog(doc, sourceItem, w, h) {
         };
         clearPreview(doc); dlg.close();
     };
-    cancelBtn.onClick = function () { clearPreview(doc); dlg.close(); };
+    cancelBtn.onClick = function () {
+        try { if (zoomCtrl && typeof zoomCtrl.restoreInitial === "function") zoomCtrl.restoreInitial(); } catch (_) { }
+        clearPreview(doc);
+        dlg.close();
+    };
+
+    dlg.onClose = function () {
+        // If user closes without OK, treat as Cancel
+        if (!result) {
+            try { if (zoomCtrl && typeof zoomCtrl.restoreInitial === "function") zoomCtrl.restoreInitial(); } catch (_) { }
+            clearPreview(doc);
+        }
+    };
 
     var origOnShow = dlg.onShow;
     dlg.onShow = function () {
