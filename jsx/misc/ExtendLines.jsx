@@ -27,7 +27,7 @@ Overview
 更新日 / Updated: 2026-02-28
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.0";
 var SCRIPT_MARKER = "__ExtendLines__";
 
 function getCurrentLang() {
