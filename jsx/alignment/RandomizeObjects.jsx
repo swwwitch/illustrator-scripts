@@ -15,6 +15,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 
 - 選択したオブジェクトをランダムに移動・変形・回転・不透明度を変更するスクリプト
 - UIから各種パラメータを指定し、即時プレビューで結果を確認可能
+- [リセット]でダイアログ起動前の状態に復元
 
 ### 主な機能：
 
@@ -22,6 +23,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 - 中央揃えオプションでオブジェクトを一箇所に集約
 - 拡大縮小（変形）、回転、不透明度のランダム化
 - プレビュー反映、キャンセルで元の状態に完全リセット
+- UI状態の同期安定性向上（チェックON/OFFと入力欄enabledの整合性を統一）
+- プレビューを毎回ベース状態から再計算（積み増し挙動を解消）
 
 ### 処理の流れ：
 
@@ -29,55 +32,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 2. ダイアログを表示（移動距離・変形率・回転・不透明度を入力）
 3. 入力値をもとにランダム変形や移動を即時プレビュー
 4. OKで確定、キャンセルでダイアログ起動前にリセット
-
-### 更新履歴：
-
-- v1.0 (20250802): 初期バージョン
-- v1.1 (20250803): 長方形を水平にする機能追加、UIの改善
-- v1.2 (20250803): 強制的に中央に集める機能を追加
-- v1.3 (20250804): ランダムボタンを追加
-- v1.4 (20250805): 重なりを避ける機能を追加、UIの微調整
-
----
-
-### Script Name:
-
-RandomizeObjects.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/RandomizeObjects.jsx
-
-### Overview:
-
-- Randomly move, scale, rotate, and change opacity of selected objects
-- Specify parameters via UI with immediate preview
-
-### Main Features:
-
-- Set horizontal/vertical move distances individually or linked
-- Gather all objects to center option
-- Random scaling, rotation, and opacity
-- Live preview, cancel restores original state completely
-
-### Process Flow:
-
-1. Check document and selection
-2. Show dialog (distance, scale, rotate, opacity)
-3. Preview random transform based on inputs
-4. OK confirms, Cancel restores state before dialog
-
-### Update History:
-
-- v1.0 (20250802): Initial version
-- v1.1 (20250803): Added horizontal rectangle alignment, improved UI
-- v1.2 (20250803): Added forced gather to center option
-- v1.3 (20250804): Added random button for quick setup
-- v1.4 (20250805): Added avoid overlap feature, minor UI tweaks
-
 */
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v2.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -85,126 +42,72 @@ function getCurrentLang() {
 var lang = getCurrentLang();
 
 /* 日英ラベル定義 / Japanese-English label definitions */
-
 var LABELS = {
-    dialogTitle: {
-        ja: "ランダム化 " + SCRIPT_VERSION,
-        en: "Randomize " + SCRIPT_VERSION
-    },
-    distance: {
-        ja: "移動距離",
-        en: "Distance"
-    },
-    horizontal: {
-        ja: "横:",
-        en: "Horizontal:"
-    },
-    vertical: {
-        ja: "縦:",
-        en: "Vertical:"
-    },
-    link: {
-        ja: "連動",
-        en: "Link"
-    },
-    center: {
-        ja: "中央に集める",
-        en: "Gather to Center"
-    },
-    avoidOverlap: {
-        ja: "重なりを避ける",
-        en: "Avoid Overlap"
-    },
-    scale: {
-        ja: "スケール",
-        en: "Scale"
-    },
-    rotate: {
-        ja: "回転",
-        en: "Rotate"
-    },
-    opacity: {
-        ja: "不透明度",
-        en: "Opacity"
-    },
-    ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    },
-    reset: {
-        ja: "リセット",
-        en: "Reset"
-    },
-    random: {
-        ja: "ランダム",
-        en: "Random"
-    }
+    dialogTitle: { ja: "ランダム化 " + SCRIPT_VERSION, en: "Randomize " + SCRIPT_VERSION },
+    distance: { ja: "移動距離", en: "Distance" },
+    horizontal: { ja: "横:", en: "Horizontal:" },
+    vertical: { ja: "縦:", en: "Vertical:" },
+    link: { ja: "連動", en: "Link" },
+    gatherCenter: { ja: "中央に集める", en: "Gather to Center" },
+    avoidOverlap: { ja: "重なりを避ける", en: "Avoid Overlap" },
+    panelScaleTitle: { ja: "スケール（%）", en: "Scale (%)" },
+    scale: { ja: "幅・高さ", en: "Width & Height" },
+    scaleX: { ja: "幅", en: "Width" },
+    scaleY: { ja: "高さ", en: "Height" },
+    rotate: { ja: "回転", en: "Rotate" },
+    opacity: { ja: "不透明度", en: "Opacity" },
+    ok: { ja: "OK", en: "OK" },
+    cancel: { ja: "キャンセル", en: "Cancel" },
+    reset: { ja: "リセット", en: "Reset" },
+    random: { ja: "ランダム", en: "Random" },
+    shuffle: { ja: "シャッフル", en: "Shuffle" },
+    force: { ja: "強制", en: "Force" }
 };
 
 /* 入力値を更新し、リンクされた入力とプレビューを処理 / Update input, linked input, and preview */
 function updateLinkedInputAndPreview(input, linkInput, previewFunc) {
-    if (linkInput && linkInput.enabled) {
-        linkInput.text = input.text;
-    }
+    if (linkInput && linkInput.enabled) linkInput.text = input.text;
     if (previewFunc) previewFunc();
 }
+
 /* ダイアログ設定を共通化 / Configure dialog position and opacity */
 function configureDialog(dlg, options) {
-    if (options.opacity !== undefined) {
-        dlg.opacity = options.opacity;
-    }
+    if (options.opacity !== undefined) dlg.opacity = options.opacity;
 }
 
 function makeRectangleEdgeHorizontal(item) {
     if (item.typename === "PathItem" && item.closed && item.pathPoints.length === 4) {
         var p0 = item.pathPoints[0].anchor;
         var p1 = item.pathPoints[1].anchor;
-
         var dx = p1[0] - p0[0];
         var dy = p1[1] - p0[1];
         var angleRad = Math.atan2(dy, dx);
         var angleDeg = angleRad * 180 / Math.PI;
-
         item.rotate(-angleDeg);
     }
 }
-
 
 /* 矢印キーによる新しい値を返す補助関数 / Helper to calculate new value */
 function getNewValueByKey(event, value, keyboard) {
     var delta = 1;
     if (keyboard.shiftKey) {
         delta = 10;
-        if (event.keyName == "Up") {
-            return Math.ceil((value + 1) / delta) * delta;
-        } else if (event.keyName == "Down") {
-            return Math.floor((value - 1) / delta) * delta;
-        }
+        if (event.keyName == "Up") return Math.ceil((value + 1) / delta) * delta;
+        if (event.keyName == "Down") return Math.floor((value - 1) / delta) * delta;
     } else if (keyboard.altKey) {
         delta = 0.1;
-        if (event.keyName == "Up") {
-            return value + delta;
-        } else if (event.keyName == "Down") {
-            return Math.max(0, value - delta);
-        }
+        if (event.keyName == "Up") return value + delta;
+        if (event.keyName == "Down") return Math.max(0, value - delta);
     } else {
-        delta = 1;
-        if (event.keyName == "Up") {
-            return value + delta;
-        } else if (event.keyName == "Down") {
-            return Math.max(0, value - delta);
-        }
+        if (event.keyName == "Up") return value + 1;
+        if (event.keyName == "Down") return Math.max(0, value - 1);
     }
     return value;
 }
 
 /* 矢印キーで数値を増減 / Change numeric value with arrow keys */
 function changeValueByArrowKey(editText, previewFunc) {
-    editText.addEventListener("keydown", function(event) {
+    editText.addEventListener("keydown", function (event) {
         var value = Number(editText.text);
         if (isNaN(value)) return;
 
@@ -213,33 +116,23 @@ function changeValueByArrowKey(editText, previewFunc) {
 
         if (newValue !== value) {
             event.preventDefault();
-            if (keyboard.altKey) {
-                newValue = Math.round(newValue * 10) / 10;
-            } else {
-                newValue = Math.round(newValue);
-            }
+            if (keyboard.altKey) newValue = Math.round(newValue * 10) / 10;
+            else newValue = Math.round(newValue);
             editText.text = newValue;
-            if (previewFunc) {
-                updateLinkedInputAndPreview(editText, null, previewFunc);
-            }
+            if (previewFunc) updateLinkedInputAndPreview(editText, null, previewFunc);
         }
     });
 }
 
 var savedBounds = $.global.__RandomizeObjectsBounds || null;
-
 function storeWinBounds(dlg) {
-    $.global.__RandomizeObjectsBounds = [
-        dlg.bounds.left, dlg.bounds.top,
-        dlg.bounds.right, dlg.bounds.bottom
-    ];
+    $.global.__RandomizeObjectsBounds = [dlg.bounds.left, dlg.bounds.top, dlg.bounds.right, dlg.bounds.bottom];
 }
 var winBounds = savedBounds instanceof Array ? savedBounds : undefined;
 
 /* メイン処理 / Main process */
 function main() {
     try {
-
         if (app.documents.length === 0) {
             alert("ドキュメントが開かれていません。 / No document is open.");
             return;
@@ -252,31 +145,32 @@ function main() {
         }
 
         var dialog = new Window("dialog", LABELS.dialogTitle[lang], winBounds);
-        // ダイアログを開いたら Live Corner Annotator を実行
-        try {
-            app.executeMenuCommand('Live Corner Annotator');
-        } catch (e) {}
-        dialog.orientation = "row";
-        dialog.alignChildren = "top";
-        dialog.spacing = 20;
 
-        // 左カラム
-        var leftPanel = dialog.add("group");
+        try { app.executeMenuCommand('Live Corner Annotator'); } catch (e) { }
+
+        dialog.orientation = "column";
+        dialog.alignChildren = "fill";
+        dialog.spacing = 20;
+        dialog.margins = [15, 15, 20, 15];
+
+        // Content row (main left/right panels)
+        var contentRow = dialog.add("group");
+        contentRow.orientation = "row";
+        contentRow.alignChildren = "top";
+        contentRow.alignment = ["fill", "fill"];
+        contentRow.spacing = 20;
+
+        var leftPanel = contentRow.add("group");
         leftPanel.orientation = "column";
         leftPanel.alignChildren = "left";
-        leftPanel.alignment = ["fill", "fill"];
+        leftPanel.alignment = ["fill", "top"];
 
-        // 右カラム
-        var rightPanel = dialog.add("group");
+        var rightPanel = contentRow.add("group");
         rightPanel.orientation = "column";
-        rightPanel.alignChildren = "right";
-        rightPanel.alignment = ["right", "fill"];
+        rightPanel.alignChildren = "left";
+        rightPanel.alignment = ["right", "top"];
 
-        configureDialog(dialog, {
-            opacity: 0.97
-        });
-
-        /* UI生成部分を以下に維持 */
+        configureDialog(dialog, { opacity: 0.97 });
 
         /* 移動距離パネル / Distance panel */
         var unitLabel = "pt";
@@ -286,12 +180,10 @@ function main() {
         panelDistance.alignment = ["fill", "center"];
         panelDistance.margins = [15, 20, 15, 10];
 
-
         var groupContainer = panelDistance.add("group");
         groupContainer.orientation = "row";
         groupContainer.alignChildren = "top";
 
-        // 左カラム
         var leftColumn = groupContainer.add("group");
         leftColumn.orientation = "column";
         leftColumn.alignChildren = "left";
@@ -300,7 +192,7 @@ function main() {
         groupX.orientation = "row";
         groupX.alignChildren = "center";
         var chkDistanceX = groupX.add("checkbox", undefined, LABELS.horizontal[lang]);
-        chkDistanceX.value = true;
+        chkDistanceX.value = false;
         var inputDistanceX = groupX.add("edittext", undefined, "0");
         inputDistanceX.characters = 4;
         inputDistanceX.enabled = chkDistanceX.value;
@@ -314,7 +206,6 @@ function main() {
         inputDistanceY.characters = 4;
         inputDistanceY.enabled = chkDistanceY.value;
 
-        // 右カラム
         var rightColumn = groupContainer.add("group");
         rightColumn.orientation = "column";
         rightColumn.alignChildren = "center";
@@ -322,7 +213,7 @@ function main() {
 
         var chkLinkX = rightColumn.add("checkbox", undefined, LABELS.link[lang]);
         chkLinkX.value = true;
-        // Disable vertical checkbox and input so they're dimmed when dialog opens
+
         chkDistanceY.value = false;
         chkDistanceY.enabled = false;
         inputDistanceY.enabled = false;
@@ -330,36 +221,177 @@ function main() {
 
         var groupCenter = panelDistance.add("group");
         groupCenter.orientation = "row";
-        groupCenter.alignChildren = ["left", "center"];
-        groupCenter.alignment = ["left", "center"];
+        groupCenter.alignChildren = ["center", "center"];
+        groupCenter.alignment = ["fill", "center"];
         groupCenter.margins = [0, 10, 0, 0];
-        var chkCenter = groupCenter.add("checkbox", undefined, LABELS.center[lang]);
-        chkCenter.value = false;
-        chkCenter.onClick = function() {
-            if (chkCenter.value) {
-                chkAvoidOverlap.value = false;
-                chkAvoidOverlap.enabled = false;
-            } else {
-                chkAvoidOverlap.enabled = true;
-            }
-        };
-        // [強制]ボタン追加
-        var btnForceCenter = groupCenter.add("button", undefined, "強制");
-        btnForceCenter.preferredSize = [40, 26];
 
-        // 「重なりを避ける」チェックボックスを追加（常時表示）
+        var chkCenter = { value: false }; // dummy
+        var btnForceCenter = groupCenter.add("button", undefined, LABELS.gatherCenter[lang]);
+        btnForceCenter.alignment = ["center", "center"];
+        btnForceCenter.preferredSize = [120, 24];
+
+        var chkAvoidOverlap = { value: false, enabled: true }; // dummy
+
         var groupAvoidOverlap = panelDistance.add("group");
         groupAvoidOverlap.orientation = "row";
-        groupAvoidOverlap.alignChildren = ["left", "center"];
-        groupAvoidOverlap.alignment = ["left", "center"];
-        groupAvoidOverlap.margins = [0, 5, 0, 0];
-        var chkAvoidOverlap = groupAvoidOverlap.add("checkbox", undefined, LABELS.avoidOverlap[lang]);
-        chkAvoidOverlap.value = true; // デフォルトON
-        var btnForceAvoid = groupAvoidOverlap.add("button", undefined, "強制");
-        btnForceAvoid.preferredSize = [40, 26];
-        btnForceAvoid.onClick = function() {
+        groupAvoidOverlap.alignChildren = ["center", "center"];
+        groupAvoidOverlap.alignment = ["fill", "center"];
+        groupAvoidOverlap.margins = [0, 2, 0, 0];
+
+        var btnForceAvoid = groupAvoidOverlap.add("button", undefined, LABELS.avoidOverlap[lang]);
+        btnForceAvoid.alignment = ["center", "center"];
+        btnForceAvoid.preferredSize = [120, 24];
+
+        // カラーパネル / Color panel
+        var panelColor = leftPanel.add("panel", undefined, "カラー");
+        panelColor.orientation = "column";
+        panelColor.alignChildren = "left";
+        panelColor.margins = [15, 20, 15, 10];
+
+        var btnShuffleColor = panelColor.add("button", undefined, LABELS.shuffle[lang]);
+        // オブジェクトの塗り色をシャッフル / Shuffle fill colors of selected objects
+        function cloneColor(c) {
+            if (!c) return null;
             try {
-                var padding = 5; // 最低限の間隔（pt）
+                var t = c.typename;
+                if (t === "RGBColor") {
+                    var nc = new RGBColor();
+                    nc.red = c.red; nc.green = c.green; nc.blue = c.blue;
+                    return nc;
+                }
+                if (t === "CMYKColor") {
+                    var nc2 = new CMYKColor();
+                    nc2.cyan = c.cyan; nc2.magenta = c.magenta; nc2.yellow = c.yellow; nc2.black = c.black;
+                    return nc2;
+                }
+                if (t === "GrayColor") {
+                    var nc3 = new GrayColor();
+                    nc3.gray = c.gray;
+                    return nc3;
+                }
+                // SpotColor / GradientColor / PatternColor etc.
+                // These are typically safe to reuse as references.
+                return c;
+            } catch (e) {
+                return c;
+            }
+        }
+
+        function shuffleArray(array) {
+            var arr = array.slice();
+            for (var i = arr.length - 1; i > 0; i--) {
+                var j = Math.floor(Math.random() * (i + 1));
+                var temp = arr[i];
+                arr[i] = arr[j];
+                arr[j] = temp;
+            }
+            return arr;
+        }
+
+        // 塗り色を持つ対象を返す（PathItem / CompoundPathItem / TextFrame / GroupItem対応）
+        function getFillTarget(item) {
+            if (!item) return null;
+            try {
+                var t = item.typename;
+                if (t === "PathItem") return item;
+                if (t === "CompoundPathItem") {
+                    if (item.pathItems && item.pathItems.length > 0) return item.pathItems[0];
+                    return null;
+                }
+                if (t === "TextFrame") {
+                    return item; // textRange.characterAttributes.fillColor
+                }
+                if (t === "GroupItem") {
+                    if (!item.pageItems) return null;
+                    for (var i = 0; i < item.pageItems.length; i++) {
+                        var target = getFillTarget(item.pageItems[i]);
+                        if (target) return target;
+                    }
+                }
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function getFillColorFromTarget(target) {
+            if (!target) return null;
+            try {
+                if (target.typename === "TextFrame") {
+                    return target.textRange.characterAttributes.fillColor;
+                }
+                if (target.filled) return target.fillColor;
+                return null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        function setFillColorToTarget(target, color) {
+            if (!target || !color) return false;
+            try {
+                if (target.typename === "TextFrame") {
+                    target.textRange.characterAttributes.fillColor = color;
+                    return true;
+                }
+                if (target.filled) {
+                    target.fillColor = color;
+                    return true;
+                }
+                return false;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function shuffleSelectionFillColors() {
+            var doc = app.activeDocument;
+            var selection = doc.selection;
+
+            if (!selection || selection.length < 2) {
+                alert("2つ以上のオブジェクトを選択してください");
+                return;
+            }
+
+            // Collect fill colors (null for no-fill targets)
+            var colors = [];
+            var targets = [];
+            for (var i = 0; i < selection.length; i++) {
+                var target = getFillTarget(selection[i]);
+                targets.push(target);
+                var c = getFillColorFromTarget(target);
+                colors.push(c ? cloneColor(c) : null);
+            }
+
+            colors = shuffleArray(colors);
+
+            // Apply shuffled colors
+            for (var k = 0; k < targets.length; k++) {
+                if (colors[k] != null) {
+                    setFillColorToTarget(targets[k], colors[k]);
+                }
+            }
+
+            // alert(selection.length + "個のオブジェクトの色をシャッフルしました");
+            app.redraw();
+        }
+
+        // Button handler
+        if (btnShuffleColor) {
+            btnShuffleColor.onClick = function () {
+                try {
+                    shuffleSelectionFillColors();
+                } catch (e) {
+                    alert("シャッフル中にエラーが発生しました: " + e.message);
+                }
+            };
+        }
+
+        // NOTE: originalStates is defined later but referenced here; it will exist when the button is clicked.
+
+        btnForceAvoid.onClick = function () {
+            try {
+                var padding = 5;
                 var placedItems = [];
 
                 var baseX = parseFloat(inputDistanceX.text || "50");
@@ -370,7 +402,6 @@ function main() {
                 var success = false;
                 var scaleFactor = 1;
 
-                // 横の値を徐々に拡大しながら必ず非重複配置を試みる
                 while (!success && scaleFactor <= 20) {
                     placedItems = [];
                     success = true;
@@ -392,10 +423,7 @@ function main() {
 
                             for (var j = 0; j < placedItems.length; j++) {
                                 var vb2 = placedItems[j];
-                                if (!(vb[2] + padding < vb2[0] ||
-                                      vb[0] - padding > vb2[2] ||
-                                      vb[1] + padding < vb2[3] ||
-                                      vb[3] - padding > vb2[1])) {
+                                if (!(vb[2] + padding < vb2[0] || vb[0] - padding > vb2[2] || vb[1] + padding < vb2[3] || vb[3] - padding > vb2[1])) {
                                     overlap = true;
                                     break;
                                 }
@@ -416,32 +444,26 @@ function main() {
                     }
 
                     if (!success) {
-                        scaleFactor += 1; // 横の値を大きくして再トライ
+                        scaleFactor += 1;
                         inputDistanceX.text = String(Math.round(baseX * scaleFactor));
                         inputDistanceY.text = String(Math.round(baseY * scaleFactor));
                     }
                 }
 
-                if (!success) {
-                    alert("十分な距離を確保できず、完全に非重複で配置できませんでした。");
-                } else {
-                    app.redraw();
-                    // Success: no alert
-                }
+                if (!success) alert("十分な距離を確保できず、完全に非重複で配置できませんでした。");
+                else app.redraw();
             } catch (e) {
                 alert("強制処理中にエラーが発生しました: " + e.message);
             }
         };
 
-        btnForceCenter.onClick = function() {
+        btnForceCenter.onClick = function () {
             try {
                 chkCenter.value = false;
 
-                // 全オブジェクトのバウンディングボックスを取得
-                var totalLeft = Infinity,
-                    totalTop = -Infinity;
-                var totalRight = -Infinity,
-                    totalBottom = Infinity;
+                var totalLeft = Infinity, totalTop = -Infinity;
+                var totalRight = -Infinity, totalBottom = Infinity;
+
                 for (var i = 0; i < originalStates.length; i++) {
                     var bounds = originalStates[i].item.visibleBounds;
                     if (bounds[0] < totalLeft) totalLeft = bounds[0];
@@ -453,28 +475,25 @@ function main() {
                 var centerX = (totalLeft + totalRight) / 2;
                 var centerY = (totalTop + totalBottom) / 2;
 
-                // 各オブジェクトを中央に配置
-                for (var i = 0; i < originalStates.length; i++) {
-                    var st = originalStates[i];
-                    var itemBounds = st.item.visibleBounds;
+                for (var i2 = 0; i2 < originalStates.length; i2++) {
+                    var st2 = originalStates[i2];
+                    var itemBounds = st2.item.visibleBounds;
                     var itemCenterX = (itemBounds[0] + itemBounds[2]) / 2;
                     var itemCenterY = (itemBounds[1] + itemBounds[3]) / 2;
 
                     var shiftX = centerX - itemCenterX;
                     var shiftY = centerY - itemCenterY;
-                    st.item.position = [st.item.position[0] + shiftX, st.item.position[1] + shiftY];
+                    st2.item.position = [st2.item.position[0] + shiftX, st2.item.position[1] + shiftY];
                 }
 
-                // 中央に集めた位置を新たな基準として originalStates を更新
-                for (var j = 0; j < originalStates.length; j++) {
-                    var st = originalStates[j];
-                    st.position = [st.item.position[0], st.item.position[1]];
-                    var boundsAfter = st.item.visibleBounds;
-                    st.width = boundsAfter[2] - boundsAfter[0];
-                    st.height = boundsAfter[1] - boundsAfter[3];
+                for (var j2 = 0; j2 < originalStates.length; j2++) {
+                    var st3 = originalStates[j2];
+                    st3.position = [st3.item.position[0], st3.item.position[1]];
+                    var boundsAfter = st3.item.visibleBounds;
+                    st3.width = boundsAfter[2] - boundsAfter[0];
+                    st3.height = boundsAfter[1] - boundsAfter[3];
                 }
 
-                // 横・縦の入力値を0にリセット
                 inputDistanceX.text = "0";
                 inputDistanceY.text = "0";
 
@@ -484,33 +503,40 @@ function main() {
             }
         };
 
-
-
-
-        // チェックボックスと入力欄を紐付け、プレビューも反映する関数 / Link checkbox & input with preview
-        function bindInput(chk, input, previewFunc, linkInput) {
-            chk.onClick = function() {
+        function bindInput(chk, input, previewFunc, linkInput, opts) {
+            chk.onClick = function () {
                 input.enabled = chk.value;
-                if (previewFunc) previewFunc();
-            };
-            input.onChanging = function() {
-                if (chkLinkX.value && linkInput) {
-                    updateLinkedInputAndPreview(input, linkInput, previewFunc);
-                } else {
+
+                // opts: { set20OnEnable: boolean, skipPreviewOnCheck: boolean }
+                if (opts && opts.set20OnEnable && chk.value) {
+                    input.text = "20";
+
+                    // scale link: when enabling Width while link is ON, keep Height synced
+                    if (typeof chkLinkScale !== "undefined" && chkLinkScale && chk === chkScaleX && chkLinkScale.value) {
+                        inputScaleY.text = input.text;
+                    }
+
+                    // distance link: when enabling Horizontal while Link is ON, keep Vertical synced
+                    if (chk === chkDistanceX && chkLinkX && chkLinkX.value && typeof inputDistanceY !== "undefined" && inputDistanceY) {
+                        inputDistanceY.text = input.text;
+                    }
+                }
+
+                if (!(opts && opts.skipPreviewOnCheck)) {
                     if (previewFunc) previewFunc();
                 }
             };
-            changeValueByArrowKey(input, function() {
-                if (chkLinkX.value && linkInput) {
-                    updateLinkedInputAndPreview(input, linkInput, previewFunc);
-                } else {
-                    if (previewFunc) previewFunc();
-                }
+            input.onChanging = function () {
+                if (chkLinkX.value && linkInput) updateLinkedInputAndPreview(input, linkInput, previewFunc);
+                else if (previewFunc) previewFunc();
+            };
+            changeValueByArrowKey(input, function () {
+                if (chkLinkX.value && linkInput) updateLinkedInputAndPreview(input, linkInput, previewFunc);
+                else if (previewFunc) previewFunc();
             });
         }
 
-        // 「連動」チェックボックス（横）のON/OFFで縦の入力欄をディム、値をコピー
-        chkLinkX.onClick = function() {
+        chkLinkX.onClick = function () {
             if (chkLinkX.value) {
                 chkDistanceY.value = false;
                 chkDistanceY.enabled = false;
@@ -523,13 +549,10 @@ function main() {
             }
         };
 
-        bindInput(chkDistanceX, inputDistanceX, previewDistance, inputDistanceY);
-        bindInput(chkDistanceY, inputDistanceY, previewDistance);
+        /* ラベル幅 / Label widths */
+        var LABEL_WIDTH_SCALE = 60;   // 幅/高さ用
+        var LABEL_WIDTH_OPT = 80;     // 回転/不透明度用
 
-        /* 共通ラベル幅 / Common label width */
-        var LABEL_WIDTH = 72;
-
-        // チェックボックス＋入力欄の生成を簡素化する関数 / Simplify creation of checkbox + input
         function createCheckInput(parent, label, width, unit, defaultVal, isChecked) {
             var group = parent.add("group");
             group.orientation = "row";
@@ -540,400 +563,461 @@ function main() {
             chk.preferredSize.width = width;
 
             group.add("statictext", undefined, "");
-
             var input = group.add("edittext", undefined, defaultVal);
             input.characters = 4;
             input.enabled = isChecked;
 
             if (unit) group.add("statictext", undefined, unit);
 
-            chk.onClick = function() {
-                input.enabled = chk.value;
-            };
+            chk.onClick = function () { input.enabled = chk.value; };
 
-            return {
-                chk: chk,
-                input: input
-            };
+            return { chk: chk, input: input };
         }
 
-        /* 変形・回転・不透明度をまとめたグループ / Group: Scale, Rotate, Opacity */
-        // var groupTransform = dialog.add("group");
-        var groupTransform = leftPanel.add("panel", undefined, undefined);
+        // スケールパネル（右カラム） / Scale panel (right column)
+        var panelScale = rightPanel.add("panel", undefined, LABELS.panelScaleTitle[lang]);
+        panelScale.orientation = "column";
+        panelScale.alignChildren = ["fill", "top"];
+        panelScale.margins = [15, 20, 15, 10];
 
+        // Distanceと同じ2カラム構成（左: 幅/高さ、右: 連動）
+        var scaleContainer = panelScale.add("group");
+        scaleContainer.orientation = "row";
+        scaleContainer.alignChildren = "top";
+
+        // 左カラム（幅/高さ）
+        var scaleLeft = scaleContainer.add("group");
+        scaleLeft.orientation = "column";
+        scaleLeft.alignChildren = "left";
+
+        var scaleRowX = scaleLeft.add("group");
+        scaleRowX.orientation = "row";
+        scaleRowX.alignChildren = "center";
+        var chkScaleX = scaleRowX.add("checkbox", undefined, LABELS.scaleX[lang]);
+        chkScaleX.value = false;
+        chkScaleX.preferredSize.width = LABEL_WIDTH_SCALE;
+        var inputScaleX = scaleRowX.add("edittext", undefined, "0");
+        inputScaleX.characters = 4;
+        inputScaleX.enabled = chkScaleX.value;
+
+        var scaleRowY = scaleLeft.add("group");
+        scaleRowY.orientation = "row";
+        scaleRowY.alignChildren = "center";
+        var chkScaleY = scaleRowY.add("checkbox", undefined, LABELS.scaleY[lang]);
+        chkScaleY.value = false;
+        chkScaleY.preferredSize.width = LABEL_WIDTH_SCALE;
+        var inputScaleY = scaleRowY.add("edittext", undefined, "0");
+        inputScaleY.characters = 4;
+        inputScaleY.enabled = chkScaleY.value;
+
+        // 右カラム（連動）
+        var scaleRight = scaleContainer.add("group");
+        scaleRight.orientation = "column";
+        scaleRight.alignChildren = "center";
+        scaleRight.alignment = ["fill", "center"];
+
+        var chkLinkScale = scaleRight.add("checkbox", undefined, LABELS.link[lang]);
+        chkLinkScale.value = true;
+
+        // 起動時は連動ON: 高さはディム＆同期
+        chkScaleY.value = false;
+        chkScaleY.enabled = false;
+        inputScaleY.enabled = false;
+        inputScaleY.text = inputScaleX.text;
+
+        // 回転・不透明度パネル（右カラム） / Rotate & Opacity panel (right column)
+        var groupTransform = rightPanel.add("panel", undefined, "オプション");
         groupTransform.orientation = "column";
         groupTransform.alignChildren = "left";
-        groupTransform.margins = [15, 15, 15, 10];
+        groupTransform.margins = [15, 20, 15, 10];
 
-
-
-
-        /* 変形 / Scale */
-        var scaleUI = createCheckInput(groupTransform, LABELS.scale[lang], LABEL_WIDTH, "%", "0", true);
-        var chkScale = scaleUI.chk;
-        var inputScale = scaleUI.input;
-
-        /* 回転 / Rotate */
-        var rotateUI = createCheckInput(groupTransform, LABELS.rotate[lang], LABEL_WIDTH, "°", "0", true);
+        var rotateUI = createCheckInput(groupTransform, LABELS.rotate[lang], LABEL_WIDTH_OPT, "°", "0", false);
         var chkRotate = rotateUI.chk;
         var inputRotate = rotateUI.input;
 
-        /* 不透明度 / Opacity */
-        var opacityUI = createCheckInput(groupTransform, LABELS.opacity[lang], LABEL_WIDTH, "%", "0", true);
+        // 回転スライダー（0〜180）
+        var rotateSlider = groupTransform.add("slider", undefined, 0, 0, 180);
+        rotateSlider.alignment = ["fill", "center"];
+
+        // 入力→スライダー同期
+        inputRotate.onChanging = function () {
+            var v = parseFloat(inputRotate.text);
+            if (!isNaN(v)) {
+                if (v < 0) v = 0;
+                if (v > 180) v = 180;
+                rotateSlider.value = v;
+            }
+        };
+
+        // スライダー→入力同期
+        rotateSlider.onChanging = function () {
+            // スライダー操作で回転を自動ON（チェックのonClickは呼ばない＝値上書きを防ぐ）
+            chkRotate.value = true;
+            inputRotate.enabled = true;
+
+            inputRotate.text = Math.round(rotateSlider.value).toString();
+            runAllPreviews();
+        };
+
+        var opacityUI = createCheckInput(groupTransform, LABELS.opacity[lang], LABEL_WIDTH_OPT, "%", "0", false);
         var chkOpacity = opacityUI.chk;
         var inputOpacity = opacityUI.input;
 
-        /* 選択オブジェクトの初期状態を記録（ダイアログ開始時点） */
-        var initialStates = [];
-        for (var i = 0; i < doc.selection.length; i++) {
-            var item = doc.selection[i];
-            var bounds = item.visibleBounds;
-            initialStates.push({
-                item: item,
-                position: [item.position[0], item.position[1]],
-                width: bounds[2] - bounds[0],
-                height: bounds[1] - bounds[3],
-                matrix: item.matrix,
-                opacity: (item.opacity !== undefined) ? item.opacity : 100
-            });
-        }
-        // originalStatesはプレビュー等で編集可。initialStatesはダイアログ開始時点を保持
-        var originalStates = [];
-        for (var i = 0; i < initialStates.length; i++) {
-            // ディープコピー（item参照は同じだが値は複製）
-            var st = initialStates[i];
-            originalStates.push({
-                item: st.item,
-                position: [st.position[0], st.position[1]],
-                width: st.width,
-                height: st.height,
-                matrix: st.matrix,
-                opacity: st.opacity
-            });
+        // 不透明度スライダー（0〜100）
+        var _syncingOpacitySlider = false;
+        var opacitySlider = groupTransform.add("slider", undefined, 0, 0, 100);
+        opacitySlider.alignment = ["fill", "center"];
+        opacitySlider.enabled = true; // 常に有効
+
+        // スライダー→入力（※edittextのonChangingは自動発火しないため明示的にrunAllPreviews）
+        opacitySlider.onChanging = function () {
+            if (_syncingOpacitySlider) return;
+
+            // スライダー操作で不透明度を自動ON（チェックのonClickは呼ばない＝値上書きを防ぐ）
+            chkOpacity.value = true;
+            inputOpacity.enabled = true;
+
+            _syncingOpacitySlider = true;
+            inputOpacity.text = Math.round(opacitySlider.value).toString();
+            _syncingOpacitySlider = false;
+
+            runAllPreviews();
+        };
+
+        // チェックON時に既定値を自動入力 / Auto set default value when enabled
+        function setDefault20OnEnable(chk, input) {
+            if (!chk || !input) return;
+            var prev = chk.onClick;
+            chk.onClick = function () {
+                if (typeof prev === "function") prev();
+                input.enabled = chk.value;
+                if (chk.value) {
+                    input.text = "20";
+                }
+                // ON/OFFのみ行い、ここではランダム実行しない
+            };
         }
 
-        /* ポジションをリセットする共通関数 / Common function to reset positions */
-        function resetPositions(states) {
-            for (var i = 0; i < states.length; i++) {
-                var st = states[i];
-                st.item.position = [st.position[0], st.position[1]];
-            }
-        }
 
-        /* 移動距離のプレビュー処理（リセット→再適用） / Preview distance (reset → reapply) */
-        function previewDistance() {
-            if (!chkDistanceX.value && !chkDistanceY.value && !chkLinkX.value && !chkCenter.value) return;
-            var valX = chkDistanceX.value ? parseFloat(inputDistanceX.text) : 0;
-            var valY;
-            if (chkLinkX.value) {
-                valY = parseFloat(inputDistanceX.text);
+        // スケール連動のUI反映 / Apply scale link UI state
+        function applyScaleLinkUI() {
+            if (!chkLinkScale) return;
+
+            if (chkLinkScale.value) {
+                chkScaleY.value = false;
+                chkScaleY.enabled = false;
+                inputScaleY.enabled = false;
+                inputScaleY.text = inputScaleX.text;
             } else {
-                valY = chkDistanceY.value ? parseFloat(inputDistanceY.text) : 0;
-            }
-            if ((chkDistanceX.value && isNaN(valX)) || (chkDistanceY.value && isNaN(valY))) return;
-            try {
-                var totalLeft = Infinity,
-                    totalTop = -Infinity;
-                var totalRight = -Infinity,
-                    totalBottom = Infinity;
-                if (chkCenter.value) {
-                    for (var i = 0; i < originalStates.length; i++) {
-                        var bounds = originalStates[i].item.visibleBounds;
-                        if (bounds[0] < totalLeft) totalLeft = bounds[0];
-                        if (bounds[1] > totalTop) totalTop = bounds[1];
-                        if (bounds[2] > totalRight) totalRight = bounds[2];
-                        if (bounds[3] < totalBottom) totalBottom = bounds[3];
-                    }
-                }
-
-                var centerX = 0,
-                    centerY = 0;
-                if (chkCenter.value) {
-                    centerX = (totalLeft + totalRight) / 2;
-                    centerY = (totalTop + totalBottom) / 2;
-                }
-
-                // なるべく重ならないように配置
-                var placedItems = []; // 配置済みアイテムのバウンディングボックス
-
-                for (var i = 0; i < originalStates.length; i++) {
-                    var st = originalStates[i];
-                    // Reset position
-                    st.item.position = [st.position[0], st.position[1]];
-                    var newX = st.position[0];
-                    var newY = st.position[1];
-
-                    if (chkCenter.value) {
-                        var itemBounds = st.item.visibleBounds;
-                        var itemCenterX = (itemBounds[0] + itemBounds[2]) / 2;
-                        var itemCenterY = (itemBounds[1] + itemBounds[3]) / 2;
-
-                        if (itemCenterX > centerX) {
-                            var randX = -(valX * 0.8 + Math.random() * (valX * 0.2));
-                            newX = st.position[0] + randX;
-                        } else if (itemCenterX < centerX) {
-                            var randX = (valX * 0.8 + Math.random() * (valX * 0.2));
-                            newX = st.position[0] + randX;
-                        }
-
-                        if (itemCenterY > centerY) {
-                            var randY = -(valY * 0.8 + Math.random() * (valY * 0.2));
-                            newY = st.position[1] + randY;
-                        } else if (itemCenterY < centerY) {
-                            var randY = (valY * 0.8 + Math.random() * (valY * 0.2));
-                            newY = st.position[1] + randY;
-                        }
-                    } else {
-                        if (chkDistanceX.value) {
-                            var randX = (Math.random() * 2 - 1) * valX;
-                            newX = st.position[0] + randX;
-                        }
-                        if (chkLinkX.value || chkDistanceY.value) {
-                            var randY = (Math.random() * 2 - 1) * valY;
-                            newY = st.position[1] + randY;
-                        }
-                    }
-
-                    var attempt = 0;
-                    var placed = false;
-                    if (chkAvoidOverlap.value) {
-                        while (attempt < 20) {
-                            st.item.position = [newX, newY];
-                            var vb = st.item.visibleBounds;
-                            var overlap = false;
-
-                            for (var j = 0; j < placedItems.length; j++) {
-                                var vb2 = placedItems[j];
-                                if (!(vb[2] < vb2[0] || vb[0] > vb2[2] || vb[1] < vb2[3] || vb[3] > vb2[1])) {
-                                    overlap = true;
-                                    break;
-                                }
-                            }
-
-                            if (!overlap) {
-                                placedItems.push(vb);
-                                placed = true;
-                                break;
-                            } else {
-                                newX = st.position[0] + (Math.random() * 2 - 1) * valX;
-                                newY = st.position[1] + (Math.random() * 2 - 1) * valY;
-                                attempt++;
-                            }
-                        }
-                    }
-
-                    if (!chkAvoidOverlap.value || !placed) {
-                        st.item.position = [newX, newY]; // 通常配置または妥協配置
-                        placedItems.push(st.item.visibleBounds);
-                    }
-                }
-                app.redraw();
-            } catch (e) {}
-        }
-
-        /* 変形率のプレビュー処理（インクリメンタル適用） / Preview scale (incremental) */
-        function previewScale() {
-            if (!chkScale.value) return;
-            var val = parseFloat(inputScale.text);
-            if (isNaN(val)) return;
-            try {
-                for (var i = 0; i < originalStates.length; i++) {
-                    var st = originalStates[i];
-                    // 現在の状態に加えてランダム拡大縮小
-                    var factor = 1 + (Math.random() * 2 - 1) * (val / 100);
-                    var randScale = 100 * factor;
-                    if (randScale < 1) randScale = 1;
-                    st.item.resize(randScale, randScale);
-                }
-                app.redraw();
-            } catch (e) {}
-        }
-
-        function previewOpacity() {
-            if (!chkOpacity.value) return;
-            var val = parseFloat(inputOpacity.text);
-            if (isNaN(val)) return;
-            if (val < 0) val = 0;
-            if (val > 100) val = 100;
-            try {
-                for (var i = 0; i < originalStates.length; i++) {
-                    var st = originalStates[i];
-                    if (st.item.opacity !== undefined) {
-                        // 現在の不透明度に加えてランダム変化
-                        var baseOpacity = st.item.opacity;
-                        var minOpacity = baseOpacity - val;
-                        var maxOpacity = baseOpacity + val;
-                        if (minOpacity < 0) minOpacity = 0;
-                        if (maxOpacity > 100) maxOpacity = 100;
-                        var newOpacity = minOpacity + Math.random() * (maxOpacity - minOpacity);
-                        st.item.opacity = newOpacity;
-                    }
-                }
-                app.redraw();
-            } catch (e) {}
-        }
-
-        // 回転リセットフラグ / Flag to ensure rotation reset only once
-        var rotationResetDone = false;
-        /* 回転プレビュー処理 / Preview rotation */
-        function previewRotate() {
-            if (!chkRotate.value) return;
-            var val = parseFloat(inputRotate.text);
-            if (isNaN(val)) return;
-            try {
-                for (var i = 0; i < originalStates.length; i++) {
-                    var st = originalStates[i];
-                    // Reset rotation only once when dialog opens
-                    if (!rotationResetDone && st.matrix) {
-                        st.item.matrix = st.matrix;
-                    }
-                    // -val ～ +val の範囲でランダムに回転
-                    var randRotate = (Math.random() * 2 - 1) * val;
-                    st.item.rotate(randRotate);
-                }
-                rotationResetDone = true;
-                app.redraw();
-            } catch (e) {}
-        }
-
-        /* プレビュー関数をまとめる配列 / Array of preview functions */
-        var previewFuncs = [{
-                chk: chkDistanceX,
-                func: previewDistance
-            },
-            {
-                chk: chkScale,
-                func: previewScale
-            },
-            {
-                chk: chkOpacity,
-                func: previewOpacity
-            },
-            {
-                chk: chkRotate,
-                func: previewRotate
-            }
-        ];
-
-        // 一括プレビュー実行関数 / Run all previews
-        function runAllPreviews() {
-            for (var i = 0; i < previewFuncs.length; i++) {
-                if (previewFuncs[i].chk && previewFuncs[i].chk.value && previewFuncs[i].func) {
-                    previewFuncs[i].func();
-                }
+                chkScaleY.enabled = true;
+                inputScaleY.enabled = chkScaleY.value;
             }
         }
+        chkLinkScale.onClick = function () {
+            applyScaleLinkUI();
+            runAllPreviews();
+        };
+        applyScaleLinkUI(); // initial
 
-        bindInput(chkScale, inputScale, runAllPreviews);
-        bindInput(chkRotate, inputRotate, runAllPreviews);
-        bindInput(chkOpacity, inputOpacity, runAllPreviews);
+        // UIの状態同期 / Sync UI state
+        function syncUIState(options) {
+            options = options || {};
 
-        /* ボタン群 / Buttons */
-        var btnGroup = rightPanel.add("group");
-        btnGroup.alignment = "top";
-        btnGroup.orientation = "column";
+            if (options.hasOwnProperty("chkDistanceX")) chkDistanceX.value = !!options.chkDistanceX;
+            inputDistanceX.enabled = chkDistanceX.value;
 
-        // OK button
-        var okBtn = btnGroup.add("button", undefined, LABELS.ok[lang], {
-            name: "ok"
-        });
+            if (options.hasOwnProperty("chkLinkX")) chkLinkX.value = !!options.chkLinkX;
 
-        // Cancel button
-        var cancelBtn = btnGroup.add("button", undefined, LABELS.cancel[lang], {
-            name: "cancel"
-        });
-
-        // Spacer with larger height
-        var spacer = btnGroup.add("statictext", undefined, "");
-        spacer.preferredSize.height = 100; // increase height as needed
-
-        // Reset button
-        var resetBtn = btnGroup.add("button", undefined, LABELS.reset[lang]);
-
-        // Random button
-        var randomBtn = btnGroup.add("button", undefined, LABELS.random[lang]);
-
-
-
-        randomBtn.onClick = function() {
-            try {
-                // 全オブジェクトのバウンディングボックスから幅を計算
-                var totalLeft = Infinity,
-                    totalTop = -Infinity;
-                var totalRight = -Infinity,
-                    totalBottom = Infinity;
-                for (var i = 0; i < originalStates.length; i++) {
-                    var bounds = originalStates[i].item.visibleBounds;
-                    if (bounds[0] < totalLeft) totalLeft = bounds[0];
-                    if (bounds[1] > totalTop) totalTop = bounds[1];
-                    if (bounds[2] > totalRight) totalRight = bounds[2];
-                    if (bounds[3] < totalBottom) totalBottom = bounds[3];
-                }
-                var totalWidth = totalRight - totalLeft;
-                var halfWidth = Math.round(totalWidth / 2);
-
-                // 各フィールドにランダム推奨値をセット
-                inputDistanceX.text = halfWidth.toString();
-                inputDistanceY.text = halfWidth.toString();
-                inputScale.text = "20";
-                inputRotate.text = "10";
-                inputOpacity.text = "10";
-
-                chkDistanceX.value = true;
-                chkDistanceY.value = true;
-                chkLinkX.value = true; // ランダム時は連動をON
-                chkScale.value = true;
-                chkRotate.value = true;
-                chkOpacity.value = true;
-                chkCenter.value = false; // ランダム時は中央揃えをOFF
-
-                // 連動ON時は縦入力をディムして値を同期
+            if (chkLinkX.value) {
                 chkDistanceY.value = false;
                 chkDistanceY.enabled = false;
                 inputDistanceY.enabled = false;
                 inputDistanceY.text = inputDistanceX.text;
+            } else {
+                if (options.hasOwnProperty("chkDistanceY")) chkDistanceY.value = !!options.chkDistanceY;
+                chkDistanceY.enabled = true;
+                inputDistanceY.enabled = chkDistanceY.value;
+            }
 
-                // プレビューを実行
+            if (options.hasOwnProperty("chkScaleX")) chkScaleX.value = !!options.chkScaleX;
+            inputScaleX.enabled = chkScaleX.value;
+
+            if (options.hasOwnProperty("chkLinkScale")) chkLinkScale.value = !!options.chkLinkScale;
+
+            if (options.hasOwnProperty("chkScaleY")) chkScaleY.value = !!options.chkScaleY;
+            inputScaleY.enabled = chkScaleY.value;
+
+            if (options.hasOwnProperty("chkRotate")) chkRotate.value = !!options.chkRotate;
+            inputRotate.enabled = chkRotate.value;
+
+            if (options.hasOwnProperty("chkOpacity")) chkOpacity.value = !!options.chkOpacity;
+            inputOpacity.enabled = chkOpacity.value;
+
+            // Apply scale link dimming/sync
+            if (typeof applyScaleLinkUI === "function") applyScaleLinkUI();
+        }
+
+        /* 選択オブジェクトの初期状態を記録（ダイアログ開始時点） */
+        var initialStates = [];
+        for (var s = 0; s < doc.selection.length; s++) {
+            var it = doc.selection[s];
+            var b = it.visibleBounds;
+            initialStates.push({
+                item: it,
+                position: [it.position[0], it.position[1]],
+                width: b[2] - b[0],
+                height: b[1] - b[3],
+                matrix: it.matrix,
+                opacity: (it.opacity !== undefined) ? it.opacity : 100
+            });
+        }
+
+        var originalStates = [];
+        for (var t = 0; t < initialStates.length; t++) {
+            var st0 = initialStates[t];
+            originalStates.push({
+                item: st0.item,
+                position: [st0.position[0], st0.position[1]],
+                width: st0.width,
+                height: st0.height,
+                matrix: st0.matrix,
+                opacity: st0.opacity
+            });
+        }
+
+        function resetPositions(states) {
+            for (var r = 0; r < states.length; r++) {
+                var stp = states[r];
+                stp.item.position = [stp.position[0], stp.position[1]];
+            }
+        }
+
+        function previewDistance() {
+            if (!chkDistanceX.value && !chkDistanceY.value) return;
+
+            var valX = chkDistanceX.value ? parseFloat(inputDistanceX.text) : 0;
+            var valY = 0;
+
+            if (chkLinkX.value && chkDistanceX.value) valY = parseFloat(inputDistanceX.text);
+            else valY = chkDistanceY.value ? parseFloat(inputDistanceY.text) : 0;
+
+            if ((chkDistanceX.value && isNaN(valX)) || (chkDistanceY.value && isNaN(valY))) return;
+
+            try {
+                for (var i3 = 0; i3 < originalStates.length; i3++) {
+                    var st = originalStates[i3];
+                    var newX = st.position[0];
+                    var newY = st.position[1];
+
+                    if (chkDistanceX.value) newX = st.position[0] + (Math.random() * 2 - 1) * valX;
+                    if (chkLinkX.value && chkDistanceX.value) newY = st.position[1] + (Math.random() * 2 - 1) * valY;
+                    else if (chkDistanceY.value) newY = st.position[1] + (Math.random() * 2 - 1) * valY;
+
+                    st.item.position = [newX, newY];
+                }
+            } catch (e) { }
+        }
+
+        function previewScale() {
+            // Link ON かつ 幅ON のときは高さも幅に連動して適用（高さチェックがOFF/ディムでも適用）
+            var applyWidth = !!chkScaleX.value;
+            var applyHeight = (!!chkScaleY.value) || (chkLinkScale && chkLinkScale.value && applyWidth);
+            if (!applyWidth && !applyHeight) return;
+
+            var valX2 = applyWidth ? parseFloat(inputScaleX.text) : 0;
+            var valY2 = applyHeight ? parseFloat((chkLinkScale && chkLinkScale.value && applyWidth) ? inputScaleX.text : inputScaleY.text) : 0;
+
+            if (applyWidth && isNaN(valX2)) return;
+            if (applyHeight && isNaN(valY2)) return;
+
+            try {
+                for (var i4 = 0; i4 < originalStates.length; i4++) {
+                    var st4 = originalStates[i4];
+
+                    if (applyWidth) {
+                        var fX = 1 + (Math.random() * 2 - 1) * (valX2 / 100);
+                        var sX = Math.max(1, 100 * fX);
+                        st4.item.resize(sX, 100);
+                    }
+                    if (applyHeight) {
+                        var fY = 1 + (Math.random() * 2 - 1) * (valY2 / 100);
+                        var sY = Math.max(1, 100 * fY);
+                        st4.item.resize(100, sY);
+                    }
+                }
+            } catch (e) { }
+        }
+
+        function previewRotate() {
+            if (!chkRotate.value) return;
+            var valR = parseFloat(inputRotate.text);
+            if (isNaN(valR)) return;
+
+            try {
+                for (var i5 = 0; i5 < originalStates.length; i5++) {
+                    var st5 = originalStates[i5];
+                    st5.item.rotate((Math.random() * 2 - 1) * valR);
+                }
+            } catch (e) { }
+        }
+
+        function previewOpacity() {
+            if (!chkOpacity.value) return;
+
+            var valO = parseFloat(inputOpacity.text);
+            if (isNaN(valO)) return;
+            if (valO < 0) valO = 0;
+            if (valO > 100) valO = 100;
+
+            try {
+                for (var i6 = 0; i6 < originalStates.length; i6++) {
+                    var st6 = originalStates[i6];
+                    if (st6.item.opacity !== undefined) {
+                        var base = (st6.opacity !== undefined) ? st6.opacity : st6.item.opacity;
+                        var minO = Math.max(0, base - valO);
+                        var maxO = Math.min(100, base + valO);
+                        st6.item.opacity = minO + Math.random() * (maxO - minO);
+                    }
+                }
+            } catch (e) { }
+        }
+
+        function restoreOriginalStates(states, doRedraw) {
+            if (doRedraw === undefined) doRedraw = true;
+            resetPositions(states);
+            for (var i7 = 0; i7 < states.length; i7++) {
+                var st7 = states[i7];
+                if (st7.matrix) st7.item.matrix = st7.matrix;
+                if (st7.opacity !== undefined) st7.item.opacity = st7.opacity;
+            }
+            if (doRedraw) app.redraw();
+        }
+
+        function runAllPreviews() {
+            restoreOriginalStates(originalStates, false);
+
+            if (chkDistanceX.value || chkDistanceY.value) previewDistance();
+            if (chkScaleX.value || chkScaleY.value) previewScale(); // ←追加
+            if (chkRotate.value) previewRotate();
+            if (chkOpacity.value) previewOpacity();
+
+            app.redraw();
+        }
+
+        // Distance: ON/OFFのみ（プレビューは実行しない）
+        bindInput(chkDistanceX, inputDistanceX, runAllPreviews, inputDistanceY, { set20OnEnable: true, skipPreviewOnCheck: true });
+        bindInput(chkDistanceY, inputDistanceY, runAllPreviews, null, { skipPreviewOnCheck: true });
+
+        // other (Width/Height/Rotate/Opacity: set 20 on enable, do not preview on ON/OFF)
+        bindInput(chkScaleX, inputScaleX, runAllPreviews, null, { set20OnEnable: true, skipPreviewOnCheck: true });
+        bindInput(chkScaleY, inputScaleY, runAllPreviews, null, { set20OnEnable: true, skipPreviewOnCheck: true });
+        bindInput(chkRotate, inputRotate, runAllPreviews, null, { set20OnEnable: true, skipPreviewOnCheck: true });
+        bindInput(chkOpacity, inputOpacity, runAllPreviews, null, { set20OnEnable: true, skipPreviewOnCheck: true });
+
+        // 不透明度：入力→スライダー同期（bindInput が onChanging を上書きするため後付けでラップ）
+        var _prevOpacityOnChanging = inputOpacity.onChanging;
+        inputOpacity.onChanging = function () {
+            if (!_syncingOpacitySlider) {
+                var v = parseFloat(inputOpacity.text);
+                if (!isNaN(v)) {
+                    if (v < 0) v = 0;
+                    if (v > 100) v = 100;
+                    _syncingOpacitySlider = true;
+                    opacitySlider.value = v;
+                    _syncingOpacitySlider = false;
+                }
+            }
+            if (typeof _prevOpacityOnChanging === "function") {
+                _prevOpacityOnChanging();
+            }
+        };
+
+        // 初期状態（スライダーは常時有効）
+        opacitySlider.value = parseFloat(inputOpacity.text) || 0;
+
+        // 幅のみの入力が変わったら、連動ON時は高さにも反映（bindInput が onChanging を上書きするため後付けでラップ）
+        var _prevScaleXOnChanging2 = inputScaleX.onChanging;
+        inputScaleX.onChanging = function () {
+            if (chkLinkScale && chkLinkScale.value) {
+                inputScaleY.text = inputScaleX.text;
+            }
+            if (typeof _prevScaleXOnChanging2 === "function") _prevScaleXOnChanging2();
+        };
+
+        /* Buttons (bottom row: 3 columns) */
+        var btnRowGroup = dialog.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.alignChildren = ["fill", "center"];
+        btnRowGroup.alignment = ["fill", "bottom"];
+        btnRowGroup.margins = [0, 10, 0, 0];
+
+        // Left column: Random / Reset
+        var btnLeft = btnRowGroup.add("group");
+        btnLeft.orientation = "row";
+        btnLeft.alignChildren = ["left", "center"];
+        btnLeft.alignment = ["left", "center"];
+
+        var randomBtn = btnLeft.add("button", undefined, LABELS.random[lang]);
+        var resetBtn = btnLeft.add("button", undefined, LABELS.reset[lang]);
+
+        // Center column: spacer
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        // Right column: Cancel / OK
+        var btnRight = btnRowGroup.add("group");
+        btnRight.orientation = "row";
+        btnRight.alignChildren = ["right", "center"];
+        btnRight.alignment = ["right", "center"];
+
+        var cancelBtn = btnRight.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
+        var okBtn = btnRight.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+
+
+        // Move/copy handlers from original buttons to new ones
+        randomBtn.onClick = function () {
+            try {
+                syncUIState({
+                    chkDistanceX: chkDistanceX.value,
+                    chkLinkX: chkLinkX.value,
+                    chkDistanceY: chkDistanceY.value,
+                    chkScaleX: chkScaleX.value,
+                    chkScaleY: chkScaleY.value,
+                    chkLinkScale: chkLinkScale.value,
+                    chkRotate: chkRotate.value,
+                    chkOpacity: chkOpacity.value
+                });
                 runAllPreviews();
             } catch (e) {
                 alert("ランダム処理中にエラーが発生しました: " + e.message);
             }
         };
 
-        // 共通のボタン幅を設定 / Set common button width
-        var BUTTON_WIDTH = 100;
-        okBtn.preferredSize.width = BUTTON_WIDTH;
-        cancelBtn.preferredSize.width = BUTTON_WIDTH;
-        resetBtn.preferredSize.width = BUTTON_WIDTH;
-        randomBtn.preferredSize.width = BUTTON_WIDTH;
-
-        // Reset action: restore state from before dialog and set rotation to 0°
-        resetBtn.onClick = function() {
+        resetBtn.onClick = function () {
             try {
-                // 元の状態に復元
-                restoreOriginalStates(originalStates);
+                restoreOriginalStates(initialStates);
 
-                // 長方形を水平に
-                for (var i = 0; i < originalStates.length; i++) {
-                    try {
-                        makeRectangleEdgeHorizontal(originalStates[i].item);
-                    } catch (e2) {}
+                for (var i8 = 0; i8 < initialStates.length; i8++) {
+                    try { makeRectangleEdgeHorizontal(initialStates[i8].item); } catch (e2) { }
                 }
 
-                // 入力フィールドを0に戻す / Reset all input fields to 0
                 inputDistanceX.text = "0";
                 inputDistanceY.text = "0";
-                inputScale.text = "0";
+                inputScaleX.text = "0";
+                inputScaleY.text = "0";
                 inputRotate.text = "0";
                 inputOpacity.text = "0";
 
-                chkDistanceX.value = true;
-                chkDistanceY.value = true;
-                chkLinkX.value = true;
-                chkCenter.value = false;
-                chkScale.value = true;
-                chkRotate.value = true;
-                chkOpacity.value = true;
+                syncUIState({
+                    chkDistanceX: true,
+                    chkLinkX: true,
+                    chkLinkScale: true,
+                    chkScaleX: false,
+                    chkScaleY: false,
+                    chkRotate: false,
+                    chkOpacity: false
+                });
 
                 app.redraw();
             } catch (e) {
@@ -941,43 +1025,23 @@ function main() {
             }
         };
 
-        /* 元の状態に戻す関数 / Restore original states */
-        function restoreOriginalStates(states) {
-            resetPositions(states);
-            for (var i = 0; i < states.length; i++) {
-                var st = states[i];
-                if (st.matrix) {
-                    st.item.matrix = st.matrix;
-                }
-                if (st.opacity !== undefined) {
-                    st.item.opacity = st.opacity;
-                }
-            }
-            app.redraw();
-        }
+        dialog.onMove = function () { storeWinBounds(dialog); };
 
-        // Store bounds on move
-        dialog.onMove = function() {
-            storeWinBounds(dialog);
+        // Closeボタン（×）などで閉じた場合も位置を記録 / Save bounds on close as well
+        dialog.onClose = function () {
+            try { storeWinBounds(dialog); } catch (e) { }
+            return true;
         };
 
-        cancelBtn.onClick = function() {
-            try {
-                restoreOriginalStates(initialStates);
-            } catch (e) {}
-            try {
-                app.executeMenuCommand('Live Corner Annotator');
-            } catch (e2) {}
+        cancelBtn.onClick = function () {
+            try { restoreOriginalStates(initialStates); } catch (e) { }
+            try { app.executeMenuCommand('Live Corner Annotator'); } catch (e2) { }
             storeWinBounds(dialog);
             dialog.close();
         };
 
-        okBtn.onClick = function() {
-            // プレビューで反映済みなので一括実行で最終反映
-            // runAllPreviews();
-            try {
-                app.executeMenuCommand('Live Corner Annotator');
-            } catch (e2) {}
+        okBtn.onClick = function () {
+            try { app.executeMenuCommand('Live Corner Annotator'); } catch (e2) { }
             storeWinBounds(dialog);
             dialog.close();
         };
