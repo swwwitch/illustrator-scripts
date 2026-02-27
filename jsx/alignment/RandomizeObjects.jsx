@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "MyScriptEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -11,10 +12,15 @@ RandomizeObjects.jsx
 
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/RandomizeObjects.jsx
 
+### 更新日：
+
+- 2026-02-27（完全シャッフル：ランダム色生成／カラーは［ランダム］で実行）
+
 ### 概要：
 
 - 選択したオブジェクトをランダムに移動・変形・回転・不透明度を変更するスクリプト
 - UIから各種パラメータを指定し、即時プレビューで結果を確認可能
+- カラーの通常シャッフル／完全シャッフルに対応
 - [リセット]でダイアログ起動前の状態に復元
 
 ### 主な機能：
@@ -62,6 +68,10 @@ var LABELS = {
     random: { ja: "ランダム", en: "Random" },
     shuffle: { ja: "シャッフル", en: "Shuffle" },
     force: { ja: "強制", en: "Force" }
+    , shuffleMode: { ja: "シャッフル方式", en: "Shuffle Mode" }
+    , fullShuffle: { ja: "完全シャッフル", en: "Full Shuffle" }
+    , apply: { ja: "実行", en: "Apply" }
+    , none: { ja: "なし", en: "None" }
 };
 
 /* 入力値を更新し、リンクされた入力とプレビューを処理 / Update input, linked input, and preview */
@@ -124,11 +134,23 @@ function changeValueByArrowKey(editText, previewFunc) {
     });
 }
 
-var savedBounds = $.global.__RandomizeObjectsBounds || null;
-function storeWinBounds(dlg) {
-    $.global.__RandomizeObjectsBounds = [dlg.bounds.left, dlg.bounds.top, dlg.bounds.right, dlg.bounds.bottom];
+// ダイアログ位置の記憶（Illustrator終了で忘れる）/ Remember dialog location (cleared when Illustrator quits)
+var savedLoc = $.global.__RandomizeObjectsDialogLoc || null;
+
+function storeWinLoc(dlg) {
+    try {
+        // location is [left, top]
+        $.global.__RandomizeObjectsDialogLoc = [dlg.location[0], dlg.location[1]];
+    } catch (e) { }
 }
-var winBounds = savedBounds instanceof Array ? savedBounds : undefined;
+
+function restoreWinLoc(dlg) {
+    try {
+        if (savedLoc && savedLoc instanceof Array && savedLoc.length === 2) {
+            dlg.location = [savedLoc[0], savedLoc[1]];
+        }
+    } catch (e) { }
+}
 
 /* メイン処理 / Main process */
 function main() {
@@ -144,7 +166,7 @@ function main() {
             return;
         }
 
-        var dialog = new Window("dialog", LABELS.dialogTitle[lang], winBounds);
+        var dialog = new Window("dialog", LABELS.dialogTitle[lang]);
 
         try { app.executeMenuCommand('Live Corner Annotator'); } catch (e) { }
 
@@ -171,6 +193,7 @@ function main() {
         rightPanel.alignment = ["right", "top"];
 
         configureDialog(dialog, { opacity: 0.97 });
+        restoreWinLoc(dialog);
 
         /* 移動距離パネル / Distance panel */
         var unitLabel = "pt";
@@ -245,10 +268,25 @@ function main() {
         // カラーパネル / Color panel
         var panelColor = leftPanel.add("panel", undefined, "カラー");
         panelColor.orientation = "column";
-        panelColor.alignChildren = "left";
+        panelColor.alignChildren = ["fill", "top"]; // カラムいっぱいに広げる
+        panelColor.alignment = ["fill", "top"];      // 左カラム幅に追従
         panelColor.margins = [15, 20, 15, 10];
 
-        var btnShuffleColor = panelColor.add("button", undefined, LABELS.shuffle[lang]);
+        // シャッフル方式 / Shuffle mode
+        var modeGroup = panelColor.add("group");
+        modeGroup.orientation = "column";
+        modeGroup.alignChildren = ["fill", "center"]; // ラジオも横幅いっぱい
+        modeGroup.alignment = ["fill", "top"];
+
+        var rbNoneShuffle = modeGroup.add("radiobutton", undefined, LABELS.none[lang]);
+        var rbShuffle = modeGroup.add("radiobutton", undefined, LABELS.shuffle[lang]);
+        var rbFullShuffle = modeGroup.add("radiobutton", undefined, LABELS.fullShuffle[lang]);
+        rbNoneShuffle.value = true; // default
+        rbNoneShuffle.alignment = ["fill", "center"];
+        rbShuffle.alignment = ["fill", "center"];
+        rbFullShuffle.alignment = ["fill", "center"];
+
+        // var btnApplyColorShuffle = panelColor.add("button", undefined, LABELS.apply[lang]);
         // オブジェクトの塗り色をシャッフル / Shuffle fill colors of selected objects
         function cloneColor(c) {
             if (!c) return null;
@@ -372,19 +410,84 @@ function main() {
                 }
             }
 
-            // alert(selection.length + "個のオブジェクトの色をシャッフルしました");
             app.redraw();
         }
 
-        // Button handler
-        if (btnShuffleColor) {
-            btnShuffleColor.onClick = function () {
+        // 完全シャッフル：CMYK/RGB のランダム色を生成して適用 / Full shuffle: generate random CMYK/RGB colors
+        function fullShuffleSelectionFillColors() {
+            var doc = app.activeDocument;
+            var selection = doc.selection;
+
+            if (!selection || selection.length < 1) {
+                alert("オブジェクトを選択してください");
+                return;
+            }
+
+            function randomInt(min, max) {
+                return Math.floor(Math.random() * (max - min + 1)) + min;
+            }
+
+            function createRandomDocColor() {
                 try {
-                    shuffleSelectionFillColors();
-                } catch (e) {
-                    alert("シャッフル中にエラーが発生しました: " + e.message);
+                    if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+                        var cmyk = new CMYKColor();
+                        cmyk.cyan = randomInt(0, 100);
+                        cmyk.magenta = randomInt(0, 100);
+                        cmyk.yellow = randomInt(0, 100);
+                        cmyk.black = randomInt(0, 30);
+                        return cmyk;
+                    }
+                } catch (e) { }
+
+                // default: RGB
+                var rgb = new RGBColor();
+                rgb.red = randomInt(0, 255);
+                rgb.green = randomInt(0, 255);
+                rgb.blue = randomInt(0, 255);
+                return rgb;
+            }
+
+            var appliedCount = 0;
+
+            for (var i = 0; i < selection.length; i++) {
+                var target = getFillTarget(selection[i]);
+                if (!target) continue;
+
+                var col = createRandomDocColor();
+
+                // Force fill ON for PathItem if needed
+                try {
+                    if (target.typename === "PathItem") {
+                        if (!target.filled) target.filled = true;
+                    }
+                } catch (e2) { }
+
+                if (setFillColorToTarget(target, col)) {
+                    appliedCount++;
                 }
-            };
+            }
+
+            if (appliedCount === 0) {
+                alert("塗りカラーを適用できる対象が見つかりませんでした");
+                return;
+            }
+
+            app.redraw();
+        }
+
+
+        // カラーシャッフルをラジオ選択に応じて実行 / Apply color shuffle based on radio selection
+        function applyColorShuffleFromUI() {
+            try {
+                if (rbNoneShuffle && rbNoneShuffle.value) return;
+                if (rbFullShuffle && rbFullShuffle.value) {
+                    fullShuffleSelectionFillColors();
+                } else {
+                    shuffleSelectionFillColors();
+                }
+            } catch (e) {
+                alert("カラーシャッフル中にエラーが発生しました: " + e.message);
+            }
         }
 
         // NOTE: originalStates is defined later but referenced here; it will exist when the button is clicked.
@@ -988,6 +1091,8 @@ function main() {
                     chkRotate: chkRotate.value,
                     chkOpacity: chkOpacity.value
                 });
+                // カラー（なし/シャッフル/完全シャッフル）を反映
+                applyColorShuffleFromUI();
                 runAllPreviews();
             } catch (e) {
                 alert("ランダム処理中にエラーが発生しました: " + e.message);
@@ -1025,24 +1130,24 @@ function main() {
             }
         };
 
-        dialog.onMove = function () { storeWinBounds(dialog); };
+        dialog.onMove = function () { storeWinLoc(dialog); };
 
         // Closeボタン（×）などで閉じた場合も位置を記録 / Save bounds on close as well
         dialog.onClose = function () {
-            try { storeWinBounds(dialog); } catch (e) { }
+            try { storeWinLoc(dialog); } catch (e) { }
             return true;
         };
 
         cancelBtn.onClick = function () {
             try { restoreOriginalStates(initialStates); } catch (e) { }
             try { app.executeMenuCommand('Live Corner Annotator'); } catch (e2) { }
-            storeWinBounds(dialog);
+            storeWinLoc(dialog);
             dialog.close();
         };
 
         okBtn.onClick = function () {
             try { app.executeMenuCommand('Live Corner Annotator'); } catch (e2) { }
-            storeWinBounds(dialog);
+            storeWinLoc(dialog);
             dialog.close();
         };
 
