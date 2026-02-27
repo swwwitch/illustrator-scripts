@@ -14,7 +14,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 
 ### 更新日：
 
-- 2026-02-27（完全シャッフル：ランダム色生成／カラーは［ランダム］で実行）
+- 2026-02-27（v2.1：完全シャッフル＝ランダム色生成（CMYKのKは0–30）／カラーは［ランダム］で実行）
 
 ### 概要：
 
@@ -40,7 +40,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 4. OKで確定、キャンセルでダイアログ起動前にリセット
 */
 
-var SCRIPT_VERSION = "v2.0";
+var SCRIPT_VERSION = "v2.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
