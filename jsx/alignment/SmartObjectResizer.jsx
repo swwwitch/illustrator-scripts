@@ -1,3 +1,4 @@
+#targetengine "TMK_SOR_Engine"
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -31,6 +32,9 @@ SmartObjectResizer.jsx
 - v1.0.0 (20250601) : 初期バージョン
 - v1.1.0 (20250601) : 「片辺のみ」＋「指定サイズ」での変形サポート
 - v1.2.0 (20250601) : バグ修正、細部改善
+- v1.2.1 (20260227) : ダイアログ初期表示時に、選択中モードを1回適用（初期状態でもリサイズが反映されるように）
+- v1.2.2 (20260227) : 指定サイズの数値欄で、↑↓/Shift+↑↓/Option+↑↓ による増減を追加（±1 / ±10 / ±0.1）
+- v1.2.3 (20260227) : ダイアログ位置をセッション内で記憶し、次回起動時に復元（Illustrator終了でリセット）
 
 ---
 
@@ -63,6 +67,9 @@ SmartObjectResizer.jsx
 - v1.0.0 (20250601): Initial version
 - v1.1.0 (20250601): Supported "One Side Only" with "Fixed Size"
 - v1.2.0 (20250601): Bug fixes and improvements
+- v1.2.1 (20260227): Apply the selected mode once on dialog show (so the default selection is applied immediately)
+- v1.2.2 (20260227): Added arrow-key value stepping for the Fixed Size input (±1 / ±10 with Shift / ±0.1 with Option)
+- v1.2.3 (20260227): Remember dialog position within the session and restore next run (reset when Illustrator quits)
 */
 
 (function() {
@@ -71,6 +78,16 @@ SmartObjectResizer.jsx
     }
 
     var lang = getCurrentLang();
+
+    // スクリプトバージョン / Script version
+    var SCRIPT_VERSION = "v1.2.3";
+
+    // ダイアログ位置をセッション内で記憶（Illustrator終了でリセット）
+    // Remember dialog position within this Illustrator session (resets when Illustrator quits)
+    var __SOR_SESSION_KEY = "SmartObjectResizer_dialogPos";
+    if (typeof $.global[__SOR_SESSION_KEY] === "undefined") {
+        $.global[__SOR_SESSION_KEY] = null;
+    }
 
     var labels = {
         keepAspect: { ja: "縦横比保持", en: "Keep aspect" },
@@ -147,9 +164,44 @@ SmartObjectResizer.jsx
             break;
     }
 
-    var dialog = new Window("dialog", labels.dialogTitle ? labels.dialogTitle[lang] : "SmartObjectResizer");
+    var dialog = new Window("dialog", (labels.dialogTitle ? labels.dialogTitle[lang] : "SmartObjectResizer") + " " + SCRIPT_VERSION);
     dialog.alignChildren = ["left", "top"];
     dialog.margins = [0, 0, 0, 10];
+
+    // 前回のダイアログ位置を復元（セッション内のみ）
+    try {
+        var _pos = $.global[__SOR_SESSION_KEY];
+        if (_pos && _pos.length === 2 && !isNaN(_pos[0]) && !isNaN(_pos[1])) {
+            dialog.location = _pos;
+        }
+    } catch (_) { }
+
+    // --- 初期表示時に、選択中のモードを1回だけ適用 ---
+    // ※ 初期状態で「最大：幅」などが選択されていても、クリックするまで反映されない問題の対策
+    dialog.onShow = function () {
+        try {
+            // 整列は初期OFF、状態を元に戻してから適用
+            resetAlignChecks();
+            restoreOriginalSizes();
+
+            // UI状態に応じた有効/無効も更新
+            updateInputState();
+            updateRadioGroupStates();
+
+            // 現在選択されているラジオのモードを1回だけ適用
+            applyResizeBySelection();
+        } catch (e) {
+            // 何もしない（ダイアログ表示は継続）
+        }
+    };
+
+    // 閉じるときに位置を記憶（セッション内のみ）
+    dialog.onClose = function () {
+        try {
+            $.global[__SOR_SESSION_KEY] = [dialog.location[0], dialog.location[1]];
+        } catch (_) { }
+        return true;
+    };
 
     // --- 縦横比と片辺オプションのグループ ---
     // 縦横比・片辺選択ラジオボタン（mainGroupより前に配置）
@@ -245,6 +297,65 @@ SmartObjectResizer.jsx
     var allRadioButtons = [];
     var radioGroups = [];
 
+    /**
+     * ↑↓キーで数値を増減する / Change numeric value by arrow keys
+     * - Up/Down: ±1
+     * - Shift + Up/Down: ±10 (snap to tens)
+     * - Option(Alt) + Up/Down: ±0.1
+     * @param {EditText} editText
+     * @param {Boolean} allowNegative
+     */
+    function changeValueByArrowKey(editText, allowNegative) {
+        if (!editText) return;
+        if (typeof allowNegative === "undefined") allowNegative = false;
+
+        editText.addEventListener("keydown", function (event) {
+            // ScriptUI keyName: "Up" / "Down"
+            if (!(event && (event.keyName === "Up" || event.keyName === "Down"))) return;
+
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
+
+            if (keyboard.shiftKey) {
+                delta = 10;
+                // Shiftキー押下時は10の倍数にスナップ
+                if (event.keyName === "Up") {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                } else {
+                    value = Math.floor((value - 1) / delta) * delta;
+                }
+            } else if (keyboard.altKey) {
+                delta = 0.1;
+                if (event.keyName === "Up") value += delta;
+                else value -= delta;
+            } else {
+                delta = 1;
+                if (event.keyName === "Up") value += delta;
+                else value -= delta;
+            }
+
+            // 丸め / Rounding
+            if (keyboard.altKey) {
+                value = Math.round(value * 10) / 10; // 小数第1位まで
+            } else {
+                value = Math.round(value); // 整数
+            }
+
+            if (!allowNegative && value < 0) value = 0;
+
+            event.preventDefault();
+            editText.text = value;
+
+            // onChange を明示的に呼ぶ（矢印キーでは onChange が発火しないことがある）
+            try {
+                if (typeof editText.onChange === "function") editText.onChange();
+            } catch (_) { }
+        });
+    }
+
     function createRadioGroup(label, optionLabels, parent, isFixedSizeGroup) {
         if (!isFixedSizeGroup) {
             var group = parent.add("group");
@@ -290,6 +401,7 @@ SmartObjectResizer.jsx
             var avgWidth = selectedItems.length > 0 ? (totalWidth / selectedItems.length) : 100;
             var sizeInput = sizeInputGroup.add("edittext", undefined, avgWidth.toFixed(0));
             sizeInput.characters = 5;
+            changeValueByArrowKey(sizeInput, false);
             var sizeUnit = sizeInputGroup.add("statictext", undefined, unitLabel);
             // イベント連携
             sizeInput.onChange = function() {
