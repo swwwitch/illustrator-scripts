@@ -7,12 +7,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 SplitBackgroundForTwo
 
 ### 更新日：
-20260126
+20260228
 
 ### 概要：
 2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に2分割の背景を作成します。
 ダイアログで［方向］（左右／上下）を切り替えることで、左右2分割（Left/Right）だけでなく上下2分割（Top/Bottom）にも対応します。
 実行時にサイズ倍率（%）を指定するダイアログが表示され、閉じる前にプレビューを確認できます（デフォルトは200%）。
+プレビューは常に直前の1回分だけが残るように履歴を管理し、［OK］時に図形や線が二重に作成されないようにします。
 
 分割の基準となるギャップは、2つのオブジェクト間の「隙間」を基準に計算されます。
 ［バランス］パネルで「なし／左／右（上下モード時は なし／上／下）」を選択すると、
@@ -37,10 +38,12 @@ SplitBackgroundForTwo
 - v2.4 (20260126) : ［OK］時にプレビューUndo後も必ず最終描画を行い、直前の見た目で確定するよう修正。
 - v2.5 (20260126) : ［OK］時にプレビュー削除で last 値が初期化される不具合を修正（角丸等が反映されない問題）。
 - v2.6 (20260126) : PreviewHistory.undo() 後に一時アウトライン生成物が復活するケースを除去（TEMPマーカーを即掃除）。
+- v2.7 (20260228) : プレビュー更新時に直前のプレビューを1回Undoして差し替える方式に変更し、［OK］時に図形や線が二重に生成される問題を修正。
+- v2.8 (20260228) : プレビューのロールバックをUndo依存から、プレビュー印（PREVIEW_NOTE）付きオブジェクトの直接削除方式に変更し、線幅プレビューが更新されない／線がダブる問題を修正。
 */
 
 // --- Version / バージョン ---
-var SCRIPT_VERSION = "v2.6";
+var SCRIPT_VERSION = "v2.8";
 
 // --- Dialog UI prefs / ダイアログUI設定 ---
 var DIALOG_OFFSET_X = 300;
@@ -430,6 +433,8 @@ function saveSessionSettings(s) {
     // --- Preview marker (cleanup) / プレビューマーカー（後片付け） ---
     var PREVIEW_NOTE = "__SplitBackgroundForTwo_PREVIEW__";
 
+    
+
     /* =========================================
  * PreviewHistory util (extractable)
  * ヒストリーを残さないプレビューのための小さなユーティリティ。
@@ -440,11 +445,22 @@ function saveSessionSettings(s) {
  *   PreviewHistory.undo();       // 閉じる/キャンセル時に一括Undo
  *   PreviewHistory.cancelTask(t);// app.scheduleTaskのキャンセル補助
  * ========================================= */
+
     (function (g) {
         if (!g.PreviewHistory) {
             g.PreviewHistory = {
                 start: function () { g.__previewUndoCount = 0; },
                 bump: function () { g.__previewUndoCount = (g.__previewUndoCount | 0) + 1; },
+                dec: function () {
+                    var n = g.__previewUndoCount | 0;
+                    g.__previewUndoCount = (n > 0) ? (n - 1) : 0;
+                },
+                rollbackOne: function () {
+                    var n = g.__previewUndoCount | 0;
+                    if (n <= 0) return;
+                    try { app.executeMenuCommand('undo'); } catch (e) { }
+                    g.__previewUndoCount = (n > 0) ? (n - 1) : 0;
+                },
                 undo: function () {
                     var n = g.__previewUndoCount | 0;
                     try { for (var i = 0; i < n; i++) app.executeMenuCommand('undo'); } catch (e) { }
@@ -490,6 +506,45 @@ function saveSessionSettings(s) {
                 }
             }
         } catch (eLoop) { }
+    }
+
+    // Remove current preview objects without touching last* state.
+    function clearPreviewItemsOnly(doc) {
+        try { removeMarkedPreviewItems(doc); } catch (e0) { }
+        previewRect1 = null;
+        previewRect2 = null;
+        previewFrame = null;
+        previewDivider = null;
+        previewApplied = false;
+        safeRedraw();
+    }
+
+    function hasMarkedPreviewItems(doc) {
+        try {
+            for (var i = doc.pageItems.length - 1; i >= 0; i--) {
+                var it = doc.pageItems[i];
+                try {
+                    if (it.note === PREVIEW_NOTE) return true;
+                } catch (eNote) { }
+            }
+        } catch (eLoop) { }
+        return false;
+    }
+
+    // Roll back preview safely even if a single preview refresh created multiple undo steps.
+    // We undo repeatedly until preview-marked items are gone (with a hard cap), then reset the counter.
+    function rollbackPreviewSafely(doc) {
+        var max = 30;
+        try {
+            while (max-- > 0) {
+                if (!hasMarkedPreviewItems(doc)) break;
+                try { app.executeMenuCommand('undo'); } catch (eU) { break; }
+            }
+        } catch (e) { }
+        // Reset counter because we can no longer trust the exact undo-step count.
+        try { PreviewHistory.start(); } catch (ePH) { }
+        // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
+        try { removeMarkedTempItems(doc); } catch (eTmp) { }
     }
 
     function markTemp(item) {
@@ -845,6 +900,7 @@ function saveSessionSettings(s) {
     var lastDirectionMode = 'horizontal';
 
     function clearPreviewRects() {
+        // NOTE: v2.7 以降は通常のプレビュー更新では使わず、例外時の掃除専用
         try {
             if (previewRect1 && previewRect1.isValid) {
                 unlockAndShow(previewRect1);
@@ -1597,13 +1653,28 @@ function saveSessionSettings(s) {
 
         function applyPreview() {
             var v = parsePercent();
-            if (v === null) { clearPreviewFn(); return; }
+            if (v === null) {
+                try { removeMarkedTempItems(doc); } catch (eTmp0) { }
+                clearPreviewItemsOnly(doc);
+                clearPreviewFn();
+                return;
+            }
 
             var sw = parseStrokeWidth();
-            if (sw === null) { clearPreviewFn(); return; }
+            if (sw === null) {
+                try { removeMarkedTempItems(doc); } catch (eTmp0) { }
+                clearPreviewItemsOnly(doc);
+                clearPreviewFn();
+                return;
+            }
 
             var cr = parseCornerRadius();
-            if (cr === null) { clearPreviewFn(); return; }
+            if (cr === null) {
+                try { removeMarkedTempItems(doc); } catch (eTmp0) { }
+                clearPreviewItemsOnly(doc);
+                clearPreviewFn();
+                return;
+            }
 
             var bm = getBalanceMode();
             var wp = parseWidthPercent();
@@ -1682,10 +1753,9 @@ function saveSessionSettings(s) {
                 alert(L('alertHeightInvalid'));
                 return;
             }
-            // プレビューはヒストリーを汚さないように一括Undoしてから確定描画する
-            try { PreviewHistory.undo(); } catch (ePHU1) { }
-            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
-            try { removeMarkedTempItems(doc); } catch (eTmpU1) { }
+            try { removeMarkedTempItems(doc); } catch (eTmpOK) { }
+            clearPreviewItemsOnly(doc);
+            try { removeMarkedPreviewItems(doc); } catch (ePrevRmOK) { }
 
             // NOTE: clearPreviewFn() は last* 状態を初期化してしまうため、OK時には呼ばない。
             // プレビュー生成物は undo 済みで存在しないので、参照だけクリアしておく。
@@ -1701,9 +1771,8 @@ function saveSessionSettings(s) {
         };
 
         cancelBtn.onClick = function () {
-            try { PreviewHistory.undo(); } catch (ePHU2) { }
-            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
-            try { removeMarkedTempItems(doc); } catch (eTmpU2) { }
+            try { removeMarkedTempItems(doc); } catch (eTmpCancel) { }
+            clearPreviewItemsOnly(doc);
             clearPreviewFn();
             persistCurrentUIToSession();
             dlg.close(0);
@@ -1713,9 +1782,8 @@ function saveSessionSettings(s) {
         dlg.cancelElement = cancelBtn;
 
         dlg.onClose = function () {
-            try { PreviewHistory.undo(); } catch (ePHU3) { }
-            // Undo により一時アウトライン等が復活することがあるため、TEMPマーカーを掃除
-            try { removeMarkedTempItems(doc); } catch (eTmpU3) { }
+            try { removeMarkedTempItems(doc); } catch (eTmpClose) { }
+            clearPreviewItemsOnly(doc);
             persistCurrentUIToSession();
             return true;
         };
@@ -1732,7 +1800,10 @@ function saveSessionSettings(s) {
     var DEFAULT_HEIGHT_PERCENT = (AUTO_DIRECTION_MODE === 'vertical') ? 130 : 200;
 
     function previewFn(percent, enabled, addOverallFrame, addDivider, addFillLeft, addFillRight, strokeWidth, cornerRadius, balanceMode, widthPercent, directionMode) {
-        clearPreviewRects();
+        // Always remove previous preview by deleting preview-marked items (do NOT rely on Undo).
+        try { removeMarkedTempItems(doc); } catch (eTmp0) { }
+        clearPreviewItemsOnly(doc);
+
         if (!enabled) return;
 
         try {
@@ -1749,8 +1820,6 @@ function saveSessionSettings(s) {
             if (previewFrame) markPreview(previewFrame);
             if (previewDivider) markPreview(previewDivider);
 
-            try { PreviewHistory.bump(); } catch (ePH1) { }
-
             previewApplied = true;
             lastPreviewPercent = percent;
             lastOverallFrame = !!addOverallFrame;
@@ -1765,7 +1834,7 @@ function saveSessionSettings(s) {
 
             safeRedraw();
         } catch (ePrev) {
-            clearPreviewRects();
+            try { clearPreviewRects(); } catch (eClr) { }
             throw ePrev;
         }
     }
