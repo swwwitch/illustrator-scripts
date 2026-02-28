@@ -27,7 +27,7 @@ Overview
 更新日 / Updated: 2026-02-28
 */
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.0.1";
 var SCRIPT_MARKER = "__ExtendLines__";
 
 function getCurrentLang() {
@@ -54,11 +54,11 @@ var LABELS = {
 
     strokeWidth: { ja: "線幅", en: "Stroke width" },
 
-    panelArcOptions: { ja: "円弧オプション", en: "Arc options" },
+    // panelArcOptions: { ja: "円弧オプション", en: "Arc options" },
     arcOptionsHint: { ja: "完全な円弧以外の場合", en: "If not a perfect circular arc" },
     arcFallbackIgnore: { ja: "無視", en: "Ignore" },
-    arcFallbackStraight: { ja: "直線", en: "Straight" },
-    arcFallbackExtend: { ja: "直線（延長）", en: "Straight (extend)" },
+    arcFallbackStraight: { ja: "弦（割線）", en: "Chord" },
+    arcFallbackExtend: { ja: "割線（弦を延長）", en: "Secant line (extend)" },
 
     btnCancel: { ja: "キャンセル", en: "Cancel" },
     btnOk: { ja: "OK", en: "OK" },
@@ -499,10 +499,10 @@ function showDialog(doc, sel, targetPaths) {
     cbArcToCircle.value = true; // デフォルトON
 
     // 円弧オプション（補助線を描画 panel 内）
-    var pnlArcOpt = rbGroup.add("panel", undefined, L("panelArcOptions"));
+    var pnlArcOpt = rbGroup.add("panel", undefined, "");
     pnlArcOpt.orientation = "column";
     pnlArcOpt.alignChildren = ["left", "top"];
-    pnlArcOpt.margins = [15, 20, 15, 10];
+    pnlArcOpt.margins = [15, 10, 15, 10];
     pnlArcOpt.helpTip = L("arcOptionsHint");
 
     var grpArcRb = pnlArcOpt.add("group");
