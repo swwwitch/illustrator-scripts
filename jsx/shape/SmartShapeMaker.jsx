@@ -3,7 +3,7 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-SmartShapeMaker.jsx (v1.7)
+SmartShapeMaker.jsx (v1.7.1)
 
 Illustrator script to create custom shapes from a single dialog
 (Circle / Polygon / Star / Superellipse / Reuleaux-style).
@@ -62,7 +62,7 @@ Usage Flow:
 Original Idea: Seiji Miyazawa (Sankai Lab)
 https://x.com/onthehead/status/2007350198721483172
 
-Version: v1.7 (20260228)
+Version: v1.7.1 (20260228)
 */
 
 // Language detection
@@ -71,7 +71,7 @@ function getCurrentLang() {
 }
 var lang = getCurrentLang();
 
-var SCRIPT_VERSION = "v1.7";
+var SCRIPT_VERSION = "v1.7.1";
 
 var LABELS = {
     dialogTitle: {
@@ -754,7 +754,7 @@ function showInputDialog(unitLabel, unitFactor) {
     customSliderRow.alignChildren = ["left", "center"];
 
     var customSlider = customSliderRow.add("slider", undefined, 12, 3, 36);
-    customSlider.preferredSize.width = 180;
+    customSlider.preferredSize.width = 140;
     customSlider.enabled = false;
     radios[2].value = true;
 
@@ -1631,7 +1631,7 @@ function showInputDialog(unitLabel, unitFactor) {
 
     try { __initZoom = (doc && doc.activeView) ? Number(doc.activeView.zoom) : 1; } catch (_) { __initZoom = 1; }
     var sldZoom = gZoom.add("slider", undefined, (__initZoom != null ? __initZoom : 1), 0.1, 16);
-    sldZoom.preferredSize.width = 240;
+    sldZoom.preferredSize.width = 300;
 
     function applyZoom(z) {
         try {
