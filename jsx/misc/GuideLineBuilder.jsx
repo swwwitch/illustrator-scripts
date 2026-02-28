@@ -10,8 +10,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - オプション「円弧から円」：Bezier曲線セグメントから円を推定して円を作成します。正確な円弧でない場合は「円弧オプション」で、無視／直線（弦）／直線（延長）を選べます。
 - 線幅は「線（strokeUnits）」の単位に追従し、内部では pt に変換して適用します（デフォルトは 0.1mm 相当）。
 - プレビューONで、ダイアログを閉じる前に一時レイヤーへプレビュー描画し、終了時に自動で消去します。
-- オプション「別レイヤーに」ONのときは `_construction` レイヤーへ出力します。選択が `_construction` 上にある場合は既存 `_construction` を `_construction_backup...` に退避し、新しい `_construction` を作成します（元オブジェクトは消しません）。
+- オプション「別レイヤーに」ONのときは `_construction_guide` レイヤーへ出力します。選択が `_construction_guide` 上にある場合は既存 `_construction_guide` を `_construction_guide_backup...` に退避し、新しい `_construction_guide` を作成します（元オブジェクトは消しません）。
 - 再実行時は、このスクリプトが生成したオブジェクト（マーカー付き）のみを削除して更新します。
+- 右カラム上部の「アンカーポイントに図形」で、アンカーに付加する図形（なし／円／正方形）と大きさを指定できます。円／正方形は `_construction_anchorpoint` レイヤーに作成し、ガイド化オプションとは独立です。
 
 Overview
 - From selected paths (including groups/compound paths), the script takes adjacent anchor pairs and draws auxiliary lines by extending the straight line to fill the drawing bounds.
@@ -20,14 +21,15 @@ Overview
 - Option “Create circle from arc”: estimates a circle from Bezier curve segments and creates circles. If a segment is not a perfect arc, the “Arc options” fallback can be set to Ignore / Straight (chord) / Straight (extend).
 - Stroke width follows Illustrator’s strokeUnits and is applied internally in pt (default is equivalent to 0.1mm).
 - With Preview ON, output is rendered into a temporary preview layer while the dialog is open and removed automatically when the dialog closes.
-- When “Separate layer” is ON, output goes to `_construction`. If the selection is on `_construction`, the existing layer is renamed to `_construction_backup...` and a new `_construction` layer is created (original objects are preserved).
+- When “Separate layer” is ON, output goes to `_construction_guide`. If the selection is on `_construction_guide`, the existing layer is renamed to `_construction_guide_backup...` and a new `_construction_guide` layer is created (original objects are preserved).
 - On re-run, only script-generated objects (marked) are cleared and regenerated.
+- In the right-column panel “Shapes on anchors”, you can choose a shape and size to attach to anchor points (None / Circle / Square). Circle/Square are created on `_construction_anchorpoint` and are independent from the Guides option.
 
 作成日 / Created: 2026-02-27
 更新日 / Updated: 2026-02-28
 */
 
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.1";
 var SCRIPT_MARKER = "__ExtendLines__";
 
 function getCurrentLang() {
@@ -44,6 +46,11 @@ var LABELS = {
     modeStraightOnly: { ja: "直線", en: "Straight" },
 
     panelOptions: { ja: "オプション", en: "Options" },
+    panelAnchorShapes: { ja: "アンカーポイントに図形", en: "Shapes on anchors" },
+    anchorShapeNone: { ja: "なし", en: "None" },
+    anchorShapeCircle: { ja: "円", en: "Circle" },
+    anchorShapeSquare: { ja: "正方形", en: "Square" },
+    anchorSize: { ja: "大きさ", en: "Size" },
     panelAuxLines: { ja: "補助線を描画", en: "Draw guide lines" },
     cbGroup: { ja: "グループ化", en: "Group" },
     cbSeparateLayer: { ja: "別レイヤーに", en: "Separate layer" },
@@ -51,6 +58,10 @@ var LABELS = {
     cbDedup: { ja: "線のダブりを削除", en: "Remove duplicates" },
     cbArcToCircle: { ja: "円弧から円", en: "Create circle from arc" },
     cbPreview: { ja: "プレビュー", en: "Preview" },
+
+    // --- TMK Zoom UI ---
+    zoom: { ja: "ズーム", en: "Zoom" },
+    lightMode: { ja: "軽量モード", en: "Light mode" },
 
     strokeWidth: { ja: "線幅", en: "Stroke width" },
 
@@ -148,11 +159,48 @@ function getStrokeUnitLabel() {
     return map[code] || "pt";
 }
 
+// --- Ruler unit utilities (for UI labels/values) ---
+function getRulerUnitCode() {
+    try { return app.preferences.getIntegerPreference("rulerType"); } catch (_) { }
+    return 2; // pt
+}
+
+function getPtFactorFromRulerCode(code) {
+    // Maps Illustrator rulerType to pt factor.
+    // Note: codes may vary by version; we provide safe defaults.
+    switch (code) {
+        case 0: return 72.0;            // in
+        case 1: return 72.0 / 25.4;     // mm
+        case 2: return 1.0;             // pt
+        case 3: return 12.0;            // pica
+        case 4: return 72.0 / 2.54;     // cm
+        case 5: return 72.0 / 25.4 * 0.25; // H
+        case 6: return 1.0;             // px (treat as pt)
+        default: return 1.0;
+    }
+}
+
+function getRulerUnitLabel() {
+    var code = getRulerUnitCode();
+    if (code === 5) return "H";
+    var map = {
+        0: "in",
+        1: "mm",
+        2: "pt",
+        3: "pica",
+        4: "cm",
+        6: "px"
+    };
+    return map[code] || "pt";
+}
+
 // ↑↓キーによる値増減ヘルパー
 function changeValueByArrowKey(editText, allowNegative, onChanged) {
     editText.addEventListener("keydown", function (event) {
         var value = Number(editText.text);
         if (isNaN(value)) return;
+        // Only handle Up/Down keys
+        if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
         var keyboard = ScriptUI.environment.keyboardState;
         var delta = 1;
@@ -253,6 +301,10 @@ function mainImpl() {
     var shouldGuide = dialogResult.guide;
     var shouldDedup = dialogResult.dedup;
     var shouldArcToCircle = dialogResult.arcToCircle;
+    var anchorShape = dialogResult.anchorShape || "NONE"; // "NONE" | "CIRCLE" | "SQUARE"
+    var anchorSizePt = Number(dialogResult.anchorSizePt);
+    // デフォルトは 1mm（UIと一致させる）
+    if (!(anchorSizePt > 0)) anchorSizePt = 72.0 / 25.4; // 1mm in pt
     var arcFallbackMode = dialogResult.arcFallback; // "IGNORE" | "STRAIGHT" | "EXTEND"
     var dedupMap = {}; // 線のダブり検出用
 
@@ -303,13 +355,13 @@ function mainImpl() {
     var targetLayer = doc.activeLayer;
 
     if (shouldSeparateLayer) {
-        var baseLayerName = "_construction";
+        var baseLayerName = "_construction_guide";
 
-        // 選択が _construction 上なら、元のオブジェクトを消さないため新規レイヤーを作る
+        // 選択が _construction_guide 上なら、元のオブジェクトを消さないため新規レイヤーを作る
         var mustCreateNew = isSelectionOnLayer(sel, baseLayerName);
 
         if (mustCreateNew) {
-            // 既存の _construction をバックアップ名へリネームし、新しい _construction を作る
+            // 既存の _construction_guide をバックアップ名へリネームし、新しい _construction_guide を作る
             var existing = findLayerByName(doc, baseLayerName);
             if (existing) {
                 var backupBase = baseLayerName + "_backup";
@@ -345,6 +397,41 @@ function mainImpl() {
         try { lineGroup.note = SCRIPT_MARKER; } catch (_) { }
     } else {
         lineGroup = targetLayer;
+    }
+
+    // アンカーポイントに図形（オプション）
+    if (anchorShape === "SQUARE" || anchorShape === "CIRCLE") {
+        var anchorHostLayer = targetLayer;
+
+        // 別レイヤーに ON のときのみ専用レイヤーへ
+        if (shouldSeparateLayer) {
+            var anchorLayerName = "_construction_anchorpoint";
+            var anchorLayer = findLayerByName(doc, anchorLayerName);
+            if (!anchorLayer) {
+                anchorLayer = doc.layers.add();
+                anchorLayer.name = anchorLayerName;
+            }
+
+            // 再実行時は、このスクリプトが生成したものだけクリア（専用レイヤー側のみ）
+            clearGeneratedItemsInLayer(anchorLayer);
+
+            try { anchorLayer.zOrder(ZOrderMethod.BRINGTOFRONT); } catch (_) { }
+            anchorHostLayer = anchorLayer;
+        }
+
+        // グループ化オプションがONのときは、アンカー図形だけでグループ化
+        var anchorContainer = anchorHostLayer;
+        if (shouldGroup) {
+            anchorContainer = anchorHostLayer.groupItems.add();
+            anchorContainer.name = SCRIPT_MARKER + "_AnchorShapes";
+            try { anchorContainer.note = SCRIPT_MARKER; } catch (_) { }
+        }
+
+        if (anchorShape === "SQUARE") {
+            try { createAnchorSquares(targetPaths, anchorContainer, anchorSizePt); } catch (_) { }
+        } else if (anchorShape === "CIRCLE") {
+            try { createAnchorCircles(targetPaths, anchorContainer, anchorSizePt); } catch (_) { }
+        }
     }
 
     // 円弧から円（オプション）
@@ -406,9 +493,10 @@ function mainImpl() {
                     }
                 }
 
-                // 「円弧から円」ON のときは、曲線セグメントの処理は createCirclesFromArcPath 側に委譲する
-                // （ここでアンカー同士を結ぶ直線を描くと、円弧が直線になってしまう）
-                if (shouldArcToCircle && !segIsStraight) {
+                // 曲線セグメントの扱い
+                // - 円弧から円 ON: createCirclesFromArcPath 側に委譲（ここで直線化しない）
+                // - 円弧から円 OFF: 曲線は何もしない（直線化しない）
+                if (!segIsStraight) {
                     continue;
                 }
 
@@ -479,6 +567,13 @@ function showDialog(doc, sel, targetPaths) {
     pnlExtend.alignChildren = ["left", "top"];
     pnlExtend.margins = [15, 20, 15, 10];
     pnlExtend.alignment = ["fill", "top"]; // 左カラム
+
+    // 右カラム（縦積み） / Right column (stacked)
+    var rightCol = cols.add("group");
+    rightCol.orientation = "column";
+    rightCol.alignChildren = ["fill", "top"];
+    rightCol.alignment = ["fill", "top"]; // 右カラム
+    rightCol.spacing = 10;
 
     var rbGroup = pnlExtend.add("group");
     rbGroup.orientation = "column";
@@ -583,8 +678,89 @@ function showDialog(doc, sel, targetPaths) {
         return pt;
     }
 
+    // アンカーポイントに図形 / Shapes on anchors
+    var pnlAnchorShapes = rightCol.add("panel", undefined, L("panelAnchorShapes"));
+    pnlAnchorShapes.orientation = "column";
+    pnlAnchorShapes.alignChildren = ["left", "top"];
+    pnlAnchorShapes.margins = [15, 20, 15, 10];
+    pnlAnchorShapes.alignment = ["fill", "top"]; // 右カラム（上段）
+
+    var grpAnchorShapes = pnlAnchorShapes.add("group");
+    grpAnchorShapes.orientation = "row";
+    grpAnchorShapes.alignChildren = ["left", "center"];
+    grpAnchorShapes.spacing = 10;
+
+    var rbAnchorNone = grpAnchorShapes.add("radiobutton", undefined, L("anchorShapeNone"));
+    var rbAnchorCircle = grpAnchorShapes.add("radiobutton", undefined, L("anchorShapeCircle"));
+    var rbAnchorSquare = grpAnchorShapes.add("radiobutton", undefined, L("anchorShapeSquare"));
+    rbAnchorNone.value = true; // デフォルト：なし
+
+    function _setAnchorShape(which) {
+        rbAnchorNone.value = (which === "NONE");
+        rbAnchorCircle.value = (which === "CIRCLE");
+        rbAnchorSquare.value = (which === "SQUARE");
+    }
+
+    // 大きさ / Size
+    var sizeSection = pnlAnchorShapes.add("group");
+    sizeSection.orientation = "column";
+    sizeSection.alignChildren = ["left", "center"];
+    sizeSection.margins = [0, 0, 0, 0];
+
+    var sizeRow = sizeSection.add("group");
+    sizeRow.orientation = "row";
+    sizeRow.alignChildren = ["left", "center"];
+    sizeRow.spacing = 6;
+
+    sizeRow.add("statictext", undefined, L("anchorSize"));
+
+    var rulerCode = getRulerUnitCode();
+    var rulerFactor = getPtFactorFromRulerCode(rulerCode);
+
+    // デフォルトは 1mm を現在の ruler 単位に変換
+    var defaultAnchorSizePt = 72.0 / 25.4; // 1mm in pt
+    var defaultAnchorUnitValue = defaultAnchorSizePt / rulerFactor;
+
+    var etAnchorSize = sizeRow.add("edittext", undefined, defaultAnchorUnitValue.toFixed(3));
+    etAnchorSize.characters = 6;
+
+    var stAnchorUnit = sizeRow.add("statictext", undefined, getRulerUnitLabel());
+
+    var _lastAnchorSizePt = defaultAnchorSizePt;
+    function readAnchorSizePt() {
+        var code = getRulerUnitCode();
+        var factor = getPtFactorFromRulerCode(code);
+
+        var s = String(etAnchorSize.text);
+        s = s.replace(/\s+/g, "").replace(/，/g, ",").replace(/．/g, ".");
+        if (s.indexOf(",") >= 0 && s.indexOf(".") < 0) {
+            s = s.replace(/,/g, ".");
+        } else {
+            s = s.replace(/,/g, "");
+        }
+
+        var v = Number(s);
+        if (!(v > 0)) return _lastAnchorSizePt;
+
+        var pt = v * factor;
+        if (!(pt > 0)) return _lastAnchorSizePt;
+
+        _lastAnchorSizePt = pt;
+        return pt;
+    }
+
+    function updateAnchorSizeEnabled() {
+        // NONE のときは大きさをディム
+        sizeSection.enabled = !rbAnchorNone.value;
+    }
+    updateAnchorSizeEnabled();
+
+    rbAnchorNone.onClick = function () { _setAnchorShape("NONE"); updateAnchorSizeEnabled(); if (cbPreview.value) updatePreviewFromUI(); };
+    rbAnchorCircle.onClick = function () { _setAnchorShape("CIRCLE"); updateAnchorSizeEnabled(); if (cbPreview.value) updatePreviewFromUI(); };
+    rbAnchorSquare.onClick = function () { _setAnchorShape("SQUARE"); updateAnchorSizeEnabled(); if (cbPreview.value) updatePreviewFromUI(); };
+
     // オプションパネル
-    var optPanel = cols.add("panel", undefined, L("panelOptions"));
+    var optPanel = rightCol.add("panel", undefined, L("panelOptions"));
     optPanel.orientation = "column";
     optPanel.alignChildren = ["left", "top"];
     optPanel.margins = [15, 20, 15, 10];
@@ -601,6 +777,29 @@ function showDialog(doc, sel, targetPaths) {
 
     var cbDedup = optPanel.add("checkbox", undefined, L("cbDedup"));
     cbDedup.value = true; // デフォルトON
+
+    // 直線OFF かつ 円弧から円OFF のときは、ガイド化／ダブり削除は無意味なのでディム
+    function updateGuideAndDedupEnabled() {
+        var noLineOutput = (!cbStraightOnly.value && !cbArcToCircle.value);
+        cbGuide.enabled = !noLineOutput;
+        cbDedup.enabled = !noLineOutput;
+    }
+    updateGuideAndDedupEnabled();
+
+    // 画面ズーム / Zoom controls
+    var __zoomState = __TMKZoom_captureViewState(doc);
+    var zoomCtrl = __TMKZoom_addControls(win, doc, L("zoom"), __zoomState, {
+        min: 0.1,
+        max: 16,
+        sliderWidth: 240,
+        margins: [0, 0, 0, 10],
+        redraw: true,
+
+        // ✅ lightweight mode
+        lightMode: true,
+        lightModeLabel: L("lightMode"),
+        lightModeDefault: true
+    });
 
     // Preview layer name (unique per dialog instance)
     var previewLayerName = createUniqueLayerName(doc, "__ExtendLines_Preview");
@@ -624,11 +823,30 @@ function showDialog(doc, sel, targetPaths) {
         previewGroup.name = SCRIPT_MARKER + "_PREVIEW";
         try { previewGroup.note = SCRIPT_MARKER; } catch (_) { }
 
+        // プレビュー内の格納先（本処理のグループ構造に合わせる）
+        var shouldGroup = cbGroup.value;
+        var previewLineContainer = previewGroup;
+        var previewAnchorContainer = previewGroup;
+
+        if (shouldGroup) {
+            previewLineContainer = previewGroup.groupItems.add();
+            previewLineContainer.name = SCRIPT_MARKER + "_" + L("groupName");
+            try { previewLineContainer.note = SCRIPT_MARKER; } catch (_) { }
+
+            previewAnchorContainer = previewGroup.groupItems.add();
+            previewAnchorContainer.name = SCRIPT_MARKER + "_AnchorShapes";
+            try { previewAnchorContainer.note = SCRIPT_MARKER; } catch (_) { }
+        }
+
         // UI状態を読む
         var mode = cbStraightOnly.value ? "STRAIGHT" : "CURVE";
         var shouldGuide = cbGuide.value;
         var shouldDedup = cbDedup.value;
         var shouldArcToCircle = cbArcToCircle.value;
+
+        var anchorShape = rbAnchorCircle.value ? "CIRCLE" : (rbAnchorSquare.value ? "SQUARE" : "NONE");
+        var anchorSizePt = readAnchorSizePt();
+
         var arcFallbackMode = rbArcIgnore.value ? "IGNORE" : (rbArcExtend.value ? "EXTEND" : "STRAIGHT");
         var dedupMap = {};
 
@@ -660,13 +878,20 @@ function showDialog(doc, sel, targetPaths) {
             }
         }
 
+        // アンカーポイントに図形（先に）
+        if (anchorShape === "SQUARE") {
+            try { createAnchorSquares(targetPaths, previewAnchorContainer, anchorSizePt); } catch (_) { }
+        } else if (anchorShape === "CIRCLE") {
+            try { createAnchorCircles(targetPaths, previewAnchorContainer, anchorSizePt); } catch (_) { }
+        }
+
         // 円弧→円（先に）
         if (shouldArcToCircle) {
             for (var c = 0; c < targetPaths.length; c++) {
                 try {
                     createCirclesFromArcPath(
                         targetPaths[c],
-                        previewGroup,
+                        previewLineContainer,
                         shouldGuide,
                         arcFallbackMode,
                         drawLeft, drawTop, drawRight, drawBottom,
@@ -697,14 +922,14 @@ function showDialog(doc, sel, targetPaths) {
                     if (segIsStraight) continue;
                 }
 
-                // 曲線は円弧処理に委譲（直線化しない）
-                if (shouldArcToCircle && !segIsStraight) continue;
+                // 曲線セグメントは直線化しない
+                if (!segIsStraight) continue;
 
                 var p1 = pt1.anchor;
                 var p2 = pt2.anchor;
                 if (Math.abs(p1[0] - p2[0]) < 0.001 && Math.abs(p1[1] - p2[1]) < 0.001) continue;
 
-                drawLineAcrossArtboard(previewGroup, p1, p2, drawLeft, drawTop, drawRight, drawBottom, shouldGuide, shouldDedup, dedupMap, strokeWidthPt);
+                drawLineAcrossArtboard(previewLineContainer, p1, p2, drawLeft, drawTop, drawRight, drawBottom, shouldGuide, shouldDedup, dedupMap, strokeWidthPt);
             }
         }
 
@@ -730,10 +955,24 @@ function showDialog(doc, sel, targetPaths) {
         else clearPreview();
     };
 
-    cbStraightOnly.onClick = function () { if (cbPreview.value) updatePreviewFromUI(); };
+    etAnchorSize.onChanging = function () {
+        readAnchorSizePt();
+        if (cbPreview.value) updatePreviewFromUI();
+    };
+
+    changeValueByArrowKey(etAnchorSize, false, function () {
+        readAnchorSizePt();
+        if (cbPreview.value) updatePreviewFromUI();
+    });
+
+    cbStraightOnly.onClick = function () {
+        updateGuideAndDedupEnabled();
+        if (cbPreview.value) updatePreviewFromUI();
+    };
 
     cbArcToCircle.onClick = function () {
         pnlArcOpt.enabled = cbArcToCircle.value;
+        updateGuideAndDedupEnabled();
         if (cbPreview.value) updatePreviewFromUI();
     };
 
@@ -774,6 +1013,27 @@ function showDialog(doc, sel, targetPaths) {
     var btnOk = btnsRight.add("button", undefined, L("btnOk"), { name: "ok" });
 
     var result = null;
+    var __okPressed = false;
+
+    btnOk.onClick = function () {
+        __okPressed = true;
+        win.close(1);
+    };
+
+    btnCancel.onClick = function () {
+        __okPressed = false;
+        try { if (zoomCtrl) zoomCtrl.restoreInitial(); } catch (_) { }
+        win.close(0);
+    };
+
+    // Close via titlebar X behaves like Cancel
+    win.onClose = function () {
+        if (!__okPressed) {
+            try { if (zoomCtrl) zoomCtrl.restoreInitial(); } catch (_) { }
+        }
+        return true;
+    };
+
     var dialogReturn = win.show();
 
     // ダイアログ終了時は必ずプレビューを消す
@@ -791,6 +1051,8 @@ function showDialog(doc, sel, targetPaths) {
             separateLayer: cbSeparateLayer.value,
             guide: cbGuide.value,
             dedup: cbDedup.value,
+            anchorShape: rbAnchorCircle.value ? "CIRCLE" : (rbAnchorSquare.value ? "SQUARE" : "NONE"),
+            anchorSizePt: readAnchorSizePt(),
             arcToCircle: cbArcToCircle.value,
             strokeWidthPt: readStrokeWidthPt(),
             arcFallback: rbArcIgnore.value ? "IGNORE" : (rbArcExtend.value ? "EXTEND" : "STRAIGHT")
@@ -1057,6 +1319,102 @@ function applyAuxStyle(pathItem, shouldGuide, strokeWidthPt) {
     }
 }
 
+// アンカーポイント用 図形スタイル（塗りK100／線なし）
+// NOTE: アンカー図形はガイド化しない（cbGuide とは無関係）
+function applyAnchorShapeStyle(pathItem) {
+    try { pathItem.note = SCRIPT_MARKER; } catch (_) { }
+
+    // Fill: K100
+    try {
+        pathItem.filled = true;
+        var k100 = new CMYKColor();
+        k100.cyan = 0;
+        k100.magenta = 0;
+        k100.yellow = 0;
+        k100.black = 100;
+        pathItem.fillColor = k100;
+    } catch (_) { }
+
+    // Stroke: none
+    try { pathItem.stroked = false; } catch (_) { }
+    try { pathItem.strokeColor = new NoColor(); } catch (_) { }
+
+    // ガイド化しない（明示）
+    try { pathItem.guides = false; } catch (_) { }
+}
+
+// アンカーポイントに 正方形（1辺 sizePt / pt）を作成（塗りK100・線なし）
+function createAnchorSquares(pathItems, targetContainer, sizePt) {
+    if (!pathItems || pathItems.length === 0) return;
+
+    var size = (sizePt && sizePt > 0) ? sizePt : 1.0; // pt
+    var half = size / 2;
+    var seen = {};
+
+    for (var i = 0; i < pathItems.length; i++) {
+        var pi = pathItems[i];
+        if (!pi || !pi.pathPoints) continue;
+
+        var pts = pi.pathPoints;
+        for (var j = 0; j < pts.length; j++) {
+            var a = pts[j].anchor;
+            if (!a) continue;
+
+            // 同一点の重複を防ぐ
+            var key = pointKey(a);
+            if (seen[key]) continue;
+            seen[key] = true;
+
+            var cx = a[0];
+            var cy = a[1];
+
+            // rectangle(top, left, width, height)
+            var top = cy + half;
+            var left = cx - half;
+
+            var r = targetContainer.pathItems.rectangle(top, left, size, size);
+            r.closed = true;
+            applyAnchorShapeStyle(r);
+        }
+    }
+}
+
+// アンカーポイントに 円（直径 sizePt / pt）を作成（塗りK100・線なし）
+function createAnchorCircles(pathItems, targetContainer, sizePt) {
+    if (!pathItems || pathItems.length === 0) return;
+
+    var size = (sizePt && sizePt > 0) ? sizePt : 1.0; // pt (diameter)
+    var half = size / 2;
+    var seen = {};
+
+    for (var i = 0; i < pathItems.length; i++) {
+        var pi = pathItems[i];
+        if (!pi || !pi.pathPoints) continue;
+
+        var pts = pi.pathPoints;
+        for (var j = 0; j < pts.length; j++) {
+            var a = pts[j].anchor;
+            if (!a) continue;
+
+            // 同一点の重複を防ぐ
+            var key = pointKey(a);
+            if (seen[key]) continue;
+            seen[key] = true;
+
+            var cx = a[0];
+            var cy = a[1];
+
+            // ellipse(top, left, width, height)
+            var top = cy + half;
+            var left = cx - half;
+
+            var e = targetContainer.pathItems.ellipse(top, left, size, size);
+            e.closed = true;
+            applyAnchorShapeStyle(e);
+        }
+    }
+}
+
 // --- Circle/Arc helpers ---
 
 function dot2(a, b) {
@@ -1253,6 +1611,118 @@ function drawLineAcrossArtboard(targetGroup, p1, p2, left, top, right, bottom, s
 
         }
     }
+}
+
+// =========================================
+// TMK Zoom Module (collision-safe + Light mode)
+// - Light mode: apply zoom only on slider release
+// =========================================
+
+function __TMKZoom_captureViewState(doc) {
+    var st = { view: null, zoom: null, center: null };
+    try {
+        st.view = doc.activeView;
+        st.zoom = st.view.zoom;
+        st.center = st.view.centerPoint;
+    } catch (_) { }
+    return st;
+}
+
+function __TMKZoom_restoreViewState(doc, state) {
+    if (!state) return;
+    try {
+        var v = state.view || doc.activeView;
+        if (v && state.zoom != null) v.zoom = state.zoom;
+        if (v && state.center != null) v.centerPoint = state.center;
+    } catch (_) { }
+}
+
+function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
+    options = options || {};
+    var minZoom = (typeof options.min === "number") ? options.min : 0.1;
+    var maxZoom = (typeof options.max === "number") ? options.max : 16;
+    var sliderWidth = (typeof options.sliderWidth === "number") ? options.sliderWidth : 240;
+    var doRedraw = (options.redraw !== false);
+
+    // Light mode options
+    var showLightMode = (options.lightMode !== false);            // default: show
+    var lightModeLabel = options.lightModeLabel || "Light mode";
+    var lightModeDefault = (options.lightModeDefault === true);   // default: false
+
+    // UI group
+    var g = parent.add("group");
+    g.orientation = "row";
+    g.alignChildren = ["center", "center"];
+    g.alignment = "center";
+    try { if (options.margins) g.margins = options.margins; } catch (_) { }
+
+    var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
+
+    // Initial zoom
+    var initZoom = 1;
+    try {
+        if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
+        else initZoom = Number(doc.activeView.zoom);
+    } catch (_) { }
+    if (!initZoom || isNaN(initZoom)) initZoom = 1;
+
+    var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
+    try { sld.preferredSize.width = sliderWidth; } catch (_) { }
+
+    var chkLight = null;
+    if (showLightMode) {
+        chkLight = g.add("checkbox", undefined, String(lightModeLabel));
+        chkLight.value = lightModeDefault;
+    }
+
+    function isLightMode() {
+        return !!(chkLight && chkLight.value);
+    }
+
+    function applyZoom(z) {
+        try {
+            var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+            if (!v) return;
+            v.zoom = z;
+            if (doRedraw) { try { app.redraw(); } catch (_) { } }
+        } catch (_) { }
+    }
+
+    function syncFromView() {
+        try {
+            var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+            if (!v) return;
+            sld.value = v.zoom;
+        } catch (_) { }
+    }
+
+    // Live drag (disabled in light mode)
+    sld.onChanging = function () {
+        if (isLightMode()) return; // ✅ lightweight: do nothing while dragging
+        applyZoom(Number(sld.value));
+    };
+
+    // Always apply once on release
+    sld.onChange = function () {
+        applyZoom(Number(sld.value));
+    };
+
+    if (chkLight) {
+        chkLight.onClick = function () {
+            // Toggle feels consistent: apply current value immediately
+            try { applyZoom(Number(sld.value)); } catch (_) { }
+        };
+    }
+
+    return {
+        group: g,
+        label: stLabel,
+        slider: sld,
+        lightModeCheckbox: chkLight,
+        applyZoom: applyZoom,
+        syncFromView: syncFromView,
+        restoreInitial: function () { __TMKZoom_restoreViewState(doc, initialState); }
+    };
 }
 
 main();
