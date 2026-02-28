@@ -1,4 +1,3 @@
-// ArrangeObjectsAlongPath.jsx (restored full script)
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -7,10 +6,24 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   ----------------------------------------------------------------------
   複数のオブジェクト（A）を、選択範囲内で「自動（面積最大）/ 最前面 / 最背面」で指定した1本のパス（B）に沿って
   等間隔に自動配置するIllustrator用スクリプトです。
+  右カラムのパネル順序を調整（複製パネルを上部に移動）。
+  「自動（面積最大）」は開パスの場合、バウンディングボックス面積で判定します。
+  ※複製パネルがデフォルトで有効（複製数は初期値5）になりました。
+  ※選択がちょうど2つの場合は複製がデフォルトで有効、3つ以上の場合はデフォルトで無効になります。
 
   This script arranges multiple objects (A) at even intervals
   along a single base path (B), which is chosen by
   Auto (largest-area), Frontmost, or Backmost within the current selection.
+  The order of panels in the right column has been adjusted (Duplicate panel moved above Rotation/Order/Spacing).
+  For Auto (largest), open paths are evaluated by bounding-box area.
+  The Duplicate panel is enabled by default (duplicate count defaults to 5).
+  When exactly two objects are selected, Duplicate is enabled by default; when three or more, it is disabled by default.
+  Preview validation errors are now only shown when the Preview checkbox is turned ON,
+  and are validated before building the preview, preventing repeated or stacked dialogs.
+  Repeated alerts are suppressed via an alert guard (deduped by selection/state) to prevent stacked dialogs.
+
+  選択が0または1の場合、ダイアログを開かず終了します。
+  If the selection count is 0 or 1, the script exits without opening the dialog.
 
   使い方 / How to use
   ----------------------------------------------------------------------
@@ -52,11 +65,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   ・プレビューは複製で表示します（元オブジェクトは移動しません）
   ・プレビュー中は元のオブジェクトを一時的に非表示にします（OFF/OK/キャンセルで復元）
 
-  更新日 / Last updated: 2026-02-24
+  更新日 / Last updated: 2026-02-28
 */
 
 // Script version / スクリプトバージョン
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.3.9";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -250,12 +263,18 @@ function setDialogOpacity(dlg, opacityValue) {
 
 (function () {
   if (app.documents.length === 0) {
-    alert(L('alertNoDocument'));
+    safeAlertKey('alertNoDocument');
     return;
   }
 
   var doc = app.activeDocument;
   var sel = doc.selection;
+
+  // Exit early when selection is insufficient (0 or 1) / 選択が0または1の場合はダイアログを出さず終了
+  if (!sel || sel.length < 2) {
+    safeAlertKey('alertNeedSelection');
+    return;
+  }
 
   // Options (kept as current defaults) / オプション（現状の既定値を維持）
   var rotateAlongTangent = false; // trueにすると接線方向へ回転（簡易）
@@ -289,6 +308,55 @@ function setDialogOpacity(dlg, opacityValue) {
   // Original visibility backup for preview / プレビュー中の元オブジェクト非表示（退避）
   var previewHiddenItems = [];
   var previewHiddenStates = [];
+
+  // Alert guard to prevent stacked/repeated dialogs / アラートの多重表示防止
+  var _alertLock = false;
+  var _alertLastAtByKey = {};
+  var _alertLastSigByKey = {};
+
+  function _getSelectionSignature() {
+    // A lightweight signature to dedupe alerts when the selection/state hasn't changed
+    try {
+      var s = doc && doc.selection ? doc.selection : null;
+      if (!s || s.length === 0) return "sel:0";
+      var counts = {};
+      for (var i = 0; i < s.length; i++) {
+        var t = (s[i] && s[i].typename) ? s[i].typename : "?";
+        counts[t] = (counts[t] || 0) + 1;
+      }
+      var parts = ["sel:" + s.length];
+      for (var k in counts) {
+        if (counts.hasOwnProperty(k)) parts.push(k + ":" + counts[k]);
+      }
+      // also include base-path rule radios (Auto/Front/Back)
+      var rule = (rbAutoLargest && rbAutoLargest.value) ? "auto" : ((rbFrontmost && rbFrontmost.value) ? "front" : "back");
+      parts.push("rule:" + rule);
+      return parts.join("|");
+    } catch (_) {
+      return "sel:?";
+    }
+  }
+
+  function safeAlertKey(labelKey) {
+    if (_alertLock) return;
+
+    var now = new Date().getTime();
+    var lastAt = _alertLastAtByKey[labelKey] || 0;
+    var sig = _getSelectionSignature();
+    var lastSig = _alertLastSigByKey[labelKey] || "";
+
+    // Suppress duplicates for the same key under the same selection/state
+    if (sig === lastSig && (now - lastAt) < 15000) {
+      return;
+    }
+
+    _alertLastAtByKey[labelKey] = now;
+    _alertLastSigByKey[labelKey] = sig;
+
+    _alertLock = true;
+    try { alert(L(labelKey)); } catch (_) { }
+    _alertLock = false;
+  }
 
   function restoreHiddenItems() {
     if (!previewHiddenItems || previewHiddenItems.length === 0) return;
@@ -350,7 +418,7 @@ function setDialogOpacity(dlg, opacityValue) {
     try { app.redraw(); } catch (_) { }
   }
 
-  function buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost) {
+  function buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost, showAlerts) {
     // Always rebuild / 常に作り直す
     clearPreview();
 
@@ -363,7 +431,7 @@ function setDialogOpacity(dlg, opacityValue) {
       }
     }
     if (!curSel || curSel.length < 2) {
-      alert(L('alertNeedSelection'));
+      if (showAlerts) safeAlertKey('alertNeedSelection');
       return false;
     }
 
@@ -375,7 +443,7 @@ function setDialogOpacity(dlg, opacityValue) {
 
     var base = rbAutoLargest.value ? getLargestPathItem(curSel) : (rbFrontmost.value ? getFrontmostPathItem(curSel) : getBackmostPathItem(curSel));
     if (!base) {
-      alert(L('alertNoBasePath'));
+      if (showAlerts) safeAlertKey('alertNoBasePath');
       return false;
     }
 
@@ -386,7 +454,7 @@ function setDialogOpacity(dlg, opacityValue) {
     }
 
     if (srcItems.length === 0) {
-      alert(L('alertNoItems'));
+      if (showAlerts) safeAlertKey('alertNoItems');
       return false;
     }
 
@@ -455,7 +523,7 @@ function setDialogOpacity(dlg, opacityValue) {
 
     if (prevItems.length === 0) {
       clearPreview();
-      alert(L('alertNoItems'));
+      if (showAlerts) safeAlertKey('alertNoItems');
       return false;
     }
 
@@ -559,6 +627,87 @@ function setDialogOpacity(dlg, opacityValue) {
   placeObjPanel.alignChildren = "fill";
   placeObjPanel.margins = [15, 20, 15, 10];
 
+  // Duplicate / 複製
+  var dupPanel = placeObjPanel.add("panel", undefined, L('panelDuplicate'));
+  dupPanel.orientation = "column";
+  dupPanel.alignChildren = "fill";
+  dupPanel.margins = [15, 20, 15, 10];
+
+  var gDupTop = dupPanel.add("group");
+  gDupTop.orientation = "row";
+  gDupTop.alignChildren = ["left", "center"];
+  gDupTop.spacing = 10;
+
+  var cbDupEnable = gDupTop.add("checkbox", undefined, "");
+  // Default behavior based on initial selection count
+  var initialSelCount = (sel && sel.length) ? sel.length : 0;
+  cbDupEnable.value = (initialSelCount === 2); // ON only when exactly 2 selected
+  cbDupEnable.preferredSize.width = 18;
+
+  var stDup = gDupTop.add("statictext", undefined, L('duplicateCount'));
+  var etDupCount = gDupTop.add("edittext", undefined, "5");
+  etDupCount.characters = 4;
+
+  var gDupSld = dupPanel.add("group");
+  gDupSld.orientation = "row";
+  gDupSld.alignChildren = ["left", "center"];
+
+  var sldDupCount = gDupSld.add("slider", undefined, 5, 1, 20);
+  sldDupCount.preferredSize.width = 180;
+
+  function clampDupCount(v) {
+    v = Math.round(Number(v));
+    if (isNaN(v)) v = 1;
+    if (v < 1) v = 1;
+    if (v > 20) v = 20;
+    return v;
+  }
+
+  function getDupCount() {
+    if (!cbDupEnable.value) return 1;
+    return clampDupCount(etDupCount.text);
+  }
+
+  function updateDupUI() {
+    var en = !!cbDupEnable.value;
+    etDupCount.enabled = en;
+    sldDupCount.enabled = en;
+    // Do not reset values when disabling; only disable controls
+  }
+
+  cbDupEnable.onClick = function () {
+    if (cbDupEnable.value) {
+      // ON: set default duplicate count to 5
+      etDupCount.text = "5";
+      sldDupCount.value = 5;
+    }
+    updateDupUI();
+    rebuildPreviewIfNeeded();
+  };
+
+  function syncDupUIFromText(rebuild) {
+    var v = clampDupCount(etDupCount.text);
+    etDupCount.text = String(v);
+    sldDupCount.value = v;
+    // NOTE: duplication logic will be added later
+    if (rebuild) rebuildPreviewIfNeeded();
+  }
+
+  sldDupCount.onChanging = function () {
+    // Update text only while dragging
+    var v = clampDupCount(sldDupCount.value);
+    etDupCount.text = String(v);
+  };
+
+  sldDupCount.onChange = function () {
+    syncDupUIFromText(true);
+  };
+
+  etDupCount.onChange = function () {
+    syncDupUIFromText(true);
+  };
+  updateDupUI();
+
   // Put all rotation radios under ONE parent group (for grouping & order) / 回転ラジオを同一groupに
   var rotPanel = placeObjPanel.add("panel", undefined, L('panelRotation'));
   rotPanel.orientation = "column";
@@ -637,88 +786,6 @@ function setDialogOpacity(dlg, opacityValue) {
   sldSpacingJitter.enabled = false;
   stSpacingJitterVal.enabled = false;
 
-  // Duplicate / 複製
-  var dupPanel = placeObjPanel.add("panel", undefined, L('panelDuplicate'));
-  dupPanel.orientation = "column";
-  dupPanel.alignChildren = "fill";
-  dupPanel.margins = [15, 20, 15, 10];
-
-  var gDupTop = dupPanel.add("group");
-  gDupTop.orientation = "row";
-  gDupTop.alignChildren = ["left", "center"];
-  gDupTop.spacing = 10;
-
-  var cbDupEnable = gDupTop.add("checkbox", undefined, "");
-  cbDupEnable.value = false; // default OFF
-  cbDupEnable.preferredSize.width = 18;
-
-  var stDup = gDupTop.add("statictext", undefined, L('duplicateCount'));
-  var etDupCount = gDupTop.add("edittext", undefined, "1");
-  etDupCount.characters = 4;
-
-  var gDupSld = dupPanel.add("group");
-  gDupSld.orientation = "row";
-  gDupSld.alignChildren = ["left", "center"];
-
-  var sldDupCount = gDupSld.add("slider", undefined, 1, 1, 20);
-  sldDupCount.preferredSize.width = 180;
-
-  function clampDupCount(v) {
-    v = Math.round(Number(v));
-    if (isNaN(v)) v = 1;
-    if (v < 1) v = 1;
-    if (v > 20) v = 20;
-    return v;
-  }
-
-  function getDupCount() {
-    if (!cbDupEnable.value) return 1;
-    return clampDupCount(etDupCount.text);
-  }
-
-  function updateDupUI() {
-    var en = !!cbDupEnable.value;
-    etDupCount.enabled = en;
-    sldDupCount.enabled = en;
-
-    if (!en) {
-      etDupCount.text = "1";
-      sldDupCount.value = 1;
-    }
-  }
-
-  cbDupEnable.onClick = function () {
-    if (cbDupEnable.value) {
-      // ON: set default duplicate count to 5
-      etDupCount.text = "5";
-      sldDupCount.value = 5;
-    }
-    updateDupUI();
-    rebuildPreviewIfNeeded();
-  };
-
-  function syncDupUIFromText(rebuild) {
-    var v = clampDupCount(etDupCount.text);
-    etDupCount.text = String(v);
-    sldDupCount.value = v;
-    // NOTE: duplication logic will be added later
-    if (rebuild) rebuildPreviewIfNeeded();
-  }
-
-  sldDupCount.onChanging = function () {
-    // Update text only while dragging
-    var v = clampDupCount(sldDupCount.value);
-    etDupCount.text = String(v);
-  };
-
-  sldDupCount.onChange = function () {
-    syncDupUIFromText(true);
-  };
-
-  etDupCount.onChange = function () {
-    syncDupUIFromText(true);
-  };
-  updateDupUI();
 
   // Grouping / グループ化（右カラム・中央寄せ）
   var gGroupPlaced = placeObjPanel.add("group");
@@ -766,9 +833,9 @@ function setDialogOpacity(dlg, opacityValue) {
 
   // Middle: spacer / 中央：スペーサー
 
-var stSpacer = bottomBar.add("group");
-stSpacer.alignment = ["fill", "fill"];
-stSpacer.minimumSize.width = 0;
+  var stSpacer = bottomBar.add("group");
+  stSpacer.alignment = ["fill", "fill"];
+  stSpacer.minimumSize.width = 0;
 
   // Right: Buttons / 右：ボタン
   var btns = bottomBar.add("group");
@@ -787,8 +854,16 @@ stSpacer.minimumSize.width = 0;
   // Wire preview handlers / プレビュー連動
   function rebuildPreviewIfNeeded() {
     if (!cbPreview.value) return;
-    var ok = buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost);
-    if (!ok) cbPreview.value = false;
+    var ok = false;
+    try {
+      ok = buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost, false);
+    } catch (e) {
+      ok = false;
+    }
+    if (!ok) {
+      cbPreview.value = false;
+      clearPreview();
+    }
   }
 
   function setRotationMode(mode) {
@@ -968,10 +1043,56 @@ stSpacer.minimumSize.width = 0;
   }
 
   cbPreview.onClick = function () {
-    if (cbPreview.value) {
-      var ok = buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost);
-      if (!ok) cbPreview.value = false;
-    } else {
+    if (!cbPreview.value) {
+      clearPreview();
+      return;
+    }
+
+    // Validate selection BEFORE building preview to avoid alert stacking
+    var curSel = doc.selection;
+    if (!curSel || curSel.length < 2) {
+      if (previewSelSnapshot && previewSelSnapshot.length >= 2) {
+        curSel = previewSelSnapshot;
+      }
+    }
+
+    if (!curSel || curSel.length < 2) {
+      safeAlertKey('alertNeedSelection');
+      cbPreview.value = false;
+      clearPreview();
+      return;
+    }
+
+    var base = rbAutoLargest.value ? getLargestPathItem(curSel) : (rbFrontmost.value ? getFrontmostPathItem(curSel) : getBackmostPathItem(curSel));
+    if (!base) {
+      safeAlertKey('alertNoBasePath');
+      cbPreview.value = false;
+      clearPreview();
+      return;
+    }
+
+    var srcItems = [];
+    for (var i = 0; i < curSel.length; i++) {
+      if (curSel[i] === base) continue;
+      if (isPlaceableItem(curSel[i])) srcItems.push(curSel[i]);
+    }
+    if (srcItems.length === 0) {
+      safeAlertKey('alertNoItems');
+      cbPreview.value = false;
+      clearPreview();
+      return;
+    }
+
+    // Build preview (silent inside)
+    var ok = false;
+    try {
+      ok = buildPreview(rbNone, rbHide, rbDelete, rbAutoLargest, rbFrontmost, rbBackmost, false);
+    } catch (e) {
+      ok = false;
+    }
+
+    if (!ok) {
+      cbPreview.value = false;
       clearPreview();
     }
   };
@@ -1120,7 +1241,7 @@ stSpacer.minimumSize.width = 0;
   }
 
   if (!sel || sel.length < 2) {
-    alert(L('alertNeedSelection'));
+    safeAlertKey('alertNeedSelection');
     previewSelSnapshot = null;
     return;
   }
@@ -1128,7 +1249,7 @@ stSpacer.minimumSize.width = 0;
   /* B = 選択範囲の中で選択されたルールに従うパス / B = base path by selected rule */
   var pathItem = rbAutoLargest.value ? getLargestPathItem(sel) : (rbFrontmost.value ? getFrontmostPathItem(sel) : getBackmostPathItem(sel));
   if (!pathItem) {
-    alert(L('alertNoBasePath'));
+    safeAlertKey('alertNoBasePath');
     return;
   }
 
@@ -1150,7 +1271,7 @@ stSpacer.minimumSize.width = 0;
   }
 
   if (items.length === 0) {
-    alert(L('alertNoItems'));
+    safeAlertKey('alertNoItems');
     return;
   }
 
@@ -1255,13 +1376,13 @@ stSpacer.minimumSize.width = 0;
   function arrangeAlongPath(pathItem, itemsArray, showAlerts, rot, spacingMode, isPreview) {
     var pts = pathItem.pathPoints;
     if (!pts || pts.length < 2) {
-      if (showAlerts) alert(L('alertPathTooShort'));
+      if (showAlerts) safeAlertKey('alertPathTooShort');
       return false;
     }
 
     var poly = buildPolylineFromBezierPath(pathItem, samplesPerSegment); // [{x,y},...]
     if (poly.length < 2) {
-      if (showAlerts) alert(L('alertPathAnalyzeFailed'));
+      if (showAlerts) safeAlertKey('alertPathAnalyzeFailed');
       return false;
     }
 
@@ -1271,7 +1392,7 @@ stSpacer.minimumSize.width = 0;
     }
     var totalLen = cum[cum.length - 1];
     if (totalLen <= 0) {
-      if (showAlerts) alert(L('alertPathLengthZero'));
+      if (showAlerts) safeAlertKey('alertPathLengthZero');
       return false;
     }
 
@@ -1468,15 +1589,21 @@ stSpacer.minimumSize.width = 0;
       if (!isPathItem(o)) continue;
 
       var a = null;
-      try {
-        // PathItem.area may be 0 for open paths, and may be negative depending on direction
-        a = Math.abs(o.area);
-      } catch (_) {
-        a = null;
-      }
 
-      if (a === null || a === undefined || isNaN(a) || a <= 0) {
+      // For OPEN paths, use bounding-box area (as shown in the example image)
+      if (!o.closed) {
         a = getBoundsArea(o);
+      } else {
+        try {
+          // Closed paths can use PathItem.area (may be negative depending on direction)
+          a = Math.abs(o.area);
+        } catch (_) {
+          a = null;
+        }
+
+        if (a === null || a === undefined || isNaN(a) || a <= 0) {
+          a = getBoundsArea(o);
+        }
       }
 
       if (bestArea === null || a > bestArea) {
@@ -1493,7 +1620,11 @@ stSpacer.minimumSize.width = 0;
 
   function getBoundsArea(item) {
     var b = null;
-    try { b = item.geometricBounds; } catch (_) { b = null; }
+    // Prefer visibleBounds (includes stroke) to match visual area
+    try { b = item.visibleBounds; } catch (_) { b = null; }
+    if (!b) {
+      try { b = item.geometricBounds; } catch (_) { b = null; }
+    }
     if (!b || b.length < 4) return 0;
     var w = Math.abs(b[2] - b[0]);
     var h = Math.abs(b[1] - b[3]);
