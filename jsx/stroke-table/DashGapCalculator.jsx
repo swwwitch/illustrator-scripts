@@ -3,14 +3,13 @@ try { app.preferences.setBooleanPreference('ShowExternalJSXWarning', false); } c
 
 /*
  * 破線計算機（Gap→Dash）
- * 更新日: 2026-02-25
- * Version: v1.5
- * 概要: パス（オープン/クローズ）1つを選択し、分割数と間隔から線分長を算出して破線を適用します。
+ * 更新日: 2026-02-28
+ * Version: v2.0
+ * 概要: パス（オープン/クローズ）を複数選択して、分割数と間隔から線分長を算出して破線を適用します。
  *      「開始位置（オフセット）」で破線の開始位置（位相）も指定できます。
  */
 
-
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v2.0";
 
 // --- 前回値の記憶（app.putCustomOptions） ---
 var PREF_KEY = "DashCalcPrefs_GapToDash_v1";
@@ -31,6 +30,14 @@ function loadPrefs() {
 
         var kUseOffset = stringIDToTypeID("useOffset");
 
+        // --- Random pattern keys ---
+        var kRand0Pt = stringIDToTypeID("rand0Pt");
+        var kRand1Pt = stringIDToTypeID("rand1Pt");
+        var kRand2Pt = stringIDToTypeID("rand2Pt");
+        var kRand3Pt = stringIDToTypeID("rand3Pt");
+        var kRand4Pt = stringIDToTypeID("rand4Pt");
+        var kRand5Pt = stringIDToTypeID("rand5Pt");
+
         if (d.hasKey(kSegments)) p.segments = d.getInteger(kSegments);
         if (d.hasKey(kGapPt)) p.gapPt = d.getDouble(kGapPt);
         if (d.hasKey(kOffsetPt)) p.offsetPt = d.getDouble(kOffsetPt);
@@ -40,6 +47,13 @@ function loadPrefs() {
         if (d.hasKey(kDashPt)) p.dashPt = d.getDouble(kDashPt);
         if (d.hasKey(kMode)) p.mode = d.getInteger(kMode);
         if (d.hasKey(kUseOffset)) p.useOffset = d.getBoolean(kUseOffset);
+
+        if (d.hasKey(kRand0Pt)) p.rand0Pt = d.getDouble(kRand0Pt);
+        if (d.hasKey(kRand1Pt)) p.rand1Pt = d.getDouble(kRand1Pt);
+        if (d.hasKey(kRand2Pt)) p.rand2Pt = d.getDouble(kRand2Pt);
+        if (d.hasKey(kRand3Pt)) p.rand3Pt = d.getDouble(kRand3Pt);
+        if (d.hasKey(kRand4Pt)) p.rand4Pt = d.getDouble(kRand4Pt);
+        if (d.hasKey(kRand5Pt)) p.rand5Pt = d.getDouble(kRand5Pt);
 
         return p;
     } catch (_) {
@@ -59,6 +73,14 @@ function savePrefs(p) {
         d.putDouble(stringIDToTypeID("dashPt"), p.dashPt);
         d.putInteger(stringIDToTypeID("mode"), p.mode);
         d.putBoolean(stringIDToTypeID("useOffset"), !!p.useOffset);
+        if (p.randPt && p.randPt.length === 6) {
+            d.putDouble(stringIDToTypeID("rand0Pt"), p.randPt[0]);
+            d.putDouble(stringIDToTypeID("rand1Pt"), p.randPt[1]);
+            d.putDouble(stringIDToTypeID("rand2Pt"), p.randPt[2]);
+            d.putDouble(stringIDToTypeID("rand3Pt"), p.randPt[3]);
+            d.putDouble(stringIDToTypeID("rand4Pt"), p.randPt[4]);
+            d.putDouble(stringIDToTypeID("rand5Pt"), p.randPt[5]);
+        }
         app.putCustomOptions(PREF_KEY, d, true);
     } catch (_) { }
 }
@@ -82,6 +104,7 @@ var LABELS = {
 
     modeGapToDash: { ja: "間隔→線分", en: "Gap→Dash" },
     modeDashToGap: { ja: "線分→間隔", en: "Dash→Gap" },
+    modeRandom: { ja: "ランダム", en: "Random" },
     calcMethodPanel: { ja: "計算方法", en: "Calculation" },
     showPartialOnly: { ja: "部分表示", en: "Partial Display" },
 
@@ -211,27 +234,39 @@ function main() {
         return;
     }
 
-    var sel = doc.selection[0];
+    var selection = doc.selection;
 
-    // パスアイテムであるか確認（オープン/クローズどちらもOK）
-    if (sel.typename !== "PathItem") {
+    // PathItem のみ対象（複数可）
+    var targets = [];
+    for (var iSel = 0; iSel < selection.length; iSel++) {
+        if (selection[iSel] && selection[iSel].typename === "PathItem") targets.push(selection[iSel]);
+    }
+    if (targets.length === 0) {
         alert(L("alertNeedClosedPath"));
         return;
     }
 
-    // パスの長さを取得（円周など）
+    // 先頭をUI/表示用の代表として扱う
+    var sel = targets[0];
+
+    // 代表の長さ（UI表示用）
     var pathLength = sel.length;
 
     // 線の単位（strokeUnits）
     var unitInfo = getStrokeUnitInfo();
 
     // ダイアログを開く前の状態を保存（キャンセルで復元）
-    var originalState = {
-        stroked: sel.stroked,
-        strokeCap: sel.strokeCap,
-        strokeDashes: (sel.strokeDashes && sel.strokeDashes.length) ? sel.strokeDashes.slice(0) : [],
-        strokeDashOffset: (typeof sel.strokeDashOffset === "number") ? sel.strokeDashOffset : 0
-    };
+    var originalStates = [];
+    for (var si = 0; si < targets.length; si++) {
+        var it0 = targets[si];
+        originalStates.push({
+            item: it0,
+            stroked: it0.stroked,
+            strokeCap: it0.strokeCap,
+            strokeDashes: (it0.strokeDashes && it0.strokeDashes.length) ? it0.strokeDashes.slice(0) : [],
+            strokeDashOffset: (typeof it0.strokeDashOffset === "number") ? it0.strokeDashOffset : 0
+        });
+    }
     var closedByOK = false;
     var directionReversed = false;
 
@@ -246,7 +281,7 @@ function main() {
     var initCapMode = (prefs && (typeof prefs.capMode === "number")) ? prefs.capMode : 0;
     var initReverse = (prefs && prefs.reversePath === true);
     var initAdjustEnds = (prefs && (typeof prefs.adjustEnds === "boolean")) ? prefs.adjustEnds : true;
-    var initMode = (prefs && (typeof prefs.mode === "number")) ? prefs.mode : 0; // 0: Gap→Dash / 1: Dash→Gap
+    var initMode = (prefs && (typeof prefs.mode === "number")) ? prefs.mode : 0; // 0: Gap→Dash / 1: Dash→Gap / 2: Random
     var initDashUnit = (prefs && (typeof prefs.dashPt === "number") && prefs.dashPt >= 0) ? ptToUnit(prefs.dashPt, unitInfo) : 0;
 
     function fmtFieldNumber(v) {
@@ -254,6 +289,135 @@ function main() {
         var rounded = Math.round(v * 1000) / 1000;
         if (Math.abs(rounded - Math.round(rounded)) < 1e-10) return String(Math.round(rounded));
         return String(rounded);
+    }
+
+    // --- Random pattern state (Dash, Gap, Dash, Gap, Dash, Gap) ---
+    var randomDashesPt = null; // [d1,g1,d2,g2,d3,g3] in pt
+
+    // Random settings (in current stroke unit) - based on Graphic Arts Unit "ランダム破線.jsx" style
+    // NOTE: UI for these settings is not added yet; adjust defaults here if needed.
+    var randSettings = {
+        dashMin: 0,
+        dashMax: 40,
+        gapMin: 3,
+        gapMax: 3,
+        rounded: false
+    };
+
+    function ensureRandomPatternPt() {
+        if (randomDashesPt && randomDashesPt.length === 6) return;
+
+        // Try restore from prefs
+        if (prefs && typeof prefs.rand0Pt === "number" && typeof prefs.rand1Pt === "number" &&
+            typeof prefs.rand2Pt === "number" && typeof prefs.rand3Pt === "number") {
+            // v1.7以前(4要素)の保存値も受け入れる
+            if (typeof prefs.rand4Pt === "number" && typeof prefs.rand5Pt === "number") {
+                randomDashesPt = [prefs.rand0Pt, prefs.rand1Pt, prefs.rand2Pt, prefs.rand3Pt, prefs.rand4Pt, prefs.rand5Pt];
+            } else {
+                // 4要素 → 6要素へ拡張（最後のペアはコピー）
+                randomDashesPt = [prefs.rand0Pt, prefs.rand1Pt, prefs.rand2Pt, prefs.rand3Pt, prefs.rand0Pt, prefs.rand1Pt];
+            }
+            return;
+        }
+
+        recalcRandomPatternPt();
+    }
+
+    function getRandomUnit(min, max) {
+        var rd = Math.random() * (max - min) + min;
+        if (randSettings.rounded) rd = Math.round(rd);
+        return rd;
+    }
+
+    function recalcRandomPatternPt() {
+        // ---- Dynamic dash minimum depending on cap & unit ----
+        var dashMinUnit = 0;
+        var dashMaxUnit = randSettings.dashMax; // still 40
+
+        if (rbCapNone.value) {
+            // Butt cap (なし)
+            switch (unitInfo.code) {
+                case 2: // pt
+                    dashMinUnit = 2;
+                    break;
+                case 1: // mm
+                    dashMinUnit = 1;
+                    break;
+                case 5: // Q/H
+                    dashMinUnit = 4;
+                    break;
+                default:
+                    dashMinUnit = 2; // safe fallback
+                    break;
+            }
+        } else {
+            // Round / Projecting
+            dashMinUnit = 0;
+        }
+
+        // Generate: dash, gap, dash, gap, dash, gap (6 entries)
+        var d1u = getRandomUnit(dashMinUnit, dashMaxUnit);
+        var g1u = getRandomUnit(randSettings.gapMin, randSettings.gapMax);
+        var d2u = getRandomUnit(dashMinUnit, dashMaxUnit);
+        var g2u = getRandomUnit(randSettings.gapMin, randSettings.gapMax);
+        var d3u = getRandomUnit(dashMinUnit, dashMaxUnit);
+        var g3u = getRandomUnit(randSettings.gapMin, randSettings.gapMax);
+
+        // Safety: Illustrator dislikes NaN/negative; clamp to >= 0
+        d1u = (isNaN(d1u) || d1u < 0) ? 0 : d1u;
+        g1u = (isNaN(g1u) || g1u < 0) ? 0 : g1u;
+        d2u = (isNaN(d2u) || d2u < 0) ? 0 : d2u;
+        g2u = (isNaN(g2u) || g2u < 0) ? 0 : g2u;
+        d3u = (isNaN(d3u) || d3u < 0) ? 0 : d3u;
+        g3u = (isNaN(g3u) || g3u < 0) ? 0 : g3u;
+
+        randomDashesPt = [
+            unitToPt(d1u, unitInfo),
+            unitToPt(g1u, unitInfo),
+            unitToPt(d2u, unitInfo),
+            unitToPt(g2u, unitInfo),
+            unitToPt(d3u, unitInfo),
+            unitToPt(g3u, unitInfo)
+        ];
+    }
+
+    function getRandomPatternUnitTexts() {
+        ensureRandomPatternPt();
+        var d1 = ptToUnit(randomDashesPt[0], unitInfo);
+        var g1 = ptToUnit(randomDashesPt[1], unitInfo);
+        var d2 = ptToUnit(randomDashesPt[2], unitInfo);
+        var g2 = ptToUnit(randomDashesPt[3], unitInfo);
+        var d3 = ptToUnit(randomDashesPt[4], unitInfo);
+        var g3 = ptToUnit(randomDashesPt[5], unitInfo);
+        return {
+            dashText: d1.toFixed(3) + " / " + d2.toFixed(3) + " / " + d3.toFixed(3),
+            gapText: g1.toFixed(3) + " / " + g2.toFixed(3) + " / " + g3.toFixed(3)
+        };
+    }
+
+    function focusGapField() {
+        try { inpGap.active = true; } catch (_) { }
+    }
+
+    function getGapUnitFromUI() {
+        var v = parseFloat(inpGap.text);
+        if (isNaN(v) || v < 0) v = 0;
+        return v;
+    }
+
+    function applyRandomGapFromUI() {
+        var gapUnit = getGapUnitFromUI();
+        var gPt = unitToPt(gapUnit, unitInfo);
+
+        // randomDashesPt が未生成なら先に作る（dashはランダムで良い）
+        if (!randomDashesPt || randomDashesPt.length !== 6) {
+            recalcRandomPatternPt();
+        }
+
+        // gap をすべてに適用
+        randomDashesPt[1] = gPt;
+        randomDashesPt[3] = gPt;
+        randomDashesPt[5] = gPt;
     }
 
     // --- ダイアログの作成 ---
@@ -265,7 +429,9 @@ function main() {
     var infoPanel = win.add("panel", undefined, L("panelPathInfo"));
     infoPanel.alignChildren = "center";
     infoPanel.margins = [15, 20, 15, 10];
-    infoPanel.add("statictext", undefined, L("pathLength") + " " + ptToUnit(pathLength, unitInfo).toFixed(3) + " " + unitInfo.label);
+    var infoText = L("pathLength") + " " + ptToUnit(pathLength, unitInfo).toFixed(3) + " " + unitInfo.label;
+    if (targets.length > 1) infoText += "  (" + targets.length + ")";
+    infoPanel.add("statictext", undefined, infoText);
 
     // 2カラム（上段）
     var mainColumns = win.add("group");
@@ -363,16 +529,93 @@ function main() {
 
     var rbModeGapToDash = modeGroup.add("radiobutton", undefined, L("modeGapToDash"));
     var rbModeDashToGap = modeGroup.add("radiobutton", undefined, L("modeDashToGap"));
-    rbModeGapToDash.value = (initMode !== 1);
+    var rbModeRandom = modeGroup.add("radiobutton", undefined, L("modeRandom"));
+
+    rbModeGapToDash.value = (initMode === 0);
     rbModeDashToGap.value = (initMode === 1);
+    rbModeRandom.value = (initMode === 2);
+
+    function setSplitPanelDim(isDim) {
+        // Random時は panel 全体を disabled にすると Gap まで触れなくなるので、
+        // Segments/Dash だけをディム表示にする。
+        try { grpSegments.enabled = !isDim; } catch (_) { }
+        try { grpDash.enabled = !isDim; } catch (_) { }
+        // Gap は常に編集可（Random時に値を採用する）
+        try { grpGap.enabled = true; } catch (_) { }
+    }
+
+    function setRandomRelatedUI(isRandom) {
+        // Random時は入力UIを結果表示に寄せる
+        if (isRandom) {
+            // Partial display is incompatible with random pattern
+            if (typeof cbShowPartialOnly !== "undefined" && cbShowPartialOnly) {
+                cbShowPartialOnly.value = false;
+                cbShowPartialOnly.enabled = false;
+            }
+
+            // Adjust ends is irrelevant for random pattern
+            if (typeof cbAdjustEnds !== "undefined" && cbAdjustEnds) {
+                cbAdjustEnds.enabled = false;
+            }
+
+            inpDash.visible = false;
+            outDash.visible = true;
+
+            // Gap は編集可能にする
+            inpGap.visible = true;
+            outGap.visible = false;
+
+            setSplitPanelDim(true);
+
+            // 現在の Gap 入力値を Random パターンに反映
+            applyRandomGapFromUI();
+
+            var t = getRandomPatternUnitTexts();
+            outDash.text = t.dashText;
+
+            focusGapField();
+        } else {
+            if (typeof cbShowPartialOnly !== "undefined" && cbShowPartialOnly) {
+                cbShowPartialOnly.enabled = true;
+            }
+            if (typeof cbAdjustEnds !== "undefined" && cbAdjustEnds) {
+                cbAdjustEnds.enabled = !sel.closed;
+            }
+
+            setSplitPanelDim(false);
+        }
+    }
 
     // 初期モードに合わせて表示を切替
     (function () {
+        var isRandom = rbModeRandom.value;
+        if (isRandom) {
+            ensureRandomPatternPt();
+
+            inpDash.visible = false;
+            outDash.visible = true;
+
+            inpGap.visible = true;
+            outGap.visible = false;
+
+            setSplitPanelDim(true);
+
+            applyRandomGapFromUI();
+
+            var t0 = getRandomPatternUnitTexts();
+            outDash.text = t0.dashText;
+
+            focusGapField();
+            return;
+        }
+
         var dashToGap = rbModeDashToGap.value;
         inpDash.visible = dashToGap;
         outDash.visible = !dashToGap;
         inpGap.visible = !dashToGap;
         outGap.visible = dashToGap;
+
+        setRandomRelatedUI(false);
     })();
 
     // 開始位置パネル
@@ -567,12 +810,12 @@ function main() {
     // 破線計算（pt）
     // - クローズ: 1周期(=dash+gap)=全長/分割数
     // - オープン: 両端をダッシュで終える（分割数=ダッシュ本数、gapは(分割数-1)回）
-    function calcDashAndStepPt(segments, gapPt) {
+    function calcDashAndStepPt(segments, gapPt, pathLen, isClosed) {
         if (!(segments > 0)) return null;
         if (!(gapPt >= 0)) return null;
 
-        if (sel.closed) {
-            var stepPt = pathLength / segments;
+        if (isClosed) {
+            var stepPt = pathLen / segments;
             var dashPt = stepPt - gapPt;
             return { dashPt: dashPt, stepPt: stepPt };
         }
@@ -581,34 +824,34 @@ function main() {
         // 両端を調整: 両端をダッシュで終える（分割数=ダッシュ本数、gapは(分割数-1)回）
         // OFF: クローズと同じ計算（1周期=全長/分割数、末尾は端数になり得る）
         if (!cbAdjustEnds.value) {
-            var stepPtOpen = pathLength / segments;
+            var stepPtOpen = pathLen / segments;
             var dashPtOpen = stepPtOpen - gapPt;
             return { dashPt: dashPtOpen, stepPt: stepPtOpen };
         }
 
         if (segments === 1) {
-            var dash1 = pathLength;
+            var dash1 = pathLen;
             return { dashPt: dash1, stepPt: dash1 + gapPt };
         }
 
-        var dash = (pathLength - gapPt * (segments - 1)) / segments;
+        var dash = (pathLen - gapPt * (segments - 1)) / segments;
         return { dashPt: dash, stepPt: dash + gapPt };
     }
 
     // 線分(Dash)から間隔(Gap)を逆算（pt）
-    function calcGapPtFromDashPt(segments, dashPt) {
+    function calcGapPtFromDashPt(segments, dashPt, pathLen, isClosed) {
         if (!(segments > 0)) return null;
         if (!(dashPt >= 0)) return null;
 
         // クローズ、または「両端を調整」OFFは 1周期=全長/分割数 で扱う
-        if (sel.closed || !cbAdjustEnds.value) {
-            var stepPt = pathLength / segments;
+        if (isClosed || !cbAdjustEnds.value) {
+            var stepPt = pathLen / segments;
             return stepPt - dashPt;
         }
 
         // open + 両端を調整ON
         if (segments === 1) return 0;
-        return (pathLength - dashPt * segments) / (segments - 1);
+        return (pathLen - dashPt * segments) / (segments - 1);
     }
 
     // 1周期（= dash+gap）を unit にした値を返す
@@ -616,9 +859,17 @@ function main() {
         var segments = parseInt(inpSegments.text, 10);
         if (isNaN(segments) || segments <= 0) return null;
 
+        // Random: step is sum of (dash,gap,dash,gap,dash,gap)
+        if (rbModeRandom.value) {
+            ensureRandomPatternPt();
+            applyRandomGapFromUI();
+            var stepPtRand = randomDashesPt[0] + randomDashesPt[1] + randomDashesPt[2] + randomDashesPt[3] + randomDashesPt[4] + randomDashesPt[5];
+            return ptToUnit(stepPtRand, unitInfo);
+        }
+
         // 一部だけを表示する：間隔0として 1周期を計算
         if (cbShowPartialOnly.value) {
-            var r0 = calcDashAndStepPt(segments, 0);
+            var r0 = calcDashAndStepPt(segments, 0, pathLength, sel.closed);
             if (!r0) return null;
             return ptToUnit(r0.stepPt, unitInfo);
         }
@@ -639,7 +890,7 @@ function main() {
             if (sel.closed || !cbAdjustEnds.value) {
                 stepPt = pathLength / segments;
             } else {
-                var gapPt = calcGapPtFromDashPt(segments, dashPt);
+                var gapPt = calcGapPtFromDashPt(segments, dashPt, pathLength, sel.closed);
                 if (gapPt == null) return null;
                 stepPt = dashPt + gapPt;
             }
@@ -652,7 +903,7 @@ function main() {
         if (isNaN(gapUnit) || gapUnit < 0) return null;
 
         var gapPt = unitToPt(gapUnit, unitInfo);
-        var r = calcDashAndStepPt(segments, gapPt);
+        var r = calcDashAndStepPt(segments, gapPt, pathLength, sel.closed);
         if (!r) return null;
         return ptToUnit(r.stepPt, unitInfo);
     }
@@ -705,26 +956,34 @@ function main() {
     rbOffQ3.onClick = function () { applyOffsetPreset(0.75); };
 
 
+    function forEachTarget(fn) {
+        for (var i = 0; i < targets.length; i++) {
+            try { fn(targets[i]); } catch (_) { }
+        }
+    }
+
+    function getPathLengthOf(item) {
+        try { return item.length; } catch (_) { return 0; }
+    }
+
+    function setStrokeCapTo(item) {
+        if (rbCapRound.value) item.strokeCap = StrokeCap.ROUNDENDCAP;
+        else if (rbCapProject.value) item.strokeCap = StrokeCap.PROJECTINGENDCAP;
+        else item.strokeCap = StrokeCap.BUTTENDCAP;
+    }
+
     // 値変更時にプレビュー更新（アラート無し）
     function updatePreview() {
         // 破線クリア状態（プレビュー）
         if (isDashCleared) {
             outDash.text = "";
             outGap.text = "";
-
-            sel.stroked = true;
-
-            // 線端（見た目の一貫性のため）
-            if (rbCapRound.value) {
-                sel.strokeCap = StrokeCap.ROUNDENDCAP;
-            } else if (rbCapProject.value) {
-                sel.strokeCap = StrokeCap.PROJECTINGENDCAP;
-            } else {
-                sel.strokeCap = StrokeCap.BUTTENDCAP;
-            }
-
-            sel.strokeDashOffset = 0;
-            sel.strokeDashes = [];
+            forEachTarget(function (item) {
+                item.stroked = true;
+                setStrokeCapTo(item);
+                item.strokeDashOffset = 0;
+                item.strokeDashes = [];
+            });
             app.redraw();
             return;
         }
@@ -745,6 +1004,37 @@ function main() {
             return;
         }
 
+        // Random mode: set Dash/Gap/Dash/Gap pattern (per-path randomization)
+        if (rbModeRandom.value) {
+            var offsetPtRand = unitToPt(offsetUnit, unitInfo);
+
+            // UI表示用に1回だけ生成（代表表示）
+            recalcRandomPatternPt();
+            applyRandomGapFromUI();
+            var tt = getRandomPatternUnitTexts();
+            outDash.text = tt.dashText;
+
+            // 各パスごとに別乱数で適用
+            for (var iR = 0; iR < targets.length; iR++) {
+                var itemR = targets[iR];
+
+                // パスごとに新しい乱数を生成
+                recalcRandomPatternPt();
+                applyRandomGapFromUI();
+
+                itemR.stroked = true;
+                if (rbCapRound.value) itemR.strokeCap = StrokeCap.ROUNDENDCAP;
+                else if (rbCapProject.value) itemR.strokeCap = StrokeCap.PROJECTINGENDCAP;
+                else itemR.strokeCap = StrokeCap.BUTTENDCAP;
+
+                itemR.strokeDashOffset = offsetPtRand;
+                itemR.strokeDashes = randomDashesPt.slice(0);
+            }
+
+            app.redraw();
+            return;
+        }
+
         var dashToGap = rbModeDashToGap.value;
 
         var gapPt, dashPt;
@@ -752,49 +1042,40 @@ function main() {
         // 一部だけを表示する：間隔0として計算（入力値は使わない）
         if (cbShowPartialOnly.value) {
             gapPt = 0;
-            var r0 = calcDashAndStepPt(segments, 0);
+            var r0 = calcDashAndStepPt(segments, 0, pathLength, sel.closed);
             dashPt = r0 ? r0.dashPt : -1;
             if (dashPt <= 0) {
                 outDash.text = L("err");
                 outGap.text = "";
                 return;
             }
-
             // 表示（Dash / Gap=0）
             outDash.text = ptToUnit(dashPt, unitInfo).toFixed(3);
             outGap.text = ptToUnit(0, unitInfo).toFixed(3);
-
             // hidden field sync
             inpGap.text = "0";
             inpDash.text = fmtFieldNumber(ptToUnit(dashPt, unitInfo));
-
         } else if (dashToGap) {
             var dashUnit = parseFloat(inpDash.text);
             if (isNaN(dashUnit) || dashUnit < 0) {
                 outGap.text = "";
                 return;
             }
-
             dashPt = unitToPt(dashUnit, unitInfo);
-
             // open + 両端を調整ON + 1本は全長ダッシュ
             if (!sel.closed && cbAdjustEnds.value && segments === 1) {
                 dashPt = pathLength;
                 inpDash.text = fmtFieldNumber(ptToUnit(dashPt, unitInfo));
             }
-
-            gapPt = calcGapPtFromDashPt(segments, dashPt);
+            gapPt = calcGapPtFromDashPt(segments, dashPt, pathLength, sel.closed);
             if (gapPt == null || gapPt < 0) {
                 outGap.text = L("err");
                 return;
             }
-
             // 表示（Gap）
             outGap.text = ptToUnit(gapPt, unitInfo).toFixed(3);
-
             // hidden field sync（切替に備える）
             inpGap.text = fmtFieldNumber(ptToUnit(gapPt, unitInfo));
-
             // outDash も同期（表示切替に備える）
             outDash.text = ptToUnit(dashPt, unitInfo).toFixed(3);
         } else {
@@ -803,22 +1084,17 @@ function main() {
                 outDash.text = "";
                 return;
             }
-
             gapPt = unitToPt(gapUnit, unitInfo);
-            var r = calcDashAndStepPt(segments, gapPt);
+            var r = calcDashAndStepPt(segments, gapPt, pathLength, sel.closed);
             dashPt = r ? r.dashPt : -1;
-
             if (dashPt <= 0) {
                 outDash.text = L("err");
                 return;
             }
-
             // 表示（Dash）
             outDash.text = ptToUnit(dashPt, unitInfo).toFixed(3);
-
             // hidden field sync（切替に備える）
             inpDash.text = fmtFieldNumber(ptToUnit(dashPt, unitInfo));
-
             // outGap も同期（表示切替に備える）
             outGap.text = ptToUnit(gapPt, unitInfo).toFixed(3);
         }
@@ -826,35 +1102,53 @@ function main() {
         // プリセット表示を同期（手入力/分割数変更に追従）
         syncOffsetPreset(offsetUnit);
 
-        // プレビュー適用
-        sel.stroked = true;
+        // ---- Apply to each target (per-path) ----
+        var offsetPtEach = unitToPt(offsetUnit, unitInfo);
 
-        // 線端
-        if (rbCapRound.value) {
-            sel.strokeCap = StrokeCap.ROUNDENDCAP;
-        } else if (rbCapProject.value) {
-            sel.strokeCap = StrokeCap.PROJECTINGENDCAP;
-        } else {
-            sel.strokeCap = StrokeCap.BUTTENDCAP;
-        }
-
-        // offsetPt を一度だけ計算
-        var offsetPt = unitToPt(offsetUnit, unitInfo);
-
-        // 一部だけを表示する
-        // ※分割数や間隔などの変更で dashPt (=A) が変わるため、毎回ここで B を再計算する
         if (cbShowPartialOnly.value) {
-            var C = dashPt;      // A（線分の長さ）
-            var D = C / 2;
-            var B = pathLength + D;
-
-            // 部分表示でも開始位置（strokeDashOffset）を適用できるようにする
-            sel.strokeDashOffset = offsetPt;
-            sel.strokeDashes = [0, 0, C, B];
+            forEachTarget(function (item) {
+                var len = getPathLengthOf(item);
+                var rPO = calcDashAndStepPt(segments, 0, len, item.closed);
+                if (!rPO || !(rPO.dashPt > 0)) return;
+                var C0 = rPO.dashPt;
+                var D0 = C0 / 2;
+                var B0 = len + D0;
+                item.stroked = true;
+                setStrokeCapTo(item);
+                item.strokeDashOffset = offsetPtEach;
+                item.strokeDashes = [0, 0, C0, B0];
+            });
+        } else if (dashToGap) {
+            var dashUnitIn = parseFloat(inpDash.text);
+            if (!isNaN(dashUnitIn) && dashUnitIn >= 0) {
+                var dashPtIn = unitToPt(dashUnitIn, unitInfo);
+                forEachTarget(function (item) {
+                    var len = getPathLengthOf(item);
+                    var dPt = dashPtIn;
+                    if (!item.closed && cbAdjustEnds.value && segments === 1) dPt = len;
+                    var gPt = calcGapPtFromDashPt(segments, dPt, len, item.closed);
+                    if (gPt == null || gPt < 0) return;
+                    item.stroked = true;
+                    setStrokeCapTo(item);
+                    item.strokeDashOffset = offsetPtEach;
+                    item.strokeDashes = [dPt, gPt];
+                });
+            }
         } else {
-            // 通常は開始位置（strokeDashOffset）を使用
-            sel.strokeDashOffset = offsetPt;
-            sel.strokeDashes = [dashPt, gapPt];
+            var gapUnitIn = parseFloat(inpGap.text);
+            if (!isNaN(gapUnitIn) && gapUnitIn >= 0) {
+                var gapPtIn = unitToPt(gapUnitIn, unitInfo);
+                forEachTarget(function (item) {
+                    var len = getPathLengthOf(item);
+                    var rGD = calcDashAndStepPt(segments, gapPtIn, len, item.closed);
+                    if (!rGD || !(rGD.dashPt > 0)) return;
+                    var dPt2 = rGD.dashPt;
+                    item.stroked = true;
+                    setStrokeCapTo(item);
+                    item.strokeDashOffset = offsetPtEach;
+                    item.strokeDashes = [dPt2, gapPtIn];
+                });
+            }
         }
 
         app.redraw();
@@ -866,7 +1160,7 @@ function main() {
 
         try {
             // Reverse Path Direction は選択に対して実行されるため、対象を選択してから実行
-            doc.selection = [sel];
+            doc.selection = targets;
             app.executeMenuCommand('Reverse Path Direction');
             directionReversed = shouldReverse;
         } catch (_) {
@@ -878,19 +1172,22 @@ function main() {
         // パス方向を元に戻す（ダイアログ内で反転していた場合）
         if (directionReversed) {
             try {
-                doc.selection = [sel];
+                doc.selection = targets;
                 app.executeMenuCommand('Reverse Path Direction');
             } catch (_) { }
             directionReversed = false;
         }
 
         // ストローク状態の復元（まとめて）
-        try {
-            sel.strokeDashes = originalState.strokeDashes.slice(0);
-            sel.strokeDashOffset = originalState.strokeDashOffset;
-            sel.strokeCap = originalState.strokeCap;
-            sel.stroked = originalState.stroked;
-        } catch (_) { }
+        for (var i = 0; i < originalStates.length; i++) {
+            var s0 = originalStates[i];
+            try {
+                s0.item.strokeDashes = s0.strokeDashes.slice(0);
+                s0.item.strokeDashOffset = s0.strokeDashOffset;
+                s0.item.strokeCap = s0.strokeCap;
+                s0.item.stroked = s0.stroked;
+            } catch (_) { }
+        }
 
         try { app.redraw(); } catch (_) { }
     }
@@ -920,6 +1217,8 @@ function main() {
         outDash.visible = true;
         inpGap.visible = true;
         outGap.visible = false;
+        rbModeRandom.value = false;
+        setRandomRelatedUI(false);
         updatePreviewUnclear();
     };
     rbModeDashToGap.onClick = function () {
@@ -927,6 +1226,19 @@ function main() {
         outDash.visible = false;
         inpGap.visible = false;
         outGap.visible = true;
+        rbModeRandom.value = false;
+        setRandomRelatedUI(false);
+        updatePreviewUnclear();
+    };
+    rbModeRandom.onClick = function () {
+        // クリックのたびに再計算
+        rbModeGapToDash.value = false;
+        rbModeDashToGap.value = false;
+        rbModeRandom.value = true;
+
+        recalcRandomPatternPt();
+        applyRandomGapFromUI();
+        setRandomRelatedUI(true);
         updatePreviewUnclear();
     };
     cbUseOffset.onClick = function () {
@@ -953,6 +1265,12 @@ function main() {
     // 前回値（パス方向）を反映
     setReversePath(cbReversePath.value);
 
+    // 初期表示で Random の場合はUIを整える
+    if (rbModeRandom.value) {
+        ensureRandomPatternPt();
+        setRandomRelatedUI(true);
+    }
+
     // 初期値でも一度プレビュー
     updatePreview();
 
@@ -961,9 +1279,11 @@ function main() {
         // 破線クリアを確定
         if (isDashCleared) {
             try {
-                sel.stroked = true;
-                sel.strokeDashOffset = 0;
-                sel.strokeDashes = [];
+                forEachTarget(function (item) {
+                    item.stroked = true;
+                    item.strokeDashOffset = 0;
+                    item.strokeDashes = [];
+                });
                 app.redraw();
             } catch (_) { }
 
@@ -981,7 +1301,8 @@ function main() {
                     capMode: capModeSave,
                     reversePath: cbReversePath.value,
                     adjustEnds: cbAdjustEnds.value,
-                    mode: rbModeDashToGap.value ? 1 : 0,
+                    mode: rbModeRandom.value ? 2 : (rbModeDashToGap.value ? 1 : 0),
+                    randPt: (rbModeRandom.value ? (randomDashesPt ? randomDashesPt.slice(0) : null) : null),
                     useOffset: cbUseOffset.value
                 });
             } catch (_) { }
@@ -1006,7 +1327,7 @@ function main() {
 
         // 一部だけを表示する：間隔0として確定（入力値は使わない）
         if (cbShowPartialOnly.value) {
-            var r0 = calcDashAndStepPt(segments, 0);
+            var r0 = calcDashAndStepPt(segments, 0, pathLength, sel.closed);
             var dashPt0 = r0 ? r0.dashPt : -1;
             if (dashPt0 <= 0) {
                 alert(L("err"));
@@ -1032,7 +1353,8 @@ function main() {
                     capMode: capModeSave0,
                     reversePath: cbReversePath.value,
                     adjustEnds: cbAdjustEnds.value,
-                    mode: rbModeDashToGap.value ? 1 : 0,
+                    mode: rbModeRandom.value ? 2 : (rbModeDashToGap.value ? 1 : 0),
+                    randPt: (rbModeRandom.value ? (randomDashesPt ? randomDashesPt.slice(0) : null) : null),
                     useOffset: cbUseOffset.value
                 });
             } catch (_) { }
@@ -1051,23 +1373,19 @@ function main() {
                 alert(L("alertDashInvalid"));
                 return;
             }
-
             dashPt = unitToPt(dashUnit, unitInfo);
-
             // open + 両端を調整ON + 1本は全長ダッシュ
             if (!sel.closed && cbAdjustEnds.value && segments === 1) {
                 dashPt = pathLength;
                 inpDash.text = fmtFieldNumber(ptToUnit(dashPt, unitInfo));
             }
-
-            gapPt = calcGapPtFromDashPt(segments, dashPt);
+            gapPt = calcGapPtFromDashPt(segments, dashPt, pathLength, sel.closed);
             if (gapPt == null || gapPt < 0) {
                 var maxDashPt = pathLength / segments;
                 var maxDashUnit = ptToUnit(maxDashPt, unitInfo);
                 alert(LF("alertDashTooLongDetail", [maxDashUnit.toFixed(3), unitInfo.label]));
                 return;
             }
-
             // hidden field sync（保存/切替に備える）
             inpGap.text = fmtFieldNumber(ptToUnit(gapPt, unitInfo));
         } else {
@@ -1076,11 +1394,9 @@ function main() {
                 alert(L("alertGapInvalid"));
                 return;
             }
-
             gapPt = unitToPt(gapUnit, unitInfo);
-            var r = calcDashAndStepPt(segments, gapPt);
+            var r = calcDashAndStepPt(segments, gapPt, pathLength, sel.closed);
             dashPt = r ? r.dashPt : -1;
-
             if (dashPt <= 0) {
                 // 最大Gap（概算）
                 var maxGapPt;
@@ -1094,7 +1410,6 @@ function main() {
                 outDash.text = L("err");
                 return;
             }
-
             // hidden field sync（保存/切替に備える）
             inpDash.text = fmtFieldNumber(ptToUnit(dashPt, unitInfo));
         }
@@ -1114,7 +1429,8 @@ function main() {
                 capMode: capModeSave,
                 reversePath: cbReversePath.value,
                 adjustEnds: cbAdjustEnds.value,
-                mode: dashToGap ? 1 : 0,
+                mode: rbModeRandom.value ? 2 : (dashToGap ? 1 : 0),
+                randPt: (rbModeRandom.value ? (randomDashesPt ? randomDashesPt.slice(0) : null) : null),
                 useOffset: cbUseOffset.value
             });
         } catch (_) { }
