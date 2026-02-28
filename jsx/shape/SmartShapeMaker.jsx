@@ -3,14 +3,14 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-SmartShapeMaker.jsx (v1.5)
+SmartShapeMaker.jsx (v1.6)
 
 Illustrator script to create custom shapes from a single dialog (Circle / Polygon / Star / Superellipse).
 Real-time preview, adjustable sides, width, rotation, and options are supported.
 Japanese / English UI.
 
 ### 更新日 / Updated:
-- 20260217
+- 20260228
 
 Main Features:
 - Specify number of sides (0 = Circle, 3/4/5/6/8, or custom)
@@ -34,6 +34,7 @@ Main Features:
 - Restore last-used dialog values when re-running (kept only during the current Illustrator session)
 - Preview does not pollute Undo history; final result can be undone in a single step
 - Options:
+  - Reuleaux (constant-width shape) (odd-sided polygons only)
   - Live Shape conversion (Convert to Shape) on finalize
   - Split at Anchor Points:
     split the created path into open segments (stroke: black 0.3pt, RGB/CMYK supported),
@@ -56,7 +57,9 @@ Usage Flow:
 3. Click OK to finalize the preview object at the artboard center
 
 Original Idea: Seiji Miyazawa (Sankai Lab)
-Version: v1.5 (20260217)
+https://x.com/onthehead/status/2007350198721483172
+
+Version: v1.6 (20260228)
 */
 
 // Language detection
@@ -65,8 +68,13 @@ function getCurrentLang() {
 }
 var lang = getCurrentLang();
 
+var SCRIPT_VERSION = "v1.6";
+
 var LABELS = {
-    dialogTitle: { ja: "基本図形の作成 v1.5", en: "Create Basic Shapes v1.5" },
+    dialogTitle: {
+        ja: "基本図形の作成 " + SCRIPT_VERSION,
+        en: "Create Basic Shapes " + SCRIPT_VERSION
+    },
     shapeType: { ja: "辺の数", en: "Sides" },
     circle: { ja: "円", en: "Circle" },
     custom: { ja: "それ以外", en: "Other" },
@@ -85,6 +93,7 @@ var LABELS = {
     width: { ja: "幅：", en: "Width:" },
     widthPanel: { ja: "幅", en: "Width" },
     optionPanel: { ja: "オプション", en: "Options" },
+    reuleaux: { ja: "ルーロー（定幅図形）", en: "Reuleaux (Constant Width)" },
     splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
     liveShape: { ja: "ライブシェイプ化", en: "Live Shape" },
     ok: { ja: "OK", en: "OK" },
@@ -340,6 +349,91 @@ function createCirclePathWithNAnchors(doc, sizePt, N) {
     return pathItem;
 }
 
+// Convert an odd-sided polygon into a Reuleaux (constant-width) polygon by turning each edge into a circular arc.
+// This adapts the logic from the reference script `reuleaux_polygon.jsx`.
+function applyReuleauxToPolygon(pathItem) {
+    try {
+        if (!pathItem || pathItem.typename !== "PathItem") return pathItem;
+        if (!pathItem.pathPoints || pathItem.pathPoints.length < 3) return pathItem;
+        var pts = pathItem.pathPoints;
+        var numPts = pts.length;
+        if (numPts % 2 === 0) return pathItem; // odd only
+
+        // Cache anchor coordinates
+        var p = [];
+        for (var i = 0; i < numPts; i++) {
+            p.push([pts[i].anchor[0], pts[i].anchor[1]]);
+        }
+
+        for (var i = 0; i < numPts; i++) {
+            var idx1 = i;                   // start
+            var idx2 = (i + 1) % numPts;    // end
+
+            // Opposite vertex is the arc center for odd polygons
+            var idxCenter = (i + Math.floor((numPts + 1) / 2)) % numPts;
+
+            var P1 = p[idx1];
+            var P2 = p[idx2];
+            var P0 = p[idxCenter];
+
+            // Vectors from center to endpoints
+            var V1 = [P1[0] - P0[0], P1[1] - P0[1]];
+            var V2 = [P2[0] - P0[0], P2[1] - P0[1]];
+
+            // Cross product for direction (CW/CCW)
+            var Z = V1[0] * V2[1] - V1[1] * V2[0];
+
+            // Radii
+            var R1 = Math.sqrt(V1[0] * V1[0] + V1[1] * V1[1]);
+            var R2 = Math.sqrt(V2[0] * V2[0] + V2[1] * V2[1]);
+            if (R1 === 0 || R2 === 0) continue;
+            var R = (R1 + R2) / 2;
+
+            // Angle between vectors
+            var dot = V1[0] * V2[0] + V1[1] * V2[1];
+            var cosTheta = dot / (R1 * R2);
+            if (cosTheta < -1) cosTheta = -1;
+            if (cosTheta > 1) cosTheta = 1;
+            var deltaTheta = Math.acos(cosTheta);
+
+            // Handle length: L = R * (4/3) * tan(theta/4)
+            var L = R * (4 / 3) * Math.tan(deltaTheta / 4);
+
+            // Tangent vectors
+            var T1, T2;
+            if (Z > 0) { // CCW
+                T1 = [-V1[1], V1[0]];
+                T2 = [V2[1], -V2[0]];
+            } else {     // CW
+                T1 = [V1[1], -V1[0]];
+                T2 = [-V2[1], V2[0]];
+            }
+
+            var lenT1 = Math.sqrt(T1[0] * T1[0] + T1[1] * T1[1]);
+            var lenT2 = Math.sqrt(T2[0] * T2[0] + T2[1] * T2[1]);
+            if (lenT1 === 0 || lenT2 === 0) continue;
+
+            // Handle endpoints
+            var rightDir = [P1[0] + L * T1[0] / lenT1, P1[1] + L * T1[1] / lenT1];
+            var leftDir = [P2[0] + L * T2[0] / lenT2, P2[1] + L * T2[1] / lenT2];
+
+            // Apply handles
+            pts[idx1].rightDirection = rightDir;
+            pts[idx2].leftDirection = leftDir;
+
+            // Corner points to keep handles independent
+            pts[idx1].pointType = PointType.CORNER;
+            pts[idx2].pointType = PointType.CORNER;
+        }
+
+        pathItem.closed = true;
+    } catch (e) {
+        // ignore
+    }
+
+    return pathItem;
+}
+
 // Get selected side count from radio buttons or custom input
 function getSelectedSideValue(radios, input) {
     for (var i = 0; i < radios.length; i++) {
@@ -358,7 +452,7 @@ function finalizeShape(doc) {
 }
 
 // Create shape based on parameters
-function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, circleAnchorCount) {
+function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, circleAnchorCount, useReuleaux) {
     var layer = doc.activeLayer;
     layer.locked = false;
     layer.visible = true;
@@ -394,6 +488,14 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
     var cx = (b[0] + b[2]) / 2;
     var cy = (b[1] + b[3]) / 2;
     shape.translate(center[0] - cx, center[1] - cy);
+
+    // Reuleaux (constant-width) conversion for odd-sided polygons
+    if (useReuleaux && !isStar && sides > 0 && (sides % 2 === 1)) {
+        try {
+            // `polygon(...)` returns a PathItem; convert its edges into arcs.
+            shape = applyReuleauxToPolygon(shape);
+        } catch (e) { }
+    }
 
     if (rotateEnabled && !isNaN(rotateAngle)) {
         shape.rotate(rotateAngle, true, true, true, true, Transformation.CENTER);
@@ -757,6 +859,20 @@ function showInputDialog(unitLabel, unitFactor) {
         }
     }
 
+    function updateReuleauxAvailability(sidesValue) {
+        try {
+            // If Star is ON, skip even/odd rule entirely (Star logic controls state)
+            if (starCheck && starCheck.value) {
+                return;
+            }
+
+            // Reuleaux is available only for odd-numbered polygons (3,5,7,...) and not for Circle (0) or even sides.
+            var enable = (typeof sidesValue === "number") && (sidesValue > 0) && (sidesValue % 2 === 1);
+            reuleauxCheck.enabled = enable;
+            if (!enable) reuleauxCheck.value = false;
+        } catch (e) { }
+    }
+
 
     // Triangle panel placed under the Circle panel
     var trianglePanel = right.add("panel", undefined, LABELS.trianglePanel[lang]);
@@ -769,6 +885,10 @@ function showInputDialog(unitLabel, unitFactor) {
     optionPanel.orientation = "column";
     optionPanel.alignChildren = "left";
     optionPanel.margins = [15, 20, 15, 10];
+
+    // Reuleaux (constant-width shape) (logic TBD)
+    var reuleauxCheck = optionPanel.add("checkbox", undefined, LABELS.reuleaux[lang]);
+    reuleauxCheck.value = false;
 
     // Live shape option moved here
     var liveShapeCheck = optionPanel.add("checkbox", undefined, LABELS.liveShape[lang]);
@@ -892,12 +1012,26 @@ function showInputDialog(unitLabel, unitFactor) {
         starCheck.enabled = true;
         if (!starCheck.value) pentagramCheck.value = false;
         pentagramCheck.enabled = starCheck.value;
+
+        // Reuleaux is not compatible with Star shapes
+        if (starCheck.value) {
+            reuleauxCheck.value = false;
+            reuleauxCheck.enabled = false;
+        }
+
         if (pentagramCheck.value) {
             for (var i = 0; i < 6; i++) radios[i].value = false;
             radios[3].value = true;
             customInput.enabled = false;
             applyAutoRotationForSides(5);
             forceRotateOff();
+        }
+
+        // Fallback: re-enable Reuleaux when Star is OFF (respecting odd-side rule)
+        if (!starCheck.value) {
+            try {
+                updateReuleauxAvailability(getSelectedSideValue(radios, customInput));
+            } catch (e) { }
         }
     }
 
@@ -909,6 +1043,7 @@ function showInputDialog(unitLabel, unitFactor) {
         trianglePanel.enabled = (sides === 3);
         updateCirclePanelEnabled(sides);
         updateStarPanelEnabled(sides);
+        updateReuleauxAvailability(sides);
 
         var size = parseFloat(sizeInput.text) * unitFactor;
         var ratio = parseFloat(innerRatioInput.text);
@@ -918,6 +1053,8 @@ function showInputDialog(unitLabel, unitFactor) {
         var angle = parseFloat(rotateInput.text);
         var splitAtAnchors = splitAtAnchorsCheck.value;
         var superEllipse = superEllipseCheck.value && (sides === 0);
+
+        var reuleaux = reuleauxCheck.value;
 
         // Circle anchor count (effective only for Circle and not when Superellipse is ON)
         var nAnchors = getCircleAnchorCountFromRadios();
@@ -975,7 +1112,8 @@ function showInputDialog(unitLabel, unitFactor) {
             angle: angle,
             splitAtAnchors: splitAtAnchors,
             superEllipse: superEllipse,
-            circleAnchorCount: circleAnchorCount
+            circleAnchorCount: circleAnchorCount,
+            reuleaux: reuleaux
         };
     }
 
@@ -988,13 +1126,16 @@ function showInputDialog(unitLabel, unitFactor) {
         var p = getCurrentParams();
         if (!isNaN(p.size) && !isNaN(p.ratio)) {
             previewMgr.addStep(function () {
-                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse, p.circleAnchorCount);
+                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse, p.circleAnchorCount, p.reuleaux);
             });
         }
     }
 
     // Event bindings
-    starCheck.onClick = updatePreview;
+    starCheck.onClick = function () {
+        validateStarAndPentagram();
+        updatePreview();
+    };
     pentagramCheck.onClick = function () {
         if (pentagramCheck.value) {
             forceRotateOff();
@@ -1026,6 +1167,7 @@ function showInputDialog(unitLabel, unitFactor) {
         updatePreview();
     };
     sizeInput.onChanging = updatePreview;
+    reuleauxCheck.onClick = updatePreview;
     rotateInput.onChanging = updatePreview;
     rotateCheck.onClick = function () {
         rotateInput.enabled = rotateCheck.value;
@@ -1035,7 +1177,10 @@ function showInputDialog(unitLabel, unitFactor) {
         }
         updatePreview();
     };
-    customInput.onChanging = updatePreview;
+    customInput.onChanging = function () {
+        try { updateReuleauxAvailability(getSelectedSideValue(radios, customInput)); } catch (e) { }
+        updatePreview();
+    };
     function onCircleAnchorRadioClick() {
         refreshLiveShapeAvailabilityFromUI();
         updatePreview();
@@ -1059,6 +1204,7 @@ function showInputDialog(unitLabel, unitFactor) {
                 }
                 // When sides change, update rotation value even if Rotate is ON
                 try { applyAutoRotationForSides(getSelectedSideValue(radios, customInput)); } catch (e) { }
+                try { updateReuleauxAvailability(getSelectedSideValue(radios, customInput)); } catch (e) { }
                 refreshLiveShapeAvailabilityFromUI();
                 updatePreview();
             };
@@ -1114,7 +1260,9 @@ function showInputDialog(unitLabel, unitFactor) {
         }
 
         // Options
-        if (typeof st.splitAtAnchorsCheck === "boolean") splitAtAnchorsCheck.value = st.splitAtAnchorsCheck;
+        // Always start with Split-at-Anchors OFF on dialog open (do not restore this from session state)
+        splitAtAnchorsCheck.value = false;
+        if (typeof st.reuleauxCheck === "boolean") reuleauxCheck.value = st.reuleauxCheck;
         if (typeof st.liveShapeCheck === "boolean") liveShapeCheck.value = st.liveShapeCheck;
 
         // Enforce split/live-shape dependency (+ Superellipse / custom anchors)
@@ -1157,6 +1305,7 @@ function showInputDialog(unitLabel, unitFactor) {
         // Update panel enabled states based on current selection
         try { updateCirclePanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
         try { updateStarPanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
+        try { updateReuleauxAvailability(getSelectedSideValue(radios, customInput)); } catch (e) { }
     }
 
     function saveStateFromUI(st) {
@@ -1184,8 +1333,11 @@ function showInputDialog(unitLabel, unitFactor) {
         st.triangleDir = triangleRightRadio.value ? "right" : (triangleLeftRadio.value ? "left" : "down");
 
         // Options
+        // This option is always reset to OFF on next open, but we still save the current value for the current session run
         st.splitAtAnchorsCheck = splitAtAnchorsCheck.value;
         st.liveShapeCheck = liveShapeCheck.value;
+
+        st.reuleauxCheck = reuleauxCheck.value;
     }
 
     // Apply restored state now (before first preview)
@@ -1208,9 +1360,13 @@ function showInputDialog(unitLabel, unitFactor) {
     dlg.onShow = function () {
         // Apply opacity first (some environments may ignore this property)
         setDialogOpacity(dlg, dialogOpacity);
+        // Always start with Split-at-Anchors OFF each time the dialog opens
+        try { splitAtAnchorsCheck.value = false; } catch (_) { }
+        try { refreshLiveShapeAvailabilityFromUI(); } catch (_) { }
 
         try { updateCirclePanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
         try { updateStarPanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
+        try { updateReuleauxAvailability(getSelectedSideValue(radios, customInput)); } catch (e) { }
         updatePreview();
         dlg.center();
         shiftDialogPosition(dlg, offsetX, offsetY);
@@ -1281,7 +1437,7 @@ function showInputDialog(unitLabel, unitFactor) {
         previewMgr.confirm(function () {
             if (!pFinal) return;
             if (isNaN(pFinal.size) || isNaN(pFinal.ratio)) return;
-            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse, pFinal.circleAnchorCount);
+            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse, pFinal.circleAnchorCount, pFinal.reuleaux);
         });
     }
 
