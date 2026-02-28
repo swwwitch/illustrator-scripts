@@ -13,7 +13,7 @@ SplitBackgroundForTwo
 2つのオブジェクト（テキスト、パス、グループなど）を選択して実行すると、各オブジェクトの背面に2分割の背景を作成します。
 ダイアログで［方向］（左右／上下）を切り替えることで、左右2分割（Left/Right）だけでなく上下2分割（Top/Bottom）にも対応します。
 実行時にサイズ倍率（%）を指定するダイアログが表示され、閉じる前にプレビューを確認できます（デフォルトは200%）。
-プレビューは常に直前の1回分だけが残るように履歴を管理し、［OK］時に図形や線が二重に作成されないようにします。
+プレビューは専用レイヤーに描画して差し替え、［OK］時に図形や線が二重に作成されないようにします。
 
 分割の基準となるギャップは、2つのオブジェクト間の「隙間」を基準に計算されます。
 ［バランス］パネルで「なし／左／右（上下モード時は なし／上／下）」を選択すると、
@@ -40,10 +40,11 @@ SplitBackgroundForTwo
 - v2.6 (20260126) : PreviewHistory.undo() 後に一時アウトライン生成物が復活するケースを除去（TEMPマーカーを即掃除）。
 - v2.7 (20260228) : プレビュー更新時に直前のプレビューを1回Undoして差し替える方式に変更し、［OK］時に図形や線が二重に生成される問題を修正。
 - v2.8 (20260228) : プレビューのロールバックをUndo依存から、プレビュー印（PREVIEW_NOTE）付きオブジェクトの直接削除方式に変更し、線幅プレビューが更新されない／線がダブる問題を修正。
+- v2.9 (20260228) : プレビュー専用レイヤーに描画してレイヤー単位で掃除する方式に変更し、プレビュー残骸やダブりをさらに抑止。
 */
 
 // --- Version / バージョン ---
-var SCRIPT_VERSION = "v2.8";
+var SCRIPT_VERSION = "v2.9";
 
 // --- Dialog UI prefs / ダイアログUI設定 ---
 var DIALOG_OFFSET_X = 300;
@@ -433,7 +434,61 @@ function saveSessionSettings(s) {
     // --- Preview marker (cleanup) / プレビューマーカー（後片付け） ---
     var PREVIEW_NOTE = "__SplitBackgroundForTwo_PREVIEW__";
 
-    
+    // --- Preview layer (robust preview container) / プレビューレイヤー（堅牢なプレビュー用コンテナ） ---
+    var PREVIEW_LAYER_NAME = "__SplitBackgroundForTwo__PreviewLayer__";
+
+    function findLayerByName(doc, name) {
+        try {
+            for (var i = 0; i < doc.layers.length; i++) {
+                if (doc.layers[i].name === name) return doc.layers[i];
+            }
+        } catch (e) { }
+        return null;
+    }
+
+    function ensurePreviewLayer(doc, layerA, layerB) {
+        var lyr = findLayerByName(doc, PREVIEW_LAYER_NAME);
+        try {
+            if (!lyr) {
+                lyr = doc.layers.add();
+                lyr.name = PREVIEW_LAYER_NAME;
+            }
+
+            // 2レイヤーのうち“背面側”よりさらに背面へ
+            var backmost = getBackmostLayer(doc, layerA, layerB) || layerA || layerB;
+            if (backmost && backmost.isValid) {
+                try { lyr.move(backmost, ElementPlacement.PLACEAFTER); } catch (eMv) { }
+            }
+
+            try { lyr.visible = true; } catch (eV) { }
+            try { lyr.locked = false; } catch (eL) { }
+            try { lyr.printable = true; } catch (eP) { }
+            try { lyr.template = false; } catch (eT) { }
+        } catch (e2) { }
+        return lyr;
+    }
+
+    function clearLayerItems(layer) {
+        if (!layer) return;
+        try { layer.locked = false; } catch (e0) { }
+        try { layer.visible = true; } catch (e1) { }
+        try {
+            for (var i = layer.pageItems.length - 1; i >= 0; i--) {
+                var it = layer.pageItems[i];
+                try { unlockAndShow(it); } catch (eU) { }
+                try { it.remove(); } catch (eR) { }
+            }
+        } catch (eLoop) { }
+    }
+
+    function removePreviewLayerIfExists(doc) {
+        var lyr = findLayerByName(doc, PREVIEW_LAYER_NAME);
+        if (!lyr) return;
+        try {
+            clearLayerItems(lyr);
+            lyr.remove();
+        } catch (e) { }
+    }
 
     /* =========================================
  * PreviewHistory util (extractable)
@@ -510,7 +565,17 @@ function saveSessionSettings(s) {
 
     // Remove current preview objects without touching last* state.
     function clearPreviewItemsOnly(doc) {
+        // Prefer clearing the dedicated preview layer (most robust)
+        try {
+            var lyr = findLayerByName(doc, PREVIEW_LAYER_NAME);
+            if (lyr && lyr.isValid) {
+                clearLayerItems(lyr);
+            }
+        } catch (eLy) { }
+
+        // Fallback: remove by PREVIEW_NOTE
         try { removeMarkedPreviewItems(doc); } catch (e0) { }
+
         previewRect1 = null;
         previewRect2 = null;
         previewFrame = null;
@@ -1137,6 +1202,16 @@ function saveSessionSettings(s) {
         try { leftLayer = firstItem.layer; } catch (eLL) { leftLayer = null; }
         try { rightLayer = secondItem.layer; } catch (eRL) { rightLayer = null; }
 
+        var targetLayer = null;
+        try {
+            targetLayer = findLayerByName(doc, PREVIEW_LAYER_NAME);
+            if (!targetLayer || !targetLayer.isValid) {
+                targetLayer = getBackmostLayer(doc, leftLayer, rightLayer) || leftLayer || rightLayer;
+            }
+        } catch (eTL) {
+            targetLayer = getBackmostLayer(doc, leftLayer, rightLayer) || leftLayer || rightLayer;
+        }
+
         var rect1 = null;
         var rect2 = null;
 
@@ -1146,7 +1221,7 @@ function saveSessionSettings(s) {
 
             if (addFillLeft) {
                 // Top
-                rect1 = (leftLayer ? leftLayer.pathItems : doc.pathItems).rectangle(
+                rect1 = (targetLayer ? targetLayer.pathItems : doc.pathItems).rectangle(
                     rectTop,
                     rectLeftStart,
                     rectRightEnd - rectLeftStart,
@@ -1158,7 +1233,7 @@ function saveSessionSettings(s) {
 
             if (addFillRight) {
                 // Bottom
-                rect2 = (rightLayer ? rightLayer.pathItems : doc.pathItems).rectangle(
+                rect2 = (targetLayer ? targetLayer.pathItems : doc.pathItems).rectangle(
                     gapCenter,
                     rectLeftStart,
                     rectRightEnd - rectLeftStart,
@@ -1170,7 +1245,7 @@ function saveSessionSettings(s) {
         } else {
             // Left / Right rectangles
             if (addFillLeft) {
-                rect1 = (leftLayer ? leftLayer.pathItems : doc.pathItems).rectangle(
+                rect1 = (targetLayer ? targetLayer.pathItems : doc.pathItems).rectangle(
                     rectTop,
                     rectLeftStart,
                     gapCenter - rectLeftStart,
@@ -1181,7 +1256,7 @@ function saveSessionSettings(s) {
             }
 
             if (addFillRight) {
-                rect2 = (rightLayer ? rightLayer.pathItems : doc.pathItems).rectangle(
+                rect2 = (targetLayer ? targetLayer.pathItems : doc.pathItems).rectangle(
                     rectTop,
                     gapCenter,
                     rectRightEnd - gapCenter,
@@ -1206,8 +1281,7 @@ function saveSessionSettings(s) {
         var frameRect = null;
         if (addOverallFrame) {
             try {
-                var frameLayer = getBackmostLayer(doc, leftLayer, rightLayer) || leftLayer || rightLayer;
-                frameRect = (frameLayer ? frameLayer.pathItems : doc.pathItems).rectangle(
+                frameRect = (targetLayer ? targetLayer.pathItems : doc.pathItems).rectangle(
                     rectTop,
                     rectLeftStart,
                     rectRightEnd - rectLeftStart,
@@ -1229,8 +1303,7 @@ function saveSessionSettings(s) {
         var dividerLine = null;
         if (addDivider) {
             try {
-                var dividerLayer = getBackmostLayer(doc, leftLayer, rightLayer) || leftLayer || rightLayer;
-                dividerLine = (dividerLayer ? dividerLayer.pathItems : doc.pathItems).add();
+                dividerLine = (targetLayer ? targetLayer.pathItems : doc.pathItems).add();
                 dividerLine.filled = false;
                 dividerLine.stroked = true;
                 dividerLine.strokeWidth = strokeWidthValue;
@@ -1756,6 +1829,7 @@ function saveSessionSettings(s) {
             try { removeMarkedTempItems(doc); } catch (eTmpOK) { }
             clearPreviewItemsOnly(doc);
             try { removeMarkedPreviewItems(doc); } catch (ePrevRmOK) { }
+            try { removePreviewLayerIfExists(doc); } catch (eRmPL_OK) { }
 
             // NOTE: clearPreviewFn() は last* 状態を初期化してしまうため、OK時には呼ばない。
             // プレビュー生成物は undo 済みで存在しないので、参照だけクリアしておく。
@@ -1774,6 +1848,7 @@ function saveSessionSettings(s) {
             try { removeMarkedTempItems(doc); } catch (eTmpCancel) { }
             clearPreviewItemsOnly(doc);
             clearPreviewFn();
+            try { removePreviewLayerIfExists(doc); } catch (eRmPL_Cancel) { }
             persistCurrentUIToSession();
             dlg.close(0);
         };
@@ -1784,6 +1859,7 @@ function saveSessionSettings(s) {
         dlg.onClose = function () {
             try { removeMarkedTempItems(doc); } catch (eTmpClose) { }
             clearPreviewItemsOnly(doc);
+            try { removePreviewLayerIfExists(doc); } catch (eRmPL_Close) { }
             persistCurrentUIToSession();
             return true;
         };
@@ -1803,6 +1879,16 @@ function saveSessionSettings(s) {
         // Always remove previous preview by deleting preview-marked items (do NOT rely on Undo).
         try { removeMarkedTempItems(doc); } catch (eTmp0) { }
         clearPreviewItemsOnly(doc);
+
+        // Create/ensure preview layer and clear it every refresh
+        var previewLayer = null;
+        try {
+            var la = null, lb = null;
+            try { la = itemA.layer; } catch (eLA) { la = null; }
+            try { lb = itemB.layer; } catch (eLB) { lb = null; }
+            previewLayer = ensurePreviewLayer(doc, la, lb);
+            clearLayerItems(previewLayer);
+        } catch (ePL) { previewLayer = null; }
 
         if (!enabled) return;
 
@@ -1868,6 +1954,9 @@ function saveSessionSettings(s) {
     if (previewDivider) unmarkPreview(previewDivider);
 
     doc.selection = null;
+
+    // Remove preview layer if it exists (keep document clean)
+    try { removePreviewLayerIfExists(doc); } catch (eRmPL_Final) { }
 
     // ==============================
     // Round Any Corner / 角丸アルゴリズム（選択アンカーのみ丸める）
