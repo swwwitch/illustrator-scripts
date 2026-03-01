@@ -1,0 +1,1030 @@
+#targetengine "MyScriptEngine"
+#target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
+/*
+SmartShapeMaker.jsx
+
+Illustrator script to create custom shapes from a single dialog (Circle / Polygon / Star / Superellipse).
+Real-time preview, adjustable sides, width, rotation, and options are supported.
+Japanese / English UI.
+
+### 更新日 / Updated:
+- 20260108
+
+Main Features:
+- Specify number of sides (0 = Circle, 3/4/5/6/8, or custom)
+- Circle panel:
+  - Superellipse option (only when sides = 0)
+  - When Superellipse is effective:
+    - Rotate is forced OFF
+    - Live Shape is forced OFF
+- Star panel:
+  - Star option + Pentagram option (automatic inner ratio for pentagram)
+  - Star panel is disabled when sides = 0
+  - When Pentagram is ON, Rotate is forced OFF
+- Triangle direction options (Left / Right / Down) when sides = 3
+- Width (size) input with unit display (moved into the Width panel)
+- Rotation:
+  - Auto angle is used when Rotate is OFF (Circle=45°, Polygon=360/(sides*2))
+  - Rotation value is updated when sides change, even if Rotate is ON
+  - Arrow-key editing supported
+- Dialog opacity and initial position offset (slightly transparent, shifted to the right)
+- Restore last-used dialog values when re-running (kept only during the current Illustrator session)
+- Preview does not pollute Undo history; final result can be undone in a single step
+- Options:
+  - Live Shape conversion (Convert to Shape) on finalize
+  - Split at Anchor Points:
+    split the created path into open segments (stroke: black 0.3pt, RGB/CMYK supported),
+    and automatically disables Live Shape (dimmed)
+
+Keyboard Shortcuts:
+- E : Circle (0)
+- A : Toggle Rotate
+- S : Toggle Star
+- P : Toggle Pentagram
+- L : Triangle Left (also sets sides = 3)
+- R : Triangle Right (also sets sides = 3)
+- B : Triangle Down (also sets sides = 3)
+- D : Toggle Split at Anchor Points
+
+Usage Flow:
+1. Set sides, width, star/circle options, rotation, and options in the dialog
+2. Preview updates in real-time
+3. Click OK to finalize the preview object at the artboard center
+
+Original Idea: Seiji Miyazawa (Sankai Lab)
+Version: v1.3 (20260108)
+*/
+
+// Language detection
+function getCurrentLang() {
+    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+}
+var lang = getCurrentLang();
+
+var LABELS = {
+    dialogTitle: { ja: "図形の作成 v1.3", en: "Create Shape v1.3" },
+    shapeType: { ja: "辺の数", en: "Sides" },
+    circle: { ja: "円", en: "Circle" },
+    custom: { ja: "それ以外", en: "Other" },
+    starPanel: { ja: "スター", en: "Star" },
+    circlePanel: { ja: "円", en: "Circle" },
+    superEllipse: { ja: "スーパー楕円", en: "Superellipse" },
+    trianglePanel: { ja: "三角形", en: "Triangle" },
+    triangleRight: { ja: "右", en: "Right" },
+    triangleLeft: { ja: "左", en: "Left" },
+    triangleDown: { ja: "下", en: "Down" },
+    star: { ja: "スター", en: "Star" },
+    innerRadius: { ja: "第2半径：", en: "Inner Radius:" },
+    percent: { ja: "%", en: "%" },
+    pentagram: { ja: "五芒星", en: "Pentagram" },
+    rotation: { ja: "回転", en: "Rotate" },
+    width: { ja: "幅：", en: "Width:" },
+    widthPanel: { ja: "幅", en: "Width" },
+    optionPanel: { ja: "オプション", en: "Options" },
+    splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
+    liveShape: { ja: "ライブシェイプ化", en: "Live Shape" },
+    ok: { ja: "OK", en: "OK" },
+    cancel: { ja: "キャンセル", en: "Cancel" }
+};
+
+var previewShape = null;
+var applyLiveShape = true;
+
+// Session-only dialog state (kept only while Illustrator is running)
+// Uses the persistent engine specified by #targetengine
+var SESSION_STATE_KEY = "__SmartShapeMaker_State__";
+if (!$.global[SESSION_STATE_KEY]) {
+    $.global[SESSION_STATE_KEY] = {};
+}
+function getSessionState() {
+    return $.global[SESSION_STATE_KEY];
+}
+
+function main() {
+    if (app.documents.length === 0) return;
+    var doc = app.activeDocument;
+    var unit = getRulerUnitInfo();
+    var result = showInputDialog(unit.label, unit.factor);
+    if (!result) return;
+    finalizeShape(doc);
+    if (applyLiveShape) app.executeMenuCommand('Convert to Shape');
+}
+
+// Preview / Undo manager
+// - rollback(): undo all preview operations
+// - confirm(finalAction): rollback previews, then apply the final action once
+function PreviewManager() {
+    this.undoDepth = 0;
+
+    this.addStep = function (func) {
+        try {
+            func();
+            this.undoDepth++;
+            app.redraw();
+        } catch (e) {
+            alert("Preview Error: " + e);
+        }
+    };
+
+    this.rollback = function () {
+        while (this.undoDepth > 0) {
+            try { app.undo(); } catch (e) { break; }
+            this.undoDepth--;
+        }
+        try { app.redraw(); } catch (e) { }
+    };
+
+    this.confirm = function (finalAction) {
+        if (finalAction) {
+            this.rollback();
+            try { finalAction(); } catch (e) { alert("Final Error: " + e); }
+            this.undoDepth = 0;
+        } else {
+            this.undoDepth = 0;
+        }
+    };
+}
+
+// Adjust value with arrow keys (Up/Down)
+function changeValueByArrowKey(editText) {
+    editText.addEventListener("keydown", function (event) {
+        var value = Number(editText.text);
+        if (isNaN(value)) return;
+        var keyboard = ScriptUI.environment.keyboardState;
+        var delta = keyboard.shiftKey ? 10 : 1;
+        if (event.keyName == "Up") {
+            value += delta;
+            event.preventDefault();
+        } else if (event.keyName == "Down") {
+            value -= delta;
+            event.preventDefault();
+        }
+        editText.text = value;
+
+        // If an onChanging handler exists (used for preview), invoke it so arrow-key edits update the preview.
+        if (typeof editText.onChanging === "function") {
+            try { editText.onChanging(); } catch (e) { }
+        }
+    });
+}
+
+// Get ruler unit label and factor for conversion
+function getRulerUnitInfo() {
+    var t = app.preferences.getIntegerPreference("rulerType");
+    var u = { label: "pt", factor: 1.0 };
+    if (t === 0) u = { label: "inch", factor: 72.0 };
+    else if (t === 1) u = { label: "mm", factor: 72.0 / 25.4 };
+    else if (t === 3) u = { label: "pica", factor: 12.0 };
+    else if (t === 4) u = { label: "cm", factor: 72.0 / 2.54 };
+    else if (t === 5) u = { label: "Q", factor: 72.0 / 25.4 * 0.25 };
+    else if (t === 6) u = { label: "px", factor: 1.0 };
+    return u;
+}
+
+// Format angle display with up to 3 decimals or integer
+function formatAngle(value) {
+    var rounded = Math.round(value * 1000) / 1000;
+    return (rounded % 1 === 0) ? String(Math.round(rounded)) : String(rounded);
+}
+
+// Math helper
+function sign(x) {
+    return ((x > 0) - (x < 0)) || +x;
+}
+
+// Create a Superellipse path (rounded-rectangle like circle variant)
+// Based on the reference superellipse script: sample points + smoothing handles.
+function createSuperellipsePath(doc, sizePt, exponent, numPoints) {
+    exponent = (typeof exponent === 'number' && exponent > 0) ? exponent : 2.5;
+    numPoints = (typeof numPoints === 'number' && numPoints >= 8) ? Math.round(numPoints) : 8;
+
+    var layer = doc.activeLayer;
+    layer.locked = false;
+    layer.visible = true;
+
+    var center = doc.activeView.centerPoint;
+    var cx = center[0];
+    var cy = center[1];
+
+    var w = sizePt;
+    var h = sizePt;
+
+    var TWO_PI = Math.PI * 2;
+    var anchors = [];
+    for (var i = 0; i < numPoints; i++) {
+        var theta = (TWO_PI * i) / numPoints;
+        var cosT = Math.cos(theta);
+        var sinT = Math.sin(theta);
+        var x = Math.pow(Math.abs(cosT), 2 / exponent) * (w / 2) * sign(cosT);
+        var y = Math.pow(Math.abs(sinT), 2 / exponent) * (h / 2) * sign(sinT);
+        anchors.push([x + cx, y + cy]);
+    }
+
+    var pathItem = layer.pathItems.add();
+    pathItem.setEntirePath(anchors);
+    pathItem.closed = true;
+
+    // Smooth handles
+    try {
+        var pts = pathItem.pathPoints;
+        var n = pts.length;
+        if (n >= 4) {
+            for (var k = 0; k < n; k++) {
+                var prev = anchors[(k - 1 + n) % n];
+                var cur = anchors[k];
+                var next = anchors[(k + 1) % n];
+
+                // Tangent vector (next - prev)
+                var tx = next[0] - prev[0];
+                var ty = next[1] - prev[1];
+                var tlen = Math.sqrt(tx * tx + ty * ty);
+                if (tlen === 0) continue;
+                tx /= tlen;
+                ty /= tlen;
+
+                // Segment lengths
+                var d1x = cur[0] - prev[0];
+                var d1y = cur[1] - prev[1];
+                var d2x = next[0] - cur[0];
+                var d2y = next[1] - cur[1];
+                var d1 = Math.sqrt(d1x * d1x + d1y * d1y);
+                var d2 = Math.sqrt(d2x * d2x + d2y * d2y);
+
+                var hlen = Math.min(d1, d2) * 0.35;
+                var left = [cur[0] - tx * hlen, cur[1] - ty * hlen];
+                var right = [cur[0] + tx * hlen, cur[1] + ty * hlen];
+
+                pts[k].anchor = cur;
+                pts[k].leftDirection = left;
+                pts[k].rightDirection = right;
+                pts[k].pointType = PointType.SMOOTH;
+            }
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    // Appearance (match existing createShape defaults)
+    pathItem.filled = true;
+    pathItem.fillColor = doc.defaultFillColor;
+    pathItem.stroked = false;
+
+    return pathItem;
+}
+
+// Get selected side count from radio buttons or custom input
+function getSelectedSideValue(radios, input) {
+    for (var i = 0; i < radios.length; i++) {
+        if (radios[i].value) {
+            return (i === 6) ? parseInt(input.text, 10) : [0, 3, 4, 5, 6, 8][i];
+        }
+    }
+    return 4;
+}
+
+// Finalize shape selection and clear preview reference
+function finalizeShape(doc) {
+    if (!previewShape) return;
+    doc.selection = [previewShape];
+    previewShape = null;
+}
+
+// Create shape based on parameters
+function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse) {
+    var layer = doc.activeLayer;
+    layer.locked = false;
+    layer.visible = true;
+    var center = doc.activeView.centerPoint;
+    var radius = sizePt / 2;
+    var innerRadius = radius * (innerRatio / 100);
+    var shape;
+
+    if (sides === 0) {
+        if (useSuperEllipse) {
+            shape = createSuperellipsePath(doc, sizePt, 2.5, 8);
+        } else {
+            shape = layer.pathItems.ellipse(center[1] + radius, center[0] - radius, sizePt, sizePt);
+        }
+    } else if (isStar) {
+        shape = doc.pathItems.star(center[0], center[1], radius, innerRadius, sides);
+    } else {
+        shape = doc.pathItems.polygon(center[1], center[0], radius, sides);
+    }
+
+    shape.filled = true;
+    shape.fillColor = doc.defaultFillColor;
+    shape.stroked = false;
+
+    var b = shape.geometricBounds;
+    var cx = (b[0] + b[2]) / 2;
+    var cy = (b[1] + b[3]) / 2;
+    shape.translate(center[0] - cx, center[1] - cy);
+
+    if (rotateEnabled && !isNaN(rotateAngle)) {
+        shape.rotate(rotateAngle, true, true, true, true, Transformation.CENTER);
+    }
+    if (splitAtAnchors) {
+        shape = splitPathAtAnchors(doc, shape);
+    }
+    doc.selection = [shape];
+    return shape;
+}
+
+// Split a path into segments at each anchor point.
+// Returns a GroupItem containing open PathItems (one per segment).
+function splitPathAtAnchors(doc, pathItem) {
+    if (!pathItem || !pathItem.pathPoints || pathItem.pathPoints.length < 2) return pathItem;
+
+    var layer = doc.activeLayer;
+    var group = layer.groupItems.add();
+
+    var pts = pathItem.pathPoints;
+    var n = pts.length;
+    var closed = pathItem.closed;
+
+    for (var i = 0; i < n; i++) {
+        var j = i + 1;
+        if (j >= n) {
+            if (!closed) break;
+            j = 0;
+        }
+
+        var p0 = pts[i];
+        var p1 = pts[j];
+
+        // Create an open path for this segment
+        var seg = group.pathItems.add();
+        seg.closed = false;
+
+        // Set anchors first
+        seg.setEntirePath([p0.anchor, p1.anchor]);
+
+        // Copy bezier handles for the segment
+        // For an open 2-point path: p0 uses rightDirection, p1 uses leftDirection.
+        seg.pathPoints[0].leftDirection = p0.anchor;
+        seg.pathPoints[0].rightDirection = p0.rightDirection;
+        seg.pathPoints[0].pointType = p0.pointType;
+
+        seg.pathPoints[1].leftDirection = p1.leftDirection;
+        seg.pathPoints[1].rightDirection = p1.anchor;
+        seg.pathPoints[1].pointType = p1.pointType;
+
+        // Appearance: segments should be stroked (fill doesn't make sense for open paths)
+        seg.filled = false;
+        seg.stroked = true;
+
+        // Stroke: black, 0.3pt (RGB / CMYK supported)
+        try {
+            var color;
+            if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
+                color = new CMYKColor();
+                color.cyan = 0; color.magenta = 0; color.yellow = 0; color.black = 100;
+            } else {
+                color = new RGBColor();
+                color.red = 0; color.green = 0; color.blue = 0;
+            }
+            seg.strokeColor = color;
+        } catch (e) { }
+        try { seg.strokeWidth = 0.3; } catch (e) { }
+    }
+
+    // Remove original path
+    try { pathItem.remove(); } catch (e) { }
+
+    return group;
+}
+
+// Show input dialog and handle UI and events
+function showInputDialog(unitLabel, unitFactor) {
+    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
+    var previewMgr = new PreviewManager();
+    // Dialog appearance (opacity) and initial position offset
+    var offsetX = 300;
+    var offsetY = 0;
+    var dialogOpacity = 0.98;
+
+    function shiftDialogPosition(targetDlg, dx, dy) {
+        try {
+            var currentX = targetDlg.location[0];
+            var currentY = targetDlg.location[1];
+            targetDlg.location = [currentX + dx, currentY + dy];
+        } catch (e) { }
+    }
+
+    function setDialogOpacity(targetDlg, opacityValue) {
+        try {
+            targetDlg.opacity = opacityValue;
+        } catch (e) { }
+    }
+    // Keyboard shortcuts
+    dlg.addEventListener("keydown", function (e) {
+        if (!e || !e.keyName) return;
+
+        switch (e.keyName.toUpperCase()) {
+
+            case "E":
+                // 0 sides (Circle)
+                for (var i = 0; i < radios.length; i++) radios[i].value = false;
+                radios[0].value = true;
+                customInput.enabled = false;
+                applyAutoRotationForSides(0);
+                updatePreview();
+                e.preventDefault();
+                break;
+
+            // Triangle directions and split toggle (inserted here)
+            case "L":
+                // Triangle Left
+                for (var i = 0; i < radios.length; i++) radios[i].value = false;
+                radios[1].value = true; // sides = 3
+                customInput.enabled = false;
+                applyAutoRotationForSides(3);
+                triangleLeftRadio.value = true;
+                onTriangleDirectionChange();
+                e.preventDefault();
+                break;
+
+            case "R":
+                // Triangle Right
+                for (var i = 0; i < radios.length; i++) radios[i].value = false;
+                radios[1].value = true; // sides = 3
+                customInput.enabled = false;
+                applyAutoRotationForSides(3);
+                triangleRightRadio.value = true;
+                onTriangleDirectionChange();
+                e.preventDefault();
+                break;
+
+            case "B":
+                // Triangle Down (Bottom)
+                for (var i = 0; i < radios.length; i++) radios[i].value = false;
+                radios[1].value = true; // sides = 3
+                customInput.enabled = false;
+                applyAutoRotationForSides(3);
+                triangleDownRadio.value = true;
+                onTriangleDirectionChange();
+                e.preventDefault();
+                break;
+
+            case "D":
+                // Toggle Split at Anchor Points
+                splitAtAnchorsCheck.value = !splitAtAnchorsCheck.value;
+                if (typeof splitAtAnchorsCheck.onClick === "function") {
+                    splitAtAnchorsCheck.onClick();
+                } else {
+                    updatePreview();
+                }
+                e.preventDefault();
+                break;
+
+            case "A":
+                // Rotate toggle
+                rotateCheck.value = !rotateCheck.value;
+                rotateInput.enabled = rotateCheck.value;
+                rotateLabel.enabled = rotateCheck.value;
+                updatePreview();
+                e.preventDefault();
+                break;
+
+            case "S":
+                // Star toggle
+                starCheck.value = !starCheck.value;
+                if (!starCheck.value) {
+                    pentagramCheck.value = false;
+                }
+                updatePreview();
+                e.preventDefault();
+                break;
+
+            case "P":
+                // Pentagram toggle (only when Star is enabled)
+                if (!starCheck.value) {
+                    starCheck.value = true;
+                }
+                pentagramCheck.value = !pentagramCheck.value;
+                updatePreview();
+                e.preventDefault();
+                break;
+        }
+    });
+    dlg.orientation = "column";
+    dlg.alignChildren = "fill";
+
+    var radios = [], customInput;
+    var main = dlg.add("group");
+    main.orientation = "row";
+
+    // Left column container (panel + rotation row)
+    var leftCol = main.add("group");
+    leftCol.orientation = "column";
+    leftCol.alignChildren = "fill";
+    leftCol.alignment = "top";
+
+    var left = leftCol.add("panel", undefined, LABELS.shapeType[lang]);
+    left.orientation = "column";
+    left.alignChildren = "left";
+    left.margins = [20, 20, 10, 10];
+
+    radios[0] = left.add("radiobutton", undefined, "0 (" + LABELS.circle[lang] + ")");
+    radios[1] = left.add("radiobutton", undefined, "3");
+    radios[2] = left.add("radiobutton", undefined, "4");
+    radios[3] = left.add("radiobutton", undefined, "5");
+    radios[4] = left.add("radiobutton", undefined, "6");
+    radios[5] = left.add("radiobutton", undefined, "8");
+
+    var customGroup = left.add("group");
+    radios[6] = customGroup.add("radiobutton", undefined, LABELS.custom[lang]);
+    customInput = customGroup.add("edittext", undefined, "12");
+    customInput.characters = 3;
+    customInput.enabled = false;
+    changeValueByArrowKey(customInput);
+    radios[2].value = true;
+
+    // Rotation panel placed under the sides panel (left column)
+    var rotatePanel = leftCol.add("group");
+    rotatePanel.orientation = "row";
+    rotatePanel.alignChildren = "center";
+    rotatePanel.alignment = "center";
+    rotatePanel.margins = [0, 6, 0, 0];
+
+    var rotateCheck = rotatePanel.add("checkbox", undefined, LABELS.rotation[lang]);
+    var rotateInput = rotatePanel.add("edittext", undefined, "90");
+    rotateInput.characters = 4;
+    changeValueByArrowKey(rotateInput);
+    var rotateLabel = rotatePanel.add("statictext", undefined, "°");
+    // Initial state: manual rotation only when checked
+    rotateInput.enabled = rotateCheck.value;
+    rotateLabel.enabled = rotateCheck.value;
+
+    // Width panel placed under the rotation row (left column)
+    var widthPanel = leftCol.add("panel", undefined, LABELS.widthPanel[lang]);
+    widthPanel.orientation = "column";
+    widthPanel.alignChildren = "left";
+    widthPanel.margins = [15, 20, 15, 10];
+
+    // Width input moved from bottom area into this panel
+    var widthRow = widthPanel.add("group");
+    widthRow.orientation = "row";
+    widthRow.alignChildren = ["left", "center"];
+
+    // widthRow.add("statictext", undefined, LABELS.width[lang]);
+    var sizeInput = widthRow.add("edittext", undefined, "100");
+    sizeInput.characters = 5;
+    changeValueByArrowKey(sizeInput);
+    widthRow.add("statictext", undefined, "(" + unitLabel + ")");
+
+    // Right column container
+    var right = main.add("group");
+    right.orientation = "column";
+    right.alignChildren = "fill";
+    right.alignment = "top";
+
+    // Star panel
+    var starPanel = right.add("panel", undefined, LABELS.starPanel[lang]);
+    starPanel.orientation = "column";
+    starPanel.alignChildren = "left";
+    starPanel.margins = [20, 20, 10, 10];
+
+    var starCheck = starPanel.add("checkbox", undefined, LABELS.star[lang]);
+
+    var innerGroup = starPanel.add("group");
+    innerGroup.add("statictext", undefined, LABELS.innerRadius[lang]);
+    var innerRatioInput = innerGroup.add("edittext", undefined, "30");
+    innerRatioInput.characters = 4;
+    changeValueByArrowKey(innerRatioInput);
+    innerGroup.add("statictext", undefined, LABELS.percent[lang]);
+
+    var pentagramCheck = starPanel.add("checkbox", undefined, LABELS.pentagram[lang]);
+    pentagramCheck.value = false;
+
+    // Circle options panel placed under the Star panel
+    var circlePanel = right.add("panel", undefined, LABELS.circlePanel[lang]);
+    circlePanel.orientation = "column";
+    circlePanel.alignChildren = "left";
+    circlePanel.margins = [15, 20, 15, 10];
+
+    var superEllipseCheck = circlePanel.add("checkbox", undefined, LABELS.superEllipse[lang]);
+    superEllipseCheck.value = false;
+
+
+    function updateCirclePanelEnabled(sidesValue) {
+        circlePanel.enabled = (sidesValue === 0);
+    }
+
+    function updateStarPanelEnabled(sidesValue) {
+        // Star options are not applicable for Circle (sides=0)
+        var enableStar = (sidesValue !== 0);
+        starPanel.enabled = enableStar;
+        if (!enableStar) {
+            // Clear star-related options when the panel is disabled
+            starCheck.value = false;
+            pentagramCheck.value = false;
+            pentagramCheck.enabled = false;
+        }
+    }
+
+
+    // Triangle panel placed under the Circle panel
+    var trianglePanel = right.add("panel", undefined, LABELS.trianglePanel[lang]);
+    trianglePanel.orientation = "column";
+    trianglePanel.alignChildren = "left";
+    trianglePanel.margins = [15, 20, 15, 10];
+
+    // Options panel placed under the Triangle panel
+    var optionPanel = right.add("panel", undefined, LABELS.optionPanel[lang]);
+    optionPanel.orientation = "column";
+    optionPanel.alignChildren = "left";
+    optionPanel.margins = [15, 20, 15, 10];
+
+    // Live shape option moved here
+    var liveShapeCheck = optionPanel.add("checkbox", undefined, LABELS.liveShape[lang]);
+    liveShapeCheck.value = true;
+
+    // Split at anchor points
+    var splitAtAnchorsCheck = optionPanel.add("checkbox", undefined, LABELS.splitAtAnchors[lang]);
+    splitAtAnchorsCheck.value = false;
+
+    function updateLiveShapeAvailability(isSplit, isSuperEllipseEffective) {
+        if (isSplit || isSuperEllipseEffective) {
+            liveShapeCheck.value = false;
+            liveShapeCheck.enabled = false;
+        } else {
+            liveShapeCheck.enabled = true;
+        }
+    }
+
+    // Update rotation input to the "auto" value used when Rotate is OFF.
+    // This is used when the number of sides changes, even if Rotate is ON.
+    function applyAutoRotationForSides(sidesValue) {
+        var angle;
+        if (sidesValue === 0) {
+            angle = 45;
+        } else if (sidesValue >= 3) {
+            angle = 360 / (sidesValue * 2);
+        } else {
+            return;
+        }
+        rotateInput.text = formatAngle(angle);
+    }
+
+    function forceRotateOff() {
+        rotateCheck.value = false;
+        rotateInput.enabled = false;
+        rotateLabel.enabled = false;
+    }
+
+    splitAtAnchorsCheck.onClick = function () {
+        updateLiveShapeAvailability(splitAtAnchorsCheck.value, false);
+        updatePreview();
+    };
+
+    var triangleRow = trianglePanel.add("group");
+    triangleRow.orientation = "row";
+    triangleRow.alignChildren = ["left", "center"];
+    triangleRow.spacing = 10;
+
+    var triangleRightRadio = triangleRow.add("radiobutton", undefined, LABELS.triangleRight[lang]);
+    var triangleLeftRadio = triangleRow.add("radiobutton", undefined, LABELS.triangleLeft[lang]);
+    var triangleDownRadio = triangleRow.add("radiobutton", undefined, LABELS.triangleDown[lang]);
+    triangleRightRadio.value = true;
+
+    function onTriangleDirectionChange() {
+        // Ensure rotation is enabled when changing triangle direction
+        rotateCheck.value = true;
+        rotateInput.enabled = true;
+        rotateLabel.enabled = true;
+        updatePreview();
+    }
+
+    triangleRightRadio.onClick = onTriangleDirectionChange;
+    triangleLeftRadio.onClick = onTriangleDirectionChange;
+    triangleDownRadio.onClick = onTriangleDirectionChange;
+
+
+
+    // Enable/disable star and pentagram options
+    function validateStarAndPentagram() {
+        // If Star panel is disabled (Circle), force star options off
+        if (!starPanel.enabled) {
+            starCheck.enabled = false;
+            starCheck.value = false;
+            pentagramCheck.value = false;
+            pentagramCheck.enabled = false;
+            return;
+        }
+
+        starCheck.enabled = true;
+        if (!starCheck.value) pentagramCheck.value = false;
+        pentagramCheck.enabled = starCheck.value;
+        if (pentagramCheck.value) {
+            for (var i = 0; i < 6; i++) radios[i].value = false;
+            radios[3].value = true;
+            customInput.enabled = false;
+            applyAutoRotationForSides(5);
+            forceRotateOff();
+        }
+    }
+
+    // Build current parameters from UI (used for preview and final)
+    function getCurrentParams() {
+        validateStarAndPentagram();
+
+        var sides = getSelectedSideValue(radios, customInput);
+        trianglePanel.enabled = (sides === 3);
+        updateCirclePanelEnabled(sides);
+        updateStarPanelEnabled(sides);
+
+        var size = parseFloat(sizeInput.text) * unitFactor;
+        var ratio = parseFloat(innerRatioInput.text);
+        var isStar = starCheck.value;
+        var isPenta = pentagramCheck.value;
+        var rotate = rotateCheck.value;
+        var angle = parseFloat(rotateInput.text);
+        var splitAtAnchors = splitAtAnchorsCheck.value;
+        var superEllipse = superEllipseCheck.value && (sides === 0);
+        updateLiveShapeAvailability(splitAtAnchors, superEllipse);
+
+        // Superellipse (Circle) forces Rotate OFF
+        if (superEllipse) {
+            forceRotateOff();
+        }
+
+        // Auto-rotation only when Rotate is OFF (manual mode keeps user-entered angle)
+        if (!rotate) {
+            if (sides === 0) {
+                angle = 45;
+                rotateInput.text = "45";
+            } else if (sides >= 3) {
+                angle = 360 / (sides * 2);
+                rotateInput.text = formatAngle(angle);
+            }
+        }
+
+        // Triangle-specific rotation:
+        // Right = -90°, Left = 90°, Down = 60°
+        if (sides === 3 && trianglePanel.enabled) {
+            if (triangleRightRadio.value) {
+                angle = -90; // swapped
+            } else if (triangleLeftRadio.value) {
+                angle = 90; // swapped
+            } else if (triangleDownRadio.value) {
+                angle = 60;
+            }
+            rotateInput.text = formatAngle(angle);
+        }
+
+        if (isStar && isPenta && sides === 5) {
+            ratio = (3 - Math.sqrt(5)) / 2 * 100;
+            innerRatioInput.text = ratio.toFixed(2);
+        }
+
+        return {
+            size: size,
+            sides: sides,
+            isStar: isStar,
+            ratio: ratio,
+            rotate: rotate,
+            angle: angle,
+            splitAtAnchors: splitAtAnchors,
+            superEllipse: superEllipse
+        };
+    }
+
+    // Update preview shape based on inputs (Undo-safe)
+    function updatePreview() {
+        // Always rollback the previous preview before applying a new one
+        previewMgr.rollback();
+        previewShape = null;
+
+        var p = getCurrentParams();
+        if (!isNaN(p.size) && !isNaN(p.ratio)) {
+            previewMgr.addStep(function () {
+                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse);
+            });
+        }
+    }
+
+    // Event bindings
+    starCheck.onClick = updatePreview;
+    pentagramCheck.onClick = function () {
+        if (pentagramCheck.value) {
+            forceRotateOff();
+        }
+        updatePreview();
+    };
+    superEllipseCheck.onClick = function () {
+        // Superellipse is only effective for Circle (sides=0)
+        var sidesNow = getSelectedSideValue(radios, customInput);
+        if (superEllipseCheck.value && sidesNow === 0) {
+            forceRotateOff();
+        }
+        updatePreview();
+    };
+    innerRatioInput.onChanging = function () {
+        if (pentagramCheck.value) pentagramCheck.value = false;
+        updatePreview();
+    };
+    sizeInput.onChanging = updatePreview;
+    rotateInput.onChanging = updatePreview;
+    rotateCheck.onClick = function () {
+        rotateInput.enabled = rotateCheck.value;
+        rotateLabel.enabled = rotateCheck.value;
+        updatePreview();
+    };
+    customInput.onChanging = updatePreview;
+
+    for (var i = 0; i <= 6; i++) {
+        (function (i) {
+            radios[i].onClick = function () {
+                if (pentagramCheck.value) pentagramCheck.value = false;
+                if (i === 6) {
+                    for (var j = 0; j < 6; j++) radios[j].value = false;
+                    customInput.enabled = true;
+                } else {
+                    radios[6].value = false;
+                    customInput.enabled = false;
+                }
+                // When sides change, update rotation value even if Rotate is ON
+                try { applyAutoRotationForSides(getSelectedSideValue(radios, customInput)); } catch (e) { }
+                updatePreview();
+            };
+        })(i);
+    }
+
+    // Restore / Save UI state (session-only)
+    function applyStateToUI(st) {
+        if (!st) return;
+
+        // Sides selection
+        if (typeof st.selectedSideIndex === "number" && st.selectedSideIndex >= 0 && st.selectedSideIndex < radios.length) {
+            for (var i = 0; i < radios.length; i++) radios[i].value = false;
+            radios[st.selectedSideIndex].value = true;
+            if (st.selectedSideIndex === 6) {
+                customInput.enabled = true;
+                if (typeof st.customSidesText === "string") customInput.text = st.customSidesText;
+            } else {
+                customInput.enabled = false;
+            }
+        }
+
+        // Width
+        if (typeof st.sizeText === "string") sizeInput.text = st.sizeText;
+
+        // Rotation
+        if (typeof st.rotateCheck === "boolean") rotateCheck.value = st.rotateCheck;
+        if (typeof st.rotateText === "string") rotateInput.text = st.rotateText;
+        rotateInput.enabled = rotateCheck.value;
+        rotateLabel.enabled = rotateCheck.value;
+
+        // Star / Pentagram
+        if (typeof st.starCheck === "boolean") starCheck.value = st.starCheck;
+        if (typeof st.pentagramCheck === "boolean") pentagramCheck.value = st.pentagramCheck;
+        if (typeof st.innerRatioText === "string") innerRatioInput.text = st.innerRatioText;
+        if (typeof st.superEllipseCheck === "boolean") superEllipseCheck.value = st.superEllipseCheck;
+        // Triangle direction
+        if (st.triangleDir === "right") {
+            triangleRightRadio.value = true;
+        } else if (st.triangleDir === "left") {
+            triangleLeftRadio.value = true;
+        } else if (st.triangleDir === "down") {
+            triangleDownRadio.value = true;
+        }
+
+        // Options
+        if (typeof st.splitAtAnchorsCheck === "boolean") splitAtAnchorsCheck.value = st.splitAtAnchorsCheck;
+        if (typeof st.liveShapeCheck === "boolean") liveShapeCheck.value = st.liveShapeCheck;
+
+        // Enforce split/live-shape dependency
+        if (splitAtAnchorsCheck.value) {
+            liveShapeCheck.value = false;
+            liveShapeCheck.enabled = false;
+        } else {
+            liveShapeCheck.enabled = true;
+        }
+
+        // Enforce pentagram dependency
+        if (!starCheck.value) pentagramCheck.value = false;
+
+        // If restored state has Pentagram or Superellipse effective, force Rotate OFF
+        try {
+            var sidesNow = getSelectedSideValue(radios, customInput);
+            if (pentagramCheck.value || (superEllipseCheck.value && sidesNow === 0)) {
+                forceRotateOff();
+            }
+        } catch (e) {}
+
+        // Update panel enabled states based on current selection
+        try { updateCirclePanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
+        try { updateStarPanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
+    }
+
+    function saveStateFromUI(st) {
+        if (!st) return;
+
+        // Selected side index
+        var idx = 0;
+        for (var i = 0; i < radios.length; i++) {
+            if (radios[i].value) { idx = i; break; }
+        }
+        st.selectedSideIndex = idx;
+        st.customSidesText = customInput.text;
+
+        // Text values
+        st.sizeText = sizeInput.text;
+        st.rotateCheck = rotateCheck.value;
+        st.rotateText = rotateInput.text;
+        st.starCheck = starCheck.value;
+        st.pentagramCheck = pentagramCheck.value;
+        st.innerRatioText = innerRatioInput.text;
+        st.superEllipseCheck = superEllipseCheck.value;
+
+        // Triangle direction
+        st.triangleDir = triangleRightRadio.value ? "right" : (triangleLeftRadio.value ? "left" : "down");
+
+        // Options
+        st.splitAtAnchorsCheck = splitAtAnchorsCheck.value;
+        st.liveShapeCheck = liveShapeCheck.value;
+    }
+
+    // Apply restored state now (before first preview)
+    try { applyStateToUI(getSessionState()); } catch (e) { }
+
+    // Save state whenever the dialog closes (OK or Cancel)
+    dlg.onClose = function () {
+        // Save UI state
+        try { saveStateFromUI(getSessionState()); } catch (e) { }
+
+        // If cancelled, rollback preview so Undo history stays clean
+        if (!confirmed) {
+            try { previewMgr.rollback(); } catch (e) { }
+            previewShape = null;
+        }
+    };
+
+    dlg.onShow = function () {
+        // Apply opacity first (some environments may ignore this property)
+        setDialogOpacity(dlg, dialogOpacity);
+
+        try { updateCirclePanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
+        try { updateStarPanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
+        updatePreview();
+        dlg.center();
+        shiftDialogPosition(dlg, offsetX, offsetY);
+    };
+
+    var btnArea = dlg.add("group");
+    btnArea.orientation = "row";
+    btnArea.alignChildren = ["center", "center"];
+    btnArea.alignment = "center";
+    btnArea.margins = [0, 10, 0, 0];
+    btnArea.spacing = 10;
+
+    var btnCancel = btnArea.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
+    var btnOK = btnArea.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+
+    var confirmed = false;
+    btnCancel.onClick = function () {
+        // Cancel: rollback preview changes and close
+        try { previewMgr.rollback(); } catch (e) { }
+        previewShape = null;
+        dlg.close();
+    };
+    btnOK.onClick = function () {
+        // Capture current params; final shape will be applied after closing
+        confirmed = true;
+        dlg.close();
+    };
+
+    dlg.show();
+
+    // If OK was pressed, finalize as a single undoable action
+    if (confirmed) {
+        var pFinal;
+        try { pFinal = getCurrentParams(); } catch (e) { pFinal = null; }
+        previewMgr.confirm(function () {
+            if (!pFinal) return;
+            if (isNaN(pFinal.size) || isNaN(pFinal.ratio)) return;
+            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse);
+        });
+    }
+
+    if (!confirmed || !previewShape) {
+        // Ensure no preview changes remain on cancel
+        try { previewMgr.rollback(); } catch (e) { }
+        previewShape = null;
+        return null;
+    }
+
+    applyLiveShape = liveShapeCheck.value;
+
+    return {
+        size: parseFloat(sizeInput.text),
+        sides: getSelectedSideValue(radios, customInput),
+        rotateEnabled: rotateCheck.value,
+        rotateAngle: parseFloat(rotateInput.text)
+    };
+}
+
+main();
