@@ -38,7 +38,7 @@ https://slide-collage.vercel.app/
 // Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -245,6 +245,7 @@ function __SC_setPdfCropPreference(cropVal) {
     }
 }
 
+
 function __SC_isPdfLikeFile(f) {
     try {
         if (!f) return false;
@@ -253,6 +254,42 @@ function __SC_isPdfLikeFile(f) {
     } catch (e) {
         return false;
     }
+}
+
+// =========================================
+// Auto-fit measurement cache (session only)
+// key: fileFsName|cropMode|page
+// value: { w:Number, h:Number }
+// =========================================
+
+function __SC_getAutoFitMeasureCache() {
+    if (!$.global.__SC_autoFitMeasureCache) $.global.__SC_autoFitMeasureCache = {};
+    return $.global.__SC_autoFitMeasureCache;
+}
+
+function __SC_getAutoFitMeasureKey(fileA, cropMode, pageNum) {
+    var p = "";
+    try { p = (fileA && fileA.fsName) ? String(fileA.fsName) : String(fileA); } catch (_) { p = String(fileA); }
+    return p + "|" + String(cropMode) + "|" + String(pageNum);
+}
+
+function __SC_getAutoFitMeasure(fileA, cropMode, pageNum) {
+    try {
+        var box = __SC_getAutoFitMeasureCache();
+        var k = __SC_getAutoFitMeasureKey(fileA, cropMode, pageNum);
+        var v = box[k];
+        if (v && v.w > 0 && v.h > 0) return v;
+    } catch (_) { }
+    return null;
+}
+
+function __SC_setAutoFitMeasure(fileA, cropMode, pageNum, w, h) {
+    try {
+        if (!(w > 0 && h > 0)) return;
+        var box = __SC_getAutoFitMeasureCache();
+        var k = __SC_getAutoFitMeasureKey(fileA, cropMode, pageNum);
+        box[k] = { w: w, h: h };
+    } catch (_) { }
 }
 
 // 入力された文字列（例："1-20", "1,3,5"）を数字の配列に変換する関数
@@ -521,6 +558,79 @@ function main() {
     var fileA = File.openDialog(L("fileDialogTitle"));
     if (!fileA) return;
 
+    // =========================================
+    // Preview/cache declarations (moved to main() early)
+    // =========================================
+
+    // プレビュー用に配置したアイテムを保持する配列
+    var previewItems = [];
+
+    // Preview cache: placed items are created on [読み込み] and reused until next load
+    var __previewCache = {
+        items: [],
+        baseW: [],
+        baseH: [],
+        pagesKey: "",
+        cropMode: null,
+        bgItem: null,
+        group: null,
+        currentRot: 0,
+        randOrder: null,
+        previewWrapped: false,
+        previewRoundRadiusPt: 0
+    };
+
+    function __SC_removeItemSafe(it) {
+        try { if (it) it.remove(); } catch (_) { }
+    }
+
+    function __SC_clearPreviewCache() {
+        // remove group (removes its children automatically)
+        if (__previewCache.group) {
+            __SC_removeItemSafe(__previewCache.group);
+        }
+        __previewCache.group = null;
+        __previewCache.currentRot = 0;
+
+        // clear arrays (items already removed with group)
+        __previewCache.items = [];
+        __previewCache.baseW = [];
+        __previewCache.baseH = [];
+
+        // remove bg
+        __SC_removeItemSafe(__previewCache.bgItem);
+        __previewCache.bgItem = null;
+
+        __previewCache.pagesKey = "";
+        __previewCache.cropMode = null;
+        __previewCache.previewWrapped = false;
+        __previewCache.previewRoundRadiusPt = 0;
+        __previewCache.randOrder = null;
+    }
+    function __SC_shuffleIndexArray(n) {
+        var a = [];
+        for (var i = 0; i < n; i++) a.push(i);
+        for (var j = a.length - 1; j > 0; j--) {
+            var k = Math.floor(Math.random() * (j + 1));
+            var t = a[j];
+            a[j] = a[k];
+            a[k] = t;
+        }
+        return a;
+    }
+
+    function __SC_ensureRandomOrder() {
+        var n = (__previewCache.items) ? __previewCache.items.length : 0;
+        if (n <= 1) { __previewCache.randOrder = null; return; }
+        if (!__previewCache.randOrder || __previewCache.randOrder.length !== n) {
+            __previewCache.randOrder = __SC_shuffleIndexArray(n);
+        }
+    }
+
+    function __SC_clearRandomOrder() {
+        __previewCache.randOrder = null;
+    }
+
     // 2. ダイアログボックスの作成
     var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
     win.alignChildren = "fill";
@@ -603,8 +713,9 @@ function main() {
 
     // デフォルト：仕上がり
     ddCrop.selection = 2;
-    // デフォルトでディム表示
-    ddCrop.enabled = false;
+
+    // PDF のときのみ有効
+    ddCrop.enabled = __SC_isPdfLikeFile(fileA);
 
     function __SC_getCropModeFromUI() {
         var idx = (ddCrop.selection) ? ddCrop.selection.index : 2;
@@ -898,7 +1009,7 @@ function main() {
             var hex = "#" + toHex(c.red) + toHex(c.green) + toHex(c.blue);
             editBgHex.text = hex;
             __SC_updateBgControls();
-            try { requestPreview(); } catch (e) { }
+            try { __SC_updateBgOnly(); } catch (e) { }
         }
     }
 
@@ -1176,21 +1287,31 @@ function main() {
         var abW = inner.w;
         var abH = inner.h;
 
-        var temp = null;
         var w = 0, h = 0;
-        try {
-            if (__SC_isPdfLikeFile(fileA)) {
-                __SC_setPdfCropPreference(__SC_getCropModeFromUI());
+        var pageNum0 = pages[0];
+        var cropMode0 = __SC_getCropModeFromUI();
+
+        var cached = __SC_getAutoFitMeasure(fileA, cropMode0, pageNum0);
+        if (cached) {
+            w = cached.w;
+            h = cached.h;
+        } else {
+            var temp = null;
+            try {
+                if (__SC_isPdfLikeFile(fileA)) {
+                    __SC_setPdfCropPreference(cropMode0);
+                }
+                app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pageNum0);
+                temp = doc.placedItems.add();
+                temp.file = fileA;
+                w = temp.width;
+                h = temp.height;
+            } catch (e) {
+                w = 0; h = 0;
+            } finally {
+                try { if (temp) temp.remove(); } catch (e2) { }
             }
-            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pages[0]);
-            temp = doc.placedItems.add();
-            temp.file = fileA;
-            w = temp.width;
-            h = temp.height;
-        } catch (e) {
-            w = 0; h = 0;
-        } finally {
-            try { if (temp) temp.remove(); } catch (e2) { }
+            __SC_setAutoFitMeasure(fileA, cropMode0, pageNum0, w, h);
         }
 
         if (!(w > 0 && h > 0)) return 100;
@@ -1308,15 +1429,18 @@ function main() {
         lightModeDefault: true
     });
 
-    // ボタン類（左：キャンセル・OK）
+    // ボタン類（左：リセット / 右：キャンセル・OK）
     var groupButtons = win.add("group");
     groupButtons.orientation = "row";
     groupButtons.alignChildren = ["fill", "center"];
 
-    // 左（スペースのみ、ボタンなし）
+    // 左
     var leftBtnGroup = groupButtons.add("group");
     leftBtnGroup.orientation = "row";
     leftBtnGroup.alignChildren = ["left", "center"];
+    var btnReset = leftBtnGroup.add("button", undefined, "リセット");
+    var cbLightPreview = leftBtnGroup.add("checkbox", undefined, "軽量プレビュー");
+    cbLightPreview.value = true;
 
     // 中央スペーサー
     var spacer = groupButtons.add("group");
@@ -1330,10 +1454,496 @@ function main() {
     var btnCancel = rightBtnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
     var btnOk = rightBtnGroup.add("button", undefined, L("ok"), { name: "ok" });
 
-    // プレビュー用に配置したアイテムを保持する配列
-    var previewItems = [];
+    // (Preview/cache declarations moved earlier in main)
+
+    function resetUIToDefaults() {
+        try {
+            // Load
+            // editPages.text = L("defaultPages");
+            cbLightPreview.value = true;
+
+            // Item
+            ddCrop.selection = 2;
+            ddCrop.enabled = __SC_isPdfLikeFile(fileA);
+
+            cbRound.value = false;
+            editRound.text = L("defaultRound");
+            editRound.enabled = cbRound.value;
+
+            // Grid
+            rbDirV.value = true;
+
+            // 列数: 4
+            editCols.text = "4";
+            __SC_syncColsFromEdit();
+
+            editSpacing.text = String(__SC_round(__SC_ptToUnit(DEFAULT_SPACING_PT, rulerUnit.factor), 2));
+            __SC_syncSpacingFromEdit();
+
+            // Even columns
+            cbEvenPlus.value = false;
+
+            // ずらし: OFF
+            cbColShift.value = false;
+            editColShift.text = L("defaultShift");
+            __SC_syncShiftFromEdit();
+            editColShift.enabled = cbColShift.value;
+            sldColShift.enabled = cbColShift.value;
+
+            // Layout
+            editScale.text = L("defaultScale");
+            __SC_syncScaleFromEdit();
+
+            // 回転: OFF
+            cbRotate.value = false;
+            editRotate.text = L("defaultRotate");
+            __SC_syncRotateFromEdit();
+            editRotate.enabled = cbRotate.value;
+            sldRotate.enabled = cbRotate.value;
+
+            // 横方向の位置調整：左右余白が等しくなるよう自動計算
+            cbOffsetY.value = false;
+            sldOffsetY.value = 0;
+            sldOffsetY.enabled = false;
+
+            // default is OFF; we turn ON only if we can compute a sensible center offset
+            cbOffsetX.value = false;
+            sldOffsetX.value = 0;
+            sldOffsetX.enabled = false;
+
+            try {
+                // Compute in pt
+                var pagesForCenter = parsePageNumbers(editPages.text);
+                if (!pagesForCenter || pagesForCenter.length === 0) pagesForCenter = [1];
+
+                var colsForCenter = parseInt(editCols.text, 10);
+                if (isNaN(colsForCenter) || colsForCenter < 1) colsForCenter = 1;
+
+                var spacingU = parseFloat(editSpacing.text);
+                if (isNaN(spacingU) || spacingU < 0) spacingU = 0;
+                var marginU = parseFloat(editMargin.text);
+                if (isNaN(marginU) || marginU < 0) marginU = 0;
+
+                var spacingPt = __SC_unitToPt(spacingU, rulerUnit.factor);
+                var marginPt = __SC_unitToPt(marginU, rulerUnit.factor);
+
+                var cropMode = __SC_getCropModeFromUI();
+
+                // Base auto-fit scale (rotation OFF for reset)
+                var baseScale = __SC_calcAutoScalePctForUI(pagesForCenter, colsForCenter, spacingPt, marginPt, false, 0);
+                var userScale = parseFloat(editScale.text);
+                if (isNaN(userScale) || userScale <= 0) userScale = 100;
+                var finalScale = baseScale * (userScale / 100.0);
+
+                // Measure item width (cache-first)
+                var itemW = 0;
+                try {
+                    if (__previewCache.items && __previewCache.items.length > 0) {
+                        // Use cached base width
+                        var bw0 = __previewCache.baseW[0];
+                        if (!(bw0 > 0)) bw0 = __previewCache.items[0].width;
+                        itemW = bw0 * (finalScale / 100.0);
+                    } else {
+                        // Fallback: temp place once
+                        var temp = null;
+                        try {
+                            if (__SC_isPdfLikeFile(fileA)) {
+                                __SC_setPdfCropPreference(cropMode);
+                            }
+                            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pagesForCenter[0]);
+                            temp = doc.placedItems.add();
+                            temp.file = fileA;
+                            try { temp.resize(finalScale, finalScale); } catch (_) { }
+                            itemW = temp.width;
+                        } catch (eTmp) {
+                            itemW = 0;
+                        } finally {
+                            try { if (temp) temp.remove(); } catch (_) { }
+                            try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (_) { }
+                        }
+                    }
+                } catch (_) {
+                    itemW = 0;
+                }
+
+                if (itemW > 0) {
+                    var gridW = (colsForCenter * itemW) + ((colsForCenter - 1) * spacingPt);
+
+                    var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+                    var r = ab.artboardRect;
+                    var abWpt = Math.abs(r[2] - r[0]);
+                    var innerW = abWpt - (marginPt * 2);
+                    if (innerW < 1) innerW = 1;
+
+                    var oxPt = (innerW - gridW) / 2;
+                    // Convert to unit for slider value
+                    var oxU = __SC_ptToUnit(oxPt, rulerUnit.factor);
+
+                    if (isFinite(oxU)) {
+                        cbOffsetX.value = true;
+                        sldOffsetX.enabled = true;
+                        try { sldOffsetX.value = oxU; } catch (_) { }
+                    }
+                }
+            } catch (eCenter) { }
+
+            // Artboard & Mask
+            cbBg.value = true;
+            editBgHex.text = L("defaultHex");
+            __SC_updateBgControls();
+
+            cbMask.value = true;
+            // margin back to default
+            editMargin.text = String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.factor), 2));
+            // update mask UI states
+            __SC_updateMaskUI();
+
+            cbMaskRound.value = false;
+            editMaskRound.text = "20";
+            editMaskRound.enabled = cbMask.value && cbMaskRound.value;
+
+        } catch (e) { }
+    }
+
+    btnReset.onClick = function () {
+        // Reset UI only; keep loaded items cached
+        resetUIToDefaults();
+
+        // If already loaded, re-apply layout immediately
+        if (__previewCache.items && __previewCache.items.length > 0) {
+            try {
+                __SC_applyLayoutToCachedItems();
+                var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
+                previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
+                app.redraw();
+            } catch (_) { }
+        }
+    };
+
+    function __SC_calcAutoFitPctFromWH(w, h, total, colsNum, gapPt, abW, abH, evenPlusEnabled, doColShift, colShiftPt, doRotate, rotDeg) {
+        if (!(w > 0 && h > 0)) return 100;
+        if (!(colsNum > 0)) colsNum = 1;
+
+        var rowsNum = Math.ceil(total / colsNum);
+
+        // 偶数列＋1（スロット追加）: 配置に使うスロット表から最大行数を算出
+        if (evenPlusEnabled && colsNum >= 2) {
+            var base = Math.floor(total / colsNum);
+            var rem = total - (base * colsNum);
+            var maxH = 0;
+            for (var c = 0; c < colsNum; c++) {
+                var hC = base;
+                if (c < rem) hC += 1;          // 標準の余り配分
+                if ((c % 2) === 1) hC += 1;    // 偶数列（2,4,6...）= 0-based 1,3,5... に +1 スロット
+                if (hC > maxH) maxH = hC;
+            }
+            if (maxH < 1) maxH = 1;
+            rowsNum = maxH;
+        }
+
+        var needW = (colsNum * w) + ((colsNum - 1) * gapPt);
+        var needH = (rowsNum * h) + ((rowsNum - 1) * gapPt);
+
+        if (doColShift && colShiftPt !== 0) {
+            needH += Math.abs(colShiftPt);
+        }
+
+        // 回転がある場合は「グリッド全体」を回転させた外接サイズで見積もる
+        if (doRotate && rotDeg !== 0) {
+            var rad = Math.abs(rotDeg) * Math.PI / 180.0;
+            var s = Math.sin(rad);
+            var c = Math.cos(rad);
+            var gW = needW;
+            var gH = needH;
+            needW = Math.abs(gW * c) + Math.abs(gH * s);
+            needH = Math.abs(gW * s) + Math.abs(gH * c);
+        }
+
+        if (!(needW > 0 && needH > 0)) return 100;
+        var sW = (abW > 0) ? (abW / needW) : 1;
+        var sH = (abH > 0) ? (abH / needH) : 1;
+        var sMin = Math.min(sW, sH);
+        if (!(sMin > 0)) sMin = 1;
+        var pct = Math.round(sMin * 100);
+        if (!(pct > 0)) pct = 100;
+        return pct;
+    }
+
+    function __SC_applyLayoutToCachedItems() {
+        if (!__previewCache.items || __previewCache.items.length === 0) return;
+
+        // Artboard inner rect (margin excluded)
+        var activeAB = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+        var abRect = activeAB.artboardRect;
+        var startX = abRect[0];
+        var startY = abRect[1];
+        var abW = Math.abs(abRect[2] - abRect[0]);
+        var abH = Math.abs(abRect[1] - abRect[3]);
+
+        var marginUnit = parseFloat(editMargin.text);
+        if (isNaN(marginUnit) || marginUnit < 0) marginUnit = 0;
+        var marginPt = __SC_unitToPt(marginUnit, rulerUnit.factor);
+
+        startX += marginPt;
+        startY -= marginPt;
+        abW -= marginPt * 2;
+        abH -= marginPt * 2;
+        if (abW <= 0) abW = 1;
+        if (abH <= 0) abH = 1;
+
+        var colsNum = parseInt(editCols.text, 10);
+        if (isNaN(colsNum) || colsNum < 1) colsNum = 1;
+
+        var spacingUnit = parseFloat(editSpacing.text);
+        if (isNaN(spacingUnit) || spacingUnit < 0) spacingUnit = 0;
+        var gapPt = __SC_unitToPt(spacingUnit, rulerUnit.factor);
+
+        var doColShift = !!cbColShift.value;
+        var colShiftUnit = parseFloat(editColShift.text);
+        if (isNaN(colShiftUnit)) colShiftUnit = 0;
+        var colShiftPt = __SC_unitToPt(colShiftUnit, rulerUnit.factor);
+
+        var flowMode = __SC_getFlowMode();
+        // Random mode: prepare a persistent shuffle order
+        if (flowMode === 2) {
+            __SC_ensureRandomOrder();
+        } else {
+            __SC_clearRandomOrder();
+        }
+        var evenPlusEnabled = !!cbEvenPlus.value;
+
+        var doRotate = !!cbRotate.value;
+        var rot = parseFloat(editRotate.text);
+        if (isNaN(rot)) rot = 0;
+
+        var userScale = parseFloat(editScale.text);
+        if (isNaN(userScale) || userScale <= 0) userScale = 100;
+        if (userScale < 1) userScale = 1;
+
+        // base size from the first loaded item (unscaled)
+        var w0 = __previewCache.baseW[0] || __previewCache.items[0].width;
+        var h0 = __previewCache.baseH[0] || __previewCache.items[0].height;
+
+        var baseScale = __SC_calcAutoFitPctFromWH(w0, h0, __previewCache.items.length, colsNum, gapPt, abW, abH, evenPlusEnabled, doColShift, colShiftPt, doRotate, rot);
+        var finalScale = baseScale * (userScale / 100.0);
+
+        // Even+1 slot heights (slot table) to compute col/row mapping
+        var colHeights = null;
+        var colStart = null;
+        if (evenPlusEnabled && colsNum >= 2) {
+            var totalN = __previewCache.items.length;
+            var base = Math.floor(totalN / colsNum);
+            var rem = totalN - (base * colsNum);
+            colHeights = [];
+            for (var c = 0; c < colsNum; c++) {
+                var hh = base;
+                if (c < rem) hh += 1;
+                if ((c % 2) === 1) hh += 1; // +1 slot for even columns
+                colHeights.push(hh);
+            }
+            colStart = [0];
+            for (var c2 = 0; c2 < colsNum; c2++) colStart[c2 + 1] = colStart[c2] + colHeights[c2];
+        }
+        function indexToColRow(iIndex) {
+            if (colHeights && colStart) {
+                for (var c = 0; c < colHeights.length; c++) {
+                    if (iIndex >= colStart[c] && iIndex < colStart[c + 1]) {
+                        return { col: c, row: iIndex - colStart[c] };
+                    }
+                }
+                return { col: colHeights.length - 1, row: 0 };
+            }
+            var rowsN = Math.ceil(__previewCache.items.length / colsNum);
+            if (flowMode === 1 || flowMode === 2) {
+                return { col: Math.floor(iIndex / rowsN), row: (iIndex % rowsN) };
+            }
+            return { col: (iIndex % colsNum), row: Math.floor(iIndex / colsNum) };
+        }
+
+        // Update background fill if enabled
+        try {
+            if (cbBg.value && __previewCache.bgItem) {
+                __previewCache.bgItem.fillColor = __SC_getBgRGBColorOrDefault();
+            }
+        } catch (_) { }
+
+        // If we previously grouped for rotation, un-rotate back to 0 by delta
+        if (__previewCache.group && __previewCache.currentRot !== 0) {
+            try {
+                __previewCache.group.rotate(-__previewCache.currentRot);
+            } catch (_) { }
+            __previewCache.currentRot = 0;
+        }
+
+        // Resize & position each item (absolute, using baseW/baseH)
+        for (var i = 0; i < __previewCache.items.length; i++) {
+            var idxItem = i;
+            if (flowMode === 2 && __previewCache.randOrder) {
+                idxItem = __previewCache.randOrder[i];
+            }
+            var it = __previewCache.items[idxItem];
+            if (!it) continue;
+
+            var bw = __previewCache.baseW[idxItem];
+            var bh = __previewCache.baseH[idxItem];
+            if (!(bw > 0) || !(bh > 0)) {
+                bw = it.width;
+                bh = it.height;
+            }
+
+            // Apply size (avoid cumulative scaling)
+            try {
+                it.width = bw * (finalScale / 100.0);
+                it.height = bh * (finalScale / 100.0);
+            } catch (_) { }
+
+            // Map to grid position
+            var cr = indexToColRow(i);
+            var x = startX + (cr.col * (it.width + gapPt));
+            var y = startY - (cr.row * (it.height + gapPt));
+
+            // Even-column Y shift
+            if (doColShift && colShiftPt !== 0 && (cr.col % 2 === 1)) {
+                if (colShiftPt > 0) y -= colShiftPt;
+                else y += Math.abs(colShiftPt);
+            }
+
+            try { it.position = [x, y]; } catch (_) { }
+        }
+
+        // -------------------------------------------------
+        // Round Corners in preview (heavy mode only)
+        // - 軽量プレビューOFFのときだけ、各アイテムをクリップ化して角丸を適用
+        // -------------------------------------------------
+        try {
+            var isHeavyPreview = !cbLightPreview.value;
+            if (isHeavyPreview && cbRound.value) {
+                var roundUnit = parseFloat(editRound.text);
+                if (isNaN(roundUnit) || roundUnit < 0) roundUnit = 0;
+                var roundPt = __SC_unitToPt(roundUnit, rulerUnit.factor);
+
+                if (roundPt > 0) {
+                    // Wrap once (PlacedItem -> clip group)
+                    if (!__previewCache.previewWrapped) {
+                        var newItems = [];
+                        var newBaseW = [];
+                        var newBaseH = [];
+
+                        for (var wi = 0; wi < __previewCache.items.length; wi++) {
+                            var it0 = __previewCache.items[wi];
+                            if (!it0) continue;
+
+                            // Already a group? keep as-is
+                            if (it0.typename === "GroupItem") {
+                                newItems.push(it0);
+                                newBaseW.push(__previewCache.baseW[wi]);
+                                newBaseH.push(__previewCache.baseH[wi]);
+                                continue;
+                            }
+
+                            var clipGrp = null;
+                            try { clipGrp = __SC_wrapWithClipGroup(doc, it0); } catch (_) { clipGrp = null; }
+
+                            if (clipGrp) {
+                                // Move the new clip group into the persistent rotation group
+                                try { if (__previewCache.group) clipGrp.moveToEnd(__previewCache.group); } catch (_) { }
+                                newItems.push(clipGrp);
+                                newBaseW.push(__previewCache.baseW[wi]);
+                                newBaseH.push(__previewCache.baseH[wi]);
+                            } else {
+                                newItems.push(it0);
+                                newBaseW.push(__previewCache.baseW[wi]);
+                                newBaseH.push(__previewCache.baseH[wi]);
+                            }
+                        }
+
+                        __previewCache.items = newItems;
+                        __previewCache.baseW = newBaseW;
+                        __previewCache.baseH = newBaseH;
+                        __previewCache.previewWrapped = true;
+                        __previewCache.randOrder = null;
+                    }
+
+                    // Apply effect only when radius changed
+                    if (__previewCache.previewRoundRadiusPt !== roundPt) {
+                        for (var ei = 0; ei < __previewCache.items.length; ei++) {
+                            try {
+                                var it = __previewCache.items[ei];
+                                if (it && it.typename === "GroupItem") {
+                                    __SC_applyRoundCorners([it], roundPt);
+                                }
+                            } catch (_) { }
+                        }
+                        __previewCache.previewRoundRadiusPt = roundPt;
+                    }
+                }
+            }
+        } catch (_) { }
+
+        // Rotation (group-based) and center to artboard center
+        if (doRotate && rot !== 0 && __previewCache.group) {
+            try {
+                __previewCache.group.rotate(rot);
+                __previewCache.currentRot = rot;
+                __SC_moveItemCenterToArtboardCenter(doc, __previewCache.group);
+
+                // Apply offsets after centering
+                var oxPt = (cbOffsetX.value) ? __SC_unitToPt(sldOffsetX.value, rulerUnit.factor) : 0;
+                var oyPt = (cbOffsetY.value) ? __SC_unitToPt(sldOffsetY.value, rulerUnit.factor) : 0;
+                if (oxPt !== 0 || oyPt !== 0) {
+                    __previewCache.group.translate(oxPt, -oyPt);
+                }
+            } catch (_) { }
+        } else {
+            // Non-rotate offsets: apply by shifting start already is done in non-rotate path; here we just apply nothing.
+        }
+
+        app.redraw();
+    }
+
+    function __SC_updateBgOnly() {
+        try {
+            // 読み込み前ならキャンバス更新不要（UI側は __SC_updateBgControls がやる）
+            if (!__previewCache.items || __previewCache.items.length === 0) {
+                try { app.redraw(); } catch (_) { }
+                return;
+            }
+
+            if (cbBg.value) {
+                // 背景ON：bgItemが無ければ作る
+                if (!__previewCache.bgItem) {
+                    try {
+                        __previewCache.bgItem = __SC_drawArtboardBackground(doc, __SC_getBgRGBColorOrDefault());
+                    } catch (_) {
+                        __previewCache.bgItem = null;
+                    }
+                }
+                // 色だけ更新
+                if (__previewCache.bgItem) {
+                    try { __previewCache.bgItem.fillColor = __SC_getBgRGBColorOrDefault(); } catch (_) { }
+                    try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
+                }
+            } else {
+                // 背景OFF：bgItemを消す
+                if (__previewCache.bgItem) {
+                    __SC_removeItemSafe(__previewCache.bgItem);
+                    __previewCache.bgItem = null;
+                }
+            }
+
+            // previewItems も同期
+            var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
+            previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
+
+            try { app.redraw(); } catch (_) { }
+        } catch (e) { }
+    }
 
     function clearPreview() {
+        // If cache exists, do not remove its items here
+        if (__previewCache.items && __previewCache.items.length > 0) {
+            return;
+        }
         for (var i = previewItems.length - 1; i >= 0; i--) {
             try { previewItems[i].remove(); } catch (e) { }
         }
@@ -1342,78 +1952,24 @@ function main() {
     }
 
     function updatePreview() {
-        // アートボード（ページ）入力の変更では呼ばない前提
-        clearPreview();
-
-        var pages = parsePageNumbers(editPages.text);
-        if (!pages || pages.length === 0) return;
-
-        var cols = parseInt(editCols.text, 10) || 5;
-
-        var spacingUnit = parseFloat(editSpacing.text);
-        if (isNaN(spacingUnit) || spacingUnit < 0) spacingUnit = 0;
-        var marginUnit = parseFloat(editMargin.text);
-        if (isNaN(marginUnit) || marginUnit < 0) marginUnit = 0;
-
-        var spacing = __SC_unitToPt(spacingUnit, rulerUnit.factor);
-        var margin = __SC_unitToPt(marginUnit, rulerUnit.factor);
-
-        var scalePct = parseFloat(editScale.text);
-        if (isNaN(scalePct) || scalePct <= 0) scalePct = 100;
-
-        var colShiftUnit = parseFloat(editColShift.text);
-        if (isNaN(colShiftUnit)) colShiftUnit = 0;
-        var colShiftPt = __SC_unitToPt(colShiftUnit, rulerUnit.factor);
-
-        var rot = parseFloat(editRotate.text);
-        if (isNaN(rot)) rot = 0;
-
-        // 全体位置（スライダー値は定規単位とみなし pt に変換）
-        var offsetXPt = (cbOffsetX.value) ? __SC_unitToPt(sldOffsetX.value, rulerUnit.factor) : 0;
-        var offsetYPt = (cbOffsetY.value) ? __SC_unitToPt(sldOffsetY.value, rulerUnit.factor) : 0;
-
-        // 角丸設定
-        var roundEnabled = cbRound.value;
-        var roundUnit = parseFloat(editRound.text);
-        if (isNaN(roundUnit) || roundUnit < 0) roundUnit = 0;
-        var roundPt = __SC_unitToPt(roundUnit, rulerUnit.factor);
-
-        var cropMode = __SC_getCropModeFromUI();
-        var bgFillColor = __SC_getBgRGBColorOrDefault();
-
-        var r = placeArtboards(
-            pages,
-            cols,
-            spacing,
-            scalePct,
-            AUTO_FIT_ENABLED,
-            margin,
-            cbColShift.value,
-            colShiftPt,
-            cbRotate.value,
-            rot,
-            cbBg.value,
-            bgFillColor,
-            cropMode,
-            offsetXPt,
-            offsetYPt,
-            __SC_getFlowMode(),
-            cbEvenPlus.value,
-            roundEnabled,
-            roundPt
-        );
-
-        previewItems = r.items;
-        app.redraw();
+        // 既存キャッシュがある場合は再配置せず更新
+        if (__previewCache.items && __previewCache.items.length > 0) {
+            __SC_applyLayoutToCachedItems();
+            // Keep previewItems for cancel/cleanup paths
+            var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
+            previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
+            return;
+        }
+        // 未読み込みの場合は何もしない（ユーザーが[読み込み]を押す）
     }
 
     // =========================================
     // Step2+Step3: Centralized realtime-preview wiring (debounced)
     // - 読み込み＞アートボード（editPages）は対象外
-    // - debounce: 120ms
+    // - debounce: 300ms
     // =========================================
 
-    var PREVIEW_DEBOUNCE_MS = 120;
+    var PREVIEW_DEBOUNCE_MS = 300;
     var __previewTaskId = null;
 
     // Expose updatePreview for app.scheduleTask
@@ -1436,6 +1992,7 @@ function main() {
     }
 
     function wireRealtimePreview() {
+        cbLightPreview.onClick = function () { requestPreview(); };
         // ✅ 読み込み＞アートボード（editPages）は対象外
 
         // アイテム
@@ -1445,9 +2002,9 @@ function main() {
         cbRound.onClick = function () { _oldRound(); requestPreview(); };
 
         // グリッド：方向
-        rbDirH.onClick = function () { requestPreview(); };
-        rbDirV.onClick = function () { requestPreview(); };
-        rbDirR.onClick = function () { requestPreview(); };
+        rbDirH.onClick = function () { __SC_clearRandomOrder(); requestPreview(); };
+        rbDirV.onClick = function () { __SC_clearRandomOrder(); requestPreview(); };
+        rbDirR.onClick = function () { __SC_clearRandomOrder(); requestPreview(); };
 
         // グリッド：偶数列＋1
         cbEvenPlus.onClick = function () { requestPreview(); };
@@ -1469,11 +2026,15 @@ function main() {
         // アートボード
         editMargin.onChange = function () { requestPreview(); };
         var _oldBg = cbBg.onClick;
-        cbBg.onClick = function () { _oldBg(); requestPreview(); };
+        cbBg.onClick = function () {
+            if (_oldBg) _oldBg();        // __SC_updateBgControls()
+            __SC_updateBgOnly();         // レイアウト再計算しない
+        };
+
         var _oldHex = editBgHex.onChange;
         editBgHex.onChange = function () {
-            if (_oldHex) _oldHex();
-            requestPreview();
+            if (_oldHex) _oldHex();      // __SC_updateBgControls()
+            __SC_updateBgOnly();         // レイアウト再計算しない
         };
 
         // 右カラム：レイアウト
@@ -1733,9 +2294,10 @@ function main() {
         } catch (e3) { }
     }
 
-    function placeArtboards(targetPages, cols, spacing, scalePct, autoFit, outerMargin, colShiftEnabled, colShiftPt, rotateEnabled, rotateDeg, bgEnabled, bgFillColor, cropMode, offsetXPt, offsetYPt, flowMode, evenPlusEnabled, roundEnabled, roundRadiusPt) {
+    function placeArtboards(targetPages, cols, spacing, scalePct, autoFit, outerMargin, colShiftEnabled, colShiftPt, rotateEnabled, rotateDeg, bgEnabled, bgFillColor, cropMode, offsetXPt, offsetYPt, flowMode, evenPlusEnabled, roundEnabled, roundRadiusPt, lightPreview) {
         var placedItemsOnly = [];
         var bgItem = null;
+        var __lightPreview = !!lightPreview;
         if (bgEnabled) {
             try {
                 bgItem = __SC_drawArtboardBackground(doc, bgFillColor);
@@ -1783,21 +2345,33 @@ function main() {
         // scalePct は「追加倍率（%）」として扱う（自動フィットの結果に乗算）
         function calcAutoScalePct(pages, colsNum, gapPt) {
             if (!pages || pages.length === 0) return 100;
-            var temp = null;
             var w = 0, h = 0;
-            try {
-                if (__SC_isPdfLikeFile(fileA)) {
-                    __SC_setPdfCropPreference(cropMode);
+            var pageNum0 = pages[0];
+
+            // cache hit
+            var cached = __SC_getAutoFitMeasure(fileA, cropMode, pageNum0);
+            if (cached) {
+                w = cached.w;
+                h = cached.h;
+            } else {
+                var temp = null;
+                try {
+                    if (__SC_isPdfLikeFile(fileA)) {
+                        __SC_setPdfCropPreference(cropMode);
+                    }
+                    app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pageNum0);
+                    temp = doc.placedItems.add();
+                    temp.file = fileA;
+                    w = temp.width;
+                    h = temp.height;
+                } catch (e) {
+                    w = 0; h = 0;
+                } finally {
+                    try { if (temp) temp.remove(); } catch (e2) { }
                 }
-                app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pages[0]);
-                temp = doc.placedItems.add();
-                temp.file = fileA;
-                w = temp.width;
-                h = temp.height;
-            } catch (e) {
-                w = 0; h = 0;
-            } finally {
-                try { if (temp) temp.remove(); } catch (e2) { }
+
+                // store
+                __SC_setAutoFitMeasure(fileA, cropMode, pageNum0, w, h);
             }
 
             if (!(w > 0 && h > 0)) return 100;
@@ -1805,20 +2379,19 @@ function main() {
             var total = pages.length;
             var rowsNum = Math.ceil(total / colsNum);
 
-            // 偶数列＋1（スロット追加）: 最大行数は base + (rem>0?1:0) + 1
+            // 偶数列＋1（スロット追加）: 配置に使うスロット表から最大行数を算出
             if (evenPlusEnabled && colsNum >= 2) {
                 var base = Math.floor(total / colsNum);
                 var rem = total - (base * colsNum);
-                rowsNum = base + ((rem > 0) ? 1 : 0) + 1;
-                if (rowsNum < 1) rowsNum = 1;
-            }
-
-            // 偶数列＋1（配分モード）の場合、最大行数は base+1 になることがある
-            if (evenPlusEnabled && colsNum >= 2) {
-                var base = Math.floor(total / colsNum);
-                var rem = total - (base * colsNum);
-                rowsNum = base + ((rem > 0) ? 1 : 0);
-                if (rowsNum < 1) rowsNum = 1;
+                var maxH = 0;
+                for (var c = 0; c < colsNum; c++) {
+                    var hC = base;
+                    if (c < rem) hC += 1;
+                    if ((c % 2) === 1) hC += 1;
+                    if (hC > maxH) maxH = hC;
+                }
+                if (maxH < 1) maxH = 1;
+                rowsNum = maxH;
             }
 
             var needW = (colsNum * w) + ((colsNum - 1) * gapPt);
@@ -1846,8 +2419,17 @@ function main() {
 
             if (!(needW > 0 && needH > 0)) return 100;
 
-            var sW = (abW > 0) ? (abW / needW) : 1;
-            var sH = (abH > 0) ? (abH / needH) : 1;
+            // Auto-fit uses artboard inner size (exclude outer margin)
+            var innerW = abW;
+            var innerH = abH;
+
+            if (margin > 0) {
+                innerW = abW; // already margin-subtracted above in placeArtboards
+                innerH = abH; // already margin-subtracted above in placeArtboards
+            }
+
+            var sW = (innerW > 0) ? (innerW / needW) : 1;
+            var sH = (innerH > 0) ? (innerH / needH) : 1;
             var s = Math.min(sW, sH);
             if (!(s > 0)) s = 1;
 
@@ -2003,25 +2585,30 @@ function main() {
 
                 placedItem.position = [posX, posY];
 
-                // 配置したアイテムを同サイズのパスでクリップグループ化
-                var clipGrp = null;
-                try {
-                    clipGrp = __SC_wrapWithClipGroup(doc, placedItem);
-                } catch (eClip) {
-                    clipGrp = null;
-                }
-
-                // 角丸（ライブエフェクト）：クリップグループに適用
-                if (roundEnabled && (typeof roundRadiusPt === "number") && !isNaN(roundRadiusPt) && roundRadiusPt > 0) {
-                    if (clipGrp) {
-                        __SC_applyRoundCorners([clipGrp], roundRadiusPt);
-                    } else {
-                        // フォールバック：クリップ化に失敗した場合はアイテムに適用
-                        __SC_applyRoundCorners([placedItem], roundRadiusPt);
+                if (__lightPreview) {
+                    // 軽量プレビュー：クリップ/角丸は省略
+                    placedItemsOnly.push(placedItem);
+                } else {
+                    // 配置したアイテムを同サイズのパスでクリップグループ化
+                    var clipGrp = null;
+                    try {
+                        clipGrp = __SC_wrapWithClipGroup(doc, placedItem);
+                    } catch (eClip) {
+                        clipGrp = null;
                     }
-                }
 
-                placedItemsOnly.push(clipGrp ? clipGrp : placedItem);
+                    // 角丸（ライブエフェクト）：クリップグループに適用
+                    if (roundEnabled && (typeof roundRadiusPt === "number") && !isNaN(roundRadiusPt) && roundRadiusPt > 0) {
+                        if (clipGrp) {
+                            __SC_applyRoundCorners([clipGrp], roundRadiusPt);
+                        } else {
+                            // フォールバック：クリップ化に失敗した場合はアイテムに適用
+                            __SC_applyRoundCorners([placedItem], roundRadiusPt);
+                        }
+                    }
+
+                    placedItemsOnly.push(clipGrp ? clipGrp : placedItem);
+                }
             }
 
             // 列ずらし適用後に「全体」を回転（背景は回転させない）
@@ -2069,12 +2656,76 @@ function main() {
 
     // プレビューボタン
     btnPreview.onClick = function () {
-        updatePreview();
+        // Rebuild cache on explicit load
+        __SC_clearPreviewCache();
+
+        var pages = parsePageNumbers(editPages.text);
+        if (!pages || pages.length === 0) return;
+
+        var cropMode = __SC_getCropModeFromUI();
+
+        // Background (always created on load if enabled)
+        if (cbBg.value) {
+            try {
+                __previewCache.bgItem = __SC_drawArtboardBackground(doc, __SC_getBgRGBColorOrDefault());
+            } catch (_) {
+                __previewCache.bgItem = null;
+            }
+        }
+
+        // Place items once
+        for (var i = 0; i < pages.length; i++) {
+            try {
+                if (__SC_isPdfLikeFile(fileA)) {
+                    __SC_setPdfCropPreference(cropMode);
+                }
+                app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pages[i]);
+                var it = doc.placedItems.add();
+                it.file = fileA;
+                __previewCache.items.push(it);
+                __previewCache.baseW.push(it.width);
+                __previewCache.baseH.push(it.height);
+            } catch (_) {
+                // ignore individual failures
+            }
+        }
+        try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (_) { }
+
+        __previewCache.cropMode = cropMode;
+        __previewCache.pagesKey = String(editPages.text);
+
+        // --- create persistent group for fast rotation ---
+        try {
+            var grp = doc.groupItems.add();
+            for (var gi = __previewCache.items.length - 1; gi >= 0; gi--) {
+                try { __previewCache.items[gi].moveToBeginning(grp); } catch (_) { }
+            }
+            __previewCache.group = grp;
+            __previewCache.currentRot = 0;
+        } catch (eGrp) {
+            __previewCache.group = null;
+            __previewCache.currentRot = 0;
+        }
+
+        // Apply layout immediately
+        __SC_applyLayoutToCachedItems();
+        var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
+        previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
     };
 
     // キャンセルボタン
     btnCancel.onClick = function () {
-        clearPreview();
+        // Stop any pending debounced preview task (prevents callbacks after close)
+        try {
+            if (__previewTaskId) {
+                app.cancelTask(__previewTaskId);
+                __previewTaskId = null;
+            }
+        } catch (_) { }
+
+        // Preview cache removal is enough (clearPreview() would early-return when cache exists)
+        __SC_clearPreviewCache();
+
         try { if (zoomCtrl) zoomCtrl.restoreInitial(); } catch (eZ) { }
         __SC_saveDialogBounds(win.bounds);
         win.close(2);
@@ -2082,7 +2733,11 @@ function main() {
 
     // OKボタン
     btnOk.onClick = function () {
-        clearPreview();
+        // ★ プレビュー用キャッシュを完全削除（これがないと2セットになる）
+        try {
+            __SC_clearPreviewCache();
+        } catch (_) { }
+
         __SC_saveDialogBounds(win.bounds);
         win.close(1);
     };
@@ -2120,7 +2775,7 @@ function main() {
 
         var cropMode = __SC_getCropModeFromUI();
         var bgFillColor = __SC_getBgRGBColorOrDefault();
-        var res = placeArtboards(finalPages, finalCols, finalSpacing, finalScalePct, AUTO_FIT_ENABLED, finalMargin, cbColShift.value, finalColShiftPt, cbRotate.value, finalRot, cbBg.value, bgFillColor, cropMode, finalOffsetXPt, finalOffsetYPt, __SC_getFlowMode(), cbEvenPlus.value, finalRoundEnabled, finalRoundPt);
+        var res = placeArtboards(finalPages, finalCols, finalSpacing, finalScalePct, AUTO_FIT_ENABLED, finalMargin, cbColShift.value, finalColShiftPt, cbRotate.value, finalRot, cbBg.value, bgFillColor, cropMode, finalOffsetXPt, finalOffsetYPt, __SC_getFlowMode(), cbEvenPlus.value, finalRoundEnabled, finalRoundPt, false);
 
         // OK時のみ：マージン内側で配置物をマスク（背景は含めない）
         if (cbMask.value && res && res.maskItems && res.maskItems.length > 0) {
