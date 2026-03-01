@@ -38,7 +38,7 @@ https://slide-collage.vercel.app/
 // Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -57,8 +57,7 @@ var LABELS = {
     panelItem: { ja: "アイテム", en: "Items" },
     panelGrid: { ja: "グリッド", en: "Grid" },
     panelLayout: { ja: "レイアウト", en: "Layout" },
-    panelArtboard: { ja: "マスク", en: "Mask" },
-    panelArtboardBg: { ja: "アートボード", en: "Artboard" },
+    panelArtboard: { ja: "アートボードとマスク", en: "Artboard & Mask" },
 
     // Load panel
     labelArtboards: { ja: "アートボード", en: "Artboards" },
@@ -77,7 +76,7 @@ var LABELS = {
     dirV: { ja: "縦", en: "Vertical" },
     dirRandom: { ja: "ランダム", en: "Random" },
     dist: { ja: "配分：", en: "Distribution: " },
-    evenPlus: { ja: "偶数列＋1", en: "Even+1" },
+    evenPlus: { ja: "＋1スロット", en: "+1 slot" },
     cols: { ja: "列数", en: "Cols" },
     spacing: { ja: "間隔", en: "Gap" },
     shift: { ja: "ずらし", en: "Shift" },
@@ -93,11 +92,16 @@ var LABELS = {
     // Artboard panel
     margin: { ja: "マージン", en: "Margin" },
     mask: { ja: "マスク", en: "Mask" },
+    maskRound: { ja: "マスク角丸", en: "Mask Round" },
     bg: { ja: "背景色", en: "Background" },
 
     // Buttons
     cancel: { ja: "キャンセル", en: "Cancel" },
     ok: { ja: "OK", en: "OK" },
+
+    // Zoom
+    zoom: { ja: "画面ズーム", en: "Zoom" },
+    lightMode: { ja: "軽量モード", en: "Light mode" },
 
     // File / Alerts
     fileDialogTitle: { ja: "配置するファイル（.ai または .pdf）を選択してください", en: "Select a file to place (.ai or .pdf)" },
@@ -372,6 +376,118 @@ function updatePreview() {
     } catch (e) { }
 }
 
+// =========================================
+// TMK Zoom Module (collision-safe + Light mode)
+// - Light mode: apply zoom only on slider release
+// =========================================
+
+function __TMKZoom_captureViewState(doc) {
+    var st = { view: null, zoom: null, center: null };
+    try {
+        st.view = doc.activeView;
+        st.zoom = st.view.zoom;
+        st.center = st.view.centerPoint;
+    } catch (_) { }
+    return st;
+}
+
+function __TMKZoom_restoreViewState(doc, state) {
+    if (!state) return;
+    try {
+        var v = state.view || doc.activeView;
+        if (v && state.zoom != null) v.zoom = state.zoom;
+        if (v && state.center != null) v.centerPoint = state.center;
+    } catch (_) { }
+}
+
+function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
+    options = options || {};
+    var minZoom = (typeof options.min === "number") ? options.min : 0.1;
+    var maxZoom = (typeof options.max === "number") ? options.max : 16;
+    var sliderWidth = (typeof options.sliderWidth === "number") ? options.sliderWidth : 360;
+    var doRedraw = (options.redraw !== false);
+
+    // Light mode options
+    var showLightMode = (options.lightMode !== false);            // default: show
+    var lightModeLabel = options.lightModeLabel || "Light mode";
+    var lightModeDefault = (options.lightModeDefault === true);   // default: false
+
+    // UI group
+    var g = parent.add("group");
+    g.orientation = "row";
+    g.alignChildren = ["center", "center"];
+    g.alignment = "center";
+    try { if (options.margins) g.margins = options.margins; } catch (_) { }
+
+    var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
+
+    // Initial zoom
+    var initZoom = 1;
+    try {
+        if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
+        else initZoom = Number(doc.activeView.zoom);
+    } catch (_) { }
+    if (!initZoom || isNaN(initZoom)) initZoom = 1;
+
+    var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
+    try { sld.preferredSize.width = sliderWidth; } catch (_) { }
+
+    var chkLight = null;
+    if (showLightMode) {
+        chkLight = g.add("checkbox", undefined, String(lightModeLabel));
+        chkLight.value = lightModeDefault;
+    }
+
+    function isLightMode() {
+        return !!(chkLight && chkLight.value);
+    }
+
+    function applyZoom(z) {
+        try {
+            var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+            if (!v) return;
+            v.zoom = z;
+            if (doRedraw) { try { app.redraw(); } catch (_) { } }
+        } catch (_) { }
+    }
+
+    function syncFromView() {
+        try {
+            var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+            if (!v) return;
+            sld.value = v.zoom;
+        } catch (_) { }
+    }
+
+    // Live drag (disabled in light mode)
+    sld.onChanging = function () {
+        if (isLightMode()) return; // ✅ lightweight: do nothing while dragging
+        applyZoom(Number(sld.value));
+    };
+
+    // Always apply once on release
+    sld.onChange = function () {
+        applyZoom(Number(sld.value));
+    };
+
+    if (chkLight) {
+        chkLight.onClick = function () {
+            // Toggle feels consistent: apply current value immediately
+            try { applyZoom(Number(sld.value)); } catch (_) { }
+        };
+    }
+
+    return {
+        group: g,
+        label: stLabel,
+        slider: sld,
+        lightModeCheckbox: chkLight,
+        applyZoom: applyZoom,
+        syncFromView: syncFromView,
+        restoreInitial: function () { __TMKZoom_restoreViewState(doc, initialState); }
+    };
+}
+
 function main() {
     if (app.documents.length === 0) {
         alert(L("alertNeedDoc"));
@@ -441,7 +557,7 @@ function main() {
     // --- ページ設定パネル ---
     var panelPage = leftCol.add("panel", undefined, L("panelLoad"));
     panelPage.alignChildren = "left";
-    panelPage.margins = 15;
+    panelPage.margins = [15, 20, 15, 10];
 
     var groupPage = panelPage.add("group");
     groupPage.orientation = "row";
@@ -458,7 +574,7 @@ function main() {
     // --- トリミングパネル（配置範囲：PDF のトリミング設定） ---
     var panelCrop = leftCol.add("panel", undefined, L("panelItem"));
     panelCrop.alignChildren = "left";
-    panelCrop.margins = 15;
+    panelCrop.margins = [15, 20, 15, 10];
 
     // panelCrop.add("statictext", undefined, "トリミング");
     var ddCrop = panelCrop.add("dropdownlist", undefined, [L("cropArt"), L("cropTrim"), L("cropCrop"), L("cropBleed")]);
@@ -503,7 +619,7 @@ function main() {
     /* グリッド / Grid */
     var panelLayout = rightCol.add("panel", undefined, L("panelGrid"));
     panelLayout.alignChildren = "left";
-    panelLayout.margins = 15;
+    panelLayout.margins = [15, 20, 15, 10];
 
     // 方向（配置順）
     var groupDir = panelLayout.add("group");
@@ -612,17 +728,22 @@ function main() {
     // --- 偶数列パネル（配分/ずらし） ---
     var panelEven = rightCol.add("panel", undefined, L("panelEven"));
     panelEven.alignChildren = "left";
-    panelEven.margins = 15;
+    panelEven.margins = [15, 20, 15, 10];
 
     // 配分モード
     var groupDist = panelEven.add("group");
     groupDist.orientation = "row";
     groupDist.alignChildren = ["left", "center"];
 
-    var stDist = groupDist.add("statictext", undefined, L("dist"));
-    stDist.preferredSize.width = LABEL_W;
+    // var stDist = groupDist.add("statictext", undefined, L("dist"));
+    // stDist.preferredSize.width = LABEL_W;
 
     var cbEvenPlus = groupDist.add("checkbox", undefined, L("evenPlus"));
+
+    cbEvenPlus.helpTip = (lang === "ja")
+        ? "偶数列にスロットを1つ追加します。空きが出ることがあります。"
+        : "Adds one extra slot to even columns. Empty spaces may appear.";
+
     cbEvenPlus.value = false;
 
     // ずらし（Yオフセット）
@@ -631,6 +752,11 @@ function main() {
     groupColShift.alignChildren = ["left", "center"];
 
     var cbColShift = groupColShift.add("checkbox", undefined, L("shift"));
+
+    cbColShift.helpTip = (lang === "ja")
+        ? "偶数列だけのYオフセット（上下方向のずらし）"
+        : "Y-offset applied to even columns only.";
+
     cbColShift.preferredSize.width = LABEL_W;
     cbColShift.value = true;
 
@@ -681,64 +807,24 @@ function main() {
     /* レイアウト / Layout */
     var panelLayoutRight = rightCol.add("panel", undefined, L("panelLayout"));
     panelLayoutRight.alignChildren = "left";
-    panelLayoutRight.margins = 15;
+    panelLayoutRight.margins = [15, 20, 15, 10];
 
-    // --- アートボードパネル（左カラム） ---
+    // --- アートボードとマスクパネル（左カラム） ---
     var panelArtboard = leftCol.add("panel", undefined, L("panelArtboard"));
     panelArtboard.alignChildren = "left";
-    panelArtboard.margins = 15;
-
-    // 外側余白
-    var groupMargin = panelArtboard.add("group");
-    var stMargin = groupMargin.add("statictext", undefined, L("margin"));
-    var editMargin = groupMargin.add("edittext", undefined, String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.factor), 2)));
-    editMargin.characters = 5;
-    groupMargin.add("statictext", undefined, rulerUnit.label);
-
-    // editMargin.onChange = function () { updatePreview(); };
-
-    // マスク（OK時に配置物をマージン内側でクリッピング）
-    var cbMask = panelArtboard.add("checkbox", undefined, L("mask"));
-    cbMask.value = true;
-
-    // マスク角丸（マスクしたクリップグループに角丸を適用）
-    var groupMaskRound = panelArtboard.add("group");
-    groupMaskRound.orientation = "row";
-    groupMaskRound.alignChildren = ["left", "center"];
-
-    var cbMaskRound = groupMaskRound.add("checkbox", undefined, L("round"));
-    cbMaskRound.value = false;
-
-    var editMaskRound = groupMaskRound.add("edittext", undefined, "20");
-    editMaskRound.characters = 3;
-
-    groupMaskRound.add("statictext", undefined, rulerUnit.label);
-
-    // 初期状態
-    editMaskRound.enabled = cbMaskRound.value;
-
-    cbMaskRound.onClick = function () {
-        editMaskRound.enabled = cbMaskRound.value;
-    };
-
-    // --- アートボードパネル（背景色） ---
-    var panelArtboardBg = leftCol.add("panel", undefined, L("panelArtboardBg"));
-    panelArtboardBg.alignChildren = "left";
-    panelArtboardBg.margins = 15;
+    panelArtboard.margins = [15, 20, 15, 10];
 
     // 背景色（アートボードと同じ大きさの図形を作成）
-    var groupBg = panelArtboardBg.add("group");
+    var groupBg = panelArtboard.add("group");
     groupBg.orientation = "row";
     groupBg.alignChildren = ["left", "center"];
 
     var cbBg = groupBg.add("checkbox", undefined, L("bg"));
     cbBg.value = true;
 
-
     // カラーチップ（表示用）
     var colorSwatch = groupBg.add("panel");
     colorSwatch.preferredSize = [24, 24];
-
 
     // HEX 入力
     var editBgHex = groupBg.add("edittext", undefined, L("defaultHex"));
@@ -812,7 +898,7 @@ function main() {
             var hex = "#" + toHex(c.red) + toHex(c.green) + toHex(c.blue);
             editBgHex.text = hex;
             __SC_updateBgControls();
-            try { requestPreview(); } catch (e) {}
+            try { requestPreview(); } catch (e) { }
         }
     }
 
@@ -824,7 +910,68 @@ function main() {
         colorSwatch.addEventListener("mousedown", function () {
             __SC_openBgColorPicker();
         });
-    } catch (e) {}
+    } catch (e) { }
+
+    // マスク（OK時に配置物をマージン内側でクリッピング）
+    var cbMask = panelArtboard.add("checkbox", undefined, L("mask"));
+    cbMask.value = true;
+
+    // 外側余白
+    var groupMargin = panelArtboard.add("group");
+    var stMargin = groupMargin.add("statictext", undefined, L("margin"));
+    var editMargin = groupMargin.add("edittext", undefined, String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.factor), 2)));
+    editMargin.characters = 5;
+    groupMargin.add("statictext", undefined, rulerUnit.label);
+
+    // editMargin.onChange = function () { updatePreview(); };
+
+    // マスク角丸（マスクしたクリップグループに角丸を適用）
+    var groupMaskRound = panelArtboard.add("group");
+    groupMaskRound.orientation = "row";
+    groupMaskRound.alignChildren = ["left", "center"];
+
+    var cbMaskRound = groupMaskRound.add("checkbox", undefined, L("maskRound"));
+    cbMaskRound.value = false;
+
+    var editMaskRound = groupMaskRound.add("edittext", undefined, "20");
+    editMaskRound.characters = 3;
+
+    groupMaskRound.add("statictext", undefined, rulerUnit.label);
+
+    // 初期状態
+    editMaskRound.enabled = cbMask.value && cbMaskRound.value;
+
+    // --- mask-round UI enable/disable helper and hook ---
+    function __SC_updateMaskRoundUI() {
+        try {
+            var en = !!cbMask.value;
+            groupMaskRound.enabled = en;
+            // Ensure inner input reflects both mask and checkbox
+            editMaskRound.enabled = en && cbMaskRound.value;
+        } catch (e) { }
+    }
+
+    // --- mask & margin/mask-round UI helper ---
+    function __SC_updateMaskUI() {
+        try {
+            var en = !!cbMask.value;
+            groupMargin.enabled = en;
+        } catch (e0) { }
+        try { __SC_updateMaskRoundUI(); } catch (e1) { }
+    }
+
+    // 初期状態（マスクOFFならディム）
+    __SC_updateMaskUI();
+
+    // マスク切替で追従
+    cbMask.onClick = function () {
+        __SC_updateMaskUI();
+    };
+
+    cbMaskRound.onClick = function () {
+        // マスクOFFのときは常にディム
+        editMaskRound.enabled = cbMask.value && cbMaskRound.value;
+    };
 
 
     // スケール
@@ -884,6 +1031,9 @@ function main() {
     groupRotate.alignChildren = ["left", "center"];
 
     var cbRotate = groupRotate.add("checkbox", undefined, L("rotate"));
+    cbRotate.helpTip = (lang === "ja")
+        ? "配置したアイテム全体を回転します（アートボード中心基準）。"
+        : "Rotate the entire placed layout (centered on the artboard).";
     cbRotate.preferredSize.width = LABEL_W;
     cbRotate.value = true;
 
@@ -936,6 +1086,23 @@ function main() {
         sldRotate.enabled = cbRotate.value;
     };
 
+    // 位置調整スライダー範囲（アートボードサイズに合わせる）
+    var __abSizeUnit = (function () {
+        try {
+            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+            var r = ab.artboardRect; // [left, top, right, bottom]
+            var wPt = Math.abs(r[2] - r[0]);
+            var hPt = Math.abs(r[1] - r[3]);
+            var wU = __SC_ptToUnit(wPt, rulerUnit.factor);
+            var hU = __SC_ptToUnit(hPt, rulerUnit.factor);
+            if (!isFinite(wU) || wU <= 0) wU = 200;
+            if (!isFinite(hU) || hU <= 0) hU = 200;
+            return { x: wU, y: hU };
+        } catch (e) {
+            return { x: 200, y: 200 };
+        }
+    })();
+
     // 全体位置（スライダー）
     // ※数値表示は不要（スライダーのみ）
 
@@ -949,8 +1116,12 @@ function main() {
     spacerOffX.alignment = ["fill", "fill"];
     spacerOffX.minimumSize.width = 0;
 
-    var sldOffsetX = groupOffsetX.add("slider", undefined, 0, -200, 200);
+    var sldOffsetX = groupOffsetX.add("slider", undefined, 0, -__abSizeUnit.x, __abSizeUnit.x);
     sldOffsetX.preferredSize.width = SLIDER_W;
+    try {
+        if (sldOffsetX.value < -__abSizeUnit.x) sldOffsetX.value = -__abSizeUnit.x;
+        if (sldOffsetX.value > __abSizeUnit.x) sldOffsetX.value = __abSizeUnit.x;
+    } catch (e) { }
     sldOffsetX.enabled = cbOffsetX.value;
     cbOffsetX.onClick = function () {
         sldOffsetX.enabled = cbOffsetX.value;
@@ -967,8 +1138,12 @@ function main() {
     spacerOffY.alignment = ["fill", "fill"];
     spacerOffY.minimumSize.width = 0;
 
-    var sldOffsetY = groupOffsetY.add("slider", undefined, 0, -200, 200);
+    var sldOffsetY = groupOffsetY.add("slider", undefined, 0, -__abSizeUnit.y, __abSizeUnit.y);
     sldOffsetY.preferredSize.width = SLIDER_W;
+    try {
+        if (sldOffsetY.value < -__abSizeUnit.y) sldOffsetY.value = -__abSizeUnit.y;
+        if (sldOffsetY.value > __abSizeUnit.y) sldOffsetY.value = __abSizeUnit.y;
+    } catch (e) { }
     sldOffsetY.enabled = cbOffsetY.value;
     cbOffsetY.onClick = function () {
         sldOffsetY.enabled = cbOffsetY.value;
@@ -1113,6 +1288,25 @@ function main() {
     } catch (e) {
         // 失敗時は従来の 0
     }
+
+    // =========================================
+    // Zoom controls (bottom)
+    // =========================================
+
+    var __zoomState = __TMKZoom_captureViewState(doc);
+
+    var zoomCtrl = __TMKZoom_addControls(win, doc, L("zoom"), __zoomState, {
+        min: 0.1,
+        max: 4,
+        sliderWidth: 340,
+        margins: [0, 0, 0, 10],
+        redraw: true,
+
+        // ✅ lightweight mode
+        lightMode: true,
+        lightModeLabel: L("lightMode"),
+        lightModeDefault: true
+    });
 
     // ボタン類（左：キャンセル・OK）
     var groupButtons = win.add("group");
@@ -1881,6 +2075,7 @@ function main() {
     // キャンセルボタン
     btnCancel.onClick = function () {
         clearPreview();
+        try { if (zoomCtrl) zoomCtrl.restoreInitial(); } catch (eZ) { }
         __SC_saveDialogBounds(win.bounds);
         win.close(2);
     };
