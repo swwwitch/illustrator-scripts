@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 slide-collage
 
 ### 更新日：
-20260301
+20260302
 
 ### 概要：
 アクティブなドキュメント上で、指定した .ai / .pdf（PDFはページ指定）をグリッド配置し、ポートフォリオ用のサムネイル一覧を作成します。
@@ -38,7 +38,7 @@ https://slide-collage.vercel.app/
 // Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -58,6 +58,19 @@ var LABELS = {
     panelGrid: { ja: "グリッド", en: "Grid" },
     panelLayout: { ja: "レイアウト", en: "Layout" },
     panelArtboard: { ja: "アートボードとマスク", en: "Artboard & Mask" },
+
+    // Dialog X (New document)
+    dialogNewDoc: { ja: "新規ドキュメント", en: "New Document" },
+    panelUnitX: { ja: "単位", en: "Unit" },
+    panelSizeX: { ja: "サイズ", en: "Size" },
+    panelColorModeX: { ja: "カラーモード", en: "Color Mode" },
+    presetCustom: { ja: "カスタム", en: "Custom" },
+    presetA4Cmyk: { ja: "A4（210mm x 297mm）, CMYK", en: "A4 (210mm x 297mm), CMYK" },
+    presetFhdRgb: { ja: "フルHD（1920 px × 1080 px）, RGB", en: "Full HD (1920 px × 1080 px), RGB" },
+    btnSavePreset: { ja: "保存", en: "Save" },
+    presetNameTitle: { ja: "プリセット名", en: "Preset name" },
+    presetNamePanel: { ja: "名前", en: "Name" },
+    presetDefaultName: { ja: "プリセット", en: "Preset" },
 
     // Load panel
     labelArtboards: { ja: "アートボード", en: "Artboards" },
@@ -98,6 +111,10 @@ var LABELS = {
     // Buttons
     cancel: { ja: "キャンセル", en: "Cancel" },
     ok: { ja: "OK", en: "OK" },
+
+    // Buttons (extra)
+    reset: { ja: "リセット", en: "Reset" },
+    lightPreview: { ja: "軽量プレビュー", en: "Light preview" },
 
     // Zoom
     zoom: { ja: "画面ズーム", en: "Zoom" },
@@ -544,16 +561,374 @@ function main() {
         return;
     }
 
-    var doc = app.activeDocument;
+    // 1. 読み込み元（B）は「いま開いているドキュメント」
+    var srcDocB = app.activeDocument;
 
-    // 現在の定規単位（rulerType）
+    // B が未保存なら保存を促す（必須）
+    try {
+        if (!srcDocB.saved || !srcDocB.fullName) {
+            var msg = (lang === "ja")
+                ? "読み込み元ドキュメント（B）が未保存です。保存してから続行します。"
+                : "The source document (B) is not saved. Please save it to continue.";
+            alert(msg);
+
+            var saveTo = File.saveDialog((lang === "ja") ? "読み込み元ドキュメントを保存" : "Save the source document");
+            if (!saveTo) return;
+            try { srcDocB.saveAs(saveTo); } catch (_) { return; }
+        }
+    } catch (_) { }
+
+    // B のパス（配置に使うファイル）
+    var fileA = null;
+    try { fileA = srcDocB.fullName; } catch (_) { fileA = null; }
+    if (!fileA) return;
+
+    // B の総アートボード数（n）を取得
+    var __srcArtboardCount = 0;
+    try { __srcArtboardCount = (srcDocB.artboards) ? srcDocB.artboards.length : 0; } catch (_) { __srcArtboardCount = 0; }
+
+    // セッションキャッシュへ（open せずに確定値を入れる）
+    try {
+        if (!$.global.__SC_sourcePageCountCache) $.global.__SC_sourcePageCountCache = {};
+        var __k = (fileA && fileA.fsName) ? String(fileA.fsName) : String(fileA);
+        if (__srcArtboardCount > 0) $.global.__SC_sourcePageCountCache[__k] = __srcArtboardCount;
+    } catch (_) { }
+
+    // 現在の定規単位（rulerType）※ダイアログXで使う
     var rulerUnit = __SC_getRulerUnitInfo();
+
+    // B のアクティブアートボードサイズをデフォルトにする
+    var __wPt = 1920, __hPt = 1080;
+    try {
+        var ab0 = srcDocB.artboards[srcDocB.artboards.getActiveArtboardIndex()];
+        var r0 = ab0.artboardRect; // [L,T,R,B]
+        __wPt = Math.abs(r0[2] - r0[0]);
+        __hPt = Math.abs(r0[1] - r0[3]);
+        if (!(__wPt > 0)) __wPt = 1920;
+        if (!(__hPt > 0)) __hPt = 1080;
+    } catch (_) { }
+
+    function __SC_showSetupDialogX(defaultWPt, defaultHPt, defaultColorSpace) {
+        var dlgX = new Window('dialog', L('dialogNewDoc'));
+        dlgX.alignChildren = 'fill';
+
+        // Unit selection for Size inputs
+        var __unitLabel = 'pt';
+        var __unitFactor = 1;
+        function __SC_setUnit(label) {
+            __unitLabel = String(label || 'pt');
+            if (__unitLabel === 'mm') __unitFactor = (72 / 25.4);
+            else if (__unitLabel === 'px') __unitFactor = 1; // 1px = 1pt in this script
+            else __unitFactor = 1; // pt
+
+            // update unit labels
+            try { stUnitW.text = __unitLabel; } catch (_) { }
+            try { stUnitH.text = __unitLabel; } catch (_) { }
+
+            // re-normalize current inputs (treat current text as old unit? -> keep numeric as-is)
+            // We keep the numeric values and only change meaning. (Predictable for users.)
+        }
+
+        function __SC_unitToPtX(val) {
+            var v = parseFloat(String(val));
+            if (isNaN(v)) return NaN;
+            return v * __unitFactor;
+        }
+        function __SC_ptToUnitX(pt) {
+            return pt / __unitFactor;
+        }
+
+        // Preset dropdown + save button (spans both columns)
+        var groupPreset = dlgX.add('group');
+        groupPreset.orientation = 'row';
+        groupPreset.alignChildren = ['center', 'center'];
+
+        var ddPreset = groupPreset.add('dropdownlist', undefined, [
+            L('presetCustom'),
+            L('presetA4Cmyk'),
+            L('presetFhdRgb')
+        ]);
+        ddPreset.selection = 2;
+
+        var btnSavePreset = groupPreset.add('button', undefined, L('btnSavePreset'));
+        try { btnSavePreset.preferredSize = [54, 22]; } catch (_) { }
+
+        // Session preset store
+        if (!$.global.__SC_docPresets) $.global.__SC_docPresets = [];
+
+        btnSavePreset.onClick = function () {
+            try {
+                // Ask preset name
+                var presetName = "";
+                try {
+                    var d = new Window('dialog', L('presetNameTitle'));
+                    d.alignChildren = 'fill';
+                    var p = d.add('panel', undefined, L('presetNamePanel'));
+                    p.orientation = 'column';
+                    p.alignChildren = ['left', 'top'];
+                    p.margins = [15, 20, 15, 10];
+                    var et = p.add('edittext', undefined, '');
+                    et.characters = 20;
+                    et.active = true;
+
+                    var gb = d.add('group');
+                    gb.orientation = 'row';
+                    gb.alignChildren = ['right', 'center'];
+                    var bc = gb.add('button', undefined, L('cancel'), { name: 'cancel' });
+                    var bo = gb.add('button', undefined, L('ok'), { name: 'ok' });
+
+                    bo.onClick = function () {
+                        presetName = String(et.text || '').replace(/^\s+|\s+$/g, '');
+                        d.close(1);
+                    };
+                    bc.onClick = function () { d.close(0); };
+
+                    var rr = d.show();
+                    if (rr !== 1) return; // cancelled
+                    if (!presetName) {
+                        // empty -> fallback
+                        presetName = L('presetDefaultName');
+                    }
+                } catch (_) {
+                    // Fallback without dialog
+                    presetName = L('presetDefaultName');
+                }
+
+                var preset = {
+                    name: presetName,
+                    unit: (rbUmm.value ? 'mm' : rbUpx.value ? 'px' : 'pt'),
+                    w: editW.text,
+                    h: editH.text,
+                    color: (rbCMYK.value ? 'CMYK' : 'RGB')
+                };
+
+                $.global.__SC_docPresets.push(preset);
+
+                var label = preset.name + ': ' + preset.w + '×' + preset.h + ' ' + preset.unit + ' / ' + preset.color;
+                ddPreset.add('item', label);
+                ddPreset.selection = ddPreset.items.length - 1;
+            } catch (_) { }
+        };
+
+        // 3-column layout
+        var row2 = dlgX.add('group');
+        row2.orientation = 'row';
+        row2.alignChildren = ['left', 'top'];
+
+        // ---- Unit panel ----
+        var pnlUnit = row2.add('panel', undefined, L('panelUnitX'));
+        pnlUnit.orientation = 'column';
+        pnlUnit.alignChildren = ['left', 'top'];
+        pnlUnit.margins = [15, 20, 15, 10];
+
+        // Unit radios (vertical)
+        var gUnit = pnlUnit.add('group');
+        gUnit.orientation = 'column';
+        gUnit.alignChildren = ['left', 'top'];
+        var rbUmm = gUnit.add('radiobutton', undefined, 'mm');
+        var rbUpx = gUnit.add('radiobutton', undefined, 'px');
+        var rbUpt = gUnit.add('radiobutton', undefined, 'pt');
+
+        // default unit follows current ruler if possible
+        try {
+            if (rulerUnit.label === 'mm') rbUmm.value = true;
+            else if (rulerUnit.label === 'px') rbUpx.value = true;
+            else rbUpt.value = true;
+        } catch (_) {
+            rbUpt.value = true;
+        }
+
+        // ---- Size panel ----
+        var pnlSize = row2.add('panel', undefined, L('panelSizeX'));
+        pnlSize.orientation = 'column';
+        pnlSize.alignChildren = ['left', 'top'];
+        pnlSize.margins = [15, 20, 15, 10];
+
+        // Helper for setting W/H edit fields by pt
+        function setWHByPt(wPt, hPt) {
+            editW.text = String(__SC_round(__SC_ptToUnitX(wPt), 2));
+            editH.text = String(__SC_round(__SC_ptToUnitX(hPt), 2));
+        }
+
+        // Width group
+        var gW = pnlSize.add('group');
+        gW.orientation = 'row';
+        gW.alignChildren = ['left', 'center'];
+        var stW = gW.add('statictext', undefined, (lang === 'ja') ? '幅' : 'Width');
+        stW.justify = 'right';
+        stW.preferredSize.width = 44;
+        var editW = gW.add('edittext', undefined, String(__SC_round(__SC_ptToUnitX(defaultWPt), 2)));
+        editW.characters = 5;
+        var stUnitW = gW.add('statictext', undefined, __unitLabel);
+        stUnitW.preferredSize.width = 26;
+
+        // Height group
+        var gH = pnlSize.add('group');
+        gH.orientation = 'row';
+        gH.alignChildren = ['left', 'center'];
+        var stH = gH.add('statictext', undefined, (lang === 'ja') ? '高さ' : 'Height');
+        stH.justify = 'right';
+        stH.preferredSize.width = 44;
+        var editH = gH.add('edittext', undefined, String(__SC_round(__SC_ptToUnitX(defaultHPt), 2)));
+        editH.characters = 5;
+        var stUnitH = gH.add('statictext', undefined, __unitLabel);
+        stUnitH.preferredSize.width = 26;
+
+        // Initialize unit based on default radio
+        if (rbUmm.value) __SC_setUnit('mm');
+        else if (rbUpx.value) __SC_setUnit('px');
+        else __SC_setUnit('pt');
+
+        function __SC_applyUnitFromRadios() {
+            if (rbUmm.value) __SC_setUnit('mm');
+            else if (rbUpx.value) __SC_setUnit('px');
+            else __SC_setUnit('pt');
+        }
+
+        rbUmm.onClick = function () { __SC_applyUnitFromRadios(); };
+        rbUpx.onClick = function () { __SC_applyUnitFromRadios(); };
+        rbUpt.onClick = function () { __SC_applyUnitFromRadios(); };
+
+        // Preset dropdown logic
+        ddPreset.onChange = function () {
+            // Session presets
+            if ($.global.__SC_docPresets && ddPreset.selection.index >= 3) {
+                var idx2 = ddPreset.selection.index - 3;
+                var p = $.global.__SC_docPresets[idx2];
+                if (p) {
+                    try {
+                        rbUmm.value = (p.unit === 'mm');
+                        rbUpx.value = (p.unit === 'px');
+                        rbUpt.value = (p.unit === 'pt');
+                        __SC_applyUnitFromRadios();
+
+                        editW.text = p.w;
+                        editH.text = p.h;
+
+                        rbCMYK.value = (p.color === 'CMYK');
+                        rbRGB.value = (p.color === 'RGB');
+                    } catch (_) { }
+                    return;
+                }
+            }
+            if (!ddPreset.selection) return;
+            var idx = ddPreset.selection.index;
+
+            if (idx === 1) {
+                // A4: 210mm x 297mm  → unit = mm, color = CMYK
+                try {
+                    rbUmm.value = true;
+                    rbUpx.value = false;
+                    rbUpt.value = false;
+                    __SC_applyUnitFromRadios();
+                } catch (_) { }
+
+                var wPt = 210 * (72 / 25.4);
+                var hPt = 297 * (72 / 25.4);
+                setWHByPt(wPt, hPt);
+
+                try {
+                    rbCMYK.value = true;
+                    rbRGB.value = false;
+                } catch (_) { }
+
+            } else if (idx === 2) {
+                // FullHD: 1920px x 1080px → unit = px, color = RGB
+                try {
+                    rbUmm.value = false;
+                    rbUpx.value = true;
+                    rbUpt.value = false;
+                    __SC_applyUnitFromRadios();
+                } catch (_) { }
+
+                setWHByPt(1920, 1080);
+
+                try {
+                    rbRGB.value = true;
+                    rbCMYK.value = false;
+                } catch (_) { }
+
+            } else {
+                // カスタム: 単位・サイズは変更しない
+            }
+        };
+
+        // ---- Color mode panel ----
+        var pnlColor = row2.add('panel', undefined, L('panelColorModeX'));
+        pnlColor.orientation = 'column';
+        pnlColor.alignChildren = ['left', 'top'];
+        pnlColor.margins = [15, 20, 15, 10];
+
+        // Color mode radios (vertical)
+        var gC = pnlColor.add('group');
+        gC.orientation = 'column';
+        gC.alignChildren = ['left', 'top'];
+        var rbRGB = gC.add('radiobutton', undefined, 'RGB');
+        var rbCMYK = gC.add('radiobutton', undefined, 'CMYK');
+
+        try {
+            if (defaultColorSpace === DocumentColorSpace.CMYK) rbCMYK.value = true;
+            else rbRGB.value = true;
+        } catch (_) {
+            rbRGB.value = true;
+        }
+
+        // Buttons
+        var gBtn = dlgX.add('group');
+        gBtn.orientation = 'row';
+        gBtn.alignChildren = ['center', 'center'];
+        var btnCancelX = gBtn.add('button', undefined, L('cancel'), { name: 'cancel' });
+        var btnOkX = gBtn.add('button', undefined, L('ok'), { name: 'ok' });
+
+        function parseNum(s, fallback) {
+            var v = parseFloat(String(s));
+            if (isNaN(v) || !(v > 0)) return fallback;
+            return v;
+        }
+
+        btnOkX.onClick = function () {
+            var wU = parseNum(editW.text, __SC_ptToUnitX(defaultWPt));
+            var hU = parseNum(editH.text, __SC_ptToUnitX(defaultHPt));
+            var wPt = __SC_unitToPtX(wU);
+            var hPt = __SC_unitToPtX(hU);
+            if (!(wPt > 1)) wPt = defaultWPt;
+            if (!(hPt > 1)) hPt = defaultHPt;
+
+            var cs = DocumentColorSpace.RGB;
+            try { cs = rbCMYK.value ? DocumentColorSpace.CMYK : DocumentColorSpace.RGB; } catch (_) { cs = DocumentColorSpace.RGB; }
+
+            dlgX.__result = { wPt: wPt, hPt: hPt, colorSpace: cs };
+            dlgX.close(1);
+        };
+
+        btnCancelX.onClick = function () { dlgX.close(0); };
+
+        var r = dlgX.show();
+        if (r === 1 && dlgX.__result) return dlgX.__result;
+        return null;
+    }
+
+    var __defaultCS = DocumentColorSpace.RGB;
+    try { __defaultCS = srcDocB.documentColorSpace; } catch (_) { __defaultCS = DocumentColorSpace.RGB; }
+
+    // --- ダイアログXを表示 ---
+    var setupX = __SC_showSetupDialogX(__wPt, __hPt, __defaultCS);
+    if (!setupX) return; // user cancelled
+
+    // 2b. 新規ドキュメント（A）を作成
+    var doc = null;
+    try {
+        doc = app.documents.add(setupX.colorSpace, setupX.wPt, setupX.hPt);
+    } catch (_) {
+        try { doc = app.documents.add(DocumentColorSpace.RGB, setupX.wPt, setupX.hPt); } catch (e2) { doc = null; }
+    }
+    if (!doc) return;
 
     // 既定値は pt ベースで保持し、表示時に定規単位へ変換
     var DEFAULT_SPACING_PT = 20;
     var DEFAULT_MARGIN_PT = 20;
 
-    // ラベル幅（列数/間隔/列ずらし/スケール/回転/横/縦 を揃える）
+    // ラベル幅（列数/間隔/列ずらし/スケール/回転 を揃える）
     var LABEL_W = 60;
     // 位置調整ラベル幅（横方向の位置調整/縦方向の位置調整）
     var OFFSET_LABEL_W = 140;
@@ -566,10 +941,10 @@ function main() {
     // 自動フィット（UIは非表示。ロジックは維持して常にON）
     var AUTO_FIT_ENABLED = true;
 
-
-    // 1. ファイル（A）を指定
-    var fileA = File.openDialog(L("fileDialogTitle"));
-    if (!fileA) return;
+    // 3. ダイアログ（Y）を開く段階で B を閉じる
+    try {
+        srcDocB.close(SaveOptions.DONOTSAVECHANGES);
+    } catch (_) { }
 
     // -----------------------------------------
     // Source file page/artboard count (session cache)
@@ -618,6 +993,19 @@ function main() {
             if (isNaN(p) || p < 1) p = 1;
             var m = ((p - 1) % maxCount) + 1;
             out.push(m);
+        }
+        return out;
+    }
+
+    // Expand base sequence to desired total length by cycling.
+    // Example: base=[1..10], total=13 -> 1..10,1,2,3
+    function __SC_expandPagesToTotal(basePages, totalCount) {
+        if (!basePages || basePages.length === 0) return basePages;
+        var t = parseInt(totalCount, 10);
+        if (isNaN(t) || t <= 0) return basePages;
+        var out = [];
+        for (var i = 0; i < t; i++) {
+            out.push(basePages[i % basePages.length]);
         }
         return out;
     }
@@ -734,15 +1122,68 @@ function main() {
     panelPage.margins = [15, 20, 15, 10];
 
     var groupPage = panelPage.add("group");
-    groupPage.orientation = "row";
-    groupPage.alignChildren = ["left", "center"];
+    groupPage.orientation = "column";
+    groupPage.alignChildren = ["left", "top"];
 
-    // ラベルは省略（行内で input + button にする）
-    var editPages = groupPage.add("edittext", undefined, L("defaultPages"));
+    // Row 1: 指定
+    var rowSpec = groupPage.add("group");
+    rowSpec.orientation = "row";
+    rowSpec.alignChildren = ["left", "center"];
+
+    var stSpec = rowSpec.add("statictext", undefined, "指定");
+    stSpec.preferredSize.width = 32;
+
+    var editPages = rowSpec.add(
+        "edittext",
+        undefined,
+        (__srcArtboardCount > 0)
+            ? ("1-" + __srcArtboardCount)
+            : L("defaultPages")
+    );
     editPages.characters = 8;
     editPages.active = true;
 
-    var btnPreview = groupPage.add("button", undefined, L("btnLoad"));
+    function __SC_getTargetPagesFromUI() {
+        var base = parsePageNumbers(editPages.text);
+        if (!base || base.length === 0) base = [1];
+
+        // Clamp each requested number into existing source range (repeat within source count)
+        var srcCount = 0;
+        try { srcCount = __SC_getSourcePageCount(fileA); } catch (_) { srcCount = 0; }
+        if (srcCount > 0) base = __SC_repeatPagesWithinCount(base, srcCount);
+
+        // Desired total placements
+        var total = parseInt(String(editTotal.text || '').replace(/^\s+|\s+$/g, ''), 10);
+        if (isNaN(total) || total <= 0) {
+            total = (srcCount > 0) ? srcCount : base.length;
+        }
+
+        return __SC_expandPagesToTotal(base, total);
+    }
+
+    // Row 2: 総数（読み込み元のアートボード数）
+    var rowTotal = groupPage.add("group");
+    rowTotal.orientation = "row";
+    rowTotal.alignChildren = ["left", "center"];
+
+    var stTotal = rowTotal.add("statictext", undefined, "総数");
+    stTotal.preferredSize.width = 32;
+
+    var editTotal = rowTotal.add(
+        "edittext",
+        undefined,
+        (__srcArtboardCount > 0) ? String(__srcArtboardCount) : ""
+    );
+    editTotal.characters = 8;
+    editTotal.enabled = true; // 編集可能（ディムにしない）
+
+    // Row 3: 読み込みボタン
+    var rowBtn = groupPage.add("group");
+    rowBtn.orientation = "row";
+    rowBtn.alignChildren = ["right", "right"];
+    // rowBtn.alignment = ["fill", "top"];
+
+    var btnPreview = rowBtn.add("button", undefined, L("btnLoad"));
     btnPreview.preferredSize = [80, 22];
 
     // --- トリミングパネル（配置範囲：PDF のトリミング設定） ---
@@ -1432,15 +1873,7 @@ function main() {
     }
 
     function __SC_calcDefaultColShiftPt() {
-        var pages = parsePageNumbers(editPages.text);
-
-        // Repeat pages/artboards when requested count exceeds source count
-        try {
-            var srcCount = __SC_getSourcePageCount(fileA);
-            if (srcCount > 0) {
-                pages = __SC_repeatPagesWithinCount(pages, srcCount);
-            }
-        } catch (_) { }
+        var pages = __SC_getTargetPagesFromUI();
 
         if (!pages || pages.length === 0) pages = [1];
 
@@ -1532,8 +1965,8 @@ function main() {
     var leftBtnGroup = groupButtons.add("group");
     leftBtnGroup.orientation = "row";
     leftBtnGroup.alignChildren = ["left", "center"];
-    var btnReset = leftBtnGroup.add("button", undefined, "リセット");
-    var cbLightPreview = leftBtnGroup.add("checkbox", undefined, "軽量プレビュー");
+    var btnReset = leftBtnGroup.add("button", undefined, L('reset'));
+    var cbLightPreview = leftBtnGroup.add("checkbox", undefined, L('lightPreview'));
     cbLightPreview.value = true;
 
     // 中央スペーサー
@@ -2739,7 +3172,8 @@ function main() {
         // Rebuild cache on explicit load
         __SC_clearPreviewCache();
 
-        var pages = parsePageNumbers(editPages.text);
+        var pages = __SC_getTargetPagesFromUI();
+        if (!pages || pages.length === 0) return;
         // Repeat pages/artboards when requested count exceeds source count
         try {
             var srcCount = __SC_getSourcePageCount(fileA);
@@ -2830,14 +3264,7 @@ function main() {
     };
 
     if (win.show() === 1) {
-        var finalPages = parsePageNumbers(editPages.text);
-        // Repeat pages/artboards when requested count exceeds source count
-        try {
-            var srcCount2 = __SC_getSourcePageCount(fileA);
-            if (srcCount2 > 0) {
-                finalPages = __SC_repeatPagesWithinCount(finalPages, srcCount2);
-            }
-        } catch (_) { }
+        var finalPages = __SC_getTargetPagesFromUI();
         var finalCols = parseInt(editCols.text, 10) || 5;
         var finalSpacingUnit = parseFloat(editSpacing.text);
         if (isNaN(finalSpacingUnit) || finalSpacingUnit < 0) finalSpacingUnit = 0;
