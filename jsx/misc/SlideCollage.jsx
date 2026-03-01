@@ -38,7 +38,7 @@ https://slide-collage.vercel.app/
 // Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -246,7 +246,20 @@ function __SC_setPdfCropPreference(cropVal) {
 }
 
 
+// Placing .ai in Illustrator uses the PDF import pipeline as well (AI is PDF-compatible),
+// so we treat .ai as "PDF-like" for page/artboard selection.
 function __SC_isPdfLikeFile(f) {
+    try {
+        if (!f) return false;
+        var n = (f.name || "").toLowerCase();
+        return (n.indexOf(".pdf") > -1) || (n.indexOf(".ai") > -1);
+    } catch (e) {
+        return false;
+    }
+}
+
+// UI-only: crop box options are meaningful for PDF; keep disabled for AI.
+function __SC_isPdfFile(f) {
     try {
         if (!f) return false;
         var n = (f.name || "").toLowerCase();
@@ -558,6 +571,57 @@ function main() {
     var fileA = File.openDialog(L("fileDialogTitle"));
     if (!fileA) return;
 
+    // -----------------------------------------
+    // Source file page/artboard count (session cache)
+    // - For .ai: artboards length
+    // - For .pdf: pages are represented as artboards when opened
+    // -----------------------------------------
+    function __SC_getSourceDocKey(fileObj) {
+        try { return (fileObj && fileObj.fsName) ? String(fileObj.fsName) : String(fileObj); }
+        catch (_) { return String(fileObj); }
+    }
+
+    function __SC_getSourcePageCount(fileObj) {
+        try {
+            if (!fileObj) return 0;
+
+            if (!$.global.__SC_sourcePageCountCache) $.global.__SC_sourcePageCountCache = {};
+            var cache = $.global.__SC_sourcePageCountCache;
+            var key = __SC_getSourceDocKey(fileObj);
+            if (cache[key] && cache[key] > 0) return cache[key];
+
+            var tempDoc = null;
+            var n = 0;
+            try {
+                // Open the source file to read artboard/page count, then close without saving.
+                tempDoc = app.open(fileObj);
+                try { n = (tempDoc && tempDoc.artboards) ? tempDoc.artboards.length : 0; } catch (_) { n = 0; }
+            } catch (_) {
+                n = 0;
+            } finally {
+                try { if (tempDoc) tempDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (_) { }
+            }
+
+            if (n > 0) cache[key] = n;
+            return n;
+        } catch (_) { }
+        return 0;
+    }
+
+    // Map requested page numbers to existing page range by repeating (e.g., 1-10 with 6 pages -> 1234561234)
+    function __SC_repeatPagesWithinCount(pages, maxCount) {
+        if (!pages || pages.length === 0) return pages;
+        if (!(maxCount > 0)) return pages;
+        var out = [];
+        for (var i = 0; i < pages.length; i++) {
+            var p = parseInt(pages[i], 10);
+            if (isNaN(p) || p < 1) p = 1;
+            var m = ((p - 1) % maxCount) + 1;
+            out.push(m);
+        }
+        return out;
+    }
+
     // =========================================
     // Preview/cache declarations (moved to main() early)
     // =========================================
@@ -714,8 +778,8 @@ function main() {
     // デフォルト：仕上がり
     ddCrop.selection = 2;
 
-    // PDF のときのみ有効
-    ddCrop.enabled = __SC_isPdfLikeFile(fileA);
+    // PDF のときのみ有効（AIはPDF-likeだが、crop boxはPDFのみ有効）
+    ddCrop.enabled = __SC_isPdfFile(fileA);
 
     function __SC_getCropModeFromUI() {
         var idx = (ddCrop.selection) ? ddCrop.selection.index : 2;
@@ -725,6 +789,26 @@ function main() {
         if (idx === 3) return __SC_CROP_BLEED;
         // 仕上がりは CropBox を想定（環境差があるため失敗時は無視される）
         return __SC_CROP_CROP;
+    }
+
+    // -----------------------------------------
+    // Import page/artboard selection
+    // - PDF: uses PDFImport/PageNumber
+    // - AI: uses IllustratorImport/ArtboardNumber (+ PlaceArtboards)
+    // -----------------------------------------
+    function __SC_setImportPageNumber(fileObj, pageNum) {
+        var n = parseInt(pageNum, 10);
+        if (isNaN(n) || n < 1) n = 1;
+        try {
+            // Use PDFImport for both PDF and AI (AI is handled by the PDF import pipeline when placing)
+            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", n);
+        } catch (_) { }
+    }
+
+    function __SC_resetImportPageNumber(fileObj) {
+        try {
+            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1);
+        } catch (_) { }
     }
 
     /* グリッド / Grid */
@@ -1301,7 +1385,7 @@ function main() {
                 if (__SC_isPdfLikeFile(fileA)) {
                     __SC_setPdfCropPreference(cropMode0);
                 }
-                app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pageNum0);
+                __SC_setImportPageNumber(fileA, pageNum0);
                 temp = doc.placedItems.add();
                 temp.file = fileA;
                 w = temp.width;
@@ -1310,6 +1394,7 @@ function main() {
                 w = 0; h = 0;
             } finally {
                 try { if (temp) temp.remove(); } catch (e2) { }
+                try { __SC_resetImportPageNumber(fileA); } catch (e3) { }
             }
             __SC_setAutoFitMeasure(fileA, cropMode0, pageNum0, w, h);
         }
@@ -1348,6 +1433,15 @@ function main() {
 
     function __SC_calcDefaultColShiftPt() {
         var pages = parsePageNumbers(editPages.text);
+
+        // Repeat pages/artboards when requested count exceeds source count
+        try {
+            var srcCount = __SC_getSourcePageCount(fileA);
+            if (srcCount > 0) {
+                pages = __SC_repeatPagesWithinCount(pages, srcCount);
+            }
+        } catch (_) { }
+
         if (!pages || pages.length === 0) pages = [1];
 
         var colsNum = parseInt(editCols.text, 10) || 5;
@@ -1383,7 +1477,7 @@ function main() {
             if (__SC_isPdfLikeFile(fileA)) {
                 __SC_setPdfCropPreference(__SC_getCropModeFromUI());
             }
-            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pages[0]);
+            __SC_setImportPageNumber(fileA, pages[0]);
             temp = doc.placedItems.add();
             temp.file = fileA;
 
@@ -1394,7 +1488,7 @@ function main() {
             h = 0;
         } finally {
             try { if (temp) temp.remove(); } catch (e2) { }
-            try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (e3) { }
+            try { __SC_resetImportPageNumber(fileA); } catch (e3) { }
         }
 
         if (!(h > 0)) return 0;
@@ -1426,7 +1520,7 @@ function main() {
         // ✅ lightweight mode
         lightMode: true,
         lightModeLabel: L("lightMode"),
-        lightModeDefault: true
+        lightModeDefault: false
     });
 
     // ボタン類（左：リセット / 右：キャンセル・OK）
@@ -1464,7 +1558,7 @@ function main() {
 
             // Item
             ddCrop.selection = 2;
-            ddCrop.enabled = __SC_isPdfLikeFile(fileA);
+            ddCrop.enabled = __SC_isPdfFile(fileA);
 
             cbRound.value = false;
             editRound.text = L("defaultRound");
@@ -1823,54 +1917,39 @@ function main() {
                 var roundPt = __SC_unitToPt(roundUnit, rulerUnit.factor);
 
                 if (roundPt > 0) {
-                    // Wrap once (PlacedItem -> clip group)
-                    if (!__previewCache.previewWrapped) {
-                        var newItems = [];
-                        var newBaseW = [];
-                        var newBaseH = [];
+                    // Ensure every item is a clip GroupItem (retry per-item; do NOT rely on one-shot flag)
+                    var allWrapped = true;
+                    for (var wi = 0; wi < __previewCache.items.length; wi++) {
+                        var it0 = __previewCache.items[wi];
+                        if (!it0) { allWrapped = false; continue; }
 
-                        for (var wi = 0; wi < __previewCache.items.length; wi++) {
-                            var it0 = __previewCache.items[wi];
-                            if (!it0) continue;
+                        if (it0.typename !== "GroupItem") {
+                            allWrapped = false;
 
-                            // Already a group? keep as-is
-                            if (it0.typename === "GroupItem") {
-                                newItems.push(it0);
-                                newBaseW.push(__previewCache.baseW[wi]);
-                                newBaseH.push(__previewCache.baseH[wi]);
-                                continue;
-                            }
-
+                            // Try to wrap this item now
                             var clipGrp = null;
                             try { clipGrp = __SC_wrapWithClipGroup(doc, it0); } catch (_) { clipGrp = null; }
 
                             if (clipGrp) {
-                                // Move the new clip group into the persistent rotation group
+                                // Keep the index mapping stable (important for baseW/baseH and randOrder)
+                                __previewCache.items[wi] = clipGrp;
+
+                                // Move the new clip group into the persistent rotation group (if any)
                                 try { if (__previewCache.group) clipGrp.moveToEnd(__previewCache.group); } catch (_) { }
-                                newItems.push(clipGrp);
-                                newBaseW.push(__previewCache.baseW[wi]);
-                                newBaseH.push(__previewCache.baseH[wi]);
-                            } else {
-                                newItems.push(it0);
-                                newBaseW.push(__previewCache.baseW[wi]);
-                                newBaseH.push(__previewCache.baseH[wi]);
                             }
                         }
-
-                        __previewCache.items = newItems;
-                        __previewCache.baseW = newBaseW;
-                        __previewCache.baseH = newBaseH;
-                        __previewCache.previewWrapped = true;
-                        __previewCache.randOrder = null;
                     }
 
-                    // Apply effect only when radius changed
+                    // Mark as wrapped only if all items are groups
+                    __previewCache.previewWrapped = allWrapped;
+
+                    // Apply effect when radius changed OR when we just created groups
                     if (__previewCache.previewRoundRadiusPt !== roundPt) {
                         for (var ei = 0; ei < __previewCache.items.length; ei++) {
                             try {
-                                var it = __previewCache.items[ei];
-                                if (it && it.typename === "GroupItem") {
-                                    __SC_applyRoundCorners([it], roundPt);
+                                var itG = __previewCache.items[ei];
+                                if (itG && itG.typename === "GroupItem") {
+                                    __SC_applyRoundCorners([itG], roundPt);
                                 }
                             } catch (_) { }
                         }
@@ -1951,7 +2030,7 @@ function main() {
         app.redraw();
     }
 
-    function updatePreview() {
+    function __SC_updatePreviewImpl() {
         // 既存キャッシュがある場合は再配置せず更新
         if (__previewCache.items && __previewCache.items.length > 0) {
             __SC_applyLayoutToCachedItems();
@@ -1973,7 +2052,7 @@ function main() {
     var __previewTaskId = null;
 
     // Expose updatePreview for app.scheduleTask
-    $.global.__SC_updatePreview = updatePreview;
+    $.global.__SC_updatePreview = __SC_updatePreviewImpl;
 
     function requestPreview() {
         try {
@@ -1987,7 +2066,7 @@ function main() {
             __previewTaskId = app.scheduleTask("$.global.__SC_updatePreview();", PREVIEW_DEBOUNCE_MS, false);
         } catch (e2) {
             // Fallback: run immediately
-            try { updatePreview(); } catch (e3) { }
+            try { __SC_updatePreviewImpl(); } catch (e3) { }
         }
     }
 
@@ -2524,7 +2603,7 @@ function main() {
                 if (__SC_isPdfLikeFile(fileA)) {
                     __SC_setPdfCropPreference(cropMode);
                 }
-                app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", abNumber);
+                __SC_setImportPageNumber(fileA, abNumber);
 
                 var placedItem = doc.placedItems.add();
                 placedItem.file = fileA;
@@ -2641,7 +2720,8 @@ function main() {
         } catch (e) {
             alert(L("alertPlaceError"));
         } finally {
-            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1);
+            try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (_) { }
+            try { __SC_resetImportPageNumber(fileA); } catch (_) { }
         }
         var allItems = placedItemsOnly;
         if (bgItem) {
@@ -2660,6 +2740,13 @@ function main() {
         __SC_clearPreviewCache();
 
         var pages = parsePageNumbers(editPages.text);
+        // Repeat pages/artboards when requested count exceeds source count
+        try {
+            var srcCount = __SC_getSourcePageCount(fileA);
+            if (srcCount > 0) {
+                pages = __SC_repeatPagesWithinCount(pages, srcCount);
+            }
+        } catch (_) { }
         if (!pages || pages.length === 0) return;
 
         var cropMode = __SC_getCropModeFromUI();
@@ -2679,7 +2766,7 @@ function main() {
                 if (__SC_isPdfLikeFile(fileA)) {
                     __SC_setPdfCropPreference(cropMode);
                 }
-                app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", pages[i]);
+                __SC_setImportPageNumber(fileA, pages[i]);
                 var it = doc.placedItems.add();
                 it.file = fileA;
                 __previewCache.items.push(it);
@@ -2689,7 +2776,7 @@ function main() {
                 // ignore individual failures
             }
         }
-        try { app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1); } catch (_) { }
+        try { __SC_resetImportPageNumber(fileA); } catch (_) { }
 
         __previewCache.cropMode = cropMode;
         __previewCache.pagesKey = String(editPages.text);
@@ -2744,6 +2831,13 @@ function main() {
 
     if (win.show() === 1) {
         var finalPages = parsePageNumbers(editPages.text);
+        // Repeat pages/artboards when requested count exceeds source count
+        try {
+            var srcCount2 = __SC_getSourcePageCount(fileA);
+            if (srcCount2 > 0) {
+                finalPages = __SC_repeatPagesWithinCount(finalPages, srcCount2);
+            }
+        } catch (_) { }
         var finalCols = parseInt(editCols.text, 10) || 5;
         var finalSpacingUnit = parseFloat(editSpacing.text);
         if (isNaN(finalSpacingUnit) || finalSpacingUnit < 0) finalSpacingUnit = 0;
