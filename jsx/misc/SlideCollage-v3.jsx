@@ -9,15 +9,22 @@ slide-collage
 20260302
 
 ### 概要：
-アクティブなドキュメント上で、指定した .ai / .pdf（PDFはページ指定）をグリッド配置し、ポートフォリオ用のサムネイル一覧を作成します。
+開いているドキュメント（B）のアートボードを元に、新規ドキュメントを作成し、指定したアートボードをグリッド配置してポートフォリオ用のサムネイル一覧を作成します。
 
-・読み込み：アートボード番号（例 1-20 / 1,3,5）を指定して配置
-・アイテム：PDFの配置範囲（アート/トリミング/仕上がり/裁ち落とし）を選択、角丸（pt換算）を適用
+・起動時に新規ドキュメント設定ダイアログ（サイズ／単位／カラーモード）を表示
+  - プリセット（A4 / フルHD）＋セッション内プリセット保存に対応
+
+・読み込み：
+  - 指定：アートボード番号（例 1-10 / 1,3,5）を指定
+  - 総数：最終的に配置する総数を指定
+    例）指定 1-10 / 総数 30 → 1-10 を繰り返して30個配置
+
+・アイテム：PDFの配置範囲（アート / トリミング / 仕上がり / 裁ち落とし）を選択、角丸（pt換算）を適用
   - 各アイテムは同サイズの矩形でクリップグループ化し、角丸（ライブエフェクト）はクリップグループに適用
 
-・グリッド：方向（横/縦/ランダム）、列数、間隔を設定
+・グリッド：方向（横 / 縦 / ランダム）、列数、間隔を設定
 ・偶数列：配分モード（偶数列＋1）で偶数列に+1スロットを追加、ずらし（偶数列の上下オフセット）を個別調整
-・レイアウト：スケール（自動フィット結果に対する追加倍率）、回転（全体を回転し中心をアートボード中心に合わせる）、位置調整（横/縦）
+・レイアウト：スケール（自動フィット結果に対する追加倍率）、回転（全体を回転し中心をアートボード中心に合わせる）、位置調整（横 / 縦）
 
 ・マスク：OK時にマージン内側でクリッピング
   - マスク角丸を設定可能（クリップグループに適用）
@@ -38,7 +45,7 @@ https://slide-collage.vercel.app/
 // Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.3.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -54,24 +61,27 @@ var LABELS = {
 
     // Panels
     panelLoad: { ja: "アートボードの読み込み", en: "Load Artboards" },
-    panelSource: { ja: "読み込みファイル", en: "Source File" },
     panelItem: { ja: "アイテム", en: "Items" },
     panelGrid: { ja: "グリッド", en: "Grid" },
     panelLayout: { ja: "レイアウト", en: "Layout" },
     panelArtboard: { ja: "アートボードとマスク", en: "Artboard & Mask" },
 
+    // Dialog X (New document)
+    dialogNewDoc: { ja: "新規ドキュメント", en: "New Document" },
+    panelUnitX: { ja: "単位", en: "Unit" },
+    panelSizeX: { ja: "サイズ", en: "Size" },
+    panelColorModeX: { ja: "カラーモード", en: "Color Mode" },
+    presetCustom: { ja: "カスタム", en: "Custom" },
+    presetA4Cmyk: { ja: "A4（210mm x 297mm）, CMYK", en: "A4 (210mm x 297mm), CMYK" },
+    presetFhdRgb: { ja: "フルHD（1920 px × 1080 px）, RGB", en: "Full HD (1920 px × 1080 px), RGB" },
+    btnSavePreset: { ja: "保存", en: "Save" },
+    presetNameTitle: { ja: "プリセット名", en: "Preset name" },
+    presetNamePanel: { ja: "名前", en: "Name" },
+    presetDefaultName: { ja: "プリセット", en: "Preset" },
+
     // Load panel
     labelArtboards: { ja: "アートボード", en: "Artboards" },
-    btnLoad: { ja: "ファイル指定", en: "Select File" },
-    btnImport: { ja: "読み込み", en: "Load" },
-    range: { ja: "指定", en: "Range" },
-    total: { ja: "総数", en: "Total" },
-    dlgPickFile: { ja: "PDF/AIを選択してください", en: "Select a PDF/AI" },
-    filterPick: { ja: "PDF/AI:*.pdf;*.ai", en: "PDF/AI:*.pdf;*.ai" },
-    alertLinkUnknown: { ja: "画像のリンク先が不明でした。", en: "Image link not found." },
-    alertPageCountFail: { ja: "リンク画像のページ数を取得できませんでした。", en: "Could not get the page length of PlacedItem." },
-    alertPickPdfAi: { ja: "PDFまたはAIファイルを選択してください。", en: "Please select a PDF or AI file." },
-    notSelected: { ja: "未指定", en: "Not selected" },
+    btnLoad: { ja: "読み込み", en: "Load" },
 
     // Item panel
     cropArt: { ja: "アート", en: "Art" },
@@ -109,6 +119,10 @@ var LABELS = {
     cancel: { ja: "キャンセル", en: "Cancel" },
     ok: { ja: "OK", en: "OK" },
 
+    // Buttons (extra)
+    reset: { ja: "リセット", en: "Reset" },
+    lightPreview: { ja: "軽量プレビュー", en: "Light preview" },
+
     // Zoom
     zoom: { ja: "画面ズーム", en: "Zoom" },
     lightMode: { ja: "軽量モード", en: "Light mode" },
@@ -117,7 +131,6 @@ var LABELS = {
     fileDialogTitle: { ja: "配置するファイル（.ai または .pdf）を選択してください", en: "Select a file to place (.ai or .pdf)" },
     alertNeedDoc: { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running." },
     alertPlaceError: { ja: "配置中にエラーが発生しました。", en: "An error occurred while placing items." },
-    alertNeedFile: { ja: "先に［ファイル指定］で読み込みファイルを選択してください。", en: "Please select a source file first." },
 
     // Units / Defaults
     unitPercent: { ja: "%", en: "%" },
@@ -138,13 +151,6 @@ function L(key) {
     var o = LABELS[key];
     if (!o) return key;
     return o[lang] || o.en || o.ja || key;
-}
-
-// Safe alert helper (used by __TMKPageCount_ module)
-if (typeof safeAlertKey === "undefined") {
-    var safeAlertKey = function (key) {
-        try { alert(L(key)); } catch (_) { }
-    };
 }
 
 
@@ -243,133 +249,6 @@ var __SC_CROP_TRIM = 3;
 var __SC_CROP_BLEED = 2;
 var __SC_CROP_CROP = 1;
 var __SC_CROP_MEDIA = 0;
-
-// ============================================================
-// TMK Page Count Module (collision-safe)
-// - Estimate total pages (last page number) of linked PDF/AI
-// - No relink / no placedItems.add
-// ============================================================
-
-function __TMKPageCount_getLastPageFromSelection(selectionItems) {
-    var placed = __TMKPageCount_findFirstPlacedItem(selectionItems);
-    if (!placed) return null;
-
-    var f = placed.file;
-    if (!f) {
-        safeAlertKey('alertLinkUnknown');
-        return null;
-    }
-
-    var name = decodeURIComponent(f.name);
-    if (!/\.(?:pdf|ai)$/i.test(name)) return null;
-
-    var last = __TMKPageCount_getPageLengthFromFile(f);
-    if (!last || isNaN(Number(last)) || Number(last) <= 0) {
-        safeAlertKey('alertPageCountFail');
-        return null;
-    }
-
-    return Number(last);
-}
-
-function __TMKPageCount_updateResultFromPlacedOrFile(doc, fileObjOrNull, setPathTextFn, setResultTextFn) {
-    var placedTemp = null;
-
-    try {
-        // If a file is provided, place it temporarily to reuse existing selection-based logic
-        if (fileObjOrNull) {
-            var name = decodeURIComponent(fileObjOrNull.name);
-            if (!/\.(?:pdf|ai)$/i.test(name)) {
-                safeAlertKey('alertPickPdfAi');
-                if (setResultTextFn) setResultTextFn(null);
-                return;
-            }
-
-            try {
-                placedTemp = doc.placedItems.add();
-                placedTemp.file = fileObjOrNull;
-
-                // Place near the visible top-left so it can be seen (briefly)
-                try {
-                    var vb = doc.activeView && doc.activeView.bounds ? doc.activeView.bounds : null; // [left, top, right, bottom]
-                    if (vb && vb.length === 4) {
-                        placedTemp.position = [vb[0], vb[1]];
-                    }
-                } catch (_) { }
-
-                // Use the existing logic without modifying it
-                var lastFromFile = __TMKPageCount_getLastPageFromSelection([placedTemp]);
-                if (setPathTextFn) setPathTextFn(fileObjOrNull);
-                if (setResultTextFn) setResultTextFn(lastFromFile);
-            } finally {
-                if (placedTemp) {
-                    try { placedTemp.remove(); } catch (_) { }
-                }
-            }
-            return;
-        }
-
-        // No file provided: use current selection (PlacedItem must be selected)
-        var last = __TMKPageCount_getLastPageFromSelection(doc.selection);
-
-        // Attempt to show the currently selected placed file path
-        try {
-            var placedSel = __TMKPageCount_findFirstPlacedItem(doc.selection);
-            if (placedSel && placedSel.file && setPathTextFn) setPathTextFn(placedSel.file);
-        } catch (_) { }
-
-        if (setResultTextFn) setResultTextFn(last);
-    } catch (e) {
-        alert(e);
-        try { if (setResultTextFn) setResultTextFn(null); } catch (_) { }
-    }
-}
-
-function __TMKPageCount_findFirstPlacedItem(items) {
-    if (!items || items.length <= 0) return null;
-    for (var i = 0; i < items.length; i++) {
-        var it = items[i];
-        if (!it) continue;
-        var n = (it.constructor && it.constructor.name) ? it.constructor.name : '';
-        if (n === 'PlacedItem') return it;
-        if (n === 'GroupItem') {
-            var hit = __TMKPageCount_findFirstPlacedItem(it.pageItems);
-            if (hit) return hit;
-        }
-    }
-    return null;
-}
-
-// pdf/aiから総ページ数を推定（既存ロジックを維持しつつ最小化）
-function __TMKPageCount_getPageLengthFromFile(file) {
-    var tg = /<<\/Count\s(\d+)/;
-    var c1 = /<<\/Type\/Page\/Parent/;
-    var c2 = /\/Type\s\/Page\s/;
-    var c3 = /\/StructParents\s\d+.*\/Type\/Page>>/;
-    var tg2 = /<<\/Linearized\s.+\/N\s(\d+)\/T\s.+>>/;
-    var tg3 = /\/Type\/Pages/;
-    var tg4 = /\/Count\s(\d+)/;
-
-    var res, wd, len = 0, num = 0;
-    try {
-        file.open('r');
-        while (!file.eof) {
-            wd = file.readln();
-            if (tg.test(wd) || tg2.test(wd)) { res = Number(RegExp.$1); break; }
-            if (c1.test(wd) || c2.test(wd) || c3.test(wd)) len++;
-            if (tg3.test(wd)) {
-                wd = file.readln();
-                if (tg4.test(wd)) { num = Number(RegExp.$1); if (len < num) len = num; }
-            }
-        }
-        if (len > 0) res = len;
-    } catch (e) {
-        alert(e);
-    } finally {
-        try { file.close(); } catch (_) { }
-    }
-    return res;
-}
 
 /**
  * Set PDF import crop box preference.
@@ -684,27 +563,379 @@ function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
 }
 
 function main() {
-
-    // Cached source page/artboard count
-    var __SC_sourceCount = 0;
-
     if (app.documents.length === 0) {
         alert(L("alertNeedDoc"));
         return;
     }
 
-    var doc = app.activeDocument;
-    // Current source file selected by user (set via UI). If null, the user has not selected any file yet.
-    var fileA = null;
+    // 1. 読み込み元（B）は「いま開いているドキュメント」
+    var srcDocB = app.activeDocument;
 
-    // 現在の定規単位（rulerType）
+    // B が未保存なら保存を促す（必須）
+    try {
+        if (!srcDocB.saved || !srcDocB.fullName) {
+            var msg = (lang === "ja")
+                ? "読み込み元ドキュメント（B）が未保存です。保存してから続行します。"
+                : "The source document (B) is not saved. Please save it to continue.";
+            alert(msg);
+
+            var saveTo = File.saveDialog((lang === "ja") ? "読み込み元ドキュメントを保存" : "Save the source document");
+            if (!saveTo) return;
+            try { srcDocB.saveAs(saveTo); } catch (_) { return; }
+        }
+    } catch (_) { }
+
+    // B のパス（配置に使うファイル）
+    var fileA = null;
+    try { fileA = srcDocB.fullName; } catch (_) { fileA = null; }
+    if (!fileA) return;
+
+    // B の総アートボード数（n）を取得
+    var __srcArtboardCount = 0;
+    try { __srcArtboardCount = (srcDocB.artboards) ? srcDocB.artboards.length : 0; } catch (_) { __srcArtboardCount = 0; }
+
+    // セッションキャッシュへ（open せずに確定値を入れる）
+    try {
+        if (!$.global.__SC_sourcePageCountCache) $.global.__SC_sourcePageCountCache = {};
+        var __k = (fileA && fileA.fsName) ? String(fileA.fsName) : String(fileA);
+        if (__srcArtboardCount > 0) $.global.__SC_sourcePageCountCache[__k] = __srcArtboardCount;
+    } catch (_) { }
+
+    // 現在の定規単位（rulerType）※ダイアログXで使う
     var rulerUnit = __SC_getRulerUnitInfo();
+
+    // B のアクティブアートボードサイズをデフォルトにする
+    var __wPt = 1920, __hPt = 1080;
+    try {
+        var ab0 = srcDocB.artboards[srcDocB.artboards.getActiveArtboardIndex()];
+        var r0 = ab0.artboardRect; // [L,T,R,B]
+        __wPt = Math.abs(r0[2] - r0[0]);
+        __hPt = Math.abs(r0[1] - r0[3]);
+        if (!(__wPt > 0)) __wPt = 1920;
+        if (!(__hPt > 0)) __hPt = 1080;
+    } catch (_) { }
+
+    function __SC_showSetupDialogX(defaultWPt, defaultHPt, defaultColorSpace) {
+        var dlgX = new Window('dialog', L('dialogNewDoc'));
+        dlgX.alignChildren = 'fill';
+
+        // Unit selection for Size inputs
+        var __unitLabel = 'pt';
+        var __unitFactor = 1;
+        function __SC_setUnit(label) {
+            __unitLabel = String(label || 'pt');
+            if (__unitLabel === 'mm') __unitFactor = (72 / 25.4);
+            else if (__unitLabel === 'px') __unitFactor = 1; // 1px = 1pt in this script
+            else __unitFactor = 1; // pt
+
+            // update unit labels
+            try { stUnitW.text = __unitLabel; } catch (_) { }
+            try { stUnitH.text = __unitLabel; } catch (_) { }
+
+            // re-normalize current inputs (treat current text as old unit? -> keep numeric as-is)
+            // We keep the numeric values and only change meaning. (Predictable for users.)
+        }
+
+        function __SC_unitToPtX(val) {
+            var v = parseFloat(String(val));
+            if (isNaN(v)) return NaN;
+            return v * __unitFactor;
+        }
+        function __SC_ptToUnitX(pt) {
+            return pt / __unitFactor;
+        }
+
+        // Preset dropdown + save button (spans both columns)
+        var groupPreset = dlgX.add('group');
+        groupPreset.orientation = 'row';
+        groupPreset.alignChildren = ['center', 'center'];
+
+        var ddPreset = groupPreset.add('dropdownlist', undefined, [
+            L('presetCustom'),
+            L('presetA4Cmyk'),
+            L('presetFhdRgb')
+        ]);
+        ddPreset.selection = 2;
+
+        var btnSavePreset = groupPreset.add('button', undefined, L('btnSavePreset'));
+        try { btnSavePreset.preferredSize = [54, 22]; } catch (_) { }
+
+        // Session preset store
+        if (!$.global.__SC_docPresets) $.global.__SC_docPresets = [];
+
+        btnSavePreset.onClick = function () {
+            try {
+                // Ask preset name
+                var presetName = "";
+                try {
+                    var d = new Window('dialog', L('presetNameTitle'));
+                    d.alignChildren = 'fill';
+                    var p = d.add('panel', undefined, L('presetNamePanel'));
+                    p.orientation = 'column';
+                    p.alignChildren = ['left', 'top'];
+                    p.margins = [15, 20, 15, 10];
+                    var et = p.add('edittext', undefined, '');
+                    et.characters = 20;
+                    et.active = true;
+
+                    var gb = d.add('group');
+                    gb.orientation = 'row';
+                    gb.alignChildren = ['right', 'center'];
+                    var bc = gb.add('button', undefined, L('cancel'), { name: 'cancel' });
+                    var bo = gb.add('button', undefined, L('ok'), { name: 'ok' });
+
+                    bo.onClick = function () {
+                        presetName = String(et.text || '').replace(/^\s+|\s+$/g, '');
+                        d.close(1);
+                    };
+                    bc.onClick = function () { d.close(0); };
+
+                    var rr = d.show();
+                    if (rr !== 1) return; // cancelled
+                    if (!presetName) {
+                        // empty -> fallback
+                        presetName = L('presetDefaultName');
+                    }
+                } catch (_) {
+                    // Fallback without dialog
+                    presetName = L('presetDefaultName');
+                }
+
+                var preset = {
+                    name: presetName,
+                    unit: (rbUmm.value ? 'mm' : rbUpx.value ? 'px' : 'pt'),
+                    w: editW.text,
+                    h: editH.text,
+                    color: (rbCMYK.value ? 'CMYK' : 'RGB')
+                };
+
+                $.global.__SC_docPresets.push(preset);
+
+                var label = preset.name + ': ' + preset.w + '×' + preset.h + ' ' + preset.unit + ' / ' + preset.color;
+                ddPreset.add('item', label);
+                ddPreset.selection = ddPreset.items.length - 1;
+            } catch (_) { }
+        };
+
+        // 3-column layout
+        var row2 = dlgX.add('group');
+        row2.orientation = 'row';
+        row2.alignChildren = ['left', 'top'];
+
+        // ---- Unit panel ----
+        var pnlUnit = row2.add('panel', undefined, L('panelUnitX'));
+        pnlUnit.orientation = 'column';
+        pnlUnit.alignChildren = ['left', 'top'];
+        pnlUnit.margins = [15, 20, 15, 10];
+
+        // Unit radios (vertical)
+        var gUnit = pnlUnit.add('group');
+        gUnit.orientation = 'column';
+        gUnit.alignChildren = ['left', 'top'];
+        var rbUmm = gUnit.add('radiobutton', undefined, 'mm');
+        var rbUpx = gUnit.add('radiobutton', undefined, 'px');
+        var rbUpt = gUnit.add('radiobutton', undefined, 'pt');
+
+        // default unit follows current ruler if possible
+        try {
+            if (rulerUnit.label === 'mm') rbUmm.value = true;
+            else if (rulerUnit.label === 'px') rbUpx.value = true;
+            else rbUpt.value = true;
+        } catch (_) {
+            rbUpt.value = true;
+        }
+
+        // ---- Size panel ----
+        var pnlSize = row2.add('panel', undefined, L('panelSizeX'));
+        pnlSize.orientation = 'column';
+        pnlSize.alignChildren = ['left', 'top'];
+        pnlSize.margins = [15, 20, 15, 10];
+
+        // Helper for setting W/H edit fields by pt
+        function setWHByPt(wPt, hPt) {
+            editW.text = String(__SC_round(__SC_ptToUnitX(wPt), 2));
+            editH.text = String(__SC_round(__SC_ptToUnitX(hPt), 2));
+        }
+
+        // Width group
+        var gW = pnlSize.add('group');
+        gW.orientation = 'row';
+        gW.alignChildren = ['left', 'center'];
+        var stW = gW.add('statictext', undefined, (lang === 'ja') ? '幅' : 'Width');
+        stW.justify = 'right';
+        stW.preferredSize.width = 44;
+        var editW = gW.add('edittext', undefined, String(__SC_round(__SC_ptToUnitX(defaultWPt), 2)));
+        editW.characters = 5;
+        var stUnitW = gW.add('statictext', undefined, __unitLabel);
+        stUnitW.preferredSize.width = 26;
+
+        // Height group
+        var gH = pnlSize.add('group');
+        gH.orientation = 'row';
+        gH.alignChildren = ['left', 'center'];
+        var stH = gH.add('statictext', undefined, (lang === 'ja') ? '高さ' : 'Height');
+        stH.justify = 'right';
+        stH.preferredSize.width = 44;
+        var editH = gH.add('edittext', undefined, String(__SC_round(__SC_ptToUnitX(defaultHPt), 2)));
+        editH.characters = 5;
+        var stUnitH = gH.add('statictext', undefined, __unitLabel);
+        stUnitH.preferredSize.width = 26;
+
+        // Initialize unit based on default radio
+        if (rbUmm.value) __SC_setUnit('mm');
+        else if (rbUpx.value) __SC_setUnit('px');
+        else __SC_setUnit('pt');
+
+        function __SC_applyUnitFromRadios() {
+            if (rbUmm.value) __SC_setUnit('mm');
+            else if (rbUpx.value) __SC_setUnit('px');
+            else __SC_setUnit('pt');
+        }
+
+        rbUmm.onClick = function () { __SC_applyUnitFromRadios(); };
+        rbUpx.onClick = function () { __SC_applyUnitFromRadios(); };
+        rbUpt.onClick = function () { __SC_applyUnitFromRadios(); };
+
+        // Preset dropdown logic
+        ddPreset.onChange = function () {
+            // Session presets
+            if ($.global.__SC_docPresets && ddPreset.selection.index >= 3) {
+                var idx2 = ddPreset.selection.index - 3;
+                var p = $.global.__SC_docPresets[idx2];
+                if (p) {
+                    try {
+                        rbUmm.value = (p.unit === 'mm');
+                        rbUpx.value = (p.unit === 'px');
+                        rbUpt.value = (p.unit === 'pt');
+                        __SC_applyUnitFromRadios();
+
+                        editW.text = p.w;
+                        editH.text = p.h;
+
+                        rbCMYK.value = (p.color === 'CMYK');
+                        rbRGB.value = (p.color === 'RGB');
+                    } catch (_) { }
+                    return;
+                }
+            }
+            if (!ddPreset.selection) return;
+            var idx = ddPreset.selection.index;
+
+            if (idx === 1) {
+                // A4: 210mm x 297mm  → unit = mm, color = CMYK
+                try {
+                    rbUmm.value = true;
+                    rbUpx.value = false;
+                    rbUpt.value = false;
+                    __SC_applyUnitFromRadios();
+                } catch (_) { }
+
+                var wPt = 210 * (72 / 25.4);
+                var hPt = 297 * (72 / 25.4);
+                setWHByPt(wPt, hPt);
+
+                try {
+                    rbCMYK.value = true;
+                    rbRGB.value = false;
+                } catch (_) { }
+
+            } else if (idx === 2) {
+                // FullHD: 1920px x 1080px → unit = px, color = RGB
+                try {
+                    rbUmm.value = false;
+                    rbUpx.value = true;
+                    rbUpt.value = false;
+                    __SC_applyUnitFromRadios();
+                } catch (_) { }
+
+                setWHByPt(1920, 1080);
+
+                try {
+                    rbRGB.value = true;
+                    rbCMYK.value = false;
+                } catch (_) { }
+
+            } else {
+                // カスタム: 単位・サイズは変更しない
+            }
+        };
+
+        // ---- Color mode panel ----
+        var pnlColor = row2.add('panel', undefined, L('panelColorModeX'));
+        pnlColor.orientation = 'column';
+        pnlColor.alignChildren = ['left', 'top'];
+        pnlColor.margins = [15, 20, 15, 10];
+
+        // Color mode radios (vertical)
+        var gC = pnlColor.add('group');
+        gC.orientation = 'column';
+        gC.alignChildren = ['left', 'top'];
+        var rbRGB = gC.add('radiobutton', undefined, 'RGB');
+        var rbCMYK = gC.add('radiobutton', undefined, 'CMYK');
+
+        try {
+            if (defaultColorSpace === DocumentColorSpace.CMYK) rbCMYK.value = true;
+            else rbRGB.value = true;
+        } catch (_) {
+            rbRGB.value = true;
+        }
+
+        // Buttons
+        var gBtn = dlgX.add('group');
+        gBtn.orientation = 'row';
+        gBtn.alignChildren = ['center', 'center'];
+        var btnCancelX = gBtn.add('button', undefined, L('cancel'), { name: 'cancel' });
+        var btnOkX = gBtn.add('button', undefined, L('ok'), { name: 'ok' });
+
+        function parseNum(s, fallback) {
+            var v = parseFloat(String(s));
+            if (isNaN(v) || !(v > 0)) return fallback;
+            return v;
+        }
+
+        btnOkX.onClick = function () {
+            var wU = parseNum(editW.text, __SC_ptToUnitX(defaultWPt));
+            var hU = parseNum(editH.text, __SC_ptToUnitX(defaultHPt));
+            var wPt = __SC_unitToPtX(wU);
+            var hPt = __SC_unitToPtX(hU);
+            if (!(wPt > 1)) wPt = defaultWPt;
+            if (!(hPt > 1)) hPt = defaultHPt;
+
+            var cs = DocumentColorSpace.RGB;
+            try { cs = rbCMYK.value ? DocumentColorSpace.CMYK : DocumentColorSpace.RGB; } catch (_) { cs = DocumentColorSpace.RGB; }
+
+            dlgX.__result = { wPt: wPt, hPt: hPt, colorSpace: cs };
+            dlgX.close(1);
+        };
+
+        btnCancelX.onClick = function () { dlgX.close(0); };
+
+        var r = dlgX.show();
+        if (r === 1 && dlgX.__result) return dlgX.__result;
+        return null;
+    }
+
+    var __defaultCS = DocumentColorSpace.RGB;
+    try { __defaultCS = srcDocB.documentColorSpace; } catch (_) { __defaultCS = DocumentColorSpace.RGB; }
+
+    // --- ダイアログXを表示 ---
+    var setupX = __SC_showSetupDialogX(__wPt, __hPt, __defaultCS);
+    if (!setupX) return; // user cancelled
+
+    // 2b. 新規ドキュメント（A）を作成
+    var doc = null;
+    try {
+        doc = app.documents.add(setupX.colorSpace, setupX.wPt, setupX.hPt);
+    } catch (_) {
+        try { doc = app.documents.add(DocumentColorSpace.RGB, setupX.wPt, setupX.hPt); } catch (e2) { doc = null; }
+    }
+    if (!doc) return;
 
     // 既定値は pt ベースで保持し、表示時に定規単位へ変換
     var DEFAULT_SPACING_PT = 20;
     var DEFAULT_MARGIN_PT = 20;
 
-    // ラベル幅（列数/間隔/列ずらし/スケール/回転/横/縦 を揃える）
+    // ラベル幅（列数/間隔/列ずらし/スケール/回転 を揃える）
     var LABEL_W = 60;
     // 位置調整ラベル幅（横方向の位置調整/縦方向の位置調整）
     var OFFSET_LABEL_W = 140;
@@ -717,7 +948,10 @@ function main() {
     // 自動フィット（UIは非表示。ロジックは維持して常にON）
     var AUTO_FIT_ENABLED = true;
 
-
+    // 3. ダイアログ（Y）を開く段階で B を閉じる
+    try {
+        srcDocB.close(SaveOptions.DONOTSAVECHANGES);
+    } catch (_) { }
 
     // -----------------------------------------
     // Source file page/artboard count (session cache)
@@ -770,82 +1004,17 @@ function main() {
         return out;
     }
 
-    // Keep only pages within 1..maxCount (does NOT wrap/repeat).
-    function __SC_filterPagesWithinCount(pages, maxCount) {
-        if (!pages || pages.length === 0) return pages;
-        if (!(maxCount > 0)) return pages;
-        var out = [];
-        for (var i = 0; i < pages.length; i++) {
-            var p = parseInt(pages[i], 10);
-            if (isNaN(p)) continue;
-            if (p < 1 || p > maxCount) continue;
-            out.push(p);
-        }
-        return out;
-    }
-
-    // basePages を totalCount まで繰り返して伸ばす
-    // 例: base=[1..10], total=13 => [1..10,1,2,3]
+    // Expand base sequence to desired total length by cycling.
+    // Example: base=[1..10], total=13 -> 1..10,1,2,3
     function __SC_expandPagesToTotal(basePages, totalCount) {
-        if (!basePages || basePages.length === 0) return [];
-        var n = parseInt(totalCount, 10);
-        if (isNaN(n) || n <= 0) n = basePages.length;
-        var out = [];
-        for (var i = 0; i < n; i++) out.push(basePages[i % basePages.length]);
-        return out;
-    }
-
-    // Build target pages from 指定/総数/sourceCount
-    function SC_buildTargetPages(specifiedStr, totalCount, sourceCount) {
-        var base = [];
-        try { base = parsePageNumbers(String(specifiedStr || '')); } catch (_) { base = []; }
-        if (!base || base.length === 0) base = [1];
-        if (sourceCount > 0) {
-            base = __SC_filterPagesWithinCount(base, sourceCount);
-        }
-        if (!base || base.length === 0) base = [1];
+        if (!basePages || basePages.length === 0) return basePages;
         var t = parseInt(totalCount, 10);
-        if (isNaN(t) || t <= 0) return base;
-        return __SC_expandPagesToTotal(base, t);
-    }
-
-    function __SC_getTargetPagesFromUI() {
-        var specified = String(etRange.text || '');
-        var total = __SC_parsePositiveInt(etTotal.text);
-        var srcCount = 0;
-        try {
-            srcCount = (__SC_sourceCount > 0)
-                ? __SC_sourceCount
-                : __SC_getSourcePageCount(fileA);
-        } catch (_) {
-            srcCount = 0;
+        if (isNaN(t) || t <= 0) return basePages;
+        var out = [];
+        for (var i = 0; i < t; i++) {
+            out.push(basePages[i % basePages.length]);
         }
-        return SC_buildTargetPages(specified, total, srcCount);
-    }
-
-    // Convert full-width digits to half-width digits (e.g., "３０" -> "30")
-    function __SC_toHalfWidthDigits(s) {
-        s = String(s || '');
-        return s.replace(/[０-９]/g, function (ch) {
-            return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
-        });
-    }
-
-    // Parse first positive integer from text (accepts full-width digits, trims, ignores suffix)
-    function __SC_parsePositiveInt(s) {
-        try {
-            s = __SC_toHalfWidthDigits(String(s || '')).replace(/\s+/g, '');
-            if (!s) return 0;
-            // allow brackets like [13]
-            s = s.replace(/^[\[\(\{\u3010\uFF3B]?/, '').replace(/[\]\)\}\u3011\uFF3D]?$/, '');
-            var m = s.match(/(\d+)/);
-            if (!m) return 0;
-            var v = parseInt(m[1], 10);
-            if (isNaN(v) || v <= 0) return 0;
-            return v;
-        } catch (_) {
-            return 0;
-        }
+        return out;
     }
 
     // =========================================
@@ -896,28 +1065,6 @@ function main() {
         __previewCache.previewWrapped = false;
         __previewCache.previewRoundRadiusPt = 0;
         __previewCache.randOrder = null;
-    }
-
-    // Remove any leftover preview group(s) by name (safety net)
-    function __SC_removePreviewGroupByName(doc) {
-        try {
-            if (!doc) return;
-            var name = '__SC_previewGroup__';
-            // Try multiple passes because removing changes indices
-            for (var pass = 0; pass < 3; pass++) {
-                var removed = false;
-                try {
-                    for (var i = doc.groupItems.length - 1; i >= 0; i--) {
-                        var g = doc.groupItems[i];
-                        if (g && g.name === name) {
-                            try { g.remove(); } catch (_) { }
-                            removed = true;
-                        }
-                    }
-                } catch (_) { }
-                if (!removed) break;
-            }
-        } catch (_) { }
     }
     function __SC_shuffleIndexArray(n) {
         var a = [];
@@ -976,285 +1123,75 @@ function main() {
     rightCol.orientation = "column";
     rightCol.alignChildren = "fill";
 
-    // Panel: 読み込みファイル / Source file
-    var pnlSource = leftCol.add('panel', undefined, L('panelSource'));
-    pnlSource.orientation = 'column';
-    pnlSource.alignChildren = ['left', 'top'];
-    pnlSource.margins = [15, 20, 15, 10];
+    // --- ページ設定パネル ---
+    var panelPage = leftCol.add("panel", undefined, L("panelLoad"));
+    panelPage.alignChildren = "left";
+    panelPage.margins = [15, 20, 15, 10];
 
-    // ファイル指定ボタン（v5ロジックで fileA / ページ数推定を更新）
-    var btnBrowse = pnlSource.add('button', undefined, L('btnLoad'));
+    var groupPage = panelPage.add("group");
+    groupPage.orientation = "column";
+    groupPage.alignChildren = ["left", "top"];
 
-    // ファイル名表示
-    var etPath = pnlSource.add('statictext', undefined, L('notSelected'));
-    etPath.characters = 20;
+    // Row 1: 指定
+    var rowSpec = groupPage.add("group");
+    rowSpec.orientation = "row";
+    rowSpec.alignChildren = ["left", "center"];
 
-    // Panel: アートボード
-    var pnlAB = leftCol.add('panel', undefined, L('panelLoad'));
-    pnlAB.orientation = 'column';
-    pnlAB.alignChildren = ['left', 'top'];
-    pnlAB.margins = [15, 20, 15, 10];
+    var stSpec = rowSpec.add("statictext", undefined, "指定");
+    stSpec.preferredSize.width = 32;
 
-    // === 2カラム（左：指定/総数, 右：読み込み） ===
-    var rowTop = pnlAB.add('group');
-    rowTop.orientation = 'row';
-    rowTop.alignChildren = ['fill', 'center'];
+    var editPages = rowSpec.add(
+        "edittext",
+        undefined,
+        (__srcArtboardCount > 0)
+            ? ("1-" + __srcArtboardCount)
+            : L("defaultPages")
+    );
+    editPages.characters = 8;
+    editPages.active = true;
 
-    // --- 左カラム ---
-    var colLeft = rowTop.add('group');
-    colLeft.orientation = 'column';
-    colLeft.alignChildren = ['left', 'center'];
+    function __SC_getTargetPagesFromUI() {
+        var base = parsePageNumbers(editPages.text);
+        if (!base || base.length === 0) base = [1];
 
-    // 範囲
-    var rowRange = colLeft.add('group');
-    rowRange.orientation = 'row';
-    rowRange.alignChildren = ['left', 'center'];
-    rowRange.add('statictext', undefined, L('range'));
-    var etRange = rowRange.add('edittext', undefined, '');
-    etRange.characters = 10;
-    etRange.enabled = true;
+        // Clamp each requested number into existing source range (repeat within source count)
+        var srcCount = 0;
+        try { srcCount = __SC_getSourcePageCount(fileA); } catch (_) { srcCount = 0; }
+        if (srcCount > 0) base = __SC_repeatPagesWithinCount(base, srcCount);
 
-    // Backward-compatible alias: existing logic expects editPages
-    var editPages = etRange;
-
-    // 総数
-    var rowTotal = colLeft.add('group');
-    rowTotal.orientation = 'row';
-    rowTotal.alignChildren = ['left', 'center'];
-    rowTotal.add('statictext', undefined, L('total'));
-    var etTotal = rowTotal.add('edittext', undefined, '');
-    etTotal.characters = 4;
-    etTotal.enabled = true;
-
-    // true: 指定から総数を自動更新 / false: ユーザーが総数を手入力
-    var __SC_autoTotal = true;
-
-    // --- 右カラム ---
-    var colRight = rowTop.add('group');
-    colRight.orientation = 'column';
-    colRight.alignChildren = ['right', 'center'];
-    colRight.alignment = ['fill', 'center'];
-
-    var rowLoadBtn = colRight.add('group');
-    rowLoadBtn.orientation = 'row';
-    rowLoadBtn.alignChildren = ['right', 'center'];
-    var btnPreview = rowLoadBtn.add('button', undefined, L('btnImport'));
-
-    btnPreview.onClick = function () {
-        // Require file selection
-        if (!fileA) {
-            safeAlertKey('alertNeedFile');
-            return;
+        // Desired total placements
+        var total = parseInt(String(editTotal.text || '').replace(/^\s+|\s+$/g, ''), 10);
+        if (isNaN(total) || total <= 0) {
+            total = (srcCount > 0) ? srcCount : base.length;
         }
 
-        // Build target pages from 指定/総数/sourceCount
-        var pages = [];
-        try { pages = __SC_getTargetPagesFromUI(); } catch (_) { pages = []; }
-        if (!pages || pages.length === 0) pages = [1];
-
-        // If Total is empty, show the resolved count
-        try {
-            var curT = String(etTotal.text || '');
-            if (!curT) etTotal.text = String(pages.length);
-        } catch (_) { }
-
-        // Clear previous cache/items (and any leftovers)
-        try { __SC_clearPreviewCache(); } catch (_) { }
-        try { __SC_removePreviewGroupByName(doc); } catch (_) { }
-        try { previewItems = []; } catch (_) { }
-
-        // Create a persistent group to keep rotation/cleanup stable
-        try {
-            __previewCache.group = doc.groupItems.add();
-            __previewCache.group.name = '__SC_previewGroup__';
-        } catch (_) {
-            __previewCache.group = null;
-        }
-
-        var cropMode = 2;
-        try { cropMode = __SC_getCropModeFromUI(); } catch (_) { cropMode = 2; }
-
-        __previewCache.items = [];
-        __previewCache.baseW = [];
-        __previewCache.baseH = [];
-        __previewCache.cropMode = cropMode;
-        __previewCache.pagesKey = String(etRange.text || '');
-        __previewCache.previewWrapped = false;
-        __previewCache.previewRoundRadiusPt = 0;
-
-        // Place each requested page/artboard
-        for (var i = 0; i < pages.length; i++) {
-            var p = parseInt(pages[i], 10);
-            if (isNaN(p) || p < 1) p = 1;
-
-            var it = null;
-            try {
-                if (__SC_isPdfLikeFile(fileA)) {
-                    __SC_setPdfCropPreference(cropMode);
-                }
-                __SC_setImportPageNumber(fileA, p);
-
-                it = doc.placedItems.add();
-                it.file = fileA;
-
-                // Move into the preview group so later rotation/layout acts on a single container
-                try { if (__previewCache.group) it.moveToEnd(__previewCache.group); } catch (_) { }
-
-                __previewCache.items.push(it);
-                __previewCache.baseW.push(it.width);
-                __previewCache.baseH.push(it.height);
-            } catch (ePlace) {
-                // Clean up partially created item
-                try { if (it) it.remove(); } catch (_) { }
-            } finally {
-                try { __SC_resetImportPageNumber(fileA); } catch (_) { }
-            }
-        }
-
-        // Create / update background if enabled
-        try {
-            if (cbBg && cbBg.value) {
-                __previewCache.bgItem = __SC_drawArtboardBackground(doc, __SC_getBgRGBColorOrDefault());
-                try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
-            }
-        } catch (_) { }
-
-        // Apply current layout settings to the newly placed items
-        try {
-            __SC_applyLayoutToCachedItems();
-            var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
-            previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
-            app.redraw();
-        } catch (_) { }
-    };
-
-    // Preserve intended import handler (legacy wiring later in the script may overwrite btnPreview.onClick)
-    var __SC_importHandler = btnPreview.onClick;
-
-    function setPathText(f) {
-        // Also update current source file reference (fileA)
-        fileA = f || null;
-
-        // Update crop dropdown availability (crop is meaningful only for PDF)
-        try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (_) { }
-
-        try {
-            if (f) {
-                etPath.text = decodeURIComponent(f.name);
-                etPath.helpTip = decodeURIComponent(f.fsName);
-            } else {
-                etPath.text = L('notSelected');
-                etPath.helpTip = '';
-            }
-        } catch (_) {
-            try {
-                etPath.text = f ? String(f.name) : L('notSelected');
-                etPath.helpTip = f ? String(f.fsName) : '';
-            } catch (__) {
-                etPath.text = L('notSelected');
-                etPath.helpTip = '';
-            }
-        }
+        return __SC_expandPagesToTotal(base, total);
     }
 
-    function setResultText(last) {
-        if (!last) {
-            try { etRange.text = ''; } catch (_) { }
-            try { etTotal.text = ''; } catch (__) { }
-        } else {
-            try { etRange.text = '1-' + last; } catch (_) { }
-            try { __SC_sourceCount = parseInt(last, 10) || 0; } catch (_) { __SC_sourceCount = 0; }
-            // Do not override user's manual Total. Only auto-sync when we are already in auto mode,
-            // or when Total is empty (fresh state).
-            try {
-                var cur = String(etTotal.text || '');
-                if (__SC_autoTotal || cur === '' || cur === L('notSelected')) {
-                    __SC_autoTotal = true;
-                }
-            } catch (_) {
-                // keep current __SC_autoTotal
-            }
-            __TMKPageCount_updateTotalFromRange();
-        }
-    }
+    // Row 2: 総数（読み込み元のアートボード数）
+    var rowTotal = groupPage.add("group");
+    rowTotal.orientation = "row";
+    rowTotal.alignChildren = ["left", "center"];
 
-    function __TMKPageCount_countFromRangeText(s) {
-        if (!s) return 0;
-        // normalize
-        s = String(s).replace(/\s+/g, '');
-        // allow Japanese brackets like [1-30]
-        s = s.replace(/^[\[\(\{\u3010\uFF3B]?/, '').replace(/[\]\)\}\u3011\uFF3D]?$/, '');
-        if (!s) return 0;
+    var stTotal = rowTotal.add("statictext", undefined, "総数");
+    stTotal.preferredSize.width = 32;
 
-        var parts = s.split(/[,\u3001]/); // comma or Japanese comma
-        var seen = {};
-        var count = 0;
+    var editTotal = rowTotal.add(
+        "edittext",
+        undefined,
+        (__srcArtboardCount > 0) ? String(__srcArtboardCount) : ""
+    );
+    editTotal.characters = 8;
+    editTotal.enabled = true; // 編集可能（ディムにしない）
 
-        for (var i = 0; i < parts.length; i++) {
-            var p = parts[i];
-            if (!p) continue;
+    // Row 3: 読み込みボタン
+    var rowBtn = groupPage.add("group");
+    rowBtn.orientation = "row";
+    rowBtn.alignChildren = ["right", "right"];
+    // rowBtn.alignment = ["fill", "top"];
 
-            // a-b
-            var m = p.match(/^(\d+)-(\d+)$/);
-            if (m) {
-                var a = parseInt(m[1], 10);
-                var b = parseInt(m[2], 10);
-                if (isNaN(a) || isNaN(b)) continue;
-                var step = (a <= b) ? 1 : -1;
-                for (var n = a; step > 0 ? n <= b : n >= b; n += step) {
-                    var key = String(n);
-                    if (!seen[key]) { seen[key] = true; count++; }
-                }
-                continue;
-            }
-
-            // single number
-            var v = parseInt(p, 10);
-            if (!isNaN(v)) {
-                var k = String(v);
-                if (!seen[k]) { seen[k] = true; count++; }
-            }
-        }
-
-        return count;
-    }
-
-    function __TMKPageCount_updateTotalFromRange() {
-        try {
-            var c = __TMKPageCount_countFromRangeText(etRange.text);
-            var cur = String(etTotal.text || '');
-
-            // Only auto-fill when Total is empty (fresh state).
-            // Never overwrite a user-entered value.
-            if (!cur) {
-                etTotal.text = c ? String(c) : '';
-            }
-        } catch (_) { }
-    }
-
-    // Initial: try selection
-    __TMKPageCount_updateResultFromPlacedOrFile(doc, null, setPathText, setResultText);
-    // If selection had a placed item, setPathText would have set fileA.
-    // If still null, keep UI in a safe disabled state for PDF-only controls.
-    try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (_) { }
-
-    btnBrowse.onClick = function () {
-        var f = File.openDialog(L('dlgPickFile'), L('filterPick'));
-        if (!f) return;
-        __TMKPageCount_updateResultFromPlacedOrFile(doc, f, setPathText, setResultText);
-    };
-
-    etRange.onChanging = function () {
-        __TMKPageCount_updateTotalFromRange();
-    };
-
-    etTotal.onChanging = function () {
-        __SC_autoTotal = false;
-        var v = __SC_parsePositiveInt(etTotal.text);
-        if (!v) return; // allow empty / in-progress
-        etTotal.text = String(v);
-    };
-
+    var btnPreview = rowBtn.add("button", undefined, L("btnLoad"));
+    btnPreview.preferredSize = [80, 22];
 
     // --- トリミングパネル（配置範囲：PDF のトリミング設定） ---
     var panelCrop = leftCol.add("panel", undefined, L("panelItem"));
@@ -1289,7 +1226,8 @@ function main() {
     // デフォルト：仕上がり
     ddCrop.selection = 2;
 
-    ddCrop.enabled = __SC_isPdfFile(fileA); // fileA may be null until a file is selected
+    // PDF のときのみ有効（AIはPDF-likeだが、crop boxはPDFのみ有効）
+    ddCrop.enabled = __SC_isPdfFile(fileA);
 
     function __SC_getCropModeFromUI() {
         var idx = (ddCrop.selection) ? ddCrop.selection.index : 2;
@@ -1942,15 +1880,7 @@ function main() {
     }
 
     function __SC_calcDefaultColShiftPt() {
-        var pages = parsePageNumbers(editPages.text);
-
-        // Repeat pages/artboards when requested count exceeds source count
-        try {
-            var srcCount = __SC_getSourcePageCount(fileA);
-            if (srcCount > 0) {
-                pages = __SC_repeatPagesWithinCount(pages, srcCount);
-            }
-        } catch (_) { }
+        var pages = __SC_getTargetPagesFromUI();
 
         if (!pages || pages.length === 0) pages = [1];
 
@@ -2006,13 +1936,10 @@ function main() {
     }
 
     // 初期値：列ずらしのデフォルトを計算して反映（チェックはOFFのまま）
-    // fileA 未選択の状態では計算できないため、選択後（読み込み時）に計算する
     try {
-        if (fileA) {
-            var defShiftPt = __SC_calcDefaultColShiftPt();
-            var defShiftUnit = __SC_ptToUnit(defShiftPt, rulerUnit.factor);
-            editColShift.text = String(__SC_round(defShiftUnit, 2));
-        }
+        var defShiftPt = __SC_calcDefaultColShiftPt();
+        var defShiftUnit = __SC_ptToUnit(defShiftPt, rulerUnit.factor);
+        editColShift.text = String(__SC_round(defShiftUnit, 2));
     } catch (e) {
         // 失敗時は従来の 0
     }
@@ -2022,9 +1949,6 @@ function main() {
     // =========================================
 
     var __zoomState = __TMKZoom_captureViewState(doc);
-
-    // Ensure import button uses the intended handler (supports Total)
-    try { if (__SC_importHandler) btnPreview.onClick = __SC_importHandler; } catch (_) { }
 
     var zoomCtrl = __TMKZoom_addControls(win, doc, L("zoom"), __zoomState, {
         min: 0.1,
@@ -2048,8 +1972,8 @@ function main() {
     var leftBtnGroup = groupButtons.add("group");
     leftBtnGroup.orientation = "row";
     leftBtnGroup.alignChildren = ["left", "center"];
-    var btnReset = leftBtnGroup.add("button", undefined, "リセット");
-    var cbLightPreview = leftBtnGroup.add("checkbox", undefined, "軽量プレビュー");
+    var btnReset = leftBtnGroup.add("button", undefined, L('reset'));
+    var cbLightPreview = leftBtnGroup.add("checkbox", undefined, L('lightPreview'));
     cbLightPreview.value = true;
 
     // 中央スペーサー
@@ -3255,7 +3179,8 @@ function main() {
         // Rebuild cache on explicit load
         __SC_clearPreviewCache();
 
-        var pages = parsePageNumbers(editPages.text);
+        var pages = __SC_getTargetPagesFromUI();
+        if (!pages || pages.length === 0) return;
         // Repeat pages/artboards when requested count exceeds source count
         try {
             var srcCount = __SC_getSourcePageCount(fileA);
@@ -3346,14 +3271,7 @@ function main() {
     };
 
     if (win.show() === 1) {
-        var finalPages = parsePageNumbers(editPages.text);
-        // Repeat pages/artboards when requested count exceeds source count
-        try {
-            var srcCount2 = __SC_getSourcePageCount(fileA);
-            if (srcCount2 > 0) {
-                finalPages = __SC_repeatPagesWithinCount(finalPages, srcCount2);
-            }
-        } catch (_) { }
+        var finalPages = __SC_getTargetPagesFromUI();
         var finalCols = parseInt(editCols.text, 10) || 5;
         var finalSpacingUnit = parseFloat(editSpacing.text);
         if (isNaN(finalSpacingUnit) || finalSpacingUnit < 0) finalSpacingUnit = 0;

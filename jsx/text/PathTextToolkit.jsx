@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 テキストとパスの変換
  
 ### 更新日：
-20260302
+20260303
  
 ### 概要：
 ポイント文字／パス上文字を、目的に応じて変換します。
@@ -16,13 +16,24 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - オプション：行揃え（左揃え / 中央 / 右揃え / 両端揃え）を指定可能
 - 位置：開始位置(startTValue) / 終了位置(endTValue) を指定可能
 - テキスト調整：ベースラインシフト / トラッキング / 文字サイズ を既存値に対して加算/減算可能
+- UI：パネル「分離」を「テキストを分離」に変更
+- UI：パス上文字にするパネル最下部に［テキスト編集］ボタンを追加（ロジックは後日）
+- 修正：一部のパスで複製（duplicate）が失敗する場合、ハンドル複製ロジックでフォールバック
+- 変更：モード切替時に開始/終了位置のチェック状態や値を自動変更しない（正円でも自動ONしない）
+- 修正：パス上文字を選択して実行した場合でも、ベースライン/トラッキング/文字サイズの調整が反映されるように改善
+- 改善：スライダー操作中のプレビュー更新（redraw）を軽量化（ドラッグ中は更新せず、リリース時に反映）
+- 追加：テキストフィールドで↑↓キー（±1）、Shift+↑↓（±10）、Option+↑↓（±0.1）による値変更に対応
+- 修正：終了位置スライダー範囲(0..5)の不整合を解消／テキスト編集ダイアログ文言をLABELS化
+- UI：オプション「文字あふれを解消」を「フィット」に文言変更
+- UI：オプション「フィット」をチェックボックスからボタン（トグル）に変更
+- 追加：フィットを即時プレビューに対応（プレビューON時はダイアログ操作中にも反映）
 */
 
 (function () {
 
     /* バージョン / Version */
     // Version
-    var SCRIPT_VERSION = "v1.1";
+    var SCRIPT_VERSION = "v1.2";
 
     // Language
     function getCurrentLang() {
@@ -36,7 +47,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         /* Panels / パネル */
         panelProcess: { ja: "パス上文字にする", en: "Create Path Text" },
-        panelSplit: { ja: "分離", en: "Split" },
+        panelSplit: { ja: "テキストを分離", en: "Split Text" },
         panelAlign: { ja: "行揃え", en: "Alignment" },
         panelOption: { ja: "オプション", en: "Options" },
         panelEffect: { ja: "効果", en: "Effect" },
@@ -47,6 +58,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         toPathText: { ja: "パス上文字", en: "Convert to Path Text" },
         genArcPath: { ja: "アーチ状のパスを生成", en: "Generate Arc Path" },
         genCircle: { ja: "正円を生成", en: "Generate Circle" },
+        btnTextEdit: { ja: "テキスト編集", en: "Edit Text" },
+        dlgTextEditTitle: { ja: "テキスト編集", en: "Edit Text" },
+        dlgTextEditHint: { ja: "内容を編集してOKで反映します。複数選択の場合は全て置換します。", en: "Edit the content and press OK to apply. If multiple items are selected, it replaces all." },
         splitTextAndPath: { ja: "書式を保持", en: "Keep Formatting" },
         splitTextAndPathNoFormat: { ja: "書式を保持しない", en: "Do Not Keep Formatting" },
         splitDeletePath: { ja: "パスを削除", en: "Remove Path" },
@@ -59,7 +73,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         /* Options / オプション */
         optReverse: { ja: "内側配置", en: "Inside" },
-        optFixOverset: { ja: "文字あふれを解消", en: "Fix Overset" },
+        optFixOverset: { ja: "フィット", en: "Fit" },
 
         arcDirection: { ja: "アーチ方向", en: "Arc Direction" },
         arcUp: { ja: "上", en: "Up" },
@@ -101,6 +115,61 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             if (LABELS[key] && LABELS[key].ja) return LABELS[key].ja;
         } catch (_) { }
         return key;
+    }
+
+    // Arrow-key value change for ScriptUI edittext
+    // Up/Down: ±1, Shift+Up/Down: ±10, Option(Alt)+Up/Down: ±0.1
+    // allowNegative: false -> clamp to >= 0
+    // onChanged: optional callback invoked after value change
+    function changeValueByArrowKey(editText, allowNegative, onChanged) {
+        if (!editText) return;
+        try {
+            editText.addEventListener('keydown', function (event) {
+                try {
+                    if (!event || (event.keyName !== 'Up' && event.keyName !== 'Down')) return;
+
+                    var value = Number(editText.text);
+                    if (isNaN(value)) return;
+
+                    var keyboard = ScriptUI.environment.keyboardState;
+                    var delta = 1;
+
+                    if (keyboard.shiftKey) {
+                        delta = 10;
+                        // Snap to multiples of 10 for Shift
+                        if (event.keyName === 'Up') {
+                            value = Math.ceil((value + 1) / delta) * delta;
+                        } else {
+                            value = Math.floor((value - 1) / delta) * delta;
+                        }
+                    } else if (keyboard.altKey) {
+                        delta = 0.1;
+                        if (event.keyName === 'Up') value += delta;
+                        else value -= delta;
+                    } else {
+                        delta = 1;
+                        if (event.keyName === 'Up') value += delta;
+                        else value -= delta;
+                    }
+
+                    // Round
+                    if (keyboard.altKey) value = Math.round(value * 10) / 10;
+                    else value = Math.round(value);
+
+                    // Clamp
+                    if (!allowNegative && value < 0) value = 0;
+
+                    editText.text = String(value);
+
+                    // Prevent default arrow key behavior (cursor move)
+                    try { event.preventDefault(); } catch (_) { }
+
+                    if (onChanged && typeof onChanged === 'function') {
+                        try { onChanged(); } catch (_) { }
+                    }
+                } catch (_) { }
+            });
+        } catch (_) { }
     }
 
     // Get items
@@ -182,6 +251,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // Update panel enabled state only after UI is ready
         try { __updatePanelsByMode(); } catch (_) { }
+        try { __updateFitButtonEnabled(); } catch (_) { }
     }
 
     // Validation
@@ -222,6 +292,67 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var rbGenArcPath = pnlOpt.add('radiobutton', undefined, L('genArcPath'));
     var rbGenCircle = pnlOpt.add('radiobutton', undefined, L('genCircle'));
     rbToPathText.value = true;
+
+    // Text edit button (logic improved)
+    var btnTextEdit = pnlOpt.add('button', undefined, L('btnTextEdit'));
+    btnTextEdit.alignment = ['fill', 'center'];
+    btnTextEdit.onClick = function () {
+        // --- Edit dialog logic ---
+        var editDlg = new Window('dialog', L('dlgTextEditTitle'));
+        editDlg.orientation = 'column';
+        editDlg.alignChildren = ['fill', 'top'];
+        editDlg.margins = [15, 20, 15, 15];
+
+        // Hint
+        var st = editDlg.add('statictext', undefined, L('dlgTextEditHint'), { multiline: true });
+        try { st.preferredSize.width = 360; } catch (_) { }
+
+        // Resolve targets at click-time (do not rely on stale snapshot)
+        var __editTargets = [];
+        try {
+            var __curSel = [];
+            try { __curSel = doc.selection; } catch (_) { __curSel = []; }
+            if (!__curSel || __curSel.length === 0) __curSel = __baseSelection;
+            __editTargets = getTargetTextItems(__curSel);
+        } catch (_) { __editTargets = []; }
+
+        // Initial text
+        var initText = '';
+        try {
+            if (__editTargets && __editTargets.length > 0 && __editTargets[0] && __editTargets[0].typename === 'TextFrame') {
+                initText = String(__editTargets[0].contents);
+            }
+        } catch (_) { initText = ''; }
+
+        var et = editDlg.add('edittext', undefined, initText, { multiline: true });
+        et.preferredSize = [320, 80];
+
+        var btnRow = editDlg.add('group');
+        btnRow.orientation = 'row';
+        btnRow.alignChildren = ['center', 'center'];
+        var btnCancel2 = btnRow.add('button', undefined, L('cancel'));
+        var btnOk2 = btnRow.add('button', undefined, L('ok'), { name: 'ok' });
+
+        btnCancel2.onClick = function () {
+            editDlg.close(0);
+        };
+        btnOk2.onClick = function () {
+            var newText = et.text;
+            // Apply to all current targets at click-time
+            for (var i = 0; i < __editTargets.length; i++) {
+                var tf = __editTargets[i];
+                if (!tf || tf.typename !== 'TextFrame') continue;
+                try { tf.contents = newText; } catch (_) { }
+            }
+            // Refresh input states and preview
+            __refreshInputsFromSelection();
+            refreshPreviewIfNeeded();
+            try { app.redraw(); } catch (_) { }
+            editDlg.close(1);
+        };
+        editDlg.show();
+    };
+    btnTextEdit.height = 16;
 
     // Split panel (under Process)
     var pnlSplit = leftCol.add('panel', undefined, L('panelSplit'));
@@ -310,8 +441,83 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var rbArcDown = grpArcDir.add('radiobutton', undefined, L('arcDown'));
     rbArcUp.value = true;
 
-    var cbFixOverset = pnlOption.add('checkbox', undefined, L('optFixOverset'));
-    cbFixOverset.value = false;
+    // Fit (overset fix) toggle button
+    var __fitEnabled = false;
+    var btnFit = pnlOption.add('button', undefined, L('optFixOverset'));
+    btnFit.alignment = ['left', 'center'];
+
+    function __isClosedPathItem(it) {
+        try {
+            if (!it) return false;
+            if (it.typename === 'CompoundPathItem') {
+                if (it.pathItems && it.pathItems.length > 0) return !!it.pathItems[0].closed;
+                return false;
+            }
+            if (it.typename === 'PathItem') return !!it.closed;
+        } catch (_) { }
+        return false;
+    }
+
+    function __isClosedPathText(tf) {
+        try {
+            if (!tf || tf.typename !== 'TextFrame') return false;
+            if (tf.kind !== TextType.PATHTEXT) return false;
+            var p = tf.textPath;
+            if (!p) return false;
+            return __isClosedPathItem(p);
+        } catch (_) { }
+        return false;
+    }
+
+    function __fitAvailableNow() {
+        try {
+            // Split mode は panel 側でディムるが念のため
+            var isSplitMode = (rbSplitTextAndPath && rbSplitTextAndPath.value) ||
+                (rbSplitTextAndPathNoFormat && rbSplitTextAndPathNoFormat.value);
+            if (isSplitMode) return false;
+
+            // 正円はクローズ生成なので不可
+            if (rbGenCircle && rbGenCircle.value) return false;
+
+            // アーチはオープン生成なので可
+            if (rbGenArcPath && rbGenArcPath.value) return true;
+
+            // パス上文字：選択パス or PathText のパスがクローズなら不可
+            if (rbToPathText && rbToPathText.value) {
+                if (selectedPaths && selectedPaths.length > 0) {
+                    for (var i = 0; i < selectedPaths.length; i++) {
+                        if (__isClosedPathItem(selectedPaths[i])) return false;
+                    }
+                    return true;
+                }
+                if (targetItems && targetItems.length > 0) {
+                    for (var t = 0; t < targetItems.length; t++) {
+                        if (__isClosedPathText(targetItems[t])) return false;
+                    }
+                    return true;
+                }
+            }
+        } catch (_) { }
+        return false;
+    }
+
+    function __updateFitButtonEnabled() {
+        try { btnFit.enabled = __fitAvailableNow(); } catch (_) { }
+    }
+
+    function __updateFitButtonLabel() {
+        try {
+            // show state with a check mark
+            btnFit.text = L('optFixOverset') + (__fitEnabled ? ' ✓' : '');
+        } catch (_) { }
+    }
+    __updateFitButtonLabel();
+
+    btnFit.onClick = function () {
+        __fitEnabled = !__fitEnabled;
+        __updateFitButtonLabel();
+        refreshPreviewIfNeeded();
+    };
 
     // Alignment / Indent panel  (moved to RIGHT)
     var pnlAlignIndent = rightCol.add('panel', undefined, L('panelAlign'));
@@ -376,6 +582,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     etStartT.characters = 5;
     var slStartT = rowStart.add('slider', undefined, 0, 0, 400); // 0.0 - 4.0
     slStartT.preferredSize.width = 180;
+    // Arrow-key support for startT
+    changeValueByArrowKey(etStartT, false, function () { __syncTFromEdits(); refreshPreviewIfNeeded(); });
 
     var rowEnd = pnlTValue.add('group');
     rowEnd.orientation = 'row';
@@ -386,8 +594,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     stEnd.preferredSize.width = 60;
     var etEndT = rowEnd.add('edittext', undefined, '1.0');
     etEndT.characters = 5;
-    var slEndT = rowEnd.add('slider', undefined, 100, 0, 100); // 0.0 - 1.0
+    var slEndT = rowEnd.add('slider', undefined, 100, 0, 500); // 0.0 - 5.0
     slEndT.preferredSize.width = 180;
+    // Arrow-key support for endT
+    changeValueByArrowKey(etEndT, false, function () { __syncTFromEdits(); refreshPreviewIfNeeded(); });
 
     // Baseline shift panel  (moved to FULL WIDTH)
     var pnlBaselineShift = wideCol.add('panel', undefined, L('panelTextAdjust'));
@@ -407,6 +617,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // Slider uses 0.1pt steps, range will be updated dynamically to ±fontSize (in 0.1pt units)
     var slBaseShift = rowBaseShift.add('slider', undefined, 0, -1000, 1000);
     slBaseShift.preferredSize.width = 180;
+    // Arrow-key support for baseline shift
+    changeValueByArrowKey(etBaseShift, true, function () { __syncBSFromEdit(); refreshPreviewIfNeeded(); });
 
     // Tracking panel row
     var rowTracking = pnlBaselineShift.add('group');
@@ -418,9 +630,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     var etTracking = rowTracking.add('edittext', undefined, '0');
     etTracking.characters = 6;
-
     var slTracking = rowTracking.add('slider', undefined, 0, -100, 500);
     slTracking.preferredSize.width = 180;
+    // Arrow-key support for tracking
+    changeValueByArrowKey(etTracking, true, function () { __syncTrkFromEdit(); refreshPreviewIfNeeded(); });
 
     // Font size panel row
     var rowFontSize = pnlBaselineShift.add('group');
@@ -432,10 +645,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     var etFontSize = rowFontSize.add('edittext', undefined, '0.0');
     etFontSize.characters = 6;
-
     // Slider uses 0.1pt steps, range will be updated dynamically to ±fontSize (in 0.1pt units)
     var slFontSize = rowFontSize.add('slider', undefined, 0, -1000, 1000);
     slFontSize.preferredSize.width = 180;
+    // Arrow-key support for font size
+    changeValueByArrowKey(etFontSize, true, function () { __syncFSFromEdit(); refreshPreviewIfNeeded(); });
 
     // Footer (Preview independent) + Buttons (OK on the right)
     var footer = dlg.add('group');
@@ -640,16 +854,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     };
     rbGenCircle.onClick = function () {
         __clearSplitRadios();
-
-        // 正円モードのデフォルト開始/終了位置
-        try {
-            cbStartT.value = true;
-            cbEndT.value = true;
-            etStartT.text = "0.5";
-            etEndT.text = "3.5";
-            __syncTFromEdits();
-        } catch (_) { }
-
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
@@ -697,10 +901,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // 位置パネルは常に有効（Splitモードでない限り）
         try { pnlTValue.enabled = en; } catch (_) { }
+        try { __updateFitButtonEnabled(); } catch (_) { }
     }
 
     cbReverse.onClick = refreshPreviewIfNeeded;
-    cbFixOverset.onClick = refreshPreviewIfNeeded;
     rbEffectRainbow.onClick = refreshPreviewIfNeeded;
     rbEffectDistort.onClick = refreshPreviewIfNeeded;
     rbEffectRibbon.onClick = refreshPreviewIfNeeded;
@@ -789,7 +993,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     etBaseShift.onChanging = function () { __syncBSFromEdit(); refreshPreviewIfNeeded(); };
-    slBaseShift.onChanging = function () { __syncBSFromSlider(); refreshPreviewIfNeeded(); };
+    slBaseShift.onChanging = function () { __syncBSFromSlider(); };
+    slBaseShift.onChange = function () { __syncBSFromSlider(); refreshPreviewIfNeeded(); };
     __syncBSFromEdit();
 
     // Sync tracking UI (edittext <-> slider)
@@ -819,7 +1024,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     etTracking.onChanging = function () { __syncTrkFromEdit(); refreshPreviewIfNeeded(); };
-    slTracking.onChanging = function () { __syncTrkFromSlider(); refreshPreviewIfNeeded(); };
+    slTracking.onChanging = function () { __syncTrkFromSlider(); };
+    slTracking.onChange = function () { __syncTrkFromSlider(); refreshPreviewIfNeeded(); };
     __syncTrkFromEdit();
 
     // Sync font size delta UI (edittext <-> slider)
@@ -890,7 +1096,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     etFontSize.onChanging = function () { __syncFSFromEdit(); refreshPreviewIfNeeded(); };
-    slFontSize.onChanging = function () { __syncFSFromSlider(); refreshPreviewIfNeeded(); };
+    slFontSize.onChanging = function () { __syncFSFromSlider(); };
+    slFontSize.onChange = function () { __syncFSFromSlider(); refreshPreviewIfNeeded(); };
     __syncFSFromEdit();
     // Sync t-value UI (edittext <-> slider)
     var __tSyncLock = false;
@@ -968,8 +1175,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     etStartT.onChanging = function () { __syncTFromEdits(); refreshPreviewIfNeeded(); };
     etEndT.onChanging = function () { __syncTFromEdits(); refreshPreviewIfNeeded(); };
-    slStartT.onChanging = function () { __syncTFromSliders(); refreshPreviewIfNeeded(); };
-    slEndT.onChanging = function () { __syncTFromSliders(); refreshPreviewIfNeeded(); };
+    slStartT.onChanging = function () { __syncTFromSliders(); };
+    slStartT.onChange = function () { __syncTFromSliders(); refreshPreviewIfNeeded(); };
+    slEndT.onChanging = function () { __syncTFromSliders(); };
+    slEndT.onChange = function () { __syncTFromSliders(); refreshPreviewIfNeeded(); };
 
     cbStartT.onClick = function () { __syncTFromEdits(); refreshPreviewIfNeeded(); };
     cbEndT.onClick = function () { __syncTFromEdits(); refreshPreviewIfNeeded(); };
@@ -1005,6 +1214,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     // Set initial panel enabled state
     __updatePanelsByMode();
+    try { __updateFitButtonEnabled(); } catch (_) { }
 
     // Auto-apply preview once on open (no undo)
     try {
@@ -1017,6 +1227,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var res = dlg.show();
     if (res !== 1) return false;
     return true;
+
+    // Remove old preview hook for the checkbox
+    // cbFixOverset.onClick = refreshPreviewIfNeeded;
 
     // Apply path text effect via menu command (requires selection)
     function applyPathTextEffect(textFrame, previewMode) {
@@ -1120,9 +1333,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var delta = __parseNumber(etBaseShift.text, 0);
             if (!delta) return; // 0 -> do nothing
 
-            // Apply to each textRange so existing baselineShift is preserved and shifted
-            for (var i = 0; i < tf.textRanges.length; i++) {
-                var tr = tf.textRanges[i];
+            var ranges = [];
+            try {
+                if (tf.textRanges && tf.textRanges.length > 0) {
+                    for (var i = 0; i < tf.textRanges.length; i++) ranges.push(tf.textRanges[i]);
+                }
+            } catch (_) { }
+            if (ranges.length === 0) {
+                try { if (tf.textRange) ranges = [tf.textRange]; } catch (_) { ranges = []; }
+            }
+
+            for (var r = 0; r < ranges.length; r++) {
+                var tr = ranges[r];
                 try {
                     var cur = tr.characterAttributes.baselineShift;
                     tr.characterAttributes.baselineShift = cur + delta;
@@ -1138,8 +1360,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var delta = Math.round(__parseNumber(etTracking.text, 0));
             if (!delta) return; // 0 -> do nothing
 
-            for (var i = 0; i < tf.textRanges.length; i++) {
-                var tr = tf.textRanges[i];
+            var ranges = [];
+            try {
+                if (tf.textRanges && tf.textRanges.length > 0) {
+                    for (var i = 0; i < tf.textRanges.length; i++) ranges.push(tf.textRanges[i]);
+                }
+            } catch (_) { }
+            if (ranges.length === 0) {
+                try { if (tf.textRange) ranges = [tf.textRange]; } catch (_) { ranges = []; }
+            }
+
+            for (var r = 0; r < ranges.length; r++) {
+                var tr = ranges[r];
                 try {
                     var cur = tr.characterAttributes.tracking;
                     tr.characterAttributes.tracking = cur + delta;
@@ -1155,8 +1387,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var delta = __parseNumber(etFontSize.text, 0);
             if (!delta) return; // 0 -> do nothing
 
-            for (var i = 0; i < tf.textRanges.length; i++) {
-                var tr = tf.textRanges[i];
+            var ranges = [];
+            try {
+                if (tf.textRanges && tf.textRanges.length > 0) {
+                    for (var i = 0; i < tf.textRanges.length; i++) ranges.push(tf.textRanges[i]);
+                }
+            } catch (_) { }
+            if (ranges.length === 0) {
+                try { if (tf.textRange) ranges = [tf.textRange]; } catch (_) { ranges = []; }
+            }
+
+            for (var r = 0; r < ranges.length; r++) {
+                var tr = ranges[r];
                 try {
                     var cur = tr.characterAttributes.size;
                     var next = cur + delta;
@@ -1235,7 +1477,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             // 行揃え（段落揃え）※ duplicate 後に適用しないと上書きされる
             applyJustificationToTextFrame(textOnAPath);
 
-            if (!previewMode) __createdTexts.push(textOnAPath);
+            // Always collect created PathText for fit, even in preview
+            __createdTexts.push(textOnAPath);
 
             // ベースラインシフト（既存値 + 指定値）
             applyBaselineShiftDelta(textOnAPath);
@@ -1256,8 +1499,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
             // (overset fix is applied once after the loop)
         }
-        if (!previewMode && cbFixOverset.value) {
-            try { fixOversetTextFrames(__createdTexts); } catch (_) { }
+        if (__fitEnabled) {
+            try { fitTextToOpenPath(__createdTexts); } catch (_) { }
         }
     }
 
@@ -1490,7 +1733,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             // 行揃え（段落揃え）※ duplicate 後に適用しないと上書きされる
             applyJustificationToTextFrame(textOnAPath);
 
-            if (!previewMode) __createdTexts.push(textOnAPath);
+            // Always collect created PathText for fit, even in preview
+            __createdTexts.push(textOnAPath);
 
             // ベースラインシフト（既存値 + 指定値）
             applyBaselineShiftDelta(textOnAPath);
@@ -1511,9 +1755,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
             // (overset fix is applied once after the loop)
         }
-        if (!previewMode && cbFixOverset.value) {
-            try { fixOversetTextFrames(__createdTexts); } catch (_) { }
-        }
+        if (__fitEnabled) { try { fitTextToOpenPath(__createdTexts); } catch (_) { } }
     }
 
     // Main process (generate circle path with diameter = text width)
@@ -1612,7 +1854,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             } catch (_) { }
             try { textOnAPath.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (_) { }
 
-            if (!previewMode) __createdTexts.push(textOnAPath);
+            // Always collect created PathText for fit, even in preview
+            __createdTexts.push(textOnAPath);
 
             applyBaselineShiftDelta(textOnAPath);
             applyTrackingDelta(textOnAPath);
@@ -1629,9 +1872,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         }
 
-        if (!previewMode && cbFixOverset.value) {
-            try { fixOversetTextFrames(__createdTexts); } catch (_) { }
-        }
+        if (__fitEnabled) { try { fitTextToOpenPath(__createdTexts); } catch (_) { } }
     }
 
     // Create an arc-like path from point text using outline bounds (reference logic)
@@ -1799,12 +2040,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     function duplicatePathForText(basePath, currentLayer) {
         var srcPath = resolveSourcePath(basePath);
         if (!srcPath) return null;
+
+        // 1) Try native duplicate first (fast)
         try {
             var dup = srcPath.duplicate();
             try { dup.move(currentLayer, ElementPlacement.PLACEATBEGINNING); } catch (_) { }
             return dup;
-        } catch (eDup) {
-            return null;
+        } catch (_) {
+            // 2) Fallback: duplicate by copying anchors/handles (more robust)
+            try {
+                var dup2 = duplicatePathWithHandles(srcPath, currentLayer);
+                return dup2;
+            } catch (_) {
+                return null;
+            }
         }
     }
 
@@ -1843,65 +2092,175 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return pi;
     }
 
-    // Fix overset text by shrinking font size (targets only)
-    // NOTE: Illustrator TextFrame has no reliable `editable` flag; avoid filtering by it.
-    function fixOversetTextFrames(frames) {
+    // Fit PathText to OPEN path endpoints by adjusting font size only (do not touch tracking)
+    // Strategy: scale font size by (pathLength / outlinedTextWidth) and then shrink slightly if overset.
+    // Closed paths are ignored.
+    function fitTextToOpenPath(frames) {
         if (!frames || frames.length === 0) return false;
 
-        var step = 0.1;
-        var maxIter = 2000;
+        function isOpenPathText(tf) {
+            try {
+                if (!tf || tf.typename !== 'TextFrame') return false;
+                if (tf.kind !== TextType.PATHTEXT) return false;
+                var p = tf.textPath;
+                if (!p) return false;
+
+                var closed = false;
+                try {
+                    if (p.typename === 'CompoundPathItem') {
+                        if (p.pathItems && p.pathItems.length > 0) closed = !!p.pathItems[0].closed;
+                    } else if (p.typename === 'PathItem') {
+                        closed = !!p.closed;
+                    }
+                } catch (_) { closed = false; }
+
+                return !closed;
+            } catch (_) { }
+            return false;
+        }
+
+        function getOpenPathLength(tf) {
+            try {
+                var p = tf.textPath;
+                if (!p) return null;
+                if (p.typename === 'CompoundPathItem') {
+                    if (p.pathItems && p.pathItems.length > 0) return p.pathItems[0].length;
+                    return null;
+                }
+                return p.length;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        function measureOutlinedWidth(tf) {
+            // Create a temporary point text with duplicated content/format, outline it, and measure bounds width
+            var tmp = null;
+            var ol = null;
+            try {
+                var lay = null;
+                try { lay = tf.layer; } catch (_) { lay = null; }
+                tmp = (lay ? lay.textFrames.add() : doc.textFrames.add());
+                try { tmp.kind = TextType.POINTTEXT; } catch (_) { }
+                try { tmp.position = [0, 0]; } catch (_) { }
+
+                // Duplicate formatting/content
+                try { tf.textRange.duplicate(tmp); } catch (_) { tmp.contents = tf.contents; }
+
+                // Outline and measure
+                ol = tmp.createOutline();
+                var b = ol.geometricBounds; // [L, T, R, B]
+                var w = b[2] - b[0];
+
+                try { ol.remove(); } catch (_) { }
+                try { tmp.remove(); } catch (_) { }
+
+                if (!w || isNaN(w) || w <= 0) return null;
+                return w;
+            } catch (_) {
+                try { if (ol) ol.remove(); } catch (_) { }
+                try { if (tmp) tmp.remove(); } catch (_) { }
+                return null;
+            }
+        }
 
         function isOversetTF(tf) {
+            // Conservative overset check
             try {
                 if (!tf) return false;
-                if (!tf.lines || tf.lines.length === 0) {
-                    // If there are characters but no lines, treat as overset
-                    return (tf.characters && tf.characters.length > 0);
-                }
-                var visible = 0;
-                for (var i = 0; i < tf.lines.length; i++) {
-                    try { visible += tf.lines[i].characters.length; } catch (_) { }
-                }
                 var total = 0;
                 try { total = tf.characters.length; } catch (_) { total = 0; }
+                var visible = 0;
+                try {
+                    if (tf.lines && tf.lines.length > 0) {
+                        for (var i = 0; i < tf.lines.length; i++) {
+                            try { visible += tf.lines[i].characters.length; } catch (_) { }
+                        }
+                    } else {
+                        visible = total;
+                    }
+                } catch (_) {
+                    visible = total;
+                }
                 return (visible < total);
             } catch (_) {
                 return false;
             }
         }
 
-        function shrinkUntilFit(tf) {
+        function applyScaleToSizes(tf, ratio) {
             try {
-                if (!tf) return;
-                // Only AreaText / PathText can overset in Illustrator
+                // Apply ratio to each textRange size to preserve mixed sizes
+                var ranges = [];
                 try {
-                    if (!(tf.kind === TextType.AREATEXT || tf.kind === TextType.PATHTEXT)) return;
-                } catch (_) { return; }
+                    if (tf.textRanges && tf.textRanges.length > 0) {
+                        for (var i = 0; i < tf.textRanges.length; i++) ranges.push(tf.textRanges[i]);
+                    }
+                } catch (_) { }
+                if (ranges.length === 0) {
+                    try { if (tf.textRange) ranges = [tf.textRange]; } catch (_) { ranges = []; }
+                }
 
-                // Skip locked/hidden objects
+                for (var r = 0; r < ranges.length; r++) {
+                    var tr = ranges[r];
+                    try {
+                        var cur = tr.characterAttributes.size;
+                        var next = cur * ratio;
+                        if (next < 0.1) next = 0.1;
+                        tr.characterAttributes.size = next;
+                    } catch (_) { }
+                }
+            } catch (_) { }
+        }
+
+        function shrinkIfOverset(tf) {
+            // If overset remains (due to measurement error), shrink slightly until not overset
+            try {
+                var guard = 0;
+                while (isOversetTF(tf) && guard < 80) {
+                    guard++;
+                    applyScaleToSizes(tf, 0.98);
+                }
+            } catch (_) { }
+        }
+
+        function fitOne(tf) {
+            try {
+                if (!isOpenPathText(tf)) return;
+
+                // Skip locked/hidden/layer locked
                 try { if (tf.locked) return; } catch (_) { }
                 try { if (tf.hidden) return; } catch (_) { }
                 try { if (tf.layer && tf.layer.locked) return; } catch (_) { }
                 try { if (tf.layer && !tf.layer.visible) return; } catch (_) { }
 
-                var iter = 0;
-                while (isOversetTF(tf) && iter < maxIter) {
-                    iter++;
-                    try {
-                        var cur = tf.textRange.characterAttributes.size;
-                        if (cur <= step) break;
-                        tf.textRange.characterAttributes.size = cur - step;
-                    } catch (_) {
-                        break;
-                    }
-                }
+                var plen = getOpenPathLength(tf);
+                if (!plen || isNaN(plen) || plen <= 0) return;
+
+                var tw = measureOutlinedWidth(tf);
+                if (!tw || isNaN(tw) || tw <= 0) return;
+
+                var ratio = plen / tw;
+                // Prevent crazy jumps
+                if (ratio < 0.05) ratio = 0.05;
+                if (ratio > 20) ratio = 20;
+
+                applyScaleToSizes(tf, ratio);
+                shrinkIfOverset(tf);
+
             } catch (_) { }
         }
 
         for (var i = 0; i < frames.length; i++) {
-            shrinkUntilFit(frames[i]);
+            fitOne(frames[i]);
         }
+
         return true;
     }
 
-}());
+    // Backward-compatible alias (some older code paths may still call this)
+    function fixOversetTextFrames(frames) {
+        return fitTextToOpenPath(frames);
+    }
+
+})();
