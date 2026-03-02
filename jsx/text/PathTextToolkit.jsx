@@ -27,13 +27,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - UI：オプション「文字あふれを解消」を「フィット」に文言変更
 - UI：オプション「フィット」をチェックボックスからボタン（トグル）に変更
 - 追加：フィットを即時プレビューに対応（プレビューON時はダイアログ操作中にも反映）
+- 変更：フィットの内部ロジックを差し替え（overset判定→拡大してから縮小で最大付近に合わせる方式）
 */
 
 (function () {
 
     /* バージョン / Version */
     // Version
-    var SCRIPT_VERSION = "v1.2";
+    var SCRIPT_VERSION = "v1.3";
 
     // Language
     function getCurrentLang() {
@@ -1305,18 +1306,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     function applyStartEndTValue(tf) {
         try {
             if (!tf) return;
-            var s = (cbStartT && cbStartT.value) ? __parseTValue(etStartT.text, 0.0) : 0.0;
-            var e = (cbEndT && cbEndT.value) ? __parseTValue(etEndT.text, 1.0) : 1.0;
 
-            // Ensure start <= end
-            if (s > e) {
-                var tmp = s;
-                s = e;
-                e = tmp;
+            if (cbStartT && cbStartT.value) {
+                var s = __parseTValue(etStartT.text, 0.0);
+                tf.startTValue = s;
             }
 
-            tf.startTValue = s;
-            tf.endTValue = e;
+            if (cbEndT && cbEndT.value) {
+                var e = __parseTValue(etEndT.text, 1.0);
+                tf.endTValue = e;
+            }
+
         } catch (_) { }
     }
 
@@ -2093,174 +2093,118 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     // Fit PathText to OPEN path endpoints by adjusting font size only (do not touch tracking)
-    // Strategy: scale font size by (pathLength / outlinedTextWidth) and then shrink slightly if overset.
-    // Closed paths are ignored.
+    // Logic replaced:
+    // - If overset: shrink by small steps until it fits.
+    // - If NOT overset: grow to intentionally create overset, then shrink to fit (near-maximum).
+    // This is based on the attached "パステキストをフィット" logic (overset-based fit).
     function fitTextToOpenPath(frames) {
         if (!frames || frames.length === 0) return false;
 
-        function isOpenPathText(tf) {
+        // --- options (same spirit as the attached script) ---
+        var opt = {
+            increment: 0.1,
+            minFontSize: 0.1,
+            maxShrinkIter: 2000,
+            maxGrowIter: 10,
+            maxFontSize: 2000,
+            alertOnMaxIter: false
+        };
+
+        function isClosedPathItem(it) {
             try {
-                if (!tf || tf.typename !== 'TextFrame') return false;
-                if (tf.kind !== TextType.PATHTEXT) return false;
-                var p = tf.textPath;
-                if (!p) return false;
-
-                var closed = false;
-                try {
-                    if (p.typename === 'CompoundPathItem') {
-                        if (p.pathItems && p.pathItems.length > 0) closed = !!p.pathItems[0].closed;
-                    } else if (p.typename === 'PathItem') {
-                        closed = !!p.closed;
-                    }
-                } catch (_) { closed = false; }
-
-                return !closed;
+                if (!it) return false;
+                if (it.typename === 'CompoundPathItem') {
+                    if (it.pathItems && it.pathItems.length > 0) return !!it.pathItems[0].closed;
+                    return false;
+                }
+                if (it.typename === 'PathItem') return !!it.closed;
             } catch (_) { }
             return false;
         }
 
-        function getOpenPathLength(tf) {
+        function isTargetPathText(tf) {
             try {
+                if (!tf || tf.typename !== 'TextFrame') return false;
+                if (tf.kind !== TextType.PATHTEXT) return false;
+                if (!tf.editable || tf.locked || tf.hidden) return false;
                 var p = tf.textPath;
-                if (!p) return null;
-                if (p.typename === 'CompoundPathItem') {
-                    if (p.pathItems && p.pathItems.length > 0) return p.pathItems[0].length;
-                    return null;
-                }
-                return p.length;
-            } catch (_) {
-                return null;
-            }
+                if (!p) return false;
+                // Only OPEN paths
+                if (isClosedPathItem(p)) return false;
+                return true;
+            } catch (_) { }
+            return false;
         }
 
-        function measureOutlinedWidth(tf) {
-            // Create a temporary point text with duplicated content/format, outline it, and measure bounds width
-            var tmp = null;
-            var ol = null;
-            try {
-                var lay = null;
-                try { lay = tf.layer; } catch (_) { lay = null; }
-                tmp = (lay ? lay.textFrames.add() : doc.textFrames.add());
-                try { tmp.kind = TextType.POINTTEXT; } catch (_) { }
-                try { tmp.position = [0, 0]; } catch (_) { }
-
-                // Duplicate formatting/content
-                try { tf.textRange.duplicate(tmp); } catch (_) { tmp.contents = tf.contents; }
-
-                // Outline and measure
-                ol = tmp.createOutline();
-                var b = ol.geometricBounds; // [L, T, R, B]
-                var w = b[2] - b[0];
-
-                try { ol.remove(); } catch (_) { }
-                try { tmp.remove(); } catch (_) { }
-
-                if (!w || isNaN(w) || w <= 0) return null;
-                return w;
-            } catch (_) {
-                try { if (ol) ol.remove(); } catch (_) { }
-                try { if (tmp) tmp.remove(); } catch (_) { }
-                return null;
-            }
-        }
-
-        function isOversetTF(tf) {
-            // Conservative overset check
+        // Overset detection from the attached logic
+        function isOverset(tf, lineAmt) {
             try {
                 if (!tf) return false;
-                var total = 0;
-                try { total = tf.characters.length; } catch (_) { total = 0; }
-                var visible = 0;
-                try {
-                    if (tf.lines && tf.lines.length > 0) {
-                        for (var i = 0; i < tf.lines.length; i++) {
-                            try { visible += tf.lines[i].characters.length; } catch (_) { }
-                        }
+
+                if (tf.lines.length > 0) {
+                    var charactersOnVisibleLines = 0;
+
+                    if (typeof (lineAmt) === 'undefined' || lineAmt === null) {
+                        lineAmt = 1;
                     } else {
-                        visible = total;
+                        lineAmt = Math.floor(lineAmt);
+                        if (lineAmt < 1) lineAmt = 1;
+                        if (lineAmt > tf.lines.length) lineAmt = tf.lines.length;
                     }
-                } catch (_) {
-                    visible = total;
-                }
-                return (visible < total);
-            } catch (_) {
-                return false;
-            }
-        }
 
-        function applyScaleToSizes(tf, ratio) {
-            try {
-                // Apply ratio to each textRange size to preserve mixed sizes
-                var ranges = [];
-                try {
-                    if (tf.textRanges && tf.textRanges.length > 0) {
-                        for (var i = 0; i < tf.textRanges.length; i++) ranges.push(tf.textRanges[i]);
+                    for (var i = 0; i < lineAmt; i++) {
+                        charactersOnVisibleLines += tf.lines[i].characters.length;
                     }
-                } catch (_) { }
-                if (ranges.length === 0) {
-                    try { if (tf.textRange) ranges = [tf.textRange]; } catch (_) { ranges = []; }
-                }
-
-                for (var r = 0; r < ranges.length; r++) {
-                    var tr = ranges[r];
-                    try {
-                        var cur = tr.characterAttributes.size;
-                        var next = cur * ratio;
-                        if (next < 0.1) next = 0.1;
-                        tr.characterAttributes.size = next;
-                    } catch (_) { }
+                    return (charactersOnVisibleLines < tf.characters.length);
+                } else if (tf.characters.length > 0) {
+                    return true;
                 }
             } catch (_) { }
+            return false;
         }
 
-        function shrinkIfOverset(tf) {
-            // If overset remains (due to measurement error), shrink slightly until not overset
+        function shrinkFont(tf) {
             try {
-                var guard = 0;
-                while (isOversetTF(tf) && guard < 80) {
-                    guard++;
-                    applyScaleToSizes(tf, 0.98);
+                if (!tf || tf.characters.length <= 0) return;
+
+                var lineAmt = (tf.lines && tf.lines.length > 0) ? tf.lines.length : 1;
+
+                // If it is NOT overset, grow first (doubling) until it becomes overset (or hits safety limit)
+                if (!isOverset(tf, lineAmt)) {
+                    var growIter = 0;
+                    while (!isOverset(tf, lineAmt) && growIter < opt.maxGrowIter) {
+                        var curG = tf.textRange.characterAttributes.size;
+                        if (curG >= opt.maxFontSize) break;
+                        tf.textRange.characterAttributes.size = Math.min(opt.maxFontSize, curG * 2);
+                        growIter++;
+                    }
                 }
-            } catch (_) { }
-        }
 
-        function fitOne(tf) {
-            try {
-                if (!isOpenPathText(tf)) return;
+                // Then shrink in small steps until it fits
+                var iter = 0;
+                while (isOverset(tf, lineAmt)) {
+                    var cur = tf.textRange.characterAttributes.size;
+                    if (cur <= opt.minFontSize) break;
 
-                // Skip locked/hidden/layer locked
-                try { if (tf.locked) return; } catch (_) { }
-                try { if (tf.hidden) return; } catch (_) { }
-                try { if (tf.layer && tf.layer.locked) return; } catch (_) { }
-                try { if (tf.layer && !tf.layer.visible) return; } catch (_) { }
+                    tf.textRange.characterAttributes.size = Math.max(opt.minFontSize, cur - opt.increment);
 
-                var plen = getOpenPathLength(tf);
-                if (!plen || isNaN(plen) || plen <= 0) return;
-
-                var tw = measureOutlinedWidth(tf);
-                if (!tw || isNaN(tw) || tw <= 0) return;
-
-                var ratio = plen / tw;
-                // Prevent crazy jumps
-                if (ratio < 0.05) ratio = 0.05;
-                if (ratio > 20) ratio = 20;
-
-                applyScaleToSizes(tf, ratio);
-                shrinkIfOverset(tf);
-
+                    iter++;
+                    if (iter >= opt.maxShrinkIter) {
+                        if (opt.alertOnMaxIter) {
+                            try { alert('フィット処理（縮小）が上限回数に達しました'); } catch (_) { }
+                        }
+                        break;
+                    }
+                }
             } catch (_) { }
         }
 
         for (var i = 0; i < frames.length; i++) {
-            fitOne(frames[i]);
+            var tf = frames[i];
+            if (!isTargetPathText(tf)) continue;
+            shrinkFont(tf);
         }
 
         return true;
     }
-
-    // Backward-compatible alias (some older code paths may still call this)
-    function fixOversetTextFrames(frames) {
-        return fitTextToOpenPath(frames);
-    }
-
-})();
+}());
