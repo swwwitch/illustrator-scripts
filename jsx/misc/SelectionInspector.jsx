@@ -38,6 +38,7 @@ https://github.com/swwwitch/illustrator-scripts
 - v1.2 (20250807) : UI調整
 - v1.3 (20260301) : パスのハンドル数を追加
 - v1.4 (20260301) : 強制改行（ソフトリターン）数を追加
+- v1.4.1 (20260302) : UI調整（OK→閉じる、キャンセル削除、書き出しを左へ移動）
 
 ---
 
@@ -77,10 +78,11 @@ https://github.com/swwwitch/illustrator-scripts
 - v1.2 (20250807): UI adjustments
 - v1.3 (20260301): Added handle count for paths
 - v1.4 (20260301): Added forced line break (soft return) count
+- v1.4.1 (20260302): UI tweaks (OK→Close, removed Cancel, moved Export to left)
 
 */
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.4.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -206,12 +208,8 @@ var LABELS = {
         en: "Compound Shapes:"
     },
     ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
+        ja: "閉じる",
+        en: "Close"
     },
     exportPreset: {
         ja: "書き出し",
@@ -736,8 +734,8 @@ function main() {
         // 左側グループ / Left-side button group
         var btnLeftGroup = btnRowGroup.add("group");
         btnLeftGroup.alignChildren = ["left", "center"];
-        var btnCancel = btnLeftGroup.add("button", undefined, LABELS.cancel[lang], {
-            name: "cancel"
+        var btnExport = btnLeftGroup.add("button", undefined, LABELS.exportPreset[lang], {
+            name: "preview"
         });
 
         // スペーサー（伸縮）/ Spacer (stretchable)
@@ -748,9 +746,6 @@ function main() {
         // 右側グループ / Right-side button group
         var btnRightGroup = btnRowGroup.add("group");
         btnRightGroup.alignChildren = ["right", "center"];
-        var btnExport = btnRightGroup.add("button", undefined, LABELS.exportPreset[lang], {
-            name: "preview"
-        });
         var btnOK = btnRightGroup.add("button", undefined, LABELS.ok[lang], {
             name: "ok"
         });
