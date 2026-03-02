@@ -8,22 +8,25 @@ SelectionInspector.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionInspector.jsx
 
 ### 概要：
 
-- 選択中および全体のオブジェクト数をカウント
-- テキスト・画像・グループ・パスの詳細情報を表示
-- 統計情報をダイアログで表示、書き出し可能
+- 選択中／全体のオブジェクト数をカウントし、2カラムのダイアログで表示
+- テキスト・配置画像・透明・グループ・パス・ガイドの統計を表示
+- 「書き出し」でレポート（テキスト）を書き出し可能
 
 ### 主な機能：
 
-- オブジェクト数、アートボード数を表示
-- 文字数、段落数、テキスト種類の表示
-- リンク画像／埋め込み画像／リンク切れの検出
-- グループ／クリップグループのカウント
-- パス（オープン／クローズ／アンカーポイント）のカウント
-- 「書き出し」ボタンでテキストファイルとして保存
+- オブジェクト数（選択／全体）・アートボード数を表示
+- テキスト（ポイント／エリア／パス上）・文字数・段落数・強制改行数を表示
+- 配置画像（リンク／埋め込み／リンク切れ）を表示
+- 透明（不透明度<100、描画モード≠通常）を表示
+- グループ／クリップグループを表示
+- パス（オープン／クローズ／アンカー／ハンドル／複合パス／複合シェイプ）を表示
+  ※ ガイド（guides=true）はパス統計から除外
+- ガイド（ルーラー／アートボード／その他）を表示
+- 「書き出し」ボタンで集計結果をテキストファイルとして保存
 
 ### 処理の流れ：
 
@@ -39,6 +42,7 @@ https://github.com/swwwitch/illustrator-scripts
 - v1.3 (20260301) : パスのハンドル数を追加
 - v1.4 (20260301) : 強制改行（ソフトリターン）数を追加
 - v1.4.1 (20260302) : UI調整（OK→閉じる、キャンセル削除、書き出しを左へ移動）
+- v1.5 (20260302) : ガイド集計（ルーラー/アートボード/その他）、ガイド除外のパス統計、パネル配置と書き出しレイアウト更新
 
 ---
 
@@ -48,22 +52,25 @@ SelectionInspector.jsx
 
 ### GitHub:
 
-https://github.com/swwwitch/illustrator-scripts
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionInspector.jsx
 
 ### Overview:
 
-- Count selected and total objects in the document
-- Display detailed stats for text, images, groups, and paths
-- Show statistics in a dialog and export as a text file
+- Count selection / document totals and show them in a two-column dialog
+- Show stats for text, images, transparency, groups, paths, and guides
+- Export the stats as a plain text report
 
 ### Main Features:
 
-- Display number of objects and artboards
-- Show characters, paragraphs, text type counts
-- Detect linked/embedded/broken images
-- Count groups and clipping groups
-- Count paths, open/closed paths, and anchor points
-- Export button writes stats to desktop as a text file
+- Show object counts (Selection / All) and artboard count
+- Text stats: point/area/path text, characters, paragraphs, forced line breaks
+- Image stats: linked/embedded/broken links
+- Transparency stats: opacity < 100, blend mode ≠ Normal
+- Group stats: groups and clipping groups
+- Path stats: open/closed, anchor points, handles, compound paths, compound shapes
+  * Guide paths (guides=true) are excluded from path stats
+- Guide breakdown: ruler / artboard / other
+- Export button writes a plain text report to the desktop
 
 ### Process Flow:
 
@@ -79,10 +86,11 @@ https://github.com/swwwitch/illustrator-scripts
 - v1.3 (20260301): Added handle count for paths
 - v1.4 (20260301): Added forced line break (soft return) count
 - v1.4.1 (20260302): UI tweaks (OK→Close, removed Cancel, moved Export to left)
+- v1.5 (20260302): Added guide breakdown (ruler/artboard/other), excluded guides from path stats, updated panel arrangement and export layout
 
 */
 
-var SCRIPT_VERSION = "v1.4.1";
+var SCRIPT_VERSION = "v1.5";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -92,7 +100,7 @@ var lang = getCurrentLang();
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     dialogTitle: {
-        ja: "選択／全体オブジェクト数 " + SCRIPT_VERSION,
+        ja: "選択／全体オブジェクトのカウント " + SCRIPT_VERSION,
         en: "Selection / All Objects Count " + SCRIPT_VERSION
     },
     other: {
@@ -179,6 +187,22 @@ var LABELS = {
         ja: "パス",
         en: "Paths"
     },
+    guide: {
+        ja: "ガイド",
+        en: "Guides"
+    },
+    rulerGuides: {
+        ja: "ルーラーガイド：",
+        en: "Ruler Guides:"
+    },
+    artboardGuides: {
+        ja: "アートボードガイド：",
+        en: "Artboard Guides:"
+    },
+    otherGuides: {
+        ja: "その他のガイド：",
+        en: "Other Guides:"
+    },
     pathCount: {
         ja: "パス：",
         en: "Paths:"
@@ -260,6 +284,132 @@ function main() {
         var compoundShapeSel = 0,
             compoundShapeAll = 0;
 
+        // ガイド（ルーラーガイド／アートボードガイド／その他のガイド）
+        // Guides (ruler / artboard / other)
+        var rulerGuideSel = 0,
+            rulerGuideAll = 0;
+        var artboardGuideSel = 0,
+            artboardGuideAll = 0;
+        var otherGuideSel = 0,
+            otherGuideAll = 0;
+
+        function __getMaxArtboardSpan(doc) {
+            // Returns max(width, height) among all artboards (in points)
+            var maxSpan = 0;
+            try {
+                var abs = Math.abs;
+                var ab = doc.artboards;
+                for (var i = 0; i < ab.length; i++) {
+                    var r = ab[i].artboardRect; // [left, top, right, bottom]
+                    var w = abs(r[2] - r[0]);
+                    var h = abs(r[1] - r[3]);
+                    if (w > maxSpan) maxSpan = w;
+                    if (h > maxSpan) maxSpan = h;
+                }
+            } catch (e) { }
+            return maxSpan;
+        }
+
+        function __isArtboardGuidePathItem(pi, doc) {
+            // Artboard guide definition:
+            // - guide path (pi.guides)
+            // - open path
+            // - exactly 2 points
+            // - horizontal OR vertical
+            // - line length approximately equals width OR height of ANY artboard
+            try {
+                if (!pi || pi.typename !== "PathItem") return false;
+                if (!pi.guides) return false;
+                if (pi.closed) return false;
+                if (!pi.pathPoints || pi.pathPoints.length !== 2) return false;
+
+                var a0 = pi.pathPoints[0].anchor;
+                var a1 = pi.pathPoints[1].anchor;
+                var T = 0.01;
+                var sameX = Math.abs(a0[0] - a1[0]) <= T;
+                var sameY = Math.abs(a0[1] - a1[1]) <= T;
+                if (!(sameX || sameY)) return false;
+
+                var dx = a0[0] - a1[0];
+                var dy = a0[1] - a1[1];
+                var len = Math.sqrt(dx * dx + dy * dy);
+
+                // Compare against every artboard
+                var abs = Math.abs;
+                var tol = 0.5; // pt tolerance (rounding / pixel alignment)
+                var ab = doc.artboards;
+                for (var i = 0; i < ab.length; i++) {
+                    var r = ab[i].artboardRect; // [left, top, right, bottom]
+                    var w = abs(r[2] - r[0]);
+                    var h = abs(r[1] - r[3]);
+                    if (abs(len - w) <= tol) return true;
+                    if (abs(len - h) <= tol) return true;
+                }
+                return false;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function __isRulerGuidePathItem(pi) {
+            // Best-effort heuristic:
+            // Ruler guides are typically a long straight horizontal/vertical open line.
+            // Here we treat it as:
+            // - guide path (pi.guides)
+            // - open path
+            // - exactly 2 points
+            // - horizontal OR vertical
+            // - line length is longer than the artboard width or height
+            try {
+                if (!pi || pi.typename !== "PathItem") return false;
+                if (!pi.guides) return false;
+                if (pi.closed) return false;
+                if (!pi.pathPoints || pi.pathPoints.length !== 2) return false;
+
+                var a0 = pi.pathPoints[0].anchor;
+                var a1 = pi.pathPoints[1].anchor;
+                var T = 0.01;
+
+                var sameX = Math.abs(a0[0] - a1[0]) <= T;
+                var sameY = Math.abs(a0[1] - a1[1]) <= T;
+                if (!(sameX || sameY)) return false;
+
+                var dx = a0[0] - a1[0];
+                var dy = a0[1] - a1[1];
+                var len = Math.sqrt(dx * dx + dy * dy);
+
+                var maxSpan = __getMaxArtboardSpan(app.activeDocument);
+                // If artboard span cannot be obtained, fall back to old behavior (treat as ruler guide)
+                if (!(maxSpan > 0)) return true;
+
+                return (len > maxSpan);
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function __countGuidesForPathItem(pi) {
+            // returns { ruler:0/1, artboard:0/1, other:0/1 }
+            var r = { ruler: 0, artboard: 0, other: 0 };
+            try {
+                if (!pi || pi.typename !== "PathItem") return r;
+                if (!pi.guides) return r;
+
+                // Priority:
+                // 1) Ruler guide (longer than max artboard span)
+                // 2) Artboard guide (matches any artboard width/height)
+                // 3) Other guide
+                if (__isRulerGuidePathItem(pi)) {
+                    r.ruler = 1;
+                } else if (__isArtboardGuidePathItem(pi, app.activeDocument)) {
+                    r.artboard = 1;
+                } else {
+                    r.other = 1;
+                }
+            } catch (e) { }
+            return r;
+        }
+
         // 透明（不透明度<100／描画モード≠通常）/ Transparency stats
         var opacityLt100Sel = 0,
             opacityLt100All = 0;
@@ -279,6 +429,14 @@ function main() {
             } catch (e) { }
 
             return r;
+        }
+
+        function __isGuidePathItem(pi) {
+            try {
+                return (pi && pi.typename === "PathItem" && pi.guides === true);
+            } catch (e) {
+                return false;
+            }
         }
 
         function countHandlesInPathItem(pi) {
@@ -320,14 +478,36 @@ function main() {
                 opacityLt100Sel += t0.opacityLt100;
                 blendNotNormalSel += t0.blendNotNormal;
             } catch (e) { }
+
+            // ガイド（選択）/ Guides (selected)
+            try {
+                if (sel[i].typename === "PathItem") {
+                    var g0 = __countGuidesForPathItem(sel[i]);
+                    rulerGuideSel += g0.ruler;
+                    artboardGuideSel += g0.artboard;
+                    otherGuideSel += g0.other;
+                } else if (sel[i].typename === "CompoundPathItem") {
+                    for (var gg = 0; gg < sel[i].pathItems.length; gg++) {
+                        var g1 = __countGuidesForPathItem(sel[i].pathItems[gg]);
+                        rulerGuideSel += g1.ruler;
+                        artboardGuideSel += g1.artboard;
+                        otherGuideSel += g1.other;
+                    }
+                }
+            } catch (e) { }
             if (sel[i].typename === "TextFrame") {
                 textCountSel++;
             } else if (sel[i].typename === "PathItem") {
-                pathCountSel++;
-                anchorCountSel += sel[i].pathPoints.length;
-                handleCountSel += countHandlesInPathItem(sel[i]);
+                // ガイドはパス統計から除外 / Exclude guides from path stats
+                if (!__isGuidePathItem(sel[i])) {
+                    pathCountSel++;
+                    anchorCountSel += sel[i].pathPoints.length;
+                    handleCountSel += countHandlesInPathItem(sel[i]);
+                }
             } else if (sel[i].typename === "CompoundPathItem") {
                 for (var j = 0; j < sel[i].pathItems.length; j++) {
+                    // ガイドはパス統計から除外 / Exclude guides from path stats
+                    if (__isGuidePathItem(sel[i].pathItems[j])) continue;
                     pathCountSel++;
                     anchorCountSel += sel[i].pathItems[j].pathPoints.length;
                     handleCountSel += countHandlesInPathItem(sel[i].pathItems[j]);
@@ -358,14 +538,36 @@ function main() {
                 blendNotNormalAll += tAll.blendNotNormal;
             } catch (e) { }
 
+            // ガイド（全体）/ Guides (all)
+            try {
+                if (obj.typename === "PathItem") {
+                    var gAll0 = __countGuidesForPathItem(obj);
+                    rulerGuideAll += gAll0.ruler;
+                    artboardGuideAll += gAll0.artboard;
+                    otherGuideAll += gAll0.other;
+                } else if (obj.typename === "CompoundPathItem") {
+                    for (var gg2 = 0; gg2 < obj.pathItems.length; gg2++) {
+                        var gAll1 = __countGuidesForPathItem(obj.pathItems[gg2]);
+                        rulerGuideAll += gAll1.ruler;
+                        artboardGuideAll += gAll1.artboard;
+                        otherGuideAll += gAll1.other;
+                    }
+                }
+            } catch (e) { }
+
             if (obj.typename === "TextFrame") {
                 textCountAll++;
             } else if (obj.typename === "PathItem") {
-                pathCountAll++;
-                anchorCountAll += obj.pathPoints.length;
-                handleCountAll += countHandlesInPathItem(obj);
+                // ガイドはパス統計から除外 / Exclude guides from path stats
+                if (!__isGuidePathItem(obj)) {
+                    pathCountAll++;
+                    anchorCountAll += obj.pathPoints.length;
+                    handleCountAll += countHandlesInPathItem(obj);
+                }
             } else if (obj.typename === "CompoundPathItem") {
                 for (var m = 0; m < obj.pathItems.length; m++) {
+                    // ガイドはパス統計から除外 / Exclude guides from path stats
+                    if (__isGuidePathItem(obj.pathItems[m])) continue;
                     pathCountAll++;
                     anchorCountAll += obj.pathItems[m].pathPoints.length;
                     handleCountAll += countHandlesInPathItem(obj.pathItems[m]);
@@ -444,20 +646,6 @@ function main() {
         panelCharPara.alignChildren = ["fill", "top"];
         panelCharPara.margins = [15, 20, 0, 10];
 
-        /* 透明の詳細を表示するパネル / Panel to display transparency details */
-        var panelTransparency = leftCol.add("panel", undefined, LABELS.transparency[lang]);
-        panelTransparency.orientation = "column";
-        panelTransparency.alignChildren = ["fill", "top"];
-        panelTransparency.margins = [15, 20, 0, 10];
-
-        function addTransparencyRow(label, value) {
-            var row = panelTransparency.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_LEFT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
 
         function addCharParaRow(label, value) {
             var row = panelCharPara.add("group");
@@ -554,16 +742,31 @@ function main() {
         addTextRow(LABELS.areaText[lang], areaTextSel + " / " + areaTextAll);
         addTextRow(LABELS.pathText[lang], pathTextSel + " / " + pathTextAll);
 
-        addTransparencyRow(LABELS.opacityLt100[lang], opacityLt100Sel + " / " + opacityLt100All);
-        addTransparencyRow(LABELS.blendNotNormal[lang], blendNotNormalSel + " / " + blendNotNormalAll);
-
         // 右カラム
         var rightCol = twoColGroup.add("group");
         rightCol.orientation = "column";
         rightCol.alignChildren = ["fill", "top"];
 
+        /* 透明の詳細を表示するパネル / Panel to display transparency details */
+        var panelTransparency = rightCol.add("panel", undefined, LABELS.transparency[lang]);
+        panelTransparency.orientation = "column";
+        panelTransparency.alignChildren = ["fill", "top"];
+        panelTransparency.margins = [15, 20, 0, 10];
+
+        function addTransparencyRow(label, value) {
+            var row = panelTransparency.add("group");
+            row.orientation = "row";
+            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_RIGHT, 20], label);
+            lbl.justify = "right";
+            var val = row.add("statictext", undefined, value);
+            val.characters = value.length;
+        }
+
+        addTransparencyRow(LABELS.opacityLt100[lang], opacityLt100Sel + " / " + opacityLt100All);
+        addTransparencyRow(LABELS.blendNotNormal[lang], blendNotNormalSel + " / " + blendNotNormalAll);
+
         /* 画像の詳細を表示するパネル / Panel to display image details */
-        var panelImage = rightCol.add("panel", undefined, LABELS.link[lang]);
+        var panelImage = leftCol.add("panel", undefined, LABELS.link[lang]);
         panelImage.orientation = "column";
         panelImage.alignChildren = ["fill", "top"];
         panelImage.margins = [15, 20, 0, 10];
@@ -617,7 +820,7 @@ function main() {
         function addImageRow(label, value) {
             var row = panelImage.add("group");
             row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_RIGHT, 20], label);
+            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_LEFT, 20], label);
             lbl.justify = "right";
             var val = row.add("statictext", undefined, value);
             val.characters = value.length;
@@ -697,6 +900,7 @@ function main() {
         /* 選択オブジェクト / Selected objects */
         for (var i = 0; i < sel.length; i++) {
             if (sel[i].typename === "PathItem") {
+                if (__isGuidePathItem(sel[i])) continue;
                 if (sel[i].closed) {
                     closedPathSel++;
                 } else {
@@ -709,6 +913,7 @@ function main() {
         for (var k = 0; k < allItems.length; k++) {
             var obj = allItems[k];
             if (obj.typename === "PathItem") {
+                if (__isGuidePathItem(obj)) continue;
                 if (obj.closed) {
                     closedPathAll++;
                 } else {
@@ -723,6 +928,25 @@ function main() {
         addPathRow(LABELS.handles[lang], handleCountSel + " / " + handleCountAll);
         addPathRow(LABELS.compoundPath[lang], compoundPathSel + " / " + compoundPathAll);
         addPathRow(LABELS.compoundShape[lang], compoundShapeSel + " / " + compoundShapeAll);
+
+        /* ガイドの詳細を表示するパネル / Panel to display guide details */
+        var panelGuide = rightCol.add("panel", undefined, LABELS.guide[lang]);
+        panelGuide.orientation = "column";
+        panelGuide.alignChildren = ["fill", "top"];
+        panelGuide.margins = [15, 20, 0, 10];
+
+        function addGuideRow(label, value) {
+            var row = panelGuide.add("group");
+            row.orientation = "row";
+            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_RIGHT, 20], label);
+            lbl.justify = "right";
+            var val = row.add("statictext", undefined, value);
+            val.characters = value.length;
+        }
+
+        addGuideRow(LABELS.rulerGuides[lang], rulerGuideSel + " / " + rulerGuideAll);
+        addGuideRow(LABELS.artboardGuides[lang], artboardGuideSel + " / " + artboardGuideAll);
+        addGuideRow(LABELS.otherGuides[lang], otherGuideSel + " / " + otherGuideAll);
 
         // メイングループ（横並び） / Main group (horizontal layout)
         var btnRowGroup = dlg.add("group");
@@ -820,16 +1044,16 @@ function main() {
                     wPair(LABELS.paras.ja.replace(/：$/, ":"), LABELS.paras.en.replace(/:$/, ":"), paraCountSel, paraCountAll);
                     wPair(LABELS.forcedBreaks.ja.replace(/：$/, ":"), LABELS.forcedBreaks.en.replace(/:$/, ":"), forcedBreakSel, forcedBreakAll);
 
-                    // Transparency
-                    wSection("透明", "Transparency");
-                    wPair(LABELS.opacityLt100.ja.replace(/：$/, ":"), LABELS.opacityLt100.en.replace(/:$/, ":"), opacityLt100Sel, opacityLt100All);
-                    wPair(LABELS.blendNotNormal.ja.replace(/：$/, ":"), LABELS.blendNotNormal.en.replace(/:$/, ":"), blendNotNormalSel, blendNotNormalAll);
-
                     // Images
                     wSection("配置画像", "Images");
                     wPair(LABELS.linked.ja.replace(/：$/, ":"), LABELS.linked.en.replace(/:$/, ":"), linkedSel, linkedAll);
                     wPair(LABELS.embed.ja.replace(/：$/, ":"), LABELS.embed.en.replace(/:$/, ":"), embeddedSel, embeddedAll);
                     wPair(LABELS.broken.ja.replace(/：$/, ":"), LABELS.broken.en.replace(/:$/, ":"), brokenLinkSel, brokenLinkAll);
+
+                    // Transparency
+                    wSection("透明", "Transparency");
+                    wPair(LABELS.opacityLt100.ja.replace(/：$/, ":"), LABELS.opacityLt100.en.replace(/:$/, ":"), opacityLt100Sel, opacityLt100All);
+                    wPair(LABELS.blendNotNormal.ja.replace(/：$/, ":"), LABELS.blendNotNormal.en.replace(/:$/, ":"), blendNotNormalSel, blendNotNormalAll);
 
                     // Groups
                     wSection("グループ", "Groups");
@@ -845,6 +1069,12 @@ function main() {
                     wPair(LABELS.handles.ja.replace(/：$/, ":"), LABELS.handles.en.replace(/:$/, ":"), handleCountSel, handleCountAll);
                     wPair(LABELS.compoundPath.ja.replace(/：$/, ":"), LABELS.compoundPath.en.replace(/:$/, ":"), compoundPathSel, compoundPathAll);
                     wPair(LABELS.compoundShape.ja.replace(/：$/, ":"), LABELS.compoundShape.en.replace(/:$/, ":"), compoundShapeSel, compoundShapeAll);
+
+                    // Guides
+                    wSection("ガイド", "Guides");
+                    wPair(LABELS.rulerGuides.ja.replace(/：$/, ":"), LABELS.rulerGuides.en.replace(/:$/, ":"), rulerGuideSel, rulerGuideAll);
+                    wPair(LABELS.artboardGuides.ja.replace(/：$/, ":"), LABELS.artboardGuides.en.replace(/:$/, ":"), artboardGuideSel, artboardGuideAll);
+                    wPair(LABELS.otherGuides.ja.replace(/：$/, ":"), LABELS.otherGuides.en.replace(/:$/, ":"), otherGuideSel, otherGuideAll);
 
                     file.close();
 
