@@ -454,6 +454,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return list;
     }
 
+    // JP font cache (heavy to build; reuse)
+    var __jpFontsCache = null;
+    function getJPFontsCached() {
+        if (__jpFontsCache) return __jpFontsCache;
+        __jpFontsCache = getJPFonts();
+        return __jpFontsCache;
+    }
+
     function collectTextRanges(selection) {
         var list = [];
         for (var i = 0; i < selection.length; i++) {
@@ -497,52 +505,34 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var selTextFrames = getSelectionTextFrames(doc.selection);
     if (ranges.length === 0) { alert(L("alertSelectTextRange")); return; }
 
-    // --- PreviewManager (Undo-based) ---
-    // Preview changes should not remain in the Undo stack when the dialog closes.
-    // Strategy: keep at most ONE preview step applied at any time.
-    // - Each preview update: undo the previous preview step (if any), then apply a new preview step.
-    // - Cancel: undo the current preview step (if any).
-    // - OK: undo the current preview step (if any), then apply the final operation once.
+    // --- PreviewManager (No-Undo preview) ---
+    // Goal: avoid History jumping back on every preview update.
+    // Strategy:
+    // - Preview updates simply overwrite character attributes (no undo).
+    // - Cancel restores the original snapshot.
+    // - OK applies final once (overwrites again) and closes.
     function PreviewManager() {
         this._hasPreview = false;
     }
 
-    PreviewManager.prototype._undoOnce = function () {
-        try {
-            // Illustrator has no app.undo(); use menu command.
-            app.executeMenuCommand('undo');
-            return true;
-        } catch (_) {
-            return false;
-        }
-    };
-
     PreviewManager.prototype.addStep = function (fn) {
         if (typeof fn !== 'function') return;
-        // remove previous preview step so history doesn't grow
-        if (this._hasPreview) {
-            this._undoOnce();
-            this._hasPreview = false;
-        }
         try { fn(); } catch (_) { }
         this._hasPreview = true;
     };
 
     PreviewManager.prototype.cancel = function () {
         if (!this._hasPreview) return;
-        this._undoOnce();
+        try { restoreOriginals(); } catch (_) { }
         this._hasPreview = false;
     };
 
     PreviewManager.prototype.confirm = function (fnFinal) {
-        // clear preview step first
-        if (this._hasPreview) {
-            this._undoOnce();
-            this._hasPreview = false;
-        }
+        // No undo needed; simply apply final overwrite once.
         if (typeof fnFinal === 'function') {
             try { fnFinal(); } catch (_) { }
         }
+        this._hasPreview = false;
     };
 
     var previewMgr = new PreviewManager();
@@ -817,7 +807,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         } catch (_) { }
 
-        app.redraw();
+        // Redraw can be expensive; allow callers (preview) to control it
+        if (!(optFont && optFont.noRedraw === true)) {
+            app.redraw();
+        }
     }
 
     function parseNum(str) {
@@ -879,6 +872,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var chkFontRandom = pnlFont.add("checkbox", undefined, L("chkFontRandom"));
     var chkFontJPOnly = pnlFont.add("checkbox", undefined, L("chkFontJPOnly"));
 
+    function updateFontOptionEnabled() {
+        // 「ランダム」がOFFのときは「和文フォントに限定」をディム
+        try {
+            var en = !!(chkFontRandom && chkFontRandom.value);
+            if (chkFontJPOnly) {
+                chkFontJPOnly.enabled = en;
+                if (!en) chkFontJPOnly.value = false; // OFF時は強制的にチェック解除
+            }
+        } catch (_) { }
+    }
+
     // --- panel: 「犯行声明文」風 ---
     var pnlRansom = gFontRow.add("panel", undefined, L("panelRansom"));
     pnlRansom.orientation = "column";
@@ -902,6 +906,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     chkFontJPOnly.value = false;
     chkFontRansom.value = false;
 
+    updateFontOptionEnabled();
+
     chkRansomTrack.value = true;      // 既存挙動（tracking固定）を維持するためデフォルトON
     chkRansomTrack.enabled = false;   // 「有効」がOFFの間はディム
     edtRansomTrk.enabled = false;     // 「有効」+「トラッキング調整」ONのときだけ有効
@@ -909,7 +915,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     function autoEnableJPOnlyIfNeeded() {
         try {
             if (selectionContainsNonAlnum(ranges)) {
-                chkFontJPOnly.value = true;
+                if (chkFontJPOnly && chkFontJPOnly.enabled) chkFontJPOnly.value = true;
             }
         } catch (_) { }
     }
@@ -1228,6 +1234,29 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var btnCancel = btnRight.add("button", undefined, L("btnCancel"));
     var btnOK = btnRight.add("button", undefined, L("btnOK"));
 
+    // --- debounced preview (reduce heavy redraw on onChanging/key repeat) ---
+    var __pvTaskId = null;
+    var __pvDelayMs = 120;
+
+    // scheduleTask needs a global callable string
+    $.global.__ATT_doPreview = function () {
+        try { __pvTaskId = null; } catch (_) { }
+        try { updatePreview(); } catch (_) { }
+    };
+
+    function requestPreview() {
+        try {
+            if (__pvTaskId != null) {
+                try { app.cancelTask(__pvTaskId); } catch (_) { }
+                __pvTaskId = null;
+            }
+            __pvTaskId = app.scheduleTask("$.global.__ATT_doPreview()", __pvDelayMs, false);
+        } catch (_) {
+            // fallback
+            try { updatePreview(); } catch (_) { }
+        }
+    }
+
     function updatePreview() {
         __didReset = false;
         var base = 0; // in pt
@@ -1254,11 +1283,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             previewRansomTracking: false,
             ransomTrackValue: null,
             allFonts: __allFonts,
-            jpFonts: null
+            jpFonts: null,
+            noRedraw: true
         };
 
+        // Keep UI state as-is, but make it clear via dimming that preview ignores this option
+        try { if (chkRotTrackComp) chkRotTrackComp.enabled = true; } catch (_) { }
+
         if (optFont.fontRandom && optFont.jpOnly) {
-            optFont.jpFonts = getJPFonts();
+            optFont.jpFonts = getJPFontsCached();
             if (!optFont.jpFonts || optFont.jpFonts.length === 0) {
                 alert(L('alertNoJPFonts'));
                 return;
@@ -1274,18 +1307,67 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         } catch (_) { }
 
-        // Apply preview without growing Undo stack: keep only one preview step applied
+        // Apply preview (no undo): overwrite attributes directly
         previewMgr.addStep(function () {
             applyRandom(base, hPct, hPct, true, rot, kern, 0, seed, optFont);
         });
+        // One redraw for preview
+        try { app.redraw(); } catch (_) { }
     }
 
-    edtBase.onChanging = function () { syncFromEdit(edtBase, sldBase); updatePreview(); };
-    edtH.onChanging = function () { syncFromEdit(edtH, sldH); updatePreview(); };
-    edtRot.onChanging = function () { syncFromEdit(edtRot, sldRot); updatePreview(); };
-    edtKern.onChanging = function () { syncFromEdit(edtKern, sldKern); updatePreview(); };
-    edtRansomTrk.onChanging = function () { try { updatePreview(); } catch (_) { } };
+    edtBase.onChanging = function () { syncFromEdit(edtBase, sldBase); requestPreview(); };
+    edtH.onChanging = function () { syncFromEdit(edtH, sldH); requestPreview(); };
+    edtRot.onChanging = function () { syncFromEdit(edtRot, sldRot); requestPreview(); };
+    edtKern.onChanging = function () { syncFromEdit(edtKern, sldKern); requestPreview(); };
+    edtRansomTrk.onChanging = function () { try { requestPreview(); } catch (_) { } };
 
+    // Patch arrow key logic to debounce preview
+    function changeValueByArrowKey(editText) {
+        editText.addEventListener("keydown", function (event) {
+            if (!(event && (event.keyName === "Up" || event.keyName === "Down"))) return;
+
+            var value = Number(editText.text);
+            if (isNaN(value)) return;
+
+            var keyboard = ScriptUI.environment.keyboardState;
+            var delta = 1;
+
+            if (keyboard.shiftKey) {
+                delta = 10;
+                // Shiftキー押下時は10の倍数にスナップ
+                if (event.keyName === "Up") {
+                    value = Math.ceil((value + 1) / delta) * delta;
+                } else {
+                    value = Math.floor((value - 1) / delta) * delta;
+                }
+            } else if (keyboard.altKey) {
+                delta = 0.1;
+                // Optionキー押下時は0.1単位で増減
+                if (event.keyName === "Up") value += delta;
+                else value -= delta;
+            } else {
+                delta = 1;
+                if (event.keyName === "Up") value += delta;
+                else value -= delta;
+            }
+
+            if (editText !== edtKern && editText !== edtRansomTrk && value < 0) value = 0;
+
+            event.preventDefault();
+            editText.text = String(value);
+
+            // keep slider in sync (if exists)
+            try {
+                if (editText === edtBase) syncFromEdit(edtBase, sldBase);
+                else if (editText === edtH) syncFromEdit(edtH, sldH);
+                else if (editText === edtRot) syncFromEdit(edtRot, sldRot);
+                else if (editText === edtKern) syncFromEdit(edtKern, sldKern);
+            } catch (_) { }
+
+            // preview update
+            try { requestPreview(); } catch (_) { }
+        });
+    }
     changeValueByArrowKey(edtBase);
     changeValueByArrowKey(edtH);
     changeValueByArrowKey(edtRot);
@@ -1293,10 +1375,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     changeValueByArrowKey(edtRansomTrk);
 
 
-    sldBase.onChanging = function () { syncFromSlider(sldBase, edtBase); updatePreview(); };
-    sldH.onChanging = function () { syncFromSlider(sldH, edtH); updatePreview(); };
-    sldRot.onChanging = function () { syncFromSlider(sldRot, edtRot); updatePreview(); };
-    sldKern.onChanging = function () { syncFromSlider(sldKern, edtKern); updatePreview(); };
+    sldBase.onChanging = function () { syncFromSlider(sldBase, edtBase); requestPreview(); };
+    sldH.onChanging = function () { syncFromSlider(sldH, edtH); requestPreview(); };
+    sldRot.onChanging = function () { syncFromSlider(sldRot, edtRot); requestPreview(); };
+    sldKern.onChanging = function () { syncFromSlider(sldKern, edtKern); requestPreview(); };
 
 
     btnOK.onClick = function () {
@@ -1348,7 +1430,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         };
 
         if (optFont.fontRandom && optFont.jpOnly) {
-            optFont.jpFonts = getJPFonts();
+            optFont.jpFonts = getJPFontsCached();
             if (!optFont.jpFonts || optFont.jpFonts.length === 0) {
                 alert(L('alertNoJPFonts'));
                 return;
@@ -1357,14 +1439,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // Commit:
         // - If Reset was just executed and there is no preview step applied, do NOT re-randomize.
-        // - Otherwise, undo preview and apply final once.
+        // - Otherwise, apply final once.
         if (__didReset && !previewMgr._hasPreview) {
             // no-op for text attributes (keep reset result)
         } else {
-            // 1) undo preview step (if any)
-            // 2) apply final once using the SAME originals order (to match preview)
-            // 3) if references were invalidated by undo, rebind and retry once
-            try { previewMgr.cancel(); } catch (_) { }
+            // No-undo preview: do not cancel here; just overwrite with final apply
 
             var __applied = false;
             try {
@@ -1405,7 +1484,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         __didReset = false;
         // rerun
         try { seed = (new Date()).getTime() & 0xffffffff; } catch (_) { }
-        try { updatePreview(); } catch (_) { }
+        try { requestPreview(); } catch (_) { }
         try { autoEnableJPOnlyIfNeeded(); } catch (_) { }
         try { updateRerunEnabled(); } catch (_) { }
     };
@@ -1413,6 +1492,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     btnReset.onClick = function () {
         // Reset selected text attributes only (do not touch any checkboxes)
         try { previewMgr.cancel(); } catch (_) { }
+        try { previewMgr._hasPreview = false; } catch (_) { }
         try { clearBackgroundRectsIfAny(); } catch (_) { }
 
         // Reset baseline / scale / rotation / kerning / tracking
@@ -1473,6 +1553,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         try { app.redraw(); } catch (_) { }
 
         // Keep JP-only auto rule consistent (checkbox state may remain as-is)
+        try { updateFontOptionEnabled(); } catch (_) { }
         try { autoEnableJPOnlyIfNeeded(); } catch (_) { }
         try { updateRerunEnabled(); } catch (_) { }
         __didReset = true;
@@ -1494,11 +1575,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     syncFromEdit(edtKern, sldKern);
 
     // Checkbox events: update preview on click
-    chkBase.onClick = function () { updatePreview(); updateRerunEnabled(); };
-    chkScale.onClick = function () { updatePreview(); updateRerunEnabled(); };
-    chkRot.onClick = function () { updatePreview(); updateRerunEnabled(); };
-    chkKern.onClick = function () { updatePreview(); updateRerunEnabled(); };
-    chkRotTrackComp.onClick = function () { updatePreview(); };
+    chkBase.onClick = function () { requestPreview(); updateRerunEnabled(); };
+    chkScale.onClick = function () { requestPreview(); updateRerunEnabled(); };
+    chkRot.onClick = function () { requestPreview(); updateRerunEnabled(); };
+    chkKern.onClick = function () { requestPreview(); updateRerunEnabled(); };
+    chkRotTrackComp.onClick = function () { requestPreview(); };
 
     // 文字タッチ: すべてON / すべてOFF
     btnAllOn.onClick = function () {
@@ -1525,8 +1606,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         try { updateRerunEnabled(); } catch (_) { }
     };
 
-    chkFontRandom.onClick = function () { updatePreview(); updateRerunEnabled(); };
-    chkFontJPOnly.onClick = function () { updatePreview(); updateRerunEnabled(); };
+    chkFontRandom.onClick = function () {
+        updateFontOptionEnabled();
+        requestPreview();
+        updateRerunEnabled();
+    };
+    chkFontJPOnly.onClick = function () { requestPreview(); updateRerunEnabled(); };
     chkFontRansom.onClick = function () {
         // NOTE: 犯行声明文風はOK時のみ実行（プレビュー不要）
         try {
@@ -1535,14 +1620,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             edtRansomTrk.enabled = (en && chkRansomTrack && chkRansomTrack.value);
         } catch (_) { }
         try { updateRerunEnabled(); } catch (_) { }
-        try { updatePreview(); } catch (_) { }
+        try { requestPreview(); } catch (_) { }
     };
 
     chkRansomTrack.onClick = function () {
         try {
             edtRansomTrk.enabled = (chkFontRansom && chkFontRansom.value) && (chkRansomTrack && chkRansomTrack.value);
         } catch (_) { }
-        try { updatePreview(); } catch (_) { }
+        try { requestPreview(); } catch (_) { }
     };
 
     updatePreview();
