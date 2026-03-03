@@ -9,24 +9,21 @@ AutoFitTextFrame
 20260304
 
 ### 概要 / Description:
-パス上文字（TextType.PATHTEXT）とエリア内文字（TextType.AREATEXT）に対応したテキスト調整スクリプト。
-Adjusts selected TextFrames (PathText / AreaText).
-選択中の TextFrame のみに対して実行します。
-Operates only on selected TextFrames.
-
-ダイアログで処理を選択（チェックボックスは排他的にしない）：
-Select processing via dialog (checkboxes are not mutually exclusive):
+処理（文字サイズ）：
+Font size modes:
   ・あふれ処理 / Shrink to fit：文字あふれ（オーバーセット）がなくなるまで文字サイズを縮小
   ・ぴったり / Maximize fit：いったん文字サイズを増やしてオーバーセットを発生させ、その後「あふれ処理」を実行
     -> 余白があっても「最大であふれないサイズ」まで詰める
   ・両方ON / Both：ぴったり → あふれ処理 の順で実行
 
-オプション：
-Options:
-  ・文字サイズを調整 / Adjust font size
-  ・高さを調整（エリア内文字のみ）/ Adjust height (AreaText only)
-  ・自動サイズ調整（エリア内文字のみ）/ Auto size (AreaText only)
-    -> 選択中のエリア内文字に「自動サイズ調整」を適用します（拡張のみ）。
+処理（エリア内文字）：
+AreaText mode:
+  ・エリア内文字の高さ調整 / Adjust AreaText height：ONのとき、文字サイズの処理は無効になり、オプションを選択して実行
+
+オプション（※「エリア内文字の高さ調整」ONのときのみ有効）：
+Options (enabled only when “Adjust AreaText height” is ON):
+  ・高さを調整 / Adjust height：必要な分だけ高さを拡張し、OFFに戻して固定
+  ・自動サイズ調整 / Auto size：自動サイズ調整をONにします（拡張のみ）
 
 データセット使用時、最初のデータセットで元の値（文字サイズ/高さ）をタグに記録し、
 各データセット適用時に一度リセットしてから処理します。
@@ -37,7 +34,7 @@ Options:
 *****/
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v2.2";
+var SCRIPT_VERSION = "v2.3";
 
 (function () {
 
@@ -61,33 +58,33 @@ var SCRIPT_VERSION = "v2.2";
       ja: "オプション",
       en: "Options"
     },
-    rbFontSize: {
-      ja: "文字サイズを調整",
-      en: "Adjust font size"
-    },
     rbHeight: {
-      ja: "高さを調整（エリア内文字のみ）",
-      en: "Adjust height (AreaType only)"
+      ja: "高さを調整",
+      en: "Adjust height"
     },
     rbAutoSizeArea: {
-      ja: "自動サイズ調整（エリア内文字のみ）",
-      en: "Auto size (AreaType only)"
+      ja: "自動サイズ調整",
+      en: "Auto size"
     },
     tipAutoSizeArea: {
-      ja: "※ ロジックは後日追加予定",
-      en: "(Logic will be added later)"
+      ja: "エリア内文字に自動サイズ調整を適用します（拡張のみ）。",
+      en: "Applies Auto Size to AreaText (expand only)."
     },
     alertHeightOnlyNoArea: {
       ja: "高さ調整はエリア内テキストのみ対応です。\n選択中にエリア内テキストがありません。",
       en: "Height adjustment is supported for AreaText only.\nNo AreaText found in selection."
     },
     cbOverflow: {
-      ja: "あふれ処理",
+      ja: "文字サイズ：あふれ処理",
       en: "Shrink to fit"
     },
     cbFit: {
-      ja: "ぴったり",
+      ja: "文字サイズ：ぴったり",
       en: "Maximize fit"
+    },
+    cbHeightMode: {
+      ja: "エリア内文字の高さ調整",
+      en: "Adjust AreaText height"
     },
     btnCancel: {
       ja: "閉じる",
@@ -106,7 +103,7 @@ var SCRIPT_VERSION = "v2.2";
       en: "No processable text in selection.\n(Groups containing text can be selected as a group.)"
     },
     alertSelectMode: {
-      ja: "処理を選択してください。\n（あふれ処理 / ぴったり）",
+      ja: "処理を選択してください。\n（文字サイズ：あふれ処理 / 文字サイズ：ぴったり）",
       en: "Please select a mode.\n(Shrink to fit / Maximize fit)"
     },
     alertHardReturn: {
@@ -116,6 +113,10 @@ var SCRIPT_VERSION = "v2.2";
     alertHardReturnError: {
       ja: "改行コード判定中にエラーが発生しました。\n",
       en: "An error occurred while checking for line breaks.\n"
+    },
+    alertSelectHeightOption: {
+      ja: "オプションを選択してください。\n（高さを調整 / 自動サイズ調整）",
+      en: "Please select an option.\n(Adjust height / Auto size)"
     },
     alertMaxIter: {
       ja: "縮小処理が上限回数に達しました:\n",
@@ -765,24 +766,63 @@ var SCRIPT_VERSION = "v2.2";
 
     var cbOverflow = p.add("checkbox", undefined, L("cbOverflow"));
     var cbFit = p.add("checkbox", undefined, L("cbFit"));
+    var cbHeightMode = p.add("checkbox", undefined, L("cbHeightMode"));
 
     cbOverflow.value = true;
     cbFit.value = true;
+    cbHeightMode.value = false;
+    cbHeightMode.enabled = hasArea;
 
     var pAdjust = dlg.add("panel", undefined, L("panelAdjust"));
     pAdjust.orientation = "column";
     pAdjust.alignChildren = ["left", "top"];
     pAdjust.margins = [15, 20, 15, 10];
 
-    var rbFontSize = pAdjust.add("radiobutton", undefined, L("rbFontSize"));
     var rbHeight = pAdjust.add("radiobutton", undefined, L("rbHeight"));
-    rbFontSize.value = true;
-    rbHeight.enabled = hasArea;
+    rbHeight.value = false;
 
     var rbAutoSizeArea = pAdjust.add("radiobutton", undefined, L("rbAutoSizeArea"));
     rbAutoSizeArea.value = false;
-    rbAutoSizeArea.enabled = hasArea;
     try { rbAutoSizeArea.helpTip = L("tipAutoSizeArea"); } catch (eTip) { }
+
+    // Remember previous font-size checkbox states
+    var _prevFontOverflow = cbOverflow.value;
+    var _prevFontFit = cbFit.value;
+
+    function updateOptionsEnabled() {
+      var enabled = !!cbHeightMode.value && !!hasArea;
+
+      // Options panel is available only in AreaText height mode
+      try { pAdjust.enabled = enabled; } catch (eP) { }
+      try { rbHeight.enabled = enabled; } catch (eH) { }
+      try { rbAutoSizeArea.enabled = enabled; } catch (eA) { }
+
+      // When height mode is ON, disable font-size processing checkboxes and ignore their values
+      if (enabled) {
+        _prevFontOverflow = cbOverflow.value;
+        _prevFontFit = cbFit.value;
+        cbOverflow.value = false;
+        cbFit.value = false;
+        try { cbOverflow.enabled = false; } catch (eO1) { }
+        try { cbFit.enabled = false; } catch (eF1) { }
+        // When height mode is enabled, select "高さを調整" by default
+        rbHeight.value = true;
+        rbAutoSizeArea.value = false;
+      } else {
+        try { cbOverflow.enabled = true; } catch (eO2) { }
+        try { cbFit.enabled = true; } catch (eF2) { }
+        cbOverflow.value = _prevFontOverflow;
+        cbFit.value = _prevFontFit;
+      }
+
+      if (!enabled) {
+        rbHeight.value = false;
+        rbAutoSizeArea.value = false;
+      }
+    }
+
+    cbHeightMode.onClick = updateOptionsEnabled;
+    updateOptionsEnabled();
 
     var gBtn = dlg.add("group");
     gBtn.alignment = ["right", "center"];
@@ -791,16 +831,33 @@ var SCRIPT_VERSION = "v2.2";
     var btnOk = gBtn.add("button", undefined, L("btnOk"), { name: "ok" });
 
     btnOk.onClick = function () {
-      var doFit = !!cbFit.value;
-      var doOverflow = !!cbOverflow.value;
       var autoSizeArea = !!rbAutoSizeArea.value;
 
-      if (!autoSizeArea && !doFit && !doOverflow) {
-        alert(L("alertSelectMode"));
-        return;
+      // Font-size modes (checkboxes)
+      var doFit = !!cbFit.value;
+      var doOverflow = !!cbOverflow.value;
+
+      // AreaText height mode: map option radios to internal doFit/doOverflow
+      // - 「高さを調整」 => run fitHeight (mapped to doFit)
+      // - 「自動サイズ調整」 => handled by autoSizeArea early branch
+      if (!!cbHeightMode.value) {
+        doFit = !!rbHeight.value;
+        doOverflow = false;
       }
 
-      var adjustMode = rbHeight.value ? "height" : "fontSize";
+      if (!!cbHeightMode.value) {
+        if (!rbHeight.value && !autoSizeArea) {
+          alert(L("alertSelectHeightOption"));
+          return;
+        }
+      } else {
+        if (!autoSizeArea && !doFit && !doOverflow) {
+          alert(L("alertSelectMode"));
+          return;
+        }
+      }
+
+      var adjustMode = cbHeightMode.value ? "height" : "fontSize";
       dlg.close(1);
       DealWithOversetText.run(app.activeDocument, {
         doFit: doFit,
