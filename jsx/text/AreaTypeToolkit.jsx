@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
     作成日：2025-03-06
-    更新日：2026-03-03
+    更新日：2026-03-04
     説明：選択されたエリア内文字と同じサイズ・座標の長方形を作成し、
           そのエリア内文字のテキストを新しいポイント文字として配置し、
           元のエリア内文字を削除するスクリプト。
@@ -14,7 +14,29 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 // --- Script version / スクリプトバージョン ---
-var SCRIPT_VERSION = "v1.0.3";
+
+// --- Dummy text for "Use selected object + dummy" ---
+var DUMMY_TEXT_JA = "今日は15:00から予定外のミーティングがありました。疲れを癒すため、夕方に近くのカフェWAVEで、お気に入りの抹茶ラテを楽しみました。短い休憩でしたが、心が“ほっと”しました。";
+var DUMMY_TEXT_EN = "An unplanned meeting popped up at 3:00 PM today. To reset, I stopped by a nearby café for a matcha latte. It was a short break, but it helped me breathe and refocus.";
+
+function getTextFontSafe(preferNames) {
+    // preferNames: ["ExactFontName", ...]
+    try {
+        if (preferNames && preferNames.length) {
+            for (var i = 0; i < preferNames.length; i++) {
+                try {
+                    var f = app.textFonts.getByName(preferNames[i]);
+                    if (f) return f;
+                } catch (e0) { }
+            }
+        }
+        // Fallback: return first available font
+        if (app.textFonts.length > 0) return app.textFonts[0];
+    } catch (e) { }
+    return null;
+}
+
+var SCRIPT_VERSION = "v1.1";
 
 // --- Localization / ローカライズ ---
 function getCurrentLang() {
@@ -38,6 +60,7 @@ var LABELS = {
     radPointType: { ja: "シンプル", en: "Simple" },
     radAreaType: { ja: "ボタン風", en: "Button style" },
     radUseSelected: { ja: "選択オブジェクトを利用", en: "Use selected object" },
+    radUseSelectedDummy: { ja: "選択オブジェクトにダミーテキスト", en: "Dummy text on selected object" },
     btnConvert: { ja: "変換", en: "Convert" },
 
     // Right column panels
@@ -79,8 +102,8 @@ var LABELS = {
 
     // Bottom
     chkPreview: { ja: "プレビュー", en: "Preview" },
-    btnRun:     { ja: "実行",      en: "Run"     },
-    btnClose:   { ja: "閉じる",    en: "Close"   },
+    btnRun: { ja: "実行", en: "Run" },
+    btnClose: { ja: "閉じる", en: "Close" },
 
     // Alerts
     alertSelectText: { ja: "ポイント文字またはエリア内文字を選択してください。", en: "Please select point text or area text." },
@@ -141,6 +164,111 @@ function applyLeading(tf, newSize, li) {
     try { tf.textRange.characterAttributes.leading = newSize * li.ratio; } catch (e) { }
 }
 
+
+// --- Dynamic Action loader (generate once per session) ---
+function _hexAscii(s) {
+    var out = "";
+    for (var i = 0; i < s.length; i++) {
+        var h = s.charCodeAt(i).toString(16);
+        if (h.length < 2) h = "0" + h;
+        out += h;
+    }
+    return out;
+}
+
+function _nameBlockAscii(s) {
+    // /name [ <len> <hex> ]  (ASCII)
+    return "/name [ " + s.length + " " + _hexAscii(s).toUpperCase() + " ]";
+}
+
+function _buildActionSetAIA(setName, internalName, localizedNameHex, paramKeyInt, actionDefs) {
+    // actionDefs: [{name: "...", value: <int>}, ...]
+    var str = "/version 3" +
+        _nameBlockAscii(setName) +
+        "/isOpen 1" +
+        "/actionCount " + actionDefs.length;
+
+    for (var i = 0; i < actionDefs.length; i++) {
+        var a = actionDefs[i];
+        str += "/action-" + (i + 1) + " {" +
+            " " + _nameBlockAscii(a.name) +
+            " /keyIndex 0" +
+            " /colorIndex 0" +
+            " /isOpen 1" +
+            " /eventCount 1" +
+            " /event-1 {" +
+            " /useRulersIn1stQuadrant 0" +
+            " /internalName (" + internalName + ")" +
+            (localizedNameHex ? (" /localizedName [ " + localizedNameHex + " ]") : "") +
+            " /isOpen 0" +
+            " /isOn 1" +
+            " /hasDialog 0" +
+            " /parameterCount 1" +
+            " /parameter-1 {" +
+            " /key " + paramKeyInt +
+            " /showInPalette 4294967295" +
+            " /type (integer)" +
+            " /value " + a.value +
+            " }" +
+            " }" +
+            "}";
+    }
+    return str;
+}
+
+function _ensureActionSetLoadedOnce(setName, aiaString, flagKey) {
+    try {
+        if ($.global[flagKey]) return;
+        // 既存があれば一旦外して衝突回避
+        try { app.unloadAction(setName, ""); } catch (e0) { }
+
+        var f = new File(Folder.temp + "/AreaTypeToolkit_action_" + setName + ".aia");
+        f.open("w");
+        f.write(aiaString);
+        f.close();
+
+        app.loadAction(f);
+        try { f.remove(); } catch (e1) { }
+
+        $.global[flagKey] = true;
+    } catch (e) { }
+}
+
+function ensureAreaTypeActionsLoaded() {
+    // Set: AreaType / Actions: AutoSizeOn(1), AutoSizeOff(2)
+    var setName = "AreaType";
+    var aia = _buildActionSetAIA(
+        setName,
+        "adobe_SLOAreaTextDialog",
+        // localizedName (same as previous) length 33 hex bytes
+        "33 e382a8e383aae382a2e58685e69687e5ad97e382aae38397e382b7e383a7e383b3",
+        1952539754,
+        [
+            { name: "AutoSizeOn", value: 1 },
+            { name: "AutoSizeOff", value: 2 }
+        ]
+    );
+    _ensureActionSetLoadedOnce(setName, aia, "__AreaTypeToolkit_loaded_AreaType");
+}
+
+function ensureAreaTextActionsLoaded() {
+    // Set: AreaText / Actions: AlignTop(0), AlignCenter(1), AlignBottom(2), AlignJustify(3)
+    var setName = "AreaText";
+    var aia = _buildActionSetAIA(
+        setName,
+        "adobe_frameAlignment",
+        // localizedName (same as previous) length 39 hex bytes (kept as-is)
+        "39 e382a8e383aae382a2e58685e69687e5ad97e381aee38395e383ace383bce383a0e695b4e58897",
+        1717660782,
+        [
+            { name: "AlignTop", value: 0 },
+            { name: "AlignCenter", value: 1 },
+            { name: "AlignBottom", value: 2 },
+            { name: "AlignJustify", value: 3 }
+        ]
+    );
+    _ensureActionSetLoadedOnce(setName, aia, "__AreaTypeToolkit_loaded_AreaText");
+}
 // フレームサイズ：Illustrator アクションで自動サイズ調整をON/OFFにする
 function expandFrameToFit(tf) {
     app.activeDocument.selection = [tf];
@@ -156,76 +284,38 @@ function act_setAutoSizeAdjust(valueInt) {
     // valueInt: 1 = ON, 2 = OFF
     if (valueInt !== 1 && valueInt !== 2) return;
 
-    var str = '/version 3' + '/name [ 8' + ' 4172656154797065' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 8' + ' 4175746f53697a65' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (adobe_SLOAreaTextDialog)' + ' /localizedName [ 33' + ' e382a8e383aae382a2e58685e69687e5ad97e382aae38397e382b7e383a7e383b3' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 0' + ' /parameterCount 1' + ' /parameter-1 {' + ' /key 1952539754' + ' /showInPalette 4294967295' + ' /type (integer)' + ' /value ' + valueInt + ' }' + ' }' + '}';
+    ensureAreaTypeActionsLoaded();
 
-    var f = new File('~/ScriptAction.aia');
-    f.open('w');
-    f.write(str);
-    f.close();
-    app.loadAction(f);
-    f.remove();
-
-    // Action name: AutoSize / Set name: AreaType
-    app.doScript("AutoSize", "AreaType", false);
-    app.unloadAction("AreaType", "");
+    // Action name: AutoSizeOn / AutoSizeOff  (Set name: AreaType)
+    var actionName = (valueInt === 1) ? "AutoSizeOn" : "AutoSizeOff";
+    try { app.doScript(actionName, "AreaType", false); } catch (e) { }
 }
 
 // テキストの配置（フレーム整列）：Illustrator アクションでエリア内文字の配置を変更する
 // valueInt: 0=上, 1=中央, 2=下, 3=均等配置
 function act_alignHorizontal(valueInt) {
+    // valueInt: 0=上, 1=中央, 2=下, 3=均等配置
     if (valueInt !== 0 && valueInt !== 1 && valueInt !== 2 && valueInt !== 3) return;
 
-    var str = '/version 3' +
-        '/name [ 8' +
-        ' 4172656154657874' +
-        ']' +
-        '/isOpen 1' +
-        '/actionCount 1' +
-        '/action-1 {' +
-        ' /name [ 15' +
-        ' 416c69676e486f72697a6f6e74616c' +
-        ' ]' +
-        ' /keyIndex 0' +
-        ' /colorIndex 0' +
-        ' /isOpen 1' +
-        ' /eventCount 1' +
-        ' /event-1 {' +
-        ' /useRulersIn1stQuadrant 0' +
-        ' /internalName (adobe_frameAlignment)' +
-        ' /localizedName [ 39' +
-        ' e382a8e383aae382a2e58685e69687e5ad97e381aee38395e383ace383bce383' +
-        ' a0e695b4e58897' +
-        ' ]' +
-        ' /isOpen 0' +
-        ' /isOn 1' +
-        ' /hasDialog 0' +
-        ' /parameterCount 1' +
-        ' /parameter-1 {' +
-        ' /key 1717660782' +
-        ' /showInPalette 4294967295' +
-        ' /type (integer)' +
-        ' /value ' + valueInt +
-        ' }' +
-        ' }' +
-        '}';
+    ensureAreaTextActionsLoaded();
 
-    var f = new File('~/ScriptAction.aia');
-    f.open('w');
-    f.write(str);
-    f.close();
-    app.loadAction(f);
-    f.remove();
+    // Action names: AlignTop / AlignCenter / AlignBottom / AlignJustify (Set name: AreaText)
+    var actionName = "AlignTop";
+    if (valueInt === 1) actionName = "AlignCenter";
+    else if (valueInt === 2) actionName = "AlignBottom";
+    else if (valueInt === 3) actionName = "AlignJustify";
 
-    // Action name: AlignHorizontal / Set name: AreaText
-    app.doScript("AlignHorizontal", "AreaText", false);
-    app.unloadAction("AreaText", "");
+    try { app.doScript(actionName, "AreaText", false); } catch (e) { }
 }
 
 function applyAreaTextFrameAlignment(tf, valueInt, forPreview) {
     // app.doScript はプレビュー中にダイアログから呼ぶと不安定なためスキップ
     if (forPreview) return;
     try {
-        app.activeDocument.selection = [tf];
+        var doc = app.activeDocument;
+        doc.selection = null;
+        doc.selection = [tf];
+        app.redraw(); // Illustratorに選択状態を確定させる
         act_alignHorizontal(valueInt);
     } catch (e) { }
 }
@@ -378,27 +468,30 @@ function restoreDlgPosition(dlg) {
 // ダイアログA：ポイント文字 → エリア内文字 変換
 // ============================================================
 function showDialogA(doc, sel) {
-    var dlgA = new Window("dialog", "エリア内文字に変換 — " + L("dialogTitle") + " " + SCRIPT_VERSION);
+    var dlgA = new Window("dialog", "エリア内文字に変換");
     dlgA.alignChildren = "fill";
     dlgA.margins = 20;
 
-    // 「ポイント文字→エリア内文字」パネル
-    var pnlConvert = dlgA.add("panel", undefined, L("pnlConvert"));
-    pnlConvert.orientation = "column";
-    pnlConvert.alignChildren = ["left", "center"];
-    pnlConvert.margins = [15, 20, 15, 10];
+    // ラジオボタン（パネルなし）
+    var grpConvert = dlgA.add("group");
+    grpConvert.orientation = "column";
+    grpConvert.alignChildren = ["left", "center"];
 
-    var radPointType  = pnlConvert.add("radiobutton", undefined, L("radPointType"));
-    var radAreaType   = pnlConvert.add("radiobutton", undefined, L("radAreaType"));
-    var radUseSelected = pnlConvert.add("radiobutton", undefined, L("radUseSelected"));
+    // grpConvert.add("statictext", undefined, L("pnlConvert"));
+
+    var radPointType = grpConvert.add("radiobutton", undefined, L("radPointType"));
+    var radAreaType = grpConvert.add("radiobutton", undefined, L("radAreaType"));
+    var radUseSelected = grpConvert.add("radiobutton", undefined, L("radUseSelected"));
+    var radUseSelectedDummy = grpConvert.add("radiobutton", undefined, L("radUseSelectedDummy"));
     radPointType.value = true;
 
     // ボタンエリア：左から［キャンセル］［変換］
     var grpBottomA = dlgA.add("group");
     grpBottomA.orientation = "row";
-    grpBottomA.alignment = ["right", "center"];
-    var btnCloseA  = grpBottomA.add("button", undefined, L("btnClose"),   { name: "cancel" });
-    var btnConvert = grpBottomA.add("button", undefined, L("btnConvert"));
+    grpBottomA.alignment = ["center", "center"]; // center buttons
+    grpBottomA.spacing = 10;
+    var btnCloseA = grpBottomA.add("button", undefined, L("btnClose"), { name: "cancel" });
+    var btnConvert = grpBottomA.add("button", undefined, L("btnConvert"), { name: "ok" });
 
     // 選択種別フラグ
     var hasPointText = false, hasPathItem = false;
@@ -407,18 +500,27 @@ function showDialogA(doc, sel) {
         if (sel[ti].typename === "PathItem" || sel[ti].typename === "CompoundPathItem") hasPathItem = true;
     }
 
-    // テキスト＋図形 → シンプル・ボタン風をディム、選択オブジェクトを利用を自動選択
+    // 選択内容に応じてモードを誘導
     if (hasPointText && hasPathItem) {
-        radPointType.enabled  = false;
-        radAreaType.enabled   = false;
-        radUseSelected.value  = true;
+        // テキスト＋図形 → シンプル・ボタン風をディム、選択オブジェクトを利用を自動選択
+        radPointType.enabled = false;
+        radAreaType.enabled = false;
+        radUseSelected.value = true; // default, dummy is also available
     } else if (hasPointText && !hasPathItem) {
-        // ポイント文字のみ → 選択オブジェクトを利用をディム
+        // ポイント文字のみ → 選択オブジェクト系をディム
         radUseSelected.enabled = false;
+        radUseSelectedDummy.enabled = false;
+    } else if (!hasPointText && hasPathItem) {
+        // 図形のみ → 「選択オブジェクトにダミーテキスト」を自動選択し、残りをディム
+        radPointType.enabled = false;
+        radAreaType.enabled = false;
+        radUseSelected.enabled = false;
+        radUseSelectedDummy.enabled = true;
+        radUseSelectedDummy.value = true;
     }
 
     // ラジオ排他制御
-    var allConvertRadios = [radPointType, radAreaType, radUseSelected];
+    var allConvertRadios = [radPointType, radAreaType, radUseSelected, radUseSelectedDummy];
     for (var cr = 0; cr < allConvertRadios.length; cr++) {
         (function (btn) {
             btn.onClick = function () {
@@ -432,15 +534,21 @@ function showDialogA(doc, sel) {
     // 変換後にダイアログBを開くための変数
     var convertedFrames = [];
     var shouldOpenB = false;
+    var _openBDefaultAlignInt = null; // 0=Top,1=Center,2=Bottom,3=Justify
 
     btnConvert.onClick = function () {
         var currentSel = app.activeDocument.selection;
         if (!currentSel || currentSel.length === 0) { return; }
+        var useSel = !!radUseSelected.value;
+        var useSelDummy = !!radUseSelectedDummy.value;
         var created = runConvert(doc, currentSel,
-            radPointType.value, radAreaType.value, radUseSelected.value);
+            radPointType.value, radAreaType.value, useSel, useSelDummy);
         if (created.length > 0) {
             convertedFrames = created;
+            // If Button style was used, default Dialog B alignment to Center
+            _openBDefaultAlignInt = radAreaType.value ? 1 : null;
             shouldOpenB = true;
+            try { app.activeDocument.selection = created; } catch (e) { }
             dlgA.close(1);
         }
     };
@@ -453,17 +561,67 @@ function showDialogA(doc, sel) {
 
     // dlgA.show() はブロッキング。ダイアログが閉じた後にBを開く
     if (shouldOpenB && convertedFrames.length > 0) {
-        showDialogB(doc, convertedFrames[0]);
+        showDialogB(doc, convertedFrames[0], convertedFrames, _openBDefaultAlignInt);
     }
 }
 
 // ============================================================
 // runConvert：ポイント文字をエリア内文字に変換して作成フレームを返す
 // ============================================================
-function runConvert(doc, sel, useSimple, useButton, useSelected) {
+function runConvert(doc, sel, useSimple, useButton, useSelected, useSelectedDummy) {
     var created = [];
 
-    if (useSelected) {
+    function _getClosedPathItem(it) {
+        try {
+            if (!it) return null;
+            if (it.typename === "PathItem") {
+                if (it.closed) return it;
+            } else if (it.typename === "CompoundPathItem") {
+                if (it.pathItems && it.pathItems.length > 0) {
+                    var p = it.pathItems[0];
+                    if (p && p.closed) return p;
+                }
+            }
+        } catch (e) { }
+        return null;
+    }
+
+    function _applyTextAttrs(tf, fontObj, sizePt) {
+        try {
+            if (sizePt > 0) tf.textRange.characterAttributes.size = sizePt;
+        } catch (e0) { }
+        try {
+            if (fontObj) tf.textRange.characterAttributes.textFont = fontObj;
+        } catch (e1) { }
+    }
+
+    if (useSelectedDummy) {
+        // 選択オブジェクトにダミーテキスト：選択した図形（閉じたパス）をエリア内文字に変換してダミー文字を入れる
+        var dummyText = (lang === "ja") ? DUMMY_TEXT_JA : DUMMY_TEXT_EN;
+        var fontObj = null;
+        if (lang === "ja") {
+            // User requested: HiraginoSans-W3, 10pt
+            fontObj = getTextFontSafe(["HiraginoSans-W3", "Hiragino Sans W3", "HiraginoSans-W3"]);
+        } else {
+            // User requested: Myriad, 10pt (name differs by environment)
+            fontObj = getTextFontSafe(["MyriadPro-Regular", "Myriad Pro Regular", "MyriadPro", "Myriad"]);
+        }
+        var sizePt = 10;
+
+        for (var d = 0; d < sel.length; d++) {
+            var pth = _getClosedPathItem(sel[d]);
+            if (!pth) continue;
+            try {
+                // Convert the selected path itself to Area Type
+                var tfD = doc.textFrames.areaText(pth);
+                try { tfD.textPath.filled = false; tfD.textPath.stroked = false; } catch (e0) { }
+                try { tfD.contents = dummyText; } catch (e1) { }
+                _applyTextAttrs(tfD, fontObj, sizePt);
+                created.push(tfD);
+            } catch (e2) { }
+        }
+
+    } else if (useSelected) {
         // 選択オブジェクトを利用
         var srcText = null, destPath = null;
         for (var k = 0; k < sel.length; k++) {
@@ -505,14 +663,14 @@ function runConvert(doc, sel, useSimple, useButton, useSelected) {
             }
         }
     } else if (useButton) {
-        // ボタン風：幅×1.3・高さ×1.5、中央揃え
+        // ボタン風：幅×1.2・高さ×1.8、中央揃え
         for (var bt = sel.length - 1; bt >= 0; bt--) {
             var btItem = sel[bt];
             if (btItem.typename === "TextFrame" && btItem.kind === TextType.POINTTEXT) {
                 try {
                     var btB = btItem.geometricBounds;
                     var btOW = btB[2] - btB[0], btOH = btB[1] - btB[3];
-                    var btW = btOW * 1.3, btH = btOH * 1.5;
+                    var btW = btOW * 1.2, btH = btOH * 1.8;
                     var btRect = doc.pathItems.rectangle(
                         btB[1] + (btH - btOH) / 2, btB[0] - (btW - btOW) / 2, btW, btH);
                     btRect.filled = false; btRect.stroked = false;
@@ -521,7 +679,11 @@ function runConvert(doc, sel, useSimple, useButton, useSelected) {
                     var btTf = doc.textFrames.areaText(btRect);
                     btTf.contents = btC;
                     try { if (btFont) btTf.textRange.characterAttributes.textFont = btFont; if (btSize > 0) btTf.textRange.characterAttributes.size = btSize; } catch (e) { }
-                    try { btTf.textRange.paragraphAttributes.justification = Justification.CENTER; btTf.verticalAlignment = VerticalAlignment.CENTER; } catch (e) { }
+                    // Horizontal center + vertical center (frame alignment)
+                    try { btTf.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (e) { }
+                    // NOTE: DOM `verticalAlignment` is not reliably applied for Area Type in some versions.
+                    // Use the same dynamic action used in Dialog B (adobe_frameAlignment): 0=Top, 1=Center, 2=Bottom, 3=Justify
+                    try { applyAreaTextFrameAlignment(btTf, 1, false); } catch (e2) { }
                     created.push(btTf);
                     btItem.remove();
                 } catch (e) { }
@@ -539,8 +701,48 @@ function runConvert(doc, sel, useSimple, useButton, useSelected) {
 // ============================================================
 // ダイアログB：エリア内文字 調整
 // ============================================================
-function showDialogB(doc, initialTf) {
+function showDialogB(doc, initialTf, targetFrames, defaultAlignInt) {
     var rulerInfo = getRulerUnitInfo(doc);
+
+    // Dialog A から受け取った変換結果を確実に対象にする（選択が変わっても崩れないように）
+    if (targetFrames && targetFrames.length) {
+        try { app.activeDocument.selection = targetFrames; } catch (e) { }
+    } else if (initialTf) {
+        try { app.activeDocument.selection = [initialTf]; } catch (e2) { }
+    }
+    try { app.redraw(); } catch (e3) { }
+
+    // Dialog B の調整対象（非分離モード用に固定）。
+    // モーダルダイアログ中は selection が変動/取得不能になることがあるため、Aから渡された配列を優先する。
+    var _fixedTargets = null;
+    if (targetFrames && targetFrames.length) {
+        _fixedTargets = targetFrames.slice(0);
+    } else {
+        try {
+            var _sel0 = app.activeDocument.selection;
+            if (_sel0 && _sel0.length) {
+                _fixedTargets = [];
+                for (var _k0 = 0; _k0 < _sel0.length; _k0++) { _fixedTargets.push(_sel0[_k0]); }
+            }
+        } catch (e4) { }
+    }
+
+    function refreshFixedTargetsFromSelection() {
+        try {
+            var s = app.activeDocument.selection;
+            var arr = [];
+            if (s && s.length) {
+                for (var i = 0; i < s.length; i++) {
+                    if (s[i] && s[i].typename === "TextFrame" && s[i].kind === TextType.AREATEXT) {
+                        arr.push(s[i]);
+                    }
+                }
+            }
+            _fixedTargets = arr.length ? arr : null;
+        } catch (e) {
+            _fixedTargets = null;
+        }
+    }
 
     var dlgB = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
     dlgB.alignChildren = "fill";
@@ -552,8 +754,8 @@ function showDialogB(doc, initialTf) {
     pnlAdjust.alignChildren = ["center", "center"];
     pnlAdjust.margins = [15, 20, 15, 10];
 
-    var radNoAdjust   = pnlAdjust.add("radiobutton", undefined, L("radNoAdjust"));
-    var radSeparate   = pnlAdjust.add("radiobutton", undefined, L("radSeparate"));
+    var radNoAdjust = pnlAdjust.add("radiobutton", undefined, L("radNoAdjust"));
+    var radSeparate = pnlAdjust.add("radiobutton", undefined, L("radSeparate"));
     var radPathOpacity = pnlAdjust.add("radiobutton", undefined, L("radPathOpacity"));
     var radRemovePath = pnlAdjust.add("radiobutton", undefined, L("radRemovePath"));
     radNoAdjust.value = true;
@@ -564,7 +766,7 @@ function showDialogB(doc, initialTf) {
     grpColumns.alignChildren = ["fill", "top"];
     grpColumns.spacing = 10;
 
-    var grpLeft  = grpColumns.add("group");
+    var grpLeft = grpColumns.add("group");
     grpLeft.orientation = "column";
     grpLeft.alignChildren = "fill";
 
@@ -576,10 +778,10 @@ function showDialogB(doc, initialTf) {
     var pnlJustify = grpRight.add("panel", undefined, L("pnlJustify"));
     pnlJustify.alignChildren = "left";
     pnlJustify.margins = [15, 20, 15, 10];
-    var radJustLeft   = pnlJustify.add("radiobutton", undefined, L("justLeft"));
+    var radJustLeft = pnlJustify.add("radiobutton", undefined, L("justLeft"));
     var radJustCenter = pnlJustify.add("radiobutton", undefined, L("justCenter"));
-    var radJustRight  = pnlJustify.add("radiobutton", undefined, L("justRight"));
-    var radJustFull   = pnlJustify.add("radiobutton", undefined, L("justFull"));
+    var radJustRight = pnlJustify.add("radiobutton", undefined, L("justRight"));
+    var radJustFull = pnlJustify.add("radiobutton", undefined, L("justFull"));
     var radJustFullAll = pnlJustify.add("radiobutton", undefined, L("justFullAll"));
     radJustLeft.value = true;
 
@@ -587,11 +789,20 @@ function showDialogB(doc, initialTf) {
     var pnlTextAlign = grpRight.add("panel", undefined, L("pnlTextAlign"));
     pnlTextAlign.alignChildren = "left";
     pnlTextAlign.margins = [15, 20, 15, 10];
-    var radAlignTop     = pnlTextAlign.add("radiobutton", undefined, L("alignTop"));
-    var radAlignCenter  = pnlTextAlign.add("radiobutton", undefined, L("alignCenter"));
-    var radAlignBottom  = pnlTextAlign.add("radiobutton", undefined, L("alignBottom"));
+    var radAlignTop = pnlTextAlign.add("radiobutton", undefined, L("alignTop"));
+    var radAlignCenter = pnlTextAlign.add("radiobutton", undefined, L("alignCenter"));
+    var radAlignBottom = pnlTextAlign.add("radiobutton", undefined, L("alignBottom"));
     var radAlignJustify = pnlTextAlign.add("radiobutton", undefined, L("alignJustify"));
-    radAlignTop.value = true;
+    // Default alignment
+    if (defaultAlignInt === 1) {
+        radAlignCenter.value = true;
+    } else if (defaultAlignInt === 2) {
+        radAlignBottom.value = true;
+    } else if (defaultAlignInt === 3) {
+        radAlignJustify.value = true;
+    } else {
+        radAlignTop.value = true;
+    }
 
     // 左カラム：フォントサイズ
     var pnlAutoSize = grpLeft.add("panel", undefined, L("pnlAutoSize"));
@@ -606,7 +817,7 @@ function showDialogB(doc, initialTf) {
     var grpAutoSizeBtns = pnlAutoSize.add("group");
     grpAutoSizeBtns.orientation = "row";
     var btnTextSize = grpAutoSizeBtns.add("button", undefined, L("btnTextSize"));
-    var btnFit      = grpAutoSizeBtns.add("button", undefined, L("btnFit"));
+    var btnFit = grpAutoSizeBtns.add("button", undefined, L("btnFit"));
 
     // 左カラム：フレームサイズ
     var pnlFrameSize = grpLeft.add("panel", undefined, L("pnlFrameSize"));
@@ -620,7 +831,7 @@ function showDialogB(doc, initialTf) {
     grpWidth.add("statictext", undefined, rulerInfo.label);
     var etChars = grpWidth.add("edittext", undefined, "");
     etChars.characters = 4;
-    grpWidth.add("statictext", undefined, L("lblChars"));
+    var lblChars = grpWidth.add("statictext", undefined, L("lblChars"));
     var grpHeight = pnlFrameSize.add("group");
     var lblHeight = grpHeight.add("statictext", undefined, L("lblHeight"));
     lblHeight.preferredSize.width = 28;
@@ -629,6 +840,11 @@ function showDialogB(doc, initialTf) {
     grpHeight.add("statictext", undefined, rulerInfo.label);
     var btnFrameAuto = grpHeight.add("button", undefined, L("chkFrameAuto"));
     btnFrameAuto.preferredSize.width = 60;
+    // 英語UIでは chars 計算は不正確なため使用不可にする
+    if (lang !== "ja") {
+        etChars.enabled = false;
+        lblChars.enabled = false;
+    }
 
     // 左カラム：インデント
     var pnlIndent = grpLeft.add("panel", undefined, L("pnlIndent"));
@@ -664,11 +880,11 @@ function showDialogB(doc, initialTf) {
     pnlOptions.margins = [15, 20, 15, 10];
     var grpMargin = pnlOptions.add("group");
     var chkMargin = grpMargin.add("checkbox", undefined, L("chkMargin"));
-    var etMargin  = grpMargin.add("edittext", undefined, "0");
+    var etMargin = grpMargin.add("edittext", undefined, "0");
     etMargin.characters = 6;
     var lblUnit = grpMargin.add("statictext", undefined, rulerInfo.label);
     etMargin.enabled = false;
-    lblUnit.enabled  = false;
+    lblUnit.enabled = false;
     var chkLeader = pnlOptions.add("checkbox", undefined, L("chkLeader"));
 
     // ボタンエリア
@@ -681,17 +897,52 @@ function showDialogB(doc, initialTf) {
     var btnGroupB = grpBottom.add("group");
     btnGroupB.alignment = ["right", "center"];
     var btnCloseB = btnGroupB.add("button", undefined, L("btnClose"), { name: "cancel" });
-    var btnRun    = btnGroupB.add("button", undefined, L("btnRun"),   { name: "ok" });
+    var btnRun = btnGroupB.add("button", undefined, L("btnRun"), { name: "ok" });
 
     // 状態変数
     var isPreviewActive = false;
-    var _autoSizeMode   = "none";
+    var _autoSizeMode = "none";
     var hasMultiParagraph = false;
-    var _frameAutoOn    = false;
-    var fontSize        = 0;
+    var _frameAutoOn = false;
+    var fontSize = 0;
 
-    var allRadios      = [radSeparate, radPathOpacity, radRemovePath, radNoAdjust];
-    var allJustRadios  = [radJustLeft, radJustCenter, radJustRight, radJustFull, radJustFullAll];
+    // --- 入力バリデーション（幅/高さ） ---
+    // 0以下・NaN・極端値を弾いてIllustratorの不安定化を避ける
+    var _lastValidWidth = null; // ruler units
+    var _lastValidHeight = null; // ruler units
+
+    function _maxSizeInRulerUnits() {
+        // 上限は pt で固定（極端値を防ぐ）。表示単位に合わせて換算。
+        // 100000pt は現実的に十分大きく、かつ事故りにくい上限。
+        return 100000 / rulerInfo.toPt;
+    }
+
+    function validateSizeField(editText, lastValue, fieldName) {
+        var raw = String(editText.text);
+        var v = parseFloat(raw);
+        if (isNaN(v) || !isFinite(v)) {
+            if (lastValue !== null) editText.text = lastValue;
+            return null;
+        }
+        if (v <= 0) {
+            if (lastValue !== null) editText.text = lastValue;
+            return null;
+        }
+        var maxV = _maxSizeInRulerUnits();
+        if (v > maxV) {
+            v = maxV;
+            editText.text = Math.round(v * 100) / 100;
+        }
+        // 小さすぎる値も事故の元なので下限を設ける
+        if (v < 0.01) {
+            v = 0.01;
+            editText.text = Math.round(v * 100) / 100;
+        }
+        return v;
+    }
+
+    var allRadios = [radSeparate, radPathOpacity, radRemovePath, radNoAdjust];
+    var allJustRadios = [radJustLeft, radJustCenter, radJustRight, radJustFull, radJustFullAll];
     var allAlignRadios = [radAlignTop, radAlignCenter, radAlignBottom, radAlignJustify];
 
     // --- ローカル関数 ---
@@ -700,9 +951,9 @@ function showDialogB(doc, initialTf) {
     }
 
     function getAdjustmentPt() {
-        var mp  = chkMargin.value ? (parseFloat(etMargin.text) || 0) * rulerInfo.toPt : 0;
-        var lp  = (chkLeftIndent.value || chkSync.value) ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt : 0;
-        var rp  = chkSync.value ? lp : (chkRightIndent.value ? (parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt : 0);
+        var mp = chkMargin.value ? (parseFloat(etMargin.text) || 0) * rulerInfo.toPt : 0;
+        var lp = (chkLeftIndent.value || chkSync.value) ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt : 0;
+        var rp = chkSync.value ? lp : (chkRightIndent.value ? (parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt : 0);
         return 2 * mp + lp + rp;
     }
 
@@ -713,63 +964,65 @@ function showDialogB(doc, initialTf) {
         fontSize = 0;
         try { fontSize = tf0.textRange.characterAttributes.size || 0; } catch (e) { }
         if (fontSize > 0) { etFontSize.text = Math.round(fontSize * 100) / 100; }
-        etWidth.text  = Math.round(initW * 100) / 100;
+        etWidth.text = Math.round(initW * 100) / 100;
         etHeight.text = Math.round(initH * 100) / 100;
+        _lastValidWidth = parseFloat(etWidth.text);
+        _lastValidHeight = parseFloat(etHeight.text);
         try {
             var ij = tf0.paragraphs.length > 0 ? tf0.paragraphs[0].justification : Justification.LEFT;
-            radJustLeft.value    = (ij === Justification.LEFT);
-            radJustCenter.value  = (ij === Justification.CENTER);
-            radJustRight.value   = (ij === Justification.RIGHT);
-            radJustFull.value    = (ij === Justification.FULLJUSTIFYLASTLINELEFT);
+            radJustLeft.value = (ij === Justification.LEFT);
+            radJustCenter.value = (ij === Justification.CENTER);
+            radJustRight.value = (ij === Justification.RIGHT);
+            radJustFull.value = (ij === Justification.FULLJUSTIFYLASTLINELEFT);
             radJustFullAll.value = (ij === Justification.FULLJUSTIFY);
             if (!radJustLeft.value && !radJustCenter.value && !radJustRight.value &&
                 !radJustFull.value && !radJustFullAll.value) { radJustLeft.value = true; }
         } catch (e) { radJustLeft.value = true; }
         try {
             var sp = tf0.spacing || 0;
-            etMargin.text    = Math.round((sp / rulerInfo.toPt) * 100) / 100;
-            chkMargin.value  = (sp !== 0);
+            etMargin.text = Math.round((sp / rulerInfo.toPt) * 100) / 100;
+            chkMargin.value = (sp !== 0);
             etMargin.enabled = chkMargin.value;
-            lblUnit.enabled  = chkMargin.value;
+            lblUnit.enabled = chkMargin.value;
         } catch (e) { }
         try {
-            var ilp = tf0.paragraphs.length > 0 ? (tf0.paragraphs[0].leftIndent  || 0) : 0;
+            var ilp = tf0.paragraphs.length > 0 ? (tf0.paragraphs[0].leftIndent || 0) : 0;
             var irp = tf0.paragraphs.length > 0 ? (tf0.paragraphs[0].rightIndent || 0) : 0;
-            chkLeftIndent.value  = (ilp !== 0);
+            chkLeftIndent.value = (ilp !== 0);
             etLeftIndent.enabled = chkLeftIndent.value;
-            etLeftIndent.text    = chkLeftIndent.value  ? Math.round((ilp / rulerInfo.toPt) * 100) / 100 : "0";
-            chkRightIndent.value  = (irp !== 0);
+            etLeftIndent.text = chkLeftIndent.value ? Math.round((ilp / rulerInfo.toPt) * 100) / 100 : "0";
+            chkRightIndent.value = (irp !== 0);
             etRightIndent.enabled = chkRightIndent.value;
-            etRightIndent.text    = chkRightIndent.value ? Math.round((irp / rulerInfo.toPt) * 100) / 100 : "0";
+            etRightIndent.text = chkRightIndent.value ? Math.round((irp / rulerInfo.toPt) * 100) / 100 : "0";
         } catch (e) { }
         if (fontSize > 0) {
             etChars.text = Math.round(((tf0.textPath.width - getAdjustmentPt()) / fontSize) * 100) / 100;
         }
         btnTextSize.enabled = !hasMultiParagraph;
-        btnFit.enabled      = !hasMultiParagraph;
+        btnFit.enabled = !hasMultiParagraph;
     }
 
     function runAdjust(forPreview) {
-        var doSeparate   = radSeparate.value;
+        var doSeparate = radSeparate.value;
         var doPathOpacity = radPathOpacity.value;
         var doRemovePath = radRemovePath.value;
-        var doTextSize   = (_autoSizeMode === "textsize");
-        var doFit        = (_autoSizeMode === "fit");
-        var doFrameSize  = _frameAutoOn;
-        var doLeader     = chkLeader.value;
+        var doTextSize = (_autoSizeMode === "textsize");
+        var doFit = (_autoSizeMode === "fit");
+        var doFrameSize = _frameAutoOn;
+        var doLeader = chkLeader.value;
 
         var justValue = Justification.LEFT;
-        if (radJustCenter.value)  justValue = Justification.CENTER;
-        else if (radJustRight.value)   justValue = Justification.RIGHT;
-        else if (radJustFull.value)    justValue = Justification.FULLJUSTIFYLASTLINELEFT;
+        if (radJustCenter.value) justValue = Justification.CENTER;
+        else if (radJustRight.value) justValue = Justification.RIGHT;
+        else if (radJustFull.value) justValue = Justification.FULLJUSTIFYLASTLINELEFT;
         else if (radJustFullAll.value) justValue = Justification.FULLJUSTIFY;
 
         var alignValueInt = 0;
-        if (radAlignCenter.value)  alignValueInt = 1;
-        else if (radAlignBottom.value)  alignValueInt = 2;
+        if (radAlignCenter.value) alignValueInt = 1;
+        else if (radAlignBottom.value) alignValueInt = 2;
         else if (radAlignJustify.value) alignValueInt = 3;
 
-        var leftIndentPt  = (chkLeftIndent.value || chkSync.value)
+        var leftIndentPt = (chkLeftIndent.value || chkSync.value)
             ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt : 0;
         var rightIndentPt = chkSync.value
             ? leftIndentPt
@@ -783,19 +1036,27 @@ function showDialogB(doc, initialTf) {
             for (var s = 0; s < origSel.length; s++) { savedSel.push(origSel[s]); }
         }
 
-        var targets = app.activeDocument.selection;
+        // 分離モードはオブジェクトが置き換わるため selection を使う。
+        // 非分離モードは固定ターゲットを優先して、プレビューが確実に反映されるようにする。
+        var targets = null;
+        if (isSeparationMode) {
+            targets = app.activeDocument.selection;
+        } else {
+            if (!(_fixedTargets && _fixedTargets.length)) { refreshFixedTargetsFromSelection(); }
+            targets = _fixedTargets && _fixedTargets.length ? _fixedTargets : app.activeDocument.selection;
+        }
         for (var i = targets.length - 1; i >= 0; i--) {
             var obj = targets[i];
             if (obj.typename === "TextFrame" && obj.kind === TextType.AREATEXT) {
                 if (isSeparationMode) {
                     var bounds = obj.geometricBounds;
-                    var left   = bounds[0] - marginPt, top    = bounds[1] + marginPt;
-                    var right  = bounds[2] + marginPt, bottom = bounds[3] - marginPt;
+                    var left = bounds[0] - marginPt, top = bounds[1] + marginPt;
+                    var right = bounds[2] + marginPt, bottom = bounds[3] - marginPt;
                     var rect = doc.pathItems.rectangle(top, left, right - left, top - bottom);
                     rect.filled = false; rect.stroked = true;
                     var newText = doc.textFrames.add();
-                    newText.contents  = obj.contents;
-                    newText.position  = [left, top - newText.textRange.characterAttributes.size];
+                    newText.contents = obj.contents;
+                    newText.position = [left, top - newText.textRange.characterAttributes.size];
                     var ca = obj.textRange.characterAttributes, nca = newText.textRange.characterAttributes;
                     if (ca.textFont && ca.textFont.name) { nca.textFont = ca.textFont; }
                     nca.size = ca.size; nca.leading = ca.leading;
@@ -805,7 +1066,7 @@ function showDialogB(doc, initialTf) {
                         rect.stroked = true; rect.strokeColor = blk; rect.strokeWidth = 1; rect.filled = false;
                     }
                     if (doPathOpacity) { rect.stroked = false; rect.filled = false; }
-                    if (doRemovePath)  { rect.remove(); }
+                    if (doRemovePath) { rect.remove(); }
                     try { var pa = newText.textRange.paragraphAttributes; pa.justification = justValue; pa.leftIndent = leftIndentPt; pa.rightIndent = rightIndentPt; } catch (e) { }
                     if (doLeader) {
                         radJustLeft.value = false; radJustCenter.value = false; radJustRight.value = true;
@@ -814,11 +1075,14 @@ function showDialogB(doc, initialTf) {
                     }
                 } else {
                     try { obj.spacing = marginPt; } catch (e) { }
-                    var wPt = parseFloat(etWidth.text) || 0, hPt = parseFloat(etHeight.text) || 0;
-                    if (wPt > 0) { try { obj.textPath.width  = wPt * rulerInfo.toPt; } catch (e) { } }
-                    if (hPt > 0) { try { obj.textPath.height = hPt * rulerInfo.toPt; } catch (e) { } }
+                    // 幅/高さ：NaN・0以下・極端値をガード
+                    var wRu = validateSizeField(etWidth, _lastValidWidth, "width");
+                    var hRu = validateSizeField(etHeight, _lastValidHeight, "height");
+                    if (wRu !== null) { _lastValidWidth = wRu; try { obj.textPath.width = wRu * rulerInfo.toPt; } catch (e) { } }
+                    if (hRu !== null) { _lastValidHeight = hRu; try { obj.textPath.height = hRu * rulerInfo.toPt; } catch (e) { } }
                     if (doTextSize) { shrinkFont(obj); } else if (doFit) { fitTextToFrame(obj); }
-                    if (doFrameSize) { expandFrameToFit(obj); }
+                    // プレビュー中は app.doScript 経由の処理を走らせない（不安定化・クラッシュ回避）
+                    if (doFrameSize && !forPreview) { expandFrameToFit(obj); }
                     try { var pa2 = obj.textRange.paragraphAttributes; pa2.justification = justValue; pa2.leftIndent = leftIndentPt; pa2.rightIndent = rightIndentPt; } catch (e) { }
                     applyAreaTextFrameAlignment(obj, alignValueInt, forPreview);
                     if (doLeader) {
@@ -834,19 +1098,31 @@ function showDialogB(doc, initialTf) {
     }
 
     function updatePreview() {
-        if (isPreviewActive) { app.undo(); app.redraw(); isPreviewActive = false; }
-        if (chkPreview.value) { runAdjust(true); isPreviewActive = true; }
+        if (isPreviewActive) {
+            try { app.undo(); } catch (e) { }
+            try { app.redraw(); } catch (e2) { }
+            isPreviewActive = false;
+
+            // undo 後は参照が無効化されるため、対象を取り直す
+            refreshFixedTargetsFromSelection();
+        }
+        if (chkPreview.value) {
+            // プレビュー適用前にも念のため取り直す（モード切替直後の選択揺れ対策）
+            if (!(_fixedTargets && _fixedTargets.length)) { refreshFixedTargetsFromSelection(); }
+            runAdjust(true);
+            isPreviewActive = true;
+        }
     }
 
     function updateSeparationDim() {
         var sep = radSeparate.value || radPathOpacity.value || radRemovePath.value;
-        pnlJustify.enabled   = !sep;
+        pnlJustify.enabled = !sep;
         pnlTextAlign.enabled = !sep;
-        pnlAutoSize.enabled  = !sep;
+        pnlAutoSize.enabled = !sep;
         pnlFrameSize.enabled = !sep;
         btnFrameAuto.enabled = !sep;
-        pnlIndent.enabled    = !sep;
-        pnlOptions.enabled   = !sep;
+        pnlIndent.enabled = !sep;
+        pnlOptions.enabled = !sep;
         if (pnlAutoSize.enabled) { btnTextSize.enabled = !hasMultiParagraph; btnFit.enabled = !hasMultiParagraph; }
         else { btnTextSize.enabled = false; btnFit.enabled = false; }
     }
@@ -874,6 +1150,8 @@ function showDialogB(doc, initialTf) {
     }
 
     function onWidthChange() {
+        var wRu = validateSizeField(etWidth, _lastValidWidth, "width");
+        if (wRu !== null) { _lastValidWidth = wRu; }
         if (fontSize > 0) {
             etChars.text = Math.round((((parseFloat(etWidth.text) || 0) * rulerInfo.toPt - getAdjustmentPt()) / fontSize) * 100) / 100;
         }
@@ -881,7 +1159,12 @@ function showDialogB(doc, initialTf) {
     }
     function onCharsChange() {
         if (fontSize > 0) {
-            etWidth.text = Math.round((((parseFloat(etChars.text) || 0) * fontSize + getAdjustmentPt()) / rulerInfo.toPt) * 100) / 100;
+            var nextW = (((parseFloat(etChars.text) || 0) * fontSize + getAdjustmentPt()) / rulerInfo.toPt);
+            if (!isNaN(nextW) && isFinite(nextW) && nextW > 0) {
+                etWidth.text = Math.round(nextW * 100) / 100;
+                var wRu = validateSizeField(etWidth, _lastValidWidth, "width");
+                if (wRu !== null) { _lastValidWidth = wRu; }
+            }
         }
         updatePreview();
     }
@@ -939,8 +1222,8 @@ function showDialogB(doc, initialTf) {
     addJustifyKeyHandler(dlgB);
 
     btnTextSize.onClick = function () { _autoSizeMode = "textsize"; runAdjust(false); _autoSizeMode = "none"; };
-    btnFit.onClick      = function () { _autoSizeMode = "fit";      runAdjust(false); _autoSizeMode = "none"; };
-    chkPreview.onClick  = updatePreview;
+    btnFit.onClick = function () { _autoSizeMode = "fit"; runAdjust(false); _autoSizeMode = "none"; };
+    chkPreview.onClick = updatePreview;
     btnFrameAuto.onClick = function () {
         _frameAutoOn = !_frameAutoOn;
         updateFrameAutoButtonLabel();
@@ -957,7 +1240,7 @@ function showDialogB(doc, initialTf) {
     chkLeader.onClick = updatePreview;
     chkMargin.onClick = function () {
         etMargin.enabled = chkMargin.value;
-        lblUnit.enabled  = chkMargin.value;
+        lblUnit.enabled = chkMargin.value;
         if (chkMargin.value) { etMargin.text = "1"; }
         onAdjustmentChange();
     };
@@ -982,19 +1265,23 @@ function showDialogB(doc, initialTf) {
         onAdjustmentChange();
     };
 
-    etFontSize.onChange    = applyFontSizeFromField;
-    etMargin.onChange      = onAdjustmentChange;
-    etWidth.onChange       = onWidthChange;
-    etHeight.onChange      = updatePreview;
-    etChars.onChange       = onCharsChange;
-    etLeftIndent.onChange  = onAdjustmentChange;
+    etFontSize.onChange = applyFontSizeFromField;
+    etMargin.onChange = onAdjustmentChange;
+    etWidth.onChange = onWidthChange;
+    etHeight.onChange = function () {
+        var hRu = validateSizeField(etHeight, _lastValidHeight, "height");
+        if (hRu !== null) { _lastValidHeight = hRu; }
+        updatePreview();
+    };
+    etChars.onChange = onCharsChange;
+    etLeftIndent.onChange = onAdjustmentChange;
     etRightIndent.onChange = onAdjustmentChange;
-    changeValueByArrowKey(etFontSize,    false, applyFontSizeFromField);
-    changeValueByArrowKey(etMargin,      false, onAdjustmentChange);
-    changeValueByArrowKey(etWidth,       false, onWidthChange);
-    changeValueByArrowKey(etHeight,      false, updatePreview);
-    changeValueByArrowKey(etChars,       false, onCharsChange);
-    changeValueByArrowKey(etLeftIndent,  false, onAdjustmentChange);
+    changeValueByArrowKey(etFontSize, false, applyFontSizeFromField);
+    changeValueByArrowKey(etMargin, false, onAdjustmentChange);
+    changeValueByArrowKey(etWidth, false, onWidthChange);
+    changeValueByArrowKey(etHeight, false, updatePreview);
+    changeValueByArrowKey(etChars, false, onCharsChange);
+    changeValueByArrowKey(etLeftIndent, false, onAdjustmentChange);
     changeValueByArrowKey(etRightIndent, false, onAdjustmentChange);
 
     btnRun.onClick = function () {
@@ -1014,6 +1301,11 @@ function showDialogB(doc, initialTf) {
 
     updateSeparationDim();
     updateFrameAutoButtonLabel();
+
+    // ダイアログBを開いたらプレビューON
+    chkPreview.value = true;
+    updatePreview();
+
     restoreDlgPosition(dlgB);
     dlgB.onClose = function () { saveDlgPosition(dlgB); return true; };
     dlgB.show();
@@ -1027,16 +1319,19 @@ if (app.documents.length > 0) {
     var sel = doc.selection;
 
     if (sel && sel.length > 0) {
-        var _hasPoint = false, _hasArea = false;
+        var _hasPoint = false, _hasArea = false, _hasPath = false;
         for (var _ei = 0; _ei < sel.length; _ei++) {
             if (sel[_ei].typename === "TextFrame") {
                 if (sel[_ei].kind === TextType.POINTTEXT) _hasPoint = true;
-                if (sel[_ei].kind === TextType.AREATEXT)  _hasArea  = true;
+                if (sel[_ei].kind === TextType.AREATEXT) _hasArea = true;
+            }
+            if (sel[_ei].typename === "PathItem" || sel[_ei].typename === "CompoundPathItem") {
+                _hasPath = true;
             }
         }
 
-        if (_hasPoint) {
-            // ポイント文字（または＋図形）→ ダイアログA
+        if (_hasPoint || _hasPath) {
+            // ポイント文字 または 図形 → ダイアログA
             showDialogA(doc, sel);
         } else if (_hasArea) {
             // エリア内文字のみ → ダイアログB
@@ -1046,7 +1341,7 @@ if (app.documents.length > 0) {
                     _firstArea = sel[_fi]; break;
                 }
             }
-            showDialogB(doc, _firstArea);
+            showDialogB(doc, _firstArea, null, null);
         } else {
             alert(L("alertSelectText"));
         }
