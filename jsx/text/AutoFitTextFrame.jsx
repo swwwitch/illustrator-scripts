@@ -5,8 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### スクリプト名 / Script name:
 AutoFitTextFrame
 
-### 更新日 / Updated:
-20260303
+### 更新日：
+20260304
 
 ### 概要 / Description:
 パス上文字（TextType.PATHTEXT）とエリア内文字（TextType.AREATEXT）に対応したテキストサイズ調整スクリプト。
@@ -23,14 +23,17 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
 各データセット適用時に一度リセットしてから処理します。
 最終データセット処理後にタグを削除します。
 
+original: 
+https://github.com/Silly-V/Adobe-Illustrator/blob/master/Dataset%20Processing/DealWithOversetText_SingleLine.jsx
+
 ※ パス上文字は従来通り「表示行に収まっている文字数」で判定。
 ※ エリア内文字は可能な場合 `overflows`（Illustratorのオーバーフロー判定）を優先して判定します。
 *****/
 
-(function () {
+/* バージョン / Version */
+var SCRIPT_VERSION = "v2.2";
 
-  /* バージョン / Version */
-  var SCRIPT_VERSION = "v2.0";
+(function () {
 
   /* 言語設定 / Language setting */
   function getCurrentLang() {
@@ -47,6 +50,30 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
     panelLabel: {
       ja: "処理",
       en: "Mode"
+    },
+    panelAdjust: {
+      ja: "オプション",
+      en: "Options"
+    },
+    rbFontSize: {
+      ja: "文字サイズを調整",
+      en: "Adjust font size"
+    },
+    rbHeight: {
+      ja: "高さを調整（エリア内文字のみ）",
+      en: "Adjust height (AreaType only)"
+    },
+    rbAutoSizeArea: {
+      ja: "自動サイズ調整（エリア内文字のみ）",
+      en: "Auto size (AreaType only)"
+    },
+    tipAutoSizeArea: {
+      ja: "※ ロジックは後日追加予定",
+      en: "(Logic will be added later)"
+    },
+    alertHeightOnlyNoArea: {
+      ja: "高さ調整はエリア内テキストのみ対応です。\n選択中にエリア内テキストがありません。",
+      en: "Height adjustment is supported for AreaText only.\nNo AreaText found in selection."
     },
     cbOverflow: {
       ja: "あふれ処理",
@@ -87,6 +114,10 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
     alertMaxIter: {
       ja: "縮小処理が上限回数に達しました:\n",
       en: "Shrink iteration limit reached:\n"
+    },
+    unnamedText: {
+      ja: "[無名のテキスト]",
+      en: "[Unnamed Text]"
     }
   };
 
@@ -97,14 +128,17 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
     return entry[lang] || entry["en"] || key;
   }
 
+
   var DealWithOversetText = (function () {
 
-    /* デフォルト値 / Defaults */
+    // Defaults
     var DEFAULTS = {
       tagName: "overset_text_default_size",
+      heightTagName: "overset_text_default_height",
       increment: 0.1,
+      heightIncrement: 0.5,   // pt (height adjustment step)
       minFontSize: 0.1,       // pt
-      maxShrinkIter: 2000,    /* 安全上限 / Safety limit */
+      maxShrinkIter: 2000,    // safety limit
       alertOnMaxIter: true
     };
 
@@ -138,7 +172,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
     function collectTextFramesFromItem(item, out, filterFn) {
       if (!item) return;
 
-      /* TextRange 選択の場合 / TextRange selection case */
+      // TextRange selection case
       try {
         if (item.typename === "TextRange") {
           if (item.parent && item.parent.typename === "TextFrame") {
@@ -148,7 +182,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
         }
       } catch (eTR) { }
 
-      /* 直接 TextFrame の場合 / Direct TextFrame */
+      // Direct TextFrame
       try {
         if (item.typename === "TextFrame") {
           if (filterFn(item)) out.push(item);
@@ -156,7 +190,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
         }
       } catch (eTF) { }
 
-      /* GroupItem の場合、pageItems を再帰 / GroupItem: recurse into pageItems */
+      // GroupItem: recurse into pageItems
       try {
         if (item.typename === "GroupItem" && item.pageItems && item.pageItems.length) {
           for (var i = 0; i < item.pageItems.length; i++) {
@@ -166,7 +200,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
         }
       } catch (eG) { }
 
-      /* CompoundPathItem: pathItems を再帰 / CompoundPathItem: recurse into pathItems */
+      // CompoundPathItem: recurse into pathItems (text shouldn't be inside, but safe)
       try {
         if (item.typename === "CompoundPathItem" && item.pathItems && item.pathItems.length) {
           for (var j = 0; j < item.pathItems.length; j++) {
@@ -176,7 +210,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
         }
       } catch (eC) { }
 
-      /* その他のコンテナ（レイヤーなど）/ Other containers (Layer, etc.) */
+      // Other containers (Layer, etc.) - try pageItems if present
       try {
         if (item.pageItems && item.pageItems.length) {
           for (var k = 0; k < item.pageItems.length; k++) {
@@ -190,12 +224,12 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
       var res = [];
       if (!doc || !doc.selection || doc.selection.length === 0) return res;
 
-      /* 収集（重複あり）/ Collect (may include duplicates) */
+      // collect (may include duplicates)
       for (var s = 0; s < doc.selection.length; s++) {
         collectTextFramesFromItem(doc.selection[s], res, filterFn);
       }
 
-      /* 重複除去 / De-duplicate by object reference */
+      // de-dup by real object reference (ExtendScript stringification is not unique)
       var uniq = [];
       for (var i = 0; i < res.length; i++) {
         var tf = res[i];
@@ -212,7 +246,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
       return uniq;
     }
 
-    /* 互換性のため保持（未使用）/ Kept for compatibility (not used: selection-only) */
+    // kept for compatibility (not used: selection-only)
     function getTargets(doc, filterFn) {
       var res = [];
       var i, tf;
@@ -285,7 +319,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
     }
 
     function isOversetFrame(tf) {
-      /* エリア内文字：overflows を優先 / AREATEXT: prefer built-in overflows when available */
+      // AREATEXT: prefer built-in overflows when available
       if (tf && tf.kind == TextType.AREATEXT) {
         var ov = safeOverflows(tf);
         if (ov !== null) return ov;
@@ -296,8 +330,8 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
         }
       }
 
-      /* パス上文字：表示行の文字数で判定 / PATHTEXT: use visible-line character count */
-      /* NOTE: overflows can exist but may not be reliable for PathText. */
+      // PATHTEXT (and others): use legacy visible-line character count.
+      // NOTE: overflows can exist but may not be reliable for PathText.
       try {
         return isOverset(tf, (tf.lines && tf.lines.length) ? tf.lines.length : 1);
       } catch (eP) {
@@ -305,7 +339,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
       }
     }
 
-    /* 手動行送り時のみ比率を返す / Returns leading ratio only for manual leading (null if auto) */
+    // 手動行送り時のみ比率を返す（autoLeadingの場合はnull）
     function getLeadingInfo(tf) {
       try {
         var attrs = tf.textRange.characterAttributes;
@@ -324,6 +358,110 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
       } catch (e) { }
     }
 
+    // --- Height adjustment functions (AreaText only) ---
+
+    function recordHeightInTag(tf, tagName) {
+      var tag;
+      var tags = tf.tags;
+      var h = tf.height;
+      try {
+        tag = tags.getByName(tagName);
+        tag.value = h;
+      } catch (e) {
+        tag = tags.add();
+        tag.name = tagName;
+        tag.value = h;
+      }
+    }
+
+    function readHeightFromTag(tf, tagName) {
+      try {
+        return tf.tags.getByName(tagName).value * 1;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function resetHeight(tf, tagName) {
+      if (tf.contents === "") return;
+      var h = readHeightFromTag(tf, tagName);
+      if (h != null) {
+        tf.height = h;
+      }
+    }
+
+    // Illustrator アクションで自動サイズ調整を ON/OFF にする
+    function act_setAutoSizeAdjust(valueInt) {
+      // valueInt: 1 = ON, 2 = OFF
+      if (valueInt !== 1 && valueInt !== 2) return;
+
+      var str = '/version 3'
+        + '/name [ 8 4172656154797065]'
+        + '/isOpen 1'
+        + '/actionCount 1'
+        + '/action-1 {'
+        + ' /name [ 8 4175746f53697a65 ]'
+        + ' /keyIndex 0'
+        + ' /colorIndex 0'
+        + ' /isOpen 1'
+        + ' /eventCount 1'
+        + ' /event-1 {'
+        + ' /useRulersIn1stQuadrant 0'
+        + ' /internalName (adobe_SLOAreaTextDialog)'
+        + ' /localizedName [ 33'
+        + ' e382a8e383aae382a2e58685e69687e5ad97e382aae38397e382b7e383a7e383b3'
+        + ' ]'
+        + ' /isOpen 1'
+        + ' /isOn 1'
+        + ' /hasDialog 0'
+        + ' /parameterCount 1'
+        + ' /parameter-1 {'
+        + ' /key 1952539754'
+        + ' /showInPalette 4294967295'
+        + ' /type (integer)'
+        + ' /value ' + valueInt
+        + ' }'
+        + ' }'
+        + '}';
+
+      var f = new File('~/ScriptAction.aia');
+      f.open('w');
+      f.write(str);
+      f.close();
+      app.loadAction(f);
+      f.remove();
+
+      app.doScript("AutoSize", "AreaType", false);
+      app.unloadAction("AreaType", "");
+    }
+
+    function expandFrameToFit(tf) {
+      app.activeDocument.selection = [tf];
+      act_setAutoSizeAdjust(1);
+    }
+
+    function collapseFrameAuto(tf) {
+      app.activeDocument.selection = [tf];
+      act_setAutoSizeAdjust(2);
+    }
+
+    function growHeight(tf, opt) {
+      if (tf.characters.length <= 0) return true;
+      if (!isOversetFrame(tf)) return true;
+      expandFrameToFit(tf);
+      collapseFrameAuto(tf);
+      return true;
+    }
+
+    function fitHeight(tf, opt) {
+      if (tf.characters.length <= 0) return true;
+      expandFrameToFit(tf);
+      collapseFrameAuto(tf);
+      return true;
+    }
+
+    // --- End height adjustment functions ---
+
     function hasHardReturn(tf) {
       try {
         return /[\r\n]/.test(tf.contents);
@@ -334,7 +472,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
 
     function stopIfHardReturn(tf) {
       if (hasHardReturn(tf)) {
-        alert(L("alertHardReturn") + (tf.name ? tf.name : "[unnamed]"));
+        alert(L("alertHardReturn") + (tf.name ? tf.name : L("unnamedText")));
         return true;
       }
       return false;
@@ -375,7 +513,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
         if (iter >= opt.maxShrinkIter) {
           if (opt.alertOnMaxIter) {
             try {
-              alert(L("alertMaxIter") + (tf.name ? tf.name : "[unnamed]"));
+              alert(L("alertMaxIter") + (tf.name ? tf.name : L("unnamedText")));
             } catch (eA) { }
           }
           break;
@@ -386,9 +524,9 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
     }
 
     function fitFont(tf, opt) {
-      /* ぴったり / Maximize fit:
-         1) 文字サイズを倍にしてオーバーセットを発生 / Grow font to force overset
-         2) あふれ処理で縮小 / Then shrink to fit */
+      // ぴったり:
+      // 1) いったん文字サイズを倍程度にしてオーバーセットを発生させる
+      // 2) その後、あふれ処理（shrinkFont）で詰める
 
       try {
         if (stopIfHardReturn(tf)) return false;
@@ -402,7 +540,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
       var leadingInfo = getLeadingInfo(tf);
       var original = tf.textRange.characterAttributes.size;
 
-      /* Step 1: オーバーセットが出るまで拡大 / Grow until overset (x2) */
+      // Step 1: grow until overset (x2)
       if (!isOversetFrame(tf)) {
         var high = original;
         var guardUp = 0;
@@ -419,7 +557,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
         }
       }
 
-      /* オーバーセットが出ない場合は元に戻す / If still not overset, keep original */
+      // If still not overset, keep original
       if (!isOversetFrame(tf)) {
         try {
           tf.textRange.characterAttributes.size = original;
@@ -428,7 +566,7 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
         return true;
       }
 
-      /* Step 2: あふれ処理で縮小 / Shrink to fit */
+      // Step 2: shrink to fit using existing logic
       return shrinkFont(tf, opt);
     }
 
@@ -449,8 +587,10 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
 
       var opt = mergeOptions(options);
       var filterFn = opt.filter || defaultFilter;
+      var adjustMode = (options && options.adjustMode) || "fontSize";
+      var isHeightMode = (adjustMode === "height");
 
-      /* 選択確認 / Check selection */
+      // selection-only (TextFrame / TextRange / GroupItem etc.)
       if (!doc.selection || doc.selection.length === 0) {
         alert(L("alertSelectObject"));
         return false;
@@ -458,35 +598,81 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
 
       var targets = getSelectedTextFrames(doc, filterFn);
 
+      var autoSizeArea = !!(options && options.autoSizeArea);
+      if (autoSizeArea) {
+        // Auto size (AreaText): run ONLY expandFrameToFit for AreaText frames
+        var areaOnly = [];
+        for (var aa = 0; aa < targets.length; aa++) {
+          if (targets[aa].kind == TextType.AREATEXT) areaOnly.push(targets[aa]);
+        }
+
+        if (areaOnly.length === 0) {
+          alert(L("alertHeightOnlyNoArea"));
+          return false;
+        }
+
+        for (var ab = 0; ab < areaOnly.length; ab++) {
+          try { expandFrameToFit(areaOnly[ab]); } catch (eAuto) { }
+        }
+        return true;
+      }
+
+      // Height mode: filter to AreaText only
+      if (isHeightMode) {
+        var areaTargets = [];
+        for (var a = 0; a < targets.length; a++) {
+          if (targets[a].kind == TextType.AREATEXT) areaTargets.push(targets[a]);
+        }
+        if (areaTargets.length === 0) {
+          alert(L("alertHeightOnlyNoArea"));
+          return false;
+        }
+        targets = areaTargets;
+      }
+
       if (targets.length === 0) {
         alert(L("alertNoValidText"));
         return false;
       }
 
-      /* データセット：最初 → デフォルトサイズを記録 / Dataset: first => record defaults */
+      var tagKey = isHeightMode ? opt.heightTagName : opt.tagName;
+
+      // dataset: first => record defaults
       if (isFirstDataSet(doc)) {
         for (var i = 0; i < targets.length; i++) {
-          recordFontSizeInTag(targets[i], opt.tagName);
+          if (isHeightMode) {
+            recordHeightInTag(targets[i], tagKey);
+          } else {
+            recordFontSizeInTag(targets[i], tagKey);
+          }
         }
       }
 
-      /* サイズをリセット / Reset size */
+      // reset
       for (var j = 0; j < targets.length; j++) {
-        resetSize(targets[j], opt.tagName);
+        if (isHeightMode) {
+          resetHeight(targets[j], tagKey);
+        } else {
+          resetSize(targets[j], tagKey);
+        }
       }
 
-      /* 処理実行 / Process selection */
-      /* 外部から options.mode が渡された場合は旧来の挙動を維持 / If options.mode is provided externally, keep legacy behavior */
+      // Helper references for current mode
+      var fnShrink = isHeightMode ? growHeight : shrinkFont;
+      var fnFit = isHeightMode ? fitHeight : fitFont;
+
+      // process selection
+      // If `options.mode` is provided externally, keep legacy behavior.
       if (options && options.mode) {
         var mode = options.mode;
         if (mode === "fit") {
           for (var k0 = 0; k0 < targets.length; k0++) {
-            var okFit0 = fitFont(targets[k0], opt);
+            var okFit0 = fnFit(targets[k0], opt);
             if (okFit0 === false) return false;
           }
         } else {
           for (var k1 = 0; k1 < targets.length; k1++) {
-            var ok1 = shrinkFont(targets[k1], opt);
+            var ok1 = fnShrink(targets[k1], opt);
             if (ok1 === false) return false;
           }
         }
@@ -499,25 +685,25 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
           return false;
         }
 
-        /* 両方ON：ぴったり → あふれ処理 / Both ON: maximize fit then shrink */
+        // 両方ONなら → ぴったり → あふれ処理
         if (doFit) {
           for (var kF = 0; kF < targets.length; kF++) {
-            var okFit = fitFont(targets[kF], opt);
+            var okFit = fnFit(targets[kF], opt);
             if (okFit === false) return false;
           }
         }
         if (doOverflow) {
           for (var kO = 0; kO < targets.length; kO++) {
-            var okO = shrinkFont(targets[kO], opt);
+            var okO = fnShrink(targets[kO], opt);
             if (okO === false) return false;
           }
         }
       }
 
-      /* データセット：最後 → タグ削除 / Dataset: last => cleanup */
+      // dataset: last => cleanup
       if (isLastDataSet(doc)) {
         for (var m = 0; m < targets.length; m++) {
-          removeTag(targets[m], opt.tagName);
+          removeTag(targets[m], tagKey);
         }
       }
 
@@ -528,22 +714,40 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
   })();
 
 
-  /* セッション中のダイアログ位置を保持 / Retain dialog position within session */
   var _dialogLocation = null;
+
+  function hasAreaTextInSelection(doc) {
+    if (!doc || !doc.selection || doc.selection.length === 0) return false;
+    var sel = doc.selection;
+    for (var i = 0; i < sel.length; i++) {
+      try {
+        if (sel[i].typename === "TextFrame" && sel[i].kind == TextType.AREATEXT) return true;
+      } catch (e) { }
+      try {
+        if (sel[i].typename === "GroupItem" && sel[i].pageItems) {
+          for (var j = 0; j < sel[i].pageItems.length; j++) {
+            var pi = sel[i].pageItems[j];
+            if (pi.typename === "TextFrame" && pi.kind == TextType.AREATEXT) return true;
+          }
+        }
+      } catch (e2) { }
+    }
+    return false;
+  }
 
   function showDialogAndRun() {
     if (app.documents.length === 0) return;
 
-    var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+    var hasArea = hasAreaTextInSelection(app.activeDocument);
+
+    var win = new Window("dialog", L("dialogTitle"));
     win.orientation = "column";
     win.alignChildren = ["fill", "top"];
 
-    /* 前回位置を復元 / Restore previous position */
     if (_dialogLocation) {
       try { win.location = _dialogLocation; } catch (e) { }
     }
 
-    /* 閉じるとき位置を記録 / Save position on close */
     win.onClose = function () {
       try { _dialogLocation = [win.location[0], win.location[1]]; } catch (e) { }
     };
@@ -559,6 +763,21 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
     cbOverflow.value = true;
     cbFit.value = true;
 
+    var pAdjust = win.add("panel", undefined, L("panelAdjust"));
+    pAdjust.orientation = "column";
+    pAdjust.alignChildren = ["left", "top"];
+    pAdjust.margins = [15, 20, 15, 10];
+
+    var rbFontSize = pAdjust.add("radiobutton", undefined, L("rbFontSize"));
+    var rbHeight = pAdjust.add("radiobutton", undefined, L("rbHeight"));
+    rbFontSize.value = true;
+    rbHeight.enabled = hasArea;
+
+    var rbAutoSizeArea = pAdjust.add("radiobutton", undefined, L("rbAutoSizeArea"));
+    rbAutoSizeArea.value = false;
+    rbAutoSizeArea.enabled = hasArea;
+    try { rbAutoSizeArea.helpTip = L("tipAutoSizeArea"); } catch (eTip) { }
+
     var gBtn = win.add("group");
     gBtn.alignment = ["right", "center"];
     gBtn.alignChildren = ["right", "center"];
@@ -568,14 +787,20 @@ Select processing mode via dialog (checkboxes are not mutually exclusive):
     btnOk.onClick = function () {
       var doFit = !!cbFit.value;
       var doOverflow = !!cbOverflow.value;
-      if (!doFit && !doOverflow) {
+      var autoSizeArea = !!rbAutoSizeArea.value;
+
+      if (!autoSizeArea && !doFit && !doOverflow) {
         alert(L("alertSelectMode"));
         return;
       }
+
+      var adjustMode = rbHeight.value ? "height" : "fontSize";
       win.close(1);
       DealWithOversetText.run(app.activeDocument, {
         doFit: doFit,
-        doOverflow: doOverflow
+        doOverflow: doOverflow,
+        adjustMode: adjustMode,
+        autoSizeArea: autoSizeArea
       });
     };
 
