@@ -11,8 +11,8 @@ AutoFitTextFrame
 ### 概要 / Description:
 処理（文字サイズ）：
 Font size modes:
-  ・あふれ処理 / Shrink to fit：文字あふれ（オーバーセット）がなくなるまで文字サイズを縮小
-  ・ぴったり / Maximize fit：いったん文字サイズを増やしてオーバーセットを発生させ、その後「あふれ処理」を実行
+  ・文字サイズ：あふれ処理 / Shrink to fit：文字あふれ（オーバーセット）がなくなるまで文字サイズを縮小
+  ・文字サイズ：ぴったり / Maximize fit：いったん文字サイズを増やしてオーバーセットを発生させ、その後「あふれ処理」を実行
     -> 余白があっても「最大であふれないサイズ」まで詰める
   ・両方ON / Both：ぴったり → あふれ処理 の順で実行
 
@@ -22,8 +22,8 @@ AreaText mode:
 
 オプション（※「エリア内文字の高さ調整」ONのときのみ有効）：
 Options (enabled only when “Adjust AreaText height” is ON):
-  ・高さを調整 / Adjust height：必要な分だけ高さを拡張し、OFFに戻して固定
-  ・自動サイズ調整 / Auto size：自動サイズ調整をONにします（拡張のみ）
+  ・高さを調整 / Adjust height：自動サイズ調整を一時的にON→OFFにして、必要な分だけ高さを拡張して固定
+  ・自動サイズ調整 / Auto size：自動サイズ調整をONにします（拡張のみ・OFFには戻しません）
 
 データセット使用時、最初のデータセットで元の値（文字サイズ/高さ）をタグに記録し、
 各データセット適用時に一度リセットしてから処理します。
@@ -34,7 +34,7 @@ Options (enabled only when “Adjust AreaText height” is ON):
 *****/
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v2.3";
+var SCRIPT_VERSION = "v2.3.1";
 
 (function () {
 
@@ -744,6 +744,16 @@ var SCRIPT_VERSION = "v2.3";
 
   function showDialogAndRun() {
     if (app.documents.length === 0) return;
+    // If nothing is selected, alert and do not open the dialog
+    try {
+      if (!app.activeDocument.selection || app.activeDocument.selection.length === 0) {
+        alert(L("alertSelectObject"));
+        return;
+      }
+    } catch (eSel) {
+      alert(L("alertSelectObject"));
+      return;
+    }
 
     var hasArea = hasAreaTextInSelection(app.activeDocument);
 
