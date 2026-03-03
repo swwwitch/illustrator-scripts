@@ -9,22 +9,28 @@ AutoFitTextFrame
 20260304
 
 ### 概要 / Description:
-パス上文字（TextType.PATHTEXT）とエリア内文字（TextType.AREATEXT）に対応したテキストサイズ調整スクリプト。
-Adjusts font size for PathText and AreaText to eliminate overset.
+パス上文字（TextType.PATHTEXT）とエリア内文字（TextType.AREATEXT）に対応したテキスト調整スクリプト。
+Adjusts selected TextFrames (PathText / AreaText).
 選択中の TextFrame のみに対して実行します。
 Operates only on selected TextFrames.
+
 ダイアログで処理を選択（チェックボックスは排他的にしない）：
-Select processing mode via dialog (checkboxes are not mutually exclusive):
+Select processing via dialog (checkboxes are not mutually exclusive):
   ・あふれ処理 / Shrink to fit：文字あふれ（オーバーセット）がなくなるまで文字サイズを縮小
-  ・ぴったり / Maximize fit：いったん文字サイズを倍程度にしてオーバーセットを発生させ、その後「あふれ処理」を実行
+  ・ぴったり / Maximize fit：いったん文字サイズを増やしてオーバーセットを発生させ、その後「あふれ処理」を実行
     -> 余白があっても「最大であふれないサイズ」まで詰める
   ・両方ON / Both：ぴったり → あふれ処理 の順で実行
-データセット使用時、最初のデータセットで元の文字サイズをタグに記録し、
+
+オプション：
+Options:
+  ・文字サイズを調整 / Adjust font size
+  ・高さを調整（エリア内文字のみ）/ Adjust height (AreaText only)
+  ・自動サイズ調整（エリア内文字のみ）/ Auto size (AreaText only)
+    -> 選択中のエリア内文字に「自動サイズ調整」を適用します（拡張のみ）。
+
+データセット使用時、最初のデータセットで元の値（文字サイズ/高さ）をタグに記録し、
 各データセット適用時に一度リセットしてから処理します。
 最終データセット処理後にタグを削除します。
-
-original: 
-https://github.com/Silly-V/Adobe-Illustrator/blob/master/Dataset%20Processing/DealWithOversetText_SingleLine.jsx
 
 ※ パス上文字は従来通り「表示行に収まっている文字数」で判定。
 ※ エリア内文字は可能な場合 `overflows`（Illustratorのオーバーフロー判定）を優先して判定します。
@@ -740,19 +746,19 @@ var SCRIPT_VERSION = "v2.2";
 
     var hasArea = hasAreaTextInSelection(app.activeDocument);
 
-    var win = new Window("dialog", L("dialogTitle"));
-    win.orientation = "column";
-    win.alignChildren = ["fill", "top"];
+    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+    dlg.orientation = "column";
+    dlg.alignChildren = ["fill", "top"];
 
     if (_dialogLocation) {
-      try { win.location = _dialogLocation; } catch (e) { }
+      try { dlg.location = _dialogLocation; } catch (e) { }
     }
 
-    win.onClose = function () {
-      try { _dialogLocation = [win.location[0], win.location[1]]; } catch (e) { }
+    dlg.onClose = function () {
+      try { _dialogLocation = [dlg.location[0], dlg.location[1]]; } catch (e) { }
     };
 
-    var p = win.add("panel", undefined, L("panelLabel"));
+    var p = dlg.add("panel", undefined, L("panelLabel"));
     p.orientation = "column";
     p.alignChildren = ["left", "top"];
     p.margins = [15, 20, 15, 10];
@@ -763,7 +769,7 @@ var SCRIPT_VERSION = "v2.2";
     cbOverflow.value = true;
     cbFit.value = true;
 
-    var pAdjust = win.add("panel", undefined, L("panelAdjust"));
+    var pAdjust = dlg.add("panel", undefined, L("panelAdjust"));
     pAdjust.orientation = "column";
     pAdjust.alignChildren = ["left", "top"];
     pAdjust.margins = [15, 20, 15, 10];
@@ -778,7 +784,7 @@ var SCRIPT_VERSION = "v2.2";
     rbAutoSizeArea.enabled = hasArea;
     try { rbAutoSizeArea.helpTip = L("tipAutoSizeArea"); } catch (eTip) { }
 
-    var gBtn = win.add("group");
+    var gBtn = dlg.add("group");
     gBtn.alignment = ["right", "center"];
     gBtn.alignChildren = ["right", "center"];
     var btnCancel = gBtn.add("button", undefined, L("btnCancel"), { name: "cancel" });
@@ -795,7 +801,7 @@ var SCRIPT_VERSION = "v2.2";
       }
 
       var adjustMode = rbHeight.value ? "height" : "fontSize";
-      win.close(1);
+      dlg.close(1);
       DealWithOversetText.run(app.activeDocument, {
         doFit: doFit,
         doOverflow: doOverflow,
@@ -805,10 +811,10 @@ var SCRIPT_VERSION = "v2.2";
     };
 
     btnCancel.onClick = function () {
-      win.close(0);
+      dlg.close(0);
     };
 
-    win.show();
+    dlg.show();
   }
 
   showDialogAndRun();
