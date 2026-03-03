@@ -8,19 +8,24 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   等間隔に自動配置するIllustrator用スクリプトです。
   右カラムのパネル順序を調整（複製パネルを上部に移動）。
   「自動（面積最大）」は開パスの場合、バウンディングボックス面積で判定します。
-  ※複製パネルがデフォルトで有効（複製数は初期値5）になりました。
+  ※複製パネルは選択がちょうど2つのときのみデフォルトで有効になり、複製数は2が初期値です。
   ※選択がちょうど2つの場合は複製がデフォルトで有効、3つ以上の場合はデフォルトで無効になります。
+  ※回転オプションに「パスに沿う（接線） / Follow Path (Tangent)」が追加されました。
+  ※回転パネルに「反転」チェックボックス（+180°回転）が追加されました。
 
   This script arranges multiple objects (A) at even intervals
   along a single base path (B), which is chosen by
   Auto (largest-area), Frontmost, or Backmost within the current selection.
   The order of panels in the right column has been adjusted (Duplicate panel moved above Rotation/Order/Spacing).
   For Auto (largest), open paths are evaluated by bounding-box area.
-  The Duplicate panel is enabled by default (duplicate count defaults to 5).
+  The Duplicate panel is enabled by default only when exactly two objects are selected (duplicate count defaults to 2).
   When exactly two objects are selected, Duplicate is enabled by default; when three or more, it is disabled by default.
   Preview validation errors are now only shown when the Preview checkbox is turned ON,
   and are validated before building the preview, preventing repeated or stacked dialogs.
   Repeated alerts are suppressed via an alert guard (deduped by selection/state) to prevent stacked dialogs.
+
+  A new rotation option "パスに沿う（接線） / Follow Path (Tangent)" has been added.
+  A "Flip" toggle (+180° rotation) has been added to the Rotation panel.
 
   選択が0または1の場合、ダイアログを開かず終了します。
   If the selection count is 0 or 1, the script exits without opening the dialog.
@@ -49,6 +54,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   ・配置後のオブジェクトをグループ化するオプションあり
   ・プレビュー（非破壊）：複製をプレビュー用レイヤーに表示（OK/キャンセル/OFFで自動削除）
   ・ダイアログは2カラム表示（回転は右カラム）。半透明表示で、画面右側にオフセット表示されます
+  ・回転オプションに「パスに沿う（接線） / Follow Path (Tangent)」モードを追加
 
   Supports both open and closed paths, optional grouping of placed objects,
   and configurable handling of the base path (keep, hide appearance, or delete).
@@ -65,11 +71,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   ・プレビューは複製で表示します（元オブジェクトは移動しません）
   ・プレビュー中は元のオブジェクトを一時的に非表示にします（OFF/OK/キャンセルで復元）
 
-  更新日 / Last updated: 2026-02-28
+  更新日 / Last updated: 2026-03-03
 */
 
 // Script version / スクリプトバージョン
-var SCRIPT_VERSION = "v1.3.9";
+var SCRIPT_VERSION = "v1.5.0";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -144,17 +150,21 @@ var LABELS = {
     ja: "回転",
     en: "Rotation"
   },
+  rotationFlip180: {
+    ja: "反転",
+    en: "Flip"
+  },
   rotationNone: {
-    ja: "0°",
-    en: "Do nothing"
+    ja: "正立",
+    en: "Upright"
   },
   rotationPerpendicular: {
-    ja: "それぞれ垂直（-90°）",
-    en: "Perpendicular (-90°)"
+    ja: "それぞれ垂直",
+    en: "Perpendicular"
   },
-  rotationPerpendicularReverse: {
-    ja: "それぞれ垂直（+90°）",
-    en: "Perpendicular (+90°)"
+  rotationPathPerpendicular: {
+    ja: "パスに沿う（接線）",
+    en: "Follow Path (Tangent)"
   },
   rotationAngle: {
     ja: "角度指定",
@@ -259,6 +269,69 @@ function setDialogOpacity(dlg, opacityValue) {
   } catch (e) {
     // opacity not supported in some environments
   }
+}
+
+// Add arrow-key increment/decrement support for ScriptUI edittext fields
+function changeValueByArrowKey(editText, allowNegative) {
+  editText.addEventListener("keydown", function (event) {
+    if (!event || !event.keyName) return;
+    if (event.keyName !== "Up" && event.keyName !== "Down") return;
+
+    var value = Number(editText.text);
+    if (isNaN(value)) return;
+
+    var keyboard = ScriptUI.environment.keyboardState;
+    var delta = 1;
+
+    if (keyboard.shiftKey) {
+      delta = 10;
+      // Shiftキー押下時は10の倍数にスナップ
+      if (event.keyName == "Up") {
+        value = Math.ceil((value + 1) / delta) * delta;
+        event.preventDefault();
+      } else if (event.keyName == "Down") {
+        value = Math.floor((value - 1) / delta) * delta;
+        event.preventDefault();
+      }
+    } else if (keyboard.altKey) {
+      delta = 0.1;
+      // Optionキー押下時は0.1単位で増減
+      if (event.keyName == "Up") {
+        value += delta;
+        event.preventDefault();
+      } else if (event.keyName == "Down") {
+        value -= delta;
+        event.preventDefault();
+      }
+    } else {
+      delta = 1;
+      if (event.keyName == "Up") {
+        value += delta;
+        event.preventDefault();
+      } else if (event.keyName == "Down") {
+        value -= delta;
+        event.preventDefault();
+      }
+    }
+
+    if (keyboard.altKey) {
+      // 小数第1位までに丸め
+      value = Math.round(value * 10) / 10;
+    } else {
+      // 整数に丸め
+      value = Math.round(value);
+    }
+
+    if (!allowNegative && value < 0) value = 0;
+
+    event.preventDefault();
+    editText.text = value;
+
+    // Trigger existing change handlers so preview/UI stays in sync
+    try {
+      if (typeof editText.onChange === "function") editText.onChange();
+    } catch (_) { }
+  });
 }
 
 (function () {
@@ -645,20 +718,25 @@ function setDialogOpacity(dlg, opacityValue) {
   cbDupEnable.preferredSize.width = 18;
 
   var stDup = gDupTop.add("statictext", undefined, L('duplicateCount'));
-  var etDupCount = gDupTop.add("edittext", undefined, "5");
+  var etDupCount = gDupTop.add("edittext", undefined, "2");
   etDupCount.characters = 4;
+  changeValueByArrowKey(etDupCount, false);
 
   var gDupSld = dupPanel.add("group");
   gDupSld.orientation = "row";
   gDupSld.alignChildren = ["left", "center"];
 
-  var sldDupCount = gDupSld.add("slider", undefined, 5, 1, 20);
+  var sldDupCount = gDupSld.add("slider", undefined, 2, 2, 20);
   sldDupCount.preferredSize.width = 180;
+  if (cbDupEnable.value) {
+    etDupCount.text = "2";
+    sldDupCount.value = 2;
+  }
 
   function clampDupCount(v) {
     v = Math.round(Number(v));
-    if (isNaN(v)) v = 1;
-    if (v < 1) v = 1;
+    if (isNaN(v)) v = 2;
+    if (v < 2) v = 2;
     if (v > 20) v = 20;
     return v;
   }
@@ -677,9 +755,9 @@ function setDialogOpacity(dlg, opacityValue) {
 
   cbDupEnable.onClick = function () {
     if (cbDupEnable.value) {
-      // ON: set default duplicate count to 5
-      etDupCount.text = "5";
-      sldDupCount.value = 5;
+      // ON: set default duplicate count to 2
+      etDupCount.text = "2";
+      sldDupCount.value = 2;
     }
     updateDupUI();
     rebuildPreviewIfNeeded();
@@ -719,11 +797,12 @@ function setDialogOpacity(dlg, opacityValue) {
   gRotRadios.orientation = "column";
   gRotRadios.alignChildren = "left";
 
-  // Rotation modes / 回転モード（順番：何もしない → それぞれ垂直 → それぞれ垂直（逆） → ランダム → 角度指定）
+  // Rotation modes / 回転モード（順番：何もしない → それぞれ垂直 → それぞれ垂直（逆） → パスに対して垂直 → ランダム → 角度指定）
   var rbRotNone = gRotRadios.add("radiobutton", undefined, L('rotationNone'));
   var rbRotPerp = gRotRadios.add("radiobutton", undefined, L('rotationPerpendicular'));
-  var rbRotPerpRev = gRotRadios.add("radiobutton", undefined, L('rotationPerpendicularReverse'));
+  var rbRotPathPerp = gRotRadios.add("radiobutton", undefined, L('rotationPathPerpendicular'));
   var rbRotRandom = gRotRadios.add("radiobutton", undefined, L('rotationRandom'));
+  rbRotNone.value = true; // default
 
   // Angle (single line) / 角度指定（1行）
   var gRotAngleRow = gRotRadios.add("group");
@@ -734,7 +813,13 @@ function setDialogOpacity(dlg, opacityValue) {
   var rbRotAngle = gRotAngleRow.add("radiobutton", undefined, L('rotationAngle'));
   var etRotAngle = gRotAngleRow.add("edittext", undefined, "0");
   etRotAngle.characters = 3;
+  changeValueByArrowKey(etRotAngle, true);
   var stRotDeg = gRotAngleRow.add("statictext", undefined, "°");
+
+  // 180° rotation checkbox
+  var cbRotFlip180 = rotPanel.add("checkbox", undefined, L('rotationFlip180'));
+  cbRotFlip180.value = false;
+  cbRotFlip180.onClick = function () { rebuildPreviewIfNeeded(); };
 
   // Order / 順番
   var orderModePanel = placeObjPanel.add("panel", undefined, L('panelOrder'));
@@ -870,7 +955,7 @@ function setDialogOpacity(dlg, opacityValue) {
     rbRotNone.value = (mode === "none");
     rbRotAngle.value = (mode === "angle");
     rbRotPerp.value = (mode === "perp");
-    rbRotPerpRev.value = (mode === "perp_rev");
+    rbRotPathPerp.value = (mode === "path_perp");
     rbRotRandom.value = (mode === "random");
     updateRotationUI();
   }
@@ -884,7 +969,7 @@ function setDialogOpacity(dlg, opacityValue) {
     try {
       if (rbRotAngle.value) mode = "angle";
       else if (rbRotPerp.value) mode = "perp";
-      else if (rbRotPerpRev.value) mode = "perp_rev";
+      else if (rbRotPathPerp.value) mode = "path_perp";
       else if (rbRotRandom.value) mode = "random";
     } catch (_) { mode = "none"; }
 
@@ -894,7 +979,10 @@ function setDialogOpacity(dlg, opacityValue) {
       if (isNaN(ang)) ang = 0;
     } catch (_) { ang = 0; }
 
-    return { mode: mode, angle: ang };
+    var flip180 = false;
+    try { flip180 = !!cbRotFlip180.value; } catch (_) { flip180 = false; }
+
+    return { mode: mode, angle: ang, flip180: flip180 };
   }
 
 
@@ -1123,7 +1211,7 @@ function setDialogOpacity(dlg, opacityValue) {
 
   rbRotNone.onClick = function () { onRotModeChanged("none"); };
   rbRotPerp.onClick = function () { onRotModeChanged("perp"); };
-  rbRotPerpRev.onClick = function () { onRotModeChanged("perp_rev"); };
+  rbRotPathPerp.onClick = function () { onRotModeChanged("path_perp"); };
   rbRotAngle.onClick = function () { onRotModeChanged("angle"); };
   rbRotRandom.onClick = function () { onRotModeChanged("random"); };
 
@@ -1422,6 +1510,58 @@ function setDialogOpacity(dlg, opacityValue) {
       } catch (_) { }
     }
 
+    // --- Tangent angle at distance (stable at ends) ---
+    function tangentDegAtDistance(poly, cum, d, isClosed) {
+      var total = cum[cum.length - 1];
+      if (total <= 0) return 0;
+
+      // Clamp d into range
+      if (d < 0) d = 0;
+      if (d > total) d = total;
+
+      // Find segment index where cum[idx] >= d
+      var idx = 1;
+      while (idx < cum.length && cum[idx] < d) idx++;
+
+      // Determine two points to form a local tangent vector
+      var p0 = null;
+      var p1 = null;
+
+      if (idx <= 0) {
+        p0 = poly[0];
+        p1 = poly[1];
+      } else if (idx >= poly.length) {
+        p0 = poly[poly.length - 2];
+        p1 = poly[poly.length - 1];
+      } else {
+        // Prefer the immediate segment direction around idx
+        if (idx >= 1) {
+          p0 = poly[idx - 1];
+          p1 = poly[idx];
+        } else {
+          p0 = poly[0];
+          p1 = poly[1];
+        }
+
+        // If the segment is degenerate, try neighbors (helps at sharp/collapsed points)
+        if ((p1.x === p0.x) && (p1.y === p0.y)) {
+          if (idx + 1 < poly.length) {
+            p1 = poly[idx + 1];
+          } else if (isClosed && poly.length > 2) {
+            p1 = poly[1];
+          }
+        }
+      }
+
+      // Final fallback
+      if (!p0 || !p1) {
+        p0 = poly[0];
+        p1 = poly[poly.length - 1];
+      }
+
+      return Math.atan2(p1.y - p0.y, p1.x - p0.x) * 180 / Math.PI;
+    }
+
     // Random spacing / ランダム間隔
     if (spacingMode === "random") {
       // Reuse the last previewed spacing so OK matches Preview
@@ -1543,16 +1683,25 @@ function setDialogOpacity(dlg, opacityValue) {
       itemsArray[j].translate(dx, dy);
 
       // Rotation / 回転
+      var add180 = (rot && rot.flip180) ? 180 : 0;
+
+      // Flip should work even when mode is "none" (0°)
+      if (add180 !== 0 && (!rot || !rot.mode || rot.mode === "none")) {
+        try {
+          itemsArray[j].rotate(add180, true, true, true, true, Transformation.CENTER);
+        } catch (_) { }
+      }
+
       if (rot && rot.mode && rot.mode !== "none") {
         if (rot.mode === "angle") {
           var angDeg = rot.angle || 0;
           try {
-            itemsArray[j].rotate(angDeg, true, true, true, true, Transformation.CENTER);
+            itemsArray[j].rotate(angDeg + add180, true, true, true, true, Transformation.CENTER);
           } catch (_) { }
         } else if (rot.mode === "random") {
           var angRnd = (Math.random() * 360) - 180;
           try {
-            itemsArray[j].rotate(angRnd, true, true, true, true, Transformation.CENTER);
+            itemsArray[j].rotate(angRnd + add180, true, true, true, true, Transformation.CENTER);
           } catch (_) { }
         } else if (rot.mode === "perp") {
           // Perpendicular to center vector (tangent) / 中心へのベクトルに垂直（接線方向）
@@ -1560,14 +1709,12 @@ function setDialogOpacity(dlg, opacityValue) {
           var vx = cc.x - baseCenter.x;
           var vy = cc.y - baseCenter.y;
           var desired = Math.atan2(vy, vx) * 180 / Math.PI + 270; // flipped
-          rotateToDegSafe(itemsArray[j], desired);
-        } else if (rot.mode === "perp_rev") {
-          // Perpendicular (reverse, no 180° flip) / それぞれ垂直（逆・180°回転なし）
-          var cc2 = getItemCenter(itemsArray[j]);
-          var vx2 = cc2.x - baseCenter.x;
-          var vy2 = cc2.y - baseCenter.y;
-          var desired2 = Math.atan2(vy2, vx2) * 180 / Math.PI + 90;
-          rotateToDegSafe(itemsArray[j], desired2);
+          rotateToDegSafe(itemsArray[j], desired + add180);
+        } else if (rot.mode === "path_perp") {
+          // Follow path tangent (stable at ends) / パスの接線方向に合わせる（端でも安定）
+          var tanDeg = tangentDegAtDistance(poly, cum, d, isClosedPath);
+          var desiredP = tanDeg;
+          rotateToDegSafe(itemsArray[j], desiredP + add180);
         }
       }
 
