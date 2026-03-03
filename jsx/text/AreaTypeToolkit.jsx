@@ -12,7 +12,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 // --- Script version / スクリプトバージョン ---
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 // --- Localization / ローカライズ ---
 function getCurrentLang() {

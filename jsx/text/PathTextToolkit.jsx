@@ -3,38 +3,35 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 ### スクリプト名：
-パス上文字（変換、分離、調整）
+PathTextToolkit.jsx
  
 ### 更新日：
 20260303
  
 ### 概要：
-ポイント文字／パス上文字を、目的に応じて変換します。
-- パスが一緒に選択されている場合：そのパスを複製して「パス上文字」を生成（複数テキストにも対応）
-- パスが選択されていない場合：アーチ状のパスを自動生成して「パス上文字」を生成（テキストのみ選択でも実行可能）
-- 処理：パス上文字を「テキスト」と「パス」に分離（パスを複製し、ポイント文字を生成）
-- オプション：行揃え（左揃え / 中央 / 右揃え / 両端揃え）を指定可能
-- 位置：開始位置(startTValue) / 終了位置(endTValue) を指定可能
-- テキスト調整：ベースラインシフト / トラッキング / 文字サイズ を既存値に対して加算/減算可能
-- UI：パネル「分離」を「テキストを分離」に変更
-- UI：パス上文字にするパネル最下部に［テキスト編集］ボタンを追加（ロジックは後日）
-- 修正：一部のパスで複製（duplicate）が失敗する場合、ハンドル複製ロジックでフォールバック
-- 変更：モード切替時に開始/終了位置のチェック状態や値を自動変更しない（正円でも自動ONしない）
-- 修正：パス上文字を選択して実行した場合でも、ベースライン/トラッキング/文字サイズの調整が反映されるように改善
-- 改善：スライダー操作中のプレビュー更新（redraw）を軽量化（ドラッグ中は更新せず、リリース時に反映）
-- 追加：テキストフィールドで↑↓キー（±1）、Shift+↑↓（±10）、Option+↑↓（±0.1）による値変更に対応
-- 修正：終了位置スライダー範囲(0..5)の不整合を解消／テキスト編集ダイアログ文言をLABELS化
-- UI：オプション「文字あふれを解消」を「フィット」に文言変更
-- UI：オプション「フィット」をチェックボックスからボタン（トグル）に変更
-- 追加：フィットを即時プレビューに対応（プレビューON時はダイアログ操作中にも反映）
-- 変更：フィットの内部ロジックを差し替え（overset判定→拡大してから縮小で最大付近に合わせる方式）
+ポイント文字／パス上文字を、用途に応じて「作成」「分離」「調整」できるツールです。
+
+- パス上文字にする：選択したパス（または既存のパス上文字のパス）に沿ってテキストを配置
+- アーチ状のパスを生成：テキストからアーチのパスを自動生成してパス上文字を作成
+- 正円を生成：テキスト幅から正円パスを自動生成してパス上文字を作成
+
+- テキストを分離：パス上文字を「テキスト」と「パス」に分離（書式保持／保持しない、パス削除オプションあり）
+
+- 行揃え：左／中央／右／両端揃え
+- 効果：虹／歪み／3Dリボン／階段／引力
+- 位置：開始位置／終了位置（必要なときだけチェックONで適用）
+- テキスト調整：ベースライン／トラッキング／文字サイズ（現在値に対して増減）
+- フィット：パス上文字が端まで収まるように文字サイズを自動調整（開いたパスのみ）
+
+- プレビュー：ダイアログ操作中に結果を確認（OFFで元に戻せます）
+- テキスト編集：内容をまとめて置換（複数選択にも対応）
 */
 
 (function () {
 
     /* バージョン / Version */
     // Version
-    var SCRIPT_VERSION = "v1.3.1";
+    var SCRIPT_VERSION = "v1.3.2";
 
     // Language
     function getCurrentLang() {
@@ -44,7 +41,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: { ja: "パス上テキスト（変換と調整）", en: "Path Text (Convert & Adjust)" },
+        dialogTitle: { ja: "パス上文字（変換と調整）", en: "Text on a Path (Convert & Adjust)" },
 
         /* Panels / パネル */
         panelProcess: { ja: "パス上文字にする", en: "Create Path Text" },
@@ -56,7 +53,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         panelTextAdjust: { ja: "テキスト調整", en: "Text Adjust" },
 
         /* Process radios / 処理ラジオ */
-        toPathText: { ja: "パス上文字", en: "Convert to Path Text" },
+        toPathText: { ja: "パス上文字にする", en: "Convert to Path Text" },
         genArcPath: { ja: "アーチ状のパスを生成", en: "Generate Arc Path" },
         genCircle: { ja: "正円を生成", en: "Generate Circle" },
         btnTextEdit: { ja: "テキスト編集", en: "Edit Text" },
