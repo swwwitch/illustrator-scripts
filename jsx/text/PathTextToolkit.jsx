@@ -3,7 +3,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 ### スクリプト名：
-テキストとパスの変換
+パス上文字（変換、分離、調整）
  
 ### 更新日：
 20260303
@@ -34,7 +34,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /* バージョン / Version */
     // Version
-    var SCRIPT_VERSION = "v1.3";
+    var SCRIPT_VERSION = "v1.3.1";
 
     // Language
     function getCurrentLang() {
@@ -217,7 +217,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         } catch (_) { }
 
-        // "パス上テキストに" is available if a path is selected OR a PathText provides its own path
+        // "パス上文字に" is available if a path is selected OR a PathText provides its own path
         var canToPathText = hasSelectedPath || hasPathTextTarget;
         // "テキストとパスに分離" is available only when PathText is selected
         var canSplit = hasPathTextTarget;
