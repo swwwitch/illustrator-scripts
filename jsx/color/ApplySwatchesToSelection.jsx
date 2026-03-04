@@ -9,8 +9,10 @@ ApplySwatchesToSelection.jsx
 
 ### 概要
 
+- 更新日: 20260305
 - 選択したオブジェクトまたはテキストに、スウォッチや定義済みカラーを自動適用するスクリプトです。
 - CMYK / RGB カラーモードに応じてカラーを使い分けます。
+- CMYKのスウォッチ未選択時は、CM/CY/MYの2色混合（K=0）をランダム生成（合計120%以内）
 - 複数テキストオブジェクトはテキストオブジェクト単位で色付け（単一テキストは文字単位）
 
 ### 主な機能
@@ -33,6 +35,7 @@ ApplySwatchesToSelection.jsx
 - v1.1.0 (20250625) : スウォッチ未選択時の全プロセス対応
 - v1.2.0 (20250708) : CMYK/RGB切替対応
 - v1.3.0 (20260207) : 複数テキスト選択時はテキストオブジェクト単位で色付け（グループ内も対応）
+- v1.4.0 (20260305) : CMYKスウォッチ未選択時のカラー生成ロジックを変更（CM/CY/MYのみ・合計120%以内）
 
 ---
 
@@ -42,8 +45,10 @@ ApplySwatchesToSelection.jsx
 
 ### Overview
 
+- Updated: 20260305
 - A script to automatically apply swatches or predefined colors to selected objects or text.
 - Switches colors depending on document color mode (CMYK or RGB).
+- When no swatches are selected in CMYK documents, generates random 2-channel CM/CY/MY colors (K=0) within a 120% total limit
 - Colors multiple selected text objects per text object (single text is per character).
 
 ### Main Features
@@ -66,6 +71,7 @@ ApplySwatchesToSelection.jsx
 - v1.1.0 (20250625): Added process swatch fallback when no swatches selected
 - v1.2.0 (20250708): Added CMYK/RGB mode switch support
 - v1.3.0 (20260207): Color multiple selected text objects per text object (also supports text inside groups)
+- v1.4.0 (20260305): Changed CMYK fallback palette generation (CM/CY/MY only, total <= 120%)
 
 */
 
@@ -120,24 +126,8 @@ function main() {
         // 定義済みのカラーセット（CMYK / RGB）
         var predefinedColors = [];
         if (activeDoc.documentColorSpace === DocumentColorSpace.CMYK) {
-            var cmyk1 = new CMYKColor();
-            cmyk1.cyan = 9; cmyk1.magenta = 80; cmyk1.yellow = 95; cmyk1.black = 0;
-            predefinedColors.push(cmyk1);
-            var cmyk2 = new CMYKColor();
-            cmyk2.cyan = 7; cmyk2.magenta = 3; cmyk2.yellow = 86; cmyk2.black = 0;
-            predefinedColors.push(cmyk2);
-            var cmyk3 = new CMYKColor();
-            cmyk3.cyan = 76; cmyk3.magenta = 8; cmyk3.yellow = 100; cmyk3.black = 0;
-            predefinedColors.push(cmyk3);
-            var cmyk4 = new CMYKColor();
-            cmyk4.cyan = 72; cmyk4.magenta = 22; cmyk4.yellow = 6; cmyk4.black = 0;
-            predefinedColors.push(cmyk4);
-            var cmyk5 = new CMYKColor();
-            cmyk5.cyan = 38; cmyk5.magenta = 54; cmyk5.yellow = 79; cmyk5.black = 0;
-            predefinedColors.push(cmyk5);
-            var cmyk6 = new CMYKColor();
-            cmyk6.cyan = 6; cmyk6.magenta = 36; cmyk6.yellow = 84; cmyk6.black = 0;
-            predefinedColors.push(cmyk6);
+            // CMYK fallback: generate random 2-channel CM/CY/MY colors (K=0) within a total limit
+            predefinedColors = generateRandomCMYPalette(6, 120);
         } else {
             var rgb1 = new RGBColor();
             rgb1.red = 222; rgb1.green = 84; rgb1.blue = 25;
@@ -330,6 +320,46 @@ function shuffleArray(arr) {
         result[i] = result[j];
         result[j] = temp;
     }
+    return result;
+}
+
+// 乱数（整数）
+function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// CMYKドキュメント用：CM/CY/MY の2チャンネルのみ（K=0）で、合計が maxTotal を超えない範囲の色を生成
+function generateRandomCMYPalette(count, maxTotal) {
+    var result = [];
+    var pairs = ["CM", "CY", "MY"];
+
+    for (var i = 0; i < count; i++) {
+        var pair = pairs[i % pairs.length];
+        var c = 0, m = 0, y = 0;
+
+        // Generate two non-zero channels with a+b <= maxTotal
+        var guard = 0;
+        while (guard++ < 200) {
+            // Keep values in 1..100, but enforce total <= maxTotal
+            var a = randInt(1, Math.min(100, maxTotal - 1));
+            var bMax = Math.min(100, maxTotal - a);
+            if (bMax < 1) continue;
+            var b = randInt(1, bMax);
+
+            if (pair === "CM") { c = a; m = b; y = 0; }
+            else if (pair === "CY") { c = a; y = b; m = 0; }
+            else { m = a; y = b; c = 0; }
+            break;
+        }
+
+        var col = new CMYKColor();
+        col.cyan = c;
+        col.magenta = m;
+        col.yellow = y;
+        col.black = 0;
+        result.push(col);
+    }
+
     return result;
 }
 
