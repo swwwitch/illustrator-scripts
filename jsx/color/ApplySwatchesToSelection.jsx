@@ -1,6 +1,15 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+var SCRIPT_VERSION = "v1.0";
+
+// CMYK fallback generation: maximum total (C+M or C+Y or M+Y)
+var TMK_CMYK_FALLBACK_MAX_TOTAL = 200;
+
+
+// CMYK fallback generation: minimum distance (Manhattan) between generated colors to avoid similar colors
+var TMK_CMYK_FALLBACK_MIN_DISTANCE = 35;
+
 /*
 
 ### スクリプト名：
@@ -12,7 +21,7 @@ ApplySwatchesToSelection.jsx
 - 更新日: 20260305
 - 選択したオブジェクトまたはテキストに、スウォッチや定義済みカラーを自動適用するスクリプトです。
 - CMYK / RGB カラーモードに応じてカラーを使い分けます。
-- CMYKのスウォッチ未選択時は、CM/CY/MYの2色混合（K=0）をランダム生成（合計120%以内）
+- CMYKのスウォッチ未選択時は、CM/CY/MYの2色混合（K=0）をランダム生成（合計上限: TMK_CMYK_FALLBACK_MAX_TOTAL / 近い色の回避: TMK_CMYK_FALLBACK_MIN_DISTANCE。初期値200%）
 - 複数テキストオブジェクトはテキストオブジェクト単位で色付け（単一テキストは文字単位）
 
 ### 主な機能
@@ -36,6 +45,10 @@ ApplySwatchesToSelection.jsx
 - v1.2.0 (20250708) : CMYK/RGB切替対応
 - v1.3.0 (20260207) : 複数テキスト選択時はテキストオブジェクト単位で色付け（グループ内も対応）
 - v1.4.0 (20260305) : CMYKスウォッチ未選択時のカラー生成ロジックを変更（CM/CY/MYのみ・合計120%以内）
+- v1.4.1 (20260305) : スウォッチ未選択時（CMYK）の生成色数を「対象数」に合わせ、可能な限り重複しないように変更
+- v1.4.2 (20260305) : CMYKスウォッチ未選択時の合計上限（150%）を定数化（TMK_CMYK_FALLBACK_MAX_TOTAL）
+- v1.4.3 (20260305) : CMYKスウォッチ未選択時、近い色がかぶりにくいよう距離制約を追加（TMK_CMYK_FALLBACK_MIN_DISTANCE）
+- v1.4.4 (20260305) : CMYKスウォッチ未選択時の合計上限（TMK_CMYK_FALLBACK_MAX_TOTAL）の初期値を200%に変更
 
 ---
 
@@ -48,7 +61,7 @@ ApplySwatchesToSelection.jsx
 - Updated: 20260305
 - A script to automatically apply swatches or predefined colors to selected objects or text.
 - Switches colors depending on document color mode (CMYK or RGB).
-- When no swatches are selected in CMYK documents, generates random 2-channel CM/CY/MY colors (K=0) within a 120% total limit
+- When no swatches are selected in CMYK documents, generates random 2-channel CM/CY/MY colors (K=0) using TMK_CMYK_FALLBACK_MAX_TOTAL as the total limit and TMK_CMYK_FALLBACK_MIN_DISTANCE to avoid similar colors (default 200%)
 - Colors multiple selected text objects per text object (single text is per character).
 
 ### Main Features
@@ -72,6 +85,10 @@ ApplySwatchesToSelection.jsx
 - v1.2.0 (20250708): Added CMYK/RGB mode switch support
 - v1.3.0 (20260207): Color multiple selected text objects per text object (also supports text inside groups)
 - v1.4.0 (20260305): Changed CMYK fallback palette generation (CM/CY/MY only, total <= 120%)
+- v1.4.1 (20260305): In CMYK fallback (no swatches), generate as many colors as targets and avoid duplicates when possible
+- v1.4.2 (20260305): Made CMYK fallback total limit (150%) configurable via TMK_CMYK_FALLBACK_MAX_TOTAL
+- v1.4.3 (20260305): Added distance constraint to reduce similar colors in CMYK fallback (TMK_CMYK_FALLBACK_MIN_DISTANCE)
+- v1.4.4 (20260305): Set default CMYK fallback total limit (TMK_CMYK_FALLBACK_MAX_TOTAL) to 200%
 
 */
 
@@ -126,8 +143,8 @@ function main() {
         // 定義済みのカラーセット（CMYK / RGB）
         var predefinedColors = [];
         if (activeDoc.documentColorSpace === DocumentColorSpace.CMYK) {
-            // CMYK fallback: generate random 2-channel CM/CY/MY colors (K=0) within a total limit
-            predefinedColors = generateRandomCMYPalette(6, 120);
+            // CMYK fallback palette will be generated on-demand (depends on target count)
+            predefinedColors = [];
         } else {
             var rgb1 = new RGBColor();
             rgb1.red = 222; rgb1.green = 84; rgb1.blue = 25;
@@ -151,6 +168,11 @@ function main() {
 
         // スウォッチが未選択、または1色以下、または白のみの場合は定義済みカラーを使用
         if (!selectedSwatches || selectedSwatches.length <= 1 || allWhiteSwatches(selectedSwatches)) {
+            // If CMYK document, generate as many colors as targets (avoid duplicates when possible)
+            if (activeDoc.documentColorSpace === DocumentColorSpace.CMYK) {
+                var needCount = getNeededColorCount(selectedItems, selectedTextRange);
+                predefinedColors = generateRandomCMYPaletteUnique(needCount, TMK_CMYK_FALLBACK_MAX_TOTAL);
+            }
             selectedSwatches = [];
             for (var i = 0; i < predefinedColors.length; i++) {
                 var dummySwatch = {};
@@ -254,8 +276,24 @@ function getSingleSelectedTextRange(selection) {
     try {
         if (!selection || selection.length !== 1) return null;
         if (selection[0] && selection[0].typename === "TextRange") return selection[0];
-    } catch (e) {}
+    } catch (e) { }
     return null;
+}
+
+// 処理対象数（必要な色数）を算出
+function getNeededColorCount(selectedItems, selectedTextRange) {
+    try {
+        if (selectedTextRange) {
+            return Math.max(1, selectedTextRange.characters.length);
+        }
+        if (selectedItems && selectedItems.length === 1 && selectedItems[0].typename === "TextFrame") {
+            return Math.max(1, selectedItems[0].contents.length);
+        }
+        if (selectedItems && selectedItems.length > 0) {
+            return Math.max(1, selectedItems.length);
+        }
+    } catch (e) { }
+    return 1;
 }
 
 // 指定ドキュメントから使用可能なプロセススウォッチを取得
@@ -299,10 +337,10 @@ function sortByPosition(items) {
     }
     if (hMax - hMin > vMax - vMin) {
         // 横幅が広い場合は左から右へ
-        items.sort(function(a, b) { return compPosition(a.left, b.left, b.top, a.top); });
+        items.sort(function (a, b) { return compPosition(a.left, b.left, b.top, a.top); });
     } else {
         // 縦幅が広い場合は上から下へ
-        items.sort(function(a, b) { return compPosition(b.top, a.top, a.left, b.left); });
+        items.sort(function (a, b) { return compPosition(b.top, a.top, a.left, b.left); });
     }
 }
 
@@ -326,6 +364,22 @@ function shuffleArray(arr) {
 // 乱数（整数）
 function randInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+// CMYの距離（マンハッタン距離）
+function cmyDistance(c1, m1, y1, c2, m2, y2) {
+    return Math.abs(c1 - c2) + Math.abs(m1 - m2) + Math.abs(y1 - y2);
+}
+
+// 既存候補と十分離れているか
+function isFarEnoughCMY(c, m, y, existing, minDist) {
+    for (var i = 0; i < existing.length; i++) {
+        var e = existing[i];
+        if (cmyDistance(c, m, y, e.cyan, e.magenta, e.yellow) < minDist) {
+            return false;
+        }
+    }
+    return true;
 }
 
 // CMYKドキュメント用：CM/CY/MY の2チャンネルのみ（K=0）で、合計が maxTotal を超えない範囲の色を生成
@@ -358,6 +412,104 @@ function generateRandomCMYPalette(count, maxTotal) {
         col.yellow = y;
         col.black = 0;
         result.push(col);
+    }
+
+    return result;
+}
+
+// CMYKドキュメント用：CM/CY/MY の2チャンネルのみ（K=0）で、可能な限り重複しない色を生成
+// ※対象数が非常に多い場合、理論上の組み合わせ上限に達すると重複を許容する
+function generateRandomCMYPaletteUnique(count, maxTotal) {
+    var result = [];
+    var accepted = []; // 既に採用した色（近い色回避用）
+    var seen = {};     // 完全一致回避
+    var pairs = ["CM", "CY", "MY"];
+
+    var minDist = TMK_CMYK_FALLBACK_MIN_DISTANCE;
+    var maxTries = Math.max(1500, count * 80);
+    var tries = 0;
+
+    while (result.length < count && tries++ < maxTries) {
+        // 生成が詰まるときは距離制約を徐々に緩める
+        if (minDist > 0 && (tries % 500) === 0) {
+            minDist = Math.max(0, minDist - 5);
+        }
+
+        // ペア選択：パターン固定を避けるため、たまに並びをシャッフル
+        var pair = pairs[result.length % pairs.length];
+        if ((tries % 37) === 0) {
+            pairs = shuffleArray(pairs);
+            pair = pairs[result.length % pairs.length];
+        }
+
+        var c = 0, m = 0, y = 0;
+
+        // 2チャンネル非ゼロ、合計 <= maxTotal
+        var a = randInt(1, Math.min(100, maxTotal - 1));
+        var bMax = Math.min(100, maxTotal - a);
+        if (bMax < 1) continue;
+        var b = randInt(1, bMax);
+
+        if (pair === "CM") { c = a; m = b; y = 0; }
+        else if (pair === "CY") { c = a; y = b; m = 0; }
+        else { m = a; y = b; c = 0; }
+
+        var key = c + "," + m + "," + y;
+        if (seen[key]) continue;
+
+        // 近い色を回避
+        if (minDist > 0 && !isFarEnoughCMY(c, m, y, accepted, minDist)) {
+            continue;
+        }
+
+        seen[key] = true;
+
+        var col = new CMYKColor();
+        col.cyan = c;
+        col.magenta = m;
+        col.yellow = y;
+        col.black = 0;
+
+        result.push(col);
+        accepted.push(col);
+    }
+
+    // どうしても埋まらない場合：重複許容。ただし距離制約はベストエフォート
+    var guard = 0;
+    while (result.length < count) {
+        if (guard++ > 3000) {
+            minDist = 0; // 完走優先
+        }
+
+        var pair2 = pairs[result.length % pairs.length];
+        if ((guard % 37) === 0) {
+            pairs = shuffleArray(pairs);
+            pair2 = pairs[result.length % pairs.length];
+        }
+
+        var c2 = 0, m2 = 0, y2 = 0;
+
+        var a2 = randInt(1, Math.min(100, maxTotal - 1));
+        var bMax2 = Math.min(100, maxTotal - a2);
+        if (bMax2 < 1) continue;
+        var b2 = randInt(1, bMax2);
+
+        if (pair2 === "CM") { c2 = a2; m2 = b2; y2 = 0; }
+        else if (pair2 === "CY") { c2 = a2; y2 = b2; m2 = 0; }
+        else { m2 = a2; y2 = b2; c2 = 0; }
+
+        if (minDist > 0 && !isFarEnoughCMY(c2, m2, y2, accepted, minDist)) {
+            continue;
+        }
+
+        var col2 = new CMYKColor();
+        col2.cyan = c2;
+        col2.magenta = m2;
+        col2.yellow = y2;
+        col2.black = 0;
+
+        result.push(col2);
+        accepted.push(col2);
     }
 
     return result;

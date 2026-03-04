@@ -13,15 +13,15 @@ RandomizeObjects.jsx
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/RandomizeObjects.jsx
 
 ### 更新日：
-
+- 2026-03-05（v2.2：［重なりを避ける］の配置ロジックを汎用関数として抽出）
 - 2026-02-27（v2.1：完全シャッフル＝ランダム色生成（CMYKのKは0–30）／カラーは［ランダム］で実行）
 
 ### 概要：
-
 - 選択したオブジェクトをランダムに移動・変形・回転・不透明度を変更するスクリプト
 - UIから各種パラメータを指定し、即時プレビューで結果を確認可能
 - カラーの通常シャッフル／完全シャッフルに対応
 - [リセット]でダイアログ起動前の状態に復元
+- ［重なりを避ける］の配置ロジックを他スクリプトへ流用しやすい形で関数化
 
 ### 主な機能：
 
@@ -40,7 +40,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/Random
 4. OKで確定、キャンセルでダイアログ起動前にリセット
 */
 
-var SCRIPT_VERSION = "v2.1";
+var SCRIPT_VERSION = "v2.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -83,6 +83,92 @@ function updateLinkedInputAndPreview(input, linkInput, previewFunc) {
 /* ダイアログ設定を共通化 / Configure dialog position and opacity */
 function configureDialog(dlg, options) {
     if (options.opacity !== undefined) dlg.opacity = options.opacity;
+}
+
+/*
+  Avoid-overlap placement utility (reusable)
+  - Moves items around their original positions within a random range, retrying to avoid overlaps.
+  - Designed to be copy-paste friendly for other scripts.
+
+  Usage:
+    var res = TMK_placeItemsAvoidOverlap(originalStates, {
+      baseX: 50,
+      baseY: 50,
+      padding: 5,
+      maxScaleFactor: 20,
+      attemptsPerItem: 300
+    });
+    // res.success (boolean), res.scaleFactor (number)
+*/
+function TMK_placeItemsAvoidOverlap(states, opts) {
+    opts = opts || {};
+    var padding = (opts.padding !== undefined) ? opts.padding : 5;
+    var baseX = (opts.baseX !== undefined) ? opts.baseX : 50;
+    var baseY = (opts.baseY !== undefined) ? opts.baseY : 50;
+    var maxScaleFactor = (opts.maxScaleFactor !== undefined) ? opts.maxScaleFactor : 20;
+    var attemptsPerItem = (opts.attemptsPerItem !== undefined) ? opts.attemptsPerItem : 300;
+
+    if (!states || states.length === 0) {
+        return { success: false, scaleFactor: 1, reason: "no-states" };
+    }
+
+    // sanitize
+    baseX = parseFloat(baseX);
+    baseY = parseFloat(baseY);
+    if (isNaN(baseX) || baseX <= 0) baseX = 50;
+    if (isNaN(baseY) || baseY <= 0) baseY = 50;
+
+    var placedItems = [];
+    var success = false;
+    var scaleFactor = 1;
+
+    while (!success && scaleFactor <= maxScaleFactor) {
+        placedItems = [];
+        success = true;
+
+        for (var i = 0; i < states.length; i++) {
+            var st = states[i];
+            var attempts = 0;
+            var placed = false;
+
+            while (attempts < attemptsPerItem) {
+                var randX = (Math.random() * 2 - 1) * baseX * scaleFactor;
+                var randY = (Math.random() * 2 - 1) * baseY * scaleFactor;
+                var newX = st.position[0] + randX;
+                var newY = st.position[1] + randY;
+
+                st.item.position = [newX, newY];
+                var vb = st.item.visibleBounds;
+                var overlap = false;
+
+                for (var j = 0; j < placedItems.length; j++) {
+                    var vb2 = placedItems[j];
+                    if (!(vb[2] + padding < vb2[0] || vb[0] - padding > vb2[2] || vb[1] + padding < vb2[3] || vb[3] - padding > vb2[1])) {
+                        overlap = true;
+                        break;
+                    }
+                }
+
+                if (!overlap) {
+                    placedItems.push(vb);
+                    placed = true;
+                    break;
+                }
+                attempts++;
+            }
+
+            if (!placed) {
+                success = false;
+                break;
+            }
+        }
+
+        if (!success) {
+            scaleFactor += 1;
+        }
+    }
+
+    return { success: success, scaleFactor: scaleFactor, placedCount: placedItems.length };
 }
 
 function makeRectangleEdgeHorizontal(item) {
@@ -494,67 +580,27 @@ function main() {
 
         btnForceAvoid.onClick = function () {
             try {
-                var padding = 5;
-                var placedItems = [];
-
+                // Use current distance inputs as the base range (fallback to 50 if invalid)
                 var baseX = parseFloat(inputDistanceX.text || "50");
                 var baseY = parseFloat(inputDistanceY.text || "50");
-                if (isNaN(baseX) || baseX <= 0) baseX = 50;
-                if (isNaN(baseY) || baseY <= 0) baseY = 50;
 
-                var success = false;
-                var scaleFactor = 1;
+                var res = TMK_placeItemsAvoidOverlap(originalStates, {
+                    baseX: baseX,
+                    baseY: baseY,
+                    padding: 5,
+                    maxScaleFactor: 20,
+                    attemptsPerItem: 300
+                });
 
-                while (!success && scaleFactor <= 20) {
-                    placedItems = [];
-                    success = true;
+                // Reflect the scaleFactor back to UI (keeps existing behavior of "increasing distance")
+                if (!isNaN(baseX) && baseX > 0) inputDistanceX.text = String(Math.round(baseX * res.scaleFactor));
+                if (!isNaN(baseY) && baseY > 0) inputDistanceY.text = String(Math.round(baseY * res.scaleFactor));
 
-                    for (var i = 0; i < originalStates.length; i++) {
-                        var st = originalStates[i];
-                        var attempts = 0;
-                        var placed = false;
-
-                        while (attempts < 300) {
-                            var randX = (Math.random() * 2 - 1) * baseX * scaleFactor;
-                            var randY = (Math.random() * 2 - 1) * baseY * scaleFactor;
-                            var newX = st.position[0] + randX;
-                            var newY = st.position[1] + randY;
-
-                            st.item.position = [newX, newY];
-                            var vb = st.item.visibleBounds;
-                            var overlap = false;
-
-                            for (var j = 0; j < placedItems.length; j++) {
-                                var vb2 = placedItems[j];
-                                if (!(vb[2] + padding < vb2[0] || vb[0] - padding > vb2[2] || vb[1] + padding < vb2[3] || vb[3] - padding > vb2[1])) {
-                                    overlap = true;
-                                    break;
-                                }
-                            }
-
-                            if (!overlap) {
-                                placedItems.push(vb);
-                                placed = true;
-                                break;
-                            }
-                            attempts++;
-                        }
-
-                        if (!placed) {
-                            success = false;
-                            break;
-                        }
-                    }
-
-                    if (!success) {
-                        scaleFactor += 1;
-                        inputDistanceX.text = String(Math.round(baseX * scaleFactor));
-                        inputDistanceY.text = String(Math.round(baseY * scaleFactor));
-                    }
+                if (!res.success) {
+                    alert("十分な距離を確保できず、完全に非重複で配置できませんでした。");
+                } else {
+                    app.redraw();
                 }
-
-                if (!success) alert("十分な距離を確保できず、完全に非重複で配置できませんでした。");
-                else app.redraw();
             } catch (e) {
                 alert("強制処理中にエラーが発生しました: " + e.message);
             }
