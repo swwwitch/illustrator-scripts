@@ -7,13 +7,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 PathCleanupTool
 
 ### 更新日 / Updated:
-20260302
+20260304
 
 ### 概要 / Overview:
 選択したパス（グループ/複合パス内も含む）を対象に、
 - 直線上で冗長なアンカーポイント
 - 直線として扱えるベジェ区間上のハンドル
 を削除（最適化）します。ロック/非表示（親やレイヤー含む）はスキップします。
+許容誤差は「アンカー削除」と「ハンドル削除」で分離しています。
 
 ダイアログ表示時点の選択を固定し、予測（→表示）と実行結果が常に一致するように設計されています。
 
@@ -22,7 +23,7 @@ PathCleanupTool
 プレビューはOK／キャンセル時に自動的に削除されます。
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.1.7";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -36,8 +37,8 @@ var LABELS = {
         en: "Path Optimization"
     },
     panelProcess: {
-        ja: "削除",
-        en: "Remove"
+        ja: "削除対象",
+        en: "Removal Targets"
     },
     panelCurrentInfo: {
         ja: "現在の情報",
@@ -59,9 +60,17 @@ var LABELS = {
         ja: "直線上のアンカーポイント",
         en: "Collinear anchor points"
     },
+    cbRemoveSameAnchors: {
+        ja: "同じ座標のアンカーポイント",
+        en: "Duplicate anchor points"
+    },
     cbRemoveHandles: {
         ja: "パスと同じ角度のハンドル",
         en: "Handles on straight segments"
+    },
+    labelTolHandle: {
+        ja: "許容誤差",
+        en: "Tolerance"
     },
     btnOK: {
         ja: "OK",
@@ -80,6 +89,68 @@ var LABELS = {
         en: "Please select paths before running."
     }
 };
+    /**
+     * 同一座標のアンカーポイント（重複点）を削除（内部：targets 指定）
+     * - 連続して同じ座標になっているアンカーのみ対象（離れた位置の同座標は対象外）
+     * - オープンパスは端点を削除しない
+     * 戻り値：削除したアンカー数
+     */
+    function removeDuplicateAnchorsOnTargets(targets) {
+        if (!targets || !targets.length) return 0;
+
+        var removed = 0;
+
+        for (var s = 0; s < targets.length; s++) {
+            var item = targets[s];
+            if (!item || isSkippableItem(item)) continue;
+
+            try {
+                var pts = item.pathPoints;
+                var isClosed = item.closed;
+                var n = pts.length;
+                if (n < 2) continue;
+
+                // Walk backward so index stays valid after removals
+                // Open path: do not remove endpoints => i from n-2 down to 1
+                // Closed path: can remove any point, but keep at least 2 points
+                var start = isClosed ? (n - 1) : (n - 2);
+                var end = isClosed ? 0 : 1;
+
+                for (var i = start; i >= end; i--) {
+                    var curLen = pts.length;
+                    if (curLen < 2) break;
+
+                    if (i > curLen - 1) i = curLen - 1;
+                    if (!isClosed && (i <= 0 || i >= curLen - 1)) continue;
+
+                    var prevIndex = isClosed ? ((i - 1 + curLen) % curLen) : (i - 1);
+                    if (prevIndex < 0 || prevIndex > curLen - 1) continue;
+
+                    var pPrev = pts[prevIndex];
+                    var pCur = pts[i];
+
+                    if (samePoint(pPrev.anchor, pCur.anchor, TOL_SAMEPOINT)) {
+                        pCur.remove();
+                        removed++;
+                    }
+                }
+            } catch (_) {
+                // ignore
+            }
+        }
+
+        return removed;
+    }
+
+    /**
+     * 同一座標のアンカーポイント（重複点）を削除（UI/外部呼び出し用）
+     */
+    function removeDuplicateAnchors() {
+        var selection = getSelectionOrAlert();
+        if (!selection) return 0;
+        var targets = getTargetPathItemsFromSelection(selection);
+        return removeDuplicateAnchorsOnTargets(targets);
+    }
 
 function L(key) {
     var v = LABELS[key];
@@ -90,7 +161,13 @@ function L(key) {
 (function () {
     // --- shared settings / helpers ---
     /* 共通設定とヘルパー / Shared settings and helpers */
-    var TOLERANCE = 0.01;
+    // Tolerances (keep same default values to avoid behavior change)
+    // - Anchor collinearity tolerance: used for redundant anchor removal
+    // - Handle collinearity tolerance: used for straight-segment handle normalization
+    // - Same-point tolerance: used for handle/anchor coincidence checks and counts
+    var TOL_ANCHOR_COLLINEAR = 0.02;
+    var TOL_HANDLE_COLLINEAR = 0.01;
+    var TOL_SAMEPOINT = 0.02;
 
     function hasDocument() {
         return app.documents.length > 0;
@@ -111,13 +188,35 @@ function L(key) {
     }
 
     // 3点が一直線上にあるか判定（外積を使用）
-    function isCollinear(p1, p2, p3) {
+    function isCollinear(p1, p2, p3, tol) {
         var area = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0]);
-        return Math.abs(area) < TOLERANCE;
+        return Math.abs(area) < (tol || TOL_ANCHOR_COLLINEAR);
     }
 
-    function samePoint(a, b) {
-        return (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) < TOLERANCE;
+    function samePoint(a, b, tol) {
+        return (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) < (tol || TOL_SAMEPOINT);
+    }
+
+    // 点pが線分a-bの直線上にあるか（点から直線までの距離で判定）
+    // tol は「距離（pt）」として扱う。線分が極端に短い場合は samePoint にフォールバック。
+    function isPointOnLineByDistance(a, b, p, tol) {
+        tol = (tol != null) ? tol : TOL_HANDLE_COLLINEAR;
+
+        var abx = b[0] - a[0];
+        var aby = b[1] - a[1];
+        var len = Math.sqrt(abx * abx + aby * aby);
+
+        if (len < 1e-9) {
+            // a と b がほぼ同一点
+            return samePoint(a, p, Math.max(TOL_SAMEPOINT, tol));
+        }
+
+        // cross product magnitude / |AB| = perpendicular distance
+        var apx = p[0] - a[0];
+        var apy = p[1] - a[1];
+        var area2 = abx * apy - aby * apx; // signed
+        var dist = Math.abs(area2) / len;
+        return dist <= tol;
     }
 
     // --- dialog position persistence (session only) ---
@@ -265,8 +364,8 @@ function L(key) {
 
             for (var k = 0; k < n; k++) {
                 var pt = pts[k];
-                if (!samePoint(pt.leftDirection, pt.anchor)) info.handles++;
-                if (!samePoint(pt.rightDirection, pt.anchor)) info.handles++;
+                if (!samePoint(pt.leftDirection, pt.anchor, TOL_SAMEPOINT)) info.handles++;
+                if (!samePoint(pt.rightDirection, pt.anchor, TOL_SAMEPOINT)) info.handles++;
             }
         }
 
@@ -289,8 +388,8 @@ function L(key) {
 
             for (var k = 0; k < n; k++) {
                 var pt = pts[k];
-                if (!samePoint(pt.leftDirection, pt.anchor)) info.handles++;
-                if (!samePoint(pt.rightDirection, pt.anchor)) info.handles++;
+                if (!samePoint(pt.leftDirection, pt.anchor, TOL_SAMEPOINT)) info.handles++;
+                if (!samePoint(pt.rightDirection, pt.anchor, TOL_SAMEPOINT)) info.handles++;
             }
         }
 
@@ -309,7 +408,7 @@ function L(key) {
         function isStraightPoint(pt) {
             var d1 = Math.abs(pt.anchor[0] - pt.leftDirection[0]) + Math.abs(pt.anchor[1] - pt.leftDirection[1]);
             var d2 = Math.abs(pt.anchor[0] - pt.rightDirection[0]) + Math.abs(pt.anchor[1] - pt.rightDirection[1]);
-            return d1 < TOLERANCE && d2 < TOLERANCE;
+            return d1 < TOL_SAMEPOINT && d2 < TOL_SAMEPOINT;
         }
 
         for (var s = 0; s < targets.length; s++) {
@@ -340,7 +439,7 @@ function L(key) {
                     var pB = pts[i];
                     var pC = pts[nextIndex];
 
-                    if (isStraightPoint(pB) && isCollinear(pA.anchor, pB.anchor, pC.anchor)) {
+                    if (isStraightPoint(pB) && isCollinear(pA.anchor, pB.anchor, pC.anchor, TOL_ANCHOR_COLLINEAR)) {
                         pB.remove();
                         removedCount++;
                     }
@@ -373,9 +472,11 @@ function L(key) {
         var changed = 0;
 
         // セグメント(p0 -> p1)が「見た目として直線」か判定
-        // 両端アンカーを結ぶ線上に、p0右ハンドル / p1左ハンドルが乗っていれば直線とみなす
+        // 両端アンカーを結ぶ直線に、p0右ハンドル / p1左ハンドルが近ければ直線とみなす
         function isStraightSegment(p0, p1) {
-            return isCollinear(p0.anchor, p0.rightDirection, p1.anchor) && isCollinear(p0.anchor, p1.leftDirection, p1.anchor);
+            // 両端アンカーを結ぶ直線に、p0右ハンドル / p1左ハンドルが近ければ直線とみなす
+            return isPointOnLineByDistance(p0.anchor, p1.anchor, p0.rightDirection, TOL_HANDLE_COLLINEAR) &&
+                isPointOnLineByDistance(p0.anchor, p1.anchor, p1.leftDirection, TOL_HANDLE_COLLINEAR);
         }
 
         for (var s = 0; s < targets.length; s++) {
@@ -403,7 +504,7 @@ function L(key) {
 
                     // p0.rightDirection: skip if p0 is the first endpoint of an open path
                     if (!isFirstSeg) {
-                        if (!samePoint(p0.rightDirection, p0.anchor)) {
+                        if (!samePoint(p0.rightDirection, p0.anchor, TOL_SAMEPOINT)) {
                             p0.rightDirection = p0.anchor;
                             changed++;
                         }
@@ -411,7 +512,7 @@ function L(key) {
 
                     // p1.leftDirection: skip if p1 is the last endpoint of an open path
                     if (!isLastSeg) {
-                        if (!samePoint(p1.leftDirection, p1.anchor)) {
+                        if (!samePoint(p1.leftDirection, p1.anchor, TOL_SAMEPOINT)) {
                             p1.leftDirection = p1.anchor;
                             changed++;
                         }
@@ -437,7 +538,7 @@ function L(key) {
 
     // 予測情報を取得（処理前後のアンカー数とハンドル数）
     // ※実際に削除はせず、指定targetsをスキャンして「実行順（アンカー→ハンドル→アンカー）」をモデル上でシミュレートする
-    function getPredictedInfoCountsForTargets(targets, doAnchors, doHandles) {
+    function getPredictedInfoCountsForTargets(targets, doSameAnchors, doAnchors, doHandles) {
         var infoNow = getInfoCountsFromTargets(targets);
 
         // --- model helpers ---
@@ -464,11 +565,11 @@ function L(key) {
         function isStraightPointM(p) {
             var d1 = Math.abs(p.a[0] - p.l[0]) + Math.abs(p.a[1] - p.l[1]);
             var d2 = Math.abs(p.a[0] - p.r[0]) + Math.abs(p.a[1] - p.r[1]);
-            return d1 < TOLERANCE && d2 < TOLERANCE;
+            return d1 < TOL_SAMEPOINT && d2 < TOL_SAMEPOINT;
         }
 
         function samePointM(a, b) {
-            return (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) < TOLERANCE;
+            return (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) < TOL_SAMEPOINT;
         }
 
         // アンカー削除（モデル上）
@@ -498,7 +599,40 @@ function L(key) {
                 var pB = pts[i];
                 var pC = pts[nextIndex];
 
-                if (isStraightPointM(pB) && isCollinear(pA.a, pB.a, pC.a)) {
+                if (isStraightPointM(pB) && isCollinear(pA.a, pB.a, pC.a, TOL_ANCHOR_COLLINEAR)) {
+                    pts.splice(i, 1);
+                    removed++;
+                }
+            }
+
+            return removed;
+        }
+
+        // 重複アンカー削除（モデル上）
+        function removeDuplicateAnchorsModel(pathM) {
+            var removed = 0;
+            var pts = pathM.pts;
+            var isClosed = pathM.closed;
+            var n = pts.length;
+            if (n < 2) return 0;
+
+            var start = isClosed ? (n - 1) : (n - 2);
+            var end = isClosed ? 0 : 1;
+
+            for (var i = start; i >= end; i--) {
+                var curLen = pts.length;
+                if (curLen < 2) break;
+
+                if (i > curLen - 1) i = curLen - 1;
+                if (!isClosed && (i <= 0 || i >= curLen - 1)) continue;
+
+                var prevIndex = isClosed ? ((i - 1 + curLen) % curLen) : (i - 1);
+                if (prevIndex < 0 || prevIndex > curLen - 1) continue;
+
+                var pPrev = pts[prevIndex];
+                var pCur = pts[i];
+
+                if (samePointM(pPrev.a, pCur.a)) {
                     pts.splice(i, 1);
                     removed++;
                 }
@@ -515,7 +649,8 @@ function L(key) {
             if (len < 2) return 0;
 
             function isStraightSegmentM(p0, p1) {
-                return isCollinear(p0.a, p0.r, p1.a) && isCollinear(p0.a, p1.l, p1.a);
+                return isPointOnLineByDistance(p0.a, p1.a, p0.r, TOL_HANDLE_COLLINEAR) &&
+                    isPointOnLineByDistance(p0.a, p1.a, p1.l, TOL_HANDLE_COLLINEAR);
             }
 
             var isClosed = pathM.closed;
@@ -575,7 +710,10 @@ function L(key) {
 
             var m = clonePath(item);
 
-            // 実行順に合わせる（アンカー→ハンドル→アンカー）
+            // 実行順に合わせる（重複アンカー→冗長アンカー→ハンドル→冗長アンカー→重複アンカー）
+            if (doSameAnchors) {
+                removeDuplicateAnchorsModel(m);
+            }
             if (doAnchors) {
                 removeRedundantAnchorsModel(m);
             }
@@ -584,6 +722,9 @@ function L(key) {
             }
             if (doAnchors) {
                 removeRedundantAnchorsModel(m);
+            }
+            if (doSameAnchors) {
+                removeDuplicateAnchorsModel(m);
             }
 
             anchorsAfterTotal += m.pts.length;
@@ -600,7 +741,7 @@ function L(key) {
     }
 
     // 互換用：現在の選択を対象に予測 / Backward-compatible wrapper using current selection
-    function getPredictedInfoCounts(doAnchors, doHandles) {
+    function getPredictedInfoCounts(doSameAnchors, doAnchors, doHandles) {
         if (!hasDocument()) {
             return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
         }
@@ -610,7 +751,7 @@ function L(key) {
             return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
         }
         var targets = getTargetPathItemsFromSelection(sel);
-        return getPredictedInfoCountsForTargets(targets, doAnchors, doHandles);
+        return getPredictedInfoCountsForTargets(targets, doSameAnchors, doAnchors, doHandles);
     }
 
     // --- UI ---
@@ -652,19 +793,22 @@ function L(key) {
             return String(a) + " → " + String(b);
         }
 
-        function refreshInfoPreview(doAnchors, doHandles) {
-            var p = getPredictedInfoCountsForTargets(frozenTargets, doAnchors, doHandles);
+        function refreshInfoPreview(doSameAnchors, doAnchors, doHandles) {
+            var p = getPredictedInfoCountsForTargets(frozenTargets, doSameAnchors, doAnchors, doHandles);
             stPathCount.text = String(p.paths);
             stAnchorCount.text = fmtArrow(p.anchorsNow, p.anchorsAfter);
             stHandleCount.text = fmtArrow(p.handlesNow, p.handlesAfter);
         }
 
-        refreshInfoPreview(true, true);
+        refreshInfoPreview(false, true, true);
 
         var pnlProcess = dlg.add('panel', undefined, L('panelProcess'));
         pnlProcess.orientation = 'column';
         pnlProcess.alignChildren = ['left', 'top'];
         pnlProcess.margins = [15, 20, 15, 10];
+
+        var cbSameAnchors = pnlProcess.add('checkbox', undefined, L('cbRemoveSameAnchors'));
+        cbSameAnchors.value = false;
 
         var cbAnchors = pnlProcess.add('checkbox', undefined, L('cbRemoveAnchors'));
         cbAnchors.value = true;
@@ -672,16 +816,72 @@ function L(key) {
         var cbHandle = pnlProcess.add('checkbox', undefined, L('cbRemoveHandles'));
         cbHandle.value = true;
 
-        // チェックに応じて「→」の予測表示を更新
+        // Tolerance for straight-segment handle detection (0.01 - 3.00)
+        var grpTol = pnlProcess.add('group');
+        grpTol.orientation = 'row';
+        grpTol.alignChildren = ['left', 'center'];
+
+        var stTol = grpTol.add('statictext', undefined, L('labelTolHandle'));
+        stTol.characters = 6;
+
+        var etTol = grpTol.add('edittext', undefined, TOL_HANDLE_COLLINEAR.toFixed(2));
+        etTol.characters = 6;
+
+        var slTol = grpTol.add('slider', undefined, Math.round(TOL_HANDLE_COLLINEAR * 100), 1, 300);
+        slTol.preferredSize.width = 160;
+
+        function clampTolHandle(v) {
+            if (isNaN(v)) return TOL_HANDLE_COLLINEAR;
+            if (v < 0.01) v = 0.01;
+            if (v > 3) v = 3;
+            // keep 2 decimals
+            v = Math.round(v * 100) / 100;
+            return v;
+        }
+
+        function syncTolHandleFromValue(v) {
+            v = clampTolHandle(v);
+            TOL_HANDLE_COLLINEAR = v;
+            etTol.text = v.toFixed(2);
+            slTol.value = Math.round(v * 100);
+        }
+
+        function parseTolText(s) {
+            if (!s) return NaN;
+            // accept formats like "[0.01]", "0.01", and full-width brackets
+            s = String(s).replace(/\[/g, '').replace(/\]/g, '').replace(/［/g, '').replace(/］/g, '').replace(/\s/g, '');
+            return parseFloat(s);
+        }
+
+        slTol.onChanging = function () {
+            var v = slTol.value / 100;
+            syncTolHandleFromValue(v);
+            refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
+        };
+
+        etTol.onChange = function () {
+            var v = parseTolText(etTol.text);
+            syncTolHandleFromValue(v);
+            refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
+        };
+
+        // init
+        syncTolHandleFromValue(TOL_HANDLE_COLLINEAR);
+
+        cbSameAnchors.onClick = function () {
+            refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
+        };
         cbAnchors.onClick = function () {
-            refreshInfoPreview(cbAnchors.value, cbHandle.value);
+            refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
         };
         cbHandle.onClick = function () {
-            refreshInfoPreview(cbAnchors.value, cbHandle.value);
+            grpTol.enabled = cbHandle.value;
+            refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
         };
 
         // 初回反映
-        refreshInfoPreview(cbAnchors.value, cbHandle.value);
+        refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
+        grpTol.enabled = cbHandle.value;
 
         var btns = dlg.add('group');
         btns.orientation = 'row';
@@ -701,7 +901,7 @@ function L(key) {
         };
 
         var shown = dlg.show();
-        return { ok: (shown === 1), doRemoveAnchors: cbAnchors.value, doRemoveHandles: cbHandle.value };
+        return { ok: (shown === 1), doRemoveSameAnchors: cbSameAnchors.value, doRemoveAnchors: cbAnchors.value, doRemoveHandles: cbHandle.value };
     }
 
     // ダイアログ表示時点の選択を確定（予測と実行を同一対象に揃える）
@@ -716,10 +916,12 @@ function L(key) {
 
     var removedAnchors = 0;
     var removedHandles = 0;
+    var removedSameAnchors = 0;
 
-    // 実行順：アンカー → ハンドル → アンカー
-    // 先に冗長点を削除し、次に直線区間のハンドルを正規化。
-    // ハンドル正規化によって再び冗長点が生まれる可能性があるため、最後にもう一度アンカー削除を実行。
+    // 実行順：重複アンカー → 冗長アンカー → ハンドル → 冗長アンカー → 重複アンカー
+    if (ui.doRemoveSameAnchors) {
+        removedSameAnchors += removeDuplicateAnchorsOnTargets(targetsAtOk);
+    }
     if (ui.doRemoveAnchors) {
         removedAnchors += removeRedundantAnchorsOnTargets(targetsAtOk);
     }
@@ -729,8 +931,11 @@ function L(key) {
     if (ui.doRemoveAnchors) {
         removedAnchors += removeRedundantAnchorsOnTargets(targetsAtOk);
     }
+    if (ui.doRemoveSameAnchors) {
+        removedSameAnchors += removeDuplicateAnchorsOnTargets(targetsAtOk);
+    }
 
-    if (!ui.doRemoveAnchors && !ui.doRemoveHandles) {
+    if (!ui.doRemoveSameAnchors && !ui.doRemoveAnchors && !ui.doRemoveHandles) {
         return;
     }
 })();
