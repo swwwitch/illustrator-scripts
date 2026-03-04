@@ -8,11 +8,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     更新日：2026-03-04
 
     概要：
-    ポイント文字・図形・エリア内文字を対象に、エリア内文字の作成と調整を行うツール。
+    ポイント文字・パス上文字・図形・エリア内文字を対象に、エリア内文字の作成と調整を行うツール。
 
-    ・ポイント文字 → エリア内文字に変換（シンプル / ボタン風）
+    ・ポイント文字 / パス上文字 → エリア内文字に変換（シンプル / ボタン風）
     ・図形をエリア内文字に変換してダミーテキストを入力
-    ・ポイント文字＋図形からエリア内文字を生成
+    ・（テキスト＋図形）ポイント文字 / パス上文字＋図形からエリア内文字を生成
     ・エリア内文字のサイズ / 行揃え / フレームサイズ / インデント / 余白を調整
     ・テキストの配置（上 / 中央 / 下 / 均等）をダイナミックアクションで適用
 
@@ -45,7 +45,7 @@ function getTextFontSafe(preferNames) {
     return null;
 }
 
-var SCRIPT_VERSION = "v1.1.1";
+var SCRIPT_VERSION = "v1.1.3";
 
 // --- Localization / ローカライズ ---
 function getCurrentLang() {
@@ -115,9 +115,10 @@ var LABELS = {
     btnClose: { ja: "閉じる", en: "Close" },
 
     // Alerts
-    alertSelectText: { ja: "ポイント文字またはエリア内文字を選択してください。", en: "Please select point text or area text." },
+    alertSelectText: { ja: "ポイント文字・パス上文字・エリア内文字を選択してください。", en: "Please select point text, path text, or area text." },
     alertNoDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." }
 };
+
 
 function L(key) {
     try {
@@ -125,6 +126,150 @@ function L(key) {
         if (LABELS[key] && LABELS[key].en) return LABELS[key].en;
     } catch (e) { }
     return key;
+}
+
+
+// --- Path Text → Point Text (Dialog A preprocess) ---
+function detachPathTextToPointText(doc, pathTextFrames) {
+    function safe(fn) { try { return fn(); } catch (e) { return undefined; } }
+
+    var created = [];
+    if (!doc || !pathTextFrames || !pathTextFrames.length) return created;
+
+    // Clear selection so only newly created texts can be selected if needed
+    safe(function () { doc.selection = null; });
+
+    for (var j = pathTextFrames.length - 1; j >= 0; j--) {
+        var pathText = pathTextFrames[j];
+        if (!pathText || pathText.typename !== "TextFrame" || pathText.kind !== TextType.PATHTEXT) continue;
+
+        var originalPath = null;
+        safe(function () { originalPath = pathText.textPath; });
+        if (!originalPath) continue;
+
+        // 1) Snapshot per-character attributes
+        var charAttrs = [];
+        for (var c = 0; c < pathText.characters.length; c++) {
+            var ca = pathText.characters[c].characterAttributes;
+            charAttrs.push({
+                font: ca.textFont,
+                size: ca.size,
+                fillColor: ca.fillColor,
+                strokeColor: ca.strokeColor,
+                strokeWeight: ca.strokeWeight,
+                autoLeading: ca.autoLeading,
+                leading: ca.leading
+            });
+        }
+
+        var textContents = "";
+        safe(function () { textContents = pathText.contents; });
+
+        var justification = null;
+        safe(function () {
+            if (pathText.paragraphs && pathText.paragraphs.length > 0) {
+                justification = pathText.paragraphs[0].paragraphAttributes.justification;
+            }
+        });
+
+        // 2) Create new Point Text at path start anchor
+        var newText = doc.textFrames.add();
+        var anchorPoint = null;
+        safe(function () {
+            if (originalPath.pathPoints && originalPath.pathPoints.length > 0) {
+                anchorPoint = originalPath.pathPoints[0].anchor;
+            }
+        });
+        if (anchorPoint) {
+            newText.position = [anchorPoint[0], anchorPoint[1]];
+        }
+
+        newText.contents = textContents;
+
+        if (justification !== null && newText.paragraphs && newText.paragraphs.length > 0) {
+            safe(function () { newText.paragraphs[0].paragraphAttributes.justification = justification; });
+        }
+
+        // Clear default stroke first; restore per-character later
+        safe(function () {
+            var nc = new NoColor();
+            newText.textRange.characterAttributes.strokeColor = nc;
+            newText.textRange.characterAttributes.strokeWeight = 0;
+        });
+
+        // Restore per-character attributes
+        var n = Math.min(newText.characters.length, charAttrs.length);
+        for (var k = 0; k < n; k++) {
+            var targetCa = newText.characters[k].characterAttributes;
+            var srcCa = charAttrs[k];
+
+            safe(function () { targetCa.textFont = srcCa.font; });
+            safe(function () { targetCa.size = srcCa.size; });
+            safe(function () { targetCa.fillColor = srcCa.fillColor; });
+            safe(function () {
+                var sc = srcCa.strokeColor;
+                targetCa.strokeColor = sc;
+                targetCa.strokeWeight = (sc && sc.typename === "NoColor") ? 0 : srcCa.strokeWeight;
+            });
+            // safe(function () { targetCa.tracking = srcCa.tracking; }); // tracking not restored
+            safe(function () { targetCa.baselineShift = 0; });
+            safe(function () { targetCa.horizontalScale = 100; });
+            safe(function () { targetCa.verticalScale = 100; });
+            safe(function () { targetCa.autoLeading = srcCa.autoLeading; });
+            if (!srcCa.autoLeading) safe(function () { targetCa.leading = srcCa.leading; });
+        }
+
+        // 3) Remove original Path Text (its path will be removed with it)
+        safe(function () { pathText.remove(); });
+
+        // 4) Select and return new text
+        safe(function () { newText.selected = true; });
+        created.push(newText);
+    }
+
+    return created;
+}
+
+function preprocessSelectionForDialogA(doc, sel) {
+    // Convert selected Path Text items to Point Text so Dialog A can treat them like Point Type.
+    if (!doc || !sel || !sel.length) return sel;
+
+    var pathTexts = [];
+    for (var i = 0; i < sel.length; i++) {
+        var it = sel[i];
+        try {
+            if (it && it.typename === "TextFrame" && it.kind === TextType.PATHTEXT) {
+                pathTexts.push(it);
+            }
+        } catch (e0) {
+            // invalid object (e.g., already removed) — skip
+        }
+    }
+    if (!pathTexts.length) return sel;
+
+    var newTexts = detachPathTextToPointText(doc, pathTexts);
+    if (!newTexts.length) return sel;
+
+    // Build a new selection array: replace pathTexts with new point texts, keep other items.
+    var out = [];
+    for (var j = 0; j < sel.length; j++) {
+        var it2 = sel[j];
+        try {
+            if (it2 && it2.typename === "TextFrame" && it2.kind === TextType.PATHTEXT) {
+                // skip old
+            } else if (it2) {
+                out.push(it2);
+            }
+        } catch (e1) {
+            // invalid object — skip
+        }
+    }
+    for (var k = 0; k < newTexts.length; k++) out.push(newTexts[k]);
+
+    try { doc.selection = out; } catch (e) { }
+    try { app.redraw(); } catch (e2) { }
+
+    return out;
 }
 
 
@@ -477,6 +622,7 @@ function restoreDlgPosition(dlg) {
 // ダイアログA：ポイント文字 → エリア内文字 変換
 // ============================================================
 function showDialogA(doc, sel) {
+    sel = preprocessSelectionForDialogA(doc, sel);
     var dlgA = new Window("dialog", "エリア内文字に変換");
     dlgA.alignChildren = "fill";
     dlgA.margins = 20;
@@ -505,7 +651,7 @@ function showDialogA(doc, sel) {
     // 選択種別フラグ
     var hasPointText = false, hasPathItem = false;
     for (var ti = 0; ti < sel.length; ti++) {
-        if (sel[ti].typename === "TextFrame" && sel[ti].kind === TextType.POINTTEXT) hasPointText = true;
+        if (sel[ti].typename === "TextFrame" && (sel[ti].kind === TextType.POINTTEXT || sel[ti].kind === TextType.PATHTEXT)) hasPointText = true;
         if (sel[ti].typename === "PathItem" || sel[ti].typename === "CompoundPathItem") hasPathItem = true;
     }
 
@@ -1331,7 +1477,7 @@ if (app.documents.length > 0) {
         var _hasPoint = false, _hasArea = false, _hasPath = false;
         for (var _ei = 0; _ei < sel.length; _ei++) {
             if (sel[_ei].typename === "TextFrame") {
-                if (sel[_ei].kind === TextType.POINTTEXT) _hasPoint = true;
+                if (sel[_ei].kind === TextType.POINTTEXT || sel[_ei].kind === TextType.PATHTEXT) _hasPoint = true;
                 if (sel[_ei].kind === TextType.AREATEXT) _hasArea = true;
             }
             if (sel[_ei].typename === "PathItem" || sel[_ei].typename === "CompoundPathItem") {
