@@ -27,7 +27,7 @@ OK確定後にスウォッチグループを作成します（キャンセル時
 **********************************************************/
 
 
-var SCRIPT_VERSION = "v1.2.1";
+var SCRIPT_VERSION = "v1.3";
 
 var __DIALOG_BOUNDS_OUTPUT__ = null; // session-only dialog position memory
 
@@ -186,7 +186,6 @@ function showOutputOptionsDialog(onPreviewChange) {
 
     var rbAllInfo = infoModeRow.add('radiobutton', undefined, L('optInfoAll'));
     var rb5Only = infoModeRow.add('radiobutton', undefined, L('optInfo5Only'));
-    rbAllInfo.value = true;
 
     // Two-column layout
     var cols = dlg.add('group');
@@ -227,33 +226,21 @@ function showOutputOptionsDialog(onPreviewChange) {
     var cbPreview = previewRow.add('checkbox', undefined, L('optPreview'));
     cbPreview.value = true;
 
-    // Defaults (depend on document color space)
-    var isCMYKDoc = false;
-    try {
-        isCMYKDoc = (doc && doc.documentColorSpace === DocumentColorSpace.CMYK);
-    } catch (eCS) { }
+    // Defaults: all ON
+    rbAllInfo.value = true;
+    rb5Only.value = false;
 
-    // Base defaults
-    cb16.value = false;
-    cb11.value = false;
-    cb8.value = false;
+    cb16.value = true;
+    cb11.value = true;
+    cb8.value = true;
     cb5.value = true;
-    cb5a.value = false;
-    cbHEX.value = true;   // treat as RGB info
-    cbCMYK.value = false;
+    cb5a.value = true;
+    cbHEX.value = true;
+    cbCMYK.value = true;
+    cbPreview.value = true;
 
-    // Prefer "5色のみ" in both cases
-    rb5Only.value = true;
-
-    if (isCMYKDoc) {
-        // CMYK document: 5色（CMYK補正） + RGB(=HEX)
-        cb5a.value = true;
-        cbCMYK.value = false;
-    } else {
-        // RGB document: 5色 + HEX
-        cb5a.value = false;
-        cbCMYK.value = false;
-    }
+    // Apply dependent dimming rules without triggering preview twice
+    updateInfoDims(false);
 
     function getCurrentOptions() {
         return {
@@ -287,12 +274,10 @@ function showOutputOptionsDialog(onPreviewChange) {
 
     function updateInfoMode() {
         if (rb5Only.value) {
+            // 5色のみ → 16/11/8 をOFFにするだけ（ディムしない）
             cb16.value = false;
             cb11.value = false;
             cb8.value = false;
-            cb16.enabled = false;
-            cb11.enabled = false;
-            cb8.enabled = false;
         } else {
             // "All info" -> turn everything ON
             cb16.enabled = true;
@@ -308,9 +293,9 @@ function showOutputOptionsDialog(onPreviewChange) {
             cbCMYK.value = true;
             cbPreview.value = true;
 
-            // Re-apply dependent dimming rules (but avoid double notify)
             updateInfoDims(false);
         }
+
         notifyPreviewChange();
     }
 
@@ -322,7 +307,14 @@ function showOutputOptionsDialog(onPreviewChange) {
     cb11.onClick = notifyPreviewChange;
     cb8.onClick = notifyPreviewChange;
 
-    cb5.onClick = function () { updateInfoDims(); };
+    cb5.onClick = function () {
+        updateInfoDims(false);
+        // If 5色 is turned ON and CMYK option is available, auto-enable CMYK
+        if (cb5.value && cbCMYK.enabled && !cbCMYK.value) {
+            cbCMYK.value = true;
+        }
+        notifyPreviewChange();
+    };
     cb5a.onClick = function () { updateInfoDims(); };
 
     cbHEX.onClick = notifyPreviewChange;
@@ -553,12 +545,13 @@ if (app.documents.length === 0) {
                             });
                             try { if (progress && progress.win) progress.win.show(); } catch (eShow) { }
 
-                            // Remove preview output
-                            try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev) { }
-
                             if (!outOpt) {
+                                // Canceled: remove preview and stop
+                                try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev) { }
                                 canceled = true;
                             } else {
+                                // OK: keep preview visible until final output is ready
+
                                 // Now create swatch group and register colors
                                 var groupName;
                                 if (job.originalItem.typename === "PlacedItem" && job.originalItem.file) {
@@ -580,6 +573,8 @@ if (app.documents.length === 0) {
                                         drawSwatchSquares(doc, job.originalItem, swatchGroup, outOpt);
                                     }
                                 } catch (eFinal) { }
+                                // Remove preview after final output is drawn
+                                try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev2) { }
                             }
                         }
                     } else {
