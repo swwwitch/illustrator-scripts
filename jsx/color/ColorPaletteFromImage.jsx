@@ -13,7 +13,8 @@ DESCRIPTION
 - ベクター: 選択オブジェクトから直接カラーを抽出（ラスタライズ不要）
 - 16色／11色／8色／5色のパレットを、元画像の下に正方形で出力
   - 16色は画像幅にフィット、他の行も左右端を画像に揃えて出力
-- 16色以上の場合、カスケード式に色を絞り込む（N→16→11→8→5）
+- 各行（16/11/8/5色）ごとに全色から面積重み付き最大距離法で代表色を選択
+  - 面積が大きい色ほど選ばれやすい（pow 0.75で重み付け）
 - 色の並びは最近傍法でグラデーション風にソート
 - 5色はHEX、5色（CMYK補正）はCMYK表示（任意）
   - CMYK補正は各C/M/Y/Kを+5%し、10刻みで丸め
@@ -28,7 +29,7 @@ OK確定後にスウォッチグループを作成します（キャンセル時
 **********************************************************/
 
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 var __DIALOG_BOUNDS_OUTPUT__ = null; // session-only dialog position memory
 
@@ -500,6 +501,7 @@ if (app.documents.length === 0) {
                     } else {
                         var grp = traceAndExpand(p);
                         colors = collectFillColors(grp, []);
+                        colors = deduplicateColors(colors);
                     }
 
                     // 2. On first extraction, show dialog, draw preview from colors (not swatchGroup)
@@ -563,9 +565,9 @@ if (app.documents.length === 0) {
                                 } catch (eFg) { }
                                 try {
                                     if (finalGroup) {
-                                        drawSwatchSquares(doc, job.originalItem, swatchGroup, outOpt, finalGroup);
+                                        drawSwatchSquares(doc, job.originalItem, colors, outOpt, finalGroup);
                                     } else {
-                                        drawSwatchSquares(doc, job.originalItem, swatchGroup, outOpt);
+                                        drawSwatchSquares(doc, job.originalItem, colors, outOpt);
                                     }
                                 } catch (eFinal) { }
                                 // Remove preview after final output is drawn
@@ -589,9 +591,9 @@ if (app.documents.length === 0) {
                             } catch (eFg2) { }
                             try {
                                 if (finalGroup2) {
-                                    drawSwatchSquares(doc, job.originalItem, swatchGroup, outOpt, finalGroup2);
+                                    drawSwatchSquares(doc, job.originalItem, colors, outOpt, finalGroup2);
                                 } else {
-                                    drawSwatchSquares(doc, job.originalItem, swatchGroup, outOpt);
+                                    drawSwatchSquares(doc, job.originalItem, colors, outOpt);
                                 }
                             } catch (eFinal2) { }
                         }
@@ -632,13 +634,21 @@ function addColorsToSwatchGroup(doc, swatchGroup, item) {
     }
 }
 
-// Helper: Collect fill colors (Color objects) from expanded result into array
+// Helper: Collect fill colors with area from expanded result into array
+// Returns [{color: Color, area: Number}, ...]
 function collectFillColors(item, out) {
     if (!out) out = [];
     if (!item) return out;
     if (item.typename === "PathItem") {
         if (item.filled && item.fillColor) {
-            out.push(item.fillColor);
+            var c = item.fillColor;
+            if (c.typename !== "NoColor" && c.typename !== "PatternColor" &&
+                c.typename !== "GradientColor" && c.typename !== "SpotColor") {
+                var a = 1;
+                try { a = Math.abs(item.area); } catch (e) { }
+                if (a < 1) a = 1;
+                out.push({ color: c, area: a });
+            }
         }
         return out;
     }
@@ -677,27 +687,29 @@ function addSwatchToGroup(doc, swatchGroup, color) {
 }
 
 // Helper: Create swatch group from colors array
+// colors: [{color, area}, ...] or [Color, ...]
 function createSwatchGroupFromColors(doc, groupName, colors) {
     var swatchGroup = doc.swatchGroups.add();
     swatchGroup.name = groupName;
     for (var i = 0; i < colors.length; i++) {
-        addSwatchToGroup(doc, swatchGroup, colors[i]);
+        var c = colors[i].color ? colors[i].color : colors[i];
+        addSwatchToGroup(doc, swatchGroup, c);
     }
     return swatchGroup;
 }
 
 /* 元画像の下にカラーパレットを描画 / Draw color palette squares below original image */
-// swatchSource: SwatchGroup or Array of Color
+// swatchSource: SwatchGroup or Array of {color, area}
 function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGroup) {
     var swatches;
-    // Accept SwatchGroup or Array of Color
+    // Accept SwatchGroup or Array of {color, area}
     if (swatchSource && typeof swatchSource.getAllSwatches === "function") {
         swatches = swatchSource.getAllSwatches();
     } else if (swatchSource && swatchSource.length !== undefined) {
-        // treat as array of Color
+        // treat as array of {color, area}
         swatches = [];
         for (var i = 0; i < swatchSource.length; i++) {
-            swatches.push({ color: swatchSource[i] });
+            swatches.push({ color: swatchSource[i].color, area: swatchSource[i].area || 1 });
         }
     } else {
         swatches = [];
@@ -710,7 +722,7 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
     var remaining = [];
     for (var m = 0; m < swatches.length; m++) {
         var rgb = colorToRGB(swatches[m].color);
-        remaining.push({ swatch: swatches[m], r: rgb[0], g: rgb[1], b: rgb[2] });
+        remaining.push({ swatch: swatches[m], r: rgb[0], g: rgb[1], b: rgb[2], area: swatches[m].area || 1 });
     }
 
     var colorList = [];
@@ -895,21 +907,13 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
         } catch (e) { }
     }
 
-    /* カスケード式に色を絞り込む / Cascading color reduction: N→16→11→8→5 */
-    // 16色以上ある場合、まず16色に絞り、以降はその結果から段階的に絞る
-    var cascade16 = (colorList.length > 16) ? selectByMaxDistance(colorList, 16) : colorList.slice();
-    var cascade11 = selectByMaxDistance(cascade16, Math.min(11, cascade16.length));
-    var cascade8 = selectByMaxDistance(cascade11, Math.min(8, cascade11.length));
-    var cascade5 = selectByMaxDistance(cascade8, Math.min(5, cascade8.length));
-    var cascadeMap = { 11: cascade11, 8: cascade8, 5: cascade5 };
-
     /* 16色の正方形を作成・グループ化 / Create and group 16-color squares */
-    var sorted16 = sortByNearest(cascade16);
     if (outOpt.out16) {
+        var sel16 = selectByMaxDistance(colorList, 16);
+        var sorted16 = sortByNearest(sel16);
         var group16 = container.groupItems.add();
         group16.name = L('group16Name');
-        var actual16 = Math.min(numSquares, sorted16.length);
-        for (var n = 0; n < actual16; n++) {
+        for (var n = 0; n < numSquares; n++) {
             var rect = group16.pathItems.rectangle(
                 startY,
                 imgLeft + n * (squareSize + gap),
@@ -917,9 +921,12 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
                 squareSize
             );
             rect.stroked = false;
-            rect.filled = true;
-            rect.fillColor = sorted16[n].swatch.color;
-            // No label for 16-color row
+            if (sorted16.length > 0) {
+                rect.filled = true;
+                rect.fillColor = sorted16[n % sorted16.length].swatch.color;
+            } else {
+                rect.filled = false;
+            }
         }
     }
 
@@ -949,8 +956,8 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
         // Align each row to the image edges.
         var rowLeft = imgLeft;
 
-        /* カスケード済みの色を使用 / Use cascaded colors */
-        var selected = cascadeMap[num] || selectByMaxDistance(colorList, num);
+        /* 全色から最大距離法で代表色を選択 / Select representative colors from full set */
+        var selected = selectByMaxDistance(colorList, num);
 
         /* 選択した色を最近傍法で並べ替え / Sort selected colors by nearest neighbor */
         var sorted = sortByNearest(selected);
@@ -1046,13 +1053,28 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
     }
 }
 
-/* 最大距離法でN色を選択 / Select N colors by max-distance method */
+/* 最大距離法でN色を選択（面積で重み付け） / Select N colors by max-distance method (area-weighted) */
+// colorList entries: {swatch, r, g, b, area}
+// score = minDist × sqrt(area / avgArea) — 面積が大きい色は選ばれやすく、小さい色は選ばれにくい
 function selectByMaxDistance(colorList, num) {
     if (colorList.length <= num) return colorList.slice();
 
     var selected = [];
     var used = [];
     for (var i = 0; i < colorList.length; i++) used.push(false);
+
+    /* 面積の重みを事前計算: pow(area / avgArea, 0.75)
+       面積が平均の4倍 → 重み約2.83倍、1/4 → 重み約0.35倍
+       sqrt(0.5乗)より強く面積を反映する */
+    var totalArea = 0;
+    for (var i = 0; i < colorList.length; i++) {
+        totalArea += (colorList[i].area || 1);
+    }
+    var avgArea = totalArea / colorList.length;
+    var areaWeights = [];
+    for (var i = 0; i < colorList.length; i++) {
+        areaWeights.push(Math.pow((colorList[i].area || 1) / avgArea, 0.75));
+    }
 
     /* 最初の色: 最も暗い色 / First color: darkest */
     var firstIdx = 0;
@@ -1064,10 +1086,10 @@ function selectByMaxDistance(colorList, num) {
     selected.push(colorList[firstIdx]);
     used[firstIdx] = true;
 
-    /* 既に選ばれた色群から最も遠い色を順に選択 / Select farthest color from already selected */
+    /* 既に選ばれた色群から最も遠い色を順に選択（面積重み付き） / Select farthest color with area weight */
     while (selected.length < num) {
         var bestIdx = -1;
-        var bestDist = -1;
+        var bestScore = -1;
 
         for (var i = 0; i < colorList.length; i++) {
             if (used[i]) continue;
@@ -1082,9 +1104,10 @@ function selectByMaxDistance(colorList, num) {
                 if (dist < minDist) minDist = dist;
             }
 
-            /* 最小距離が最大のものを選択 / Pick the one with largest min distance */
-            if (minDist > bestDist) {
-                bestDist = minDist;
+            /* 距離 × 面積重み = スコア（大きいほど優先） */
+            var score = minDist * areaWeights[i];
+            if (score > bestScore) {
+                bestScore = score;
                 bestIdx = i;
             }
         }
@@ -1129,21 +1152,27 @@ function sortByNearest(colors) {
     return sorted;
 }
 
-/* 近似色を統合して重複を除去 / Deduplicate near-identical colors */
-function deduplicateColors(colors, threshold) {
-    if (!threshold) threshold = 900; // RGB距離の二乗（≈30*30）
-    var unique = [];
+/* カラーの一致判定用キー / Color identity key for deduplication */
+function colorKey(color) {
+    var rgb = colorToRGB(color);
+    return Math.round(rgb[0]) + "," + Math.round(rgb[1]) + "," + Math.round(rgb[2]);
+}
+
+/* 重複除去（面積を合算） / Deduplicate colors (summing areas) */
+// Input/Output: [{color, area}, ...]
+function deduplicateColors(colors) {
+    var seen = {};
+    var result = [];
     for (var i = 0; i < colors.length; i++) {
-        var rgb = colorToRGB(colors[i]);
-        var isDup = false;
-        for (var j = 0; j < unique.length; j++) {
-            var rgb2 = colorToRGB(unique[j]);
-            var dr = rgb[0] - rgb2[0], dg = rgb[1] - rgb2[1], db = rgb[2] - rgb2[2];
-            if (dr * dr + dg * dg + db * db < threshold) { isDup = true; break; }
+        var key = colorKey(colors[i].color);
+        if (seen[key] === undefined) {
+            seen[key] = result.length;
+            result.push({ color: colors[i].color, area: colors[i].area || 1 });
+        } else {
+            result[seen[key]].area += (colors[i].area || 1);
         }
-        if (!isDup) unique.push(colors[i]);
     }
-    return unique;
+    return result;
 }
 
 /* カラーをRGB値に変換 / Convert color to RGB values */
