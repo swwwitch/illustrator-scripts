@@ -16,22 +16,31 @@ DESCRIPTION
 - 各行（16/11/8/5色）ごとに全色から面積重み付き最大距離法で代表色を選択
   - 面積が大きい色ほど選ばれやすい（pow 0.75で重み付け）
 - 色の並びは最近傍法でグラデーション風にソート
-- 5色はHEX、5色（CMYK補正）はCMYK表示（任意）
-  - CMYK補正は各C/M/Y/Kを+5%し、10刻みで丸め
+  - 5色はHEX、5色（CMYK補正）はCMYK表示（任意）
+  - CMYK補正は Math.round(v / 5) * 5 で5の倍数に丸め
 
 初回に色が取得できたタイミングでダイアログを表示し、
 出力する行（16/11/8/5/5補正）と、カラー情報（HEX/CMYK）を選択できます。
 ダイアログ表示中はプレビューが更新されます。
 OK確定後にスウォッチグループを作成します（キャンセル時は作成しません）。
 
-更新日: 2026-03-05
+更新日: 2026-03-06
 
 **********************************************************/
 
 
-var SCRIPT_VERSION = "v1.5.1";
+var SCRIPT_VERSION = "v1.5.4";
 
 var __DIALOG_BOUNDS_OUTPUT__ = null; // session-only dialog position memory
+
+/* ほぼ白の除外しきい値 / Near-white exclusion thresholds */
+var NEAR_WHITE_CMYK_TOTAL_MAX = 20;   // CMYK合成値（C+M+Y+K）がこの値以下で「ほぼ白」
+var NEAR_WHITE_RGB_MIN = 235;         // RGBの各チャンネルがこの値以上で「ほぼ白」
+
+/* ほぼ黒の除外しきい値 / Near-black exclusion thresholds */
+var NEAR_BLACK_CMYK_TOTAL_MIN = 280;  // CMYK合成値（C+M+Y+K）がこの値以上で「ほぼ黒」
+var NEAR_BLACK_K_MIN = 85;            // K単独がこの値(%)以上で「ほぼ黒」
+var NEAR_BLACK_RGB_MAX = 40;          // RGBの各チャンネルがこの値以下で「ほぼ黒」
 
 /* ロケール判定 / Detect locale */
 function getCurrentLang() {
@@ -122,9 +131,9 @@ var LABELS = {
         ja: "CMYK",
         en: "CMYK"
     },
-    optPreview: {
-        ja: "プレビュー",
-        en: "Preview"
+    helpTipCMYKDocOnly: {
+        ja: "CMYKラベルはCMYKドキュメントでのみ利用できます。",
+        en: "CMYK labels are available only in a CMYK document."
     },
     optInfoAll: {
         ja: "すべての情報",
@@ -149,7 +158,23 @@ var LABELS = {
     msgNoRow: {
         ja: "出力する行が選ばれていません。",
         en: "No rows selected to output."
-    }
+    },
+    panelSelectionMode: {
+        ja: "選出方法",
+        en: "Selection"
+    },
+    modeIndependent: {
+        ja: "独立選出",
+        en: "Independent"
+    },
+    modeCascade: {
+        ja: "段階的減色",
+        en: "Cascading"
+    },
+    fitView: {
+        ja: "フィット",
+        en: "Fit"
+    },
 };
 
 /* ラベル取得関数 / Get localized label */
@@ -165,7 +190,7 @@ function LF(key, a, b) {
 }
 
 // --- Output Options Dialog ---
-function showOutputOptionsDialog(onPreviewChange) {
+function showOutputOptionsDialog(onPreviewChange, onFitView) {
     var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
     dlg.alignChildren = 'fill';
     dlg.margins = 15;
@@ -222,6 +247,16 @@ function showOutputOptionsDialog(onPreviewChange) {
     var cbHEX = pnlInfo.add('checkbox', undefined, L('optHEX'));
     var cbCMYK = pnlInfo.add('checkbox', undefined, L('optCMYK'));
 
+    var pnlMode = colR.add('panel', undefined, L('panelSelectionMode'));
+    pnlMode.alignment = 'fill';
+    pnlMode.alignChildren = 'left';
+    pnlMode.margins = [15, 20, 15, 10];
+
+    var rbIndependent = pnlMode.add('radiobutton', undefined, L('modeIndependent'));
+    var rbCascade = pnlMode.add('radiobutton', undefined, L('modeCascade'));
+    rbIndependent.value = false;
+    rbCascade.value = true;
+
     // CMYK label availability: only meaningful/expected in a CMYK document
     var __isDocCMYK = false;
     try {
@@ -230,15 +265,9 @@ function showOutputOptionsDialog(onPreviewChange) {
 
     try {
         if (!__isDocCMYK) {
-            cbCMYK.helpTip = "CMYK labels are available only in a CMYK document.";
+            cbCMYK.helpTip = L('helpTipCMYKDocOnly');
         }
     } catch (eTip) { }
-
-    // Preview (UI)
-    var previewRow = dlg.add('group');
-    previewRow.alignment = 'center';
-    var cbPreview = previewRow.add('checkbox', undefined, L('optPreview'));
-    cbPreview.value = true;
 
     // Defaults: all ON
     rbAllInfo.value = true;
@@ -251,7 +280,6 @@ function showOutputOptionsDialog(onPreviewChange) {
     cb5a.value = true;
     cbHEX.value = true;
     cbCMYK.value = true;
-    cbPreview.value = true;
 
     // Apply dependent dimming rules without triggering preview twice
     updateInfoDims(false);
@@ -264,9 +292,10 @@ function showOutputOptionsDialog(onPreviewChange) {
             out5: cb5.value,
             out5Adj: cb5a.value,
             infoMode: rb5Only.value ? '5only' : 'all',
-            preview: cbPreview.value,
+            preview: true,
             showHEX: cbHEX.value,
-            showCMYK: cbCMYK.value
+            showCMYK: cbCMYK.value,
+            cascade: rbCascade.value
         };
     }
 
@@ -312,8 +341,6 @@ function showOutputOptionsDialog(onPreviewChange) {
             cb5a.value = true;
             cbHEX.value = true;
             cbCMYK.value = true;
-            cbPreview.value = true;
-
             updateInfoDims(false);
         }
 
@@ -343,23 +370,32 @@ function showOutputOptionsDialog(onPreviewChange) {
 
     cbHEX.onClick = notifyPreviewChange;
     cbCMYK.onClick = notifyPreviewChange;
-    cbPreview.onClick = notifyPreviewChange;
+    rbIndependent.onClick = notifyPreviewChange;
+    rbCascade.onClick = notifyPreviewChange;
 
-    // Initialize UI state without triggering preview redraw repeatedly
+    // Bottom bar: Fit (left) + spacer + Cancel/OK (right)
+    var btnRow = dlg.add('group');
+    btnRow.alignment = 'fill';
+    btnRow.orientation = 'row';
+    btnRow.margins = [0, 10, 0, 0];
+
+    var btnFit = btnRow.add('button', undefined, L('fitView'));
+    btnFit.onClick = function () {
+        try { if (onFitView) onFitView(); } catch (_) { }
+    };
+
+    var spacer = btnRow.add('group');
+    spacer.alignment = ['fill', 'center'];
+    spacer.preferredSize = [-1, 1];
+
+    var ng = btnRow.add('button', undefined, L('btnCancel'), { name: 'cancel' });
+    var ok = btnRow.add('button', undefined, L('btnOK'), { name: 'ok' });
+
+    // Initialize UI state (must be after all controls are created)
     updateInfoDims(false);
     updateInfoMode(false);
     __isInitializing = false;
     notifyPreviewChange();
-
-    // Buttons (center-aligned)
-    var btnRow = dlg.add('group');
-    btnRow.alignment = 'center';
-    btnRow.margins = [0, 10, 0, 0];
-
-    var btns = btnRow.add('group');
-    btns.alignment = 'center';
-    var ng = btns.add('button', undefined, L('btnCancel'), { name: 'cancel' });
-    var ok = btns.add('button', undefined, L('btnOK'), { name: 'ok' });
 
     ok.onClick = function () {
         if (!cb16.value && !cb11.value && !cb8.value && !cb5.value && !cb5a.value) {
@@ -630,6 +666,33 @@ if (app.documents.length === 0) {
 
                                     try { app.redraw(); } catch (eRd2) { }
                                 } catch (eCb) { }
+                            }, function () {
+                                // Fit view to originalItem + previewGroup
+                                var items = [];
+                                try { items.push(job.originalItem); } catch (_) { }
+                                try { if (previewGroup) items.push(previewGroup); } catch (_) { }
+                                if (items.length === 0) return;
+                                var l = Infinity, t = -Infinity, r = -Infinity, b = Infinity;
+                                for (var fi = 0; fi < items.length; fi++) {
+                                    var gb = items[fi].geometricBounds;
+                                    if (gb[0] < l) l = gb[0];
+                                    if (gb[1] > t) t = gb[1];
+                                    if (gb[2] > r) r = gb[2];
+                                    if (gb[3] < b) b = gb[3];
+                                }
+                                var v = doc.activeView;
+                                var margin = 1.05;
+                                v.centerPoint = [(l + r) / 2, (t + b) / 2];
+                                var vb = v.bounds;
+                                var vw = vb[2] - vb[0];
+                                var vh = vb[1] - vb[3];
+                                var ow = r - l;
+                                var oh = t - b;
+                                if (ow > 0 && oh > 0) {
+                                    var scale = Math.min(vw / ow, vh / oh) / margin;
+                                    v.zoom = v.zoom * scale;
+                                }
+                                try { app.redraw(); } catch (_) { }
                             });
                             try { if (progress && progress.win) progress.win.show(); } catch (eShow) { }
 
@@ -691,8 +754,6 @@ if (app.documents.length === 0) {
                             } catch (eFinal2) { }
                         }
                     }
-
-                    // NOTE: ここにあった旧 drawSwatchSquares 呼び出し（if (!canceled && outOpt) ...）は削除してください。
 
                     progress.set(j + 1, LF('progressItem', j + 1, itemsToProcess.length));
                 } catch (err) {
@@ -821,16 +882,18 @@ function buildCmykAdjustedColor(color) {
 
     if (!cmykVals || cmykVals.length < 4) return null;
 
-    var cc = Math.min(100, cmykVals[0] * 1.05);
-    var mm = Math.min(100, cmykVals[1] * 1.05);
-    var yy = Math.min(100, cmykVals[2] * 1.05);
-    var kk = Math.min(100, cmykVals[3] * 1.05);
+    function roundToNearest5(v) {
+        return Math.round(v / 5) * 5;
+    }
+    function clampPercent(v) {
+        return Math.max(0, Math.min(100, v));
+    }
 
     var cNew = new CMYKColor();
-    cNew.cyan = Math.round(cc / 10) * 10;
-    cNew.magenta = Math.round(mm / 10) * 10;
-    cNew.yellow = Math.round(yy / 10) * 10;
-    cNew.black = Math.round(kk / 10) * 10;
+    cNew.cyan = clampPercent(roundToNearest5(cmykVals[0]));
+    cNew.magenta = clampPercent(roundToNearest5(cmykVals[1]));
+    cNew.yellow = clampPercent(roundToNearest5(cmykVals[2]));
+    cNew.black = clampPercent(roundToNearest5(cmykVals[3]));
 
     return cNew;
 }
@@ -895,7 +958,7 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
     }
     var numSquares = 16;
 
-    outOpt = outOpt || { out16: true, out11: true, out8: true, out5: true, out5Adj: true, showHEX: true, showCMYK: true };
+    outOpt = outOpt || { out16: true, out11: true, out8: true, out5: true, out5Adj: true, showHEX: true, showCMYK: true, cascade: true };
 
     /* 最近傍法でソート（最も暗い色から、色距離が近い順に並べる） / Sort by nearest neighbor from darkest */
     var remaining = [];
@@ -980,8 +1043,8 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
     function rgbToHex(r, g, b) {
         return "#" + toHex2(r) + toHex2(g) + toHex2(b);
     }
-    function round10(v) {
-        return Math.round(v / 10) * 10;
+    function round5(v) {
+        return Math.round(v / 5) * 5;
     }
     function colorToCMYKVals(color) {
         // Return [C,M,Y,K] in 0..100 (numbers). Best-effort.
@@ -1030,10 +1093,10 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
 
         if (mode === "cmyk") {
             if (cmyk) {
-                var Cc = round10(cmyk[0]);
-                var Mm = round10(cmyk[1]);
-                var Yy = round10(cmyk[2]);
-                var Kk = round10(cmyk[3]);
+                var Cc = round5(cmyk[0]);
+                var Mm = round5(cmyk[1]);
+                var Yy = round5(cmyk[2]);
+                var Kk = round5(cmyk[3]);
                 return { text: L('cmykPrefix') + Cc + ", " + Mm + ", " + Yy + ", " + Kk, rgb: rgb };
             }
             // If CMYK is unavailable, fall back to HEX only
@@ -1042,10 +1105,10 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
 
         // mode === "both"
         if (cmyk) {
-            var C = round10(cmyk[0]);
-            var M = round10(cmyk[1]);
-            var Y = round10(cmyk[2]);
-            var K = round10(cmyk[3]);
+            var C = round5(cmyk[0]);
+            var M = round5(cmyk[1]);
+            var Y = round5(cmyk[2]);
+            var K = round5(cmyk[3]);
             return { text: L('cmykPrefix') + C + ", " + M + ", " + Y + ", " + K + "\r" + hex, rgb: rgb };
         }
         return { text: hex, rgb: rgb };
@@ -1087,8 +1150,13 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
     }
 
     /* 16色の正方形を作成・グループ化 / Create and group 16-color squares */
-    if (outOpt.out16) {
+    /* cascade モード用: 前段の選出結果を保持 / Keep previous selection for cascade mode */
+    var cascadePrev = null;
+    if (outOpt.out16 || outOpt.cascade) {
         var sel16 = selectByMaxDistance(colorList, 16);
+        cascadePrev = sel16;
+    }
+    if (outOpt.out16) {
         var sorted16 = sortByNearest(sel16);
         var group16 = container.groupItems.add();
         group16.name = L('group16Name');
@@ -1123,20 +1191,36 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
 
     for (var r = 0; r < rows.length; r++) {
         var num = rows[r];
-        // Conditional output: skip if not enabled for this row
-        if ((num === 11 && !outOpt.out11) || (num === 8 && !outOpt.out8) || (num === 5 && !outOpt.out5)) {
-            // Do not consume vertical space if not output
-            continue;
+        var isRowEnabled = !((num === 11 && !outOpt.out11) || (num === 8 && !outOpt.out8) || (num === 5 && !outOpt.out5));
+
+        /* 段階的減色: 出力しない行でも内部計算を行い、次段へ渡す */
+        /* Cascade: compute selection even for skipped rows to feed the next stage */
+        var sourceColors;
+        if (outOpt.cascade && cascadePrev) {
+            sourceColors = cascadePrev;
+        } else {
+            sourceColors = colorList;
+            /* 11色のみ: ほぼ白・ほぼ黒を除外 / For 11 colors: exclude near-white/black */
+            if (num === 11) {
+                sourceColors = [];
+                for (var f = 0; f < colorList.length; f++) {
+                    if (!isNearlyWhite(colorList[f]) && !isNearlyBlack(colorList[f])) sourceColors.push(colorList[f]);
+                }
+                if (sourceColors.length === 0) sourceColors = colorList; // fallback
+            }
         }
+
+        var selected = selectByMaxDistance(sourceColors, num);
+        if (outOpt.cascade) cascadePrev = selected;
+
+        if (!isRowEnabled) continue;
+
         // Make each row a true square grid: size is computed to fit within imgWidth with the same horizontal gap.
         var rowSize = (imgWidth - gap * (num - 1)) / num;
         var yPos = prevBottom - rowGap;
 
         // Align each row to the image edges.
         var rowLeft = imgLeft;
-
-        /* 全色から最大距離法で代表色を選択 / Select representative colors from full set */
-        var selected = selectByMaxDistance(colorList, num);
 
         /* 選択した色を最近傍法で並べ替え / Sort selected colors by nearest neighbor */
         var sorted = sortByNearest(selected);
@@ -1186,19 +1270,8 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
                     }
 
                     if (cmykVals && cmykVals.length >= 4) {
-                        var cc = Math.min(100, cmykVals[0] * 1.05);
-                        var mm = Math.min(100, cmykVals[1] * 1.05);
-                        var yy = Math.min(100, cmykVals[2] * 1.05);
-                        var kk = Math.min(100, cmykVals[3] * 1.05);
-
-                        // round at ones place (nearest 10)
-                        var cNew = new CMYKColor();
-                        cNew.cyan = Math.round(cc / 10) * 10;
-                        cNew.magenta = Math.round(mm / 10) * 10;
-                        cNew.yellow = Math.round(yy / 10) * 10;
-                        cNew.black = Math.round(kk / 10) * 10;
-
-                        item.fillColor = cNew;
+                        var cNew = buildCmykAdjustedColor(c);
+                        if (cNew) item.fillColor = cNew;
                     }
                 }
 
@@ -1235,6 +1308,67 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
 /* 最大距離法でN色を選択（面積で重み付け） / Select N colors by max-distance method (area-weighted) */
 // colorList entries: {swatch, r, g, b, area}
 // score = minDist × sqrt(area / avgArea) — 面積が大きい色は選ばれやすく、小さい色は選ばれにくい
+/* ほぼ白の判定 / Determine if a color entry is nearly white
+   条件: CMYK合成値がしきい値以下 かつ RGB各チャンネルがしきい値以上 */
+function isNearlyWhite(entry) {
+    // RGB条件
+    if (entry.r < NEAR_WHITE_RGB_MIN || entry.g < NEAR_WHITE_RGB_MIN || entry.b < NEAR_WHITE_RGB_MIN) {
+        return false;
+    }
+    // CMYK条件
+    var cmyk = null;
+    try {
+        var c = entry.swatch ? entry.swatch.color : null;
+        if (c && c.typename === "CMYKColor") {
+            cmyk = [c.cyan, c.magenta, c.yellow, c.black];
+        } else if (c && c.typename === "RGBColor" && app.convertSampleColor) {
+            var dst = app.convertSampleColor(
+                ImageColorSpace.RGB, [c.red, c.green, c.blue],
+                ImageColorSpace.CMYK, ColorConvertPurpose.defaultpurpose, false, false
+            );
+            if (dst && dst.length >= 4) cmyk = [dst[0], dst[1], dst[2], dst[3]];
+        }
+    } catch (e) { }
+    if (cmyk && cmyk.length >= 4) {
+        var total = cmyk[0] + cmyk[1] + cmyk[2] + cmyk[3];
+        return total <= NEAR_WHITE_CMYK_TOTAL_MAX;
+    }
+    // CMYKが取得できない場合はRGB条件のみで「ほぼ白」と判定
+    return true;
+}
+
+/* ほぼ黒の判定 / Determine if a color entry is nearly black
+   条件: (CMYK合成値がしきい値以上 または K単独がしきい値以上) かつ RGB各チャンネルがしきい値以下 */
+function isNearlyBlack(entry) {
+    // RGB条件
+    if (entry.r > NEAR_BLACK_RGB_MAX || entry.g > NEAR_BLACK_RGB_MAX || entry.b > NEAR_BLACK_RGB_MAX) {
+        return false;
+    }
+    // CMYK条件
+    var cmyk = null;
+    try {
+        var c = entry.swatch ? entry.swatch.color : null;
+        if (c && c.typename === "CMYKColor") {
+            cmyk = [c.cyan, c.magenta, c.yellow, c.black];
+        } else if (c && c.typename === "RGBColor" && app.convertSampleColor) {
+            var dst = app.convertSampleColor(
+                ImageColorSpace.RGB, [c.red, c.green, c.blue],
+                ImageColorSpace.CMYK, ColorConvertPurpose.defaultpurpose, false, false
+            );
+            if (dst && dst.length >= 4) cmyk = [dst[0], dst[1], dst[2], dst[3]];
+        }
+    } catch (e) { }
+    if (cmyk && cmyk.length >= 4) {
+        var total = cmyk[0] + cmyk[1] + cmyk[2] + cmyk[3];
+        if (total >= NEAR_BLACK_CMYK_TOTAL_MIN || cmyk[3] >= NEAR_BLACK_K_MIN) {
+            return true;
+        }
+        return false;
+    }
+    // CMYKが取得できない場合はRGB条件のみで「ほぼ黒」と判定
+    return true;
+}
+
 function selectByMaxDistance(colorList, num) {
     if (colorList.length <= num) return colorList.slice();
 
@@ -1356,57 +1490,66 @@ function deduplicateColors(colors) {
 
 /* カラーをRGB値に変換 / Convert color to RGB values */
 function colorToRGB(color) {
-    // Fast paths for common types
-    if (color.typename === "RGBColor") {
-        return [color.red, color.green, color.blue];
-    } else if (color.typename === "CMYKColor") {
-        var r = 255 * (1 - color.cyan / 100) * (1 - color.black / 100);
-        var g = 255 * (1 - color.magenta / 100) * (1 - color.black / 100);
-        var b = 255 * (1 - color.yellow / 100) * (1 - color.black / 100);
-        return [r, g, b];
-    } else if (color.typename === "GrayColor") {
-        var v = 255 * (1 - color.gray / 100);
-        return [v, v, v];
+    if (!color) return [0, 0, 0];
+
+    function clamp255(v) {
+        return Math.max(0, Math.min(255, v));
     }
 
-    // Fallback: try to convert via app.convertSampleColor (e.g., LabColor, pattern/gradient internals, etc.)
-    // If conversion is unavailable or fails, fall back to black.
-    try {
-        if (app.convertSampleColor && typeof ImageColorSpace !== "undefined" && typeof ColorConvertPurpose !== "undefined") {
-            var srcSpace = null;
-            var src = null;
-
-            if (color.typename === "LabColor") {
-                srcSpace = ImageColorSpace.LAB;
-                src = [color.l, color.a, color.b];
-            } else if (color.typename === "NoColor") {
-                return [0, 0, 0];
-            } else {
-                // Unsupported object type for direct conversion
-                srcSpace = null;
-            }
-
-            if (srcSpace && src) {
+    function convertViaSample(srcSpace, srcValues) {
+        try {
+            if (app.convertSampleColor && typeof ImageColorSpace !== "undefined" && typeof ColorConvertPurpose !== "undefined") {
                 var dst = app.convertSampleColor(
                     srcSpace,
-                    src,
+                    srcValues,
                     ImageColorSpace.RGB,
                     ColorConvertPurpose.defaultpurpose,
                     false,
                     false
                 );
-
                 if (dst && dst.length >= 3) {
-                    // Clamp to [0..255]
-                    var rr = Math.max(0, Math.min(255, dst[0]));
-                    var gg = Math.max(0, Math.min(255, dst[1]));
-                    var bb = Math.max(0, Math.min(255, dst[2]));
-                    return [rr, gg, bb];
+                    return [clamp255(dst[0]), clamp255(dst[1]), clamp255(dst[2])];
                 }
             }
-        }
-    } catch (e) {
-        // ignore and fall back
+        } catch (e) { }
+        return null;
+    }
+
+    // Fast path: RGB is already the target space.
+    if (color.typename === "RGBColor") {
+        return [clamp255(color.red), clamp255(color.green), clamp255(color.blue)];
+    }
+
+    // Prefer Illustrator's own conversion for CMYK to better match document appearance.
+    if (color.typename === "CMYKColor") {
+        var rgbFromCmyk = convertViaSample(
+            ImageColorSpace.CMYK,
+            [color.cyan, color.magenta, color.yellow, color.black]
+        );
+        if (rgbFromCmyk) return rgbFromCmyk;
+
+        // Fallback: simple approximation if sample conversion is unavailable.
+        var r = 255 * (1 - color.cyan / 100) * (1 - color.black / 100);
+        var g = 255 * (1 - color.magenta / 100) * (1 - color.black / 100);
+        var b = 255 * (1 - color.yellow / 100) * (1 - color.black / 100);
+        return [clamp255(r), clamp255(g), clamp255(b)];
+    }
+
+    if (color.typename === "GrayColor") {
+        var rgbFromGray = convertViaSample(ImageColorSpace.GrayScale, [color.gray]);
+        if (rgbFromGray) return rgbFromGray;
+
+        var v = 255 * (1 - color.gray / 100);
+        return [clamp255(v), clamp255(v), clamp255(v)];
+    }
+
+    if (color.typename === "LabColor") {
+        var rgbFromLab = convertViaSample(ImageColorSpace.LAB, [color.l, color.a, color.b]);
+        if (rgbFromLab) return rgbFromLab;
+    }
+
+    if (color.typename === "NoColor") {
+        return [0, 0, 0];
     }
 
     return [0, 0, 0];

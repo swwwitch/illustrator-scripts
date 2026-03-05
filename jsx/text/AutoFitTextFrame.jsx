@@ -52,7 +52,7 @@ var SCRIPT_VERSION = "v2.3.1";
     },
     panelLabel: {
       ja: "処理",
-      en: "Mode"
+      en: "Processing"
     },
     panelAdjust: {
       ja: "オプション",
@@ -68,7 +68,7 @@ var SCRIPT_VERSION = "v2.3.1";
     },
     tipAutoSizeArea: {
       ja: "エリア内文字に自動サイズ調整を適用します（拡張のみ）。",
-      en: "Applies Auto Size to AreaText (expand only)."
+      en: "Apply Auto Size to Area Text (expand only)."
     },
     alertHeightOnlyNoArea: {
       ja: "高さ調整はエリア内テキストのみ対応です。\n選択中にエリア内テキストがありません。",
@@ -76,15 +76,15 @@ var SCRIPT_VERSION = "v2.3.1";
     },
     cbOverflow: {
       ja: "文字サイズ：あふれ処理",
-      en: "Shrink to fit"
+      en: "Shrink Text to Fit"
     },
     cbFit: {
       ja: "文字サイズ：ぴったり",
-      en: "Maximize fit"
+      en: "Maximize Text Size"
     },
     cbHeightMode: {
       ja: "エリア内文字の高さ調整",
-      en: "Adjust AreaText height"
+      en: "Adjust Area Text Height"
     },
     btnCancel: {
       ja: "閉じる",
@@ -100,11 +100,11 @@ var SCRIPT_VERSION = "v2.3.1";
     },
     alertNoValidText: {
       ja: "選択中に処理可能なテキストがありません。\n（グループ内のテキストはグループごと選択でもOK）",
-      en: "No processable text in selection.\n(Groups containing text can be selected as a group.)"
+      en: "No valid text frames found in the selection.\n(Text inside groups can be processed by selecting the group.)"
     },
     alertSelectMode: {
       ja: "処理を選択してください。\n（文字サイズ：あふれ処理 / 文字サイズ：ぴったり）",
-      en: "Please select a mode.\n(Shrink to fit / Maximize fit)"
+      en: "Please select a processing mode.\n(Shrink Text to Fit / Maximize Text Size)"
     },
     alertHardReturn: {
       ja: "改行コードが含まれているテキストには対応していません。\n対象テキスト: ",
@@ -116,7 +116,7 @@ var SCRIPT_VERSION = "v2.3.1";
     },
     alertSelectHeightOption: {
       ja: "オプションを選択してください。\n（高さを調整 / 自動サイズ調整）",
-      en: "Please select an option.\n(Adjust height / Auto size)"
+      en: "Please select a height option.\n(Adjust Height / Auto Size)"
     },
     alertMaxIter: {
       ja: "縮小処理が上限回数に達しました:\n",
@@ -783,15 +783,16 @@ var SCRIPT_VERSION = "v2.3.1";
     cbHeightMode.value = false;
     cbHeightMode.enabled = hasArea;
 
-    var pAdjust = dlg.add("panel", undefined, L("panelAdjust"));
-    pAdjust.orientation = "column";
-    pAdjust.alignChildren = ["left", "top"];
-    pAdjust.margins = [15, 20, 15, 10];
+    var gHeightOptionsWrap = p.add("group");
+    gHeightOptionsWrap.orientation = "column";
+    gHeightOptionsWrap.alignChildren = ["left", "top"];
+    gHeightOptionsWrap.margins = [18, 0, 0, 7];
+    gHeightOptionsWrap.spacing = 4;
 
-    var rbHeight = pAdjust.add("radiobutton", undefined, L("rbHeight"));
+    var rbHeight = gHeightOptionsWrap.add("radiobutton", undefined, L("rbHeight"));
     rbHeight.value = false;
 
-    var rbAutoSizeArea = pAdjust.add("radiobutton", undefined, L("rbAutoSizeArea"));
+    var rbAutoSizeArea = gHeightOptionsWrap.add("radiobutton", undefined, L("rbAutoSizeArea"));
     rbAutoSizeArea.value = false;
     try { rbAutoSizeArea.helpTip = L("tipAutoSizeArea"); } catch (eTip) { }
 
@@ -803,7 +804,7 @@ var SCRIPT_VERSION = "v2.3.1";
       var enabled = !!cbHeightMode.value && !!hasArea;
 
       // Options panel is available only in AreaText height mode
-      try { pAdjust.enabled = enabled; } catch (eP) { }
+      try { gHeightOptionsWrap.enabled = enabled; } catch (eP) { }
       try { rbHeight.enabled = enabled; } catch (eH) { }
       try { rbAutoSizeArea.enabled = enabled; } catch (eA) { }
 
@@ -835,7 +836,7 @@ var SCRIPT_VERSION = "v2.3.1";
     updateOptionsEnabled();
 
     var gBtn = dlg.add("group");
-    gBtn.alignment = ["right", "center"];
+    gBtn.alignment = ["center", "center"];
     gBtn.alignChildren = ["right", "center"];
     var btnCancel = gBtn.add("button", undefined, L("btnCancel"), { name: "cancel" });
     var btnOk = gBtn.add("button", undefined, L("btnOk"), { name: "ok" });
