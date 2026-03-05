@@ -7,12 +7,13 @@ ColorPaletteFromImage.jsx
 
 DESCRIPTION
 
-選択した配置画像／ラスター画像（またはベクター）を複製し、
-画像トレース→拡張で抽出した色からカラーパレットを作成します。
+選択した配置画像／ラスター画像（またはベクター）からカラーパレットを作成します。
 
+- ラスター/配置画像: 複製→画像トレース→拡張で色を抽出
+- ベクター: 選択オブジェクトから直接カラーを抽出（ラスタライズ不要）
 - 16色／11色／8色／5色のパレットを、元画像の下に正方形で出力
   - 16色は画像幅にフィット、他の行も左右端を画像に揃えて出力
-- 11色／8色／5色は最大距離法で代表色を選択
+- 16色以上の場合、カスケード式に色を絞り込む（N→16→11→8→5）
 - 色の並びは最近傍法でグラデーション風にソート
 - 5色はHEX、5色（CMYK補正）はCMYK表示（任意）
   - CMYK補正は各C/M/Y/Kを+5%し、10刻みで丸め
@@ -27,7 +28,7 @@ OK確定後にスウォッチグループを作成します（キャンセル時
 **********************************************************/
 
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
 
 var __DIALOG_BOUNDS_OUTPUT__ = null; // session-only dialog position memory
 
@@ -463,19 +464,9 @@ if (app.documents.length === 0) {
                 }
             }
 
-            // --- Helper: Trace and expand, for vector/raster ---
-            function traceAndExpand(itemToTrace, isVector) {
-                var t;
-                if (isVector) {
-                    var rasterOpts = new RasterizeOptions();
-                    rasterOpts.resolution = 72;
-                    rasterOpts.antiAliasingMethod = AntiAliasingMethod.ARTOPTIMIZED;
-                    var rasterItem = doc.rasterize(itemToTrace, itemToTrace.geometricBounds, rasterOpts);
-                    rasterItem.move(workLayer, ElementPlacement.PLACEATEND);
-                    t = rasterItem.trace();
-                } else {
-                    t = itemToTrace.trace();
-                }
+            // --- Helper: Trace and expand (raster/placed only) ---
+            function traceAndExpand(itemToTrace) {
+                var t = itemToTrace.trace();
                 if (tracingPresetName) {
                     try {
                         t.tracing.tracingOptions.loadFromPreset(tracingPresetName);
@@ -501,11 +492,15 @@ if (app.documents.length === 0) {
                     var job = itemsToProcess[j];
                     progress.set(j, LF('progressItem', j + 1, itemsToProcess.length));
                     var p = job.workItem;
-                    var grp = traceAndExpand(p, job.type === "vector");
-
-                    // --- Refactored: Defer swatch group creation until after dialog confirmed ---
-                    // 1. Collect colors from expanded group, but do not register swatches yet.
-                    var colors = collectFillColors(grp, []);
+                    var colors;
+                    if (job.type === "vector") {
+                        // ベクター: オブジェクトから直接カラーを抽出（ラスタライズ不要）
+                        colors = collectFillColors(p, []);
+                        colors = deduplicateColors(colors);
+                    } else {
+                        var grp = traceAndExpand(p);
+                        colors = collectFillColors(grp, []);
+                    }
 
                     // 2. On first extraction, show dialog, draw preview from colors (not swatchGroup)
                     if (outOpt === null) {
@@ -900,11 +895,21 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
         } catch (e) { }
     }
 
+    /* カスケード式に色を絞り込む / Cascading color reduction: N→16→11→8→5 */
+    // 16色以上ある場合、まず16色に絞り、以降はその結果から段階的に絞る
+    var cascade16 = (colorList.length > 16) ? selectByMaxDistance(colorList, 16) : colorList.slice();
+    var cascade11 = selectByMaxDistance(cascade16, Math.min(11, cascade16.length));
+    var cascade8 = selectByMaxDistance(cascade11, Math.min(8, cascade11.length));
+    var cascade5 = selectByMaxDistance(cascade8, Math.min(5, cascade8.length));
+    var cascadeMap = { 11: cascade11, 8: cascade8, 5: cascade5 };
+
     /* 16色の正方形を作成・グループ化 / Create and group 16-color squares */
+    var sorted16 = sortByNearest(cascade16);
     if (outOpt.out16) {
         var group16 = container.groupItems.add();
         group16.name = L('group16Name');
-        for (var n = 0; n < numSquares; n++) {
+        var actual16 = Math.min(numSquares, sorted16.length);
+        for (var n = 0; n < actual16; n++) {
             var rect = group16.pathItems.rectangle(
                 startY,
                 imgLeft + n * (squareSize + gap),
@@ -912,18 +917,13 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
                 squareSize
             );
             rect.stroked = false;
-
-            if (colorList.length > 0) {
-                rect.filled = true;
-                rect.fillColor = colorList[n % colorList.length].swatch.color;
-            } else {
-                rect.filled = false;
-            }
+            rect.filled = true;
+            rect.fillColor = sorted16[n].swatch.color;
             // No label for 16-color row
         }
     }
 
-    /* 11色・8色・5色バージョン（最大距離法で代表色を選択） / 11, 8, 5 color rows via max-distance selection */
+    /* 11色・8色・5色バージョン / 11, 8, 5 color rows */
     var rows = [11, 8, 5];
     var prevBottom;
     if (outOpt.out16) {
@@ -949,8 +949,8 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
         // Align each row to the image edges.
         var rowLeft = imgLeft;
 
-        /* 最大距離法でN色を選択 / Select N colors by max-distance */
-        var selected = selectByMaxDistance(colorList, num);
+        /* カスケード済みの色を使用 / Use cascaded colors */
+        var selected = cascadeMap[num] || selectByMaxDistance(colorList, num);
 
         /* 選択した色を最近傍法で並べ替え / Sort selected colors by nearest neighbor */
         var sorted = sortByNearest(selected);
@@ -990,57 +990,51 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
                     if (!item.filled) continue;
 
                     var c = item.fillColor;
+                    var cmykVals = null;
+
+                    // Best-effort: get CMYK values from any color type
                     if (c && c.typename === "CMYKColor") {
-                        var cc = Math.min(100, c.cyan * 1.05);
-                        var mm = Math.min(100, c.magenta * 1.05);
-                        var yy = Math.min(100, c.yellow * 1.05);
-                        var kk = Math.min(100, c.black * 1.05);
+                        cmykVals = [c.cyan, c.magenta, c.yellow, c.black];
+                    } else {
+                        cmykVals = colorToCMYKVals(c);
+                    }
+
+                    if (cmykVals && cmykVals.length >= 4) {
+                        var cc = Math.min(100, cmykVals[0] * 1.05);
+                        var mm = Math.min(100, cmykVals[1] * 1.05);
+                        var yy = Math.min(100, cmykVals[2] * 1.05);
+                        var kk = Math.min(100, cmykVals[3] * 1.05);
 
                         // round at ones place (nearest 10)
-                        c.cyan = Math.round(cc / 10) * 10;
-                        c.magenta = Math.round(mm / 10) * 10;
-                        c.yellow = Math.round(yy / 10) * 10;
-                        c.black = Math.round(kk / 10) * 10;
+                        var cNew = new CMYKColor();
+                        cNew.cyan = Math.round(cc / 10) * 10;
+                        cNew.magenta = Math.round(mm / 10) * 10;
+                        cNew.yellow = Math.round(yy / 10) * 10;
+                        cNew.black = Math.round(kk / 10) * 10;
 
-                        item.fillColor = c;
+                        item.fillColor = cNew;
                     }
                 }
 
-                // Update duplicated row labels to match adjusted colors (or remove if disabled)
+                // Rebuild duplicated row labels to match adjusted colors (or remove if disabled)
+                // NOTE: Duplicating a group does not guarantee textFrames order matches pathItems.
+                // To avoid mismatched labels, we remove all labels and recreate them from pathItems.
                 try {
-                    if (!outOpt.showCMYK) {
-                        // Remove labels
+                    // Remove all existing labels first
+                    try {
                         if (rowGroup2.textFrames && rowGroup2.textFrames.length) {
                             for (var tfi = rowGroup2.textFrames.length - 1; tfi >= 0; tfi--) {
                                 try { rowGroup2.textFrames[tfi].remove(); } catch (eRm) { }
                             }
                         }
-                    } else {
-                        // Ensure labels exist; if none, create CMYK-only labels
-                        if (!rowGroup2.textFrames || rowGroup2.textFrames.length === 0) {
-                            for (var u0 = 0; u0 < rowGroup2.pathItems.length; u0++) {
-                                var pi0 = rowGroup2.pathItems[u0];
-                                if (!pi0.filled) continue;
-                                addSwatchLabelToGroup(pi0, rowSize, rowGroup2, "cmyk");
-                            }
-                        } else {
-                            // Update existing labels
-                            var nMin = Math.min(rowGroup2.textFrames.length, rowGroup2.pathItems.length);
-                            for (var u = 0; u < nMin; u++) {
-                                var pi = rowGroup2.pathItems[u];
-                                if (!pi.filled) continue;
-                                var info2 = buildColorLabel(pi.fillColor, "cmyk");
-                                var tf2 = rowGroup2.textFrames[u];
-                                tf2.contents = info2.text;
-                                tf2.textRange.fillColor = getLabelBlackColor();
-                                try {
-                                    tf2.textRange.characterAttributes.textFont = app.textFonts.getByName("MyriadPro-Regular");
-                                } catch (eFont3) {
-                                    try {
-                                        tf2.textRange.characterAttributes.textFont = app.textFonts.getByName("Myriad Pro");
-                                    } catch (eFont4) { }
-                                }
-                            }
+                    } catch (eRmAll) { }
+
+                    if (outOpt.showCMYK) {
+                        // Create CMYK-only labels for the adjusted row
+                        for (var u = 0; u < rowGroup2.pathItems.length; u++) {
+                            var pi = rowGroup2.pathItems[u];
+                            if (!pi.filled) continue;
+                            addSwatchLabelToGroup(pi, rowSize, rowGroup2, "cmyk");
                         }
                     }
                 } catch (e2) { }
@@ -1133,6 +1127,23 @@ function sortByNearest(colors) {
     }
 
     return sorted;
+}
+
+/* 近似色を統合して重複を除去 / Deduplicate near-identical colors */
+function deduplicateColors(colors, threshold) {
+    if (!threshold) threshold = 900; // RGB距離の二乗（≈30*30）
+    var unique = [];
+    for (var i = 0; i < colors.length; i++) {
+        var rgb = colorToRGB(colors[i]);
+        var isDup = false;
+        for (var j = 0; j < unique.length; j++) {
+            var rgb2 = colorToRGB(unique[j]);
+            var dr = rgb[0] - rgb2[0], dg = rgb[1] - rgb2[1], db = rgb[2] - rgb2[2];
+            if (dr * dr + dg * dg + db * db < threshold) { isDup = true; break; }
+        }
+        if (!isDup) unique.push(colors[i]);
+    }
+    return unique;
 }
 
 /* カラーをRGB値に変換 / Convert color to RGB values */
