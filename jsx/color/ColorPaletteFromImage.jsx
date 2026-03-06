@@ -9,33 +9,42 @@ DESCRIPTION
 
 選択した配置画像／ラスター画像（またはベクター）からカラーパレットを作成します。
 
-- ラスター/配置画像: 複製→画像トレース→拡張で色を抽出
+- ラスター/配置画像: 複製 → 画像トレース → 拡張で色を抽出
 - ベクター: 選択オブジェクトから直接カラーを抽出（ラスタライズ不要）
 - 16色／11色／8色／5色のパレットを、元画像の下に正方形で出力
   - 16色は画像幅にフィット、他の行も左右端を画像に揃えて出力
-- 各行（16/11/8/5色）ごとに全色から面積重み付き最大距離法で代表色を選択
-  - 面積が大きい色ほど選ばれやすい（pow 0.75で重み付け）
+- 各行（16 / 11 / 8 / 5色）は、面積重み付き最大距離法で代表色を選択
+  - 面積が大きい色ほど選ばれやすい（pow 0.75 で重み付け）
 - 色の並びは最近傍法でグラデーション風にソート
-- 11色の選出では、ほぼ白／ほぼ黒を除外して中間色を拾いやすく調整
-  - CMYKが取得できない場合はRGBフォールバックで判定
-- 5色はHEX、5色（CMYK補正）はCMYK表示（任意）
-- CMYK→RGB変換は Illustrator の convertSampleColor() を優先し、色距離計算やラベル表示の精度を改善
-- CMYK補正は5%刻みで丸め
+- 11色の選出では「ほぼ白 / ほぼ黒」を除外し、中間色を拾いやすく調整
+- 5色行は HEX 表示、5色（CMYK補正）は CMYK 表示（任意）
+- CMYK補正は 5% 刻みで丸め
   - 0/5 は 2.5、5/10 は 7.5 を境界に判定
 
 初回に色が取得できたタイミングでダイアログを表示し、
-出力する行（16/11/8/5/5補正）と、カラー情報（HEX/CMYK）を選択できます。
-色の選出は段階的減色で固定しています。
-処理状況は「準備中 → 画像トレース → カラーパレット生成」のフェーズで表示されます。
-ダイアログ表示中はプレビューが更新されます。
-OK確定後にスウォッチグループを作成します（キャンセル時は作成しません）。
+出力する行（16 / 11 / 8 / 5 / 5補正）とカラー情報（HEX / CMYK）を選択できます。
+
+- 「5色のみ」モードでは 16 / 11 / 8 行を非表示にし、5色系のみを表示
+- 5色（CMYK補正）は単独でも出力可能
+- スウォッチ登録は、実際に描画された 5色パレットを元に作成
+
+色選出は段階的減色（16 → 11 → 8 → 5）で統一されています。
+
+処理状況は以下のフェーズで表示されます。
+
+- 準備中
+- 色を解析中
+- パレット生成中
+
+ダイアログ表示中はプレビューが更新され、
+OK確定後にスウォッチグループを作成します（キャンセル時は作成されません）。
 
 更新日: 2026-03-06
 
 **********************************************************/
 
 
-var SCRIPT_VERSION = "v1.6.5";
+var SCRIPT_VERSION = "v1.7";
 
 var __DIALOG_BOUNDS_OUTPUT__ = null; // session-only dialog position memory
 
@@ -88,6 +97,17 @@ function getCurrentLang() {
 }
 var lang = getCurrentLang();
 
+// Debug logger (ExtendScript console)
+// Silent errors become visible during development without breaking execution.
+function __logError(e, context) {
+    try {
+        var msg = "[ColorPaletteFromImage]";
+        if (context) msg += " " + context + ":";
+        msg += " " + e;
+        $.writeln(msg);
+    } catch (_) { }
+}
+
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     noDocument: {
@@ -107,12 +127,12 @@ var LABELS = {
         en: "Colors"
     },
     itemPrefix: {
-        ja: "項目_",
-        en: "item_"
+        ja: "パレット_",
+        en: "Palette_"
     },
     unknownColorName: {
-        ja: "色",
-        en: "Color"
+        ja: "不明な色",
+        en: "Unknown Color"
     },
     progressTitle: {
         ja: "処理中",
@@ -123,16 +143,12 @@ var LABELS = {
         en: "Preparing…"
     },
     progressTracing: {
-        ja: "画像トレースを実行中…",
-        en: "Running Image Trace…"
+        ja: "色を解析中…",
+        en: "Analyzing Colors…"
     },
     progressPalette: {
-        ja: "カラーパレット生成中…",
-        en: "Generating Color Palette…"
-    },
-    progressItem: {
-        ja: "処理中…",
-        en: "Processing…"
+        ja: "パレット生成中…",
+        en: "Generating Palette…"
     },
     progressDone: {
         ja: "完了",
@@ -153,23 +169,23 @@ var LABELS = {
     },
     opt16: {
         ja: "16色",
-        en: "16"
+        en: "16 Colors"
     },
     opt11: {
         ja: "11色",
-        en: "11"
+        en: "11 Colors"
     },
     opt8: {
         ja: "8色",
-        en: "8"
+        en: "8 Colors"
     },
     opt5: {
         ja: "5色",
-        en: "5"
+        en: "5 Colors"
     },
     opt5Adj: {
         ja: "5色（CMYK補正）",
-        en: "5 (CMYK Adjust)"
+        en: "5 Colors (CMYK Rounded)"
     },
     optHEX: {
         ja: "HEX",
@@ -185,11 +201,11 @@ var LABELS = {
     },
     optInfoAll: {
         ja: "すべての情報",
-        en: "All info"
+        en: "Info for all rows"
     },
     optInfo5Only: {
         ja: "5色のみ",
-        en: "Only 5"
+        en: "5-color rows only"
     },
     cmykPrefix: {
         ja: "CMYK: ",
@@ -197,7 +213,7 @@ var LABELS = {
     },
     panelCountsTitle: {
         ja: "色数",
-        en: "Counts"
+        en: "Color Counts"
     },
     panelColorInfoTitle: {
         ja: "カラー情報",
@@ -207,9 +223,18 @@ var LABELS = {
         ja: "出力する行が選ばれていません。",
         en: "No rows selected to output."
     },
+    btnRetry: {
+        ja: "やり直し",
+        en: "Retry"
+    },
     fitView: {
-        ja: "フィット",
-        en: "Fit"
+        ja: "画面にフィット",
+        en: "Fit View"
+    },
+    // --- Preset Selection Dialog ---
+    presetDialogTitle: {
+        ja: "画像トレース（プリセット選択）",
+        en: "Image Trace (Preset Selection)"
     },
 };
 
@@ -218,11 +243,71 @@ function L(key) {
     return LABELS[key][lang];
 }
 
-function LF(key, a, b) {
-    var s = L(key);
-    if (a !== undefined) s = s.replace("{0}", a);
-    if (b !== undefined) s = s.replace("{1}", b);
-    return s;
+
+// --- Preset Selection Dialog ---
+// プリセットを3カテゴリに分類する / Categorize presets
+function categorizePresets(presets) {
+    var withBrackets = [];    // []付き
+    var originals = [];       // オリジナル（ユーザー作成）
+    for (var i = 0; i < presets.length; i++) {
+        var name = presets[i];
+        if (name.charAt(0) === "[") {
+            withBrackets.push(name);
+        } else {
+            originals.push(name);
+        }
+    }
+    return { withBrackets: withBrackets, originals: originals };
+}
+
+// プリセット選択ダイアログを表示し、選択されたプリセット名を返す（キャンセル時はnull）
+function showPresetDialog(presets) {
+    var cat = categorizePresets(presets);
+
+    var dialog = new Window("dialog", L('presetDialogTitle'));
+    dialog.orientation = "column";
+    dialog.alignChildren = "fill";
+
+    var listGroup = dialog.add("group");
+    listGroup.orientation = "row";
+    listGroup.alignChildren = ["fill", "fill"];
+    listGroup.spacing = 12;
+
+    var listCol1 = listGroup.add("group");
+    listCol1.orientation = "column";
+    listCol1.alignChildren = ["fill", "top"];
+    var list1 = listCol1.add("listbox", undefined, cat.withBrackets);
+    list1.preferredSize = [150, 300];
+
+    var listCol2 = listGroup.add("group");
+    listCol2.orientation = "column";
+    listCol2.alignChildren = ["fill", "top"];
+    var list2 = listCol2.add("listbox", undefined, cat.originals);
+    list2.preferredSize = [150, 300];
+
+    // 1つだけ選択可能に / Only one selection at a time
+    list1.onChange = function () { if (list1.selection) { list2.selection = null; } };
+    list2.onChange = function () { if (list2.selection) { list1.selection = null; } };
+
+    if (cat.originals.length > 0) {
+        list2.selection = cat.originals.length - 1;
+    } else {
+        list1.selection = 0;
+    }
+
+    var btnGroup = dialog.add("group");
+    btnGroup.alignment = ["center", "top"];
+    var btnCancel = btnGroup.add("button", undefined, L('btnCancel'), { name: "cancel" });
+    var btnOk = btnGroup.add("button", undefined, L('btnOK'), { name: "ok" });
+
+    btnOk.onClick = function () { dialog.close(1); };
+    btnCancel.onClick = function () { dialog.close(0); };
+
+    if (dialog.show() === 1) {
+        if (list1.selection) return list1.selection.text;
+        if (list2.selection) return list2.selection.text;
+    }
+    return null;
 }
 
 // --- Output Options Dialog ---
@@ -231,11 +316,6 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
     dlg.alignChildren = 'fill';
     dlg.margins = 15;
 
-    // Restore dialog position during this session
-    try {
-        if (__DIALOG_BOUNDS_OUTPUT__) dlg.bounds = __DIALOG_BOUNDS_OUTPUT__;
-    } catch (eB) { }
-
     // Update stored bounds when moved/resized
     dlg.onMove = dlg.onResize = function () {
         try { __DIALOG_BOUNDS_OUTPUT__ = dlg.bounds; } catch (eM) { }
@@ -243,14 +323,15 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
 
     // Info scope (UI)
     var infoModeRow = dlg.add('group');
-    infoModeRow.alignment = 'center';
+    infoModeRow.alignment = 'left';
     infoModeRow.orientation = 'row';
     infoModeRow.alignChildren = 'center';
+    infoModeRow.margins = [20, 0, 0, 0];
 
     var rbAllInfo = infoModeRow.add('radiobutton', undefined, L('optInfoAll'));
     var rb5Only = infoModeRow.add('radiobutton', undefined, L('optInfo5Only'));
 
-    // Two-column layout
+    // Three-column layout
     var cols = dlg.add('group');
     cols.orientation = 'row';
     cols.alignChildren = 'fill';
@@ -264,6 +345,11 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
     var colR = cols.add('group');
     colR.orientation = 'column';
     colR.alignChildren = 'fill';
+
+    var colBtn = cols.add('group');
+    colBtn.orientation = 'column';
+    colBtn.alignChildren = 'fill';
+    colBtn.alignment = ['right', 'top'];
 
     var pnl = colL.add('panel', undefined, L('panelCountsTitle'));
     pnl.alignChildren = 'left';
@@ -333,7 +419,7 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
         if (__isInitializing) return;
         try {
             if (onPreviewChange) onPreviewChange(getCurrentOptions());
-        } catch (eNP) { }
+        } catch (eNP) { __logError(eNP, "notify preview"); }
     }
 
     function updateInfoDims(doNotify) {
@@ -346,8 +432,36 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
         if (doNotify !== false) notifyPreviewChange();
     }
 
+    var __savedAllInfoState = null;
+
+    function captureCurrentAllInfoState() {
+        return {
+            cb16: cb16.value,
+            cb11: cb11.value,
+            cb8: cb8.value,
+            cb5: cb5.value,
+            cb5a: cb5a.value,
+            cbHEX: cbHEX.value,
+            cbCMYK: cbCMYK.value
+        };
+    }
+
+    function restoreAllInfoState(state) {
+        if (!state) return;
+        cb16.value = !!state.cb16;
+        cb11.value = !!state.cb11;
+        cb8.value = !!state.cb8;
+        cb5.value = !!state.cb5;
+        cb5a.value = !!state.cb5a;
+        cbHEX.value = !!state.cbHEX;
+        cbCMYK.value = !!state.cbCMYK;
+    }
+
     function updateInfoMode(doNotify) {
         if (rb5Only.value) {
+            // Save current "all info" state before forcing the reduced mode.
+            __savedAllInfoState = captureCurrentAllInfoState();
+
             // Only 5: lock non-5 rows OFF and disable them to avoid confusion.
             cb16.value = false;
             cb11.value = false;
@@ -356,18 +470,14 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
             cb11.enabled = false;
             cb8.enabled = false;
         } else {
-            // All info: enable rows and turn everything ON (default behavior)
+            // All info: re-enable rows and restore the user's previous state.
             cb16.enabled = true;
             cb11.enabled = true;
             cb8.enabled = true;
 
-            cb16.value = true;
-            cb11.value = true;
-            cb8.value = true;
-            cb5.value = true;
-            cb5a.value = true;
-            cbHEX.value = true;
-            cbCMYK.value = true;
+            if (__savedAllInfoState) {
+                restoreAllInfoState(__savedAllInfoState);
+            }
             updateInfoDims(false);
         }
 
@@ -398,23 +508,33 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
     cbHEX.onClick = notifyPreviewChange;
     cbCMYK.onClick = notifyPreviewChange;
 
-    // Bottom bar: Fit (left) + spacer + Cancel/OK (right)
+    // Right column: OK + Cancel + spacer + Retry
+    var ok = colBtn.add('button', undefined, L('btnOK'), { name: 'ok' });
+    ok.preferredSize = [90, 26];
+    var ng = colBtn.add('button', undefined, L('btnCancel'), { name: 'cancel' });
+    ng.preferredSize = [90, 26];
+
+    var btnSpacer = colBtn.add('group');
+    btnSpacer.preferredSize = [-1, 50];
+
+    var btnRetry = colBtn.add('button', undefined, L('btnRetry'));
+    btnRetry.preferredSize = [90, 26];
+    btnRetry.onClick = function () {
+        try { __DIALOG_BOUNDS_OUTPUT__ = dlg.bounds; } catch (eM5) { }
+        dlg.close(2);
+    };
+
+    // Bottom bar: Fit button
     var btnRow = dlg.add('group');
     btnRow.alignment = 'fill';
     btnRow.orientation = 'row';
     btnRow.margins = [0, 10, 0, 0];
 
     var btnFit = btnRow.add('button', undefined, L('fitView'));
+    btnFit.preferredSize = [-1, 26];
     btnFit.onClick = function () {
         try { if (onFitView) onFitView(); } catch (_) { }
     };
-
-    var spacer = btnRow.add('group');
-    spacer.alignment = ['fill', 'center'];
-    spacer.preferredSize = [-1, 1];
-
-    var ng = btnRow.add('button', undefined, L('btnCancel'), { name: 'cancel' });
-    var ok = btnRow.add('button', undefined, L('btnOK'), { name: 'ok' });
 
     // Initialize UI state (must be after all controls are created)
     updateInfoDims(false);
@@ -436,12 +556,18 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
     };
 
     // Center only when no stored bounds (so session position memory works)
+    // Restore position only (not size) from previous session, or center
     try {
-        if (!__DIALOG_BOUNDS_OUTPUT__) dlg.center();
-    } catch (e) { }
+        if (__DIALOG_BOUNDS_OUTPUT__) {
+            dlg.location = [__DIALOG_BOUNDS_OUTPUT__.x, __DIALOG_BOUNDS_OUTPUT__.y];
+        } else {
+            dlg.center();
+        }
+    } catch (e) { __logError(e); }
 
     var res = dlg.show();
     try { __DIALOG_BOUNDS_OUTPUT__ = dlg.bounds; } catch (eM4) { }
+    if (res === 2) return "__RETRY__";
     if (res !== 1) return null;
 
     return getCurrentOptions();
@@ -485,340 +611,293 @@ if (app.documents.length === 0) {
     if (jobs.length === 0) {
         alert(L('noSelection'));
     } else {
-        var tracingPresets = app.tracingPresetsList;
-        // Safe preset selection: prefer index 1 (current behavior), fallback to index 0, or skip if none.
-        var tracingPresetName = null;
-        if (tracingPresets && tracingPresets.length) {
-            tracingPresetName = tracingPresets[(tracingPresets.length > 1) ? 1 : 0];
-        }
+        var __retrying = true;
+        while (__retrying) {
+            __retrying = false;
 
-        // --- Progress UI (ScriptUI) ---
-        function createProgress(maxValue) {
-            var w = new Window('palette', L('progressTitle'));
-            w.alignChildren = 'fill';
-            w.margins = 15;
-            var txt = w.add('statictext', undefined, L('progressPreparing'));
-            txt.characters = 28;
-            var bar = w.add('progressbar', undefined, 0, Math.max(1, maxValue));
-            bar.preferredSize = [260, 14];
-            w.show();
-            w.update();
-            return {
-                win: w,
-                text: txt,
-                bar: bar,
-                set: function (value, label) {
-                    try {
-                        if (label) txt.text = label;
-                        bar.value = Math.max(0, Math.min(bar.maxvalue, value));
-                        w.update();
-                        app.redraw();
-                    } catch (e) { }
-                },
-                close: function () {
-                    try { w.close(); } catch (e) { }
-                }
-            };
-        }
-
-        var progress = createProgress(jobs.length * 2);
-        progress.set(0, L('progressPreparing'));
-
-        /* 作業用レイヤーを作成 / Create work layer */
-        var workLayer = doc.layers.add();
-        workLayer.name = "__workLayer__"; // workLayer
-
-        try {
-
-            /* 選択したオブジェクトを複製し、作業用レイヤーに移動 / Duplicate selected items to work layer */
-            // itemsToProcess holds the work item plus its original reference for naming and palette placement.
-            var itemsToProcess = []; // { type: "raster"|"vector", originalItem: PageItem, workItem: PageItem }
-
-            for (var i = 0; i < jobs.length; i++) {
-                if (jobs[i].type === "vector") {
-                    /* ベクターは全アイテムを複製し、作業用レイヤー上でグループ化 / Duplicate all vectors and group on work layer */
-                    var vecGroup = workLayer.groupItems.add();
-                    for (var v = vectorItems.length - 1; v >= 0; v--) {
-                        var vdup = vectorItems[v].duplicate();
-                        vdup.move(vecGroup, ElementPlacement.PLACEATEND);
-                    }
-                    itemsToProcess.push({ type: "vector", originalItem: jobs[i].originalItem, workItem: vecGroup });
-                } else {
-                    var dup = jobs[i].originalItem.duplicate();
-                    dup.move(workLayer, ElementPlacement.PLACEATEND);
-                    itemsToProcess.push({ type: "raster", originalItem: jobs[i].originalItem, workItem: dup });
+            var tracingPresetName = null;
+            var __presetCanceled = false;
+            // ラスター/配置画像がある場合のみプリセット選択ダイアログを表示
+            var hasRasterJob = false;
+            for (var rj = 0; rj < jobs.length; rj++) {
+                if (jobs[rj].type === "raster") { hasRasterJob = true; break; }
+            }
+            if (hasRasterJob) {
+                var tracingPresets = app.tracingPresetsList;
+                if (tracingPresets && tracingPresets.length) {
+                    tracingPresetName = showPresetDialog(tracingPresets);
+                    if (tracingPresetName === null) __presetCanceled = true;
                 }
             }
 
-            // --- Helper: Trace and expand (raster/placed only) ---
-            // Important: Trace/Expand can leave behind intermediate objects depending on AI version.
-            // We try to explicitly clean up the tracing object and the original traced item to avoid residue.
-            function traceAndExpand(itemToTrace) {
-                var t = null;
-                var expanded = null;
-
-                try {
-                    t = itemToTrace.trace();
-                } catch (eTrace) {
-                    // If trace fails, return null (caller should handle)
-                    return null;
-                }
-
-                if (tracingPresetName && t && t.tracing && t.tracing.tracingOptions) {
-                    try {
-                        t.tracing.tracingOptions.loadFromPreset(tracingPresetName);
-                    } catch (ePreset) {
-                        // If preset load fails (e.g., missing/unsupported), continue with current tracing options.
-                    }
-                }
-
-                try { app.redraw(); } catch (eRd0) { }
-
-                try {
-                    // expandTracing() typically creates a GroupItem/CompoundPathItem result.
-                    expanded = (t && t.tracing) ? t.tracing.expandTracing() : null;
-                } catch (eExpand) {
-                    expanded = null;
-                }
-
-                // Best-effort: ensure expanded result is on the work layer
-                try {
-                    if (expanded && expanded.typename && workLayer) {
-                        expanded.move(workLayer, ElementPlacement.PLACEATEND);
-                    }
-                } catch (eMove) { }
-
-                // --- Cleanup residue ---
-                // Depending on Illustrator, after expand the tracing object (t) and/or the traced source may remain.
-                // We remove them if they still exist and are not the expanded result.
-                try {
-                    // Remove tracing object if it still exists (and isn't the same as expanded)
-                    if (t && t.typename) {
-                        try {
-                            if (!expanded || t !== expanded) {
-                                t.remove();
-                            }
-                        } catch (eTRm) { }
-                    }
-                } catch (eTOuter) { }
-
-                try {
-                    // Remove the original traced item if it still exists and is different from expanded.
-                    // (Some versions keep the original duplicate item around after tracing.)
-                    if (itemToTrace && itemToTrace.typename) {
-                        try {
-                            if (!expanded || itemToTrace !== expanded) {
-                                itemToTrace.remove();
-                            }
-                        } catch (eIRm) { }
-                    }
-                } catch (eIOuter) { }
-
-                return expanded;
-            }
-
-            /* 各複製に対してトレース→拡張→スウォッチ登録 / Trace, expand, and register swatches */
-            var outOpt = null; // decided after first successful extraction
-            var canceled = false;
-            for (var j = 0; j < itemsToProcess.length; j++) {
-                try {
-                    var job = itemsToProcess[j];
-                    progress.set(j * 2 + 1, L('progressTracing'));
-                    var p = job.workItem;
-                    var colors;
-                    if (job.type === "vector") {
-                        // ベクター: オブジェクトから直接カラーを抽出（ラスタライズ不要）
-                        colors = collectFillColors(p, []);
-                        colors = deduplicateColors(colors);
-                    } else {
-                        var grp = traceAndExpand(p);
-                        if (!grp) {
-                            // Trace/expand failed; skip this item without stopping the whole batch.
-                            continue;
+            if (!__presetCanceled) {
+                // --- Progress UI (ScriptUI) ---
+                function createProgress(maxValue) {
+                    var w = new Window('palette', L('progressTitle'));
+                    w.alignChildren = 'fill';
+                    w.margins = 15;
+                    var txt = w.add('statictext', undefined, L('progressPreparing'));
+                    txt.characters = 28;
+                    var bar = w.add('progressbar', undefined, 0, Math.max(1, maxValue));
+                    bar.preferredSize = [260, 14];
+                    w.show();
+                    w.update();
+                    return {
+                        win: w,
+                        text: txt,
+                        bar: bar,
+                        set: function (value, label) {
+                            try {
+                                if (label) txt.text = label;
+                                bar.value = Math.max(0, Math.min(bar.maxvalue, value));
+                                w.update();
+                                app.redraw();
+                            } catch (e) { __logError(e); }
+                        },
+                        close: function () {
+                            try { w.close(); } catch (e) { __logError(e); }
                         }
-                        colors = collectFillColors(grp, []);
-                        colors = deduplicateColors(colors);
+                    };
+                }
+
+                var progress = createProgress(jobs.length * 2);
+                progress.set(0, L('progressPreparing'));
+
+                /* 作業用レイヤーを作成 / Create work layer */
+                var workLayer = doc.layers.add();
+                workLayer.name = "__workLayer__"; // workLayer
+
+                try {
+
+                    /* 選択したオブジェクトを複製し、作業用レイヤーに移動 / Duplicate selected items to work layer */
+                    // itemsToProcess holds the work item plus its original reference for naming and palette placement.
+                    var itemsToProcess = []; // { type: "raster"|"vector", originalItem: PageItem, workItem: PageItem }
+
+                    for (var i = 0; i < jobs.length; i++) {
+                        if (jobs[i].type === "vector") {
+                            /* ベクターは全アイテムを複製し、作業用レイヤー上でグループ化 / Duplicate all vectors and group on work layer */
+                            var vecGroup = workLayer.groupItems.add();
+                            for (var v = vectorItems.length - 1; v >= 0; v--) {
+                                var vdup = vectorItems[v].duplicate();
+                                vdup.move(vecGroup, ElementPlacement.PLACEATEND);
+                            }
+                            itemsToProcess.push({ type: "vector", originalItem: jobs[i].originalItem, workItem: vecGroup });
+                        } else {
+                            var dup = jobs[i].originalItem.duplicate();
+                            dup.move(workLayer, ElementPlacement.PLACEATEND);
+                            itemsToProcess.push({ type: "raster", originalItem: jobs[i].originalItem, workItem: dup });
+                        }
                     }
 
-                    progress.set(j * 2 + 2, L('progressPalette'));
-                    // 2. On first extraction, show dialog, draw preview from colors (not swatchGroup)
-                    if (outOpt === null) {
-                        if (colors && colors.length > 0) {
-                            var outAll = { out16: true, out11: true, out8: true, out5: true, out5Adj: true, showHEX: true, showCMYK: true };
-                            var previewGroup = null;
+                    // --- Helper: Trace and expand (raster/placed only) ---
+                    function traceAndExpand(itemToTrace) {
+                        try {
+                            var traceObj = itemToTrace.trace();
                             try {
-                                previewGroup = job.originalItem.layer.groupItems.add();
-                                previewGroup.name = "__ColorPalettePreview__";
-                            } catch (ePg) { }
-
-                            try {
-                                if (previewGroup) {
-                                    drawSwatchSquares(doc, job.originalItem, colors, outAll, previewGroup);
+                                if (tracingPresetName) {
+                                    traceObj.tracing.tracingOptions.loadFromPreset(tracingPresetName);
                                 }
-                            } catch (ePrev) { }
+                            } catch (ePreset) { __logError(ePreset, "trace preset"); }
+                            var expanded = traceObj.tracing.expandTracing();
+                            return expanded;
+                        } catch (e) {
+                            __logError(e, "trace expand");
+                            return null;
+                        }
+                    }
 
-                            // Ensure preview is rendered before opening the modal dialog
-                            try { app.redraw(); } catch (eRd) { }
-                            try { $.sleep(80); } catch (eSl) { }
+                    /* 各複製に対してトレース→拡張→スウォッチ登録 / Trace, expand, and register swatches */
+                    var outOpt = null; // decided after first successful extraction
+                    var canceled = false;
+                    for (var j = 0; j < itemsToProcess.length; j++) {
+                        try {
+                            var job = itemsToProcess[j];
+                            progress.set(j * 2 + 1, L('progressTracing'));
+                            var p = job.workItem;
+                            var colors;
+                            if (job.type === "vector") {
+                                // ベクター: オブジェクトから直接カラーを抽出（ラスタライズ不要）
+                                colors = collectFillColors(p, []);
+                                colors = deduplicateColors(colors);
+                            } else {
+                                var grp = traceAndExpand(p);
+                                if (!grp) {
+                                    // Trace/expand failed; skip this item without stopping the whole batch.
+                                    continue;
+                                }
+                                colors = collectFillColors(grp, []);
+                                colors = deduplicateColors(colors);
+                            }
 
-                            // Hide progress UI while dialog shown
-                            try { if (progress && progress.win) progress.win.hide(); } catch (eHide) { }
-                            outOpt = showOutputOptionsDialog(function (optNow) {
-                                try {
-                                    // Robust preview refresh:
-                                    // - Recreate the preview group each time to avoid lingering items/residue.
-                                    // - This also prevents partial-delete failures from leaving behind artifacts.
+                            progress.set(j * 2 + 2, L('progressPalette'));
+                            // 2. On first extraction, show dialog, draw preview from colors (not swatchGroup)
+                            if (outOpt === null) {
+                                if (colors && colors.length > 0) {
+                                    var outAll = { out16: true, out11: true, out8: true, out5: true, out5Adj: true, showHEX: true, showCMYK: true };
+                                    var previewGroup = null;
+                                    try {
+                                        previewGroup = job.originalItem.layer.groupItems.add();
+                                        previewGroup.name = "__ColorPalettePreview__";
+                                    } catch (ePg) { __logError(ePg, "preview group create"); }
 
-                                    // Remove existing preview group (best-effort)
                                     try {
                                         if (previewGroup) {
-                                            previewGroup.remove();
+                                            drawSwatchSquares(doc, job.originalItem, colors, outAll, previewGroup);
                                         }
-                                    } catch (eRmPrev) { }
-                                    previewGroup = null;
+                                    } catch (ePrev) { __logError(ePrev, "preview initial draw"); }
 
-                                    // Draw preview only if enabled
-                                    if (optNow && optNow.preview) {
+                                    // Ensure preview is rendered before opening the modal dialog
+                                    try { app.redraw(); } catch (eRd) { }
+                                    try { $.sleep(80); } catch (eSl) { }
+
+                                    // Hide progress UI while dialog shown
+                                    try { if (progress && progress.win) progress.win.hide(); } catch (eHide) { }
+                                    outOpt = showOutputOptionsDialog(function (optNow) {
                                         try {
-                                            previewGroup = job.originalItem.layer.groupItems.add();
-                                            previewGroup.name = "__ColorPalettePreview__";
-                                        } catch (eNewPg) {
+                                            // Robust preview refresh:
+                                            // - Recreate the preview group each time to avoid lingering items/residue.
+                                            // - This also prevents partial-delete failures from leaving behind artifacts.
+
+                                            // Remove existing preview group (best-effort)
+                                            try {
+                                                if (previewGroup) {
+                                                    previewGroup.remove();
+                                                }
+                                            } catch (eRmPrev) { }
                                             previewGroup = null;
+
+                                            // Draw preview only if enabled
+                                            if (optNow && optNow.preview) {
+                                                try {
+                                                    previewGroup = job.originalItem.layer.groupItems.add();
+                                                    previewGroup.name = "__ColorPalettePreview__";
+                                                } catch (eNewPg) {
+                                                    __logError(eNewPg, "preview group recreate");
+                                                    previewGroup = null;
+                                                }
+                                                if (previewGroup) {
+                                                    drawSwatchSquares(doc, job.originalItem, colors, optNow, previewGroup);
+                                                }
+                                            }
+
+                                            try { app.redraw(); } catch (eRd2) { }
+                                        } catch (eCb) { __logError(eCb, "preview callback"); }
+                                    }, function () {
+                                        // Fit view to originalItem + previewGroup
+                                        var items = [];
+                                        try { items.push(job.originalItem); } catch (_) { }
+                                        try { if (previewGroup) items.push(previewGroup); } catch (_) { }
+                                        if (items.length === 0) return;
+                                        var l = Infinity, t = -Infinity, r = -Infinity, b = Infinity;
+                                        for (var fi = 0; fi < items.length; fi++) {
+                                            var gb = items[fi].geometricBounds;
+                                            if (gb[0] < l) l = gb[0];
+                                            if (gb[1] > t) t = gb[1];
+                                            if (gb[2] > r) r = gb[2];
+                                            if (gb[3] < b) b = gb[3];
                                         }
-                                        if (previewGroup) {
-                                            drawSwatchSquares(doc, job.originalItem, colors, optNow, previewGroup);
+                                        var v = doc.activeView;
+                                        var margin = 1.05;
+                                        v.centerPoint = [(l + r) / 2, (t + b) / 2];
+                                        var vb = v.bounds;
+                                        var vw = vb[2] - vb[0];
+                                        var vh = vb[1] - vb[3];
+                                        var ow = r - l;
+                                        var oh = t - b;
+                                        if (ow > 0 && oh > 0) {
+                                            var scale = Math.min(vw / ow, vh / oh) / margin;
+                                            v.zoom = v.zoom * scale;
                                         }
-                                    }
+                                        try { app.redraw(); } catch (_) { }
+                                    });
+                                    try { if (progress && progress.win) progress.win.show(); } catch (eShow) { }
 
-                                    try { app.redraw(); } catch (eRd2) { }
-                                } catch (eCb) { }
-                            }, function () {
-                                // Fit view to originalItem + previewGroup
-                                var items = [];
-                                try { items.push(job.originalItem); } catch (_) { }
-                                try { if (previewGroup) items.push(previewGroup); } catch (_) { }
-                                if (items.length === 0) return;
-                                var l = Infinity, t = -Infinity, r = -Infinity, b = Infinity;
-                                for (var fi = 0; fi < items.length; fi++) {
-                                    var gb = items[fi].geometricBounds;
-                                    if (gb[0] < l) l = gb[0];
-                                    if (gb[1] > t) t = gb[1];
-                                    if (gb[2] > r) r = gb[2];
-                                    if (gb[3] < b) b = gb[3];
-                                }
-                                var v = doc.activeView;
-                                var margin = 1.05;
-                                v.centerPoint = [(l + r) / 2, (t + b) / 2];
-                                var vb = v.bounds;
-                                var vw = vb[2] - vb[0];
-                                var vh = vb[1] - vb[3];
-                                var ow = r - l;
-                                var oh = t - b;
-                                if (ow > 0 && oh > 0) {
-                                    var scale = Math.min(vw / ow, vh / oh) / margin;
-                                    v.zoom = v.zoom * scale;
-                                }
-                                try { app.redraw(); } catch (_) { }
-                            });
-                            try { if (progress && progress.win) progress.win.show(); } catch (eShow) { }
-
-                            if (!outOpt) {
-                                // Canceled: remove preview and stop
-                                try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev) { }
-                                canceled = true;
-                            } else {
-                                // OK: keep preview visible until final output is ready
-
-                                // Now create swatch group and register colors
-                                var groupName;
-                                if (job.originalItem.typename === "PlacedItem" && job.originalItem.file) {
-                                    groupName = job.originalItem.file.name;
-                                } else {
-                                    groupName = L('itemPrefix') + j;
-                                }
-                                // Register swatches ONLY for 5 and 5 (CMYK Adjust), each as its own group.
-                                createSwatchGroupsFor5Only(doc, groupName, colors, outOpt);
-                                // Draw final output for this item
-                                var finalGroup = null;
-                                try {
-                                    finalGroup = job.originalItem.layer.groupItems.add();
-                                    finalGroup.name = "__ColorPalette__";
-                                } catch (eFg) { }
-                                try {
-                                    if (finalGroup) {
-                                        drawSwatchSquares(doc, job.originalItem, colors, outOpt, finalGroup);
+                                    if (outOpt === "__RETRY__") {
+                                        // Retry: remove preview, will clean up workLayer in finally block
+                                        try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev) { __logError(eRmPrev, "preview remove on retry"); }
+                                        __retrying = true;
+                                        canceled = true;
+                                    } else if (!outOpt) {
+                                        // Canceled: remove preview and stop
+                                        try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev) { __logError(eRmPrev, "preview remove on cancel"); }
+                                        canceled = true;
                                     } else {
-                                        drawSwatchSquares(doc, job.originalItem, colors, outOpt);
+                                        // OK: keep preview visible until final output is ready
+
+                                        // Now create swatch group and register colors
+                                        var groupName;
+                                        if (job.originalItem.typename === "PlacedItem" && job.originalItem.file) {
+                                            groupName = job.originalItem.file.name;
+                                        } else {
+                                            groupName = L('itemPrefix') + (j + 1);
+                                        }
+                                        // Register swatches ONLY for 5 and 5 (CMYK Adjust), each as its own group.
+                                        createSwatchGroupsFor5Only(doc, groupName, colors, outOpt);
+                                        // Draw final output for this item
+                                        var finalGroup = null;
+                                        try {
+                                            finalGroup = job.originalItem.layer.groupItems.add();
+                                            finalGroup.name = "__ColorPalette__";
+                                        } catch (eFg) { __logError(eFg, "final group create"); }
+                                        try {
+                                            if (finalGroup) {
+                                                drawSwatchSquares(doc, job.originalItem, colors, outOpt, finalGroup);
+                                            } else {
+                                                drawSwatchSquares(doc, job.originalItem, colors, outOpt);
+                                            }
+                                        } catch (eFinal) { __logError(eFinal, "final draw"); }
+                                        // Remove preview after final output is drawn
+                                        try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev2) { __logError(eRmPrev2, "preview remove after final"); }
                                     }
-                                } catch (eFinal) { }
-                                // Remove preview after final output is drawn
-                                try { if (previewGroup) previewGroup.remove(); } catch (eRmPrev2) { }
-                            }
-                        }
-                    } else {
-                        // For subsequent items, create swatch group immediately and proceed
-                        if (!canceled && outOpt && colors && colors.length > 0) {
-                            var groupName;
-                            if (job.originalItem.typename === "PlacedItem" && job.originalItem.file) {
-                                groupName = job.originalItem.file.name;
-                            } else {
-                                groupName = L('itemPrefix') + j;
-                            }
-                            // Register swatches ONLY for 5 and 5 (CMYK Adjust), each as its own group.
-                            createSwatchGroupsFor5Only(doc, groupName, colors, outOpt);
-                            var finalGroup2 = null;
-                            try {
-                                finalGroup2 = job.originalItem.layer.groupItems.add();
-                                finalGroup2.name = "__ColorPalette__";
-                            } catch (eFg2) { }
-                            try {
-                                if (finalGroup2) {
-                                    drawSwatchSquares(doc, job.originalItem, colors, outOpt, finalGroup2);
-                                } else {
-                                    drawSwatchSquares(doc, job.originalItem, colors, outOpt);
                                 }
-                            } catch (eFinal2) { }
+                            } else {
+                                // For subsequent items, create swatch group immediately and proceed
+                                if (!canceled && outOpt && colors && colors.length > 0) {
+                                    var groupName;
+                                    if (job.originalItem.typename === "PlacedItem" && job.originalItem.file) {
+                                        groupName = job.originalItem.file.name;
+                                    } else {
+                                        groupName = L('itemPrefix') + (j + 1);
+                                    }
+                                    // Register swatches ONLY for 5 and 5 (CMYK Adjust), each as its own group.
+                                    createSwatchGroupsFor5Only(doc, groupName, colors, outOpt);
+                                    var finalGroup2 = null;
+                                    try {
+                                        finalGroup2 = job.originalItem.layer.groupItems.add();
+                                        finalGroup2.name = "__ColorPalette__";
+                                    } catch (eFg2) { __logError(eFg2, "final group create subsequent"); }
+                                    try {
+                                        if (finalGroup2) {
+                                            drawSwatchSquares(doc, job.originalItem, colors, outOpt, finalGroup2);
+                                        } else {
+                                            drawSwatchSquares(doc, job.originalItem, colors, outOpt);
+                                        }
+                                    } catch (eFinal2) { __logError(eFinal2, "final draw subsequent"); }
+                                }
+                            }
+
+                            progress.set(j * 2 + 2, L('progressPalette'));
+                        } catch (err) {
+                            __logError(err, "per-item processing");
                         }
+                        if (canceled) break;
                     }
+                    progress.set(jobs.length * 2, L('progressDone'));
 
-                    progress.set(j * 2 + 2, L('progressPalette'));
-                } catch (err) {
-                    // ignore per-item failures to keep processing others
+                } finally {
+                    /* 作業用レイヤーを削除 / Remove work layer */
+                    try {
+                        if (workLayer) workLayer.remove();
+                    } catch (e) { __logError(e); }
+                    try { if (progress) progress.close(); } catch (e) { __logError(e); }
                 }
-                if (canceled) break;
+
+                app.redraw();
             }
-            progress.set(jobs.length * 2, L('progressDone'));
-
-        } finally {
-            /* 作業用レイヤーを削除 / Remove work layer */
-            try {
-                if (workLayer) workLayer.remove();
-            } catch (e) { }
-            try { if (progress) progress.close(); } catch (e) { }
-        }
-
-        app.redraw();
-    }
+        } // !__presetCanceled
+    } // while (__retrying)
 }
 
-// -----------------------------------------------------------------------------
-// LEGACY / UNUSED
-// The following helper is currently not used by this script.
-// Kept intentionally for potential reuse / backwards compatibility.
-// -----------------------------------------------------------------------------
-/* グループ内のパスの塗り色をスウォッチグループに登録 / Register fill colors from group to swatch group */
-function addColorsToSwatchGroup(doc, swatchGroup, item) {
-    if (item.typename === "PathItem") {
-        if (item.filled && item.fillColor) addSwatchToGroup(doc, swatchGroup, item.fillColor);
-        return;
-    }
-    if (item.typename !== "GroupItem" && item.typename !== "CompoundPathItem") return;
-    var children = (item.typename === "GroupItem") ? item.pageItems : item.pathItems;
-    for (var k = 0; k < children.length; k++) {
-        addColorsToSwatchGroup(doc, swatchGroup, children[k]);
-    }
-}
-// --- end of LEGACY / UNUSED ---
 
 // Helper: Collect fill colors with area from expanded result into array
 // Returns [{color: Color, area: Number}, ...]
@@ -831,7 +910,7 @@ function collectFillColors(item, out) {
             if (c.typename !== "NoColor" && c.typename !== "PatternColor" &&
                 c.typename !== "GradientColor" && c.typename !== "SpotColor") {
                 var a = 1;
-                try { a = Math.abs(item.area); } catch (e) { }
+                try { a = Math.abs(item.area); } catch (e) { __logError(e); }
                 if (a < 1) a = 1;
                 out.push({ color: c, area: a });
             }
@@ -874,6 +953,7 @@ function addSwatchToGroup(doc, swatchGroup, color) {
 
 // Helper: Create swatch group from colors array
 // colors: [{color, area}, ...] or [Color, ...]
+
 function createSwatchGroupFromColors(doc, groupName, colors) {
     var swatchGroup = doc.swatchGroups.add();
     swatchGroup.name = groupName;
@@ -884,15 +964,107 @@ function createSwatchGroupFromColors(doc, groupName, colors) {
     return swatchGroup;
 }
 
-// Helper: build representative 5-color list from full colorList (max-distance + nearest sort)
-// Returns an array of entries: [{swatch:{color,area}, r,g,b, area}, ...]
-function buildRepresentativeList(colorList, n) {
-    try {
-        var sel = selectByMaxDistance(colorList, n);
-        return sortByNearest(sel);
-    } catch (e) {
-        return [];
+// Helper: convert swatch-like input into ordered palette entries used by the row selection logic.
+// Input: [{color, area}, ...] or [{swatch:{color,area}, ...}, ...]
+// Output: [{swatch:{color,area}, r,g,b, area}, ...] sorted from darkest by nearest-neighbor walk.
+function buildOrderedPaletteEntries(sourceItems) {
+    var swatches = [];
+    for (var i = 0; i < sourceItems.length; i++) {
+        var item = sourceItems[i];
+        var sw = item && item.swatch ? item.swatch : item;
+        if (!sw) continue;
+        swatches.push({
+            color: sw.color,
+            area: (sw.area !== undefined) ? sw.area : ((item && item.area !== undefined) ? item.area : 1)
+        });
     }
+
+    var remaining = [];
+    for (var m = 0; m < swatches.length; m++) {
+        var rgb = colorToRGB(swatches[m].color);
+        remaining.push({
+            swatch: swatches[m],
+            r: rgb[0],
+            g: rgb[1],
+            b: rgb[2],
+            area: swatches[m].area || 1
+        });
+    }
+
+    var ordered = [];
+    if (remaining.length > 0) {
+        var startIdx = 0;
+        var minLum = Infinity;
+        for (var q = 0; q < remaining.length; q++) {
+            var lum = remaining[q].r * 0.299 + remaining[q].g * 0.587 + remaining[q].b * 0.114;
+            if (lum < minLum) { minLum = lum; startIdx = q; }
+        }
+        ordered.push(remaining.splice(startIdx, 1)[0]);
+
+        while (remaining.length > 0) {
+            var last = ordered[ordered.length - 1];
+            var nearestIdx = 0;
+            var nearestDist = Infinity;
+            for (var q2 = 0; q2 < remaining.length; q2++) {
+                var dr = last.r - remaining[q2].r;
+                var dg = last.g - remaining[q2].g;
+                var db = last.b - remaining[q2].b;
+                var dist = dr * dr + dg * dg + db * db;
+                if (dist < nearestDist) { nearestDist = dist; nearestIdx = q2; }
+            }
+            ordered.push(remaining.splice(nearestIdx, 1)[0]);
+        }
+    }
+
+    return ordered;
+}
+
+// Helper: select a palette row from the ordered entry list while honoring cascade and 11-color exclusion.
+function selectPaletteRowEntries(colorList, rowCount, cascadePrev, useCascade) {
+    var sourceColors;
+    if (rowCount === 11) {
+        sourceColors = getElevenRowSourceColors(colorList, cascadePrev, useCascade);
+    } else if (useCascade && cascadePrev) {
+        sourceColors = cascadePrev;
+    } else {
+        sourceColors = colorList;
+    }
+
+    return selectByMaxDistance(sourceColors, rowCount);
+}
+
+// Helper: reproduce the shared 16 -> 11 -> 8 -> 5 cascade selection flow.
+// Returns the sorted entries for the requested row count.
+function buildSelectedPaletteRow(colorList, rowCount, outOpt) {
+    if (!colorList || !colorList.length) return [];
+
+    var useCascade = !outOpt || outOpt.cascade !== false;
+    var cascadePrev = null;
+    var selected = [];
+
+    if (useCascade) {
+        selected = selectByMaxDistance(colorList, 16);
+        cascadePrev = selected;
+        if (rowCount === 16) return sortByNearest(selected);
+    } else if (rowCount === 16) {
+        return sortByNearest(selectByMaxDistance(colorList, 16));
+    }
+
+    var rows = [11, 8, 5];
+    for (var r = 0; r < rows.length; r++) {
+        var num = rows[r];
+        selected = selectPaletteRowEntries(colorList, num, cascadePrev, useCascade);
+        if (useCascade) cascadePrev = selected;
+        if (num === rowCount) return sortByNearest(selected);
+    }
+
+    return [];
+}
+
+
+function buildDrawnFiveRowEntries(fullColors, outOpt) {
+    var colorList = buildOrderedPaletteEntries(fullColors);
+    return buildSelectedPaletteRow(colorList, 5, outOpt);
 }
 
 // Helper: CMYK adjust used for the duplicated 5-color row (same policy as drawSwatchSquares)
@@ -929,26 +1101,14 @@ function buildCmykAdjustedColor(color) {
 function createSwatchGroupsFor5Only(doc, baseName, fullColors, outOpt) {
     if (!outOpt) return;
 
-    // Build the same working list used for palette selection: [{swatch,color,r,g,b,area}, ...]
-    var remaining = [];
-    for (var m = 0; m < fullColors.length; m++) {
-        var cObj = fullColors[m].color ? fullColors[m].color : fullColors[m];
-        var aObj = (fullColors[m] && fullColors[m].area !== undefined) ? fullColors[m].area : 1;
-        var rgb = colorToRGB(cObj);
-        remaining.push({ swatch: { color: cObj, area: aObj }, r: rgb[0], g: rgb[1], b: rgb[2], area: aObj });
-    }
-
-    if (!remaining.length) return;
-
-    // Representative 5 colors
-    var rep5 = buildRepresentativeList(remaining, 5);
+    var rep5 = buildDrawnFiveRowEntries(fullColors, outOpt);
+    if (!rep5 || !rep5.length) return;
 
     // Group naming
     var name5 = baseName + " - " + L('opt5');
     var name5a = baseName + " - " + L('opt5Adj');
 
     if (outOpt.out5) {
-        // Pass as [{color,area}, ...] to reuse existing swatch creation logic.
         var colors5 = [];
         for (var i = 0; i < rep5.length; i++) {
             colors5.push({ color: rep5[i].swatch.color, area: rep5[i].swatch.area || 1 });
@@ -987,39 +1147,8 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
 
     outOpt = outOpt || { out16: true, out11: true, out8: true, out5: true, out5Adj: true, showHEX: true, showCMYK: true, cascade: true };
 
-    /* 最近傍法でソート（最も暗い色から、色距離が近い順に並べる） / Sort by nearest neighbor from darkest */
-    var remaining = [];
-    for (var m = 0; m < swatches.length; m++) {
-        var rgb = colorToRGB(swatches[m].color);
-        remaining.push({ swatch: swatches[m], r: rgb[0], g: rgb[1], b: rgb[2], area: swatches[m].area || 1 });
-    }
-
-    var colorList = [];
-    if (remaining.length > 0) {
-        /* 最も暗い色（輝度が低い）をスタート地点にする / Start from darkest color */
-        var startIdx = 0;
-        var minLum = Infinity;
-        for (var q = 0; q < remaining.length; q++) {
-            var lum = remaining[q].r * 0.299 + remaining[q].g * 0.587 + remaining[q].b * 0.114;
-            if (lum < minLum) { minLum = lum; startIdx = q; }
-        }
-        colorList.push(remaining.splice(startIdx, 1)[0]);
-
-        /* 残りから最も近い色を順に選択 / Select nearest color iteratively */
-        while (remaining.length > 0) {
-            var last = colorList[colorList.length - 1];
-            var nearestIdx = 0;
-            var nearestDist = Infinity;
-            for (var q = 0; q < remaining.length; q++) {
-                var dr = last.r - remaining[q].r;
-                var dg = last.g - remaining[q].g;
-                var db = last.b - remaining[q].b;
-                var dist = dr * dr + dg * dg + db * db;
-                if (dist < nearestDist) { nearestDist = dist; nearestIdx = q; }
-            }
-            colorList.push(remaining.splice(nearestIdx, 1)[0]);
-        }
-    }
+    /* 共有ヘルパーで並び済みの色エントリを構築 / Build ordered palette entries via shared helper */
+    var colorList = buildOrderedPaletteEntries(swatches);
 
     /* 元画像の位置・サイズを取得 / Get original image position and size */
     var imgLeft = originalItem.left;
@@ -1056,7 +1185,7 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
                 c.cyan = 0; c.magenta = 0; c.yellow = 0; c.black = 100;
                 return c;
             }
-        } catch (e) { }
+        } catch (e) { __logError(e); }
         var r = new RGBColor();
         r.red = 0; r.green = 0; r.blue = 0;
         return r;
@@ -1140,19 +1269,20 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
             tf.position = [x, y];
 
             // Move into group so it stays with the swatches
-            try { tf.move(group, ElementPlacement.PLACEATEND); } catch (e) { }
-        } catch (e) { }
+            try { tf.move(group, ElementPlacement.PLACEATEND); } catch (e) { __logError(e); }
+        } catch (e) { __logError(e); }
     }
 
     /* 16色の正方形を作成・グループ化 / Create and group 16-color squares */
     /* cascade モード用: 前段の選出結果を保持 / Keep previous selection for cascade mode */
+    var useCascade = (outOpt.cascade !== false);
     var cascadePrev = null;
-    if (outOpt.out16 || outOpt.cascade) {
-        var sel16 = selectByMaxDistance(colorList, 16);
-        cascadePrev = sel16;
+    var sorted16 = [];
+    if (outOpt.out16 || useCascade) {
+        sorted16 = buildSelectedPaletteRow(colorList, 16, outOpt);
+        cascadePrev = sorted16.slice();
     }
     if (outOpt.out16) {
-        var sorted16 = sortByNearest(sel16);
         var group16 = container.groupItems.add();
         group16.name = L('group16Name');
         for (var n = 0; n < numSquares; n++) {
@@ -1186,27 +1316,13 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
 
     for (var r = 0; r < rows.length; r++) {
         var num = rows[r];
-        var isRowEnabled = !((num === 11 && !outOpt.out11) || (num === 8 && !outOpt.out8) || (num === 5 && !outOpt.out5));
+        var isRowEnabled = !((num === 11 && !outOpt.out11) || (num === 8 && !outOpt.out8) || (num === 5 && !outOpt.out5 && !outOpt.out5Adj));
 
         /* 段階的減色: 出力しない行でも内部計算を行い、次段へ渡す */
         /* Cascade: compute selection even for skipped rows to feed the next stage */
-        var sourceColors;
-        if (outOpt.cascade && cascadePrev) {
-            sourceColors = cascadePrev;
-        } else {
-            sourceColors = colorList;
-            /* 11色のみ: ほぼ白・ほぼ黒を除外 / For 11 colors: exclude near-white/black */
-            if (num === 11) {
-                sourceColors = [];
-                for (var f = 0; f < colorList.length; f++) {
-                    if (!isNearlyWhite(colorList[f]) && !isNearlyBlack(colorList[f])) sourceColors.push(colorList[f]);
-                }
-                if (sourceColors.length === 0) sourceColors = colorList; // fallback
-            }
-        }
 
-        var selected = selectByMaxDistance(sourceColors, num);
-        if (outOpt.cascade) cascadePrev = selected;
+        var selected = selectPaletteRowEntries(colorList, num, cascadePrev, useCascade);
+        if (useCascade) cascadePrev = selected;
 
         if (!isRowEnabled) continue;
 
@@ -1224,6 +1340,8 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
         var rowGroup = container.groupItems.add();
         rowGroup.name = (lang === 'ja') ? (num + L('colorsSuffix')) : (num + " " + L('colorsSuffix'));
 
+        var drawBaseRow = !(num === 5 && !outOpt.out5 && outOpt.out5Adj);
+
         for (var n = 0; n < num; n++) {
             var rect2 = rowGroup.pathItems.rectangle(
                 yPos,
@@ -1239,11 +1357,31 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
             } else {
                 rect2.filled = false;
             }
-            if (num === 5 && outOpt.showHEX) addSwatchLabelToGroup(rect2, rowSize, rowGroup, "hex");
+            if (num === 5 && drawBaseRow && outOpt.showHEX) addSwatchLabelToGroup(rect2, rowSize, rowGroup, "hex");
+        }
+
+        if (num === 5 && !drawBaseRow && outOpt.out5Adj) {
+            try {
+                for (var p0 = 0; p0 < rowGroup.pathItems.length; p0++) {
+                    var baseItem = rowGroup.pathItems[p0];
+                    if (!baseItem.filled) continue;
+                    var cBase = baseItem.fillColor;
+                    var cAdj = buildCmykAdjustedColor(cBase);
+                    if (cAdj) baseItem.fillColor = cAdj;
+                }
+
+                if (outOpt.showCMYK) {
+                    for (var u0 = 0; u0 < rowGroup.pathItems.length; u0++) {
+                        var pi0 = rowGroup.pathItems[u0];
+                        if (!pi0.filled) continue;
+                        addSwatchLabelToGroup(pi0, rowSize, rowGroup, "cmyk");
+                    }
+                }
+            } catch (eOnlyAdj) { __logError(eOnlyAdj, "adjusted-only row"); }
         }
 
         // Duplicate the 5-color row below itself (CMYK adjust) only if enabled
-        if (num === 5 && outOpt.out5Adj) {
+        if (num === 5 && drawBaseRow && outOpt.out5Adj) {
             try {
                 var rowGroup2 = rowGroup.duplicate();
                 // Move down by (row height + quarter height)
@@ -1278,10 +1416,10 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
                     try {
                         if (rowGroup2.textFrames && rowGroup2.textFrames.length) {
                             for (var tfi = rowGroup2.textFrames.length - 1; tfi >= 0; tfi--) {
-                                try { rowGroup2.textFrames[tfi].remove(); } catch (eRm) { }
+                                try { rowGroup2.textFrames[tfi].remove(); } catch (eRm) { __logError(eRm, "label remove"); }
                             }
                         }
-                    } catch (eRmAll) { }
+                    } catch (eRmAll) { __logError(eRmAll, "label remove all"); }
 
                     if (outOpt.showCMYK) {
                         // Create CMYK-only labels for the adjusted row
@@ -1291,9 +1429,9 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
                             addSwatchLabelToGroup(pi, rowSize, rowGroup2, "cmyk");
                         }
                     }
-                } catch (e2) { }
+                } catch (e2) { __logError(e2, "adjusted row label rebuild"); }
 
-            } catch (e) { }
+            } catch (e) { __logError(e); }
         }
 
         prevBottom = yPos - rowSize;
@@ -1321,7 +1459,7 @@ function entryToCMYK(entry) {
                 cmyk = [dst[0], dst[1], dst[2], dst[3]];
             }
         }
-    } catch (e) { }
+    } catch (e) { __logError(e); }
     return cmyk;
 }
 
@@ -1365,6 +1503,33 @@ function isNearlyBlack(entry) {
     }
     // CMYKが取得できない場合はRGB条件のみで「ほぼ黒」と判定
     return true;
+}
+
+/* 11色行用の入力色を取得 / Build source colors for the 11-color row
+   near-white / near-black exclusion must apply even in cascade mode. */
+function getElevenRowSourceColors(colorList, cascadePrev, useCascade) {
+    var filtered = [];
+    for (var i = 0; i < colorList.length; i++) {
+        if (!isNearlyWhite(colorList[i]) && !isNearlyBlack(colorList[i])) filtered.push(colorList[i]);
+    }
+    if (filtered.length === 0) filtered = colorList;
+
+    if (useCascade && cascadePrev) {
+        var filteredKeys = {};
+        for (var k = 0; k < filtered.length; k++) {
+            filteredKeys[colorKey(filtered[k].swatch.color)] = true;
+        }
+
+        var cascadedFiltered = [];
+        for (var j = 0; j < cascadePrev.length; j++) {
+            var key = colorKey(cascadePrev[j].swatch.color);
+            if (filteredKeys[key]) cascadedFiltered.push(cascadePrev[j]);
+        }
+
+        if (cascadedFiltered.length > 0) return cascadedFiltered;
+    }
+
+    return filtered;
 }
 
 function selectByMaxDistance(colorList, num) {
@@ -1517,7 +1682,7 @@ function colorToCMYKVals(color) {
                 if (dst2 && dst2.length >= 4) return [dst2[0], dst2[1], dst2[2], dst2[3]];
             }
         }
-    } catch (e) { }
+    } catch (e) { __logError(e); }
     return null;
 }
 
@@ -1544,7 +1709,7 @@ function colorToRGB(color) {
                     return [clamp255(dst[0]), clamp255(dst[1]), clamp255(dst[2])];
                 }
             }
-        } catch (e) { }
+        } catch (e) { __logError(e); }
         return null;
     }
 
