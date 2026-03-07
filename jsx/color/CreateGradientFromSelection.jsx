@@ -158,19 +158,45 @@ function main() {
 
     var doc = app.activeDocument;
 
-    // 選択があるか確認
+    // 選択があるか確認（オブジェクト or スウォッチ）
+    var fromSwatches = false;
+    var selectedSwatchColors = [];
+
     if (!doc.selection || doc.selection.length === 0) {
-        return;
+        // オブジェクト未選択 → スウォッチパネルの選択を確認
+        try {
+            var selSwatches = doc.swatches.getSelected();
+            if (selSwatches && selSwatches.length >= 2) {
+                fromSwatches = true;
+                for (var si = 0; si < selSwatches.length; si++) {
+                    try {
+                        var sc = selSwatches[si].color;
+                        if (sc && sc.typename !== "NoColor") {
+                            selectedSwatchColors.push(sc);
+                        }
+                    } catch (eSC) { }
+                }
+            }
+        } catch (eGetSel) { }
+
+        if (!fromSwatches || selectedSwatchColors.length < 2) {
+            return;
+        }
     }
 
     // 選択の並びを推定（この結果で後続の処理を分岐するため保持）
-    var selOri = detectSelectionOrientation(doc.selection);
+    var selOri = fromSwatches
+        ? { orientation: "horizontal", dx: 0, dy: 0, ratio: 0 }
+        : detectSelectionOrientation(doc.selection);
 
-    var selBounds = getSelectionBounds(doc.selection); // 選択の外接（サイズ算出用）
+    var selBounds = fromSwatches ? null : getSelectionBounds(doc.selection); // 選択の外接（サイズ算出用）
 
-    // If 5+ objects are selected, disable Separate gradients option
+    // If 5+ objects/swatches are selected, disable Separate gradients option
     var disallowSeparate = false;
-    try { disallowSeparate = (doc.selection && doc.selection.length >= 5); } catch (e) { disallowSeparate = false; }
+    try {
+        var itemCount = fromSwatches ? selectedSwatchColors.length : doc.selection.length;
+        disallowSeparate = (itemCount >= 5);
+    } catch (e) { disallowSeparate = false; }
 
     /* =========================================
      * Options dialog / オプションダイアログ
@@ -253,7 +279,8 @@ function main() {
 
         function syncEnable() {
             cbRect.enabled = cbGradient.value;
-            cbSelSize.enabled = cbGradient.value && cbRect.value;
+            // スウォッチ由来の場合は「選択オブジェクトに合わせる」を無効化（バウンズが無い）
+            cbSelSize.enabled = cbGradient.value && cbRect.value && !fromSwatches;
             // Graphic style can be created even if rectangle output is OFF (temporary rectangle)
             cbGStyle.enabled = cbGradient.value;
 
@@ -266,12 +293,14 @@ function main() {
             if (!cbGradient.value) cbSelSize.value = false;
             if (!cbGradient.value) cbGStyle.value = false;
 
+            if (fromSwatches) cbSelSize.value = false;
+
             if (!cbGradient.value || disallowSeparate) {
                 rbGradSeparate.value = false;
                 rbGradNormal.value = true;
             }
 
-            cbSelSize.enabled = cbGradient.value && cbRect.value;
+            cbSelSize.enabled = cbGradient.value && cbRect.value && !fromSwatches;
             cbGStyle.enabled = cbGradient.value;
         }
         cbGradient.onClick = syncEnable;
@@ -790,8 +819,8 @@ function main() {
         return null;
     }
 
-    // 選択オブジェクトから色を抽出
-    var colors = collectColorsFromSelection(doc.selection);
+    // 色を抽出（スウォッチ由来 or オブジェクト由来）
+    var colors = fromSwatches ? selectedSwatchColors : collectColorsFromSelection(doc.selection);
 
     if (colors.length < 2) {
         return;
@@ -979,10 +1008,13 @@ function main() {
                     var viewCenterX = doc.activeView.centerPoint[0];
                     var viewCenterY = doc.activeView.centerPoint[1];
 
-                    // 長方形サイズ：選択の幅・高さを流用（取得できない/無効なら 100）。オプションOFF時は 100。
+                    // 長方形サイズ：スウォッチ由来は固定(200x100)、オブジェクト由来は選択サイズまたは固定(100)
                     var rectWidth = 100;
                     var rectHeight = 100;
-                    if (opts.useSelectionSize) {
+                    if (fromSwatches) {
+                        rectWidth = 200;
+                        rectHeight = 100;
+                    } else if (opts.useSelectionSize) {
                         try {
                             if (selBounds) {
                                 rectWidth = Math.abs(selBounds.right - selBounds.left);
@@ -995,26 +1027,28 @@ function main() {
                     if (!rectWidth || rectWidth <= 0) rectWidth = 100;
                     if (!rectHeight || rectHeight <= 0) rectHeight = 100;
 
-                    // 位置：基本はビュー中心。選択が横/縦並びなら選択に沿って配置。
+                    // 位置：スウォッチ由来はビュー中心、オブジェクト由来は選択に沿って配置
                     var rectTop = viewCenterY + rectHeight / 2;
                     var rectLeft = viewCenterX - rectWidth / 2;
 
-                    try {
-                        if (selBounds && selOri && (selOri.orientation === "horizontal" || selOri.orientation === "vertical")) {
-                            var selW = Math.abs(selBounds.right - selBounds.left);
-                            var selH = Math.abs(selBounds.top - selBounds.bottom);
+                    if (!fromSwatches) {
+                        try {
+                            if (selBounds && selOri && (selOri.orientation === "horizontal" || selOri.orientation === "vertical")) {
+                                var selW = Math.abs(selBounds.right - selBounds.left);
+                                var selH = Math.abs(selBounds.top - selBounds.bottom);
 
-                            if (selOri.orientation === "horizontal") {
-                                // 左：選択の左に合わせる／上：選択の下に「長方形1個分」離して配置
-                                rectLeft = selBounds.left;
-                                rectTop = selBounds.bottom - rectHeight;
-                            } else if (selOri.orientation === "vertical") {
-                                // 上：選択の上に合わせる／左：選択の右に「長方形1個分」離して配置
-                                rectLeft = selBounds.right + rectWidth;
-                                rectTop = selBounds.top;
+                                if (selOri.orientation === "horizontal") {
+                                    // 左：選択の左に合わせる／上：選択の下に「長方形1個分」離して配置
+                                    rectLeft = selBounds.left;
+                                    rectTop = selBounds.bottom - rectHeight;
+                                } else if (selOri.orientation === "vertical") {
+                                    // 上：選択の上に合わせる／左：選択の右に「長方形1個分」離して配置
+                                    rectLeft = selBounds.right + rectWidth;
+                                    rectTop = selBounds.top;
+                                }
                             }
-                        }
-                    } catch (ePos) { }
+                        } catch (ePos) { }
+                    }
 
                     var rect = drawLayer.pathItems.rectangle(rectTop, rectLeft, rectWidth, rectHeight);
 

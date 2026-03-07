@@ -236,6 +236,15 @@ var LABELS = {
         ja: "画像トレース（プリセット選択）",
         en: "Image Trace (Preset Selection)"
     },
+    // --- Swatch Mode ---
+    swatchPaletteGroup: {
+        ja: "スウォッチパレット",
+        en: "Swatch Palette"
+    },
+    noSwatchSelected: {
+        ja: "対象のオブジェクトまたはスウォッチが選択されていません。",
+        en: "No applicable objects or swatches are selected."
+    },
 };
 
 /* ラベル取得関数 / Get localized label */
@@ -573,6 +582,128 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
     return getCurrentOptions();
 }
 
+/* スウォッチパネルで選択中のスウォッチから色を取得 / Get colors from selected swatches */
+function getSelectedSwatchColors(doc) {
+    var colors = [];
+    try {
+        var selected = doc.swatches.getSelected();
+        if (!selected || selected.length === 0) return colors;
+        for (var i = 0; i < selected.length; i++) {
+            var c = selected[i].color;
+            if (!c) continue;
+            // Skip [None] and registration-like swatches
+            if (c.typename === "NoColor") continue;
+            if (c.typename === "PatternColor") continue;
+            if (c.typename === "GradientColor") continue;
+            colors.push({ color: c, area: 1 });
+        }
+    } catch (e) { __logError(e, "getSelectedSwatchColors"); }
+    return colors;
+}
+
+/* スウォッチから色玉パレットを描画（固定60px、HEX+CMYK付き）/ Draw swatch palette with fixed 60px squares */
+function drawPaletteFromSwatches(doc, colors) {
+    var squareSize = 60;
+    var gap = squareSize * 0.10;
+    var num = colors.length;
+
+    // アクティブアートボードの中央上部に配置 / Place at top-center of active artboard
+    var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+    var abRect = ab.artboardRect; // [left, top, right, bottom]
+    var totalWidth = num * squareSize + (num - 1) * gap;
+    var abWidth = abRect[2] - abRect[0];
+    var abHeight = abRect[1] - abRect[3];
+    var startX = abRect[0] + (abWidth - totalWidth) / 2;
+    var startY = abRect[1] - (abHeight - squareSize) / 2;
+
+    var targetLayer = doc.activeLayer;
+    var group = targetLayer.groupItems.add();
+    group.name = L('swatchPaletteGroup');
+
+    var __isDocCMYK = false;
+    try {
+        __isDocCMYK = (doc.documentColorSpace === DocumentColorSpace.CMYK);
+    } catch (e) { }
+
+    function getLabelBlackColor() {
+        try {
+            if (__isDocCMYK) {
+                var c = new CMYKColor();
+                c.cyan = 0; c.magenta = 0; c.yellow = 0; c.black = 100;
+                return c;
+            }
+        } catch (e) { }
+        var r = new RGBColor();
+        r.red = 0; r.green = 0; r.blue = 0;
+        return r;
+    }
+
+    for (var i = 0; i < num; i++) {
+        var rect = group.pathItems.rectangle(
+            startY,
+            startX + i * (squareSize + gap),
+            squareSize,
+            squareSize
+        );
+        rect.stroked = false;
+        rect.filled = true;
+        rect.fillColor = colors[i].color;
+
+        // HEX + CMYK labels
+        try {
+            var rgb = colorToRGB(rect.fillColor);
+            function __toHex2(n) { var s = Math.round(n).toString(16).toUpperCase(); return s.length === 1 ? "0" + s : s; }
+            var hexText = "#" + __toHex2(rgb[0]) + __toHex2(rgb[1]) + __toHex2(rgb[2]);
+
+            var fs = squareSize / 10;
+            var x = rect.left;
+            var y = rect.top - rect.height - (fs / 2);
+
+            var tfHex = targetLayer.textFrames.add();
+            tfHex.contents = hexText;
+            tfHex.textRange.justification = Justification.LEFT;
+            tfHex.textRange.characterAttributes.size = fs;
+            tfHex.textRange.fillColor = getLabelBlackColor();
+            try {
+                tfHex.textRange.characterAttributes.textFont = app.textFonts.getByName("MyriadPro-Regular");
+            } catch (eFont) {
+                try { tfHex.textRange.characterAttributes.textFont = app.textFonts.getByName("Myriad Pro"); } catch (e) { }
+            }
+            tfHex.position = [x, y];
+            try { tfHex.move(group, ElementPlacement.PLACEATEND); } catch (e) { }
+
+            // CMYK label (below HEX)
+            if (__isDocCMYK) {
+                var cmykVals = colorToCMYKVals(rect.fillColor);
+                if (cmykVals) {
+                    function __round5(v) { return Math.floor((v + 2.5) / 5) * 5; }
+                    var cmykText = L('cmykPrefix') + __round5(cmykVals[0]) + ", " + __round5(cmykVals[1]) + ", " + __round5(cmykVals[2]) + ", " + __round5(cmykVals[3]);
+                    var tfCmyk = targetLayer.textFrames.add();
+                    tfCmyk.contents = cmykText;
+                    tfCmyk.textRange.justification = Justification.LEFT;
+                    tfCmyk.textRange.characterAttributes.size = fs;
+                    tfCmyk.textRange.fillColor = getLabelBlackColor();
+                    try {
+                        tfCmyk.textRange.characterAttributes.textFont = app.textFonts.getByName("MyriadPro-Regular");
+                    } catch (eFont2) {
+                        try { tfCmyk.textRange.characterAttributes.textFont = app.textFonts.getByName("Myriad Pro"); } catch (e) { }
+                    }
+                    var hexBottom = y - tfHex.height;
+                    tfCmyk.position = [x, hexBottom];
+                    try { tfCmyk.move(group, ElementPlacement.PLACEATEND); } catch (e) { }
+                }
+            }
+        } catch (eLabel) { __logError(eLabel, "swatch palette label"); }
+    }
+
+    // スウォッチグループに登録 / Register as swatch group
+    try {
+        createSwatchGroupFromColors(doc, L('swatchPaletteGroup'), colors);
+    } catch (e) { __logError(e, "swatch group registration"); }
+
+    try { app.redraw(); } catch (e) { }
+}
+
 /* メインコード / Main code */
 
 if (app.documents.length === 0) {
@@ -609,7 +740,13 @@ if (app.documents.length === 0) {
     }
 
     if (jobs.length === 0) {
-        alert(L('noSelection'));
+        // オブジェクト未選択 → スウォッチ選択をチェック / No objects → check swatch selection
+        var swatchColors = getSelectedSwatchColors(doc);
+        if (swatchColors.length > 0) {
+            drawPaletteFromSwatches(doc, swatchColors);
+        } else {
+            alert(L('noSwatchSelected'));
+        }
     } else {
         var __retrying = true;
         while (__retrying) {

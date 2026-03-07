@@ -49,6 +49,7 @@ ApplySwatchesToSelection.jsx
 - v1.4.2 (20260305) : CMYKスウォッチ未選択時の合計上限（150%）を定数化（TMK_CMYK_FALLBACK_MAX_TOTAL）
 - v1.4.3 (20260305) : CMYKスウォッチ未選択時、近い色がかぶりにくいよう距離制約を追加（TMK_CMYK_FALLBACK_MIN_DISTANCE）
 - v1.4.4 (20260305) : CMYKスウォッチ未選択時の合計上限（TMK_CMYK_FALLBACK_MAX_TOTAL）の初期値を200%に変更
+- v1.5.0 (20260307) : 選択オブジェクトが4つのとき固定4色プリセット（#B9D3E0, #E19DA1, #FDECAC, #CB4447）を適用
 
 ---
 
@@ -89,6 +90,7 @@ ApplySwatchesToSelection.jsx
 - v1.4.2 (20260305): Made CMYK fallback total limit (150%) configurable via TMK_CMYK_FALLBACK_MAX_TOTAL
 - v1.4.3 (20260305): Added distance constraint to reduce similar colors in CMYK fallback (TMK_CMYK_FALLBACK_MIN_DISTANCE)
 - v1.4.4 (20260305): Set default CMYK fallback total limit (TMK_CMYK_FALLBACK_MAX_TOTAL) to 200%
+- v1.5.0 (20260307): Apply fixed 4-color preset (#B9D3E0, #E19DA1, #FDECAC, #CB4447) when exactly 4 objects are selected
 
 */
 
@@ -168,8 +170,11 @@ function main() {
 
         // スウォッチが未選択、または1色以下、または白のみの場合は定義済みカラーを使用
         if (!selectedSwatches || selectedSwatches.length <= 1 || allWhiteSwatches(selectedSwatches)) {
-            // If CMYK document, generate as many colors as targets (avoid duplicates when possible)
-            if (activeDoc.documentColorSpace === DocumentColorSpace.CMYK) {
+            // 選択オブジェクトがちょうど4つの場合、固定の4色プリセットを適用
+            if (selectedItems.length === 4 && !selectedTextRange) {
+                predefinedColors = getFourColorPreset(activeDoc.documentColorSpace);
+            } else if (activeDoc.documentColorSpace === DocumentColorSpace.CMYK) {
+                // If CMYK document, generate as many colors as targets (avoid duplicates when possible)
                 var needCount = getNeededColorCount(selectedItems, selectedTextRange);
                 predefinedColors = generateRandomCMYPaletteUnique(needCount, TMK_CMYK_FALLBACK_MAX_TOTAL);
             }
@@ -513,6 +518,42 @@ function generateRandomCMYPaletteUnique(count, maxTotal) {
     }
 
     return result;
+}
+
+// 4オブジェクト選択時の固定プリセット (#B9D3E0, #E19DA1, #FDECAC, #CB4447)
+function getFourColorPreset(colorSpace) {
+    var colors = [];
+    if (colorSpace === DocumentColorSpace.CMYK) {
+        var defs = [
+            { c: 19, m: 7, y: 2, k: 12 },   // #B9D3E0
+            { c: 0, m: 30, y: 28, k: 12 },   // #E19DA1
+            { c: 0, m: 7, y: 32, k: 1 },     // #FDECAC
+            { c: 0, m: 67, y: 65, k: 20 }    // #CB4447
+        ];
+        for (var i = 0; i < defs.length; i++) {
+            var col = new CMYKColor();
+            col.cyan = defs[i].c;
+            col.magenta = defs[i].m;
+            col.yellow = defs[i].y;
+            col.black = defs[i].k;
+            colors.push(col);
+        }
+    } else {
+        var defs = [
+            { r: 185, g: 211, b: 224 },  // #B9D3E0
+            { r: 225, g: 157, b: 161 },  // #E19DA1
+            { r: 253, g: 236, b: 172 },  // #FDECAC
+            { r: 203, g: 68, b: 71 }     // #CB4447
+        ];
+        for (var i = 0; i < defs.length; i++) {
+            var col = new RGBColor();
+            col.red = defs[i].r;
+            col.green = defs[i].g;
+            col.blue = defs[i].b;
+            colors.push(col);
+        }
+    }
+    return colors;
 }
 
 // インデックスに応じてスウォッチの色を取得（ループ）
