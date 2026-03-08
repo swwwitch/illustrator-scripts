@@ -7,23 +7,27 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 PathCleanupTool
 
 ### 更新日 / Updated:
-20260304
+20260309
 
 ### 概要 / Overview:
 選択したパス（グループ/複合パス内も含む）を対象に、
 - 直線上で冗長なアンカーポイント
+- 同じ座標のアンカーポイント
 - 直線として扱えるベジェ区間上のハンドル
 を削除（最適化）します。ロック/非表示（親やレイヤー含む）はスキップします。
-許容誤差は「アンカー削除」と「ハンドル削除」で分離しています。
+さらに「その他」タブでは、スムーズ化／コーナー化／アンカーポイント追加／アンカーポイント分割を実行できます。
+許容誤差はハンドル削除用に調整できます。
 
-ダイアログ表示時点の選択を固定し、予測（→表示）と実行結果が常に一致するように設計されています。
-
-「プレビュー（別レイヤー）」を有効にすると、実オブジェクトは変更せず、
-専用レイヤーに複製を作成して色付け表示し、削除対象のパスを可視化します。
-プレビューはOK／キャンセル時に自動的に削除されます。
+ダイアログ表示時点の選択を固定し、情報表示と実行対象が一致するようにしています。
+その他タブの処理も、OK時に選択固定した同一対象へ確実に適用されるように状態管理を見直しています。
+スムーズ化では、前後アンカーが同一点または極端に近い場合でも破綻しにくいようガードを入れています。
+また、オープンパスの先頭・末尾は循環参照せず、端点として自然な方向を使うようにしています。
+方向は45度刻みに丸めず、前後アンカーから求めた自然な接線方向をそのまま使う「通常のスムーズポイント化」に調整しています。
+また、前後セグメントの角度差や長さ差が大きい場合はハンドル長を少し抑えて、鋭角や偏った間隔でも暴れにくいようにしています。
+実処理中の例外は、UI系の保存復元とは分けて最小限のログを出すよう整理しています。
 */
 
-var SCRIPT_VERSION = "v1.1.7";
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -41,8 +45,8 @@ var LABELS = {
         en: "Removal Targets"
     },
     panelCurrentInfo: {
-        ja: "現在の情報",
-        en: "Current Info"
+        ja: "情報",
+        en: "Info"
     },
     labelPathCount: {
         ja: "パスの数：",
@@ -87,14 +91,64 @@ var LABELS = {
     alertNeedSelection: {
         ja: "パスを選択してから実行してください。",
         en: "Please select paths before running."
+    },
+    tabProcess: {
+        ja: "削除対象",
+        en: "Removal Targets"
+    },
+    tabOther: {
+        ja: "その他",
+        en: "Other"
+    },
+    rbConvertSmooth: {
+        ja: "スムーズポイントに変換",
+        en: "Convert to smooth points"
+    },
+    rbConvertCorner: {
+        ja: "コーナーポイントに変換",
+        en: "Convert to corner points"
+    },
+    rbAddAnchors: {
+        ja: "アンカーポイントを追加",
+        en: "Add anchor points"
+    },
+    rbSplitAtAnchors: {
+        ja: "アンカーポイントで分割",
+        en: "Split at anchor points"
     }
 };
+
+
+(function () {
+    // --- shared settings / helpers ---
+    /* 共通設定とヘルパー / Shared settings and helpers */
+    // Tolerances (keep same default values to avoid behavior change)
+    // - Anchor collinearity tolerance: used for redundant anchor removal
+    // - Handle collinearity tolerance: used for straight-segment handle normalization
+    // - Same-point tolerance: used for handle/anchor coincidence checks and counts
+    var TOL_ANCHOR_COLLINEAR = 0.02;
+    var TOL_HANDLE_COLLINEAR = 0.01;
+    var TOL_SAMEPOINT = 0.02;
+
+    // 実処理系のみ最小ログ化。UI位置保存や復元系の catch は従来どおり silent のままにする
+    function logProcessError(context, e) {
+        try {
+            $.writeln("[PathCleanupTool] " + context + ": " + e);
+        } catch (_) {
+            // ignore logging failure
+        }
+    }
+
+    function hasDocument() {
+        return app.documents.length > 0;
+    }
+
     /**
-     * 同一座標のアンカーポイント（重複点）を削除（内部：targets 指定）
-     * - 連続して同じ座標になっているアンカーのみ対象（離れた位置の同座標は対象外）
-     * - オープンパスは端点を削除しない
-     * 戻り値：削除したアンカー数
-     */
+ * 同一座標のアンカーポイント（重複点）を削除（内部：targets 指定）
+ * - 連続して同じ座標になっているアンカーのみ対象（離れた位置の同座標は対象外）
+ * - オープンパスは端点を削除しない
+ * 戻り値：削除したアンカー数
+ */
     function removeDuplicateAnchorsOnTargets(targets) {
         if (!targets || !targets.length) return 0;
 
@@ -134,8 +188,8 @@ var LABELS = {
                         removed++;
                     }
                 }
-            } catch (_) {
-                // ignore
+            } catch (e) {
+                logProcessError("removeDuplicateAnchorsOnTargets", e);
             }
         }
 
@@ -152,25 +206,10 @@ var LABELS = {
         return removeDuplicateAnchorsOnTargets(targets);
     }
 
-function L(key) {
-    var v = LABELS[key];
-    if (!v) return String(key);
-    return v[lang] || v.ja || String(key);
-}
-
-(function () {
-    // --- shared settings / helpers ---
-    /* 共通設定とヘルパー / Shared settings and helpers */
-    // Tolerances (keep same default values to avoid behavior change)
-    // - Anchor collinearity tolerance: used for redundant anchor removal
-    // - Handle collinearity tolerance: used for straight-segment handle normalization
-    // - Same-point tolerance: used for handle/anchor coincidence checks and counts
-    var TOL_ANCHOR_COLLINEAR = 0.02;
-    var TOL_HANDLE_COLLINEAR = 0.01;
-    var TOL_SAMEPOINT = 0.02;
-
-    function hasDocument() {
-        return app.documents.length > 0;
+    function L(key) {
+        var v = LABELS[key];
+        if (!v) return String(key);
+        return v[lang] || v.ja || String(key);
     }
 
     function getSelectionOrAlert() {
@@ -328,8 +367,8 @@ function L(key) {
                     collectPathItemsFromAny(item.pageItems[p], out);
                 }
             }
-        } catch (_) {
-            // ignore
+        } catch (e) {
+            logProcessError("collectPathItemsFromAny", e);
         }
     }
 
@@ -444,8 +483,8 @@ function L(key) {
                         removedCount++;
                     }
                 }
-            } catch (_) {
-                // ignore error for this PathItem and continue
+            } catch (e) {
+                logProcessError("removeRedundantAnchorsOnTargets", e);
             }
         }
 
@@ -518,8 +557,8 @@ function L(key) {
                         }
                     }
                 }
-            } catch (_) {
-                // ignore error for this PathItem and continue
+            } catch (e) {
+                logProcessError("removeRedundantHandlesOnTargets", e);
             }
         }
 
@@ -754,8 +793,63 @@ function L(key) {
         return getPredictedInfoCountsForTargets(targets, doSameAnchors, doAnchors, doHandles);
     }
 
+    // 変換・分割の予測情報を取得
+    function getPredictedInfoForConvert(targets, mode) {
+        var infoNow = getInfoCountsFromTargets(targets);
+        var pathsAfter = infoNow.paths;
+        var anchorsAfter = infoNow.anchors;
+        var handlesAfter = infoNow.handles;
+
+        if (!targets || !targets.length) {
+            return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
+        }
+
+        if (mode === 'corner') {
+            // 全ハンドル削除
+            handlesAfter = 0;
+        } else if (mode === 'smooth') {
+            // 全アンカーに左右ハンドル付与
+            handlesAfter = infoNow.anchors * 2;
+        } else if (mode === 'add') {
+            // 各セグメントに1点追加
+            var totalSegs = 0;
+            for (var i = 0; i < targets.length; i++) {
+                var item = targets[i];
+                if (!item || isSkippableItem(item)) continue;
+                var n = item.pathPoints.length;
+                totalSegs += item.closed ? n : (n - 1);
+            }
+            anchorsAfter = infoNow.anchors + totalSegs;
+            handlesAfter = '-';
+        } else if (mode === 'split') {
+            // 各セグメントが独立パスに
+            var totalSegs2 = 0;
+            for (var j = 0; j < targets.length; j++) {
+                var item2 = targets[j];
+                if (!item2 || isSkippableItem(item2)) continue;
+                var n2 = item2.pathPoints.length;
+                totalSegs2 += item2.closed ? n2 : (n2 - 1);
+            }
+            pathsAfter = totalSegs2;
+            anchorsAfter = totalSegs2 * 2;
+            handlesAfter = '-';
+        }
+
+        return {
+            paths: infoNow.paths,
+            pathsAfter: pathsAfter,
+            anchorsNow: infoNow.anchors,
+            anchorsAfter: anchorsAfter,
+            handlesNow: infoNow.handles,
+            handlesAfter: handlesAfter
+        };
+    }
+
     // --- UI ---
     function showDialog(frozenTargets) {
+        function getActiveMode() {
+            return (tpanel.selection === tabOther) ? 'other' : 'process';
+        }
         var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
@@ -800,24 +894,50 @@ function L(key) {
             stHandleCount.text = fmtArrow(p.handlesNow, p.handlesAfter);
         }
 
+        function refreshInfoForConvert(mode) {
+            var p = getPredictedInfoForConvert(frozenTargets, mode);
+            stPathCount.text = fmtArrow(p.paths, p.pathsAfter);
+            stAnchorCount.text = fmtArrow(p.anchorsNow, p.anchorsAfter);
+            stHandleCount.text = fmtArrow(p.handlesNow, p.handlesAfter);
+        }
+
+        function getSelectedConvertMode() {
+            if (rbSmooth.value) return 'smooth';
+            if (rbCorner.value) return 'corner';
+            if (rbAdd.value) return 'add';
+            return 'split';
+        }
+
+        function refreshByActiveTab() {
+            if (tpanel.selection === tabOther) {
+                refreshInfoForConvert(getSelectedConvertMode());
+            } else {
+                refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
+            }
+        }
+
         refreshInfoPreview(false, true, true);
 
-        var pnlProcess = dlg.add('panel', undefined, L('panelProcess'));
-        pnlProcess.orientation = 'column';
-        pnlProcess.alignChildren = ['left', 'top'];
-        pnlProcess.margins = [15, 20, 15, 10];
+        var tpanel = dlg.add('tabbedpanel');
+        tpanel.alignChildren = ['fill', 'top'];
 
-        var cbSameAnchors = pnlProcess.add('checkbox', undefined, L('cbRemoveSameAnchors'));
+        // --- Tab 1: 削除対象 ---
+        var tabProcess = tpanel.add('tab', undefined, L('tabProcess'));
+        tabProcess.orientation = 'column';
+        tabProcess.alignChildren = ['left', 'top'];
+        tabProcess.margins = [15, 15, 15, 10];
+
+        var cbSameAnchors = tabProcess.add('checkbox', undefined, L('cbRemoveSameAnchors'));
         cbSameAnchors.value = false;
 
-        var cbAnchors = pnlProcess.add('checkbox', undefined, L('cbRemoveAnchors'));
+        var cbAnchors = tabProcess.add('checkbox', undefined, L('cbRemoveAnchors'));
         cbAnchors.value = true;
 
-        var cbHandle = pnlProcess.add('checkbox', undefined, L('cbRemoveHandles'));
+        var cbHandle = tabProcess.add('checkbox', undefined, L('cbRemoveHandles'));
         cbHandle.value = true;
 
         // Tolerance for straight-segment handle detection (0.01 - 3.00)
-        var grpTol = pnlProcess.add('group');
+        var grpTol = tabProcess.add('group');
         grpTol.orientation = 'row';
         grpTol.alignChildren = ['left', 'center'];
 
@@ -883,6 +1003,28 @@ function L(key) {
         refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
         grpTol.enabled = cbHandle.value;
 
+        // --- Tab 2: その他 ---
+        var tabOther = tpanel.add('tab', undefined, L('tabOther'));
+        tabOther.orientation = 'column';
+        tabOther.alignChildren = ['left', 'top'];
+        tabOther.margins = [15, 15, 15, 10];
+
+        var rbSmooth = tabOther.add('radiobutton', undefined, L('rbConvertSmooth'));
+        var rbCorner = tabOther.add('radiobutton', undefined, L('rbConvertCorner'));
+        var rbAdd = tabOther.add('radiobutton', undefined, L('rbAddAnchors'));
+        var rbSplit = tabOther.add('radiobutton', undefined, L('rbSplitAtAnchors'));
+        rbSmooth.value = true;
+
+        rbSmooth.onClick = rbCorner.onClick = rbAdd.onClick = rbSplit.onClick = function () {
+            refreshInfoForConvert(getSelectedConvertMode());
+        };
+
+        tpanel.onChange = function () {
+            refreshByActiveTab();
+        };
+
+        tpanel.selection = 0;
+
         var btns = dlg.add('group');
         btns.orientation = 'row';
         btns.alignChildren = ['center', 'center'];
@@ -891,7 +1033,22 @@ function L(key) {
         var btnCancel = btns.add('button', undefined, L('btnCancel'), { name: 'cancel' });
         var btnOK = btns.add('button', undefined, L('btnOK'), { name: 'ok' });
 
+        var result = {
+            ok: false,
+            activeMode: 'process',
+            doRemoveSameAnchors: false,
+            doRemoveAnchors: false,
+            doRemoveHandles: false,
+            convertMode: 'smooth'
+        };
+
         btnOK.onClick = function () {
+            result.ok = true;
+            result.activeMode = getActiveMode();
+            result.doRemoveSameAnchors = cbSameAnchors.value;
+            result.doRemoveAnchors = cbAnchors.value;
+            result.doRemoveHandles = cbHandle.value;
+            result.convertMode = getSelectedConvertMode();
             saveDialogLocation(dlg);
             dlg.close(1);
         };
@@ -900,8 +1057,198 @@ function L(key) {
             dlg.close(0);
         };
 
-        var shown = dlg.show();
-        return { ok: (shown === 1), doRemoveSameAnchors: cbSameAnchors.value, doRemoveAnchors: cbAnchors.value, doRemoveHandles: cbHandle.value };
+        dlg.show();
+        return result;
+    }
+
+    // --- 変換・分割ロジック ---
+    function convertToCorner(pathItem) {
+        var points = pathItem.pathPoints;
+        for (var k = 0; k < points.length; k++) {
+            var pt = points[k];
+            pt.pointType = PointType.CORNER;
+            pt.leftDirection = pt.anchor;
+            pt.rightDirection = pt.anchor;
+        }
+    }
+
+    function convertToSmooth(pathItem) {
+        var points = pathItem.pathPoints;
+        for (var k = 0; k < points.length; k++) {
+            var pt = points[k];
+            pt.pointType = PointType.SMOOTH;
+
+            // クローズドパスは循環参照、オープンパス端点は片側だけを参照する
+            var anchor = pt.anchor;
+            var isClosed = !!pathItem.closed;
+            var prevPt = null;
+            var nextPt = null;
+
+            if (isClosed || k > 0) {
+                prevPt = points[(k - 1 + points.length) % points.length];
+            }
+            if (isClosed || k < points.length - 1) {
+                nextPt = points[(k + 1) % points.length];
+            }
+
+            var dPrev = prevPt ? Math.sqrt(
+                Math.pow(prevPt.anchor[0] - anchor[0], 2) +
+                Math.pow(prevPt.anchor[1] - anchor[1], 2)
+            ) : 0;
+            var dNext = nextPt ? Math.sqrt(
+                Math.pow(nextPt.anchor[0] - anchor[0], 2) +
+                Math.pow(nextPt.anchor[1] - anchor[1], 2)
+            ) : 0;
+
+            var lenLeft = dPrev / 3;
+            var lenRight = dNext / 3;
+
+            var angleFactor = 1;
+            var balanceFactor = 1;
+
+            var prevVecX = prevPt ? (prevPt.anchor[0] - anchor[0]) : 0;
+            var prevVecY = prevPt ? (prevPt.anchor[1] - anchor[1]) : 0;
+            var nextVecX = nextPt ? (nextPt.anchor[0] - anchor[0]) : 0;
+            var nextVecY = nextPt ? (nextPt.anchor[1] - anchor[1]) : 0;
+
+            // 前後アンカーが同一点または極端に近い場合の 0 除算を防ぐ
+            var EPS = 1e-6;
+            var hasPrev = dPrev > EPS;
+            var hasNext = dNext > EPS;
+
+            var dirX = 1;
+            var dirY = 0;
+
+            if (hasPrev && hasNext) {
+                var tVecX = nextVecX / dNext - prevVecX / dPrev;
+                var tVecY = nextVecY / dNext - prevVecY / dPrev;
+                var tLen = Math.sqrt(tVecX * tVecX + tVecY * tVecY);
+
+                if (tLen < 0.0001) {
+                    dirX = nextVecX / dNext;
+                    dirY = nextVecY / dNext;
+                } else {
+                    dirX = tVecX / tLen;
+                    dirY = tVecY / tLen;
+                }
+            } else if (hasNext) {
+                dirX = nextVecX / dNext;
+                dirY = nextVecY / dNext;
+            } else if (hasPrev) {
+                dirX = -prevVecX / dPrev;
+                dirY = -prevVecY / dPrev;
+            }
+
+            // 鋭角や前後距離の偏りが大きい場合は、ハンドル長を少しだけ抑える
+            if (hasPrev && hasNext) {
+                var inDirX = -prevVecX / dPrev;
+                var inDirY = -prevVecY / dPrev;
+                var outDirX = nextVecX / dNext;
+                var outDirY = nextVecY / dNext;
+
+                var dot = inDirX * outDirX + inDirY * outDirY;
+                if (dot < -1) dot = -1;
+                if (dot > 1) dot = 1;
+
+                var turnAngle = Math.acos(dot);
+                var angleNorm = turnAngle / Math.PI; // 0..1
+                angleFactor = 1 - (0.35 * angleNorm);
+
+                var minLen = Math.min(dPrev, dNext);
+                var maxLen = Math.max(dPrev, dNext);
+                var imbalance = (maxLen > EPS) ? (1 - (minLen / maxLen)) : 0; // 0..1
+                balanceFactor = 1 - (0.25 * imbalance);
+            }
+
+            lenLeft *= angleFactor * balanceFactor;
+            lenRight *= angleFactor * balanceFactor;
+
+            // 8方向へ丸めず、計算した接線方向をそのまま使う
+            pt.leftDirection = [
+                anchor[0] - dirX * lenLeft,
+                anchor[1] - dirY * lenLeft
+            ];
+            pt.rightDirection = [
+                anchor[0] + dirX * lenRight,
+                anchor[1] + dirY * lenRight
+            ];
+        }
+    }
+
+    function convertPathItem(item, mode) {
+        var func = (mode === 'smooth') ? convertToSmooth : convertToCorner;
+        if (item.typename === 'PathItem') {
+            func(item);
+        } else if (item.typename === 'CompoundPathItem') {
+            for (var i = 0; i < item.pathItems.length; i++) {
+                func(item.pathItems[i]);
+            }
+        } else if (item.typename === 'GroupItem') {
+            for (var j = 0; j < item.pageItems.length; j++) {
+                convertPathItem(item.pageItems[j], mode);
+            }
+        }
+    }
+
+    function splitAtAnchors(pathItem) {
+        var pts = pathItem.pathPoints;
+        if (pts.length < 2) return;
+
+        var parent = pathItem.layer;
+        var segCount = pathItem.closed ? pts.length : pts.length - 1;
+
+        for (var s = 0; s < segCount; s++) {
+            var idx1 = s;
+            var idx2 = (s + 1) % pts.length;
+            var p1 = pts[idx1];
+            var p2 = pts[idx2];
+
+            var newPath = parent.pathItems.add();
+            newPath.closed = false;
+            newPath.filled = pathItem.filled;
+            newPath.fillColor = pathItem.fillColor;
+            newPath.stroked = pathItem.stroked;
+            if (pathItem.stroked) {
+                newPath.strokeColor = pathItem.strokeColor;
+                newPath.strokeWidth = pathItem.strokeWidth;
+            }
+
+            var np1 = newPath.pathPoints.add();
+            np1.anchor = p1.anchor;
+            np1.leftDirection = p1.anchor;
+            np1.rightDirection = p1.rightDirection;
+            np1.pointType = p1.pointType;
+
+            var np2 = newPath.pathPoints.add();
+            np2.anchor = p2.anchor;
+            np2.leftDirection = p2.leftDirection;
+            np2.rightDirection = p2.anchor;
+            np2.pointType = p2.pointType;
+        }
+
+        pathItem.remove();
+    }
+
+    function splitItem(item) {
+        if (item.typename === 'PathItem') {
+            splitAtAnchors(item);
+        } else if (item.typename === 'CompoundPathItem') {
+            var paths = [];
+            for (var i = 0; i < item.pathItems.length; i++) {
+                paths.push(item.pathItems[i]);
+            }
+            for (var ii = 0; ii < paths.length; ii++) {
+                splitAtAnchors(paths[ii]);
+            }
+        } else if (item.typename === 'GroupItem') {
+            var items = [];
+            for (var j = 0; j < item.pageItems.length; j++) {
+                items.push(item.pageItems[j]);
+            }
+            for (var jj = 0; jj < items.length; jj++) {
+                splitItem(items[jj]);
+            }
+        }
     }
 
     // ダイアログ表示時点の選択を確定（予測と実行を同一対象に揃える）
@@ -912,30 +1259,45 @@ function L(key) {
     var ui = showDialog(targetsAtOpen);
     if (!ui.ok) return;
 
-    var targetsAtOk = targetsAtOpen;
+    // タブindex依存だと ScriptUI 環境差で誤判定しうるため、明示状態で分岐する
+    if (ui.activeMode === 'other') {
+        // --- その他タブ: 変換・分割処理 ---
+        var sel = selectionAtOpen.slice(0);
+        if (ui.convertMode === 'add') {
+            app.executeMenuCommand('Add Anchor Points2');
+        } else if (ui.convertMode === 'split') {
+            for (var n = 0; n < sel.length; n++) {
+                splitItem(sel[n]);
+            }
+        } else {
+            for (var n = 0; n < sel.length; n++) {
+                if (!sel[n]) continue;
+                convertPathItem(sel[n], ui.convertMode);
+            }
+        }
+    } else {
+        // --- 削除対象タブ: クリーンアップ処理 ---
+        var targetsAtOk = targetsAtOpen;
 
-    var removedAnchors = 0;
-    var removedHandles = 0;
-    var removedSameAnchors = 0;
+        if (!ui.doRemoveSameAnchors && !ui.doRemoveAnchors && !ui.doRemoveHandles) {
+            return;
+        }
 
-    // 実行順：重複アンカー → 冗長アンカー → ハンドル → 冗長アンカー → 重複アンカー
-    if (ui.doRemoveSameAnchors) {
-        removedSameAnchors += removeDuplicateAnchorsOnTargets(targetsAtOk);
-    }
-    if (ui.doRemoveAnchors) {
-        removedAnchors += removeRedundantAnchorsOnTargets(targetsAtOk);
-    }
-    if (ui.doRemoveHandles) {
-        removedHandles += removeRedundantHandlesOnTargets(targetsAtOk);
-    }
-    if (ui.doRemoveAnchors) {
-        removedAnchors += removeRedundantAnchorsOnTargets(targetsAtOk);
-    }
-    if (ui.doRemoveSameAnchors) {
-        removedSameAnchors += removeDuplicateAnchorsOnTargets(targetsAtOk);
-    }
-
-    if (!ui.doRemoveSameAnchors && !ui.doRemoveAnchors && !ui.doRemoveHandles) {
-        return;
+        // 実行順：重複アンカー → 冗長アンカー → ハンドル → 冗長アンカー → 重複アンカー
+        if (ui.doRemoveSameAnchors) {
+            removeDuplicateAnchorsOnTargets(targetsAtOk);
+        }
+        if (ui.doRemoveAnchors) {
+            removeRedundantAnchorsOnTargets(targetsAtOk);
+        }
+        if (ui.doRemoveHandles) {
+            removeRedundantHandlesOnTargets(targetsAtOk);
+        }
+        if (ui.doRemoveAnchors) {
+            removeRedundantAnchorsOnTargets(targetsAtOk);
+        }
+        if (ui.doRemoveSameAnchors) {
+            removeDuplicateAnchorsOnTargets(targetsAtOk);
+        }
     }
 })();
