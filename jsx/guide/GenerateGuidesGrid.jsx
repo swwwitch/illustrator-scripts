@@ -1,7 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.6";
+var SCRIPT_VERSION = "v1.6.5";
 
 /*
 ### スクリプト名：
@@ -42,8 +42,7 @@ GenerateGuidesGrid.jsx
 スガサワ君β  
 https://note.com/sgswkn/n/nee8c3ec1a14c
 
-### 更新履歴
-
+- v1.6.5 (20260308) : bleed 単位を rulerType に連動、行／列パネルの英語見出しを Row／Column に調整、targetMode を明示的な状態変数に変更、起動時は常にアートボード基準で開始、プリセット適用時に targetMode を再反映
 - v1.6 (20260308) : 選択オブジェクトの外接矩形を対象にグリッド生成、元オブジェクトの隠す／削除／そのまま選択、タブUIでグリッド設定と選択オブジェクト設定を分離、ガター連動・マージン連動機能、オプションパネル整理（ガイド描画ON/OFFでガイド伸張ディム制御）、アートボードオプションパネル一括ディム制御
 - v1.5 (20260121) : プレビュー更新時にUndoで巻き戻して履歴を汚さない／OK時は1回のUndoで戻せるようにヒストリーを整理
 - v1.4 (20251107) : Number/Gutter のラベルを右揃え＋共通幅に統一、Top/Bottom のラベル幅微調整、1×1 時は中央線ではなく四辺ガイドを描画、英語UIの Rows/Columns を Number に統一
@@ -92,8 +91,7 @@ GenerateGuidesGrid.jsx
 Sugasawa-kun β  
 https://note.com/sgswkn/n/nee8c3ec1a14c
 
-### Update History
-
+- v1.6.5 (20260308): Linked bleed units to the current rulerType, adjusted the English row/column panel titles to Row/Column, replaced implicit selection targeting with an explicit targetMode state, always start in artboard mode, and re-apply targetMode constraints when presets are selected
 - v1.6 (20260308): Generate grid from selected objects' bounding box, hide/delete/keep original objects, tabbed UI for grid settings and selected-object settings, gutter/margin linking, options panel reorganization (guide drawing ON/OFF controls related enable/disable states), and artboard options panel bulk dim control
 - v1.5 (20260121): Undo-safe live preview (rollback each update) and clean history so one Undo reverts the final result
 - v1.4 (20251107): Unified Number/Gutter labels to right-aligned fixed width, fine-tuned Top/Bottom label width, draw four edge guides (not center lines) when 1×1, and unified EN UI Rows/Columns to Number
