@@ -8,8 +8,8 @@ GenerateGuidesGrid.jsx
 
 ### 概要
 
-- 更新日：20260121
-- Illustrator のアートボードを指定した行数・列数に分割し、自動でガイドを生成するスクリプトです。
+- 更新日：20260308
+- Illustrator のアートボードまたは選択オブジェクトを指定した行数・列数に分割し、自動でガイドを生成するスクリプトです。
 - 必要に応じてセルごとの長方形や裁ち落としガイドを描画でき、プリセットの書き出しにも対応します。
 - すべての入力変更（キーボード/矢印キーを含む）でプレビューが即時更新
 - プレビュー更新は Undo で巻き戻してから再描画するため、履歴（Undo）を汚しにくい設計です（OK時は1回のUndoで戻せるよう整理）
@@ -21,6 +21,8 @@ GenerateGuidesGrid.jsx
 - 裁ち落としガイドの追加描画
 - 現在設定をプリセットとして書き出し
 - すべてのアートボードに一括適用可能
+- 選択オブジェクトの外接矩形を対象にグリッド生成（複数選択・任意形状対応）
+- 元のオブジェクトを隠す／削除する／そのままの選択が可能
 - 日本語／英語インターフェース自動切替
 
 ### 処理の流れ
@@ -36,6 +38,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### 更新履歴
 
+- v1.6 (20260308) : 選択オブジェクトの外接矩形を対象にグリッド生成、元オブジェクトの隠す／削除／そのまま選択、タブUIでグリッド設定と選択オブジェクト設定を分離
 - v1.5 (20260121) : プレビュー更新時にUndoで巻き戻して履歴を汚さない／OK時は1回のUndoで戻せるようにヒストリーを整理
 - v1.4 (20251107) : Number/Gutter のラベルを右揃え＋共通幅に統一、Top/Bottom のラベル幅微調整、1×1 時は中央線ではなく四辺ガイドを描画、英語UIの Rows/Columns を Number に統一
 - v1.3 (20251106) : すべてのUI入力（矢印キー含む）でリアルタイムプレビュー更新
@@ -51,8 +54,8 @@ GenerateGuidesGrid.jsx
 
 ### Overview
 
-- Updated: 20260121
-- A script for Illustrator that divides artboards into specified rows and columns, and automatically generates guides.
+- Updated: 20260308
+- A script for Illustrator that divides artboards or selected objects into specified rows and columns, and automatically generates guides.
 - Optionally draws cell rectangles and bleed guides, and supports exporting presets.
 - Live preview updates on every input change (including keyboard/arrow keys)
 - Live preview is Undo-safe: each update rolls back via Undo then redraws; OK is applied as a single undoable action
@@ -64,6 +67,8 @@ GenerateGuidesGrid.jsx
 - Add optional bleed guides
 - Export current settings as presets
 - Apply to all artboards at once
+- Generate grid based on bounding box of selected objects (supports multiple selections and any shape)
+- Option to hide, delete, or keep original objects
 - Automatic Japanese / English UI switching
 
 ### Process Flow
@@ -79,6 +84,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 ### Update History
 
+- v1.6 (20260308): Generate grid from selected objects' bounding box, hide/delete/keep original objects, tabbed UI for grid settings and selection settings
 - v1.5 (20260121): Undo-safe live preview (rollback each update) and clean history so one Undo reverts the final result
 - v1.4 (20251107): Unified Number/Gutter labels to right-aligned fixed width, fine-tuned Top/Bottom label width, draw four edge guides (not center lines) when 1×1, and unified EN UI Rows/Columns to Number
 - v1.3 (20251106): Live preview refresh on all UI changes (including arrow keys)
@@ -88,7 +94,7 @@ https://note.com/sgswkn/n/nee8c3ec1a14c
 
 */
 
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v1.6";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -386,6 +392,27 @@ function main() {
     // Preview manager (Undo-safe live preview)
     var previewMgr = new PreviewManager();
 
+    // 選択オブジェクトの参照と外接矩形をキャッシュ / Cache selection refs and bounds before dialog
+    var cachedSelectionItems = [];
+    var cachedSelectionBounds = (function() {
+        var sel = doc.selection;
+        if (!sel || sel.length === 0) return null;
+        for (var si = 0; si < sel.length; si++) {
+            cachedSelectionItems.push(sel[si]);
+        }
+        var gb = sel[0].geometricBounds;
+        var sLeft = gb[0], sTop = gb[1], sRight = gb[2], sBottom = gb[3];
+        for (var s = 1; s < sel.length; s++) {
+            var b2 = sel[s].geometricBounds;
+            if (b2[0] < sLeft) sLeft = b2[0];
+            if (b2[1] > sTop) sTop = b2[1];
+            if (b2[2] > sRight) sRight = b2[2];
+            if (b2[3] < sBottom) sBottom = b2[3];
+        }
+        return [sLeft, sTop, sRight, sBottom];
+    })();
+    var useSelectionBounds = (cachedSelectionBounds !== null);
+
     var rulerUnit = app.preferences.getIntegerPreference("rulerType");
     var unitLabel = "pt";
     var unitFactor = 1.0;
@@ -419,12 +446,68 @@ function main() {
     dlg.orientation = "column";
     dlg.alignChildren = "left";
 
-    // grid_guidesレイヤークリアチェックボックス / Clear grid_guides layer checkbox
-    var clearGuidesCheckbox = dlg.add("checkbox", undefined, LABELS.clearGuidesLabel[lang]);
-    clearGuidesCheckbox.value = true;
+    // 対象モード切替タブ / Target mode tab
+    var targetTab = dlg.add("tabbedpanel");
+    targetTab.alignment = ["fill", "top"];
+    var tabArtboard = targetTab.add("tab", undefined,
+        (lang === "ja") ? "グリッド設定" : "Grid Settings");
+    tabArtboard.orientation = "column";
+    tabArtboard.alignChildren = "left";
+    tabArtboard.margins = [15, 20, 15, 10];
+    var tabSelection = targetTab.add("tab", undefined,
+        (lang === "ja") ? "選択オブジェクト" : "Selected Object(s)");
+    // 選択オブジェクト情報を表示 / Show selection object info
+    if (cachedSelectionBounds) {
+        tabSelection.orientation = "column";
+        tabSelection.alignChildren = "left";
+        tabSelection.margins = [15, 20, 15, 10];
+
+        // 元のオブジェクトの処理方法 / How to handle original object(s)
+        var objActionPanel = tabSelection.add("panel", undefined,
+            (lang === "ja") ? "元のオブジェクト" : "Original Object(s)");
+        objActionPanel.orientation = "column";
+        objActionPanel.alignChildren = "left";
+        objActionPanel.margins = [15, 20, 15, 10];
+        var rbHide = objActionPanel.add("radiobutton", undefined,
+            (lang === "ja") ? "隠す" : "Hide");
+        var rbDelete = objActionPanel.add("radiobutton", undefined,
+            (lang === "ja") ? "削除する" : "Delete");
+        var rbKeep = objActionPanel.add("radiobutton", undefined,
+            (lang === "ja") ? "そのまま" : "Keep");
+        rbHide.value = true; // デフォルト / default
+        // ラジオボタン切替時にプレビュー更新 / Update preview on radio button change
+        rbHide.onClick = rbDelete.onClick = rbKeep.onClick = function() {
+            try { updatePreview(); } catch (e) {}
+        };
+    } else {
+        // 選択オブジェクトがなければタブを無効化 / Disable tab if nothing selected
+        tabSelection.enabled = false;
+    }
+    // 初期選択：常にグリッド設定タブを表示 / Always show grid settings tab initially
+    targetTab.selection = tabArtboard;
+
+    // useSelectionBounds はタブに依存せず固定 / useSelectionBounds is fixed, not tab-dependent
+    // 選択オブジェクトモード時の初期設定 / Initial settings for selection mode
+    function updateTargetMode() {
+        // 裁ち落としガイドの有効/無効 / Enable/disable bleed guide
+        bleedGuideCheckbox.enabled = !useSelectionBounds;
+        inputBleed.enabled = !useSelectionBounds;
+        if (useSelectionBounds) {
+            bleedGuideCheckbox.value = false;
+        }
+        // すべてのアートボードの有効/無効 / Enable/disable all artboards
+        allBoardsCheckbox.enabled = !useSelectionBounds;
+        if (useSelectionBounds) {
+            allBoardsCheckbox.value = false;
+        }
+    }
+
+    // タブ下のアキ / Spacer below tab
+    var tabSpacer = dlg.add("group");
+    tabSpacer.minimumSize.height = 5;
 
     // プリセット選択＋書き出しボタングループ / Preset selection and export group
-    var presetGroup = dlg.add("group");
+    var presetGroup = tabArtboard.add("group");
     presetGroup.orientation = "row";
     presetGroup.alignChildren = "center";
     presetGroup.margins = [0, 5, 0, 10];
@@ -491,7 +574,7 @@ function main() {
     };
 
     // グリッド設定グループ / Grid settings group
-    var gridGroup = dlg.add("group");
+    var gridGroup = tabArtboard.add("group");
     gridGroup.orientation = "row";
     gridGroup.alignChildren = "top";
     gridGroup.spacing = 20;
@@ -544,7 +627,7 @@ function main() {
     colGutterGroup.add("statictext", undefined, unitLabel);
 
     // マージン全体パネル / Margin panel
-    var marginPanel = dlg.add("panel", undefined, LABELS.marginTitle[lang] + " (" + unitLabel + ")");
+    var marginPanel = tabArtboard.add("panel", undefined, LABELS.marginTitle[lang] + " (" + unitLabel + ")");
     marginPanel.orientation = "column";
     marginPanel.alignChildren = "left";
     var marginLabelWidth = (lang === "ja") ? 26 : 50; // slightly shorter Top/Bottom label width
@@ -610,7 +693,7 @@ function main() {
     commonMarginInput.characters = 5;
 
     // オプション設定グループ（ガイドの伸張・裁ち落としガイド・セル長方形化・ガイドを引く）/ Options group (guide extension, bleed guide, cell rectangle, draw guides)
-    var optGroup = dlg.add("group");
+    var optGroup = tabArtboard.add("group");
     optGroup.orientation = "column";
     optGroup.alignChildren = "left";
 
@@ -689,6 +772,18 @@ function main() {
         previewMgr.addStep(function() {
             drawGuides(true, true); // true = preview, true = skip internal preview cleanup
         });
+
+        // 選択オブジェクトの表示/非表示をプレビュー / Preview hide/show of selected objects
+        if (useSelectionBounds && cachedSelectionItems.length > 0) {
+            var shouldHide = (rbHide && rbHide.value) || (rbDelete && rbDelete.value);
+            if (shouldHide) {
+                previewMgr.addStep(function() {
+                    for (var ph = 0; ph < cachedSelectionItems.length; ph++) {
+                        cachedSelectionItems[ph].hidden = true;
+                    }
+                });
+            }
+        }
     }
 
     // --- 各数値editTextに矢印キー増減機能を追加 ---
@@ -727,6 +822,10 @@ function main() {
     var cellRectCheckbox = cellGuideGroup.add("checkbox", undefined, LABELS.cellRectLabel[lang]);
     var drawGuidesCheckbox = cellGuideGroup.add("checkbox", undefined, LABELS.drawGuidesLabel[lang]);
     drawGuidesCheckbox.value = true;
+
+    // grid_guidesレイヤークリアチェックボックス / Clear grid_guides layer checkbox
+    var clearGuidesCheckbox = optGroup.add("checkbox", undefined, LABELS.clearGuidesLabel[lang]);
+    clearGuidesCheckbox.value = true;
 
     // === ボタンエリア（レイアウト変更版）/ Button area (layout updated)
     var outerGroup = dlg.add("group");
@@ -838,8 +937,9 @@ function main() {
     drawGuidesCheckbox.onClick = function() {
         var enable = drawGuidesCheckbox.value;
         inputExt.enabled = enable;
-        bleedGuideCheckbox.enabled = enable;
-        inputBleed.enabled = enable;
+        // 選択オブジェクトモード時は裁ち落としを常に無効 / Keep bleed disabled in selection mode
+        bleedGuideCheckbox.enabled = enable && !useSelectionBounds;
+        inputBleed.enabled = enable && !useSelectionBounds;
         updatePreview();
     };
 
@@ -920,11 +1020,20 @@ function main() {
             cellLayer.locked = false;
         }
 
-        for (var b = 0; b < doc.artboards.length; b++) {
-            if (!allBoards && b !== doc.artboards.getActiveArtboardIndex()) continue;
+        // 選択オブジェクトがあればその外接矩形を使用、なければアートボード / Use selection bounds or artboard
+        var selBounds = useSelectionBounds ? cachedSelectionBounds : null;
+        var targetRects = [];
+        if (selBounds) {
+            targetRects.push(selBounds);
+        } else {
+            for (var b = 0; b < doc.artboards.length; b++) {
+                if (!allBoards && b !== doc.artboards.getActiveArtboardIndex()) continue;
+                targetRects.push(doc.artboards[b].artboardRect);
+            }
+        }
 
-            var ab = doc.artboards[b];
-            var rect = ab.artboardRect;
+        for (var ti = 0; ti < targetRects.length; ti++) {
+            var rect = targetRects[ti];
             var abLeft = rect[0],
                 abTop = rect[1],
                 abRight = rect[2],
@@ -1179,6 +1288,7 @@ function main() {
     // ダイアログ初期プレビュー＆終了時処理 / Initial dialog preview & post-process
     updateGutterEnable();
     syncCommonMargin();
+    updateTargetMode();
     updatePreview();
 
     if (dlg.show() === 1) {
@@ -1188,6 +1298,19 @@ function main() {
                 clearGuidesLayer();
             }
             drawGuides(false);
+            // 選択オブジェクトの処理 / Handle original selected objects
+            if (cachedSelectionItems.length > 0 && useSelectionBounds) {
+                if (rbHide && rbHide.value) {
+                    for (var si = 0; si < cachedSelectionItems.length; si++) {
+                        cachedSelectionItems[si].hidden = true;
+                    }
+                } else if (rbDelete && rbDelete.value) {
+                    for (var sd = cachedSelectionItems.length - 1; sd >= 0; sd--) {
+                        cachedSelectionItems[sd].remove();
+                    }
+                }
+                // rbKeep: 何もしない / do nothing
+            }
         });
         // Cleanup preview layer just in case (fallback)
         removePreviewGuides();
