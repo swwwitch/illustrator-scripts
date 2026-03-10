@@ -1,9 +1,10 @@
 #targetengine "MyScriptEngine"
 #target illustrator
+#include "../stroke-table/ColorPicker.jsx"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-SmartShapeMaker.jsx (v1.7.1)
+SmartShapeMaker.jsx (v1.8)
 
 Illustrator script to create custom shapes from a single dialog
 (Circle / Polygon / Star / Superellipse / Reuleaux-style).
@@ -11,7 +12,7 @@ Real-time preview, adjustable sides, width, rotation, and advanced options are s
 Japanese / English UI.
 
 ### 更新日 / Updated:
-- 20260228
+- 20260311
 
 Main Features:
 - Specify number of sides (0 = Circle, 3/4/5/6/8, or custom with slider)
@@ -62,7 +63,7 @@ Usage Flow:
 Original Idea: Seiji Miyazawa (Sankai Lab)
 https://x.com/onthehead/status/2007350198721483172
 
-Version: v1.7.1 (20260228)
+Version: v1.8 (20260311)
 */
 
 // Language detection
@@ -71,7 +72,7 @@ function getCurrentLang() {
 }
 var lang = getCurrentLang();
 
-var SCRIPT_VERSION = "v1.7.1";
+var SCRIPT_VERSION = "v1.8";
 
 var LABELS = {
     dialogTitle: {
@@ -96,6 +97,11 @@ var LABELS = {
     rotation: { ja: "回転", en: "Rotate" },
     width: { ja: "幅：", en: "Width:" },
     widthPanel: { ja: "幅", en: "Width" },
+    fillAndStrokePanel: { ja: "塗りと線", en: "Fill & Stroke" },
+    fill: { ja: "塗り", en: "Fill" },
+    stroke: { ja: "線", en: "Stroke" },
+    strokeWidth: { ja: "線幅", en: "Stroke Width" },
+    colorPicker: { ja: "カラーピッカー", en: "Color Picker" },
     optionPanel: { ja: "オプション", en: "Options" },
     reuleaux: { ja: "ルーロー（定幅図形）", en: "Reuleaux (Constant Width)" },
     splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
@@ -124,7 +130,8 @@ function main() {
     if (app.documents.length === 0) return;
     var doc = app.activeDocument;
     var unit = getRulerUnitInfo();
-    var result = showInputDialog(unit.label, unit.factor);
+    var strokeUnit = getStrokeUnitInfo();
+    var result = showInputDialog(unit.label, unit.factor, strokeUnit);
     if (!result) return;
 
     // Re-acquire activeDocument in case user changed documents while the dialog was open
@@ -203,6 +210,27 @@ function getRulerUnitInfo() {
     else if (t === 5) u = { label: "Q", factor: 72.0 / 25.4 * 0.25 };
     else if (t === 6) u = { label: "px", factor: 1.0 };
     return u;
+}
+
+// Get stroke unit label and factor from strokeUnits preference
+function getStrokeUnitInfo() {
+    var su;
+    try {
+        su = app.preferences.getIntegerPreference("strokeUnits");
+    } catch (e) {
+        su = 2; // pt fallback
+    }
+    var label, factor;
+    switch (su) {
+        case 0: label = "inch"; factor = 72; break;
+        case 1: label = "mm";   factor = 72 / 25.4; break;
+        case 3: label = "pica"; factor = 12; break;
+        case 4: label = "cm";   factor = 72 / 2.54; break;
+        case 5: label = "Q";    factor = (72 / 25.4) * 0.25; break;
+        case 6: label = "px";   factor = 1; break;
+        default: label = "pt";  factor = 1; break; // case 2
+    }
+    return { label: label, factorToPt: factor };
 }
 
 // Format angle display with up to 3 decimals or integer
@@ -449,7 +477,7 @@ function finalizeShape(doc) {
 }
 
 // Create shape based on parameters
-function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, superExp, circleAnchorCount, useReuleaux, reuleauxAmount) {
+function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, superExp, circleAnchorCount, useReuleaux, reuleauxAmount, fillOpts, strokeOpts) {
     var layer = doc.activeLayer;
     layer.locked = false;
     layer.visible = true;
@@ -477,9 +505,20 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
         shape = doc.pathItems.polygon(center[1], center[0], radius, sides);
     }
 
-    shape.filled = true;
-    shape.fillColor = doc.defaultFillColor;
-    shape.stroked = false;
+    // Apply fill & stroke from options
+    if (fillOpts && fillOpts.enabled) {
+        shape.filled = true;
+        shape.fillColor = fillOpts.color;
+    } else {
+        shape.filled = false;
+    }
+    if (strokeOpts && strokeOpts.enabled) {
+        shape.stroked = true;
+        shape.strokeColor = strokeOpts.color;
+        shape.strokeWidth = strokeOpts.widthPt;
+    } else {
+        shape.stroked = false;
+    }
 
     var b = shape.geometricBounds;
     var cx = (b[0] + b[2]) / 2;
@@ -498,7 +537,7 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
         shape.rotate(rotateAngle, true, true, true, true, Transformation.CENTER);
     }
     if (splitAtAnchors) {
-        shape = splitPathAtAnchors(doc, shape);
+        shape = splitPathAtAnchors(doc, shape, strokeOpts);
     }
     doc.selection = [shape];
     return shape;
@@ -506,7 +545,7 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
 
 // Split a path into segments at each anchor point.
 // Returns a GroupItem containing open PathItems (one per segment).
-function splitPathAtAnchors(doc, pathItem) {
+function splitPathAtAnchors(doc, pathItem, strokeOpts) {
     if (!pathItem || !pathItem.pathPoints || pathItem.pathPoints.length < 2) return pathItem;
 
     var layer = doc.activeLayer;
@@ -547,19 +586,25 @@ function splitPathAtAnchors(doc, pathItem) {
         seg.filled = false;
         seg.stroked = true;
 
-        // Stroke: black, 0.3pt (RGB / CMYK supported)
+        // Apply stroke color and width from strokeOpts if available
         try {
-            var color;
-            if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
-                color = new CMYKColor();
-                color.cyan = 0; color.magenta = 0; color.yellow = 0; color.black = 100;
+            if (strokeOpts && strokeOpts.enabled) {
+                seg.strokeColor = strokeOpts.color;
             } else {
-                color = new RGBColor();
-                color.red = 0; color.green = 0; color.blue = 0;
+                var color;
+                if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
+                    color = new CMYKColor();
+                    color.cyan = 0; color.magenta = 0; color.yellow = 0; color.black = 100;
+                } else {
+                    color = new RGBColor();
+                    color.red = 0; color.green = 0; color.blue = 0;
+                }
+                seg.strokeColor = color;
             }
-            seg.strokeColor = color;
         } catch (e) { }
-        try { seg.strokeWidth = 0.3; } catch (e) { }
+        try {
+            seg.strokeWidth = (strokeOpts && strokeOpts.enabled) ? strokeOpts.widthPt : 0.3;
+        } catch (e) { }
     }
 
     // Remove original path
@@ -569,7 +614,7 @@ function splitPathAtAnchors(doc, pathItem) {
 }
 
 // Show input dialog and handle UI and events
-function showInputDialog(unitLabel, unitFactor) {
+function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
     var previewMgr = new PreviewManager();
     var doc = app.activeDocument;
@@ -780,22 +825,158 @@ function showInputDialog(unitLabel, unitFactor) {
     rotateInput.enabled = rotateCheck.value;
     rotateLabel.enabled = rotateCheck.value;
 
-    // Width panel placed under the rotation row (left column)
-    var widthPanel = leftCol.add("panel", undefined, LABELS.widthPanel[lang]);
-    widthPanel.orientation = "column";
-    widthPanel.alignChildren = "left";
-    widthPanel.margins = [15, 20, 15, 10];
+    // Fill & Stroke panel placed under the rotation panel (left column)
+    var fillStrokePanel = leftCol.add("panel", undefined, LABELS.fillAndStrokePanel[lang]);
+    fillStrokePanel.orientation = "column";
+    fillStrokePanel.alignChildren = "left";
+    fillStrokePanel.margins = [15, 20, 15, 10];
 
-    // Width input moved from bottom area into this panel
-    var widthRow = widthPanel.add("group");
-    widthRow.orientation = "row";
-    widthRow.alignChildren = ["left", "center"];
+    var fsLabelWidth = (lang === 'ja') ? 30 : 50;
+    var swatchSize = 16;
 
-    // widthRow.add("statictext", undefined, LABELS.width[lang]);
-    var sizeInput = widthRow.add("edittext", undefined, "100");
-    sizeInput.characters = 5;
-    changeValueByArrowKey(sizeInput);
-    widthRow.add("statictext", undefined, "(" + unitLabel + ")");
+    // Convert Illustrator color object to ColorPicker string format
+    function aiColorToPickerString(aiColor) {
+        try {
+            if (aiColor.typename === "RGBColor") {
+                return ColorPicker.rgbToHex(aiColor.red, aiColor.green, aiColor.blue);
+            } else if (aiColor.typename === "CMYKColor") {
+                return "cmyk:" + Math.round(aiColor.cyan) + "," + Math.round(aiColor.magenta) + "," + Math.round(aiColor.yellow) + "," + Math.round(aiColor.black);
+            } else if (aiColor.typename === "GrayColor") {
+                return "cmyk:0,0,0," + Math.round(aiColor.gray);
+            }
+        } catch (e) { }
+        return "000000";
+    }
+
+    // Convert ColorPicker result string back to Illustrator color object
+    function pickerStringToAiColor(str) {
+        if (ColorPicker.isCmykString(str)) {
+            var cv = ColorPicker.parseCmykString(str);
+            var c = new CMYKColor();
+            c.cyan = cv.c; c.magenta = cv.m; c.yellow = cv.y; c.black = cv.k;
+            return c;
+        } else {
+            var rgb = ColorPicker.hexToRGB(str);
+            var rc = new RGBColor();
+            rc.red = rgb.r; rc.green = rgb.g; rc.blue = rgb.b;
+            return rc;
+        }
+    }
+
+    // Helper: create a color swatch (drawn square) from an Illustrator color
+    function aiColorToScriptUIBrush(g, aiColor) {
+        try {
+            if (aiColor.typename === "RGBColor") {
+                return g.newBrush(g.BrushType.SOLID_COLOR, [aiColor.red / 255, aiColor.green / 255, aiColor.blue / 255, 1]);
+            } else if (aiColor.typename === "CMYKColor") {
+                // Approximate CMYK to RGB for display
+                var r = 1 - Math.min(1, aiColor.cyan / 100 + aiColor.black / 100);
+                var gv = 1 - Math.min(1, aiColor.magenta / 100 + aiColor.black / 100);
+                var b = 1 - Math.min(1, aiColor.yellow / 100 + aiColor.black / 100);
+                return g.newBrush(g.BrushType.SOLID_COLOR, [r, gv, b, 1]);
+            } else if (aiColor.typename === "GrayColor") {
+                var v = 1 - (aiColor.gray / 100);
+                return g.newBrush(g.BrushType.SOLID_COLOR, [v, v, v, 1]);
+            } else if (aiColor.typename === "NoColor") {
+                return null; // no fill
+            }
+        } catch (e) { }
+        return g.newBrush(g.BrushType.SOLID_COLOR, [1, 1, 1, 1]);
+    }
+
+    function createSwatchPanel(parent, aiColor) {
+        var sw = parent.add("group");
+        sw.preferredSize = [swatchSize, swatchSize];
+        sw.minimumSize = [swatchSize, swatchSize];
+        sw._aiColor = aiColor;
+        sw.onDraw = function () {
+            var g = this.graphics;
+            var brush = aiColorToScriptUIBrush(g, this._aiColor);
+            if (brush) {
+                g.rectPath(0, 0, this.size[0], this.size[1]);
+                g.fillPath(brush);
+            }
+            // Border
+            var pen = g.newPen(g.PenType.SOLID_COLOR, [0.5, 0.5, 0.5, 1], 1);
+            g.rectPath(0, 0, this.size[0], this.size[1]);
+            g.strokePath(pen);
+        };
+        return sw;
+    }
+
+    // Fill row
+    var fillRow = fillStrokePanel.add("group");
+    fillRow.orientation = "row";
+    fillRow.alignChildren = ["left", "center"];
+    fillRow.spacing = 6;
+
+    var fillCheck = fillRow.add("checkbox", undefined, LABELS.fill[lang]);
+    fillCheck.preferredSize.width = fsLabelWidth + 16;
+    fillCheck.value = true;
+    var fillSwatch = createSwatchPanel(fillRow, doc.defaultFillColor);
+    fillSwatch.addEventListener("click", function () {
+        var result = ColorPicker.show({
+            value: aiColorToPickerString(fillSwatch._aiColor),
+            title: LABELS.colorPicker[lang],
+            lang: lang
+        });
+        if (result !== null) {
+            fillSwatch._aiColor = pickerStringToAiColor(result);
+            try { fillSwatch.hide(); fillSwatch.show(); } catch (e) { }
+            updatePreview();
+        }
+    });
+
+    // Stroke row
+    var strokeRow = fillStrokePanel.add("group");
+    strokeRow.orientation = "row";
+    strokeRow.alignChildren = ["left", "center"];
+    strokeRow.spacing = 6;
+
+    var strokeCheck = strokeRow.add("checkbox", undefined, LABELS.stroke[lang]);
+    strokeCheck.preferredSize.width = fsLabelWidth + 16;
+    strokeCheck.value = false;
+    var strokeSwatch = createSwatchPanel(strokeRow, doc.defaultStrokeColor);
+    strokeSwatch.addEventListener("click", function () {
+        var result = ColorPicker.show({
+            value: aiColorToPickerString(strokeSwatch._aiColor),
+            title: LABELS.colorPicker[lang],
+            lang: lang
+        });
+        if (result !== null) {
+            strokeSwatch._aiColor = pickerStringToAiColor(result);
+            try { strokeSwatch.hide(); strokeSwatch.show(); } catch (e) { }
+            updatePreview();
+        }
+    });
+
+    var strokeWidthRow = fillStrokePanel.add("group");
+    strokeWidthRow.orientation = "row";
+    strokeWidthRow.alignChildren = ["left", "center"];
+
+    var strokeWidthLabel = strokeWidthRow.add("statictext", undefined, LABELS.strokeWidth[lang]);
+    var strokeWidthInput = strokeWidthRow.add("edittext", undefined, "1");
+    strokeWidthInput.characters = 4;
+    changeValueByArrowKey(strokeWidthInput);
+    var strokeWidthUnitLabel = strokeWidthRow.add("statictext", undefined, strokeUnit.label);
+
+    function updateStrokeWidthEnabled() {
+        var en = strokeCheck.value;
+        strokeWidthLabel.enabled = en;
+        strokeWidthInput.enabled = en;
+        strokeWidthUnitLabel.enabled = en;
+    }
+    fillCheck.onClick = function () {
+        updatePreview();
+    };
+    strokeCheck.onClick = function () {
+        updateStrokeWidthEnabled();
+        updatePreview();
+    };
+    strokeWidthInput.onChanging = function () {
+        updatePreview();
+    };
+    updateStrokeWidthEnabled();
 
     // Right column container
     var right = main.add("group");
@@ -1040,6 +1221,21 @@ function showInputDialog(unitLabel, unitFactor) {
     var reuleauxAmountSlider = reuleauxAmountRow.add("slider", undefined, 100, 0, 200);
     reuleauxAmountSlider.preferredSize.width = 150;
 
+    // Width panel placed under the option panel (right column)
+    var widthPanel = right.add("panel", undefined, LABELS.widthPanel[lang]);
+    widthPanel.orientation = "column";
+    widthPanel.alignChildren = "left";
+    widthPanel.margins = [15, 20, 15, 10];
+
+    var widthRow = widthPanel.add("group");
+    widthRow.orientation = "row";
+    widthRow.alignChildren = ["left", "center"];
+
+    var sizeInput = widthRow.add("edittext", undefined, "100");
+    sizeInput.characters = 5;
+    changeValueByArrowKey(sizeInput);
+    widthRow.add("statictext", undefined, unitLabel);
+
     function updateLiveShapeAvailability(isSplit, isSuperEllipseEffective, isCustomCircleAnchors, isReuleaux) {
         if (isSplit || isSuperEllipseEffective || isCustomCircleAnchors || isReuleaux) {
             liveShapeCheck.value = false;
@@ -1118,6 +1314,11 @@ function showInputDialog(unitLabel, unitFactor) {
     }
 
     splitAtAnchorsCheck.onClick = function () {
+        if (splitAtAnchorsCheck.value) {
+            fillCheck.value = false;
+            strokeCheck.value = true;
+            updateStrokeWidthEnabled();
+        }
         refreshLiveShapeAvailabilityFromUI();
         updateSuperellipseSmoothnessEnabled(getSelectedSideValue(radios, customInput));
         updatePreview();
@@ -1271,7 +1472,16 @@ function showInputDialog(unitLabel, unitFactor) {
             superExp: superExp,
             circleAnchorCount: circleAnchorCount,
             reuleaux: reuleaux,
-            reuleauxAmount: reuleauxAmount
+            reuleauxAmount: reuleauxAmount,
+            fillOpts: {
+                enabled: fillCheck.value,
+                color: fillSwatch._aiColor
+            },
+            strokeOpts: {
+                enabled: strokeCheck.value,
+                color: strokeSwatch._aiColor,
+                widthPt: parseFloat(strokeWidthInput.text) * strokeUnit.factorToPt
+            }
         };
     }
 
@@ -1284,7 +1494,7 @@ function showInputDialog(unitLabel, unitFactor) {
         var p = getCurrentParams();
         if (!isNaN(p.size) && !isNaN(p.ratio)) {
             previewMgr.addStep(function () {
-                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse, p.superExp, p.circleAnchorCount, p.reuleaux, p.reuleauxAmount);
+                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse, p.superExp, p.circleAnchorCount, p.reuleaux, p.reuleauxAmount, p.fillOpts, p.strokeOpts);
             });
         }
     }
@@ -1681,7 +1891,7 @@ function showInputDialog(unitLabel, unitFactor) {
         previewMgr.confirm(function () {
             if (!pFinal) return;
             if (isNaN(pFinal.size) || isNaN(pFinal.ratio)) return;
-            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse, pFinal.superExp, pFinal.circleAnchorCount, pFinal.reuleaux, pFinal.reuleauxAmount);
+            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse, pFinal.superExp, pFinal.circleAnchorCount, pFinal.reuleaux, pFinal.reuleauxAmount, pFinal.fillOpts, pFinal.strokeOpts);
         });
     }
 
