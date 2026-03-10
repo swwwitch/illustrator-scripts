@@ -3,7 +3,7 @@
 
 /*
  * 角度指定の引き出し線メーカー.jsx
- * v1.4
+ * v1.4.2
  * 更新日: 20260310
  *
  * 選択したパスまたはグループから、指定角度の引き出し線を生成するスクリプトです。
@@ -44,7 +44,7 @@
  * Generated groups are tagged with note="leader_line" and store the
  * original bounds so reapplying the script preserves the original length.
  */
-var SCRIPT_VERSION = "v1.3.2";
+var SCRIPT_VERSION = "v1.4.2";
 
 // セッション中の設定を記憶
 if (typeof $.global._leaderLineSettings === "undefined") {
@@ -911,6 +911,19 @@ function main() {
         setTagValue(item, "leader_line_y_bottom", formatNumber(b.y_bottom, 4));
     }
 
+    function setLeaderLineDirTags(item, hDir, vDir) {
+        if (!item) return;
+        setTagValue(item, "leader_line_hDir", hDir);
+        setTagValue(item, "leader_line_vDir", vDir);
+    }
+
+    function getLeaderLineStoredDir(item) {
+        var hDir = getTagValue(item, "leader_line_hDir");
+        var vDir = getTagValue(item, "leader_line_vDir");
+        if (!hDir || !vDir) return null;
+        return { hDir: hDir, vDir: vDir };
+    }
+
     function getLeaderLineStoredBounds(item) {
         var xLeft = parseFloat(getTagValue(item, "leader_line_x_left"));
         var xRight = parseFloat(getTagValue(item, "leader_line_x_right"));
@@ -979,21 +992,33 @@ function main() {
 
         for (var i = 0; i < boundsData.length; i++) {
             var b = boundsData[i];
+
+            // 「斜線の方向以外」のとき、各オブジェクトの保存済み方向を使用
+            var objHDir = hDir;
+            var objVDir = vDir;
+            if (scopeExceptDir.value) {
+                var storedDir = getLeaderLineStoredDir(targets[i]);
+                if (storedDir) {
+                    objHDir = storedDir.hDir;
+                    objVDir = storedDir.vDir;
+                }
+            }
+
             var sw = getLineWidth(b);
-            var points = calcLeaderPoints(b, angleRad, hDir, vDir);
+            var points = calcLeaderPoints(b, angleRad, objHDir, objVDir);
 
             // 先端座標は短縮前に取得
-            var origTipPt = addCap ? getTipPoint(points, hDir).slice(0) : null;
+            var origTipPt = addCap ? getTipPoint(points, objHDir).slice(0) : null;
             var bendPt = addArrow ? points[1].slice(0) : null;
 
             if (addCircle && !capFill.value) {
                 // 円の半径 + 円の線幅の半分で短縮（線が円の縁に接する）
                 var shortenR = diameter / 2 + sw / 2;
-                shortenTip(points, hDir, shortenR);
+                shortenTip(points, objHDir, shortenR);
             }
             if (addArrow) {
                 // 矢印の長さ分だけ短縮
-                shortenTip(points, hDir, diameter);
+                shortenTip(points, objHDir, diameter);
             }
 
             var whitePath = null;
@@ -1009,9 +1034,7 @@ function main() {
                 whitePath.strokeWidth = sw * 3;
                 whitePath.strokeColor = createWhiteColor();
                 whitePath.filled = false;
-                if (capRound.value) {
-                    whitePath.strokeCap = StrokeCap.ROUNDENDCAP;
-                }
+                whitePath.strokeCap = capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
             }
 
             newPath = doc.pathItems.add();
@@ -1020,9 +1043,7 @@ function main() {
             newPath.strokeWidth = sw;
             newPath.strokeColor = getLineColor(b);
             newPath.filled = false;
-            if (capRound.value) {
-                newPath.strokeCap = StrokeCap.ROUNDENDCAP;
-            }
+            newPath.strokeCap = capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
 
             if (addCircle) {
                 if (whiteEdgeCheck.value) {
@@ -1220,6 +1241,16 @@ function main() {
     dirUpperRight.onClick = function () { uncheckOtherDirs(dirUpperRight); updatePreview(); };
     dirLowerRight.onClick = function () { uncheckOtherDirs(dirLowerRight); updatePreview(); };
 
+    // 「斜線の方向以外」選択時に方向パネルをディム
+    function updateDirPanelEnabled() {
+        var on = scopeAll.value;
+        dirPanel.enabled = on;
+    }
+    updateDirPanelEnabled();
+
+    scopeAll.onClick = function () { updateDirPanelEnabled(); updatePreview(); };
+    scopeExceptDir.onClick = function () { updateDirPanelEnabled(); updatePreview(); };
+
     // 右カラム
     var rightCol = topRow.add("group");
     rightCol.orientation = "column";
@@ -1279,6 +1310,15 @@ function main() {
     lineWidthGroup.add("statictext", undefined, strokeUnitLabel);
     lineWidthInput.onChanging = function () { updatePreview(); };
 
+    // 線端：なし　丸型
+    var strokeCapGroup = colorPanel.add("group");
+    var strokeCapNone = strokeCapGroup.add("radiobutton", undefined, L("capStrokeCapNone"));
+    var capRound = strokeCapGroup.add("radiobutton", undefined, L("capRound"));
+    if (s.strokeCapType === "round") capRound.value = true;
+    else strokeCapNone.value = true;
+    capRound.onClick = function () { updatePreview(); };
+    strokeCapNone.onClick = function () { updatePreview(); };
+
     // 線端パネル（右カラム）
     var capPanel = rightCol.add("panel", undefined, L("panelLineEnd"));
     capPanel.margins = [15, 20, 15, 10];
@@ -1286,8 +1326,6 @@ function main() {
     capPanel.alignChildren = ["fill", "top"];
 
     // 形状：なし　円　矢印
-    var capShapeLabelGroup = capPanel.add("group");
-    capShapeLabelGroup.add("statictext", undefined, L("capShapeLabel"));
     var capGroup = capPanel.add("group");
     var capNone = capGroup.add("radiobutton", undefined, L("capNone"));
     var capCircle = capGroup.add("radiobutton", undefined, L("capCircle"));
@@ -1309,15 +1347,6 @@ function main() {
     capSizeInput.characters = 4;
     changeValueByArrowKey(capSizeInput, { smallStep: 0.1, largeStep: 1, fineStep: 0.01, minValue: 0, digits: 2 });
     capSizeGroup.add("statictext", undefined, strokeUnitLabel);
-
-    // 線端：なし　丸型
-    var strokeCapLabelGroup = capPanel.add("group");
-    strokeCapLabelGroup.add("statictext", undefined, L("capStrokeCapLabel"));
-    var strokeCapGroup = capPanel.add("group");
-    var capRound = strokeCapGroup.add("radiobutton", undefined, L("capRound"));
-    var strokeCapNone = strokeCapGroup.add("radiobutton", undefined, L("capStrokeCapNone"));
-    if (s.strokeCapType === "round") capRound.value = true;
-    else strokeCapNone.value = true;
 
     var groupCheck = capPanel.add("checkbox", undefined, L("groupEnabled"));
     groupCheck.value = s.groupEnabled;
@@ -1346,8 +1375,6 @@ function main() {
     capFill.onClick = function () { updatePreview(); };
     capStroke.onClick = function () { updatePreview(); };
     capSizeInput.onChanging = function () { updatePreview(); };
-    capRound.onClick = function () { updatePreview(); };
-    strokeCapNone.onClick = function () { updatePreview(); };
 
     // オプションパネル
     var optPanel = dlg.add("panel", undefined, L("panelOptions"));
@@ -1355,9 +1382,16 @@ function main() {
     optPanel.orientation = "column";
     optPanel.alignChildren = ["fill", "top"];
 
-    var whiteEdgeCheck = optPanel.add("checkbox", undefined, L("whiteEdge"));
+    var whiteEdgeGroup = optPanel.add("group");
+    whiteEdgeGroup.orientation = "row";
+    whiteEdgeGroup.alignChildren = ["left", "center"];
+    var whiteEdgeCheck = whiteEdgeGroup.add("checkbox", undefined, L("whiteEdge"));
     whiteEdgeCheck.value = s.whiteEdge;
     whiteEdgeCheck.onClick = function () { updatePreview(); };
+    var whiteEdgeSwatch = whiteEdgeGroup.add("panel", undefined, "");
+    whiteEdgeSwatch.preferredSize = [20, 20];
+    var gfx = whiteEdgeSwatch.graphics;
+    gfx.backgroundColor = gfx.newBrush(gfx.BrushType.SOLID_COLOR, [1, 1, 1]);
 
     var previewCheck = dlg.add("checkbox", undefined, L("preview"));
     previewCheck.alignment = ["center", "top"];
@@ -1462,19 +1496,30 @@ function main() {
         var createdSelectionItems = [];
 
         try {
+            // 「斜線の方向以外」のとき、各オブジェクトの保存済み方向を使用
+            var objHDir = hDir;
+            var objVDir = vDir;
+            if (scopeExceptDir.value) {
+                var storedDir = getLeaderLineStoredDir(sourceTarget);
+                if (storedDir) {
+                    objHDir = storedDir.hDir;
+                    objVDir = storedDir.vDir;
+                }
+            }
+
             var sw = getLineWidth(b);
-            var points = calcLeaderPoints(b, angleRad, hDir, vDir);
+            var points = calcLeaderPoints(b, angleRad, objHDir, objVDir);
 
             // 先端座標は短縮前に取得
-            var origTipPt = addCap ? getTipPoint(points, hDir).slice(0) : null;
+            var origTipPt = addCap ? getTipPoint(points, objHDir).slice(0) : null;
             var bendPt = addArrow ? points[1].slice(0) : null;
 
             if (addCircle && !capFill.value) {
                 var shortenR = diameter / 2 + sw / 2;
-                shortenTip(points, hDir, shortenR);
+                shortenTip(points, objHDir, shortenR);
             }
             if (addArrow) {
-                shortenTip(points, hDir, diameter);
+                shortenTip(points, objHDir, diameter);
             }
 
             var whitePath = null;
@@ -1491,9 +1536,7 @@ function main() {
                 whitePath.strokeWidth = sw * 3;
                 whitePath.strokeColor = createWhiteColor();
                 whitePath.filled = false;
-                if (capRound.value) {
-                    whitePath.strokeCap = StrokeCap.ROUNDENDCAP;
-                }
+                whitePath.strokeCap = capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
             }
 
             newPath = doc.pathItems.add();
@@ -1503,9 +1546,7 @@ function main() {
             newPath.strokeWidth = sw;
             newPath.strokeColor = getLineColor(b);
             newPath.filled = false;
-            if (capRound.value) {
-                newPath.strokeCap = StrokeCap.ROUNDENDCAP;
-            }
+            newPath.strokeCap = capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
 
             if (addCircle) {
                 if (whiteEdgeCheck.value) {
@@ -1531,6 +1572,7 @@ function main() {
                 tagLeaderParts(assembled, whitePath, newPath, whiteCircle, circle, whiteEdgeCheck.value);
                 setLeaderLineTag(grp);
                 setLeaderLineBoundsTags(grp, b);
+                setLeaderLineDirTags(grp, objHDir, objVDir);
                 createdSelectionItems.push(grp);
             } else {
                 if (whitePath) createdSelectionItems.push(whitePath);
