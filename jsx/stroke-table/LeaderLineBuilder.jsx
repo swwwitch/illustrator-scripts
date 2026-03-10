@@ -1,50 +1,19 @@
 #target illustrator
 #targetengine "AngledLeaderLineMakerEngine"
 
+#include "ColorPicker.jsx"
+
 /*
  * 角度指定の引き出し線メーカー.jsx
- * v1.4.2
+ * v1.5.1
  * 更新日: 20260310
  *
  * 選択したパスまたはグループから、指定角度の引き出し線を生成するスクリプトです。
- * プレビュー表示、線端の丸、白フチ、線色、線幅、グループ化に対応しています。
- * v1.4.2では bounds 情報の都度再取得、プレビュー／確定の生成構造の共通化、非グループ時の選択状態の整理、生成先レイヤーの安定化を行いました。
- *
- * ■生成構造
- * 白フチONかつグループ化時は次の構造で生成します。
- * 親グループ（note="leader_line"）
- *   ├─ 本体サブグループ
- *   │    ├─ A：引き出し線
- *   │    └─ B：線端の丸
- *   └─ フチサブグループ
- *        ├─ C：フチ線
- *        └─ D：フチの丸
- *
- * ■再適用
- * 生成された leader_line グループに再実行すると、
- * 生成時に保存した元の bounds を基準に再計算します。
- * これにより再適用を繰り返しても長さが変化しません。
- * 元オブジェクトは削除せず、非表示の退避レイヤーへ移動します。
- * これにより生成途中の失敗や再適用対象の想定ズレがあっても、
- * 元オブジェクトを破壊しにくくしています。
- *
- * 古い leader_line データの場合は、A線と線端丸から
- * 元の長さを推定して再計算します。
- *
- * ■色処理
- * 線色と白フチ色は、アクティブドキュメントの
- * カラーモード（RGB / CMYK）に合わせて生成します。
- *
- * ■単位
- * 線幅と線端サイズの表示は Illustrator の
- * strokeUnits 設定に従い、内部計算は pt で行います。
- *
- * Supports creating angled leader lines from selected paths or groups
- * with preview, end circles, white edge, line color, line width, and grouping.
- * Generated groups are tagged with note="leader_line" and store the
- * original bounds so reapplying the script preserves the original length.
+ * リアルタイムプレビュー、線端の丸、白フチ、線色、線幅、グループ化に対応しています。
+ * 1.5.1では、ダイアログ構築・イベント登録・設定復元・設定保存を4分割し、責務を整理しました。
  */
-var SCRIPT_VERSION = "v1.4.2";
+
+var SCRIPT_VERSION = "v1.5.1";
 
 // セッション中の設定を記憶
 if (typeof $.global._leaderLineSettings === "undefined") {
@@ -52,6 +21,7 @@ if (typeof $.global._leaderLineSettings === "undefined") {
         angle: "45",
         radioAngle: 45,
         applyScope: "all",
+        hasUserSetApplyScope: false,
         diagDir: "upperLeft",
         hDir: "left",
         vDir: "up",
@@ -61,8 +31,9 @@ if (typeof $.global._leaderLineSettings === "undefined") {
         strokeCapType: "none",
         groupEnabled: true,
         whiteEdge: false,
-        preview: false,
-        dialogBounds: null, // ダイアログ位置 [x, y] を保存
+        edgeColor: "white",
+        edgeColorHex: "#ffcc00",
+        dialogBounds: null, // ダイアログ位置 [x, y] のみをセッション中に保存
         lineColor: "black",
         lineColorHex: "#ffcc00",
         lineWidth: "1"
@@ -140,8 +111,8 @@ var LABELS = {
         en: "None"
     },
     panelOptions: {
-        ja: "オプション",
-        en: "Options"
+        ja: "フチ",
+        en: "Edge"
     },
     dirUpperLeft: {
         ja: "左上",
@@ -211,9 +182,13 @@ var LABELS = {
         ja: "フチ",
         en: "White Edge"
     },
-    preview: {
-        ja: "プレビュー",
-        en: "Preview"
+    zoom: {
+        ja: "ズーム",
+        en: "Zoom"
+    },
+    lightMode: {
+        ja: "軽",
+        en: "Light mode"
     },
     cancel: {
         ja: "キャンセル",
@@ -311,13 +286,119 @@ function roundTo(value, digits) {
 function formatNumber(value, digits) {
     if (isNaN(value)) return "";
     var s = String(roundTo(value, digits || 0));
-    s = s.replace(/\.0+$/, "");
     s = s.replace(/(\.\d*?)0+$/, "$1");
+    // digits>=1 のとき最低1桁の小数を保持（1 → 1.0）
+    if ((digits || 0) >= 1 && s.indexOf(".") === -1) s += ".0";
     return s;
 }
 
 function formatUnitValue(valuePt, prefKey) {
     return formatNumber(ptValueToUnit(valuePt, prefKey), 2);
+}
+
+// =========================================
+// TMK Zoom Module (collision-safe + Light mode)
+// - Light mode: apply zoom only on slider release
+// =========================================
+function __TMKZoom_captureViewState(doc) {
+    var st = { view: null, zoom: null, center: null };
+    try {
+        st.view = doc.activeView;
+        st.zoom = st.view.zoom;
+        st.center = st.view.centerPoint;
+    } catch (_) { }
+    return st;
+}
+
+function __TMKZoom_restoreViewState(doc, state) {
+    if (!state) return;
+    try {
+        var v = state.view || doc.activeView;
+        if (v && state.zoom != null) v.zoom = state.zoom;
+        if (v && state.center != null) v.centerPoint = state.center;
+    } catch (_) { }
+}
+
+function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
+    options = options || {};
+    var minZoom = (typeof options.min === "number") ? options.min : 0.1;
+    var maxZoom = (typeof options.max === "number") ? options.max : 16;
+    var sliderWidth = (typeof options.sliderWidth === "number") ? options.sliderWidth : 240;
+    var doRedraw = (options.redraw !== false);
+
+    var showLightMode = (options.lightMode !== false);
+    var lightModeLabel = options.lightModeLabel || "Light mode";
+    var lightModeDefault = (options.lightModeDefault === true);
+
+    var g = parent.add("group");
+    g.orientation = "row";
+    g.alignChildren = ["center", "center"];
+    g.alignment = "center";
+    try { if (options.margins) g.margins = options.margins; } catch (_) { }
+
+    var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
+
+    var initZoom = 1;
+    try {
+        if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
+        else initZoom = Number(doc.activeView.zoom);
+    } catch (_) { }
+    if (!initZoom || isNaN(initZoom)) initZoom = 1;
+
+    var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
+    try { sld.preferredSize.width = sliderWidth; } catch (_) { }
+
+    var chkLight = null;
+    if (showLightMode) {
+        chkLight = g.add("checkbox", undefined, String(lightModeLabel));
+        chkLight.value = lightModeDefault;
+    }
+
+    function isLightMode() {
+        return !!(chkLight && chkLight.value);
+    }
+
+    function applyZoom(z) {
+        try {
+            var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+            if (!v) return;
+            v.zoom = z;
+            if (doRedraw) { try { app.redraw(); } catch (_) { } }
+        } catch (_) { }
+    }
+
+    function syncFromView() {
+        try {
+            var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+            if (!v) return;
+            sld.value = v.zoom;
+        } catch (_) { }
+    }
+
+    sld.onChanging = function () {
+        if (isLightMode()) return;
+        applyZoom(Number(sld.value));
+    };
+
+    sld.onChange = function () {
+        applyZoom(Number(sld.value));
+    };
+
+    if (chkLight) {
+        chkLight.onClick = function () {
+            try { applyZoom(Number(sld.value)); } catch (_) { }
+        };
+    }
+
+    return {
+        group: g,
+        label: stLabel,
+        slider: sld,
+        lightModeCheckbox: chkLight,
+        applyZoom: applyZoom,
+        syncFromView: syncFromView,
+        restoreInitial: function () { __TMKZoom_restoreViewState(doc, initialState); }
+    };
 }
 
 function main() {
@@ -551,6 +632,28 @@ function main() {
     // プレビュー用アイテムの配列（親グループ単位で管理）
     var previewItems = [];
 
+    // Illustratorアイテムを安全に削除するヘルパー
+    function safeRemove(item) {
+        if (!item) return;
+        try {
+            if (item.parent) item.remove();
+        } catch (_) { }
+    }
+
+    function safeSelect(item) {
+        if (!item) return;
+        try {
+            item.selected = true;
+        } catch (_) { }
+    }
+
+    function safeSetNote(item, note) {
+        if (!item) return;
+        try {
+            item.note = note;
+        } catch (_) { }
+    }
+
     // HEXカラーをRGBColorに変換する関数
     function hexToRGBColor(hex) {
         hex = hex.replace(/^#/, "");
@@ -632,6 +735,45 @@ function main() {
             return rgbToCMYKColor(rgb.red, rgb.green, rgb.blue);
         }
         return rgb;
+    }
+
+    function updateSwatch() {
+        if (!colorSwatch || !hexInput) return;
+        var hex = String(hexInput.text || "").replace(/^#/, "");
+        if (hex.length === 3) {
+            hex = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
+        }
+        var r = parseInt(hex.substring(0, 2), 16) / 255;
+        var g = parseInt(hex.substring(2, 4), 16) / 255;
+        var b = parseInt(hex.substring(4, 6), 16) / 255;
+        if (isNaN(r) || isNaN(g) || isNaN(b)) return;
+        var gfx = colorSwatch.graphics;
+        gfx.backgroundColor = gfx.newBrush(gfx.BrushType.SOLID_COLOR, [r, g, b]);
+    }
+
+    function updateEdgeSwatch() {
+        if (!edgeSwatch || !edgeHexInput) return;
+        var hex = String(edgeHexInput.text || "").replace(/^#/, "");
+        if (hex.length === 3) {
+            hex = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
+        }
+        var r = parseInt(hex.substring(0, 2), 16) / 255;
+        var g = parseInt(hex.substring(2, 4), 16) / 255;
+        var b = parseInt(hex.substring(4, 6), 16) / 255;
+        if (isNaN(r) || isNaN(g) || isNaN(b)) return;
+        var gfx = edgeSwatch.graphics;
+        gfx.backgroundColor = gfx.newBrush(gfx.BrushType.SOLID_COLOR, [r, g, b]);
+    }
+
+    // フチのカラーを取得する関数
+    function getEdgeColor() {
+        if (edgeColorWhite.value) {
+            return createWhiteColor();
+        } else {
+            var docColor = hexToDocumentColor(edgeHexInput.text);
+            if (docColor) return docColor;
+            return createWhiteColor();
+        }
     }
 
     // 線のカラーを取得する関数
@@ -727,7 +869,7 @@ function main() {
     // 先端の円にフチを追加する関数
     function addTipCircleWhiteEdge(tipPt, b, diameter, fillOnly) {
         var sw = getLineWidth(b);
-        var whiteColor = createWhiteColor();
+        var whiteColor = getEdgeColor();
         if (fillOnly) {
             // ●のフチ：塗りを白で大きめ円
             var expand = sw * 2;
@@ -791,7 +933,7 @@ function main() {
     // 先端の矢印にフチを追加する関数（本体と同じ重心を基準にスケールアップ）
     function addTipArrowWhiteEdge(tipPt, bendPt, b, arrowSize, fillOnly) {
         var sw = getLineWidth(b);
-        var whiteColor = createWhiteColor();
+        var whiteColor = getEdgeColor();
         var dx = bendPt[0] - tipPt[0];
         var dy = bendPt[1] - tipPt[1];
         var len = Math.sqrt(dx * dx + dy * dy);
@@ -849,33 +991,18 @@ function main() {
 
     function tagLeaderParts(parts, whitePath, newPath, whiteCircle, circle, hasWhiteEdge) {
         if (hasWhiteEdge) {
-            if (parts.mainGroup) {
-                try { parts.mainGroup.note = "leader_line_main"; } catch (e) { }
-            }
-            if (parts.edgeGroup) {
-                try { parts.edgeGroup.note = "leader_line_edge"; } catch (e) { }
-            }
+            safeSetNote(parts.mainGroup, "leader_line_main");
+            safeSetNote(parts.edgeGroup, "leader_line_edge");
         }
 
-        if (newPath) {
-            try { newPath.note = "leader_line_main_path"; } catch (e) { }
-        }
-        if (circle) {
-            try { circle.note = "leader_line_main_cap"; } catch (e) { }
-        }
-        if (whitePath) {
-            try { whitePath.note = "leader_line_edge_path"; } catch (e) { }
-        }
-        if (whiteCircle) {
-            try { whiteCircle.note = "leader_line_edge_cap"; } catch (e) { }
-        }
+        safeSetNote(newPath, "leader_line_main_path");
+        safeSetNote(circle, "leader_line_main_cap");
+        safeSetNote(whitePath, "leader_line_edge_path");
+        safeSetNote(whiteCircle, "leader_line_edge_cap");
     }
 
     function setLeaderLineTag(item) {
-        if (!item) return;
-        try {
-            item.note = "leader_line";
-        } catch (e) { }
+        safeSetNote(item, "leader_line");
     }
 
     function setTagValue(item, name, value) {
@@ -977,17 +1104,16 @@ function main() {
     }
 
     // プレビューを生成する関数
-    function createPreview(angleDeg) {
-        removePreview();
+    function createPreview(angleDeg, ui) {
         var angleRad = angleDeg * Math.PI / 180;
         var boundsData = collectBoundsData(targets);
-        var diagDirPreview = getDiagDirValues();
+        var diagDirPreview = getDiagDirValues(ui);
         var hDir = diagDirPreview.hDir;
         var vDir = diagDirPreview.vDir;
-        var addCircle = capCircle.value;
-        var addArrow = capArrow.value;
+        var addCircle = ui.capCircle.value;
+        var addArrow = ui.capArrow.value;
         var addCap = addCircle || addArrow;
-        var diameter = unitValueToPt(capSizeInput.text, "strokeUnits");
+        var diameter = unitValueToPt(ui.capSizeInput.text, "strokeUnits");
         if (isNaN(diameter) || diameter <= 0) diameter = 3;
 
         for (var i = 0; i < boundsData.length; i++) {
@@ -996,7 +1122,7 @@ function main() {
             // 「斜線の方向以外」のとき、各オブジェクトの保存済み方向を使用
             var objHDir = hDir;
             var objVDir = vDir;
-            if (scopeExceptDir.value) {
+            if (ui.scopeExceptDir.value) {
                 var storedDir = getLeaderLineStoredDir(targets[i]);
                 if (storedDir) {
                     objHDir = storedDir.hDir;
@@ -1011,7 +1137,7 @@ function main() {
             var origTipPt = addCap ? getTipPoint(points, objHDir).slice(0) : null;
             var bendPt = addArrow ? points[1].slice(0) : null;
 
-            if (addCircle && !capFill.value) {
+            if (addCircle && !ui.capFill.value) {
                 // 円の半径 + 円の線幅の半分で短縮（線が円の縁に接する）
                 var shortenR = diameter / 2 + sw / 2;
                 shortenTip(points, objHDir, shortenR);
@@ -1027,14 +1153,14 @@ function main() {
             var circle = null;
 
             // フチ（最背面）
-            if (whiteEdgeCheck.value) {
+            if (ui.whiteEdgeCheck.value) {
                 whitePath = doc.pathItems.add();
                 whitePath.setEntirePath(points);
                 whitePath.stroked = true;
                 whitePath.strokeWidth = sw * 3;
-                whitePath.strokeColor = createWhiteColor();
+                whitePath.strokeColor = getEdgeColor();
                 whitePath.filled = false;
-                whitePath.strokeCap = capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
+                whitePath.strokeCap = ui.capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
             }
 
             newPath = doc.pathItems.add();
@@ -1043,39 +1169,38 @@ function main() {
             newPath.strokeWidth = sw;
             newPath.strokeColor = getLineColor(b);
             newPath.filled = false;
-            newPath.strokeCap = capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
+            newPath.strokeCap = ui.capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
 
             if (addCircle) {
-                if (whiteEdgeCheck.value) {
-                    whiteCircle = addTipCircleWhiteEdge(origTipPt, b, diameter, capFill.value);
+                if (ui.whiteEdgeCheck.value) {
+                    whiteCircle = addTipCircleWhiteEdge(origTipPt, b, diameter, ui.capFill.value);
                 }
-                circle = addTipCircle(origTipPt, b, diameter, capFill.value);
+                circle = addTipCircle(origTipPt, b, diameter, ui.capFill.value);
             }
             if (addArrow) {
-                if (whiteEdgeCheck.value) {
-                    whiteCircle = addTipArrowWhiteEdge(origTipPt, bendPt, b, diameter, capFill.value);
+                if (ui.whiteEdgeCheck.value) {
+                    whiteCircle = addTipArrowWhiteEdge(origTipPt, bendPt, b, diameter, ui.capFill.value);
                 }
-                circle = addTipArrow(origTipPt, bendPt, b, diameter, capFill.value);
+                circle = addTipArrow(origTipPt, bendPt, b, diameter, ui.capFill.value);
             }
 
             var previewGrp = doc.groupItems.add();
-            assembleLeaderParts(previewGrp, whitePath, newPath, whiteCircle, circle, whiteEdgeCheck.value);
-            previewItems.push(previewGrp);
+            assembleLeaderParts(previewGrp, whitePath, newPath, whiteCircle, circle, ui.whiteEdgeCheck.value); previewItems.push(previewGrp);
         }
-
-        // 元のパスを非表示にする
-        for (var j = 0; j < targets.length; j++) {
-            targets[j].hidden = true;
-        }
-        app.redraw();
     }
 
     // プレビューを削除する関数
     function removePreview() {
         for (var i = previewItems.length - 1; i >= 0; i--) {
-            try { previewItems[i].remove(); } catch (e) { }
+            safeRemove(previewItems[i]);
         }
         previewItems = [];
+    }
+
+    function setTargetsVisible(visible) {
+        for (var i = 0; i < targets.length; i++) {
+            targets[i].hidden = !visible;
+        }
     }
 
     // ↑↓キーで値を増減する関数
@@ -1086,6 +1211,7 @@ function main() {
         var fineStep = (typeof options.fineStep === "number") ? options.fineStep : 0.1;
         var minValue = (typeof options.minValue === "number") ? options.minValue : 0;
         var digits = (typeof options.digits === "number") ? options.digits : 0;
+        var onAfterChange = (typeof options.onAfterChange === "function") ? options.onAfterChange : null;
 
         editText.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
@@ -1101,7 +1227,17 @@ function main() {
                 step = fineStep;
             }
 
-            if (event.keyName === "Up") {
+            if (keyboard.shiftKey) {
+                // Shift: snap to next/prev multiple of largeStep
+                if (event.keyName === "Up") {
+                    var ceil = Math.ceil(value / step * (1 + 1e-9)) * step;
+                    value = (ceil <= value) ? value + step : ceil;
+                } else {
+                    var floor = Math.floor(value / step * (1 - 1e-9)) * step;
+                    value = (floor >= value) ? value - step : floor;
+                    if (value < minValue) value = minValue;
+                }
+            } else if (event.keyName === "Up") {
                 value += step;
             } else {
                 value -= step;
@@ -1110,364 +1246,564 @@ function main() {
 
             editText.text = formatNumber(value, digits);
             event.preventDefault();
-            updatePreview();
+            if (onAfterChange) onAfterChange();
         });
     }
 
     // 前回の設定を取得 / Load previous session settings
     var s = $.global._leaderLineSettings;
     var strokeUnitLabel = getCurrentUnitLabel("strokeUnits");
+    var __zoomState = __TMKZoom_captureViewState(doc);
 
-    // ダイアログボックスで角度を指定
-    var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-    dlg.orientation = "column";
-    dlg.alignChildren = ["fill", "top"];
-    // ダイアログ位置を復元（サイズではなく位置のみ）
-    if (s.dialogBounds && s.dialogBounds.length === 2) {
-        try {
-            dlg.location = s.dialogBounds;
-        } catch (e) { }
+    function loadDialogSettingsToUI(ui) {
+        ui.angleInput.text = s.angle;
+        ui.radio30.value = (s.radioAngle === 30);
+        ui.radio45.value = (s.radioAngle !== 30 && s.radioAngle !== 60);
+        ui.radio60.value = (s.radioAngle === 60);
+
+        if (!s.hasUserSetApplyScope && targets.length > 1) {
+            ui.scopeExceptDir.value = true;
+            ui.scopeAll.value = false;
+        } else if (s.applyScope === "exceptDirection") {
+            ui.scopeExceptDir.value = true;
+            ui.scopeAll.value = false;
+        } else {
+            ui.scopeAll.value = true;
+            ui.scopeExceptDir.value = false;
+        }
+
+        if (s.diagDir === "lowerLeft") {
+            ui.dirLowerLeft.value = true;
+            ui.dirUpperLeft.value = false;
+            ui.dirUpperRight.value = false;
+            ui.dirLowerRight.value = false;
+        } else if (s.diagDir === "upperRight") {
+            ui.dirUpperRight.value = true;
+            ui.dirUpperLeft.value = false;
+            ui.dirLowerLeft.value = false;
+            ui.dirLowerRight.value = false;
+        } else if (s.diagDir === "lowerRight") {
+            ui.dirLowerRight.value = true;
+            ui.dirUpperLeft.value = false;
+            ui.dirLowerLeft.value = false;
+            ui.dirUpperRight.value = false;
+        } else {
+            ui.dirUpperLeft.value = true;
+            ui.dirLowerLeft.value = false;
+            ui.dirUpperRight.value = false;
+            ui.dirLowerRight.value = false;
+        }
+
+        if (s.lineColor === "white") {
+            ui.colorWhite.value = true;
+            ui.colorBlack.value = false;
+            ui.colorOther.value = false;
+        } else if (s.lineColor === "other") {
+            ui.colorOther.value = true;
+            ui.colorBlack.value = false;
+            ui.colorWhite.value = false;
+        } else {
+            ui.colorBlack.value = true;
+            ui.colorWhite.value = false;
+            ui.colorOther.value = false;
+        }
+        ui.hexInput.text = s.lineColorHex;
+        updateSwatch();
+
+        lineWidthDisplay = parseFloat(formatUnitValue(s.lineWidth, "strokeUnits"));
+        if (isNaN(lineWidthDisplay) || lineWidthDisplay <= 0) lineWidthDisplay = 1;
+        ui.lineWidthInput.text = formatNumber(lineWidthDisplay, 2);
+
+        if (s.strokeCapType === "round") {
+            ui.capRound.value = true;
+            ui.strokeCapNone.value = false;
+        } else {
+            ui.strokeCapNone.value = true;
+            ui.capRound.value = false;
+        }
+
+        if (s.capType === "circle") {
+            ui.capCircle.value = true;
+            ui.capNone.value = false;
+            ui.capArrow.value = false;
+        } else if (s.capType === "arrow") {
+            ui.capArrow.value = true;
+            ui.capNone.value = false;
+            ui.capCircle.value = false;
+        } else {
+            ui.capNone.value = true;
+            ui.capCircle.value = false;
+            ui.capArrow.value = false;
+        }
+
+        if (s.capStyle === "stroke") {
+            ui.capStroke.value = true;
+            ui.capFill.value = false;
+        } else {
+            ui.capFill.value = true;
+            ui.capStroke.value = false;
+        }
+
+        capSizeDisplay = parseFloat(formatUnitValue(s.capSize, "strokeUnits"));
+        if (isNaN(capSizeDisplay) || capSizeDisplay <= 0) capSizeDisplay = 3;
+        ui.capSizeInput.text = formatNumber(capSizeDisplay, 2);
+
+        ui.groupCheck.value = !!s.groupEnabled;
+        ui.whiteEdgeCheck.value = !!s.whiteEdge;
+
+        if (s.edgeColor === "other") {
+            ui.edgeColorOther.value = true;
+            ui.edgeColorWhite.value = false;
+        } else {
+            ui.edgeColorWhite.value = true;
+            ui.edgeColorOther.value = false;
+        }
+        ui.edgeHexInput.text = s.edgeColorHex;
+        updateEdgeSwatch();
+
+        updateDirPanelEnabled(ui);
+        updateCapEnabled(ui);
+        updateEdgeColorEnabled(ui);
     }
 
-    // 適用範囲ラジオボタン
-    var scopePanel = dlg.add("panel", undefined, L("panelApplyScope"));
-    scopePanel.margins = [15, 20, 15, 10];
-    scopePanel.orientation = "row";
-    scopePanel.alignChildren = ["center", "center"];
-    var scopeAll = scopePanel.add("radiobutton", undefined, L("scopeAll"));
-    var scopeExceptDir = scopePanel.add("radiobutton", undefined, L("scopeExceptDirection"));
-    // 複数オブジェクト選択時は「斜線の方向以外」を自動選択
-    if (targets.length > 1) {
-        scopeExceptDir.value = true;
-    } else if (s.applyScope === "exceptDirection") {
-        scopeExceptDir.value = true;
-    } else {
-        scopeAll.value = true;
+
+    function buildDialogUI() {
+        var ui = {};
+
+        ui.dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        ui.dlg.orientation = "column";
+        ui.dlg.alignChildren = ["fill", "top"];
+        // ダイアログ表示位置は復元する
+        if (s.dialogBounds && s.dialogBounds.length === 2) {
+            ui.dlg.location = s.dialogBounds;
+        }
+
+        // 適用範囲ラジオボタン
+        ui.scopePanel = ui.dlg.add("panel", undefined, L("panelApplyScope"));
+        ui.scopePanel.margins = [15, 20, 15, 10];
+        ui.scopePanel.orientation = "row";
+        ui.scopePanel.alignChildren = ["center", "center"];
+        ui.scopeAll = ui.scopePanel.add("radiobutton", undefined, L("scopeAll"));
+        ui.scopeExceptDir = ui.scopePanel.add("radiobutton", undefined, L("scopeExceptDirection"));
+
+        ui.topRow = ui.dlg.add("group");
+        ui.topRow.orientation = "row";
+        ui.topRow.alignChildren = ["fill", "top"];
+
+        ui.leftCol = ui.topRow.add("group");
+        ui.leftCol.orientation = "column";
+        ui.leftCol.alignChildren = ["fill", "top"];
+
+        ui.anglePanel = ui.leftCol.add("panel", undefined, L("panelAngle"));
+        ui.anglePanel.margins = [15, 20, 15, 10];
+        ui.anglePanel.orientation = "column";
+        ui.anglePanel.alignChildren = ["fill", "top"];
+
+        ui.angleInputGroup = ui.anglePanel.add("group");
+        ui.angleInputGroup.alignment = ["center", "top"];
+        ui.angleInput = ui.angleInputGroup.add("edittext", undefined, s.angle);
+        ui.angleInput.characters = 4;
+        ui.angleInputGroup.add("statictext", undefined, "\u00B0");
+        ui.angleInput.active = true;
+
+        ui.radioGroup = ui.anglePanel.add("group");
+        ui.radioGroup.orientation = "row";
+        ui.radio30 = ui.radioGroup.add("radiobutton", undefined, "30");
+        ui.radio45 = ui.radioGroup.add("radiobutton", undefined, "45");
+        ui.radio60 = ui.radioGroup.add("radiobutton", undefined, "60");
+
+        ui.dirPanel = ui.leftCol.add("panel", undefined, L("panelDirection"));
+        ui.dirPanel.margins = [15, 20, 15, 10];
+        ui.dirPanel.orientation = "column";
+        ui.dirPanel.alignChildren = ["fill", "top"];
+
+        ui.dirGroup = ui.dirPanel.add("group");
+        ui.dirGroup.orientation = "row";
+        ui.dirGroup.alignChildren = ["fill", "top"];
+
+        ui.dirLeftCol = ui.dirGroup.add("group");
+        ui.dirLeftCol.orientation = "column";
+        ui.dirLeftCol.alignChildren = ["fill", "top"];
+        ui.dirUpperLeft = ui.dirLeftCol.add("radiobutton", undefined, L("dirUpperLeft"));
+        ui.dirLeftCol.add("statictext", undefined, " ");
+        ui.dirLowerLeft = ui.dirLeftCol.add("radiobutton", undefined, L("dirLowerLeft"));
+
+        ui.dirCenterCol = ui.dirGroup.add("group");
+        ui.dirCenterCol.orientation = "column";
+        ui.dirCenterCol.alignChildren = ["center", "center"];
+        ui.dirCenterCol.add("statictext", undefined, " ");
+        ui.dirCenterCol.add("statictext", undefined, "対象");
+
+        ui.dirRightCol = ui.dirGroup.add("group");
+        ui.dirRightCol.orientation = "column";
+        ui.dirRightCol.alignChildren = ["fill", "top"];
+        ui.dirUpperRight = ui.dirRightCol.add("radiobutton", undefined, L("dirUpperRight"));
+        ui.dirRightCol.add("statictext", undefined, " ");
+        ui.dirLowerRight = ui.dirRightCol.add("radiobutton", undefined, L("dirLowerRight"));
+
+        ui.rightCol = ui.topRow.add("group");
+        ui.rightCol.orientation = "column";
+        ui.rightCol.alignChildren = ["fill", "top"];
+
+        ui.colorPanel = ui.rightCol.add("panel", undefined, L("panelLineStyle"));
+        ui.colorPanel.margins = [15, 20, 15, 10];
+        ui.colorPanel.orientation = "column";
+        ui.colorPanel.alignChildren = ["fill", "top"];
+
+        ui.colorGroup = ui.colorPanel.add("group");
+        ui.colorGroup.alignChildren = ["left", "center"];
+        ui.colorBlack = ui.colorGroup.add("radiobutton", undefined, L("colorBlack"));
+        ui.colorWhite = ui.colorGroup.add("radiobutton", undefined, L("colorWhite"));
+        ui.colorOther = ui.colorGroup.add("radiobutton", undefined, "");
+        ui.hexInput = { text: s.lineColorHex };
+        ui.colorSwatch = ui.colorGroup.add("panel", undefined, "");
+        ui.colorSwatch.preferredSize = [20, 20];
+
+        ui.lineWidthGroup = ui.colorPanel.add("group");
+        ui.lineWidthGroup.add("statictext", undefined, L("lineWidth"));
+        lineWidthDisplay = parseFloat(formatUnitValue(s.lineWidth, "strokeUnits"));
+        if (isNaN(lineWidthDisplay) || lineWidthDisplay <= 0) lineWidthDisplay = 1;
+        ui.lineWidthInput = ui.lineWidthGroup.add("edittext", undefined, formatNumber(lineWidthDisplay, 2));
+        ui.lineWidthInput.characters = 3;
+        ui.lineWidthGroup.add("statictext", undefined, strokeUnitLabel);
+
+        ui.strokeCapGroup = ui.colorPanel.add("group");
+        ui.strokeCapNone = ui.strokeCapGroup.add("radiobutton", undefined, L("capStrokeCapNone"));
+        ui.capRound = ui.strokeCapGroup.add("radiobutton", undefined, L("capRound"));
+
+        ui.capPanel = ui.rightCol.add("panel", undefined, L("panelLineEnd"));
+        ui.capPanel.margins = [15, 20, 15, 10];
+        ui.capPanel.orientation = "column";
+        ui.capPanel.alignChildren = ["fill", "top"];
+
+        ui.capGroup = ui.capPanel.add("group");
+        ui.capNone = ui.capGroup.add("radiobutton", undefined, L("capNone"));
+        ui.capCircle = ui.capGroup.add("radiobutton", undefined, L("capCircle"));
+        ui.capArrow = ui.capGroup.add("radiobutton", undefined, L("capArrow"));
+
+        ui.capStyleGroup = ui.capPanel.add("group");
+        ui.capFill = ui.capStyleGroup.add("radiobutton", undefined, L("capFill"));
+        ui.capStroke = ui.capStyleGroup.add("radiobutton", undefined, L("capStroke"));
+
+        ui.capSizeGroup = ui.capPanel.add("group");
+        ui.capSizeGroup.add("statictext", undefined, L("capSize"));
+        capSizeDisplay = parseFloat(formatUnitValue(s.capSize, "strokeUnits"));
+        if (isNaN(capSizeDisplay) || capSizeDisplay <= 0) capSizeDisplay = 3;
+        ui.capSizeInput = ui.capSizeGroup.add("edittext", undefined, formatNumber(capSizeDisplay, 2));
+        ui.capSizeInput.characters = 3;
+        ui.capSizeGroup.add("statictext", undefined, strokeUnitLabel);
+
+        ui.groupCheck = ui.capPanel.add("checkbox", undefined, L("groupEnabled"));
+
+        ui.optPanel = ui.leftCol.add("panel", undefined, L("panelOptions"));
+        ui.optPanel.margins = [15, 20, 15, 10];
+        ui.optPanel.orientation = "column";
+        ui.optPanel.alignChildren = ["fill", "top"];
+
+        ui.whiteEdgeCheck = ui.optPanel.add("checkbox", undefined, L("whiteEdge"));
+        ui.edgeColorGroup = ui.optPanel.add("group");
+        ui.edgeColorGroup.orientation = "row";
+        ui.edgeColorGroup.alignChildren = ["left", "center"];
+        ui.edgeColorWhite = ui.edgeColorGroup.add("radiobutton", undefined, L("colorWhite"));
+        ui.edgeColorOther = ui.edgeColorGroup.add("radiobutton", undefined, "");
+        ui.edgeHexInput = { text: s.edgeColorHex };
+        ui.edgeSwatch = ui.edgeColorGroup.add("panel", undefined, "");
+        ui.edgeSwatch.preferredSize = [20, 20];
+
+        return ui;
     }
 
-    // 上段：2カラム
-    var topRow = dlg.add("group");
-    topRow.orientation = "row";
-    topRow.alignChildren = ["fill", "top"];
+    function saveDialogSettingsFromUI(ui) {
+        s.angle = ui.angleInput.text;
+        s.radioAngle = ui.radio30.value ? 30 : (ui.radio60.value ? 60 : 45);
+        s.applyScope = ui.scopeExceptDir.value ? "exceptDirection" : "all";
 
-    // 左カラム
-    var leftCol = topRow.add("group");
-    leftCol.orientation = "column";
-    leftCol.alignChildren = ["fill", "top"];
+        var diagDirVals = getDiagDirValues(ui);
+        s.diagDir = ui.dirUpperLeft.value ? "upperLeft" : (ui.dirLowerLeft.value ? "lowerLeft" : (ui.dirUpperRight.value ? "upperRight" : "lowerRight"));
+        s.hDir = diagDirVals.hDir;
+        s.vDir = diagDirVals.vDir;
 
-    // 角度パネル
-    var anglePanel = leftCol.add("panel", undefined, L("panelAngle"));
-    anglePanel.margins = [15, 20, 15, 10];
-    anglePanel.orientation = "column";
-    anglePanel.alignChildren = ["fill", "top"];
+        s.capType = ui.capCircle.value ? "circle" : (ui.capArrow.value ? "arrow" : "none");
+        s.capStyle = ui.capStroke.value ? "stroke" : "fill";
+        var savedCapSizePt = unitValueToPt(ui.capSizeInput.text, "strokeUnits");
+        s.capSize = (!isNaN(savedCapSizePt) && savedCapSizePt > 0) ? formatNumber(savedCapSizePt, 4) : "3";
+        s.strokeCapType = ui.capRound.value ? "round" : "none";
 
-    var angleInputGroup = anglePanel.add("group");
-    angleInputGroup.alignment = ["center", "top"];
-    var angleInput = angleInputGroup.add("edittext", undefined, s.angle);
-    angleInput.characters = 4;
-    angleInputGroup.add("statictext", undefined, "\u00B0");
-    angleInput.active = true;
-    changeValueByArrowKey(angleInput, { smallStep: 1, largeStep: 10, fineStep: 0.1, minValue: 0, digits: 1 });
+        s.groupEnabled = ui.groupCheck.value;
+        s.whiteEdge = ui.whiteEdgeCheck.value;
+        s.edgeColor = ui.edgeColorWhite.value ? "white" : "other";
+        s.edgeColorHex = ui.edgeHexInput.text;
 
-    // ラジオボタンで角度を選択
-    var radioGroup = anglePanel.add("group");
-    radioGroup.orientation = "row";
-    var radio30 = radioGroup.add("radiobutton", undefined, "30");
-    var radio45 = radioGroup.add("radiobutton", undefined, "45");
-    var radio60 = radioGroup.add("radiobutton", undefined, "60");
-    if (s.radioAngle === 30) radio30.value = true;
-    else if (s.radioAngle === 60) radio60.value = true;
-    else radio45.value = true;
+        s.lineColor = ui.colorBlack.value ? "black" : (ui.colorWhite.value ? "white" : "other");
+        s.lineColorHex = ui.hexInput.text;
+        var savedLineWidthPt = unitValueToPt(ui.lineWidthInput.text, "strokeUnits");
+        s.lineWidth = (!isNaN(savedLineWidthPt) && savedLineWidthPt > 0) ? formatNumber(savedLineWidthPt, 4) : "1";
 
-    radio30.onClick = function () { angleInput.text = "30"; updatePreview(); };
-    radio45.onClick = function () { angleInput.text = "45"; updatePreview(); };
-    radio60.onClick = function () { angleInput.text = "60"; updatePreview(); };
+        rememberDialogLocation();
+    }
 
-    // 斜線の方向パネル（左カラム）
-    var dirPanel = leftCol.add("panel", undefined, L("panelDirection"));
-    dirPanel.margins = [15, 20, 15, 10];
-    dirPanel.orientation = "column";
-    dirPanel.alignChildren = ["fill", "top"];
+    var ui = buildDialogUI();
+    var dlg = ui.dlg;
 
-    var dirGroup = dirPanel.add("group");
-    dirGroup.orientation = "row";
-    dirGroup.alignChildren = ["fill", "top"];
+    var scopeAll = ui.scopeAll;
+    var scopeExceptDir = ui.scopeExceptDir;
 
-    // 左列
-    var dirLeftCol = dirGroup.add("group");
-    dirLeftCol.orientation = "column";
-    dirLeftCol.alignChildren = ["fill", "top"];
-    var dirUpperLeft = dirLeftCol.add("radiobutton", undefined, L("dirUpperLeft"));
-    dirLeftCol.add("statictext", undefined, " ");
-    var dirLowerLeft = dirLeftCol.add("radiobutton", undefined, L("dirLowerLeft"));
+    var dirPanel = ui.dirPanel;
 
-    // 中央列（「対象」ラベル）
-    var dirCenterCol = dirGroup.add("group");
-    dirCenterCol.orientation = "column";
-    dirCenterCol.alignChildren = ["center", "center"];
-    dirCenterCol.add("statictext", undefined, " ");
-    dirCenterCol.add("statictext", undefined, "対象");
+    var colorBlack = ui.colorBlack;
+    var colorWhite = ui.colorWhite;
+    var colorOther = ui.colorOther;
+    var hexInput = ui.hexInput;
+    var colorSwatch = ui.colorSwatch;
 
-    // 右列
-    var dirRightCol = dirGroup.add("group");
-    dirRightCol.orientation = "column";
-    dirRightCol.alignChildren = ["fill", "top"];
-    var dirUpperRight = dirRightCol.add("radiobutton", undefined, L("dirUpperRight"));
-    dirRightCol.add("statictext", undefined, " ");
-    var dirLowerRight = dirRightCol.add("radiobutton", undefined, L("dirLowerRight"));
-    if (s.diagDir === "lowerLeft") dirLowerLeft.value = true;
-    else if (s.diagDir === "upperRight") dirUpperRight.value = true;
-    else if (s.diagDir === "lowerRight") dirLowerRight.value = true;
-    else dirUpperLeft.value = true;
+    var lineWidthInput = ui.lineWidthInput;
 
-    // diagDir → hDir/vDir マッピング
-    function getDiagDirValues() {
-        if (dirUpperLeft.value) return { hDir: "right", vDir: "down" };
-        if (dirLowerLeft.value) return { hDir: "right", vDir: "up" };
-        if (dirUpperRight.value) return { hDir: "left", vDir: "down" };
-        if (dirLowerRight.value) return { hDir: "left", vDir: "up" };
+    var strokeCapNone = ui.strokeCapNone;
+    var capRound = ui.capRound;
+
+    var capNone = ui.capNone;
+    var capCircle = ui.capCircle;
+    var capArrow = ui.capArrow;
+
+    var capFill = ui.capFill;
+    var capStroke = ui.capStroke;
+    var capSizeInput = ui.capSizeInput;
+
+    var groupCheck = ui.groupCheck;
+
+    var whiteEdgeCheck = ui.whiteEdgeCheck;
+    var edgeColorGroup = ui.edgeColorGroup;
+    var edgeColorWhite = ui.edgeColorWhite;
+    var edgeColorOther = ui.edgeColorOther;
+    var edgeHexInput = ui.edgeHexInput;
+    var edgeSwatch = ui.edgeSwatch;
+
+    // ズーム状態は保存しないが、ダイアログ位置は保存する
+    function rememberDialogLocation() {
+        if (dlg.location) {
+            s.dialogBounds = [dlg.location[0], dlg.location[1]];
+        }
+    }
+
+    function getDiagDirValues(ui) {
+        if (ui.dirUpperLeft.value) return { hDir: "right", vDir: "down" };
+        if (ui.dirLowerLeft.value) return { hDir: "right", vDir: "up" };
+        if (ui.dirUpperRight.value) return { hDir: "left", vDir: "down" };
+        if (ui.dirLowerRight.value) return { hDir: "left", vDir: "up" };
         return { hDir: "right", vDir: "up" };
     }
 
-    // 異なるグループ間のラジオボタンを排他制御
-    var allDirRadios = [dirUpperLeft, dirLowerLeft, dirUpperRight, dirLowerRight];
-    function uncheckOtherDirs(selected) {
-        for (var d = 0; d < allDirRadios.length; d++) {
-            if (allDirRadios[d] !== selected) allDirRadios[d].value = false;
-        }
+    function updateDirPanelEnabled(ui) {
+        ui.dirPanel.enabled = ui.scopeAll.value;
     }
-    dirUpperLeft.onClick = function () { uncheckOtherDirs(dirUpperLeft); updatePreview(); };
-    dirLowerLeft.onClick = function () { uncheckOtherDirs(dirLowerLeft); updatePreview(); };
-    dirUpperRight.onClick = function () { uncheckOtherDirs(dirUpperRight); updatePreview(); };
-    dirLowerRight.onClick = function () { uncheckOtherDirs(dirLowerRight); updatePreview(); };
 
-    // 「斜線の方向以外」選択時に方向パネルをディム
-    function updateDirPanelEnabled() {
-        var on = scopeAll.value;
-        dirPanel.enabled = on;
-    }
-    updateDirPanelEnabled();
-
-    scopeAll.onClick = function () { updateDirPanelEnabled(); updatePreview(); };
-    scopeExceptDir.onClick = function () { updateDirPanelEnabled(); updatePreview(); };
-
-    // 右カラム
-    var rightCol = topRow.add("group");
-    rightCol.orientation = "column";
-    rightCol.alignChildren = ["fill", "top"];
-
-    // 線のスタイルパネル
-    var colorPanel = rightCol.add("panel", undefined, L("panelLineStyle"));
-    colorPanel.margins = [15, 20, 15, 10];
-    colorPanel.orientation = "column";
-    colorPanel.alignChildren = ["fill", "top"];
-
-    var colorGroup = colorPanel.add("group");
-    var colorBlack = colorGroup.add("radiobutton", undefined, L("colorBlack"));
-    var colorWhite = colorGroup.add("radiobutton", undefined, L("colorWhite"));
-    var colorOther = colorGroup.add("radiobutton", undefined, L("colorOther"));
-    if (s.lineColor === "white") colorWhite.value = true;
-    else if (s.lineColor === "other") colorOther.value = true;
-    else colorBlack.value = true;
-
-    var hexGroup = colorPanel.add("group");
-    hexGroup.orientation = "row";
-    hexGroup.alignChildren = ["left", "center"];
-    var hexInput = hexGroup.add("edittext", undefined, s.lineColorHex);
-    hexInput.characters = 8;
-    hexInput.enabled = colorOther.value;
-
-    // カラースウォッチ
-    var colorSwatch = hexGroup.add("panel", undefined, "");
-    colorSwatch.preferredSize = [20, 20];
-    function updateSwatch() {
-        var hex = hexInput.text.replace(/^#/, "");
-        if (hex.length === 3) {
-            hex = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
-        }
-        var r = parseInt(hex.substring(0, 2), 16) / 255;
-        var g = parseInt(hex.substring(2, 4), 16) / 255;
-        var b = parseInt(hex.substring(4, 6), 16) / 255;
-        if (isNaN(r) || isNaN(g) || isNaN(b)) return;
-        var gfx = colorSwatch.graphics;
-        gfx.backgroundColor = gfx.newBrush(gfx.BrushType.SOLID_COLOR, [r, g, b]);
-    }
-    updateSwatch();
-
-    hexInput.onChanging = function () { updateSwatch(); updatePreview(); };
-
-    colorBlack.onClick = function () { hexInput.enabled = false; updatePreview(); };
-    colorWhite.onClick = function () { hexInput.enabled = false; updatePreview(); };
-    colorOther.onClick = function () { hexInput.enabled = true; updatePreview(); };
-
-    var lineWidthGroup = colorPanel.add("group");
-    lineWidthGroup.add("statictext", undefined, L("lineWidth"));
-    var lineWidthDisplay = parseFloat(formatUnitValue(s.lineWidth, "strokeUnits"));
-    if (isNaN(lineWidthDisplay) || lineWidthDisplay <= 0) lineWidthDisplay = 1;
-    var lineWidthInput = lineWidthGroup.add("edittext", undefined, formatNumber(lineWidthDisplay, 2));
-    lineWidthInput.characters = 4;
-    changeValueByArrowKey(lineWidthInput, { smallStep: 0.1, largeStep: 1, fineStep: 0.01, minValue: 0, digits: 2 });
-    lineWidthGroup.add("statictext", undefined, strokeUnitLabel);
-    lineWidthInput.onChanging = function () { updatePreview(); };
-
-    // 線端：なし　丸型
-    var strokeCapGroup = colorPanel.add("group");
-    var strokeCapNone = strokeCapGroup.add("radiobutton", undefined, L("capStrokeCapNone"));
-    var capRound = strokeCapGroup.add("radiobutton", undefined, L("capRound"));
-    if (s.strokeCapType === "round") capRound.value = true;
-    else strokeCapNone.value = true;
-    capRound.onClick = function () { updatePreview(); };
-    strokeCapNone.onClick = function () { updatePreview(); };
-
-    // 線端パネル（右カラム）
-    var capPanel = rightCol.add("panel", undefined, L("panelLineEnd"));
-    capPanel.margins = [15, 20, 15, 10];
-    capPanel.orientation = "column";
-    capPanel.alignChildren = ["fill", "top"];
-
-    // 形状：なし　円　矢印
-    var capGroup = capPanel.add("group");
-    var capNone = capGroup.add("radiobutton", undefined, L("capNone"));
-    var capCircle = capGroup.add("radiobutton", undefined, L("capCircle"));
-    var capArrow = capGroup.add("radiobutton", undefined, L("capArrow"));
-    if (s.capType === "circle") capCircle.value = true;
-    else if (s.capType === "arrow") capArrow.value = true;
-    else capNone.value = true;
-
-    var capStyleGroup = capPanel.add("group");
-    var capFill = capStyleGroup.add("radiobutton", undefined, L("capFill"));
-    var capStroke = capStyleGroup.add("radiobutton", undefined, L("capStroke"));
-    if (s.capStyle === "stroke") capStroke.value = true; else capFill.value = true;
-
-    var capSizeGroup = capPanel.add("group");
-    capSizeGroup.add("statictext", undefined, L("capSize"));
-    var capSizeDisplay = parseFloat(formatUnitValue(s.capSize, "strokeUnits"));
-    if (isNaN(capSizeDisplay) || capSizeDisplay <= 0) capSizeDisplay = 3;
-    var capSizeInput = capSizeGroup.add("edittext", undefined, formatNumber(capSizeDisplay, 2));
-    capSizeInput.characters = 4;
-    changeValueByArrowKey(capSizeInput, { smallStep: 0.1, largeStep: 1, fineStep: 0.01, minValue: 0, digits: 2 });
-    capSizeGroup.add("statictext", undefined, strokeUnitLabel);
-
-    var groupCheck = capPanel.add("checkbox", undefined, L("groupEnabled"));
-    groupCheck.value = s.groupEnabled;
-
-    // 形状の有無に応じたUI制御
-    function updateCapEnabled() {
-        var on = capCircle.value || capArrow.value;
-        if (capArrow.value) {
-            if (capStroke.value) {
-                capStroke.value = false;
-                capFill.value = true;
+    function updateCapEnabled(ui) {
+        var on = ui.capCircle.value || ui.capArrow.value;
+        if (ui.capArrow.value) {
+            if (ui.capStroke.value) {
+                ui.capStroke.value = false;
+                ui.capFill.value = true;
             }
-            capFill.enabled = false;
-            capStroke.enabled = false;
+            ui.capFill.enabled = false;
+            ui.capStroke.enabled = false;
         } else {
-            capFill.enabled = on;
-            capStroke.enabled = on;
+            ui.capFill.enabled = on;
+            ui.capStroke.enabled = on;
         }
-        capSizeInput.enabled = on;
+        ui.capSizeInput.enabled = on;
+        ui.groupCheck.enabled = on;
     }
-    updateCapEnabled();
 
-    capNone.onClick = function () { updateCapEnabled(); updatePreview(); };
-    capCircle.onClick = function () { updateCapEnabled(); updatePreview(); };
-    capArrow.onClick = function () { updateCapEnabled(); updatePreview(); };
-    capFill.onClick = function () { updatePreview(); };
-    capStroke.onClick = function () { updatePreview(); };
-    capSizeInput.onChanging = function () { updatePreview(); };
+    function updateEdgeColorEnabled(ui) {
+        var on = ui.whiteEdgeCheck.value;
+        ui.edgeColorGroup.enabled = on;
+        ui.edgeSwatch.enabled = on;
+    }
 
-    // オプションパネル
-    var optPanel = dlg.add("panel", undefined, L("panelOptions"));
-    optPanel.margins = [15, 20, 15, 10];
-    optPanel.orientation = "column";
-    optPanel.alignChildren = ["fill", "top"];
+    function bindDialogEvents(ui) {
+        changeValueByArrowKey(ui.angleInput, {
+            smallStep: 1,
+            largeStep: 10,
+            fineStep: 0.1,
+            minValue: 0,
+            digits: 0,
+            onAfterChange: function () { updatePreview(ui); }
+        });
+        changeValueByArrowKey(ui.lineWidthInput, {
+            smallStep: 0.1,
+            largeStep: 1,
+            fineStep: 0.01,
+            minValue: 0,
+            digits: 2,
+            onAfterChange: function () { updatePreview(ui); }
+        });
+        changeValueByArrowKey(ui.capSizeInput, {
+            smallStep: 0.1,
+            largeStep: 1,
+            fineStep: 0.01,
+            minValue: 0,
+            digits: 2,
+            onAfterChange: function () { updatePreview(ui); }
+        });
 
-    var whiteEdgeGroup = optPanel.add("group");
-    whiteEdgeGroup.orientation = "row";
-    whiteEdgeGroup.alignChildren = ["left", "center"];
-    var whiteEdgeCheck = whiteEdgeGroup.add("checkbox", undefined, L("whiteEdge"));
-    whiteEdgeCheck.value = s.whiteEdge;
-    whiteEdgeCheck.onClick = function () { updatePreview(); };
-    var whiteEdgeSwatch = whiteEdgeGroup.add("panel", undefined, "");
-    whiteEdgeSwatch.preferredSize = [20, 20];
-    var gfx = whiteEdgeSwatch.graphics;
-    gfx.backgroundColor = gfx.newBrush(gfx.BrushType.SOLID_COLOR, [1, 1, 1]);
+        ui.radio30.onClick = function () { ui.angleInput.text = "30"; updatePreview(ui); };
+        ui.radio45.onClick = function () { ui.angleInput.text = "45"; updatePreview(ui); };
+        ui.radio60.onClick = function () { ui.angleInput.text = "60"; updatePreview(ui); };
 
-    var previewCheck = dlg.add("checkbox", undefined, L("preview"));
-    previewCheck.alignment = ["center", "top"];
-    previewCheck.value = !!s.preview;
+        // 適用範囲はユーザーが明示的にクリックしたときだけ「手動設定済み」とみなす
+        ui.scopeAll.onClick = function () {
+            s.hasUserSetApplyScope = true;
+            updateDirPanelEnabled(ui);
+            updatePreview(ui);
+        };
+        ui.scopeExceptDir.onClick = function () {
+            s.hasUserSetApplyScope = true;
+            updateDirPanelEnabled(ui);
+            updatePreview(ui);
+        };
+
+        var allDirRadios = [ui.dirUpperLeft, ui.dirLowerLeft, ui.dirUpperRight, ui.dirLowerRight];
+        function uncheckOtherDirs(selected) {
+            for (var d = 0; d < allDirRadios.length; d++) {
+                if (allDirRadios[d] !== selected) allDirRadios[d].value = false;
+            }
+        }
+        ui.dirUpperLeft.onClick = function () { uncheckOtherDirs(ui.dirUpperLeft); updatePreview(ui); };
+        ui.dirLowerLeft.onClick = function () { uncheckOtherDirs(ui.dirLowerLeft); updatePreview(ui); };
+        ui.dirUpperRight.onClick = function () { uncheckOtherDirs(ui.dirUpperRight); updatePreview(ui); };
+        ui.dirLowerRight.onClick = function () { uncheckOtherDirs(ui.dirLowerRight); updatePreview(ui); };
+
+        ui.colorSwatch.addEventListener("click", function () {
+            var initial = ui.hexInput.text.replace(/^#/, "");
+            var c = ColorPicker.show(initial);
+            if (c) {
+                ui.hexInput.text = "#" + c;
+                ui.colorBlack.value = false;
+                ui.colorWhite.value = false;
+                ui.colorOther.value = true;
+                updateSwatch();
+                updatePreview(ui);
+            }
+        });
+        ui.colorBlack.onClick = function () { updatePreview(ui); };
+        ui.colorWhite.onClick = function () { updatePreview(ui); };
+        ui.colorOther.onClick = function () {
+            var initial = ui.hexInput.text.replace(/^#/, "");
+            var c = ColorPicker.show(initial);
+            if (c) {
+                ui.hexInput.text = "#" + c;
+                updateSwatch();
+            }
+            updatePreview(ui);
+        };
+        ui.lineWidthInput.onChanging = function () { updatePreview(ui); };
+
+        ui.capRound.onClick = function () { updatePreview(ui); };
+        ui.strokeCapNone.onClick = function () { updatePreview(ui); };
+        ui.capNone.onClick = function () { updateCapEnabled(ui); updatePreview(ui); };
+        ui.capCircle.onClick = function () { updateCapEnabled(ui); updatePreview(ui); };
+        ui.capArrow.onClick = function () { updateCapEnabled(ui); updatePreview(ui); };
+        ui.capFill.onClick = function () { updatePreview(ui); };
+        ui.capStroke.onClick = function () { updatePreview(ui); };
+        ui.capSizeInput.onChanging = function () { updatePreview(ui); };
+        ui.groupCheck.onClick = function () { saveDialogSettingsFromUI(ui); };
+
+        ui.whiteEdgeCheck.onClick = function () {
+            updateEdgeColorEnabled(ui);
+            updatePreview(ui);
+        };
+        ui.edgeSwatch.addEventListener("click", function () {
+            var initial = ui.edgeHexInput.text.replace(/^#/, "");
+            var c = ColorPicker.show(initial);
+            if (c) {
+                ui.edgeHexInput.text = "#" + c;
+                ui.edgeColorWhite.value = false;
+                ui.edgeColorOther.value = true;
+                updateEdgeSwatch();
+                updatePreview(ui);
+            }
+        });
+        ui.edgeColorWhite.onClick = function () { updatePreview(ui); };
+        ui.edgeColorOther.onClick = function () {
+            var initial = ui.edgeHexInput.text.replace(/^#/, "");
+            var c = ColorPicker.show(initial);
+            if (c) {
+                ui.edgeHexInput.text = "#" + c;
+                updateEdgeSwatch();
+            }
+            updatePreview(ui);
+        };
+
+        ui.angleInput.onChanging = function () { updatePreview(ui); };
+
+        ui.dlg.onMove = function () {
+            rememberDialogLocation();
+        };
+        ui.dlg.onClose = function () {
+            saveDialogSettingsFromUI(ui);
+        };
+    }
+
+    bindDialogEvents(ui);
+    loadDialogSettingsToUI(ui);
+
+    var zoomCtrl = __TMKZoom_addControls(dlg, doc, L("zoom"), __zoomState, {
+        min: 0.1,
+        max: 8,
+        sliderWidth: 240,
+        margins: [0, 0, 0, 10],
+        redraw: true,
+        lightMode: true,
+        lightModeLabel: L("lightMode"),
+        lightModeDefault: false
+    });
+    ui.zoomCtrl = zoomCtrl;
+
+    // ズーム状態はセッション復元しない。ここでは操作時の挙動だけ定義する
+    if (zoomCtrl.lightModeCheckbox) {
+        zoomCtrl.lightModeCheckbox.onClick = function () {
+            zoomCtrl.applyZoom(Number(zoomCtrl.slider.value));
+        };
+    }
 
     var btnGroup = dlg.add("group");
     btnGroup.alignment = ["center", "top"];
     btnGroup.add("button", undefined, L("cancel"), { name: "cancel" });
     btnGroup.add("button", undefined, L("ok"), { name: "ok" });
 
-    // プレビュー更新の共通処理
-    function updatePreview() {
-        if (!previewCheck.value) return;
-        var val = parseFloat(angleInput.text);
-        if (isNaN(val) || val <= 0 || val >= 90) return;
-        createPreview(val);
+    function updatePreview(ui) {
+        removePreview();
+        setTargetsVisible(true);
+
+        var val = parseFloat(ui.angleInput.text);
+        if (isNaN(val) || val <= 0 || val >= 90) {
+            saveDialogSettingsFromUI(ui);
+            app.redraw();
+            return;
+        }
+
+        createPreview(val, ui);
+        setTargetsVisible(false);
+        saveDialogSettingsFromUI(ui);
+        app.redraw();
     }
 
-    // プレビューチェックボックスの変更
-    previewCheck.onClick = function () {
-        if (previewCheck.value) {
-            updatePreview();
-        } else {
-            removePreview();
-            for (var i = 0; i < targets.length; i++) {
-                targets[i].hidden = false;
-            }
-            app.redraw();
-        }
-    };
-
-    // 角度入力の変更
-    angleInput.onChanging = function () {
-        updatePreview();
-    };
+    updatePreview(ui);
 
     var result = dlg.show();
-    try {
-        if (dlg.location) {
-            s.dialogBounds = [dlg.location[0], dlg.location[1]];
-        }
-    } catch (e) { }
-
-    // 設定を保存
-    s.angle = angleInput.text;
-    s.radioAngle = radio30.value ? 30 : (radio60.value ? 60 : 45);
-    s.applyScope = scopeExceptDir.value ? "exceptDirection" : "all";
-    var diagDirVals = getDiagDirValues();
-    s.diagDir = dirUpperLeft.value ? "upperLeft" : (dirLowerLeft.value ? "lowerLeft" : (dirUpperRight.value ? "upperRight" : "lowerRight"));
-    s.hDir = diagDirVals.hDir;
-    s.vDir = diagDirVals.vDir;
-    s.capType = capCircle.value ? "circle" : (capArrow.value ? "arrow" : "none");
-    s.capStyle = capStroke.value ? "stroke" : "fill";
-    var savedCapSizePt = unitValueToPt(capSizeInput.text, "strokeUnits");
-    s.capSize = (!isNaN(savedCapSizePt) && savedCapSizePt > 0) ? formatNumber(savedCapSizePt, 4) : "3";
-    s.strokeCapType = capRound.value ? "round" : "none";
-    s.groupEnabled = groupCheck.value;
-    s.whiteEdge = whiteEdgeCheck.value;
-    s.preview = previewCheck.value;
-    s.lineColor = colorBlack.value ? "black" : (colorWhite.value ? "white" : "other");
-    s.lineColorHex = hexInput.text;
-    var savedLineWidthPt = unitValueToPt(lineWidthInput.text, "strokeUnits");
-    s.lineWidth = (!isNaN(savedLineWidthPt) && savedLineWidthPt > 0) ? formatNumber(savedLineWidthPt, 4) : "1";
+    saveDialogSettingsFromUI(ui);
 
     // プレビューを削除して元のパスを復元
     removePreview();
-    for (var i = 0; i < targets.length; i++) {
-        targets[i].hidden = false;
-    }
+    setTargetsVisible(true);
     app.redraw();
 
     if (result !== 1) {
+        zoomCtrl.restoreInitial();
         return;
     }
 
-    var angleDeg = parseFloat(angleInput.text);
+    var angleDeg = parseFloat(ui.angleInput.text);
     if (isNaN(angleDeg) || angleDeg <= 0 || angleDeg >= 90) {
         alert(L("alertInvalidAngle"));
         app.redraw();
@@ -1477,13 +1813,13 @@ function main() {
 
     // 確定：引き出し線を生成
 
-    var diagDirResult = getDiagDirValues();
+    var diagDirResult = getDiagDirValues(ui);
     var hDir = diagDirResult.hDir;
     var vDir = diagDirResult.vDir;
-    var addCircle = capCircle.value;
-    var addArrow = capArrow.value;
+    var addCircle = ui.capCircle.value;
+    var addArrow = ui.capArrow.value;
     var addCap = addCircle || addArrow;
-    var diameter = unitValueToPt(capSizeInput.text, "strokeUnits");
+    var diameter = unitValueToPt(ui.capSizeInput.text, "strokeUnits");
     if (isNaN(diameter) || diameter <= 0) diameter = 3;
     var boundsData = collectBoundsData(targets);
     var finalSelectionItems = [];
@@ -1499,7 +1835,7 @@ function main() {
             // 「斜線の方向以外」のとき、各オブジェクトの保存済み方向を使用
             var objHDir = hDir;
             var objVDir = vDir;
-            if (scopeExceptDir.value) {
+            if (ui.scopeExceptDir.value) {
                 var storedDir = getLeaderLineStoredDir(sourceTarget);
                 if (storedDir) {
                     objHDir = storedDir.hDir;
@@ -1514,7 +1850,7 @@ function main() {
             var origTipPt = addCap ? getTipPoint(points, objHDir).slice(0) : null;
             var bendPt = addArrow ? points[1].slice(0) : null;
 
-            if (addCircle && !capFill.value) {
+            if (addCircle && !ui.capFill.value) {
                 var shortenR = diameter / 2 + sw / 2;
                 shortenTip(points, objHDir, shortenR);
             }
@@ -1528,15 +1864,16 @@ function main() {
             var circle = null;
 
             // フチ（最背面）
-            if (whiteEdgeCheck.value) {
+            if (ui.whiteEdgeCheck.value) {
                 whitePath = doc.pathItems.add();
                 createdItems.push(whitePath);
                 whitePath.setEntirePath(points);
                 whitePath.stroked = true;
                 whitePath.strokeWidth = sw * 3;
-                whitePath.strokeColor = createWhiteColor();
+                whitePath.strokeColor = getEdgeColor();
                 whitePath.filled = false;
-                whitePath.strokeCap = capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
+                whitePath.strokeCap = ui.capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
+
             }
 
             newPath = doc.pathItems.add();
@@ -1546,30 +1883,28 @@ function main() {
             newPath.strokeWidth = sw;
             newPath.strokeColor = getLineColor(b);
             newPath.filled = false;
-            newPath.strokeCap = capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
+            newPath.strokeCap = ui.capRound.value ? StrokeCap.ROUNDENDCAP : StrokeCap.BUTTENDCAP;
 
             if (addCircle) {
-                if (whiteEdgeCheck.value) {
-                    whiteCircle = addTipCircleWhiteEdge(origTipPt, b, diameter, capFill.value);
-                    createdItems.push(whiteCircle);
+                if (ui.whiteEdgeCheck.value) {
+                    whiteCircle = addTipCircleWhiteEdge(origTipPt, b, diameter, ui.capFill.value);
                 }
-                circle = addTipCircle(origTipPt, b, diameter, capFill.value);
+                circle = addTipCircle(origTipPt, b, diameter, ui.capFill.value);
                 createdItems.push(circle);
             }
             if (addArrow) {
-                if (whiteEdgeCheck.value) {
-                    whiteCircle = addTipArrowWhiteEdge(origTipPt, bendPt, b, diameter, capFill.value);
-                    createdItems.push(whiteCircle);
+                if (ui.whiteEdgeCheck.value) {
+                    whiteCircle = addTipArrowWhiteEdge(origTipPt, bendPt, b, diameter, ui.capFill.value);
                 }
-                circle = addTipArrow(origTipPt, bendPt, b, diameter, capFill.value);
+                circle = addTipArrow(origTipPt, bendPt, b, diameter, ui.capFill.value);
                 createdItems.push(circle);
             }
 
-            if (groupCheck.value) {
+            if (ui.groupCheck.value) {
                 var grp = doc.groupItems.add();
                 createdItems.push(grp);
-                var assembled = assembleLeaderParts(grp, whitePath, newPath, whiteCircle, circle, whiteEdgeCheck.value);
-                tagLeaderParts(assembled, whitePath, newPath, whiteCircle, circle, whiteEdgeCheck.value);
+                var assembled = assembleLeaderParts(grp, whitePath, newPath, whiteCircle, circle, ui.whiteEdgeCheck.value);
+                tagLeaderParts(assembled, whitePath, newPath, whiteCircle, circle, ui.whiteEdgeCheck.value);
                 setLeaderLineTag(grp);
                 setLeaderLineBoundsTags(grp, b);
                 setLeaderLineDirTags(grp, objHDir, objVDir);
@@ -1589,7 +1924,7 @@ function main() {
             sourceTarget.remove();
         } catch (eTarget) {
             for (var cr = createdItems.length - 1; cr >= 0; cr--) {
-                try { createdItems[cr].remove(); } catch (eRemove) { }
+                safeRemove(createdItems[cr]);
             }
             throw eTarget;
         }
@@ -1598,9 +1933,7 @@ function main() {
     if (finalSelectionItems.length) {
         doc.selection = null;
         for (var si = 0; si < finalSelectionItems.length; si++) {
-            try {
-                finalSelectionItems[si].selected = true;
-            } catch (e) { }
+            safeSelect(finalSelectionItems[si]);
         }
     }
 }
