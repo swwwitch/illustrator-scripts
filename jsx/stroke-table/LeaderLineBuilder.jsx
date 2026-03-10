@@ -3,8 +3,8 @@
 
 /*
  * 角度指定の引き出し線メーカー.jsx
- * v1.3.2
- * 更新日: 20260307
+ * v1.4
+ * 更新日: 20260310
  *
  * 選択したパスまたはグループから、指定角度の引き出し線を生成するスクリプトです。
  * プレビュー表示、線端の丸、白フチ、線色、線幅、グループ化に対応しています。
@@ -51,11 +51,14 @@ if (typeof $.global._leaderLineSettings === "undefined") {
     $.global._leaderLineSettings = {
         angle: "45",
         radioAngle: 45,
+        applyScope: "all",
+        diagDir: "upperLeft",
         hDir: "left",
-        vDir: "down",
-        capType: "none",
+        vDir: "up",
+        capType: "circle",
         capStyle: "fill",
         capSize: "3",
+        strokeCapType: "none",
         groupEnabled: true,
         whiteEdge: false,
         preview: false,
@@ -104,6 +107,18 @@ var LABELS = {
         ja: "斜線の方向",
         en: "Diagonal Direction"
     },
+    panelApplyScope: {
+        ja: "適用範囲",
+        en: "Apply Scope"
+    },
+    scopeAll: {
+        ja: "すべて",
+        en: "All"
+    },
+    scopeExceptDirection: {
+        ja: "斜線の方向以外",
+        en: "Except Direction"
+    },
     panelLineStyle: {
         ja: "線のスタイル",
         en: "Line Style"
@@ -112,25 +127,37 @@ var LABELS = {
         ja: "線端",
         en: "Line End"
     },
+    capShapeLabel: {
+        ja: "形状",
+        en: "Shape"
+    },
+    capStrokeCapLabel: {
+        ja: "線端",
+        en: "Stroke Cap"
+    },
+    capStrokeCapNone: {
+        ja: "なし",
+        en: "None"
+    },
     panelOptions: {
         ja: "オプション",
         en: "Options"
     },
-    dirLeft: {
-        ja: "左",
-        en: "Left"
+    dirUpperLeft: {
+        ja: "左上",
+        en: "Upper Left"
     },
-    dirRight: {
-        ja: "右",
-        en: "Right"
+    dirLowerLeft: {
+        ja: "左下",
+        en: "Lower Left"
     },
-    dirUp: {
-        ja: "上",
-        en: "Up"
+    dirUpperRight: {
+        ja: "右上",
+        en: "Upper Right"
     },
-    dirDown: {
-        ja: "下",
-        en: "Down"
+    dirLowerRight: {
+        ja: "右下",
+        en: "Lower Right"
     },
     colorBlack: {
         ja: "黒",
@@ -152,9 +179,17 @@ var LABELS = {
         ja: "なし",
         en: "None"
     },
+    capRound: {
+        ja: "丸型",
+        en: "Round"
+    },
     capCircle: {
         ja: "円",
         en: "Circle"
+    },
+    capArrow: {
+        ja: "矢印",
+        en: "Arrow"
     },
     capFill: {
         ja: "塗り",
@@ -719,6 +754,75 @@ function main() {
         return whiteCircle;
     }
 
+    // 先端に矢印を追加する関数
+    function addTipArrow(tipPt, bendPt, b, arrowSize, fillOnly) {
+        var lineColor = getLineColor(b);
+        var sw = getLineWidth(b);
+        // tipPt → bendPt 方向のベクトル
+        var dx = bendPt[0] - tipPt[0];
+        var dy = bendPt[1] - tipPt[1];
+        var len = Math.sqrt(dx * dx + dy * dy);
+        if (len === 0) return null;
+        var ux = dx / len;
+        var uy = dy / len;
+        // 矢印の2つの翼端を計算
+        var halfW = arrowSize / 2;
+        var backX = tipPt[0] + ux * arrowSize;
+        var backY = tipPt[1] + uy * arrowSize;
+        var wing1 = [backX + uy * halfW, backY - ux * halfW];
+        var wing2 = [backX - uy * halfW, backY + ux * halfW];
+
+        var arrow = doc.pathItems.add();
+        arrow.setEntirePath([tipPt, wing1, wing2]);
+        arrow.closed = true;
+        if (fillOnly) {
+            arrow.filled = true;
+            arrow.fillColor = lineColor;
+            arrow.stroked = false;
+        } else {
+            arrow.filled = false;
+            arrow.stroked = true;
+            arrow.strokeWidth = sw;
+            arrow.strokeColor = lineColor;
+        }
+        return arrow;
+    }
+
+    // 先端の矢印にフチを追加する関数（本体と同じ重心を基準にスケールアップ）
+    function addTipArrowWhiteEdge(tipPt, bendPt, b, arrowSize, fillOnly) {
+        var sw = getLineWidth(b);
+        var whiteColor = createWhiteColor();
+        var dx = bendPt[0] - tipPt[0];
+        var dy = bendPt[1] - tipPt[1];
+        var len = Math.sqrt(dx * dx + dy * dy);
+        if (len === 0) return null;
+        var ux = dx / len;
+        var uy = dy / len;
+        // 本体の矢印の3頂点を計算
+        var halfW = arrowSize / 2;
+        var backX = tipPt[0] + ux * arrowSize;
+        var backY = tipPt[1] + uy * arrowSize;
+        var p0 = tipPt;
+        var p1 = [backX + uy * halfW, backY - ux * halfW];
+        var p2 = [backX - uy * halfW, backY + ux * halfW];
+        // 重心を求める
+        var cx = (p0[0] + p1[0] + p2[0]) / 3;
+        var cy = (p0[1] + p1[1] + p2[1]) / 3;
+        // 重心を基準にスケールアップ
+        var scale = (arrowSize + sw * 3) / arrowSize;
+        var fp0 = [cx + (p0[0] - cx) * scale, cy + (p0[1] - cy) * scale];
+        var fp1 = [cx + (p1[0] - cx) * scale, cy + (p1[1] - cy) * scale];
+        var fp2 = [cx + (p2[0] - cx) * scale, cy + (p2[1] - cy) * scale];
+
+        var whiteArrow = doc.pathItems.add();
+        whiteArrow.setEntirePath([fp0, fp1, fp2]);
+        whiteArrow.closed = true;
+        whiteArrow.filled = true;
+        whiteArrow.fillColor = whiteColor;
+        whiteArrow.stroked = false;
+        return whiteArrow;
+    }
+
     function assembleLeaderParts(container, whitePath, newPath, whiteCircle, circle, hasWhiteEdge) {
         var edgeGrp = null;
         var mainGrp = container;
@@ -864,9 +968,12 @@ function main() {
         removePreview();
         var angleRad = angleDeg * Math.PI / 180;
         var boundsData = collectBoundsData(targets);
-        var hDir = dirLeft.value ? "left" : "right";
-        var vDir = dirDown.value ? "down" : "up";
+        var diagDirPreview = getDiagDirValues();
+        var hDir = diagDirPreview.hDir;
+        var vDir = diagDirPreview.vDir;
         var addCircle = capCircle.value;
+        var addArrow = capArrow.value;
+        var addCap = addCircle || addArrow;
         var diameter = unitValueToPt(capSizeInput.text, "strokeUnits");
         if (isNaN(diameter) || diameter <= 0) diameter = 3;
 
@@ -875,13 +982,18 @@ function main() {
             var sw = getLineWidth(b);
             var points = calcLeaderPoints(b, angleRad, hDir, vDir);
 
-            // 円の先端座標は短縮前に取得
-            var origTipPt = addCircle ? getTipPoint(points, hDir).slice(0) : null;
+            // 先端座標は短縮前に取得
+            var origTipPt = addCap ? getTipPoint(points, hDir).slice(0) : null;
+            var bendPt = addArrow ? points[1].slice(0) : null;
 
             if (addCircle && !capFill.value) {
                 // 円の半径 + 円の線幅の半分で短縮（線が円の縁に接する）
                 var shortenR = diameter / 2 + sw / 2;
                 shortenTip(points, hDir, shortenR);
+            }
+            if (addArrow) {
+                // 矢印の長さ分だけ短縮
+                shortenTip(points, hDir, diameter);
             }
 
             var whitePath = null;
@@ -897,6 +1009,9 @@ function main() {
                 whitePath.strokeWidth = sw * 3;
                 whitePath.strokeColor = createWhiteColor();
                 whitePath.filled = false;
+                if (capRound.value) {
+                    whitePath.strokeCap = StrokeCap.ROUNDENDCAP;
+                }
             }
 
             newPath = doc.pathItems.add();
@@ -905,12 +1020,21 @@ function main() {
             newPath.strokeWidth = sw;
             newPath.strokeColor = getLineColor(b);
             newPath.filled = false;
+            if (capRound.value) {
+                newPath.strokeCap = StrokeCap.ROUNDENDCAP;
+            }
 
             if (addCircle) {
                 if (whiteEdgeCheck.value) {
                     whiteCircle = addTipCircleWhiteEdge(origTipPt, b, diameter, capFill.value);
                 }
                 circle = addTipCircle(origTipPt, b, diameter, capFill.value);
+            }
+            if (addArrow) {
+                if (whiteEdgeCheck.value) {
+                    whiteCircle = addTipArrowWhiteEdge(origTipPt, bendPt, b, diameter, capFill.value);
+                }
+                circle = addTipArrow(origTipPt, bendPt, b, diameter, capFill.value);
             }
 
             var previewGrp = doc.groupItems.add();
@@ -984,6 +1108,22 @@ function main() {
         } catch (e) { }
     }
 
+    // 適用範囲ラジオボタン
+    var scopePanel = dlg.add("panel", undefined, L("panelApplyScope"));
+    scopePanel.margins = [15, 20, 15, 10];
+    scopePanel.orientation = "row";
+    scopePanel.alignChildren = ["center", "center"];
+    var scopeAll = scopePanel.add("radiobutton", undefined, L("scopeAll"));
+    var scopeExceptDir = scopePanel.add("radiobutton", undefined, L("scopeExceptDirection"));
+    // 複数オブジェクト選択時は「斜線の方向以外」を自動選択
+    if (targets.length > 1) {
+        scopeExceptDir.value = true;
+    } else if (s.applyScope === "exceptDirection") {
+        scopeExceptDir.value = true;
+    } else {
+        scopeAll.value = true;
+    }
+
     // 上段：2カラム
     var topRow = dlg.add("group");
     topRow.orientation = "row";
@@ -1001,6 +1141,7 @@ function main() {
     anglePanel.alignChildren = ["fill", "top"];
 
     var angleInputGroup = anglePanel.add("group");
+    angleInputGroup.alignment = ["center", "top"];
     var angleInput = angleInputGroup.add("edittext", undefined, s.angle);
     angleInput.characters = 4;
     angleInputGroup.add("statictext", undefined, "\u00B0");
@@ -1009,7 +1150,7 @@ function main() {
 
     // ラジオボタンで角度を選択
     var radioGroup = anglePanel.add("group");
-    radioGroup.orientation = "column";
+    radioGroup.orientation = "row";
     var radio30 = radioGroup.add("radiobutton", undefined, "30");
     var radio45 = radioGroup.add("radiobutton", undefined, "45");
     var radio60 = radioGroup.add("radiobutton", undefined, "60");
@@ -1028,19 +1169,56 @@ function main() {
     dirPanel.alignChildren = ["fill", "top"];
 
     var dirGroup = dirPanel.add("group");
-    var dirLeft = dirGroup.add("radiobutton", undefined, L("dirLeft"));
-    var dirRight = dirGroup.add("radiobutton", undefined, L("dirRight"));
-    if (s.hDir === "right") dirRight.value = true; else dirLeft.value = true;
+    dirGroup.orientation = "row";
+    dirGroup.alignChildren = ["fill", "top"];
 
-    var dirGroup2 = dirPanel.add("group");
-    var dirUp = dirGroup2.add("radiobutton", undefined, L("dirUp"));
-    var dirDown = dirGroup2.add("radiobutton", undefined, L("dirDown"));
-    if (s.vDir === "up") dirUp.value = true; else dirDown.value = true;
+    // 左列
+    var dirLeftCol = dirGroup.add("group");
+    dirLeftCol.orientation = "column";
+    dirLeftCol.alignChildren = ["fill", "top"];
+    var dirUpperLeft = dirLeftCol.add("radiobutton", undefined, L("dirUpperLeft"));
+    dirLeftCol.add("statictext", undefined, " ");
+    var dirLowerLeft = dirLeftCol.add("radiobutton", undefined, L("dirLowerLeft"));
 
-    dirLeft.onClick = function () { updatePreview(); };
-    dirRight.onClick = function () { updatePreview(); };
-    dirUp.onClick = function () { updatePreview(); };
-    dirDown.onClick = function () { updatePreview(); };
+    // 中央列（「対象」ラベル）
+    var dirCenterCol = dirGroup.add("group");
+    dirCenterCol.orientation = "column";
+    dirCenterCol.alignChildren = ["center", "center"];
+    dirCenterCol.add("statictext", undefined, " ");
+    dirCenterCol.add("statictext", undefined, "対象");
+
+    // 右列
+    var dirRightCol = dirGroup.add("group");
+    dirRightCol.orientation = "column";
+    dirRightCol.alignChildren = ["fill", "top"];
+    var dirUpperRight = dirRightCol.add("radiobutton", undefined, L("dirUpperRight"));
+    dirRightCol.add("statictext", undefined, " ");
+    var dirLowerRight = dirRightCol.add("radiobutton", undefined, L("dirLowerRight"));
+    if (s.diagDir === "lowerLeft") dirLowerLeft.value = true;
+    else if (s.diagDir === "upperRight") dirUpperRight.value = true;
+    else if (s.diagDir === "lowerRight") dirLowerRight.value = true;
+    else dirUpperLeft.value = true;
+
+    // diagDir → hDir/vDir マッピング
+    function getDiagDirValues() {
+        if (dirUpperLeft.value) return { hDir: "right", vDir: "down" };
+        if (dirLowerLeft.value) return { hDir: "right", vDir: "up" };
+        if (dirUpperRight.value) return { hDir: "left", vDir: "down" };
+        if (dirLowerRight.value) return { hDir: "left", vDir: "up" };
+        return { hDir: "right", vDir: "up" };
+    }
+
+    // 異なるグループ間のラジオボタンを排他制御
+    var allDirRadios = [dirUpperLeft, dirLowerLeft, dirUpperRight, dirLowerRight];
+    function uncheckOtherDirs(selected) {
+        for (var d = 0; d < allDirRadios.length; d++) {
+            if (allDirRadios[d] !== selected) allDirRadios[d].value = false;
+        }
+    }
+    dirUpperLeft.onClick = function () { uncheckOtherDirs(dirUpperLeft); updatePreview(); };
+    dirLowerLeft.onClick = function () { uncheckOtherDirs(dirLowerLeft); updatePreview(); };
+    dirUpperRight.onClick = function () { uncheckOtherDirs(dirUpperRight); updatePreview(); };
+    dirLowerRight.onClick = function () { uncheckOtherDirs(dirLowerRight); updatePreview(); };
 
     // 右カラム
     var rightCol = topRow.add("group");
@@ -1062,10 +1240,30 @@ function main() {
     else colorBlack.value = true;
 
     var hexGroup = colorPanel.add("group");
+    hexGroup.orientation = "row";
+    hexGroup.alignChildren = ["left", "center"];
     var hexInput = hexGroup.add("edittext", undefined, s.lineColorHex);
     hexInput.characters = 8;
     hexInput.enabled = colorOther.value;
-    hexInput.onChanging = function () { updatePreview(); };
+
+    // カラースウォッチ
+    var colorSwatch = hexGroup.add("panel", undefined, "");
+    colorSwatch.preferredSize = [20, 20];
+    function updateSwatch() {
+        var hex = hexInput.text.replace(/^#/, "");
+        if (hex.length === 3) {
+            hex = hex.charAt(0) + hex.charAt(0) + hex.charAt(1) + hex.charAt(1) + hex.charAt(2) + hex.charAt(2);
+        }
+        var r = parseInt(hex.substring(0, 2), 16) / 255;
+        var g = parseInt(hex.substring(2, 4), 16) / 255;
+        var b = parseInt(hex.substring(4, 6), 16) / 255;
+        if (isNaN(r) || isNaN(g) || isNaN(b)) return;
+        var gfx = colorSwatch.graphics;
+        gfx.backgroundColor = gfx.newBrush(gfx.BrushType.SOLID_COLOR, [r, g, b]);
+    }
+    updateSwatch();
+
+    hexInput.onChanging = function () { updateSwatch(); updatePreview(); };
 
     colorBlack.onClick = function () { hexInput.enabled = false; updatePreview(); };
     colorWhite.onClick = function () { hexInput.enabled = false; updatePreview(); };
@@ -1087,10 +1285,16 @@ function main() {
     capPanel.orientation = "column";
     capPanel.alignChildren = ["fill", "top"];
 
+    // 形状：なし　円　矢印
+    var capShapeLabelGroup = capPanel.add("group");
+    capShapeLabelGroup.add("statictext", undefined, L("capShapeLabel"));
     var capGroup = capPanel.add("group");
     var capNone = capGroup.add("radiobutton", undefined, L("capNone"));
     var capCircle = capGroup.add("radiobutton", undefined, L("capCircle"));
-    if (s.capType === "circle") capCircle.value = true; else capNone.value = true;
+    var capArrow = capGroup.add("radiobutton", undefined, L("capArrow"));
+    if (s.capType === "circle") capCircle.value = true;
+    else if (s.capType === "arrow") capArrow.value = true;
+    else capNone.value = true;
 
     var capStyleGroup = capPanel.add("group");
     var capFill = capStyleGroup.add("radiobutton", undefined, L("capFill"));
@@ -1106,23 +1310,44 @@ function main() {
     changeValueByArrowKey(capSizeInput, { smallStep: 0.1, largeStep: 1, fineStep: 0.01, minValue: 0, digits: 2 });
     capSizeGroup.add("statictext", undefined, strokeUnitLabel);
 
+    // 線端：なし　丸型
+    var strokeCapLabelGroup = capPanel.add("group");
+    strokeCapLabelGroup.add("statictext", undefined, L("capStrokeCapLabel"));
+    var strokeCapGroup = capPanel.add("group");
+    var capRound = strokeCapGroup.add("radiobutton", undefined, L("capRound"));
+    var strokeCapNone = strokeCapGroup.add("radiobutton", undefined, L("capStrokeCapNone"));
+    if (s.strokeCapType === "round") capRound.value = true;
+    else strokeCapNone.value = true;
+
     var groupCheck = capPanel.add("checkbox", undefined, L("groupEnabled"));
     groupCheck.value = s.groupEnabled;
 
-    // 線端の有無に応じたUI制御
+    // 形状の有無に応じたUI制御
     function updateCapEnabled() {
-        var on = capCircle.value;
-        capFill.enabled = on;
-        capStroke.enabled = on;
+        var on = capCircle.value || capArrow.value;
+        if (capArrow.value) {
+            if (capStroke.value) {
+                capStroke.value = false;
+                capFill.value = true;
+            }
+            capFill.enabled = false;
+            capStroke.enabled = false;
+        } else {
+            capFill.enabled = on;
+            capStroke.enabled = on;
+        }
         capSizeInput.enabled = on;
     }
     updateCapEnabled();
 
     capNone.onClick = function () { updateCapEnabled(); updatePreview(); };
     capCircle.onClick = function () { updateCapEnabled(); updatePreview(); };
+    capArrow.onClick = function () { updateCapEnabled(); updatePreview(); };
     capFill.onClick = function () { updatePreview(); };
     capStroke.onClick = function () { updatePreview(); };
     capSizeInput.onChanging = function () { updatePreview(); };
+    capRound.onClick = function () { updatePreview(); };
+    strokeCapNone.onClick = function () { updatePreview(); };
 
     // オプションパネル
     var optPanel = dlg.add("panel", undefined, L("panelOptions"));
@@ -1179,12 +1404,16 @@ function main() {
     // 設定を保存
     s.angle = angleInput.text;
     s.radioAngle = radio30.value ? 30 : (radio60.value ? 60 : 45);
-    s.hDir = dirLeft.value ? "left" : "right";
-    s.vDir = dirDown.value ? "down" : "up";
-    s.capType = capCircle.value ? "circle" : "none";
+    s.applyScope = scopeExceptDir.value ? "exceptDirection" : "all";
+    var diagDirVals = getDiagDirValues();
+    s.diagDir = dirUpperLeft.value ? "upperLeft" : (dirLowerLeft.value ? "lowerLeft" : (dirUpperRight.value ? "upperRight" : "lowerRight"));
+    s.hDir = diagDirVals.hDir;
+    s.vDir = diagDirVals.vDir;
+    s.capType = capCircle.value ? "circle" : (capArrow.value ? "arrow" : "none");
     s.capStyle = capStroke.value ? "stroke" : "fill";
     var savedCapSizePt = unitValueToPt(capSizeInput.text, "strokeUnits");
     s.capSize = (!isNaN(savedCapSizePt) && savedCapSizePt > 0) ? formatNumber(savedCapSizePt, 4) : "3";
+    s.strokeCapType = capRound.value ? "round" : "none";
     s.groupEnabled = groupCheck.value;
     s.whiteEdge = whiteEdgeCheck.value;
     s.preview = previewCheck.value;
@@ -1214,9 +1443,12 @@ function main() {
 
     // 確定：引き出し線を生成
 
-    var hDir = dirLeft.value ? "left" : "right";
-    var vDir = dirDown.value ? "down" : "up";
+    var diagDirResult = getDiagDirValues();
+    var hDir = diagDirResult.hDir;
+    var vDir = diagDirResult.vDir;
     var addCircle = capCircle.value;
+    var addArrow = capArrow.value;
+    var addCap = addCircle || addArrow;
     var diameter = unitValueToPt(capSizeInput.text, "strokeUnits");
     if (isNaN(diameter) || diameter <= 0) diameter = 3;
     var boundsData = collectBoundsData(targets);
@@ -1233,12 +1465,16 @@ function main() {
             var sw = getLineWidth(b);
             var points = calcLeaderPoints(b, angleRad, hDir, vDir);
 
-            // 円の先端座標は短縮前に取得
-            var origTipPt = addCircle ? getTipPoint(points, hDir).slice(0) : null;
+            // 先端座標は短縮前に取得
+            var origTipPt = addCap ? getTipPoint(points, hDir).slice(0) : null;
+            var bendPt = addArrow ? points[1].slice(0) : null;
 
             if (addCircle && !capFill.value) {
                 var shortenR = diameter / 2 + sw / 2;
                 shortenTip(points, hDir, shortenR);
+            }
+            if (addArrow) {
+                shortenTip(points, hDir, diameter);
             }
 
             var whitePath = null;
@@ -1255,6 +1491,9 @@ function main() {
                 whitePath.strokeWidth = sw * 3;
                 whitePath.strokeColor = createWhiteColor();
                 whitePath.filled = false;
+                if (capRound.value) {
+                    whitePath.strokeCap = StrokeCap.ROUNDENDCAP;
+                }
             }
 
             newPath = doc.pathItems.add();
@@ -1264,6 +1503,9 @@ function main() {
             newPath.strokeWidth = sw;
             newPath.strokeColor = getLineColor(b);
             newPath.filled = false;
+            if (capRound.value) {
+                newPath.strokeCap = StrokeCap.ROUNDENDCAP;
+            }
 
             if (addCircle) {
                 if (whiteEdgeCheck.value) {
@@ -1271,6 +1513,14 @@ function main() {
                     createdItems.push(whiteCircle);
                 }
                 circle = addTipCircle(origTipPt, b, diameter, capFill.value);
+                createdItems.push(circle);
+            }
+            if (addArrow) {
+                if (whiteEdgeCheck.value) {
+                    whiteCircle = addTipArrowWhiteEdge(origTipPt, bendPt, b, diameter, capFill.value);
+                    createdItems.push(whiteCircle);
+                }
+                circle = addTipArrow(origTipPt, bendPt, b, diameter, capFill.value);
                 createdItems.push(circle);
             }
 
