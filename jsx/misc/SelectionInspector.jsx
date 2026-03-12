@@ -34,6 +34,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - ダイアログに2カラムで情報を整然と表示
 - 書き出し機能でデスクトップにテキスト保存
 
+
+### note：
+
+https://note.com/dtp_tranist/n/nefcb1ce828ce
+
 ### 更新履歴：
 
 - v1.0 (20250806) : 初期バージョン
@@ -44,6 +49,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - v1.4.1 (20260302) : UI調整（OK→閉じる、キャンセル削除、書き出しを左へ移動）
 - v1.5 (20260302) : ガイド集計（ルーラー/アートボード/その他）、ガイド除外のパス統計、パネル配置と書き出しレイアウト更新
 - v1.5.1 (20260312) : グループ内のパス統計を再帰的にカウント
+- v1.5.2 (20260312) : グループ内のテキスト統計を再帰的にカウント
 
 ---
 
@@ -89,10 +95,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - v1.4.1 (20260302): UI tweaks (OK→Close, removed Cancel, moved Export to left)
 - v1.5 (20260302): Added guide breakdown (ruler/artboard/other), excluded guides from path stats, updated panel arrangement and export layout
 - v1.5.1 (20260312): Recursively count path stats inside groups
+- v1.5.2 (20260312): Recursively count text stats inside groups
 
 */
 
-var SCRIPT_VERSION = "v1.5.1";
+var SCRIPT_VERSION = "v1.5.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -273,8 +280,6 @@ function main() {
         countAllObjects(app.activeDocument.pageItems);
 
         /* 種類ごとのカウント（選択と全体） / Count by type (selected and all) */
-        var textCountSel = 0,
-            textCountAll = 0;
         var pathCountSel = 0,
             pathCountAll = 0;
         var anchorCountSel = 0,
@@ -492,6 +497,35 @@ function main() {
             }
         }
 
+        // 強制改行（ソフトリターン）をカウント / Count forced line breaks (soft returns)
+        // 段落改行（\r）は除外し、\u0003 / \n / \u2028 を強制改行として数える
+        function countForcedBreaksFromContents(s) {
+            if (!s || !s.length) return 0;
+            var m = s.match(/[\u0003\n\u2028]/g);
+            return m ? m.length : 0;
+        }
+
+        /* アイテムのテキスト統計を再帰的にカウント / Recursively count text stats for an item */
+        function countTextStatsForItem(it, stats) {
+            if (it.typename === "GroupItem") {
+                for (var gi = 0; gi < it.pageItems.length; gi++) {
+                    countTextStatsForItem(it.pageItems[gi], stats);
+                }
+            } else if (it.typename === "TextFrame") {
+                stats.textCount++;
+                try { stats.charCount += it.characters.length; } catch (e) { }
+                try { stats.paraCount += it.paragraphs.length; } catch (e) { }
+                try { stats.forcedBreakCount += countForcedBreaksFromContents(it.contents); } catch (e) { }
+                if (it.kind === TextType.POINTTEXT) {
+                    stats.pointText++;
+                } else if (it.kind === TextType.AREATEXT) {
+                    stats.areaText++;
+                } else if (it.kind === TextType.PATHTEXT) {
+                    stats.pathText++;
+                }
+            }
+        }
+
         /* 選択分をカウント / Count selected items */
         for (var i = 0; i < sel.length; i++) {
             // CompoundPath/CompoundShape
@@ -529,9 +563,6 @@ function main() {
                     }
                 }
             } catch (e) { }
-            if (sel[i].typename === "TextFrame") {
-                textCountSel++;
-            }
         }
 
         // パス統計（選択）- グループ内も再帰的にカウント
@@ -583,10 +614,6 @@ function main() {
                     }
                 }
             } catch (e) { }
-
-            if (obj.typename === "TextFrame") {
-                textCountAll++;
-            }
         }
 
         // パス統計（全体）- グループ内も再帰的にカウント
@@ -680,74 +707,33 @@ function main() {
             val.characters = value.length;
         }
 
-        var totalCharSel = 0,
-            totalCharAll = 0;
-        var paraCountSel = 0,
-            paraCountAll = 0;
-        var forcedBreakSel = 0,
-            forcedBreakAll = 0;
-
-        // 強制改行（ソフトリターン）をカウント / Count forced line breaks (soft returns)
-        // 段落改行（\r）は除外し、\u0003 / \n / \u2028 を強制改行として数える
-        function countForcedBreaksFromContents(s) {
-            if (!s || !s.length) return 0;
-            var m = s.match(/[\u0003\n\u2028]/g);
-            return m ? m.length : 0;
-        }
-
-        var pointTextSel = 0,
-            areaTextSel = 0,
-            pathTextSel = 0;
-        var pointTextAll = 0,
-            areaTextAll = 0,
-            pathTextAll = 0;
-
-        /* 選択オブジェクト / Selected objects */
+        // テキスト統計（選択）- グループ内も再帰的にカウント
+        // Text stats (selected) - recursively count inside groups
+        var textStatsSel = { textCount: 0, charCount: 0, paraCount: 0, forcedBreakCount: 0, pointText: 0, areaText: 0, pathText: 0 };
         for (var i = 0; i < sel.length; i++) {
-            if (sel[i].typename === "TextFrame") {
-                try {
-                    totalCharSel += sel[i].characters.length;
-                } catch (err) { }
-                try {
-                    paraCountSel += sel[i].paragraphs.length;
-                } catch (err) { }
-                // 強制改行（ソフトリターン）/ Forced line breaks (soft returns)
-                try {
-                    forcedBreakSel += countForcedBreaksFromContents(sel[i].contents);
-                } catch (err) { }
-                if (sel[i].kind === TextType.POINTTEXT) {
-                    pointTextSel++;
-                } else if (sel[i].kind === TextType.AREATEXT) {
-                    areaTextSel++;
-                } else if (sel[i].kind === TextType.PATHTEXT) {
-                    pathTextSel++;
-                }
-            }
+            countTextStatsForItem(sel[i], textStatsSel);
         }
+        var textCountSel = textStatsSel.textCount;
+        var totalCharSel = textStatsSel.charCount;
+        var paraCountSel = textStatsSel.paraCount;
+        var forcedBreakSel = textStatsSel.forcedBreakCount;
+        var pointTextSel = textStatsSel.pointText;
+        var areaTextSel = textStatsSel.areaText;
+        var pathTextSel = textStatsSel.pathText;
 
-        /* 全体 / All objects */
+        // テキスト統計（全体）- グループ内も再帰的にカウント
+        // Text stats (all) - recursively count inside groups
+        var textStatsAll = { textCount: 0, charCount: 0, paraCount: 0, forcedBreakCount: 0, pointText: 0, areaText: 0, pathText: 0 };
         for (var k = 0; k < allItems.length; k++) {
-            var obj = allItems[k];
-            if (obj.typename === "TextFrame") {
-                try {
-                    totalCharAll += obj.characters.length;
-                } catch (err) { }
-                try {
-                    paraCountAll += obj.paragraphs.length;
-                } catch (err) { }
-                // 強制改行（ソフトリターン）/ Forced line breaks (soft returns)
-                try {
-                    forcedBreakAll += countForcedBreaksFromContents(obj.contents);
-                } catch (err) { }
-                if (obj.kind === TextType.POINTTEXT) {
-                    pointTextAll++;
-                } else if (obj.kind === TextType.AREATEXT) {
-                    areaTextAll++;
-                } else if (obj.kind === TextType.PATHTEXT) {
-                    pathTextAll++;
-                }
-            }
+            countTextStatsForItem(allItems[k], textStatsAll);
         }
+        var textCountAll = textStatsAll.textCount;
+        var totalCharAll = textStatsAll.charCount;
+        var paraCountAll = textStatsAll.paraCount;
+        var forcedBreakAll = textStatsAll.forcedBreakCount;
+        var pointTextAll = textStatsAll.pointText;
+        var areaTextAll = textStatsAll.areaText;
+        var pathTextAll = textStatsAll.pathText;
 
         function addTextRow(label, value) {
             var row = panelText.add("group");
