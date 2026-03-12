@@ -43,6 +43,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - v1.4 (20260301) : 強制改行（ソフトリターン）数を追加
 - v1.4.1 (20260302) : UI調整（OK→閉じる、キャンセル削除、書き出しを左へ移動）
 - v1.5 (20260302) : ガイド集計（ルーラー/アートボード/その他）、ガイド除外のパス統計、パネル配置と書き出しレイアウト更新
+- v1.5.1 (20260312) : グループ内のパス統計を再帰的にカウント
 
 ---
 
@@ -87,10 +88,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - v1.4 (20260301): Added forced line break (soft return) count
 - v1.4.1 (20260302): UI tweaks (OK→Close, removed Cancel, moved Export to left)
 - v1.5 (20260302): Added guide breakdown (ruler/artboard/other), excluded guides from path stats, updated panel arrangement and export layout
+- v1.5.1 (20260312): Recursively count path stats inside groups
 
 */
 
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v1.5.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -458,6 +460,38 @@ function main() {
             return c;
         }
 
+        /* アイテムのパス統計を再帰的にカウント / Recursively count path stats for an item */
+        function countPathStatsForItem(it, stats) {
+            if (it.typename === "GroupItem") {
+                for (var gi = 0; gi < it.pageItems.length; gi++) {
+                    countPathStatsForItem(it.pageItems[gi], stats);
+                }
+            } else if (it.typename === "PathItem") {
+                if (!__isGuidePathItem(it)) {
+                    stats.pathCount++;
+                    stats.anchorCount += it.pathPoints.length;
+                    stats.handleCount += countHandlesInPathItem(it);
+                    if (it.closed) {
+                        stats.closedPath++;
+                    } else {
+                        stats.openPath++;
+                    }
+                }
+            } else if (it.typename === "CompoundPathItem") {
+                for (var ci = 0; ci < it.pathItems.length; ci++) {
+                    if (__isGuidePathItem(it.pathItems[ci])) continue;
+                    stats.pathCount++;
+                    stats.anchorCount += it.pathItems[ci].pathPoints.length;
+                    stats.handleCount += countHandlesInPathItem(it.pathItems[ci]);
+                    if (it.pathItems[ci].closed) {
+                        stats.closedPath++;
+                    } else {
+                        stats.openPath++;
+                    }
+                }
+            }
+        }
+
         /* 選択分をカウント / Count selected items */
         for (var i = 0; i < sel.length; i++) {
             // CompoundPath/CompoundShape
@@ -497,23 +531,18 @@ function main() {
             } catch (e) { }
             if (sel[i].typename === "TextFrame") {
                 textCountSel++;
-            } else if (sel[i].typename === "PathItem") {
-                // ガイドはパス統計から除外 / Exclude guides from path stats
-                if (!__isGuidePathItem(sel[i])) {
-                    pathCountSel++;
-                    anchorCountSel += sel[i].pathPoints.length;
-                    handleCountSel += countHandlesInPathItem(sel[i]);
-                }
-            } else if (sel[i].typename === "CompoundPathItem") {
-                for (var j = 0; j < sel[i].pathItems.length; j++) {
-                    // ガイドはパス統計から除外 / Exclude guides from path stats
-                    if (__isGuidePathItem(sel[i].pathItems[j])) continue;
-                    pathCountSel++;
-                    anchorCountSel += sel[i].pathItems[j].pathPoints.length;
-                    handleCountSel += countHandlesInPathItem(sel[i].pathItems[j]);
-                }
             }
         }
+
+        // パス統計（選択）- グループ内も再帰的にカウント
+        // Path stats (selected) - recursively count inside groups
+        var pathStatsSel = { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 };
+        for (var i = 0; i < sel.length; i++) {
+            countPathStatsForItem(sel[i], pathStatsSel);
+        }
+        pathCountSel = pathStatsSel.pathCount;
+        anchorCountSel = pathStatsSel.anchorCount;
+        handleCountSel = pathStatsSel.handleCount;
 
         /* 全体をカウント / Count all items */
         var allItems = app.activeDocument.pageItems;
@@ -557,23 +586,18 @@ function main() {
 
             if (obj.typename === "TextFrame") {
                 textCountAll++;
-            } else if (obj.typename === "PathItem") {
-                // ガイドはパス統計から除外 / Exclude guides from path stats
-                if (!__isGuidePathItem(obj)) {
-                    pathCountAll++;
-                    anchorCountAll += obj.pathPoints.length;
-                    handleCountAll += countHandlesInPathItem(obj);
-                }
-            } else if (obj.typename === "CompoundPathItem") {
-                for (var m = 0; m < obj.pathItems.length; m++) {
-                    // ガイドはパス統計から除外 / Exclude guides from path stats
-                    if (__isGuidePathItem(obj.pathItems[m])) continue;
-                    pathCountAll++;
-                    anchorCountAll += obj.pathItems[m].pathPoints.length;
-                    handleCountAll += countHandlesInPathItem(obj.pathItems[m]);
-                }
             }
         }
+
+        // パス統計（全体）- グループ内も再帰的にカウント
+        // Path stats (all) - recursively count inside groups
+        var pathStatsAll = { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 };
+        for (var k = 0; k < allItems.length; k++) {
+            countPathStatsForItem(allItems[k], pathStatsAll);
+        }
+        pathCountAll = pathStatsAll.pathCount;
+        anchorCountAll = pathStatsAll.anchorCount;
+        handleCountAll = pathStatsAll.handleCount;
 
         /* 結果を表示（ダイアログボックス） / Display results (dialog box) */
         var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
@@ -891,36 +915,11 @@ function main() {
         }
         addPathRow(LABELS.pathCount[lang], pathCountSel + " / " + pathCountAll);
 
-        /* パスの種類をカウント / Count types of paths */
-        var openPathSel = 0,
-            openPathAll = 0;
-        var closedPathSel = 0,
-            closedPathAll = 0;
-
-        /* 選択オブジェクト / Selected objects */
-        for (var i = 0; i < sel.length; i++) {
-            if (sel[i].typename === "PathItem") {
-                if (__isGuidePathItem(sel[i])) continue;
-                if (sel[i].closed) {
-                    closedPathSel++;
-                } else {
-                    openPathSel++;
-                }
-            }
-        }
-
-        /* 全体 / All objects */
-        for (var k = 0; k < allItems.length; k++) {
-            var obj = allItems[k];
-            if (obj.typename === "PathItem") {
-                if (__isGuidePathItem(obj)) continue;
-                if (obj.closed) {
-                    closedPathAll++;
-                } else {
-                    openPathAll++;
-                }
-            }
-        }
+        /* パスの種類（再帰カウント済み） / Path types (already counted recursively) */
+        var openPathSel = pathStatsSel.openPath;
+        var openPathAll = pathStatsAll.openPath;
+        var closedPathSel = pathStatsSel.closedPath;
+        var closedPathAll = pathStatsAll.closedPath;
 
         addPathRow(LABELS.openPath[lang], openPathSel + " / " + openPathAll);
         addPathRow(LABELS.closedPath[lang], closedPathSel + " / " + closedPathAll);
