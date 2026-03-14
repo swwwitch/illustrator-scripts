@@ -1,4 +1,6 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+#targetengine "SelectionInspectorSession"
 
 /*
 
@@ -15,6 +17,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - 選択中／全体のオブジェクト数をカウントし、2カラムのダイアログで表示
 - テキスト・配置画像・透明・グループ・パス・ガイドの統計を表示
 - 「書き出し」でレポート（テキスト）を書き出し可能
+- ダイアログボックスを閉じるとき、位置を記憶し、セッション中に復元
 
 ### 主な機能：
 
@@ -50,6 +53,7 @@ https://note.com/dtp_tranist/n/nefcb1ce828ce
 - v1.5 (20260302) : ガイド集計（ルーラー/アートボード/その他）、ガイド除外のパス統計、パネル配置と書き出しレイアウト更新
 - v1.5.1 (20260312) : グループ内のパス統計を再帰的にカウント
 - v1.5.2 (20260312) : グループ内のテキスト統計を再帰的にカウント
+- v1.5.3 (20260314) : ダイアログ位置をセッション中に記憶・復元
 
 ---
 
@@ -66,6 +70,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - Count selection / document totals and show them in a two-column dialog
 - Show stats for text, images, transparency, groups, paths, and guides
 - Export the stats as a plain text report
+- Remember dialog position on close and restore it during the current session
 
 ### Main Features:
 
@@ -96,10 +101,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - v1.5 (20260302): Added guide breakdown (ruler/artboard/other), excluded guides from path stats, updated panel arrangement and export layout
 - v1.5.1 (20260312): Recursively count path stats inside groups
 - v1.5.2 (20260312): Recursively count text stats inside groups
+- v1.5.3 (20260314): Remember and restore dialog position during the current session
 
 */
 
-var SCRIPT_VERSION = "v1.5.2";
+var SCRIPT_VERSION = "v1.5.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -248,6 +254,10 @@ var LABELS = {
         ja: "書き出し",
         en: "Export"
     }
+};
+
+var __selectionInspectorDialogState = {
+    location: null
 };
 
 function main() {
@@ -683,8 +693,6 @@ function main() {
         addOtherRow(LABELS.artboards[lang], artboardCount.toString());
         addOtherRow(LABELS.objects[lang], totalObjSel + " / " + totalObjAll);
 
-
-
         /* テキストの詳細を表示するパネル / Panel to display text details */
         var panelText = leftCol.add("panel", undefined, LABELS.texts[lang]);
         panelText.orientation = "column";
@@ -1087,26 +1095,45 @@ function main() {
             dlg.close();
         };
 
-        /* ダイアログ位置と透明度を調整 / Adjust dialog position and opacity */
-        var offsetX = 300;
+        /* ダイアログ透明度と位置を調整 / Adjust dialog opacity and position */
         var dialogOpacity = 0.97;
 
-        function shiftDialogPosition(dlg, offsetX, offsetY) {
-            dlg.onShow = function () {
-                var currentX = dlg.location[0];
-                var currentY = dlg.location[1];
-                dlg.location = [currentX + offsetX, currentY + offsetY];
-            };
+        function setDialogOpacity(targetDlg, opacityValue) {
+            targetDlg.opacity = opacityValue;
         }
 
-        function setDialogOpacity(dlg, opacityValue) {
-            dlg.opacity = opacityValue;
+        function restoreDialogLocation(targetDlg) {
+            try {
+                if (__selectionInspectorDialogState.location && __selectionInspectorDialogState.location.length === 2) {
+                    targetDlg.location = [
+                        __selectionInspectorDialogState.location[0],
+                        __selectionInspectorDialogState.location[1]
+                    ];
+                } else {
+                    targetDlg.center();
+                }
+            } catch (e) {
+                targetDlg.center();
+            }
         }
+
+        function rememberDialogLocation(targetDlg) {
+            try {
+                if (targetDlg.location && targetDlg.location.length === 2) {
+                    __selectionInspectorDialogState.location = [
+                        targetDlg.location[0],
+                        targetDlg.location[1]
+                    ];
+                }
+            } catch (e) { }
+        }
+
+        dlg.onClose = function () {
+            rememberDialogLocation(dlg);
+        };
 
         setDialogOpacity(dlg, dialogOpacity);
-        shiftDialogPosition(dlg, offsetX, 0);
-
-        dlg.center();
+        restoreDialogLocation(dlg);
         dlg.show();
 
     } catch (e) {
