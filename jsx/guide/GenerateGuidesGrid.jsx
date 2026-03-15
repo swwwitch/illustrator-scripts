@@ -1,7 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.6.5";
+var SCRIPT_VERSION = "v1.6.6";
 
 /*
 ### スクリプト名：
@@ -42,6 +42,7 @@ GenerateGuidesGrid.jsx
 スガサワ君β  
 https://note.com/sgswkn/n/nee8c3ec1a14c
 
+- v1.6.6 (20260316) : 起動時の対象モードを自動判定に変更し、選択オブジェクトがある場合は選択オブジェクト基準、未選択時はアートボード基準で開始するように調整
 - v1.6.5 (20260308) : bleed 単位を rulerType に連動、行／列パネルの英語見出しを Row／Column に調整、targetMode を明示的な状態変数に変更、起動時は常にアートボード基準で開始、プリセット適用時に targetMode を再反映
 - v1.6 (20260308) : 選択オブジェクトの外接矩形を対象にグリッド生成、元オブジェクトの隠す／削除／そのまま選択、タブUIでグリッド設定と選択オブジェクト設定を分離、ガター連動・マージン連動機能、オプションパネル整理（ガイド描画ON/OFFでガイド伸張ディム制御）、アートボードオプションパネル一括ディム制御
 - v1.5 (20260121) : プレビュー更新時にUndoで巻き戻して履歴を汚さない／OK時は1回のUndoで戻せるようにヒストリーを整理
@@ -91,6 +92,7 @@ GenerateGuidesGrid.jsx
 Sugasawa-kun β  
 https://note.com/sgswkn/n/nee8c3ec1a14c
 
+- v1.6.6 (20260316): Changed the initial target-mode behavior to auto-detect the context: start in selected-object mode when objects are selected, otherwise start in artboard mode
 - v1.6.5 (20260308): Linked bleed units to the current rulerType, adjusted the English row/column panel titles to Row/Column, replaced implicit selection targeting with an explicit targetMode state, always start in artboard mode, and re-apply targetMode constraints when presets are selected
 - v1.6 (20260308): Generate grid from selected objects' bounding box, hide/delete/keep original objects, tabbed UI for grid settings and selected-object settings, gutter/margin linking, options panel reorganization (guide drawing ON/OFF controls related enable/disable states), and artboard options panel bulk dim control
 - v1.5 (20260121): Undo-safe live preview (rollback each update) and clean history so one Undo reverts the final result
@@ -432,7 +434,8 @@ function main() {
         }
         return [sLeft, sTop, sRight, sBottom];
     })();
-    var targetMode = "artboard"; // always start in artboard mode
+    // Determine initial target mode: selection if objects are selected, otherwise artboard
+    var targetMode = cachedSelectionBounds ? "selection" : "artboard";
 
     function isSelectionMode() {
         return targetMode === "selection";
@@ -509,8 +512,12 @@ function main() {
         // 選択オブジェクトがなければタブを無効化 / Disable tab if nothing selected
         tabSelection.enabled = false;
     }
-    // 初期選択：常にグリッド設定タブを表示 / Always show grid settings tab initially
-    targetTab.selection = tabArtboard;
+    // 初期選択：選択オブジェクトがあればそのタブ、なければグリッド設定
+    if (cachedSelectionBounds) {
+        targetTab.selection = tabSelection;
+    } else {
+        targetTab.selection = tabArtboard;
+    }
 
     // タブ変更で対象モードを変更
     if (cachedSelectionBounds) {
