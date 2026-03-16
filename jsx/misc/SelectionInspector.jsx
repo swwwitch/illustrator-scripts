@@ -17,7 +17,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - 選択中／全体のオブジェクト数をカウントし、2カラムのダイアログで表示
 - テキスト・配置画像・透明・グループ・パス・ガイドの統計を表示
 - 「書き出し」でレポート（テキスト）を書き出し可能
-- ダイアログボックスを閉じるとき、位置を記憶し、セッション中に復元
+- UIと書き出しテキストの文言をローカライズ辞書で一元管理
 
 ### 主な機能：
 
@@ -54,6 +54,8 @@ https://note.com/dtp_tranist/n/nefcb1ce828ce
 - v1.5.1 (20260312) : グループ内のパス統計を再帰的にカウント
 - v1.5.2 (20260312) : グループ内のテキスト統計を再帰的にカウント
 - v1.5.3 (20260314) : ダイアログ位置をセッション中に記憶・復元
+- v1.6 (20260316) : 配置画像の下にメモパネルを追加（属性パネルのメモ欄を表示）
+- v1.6.1 (20260316) : ローカライズ整理（書き出し文言・セクション見出しをLABELSへ集約）
 
 ---
 
@@ -70,7 +72,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - Count selection / document totals and show them in a two-column dialog
 - Show stats for text, images, transparency, groups, paths, and guides
 - Export the stats as a plain text report
-- Remember dialog position on close and restore it during the current session
+- Centralize UI and export strings in the localization dictionary
 
 ### Main Features:
 
@@ -102,10 +104,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - v1.5.1 (20260312): Recursively count path stats inside groups
 - v1.5.2 (20260312): Recursively count text stats inside groups
 - v1.5.3 (20260314): Remember and restore dialog position during the current session
+- v1.6 (20260316): Added Notes panel below Images (shows Attributes panel note field)
+- v1.6.1 (20260316): Localization cleanup (moved export strings and section headers into LABELS)
 
 */
 
-var SCRIPT_VERSION = "v1.5.3";
+var SCRIPT_VERSION = "v1.6.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -117,6 +121,58 @@ var LABELS = {
     dialogTitle: {
         ja: "選択／全体オブジェクトのカウント " + SCRIPT_VERSION,
         en: "Selection / All Objects Count " + SCRIPT_VERSION
+    },
+    reportTitle: {
+        ja: "Selection Inspector Report",
+        en: "Selection Inspector Report"
+    },
+    reportDocument: {
+        ja: "ドキュメント:",
+        en: "Document:"
+    },
+    reportDate: {
+        ja: "日付:",
+        en: "Date:"
+    },
+    reportValueNote: {
+        ja: "※ 値は『選択 / 全体』の形式です（アートボードのみ全体）",
+        en: "Note: values are formatted as 'Selection / All' (Artboards is All only)"
+    },
+    sectionBasics: {
+        ja: "基本",
+        en: "Basics"
+    },
+    sectionTextFrames: {
+        ja: "テキスト",
+        en: "Text Frames"
+    },
+    sectionCharPara: {
+        ja: "文字・段落",
+        en: "Characters & Paragraphs"
+    },
+    sectionImages: {
+        ja: "配置画像",
+        en: "Images"
+    },
+    sectionNotes: {
+        ja: "メモ",
+        en: "Notes"
+    },
+    sectionTransparency: {
+        ja: "透明",
+        en: "Transparency"
+    },
+    sectionGroups: {
+        ja: "グループ",
+        en: "Groups"
+    },
+    sectionPaths: {
+        ja: "パス",
+        en: "Paths"
+    },
+    sectionGuides: {
+        ja: "ガイド",
+        en: "Guides"
     },
     other: {
         ja: "基本",
@@ -175,6 +231,10 @@ var LABELS = {
         en: "Path Text:"
     },
     link: {
+        ja: "配置画像",
+        en: "Images"
+    },
+    images: {
         ja: "配置画像",
         en: "Images"
     },
@@ -253,6 +313,34 @@ var LABELS = {
     exportPreset: {
         ja: "書き出し",
         en: "Export"
+    },
+    applyMemo: {
+        ja: "適用",
+        en: "Apply"
+    },
+    tabCount: {
+        ja: "情報",
+        en: "Info"
+    },
+    tabMemo: {
+        ja: "メモ",
+        en: "Notes"
+    },
+    multipleMemosMsg: {
+        ja: "複数のメモがあります。\n「メモ」タブで確認",
+        en: "Multiple notes found.\nSee the \"Notes\" tab."
+    },
+    memo: {
+        ja: "メモ",
+        en: "Notes"
+    },
+    memoText: {
+        ja: "メモ：",
+        en: "Note:"
+    },
+    shortcutHint: {
+        ja: "⌥I: 情報  ⌥M: メモ",
+        en: "⌥I: Info  ⌥M: Notes"
     }
 };
 
@@ -640,6 +728,7 @@ function main() {
         var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
         dlg.orientation = "column";
         dlg.alignChildren = "center";
+        dlg.margins = [15, 0, 15, 20];
 
         var LABEL_WIDTH = 130; /* 全ラベルの幅を統一 / Set uniform label width */
         var LABEL_WIDTH_LEFT = 100; /* 左カラムのラベル幅 / Label width for left column */
@@ -665,8 +754,56 @@ function main() {
         var totalObjAll = allCount;
         var artboardCount = app.activeDocument.artboards.length;
 
+        // 表示切り替え（ラジオボタン＋stack） / View switcher (radio buttons + stack)
+        var switchRow = dlg.add("group");
+        switchRow.orientation = "row";
+        switchRow.alignChildren = ["center", "center"];
+        switchRow.alignment = ["center", "top"];
+        switchRow.helpTip = LABELS.shortcutHint[lang];
+
+        var rbInfo = switchRow.add("radiobutton", undefined, LABELS.tabCount[lang]);
+        var rbMemo = switchRow.add("radiobutton", undefined, LABELS.tabMemo[lang]);
+        rbInfo.helpTip = LABELS.shortcutHint[lang];
+        rbMemo.helpTip = LABELS.shortcutHint[lang];
+        rbInfo.value = true;
+
+        var stackWrap = dlg.add("group");
+        stackWrap.orientation = "stack";
+        stackWrap.alignChildren = ["fill", "fill"];
+
+        var tab1 = stackWrap.add("group");
+        tab1.orientation = "column";
+        tab1.alignChildren = ["fill", "top"];
+        tab1.margins = [10, 15, 10, 10];
+
+        var tab2 = stackWrap.add("group");
+        tab2.orientation = "column";
+        tab2.alignChildren = ["fill", "top"];
+        tab2.margins = [10, 15, 10, 10];
+        tab2.visible = false;
+
+        function switchView(mode) {
+            var showInfo = (mode === "info");
+            rbInfo.value = showInfo;
+            rbMemo.value = !showInfo;
+            tab1.visible = showInfo;
+            tab2.visible = !showInfo;
+
+            try {
+                if (stackWrap && stackWrap.layout && stackWrap.layout.layout) {
+                    stackWrap.layout.layout(true);
+                }
+            } catch (e) { }
+
+            try {
+                if (dlg && dlg.layout && dlg.layout.layout) {
+                    dlg.layout.layout(true);
+                }
+            } catch (e2) { }
+        }
+
         // 2カラムのグループ / Two-column group
-        var twoColGroup = dlg.add("group");
+        var twoColGroup = tab1.add("group");
         twoColGroup.orientation = "row";
         twoColGroup.alignChildren = ["fill", "top"];
 
@@ -765,26 +902,9 @@ function main() {
         rightCol.orientation = "column";
         rightCol.alignChildren = ["fill", "top"];
 
-        /* 透明の詳細を表示するパネル / Panel to display transparency details */
-        var panelTransparency = rightCol.add("panel", undefined, LABELS.transparency[lang]);
-        panelTransparency.orientation = "column";
-        panelTransparency.alignChildren = ["fill", "top"];
-        panelTransparency.margins = [15, 20, 0, 10];
-
-        function addTransparencyRow(label, value) {
-            var row = panelTransparency.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_RIGHT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
-
-        addTransparencyRow(LABELS.opacityLt100[lang], opacityLt100Sel + " / " + opacityLt100All);
-        addTransparencyRow(LABELS.blendNotNormal[lang], blendNotNormalSel + " / " + blendNotNormalAll);
 
         /* 画像の詳細を表示するパネル / Panel to display image details */
-        var panelImage = leftCol.add("panel", undefined, LABELS.link[lang]);
+        var panelImage = leftCol.add("panel", undefined, LABELS.images[lang]);
         panelImage.orientation = "column";
         panelImage.alignChildren = ["fill", "top"];
         panelImage.margins = [15, 20, 0, 10];
@@ -795,6 +915,7 @@ function main() {
             embeddedAll = 0;
         var brokenLinkSel = 0,
             brokenLinkAll = 0;
+        var memoTextsSel = [];
 
         /* 選択オブジェクト / Selected objects */
         for (var i = 0; i < sel.length; i++) {
@@ -813,6 +934,11 @@ function main() {
                     }
                 }
             }
+            try {
+                if (sel[i].note && sel[i].note !== "") {
+                    memoTextsSel.push(sel[i].note);
+                }
+            } catch (e) { }
         }
 
         /* 全体 / All objects */
@@ -847,6 +973,57 @@ function main() {
         addImageRow(LABELS.linked[lang], linkedSel + " / " + linkedAll);
         addImageRow(LABELS.embed[lang], embeddedSel + " / " + embeddedAll);
         addImageRow(LABELS.broken[lang], brokenLinkSel + " / " + brokenLinkAll);
+
+        /* メモパネル（表示のみ）/ Memo panel (read-only) */
+        var panelMemo = leftCol.add("panel", undefined, LABELS.memo[lang]);
+        panelMemo.orientation = "column";
+        panelMemo.alignChildren = ["fill", "top"];
+        panelMemo.margins = [15, 20, 0, 10];
+        var memoTab1Text = memoTextsSel.length === 1 ? memoTextsSel[0] : (memoTextsSel.length > 1 ? LABELS.multipleMemosMsg[lang] : "");
+        var memoReadOnly = panelMemo.add("statictext", undefined, memoTab1Text, { multiline: true });
+        memoReadOnly.preferredSize = [160, 50];
+        var firstMemoField = null;
+
+        /* メモタブ（位置順にソート）/ Notes tab (sorted by position) */
+        var sortedSel = [];
+        for (var si = 0; si < sel.length; si++) { sortedSel.push(sel[si]); }
+        sortedSel.sort(function (a, b) {
+            var aTop = 0, bTop = 0, aLeft = 0, bLeft = 0;
+            try { aTop = a.geometricBounds[1]; } catch (e) { }
+            try { bTop = b.geometricBounds[1]; } catch (e) { }
+            try { aLeft = a.geometricBounds[0]; } catch (e) { }
+            try { bLeft = b.geometricBounds[0]; } catch (e) { }
+            if (aTop !== bTop) return bTop - aTop; // 上から下（Y降順）
+            return aLeft - bLeft;                  // 左から右（X昇順）
+        });
+
+        for (var mi = 0; mi < sortedSel.length; mi++) {
+            (function (obj) {
+                var row = tab2.add("group");
+                row.orientation = "row";
+                row.alignChildren = ["fill", "center"];
+                var noteText = "";
+                try { noteText = obj.note || ""; } catch (e) { }
+                var noteField = row.add("edittext", undefined, noteText, { multiline: true });
+                noteField.preferredSize = [340, 44];
+                if (!firstMemoField) firstMemoField = noteField;
+                var applyBtn = row.add("button", undefined, LABELS.applyMemo[lang]);
+                // applyBtn.preferredSize.width = 30;
+                applyBtn.onClick = function () {
+                    try { obj.note = noteField.text; } catch (e) { }
+
+                    // Update the read‑only memo panel immediately
+                    try {
+                        if (memoTextsSel.length === 1) {
+                            memoReadOnly.text = noteField.text;
+                        }
+                    } catch (e2) { }
+
+                    // Force Illustrator UI refresh
+                    try { app.redraw(); } catch (e3) { }
+                };
+            })(sortedSel[mi]);
+        }
 
         /* グループの詳細を表示するパネル / Panel to display group details */
         var panelGroup = rightCol.add("panel", undefined, LABELS.group[lang]);
@@ -891,6 +1068,24 @@ function main() {
 
         addGroupRow(LABELS.group[lang], groupSel + " / " + groupAll);
         addGroupRow(LABELS.clipGroup[lang], clipGroupSel + " / " + clipGroupAll);
+
+        /* 透明の詳細を表示するパネル / Panel to display transparency details */
+        var panelTransparency = rightCol.add("panel", undefined, LABELS.transparency[lang]);
+        panelTransparency.orientation = "column";
+        panelTransparency.alignChildren = ["fill", "top"];
+        panelTransparency.margins = [15, 20, 0, 10];
+
+        function addTransparencyRow(label, value) {
+            var row = panelTransparency.add("group");
+            row.orientation = "row";
+            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_RIGHT, 20], label);
+            lbl.justify = "right";
+            var val = row.add("statictext", undefined, value);
+            val.characters = value.length;
+        }
+
+        addTransparencyRow(LABELS.opacityLt100[lang], opacityLt100Sel + " / " + opacityLt100All);
+        addTransparencyRow(LABELS.blendNotNormal[lang], blendNotNormalSel + " / " + blendNotNormalAll);
 
         /* パスの詳細を表示するパネル / Panel to display path details */
         var panelPath = rightCol.add("panel", undefined, LABELS.path[lang]);
@@ -998,63 +1193,61 @@ function main() {
                 }
 
                 // Helper: section header
-                function wSection(titleJa, titleEn) {
+                function wSection(labelObj) {
                     file.writeln("");
-                    file.writeln(lang === "ja" ? titleJa : titleEn);
+                    file.writeln(labelObj[lang]);
                 }
 
                 if (file.open("w")) {
                     // Header
-                    if (lang === "ja") {
-                        file.writeln("Selection Inspector Report");
-                        file.writeln("Document: " + app.activeDocument.name);
-                        file.writeln("Date: " + yyyy + "-" + mm + "-" + dd);
-                        file.writeln("");
-                        file.writeln("※ 値は『選択 / 全体』の形式です（アートボードのみ全体）");
-                    } else {
-                        file.writeln("Selection Inspector Report");
-                        file.writeln("Document: " + app.activeDocument.name);
-                        file.writeln("Date: " + yyyy + "-" + mm + "-" + dd);
-                        file.writeln("");
-                        file.writeln("Note: values are formatted as 'Selection / All' (Artboards is All only)");
-                    }
+                    file.writeln(LABELS.reportTitle[lang]);
+                    file.writeln(LABELS.reportDocument[lang] + " " + app.activeDocument.name);
+                    file.writeln(LABELS.reportDate[lang] + " " + yyyy + "-" + mm + "-" + dd);
+                    file.writeln("");
+                    file.writeln(LABELS.reportValueNote[lang]);
 
                     // Basics / Misc
-                    wSection("基本", "Basics");
+                    wSection(LABELS.sectionBasics);
                     wSingle(LABELS.artboards.ja.replace(/：$/, ":"), LABELS.artboards.en.replace(/:$/, ":"), artboardCount);
                     wPair(LABELS.objects.ja.replace(/：$/, ":"), LABELS.objects.en.replace(/:$/, ":"), totalObjSel, totalObjAll);
 
                     // Text Frames
-                    wSection("テキスト", "Text Frames");
+                    wSection(LABELS.sectionTextFrames);
                     wPair(LABELS.texts.ja.replace(/：$/, ":"), LABELS.texts.en.replace(/:$/, ":"), textCountSel, textCountAll);
                     wPair(LABELS.pointText.ja.replace(/：$/, ":"), LABELS.pointText.en.replace(/:$/, ":"), pointTextSel, pointTextAll);
                     wPair(LABELS.areaText.ja.replace(/：$/, ":"), LABELS.areaText.en.replace(/:$/, ":"), areaTextSel, areaTextAll);
                     wPair(LABELS.pathText.ja.replace(/：$/, ":"), LABELS.pathText.en.replace(/:$/, ":"), pathTextSel, pathTextAll);
 
                     // Characters & Paragraphs
-                    wSection("文字・段落", "Characters & Paragraphs");
+                    wSection(LABELS.sectionCharPara);
                     wPair(LABELS.chars.ja.replace(/：$/, ":"), LABELS.chars.en.replace(/:$/, ":"), totalCharSel, totalCharAll);
                     wPair(LABELS.paras.ja.replace(/：$/, ":"), LABELS.paras.en.replace(/:$/, ":"), paraCountSel, paraCountAll);
                     wPair(LABELS.forcedBreaks.ja.replace(/：$/, ":"), LABELS.forcedBreaks.en.replace(/:$/, ":"), forcedBreakSel, forcedBreakAll);
 
                     // Images
-                    wSection("配置画像", "Images");
+                    wSection(LABELS.sectionImages);
                     wPair(LABELS.linked.ja.replace(/：$/, ":"), LABELS.linked.en.replace(/:$/, ":"), linkedSel, linkedAll);
                     wPair(LABELS.embed.ja.replace(/：$/, ":"), LABELS.embed.en.replace(/:$/, ":"), embeddedSel, embeddedAll);
                     wPair(LABELS.broken.ja.replace(/：$/, ":"), LABELS.broken.en.replace(/:$/, ":"), brokenLinkSel, brokenLinkAll);
 
+                    // Notes
+                    wSection(LABELS.sectionNotes);
+                    if (memoTextsSel.length > 0) {
+                        file.writeln(memoTextsSel.join("\n"));
+                    }
+
                     // Transparency
-                    wSection("透明", "Transparency");
+                    wSection(LABELS.sectionTransparency);
                     wPair(LABELS.opacityLt100.ja.replace(/：$/, ":"), LABELS.opacityLt100.en.replace(/:$/, ":"), opacityLt100Sel, opacityLt100All);
                     wPair(LABELS.blendNotNormal.ja.replace(/：$/, ":"), LABELS.blendNotNormal.en.replace(/:$/, ":"), blendNotNormalSel, blendNotNormalAll);
 
                     // Groups
-                    wSection("グループ", "Groups");
+                    wSection(LABELS.sectionGroups);
                     wPair(LABELS.group.ja.replace(/：$/, ":"), LABELS.group.en.replace(/:$/, ":"), groupSel, groupAll);
                     wPair(LABELS.clipGroup.ja.replace(/：$/, ":"), LABELS.clipGroup.en.replace(/:$/, ":"), clipGroupSel, clipGroupAll);
 
                     // Paths
-                    wSection("パス", "Paths");
+                    wSection(LABELS.sectionPaths);
                     wPair(LABELS.pathCount.ja.replace(/：$/, ":"), LABELS.pathCount.en.replace(/:$/, ":"), pathCountSel, pathCountAll);
                     wPair(LABELS.openPath.ja.replace(/：$/, ":"), LABELS.openPath.en.replace(/:$/, ":"), openPathSel, openPathAll);
                     wPair(LABELS.closedPath.ja.replace(/：$/, ":"), LABELS.closedPath.en.replace(/:$/, ":"), closedPathSel, closedPathAll);
@@ -1064,7 +1257,7 @@ function main() {
                     wPair(LABELS.compoundShape.ja.replace(/：$/, ":"), LABELS.compoundShape.en.replace(/:$/, ":"), compoundShapeSel, compoundShapeAll);
 
                     // Guides
-                    wSection("ガイド", "Guides");
+                    wSection(LABELS.sectionGuides);
                     wPair(LABELS.rulerGuides.ja.replace(/：$/, ":"), LABELS.rulerGuides.en.replace(/:$/, ":"), rulerGuideSel, rulerGuideAll);
                     wPair(LABELS.artboardGuides.ja.replace(/：$/, ":"), LABELS.artboardGuides.en.replace(/:$/, ":"), artboardGuideSel, artboardGuideAll);
                     wPair(LABELS.otherGuides.ja.replace(/：$/, ":"), LABELS.otherGuides.en.replace(/:$/, ":"), otherGuideSel, otherGuideAll);
@@ -1099,7 +1292,11 @@ function main() {
         var dialogOpacity = 0.97;
 
         function setDialogOpacity(targetDlg, opacityValue) {
-            targetDlg.opacity = opacityValue;
+            try {
+                if (targetDlg && typeof opacityValue === "number") {
+                    targetDlg.opacity = opacityValue;
+                }
+            } catch (e) { }
         }
 
         function restoreDialogLocation(targetDlg) {
@@ -1130,8 +1327,45 @@ function main() {
 
         dlg.onClose = function () {
             rememberDialogLocation(dlg);
+            try { app.redraw(); } catch (e) { }
         };
 
+        dlg.addEventListener("keydown", function (event) {
+            var key = "";
+            try {
+                key = event && event.keyName ? String(event.keyName).toUpperCase() : "";
+            } catch (e) {
+                key = "";
+            }
+
+            if (event && event.altKey && key === "I") {
+                switchView("info");
+                try { btnOK.active = true; } catch (e1) { }
+                try { if (event.preventDefault) event.preventDefault(); } catch (e2) { }
+            }
+            else if (event && event.altKey && key === "M") {
+                switchView("memo");
+                try {
+                    if (firstMemoField) {
+                        firstMemoField.active = true;
+                    }
+                } catch (e3) { }
+                try { if (event.preventDefault) event.preventDefault(); } catch (e4) { }
+            }
+        });
+
+        rbInfo.onClick = function () {
+            switchView("info");
+        };
+
+        rbMemo.onClick = function () {
+            switchView("memo");
+            try {
+                if (firstMemoField) firstMemoField.active = true;
+            } catch (e5) { }
+        };
+
+        switchView("info");
         setDialogOpacity(dlg, dialogOpacity);
         restoreDialogLocation(dlg);
         dlg.show();
