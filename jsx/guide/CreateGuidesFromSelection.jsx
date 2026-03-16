@@ -39,7 +39,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGuid
 ### 更新履歴
 
 - v1.0 (20250711) : 初期バージョン
-- v1.2 (20250802) : UIの整理
+- v1.8.0 (20250802) : UIの整理
 
 ### Script Name:
 
@@ -74,14 +74,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuid
 ### Update History
 
 - v1.0 (20250711): Initial version
-- v1.2 (20250802): UI refinement
+- v1.8.0 (20250802): UI refinement
 
 */
 
 // --- グローバル定義 / Global definitions ---
 
 // スクリプトバージョン
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.8.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
