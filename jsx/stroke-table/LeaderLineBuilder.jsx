@@ -36,7 +36,8 @@ if (typeof $.global._leaderLineSettings === "undefined") {
         dialogBounds: null, // ダイアログ位置 [x, y] のみをセッション中に保存
         lineColor: "black",
         lineColorHex: "#ffcc00",
-        lineWidth: "1"
+        lineWidth: "1",
+        textDist: "2.8346" // 1mm in pt
     };
 }
 
@@ -181,6 +182,14 @@ var LABELS = {
     whiteEdge: {
         ja: "フチ",
         en: "White Edge"
+    },
+    panelText: {
+        ja: "テキスト",
+        en: "Text"
+    },
+    textDist: {
+        ja: "テキストとの距離",
+        en: "Distance to text"
     },
     zoom: {
         ja: "ズーム",
@@ -431,6 +440,14 @@ function main() {
     if (targets.length === 0) {
         alert(L("alertNoValidTargets"));
         return;
+    }
+
+    // テキストフレームを別途収集（テキスト整列機能用）
+    var textTargets = [];
+    for (var i = 0; i < sel.length; i++) {
+        if (sel[i].typename === "TextFrame") {
+            textTargets.push(sel[i]);
+        }
     }
 
     // GroupItem の参照用 PathItem を取得する関数
@@ -824,6 +841,55 @@ function main() {
         }
     }
 
+    // テキストフレームの bounds を取得する関数
+    function getTextBounds(textItem) {
+        var gb = textItem.geometricBounds; // [left, top, right, bottom]
+        return { x_left: gb[0], x_right: gb[2], y_top: gb[1], y_bottom: gb[3] };
+    }
+
+    // テキスト整列時の引き出し線座標を計算する関数
+    // - オブジェクトとテキストの位置関係から方向を自動判定
+    // - 水平端をテキストの対応する端に揃える
+    // - 折れ点のY座標をテキスト端から1mm離す
+    function calcLeaderPointsWithText(b, angleRad, textBounds, distPt) {
+        var bendY, horizontalEndX, tipX, tipY, dy, dx, bendX;
+
+        // オブジェクトとテキストの中心座標を比較して方向を自動判定
+        // （Illustratorは Y 上向き正: 下にあるほど Y が小さい）
+        var objCenterX = (b.x_left + b.x_right) / 2;
+        var objCenterY = (b.y_top + b.y_bottom) / 2;
+        var textCenterX = (textBounds.x_left + textBounds.x_right) / 2;
+        var textCenterY = (textBounds.y_top + textBounds.y_bottom) / 2;
+        var autoHDir = (objCenterX < textCenterX) ? "left" : "right";
+        var autoVDir = (objCenterY < textCenterY) ? "down" : "up";
+
+        // オブジェクトがテキストより下 → 折れ点はテキスト下端-distPt
+        // オブジェクトがテキストより上 → 折れ点はテキスト上端+distPt
+        if (autoVDir === "down") {
+            bendY = textBounds.y_bottom - distPt;
+        } else {
+            bendY = textBounds.y_top + distPt;
+        }
+
+        tipY = (autoVDir === "down") ? b.y_bottom : b.y_top;
+        dy = Math.abs(bendY - tipY);
+        dx = dy / Math.tan(angleRad);
+
+        if (autoHDir === "left") {
+            // オブジェクトがテキストより左: 水平端をテキスト右端へ、先端はオブジェクト左
+            horizontalEndX = textBounds.x_right;
+            tipX = b.x_left;
+            bendX = tipX + dx;
+            return [[tipX, tipY], [bendX, bendY], [horizontalEndX, bendY]];
+        } else {
+            // オブジェクトがテキストより右: 水平端をテキスト左端へ、先端はオブジェクト右
+            horizontalEndX = textBounds.x_left;
+            tipX = b.x_right;
+            bendX = tipX - dx;
+            return [[horizontalEndX, bendY], [bendX, bendY], [tipX, tipY]];
+        }
+    }
+
     // 斜線の先端座標を取得する関数
     function getTipPoint(points, hDir) {
         return (hDir === "left") ? points[0] : points[2];
@@ -1103,6 +1169,25 @@ function main() {
         return null;
     }
 
+    // 編集可能なレイヤーをアクティブにする関数
+    // 対象アイテムのレイヤーが使えればそこへ、なければ最初の編集可能レイヤーへ切り替える
+    function switchToEditableLayer(item) {
+        try {
+            var layer = item.layer;
+            if (layer && !layer.locked && layer.visible) {
+                doc.activeLayer = layer;
+                return;
+            }
+        } catch (_) {}
+        for (var li = 0; li < doc.layers.length; li++) {
+            var l = doc.layers[li];
+            if (!l.locked && l.visible) {
+                doc.activeLayer = l;
+                return;
+            }
+        }
+    }
+
     // プレビューを生成する関数
     function createPreview(angleDeg, ui) {
         var angleRad = angleDeg * Math.PI / 180;
@@ -1118,6 +1203,7 @@ function main() {
 
         for (var i = 0; i < boundsData.length; i++) {
             var b = boundsData[i];
+            switchToEditableLayer(targets[i]);
 
             // 「斜線の方向以外」のとき、各オブジェクトの保存済み方向を使用
             var objHDir = hDir;
@@ -1131,7 +1217,15 @@ function main() {
             }
 
             var sw = getLineWidth(b);
-            var points = calcLeaderPoints(b, angleRad, objHDir, objVDir);
+            var points;
+            if (textTargets.length > 0) {
+                var tb = getTextBounds(textTargets[0]);
+                var distPt = parseFloat(ui.textDistInput.text);
+                if (isNaN(distPt) || distPt < 0) distPt = 72 / 25.4;
+                points = calcLeaderPointsWithText(b, angleRad, tb, distPt);
+            } else {
+                points = calcLeaderPoints(b, angleRad, objHDir, objVDir);
+            }
 
             // 先端座標は短縮前に取得
             var origTipPt = addCap ? getTipPoint(points, objHDir).slice(0) : null;
@@ -1361,6 +1455,12 @@ function main() {
         ui.edgeHexInput.text = s.edgeColorHex;
         updateEdgeSwatch();
 
+        var textDistVal = parseFloat(s.textDist);
+        if (isNaN(textDistVal) || textDistVal < 0) textDistVal = 72 / 25.4;
+        ui.textDistInput.text = formatNumber(textDistVal, 2);
+
+        ui.textPanel.enabled = textTargets.length > 0;
+
         updateDirPanelEnabled(ui);
         updateCapEnabled(ui);
         updateEdgeColorEnabled(ui);
@@ -1495,6 +1595,19 @@ function main() {
 
         ui.groupCheck = ui.capPanel.add("checkbox", undefined, L("groupEnabled"));
 
+        ui.textPanel = ui.rightCol.add("panel", undefined, L("panelText"));
+        ui.textPanel.margins = [15, 20, 15, 10];
+        ui.textPanel.orientation = "column";
+        ui.textPanel.alignChildren = ["fill", "top"];
+
+        ui.textDistGroup = ui.textPanel.add("group");
+        ui.textDistGroup.add("statictext", undefined, L("textDist"));
+        var textDistDisplay = parseFloat(s.textDist);
+        if (isNaN(textDistDisplay) || textDistDisplay < 0) textDistDisplay = 72 / 25.4;
+        ui.textDistInput = ui.textDistGroup.add("edittext", undefined, formatNumber(textDistDisplay, 2));
+        ui.textDistInput.characters = 4;
+        ui.textDistGroup.add("statictext", undefined, "pt");
+
         ui.optPanel = ui.leftCol.add("panel", undefined, L("panelOptions"));
         ui.optPanel.margins = [15, 20, 15, 10];
         ui.optPanel.orientation = "column";
@@ -1538,6 +1651,9 @@ function main() {
         s.lineColorHex = ui.hexInput.text;
         var savedLineWidthPt = unitValueToPt(ui.lineWidthInput.text, "strokeUnits");
         s.lineWidth = (!isNaN(savedLineWidthPt) && savedLineWidthPt > 0) ? formatNumber(savedLineWidthPt, 4) : "1";
+
+        var savedTextDist = parseFloat(ui.textDistInput.text);
+        s.textDist = (!isNaN(savedTextDist) && savedTextDist >= 0) ? formatNumber(savedTextDist, 4) : "2.8346";
 
         rememberDialogLocation();
     }
@@ -1591,6 +1707,27 @@ function main() {
         if (ui.dirUpperRight.value) return { hDir: "left", vDir: "down" };
         if (ui.dirLowerRight.value) return { hDir: "left", vDir: "up" };
         return { hDir: "right", vDir: "up" };
+    }
+
+    function diagDirFromHVDir(hDir, vDir) {
+        if (hDir === "right" && vDir === "down") return "upperLeft";
+        if (hDir === "right" && vDir === "up")   return "lowerLeft";
+        if (hDir === "left"  && vDir === "down") return "upperRight";
+        if (hDir === "left"  && vDir === "up")   return "lowerRight";
+        return null;
+    }
+
+    function restoreDirFromSelection() {
+        if (targets.length !== 1) return;
+        var t = targets[0];
+        if (!isLeaderLineGroup(t)) return;
+        var stored = getLeaderLineStoredDir(t);
+        if (!stored) return;
+        var diagDir = diagDirFromHVDir(stored.hDir, stored.vDir);
+        if (!diagDir) return;
+        s.diagDir = diagDir;
+        s.hDir = stored.hDir;
+        s.vDir = stored.vDir;
     }
 
     function updateDirPanelEnabled(ui) {
@@ -1697,6 +1834,15 @@ function main() {
             updatePreview(ui);
         };
         ui.lineWidthInput.onChanging = function () { updatePreview(ui); };
+        changeValueByArrowKey(ui.textDistInput, {
+            smallStep: 0.1,
+            largeStep: 1,
+            fineStep: 0.01,
+            minValue: 0,
+            digits: 2,
+            onAfterChange: function () { updatePreview(ui); }
+        });
+        ui.textDistInput.onChanging = function () { updatePreview(ui); };
 
         ui.capRound.onClick = function () { updatePreview(ui); };
         ui.strokeCapNone.onClick = function () { updatePreview(ui); };
@@ -1745,6 +1891,7 @@ function main() {
     }
 
     bindDialogEvents(ui);
+    restoreDirFromSelection();
     loadDialogSettingsToUI(ui);
 
     var zoomCtrl = __TMKZoom_addControls(dlg, doc, L("zoom"), __zoomState, {
@@ -1830,6 +1977,7 @@ function main() {
         var b = boundsData[i];
         var createdItems = [];
         var createdSelectionItems = [];
+        switchToEditableLayer(sourceTarget);
 
         try {
             // 「斜線の方向以外」のとき、各オブジェクトの保存済み方向を使用
@@ -1844,7 +1992,15 @@ function main() {
             }
 
             var sw = getLineWidth(b);
-            var points = calcLeaderPoints(b, angleRad, objHDir, objVDir);
+            var points;
+            if (textTargets.length > 0) {
+                var tb = getTextBounds(textTargets[0]);
+                var distPt = parseFloat(ui.textDistInput.text);
+                if (isNaN(distPt) || distPt < 0) distPt = 72 / 25.4;
+                points = calcLeaderPointsWithText(b, angleRad, tb, distPt);
+            } else {
+                points = calcLeaderPoints(b, angleRad, objHDir, objVDir);
+            }
 
             // 先端座標は短縮前に取得
             var origTipPt = addCap ? getTipPoint(points, objHDir).slice(0) : null;
