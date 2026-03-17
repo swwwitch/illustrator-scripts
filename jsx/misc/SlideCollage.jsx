@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 slide-collage
 
 ### 更新日：
-20260302
+20260318
 
 ### 概要：
 アクティブなドキュメント上で、指定した .ai / .pdf（PDFはページ指定）をグリッド配置し、ポートフォリオ用のサムネイル一覧を作成します。
@@ -26,7 +26,8 @@ slide-collage
 
 変更操作の多くはリアルタイムプレビュー（debounce 120ms）で確認できます（読み込みのアートボード番号変更は対象外）。
 数値入力欄は ↑↓ / Shift / Option で増減できます。
-ダイアログ位置はセッション中のみ記憶・復元します（Illustrator終了でリセット）。
+
+・内部構造を整理し、main() 内のページ数処理・入力補助・プレビューキャッシュ補助を関数へ分離して保守しやすくしました。
 
 オリジナルアイデア
 Slide Collage - Portfolio Layout Generator -
@@ -38,7 +39,7 @@ https://slide-collage.vercel.app/
 // Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -250,126 +251,186 @@ var __SC_CROP_MEDIA = 0;
 // - No relink / no placedItems.add
 // ============================================================
 
-function __TMKPageCount_getLastPageFromSelection(selectionItems) {
-    var placed = __TMKPageCount_findFirstPlacedItem(selectionItems);
-    if (!placed) return null;
+var PC = (function () {
 
-    var f = placed.file;
-    if (!f) {
-        safeAlertKey('alertLinkUnknown');
-        return null;
+    function PC_getLastPageFromSelection(selectionItems) {
+        var placed = PC_findFirstPlacedItem(selectionItems);
+        if (!placed) return null;
+
+        var f = placed.file;
+        if (!f) {
+            safeAlertKey('alertLinkUnknown');
+            return null;
+        }
+
+        var name = decodeURIComponent(f.name);
+        if (!/\.(?:pdf|ai)$/i.test(name)) return null;
+
+        var last = PC_getPageLengthFromFile(f);
+        if (!last || isNaN(Number(last)) || Number(last) <= 0) {
+            safeAlertKey('alertPageCountFail');
+            return null;
+        }
+
+        return Number(last);
     }
 
-    var name = decodeURIComponent(f.name);
-    if (!/\.(?:pdf|ai)$/i.test(name)) return null;
+    function PC_updateResultFromPlacedOrFile(doc, fileObjOrNull, setPathTextFn, setResultTextFn) {
+        var placedTemp = null;
 
-    var last = __TMKPageCount_getPageLengthFromFile(f);
-    if (!last || isNaN(Number(last)) || Number(last) <= 0) {
-        safeAlertKey('alertPageCountFail');
-        return null;
-    }
+        try {
+            // If a file is provided, place it temporarily to reuse existing selection-based logic
+            if (fileObjOrNull) {
+                var name = decodeURIComponent(fileObjOrNull.name);
+                if (!/\.(?:pdf|ai)$/i.test(name)) {
+                    safeAlertKey('alertPickPdfAi');
+                    if (setResultTextFn) setResultTextFn(null);
+                    return;
+                }
 
-    return Number(last);
-}
+                try {
+                    placedTemp = doc.placedItems.add();
+                    placedTemp.file = fileObjOrNull;
 
-function __TMKPageCount_updateResultFromPlacedOrFile(doc, fileObjOrNull, setPathTextFn, setResultTextFn) {
-    var placedTemp = null;
+                    // Place near the visible top-left so it can be seen (briefly)
+                    try {
+                        var vb = doc.activeView && doc.activeView.bounds ? doc.activeView.bounds : null; // [left, top, right, bottom]
+                        if (vb && vb.length === 4) {
+                            placedTemp.position = [vb[0], vb[1]];
+                        }
+                    } catch (_) { }
 
-    try {
-        // If a file is provided, place it temporarily to reuse existing selection-based logic
-        if (fileObjOrNull) {
-            var name = decodeURIComponent(fileObjOrNull.name);
-            if (!/\.(?:pdf|ai)$/i.test(name)) {
-                safeAlertKey('alertPickPdfAi');
-                if (setResultTextFn) setResultTextFn(null);
+                    // Use the existing logic without modifying it
+                    var lastFromFile = PC_getLastPageFromSelection([placedTemp]);
+                    if (setPathTextFn) setPathTextFn(fileObjOrNull);
+                    if (setResultTextFn) setResultTextFn(lastFromFile);
+                } finally {
+                    if (placedTemp) {
+                        try { placedTemp.remove(); } catch (_) { }
+                    }
+                }
                 return;
             }
 
+            // No file provided: use current selection (PlacedItem must be selected)
+            var last = PC_getLastPageFromSelection(doc.selection);
+
+            // Attempt to show the currently selected placed file path
             try {
-                placedTemp = doc.placedItems.add();
-                placedTemp.file = fileObjOrNull;
+                var placedSel = PC_findFirstPlacedItem(doc.selection);
+                if (placedSel && placedSel.file && setPathTextFn) setPathTextFn(placedSel.file);
+            } catch (_) { }
 
-                // Place near the visible top-left so it can be seen (briefly)
-                try {
-                    var vb = doc.activeView && doc.activeView.bounds ? doc.activeView.bounds : null; // [left, top, right, bottom]
-                    if (vb && vb.length === 4) {
-                        placedTemp.position = [vb[0], vb[1]];
-                    }
-                } catch (_) { }
+            if (setResultTextFn) setResultTextFn(last);
+        } catch (e) {
+            alert(e);
+            try { if (setResultTextFn) setResultTextFn(null); } catch (_) { }
+        }
+    }
 
-                // Use the existing logic without modifying it
-                var lastFromFile = __TMKPageCount_getLastPageFromSelection([placedTemp]);
-                if (setPathTextFn) setPathTextFn(fileObjOrNull);
-                if (setResultTextFn) setResultTextFn(lastFromFile);
-            } finally {
-                if (placedTemp) {
-                    try { placedTemp.remove(); } catch (_) { }
+    function PC_findFirstPlacedItem(items) {
+        if (!items || items.length <= 0) return null;
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            if (!it) continue;
+            var n = (it.constructor && it.constructor.name) ? it.constructor.name : '';
+            if (n === 'PlacedItem') return it;
+            if (n === 'GroupItem') {
+                var hit = PC_findFirstPlacedItem(it.pageItems);
+                if (hit) return hit;
+            }
+        }
+        return null;
+    }
+
+    // pdf/aiから総ページ数を推定（既存ロジックを維持しつつ最小化）
+    function PC_getPageLengthFromFile(file) {
+        var tg = /<<\/Count\s(\d+)/;
+        var c1 = /<<\/Type\/Page\/Parent/;
+        var c2 = /\/Type\s\/Page\s/;
+        var c3 = /\/StructParents\s\d+.*\/Type\/Page>>/;
+        var tg2 = /<<\/Linearized\s.+\/N\s(\d+)\/T\s.+>>/;
+        var tg3 = /\/Type\/Pages/;
+        var tg4 = /\/Count\s(\d+)/;
+
+        var res, wd, len = 0, num = 0;
+        try {
+            file.open('r');
+            while (!file.eof) {
+                wd = file.readln();
+                if (tg.test(wd) || tg2.test(wd)) { res = Number(RegExp.$1); break; }
+                if (c1.test(wd) || c2.test(wd) || c3.test(wd)) len++;
+                if (tg3.test(wd)) {
+                    wd = file.readln();
+                    if (tg4.test(wd)) { num = Number(RegExp.$1); if (len < num) len = num; }
                 }
             }
-            return;
+            if (len > 0) res = len;
+        } catch (e) {
+            alert(e);
+        } finally {
+            try { file.close(); } catch (_) { }
         }
-
-        // No file provided: use current selection (PlacedItem must be selected)
-        var last = __TMKPageCount_getLastPageFromSelection(doc.selection);
-
-        // Attempt to show the currently selected placed file path
-        try {
-            var placedSel = __TMKPageCount_findFirstPlacedItem(doc.selection);
-            if (placedSel && placedSel.file && setPathTextFn) setPathTextFn(placedSel.file);
-        } catch (_) { }
-
-        if (setResultTextFn) setResultTextFn(last);
-    } catch (e) {
-        alert(e);
-        try { if (setResultTextFn) setResultTextFn(null); } catch (_) { }
+        return res;
     }
-}
+    function PC_countFromRangeText(s) {
+        if (!s) return 0;
+        s = String(s).replace(/\s+/g, '');
+        s = s.replace(/^[\[\(\{\u3010\uFF3B]?/, '').replace(/[\]\)\}\u3011\uFF3D]?$/, '');
+        if (!s) return 0;
 
-function __TMKPageCount_findFirstPlacedItem(items) {
-    if (!items || items.length <= 0) return null;
-    for (var i = 0; i < items.length; i++) {
-        var it = items[i];
-        if (!it) continue;
-        var n = (it.constructor && it.constructor.name) ? it.constructor.name : '';
-        if (n === 'PlacedItem') return it;
-        if (n === 'GroupItem') {
-            var hit = __TMKPageCount_findFirstPlacedItem(it.pageItems);
-            if (hit) return hit;
-        }
-    }
-    return null;
-}
+        var parts = s.split(/[,\u3001]/);
+        var seen = {};
+        var count = 0;
 
-// pdf/aiから総ページ数を推定（既存ロジックを維持しつつ最小化）
-function __TMKPageCount_getPageLengthFromFile(file) {
-    var tg = /<<\/Count\s(\d+)/;
-    var c1 = /<<\/Type\/Page\/Parent/;
-    var c2 = /\/Type\s\/Page\s/;
-    var c3 = /\/StructParents\s\d+.*\/Type\/Page>>/;
-    var tg2 = /<<\/Linearized\s.+\/N\s(\d+)\/T\s.+>>/;
-    var tg3 = /\/Type\/Pages/;
-    var tg4 = /\/Count\s(\d+)/;
+        for (var i = 0; i < parts.length; i++) {
+            var p = parts[i];
+            if (!p) continue;
 
-    var res, wd, len = 0, num = 0;
-    try {
-        file.open('r');
-        while (!file.eof) {
-            wd = file.readln();
-            if (tg.test(wd) || tg2.test(wd)) { res = Number(RegExp.$1); break; }
-            if (c1.test(wd) || c2.test(wd) || c3.test(wd)) len++;
-            if (tg3.test(wd)) {
-                wd = file.readln();
-                if (tg4.test(wd)) { num = Number(RegExp.$1); if (len < num) len = num; }
+            var m = p.match(/^(\d+)-(\d+)$/);
+            if (m) {
+                var a = parseInt(m[1], 10);
+                var b = parseInt(m[2], 10);
+                if (isNaN(a) || isNaN(b)) continue;
+                var step = (a <= b) ? 1 : -1;
+                for (var n = a; step > 0 ? n <= b : n >= b; n += step) {
+                    var key = String(n);
+                    if (!seen[key]) { seen[key] = true; count++; }
+                }
+                continue;
+            }
+
+            var v = parseInt(p, 10);
+            if (!isNaN(v)) {
+                var k = String(v);
+                if (!seen[k]) { seen[k] = true; count++; }
             }
         }
-        if (len > 0) res = len;
-    } catch (e) {
-        alert(e);
-    } finally {
-        try { file.close(); } catch (_) { }
+
+        return count;
     }
-    return res;
-}
+
+    function PC_updateTotalFromRange(rangeText, currentTotalText) {
+        try {
+            var c = PC_countFromRangeText(rangeText);
+            var cur = String(currentTotalText || '');
+            if (!cur) {
+                return c ? String(c) : '';
+            }
+            return cur;
+        } catch (_) { }
+        return String(currentTotalText || '');
+    }
+
+    return {
+        getLastPageFromSelection: PC_getLastPageFromSelection,
+        updateResultFromPlacedOrFile: PC_updateResultFromPlacedOrFile,
+        findFirstPlacedItem: PC_findFirstPlacedItem,
+        getPageLengthFromFile: PC_getPageLengthFromFile,
+        countFromRangeText: PC_countFromRangeText,
+        updateTotalFromRange: PC_updateTotalFromRange
+    };
+})();
 
 /**
  * Set PDF import crop box preference.
@@ -478,84 +539,6 @@ function parsePageNumbers(inputStr) {
         }
     }
     return result;
-}
-
-// =========================================
-// Dialog position (session only)
-// =========================================
-
-function __SC_getSessionDialogBoundsKey() {
-    return "__SC_slideCollage_dialog_bounds";
-}
-
-function __SC_loadDialogBounds() {
-    try {
-        var k = __SC_getSessionDialogBoundsKey();
-        return $.global[k];
-    } catch (e) {
-        return null;
-    }
-}
-
-function __SC_saveDialogBounds(b) {
-    try {
-        if (!b) return;
-        // store plain object (avoid ScriptUI objects)
-        var l = b.left, t = b.top, r = b.right, bt = b.bottom;
-        if (!(typeof l === "number" && isFinite(l))) return;
-        if (!(typeof t === "number" && isFinite(t))) return;
-        if (!(typeof r === "number" && isFinite(r))) return;
-        if (!(typeof bt === "number" && isFinite(bt))) return;
-        var o = { left: l, top: t, right: r, bottom: bt };
-        $.global[__SC_getSessionDialogBoundsKey()] = o;
-    } catch (e) { }
-}
-
-
-function __SC_applyDialogBounds(win) {
-    try {
-        var b = __SC_loadDialogBounds();
-        if (!b) return;
-
-        function isFiniteNum(n) {
-            return (typeof n === "number") && isFinite(n);
-        }
-
-        var l = b.left, t = b.top, r = b.right, bt = b.bottom;
-        if (!isFiniteNum(l) || !isFiniteNum(t) || !isFiniteNum(r) || !isFiniteNum(bt)) return;
-
-        // Size sanity
-        var w = r - l;
-        var h = bt - t;
-        if (!(w >= 200 && h >= 120)) return; // too small/invalid -> skip
-
-        // Screen sanity: must intersect at least one screen bounds
-        var intersects = false;
-        try {
-            if ($.screens && $.screens.length) {
-                for (var i = 0; i < $.screens.length; i++) {
-                    var sb = $.screens[i].bounds; // [L,T,R,B]
-                    var sl = sb[0], st = sb[1], sr = sb[2], sbt = sb[3];
-                    var il = Math.max(l, sl);
-                    var it = Math.max(t, st);
-                    var ir = Math.min(r, sr);
-                    var ib = Math.min(bt, sbt);
-                    if ((ir - il) > 40 && (ib - it) > 40) { // require some visible area
-                        intersects = true;
-                        break;
-                    }
-                }
-            }
-        } catch (eScr) {
-            // If screens API is unavailable, fall back to applying.
-            intersects = true;
-        }
-
-        if (!intersects) return;
-
-        // Apply bounds
-        win.bounds = [l, t, r, bt];
-    } catch (e) { }
 }
 
 // =========================================
@@ -683,6 +666,194 @@ function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
     };
 }
 
+
+
+// =========================================
+// main() 分散化用ヘルパー
+// =========================================
+
+function __SC_getSourceDocKey(fileObj) {
+    try { return (fileObj && fileObj.fsName) ? String(fileObj.fsName) : String(fileObj); }
+    catch (_) { return String(fileObj); }
+}
+
+function __SC_getSourcePageCount(fileObj) {
+    try {
+        if (!fileObj) return 0;
+
+        if (!$.global.__SC_sourcePageCountCache) $.global.__SC_sourcePageCountCache = {};
+        var cache = $.global.__SC_sourcePageCountCache;
+        var key = __SC_getSourceDocKey(fileObj);
+        if (cache[key] && cache[key] > 0) return cache[key];
+
+        var tempDoc = null;
+        var n = 0;
+        try {
+            tempDoc = app.open(fileObj);
+            try { n = (tempDoc && tempDoc.artboards) ? tempDoc.artboards.length : 0; } catch (_) { n = 0; }
+        } catch (_) {
+            n = 0;
+        } finally {
+            try { if (tempDoc) tempDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (_) { }
+        }
+
+        if (n > 0) cache[key] = n;
+        return n;
+    } catch (_) { }
+    return 0;
+}
+
+function __SC_repeatPagesWithinCount(pages, maxCount) {
+    if (!pages || pages.length === 0) return pages;
+    if (!(maxCount > 0)) return pages;
+    var out = [];
+    for (var i = 0; i < pages.length; i++) {
+        var p = parseInt(pages[i], 10);
+        if (isNaN(p) || p < 1) p = 1;
+        var m = ((p - 1) % maxCount) + 1;
+        out.push(m);
+    }
+    return out;
+}
+
+function __SC_filterPagesWithinCount(pages, maxCount) {
+    if (!pages || pages.length === 0) return pages;
+    if (!(maxCount > 0)) return pages;
+    var out = [];
+    for (var i = 0; i < pages.length; i++) {
+        var p = parseInt(pages[i], 10);
+        if (isNaN(p)) continue;
+        if (p < 1 || p > maxCount) continue;
+        out.push(p);
+    }
+    return out;
+}
+
+function __SC_expandPagesToTotal(basePages, totalCount) {
+    if (!basePages || basePages.length === 0) return [];
+    var n = parseInt(totalCount, 10);
+    if (isNaN(n) || n <= 0) n = basePages.length;
+    var out = [];
+    for (var i = 0; i < n; i++) out.push(basePages[i % basePages.length]);
+    return out;
+}
+
+function __SC_buildTargetPages(specifiedStr, totalCount, sourceCount) {
+    var base = [];
+    try { base = parsePageNumbers(String(specifiedStr || '')); } catch (_) { base = []; }
+    if (!base || base.length === 0) base = [1];
+    if (sourceCount > 0) {
+        base = __SC_filterPagesWithinCount(base, sourceCount);
+    }
+    if (!base || base.length === 0) base = [1];
+    var t = parseInt(totalCount, 10);
+    if (isNaN(t) || t <= 0) return base;
+    return __SC_expandPagesToTotal(base, t);
+}
+
+function __SC_toHalfWidthDigits(s) {
+    s = String(s || '');
+    return s.replace(/[０-９]/g, function (ch) {
+        return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
+    });
+}
+// -----------------------------------------
+// Source file page/artboard count (session cache)
+// - For .ai: artboards length
+// - For .pdf: pages are represented as artboards when opened
+// -----------------------------------------
+
+// Parse first positive integer from text (accepts full-width digits, trims, ignores suffix)
+function __SC_parsePositiveInt(s) {
+    try {
+        s = __SC_toHalfWidthDigits(String(s || '')).replace(/\s+/g, '');
+        if (!s) return 0;
+        // allow brackets like [13]
+        s = s.replace(/^[\[\(\{\u3010\uFF3B]?/, '').replace(/[\]\)\}\u3011\uFF3D]?$/, '');
+        var m = s.match(/(\d+)/);
+        if (!m) return 0;
+        var v = parseInt(m[1], 10);
+        if (isNaN(v) || v <= 0) return 0;
+        return v;
+    } catch (_) {
+        return 0;
+    }
+}
+
+
+function __SC_removeItemSafe(it) {
+    try { if (it) it.remove(); } catch (_) { }
+}
+
+function __SC_clearPreviewCache(__previewCache) {
+    // remove group (removes its children automatically)
+    if (__previewCache.group) {
+        __SC_removeItemSafe(__previewCache.group);
+    }
+    __previewCache.group = null;
+    __previewCache.currentRot = 0;
+
+    // clear arrays (items already removed with group)
+    __previewCache.items = [];
+    __previewCache.baseW = [];
+    __previewCache.baseH = [];
+
+    // remove bg
+    __SC_removeItemSafe(__previewCache.bgItem);
+    __previewCache.bgItem = null;
+
+    __previewCache.pagesKey = "";
+    __previewCache.cropMode = null;
+    __previewCache.previewWrapped = false;
+    __previewCache.previewRoundRadiusPt = 0;
+    __previewCache.randOrder = null;
+}
+
+// Remove any leftover preview group(s) by name (safety net)
+function __SC_removePreviewGroupByName(doc) {
+    try {
+        if (!doc) return;
+        var name = '__SC_previewGroup__';
+        // Try multiple passes because removing changes indices
+        for (var pass = 0; pass < 3; pass++) {
+            var removed = false;
+            try {
+                for (var i = doc.groupItems.length - 1; i >= 0; i--) {
+                    var g = doc.groupItems[i];
+                    if (g && g.name === name) {
+                        try { g.remove(); } catch (_) { }
+                        removed = true;
+                    }
+                }
+            } catch (_) { }
+            if (!removed) break;
+        }
+    } catch (_) { }
+}
+function __SC_shuffleIndexArray(n) {
+    var a = [];
+    for (var i = 0; i < n; i++) a.push(i);
+    for (var j = a.length - 1; j > 0; j--) {
+        var k = Math.floor(Math.random() * (j + 1));
+        var t = a[j];
+        a[j] = a[k];
+        a[k] = t;
+    }
+    return a;
+}
+
+function __SC_ensureRandomOrder(__previewCache) {
+    var n = (__previewCache.items) ? __previewCache.items.length : 0;
+    if (n <= 1) { __previewCache.randOrder = null; return; }
+    if (!__previewCache.randOrder || __previewCache.randOrder.length !== n) {
+        __previewCache.randOrder = __SC_shuffleIndexArray(n);
+    }
+}
+
+function __SC_clearRandomOrder(__previewCache) {
+    __previewCache.randOrder = null;
+}
+
 function main() {
 
     // Cached source page/artboard count
@@ -696,6 +867,28 @@ function main() {
     var doc = app.activeDocument;
     // Current source file selected by user (set via UI). If null, the user has not selected any file yet.
     var fileA = null;
+
+    // =========================================
+    // Preview/cache state (main local)
+    // =========================================
+
+    // プレビュー用に配置したアイテムを保持する配列
+    var previewItems = [];
+
+    // Preview cache: placed items are created on [読み込み] and reused until next load
+    var __previewCache = {
+        items: [],
+        baseW: [],
+        baseH: [],
+        pagesKey: "",
+        cropMode: null,
+        bgItem: null,
+        group: null,
+        currentRot: 0,
+        randOrder: null,
+        previewWrapped: false,
+        previewRoundRadiusPt: 0
+    };
 
     // 現在の定規単位（rulerType）
     var rulerUnit = __SC_getRulerUnitInfo();
@@ -718,248 +911,10 @@ function main() {
     var AUTO_FIT_ENABLED = true;
 
 
-
-    // -----------------------------------------
-    // Source file page/artboard count (session cache)
-    // - For .ai: artboards length
-    // - For .pdf: pages are represented as artboards when opened
-    // -----------------------------------------
-    function __SC_getSourceDocKey(fileObj) {
-        try { return (fileObj && fileObj.fsName) ? String(fileObj.fsName) : String(fileObj); }
-        catch (_) { return String(fileObj); }
-    }
-
-    function __SC_getSourcePageCount(fileObj) {
-        try {
-            if (!fileObj) return 0;
-
-            if (!$.global.__SC_sourcePageCountCache) $.global.__SC_sourcePageCountCache = {};
-            var cache = $.global.__SC_sourcePageCountCache;
-            var key = __SC_getSourceDocKey(fileObj);
-            if (cache[key] && cache[key] > 0) return cache[key];
-
-            var tempDoc = null;
-            var n = 0;
-            try {
-                // Open the source file to read artboard/page count, then close without saving.
-                tempDoc = app.open(fileObj);
-                try { n = (tempDoc && tempDoc.artboards) ? tempDoc.artboards.length : 0; } catch (_) { n = 0; }
-            } catch (_) {
-                n = 0;
-            } finally {
-                try { if (tempDoc) tempDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (_) { }
-            }
-
-            if (n > 0) cache[key] = n;
-            return n;
-        } catch (_) { }
-        return 0;
-    }
-
-    // Map requested page numbers to existing page range by repeating (e.g., 1-10 with 6 pages -> 1234561234)
-    function __SC_repeatPagesWithinCount(pages, maxCount) {
-        if (!pages || pages.length === 0) return pages;
-        if (!(maxCount > 0)) return pages;
-        var out = [];
-        for (var i = 0; i < pages.length; i++) {
-            var p = parseInt(pages[i], 10);
-            if (isNaN(p) || p < 1) p = 1;
-            var m = ((p - 1) % maxCount) + 1;
-            out.push(m);
-        }
-        return out;
-    }
-
-    // Keep only pages within 1..maxCount (does NOT wrap/repeat).
-    function __SC_filterPagesWithinCount(pages, maxCount) {
-        if (!pages || pages.length === 0) return pages;
-        if (!(maxCount > 0)) return pages;
-        var out = [];
-        for (var i = 0; i < pages.length; i++) {
-            var p = parseInt(pages[i], 10);
-            if (isNaN(p)) continue;
-            if (p < 1 || p > maxCount) continue;
-            out.push(p);
-        }
-        return out;
-    }
-
-    // basePages を totalCount まで繰り返して伸ばす
-    // 例: base=[1..10], total=13 => [1..10,1,2,3]
-    function __SC_expandPagesToTotal(basePages, totalCount) {
-        if (!basePages || basePages.length === 0) return [];
-        var n = parseInt(totalCount, 10);
-        if (isNaN(n) || n <= 0) n = basePages.length;
-        var out = [];
-        for (var i = 0; i < n; i++) out.push(basePages[i % basePages.length]);
-        return out;
-    }
-
-    // Build target pages from 指定/総数/sourceCount
-    function SC_buildTargetPages(specifiedStr, totalCount, sourceCount) {
-        var base = [];
-        try { base = parsePageNumbers(String(specifiedStr || '')); } catch (_) { base = []; }
-        if (!base || base.length === 0) base = [1];
-        if (sourceCount > 0) {
-            base = __SC_filterPagesWithinCount(base, sourceCount);
-        }
-        if (!base || base.length === 0) base = [1];
-        var t = parseInt(totalCount, 10);
-        if (isNaN(t) || t <= 0) return base;
-        return __SC_expandPagesToTotal(base, t);
-    }
-
-    function __SC_getTargetPagesFromUI() {
-        var specified = String(etRange.text || '');
-        var total = __SC_parsePositiveInt(etTotal.text);
-        var srcCount = 0;
-        try {
-            srcCount = (__SC_sourceCount > 0)
-                ? __SC_sourceCount
-                : __SC_getSourcePageCount(fileA);
-        } catch (_) {
-            srcCount = 0;
-        }
-        return SC_buildTargetPages(specified, total, srcCount);
-    }
-
-    // Convert full-width digits to half-width digits (e.g., "３０" -> "30")
-    function __SC_toHalfWidthDigits(s) {
-        s = String(s || '');
-        return s.replace(/[０-９]/g, function (ch) {
-            return String.fromCharCode(ch.charCodeAt(0) - 0xFEE0);
-        });
-    }
-
-    // Parse first positive integer from text (accepts full-width digits, trims, ignores suffix)
-    function __SC_parsePositiveInt(s) {
-        try {
-            s = __SC_toHalfWidthDigits(String(s || '')).replace(/\s+/g, '');
-            if (!s) return 0;
-            // allow brackets like [13]
-            s = s.replace(/^[\[\(\{\u3010\uFF3B]?/, '').replace(/[\]\)\}\u3011\uFF3D]?$/, '');
-            var m = s.match(/(\d+)/);
-            if (!m) return 0;
-            var v = parseInt(m[1], 10);
-            if (isNaN(v) || v <= 0) return 0;
-            return v;
-        } catch (_) {
-            return 0;
-        }
-    }
-
-    // =========================================
-    // Preview/cache declarations (moved to main() early)
-    // =========================================
-
-    // プレビュー用に配置したアイテムを保持する配列
-    var previewItems = [];
-
-    // Preview cache: placed items are created on [読み込み] and reused until next load
-    var __previewCache = {
-        items: [],
-        baseW: [],
-        baseH: [],
-        pagesKey: "",
-        cropMode: null,
-        bgItem: null,
-        group: null,
-        currentRot: 0,
-        randOrder: null,
-        previewWrapped: false,
-        previewRoundRadiusPt: 0
-    };
-
-    function __SC_removeItemSafe(it) {
-        try { if (it) it.remove(); } catch (_) { }
-    }
-
-    function __SC_clearPreviewCache() {
-        // remove group (removes its children automatically)
-        if (__previewCache.group) {
-            __SC_removeItemSafe(__previewCache.group);
-        }
-        __previewCache.group = null;
-        __previewCache.currentRot = 0;
-
-        // clear arrays (items already removed with group)
-        __previewCache.items = [];
-        __previewCache.baseW = [];
-        __previewCache.baseH = [];
-
-        // remove bg
-        __SC_removeItemSafe(__previewCache.bgItem);
-        __previewCache.bgItem = null;
-
-        __previewCache.pagesKey = "";
-        __previewCache.cropMode = null;
-        __previewCache.previewWrapped = false;
-        __previewCache.previewRoundRadiusPt = 0;
-        __previewCache.randOrder = null;
-    }
-
-    // Remove any leftover preview group(s) by name (safety net)
-    function __SC_removePreviewGroupByName(doc) {
-        try {
-            if (!doc) return;
-            var name = '__SC_previewGroup__';
-            // Try multiple passes because removing changes indices
-            for (var pass = 0; pass < 3; pass++) {
-                var removed = false;
-                try {
-                    for (var i = doc.groupItems.length - 1; i >= 0; i--) {
-                        var g = doc.groupItems[i];
-                        if (g && g.name === name) {
-                            try { g.remove(); } catch (_) { }
-                            removed = true;
-                        }
-                    }
-                } catch (_) { }
-                if (!removed) break;
-            }
-        } catch (_) { }
-    }
-    function __SC_shuffleIndexArray(n) {
-        var a = [];
-        for (var i = 0; i < n; i++) a.push(i);
-        for (var j = a.length - 1; j > 0; j--) {
-            var k = Math.floor(Math.random() * (j + 1));
-            var t = a[j];
-            a[j] = a[k];
-            a[k] = t;
-        }
-        return a;
-    }
-
-    function __SC_ensureRandomOrder() {
-        var n = (__previewCache.items) ? __previewCache.items.length : 0;
-        if (n <= 1) { __previewCache.randOrder = null; return; }
-        if (!__previewCache.randOrder || __previewCache.randOrder.length !== n) {
-            __previewCache.randOrder = __SC_shuffleIndexArray(n);
-        }
-    }
-
-    function __SC_clearRandomOrder() {
-        __previewCache.randOrder = null;
-    }
-
     // 2. ダイアログボックスの作成
     var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
     win.alignChildren = "fill";
-
-    // セッション中のダイアログ位置を復元 / Restore dialog position in this session
-    __SC_applyDialogBounds(win);
-
-    // If no valid stored bounds, center as a safe fallback
-    try {
-        if (!__SC_loadDialogBounds()) {
-            win.center();
-        }
-    } catch (eCenter) { }
-
-    // 移動時に位置を記憶 / Remember position while moving
-    win.onMove = function () { __SC_saveDialogBounds(win.bounds); };
-    win.onMoving = function () { __SC_saveDialogBounds(win.bounds); };
+    win.center();
 
     // === 2カラム構成 ===
     var mainRow = win.add("group");
@@ -1049,7 +1004,7 @@ function main() {
 
         // Build target pages from 指定/総数/sourceCount
         var pages = [];
-        try { pages = __SC_getTargetPagesFromUI(); } catch (_) { pages = []; }
+        try { pages = getTargetPagesFromUI(); } catch (_) { pages = []; }
         if (!pages || pages.length === 0) pages = [1];
 
         // If Total is empty, show the resolved count
@@ -1059,9 +1014,9 @@ function main() {
         } catch (_) { }
 
         // Clear previous cache/items (and any leftovers)
-        try { __SC_clearPreviewCache(); } catch (_) { }
-        try { __SC_removePreviewGroupByName(doc); } catch (_) { }
-        try { previewItems = []; } catch (_) { }
+        __SC_clearPreviewCache(__previewCache);
+        __SC_removePreviewGroupByName(doc);
+        previewItems = [];
 
         // Create a persistent group to keep rotation/cleanup stable
         try {
@@ -1072,7 +1027,7 @@ function main() {
         }
 
         var cropMode = 2;
-        try { cropMode = __SC_getCropModeFromUI(); } catch (_) { cropMode = 2; }
+        try { cropMode = getCropModeFromUI(); } catch (_) { cropMode = 2; }
 
         __previewCache.items = [];
         __previewCache.baseW = [];
@@ -1114,18 +1069,16 @@ function main() {
         // Create / update background if enabled
         try {
             if (cbBg && cbBg.value) {
-                __previewCache.bgItem = __SC_drawArtboardBackground(doc, __SC_getBgRGBColorOrDefault());
+                __previewCache.bgItem = __SC_drawArtboardBackground(doc, getBgRGBColorOrDefault());
                 try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
             }
         } catch (_) { }
 
         // Apply current layout settings to the newly placed items
-        try {
-            __SC_applyLayoutToCachedItems();
-            var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
-            previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
-            app.redraw();
-        } catch (_) { }
+        applyLayoutToCachedItems();
+        var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
+        previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
+        app.redraw();
     };
 
     // Preserve intended import handler (legacy wiring later in the script may overwrite btnPreview.onClick)
@@ -1134,9 +1087,7 @@ function main() {
     function setPathText(f) {
         // Also update current source file reference (fileA)
         fileA = f || null;
-
-        // Update crop dropdown availability (crop is meaningful only for PDF)
-        try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (_) { }
+        initSourceDependentUI();
 
         try {
             if (f) {
@@ -1174,78 +1125,27 @@ function main() {
             } catch (_) {
                 // keep current __SC_autoTotal
             }
-            __TMKPageCount_updateTotalFromRange();
+            etTotal.text = PC.updateTotalFromRange(etRange.text, etTotal.text);
         }
     }
 
-    function __TMKPageCount_countFromRangeText(s) {
-        if (!s) return 0;
-        // normalize
-        s = String(s).replace(/\s+/g, '');
-        // allow Japanese brackets like [1-30]
-        s = s.replace(/^[\[\(\{\u3010\uFF3B]?/, '').replace(/[\]\)\}\u3011\uFF3D]?$/, '');
-        if (!s) return 0;
-
-        var parts = s.split(/[,\u3001]/); // comma or Japanese comma
-        var seen = {};
-        var count = 0;
-
-        for (var i = 0; i < parts.length; i++) {
-            var p = parts[i];
-            if (!p) continue;
-
-            // a-b
-            var m = p.match(/^(\d+)-(\d+)$/);
-            if (m) {
-                var a = parseInt(m[1], 10);
-                var b = parseInt(m[2], 10);
-                if (isNaN(a) || isNaN(b)) continue;
-                var step = (a <= b) ? 1 : -1;
-                for (var n = a; step > 0 ? n <= b : n >= b; n += step) {
-                    var key = String(n);
-                    if (!seen[key]) { seen[key] = true; count++; }
-                }
-                continue;
-            }
-
-            // single number
-            var v = parseInt(p, 10);
-            if (!isNaN(v)) {
-                var k = String(v);
-                if (!seen[k]) { seen[k] = true; count++; }
-            }
-        }
-
-        return count;
-    }
-
-    function __TMKPageCount_updateTotalFromRange() {
+    function initSourceDependentUI() {
         try {
-            var c = __TMKPageCount_countFromRangeText(etRange.text);
-            var cur = String(etTotal.text || '');
-
-            // Only auto-fill when Total is empty (fresh state).
-            // Never overwrite a user-entered value.
-            if (!cur) {
-                etTotal.text = c ? String(c) : '';
+            if (typeof ddCrop !== "undefined" && ddCrop) {
+                ddCrop.enabled = __SC_isPdfFile(fileA);
             }
         } catch (_) { }
     }
 
-    // Initial: try selection
-    __TMKPageCount_updateResultFromPlacedOrFile(doc, null, setPathText, setResultText);
-    // If selection had a placed item, setPathText would have set fileA.
-    // If still null, keep UI in a safe disabled state for PDF-only controls.
-    try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (_) { }
 
     btnBrowse.onClick = function () {
         var f = File.openDialog(L('dlgPickFile'), L('filterPick'));
         if (!f) return;
-        __TMKPageCount_updateResultFromPlacedOrFile(doc, f, setPathText, setResultText);
+        PC.updateResultFromPlacedOrFile(doc, f, setPathText, setResultText);
     };
 
     etRange.onChanging = function () {
-        __TMKPageCount_updateTotalFromRange();
+        etTotal.text = PC.updateTotalFromRange(etRange.text, etTotal.text);
     };
 
     etTotal.onChanging = function () {
@@ -1289,9 +1189,28 @@ function main() {
     // デフォルト：仕上がり
     ddCrop.selection = 2;
 
-    ddCrop.enabled = __SC_isPdfFile(fileA); // fileA may be null until a file is selected
+    initSourceDependentUI();
 
-    function __SC_getCropModeFromUI() {
+    // Initial: try selection
+    PC.updateResultFromPlacedOrFile(doc, null, setPathText, setResultText);
+    initSourceDependentUI();
+
+
+    function getTargetPagesFromUI() {
+        var specified = String(etRange.text || '');
+        var total = __SC_parsePositiveInt(etTotal.text);
+        var srcCount = 0;
+        try {
+            srcCount = (__SC_sourceCount > 0)
+                ? __SC_sourceCount
+                : __SC_getSourcePageCount(fileA);
+        } catch (_) {
+            srcCount = 0;
+        }
+        return __SC_buildTargetPages(specified, total, srcCount);
+    }
+
+    function getCropModeFromUI() {
         var idx = (ddCrop.selection) ? ddCrop.selection.index : 2;
         // 0:アート / 1:トリミング / 2:仕上がり / 3:裁ち落とし
         if (idx === 0) return __SC_CROP_ART;
@@ -1341,7 +1260,7 @@ function main() {
     rbDirV.value = true;
 
     // 0=横方向, 1=縦方向, 2=ランダム
-    function __SC_getFlowMode() {
+    function getFlowMode() {
         if (rbDirR.value) return 2;
         if (rbDirV.value) return 1;
         return 0;
@@ -1367,7 +1286,7 @@ function main() {
     var sldCols = groupCols.add("slider", undefined, 5, 0, 10);
     sldCols.preferredSize.width = SLIDER_W;
 
-    function __SC_syncColsFromEdit() {
+    function syncColsFromEdit() {
         var v = parseInt(editCols.text, 10);
         if (isNaN(v) || v < 0) v = 0;
         if (v > 10) v = 10;
@@ -1375,16 +1294,16 @@ function main() {
         sldCols.value = v;
     }
 
-    function __SC_syncColsFromSlider() {
+    function syncColsFromSlider() {
         var v = Math.round(sldCols.value);
         if (v < 0) v = 0;
         if (v > 10) v = 10;
         editCols.text = String(v);
     }
 
-    __SC_syncColsFromEdit();
-    editCols.onChanging = function () { __SC_syncColsFromEdit(); };
-    sldCols.onChanging = function () { __SC_syncColsFromSlider(); };
+    syncColsFromEdit();
+    editCols.onChanging = function () { syncColsFromEdit(); };
+    sldCols.onChanging = function () { syncColsFromSlider(); };
 
     // リアルタイムプレビュー（確定時）
 
@@ -1406,16 +1325,16 @@ function main() {
 
     // 間隔
 
-    function __SC_syncSpacingFromEdit() {
+    function syncSpacingFromEdit() {
         var v = parseFloat(editSpacing.text);
         if (isNaN(v) || v < 0) v = 0;
         if (v > 100) v = 100;
         v = __SC_round(v, 2);
         editSpacing.text = String(v);
-        try { sldSpacing.value = v; } catch (e) { }
+        sldSpacing.value = v;
     }
 
-    function __SC_syncSpacingFromSlider() {
+    function syncSpacingFromSlider() {
         var v = sldSpacing.value;
         if (isNaN(v) || v < 0) v = 0;
         if (v > 100) v = 100;
@@ -1424,11 +1343,11 @@ function main() {
     }
 
     // 初期同期
-    __SC_syncSpacingFromEdit();
+    syncSpacingFromEdit();
 
     // 連動
-    editSpacing.onChanging = function () { __SC_syncSpacingFromEdit(); };
-    sldSpacing.onChanging = function () { __SC_syncSpacingFromSlider(); };
+    editSpacing.onChanging = function () { syncSpacingFromEdit(); };
+    sldSpacing.onChanging = function () { syncSpacingFromSlider(); };
 
     // --- 偶数列パネル（配分/ずらし） ---
     var panelEven = rightCol.add("panel", undefined, L("panelEven"));
@@ -1478,7 +1397,7 @@ function main() {
     var sldColShift = groupColShift.add("slider", undefined, 0, -200, 200);
     sldColShift.preferredSize.width = SLIDER_W;
 
-    function __SC_syncShiftFromEdit() {
+    function syncShiftFromEdit() {
         var v = parseFloat(editColShift.text);
         if (isNaN(v)) v = 0;
         if (v < -200) v = -200;
@@ -1487,7 +1406,7 @@ function main() {
         sldColShift.value = v;
     }
 
-    function __SC_syncShiftFromSlider() {
+    function syncShiftFromSlider() {
         var v = sldColShift.value;
         v = Math.round(v);
         if (v < -200) v = -200;
@@ -1495,10 +1414,10 @@ function main() {
         editColShift.text = String(v);
     }
 
-    __SC_syncShiftFromEdit();
+    syncShiftFromEdit();
 
-    editColShift.onChanging = function () { __SC_syncShiftFromEdit(); };
-    sldColShift.onChanging = function () { __SC_syncShiftFromSlider(); };
+    editColShift.onChanging = function () { syncShiftFromEdit(); };
+    sldColShift.onChanging = function () { syncShiftFromSlider(); };
 
     // 初期状態
     editColShift.enabled = cbColShift.value;
@@ -1535,13 +1454,13 @@ function main() {
     var editBgHex = groupBg.add("edittext", undefined, L("defaultHex"));
     editBgHex.characters = 7;
 
-    function __SC_makeRGBColor(r, g, b) {
+    function makeRGBColor(r, g, b) {
         var c = new RGBColor();
         c.red = r; c.green = g; c.blue = b;
         return c;
     }
 
-    function __SC_parseHexToRGBColor(hexStr) {
+    function parseHexToRGBColor(hexStr) {
         var s = String(hexStr || "").replace(/^\s+|\s+$/g, "");
         if (s.charAt(0) !== "#") s = "#" + s;
         if (!/^#[0-9a-fA-F]{6}$/.test(s)) return null;
@@ -1549,10 +1468,10 @@ function main() {
         var g = parseInt(s.substr(3, 2), 16);
         var b = parseInt(s.substr(5, 2), 16);
         if (isNaN(r) || isNaN(g) || isNaN(b)) return null;
-        return __SC_makeRGBColor(r, g, b);
+        return makeRGBColor(r, g, b);
     }
 
-    function __SC_setSwatchRGB(r, g, b) {
+    function setSwatchRGB(r, g, b) {
         try {
             var gg = colorSwatch.graphics;
             gg.backgroundColor = gg.newBrush(gg.BrushType.SOLID_COLOR, [r / 255, g / 255, b / 255, 1]);
@@ -1560,36 +1479,35 @@ function main() {
         } catch (e) { }
     }
 
-    function __SC_getBgRGBColorOrDefault() {
-        var c = __SC_parseHexToRGBColor(editBgHex.text);
+    function getBgRGBColorOrDefault() {
+        var c = parseHexToRGBColor(editBgHex.text);
         if (c) return c;
-        return __SC_makeRGBColor(0, 0, 0);
+        return makeRGBColor(0, 0, 0);
     }
 
-    function __SC_updateBgControls() {
+    function updateBgControls() {
         var en = cbBg.value;
-        try { colorSwatch.enabled = en; } catch (e) { }
-        try { editBgHex.enabled = en; } catch (e2) { }
+        colorSwatch.enabled = en;
+        editBgHex.enabled = en;
 
-        // swatch preview
-        var c = __SC_getBgRGBColorOrDefault();
-        __SC_setSwatchRGB(c.red, c.green, c.blue);
+        var c = getBgRGBColorOrDefault();
+        setSwatchRGB(c.red, c.green, c.blue);
     }
 
-    __SC_updateBgControls();
+    updateBgControls();
 
     cbBg.onClick = function () {
-        __SC_updateBgControls();
+        updateBgControls();
     };
 
     // HEX は入力確定時だけでOK（重くしない）
     editBgHex.onChange = function () {
-        __SC_updateBgControls();
+        updateBgControls();
     };
 
     // --- カラーピッカー（スウォッチクリック） ---
-    function __SC_openBgColorPicker() {
-        var init = __SC_getBgRGBColorOrDefault();
+    function openBgColorPicker() {
+        var init = getBgRGBColorOrDefault();
         var c = new RGBColor();
         c.red = init.red;
         c.green = init.green;
@@ -1602,18 +1520,18 @@ function main() {
             }
             var hex = "#" + toHex(c.red) + toHex(c.green) + toHex(c.blue);
             editBgHex.text = hex;
-            __SC_updateBgControls();
-            try { __SC_updateBgOnly(); } catch (e) { }
+            updateBgControls();
+            try { updateBgOnly(); } catch (e) { }
         }
     }
 
     colorSwatch.onClick = function () {
-        __SC_openBgColorPicker();
+        openBgColorPicker();
     };
 
     try {
         colorSwatch.addEventListener("mousedown", function () {
-            __SC_openBgColorPicker();
+            openBgColorPicker();
         });
     } catch (e) { }
 
@@ -1647,30 +1565,26 @@ function main() {
     editMaskRound.enabled = cbMask.value && cbMaskRound.value;
 
     // --- mask-round UI enable/disable helper and hook ---
-    function __SC_updateMaskRoundUI() {
-        try {
-            var en = !!cbMask.value;
-            groupMaskRound.enabled = en;
-            // Ensure inner input reflects both mask and checkbox
-            editMaskRound.enabled = en && cbMaskRound.value;
-        } catch (e) { }
+    function updateMaskRoundUI() {
+        var en = !!cbMask.value;
+        groupMaskRound.enabled = en;
+        // Ensure inner input reflects both mask and checkbox
+        editMaskRound.enabled = en && cbMaskRound.value;
     }
 
     // --- mask & margin/mask-round UI helper ---
-    function __SC_updateMaskUI() {
-        try {
-            var en = !!cbMask.value;
-            groupMargin.enabled = en;
-        } catch (e0) { }
-        try { __SC_updateMaskRoundUI(); } catch (e1) { }
+    function updateMaskUI() {
+        var en = !!cbMask.value;
+        groupMargin.enabled = en;
+        updateMaskRoundUI();
     }
 
     // 初期状態（マスクOFFならディム）
-    __SC_updateMaskUI();
+    updateMaskUI();
 
     // マスク切替で追従
     cbMask.onClick = function () {
-        __SC_updateMaskUI();
+        updateMaskUI();
     };
 
     cbMaskRound.onClick = function () {
@@ -1699,17 +1613,17 @@ function main() {
     var sldScale = groupScale.add("slider", undefined, 100, 10, 250);
     sldScale.preferredSize.width = SLIDER_W;
 
-    function __SC_syncScaleFromEdit() {
+    function syncScaleFromEdit() {
         var v = parseFloat(editScale.text);
         if (isNaN(v)) v = 100;
         if (v < 10) v = 10;
         if (v > 250) v = 250;
         v = Math.round(v);
         editScale.text = String(v);
-        try { sldScale.value = v; } catch (e) { }
+        sldScale.value = v;
     }
 
-    function __SC_syncScaleFromSlider() {
+    function syncScaleFromSlider() {
         var v = Math.round(sldScale.value);
         if (v < 10) v = 10;
         if (v > 250) v = 250;
@@ -1717,13 +1631,19 @@ function main() {
     }
 
     // 初期同期
-    __SC_syncScaleFromEdit();
+    syncScaleFromEdit();
 
     // 連動
-    editScale.onChanging = function () { __SC_syncScaleFromEdit(); };
-    sldScale.onChanging = function () { __SC_syncScaleFromSlider(); };
+    editScale.onChanging = function () {
+        syncScaleFromEdit();
+        updatePreview();
+    };
+    sldScale.onChanging = function () {
+        syncScaleFromSlider();
+        updatePreview();
+    };
 
-    // リアルタイムプレビュー（確定時）
+    // リアルタイムプレビュー
 
     // スケールUIは常に操作可能（自動フィットのロジックは維持）
     editScale.enabled = true;
@@ -1755,17 +1675,17 @@ function main() {
     var sldRotate = groupRotate.add("slider", undefined, -12, -30, 30);
     sldRotate.preferredSize.width = SLIDER_W;
 
-    function __SC_syncRotateFromEdit() {
+    function syncRotateFromEdit() {
         var v = parseFloat(editRotate.text);
         if (isNaN(v)) v = 0;
         if (v < -30) v = -30;
         if (v > 30) v = 30;
         v = Math.round(v);
         editRotate.text = String(v);
-        try { sldRotate.value = v; } catch (e) { }
+        sldRotate.value = v;
     }
 
-    function __SC_syncRotateFromSlider() {
+    function syncRotateFromSlider() {
         var v = sldRotate.value;
         v = Math.round(v);
         if (v < -30) v = -30;
@@ -1774,13 +1694,19 @@ function main() {
     }
 
     // 初期同期
-    __SC_syncRotateFromEdit();
+    syncRotateFromEdit();
 
     // 連動
-    editRotate.onChanging = function () { __SC_syncRotateFromEdit(); };
-    sldRotate.onChanging = function () { __SC_syncRotateFromSlider(); };
+    editRotate.onChanging = function () {
+        syncRotateFromEdit();
+        updatePreview();
+    };
+    sldRotate.onChanging = function () {
+        syncRotateFromSlider();
+        updatePreview();
+    };
 
-    // リアルタイムプレビュー（確定時）
+    // リアルタイムプレビュー
 
     // 初期状態
     editRotate.enabled = cbRotate.value;
@@ -1789,6 +1715,7 @@ function main() {
     cbRotate.onClick = function () {
         editRotate.enabled = cbRotate.value;
         sldRotate.enabled = cbRotate.value;
+        updatePreview();
     };
 
     // 位置調整スライダー範囲（アートボードサイズに合わせる）
@@ -1823,10 +1750,8 @@ function main() {
 
     var sldOffsetX = groupOffsetX.add("slider", undefined, 0, -__abSizeUnit.x, __abSizeUnit.x);
     sldOffsetX.preferredSize.width = SLIDER_W;
-    try {
-        if (sldOffsetX.value < -__abSizeUnit.x) sldOffsetX.value = -__abSizeUnit.x;
-        if (sldOffsetX.value > __abSizeUnit.x) sldOffsetX.value = __abSizeUnit.x;
-    } catch (e) { }
+    if (sldOffsetX.value < -__abSizeUnit.x) sldOffsetX.value = -__abSizeUnit.x;
+    if (sldOffsetX.value > __abSizeUnit.x) sldOffsetX.value = __abSizeUnit.x;
     sldOffsetX.enabled = cbOffsetX.value;
     cbOffsetX.onClick = function () {
         sldOffsetX.enabled = cbOffsetX.value;
@@ -1845,10 +1770,8 @@ function main() {
 
     var sldOffsetY = groupOffsetY.add("slider", undefined, 0, -__abSizeUnit.y, __abSizeUnit.y);
     sldOffsetY.preferredSize.width = SLIDER_W;
-    try {
-        if (sldOffsetY.value < -__abSizeUnit.y) sldOffsetY.value = -__abSizeUnit.y;
-        if (sldOffsetY.value > __abSizeUnit.y) sldOffsetY.value = __abSizeUnit.y;
-    } catch (e) { }
+    if (sldOffsetY.value < -__abSizeUnit.y) sldOffsetY.value = -__abSizeUnit.y;
+    if (sldOffsetY.value > __abSizeUnit.y) sldOffsetY.value = __abSizeUnit.y;
     sldOffsetY.enabled = cbOffsetY.value;
     cbOffsetY.onClick = function () {
         sldOffsetY.enabled = cbOffsetY.value;
@@ -1861,7 +1784,7 @@ function main() {
     // defaultShift = (A + 間隔) / 2
     // -----------------------------------------
 
-    function __SC_getArtboardInnerSizePt(marginPt) {
+    function getArtboardInnerSizePt(marginPt) {
         var activeAB = doc.artboards[doc.artboards.getActiveArtboardIndex()];
         var abRect = activeAB.artboardRect; // [left, top, right, bottom]
         var abW = Math.abs(abRect[2] - abRect[0]);
@@ -1874,16 +1797,16 @@ function main() {
         return { w: abW, h: abH };
     }
 
-    function __SC_calcAutoScalePctForUI(pages, colsNum, gapPt, marginPt, rotateEnabled, rotateDeg) {
+    function calcAutoScalePctForUI(pages, colsNum, gapPt, marginPt, rotateEnabled, rotateDeg) {
         if (!pages || pages.length === 0) return 100;
 
-        var inner = __SC_getArtboardInnerSizePt(marginPt);
+        var inner = getArtboardInnerSizePt(marginPt);
         var abW = inner.w;
         var abH = inner.h;
 
         var w = 0, h = 0;
         var pageNum0 = pages[0];
-        var cropMode0 = __SC_getCropModeFromUI();
+        var cropMode0 = getCropModeFromUI();
 
         var cached = __SC_getAutoFitMeasure(fileA, cropMode0, pageNum0);
         if (cached) {
@@ -1941,10 +1864,11 @@ function main() {
         return pct;
     }
 
-    function __SC_calcDefaultColShiftPt() {
+    function calcDefaultColShiftPt() {
         var pages = parsePageNumbers(editPages.text);
 
         // Repeat pages/artboards when requested count exceeds source count
+
         try {
             var srcCount = __SC_getSourcePageCount(fileA);
             if (srcCount > 0) {
@@ -1975,7 +1899,7 @@ function main() {
 
         var baseScale = 100;
         if (AUTO_FIT_ENABLED) {
-            baseScale = __SC_calcAutoScalePctForUI(pages, colsNum, spacingPt, marginPt, rotateEnabled, rot);
+            baseScale = calcAutoScalePctForUI(pages, colsNum, spacingPt, marginPt, rotateEnabled, rot);
         }
 
         var scalePct = baseScale * (userScale / 100.0);
@@ -1985,7 +1909,7 @@ function main() {
         var h = 0;
         try {
             if (__SC_isPdfLikeFile(fileA)) {
-                __SC_setPdfCropPreference(__SC_getCropModeFromUI());
+                __SC_setPdfCropPreference(getCropModeFromUI());
             }
             __SC_setImportPageNumber(fileA, pages[0]);
             temp = doc.placedItems.add();
@@ -2009,7 +1933,7 @@ function main() {
     // fileA 未選択の状態では計算できないため、選択後（読み込み時）に計算する
     try {
         if (fileA) {
-            var defShiftPt = __SC_calcDefaultColShiftPt();
+            var defShiftPt = calcDefaultColShiftPt();
             var defShiftUnit = __SC_ptToUnit(defShiftPt, rulerUnit.factor);
             editColShift.text = String(__SC_round(defShiftUnit, 2));
         }
@@ -2024,7 +1948,7 @@ function main() {
     var __zoomState = __TMKZoom_captureViewState(doc);
 
     // Ensure import button uses the intended handler (supports Total)
-    try { if (__SC_importHandler) btnPreview.onClick = __SC_importHandler; } catch (_) { }
+    if (__SC_importHandler) btnPreview.onClick = __SC_importHandler;
 
     var zoomCtrl = __TMKZoom_addControls(win, doc, L("zoom"), __zoomState, {
         min: 0.1,
@@ -2085,10 +2009,10 @@ function main() {
 
             // 列数: 4
             editCols.text = "4";
-            __SC_syncColsFromEdit();
+            syncColsFromEdit();
 
             editSpacing.text = String(__SC_round(__SC_ptToUnit(DEFAULT_SPACING_PT, rulerUnit.factor), 2));
-            __SC_syncSpacingFromEdit();
+            syncSpacingFromEdit();
 
             // Even columns
             cbEvenPlus.value = false;
@@ -2096,18 +2020,18 @@ function main() {
             // ずらし: OFF
             cbColShift.value = false;
             editColShift.text = L("defaultShift");
-            __SC_syncShiftFromEdit();
+            syncShiftFromEdit();
             editColShift.enabled = cbColShift.value;
             sldColShift.enabled = cbColShift.value;
 
             // Layout
             editScale.text = L("defaultScale");
-            __SC_syncScaleFromEdit();
+            syncScaleFromEdit();
 
             // 回転: OFF
             cbRotate.value = false;
             editRotate.text = L("defaultRotate");
-            __SC_syncRotateFromEdit();
+            syncRotateFromEdit();
             editRotate.enabled = cbRotate.value;
             sldRotate.enabled = cbRotate.value;
 
@@ -2137,10 +2061,10 @@ function main() {
                 var spacingPt = __SC_unitToPt(spacingU, rulerUnit.factor);
                 var marginPt = __SC_unitToPt(marginU, rulerUnit.factor);
 
-                var cropMode = __SC_getCropModeFromUI();
+                var cropMode = getCropModeFromUI();
 
                 // Base auto-fit scale (rotation OFF for reset)
-                var baseScale = __SC_calcAutoScalePctForUI(pagesForCenter, colsForCenter, spacingPt, marginPt, false, 0);
+                var baseScale = calcAutoScalePctForUI(pagesForCenter, colsForCenter, spacingPt, marginPt, false, 0);
                 var userScale = parseFloat(editScale.text);
                 if (isNaN(userScale) || userScale <= 0) userScale = 100;
                 var finalScale = baseScale * (userScale / 100.0);
@@ -2200,13 +2124,13 @@ function main() {
             // Artboard & Mask
             cbBg.value = true;
             editBgHex.text = L("defaultHex");
-            __SC_updateBgControls();
+            updateBgControls();
 
             cbMask.value = true;
             // margin back to default
             editMargin.text = String(__SC_round(__SC_ptToUnit(DEFAULT_MARGIN_PT, rulerUnit.factor), 2));
             // update mask UI states
-            __SC_updateMaskUI();
+            updateMaskUI();
 
             cbMaskRound.value = false;
             editMaskRound.text = "20";
@@ -2221,16 +2145,14 @@ function main() {
 
         // If already loaded, re-apply layout immediately
         if (__previewCache.items && __previewCache.items.length > 0) {
-            try {
-                __SC_applyLayoutToCachedItems();
-                var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
-                previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
-                app.redraw();
-            } catch (_) { }
+            applyLayoutToCachedItems();
+            var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
+            previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
+            app.redraw();
         }
     };
 
-    function __SC_calcAutoFitPctFromWH(w, h, total, colsNum, gapPt, abW, abH, evenPlusEnabled, doColShift, colShiftPt, doRotate, rotDeg) {
+    function calcAutoFitPctFromWH(w, h, total, colsNum, gapPt, abW, abH, evenPlusEnabled, doColShift, colShiftPt, doRotate, rotDeg) {
         if (!(w > 0 && h > 0)) return 100;
         if (!(colsNum > 0)) colsNum = 1;
 
@@ -2279,7 +2201,7 @@ function main() {
         return pct;
     }
 
-    function __SC_applyLayoutToCachedItems() {
+    function applyLayoutToCachedItems() {
         if (!__previewCache.items || __previewCache.items.length === 0) return;
 
         // Artboard inner rect (margin excluded)
@@ -2313,12 +2235,12 @@ function main() {
         if (isNaN(colShiftUnit)) colShiftUnit = 0;
         var colShiftPt = __SC_unitToPt(colShiftUnit, rulerUnit.factor);
 
-        var flowMode = __SC_getFlowMode();
+        var flowMode = getFlowMode();
         // Random mode: prepare a persistent shuffle order
         if (flowMode === 2) {
-            __SC_ensureRandomOrder();
+            __SC_ensureRandomOrder(__previewCache);
         } else {
-            __SC_clearRandomOrder();
+            __SC_clearRandomOrder(__previewCache);
         }
         var evenPlusEnabled = !!cbEvenPlus.value;
 
@@ -2334,7 +2256,7 @@ function main() {
         var w0 = __previewCache.baseW[0] || __previewCache.items[0].width;
         var h0 = __previewCache.baseH[0] || __previewCache.items[0].height;
 
-        var baseScale = __SC_calcAutoFitPctFromWH(w0, h0, __previewCache.items.length, colsNum, gapPt, abW, abH, evenPlusEnabled, doColShift, colShiftPt, doRotate, rot);
+        var baseScale = calcAutoFitPctFromWH(w0, h0, __previewCache.items.length, colsNum, gapPt, abW, abH, evenPlusEnabled, doColShift, colShiftPt, doRotate, rot);
         var finalScale = baseScale * (userScale / 100.0);
 
         // Even+1 slot heights (slot table) to compute col/row mapping
@@ -2373,7 +2295,7 @@ function main() {
         // Update background fill if enabled
         try {
             if (cbBg.value && __previewCache.bgItem) {
-                __previewCache.bgItem.fillColor = __SC_getBgRGBColorOrDefault();
+                __previewCache.bgItem.fillColor = getBgRGBColorOrDefault();
             }
         } catch (_) { }
 
@@ -2496,9 +2418,9 @@ function main() {
         app.redraw();
     }
 
-    function __SC_updateBgOnly() {
+    function updateBgOnly() {
         try {
-            // 読み込み前ならキャンバス更新不要（UI側は __SC_updateBgControls がやる）
+            // 読み込み前ならキャンバス更新不要（UI側は updateBgControls がやる）
             if (!__previewCache.items || __previewCache.items.length === 0) {
                 try { app.redraw(); } catch (_) { }
                 return;
@@ -2508,20 +2430,20 @@ function main() {
                 // 背景ON：bgItemが無ければ作る
                 if (!__previewCache.bgItem) {
                     try {
-                        __previewCache.bgItem = __SC_drawArtboardBackground(doc, __SC_getBgRGBColorOrDefault());
+                        __previewCache.bgItem = __SC_drawArtboardBackground(doc, getBgRGBColorOrDefault());
                     } catch (_) {
                         __previewCache.bgItem = null;
                     }
                 }
                 // 色だけ更新
                 if (__previewCache.bgItem) {
-                    try { __previewCache.bgItem.fillColor = __SC_getBgRGBColorOrDefault(); } catch (_) { }
+                    try { __previewCache.bgItem.fillColor = getBgRGBColorOrDefault(); } catch (_) { }
                     try { __previewCache.bgItem.zOrder(ZOrderMethod.SENDTOBACK); } catch (_) { }
                 }
             } else {
                 // 背景OFF：bgItemを消す
                 if (__previewCache.bgItem) {
-                    __SC_removeItemSafe(__previewCache.bgItem);
+                    removeItemSafe(__previewCache.bgItem);
                     __previewCache.bgItem = null;
                 }
             }
@@ -2549,7 +2471,7 @@ function main() {
     function __SC_updatePreviewImpl() {
         // 既存キャッシュがある場合は再配置せず更新
         if (__previewCache.items && __previewCache.items.length > 0) {
-            __SC_applyLayoutToCachedItems();
+            applyLayoutToCachedItems();
             // Keep previewItems for cancel/cleanup paths
             var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
             previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
@@ -2597,24 +2519,24 @@ function main() {
         cbRound.onClick = function () { _oldRound(); requestPreview(); };
 
         // グリッド：方向
-        rbDirH.onClick = function () { __SC_clearRandomOrder(); requestPreview(); };
-        rbDirV.onClick = function () { __SC_clearRandomOrder(); requestPreview(); };
-        rbDirR.onClick = function () { __SC_clearRandomOrder(); requestPreview(); };
+        rbDirH.onClick = function () { __SC_clearRandomOrder(__previewCache); requestPreview(); };
+        rbDirV.onClick = function () { __SC_clearRandomOrder(__previewCache); requestPreview(); };
+        rbDirR.onClick = function () { __SC_clearRandomOrder(__previewCache); requestPreview(); };
 
         // グリッド：偶数列＋1
         cbEvenPlus.onClick = function () { requestPreview(); };
 
         // グリッド：列数
-        editCols.onChange = function () { __SC_syncColsFromEdit(); requestPreview(); };
-        sldCols.onChange = function () { __SC_syncColsFromSlider(); requestPreview(); };
+        editCols.onChange = function () { syncColsFromEdit(); requestPreview(); };
+        sldCols.onChange = function () { syncColsFromSlider(); requestPreview(); };
 
         // グリッド：間隔
-        editSpacing.onChange = function () { __SC_syncSpacingFromEdit(); requestPreview(); };
-        sldSpacing.onChange = function () { __SC_syncSpacingFromSlider(); requestPreview(); };
+        editSpacing.onChange = function () { syncSpacingFromEdit(); requestPreview(); };
+        sldSpacing.onChange = function () { syncSpacingFromSlider(); requestPreview(); };
 
         // グリッド：ズレ
-        editColShift.onChange = function () { __SC_syncShiftFromEdit(); requestPreview(); };
-        sldColShift.onChange = function () { __SC_syncShiftFromSlider(); requestPreview(); };
+        editColShift.onChange = function () { syncShiftFromEdit(); requestPreview(); };
+        sldColShift.onChange = function () { syncShiftFromSlider(); requestPreview(); };
         var _oldShift = cbColShift.onClick;
         cbColShift.onClick = function () { _oldShift(); requestPreview(); };
 
@@ -2622,14 +2544,14 @@ function main() {
         editMargin.onChange = function () { requestPreview(); };
         var _oldBg = cbBg.onClick;
         cbBg.onClick = function () {
-            if (_oldBg) _oldBg();        // __SC_updateBgControls()
-            __SC_updateBgOnly();         // レイアウト再計算しない
+            if (_oldBg) _oldBg();        // updateBgControls()
+            updateBgOnly();         // レイアウト再計算しない
         };
 
         var _oldHex = editBgHex.onChange;
         editBgHex.onChange = function () {
-            if (_oldHex) _oldHex();      // __SC_updateBgControls()
-            __SC_updateBgOnly();         // レイアウト再計算しない
+            if (_oldHex) _oldHex();      // updateBgControls()
+            updateBgOnly();         // レイアウト再計算しない
         };
 
         // 右カラム：レイアウト
@@ -2717,9 +2639,9 @@ function main() {
     }
 
     // Apply to edit fields (do NOT apply to editPages)
-    changeValueByArrowKey(editCols, false, function () { __SC_syncColsFromEdit(); requestPreview(); });
-    changeValueByArrowKey(editSpacing, false, function () { __SC_syncSpacingFromEdit(); requestPreview(); });
-    changeValueByArrowKey(editColShift, true, function () { __SC_syncShiftFromEdit(); requestPreview(); });
+    changeValueByArrowKey(editCols, false, function () { syncColsFromEdit(); requestPreview(); });
+    changeValueByArrowKey(editSpacing, false, function () { syncSpacingFromEdit(); requestPreview(); });
+    changeValueByArrowKey(editColShift, true, function () { syncShiftFromEdit(); requestPreview(); });
     changeValueByArrowKey(editScale, false, function () { __SC_syncScaleFromEdit(); requestPreview(); });
     changeValueByArrowKey(editRotate, true, function () { __SC_syncRotateFromEdit(); requestPreview(); });
 
@@ -2813,7 +2735,7 @@ function main() {
         var bg = doc.activeLayer.pathItems.rectangle(top, left, w, h);
         bg.stroked = false;
         bg.filled = true;
-        bg.fillColor = fillColor || __SC_makeRGBColor(0, 0, 0);
+        bg.fillColor = fillColor || makeRGBColor(0, 0, 0);
 
         try { bg.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
         return bg;
@@ -3253,24 +3175,24 @@ function main() {
     // プレビューボタン
     btnPreview.onClick = function () {
         // Rebuild cache on explicit load
-        __SC_clearPreviewCache();
+        __SC_clearPreviewCache(__previewCache);
 
         var pages = parsePageNumbers(editPages.text);
         // Repeat pages/artboards when requested count exceeds source count
         try {
-            var srcCount = __SC_getSourcePageCount(fileA);
+            var srcCount = getSourcePageCount(fileA);
             if (srcCount > 0) {
-                pages = __SC_repeatPagesWithinCount(pages, srcCount);
+                pages = repeatPagesWithinCount(pages, srcCount);
             }
         } catch (_) { }
         if (!pages || pages.length === 0) return;
 
-        var cropMode = __SC_getCropModeFromUI();
+        var cropMode = getCropModeFromUI();
 
         // Background (always created on load if enabled)
         if (cbBg.value) {
             try {
-                __previewCache.bgItem = __SC_drawArtboardBackground(doc, __SC_getBgRGBColorOrDefault());
+                __previewCache.bgItem = __SC_drawArtboardBackground(doc, getBgRGBColorOrDefault());
             } catch (_) {
                 __previewCache.bgItem = null;
             }
@@ -3311,7 +3233,7 @@ function main() {
         }
 
         // Apply layout immediately
-        __SC_applyLayoutToCachedItems();
+        applyLayoutToCachedItems();
         var core = (__previewCache.group ? [__previewCache.group] : __previewCache.items);
         previewItems = (__previewCache.bgItem ? [__previewCache.bgItem].concat(core) : core);
     };
@@ -3327,7 +3249,7 @@ function main() {
         } catch (_) { }
 
         // Preview cache removal is enough (clearPreview() would early-return when cache exists)
-        __SC_clearPreviewCache();
+        __SC_clearPreviewCache(__previewCache);
 
         try { if (zoomCtrl) zoomCtrl.restoreInitial(); } catch (eZ) { }
         __SC_saveDialogBounds(win.bounds);
@@ -3338,7 +3260,7 @@ function main() {
     btnOk.onClick = function () {
         // ★ プレビュー用キャッシュを完全削除（これがないと2セットになる）
         try {
-            __SC_clearPreviewCache();
+            __SC_clearPreviewCache(__previewCache);
         } catch (_) { }
 
         __SC_saveDialogBounds(win.bounds);
@@ -3349,9 +3271,9 @@ function main() {
         var finalPages = parsePageNumbers(editPages.text);
         // Repeat pages/artboards when requested count exceeds source count
         try {
-            var srcCount2 = __SC_getSourcePageCount(fileA);
+            var srcCount2 = getSourcePageCount(fileA);
             if (srcCount2 > 0) {
-                finalPages = __SC_repeatPagesWithinCount(finalPages, srcCount2);
+                finalPages = repeatPagesWithinCount(finalPages, srcCount2);
             }
         } catch (_) { }
         var finalCols = parseInt(editCols.text, 10) || 5;
@@ -3383,9 +3305,9 @@ function main() {
         if (isNaN(finalRoundUnit) || finalRoundUnit < 0) finalRoundUnit = 0;
         var finalRoundPt = __SC_unitToPt(finalRoundUnit, rulerUnit.factor);
 
-        var cropMode = __SC_getCropModeFromUI();
-        var bgFillColor = __SC_getBgRGBColorOrDefault();
-        var res = placeArtboards(finalPages, finalCols, finalSpacing, finalScalePct, AUTO_FIT_ENABLED, finalMargin, cbColShift.value, finalColShiftPt, cbRotate.value, finalRot, cbBg.value, bgFillColor, cropMode, finalOffsetXPt, finalOffsetYPt, __SC_getFlowMode(), cbEvenPlus.value, finalRoundEnabled, finalRoundPt, false);
+        var cropMode = getCropModeFromUI();
+        var bgFillColor = getBgRGBColorOrDefault();
+        var res = placeArtboards(finalPages, finalCols, finalSpacing, finalScalePct, AUTO_FIT_ENABLED, finalMargin, cbColShift.value, finalColShiftPt, cbRotate.value, finalRot, cbBg.value, bgFillColor, cropMode, finalOffsetXPt, finalOffsetYPt, getFlowMode(), cbEvenPlus.value, finalRoundEnabled, finalRoundPt, false);
 
         // OK時のみ：マージン内側で配置物をマスク（背景は含めない）
         if (cbMask.value && res && res.maskItems && res.maskItems.length > 0) {
@@ -3402,6 +3324,7 @@ function main() {
             }
         }
     }
+
 
     // ダイアログ終了後に選択解除 / Clear selection after closing dialog
     try { doc.selection = null; } catch (eSel) { }
