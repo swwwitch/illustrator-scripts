@@ -2,41 +2,59 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * SlideCollage-mihiraki.jsx
+ * PDFAISpreadImporter.jsx
  *
  * 概要:
- * PDF/AIファイルを指定したページ範囲で配置し、各ページを個別のアートボードとして展開します。
- * 横長ページは見開きとみなして左右に分割し、綴じ方向（右綴じ/左綴じ）に応じた順序で配置できます。
- * PDFではトリミング設定を選択でき、選択中の配置画像または指定ファイルからページ数を推定して
- * ページ範囲欄へ反映します。ダイアログ位置はセッション中のみ記憶します。
+ * PDF/AIファイルを指定したページ範囲で読み込み、新規ドキュメント上に各ページを
+ * 個別のアートボードとして配置します。
  *
- * 更新日: 2026-03-17
+ * 横長ページは見開きとして自動判定し、左右2つのアートボードに分割して配置します。
+ * 偶数ページの位置は 右 / 左 から選択でき、見開きページの配置順序に反映されます。
+ *
+ * PDFではトリミング設定（アート / トリミング / 仕上がり / 裁ち落とし）を選択可能です。
+ * 選択中の配置画像、または指定ファイルからページ数を推定し、ページ範囲に反映します。
+ *
+ * 新規ドキュメントのカラーモードは CMYK / RGB から選択できます。
+ * アートボード間隔は 100 pt 固定、ラスタライズ効果解像度は 300 ppi 固定です。
+ *
+ * 配置完了後は、生成されたすべてのアートボードが見えるように表示倍率を自動調整します。
+ *
+ * 更新日: 2026-03-18
  */
 
 // =========================================
-// Version & Localization
+// バージョンとローカライズ
 // =========================================
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1.0";
+
+// 生成されるアートボード間のデフォルト間隔（pt）
+var DEFAULT_ARTBOARD_GAP = 100;
+
+// 新規出力ドキュメントのデフォルト・ラスタライズ効果解像度（ppi）
+var DEFAULT_RASTER_EFFECTS_RESOLUTION = 300;
+
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
+/* 日英ラベル定義 */
+
 var LABELS = {
     dialogTitle: {
-        ja: "スライドコラージュ（見開き対応）",
-        en: "Slide Collage (Spread Support)"
+        ja: "PDF/AI見開き配置",
+        en: "PDF/AI Spread Placement"
     },
 
-    // Panels
+    // パネル
     panelLoad: { ja: "アートボード", en: "Artboards" },
     panelSource: { ja: "読み込みファイル", en: "Source File" },
-    panelItem: { ja: "アイテム", en: "Items" },
+    panelItem: { ja: "配置方法", en: "Placement" },
+    panelNewDoc: { ja: "新規ドキュメント", en: "New Document" },
 
-    // Load panel
+    // 読み込みパネル
     btnLoad: { ja: "ファイル指定", en: "Select File" },
     range: { ja: "指定", en: "Range" },
     dlgPickFile: { ja: "PDF/AIを選択してください", en: "Select a PDF/AI" },
@@ -46,25 +64,29 @@ var LABELS = {
     alertPickPdfAi: { ja: "PDFまたはAIファイルを選択してください。", en: "Please select a PDF or AI file." },
     notSelected: { ja: "未指定", en: "Not selected" },
 
-    // Binding direction
-    bindR2L: { ja: "右綴じ", en: "Right-to-Left" },
-    bindL2R: { ja: "左綴じ", en: "Left-to-Right" },
+    // 綴じ方向
+    bindR2L: { ja: "右", en: "Right" },
+    bindL2R: { ja: "左", en: "Left" },
+    evenPage: { ja: "偶数ページ:", en: "Even Pages:" },
+    colorMode: { ja: "カラーモード", en: "Color Mode" },
+    colorModeCMYK: { ja: "CMYK", en: "CMYK" },
+    colorModeRGB: { ja: "RGB", en: "RGB" },
 
-    // Item panel
+    // 配置方法パネル
     cropArt: { ja: "アート", en: "Art" },
     cropTrim: { ja: "トリミング", en: "Trim" },
     cropCrop: { ja: "仕上がり", en: "Crop" },
     cropBleed: { ja: "裁ち落とし", en: "Bleed" },
 
-    // Buttons
+    // ボタン
     cancel: { ja: "キャンセル", en: "Cancel" },
     ok: { ja: "OK", en: "OK" },
 
-    // File / Alerts
+    // ファイル / アラート
     alertNeedDoc: { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running." },
     alertPlaceError: { ja: "配置中にエラーが発生しました。", en: "An error occurred while placing the pages." },
     alertNeedFile: { ja: "先に［ファイル指定］で読み込みファイルを選択してください。", en: "Please select a source file first." },
-
+    errorDetails: { ja: "詳細:", en: "Details:" },
 };
 
 function L(key) {
@@ -73,61 +95,252 @@ function L(key) {
     return o[lang] || o.en || o.ja || key;
 }
 
-// Safe alert helper (used by __TMKPageCount_ module)
-if (typeof safeAlertKey === "undefined") {
-    var safeAlertKey = function (key) {
-        try { alert(L(key)); } catch (_) { }
+// アラート補助
+function SC_getErrorDetailText(e) {
+    if (e === undefined || e === null) return "";
+    try {
+        if (typeof e === "string") return e;
+        if (e && e.message) return String(e.message);
+        return String(e);
+    } catch (_) {
+        return "";
+    }
+}
+
+function SC_alert(key, e) {
+    try {
+        var msg = L(key);
+        var detail = SC_getErrorDetailText(e);
+        if (detail) msg += "\n\n" + L("errorDetails") + "\n" + detail;
+        alert(msg);
+    } catch (_) { }
+}
+
+// ========================
+// 配置処理ヘルパー
+// - 配置前のページ番号指定
+// - 配置サイズの計測
+// - アートボード内でのクリッピングマスク適用
+// - 単ページ / 見開きページの配置
+// - 全アートボードが見える表示倍率への調整
+// ========================
+
+function placementSetImportPageNumber(pageNum) {
+    var n = parseInt(pageNum, 10);
+    if (isNaN(n) || n < 1) n = 1;
+    try {
+        app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", n);
+    } catch (_) { }
+}
+
+function placementResetImportPageNumber() {
+    try {
+        app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1);
+    } catch (_) { }
+}
+
+function placementApplyMaskToArtboard(doc, item, abRect, marginPt) {
+    if (!item) return null;
+    var m = (typeof marginPt === "number" && !isNaN(marginPt) && marginPt >= 0) ? marginPt : 0;
+
+    var left = abRect[0] + m;
+    var top = abRect[1] - m;
+    var w = Math.abs(abRect[2] - abRect[0]) - (m * 2);
+    var h = Math.abs(abRect[1] - abRect[3]) - (m * 2);
+    if (w <= 0) w = 1;
+    if (h <= 0) h = 1;
+
+    var maskPath = doc.activeLayer.pathItems.rectangle(top, left, w, h);
+    maskPath.stroked = false;
+    maskPath.filled = false;
+    maskPath.clipping = true;
+
+    var grp = doc.groupItems.add();
+    try { item.moveToEnd(grp); } catch (e1) { }
+    try { maskPath.moveToBeginning(grp); } catch (e0) { }
+
+    grp.clipped = true;
+    return grp;
+}
+
+function placementMeasurePlacedPageSize(doc, fileObj, pageNum, cropMode) {
+    if (isPdfLikeFile(fileObj)) {
+        SC_setPdfCropPreference(cropMode);
+    }
+    placementSetImportPageNumber(pageNum);
+
+    var measureItem = null;
+    try {
+        measureItem = doc.placedItems.add();
+        measureItem.file = fileObj;
+        return {
+            width: measureItem.width,
+            height: measureItem.height
+        };
+    } finally {
+        if (measureItem) {
+            try { measureItem.remove(); } catch (_) { }
+        }
+    }
+}
+
+function placementUseOrAddArtboard(doc, activeIdx, abRect, abCount) {
+    if (abCount === 0) {
+        doc.artboards[activeIdx].artboardRect = abRect;
+    } else {
+        doc.artboards.add(abRect);
+    }
+    return abCount + 1;
+}
+
+function placementPlacePageWithMask(doc, fileObj, pageNum, abRect, pos, cropMode) {
+    if (isPdfLikeFile(fileObj)) {
+        SC_setPdfCropPreference(cropMode);
+    }
+    placementSetImportPageNumber(pageNum);
+
+    var item = doc.placedItems.add();
+    item.file = fileObj;
+    item.position = pos;
+    placementApplyMaskToArtboard(doc, item, abRect, 0);
+    return item;
+}
+
+function placementPlaceSinglePage(doc, fileObj, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, abGap) {
+    var singleRect = [nextX, baseTop, nextX + pageW, baseTop - pageH];
+    abCount = placementUseOrAddArtboard(doc, activeIdx, singleRect, abCount);
+    placementPlacePageWithMask(doc, fileObj, pageNum, singleRect, [nextX, baseTop], cropMode);
+    return {
+        nextX: nextX + pageW + abGap,
+        abCount: abCount
     };
 }
 
+function placementPlaceSpreadHalf(doc, fileObj, pageNum, abRect, posX, baseTop, activeIdx, abCount, cropMode) {
+    abCount = placementUseOrAddArtboard(doc, activeIdx, abRect, abCount);
+    placementPlacePageWithMask(doc, fileObj, pageNum, abRect, [posX, baseTop], cropMode);
+    return abCount;
+}
+
+function placementPlaceSpreadPage(doc, fileObj, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, isR2L, abGap) {
+    var halfW = pageW / 2;
+
+    var firstRect = [nextX, baseTop, nextX + halfW, baseTop - pageH];
+    var firstPosX = isR2L ? (nextX - halfW) : nextX;
+    abCount = placementPlaceSpreadHalf(doc, fileObj, pageNum, firstRect, firstPosX, baseTop, activeIdx, abCount, cropMode);
+    nextX += halfW + abGap;
+
+    var secondRect = [nextX, baseTop, nextX + halfW, baseTop - pageH];
+    var secondPosX = isR2L ? nextX : (nextX - halfW);
+    abCount = placementPlaceSpreadHalf(doc, fileObj, pageNum, secondRect, secondPosX, baseTop, activeIdx, abCount, cropMode);
+    nextX += halfW + abGap;
+
+    return {
+        nextX: nextX,
+        abCount: abCount
+    };
+}
+
+function placementFitAllArtboardsInView(targetDoc) {
+    if (!targetDoc || !targetDoc.artboards || targetDoc.artboards.length === 0) return;
+
+    try {
+        app.activeDocument = targetDoc;
+    } catch (_) { }
+
+    try {
+        var view = targetDoc.activeView;
+        if (!view) return;
+
+        var unionLeft = null;
+        var unionTop = null;
+        var unionRight = null;
+        var unionBottom = null;
+
+        for (var i = 0; i < targetDoc.artboards.length; i++) {
+            var r = targetDoc.artboards[i].artboardRect;
+            if (unionLeft === null || r[0] < unionLeft) unionLeft = r[0];
+            if (unionTop === null || r[1] > unionTop) unionTop = r[1];
+            if (unionRight === null || r[2] > unionRight) unionRight = r[2];
+            if (unionBottom === null || r[3] < unionBottom) unionBottom = r[3];
+        }
+
+        if (unionLeft === null) return;
+
+        var unionWidth = unionRight - unionLeft;
+        var unionHeight = unionTop - unionBottom;
+        if (unionWidth <= 0 || unionHeight <= 0) return;
+
+        var currentBounds = view.bounds;
+        var currentWidth = currentBounds[2] - currentBounds[0];
+        var currentHeight = currentBounds[1] - currentBounds[3];
+        var currentZoom = view.zoom;
+        if (!(currentWidth > 0) || !(currentHeight > 0) || !(currentZoom > 0)) return;
+
+        var paddingScale = 0.9;
+        var zoomX = currentZoom * (currentWidth / unionWidth);
+        var zoomY = currentZoom * (currentHeight / unionHeight);
+        var targetZoom = Math.min(zoomX, zoomY) * paddingScale;
+
+        view.centerPoint = [
+            (unionLeft + unionRight) / 2,
+            (unionTop + unionBottom) / 2
+        ];
+        view.zoom = targetZoom;
+    } catch (_) { }
+}
+
+
 // =========================================
-// PDF Import crop (trim / bleed / art)
+// PDF配置時のトリミング指定
+// Art / Trim / Bleed / Crop に対応
 // =========================================
 
-// UI mode constants
-var __SC_CROP_ART = 4;
-var __SC_CROP_TRIM = 3;
-var __SC_CROP_BLEED = 2;
-var __SC_CROP_CROP = 1;
-
+// UI用トリミング定数
+var CROP_ART = 4;
+var CROP_TRIM = 3;
+var CROP_BLEED = 2;
+var CROP_CROP = 1;
 
 // ============================================================
-// TMK Page Count Module (collision-safe)
-// - Estimate total pages (last page number) of linked PDF/AI
-// - No relink / no placedItems.add
+// ページ数取得ヘルパー
+// - リンクされた PDF/AI の総ページ数（最終ページ番号）を推定
+// - ファイルが明示指定された場合は、一時配置して既存の選択ベースの
+//   ページ数取得ロジックを再利用し、取得後すぐに削除
+// - 現在の選択に対してリンク変更や内容変更は行わない
 // ============================================================
 
-function __TMKPageCount_getLastPageFromSelection(selectionItems) {
-    var placed = __TMKPageCount_findFirstPlacedItem(selectionItems);
+function getLastPageFromSelection(selectionItems) {
+    var placed = pageCountFindFirstPlacedItem(selectionItems);
     if (!placed) return null;
 
     var f = placed.file;
     if (!f) {
-        safeAlertKey('alertLinkUnknown');
+        SC_alert('alertLinkUnknown');
         return null;
     }
 
     var name = decodeURIComponent(f.name);
     if (!/\.(?:pdf|ai)$/i.test(name)) return null;
 
-    var last = __TMKPageCount_getPageLengthFromFile(f);
+    var last = getPageLengthFromFile(f);
     if (!last || isNaN(Number(last)) || Number(last) <= 0) {
-        safeAlertKey('alertPageCountFail');
+        SC_alert('alertPageCountFail');
         return null;
     }
 
     return Number(last);
 }
 
-function __TMKPageCount_updateResultFromPlacedOrFile(doc, fileObjOrNull, setPathTextFn, setResultTextFn) {
+function updatePageCountFromPlacedOrFile(doc, fileObjOrNull, setPathTextFn, setResultTextFn) {
     var placedTemp = null;
 
     try {
-        // If a file is provided, place it temporarily to reuse existing selection-based logic
+        // ファイル指定時は一時配置して、既存の選択ベースのページ数取得ロジックを再利用
         if (fileObjOrNull) {
             var name = decodeURIComponent(fileObjOrNull.name);
             if (!/\.(?:pdf|ai)$/i.test(name)) {
-                safeAlertKey('alertPickPdfAi');
+                SC_alert('alertPickPdfAi');
                 if (setResultTextFn) setResultTextFn(null);
                 return;
             }
@@ -136,16 +349,16 @@ function __TMKPageCount_updateResultFromPlacedOrFile(doc, fileObjOrNull, setPath
                 placedTemp = doc.placedItems.add();
                 placedTemp.file = fileObjOrNull;
 
-                // Place near the visible top-left so it can be seen (briefly)
+                // 一時配置物は、いったん表示中ビューの左上付近へ置く
                 try {
-                    var vb = doc.activeView && doc.activeView.bounds ? doc.activeView.bounds : null; // [left, top, right, bottom]
+                    var vb = doc.activeView && doc.activeView.bounds ? doc.activeView.bounds : null;
                     if (vb && vb.length === 4) {
                         placedTemp.position = [vb[0], vb[1]];
                     }
                 } catch (_) { }
 
-                // Use the existing logic without modifying it
-                var lastFromFile = __TMKPageCount_getLastPageFromSelection([placedTemp]);
+                // 既存ロジックをそのまま使って総ページ数を取得
+                var lastFromFile = getLastPageFromSelection([placedTemp]);
                 if (setPathTextFn) setPathTextFn(fileObjOrNull);
                 if (setResultTextFn) setResultTextFn(lastFromFile);
             } finally {
@@ -156,23 +369,23 @@ function __TMKPageCount_updateResultFromPlacedOrFile(doc, fileObjOrNull, setPath
             return;
         }
 
-        // No file provided: use current selection (PlacedItem must be selected)
-        var last = __TMKPageCount_getLastPageFromSelection(doc.selection);
+        // ファイル未指定時は現在の選択から取得（PlacedItem が選択されている前提）
+        var last = getLastPageFromSelection(doc.selection);
 
-        // Attempt to show the currently selected placed file path
+        // 選択中の配置画像があれば、そのファイルパス表示も更新
         try {
-            var placedSel = __TMKPageCount_findFirstPlacedItem(doc.selection);
+            var placedSel = pageCountFindFirstPlacedItem(doc.selection);
             if (placedSel && placedSel.file && setPathTextFn) setPathTextFn(placedSel.file);
         } catch (_) { }
 
         if (setResultTextFn) setResultTextFn(last);
     } catch (e) {
-        alert(e);
+        SC_alert("alertPageCountFail", e);
         try { if (setResultTextFn) setResultTextFn(null); } catch (_) { }
     }
 }
 
-function __TMKPageCount_findFirstPlacedItem(items) {
+function pageCountFindFirstPlacedItem(items) {
     if (!items || items.length <= 0) return null;
     for (var i = 0; i < items.length; i++) {
         var it = items[i];
@@ -180,7 +393,7 @@ function __TMKPageCount_findFirstPlacedItem(items) {
         var n = (it.constructor && it.constructor.name) ? it.constructor.name : '';
         if (n === 'PlacedItem') return it;
         if (n === 'GroupItem') {
-            var hit = __TMKPageCount_findFirstPlacedItem(it.pageItems);
+            var hit = pageCountFindFirstPlacedItem(it.pageItems);
             if (hit) return hit;
         }
     }
@@ -188,7 +401,7 @@ function __TMKPageCount_findFirstPlacedItem(items) {
 }
 
 // pdf/aiから総ページ数を推定（既存ロジックを維持しつつ最小化）
-function __TMKPageCount_getPageLengthFromFile(file) {
+function getPageLengthFromFile(file) {
     var tg = /<<\/Count\s(\d+)/;
     var c1 = /<<\/Type\/Page\/Parent/;
     var c2 = /\/Type\s\/Page\s/;
@@ -211,19 +424,14 @@ function __TMKPageCount_getPageLengthFromFile(file) {
         }
         if (len > 0) res = len;
     } catch (e) {
-        alert(e);
+        SC_alert("alertPageCountFail", e);
     } finally {
         try { file.close(); } catch (_) { }
     }
     return res;
 }
 
-/**
- * Set PDF import crop box preference.
- * Illustrator のバージョン差異を吸収するため、複数キーに試行します。
- * 期待する値（多くの環境で）: 0=Media, 1=Crop, 2=Bleed, 3=Trim, 4=Art
- */
-function __SC_setPdfCropPreference(cropVal) {
+function SC_setPdfCropPreference(cropVal) {
     var keys = [
         "plugin/PDFImport/CropToBox",
         "plugin/PDFImport/CropTo",
@@ -237,13 +445,14 @@ function __SC_setPdfCropPreference(cropVal) {
     }
 }
 
-
 // =========================================
 // PDF綴じ方向の自動検出
-// /Direction /R2L があれば右綴じ、なければ左綴じと判定
+// /Direction /R2L があれば偶数ページを右、それ以外は左として判定
 // =========================================
-function __SC_detectPdfBindingDirection(file) {
+
+function SC_detectPdfBindingDirection(file) {
     // returns "R2L" or "L2R"
+    var dir = "L2R";
     try {
         file.open('r');
         var lineCount = 0;
@@ -251,38 +460,31 @@ function __SC_detectPdfBindingDirection(file) {
             var line = file.readln();
             lineCount++;
             if (/\/Direction\s*\/R2L/.test(line)) {
-                file.close();
-                return "R2L";
+                dir = "R2L";
+                break;
             }
         }
-        file.close();
     } catch (e) {
+    } finally {
         try { file.close(); } catch (_) { }
     }
-    return "L2R";
+    return dir;
 }
 
-// Placing .ai in Illustrator uses the PDF import pipeline as well (AI is PDF-compatible),
-// so we treat .ai as "PDF-like" for page/artboard selection.
-function __SC_isPdfLikeFile(f) {
-    try {
-        if (!f) return false;
-        var n = (f.name || "").toLowerCase();
-        return (n.indexOf(".pdf") > -1) || (n.indexOf(".ai") > -1);
-    } catch (e) {
-        return false;
-    }
+/**
+ * Illustrator のバージョン差異を吸収するため、複数キーに試行します。
+ * 期待する値（多くの環境で）: 0=Media, 1=Crop, 2=Bleed, 3=Trim, 4=Art
+ */
+
+function isPdfLikeFile(f) {
+    var n = String((f && f.name) || "").toLowerCase();
+    return (n.indexOf(".pdf") > -1) || (n.indexOf(".ai") > -1);
 }
 
-// UI-only: crop box options are meaningful for PDF; keep disabled for AI.
-function __SC_isPdfFile(f) {
-    try {
-        if (!f) return false;
-        var n = (f.name || "").toLowerCase();
-        return (n.indexOf(".pdf") > -1);
-    } catch (e) {
-        return false;
-    }
+// トリミング設定は PDF のときのみ有効。AI では無効のままにする。
+function isPdfFile(f) {
+    var n = String((f && f.name) || "").toLowerCase();
+    return (n.indexOf(".pdf") > -1);
 }
 
 // 入力された文字列（例："1-20", "1,3,5"）を数字の配列に変換する関数
@@ -315,233 +517,254 @@ function parsePageNumbers(inputStr) {
     return result;
 }
 
-// =========================================
-// Dialog position (session only)
-// =========================================
-
-function __SC_getSessionDialogBoundsKey() {
-    return "__SC_slideCollage_dialog_bounds";
-}
-
-function __SC_loadDialogBounds() {
-    try {
-        var k = __SC_getSessionDialogBoundsKey();
-        return $.global[k];
-    } catch (e) {
-        return null;
-    }
-}
-
-function __SC_saveDialogBounds(b) {
-    try {
-        if (!b) return;
-        // store plain object (avoid ScriptUI objects)
-        var l = b.left, t = b.top, r = b.right, bt = b.bottom;
-        if (!(typeof l === "number" && isFinite(l))) return;
-        if (!(typeof t === "number" && isFinite(t))) return;
-        if (!(typeof r === "number" && isFinite(r))) return;
-        if (!(typeof bt === "number" && isFinite(bt))) return;
-        var o = { left: l, top: t, right: r, bottom: bt };
-        $.global[__SC_getSessionDialogBoundsKey()] = o;
-    } catch (e) { }
-}
-
-
-function __SC_applyDialogBounds(win) {
-    try {
-        var b = __SC_loadDialogBounds();
-        if (!b) return;
-
-        function isFiniteNum(n) {
-            return (typeof n === "number") && isFinite(n);
-        }
-
-        var l = b.left, t = b.top, r = b.right, bt = b.bottom;
-        if (!isFiniteNum(l) || !isFiniteNum(t) || !isFiniteNum(r) || !isFiniteNum(bt)) return;
-
-        // Size sanity
-        var w = r - l;
-        var h = bt - t;
-        if (!(w >= 200 && h >= 120)) return; // too small/invalid -> skip
-
-        // Screen sanity: must intersect at least one screen bounds
-        var intersects = false;
-        try {
-            if ($.screens && $.screens.length) {
-                for (var i = 0; i < $.screens.length; i++) {
-                    var sb = $.screens[i].bounds; // [L,T,R,B]
-                    var sl = sb[0], st = sb[1], sr = sb[2], sbt = sb[3];
-                    var il = Math.max(l, sl);
-                    var it = Math.max(t, st);
-                    var ir = Math.min(r, sr);
-                    var ib = Math.min(bt, sbt);
-                    if ((ir - il) > 40 && (ib - it) > 40) { // require some visible area
-                        intersects = true;
-                        break;
-                    }
-                }
-            }
-        } catch (eScr) {
-            // If screens API is unavailable, fall back to applying.
-            intersects = true;
-        }
-
-        if (!intersects) return;
-
-        // Apply bounds
-        win.bounds = [l, t, r, bt];
-    } catch (e) { }
-}
-
-
 function main() {
 
-
     if (app.documents.length === 0) {
-        alert(L("alertNeedDoc"));
+        SC_alert("alertNeedDoc");
         return;
     }
 
-    var doc = app.activeDocument;
-    // Current source file selected by user (set via UI). If null, the user has not selected any file yet.
-    var fileA = null;
+    var srcDoc = app.activeDocument;
+    var docColorSpace = srcDoc.documentColorSpace;
 
+    function getInitialOutputDocSize(srcDoc, fileObj, rangeText, cropMode) {
+        var pages = parsePageNumbers(rangeText || '');
+        var firstPage = (pages && pages.length > 0) ? parseInt(pages[0], 10) : 1;
+        if (isNaN(firstPage) || firstPage < 1) firstPage = 1;
 
-
-
-    // 2. ダイアログボックスの作成
-    var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-    win.alignChildren = "fill";
-
-    // セッション中のダイアログ位置を復元 / Restore dialog position in this session
-    __SC_applyDialogBounds(win);
-
-    // If no valid stored bounds, center as a safe fallback
-    try {
-        if (!__SC_loadDialogBounds()) {
-            win.center();
+        if (!fileObj) {
+            return {
+                width: srcDoc.width,
+                height: srcDoc.height
+            };
         }
-    } catch (eCenter) { }
-
-    // 移動時に位置を記憶 / Remember position while moving
-    win.onMove = function () { __SC_saveDialogBounds(win.bounds); };
-    win.onMoving = function () { __SC_saveDialogBounds(win.bounds); };
-
-    // === 単カラム構成 ===
-    var leftCol = win.add("group");
-    leftCol.orientation = "column";
-    leftCol.alignChildren = "fill";
-
-    // Panel: 読み込みファイル / Source file
-    var pnlSource = leftCol.add('panel', undefined, L('panelSource'));
-    pnlSource.orientation = 'column';
-    pnlSource.alignChildren = ['left', 'top'];
-    pnlSource.margins = [15, 20, 15, 10];
-
-    // ファイル指定ボタン（fileA とページ範囲表示を更新）
-    var btnBrowse = pnlSource.add('button', undefined, L('btnLoad'));
-
-    // ファイル名表示
-    var etPath = pnlSource.add('statictext', undefined, L('notSelected'));
-    etPath.characters = 20;
-
-    // Panel: アートボード
-    var pnlAB = leftCol.add('panel', undefined, L('panelLoad'));
-    pnlAB.orientation = 'column';
-    pnlAB.alignChildren = ['left', 'top'];
-    pnlAB.margins = [15, 20, 15, 10];
-
-    // 範囲
-    var rowRange = pnlAB.add('group');
-    rowRange.orientation = 'row';
-    rowRange.alignChildren = ['left', 'center'];
-    rowRange.add('statictext', undefined, L('range'));
-    var etRange = rowRange.add('edittext', undefined, '');
-    etRange.characters = 10;
-    etRange.enabled = true;
-
-
-
-    function setPathText(f) {
-        // Also update current source file reference (fileA)
-        fileA = f || null;
-
-        // Update crop dropdown availability (crop is meaningful only for PDF)
-        try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (_) { }
-
-        // 綴じ方向を自動検出
-        try { __SC_autoDetectBinding(f); } catch (_) { }
 
         try {
-            if (f) {
-                etPath.text = decodeURIComponent(f.name);
-                etPath.helpTip = decodeURIComponent(f.fsName);
-            } else {
-                etPath.text = L('notSelected');
-                etPath.helpTip = '';
-            }
+            // Ensure we use placementMeasurePlacedPageSize, not any old/legacy measurePlacedPageSize
+            return placementMeasurePlacedPageSize(srcDoc, fileObj, firstPage, cropMode);
         } catch (_) {
-            try {
-                etPath.text = f ? String(f.name) : L('notSelected');
-                etPath.helpTip = f ? String(f.fsName) : '';
-            } catch (__) {
-                etPath.text = L('notSelected');
-                etPath.helpTip = '';
-            }
+            return {
+                width: srcDoc.width,
+                height: srcDoc.height
+            };
         }
+    }
+
+    var doc = null;
+
+    // 現在の読み込み対象ファイル。未選択時は null。
+    var fileA = null;
+
+    // ------------------------
+    // UI構築
+    // ------------------------
+    function buildDialogUI() {
+        var win = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        win.alignChildren = "fill";
+
+        var cols = win.add("group");
+        cols.orientation = "row";
+        cols.alignChildren = ["fill", "top"];
+
+        var leftCol = cols.add("group");
+        leftCol.orientation = "column";
+        leftCol.alignChildren = "fill";
+
+        var rightCol = cols.add("group");
+        rightCol.orientation = "column";
+        rightCol.alignChildren = "fill";
+
+        var pnlSource = leftCol.add('panel', undefined, L('panelSource'));
+        pnlSource.orientation = 'column';
+        pnlSource.alignChildren = ['left', 'top'];
+        pnlSource.margins = [15, 20, 15, 10];
+        var btnBrowse = pnlSource.add('button', undefined, L('btnLoad'));
+        var etPath = pnlSource.add('statictext', undefined, L('notSelected'));
+        etPath.characters = 16;
+
+        var pnlNewDoc = rightCol.add('panel', undefined, L('panelNewDoc'));
+        pnlNewDoc.orientation = 'column';
+        pnlNewDoc.alignChildren = ['left', 'top'];
+        pnlNewDoc.margins = [15, 20, 15, 10];
+        pnlNewDoc.add('statictext', undefined, L('colorMode'));
+        var rowColorMode = pnlNewDoc.add('group');
+        rowColorMode.orientation = 'row';
+        rowColorMode.alignChildren = ['left', 'center'];
+        var rbColorCMYK = rowColorMode.add('radiobutton', undefined, L('colorModeCMYK'));
+        var rbColorRGB = rowColorMode.add('radiobutton', undefined, L('colorModeRGB'));
+        if (srcDoc.documentColorSpace === DocumentColorSpace.RGB) rbColorRGB.value = true;
+        else rbColorCMYK.value = true;
+
+        var pnlAB = leftCol.add('panel', undefined, L('panelLoad'));
+        pnlAB.orientation = 'column';
+        pnlAB.alignChildren = ['left', 'top'];
+        pnlAB.margins = [15, 20, 15, 10];
+        var rowRange = pnlAB.add('group');
+        rowRange.orientation = 'row';
+        rowRange.alignChildren = ['left', 'center'];
+        rowRange.add('statictext', undefined, L('range'));
+        var etRange = rowRange.add('edittext', undefined, '');
+        etRange.characters = 10;
+        etRange.enabled = true;
+
+        var panelCrop = rightCol.add("panel", undefined, L("panelItem"));
+        panelCrop.alignChildren = "left";
+        panelCrop.margins = [15, 20, 15, 10];
+        var ddCrop = panelCrop.add("dropdownlist", undefined, [L("cropArt"), L("cropTrim"), L("cropCrop"), L("cropBleed")]);
+        ddCrop.minimumSize.width = 160;
+        ddCrop.selection = 2;
+        var groupBind = panelCrop.add("group");
+        groupBind.orientation = "row";
+        groupBind.alignChildren = ["left", "center"];
+        groupBind.add("statictext", undefined, L("evenPage"));
+        var rbR2L = groupBind.add("radiobutton", undefined, L("bindR2L"));
+        var rbL2R = groupBind.add("radiobutton", undefined, L("bindL2R"));
+        rbR2L.value = true;
+
+        var groupButtons = win.add("group");
+        groupButtons.orientation = "row";
+        groupButtons.alignChildren = ["center", "center"];
+        var btnCancel = groupButtons.add("button", undefined, L("cancel"), { name: "cancel" });
+        var btnOk = groupButtons.add("button", undefined, L("ok"), { name: "ok" });
+
+        return {
+            win: win,
+            btnBrowse: btnBrowse,
+            etPath: etPath,
+            rbColorCMYK: rbColorCMYK,
+            rbColorRGB: rbColorRGB,
+            etRange: etRange,
+            ddCrop: ddCrop,
+            rbR2L: rbR2L,
+            rbL2R: rbL2R,
+            btnCancel: btnCancel,
+            btnOk: btnOk
+        };
+    }
+
+    // ダイアログUIを構築し、必要な参照を取り出す
+    var ui = buildDialogUI();
+    var win = ui.win;
+    var btnBrowse = ui.btnBrowse;
+    var etPath = ui.etPath;
+    var rbColorCMYK = ui.rbColorCMYK;
+    var rbColorRGB = ui.rbColorRGB;
+    var etRange = ui.etRange;
+    var ddCrop = ui.ddCrop;
+    var rbR2L = ui.rbR2L;
+    var rbL2R = ui.rbL2R;
+    var btnCancel = ui.btnCancel;
+    var btnOk = ui.btnOk;
+
+
+    // ------------------------
+    // UI表示補助
+    // ------------------------
+    function getFileDisplayName(f) {
+        if (!f) return L('notSelected');
+        try {
+            return decodeURIComponent(f.name);
+        } catch (_) {
+            return String(f.name || L('notSelected'));
+        }
+    }
+
+    function getFileDisplayPath(f) {
+        if (!f) return '';
+        try {
+            return decodeURIComponent(f.fsName);
+        } catch (_) {
+            return String(f.fsName || '');
+        }
+    }
+
+    function setPathText(f) {
+        // 現在の読み込み対象ファイル参照も更新
+        fileA = f || null;
+
+        // トリミング設定は PDF のときのみ有効化
+        ddCrop.enabled = isPdfFile(fileA);
+
+        // PDF の /Direction を見て偶数ページ位置を自動設定
+        autoDetectBinding(f);
+
+        etPath.text = getFileDisplayName(f);
+        etPath.helpTip = getFileDisplayPath(f);
     }
 
     function setResultText(last) {
-        if (!last) {
-            try { etRange.text = ''; } catch (_) { }
-        } else {
-            try { etRange.text = '1-' + last; } catch (_) { }
-        }
+        etRange.text = last ? ('1-' + last) : '';
     }
 
-    // Initial: try selection
-    __TMKPageCount_updateResultFromPlacedOrFile(doc, null, setPathText, setResultText);
-    try { ddCrop.enabled = __SC_isPdfFile(fileA); } catch (_) { }
 
-    btnBrowse.onClick = function () {
-        var f = File.openDialog(L('dlgPickFile'), L('filterPick'));
-        if (!f) return;
-        __TMKPageCount_updateResultFromPlacedOrFile(doc, f, setPathText, setResultText);
-    };
+    // ------------------------
+    // UIイベント配線
+    // ------------------------
+    function bindDialogEvents() {
+        btnBrowse.onClick = function () {
+            var f = File.openDialog(L('dlgPickFile'), L('filterPick'));
+            if (!f) return;
+            updatePageCountFromPlacedOrFile(srcDoc, f, setPathText, setResultText);
+        };
+
+        btnCancel.onClick = function () {
+            closeDialog(2);
+        };
+
+        btnOk.onClick = function () {
+            closeDialog(1);
+        };
+    }
+
+    // ------------------------
+    // 初期状態反映
+    // ------------------------
+    function initializeDialogState() {
+        ddCrop.enabled = isPdfFile(fileA);
+        updatePageCountFromPlacedOrFile(srcDoc, null, setPathText, setResultText);
+        ddCrop.enabled = isPdfFile(fileA);
+    }
+
+    // ------------------------
+    // 出力ドキュメント設定
+    // ------------------------
+    function getSelectedDocColorSpace() {
+        return rbColorRGB.value ? DocumentColorSpace.RGB : DocumentColorSpace.CMYK;
+    }
+
+    // 現在は UI から変更せず、既定値を返す
+    function getArtboardGap() {
+        return DEFAULT_ARTBOARD_GAP;
+    }
+
+    // 現在は UI から変更せず、既定値を返す
+    function getRasterEffectsResolution() {
+        return DEFAULT_RASTER_EFFECTS_RESOLUTION;
+    }
+
+    function applyDocumentRasterEffectsResolution(targetDoc) {
+        if (!targetDoc) return;
+        try {
+            var res = getRasterEffectsResolution();
+            var settings = targetDoc.rasterEffectSettings;
+            settings.resolution = res;
+            targetDoc.rasterEffectSettings = settings;
+        } catch (_) { }
+    }
 
 
-    // --- アイテムパネル（PDF のトリミング設定と綴じ方向） ---
-    var panelCrop = leftCol.add("panel", undefined, L("panelItem"));
-    panelCrop.alignChildren = "left";
-    panelCrop.margins = [15, 20, 15, 10];
-
-    // panelCrop.add("statictext", undefined, "トリミング");
-    var ddCrop = panelCrop.add("dropdownlist", undefined, [L("cropArt"), L("cropTrim"), L("cropCrop"), L("cropBleed")]);
-    ddCrop.minimumSize.width = 160;
-
-    // デフォルト：仕上がり
-    ddCrop.selection = 2;
-
-    ddCrop.enabled = __SC_isPdfFile(fileA); // fileA may be null until a file is selected
-
-    // 綴じ方向（右綴じ / 左綴じ）
-    var groupBind = panelCrop.add("group");
-    groupBind.orientation = "row";
-    groupBind.alignChildren = ["left", "center"];
-
-    var rbR2L = groupBind.add("radiobutton", undefined, L("bindR2L"));
-    var rbL2R = groupBind.add("radiobutton", undefined, L("bindL2R"));
-    rbR2L.value = true; // デフォルト：右綴じ
-
-    function __SC_isR2L() {
+    // ------------------------
+    // 配置オプション取得
+    // ------------------------
+    function isR2L() {
         return !!rbR2L.value;
     }
 
-    // ファイル選択時に自動検出して反映
-    function __SC_autoDetectBinding(f) {
+    // ファイル選択時に綴じ方向を自動検出して反映
+    function autoDetectBinding(f) {
         if (!f) return;
         try {
-            var dir = __SC_detectPdfBindingDirection(f);
+            var dir = SC_detectPdfBindingDirection(f);
             if (dir === "R2L") {
                 rbR2L.value = true;
             } else {
@@ -550,225 +773,94 @@ function main() {
         } catch (_) { }
     }
 
-    function __SC_getCropModeFromUI() {
+    function getCropModeFromUI() {
         var idx = (ddCrop.selection) ? ddCrop.selection.index : 2;
         // 0:アート / 1:トリミング / 2:仕上がり / 3:裁ち落とし
-        if (idx === 0) return __SC_CROP_ART;
-        if (idx === 1) return __SC_CROP_TRIM;
-        if (idx === 3) return __SC_CROP_BLEED;
-        // 仕上がりは CropBox を想定（環境差があるため失敗時は無視される）
-        return __SC_CROP_CROP;
+        if (idx === 0) return CROP_ART;
+        if (idx === 1) return CROP_TRIM;
+        if (idx === 3) return CROP_BLEED;
+        // 仕上がりは CropBox を想定
+        return CROP_CROP;
     }
 
-    // -----------------------------------------
-    // Import page/artboard selection
-    // - PDF: uses PDFImport/PageNumber
-    // - AI: uses IllustratorImport/ArtboardNumber (+ PlaceArtboards)
-    // -----------------------------------------
-    function __SC_setImportPageNumber(pageNum) {
-        var n = parseInt(pageNum, 10);
-        if (isNaN(n) || n < 1) n = 1;
-        try {
-            // Use PDFImport for both PDF and AI (AI is handled by the PDF import pipeline when placing)
-            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", n);
-        } catch (_) { }
-    }
-
-    function __SC_resetImportPageNumber() {
-        try {
-            app.preferences.setIntegerPreference("plugin/PDFImport/PageNumber", 1);
-        } catch (_) { }
-    }
-
-
-    // ボタン類（キャンセル・OK）
-    var groupButtons = win.add("group");
-    groupButtons.orientation = "row";
-    groupButtons.alignChildren = ["center", "center"];
-
-    var btnCancel = groupButtons.add("button", undefined, L("cancel"), { name: "cancel" });
-    var btnOk = groupButtons.add("button", undefined, L("ok"), { name: "ok" });
-
-    // -----------------------------------------
-    // 指定アートボードのマージン内側でクリッピングマスクを適用
-    // -----------------------------------------
-    function __SC_applyMaskToArtboard(doc, item, abRect, marginPt) {
-        if (!item) return null;
-        var m = (typeof marginPt === "number" && !isNaN(marginPt) && marginPt >= 0) ? marginPt : 0;
-
-        var left = abRect[0] + m;
-        var top = abRect[1] - m;
-        var w = Math.abs(abRect[2] - abRect[0]) - (m * 2);
-        var h = Math.abs(abRect[1] - abRect[3]) - (m * 2);
-        if (w <= 0) w = 1;
-        if (h <= 0) h = 1;
-
-        var maskPath = doc.activeLayer.pathItems.rectangle(top, left, w, h);
-        maskPath.stroked = false;
-        maskPath.filled = false;
-        maskPath.clipping = true;
-
-        var grp = doc.groupItems.add();
-        try { item.moveToEnd(grp); } catch (e1) { }
-        try { maskPath.moveToBeginning(grp); } catch (e0) { }
-
-        grp.clipped = true;
-        return grp;
-    }
-
-    // -----------------------------------------
-    // Helper functions for placing pages and artboards
-    // -----------------------------------------
-
-    function __SC_measurePlacedPageSize(doc, fileObj, pageNum, cropMode) {
-        if (__SC_isPdfLikeFile(fileObj)) {
-            __SC_setPdfCropPreference(cropMode);
-        }
-        __SC_setImportPageNumber(pageNum);
-
-        var measureItem = null;
-        try {
-            measureItem = doc.placedItems.add();
-            measureItem.file = fileObj;
-            return {
-                width: measureItem.width,
-                height: measureItem.height
-            };
-        } finally {
-            if (measureItem) {
-                try { measureItem.remove(); } catch (_) { }
-            }
-        }
-    }
-
-    function __SC_useOrAddArtboard(doc, activeIdx, abRect, abCount) {
-        if (abCount === 0) {
-            doc.artboards[activeIdx].artboardRect = abRect;
-        } else {
-            doc.artboards.add(abRect);
-        }
-        return abCount + 1;
-    }
-
-    function __SC_placePageWithMask(doc, fileObj, pageNum, abRect, pos, cropMode) {
-        if (__SC_isPdfLikeFile(fileObj)) {
-            __SC_setPdfCropPreference(cropMode);
-        }
-        __SC_setImportPageNumber(pageNum);
-
-        var item = doc.placedItems.add();
-        item.file = fileObj;
-        item.position = pos;
-        __SC_applyMaskToArtboard(doc, item, abRect, 0);
-        return item;
-    }
-
-    function __SC_placeSinglePage(doc, fileObj, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode) {
-        var singleRect = [nextX, baseTop, nextX + pageW, baseTop - pageH];
-        abCount = __SC_useOrAddArtboard(doc, activeIdx, singleRect, abCount);
-
-        __SC_placePageWithMask(doc, fileObj, pageNum, singleRect, [nextX, baseTop], cropMode);
-
-        return {
-            nextX: nextX + pageW + 20,
-            abCount: abCount
-        };
-    }
-
-    function __SC_placeSpreadHalf(doc, fileObj, pageNum, abRect, posX, baseTop, activeIdx, abCount, cropMode) {
-        abCount = __SC_useOrAddArtboard(doc, activeIdx, abRect, abCount);
-        __SC_placePageWithMask(doc, fileObj, pageNum, abRect, [posX, baseTop], cropMode);
-        return abCount;
-    }
-
-    function __SC_placeSpreadPage(doc, fileObj, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, isR2L, abGap) {
-        var halfW = pageW / 2;
-
-        var firstRect = [nextX, baseTop, nextX + halfW, baseTop - pageH];
-        var firstPosX = isR2L ? (nextX - halfW) : nextX;
-        abCount = __SC_placeSpreadHalf(doc, fileObj, pageNum, firstRect, firstPosX, baseTop, activeIdx, abCount, cropMode);
-        nextX += halfW + abGap;
-
-        var secondRect = [nextX, baseTop, nextX + halfW, baseTop - pageH];
-        var secondPosX = isR2L ? nextX : (nextX - halfW);
-        abCount = __SC_placeSpreadHalf(doc, fileObj, pageNum, secondRect, secondPosX, baseTop, activeIdx, abCount, cropMode);
-        nextX += halfW + abGap;
-
-        return {
-            nextX: nextX,
-            abCount: abCount
-        };
-    }
-
-    // -----------------------------------------
-    // 各ページを個別のアートボードに配置
-    // 見開き（横長）ページは左右に分割して2つのアートボードに配置
-    // -----------------------------------------
+    // ------------------------
+    // 実行処理
+    // ------------------------
     function placeOnIndividualArtboards(targetPages, cropMode, isR2L) {
+        if (!doc) {
+            var initialSize = getInitialOutputDocSize(srcDoc, fileA, etRange.text, cropMode);
+            docColorSpace = getSelectedDocColorSpace();
+            doc = app.documents.add(
+                docColorSpace,
+                initialSize.width,
+                initialSize.height
+            );
+            applyDocumentRasterEffectsResolution(doc);
+            app.activeDocument = doc;
+        }
         var activeIdx = doc.artboards.getActiveArtboardIndex();
         var baseRect = doc.artboards[activeIdx].artboardRect;
         var nextX = baseRect[0];
         var baseTop = baseRect[1];
 
-        var abGap = 20; // アートボード間の間隔（pt）
-        var abCount = 0; // 作成/使用したアートボード数
+        var abGap = getArtboardGap();
+        var abCount = 0;
+        var completed = false;
 
         try {
             for (var i = 0; i < targetPages.length; i++) {
                 var pageNum = parseInt(targetPages[i], 10);
                 if (isNaN(pageNum) || pageNum < 1) pageNum = 1;
 
-                var pageSize = __SC_measurePlacedPageSize(doc, fileA, pageNum, cropMode);
+                var pageSize = placementMeasurePlacedPageSize(doc, fileA, pageNum, cropMode);
                 var pageW = pageSize.width;
                 var pageH = pageSize.height;
-
-                // 見開き判定：横長（幅 > 高さ × 1.2）なら見開き
                 var isSpread = (pageW > pageH * 1.2);
                 var result;
 
                 if (isSpread) {
-                    result = __SC_placeSpreadPage(doc, fileA, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, isR2L, abGap);
+                    result = placementPlaceSpreadPage(doc, fileA, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, isR2L, abGap);
                 } else {
-                    result = __SC_placeSinglePage(doc, fileA, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode);
+                    result = placementPlaceSinglePage(doc, fileA, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, abGap);
                 }
 
                 nextX = result.nextX;
                 abCount = result.abCount;
             }
+            completed = true;
         } catch (e) {
-            alert(L("alertPlaceError"));
+            SC_alert("alertPlaceError", e);
         } finally {
-            try { __SC_resetImportPageNumber(); } catch (_) { }
+            try { placementResetImportPageNumber(); } catch (_) { }
+        }
+
+        if (completed) {
+            placementFitAllArtboardsInView(doc);
         }
     }
 
-    function __SC_closeDialog(resultCode) {
-        __SC_saveDialogBounds(win.bounds);
+    // ------------------------
+    // ダイアログ終了処理
+    // ------------------------
+    function closeDialog(resultCode) {
         win.close(resultCode);
     }
 
-    btnCancel.onClick = function () {
-        __SC_closeDialog(2);
-    };
-
-    btnOk.onClick = function () {
-        __SC_closeDialog(1);
-    };
+    bindDialogEvents();
+    initializeDialogState();
 
     if (win.show() === 1) {
         if (!fileA) {
-            safeAlertKey('alertNeedFile');
+            SC_alert('alertNeedFile');
         } else {
             var finalPages = parsePageNumbers(etRange.text);
             if (!finalPages || finalPages.length === 0) finalPages = [1];
 
-            var cropMode = __SC_getCropModeFromUI();
-            placeOnIndividualArtboards(finalPages, cropMode, __SC_isR2L());
+            var cropMode = getCropModeFromUI();
+            placeOnIndividualArtboards(finalPages, cropMode, isR2L());
         }
     }
 
-    // ダイアログ終了後に選択解除
-    try { doc.selection = null; } catch (eSel) { }
 }
 
 main();
