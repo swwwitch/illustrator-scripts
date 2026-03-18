@@ -31,7 +31,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 //
 // ダイアログUIは日本語／英語を自動切り替えし、タイトルバーにはバージョン番号を表示します。
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -108,6 +108,14 @@ var LABELS = {
         ja: "クリーンアップ",
         en: "Cleanup"
     },
+    panelTab: {
+        ja: "タブ",
+        en: "Tab"
+    },
+    panelSpace: {
+        ja: "スペース",
+        en: "Spaces"
+    },
     btnCollapseSpaces: {
         ja: "連続スペース",
         en: "Collapse Spaces"
@@ -131,6 +139,14 @@ var LABELS = {
     panelStatus: {
         ja: "ステータス",
         en: "Status"
+    },
+    panelSpecial: {
+        ja: "スペシャル",
+        en: "Special"
+    },
+    btnFlattenToOneLine: {
+        ja: "とにかく1行に",
+        en: "Flatten to One Line"
     },
     btnRemoveLineBreaks: {
         ja: "改行のみ",
@@ -659,6 +675,21 @@ function hasVisibleChars(txt) {
                 }
             }
         }
+    }
+
+    /* 複数フレームを連結し、全改行を削除して1行にする関数 */
+    function flattenToOneLine(objects) {
+        var frames = getTextFrames(objects);
+        if (frames.length < 2) {
+            removeEmptyLines(frames);
+            removeAllBreaks(frames);
+            return frames;
+        }
+        var result = concatVertical(objects);
+        var targets = result && result.length ? result : frames;
+        removeEmptyLines(targets);
+        removeAllBreaks(targets);
+        return result;
     }
 
     /* 空行を削除する関数 */
@@ -1836,6 +1867,33 @@ function hasVisibleChars(txt) {
             }
         };
 
+        /* スペシャルパネル */
+        var panelSpecial = dialog.add("panel");
+        panelSpecial.margins = [15, 15, 15, 15];
+        panelSpecial.alignment = ["fill", "top"];
+        panelSpecial.alignChildren = ["center", "top"];
+
+        var specialBtnGroup = panelSpecial.add("group");
+        specialBtnGroup.orientation = "row";
+        specialBtnGroup.alignment = ["center", "center"];
+        specialBtnGroup.alignChildren = ["center", "center"];
+
+        /* とにかく1行にボタン */
+        var btnFlattenToOneLine = specialBtnGroup.add("button", undefined, L("btnFlattenToOneLine"));
+        btnFlattenToOneLine.onClick = function () {
+            executeAction(flattenToOneLine);
+        };
+
+        /* 横連結→エリアボタン（連結パネルから移動） */
+        var btnConcatToArea = specialBtnGroup.add("button", undefined, L("btnConcatToArea"));
+        btnConcatToArea.helpTip = L("tipConcatToArea");
+        btnConcatToArea.onClick = function () {
+            executeAction(function (objects) {
+                return concatHorizontal(objects, "area");
+            });
+            dialog.close();
+        };
+
         /* 3カラムレイアウト */
         var columnsGroup = dialog.add("group");
         columnsGroup.orientation = "row";
@@ -2037,16 +2095,6 @@ function hasVisibleChars(txt) {
             });
         };
 
-        /* 横連結→エリアボタン */
-        var btnConcatToArea = panelConcat.add("button", undefined, L("btnConcatToArea"));
-        btnConcatToArea.helpTip = L("tipConcatToArea");
-        btnConcatToArea.onClick = function () {
-            executeAction(function (objects) {
-                return concatHorizontal(objects, "area");
-            });
-        };
-
-
         /* クリーンアップパネル */
         var panelCleanup = colCenter.add("panel", undefined, L("panelCleanup"));
         panelCleanup.margins = [15, 20, 15, 10];
@@ -2059,32 +2107,44 @@ function hasVisibleChars(txt) {
             executeAction(removeEmptyLines);
         };
 
+        /* タブパネル */
+        var panelTab = panelCleanup.add("panel", undefined, L("panelTab"));
+        panelTab.margins = [15, 20, 15, 10];
+        panelTab.alignment = ["fill", "top"];
+        panelTab.alignChildren = ["fill", "center"];
+
         /* タブを削除ボタン */
-        var btnRemoveTabs = panelCleanup.add("button", undefined, L("btnRemoveTabs"));
+        var btnRemoveTabs = panelTab.add("button", undefined, L("btnRemoveTabs"));
         btnRemoveTabs.onClick = function () {
             executeAction(removeTabs);
         };
 
         /* タブをスペースにボタン */
-        var btnTabsToSpaces = panelCleanup.add("button", undefined, L("btnTabsToSpaces"));
+        var btnTabsToSpaces = panelTab.add("button", undefined, L("btnTabsToSpaces"));
         btnTabsToSpaces.onClick = function () {
             executeAction(tabsToSpaces);
         };
 
+        /* スペースパネル */
+        var panelSpace = panelCleanup.add("panel", undefined, L("panelSpace"));
+        panelSpace.margins = [15, 20, 15, 10];
+        panelSpace.alignment = ["fill", "top"];
+        panelSpace.alignChildren = ["fill", "center"];
+
         /* 行頭行末のスペースボタン */
-        var btnTrimSpaces = panelCleanup.add("button", undefined, L("btnTrimSpaces"));
+        var btnTrimSpaces = panelSpace.add("button", undefined, L("btnTrimSpaces"));
         btnTrimSpaces.onClick = function () {
             executeAction(trimSpaces);
         };
 
         /* 和欧間のスペースボタン */
-        var btnCjkLatinSpaces = panelCleanup.add("button", undefined, L("btnCjkLatinSpaces"));
+        var btnCjkLatinSpaces = panelSpace.add("button", undefined, L("btnCjkLatinSpaces"));
         btnCjkLatinSpaces.onClick = function () {
             executeAction(removeCjkLatinSpaces);
         };
 
         /* 連続スペースボタン */
-        var btnCollapseSpaces = panelCleanup.add("button", undefined, L("btnCollapseSpaces"));
+        var btnCollapseSpaces = panelSpace.add("button", undefined, L("btnCollapseSpaces"));
         btnCollapseSpaces.onClick = function () {
             executeAction(collapseSpaces);
         };
@@ -2119,7 +2179,7 @@ function hasVisibleChars(txt) {
             }
         };
 
-        var btnClose = btnGroup.add("button", undefined, L("btnClose"));
+        var btnClose = btnGroup.add("button", undefined, L("btnClose"), { name: "ok" });
         btnClose.alignment = ["right", "center"];
         btnClose.onClick = function () {
             /* 1要素だけのグループは解除して選択を整える */
