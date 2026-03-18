@@ -65,16 +65,16 @@ var LABELS = {
         en: "Split"
     },
     panelSplit: {
-        ja: "分割（行）",
+        ja: "行",
         en: "Split (Line)"
     },
     panelSplitChar: {
-        ja: "分割（文字）",
+        ja: "文字",
         en: "Split (Char)"
     },
     panelOther: {
-        ja: "その他",
-        en: "Other"
+        ja: "行の整理",
+        en: "Line Arrange"
     },
     btnReverseOrder: {
         ja: "順序を反転",
@@ -117,11 +117,11 @@ var LABELS = {
         en: "Spaces"
     },
     btnCollapseSpaces: {
-        ja: "連続スペース",
+        ja: "連続",
         en: "Collapse Spaces"
     },
     btnCjkLatinSpaces: {
-        ja: "和欧間スペースを削除",
+        ja: "和欧間",
         en: "Remove CJK-Latin Spaces"
     },
     btnRemoveTabs: {
@@ -129,11 +129,11 @@ var LABELS = {
         en: "Remove Tabs"
     },
     btnTabsToSpaces: {
-        ja: "タブをスペースに",
+        ja: "タブ→スペース",
         en: "Tabs to Spaces"
     },
     btnTrimSpaces: {
-        ja: "行頭行末のスペース",
+        ja: "行頭行末",
         en: "Leading/Trailing Spaces"
     },
     panelStatus: {
@@ -143,6 +143,10 @@ var LABELS = {
     panelSpecial: {
         ja: "スペシャル",
         en: "Special"
+    },
+    btnCleanupSpaces: {
+        ja: "スペース削除",
+        en: "Remove Spaces"
     },
     btnFlattenToOneLine: {
         ja: "とにかく1行に",
@@ -181,7 +185,7 @@ var LABELS = {
         en: "Paragraph Breaks to Forced Breaks"
     },
     btnSplitByLine: {
-        ja: "改行で分割",
+        ja: "テキストばらし",
         en: "Split by Line Breaks"
     },
     btnSplitByTab: {
@@ -833,9 +837,10 @@ function hasVisibleChars(txt) {
     }
 
     /* 指定文字数ごとに改行を挿入する関数 */
-    function addLineBreakAtCount(objects, count) {
+    function addLineBreakAtCount(objects, count, useForcedBreak) {
         var n = parseInt(count, 10);
         if (!n || n <= 0) n = 35;
+        var br = useForcedBreak ? String.fromCharCode(3) : "\r";
         transformContents(objects, function (txt) {
             var lines = splitParagraphLines(txt);
             var result = [];
@@ -847,7 +852,7 @@ function hasVisibleChars(txt) {
                 }
                 result.push(line);
             }
-            return result.join("\r");
+            return result.join(br);
         });
     }
 
@@ -1715,7 +1720,7 @@ function hasVisibleChars(txt) {
 
         /* ステータスパネル */
         var panelStatus = dialog.add("panel", undefined, L("panelStatus"));
-        panelStatus.margins = [15, 20, 15, 15];
+        panelStatus.margins = [30, 20, 30, 10];
         panelStatus.alignment = ["fill", "top"];
         panelStatus.alignChildren = ["left", "top"];
 
@@ -1728,62 +1733,56 @@ function hasVisibleChars(txt) {
 
         var statusLeft = statusGroup.add("group");
         statusLeft.orientation = "column";
+        statusLeft.alignment = ["fill", "top"];
         statusLeft.alignChildren = ["left", "top"];
+        statusLeft.preferredSize = [180, -1];
 
         var statusCenter = statusGroup.add("group");
         statusCenter.orientation = "column";
+        statusCenter.alignment = ["fill", "top"];
         statusCenter.alignChildren = ["left", "top"];
+        statusCenter.preferredSize = [180, -1];
 
         var statusRight = statusGroup.add("group");
         statusRight.orientation = "column";
-        statusRight.alignment = ["right", "center"];
+        statusRight.alignment = ["fill", "center"];
         statusRight.alignChildren = ["right", "center"];
-        statusRight.preferredSize = [100, -1];
-
-        var statusLabelWidth = 120;
+        statusRight.preferredSize = [180, -1];
 
         var rowTargetCount = statusLeft.add("group");
         rowTargetCount.orientation = "row";
         rowTargetCount.alignChildren = ["left", "center"];
-        var lblTargetCount = rowTargetCount.add("statictext", undefined, L("infoTargetCount"), { justify: "right" });
-        lblTargetCount.preferredSize.width = statusLabelWidth;
+        var lblTargetCount = rowTargetCount.add("statictext", undefined, L("infoTargetCount"));
         var valTargetCount = rowTargetCount.add("statictext", undefined, String(textFrameCounts.total));
 
         var rowPointCount = statusLeft.add("group");
         rowPointCount.orientation = "row";
         rowPointCount.alignChildren = ["left", "center"];
-        var lblPointCount = rowPointCount.add("statictext", undefined, L("infoPointAreaCount"), { justify: "right" });
-        lblPointCount.preferredSize.width = statusLabelWidth;
+        var lblPointCount = rowPointCount.add("statictext", undefined, L("infoPointAreaCount"));
         var valPointCount = rowPointCount.add("statictext", undefined, String(textFrameCounts.point));
 
         var rowAreaCount = statusLeft.add("group");
         rowAreaCount.orientation = "row";
         rowAreaCount.alignChildren = ["left", "center"];
-        var lblAreaCount = rowAreaCount.add("statictext", undefined, L("infoAreaSeparator"), { justify: "right" });
-        lblAreaCount.preferredSize.width = statusLabelWidth;
+        var lblAreaCount = rowAreaCount.add("statictext", undefined, L("infoAreaSeparator"));
         var valAreaCount = rowAreaCount.add("statictext", undefined, String(textFrameCounts.area));
-
-        var statusRightLabelWidth = 80;
 
         var rowParagraphBreakCount = statusCenter.add("group");
         rowParagraphBreakCount.orientation = "row";
         rowParagraphBreakCount.alignChildren = ["left", "center"];
-        var lblParagraphBreakCount = rowParagraphBreakCount.add("statictext", undefined, L("infoParagraphBreakCount"), { justify: "right" });
-        lblParagraphBreakCount.preferredSize.width = statusRightLabelWidth;
+        var lblParagraphBreakCount = rowParagraphBreakCount.add("statictext", undefined, L("infoParagraphBreakCount"));
         var valParagraphBreakCount = rowParagraphBreakCount.add("statictext", undefined, String(breakCounts.paragraph));
 
         var rowForcedBreakCount = statusCenter.add("group");
         rowForcedBreakCount.orientation = "row";
         rowForcedBreakCount.alignChildren = ["left", "center"];
-        var lblForcedBreakCount = rowForcedBreakCount.add("statictext", undefined, L("infoForcedBreakCount"), { justify: "right" });
-        lblForcedBreakCount.preferredSize.width = statusRightLabelWidth;
+        var lblForcedBreakCount = rowForcedBreakCount.add("statictext", undefined, L("infoForcedBreakCount"));
         var valForcedBreakCount = rowForcedBreakCount.add("statictext", undefined, String(breakCounts.forced));
 
         var rowTabCount = statusCenter.add("group");
         rowTabCount.orientation = "row";
         rowTabCount.alignChildren = ["left", "center"];
-        var lblTabCount = rowTabCount.add("statictext", undefined, L("infoTabCount"), { justify: "right" });
-        lblTabCount.preferredSize.width = statusRightLabelWidth;
+        var lblTabCount = rowTabCount.add("statictext", undefined, L("infoTabCount"));
         var valTabCount = rowTabCount.add("statictext", undefined, String(breakCounts.tab));
 
         lblTargetCount.enabled = true;
@@ -1812,20 +1811,60 @@ function hasVisibleChars(txt) {
             valTabCount.text = String(breaks.tab);
         }
 
+        function hasSpacesOrTabs(objects) {
+            var frames = getTextFrames(objects);
+            for (var i = 0; i < frames.length; i++) {
+                var txt = frames[i].contents;
+                if (/[ \t\u3000]/.test(txt)) return true;
+            }
+            return false;
+        }
+
         function updateActionAvailability(objects) {
             var multiLines = hasMultipleLines(objects);
             var multiFrames = hasMultipleTextFrames(objects);
+            var hasSpTab = hasSpacesOrTabs(objects);
 
             btnReverseOrder.enabled = multiLines;
             btnRemoveDuplicateLines.enabled = multiLines;
+            btnRemoveEmptyLines.enabled = multiLines;
             btnSortByCharCode.enabled = multiLines;
             btnSortByLength.enabled = multiLines;
             btnSplitByLine.enabled = multiLines;
+            var breaks = countBreakTypes(objects);
+            var hasParagraph = breaks.paragraph > 0;
+            var hasForced = breaks.forced > 0;
+            var hasAnyBreaks = hasParagraph || hasForced;
 
+            /* 改行削除系 */
+            btnRemoveLineBreaks.enabled = hasParagraph;
+            btnRemoveAllBreaks.enabled = hasAnyBreaks;
+
+            /* 改行変換系 */
+            btnConvertBreaks.enabled = hasForced;
+            btnConvertToForcedBreaks.enabled = hasParagraph;
+
+            /* スペシャル */
+            btnFlattenToOneLine.enabled = hasAnyBreaks || multiFrames;
+
+            /* 分割系 */
+            btnSplitByTab.enabled = breaks.tab > 0;
+
+            /* 連結系 */
             btnConcatV.enabled = multiFrames;
             btnConcatHOnly.enabled = multiFrames;
             btnConcatH.enabled = multiFrames;
             btnConcatToArea.enabled = multiFrames;
+
+            /* スペース系 */
+            btnTrimSpaces.enabled = hasSpTab;
+            btnCjkLatinSpaces.enabled = hasSpTab;
+            btnCollapseSpaces.enabled = hasSpTab;
+            btnCleanupSpaces.enabled = hasSpTab;
+
+            /* タブ系 */
+            btnRemoveTabs.enabled = breaks.tab > 0;
+            btnTabsToSpaces.enabled = breaks.tab > 0;
         }
 
 
@@ -1882,6 +1921,17 @@ function hasVisibleChars(txt) {
         var btnFlattenToOneLine = specialBtnGroup.add("button", undefined, L("btnFlattenToOneLine"));
         btnFlattenToOneLine.onClick = function () {
             executeAction(flattenToOneLine);
+        };
+
+        /* スペースなどボタン */
+        var btnCleanupSpaces = specialBtnGroup.add("button", undefined, L("btnCleanupSpaces"));
+        btnCleanupSpaces.onClick = function () {
+            executeAction(function (objects) {
+                trimSpaces(objects);
+                removeCjkLatinSpaces(objects);
+                collapseSpaces(objects);
+                return objects;
+            });
         };
 
         /* 横連結→エリアボタン（連結パネルから移動） */
@@ -1957,14 +2007,18 @@ function hasVisibleChars(txt) {
         var btnBreakAtCount = panelLineBreak.add("button", undefined, L("btnBreakAtCount"));
         btnBreakAtCount.onClick = function () {
             executeAction(function (objects) {
-                return addLineBreakAtCount(objects, txtBreakCount.text);
+                return addLineBreakAtCount(objects, txtBreakCount.text, chkForcedBreakAtCount.value);
             });
         };
 
-        /* 文字数テキストフィールド */
-        var txtBreakCount = panelLineBreak.add("edittext", undefined, "35");
-        txtBreakCount.alignment = ["fill", "center"];
-        txtBreakCount.characters = 5;
+        /* 文字数テキストフィールド + 強制改行チェックボックス */
+        var breakCountRow = panelLineBreak.add("group");
+        breakCountRow.orientation = "row";
+        breakCountRow.alignment = ["fill", "center"];
+        breakCountRow.alignChildren = ["left", "center"];
+        var txtBreakCount = breakCountRow.add("edittext", undefined, "35");
+        txtBreakCount.characters = 3;
+        var chkForcedBreakAtCount = breakCountRow.add("checkbox", undefined, lang === "ja" ? "強制改行" : "Forced Break");
 
         /* その他の改行パネル */
         var panelOtherBreak = panelBreakGroup.add("panel", undefined, L("panelOtherBreak"));
@@ -2066,6 +2120,12 @@ function hasVisibleChars(txt) {
             executeAction(removeDuplicateLines);
         };
 
+        /* 空行削除ボタン */
+        var btnRemoveEmptyLines = panelOther.add("button", undefined, L("btnRemoveEmptyLines"));
+        btnRemoveEmptyLines.onClick = function () {
+            executeAction(removeEmptyLines);
+        };
+
         /* 連結パネル */
         var panelConcat = colCenter.add("panel", undefined, L("panelConcat"));
         panelConcat.margins = [15, 20, 15, 10];
@@ -2100,12 +2160,6 @@ function hasVisibleChars(txt) {
         panelCleanup.margins = [15, 20, 15, 10];
         panelCleanup.alignment = ["fill", "top"];
         panelCleanup.alignChildren = ["fill", "center"];
-
-        /* 空行削除ボタン */
-        var btnRemoveEmptyLines = panelCleanup.add("button", undefined, L("btnRemoveEmptyLines"));
-        btnRemoveEmptyLines.onClick = function () {
-            executeAction(removeEmptyLines);
-        };
 
         /* タブパネル */
         var panelTab = panelCleanup.add("panel", undefined, L("panelTab"));
