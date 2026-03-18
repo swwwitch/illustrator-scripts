@@ -31,7 +31,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 //
 // ダイアログUIは日本語／英語を自動切り替えし、タイトルバーにはバージョン番号を表示します。
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.5";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -77,7 +77,7 @@ var LABELS = {
         en: "Line Arrange"
     },
     btnReverseOrder: {
-        ja: "順序を反転",
+        ja: "反転",
         en: "Reverse Order"
     },
     btnRemoveDuplicateLines: {
@@ -113,8 +113,8 @@ var LABELS = {
         en: "Tab"
     },
     panelSpace: {
-        ja: "スペース",
-        en: "Spaces"
+        ja: "スペース削除",
+        en: "Remove Spaces"
     },
     btnCollapseSpaces: {
         ja: "連続",
@@ -145,11 +145,11 @@ var LABELS = {
         en: "Special"
     },
     btnCleanupSpaces: {
-        ja: "スペース削除",
-        en: "Remove Spaces"
+        ja: "まとめて",
+        en: "All at Once"
     },
     btnFlattenToOneLine: {
-        ja: "とにかく1行に",
+        ja: "急いで1行に",
         en: "Flatten to One Line"
     },
     btnRemoveLineBreaks: {
@@ -165,15 +165,15 @@ var LABELS = {
         en: "Remove Empty Lines"
     },
     btnAddLineBreaks: {
-        ja: "1文字ごと",
+        ja: "1文字ごとに改行",
         en: "Insert Line Break After Each Character"
     },
     btnPunctuation: {
-        ja: "指定文字で",
+        ja: "指定文字で改行",
         en: "At Specified Characters"
     },
     btnBreakAtCount: {
-        ja: "指定文字数で",
+        ja: "指定文字数で改行",
         en: "At Character Count"
     },
     btnConvertBreaks: {
@@ -189,11 +189,11 @@ var LABELS = {
         en: "Split by Line Breaks"
     },
     btnSplitByTab: {
-        ja: "タブと改行",
+        ja: "タブで分割",
         en: "Split by Tabs and Line Breaks"
     },
     btnConcatV: {
-        ja: "縦連結",
+        ja: "縦方向に連結",
         en: "Vertical"
     },
     btnConcatHOnly: {
@@ -205,8 +205,8 @@ var LABELS = {
         en: "Horizontal (Combine Rows)"
     },
     btnConcatToArea: {
-        ja: "横連結→エリア",
-        en: "To Area Text"
+        ja: "PDFテキスト整形",
+        en: "Format PDF Text"
     },
     tipConcatV: {
         ja: "上→下に連結",
@@ -1718,10 +1718,16 @@ function hasVisibleChars(txt) {
         var textFrameCounts = countTextFrameTypes(selectedObjects);
         var breakCounts = countBreakTypes(selectedObjects);
 
-        /* ステータスパネル */
-        var panelStatus = dialog.add("panel", undefined, L("panelStatus"));
-        panelStatus.margins = [30, 20, 30, 10];
-        panelStatus.alignment = ["fill", "top"];
+        /* 上部2カラムレイアウト */
+        var topGroup = dialog.add("group");
+        topGroup.orientation = "row";
+        topGroup.alignment = ["fill", "bottom"];
+        topGroup.alignChildren = ["fill", "bottom"];
+
+        /* 左：ステータスパネル */
+        var panelStatus = topGroup.add("panel", undefined, L("panelStatus"));
+        panelStatus.margins = [20, 20, 30, 10];
+        panelStatus.alignment = ["left", "bottom"];
         panelStatus.alignChildren = ["left", "top"];
 
         /* ステータス表示 */
@@ -1729,25 +1735,24 @@ function hasVisibleChars(txt) {
         statusGroup.orientation = "row";
         statusGroup.alignment = ["fill", "top"];
         statusGroup.alignChildren = ["left", "center"];
-        statusGroup.spacing = 20;
+        statusGroup.spacing = 30;
 
         var statusLeft = statusGroup.add("group");
         statusLeft.orientation = "column";
         statusLeft.alignment = ["fill", "top"];
         statusLeft.alignChildren = ["left", "top"];
-        statusLeft.preferredSize = [180, -1];
 
         var statusCenter = statusGroup.add("group");
         statusCenter.orientation = "column";
         statusCenter.alignment = ["fill", "top"];
         statusCenter.alignChildren = ["left", "top"];
-        statusCenter.preferredSize = [180, -1];
 
-        var statusRight = statusGroup.add("group");
-        statusRight.orientation = "column";
-        statusRight.alignment = ["fill", "center"];
-        statusRight.alignChildren = ["right", "center"];
-        statusRight.preferredSize = [180, -1];
+        /* 右：アクションボタン */
+        var topRight = topGroup.add("panel");
+        topRight.orientation = "row";
+        topRight.alignment = ["right", "bottom"];
+        topRight.alignChildren = ["left", "top"];
+        topRight.spacing = 20;
 
         var rowTargetCount = statusLeft.add("group");
         rowTargetCount.orientation = "row";
@@ -1770,19 +1775,24 @@ function hasVisibleChars(txt) {
         var rowParagraphBreakCount = statusCenter.add("group");
         rowParagraphBreakCount.orientation = "row";
         rowParagraphBreakCount.alignChildren = ["left", "center"];
+        var statusCenterLabelWidth = 70;
+
         var lblParagraphBreakCount = rowParagraphBreakCount.add("statictext", undefined, L("infoParagraphBreakCount"));
+        lblParagraphBreakCount.preferredSize.width = statusCenterLabelWidth;
         var valParagraphBreakCount = rowParagraphBreakCount.add("statictext", undefined, String(breakCounts.paragraph));
 
         var rowForcedBreakCount = statusCenter.add("group");
         rowForcedBreakCount.orientation = "row";
         rowForcedBreakCount.alignChildren = ["left", "center"];
         var lblForcedBreakCount = rowForcedBreakCount.add("statictext", undefined, L("infoForcedBreakCount"));
+        lblForcedBreakCount.preferredSize.width = statusCenterLabelWidth;
         var valForcedBreakCount = rowForcedBreakCount.add("statictext", undefined, String(breakCounts.forced));
 
         var rowTabCount = statusCenter.add("group");
         rowTabCount.orientation = "row";
         rowTabCount.alignChildren = ["left", "center"];
         var lblTabCount = rowTabCount.add("statictext", undefined, L("infoTabCount"));
+        lblTabCount.preferredSize.width = statusCenterLabelWidth;
         var valTabCount = rowTabCount.add("statictext", undefined, String(breakCounts.tab));
 
         lblTargetCount.enabled = true;
@@ -1869,11 +1879,44 @@ function hasVisibleChars(txt) {
 
 
 
+        /* 右を2カラムに分割 */
+        var topRightLeft = topRight.add("group");
+        topRightLeft.orientation = "column";
+        topRightLeft.alignment = ["left", "center"];
+        topRightLeft.alignChildren = ["fill", "center"];
+
+        var topRightRight = topRight.add("group");
+        topRightRight.orientation = "column";
+        topRightRight.alignment = ["right", "center"];
+        topRightRight.alignChildren = ["fill", "center"];
+
+        /* 急いで1行にボタン */
+        var btnFlattenToOneLine = topRightLeft.add("button", undefined, L("btnFlattenToOneLine"));
+        btnFlattenToOneLine.onClick = function () {
+            executeAction(function (objects) {
+                var result = flattenToOneLine(objects);
+                var targets = result && result.length ? result : objects;
+                trimSpaces(targets);
+                removeCjkLatinSpaces(targets);
+                collapseSpaces(targets);
+                return targets;
+            });
+        };
+
+        /* PDFテキスト整形ボタン */
+        var btnConcatToArea = topRightLeft.add("button", undefined, L("btnConcatToArea"));
+        btnConcatToArea.helpTip = L("tipConcatToArea");
+        btnConcatToArea.onClick = function () {
+            executeAction(function (objects) {
+                return concatHorizontal(objects, "area");
+            });
+            dialog.close();
+        };
+
         /* 制御文字ボタン */
         var hiddenCharOn = false;
         var hiddenCharLabel = L("chkShowHiddenChar");
-        var btnShowHiddenChar = statusRight.add("button", undefined, hiddenCharLabel);
-        btnShowHiddenChar.preferredSize.width = 110;
+        var btnShowHiddenChar = topRightRight.add("button", undefined, hiddenCharLabel);
 
         /* 制御文字ボタンの表示状態を更新 */
 
@@ -1904,44 +1947,6 @@ function hasVisibleChars(txt) {
             } catch (err) {
                 showError(err);
             }
-        };
-
-        /* スペシャルパネル */
-        var panelSpecial = dialog.add("panel");
-        panelSpecial.margins = [15, 15, 15, 15];
-        panelSpecial.alignment = ["fill", "top"];
-        panelSpecial.alignChildren = ["center", "top"];
-
-        var specialBtnGroup = panelSpecial.add("group");
-        specialBtnGroup.orientation = "row";
-        specialBtnGroup.alignment = ["center", "center"];
-        specialBtnGroup.alignChildren = ["center", "center"];
-
-        /* とにかく1行にボタン */
-        var btnFlattenToOneLine = specialBtnGroup.add("button", undefined, L("btnFlattenToOneLine"));
-        btnFlattenToOneLine.onClick = function () {
-            executeAction(flattenToOneLine);
-        };
-
-        /* スペースなどボタン */
-        var btnCleanupSpaces = specialBtnGroup.add("button", undefined, L("btnCleanupSpaces"));
-        btnCleanupSpaces.onClick = function () {
-            executeAction(function (objects) {
-                trimSpaces(objects);
-                removeCjkLatinSpaces(objects);
-                collapseSpaces(objects);
-                return objects;
-            });
-        };
-
-        /* 横連結→エリアボタン（連結パネルから移動） */
-        var btnConcatToArea = specialBtnGroup.add("button", undefined, L("btnConcatToArea"));
-        btnConcatToArea.helpTip = L("tipConcatToArea");
-        btnConcatToArea.onClick = function () {
-            executeAction(function (objects) {
-                return concatHorizontal(objects, "area");
-            });
-            dialog.close();
         };
 
         /* 3カラムレイアウト */
@@ -2130,7 +2135,7 @@ function hasVisibleChars(txt) {
         var panelConcat = colCenter.add("panel", undefined, L("panelConcat"));
         panelConcat.margins = [15, 20, 15, 10];
         panelConcat.alignment = ["fill", "top"];
-        panelConcat.alignChildren = ["fill", "center"];
+        panelConcat.alignChildren = ["center", "center"];
 
         /* 連結（縦）ボタン */
         var btnConcatV = panelConcat.add("button", undefined, L("btnConcatV"));
@@ -2201,6 +2206,17 @@ function hasVisibleChars(txt) {
         var btnCollapseSpaces = panelSpace.add("button", undefined, L("btnCollapseSpaces"));
         btnCollapseSpaces.onClick = function () {
             executeAction(collapseSpaces);
+        };
+
+        /* スペース削除（一括）ボタン */
+        var btnCleanupSpaces = panelSpace.add("button", undefined, L("btnCleanupSpaces"));
+        btnCleanupSpaces.onClick = function () {
+            executeAction(function (objects) {
+                trimSpaces(objects);
+                removeCjkLatinSpaces(objects);
+                collapseSpaces(objects);
+                return objects;
+            });
         };
 
         updateStatusDisplay(selectedObjects);
