@@ -39,7 +39,7 @@ https://slide-collage.vercel.app/
 // Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -807,6 +807,7 @@ function __SC_clearPreviewCache(__previewCache) {
     __previewCache.previewWrapped = false;
     __previewCache.previewRoundRadiusPt = 0;
     __previewCache.randOrder = null;
+    __previewCache.finalRandOrder = null;
 }
 
 // Remove any leftover preview group(s) by name (safety net)
@@ -886,6 +887,7 @@ function main() {
         group: null,
         currentRot: 0,
         randOrder: null,
+        finalRandOrder: null,
         previewWrapped: false,
         previewRoundRadiusPt: 0
     };
@@ -1137,6 +1139,68 @@ function main() {
         } catch (_) { }
     }
 
+    function triggerPreviewUpdate() {
+        updatePreview();
+    }
+
+    function syncLayoutInputsBeforeFinalize() {
+        try { syncColsFromEdit(); } catch (_) { }
+        try { syncSpacingFromEdit(); } catch (_) { }
+        try { syncShiftFromEdit(); } catch (_) { }
+        try { syncScaleFromEdit(); } catch (_) { }
+        try { syncRotateFromEdit(); } catch (_) { }
+
+        try {
+            var m = parseFloat(editMargin.text);
+            if (isNaN(m) || m < 0) m = 0;
+            editMargin.text = String(__SC_round(m, 2));
+        } catch (_) { }
+
+        try {
+            var r = parseFloat(editRound.text);
+            if (isNaN(r) || r < 0) r = 0;
+            editRound.text = String(__SC_round(r, 2));
+        } catch (_) { }
+
+        try {
+            var mr = parseFloat(editMaskRound.text);
+            if (isNaN(mr) || mr < 0) mr = 0;
+            editMaskRound.text = String(__SC_round(mr, 2));
+        } catch (_) { }
+
+        try {
+            updateMaskUI();
+            updateBgControls();
+            initSourceDependentUI();
+        } catch (_) { }
+    }
+
+    function bakePreviewRandomOrderForFinalize() {
+        try {
+            if (getFlowMode() !== 2) return;
+            if (!__previewCache.items || __previewCache.items.length <= 1) return;
+            if (!__previewCache.randOrder || __previewCache.randOrder.length !== __previewCache.items.length) return;
+
+            var orderedItems = [];
+            var orderedBaseW = [];
+            var orderedBaseH = [];
+            for (var i = 0; i < __previewCache.randOrder.length; i++) {
+                var idx = __previewCache.randOrder[i];
+                orderedItems.push(__previewCache.items[idx]);
+                orderedBaseW.push(__previewCache.baseW[idx]);
+                orderedBaseH.push(__previewCache.baseH[idx]);
+            }
+
+            __previewCache.items = orderedItems;
+            __previewCache.baseW = orderedBaseW;
+            __previewCache.baseH = orderedBaseH;
+
+            var identity = [];
+            for (var j = 0; j < orderedItems.length; j++) identity.push(j);
+            __previewCache.randOrder = identity.slice(0);
+            __previewCache.finalRandOrder = identity.slice(0);
+        } catch (_) { }
+    }
 
     btnBrowse.onClick = function () {
         var f = File.openDialog(L('dlgPickFile'), L('filterPick'));
@@ -1266,6 +1330,10 @@ function main() {
         return 0;
     }
 
+    rbDirH.onClick = triggerPreviewUpdate;
+    rbDirV.onClick = triggerPreviewUpdate;
+    rbDirR.onClick = triggerPreviewUpdate;
+
     // 列数
     var groupCols = panelLayout.add("group");
     groupCols.orientation = "row";
@@ -1302,8 +1370,14 @@ function main() {
     }
 
     syncColsFromEdit();
-    editCols.onChanging = function () { syncColsFromEdit(); };
-    sldCols.onChanging = function () { syncColsFromSlider(); };
+    editCols.onChanging = function () {
+        syncColsFromEdit();
+        triggerPreviewUpdate();
+    };
+    sldCols.onChanging = function () {
+        syncColsFromSlider();
+        triggerPreviewUpdate();
+    };
 
     // リアルタイムプレビュー（確定時）
 
@@ -1346,8 +1420,14 @@ function main() {
     syncSpacingFromEdit();
 
     // 連動
-    editSpacing.onChanging = function () { syncSpacingFromEdit(); };
-    sldSpacing.onChanging = function () { syncSpacingFromSlider(); };
+    editSpacing.onChanging = function () {
+        syncSpacingFromEdit();
+        triggerPreviewUpdate();
+    };
+    sldSpacing.onChanging = function () {
+        syncSpacingFromSlider();
+        triggerPreviewUpdate();
+    };
 
     // --- 偶数列パネル（配分/ずらし） ---
     var panelEven = rightCol.add("panel", undefined, L("panelEven"));
@@ -1369,6 +1449,8 @@ function main() {
         : "Adds one extra slot to even columns. Empty spaces may appear.";
 
     cbEvenPlus.value = false;
+
+    cbEvenPlus.onClick = triggerPreviewUpdate;
 
     // ずらし（Yオフセット）
     var groupColShift = panelEven.add("group");
@@ -1416,8 +1498,14 @@ function main() {
 
     syncShiftFromEdit();
 
-    editColShift.onChanging = function () { syncShiftFromEdit(); };
-    sldColShift.onChanging = function () { syncShiftFromSlider(); };
+    editColShift.onChanging = function () {
+        syncShiftFromEdit();
+        triggerPreviewUpdate();
+    };
+    sldColShift.onChanging = function () {
+        syncShiftFromSlider();
+        triggerPreviewUpdate();
+    };
 
     // 初期状態
     editColShift.enabled = cbColShift.value;
@@ -1426,6 +1514,7 @@ function main() {
     cbColShift.onClick = function () {
         editColShift.enabled = cbColShift.value;
         sldColShift.enabled = cbColShift.value;
+        triggerPreviewUpdate();
     };
 
     /* レイアウト / Layout */
@@ -1755,8 +1844,9 @@ function main() {
     sldOffsetX.enabled = cbOffsetX.value;
     cbOffsetX.onClick = function () {
         sldOffsetX.enabled = cbOffsetX.value;
+        triggerPreviewUpdate();
     };
-    // sldOffsetX.onChange = function () { updatePreview(); };
+    sldOffsetX.onChanging = triggerPreviewUpdate;
 
     // 縦位置（＋で下へ）
     var groupOffsetY = panelLayoutRight.add("group");
@@ -1775,8 +1865,9 @@ function main() {
     sldOffsetY.enabled = cbOffsetY.value;
     cbOffsetY.onClick = function () {
         sldOffsetY.enabled = cbOffsetY.value;
+        triggerPreviewUpdate();
     };
-    // sldOffsetY.onChange = function () { updatePreview(); };
+    sldOffsetY.onChanging = triggerPreviewUpdate;
 
     // -----------------------------------------
     // 列ずらしデフォルト計算
@@ -2238,7 +2329,11 @@ function main() {
         var flowMode = getFlowMode();
         // Random mode: prepare a persistent shuffle order
         if (flowMode === 2) {
-            __SC_ensureRandomOrder(__previewCache);
+            if (__previewCache.finalRandOrder && __previewCache.finalRandOrder.length === __previewCache.items.length) {
+                __previewCache.randOrder = __previewCache.finalRandOrder.slice(0);
+            } else {
+                __SC_ensureRandomOrder(__previewCache);
+            }
         } else {
             __SC_clearRandomOrder(__previewCache);
         }
@@ -3258,16 +3353,40 @@ function main() {
 
     // OKボタン
     btnOk.onClick = function () {
-        // ★ プレビュー用キャッシュを完全削除（これがないと2セットになる）
-        try {
-            __SC_clearPreviewCache(__previewCache);
-        } catch (_) { }
+
+        // Finalize should not destroy the current preview cache here.
+        // The success path after win.show() decides whether to reuse the visible preview
+        // or place fresh items. Clearing here causes duplication / mismatch bugs.
+
+        // Bake the exact preview random order into the cache so finalize cannot reshuffle.
+        bakePreviewRandomOrderForFinalize();
+
+        // Normalize current UI values so the success path reads the same state as the preview.
+        syncLayoutInputsBeforeFinalize();
+
+        // For non-random modes, refresh the visible preview once so the last preview matches current UI.
+        if (__previewCache.items && __previewCache.items.length > 0) {
+            if (shouldRelayoutOnFinalize()) {
+                applyLayoutToCachedItems();
+            }
+            try { app.redraw(); } catch (_) { }
+        }
 
         __SC_saveDialogBounds(win.bounds);
         win.close(1);
     };
 
     if (win.show() === 1) {
+
+        // If preview objects already exist, they are the final result.
+        // Do not place/duplicate a second set on OK.
+        if (__previewCache.items && __previewCache.items.length > 0) {
+            __previewCache.finalRandOrder = null;
+            __previewCache.randOrder = null;
+            return;
+        }
+
+
         var finalPages = parsePageNumbers(editPages.text);
         // Repeat pages/artboards when requested count exceeds source count
         try {
