@@ -2199,6 +2199,9 @@ function hasVisibleChars(txt) {
                     app.activeDocument.selection = targets;
                 }
             } catch (e) { debugLog("btnClose: finalize selection", e); }
+            if (hiddenCharOn) {
+                try { app.executeMenuCommand('showHiddenChar'); } catch (_) { }
+            }
             dialog.close();
         };
 
