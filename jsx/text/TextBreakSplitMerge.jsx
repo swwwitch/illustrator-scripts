@@ -33,7 +33,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 //
 // ダイアログUIは日本語／英語を自動切り替えし、選択状態に応じて使用可能な機能を動的に切り替えます。
 
-var SCRIPT_VERSION = "v1.6";
+var SCRIPT_VERSION = "v1.6.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -2152,8 +2152,8 @@ function hasVisibleChars(txt) {
             var hasAnyBreaks = hasParagraph || hasForced;
 
             /* 改行削除系 */
-            btnRemoveLineBreaks.enabled = hasParagraph;
-            btnRemoveAllBreaks.enabled = hasAnyBreaks;
+            btnRemoveLineBreaks.enabled = hasAnyBreaks;
+            chkIncludeForcedBreaks.enabled = hasForced;
 
             /* 改行変換系 */
             btnConvertBreaks.enabled = hasForced;
@@ -2190,13 +2190,13 @@ function hasVisibleChars(txt) {
 
         /* タブパネル（メイン） */
         var tabbedPanel = dialog.add("tabbedpanel");
-        tabbedPanel.margins = [20, 15, 0, -10];
+        // tabbedPanel.margins = [20, 15, 0, -10];
         tabbedPanel.alignment = ["fill", "top"];
         tabbedPanel.alignChildren = ["fill", "top"];
 
         /* === タブ1: 基本 === */
         var tabBasic = tabbedPanel.add("tab", undefined, L("tabBasic"));
-        tabBasic.margins = [30, 20, 0, -10];
+        tabBasic.margins = [10, 20, 0, -10];
         tabBasic.spacing = 15;
         tabBasic.orientation = "row";
         tabBasic.alignment = ["center", "top"];
@@ -2241,14 +2241,15 @@ function hasVisibleChars(txt) {
         /* 改行削除ボタン */
         var btnRemoveLineBreaks = panelRemoveBreak.add("button", undefined, L("btnRemoveLineBreaks"));
         btnRemoveLineBreaks.onClick = function () {
-            executeAction(removeLineBreaks);
+            if (chkIncludeForcedBreaks.value) {
+                executeAction(removeAllBreaks);
+            } else {
+                executeAction(removeLineBreaks);
+            }
         };
 
-        /* 強制改行を含むボタン */
-        var btnRemoveAllBreaks = panelRemoveBreak.add("button", undefined, L("btnRemoveAllBreaks"));
-        btnRemoveAllBreaks.onClick = function () {
-            executeAction(removeAllBreaks);
-        };
+        /* 強制改行を含むチェックボックス */
+        var chkIncludeForcedBreaks = panelRemoveBreak.add("checkbox", undefined, L("btnRemoveAllBreaks"));
 
         /* 改行パネル */
         var panelLineBreak = panelBreakGroup.add("panel", undefined, L("panelLineBreak"));
@@ -2410,7 +2411,7 @@ function hasVisibleChars(txt) {
 
         /* === タブ2: クリーンアップ === */
         var tabCleanup = tabbedPanel.add("tab", undefined, L("tabCleanup"));
-        tabCleanup.margins = [30, 20, 0, 10];
+        tabCleanup.margins = [10, 20, 0, -10];
         tabCleanup.spacing = 15;
         tabCleanup.orientation = "row";
         tabCleanup.alignment = ["fill", "top"];
@@ -2440,14 +2441,8 @@ function hasVisibleChars(txt) {
             executeAction(tabsToSpaces);
         };
 
-        /* 右カラム：スペース削除 */
-        var cleanupColRight = tabCleanup.add("group");
-        cleanupColRight.orientation = "column";
-        cleanupColRight.alignment = ["fill", "top"];
-        cleanupColRight.alignChildren = ["fill", "top"];
-
-        /* スペースパネル */
-        var panelSpace = cleanupColRight.add("panel", undefined, L("panelSpace"));
+        /* スペースパネル（タブパネルの下） */
+        var panelSpace = cleanupColLeft.add("panel", undefined, L("panelSpace"));
         panelSpace.margins = [15, 20, 15, 10];
         panelSpace.alignment = ["fill", "top"];
         panelSpace.alignChildren = ["fill", "center"];
@@ -2481,14 +2476,14 @@ function hasVisibleChars(txt) {
             });
         };
 
-        /* 右カラム：変換 */
-        var cleanupColExtra = tabCleanup.add("group");
-        cleanupColExtra.orientation = "column";
-        cleanupColExtra.alignment = ["fill", "top"];
-        cleanupColExtra.alignChildren = ["fill", "top"];
+        /* 右カラム：変換・リスト */
+        var cleanupColRight = tabCleanup.add("group");
+        cleanupColRight.orientation = "column";
+        cleanupColRight.alignment = ["fill", "top"];
+        cleanupColRight.alignChildren = ["fill", "top"];
 
         /* 変換パネル */
-        var panelConvert = cleanupColExtra.add("panel", undefined, L("panelConvert"));
+        var panelConvert = cleanupColRight.add("panel", undefined, L("panelConvert"));
         panelConvert.margins = [15, 20, 15, 10];
         panelConvert.alignment = ["fill", "top"];
         panelConvert.alignChildren = ["fill", "center"];
@@ -2506,7 +2501,7 @@ function hasVisibleChars(txt) {
         };
 
         /* リストパネル */
-        var panelList = cleanupColExtra.add("panel", undefined, L("panelList"));
+        var panelList = cleanupColRight.add("panel", undefined, L("panelList"));
         panelList.margins = [15, 20, 15, 10];
         panelList.alignment = ["fill", "top"];
         panelList.alignChildren = ["fill", "center"];
@@ -2525,7 +2520,7 @@ function hasVisibleChars(txt) {
 
         /* === タブ3: 行の整理 === */
         var tabLineArrange = tabbedPanel.add("tab", undefined, L("tabLineArrange"));
-        tabLineArrange.margins = [30, 20, 0, 10];
+        tabLineArrange.margins = [10, 20, 0, -10];
         tabLineArrange.spacing = 15;
         tabLineArrange.orientation = "row";
         tabLineArrange.alignment = ["fill", "top"];
@@ -2545,7 +2540,7 @@ function hasVisibleChars(txt) {
         var lineListBox = lineListGroup.add("listbox", undefined, [], {
             multiselect: false
         });
-        lineListBox.preferredSize = [280, 460];
+        lineListBox.preferredSize = [200, 460];
         lineListBox.graphics.font = ScriptUI.newFont("dialog", "REGULAR", 18);
 
         /* リストボックスのデータ管理 */
