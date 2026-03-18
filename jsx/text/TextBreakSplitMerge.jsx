@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // TextBreakSplitMerge.jsx 
 // 
 // 作成日：2026年3月18日
-// 更新日：2026年3月18日
+// 更新日：2026年3月19日
 //
 // Illustratorで分散しがちなテキスト処理（改行・分割・連結・整形）を
 // 1つのダイアログに統合したオールインワン・テキスト処理スクリプトです。
@@ -22,16 +22,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // ・段落／タブ／文字単位でのテキスト分割（書式保持／無視の両対応）
 // ・複数テキストの縦方向・横方向連結（見た目ベースでの再構成）
 // ・テキスト内容のクリーンアップ（空行削除、スペース整理、タブ処理など）
-// ・テキスト構造の可視化（改行数・タブ数・文字タイプの集計表示）
+// ・テキスト構造の可視化（改行数・タブ数・文字種別の集計表示）
+// ・実行可能な処理だけを有効化する状態連動UI
 //
 // ［設計方針］
 // ・既存テキストを直接編集しつつ、結果を即座に確認できる即時実行型UI
 // ・複数スクリプトの置き換えを前提とした「集約ツール」設計
 // ・見た目ベースの処理を優先し、実務での作業効率を重視
+// ・実行条件に合わない機能は無効化し、誤操作を防止
 //
-// ダイアログUIは日本語／英語を自動切り替えし、タイトルバーにはバージョン番号を表示します。
+// ダイアログUIは日本語／英語を自動切り替えし、選択状態に応じて使用可能な機能を動的に切り替えます。
 
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v1.6";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -43,6 +45,18 @@ var LABELS = {
     dialogTitle: {
         ja: "テキスト処理",
         en: "Text Processing"
+    },
+    tabBasic: {
+        ja: "基本",
+        en: "Basic"
+    },
+    tabCleanup: {
+        ja: "クリーンアップ",
+        en: "Cleanup"
+    },
+    tabLineArrange: {
+        ja: "行の整理",
+        en: "Line Arrange"
     },
     panelBreakGroup: {
         ja: "改行",
@@ -65,23 +79,91 @@ var LABELS = {
         en: "Split"
     },
     panelSplit: {
-        ja: "行",
-        en: "Split (Line)"
+        ja: "改行で分割",
+        en: "Split by Line Breaks"
     },
     panelSplitChar: {
-        ja: "文字",
-        en: "Split (Char)"
+        ja: "文字で分割",
+        en: "Split by Character"
+    },
+    panelSort: {
+        ja: "ソート",
+        en: "Sort"
+    },
+    panelLineEdit: {
+        ja: "編集",
+        en: "Edit"
+    },
+    panelLineDelete: {
+        ja: "行削除",
+        en: "Delete Lines"
+    },
+    panelConvert: {
+        ja: "変換",
+        en: "Convert"
+    },
+    btnFullToHalfAlnum: {
+        ja: "全角英数字→半角",
+        en: "Fullwidth to Halfwidth"
+    },
+    btnHalfToFullKana: {
+        ja: "半角カナ→全角",
+        en: "Halfwidth Kana to Fullwidth"
+    },
+    panelList: {
+        ja: "リスト",
+        en: "List"
+    },
+    btnBulletList: {
+        ja: "箇条書き",
+        en: "Bullet List"
+    },
+    btnNumberList: {
+        ja: "番号リスト",
+        en: "Number List"
     },
     panelOther: {
         ja: "行の整理",
         en: "Line Arrange"
+    },
+    btnLineUp: {
+        ja: "上へ",
+        en: "Up"
+    },
+    btnLineDown: {
+        ja: "下へ",
+        en: "Down"
+    },
+    btnLineAdd: {
+        ja: "追加",
+        en: "Add"
+    },
+    btnLineEdit: {
+        ja: "編集",
+        en: "Edit"
+    },
+    btnLineDelete: {
+        ja: "削除",
+        en: "Delete"
+    },
+    promptAddLine: {
+        ja: "追加する行を入力してください",
+        en: "Enter the line to add"
+    },
+    promptEditLine: {
+        ja: "行を編集してください",
+        en: "Edit the line"
+    },
+    confirmDeleteLine: {
+        ja: "選択した行を削除しますか？",
+        en: "Delete the selected line?"
     },
     btnReverseOrder: {
         ja: "反転",
         en: "Reverse Order"
     },
     btnRemoveDuplicateLines: {
-        ja: "重複行の削除",
+        ja: "重複行",
         en: "Remove Duplicates"
     },
     btnSortByCharCode: {
@@ -89,7 +171,7 @@ var LABELS = {
         en: "Sort"
     },
     btnSortByLength: {
-        ja: "ソート（文字数）",
+        ja: "文字数順",
         en: "Sort (Length)"
     },
     btnSplitKeepStyle: {
@@ -122,7 +204,7 @@ var LABELS = {
     },
     btnCjkLatinSpaces: {
         ja: "和欧間",
-        en: "Remove CJK-Latin Spaces"
+        en: "Remove Spaces Between CJK and Latin"
     },
     btnRemoveTabs: {
         ja: "タブを削除",
@@ -140,17 +222,13 @@ var LABELS = {
         ja: "ステータス",
         en: "Status"
     },
-    panelSpecial: {
-        ja: "スペシャル",
-        en: "Special"
-    },
     btnCleanupSpaces: {
         ja: "まとめて",
         en: "All at Once"
     },
     btnFlattenToOneLine: {
-        ja: "急いで1行に",
-        en: "Flatten to One Line"
+        ja: "すべて1行に",
+        en: "Merge All into One Line"
     },
     btnRemoveLineBreaks: {
         ja: "改行のみ",
@@ -161,7 +239,7 @@ var LABELS = {
         en: "Include Forced Breaks"
     },
     btnRemoveEmptyLines: {
-        ja: "空行削除",
+        ja: "空行",
         en: "Remove Empty Lines"
     },
     btnAddLineBreaks: {
@@ -198,11 +276,11 @@ var LABELS = {
     },
     btnConcatHOnly: {
         ja: "横連結（行維持）",
-        en: "Horizontal (Keep Rows)"
+        en: "Merge Horizontally (Keep Rows)"
     },
     btnConcatH: {
         ja: "横連結（行統合）",
-        en: "Horizontal (Combine Rows)"
+        en: "Merge Horizontally (Merge Rows)"
     },
     btnConcatToArea: {
         ja: "PDFテキスト整形",
@@ -213,16 +291,16 @@ var LABELS = {
         en: "Merge top to bottom"
     },
     tipConcatHOnly: {
-        ja: "横連結（行維持）",
-        en: "Merge per row (keep rows)"
+        ja: "行ごとに横連結して、行は維持します",
+        en: "Merge horizontally within each row and keep the rows separate"
     },
     tipConcatH: {
-        ja: "横連結（行統合）",
-        en: "Merge horizontally (combine rows)"
+        ja: "横方向に連結した後、複数行を1つのテキストに統合します",
+        en: "Merge horizontally and then combine multiple rows into a single text"
     },
     tipConcatToArea: {
-        ja: "横連結→エリア内文字",
-        en: "Merge to area text"
+        ja: "横方向に連結し、エリア内文字として整形します",
+        en: "Merge horizontally and format the result as area text"
     },
     chkShowHiddenChar: {
         ja: "制御文字",
@@ -262,7 +340,7 @@ var LABELS = {
     },
     infoAreaSeparator: {
         ja: "エリア内文字: ",
-        en: "Area Type: "
+        en: "Area Text: "
     },
     infoParagraphBreakCount: {
         ja: "改行: ",
@@ -636,7 +714,7 @@ function hasVisibleChars(txt) {
         return [x1, y1, x2, y2];
     }
 
-    /* テキストフレームをグループ化 */
+    /* テキストフレームを1つのグループにまとめる */
     function groupTextFrames(frames, targetLayer) {
         var validFrames = getTextFrames(frames);
         if (validFrames.length === 0) return [];
@@ -681,7 +759,7 @@ function hasVisibleChars(txt) {
         }
     }
 
-    /* 複数フレームを連結し、全改行を削除して1行にする関数 */
+    /* 複数フレームを連結し、改行を取り除いて1行に統合する関数 */
     function flattenToOneLine(objects) {
         var frames = getTextFrames(objects);
         if (frames.length < 2) {
@@ -751,6 +829,112 @@ function hasVisibleChars(txt) {
         });
     }
 
+    /* 全角英数字を半角に変換する関数 */
+    function fullToHalfAlnum(objects) {
+        transformContents(objects, function (txt) {
+            var result = "";
+            for (var i = 0; i < txt.length; i++) {
+                var code = txt.charCodeAt(i);
+                // 全角数字 ０-９ (0xFF10-0xFF19) → 半角 0-9
+                // 全角大文字 Ａ-Ｚ (0xFF21-0xFF3A) → 半角 A-Z
+                // 全角小文字 ａ-ｚ (0xFF41-0xFF5A) → 半角 a-z
+                if (code >= 0xFF10 && code <= 0xFF19) {
+                    result += String.fromCharCode(code - 0xFF10 + 0x30);
+                } else if (code >= 0xFF21 && code <= 0xFF3A) {
+                    result += String.fromCharCode(code - 0xFF21 + 0x41);
+                } else if (code >= 0xFF41 && code <= 0xFF5A) {
+                    result += String.fromCharCode(code - 0xFF41 + 0x61);
+                } else {
+                    result += txt.charAt(i);
+                }
+            }
+            return result;
+        });
+    }
+
+    /* 半角カナを全角カナに変換する関数 */
+    function halfToFullKana(objects) {
+        var halfKana = "\uFF66\uFF67\uFF68\uFF69\uFF6A\uFF6B\uFF6C\uFF6D\uFF6E\uFF6F\uFF70\uFF71\uFF72\uFF73\uFF74\uFF75\uFF76\uFF77\uFF78\uFF79\uFF7A\uFF7B\uFF7C\uFF7D\uFF7E\uFF7F\uFF80\uFF81\uFF82\uFF83\uFF84\uFF85\uFF86\uFF87\uFF88\uFF89\uFF8A\uFF8B\uFF8C\uFF8D\uFF8E\uFF8F\uFF90\uFF91\uFF92\uFF93\uFF94\uFF95\uFF96\uFF97\uFF98\uFF99\uFF9A\uFF9B\uFF9C\uFF9D";
+        var fullKana = "\u30F2\u30A1\u30A3\u30A5\u30A7\u30A9\u30E3\u30E5\u30E7\u30C3\u30FC\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u30B5\u30B7\u30B9\u30BB\u30BD\u30BF\u30C1\u30C4\u30C6\u30C8\u30CA\u30CB\u30CC\u30CD\u30CE\u30CF\u30D2\u30D5\u30D8\u30DB\u30DE\u30DF\u30E0\u30E1\u30E2\u30E4\u30E6\u30E8\u30E9\u30EA\u30EB\u30EC\u30ED\u30EF\u30F3";
+        // 濁点・半濁点の対応
+        var dakutenBase = "\uFF76\uFF77\uFF78\uFF79\uFF7A\uFF7B\uFF7C\uFF7D\uFF7E\uFF7F\uFF80\uFF81\uFF82\uFF83\uFF84\uFF8A\uFF8B\uFF8C\uFF8D\uFF8E";
+        var dakutenFull = "\u30AC\u30AE\u30B0\u30B2\u30B4\u30B6\u30B8\u30BA\u30BC\u30BE\u30C0\u30C2\u30C5\u30C7\u30C9\u30D0\u30D3\u30D6\u30D9\u30DC";
+        var handakutenBase = "\uFF8A\uFF8B\uFF8C\uFF8D\uFF8E";
+        var handakutenFull = "\u30D1\u30D4\u30D7\u30DA\u30DD";
+        transformContents(objects, function (txt) {
+            var result = "";
+            for (var i = 0; i < txt.length; i++) {
+                var ch = txt.charAt(i);
+                var next = (i + 1 < txt.length) ? txt.charAt(i + 1) : "";
+                // 濁点結合 (ﾞ = \uFF9E)
+                if (next === "\uFF9E") {
+                    var di = dakutenBase.indexOf(ch);
+                    if (di >= 0) {
+                        result += dakutenFull.charAt(di);
+                        i++;
+                        continue;
+                    }
+                }
+                // 半濁点結合 (ﾟ = \uFF9F)
+                if (next === "\uFF9F") {
+                    var hi = handakutenBase.indexOf(ch);
+                    if (hi >= 0) {
+                        result += handakutenFull.charAt(hi);
+                        i++;
+                        continue;
+                    }
+                }
+                // 単独変換
+                var ki = halfKana.indexOf(ch);
+                if (ki >= 0) {
+                    result += fullKana.charAt(ki);
+                } else if (ch === "\uFF9E") {
+                    result += "\u309B"; // 濁点単独
+                } else if (ch === "\uFF9F") {
+                    result += "\u309C"; // 半濁点単独
+                } else if (ch === "\uFF61") {
+                    result += "\u3002"; // 。
+                } else if (ch === "\uFF62") {
+                    result += "\u300C"; // 「
+                } else if (ch === "\uFF63") {
+                    result += "\u300D"; // 」
+                } else if (ch === "\uFF64") {
+                    result += "\u3001"; // 、
+                } else if (ch === "\uFF65") {
+                    result += "\u30FB"; // ・
+                } else {
+                    result += ch;
+                }
+            }
+            return result;
+        });
+    }
+
+    /* 箇条書き記号の除去 */
+    function toggleBulletList(objects) {
+        var bulletPat = /^[\u30FB\u2022\-\*]\s*/; // ・ • - *
+        transformContents(objects, function (txt) {
+            var lines = splitParagraphLines(txt);
+            for (var i = 0; i < lines.length; i++) {
+                lines[i] = lines[i].replace(bulletPat, "");
+            }
+            return lines.join("\r");
+        });
+    }
+
+    /* 番号リスト記号の除去 */
+    function toggleNumberList(objects) {
+        // 全角半角数字 + 全角半角ピリオド + スペース(複数可)
+        var numPat = /^[0-9\uFF10-\uFF19]+[.\uFF0E]\s*/;
+        transformContents(objects, function (txt) {
+            var lines = splitParagraphLines(txt);
+            for (var i = 0; i < lines.length; i++) {
+                lines[i] = lines[i].replace(numPat, "");
+            }
+            return lines.join("\r");
+        });
+    }
+
     /* テキストフレームの順序を反転する関数 */
     /* テキストフレーム内の行の順序を反転する */
     function reverseOrder(objects) {
@@ -777,7 +961,7 @@ function hasVisibleChars(txt) {
         });
     }
 
-    /* テキストフレーム内の行を文字コード順にソート */
+    /* テキストフレーム内の行を文字コード順で並べ替える */
     function sortByCharCode(objects) {
         transformContents(objects, function (txt) {
             var lines = splitParagraphLines(txt);
@@ -786,7 +970,7 @@ function hasVisibleChars(txt) {
         });
     }
 
-    /* テキストフレーム内の行を文字数順にソート */
+    /* テキストフレーム内の行を文字数順で並べ替える */
     function sortByLength(objects) {
         transformContents(objects, function (txt) {
             var lines = splitParagraphLines(txt);
@@ -1718,16 +1902,10 @@ function hasVisibleChars(txt) {
         var textFrameCounts = countTextFrameTypes(selectedObjects);
         var breakCounts = countBreakTypes(selectedObjects);
 
-        /* 上部2カラムレイアウト */
-        var topGroup = dialog.add("group");
-        topGroup.orientation = "row";
-        topGroup.alignment = ["fill", "bottom"];
-        topGroup.alignChildren = ["fill", "bottom"];
-
-        /* 左：ステータスパネル */
-        var panelStatus = topGroup.add("panel", undefined, L("panelStatus"));
+        /* ステータスパネル */
+        var panelStatus = dialog.add("panel", undefined, L("panelStatus"));
         panelStatus.margins = [20, 20, 30, 10];
-        panelStatus.alignment = ["left", "bottom"];
+        panelStatus.alignment = ["fill", "top"];
         panelStatus.alignChildren = ["left", "top"];
 
         /* ステータス表示 */
@@ -1747,12 +1925,6 @@ function hasVisibleChars(txt) {
         statusCenter.alignment = ["fill", "top"];
         statusCenter.alignChildren = ["left", "top"];
 
-        /* 右：アクションボタン */
-        var topRight = topGroup.add("panel");
-        topRight.orientation = "row";
-        topRight.alignment = ["right", "bottom"];
-        topRight.alignChildren = ["left", "top"];
-        topRight.spacing = 20;
 
         var rowTargetCount = statusLeft.add("group");
         rowTargetCount.orientation = "row";
@@ -1879,19 +2051,42 @@ function hasVisibleChars(txt) {
 
 
 
-        /* 右を2カラムに分割 */
-        var topRightLeft = topRight.add("group");
-        topRightLeft.orientation = "column";
-        topRightLeft.alignment = ["left", "center"];
-        topRightLeft.alignChildren = ["fill", "center"];
+        /* 制御文字の状態管理 */
+        var hiddenCharOn = false;
+        var hiddenCharLabel = L("chkShowHiddenChar");
 
-        var topRightRight = topRight.add("group");
-        topRightRight.orientation = "column";
-        topRightRight.alignment = ["right", "center"];
-        topRightRight.alignChildren = ["fill", "center"];
+        /* タブパネル（メイン） */
+        var tabbedPanel = dialog.add("tabbedpanel");
+        tabbedPanel.margins = [20, 15, 0, 0];
+        tabbedPanel.alignment = ["fill", "top"];
+        tabbedPanel.alignChildren = ["fill", "top"];
 
-        /* 急いで1行にボタン */
-        var btnFlattenToOneLine = topRightLeft.add("button", undefined, L("btnFlattenToOneLine"));
+        /* === タブ1: 基本 === */
+        var tabBasic = tabbedPanel.add("tab", undefined, L("tabBasic"));
+        tabBasic.margins = [30, 20, 0, 10];
+        tabBasic.spacing = 15;
+        tabBasic.orientation = "row";
+        tabBasic.alignment = ["center", "top"];
+        tabBasic.alignChildren = ["fill", "top"];
+
+        /* 左カラム：改行 */
+        var colLeft = tabBasic.add("group");
+        colLeft.orientation = "column";
+        colLeft.alignment = ["fill", "top"];
+        colLeft.alignChildren = ["fill", "top"];
+
+        /* 改行グループパネル */
+        var panelBreakGroup = colLeft.add("panel", undefined, L("panelBreakGroup"));
+        panelBreakGroup.margins = [15, 20, 15, 10];
+        panelBreakGroup.alignment = ["fill", "top"];
+        panelBreakGroup.alignChildren = ["fill", "top"];
+
+        /* すべて1行にボタン（中央配置） */
+        var grpFlatten = panelBreakGroup.add("group");
+        grpFlatten.alignment = ["center", "top"];
+        grpFlatten.margins = [0, 0, 0, 10];
+
+        var btnFlattenToOneLine = grpFlatten.add("button", undefined, L("btnFlattenToOneLine"));
         btnFlattenToOneLine.onClick = function () {
             executeAction(function (objects) {
                 var result = flattenToOneLine(objects);
@@ -1902,69 +2097,6 @@ function hasVisibleChars(txt) {
                 return targets;
             });
         };
-
-        /* PDFテキスト整形ボタン */
-        var btnConcatToArea = topRightLeft.add("button", undefined, L("btnConcatToArea"));
-        btnConcatToArea.helpTip = L("tipConcatToArea");
-        btnConcatToArea.onClick = function () {
-            executeAction(function (objects) {
-                return concatHorizontal(objects, "area");
-            });
-            dialog.close();
-        };
-
-        /* 制御文字ボタン */
-        var hiddenCharOn = false;
-        var hiddenCharLabel = L("chkShowHiddenChar");
-        var btnShowHiddenChar = topRightRight.add("button", undefined, hiddenCharLabel);
-
-        /* 制御文字ボタンの表示状態を更新 */
-
-        function updateHiddenCharButton() {
-            if (hiddenCharOn) {
-                btnShowHiddenChar.text = "\u2713 " + hiddenCharLabel;
-                try {
-                    var gfx = btnShowHiddenChar.graphics;
-                    gfx.foregroundColor = gfx.newPen(gfx.PenType.SOLID_COLOR, [0.0, 0.5, 0.8], 1);
-                } catch (_) { }
-            } else {
-                btnShowHiddenChar.text = hiddenCharLabel;
-                try {
-                    var gfx2 = btnShowHiddenChar.graphics;
-                    gfx2.foregroundColor = gfx2.newPen(gfx2.PenType.SOLID_COLOR, [0.0, 0.0, 0.0], 1);
-                } catch (_) { }
-            }
-        }
-
-        /* 制御文字の表示切り替え */
-
-        btnShowHiddenChar.onClick = function () {
-            try {
-                app.executeMenuCommand('showHiddenChar');
-                app.redraw();
-                hiddenCharOn = !hiddenCharOn;
-                updateHiddenCharButton();
-            } catch (err) {
-                showError(err);
-            }
-        };
-
-        /* 3カラムレイアウト */
-        var columnsGroup = dialog.add("group");
-        columnsGroup.orientation = "row";
-        columnsGroup.alignment = ["fill", "top"];
-        columnsGroup.alignChildren = ["fill", "top"];
-
-        /* 左カラム */
-        var colLeft = columnsGroup.add("group");
-        colLeft.orientation = "column";
-        colLeft.alignChildren = ["fill", "top"];
-
-        /* 改行グループパネル */
-        var panelBreakGroup = colLeft.add("panel", undefined, L("panelBreakGroup"));
-        panelBreakGroup.margins = [15, 20, 15, 10];
-        panelBreakGroup.alignment = ["fill", "top"];
-        panelBreakGroup.alignChildren = ["fill", "top"];
 
         /* 改行削除パネル */
         var panelRemoveBreak = panelBreakGroup.add("panel", undefined, L("panelRemoveBreak"));
@@ -2043,14 +2175,10 @@ function hasVisibleChars(txt) {
             executeAction(convertToForcedBreaks);
         };
 
-        /* 中央カラム */
-        var colCenter = columnsGroup.add("group");
-        colCenter.orientation = "column";
-        colCenter.alignChildren = ["fill", "top"];
-
-        /* 右カラム */
-        var colRight = columnsGroup.add("group");
+        /* 右カラム：分割・連結 */
+        var colRight = tabBasic.add("group");
         colRight.orientation = "column";
+        colRight.alignment = ["fill", "top"];
         colRight.alignChildren = ["fill", "top"];
 
         /* 分割グループパネル */
@@ -2095,44 +2223,8 @@ function hasVisibleChars(txt) {
             executeAction(splitByCharIgnoreStyle);
         };
 
-        /* その他パネル */
-        var panelOther = panelSplitGroup.add("panel", undefined, L("panelOther"));
-        panelOther.margins = [15, 20, 15, 10];
-        panelOther.alignment = ["fill", "top"];
-        panelOther.alignChildren = ["fill", "center"];
-
-        /* ソート（文字コード）ボタン */
-        var btnSortByCharCode = panelOther.add("button", undefined, L("btnSortByCharCode"));
-        btnSortByCharCode.onClick = function () {
-            executeAction(sortByCharCode);
-        };
-
-        /* ソート（文字数）ボタン */
-        var btnSortByLength = panelOther.add("button", undefined, L("btnSortByLength"));
-        btnSortByLength.onClick = function () {
-            executeAction(sortByLength);
-        };
-
-        /* 順序を反転ボタン */
-        var btnReverseOrder = panelOther.add("button", undefined, L("btnReverseOrder"));
-        btnReverseOrder.onClick = function () {
-            executeAction(reverseOrder);
-        };
-
-        /* 重複行の削除ボタン */
-        var btnRemoveDuplicateLines = panelOther.add("button", undefined, L("btnRemoveDuplicateLines"));
-        btnRemoveDuplicateLines.onClick = function () {
-            executeAction(removeDuplicateLines);
-        };
-
-        /* 空行削除ボタン */
-        var btnRemoveEmptyLines = panelOther.add("button", undefined, L("btnRemoveEmptyLines"));
-        btnRemoveEmptyLines.onClick = function () {
-            executeAction(removeEmptyLines);
-        };
-
         /* 連結パネル */
-        var panelConcat = colCenter.add("panel", undefined, L("panelConcat"));
+        var panelConcat = colRight.add("panel", undefined, L("panelConcat"));
         panelConcat.margins = [15, 20, 15, 10];
         panelConcat.alignment = ["fill", "top"];
         panelConcat.alignChildren = ["center", "center"];
@@ -2160,14 +2252,32 @@ function hasVisibleChars(txt) {
             });
         };
 
-        /* クリーンアップパネル */
-        var panelCleanup = colCenter.add("panel", undefined, L("panelCleanup"));
-        panelCleanup.margins = [15, 20, 15, 10];
-        panelCleanup.alignment = ["fill", "top"];
-        panelCleanup.alignChildren = ["fill", "center"];
+        /* PDFテキスト整形ボタン */
+        var btnConcatToArea = panelConcat.add("button", undefined, L("btnConcatToArea"));
+        btnConcatToArea.helpTip = L("tipConcatToArea");
+        btnConcatToArea.onClick = function () {
+            executeAction(function (objects) {
+                return concatHorizontal(objects, "area");
+            });
+            dialog.close();
+        };
+
+        /* === タブ2: クリーンアップ === */
+        var tabCleanup = tabbedPanel.add("tab", undefined, L("tabCleanup"));
+        tabCleanup.margins = [30, 20, 0, 10];
+        tabCleanup.spacing = 15;
+        tabCleanup.orientation = "row";
+        tabCleanup.alignment = ["fill", "top"];
+        tabCleanup.alignChildren = ["fill", "top"];
+
+        /* 左カラム：タブ */
+        var cleanupColLeft = tabCleanup.add("group");
+        cleanupColLeft.orientation = "column";
+        cleanupColLeft.alignment = ["fill", "top"];
+        cleanupColLeft.alignChildren = ["fill", "top"];
 
         /* タブパネル */
-        var panelTab = panelCleanup.add("panel", undefined, L("panelTab"));
+        var panelTab = cleanupColLeft.add("panel", undefined, L("panelTab"));
         panelTab.margins = [15, 20, 15, 10];
         panelTab.alignment = ["fill", "top"];
         panelTab.alignChildren = ["fill", "center"];
@@ -2184,8 +2294,14 @@ function hasVisibleChars(txt) {
             executeAction(tabsToSpaces);
         };
 
+        /* 右カラム：スペース削除 */
+        var cleanupColRight = tabCleanup.add("group");
+        cleanupColRight.orientation = "column";
+        cleanupColRight.alignment = ["fill", "top"];
+        cleanupColRight.alignChildren = ["fill", "top"];
+
         /* スペースパネル */
-        var panelSpace = panelCleanup.add("panel", undefined, L("panelSpace"));
+        var panelSpace = cleanupColRight.add("panel", undefined, L("panelSpace"));
         panelSpace.margins = [15, 20, 15, 10];
         panelSpace.alignment = ["fill", "top"];
         panelSpace.alignChildren = ["fill", "center"];
@@ -2219,8 +2335,253 @@ function hasVisibleChars(txt) {
             });
         };
 
+        /* 右カラム：変換 */
+        var cleanupColExtra = tabCleanup.add("group");
+        cleanupColExtra.orientation = "column";
+        cleanupColExtra.alignment = ["fill", "top"];
+        cleanupColExtra.alignChildren = ["fill", "top"];
+
+        /* 変換パネル */
+        var panelConvert = cleanupColExtra.add("panel", undefined, L("panelConvert"));
+        panelConvert.margins = [15, 20, 15, 10];
+        panelConvert.alignment = ["fill", "top"];
+        panelConvert.alignChildren = ["fill", "center"];
+
+        /* 全角英数字→半角ボタン */
+        var btnFullToHalfAlnum = panelConvert.add("button", undefined, L("btnFullToHalfAlnum"));
+        btnFullToHalfAlnum.onClick = function () {
+            executeAction(fullToHalfAlnum);
+        };
+
+        /* 半角カナ→全角ボタン */
+        var btnHalfToFullKana = panelConvert.add("button", undefined, L("btnHalfToFullKana"));
+        btnHalfToFullKana.onClick = function () {
+            executeAction(halfToFullKana);
+        };
+
+        /* リストパネル */
+        var panelList = cleanupColExtra.add("panel", undefined, L("panelList"));
+        panelList.margins = [15, 20, 15, 10];
+        panelList.alignment = ["fill", "top"];
+        panelList.alignChildren = ["fill", "center"];
+
+        /* 箇条書きボタン */
+        var btnBulletList = panelList.add("button", undefined, L("btnBulletList"));
+        btnBulletList.onClick = function () {
+            executeAction(toggleBulletList);
+        };
+
+        /* 番号リストボタン */
+        var btnNumberList = panelList.add("button", undefined, L("btnNumberList"));
+        btnNumberList.onClick = function () {
+            executeAction(toggleNumberList);
+        };
+
+        /* === タブ3: 行の整理 === */
+        var tabLineArrange = tabbedPanel.add("tab", undefined, L("tabLineArrange"));
+        tabLineArrange.margins = [30, 20, 0, 10];
+        tabLineArrange.spacing = 15;
+        tabLineArrange.orientation = "row";
+        tabLineArrange.alignment = ["fill", "top"];
+        tabLineArrange.alignChildren = ["fill", "top"];
+
+        /* 左カラム：行の並び替え（リストボックス＋操作ボタン） */
+        var lineArrangeLeft = tabLineArrange.add("group");
+        lineArrangeLeft.orientation = "column";
+        lineArrangeLeft.alignment = ["fill", "top"];
+        lineArrangeLeft.alignChildren = ["fill", "top"];
+
+        var lineListGroup = lineArrangeLeft.add("group");
+        lineListGroup.orientation = "row";
+        lineListGroup.alignChildren = ["fill", "fill"];
+        lineListGroup.spacing = 10;
+
+        var lineListBox = lineListGroup.add("listbox", undefined, [], {
+            multiselect: false
+        });
+        lineListBox.preferredSize = [280, 460];
+        lineListBox.graphics.font = ScriptUI.newFont("dialog", "REGULAR", 18);
+
+        /* リストボックスのデータ管理 */
+        var lineArrangeLines = [];
+
+        function applyLinesToTextFrame() {
+            executeAction(function (targets) {
+                if (targets.length === 1) {
+                    targets[0].contents = lineArrangeLines.join("\r");
+                }
+                return targets;
+            });
+        }
+
+        function refreshLineList(selectIndex, skipApply) {
+            lineListBox.removeAll();
+            for (var i = 0; i < lineArrangeLines.length; i++) {
+                lineListBox.add("item", lineArrangeLines[i]);
+            }
+            if (lineArrangeLines.length > 0) {
+                if (selectIndex < 0) selectIndex = 0;
+                if (selectIndex >= lineArrangeLines.length) selectIndex = lineArrangeLines.length - 1;
+                lineListBox.selection = selectIndex;
+            }
+            updateLineListButtons();
+            if (!skipApply) applyLinesToTextFrame();
+        }
+
+        function loadLinesToList() {
+            lineArrangeLines = [];
+            var targets = getCurrentTargets();
+            if (targets.length === 1) {
+                var normalized = targets[0].contents.replace(/\r\n/g, "\r").replace(/\n/g, "\r");
+                lineArrangeLines = normalized.split("\r");
+            }
+            refreshLineList(0, true);
+        }
+
+        function updateLineListButtons() {
+            var hasSel = lineListBox.selection !== null;
+            btnLineUp.enabled = hasSel && lineListBox.selection.index > 0;
+            btnLineDown.enabled = hasSel && lineListBox.selection.index < lineArrangeLines.length - 1;
+            btnLineEdit.enabled = hasSel;
+            btnLineDelete.enabled = hasSel;
+        }
+
+        lineListBox.onDoubleClick = function () {
+            if (!lineListBox.selection) return;
+            var idx = lineListBox.selection.index;
+            var result = prompt(L("promptEditLine"), lineArrangeLines[idx]);
+            if (result === null) return;
+            lineArrangeLines[idx] = result;
+            refreshLineList(idx);
+        };
+
+        lineListBox.onChange = function () {
+            updateLineListButtons();
+        };
+
+        /* 右カラム：一括操作ボタン */
+        var lineArrangeRight = tabLineArrange.add("group");
+        lineArrangeRight.orientation = "column";
+        lineArrangeRight.alignment = ["fill", "top"];
+        lineArrangeRight.alignChildren = ["fill", "top"];
+
+        /* 編集パネル */
+        var panelLineEdit = lineArrangeRight.add("panel", undefined, L("panelLineEdit"));
+        panelLineEdit.margins = [15, 20, 15, 10];
+        panelLineEdit.alignment = ["fill", "top"];
+        panelLineEdit.alignChildren = ["fill", "center"];
+
+        /* 上へボタン */
+        var btnLineUp = panelLineEdit.add("button", undefined, L("btnLineUp"));
+        btnLineUp.onClick = function () {
+            if (!lineListBox.selection) return;
+            var idx = lineListBox.selection.index;
+            if (idx <= 0) return;
+            var tmp = lineArrangeLines[idx];
+            lineArrangeLines[idx] = lineArrangeLines[idx - 1];
+            lineArrangeLines[idx - 1] = tmp;
+            refreshLineList(idx - 1);
+        };
+
+        /* 下へボタン */
+        var btnLineDown = panelLineEdit.add("button", undefined, L("btnLineDown"));
+        btnLineDown.onClick = function () {
+            if (!lineListBox.selection) return;
+            var idx = lineListBox.selection.index;
+            if (idx >= lineArrangeLines.length - 1) return;
+            var tmp = lineArrangeLines[idx];
+            lineArrangeLines[idx] = lineArrangeLines[idx + 1];
+            lineArrangeLines[idx + 1] = tmp;
+            refreshLineList(idx + 1);
+        };
+
+        /* 追加ボタン */
+        var btnLineAdd = panelLineEdit.add("button", undefined, L("btnLineAdd"));
+        btnLineAdd.onClick = function () {
+            var result = prompt(L("promptAddLine"), "");
+            if (result === null) return;
+            lineArrangeLines.push(result);
+            refreshLineList(lineArrangeLines.length - 1);
+        };
+
+        /* 編集ボタン */
+        var btnLineEdit = panelLineEdit.add("button", undefined, L("btnLineEdit"));
+        btnLineEdit.onClick = function () {
+            if (!lineListBox.selection) return;
+            var idx = lineListBox.selection.index;
+            var result = prompt(L("promptEditLine"), lineArrangeLines[idx]);
+            if (result === null) return;
+            lineArrangeLines[idx] = result;
+            refreshLineList(idx);
+        };
+
+        /* 削除ボタン */
+        var btnLineDelete = panelLineEdit.add("button", undefined, L("btnLineDelete"));
+        btnLineDelete.onClick = function () {
+            if (!lineListBox.selection) return;
+            var idx = lineListBox.selection.index;
+            if (!confirm(L("confirmDeleteLine"))) return;
+            lineArrangeLines.splice(idx, 1);
+            refreshLineList(idx);
+        };
+
+        /* ソートパネル */
+        var panelSort = lineArrangeRight.add("panel", undefined, L("panelSort"));
+        panelSort.margins = [15, 20, 15, 10];
+        panelSort.alignment = ["fill", "top"];
+        panelSort.alignChildren = ["fill", "center"];
+
+        /* ソート（文字コード）ボタン */
+        var btnSortByCharCode = panelSort.add("button", undefined, L("btnSortByCharCode"));
+        btnSortByCharCode.onClick = function () {
+            executeAction(sortByCharCode);
+            loadLinesToList();
+        };
+
+        /* ソート（文字数）ボタン */
+        var btnSortByLength = panelSort.add("button", undefined, L("btnSortByLength"));
+        btnSortByLength.onClick = function () {
+            executeAction(sortByLength);
+            loadLinesToList();
+        };
+
+        /* 順序を反転ボタン */
+        var btnReverseOrder = panelSort.add("button", undefined, L("btnReverseOrder"));
+        btnReverseOrder.onClick = function () {
+            executeAction(reverseOrder);
+            loadLinesToList();
+        };
+
+        /* 行削除パネル */
+        var panelLineDelete = lineArrangeRight.add("panel", undefined, L("panelLineDelete"));
+        panelLineDelete.margins = [15, 20, 15, 10];
+        panelLineDelete.alignment = ["fill", "top"];
+        panelLineDelete.alignChildren = ["fill", "center"];
+
+        /* 重複行の削除ボタン */
+        var btnRemoveDuplicateLines = panelLineDelete.add("button", undefined, L("btnRemoveDuplicateLines"));
+        btnRemoveDuplicateLines.onClick = function () {
+            executeAction(removeDuplicateLines);
+            loadLinesToList();
+        };
+
+        /* 空行削除ボタン */
+        var btnRemoveEmptyLines = panelLineDelete.add("button", undefined, L("btnRemoveEmptyLines"));
+        btnRemoveEmptyLines.onClick = function () {
+            executeAction(removeEmptyLines);
+            loadLinesToList();
+        };
+
         updateStatusDisplay(selectedObjects);
         updateActionAvailability(selectedObjects);
+        loadLinesToList();
+
+        /* タブ切り替え時にリストを再読み込み */
+        tabbedPanel.onChange = function () {
+            if (tabbedPanel.selection === tabLineArrange) {
+                loadLinesToList();
+            }
+        };
 
         /* ボタン行（戻す：左、閉じる：右） */
         var btnGroup = dialog.add("group");
@@ -2246,6 +2607,37 @@ function hasVisibleChars(txt) {
                 updateActionAvailability(refreshed);
             } catch (e) {
                 showError(e);
+            }
+        };
+
+        /* 制御文字ボタン */
+        var btnShowHiddenChar = btnGroup.add("button", undefined, hiddenCharLabel);
+        btnShowHiddenChar.preferredSize = [120, -1];
+
+        function updateHiddenCharButton() {
+            if (hiddenCharOn) {
+                btnShowHiddenChar.text = "\u2713 " + hiddenCharLabel;
+                try {
+                    var gfx = btnShowHiddenChar.graphics;
+                    gfx.foregroundColor = gfx.newPen(gfx.PenType.SOLID_COLOR, [0.0, 0.5, 0.8], 1);
+                } catch (_) { }
+            } else {
+                btnShowHiddenChar.text = hiddenCharLabel;
+                try {
+                    var gfx2 = btnShowHiddenChar.graphics;
+                    gfx2.foregroundColor = gfx2.newPen(gfx2.PenType.SOLID_COLOR, [0.0, 0.0, 0.0], 1);
+                } catch (_) { }
+            }
+        }
+
+        btnShowHiddenChar.onClick = function () {
+            try {
+                app.executeMenuCommand('showHiddenChar');
+                app.redraw();
+                hiddenCharOn = !hiddenCharOn;
+                updateHiddenCharButton();
+            } catch (err) {
+                showError(err);
             }
         };
 
