@@ -14,8 +14,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 更新日: 2026-03-19
  */
 
-var SCRIPT_VERSION = "v1.0";
-var GUIDE_STROKE_WIDTH = 0.25;
+var SCRIPT_VERSION = "v1.0.1";
+var GUIDE_STROKE_WIDTH = 1;
 
 (function () {
     if (app.documents.length === 0) {
