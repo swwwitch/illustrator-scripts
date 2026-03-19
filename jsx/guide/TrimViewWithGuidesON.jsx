@@ -2,16 +2,20 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * TrimViewWithGuides.jsx
+ * TrimViewWithGuidesON.jsx
  *
  * 概要:
  * ガイドを通常パスとして一時レイヤーに複製し、Trim View 切り替え時にもガイド位置を確認しやすくするスクリプトです。
- * 既にこのスクリプトが生成したプレビューレイヤーがある場合にはそれを削除し、通常の Trim View 切り替えのみを実行します。
+ *
+ * ガイドは「Guides Preview for Trim View」レイヤーに複製され、内部識別子として
+ * __GUIDES_PREVIEW_TRIM_VIEW__ を設定します。
+ * 既存の同名レイヤーまたは同一内部識別子を持つレイヤーがある場合には、それを削除してから新規に作成します。
  *
  * 更新日: 2026-03-19
  */
 
 var SCRIPT_VERSION = "v1.0";
+var GUIDE_STROKE_WIDTH = 0.25;
 
 (function () {
     if (app.documents.length === 0) {
@@ -51,13 +55,41 @@ var SCRIPT_VERSION = "v1.0";
 
     // スクリプトが生成したプレビューレイヤーかどうかを判定
     function isPreviewLayer(layer) {
-        try {
-            return layer && layer.note === previewLayerNote;
-        } catch (e) {
-            return false;
+        return layer && layer.note === previewLayerNote;
+    }
+
+    // 既存のプレビューレイヤーを検索
+    function findExistingPreviewLayer() {
+        var j;
+        for (j = 0; j < doc.layers.length; j++) {
+            var layer = doc.layers[j];
+            if (isPreviewLayer(layer)) {
+                return layer;
+            }
+        }
+        return null;
+    }
+
+    // プレビューレイヤー削除前に内部アイテムのロックを解除
+    function unlockItemsInLayer(layer) {
+        var k;
+        for (k = 0; k < layer.pageItems.length; k++) {
+            if (layer.pageItems[k] && layer.pageItems[k].locked) {
+                try {
+                    layer.pageItems[k].locked = false;
+                } catch (e) { }
+            }
         }
     }
 
+    var existingLayer = findExistingPreviewLayer();
+    // 既存のプレビューレイヤーがある場合は削除してから続行
+    if (existingLayer) {
+        existingLayer.locked = false;
+        existingLayer.visible = true;
+        unlockItemsInLayer(existingLayer);
+        existingLayer.remove();
+    }
 
     // 新規レイヤー作成（ON）
     var previewLayer = doc.layers.add();
@@ -79,16 +111,18 @@ var SCRIPT_VERSION = "v1.0";
     for (i = 0; i < doc.pageItems.length; i++) {
         var item = doc.pageItems[i];
 
-        try {
+        if (item) {
             if (item.locked) {
-                touchedItems.push({ item: item, locked: true });
-                item.locked = false;
+                try {
+                    touchedItems.push({ item: item, locked: true });
+                    item.locked = false;
+                } catch (e) { }
             }
 
             if (item.guides === true) {
                 guides.push(item);
             }
-        } catch (e) { }
+        }
     }
 
     // ガイドを複製して通常パス化＋線設定
@@ -101,7 +135,7 @@ var SCRIPT_VERSION = "v1.0";
 
             // 線を有効化
             dup.stroked = true;
-            dup.strokeWidth = 1;
+            dup.strokeWidth = GUIDE_STROKE_WIDTH;
             dup.strokeColor = createPreviewColor();
 
             // 塗りなし
