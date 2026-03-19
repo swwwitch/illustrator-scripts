@@ -9,13 +9,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  *
  * ガイドは「Guides Preview for Trim View」レイヤーに複製され、内部識別子として
  * __GUIDES_PREVIEW_TRIM_VIEW__ を設定します。
- * 既存レイヤーの削除判定は内部識別子（note一致）を最優先し、note一致が複数ある場合はそのすべてを削除対象にします。note一致がない場合のみ同名レイヤーを削除対象として扱います。削除に失敗した場合は中身を空にして再利用します。処理全体は finally でロック状態を復元し、ガイド複製時のみ対象ガイドを一時アンロックします。ガイド本数・複製成功数・複製失敗数を集計し、ガイドが1本もない場合はプレビューレイヤーを作成せず終了します。
+ * 既存レイヤーの削除判定は内部識別子（note一致）を最優先し、note一致が複数ある場合はそのすべてを削除対象にします。note一致がない場合のみ同名レイヤーを削除対象として扱います。削除に失敗した場合は中身を空にして再利用します。処理全体は finally でロック状態を復元し、ガイド複製時のみ対象ガイドを一時アンロックします。ガイド本数・複製成功数・複製失敗数を集計し、非表示レイヤー配下のガイドと非表示のガイドは対象外にします。ガイドが1本もない場合はプレビューレイヤーを作成せず終了します。
  *
  * 作成日：2026-03-19
  * 更新日: 2026-03-20
  */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.1.2";
 var GUIDE_STROKE_WIDTH = 1;
 
 (function () {
@@ -63,6 +63,20 @@ var GUIDE_STROKE_WIDTH = 1;
         return layer && layer.note === previewLayerNote;
     }
 
+    // 親 Layer を上にたどり、どこか1つでも非表示なら true
+    function isInHiddenLayer(item) {
+        var parent = item ? item.parent : null;
+
+        while (parent) {
+            if (parent.typename === "Layer" && parent.visible === false) {
+                return true;
+            }
+            parent = parent.parent;
+        }
+
+        return false;
+    }
+
     // 既存のプレビューレイヤーを検索（note一致を最優先し、なければ同名を対象にする）
     function findExistingPreviewLayers() {
         var j;
@@ -99,12 +113,6 @@ var GUIDE_STROKE_WIDTH = 1;
         if (container.locked) {
             try {
                 container.locked = false;
-            } catch (e) { }
-        }
-
-        if (container.visible === false) {
-            try {
-                container.visible = true;
             } catch (e) { }
         }
 
@@ -212,7 +220,6 @@ var GUIDE_STROKE_WIDTH = 1;
             for (i = 0; i < existingLayers.length; i++) {
                 existingLayer = existingLayers[i];
                 existingLayer.locked = false;
-                existingLayer.visible = true;
                 unlockItemsInContainer(existingLayer);
 
                 try {
@@ -232,12 +239,19 @@ var GUIDE_STROKE_WIDTH = 1;
             }
         }
 
-        // 全ページアイテムからガイドを収集
+        // 全ページアイテムからガイドを収集（非表示レイヤー配下・非表示ガイドは除外）
         for (i = 0; i < doc.pageItems.length; i++) {
             var item = doc.pageItems[i];
-            if (item && item.guides === true) {
-                guides.push(item);
+            if (!item || item.guides !== true) {
+                continue;
             }
+            if (item.hidden) {
+                continue;
+            }
+            if (isInHiddenLayer(item)) {
+                continue;
+            }
+            guides.push(item);
         }
 
         guideCount = guides.length;
@@ -267,7 +281,6 @@ var GUIDE_STROKE_WIDTH = 1;
         previewLayer.name = previewLayerName;
         previewLayer.note = previewLayerNote;
         previewLayer.locked = false;
-        previewLayer.visible = true;
 
         // ガイドを必要なものだけ一時アンロックして複製
         for (i = 0; i < guides.length; i++) {
