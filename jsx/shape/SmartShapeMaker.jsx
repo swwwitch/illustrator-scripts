@@ -4,7 +4,7 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-SmartShapeMaker.jsx (v1.8)
+SmartShapeMaker.jsx (v1.9)
 
 Illustrator script to create custom shapes from a single dialog
 (Circle / Polygon / Star / Superellipse / Reuleaux-style).
@@ -12,7 +12,7 @@ Real-time preview, adjustable sides, width, rotation, and advanced options are s
 Japanese / English UI.
 
 ### 更新日 / Updated:
-- 20260311
+- 20260319
 
 Main Features:
 - Specify number of sides (0 = Circle, 3/4/5/6/8, or custom with slider)
@@ -63,7 +63,11 @@ Usage Flow:
 Original Idea: Seiji Miyazawa (Sankai Lab)
 https://x.com/onthehead/status/2007350198721483172
 
-Version: v1.8 (20260311)
+コーナースムージング
+黒野 真吾さん
+https://note.com/shingokurono/n/n348a3e73a465
+
+
 */
 
 // Language detection
@@ -72,7 +76,7 @@ function getCurrentLang() {
 }
 var lang = getCurrentLang();
 
-var SCRIPT_VERSION = "v1.8";
+var SCRIPT_VERSION = "v1.9";
 
 var LABELS = {
     dialogTitle: {
@@ -102,6 +106,9 @@ var LABELS = {
     stroke: { ja: "線", en: "Stroke" },
     strokeWidth: { ja: "線幅", en: "Stroke Width" },
     colorPicker: { ja: "カラーピッカー", en: "Color Picker" },
+    cornerSmoothingPanel: { ja: "角丸", en: "Corner Smoothing" },
+    cornerRadius: { ja: "半径：", en: "Radius:" },
+    smoothing: { ja: "スムージング", en: "Smoothing" },
     optionPanel: { ja: "オプション", en: "Options" },
     reuleaux: { ja: "ルーロー（定幅図形）", en: "Reuleaux (Constant Width)" },
     splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
@@ -109,6 +116,7 @@ var LABELS = {
     ok: { ja: "OK", en: "OK" },
     cancel: { ja: "キャンセル", en: "Cancel" },
     viewZoom: { ja: "画面ズーム", en: "View Zoom" },
+    preview: { ja: "プレビュー", en: "Preview" },
     previewError: { ja: "プレビューエラー：", en: "Preview Error: " },
     finalError: { ja: "確定エラー：", en: "Final Error: " }
 };
@@ -476,8 +484,86 @@ function finalizeShape(doc) {
     previewShape = null;
 }
 
+// Build a smoothed-corner rectangle path
+// Based on corner_smoothing.jsx by Shingo Kurono
+function buildSmoothedRect(doc, left, top, W, H, R, S) {
+    R = Math.min(Math.abs(R), W / 2, H / 2);
+    S = Math.max(0, S);
+
+    var arm_raw = R * (1 + 0.8 * S);
+    var armX = Math.min(arm_raw, W / 2);
+    var armY = Math.min(arm_raw, H / 2);
+
+    var hX = computeCornerH(armX, R);
+    var hY = computeCornerH(armY, R);
+
+    var L  = left;
+    var T  = top;
+    var Rx = left + W;
+    var B  = top  - H;
+    var mX = (L + Rx) / 2;
+    var mY = (T + B)  / 2;
+
+    var mergeTopBot = (arm_raw >= W / 2 - 0.01);
+    var mergeSides  = (arm_raw >= H / 2 - 0.01);
+
+    var pts = [];
+    function pt(a, lh, rh) { pts.push({ a: a, lh: lh, rh: rh }); }
+
+    // Top edge
+    if (mergeTopBot) {
+        pt([mX, T], [mX - hX, T], [mX + hX, T]);
+    } else {
+        pt([L + armX, T],  [L + armX - hX, T],  [L + armX, T]);
+        pt([Rx - armX, T], [Rx - armX, T],       [Rx - armX + hX, T]);
+    }
+    // Right edge
+    if (mergeSides) {
+        pt([Rx, mY], [Rx, mY + hY], [Rx, mY - hY]);
+    } else {
+        pt([Rx, T - armY], [Rx, T - armY + hY], [Rx, T - armY]);
+        pt([Rx, B + armY], [Rx, B + armY],       [Rx, B + armY - hY]);
+    }
+    // Bottom edge
+    if (mergeTopBot) {
+        pt([mX, B], [mX + hX, B], [mX - hX, B]);
+    } else {
+        pt([Rx - armX, B], [Rx - armX + hX, B], [Rx - armX, B]);
+        pt([L + armX, B],  [L + armX, B],        [L + armX - hX, B]);
+    }
+    // Left edge
+    if (mergeSides) {
+        pt([L, mY], [L, mY - hY], [L, mY + hY]);
+    } else {
+        pt([L, B + armY], [L, B + armY - hY], [L, B + armY]);
+        pt([L, T - armY], [L, T - armY],       [L, T - armY + hY]);
+    }
+
+    var layer = doc.activeLayer;
+    var path = layer.pathItems.add();
+    path.closed = true;
+
+    for (var i = 0; i < pts.length; i++) {
+        var pp            = path.pathPoints.add();
+        pp.anchor         = pts[i].a;
+        pp.leftDirection  = pts[i].lh;
+        pp.rightDirection = pts[i].rh;
+        pp.pointType      = PointType.CORNER;
+    }
+
+    return path;
+}
+
+// Bezier handle length that preserves curvature radius R
+function computeCornerH(arm, R) {
+    if (arm <= 0 || R <= 0) return 0;
+    var k    = 16 / (3 * Math.sqrt(2));
+    var disc = R * (8 * k * arm + k * k * R);
+    return ((4 * arm + k * R) - Math.sqrt(disc)) / 2;
+}
+
 // Create shape based on parameters
-function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, superExp, circleAnchorCount, useReuleaux, reuleauxAmount, fillOpts, strokeOpts) {
+function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, superExp, circleAnchorCount, useReuleaux, reuleauxAmount, fillOpts, strokeOpts, cornerSmoothing) {
     var layer = doc.activeLayer;
     layer.locked = false;
     layer.visible = true;
@@ -501,6 +587,25 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
         }
     } else if (isStar) {
         shape = doc.pathItems.star(center[0], center[1], radius, innerRadius, sides);
+    } else if (sides === 4 && cornerSmoothing && cornerSmoothing.radius > 0 && cornerSmoothing.smoothing > 0) {
+        // Corner smoothing with smoothing > 0: custom bezier path
+        var csR = cornerSmoothing.radius;
+        var csS = cornerSmoothing.smoothing / 100;
+        var csLeft = center[0] - sizePt / 2;
+        var csTop  = center[1] + sizePt / 2;
+        shape = buildSmoothedRect(doc, csLeft, csTop, sizePt, sizePt, csR, csS);
+    } else if (sides === 4 && cornerSmoothing && cornerSmoothing.radius > 0 && cornerSmoothing.smoothing === 0) {
+        // Corner radius ON, smoothing = 0: normal square + Round Corners live effect
+        var sqRadius2 = sizePt / Math.sqrt(2);
+        shape = doc.pathItems.polygon(center[1], center[0], sqRadius2, sides);
+        try {
+            var rcXml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + cornerSmoothing.radius + ' "/></LiveEffect>';
+            shape.applyEffect(rcXml);
+        } catch (e) { }
+    } else if (sides === 4) {
+        // Square: sizePt specifies width, convert to circumscribed radius for polygon()
+        var sqRadius = sizePt / Math.sqrt(2);
+        shape = doc.pathItems.polygon(center[1], center[0], sqRadius, sides);
     } else {
         shape = doc.pathItems.polygon(center[1], center[0], radius, sides);
     }
@@ -978,6 +1083,21 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     };
     updateStrokeWidthEnabled();
 
+    // Width panel placed under the Fill & Stroke panel (left column)
+    var widthPanel = leftCol.add("panel", undefined, LABELS.widthPanel[lang]);
+    widthPanel.orientation = "column";
+    widthPanel.alignChildren = "left";
+    widthPanel.margins = [15, 20, 15, 10];
+
+    var widthRow = widthPanel.add("group");
+    widthRow.orientation = "row";
+    widthRow.alignChildren = ["left", "center"];
+
+    var sizeInput = widthRow.add("edittext", undefined, "100");
+    sizeInput.characters = 5;
+    changeValueByArrowKey(sizeInput);
+    widthRow.add("statictext", undefined, unitLabel);
+
     // Right column container
     var right = main.add("group");
     right.orientation = "column";
@@ -1189,7 +1309,87 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     trianglePanel.alignChildren = "left";
     trianglePanel.margins = [15, 20, 15, 10];
 
-    // Options panel placed under the Triangle panel
+    // Corner Smoothing panel placed under the Circle panel
+    var cornerSmoothingPanel = right.add("panel", undefined, LABELS.cornerSmoothingPanel[lang]);
+    cornerSmoothingPanel.orientation = "column";
+    cornerSmoothingPanel.alignChildren = "left";
+    cornerSmoothingPanel.margins = [15, 20, 15, 10];
+
+    var cornerRadiusRow = cornerSmoothingPanel.add("group");
+    cornerRadiusRow.orientation = "row";
+    cornerRadiusRow.alignChildren = ["left", "center"];
+    cornerRadiusRow.spacing = 6;
+
+    var cornerRadiusCheck = cornerRadiusRow.add("checkbox", undefined, LABELS.cornerRadius[lang]);
+    cornerRadiusCheck.value = false;
+    var cornerRadiusInput = cornerRadiusRow.add("edittext", undefined, "15");
+    cornerRadiusInput.characters = 5;
+    changeValueByArrowKey(cornerRadiusInput);
+    cornerRadiusRow.add("statictext", undefined, unitLabel);
+
+    function updateCornerRadiusInputEnabled() {
+        var en = cornerRadiusCheck.value;
+        cornerRadiusInput.enabled = en;
+        smoothingSlider.enabled = en;
+        smoothingValueLabel.enabled = en;
+    }
+
+    var smoothingLabelRow = cornerSmoothingPanel.add("group");
+    smoothingLabelRow.orientation = "row";
+    smoothingLabelRow.alignChildren = ["left", "center"];
+    smoothingLabelRow.spacing = 8;
+
+    smoothingLabelRow.add("statictext", undefined, LABELS.smoothing[lang]);
+    var smoothingValueLabel = smoothingLabelRow.add("statictext", undefined, "60");
+    smoothingValueLabel.characters = 4;
+
+    var smoothingSlider = cornerSmoothingPanel.add("slider", undefined, 60, 0, 150);
+    smoothingSlider.preferredSize.width = 200;
+
+    // Set corner radius default to 15% of current width
+    function applyDefaultCornerRadius() {
+        try {
+            var w = parseFloat(sizeInput.text);
+            if (isNaN(w) || w <= 0) return;
+            var r = Math.round(w * 0.15 * 10) / 10;
+            cornerRadiusInput.text = String(r);
+        } catch (e) { }
+    }
+
+    function updateCornerSmoothingEnabled(sidesValue) {
+        var enable = (sidesValue === 4);
+        cornerSmoothingPanel.enabled = enable;
+        if (!enable) {
+            cornerRadiusInput.text = "0";
+            smoothingSlider.value = 0;
+            smoothingValueLabel.text = "0";
+        } else {
+            // Set default radius to 15% of width when enabling
+            if (parseFloat(cornerRadiusInput.text) === 0) {
+                applyDefaultCornerRadius();
+            }
+        }
+    }
+
+    cornerRadiusCheck.onClick = function () {
+        updateCornerRadiusInputEnabled();
+        refreshLiveShapeAvailabilityFromUI();
+        updatePreview();
+    };
+    updateCornerRadiusInputEnabled();
+
+    cornerRadiusInput.onChanging = function () {
+        refreshLiveShapeAvailabilityFromUI();
+        updatePreview();
+    };
+
+    smoothingSlider.onChanging = function () {
+        var v = Math.round(smoothingSlider.value);
+        smoothingValueLabel.text = String(v);
+        updatePreview();
+    };
+
+    // Options panel placed under the Corner Smoothing panel
     var optionPanel = right.add("panel", undefined, LABELS.optionPanel[lang]);
     optionPanel.orientation = "column";
     optionPanel.alignChildren = "left";
@@ -1221,23 +1421,10 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     var reuleauxAmountSlider = reuleauxAmountRow.add("slider", undefined, 100, 0, 200);
     reuleauxAmountSlider.preferredSize.width = 150;
 
-    // Width panel placed under the option panel (right column)
-    var widthPanel = right.add("panel", undefined, LABELS.widthPanel[lang]);
-    widthPanel.orientation = "column";
-    widthPanel.alignChildren = "left";
-    widthPanel.margins = [15, 20, 15, 10];
 
-    var widthRow = widthPanel.add("group");
-    widthRow.orientation = "row";
-    widthRow.alignChildren = ["left", "center"];
 
-    var sizeInput = widthRow.add("edittext", undefined, "100");
-    sizeInput.characters = 5;
-    changeValueByArrowKey(sizeInput);
-    widthRow.add("statictext", undefined, unitLabel);
-
-    function updateLiveShapeAvailability(isSplit, isSuperEllipseEffective, isCustomCircleAnchors, isReuleaux) {
-        if (isSplit || isSuperEllipseEffective || isCustomCircleAnchors || isReuleaux) {
+    function updateLiveShapeAvailability(isSplit, isSuperEllipseEffective, isCustomCircleAnchors, isReuleaux, isCornerSmoothing) {
+        if (isSplit || isSuperEllipseEffective || isCustomCircleAnchors || isReuleaux || isCornerSmoothing) {
             liveShapeCheck.value = false;
             liveShapeCheck.enabled = false;
         } else {
@@ -1253,7 +1440,8 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
             if (!n || n < 2) n = 2;
             // Live Shape can be enabled only when Circle anchors == 4 (and not Superellipse)
             var isCustomCircleAnchors = (sidesNow === 0 && !superEff && n !== 4);
-            updateLiveShapeAvailability(splitAtAnchorsCheck.value, superEff, isCustomCircleAnchors, reuleauxCheck.value);
+            var isCornerSmooth = (sidesNow === 4 && cornerRadiusCheck.value && parseFloat(cornerRadiusInput.text) > 0);
+            updateLiveShapeAvailability(splitAtAnchorsCheck.value, superEff, isCustomCircleAnchors, reuleauxCheck.value, isCornerSmooth);
         } catch (e) {
             // Conservative fallback
             try {
@@ -1395,6 +1583,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         var sides = getSelectedSideValue(radios, customInput);
         trianglePanel.enabled = (sides === 3);
         updateCirclePanelEnabled(sides);
+        updateCornerSmoothingEnabled(sides);
         updateStarPanelEnabled(sides);
         updateReuleauxAvailability(sides);
 
@@ -1422,7 +1611,8 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         // Live shape should be disabled when using a non-default anchor count
         var isCustomCircleAnchors = (sides === 0 && !superEllipse && nAnchors !== 4);
 
-        updateLiveShapeAvailability(splitAtAnchors, superEllipse, isCustomCircleAnchors, reuleaux);
+        var isCornerSmooth = (sides === 4 && cornerRadiusCheck.value && parseFloat(cornerRadiusInput.text) > 0);
+        updateLiveShapeAvailability(splitAtAnchors, superEllipse, isCustomCircleAnchors, reuleaux, isCornerSmooth);
         // Keep UI consistent
         refreshLiveShapeAvailabilityFromUI();
 
@@ -1481,7 +1671,11 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
                 enabled: strokeCheck.value,
                 color: strokeSwatch._aiColor,
                 widthPt: parseFloat(strokeWidthInput.text) * strokeUnit.factorToPt
-            }
+            },
+            cornerSmoothing: (sides === 4 && cornerRadiusCheck.value) ? {
+                radius: parseFloat(cornerRadiusInput.text) * unitFactor,
+                smoothing: Math.round(smoothingSlider.value)
+            } : null
         };
     }
 
@@ -1494,7 +1688,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         var p = getCurrentParams();
         if (!isNaN(p.size) && !isNaN(p.ratio)) {
             previewMgr.addStep(function () {
-                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse, p.superExp, p.circleAnchorCount, p.reuleaux, p.reuleauxAmount, p.fillOpts, p.strokeOpts);
+                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse, p.superExp, p.circleAnchorCount, p.reuleaux, p.reuleauxAmount, p.fillOpts, p.strokeOpts, p.cornerSmoothing);
             });
         }
     }
@@ -1630,6 +1824,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
                 // When sides change, update rotation value even if Rotate is ON
                 try { applyAutoRotationForSides(getSelectedSideValue(radios, customInput)); } catch (e) { }
                 try { updateReuleauxAvailability(getSelectedSideValue(radios, customInput)); } catch (e) { }
+                try { updateCornerSmoothingEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
                 refreshLiveShapeAvailabilityFromUI();
                 updateSuperellipseSmoothnessEnabled(getSelectedSideValue(radios, customInput));
                 updatePreview();
@@ -1741,6 +1936,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
 
         // Update panel enabled states based on current selection
         try { updateCirclePanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
+        try { updateCornerSmoothingEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
         try { updateStarPanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
         try { updateReuleauxAvailability(getSelectedSideValue(radios, customInput)); } catch (e) { }
     }
@@ -1783,6 +1979,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     try { updateReuleauxAmountEnabled(); } catch (e) { }
     try { updateInnerRadiusEnabled(); } catch (e) { }
     try { updateSuperellipseSmoothnessEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
+    try { updateCornerSmoothingEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
 
     // Save state whenever the dialog closes (OK or Cancel)
     dlg.onClose = function () {
@@ -1808,6 +2005,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         try { refreshLiveShapeAvailabilityFromUI(); } catch (_) { }
 
         try { updateCirclePanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
+        try { updateCornerSmoothingEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
         try { updateSuperellipseSmoothnessEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
         try { updateStarPanelEnabled(getSelectedSideValue(radios, customInput)); } catch (e) { }
         try { updateReuleauxAvailability(getSelectedSideValue(radios, customInput)); } catch (e) { }
@@ -1858,13 +2056,36 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
 
     var btnArea = dlg.add("group");
     btnArea.orientation = "row";
-    btnArea.alignChildren = ["center", "center"];
-    btnArea.alignment = "center";
+    btnArea.alignChildren = ["fill", "center"];
+    btnArea.alignment = "fill";
     btnArea.margins = [0, 10, 0, 0];
-    btnArea.spacing = 10;
 
-    var btnCancel = btnArea.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
-    var btnOK = btnArea.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+    var btnLeft = btnArea.add("group");
+    btnLeft.orientation = "row";
+    btnLeft.alignment = ["left", "center"];
+
+    var previewOn = false;
+    var btnPreview = btnLeft.add("button", undefined, LABELS.preview[lang]);
+
+    var btnRight = btnArea.add("group");
+    btnRight.orientation = "row";
+    btnRight.alignment = ["right", "center"];
+    btnRight.spacing = 10;
+
+    var btnCancel = btnRight.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
+    var btnOK = btnRight.add("button", undefined, LABELS.ok[lang], { name: "ok" });
+
+    function updatePreviewButtonText() {
+        btnPreview.text = previewOn
+            ? "● " + LABELS.preview[lang]
+            : LABELS.preview[lang];
+    }
+
+    btnPreview.onClick = function () {
+        previewOn = !previewOn;
+        updatePreviewButtonText();
+        try { app.executeMenuCommand('preview'); } catch (e) { }
+    };
 
     var confirmed = false;
     btnCancel.onClick = function () {
@@ -1891,7 +2112,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         previewMgr.confirm(function () {
             if (!pFinal) return;
             if (isNaN(pFinal.size) || isNaN(pFinal.ratio)) return;
-            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse, pFinal.superExp, pFinal.circleAnchorCount, pFinal.reuleaux, pFinal.reuleauxAmount, pFinal.fillOpts, pFinal.strokeOpts);
+            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse, pFinal.superExp, pFinal.circleAnchorCount, pFinal.reuleaux, pFinal.reuleauxAmount, pFinal.fillOpts, pFinal.strokeOpts, pFinal.cornerSmoothing);
         });
     }
 
