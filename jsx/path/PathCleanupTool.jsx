@@ -27,7 +27,7 @@ PathCleanupTool
 実処理中の例外は、UI系の保存復元とは分けて最小限のログを出すよう整理しています。
 */
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.4";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -71,6 +71,10 @@ var LABELS = {
     cbRemoveHandles: {
         ja: "パスと同じ角度のハンドル",
         en: "Handles on straight segments"
+    },
+    labelTolAnchor: {
+        ja: "許容誤差",
+        en: "Tolerance"
     },
     labelTolHandle: {
         ja: "許容誤差",
@@ -933,6 +937,49 @@ var LABELS = {
         var cbAnchors = tabProcess.add('checkbox', undefined, L('cbRemoveAnchors'));
         cbAnchors.value = true;
 
+        // Tolerance for collinear anchor detection (0.01 - 3.00)
+        var grpTolAnchor = tabProcess.add('group');
+        grpTolAnchor.orientation = 'row';
+        grpTolAnchor.alignChildren = ['left', 'center'];
+
+        var stTolAnchor = grpTolAnchor.add('statictext', undefined, L('labelTolAnchor'));
+        stTolAnchor.characters = 6;
+
+        var etTolAnchor = grpTolAnchor.add('edittext', undefined, TOL_ANCHOR_COLLINEAR.toFixed(2));
+        etTolAnchor.characters = 6;
+
+        var slTolAnchor = grpTolAnchor.add('slider', undefined, Math.round(TOL_ANCHOR_COLLINEAR * 100), 1, 300);
+        slTolAnchor.preferredSize.width = 160;
+
+        function clampTolAnchor(v) {
+            if (isNaN(v)) return TOL_ANCHOR_COLLINEAR;
+            if (v < 0.01) v = 0.01;
+            if (v > 3) v = 3;
+            v = Math.round(v * 100) / 100;
+            return v;
+        }
+
+        function syncTolAnchorFromValue(v) {
+            v = clampTolAnchor(v);
+            TOL_ANCHOR_COLLINEAR = v;
+            etTolAnchor.text = v.toFixed(2);
+            slTolAnchor.value = Math.round(v * 100);
+        }
+
+        slTolAnchor.onChanging = function () {
+            var v = slTolAnchor.value / 100;
+            syncTolAnchorFromValue(v);
+            refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
+        };
+
+        etTolAnchor.onChange = function () {
+            var v = parseTolText(etTolAnchor.text);
+            syncTolAnchorFromValue(v);
+            refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
+        };
+
+        syncTolAnchorFromValue(TOL_ANCHOR_COLLINEAR);
+
         var cbHandle = tabProcess.add('checkbox', undefined, L('cbRemoveHandles'));
         cbHandle.value = true;
 
@@ -992,6 +1039,7 @@ var LABELS = {
             refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
         };
         cbAnchors.onClick = function () {
+            grpTolAnchor.enabled = cbAnchors.value;
             refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
         };
         cbHandle.onClick = function () {
@@ -1001,6 +1049,7 @@ var LABELS = {
 
         // 初回反映
         refreshInfoPreview(cbSameAnchors.value, cbAnchors.value, cbHandle.value);
+        grpTolAnchor.enabled = cbAnchors.value;
         grpTol.enabled = cbHandle.value;
 
         // --- Tab 2: その他 ---
