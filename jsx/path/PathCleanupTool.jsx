@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 PathCleanupTool
 
 ### 更新日 / Updated:
-20260309
+20260320
 
 ### 概要 / Overview:
 選択したパス（グループ/複合パス内も含む）を対象に、
@@ -16,7 +16,7 @@ PathCleanupTool
 - 直線として扱えるベジェ区間上のハンドル
 を削除（最適化）します。ロック/非表示（親やレイヤー含む）はスキップします。
 さらに「その他」タブでは、スムーズ化／コーナー化／アンカーポイント追加／アンカーポイント分割を実行できます。
-許容誤差はハンドル削除用に調整できます。
+許容誤差はアンカーポイント削除用・ハンドル削除用それぞれ個別に調整できます。
 
 ダイアログ表示時点の選択を固定し、情報表示と実行対象が一致するようにしています。
 その他タブの処理も、OK時に選択固定した同一対象へ確実に適用されるように状態管理を見直しています。
@@ -27,7 +27,7 @@ PathCleanupTool
 実処理中の例外は、UI系の保存復元とは分けて最小限のログを出すよう整理しています。
 */
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.4.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -867,7 +867,7 @@ var LABELS = {
         var pnlInfo = dlg.add('panel', undefined, L('panelCurrentInfo'));
         pnlInfo.orientation = 'column';
         pnlInfo.alignChildren = ['left', 'top'];
-        pnlInfo.margins = [15, 20, 15, 10];
+        pnlInfo.margins = [5, 20, 5, 10];
 
         function addInfoRow(labelKey) {
             var row = pnlInfo.add('group');
@@ -934,13 +934,20 @@ var LABELS = {
         var cbSameAnchors = tabProcess.add('checkbox', undefined, L('cbRemoveSameAnchors'));
         cbSameAnchors.value = false;
 
-        var cbAnchors = tabProcess.add('checkbox', undefined, L('cbRemoveAnchors'));
+        // Tolerance for collinear anchor detection (0.01 - 3.00)
+
+        var grpAnchors = tabProcess.add('group');
+        grpAnchors.orientation = 'column';
+        grpAnchors.alignChildren = ['left', 'top'];
+        grpAnchors.margins = [0, 15, 0, 15];
+
+        var cbAnchors = grpAnchors.add('checkbox', undefined, L('cbRemoveAnchors'));
         cbAnchors.value = true;
 
-        // Tolerance for collinear anchor detection (0.01 - 3.00)
-        var grpTolAnchor = tabProcess.add('group');
+        var grpTolAnchor = grpAnchors.add('group');
         grpTolAnchor.orientation = 'row';
         grpTolAnchor.alignChildren = ['left', 'center'];
+        grpTolAnchor.margins = [20, 0, 0, 0];
 
         var stTolAnchor = grpTolAnchor.add('statictext', undefined, L('labelTolAnchor'));
         stTolAnchor.characters = 6;
@@ -948,8 +955,9 @@ var LABELS = {
         var etTolAnchor = grpTolAnchor.add('edittext', undefined, TOL_ANCHOR_COLLINEAR.toFixed(2));
         etTolAnchor.characters = 6;
 
-        var slTolAnchor = grpTolAnchor.add('slider', undefined, Math.round(TOL_ANCHOR_COLLINEAR * 100), 1, 300);
+        var slTolAnchor = grpAnchors.add('slider', undefined, Math.round(TOL_ANCHOR_COLLINEAR * 100), 1, 300);
         slTolAnchor.preferredSize.width = 160;
+        slTolAnchor.indent = 20;
 
         function clampTolAnchor(v) {
             if (isNaN(v)) return TOL_ANCHOR_COLLINEAR;
@@ -980,13 +988,19 @@ var LABELS = {
 
         syncTolAnchorFromValue(TOL_ANCHOR_COLLINEAR);
 
-        var cbHandle = tabProcess.add('checkbox', undefined, L('cbRemoveHandles'));
+        var grpHandle = tabProcess.add('group');
+        grpHandle.orientation = 'column';
+        grpHandle.alignChildren = ['left', 'top'];
+        // grpHandle.margins = [0, 0, 0, 8];
+
+        var cbHandle = grpHandle.add('checkbox', undefined, L('cbRemoveHandles'));
         cbHandle.value = true;
 
         // Tolerance for straight-segment handle detection (0.01 - 3.00)
-        var grpTol = tabProcess.add('group');
+        var grpTol = grpHandle.add('group');
         grpTol.orientation = 'row';
         grpTol.alignChildren = ['left', 'center'];
+        grpTol.margins = [20, 0, 0, 0];
 
         var stTol = grpTol.add('statictext', undefined, L('labelTolHandle'));
         stTol.characters = 6;
@@ -994,8 +1008,9 @@ var LABELS = {
         var etTol = grpTol.add('edittext', undefined, TOL_HANDLE_COLLINEAR.toFixed(2));
         etTol.characters = 6;
 
-        var slTol = grpTol.add('slider', undefined, Math.round(TOL_HANDLE_COLLINEAR * 100), 1, 300);
+        var slTol = grpHandle.add('slider', undefined, Math.round(TOL_HANDLE_COLLINEAR * 100), 1, 300);
         slTol.preferredSize.width = 160;
+        slTol.indent = 20;
 
         function clampTolHandle(v) {
             if (isNaN(v)) return TOL_HANDLE_COLLINEAR;
