@@ -7,12 +7,13 @@ ColorPaletteFromImage.jsx
 
 DESCRIPTION
 
-選択した配置画像／ラスター画像（またはベクター）からカラーパレットを作成します。
+選択した配置画像／ラスター画像／ベクター／テキストからカラーパレットを作成します。
 
 - ラスター/配置画像: 複製 → 画像トレース → 拡張で色を抽出
 - ベクター: 選択オブジェクトから直接カラーを抽出（ラスタライズ不要）
-- 16色／11色／8色／5色のパレットを、元画像の下に正方形で出力
-  - 16色は画像幅にフィット、他の行も左右端を画像に揃えて出力
+- テキスト: 複製してアウトライン化した上で色を抽出
+- 16色／11色／8色／5色のパレットを、元オブジェクトの下に正方形で出力
+  - 16色は対象幅にフィット、他の行も左右端を対象に揃えて出力
 - 各行（16 / 11 / 8 / 5色）は、面積重み付き最大距離法で代表色を選択
   - 面積が大きい色ほど選ばれやすい（pow 0.75 で重み付け）
 - 色の並びは最近傍法でグラデーション風にソート
@@ -27,6 +28,7 @@ DESCRIPTION
 - 「5色のみ」モードでは 16 / 11 / 8 行を非表示にし、5色系のみを表示
 - 5色（CMYK補正）は単独でも出力可能
 - スウォッチ登録は、実際に描画された 5色パレットを元に作成
+- オブジェクト未選択時は、スウォッチパネルで選択中のスウォッチから色玉パレットを生成可能
 
 色選出は段階的減色（16 → 11 → 8 → 5）で統一されています。
 
@@ -39,12 +41,12 @@ DESCRIPTION
 ダイアログ表示中はプレビューが更新され、
 OK確定後にスウォッチグループを作成します（キャンセル時は作成されません）。
 
-更新日: 2026-03-06
+更新日: 2026-03-20
 
 **********************************************************/
 
 
-var SCRIPT_VERSION = "v1.7";
+var SCRIPT_VERSION = "v1.7.1";
 
 var __DIALOG_BOUNDS_OUTPUT__ = null; // session-only dialog position memory
 
@@ -392,8 +394,8 @@ function showOutputOptionsDialog(onPreviewChange, onFitView) {
     } catch (eTip) { }
 
     // Defaults: all ON
-    rbAllInfo.value = true;
-    rb5Only.value = false;
+    rbAllInfo.value = false;
+    rb5Only.value = true;
 
     cb16.value = true;
     cb11.value = true;
@@ -704,6 +706,43 @@ function drawPaletteFromSwatches(doc, colors) {
     try { app.redraw(); } catch (e) { }
 }
 
+/* 複数オブジェクト全体の境界を元に、パレット配置用アンカーを作成 / Build a palette anchor from the union bounds of multiple items */
+function buildPaletteAnchorFromItems(items, fallbackItem) {
+    if (!items || !items.length || !fallbackItem) return fallbackItem;
+
+    var l = Infinity;
+    var t = -Infinity;
+    var r = -Infinity;
+    var b = Infinity;
+    var found = false;
+
+    for (var i = 0; i < items.length; i++) {
+        try {
+            var gb = items[i].geometricBounds;
+            if (!gb || gb.length < 4) continue;
+            if (gb[0] < l) l = gb[0];
+            if (gb[1] > t) t = gb[1];
+            if (gb[2] > r) r = gb[2];
+            if (gb[3] < b) b = gb[3];
+            found = true;
+        } catch (eGb) {
+            __logError(eGb, "palette anchor bounds");
+        }
+    }
+
+    if (!found) return fallbackItem;
+
+    return {
+        typename: "BoundsAnchor",
+        left: l,
+        top: t,
+        width: r - l,
+        height: t - b,
+        layer: fallbackItem.layer,
+        geometricBounds: [l, t, r, b]
+    };
+}
+
 /* メインコード / Main code */
 
 if (app.documents.length === 0) {
@@ -712,14 +751,17 @@ if (app.documents.length === 0) {
     var doc = app.activeDocument;
     var sel = doc.selection;
 
-    /* 選択中のオブジェクトを収集（配置画像＋ベクター） / Collect selected items (placed + vector) */
+    /* 選択中のオブジェクトを収集（配置画像＋ベクター＋テキスト） / Collect selected items (placed + vector + text) */
     var rasterItems = [];
     var vectorItems = [];
+    var textItems = [];
     for (var s = 0; s < sel.length; s++) {
         if (sel[s].typename === "PlacedItem" || sel[s].typename === "RasterItem") {
             rasterItems.push(sel[s]);
         } else if (sel[s].typename === "PathItem" || sel[s].typename === "CompoundPathItem" || sel[s].typename === "GroupItem") {
             vectorItems.push(sel[s]);
+        } else if (sel[s].typename === "TextFrame") {
+            textItems.push(sel[s]);
         }
     }
 
@@ -734,9 +776,14 @@ if (app.documents.length === 0) {
         jobs.push({ type: "raster", originalItem: rasterItems[s] });
     }
 
-    /* ベクターは「まとめて1回」処理（現状挙動のまま）/ Vectors are processed once as a group (keep current behavior) */
-    if (vectorItems.length > 0) {
-        jobs.push({ type: "vector", originalItem: vectorItems[0] }); /* パレット配置の基準 / Anchor for palette position */
+    /* ベクター＋テキストは「まとめて1回」処理 / Vectors + text are processed once as a group */
+    if (vectorItems.length > 0 || textItems.length > 0) {
+        var anchorBase = vectorItems.length > 0 ? vectorItems[0] : textItems[0];
+        var vectorJobItems = [];
+        for (var vi = 0; vi < vectorItems.length; vi++) vectorJobItems.push(vectorItems[vi]);
+        for (var ti = 0; ti < textItems.length; ti++) vectorJobItems.push(textItems[ti]);
+        var anchor = buildPaletteAnchorFromItems(vectorJobItems, anchorBase);
+        jobs.push({ type: "vector", originalItem: anchor }); /* パレット配置の基準 / Anchor for palette position */
     }
 
     if (jobs.length === 0) {
@@ -812,11 +859,36 @@ if (app.documents.length === 0) {
 
                     for (var i = 0; i < jobs.length; i++) {
                         if (jobs[i].type === "vector") {
-                            /* ベクターは全アイテムを複製し、作業用レイヤー上でグループ化 / Duplicate all vectors and group on work layer */
+                            /* ベクター＋テキストを複製し、作業用レイヤー上でグループ化 / Duplicate vectors + text and group on work layer */
+                            /* TextFrame は複製後にアウトライン化し、戻り値オブジェクトを明示的に扱う / Outline duplicated text and handle the returned object explicitly */
                             var vecGroup = workLayer.groupItems.add();
                             for (var v = vectorItems.length - 1; v >= 0; v--) {
                                 var vdup = vectorItems[v].duplicate();
                                 vdup.move(vecGroup, ElementPlacement.PLACEATEND);
+                            }
+                            /* テキストは複製してアウトライン化 / Duplicate text and convert to outlines */
+                            for (var t = textItems.length - 1; t >= 0; t--) {
+                                var tdup = textItems[t].duplicate();
+                                tdup.move(vecGroup, ElementPlacement.PLACEATEND);
+
+                                try {
+                                    var outlined = tdup.createOutline();
+
+                                    // createOutline() の結果オブジェクトを明示的にグループ内へ保持する。
+                                    // 環境によっては返り値が新規オブジェクトになり、元の TextFrame が残ることがあるため、
+                                    // 戻り値を無視せず、元テキストにも依存しないようにする。
+                                    if (outlined) {
+                                        try {
+                                            outlined.move(vecGroup, ElementPlacement.PLACEATEND);
+                                        } catch (eOutlineMove) {
+                                            __logError(eOutlineMove, "text outline move");
+                                        }
+                                    }
+                                } catch (eOutline) {
+                                    // アウトライン化に失敗した場合は元の複製テキストを残したまま続行する。
+                                    // collectFillColors() は TextFrame 自体は拾わないため、結果としてこのテキストは色抽出対象外になる。
+                                    __logError(eOutline, "text outline");
+                                }
                             }
                             itemsToProcess.push({ type: "vector", originalItem: jobs[i].originalItem, workItem: vecGroup });
                         } else {
@@ -1199,9 +1271,214 @@ function buildSelectedPaletteRow(colorList, rowCount, outOpt) {
 }
 
 
+
 function buildDrawnFiveRowEntries(fullColors, outOpt) {
     var colorList = buildOrderedPaletteEntries(fullColors);
     return buildSelectedPaletteRow(colorList, 5, outOpt);
+}
+
+// Helper: precompute row selections shared by drawing and swatch-group creation.
+// Returns { colorList, rowsByCount, gap, squareSize }
+function buildPaletteRowPlan(imgWidth, swatches, outOpt) {
+    var numSquares = 16;
+    var colorList = buildOrderedPaletteEntries(swatches);
+
+    var cell16 = imgWidth / numSquares;
+    var gapRatio = 0.10;
+    var gap = cell16 * gapRatio;
+    var squareSize = (imgWidth - (numSquares - 1) * gap) / numSquares;
+
+    var useCascade = (outOpt.cascade !== false);
+    var cascadePrev = null;
+    var rowsByCount = {};
+
+    var sorted16 = [];
+    if (outOpt.out16 || useCascade) {
+        sorted16 = buildSelectedPaletteRow(colorList, 16, outOpt);
+        rowsByCount[16] = sorted16;
+        cascadePrev = sorted16.slice();
+    } else {
+        rowsByCount[16] = [];
+    }
+
+    var rows = [11, 8, 5];
+    for (var r = 0; r < rows.length; r++) {
+        var num = rows[r];
+        var selected = selectPaletteRowEntries(colorList, num, cascadePrev, useCascade);
+        if (useCascade) cascadePrev = selected;
+        rowsByCount[num] = sortByNearest(selected);
+    }
+
+    return {
+        colorList: colorList,
+        rowsByCount: rowsByCount,
+        gap: gap,
+        squareSize: squareSize
+    };
+}
+
+// Helper: add a swatch label under one swatch rectangle.
+function addPaletteLabel(targetLayer, doc, rect, size, group, mode) {
+    try {
+        if (!rect || !rect.filled) return;
+        var info = buildColorLabelForPalette(doc, rect.fillColor, mode);
+        var fs = size / 10;
+        var x = rect.left;
+        var y = rect.top - rect.height - (fs / 2);
+
+        var tf = targetLayer.textFrames.add();
+        tf.contents = info.text;
+        tf.textRange.justification = Justification.LEFT;
+        tf.textRange.characterAttributes.size = fs;
+        tf.textRange.fillColor = getPaletteLabelBlackColor(doc);
+
+        try {
+            tf.textRange.characterAttributes.textFont = app.textFonts.getByName("MyriadPro-Regular");
+        } catch (eFont) {
+            try {
+                tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Myriad Pro");
+            } catch (eFont2) { }
+        }
+
+        tf.position = [x, y];
+        try { tf.move(group, ElementPlacement.PLACEATEND); } catch (eMove) { __logError(eMove, "palette label move"); }
+    } catch (e) { __logError(e, "palette label add"); }
+}
+
+// Helper: draw one palette row and optionally add labels.
+function drawPaletteRow(container, rowName, rowEntries, rowLeft, yPos, rowSize, gap, showLabelMode, targetLayer, doc) {
+    var rowGroup = container.groupItems.add();
+    rowGroup.name = rowName;
+
+    var count = Math.max(1, rowEntries.length);
+    for (var n = 0; n < count; n++) {
+        var rect = rowGroup.pathItems.rectangle(
+            yPos,
+            rowLeft + n * (rowSize + gap),
+            rowSize,
+            rowSize
+        );
+        rect.stroked = false;
+
+        if (rowEntries.length > 0) {
+            rect.filled = true;
+            rect.fillColor = rowEntries[n % rowEntries.length].swatch.color;
+        } else {
+            rect.filled = false;
+        }
+
+        if (showLabelMode) addPaletteLabel(targetLayer, doc, rect, rowSize, rowGroup, showLabelMode);
+    }
+
+    return rowGroup;
+}
+
+// Helper: rebuild labels on an adjusted 5-color row.
+function rebuildAdjustedRowLabels(rowGroup, rowSize, outOpt, targetLayer, doc) {
+    try {
+        if (rowGroup.textFrames && rowGroup.textFrames.length) {
+            for (var tfi = rowGroup.textFrames.length - 1; tfi >= 0; tfi--) {
+                try { rowGroup.textFrames[tfi].remove(); } catch (eRm) { __logError(eRm, "label remove"); }
+            }
+        }
+    } catch (eRmAll) { __logError(eRmAll, "label remove all"); }
+
+    if (outOpt.showCMYK) {
+        for (var u = 0; u < rowGroup.pathItems.length; u++) {
+            var pi = rowGroup.pathItems[u];
+            if (!pi.filled) continue;
+            addPaletteLabel(targetLayer, doc, pi, rowSize, rowGroup, "cmyk");
+        }
+    }
+}
+
+// Helper: duplicate the 5-color row, convert colors to CMYK-rounded values, and rebuild labels.
+function createAdjustedFiveRow(baseRowGroup, rowSize, outOpt, targetLayer, doc) {
+    var rowGroup2 = baseRowGroup.duplicate();
+    rowGroup2.translate(0, - (rowSize + (rowSize / 4)));
+
+    for (var p = 0; p < rowGroup2.pathItems.length; p++) {
+        var item = rowGroup2.pathItems[p];
+        if (!item.filled) continue;
+
+        var c = item.fillColor;
+        var cNew = buildCmykAdjustedColor(c);
+        if (cNew) item.fillColor = cNew;
+    }
+
+    rebuildAdjustedRowLabels(rowGroup2, rowSize, outOpt, targetLayer, doc);
+    return rowGroup2;
+}
+
+// Helper: create/update the single visible 5-color row when only CMYK-adjusted output is requested.
+function applyAdjustedColorsToExistingFiveRow(rowGroup, rowSize, outOpt, targetLayer, doc) {
+    for (var p0 = 0; p0 < rowGroup.pathItems.length; p0++) {
+        var baseItem = rowGroup.pathItems[p0];
+        if (!baseItem.filled) continue;
+        var cBase = baseItem.fillColor;
+        var cAdj = buildCmykAdjustedColor(cBase);
+        if (cAdj) baseItem.fillColor = cAdj;
+    }
+
+    rebuildAdjustedRowLabels(rowGroup, rowSize, outOpt, targetLayer, doc);
+}
+
+// Helper: palette label color in current document color space.
+function getPaletteLabelBlackColor(doc) {
+    try {
+        if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
+            var c = new CMYKColor();
+            c.cyan = 0; c.magenta = 0; c.yellow = 0; c.black = 100;
+            return c;
+        }
+    } catch (e) { __logError(e, "palette label black"); }
+    var r = new RGBColor();
+    r.red = 0; r.green = 0; r.blue = 0;
+    return r;
+}
+
+// Helper: build one label string for palette output.
+function buildColorLabelForPalette(doc, color, mode) {
+    function toHex2(n) {
+        var s = Math.round(n).toString(16).toUpperCase();
+        return (s.length === 1) ? ("0" + s) : s;
+    }
+    function rgbToHex(r, g, b) {
+        return "#" + toHex2(r) + toHex2(g) + toHex2(b);
+    }
+    function round5(v) {
+        return Math.floor((v + 2.5) / 5) * 5;
+    }
+
+    if (!mode) mode = "both";
+
+    var rgb = colorToRGB(color);
+    var hex = rgbToHex(rgb[0], rgb[1], rgb[2]);
+    var cmyk = colorToCMYKVals(color);
+
+    if (mode === "hex") {
+        return { text: hex, rgb: rgb };
+    }
+
+    if (mode === "cmyk") {
+        if (cmyk) {
+            var Cc = round5(cmyk[0]);
+            var Mm = round5(cmyk[1]);
+            var Yy = round5(cmyk[2]);
+            var Kk = round5(cmyk[3]);
+            return { text: L('cmykPrefix') + Cc + ", " + Mm + ", " + Yy + ", " + Kk, rgb: rgb };
+        }
+        return { text: hex, rgb: rgb };
+    }
+
+    if (cmyk) {
+        var C = round5(cmyk[0]);
+        var M = round5(cmyk[1]);
+        var Y = round5(cmyk[2]);
+        var K = round5(cmyk[3]);
+        return { text: L('cmykPrefix') + C + ", " + M + ", " + Y + ", " + K + "\r" + hex, rgb: rgb };
+    }
+    return { text: hex, rgb: rgb };
 }
 
 // Helper: CMYK adjust used for the duplicated 5-color row (same policy as drawSwatchSquares)
@@ -1268,11 +1545,9 @@ function createSwatchGroupsFor5Only(doc, baseName, fullColors, outOpt) {
 // swatchSource: SwatchGroup or Array of {color, area}
 function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGroup) {
     var swatches;
-    // Accept SwatchGroup or Array of {color, area}
     if (swatchSource && typeof swatchSource.getAllSwatches === "function") {
         swatches = swatchSource.getAllSwatches();
     } else if (swatchSource && swatchSource.length !== undefined) {
-        // treat as array of {color, area}
         swatches = [];
         for (var i = 0; i < swatchSource.length; i++) {
             swatches.push({ color: swatchSource[i].color, area: swatchSource[i].area || 1 });
@@ -1280,295 +1555,79 @@ function drawSwatchSquares(doc, originalItem, swatchSource, outOpt, containerGro
     } else {
         swatches = [];
     }
-    var numSquares = 16;
 
     outOpt = outOpt || { out16: true, out11: true, out8: true, out5: true, out5Adj: true, showHEX: true, showCMYK: true, cascade: true };
 
-    /* 共有ヘルパーで並び済みの色エントリを構築 / Build ordered palette entries via shared helper */
-    var colorList = buildOrderedPaletteEntries(swatches);
-
-    /* 元画像の位置・サイズを取得 / Get original image position and size */
     var imgLeft = originalItem.left;
     var imgTop = originalItem.top;
     var imgWidth = originalItem.width;
     var imgBottom = imgTop - originalItem.height;
 
-    /* 正方形のサイズを計算 / Calculate square size */
-    var cols16 = numSquares;      // number of columns (16)
-    var cell16 = imgWidth / cols16;
+    var plan = buildPaletteRowPlan(imgWidth, swatches, outOpt);
+    var gap = plan.gap;
+    var squareSize = plan.squareSize;
 
-    // Keep a ratio-based gap, but compute squareSize so that the row fits the image width exactly:
-    // cols16*squareSize + (cols16-1)*gap = imgWidth
-    var gapRatio = 0.10;          // gap is based on 16-column cell width
-    var gap = cell16 * gapRatio;
-    var squareSize = (imgWidth - (cols16 - 1) * gap) / cols16;
-
-    // Vertical gap should match the column gap of a 12-column layout.
-    // (Same gap rule as this script: gap = (imgWidth / N) / 10)
     var gap12 = (imgWidth / 12) / 10;
     var rowGap = gap12;
-
-    // Gap between image bottom and the first row equals the height of a 16-color swatch.
     var startY = imgBottom - squareSize;
 
-    /* 元画像のレイヤーに作成する / Create on original image's layer */
     var targetLayer = originalItem.layer;
     var container = containerGroup || targetLayer;
 
-    function getLabelBlackColor() {
-        try {
-            if (doc && doc.documentColorSpace === DocumentColorSpace.CMYK) {
-                var c = new CMYKColor();
-                c.cyan = 0; c.magenta = 0; c.yellow = 0; c.black = 100;
-                return c;
-            }
-        } catch (e) { __logError(e); }
-        var r = new RGBColor();
-        r.red = 0; r.green = 0; r.blue = 0;
-        return r;
-    }
-
-    // --- Swatch label helpers ---
-    function toHex2(n) {
-        var s = Math.round(n).toString(16).toUpperCase();
-        return (s.length === 1) ? ("0" + s) : s;
-    }
-    function rgbToHex(r, g, b) {
-        return "#" + toHex2(r) + toHex2(g) + toHex2(b);
-    }
-    function round5(v) {
-        // Midpoint rule: 0–2.49→0, 2.5–7.49→5, 7.5–12.49→10 ...
-        return Math.floor((v + 2.5) / 5) * 5;
-    }
-    function buildColorLabel(color, mode) {
-        // mode: "both" | "hex" | "cmyk"
-        if (!mode) mode = "both";
-
-        var rgb = colorToRGB(color);
-        var hex = rgbToHex(rgb[0], rgb[1], rgb[2]);
-        var cmyk = colorToCMYKVals(color);
-
-        if (mode === "hex") {
-            return { text: hex, rgb: rgb };
-        }
-
-        if (mode === "cmyk") {
-            if (cmyk) {
-                var Cc = round5(cmyk[0]);
-                var Mm = round5(cmyk[1]);
-                var Yy = round5(cmyk[2]);
-                var Kk = round5(cmyk[3]);
-                return { text: L('cmykPrefix') + Cc + ", " + Mm + ", " + Yy + ", " + Kk, rgb: rgb };
-            }
-            // If CMYK is unavailable, fall back to HEX only
-            return { text: hex, rgb: rgb };
-        }
-
-        // mode === "both"
-        if (cmyk) {
-            var C = round5(cmyk[0]);
-            var M = round5(cmyk[1]);
-            var Y = round5(cmyk[2]);
-            var K = round5(cmyk[3]);
-            return { text: L('cmykPrefix') + C + ", " + M + ", " + Y + ", " + K + "\r" + hex, rgb: rgb };
-        }
-        return { text: hex, rgb: rgb };
-    }
-    function addSwatchLabelToGroup(rect, size, group, mode) {
-        try {
-            if (!rect || !rect.filled) return;
-            var info = buildColorLabel(rect.fillColor, mode);
-
-            // Font size scales with swatch size
-            var fs = size / 10;
-
-            // Left-aligned label, aligned to the swatch width
-            // Place label under the swatch: keep a gap about half the font size.
-            var x = rect.left;
-            var y = rect.top - rect.height - (fs / 2);
-
-            var tf = targetLayer.textFrames.add();
-            tf.contents = info.text;
-            tf.textRange.justification = Justification.LEFT;
-            tf.textRange.characterAttributes.size = fs;
-            // Label color: always black (match document color space)
-            tf.textRange.fillColor = getLabelBlackColor();
-
-            // Font: Myriad (best-effort; depends on installed font name)
-            try {
-                tf.textRange.characterAttributes.textFont = app.textFonts.getByName("MyriadPro-Regular");
-            } catch (eFont) {
-                try {
-                    tf.textRange.characterAttributes.textFont = app.textFonts.getByName("Myriad Pro");
-                } catch (eFont2) { }
-            }
-
-            tf.position = [x, y];
-
-            // Move into group so it stays with the swatches
-            try { tf.move(group, ElementPlacement.PLACEATEND); } catch (e) { __logError(e); }
-        } catch (e) { __logError(e); }
-    }
-
-    /* 16色の正方形を作成・グループ化 / Create and group 16-color squares */
-    /* cascade モード用: 前段の選出結果を保持 / Keep previous selection for cascade mode */
-    var useCascade = (outOpt.cascade !== false);
-    var cascadePrev = null;
-    var sorted16 = [];
-    if (outOpt.out16 || useCascade) {
-        sorted16 = buildSelectedPaletteRow(colorList, 16, outOpt);
-        cascadePrev = sorted16.slice();
-    }
     if (outOpt.out16) {
-        var group16 = container.groupItems.add();
-        group16.name = L('group16Name');
-        for (var n = 0; n < numSquares; n++) {
-            var rect = group16.pathItems.rectangle(
-                startY,
-                imgLeft + n * (squareSize + gap),
-                squareSize,
-                squareSize
-            );
-            rect.stroked = false;
-            if (sorted16.length > 0) {
-                rect.filled = true;
-                rect.fillColor = sorted16[n % sorted16.length].swatch.color;
-            } else {
-                rect.filled = false;
-            }
-        }
+        drawPaletteRow(
+            container,
+            L('group16Name'),
+            plan.rowsByCount[16],
+            imgLeft,
+            startY,
+            squareSize,
+            gap,
+            null,
+            targetLayer,
+            doc
+        );
     }
 
-    /* 11色・8色・5色バージョン / 11, 8, 5 color rows */
     var rows = [11, 8, 5];
-    var prevBottom;
-    if (outOpt.out16) {
-        // previous row is the 16-color row
-        prevBottom = startY - squareSize;
-    } else {
-        // even if 16-color row is hidden, keep the same top gap (squareSize) from the image
-        // so the first visible row starts at startY (imgBottom - squareSize)
-        prevBottom = startY + rowGap;
-    }
+    var prevBottom = outOpt.out16 ? (startY - squareSize) : (startY + rowGap);
 
     for (var r = 0; r < rows.length; r++) {
         var num = rows[r];
         var isRowEnabled = !((num === 11 && !outOpt.out11) || (num === 8 && !outOpt.out8) || (num === 5 && !outOpt.out5 && !outOpt.out5Adj));
-
-        /* 段階的減色: 出力しない行でも内部計算を行い、次段へ渡す */
-        /* Cascade: compute selection even for skipped rows to feed the next stage */
-
-        var selected = selectPaletteRowEntries(colorList, num, cascadePrev, useCascade);
-        if (useCascade) cascadePrev = selected;
-
         if (!isRowEnabled) continue;
 
-        // Make each row a true square grid: size is computed to fit within imgWidth with the same horizontal gap.
+        var rowEntries = plan.rowsByCount[num] || [];
         var rowSize = (imgWidth - gap * (num - 1)) / num;
         var yPos = prevBottom - rowGap;
-
-        // Align each row to the image edges.
         var rowLeft = imgLeft;
-
-        /* 選択した色を最近傍法で並べ替え / Sort selected colors by nearest neighbor */
-        var sorted = sortByNearest(selected);
-
-        /* グループ化 / Group the row */
-        var rowGroup = container.groupItems.add();
-        rowGroup.name = (lang === 'ja') ? (num + L('colorsSuffix')) : (num + " " + L('colorsSuffix'));
-
+        var rowName = (lang === 'ja') ? (num + L('colorsSuffix')) : (num + " " + L('colorsSuffix'));
         var drawBaseRow = !(num === 5 && !outOpt.out5 && outOpt.out5Adj);
+        var labelMode = (num === 5 && drawBaseRow && outOpt.showHEX) ? "hex" : null;
 
-        for (var n = 0; n < num; n++) {
-            var rect2 = rowGroup.pathItems.rectangle(
-                yPos,
-                rowLeft + n * (rowSize + gap),
-                rowSize,
-                rowSize
-            );
-            rect2.stroked = false;
-
-            if (sorted.length > 0) {
-                rect2.filled = true;
-                rect2.fillColor = sorted[n % sorted.length].swatch.color;
-            } else {
-                rect2.filled = false;
-            }
-            if (num === 5 && drawBaseRow && outOpt.showHEX) addSwatchLabelToGroup(rect2, rowSize, rowGroup, "hex");
-        }
+        var rowGroup = drawPaletteRow(
+            container,
+            rowName,
+            rowEntries,
+            rowLeft,
+            yPos,
+            rowSize,
+            gap,
+            labelMode,
+            targetLayer,
+            doc
+        );
 
         if (num === 5 && !drawBaseRow && outOpt.out5Adj) {
             try {
-                for (var p0 = 0; p0 < rowGroup.pathItems.length; p0++) {
-                    var baseItem = rowGroup.pathItems[p0];
-                    if (!baseItem.filled) continue;
-                    var cBase = baseItem.fillColor;
-                    var cAdj = buildCmykAdjustedColor(cBase);
-                    if (cAdj) baseItem.fillColor = cAdj;
-                }
-
-                if (outOpt.showCMYK) {
-                    for (var u0 = 0; u0 < rowGroup.pathItems.length; u0++) {
-                        var pi0 = rowGroup.pathItems[u0];
-                        if (!pi0.filled) continue;
-                        addSwatchLabelToGroup(pi0, rowSize, rowGroup, "cmyk");
-                    }
-                }
+                applyAdjustedColorsToExistingFiveRow(rowGroup, rowSize, outOpt, targetLayer, doc);
             } catch (eOnlyAdj) { __logError(eOnlyAdj, "adjusted-only row"); }
         }
 
-        // Duplicate the 5-color row below itself (CMYK adjust) only if enabled
         if (num === 5 && drawBaseRow && outOpt.out5Adj) {
             try {
-                var rowGroup2 = rowGroup.duplicate();
-                // Move down by (row height + quarter height)
-                rowGroup2.translate(0, - (rowSize + (rowSize / 4)));
-
-                // Adjust colors of duplicated swatches
-                for (var p = 0; p < rowGroup2.pathItems.length; p++) {
-                    var item = rowGroup2.pathItems[p];
-                    if (!item.filled) continue;
-
-                    var c = item.fillColor;
-                    var cmykVals = null;
-
-                    // Best-effort: get CMYK values from any color type
-                    if (c && c.typename === "CMYKColor") {
-                        cmykVals = [c.cyan, c.magenta, c.yellow, c.black];
-                    } else {
-                        cmykVals = colorToCMYKVals(c);
-                    }
-
-                    if (cmykVals && cmykVals.length >= 4) {
-                        var cNew = buildCmykAdjustedColor(c);
-                        if (cNew) item.fillColor = cNew;
-                    }
-                }
-
-                // Rebuild duplicated row labels to match adjusted colors (or remove if disabled)
-                // NOTE: Duplicating a group does not guarantee textFrames order matches pathItems.
-                // To avoid mismatched labels, we remove all labels and recreate them from pathItems.
-                try {
-                    // Remove all existing labels first
-                    try {
-                        if (rowGroup2.textFrames && rowGroup2.textFrames.length) {
-                            for (var tfi = rowGroup2.textFrames.length - 1; tfi >= 0; tfi--) {
-                                try { rowGroup2.textFrames[tfi].remove(); } catch (eRm) { __logError(eRm, "label remove"); }
-                            }
-                        }
-                    } catch (eRmAll) { __logError(eRmAll, "label remove all"); }
-
-                    if (outOpt.showCMYK) {
-                        // Create CMYK-only labels for the adjusted row
-                        for (var u = 0; u < rowGroup2.pathItems.length; u++) {
-                            var pi = rowGroup2.pathItems[u];
-                            if (!pi.filled) continue;
-                            addSwatchLabelToGroup(pi, rowSize, rowGroup2, "cmyk");
-                        }
-                    }
-                } catch (e2) { __logError(e2, "adjusted row label rebuild"); }
-
-            } catch (e) { __logError(e); }
+                createAdjustedFiveRow(rowGroup, rowSize, outOpt, targetLayer, doc);
+            } catch (eAdj) { __logError(eAdj, "adjusted row duplicate"); }
         }
 
         prevBottom = yPos - rowSize;
