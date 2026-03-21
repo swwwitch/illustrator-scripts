@@ -6,21 +6,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 概要:
  * 選択した長方形パスを元に、ミシン目（左右・中央）、ギザギザ、エッジ、コーナー、スリット／ホールなどを
  * 組み合わせてチケット風の形状を生成するスクリプトです。
- * プレビュー機能によりダイアログ上で結果を確認しながら調整できます。
+ * ダイアログ最上部にはプリセット選択用のプルダウンメニューと［保存］ボタンを備え、
+ * セッション中に現在設定をプリセットとして追加保存できます。
+ * 保存した内容はコード組み込み用の形式でも確認でき、プレビュー機能により結果を確認しながら調整できます。
  * プレビューは専用レイヤーで生成され、確定時のみ元オブジェクトへ適用されます。
  *
  * Summary:
  * Generates ticket-style shapes from a selected rectangle by combining perforations
  * (left/right and center), zigzag edges, corner processing, and slit/hole shapes.
- * A live preview allows adjusting parameters before applying the result.
- * Preview objects are created on a temporary layer and applied to the original
- * object only when confirmed.
+ * The dialog now includes a preset dropdown and a Save button at the top,
+ * and a live preview allows adjusting parameters before applying the result.
+ * You can save current settings as a session preset, and view the code snippet
+ * for embedding. Preview objects are created on a temporary layer and applied
+ * to the original object only when confirmed.
  *
- * 更新日: 2026-03-21
- * Updated: 2026-03-21
+ * 更新日: 2026-03-22
+ * Updated: 2026-03-22
  */
 
-var SCRIPT_VERSION = "v1.3.1";
+var SCRIPT_VERSION = "v1.4.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -91,6 +95,10 @@ var strokePtFactor = getPtFactorFromUnitCode(strokeUnitCode);
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     dialogTitle: { ja: "チケットメーカー", en: "Ticket Maker" },
+    presetCustomPrefix: { ja: "カスタム", en: "Custom" },
+    btnSave: { ja: "保存", en: "Save" },
+    alertPresetName: { ja: "プリセット名を入力してください。", en: "Enter a preset name." },
+    alertPresetSaved: { ja: "プリセットを保存しました。\n\nコード組み込み用:\n", en: "Preset saved.\n\nCode snippet for embedding:\n" },
     alertSelectRectangle: { ja: "長方形を選択してください。", en: "Please select a rectangle." },
     alertOpenDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
     alertRectangleOnly: { ja: "長方形のパスを1つだけ選択してください。", en: "Please select exactly one rectangular path." },
@@ -136,6 +144,456 @@ var LABELS = {
     btnOutlineOn: { ja: "アウトライン表示", en: "Outline View" },
     btnOutlineOff: { ja: "プレビュー表示", en: "Preview View" }
 };
+function cloneSimpleValue(value) {
+    if (value === null || typeof value !== 'object') return value;
+    if (value instanceof Array) {
+        var arr = [];
+        for (var i = 0; i < value.length; i++) arr.push(cloneSimpleValue(value[i]));
+        return arr;
+    }
+    var out = {};
+    for (var key in value) {
+        if (value.hasOwnProperty(key)) out[key] = cloneSimpleValue(value[key]);
+    }
+    return out;
+}
+
+
+function isFiniteNumber(value) {
+    return typeof value === 'number' && !isNaN(value) && isFinite(value);
+}
+
+function toCodeValue(value, indentLevel) {
+    var indent = new Array(indentLevel + 1).join('    ');
+    var nextIndent = new Array(indentLevel + 2).join('    ');
+    var parts = [];
+    var key;
+
+    if (typeof value === 'string') {
+        return '"' + value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n') + '"';
+    }
+    if (typeof value === 'number') {
+        return isFiniteNumber(value) ? String(value) : '0';
+    }
+    if (typeof value === 'boolean') {
+        return value ? 'true' : 'false';
+    }
+    if (value === null) {
+        return 'null';
+    }
+    if (value instanceof Array) {
+        for (var i = 0; i < value.length; i++) {
+            parts.push(toCodeValue(value[i], indentLevel + 1));
+        }
+        return '[' + parts.join(', ') + ']';
+    }
+    if (typeof value === 'object') {
+        for (key in value) {
+            if (value.hasOwnProperty(key)) {
+                parts.push(nextIndent + key + ': ' + toCodeValue(value[key], indentLevel + 1));
+            }
+        }
+        return '{\n' + parts.join(',\n') + '\n' + indent + '}';
+    }
+    return 'null';
+}
+
+function presetToCode(preset) {
+    return ',\n' + toCodeValue(preset, 0);
+}
+
+var PRESETS = [
+    {
+        name: "0: クリア",
+        lr: {
+            enabled: false,
+            linkCenter: true,
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        center: {
+            enabled: false,
+            offset: 30,
+            mode: "dot",
+            width: 3,
+            gap: 6,
+            length: -10
+        },
+        zigzag: {
+            mode: "none",
+            size: 10,
+            gap: 0,
+            repeat: 3
+        },
+        corner: {
+            mode: "none",
+            size: 5
+        },
+        hole: {
+            mode: "none",
+            left: true,
+            right: true,
+            size: 10
+        },
+        edge: {
+            mode: "wround",
+            size: 5,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    },
+
+    {
+        name: "1: W角丸＋分割線",
+        lr: {
+            enabled: false,
+            linkCenter: true,
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        center: {
+            enabled: true,
+            offset: 30,
+            mode: "dot",
+            width: 3,
+            gap: 6,
+            length: -20
+        },
+        zigzag: {
+            mode: "none",
+            size: 10,
+            gap: 0,
+            repeat: 3
+        },
+        corner: {
+            mode: "none",
+            size: 5
+        },
+        hole: {
+            mode: "none",
+            left: true,
+            right: true,
+            size: 10
+        },
+        edge: {
+            mode: "wround",
+            size: 5,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    },
+    {
+        name: "2: 左右に2ホール",
+        lr: {
+            enabled: false,
+            linkCenter: true,
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        center: {
+            enabled: false,
+            offset: 30,
+            mode: "dot",
+            width: 3,
+            gap: 6,
+            length: -6
+        },
+        zigzag: {
+            mode: "none",
+            size: 10,
+            gap: 0,
+            repeat: 3
+        },
+        corner: {
+            mode: "none",
+            size: 5
+        },
+        hole: {
+            mode: "circle",
+            left: true,
+            right: true,
+            size: 15
+        },
+        edge: {
+            mode: "none",
+            size: 5,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    }, {
+        name: "3: ミシン目",
+        lr: {
+            enabled: false,
+            linkCenter: true,
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        center: {
+            enabled: true,
+            offset: 35,
+            mode: "dot",
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        zigzag: {
+            mode: "none",
+            size: 10,
+            gap: 0,
+            repeat: 3
+        },
+        corner: {
+            mode: "round",
+            size: 6
+        },
+        hole: {
+            mode: "none",
+            left: true,
+            right: true,
+            size: 10
+        },
+        edge: {
+            mode: "none",
+            size: 5,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    },
+    {
+        name: "4: 四隅に逆角丸",
+        lr: {
+            enabled: false,
+            linkCenter: true,
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        center: {
+            enabled: false,
+            offset: 35,
+            mode: "dot",
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        zigzag: {
+            mode: "none",
+            size: 10,
+            gap: 0,
+            repeat: 3
+        },
+        corner: {
+            mode: "inverse",
+            size: 25
+        },
+        hole: {
+            mode: "none",
+            left: true,
+            right: true,
+            size: 10
+        },
+        edge: {
+            mode: "none",
+            size: 5,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    },
+
+    {
+        name: "5: 左右に三角スリット",
+        lr: {
+            enabled: false,
+            linkCenter: true,
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        center: {
+            enabled: false,
+            offset: 35,
+            mode: "dot",
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        zigzag: {
+            mode: "none",
+            size: 10,
+            gap: 0,
+            repeat: 3
+        },
+        corner: {
+            mode: "round",
+            size: 3
+        },
+        hole: {
+            mode: "triangle",
+            left: true,
+            right: true,
+            size: 15
+        },
+        edge: {
+            mode: "none",
+            size: 5,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    }
+    ,
+    {
+        name: "7: 面取り＋分割線（破線）",
+        lr: {
+            enabled: false,
+            linkCenter: false,
+            width: 4,
+            gap: 7,
+            length: 0
+        },
+        center: {
+            enabled: true,
+            offset: 35,
+            mode: "dash",
+            width: 1,
+            gap: 3,
+            length: 0
+        },
+        zigzag: {
+            mode: "none",
+            size: 10,
+            gap: 0,
+            repeat: 7
+        },
+        corner: {
+            mode: "chamfer",
+            size: 13
+        },
+        hole: {
+            mode: "none",
+            left: true,
+            right: true,
+            size: 15
+        },
+        edge: {
+            mode: "none",
+            size: 5,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    },
+    {
+        name: "6: ミシン目＋ギザギザ上下",
+        lr: {
+            enabled: true,
+            linkCenter: false,
+            width: 4,
+            gap: 7,
+            length: 0
+        },
+        center: {
+            enabled: false,
+            offset: 35,
+            mode: "dot",
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        zigzag: {
+            mode: "tb",
+            size: 10,
+            gap: 0,
+            repeat: 7
+        },
+        corner: {
+            mode: "none",
+            size: 3
+        },
+        hole: {
+            mode: "none",
+            left: true,
+            right: true,
+            size: 15
+        },
+        edge: {
+            mode: "none",
+            size: 5,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    }
+    ,
+    {
+        name: "7: 分割線＋エッジ（円）＋ギザギザ",
+        lr: {
+            enabled: false,
+            linkCenter: true,
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        center: {
+            enabled: true,
+            offset: 30,
+            mode: "dot",
+            width: 3,
+            gap: 6,
+            length: -13
+        },
+        zigzag: {
+            mode: "lr",
+            size: 7,
+            gap: 0,
+            repeat: 7
+        },
+        corner: {
+            mode: "none",
+            size: 5
+        },
+        hole: {
+            mode: "none",
+            left: true,
+            right: true,
+            size: 10
+        },
+        edge: {
+            mode: "circle",
+            size: 10,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    }
+];
 
 function L(key) {
     var item = LABELS[key];
@@ -420,6 +878,139 @@ function main() {
                 if (isNaN(values[key])) return false;
             }
             return true;
+        }
+
+        // === Preset helpers (moved inside main) ===
+        function getPresetDisplayName(preset) {
+            if (!preset) return '';
+            if (typeof preset.name === 'string') return preset.name;
+            if (preset.name && typeof preset.name === 'object') {
+                return preset.name[lang] || preset.name.ja || preset.name.en || '';
+            }
+            return '';
+        }
+
+        function getDropdownSelectionText(dropdown) {
+            return (dropdown && dropdown.selection) ? dropdown.selection.text : '';
+        }
+
+        function setDropdownItemsFromPresets(dropdown, presets) {
+            dropdown.removeAll();
+            for (var i = 0; i < presets.length; i++) {
+                dropdown.add('item', getPresetDisplayName(presets[i]));
+            }
+            if (dropdown.items.length > 0) dropdown.selection = 0;
+        }
+
+        function getSelectedPresetIndex() {
+            return (ui.ddPreset && ui.ddPreset.selection) ? ui.ddPreset.selection.index : 0;
+        }
+
+        function buildPresetFromUI(name) {
+            var presetName = name || getDropdownSelectionText(ui.ddPreset) || L('presetCustomPrefix');
+            return {
+                name: presetName,
+                lr: {
+                    enabled: ui.chkLR.value,
+                    linkCenter: ui.chkLinkCenter.value,
+                    width: parseFloat(ui.inputWidthLR.text),
+                    gap: parseFloat(ui.inputGapLR.text),
+                    length: parseFloat(ui.inputDashLenLR.text)
+                },
+                center: {
+                    enabled: ui.chkCenter.value,
+                    offset: parseFloat(ui.inputOffset.text),
+                    mode: ui.rdDashC.value ? 'dash' : 'dot',
+                    width: parseFloat(ui.inputWidthC.text),
+                    gap: parseFloat(ui.inputGapC.text),
+                    length: parseFloat(ui.inputDashLenC.text)
+                },
+                zigzag: {
+                    mode: ui.rdZZLR.value ? 'lr' : (ui.rdZZTB.value ? 'tb' : 'none'),
+                    size: parseFloat(ui.inputWidthZZ.text),
+                    gap: parseFloat(ui.inputGapZZ.text),
+                    repeat: parseFloat(ui.inputDashLenZZ.text)
+                },
+                corner: {
+                    mode: ui.rdRound.value ? 'round' : (ui.rdInverse.value ? 'inverse' : (ui.rdChamfer.value ? 'chamfer' : 'none')),
+                    size: parseFloat(ui.inputCornerSize.text)
+                },
+                hole: {
+                    mode: ui.rdHoleCircle.value ? 'circle' : (ui.rdHoleTriangle.value ? 'triangle' : 'none'),
+                    left: ui.chkHoleLeft.value,
+                    right: ui.chkHoleRight.value,
+                    size: parseFloat(ui.inputHoleSize.text)
+                },
+                edge: {
+                    mode: ui.chkEdgeWRoundC.value ? 'wround' : (ui.rdEdgeCircleC.value ? 'circle' : (ui.rdEdgeTriangleC.value ? 'triangle' : 'none')),
+                    size: parseFloat(ui.inputEdgeSizeC.text),
+                    shapeOnly: ui.chkEdgeOnlyC.value
+                },
+                preview: {
+                    enabled: ui.chkPreview.value,
+                    expandAppearance: ui.chkExpandAppearance.value
+                }
+            };
+        }
+
+        function applyPresetToUI(preset) {
+            if (!preset) return;
+
+            ui.chkLR.value = !!preset.lr.enabled;
+            ui.chkLinkCenter.value = !!preset.lr.linkCenter;
+            ui.inputWidthLR.text = String(preset.lr.width);
+            ui.inputGapLR.text = String(preset.lr.gap);
+            ui.inputDashLenLR.text = String(preset.lr.length);
+
+            ui.chkCenter.value = !!preset.center.enabled;
+            ui.inputOffset.text = String(preset.center.offset);
+            ui.rdDotC.value = preset.center.mode !== 'dash';
+            ui.rdDashC.value = preset.center.mode === 'dash';
+            ui.inputWidthC.text = String(preset.center.width);
+            ui.inputGapC.text = String(preset.center.gap);
+            ui.inputDashLenC.text = String(preset.center.length);
+
+            ui.rdZZNone.value = preset.zigzag.mode === 'none';
+            ui.rdZZLR.value = preset.zigzag.mode === 'lr';
+            ui.rdZZTB.value = preset.zigzag.mode === 'tb';
+            ui.inputWidthZZ.text = String(preset.zigzag.size);
+            ui.inputGapZZ.text = String(preset.zigzag.gap);
+            ui.inputDashLenZZ.text = String(preset.zigzag.repeat);
+
+            ui.rdCornerNone.value = preset.corner.mode === 'none';
+            ui.rdRound.value = preset.corner.mode === 'round';
+            ui.rdInverse.value = preset.corner.mode === 'inverse';
+            ui.rdChamfer.value = preset.corner.mode === 'chamfer';
+            ui.inputCornerSize.text = String(preset.corner.size);
+
+            ui.rdHoleNone.value = preset.hole.mode === 'none';
+            ui.rdHoleCircle.value = preset.hole.mode === 'circle';
+            ui.rdHoleTriangle.value = preset.hole.mode === 'triangle';
+            ui.chkHoleLeft.value = !!preset.hole.left;
+            ui.chkHoleRight.value = !!preset.hole.right;
+            ui.inputHoleSize.text = String(preset.hole.size);
+
+            ui.chkEdgeWRoundC.value = preset.edge.mode === 'wround';
+            ui.rdEdgeNoneC.value = preset.edge.mode === 'none';
+            ui.rdEdgeCircleC.value = preset.edge.mode === 'circle';
+            ui.rdEdgeTriangleC.value = preset.edge.mode === 'triangle';
+            ui.inputEdgeSizeC.text = String(preset.edge.size);
+            ui.chkEdgeOnlyC.value = !!preset.edge.shapeOnly;
+
+            ui.chkPreview.value = !!preset.preview.enabled;
+            ui.chkExpandAppearance.value = !!preset.preview.expandAppearance;
+
+            var offsetValue = parseFloat(ui.inputOffset.text);
+            if (!isNaN(offsetValue)) {
+                ui.sliderOffset.value = Math.max(-halfW_mm, Math.min(halfW_mm, offsetValue));
+            }
+
+            updateHoleDim();
+            updateCornerDim();
+            updateCenterDim();
+            updateZZDim();
+            updateLRDim();
+            updateEdgeDimC();
         }
 
         function applyRoundCorners(targets, cornerSizeValue) {
@@ -912,6 +1503,20 @@ function main() {
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
 
+        var grpPresetTop = dlg.add('group');
+        grpPresetTop.orientation = 'row';
+        grpPresetTop.alignChildren = ['fill', 'center'];
+        grpPresetTop.alignment = ['fill', 'top'];
+        grpPresetTop.spacing = 12;
+
+        var ddPreset = grpPresetTop.add('dropdownlist', undefined, []);
+        ddPreset.alignment = ['fill', 'center'];
+
+        var btnSavePreset = grpPresetTop.add('button', undefined, L('btnSave'));
+        btnSavePreset.preferredSize.width = 70;
+        btnSavePreset.preferredSize.height = 24;
+        btnSavePreset.alignment = ['right', 'center'];
+
         function getLabelWidth(base) {
             return (lang === 'ja') ? base : Math.round(base * 1.3);
         }
@@ -1245,6 +1850,10 @@ function main() {
             inputEdgeSizeC: inputEdgeSizeC,
             chkEdgeOnlyC: chkEdgeOnlyC,
 
+            // Preset
+            ddPreset: ddPreset,
+            btnSavePreset: btnSavePreset,
+
             // Preview
             chkPreview: chkPreview,
             chkExpandAppearance: chkExpandAppearance,
@@ -1267,6 +1876,11 @@ function main() {
             lblOffsetMM: lblOffsetMM
         };
 
+        setDropdownItemsFromPresets(ddPreset, PRESETS);
+        if (PRESETS.length > 0) {
+            applyPresetToUI(cloneSimpleValue(PRESETS[0]));
+        }
+
         /* プレビュー更新 / Update preview */
         function updatePreview() {
             updateZZDim();
@@ -1277,6 +1891,33 @@ function main() {
 
         /* イベント / Events */
         chkPreview.onClick = function () { updatePreview(); };
+
+        ddPreset.onChange = function () {
+            var index = getSelectedPresetIndex();
+            if (index < 0 || index >= PRESETS.length) return;
+            applyPresetToUI(cloneSimpleValue(PRESETS[index]));
+            updatePreview();
+        };
+
+        btnSavePreset.onClick = function () {
+            var baseName = getDropdownSelectionText(ui.ddPreset) || L('presetCustomPrefix');
+            var newName = prompt(L('alertPresetName'), baseName);
+            if (newName === null) return;
+            newName = String(newName).replace(/^\s+|\s+$/g, '');
+            if (!newName) return;
+
+            if (!validateUIValues(collectUIValues())) {
+                alert(L('alertEnterValidNumbers'));
+                return;
+            }
+
+            var preset = buildPresetFromUI(newName);
+            PRESETS.push(cloneSimpleValue(preset));
+            setDropdownItemsFromPresets(ui.ddPreset, PRESETS);
+            ui.ddPreset.selection = ui.ddPreset.items.length - 1;
+
+            alert(L('alertPresetSaved') + presetToCode(preset));
+        };
 
         // ミシン目（左右）イベント
         chkLR.onClick = function () {
@@ -1477,4 +2118,4 @@ function main() {
     }
 }
 
-main();
+main()
