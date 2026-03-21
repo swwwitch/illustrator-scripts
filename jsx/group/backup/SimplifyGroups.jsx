@@ -74,6 +74,35 @@ SimplifyGroups.jsx
 
 */
 
+// zOrderPosition の増減方向を実ドキュメント上で判定
+// true: 数値が大きいほど前面 / false: 数値が小さいほど前面
+function detectLargerIsFront(parent) {
+    var doc = app.activeDocument;
+    var t = null;
+    try {
+        // できるだけ影響の少ない極小パスを作って即削除
+        t = doc.pathItems.rectangle(0, 0, 1, 1);
+        t.stroked = false;
+        t.filled = false;
+        t.opacity = 0;
+        t.move(parent, ElementPlacement.PLACEATEND);
+        t.zOrder(ZOrderMethod.SENDTOBACK);
+        var backPos = t.zOrderPosition;
+        t.zOrder(ZOrderMethod.BRINGTOFRONT);
+        var frontPos = t.zOrderPosition;
+        return frontPos > backPos;
+    } catch (e) {
+        // 失敗時は「大きいほど前面」寄りに倒す（現場の実挙動に合わせやすい）
+        return true;
+    } finally {
+        try { if (t) t.remove(); } catch (e2) {}
+    }
+}
+
+function isBInFrontOfA(posB, posA, largerIsFront) {
+    return largerIsFront ? (posB > posA) : (posB < posA);
+}
+
 function main() {
     // ドキュメントと選択チェック
     if (app.documents.length === 0) return;
@@ -91,14 +120,26 @@ function main() {
             nonGroupCount++;
         }
     }
+    var largerIsFront = detectLargerIsFront(firstGroup.parent);
 
     // クリップグループとオブジェクトが選択されている場合
     if (groupCount === 1 && nonGroupCount > 0 && firstGroup.clipped) {
         for (var i = sel.length - 1; i >= 0; i--) {
             var item = sel[i];
             if (item !== firstGroup && !item.locked && !item.hidden) {
-                // クリップグループの場合は無条件で先頭に配置
-                item.move(firstGroup, ElementPlacement.PLACEATBEGINNING);
+                var posA = firstGroup.zOrderPosition;
+                var posB;
+                try {
+                    posB = item.zOrderPosition;
+                } catch (e) {
+                    posB = posA + 1; // 取得できない場合は背面寄り扱い
+                }
+
+                var bIsFront = isBInFrontOfA(posB, posA, largerIsFront);
+
+                // B が A より前面なら → グループの最前面（END）
+                // B が A より背面なら → グループの最背面（BEGINNING）
+                item.move(firstGroup, bIsFront ? ElementPlacement.PLACEATEND : ElementPlacement.PLACEATBEGINNING);
             }
         }
         bringMaskPathToFront(firstGroup);
@@ -108,7 +149,7 @@ function main() {
     }
 
     // 1つだけグループがあり、他が非グループの場合
-    if (groupCount === 1 && nonGroupCount > 0) {
+    if (groupCount === 1 && nonGroupCount > 0å) {
         for (var i = sel.length - 1; i >= 0; i--) {
             var item = sel[i];
             if (item !== firstGroup && !item.locked && !item.hidden) {
@@ -120,11 +161,11 @@ function main() {
                     posB = posA + 1; // デフォルトで A より背面扱い
                 }
 
-                if (posB < posA) {
-                    item.move(firstGroup, ElementPlacement.PLACEATBEGINNING);
-                } else {
-                    item.move(firstGroup, ElementPlacement.PLACEATEND);
-                }
+                var bIsFront = isBInFrontOfA(posB, posA, largerIsFront);
+
+                // B が A より前面なら → グループの最前面（END）
+                // B が A より背面なら → グループの最背面（BEGINNING）
+                item.move(firstGroup, bIsFront ? ElementPlacement.PLACEATEND : ElementPlacement.PLACEATBEGINNING);
             }
         }
         ungroupSubGroups(firstGroup);
