@@ -13,7 +13,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // =========================================
 // バージョンとローカライズ
 // =========================================
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -119,6 +119,8 @@ function L(key) {
     return LABELS[key][lang];
 }
 
+var SPLIT_GROUP_NOTE_PREFIX = "__SplitSpreadToSingle__";
+
 // =========================================
 // メイン処理
 // =========================================
@@ -221,6 +223,7 @@ function L(key) {
             var allItem = allCandidates[ai];
             var allPageType = getPageTypeInfo(doc, allItem);
             if (allPageType.artboardIndex < 0) continue;
+            if (allPageType.artboardType !== "spread") continue;
             if (allPageType.pageType === "spread") {
                 items.push(allItem);
             }
@@ -248,7 +251,7 @@ function L(key) {
                     otherCount++;
                     continue;
                 }
-                if (selectedPageType.pageType === "spread") {
+                if (selectedPageType.artboardType === "spread" && selectedPageType.pageType === "spread") {
                     items.push(sel);
                     spreadCount++;
                 } else if (selectedPageType.pageType === "single") {
@@ -400,6 +403,9 @@ function L(key) {
 
             groupA.translate(moveAX, 0);
             groupB.translate(moveBX, 0);
+
+            groupA.note = SPLIT_GROUP_NOTE_PREFIX + ":role=A";
+            groupB.note = SPLIT_GROUP_NOTE_PREFIX + ":role=B";
         }
 
         groupA.selected = true;
@@ -458,37 +464,61 @@ function L(key) {
         var baseX = firstRect[0];
         var baseY = firstRect[1];
         var firstPageRight = !evenOnRight;
+        var artboardItemMap = [];
+        var tempMarkedItems = [];
+        var tempOriginalNotes = [];
+        var tempMarker = "__SplitSpreadToSingle_Rearrange__";
 
-        for (var i = 0; i < numArtboards; i++) {
-            artboards.setActiveArtboardIndex(i);
+        for (var ai = 0; ai < numArtboards; ai++) {
+            artboards.setActiveArtboardIndex(ai);
             doc.selection = null;
             doc.selectObjectsOnActiveArtboard();
 
-            var sel = [];
-            for (var s = 0; s < doc.selection.length; s++) {
-                sel.push(doc.selection[s]);
+            var pageItems = [];
+            for (var aj = 0; aj < doc.selection.length; aj++) {
+                var selectedItem = doc.selection[aj];
+                if (!selectedItem) continue;
+
+                var noteText = String(selectedItem.note || "");
+                if (noteText.indexOf(tempMarker) >= 0) continue;
+
+                tempMarkedItems.push(selectedItem);
+                tempOriginalNotes.push(noteText);
+                selectedItem.note = noteText ? (noteText + "\n" + tempMarker) : tempMarker;
+                pageItems.push(selectedItem);
             }
 
+            artboardItemMap[ai] = pageItems;
+            doc.selection = null;
+        }
+
+        for (var am = 0; am < tempMarkedItems.length; am++) {
+            tempMarkedItems[am].note = tempOriginalNotes[am];
+        }
+
+        for (var i = 0; i < numArtboards; i++) {
             var ab = artboards[i];
+            var sel = artboardItemMap[i] || [];
             var oldRect = ab.artboardRect;
             var w = oldRect[2] - oldRect[0];
             var h = oldRect[1] - oldRect[3];
             var pageNumber = i + 1;
             var isThisPageRight;
-
-            if (firstPageRight) {
-                isThisPageRight = (pageNumber % 2 !== 0);
-            } else {
-                isThisPageRight = (pageNumber % 2 === 0);
-            }
-
-            var row = Math.floor(pageNumber / 2);
+            var row;
             var newLeft;
 
-            if (firstPageRight) {
-                newLeft = isThisPageRight ? baseX : (baseX - w - spacingX);
+            if (pageNumber === 1) {
+                row = 0;
+                newLeft = baseX;
             } else {
-                newLeft = isThisPageRight ? (baseX + w + spacingX) : baseX;
+                if (firstPageRight) {
+                    isThisPageRight = (pageNumber % 2 !== 0);
+                    newLeft = isThisPageRight ? baseX : (baseX - w - spacingX);
+                } else {
+                    isThisPageRight = (pageNumber % 2 === 0);
+                    newLeft = isThisPageRight ? (baseX + w + spacingX) : baseX;
+                }
+                row = Math.floor(pageNumber / 2);
             }
 
             var newTop = baseY - row * (h + spacingY);
@@ -504,8 +534,6 @@ function L(key) {
                     sel[k].translate(deltaX, deltaY, true, true, true, true);
                 }
             }
-
-            doc.selection = null;
         }
 
         app.executeMenuCommand("fitall");
@@ -515,6 +543,9 @@ function L(key) {
     // ヘルパー関数
     // =========================================
     /* ヘルパー関数 / Helper functions */
+
+
+
     function isTargetItem(obj) {
         return obj && (
             obj.typename === "PlacedItem" ||
@@ -632,9 +663,9 @@ function L(key) {
         /* 見開きアートボード上でアートボード幅にほぼ一致するオブジェクトは見開き扱い / Treat objects that match artboard width on spread artboards as spread */
         if (artboardType === "spread" && Math.abs(fitToArtboardRatio - 1) <= fitTolerance) {
             pageType = "spread";
-        } else if (Math.abs(ratio - 1) <= singleTolerance) {
+        } else if (artboardType === "single" && Math.abs(ratio - 1) <= singleTolerance) {
             pageType = "single";
-        } else if (Math.abs(ratio - 2) <= spreadTolerance) {
+        } else if (artboardType === "spread" && Math.abs(ratio - 2) <= spreadTolerance) {
             pageType = "spread";
         }
 
