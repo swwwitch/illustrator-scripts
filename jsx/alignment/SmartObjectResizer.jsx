@@ -10,13 +10,13 @@ SmartObjectResizer.jsx
 ### 概要
 
 - 選択中のオブジェクトを指定した基準（最大、最小、指定サイズ、アートボード、裁ち落とし、面積）に基づいて柔軟にリサイズできるIllustrator用スクリプトです。
-- 縦横比保持モードや片辺のみモード、整列オプション、リアルタイムプレビュー機能を備えています。
+- 縦横比保持モードや片辺のみモード、整列オプション、リアルタイムプレビュー機能を備えています。整列処理は visibleBounds ではなく geometricBounds ベースで計算し、テキスト整列の安定性を高めています。
 
 ### 主な機能
 
 - 縦横比保持と片辺のみの切り替え
 - 各種基準（最大、最小、指定サイズ、アートボード、裁ち落とし、面積）でのスケーリング
-- テキストをアウトライン化したサイズで計算（複製→アウトライン→計測→即削除）
+- テキストをアウトライン化したサイズで計算（複製→分割→アウトライン→計測→即削除）
 - 整列オプション（左、中央、均等、0間隔、上、中央、横均等、横0間隔）
 - リアルタイムプレビューとリセット機能
 - 日本語／英語インターフェース対応
@@ -24,9 +24,13 @@ SmartObjectResizer.jsx
 ### 処理の流れ
 
 1. ダイアログでリサイズモードと基準を選択
-2. 選択モードに従ってスケーリング実行（テキストは複製→アウトライン化→計測し、元オブジェクトに反映）
+2. 選択モードに従ってスケーリング実行（テキストは複製→分割→アウトライン化→計測し、元オブジェクトに反映）
 3. 整列オプションや面積一致処理を適用
 4. OKで確定、キャンセルやリセットで元に戻す
+
+### 紹介記事（note）
+
+https://note.com/dtp_tranist/n/n6f35bd4000ec
 
 ### 更新履歴
 
@@ -37,8 +41,10 @@ SmartObjectResizer.jsx
 - v1.2.2 (20260227) : 指定サイズの数値欄で、↑↓/Shift+↑↓/Option+↑↓ による増減を追加（±1 / ±10 / ±0.1）
 - v1.2.3 (20260227) : ダイアログ位置をセッション内で記憶し、次回起動時に復元（Illustrator終了でリセット）
 - v1.3.0 (20260322) : テキストのアウトライン基準計測を再設計（差分検出＋即時削除＋キャッシュ化で残骸問題を解消、幾何変化対応のキャッシュ最適化）
+- v1.3.1 (20260322) : テキスト計測用の複製オブジェクトに、アウトライン化前の分割（expandStyle）を追加
+- v1.3.2 (20260322) : 整列処理のみ visibleBounds 依存をやめ、geometricBounds ベースに分離してテキスト整列精度を改善
 
----
+----
 
 ### Script Name:
 
@@ -47,13 +53,13 @@ SmartObjectResizer.jsx
 ### Overview
 
 - An Illustrator script that flexibly resizes selected objects based on criteria such as Max, Min, Fixed Size, Artboard, Bleed, or Area.
-- Supports "Keep Aspect" and "One Side Only" modes, alignment options, and real-time preview.
+- Supports "Keep Aspect" and "One Side Only" modes, alignment options, and real-time preview. Alignment calculations use geometricBounds instead of visibleBounds for more stable text alignment.
 
 ### Main Features
 
 - Toggle between "Keep Aspect" and "One Side Only"
 - Scaling based on Max, Min, Fixed Size, Artboard, Bleed, or Area
-- Optional text measurement using outlined bounds (duplicate → outline → measure → immediate cleanup)
+- Optional text measurement using outlined bounds (duplicate → expand appearance → outline → measure → immediate cleanup)
 - Alignment options (Left, Center, Evenly, Zero Gap, Top, Middle, Horizontal Evenly, Horizontal Zero Gap)
 - Real-time preview and reset function
 - Japanese and English UI support
@@ -61,7 +67,7 @@ SmartObjectResizer.jsx
 ### Process Flow
 
 1. Select resize mode and base in the dialog
-2. Execute scaling according to selected mode (text objects are measured via duplicate → outline → bounds calculation and applied back to originals)
+2. Execute scaling according to selected mode (text objects are measured via duplicate → expand appearance → outline → bounds calculation and applied back to originals)
 3. Apply alignment or area-matching options
 4. Confirm with OK, or revert with Cancel or Reset
 
@@ -74,6 +80,8 @@ SmartObjectResizer.jsx
 - v1.2.2 (20260227): Added arrow-key value stepping for the Fixed Size input (±1 / ±10 with Shift / ±0.1 with Option)
 - v1.2.3 (20260227): Remember dialog position within the session and restore next run (reset when Illustrator quits)
 - v1.3.0 (20260322): Reworked text outline measurement using diff-based cleanup and caching (eliminates leftover outline artifacts and optimizes cache invalidation for geometry changes)
+- v1.3.1 (20260322): Added expand appearance (expandStyle) before outlining duplicated text objects used for measurement
+- v1.3.2 (20260322): Separated alignment calculations from visibleBounds and switched them to geometricBounds for more stable text alignment
 */
 
 (function () {
@@ -84,7 +92,7 @@ SmartObjectResizer.jsx
     var lang = getCurrentLang();
 
     // スクリプトバージョン / Script version
-    var SCRIPT_VERSION = "v1.3.1";
+    var SCRIPT_VERSION = "v1.3.2";
 
     // ダイアログ位置をセッション内で記憶（Illustrator終了でリセット）
     // Remember dialog position within this Illustrator session (resets when Illustrator quits)
@@ -201,6 +209,8 @@ SmartObjectResizer.jsx
             // UI状態に応じた有効/無効も更新
             updateInputState();
             updateRadioGroupStates();
+
+            updateTextOutlineOptionState();
 
             // 現在選択されているラジオのモードを1回だけ適用
             applyResizeBySelection();
@@ -607,6 +617,25 @@ SmartObjectResizer.jsx
         applyResizeBySelection();
     };
 
+    function updateTextOutlineOptionState() {
+        var hasText = false;
+
+        for (var i = 0; i < originalSelectedItems.length; i++) {
+            if (containsTextForOutlineBounds(originalSelectedItems[i])) {
+                hasText = true;
+                break;
+            }
+        }
+
+        if (hasText) {
+            textOutlineBoundsCheck.enabled = true;
+            textOutlineBoundsCheck.value = true;
+        } else {
+            textOutlineBoundsCheck.value = false;
+            textOutlineBoundsCheck.enabled = false;
+        }
+    }
+
     var previewCheck = previewGroup.add("checkbox", undefined, labels.previewBounds[lang]);
     previewCheck.value = true;
     previewCheck.onClick = function () {
@@ -617,6 +646,8 @@ SmartObjectResizer.jsx
         app.redraw();
         applyResizeBySelection();
     };
+
+    updateTextOutlineOptionState();
 
     // 右ペイン（ボタン）
     var rightPane = mainGroup.add("group");
@@ -657,7 +688,7 @@ SmartObjectResizer.jsx
         if (alignLeftCheck.value) {
             var minLeft = null;
             for (var i = 0; i < workingItems.length; i++) {
-                var bounds = getReferenceBounds(workingItems[i], true);
+                var bounds = getAlignmentBounds(workingItems[i]);
                 if (minLeft === null || bounds.left < minLeft) {
                     minLeft = bounds.left;
                 }
@@ -665,7 +696,7 @@ SmartObjectResizer.jsx
             if (minLeft !== null) {
                 for (var i = 0; i < workingItems.length; i++) {
                     var item = workingItems[i];
-                    var bounds = getReferenceBounds(item, true);
+                    var bounds = getAlignmentBounds(item);
                     var delta = minLeft - bounds.left;
                     item.left += delta;
                 }
@@ -686,14 +717,14 @@ SmartObjectResizer.jsx
 
             var centerSum = 0;
             for (var i = 0; i < workingItems.length; i++) {
-                var bounds = getReferenceBounds(workingItems[i], true);
+                var bounds = getAlignmentBounds(workingItems[i]);
                 centerSum += bounds.left + bounds.width / 2;
             }
             var averageCenter = centerSum / workingItems.length;
 
             for (var j = 0; j < workingItems.length; j++) {
                 var item = workingItems[j];
-                var bounds = getReferenceBounds(item, true);
+                var bounds = getAlignmentBounds(item);
                 var itemCenter = bounds.left + bounds.width / 2;
                 var delta = averageCenter - itemCenter;
                 item.left += delta;
@@ -725,20 +756,20 @@ SmartObjectResizer.jsx
         if (alignEvenCheck.value && workingItems.length > 1) {
             // 0 チェックボックスと排他
             alignEvenZeroCheck.value = false;
-            // visibleBounds.top を基準に上から順にソート
+            // geometricBounds.top を基準に上から順にソート
             var sortedItems = workingItems.slice(0).sort(function (a, b) {
-                var topA = getReferenceBounds(a, true).top;
-                var topB = getReferenceBounds(b, true).top;
+                var topA = getAlignmentBounds(a).top;
+                var topB = getAlignmentBounds(b).top;
                 return topB - topA;
             });
 
-            var topMost = getReferenceBounds(sortedItems[0], true).top;
-            var bottomMost = getReferenceBounds(sortedItems[sortedItems.length - 1], true).top -
-                getReferenceBounds(sortedItems[sortedItems.length - 1], true).height;
+            var topMost = getAlignmentBounds(sortedItems[0]).top;
+            var bottomMost = getAlignmentBounds(sortedItems[sortedItems.length - 1]).top -
+                getAlignmentBounds(sortedItems[sortedItems.length - 1]).height;
 
             var totalHeight = 0;
             for (var i = 0; i < sortedItems.length; i++) {
-                totalHeight += getReferenceBounds(sortedItems[i], true).height;
+                totalHeight += getAlignmentBounds(sortedItems[i]).height;
             }
 
             var gap = (topMost - bottomMost - totalHeight) / (sortedItems.length - 1);
@@ -746,7 +777,7 @@ SmartObjectResizer.jsx
 
             for (var j = 0; j < sortedItems.length; j++) {
                 var item = sortedItems[j];
-                var bounds = getReferenceBounds(item, true);
+                var bounds = getAlignmentBounds(item);
                 var height = bounds.height;
                 item.top = currentY;
                 currentY -= (height + gap);
@@ -771,17 +802,17 @@ SmartObjectResizer.jsx
             alignEvenCheck.value = false;
 
             var sortedItems = workingItems.slice(0).sort(function (a, b) {
-                var topA = getReferenceBounds(a, true).top;
-                var topB = getReferenceBounds(b, true).top;
+                var topA = getAlignmentBounds(a).top;
+                var topB = getAlignmentBounds(b).top;
                 return topB - topA;
             });
 
-            var topMost = getReferenceBounds(sortedItems[0], true).top;
+            var topMost = getAlignmentBounds(sortedItems[0]).top;
 
             var currentY = topMost;
             for (var j = 0; j < sortedItems.length; j++) {
                 var item = sortedItems[j];
-                var bounds = getReferenceBounds(item, true);
+                var bounds = getAlignmentBounds(item);
                 var height = bounds.height;
                 item.top = currentY;
                 currentY -= height; // gap = 0
@@ -822,7 +853,7 @@ SmartObjectResizer.jsx
         if (alignTopCheck.value) {
             var maxTop = null;
             for (var i = 0; i < workingItems.length; i++) {
-                var bounds = getReferenceBounds(workingItems[i], true);
+                var bounds = getAlignmentBounds(workingItems[i]);
                 if (maxTop === null || bounds.top > maxTop) {
                     maxTop = bounds.top;
                 }
@@ -830,7 +861,7 @@ SmartObjectResizer.jsx
             if (maxTop !== null) {
                 for (var i = 0; i < workingItems.length; i++) {
                     var item = workingItems[i];
-                    var bounds = getReferenceBounds(item, true);
+                    var bounds = getAlignmentBounds(item);
                     var delta = maxTop - bounds.top;
                     item.top += delta;
                 }
@@ -852,14 +883,14 @@ SmartObjectResizer.jsx
         if (alignMiddleCheck.value) {
             var centerSum = 0;
             for (var i = 0; i < workingItems.length; i++) {
-                var bounds = getReferenceBounds(workingItems[i], true);
+                var bounds = getAlignmentBounds(workingItems[i]);
                 centerSum += bounds.top - bounds.height / 2;
             }
             var averageCenter = centerSum / workingItems.length;
 
             for (var j = 0; j < workingItems.length; j++) {
                 var item = workingItems[j];
-                var bounds = getReferenceBounds(item, true);
+                var bounds = getAlignmentBounds(item);
                 var itemCenter = bounds.top - bounds.height / 2;
                 var delta = averageCenter - itemCenter;
                 item.top += delta;
@@ -892,18 +923,18 @@ SmartObjectResizer.jsx
             alignHorizontalEvenZeroCheck.value = false;
 
             var sortedItems = workingItems.slice(0).sort(function (a, b) {
-                var leftA = getReferenceBounds(a, true).left;
-                var leftB = getReferenceBounds(b, true).left;
+                var leftA = getAlignmentBounds(a).left;
+                var leftB = getAlignmentBounds(b).left;
                 return leftA - leftB;
             });
 
-            var leftMost = getReferenceBounds(sortedItems[0], true).left;
-            var rightMost = getReferenceBounds(sortedItems[sortedItems.length - 1], true).left +
-                getReferenceBounds(sortedItems[sortedItems.length - 1], true).width;
+            var leftMost = getAlignmentBounds(sortedItems[0]).left;
+            var rightMost = getAlignmentBounds(sortedItems[sortedItems.length - 1]).left +
+                getAlignmentBounds(sortedItems[sortedItems.length - 1]).width;
 
             var totalWidth = 0;
             for (var i = 0; i < sortedItems.length; i++) {
-                totalWidth += getReferenceBounds(sortedItems[i], true).width;
+                totalWidth += getAlignmentBounds(sortedItems[i]).width;
             }
 
             var gap = (rightMost - leftMost - totalWidth) / (sortedItems.length - 1);
@@ -911,7 +942,7 @@ SmartObjectResizer.jsx
 
             for (var j = 0; j < sortedItems.length; j++) {
                 var item = sortedItems[j];
-                var bounds = getReferenceBounds(item, true);
+                var bounds = getAlignmentBounds(item);
                 var width = bounds.width;
                 item.left = currentX;
                 currentX += (width + gap);
@@ -936,17 +967,17 @@ SmartObjectResizer.jsx
             alignHorizontalEvenCheck.value = false;
 
             var sortedItems = workingItems.slice(0).sort(function (a, b) {
-                var leftA = getReferenceBounds(a, true).left;
-                var leftB = getReferenceBounds(b, true).left;
+                var leftA = getAlignmentBounds(a).left;
+                var leftB = getAlignmentBounds(b).left;
                 return leftA - leftB;
             });
 
-            var leftMost = getReferenceBounds(sortedItems[0], true).left;
+            var leftMost = getAlignmentBounds(sortedItems[0]).left;
 
             var currentX = leftMost;
             for (var j = 0; j < sortedItems.length; j++) {
                 var item = sortedItems[j];
-                var bounds = getReferenceBounds(item, true);
+                var bounds = getAlignmentBounds(item);
                 var width = bounds.width;
                 item.left = currentX;
                 currentX += width; // gap = 0
@@ -1305,6 +1336,15 @@ SmartObjectResizer.jsx
         };
     }
 
+    // 整列処理は visibleBounds ではなく geometricBounds ベースで計算する
+    // Alignment calculations use geometricBounds instead of visibleBounds
+    function getAlignmentBounds(item) {
+        if (textOutlineBoundsCheck && textOutlineBoundsCheck.value && containsTextForOutlineBounds(item)) {
+            return getOutlinedBoundsCached(item, false);
+        }
+        return getPageItemBoundsObject(item, false);
+    }
+
     function containsTextForOutlineBounds(item) {
         if (!item) return false;
         if (item.typename === "TextFrame") return true;
@@ -1385,6 +1425,28 @@ SmartObjectResizer.jsx
         var beforeItems = snapshotAllPageItems(doc);
         try {
             var duplicateItem = item.duplicate();
+
+            // テキスト計測用の複製では、アウトライン化の前に分割を適用する
+            // For duplicated text used for measurement, apply expand appearance before outlining
+            if (containsTextForOutlineBounds(duplicateItem)) {
+                var previousSelection = null;
+                try {
+                    previousSelection = doc.selection;
+                } catch (_) { }
+                try {
+                    doc.selection = null;
+                    duplicateItem.selected = true;
+                    app.executeMenuCommand('expandStyle');
+                    if (doc.selection && doc.selection.length > 0) {
+                        duplicateItem = doc.selection[0];
+                    }
+                } catch (_) {
+                } finally {
+                    try {
+                        doc.selection = previousSelection;
+                    } catch (__restoreSelErr) { }
+                }
+            }
 
             if (duplicateItem.typename === "TextFrame") {
                 duplicateItem = duplicateItem.createOutline();
