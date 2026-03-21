@@ -16,11 +16,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * Preview objects are created on a temporary layer and applied to the original
  * object only when confirmed.
  *
- * 更新日: 2026-03-14
- * Updated: 2026-03-14
+ * 更新日: 2026-03-21
+ * Updated: 2026-03-21
  */
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -102,27 +102,27 @@ var LABELS = {
     panelLR: { ja: "左右", en: "L/R" },
     panelPerforationLR: { ja: "ミシン目", en: "Perforation" },
     panelZigzag: { ja: "ギザギザ", en: "Zigzag" },
-    panelPerforationCenter: { ja: "分割線", en: "Divider" },
-    panelDash: { ja: "点線", en: "Dotted Line" },
+    panelPerforationCenter: { ja: "左右分割", en: "Center Divider" },
+    panelDash: { ja: "分割線", en: "Divider Line" },
     panelEdge: { ja: "エッジ", en: "Edge" },
     panelCorner: { ja: "コーナー", en: "Corner" },
     chkEnable: { ja: "有効", en: "Enable" },
     lblLineWidth: { ja: "線幅:", en: "Weight:" },
     lblGap: { ja: "間隔:", en: "Gap:" },
-    lblLength: { ja: "余白:", en: "Offset:" },
-    unitRuler: { ja: rulerUnitLabel, en: rulerUnitLabel },
-    unitStroke: { ja: strokeUnitLabel, en: strokeUnitLabel },
+    lblLength: { ja: "長さ:", en: "Inset Length:" },
     rdNone: { ja: "なし", en: "None" },
     rdDot: { ja: "ドット", en: "Dot" },
     rdDash: { ja: "破線", en: "Dash" },
     rdCircle: { ja: "円", en: "Circle" },
     rdTriangle: { ja: "三角", en: "Triangle" },
+    rdWRound: { ja: "ダブル角丸", en: "Double Rounded" },
     rdRound: { ja: "角丸", en: "Rounded" },
     rdInverse: { ja: "逆角丸", en: "Inverse Round" },
     rdChamfer: { ja: "面取り", en: "Chamfer" },
     panelHole: { ja: "スリット／ホール", en: "Slit / Hole" },
     lblSize: { ja: "サイズ:", en: "Size:" },
-    chkShapeOnly: { ja: "エッジのみ", en: "Edge Only" },
+    chkShapeOnly: { ja: "エッジのみ", en: "Edges Only" },
+    chkLinkCenter: { ja: "分割線に連動", en: "Link to Split Line" },
     chkLeft: { ja: "左", en: "Left" },
     chkRight: { ja: "右", en: "Right" },
     rdLR: { ja: "左右", en: "L/R" },
@@ -132,13 +132,17 @@ var LABELS = {
     chkPreview: { ja: "プレビュー", en: "Preview" },
     chkExpandAppearance: { ja: "アピアランスを分割", en: "Expand Appearance" },
     btnCancel: { ja: "キャンセル", en: "Cancel" },
-    btnOK: { ja: "OK", en: "OK" }
+    btnOK: { ja: "OK", en: "OK" },
+    btnOutlineOn: { ja: "アウトライン表示", en: "Outline View" },
+    btnOutlineOff: { ja: "プレビュー表示", en: "Preview View" }
 };
 
 function L(key) {
     var item = LABELS[key];
-    return item ? item[lang] : key;
+    if (!item) throw new Error("Missing label: " + key);
+    return item[lang];
 }
+
 function ensureStrokeDotActionLoaded() {
     if (ensureStrokeDotActionLoaded._loaded) return;
 
@@ -381,35 +385,30 @@ function main() {
         }
 
         function collectUIValues() {
+            var linked = ui.chkLR.value && ui.chkLinkCenter.value && ui.rdDotC.value;
+
             return {
-                // L/R perforation
-                strokeWValueLR: parseFloat(inputWidthLR.text),
-                gapValueLR: parseFloat(inputGapLR.text),
-                dashLenValueLR: parseFloat(inputDashLenLR.text),
+                strokeWValueLR: linked ? parseFloat(ui.inputWidthC.text) : parseFloat(ui.inputWidthLR.text),
+                gapValueLR: linked ? parseFloat(ui.inputGapC.text) : parseFloat(ui.inputGapLR.text),
+                dashLenValueLR: (function (v) { v = linked ? parseFloat(ui.inputDashLenC.text) : parseFloat(ui.inputDashLenLR.text); return isNaN(v) ? v : Math.min(0, v); })(),
+                lrLinked: linked,
 
-                // zigzag
-                zzSizeValue: parseFloat(inputWidthZZ.text),
-                zzGapValue: parseFloat(inputGapZZ.text) || 0,
-                zzRepeatValue: Math.max(1, Math.round(parseFloat(inputDashLenZZ.text) || 1)),
+                zzSizeValue: parseFloat(ui.inputWidthZZ.text),
+                zzGapValue: parseFloat(ui.inputGapZZ.text) || 0,
+                zzRepeatValue: Math.max(1, Math.round(parseFloat(ui.inputDashLenZZ.text) || 1)),
 
-                // center perforation
-                strokeWValueC: parseFloat(inputWidthC.text),
-                gapValueC: parseFloat(inputGapC.text),
-                dashLenValueC: parseFloat(inputDashLenC.text),
-                offsetValue: parseFloat(inputOffset.text),
+                strokeWValueC: parseFloat(ui.inputWidthC.text),
+                gapValueC: parseFloat(ui.inputGapC.text),
+                dashLenValueC: (function (v) { v = parseFloat(ui.inputDashLenC.text); return isNaN(v) ? v : Math.min(0, v); })(),
+                offsetValue: parseFloat(ui.inputOffset.text),
 
-                // corner
-                cornerSizeValue: parseFloat(inputCornerSize.text),
-
-                // hole
-                holeSizeValue: parseFloat(inputHoleSize.text),
-
-                // edge
-                edgeSizeValueC: parseFloat(inputEdgeSizeC.text)
+                cornerSizeValue: parseFloat(ui.inputCornerSize.text),
+                holeSizeValue: parseFloat(ui.inputHoleSize.text),
+                edgeSizeValueC: parseFloat(ui.inputEdgeSizeC.text)
             };
         }
 
-        function validateUIValues(ui) {
+        function validateUIValues(values) {
             var numericKeys = [
                 'strokeWValueLR', 'gapValueLR', 'dashLenValueLR',
                 'zzSizeValue', 'zzGapValue', 'zzRepeatValue',
@@ -418,7 +417,7 @@ function main() {
             ];
             for (var i = 0; i < numericKeys.length; i++) {
                 var key = numericKeys[i];
-                if (isNaN(ui[key])) return false;
+                if (isNaN(values[key])) return false;
             }
             return true;
         }
@@ -435,7 +434,7 @@ function main() {
         }
 
         function addCenterPerforation(doc, items, x, y, w, h, lineX, dashLenC, strokeWC, gapC) {
-            if (chkCenter.value && !(chkEdgeOnlyC.value && !rdEdgeNoneC.value)) {
+            if (chkCenter.value && !(chkEdgeOnlyC.value && (!rdEdgeNoneC.value || chkEdgeWRoundC.value))) {
                 var line = doc.pathItems.add();
                 line.setEntirePath([[lineX, y - dashLenC], [lineX, y - h + dashLenC]]);
                 line.filled = false;
@@ -644,7 +643,7 @@ function main() {
         }
 
         function addCenterEdges(doc, items, lineX, y, h, edgeSizeValueC) {
-            if (chkCenter.value && !rdEdgeNoneC.value) {
+            if (chkCenter.value && !rdEdgeNoneC.value && !chkEdgeWRoundC.value) {
                 if (!isNaN(edgeSizeValueC) && edgeSizeValueC > 0) {
                     var edgeSizePtC = toPt(edgeSizeValueC, rulerPtFactor);
                     var edgeRC = edgeSizePtC / 2;
@@ -669,6 +668,49 @@ function main() {
             }
         }
 
+        function applyWRoundEdge(doc, rect, items, x, y, w, h, lineX, edgeSizeValueC, cornerSizeValue) {
+            if (!chkCenter.value || !chkEdgeWRoundC.value) return false;
+            if (isNaN(edgeSizeValueC) || edgeSizeValueC <= 0) return false;
+
+            var edgeSizePtC = toPt(edgeSizeValueC, rulerPtFactor);
+
+            // 分割線の位置で2つの長方形に分ける
+            var leftW = lineX - x;
+            var rightW = x + w - lineX;
+
+            var leftRect = doc.pathItems.rectangle(y, x, leftW, h);
+            leftRect.filled = true;
+            leftRect.stroked = false;
+            try { leftRect.fillColor = rect.fillColor; } catch (e) { }
+
+            var rightRect = doc.pathItems.rectangle(y, lineX, rightW, h);
+            rightRect.filled = true;
+            rightRect.stroked = false;
+            try { rightRect.fillColor = rect.fillColor; } catch (e) { }
+
+            // それぞれにエッジサイズで角丸を適用
+            var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + edgeSizePtC + ' "/></LiveEffect>';
+            leftRect.applyEffect(xml);
+            rightRect.applyEffect(xml);
+
+            // コーナーパネルの角丸も追加適用
+            if (rdRound.value && !isNaN(cornerSizeValue) && cornerSizeValue > 0) {
+                var cornerSizePt = toPt(cornerSizeValue, rulerPtFactor);
+                var cornerXml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + cornerSizePt + ' "/></LiveEffect>';
+                leftRect.applyEffect(cornerXml);
+                rightRect.applyEffect(cornerXml);
+            }
+
+            // 元の長方形を置き換え
+            rect.remove();
+            var wGroup = groupItems(doc, [leftRect, rightRect]);
+            selectItems(doc, [wGroup]);
+            app.executeMenuCommand('Live Pathfinder Add');
+            items[0] = getSingleSelection(doc);
+
+            return true;
+        }
+
         function finalizeSubtract(doc, items, finalResults) {
             var groupedItems = groupItems(doc, items);
             selectItems(doc, [groupedItems]);
@@ -685,6 +727,11 @@ function main() {
             var targets = [];
             var finalResults = [];
 
+            var uiValues = collectUIValues();
+            if (!validateUIValues(uiValues)) {
+                throw new Error(L('alertEnterValidNumbers'));
+            }
+
             for (var i = 0; i < sel.length; i++) {
                 if (isPreview) {
                     var targetLayer = ensurePreviewLayer();
@@ -699,29 +746,28 @@ function main() {
                 }
             }
 
-            var ui = collectUIValues();
-            if (!validateUIValues(ui)) {
-                throw new Error(L('alertEnterValidNumbers'));
-            }
-
-            // ミシン目（左右）
-            var strokeWLR = toPt(ui.strokeWValueLR, rulerPtFactor);
-            var gapLR = toPt(ui.gapValueLR, rulerPtFactor);
-            var dashLenLR = toPt(ui.dashLenValueLR, rulerPtFactor);
+            // ミシン目（左右）— 連動時は分割線と同じ単位系を使用
+            var lrStrokeFactor = uiValues.lrLinked ? strokePtFactor : rulerPtFactor;
+            var strokeWLR = toPt(uiValues.strokeWValueLR, lrStrokeFactor);
+            var gapLR = toPt(uiValues.gapValueLR, rulerPtFactor);
+            var dashLenLR = toPt(Math.abs(uiValues.dashLenValueLR), rulerPtFactor);
 
             // ギザギザ
-            var zzSizePt = toPt(ui.zzSizeValue, rulerPtFactor);
-            var zzGapPt = toPt(ui.zzGapValue, rulerPtFactor);
-            var zzRepeat = ui.zzRepeatValue;
+            var zzSizePt = toPt(uiValues.zzSizeValue, rulerPtFactor);
+            var zzGapPt = toPt(uiValues.zzGapValue, rulerPtFactor);
+            var zzRepeat = uiValues.zzRepeatValue;
 
             // ミシン目（中央）
-            var strokeWC = toPt(ui.strokeWValueC, strokePtFactor);
-            var gapC = toPt(ui.gapValueC, rulerPtFactor);
-            var dashLenC = toPt(ui.dashLenValueC, rulerPtFactor);
-            var offsetPt = toPt(ui.offsetValue, rulerPtFactor);
+            var strokeWC = toPt(uiValues.strokeWValueC, strokePtFactor);
+            var gapC = toPt(uiValues.gapValueC, rulerPtFactor);
+            var dashLenC = toPt(Math.abs(uiValues.dashLenValueC), rulerPtFactor);
+            var offsetPt = toPt(uiValues.offsetValue, rulerPtFactor);
 
-            // 角丸を適用
-            applyRoundCorners(targets, ui.cornerSizeValue);
+            // W角丸以外の場合のみコーナー角丸を先に適用
+            var useWRound = chkCenter.value && chkEdgeWRoundC.value;
+            if (!useWRound) {
+                applyRoundCorners(targets, uiValues.cornerSizeValue);
+            }
 
             for (var i = 0; i < targets.length; i++) {
                 var rect = targets[i];
@@ -731,6 +777,11 @@ function main() {
                 var h = rect.height;
                 var lineX = x + w / 2 + offsetPt;
                 var items = [rect];
+
+                // W角丸を適用（元の長方形を2分割して角丸）
+                if (useWRound) {
+                    applyWRoundEdge(doc, rect, items, x, y, w, h, lineX, uiValues.edgeSizeValueC, uiValues.cornerSizeValue);
+                }
 
                 // ミシン目を作成（中央）
                 addCenterPerforation(doc, items, x, y, w, h, lineX, dashLenC, strokeWC, gapC);
@@ -742,16 +793,16 @@ function main() {
                 addZigzag(doc, items, x, y, w, h, zzSizePt, zzGapPt, zzRepeat);
 
                 // エッジを作成（中央）
-                addCenterEdges(doc, items, lineX, y, h, ui.edgeSizeValueC);
+                addCenterEdges(doc, items, lineX, y, h, uiValues.edgeSizeValueC);
 
                 // ホールを作成
-                addHoles(doc, items, x, y, w, h, ui.holeSizeValue);
+                addHoles(doc, items, x, y, w, h, uiValues.holeSizeValue);
 
                 // コーナーの逆角丸を作成
-                addInverseCorners(doc, items, x, y, w, h, ui.cornerSizeValue);
+                addInverseCorners(doc, items, x, y, w, h, uiValues.cornerSizeValue);
 
                 // コーナーの面取りを作成
-                addChamferCorners(doc, items, x, y, w, h, ui.cornerSizeValue);
+                addChamferCorners(doc, items, x, y, w, h, uiValues.cornerSizeValue);
 
                 // グループ化してパスファインダー適用
                 finalizeSubtract(doc, items, finalResults);
@@ -839,6 +890,10 @@ function main() {
                 }
 
                 if (!allowNegative && value < 0) value = 0;
+                // For length inputs (negative-only), cap at 0 as maximum
+                if (targetInput === inputDashLenLR || targetInput === inputDashLenC) {
+                    if (value > 0) value = 0;
+                }
 
                 editText.text = value;
 
@@ -857,15 +912,23 @@ function main() {
         dlg.orientation = 'column';
         dlg.alignChildren = ['fill', 'top'];
 
-        var labelW = 70;
-        var labelW2 = 78;
+        function getLabelWidth(base) {
+            return (lang === 'ja') ? base : Math.round(base * 1.3);
+        }
+
+        var labelW = getLabelWidth(70);
+        var labelW2 = getLabelWidth(78);
 
         // ===== 1行目: コーナー／ギザギザ =====
         var grpRow1 = dlg.add('group');
         grpRow1.orientation = 'row';
         grpRow1.alignChildren = ['fill', 'top'];
 
-        var pnlCorner = grpRow1.add('panel', undefined, L('panelCorner'));
+        var grpCol1 = grpRow1.add('group');
+        grpCol1.orientation = 'column';
+        grpCol1.alignChildren = ['fill', 'top'];
+
+        var pnlCorner = grpCol1.add('panel', undefined, L('panelCorner'));
         pnlCorner.orientation = 'column';
         pnlCorner.alignChildren = ['left', 'top'];
         pnlCorner.margins = [15, 20, 15, 10];
@@ -885,10 +948,10 @@ function main() {
         var inputCornerSize = grpCornerSize.add('edittext', undefined, '5');
         inputCornerSize.characters = 3;
         changeValueByArrowKey(inputCornerSize, false, inputCornerSize);
-        grpCornerSize.add('statictext', undefined, L('unitRuler'));
+        grpCornerSize.add('statictext', undefined, rulerUnitLabel);
 
         // ===== ギザギザパネル =====
-        var pnlZigzag = grpRow1.add('panel', undefined, L('panelZigzag'));
+        var pnlZigzag = grpCol1.add('panel', undefined, L('panelZigzag'));
         pnlZigzag.orientation = 'column';
         pnlZigzag.alignChildren = ['fill', 'top'];
         pnlZigzag.margins = [15, 20, 15, 10];
@@ -908,7 +971,7 @@ function main() {
         var inputWidthZZ = grpWidthZZ.add('edittext', undefined, '10');
         inputWidthZZ.characters = 3;
         changeValueByArrowKey(inputWidthZZ, false, inputWidthZZ);
-        grpWidthZZ.add('statictext', undefined, L('unitStroke'));
+        grpWidthZZ.add('statictext', undefined, strokeUnitLabel);
 
         var grpDashLenZZ = pnlZigzag.add('group');
         var lblRepeatZZ = grpDashLenZZ.add('statictext', undefined, L('lblZZRepeat'));
@@ -923,16 +986,11 @@ function main() {
         var inputGapZZ = grpGapZZ.add('edittext', undefined, '0');
         inputGapZZ.characters = 3;
         changeValueByArrowKey(inputGapZZ, true, inputGapZZ);
-        grpGapZZ.add('statictext', undefined, L('unitStroke'));
-
-        // ===== 2行目: ミシン目／スリット・ホール =====
-        var grpRow2 = dlg.add('group');
-        grpRow2.orientation = 'row';
-        grpRow2.alignChildren = ['fill', 'top'];
+        grpGapZZ.add('statictext', undefined, strokeUnitLabel);
 
         // ===== 左右パネル =====
-        var pnlLRWrap = grpRow2.add('panel', undefined, L('panelLR'));
-        pnlLRWrap.orientation = 'row';
+        var pnlLRWrap = grpRow1.add('panel', undefined, L('panelLR'));
+        pnlLRWrap.orientation = 'column';
         pnlLRWrap.alignChildren = ['fill', 'top'];
         pnlLRWrap.margins = [15, 20, 15, 15];
 
@@ -943,29 +1001,30 @@ function main() {
         pnlLR.margins = [15, 20, 15, 10];
 
         var grpEnableLR = pnlLR.add('group');
-        grpEnableLR.margins = [15, 0, 0, 0];
+        grpEnableLR.margins = [0, 0, 0, 0];
         var chkLR = grpEnableLR.add('checkbox', undefined, L('chkEnable'));
-        chkLR.characters = 5;
+        var chkLinkCenter = grpEnableLR.add('checkbox', undefined, L('chkLinkCenter'));
+        chkLinkCenter.value = true;
 
         var grpWidthLR = pnlLR.add('group');
         grpWidthLR.add('statictext', undefined, L('lblLineWidth'));
         var inputWidthLR = grpWidthLR.add('edittext', undefined, '3');
         inputWidthLR.characters = 3;
         changeValueByArrowKey(inputWidthLR, false, inputWidthLR);
-        grpWidthLR.add('statictext', undefined, L('unitRuler'));
+        grpWidthLR.add('statictext', undefined, rulerUnitLabel);
 
         var grpGapLR = pnlLR.add('group');
         grpGapLR.add('statictext', undefined, L('lblGap'));
         var inputGapLR = grpGapLR.add('edittext', undefined, '6');
         inputGapLR.characters = 3;
         changeValueByArrowKey(inputGapLR, false, inputGapLR);
-        grpGapLR.add('statictext', undefined, L('unitRuler'));
+        grpGapLR.add('statictext', undefined, rulerUnitLabel);
 
         var grpDashLenLR = pnlLR.add('group');
         grpDashLenLR.add('statictext', undefined, L('lblLength'));
         var inputDashLenLR = grpDashLenLR.add('edittext', [0, 0, 40, 18], '0');
-        changeValueByArrowKey(inputDashLenLR, false, inputDashLenLR);
-        grpDashLenLR.add('statictext', undefined, L('unitRuler'));
+        changeValueByArrowKey(inputDashLenLR, true, inputDashLenLR);
+        grpDashLenLR.add('statictext', undefined, rulerUnitLabel);
 
         // ===== スリット／ホールパネル =====
         var pnlHole = pnlLRWrap.add('panel', undefined, L('panelHole'));
@@ -992,7 +1051,7 @@ function main() {
         var inputHoleSize = grpHoleSize.add('edittext', undefined, '10');
         inputHoleSize.characters = 3;
         changeValueByArrowKey(inputHoleSize, false, inputHoleSize);
-        grpHoleSize.add('statictext', undefined, L('unitRuler'));
+        grpHoleSize.add('statictext', undefined, rulerUnitLabel);
 
         // ===== 3行目: 分割線 =====
         // ===== ミシン目（中央）パネル =====
@@ -1007,12 +1066,11 @@ function main() {
         grpCenterTop.margins = [0, 0, 0, 10];
 
         var chkCenter = grpCenterTop.add('checkbox', undefined, L('chkEnable'));
-        chkCenter.characters = 5;
         chkCenter.value = true;
         var inputOffset = grpCenterTop.add('edittext', undefined, '0');
         inputOffset.characters = 5;
         changeValueByArrowKey(inputOffset, true, inputOffset);
-        var lblOffsetMM = grpCenterTop.add('statictext', undefined, L('unitRuler'));
+        var lblOffsetMM = grpCenterTop.add('statictext', undefined, rulerUnitLabel);
 
         var minHalfW = null;
         for (var si = 0; si < sel.length; si++) {
@@ -1024,7 +1082,7 @@ function main() {
         var halfW_mm = Math.round(fromPt((minHalfW || 0), rulerPtFactor) * 10) / 10;
         // 複数選択時は最小幅の半分を上限にして、すべての対象で安全な範囲に制限
         var sliderOffset = grpCenterTop.add('slider', undefined, 0, -halfW_mm, halfW_mm);
-        sliderOffset.preferredSize.width = 180;
+        sliderOffset.preferredSize.width = 200;
 
         sliderOffset.onChanging = function () {
             inputOffset.text = String(Math.round(sliderOffset.value * 10) / 10);
@@ -1058,20 +1116,20 @@ function main() {
         var inputWidthC = grpWidthC.add('edittext', undefined, '3');
         inputWidthC.characters = 3;
         changeValueByArrowKey(inputWidthC, false, inputWidthC);
-        grpWidthC.add('statictext', undefined, L('unitStroke'));
+        grpWidthC.add('statictext', undefined, strokeUnitLabel);
 
         var grpGapC = pnlDashC.add('group');
         grpGapC.add('statictext', undefined, L('lblGap'));
         var inputGapC = grpGapC.add('edittext', undefined, '6');
         inputGapC.characters = 3;
         changeValueByArrowKey(inputGapC, false, inputGapC);
-        grpGapC.add('statictext', undefined, L('unitRuler'));
+        grpGapC.add('statictext', undefined, rulerUnitLabel);
 
         var grpDashLenC = pnlDashC.add('group');
         grpDashLenC.add('statictext', undefined, L('lblLength'));
         var inputDashLenC = grpDashLenC.add('edittext', [0, 0, 40, 18], '0');
-        changeValueByArrowKey(inputDashLenC, false, inputDashLenC);
-        grpDashLenC.add('statictext', undefined, L('unitRuler'));
+        changeValueByArrowKey(inputDashLenC, true, inputDashLenC);
+        grpDashLenC.add('statictext', undefined, rulerUnitLabel);
 
         var pnlEdgeC = grpDashEdgeC.add('panel', undefined, L('panelEdge'));
         pnlEdgeC.orientation = 'column';
@@ -1085,15 +1143,18 @@ function main() {
         var rdEdgeTriangleC = grpEdgeRadioC.add('radiobutton', undefined, L('rdTriangle'));
         rdEdgeNoneC.value = true;
 
+        var chkEdgeWRoundC = pnlEdgeC.add('checkbox', undefined, L('rdWRound'));
+
         var grpEdgeSizeC = pnlEdgeC.add('group');
         grpEdgeSizeC.add('statictext', undefined, L('lblSize'));
         var inputEdgeSizeC = grpEdgeSizeC.add('edittext', undefined, '10');
         inputEdgeSizeC.characters = 3;
         changeValueByArrowKey(inputEdgeSizeC, false, inputEdgeSizeC);
-        grpEdgeSizeC.add('statictext', undefined, L('unitStroke'));
+        grpEdgeSizeC.add('statictext', undefined, strokeUnitLabel);
 
         var chkEdgeOnlyC = pnlEdgeC.add('checkbox', undefined, L('chkShapeOnly'));
 
+        // keep expand appearance checkbox separately (above or reuse if needed)
         var grpPreviewRow = dlg.add('group');
         grpPreviewRow.orientation = 'row';
         grpPreviewRow.alignment = ['center', 'top'];
@@ -1105,10 +1166,106 @@ function main() {
         var chkExpandAppearance = grpPreviewRow.add('checkbox', undefined, L('chkExpandAppearance'));
         chkExpandAppearance.value = false;
 
-        var grpBtn = dlg.add('group');
-        grpBtn.alignment = ['center', 'top'];
-        grpBtn.add('button', undefined, L('btnCancel'), { name: 'cancel' });
-        grpBtn.add('button', undefined, L('btnOK'), { name: 'ok' });
+        // Bottom button area (moved below preview row)
+        var grpBottom = dlg.add('group');
+        grpBottom.orientation = 'row';
+        grpBottom.alignChildren = ['fill', 'center'];
+
+        // Left column
+        var grpLeft = grpBottom.add('group');
+        grpLeft.orientation = 'row';
+        grpLeft.alignChildren = ['left', 'center'];
+
+        var isOutlineMode = false;
+        var btnPreview = grpLeft.add('button', undefined, L('btnOutlineOn'));
+        btnPreview.onClick = function () {
+            try {
+                app.executeMenuCommand('preview');
+                isOutlineMode = !isOutlineMode;
+                btnPreview.text = isOutlineMode ? L('btnOutlineOff') : L('btnOutlineOn');
+            } catch (e) { }
+        };
+
+        // Right column
+        var grpRight = grpBottom.add('group');
+        grpRight.orientation = 'row';
+        grpRight.alignment = ['right', 'center'];
+        grpRight.alignChildren = ['right', 'center'];
+
+        grpRight.add('button', undefined, L('btnCancel'), { name: 'cancel' });
+        grpRight.add('button', undefined, L('btnOK'), { name: 'ok' });
+
+        // UI参照の集約（段階的移行用）
+        var ui = {
+            // LR
+            chkLR: chkLR,
+            chkLinkCenter: chkLinkCenter,
+            inputWidthLR: inputWidthLR,
+            inputGapLR: inputGapLR,
+            inputDashLenLR: inputDashLenLR,
+
+            // Center
+            chkCenter: chkCenter,
+            inputOffset: inputOffset,
+            sliderOffset: sliderOffset,
+            rdDotC: rdDotC,
+            rdDashC: rdDashC,
+            inputWidthC: inputWidthC,
+            inputGapC: inputGapC,
+            inputDashLenC: inputDashLenC,
+
+            // Zigzag
+            rdZZNone: rdZZNone,
+            rdZZLR: rdZZLR,
+            rdZZTB: rdZZTB,
+            inputWidthZZ: inputWidthZZ,
+            inputGapZZ: inputGapZZ,
+            inputDashLenZZ: inputDashLenZZ,
+
+            // Corner
+            rdCornerNone: rdCornerNone,
+            rdRound: rdRound,
+            rdInverse: rdInverse,
+            rdChamfer: rdChamfer,
+            inputCornerSize: inputCornerSize,
+
+            // Hole
+            rdHoleNone: rdHoleNone,
+            rdHoleCircle: rdHoleCircle,
+            rdHoleTriangle: rdHoleTriangle,
+            chkHoleLeft: chkHoleLeft,
+            chkHoleRight: chkHoleRight,
+            inputHoleSize: inputHoleSize,
+
+            // Edge
+            rdEdgeNoneC: rdEdgeNoneC,
+            rdEdgeCircleC: rdEdgeCircleC,
+            rdEdgeTriangleC: rdEdgeTriangleC,
+            chkEdgeWRoundC: chkEdgeWRoundC,
+            inputEdgeSizeC: inputEdgeSizeC,
+            chkEdgeOnlyC: chkEdgeOnlyC,
+
+            // Preview
+            chkPreview: chkPreview,
+            chkExpandAppearance: chkExpandAppearance,
+
+            // UI制御
+            grpWidthLR: grpWidthLR,
+            grpGapLR: grpGapLR,
+            grpDashLenLR: grpDashLenLR,
+            grpWidthZZ: grpWidthZZ,
+            grpGapZZ: grpGapZZ,
+            grpDashLenZZ: grpDashLenZZ,
+            grpHoleSide: grpHoleSide,
+            grpHoleSize: grpHoleSize,
+            grpCornerSize: grpCornerSize,
+            grpDashEdgeC: grpDashEdgeC,
+            grpEdgeRadioC: grpEdgeRadioC,
+            grpEdgeSizeC: grpEdgeSizeC,
+            pnlDashC: pnlDashC,
+            pnlCorner: pnlCorner,
+            lblOffsetMM: lblOffsetMM
+        };
 
         /* プレビュー更新 / Update preview */
         function updatePreview() {
@@ -1123,18 +1280,42 @@ function main() {
 
         // ミシン目（左右）イベント
         chkLR.onClick = function () {
+            if (chkLR.value && rdZZLR.value) {
+                rdZZNone.value = true;
+                rdZZLR.value = false;
+                updateZZDim();
+            }
             updateLRDim();
             updatePreview();
         };
         inputWidthLR.onChanging = updatePreview;
         inputGapLR.onChanging = updatePreview;
-        inputDashLenLR.onChanging = updatePreview;
+        inputDashLenLR.onChanging = function () {
+            var v = parseFloat(inputDashLenLR.text);
+            if (!isNaN(v) && v > 0) {
+                inputDashLenLR.text = '0';
+            }
+            updatePreview();
+        };
+        function syncLRFromCenter() {
+            if (!chkLinkCenter.value || !rdDotC.value) return;
+            inputWidthLR.text = inputWidthC.text;
+            inputGapLR.text = inputGapC.text;
+            inputDashLenLR.text = inputDashLenC.text;
+        }
         function updateLRDim() {
             var on = chkLR.value;
-            grpWidthLR.enabled = on;
-            grpGapLR.enabled = on;
-            grpDashLenLR.enabled = on;
+            var linked = on && chkLinkCenter.value && rdDotC.value;
+            chkLinkCenter.enabled = on;
+            grpWidthLR.enabled = on && !linked;
+            grpGapLR.enabled = on && !linked;
+            grpDashLenLR.enabled = on && !linked;
+            if (linked) syncLRFromCenter();
         }
+        chkLinkCenter.onClick = function () {
+            updateLRDim();
+            updatePreview();
+        };
         updateLRDim();
 
         // ギザギザイベント
@@ -1158,38 +1339,50 @@ function main() {
             updateCenterDim();
             updatePreview();
         };
-        rdDotC.onClick = function () { updatePreview(); };
-        rdDashC.onClick = function () { updatePreview(); };
-        inputWidthC.onChanging = updatePreview;
-        inputGapC.onChanging = updatePreview;
-        inputDashLenC.onChanging = updatePreview;
+        rdDotC.onClick = function () { updateLRDim(); updatePreview(); };
+        rdDashC.onClick = function () { updateLRDim(); updatePreview(); };
+        inputWidthC.onChanging = function () { syncLRFromCenter(); updatePreview(); };
+        inputGapC.onChanging = function () { syncLRFromCenter(); updatePreview(); };
+        inputDashLenC.onChanging = function () {
+            var v = parseFloat(inputDashLenC.text);
+            if (!isNaN(v) && v > 0) {
+                inputDashLenC.text = '0';
+            }
+            syncLRFromCenter();
+            updatePreview();
+        };
         function updateCenterDim() {
-            var on = chkCenter.value;
-            inputOffset.enabled = on;
-            lblOffsetMM.enabled = on;
-            sliderOffset.enabled = on;
-            grpDashEdgeC.enabled = on;
+            var on = ui.chkCenter.value;
+            ui.inputOffset.enabled = on;
+            ui.lblOffsetMM.enabled = on;
+            ui.sliderOffset.enabled = on;
+            ui.grpDashEdgeC.enabled = on;
         }
         function syncDashLenFromEdgeSizeC() {
-            if (!chkCenter.value || rdEdgeNoneC.value) return;
+            if (!chkCenter.value || (rdEdgeNoneC.value && !chkEdgeWRoundC.value)) return;
 
             var edgeSizeValue = parseFloat(inputEdgeSizeC.text);
             if (isNaN(edgeSizeValue)) return;
 
             var dashLenValue = edgeSizeValue * 1.2;
             if (rdEdgeCircleC.value) {
-                dashLenValue = edgeSizeValue * 0.75;
+                dashLenValue = edgeSizeValue * 1.0;
+            } else if (chkEdgeWRoundC.value) {
+                dashLenValue = edgeSizeValue * 2.0;
             }
 
             dashLenValue = Math.round(dashLenValue * 1000) / 1000;
-            inputDashLenC.text = String(dashLenValue);
+            inputDashLenC.text = String(-dashLenValue);
         }
 
         function updateEdgeDimC() {
-            var on = chkCenter.value && !rdEdgeNoneC.value;
-            grpEdgeSizeC.enabled = on;
-            chkEdgeOnlyC.enabled = on;
-            pnlDashC.enabled = chkCenter.value && !(on && chkEdgeOnlyC.value);
+            var onEdge = ui.chkCenter.value && !ui.rdEdgeNoneC.value;
+            var onWRound = ui.chkCenter.value && ui.chkEdgeWRoundC.value;
+            var on = onEdge || onWRound;
+            ui.grpEdgeRadioC.enabled = !onWRound;
+            ui.grpEdgeSizeC.enabled = on;
+            ui.chkEdgeOnlyC.enabled = on;
+            ui.pnlDashC.enabled = ui.chkCenter.value && !(on && ui.chkEdgeOnlyC.value);
             if (on) syncDashLenFromEdgeSizeC();
         }
         updateCenterDim();
@@ -1197,6 +1390,36 @@ function main() {
         rdEdgeNoneC.onClick = function () { updateEdgeDimC(); updatePreview(); };
         rdEdgeCircleC.onClick = function () { updateEdgeDimC(); updatePreview(); };
         rdEdgeTriangleC.onClick = function () { updateEdgeDimC(); updatePreview(); };
+        chkEdgeWRoundC.onClick = function () {
+            if (chkEdgeWRoundC.value) {
+                // コーナーを「なし」に
+                rdCornerNone.value = true;
+                rdRound.value = false;
+                rdInverse.value = false;
+                rdChamfer.value = false;
+                updateCornerDim();
+                // エッジを「なし」に
+                rdEdgeNoneC.value = true;
+                rdEdgeCircleC.value = false;
+                rdEdgeTriangleC.value = false;
+                inputEdgeSizeC.text = '5';
+            }
+            else {
+                // ダブル角丸をOFFにしたら、コーナーパネルのディムを解除し、
+                // ON時に強制で「なし」へ変更していた場合は通常の角丸に戻す
+                if (rdCornerNone.value) {
+                    rdCornerNone.value = false;
+                    rdRound.value = true;
+                    rdInverse.value = false;
+                    rdChamfer.value = false;
+                }
+                pnlCorner.enabled = true;
+                grpCornerSize.enabled = !rdCornerNone.value;
+            }
+            syncDashLenFromEdgeSizeC();
+            updateEdgeDimC();
+            updatePreview();
+        };
         inputEdgeSizeC.onChanging = function () { syncDashLenFromEdgeSizeC(); updatePreview(); };
         chkEdgeOnlyC.onClick = function () { updateEdgeDimC(); updatePreview(); };
 
@@ -1214,7 +1437,9 @@ function main() {
         rdHoleCircle.onClick = function () { updateHoleDim(); updatePreview(); };
         rdHoleTriangle.onClick = function () { updateHoleDim(); updatePreview(); };
         function updateCornerDim() {
-            grpCornerSize.enabled = !rdCornerNone.value;
+            var wRoundOn = ui.chkEdgeWRoundC.value;
+            ui.pnlCorner.enabled = !wRoundOn;
+            ui.grpCornerSize.enabled = !wRoundOn && !ui.rdCornerNone.value;
         }
         updateCornerDim();
         rdCornerNone.onClick = function () { updateCornerDim(); updatePreview(); };
@@ -1224,6 +1449,7 @@ function main() {
         inputCornerSize.onChanging = updatePreview;
 
         syncDashLenFromEdgeSizeC();
+        updatePreview();
         if (dlg.show() !== 1) {
             /* キャンセル：プレビューレイヤーを削除して元に戻す / Cancel: remove preview layer and restore originals */
             removePreviewLayer();
