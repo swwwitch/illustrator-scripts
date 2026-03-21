@@ -214,6 +214,7 @@ var SPLIT_GROUP_NOTE_PREFIX = "__SplitSpreadToSingle__";
         pageOffset = 5; // fallback
     }
 
+
     /* 対象オブジェクトの収集 / Collect target objects */
     var items = [];
 
@@ -231,6 +232,7 @@ var SPLIT_GROUP_NOTE_PREFIX = "__SplitSpreadToSingle__";
 
         if (items.length === 0) {
             alert(L('alertNoSpreadFoundAll'));
+            rearrangeArtboards = false;
             return;
         }
     } else {
@@ -270,6 +272,7 @@ var SPLIT_GROUP_NOTE_PREFIX = "__SplitSpreadToSingle__";
             } else {
                 alert(L('alertSelectValidSpread'));
             }
+            rearrangeArtboards = false;
             return;
         }
     }
@@ -321,6 +324,25 @@ var SPLIT_GROUP_NOTE_PREFIX = "__SplitSpreadToSingle__";
         alert(L('alertNoTargetArtboard'));
         return;
     }
+
+    /* 分割処理前にアートボードを再配置 / Rearrange artboards before split processing */
+    try {
+        doc.rearrangeArtboards(DocumentArtboardLayout.Column, 3, 200, true);
+    } catch (e) {
+        alert("エラーが発生しました: " + e.message);
+        return;
+    }
+
+    /* 再配置後のアートボード位置に合わせて対象アートボードを再取得 / Refresh target artboard indices after rearrangement */
+    for (var wl = 0; wl < workList.length; wl++) {
+        var refreshedIndex = getPageTypeInfo(doc, workList[wl].item).artboardIndex;
+        if (refreshedIndex < 0) {
+            alert(L('alertNoTargetArtboard'));
+            return;
+        }
+        workList[wl].abIndex = refreshedIndex;
+    }
+    workList.sort(function (a, b) { return b.abIndex - a.abIndex; });
 
     /* 各オブジェクトを処理 / Process each object */
     doc.selection = null;
