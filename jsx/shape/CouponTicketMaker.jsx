@@ -4,27 +4,40 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
  * CouponTicketMaker.jsx
  * 概要:
- * 選択した長方形パスを元に、ミシン目（左右・中央）、ギザギザ、エッジ、コーナー、スリット／ホールなどを
- * 組み合わせてチケット風の形状を生成するスクリプトです。
- * ダイアログ最上部にはプリセット選択用のプルダウンメニューと［保存］ボタンを備え、
- * セッション中に現在設定をプリセットとして追加保存できます。
- * 保存した内容はコード組み込み用の形式でも確認でき、プレビュー機能により結果を確認しながら調整できます。
- * プレビューは専用レイヤーで生成され、確定時のみ元オブジェクトへ適用されます。
+ * 選択した長方形パスをベースに、ミシン目（左右／中央）、ギザギザ、エッジ処理、コーナー処理、
+ * スリット／ホールなどを組み合わせてチケット風の形状を生成するスクリプトです。
+ *
+ * ・プリセットの選択／保存に対応（セッション内）
+ * ・コード組み込み用スニペットの生成
+ * ・ライブプレビュー（専用レイヤー上で生成、元オブジェクトは非表示）
+ * ・プレビューは元オブジェクトを破壊せず、安全に検証可能
+ * ・確定時のみ元オブジェクトへ適用
+ * ・設定をコードとして再利用可能（スクリプト組み込み前提）
+ *
+ * UIで設定 → 値検証 → プレビュー生成／確定適用、という順序で処理を行い、
+ * 不正値や中途半端な状態での適用を防ぐ構造になっています。
+ *
+ * 紹介記事（note）
+ * https://note.com/dtp_tranist/n/n2e949946228a
  *
  * Summary:
  * Generates ticket-style shapes from a selected rectangle by combining perforations
- * (left/right and center), zigzag edges, corner processing, and slit/hole shapes.
- * The dialog now includes a preset dropdown and a Save button at the top,
- * and a live preview allows adjusting parameters before applying the result.
- * You can save current settings as a session preset, and view the code snippet
- * for embedding. Preview objects are created on a temporary layer and applied
- * to the original object only when confirmed.
+ * (left/right and center), zigzag patterns, edge processing, corner processing,
+ * and slit/hole shapes.
+ *
+ * - Supports preset selection and session-based saving
+ * - Generates embeddable code snippets
+ * - Live preview on a dedicated layer (original objects are hidden)
+ * - Applies result to original objects only on confirmation
+ *
+ * The script follows a strict flow: collect UI values → validate → apply,
+ * preventing unsafe or partial execution.
  *
  * 更新日: 2026-03-22
  * Updated: 2026-03-22
  */
 
-var SCRIPT_VERSION = "v1.4.0";
+var SCRIPT_VERSION = "v1.4.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -245,9 +258,7 @@ var PRESETS = [
             enabled: true,
             expandAppearance: false
         }
-    },
-
-    {
+    }, {
         name: "1: W角丸＋分割線",
         lr: {
             enabled: false,
@@ -261,8 +272,8 @@ var PRESETS = [
             offset: 30,
             mode: "dot",
             width: 3,
-            gap: 6,
-            length: -20
+            gap: 3,
+            length: -10
         },
         zigzag: {
             mode: "none",
@@ -418,7 +429,6 @@ var PRESETS = [
             expandAppearance: false
         }
     },
-
     {
         name: "5: 左右に三角スリット",
         lr: {
@@ -461,9 +471,49 @@ var PRESETS = [
             enabled: true,
             expandAppearance: false
         }
-    }
-    ,
-    {
+    }, {
+        name: "6: ミシン目＋ギザギザ上下",
+        lr: {
+            enabled: true,
+            linkCenter: false,
+            width: 4,
+            gap: 7,
+            length: 0
+        },
+        center: {
+            enabled: false,
+            offset: 35,
+            mode: "dot",
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        zigzag: {
+            mode: "tb",
+            size: 10,
+            gap: 0,
+            repeat: 7
+        },
+        corner: {
+            mode: "none",
+            size: 3
+        },
+        hole: {
+            mode: "none",
+            left: true,
+            right: true,
+            size: 15
+        },
+        edge: {
+            mode: "none",
+            size: 5,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    }, {
         name: "7: 面取り＋分割線（破線）",
         lr: {
             enabled: false,
@@ -507,50 +557,6 @@ var PRESETS = [
         }
     },
     {
-        name: "6: ミシン目＋ギザギザ上下",
-        lr: {
-            enabled: true,
-            linkCenter: false,
-            width: 4,
-            gap: 7,
-            length: 0
-        },
-        center: {
-            enabled: false,
-            offset: 35,
-            mode: "dot",
-            width: 3,
-            gap: 6,
-            length: 0
-        },
-        zigzag: {
-            mode: "tb",
-            size: 10,
-            gap: 0,
-            repeat: 7
-        },
-        corner: {
-            mode: "none",
-            size: 3
-        },
-        hole: {
-            mode: "none",
-            left: true,
-            right: true,
-            size: 15
-        },
-        edge: {
-            mode: "none",
-            size: 5,
-            shapeOnly: false
-        },
-        preview: {
-            enabled: true,
-            expandAppearance: false
-        }
-    }
-    ,
-    {
         name: "7: 分割線＋エッジ（円）＋ギザギザ",
         lr: {
             enabled: false,
@@ -586,6 +592,48 @@ var PRESETS = [
         edge: {
             mode: "circle",
             size: 10,
+            shapeOnly: false
+        },
+        preview: {
+            enabled: true,
+            expandAppearance: false
+        }
+    }, {
+        name: "8: 分割線（破線）＋三角エッジ＋左ホール",
+        lr: {
+            enabled: false,
+            linkCenter: true,
+            width: 3,
+            gap: 6,
+            length: 0
+        },
+        center: {
+            enabled: true,
+            offset: 40,
+            mode: "dash",
+            width: 1,
+            gap: 3,
+            length: -7.2
+        },
+        zigzag: {
+            mode: "none",
+            size: 7,
+            gap: 0,
+            repeat: 7
+        },
+        corner: {
+            mode: "round",
+            size: 3
+        },
+        hole: {
+            mode: "circle",
+            left: true,
+            right: false,
+            size: 20
+        },
+        edge: {
+            mode: "triangle",
+            size: 6,
             shapeOnly: false
         },
         preview: {
@@ -818,7 +866,8 @@ function main() {
 
     var doc = startup.doc;
     var sel = startup.sel;
-    // app.executeMenuCommand('edge');
+    app.executeMenuCommand('edge');
+    app.executeMenuCommand('AI Bounding Box Toggle');
     try {
         var originalLayer = sel[0].layer;
 
@@ -1027,24 +1076,72 @@ function main() {
         function addCenterPerforation(doc, items, x, y, w, h, lineX, dashLenC, strokeWC, gapC) {
             if (chkCenter.value && !(chkEdgeOnlyC.value && (!rdEdgeNoneC.value || chkEdgeWRoundC.value))) {
                 var line = doc.pathItems.add();
+                var useDotStyle = rdDotC.value;
+                var useStrokeDotAction = useDotStyle || dashLenC === 0;
+                var lineLength = Math.max(0, h - dashLenC * 2);
+                var dashArray = null;
+
                 line.setEntirePath([[lineX, y - dashLenC], [lineX, y - h + dashLenC]]);
                 line.filled = false;
                 line.stroked = true;
 
-                var prevSelectionCenter = saveSelection(doc);
-                try {
-                    selectItems(doc, [line]);
-                    act_StrokeDot();
-                } finally {
-                    restoreSelection(doc, prevSelectionCenter);
+                if (useStrokeDotAction) {
+                    var prevSelectionCenter = saveSelection(doc);
+                    try {
+                        selectItems(doc, [line]);
+                        act_StrokeDot();
+                    } finally {
+                        restoreSelection(doc, prevSelectionCenter);
+                    }
                 }
+
                 line.strokeWidth = strokeWC;
-                if (rdDotC.value) {
-                    line.strokeDashes = [0, gapC];
+                if (useDotStyle) {
+                    dashArray = [0, gapC];
+                    line.strokeDashes = dashArray;
                 } else {
                     line.strokeCap = StrokeCap.BUTTENDCAP;
-                    line.strokeDashes = [gapC, gapC];
+
+                    if (dashLenC !== 0 && gapC > 0 && lineLength > 0) {
+                        // 全体長から、dash 長が gap 長にできるだけ近づく gap 本数を選ぶ
+                        var targetGapCount = (lineLength - gapC) / (gapC * 2);
+                        var gapCountCandidates = [
+                            Math.floor(targetGapCount),
+                            Math.ceil(targetGapCount),
+                            Math.floor(targetGapCount) - 1,
+                            Math.ceil(targetGapCount) + 1,
+                            1
+                        ];
+                        var bestGapCount = 0;
+                        var bestDashLen = 0;
+                        var bestDiff = Number.MAX_VALUE;
+
+                        for (var gi = 0; gi < gapCountCandidates.length; gi++) {
+                            var candidateGapCount = Math.max(1, gapCountCandidates[gi]);
+                            var candidateDashLen = (lineLength - candidateGapCount * gapC) / (candidateGapCount + 1);
+                            var candidateDiff;
+
+                            if (candidateDashLen <= 0) continue;
+
+                            candidateDiff = Math.abs(candidateDashLen - gapC);
+                            if (candidateDiff < bestDiff) {
+                                bestDiff = candidateDiff;
+                                bestGapCount = candidateGapCount;
+                                bestDashLen = candidateDashLen;
+                            }
+                        }
+
+                        if (bestGapCount > 0 && bestDashLen > 0) {
+                            dashArray = [bestDashLen, gapC];
+                        }
+                    }
+
+                    if (!dashArray) {
+                        dashArray = [gapC, gapC];
+                    }
+                    line.strokeDashes = dashArray;
                 }
+
                 items.push(outlineStrokeItem(doc, line));
             }
         }
@@ -1506,6 +1603,7 @@ function main() {
         var grpPresetTop = dlg.add('group');
         grpPresetTop.orientation = 'row';
         grpPresetTop.alignChildren = ['fill', 'center'];
+        grpPresetTop.margins = [20, 0, 20, 0];
         grpPresetTop.alignment = ['fill', 'top'];
         grpPresetTop.spacing = 12;
 
@@ -1658,7 +1756,8 @@ function main() {
         changeValueByArrowKey(inputHoleSize, false, inputHoleSize);
         grpHoleSize.add('statictext', undefined, rulerUnitLabel);
 
-        // ===== 3行目: 分割線 =====
+        // ===== 中央分割（ミシン目＋エッジ） =====
+        // 中央の分割ライン（ミシン目・破線）およびエッジ装飾の設定パネル
         // ===== ミシン目（中央）パネル =====
         var pnlCenter = dlg.add('panel', undefined, L('panelPerforationCenter'));
         pnlCenter.orientation = 'column';
@@ -2114,7 +2213,8 @@ function main() {
         }
     } finally {
         if (typeof unloadStrokeDotAction === 'function') unloadStrokeDotAction();
-        // app.executeMenuCommand('edge');
+        app.executeMenuCommand('edge');
+        app.executeMenuCommand('AI Bounding Box Toggle');
     }
 }
 
