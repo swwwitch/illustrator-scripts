@@ -6,39 +6,48 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### スクリプト名：
 
 Illustrator環境設定ユーティリティ
+PresetManager.jsx
 
 ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/PresetManager.jsx
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/preference/PresetManager.jsx
 
 ### 概要：
 
-- Illustrator の各種環境設定を GUI から一括で確認・変更します。
-- プリセット（無指定／デフォルト／プリセット1）を選ぶだけで推奨セットを適用できます。
-- カンバスカラー、選択範囲・アンカー表示、テキスト、パフォーマンス、ファイル管理（保存先を含む）をカバーします。
+- Illustrator の主要な環境設定を、カテゴリ別の GUI からまとめて確認・変更します。
+- 現在の設定の読み込みに加え、［デフォルト］／［プリセット1］をワンクリックで UI に反映できます。
+- 一般、選択範囲・アンカー表示、アートボード、テキスト、ガイド、スマートガイド、ユーザーインターフェイス、パフォーマンス、ファイル管理、クリップボード、選択範囲の制限をカバーします。
+- アートボード名表示、アートボード境界線のカラー・幅、ガイドカラー・スタイル、保存先の切り替えなども一括調整できます。
 
 ### 主な機能：
 
 - 詳細なツールヒント／ホーム画面／レガシー新規ドキュメント UI の切替
-- アートボード移動時のロック/非表示オブジェクト追従、ズーム先、アンカー強調表示
-- テキスト：エリア内文字の自動サイズ、最近使用フォントの件数、異体字・見つからない字形の保護
+- アートボード移動時のロック/非表示オブジェクト追従、アートボード名表示、アートボード境界線のカラー・幅の設定
+- 選択範囲へズーム、アンカー強調表示、オブジェクト選択・テキスト選択の「パスに制限」
+- テキスト：エリア内文字の自動サイズ、最近使用フォントの表示数、異体字・見つからない字形の保護
+- ガイド：カラー（シアン／ライトブルー）とスタイル（ライン／点線）の切替
 - ユーザーインターフェイス：カンバスカラー（UIに合わせる／ホワイト）
 - パフォーマンス：アニメーションズーム、ヒストリー数、リアルタイム描画
 - スマートガイド：オブジェクトのハイライト表示のオン／オフ
 - ファイル管理：編集の既定アプリ、Adobe Fonts 自動アクティベート、ファイルの保存先（コンピューター／クラウド）
+- クリップボード：SVG コードを含めるのオン／オフ
 
 ### 処理の流れ：
 
 1) ダイアログ生成 → 2) 現在の環境設定を読み込み UI に反映 → 3) プリセット選択で UI を上書き → 4) ［OK］で各プリファレンスキーへ保存。
 
+### 紹介記事（note）
+
+https://note.com/dtp_tranist/n/n3b33862538f6
+
+### 更新日：
+
+- 2026-03-23（v1.6）
+
 ### 更新履歴：
 
 - v1.0 (20250807) : 初期リリース
-- v1.1 (20250915) : ファイルの保存先を追加
-- v1.2（20250910）：ガイドのカラー、スタイルを追加
-- v1.3（20250911）：微調整
-- v1.4（20250912）：クリップボード（SVGコードを含める）UIとロジックを削除
-- v1.5（2025-11-19）：スマートガイド（オブジェクトのハイライト表示）を追加し、プリセットおよびパネル／ガイド関連のローカライズを拡充
+- v1.6（2026-03-23）：UI配置調整、ローカライズ改善、不要機能削除、キー修正（useSysDefEdit）
 
 ---
 
@@ -52,36 +61,40 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 
 ### Overview:
 
-- View and change multiple Illustrator preferences at once via a single GUI.
-- Apply recommended presets (None/Default/Preset 1) with one selection.
-- Covers Canvas Color, Selection & Anchor Display, Type, Performance, and File Management (including Save Location).
+- Review and change major Illustrator preferences from a categorized GUI in one place.
+- Load the current settings, or apply [Default] / [Preset 1] to the UI with a single selection.
+- Covers General, Selection & Anchor Display, Artboard, Type, Guides, Smart Guides, User Interface, Performance, File Management, Clipboard, and selection limiting options.
+- Also supports unified adjustment of artboard name visibility, artboard boundary color/width, guide color/style, and save location.
 
 ### Key Features:
 
-- Rich Tool Tips / Home Screen / Legacy New Document toggle
-- Move Locked/Hidden with Artboard, Zoom to Selection, Highlight Anchors on Hover
-- Type: Auto Size Area Type, Recent Fonts count, Alternate Glyphs & Missing Glyph Protection
-- UI: Canvas Color (Match UI / White)
-- Performance: Animated Zoom, History States, Real-Time Drawing
+- Toggle Rich Tool Tips, Home Screen, and Legacy New Document UI
+- Configure moving locked/hidden artwork with artboards, artboard name visibility, and artboard boundary color/width
+- Control Zoom to Selection, anchor highlighting, and path-only selection for objects and type
+- Type: Auto Size Area Type, recent fonts count, alternate glyphs, and missing glyph protection
+- Guides: switch color (Cyan / Light Blue) and style (Lines / Dots)
+- User Interface: Canvas Color (Match Brightness / White)
+- Performance: Animated Zoom, History States, Real-Time Drawing and Editing
 - Smart Guides: Object Highlighting on/off
-- File Management: Edit Original default app, Auto-activate Adobe Fonts, Save Location (Computer/Cloud)
+- File Management: system default app for Edit Original, auto-activate Adobe Fonts, and save location (Computer / Cloud)
+- Clipboard: include SVG code on/off
 
 ### Flow:
 
 1) Build dialog → 2) Load current preferences into UI → 3) Apply preset to UI → 4) Save preferences when pressing OK.
 
+### Updated:
+
+- 2026-03-23 (v1.6)
+
 ### Changelog:
 
 - v1.0 (2025-08-07): Initial release
-- v1.1 (2025-09-15): Added Save Location
-- v1.2（20250910）：Added Guide Color
-- v1.3 (20250911) : Minor Changes
-- v1.4 (2025-09-12): Removed Clipboard "Include SVG code" UI and logic
-- v1.5 (2025-11-19): Added Smart Guides panel (Object Highlighting), updated presets, and expanded panel/guide localization
+- v1.6 (2026-03-23): UI layout adjustments, localization improvements, removed incomplete features, fixed preference key (useSysDefEdit)
 
 */
 
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v1.6";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -93,7 +106,7 @@ var lang = getCurrentLang();
 var LABELS = {
     dialogTitle: {
         ja: "環境設定をまとめて変更 " + SCRIPT_VERSION,
-        en: "Batch Preferences Dialog " + SCRIPT_VERSION
+        en: "Illustrator Preferences Utility " + SCRIPT_VERSION
     },
     OK: {
         ja: "OK",
@@ -103,7 +116,22 @@ var LABELS = {
         ja: "キャンセル",
         en: "Cancel"
     },
-
+    presetLabel: {
+        ja: "プリセット：",
+        en: "Preset:"
+    },
+    presetCurrent: {
+        ja: "現在の設定",
+        en: "Current Settings"
+    },
+    presetDefault: {
+        ja: "デフォルト",
+        en: "Default"
+    },
+    preset1: {
+        ja: "プリセット1",
+        en: "Preset 1"
+    },
     // ［一般］
     cbToolTips: {
         ja: "詳細なツールヒントを表示",
@@ -111,11 +139,11 @@ var LABELS = {
     },
     cbHomeScreen: {
         ja: "ドキュメントを開いていないときに「ホーム画面」を表示",
-        en: "Show The Home Screen When No Documents Are Open"
+        en: "Show the Home Screen When No Documents Are Open"
     },
     cbLegacyNewDoc: {
         ja: "以前の「新規ドキュメント」インターフェイスを使用",
-        en: "Use legacy “File New” interface"
+        en: "Use Legacy \"File > New\" Interface"
     },
     cbBleedAI: {
         ja: "「裁ち落としを印刷」生成AIボタンを表示",
@@ -134,10 +162,6 @@ var LABELS = {
     cbZoomToSel: {
         ja: "選択範囲へズーム",
         en: "Zoom to Selection"
-    },
-    cbHighlightAnchor: {
-        ja: "カーソルを合わせたときにアンカーを強調表示",
-        en: "Highlight anchors on mouse over"
     },
     // スマートガイド
     smartHighlight: {
@@ -285,6 +309,23 @@ var LABELS = {
     guideStyleDots: {
         ja: "点線",
         en: "Dots"
+    },
+    // アートボード / Artboard
+    panelArtboardTitle: {
+        ja: "アートボード",
+        en: "Artboard"
+    },
+    cbShowArtboardName: {
+        ja: "アートボード名を表示",
+        en: "Show Artboard Name"
+    },
+    artboardStrokeColor: {
+        ja: "ストロークのカラー",
+        en: "Stroke Color"
+    },
+    artboardStrokeWidth: {
+        ja: "ストロークの幅",
+        en: "Stroke Width"
     }
 };
 
@@ -302,7 +343,7 @@ function main() {
     mainGroup.alignChildren = "left";
 
     /*
-  Preset selector (Current/Default/Preset1) / プリセット選択
+  Preset selector (Current / Default / Preset 1) / プリセット選択
 */
     var groupPreset = mainGroup.add("group");
     groupPreset.name = "groupPreset";
@@ -312,18 +353,27 @@ function main() {
     var groupPresetInner = groupPreset.add("group");
     groupPresetInner.orientation = "row";
     groupPresetInner.alignChildren = "center";
-    groupPresetInner.add("statictext", undefined, "プリセット：");
-    var presetItems = ["現在の設定", "デフォルト", "プリセット1"];
+    groupPresetInner.add("statictext", undefined, LABELS.presetLabel[lang]);
+    var PRESET_IDS = {
+        current: "current",
+        defaultPreset: "default",
+        preset1: "preset1"
+    };
+    var presetItems = [
+        LABELS.presetCurrent[lang],
+        LABELS.presetDefault[lang],
+        LABELS.preset1[lang]
+    ];
     var ddPreset = groupPresetInner.add("dropdownlist", undefined, presetItems);
-    ddPreset.selection = 0; // 初期選択を「無指定」に
+    ddPreset.selection = 0; // 初期選択は「現在の設定」 / Default selection is "Current Settings"
 
     /*
     Apply preset settings to the UI / プリセット適用
-    - "無指定" は現在の環境設定を読んでUIへ反映
-    - "デフォルト" / "プリセット1" は定義オブジェクトから反映
+    - current は現在の環境設定を読んでUIへ反映
+    - default / preset1 は定義オブジェクトから反映
   */
-    function applyPresetSettings(presetName) {
-        if (presetName === "現在の設定") {
+    function applyPresetSettings(presetId) {
+        if (presetId === PRESET_IDS.current) {
             /*
               現在の環境設定を UI に反映する
             */
@@ -346,25 +396,29 @@ function main() {
                 rbGuideCyan.value = !isLightBlue;
             }
             /*
-        
               ファイルの保存先（現在値をUIに反映）
             */
             var curCloud = safeGetBool("AdobeSaveAsCloudDocumentPreference", false);
             rbSaveCloud.value = curCloud;
             rbSaveLocal.value = !curCloud;
 
-        } else if (presetName === "プリセット1") {
+        } else if (presetId === PRESET_IDS.preset1) {
             applyPresetToUI(PRESET1_DEF);
-
-
-        } else if (presetName === "デフォルト") {
+        } else if (presetId === PRESET_IDS.defaultPreset) {
             applyPresetToUI(DEFAULT_DEF);
         }
     }
 
-    ddPreset.onChange = function() {
-        if (ddPreset.selection && ddPreset.selection.text) {
-            applyPresetSettings(ddPreset.selection.text);
+    function getSelectedPresetId(selectionIndex) {
+        if (selectionIndex === 0) return PRESET_IDS.current;
+        if (selectionIndex === 1) return PRESET_IDS.defaultPreset;
+        if (selectionIndex === 2) return PRESET_IDS.preset1;
+        return PRESET_IDS.current;
+    }
+
+    ddPreset.onChange = function () {
+        if (ddPreset.selection) {
+            applyPresetSettings(getSelectedPresetId(ddPreset.selection.index));
             app.redraw();
         }
     };
@@ -415,14 +469,89 @@ function main() {
     panelSelectAnchor.alignment = ["fill", "top"];
     panelSelectAnchor.margins = [15, 25, 15, 10];
 
-    var cbMoveLocked = panelSelectAnchor.add("checkbox", undefined, LABELS.cbMoveLocked[lang]);
-    cbMoveLocked.helpTip = LABELS.cbMoveLocked.ja + " / " + LABELS.cbMoveLocked.en;
-
     var cbZoomToSel = panelSelectAnchor.add("checkbox", undefined, LABELS.cbZoomToSel[lang]);
     cbZoomToSel.helpTip = LABELS.cbZoomToSel.ja + " / " + LABELS.cbZoomToSel.en;
 
-    var cbHighlightAnchor = panelSelectAnchor.add("checkbox", undefined, LABELS.cbHighlightAnchor[lang]);
-    cbHighlightAnchor.helpTip = LABELS.cbHighlightAnchor.ja + " / " + LABELS.cbHighlightAnchor.en;
+    /*
+  Artboard panel (left) / ［アートボード］
+*/
+    var panelArtboard = colLeft.add("panel", undefined, LABELS.panelArtboardTitle[lang]);
+    panelArtboard.orientation = "column";
+    panelArtboard.alignChildren = ["fill", "top"];
+    panelArtboard.alignment = ["fill", "top"];
+    panelArtboard.margins = [15, 25, 15, 10];
+
+    var cbMoveLocked = panelArtboard.add("checkbox", undefined, LABELS.cbMoveLocked[lang]);
+    cbMoveLocked.helpTip = LABELS.cbMoveLocked.ja + " / " + LABELS.cbMoveLocked.en;
+
+    var cbShowArtboardName = panelArtboard.add("checkbox", undefined, LABELS.cbShowArtboardName[lang]);
+    cbShowArtboardName.helpTip = LABELS.cbShowArtboardName.ja + " / " + LABELS.cbShowArtboardName.en;
+
+    // Stroke color (dropdown) / ストロークのカラー（ドロップダウン）
+    var strokeColorRow = panelArtboard.add("group");
+    strokeColorRow.orientation = "row";
+    strokeColorRow.alignChildren = ["left", "center"];
+    strokeColorRow.add("statictext", undefined, LABELS.artboardStrokeColor[lang] + "：");
+
+    /* Artboard stroke color presets (RGB 0..1) */
+    var STROKE_COLOR_PRESETS = [
+        { name: "Black", r: 0.0, g: 0.0, b: 0.0 },
+        { name: "Red", r: 1.0, g: 0.29, b: 0.29 },
+        { name: "Green", r: 0.0, g: 0.65, b: 0.31 },
+        { name: "Blue", r: 0.0, g: 0.45, b: 0.78 },
+        { name: "Cyan", r: 0.0, g: 1.0, b: 1.0 },
+        { name: "Magenta", r: 1.0, g: 0.0, b: 1.0 },
+        { name: "Yellow", r: 1.0, g: 1.0, b: 0.0 },
+        { name: "White", r: 1.0, g: 1.0, b: 1.0 }
+    ];
+    var STROKE_COLOR_NAMES = [];
+    for (var sc = 0; sc < STROKE_COLOR_PRESETS.length; sc++) {
+        STROKE_COLOR_NAMES.push(STROKE_COLOR_PRESETS[sc].name);
+    }
+    var ddStrokeColor = strokeColorRow.add("dropdownlist", undefined, STROKE_COLOR_NAMES);
+
+    // Select the nearest preset from current RGB / 現在のRGB値から最も近いプリセットを選択
+    function findClosestStrokeColor(r, g, b) {
+        var bestIdx = 0;
+        var bestDist = Infinity;
+        for (var i = 0; i < STROKE_COLOR_PRESETS.length; i++) {
+            var p = STROKE_COLOR_PRESETS[i];
+            var dist = Math.abs(p.r - r) + Math.abs(p.g - g) + Math.abs(p.b - b);
+            if (dist < bestDist) {
+                bestDist = dist;
+                bestIdx = i;
+            }
+        }
+        return bestIdx;
+    }
+
+    var curSCR = safeGetReal("ArtboardBBColorRed", 0.0);
+    var curSCG = safeGetReal("ArtboardBBColorGreen", 0.0);
+    var curSCB = safeGetReal("ArtboardBBColorBlue", 0.0);
+    ddStrokeColor.selection = findClosestStrokeColor(curSCR, curSCG, curSCB);
+
+    // Stroke width (1-4, radio buttons) / ストロークの幅（1〜4、ラジオボタン）
+    var strokeWidthRow = panelArtboard.add("group");
+    strokeWidthRow.orientation = "row";
+    strokeWidthRow.alignChildren = ["left", "center"];
+    strokeWidthRow.add("statictext", undefined, LABELS.artboardStrokeWidth[lang] + "：");
+    var rbStrokeWidth1 = strokeWidthRow.add("radiobutton", undefined, "1");
+    var rbStrokeWidth2 = strokeWidthRow.add("radiobutton", undefined, "2");
+    var rbStrokeWidth3 = strokeWidthRow.add("radiobutton", undefined, "3");
+    var rbStrokeWidth4 = strokeWidthRow.add("radiobutton", undefined, "4");
+    var rbStrokeWidths = [rbStrokeWidth1, rbStrokeWidth2, rbStrokeWidth3, rbStrokeWidth4];
+
+    var curStrokeWidth = Math.round(safeGetReal("ArtboardBBWidth", 1.0));
+    var swIdx = clamp(curStrokeWidth, 1, 4) - 1;
+    rbStrokeWidths[swIdx].value = true;
+
+    function getSelectedStrokeWidth() {
+        for (var i = 0; i < rbStrokeWidths.length; i++) {
+            if (rbStrokeWidths[i].value) return i + 1;
+        }
+        return 1;
+    }
+
 
     /*
   Text panel (left) / ［テキスト］
@@ -449,7 +578,7 @@ function main() {
     etRecentFonts.characters = 3;
     etRecentFonts.enabled = cbRecentFonts.value;
 
-    cbRecentFonts.onClick = function() {
+    cbRecentFonts.onClick = function () {
         // UI only: enable/disable and default value. Persist on OK.
         if (cbRecentFonts.value) {
             etRecentFonts.enabled = true;
@@ -460,7 +589,7 @@ function main() {
         }
     };
 
-    etRecentFonts.onChange = function() {
+    etRecentFonts.onChange = function () {
         // UI only validation. Persist on OK.
         validateEditTextInt(etRecentFonts, VALIDATION.recentFonts);
     };
@@ -473,9 +602,9 @@ function main() {
 
 
     /*
-  Guides panel (left) / ［ガイド］
+  Guides panel (right) / ［ガイド］
 */
-    var panelGuides = colLeft.add("panel", undefined, LABELS.panelGuidesTitle[lang]);
+    var panelGuides = colRight.add("panel", undefined, LABELS.panelGuidesTitle[lang]);
     panelGuides.orientation = "column";
     panelGuides.alignChildren = ["fill", "top"];
     panelGuides.alignment = ["fill", "top"];
@@ -484,7 +613,7 @@ function main() {
     /* Unified label width inside Guides / ガイド内ラベル共通幅 */
     var GUIDE_LABEL_WIDTH = 80;
 
-    // ガイド：カラー設定（1行レイアウト）
+    // Guide color settings (single-row layout) / ガイド：カラー設定（1行レイアウト）
     var guideColorRow = panelGuides.add("group", undefined, "");
     guideColorRow.orientation = "row";
     guideColorRow.alignChildren = ["left", "center"];
@@ -527,14 +656,14 @@ function main() {
     }
 
 
-    rbGuideCyan.onClick = function() {
+    rbGuideCyan.onClick = function () {
         // UI only; persist on OK
     };
-    rbGuideLightBlue.onClick = function() {
+    rbGuideLightBlue.onClick = function () {
         // UI only; persist on OK
     };
 
-    // ガイド：スタイル設定（1行レイアウト）
+    // Guide style settings (single-row layout) / ガイド：スタイル設定（1行レイアウト）
     var guideStyleRow = panelGuides.add("group", undefined, "");
     guideStyleRow.orientation = "row";
     guideStyleRow.alignChildren = ["left", "center"];
@@ -556,10 +685,10 @@ function main() {
     rbGuideStyleLine.value = (curStyle !== 1);
     rbGuideStyleDots.value = (curStyle === 1);
 
-    rbGuideStyleLine.onClick = function() {
+    rbGuideStyleLine.onClick = function () {
         // UI only; persist on OK
     };
-    rbGuideStyleDots.onClick = function() {
+    rbGuideStyleDots.onClick = function () {
         // UI only; persist on OK
     };
 
@@ -577,9 +706,9 @@ function main() {
     cbSmartHighlight.helpTip = LABELS.smartHighlight.ja + " / " + LABELS.smartHighlight.en;
 
     /*
-  UI panel (right) / ［ユーザーインターフェイス］
+  UI panel (left) / ［ユーザーインターフェイス］
   */
-    var panelUI = colRight.add("panel", undefined, LABELS.panelUITitle[lang]);
+    var panelUI = colLeft.add("panel", undefined, LABELS.panelUITitle[lang]);
     panelUI.orientation = "column";
     panelUI.alignChildren = ["fill", "top"];
     panelUI.alignment = ["fill", "top"];
@@ -606,10 +735,10 @@ function main() {
     /*
       ラジオボタン変更時の設定
     */
-    rbCanvasMatch.onClick = function() {
+    rbCanvasMatch.onClick = function () {
         // UI only; persist on OK
     };
-    rbCanvasWhite.onClick = function() {
+    rbCanvasWhite.onClick = function () {
         // UI only; persist on OK
     };
 
@@ -630,7 +759,7 @@ function main() {
     groupHistory.add("statictext", undefined, LABELS.cbHistoryLabel[lang] + "：");
     var etHistory = groupHistory.add("edittext", undefined, "50");
 
-    etHistory.onChange = function() {
+    etHistory.onChange = function () {
         validateEditTextInt(etHistory, VALIDATION.history);
     };
 
@@ -676,12 +805,11 @@ function main() {
     rbSaveCloud.value = prefCloud;
     rbSaveLocal.value = !prefCloud;
 
-    // 変更時に保存 / Apply on change
-    // NOTE: Persisted on OK.
-    rbSaveLocal.onClick = function() {
+    // UI only; persisted on OK / ここではUIのみ更新し、保存はOK時に実行
+    rbSaveLocal.onClick = function () {
         // UI only; persist on OK
     };
-    rbSaveCloud.onClick = function() {
+    rbSaveCloud.onClick = function () {
         // UI only; persist on OK
     };
 
@@ -709,8 +837,7 @@ function main() {
     var cbHitShape = panelLimitPath.add("checkbox", undefined, LABELS.cbHitShape[lang]);
     cbHitShape.helpTip = LABELS.cbHitShape.ja + " / " + LABELS.cbHitShape.en;
     /*
-      設定読み込み（初期値代入）
-      ※最適化案: UI構築と初期値代入を関数化して整理可能
+      Load current values into the UI / 現在の設定値をUIへ反映
     */
     var val = app.preferences.getIntegerPreference("hitShapeOnPreview");
     cbHitShape.value = (val === 0); // 0がON（true）、1がOFF（false）
@@ -721,109 +848,113 @@ function main() {
     var val = app.preferences.getIntegerPreference("hitTypeShapeOnPreview");
     cbHitTypeShape.value = (val === 0); // 0がON（true）、1がOFF（false）
 
-    // ===== Preferences Map (Proposal #1) =====
-    // 各プリファレンスキー ↔ UI部品 ↔ 型をテーブル化
+    // ===== Preferences Map =====
+    // Table of preference keys, UI controls, and value types / 各プリファレンスキー・UI部品・値型の対応表
     var PREF_MAP = [{
-            key: "showRichToolTips",
-            type: "bool",
-            ui: cbToolTips
-        },
-        {
-            key: "Hello/ShowHomeScreenWS",
-            type: "bool",
-            ui: cbHomeScreen
-        },
-        {
-            key: "Hello/NewDoc",
-            type: "bool",
-            ui: cbLegacyNewDoc
-        },
-        {
-            key: "enablePrintBleedWidget",
-            type: "bool",
-            ui: cbBleedAI
-        },
-        {
-            key: "moveLockedAndHiddenArt",
-            type: "bool",
-            ui: cbMoveLocked
-        },
-        {
-            key: "hitShapeOnPreview",
-            type: "int01inv",
-            ui: cbHitShape
-        }, // 0=>ON(true),1=>OFF(false)
-        {
-            key: "zoomToSelection",
-            type: "bool",
-            ui: cbZoomToSel
-        },
-        // cbHighlightAnchor はキー未確定のため保留
-        {
-            key: "hitTypeShapeOnPreview",
-            type: "int01inv",
-            ui: cbHitTypeShape
-        },
-        {
-            key: "smartGuides/showObjectHighlighting",
-            type: "bool",
-            ui: cbSmartHighlight
-        },
-        {
-            key: "text/autoSizing",
-            type: "bool",
-            ui: cbAutoSizing
-        },
-        {
-            key: "text/doFontLocking",
-            type: "bool",
-            ui: cbFontLocking
-        },
-        {
-            key: "text/enableAlternateGlyph",
-            type: "bool",
-            ui: cbAlternateGlyph
-        },
-        {
-            key: "Performance/AnimZoom",
-            type: "bool",
-            ui: cbAnimZoom
-        },
-        {
-            key: "maximumUndoDepth",
-            type: "int",
-            ui: null
-        }, // etHistory に反映
-        {
-            key: "LiveEdit_State_Machine",
-            type: "bool",
-            ui: cbLiveEdit
-        },
-        {
-            key: "enableBackgroundExport",
-            type: "bool",
-            ui: cbEditOriginal
-        },
-        {
-            key: "AutoActivateMissingFont",
-            type: "bool",
-            ui: cbFontsAuto
-        },
-        {
-            key: "plugin/FileClipboard/copySVGCode",
-            type: "bool",
-            ui: cbIncludeSVG
-        },
-        {
-            key: "text/recentFontMenu/showNEntries",
-            type: "int",
-            ui: null
-        }, // etRecentFonts, cbRecentFonts に反映
-        {
-            key: "uiCanvasIsWhite",
-            type: "int",
-            ui: null
-        }
+        key: "showRichToolTips",
+        type: "bool",
+        ui: cbToolTips
+    },
+    {
+        key: "Hello/ShowHomeScreenWS",
+        type: "bool",
+        ui: cbHomeScreen
+    },
+    {
+        key: "Hello/NewDoc",
+        type: "bool",
+        ui: cbLegacyNewDoc
+    },
+    {
+        key: "enablePrintBleedWidget",
+        type: "bool",
+        ui: cbBleedAI
+    },
+    {
+        key: "moveLockedAndHiddenArt",
+        type: "bool",
+        ui: cbMoveLocked
+    },
+    {
+        key: "hitShapeOnPreview",
+        type: "int01inv",
+        ui: cbHitShape
+    }, // 0=>ON(true),1=>OFF(false)
+    {
+        key: "zoomToSelection",
+        type: "bool",
+        ui: cbZoomToSel
+    },
+    {
+        key: "hitTypeShapeOnPreview",
+        type: "int01inv",
+        ui: cbHitTypeShape
+    },
+    {
+        key: "smartGuides/showObjectHighlighting",
+        type: "bool",
+        ui: cbSmartHighlight
+    },
+    {
+        key: "text/autoSizing",
+        type: "bool",
+        ui: cbAutoSizing
+    },
+    {
+        key: "text/doFontLocking",
+        type: "bool",
+        ui: cbFontLocking
+    },
+    {
+        key: "text/enableAlternateGlyph",
+        type: "bool",
+        ui: cbAlternateGlyph
+    },
+    {
+        key: "Performance/AnimZoom",
+        type: "bool",
+        ui: cbAnimZoom
+    },
+    {
+        key: "maximumUndoDepth",
+        type: "int",
+        ui: null
+    }, // etHistory に反映
+    {
+        key: "LiveEdit_State_Machine",
+        type: "bool",
+        ui: cbLiveEdit
+    },
+    {
+        key: "useSysDefEdit",
+        type: "bool",
+        ui: cbEditOriginal
+    },
+    {
+        key: "AutoActivateMissingFont",
+        type: "bool",
+        ui: cbFontsAuto
+    },
+    {
+        key: "plugin/FileClipboard/copySVGCode",
+        type: "bool",
+        ui: cbIncludeSVG
+    },
+    {
+        key: "showArtboardLabelOnCanvas",
+        type: "bool",
+        ui: cbShowArtboardName
+    },
+    {
+        key: "text/recentFontMenu/showNEntries",
+        type: "int",
+        ui: null
+    }, // etRecentFonts, cbRecentFonts に反映
+    {
+        key: "uiCanvasIsWhite",
+        type: "int",
+        ui: null
+    }
     ];
 
     // システムの現在値 → UIへ反映
@@ -855,21 +986,29 @@ function main() {
                 // 読み込み失敗時は無視（既定UIのまま）
             }
         }
+        // ストロークカラー・幅はReal値なのでPREF_MAP外で個別読み込み
+        var scR = safeGetReal("ArtboardBBColorRed", 0.0);
+        var scG = safeGetReal("ArtboardBBColorGreen", 0.0);
+        var scB = safeGetReal("ArtboardBBColorBlue", 0.0);
+        ddStrokeColor.selection = findClosestStrokeColor(scR, scG, scB);
+        var swVal = safeGetReal("ArtboardBBWidth", 1.0);
+        var swLoadIdx = clamp(Math.round(swVal), 1, 4) - 1;
+        for (var swi = 0; swi < rbStrokeWidths.length; swi++) rbStrokeWidths[swi].value = (swi === swLoadIdx);
     }
     // ===== End Preferences Map =====
 
-    // ===== Validation Rules (Proposal #8) =====
+    // ===== Validation Rules =====
     var VALIDATION = {
         recentFonts: {
             min: 0,
             max: 30,
             def: 15
-        }, // 0=非表示、上限は30程度が目安
+        }, // 0 hides the list / 0で非表示
         history: {
             min: 1,
             max: 1000,
             def: 100
-        } // 1〜1000の想定
+        } // Expected range: 1-1000 / 想定範囲: 1〜1000
     };
 
     function toInt(val) {
@@ -886,7 +1025,7 @@ function main() {
         if (n === null) return rule.def;
         return clamp(n, rule.min, rule.max);
     }
-    // EditText用: 入力を検証し、範囲外や非数ならデフォルトへ
+    // Validate EditText input; out-of-range or non-numeric values fall back to default / EditText入力を検証し、範囲外や非数はデフォルトへ補正
     function validateEditTextInt(editText, rule) {
         var v = validateInt(editText.text, rule);
         editText.text = String(v);
@@ -894,23 +1033,23 @@ function main() {
     }
     // ===== End Validation Rules =====
 
-    // ===== Safe Preference Accessors (Proposal #5) =====
+    // ===== Safe Preference Accessors =====
     function safeSetInt(key, val) {
         try {
             app.preferences.setIntegerPreference(key, val);
-        } catch (e) {}
+        } catch (e) { }
     }
 
     function safeSetBool(key, val) {
         try {
             app.preferences.setBooleanPreference(key, val);
-        } catch (e) {}
+        } catch (e) { }
     }
 
     function safeSetReal(key, val) {
         try {
             app.preferences.setRealPreference(key, val);
-        } catch (e) {}
+        } catch (e) { }
     }
 
     function safeGetInt(key, fb) {
@@ -952,8 +1091,8 @@ function main() {
     }
     // ===== End Math Utilities =====
 
-    // ===== Preset Applier (Proposal #2) =====
-    // データ駆動でUIへ反映する共通ヘルパー
+    // ===== Preset Applier =====
+    // Shared helper to apply preset values to the UI / プリセット値をUIへ反映する共通ヘルパー
     function applyPresetToUI(p) {
         // 単純なチェックボックス・数値はそのまま反映
         if (typeof p.cbToolTips !== 'undefined') cbToolTips.value = !!p.cbToolTips;
@@ -963,7 +1102,6 @@ function main() {
         if (typeof p.cbMoveLocked !== 'undefined') cbMoveLocked.value = !!p.cbMoveLocked;
         if (typeof p.cbHitShape !== 'undefined') cbHitShape.value = !!p.cbHitShape; // true=ON(path only)
         if (typeof p.cbZoomToSel !== 'undefined') cbZoomToSel.value = !!p.cbZoomToSel;
-        if (typeof p.cbHighlightAnchor !== 'undefined') cbHighlightAnchor.value = !!p.cbHighlightAnchor;
         if (typeof p.cbHitTypeShape !== 'undefined') cbHitTypeShape.value = !!p.cbHitTypeShape; // true=ON(path only)
         if (typeof p.cbAutoSizing !== 'undefined') cbAutoSizing.value = !!p.cbAutoSizing;
         if (typeof p.cbRecentFonts !== 'undefined') cbRecentFonts.value = !!p.cbRecentFonts;
@@ -980,6 +1118,12 @@ function main() {
         if (typeof p.cbEditOriginal !== 'undefined') cbEditOriginal.value = !!p.cbEditOriginal;
         if (typeof p.cbFontsAuto !== 'undefined') cbFontsAuto.value = !!p.cbFontsAuto;
         if (typeof p.cbIncludeSVG !== 'undefined') cbIncludeSVG.value = !!p.cbIncludeSVG;
+        if (typeof p.cbShowArtboardName !== 'undefined') cbShowArtboardName.value = !!p.cbShowArtboardName;
+        if (typeof p.artboardStrokeColor !== 'undefined') ddStrokeColor.selection = p.artboardStrokeColor;
+        if (typeof p.artboardStrokeWidth !== 'undefined') {
+            var swpIdx = clamp(p.artboardStrokeWidth, 1, 4) - 1;
+            for (var swj = 0; swj < rbStrokeWidths.length; swj++) rbStrokeWidths[swj].value = (swj === swpIdx);
+        }
 
         // カンバス（ラジオ）
         if (typeof p.canvasWhite !== 'undefined') {
@@ -1007,7 +1151,7 @@ function main() {
         }
     }
 
-    // 既存プリセットをデータで表現
+    // Preset definitions / プリセット定義
     var PRESET1_DEF = {
         cbToolTips: false,
         cbHomeScreen: false,
@@ -1016,7 +1160,6 @@ function main() {
         cbMoveLocked: true,
         cbHitShape: false,
         cbZoomToSel: false,
-        cbHighlightAnchor: true,
         cbHitTypeShape: false,
         cbAutoSizing: true,
         cbRecentFonts: false,
@@ -1032,7 +1175,10 @@ function main() {
         guideColor: 'lightblue',
         saveCloud: false,
         cbSmartHighlight: false,
-        cbIncludeSVG: true
+        cbIncludeSVG: true,
+        cbShowArtboardName: false,
+        artboardStrokeColor: 0,
+        artboardStrokeWidth: 2
     };
 
     var DEFAULT_DEF = {
@@ -1043,7 +1189,6 @@ function main() {
         cbMoveLocked: false,
         cbHitShape: false,
         cbZoomToSel: true,
-        cbHighlightAnchor: true,
         cbHitTypeShape: false,
         cbAutoSizing: false,
         cbRecentFonts: true,
@@ -1059,22 +1204,25 @@ function main() {
         guideColor: 'cyan',
         saveCloud: true,
         cbSmartHighlight: true,
-        cbIncludeSVG: false
+        cbIncludeSVG: false,
+        cbShowArtboardName: true,
+        artboardStrokeColor: 0,
+        artboardStrokeWidth: 1
     };
     // ===== End Preset Applier =====
 
-    /* Bottom button row (Cancel/OK) / 右側にキャンセル・OK */
+    /* Bottom button row (Cancel / OK) / 下部ボタン行 */
     var outerGroup = mainGroup.add("group"); // 親groupに追加
     outerGroup.orientation = "row";
     outerGroup.alignChildren = ["fill", "center"];
     outerGroup.alignment = ["fill", "bottom"];
 
 
-    // 真ん中スペーサー（伸縮する空白）
+    // Flexible spacer / 伸縮するスペーサー
     var spacer = outerGroup.add("group");
     spacer.alignment = ["fill", "fill"];
 
-    // 右側グループ（キャンセル・OK）
+    // Right button group (Cancel / OK) / 右側ボタングループ
     var rightGroup = outerGroup.add("group");
     rightGroup.orientation = "row";
     rightGroup.alignChildren = ["right", "center"];
@@ -1086,49 +1234,46 @@ function main() {
         name: "ok"
     });
 
-    btnOK.onClick = function() {
+    btnOK.onClick = function () {
         try {
             /*
-              「詳細なツールヒント」設定を保存
+              Save "Rich Tool Tips" setting / 「詳細なツールヒント」設定を保存
             */
             safeSetBool("showRichToolTips", cbToolTips.value);
             /*
-              「ホーム画面」設定を保存
+              Save "Home Screen" setting / 「ホーム画面」設定を保存
             */
             safeSetBool("Hello/ShowHomeScreenWS", cbHomeScreen.value);
             /*
-              「以前の新規ドキュメント」設定を保存
+              Save "Legacy New Document" setting / 「以前の新規ドキュメント」設定を保存
             */
             safeSetBool("Hello/NewDoc", cbLegacyNewDoc.value);
             /*
-              「裁ち落としを印刷」生成AIボタン設定を保存
+              Save "Print Bleed" generative AI button setting / 「裁ち落としを印刷」生成AIボタン設定を保存
             */
             safeSetBool("enablePrintBleedWidget", cbBleedAI.value);
             /*
-              「アートボードと一緒に移動」設定を保存
+              Save "Move with Artboard" setting / 「アートボードと一緒に移動」設定を保存
             */
             safeSetBool("moveLockedAndHiddenArt", cbMoveLocked.value);
             /*
-              「オブジェクトの選択範囲をパスに制限」設定を保存
+              Save "Object Selection by Path Only" setting / 「オブジェクトの選択範囲をパスに制限」設定を保存
             */
             safeSetInt("hitShapeOnPreview", cbHitShape.value ? 0 : 1);
             /*
-              「選択範囲へズーム」設定を保存
+              Save "Zoom to Selection" setting / 「選択範囲へズーム」設定を保存
             */
             safeSetBool("zoomToSelection", cbZoomToSel.value);
             /*
-              「アンカーを強調表示」設定の保存は未実装（保存用のキーが不明なため）
-            */
-            /*
-              「テキストをパスに制限」設定を保存
+              Save "Type Object Selection by Path Only" setting / 「テキストをパスに制限」設定を保存
             */
             safeSetInt("hitTypeShapeOnPreview", cbHitTypeShape.value ? 0 : 1);
             /*
-              「新規エリア内文字の自動サイズ調整」設定を保存
+              Save "Auto Size New Area Type" setting / 「新規エリア内文字の自動サイズ調整」設定を保存
             */
             safeSetBool("text/autoSizing", cbAutoSizing.value);
             /*
-              「最近使用したフォント」設定を保存
+              Save "Recent Fonts" setting / 「最近使用したフォント」設定を保存
             */
             if (cbRecentFonts.value) {
                 safeSetInt("text/recentFontMenu/showNEntries", validateEditTextInt(etRecentFonts, VALIDATION.recentFonts));
@@ -1136,32 +1281,32 @@ function main() {
                 safeSetInt("text/recentFontMenu/showNEntries", 0);
             }
             /*
-              「見つからない字形の保護」設定を保存
+              Save "Missing Glyph Protection" setting / 「見つからない字形の保護」設定を保存
             */
             safeSetBool("text/doFontLocking", cbFontLocking.value);
             /*
-              「選択された文字の異体字」設定を保存
+              Save "Character Alternates" setting / 「選択された文字の異体字」設定を保存
             */
             safeSetBool("text/enableAlternateGlyph", cbAlternateGlyph.value);
             /*
-              カンバス白設定を保存（ラジオ選択に基づく）
+              Save canvas color setting from radio selection / ラジオ選択に基づいてカンバスカラー設定を保存
             */
             safeSetInt("uiCanvasIsWhite", rbCanvasWhite.value ? 1 : 0);
             /*
-              ガイド色を保存（ラジオ選択に基づく）
+              Save guide color from radio selection / ラジオ選択に基づいてガイドカラーを保存
             */
             if (rbGuideLightBlue && rbGuideLightBlue.value) {
                 safeSetReal("Guide/Color/red", 0.29);
                 safeSetReal("Guide/Color/green", 0.52);
                 safeSetReal("Guide/Color/blue", 1.0);
             } else {
-                // 既定（シアン）
+                // Default (Cyan) / 既定（シアン）
                 safeSetReal("Guide/Color/red", 0.0);
                 safeSetReal("Guide/Color/green", 1.0);
                 safeSetReal("Guide/Color/blue", 1.0);
             }
             /*
-              ガイドスタイルを保存（0:ライン / 1:点線）
+              Save guide style (0: Lines / 1: Dots) / ガイドスタイルを保存（0:ライン / 1:点線）
             */
             if (rbGuideStyleLine && rbGuideStyleLine.value) {
                 safeSetInt("Guide/Style", 0);
@@ -1169,52 +1314,70 @@ function main() {
                 safeSetInt("Guide/Style", 1);
             }
             /*
-              「オブジェクトのハイライト表示（スマートガイド）」設定を保存
+              Save "Object Highlighting" smart guide setting / 「オブジェクトのハイライト表示（スマートガイド）」設定を保存
             */
             safeSetBool("smartGuides/showObjectHighlighting", cbSmartHighlight.value);
             /*
-              「アニメーションズーム」設定を保存
+              Save "Animated Zoom" setting / 「アニメーションズーム」設定を保存
             */
             safeSetBool("Performance/AnimZoom", cbAnimZoom.value);
             /*
-              「ヒストリー数」設定を保存
+              Save "History States" setting / 「ヒストリー数」設定を保存
             */
             safeSetInt("maximumUndoDepth", validateEditTextInt(etHistory, VALIDATION.history));
             /*
-              「リアルタイムの描画と編集」設定を保存
+              Save "Real-Time Drawing and Editing" setting / 「リアルタイムの描画と編集」設定を保存
             */
             safeSetBool("LiveEdit_State_Machine", cbLiveEdit.value);
             /*
-              「オリジナルの編集にシステムデフォルトを使用」設定を保存
+              Save "Use System Defaults for Edit Original" setting / 「オリジナルの編集にシステムデフォルトを使用」設定を保存
             */
-            safeSetBool("enableBackgroundExport", cbEditOriginal.value);
+            safeSetBool("useSysDefEdit", cbEditOriginal.value);
             /*
-              「Adobe Fontsを自動アクティベート」設定を保存
+              Save "Auto-activate Adobe Fonts" setting / 「Adobe Fontsを自動アクティベート」設定を保存
             */
             safeSetBool("AutoActivateMissingFont", cbFontsAuto.value);
             /*
-              「SVGコードを含める」設定を保存
+              Save "Include SVG Code" setting / 「SVGコードを含める」設定を保存
             */
             safeSetBool("plugin/FileClipboard/copySVGCode", cbIncludeSVG.value);
             /*
-              ファイルの保存先を保存（OK押下時にも明示保存）
+              Save "Show Artboard Name" setting / 「アートボード名を表示」設定を保存
+            */
+            safeSetBool("showArtboardLabelOnCanvas", cbShowArtboardName.value);
+            /*
+              Save artboard stroke color / アートボードのストロークカラーを保存
+            */
+            var scIdx = ddStrokeColor.selection ? ddStrokeColor.selection.index : 0;
+            var scPreset = STROKE_COLOR_PRESETS[scIdx];
+            safeSetReal("ArtboardBBColorRed", scPreset.r);
+            safeSetReal("ArtboardBBColorGreen", scPreset.g);
+            safeSetReal("ArtboardBBColorBlue", scPreset.b);
+            /*
+              Save artboard stroke width / アートボードのストローク幅を保存
+            */
+            safeSetReal("ArtboardBBWidth", getSelectedStrokeWidth());
+            /*
+              Save file save location explicitly on OK / OK押下時にファイル保存先を明示保存
             */
             safeSetBool("AdobeSaveAsCloudDocumentPreference", !!rbSaveCloud.value);
         } catch (e) {
             alert("環境設定の保存に失敗しました: " + e + "\nFailed to save preferences: " + e);
         }
+        app.executeMenuCommand('zoomout');
+        app.executeMenuCommand('zoomin');
         dlg.close();
     };
     /*
-      初期状態として現状の環境設定を読み込み
+      Load current preferences as the initial UI state / 初期状態として現在の環境設定を読み込む
     */
-    applyPresetSettings("現在の設定");
+    applyPresetSettings(PRESET_IDS.current);
     /* Adjust dialog opacity & position / ダイアログの不透明度と位置 */
     var offsetX = 300;
     var dialogOpacity = 0.98;
 
     function shiftDialogPosition(dlg, offsetX, offsetY) {
-        dlg.onShow = function() {
+        dlg.onShow = function () {
             var currentX = dlg.location[0];
             var currentY = dlg.location[1];
             dlg.location = [currentX + offsetX, currentY + offsetY];
