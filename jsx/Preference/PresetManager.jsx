@@ -94,7 +94,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 
 */
 
-var SCRIPT_VERSION = "v1.6";
+var SCRIPT_VERSION = "v1.6.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -320,8 +320,8 @@ var LABELS = {
         en: "Show Artboard Name"
     },
     artboardStrokeColor: {
-        ja: "ストロークのカラー",
-        en: "Stroke Color"
+        ja: "ハイライトのカラー",
+        en: "Highlight Color"
     },
     artboardStrokeWidth: {
         ja: "ストロークの幅",
