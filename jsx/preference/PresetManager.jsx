@@ -94,7 +94,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 
 */
 
-var SCRIPT_VERSION = "v1.6.1";
+var SCRIPT_VERSION = "v1.6.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -326,7 +326,43 @@ var LABELS = {
     artboardStrokeWidth: {
         ja: "ストロークの幅",
         en: "Stroke Width"
-    }
+    },
+    artboardColorBlack: {
+        ja: "ブラック",
+        en: "Black"
+    },
+    artboardColorLightBlue: {
+        ja: "ライトブルー",
+        en: "Light Blue"
+    },
+    artboardColorRed: {
+        ja: "サーモンピンク",
+        en: "Light Red"
+    },
+    artboardColorGreen: {
+        ja: "グリーン",
+        en: "Green"
+    },
+    artboardColorBlue: {
+        ja: "ミディアムブルー",
+        en: "Medium Blue"
+    },
+    artboardColorCyan: {
+        ja: "シアン",
+        en: "Cyan"
+    },
+    artboardColorMagenta: {
+        ja: "マゼンタ",
+        en: "Magenta"
+    },
+    artboardColorYellow: {
+        ja: "イエロー",
+        en: "Yellow"
+    },
+    artboardColorWhite: {
+        ja: "ライトグレー",
+        en: "Light Gray"
+    },
 };
 
 function main() {
@@ -493,20 +529,21 @@ function main() {
     strokeColorRow.alignChildren = ["left", "center"];
     strokeColorRow.add("statictext", undefined, LABELS.artboardStrokeColor[lang] + "：");
 
-    /* Artboard stroke color presets (RGB 0..1) */
+    /* Artboard stroke color presets (RGB 0..1) / アートボードのハイライトカラープリセット */
     var STROKE_COLOR_PRESETS = [
-        { name: "Black", r: 0.0, g: 0.0, b: 0.0 },
-        { name: "Red", r: 1.0, g: 0.29, b: 0.29 },
-        { name: "Green", r: 0.0, g: 0.65, b: 0.31 },
-        { name: "Blue", r: 0.0, g: 0.45, b: 0.78 },
-        { name: "Cyan", r: 0.0, g: 1.0, b: 1.0 },
-        { name: "Magenta", r: 1.0, g: 0.0, b: 1.0 },
-        { name: "Yellow", r: 1.0, g: 1.0, b: 0.0 },
-        { name: "White", r: 1.0, g: 1.0, b: 1.0 }
+        { label: LABELS.artboardColorLightBlue[lang], r: 0.29, g: 0.52, b: 1.0 },
+        { label: LABELS.artboardColorRed[lang], r: 1.0, g: 0.29, b: 0.29 },
+        { label: LABELS.artboardColorGreen[lang], r: 0.0, g: 0.65, b: 0.31 },
+        { label: LABELS.artboardColorBlue[lang], r: 0.0, g: 0.45, b: 0.78 },
+        { label: LABELS.artboardColorMagenta[lang], r: 1.0, g: 0.0, b: 1.0 },
+        { label: LABELS.artboardColorCyan[lang], r: 0.0, g: 1.0, b: 1.0 },
+        { label: LABELS.artboardColorWhite[lang], r: 1.0, g: 1.0, b: 1.0 },
+        { label: LABELS.artboardColorBlack[lang], r: 0.0, g: 0.0, b: 0.0 },
+        { label: LABELS.artboardColorYellow[lang], r: 1.0, g: 1.0, b: 0.0 }
     ];
     var STROKE_COLOR_NAMES = [];
     for (var sc = 0; sc < STROKE_COLOR_PRESETS.length; sc++) {
-        STROKE_COLOR_NAMES.push(STROKE_COLOR_PRESETS[sc].name);
+        STROKE_COLOR_NAMES.push(STROKE_COLOR_PRESETS[sc].label);
     }
     var ddStrokeColor = strokeColorRow.add("dropdownlist", undefined, STROKE_COLOR_NAMES);
 
@@ -961,29 +998,31 @@ function main() {
     function loadPrefsFromSystem() {
         for (var i = 0; i < PREF_MAP.length; i++) {
             var p = PREF_MAP[i];
-            try {
-                if (p.type === "bool") {
-                    var b = safeGetBool(p.key, false);
-                    if (p.ui) p.ui.value = !!b;
-                } else if (p.type === "int01inv") {
-                    var v01 = app.preferences.getIntegerPreference(p.key);
-                    if (p.ui) p.ui.value = (v01 === 0); // 0=>ON(true)
-                } else if (p.type === "int") {
-                    var iv = app.preferences.getIntegerPreference(p.key);
-                    if (p.key === "maximumUndoDepth") {
-                        etHistory.text = String(validateInt(iv, VALIDATION.history));
-                    } else if (p.key === "text/recentFontMenu/showNEntries") {
-                        var rv = validateInt(iv, VALIDATION.recentFonts);
-                        etRecentFonts.text = String(rv);
-                        cbRecentFonts.value = (rv > 0);
-                        etRecentFonts.enabled = (rv > 0);
-                    } else if (p.key === "uiCanvasIsWhite") {
-                        rbCanvasWhite.value = (iv === 1);
-                        rbCanvasMatch.value = (iv !== 1);
-                    }
+
+            if (p.type === "bool") {
+                var b = safeGetBool(p.key, false);
+                if (p.ui) p.ui.value = !!b;
+
+            } else if (p.type === "int01inv") {
+                var v01 = safeGetInt(p.key, 1);
+                if (p.ui) p.ui.value = (v01 === 0); // 0=>ON(true)
+
+            } else if (p.type === "int") {
+                var iv = safeGetInt(p.key, 0);
+
+                if (p.key === "maximumUndoDepth") {
+                    etHistory.text = String(validateInt(iv, VALIDATION.history));
+
+                } else if (p.key === "text/recentFontMenu/showNEntries") {
+                    var rv = validateInt(iv, VALIDATION.recentFonts);
+                    etRecentFonts.text = String(rv);
+                    cbRecentFonts.value = (rv > 0);
+                    etRecentFonts.enabled = (rv > 0);
+
+                } else if (p.key === "uiCanvasIsWhite") {
+                    rbCanvasWhite.value = (iv === 1);
+                    rbCanvasMatch.value = (iv !== 1);
                 }
-            } catch (e) {
-                // 読み込み失敗時は無視（既定UIのまま）
             }
         }
         // ストロークカラー・幅はReal値なのでPREF_MAP外で個別読み込み
@@ -1162,8 +1201,8 @@ function main() {
         cbZoomToSel: false,
         cbHitTypeShape: false,
         cbAutoSizing: true,
-        cbRecentFonts: false,
-        etRecentFonts: 0,
+        cbRecentFonts: true,
+        etRecentFonts: 15,
         cbFontLocking: false,
         cbAlternateGlyph: false,
         cbAnimZoom: false,
@@ -1364,6 +1403,8 @@ function main() {
         } catch (e) {
             alert("環境設定の保存に失敗しました: " + e + "\nFailed to save preferences: " + e);
         }
+        // Force screen refresh workaround: redraw() alone does not reliably update UI after preference changes
+        // 画面更新のためのハック：redraw() だけでは環境設定変更後にUIが確実に更新されないため、ズーム操作で強制再描画
         app.executeMenuCommand('zoomout');
         app.executeMenuCommand('zoomin');
         dlg.close();
