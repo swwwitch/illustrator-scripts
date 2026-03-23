@@ -5,18 +5,49 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * TrimViewWithGuidesON.jsx
  *
  * 概要:
- * ガイドを通常パスとして一時レイヤーに複製し、Trim View 切り替え時にもガイド位置を確認しやすくするスクリプトです。
+ * ガイドを通常パスとして専用レイヤーに複製し、Trim View 切り替え時にもガイド位置を確認しやすくするスクリプトです。
  *
  * ガイドは「Guides Preview for Trim View」レイヤーに複製され、内部識別子として
- * __GUIDES_PREVIEW_TRIM_VIEW__ を設定します。
- * 既存レイヤーの削除判定は内部識別子（note一致）を最優先し、note一致が複数ある場合はそのすべてを削除対象にします。note一致がない場合のみ同名レイヤーを削除対象として扱います。削除に失敗した場合は中身を空にして再利用します。処理全体は finally でロック状態を復元し、ガイド複製時のみ対象ガイドを一時アンロックします。ガイド本数・複製成功数・複製失敗数を集計し、非表示レイヤー配下のガイドと非表示のガイドは対象外にします。ガイドが1本もない場合はプレビューレイヤーを作成せず終了します。
+ * __GUIDES_PREVIEW_TRIM_VIEW__ を設定します。既存の同レイヤーがある場合は事前に削除し、削除に失敗した場合のみ
+ * 中身を空にして再利用します。ガイドの複製は通常レイヤーの状態で行い、複製完了後にテンプレートレイヤー化します。
+ * note一致を最優先で削除対象にし、note一致がない場合のみ同名レイヤーを対象にします。note一致が複数ある場合はそのすべてを削除対象にします。
+ * 処理全体は finally でロック状態を復元し、ガイド複製時のみ対象ガイドを一時アンロックします。非表示レイヤー配下のガイドと非表示のガイドは対象外です。
+ * ガイドが1本もない場合はプレビューレイヤーを作成せず終了します。
  *
  * 作成日：2026-03-19
- * 更新日: 2026-03-20
+ * 更新日: 2026-03-23
  */
 
-var SCRIPT_VERSION = "v1.1.2";
+var SCRIPT_VERSION = "v1.2";
 var GUIDE_STROKE_WIDTH = 1;
+
+var TEMPLATE_ACTION_NAME = "template";
+var TEMPLATE_ACTION_SET_NAME = "layer";
+var TEMPLATE_ACTION_FILE_NAME = "TrimViewWithGuidesTemplateAction.aia";
+
+function loadAndRunAction(actionString, actionName, actionSetName) {
+    var f = new File(Folder.temp + '/' + TEMPLATE_ACTION_FILE_NAME);
+
+    try {
+        f.open('w');
+        f.write(actionString);
+        f.close();
+
+        app.loadAction(f);
+        app.doScript(actionName, actionSetName, false);
+        app.unloadAction(actionSetName, '');
+    } finally {
+        try {
+            if (f.exists) {
+                f.remove();
+            }
+        } catch (_) { }
+    }
+}
+
+function getTemplateLayerActionString() {
+    return '/version 3/name [ 5 6c61796572 ]/isOpen 1/actionCount 1/action-1 { /name [ 8 74656d706c617465 ] /keyIndex 0 /colorIndex 0 /isOpen 1 /eventCount 1 /event-1 { /useRulersIn1stQuadrant 0 /internalName (ai_plugin_Layer) /localizedName [ 9 e8a1a8e7a4ba203a20 ] /isOpen 1 /isOn 1 /hasDialog 1 /showDialog 0 /parameterCount 9 /parameter-1 { /key 1836411236 /showInPalette 4294967295 /type (integer) /value 4 } /parameter-2 { /key 1851878757 /showInPalette 4294967295 /type (ustring) /value [ 36 e383ace382a4e383a4e383bce38391e3838de383abe382aae38397e382b7e383a7e383b3 ] } /parameter-3 { /key 1953329260 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-4 { /key 1936224119 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-5 { /key 1819239275 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-6 { /key 1886549623 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-7 { /key 1886547572 /showInPalette 4294967295 /type (boolean) /value 0 } /parameter-8 { /key 1684630830 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-9 { /key 1885564532 /showInPalette 4294967295 /type (unit real) /value 50.0 /unit 592474723 } }}';
+}
 
 (function () {
     if (app.documents.length === 0) {
@@ -34,6 +65,21 @@ var GUIDE_STROKE_WIDTH = 1;
     var duplicateSuccessCount = 0;
     var duplicateFailureCount = 0;
     var i;
+    var docSelection = null;
+
+    // 指定レイヤーをテンプレートレイヤーに変換
+    function makeLayerTemplate(targetLayer) {
+        if (!targetLayer) {
+            return;
+        }
+
+        docSelection = doc.selection;
+        doc.selection = null;
+        doc.activeLayer = targetLayer;
+        loadAndRunAction(getTemplateLayerActionString(), TEMPLATE_ACTION_NAME, TEMPLATE_ACTION_SET_NAME);
+        targetLayer.name = previewLayerName;
+        targetLayer.note = previewLayerNote;
+    }
 
     // プレビュー用カラー（ドキュメントのカラーモードに応じてCMYK/RGB切替）
     function createPreviewColor() {
@@ -336,12 +382,21 @@ var GUIDE_STROKE_WIDTH = 1;
                 "複製失敗数: " + duplicateFailureCount);
         }
 
-        // プレビューレイヤー自体をロック
-        previewLayer.locked = true;
+        // 複製完了後にテンプレートレイヤー化
+        makeLayerTemplate(previewLayer);
+
+        // // プレビューレイヤー自体をロック
+        // previewLayer.locked = true;
 
         // トリム表示切り替え
         toggleTrimView();
     } finally {
+        try {
+            if (docSelection !== null) {
+                doc.selection = docSelection;
+            }
+        } catch (e) { }
+
         // 元のアイテムのロック状態を復元
         for (i = 0; i < touchedItems.length; i++) {
             try {
