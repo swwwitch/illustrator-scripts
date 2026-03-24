@@ -13,6 +13,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 既存レイヤーの検出は note 一致を最優先とし、なければ同名レイヤーを対象にします。複数一致はすべて削除対象です。
  * 削除に失敗した場合のみ中身を空にして再利用します。
  * 非表示レイヤー配下のガイドおよび非表示ガイドは対象外です。
+ * 
+ * 紹介記事（note）
+ * https://note.com/dtp_tranist/n/n338bdcc94636
  *
  * 作成日：2026-03-19
  * 更新日: 2026-03-24
