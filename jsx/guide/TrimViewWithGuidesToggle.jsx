@@ -15,10 +15,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 非表示レイヤー配下のガイドおよび非表示ガイドは対象外です。
  *
  * 作成日：2026-03-19
- * 更新日: 2026-03-23
+ * 更新日: 2026-03-24
  */
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.3";
 var GUIDE_STROKE_WIDTH = 1;
 
 var TEMPLATE_ACTION_NAME = "template";
@@ -304,8 +304,9 @@ function getTemplateLayerActionString() {
         duplicateSuccessCount = 0;
         duplicateFailureCount = 0;
 
-        // ガイドが1本もない場合はプレビューレイヤーを作成しない
+        // ガイドが1本もない場合は Trim View の切り替えのみ実行
         if (guideCount === 0) {
+            toggleTrimView();
             return;
         }
 
