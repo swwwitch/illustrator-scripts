@@ -5,20 +5,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * TrimViewWithGuidesToggle.jsx
  *
  * 概要:
- * 「Guides Preview for Trim View」レイヤーの有無に応じて、ガイドプレビューの表示をトグルします。
+ * 「Guides Preview for Trim View」レイヤーの有無に応じて、ガイドプレビュー表示をトグルするスクリプトです。
  *
- * 既存の同レイヤー（__GUIDES_PREVIEW_TRIM_VIEW__）がある場合は削除し、Trim View を切り替えて終了します。
- * 存在しない場合は、ガイドを通常パスとして専用レイヤーに複製し、複製完了後にテンプレートレイヤー化します。
+ * 既存の同レイヤー（__GUIDES_PREVIEW_TRIM_VIEW__）がある場合は、そのレイヤーを削除して Trim View を切り替えて終了します。
+ * 既存レイヤーがない場合は、表示中のガイドだけを通常パスとして専用レイヤーに複製し、複製完了後にテンプレートレイヤー化します。
+ * テンプレートレイヤー化は、プレビューレイヤーをアクティブにした状態で動的アクションを実行し、変換対象を「Guides Preview for Trim View」レイヤーのみに限定します。
  *
- * 既存レイヤーの検出は note 一致を最優先とし、なければ同名レイヤーを対象にします。複数一致はすべて削除対象です。
- * 削除に失敗した場合のみ中身を空にして再利用します。
+ * 既存レイヤーの検出は note 一致を最優先とし、なければ同名レイヤーを対象にします。複数一致した場合はすべて削除対象です。
+ * 既存プレビューレイヤーの削除に失敗した場合は、中身のクリアを試み、継続不能なら中止します。
  * 非表示レイヤー配下のガイドおよび非表示ガイドは対象外です。
- * 
+ * レイヤーの一括アンロックは行わず、既存プレビューレイヤー削除時とガイド複製時に必要な対象だけを個別にアンロックします。
+ * ガイド複製中に1件でも失敗した場合は、途中まで作成したプレビューの後始末を試みた上で中止し、後始末失敗も通知します。
+ *
  * 紹介記事（note）
  * https://note.com/dtp_tranist/n/n338bdcc94636
  *
  * 作成日：2026-03-19
- * 更新日: 2026-03-24
+ * 更新日: 2026-03-25
  */
 
 var SCRIPT_VERSION = "v1.3";
@@ -37,8 +40,13 @@ function loadAndRunAction(actionString, actionName, actionSetName) {
         f.close();
 
         app.loadAction(f);
-        app.doScript(actionName, actionSetName, false);
-        app.unloadAction(actionSetName, '');
+        try {
+            app.doScript(actionName, actionSetName, false);
+        } finally {
+            try {
+                app.unloadAction(actionSetName, '');
+            } catch (_) { }
+        }
     } finally {
         try {
             if (f.exists) {
@@ -60,7 +68,6 @@ function getTemplateLayerActionString() {
     var doc = app.activeDocument;
     var previewLayerName = "Guides Preview for Trim View";
     var previewLayerNote = "__GUIDES_PREVIEW_TRIM_VIEW__";
-    var touchedLayers = [];
     var touchedItems = [];
     var guides = [];
     var previewLayer = null;
@@ -69,6 +76,8 @@ function getTemplateLayerActionString() {
     var duplicateFailureCount = 0;
     var i;
     var docSelection = null;
+    var originalActiveLayer = null;
+    var previewCleanupFailed = false;
 
     // 指定レイヤーをテンプレートレイヤーに変換
     function makeLayerTemplate(targetLayer) {
@@ -77,9 +86,20 @@ function getTemplateLayerActionString() {
         }
 
         docSelection = doc.selection;
+        originalActiveLayer = doc.activeLayer;
         doc.selection = null;
         doc.activeLayer = targetLayer;
-        loadAndRunAction(getTemplateLayerActionString(), TEMPLATE_ACTION_NAME, TEMPLATE_ACTION_SET_NAME);
+
+        try {
+            loadAndRunAction(getTemplateLayerActionString(), TEMPLATE_ACTION_NAME, TEMPLATE_ACTION_SET_NAME);
+        } finally {
+            try {
+                if (originalActiveLayer) {
+                    doc.activeLayer = originalActiveLayer;
+                }
+            } catch (_) { }
+        }
+
         targetLayer.name = previewLayerName;
         targetLayer.note = previewLayerNote;
     }
@@ -213,7 +233,7 @@ function getTemplateLayerActionString() {
         return true;
     }
 
-    // レイヤー削除に失敗した場合は中身を空にして再利用する
+    // レイヤー削除失敗時の後始末として、中身を空にする
     function clearPreviewLayerContents(layer) {
         var k;
         var subLayer;
@@ -250,24 +270,22 @@ function getTemplateLayerActionString() {
     }
 
     try {
-        // 全レイヤーのロックを一時解除
-        for (i = 0; i < doc.layers.length; i++) {
-            var layer = doc.layers[i];
-            if (layer.locked) {
-                touchedLayers.push({ layer: layer, locked: true });
-                layer.locked = false;
-            }
-        }
-
         var existingLayers = findExistingPreviewLayers();
         var existingLayer;
-        var reusablePreviewLayer = null;
         var cleared;
 
         if (existingLayers.length > 0) {
             for (i = 0; i < existingLayers.length; i++) {
                 existingLayer = existingLayers[i];
-                existingLayer.locked = false;
+                try {
+                    existingLayer.locked = false;
+                } catch (e) {
+                    alert("既存プレビューレイヤーのロック解除に失敗しました。\n" +
+                        "レイヤー名: " + existingLayer.name + "\n" +
+                        "エラー: " + e);
+                    return;
+                }
+
                 unlockItemsInContainer(existingLayer);
 
                 try {
@@ -313,7 +331,7 @@ function getTemplateLayerActionString() {
             return;
         }
 
-        // プレビューレイヤーを作成または再利用（ON）
+        // プレビューレイヤーを新規作成（ON）
         try {
             previewLayer = doc.layers.add();
         } catch (e) {
@@ -376,7 +394,29 @@ function getTemplateLayerActionString() {
                 duplicateSuccessCount++;
             } catch (e) {
                 duplicateFailureCount++;
+                break;
             }
+        }
+
+        if (duplicateFailureCount > 0) {
+            if (previewLayer) {
+                previewCleanupFailed = !clearPreviewLayerContents(previewLayer);
+
+                if (!previewCleanupFailed) {
+                    try {
+                        previewLayer.remove();
+                    } catch (e) {
+                        previewCleanupFailed = true;
+                    }
+                }
+            }
+
+            alert("ガイドの複製中にエラーが発生したため、プレビューの作成を中止しました。\n" +
+                "ガイド本数: " + guideCount + "\n" +
+                "複製成功数: " + duplicateSuccessCount + "\n" +
+                "複製失敗数: " + duplicateFailureCount +
+                (previewCleanupFailed ? "\nプレビューレイヤーの後始末にも失敗しました。" : ""));
+            return;
         }
 
         if (guideCount > 0 && duplicateSuccessCount === 0) {
@@ -384,6 +424,7 @@ function getTemplateLayerActionString() {
                 "ガイド本数: " + guideCount + "\n" +
                 "複製成功数: " + duplicateSuccessCount + "\n" +
                 "複製失敗数: " + duplicateFailureCount);
+            return;
         }
 
         // 複製完了後にテンプレートレイヤー化
@@ -401,17 +442,16 @@ function getTemplateLayerActionString() {
             }
         } catch (e) { }
 
+        try {
+            if (originalActiveLayer) {
+                doc.activeLayer = originalActiveLayer;
+            }
+        } catch (e) { }
+
         // 元のアイテムのロック状態を復元
         for (i = 0; i < touchedItems.length; i++) {
             try {
                 touchedItems[i].item.locked = touchedItems[i].locked;
-            } catch (e) { }
-        }
-
-        // 元のレイヤーのロック状態を復元
-        for (i = 0; i < touchedLayers.length; i++) {
-            try {
-                touchedLayers[i].layer.locked = touchedLayers[i].locked;
             } catch (e) { }
         }
     }
