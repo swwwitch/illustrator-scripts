@@ -24,7 +24,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * 更新日: 2026-03-25
  */
 
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.3.2";
 var GUIDE_STROKE_WIDTH = 1;
 
 var TEMPLATE_ACTION_NAME = "template";
