@@ -63,7 +63,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 // バージョン / Version
-var SCRIPT_VERSION = "v1.6.0";
+var SCRIPT_VERSION = "v1.6.1";
 
 // -----------------------------------------------------------------------------
 // Dialog state persistence (engine-global)
@@ -2110,17 +2110,20 @@ function main() {
         try { dlg.close(0); } catch (_) { }
     };
 
-    // 初期プレビュー
-    try { initMarginDefaultFromSelection(); } catch (_) { }
-    try { initRoundDefaultFromSelection(); } catch (_) { }
-    updatePreview();
-
-    // ダイアログ表示時：倍率フィールドをアクティブに
+    // 初回表示後に初期化と初期プレビューを行う
+    var __didRunInitialPreview = false;
     try {
         dlg.onShow = (function (prev) {
             return function () {
                 try { if (typeof prev === 'function') prev(); } catch (_) { }
                 try { scaleInput.active = true; } catch (_) { }
+
+                if (!__didRunInitialPreview) {
+                    __didRunInitialPreview = true;
+                    try { initMarginDefaultFromSelection(); } catch (_) { }
+                    try { initRoundDefaultFromSelection(); } catch (_) { }
+                    try { updatePreview(); } catch (_) { }
+                }
             };
         })(dlg.onShow);
     } catch (_) { }
