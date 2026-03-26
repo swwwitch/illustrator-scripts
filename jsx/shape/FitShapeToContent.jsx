@@ -37,7 +37,7 @@ FitShapeToContent.jsx
     // バージョンとローカライズ / Version and Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.4";
+    var SCRIPT_VERSION = "v1.4.1";
 
     var __FS2C_SESSION_KEY = "__FitShapeToContentSession__";
 
@@ -466,8 +466,8 @@ FitShapeToContent.jsx
 
         var adjustRow = win.add("group");
         adjustRow.orientation = "row";
-        adjustRow.alignChildren = ["left", "center"];
-        adjustRow.alignment = ["left", "top"];
+        adjustRow.alignChildren = ["center", "center"];
+        adjustRow.alignment = ["center", "top"];
 
         var chkAdjustEnabled = adjustRow.add("checkbox", undefined, L("labelAdjustEnabled"));
         chkAdjustEnabled.value = false;
