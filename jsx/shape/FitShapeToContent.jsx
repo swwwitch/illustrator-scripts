@@ -10,7 +10,8 @@ FitShapeToContent.jsx
  * スクリプトの概要:
  * 選択したテキストまたはグループと図形をもとに、図形をコンテンツ中央へ揃えながら座布団形状を調整するスクリプトです。
  * - テキストは複製してアウトライン化し、グループは複製して境界を計測します
- * - ダイアログ上部の「座布団の調整」で、整列のみ / 座布団調整あり を切り替えできます（毎回デフォルトはOFF）
+ * - ダイアログ上部の「座布団の調整」で、整列のみ / 座布団調整あり を切り替えできます
+ * - スクリプト冒頭の設定スイッチで、「座布団の調整」の初期状態（ON / OFF）を切り替えできます
  * - 「座布団の調整」OFF時は、元図形の見た目を保ったままコンテンツ中央へ整列するだけで、パディング変更や角丸処理は行いません
  * - 「座布団の調整」ON時は、パディング（幅・高さの加算値）をプレビューしながら調整できます
  * - 幅と高さは「連動」で同値入力に対応します
@@ -29,15 +30,20 @@ FitShapeToContent.jsx
  * https://note.com/dtp_tranist/n/n6e4a6a2b175f
  *
  * 作成日: 2026-03-25
- * 更新日: 2026-03-26
+ * 更新日: 2026-03-26（「座布団の調整」の初期ON/OFFを冒頭スイッチ化）
  */
 
 (function () {
     // =========================================
+    // 初期設定 / Initial Settings
+    // =========================================
+
+    var DEFAULT_ADJUST_ENABLED = false; // true: ONで開始 / false: OFFで開始
+    // =========================================
     // バージョンとローカライズ / Version and Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.4.1";
+    var SCRIPT_VERSION = "v1.4.2";
 
     var __FS2C_SESSION_KEY = "__FitShapeToContentSession__";
 
@@ -49,7 +55,7 @@ FitShapeToContent.jsx
             radiusEnabled: true,
             link: true,
             pill: false,
-            adjustEnabled: false
+            adjustEnabled: DEFAULT_ADJUST_ENABLED
         };
     }
 
@@ -470,7 +476,7 @@ FitShapeToContent.jsx
         adjustRow.alignment = ["center", "top"];
 
         var chkAdjustEnabled = adjustRow.add("checkbox", undefined, L("labelAdjustEnabled"));
-        chkAdjustEnabled.value = false;
+        chkAdjustEnabled.value = DEFAULT_ADJUST_ENABLED;
 
         var panel = win.add("panel", undefined, L("panelPadding"));
         panel.orientation = "row";
@@ -751,7 +757,7 @@ FitShapeToContent.jsx
                 radiusEnabled: chkRadiusEnabled.value,
                 link: linkCheck.value,
                 pill: chkPill.value,
-                adjustEnabled: false
+                adjustEnabled: DEFAULT_ADJUST_ENABLED
             });
 
             win.close(1);
@@ -765,7 +771,7 @@ FitShapeToContent.jsx
                 radiusEnabled: chkRadiusEnabled.value,
                 link: linkCheck.value,
                 pill: chkPill.value,
-                adjustEnabled: false
+                adjustEnabled: DEFAULT_ADJUST_ENABLED
             });
             win.close(0);
         };
