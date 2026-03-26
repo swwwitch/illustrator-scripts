@@ -8,26 +8,28 @@ FitShapeToContent.jsx
 座布団メーカー
 
  * スクリプトの概要:
- * 選択したテキストまたはグループと図形をもとに、図形をコンテンツ中央へ揃えながらサイズ調整するスクリプトです。
- * - テキストは複製してアウトライン化し、グループは複製して境界を計測
- * - パディング（幅・高さの加算値）をダイアログでプレビュー調整
- * - 幅と高さは「連動」で同値入力に対応
+ * 選択したテキストまたはグループと図形をもとに、図形をコンテンツ中央へ揃えながら座布団形状を調整するスクリプトです。
+ * - テキストは複製してアウトライン化し、グループは複製して境界を計測します
+ * - ダイアログ上部の「座布団の調整」で、整列のみ / 座布団調整あり を切り替えできます
+ * - 「座布団の調整」OFF時は、元図形の見た目を保ったままコンテンツ中央へ整列するだけで、パディング変更や角丸処理は行いません
+ * - 「座布団の調整」ON時は、パディング（幅・高さの加算値）をプレビューしながら調整できます
+ * - 幅と高さは「連動」で同値入力に対応します
  * - パディングの幅・高さは負の値を許容せず、0未満にはなりません
  * - 角丸は有効/無効を切り替え可能で、OFF時は半径0として扱います
  * - 通常の角丸では、半径は実効幅の1/2を上限として自動補正されます
  * - 「ピル形状」ON時は最終高さの半分を角丸半径として使用し、幅のパディング値は半径×2に自動設定されます
  * - ピル形状ON中は幅入力と半径入力を自動制御し、必要に応じてディム表示します
- * - 角丸はプレビュー専用オブジェクトで差し替え表示し、効果の累積を防止します
+ * - プレビューは、整列のみ用の元図形複製と、調整用のアピアランスクリア済み複製を使い分けて、見た目の破綻や効果の累積を防ぎます
  * - 「ピル形状」ON時は確定時のみ Live Pathfinder Add を実行し、単体選択で結果を検証します
- * - プレビュー更新はUI値の収集・派生値反映・描画の責務を整理しています
- * - セッション中のダイアログ状態保持に対応
+ * - プレビュー更新はUI値の収集・派生値反映・描画の責務を分離しています
+ * - セッション中のダイアログ状態保持に対応します
  * - キャンセル時はプレビューを破棄し、元の図形をそのまま復元します
  * 
  * 紹介記事（note）
  * https://note.com/dtp_tranist/n/n6e4a6a2b175f
  *
  * 作成日: 2026-03-25
- * 更新日: 2026-03-27
+ * 更新日: 2026-03-26
  */
 
 (function () {
@@ -35,7 +37,7 @@ FitShapeToContent.jsx
     // バージョンとローカライズ / Version and Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.3.1";
+    var SCRIPT_VERSION = "v1.4";
 
     var __FS2C_SESSION_KEY = "__FitShapeToContentSession__";
 
@@ -46,7 +48,8 @@ FitShapeToContent.jsx
             radius: "0",
             radiusEnabled: true,
             link: true,
-            pill: false
+            pill: false,
+            adjustEnabled: false
         };
     }
 
@@ -86,6 +89,7 @@ FitShapeToContent.jsx
 
     var LABELS = {
         dialogTitle: { ja: "座布団メーカー", en: "Fit Shape to Content" },
+        labelAdjustEnabled: { ja: "座布団の調整", en: "Adjust Shape" },
         panelPadding: { ja: "パディング", en: "Padding" },
         panelCorner: { ja: "角丸", en: "Rounded Corners" },
         labelWidth: { ja: "幅:", en: "Width:" },
@@ -368,12 +372,39 @@ FitShapeToContent.jsx
     }
 
     /* ダイアログを表示 / Show dialog */
-    function showDialog(outWidth, outHeight, previewBaseShapeItem, contentCenterX, contentCenterY) {
+    function showDialog(outWidth, outHeight, previewSourceShapeItem, previewBaseShapeItem, contentCenterX, contentCenterY) {
         var rulerUnit = getUnitLabel(app.preferences.getIntegerPreference("rulerType"), "rulerType");
         var radiusUnit = "pt";
         var sessionState = getSessionState();
 
         var currentPreviewItem = null;
+        function setGroupEnabled(group, enabled) {
+            if (!group) return;
+            group.enabled = enabled;
+        }
+
+        function reflectAdjustEnabledUI() {
+            var isAdjustEnabled = chkAdjustEnabled.value;
+
+            setGroupEnabled(panel, isAdjustEnabled);
+            setGroupEnabled(panelR, isAdjustEnabled);
+
+            if (!isAdjustEnabled) {
+                inputW.enabled = false;
+                inputH.enabled = false;
+                inputR.enabled = false;
+                chkPill.enabled = false;
+                return;
+            }
+
+            if (chkPill.value) {
+                linkCheck.value = false;
+            }
+            inputW.enabled = !chkPill.value;
+            inputH.enabled = chkPill.value ? true : !linkCheck.value;
+            chkPill.enabled = chkRadiusEnabled.value;
+            inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
+        }
         var MIN_PREVIEW_SIZE = 0.1;
 
         function removePreviewItem() {
@@ -397,20 +428,30 @@ FitShapeToContent.jsx
 
             removePreviewItem();
 
-            currentPreviewItem = previewBaseShapeItem.duplicate();
+            var useAdjustedPreview = chkAdjustEnabled.value;
+            var previewTemplate = useAdjustedPreview ? previewBaseShapeItem : previewSourceShapeItem;
+            previewSourceShapeItem.hidden = true;
             previewBaseShapeItem.hidden = true;
+
+            currentPreviewItem = previewTemplate.duplicate();
             currentPreviewItem.hidden = false;
 
-            var newWidth = Math.max(MIN_PREVIEW_SIZE, outWidth + addW);
-            var newHeight = Math.max(MIN_PREVIEW_SIZE, outHeight + addH);
-            currentPreviewItem.width = newWidth;
-            currentPreviewItem.height = newHeight;
-            currentPreviewItem.left = contentCenterX - (newWidth / 2);
-            currentPreviewItem.top = contentCenterY + (newHeight / 2);
+            if (useAdjustedPreview) {
+                var newWidth = Math.max(MIN_PREVIEW_SIZE, outWidth + addW);
+                var newHeight = Math.max(MIN_PREVIEW_SIZE, outHeight + addH);
+                currentPreviewItem.width = newWidth;
+                currentPreviewItem.height = newHeight;
+                currentPreviewItem.left = contentCenterX - (newWidth / 2);
+                currentPreviewItem.top = contentCenterY + (newHeight / 2);
 
-            if (radius > 0) {
-                var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radius + ' "/></LiveEffect>';
-                currentPreviewItem.applyEffect(xml);
+                if (radius > 0) {
+                    var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radius + ' "/></LiveEffect>';
+                    currentPreviewItem.applyEffect(xml);
+                }
+            } else {
+                var bounds = getBoundsFromItem(currentPreviewItem);
+                currentPreviewItem.left = contentCenterX - (bounds.width / 2);
+                currentPreviewItem.top = contentCenterY + (bounds.height / 2);
             }
 
             app.redraw();
@@ -422,6 +463,14 @@ FitShapeToContent.jsx
         win.margins = [15, 20, 15, 15];
 
         var uiLabelWidth = 50;
+
+        var adjustRow = win.add("group");
+        adjustRow.orientation = "row";
+        adjustRow.alignChildren = ["left", "center"];
+        adjustRow.alignment = ["left", "top"];
+
+        var chkAdjustEnabled = adjustRow.add("checkbox", undefined, L("labelAdjustEnabled"));
+        chkAdjustEnabled.value = !!sessionState.adjustEnabled;
 
         var panel = win.add("panel", undefined, L("panelPadding"));
         panel.orientation = "row";
@@ -471,6 +520,16 @@ FitShapeToContent.jsx
             var previewHeight;
             var newWidth;
 
+            if (!chkAdjustEnabled.value) {
+                return {
+                    addW: 0,
+                    addH: 0,
+                    radius: 0,
+                    radiusText: inputR.text,
+                    widthText: inputW.text
+                };
+            }
+
             if (!chkRadiusEnabled.value) {
                 radius = 0;
             } else if (chkPill.value) {
@@ -496,6 +555,10 @@ FitShapeToContent.jsx
 
         // 派生UI値を反映 / Reflect derived UI values
         function reflectDerivedUI(values) {
+            if (!chkAdjustEnabled.value) {
+                return;
+            }
+
             if (!chkRadiusEnabled.value) {
                 inputR.text = "0";
                 return;
@@ -513,6 +576,12 @@ FitShapeToContent.jsx
             var values = collectPreviewValues();
             buildPreview(values.addW, values.addH, values.radius);
         }
+
+        chkAdjustEnabled.onClick = function () {
+            reflectAdjustEnabledUI();
+            reflectDerivedUI(collectPreviewValues());
+            updatePreview();
+        };
 
         // 連動チェック変更時 / When link checkbox changes
         linkCheck.onClick = function () {
@@ -593,15 +662,10 @@ FitShapeToContent.jsx
         chkPill.onClick = function () {
             if (chkPill.value) {
                 linkCheck.value = false;
-                inputH.enabled = true;
-            } else {
-                inputH.enabled = !linkCheck.value;
-                if (linkCheck.value) {
-                    inputH.text = inputW.text;
-                }
+            } else if (linkCheck.value) {
+                inputH.text = inputW.text;
             }
-            inputW.enabled = !chkPill.value;
-            inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
+            reflectAdjustEnabledUI();
             reflectDerivedUI(collectPreviewValues());
             updatePreview();
         };
@@ -610,16 +674,11 @@ FitShapeToContent.jsx
             if (!chkRadiusEnabled.value) {
                 inputR.text = "0";
                 chkPill.value = false;
-                chkPill.enabled = false;
-                inputH.enabled = !linkCheck.value;
-                if (linkCheck.value) {
-                    inputH.text = inputW.text;
-                }
-            } else {
-                chkPill.enabled = true;
             }
-            inputW.enabled = !chkPill.value;
-            inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
+            if (linkCheck.value) {
+                inputH.text = inputW.text;
+            }
+            reflectAdjustEnabledUI();
             reflectDerivedUI(collectPreviewValues());
             updatePreview();
         };
@@ -627,10 +686,7 @@ FitShapeToContent.jsx
         if (chkPill.value) {
             linkCheck.value = false;
         }
-        inputW.enabled = !chkPill.value;
-        inputH.enabled = chkPill.value ? true : !linkCheck.value;
-        chkPill.enabled = chkRadiusEnabled.value;
-        inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
+        reflectAdjustEnabledUI();
         reflectDerivedUI(collectPreviewValues());
 
         inputR.onChanging = function () {
@@ -649,40 +705,44 @@ FitShapeToContent.jsx
         var btnOK = btnGroup.add("button", undefined, L("btnOK"), { name: "ok" });
 
         btnOK.onClick = function () {
-            var addW = validateNumericField(inputW, false, "dialogTitle", "alertInvalidNumber");
-            if (addW === null) return;
+            var addW = 0;
+            var addH = 0;
+            var radius = 0;
 
-            var addH;
-            if (linkCheck.value) {
-                addH = addW;
-            } else {
-                addH = validateNumericField(inputH, false, "dialogTitle", "alertInvalidNumber");
-                if (addH === null) return;
-            }
+            if (chkAdjustEnabled.value) {
+                addW = validateNumericField(inputW, false, "dialogTitle", "alertInvalidNumber");
+                if (addW === null) return;
 
-            var radius;
-            if (!chkRadiusEnabled.value) {
-                radius = 0;
-            } else if (chkPill.value) {
-                radius = Math.max(MIN_PREVIEW_SIZE, outHeight + addH) / 2;
-            } else {
-                radius = validateNumericField(inputR, false, "dialogTitle", "alertInvalidRadius");
-                if (radius === null) return;
-                var maxRadius = getMaxRadiusFromAddW(addW);
-                if (radius > maxRadius) {
-                    radius = maxRadius;
+                if (linkCheck.value) {
+                    addH = addW;
+                } else {
+                    addH = validateNumericField(inputH, false, "dialogTitle", "alertInvalidNumber");
+                    if (addH === null) return;
                 }
-            }
 
-            if (chkRadiusEnabled.value && chkPill.value) {
-                addW = radius * 2;
-                inputW.text = String(addW);
-                inputH.text = String(addH);
-            } else {
-                inputW.text = String(addW);
-                inputH.text = String(addH);
+                if (!chkRadiusEnabled.value) {
+                    radius = 0;
+                } else if (chkPill.value) {
+                    radius = Math.max(MIN_PREVIEW_SIZE, outHeight + addH) / 2;
+                } else {
+                    radius = validateNumericField(inputR, false, "dialogTitle", "alertInvalidRadius");
+                    if (radius === null) return;
+                    var maxRadius = getMaxRadiusFromAddW(addW);
+                    if (radius > maxRadius) {
+                        radius = maxRadius;
+                    }
+                }
+
+                if (chkRadiusEnabled.value && chkPill.value) {
+                    addW = radius * 2;
+                    inputW.text = String(addW);
+                    inputH.text = String(addH);
+                } else {
+                    inputW.text = String(addW);
+                    inputH.text = String(addH);
+                }
+                inputR.text = String(radius);
             }
-            inputR.text = String(radius);
 
             saveSessionState({
                 addW: inputW.text,
@@ -690,7 +750,8 @@ FitShapeToContent.jsx
                 radius: inputR.text,
                 radiusEnabled: chkRadiusEnabled.value,
                 link: linkCheck.value,
-                pill: chkPill.value
+                pill: chkPill.value,
+                adjustEnabled: chkAdjustEnabled.value
             });
 
             win.close(1);
@@ -703,7 +764,8 @@ FitShapeToContent.jsx
                 radius: inputR.text,
                 radiusEnabled: chkRadiusEnabled.value,
                 link: linkCheck.value,
-                pill: chkPill.value
+                pill: chkPill.value,
+                adjustEnabled: chkAdjustEnabled.value
             });
             win.close(0);
         };
@@ -714,10 +776,7 @@ FitShapeToContent.jsx
             if (chkPill.value) {
                 linkCheck.value = false;
             }
-            inputW.enabled = !chkPill.value;
-            inputH.enabled = chkPill.value ? true : !linkCheck.value;
-            chkPill.enabled = chkRadiusEnabled.value;
-            inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
+            reflectAdjustEnabledUI();
             reflectDerivedUI(collectPreviewValues());
         };
 
@@ -725,27 +784,36 @@ FitShapeToContent.jsx
 
         // ダイアログ表示 / Show dialog
         if (win.show() === 1) {
-            var addW = parseNumberOrDefault(inputW.text, 0);
-            var addH = parseNumberOrDefault(inputH.text, 0);
-            var radius;
-            if (!chkRadiusEnabled.value) {
-                radius = 0;
-            } else if (chkPill.value) {
-                radius = Math.max(MIN_PREVIEW_SIZE, outHeight + addH) / 2;
-                addW = radius * 2;
-            } else {
-                radius = parseNumberOrDefault(inputR.text, 0);
-                if (radius < 0) radius = 0;
-                var maxRadius = getMaxRadiusFromAddW(addW);
-                if (radius > maxRadius) radius = maxRadius;
+            var addW = 0;
+            var addH = 0;
+            var radius = 0;
+            var radiusEnabled = chkAdjustEnabled.value && chkRadiusEnabled.value;
+            var pillRequested = chkAdjustEnabled.value && chkPill.value;
+
+            if (chkAdjustEnabled.value) {
+                addW = parseNumberOrDefault(inputW.text, 0);
+                addH = parseNumberOrDefault(inputH.text, 0);
+
+                if (!chkRadiusEnabled.value) {
+                    radius = 0;
+                } else if (chkPill.value) {
+                    radius = Math.max(MIN_PREVIEW_SIZE, outHeight + addH) / 2;
+                    addW = radius * 2;
+                } else {
+                    radius = parseNumberOrDefault(inputR.text, 0);
+                    if (radius < 0) radius = 0;
+                    var maxRadius = getMaxRadiusFromAddW(addW);
+                    if (radius > maxRadius) radius = maxRadius;
+                }
             }
             return {
                 addW: addW,
                 addH: addH,
                 radius: radius,
-                radiusEnabled: chkRadiusEnabled.value,
-                pillRequested: chkPill.value,
-                shouldRunPathfinder: chkRadiusEnabled.value && chkPill.value,
+                radiusEnabled: radiusEnabled,
+                pillRequested: pillRequested,
+                shouldRunPathfinder: pillRequested,
+                adjustEnabled: chkAdjustEnabled.value,
                 previewItem: currentPreviewItem
             };
         } else {
@@ -847,7 +915,10 @@ FitShapeToContent.jsx
             var contentCenterX = boundsInfo.centerX;
             var contentCenterY = boundsInfo.centerY;
 
-            // 3. 元図形は保持し、プレビュー専用のベース図形を1回だけ作成してアピアランスをクリア / Keep original shape untouched and prepare one cleared preview base shape
+            // 3. 元図形は保持し、整列専用プレビュー用の複製と、調整専用のクリア済みベース図形を1回だけ作成 / Keep original shape untouched and prepare one preview source for align-only and one cleared base shape for adjusted preview
+            var previewSourceShapeItem = shapeItem.duplicate();
+            previewSourceShapeItem.hidden = true;
+
             var previewBaseShapeItem = shapeItem.duplicate();
             previewBaseShapeItem.hidden = false;
             clearAppearanceByAction(previewBaseShapeItem);
@@ -858,9 +929,17 @@ FitShapeToContent.jsx
             app.redraw();
 
             // 5. ダイアログ表示 / Show dialog
-            var result = showDialog(outWidth, outHeight, previewBaseShapeItem, contentCenterX, contentCenterY);
+            var result = showDialog(outWidth, outHeight, previewSourceShapeItem, previewBaseShapeItem, contentCenterX, contentCenterY);
 
             if (result) {
+                try {
+                    if (previewSourceShapeItem && previewSourceShapeItem !== result.previewItem) {
+                        previewSourceShapeItem.remove();
+                        previewSourceShapeItem = null;
+                    }
+                } catch (e) {
+                    previewSourceShapeItem = null;
+                }
                 try {
                     if (previewBaseShapeItem && previewBaseShapeItem !== result.previewItem) {
                         previewBaseShapeItem.remove();
@@ -875,7 +954,7 @@ FitShapeToContent.jsx
                     var finalPreviewItem = result.previewItem;
                     finalPreviewItem.hidden = false;
 
-                    var baseShapeRef = previewBaseShapeItem;
+                    var baseShapeRef = result.adjustEnabled ? previewBaseShapeItem : previewSourceShapeItem;
                     if (baseShapeRef && baseShapeRef !== finalPreviewItem) {
                         try {
                             baseShapeRef.hidden = true;
@@ -925,6 +1004,11 @@ FitShapeToContent.jsx
 
                 app.redraw();
             } else {
+                try {
+                    if (previewSourceShapeItem) {
+                        previewSourceShapeItem.remove();
+                    }
+                } catch (e) { }
                 try {
                     if (previewBaseShapeItem) {
                         previewBaseShapeItem.remove();
