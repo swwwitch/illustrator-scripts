@@ -1,39 +1,60 @@
 #target illustrator
+#targetengine "FitShapeToContentSession"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
 FitShapeToContent.jsx
+座布団メーカー
 
  * スクリプトの概要:
  * 選択したテキストまたはグループと図形をもとに、図形をコンテンツ中央へ揃えながらサイズ調整するスクリプトです。
  * - テキストは複製してアウトライン化し、グループは複製して境界を計測
  * - パディング（幅・高さの加算値）をダイアログでプレビュー調整
  * - 幅と高さは「連動」で同値入力に対応
- * - 角丸はプレビュー専用オブジェクトで差し替え表示し、効果の累積を防止
- * - キャンセル時は元の図形をそのまま復元します
- *
- * Overview:
- * Fit and center a shape to selected text or group content.
- * - Duplicate text and outline it for measurement; duplicate groups and measure their bounds
- * - Preview padding values for width and height in a dialog
- * - Width and height can be linked and edited together
- * - Rounded corners are previewed with a dedicated preview object to avoid effect accumulation
- * - Cancelling restores the original shape as-is
+ * - パディングの幅・高さは負の値を許容せず、0未満にはなりません
+ * - 角丸は有効/無効を切り替え可能で、OFF時は半径0として扱います
+ * - 通常の角丸では、半径は実効幅の1/2を上限として自動補正されます
+ * - 「ピル形状」ON時は最終高さの半分を角丸半径として使用し、幅のパディング値は半径×2に自動設定されます
+ * - ピル形状ON中は幅入力と半径入力を自動制御し、必要に応じてディム表示します
+ * - 角丸はプレビュー専用オブジェクトで差し替え表示し、効果の累積を防止します
+ * - 「ピル形状」ON時は確定時のみ Live Pathfinder Add を実行し、単体選択で結果を検証します
+ * - プレビュー更新はUI値の収集・派生値反映・描画の責務を整理しています
+ * - セッション中のダイアログ状態保持に対応
+ * - キャンセル時はプレビューを破棄し、元の図形をそのまま復元します
  *
  * 作成日: 2026-03-25
- * 更新日: 2026-03-25
- * Created: 2026-03-25
- * Updated: 2026-03-25 (Keep the original shape and generate preview from a cleared preview base shape)
+ * 更新日: 2026-03-27
  */
 
 (function () {
-
     // =========================================
     // バージョンとローカライズ / Version and Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.0";
+    var SCRIPT_VERSION = "v1.3";
+
+    var __FS2C_SESSION_KEY = "__FitShapeToContentSession__";
+
+    if (!$.global[__FS2C_SESSION_KEY]) {
+        $.global[__FS2C_SESSION_KEY] = {
+            addW: "20",
+            addH: "20",
+            radius: "0",
+            radiusEnabled: true,
+            link: true,
+            pill: false
+        };
+    }
+
+    function getSessionState() {
+        return $.global[__FS2C_SESSION_KEY];
+    }
+
+    function saveSessionState(state) {
+        $.global[__FS2C_SESSION_KEY] = state;
+    }
+
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -61,13 +82,14 @@ FitShapeToContent.jsx
 
 
     var LABELS = {
-        dialogTitle: { ja: "コンテンツに合わせて図形を調整", en: "Fit Shape to Content" },
+        dialogTitle: { ja: "座布団メーカー", en: "Fit Shape to Content" },
         panelPadding: { ja: "パディング", en: "Padding" },
         panelCorner: { ja: "角丸", en: "Rounded Corners" },
         labelWidth: { ja: "幅:", en: "Width:" },
         labelHeight: { ja: "高さ:", en: "Height:" },
         labelRadius: { ja: "半径:", en: "Radius:" },
         labelLink: { ja: "連動", en: "Link" },
+        labelPill: { ja: "ピル形状", en: "Pill Shape" },
         btnCancel: { ja: "キャンセル", en: "Cancel" },
         btnOK: { ja: "OK", en: "OK" },
         alertNoDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
@@ -104,7 +126,7 @@ FitShapeToContent.jsx
     }
 
     /* ↑↓キーで数値を変更 / Change numeric value with arrow keys */
-    function changeValueByArrowKey(editText, onChanged) {
+    function changeValueByArrowKey(editText, onChanged, minValue) {
         editText.addEventListener("keydown", function (event) {
             var value = Number(editText.text);
             if (isNaN(value)) return;
@@ -150,6 +172,10 @@ FitShapeToContent.jsx
                 value = Math.round(value * 10) / 10;
             } else {
                 value = Math.round(value);
+            }
+
+            if (typeof minValue === "number" && value < minValue) {
+                value = minValue;
             }
 
             editText.text = value;
@@ -342,8 +368,10 @@ FitShapeToContent.jsx
     function showDialog(outWidth, outHeight, previewBaseShapeItem, contentCenterX, contentCenterY) {
         var rulerUnit = getUnitLabel(app.preferences.getIntegerPreference("rulerType"), "rulerType");
         var radiusUnit = "pt";
+        var sessionState = getSessionState();
 
         var currentPreviewItem = null;
+        var MIN_PREVIEW_SIZE = 0.1;
 
         function removePreviewItem() {
             if (currentPreviewItem) {
@@ -352,6 +380,11 @@ FitShapeToContent.jsx
                 } catch (e) { }
                 currentPreviewItem = null;
             }
+        }
+
+        function getMaxRadiusFromAddW(addW) {
+            var effectiveWidth = Math.max(MIN_PREVIEW_SIZE, outWidth + addW);
+            return effectiveWidth / 2;
         }
 
         function buildPreview(addW, addH, radius) {
@@ -365,8 +398,8 @@ FitShapeToContent.jsx
             previewBaseShapeItem.hidden = true;
             currentPreviewItem.hidden = false;
 
-            var newWidth = outWidth + addW;
-            var newHeight = outHeight + addH;
+            var newWidth = Math.max(MIN_PREVIEW_SIZE, outWidth + addW);
+            var newHeight = Math.max(MIN_PREVIEW_SIZE, outHeight + addH);
             currentPreviewItem.width = newWidth;
             currentPreviewItem.height = newHeight;
             currentPreviewItem.left = contentCenterX - (newWidth / 2);
@@ -382,9 +415,10 @@ FitShapeToContent.jsx
 
         var win = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
         win.orientation = "column";
-        win.alignChildren = ["left", "top"];
+        win.alignChildren = ["fill", "top"];
+        win.margins = [15, 20, 15, 15];
 
-        var labelWidth = 40;
+        var uiLabelWidth = 50;
 
         var panel = win.add("panel", undefined, L("panelPadding"));
         panel.orientation = "row";
@@ -398,17 +432,17 @@ FitShapeToContent.jsx
 
         var groupW = colLeft.add("group");
         var labelW = groupW.add("statictext", undefined, L("labelWidth"));
-        labelW.preferredSize = [labelWidth, -1];
+        labelW.preferredSize = [uiLabelWidth, -1];
         labelW.justify = "right";
-        var inputW = groupW.add("edittext", undefined, "20");
+        var inputW = groupW.add("edittext", undefined, sessionState.addW);
         inputW.characters = 5;
         groupW.add("statictext", undefined, rulerUnit);
 
         var groupH = colLeft.add("group");
         var labelH = groupH.add("statictext", undefined, L("labelHeight"));
-        labelH.preferredSize = [labelWidth, -1];
+        labelH.preferredSize = [uiLabelWidth, -1];
         labelH.justify = "right";
-        var inputH = groupH.add("edittext", undefined, "20");
+        var inputH = groupH.add("edittext", undefined, sessionState.addH);
         inputH.characters = 5;
         groupH.add("statictext", undefined, rulerUnit);
 
@@ -418,20 +452,63 @@ FitShapeToContent.jsx
         colRight.alignChildren = ["left", "center"];
 
         var linkCheck = colRight.add("checkbox", undefined, L("labelLink"));
-        linkCheck.value = true;
+        linkCheck.value = sessionState.link;
 
-        // 初期状態：連動ONなので高さをディム表示 / Initial state: height field disabled when linked
-        inputH.enabled = false;
-        inputH.text = inputW.text;
+        // 初期状態：連動ON時は高さをディム表示 / Initial state: height field disabled when linked
+        inputH.enabled = !linkCheck.value;
+        if (linkCheck.value) {
+            inputH.text = inputW.text;
+        }
 
-        // プレビュー更新関数 / Update preview
-        function updatePreview() {
+        // 現在のUI入力からプレビュー用の値を収集 / Collect preview values from current UI inputs
+        function collectPreviewValues() {
             var addW = parseNumberOrDefault(inputW.text, 0);
             var addH = parseNumberOrDefault(inputH.text, 0);
-            var radius = parseNumberOrDefault(inputR.text, 0);
-            if (radius < 0) radius = 0;
+            var radius = 0;
+            var previewHeight;
+            var newWidth;
 
-            buildPreview(addW, addH, radius);
+            if (!chkRadiusEnabled.value) {
+                radius = 0;
+            } else if (chkPill.value) {
+                previewHeight = Math.max(MIN_PREVIEW_SIZE, outHeight + addH);
+                radius = previewHeight / 2;
+                newWidth = Math.max(MIN_PREVIEW_SIZE, radius * 2);
+                addW = newWidth;
+            } else {
+                radius = parseNumberOrDefault(inputR.text, 0);
+                if (radius < 0) radius = 0;
+                var maxRadius = getMaxRadiusFromAddW(addW);
+                if (radius > maxRadius) radius = maxRadius;
+            }
+
+            return {
+                addW: addW,
+                addH: addH,
+                radius: radius,
+                radiusText: String(radius),
+                widthText: String(addW)
+            };
+        }
+
+        // 派生UI値を反映 / Reflect derived UI values
+        function reflectDerivedUI(values) {
+            if (!chkRadiusEnabled.value) {
+                inputR.text = "0";
+                return;
+            }
+
+            inputR.text = values.radiusText;
+
+            if (chkPill.value) {
+                inputW.text = values.widthText;
+            }
+        }
+
+        // プレビュー更新関数（描画のみ担当） / Update preview (drawing only)
+        function updatePreview() {
+            var values = collectPreviewValues();
+            buildPreview(values.addW, values.addH, values.radius);
         }
 
         // 連動チェック変更時 / When link checkbox changes
@@ -439,10 +516,11 @@ FitShapeToContent.jsx
             if (linkCheck.value) {
                 inputH.text = inputW.text;
                 inputH.enabled = false;
-                updatePreview();
             } else {
                 inputH.enabled = true;
             }
+            reflectDerivedUI(collectPreviewValues());
+            updatePreview();
         };
 
         // 連動同期＋プレビュー更新 / Sync linked values and update preview
@@ -450,44 +528,101 @@ FitShapeToContent.jsx
             if (linkCheck.value) {
                 inputH.text = inputW.text;
             }
+            reflectDerivedUI(collectPreviewValues());
             updatePreview();
         }
         function syncAndPreviewH() {
             if (linkCheck.value) {
                 inputW.text = inputH.text;
             }
+            reflectDerivedUI(collectPreviewValues());
             updatePreview();
         }
 
-        // 角丸同期＋プレビュー更新 / Sync corner radius and update preview
+        // 角丸入力変更時のプレビュー更新 / Update preview when the corner radius input changes
         function syncAndPreviewR() {
+            reflectDerivedUI(collectPreviewValues());
             updatePreview();
         }
 
         // 入力値変更時にプレビューを更新（連動対応） / Update preview while editing inputs
-        inputW.onChanging = syncAndPreviewW;
-        inputH.onChanging = syncAndPreviewH;
+        inputW.onChanging = function () {
+            var widthValue = parseFloat(inputW.text);
+            if (!isNaN(widthValue) && widthValue < 0) {
+                inputW.text = "0";
+            }
+            syncAndPreviewW();
+        };
+        inputH.onChanging = function () {
+            var heightValue = parseFloat(inputH.text);
+            if (!isNaN(heightValue) && heightValue < 0) {
+                inputH.text = "0";
+            }
+            syncAndPreviewH();
+        };
 
         // ↑↓キーでの値の増減 / Increment or decrement with arrow keys
-        changeValueByArrowKey(inputW, syncAndPreviewW);
-        changeValueByArrowKey(inputH, syncAndPreviewH);
+        changeValueByArrowKey(inputW, syncAndPreviewW, 0);
+        changeValueByArrowKey(inputH, syncAndPreviewH, 0);
 
-        // 角丸パネル / Rounded corner panel
+        // 角丸パネル（有効切り替え・半径・ピル形状） / Rounded corner panel (enable toggle, radius, and pill shape)
         var panelR = win.add("panel", undefined, L("panelCorner"));
         panelR.orientation = "row";
         panelR.alignChildren = ["left", "center"];
+        panelR.alignment = ["fill", "top"];
         panelR.margins = [15, 20, 15, 10];
 
-        var groupR = panelR.add("group");
+        var colR = panelR.add("group");
+        colR.orientation = "column";
+        colR.alignChildren = ["left", "top"];
+
+        var groupR = colR.add("group");
+        var chkRadiusEnabled = groupR.add("checkbox", undefined, "");
+        chkRadiusEnabled.value = (sessionState.radiusEnabled !== false);
         var labelR = groupR.add("statictext", undefined, L("labelRadius"));
-        labelR.preferredSize = [labelWidth, -1];
-        labelR.justify = "right";
-        var inputR = groupR.add("edittext", undefined, "0");
+        var inputR = groupR.add("edittext", undefined, sessionState.radius);
         inputR.characters = 5;
         groupR.add("statictext", undefined, radiusUnit);
 
-        inputR.onChanging = syncAndPreviewR;
-        changeValueByArrowKey(inputR, syncAndPreviewR);
+        var groupPill = colR.add("group");
+        groupPill.alignment = ["left", "top"];
+        var chkPill = groupPill.add("checkbox", undefined, L("labelPill"));
+        chkPill.value = !!sessionState.pill;
+        chkPill.onClick = function () {
+            inputW.enabled = !chkPill.value;
+            inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
+            reflectDerivedUI(collectPreviewValues());
+            updatePreview();
+        };
+
+        chkRadiusEnabled.onClick = function () {
+            if (!chkRadiusEnabled.value) {
+                inputR.text = "0";
+                chkPill.value = false;
+                chkPill.enabled = false;
+            } else {
+                chkPill.enabled = true;
+            }
+            inputW.enabled = !chkPill.value;
+            inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
+            reflectDerivedUI(collectPreviewValues());
+            updatePreview();
+        };
+
+        inputW.enabled = !chkPill.value;
+        chkPill.enabled = chkRadiusEnabled.value;
+        inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
+        reflectDerivedUI(collectPreviewValues());
+
+        inputR.onChanging = function () {
+            var radiusValue = parseFloat(inputR.text);
+            if (!isNaN(radiusValue) && radiusValue < 0) {
+                inputR.text = "0";
+            }
+            syncAndPreviewR();
+        };
+        changeValueByArrowKey(inputR, syncAndPreviewR, 0);
+
 
         var btnGroup = win.add("group");
         btnGroup.alignment = "center";
@@ -495,42 +630,101 @@ FitShapeToContent.jsx
         var btnOK = btnGroup.add("button", undefined, L("btnOK"), { name: "ok" });
 
         btnOK.onClick = function () {
-            var addW = validateNumericField(inputW, true, "dialogTitle", "alertInvalidNumber");
+            var addW = validateNumericField(inputW, false, "dialogTitle", "alertInvalidNumber");
             if (addW === null) return;
 
             var addH;
             if (linkCheck.value) {
                 addH = addW;
             } else {
-                addH = validateNumericField(inputH, true, "dialogTitle", "alertInvalidNumber");
+                addH = validateNumericField(inputH, false, "dialogTitle", "alertInvalidNumber");
                 if (addH === null) return;
             }
 
-            var radius = validateNumericField(inputR, false, "dialogTitle", "alertInvalidRadius");
-            if (radius === null) return;
+            var radius;
+            if (!chkRadiusEnabled.value) {
+                radius = 0;
+            } else if (chkPill.value) {
+                radius = Math.max(MIN_PREVIEW_SIZE, outHeight + addH) / 2;
+            } else {
+                radius = validateNumericField(inputR, false, "dialogTitle", "alertInvalidRadius");
+                if (radius === null) return;
+                var maxRadius = getMaxRadiusFromAddW(addW);
+                if (radius > maxRadius) {
+                    radius = maxRadius;
+                }
+            }
 
-            inputW.text = addW;
-            inputH.text = addH;
-            inputR.text = radius;
-            app.executeMenuCommand('edge');
+            if (chkRadiusEnabled.value && chkPill.value) {
+                addW = radius * 2;
+                inputW.text = String(addW);
+                inputH.text = String(addH);
+            } else {
+                inputW.text = String(addW);
+                inputH.text = String(addH);
+            }
+            inputR.text = String(radius);
+
+            saveSessionState({
+                addW: inputW.text,
+                addH: inputH.text,
+                radius: inputR.text,
+                radiusEnabled: chkRadiusEnabled.value,
+                link: linkCheck.value,
+                pill: chkPill.value
+            });
 
             win.close(1);
+        };
+
+        btnCancel.onClick = function () {
+            saveSessionState({
+                addW: inputW.text,
+                addH: inputH.text,
+                radius: inputR.text,
+                radiusEnabled: chkRadiusEnabled.value,
+                link: linkCheck.value,
+                pill: chkPill.value
+            });
+            win.close(0);
         };
 
         win.onShow = function () {
             inputW.active = true;
             inputW.selection = [0, inputW.text.length];
+            inputW.enabled = !chkPill.value;
+            chkPill.enabled = chkRadiusEnabled.value;
+            inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
+            reflectDerivedUI(collectPreviewValues());
         };
 
-        buildPreview(20, 20, 0);
+        updatePreview();
 
         // ダイアログ表示 / Show dialog
         if (win.show() === 1) {
             var addW = parseNumberOrDefault(inputW.text, 0);
             var addH = parseNumberOrDefault(inputH.text, 0);
-            var radius = parseNumberOrDefault(inputR.text, 0);
-            if (radius < 0) radius = 0;
-            return { addW: addW, addH: addH, radius: radius, previewItem: currentPreviewItem };
+            var radius;
+            if (!chkRadiusEnabled.value) {
+                radius = 0;
+            } else if (chkPill.value) {
+                radius = Math.max(MIN_PREVIEW_SIZE, outHeight + addH) / 2;
+                addW = radius * 2;
+            } else {
+                radius = parseNumberOrDefault(inputR.text, 0);
+                if (radius < 0) radius = 0;
+                var maxRadius = getMaxRadiusFromAddW(addW);
+                if (radius > maxRadius) radius = maxRadius;
+            }
+            return {
+                addW: addW,
+                addH: addH,
+                radius: radius,
+                radiusEnabled: chkRadiusEnabled.value,
+                pillRequested: chkPill.value,
+                shouldRunPathfinder: chkRadiusEnabled.value && chkPill.value,
+                previewItem: currentPreviewItem
+            };
         } else {
             removePreviewItem();
             return null;
@@ -547,143 +741,177 @@ FitShapeToContent.jsx
         var doc = app.activeDocument;
         var sel = doc.selection;
 
-        app.executeMenuCommand('edge');
-
-
-        // 選択オブジェクトが2つではない場合のエラー処理 / Error when selection count is not two
-        if (sel.length !== 2) {
-            alert(L("alertSelectTwo"), L("alertSelectError"));
-            return;
-        }
-
-        var contentItem = null;
-        var shapeItem = null;
-
-        // コンテンツ候補と図形候補を厳密に判別 / Strictly classify content and shape candidates
-        for (var i = 0; i < sel.length; i++) {
-            var item = sel[i];
-
-            if (isContentItem(item)) {
-                if (contentItem) {
-                    alert(L("alertOnlyOneContent"), L("alertSelectError"));
-                    return;
-                }
-                contentItem = item;
-                continue;
-            }
-
-            if (isShapeItem(item)) {
-                if (shapeItem) {
-                    alert(L("alertOnlyOneShape"), L("alertSelectError"));
-                    return;
-                }
-                shapeItem = item;
-                continue;
-            }
-
-            alert(L("alertUnsupportedSelection"), L("alertSelectError"));
-            return;
-        }
-
-        if (!contentItem || !shapeItem) {
-            alert(L("alertNeedContentAndShape"), L("alertSelectError"));
-            return;
-        }
-
-        if (isClippingGroupItem(contentItem)) {
-            alert(L("alertClippingGroupNotSupported"), L("alertSelectError"));
-            return;
-        }
-
-
-
-        // 1. コンテンツを複製して計測用オブジェクトを作成 / Duplicate content and create measurement item
-        var measureItem = null;
-        var dupText = null;
-        var boundsInfo = null;
-
         try {
-            if (contentItem.typename === "TextFrame") {
-                dupText = contentItem.duplicate();
-                measureItem = dupText.createOutline();
-                boundsInfo = getBoundsFromItem(measureItem);
-            } else {
-                measureItem = contentItem.duplicate();
-                boundsInfo = getBoundsFromItem(measureItem);
+            // 選択オブジェクトが2つではない場合のエラー処理 / Error when selection count is not two
+            if (sel.length !== 2) {
+                alert(L("alertSelectTwo"), L("alertSelectError"));
+                return;
             }
-        } finally {
-            if (measureItem) {
-                try {
-                    measureItem.remove();
-                } catch (e) { }
-            }
-            if (dupText) {
-                try {
-                    dupText.remove();
-                } catch (e) { }
-            }
-        }
 
-        if (!boundsInfo) {
-            shapeItem.hidden = false;
-            alert(L("alertMeasureFailed"), L("alertSelectError"));
-            return;
-        }
-        // 2. 幅と高さ、およびコンテンツの中心座標を計測 / Measure width, height, and content center
-        var outWidth = boundsInfo.width;
-        var outHeight = boundsInfo.height;
-        var contentCenterX = boundsInfo.centerX;
-        var contentCenterY = boundsInfo.centerY;
+            var contentItem = null;
+            var shapeItem = null;
 
-        // 4. 元図形は保持し、プレビュー専用のベース図形を1回だけ作成してアピアランスをクリア / Keep original shape untouched and prepare one cleared preview base shape
-        var previewBaseShapeItem = shapeItem.duplicate();
-        previewBaseShapeItem.hidden = false;
-        clearAppearanceByAction(previewBaseShapeItem);
-        previewBaseShapeItem.hidden = true;
+            // コンテンツ候補と図形候補を厳密に判別 / Strictly classify content and shape candidates
+            for (var i = 0; i < sel.length; i++) {
+                var item = sel[i];
 
-        // 4. 元の図形は保持し、ダイアログ中はプレビュー専用オブジェクトを使う / Keep original shape and use preview-only object in dialog
-        shapeItem.hidden = true;
-        app.redraw();
-
-        // 5. ダイアログ表示 / Show dialog
-        var result = showDialog(outWidth, outHeight, previewBaseShapeItem, contentCenterX, contentCenterY);
-
-        if (result) {
-            try {
-                if (previewBaseShapeItem && previewBaseShapeItem !== result.previewItem) {
-                    previewBaseShapeItem.remove();
+                if (isContentItem(item)) {
+                    if (contentItem) {
+                        alert(L("alertOnlyOneContent"), L("alertSelectError"));
+                        return;
+                    }
+                    contentItem = item;
+                    continue;
                 }
-            } catch (e) { }
-            // OKの場合、元の図形を削除してプレビュー専用オブジェクトを確定版として残す / On OK, remove original and keep preview object as final
-            try {
-                shapeItem.remove();
-            } catch (e) {
-                shapeItem.hidden = false;
+
+                if (isShapeItem(item)) {
+                    if (shapeItem) {
+                        alert(L("alertOnlyOneShape"), L("alertSelectError"));
+                        return;
+                    }
+                    shapeItem = item;
+                    continue;
+                }
+
+                alert(L("alertUnsupportedSelection"), L("alertSelectError"));
+                return;
             }
 
-            if (result.previewItem) {
-                result.previewItem.hidden = false;
+            if (!contentItem || !shapeItem) {
+                alert(L("alertNeedContentAndShape"), L("alertSelectError"));
+                return;
+            }
+
+            if (isClippingGroupItem(contentItem)) {
+                alert(L("alertClippingGroupNotSupported"), L("alertSelectError"));
+                return;
+            }
+
+            // 1. コンテンツを複製して計測用オブジェクトを作成 / Duplicate content and create measurement item
+            var measureItem = null;
+            var dupText = null;
+            var boundsInfo = null;
+
+            try {
+                if (contentItem.typename === "TextFrame") {
+                    dupText = contentItem.duplicate();
+                    measureItem = dupText.createOutline();
+                    boundsInfo = getBoundsFromItem(measureItem);
+                } else {
+                    measureItem = contentItem.duplicate();
+                    boundsInfo = getBoundsFromItem(measureItem);
+                }
+            } finally {
+                if (measureItem) {
+                    try {
+                        measureItem.remove();
+                    } catch (e) { }
+                }
+                if (dupText) {
+                    try {
+                        dupText.remove();
+                    } catch (e) { }
+                }
+            }
+
+            if (!boundsInfo) {
+                alert(L("alertMeasureFailed"), L("alertSelectError"));
+                return;
+            }
+            // 2. 幅と高さ、およびコンテンツの中心座標を計測 / Measure width, height, and content center
+            var outWidth = boundsInfo.width;
+            var outHeight = boundsInfo.height;
+            var contentCenterX = boundsInfo.centerX;
+            var contentCenterY = boundsInfo.centerY;
+
+            // 3. 元図形は保持し、プレビュー専用のベース図形を1回だけ作成してアピアランスをクリア / Keep original shape untouched and prepare one cleared preview base shape
+            var previewBaseShapeItem = shapeItem.duplicate();
+            previewBaseShapeItem.hidden = false;
+            clearAppearanceByAction(previewBaseShapeItem);
+            previewBaseShapeItem.hidden = true;
+
+            // 4. 元の図形は保持し、ダイアログ中はプレビュー専用オブジェクトを使う / Keep original shape and use preview-only object in dialog
+            shapeItem.hidden = true;
+            app.redraw();
+
+            // 5. ダイアログ表示 / Show dialog
+            var result = showDialog(outWidth, outHeight, previewBaseShapeItem, contentCenterX, contentCenterY);
+
+            if (result) {
                 try {
                     if (previewBaseShapeItem && previewBaseShapeItem !== result.previewItem) {
-                        previewBaseShapeItem.hidden = true;
+                        previewBaseShapeItem.remove();
+                        previewBaseShapeItem = null;
                     }
-                    doc.selection = null;
-                    contentItem.selected = true;
-                    result.previewItem.selected = true;
-                    app.executeMenuCommand('Horizontal Align Center');
-                } catch (e) { }
-            }
-
-            app.redraw();
-        } else {
-            try {
-                if (previewBaseShapeItem) {
-                    previewBaseShapeItem.remove();
+                } catch (e) {
+                    previewBaseShapeItem = null;
                 }
-            } catch (e) { }
-            // キャンセル時はプレビューを破棄し、元の図形をそのまま戻す / On cancel, discard preview and restore original shape
-            shapeItem.hidden = false;
-            app.redraw();
+                // OKの場合、元の図形を削除してプレビュー専用オブジェクトを確定版として残す / On OK, remove the original shape and keep the preview object as the final shape
+
+                if (result.previewItem) {
+                    var finalPreviewItem = result.previewItem;
+                    finalPreviewItem.hidden = false;
+
+                    var baseShapeRef = previewBaseShapeItem;
+                    if (baseShapeRef && baseShapeRef !== finalPreviewItem) {
+                        try {
+                            baseShapeRef.hidden = true;
+                        } catch (e) { }
+                    }
+
+                    if (result.shouldRunPathfinder) {
+                        doc.selection = null;
+                        try {
+                            finalPreviewItem.selected = true;
+                        } catch (e) {
+                            throw new Error('Preview item became invalid before Live Pathfinder Add.');
+                        }
+
+                        app.executeMenuCommand('Live Pathfinder Add');
+
+                        if (!doc.selection || doc.selection.length !== 1) {
+                            throw new Error('Live Pathfinder Add did not return exactly one selected item.');
+                        }
+
+                        finalPreviewItem = doc.selection[0];
+                        try {
+                            finalPreviewItem.hidden = false;
+                        } catch (e) {
+                            throw new Error('Live Pathfinder Add returned an invalid item.');
+                        }
+                    }
+
+                    // OKの場合、元の図形を削除してプレビュー専用オブジェクトを確定版として残す / On OK, remove the original shape and keep the preview object as the final shape
+                    try {
+                        shapeItem.remove();
+                    } catch (removeError) {
+                        shapeItem.hidden = false;
+                        throw removeError;
+                    }
+
+                    result.previewItem = finalPreviewItem;
+
+                    doc.selection = null;
+                    try {
+                        contentItem.selected = true;
+                    } catch (e) { }
+                    try {
+                        finalPreviewItem.selected = true;
+                    } catch (e) { }
+                }
+
+                app.redraw();
+            } else {
+                try {
+                    if (previewBaseShapeItem) {
+                        previewBaseShapeItem.remove();
+                    }
+                } catch (e) { }
+                // キャンセル時はプレビューを破棄し、元の図形をそのまま戻す / On cancel, discard preview and restore original shape
+                shapeItem.hidden = false;
+                app.redraw();
+            }
+        } finally {
         }
     }
 
