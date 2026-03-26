@@ -22,6 +22,9 @@ FitShapeToContent.jsx
  * - プレビュー更新はUI値の収集・派生値反映・描画の責務を整理しています
  * - セッション中のダイアログ状態保持に対応
  * - キャンセル時はプレビューを破棄し、元の図形をそのまま復元します
+ * 
+ * 紹介記事（note）
+ * https://note.com/dtp_tranist/n/n6e4a6a2b175f
  *
  * 作成日: 2026-03-25
  * 更新日: 2026-03-27
@@ -32,7 +35,7 @@ FitShapeToContent.jsx
     // バージョンとローカライズ / Version and Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.3";
+    var SCRIPT_VERSION = "v1.3.1";
 
     var __FS2C_SESSION_KEY = "__FitShapeToContentSession__";
 
@@ -577,9 +580,8 @@ FitShapeToContent.jsx
         colR.alignChildren = ["left", "top"];
 
         var groupR = colR.add("group");
-        var chkRadiusEnabled = groupR.add("checkbox", undefined, "");
+        var chkRadiusEnabled = groupR.add("checkbox", undefined, L("labelRadius"));
         chkRadiusEnabled.value = (sessionState.radiusEnabled !== false);
-        var labelR = groupR.add("statictext", undefined, L("labelRadius"));
         var inputR = groupR.add("edittext", undefined, sessionState.radius);
         inputR.characters = 5;
         groupR.add("statictext", undefined, radiusUnit);
@@ -589,6 +591,15 @@ FitShapeToContent.jsx
         var chkPill = groupPill.add("checkbox", undefined, L("labelPill"));
         chkPill.value = !!sessionState.pill;
         chkPill.onClick = function () {
+            if (chkPill.value) {
+                linkCheck.value = false;
+                inputH.enabled = true;
+            } else {
+                inputH.enabled = !linkCheck.value;
+                if (linkCheck.value) {
+                    inputH.text = inputW.text;
+                }
+            }
             inputW.enabled = !chkPill.value;
             inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
             reflectDerivedUI(collectPreviewValues());
@@ -600,6 +611,10 @@ FitShapeToContent.jsx
                 inputR.text = "0";
                 chkPill.value = false;
                 chkPill.enabled = false;
+                inputH.enabled = !linkCheck.value;
+                if (linkCheck.value) {
+                    inputH.text = inputW.text;
+                }
             } else {
                 chkPill.enabled = true;
             }
@@ -609,7 +624,11 @@ FitShapeToContent.jsx
             updatePreview();
         };
 
+        if (chkPill.value) {
+            linkCheck.value = false;
+        }
         inputW.enabled = !chkPill.value;
+        inputH.enabled = chkPill.value ? true : !linkCheck.value;
         chkPill.enabled = chkRadiusEnabled.value;
         inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
         reflectDerivedUI(collectPreviewValues());
@@ -692,7 +711,11 @@ FitShapeToContent.jsx
         win.onShow = function () {
             inputW.active = true;
             inputW.selection = [0, inputW.text.length];
+            if (chkPill.value) {
+                linkCheck.value = false;
+            }
             inputW.enabled = !chkPill.value;
+            inputH.enabled = chkPill.value ? true : !linkCheck.value;
             chkPill.enabled = chkRadiusEnabled.value;
             inputR.enabled = chkRadiusEnabled.value && !chkPill.value;
             reflectDerivedUI(collectPreviewValues());

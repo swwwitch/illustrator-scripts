@@ -28,7 +28,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 // バージョン / Version
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.5";
 
 // -----------------------------------------------------------------------------
 // Dialog state persistence (engine-global)
