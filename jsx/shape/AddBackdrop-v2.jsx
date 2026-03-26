@@ -1,30 +1,90 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-// バージョン / Version
-var SCRIPT_VERSION = "v1.3";
+#targetengine "MyScriptEngine"
 
 /*
 【概要 / Overview】
-選択したテキスト（またはオブジェクト）の背面に、見た目寸法に基づく「図形」を自動生成して背面配置します。正円／スーパー楕円／長方形に対応し、マージン、角丸、ピル形状、正方形オプションなどを指定できます。OK 時にはプレビューで生成した図形を確定します。
+更新日 / Updated: 20260326
+選択したテキスト（またはオブジェクト）の背面に、見た目寸法に基づく「図形」を自動生成して背面配置します。正円／スーパー楕円／長方形に対応し、マージン、角丸、ピル形状、正方形オプションなどを指定できます。プレビューはUndoベースで管理され、OK時には1ステップで確定されます。
 
 - 対象 / Target: pointText / areaText。非テキスト選択時は選択範囲を対象
 - 形状 / Shape: 正円 / スーパー楕円（n=2.5） / 長方形
   - キー操作: E=正円, S=スーパー楕円, R=長方形
 - マージン / Margin: 上下・左右（連動可）。デフォルトは短辺の 1/4
   - 長方形選択時のみ有効
-  - 「正方形」ON: マージンを無視し、正円と同等ロジックのサイズで正方形を作成（スケール有効）
-- 角丸 / Round: 半径入力で角丸長方形。デフォルトは短辺の 1/5
+  - 「正方形」ON: マージンを無視し、正円ロジックのサイズで正方形を作成（スケール有効）
+- 角丸 / Round: ライブ効果（Adobe Round Corners）で適用
 - ピル形状 / Pill: 高さの半分を半径とするライブ角丸でカプセル形状を作成（長方形時）
 - 位置 / Position: 対象の直下（背面）へ配置。X/Y オフセット対応
 - スケール / Scale: ％指定（通常の長方形時は 100% 固定）。正方形ON時や円系では有効。＋「1文字」モード
 - 種別 / Kind: 塗り / 線（線幅指定）
-- カラー / Color: ブラック / ホワイト / CMYK / テキストカラー参照
+- カラー / Color: ブラック / ホワイト / CMYK / テキストカラー参照（CMYKは0–100にクランプ）
 - 不透明度 / Opacity: ［適用］チェック＋％
 - グループ / Group: 「テキストとグループ化」／「中マド処理（Exclude）」対応
-- プレビュー / Preview: 入力変更・矢印キー（↑↓ / Shift=±10 / Option=±0.1）で即時更新
-- ローカライズ / Localization: すべてのラベルは日英対応。ダイアログタイトルに SCRIPT_VERSION を併記
+- プレビュー / Preview: Undoベースで安全に更新（Cancelで完全復元）
+- 安全性 / Safety: remove / selection / rollback などの失敗はログ出力（$.writeln）
+- ローカライズ / Localization: UI・メッセージを日英対応（LABELS管理）
 */
+
+// バージョン / Version
+var SCRIPT_VERSION = "v1.5";
+
+// -----------------------------------------------------------------------------
+// Dialog state persistence (engine-global)
+// - With #targetengine, $.global persists while Illustrator is running.
+// - We store the last UI values here so they restore on next run.
+// -----------------------------------------------------------------------------
+var __GLOBAL = $.global;
+if (!__GLOBAL.__AddBackdrop_State) {
+    __GLOBAL.__AddBackdrop_State = {
+        _hasSaved: false,
+
+        // Shape
+        shape: 'circle', // 'circle' | 'super' | 'rect'
+
+        // Scale
+        scale: '90',
+        oneChar: false,
+
+        // Margin
+        marginV: '0',
+        marginH: '0',
+        marginLink: true,
+        marginSquare: false,
+        _userSetMargin: false,
+
+        // Round / Pill
+        roundEnable: false,
+        roundValue: '2',
+        pill: false,
+        _userSetRound: false,
+
+        // Group
+        groupWithText: true,
+        exclude: false,
+
+        // Axis
+        offsetX: '0',
+        offsetY: '0',
+
+        // Kind
+        kind: 'fill', // 'fill' | 'stroke'
+        strokeWidth: '1',
+
+        // Color
+        colorMode: 'black', // 'text' | 'black' | 'white' | 'cmyk'
+        cmykC: '0',
+        cmykM: '0',
+        cmykY: '0',
+        cmykK: '0',
+
+        // Opacity
+        opacityApply: false,
+        opacity: '60'
+    };
+}
+var __STATE = __GLOBAL.__AddBackdrop_State;
 
 // --- UI Labels (JP/EN) ---
 function getCurrentLang() {
@@ -44,129 +104,185 @@ var __BTN_LABELS = {
 
 // ラベル定義 / Labels
 var LABELS = {
-    dialogTitle: {
-        ja: "テキストの背面に図形を作成",
-        en: "Create Shape Behind Text"
+    ui: {
+        dialogTitle: {
+            ja: "テキストの背面に図形を作成",
+            en: "Create Shape Behind Text"
+        },
+        optionsPanel: {
+            ja: "形状",
+            en: "Shape"
+        },
+        marginTitle: {
+            ja: "マージン",
+            en: "Margin"
+        },
+        axisPanel: {
+            ja: "座標",
+            en: "Axis"
+        },
+        scalePanel: {
+            ja: "スケール",
+            en: "Scale"
+        },
+        magnification: {
+            ja: "倍率",
+            en: "Scale"
+        },
+        groupPanel: {
+            ja: "グループ",
+            en: "Group"
+        },
+        kindPanel: {
+            ja: "種別",
+            en: "Kind"
+        },
+        colorPanel: {
+            ja: "カラー",
+            en: "Color"
+        },
+        opacityPanel: {
+            ja: "不透明度",
+            en: "Opacity"
+        },
+        roundTitle: {
+            ja: "角丸",
+            en: "Round"
+        }
     },
-    // --- New Option Panel Labels ---
-    optionsPanel: {
-        ja: "形状",
-        en: "Shape"
+    option: {
+        perfectCircle: {
+            ja: "正円",
+            en: "Circle"
+        },
+        superEllipse: {
+            ja: "スーパー楕円",
+            en: "Superellipse"
+        },
+        rectangle: {
+            ja: "長方形",
+            en: "Rectangle"
+        },
+        marginV: {
+            ja: "上下",
+            en: "V"
+        },
+        marginH: {
+            ja: "左右",
+            en: "H"
+        },
+        link: {
+            ja: "連動",
+            en: "Link"
+        },
+        pillShape: {
+            ja: "ピル形状",
+            en: "Pill shape"
+        },
+        groupWithText: {
+            ja: "テキストとグループ化",
+            en: "Group with Text"
+        },
+        exclude: {
+            ja: "中マド処理",
+            en: "Exclude"
+        },
+        fill: {
+            ja: "塗り",
+            en: "Fill"
+        },
+        stroke: {
+            ja: "線",
+            en: "Stroke"
+        },
+        strokeWidth: {
+            ja: "線幅",
+            en: "Stroke Width"
+        },
+        textColorRef: {
+            ja: "テキストカラー",
+            en: "Use Text Color"
+        },
+        black: {
+            ja: "ブラック",
+            en: "Black"
+        },
+        white: {
+            ja: "ホワイト",
+            en: "White"
+        },
+        cmyk: {
+            ja: "CMYK",
+            en: "CMYK"
+        },
+        oneChar: {
+            ja: "1文字",
+            en: "Single Character"
+        },
+        square: {
+            ja: "正方形",
+            en: "Square"
+        }
     },
-    perfectCircle: {
-        ja: "正円",
-        en: "Circle"
-    },
-    superEllipse: {
-        ja: "スーパー楕円",
-        en: "Superellipse"
-    },
-    rectangle: {
-        ja: "長方形",
-        en: "Rectangle"
-    },
-    marginTitle: {
-        ja: "マージン",
-        en: "Margin"
-    },
-    marginV: {
-        ja: "上下",
-        en: "V"
-    },
-    marginH: {
-        ja: "左右",
-        en: "H"
-    },
-    link: {
-        ja: "連動",
-        en: "Link"
-    },
-    // --- 角丸・ピル形状
-    roundTitle: {
-        ja: "角丸",
-        en: "Round"
-    },
-    pillShape: {
-        ja: "ピル形状",
-        en: "Pill shape"
-    },
-    // ---
-    axisPanel: {
-        ja: "座標",
-        en: "Axis"
-    },
-    scalePanel: {
-        ja: "スケール",
-        en: "Scale"
-    },
-    magnification: {
-        ja: "倍率",
-        en: "Scale"
-    },
-    groupPanel: {
-        ja: "グループ",
-        en: "Group"
-    },
-    groupWithText: {
-        ja: "テキストとグループ化",
-        en: "Group with Text"
-    },
-    exclude: {
-        ja: "中マド処理",
-        en: "Exclude"
-    },
-    kindPanel: {
-        ja: "種別",
-        en: "Kind"
-    },
-    fill: {
-        ja: "塗り",
-        en: "Fill"
-    },
-    stroke: {
-        ja: "線",
-        en: "Stroke"
-    },
-    strokeWidth: {
-        ja: "線幅",
-        en: "Stroke Width"
-    },
-    colorPanel: {
-        ja: "カラー",
-        en: "Color"
-    },
-    opacityPanel: {
-        ja: "不透明度",
-        en: "Opacity"
-    },
-    textColorRef: {
-        ja: "テキストカラー",
-        en: "Use Text Color"
-    },
-    black: {
-        ja: "ブラック",
-        en: "Black"
-    },
-    white: {
-        ja: "ホワイト",
-        en: "White"
-    },
-    cmyk: {
-        ja: "CMYK",
-        en: "CMYK"
-    },
-    oneChar: {
-        ja: "1文字",
-        en: "Single Character"
+    message: {
+        noDocument: {
+            ja: "ドキュメントが開かれていません。",
+            en: "No document is open."
+        },
+        noSelection: {
+            ja: "オブジェクトを選択してください。",
+            en: "Please select an object."
+        },
+        genericError: {
+            ja: "エラーが発生しました",
+            en: "An error occurred"
+        },
+        previewError: {
+            ja: "プレビュー中にエラーが発生しました",
+            en: "Preview error occurred"
+        },
+        targetResolveError: {
+            ja: "対象オブジェクトが取得できません",
+            en: "Could not resolve target object"
+        },
+        groupFailed: {
+            ja: "グループ化に失敗しました",
+            en: "Failed to group objects"
+        },
+        excludeFailed: {
+            ja: "中マド処理（Exclude）の適用に失敗しました",
+            en: "Failed to apply Pathfinder Exclude"
+        }
     }
 };
 
 function L(key) {
     try {
-        var t = LABELS[key];
+        var parts = key.split('.');
+        var t = LABELS;
+        for (var i = 0; i < parts.length; i++) {
+            t = t[parts[i]];
+            if (!t) return key;
+        }
         return (t && (t[__lang] || t.ja || t.en)) || key;
     } catch (e) {
         return key;
+    }
+}
+
+function safeRemove(item, label) {
+    try {
+        if (item && item.remove) item.remove();
+    } catch (e) {
+        try { $.writeln('[AddBackdrop] remove failed' + (label ? ' (' + label + ')' : '') + ': ' + e); } catch (_) { }
+    }
+}
+
+function clearSelection() {
+    try {
+        app.selection = null;
+    } catch (e) {
+        try { $.writeln('[AddBackdrop] clearSelection failed: ' + e); } catch (_) { }
     }
 }
 
@@ -345,11 +461,9 @@ function changeValueByArrowKey(editText, onUpdate) {
                 delta = 10;
                 if (key === 'Up') {
                     value = Math.ceil((value + 1) / delta) * delta;
-
                 } else {
                     value = Math.floor((value - 1) / delta) * delta;
                 }
-
             } else if (keyboard.altKey) {
                 // Option: 0.1刻み
                 delta = 0.1;
@@ -366,6 +480,22 @@ function changeValueByArrowKey(editText, onUpdate) {
             } else {
                 value = Math.round(value);
             }
+
+            // 最小値クランプ（必要なフィールドのみ）
+            // 例: strokeWInput.__minValue = 0;
+            try {
+                if (editText && editText.__minValue !== undefined && editText.__minValue !== null) {
+                    var minV = Number(editText.__minValue);
+                    if (!isNaN(minV) && value < minV) value = minV;
+                }
+            } catch (_) { }
+            // 最大値クランプ（必要なフィールドのみ）
+            try {
+                if (editText && editText.__maxValue !== undefined && editText.__maxValue !== null) {
+                    var maxV = Number(editText.__maxValue);
+                    if (!isNaN(maxV) && value > maxV) value = maxV;
+                }
+            } catch (_) { }
 
             editText.text = value;
 
@@ -385,8 +515,16 @@ function changeValueByArrowKey(editText, onUpdate) {
 // 入力フィールドにプレビュー更新を一括でバインド / Bind preview updates to an input
 function bindPreview(editText, onUpdate) {
     if (!editText) return;
-    // 通常入力の変更でプレビュー
-    editText.onChanging = onUpdate;
+
+    // 既存の onChanging を尊重しつつ、プレビュー更新も追加
+    var _prevOnChanging = null;
+    try { _prevOnChanging = editText.onChanging; } catch (_) { _prevOnChanging = null; }
+
+    editText.onChanging = function () {
+        try { if (typeof _prevOnChanging === 'function') _prevOnChanging(); } catch (_) { }
+        try { if (typeof onUpdate === 'function') onUpdate(); } catch (_) { }
+    };
+
     // 矢印キー（↑↓ / Shift / Option）も同じ処理
     changeValueByArrowKey(editText, onUpdate);
 }
@@ -407,18 +545,73 @@ function addShapeKeyHandler(dialog, rbCircle, rbSuper, rbRect, onChange) {
             } else {
                 return;
             }
-            try { if (typeof onChange === 'function') onChange(); } catch (_) {}
-            try { if (event.preventDefault) event.preventDefault(); } catch (_) {}
+            try { if (typeof onChange === 'function') onChange(); } catch (_) { }
+            try { if (event.preventDefault) event.preventDefault(); } catch (_) { }
         } catch (_) { }
     });
+}
+
+/* =============================================================================
+ * PreviewManager (Undo-safe preview)
+ * - preview updates do NOT leave multiple undo steps
+ * - Cancel: rollback to original
+ * - OK: rollback then re-run once (single undo step)
+ * ========================================================================== */
+function PreviewManager() {
+    this.undoDepth = 0;
+
+    this.addStep = function (func) {
+        try {
+            func();
+            this.undoDepth++;
+            try { app.redraw(); } catch (_) { }
+        } catch (e) {
+            alert(L('message.previewError') + ": " + e);
+        }
+    };
+
+    this.rollback = function () {
+        try {
+            while (this.undoDepth > 0) {
+                try {
+                    app.undo();
+                } catch (eUndo) {
+                    try { $.writeln('[AddBackdrop] rollback undo failed: ' + eUndo); } catch (_) { }
+                    break;
+                }
+                this.undoDepth--;
+            }
+            try {
+                app.redraw();
+            } catch (eRedraw) {
+                try { $.writeln('[AddBackdrop] rollback redraw failed: ' + eRedraw); } catch (_) { }
+            }
+        } catch (eRollback) {
+            try { $.writeln('[AddBackdrop] rollback failed: ' + eRollback); } catch (_) { }
+        }
+    };
+
+    this.confirm = function (finalAction) {
+        if (typeof finalAction === 'function') {
+            this.rollback();
+            finalAction();
+            // finalAction is a single step; do not count it as preview
+            this.undoDepth = 0;
+        } else {
+            // adopt preview as-is (not used in this script)
+            this.undoDepth = 0;
+        }
+    };
 }
 
 /* =============================================================================
  * main entry
  * ========================================================================== */
 function main() {
+    // Preview/Undo manager
+    var previewMgr = new PreviewManager();
     // ダイアログ作成
-    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+    var dlg = new Window('dialog', L('ui.dialogTitle') + ' ' + SCRIPT_VERSION);
     setDialogOpacity(dlg, __DIALOG_OPACITY);
     shiftDialogPositionOnceOnShow(dlg, __DIALOG_OFFSET_X, __DIALOG_OFFSET_Y);
 
@@ -431,9 +624,9 @@ function main() {
     grpShapeTop.alignChildren = ['center', 'center'];
     grpShapeTop.alignment = 'center';
 
-    var rbPerfectCircle = grpShapeTop.add('radiobutton', undefined, L('perfectCircle'));
-    var rbSuperEllipse = grpShapeTop.add('radiobutton', undefined, L('superEllipse'));
-    var rbRectangle = grpShapeTop.add('radiobutton', undefined, L('rectangle'));
+    var rbPerfectCircle = grpShapeTop.add('radiobutton', undefined, L('option.perfectCircle'));
+    var rbSuperEllipse = grpShapeTop.add('radiobutton', undefined, L('option.superEllipse'));
+    var rbRectangle = grpShapeTop.add('radiobutton', undefined, L('option.rectangle'));
 
     rbPerfectCircle.value = true; // デフォルトは正円
 
@@ -480,14 +673,14 @@ function main() {
 
 
     // パネル：スケール（先頭へ移動）
-    var pnlScale = leftCol.add('panel', undefined, L('scalePanel'));
+    var pnlScale = leftCol.add('panel', undefined, L('ui.scalePanel'));
     pnlScale.orientation = 'column';
     pnlScale.alignChildren = ['fill', 'top'];
     pnlScale.margins = [15, 20, 15, 10];
 
     // 倍率（%表示）
     var grpScale = pnlScale.add('group');
-    grpScale.add('statictext', undefined, L('magnification'));
+    grpScale.add('statictext', undefined, L('ui.magnification'));
     var scaleInput = grpScale.add('edittext', undefined, '90');
     scaleInput.characters = 4;
     grpScale.add('statictext', undefined, '%');
@@ -496,7 +689,7 @@ function main() {
     var grpOneChar = pnlScale.add('group');
     grpOneChar.orientation = 'row';
     grpOneChar.alignChildren = ['left', 'center'];
-    var cbOneChar = grpOneChar.add('checkbox', undefined, L('oneChar'));
+    var cbOneChar = grpOneChar.add('checkbox', undefined, L('option.oneChar'));
     cbOneChar.value = false;
 
     // スケールパネルは「長方形」選択時は 100% 固定 + ディム表示（ただし正方形ON時は例外で有効）
@@ -510,7 +703,7 @@ function main() {
                 // 強制 100%
                 scaleInput.text = '100';
                 // ついでに 1文字は意味が薄いのでOFF（パネル全体がディムなので安全側）
-                try { cbOneChar.value = false; } catch (_) {}
+                try { cbOneChar.value = false; } catch (_) { }
 
                 pnlScale.enabled = false;
             } else {
@@ -521,7 +714,7 @@ function main() {
     syncScalePanelUI();
 
     // パネル：マージン（形状パネルの直下）
-    var marginPanel = leftCol.add('panel', undefined, L('marginTitle'));
+    var marginPanel = leftCol.add('panel', undefined, L('ui.marginTitle'));
     marginPanel.orientation = 'column';
     marginPanel.alignChildren = ['fill', 'top'];
     marginPanel.margins = [15, 20, 15, 10];
@@ -547,7 +740,7 @@ function main() {
     groupMV.spacing = 10;
     groupMV.margins = 0;
 
-    groupMV.add('statictext', undefined, L('marginV'));
+    groupMV.add('statictext', undefined, L('option.marginV'));
     var marginVInput = groupMV.add('edittext', undefined, '0');
     marginVInput.characters = 4;
     groupMV.add('statictext', undefined, __rulerLabel);
@@ -559,7 +752,7 @@ function main() {
     groupMH.spacing = 10;
     groupMH.margins = 0;
 
-    groupMH.add('statictext', undefined, L('marginH'));
+    groupMH.add('statictext', undefined, L('option.marginH'));
     var marginHInput = groupMH.add('edittext', undefined, '0');
     marginHInput.characters = 4;
     groupMH.add('statictext', undefined, __rulerLabel);
@@ -572,17 +765,19 @@ function main() {
     marginRightCol.margins = 0;
 
     // small spacer to align checkbox between two rows
-    try { marginRightCol.add('statictext', undefined, ''); } catch (_) {}
+    try { marginRightCol.add('statictext', undefined, ''); } catch (_) { }
 
-    var cbMarginLink = marginRightCol.add('checkbox', undefined, L('link'));
+    var cbMarginLink = marginRightCol.add('checkbox', undefined, L('option.link'));
     cbMarginLink.value = true; // デフォルトは連動
 
     // マージン：正方形
-    cbMarginSquare = marginPanel.add('checkbox', undefined, '正方形');
+    cbMarginSquare = marginPanel.add('checkbox', undefined, L('option.square'));
     cbMarginSquare.value = false; // デフォルトOFF
 
     cbMarginSquare.onClick = function () {
         // 正方形ON: マージン無視 + スケールを有効化しアクティブに
+        // 正方形ON → ピル形状OFF
+        try { if (cbMarginSquare.value && cbPill) { cbPill.value = false; syncRoundInputsUI(); } } catch (_) { }
         try { if (typeof syncScalePanelUI === 'function') syncScalePanelUI(); } catch (_) { }
         try { if (cbMarginSquare.value) { scaleInput.active = true; } } catch (_) { }
         if (typeof updatePreview === 'function') updatePreview();
@@ -598,7 +793,7 @@ function main() {
             } else {
                 marginHInput.enabled = true;
             }
-        } catch (_) {}
+        } catch (_) { }
     }
     syncMarginUI();
 
@@ -610,7 +805,7 @@ function main() {
 
     // 入力変更で常に同期 + プレビュー
     marginVInput.onChanging = function () {
-        try { syncMarginUI(); } catch (_) {}
+        try { syncMarginUI(); } catch (_) { }
         if (typeof updatePreview === 'function') updatePreview();
     };
     marginHInput.onChanging = function () {
@@ -619,28 +814,22 @@ function main() {
 
     // 矢印キー増減（↑↓ / Shift / Option）
     changeValueByArrowKey(marginVInput, function () {
-        try { syncMarginUI(); } catch (_) {}
+        try { syncMarginUI(); } catch (_) { }
         if (typeof updatePreview === 'function') updatePreview();
     });
     changeValueByArrowKey(marginHInput, function () {
         if (typeof updatePreview === 'function') updatePreview();
     });
 
-// マージンパネルは「長方形」選択時のみ有効（正円/スーパー楕円ではディム表示）
-function syncMarginPanelUI() {
-    try {
-        marginPanel.enabled = !!rbRectangle.value;
-    } catch (_) { }
-}
-syncMarginPanelUI();
+    // マージンパネルは「長方形」選択時のみ有効（正円/スーパー楕円ではディム表示）
+    function syncMarginPanelUI() {
+        try {
+            marginPanel.enabled = !!rbRectangle.value;
+        } catch (_) { }
+    }
+    syncMarginPanelUI();
 
     function getMarginValues() {
-        try {
-            if (cbMarginSquare && cbMarginSquare.value) {
-                return { mx: 0, my: 0 };
-            }
-        } catch (_) { }
-
         var mv = parseFloat(marginVInput && marginVInput.text);
         var mh = parseFloat(marginHInput && marginHInput.text);
         if (isNaN(mv)) mv = 0;
@@ -648,12 +837,12 @@ syncMarginPanelUI();
         // 連動時は左右=上下
         try {
             if (cbMarginLink && cbMarginLink.value) mh = mv;
-        } catch (_) {}
+        } catch (_) { }
         return { mx: mh, my: mv };
     }
 
     // パネル：角丸（形状パネルの直下）
-    var roundPanel = leftCol.add('panel', undefined, L('roundTitle'));
+    var roundPanel = leftCol.add('panel', undefined, L('ui.roundTitle'));
     roundPanel.orientation = 'column';
     roundPanel.alignChildren = ['left', 'top'];
     roundPanel.margins = [15, 20, 15, 10];
@@ -674,7 +863,7 @@ syncMarginPanelUI();
     var pillRow = roundPanel.add('group');
     pillRow.orientation = 'row';
     pillRow.alignChildren = ['left', 'center'];
-    var cbPill = pillRow.add('checkbox', undefined, L('pillShape'));
+    var cbPill = pillRow.add('checkbox', undefined, L('option.pillShape'));
     cbPill.value = false;
 
     // 角丸パネルは「長方形」選択時のみ有効（正円/スーパー楕円ではディム表示）
@@ -699,28 +888,28 @@ syncMarginPanelUI();
             if (roundOn) {
                 // OFF→ON で値を復元
                 if (!roundInput.enabled) {
-                    try { roundInput.text = String(__lastRoundValue || roundInput.text || '0'); } catch (_) {}
+                    try { roundInput.text = String(__lastRoundValue || roundInput.text || '0'); } catch (_) { }
                 }
                 roundInput.enabled = true;
             } else {
                 // ON→OFF で値を保存して無効化
-                try { __lastRoundValue = String(roundInput.text); } catch (_) {}
+                try { __lastRoundValue = String(roundInput.text); } catch (_) { }
                 roundInput.enabled = false;
             }
         } catch (_) { }
     }
 
     // 初期状態
-    try { syncRoundPanelUI(); } catch (_) {}
+    try { syncRoundPanelUI(); } catch (_) { }
 
     // イベント：角丸ON/OFF
     cbRoundEnable.onClick = function () {
-        try { syncRoundInputsUI(); } catch (_) {}
+        try { syncRoundInputsUI(); } catch (_) { }
         try {
             if (cbRoundEnable.value && !cbPill.value) {
                 roundInput.active = true;
             }
-        } catch (_) {}
+        } catch (_) { }
         if (typeof updatePreview === 'function') updatePreview();
     };
     cbRoundEnable.onChanging = cbRoundEnable.onClick;
@@ -728,27 +917,27 @@ syncMarginPanelUI();
     // イベント：ピル
     cbPill.onClick = function () {
         // pill ON のときは入力を無効化（半径は自動）
-        try { syncRoundInputsUI(); } catch (_) {}
+        try { syncRoundInputsUI(); } catch (_) { }
         if (typeof updatePreview === 'function') updatePreview();
     };
     cbPill.onChanging = cbPill.onClick;
 
     // 入力：矢印キー増減 + プレビュー
     changeValueByArrowKey(roundInput, function () {
-        try { __lastRoundValue = String(roundInput.text); } catch (_) {}
+        try { __lastRoundValue = String(roundInput.text); } catch (_) { }
         if (typeof updatePreview === 'function') updatePreview();
     });
 
 
     // パネル：グループ（スケールの直下）
-    var pnlGroup = leftCol.add('panel', undefined, L('groupPanel'));
+    var pnlGroup = leftCol.add('panel', undefined, L('ui.groupPanel'));
     pnlGroup.orientation = 'column';
     pnlGroup.alignChildren = ['fill', 'top'];
     pnlGroup.margins = [15, 20, 15, 10];
-    var cbGroup = pnlGroup.add('checkbox', undefined, L('groupWithText'));
+    var cbGroup = pnlGroup.add('checkbox', undefined, L('option.groupWithText'));
     cbGroup.value = true;
 
-    var cbExclude = pnlGroup.add('checkbox', undefined, L('exclude'));
+    var cbExclude = pnlGroup.add('checkbox', undefined, L('option.exclude'));
     cbExclude.value = false;
 
     // ロジック：中マド=ONなら自動でグループ化し、カラーを「テキストカラー」に強制
@@ -776,7 +965,7 @@ syncMarginPanelUI();
     cbGroup.onChanging = cbGroup.onClick;
 
     // パネル：座標調整（右カラムへ移動）
-    var pnlOffset = rightCol.add('panel', undefined, L('axisPanel') + '（' + __rulerLabel + '）');
+    var pnlOffset = rightCol.add('panel', undefined, L('ui.axisPanel') + '（' + __rulerLabel + '）');
     pnlOffset.orientation = 'column';
     pnlOffset.alignChildren = ['fill', 'top'];
     pnlOffset.margins = [15, 20, 15, 10];
@@ -794,25 +983,34 @@ syncMarginPanelUI();
     var offsetYInput = grpOffset.add('edittext', undefined, '0');
     offsetYInput.characters = 4;
 
-// パネル：種別（塗り / 線 / 線幅を1行に） — 右カラム最下部へ移動
-var pnlKind = rightCol.add('panel', undefined, L('kindPanel'));
-pnlKind.orientation = 'column';
-pnlKind.alignChildren = ['fill', 'top'];
-pnlKind.margins = [15, 20, 15, 10];
+    // パネル：種別（塗り / 線 / 線幅を1行に） — 右カラム最下部へ移動
+    var pnlKind = rightCol.add('panel', undefined, L('ui.kindPanel'));
+    pnlKind.orientation = 'column';
+    pnlKind.alignChildren = ['fill', 'top'];
+    pnlKind.margins = [15, 20, 15, 10];
 
-// 1行：塗り / 線 / 線幅
-var grpKind = pnlKind.add('group');
-grpKind.orientation = 'row';
-grpKind.alignChildren = ['left', 'center'];
-grpKind.spacing = 10;
+    // 1行：塗り / 線 / 線幅
+    var grpKind = pnlKind.add('group');
+    grpKind.orientation = 'row';
+    grpKind.alignChildren = ['left', 'center'];
+    grpKind.spacing = 10;
 
-var rbFill = grpKind.add('radiobutton', undefined, L('fill'));
-var rbStroke = grpKind.add('radiobutton', undefined, L('stroke'));
-rbFill.value = true; // デフォルトは塗り
+    var rbFill = grpKind.add('radiobutton', undefined, L('option.fill'));
+    var rbStroke = grpKind.add('radiobutton', undefined, L('option.stroke'));
+    rbFill.value = true; // デフォルトは塗り
 
-var strokeWInput = grpKind.add('edittext', undefined, '1');
-strokeWInput.characters = 4;
-grpKind.add('statictext', undefined, __strokeLabel);
+    var strokeWInput = grpKind.add('edittext', undefined, '1');
+    strokeWInput.characters = 4;
+    grpKind.add('statictext', undefined, __strokeLabel);
+
+    // 線幅は負の値を許容しない
+    // bindPreview() が onChanging をラップするので、ここではクランプだけ行う
+    strokeWInput.__minValue = 0;
+    strokeWInput.onChanging = function () {
+        var v = parseFloat(strokeWInput.text);
+        if (isNaN(v)) return;
+        if (v < 0) strokeWInput.text = '0';
+    };
 
     function syncKindUI() {
         var strokeOn = rbStroke.value;
@@ -838,13 +1036,13 @@ grpKind.add('statictext', undefined, __strokeLabel);
     rbStroke.onChanging = rbFill.onClick;
 
     // パネル：カラー（右カラム）
-    var pnlColor = rightCol.add('panel', undefined, L('colorPanel'));
+    var pnlColor = rightCol.add('panel', undefined, L('ui.colorPanel'));
     pnlColor.orientation = 'column';
     pnlColor.alignChildren = ['fill', 'top'];
     pnlColor.margins = [15, 20, 15, 10];
 
     // パネル：不透明度（右カラム）
-    var pnlOpacity = rightCol.add('panel', undefined, L('opacityPanel'));
+    var pnlOpacity = rightCol.add('panel', undefined, L('ui.opacityPanel'));
     pnlOpacity.orientation = 'column';
     pnlOpacity.alignChildren = ['fill', 'top'];
     pnlOpacity.margins = [15, 20, 15, 10];
@@ -864,11 +1062,11 @@ grpKind.add('statictext', undefined, __strokeLabel);
     grpMode.orientation = 'column';
     grpMode.alignChildren = ['left', 'top'];
 
-    var rbTextColor = grpMode.add('radiobutton', undefined, L('textColorRef'));
+    var rbTextColor = grpMode.add('radiobutton', undefined, L('option.textColorRef'));
 
-    var rbBlack = grpMode.add('radiobutton', undefined, L('black'));
-    var rbWhite = grpMode.add('radiobutton', undefined, L('white'));
-    var rbCMYK = grpMode.add('radiobutton', undefined, L('cmyk'));
+    var rbBlack = grpMode.add('radiobutton', undefined, L('option.black'));
+    var rbWhite = grpMode.add('radiobutton', undefined, L('option.white'));
+    var rbCMYK = grpMode.add('radiobutton', undefined, L('option.cmyk'));
 
     // デフォルトはブラック
     rbBlack.value = true;
@@ -897,6 +1095,24 @@ grpKind.add('statictext', undefined, __strokeLabel);
     var fillY = addCMYKColumn(grpCMYK, 'Y');
     var fillK = addCMYKColumn(grpCMYK, 'K');
 
+    // Clamp CMYK inputs to 0–100
+    function clampCMYKInput(et) {
+        if (!et) return;
+        et.__minValue = 0;
+        et.__maxValue = 100;
+        et.onChanging = function () {
+            var v = parseFloat(et.text);
+            if (isNaN(v)) return;
+            if (v < 0) et.text = '0';
+            else if (v > 100) et.text = '100';
+        };
+    }
+
+    clampCMYKInput(fillC);
+    clampCMYKInput(fillM);
+    clampCMYKInput(fillY);
+    clampCMYKInput(fillK);
+
     function syncColorUI() {
         var cmykOn = rbCMYK.value;
         // 個別フィールドの有効/無効
@@ -912,6 +1128,134 @@ grpKind.add('statictext', undefined, __strokeLabel);
     }
     syncColorUI();
 
+    // -------------------------------------------------------------------------
+    // Persist / restore UI state
+    // -------------------------------------------------------------------------
+    function saveUIStateFromControls() {
+        try {
+            __STATE.shape = (rbRectangle.value ? 'rect' : (rbSuperEllipse.value ? 'super' : 'circle'));
+        } catch (_) { }
+
+        // Scale
+        try { __STATE.scale = String(scaleInput.text); } catch (_) { }
+        try { __STATE.oneChar = !!cbOneChar.value; } catch (_) { }
+
+        // Margin
+        try { __STATE.marginV = String(marginVInput.text); } catch (_) { }
+        try { __STATE.marginH = String(marginHInput.text); } catch (_) { }
+        try { __STATE.marginLink = !!cbMarginLink.value; } catch (_) { }
+        try { __STATE.marginSquare = !!(cbMarginSquare && cbMarginSquare.value); } catch (_) { }
+
+        // Round / Pill
+        try { __STATE.roundEnable = !!cbRoundEnable.value; } catch (_) { }
+        try { __STATE.roundValue = String(roundInput.text); } catch (_) { }
+        try { __STATE.pill = !!cbPill.value; } catch (_) { }
+
+        // Group
+        try { __STATE.groupWithText = !!cbGroup.value; } catch (_) { }
+        try { __STATE.exclude = !!cbExclude.value; } catch (_) { }
+
+        // Axis
+        try { __STATE.offsetX = String(offsetXInput.text); } catch (_) { }
+        try { __STATE.offsetY = String(offsetYInput.text); } catch (_) { }
+
+        // Kind
+        try { __STATE.kind = (rbStroke.value ? 'stroke' : 'fill'); } catch (_) { }
+        try { __STATE.strokeWidth = String(strokeWInput.text); } catch (_) { }
+
+        // Color
+        try {
+            __STATE.colorMode = (rbTextColor.value ? 'text' : (rbWhite.value ? 'white' : (rbCMYK.value ? 'cmyk' : 'black')));
+        } catch (_) { }
+        try { __STATE.cmykC = String(fillC.text); } catch (_) { }
+        try { __STATE.cmykM = String(fillM.text); } catch (_) { }
+        try { __STATE.cmykY = String(fillY.text); } catch (_) { }
+        try { __STATE.cmykK = String(fillK.text); } catch (_) { }
+
+        // Opacity
+        try { __STATE.opacityApply = !!cbOpacityApply.value; } catch (_) { }
+        try { __STATE.opacity = String(opacityInput.text); } catch (_) { }
+
+        __STATE._hasSaved = true;
+    }
+
+    function restoreUIStateToControls() {
+        if (!__STATE || !__STATE._hasSaved) return;
+
+        // Shape
+        try {
+            rbPerfectCircle.value = (__STATE.shape === 'circle');
+            rbSuperEllipse.value = (__STATE.shape === 'super');
+            rbRectangle.value = (__STATE.shape === 'rect');
+        } catch (_) { }
+
+        // Scale
+        try { scaleInput.text = String(__STATE.scale); } catch (_) { }
+        try { cbOneChar.value = !!__STATE.oneChar; } catch (_) { }
+
+        // Margin
+        try { marginVInput.text = String(__STATE.marginV); } catch (_) { }
+        try { marginHInput.text = String(__STATE.marginH); } catch (_) { }
+        try { cbMarginLink.value = !!__STATE.marginLink; } catch (_) { }
+        try { if (cbMarginSquare) cbMarginSquare.value = !!__STATE.marginSquare; } catch (_) { }
+
+        // Round / Pill
+        try { cbRoundEnable.value = !!__STATE.roundEnable; } catch (_) { }
+        try { roundInput.text = String(__STATE.roundValue); } catch (_) { }
+        try { cbPill.value = !!__STATE.pill; } catch (_) { }
+
+        // Group
+        try { cbGroup.value = !!__STATE.groupWithText; } catch (_) { }
+        try { cbExclude.value = !!__STATE.exclude; } catch (_) { }
+
+        // Axis
+        try { offsetXInput.text = String(__STATE.offsetX); } catch (_) { }
+        try { offsetYInput.text = String(__STATE.offsetY); } catch (_) { }
+
+        // Kind
+        try {
+            rbFill.value = (__STATE.kind !== 'stroke');
+            rbStroke.value = (__STATE.kind === 'stroke');
+        } catch (_) { }
+        try { strokeWInput.text = String(__STATE.strokeWidth); } catch (_) { }
+
+        // Color
+        try {
+            rbTextColor.value = (__STATE.colorMode === 'text');
+            rbBlack.value = (__STATE.colorMode === 'black');
+            rbWhite.value = (__STATE.colorMode === 'white');
+            rbCMYK.value = (__STATE.colorMode === 'cmyk');
+        } catch (_) { }
+        try { fillC.text = String(__STATE.cmykC); } catch (_) { }
+        try { fillM.text = String(__STATE.cmykM); } catch (_) { }
+        try { fillY.text = String(__STATE.cmykY); } catch (_) { }
+        try { fillK.text = String(__STATE.cmykK); } catch (_) { }
+
+        // Opacity
+        try { cbOpacityApply.value = !!__STATE.opacityApply; } catch (_) { }
+        try { opacityInput.text = String(__STATE.opacity); } catch (_) { }
+        try { opacityInput.enabled = cbOpacityApply.value; } catch (_) { }
+
+        // Sync dependent UIs
+        try { syncColorUI(); } catch (_) { }
+        try { syncKindUI(); } catch (_) { }
+        try { syncMarginUI(); } catch (_) { }
+        try { syncRoundPanelUI(); } catch (_) { }
+        try { syncMarginPanelUI(); } catch (_) { }
+        try { syncScalePanelUI(); } catch (_) { }
+    }
+
+    // Restore UI values (if previously saved)
+    try { restoreUIStateToControls(); } catch (_) { }
+
+    // Mark whether user-set defaults should override auto-init
+    try {
+        // if we restored, treat as user-set for init suppression
+        if (__STATE && __STATE._hasSaved) {
+            __didInitMarginDefault = true;
+            __didInitRoundDefault = true;
+        }
+    } catch (_) { }
     // ラジオと入力のイベントでプレビュー更新
     var rbList = [rbTextColor, rbBlack, rbWhite, rbCMYK];
     for (var i = 0; i < rbList.length; i++) {
@@ -934,20 +1278,23 @@ grpKind.add('statictext', undefined, __strokeLabel);
     // 必要オブジェクト参照（プレビュー用に先に取得）
     var doc = app.activeDocument;
     if (!doc) {
-        alert("ドキュメントが開かれていません。\nNo document is open.");
+        alert(L('message.noDocument'));
         return;
     }
 
     // カラーのデフォルトは「ブラック」
+    // ※ただし、前回値をリストア済みの場合は上書きしない
     try {
-        rbBlack.value = true;
-        rbTextColor.value = rbWhite.value = rbCMYK.value = false;
-        if (typeof syncColorUI === 'function') syncColorUI();
+        if (!(__STATE && __STATE._hasSaved)) {
+            rbBlack.value = true;
+            rbTextColor.value = rbWhite.value = rbCMYK.value = false;
+            if (typeof syncColorUI === 'function') syncColorUI();
+        }
     } catch (_) { }
 
     var sel = app.selection;
     if (!sel || sel.length === 0) {
-        alert("オブジェクトを選択してください。\nPlease select an object.");
+        alert(L('message.noSelection'));
         return;
     }
 
@@ -981,7 +1328,7 @@ grpKind.add('statictext', undefined, __strokeLabel);
         }
 
         if (!targetItem) {
-            alert("対象オブジェクトが取得できません。\nCould not resolve target object.");
+            alert(L('message.targetResolveError'));
             return;
         }
     }
@@ -998,13 +1345,14 @@ grpKind.add('statictext', undefined, __strokeLabel);
         } catch (e) { }
     }
 
-    // プレビュー管理
+    // プレビュー管理（Undoで巻き戻す）
     var previewCircle = null;
 
     function removePreview() {
-        try {
-            if (previewCircle) previewCircle.remove();
-        } catch (e) { }
+        // 互換のため関数名は残すが、実体はUndo巻き戻し
+        try { previewMgr.rollback(); } catch (eRollbackRemovePreview) {
+            try { $.writeln('[AddBackdrop] rollback failed in removePreview: ' + eRollbackRemovePreview); } catch (_) { }
+        }
         previewCircle = null;
     }
 
@@ -1012,10 +1360,12 @@ grpKind.add('statictext', undefined, __strokeLabel);
     var __measured = null; // {left, top, right, bottom, w, h}
     function measureTextVisualBoundsOnce() {
         if (__measured) return __measured;
+        var dup = null;
+        var outlinedGroup = null;
         // 初回のみ、見た目寸法を取得（アウトライン→bounds→破棄）
         try {
-            var dup = textItem.duplicate();
-            var outlinedGroup = dup.createOutline();
+            dup = textItem.duplicate();
+            outlinedGroup = dup.createOutline();
             var ogb = outlinedGroup.geometricBounds; // [l, t, r, b]
             __measured = {
                 left: ogb[0],
@@ -1037,12 +1387,8 @@ grpKind.add('statictext', undefined, __strokeLabel);
                 h: gb0[1] - gb0[3]
             };
         } finally {
-            try {
-                outlinedGroup.remove();
-            } catch (e1) { }
-            try {
-                dup.remove();
-            } catch (e2) { }
+            safeRemove(outlinedGroup, 'outlinedGroup');
+            safeRemove(dup, 'dup');
         }
         return __measured;
     }
@@ -1060,9 +1406,13 @@ grpKind.add('statictext', undefined, __strokeLabel);
                 var gb = null;
                 try {
                     if (it.visibleBounds) gb = it.visibleBounds;
-                } catch (_) { }
+                } catch (eVisible) {
+                    try { $.writeln('[AddBackdrop] visibleBounds read failed: ' + eVisible); } catch (_) { }
+                }
                 if (!gb) {
-                    try { gb = it.geometricBounds; } catch (_) { }
+                    try { gb = it.geometricBounds; } catch (eGeom) {
+                        try { $.writeln('[AddBackdrop] geometricBounds read failed: ' + eGeom); } catch (_) { }
+                    }
                 }
 
                 if (!gb) continue;
@@ -1296,24 +1646,104 @@ grpKind.add('statictext', undefined, __strokeLabel);
         };
     }
 
+    function resolveBackdropColor() {
+        // テキストカラー参照
+        if (rbTextColor.value) {
+            var tcol = null;
+            try {
+                tcol = textItem.textRange.characterAttributes.fillColor;
+            } catch (e) { }
+            if (tcol) return tcol;
+        }
+
+        if (rbBlack.value || rbTextColor.value) {
+            var kcol = new GrayColor();
+            kcol.gray = 100;
+            return kcol;
+        }
+        if (rbWhite.value) {
+            var wcol = new GrayColor();
+            wcol.gray = 0;
+            return wcol;
+        }
+        if (rbCMYK.value) {
+            var c = Math.min(100, Math.max(0, parseInt(fillC.text, 10) || 0));
+            var m = Math.min(100, Math.max(0, parseInt(fillM.text, 10) || 0));
+            var y = Math.min(100, Math.max(0, parseInt(fillY.text, 10) || 0));
+            var k = Math.min(100, Math.max(0, parseInt(fillK.text, 10) || 0));
+            var cmyk = new CMYKColor();
+            cmyk.cyan = c;
+            cmyk.magenta = m;
+            cmyk.yellow = y;
+            cmyk.black = k;
+            return cmyk;
+        }
+
+        var fallback = new GrayColor();
+        fallback.gray = 100;
+        return fallback;
+    }
+
+    function applyStyleToItem(item) {
+        if (!item) return;
+        try {
+            var col = resolveBackdropColor();
+
+            if (rbFill.value) {
+                item.filled = true;
+                item.stroked = false;
+                item.fillColor = col;
+            } else {
+                item.filled = false;
+                item.stroked = true;
+                var sw = parseFloat(strokeWInput.text);
+                if (isNaN(sw) || sw < 0) sw = 1;
+                item.strokeWidth = sw;
+                item.strokeColor = col;
+            }
+        } catch (e) {
+            try {
+                var g2 = new GrayColor();
+                g2.gray = 20;
+                item.fillColor = g2;
+                item.filled = true;
+                item.stroked = false;
+            } catch (_) { }
+        }
+
+        try {
+            var opv = parseFloat(opacityInput.text);
+            if (isNaN(opv)) opv = 100;
+            opv = Math.max(0, Math.min(100, opv));
+            item.opacity = cbOpacityApply.value ? opv : 100;
+        } catch (_) { }
+    }
+
+    function reapplyStyleAfterConvertToShape(item) {
+        applyStyleToItem(item);
+    }
+
+    function reapplyStyleAfterPathfinder(item) {
+        applyStyleToItem(item);
+    }
+
     // Live Effect: Round Corners（ライブ効果で角丸を適用）
     function applyRoundCornersLive(item, r) {
         try {
             if (!item || !r || r <= 0) return;
             var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + r + ' "/></LiveEffect>';
             item.applyEffect(xml);
-        } catch (_) { }
+        } catch (e) {
+            try { $.writeln('[AddBackdrop] applyRoundCornersLive failed: ' + e); } catch (_) { }
+        }
     }
 
-    function updatePreview() {
-        removePreview();
+    function buildBackdropOnce() {
         var p = computeParams();
-        var circleLeft = p.cx - p.d / 2;
-        var circleTop = p.cy + p.d / 2;
+        var created = null;
 
-        // 形状作成：正円 / スーパー楕円 / 長方形
+        // --- shape creation ---
         if (rbRectangle.value) {
-            // 長方形：中心合わせ（cx,cy）
             var rectLeft = p.cx - p.rectW / 2;
             var rectTop = p.cy + p.rectH / 2;
 
@@ -1330,123 +1760,60 @@ grpKind.add('statictext', undefined, __strokeLabel);
             } catch (_) { }
 
             if (pillOn) {
-                // ピル形状：ライブ角丸（半径=高さ/2）。
-                // 横幅は「元のオブジェクト幅（baseW）に対して、左右の半円（直径=rectH）がかからない」最小値にする。
-                // pillW = max(現在の長方形幅 rectW, baseW*scale + rectH)
                 var pr = p.rectH / 2;
-                var minW = (Math.abs(p.baseW) * (p.scale || 1)) + p.rectH; // baseW + 2R
+                var minW = (Math.abs(p.baseW) * (p.scale || 1)) + p.rectH;
                 var pillW = Math.max(p.rectW, minW);
                 var pillLeft = p.cx - pillW / 2;
 
-                previewCircle = doc.pathItems.rectangle(rectTop, pillLeft, pillW, p.rectH);
-                applyRoundCornersLive(previewCircle, pr);
+                created = doc.pathItems.rectangle(rectTop, pillLeft, pillW, p.rectH);
+                applyRoundCornersLive(created, pr);
             } else if (roundOn && r > 0) {
-                // 角丸長方形：パス自体を角丸で作成
-                previewCircle = doc.pathItems.roundedRectangle(rectTop, rectLeft, p.rectW, p.rectH, r, r);
+                created = doc.pathItems.rectangle(rectTop, rectLeft, p.rectW, p.rectH);
+                applyRoundCornersLive(created, r);
             } else {
-                // 通常の長方形
-                previewCircle = doc.pathItems.rectangle(rectTop, rectLeft, p.rectW, p.rectH);
+                created = doc.pathItems.rectangle(rectTop, rectLeft, p.rectW, p.rectH);
             }
         } else {
-            // まずは通常の円（Ellipse）を作成し、その形状を必要に応じて変形する
-            previewCircle = doc.pathItems.ellipse(circleTop, circleLeft, p.d, p.d);
+            var circleLeft = p.cx - p.d / 2;
+            var circleTop = p.cy + p.d / 2;
+            created = doc.pathItems.ellipse(circleTop, circleLeft, p.d, p.d);
 
-            // 形状変更（スーパー楕円）
             if (rbSuperEllipse.value) {
-                var n = 2.5; // スーパー楕円の指数（固定。後でUI化）
-                morphPathToSuperellipse(previewCircle, p.cx, p.cy, p.d, p.d, n);
+                var n = 2.5;
+                morphPathToSuperellipse(created, p.cx, p.cy, p.d, p.d, n);
             }
         }
-        // 塗り色：カラーpanelに従う（ブラック／ホワイト／CMYK）
 
-        // スタイル適用：種別（塗り/線）とカラー設定
-        try {
-            // updatePreview() 内の applyColor(function(col){...}) を呼ぶ直前の分岐群
-            var applyColor = function (setter) {
-                // ★ 追加: テキストカラーを参照
-                if (rbTextColor.value) {
-                    var tcol = null;
-                    try {
-                        tcol = textItem.textRange.characterAttributes.fillColor;
-                    } catch (e) { }
-                    if (tcol) {
-                        setter(tcol);
-                        return;
-                    }
-                    // 取得できなかった場合はブラック等にフォールバック
-                }
-
-                // 既存分岐（ブラック/ホワイト/CMYK）
-                if (rbBlack.value || rbTextColor.value) {
-                    var kcol = new GrayColor();
-                    kcol.gray = 100;
-                    setter(kcol);
-                } else if (rbWhite.value) {
-                    var wcol = new GrayColor();
-                    wcol.gray = 0;
-                    setter(wcol);
-                } else if (rbCMYK.value) {
-                    var c = Math.min(100, Math.max(0, parseInt(fillC.text, 10) || 0));
-                    var m = Math.min(100, Math.max(0, parseInt(fillM.text, 10) || 0));
-                    var y = Math.min(100, Math.max(0, parseInt(fillY.text, 10) || 0));
-                    var k = Math.min(100, Math.max(0, parseInt(fillK.text, 10) || 0));
-                    var cmyk = new CMYKColor();
-                    cmyk.cyan = c;
-                    cmyk.magenta = m;
-                    cmyk.yellow = y;
-                    cmyk.black = k;
-                    setter(cmyk);
-                }
-            };
-
-            if (rbFill.value) {
-                previewCircle.filled = true;
-                previewCircle.stroked = false;
-                applyColor(function (col) {
-                    previewCircle.fillColor = col;
-                });
-            } else { // 線
-                previewCircle.filled = false;
-                previewCircle.stroked = true;
-                var sw = parseFloat(strokeWInput.text);
-                if (isNaN(sw) || sw < 0) sw = 1;
-                previewCircle.strokeWidth = sw;
-                applyColor(function (col) {
-                    previewCircle.strokeColor = col;
-                });
-            }
-        } catch (e) {
-            // フォールバック：塗り20%グレー、線OFF
-            try {
-                var g2 = new GrayColor();
-                g2.gray = 20;
-                previewCircle.fillColor = g2;
-                previewCircle.filled = true;
-                previewCircle.stroked = false;
-            } catch (_) { }
-        }
-
-        // 不透明度の適用（チェックONなら%値、OFFなら100%）
-        try {
-            var opv = parseFloat(opacityInput.text);
-            if (isNaN(opv)) opv = 100;
-            opv = Math.max(0, Math.min(100, opv));
-            previewCircle.opacity = cbOpacityApply.value ? opv : 100;
-        } catch (_) { }
-
-        // テキストまたは対象の直下（背面）へ
+        // --- stacking ---
         try {
             var base = isTextMode ? textItem : targetItem;
-            previewCircle.move(base, ElementPlacement.PLACEAFTER);
+            created.move(base, ElementPlacement.PLACEAFTER);
         } catch (e) {
             try {
-                previewCircle.zOrder(ZOrderMethod.SENDTOBACK);
-            } catch (_) { }
+                created.zOrder(ZOrderMethod.SENDTOBACK);
+            } catch (zerr) {
+                try { $.writeln('[AddBackdrop] zOrder fallback failed: ' + zerr); } catch (_) { }
+            }
         }
-        // 即時描画更新
-        try {
-            app.redraw();
-        } catch (_) { }
+
+        applyStyleToItem(created);
+        return created;
+    }
+
+    function updatePreview() {
+        // 1) rollback previous preview changes
+        try { previewMgr.rollback(); } catch (eRollbackUpdatePreview) {
+            try { $.writeln('[AddBackdrop] rollback failed in updatePreview: ' + eRollbackUpdatePreview); } catch (_) { }
+        }
+        previewCircle = null;
+
+        // 2) apply one preview step (counts as 1 undo step)
+        previewMgr.addStep(function () {
+            previewCircle = buildBackdropOnce();
+        });
+
+        // 3) Save UI state for next run (no document edits)
+        try { saveUIStateFromControls(); } catch (_) { }
     }
 
     // 入力変更でプレビュー更新（ユーティリティで一括）
@@ -1475,13 +1842,12 @@ grpKind.add('statictext', undefined, __strokeLabel);
 
     // 明示的にキャンセルを処理（プレビュー掃除→ダイアログを閉じる）
     cancelBtn.onClick = function () {
-        try {
-            removePreview();
-        } catch (_) { }
-
-        try {
-            dlg.close(0);
-        } catch (_) { }
+        // Cancel: rollback all preview edits
+        try { previewMgr.rollback(); } catch (eRollbackCancelBtn) {
+            try { $.writeln('[AddBackdrop] rollback failed in cancelBtn.onClick: ' + eRollbackCancelBtn); } catch (_) { }
+        }
+        try { saveUIStateFromControls(); } catch (_) { }
+        try { dlg.close(0); } catch (_) { }
     };
 
     // 初期プレビュー
@@ -1499,141 +1865,114 @@ grpKind.add('statictext', undefined, __strokeLabel);
         })(dlg.onShow);
     } catch (_) { }
 
-    // 最終確定時にスタイルを再適用するヘルパ
-    function applyStyleToItem(item) {
-        if (!item) return;
-        // 色適用ロジック（updatePreview 内の applyColor と同等）
-        function _applyColor(setter) {
-            // テキストカラー参照
-            if (rbTextColor.value) {
-                var tcol = null;
-                try {
-                    tcol = textItem.textRange.characterAttributes.fillColor;
-                } catch (e) { }
-                if (tcol) {
-                    setter(tcol);
-                    return;
-                }
-            }
-            if (rbBlack.value || rbTextColor.value) {
-                var kcol = new GrayColor();
-                kcol.gray = 100;
-                setter(kcol);
-            } else if (rbWhite.value) {
-                var wcol = new GrayColor();
-                wcol.gray = 0;
-                setter(wcol);
-            } else if (rbCMYK.value) {
-                var c = Math.min(100, Math.max(0, parseInt(fillC.text, 10) || 0));
-                var m = Math.min(100, Math.max(0, parseInt(fillM.text, 10) || 0));
-                var y = Math.min(100, Math.max(0, parseInt(fillY.text, 10) || 0));
-                var k = Math.min(100, Math.max(0, parseInt(fillK.text, 10) || 0));
-                var cmyk = new CMYKColor();
-                cmyk.cyan = c;
-                cmyk.magenta = m;
-                cmyk.yellow = y;
-                cmyk.black = k;
-                setter(cmyk);
-            }
-        }
-        if (rbFill.value) {
-            item.filled = true;
-            item.stroked = false;
-            _applyColor(function (col) {
-                item.fillColor = col;
-            });
-        } else {
-            item.filled = false;
-            item.stroked = true;
-            var sw = parseFloat(strokeWInput.text);
-            if (isNaN(sw) || sw < 0) sw = 1;
-            item.strokeWidth = sw;
-            _applyColor(function (col) {
-                item.strokeColor = col;
-            });
-        }
-        // 不透明度
-        try {
-            var opv = parseFloat(opacityInput.text);
-            if (isNaN(opv)) opv = 100;
-            opv = Math.max(0, Math.min(100, opv));
-            item.opacity = cbOpacityApply.value ? opv : 100;
-        } catch (_) { }
-    }
 
     if (dlg.show() !== 1) {
-        removePreview();
+        try { saveUIStateFromControls(); } catch (_) { }
+        // Cancel path: rollback preview
+        try { previewMgr.rollback(); } catch (eRollbackDialogCancel) {
+            try { $.writeln('[AddBackdrop] rollback failed in dialog cancel path: ' + eRollbackDialogCancel); } catch (_) { }
+        }
         return;
     }
 
-    // OK：プレビューを確定。必要ならグループ化＋中マド処理
-    var g = null;
-    if (cbGroup.value) {
-        try {
-            var baseItem = isTextMode ? textItem : targetItem;
-            var parent = baseItem.parent;
-            g = parent.groupItems.add();
-            // 先に空グループを対象の直後（同じスタック位置）に置く
+    // OK was pressed: persist final UI state
+    try { saveUIStateFromControls(); } catch (_) { }
+
+    // Confirm: rollback preview, then run final action ONCE (single undo step)
+    previewMgr.confirm(function () {
+        // 1) build final shape
+        var finalShape = buildBackdropOnce();
+        if (!finalShape) return;
+
+        // 2) group / exclude (same behavior as before)
+        var g = null;
+        if (cbGroup.value) {
             try {
-                g.move(baseItem, ElementPlacement.PLACEAFTER);
-            } catch (_) { }
-            // グループに追加（順序は一旦どちらでもOK）
-            previewCircle.move(g, ElementPlacement.PLACEATEND);
-            baseItem.move(g, ElementPlacement.PLACEATEND);
-            // 念のため、グループ内で円を最背面＝テキストの背面へ固定
-            try {
-                previewCircle.zOrder(ZOrderMethod.SENDTOBACK);
-            } catch (_) { }
-        } catch (e) {
-            alert("グループ化に失敗しました: " + e);
-        }
-    }
-    // グループ化しない場合は、念のため対象の直後（背面）へ再配置
-    if (!cbGroup.value) {
-        try {
-            var baseItem2 = isTextMode ? textItem : targetItem;
-            previewCircle.move(baseItem2, ElementPlacement.PLACEAFTER);
-        } catch (_) { }
-    }
-    // 正円のみライブシェイプに変換（Convert to Shape）し、外観を再適用
-    try {
-        if (previewCircle) {
-            // スーパー楕円は PathItem のため Convert to Shape は不要（実行すると崩れる可能性がある）
-            if (rbPerfectCircle.value) {
-                app.selection = null;
-                previewCircle.selected = true;
-                app.executeMenuCommand('Convert to Shape');
-                // 変換後のオブジェクト（選択状態の先頭）を取得
-                var converted = null;
-                try {
-                    converted = app.selection && app.selection.length ? app.selection[0] : null;
-                } catch (_) { }
-                if (!converted) converted = previewCircle; // フォールバック
-                // 外観を再適用（線が消える/初期化されるのを防ぐ）
-                applyStyleToItem(converted);
-                app.selection = null;
-            } else {
-                // スーパー楕円：外観はそのまま／念のため再適用
-                applyStyleToItem(previewCircle);
+                var baseItem = isTextMode ? textItem : targetItem;
+                var parent = baseItem.parent;
+                g = parent.groupItems.add();
+                try { g.move(baseItem, ElementPlacement.PLACEAFTER); } catch (eMoveGroup) {
+                    try { $.writeln('[AddBackdrop] group move failed: ' + eMoveGroup); } catch (_) { }
+                }
+                finalShape.move(g, ElementPlacement.PLACEATEND);
+                baseItem.move(g, ElementPlacement.PLACEATEND);
+                try { finalShape.zOrder(ZOrderMethod.SENDTOBACK); } catch (eGroupBack) {
+                    try { $.writeln('[AddBackdrop] grouped finalShape zOrder failed: ' + eGroupBack); } catch (_) { }
+                }
+            } catch (e) {
+                alert(L('message.groupFailed') + ": " + e);
             }
         }
-    } catch (e) {
-        // 失敗しても処理継続
-    }
-    // 中マド処理（Pathfinder Exclude）：グループが生成できている場合のみ適用
-    if (cbExclude.value && g) {
-        try {
-            app.selection = null;
-            g.selected = true;
-            app.executeMenuCommand('Live Pathfinder Exclude');
-        } catch (e) {
-            alert("中マド処理（Exclude）の適用に失敗しました: " + e);
-        } finally {
+        if (!cbGroup.value) {
             try {
-                app.selection = null;
-            } catch (_) { }
+                var baseItem2 = isTextMode ? textItem : targetItem;
+                finalShape.move(baseItem2, ElementPlacement.PLACEAFTER);
+            } catch (eUngroupedMove) {
+                try { $.writeln('[AddBackdrop] ungrouped finalShape move failed: ' + eUngroupedMove); } catch (_) { }
+            }
         }
-    }
+
+        // 3) Convert to Shape for perfect circle only, then re-apply appearance
+        try {
+            if (finalShape) {
+                if (rbPerfectCircle.value) {
+                    clearSelection();
+                    finalShape.selected = true;
+                    app.executeMenuCommand('Convert to Shape');
+                    var converted = null;
+                    try {
+                        converted = app.selection && app.selection.length ? app.selection[0] : null;
+                    } catch (eConvertedSelection) {
+                        try { $.writeln('[AddBackdrop] converted selection read failed: ' + eConvertedSelection); } catch (_) { }
+                    }
+                    if (!converted) converted = finalShape;
+                    reapplyStyleAfterConvertToShape(converted);
+                    clearSelection();
+                } else {
+
+                    // 長方形／角丸／ピル形状のとき Live Pathfinder Add を適用
+                    if (rbRectangle.value) {
+                        try {
+                            clearSelection();
+                            finalShape.selected = true;
+                            app.executeMenuCommand('Live Pathfinder Add');
+                            reapplyStyleAfterPathfinder(finalShape);
+                            clearSelection();
+                        } catch (ePathfinderAdd) {
+                            try { $.writeln('[AddBackdrop] Live Pathfinder Add failed: ' + ePathfinderAdd); } catch (_) { }
+                        }
+                    }
+                }
+            }
+        } catch (eFinalizeShape) {
+            try { $.writeln('[AddBackdrop] final shape finalize step failed: ' + eFinalizeShape); } catch (_) { }
+        }
+
+        // 4) Pathfinder Exclude
+        if (cbExclude.value && g) {
+            try {
+                clearSelection();
+                g.selected = true;
+                app.executeMenuCommand('Live Pathfinder Exclude');
+            } catch (e) {
+                alert(L('message.excludeFailed') + ": " + e);
+            } finally {
+                clearSelection();
+            }
+        }
+
+        // 5) Select result (group preferred)
+        try {
+            clearSelection();
+            if (g) {
+                g.selected = true;
+            } else if (finalShape) {
+                finalShape.selected = true;
+            }
+        } catch (eSelectResult) {
+            try { $.writeln('[AddBackdrop] result selection failed: ' + eSelectResult); } catch (_) { }
+        }
+    });
 
     return;
 }
@@ -1673,5 +2012,5 @@ function findTextInGroup(groupItem) {
 try {
     main();
 } catch (err) {
-    alert("エラーが発生しました: " + err);
+    alert(L('message.genericError') + ": " + err);
 }

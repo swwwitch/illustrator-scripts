@@ -6,29 +6,64 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 【概要 / Overview】
 更新日 / Updated: 20260326
-選択したテキスト（またはオブジェクト）の背面に、見た目寸法に基づく「図形」を自動生成して背面配置します。正円／スーパー楕円／長方形に対応し、マージン、角丸、ピル形状、正方形オプションなどを指定できます。プレビューはUndoベースで管理され、OK時には1ステップで確定されます。
+選択したテキスト（またはオブジェクト）の背面に、見た目寸法に基づく図形を生成・配置するスクリプト。既存の背面図形がある場合は検出して置き換えます。プレビューはUndoベースで安全に管理され、OK時に1ステップで確定されます。
 
-- 対象 / Target: pointText / areaText。非テキスト選択時は選択範囲を対象
-- 形状 / Shape: 正円 / スーパー楕円（n=2.5） / 長方形
+- 対象 / Target:
+  - テキスト（pointText / areaText）
+  - 非テキスト選択時は選択範囲全体を対象（複数選択対応）
+
+- 形状 / Shape:
+  - 正円 / スーパー楕円（n=2.5） / 長方形
   - キー操作: E=正円, S=スーパー楕円, R=長方形
-- マージン / Margin: 上下・左右（連動可）。デフォルトは短辺の 1/4
-  - 長方形選択時のみ有効
-  - 「正方形」ON: マージンを無視し、正円ロジックのサイズで正方形を作成（スケール有効）
-- 角丸 / Round: ライブ効果（Adobe Round Corners）で適用
-- ピル形状 / Pill: 高さの半分を半径とするライブ角丸でカプセル形状を作成（長方形時）
-- 位置 / Position: 対象の直下（背面）へ配置。X/Y オフセット対応
-- スケール / Scale: ％指定（通常の長方形時は 100% 固定）。正方形ON時や円系では有効。＋「1文字」モード
-- 種別 / Kind: 塗り / 線（線幅指定）
-- カラー / Color: ブラック / ホワイト / CMYK / テキストカラー参照（CMYKは0–100にクランプ）
-- 不透明度 / Opacity: ［適用］チェック＋％
-- グループ / Group: 「テキストとグループ化」／「中マド処理（Exclude）」対応
-- プレビュー / Preview: Undoベースで安全に更新（Cancelで完全復元）
-- 安全性 / Safety: remove / selection / rollback などの失敗はログ出力（$.writeln）
-- ローカライズ / Localization: UI・メッセージを日英対応（LABELS管理）
+
+- サイズ計算 / Sizing:
+  - テキストはアウトラインベースの見た目寸法で算出（初回のみキャッシュ）
+  - 非テキストは visibleBounds / geometricBounds を統合
+  - 「1文字」モードではフォントサイズ基準で円を生成
+
+- マージン / Margin:
+  - 上下・左右（連動可）
+  - デフォルトは短辺の 1/4
+  - 長方形時のみ有効
+  - 「正方形」ONで円ロジック基準の正方形を生成
+
+- 角丸 / Round:
+  - Live Effect（Adobe Round Corners）で非破壊適用
+  - ピル形状（高さの半分）対応
+
+- スケール / Scale:
+  - %指定（円系・正方形時に有効）
+  - 長方形は通常100%固定
+
+- 位置 / Position:
+  - 対象の直下に配置（背面）
+  - X/Yオフセット対応
+
+- スタイル / Style:
+  - 塗り / 線（線幅指定）
+  - カラー: ブラック / ホワイト / CMYK / テキストカラー参照
+  - 不透明度設定対応
+
+- グループ / Group:
+  - テキストとグループ化
+  - 中マド処理（Pathfinder Exclude）対応
+
+- プレビュー / Preview:
+  - Undoベースで完全ロールバック可能
+  - OK時は単一Undoステップで確定
+
+- 既存図形対応 / Replace:
+  - 既存の背面図形を検出し、非表示または削除して置き換え
+
+- 安全性 / Safety:
+  - remove / undo / selection などの失敗はログ出力（$.writeln）
+
+- ローカライズ / Localization:
+  - UI・メッセージを日英対応（LABELS管理）
 */
 
 // バージョン / Version
-var SCRIPT_VERSION = "v1.5";
+var SCRIPT_VERSION = "v1.6.0";
 
 // -----------------------------------------------------------------------------
 // Dialog state persistence (engine-global)
@@ -1247,15 +1282,6 @@ function main() {
 
     // Restore UI values (if previously saved)
     try { restoreUIStateToControls(); } catch (_) { }
-
-    // Mark whether user-set defaults should override auto-init
-    try {
-        // if we restored, treat as user-set for init suppression
-        if (__STATE && __STATE._hasSaved) {
-            __didInitMarginDefault = true;
-            __didInitRoundDefault = true;
-        }
-    } catch (_) { }
     // ラジオと入力のイベントでプレビュー更新
     var rbList = [rbTextColor, rbBlack, rbWhite, rbCMYK];
     for (var i = 0; i < rbList.length; i++) {
@@ -1305,6 +1331,123 @@ function main() {
     // テキストが無い場合：選択オブジェクト（複数なら矩形合成）を対象にする
     var targetItem = isTextMode ? textItem : null;
 
+    // --- 既存の背面図形を検出 / Detect existing backdrop in selection ---
+    var existingBackdrop = null;
+    var ungroupTarget = null; // グループ解除対象
+
+    function preparePreviewReplacementState() {
+        // プレビュー用：グループ解除と既存背面図形の非表示だけを行う（Undoで巻き戻し可能）
+        if (ungroupTarget) {
+            try {
+                for (var pui = ungroupTarget.pageItems.length - 1; pui >= 0; pui--) {
+                    var pChild = ungroupTarget.pageItems[pui];
+                    if (pChild === existingBackdrop) continue;
+                    pChild.move(ungroupTarget, ElementPlacement.PLACEBEFORE);
+                }
+                ungroupTarget.hidden = true;
+            } catch (ePrepareUngroup) {
+                try { $.writeln('[AddBackdrop] preparePreviewReplacementState ungroup failed: ' + ePrepareUngroup); } catch (_) { }
+            }
+        }
+
+        if (existingBackdrop) {
+            try {
+                existingBackdrop.hidden = true;
+            } catch (ePrepareBackdropHide) {
+                try { $.writeln('[AddBackdrop] preparePreviewReplacementState hide failed: ' + ePrepareBackdropHide); } catch (_) { }
+            }
+        }
+    }
+
+    function applyFinalReplacement() {
+        // 確定用：既存背面図形の削除と、必要ならグループ自体の解体・削除を行う
+        if (ungroupTarget) {
+            try {
+                for (var ui = ungroupTarget.pageItems.length - 1; ui >= 0; ui--) {
+                    var uChild = ungroupTarget.pageItems[ui];
+                    if (uChild === existingBackdrop) continue;
+                    uChild.move(ungroupTarget, ElementPlacement.PLACEBEFORE);
+                }
+            } catch (eFinalUngroup) {
+                try { $.writeln('[AddBackdrop] applyFinalReplacement ungroup failed: ' + eFinalUngroup); } catch (_) { }
+            }
+
+            safeRemove(existingBackdrop, 'existingBackdrop');
+            safeRemove(ungroupTarget, 'ungroupTarget');
+            existingBackdrop = null;
+            ungroupTarget = null;
+            return;
+        }
+
+        if (existingBackdrop) {
+            safeRemove(existingBackdrop, 'existingBackdrop');
+            existingBackdrop = null;
+        }
+    }
+
+    // パターン1: 単一グループ選択（テキスト＋図形/グループを内包）
+    if (sel.length === 1 && sel[0].typename === 'GroupItem' && isTextMode) {
+        var outerGrp = sel[0];
+        for (var gi = 0; gi < outerGrp.pageItems.length; gi++) {
+            var gItem = outerGrp.pageItems[gi];
+            if (gItem === textItem) continue;
+            if (gItem.typename === 'TextFrame') continue;
+            // テキスト以外のアイテム（PathItem / CompoundPathItem / GroupItem）= 既存背面図形
+            existingBackdrop = gItem;
+            break;
+        }
+        if (existingBackdrop) {
+            ungroupTarget = outerGrp;
+
+            // 形状タイプを検出してラジオボタンに反映
+            var detectedShape0 = detectShapeType(existingBackdrop);
+            rbPerfectCircle.value = (detectedShape0 === 'circle');
+            rbSuperEllipse.value = (detectedShape0 === 'super');
+            rbRectangle.value = (detectedShape0 === 'rect');
+
+            // 依存UIを同期
+            try { syncRoundPanelUI(); } catch (_) { }
+            try { syncMarginPanelUI(); } catch (_) { }
+            try { syncScalePanelUI(); } catch (_) { }
+        }
+    }
+
+    // パターン2: 複数選択（テキスト+図形、グループ+図形）
+    if (!existingBackdrop && sel.length >= 2) {
+        var _targets = [];
+        var _backdrops = [];
+        for (var si = 0; si < sel.length; si++) {
+            var siItem = sel[si];
+            if (siItem === textItem) continue;
+            if (siItem.typename === 'TextFrame' || siItem.typename === 'GroupItem') {
+                _targets.push(siItem);
+            } else if (siItem.typename === 'PathItem' || siItem.typename === 'CompoundPathItem') {
+                _backdrops.push(siItem);
+            }
+        }
+
+        // テキスト+図形、またはグループ+図形のパターン
+        if (_backdrops.length > 0 && (isTextMode || _targets.length > 0)) {
+            existingBackdrop = _backdrops[0];
+
+            // 非テキスト時：ターゲットをグループ等に設定
+            if (!isTextMode && _targets.length > 0) {
+                targetItem = _targets[0];
+            }
+
+            // 形状タイプを検出してラジオボタンに反映
+            var detectedShape = detectShapeType(existingBackdrop);
+            rbPerfectCircle.value = (detectedShape === 'circle');
+            rbSuperEllipse.value = (detectedShape === 'super');
+            rbRectangle.value = (detectedShape === 'rect');
+
+            // 依存UIを同期
+            try { syncRoundPanelUI(); } catch (_) { }
+            try { syncMarginPanelUI(); } catch (_) { }
+            try { syncScalePanelUI(); } catch (_) { }
+        }
+    }
+
     // 非テキスト時は「1文字」や「テキストカラー参照」を無効化して破綻を避ける
     if (!isTextMode) {
         try {
@@ -1320,11 +1463,13 @@ function main() {
             rbTextColor.enabled = false;
         } catch (_) { }
 
-        // 対象は選択の先頭（move/place の基準）
-        try {
-            targetItem = sel[0];
-        } catch (e) {
-            targetItem = null;
+        // 対象は選択の先頭（move/place の基準）― 既に設定済みでなければ
+        if (!targetItem) {
+            try {
+                targetItem = sel[0];
+            } catch (e) {
+                targetItem = null;
+            }
         }
 
         if (!targetItem) {
@@ -1402,6 +1547,8 @@ function main() {
             for (var i = 0; i < sel.length; i++) {
                 var it = sel[i];
                 if (!it) continue;
+                // 置換対象の既存図形はバウンド計算から除外
+                if (existingBackdrop && it === existingBackdrop) continue;
 
                 var gb = null;
                 try {
@@ -1433,7 +1580,7 @@ function main() {
     }
 
     // マージンのデフォルト：選択オブジェクトの短辺の 1/4
-    var __didInitMarginDefault = false;
+    var __didInitMarginDefault = !!(__STATE && __STATE._hasSaved);
     function initMarginDefaultFromSelection() {
         if (__didInitMarginDefault) return;
         __didInitMarginDefault = true;
@@ -1487,7 +1634,7 @@ function main() {
     }
 
     // 角丸のデフォルト：選択オブジェクトの短辺の 1/5
-    var __didInitRoundDefault = false;
+    var __didInitRoundDefault = !!(__STATE && __STATE._hasSaved);
     function initRoundDefaultFromSelection() {
         if (__didInitRoundDefault) return;
         __didInitRoundDefault = true;
@@ -1800,6 +1947,118 @@ function main() {
         return created;
     }
 
+    function finalizeBackdropShape(finalShape) {
+        try {
+            if (!finalShape) return finalShape;
+
+            if (rbPerfectCircle.value) {
+                clearSelection();
+                finalShape.selected = true;
+                app.executeMenuCommand('Convert to Shape');
+                var converted = null;
+                try {
+                    converted = app.selection && app.selection.length ? app.selection[0] : null;
+                } catch (eConvertedSelection) {
+                    try { $.writeln('[AddBackdrop] converted selection read failed: ' + eConvertedSelection); } catch (_) { }
+                }
+                if (!converted) converted = finalShape;
+                finalShape = converted;
+                reapplyStyleAfterConvertToShape(finalShape);
+                clearSelection();
+                return finalShape;
+            }
+
+            if (rbRectangle.value) {
+                try {
+                    clearSelection();
+                    finalShape.selected = true;
+                    app.executeMenuCommand('Live Pathfinder Add');
+                    var pathfinderAdded = null;
+                    try {
+                        pathfinderAdded = app.selection && app.selection.length ? app.selection[0] : null;
+                    } catch (ePathfinderSelection) {
+                        try { $.writeln('[AddBackdrop] pathfinder selection read failed: ' + ePathfinderSelection); } catch (_) { }
+                    }
+                    if (!pathfinderAdded) pathfinderAdded = finalShape;
+                    finalShape = pathfinderAdded;
+                    reapplyStyleAfterPathfinder(finalShape);
+                    clearSelection();
+                } catch (ePathfinderAdd) {
+                    try { $.writeln('[AddBackdrop] Live Pathfinder Add failed: ' + ePathfinderAdd); } catch (_) { }
+                }
+            }
+        } catch (eFinalizeShape) {
+            try { $.writeln('[AddBackdrop] final shape finalize step failed: ' + eFinalizeShape); } catch (_) { }
+        }
+        return finalShape;
+    }
+
+    function placeFinalResult(finalShape) {
+        var baseItem = isTextMode ? textItem : targetItem;
+
+        if (cbGroup.value) {
+            try {
+                var parent = baseItem.parent;
+                var resultGroup = parent.groupItems.add();
+                try { resultGroup.move(baseItem, ElementPlacement.PLACEAFTER); } catch (eMoveGroup) {
+                    try { $.writeln('[AddBackdrop] group move failed: ' + eMoveGroup); } catch (_) { }
+                }
+                finalShape.move(resultGroup, ElementPlacement.PLACEATEND);
+                baseItem.move(resultGroup, ElementPlacement.PLACEATEND);
+                try { finalShape.zOrder(ZOrderMethod.SENDTOBACK); } catch (eGroupBack) {
+                    try { $.writeln('[AddBackdrop] grouped finalShape zOrder failed: ' + eGroupBack); } catch (_) { }
+                }
+                return resultGroup;
+            } catch (eGroup) {
+                alert(L('message.groupFailed') + ": " + eGroup);
+                return finalShape;
+            }
+        }
+
+        try {
+            finalShape.move(baseItem, ElementPlacement.PLACEAFTER);
+        } catch (ePlaceUngrouped) {
+            try { $.writeln('[AddBackdrop] ungrouped finalShape move failed: ' + ePlaceUngrouped); } catch (_) { }
+        }
+
+        return finalShape;
+    }
+
+    function finalizeExclude(resultItem) {
+        if (!(cbExclude.value && resultItem)) return resultItem;
+
+        try {
+            clearSelection();
+            resultItem.selected = true;
+            app.executeMenuCommand('Live Pathfinder Exclude');
+
+            var excludedResult = null;
+            try {
+                excludedResult = app.selection && app.selection.length ? app.selection[0] : null;
+            } catch (eExcludedSelection) {
+                try { $.writeln('[AddBackdrop] exclude selection read failed: ' + eExcludedSelection); } catch (_) { }
+            }
+            if (!excludedResult) excludedResult = resultItem;
+            return excludedResult;
+        } catch (eExclude) {
+            alert(L('message.excludeFailed') + ": " + eExclude);
+            return resultItem;
+        } finally {
+            clearSelection();
+        }
+    }
+
+    function selectFinalResult(resultItem) {
+        try {
+            clearSelection();
+            if (resultItem) {
+                resultItem.selected = true;
+            }
+        } catch (eSelectResult) {
+            try { $.writeln('[AddBackdrop] result selection failed: ' + eSelectResult); } catch (_) { }
+        }
+    }
+
     function updatePreview() {
         // 1) rollback previous preview changes
         try { previewMgr.rollback(); } catch (eRollbackUpdatePreview) {
@@ -1809,6 +2068,7 @@ function main() {
 
         // 2) apply one preview step (counts as 1 undo step)
         previewMgr.addStep(function () {
+            preparePreviewReplacementState();
             previewCircle = buildBackdropOnce();
         });
 
@@ -1880,98 +2140,24 @@ function main() {
 
     // Confirm: rollback preview, then run final action ONCE (single undo step)
     previewMgr.confirm(function () {
+        // 0) 確定用の置換処理（既存背面図形の削除と必要なグループ解体）
+        applyFinalReplacement();
+
         // 1) build final shape
         var finalShape = buildBackdropOnce();
         if (!finalShape) return;
 
-        // 2) group / exclude (same behavior as before)
-        var g = null;
-        if (cbGroup.value) {
-            try {
-                var baseItem = isTextMode ? textItem : targetItem;
-                var parent = baseItem.parent;
-                g = parent.groupItems.add();
-                try { g.move(baseItem, ElementPlacement.PLACEAFTER); } catch (eMoveGroup) {
-                    try { $.writeln('[AddBackdrop] group move failed: ' + eMoveGroup); } catch (_) { }
-                }
-                finalShape.move(g, ElementPlacement.PLACEATEND);
-                baseItem.move(g, ElementPlacement.PLACEATEND);
-                try { finalShape.zOrder(ZOrderMethod.SENDTOBACK); } catch (eGroupBack) {
-                    try { $.writeln('[AddBackdrop] grouped finalShape zOrder failed: ' + eGroupBack); } catch (_) { }
-                }
-            } catch (e) {
-                alert(L('message.groupFailed') + ": " + e);
-            }
-        }
-        if (!cbGroup.value) {
-            try {
-                var baseItem2 = isTextMode ? textItem : targetItem;
-                finalShape.move(baseItem2, ElementPlacement.PLACEAFTER);
-            } catch (eUngroupedMove) {
-                try { $.writeln('[AddBackdrop] ungrouped finalShape move failed: ' + eUngroupedMove); } catch (_) { }
-            }
-        }
+        // 2) finalize shape
+        finalShape = finalizeBackdropShape(finalShape);
 
-        // 3) Convert to Shape for perfect circle only, then re-apply appearance
-        try {
-            if (finalShape) {
-                if (rbPerfectCircle.value) {
-                    clearSelection();
-                    finalShape.selected = true;
-                    app.executeMenuCommand('Convert to Shape');
-                    var converted = null;
-                    try {
-                        converted = app.selection && app.selection.length ? app.selection[0] : null;
-                    } catch (eConvertedSelection) {
-                        try { $.writeln('[AddBackdrop] converted selection read failed: ' + eConvertedSelection); } catch (_) { }
-                    }
-                    if (!converted) converted = finalShape;
-                    reapplyStyleAfterConvertToShape(converted);
-                    clearSelection();
-                } else {
-
-                    // 長方形／角丸／ピル形状のとき Live Pathfinder Add を適用
-                    if (rbRectangle.value) {
-                        try {
-                            clearSelection();
-                            finalShape.selected = true;
-                            app.executeMenuCommand('Live Pathfinder Add');
-                            reapplyStyleAfterPathfinder(finalShape);
-                            clearSelection();
-                        } catch (ePathfinderAdd) {
-                            try { $.writeln('[AddBackdrop] Live Pathfinder Add failed: ' + ePathfinderAdd); } catch (_) { }
-                        }
-                    }
-                }
-            }
-        } catch (eFinalizeShape) {
-            try { $.writeln('[AddBackdrop] final shape finalize step failed: ' + eFinalizeShape); } catch (_) { }
-        }
+        // 3) place result (group if enabled)
+        var resultItem = placeFinalResult(finalShape);
 
         // 4) Pathfinder Exclude
-        if (cbExclude.value && g) {
-            try {
-                clearSelection();
-                g.selected = true;
-                app.executeMenuCommand('Live Pathfinder Exclude');
-            } catch (e) {
-                alert(L('message.excludeFailed') + ": " + e);
-            } finally {
-                clearSelection();
-            }
-        }
+        resultItem = finalizeExclude(resultItem);
 
-        // 5) Select result (group preferred)
-        try {
-            clearSelection();
-            if (g) {
-                g.selected = true;
-            } else if (finalShape) {
-                finalShape.selected = true;
-            }
-        } catch (eSelectResult) {
-            try { $.writeln('[AddBackdrop] result selection failed: ' + eSelectResult); } catch (_) { }
-        }
+        // 5) Select final result
+        selectFinalResult(resultItem);
     });
 
     return;
@@ -2006,6 +2192,78 @@ function findTextInGroup(groupItem) {
         }
     }
     return null;
+}
+
+/**
+ * 既存の図形から形状タイプを判定 / Detect shape type from an existing PathItem
+ * @returns 'circle' | 'super' | 'rect'
+ */
+function detectShapeType(item) {
+    if (!item) return 'rect';
+    try {
+        var path = item;
+        // CompoundPathItem: 最初のサブパスをチェック
+        if (item.typename === 'CompoundPathItem') {
+            try { path = item.pathItems[0]; } catch (_) { return 'rect'; }
+        }
+        // GroupItem: 内部の最初の PathItem を探す
+        if (item.typename === 'GroupItem') {
+            var foundPath = null;
+            try {
+                for (var gi = 0; gi < item.pageItems.length; gi++) {
+                    var gpi = item.pageItems[gi];
+                    if (gpi.typename === 'PathItem') { foundPath = gpi; break; }
+                    if (gpi.typename === 'CompoundPathItem') {
+                        try { foundPath = gpi.pathItems[0]; } catch (_) { }
+                        if (foundPath) break;
+                    }
+                }
+            } catch (_) { }
+            if (foundPath) {
+                path = foundPath;
+            } else {
+                // PathItem が見つからなければバウンディングボックスで判定
+                try {
+                    var igb = item.geometricBounds;
+                    var iw = igb[2] - igb[0];
+                    var ih = igb[1] - igb[3];
+                    if (Math.abs(iw - ih) < Math.max(iw, ih) * 0.05) return 'circle';
+                } catch (_) { }
+                return 'rect';
+            }
+        }
+        if (!path || path.typename !== 'PathItem') return 'rect';
+
+        var pp = path.pathPoints;
+        var len = pp.length;
+
+        // スーパー楕円（このスクリプトでは8点で生成）
+        if (len === 8) return 'super';
+
+        // 4点: 楕円/正円 or 長方形
+        if (len === 4) {
+            var hasBezier = false;
+            for (var i = 0; i < 4; i++) {
+                var a = pp[i].anchor;
+                var ld = pp[i].leftDirection;
+                var rd = pp[i].rightDirection;
+                var dl = Math.abs(a[0] - ld[0]) + Math.abs(a[1] - ld[1]);
+                var dr = Math.abs(a[0] - rd[0]) + Math.abs(a[1] - rd[1]);
+                if (dl > 0.5 || dr > 0.5) {
+                    hasBezier = true;
+                    break;
+                }
+            }
+            // ベジェハンドルがあれば楕円系 → 正円扱い
+            if (hasBezier) return 'circle';
+            // ハンドルなし → 長方形
+            return 'rect';
+        }
+
+        return 'rect';
+    } catch (e) {
+        return 'rect';
+    }
 }
 
 // run
