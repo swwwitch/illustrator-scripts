@@ -10,7 +10,7 @@ FitShapeToContent.jsx
  * スクリプトの概要:
  * 選択したテキストまたはグループと図形をもとに、図形をコンテンツ中央へ揃えながら座布団形状を調整するスクリプトです。
  * - テキストは複製してアウトライン化し、グループは複製して境界を計測します
- * - ダイアログ上部の「座布団の調整」で、整列のみ / 座布団調整あり を切り替えできます
+ * - ダイアログ上部の「座布団の調整」で、整列のみ / 座布団調整あり を切り替えできます（毎回デフォルトはOFF）
  * - 「座布団の調整」OFF時は、元図形の見た目を保ったままコンテンツ中央へ整列するだけで、パディング変更や角丸処理は行いません
  * - 「座布団の調整」ON時は、パディング（幅・高さの加算値）をプレビューしながら調整できます
  * - 幅と高さは「連動」で同値入力に対応します
@@ -22,7 +22,7 @@ FitShapeToContent.jsx
  * - プレビューは、整列のみ用の元図形複製と、調整用のアピアランスクリア済み複製を使い分けて、見た目の破綻や効果の累積を防ぎます
  * - 「ピル形状」ON時は確定時のみ Live Pathfinder Add を実行し、単体選択で結果を検証します
  * - プレビュー更新はUI値の収集・派生値反映・描画の責務を分離しています
- * - セッション中のダイアログ状態保持に対応します
+ * - セッション中のダイアログ状態保持に対応します（ただし「座布団の調整」は毎回OFFで開始します）
  * - キャンセル時はプレビューを破棄し、元の図形をそのまま復元します
  * 
  * 紹介記事（note）
@@ -470,7 +470,7 @@ FitShapeToContent.jsx
         adjustRow.alignment = ["left", "top"];
 
         var chkAdjustEnabled = adjustRow.add("checkbox", undefined, L("labelAdjustEnabled"));
-        chkAdjustEnabled.value = !!sessionState.adjustEnabled;
+        chkAdjustEnabled.value = false;
 
         var panel = win.add("panel", undefined, L("panelPadding"));
         panel.orientation = "row";
@@ -751,7 +751,7 @@ FitShapeToContent.jsx
                 radiusEnabled: chkRadiusEnabled.value,
                 link: linkCheck.value,
                 pill: chkPill.value,
-                adjustEnabled: chkAdjustEnabled.value
+                adjustEnabled: false
             });
 
             win.close(1);
@@ -765,7 +765,7 @@ FitShapeToContent.jsx
                 radiusEnabled: chkRadiusEnabled.value,
                 link: linkCheck.value,
                 pill: chkPill.value,
-                adjustEnabled: chkAdjustEnabled.value
+                adjustEnabled: false
             });
             win.close(0);
         };
