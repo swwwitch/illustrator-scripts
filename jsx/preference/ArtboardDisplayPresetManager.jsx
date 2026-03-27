@@ -4,36 +4,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
  * ArtboardDisplayPresetManager.jsx
- * 更新日: 20260323
+ * 更新日: 20260327
  *
  * 概要:
- * Illustrator のアートボード名表示とアートボード枠線の表示設定をまとめて切り替えるスクリプトです。
- * パレット型のコントロールパネルとして動作し、プリセット切り替え、アートボード名の表示、
- * ハイライトカラー、ストローク幅の変更を操作した瞬間に即時反映できます。
+ * Illustrator のアートボード関連の環境設定をまとめて切り替えるスクリプトです。
+ * パレット型のコントロールパネルとして動作し、上部のプリセット切り替え、
+ * ［アートボード名と枠線］パネル内のアートボード名表示・枠線カラー・ストローク幅、
+ * そして独立した［オプション］パネル内の
+ * ［「裁ち落としを印刷」生成AIボタンを表示］と［ロックまたは非表示オブジェクトを一緒に移動］を
+ * 即時反映で切り替えられます。
  * 下部には補助操作として［ビデオ定規］ボタンも備えています。
  *
  * Summary:
- * A utility script for changing Illustrator artboard display settings with an immediate-apply palette UI.
- * It works as a control panel where preset changes, artboard name visibility, highlight color,
- * and stroke width updates are applied instantly when you interact with the controls.
- * A Video Ruler button is also provided as an auxiliary action.
+ * A palette-style utility for changing Illustrator artboard-related preferences.
+ * It provides top preset switching, artboard name visibility, border color, and stroke width
+ * inside the [Artboard Name & Border] panel, plus the
+ * [Show the "Print Bleed" Generative AI Button] and
+ * [Move Locked or Hidden Objects Together] options inside a separate [Options] panel.
+ * All settings are applied immediately, and a [Video Ruler] button is also included.
  *
- * 更新履歴:
- * v1.1 (20260323): ファイル名表記を ArtboardDisplayPresetManager.jsx に更新。
- * v1.0.0 (20260323): 初版。コード構成を constants / utility / UI / 値反映 / event に整理し、
- *                    即時反映のパレットUI、プリセット初期状態判定、ラベル参照の安全化、
- *                    ビデオ定規ボタン、ダイアログタイトルへのバージョン表示、
- *                    画面更新ハックの説明コメントを追加。
+ * リリース日:
+ * v1.0.0 - 20260323
  *
- * Changelog:
- * v1.1 (20260323): Updated the internal file name reference to ArtboardDisplayPresetManager.jsx.
- * v1.0.0 (20260323): Initial release. Reorganized the code into constants / utility / UI /
- *                    reflection / event sections, added an immediate-apply palette UI,
- *                    initial preset-state detection, safer label lookup, a Video Ruler button,
- *                    version text in the palette title, and documentation for the zoom refresh hack.
+ * Release Date:
+ * v1.0.0 - 20260323
  */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -44,16 +41,12 @@ var lang = getCurrentLang();
 
 var LABELS = {
     dialogTitle: {
-        ja: "アートボード名と枠線の設定",
-        en: "Artboard Name & Border Settings"
+        ja: "アートボード関連の環境設定",
+        en: "Artboard-Related Preferences"
     },
     OK: {
         ja: "閉じる",
         en: "Close"
-    },
-    Cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
     },
     VideoRuler: {
         ja: "ビデオ定規",
@@ -76,8 +69,12 @@ var LABELS = {
 
     // アートボード / Artboard
     panelArtboardTitle: {
-        ja: "アートボード",
-        en: "Artboard"
+        ja: "アートボード名と枠線",
+        en: "Artboard Name & Border"
+    },
+    panelOptionsTitle: {
+        ja: "オプション",
+        en: "Options"
     },
     cbShowArtboardName: {
         ja: "アートボード名を表示",
@@ -86,6 +83,14 @@ var LABELS = {
     panelArtboardBorderTitle: {
         ja: "アートボードの枠線",
         en: "Artboard Border"
+    },
+    cbShowPrintBleedAIGenButton: {
+        ja: "「裁ち落としを印刷」生成AIボタンを表示",
+        en: "Show the \"Print Bleed\" Generative AI Button"
+    },
+    cbMoveLockedHiddenObjectsTogether: {
+        ja: "ロックまたは非表示オブジェクトを一緒に移動",
+        en: "Move Locked or Hidden Objects Together"
     },
     artboardStrokeColor: {
         ja: "ハイライトのカラー",
@@ -219,7 +224,14 @@ function main() {
         return 1;
     }
 
-    function applyCurrentSettings() {
+    function refreshArtboardDisplay() {
+        // Force canvas refresh after artboard display preference changes.
+        // redraw() alone may not update the artboard highlight immediately.
+        app.executeMenuCommand('zoomout');
+        app.executeMenuCommand('zoomin');
+    }
+
+    function applyArtboardDisplaySettings() {
         prefs.setBooleanPreference("showArtboardLabelOnCanvas", cbShowArtboardName.value);
         var scIdx = ddStrokeColor.selection ? ddStrokeColor.selection.index : STROKE_COLOR_INDEX.BLACK;
         var scPreset = STROKE_COLOR_PRESETS[scIdx];
@@ -227,10 +239,17 @@ function main() {
         prefs.setRealPreference("ArtboardBBColorGreen", scPreset.g);
         prefs.setRealPreference("ArtboardBBColorBlue", scPreset.b);
         prefs.setRealPreference("ArtboardBBWidth", getSelectedStrokeWidth());
-        // Force canvas refresh after preference changes.
-        // redraw() alone may not update the artboard highlight immediately.
-        app.executeMenuCommand('zoomout');
-        app.executeMenuCommand('zoomin');
+        refreshArtboardDisplay();
+    }
+
+    function applyOptionSettings() {
+        prefs.setBooleanPreference("enablePrintBleedWidget", cbShowPrintBleedAIGenButton.value);
+        prefs.setBooleanPreference("moveLockedAndHiddenArt", cbMoveLockedHiddenObjectsTogether.value);
+    }
+
+    function applyAllSettings() {
+        applyArtboardDisplaySettings();
+        applyOptionSettings();
     }
 
     function applyPreset(preset) {
@@ -239,14 +258,20 @@ function main() {
             cbShowArtboardName.value = true;
             ddStrokeColor.selection = STROKE_COLOR_INDEX.BLACK;
             for (i = 0; i < rbStrokeWidths.length; i++) rbStrokeWidths[i].value = (i === 0);
+            cbShowPrintBleedAIGenButton.value = true;
+            cbMoveLockedHiddenObjectsTogether.value = false;
         } else if (preset === "emphasis") {
             cbShowArtboardName.value = false;
             ddStrokeColor.selection = STROKE_COLOR_INDEX.RED;
             for (i = 0; i < rbStrokeWidths.length; i++) rbStrokeWidths[i].value = (i === 2);
+            cbShowPrintBleedAIGenButton.value = false;
+            cbMoveLockedHiddenObjectsTogether.value = true;
         } else if (preset === "light") {
             cbShowArtboardName.value = false;
             ddStrokeColor.selection = STROKE_COLOR_INDEX.GREY;
             for (i = 0; i < rbStrokeWidths.length; i++) rbStrokeWidths[i].value = (i === 0);
+            cbShowPrintBleedAIGenButton.value = false;
+            cbMoveLockedHiddenObjectsTogether.value = true;
         }
     }
 
@@ -306,6 +331,17 @@ function main() {
     var rbStrokeWidth4 = strokeWidthRow.add("radiobutton", undefined, "4");
     var rbStrokeWidths = [rbStrokeWidth1, rbStrokeWidth2, rbStrokeWidth3, rbStrokeWidth4];
 
+    var panelOptions = mainGroup.add("panel", undefined, L("panelOptionsTitle"));
+    panelOptions.orientation = "column";
+    panelOptions.alignChildren = ["left", "top"];
+    panelOptions.alignment = ["fill", "top"];
+    panelOptions.margins = [15, 20, 15, 10];
+
+    var cbShowPrintBleedAIGenButton = panelOptions.add("checkbox", undefined, L("cbShowPrintBleedAIGenButton"));
+    cbShowPrintBleedAIGenButton.value = false;
+    var cbMoveLockedHiddenObjectsTogether = panelOptions.add("checkbox", undefined, L("cbMoveLockedHiddenObjectsTogether"));
+    cbMoveLockedHiddenObjectsTogether.value = false;
+
     /* Bottom button row (VideoRuler / Close) / 下部ボタン行 */
     var outerGroup = mainGroup.add("group");
     outerGroup.orientation = "row";
@@ -324,9 +360,7 @@ function main() {
     rightGroup.orientation = "row";
     rightGroup.alignChildren = ["right", "center"];
     rightGroup.spacing = 10;
-    var btnClose = rightGroup.add("button", undefined, L("OK"), {
-        name: "ok"
-    });
+    var btnClose = rightGroup.add("button", undefined, L("OK"), { name: "ok" });
 
     // =========================================
     // Reflect current values / 値反映
@@ -337,31 +371,39 @@ function main() {
     var curSCB = getReal("ArtboardBBColorBlue", 0.0);
     var closestIdx = findClosestStrokeColor(curSCR, curSCG, curSCB);
     ddStrokeColor.selection = closestIdx;
-    if (ddStrokeColor.selection === null || ddStrokeColor.selection < 0) {
+    if (ddStrokeColor.selection === null) {
         ddStrokeColor.selection = STROKE_COLOR_INDEX.BLACK;
     }
 
     var curStrokeWidth = Math.round(getReal("ArtboardBBWidth", 1.0));
     var swIdx = clamp(curStrokeWidth, 1, 4) - 1;
     rbStrokeWidths[swIdx].value = true;
+    cbShowPrintBleedAIGenButton.value = !!getBool("enablePrintBleedWidget", false);
+    cbMoveLockedHiddenObjectsTogether.value = !!getBool("moveLockedAndHiddenArt", false);
 
     // Preset initial state detection / プリセット初期状態の判定
     var isDefault = (
         cbShowArtboardName.value === true &&
         closestIdx === STROKE_COLOR_INDEX.BLACK &&
-        curStrokeWidth === 1
+        curStrokeWidth === 1 &&
+        cbShowPrintBleedAIGenButton.value === true &&
+        cbMoveLockedHiddenObjectsTogether.value === false
     );
 
     var isEmphasis = (
         cbShowArtboardName.value === false &&
         closestIdx === STROKE_COLOR_INDEX.RED &&
-        curStrokeWidth === 3
+        curStrokeWidth === 3 &&
+        cbShowPrintBleedAIGenButton.value === false &&
+        cbMoveLockedHiddenObjectsTogether.value === true
     );
 
     var isLight = (
         cbShowArtboardName.value === false &&
         closestIdx === STROKE_COLOR_INDEX.GREY &&
-        curStrokeWidth === 1
+        curStrokeWidth === 1 &&
+        cbShowPrintBleedAIGenButton.value === false &&
+        cbMoveLockedHiddenObjectsTogether.value === true
     );
 
     if (isDefault) {
@@ -378,36 +420,43 @@ function main() {
 
     rbPresetDefault.onClick = function () {
         applyPreset("default");
-        applyCurrentSettings();
+        applyAllSettings();
     };
     rbPresetEmphasis.onClick = function () {
         applyPreset("emphasis");
-        applyCurrentSettings();
+        applyAllSettings();
     };
     rbPresetLight.onClick = function () {
         applyPreset("light");
-        applyCurrentSettings();
+        applyAllSettings();
     };
 
     cbShowArtboardName.onClick = function () {
-        applyCurrentSettings();
+        applyArtboardDisplaySettings();
+    };
+
+    cbShowPrintBleedAIGenButton.onClick = function () {
+        applyOptionSettings();
+    };
+    cbMoveLockedHiddenObjectsTogether.onClick = function () {
+        applyOptionSettings();
     };
 
     ddStrokeColor.onChange = function () {
-        applyCurrentSettings();
+        applyArtboardDisplaySettings();
     };
 
     rbStrokeWidth1.onClick = function () {
-        applyCurrentSettings();
+        applyArtboardDisplaySettings();
     };
     rbStrokeWidth2.onClick = function () {
-        applyCurrentSettings();
+        applyArtboardDisplaySettings();
     };
     rbStrokeWidth3.onClick = function () {
-        applyCurrentSettings();
+        applyArtboardDisplaySettings();
     };
     rbStrokeWidth4.onClick = function () {
-        applyCurrentSettings();
+        applyArtboardDisplaySettings();
     };
 
 
