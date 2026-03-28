@@ -4,27 +4,29 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // ==================================================
 // RightMarkPlacer.jsx
 // スクリプトの概要：
-// レイアウト間の関係性やフローを視覚的に示す右向き記号を、選択した2つのオブジェクトの間に正確に配置します。
-// 選択した2つのオブジェクトの間の「アキ」の中央に、右向きの記号（▶ / > / >> / → / ➡）を作成します。
+// レイアウト間の関係性やフローを視覚的に示す右向き記号を、選択した複数オブジェクトの間に正確に配置します。
+// 選択したオブジェクトを左から順に見て、隣り合うオブジェクト同士の「アキ」の中央に、右向きの記号（▶ / > / >> / → / ➡）を作成します。
 //
 // ・幅・間隔・位置は現在の定規単位、線幅は線の単位に合わせて調整可能
 // ・位置（左右 / 上下）を微調整可能
 // ・形状ごとに最適な初期値を自動適用
-// ・▶ / > / >> / → は高さ％でサイズを調整可能
+// ・▶ / > / >> / → / ➡ は高さ％でサイズを調整可能
 // ・→ / ➡ は幅で長さを調整可能
 // ・テキストは計測用に複製してアウトライン化し、見た目に近い天地中央で配置
+// ・複数選択時は、左から順に見て隣り合うオブジェクト同士のアキごとに同じ形状を作成
+// ・chevron1 / chevron2 では「天地を水平に」を使って、天地が水平な形状に切り替え可能
 // ・プレビューで結果を確認しながら調整可能
 //
-// ※2オブジェクトの「アキ」が正の値（重なっていない）場合のみ作成されます
+// ※隣り合うオブジェクト同士の「アキ」が正の値（重なっていない）場合のみ、その箇所に作成されます
 //
 // 作成日：2026-03-28
-// 更新日：2026-03-28
+// 更新日：2026-03-29
 // ===================================================
 
 // =========================================
 // バージョンとローカライズ / Version and localization
 // =========================================
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -42,8 +44,8 @@ var LABELS = {
         en: "Please open a document."
     },
     alertSelectTwoObjects: {
-        ja: "オブジェクトを2つ選択してください。",
-        en: "Please select two objects."
+        ja: "オブジェクトを2つ以上選択してください。",
+        en: "Please select two or more objects."
     },
     panelShape: {
         ja: "形状",
@@ -84,6 +86,10 @@ var LABELS = {
     labelStroke: {
         ja: "線幅",
         en: "Stroke"
+    },
+    alignVerticalCenter: {
+        ja: "天地を水平に",
+        en: "Align top and bottom horizontally"
     },
     labelAdjustX: {
         ja: "左右",
@@ -146,7 +152,7 @@ function L(key) {
     }
 
     // ---- 選択チェック ----
-    if (sel.length !== 2) {
+    if (sel.length < 2) {
         alert(L("alertSelectTwoObjects"));
         return;
     }
@@ -208,6 +214,23 @@ function L(key) {
                 if (dup) dup.remove();
             } catch (_) { }
         }
+    }
+
+    function getItemCenterX(item) {
+        var b = getItemMeasurementBounds(item);
+        return (b[0] + b[2]) / 2;
+    }
+
+    function getSortedSelectionItems() {
+        var items = [];
+        var i;
+        for (i = 0; i < sel.length; i++) {
+            items.push(sel[i]);
+        }
+        items.sort(function (a, b) {
+            return getItemCenterX(a) - getItemCenterX(b);
+        });
+        return items;
     }
 
     /* 単位ユーティリティ / Unit utilities */
@@ -345,10 +368,14 @@ function L(key) {
             radioCapNone: capUI.radioCapNone,
             radioCapRound: capUI.radioCapRound,
             inputGroup: optionUI.inputGroup,
+            widthGroup: optionUI.widthGroup,
             inputField: optionUI.inputField,
             widthField: optionUI.widthField,
             gapField: optionUI.gapField,
             strokeField: optionUI.strokeField,
+            chkAlignVerticalCenter: optionUI.chkAlignVerticalCenter,
+
+
             adjustField: adjustUI.adjustField,
             adjustVField: adjustUI.adjustVField,
             previewCb: buttonUI.previewCb,
@@ -465,13 +492,24 @@ function L(key) {
 
         strokeGroup.add("statictext", undefined, strokeUnitInfo.label);
 
+        var alignCenterGroup = panel.add("group");
+        alignCenterGroup.orientation = "row";
+        alignCenterGroup.alignChildren = ["center", "center"];
+        alignCenterGroup.alignment = ["center", "top"];
+        alignCenterGroup.margins = [0, 10, 0, 0];
+
+        var chkAlignVerticalCenter = alignCenterGroup.add("checkbox", undefined, L("alignVerticalCenter"));
+        chkAlignVerticalCenter.value = false;
+
         return {
             panel: panel,
             inputGroup: inputGroup,
+            widthGroup: widthGroup,
             inputField: inputField,
             widthField: widthField,
             gapField: gapField,
-            strokeField: strokeField
+            strokeField: strokeField,
+            chkAlignVerticalCenter: chkAlignVerticalCenter
         };
     }
 
@@ -554,6 +592,7 @@ function L(key) {
             radioKey: "radioTri",
             enableCapPanel: false,
             forceFillOnly: true,
+            enableStrokeInput: false,
             requirePositiveStroke: false,
             enableHeightInput: true,
             enableGap: false,
@@ -569,6 +608,7 @@ function L(key) {
             radioKey: "radioArrow",
             enableCapPanel: true,
             forceFillOnly: false,
+            enableStrokeInput: true,
             requirePositiveStroke: true,
             enableHeightInput: true,
             enableGap: false,
@@ -584,10 +624,11 @@ function L(key) {
             radioKey: "radioArrow3",
             enableCapPanel: false,
             forceFillOnly: false,
+            enableStrokeInput: true,
             requirePositiveStroke: false,
-            enableHeightInput: false,
+            enableHeightInput: true,
             enableGap: false,
-            defaultHeightPercent: 30,
+            defaultHeightPercent: 50,
             defaultGap: -1,
             defaultStrokePt: 1.2,
             calcDefaultWidth: function (inputVal, totalHeight, gapWidth) {
@@ -599,6 +640,7 @@ function L(key) {
             radioKey: "radioChevron",
             enableCapPanel: true,
             forceFillOnly: false,
+            enableStrokeInput: true,
             requirePositiveStroke: true,
             enableHeightInput: true,
             enableGap: false,
@@ -614,6 +656,7 @@ function L(key) {
             radioKey: "radioChevronDouble",
             enableCapPanel: true,
             forceFillOnly: false,
+            enableStrokeInput: true,
             requirePositiveStroke: true,
             enableHeightInput: true,
             enableGap: true,
@@ -634,8 +677,9 @@ function L(key) {
         var shapeKey = getShapeType();
         var shapeConfig = SHAPE_CONFIG[shapeKey];
         var inputVal = parseFloat(ui.inputField.text);
-        var b0_init = getItemMeasurementBounds(sel[0]);
-        var b1_init = getItemMeasurementBounds(sel[1]);
+        var items = getSortedSelectionItems();
+        var b0_init = getItemMeasurementBounds(items[0]);
+        var b1_init = getItemMeasurementBounds(items[1]);
         var totalHeight = Math.max(b0_init[1], b1_init[1]) - Math.min(b0_init[3], b1_init[3]);
         var leftObj = (b0_init[0] < b1_init[0]) ? b0_init : b1_init;
         var rightObj = (b0_init[0] < b1_init[0]) ? b1_init : b0_init;
@@ -665,9 +709,22 @@ function L(key) {
         setFieldFromPt(ui.strokeField, shapeConfig.defaultStrokePt, strokeUnitInfo);
         ui.capPanel.enabled = !!shapeConfig.enableCapPanel;
         ui.inputGroup.enabled = !!shapeConfig.enableHeightInput;
+        ui.strokeField.enabled = !!shapeConfig.enableStrokeInput;
+
+        if (ui.chkAlignVerticalCenter) {
+            var isChevronShape = (shapeKey === "chevron" || shapeKey === "chevron2");
+            ui.chkAlignVerticalCenter.enabled = isChevronShape;
+            if (!isChevronShape) {
+                ui.chkAlignVerticalCenter.value = false;
+            }
+        }
+
         if (!shapeConfig.enableCapPanel) {
             ui.radioCapNone.value = true;
             ui.radioCapRound.value = false;
+        }
+        if (!shapeConfig.enableStrokeInput) {
+            ui.strokeField.text = String(roundDisplayValue(convertPtToUnitValue(shapeConfig.defaultStrokePt || 0, strokeUnitInfo)));
         }
     }
 
@@ -837,13 +894,11 @@ function L(key) {
         return group;
     }
 
-    function createArrow3Shape(cx, cy, gapLeft, gapRight, widthVal, strokeW) {
+    function createArrow3Shape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW) {
         var gapW = gapRight - gapLeft;
         var w = (widthVal > 0) ? widthVal : (gapW * 0.75);
         var lineW = (strokeW > 0) ? strokeW * 3 : 3;
-        var a = lineW;
-        var sqSize = a * 2;
-        var r = sqSize * Math.SQRT2 / 2;
+        var r = h / 2;
 
         var shaft = doc.activeLayer.pathItems.add();
         shaft.setEntirePath([
@@ -873,11 +928,73 @@ function L(key) {
         };
     }
 
+    function createFlatChevronShape(cx, cy, h, widthVal, strokeW) {
+        var fullW = (widthVal > 0) ? widthVal : h;
+        var thickness = (strokeW > 0) ? strokeW : 1;
+        var halfH = h / 2;
+        var leftX = cx - fullW / 2;
+        var tipX = cx + fullW / 2;
+        var topY = cy + halfH;
+        var bottomY = cy - halfH;
+
+        var group = doc.activeLayer.groupItems.add();
+
+        var topArm = doc.activeLayer.pathItems.add();
+        topArm.setEntirePath([
+            [leftX, topY],
+            [leftX + thickness, topY],
+            [tipX, cy],
+            [tipX - thickness, cy]
+        ]);
+        topArm.closed = true;
+        topArm.filled = true;
+        topArm.fillColor = makeCMYK(0, 0, 0, 100);
+        topArm.stroked = false;
+        topArm.move(group, ElementPlacement.INSIDE);
+
+        var bottomArm = doc.activeLayer.pathItems.add();
+        bottomArm.setEntirePath([
+            [leftX, bottomY],
+            [leftX + thickness, bottomY],
+            [tipX, cy],
+            [tipX - thickness, cy]
+        ]);
+        bottomArm.closed = true;
+        bottomArm.filled = true;
+        bottomArm.fillColor = makeCMYK(0, 0, 0, 100);
+        bottomArm.stroked = false;
+        bottomArm.move(group, ElementPlacement.INSIDE);
+
+        return group;
+    }
+
+    function createFlatChevron2Shape(cx, cy, h, widthVal, strokeW) {
+        var fullW = (widthVal > 0) ? widthVal : h;
+        var gap = parseFieldToPt(ui.gapField, rulerUnitInfo, true);
+        if (isNaN(gap)) gap = 0;
+
+        var leftCenter = cx - (fullW + gap) / 2;
+        var rightCenter = cx + (fullW + gap) / 2;
+
+        var group = doc.activeLayer.groupItems.add();
+
+        var leftShape = createFlatChevronShape(leftCenter, cy, h, fullW, strokeW);
+        var rightShape = createFlatChevronShape(rightCenter, cy, h, fullW, strokeW);
+
+        leftShape.move(group, ElementPlacement.INSIDE);
+        rightShape.move(group, ElementPlacement.INSIDE);
+
+        return group;
+    }
+
     function createChevronShape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW) {
-        var gapW = gapRight - gapLeft;
         var lineW = strokeW;
         var chevH = h / 2;
         var chevW = (widthVal > 0) ? widthVal / 2 : chevH;
+
+        if (ui.chkAlignVerticalCenter && ui.chkAlignVerticalCenter.value) {
+            return createFlatChevronShape(cx, cy, h, widthVal, strokeW);
+        }
 
         var head = doc.activeLayer.pathItems.add();
         head.setEntirePath([
@@ -899,12 +1016,16 @@ function L(key) {
     }
 
     function createChevron2Shape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW) {
-        var gapW = gapRight - gapLeft;
         var lineW = strokeW;
         var chevH = h / 2;
         var chevW = (widthVal > 0) ? widthVal / 2 : chevH;
         var gap = parseFieldToPt(ui.gapField, rulerUnitInfo, true);
         if (isNaN(gap)) gap = 0;
+
+        if (ui.chkAlignVerticalCenter && ui.chkAlignVerticalCenter.value) {
+            return createFlatChevron2Shape(cx, cy, h, widthVal, strokeW);
+        }
+
         var totalW = chevW + gap + chevW;
         var leftStart = cx - totalW / 2;
 
@@ -967,11 +1088,10 @@ function L(key) {
         }
         return outlinedShaft;
     }
-    /* 形状を作成する共通関数 / Shared shape creation function */
-    function createShape(inputVal, widthVal, offsetX, offsetY, strokeW) {
-        clearMeasurementBoundsCache();
-        var b0 = getItemMeasurementBounds(sel[0]);
-        var b1 = getItemMeasurementBounds(sel[1]);
+
+    function createShapeBetweenItems(leftItem, rightItem, inputVal, widthVal, offsetX, offsetY, strokeW) {
+        var b0 = getItemMeasurementBounds(leftItem);
+        var b1 = getItemMeasurementBounds(rightItem);
 
         var leftObj, rightObj;
         if (b0[0] < b1[0]) {
@@ -1008,7 +1128,7 @@ function L(key) {
             return createArrowShape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW);
         }
         if (shape === "arrow3") {
-            var arrow3Parts = createArrow3Shape(cx, cy, gapLeft, gapRight, widthVal, strokeW);
+            var arrow3Parts = createArrow3Shape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW);
             return finalizeArrow3Appearance(arrow3Parts);
         }
         if (shape === "chevron") {
@@ -1019,6 +1139,38 @@ function L(key) {
         }
 
         return createTriShape(cx, cy, w, h, strokeW, !!shapeConfig.forceFillOnly);
+    }
+
+    /* 形状を作成する共通関数 / Shared shape creation function */
+    function createShape(inputVal, widthVal, offsetX, offsetY, strokeW) {
+        clearMeasurementBoundsCache();
+
+        var items = getSortedSelectionItems();
+        var createdItems = [];
+        var i;
+        var shapeItem;
+        var group;
+
+        for (i = 0; i < items.length - 1; i++) {
+            shapeItem = createShapeBetweenItems(items[i], items[i + 1], inputVal, widthVal, offsetX, offsetY, strokeW);
+            if (shapeItem !== null) {
+                createdItems.push(shapeItem);
+            }
+        }
+
+        if (createdItems.length === 0) {
+            return null;
+        }
+
+        if (createdItems.length === 1) {
+            return createdItems[0];
+        }
+
+        group = doc.activeLayer.groupItems.add();
+        for (i = 0; i < createdItems.length; i++) {
+            createdItems[i].move(group, ElementPlacement.INSIDE);
+        }
+        return group;
     }
 
     /* プレビューを削除 / Remove preview */
@@ -1064,6 +1216,12 @@ function L(key) {
     ui.radioCapRound.onClick = function () {
         updatePreview();
     };
+
+    if (ui.chkAlignVerticalCenter) {
+        ui.chkAlignVerticalCenter.onClick = function () {
+            updatePreview();
+        };
+    }
 
     ui.previewCb.onClick = function () {
         updatePreview();
