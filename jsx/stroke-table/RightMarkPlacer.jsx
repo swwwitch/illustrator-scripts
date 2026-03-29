@@ -4,29 +4,35 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // ==================================================
 // RightMarkPlacer.jsx
 // スクリプトの概要：
-// レイアウト間の関係性やフローを視覚的に示す右向き記号を、選択した複数オブジェクトの間に正確に配置します。
-// 選択したオブジェクトを左から順に見て、隣り合うオブジェクト同士の「アキ」の中央に、右向きの記号（▶ / > / >> / → / ➡）を作成します。
+// 選択した複数オブジェクトを左から順に見て、隣り合うオブジェクト同士の「アキ」の中央に、右向き記号を配置します。
+// レイアウトの流れ・関係性を視覚的に示すためのツールです。
 //
-// ・幅・間隔・位置は現在の定規単位、線幅は線の単位に合わせて調整可能
-// ・位置（左右 / 上下）を微調整可能
-// ・形状ごとに最適な初期値を自動適用
-// ・▶ / > / >> / → / ➡ は高さ％でサイズを調整可能
-// ・→ / ➡ は幅で長さを調整可能
-// ・テキストは計測用に複製してアウトライン化し、見た目に近い天地中央で配置
-// ・複数選択時は、左から順に見て隣り合うオブジェクト同士のアキごとに同じ形状を作成
-// ・chevron1 / chevron2 では「天地を水平に」を使って、天地が水平な形状に切り替え可能
-// ・プレビューで結果を確認しながら調整可能
+// ・右向き記号（▶ / > / >> / ─ / → / ➡ / ＋ / ×）を作成
+// ・複数選択時、各オブジェクト間すべてに同形状を自動配置
+// ・幅は「最も狭いアキ」を基準に安全側で自動決定（手動入力も可能）
+// ・高さ（％）・位置（左右／上下）を調整可能
+// ・単位は現在の定規設定に追従
 //
-// ※隣り合うオブジェクト同士の「アキ」が正の値（重なっていない）場合のみ、その箇所に作成されます
+// ・▶ は「凹み」で形状を変形可能（幅の80%まで）
+// ・▶ は「角丸」オプションで角丸形状に変更可能（凹みの有無に関係なく適用）
+//
+// ・→ / ➡ は幅で長さを調整
+// ・➡ は入力線幅の3倍で描画
+// ・＋ / × は幅でサイズを調整（× は45°回転）
+//
+// ・左右逆（反転）、先端形状、プレビューに対応
+// ・キーボード操作：F（なし）/ R（丸型）/ V（左右逆）
+//
+// ※オブジェクトが重なっている場合やアキがない場合は作成されません
 //
 // 作成日：2026-03-28
-// 更新日：2026-03-29
+// 更新日：2026-04-04 v1.3 機能整理・凹み／角丸／ショートカット対応
 // ===================================================
 
 // =========================================
 // バージョンとローカライズ / Version and localization
 // =========================================
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -83,13 +89,25 @@ var LABELS = {
         ja: "間隔",
         en: "Gap"
     },
+    labelInset: {
+        ja: "凹み",
+        en: "Inset"
+    },
     labelStroke: {
         ja: "線幅",
         en: "Stroke"
     },
+    roundCorners: {
+        ja: "角丸",
+        en: "Rounded corners"
+    },
     alignVerticalCenter: {
         ja: "天地を水平に",
-        en: "Align top and bottom horizontally"
+        en: "Keep top and bottom edges horizontal"
+    },
+    mirrorHorizontal: {
+        ja: "左右逆",
+        en: "Mirror horizontally"
     },
     labelAdjustX: {
         ja: "左右",
@@ -120,12 +138,20 @@ var LABELS = {
         en: "Please enter a value of 200% or less."
     },
     alertNoGap: {
-        ja: "2つのオブジェクトが重なっているか、アキがありません。",
-        en: "The two objects overlap or there is no gap between them."
+        ja: "隣り合うオブジェクト間に作成できるアキがありません。",
+        en: "There is no usable gap between adjacent objects."
     },
     alertStrokePositive: {
-        ja: "この形状では線幅に 0 より大きい値を入力してください。",
-        en: "For this shape, enter a stroke width greater than 0."
+        ja: "線幅は 0.25 以上の値を入力してください。",
+        en: "Please enter a stroke width of 0.25 or greater."
+    },
+    alertWidthPositive: {
+        ja: "幅は 0 以上の値を入力してください。",
+        en: "Please enter a width value of 0 or greater."
+    },
+    alertInvalidValue: {
+        ja: "入力値を確認してください。",
+        en: "Please check the input values."
     }
 };
 
@@ -143,16 +169,20 @@ function L(key) {
     }
 
     var doc = app.activeDocument;
-    var sel = doc.selection;
-
+    var selectionItems = [];
     var measurementBoundsCache = [];
+    var si;
+
+    for (si = 0; si < doc.selection.length; si++) {
+        selectionItems.push(doc.selection[si]);
+    }
 
     function clearMeasurementBoundsCache() {
         measurementBoundsCache = [];
     }
 
     // ---- 選択チェック ----
-    if (sel.length < 2) {
+    if (selectionItems.length < 2) {
         alert(L("alertSelectTwoObjects"));
         return;
     }
@@ -176,6 +206,7 @@ function L(key) {
     function getItemMeasurementBounds(item) {
         var dup = null;
         var outlined = null;
+        var bounds;
         var i;
         for (i = 0; i < measurementBoundsCache.length; i++) {
             if (measurementBoundsCache[i].item === item) {
@@ -187,24 +218,20 @@ function L(key) {
             if (item.typename === "TextFrame") {
                 dup = item.duplicate();
                 outlined = dup.createOutline();
+                bounds = copyBounds(outlined.geometricBounds);
                 measurementBoundsCache.push({
                     item: item,
-                    bounds: copyBounds(outlined.geometricBounds)
+                    bounds: bounds
                 });
-                return copyBounds(outlined.geometricBounds);
+                return copyBounds(bounds);
             }
+            bounds = copyBounds(item.geometricBounds);
             measurementBoundsCache.push({
                 item: item,
-                bounds: copyBounds(item.geometricBounds)
+                bounds: bounds
             });
-            return copyBounds(item.geometricBounds);
+            return copyBounds(bounds);
         } catch (e) {
-            try {
-                if (outlined) outlined.remove();
-            } catch (_) { }
-            try {
-                if (dup) dup.remove();
-            } catch (_) { }
             return copyBounds(item.geometricBounds);
         } finally {
             try {
@@ -224,8 +251,8 @@ function L(key) {
     function getSortedSelectionItems() {
         var items = [];
         var i;
-        for (i = 0; i < sel.length; i++) {
-            items.push(sel[i]);
+        for (i = 0; i < selectionItems.length; i++) {
+            items.push(selectionItems[i]);
         }
         items.sort(function (a, b) {
             return getItemCenterX(a) - getItemCenterX(b);
@@ -329,6 +356,51 @@ function L(key) {
 
     var ui = buildUI(dlg);
 
+    /* キーボードショートカット / Keyboard shortcuts */
+    function getKeyboardShortcutActions() {
+        return {
+            F: function () {
+                if (ui.radioCapNone && ui.radioCapNone.enabled) {
+                    ui.radioCapNone.value = true;
+                    ui.radioCapRound.value = false;
+                    updatePreview();
+                    return true;
+                }
+                return false;
+            },
+            R: function () {
+                if (ui.radioCapRound && ui.radioCapRound.enabled) {
+                    ui.radioCapRound.value = true;
+                    ui.radioCapNone.value = false;
+                    updatePreview();
+                    return true;
+                }
+                return false;
+            },
+            V: function () {
+                if (ui.chkMirror && ui.chkMirror.enabled) {
+                    ui.chkMirror.value = !ui.chkMirror.value;
+                    updatePreview();
+                    return true;
+                }
+                return false;
+            }
+        };
+    }
+
+    function addKeyboardHandlers(dialog) {
+        dialog.addEventListener("keydown", function (event) {
+            var key = event.keyName;
+            var actions = getKeyboardShortcutActions();
+            var action = actions[key];
+
+            if (action && action()) {
+                event.preventDefault();
+            }
+        });
+    }
+    addKeyboardHandlers(dlg);
+
     function buildUI(dialog) {
         var mainRow = dialog.add("group");
         mainRow.orientation = "row";
@@ -365,16 +437,26 @@ function L(key) {
             radioChevronDouble: shapeUI.radioChevronDouble,
             radioArrow: shapeUI.radioArrow,
             radioArrow3: shapeUI.radioArrow3,
+            radioDash: shapeUI.radioDash,
+            radioPlus: shapeUI.radioPlus,
+            radioMultiply: shapeUI.radioMultiply,
+            chkMirror: shapeUI.chkMirror,
             radioCapNone: capUI.radioCapNone,
             radioCapRound: capUI.radioCapRound,
+
             inputGroup: optionUI.inputGroup,
             widthGroup: optionUI.widthGroup,
+            insetGroup: optionUI.insetGroup,
+
             inputField: optionUI.inputField,
             widthField: optionUI.widthField,
+            insetField: optionUI.insetField,
             gapField: optionUI.gapField,
+            strokeLabel: optionUI.strokeLabel,
             strokeField: optionUI.strokeField,
-            chkAlignVerticalCenter: optionUI.chkAlignVerticalCenter,
 
+            chkAlignVerticalCenter: optionUI.chkAlignVerticalCenter,
+            chkRoundCorners: optionUI.chkRoundCorners,
 
             adjustField: adjustUI.adjustField,
             adjustVField: adjustUI.adjustVField,
@@ -395,8 +477,22 @@ function L(key) {
         var radioTri = panel.add("radiobutton", undefined, "\u25B6");
         var radioChevron = panel.add("radiobutton", undefined, ">");
         var radioChevronDouble = panel.add("radiobutton", undefined, ">>");
+        var radioDash = panel.add("radiobutton", undefined, "\u2500");
         var radioArrow = panel.add("radiobutton", undefined, "\u2192");
         var radioArrow3 = panel.add("radiobutton", undefined, "\u27A1");
+        radioArrow3.helpTip = (lang === "ja") ? "線幅入力の3倍で描画します。" : "Draws using 3× the entered stroke width.";
+        var radioPlus = panel.add("radiobutton", undefined, "\uFF0B");
+        var radioMultiply = panel.add("radiobutton", undefined, "\u00D7");
+
+        var mirrorGroup = panel.add("group");
+        mirrorGroup.orientation = "row";
+        mirrorGroup.alignChildren = ["left", "center"];
+        mirrorGroup.alignment = ["left", "top"];
+        mirrorGroup.margins = [0, 6, 0, 0];
+
+        var chkMirror = mirrorGroup.add("checkbox", undefined, L("mirrorHorizontal"));
+        chkMirror.value = false;
+
         radioTri.value = true;
 
         return {
@@ -405,7 +501,11 @@ function L(key) {
             radioChevron: radioChevron,
             radioChevronDouble: radioChevronDouble,
             radioArrow: radioArrow,
-            radioArrow3: radioArrow3
+            radioArrow3: radioArrow3,
+            radioDash: radioDash,
+            radioPlus: radioPlus,
+            radioMultiply: radioMultiply,
+            chkMirror: chkMirror
         };
     }
 
@@ -463,6 +563,23 @@ function L(key) {
 
         widthGroup.add("statictext", undefined, rulerUnitInfo.label);
 
+        var insetGroup = panel.add("group");
+        insetGroup.orientation = "row";
+        insetGroup.alignChildren = ["left", "center"];
+        insetGroup.spacing = 8;
+
+        var labelInset = insetGroup.add("statictext", undefined, L("labelInset"));
+        labelInset.preferredSize = [UI_LABEL_WIDTH, -1];
+        labelInset.justify = "right";
+
+        var insetField = insetGroup.add("edittext", undefined, "0");
+        insetField.characters = 4;
+        // Tooltip for inset field limit
+        insetField.helpTip = (lang === "ja") ? "幅の80%が上限です" : "Max 80% of width";
+
+        insetGroup.add("statictext", undefined, rulerUnitInfo.label);
+        insetField.enabled = false;
+
         var gapGroup = panel.add("group");
         gapGroup.orientation = "row";
         gapGroup.alignChildren = ["left", "center"];
@@ -494,22 +611,36 @@ function L(key) {
 
         var alignCenterGroup = panel.add("group");
         alignCenterGroup.orientation = "row";
-        alignCenterGroup.alignChildren = ["center", "center"];
-        alignCenterGroup.alignment = ["center", "top"];
-        alignCenterGroup.margins = [0, 10, 0, 0];
+        alignCenterGroup.alignChildren = ["left", "center"];
+        alignCenterGroup.alignment = ["left", "top"];
+        alignCenterGroup.margins = [40, 10, 0, 0];
 
         var chkAlignVerticalCenter = alignCenterGroup.add("checkbox", undefined, L("alignVerticalCenter"));
         chkAlignVerticalCenter.value = false;
+
+
+        var roundCornersGroup = panel.add("group");
+        roundCornersGroup.orientation = "row";
+        roundCornersGroup.alignChildren = ["left", "center"];
+        roundCornersGroup.alignment = ["left", "top"];
+        roundCornersGroup.margins = [40, 0, 0, 0];
+
+        var chkRoundCorners = roundCornersGroup.add("checkbox", undefined, L("roundCorners"));
+        chkRoundCorners.value = true;
 
         return {
             panel: panel,
             inputGroup: inputGroup,
             widthGroup: widthGroup,
+            insetGroup: insetGroup,
             inputField: inputField,
             widthField: widthField,
+            insetField: insetField,
             gapField: gapField,
+            strokeLabel: labelStroke,
             strokeField: strokeField,
-            chkAlignVerticalCenter: chkAlignVerticalCenter
+            chkAlignVerticalCenter: chkAlignVerticalCenter,
+            chkRoundCorners: chkRoundCorners
         };
     }
 
@@ -584,7 +715,7 @@ function L(key) {
     }
 
     /* プレビュー用変数 / Preview variables */
-    var previewPath = null;
+    var previewPath = [];
 
     /* 形状定義 / Shape definitions */
     var SHAPE_CONFIG = {
@@ -595,9 +726,15 @@ function L(key) {
             enableStrokeInput: false,
             requirePositiveStroke: false,
             enableHeightInput: true,
+            enableMirror: true,
             enableGap: false,
+
+            enableInset: true,
+            enableRoundCorners: true,
             defaultHeightPercent: 30,
+
             defaultGap: -1,
+            defaultInsetPt: 0,
             defaultStrokePt: 0.3,
             calcDefaultWidth: function (inputVal, totalHeight) {
                 var triHeight = totalHeight * (inputVal / 100);
@@ -611,12 +748,16 @@ function L(key) {
             enableStrokeInput: true,
             requirePositiveStroke: true,
             enableHeightInput: true,
+            enableMirror: true,
             enableGap: false,
-            defaultHeightPercent: 20,
+            enableInset: false,
+            enableRoundCorners: false,
+            defaultHeightPercent: 30,
             defaultGap: -1,
+            defaultInsetPt: 0,
             defaultStrokePt: 0.6,
             calcDefaultWidth: function (inputVal, totalHeight, gapWidth) {
-                var arrowWidth = gapWidth * 0.75;
+                var arrowWidth = gapWidth * 0.7;
                 return Math.round(arrowWidth * 100) / 100;
             }
         },
@@ -625,14 +766,18 @@ function L(key) {
             enableCapPanel: false,
             forceFillOnly: false,
             enableStrokeInput: true,
-            requirePositiveStroke: false,
+            requirePositiveStroke: true,
             enableHeightInput: true,
+            enableMirror: true,
             enableGap: false,
+            enableInset: false,
+            enableRoundCorners: false,
             defaultHeightPercent: 50,
             defaultGap: -1,
+            defaultInsetPt: 0,
             defaultStrokePt: 1.2,
             calcDefaultWidth: function (inputVal, totalHeight, gapWidth) {
-                var arrowWidth = gapWidth * 0.75;
+                var arrowWidth = gapWidth * 0.7;
                 return Math.round(arrowWidth * 100) / 100;
             }
         },
@@ -643,13 +788,70 @@ function L(key) {
             enableStrokeInput: true,
             requirePositiveStroke: true,
             enableHeightInput: true,
+            enableMirror: true,
             enableGap: false,
+            enableInset: false,
             defaultHeightPercent: 50,
             defaultGap: -1,
+            defaultInsetPt: 0,
             defaultStrokePt: 0.6,
             calcDefaultWidth: function (inputVal, totalHeight) {
                 var chevHeight = totalHeight * (inputVal / 100);
                 return Math.round(chevHeight * 100) / 100;
+            }
+        },
+        dash: {
+            radioKey: "radioDash",
+            enableCapPanel: true,
+            forceFillOnly: false,
+            enableStrokeInput: true,
+            requirePositiveStroke: true,
+            enableHeightInput: false,
+            enableMirror: false,
+            enableGap: false,
+            enableInset: false,
+            defaultHeightPercent: undefined,
+            defaultGap: -1,
+            defaultInsetPt: 0,
+            defaultStrokePt: 0.6,
+            calcDefaultWidth: function (inputVal, totalHeight, gapWidth) {
+                return Math.round(gapWidth * 0.7 * 100) / 100;
+            }
+        },
+        plus: {
+            radioKey: "radioPlus",
+            enableCapPanel: true,
+            forceFillOnly: false,
+            enableStrokeInput: true,
+            requirePositiveStroke: true,
+            enableHeightInput: false,
+            enableMirror: false,
+            enableGap: false,
+            enableInset: false,
+            defaultHeightPercent: undefined,
+            defaultGap: -1,
+            defaultInsetPt: 0,
+            defaultStrokePt: 0.6,
+            calcDefaultWidth: function (inputVal, totalHeight, gapWidth) {
+                return Math.round(gapWidth * 0.35 * 100) / 100;
+            }
+        },
+        multiply: {
+            radioKey: "radioMultiply",
+            enableCapPanel: true,
+            forceFillOnly: false,
+            enableStrokeInput: true,
+            requirePositiveStroke: true,
+            enableHeightInput: false,
+            enableMirror: false,
+            enableGap: false,
+            enableInset: false,
+            defaultHeightPercent: undefined,
+            defaultGap: -1,
+            defaultInsetPt: 0,
+            defaultStrokePt: 0.6,
+            calcDefaultWidth: function (inputVal, totalHeight, gapWidth) {
+                return Math.round(gapWidth * 0.35 * 100) / 100;
             }
         },
         chevron2: {
@@ -659,9 +861,12 @@ function L(key) {
             enableStrokeInput: true,
             requirePositiveStroke: true,
             enableHeightInput: true,
+            enableMirror: true,
             enableGap: true,
+            enableInset: false,
             defaultHeightPercent: 50,
             defaultGap: 0,
+            defaultInsetPt: 0,
             defaultStrokePt: 0.6,
             calcDefaultWidth: function (inputVal, totalHeight) {
                 var chevHeight = totalHeight * (inputVal / 100);
@@ -671,6 +876,11 @@ function L(key) {
     };
     var widthManuallySet = false;
 
+    function resetWidthToAuto() {
+        widthManuallySet = false;
+        calcDefaultWidth();
+    }
+
     /* 幅の初期値を自動計算 / Auto-calculate default width */
     function calcDefaultWidth() {
         clearMeasurementBoundsCache();
@@ -678,20 +888,90 @@ function L(key) {
         var shapeConfig = SHAPE_CONFIG[shapeKey];
         var inputVal = parseFloat(ui.inputField.text);
         var items = getSortedSelectionItems();
-        var b0_init = getItemMeasurementBounds(items[0]);
-        var b1_init = getItemMeasurementBounds(items[1]);
-        var totalHeight = Math.max(b0_init[1], b1_init[1]) - Math.min(b0_init[3], b1_init[3]);
-        var leftObj = (b0_init[0] < b1_init[0]) ? b0_init : b1_init;
-        var rightObj = (b0_init[0] < b1_init[0]) ? b1_init : b0_init;
-        var gapWidth = rightObj[0] - leftObj[2];
+        var i;
+        var placement;
+        var minGapWidth = null;
+        var minTotalHeight = null;
         var defaultWidth;
+
         if (shapeConfig.enableHeightInput && (isNaN(inputVal) || inputVal <= 0)) return;
-        defaultWidth = shapeConfig.calcDefaultWidth(inputVal, totalHeight, gapWidth);
+        if (items.length < 2) return;
+
+        for (i = 0; i < items.length - 1; i++) {
+            placement = computePlacementBetweenItems(items[i], items[i + 1], inputVal, 0, 0, 0);
+            if (!placement) {
+                continue;
+            }
+
+            if (minGapWidth === null || (placement.gapRight - placement.gapLeft) < minGapWidth) {
+                minGapWidth = placement.gapRight - placement.gapLeft;
+            }
+            if (minTotalHeight === null || placement.totalHeight < minTotalHeight) {
+                minTotalHeight = placement.totalHeight;
+            }
+        }
+
+        if (minGapWidth === null || minTotalHeight === null) {
+            return;
+        }
+
+        defaultWidth = shapeConfig.calcDefaultWidth(inputVal, minTotalHeight, minGapWidth);
         if (defaultWidth === null || typeof defaultWidth === "undefined") {
             ui.widthField.text = "";
         } else {
             setFieldFromPt(ui.widthField, defaultWidth, rulerUnitInfo);
         }
+    }
+
+    function getCurrentEffectiveWidthPt() {
+        clearMeasurementBoundsCache();
+        var shapeKey = getShapeType();
+        var shapeConfig = SHAPE_CONFIG[shapeKey];
+        var widthVal = parseFieldToPt(ui.widthField, rulerUnitInfo, false);
+        var inputVal = parseFloat(ui.inputField.text);
+        var items = getSortedSelectionItems();
+        var i;
+        var placement;
+        var minGapWidth = null;
+        var minTotalHeight = null;
+        var defaultWidth;
+
+        if (!isNaN(widthVal) && widthVal > 0) {
+            return widthVal;
+        }
+
+        if (!shapeConfig || !shapeConfig.calcDefaultWidth) {
+            return 0;
+        }
+
+        if (shapeConfig.enableHeightInput && (isNaN(inputVal) || inputVal <= 0)) {
+            return 0;
+        }
+
+        if (items.length < 2) {
+            return 0;
+        }
+
+        for (i = 0; i < items.length - 1; i++) {
+            placement = computePlacementBetweenItems(items[i], items[i + 1], inputVal, 0, 0, 0);
+            if (!placement) {
+                continue;
+            }
+
+            if (minGapWidth === null || (placement.gapRight - placement.gapLeft) < minGapWidth) {
+                minGapWidth = placement.gapRight - placement.gapLeft;
+            }
+            if (minTotalHeight === null || placement.totalHeight < minTotalHeight) {
+                minTotalHeight = placement.totalHeight;
+            }
+        }
+
+        if (minGapWidth === null || minTotalHeight === null) {
+            return 0;
+        }
+
+        defaultWidth = shapeConfig.calcDefaultWidth(inputVal, minTotalHeight, minGapWidth);
+        return (defaultWidth && defaultWidth > 0) ? defaultWidth : 0;
     }
 
     /* 形状ごとの初期値適用 / Apply shape defaults */
@@ -704,18 +984,46 @@ function L(key) {
         if (!widthManuallySet) {
             calcDefaultWidth();
         }
+
         setFieldFromPt(ui.gapField, shapeConfig.defaultGap, rulerUnitInfo);
         ui.gapField.enabled = !!shapeConfig.enableGap;
+        setFieldFromPt(ui.insetField, shapeConfig.defaultInsetPt || 0, rulerUnitInfo);
+        ui.insetField.enabled = !!shapeConfig.enableInset;
+        if (ui.insetGroup) {
+            ui.insetGroup.visible = true;
+            ui.insetGroup.enabled = !!shapeConfig.enableInset;
+        }
         setFieldFromPt(ui.strokeField, shapeConfig.defaultStrokePt, strokeUnitInfo);
+
         ui.capPanel.enabled = !!shapeConfig.enableCapPanel;
         ui.inputGroup.enabled = !!shapeConfig.enableHeightInput;
         ui.strokeField.enabled = !!shapeConfig.enableStrokeInput;
+
+        if (ui.strokeLabel) {
+            ui.strokeLabel.text = (shapeKey === "arrow3")
+                ? (lang === "ja" ? "線幅×3" : "Stroke ×3")
+                : L("labelStroke");
+        }
 
         if (ui.chkAlignVerticalCenter) {
             var isChevronShape = (shapeKey === "chevron" || shapeKey === "chevron2");
             ui.chkAlignVerticalCenter.enabled = isChevronShape;
             if (!isChevronShape) {
                 ui.chkAlignVerticalCenter.value = false;
+            }
+        }
+
+        if (ui.chkMirror) {
+            ui.chkMirror.enabled = !!shapeConfig.enableMirror;
+            if (!shapeConfig.enableMirror) {
+                ui.chkMirror.value = false;
+            }
+        }
+
+        if (ui.chkRoundCorners) {
+            ui.chkRoundCorners.enabled = !!shapeConfig.enableRoundCorners;
+            if (!shapeConfig.enableRoundCorners) {
+                ui.chkRoundCorners.value = false;
             }
         }
 
@@ -784,10 +1092,27 @@ function L(key) {
             updatePreview();
         });
     }
-
     changeValueByArrowKey(ui.inputField);
     changeValueByArrowKey(ui.widthField);
+    changeValueByArrowKey(ui.insetField);
     changeValueByArrowKey(ui.strokeField);
+
+    ui.insetField.onChanging = function () {
+        var insetNum = parseFloat(ui.insetField.text);
+        var effectiveWidthPt;
+        var maxInsetPt;
+        if (!isNaN(insetNum) && insetNum >= 0) {
+            effectiveWidthPt = getCurrentEffectiveWidthPt();
+            if (effectiveWidthPt > 0) {
+                maxInsetPt = effectiveWidthPt * 0.8;
+                if (convertValueToPt(insetNum, rulerUnitInfo) > maxInsetPt) {
+                    ui.insetField.text = String(roundDisplayValue(convertPtToUnitValue(maxInsetPt, rulerUnitInfo)));
+                }
+            }
+        }
+        schedulePreviewUpdate();
+    };
+
     changeValueByArrowKey(ui.gapField);
     changeValueByArrowKey(ui.adjustField);
     changeValueByArrowKey(ui.adjustVField);
@@ -813,12 +1138,13 @@ function L(key) {
         return radios;
     }
 
+
     function validateStrokeWidthForShape(shapeKey, strokeW, showAlert) {
         var shapeConfig = SHAPE_CONFIG[shapeKey];
         if (!shapeConfig || !shapeConfig.requirePositiveStroke) {
             return true;
         }
-        if (isNaN(strokeW) || strokeW <= 0) {
+        if (isNaN(strokeW) || strokeW < 0.25) {
             if (showAlert) {
                 alert(L("alertStrokePositive"));
             }
@@ -827,17 +1153,144 @@ function L(key) {
         return true;
     }
 
+    function readUIValues(showAlert) {
+        var shapeKey = getShapeType();
+        var shapeConfig = SHAPE_CONFIG[shapeKey];
+        var inputVal = null;
+        var widthVal = parseFieldToPt(ui.widthField, rulerUnitInfo, false);
+        var insetVal = (shapeConfig && shapeConfig.enableInset)
+            ? parseFieldToPt(ui.insetField, rulerUnitInfo, false)
+            : 0;
+        var offsetX = parseFieldToPt(ui.adjustField, rulerUnitInfo, true);
+        var offsetY = parseFieldToPt(ui.adjustVField, rulerUnitInfo, true);
+        var strokeW = parseFieldToPt(ui.strokeField, strokeUnitInfo, false);
+
+        if (shapeConfig && shapeConfig.enableInset) {
+            if (isNaN(insetVal) || insetVal < 0) {
+                if (showAlert) {
+                    alert(L("alertInvalidValue"));
+                    ui.insetField.active = true;
+                }
+                return null;
+            }
+            // clamp to 80% of width when width is explicitly set
+            if (widthVal > 0) {
+                var maxInsetPt = widthVal * 0.8;
+                if (insetVal > maxInsetPt) {
+                    insetVal = maxInsetPt;
+                }
+            }
+        }
+
+        if (shapeConfig && shapeConfig.enableHeightInput) {
+            inputVal = parseFloat(ui.inputField.text);
+            if (isNaN(inputVal) || inputVal <= 0) {
+                if (showAlert) {
+                    alert(L("alertPositiveNumber"));
+                    ui.inputField.active = true;
+                }
+                return null;
+            }
+            if (inputVal > 200) {
+                if (showAlert) {
+                    alert(L("alertMaxHeight"));
+                    ui.inputField.active = true;
+                }
+                return null;
+            }
+        }
+
+        if (isNaN(widthVal) || widthVal < 0) {
+            if (showAlert) {
+                alert(L("alertWidthPositive"));
+                ui.widthField.active = true;
+            }
+            return null;
+        }
+
+        if (isNaN(offsetX)) {
+            if (showAlert) {
+                alert(L("alertInvalidValue"));
+                ui.adjustField.active = true;
+            }
+            return null;
+        }
+
+        if (isNaN(offsetY)) {
+            if (showAlert) {
+                alert(L("alertInvalidValue"));
+                ui.adjustVField.active = true;
+            }
+            return null;
+        }
+
+        if (isNaN(strokeW) || strokeW < 0.25) {
+            strokeW = 0.25;
+        }
+
+        if (!validateStrokeWidthForShape(shapeKey, strokeW, showAlert)) {
+            if (showAlert) {
+                ui.strokeField.active = true;
+            }
+            return null;
+        }
+
+        return {
+            shapeKey: shapeKey,
+            shapeConfig: shapeConfig,
+            inputVal: inputVal,
+            widthVal: widthVal,
+            insetVal: insetVal,
+            offsetX: offsetX,
+            offsetY: offsetY,
+            strokeW: strokeW
+        };
+    }
 
 
-    /* シェイプ描画ヘルパー / Shape drawing helpers */
-    function createTriShape(cx, cy, w, h, strokeW, forceFillOnly) {
-        var points = [
-            [cx + w / 2, cy],
-            [cx - w / 2, cy + h / 2],
-            [cx - w / 2, cy - h / 2]
-        ];
 
-        var path = doc.activeLayer.pathItems.add();
+    function getTriAutoCornerRadius(w, h, insetVal) {
+        var base = Math.min(w, h);
+        var radius = base * 0.12;
+        if (insetVal > 0) {
+            radius = Math.min(radius, insetVal * 0.45);
+        }
+        radius = Math.max(1, radius);
+        return radius;
+    }
+
+    function applyRoundCornersLive(item, radiusPt) {
+        if (!item || radiusPt <= 0) return;
+        try {
+            item.applyEffect('<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radiusPt + ' "/></LiveEffect>');
+        } catch (e) { }
+    }
+
+    function createTriShape(cx, cy, w, h, insetVal, strokeW, forceFillOnly) {
+        var inset = Math.max(0, Math.min(insetVal || 0, w * 0.8));
+        var leftX = cx - w / 2;
+        var rightX = cx + w / 2;
+        var halfH = h / 2;
+        var points;
+        var path;
+        var roundRadius;
+
+        if (inset > 0) {
+            points = [
+                [rightX, cy],
+                [leftX, cy + halfH],
+                [leftX + inset, cy],
+                [leftX, cy - halfH]
+            ];
+        } else {
+            points = [
+                [rightX, cy],
+                [leftX, cy + halfH],
+                [leftX, cy - halfH]
+            ];
+        }
+
+        path = doc.activeLayer.pathItems.add();
         path.setEntirePath(points);
         path.closed = true;
         path.filled = true;
@@ -846,15 +1299,21 @@ function L(key) {
             path.stroked = true;
             path.strokeWidth = strokeW;
             path.strokeColor = makeCMYK(0, 0, 0, 100);
+            path.strokeJoin = StrokeJoin.ROUNDENDJOIN;
         } else {
             path.stroked = false;
+        }
+
+        if (ui.chkRoundCorners && ui.chkRoundCorners.value) {
+            roundRadius = getTriAutoCornerRadius(w, h, inset);
+            applyRoundCornersLive(path, roundRadius);
         }
         return path;
     }
 
     function createArrowShape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW) {
         var gapW = gapRight - gapLeft;
-        var w = (widthVal > 0) ? widthVal : (gapW * 0.75);
+        var w = (widthVal > 0) ? widthVal : (gapW * 0.7);
         var lineW = strokeW;
         var headSize = h / 2;
 
@@ -896,7 +1355,7 @@ function L(key) {
 
     function createArrow3Shape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW) {
         var gapW = gapRight - gapLeft;
-        var w = (widthVal > 0) ? widthVal : (gapW * 0.75);
+        var w = (widthVal > 0) ? widthVal : (gapW * 0.7);
         var lineW = (strokeW > 0) ? strokeW * 3 : 3;
         var r = h / 2;
 
@@ -1068,32 +1527,152 @@ function L(key) {
         return group;
     }
 
-    function finalizeArrow3Appearance(parts) {
-        var outlinedShaft;
-        if (!parts || !parts.shaft || !parts.head) return parts;
-
-        doc.selection = [parts.shaft];
-        app.executeMenuCommand('Live Outline Stroke');
-        if (doc.selection && doc.selection.length > 0) {
-            outlinedShaft = doc.selection[0];
-        } else {
-            outlinedShaft = parts.shaft;
+    function createDashShape(cx, cy, widthVal, strokeW) {
+        var half = widthVal / 2;
+        var line = doc.activeLayer.pathItems.add();
+        line.setEntirePath([
+            [cx - half, cy],
+            [cx + half, cy]
+        ]);
+        line.closed = false;
+        line.filled = false;
+        line.stroked = true;
+        line.strokeWidth = strokeW;
+        line.strokeColor = makeCMYK(0, 0, 0, 100);
+        if (ui.radioCapRound.value) {
+            line.strokeCap = StrokeCap.ROUNDENDCAP;
         }
-
-        doc.selection = [outlinedShaft, parts.head];
-        app.executeMenuCommand('group');
-        app.executeMenuCommand('Live Pathfinder Add');
-        if (doc.selection && doc.selection.length > 0) {
-            return doc.selection[0];
-        }
-        return outlinedShaft;
+        return line;
     }
 
-    function createShapeBetweenItems(leftItem, rightItem, inputVal, widthVal, offsetX, offsetY, strokeW) {
+    function createPlusShape(cx, cy, widthVal, strokeW) {
+        var half = widthVal / 2;
+        var lineW = strokeW;
+
+        var hLine = doc.activeLayer.pathItems.add();
+        hLine.setEntirePath([
+            [cx - half, cy],
+            [cx + half, cy]
+        ]);
+        hLine.closed = false;
+        hLine.filled = false;
+        hLine.stroked = true;
+        hLine.strokeWidth = lineW;
+        hLine.strokeColor = makeCMYK(0, 0, 0, 100);
+        if (ui.radioCapRound.value) {
+            hLine.strokeCap = StrokeCap.ROUNDENDCAP;
+        }
+
+        var vLine = doc.activeLayer.pathItems.add();
+        vLine.setEntirePath([
+            [cx, cy + half],
+            [cx, cy - half]
+        ]);
+        vLine.closed = false;
+        vLine.filled = false;
+        vLine.stroked = true;
+        vLine.strokeWidth = lineW;
+        vLine.strokeColor = makeCMYK(0, 0, 0, 100);
+        if (ui.radioCapRound.value) {
+            vLine.strokeCap = StrokeCap.ROUNDENDCAP;
+        }
+
+        var group = doc.activeLayer.groupItems.add();
+        hLine.move(group, ElementPlacement.INSIDE);
+        vLine.move(group, ElementPlacement.INSIDE);
+        return group;
+    }
+
+    function createMultiplyShape(cx, cy, widthVal, strokeW) {
+        var half = widthVal / 2;
+        var diag = half * Math.SQRT2 / 2;
+        var lineW = strokeW;
+
+        var line1 = doc.activeLayer.pathItems.add();
+        line1.setEntirePath([
+            [cx - diag, cy + diag],
+            [cx + diag, cy - diag]
+        ]);
+        line1.closed = false;
+        line1.filled = false;
+        line1.stroked = true;
+        line1.strokeWidth = lineW;
+        line1.strokeColor = makeCMYK(0, 0, 0, 100);
+        if (ui.radioCapRound.value) {
+            line1.strokeCap = StrokeCap.ROUNDENDCAP;
+        }
+
+        var line2 = doc.activeLayer.pathItems.add();
+        line2.setEntirePath([
+            [cx - diag, cy - diag],
+            [cx + diag, cy + diag]
+        ]);
+        line2.closed = false;
+        line2.filled = false;
+        line2.stroked = true;
+        line2.strokeWidth = lineW;
+        line2.strokeColor = makeCMYK(0, 0, 0, 100);
+        if (ui.radioCapRound.value) {
+            line2.strokeCap = StrokeCap.ROUNDENDCAP;
+        }
+
+        var group = doc.activeLayer.groupItems.add();
+        line1.move(group, ElementPlacement.INSIDE);
+        line2.move(group, ElementPlacement.INSIDE);
+        return group;
+    }
+
+    function finalizeArrow3Appearance(parts) {
+        var outlinedShaft;
+        var result;
+        var prevSelection = [];
+        var i;
+        if (!parts || !parts.shaft || !parts.head) return parts;
+
+        if (doc.selection && doc.selection.length) {
+            for (i = 0; i < doc.selection.length; i++) {
+                prevSelection.push(doc.selection[i]);
+            }
+        }
+
+        try {
+            doc.selection = [parts.shaft];
+            app.executeMenuCommand('Live Outline Stroke');
+            if (doc.selection && doc.selection.length > 0) {
+                outlinedShaft = doc.selection[0];
+            } else {
+                outlinedShaft = parts.shaft;
+            }
+
+            doc.selection = [outlinedShaft, parts.head];
+            app.executeMenuCommand('group');
+            app.executeMenuCommand('Live Pathfinder Add');
+            if (doc.selection && doc.selection.length > 0) {
+                result = doc.selection[0];
+            } else {
+                result = outlinedShaft;
+            }
+            return result;
+        } finally {
+            try {
+                doc.selection = null;
+                for (i = 0; i < prevSelection.length; i++) {
+                    try {
+                        prevSelection[i].selected = true;
+                    } catch (e) { }
+                }
+            } catch (e2) { }
+        }
+    }
+
+    function computePlacementBetweenItems(leftItem, rightItem, inputVal, widthVal, offsetX, offsetY) {
         var b0 = getItemMeasurementBounds(leftItem);
         var b1 = getItemMeasurementBounds(rightItem);
-
         var leftObj, rightObj;
+        var gapLeft, gapRight;
+        var allTop, allBottom;
+        var totalHeight;
+
         if (b0[0] < b1[0]) {
             leftObj = b0;
             rightObj = b1;
@@ -1102,109 +1681,185 @@ function L(key) {
             rightObj = b0;
         }
 
-        var gapLeft = leftObj[2];
-        var gapRight = rightObj[0];
+        gapLeft = leftObj[2];
+        gapRight = rightObj[0];
 
         if (gapRight - gapLeft <= 0) {
             return null;
         }
 
-        var cx = (gapLeft + gapRight) / 2 + (offsetX || 0);
+        allTop = Math.max(b0[1], b1[1]);
+        allBottom = Math.min(b0[3], b1[3]);
+        totalHeight = allTop - allBottom;
 
-        var allTop = Math.max(b0[1], b1[1]);
-        var allBottom = Math.min(b0[3], b1[3]);
-        var cy = (allTop + allBottom) / 2 + (offsetY || 0);
+        return {
+            b0: b0,
+            b1: b1,
+            gapLeft: gapLeft,
+            gapRight: gapRight,
+            cx: (gapLeft + gapRight) / 2 + (offsetX || 0),
+            cy: (allTop + allBottom) / 2 + (offsetY || 0),
+            totalHeight: totalHeight,
+            h: (inputVal === null || typeof inputVal === "undefined") ? totalHeight : (totalHeight * (inputVal / 100)),
+            w: (widthVal > 0) ? widthVal : ((inputVal === null || typeof inputVal === "undefined") ? totalHeight : (totalHeight * (inputVal / 100)))
+        };
+    }
 
-        var totalHeight = allTop - allBottom;
-        var h = totalHeight * (inputVal / 100);
-        var w = (widthVal > 0) ? widthVal : h;
-        var shape = getShapeType();
-        var shapeConfig = SHAPE_CONFIG[shape];
-
+    function createShapeAtPlacement(shape, placement, widthVal, insetVal, strokeW, shapeConfig) {
         if (shape === "tri") {
-            return createTriShape(cx, cy, w, h, strokeW, !!shapeConfig.forceFillOnly);
+            return createTriShape(placement.cx, placement.cy, placement.w, placement.h, insetVal, strokeW, !!shapeConfig.forceFillOnly);
         }
         if (shape === "arrow") {
-            return createArrowShape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW);
+            return createArrowShape(placement.cx, placement.cy, placement.gapLeft, placement.gapRight, placement.h, widthVal, strokeW);
         }
         if (shape === "arrow3") {
-            var arrow3Parts = createArrow3Shape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW);
+            var arrow3Parts = createArrow3Shape(placement.cx, placement.cy, placement.gapLeft, placement.gapRight, placement.h, widthVal, strokeW);
             return finalizeArrow3Appearance(arrow3Parts);
         }
         if (shape === "chevron") {
-            return createChevronShape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW);
+            return createChevronShape(placement.cx, placement.cy, placement.gapLeft, placement.gapRight, placement.h, widthVal, strokeW);
         }
         if (shape === "chevron2") {
-            return createChevron2Shape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW);
+            return createChevron2Shape(placement.cx, placement.cy, placement.gapLeft, placement.gapRight, placement.h, widthVal, strokeW);
+        }
+        if (shape === "dash") {
+            return createDashShape(placement.cx, placement.cy, placement.w, strokeW);
+        }
+        if (shape === "plus") {
+            return createPlusShape(placement.cx, placement.cy, placement.w, strokeW);
+        }
+        if (shape === "multiply") {
+            return createMultiplyShape(placement.cx, placement.cy, placement.w, strokeW);
+        }
+        return createTriShape(placement.cx, placement.cy, placement.w, placement.h, insetVal, strokeW, !!shapeConfig.forceFillOnly);
+    }
+
+    function applyMirrorIfNeeded(result) {
+        if (!(result && ui.chkMirror && ui.chkMirror.value)) {
+            return result;
         }
 
-        return createTriShape(cx, cy, w, h, strokeW, !!shapeConfig.forceFillOnly);
+        try {
+            result.resize(
+                -100,
+                100,
+                true,
+                true,
+                true,
+                true,
+                100,
+                Transformation.CENTER
+            );
+        } catch (e) {
+            var bMirror = result.geometricBounds;
+            var mirrorCenterX = (bMirror[0] + bMirror[2]) / 2;
+            result.translate(mirrorCenterX * 2, 0);
+            result.resize(
+                -100,
+                100,
+                true,
+                true,
+                true,
+                true,
+                100,
+                Transformation.TOPLEFT
+            );
+        }
+
+        return result;
+    }
+
+    function createShapeBetweenItems(leftItem, rightItem, inputVal, widthVal, insetVal, offsetX, offsetY, strokeW) {
+        var shape = getShapeType();
+        var shapeConfig = SHAPE_CONFIG[shape];
+        var placement = computePlacementBetweenItems(leftItem, rightItem, inputVal, widthVal, offsetX, offsetY);
+        var result;
+
+        if (!placement) {
+            return null;
+        }
+
+        result = createShapeAtPlacement(shape, placement, widthVal, insetVal, strokeW, shapeConfig);
+        return applyMirrorIfNeeded(result);
     }
 
     /* 形状を作成する共通関数 / Shared shape creation function */
-    function createShape(inputVal, widthVal, offsetX, offsetY, strokeW) {
+    function createShape(inputVal, widthVal, insetVal, offsetX, offsetY, strokeW) {
         clearMeasurementBoundsCache();
 
         var items = getSortedSelectionItems();
         var createdItems = [];
         var i;
         var shapeItem;
-        var group;
 
         for (i = 0; i < items.length - 1; i++) {
-            shapeItem = createShapeBetweenItems(items[i], items[i + 1], inputVal, widthVal, offsetX, offsetY, strokeW);
+            shapeItem = createShapeBetweenItems(items[i], items[i + 1], inputVal, widthVal, insetVal, offsetX, offsetY, strokeW);
             if (shapeItem !== null) {
                 createdItems.push(shapeItem);
             }
         }
 
-        if (createdItems.length === 0) {
-            return null;
-        }
-
-        if (createdItems.length === 1) {
-            return createdItems[0];
-        }
-
-        group = doc.activeLayer.groupItems.add();
-        for (i = 0; i < createdItems.length; i++) {
-            createdItems[i].move(group, ElementPlacement.INSIDE);
-        }
-        return group;
+        return createdItems;
     }
 
     /* プレビューを削除 / Remove preview */
     function removePreview() {
-        if (previewPath !== null) {
-            try { previewPath.remove(); } catch (e) { }
-            previewPath = null;
-            app.redraw();
+        cancelDebouncedPreview();
+        if (!previewPath || previewPath.length === 0) {
+            return;
+        }
+
+        for (var pi = 0; pi < previewPath.length; pi++) {
+            try {
+                previewPath[pi].remove();
+            } catch (e) {
+                try { $.writeln("[RightMarkPlacer] Failed to remove preview item: " + e); } catch (_) { }
+            }
+        }
+        previewPath = [];
+        app.redraw();
+    }
+
+    /* プレビューデバウンス / Preview debounce */
+    var previewDebounceTaskId = null;
+    var PREVIEW_DEBOUNCE_DELAY = 120;
+
+    function cancelDebouncedPreview() {
+        if (previewDebounceTaskId !== null) {
+            try {
+                app.cancelTask(previewDebounceTaskId);
+            } catch (e) { }
+            previewDebounceTaskId = null;
+        }
+    }
+
+    function schedulePreviewUpdate() {
+        cancelDebouncedPreview();
+        try {
+            previewDebounceTaskId = app.scheduleTask(
+                "try { updatePreview(); } catch (e) {}",
+                PREVIEW_DEBOUNCE_DELAY,
+                false
+            );
+        } catch (e) {
+            updatePreview();
         }
     }
 
     /* プレビューを更新 / Update preview */
     function updatePreview() {
+        previewDebounceTaskId = null;
+        var values;
         removePreview();
         if (!ui.previewCb.value) return;
 
-        var inputVal = parseFloat(ui.inputField.text);
-        if (isNaN(inputVal) || inputVal <= 0 || inputVal > 200) return;
+        values = readUIValues(false);
+        if (!values) return;
 
-        var widthVal = parseFieldToPt(ui.widthField, rulerUnitInfo, false);
-        if (isNaN(widthVal) || widthVal < 0) widthVal = 0;
-
-        var offsetX = parseFieldToPt(ui.adjustField, rulerUnitInfo, true);
-        if (isNaN(offsetX)) offsetX = 0;
-
-        var offsetY = parseFieldToPt(ui.adjustVField, rulerUnitInfo, true);
-        if (isNaN(offsetY)) offsetY = 0;
-
-        var strokeW = parseFieldToPt(ui.strokeField, strokeUnitInfo, false);
-        if (isNaN(strokeW) || strokeW < 0) strokeW = 0;
-
-        if (!validateStrokeWidthForShape(getShapeType(), strokeW, false)) return;
-
-        previewPath = createShape(inputVal, widthVal, offsetX, offsetY, strokeW);
+        previewPath = createShape(values.inputVal, values.widthVal, values.insetVal, values.offsetX, values.offsetY, values.strokeW);
+        if (!previewPath) {
+            previewPath = [];
+        }
         app.redraw();
     }
 
@@ -1223,6 +1878,18 @@ function L(key) {
         };
     }
 
+    if (ui.chkMirror) {
+        ui.chkMirror.onClick = function () {
+            updatePreview();
+        };
+    }
+
+    if (ui.chkRoundCorners) {
+        ui.chkRoundCorners.onClick = function () {
+            updatePreview();
+        };
+    }
+
     ui.previewCb.onClick = function () {
         updatePreview();
     };
@@ -1231,27 +1898,32 @@ function L(key) {
         if (!widthManuallySet) {
             calcDefaultWidth();
         }
-        updatePreview();
+        schedulePreviewUpdate();
     };
 
     ui.widthField.onChanging = function () {
-        updatePreview();
+        if (ui.widthField.text === "") {
+            resetWidthToAuto();
+        } else {
+            widthManuallySet = true;
+        }
+        schedulePreviewUpdate();
     };
 
     ui.adjustField.onChanging = function () {
-        updatePreview();
+        schedulePreviewUpdate();
     };
 
     ui.adjustVField.onChanging = function () {
-        updatePreview();
+        schedulePreviewUpdate();
     };
 
     ui.strokeField.onChanging = function () {
-        updatePreview();
+        schedulePreviewUpdate();
     };
 
     ui.gapField.onChanging = function () {
-        updatePreview();
+        schedulePreviewUpdate();
     };
 
     /* 形状パネルのラジオボタン選択変更時に初期値適用 / Apply defaults when shape selection changes */
@@ -1266,63 +1938,44 @@ function L(key) {
 
     /* OKボタン処理 / OK button handler */
     ui.okBtn.onClick = function () {
+        var values;
 
-        var inputVal = parseFloat(ui.inputField.text);
-
-        if (isNaN(inputVal) || inputVal <= 0) {
-            alert(L("alertPositiveNumber"));
-            ui.inputField.active = true;
-            return;
-        }
-        if (inputVal > 200) {
-            alert(L("alertMaxHeight"));
-            ui.inputField.active = true;
+        values = readUIValues(true);
+        if (!values) {
             return;
         }
 
         // プレビューがあればそのまま確定
-        if (previewPath !== null) {
-            doc.selection = [previewPath];
-            previewPath = null;
+        if (previewPath.length > 0) {
+            doc.selection = previewPath;
+            previewPath = [];
             dlg.close(1);
             return;
         }
 
         dlg.close(1);
 
-        var widthVal = parseFieldToPt(ui.widthField, rulerUnitInfo, false);
-        if (isNaN(widthVal) || widthVal < 0) widthVal = 0;
-
-        var offsetX = parseFieldToPt(ui.adjustField, rulerUnitInfo, true);
-        if (isNaN(offsetX)) offsetX = 0;
-
-        var offsetY = parseFieldToPt(ui.adjustVField, rulerUnitInfo, true);
-        if (isNaN(offsetY)) offsetY = 0;
-
-        var strokeW = parseFieldToPt(ui.strokeField, strokeUnitInfo, false);
-        if (isNaN(strokeW) || strokeW < 0) strokeW = 0;
-
-        if (!validateStrokeWidthForShape(getShapeType(), strokeW, true)) {
-            ui.strokeField.active = true;
-            return;
-        }
-
-        var path = createShape(inputVal, widthVal, offsetX, offsetY, strokeW);
-        if (path === null) {
+        var path = createShape(values.inputVal, values.widthVal, values.insetVal, values.offsetX, values.offsetY, values.strokeW);
+        if (!path || path.length === 0) {
             alert(L("alertNoGap"));
             return;
         }
-        doc.selection = [path];
+        doc.selection = path;
     };
 
     /* キャンセルボタン処理 / Cancel button handler */
     ui.cancelBtn.onClick = function () {
+        cancelDebouncedPreview();
         removePreview();
         dlg.close(0);
     };
 
     /* 初期値適用 / Apply initial defaults */
     applyShapeDefaults();
+    try {
+        dlg.layout.layout(true);
+        dlg.layout.resize();
+    } catch (e) { }
 
     dlg.show();
 
