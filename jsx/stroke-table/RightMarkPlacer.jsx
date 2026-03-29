@@ -1931,6 +1931,8 @@ function L(key) {
     for (var i = 0; i < shapeRadios.length; i++) {
         shapeRadios[i].onClick = function () {
             widthManuallySet = false;
+            ui.adjustField.text = "0";
+            ui.adjustVField.text = "0";
             applyShapeDefaults();
             updatePreview();
         };
