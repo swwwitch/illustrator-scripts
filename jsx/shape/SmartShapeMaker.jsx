@@ -4,7 +4,7 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-SmartShapeMaker.jsx (v1.9)
+SmartShapeMaker.jsx (v2.0)
 
 Illustrator script to create custom shapes from a single dialog
 (Circle / Polygon / Star / Superellipse / Reuleaux-style).
@@ -12,7 +12,7 @@ Real-time preview, adjustable sides, width, rotation, and advanced options are s
 Japanese / English UI.
 
 ### 更新日 / Updated:
-- 20260319
+- 20260330
 
 Main Features:
 - Specify number of sides (0 = Circle, 3/4/5/6/8, or custom with slider)
@@ -41,6 +41,10 @@ Main Features:
 - Options panel:
   - Live Shape conversion (Convert to Shape) on finalize
   - Split at Anchor Points (creates open stroked segments)
+- Add via Roughen (Detail; value=1 on non-circles uses “Add Anchor Points2”)
+  - Mutual exclusivity:
+    - Add via Roughen ON → Split at Anchor Points OFF (disabled)
+    - Add via Roughen ON → Live Shape OFF (disabled)
 - Dialog opacity and position are restored within the current Illustrator session
 - Preview does not pollute Undo history; final result can be undone in a single step
 - View Zoom slider above OK / Cancel
@@ -59,6 +63,7 @@ Usage Flow:
 1. Set sides, width, star/circle options, rotation, and options in the dialog
 2. Preview updates in real-time
 3. Click OK to finalize the preview object at the artboard center
+4. If “Add via Roughen” is enabled, anchors are added after finalization (Roughen effect or fallback command depending on value)
 
 Original Idea: Seiji Miyazawa (Sankai Lab)
 https://x.com/onthehead/status/2007350198721483172
@@ -66,7 +71,6 @@ https://x.com/onthehead/status/2007350198721483172
 コーナースムージング
 黒野 真吾さん
 https://note.com/shingokurono/n/n348a3e73a465
-
 
 */
 
@@ -76,7 +80,7 @@ function getCurrentLang() {
 }
 var lang = getCurrentLang();
 
-var SCRIPT_VERSION = "v1.9";
+var SCRIPT_VERSION = "v2.0";
 
 var LABELS = {
     dialogTitle: {
@@ -113,6 +117,7 @@ var LABELS = {
     reuleaux: { ja: "ルーロー（定幅図形）", en: "Reuleaux (Constant Width)" },
     splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
     liveShape: { ja: "ライブシェイプ化", en: "Live Shape" },
+    roughenAnchors: { ja: "ラフ効果で追加", en: "Add via Roughen" },
     ok: { ja: "OK", en: "OK" },
     cancel: { ja: "キャンセル", en: "Cancel" },
     viewZoom: { ja: "画面ズーム", en: "View Zoom" },
@@ -123,6 +128,8 @@ var LABELS = {
 
 var previewShape = null;
 var applyLiveShape = true;
+var roughenAnchorsDetail = 0;
+var roughenAnchorsUseMenuFallback = false;
 
 // Session-only dialog state (kept only while Illustrator is running)
 // Uses the persistent engine specified by #targetengine
@@ -146,6 +153,18 @@ function main() {
     doc = app.activeDocument;
 
     finalizeShape(doc);
+    if (roughenAnchorsDetail > 0) {
+        try {
+            if (roughenAnchorsUseMenuFallback && Math.round(roughenAnchorsDetail) === 1) {
+                app.executeMenuCommand('Add Anchor Points2');
+            } else {
+                for (var i = 0; i < doc.selection.length; i++) {
+                    var xml = '<LiveEffect name="Adobe Roughen"><Dict data="R asiz 0 R size 0 R absoluteness 0 R dtal ' + roughenAnchorsDetail + ' R roundness 0 "/></LiveEffect>';
+                    doc.selection[i].applyEffect(xml);
+                }
+            }
+        } catch (e) { }
+    }
     if (applyLiveShape) app.executeMenuCommand('Convert to Shape');
 }
 
@@ -231,12 +250,12 @@ function getStrokeUnitInfo() {
     var label, factor;
     switch (su) {
         case 0: label = "inch"; factor = 72; break;
-        case 1: label = "mm";   factor = 72 / 25.4; break;
+        case 1: label = "mm"; factor = 72 / 25.4; break;
         case 3: label = "pica"; factor = 12; break;
-        case 4: label = "cm";   factor = 72 / 2.54; break;
-        case 5: label = "Q";    factor = (72 / 25.4) * 0.25; break;
-        case 6: label = "px";   factor = 1; break;
-        default: label = "pt";  factor = 1; break; // case 2
+        case 4: label = "cm"; factor = 72 / 2.54; break;
+        case 5: label = "Q"; factor = (72 / 25.4) * 0.25; break;
+        case 6: label = "px"; factor = 1; break;
+        default: label = "pt"; factor = 1; break; // case 2
     }
     return { label: label, factorToPt: factor };
 }
@@ -497,15 +516,15 @@ function buildSmoothedRect(doc, left, top, W, H, R, S) {
     var hX = computeCornerH(armX, R);
     var hY = computeCornerH(armY, R);
 
-    var L  = left;
-    var T  = top;
+    var L = left;
+    var T = top;
     var Rx = left + W;
-    var B  = top  - H;
+    var B = top - H;
     var mX = (L + Rx) / 2;
-    var mY = (T + B)  / 2;
+    var mY = (T + B) / 2;
 
     var mergeTopBot = (arm_raw >= W / 2 - 0.01);
-    var mergeSides  = (arm_raw >= H / 2 - 0.01);
+    var mergeSides = (arm_raw >= H / 2 - 0.01);
 
     var pts = [];
     function pt(a, lh, rh) { pts.push({ a: a, lh: lh, rh: rh }); }
@@ -514,29 +533,29 @@ function buildSmoothedRect(doc, left, top, W, H, R, S) {
     if (mergeTopBot) {
         pt([mX, T], [mX - hX, T], [mX + hX, T]);
     } else {
-        pt([L + armX, T],  [L + armX - hX, T],  [L + armX, T]);
-        pt([Rx - armX, T], [Rx - armX, T],       [Rx - armX + hX, T]);
+        pt([L + armX, T], [L + armX - hX, T], [L + armX, T]);
+        pt([Rx - armX, T], [Rx - armX, T], [Rx - armX + hX, T]);
     }
     // Right edge
     if (mergeSides) {
         pt([Rx, mY], [Rx, mY + hY], [Rx, mY - hY]);
     } else {
         pt([Rx, T - armY], [Rx, T - armY + hY], [Rx, T - armY]);
-        pt([Rx, B + armY], [Rx, B + armY],       [Rx, B + armY - hY]);
+        pt([Rx, B + armY], [Rx, B + armY], [Rx, B + armY - hY]);
     }
     // Bottom edge
     if (mergeTopBot) {
         pt([mX, B], [mX + hX, B], [mX - hX, B]);
     } else {
         pt([Rx - armX, B], [Rx - armX + hX, B], [Rx - armX, B]);
-        pt([L + armX, B],  [L + armX, B],        [L + armX - hX, B]);
+        pt([L + armX, B], [L + armX, B], [L + armX - hX, B]);
     }
     // Left edge
     if (mergeSides) {
         pt([L, mY], [L, mY - hY], [L, mY + hY]);
     } else {
         pt([L, B + armY], [L, B + armY - hY], [L, B + armY]);
-        pt([L, T - armY], [L, T - armY],       [L, T - armY + hY]);
+        pt([L, T - armY], [L, T - armY], [L, T - armY + hY]);
     }
 
     var layer = doc.activeLayer;
@@ -544,11 +563,11 @@ function buildSmoothedRect(doc, left, top, W, H, R, S) {
     path.closed = true;
 
     for (var i = 0; i < pts.length; i++) {
-        var pp            = path.pathPoints.add();
-        pp.anchor         = pts[i].a;
-        pp.leftDirection  = pts[i].lh;
+        var pp = path.pathPoints.add();
+        pp.anchor = pts[i].a;
+        pp.leftDirection = pts[i].lh;
         pp.rightDirection = pts[i].rh;
-        pp.pointType      = PointType.CORNER;
+        pp.pointType = PointType.CORNER;
     }
 
     return path;
@@ -557,7 +576,7 @@ function buildSmoothedRect(doc, left, top, W, H, R, S) {
 // Bezier handle length that preserves curvature radius R
 function computeCornerH(arm, R) {
     if (arm <= 0 || R <= 0) return 0;
-    var k    = 16 / (3 * Math.sqrt(2));
+    var k = 16 / (3 * Math.sqrt(2));
     var disc = R * (8 * k * arm + k * k * R);
     return ((4 * arm + k * R) - Math.sqrt(disc)) / 2;
 }
@@ -592,7 +611,7 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
         var csR = cornerSmoothing.radius;
         var csS = cornerSmoothing.smoothing / 100;
         var csLeft = center[0] - sizePt / 2;
-        var csTop  = center[1] + sizePt / 2;
+        var csTop = center[1] + sizePt / 2;
         shape = buildSmoothedRect(doc, csLeft, csTop, sizePt, sizePt, csR, csS);
     } else if (sides === 4 && cornerSmoothing && cornerSmoothing.radius > 0 && cornerSmoothing.smoothing === 0) {
         // Corner radius ON, smoothing = 0: normal square + Round Corners live effect
@@ -1389,6 +1408,12 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         updatePreview();
     };
 
+    // Anchor operations panel
+    var anchorOpsPanel = right.add("panel", undefined, LABELS.anchorPanel[lang]);
+    anchorOpsPanel.orientation = "column";
+    anchorOpsPanel.alignChildren = "left";
+    anchorOpsPanel.margins = [15, 20, 15, 10];
+
     // Options panel placed under the Corner Smoothing panel
     var optionPanel = right.add("panel", undefined, LABELS.optionPanel[lang]);
     optionPanel.orientation = "column";
@@ -1399,8 +1424,42 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     var liveShapeCheck = optionPanel.add("checkbox", undefined, LABELS.liveShape[lang]);
     liveShapeCheck.value = true;
 
-    // Split at anchor points
-    var splitAtAnchorsCheck = optionPanel.add("checkbox", undefined, LABELS.splitAtAnchors[lang]);
+    // Roughen anchors option (moved to anchorOpsPanel)
+    var roughenAnchorsRow = anchorOpsPanel.add("group");
+    roughenAnchorsRow.orientation = "row";
+    roughenAnchorsRow.alignChildren = ["left", "center"];
+    roughenAnchorsRow.spacing = 4;
+    var roughenAnchorsCheck = roughenAnchorsRow.add("checkbox", undefined, LABELS.roughenAnchors[lang]);
+    roughenAnchorsCheck.value = false;
+    var roughenAnchorsInput = roughenAnchorsRow.add("edittext", undefined, "1");
+    roughenAnchorsInput.characters = 3;
+    roughenAnchorsInput.enabled = false;
+    changeValueByArrowKey(roughenAnchorsInput);
+
+    roughenAnchorsCheck.onClick = function () {
+        var on = roughenAnchorsCheck.value;
+        roughenAnchorsInput.enabled = on;
+
+        if (on) {
+            splitAtAnchorsCheck.value = false;
+            splitAtAnchorsCheck.enabled = false;
+            liveShapeCheck.value = false;
+            liveShapeCheck.enabled = false;
+        } else {
+            splitAtAnchorsCheck.enabled = true;
+        }
+
+        refreshLiveShapeAvailabilityFromUI();
+        if (on) {
+            liveShapeCheck.value = false;
+            liveShapeCheck.enabled = false;
+        }
+        updatePreview();
+    };
+    roughenAnchorsInput.onChanging = function () { updatePreview(); };
+
+    // Split at anchor points (moved to anchorOpsPanel)
+    var splitAtAnchorsCheck = anchorOpsPanel.add("checkbox", undefined, LABELS.splitAtAnchors[lang]);
     splitAtAnchorsCheck.value = false;
 
     // Reuleaux (constant-width shape) (logic TBD)
@@ -1441,7 +1500,8 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
             // Live Shape can be enabled only when Circle anchors == 4 (and not Superellipse)
             var isCustomCircleAnchors = (sidesNow === 0 && !superEff && n !== 4);
             var isCornerSmooth = (sidesNow === 4 && cornerRadiusCheck.value && parseFloat(cornerRadiusInput.text) > 0);
-            updateLiveShapeAvailability(splitAtAnchorsCheck.value, superEff, isCustomCircleAnchors, reuleauxCheck.value, isCornerSmooth);
+            var isAddAnchors = roughenAnchorsCheck.value;
+            updateLiveShapeAvailability(splitAtAnchorsCheck.value, superEff, isCustomCircleAnchors, reuleauxCheck.value || isAddAnchors, isCornerSmooth);
         } catch (e) {
             // Conservative fallback
             try {
@@ -1595,6 +1655,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         var angle = parseFloat(rotateInput.text);
         var splitAtAnchors = splitAtAnchorsCheck.value;
         var superEllipse = superEllipseCheck.value && (sides === 0);
+        roughenAnchorsUseMenuFallback = (sides !== 0 && Math.round(Number(roughenAnchorsInput.text)) === 1);
 
 
         var reuleaux = reuleauxCheck.value;
@@ -1897,6 +1958,17 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         splitAtAnchorsCheck.value = false;
         if (typeof st.reuleauxCheck === "boolean") reuleauxCheck.value = st.reuleauxCheck;
         if (typeof st.liveShapeCheck === "boolean") liveShapeCheck.value = st.liveShapeCheck;
+        if (typeof st.roughenAnchorsCheck === "boolean") roughenAnchorsCheck.value = st.roughenAnchorsCheck;
+        if (typeof st.roughenAnchorsText === "string") roughenAnchorsInput.text = st.roughenAnchorsText;
+        roughenAnchorsInput.enabled = roughenAnchorsCheck.value;
+        if (roughenAnchorsCheck.value) {
+            splitAtAnchorsCheck.value = false;
+            splitAtAnchorsCheck.enabled = false;
+            liveShapeCheck.value = false;
+            liveShapeCheck.enabled = false;
+        } else {
+            splitAtAnchorsCheck.enabled = true;
+        }
 
         // Enforce split/live-shape dependency (+ Superellipse / custom anchors)
         try {
@@ -1970,6 +2042,8 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         // This option is always reset to OFF on next open, but we still save the current value for the current session run
         st.splitAtAnchorsCheck = splitAtAnchorsCheck.value;
         st.liveShapeCheck = liveShapeCheck.value;
+        st.roughenAnchorsCheck = roughenAnchorsCheck.value;
+        st.roughenAnchorsText = roughenAnchorsInput.text;
 
         st.reuleauxCheck = reuleauxCheck.value;
     }
@@ -2124,6 +2198,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     }
 
     applyLiveShape = liveShapeCheck.value;
+    roughenAnchorsDetail = roughenAnchorsCheck.value ? parseFloat(roughenAnchorsInput.text) : 0;
 
     return true;
 }
