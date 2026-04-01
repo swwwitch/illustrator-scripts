@@ -1,7 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.1.1";
 
 /*
 
