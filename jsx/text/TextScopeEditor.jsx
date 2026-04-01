@@ -1,7 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 /*
 
@@ -99,6 +99,18 @@ function main() {
             if (s.length > maxLen) s = s.substring(0, maxLen) + "…";
             return s;
         }
+        /* 実質的に空のテキストか判定 / Check whether a text frame is effectively empty */
+        function isEmptyTextFrame(tf) {
+            try {
+                if (!tf || tf.typename !== "TextFrame") return true;
+                var s = tf.contents;
+                if (!s) return true;
+                s = s.replace(/[\r\n\x03]/g, "").replace(/\s+/g, "");
+                return s.length === 0;
+            } catch (e) {
+                return true;
+            }
+        }
         /* レイヤー名が // ではじまるか判定 / Check whether the layer name starts with // */
         function isCommentLayer(item) {
             try {
@@ -130,7 +142,9 @@ function main() {
                 var item = items[i];
                 if (!options.includeComment && isCommentLayer(item)) continue;
                 if (!isCollectable(item, options)) continue;
+
                 if (item.typename === "TextFrame") {
+                    if (isEmptyTextFrame(item)) continue;
                     textFrameList.push(item);
                 } else if (item.typename === "GroupItem") {
                     collectTextFromContainer(item.pageItems, options);
@@ -151,7 +165,9 @@ function main() {
                 var item = items[i];
                 if (!options.includeComment && isCommentLayer(item)) continue;
                 if (!isCollectable(item, options)) continue;
+
                 if (item.typename === "TextFrame") {
+                    if (isEmptyTextFrame(item)) continue;
                     if (isOnArtboard(item, abRect)) {
                         textFrameList.push(item);
                     }
@@ -177,7 +193,9 @@ function main() {
                 var item = items[i];
                 if (!options.includeComment && isCommentLayer(item)) continue;
                 if (!isCollectable(item, options)) continue;
+
                 if (item.typename === "TextFrame") {
+                    if (isEmptyTextFrame(item)) continue;
                     if (isOnAnyArtboard(item)) {
                         textFrameList.push(item);
                     }
@@ -187,7 +205,7 @@ function main() {
             }
         }
 
-        function collectTextFromDocument(options) {
+    function collectTextFromDocument(options) {
             for (var i = 0; i < doc.layers.length; i++) {
                 collectTextFromContainer(doc.layers[i].pageItems, options);
             }
@@ -522,6 +540,7 @@ function main() {
             rightButtons.alignChildren = ["right", "center"];
             var cancelBtn = rightButtons.add("button", undefined, L("cancel"), { name: "cancel" });
             var closeBtn = rightButtons.add("button", undefined, L("ok"), { name: "ok" });
+            dlg.defaultElement = closeBtn;
 
             /* CC 2020 v24.3 はプレビュー時にクラッシュするため無効化 / Disable preview in CC 2020 v24.3 because it may crash */
             if (parseInt(app.version) == 24) {
