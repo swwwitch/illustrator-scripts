@@ -8,123 +8,383 @@ AddTrimMark.jsx
 
 ### 概要
 
-- アートボードまたは選択オブジェクトにトリムマークを作成するIllustrator用スクリプトです。
-- トリムマークは専用の「トンボ」レイヤーに配置され、オブジェクトのガイドも自動生成されます。
+- 選択オブジェクト（単純な長方形1点）、現在のアートボード、またはすべてのアートボードを対象に、トンボを作成するIllustrator用スクリプトです。
+- 実行時にScriptUIダイアログを表示し、トンボの対象および「ガイドを残す」「日本式トンボ」のON/OFFを選択できます。
+- 「選択オブジェクト」を選択した場合は、単純な長方形1点のみを対象とし、対象オブジェクトをトンボレイヤーに複製して〈塗り〉〈線〉をなしにしてからトンボを作成します（元オブジェクトは変更しません）。
+- 「現在のアートボード」を選択した場合は、アートボードサイズの矩形を生成してトンボを作成します。
+- 「すべてのアートボード」を選択した場合は、アートボードごとに「トンボ_アートボード名」レイヤーを作成し、それぞれにトンボを作成します（同名の場合は「（2）」などでユニーク化されます）。
+- 「ガイドを残す」がONのときは対象オブジェクトをガイド化し、OFFのときは対象オブジェクトを削除します。
+- トンボは各対象レイヤー上に作成され、処理後はレイヤーのロック状態を元に戻します。
+- ダイアログのUIおよびラベルは日本語／英語に自動対応します。
 
 ### 主な機能
 
-- 選択オブジェクトがあればその形状を基にトリムマークを作成
-- 選択がない場合はアートボード全体を基にトリムマークを作成
-- トリムマークは「トンボ」レイヤーに移動し、自動ロック
-- 元オブジェクトのガイド化と再配置
+- 選択オブジェクト（単純な長方形1点）、現在のアートボード、またはすべてのアートボードを対象として選択可能
+- 実行時ダイアログで「ガイドを残す」「日本式トンボ」のON/OFFを切り替え
+- 「トンボ」レイヤーを自動取得／未存在時は新規作成
+- 単純な長方形1点、現在のアートボード矩形1つ、または全アートボード矩形を対象に処理
+- 同一オブジェクトでトンボ生成とガイド化、または削除を実行
+- 処理後は「トンボ」レイヤーをロック
 
 ### 処理の流れ
 
-1. 選択オブジェクトがあればそれを使用、なければアートボード矩形を作成
-2. 対象オブジェクトを複製、塗り・線をなしに設定
-3. トリムマーク作成メニュー実行後、複製オブジェクト削除
-4. トリムマークを「トンボ」レイヤーに移動、レイヤーをロック
-5. 元オブジェクトを複製してガイド化
+1. ダイアログボックスでトンボの対象と「ガイドを残す」「日本式トンボ」のON/OFFを選択
+2. 「トンボ」レイヤーを取得し、なければ新規作成
+3. 環境設定で日本式トンボをONに設定
+4. 選択オブジェクトなら、単純な長方形1点のみを「トンボ」レイヤーへ複製し、塗りと線をなしに設定
+5. 現在のアートボードなら「トンボ」レイヤー上にアートボード矩形を1つ作成
+6. すべてのアートボードならアートボードごとに「トンボ_アートボード名」レイヤーを作成し、矩形を1つずつ作成
+7. その対象オブジェクトを元にトリムマーク作成メニューを実行
+8. 「ガイドを残す」がONなら同じ対象オブジェクトをガイド化
+9. 「ガイドを残す」がOFFなら同じ対象オブジェクトを削除
+
+### 更新日
+
+- 2026-04-01
 
 ### 更新履歴
 
+- v1.2.0 (20260401) : すべてのアートボード対応、選択オブジェクト対応、ScriptUIダイアログ追加、ローカライズ対応
+- v1.1.0 (20260401) : 選択オブジェクト対応、ScriptUIダイアログ追加、ローカライズ対応
 - v1.0 (20250205) : 初期バージョン
-- v1.1 (20250603) : コメント整理と処理安定化
-
----
-
-### Script Name:
-
-AddTrimMark.jsx
-
-### Overview
-
-- An Illustrator script to create trim marks for an artboard or selected objects.
-- Trim marks are placed on a dedicated "Trim" layer, and a guide of the original object is also automatically created.
-
-### Main Features
-
-- Create trim marks based on selected object shape if available
-- If no selection, use the entire artboard rectangle as base
-- Move trim marks to a "Trim" layer and lock it automatically
-- Duplicate the original object and convert to guide
-
-### Process Flow
-
-1. Use selected object if available, otherwise create rectangle from artboard
-2. Duplicate target object, remove fill and stroke
-3. Execute trim mark creation menu, then delete duplicate object
-4. Move trim marks to "Trim" layer and lock it
-5. Duplicate the original object and convert to guide
-
-### Update History
-
-- v1.0 (20250205): Initial version
-- v1.1 (20250603): Refined comments and stabilized process
 */
+
+// =========================================
+// バージョンとローカライズ
+// =========================================
+
+var SCRIPT_VERSION = "v1.2.0";
+
+function sanitizeLayerName(name) {
+    return name.replace(new RegExp('[\\\\/:*?"<>|]', 'g'), '_');
+}
+
+function getOrCreateLayerByName(doc, layerName) {
+    var i;
+    for (i = 0; i < doc.layers.length; i++) {
+        if (doc.layers[i].name === layerName) {
+            return doc.layers[i];
+        }
+    }
+    var layer = doc.layers.add();
+    layer.name = layerName;
+    return layer;
+}
+
+function getUniqueLayerName(doc, baseName) {
+    var name = baseName;
+    var count = 2;
+    var exists, i;
+
+    while (true) {
+        exists = false;
+        for (i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name === name) {
+                exists = true;
+                break;
+            }
+        }
+        if (!exists) {
+            return name;
+        }
+        name = baseName + "（" + count + "）";
+        count++;
+    }
+}
+
+function buildTrimLayerNameForArtboard(doc, artboard) {
+    var baseName = "トンボ_" + sanitizeLayerName(artboard.name || "アートボード");
+    return getUniqueLayerName(doc, baseName);
+}
+
+function createArtboardRectangle(doc, trimLayer, artboard) {
+    var rect = artboard.artboardRect;
+    doc.activeLayer = trimLayer;
+    var targetObj = doc.activeLayer.pathItems.rectangle(rect[1], rect[0], rect[2] - rect[0], rect[1] - rect[3]);
+    targetObj.filled = false;
+    targetObj.stroked = false;
+    return targetObj;
+}
+
+function applyTrimMarksToTarget(doc, trimLayer, targetObj, createGuide) {
+    doc.activeLayer = trimLayer;
+    doc.selection = null;
+    doc.selection = [targetObj];
+    app.executeMenuCommand('TrimMark v25');
+
+    if (createGuide) {
+        targetObj.guides = true;
+    } else {
+        targetObj.remove();
+    }
+}
+
+function getCurrentLang() {
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+}
+var lang = getCurrentLang();
+
+var LABELS = {
+    dialogTitle: {
+        ja: "トンボ作成",
+        en: "Create Trim Marks"
+    },
+    panelTarget: {
+        ja: "トンボの対象",
+        en: "Trim Mark Target"
+    },
+    radioSelection: {
+        ja: "選択オブジェクト",
+        en: "Selected Object"
+    },
+    radioCurrentArtboard: {
+        ja: "現在のアートボード",
+        en: "Current Artboard"
+    },
+    radioAllArtboards: {
+        ja: "すべてのアートボード",
+        en: "All Artboards"
+    },
+    panelOptions: {
+        ja: "オプション",
+        en: "Options"
+    },
+    chkGuide: {
+        ja: "ガイドを残す",
+        en: "Keep Guides"
+    },
+    chkJapaneseTrim: {
+        ja: "日本式トンボ",
+        en: "Japanese-style Trim Marks"
+    },
+    btnCancel: {
+        ja: "キャンセル",
+        en: "Cancel"
+    },
+    btnOk: {
+        ja: "OK",
+        en: "OK"
+    }
+};
+
+function L(key) {
+    return LABELS[key][lang];
+}
+
+// =========================================
+// Helper functions for rectangle validation
+// =========================================
+function isNearlyEqual(a, b) {
+    return Math.abs(a - b) < 0.01;
+}
+
+function isAxisAlignedRectangle(pathItem) {
+    var pts, xs, ys, i, left, right, top, bottom, anchors;
+
+    if (pathItem.pathPoints.length !== 4 || !pathItem.closed) {
+        return false;
+    }
+
+    pts = pathItem.pathPoints;
+    xs = [];
+    ys = [];
+
+    for (i = 0; i < 4; i++) {
+        xs.push(pts[i].anchor[0]);
+        ys.push(pts[i].anchor[1]);
+
+        if (!isNearlyEqual(pts[i].leftDirection[0], pts[i].anchor[0]) ||
+            !isNearlyEqual(pts[i].leftDirection[1], pts[i].anchor[1]) ||
+            !isNearlyEqual(pts[i].rightDirection[0], pts[i].anchor[0]) ||
+            !isNearlyEqual(pts[i].rightDirection[1], pts[i].anchor[1])) {
+            return false;
+        }
+    }
+
+    left = Math.min.apply(null, xs);
+    right = Math.max.apply(null, xs);
+    top = Math.max.apply(null, ys);
+    bottom = Math.min.apply(null, ys);
+
+    anchors = {};
+    for (i = 0; i < 4; i++) {
+        if (!isNearlyEqual(xs[i], left) && !isNearlyEqual(xs[i], right)) {
+            return false;
+        }
+        if (!isNearlyEqual(ys[i], top) && !isNearlyEqual(ys[i], bottom)) {
+            return false;
+        }
+        anchors[Math.round(xs[i] * 1000) + ',' + Math.round(ys[i] * 1000)] = true;
+    }
+
+    return anchors[Math.round(left * 1000) + ',' + Math.round(top * 1000)] &&
+        anchors[Math.round(right * 1000) + ',' + Math.round(top * 1000)] &&
+        anchors[Math.round(right * 1000) + ',' + Math.round(bottom * 1000)] &&
+        anchors[Math.round(left * 1000) + ',' + Math.round(bottom * 1000)];
+}
+
+// =========================================
+// ScriptUIダイアログ
+// =========================================
+function showOptionsDialog() {
+    var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+    var pnlTarget = dlg.add('panel', undefined, L('panelTarget'));
+    var rdoSelection = pnlTarget.add('radiobutton', undefined, L('radioSelection'));
+    var rdoCurrentArtboard = pnlTarget.add('radiobutton', undefined, L('radioCurrentArtboard'));
+    var rdoAllArtboards = pnlTarget.add('radiobutton', undefined, L('radioAllArtboards'));
+    var pnlOptions = dlg.add('panel', undefined, L('panelOptions'));
+    var chkGuide = pnlOptions.add('checkbox', undefined, L('chkGuide'));
+    var chkJapanese = pnlOptions.add('checkbox', undefined, L('chkJapaneseTrim'));
+    var btnGroup = dlg.add('group');
+    var btnCancel = btnGroup.add('button', undefined, L('btnCancel'), { name: 'cancel' });
+    var btnOk = btnGroup.add('button', undefined, L('btnOk'), { name: 'ok' });
+
+    if (app.activeDocument.selection.length === 0) {
+        rdoCurrentArtboard.value = true;
+    } else if (app.activeDocument.selection.length === 1 &&
+        app.activeDocument.selection[0].typename === 'PathItem' &&
+        !app.activeDocument.selection[0].guides &&
+        !app.activeDocument.selection[0].clipping &&
+        isAxisAlignedRectangle(app.activeDocument.selection[0])) {
+        rdoSelection.value = true;
+    } else {
+        rdoCurrentArtboard.value = true;
+    }
+    chkGuide.value = true;
+    chkJapanese.value = true;
+
+    pnlTarget.orientation = 'column';
+    pnlTarget.alignChildren = 'left';
+    pnlTarget.alignment = 'fill';
+    pnlTarget.margins = [15, 20, 15, 10];
+    pnlOptions.orientation = 'column';
+    pnlOptions.alignChildren = 'left';
+    pnlOptions.alignment = 'fill';
+    pnlOptions.margins = [15, 20, 15, 10];
+    btnGroup.alignment = 'right';
+    btnCancel.preferredSize.width = 80;
+    btnOk.preferredSize.width = 80;
+
+    if (dlg.show() !== 1) {
+        return null;
+    }
+
+    return {
+        targetType: rdoSelection.value ? 'selection' : (rdoAllArtboards.value ? 'allArtboards' : 'artboard'),
+        createGuide: chkGuide.value,
+        japaneseStyle: chkJapanese.value
+    };
+}
+
+function getSingleSelectedObject(doc) {
+    var targetObj;
+
+    if (doc.selection.length !== 1) {
+        alert(lang === 'ja'
+            ? '「選択オブジェクト」を使うには、単純な長方形を1つだけ選択してください。'
+            : 'To use "Selected Object", select exactly one simple rectangle.');
+        return null;
+    }
+
+    targetObj = doc.selection[0];
+
+    if (targetObj.typename !== 'PathItem' || targetObj.guides || targetObj.clipping) {
+        alert(lang === 'ja'
+            ? '「選択オブジェクト」で使えるのは、単純な長方形だけです。'
+            : 'Only a simple rectangle can be used for "Selected Object".');
+        return null;
+    }
+
+    if (!isAxisAlignedRectangle(targetObj)) {
+        alert(lang === 'ja'
+            ? '「選択オブジェクト」で使えるのは、各辺が水平・垂直で、4点が直交している単純な長方形だけです。'
+            : 'Only a simple rectangle with horizontal/vertical edges and right-angle corners can be used for "Selected Object".');
+        return null;
+    }
+
+    return targetObj;
+}
+
+function prepareSelectedObjectForTrim(targetObj, trimLayer) {
+    var duplicatedObj = targetObj.duplicate(trimLayer, ElementPlacement.PLACEATBEGINNING);
+    if ('filled' in duplicatedObj) {
+        duplicatedObj.filled = false;
+    }
+    if ('stroked' in duplicatedObj) {
+        duplicatedObj.stroked = false;
+    }
+    return duplicatedObj;
+}
 
 function main() {
     var doc = app.activeDocument;
+    var options = showOptionsDialog();
     var targetObj = null;
+    var trimLayer = null;
+    var trimLayers = [];
+    var trimLayerLockStates = [];
+    var wasLocked = false;
+    var i;
 
-    /* 選択オブジェクトがある場合 / If a selected object exists */
-    if (doc.selection.length > 0) {
-        targetObj = doc.selection[0];
-    } else {
-        /* 選択オブジェクトがない場合、アクティブなアートボードを基に処理 / If no object is selected, use the active artboard */
-        var artboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
-        var rect = artboard.artboardRect; // [左, 上, 右, 下]
-
-        targetObj = doc.pathItems.rectangle(rect[1], rect[0], rect[2] - rect[0], rect[1] - rect[3]);
-        targetObj.filled = false;
-        targetObj.stroked = false;
+    if (!options) {
+        return;
     }
 
-    var duplicatedObj = targetObj.duplicate();
-
-    /* 塗りと線をなしにする / Remove fill and stroke */
-    duplicatedObj.filled = false;
-    duplicatedObj.stroked = false;
-
-    /* 複製オブジェクトを選択状態にする / Select the duplicated object */
-    doc.selection = [duplicatedObj];
-
-    /* トリムマークを作成 / Create trim marks */
-    app.executeMenuCommand('TrimMark v25');
-
-    /* 複製オブジェクトを削除 / Remove duplicated object */
-    duplicatedObj.remove();
-
-    /* 「トンボ」レイヤーを取得（なければ作成） / Get "Trim" layer (create if not exists) */
-    var trimLayer = null;
-    for (var i = 0; i < doc.layers.length; i++) {
-        if (doc.layers[i].name === "トンボ") {
-            trimLayer = doc.layers[i];
-            break;
+    if (options.targetType !== 'allArtboards') {
+        /* 「トンボ」レイヤーを取得（なければ作成） / Get the "Trim" layer, or create it if missing */
+        trimLayer = getOrCreateLayerByName(doc, "トンボ");
+        wasLocked = trimLayer.locked;
+        if (wasLocked) {
+            trimLayer.locked = false;
         }
     }
-    if (!trimLayer) {
-        trimLayer = doc.layers.add();
-        trimLayer.name = "トンボ";
+
+    try {
+
+        /* 日本式トンボの設定を切り替える / Set Japanese-style trim marks */
+        app.preferences.setBooleanPreference('cropMarkStyle', options.japaneseStyle ? 1 : 0);
+
+        if (options.targetType === 'selection') {
+            /* 選択オブジェクトを取得 / Get the selected object */
+            targetObj = getSingleSelectedObject(doc);
+            if (!targetObj) {
+                return;
+            }
+
+            /* 選択オブジェクトを複製してトンボ用に準備 / Duplicate the selected object for trim marks */
+            targetObj = prepareSelectedObjectForTrim(targetObj, trimLayer);
+            applyTrimMarksToTarget(doc, trimLayer, targetObj, options.createGuide);
+        } else if (options.targetType === 'allArtboards') {
+            for (i = 0; i < doc.artboards.length; i++) {
+                trimLayer = getOrCreateLayerByName(doc, buildTrimLayerNameForArtboard(doc, doc.artboards[i]));
+                trimLayers.push(trimLayer);
+                trimLayerLockStates.push(trimLayer.locked);
+                if (trimLayer.locked) {
+                    trimLayer.locked = false;
+                }
+                targetObj = createArtboardRectangle(doc, trimLayer, doc.artboards[i]);
+                applyTrimMarksToTarget(doc, trimLayer, targetObj, options.createGuide);
+            }
+        } else {
+            /* アクティブなアートボードを取得 / Get the active artboard */
+            var artboard = doc.artboards[doc.artboards.getActiveArtboardIndex()];
+
+            /* アートボード矩形を作成 / Create the artboard rectangle */
+            targetObj = createArtboardRectangle(doc, trimLayer, artboard);
+            applyTrimMarksToTarget(doc, trimLayer, targetObj, options.createGuide);
+        }
+
+    } finally {
+        doc.selection = null;
+
+        if (options.targetType === 'allArtboards') {
+            for (i = 0; i < trimLayers.length; i++) {
+                trimLayers[i].locked = trimLayerLockStates[i];
+            }
+        } else if (trimLayer) {
+            trimLayer.locked = wasLocked;
+        }
     }
-
-    /* 「トンボ」レイヤーをロック解除（移動処理のため） / Unlock "Trim" layer (for moving objects) */
-    trimLayer.locked = false;
-
-    /* トリムマークを「トンボ」レイヤーに移動 / Move trim marks to "Trim" layer */
-    for (var j = 0; j < doc.selection.length; j++) {
-        doc.selection[j].move(trimLayer, ElementPlacement.PLACEATBEGINNING);
-    }
-
-    /* 「トンボ」レイヤーをロック / Lock "Trim" layer */
-    trimLayer.locked = true;
-
-    /* 元のオブジェクトを再選択 / Reselect the original object */
-    doc.selection = [targetObj];
-
-    /* 元のオブジェクトを複製し、ガイド化する / Duplicate and convert the original object to a guide */
-    var guideObj = targetObj.duplicate();
-    guideObj.guides = true;
 }
 
 main();
