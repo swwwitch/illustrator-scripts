@@ -1,7 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1";
 
 /*
 
@@ -11,23 +11,26 @@ TextScopeEditor.jsx
 選択した条件に応じてドキュメント内のテキストを収集し、一覧表示して内容を編集できます。
 対象テキスト（アートボード）では、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体を切り替えできます。
 対象テキスト（レイヤー）では、//ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかを切り替えできます。
-重複除外、ソート、段落単位の書式保持つき置換、プレビューに対応します。
+重複を除外はデフォルトでオンです。ソート、段落単位の書式保持つき置換、プレビューに対応します。
+グループ内のテキストも対象です。実質的に空のテキストオブジェクトは無視します。
 ロックまたは非表示のテキストを対象に含めた場合でも、一時的に編集可能な状態にしてから内容を更新し、処理後に元の状態へ戻します。
 シンボル内のテキストは対象外です。
-OKで現在選択中のテキストに編集内容を反映して閉じます。
-キャンセルでダイアログを閉じます。
+OKで現在選択中のテキストに編集内容を反映して閉じます。キャンセルでダイアログを閉じます。
 
 Overview
 Collect text in the document based on the selected conditions, show it in a list, and edit the contents.
 In Text Scope (Artboards), you can switch between the current artboard, all artboards, and the entire document.
 In Text Scope (Layers), you can choose whether to include layers starting with //, and whether locked text and hidden text are included.
-Supports duplicate removal, sorting, replacement while keeping paragraph-level formatting, and preview.
+Remove Duplicates is enabled by default. Sorting, replacement while keeping paragraph-level formatting, and preview are supported.
+Text inside groups is supported. Effectively empty text objects are ignored.
 When locked or hidden text is included, the script temporarily makes it editable, updates the contents, and then restores the original state.
 Text inside symbols is not supported.
-Pressing OK applies the current edit to the selected text and closes the dialog.
-Cancel closes the dialog.
+Pressing OK applies the current edit to the selected text and closes the dialog. Cancel closes the dialog.
 
 更新日 / Updated: 2026-04-01
+
+紹介記事（note）
+https://note.com/dtp_tranist/n/nb845889dd553
 
 Special thanks to:
 Sergey Osokin
@@ -99,6 +102,18 @@ function main() {
             if (s.length > maxLen) s = s.substring(0, maxLen) + "…";
             return s;
         }
+        /* 実質的に空のテキストか判定 / Check whether a text frame is effectively empty */
+        function isEmptyTextFrame(tf) {
+            try {
+                if (!tf || tf.typename !== "TextFrame") return true;
+                var s = tf.contents;
+                if (!s) return true;
+                s = s.replace(/[\r\n\x03]/g, "").replace(/\s+/g, "");
+                return s.length === 0;
+            } catch (e) {
+                return true;
+            }
+        }
         /* レイヤー名が // ではじまるか判定 / Check whether the layer name starts with // */
         function isCommentLayer(item) {
             try {
@@ -130,7 +145,9 @@ function main() {
                 var item = items[i];
                 if (!options.includeComment && isCommentLayer(item)) continue;
                 if (!isCollectable(item, options)) continue;
+
                 if (item.typename === "TextFrame") {
+                    if (isEmptyTextFrame(item)) continue;
                     textFrameList.push(item);
                 } else if (item.typename === "GroupItem") {
                     collectTextFromContainer(item.pageItems, options);
@@ -151,7 +168,9 @@ function main() {
                 var item = items[i];
                 if (!options.includeComment && isCommentLayer(item)) continue;
                 if (!isCollectable(item, options)) continue;
+
                 if (item.typename === "TextFrame") {
+                    if (isEmptyTextFrame(item)) continue;
                     if (isOnArtboard(item, abRect)) {
                         textFrameList.push(item);
                     }
@@ -177,7 +196,9 @@ function main() {
                 var item = items[i];
                 if (!options.includeComment && isCommentLayer(item)) continue;
                 if (!isCollectable(item, options)) continue;
+
                 if (item.typename === "TextFrame") {
+                    if (isEmptyTextFrame(item)) continue;
                     if (isOnAnyArtboard(item)) {
                         textFrameList.push(item);
                     }
@@ -187,7 +208,7 @@ function main() {
             }
         }
 
-        function collectTextFromDocument(options) {
+    function collectTextFromDocument(options) {
             for (var i = 0; i < doc.layers.length; i++) {
                 collectTextFromContainer(doc.layers[i].pageItems, options);
             }
@@ -522,6 +543,7 @@ function main() {
             rightButtons.alignChildren = ["right", "center"];
             var cancelBtn = rightButtons.add("button", undefined, L("cancel"), { name: "cancel" });
             var closeBtn = rightButtons.add("button", undefined, L("ok"), { name: "ok" });
+            dlg.defaultElement = closeBtn;
 
             /* CC 2020 v24.3 はプレビュー時にクラッシュするため無効化 / Disable preview in CC 2020 v24.3 because it may crash */
             if (parseInt(app.version) == 24) {
