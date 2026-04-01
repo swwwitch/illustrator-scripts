@@ -1,17 +1,20 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+var SCRIPT_VERSION = "v1.1";
 
 /*
 ### スクリプト名：
 
 AddTrimMark.jsx
 
+Version: v1.1
+
 ### 概要
 
 - 常に現在のアートボードに対して、日本式トンボを作成するIllustrator用スクリプトです。
 - 専用の「トンボ」レイヤーを最初に取得または作成し、その上にアートボード矩形を1つだけ作成します。
 - その矩形を元にトリムマークを作成し、同じオブジェクトをそのままガイド化します。
-- 処理後は「トンボ」レイヤーを常にロックし、余分なオブジェクトは残しません。
+- 「トンボ」レイヤーがロックされている場合はいったん解除して処理し、終了時に元のロック状態へ戻します。
 
 ### 主な機能
 
@@ -19,7 +22,7 @@ AddTrimMark.jsx
 - 「トンボ」レイヤーを自動取得／未存在時は新規作成
 - アートボード矩形1つのみを使用（複製なし）
 - 同一オブジェクトでトンボ生成とガイド化を完結
-- 処理後は「トンボ」レイヤーを必ずロック
+- 「トンボ」レイヤーの元のロック状態を維持
 
 ### 処理の流れ
 
@@ -28,11 +31,12 @@ AddTrimMark.jsx
 3. 「トンボ」レイヤー上にアートボード矩形を1つ作成
 4. その矩形を元にトリムマーク作成メニューを実行
 5. 同じ矩形オブジェクトをガイド化
-6. finally で選択解除とレイヤーロックを実行
+6. finally で選択解除を行い、「トンボ」レイヤーのロック状態を元に戻す
 
 ### 更新履歴
 
 - v1.0 (20250205) : 初期バージョン
+- v1.1 (20260401) : 「トンボ」レイヤーがロックされている場合はいったん解除して処理し、終了時に元のロック状態へ戻すように変更
 */
 
 function main() {
@@ -50,6 +54,10 @@ function main() {
     if (!trimLayer) {
         trimLayer = doc.layers.add();
         trimLayer.name = "トンボ";
+    }
+    var wasLocked = trimLayer.locked;
+    if (wasLocked) {
+        trimLayer.locked = false;
     }
 
     try {
@@ -77,7 +85,7 @@ function main() {
         doc.selection = null;
 
         if (trimLayer) {
-            trimLayer.locked = true;
+            trimLayer.locked = wasLocked ? true : false;
         }
     }
 }
