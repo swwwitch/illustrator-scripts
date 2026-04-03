@@ -11,6 +11,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // ・複数選択時、各オブジェクト間すべてに同形状を自動配置
 // ・幅は「最も狭いアキ」を基準に安全側で自動決定（手動入力も可能）
 // ・高さ（％）・位置（左右／上下）を調整可能
+// ・位置調整（左右／上下）は負の値にも対応し、矢印キーでも増減可能
 // ・単位は現在の定規設定に追従
 //
 // ・▶ は「凹み」で形状を変形可能（幅の80%まで）
@@ -29,13 +30,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // ※オブジェクトが重なっている場合やアキがない場合は作成されません
 //
 // 作成日：2026-03-28
-// 更新日：2026-04-02 v1.3 安定性・入力検証・プレビュー管理を改善
+// 更新日：2026-04-04 v1.3.1 位置調整の負値入力を矢印キー操作でも正しく扱うよう修正
 // ===================================================
 
 // =========================================
 // バージョンとローカライズ / Version and localization
 // =========================================
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.3.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -1150,6 +1151,7 @@ function L(key) {
 
             var keyboard = ScriptUI.environment.keyboardState;
             var delta = 1;
+            var disallowNegative = (editText !== ui.gapField && editText !== ui.adjustField && editText !== ui.adjustVField);
 
             if (keyboard.shiftKey) {
                 delta = 10;
@@ -1158,7 +1160,7 @@ function L(key) {
                     event.preventDefault();
                 } else if (event.keyName == "Down") {
                     value = Math.floor((value - 1) / delta) * delta;
-                    if (value < 0 && editText !== ui.gapField) value = 0;
+                    if (value < 0 && disallowNegative) value = 0;
                     event.preventDefault();
                 }
             } else if (keyboard.altKey) {
@@ -1177,7 +1179,7 @@ function L(key) {
                     event.preventDefault();
                 } else if (event.keyName == "Down") {
                     value -= delta;
-                    if (value < 0 && editText !== ui.gapField) value = 0;
+                    if (value < 0 && disallowNegative) value = 0;
                     event.preventDefault();
                 }
             }
@@ -1188,6 +1190,9 @@ function L(key) {
                 value = Math.round(value);
             }
 
+            if (disallowNegative && value < 0) {
+                value = 0;
+            }
             editText.text = String(roundDisplayValue(value));
             if (editText === ui.inputField && !widthManuallySet) {
                 calcDefaultWidth();
