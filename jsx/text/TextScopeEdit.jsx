@@ -1,7 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.2.6";
+var SCRIPT_VERSION = "v1.2.8";
 
 /*
 
@@ -18,7 +18,7 @@ TextScopeEdit.jsx
 シンボル内テキストの読み取りは、同名シンボルをアートボードごとに1回だけ対象にします。対象条件の判定、重複除外、一時レイヤーでの複製・breakLink・後始末は共通処理化しています。読み取りに使った複製オブジェクトは削除し、元のカンバス上のシンボルには触れません。一時レイヤーは必要時のみ作成し、このスクリプトが作成した場合のみ削除します。
 ダイアログ左側には「テキスト一覧」「テキスト編集」「シンボル内テキスト（編集不可）」を表示します。テキスト編集欄の高さは4行分です。シンボル内テキスト一覧の高さは内容件数に応じて自動調整され、最小4行・最大8行の範囲で表示します。
 段落書式を保持がオンのときは、プレビューを自動でオフにして無効化します。プレビュー中に切り替えた場合も、プレビュー状態を解除してから反映します。
-［テキスト書き出し］で、ドキュメント内の通常テキストとシンボル内テキストをアートボードごとにまとめてデスクトップへテキストファイルとして書き出します。書き出し時は、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体の範囲指定、および //ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかの条件を反映します。重複のまとめ表示やソート状態には影響されません。各アートボードは ---アートボード番号: アートボード名--- / アートボード外は ---アートボード外--- の見出しで区切られ、シンボル内テキストも配置されているアートボードごとにまとめて出力します。シンボル内テキストは「（シンボル: 名前）」の形式で末尾に付加されます。OKで現在選択中のテキストに編集内容を反映して閉じます。キャンセルでダイアログを閉じます。
+［テキスト書き出し］で、ドキュメント内の通常テキストとシンボル内テキストをアートボードごとにまとめてデスクトップへテキストファイルとして書き出します。書き出し時は、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体の範囲指定、および //ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかの条件を反映します。重複のまとめ表示やソート状態には影響されません。各アートボードは ---アートボード番号: アートボード名--- / アートボード外は ---アートボード外--- の見出しで区切られ、シンボル内テキストも配置されているアートボードごとにまとめて出力します。シンボル内テキストは「〈シンボル：名前〉」の形式で末尾に付加されます。OKで現在選択中のテキストに編集内容を反映して閉じます。キャンセルでダイアログを閉じます。
 
 Overview
 Collect text in the document based on the selected conditions, show it in a list, and edit the contents.
@@ -31,7 +31,7 @@ Text inside symbols is not editable, but listing is supported. When Current Artb
 To read text inside symbols, the script targets each symbol name once per artboard. Scope filtering, duplicate elimination, temporary-layer duplication, break-linking, and cleanup are shared internally. The temporary duplicate objects are then removed, and the original symbols on the canvas remain untouched. The temporary layer is created only when needed and is removed only if this script created it.
 The left side of the dialog shows Text List, Edit Text, and Text in Symbols (Read-Only). The Edit Text field height is 4 lines. The height of the symbol text list adjusts automatically to the number of items, with a minimum of 4 rows and a maximum of 8 rows.
 When Keep Paragraph Formatting is enabled, Preview is turned off automatically and disabled. If you switch it on while previewing, the preview state is cleared before the change is applied.
-[Export Text] writes regular text in the document and the text found inside symbols to a text file on the Desktop, grouped by artboard. Export respects the current scope setting (current artboard, all artboards, or entire document), as well as whether layers starting with // are included and whether locked or hidden text is included. Duplicate grouping and sort state do not affect export. Each artboard is written under a ---Artboard Number: Artboard Name--- heading, and items outside all artboards are written under ---Outside Artboards---. Text found inside symbols is also grouped under the artboard where that symbol instance is placed. Symbol text lines append "(Symbol: name)" in English. Pressing OK applies the current edit to the selected text and closes the dialog. Cancel closes the dialog.
+[Export Text] writes regular text in the document and the text found inside symbols to a text file on the Desktop, grouped by artboard. Export respects the current scope setting (current artboard, all artboards, or entire document), as well as whether layers starting with // are included and whether locked or hidden text is included. Duplicate grouping and sort state do not affect export. Each artboard is written under a ---Artboard Number: Artboard Name--- heading, and items outside all artboards are written under ---Outside Artboards---. Text found inside symbols is also grouped under the artboard where that symbol instance is placed. Symbol text lines append "«Symbol: name»" in English. Pressing OK applies the current edit to the selected text and closes the dialog. Cancel closes the dialog.
 
 更新日 / Updated: 2026-04-03
 
@@ -1224,8 +1224,8 @@ function main() {
             var scopedItems = collectScopedSymbolItems(options, scopeMode);
 
             collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
-                var openParen = (lang === 'ja') ? '（' : ' (';
-                var closeParen = (lang === 'ja') ? '）' : ')';
+                var openParen = (lang === 'ja') ? '〈' : ' «';
+                var closeParen = (lang === 'ja') ? '〉' : '»';
                 var prefix = (lang === 'ja') ? 'シンボル：' : 'Symbol: ';
                 results.push({
                     artboardIndex: artboardIndex,
