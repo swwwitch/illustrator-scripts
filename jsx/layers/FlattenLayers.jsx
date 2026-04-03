@@ -5,79 +5,79 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 レイヤー統合（フラット化）を行うIllustrator用スクリプト。
 除外名（例：bg/背景/background）を持つレイヤーを残しつつ、その他のレイヤー配下の全オブジェクトを
 「_mergedLayer」に集約（移動）します。その後、空になったレイヤーを再帰的に検出して削除します。
-*/
-
-### スクリプト名：
-
-レイヤー統合（フラット化） / Flatten Layers
-
-### GitHub：
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
-
-### 概要：
-
-- 除外レイヤーを残し、それ以外のレイヤー配下のオブジェクトを「_mergedLayer」に移動
-- 統合後、空になった最上位レイヤーおよびサブレイヤーを再帰的に削除
-
-### 主な機能：
-
-- レイヤー配下オブジェクトの一括移動（ロック一時解除→移動→再ロック）
-- 除外レイヤー名（bg / 背景 / background）対応
-- 空レイヤーの再帰削除（UI なし／alert なし）
-
-### 処理の流れ：
-
-1. ドキュメント取得（未オープンなら終了）  
-2. 既存「_mergedLayer」を取得（なければ作成）  
-3. 除外レイヤーを除いて、全レイヤー配下のオブジェクトを「_mergedLayer」に移動  
-4. ドキュメント内の空レイヤーを再帰的に収集し、一括削除
-
-### 更新履歴：
-
-- v1.0 (20250414) : 初期バージョン  
-- v1.1 (20250818) : 微調整  
-- v1.2 (20250818) : 空レイヤー再帰削除ロジックを組み込み、説明文を再構成
-
----
-
 /*
-Illustrator script to flatten layers. It consolidates all objects (except in excluded layers
-such as bg/背景/background) into a single layer named "_mergedLayer", then recursively
-removes layers that became empty.
-*/
 
-### Script Name:
+// ### スクリプト名：
 
-Flatten Layers
+// レイヤー統合（フラット化） / Flatten Layers
 
-### GitHub:
+// ### GitHub：
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
+// https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
 
-### Overview:
+// ### 概要：
 
-- Move all objects from non-excluded layers into "_mergedLayer"  
-- Recursively delete empty top-level and sublayers after consolidation
+// - 除外レイヤーを残し、それ以外のレイヤー配下のオブジェクトを「_mergedLayer」に移動
+// - 統合後、空になった最上位レイヤーおよびサブレイヤーを再帰的に削除
 
-### Key Features:
+// ### 主な機能：
 
-- Bulk move items (temporarily unlock → move → restore lock)  
-- Excluded layer names (bg / 背景 / background)  
-- Recursive empty-layer deletion (no UI / no alerts)
+// - レイヤー配下オブジェクトの一括移動（ロック一時解除→移動→再ロック）
+// - 除外レイヤー名（bg / 背景 / background）対応
+// - 空レイヤーの再帰削除（UI なし／alert なし）
 
-### Process Flow:
+// ### 処理の流れ：
 
-1. Get active document (exit if none)  
-2. Ensure or create "_mergedLayer"  
-3. Move items from all non-excluded layers into "_mergedLayer"  
-4. Collect and delete empty layers recursively
+// 1. ドキュメント取得（未オープンなら終了）  
+// 2. 既存「_mergedLayer」を取得（なければ作成）  
+// 3. 除外レイヤーを除いて、全レイヤー配下のオブジェクトを「_mergedLayer」に移動  
+// 4. ドキュメント内の空レイヤーを再帰的に収集し、一括削除
 
-### Update History:
+// ### 更新履歴：
 
-- v1.0 (20250414) : Initial release  
-- v1.1 (20250818) : Minor adjustments  
-- v1.2 (20250818) : Added recursive empty-layer removal and rewrote the description
+// - v1.0 (20250414) : 初期バージョン  
+// - v1.1 (20250818) : 微調整  
+// - v1.2 (20250818) : 空レイヤー再帰削除ロジックを組み込み、説明文を再構成
+
+// ---
+
+// /*
+// Illustrator script to flatten layers. It consolidates all objects (except in excluded layers
+// such as bg/背景/background) into a single layer named "_mergedLayer", then recursively
+// removes layers that became empty.
+// */
+
+// ### Script Name:
+
+// Flatten Layers
+
+// ### GitHub:
+
+// https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
+
+// ### Overview:
+
+// - Move all objects from non-excluded layers into "_mergedLayer"  
+// - Recursively delete empty top-level and sublayers after consolidation
+
+// ### Key Features:
+
+// - Bulk move items (temporarily unlock → move → restore lock)  
+// - Excluded layer names (bg / 背景 / background)  
+// - Recursive empty-layer deletion (no UI / no alerts)
+
+// ### Process Flow:
+
+// 1. Get active document (exit if none)  
+// 2. Ensure or create "_mergedLayer"  
+// 3. Move items from all non-excluded layers into "_mergedLayer"  
+// 4. Collect and delete empty layers recursively
+
+// ### Update History:
+
+// - v1.0 (20250414) : Initial release  
+// - v1.1 (20250818) : Minor adjustments  
+// - v1.2 (20250818) : Added recursive empty-layer removal and rewrote the description
 
 // スクリプトバージョン
 var SCRIPT_VERSION = "v1.2";

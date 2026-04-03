@@ -8,17 +8,17 @@ ArtboardLayerOrganizer.jsx
 ドキュメント内のオブジェクトをアートボード単位で振り分け、
 「番号_アートボード名」のレイヤーに整理します。
 
-・各オブジェクトは重心位置を基準に所属アートボードを判定
-・ガイドは「_guide」レイヤーへ集約
+・各オブジェクトは重心位置を基準に所属アートボードを判定（現在のアートボードのみ対象にすることも可能）
+・ガイドは存在する場合のみ「_guide」レイヤーへ集約
 ・どのアートボードにも属さないオブジェクトは「_pasteboard」へ移動
 ・旧仕様（アートボード名のみのレイヤー）は、新仕様レイヤーへ統合して削除
-・レイヤー順はアートボード順（上から1→2→3…）に揃える
-・このスクリプトが作成・管理する空レイヤーのみ自動削除
-・処理後に空になったサブレイヤーも自動削除
-・処理後に空になったトップレベルレイヤーも自動削除
-・ダイアログで空レイヤー削除の有無を選択可能
-・ロックされたレイヤーを無視するか選択可能
-・非表示のレイヤーを無視するか選択可能
+・旧仕様レイヤー統合後も、レイヤー順はアートボード順（上から1→2→3…）に揃える
+・ダイアログでレイヤー名に含める要素（アートボード番号／アートボード名）と区切り文字を選択可能
+・ダイアログで空のレイヤー／サブレイヤー削除の有無を選択可能
+・このスクリプトが作成・管理する空トップレベルレイヤーのみ削除
+・処理後に空になったサブレイヤーも削除可能
+・ダイアログでロックされたレイヤー／オブジェクトを対象外にするか選択可能
+・ダイアログで非表示のレイヤー／オブジェクトを対象外にするか選択可能
 
 更新日：2026-04-04
 */
@@ -26,56 +26,211 @@ ArtboardLayerOrganizer.jsx
 var SCRIPT_VERSION = "v1.0";
 
 (function () {
-    if (app.documents.length === 0) {
-        alert("ドキュメントが開かれていません。");
-        return;
-    }
-
-    var doc = app.activeDocument;
-    var artboards = doc.artboards;
-
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
     var lang = getCurrentLang();
 
     var LABELS = {
-        dialogTitle: {
-            ja: "アートボードでレイヤー整理",
-            en: "Artboard Layer Organizer"
+        dialog: {
+            title: {
+                ja: "アートボードでレイヤー整理",
+                en: "Artboard Layer Organizer"
+            }
+        },
+        checkbox: {
+            removeEmpty: {
+                ja: "空のレイヤー{slash}サブレイヤーを削除",
+                en: "Remove empty layers{slash}sublayers"
+            },
+            currentArtboardOnly: {
+                ja: "現在のアートボードのみ処理",
+                en: "Current artboard only"
+            },
+            includeArtboardNumber: {
+                ja: "アートボード番号",
+                en: "Artboard Number"
+            },
+            includeArtboardName: {
+                ja: "アートボード名",
+                en: "Artboard Name"
+            },
+            separator: {
+                ja: "区切り文字",
+                en: "Separator"
+            },
+            ignoreLocked: {
+                ja: "ロックされたレイヤー",
+                en: "Locked layers"
+            },
+            ignoreLockedObjects: {
+                ja: "ロックされたオブジェクト",
+                en: "Locked objects"
+            },
+            ignoreHidden: {
+                ja: "非表示のレイヤー",
+                en: "Hidden layers"
+            },
+            ignoreHiddenObjects: {
+                ja: "非表示オブジェクト",
+                en: "Hidden objects"
+            }
+        },
+        panel: {
+            exclude: {
+                ja: "対象外にする",
+                en: "Exclude from processing"
+            },
+            layerName: {
+                ja: "レイヤー名",
+                en: "Layer Name"
+            }
+        },
+        dropdown: {
+            separatorUnderscore: {
+                ja: "アンダースコア (_) ",
+                en: "Underscore (_)"
+            },
+            separatorHyphen: {
+                ja: "ハイフン (-)",
+                en: "Hyphen (-)"
+            },
+            separatorSpace: {
+                ja: "半角スペース",
+                en: "Space"
+            },
+            separatorNone: {
+                ja: "なし",
+                en: "None"
+            }
+        },
+        button: {
+            cancel: {
+                ja: "キャンセル",
+                en: "Cancel"
+            },
+            ok: {
+                ja: "OK",
+                en: "OK"
+            }
+        },
+        alert: {
+            noDoc: {
+                ja: "ドキュメントが開かれていません。",
+                en: "No document is open."
+            },
+            failed: {
+                ja: "一部のオブジェクトを移動できませんでした。\n移動失敗: ",
+                en: "Some objects could not be moved.\nFailed moves: "
+            }
         }
     };
 
-    function L(key) {
-        return LABELS[key][lang] || LABELS[key]["en"];
+    function L(path) {
+        var parts = path.split(".");
+        var obj = LABELS;
+        for (var i = 0; i < parts.length; i++) {
+            obj = obj[parts[i]];
+            if (!obj) return "";
+        }
+        var text = obj[lang] || obj["en"];
+        return applyUISymbols(text);
     }
 
+    function applyUISymbols(text) {
+        return text
+            .replace(/\{slash\}/g, uiSymbol("slash"))
+            .replace(/\{colon\}/g, uiSymbol("colon"))
+            .replace(/\{comma\}/g, uiSymbol("comma"))
+            .replace(/\{openParen\}/g, uiSymbol("openParen"))
+            .replace(/\{closeParen\}/g, uiSymbol("closeParen"));
+    }
+
+    function uiSymbol(name) {
+        if (lang === "ja") {
+            switch (name) {
+                case "slash": return "／";
+                case "colon": return "：";
+                case "comma": return "、";
+                case "openParen": return "（";
+                case "closeParen": return "）";
+            }
+        }
+        switch (name) {
+            case "slash": return "/";
+            case "colon": return ":";
+            case "comma": return ", ";
+            case "openParen": return "(";
+            case "closeParen": return ")";
+        }
+        return "";
+    }
+
+    if (app.documents.length === 0) {
+        alert(L("alert.noDoc"));
+        return;
+    }
+
+    var doc = app.activeDocument;
+    var artboards = doc.artboards;
+
     function showOptionsDialog() {
-        var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+        var dlg = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
         dlg.orientation = "column";
         dlg.alignChildren = ["fill", "top"];
         dlg.margins = [15, 20, 15, 15];
 
-        var pnl = dlg.add("panel", undefined, "オプション");
+        var chkRemoveEmpty = dlg.add("checkbox", undefined, L("checkbox.removeEmpty"));
+        chkRemoveEmpty.value = true;
+
+        var chkCurrentArtboardOnly = dlg.add("checkbox", undefined, L("checkbox.currentArtboardOnly"));
+        chkCurrentArtboardOnly.value = false;
+
+        var pnlLayerName = dlg.add("panel", undefined, L("panel.layerName"));
+        pnlLayerName.orientation = "column";
+        pnlLayerName.alignChildren = ["left", "top"];
+        pnlLayerName.margins = [15, 20, 15, 10];
+
+        var chkIncludeArtboardNumber = pnlLayerName.add("checkbox", undefined, L("checkbox.includeArtboardNumber"));
+        chkIncludeArtboardNumber.value = true;
+
+        var chkIncludeArtboardName = pnlLayerName.add("checkbox", undefined, L("checkbox.includeArtboardName"));
+        chkIncludeArtboardName.value = true;
+
+        var grpSeparator = pnlLayerName.add("group");
+        grpSeparator.orientation = "row";
+        grpSeparator.alignChildren = ["left", "center"];
+        var lblSeparator = grpSeparator.add("statictext", undefined, L("checkbox.separator") + uiSymbol("colon"));
+        var ddSeparator = grpSeparator.add("dropdownlist", undefined, [
+            L("dropdown.separatorUnderscore"),
+            L("dropdown.separatorHyphen"),
+            L("dropdown.separatorSpace"),
+            L("dropdown.separatorNone")
+        ]);
+        ddSeparator.selection = 0;
+
+        var pnl = dlg.add("panel", undefined, L("panel.exclude"));
         pnl.orientation = "column";
         pnl.alignChildren = ["left", "top"];
         pnl.margins = [15, 20, 15, 10];
 
-        var chkRemoveEmpty = pnl.add("checkbox", undefined, "空のレイヤー／サブレイヤーを削除");
-        chkRemoveEmpty.value = true;
-
-        var chkIgnoreLocked = pnl.add("checkbox", undefined, "ロックされたレイヤーを無視");
+        var chkIgnoreLocked = pnl.add("checkbox", undefined, L("checkbox.ignoreLocked"));
         chkIgnoreLocked.value = true;
 
-        var chkIgnoreHidden = pnl.add("checkbox", undefined, "非表示のレイヤーを無視");
+        var chkIgnoreLockedObjects = pnl.add("checkbox", undefined, L("checkbox.ignoreLockedObjects"));
+        chkIgnoreLockedObjects.value = true;
+
+        var chkIgnoreHidden = pnl.add("checkbox", undefined, L("checkbox.ignoreHidden"));
         chkIgnoreHidden.value = true;
+
+        var chkIgnoreHiddenObjects = pnl.add("checkbox", undefined, L("checkbox.ignoreHiddenObjects"));
+        chkIgnoreHiddenObjects.value = true;
 
         var btns = dlg.add("group");
         btns.orientation = "row";
-        btns.alignment = ["fill", "top"];
-        btns.add("statictext", undefined, "").alignment = ["fill", "fill"];
-        var btnCancel = btns.add("button", undefined, "キャンセル", { name: "cancel" });
-        var btnOk = btns.add("button", undefined, "OK", { name: "ok" });
+        btns.alignment = ["center", "top"];
+        var btnCancel = btns.add("button", undefined, L("button.cancel"), { name: "cancel" });
+        var btnOk = btns.add("button", undefined, L("button.ok"), { name: "ok" });
         dlg.defaultElement = btnOk;
         dlg.cancelElement = btnCancel;
 
@@ -85,8 +240,14 @@ var SCRIPT_VERSION = "v1.0";
 
         return {
             removeEmptyLayers: chkRemoveEmpty.value,
+            currentArtboardOnly: chkCurrentArtboardOnly.value,
+            includeArtboardNumber: chkIncludeArtboardNumber.value,
+            includeArtboardName: chkIncludeArtboardName.value,
+            layerNameSeparatorIndex: ddSeparator.selection ? ddSeparator.selection.index : 0,
             ignoreLockedLayers: chkIgnoreLocked.value,
-            ignoreHiddenLayers: chkIgnoreHidden.value
+            ignoreLockedObjects: chkIgnoreLockedObjects.value,
+            ignoreHiddenLayers: chkIgnoreHidden.value,
+            ignoreHiddenObjects: chkIgnoreHiddenObjects.value
         };
     }
 
@@ -111,6 +272,24 @@ var SCRIPT_VERSION = "v1.0";
         return false;
     }
 
+    // PageItem の非表示判定は visible ではなく hidden を使う
+    function shouldIgnoreObject(item, options) {
+        try {
+            if (options.ignoreLockedObjects && item.locked) return true;
+            if (options.ignoreHiddenObjects && item.hidden) return true;
+        } catch (e) { }
+        return false;
+    }
+
+    function findLayerByName(name) {
+        for (var i = 0; i < doc.layers.length; i++) {
+            if (doc.layers[i].name === name) {
+                return doc.layers[i];
+            }
+        }
+        return null;
+    }
+
     function getOrCreateLayer(name) {
         for (var i = 0; i < doc.layers.length; i++) {
             if (doc.layers[i].name === name) {
@@ -122,12 +301,43 @@ var SCRIPT_VERSION = "v1.0";
         return layer;
     }
 
+    function getOrCreateGuideLayer() {
+        if (!guideLayer) {
+            guideLayer = getOrCreateLayer("_guide");
+            managedLayerNames["_guide"] = true;
+        }
+        return guideLayer;
+    }
+
+    function getLayerNameSeparator() {
+        var index = options && typeof options.layerNameSeparatorIndex === "number" ? options.layerNameSeparatorIndex : 0;
+        switch (index) {
+            case 1: return "-";
+            case 2: return " ";
+            case 3: return "";
+            default: return "_";
+        }
+    }
+
     function getArtboardLayerName(index) {
+        var parts = [];
         var abName = artboards[index].name;
         if (!abName || abName === "") {
             abName = "アートボード";
         }
-        return (index + 1) + "_" + abName;
+
+        if (!options || options.includeArtboardNumber !== false) {
+            parts.push(String(index + 1));
+        }
+        if (!options || options.includeArtboardName !== false) {
+            parts.push(abName);
+        }
+
+        if (parts.length === 0) {
+            parts.push(String(index + 1));
+            parts.push(abName);
+        }
+        return parts.join(getLayerNameSeparator());
     }
 
     function findLegacyArtboardIndexByLayerName(name) {
@@ -229,19 +439,27 @@ var SCRIPT_VERSION = "v1.0";
         var p = item.parent;
         if (p.typename === "Layer" || p.typename === "Document") {
             if (hasIgnoredAncestorLayer(item, options)) continue;
+            if (shouldIgnoreObject(item, options)) continue;
             items.push(item);
         }
     }
 
-    var guideLayer = getOrCreateLayer("_guide");
+    var guideLayer = findLayerByName("_guide");
     var pasteboardLayer = getOrCreateLayer("_pasteboard");
-    var managedLayerNames = { "_guide": true, "_pasteboard": true };
+    var managedLayerNames = { "_pasteboard": true };
     var moved = 0;
     var guideMoved = 0;
     var processed = [];
     var failedMoves = 0;
 
-    for (var a = 0; a < artboards.length; a++) {
+    var startIndex = 0;
+    var endIndex = artboards.length;
+    if (options.currentArtboardOnly) {
+        startIndex = doc.artboards.getActiveArtboardIndex();
+        endIndex = startIndex + 1;
+    }
+
+    for (var a = startIndex; a < endIndex; a++) {
         var ab = artboards[a];
         var layerName = getArtboardLayerName(a);
         managedLayerNames[layerName] = true;
@@ -253,7 +471,6 @@ var SCRIPT_VERSION = "v1.0";
         for (var j = 0; j < items.length; j++) {
             if (processed[j]) continue;
             var item = items[j];
-            if (hasIgnoredAncestorLayer(item, options)) continue;
 
             try {
                 if (isInArtboard(item, rect)) {
@@ -269,14 +486,17 @@ var SCRIPT_VERSION = "v1.0";
         }
 
         var normalResult = moveEntriesToLayerPreservingOrder(normalEntries, layer, processed);
-        var guideResult = moveEntriesToLayerPreservingOrder(guideEntries, guideLayer, processed);
+        var guideResult = { moved: 0, failed: 0 };
+        if (guideEntries.length > 0) {
+            guideResult = moveEntriesToLayerPreservingOrder(guideEntries, getOrCreateGuideLayer(), processed);
+        }
         moved += normalResult.moved + guideResult.moved;
         guideMoved += guideResult.moved;
         failedMoves += normalResult.failed + guideResult.failed;
     }
 
-    // アートボード順にレイヤーを上から並べる
-    for (var i = artboards.length - 1; i >= 0; i--) {
+    // 対象アートボードのレイヤーを上へ並べる
+    for (var i = endIndex - 1; i >= startIndex; i--) {
         var name = getArtboardLayerName(i);
         try {
             var ly = getOrCreateLayer(name);
@@ -286,57 +506,65 @@ var SCRIPT_VERSION = "v1.0";
         }
     }
 
-    // どのアートボードにも属さないアイテムを _pasteboard レイヤーに移動
-    var pasteboardNormalEntries = [];
-    var pasteboardGuideEntries = [];
-    for (var j = 0; j < items.length; j++) {
-        if (processed[j]) continue;
-        if (hasIgnoredAncestorLayer(items[j], options)) continue;
-        if (items[j].guides) {
-            pasteboardGuideEntries.push({ item: items[j], index: j });
-        } else {
-            pasteboardNormalEntries.push({ item: items[j], index: j });
+    // 全アートボード処理時のみ、どのアートボードにも属さないアイテムを _pasteboard レイヤーに移動
+    if (!options.currentArtboardOnly) {
+        var pasteboardNormalEntries = [];
+        var pasteboardGuideEntries = [];
+        for (var j = 0; j < items.length; j++) {
+            if (processed[j]) continue;
+            if (items[j].guides) {
+                pasteboardGuideEntries.push({ item: items[j], index: j });
+            } else {
+                pasteboardNormalEntries.push({ item: items[j], index: j });
+            }
         }
-    }
 
-    var pasteboardNormalResult = moveEntriesToLayerPreservingOrder(pasteboardNormalEntries, pasteboardLayer, processed);
-    var pasteboardGuideResult = moveEntriesToLayerPreservingOrder(pasteboardGuideEntries, guideLayer, processed);
-    moved += pasteboardNormalResult.moved + pasteboardGuideResult.moved;
-    guideMoved += pasteboardGuideResult.moved;
-    failedMoves += pasteboardNormalResult.failed + pasteboardGuideResult.failed;
+        var pasteboardNormalResult = moveEntriesToLayerPreservingOrder(pasteboardNormalEntries, pasteboardLayer, processed);
+        var pasteboardGuideResult = { moved: 0, failed: 0 };
+        if (pasteboardGuideEntries.length > 0) {
+            pasteboardGuideResult = moveEntriesToLayerPreservingOrder(pasteboardGuideEntries, getOrCreateGuideLayer(), processed);
+        }
+        moved += pasteboardNormalResult.moved + pasteboardGuideResult.moved;
+        guideMoved += pasteboardGuideResult.moved;
+        failedMoves += pasteboardNormalResult.failed + pasteboardGuideResult.failed;
+    }
 
     // _guide レイヤーを一番上に移動
-    var wasLocked = guideLayer.locked;
-    guideLayer.locked = false;
-    guideLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
-    guideLayer.locked = wasLocked;
+    if (guideLayer) {
+        var wasLocked = guideLayer.locked;
+        guideLayer.locked = false;
+        guideLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
+        guideLayer.locked = wasLocked;
+    }
 
     // 旧仕様のアートボード名レイヤーを新仕様レイヤーへ統合
-    for (var i = doc.layers.length - 1; i >= 0; i--) {
-        var legacyLayer = doc.layers[i];
-        if (shouldIgnoreLayer(legacyLayer, options)) continue;
-        var legacyArtboardIndex = findLegacyArtboardIndexByLayerName(legacyLayer.name);
-        if (legacyArtboardIndex < 0) continue;
+    if (!options.currentArtboardOnly) {
+        for (var i = doc.layers.length - 1; i >= 0; i--) {
+            var legacyLayer = doc.layers[i];
+            if (shouldIgnoreLayer(legacyLayer, options)) continue;
+            var legacyArtboardIndex = findLegacyArtboardIndexByLayerName(legacyLayer.name);
+            if (legacyArtboardIndex < 0) continue;
 
-        try {
-            var targetLayerName = getArtboardLayerName(legacyArtboardIndex);
-            managedLayerNames[targetLayerName] = true;
-            var targetLayer = getOrCreateLayer(targetLayerName);
-            if (legacyLayer !== targetLayer) {
-                var legacyMoveResult = moveLayerItemsToLayer(legacyLayer, targetLayer);
-                moved += legacyMoveResult.moved;
-                failedMoves += legacyMoveResult.failed;
+            try {
+                var targetLayerName = getArtboardLayerName(legacyArtboardIndex);
+                managedLayerNames[targetLayerName] = true;
+                var targetLayer = getOrCreateLayer(targetLayerName);
+                if (legacyLayer !== targetLayer) {
+                    var legacyMoveResult = moveLayerItemsToLayer(legacyLayer, targetLayer);
+                    moved += legacyMoveResult.moved;
+                    failedMoves += legacyMoveResult.failed;
+                }
+                if (legacyLayer.pageItems.length === 0 && legacyLayer.layers.length === 0 && doc.layers.length > 1) {
+                    legacyLayer.remove();
+                }
+            } catch (e) {
+                // 統合できないものは無視
             }
-            if (legacyLayer.pageItems.length === 0 && legacyLayer.layers.length === 0 && doc.layers.length > 1) {
-                legacyLayer.remove();
-            }
-        } catch (e) {
-            // 統合できないものは無視
         }
     }
 
-    // 旧仕様統合後に、改めてアートボード順へ並べ直す
-    for (var i = artboards.length - 1; i >= 0; i--) {
+    // 旧仕様統合後に、対象アートボードのレイヤーを改めて上へ並べ直す
+    for (var i = endIndex - 1; i >= startIndex; i--) {
         var orderedName = getArtboardLayerName(i);
         try {
             var orderedLayer = getOrCreateLayer(orderedName);
@@ -347,12 +575,13 @@ var SCRIPT_VERSION = "v1.0";
     }
 
     // _guide レイヤーを最後に一番上へ戻す
-    var guideWasLockedAfterMerge = guideLayer.locked;
-    guideLayer.locked = false;
-    guideLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
-    guideLayer.locked = guideWasLockedAfterMerge;
+    if (guideLayer) {
+        var guideWasLockedAfterMerge = guideLayer.locked;
+        guideLayer.locked = false;
+        guideLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
+        guideLayer.locked = guideWasLockedAfterMerge;
+    }
 
-    var removed = 0;
     if (options.removeEmptyLayers) {
         // 処理後に空になったサブレイヤーを削除
         for (var i = 0; i < doc.layers.length; i++) {
@@ -368,9 +597,12 @@ var SCRIPT_VERSION = "v1.0";
             removeEmptySubLayers(ly, options);
             if (ly.pageItems.length === 0 && ly.layers.length === 0 && doc.layers.length > 1) {
                 ly.remove();
-                removed++;
             }
         }
+    }
+
+    if (failedMoves > 0) {
+        alert(L("alert.failed") + failedMoves);
     }
 
 })();
