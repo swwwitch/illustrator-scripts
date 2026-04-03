@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // 選択した複数オブジェクトを左から順に見て、隣り合うオブジェクト同士の「アキ」の中央に、右向き記号を配置します。
 // レイアウトの流れ・関係性を視覚的に示すためのツールです。
 //
-// ・右向き記号（▶ / > / >> / ─ / → / ➡ / ＿\\ / ＋ / ×）を作成
+// ・右向き記号（▶ / > / >> / ─ / → / ➡ / ＋ / ×）を作成
 // ・複数選択時、各オブジェクト間すべてに同形状を自動配置
 // ・幅は「最も狭いアキ」を基準に安全側で自動決定（手動入力も可能）
 // ・高さ（％）・位置（左右／上下）を調整可能
@@ -16,26 +16,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // ・▶ は「凹み」で形状を変形可能（幅の80%まで）
 // ・▶ は「角丸」オプションで角丸形状に変更可能（凹みの有無に関係なく適用）
 //
-// ・→ / ➡ / ＿\\ は幅で長さを調整
-// ・＿\\ は3アンカーポイントの折れ線で作成し、角度で斜線の傾きを調整可能
-// ・＿\\ は先端形状（なし／丸型）および左右反転に対応
+// ・→ / ➡ は幅で長さを調整
 // ・➡ は入力線幅の3倍で描画
 // ・＋ / × は幅でサイズを調整（× は45°回転）
 //
-// ・角度・線幅は形状ごとに初期化され、ユーザー入力は維持されます
-// ・プレビューは即時更新され、ダイアログ終了時に確実にクリーンアップされます
+// ・左右逆（反転）、先端形状、プレビューに対応
 // ・キーボード操作：F（なし）/ R（丸型）/ V（左右逆）
 //
 // ※オブジェクトが重なっている場合やアキがない場合は作成されません
 //
 // 作成日：2026-03-28
-// 更新日：2026-04-02 v1.3 安定性・入力検証・プレビュー管理を改善
+// 更新日：2026-04-04 v1.2 機能整理・凹み／角丸／ショートカット対応
 // ===================================================
 
 // =========================================
 // バージョンとローカライズ / Version and localization
 // =========================================
-var SCRIPT_VERSION = "v1.3";
+var SCRIPT_VERSION = "v1.2";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -99,10 +96,6 @@ var LABELS = {
     labelStroke: {
         ja: "線幅",
         en: "Stroke"
-    },
-    labelAngle: {
-        ja: "角度",
-        en: "Angle"
     },
     roundCorners: {
         ja: "角丸",
@@ -239,19 +232,14 @@ function L(key) {
             });
             return copyBounds(bounds);
         } catch (e) {
-            try { $.writeln("[RightMarkPlacer] measure fallback: " + e); } catch (_) { }
             return copyBounds(item.geometricBounds);
         } finally {
             try {
                 if (outlined) outlined.remove();
-            } catch (e1) {
-                try { $.writeln("[RightMarkPlacer] cleanup outlined failed: " + e1); } catch (_) { }
-            }
+            } catch (_) { }
             try {
                 if (dup) dup.remove();
-            } catch (e2) {
-                try { $.writeln("[RightMarkPlacer] cleanup dup failed: " + e2); } catch (_) { }
-            }
+            } catch (_) { }
         }
     }
 
@@ -449,7 +437,6 @@ function L(key) {
             radioChevronDouble: shapeUI.radioChevronDouble,
             radioArrow: shapeUI.radioArrow,
             radioArrow3: shapeUI.radioArrow3,
-            radioArrowSlash: shapeUI.radioArrowSlash,
             radioDash: shapeUI.radioDash,
             radioPlus: shapeUI.radioPlus,
             radioMultiply: shapeUI.radioMultiply,
@@ -467,9 +454,6 @@ function L(key) {
             gapField: optionUI.gapField,
             strokeLabel: optionUI.strokeLabel,
             strokeField: optionUI.strokeField,
-            angleField: optionUI.angleField,
-            angleLabel: optionUI.angleLabel,
-            angleUnitLabel: optionUI.angleUnitLabel,
 
             chkAlignVerticalCenter: optionUI.chkAlignVerticalCenter,
             chkRoundCorners: optionUI.chkRoundCorners,
@@ -496,8 +480,6 @@ function L(key) {
         var radioDash = panel.add("radiobutton", undefined, "\u2500");
         var radioArrow = panel.add("radiobutton", undefined, "\u2192");
         var radioArrow3 = panel.add("radiobutton", undefined, "\u27A1");
-        var arrowSlashLabel = (lang === "ja") ? "＿\\" : "─\\";
-        var radioArrowSlash = panel.add("radiobutton", undefined, arrowSlashLabel);
         radioArrow3.helpTip = (lang === "ja") ? "線幅入力の3倍で描画します。" : "Draws using 3× the entered stroke width.";
         var radioPlus = panel.add("radiobutton", undefined, "\uFF0B");
         var radioMultiply = panel.add("radiobutton", undefined, "\u00D7");
@@ -520,7 +502,6 @@ function L(key) {
             radioChevronDouble: radioChevronDouble,
             radioArrow: radioArrow,
             radioArrow3: radioArrow3,
-            radioArrowSlash: radioArrowSlash,
             radioDash: radioDash,
             radioPlus: radioPlus,
             radioMultiply: radioMultiply,
@@ -628,21 +609,6 @@ function L(key) {
 
         strokeGroup.add("statictext", undefined, strokeUnitInfo.label);
 
-        // --- Angle input group ---
-        var angleGroup = panel.add("group");
-        angleGroup.orientation = "row";
-        angleGroup.alignChildren = ["left", "center"];
-        angleGroup.spacing = 8;
-
-        var labelAngle = angleGroup.add("statictext", undefined, L("labelAngle"));
-        labelAngle.preferredSize = [UI_LABEL_WIDTH, -1];
-        labelAngle.justify = "right";
-
-        var angleField = angleGroup.add("edittext", undefined, "0");
-        angleField.characters = 4;
-
-        var angleUnitLabel = angleGroup.add("statictext", undefined, "°");
-
         var alignCenterGroup = panel.add("group");
         alignCenterGroup.orientation = "row";
         alignCenterGroup.alignChildren = ["left", "center"];
@@ -651,6 +617,7 @@ function L(key) {
 
         var chkAlignVerticalCenter = alignCenterGroup.add("checkbox", undefined, L("alignVerticalCenter"));
         chkAlignVerticalCenter.value = false;
+
 
         var roundCornersGroup = panel.add("group");
         roundCornersGroup.orientation = "row";
@@ -672,14 +639,10 @@ function L(key) {
             gapField: gapField,
             strokeLabel: labelStroke,
             strokeField: strokeField,
-            angleField: angleField,
-            angleLabel: labelAngle,
-            angleUnitLabel: angleUnitLabel,
             chkAlignVerticalCenter: chkAlignVerticalCenter,
             chkRoundCorners: chkRoundCorners
         };
     }
-
 
     function buildAdjustPanel(parent) {
         var panel = parent.add("panel", undefined, L("panelAdjust"));
@@ -768,7 +731,6 @@ function L(key) {
 
             enableInset: true,
             enableRoundCorners: true,
-            enableAngle: false,
             defaultHeightPercent: 30,
 
             defaultGap: -1,
@@ -790,7 +752,6 @@ function L(key) {
             enableGap: false,
             enableInset: false,
             enableRoundCorners: false,
-            enableAngle: false,
             defaultHeightPercent: 30,
             defaultGap: -1,
             defaultInsetPt: 0,
@@ -811,34 +772,10 @@ function L(key) {
             enableGap: false,
             enableInset: false,
             enableRoundCorners: false,
-            enableAngle: false,
-
             defaultHeightPercent: 50,
             defaultGap: -1,
             defaultInsetPt: 0,
             defaultStrokePt: 1.2,
-            calcDefaultWidth: function (inputVal, totalHeight, gapWidth) {
-                var arrowWidth = gapWidth * 0.7;
-                return Math.round(arrowWidth * 100) / 100;
-            }
-        },
-        arrowSlash: {
-            radioKey: "radioArrowSlash",
-            enableCapPanel: true,
-            forceFillOnly: false,
-            enableStrokeInput: true,
-            requirePositiveStroke: true,
-            enableHeightInput: true,
-            enableMirror: true,
-            enableGap: false,
-            enableInset: false,
-            enableRoundCorners: false,
-            enableAngle: true,
-            defaultHeightPercent: 50,
-            defaultGap: -1,
-            defaultInsetPt: 0,
-            defaultStrokePt: 0.6,
-            defaultAngle: 35,
             calcDefaultWidth: function (inputVal, totalHeight, gapWidth) {
                 var arrowWidth = gapWidth * 0.7;
                 return Math.round(arrowWidth * 100) / 100;
@@ -854,8 +791,6 @@ function L(key) {
             enableMirror: true,
             enableGap: false,
             enableInset: false,
-            enableRoundCorners: false,
-            enableAngle: false,
             defaultHeightPercent: 50,
             defaultGap: -1,
             defaultInsetPt: 0,
@@ -875,9 +810,6 @@ function L(key) {
             enableMirror: false,
             enableGap: false,
             enableInset: false,
-            enableRoundCorners: false,
-            enableAngle: false,
-
             defaultHeightPercent: undefined,
             defaultGap: -1,
             defaultInsetPt: 0,
@@ -896,8 +828,6 @@ function L(key) {
             enableMirror: false,
             enableGap: false,
             enableInset: false,
-            enableRoundCorners: false,
-            enableAngle: false,
             defaultHeightPercent: undefined,
             defaultGap: -1,
             defaultInsetPt: 0,
@@ -916,8 +846,6 @@ function L(key) {
             enableMirror: false,
             enableGap: false,
             enableInset: false,
-            enableRoundCorners: false,
-            enableAngle: false,
             defaultHeightPercent: undefined,
             defaultGap: -1,
             defaultInsetPt: 0,
@@ -936,8 +864,6 @@ function L(key) {
             enableMirror: true,
             enableGap: true,
             enableInset: false,
-            enableRoundCorners: false,
-            enableAngle: false,
             defaultHeightPercent: 50,
             defaultGap: 0,
             defaultInsetPt: 0,
@@ -1067,46 +993,11 @@ function L(key) {
             ui.insetGroup.visible = true;
             ui.insetGroup.enabled = !!shapeConfig.enableInset;
         }
+        setFieldFromPt(ui.strokeField, shapeConfig.defaultStrokePt, strokeUnitInfo);
 
         ui.capPanel.enabled = !!shapeConfig.enableCapPanel;
         ui.inputGroup.enabled = !!shapeConfig.enableHeightInput;
         ui.strokeField.enabled = !!shapeConfig.enableStrokeInput;
-
-        if (ui.angleField) {
-            var angleEnabled = !!shapeConfig.enableAngle;
-            ui.angleField.enabled = angleEnabled;
-            if (ui.angleLabel) {
-                ui.angleLabel.enabled = angleEnabled;
-            }
-            if (ui.angleUnitLabel) {
-                ui.angleUnitLabel.enabled = angleEnabled;
-            }
-            if (angleEnabled) {
-                // 初めて有効になる場合のみデフォルトを設定
-                if (!ui.angleField.__initializedForShape) {
-                    if (typeof shapeConfig.defaultAngle !== "undefined") {
-                        ui.angleField.text = String(shapeConfig.defaultAngle);
-                    }
-                    ui.angleField.__initializedForShape = shapeKey;
-                }
-            } else {
-                // 他形状に切り替えたら初期化フラグをリセット
-                ui.angleField.__initializedForShape = null;
-            }
-        }
-
-        if (ui.strokeField) {
-            if (shapeConfig.enableStrokeInput) {
-                if (!ui.strokeField.__initializedForShape) {
-                    setFieldFromPt(ui.strokeField, shapeConfig.defaultStrokePt, strokeUnitInfo);
-                    ui.strokeField.__initializedForShape = shapeKey;
-                }
-            } else {
-                ui.strokeField.__initializedForShape = null;
-                ui.strokeField.text = String(roundDisplayValue(convertPtToUnitValue(shapeConfig.defaultStrokePt || 0, strokeUnitInfo)));
-            }
-        }
-
 
         if (ui.strokeLabel) {
             ui.strokeLabel.text = (shapeKey === "arrow3")
@@ -1139,6 +1030,9 @@ function L(key) {
         if (!shapeConfig.enableCapPanel) {
             ui.radioCapNone.value = true;
             ui.radioCapRound.value = false;
+        }
+        if (!shapeConfig.enableStrokeInput) {
+            ui.strokeField.text = String(roundDisplayValue(convertPtToUnitValue(shapeConfig.defaultStrokePt || 0, strokeUnitInfo)));
         }
     }
 
@@ -1202,9 +1096,6 @@ function L(key) {
     changeValueByArrowKey(ui.widthField);
     changeValueByArrowKey(ui.insetField);
     changeValueByArrowKey(ui.strokeField);
-    if (ui.angleField) {
-        changeValueByArrowKey(ui.angleField);
-    }
 
     ui.insetField.onChanging = function () {
         var insetNum = parseFloat(ui.insetField.text);
@@ -1273,9 +1164,6 @@ function L(key) {
         var offsetX = parseFieldToPt(ui.adjustField, rulerUnitInfo, true);
         var offsetY = parseFieldToPt(ui.adjustVField, rulerUnitInfo, true);
         var strokeW = parseFieldToPt(ui.strokeField, strokeUnitInfo, false);
-        var angleVal = (shapeConfig && shapeConfig.enableAngle)
-            ? parseFloat(ui.angleField.text)
-            : 0;
 
         if (shapeConfig && shapeConfig.enableInset) {
             if (isNaN(insetVal) || insetVal < 0) {
@@ -1336,33 +1224,13 @@ function L(key) {
             return null;
         }
 
-        if (isNaN(strokeW)) {
-            if (showAlert) {
-                alert(L("alertInvalidValue"));
-                ui.strokeField.active = true;
-            }
-            return null;
-        }
-
-        if (strokeW < 0.25) {
-            if (showAlert) {
-                alert(L("alertStrokePositive"));
-                ui.strokeField.active = true;
-            }
-            return null;
+        if (isNaN(strokeW) || strokeW < 0.25) {
+            strokeW = 0.25;
         }
 
         if (!validateStrokeWidthForShape(shapeKey, strokeW, showAlert)) {
             if (showAlert) {
                 ui.strokeField.active = true;
-            }
-            return null;
-        }
-
-        if (shapeConfig && shapeConfig.enableAngle && isNaN(angleVal)) {
-            if (showAlert) {
-                alert(L("alertInvalidValue"));
-                ui.angleField.active = true;
             }
             return null;
         }
@@ -1375,8 +1243,7 @@ function L(key) {
             insetVal: insetVal,
             offsetX: offsetX,
             offsetY: offsetY,
-            strokeW: strokeW,
-            angleVal: angleVal
+            strokeW: strokeW
         };
     }
 
@@ -1396,9 +1263,7 @@ function L(key) {
         if (!item || radiusPt <= 0) return;
         try {
             item.applyEffect('<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radiusPt + ' "/></LiveEffect>');
-        } catch (e) {
-            try { $.writeln("[RightMarkPlacer] round corners failed: " + e); } catch (_) { }
-        }
+        } catch (e) { }
     }
 
     function createTriShape(cx, cy, w, h, insetVal, strokeW, forceFillOnly) {
@@ -1520,58 +1385,6 @@ function L(key) {
             shaft: shaft,
             head: head
         };
-    }
-
-    function createArrowSlashShape(cx, cy, gapLeft, gapRight, h, widthVal, strokeW, angleVal) {
-        var gapW = gapRight - gapLeft;
-        var w = (widthVal > 0) ? widthVal : (gapW * 0.7);
-        var lineW = (strokeW > 0) ? strokeW : 1;
-        var rise = h / 2;
-        var angleDeg = angleVal;
-        var angleRad;
-        var slashDx;
-        var leftX = cx - w / 2;
-        var tipX = cx + w / 2;
-        var slashTopX;
-        var path;
-
-        if (isNaN(angleDeg) || angleDeg <= 0) {
-            angleDeg = 35;
-        }
-        if (angleDeg >= 89) {
-            angleDeg = 89;
-        }
-
-        angleRad = angleDeg * Math.PI / 180;
-        slashDx = rise / Math.tan(angleRad);
-        if (!isFinite(slashDx) || slashDx <= 0) {
-            slashDx = rise;
-        }
-
-        slashTopX = tipX - slashDx;
-        if (slashTopX <= leftX) {
-            slashTopX = leftX + Math.max(lineW, w * 0.15);
-        }
-
-        path = doc.activeLayer.pathItems.add();
-        path.setEntirePath([
-            [leftX, cy],
-            [tipX, cy],
-            [slashTopX, cy + rise]
-        ]);
-        path.closed = false;
-        path.filled = false;
-        path.stroked = true;
-        path.strokeWidth = lineW;
-        path.strokeColor = makeCMYK(0, 0, 0, 100);
-        if (ui.radioCapRound.value) {
-            path.strokeCap = StrokeCap.ROUNDENDCAP;
-            path.strokeJoin = StrokeJoin.ROUNDENDJOIN;
-        } else {
-            path.strokeCap = StrokeCap.BUTTENDCAP;
-            path.strokeJoin = StrokeJoin.MITERENDJOIN;
-        }
-        return path;
     }
 
     function createFlatChevronShape(cx, cy, h, widthVal, strokeW) {
@@ -1846,13 +1659,9 @@ function L(key) {
                 for (i = 0; i < prevSelection.length; i++) {
                     try {
                         prevSelection[i].selected = true;
-                    } catch (e) {
-                        try { $.writeln("[RightMarkPlacer] restore selection item failed: " + e); } catch (_) { }
-                    }
+                    } catch (e) { }
                 }
-            } catch (e2) {
-                try { $.writeln("[RightMarkPlacer] restore selection failed: " + e2); } catch (_) { }
-            }
+            } catch (e2) { }
         }
     }
 
@@ -1896,7 +1705,7 @@ function L(key) {
         };
     }
 
-    function createShapeAtPlacement(shape, placement, widthVal, insetVal, strokeW, angleVal, shapeConfig) {
+    function createShapeAtPlacement(shape, placement, widthVal, insetVal, strokeW, shapeConfig) {
         if (shape === "tri") {
             return createTriShape(placement.cx, placement.cy, placement.w, placement.h, insetVal, strokeW, !!shapeConfig.forceFillOnly);
         }
@@ -1906,9 +1715,6 @@ function L(key) {
         if (shape === "arrow3") {
             var arrow3Parts = createArrow3Shape(placement.cx, placement.cy, placement.gapLeft, placement.gapRight, placement.h, widthVal, strokeW);
             return finalizeArrow3Appearance(arrow3Parts);
-        }
-        if (shape === "arrowSlash") {
-            return createArrowSlashShape(placement.cx, placement.cy, placement.gapLeft, placement.gapRight, placement.h, widthVal, strokeW, angleVal);
         }
         if (shape === "chevron") {
             return createChevronShape(placement.cx, placement.cy, placement.gapLeft, placement.gapRight, placement.h, widthVal, strokeW);
@@ -1963,7 +1769,7 @@ function L(key) {
         return result;
     }
 
-    function createShapeBetweenItems(leftItem, rightItem, inputVal, widthVal, insetVal, offsetX, offsetY, strokeW, angleVal) {
+    function createShapeBetweenItems(leftItem, rightItem, inputVal, widthVal, insetVal, offsetX, offsetY, strokeW) {
         var shape = getShapeType();
         var shapeConfig = SHAPE_CONFIG[shape];
         var placement = computePlacementBetweenItems(leftItem, rightItem, inputVal, widthVal, offsetX, offsetY);
@@ -1973,12 +1779,12 @@ function L(key) {
             return null;
         }
 
-        result = createShapeAtPlacement(shape, placement, widthVal, insetVal, strokeW, angleVal, shapeConfig);
+        result = createShapeAtPlacement(shape, placement, widthVal, insetVal, strokeW, shapeConfig);
         return applyMirrorIfNeeded(result);
     }
 
     /* 形状を作成する共通関数 / Shared shape creation function */
-    function createShape(inputVal, widthVal, insetVal, offsetX, offsetY, strokeW, angleVal) {
+    function createShape(inputVal, widthVal, insetVal, offsetX, offsetY, strokeW) {
         clearMeasurementBoundsCache();
 
         var items = getSortedSelectionItems();
@@ -1987,7 +1793,7 @@ function L(key) {
         var shapeItem;
 
         for (i = 0; i < items.length - 1; i++) {
-            shapeItem = createShapeBetweenItems(items[i], items[i + 1], inputVal, widthVal, insetVal, offsetX, offsetY, strokeW, angleVal);
+            shapeItem = createShapeBetweenItems(items[i], items[i + 1], inputVal, widthVal, insetVal, offsetX, offsetY, strokeW);
             if (shapeItem !== null) {
                 createdItems.push(shapeItem);
             }
@@ -1998,6 +1804,7 @@ function L(key) {
 
     /* プレビューを削除 / Remove preview */
     function removePreview() {
+        cancelDebouncedPreview();
         if (!previewPath || previewPath.length === 0) {
             return;
         }
@@ -2013,12 +1820,35 @@ function L(key) {
         app.redraw();
     }
 
+    /* プレビューデバウンス / Preview debounce */
+    var previewDebounceTaskId = null;
+    var PREVIEW_DEBOUNCE_DELAY = 120;
+
+    function cancelDebouncedPreview() {
+        if (previewDebounceTaskId !== null) {
+            try {
+                app.cancelTask(previewDebounceTaskId);
+            } catch (e) { }
+            previewDebounceTaskId = null;
+        }
+    }
+
     function schedulePreviewUpdate() {
-        updatePreview();
+        cancelDebouncedPreview();
+        try {
+            previewDebounceTaskId = app.scheduleTask(
+                "try { updatePreview(); } catch (e) {}",
+                PREVIEW_DEBOUNCE_DELAY,
+                false
+            );
+        } catch (e) {
+            updatePreview();
+        }
     }
 
     /* プレビューを更新 / Update preview */
     function updatePreview() {
+        previewDebounceTaskId = null;
         var values;
         removePreview();
         if (!ui.previewCb.value) return;
@@ -2026,7 +1856,7 @@ function L(key) {
         values = readUIValues(false);
         if (!values) return;
 
-        previewPath = createShape(values.inputVal, values.widthVal, values.insetVal, values.offsetX, values.offsetY, values.strokeW, values.angleVal);
+        previewPath = createShape(values.inputVal, values.widthVal, values.insetVal, values.offsetX, values.offsetY, values.strokeW);
         if (!previewPath) {
             previewPath = [];
         }
@@ -2091,11 +1921,6 @@ function L(key) {
     ui.strokeField.onChanging = function () {
         schedulePreviewUpdate();
     };
-    if (ui.angleField) {
-        ui.angleField.onChanging = function () {
-            schedulePreviewUpdate();
-        };
-    }
 
     ui.gapField.onChanging = function () {
         schedulePreviewUpdate();
@@ -2132,7 +1957,7 @@ function L(key) {
 
         dlg.close(1);
 
-        var path = createShape(values.inputVal, values.widthVal, values.insetVal, values.offsetX, values.offsetY, values.strokeW, values.angleVal);
+        var path = createShape(values.inputVal, values.widthVal, values.insetVal, values.offsetX, values.offsetY, values.strokeW);
         if (!path || path.length === 0) {
             alert(L("alertNoGap"));
             return;
@@ -2142,6 +1967,7 @@ function L(key) {
 
     /* キャンセルボタン処理 / Cancel button handler */
     ui.cancelBtn.onClick = function () {
+        cancelDebouncedPreview();
         removePreview();
         dlg.close(0);
     };
@@ -2151,13 +1977,8 @@ function L(key) {
     try {
         dlg.layout.layout(true);
         dlg.layout.resize();
-    } catch (e) {
-        try { $.writeln("[RightMarkPlacer] layout failed: " + e); } catch (_) { }
-    }
+    } catch (e) { }
 
-    dlg.onClose = function () {
-        try { removePreview(); } catch (e) { try { $.writeln("[RightMarkPlacer] onClose cleanup failed: " + e); } catch (_) {} }
-    };
     dlg.show();
 
 })();
