@@ -12,26 +12,26 @@ TextScopeEdit.jsx
 対象テキスト（アートボード）では、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体を切り替えできます。
 対象テキスト（レイヤー）では、//ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかを切り替えできます。
 同じ内容のテキストをまとめて扱うはデフォルトでオンです。同じ内容のテキストが複数ある場合、一覧では1件として扱い、編集時は該当テキストを一括で更新します。ソート、段落単位の書式保持つき置換、プレビューに対応します。
-グループ内およびサブレイヤー内のテキストも対象です。実質的に空のテキストオブジェクトは無視します。
-ロックまたは非表示のテキストを対象に含めた場合でも、一時的に編集可能な状態にしてから内容を更新し、処理後に元の状態へ戻します。
-シンボル内のテキストは編集対象外ですが、一覧表示には対応します。シンボル内テキストの読み取り結果はダイアログ表示中にキャッシュされ、通常の一覧更新では再読込しません。
-シンボル内テキストの読み取りは、同名シンボルを1回だけ対象にします。対象シンボルの代表インスタンスを一時レイヤーへ複製し、複製側だけを breakLink して展開後のテキストを収集します。読み取りに使った複製オブジェクトは削除し、元のカンバス上のシンボルには触れません。一時レイヤーは必要時のみ作成し、このスクリプトが作成した場合のみ削除します。
+グループ内およびサブレイヤー内のテキストも対象です。実質的に空のテキストオブジェクトは無視します。内部の収集処理は共通化し、一覧用と書き出し用で同じ走査ロジックを使います。
+ロックまたは非表示のテキストを対象に含めた場合でも、一時的に編集可能な状態にしてから内容を更新し、処理後に元の状態へ戻します。収集時のロック・非表示判定は、親グループや親コンテナの状態も含めて確認します。
+シンボル内のテキストは編集対象外ですが、一覧表示には対応します。現在のアートボード内を選んだときは、そのアートボード内にあるシンボルインスタンスのみを対象にします。シンボル内テキストの読み取り結果は、対象範囲・//レイヤー・ロック・非表示の条件ごとにダイアログ表示中キャッシュします。条件が変わった場合のみ再読込します。
+シンボル内テキストの読み取りは、同名シンボルをアートボードごとに1回だけ対象にします。対象条件の判定、重複除外、一時レイヤーでの複製・breakLink・後始末は共通処理化しています。読み取りに使った複製オブジェクトは削除し、元のカンバス上のシンボルには触れません。一時レイヤーは必要時のみ作成し、このスクリプトが作成した場合のみ削除します。
 ダイアログ左側には「テキスト一覧」「テキスト編集」「シンボル内テキスト（編集不可）」を表示します。テキスト編集欄の高さは4行分です。シンボル内テキスト一覧の高さは内容件数に応じて自動調整され、最小4行・最大8行の範囲で表示します。
 段落書式を保持がオンのときは、プレビューを自動でオフにして無効化します。プレビュー中に切り替えた場合も、プレビュー状態を解除してから反映します。
-［テキスト書き出し］で、ドキュメント内のすべての通常テキストとシンボル内テキストをアートボードごとにまとめてデスクトップへテキストファイルとして書き出します。書き出しは現在の一覧表示条件や重複除外、ソート状態に影響されません。各アートボードは ---アートボード番号: アートボード名--- / アートボード外は ---アートボード外--- の見出しで区切られ、シンボル内テキストも配置されているアートボードごとにまとめて出力します。シンボル内テキストは「（シンボル: 名前）」の形式で末尾に付加されます。OKで現在選択中のテキストに編集内容を反映して閉じます。キャンセルでダイアログを閉じます。
+［テキスト書き出し］で、ドキュメント内の通常テキストとシンボル内テキストをアートボードごとにまとめてデスクトップへテキストファイルとして書き出します。書き出し時は、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体の範囲指定、および //ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかの条件を反映します。重複のまとめ表示やソート状態には影響されません。各アートボードは ---アートボード番号: アートボード名--- / アートボード外は ---アートボード外--- の見出しで区切られ、シンボル内テキストも配置されているアートボードごとにまとめて出力します。シンボル内テキストは「（シンボル: 名前）」の形式で末尾に付加されます。OKで現在選択中のテキストに編集内容を反映して閉じます。キャンセルでダイアログを閉じます。
 
 Overview
 Collect text in the document based on the selected conditions, show it in a list, and edit the contents.
 In Text Scope (Artboards), you can switch between the current artboard, all artboards, and the entire document.
 In Text Scope (Layers), you can choose whether to include layers starting with //, and whether locked text and hidden text are included.
 Treat Same Text as One is enabled by default. When multiple text frames have the same content, the list shows them as one item and editing updates all matching text frames together. Sorting, replacement while keeping paragraph-level formatting, and preview are supported.
-Text inside groups and sublayers is supported. Effectively empty text objects are ignored.
-When locked or hidden text is included, the script temporarily makes it editable, updates the contents, and then restores the original state.
-Text inside symbols is not editable, but listing is supported. Symbol text results are cached while the dialog is open, and normal list updates do not reload them.
-To read text inside symbols, the script targets each symbol name only once. It duplicates one representative instance of the target symbol to a temporary layer, break-links only the duplicate, and collects the resulting text. The temporary duplicate objects are then removed, and the original symbols on the canvas remain untouched. The temporary layer is created only when needed and is removed only if this script created it.
+Text inside groups and sublayers is supported. Effectively empty text objects are ignored. Internally, the collection logic is shared so the list and export use the same traversal behavior.
+When locked or hidden text is included, the script temporarily makes it editable, updates the contents, and then restores the original state. Collectability checks for locked and hidden states also inspect parent groups and parent containers.
+Text inside symbols is not editable, but listing is supported. When Current Artboard Only is selected, only symbol instances on the current artboard are targeted. Symbol text results are cached while the dialog is open per condition set, including scope, // layers, locked text, and hidden text. They are reloaded only when those conditions change.
+To read text inside symbols, the script targets each symbol name once per artboard. Scope filtering, duplicate elimination, temporary-layer duplication, break-linking, and cleanup are shared internally. The temporary duplicate objects are then removed, and the original symbols on the canvas remain untouched. The temporary layer is created only when needed and is removed only if this script created it.
 The left side of the dialog shows Text List, Edit Text, and Text in Symbols (Read-Only). The Edit Text field height is 4 lines. The height of the symbol text list adjusts automatically to the number of items, with a minimum of 4 rows and a maximum of 8 rows.
 When Keep Paragraph Formatting is enabled, Preview is turned off automatically and disabled. If you switch it on while previewing, the preview state is cleared before the change is applied.
-[Export Text] writes all regular text in the document and the text found inside symbols to a text file on the Desktop, grouped by artboard. Export is not affected by the current list view conditions, duplicate removal, or sort state. Each artboard is written under a ---Artboard Number: Artboard Name--- heading, and items outside all artboards are written under ---Outside Artboards---. Text found inside symbols is also grouped under the artboard where that symbol instance is placed. Symbol text lines append "(Symbol: name)" in English. Pressing OK applies the current edit to the selected text and closes the dialog. Cancel closes the dialog.
+[Export Text] writes regular text in the document and the text found inside symbols to a text file on the Desktop, grouped by artboard. Export respects the current scope setting (current artboard, all artboards, or entire document), as well as whether layers starting with // are included and whether locked or hidden text is included. Duplicate grouping and sort state do not affect export. Each artboard is written under a ---Artboard Number: Artboard Name--- heading, and items outside all artboards are written under ---Outside Artboards---. Text found inside symbols is also grouped under the artboard where that symbol instance is placed. Symbol text lines append "(Symbol: name)" in English. Pressing OK applies the current edit to the selected text and closes the dialog. Cancel closes the dialog.
 
 更新日 / Updated: 2026-04-03
 
@@ -107,7 +107,37 @@ function main() {
         /* 重複除外時: duplicateMap[i] = 同じ内容を持つ全フレームの配列 / For duplicate removal: duplicateMap[i] stores all frames with the same content */
         var duplicateMap = [];
 
-        var symbolTextCache = null;
+        var symbolTextCacheMap = {};
+
+        function getCurrentSymbolCacheKey() {
+            var scopeMode;
+            if (cbOutside.value) {
+                scopeMode = 'all';
+            } else if (rbAll.value) {
+                scopeMode = 'allArtboards';
+            } else {
+                scopeMode = 'current';
+            }
+
+            var abIndexPart = '';
+            if (scopeMode === 'current') {
+                try {
+                    abIndexPart = 'ab' + doc.artboards.getActiveArtboardIndex();
+                } catch (e) {
+                    abIndexPart = 'ab0';
+                }
+            }
+
+            return [
+                scopeMode,
+                abIndexPart,
+                cbSkipComment.value ? 'comment1' : 'comment0',
+                cbIncludeLocked.value ? 'locked1' : 'locked0',
+                cbIncludeHidden.value ? 'hidden1' : 'hidden0'
+            ].join('|');
+        }
+
+
         var TEMP_LAYER_NAME = '__TextScopeEdit_temp_read__';
         var TEMP_LAYER_NOTE = '__TextScopeEdit_temp_read__';
 
@@ -128,9 +158,15 @@ function main() {
             return (num < 10 ? '0' : '') + num;
         }
 
-        function getDateStamp() {
+        function getDateTimeStamp() {
             var now = new Date();
-            return now.getFullYear() + zeroPad2(now.getMonth() + 1) + zeroPad2(now.getDate());
+            return now.getFullYear()
+                + zeroPad2(now.getMonth() + 1)
+                + zeroPad2(now.getDate())
+                + '-'
+                + zeroPad2(now.getHours())
+                + zeroPad2(now.getMinutes())
+                + zeroPad2(now.getSeconds());
         }
 
         function getDocumentBaseName(documentRef) {
@@ -162,7 +198,36 @@ function main() {
             }
         }
 
-        /* 非表示・ロック状態の判定 / Check visibility and lock state */
+
+        // Helper: Check if any parent group/container is locked or hidden
+        function isParentLockedOrHidden(item, options) {
+            var parent;
+            try {
+                parent = item ? item.parent : null;
+            } catch (e) {
+                parent = null;
+            }
+
+            while (parent) {
+                try {
+                    if (parent.typename === 'Document') break;
+                    if (!options.includeLocked && parent.locked) return true;
+                    if (!options.includeHidden) {
+                        if (parent.hidden) return true;
+                        if (parent.visible === false) return true;
+                    }
+                } catch (e2) { }
+
+                try {
+                    parent = parent.parent;
+                } catch (e3) {
+                    parent = null;
+                }
+            }
+            return false;
+        }
+
+        /* 非表示・ロック状態の判定 / Check visibility and lock state (including parent groups/containers) */
         function isCollectable(item, options) {
             try {
                 if (!item) return false;
@@ -171,25 +236,39 @@ function main() {
                 if (item.layer) {
                     if (!options.includeLocked && item.layer.locked) return false;
                     if (!options.includeHidden && item.layer.visible === false) return false;
+                    if (!options.includeHidden && item.layer.hidden) return false;
                 }
+                if (isParentLockedOrHidden(item, options)) return false;
                 return true;
             } catch (e) {
                 return false;
             }
         }
 
-        /* 全レイヤーを起点に再帰的に探索する関数 / Recursively collect items starting from top-level layers */
-        function collectTextFromContainer(items, options) {
+        /* 直下の子かどうか判定 / Check if item is a direct child of parentContainer */
+        function isDirectChildOf(item, parentContainer) {
+            try {
+                return item && parentContainer && item.parent === parentContainer;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /* 全レイヤーを起点に再帰的に探索する関数（直下のみ） / Recursively collect items starting from container, only direct children */
+        function collectTextFromContainer(container, result, options) {
+            if (!container || !container.pageItems) return;
+            var items = container.pageItems;
             for (var i = 0; i < items.length; i++) {
                 var item = items[i];
+                if (!isDirectChildOf(item, container)) continue;
                 if (!options.includeComment && isCommentLayer(item)) continue;
                 if (!isCollectable(item, options)) continue;
 
                 if (item.typename === "TextFrame") {
                     if (isEmptyTextFrame(item)) continue;
-                    textFrameList.push(item);
+                    result.push(item);
                 } else if (item.typename === "GroupItem") {
-                    collectTextFromContainer(item.pageItems, options);
+                    collectTextFromContainer(item, result, options);
                 }
             }
         }
@@ -201,20 +280,23 @@ function main() {
                 gb[1] > abRect[3] && gb[3] < abRect[1]);
         }
 
-        /* アートボード内のアイテムだけ収集する関数 / Collect only items inside the target artboard */
-        function collectTextOnArtboardFromContainer(items, abRect, options) {
+        /* アートボード内のアイテムだけ収集する関数（直下のみ） / Collect only items inside the target artboard (direct children only) */
+        function collectTextOnArtboardFromContainer(container, result, abRect, options) {
+            if (!container || !container.pageItems) return;
+            var items = container.pageItems;
             for (var i = 0; i < items.length; i++) {
                 var item = items[i];
+                if (!isDirectChildOf(item, container)) continue;
                 if (!options.includeComment && isCommentLayer(item)) continue;
                 if (!isCollectable(item, options)) continue;
 
                 if (item.typename === "TextFrame") {
                     if (isEmptyTextFrame(item)) continue;
                     if (isOnArtboard(item, abRect)) {
-                        textFrameList.push(item);
+                        result.push(item);
                     }
                 } else if (item.typename === "GroupItem") {
-                    collectTextOnArtboardFromContainer(item.pageItems, abRect, options);
+                    collectTextOnArtboardFromContainer(item, result, abRect, options);
                 }
             }
         }
@@ -229,84 +311,91 @@ function main() {
             return false;
         }
 
-        /* すべてのアートボードに属するテキストを収集する関数 / Collect text that overlaps any artboard */
-        function collectTextOnAllArtboardsFromContainer(items, options) {
+        /* すべてのアートボードに属するテキストを収集する関数（直下のみ） / Collect text that overlaps any artboard (direct children only) */
+        function collectTextOnAllArtboardsFromContainer(container, result, options) {
+            if (!container || !container.pageItems) return;
+            var items = container.pageItems;
             for (var i = 0; i < items.length; i++) {
                 var item = items[i];
+                if (!isDirectChildOf(item, container)) continue;
                 if (!options.includeComment && isCommentLayer(item)) continue;
                 if (!isCollectable(item, options)) continue;
 
                 if (item.typename === "TextFrame") {
                     if (isEmptyTextFrame(item)) continue;
                     if (isOnAnyArtboard(item)) {
-                        textFrameList.push(item);
+                        result.push(item);
                     }
                 } else if (item.typename === "GroupItem") {
-                    collectTextOnAllArtboardsFromContainer(item.pageItems, options);
+                    collectTextOnAllArtboardsFromContainer(item, result, options);
                 }
             }
         }
 
-        function collectTextFromLayer(layer, options) {
+        function collectTextFromLayer(layer, result, options) {
             if (!layer) return;
-            collectTextFromContainer(layer.pageItems, options);
+            collectTextFromContainer(layer, result, options);
             for (var i = 0; i < layer.layers.length; i++) {
-                collectTextFromLayer(layer.layers[i], options);
+                collectTextFromLayer(layer.layers[i], result, options);
             }
         }
 
-        function collectTextOnCurrentArtboardFromLayer(layer, abRect, options) {
+        function collectTextOnCurrentArtboardFromLayer(layer, result, abRect, options) {
             if (!layer) return;
-            collectTextOnArtboardFromContainer(layer.pageItems, abRect, options);
+            collectTextOnArtboardFromContainer(layer, result, abRect, options);
             for (var i = 0; i < layer.layers.length; i++) {
-                collectTextOnCurrentArtboardFromLayer(layer.layers[i], abRect, options);
+                collectTextOnCurrentArtboardFromLayer(layer.layers[i], result, abRect, options);
             }
         }
 
-        function collectTextOnAllArtboardsFromLayer(layer, options) {
+        function collectTextOnAllArtboardsFromLayer(layer, result, options) {
             if (!layer) return;
-            collectTextOnAllArtboardsFromContainer(layer.pageItems, options);
+            collectTextOnAllArtboardsFromContainer(layer, result, options);
             for (var i = 0; i < layer.layers.length; i++) {
-                collectTextOnAllArtboardsFromLayer(layer.layers[i], options);
+                collectTextOnAllArtboardsFromLayer(layer.layers[i], result, options);
             }
         }
 
-        function collectTextFromDocument(options) {
+        function collectTextFromDocument(result, options) {
             for (var i = 0; i < doc.layers.length; i++) {
-                collectTextFromLayer(doc.layers[i], options);
+                collectTextFromLayer(doc.layers[i], result, options);
             }
         }
 
-        function collectTextOnCurrentArtboardFromDocument(abRect, options) {
+        function collectTextOnCurrentArtboardFromDocument(result, abRect, options) {
             for (var i = 0; i < doc.layers.length; i++) {
-                collectTextOnCurrentArtboardFromLayer(doc.layers[i], abRect, options);
+                collectTextOnCurrentArtboardFromLayer(doc.layers[i], result, abRect, options);
             }
         }
 
-        function collectTextOnAllArtboardsFromDocument(options) {
+        function collectTextOnAllArtboardsFromDocument(result, options) {
             for (var i = 0; i < doc.layers.length; i++) {
-                collectTextOnAllArtboardsFromLayer(doc.layers[i], options);
+                collectTextOnAllArtboardsFromLayer(doc.layers[i], result, options);
             }
         }
 
-        /* テキスト収集実行 / Run text collection */
+        function collectFramesByScope(scopeMode, options) {
+            var result = [];
+            if (scopeMode === "all") {
+                collectTextFromDocument(result, options);
+            } else if (scopeMode === "allArtboards") {
+                collectTextOnAllArtboardsFromDocument(result, options);
+            } else {
+                var abIndex = doc.artboards.getActiveArtboardIndex();
+                var abRect = doc.artboards[abIndex].artboardRect;
+                collectTextOnCurrentArtboardFromDocument(result, abRect, options);
+            }
+            return result;
+        }
+
         function gatherFrames(mode) {
             var options = {
                 includeComment: cbSkipComment.value,
                 includeLocked: cbIncludeLocked.value,
                 includeHidden: cbIncludeHidden.value
             };
-            textFrameList = [];
             duplicateMap = [];
-            if (mode === "all") {
-                collectTextFromDocument(options);
-            } else if (mode === "allArtboards") {
-                collectTextOnAllArtboardsFromDocument(options);
-            } else {
-                var abIndex = doc.artboards.getActiveArtboardIndex();
-                var abRect = doc.artboards[abIndex].artboardRect;
-                collectTextOnCurrentArtboardFromDocument(abRect, options);
-            }
+            return collectFramesByScope(mode, options);
         }
 
         /* 重複を除外（同じ内容のフレームをグループ化して保持） / Remove duplicates by grouping frames with identical contents */
@@ -331,9 +420,6 @@ function main() {
         // 段落書式保持のためのユーティリティ / Utilities for keeping paragraph formatting
         // =========================================
 
-        function trim(str) {
-            return str.replace(/^\s+|\s+$/g, '');
-        }
 
         function getProps(obj, keys) {
             var props = {};
@@ -518,6 +604,7 @@ function main() {
 
         function collectTextFramesFromItem(item, result) {
             if (!item) return;
+            if (!result) return;
 
             if (item.typename === 'TextFrame') {
                 if (!isEmptyTextFrame(item)) {
@@ -579,43 +666,100 @@ function main() {
             }
         }
 
-        function collectSymbolTexts() {
-            var results = [];
+        function getCurrentScopeMode() {
+            if (cbOutside.value) {
+                return 'all';
+            }
+            if (rbAll.value) {
+                return 'allArtboards';
+            }
+            return 'current';
+        }
+
+        function buildSymbolCollectOptions() {
+            return {
+                includeComment: cbSkipComment.value,
+                includeLocked: cbIncludeLocked.value,
+                includeHidden: cbIncludeHidden.value
+            };
+        }
+
+        function isSymbolItemInScope(symbolItem, scopeMode, activeArtboardIndex) {
+            var artboardIndex = getItemArtboardIndex(symbolItem);
+            if (scopeMode === 'current') {
+                return artboardIndex === activeArtboardIndex;
+            }
+            if (scopeMode === 'allArtboards') {
+                return artboardIndex >= 0;
+            }
+            return true;
+        }
+
+        function getSymbolProcessKey(symbolName, artboardIndex) {
+            return symbolName + '||' + artboardIndex;
+        }
+
+        function collectScopedSymbolItems(options, scopeMode) {
             var symbolItems = doc.symbolItems;
+            var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
             var siList = [];
             var processed = {};
 
             for (var i = 0; i < symbolItems.length; i++) {
                 var symbolItem = symbolItems[i];
-                if (!symbolItem || symbolItem.isValid === false) continue;
-
                 var symbolName = '';
+                var artboardIndex = -1;
+                var processKey = '';
+
+                if (!symbolItem || symbolItem.isValid === false) continue;
+                if (!options.includeComment && isCommentLayer(symbolItem)) continue;
+                if (!isCollectable(symbolItem, options)) continue;
+                if (!isSymbolItemInScope(symbolItem, scopeMode, activeArtboardIndex)) continue;
+
                 try {
                     symbolName = symbolItem.symbol.name;
                 } catch (e) { }
+                if (!symbolName) continue;
 
-                if (!symbolName || processed[symbolName]) continue;
-                processed[symbolName] = true;
-                siList.push(symbolItem);
+                artboardIndex = getItemArtboardIndex(symbolItem);
+                processKey = getSymbolProcessKey(symbolName, artboardIndex);
+                if (processed[processKey]) continue;
+
+                processed[processKey] = true;
+                siList.push({
+                    item: symbolItem,
+                    symbolName: symbolName,
+                    artboardIndex: artboardIndex
+                });
             }
 
-            if (siList.length === 0) {
-                return results;
+            return siList;
+        }
+
+        function collectTextsFromScopedSymbolItems(scopedItems, onText) {
+            var tempInfo;
+            var tempLayer;
+
+            if (!scopedItems || scopedItems.length === 0) {
+                return;
             }
 
-            var tempInfo = getOrCreateTempLayer();
-            var tempLayer = tempInfo.layer;
+            tempInfo = getOrCreateTempLayer();
+            tempLayer = tempInfo.layer;
             clearTempLayer(tempLayer);
 
             withSelectionRestored(function () {
-                for (var index = siList.length - 1; index >= 0; index--) {
-                    var symbolItem = siList[index];
-                    if (!symbolItem || symbolItem.isValid === false) continue;
+                for (var index = scopedItems.length - 1; index >= 0; index--) {
+                    var entry = scopedItems[index];
+                    var symbolItem = entry.item;
+                    var symbolName = entry.symbolName;
+                    var artboardIndex = entry.artboardIndex;
+                    var brokenItems = [];
+                    var newSel = [];
+                    var texts;
+                    var t;
 
-                    var symbolName = '';
-                    try {
-                        symbolName = symbolItem.symbol.name;
-                    } catch (e) { }
+                    if (!symbolItem || symbolItem.isValid === false) continue;
 
                     try {
                         var workingSymbolItem = duplicateSymbolItemToLayer(symbolItem, tempLayer);
@@ -625,8 +769,6 @@ function main() {
                         workingSymbolItem.selected = true;
                         workingSymbolItem.breakLink();
 
-                        var brokenItems = [];
-                        var newSel = [];
                         try {
                             for (var s = 0; s < doc.selection.length; s++) {
                                 newSel.push(doc.selection[s]);
@@ -638,9 +780,9 @@ function main() {
                         }
 
                         if (brokenItems.length > 0) {
-                            var texts = extractTextContentsFromItems(brokenItems);
-                            for (var t = 0; t < texts.length; t++) {
-                                results.push(symbolName + '：' + texts[t].replace(/[\r\n]+/g, ' '));
+                            texts = extractTextContentsFromItems(brokenItems);
+                            for (t = 0; t < texts.length; t++) {
+                                onText(symbolName, artboardIndex, texts[t]);
                             }
                             removeItems(brokenItems);
                         }
@@ -660,6 +802,18 @@ function main() {
             try {
                 doc.selection = null;
             } catch (e6) { }
+        }
+
+        function collectSymbolTexts() {
+            var results = [];
+            var scopeMode = getCurrentScopeMode();
+            var options = buildSymbolCollectOptions();
+            var scopedItems = collectScopedSymbolItems(options, scopeMode);
+
+            collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
+                var sep = (lang === 'ja') ? '：' : ': ';
+                results.push(symbolName + sep + text.replace(/[\r\n]+/g, ' '));
+            });
 
             return results;
         }
@@ -669,6 +823,7 @@ function main() {
         // =========================================
 
         function updateList() {
+            clearPreviewIfNeeded();
             var mode;
             if (cbOutside.value) {
                 mode = "all";
@@ -677,7 +832,7 @@ function main() {
             } else {
                 mode = "current";
             }
-            gatherFrames(mode);
+            textFrameList = gatherFrames(mode);
 
             /* ソート / Sorting */
             if (rbSortXY.value) {
@@ -701,11 +856,15 @@ function main() {
         }
 
         function getSymbolTexts(forceRefresh) {
-            if (!forceRefresh && symbolTextCache !== null) {
-                return symbolTextCache;
+            var cacheKey = getCurrentSymbolCacheKey();
+            if (forceRefresh) {
+                delete symbolTextCacheMap[cacheKey];
             }
-            symbolTextCache = collectSymbolTexts();
-            return symbolTextCache;
+            if (symbolTextCacheMap.hasOwnProperty(cacheKey)) {
+                return symbolTextCacheMap[cacheKey];
+            }
+            symbolTextCacheMap[cacheKey] = collectSymbolTexts();
+            return symbolTextCacheMap[cacheKey];
         }
 
         function updateSymbolListHeight(itemCount) {
@@ -806,14 +965,19 @@ function main() {
             var rbSortABC = sortGroup.add("radiobutton", undefined, L("sortABC"));
             rbSortNone.value = true;
 
-            var cbDedup = rightCol.add("checkbox", undefined, L("cbDedup"));
+            var optionsGroup = rightCol.add("group");
+            optionsGroup.orientation = "column";
+            optionsGroup.alignChildren = ["left", "top"];
+            optionsGroup.margins = [15, 5, 15, 10];
+
+            var cbDedup = optionsGroup.add("checkbox", undefined, L("cbDedup"));
             cbDedup.value = true;
 
-            var isFormat = rightCol.add("checkbox", undefined, L("keepFormat"));
+            var isFormat = optionsGroup.add("checkbox", undefined, L("keepFormat"));
             isFormat.value = true;
             isFormat.helpTip = L("keepFormatTip");
 
-            var isPreview = rightCol.add("checkbox", undefined, L("preview"));
+            var isPreview = optionsGroup.add("checkbox", undefined, L("preview"));
             isPreview.helpTip = L("previewTip");
 
             var buttonRow = dlg.add("group");
@@ -939,15 +1103,36 @@ function main() {
             } catch (err) { }
         }
 
+        function clearPreviewIfNeeded() {
+            if (!isUndo) return false;
+            try {
+                app.undo();
+                app.redraw();
+            } catch (err) { }
+            isUndo = false;
+            return true;
+        }
+
+        function restorePreviewIfNeeded(wasPreviewActive) {
+            if (!wasPreviewActive) return;
+            if (parseInt(app.version) == 24) return;
+            if (!isPreview.enabled || !isPreview.value) return;
+            try {
+                preview();
+            } catch (err) { }
+        }
+
         editBox.onChanging = function () { preview(); };
         isPreview.onClick = function () { preview(); };
         exportTextBtn.onClick = function () {
             var filePath;
             var file = null;
             var content;
+            var wasPreviewActive = isUndo;
             try {
+                clearPreviewIfNeeded();
                 content = buildExportText();
-                filePath = Folder.desktop.fsName + '/text-' + sanitizeFileName(getDocumentBaseName(doc)) + '-' + getDateStamp() + '.txt';
+                filePath = Folder.desktop.fsName + '/text-' + sanitizeFileName(getDocumentBaseName(doc)) + '-' + getDateTimeStamp() + '.txt';
                 file = new File(filePath);
                 file.encoding = 'UTF-8';
                 file.lineFeed = 'Unix';
@@ -956,11 +1141,13 @@ function main() {
                 }
                 file.write(content);
                 file.close();
+                restorePreviewIfNeeded(wasPreviewActive);
                 alert(L('exportDone') + '\n' + file.fsName);
             } catch (e) {
                 try {
                     if (file && file.opened) file.close();
                 } catch (closeErr) { }
+                restorePreviewIfNeeded(wasPreviewActive);
                 alert(L('exportFailed') + '\n' + e);
             }
         };
@@ -981,7 +1168,20 @@ function main() {
 
         /* テキスト書き出し用テキスト生成 / Build export text grouped by artboard */
         function buildExportText() {
-            var artboardGroups = collectArtboardGroupedExportData();
+            var exportOptions = {
+                includeComment: cbSkipComment.value,
+                includeLocked: cbIncludeLocked.value,
+                includeHidden: cbIncludeHidden.value
+            };
+            var exportScopeMode;
+            if (cbOutside.value) {
+                exportScopeMode = 'all';
+            } else if (rbAll.value) {
+                exportScopeMode = 'allArtboards';
+            } else {
+                exportScopeMode = 'current';
+            }
+            var artboardGroups = collectArtboardGroupedExportData(exportOptions, exportScopeMode);
             var lines = [];
             var i;
             var j;
@@ -1019,179 +1219,96 @@ function main() {
             return -1;
         }
 
-        function collectAllTextFramesFromContainer(items, result) {
-            for (var i = 0; i < items.length; i++) {
-                var item = items[i];
-                if (!item) continue;
-
-                if (item.typename === 'TextFrame') {
-                    if (!isEmptyTextFrame(item)) {
-                        result.push(item);
-                    }
-                } else if (item.typename === 'GroupItem') {
-                    collectAllTextFramesFromContainer(item.pageItems, result);
-                }
-            }
-        }
-
-        function collectAllTextFramesFromLayer(layer, result) {
-            if (!layer) return;
-            collectAllTextFramesFromContainer(layer.pageItems, result);
-            for (var i = 0; i < layer.layers.length; i++) {
-                collectAllTextFramesFromLayer(layer.layers[i], result);
-            }
-        }
-
-        function collectAllDocumentTextFrames() {
-            var frames = [];
-            for (var i = 0; i < doc.layers.length; i++) {
-                collectAllTextFramesFromLayer(doc.layers[i], frames);
-            }
-            return frames;
-        }
-
-        function collectSymbolTextsByArtboard() {
+        function collectSymbolTextsByArtboard(options, scopeMode) {
             var results = [];
-            var symbolItems = doc.symbolItems;
-            var processed = {};
-            var tempInfo;
-            var tempLayer;
+            var scopedItems = collectScopedSymbolItems(options, scopeMode);
 
-            for (var i = 0; i < symbolItems.length; i++) {
-                var symbolItem = symbolItems[i];
-                var symbolName = '';
-                var artboardIndex = -1;
-                if (!symbolItem || symbolItem.isValid === false) continue;
-
-                try {
-                    symbolName = symbolItem.symbol.name;
-                } catch (e) { }
-                if (!symbolName || processed[symbolName]) continue;
-
-                artboardIndex = getItemArtboardIndex(symbolItem);
-                if (artboardIndex < 0) continue;
-
-                processed[symbolName] = true;
-            }
-
-            tempInfo = getOrCreateTempLayer();
-            tempLayer = tempInfo.layer;
-            clearTempLayer(tempLayer);
-
-            withSelectionRestored(function () {
-                for (var j = 0; j < symbolItems.length; j++) {
-                    var sourceItem = symbolItems[j];
-                    var sourceSymbolName = '';
-                    var sourceArtboardIndex = -1;
-                    var brokenItems = [];
-                    var newSel = [];
-                    var texts;
-                    var t;
-
-                    if (!sourceItem || sourceItem.isValid === false) continue;
-
-                    try {
-                        sourceSymbolName = sourceItem.symbol.name;
-                    } catch (e2) { }
-                    if (!sourceSymbolName || processed[sourceSymbolName] !== true) continue;
-
-                    sourceArtboardIndex = getItemArtboardIndex(sourceItem);
-                    if (sourceArtboardIndex < 0) {
-                        processed[sourceSymbolName] = false;
-                        continue;
-                    }
-                    if (processed[sourceSymbolName] === false) continue;
-
-                    processed[sourceSymbolName] = false;
-
-                    try {
-                        var workingSymbolItem = duplicateSymbolItemToLayer(sourceItem, tempLayer);
-                        try {
-                            doc.selection = null;
-                        } catch (e3) { }
-                        workingSymbolItem.selected = true;
-                        workingSymbolItem.breakLink();
-
-                        try {
-                            for (var s = 0; s < doc.selection.length; s++) {
-                                newSel.push(doc.selection[s]);
-                            }
-                        } catch (e4) { }
-
-                        for (var m = 0; m < newSel.length; m++) {
-                            brokenItems.push(newSel[m]);
-                        }
-
-                        if (brokenItems.length > 0) {
-                            texts = extractTextContentsFromItems(brokenItems);
-                            for (t = 0; t < texts.length; t++) {
-                                var openParen = (lang === 'ja') ? '（' : ' (';
-                                var closeParen = (lang === 'ja') ? '）' : ')';
-                                var prefix = (lang === 'ja') ? 'シンボル：' : 'Symbol: ';
-                                results.push({
-                                    artboardIndex: sourceArtboardIndex,
-                                    text: texts[t] + openParen + prefix + sourceSymbolName + closeParen
-                                });
-                            }
-                            removeItems(brokenItems);
-                        }
-                    } catch (e5) {
-                    } finally {
-                        try {
-                            doc.selection = null;
-                        } catch (e6) { }
-                    }
-                }
+            collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
+                var openParen = (lang === 'ja') ? '（' : ' (';
+                var closeParen = (lang === 'ja') ? '）' : ')';
+                var prefix = (lang === 'ja') ? 'シンボル：' : 'Symbol: ';
+                results.push({
+                    artboardIndex: artboardIndex,
+                    text: text + openParen + prefix + symbolName + closeParen
+                });
             });
-
-            clearTempLayer(tempLayer);
-            if (tempInfo.created) {
-                removeTempLayer();
-            }
-            try {
-                doc.selection = null;
-            } catch (e7) { }
 
             return results;
         }
 
-        function collectArtboardGroupedExportData() {
+
+        function collectExportTextFrames(options, scopeMode) {
+            return collectFramesByScope(scopeMode, options);
+        }
+
+        function collectArtboardGroupedExportData(options, scopeMode) {
             var groups = [];
             var outsideGroup = {
                 name: (lang === 'ja') ? 'アートボード外' : 'Outside Artboards',
                 texts: []
             };
             var i;
-            var frames = collectAllDocumentTextFrames();
-            var symbols = collectSymbolTextsByArtboard();
+            var frames = collectExportTextFrames(options, scopeMode);
+            var symbols = collectSymbolTextsByArtboard(options, scopeMode);
             var abIndex;
+            var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
+            var groupIndexMap = {};
 
-            for (i = 0; i < doc.artboards.length; i++) {
+            if (scopeMode === 'current') {
                 groups.push({
-                    name: getArtboardDisplayName(i),
+                    name: getArtboardDisplayName(activeArtboardIndex),
                     texts: []
                 });
+                groupIndexMap[activeArtboardIndex] = 0;
+            } else {
+                for (i = 0; i < doc.artboards.length; i++) {
+                    groupIndexMap[i] = groups.length;
+                    groups.push({
+                        name: getArtboardDisplayName(i),
+                        texts: []
+                    });
+                }
             }
 
             for (i = 0; i < frames.length; i++) {
                 abIndex = getItemArtboardIndex(frames[i]);
-                if (abIndex >= 0) {
-                    groups[abIndex].texts.push(frames[i].contents);
+                if (scopeMode === 'current') {
+                    if (abIndex === activeArtboardIndex) {
+                        groups[groupIndexMap[activeArtboardIndex]].texts.push(frames[i].contents);
+                    }
+                } else if (scopeMode === 'allArtboards') {
+                    if (abIndex >= 0) {
+                        groups[groupIndexMap[abIndex]].texts.push(frames[i].contents);
+                    }
                 } else {
-                    outsideGroup.texts.push(frames[i].contents);
+                    if (abIndex >= 0) {
+                        groups[groupIndexMap[abIndex]].texts.push(frames[i].contents);
+                    } else {
+                        outsideGroup.texts.push(frames[i].contents);
+                    }
                 }
             }
 
             for (i = 0; i < symbols.length; i++) {
                 abIndex = symbols[i].artboardIndex;
-                if (abIndex >= 0) {
-                    groups[abIndex].texts.push(symbols[i].text);
+                if (scopeMode === 'current') {
+                    if (abIndex === activeArtboardIndex) {
+                        groups[groupIndexMap[activeArtboardIndex]].texts.push(symbols[i].text);
+                    }
+                } else if (scopeMode === 'allArtboards') {
+                    if (abIndex >= 0) {
+                        groups[groupIndexMap[abIndex]].texts.push(symbols[i].text);
+                    }
                 } else {
-                    outsideGroup.texts.push(symbols[i].text);
+                    if (abIndex >= 0) {
+                        groups[groupIndexMap[abIndex]].texts.push(symbols[i].text);
+                    } else {
+                        outsideGroup.texts.push(symbols[i].text);
+                    }
                 }
             }
 
-            if (outsideGroup.texts.length > 0) {
+            if (scopeMode === 'all' && outsideGroup.texts.length > 0) {
                 groups.push(outsideGroup);
             }
             return groups;
@@ -1206,17 +1323,19 @@ function main() {
             cbOutside.enabled = false;
             cbOutside.value = false;
             updateList();
+            refreshSymbolList(true);
         };
         rbAll.onClick = function () {
             cbOutside.enabled = true;
             updateList();
+            refreshSymbolList(true);
         };
         cbDedup.onClick = function () { updateList(); };
 
-        cbOutside.onClick = function () { updateList(); };
-        cbSkipComment.onClick = function () { updateList(); };
-        cbIncludeLocked.onClick = function () { updateList(); };
-        cbIncludeHidden.onClick = function () { updateList(); };
+        cbOutside.onClick = function () { updateList(); refreshSymbolList(true); };
+        cbSkipComment.onClick = function () { updateList(); refreshSymbolList(true); };
+        cbIncludeLocked.onClick = function () { updateList(); refreshSymbolList(true); };
+        cbIncludeHidden.onClick = function () { updateList(); refreshSymbolList(true); };
         rbSortNone.onClick = function () { updateList(); };
         rbSortXY.onClick = function () { updateList(); };
         rbSortABC.onClick = function () { updateList(); };
