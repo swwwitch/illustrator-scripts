@@ -9,48 +9,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // Script name: Swap Object Positions
 
 // 概要：
-// 選択した2つのオブジェクトの位置を入れ替えます。
-// 「中央を基準に入れ替え」と「2つのオブジェクト全体の幅を保つ」の2つの基準に対応しています。
-// 後者は2つのオブジェクト全体の幅を維持したまま配置を入れ替えます。
-// サイズの基準は geometric / visible を切り替え可能です。
-// ダイアログで設定変更ができ、プレビューにも対応しています。
-// preview apply / preview remove / final apply を分離した設計になっています。
-// プレビュー計算は初期状態の bounds を基準に行います。
-// プレビュー中に基準を切り替えた場合は、現在の見た目上の左右関係を維持したまま再配置します。
-// プレビュー表示中に［OK］を押した場合は、その見た目のまま確定します。
-// ダイアログ初期表示時は、選択オブジェクトの幅を事前判定し、
-// 同じ幅なら「中央を基準に入れ替え」、異なる幅なら「2つのオブジェクト全体の幅を保つ」を初期選択します。
-// --- 簡易説明（ユーザー向け） ---
 // 2つのオブジェクトの位置を直感的に入れ替えます。
 // ・中央基準：お互いの中心位置を交換
 // ・全体幅維持：2つ並びの外側サイズを崩さずに入れ替え
 // プレビューを見ながら安全に調整できます。
 
 // Summary:
-// Swap the positions of two selected objects.
-// Supports two modes: "Swap by Center" and "Preserve the Total Width of Both Objects".
-// The latter keeps the total width occupied by both objects while swapping.
-// Supports geometric or visible bounds.
-// Includes a dialog UI with live preview.
-// The design separates preview apply, preview remove, and final apply.
-// Preview calculations are based on the original bounds.
-// When switching modes during preview, the current visual left/right relationship is preserved.
-// If OK is pressed while preview is visible, the current preview result is confirmed as-is.
-// When the dialog opens, the script pre-checks the selected object widths.
-// If the widths are the same, it defaults to "Swap by Center".
-// If the widths differ, it defaults to "Preserve the Total Width of Both Objects".
-// --- Simple Description (User-Friendly) ---
 // Swap two objects intuitively.
 // • Center mode: swap their center positions
 // • Preserve width mode: keep the outer span while swapping
 // Adjust safely with live preview.
 
-// 更新日：2026-04-05
+// 更新日：2026-04-06
 
 // =========================================
 // バージョンとローカライズ / Version and localization
 // =========================================
-var SCRIPT_VERSION = "v1.2.0";
+var SCRIPT_VERSION = "v1.2.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -484,7 +459,7 @@ function calculateFixedEdgeSwapOffsets(boundsA, boundsB, visualBoundsA, visualBo
     var isALeftInBase = getCenterFromBounds(boundsA).x <= getCenterFromBounds(boundsB).x;
     var isALeftInVisual = getCenterFromBounds(orderingBoundsA).x <= getCenterFromBounds(orderingBoundsB).x;
     var keepCurrentVisualOrder = (relayoutPolicy === PREVIEW_RELAYOUT_POLICIES.KEEP_CURRENT_VISUAL_ORDER);
-    var isALeft = keepCurrentVisualOrder ? isALeftInVisual : isALeftInBase;
+    var shouldAEndOnLeft = keepCurrentVisualOrder ? isALeftInVisual : !isALeftInBase;
 
     var leftBaseBounds = isALeftInBase ? boundsA : boundsB;
     var rightBaseBounds = isALeftInBase ? boundsB : boundsA;
@@ -498,20 +473,20 @@ function calculateFixedEdgeSwapOffsets(boundsA, boundsB, visualBoundsA, visualBo
         centerY: getBoundsCenterY(rightBaseBounds)
     };
 
-    var offsetForA = isALeft ? {
-        x: (rightSlot.right - widthA) - boundsA[0],
-        y: (rightSlot.centerY + (heightA / 2)) - boundsA[1]
-    } : {
+    var offsetForA = shouldAEndOnLeft ? {
         x: leftSlot.left - boundsA[0],
         y: (leftSlot.centerY + (heightA / 2)) - boundsA[1]
+    } : {
+        x: (rightSlot.right - widthA) - boundsA[0],
+        y: (rightSlot.centerY + (heightA / 2)) - boundsA[1]
     };
 
-    var offsetForB = isALeft ? {
-        x: leftSlot.left - boundsB[0],
-        y: (leftSlot.centerY + (heightB / 2)) - boundsB[1]
-    } : {
+    var offsetForB = shouldAEndOnLeft ? {
         x: (rightSlot.right - widthB) - boundsB[0],
         y: (rightSlot.centerY + (heightB / 2)) - boundsB[1]
+    } : {
+        x: leftSlot.left - boundsB[0],
+        y: (leftSlot.centerY + (heightB / 2)) - boundsB[1]
     };
 
     return {
