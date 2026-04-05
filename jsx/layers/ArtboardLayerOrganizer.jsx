@@ -22,7 +22,7 @@ ArtboardLayerOrganizer.jsx
 更新日：2026-04-06
 */
 
-var SCRIPT_VERSION = "v1.2";
+var SCRIPT_VERSION = "v1.2.1";
 
 (function () {
     function getCurrentLang() {
