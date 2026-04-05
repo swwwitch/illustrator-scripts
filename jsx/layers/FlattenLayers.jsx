@@ -218,7 +218,7 @@ function showOptionsDialog(hasExistingMergedLayer) {
 
     var excludeGroup = excludePanel.add('group');
     excludeGroup.orientation = 'row';
-    excludeGroup.alignChildren = ['left','top'];
+    excludeGroup.alignChildren = ['left', 'top'];
     excludeGroup.spacing = 15;
 
     // 左カラム：ロック
