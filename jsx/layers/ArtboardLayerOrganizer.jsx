@@ -50,21 +50,9 @@ var SCRIPT_VERSION = "v1.2";
                 ja: "アートボード名",
                 en: "Artboard Name"
             },
-            ignoreLocked: {
-                ja: "ロックされたレイヤー",
-                en: "Locked layers"
-            },
-            ignoreLockedObjects: {
-                ja: "ロックされたオブジェクト",
-                en: "Locked objects"
-            },
-            ignoreHidden: {
-                ja: "非表示のレイヤー",
-                en: "Hidden layers"
-            },
-            ignoreHiddenObjects: {
-                ja: "非表示のオブジェクト",
-                en: "Hidden objects"
+            useSeparator: {
+                ja: "区切り文字",
+                en: "Separator"
             }
         },
         panel: {
@@ -73,12 +61,32 @@ var SCRIPT_VERSION = "v1.2";
                 en: "Exclude"
             },
             target: {
-                ja: "対象",
-                en: "Target"
+                ja: "対象のアートボード",
+                en: "Target Artboards"
             },
             layerName: {
                 ja: "レイヤー名",
                 en: "Layer Name"
+            },
+            locked: {
+                ja: "ロック",
+                en: "Locked"
+            },
+            hidden: {
+                ja: "非表示",
+                en: "Hidden"
+            },
+            layer: {
+                ja: "レイヤー",
+                en: "Layer"
+            },
+            object: {
+                ja: "オブジェクト",
+                en: "Object"
+            },
+            postProcess: {
+                ja: "後処理",
+                en: "Post-Processing"
             }
         },
         dropdown: {
@@ -111,8 +119,8 @@ var SCRIPT_VERSION = "v1.2";
                 en: "Current artboard"
             },
             allArtboards: {
-                ja: "すべてのアートボード",
-                en: "All artboards"
+                ja: "すべて",
+                en: "All"
             }
         },
         button: {
@@ -194,11 +202,15 @@ var SCRIPT_VERSION = "v1.2";
 
         var pnlTarget = dlg.add("panel", undefined, L("panel.target"));
         pnlTarget.orientation = "column";
-        pnlTarget.alignChildren = ["left", "top"];
+        pnlTarget.alignChildren = ["fill", "top"];
         pnlTarget.margins = [15, 20, 15, 10];
 
-        var rbCurrentArtboardOnly = pnlTarget.add("radiobutton", undefined, L("radio.currentArtboardOnly"));
-        var rbAllArtboards = pnlTarget.add("radiobutton", undefined, L("radio.allArtboards"));
+        var grpTargetRadios = pnlTarget.add("group");
+        grpTargetRadios.orientation = "row";
+        grpTargetRadios.alignChildren = ["left", "center"];
+
+        var rbCurrentArtboardOnly = grpTargetRadios.add("radiobutton", undefined, L("radio.currentArtboardOnly"));
+        var rbAllArtboards = grpTargetRadios.add("radiobutton", undefined, L("radio.allArtboards"));
 
         if (artboards.length <= 1) {
             rbCurrentArtboardOnly.value = true;
@@ -218,6 +230,8 @@ var SCRIPT_VERSION = "v1.2";
         var grpSeparator = pnlLayerName.add("group");
         grpSeparator.orientation = "row";
         grpSeparator.alignChildren = ["left", "center"];
+        var chkUseSeparator = grpSeparator.add("checkbox", undefined, L("checkbox.useSeparator"));
+        chkUseSeparator.value = true;
         var ddSeparator = grpSeparator.add("dropdownlist", undefined, [
             L("dropdown.separatorUnderscore"),
             L("dropdown.separatorHyphen"),
@@ -227,7 +241,9 @@ var SCRIPT_VERSION = "v1.2";
         ddSeparator.selection = 0;
 
         function updateSeparatorEnabled() {
-            grpSeparator.enabled = chkIncludeArtboardNumber.value;
+            var enabled = chkIncludeArtboardNumber.value;
+            grpSeparator.enabled = enabled;
+            ddSeparator.enabled = enabled && chkUseSeparator.value;
         }
 
         updateSeparatorEnabled();
@@ -237,25 +253,39 @@ var SCRIPT_VERSION = "v1.2";
 
         var pnl = dlg.add("panel", undefined, L("panel.exclude"));
         pnl.orientation = "column";
-        pnl.alignChildren = ["left", "top"];
+        pnl.alignChildren = ["fill", "top"];
         pnl.margins = [15, 20, 15, 10];
 
-        var chkIgnoreLocked = pnl.add("checkbox", undefined, L("checkbox.ignoreLocked"));
-        chkIgnoreLocked.value = true;
+        var grpExclude = pnl.add("group");
+        grpExclude.orientation = "row";
+        grpExclude.alignChildren = ["left", "top"];
+        grpExclude.spacing = 15;
 
-        var chkIgnoreLockedObjects = pnl.add("checkbox", undefined, L("checkbox.ignoreLockedObjects"));
+        var pnlLocked = grpExclude.add("panel", undefined, L("panel.locked"));
+        pnlLocked.orientation = "column";
+        pnlLocked.alignChildren = ["left", "top"];
+        pnlLocked.margins = [15, 20, 15, 10];
+
+        var chkIgnoreLocked = pnlLocked.add("checkbox", undefined, L("panel.layer"));
+        chkIgnoreLocked.value = true;
+        var chkIgnoreLockedObjects = pnlLocked.add("checkbox", undefined, L("panel.object"));
         chkIgnoreLockedObjects.value = true;
 
-        var chkIgnoreHidden = pnl.add("checkbox", undefined, L("checkbox.ignoreHidden"));
-        chkIgnoreHidden.value = true;
+        var pnlHidden = grpExclude.add("panel", undefined, L("panel.hidden"));
+        pnlHidden.orientation = "column";
+        pnlHidden.alignChildren = ["left", "top"];
+        pnlHidden.margins = [15, 20, 15, 10];
 
-        var chkIgnoreHiddenObjects = pnl.add("checkbox", undefined, L("checkbox.ignoreHiddenObjects"));
+        var chkIgnoreHidden = pnlHidden.add("checkbox", undefined, L("panel.layer"));
+        chkIgnoreHidden.value = true;
+        var chkIgnoreHiddenObjects = pnlHidden.add("checkbox", undefined, L("panel.object"));
         chkIgnoreHiddenObjects.value = true;
 
-        var grpRemoveEmpty = dlg.add("group");
-        grpRemoveEmpty.orientation = "row";
-        grpRemoveEmpty.alignment = ["center", "top"];
-        var chkRemoveEmpty = grpRemoveEmpty.add("checkbox", undefined, L("checkbox.removeEmpty"));
+        var pnlPostProcess = dlg.add("panel", undefined, L("panel.postProcess"));
+        pnlPostProcess.orientation = "column";
+        pnlPostProcess.alignChildren = ["left", "top"];
+        pnlPostProcess.margins = [15, 20, 15, 10];
+        var chkRemoveEmpty = pnlPostProcess.add("checkbox", undefined, L("checkbox.removeEmpty"));
         chkRemoveEmpty.value = true;
 
         var btns = dlg.add("group");
@@ -267,6 +297,7 @@ var SCRIPT_VERSION = "v1.2";
         dlg.cancelElement = btnCancel;
 
         chkIncludeArtboardNumber.onClick = updateSeparatorEnabled;
+        chkUseSeparator.onClick = updateSeparatorEnabled;
 
         if (dlg.show() !== 1) {
             return null;
@@ -277,7 +308,7 @@ var SCRIPT_VERSION = "v1.2";
             currentArtboardOnly: rbCurrentArtboardOnly.value,
             includeArtboardNumber: chkIncludeArtboardNumber.value,
             includeArtboardName: chkIncludeArtboardName.value,
-            layerNameSeparatorIndex: ddSeparator.selection ? ddSeparator.selection.index : 0,
+            layerNameSeparatorIndex: (chkUseSeparator.value && ddSeparator.selection) ? ddSeparator.selection.index : 3,
             ignoreLockedLayers: chkIgnoreLocked.value,
             ignoreLockedObjects: chkIgnoreLockedObjects.value,
             ignoreHiddenLayers: chkIgnoreHidden.value,
