@@ -9,21 +9,20 @@ ArtboardLayerOrganizer.jsx
 「番号_アートボード名」のレイヤーに整理します。
 
 ・各オブジェクトは重心位置を基準に所属アートボードを判定（現在のアートボードのみ対象にすることも可能）
-・ガイドは存在する場合のみ「_guide」レイヤーへ集約
-・どのアートボードにも属さないオブジェクトは「_pasteboard」へ移動
+・ガイドは存在する場合のみ「_guide」レイヤーへ集約（必要時にのみ生成）
+・どのアートボードにも属さないオブジェクトは「_pasteboard」へ移動（必要時のみ生成）
 ・旧仕様（アートボード名のみのレイヤー）は、新仕様レイヤーへ統合して削除
 ・旧仕様レイヤー統合後も、レイヤー順はアートボード順（上から1→2→3…）に揃える
+・ダイアログで対象範囲（現在のアートボード／すべてのアートボード）を選択可能
 ・ダイアログでレイヤー名に含める要素（アートボード番号／アートボード名）と区切り文字を選択可能
+・ダイアログでロック／非表示のレイヤー・オブジェクトを対象外にするか選択可能
 ・ダイアログで空のレイヤー／サブレイヤー削除の有無を選択可能
-・このスクリプトが作成・管理する空トップレベルレイヤーのみ削除
-・処理後に空になったサブレイヤーも削除可能
-・ダイアログでロックされたレイヤー／オブジェクトを対象外にするか選択可能
-・ダイアログで非表示のレイヤー／オブジェクトを対象外にするか選択可能
+・処理後に空になったトップレベルレイヤーおよびサブレイヤーを削除
 
-更新日：2026-04-04
+更新日：2026-04-06
 */
 
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.2";
 
 (function () {
     function getCurrentLang() {
@@ -41,11 +40,7 @@ var SCRIPT_VERSION = "v1.1";
         checkbox: {
             removeEmpty: {
                 ja: "空のレイヤー{slash}サブレイヤーを削除",
-                en: "Remove empty layers{slash}sublayers"
-            },
-            currentArtboardOnly: {
-                ja: "現在のアートボードのみ処理",
-                en: "Current artboard only"
+                en: "Remove empty layers{slash}sub-layers"
             },
             includeArtboardNumber: {
                 ja: "アートボード番号",
@@ -54,10 +49,6 @@ var SCRIPT_VERSION = "v1.1";
             includeArtboardName: {
                 ja: "アートボード名",
                 en: "Artboard Name"
-            },
-            separator: {
-                ja: "区切り文字",
-                en: "Separator"
             },
             ignoreLocked: {
                 ja: "ロックされたレイヤー",
@@ -72,14 +63,18 @@ var SCRIPT_VERSION = "v1.1";
                 en: "Hidden layers"
             },
             ignoreHiddenObjects: {
-                ja: "非表示オブジェクト",
+                ja: "非表示のオブジェクト",
                 en: "Hidden objects"
             }
         },
         panel: {
             exclude: {
                 ja: "対象外にする",
-                en: "Exclude from processing"
+                en: "Exclude"
+            },
+            target: {
+                ja: "対象",
+                en: "Target"
             },
             layerName: {
                 ja: "レイヤー名",
@@ -102,6 +97,22 @@ var SCRIPT_VERSION = "v1.1";
             separatorNone: {
                 ja: "なし",
                 en: "None"
+            }
+        },
+        fallback: {
+            artboard: {
+                ja: "アートボード",
+                en: "Artboard"
+            }
+        },
+        radio: {
+            currentArtboardOnly: {
+                ja: "現在のアートボードのみ",
+                en: "Current artboard"
+            },
+            allArtboards: {
+                ja: "すべてのアートボード",
+                en: "All artboards"
             }
         },
         button: {
@@ -131,9 +142,10 @@ var SCRIPT_VERSION = "v1.1";
         var obj = LABELS;
         for (var i = 0; i < parts.length; i++) {
             obj = obj[parts[i]];
-            if (!obj) return "";
+            if (!obj) return path;
         }
         var text = obj[lang] || obj["en"];
+        if (!text) return path;
         return applyUISymbols(text);
     }
 
@@ -180,11 +192,20 @@ var SCRIPT_VERSION = "v1.1";
         dlg.alignChildren = ["fill", "top"];
         dlg.margins = [15, 20, 15, 15];
 
-        var chkRemoveEmpty = dlg.add("checkbox", undefined, L("checkbox.removeEmpty"));
-        chkRemoveEmpty.value = true;
+        var pnlTarget = dlg.add("panel", undefined, L("panel.target"));
+        pnlTarget.orientation = "column";
+        pnlTarget.alignChildren = ["left", "top"];
+        pnlTarget.margins = [15, 20, 15, 10];
 
-        var chkCurrentArtboardOnly = dlg.add("checkbox", undefined, L("checkbox.currentArtboardOnly"));
-        chkCurrentArtboardOnly.value = false;
+        var rbCurrentArtboardOnly = pnlTarget.add("radiobutton", undefined, L("radio.currentArtboardOnly"));
+        var rbAllArtboards = pnlTarget.add("radiobutton", undefined, L("radio.allArtboards"));
+
+        if (artboards.length <= 1) {
+            rbCurrentArtboardOnly.value = true;
+            rbAllArtboards.enabled = false;
+        } else {
+            rbAllArtboards.value = true;
+        }
 
         var pnlLayerName = dlg.add("panel", undefined, L("panel.layerName"));
         pnlLayerName.orientation = "column";
@@ -194,13 +215,9 @@ var SCRIPT_VERSION = "v1.1";
         var chkIncludeArtboardNumber = pnlLayerName.add("checkbox", undefined, L("checkbox.includeArtboardNumber"));
         chkIncludeArtboardNumber.value = true;
 
-        var chkIncludeArtboardName = pnlLayerName.add("checkbox", undefined, L("checkbox.includeArtboardName"));
-        chkIncludeArtboardName.value = true;
-
         var grpSeparator = pnlLayerName.add("group");
         grpSeparator.orientation = "row";
         grpSeparator.alignChildren = ["left", "center"];
-        var lblSeparator = grpSeparator.add("statictext", undefined, L("checkbox.separator") + uiSymbol("colon"));
         var ddSeparator = grpSeparator.add("dropdownlist", undefined, [
             L("dropdown.separatorUnderscore"),
             L("dropdown.separatorHyphen"),
@@ -208,6 +225,15 @@ var SCRIPT_VERSION = "v1.1";
             L("dropdown.separatorNone")
         ]);
         ddSeparator.selection = 0;
+
+        function updateSeparatorEnabled() {
+            grpSeparator.enabled = chkIncludeArtboardNumber.value;
+        }
+
+        updateSeparatorEnabled();
+
+        var chkIncludeArtboardName = pnlLayerName.add("checkbox", undefined, L("checkbox.includeArtboardName"));
+        chkIncludeArtboardName.value = true;
 
         var pnl = dlg.add("panel", undefined, L("panel.exclude"));
         pnl.orientation = "column";
@@ -226,6 +252,12 @@ var SCRIPT_VERSION = "v1.1";
         var chkIgnoreHiddenObjects = pnl.add("checkbox", undefined, L("checkbox.ignoreHiddenObjects"));
         chkIgnoreHiddenObjects.value = true;
 
+        var grpRemoveEmpty = dlg.add("group");
+        grpRemoveEmpty.orientation = "row";
+        grpRemoveEmpty.alignment = ["center", "top"];
+        var chkRemoveEmpty = grpRemoveEmpty.add("checkbox", undefined, L("checkbox.removeEmpty"));
+        chkRemoveEmpty.value = true;
+
         var btns = dlg.add("group");
         btns.orientation = "row";
         btns.alignment = ["center", "top"];
@@ -234,13 +266,15 @@ var SCRIPT_VERSION = "v1.1";
         dlg.defaultElement = btnOk;
         dlg.cancelElement = btnCancel;
 
+        chkIncludeArtboardNumber.onClick = updateSeparatorEnabled;
+
         if (dlg.show() !== 1) {
             return null;
         }
 
         return {
             removeEmptyLayers: chkRemoveEmpty.value,
-            currentArtboardOnly: chkCurrentArtboardOnly.value,
+            currentArtboardOnly: rbCurrentArtboardOnly.value,
             includeArtboardNumber: chkIncludeArtboardNumber.value,
             includeArtboardName: chkIncludeArtboardName.value,
             layerNameSeparatorIndex: ddSeparator.selection ? ddSeparator.selection.index : 0,
@@ -273,11 +307,22 @@ var SCRIPT_VERSION = "v1.1";
     }
 
     // PageItem の非表示判定は visible ではなく hidden を使う
+    // 一部の PageItem は locked / hidden 参照で例外になることがあるため、各プロパティごとに個別に判定する
     function shouldIgnoreObject(item, options) {
-        try {
-            if (options.ignoreLockedObjects && item.locked) return true;
-            if (options.ignoreHiddenObjects && item.hidden) return true;
-        } catch (e) { }
+        if (options.ignoreLockedObjects) {
+            try {
+                if (item.locked) return true;
+            } catch (e) {
+                // locked 判定不可のものは locked 条件では除外しない
+            }
+        }
+        if (options.ignoreHiddenObjects) {
+            try {
+                if (item.hidden) return true;
+            } catch (e) {
+                // hidden 判定不可のものは hidden 条件では除外しない
+            }
+        }
         return false;
     }
 
@@ -291,12 +336,11 @@ var SCRIPT_VERSION = "v1.1";
     }
 
     function getOrCreateLayer(name) {
-        for (var i = 0; i < doc.layers.length; i++) {
-            if (doc.layers[i].name === name) {
-                return doc.layers[i];
-            }
+        var layer = findLayerByName(name);
+        if (layer) {
+            return layer;
         }
-        var layer = doc.layers.add();
+        layer = doc.layers.add();
         layer.name = name;
         return layer;
     }
@@ -304,7 +348,6 @@ var SCRIPT_VERSION = "v1.1";
     function getOrCreateGuideLayer() {
         if (!guideLayer) {
             guideLayer = getOrCreateLayer("_guide");
-            managedLayerNames["_guide"] = true;
         }
         return guideLayer;
     }
@@ -323,7 +366,7 @@ var SCRIPT_VERSION = "v1.1";
         var parts = [];
         var abName = artboards[index].name;
         if (!abName || abName === "") {
-            abName = "アートボード";
+            abName = L("fallback.artboard");
         }
 
         if (!options || options.includeArtboardNumber !== false) {
@@ -344,7 +387,7 @@ var SCRIPT_VERSION = "v1.1";
         for (var i = 0; i < artboards.length; i++) {
             var abName = artboards[i].name;
             if (!abName || abName === "") {
-                abName = "アートボード";
+                abName = L("fallback.artboard");
             }
             if (abName === name) {
                 return i;
@@ -353,7 +396,7 @@ var SCRIPT_VERSION = "v1.1";
         return -1;
     }
 
-    function moveEntriesToLayerPreservingOrder(entries, targetLayer, processed) {
+    function moveCollectedEntries(entries, targetLayer, processed) {
         var result = {
             moved: 0,
             failed: 0
@@ -362,7 +405,7 @@ var SCRIPT_VERSION = "v1.1";
         while (j--) {
             try {
                 entries[j].item.move(targetLayer, ElementPlacement.PLACEATBEGINNING);
-                if (processed) {
+                if (processed && typeof entries[j].index === "number") {
                     processed[entries[j].index] = true;
                 }
                 result.moved++;
@@ -385,22 +428,9 @@ var SCRIPT_VERSION = "v1.1";
     }
 
     function moveLayerItemsToLayer(sourceLayer, targetLayer) {
-        var result = {
-            moved: 0,
-            failed: 0
-        };
         var entries = [];
         collectLayerPageItemsRecursive(sourceLayer, entries);
-        var j = entries.length;
-        while (j--) {
-            try {
-                entries[j].item.move(targetLayer, ElementPlacement.PLACEATBEGINNING);
-                result.moved++;
-            } catch (e) {
-                result.failed++;
-            }
-        }
-        return result;
+        return moveCollectedEntries(entries, targetLayer, null);
     }
 
     function removeEmptySubLayers(parentLayer, options) {
@@ -444,11 +474,9 @@ var SCRIPT_VERSION = "v1.1";
         }
     }
 
+    // _guide は既存レイヤーを先に拾い、必要になった時点で getOrCreateGuideLayer() が参照を更新する
     var guideLayer = findLayerByName("_guide");
-    var pasteboardLayer = getOrCreateLayer("_pasteboard");
-    var managedLayerNames = { "_pasteboard": true };
-    var moved = 0;
-    var guideMoved = 0;
+    var pasteboardLayer = null;
     var processed = [];
     var failedMoves = 0;
 
@@ -462,7 +490,6 @@ var SCRIPT_VERSION = "v1.1";
     for (var a = startIndex; a < endIndex; a++) {
         var ab = artboards[a];
         var layerName = getArtboardLayerName(a);
-        managedLayerNames[layerName] = true;
         var layer = getOrCreateLayer(layerName);
         var rect = ab.artboardRect;
         var normalEntries = [];
@@ -485,13 +512,11 @@ var SCRIPT_VERSION = "v1.1";
             }
         }
 
-        var normalResult = moveEntriesToLayerPreservingOrder(normalEntries, layer, processed);
+        var normalResult = moveCollectedEntries(normalEntries, layer, processed);
         var guideResult = { moved: 0, failed: 0 };
         if (guideEntries.length > 0) {
-            guideResult = moveEntriesToLayerPreservingOrder(guideEntries, getOrCreateGuideLayer(), processed);
+            guideResult = moveCollectedEntries(guideEntries, getOrCreateGuideLayer(), processed);
         }
-        moved += normalResult.moved + guideResult.moved;
-        guideMoved += guideResult.moved;
         failedMoves += normalResult.failed + guideResult.failed;
     }
 
@@ -519,13 +544,15 @@ var SCRIPT_VERSION = "v1.1";
             }
         }
 
-        var pasteboardNormalResult = moveEntriesToLayerPreservingOrder(pasteboardNormalEntries, pasteboardLayer, processed);
+        var pasteboardNormalResult = { moved: 0, failed: 0 };
+        if (pasteboardNormalEntries.length > 0) {
+            pasteboardLayer = getOrCreateLayer("_pasteboard");
+            pasteboardNormalResult = moveCollectedEntries(pasteboardNormalEntries, pasteboardLayer, processed);
+        }
         var pasteboardGuideResult = { moved: 0, failed: 0 };
         if (pasteboardGuideEntries.length > 0) {
-            pasteboardGuideResult = moveEntriesToLayerPreservingOrder(pasteboardGuideEntries, getOrCreateGuideLayer(), processed);
+            pasteboardGuideResult = moveCollectedEntries(pasteboardGuideEntries, getOrCreateGuideLayer(), processed);
         }
-        moved += pasteboardNormalResult.moved + pasteboardGuideResult.moved;
-        guideMoved += pasteboardGuideResult.moved;
         failedMoves += pasteboardNormalResult.failed + pasteboardGuideResult.failed;
     }
 
@@ -547,11 +574,9 @@ var SCRIPT_VERSION = "v1.1";
 
             try {
                 var targetLayerName = getArtboardLayerName(legacyArtboardIndex);
-                managedLayerNames[targetLayerName] = true;
                 var targetLayer = getOrCreateLayer(targetLayerName);
                 if (legacyLayer !== targetLayer) {
                     var legacyMoveResult = moveLayerItemsToLayer(legacyLayer, targetLayer);
-                    moved += legacyMoveResult.moved;
                     failedMoves += legacyMoveResult.failed;
                 }
                 if (legacyLayer.pageItems.length === 0 && legacyLayer.layers.length === 0 && doc.layers.length > 1) {
@@ -589,11 +614,10 @@ var SCRIPT_VERSION = "v1.1";
             removeEmptySubLayers(doc.layers[i], options);
         }
 
-        // このスクリプトが管理する空レイヤーのみ削除
+        // 処理後に空のトップレベルレイヤーを削除
         for (var i = doc.layers.length - 1; i >= 0; i--) {
             var ly = doc.layers[i];
             if (shouldIgnoreLayer(ly, options)) continue;
-            if (!managedLayerNames[ly.name]) continue;
             removeEmptySubLayers(ly, options);
             if (ly.pageItems.length === 0 && ly.layers.length === 0 && doc.layers.length > 1) {
                 ly.remove();
