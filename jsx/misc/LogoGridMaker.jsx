@@ -8,7 +8,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ・縦線では、縦伸張率、分割、左右に追加、上方向に延長を設定できます。
 ・オプションでは、アイソレーションエリアの作成を指定できます。
 ・共通設定では、作成レイヤー名、線幅、ガイド化、グループ化を指定できます。
-・ダイアログ上部のプリセットから、標準・基本・2x2・左にロゴマーク・上部にロゴマークをすばやく適用できます。
+・ダイアログ上部のプリセットから、標準・基本・2x2・左にロゴスペース・上にロゴスペースをすばやく適用できます。
 ・左方向に延長をONにした場合は、横線全体の長さを横伸張率で決めたまま、右側を固定して左方向へ延長します。
 ・上方向に延長をONにした場合は、下側を基準にして縦線を上方向へ延長します。
 ・アイソレーションエリアをONにした場合は、罫線の代わりに外周のエリアを作成します。
@@ -24,7 +24,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョンとローカライズ
     // =========================================
 
-    var SCRIPT_VERSION = "v1.1.0";
+    var SCRIPT_VERSION = "v1.1.1";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -54,12 +54,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "2x2"
         },
         presetLogoLeft: {
-            ja: "左にロゴマーク",
-            en: "Logo Mark at Left"
+            ja: "左にロゴスペース",
+            en: "Logo Space at Left"
         },
         presetLogoTop: {
-            ja: "上部にロゴマーク",
-            en: "Logo Mark at Top"
+            ja: "上にロゴスペース",
+            en: "Logo Space at Top"
         },
         errNoDocument: {
             ja: "ドキュメントが開かれていません。",
@@ -422,7 +422,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ui.vTopSpaceCheck.value = false;
             updateVerticalTopSpaceEnabled(ui);
         } else if (index === 3) {
-            /* 左にロゴマーク / Logo Mark at Left */
+            /* 左にロゴスペース / Logo Space at Left */
             setUiValueAndNotify(ui.hScaleInput, 2.0, ui, context, suppressPreview);
             ui.hDivCheck.value = true;
             setUiValueAndNotify(ui.divInput, 4, ui, context, suppressPreview);
@@ -436,7 +436,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ui.vTopSpaceCheck.value = false;
             updateVerticalTopSpaceEnabled(ui);
         } else if (index === 4) {
-            /* 上部にロゴマーク / Logo Mark at Top */
+            /* 上にロゴスペース / Logo Space at Top */
             setUiValueAndNotify(ui.hScaleInput, 1.4, ui, context, suppressPreview);
             ui.hDivCheck.value = true;
             setUiValueAndNotify(ui.divInput, 4, ui, context, suppressPreview);
