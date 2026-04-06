@@ -1,22 +1,22 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 概要:
-・選択オブジェクトの visibleBounds を基準に、横線・縦線・分割線を生成するスクリプトです。
+・選択オブジェクトの visibleBounds を基準に、ロゴ用の補助線を作成するスクリプトです。
 ・横線では、横伸張率、分割、上下に追加、左方向に延長を設定できます。
 ・縦線では、縦伸張率、分割、左右に追加、上方向に延長を設定できます。
-・オプションでは、アイソレーションエリアの作成を指定できます。
+・オプションでは、アイソレーションエリア（Clear Space）の作成を指定できます。
 ・共通設定では、作成レイヤー名、線幅、ガイド化、グループ化を指定できます。
 ・ダイアログ上部のプリセットから、標準・基本・2x2・左にロゴスペース・上にロゴスペースをすばやく適用できます。
 ・左方向に延長をONにした場合は、横線全体の長さを横伸張率で決めたまま、右側を固定して左方向へ延長します。
 ・上方向に延長をONにした場合は、下側を基準にして縦線を上方向へ延長します。
-・アイソレーションエリアをONにした場合は、罫線の代わりに外周のエリアを作成します。
-・罫線およびガイドは指定したレイヤーに作成され、レイヤーがない場合には自動作成し、ある場合にはそのまま利用します。
-・プレビュー表示に対応しており、必要に応じて生成した線をガイドに変換できます。
+・アイソレーションエリアをONにした場合は、補助線の代わりに外周4辺のエリアを作成します。
+・補助線およびクリアスペースは指定したレイヤーに作成され、レイヤーがない場合には自動作成し、ある場合にはそのまま利用します。
+・プレビュー表示に対応しており、必要に応じて生成した補助線をガイドに変換できます。
 ・線幅の入力と表示は Illustrator の線単位設定（strokeUnits）を参照します。
+・ローカライズ済みで、日本語環境と英語環境でUI文言・生成名を切り替えます。
 
-更新日: 2026-04-06
+更新日: 2026-04-07
 */
 
 (function () {
@@ -24,7 +24,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョンとローカライズ
     // =========================================
 
-    var SCRIPT_VERSION = "v1.1.1";
+    var SCRIPT_VERSION = "v1.2.0";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -35,7 +35,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var LABELS = {
         dialogTitle: {
             ja: "補助線の作成",
-            en: "Create Guide Lines"
+            en: "Create Guides"
         },
         labelPreset: {
             ja: "プリセット:",
@@ -55,11 +55,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         },
         presetLogoLeft: {
             ja: "左にロゴスペース",
-            en: "Logo Space at Left"
+            en: "Left Logo Space"
         },
         presetLogoTop: {
             ja: "上にロゴスペース",
-            en: "Logo Space at Top"
+            en: "Top Logo Space"
         },
         errNoDocument: {
             ja: "ドキュメントが開かれていません。",
@@ -87,7 +87,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         },
         labelGuideLayer: {
             ja: "作成レイヤー",
-            en: "Output Layer"
+            en: "Guide Layer"
         },
         panelHorizontal: {
             ja: "横線",
@@ -99,15 +99,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         },
         panelCommon: {
             ja: "共通設定",
-            en: "Common"
+            en: "Common Settings"
         },
         labelWidthScale: {
             ja: "横伸張率",
-            en: "Horizontal Scale"
+            en: "Width Scale"
         },
         labelHeightScale: {
             ja: "縦伸張率",
-            en: "Vertical Scale"
+            en: "Height Scale"
         },
         labelStrokeWidth: {
             ja: "線幅",
@@ -119,7 +119,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         },
         checkHorizontalExtra: {
             ja: "上下に追加",
-            en: "Add Top/Bottom Lines"
+            en: "Add Top & Bottom Lines"
         },
         checkHorizontalLeftExtra: {
             ja: "左方向に延長",
@@ -127,7 +127,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         },
         checkVerticalOuter: {
             ja: "左右に追加",
-            en: "Add Left/Right Lines"
+            en: "Add Left & Right Lines"
         },
         checkVerticalDiv: {
             ja: "分割",
@@ -147,7 +147,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         },
         checkIsolationArea: {
             ja: "アイソレーションエリア",
-            en: "Isolation Area"
+            en: "Clear Space"
         },
         checkGroupItems: {
             ja: "グループ化",
@@ -164,6 +164,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         btnOk: {
             ja: "OK",
             en: "OK"
+        },
+        layerGuideLines: {
+            ja: "補助線",
+            en: "Guides"
+        },
+        layerGuideLinesPreview: {
+            ja: "補助線_プレビュー",
+            en: "Guides (Preview)"
+        },
+        layerIsolationArea: {
+            ja: "アイソレーションエリア",
+            en: "Clear Space"
         }
     };
 
@@ -464,6 +476,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         changeValueByArrowKey(ui.divInput, false, true, ui, context);
         changeValueByArrowKey(ui.vScaleInput, false, false, ui, context);
         changeValueByArrowKey(ui.vDivInput, false, true, ui, context);
+        changeValueByArrowKey(ui.hExtraInput, false, true, ui, context);
+        changeValueByArrowKey(ui.vOuterInput, false, true, ui, context);
+        changeValueByArrowKey(ui.isolationAreaInput, false, false, ui, context);
         changeValueByArrowKey(ui.swInput, false, false, ui, context);
     }
     function bindEvents(ui, context) {
@@ -480,7 +495,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         };
 
         ui.hScaleInput.onChanging = ui.divInput.onChanging = ui.swInput.onChanging =
-            ui.vDivInput.onChanging = function () {
+            ui.vDivInput.onChanging = ui.hExtraInput.onChanging = ui.vOuterInput.onChanging = ui.isolationAreaInput.onChanging = function () {
                 if (ui.previewCheck.value) {
                     updatePreview(ui, context);
                 }
@@ -606,6 +621,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var hRow3 = hPanel.add("group");
         var hExtraCheck = hRow3.add("checkbox", undefined, L("checkHorizontalExtra"));
         hExtraCheck.value = true;
+        var hExtraInput = hRow3.add("edittext", undefined, "1");
+        hExtraInput.characters = 3;
 
         var hRow4 = hPanel.add("group");
         var hLeftExtraCheck = hRow4.add("checkbox", undefined, L("checkHorizontalLeftExtra"));
@@ -630,6 +647,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var vRow3 = vPanel.add("group");
         var vOuterCheck = vRow3.add("checkbox", undefined, L("checkVerticalOuter"));
         vOuterCheck.value = true;
+        var vOuterInput = vRow3.add("edittext", undefined, "1");
+        vOuterInput.characters = 3;
 
         var vRow4 = vPanel.add("group");
         var vTopSpaceCheck = vRow4.add("checkbox", undefined, L("checkVerticalTopSpace"));
@@ -646,6 +665,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         optRow1.alignChildren = ["left", "center"];
         var isolationAreaCheck = optRow1.add("checkbox", undefined, L("checkIsolationArea"));
         isolationAreaCheck.value = false;
+        var isolationAreaInput = optRow1.add("edittext", undefined, "1");
+        isolationAreaInput.characters = 5;
 
         /* 共通設定 / Common settings */
         var commonPanel = dlg.add("panel", undefined, L("panelCommon"));
@@ -701,13 +722,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             hDivCheck: hDivCheck,
             divInput: divInput,
             hExtraCheck: hExtraCheck,
+            hExtraInput: hExtraInput,
             hLeftExtraCheck: hLeftExtraCheck,
             vScaleInput: vScaleInput,
             vOuterCheck: vOuterCheck,
+            vOuterInput: vOuterInput,
             vDivCheck: vDivCheck,
             vDivInput: vDivInput,
             vTopSpaceCheck: vTopSpaceCheck,
             isolationAreaCheck: isolationAreaCheck,
+            isolationAreaInput: isolationAreaInput,
             guideLayerInput: guideLayerInput,
             swInput: swInput,
             guideCheck: guideCheck,
@@ -727,13 +751,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     function updateIsolationAreaEnabled(ui) {
         var iso = ui.isolationAreaCheck.value;
-        /* 横線パネル: 分割以外をディム */
+        /* 横線パネル: すべてディム */
         ui.hScaleInput.enabled = !iso;
+        ui.hDivCheck.enabled = !iso;
+        ui.divInput.enabled = !iso;
         ui.hExtraCheck.enabled = !iso;
+        ui.hExtraInput.enabled = !iso;
         ui.hLeftExtraCheck.enabled = !iso;
         /* 縦線パネル: すべてディム */
         ui.vScaleInput.enabled = !iso;
         ui.vOuterCheck.enabled = !iso;
+        ui.vOuterInput.enabled = !iso;
         ui.vDivCheck.enabled = !iso;
         ui.vDivInput.enabled = !iso;
         ui.vTopSpaceCheck.enabled = !iso;
@@ -767,13 +795,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             vDivisions: parseInt(ui.vDivInput.text, 10),
             hDiv: ui.hDivCheck.value,
             hExtra: ui.hExtraCheck.value,
+            hExtraCountText: ui.hExtraInput.text,
+            hExtraCount: parseInt(ui.hExtraInput.text, 10),
             hLeftExtra: ui.hLeftExtraCheck.value,
             makeGuides: ui.guideCheck.value,
             groupItems: ui.groupCheck.value,
             vOuter: ui.vOuterCheck.value,
+            vOuterCountText: ui.vOuterInput.text,
+            vOuterCount: parseInt(ui.vOuterInput.text, 10),
             vDiv: ui.vDivCheck.value,
             vTopSpace: ui.vTopSpaceCheck.value,
-            isolationArea: ui.isolationAreaCheck.value
+            isolationArea: ui.isolationAreaCheck.value,
+            isolationAreaScaleText: ui.isolationAreaInput.text,
+            isolationAreaScale: parseFloat(ui.isolationAreaInput.text)
         };
     }
 
@@ -793,8 +827,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         if (!isStrictPositiveNumberText(raw.strokeWidthText) || isNaN(raw.strokeWidthValue) || !isFinite(raw.strokeWidthValue) || raw.strokeWidthValue <= 0) {
             return false;
         }
+        if (raw.hExtra) {
+            if (!/^\d+$/.test(raw.hExtraCountText) || isNaN(raw.hExtraCount) || !isFinite(raw.hExtraCount) || raw.hExtraCount < 1) {
+                return false;
+            }
+        }
+        if (raw.vOuter) {
+            if (!/^\d+$/.test(raw.vOuterCountText) || isNaN(raw.vOuterCount) || !isFinite(raw.vOuterCount) || raw.vOuterCount < 1) {
+                return false;
+            }
+        }
         if (raw.vDiv) {
             if (!/^\d+$/.test(raw.vDivisionsText) || isNaN(raw.vDivisions) || !isFinite(raw.vDivisions) || raw.vDivisions < 1) {
+                return false;
+            }
+        }
+        if (raw.isolationArea) {
+            if (!isStrictPositiveNumberText(raw.isolationAreaScaleText) || isNaN(raw.isolationAreaScale) || !isFinite(raw.isolationAreaScale) || raw.isolationAreaScale <= 0) {
                 return false;
             }
         }
@@ -817,14 +866,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             strokeWidth: strokeWidth,
             hDiv: raw.hDiv,
             hExtra: raw.hExtra,
+            hExtraCount: raw.hExtra ? raw.hExtraCount : 0,
             hLeftExtra: raw.hLeftExtra,
             makeGuides: raw.makeGuides,
             groupItems: raw.groupItems,
             vOuter: raw.vOuter,
+            vOuterCount: raw.vOuter ? raw.vOuterCount : 0,
             vDiv: raw.vDiv,
             vDivisions: vDivisions,
             vTopSpace: raw.vTopSpace,
-            isolationArea: raw.isolationArea
+            isolationArea: raw.isolationArea,
+            isolationAreaScale: raw.isolationAreaScale
         };
     }
 
@@ -865,19 +917,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             vB = context.centerY - vLineHeight / 2;
         }
 
-        var xLeftOuter = context.bLeft - C;
-        var xRightOuter = context.bRight + C;
 
         var strokeColor = new GrayColor();
         strokeColor.gray = 100;
 
         var group = context.guideLayer.groupItems.add();
-        group.name = isPreview ? "GuideLines_Preview" : "GuideLines";
+        group.name = isPreview ? L("layerGuideLinesPreview") : L("layerGuideLines");
 
         if (!params.isolationArea) {
             /* 横線 / Horizontal lines */
             if (params.hExtra) {
-                drawLine(group, hLeft, context.bTop + C, hRight, context.bTop + C, strokeColor, params.strokeWidth);
+                for (var eT = 1; eT <= params.hExtraCount; eT++) {
+                    drawLine(group, hLeft, context.bTop + C * eT, hRight, context.bTop + C * eT, strokeColor, params.strokeWidth);
+                }
             }
             drawLine(group, hLeft, context.bTop, hRight, context.bTop, strokeColor, params.strokeWidth);
             if (params.hDiv && params.divisions > 1) {
@@ -888,17 +940,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
             drawLine(group, hLeft, context.bBottom, hRight, context.bBottom, strokeColor, params.strokeWidth);
             if (params.hExtra) {
-                drawLine(group, hLeft, context.bBottom - C, hRight, context.bBottom - C, strokeColor, params.strokeWidth);
+                for (var eB = 1; eB <= params.hExtraCount; eB++) {
+                    drawLine(group, hLeft, context.bBottom - C * eB, hRight, context.bBottom - C * eB, strokeColor, params.strokeWidth);
+                }
             }
 
             /* 縦線 / Vertical lines */
             if (params.vOuter) {
-                drawLine(group, xLeftOuter, vT, xLeftOuter, vB, strokeColor, params.strokeWidth);
+                for (var oL = 1; oL <= params.vOuterCount; oL++) {
+                    drawLine(group, context.bLeft - C * oL, vT, context.bLeft - C * oL, vB, strokeColor, params.strokeWidth);
+                }
             }
             drawLine(group, context.bLeft, vT, context.bLeft, vB, strokeColor, params.strokeWidth);
             drawLine(group, context.bRight, vT, context.bRight, vB, strokeColor, params.strokeWidth);
             if (params.vOuter) {
-                drawLine(group, xRightOuter, vT, xRightOuter, vB, strokeColor, params.strokeWidth);
+                for (var oR = 1; oR <= params.vOuterCount; oR++) {
+                    drawLine(group, context.bRight + C * oR, vT, context.bRight + C * oR, vB, strokeColor, params.strokeWidth);
+                }
             }
 
             /* 縦分割線 / Vertical division lines */
@@ -913,9 +971,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         /* アイソレーションエリア / Isolation area */
         if (params.isolationArea) {
-            var isoLeft = context.bLeft - C;
-            var isoRight = context.bRight + C;
-            var isoTop = context.bTop + C;
+            var isoC = context.A / params.isolationAreaScale;
+            var isoLeft = context.bLeft - isoC;
+            var isoRight = context.bRight + isoC;
+            var isoTop = context.bTop + isoC;
             var isoOuterW = isoRight - isoLeft;
 
             var cyanColor = new CMYKColor();
@@ -925,16 +984,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             cyanColor.black = 0;
 
             var isoGroup = group.groupItems.add();
-            isoGroup.name = "IsolationArea";
+            isoGroup.name = L("layerIsolationArea");
             /* 上 / Top */
-            drawIsolationRect(isoGroup, isoLeft, isoTop, isoOuterW, C, cyanColor);
+            drawIsolationRect(isoGroup, isoLeft, isoTop, isoOuterW, isoC, cyanColor);
             /* 下 / Bottom */
-            drawIsolationRect(isoGroup, isoLeft, context.bBottom, isoOuterW, C, cyanColor);
-            var isoOuterH = isoTop - (context.bBottom - C);
+            drawIsolationRect(isoGroup, isoLeft, context.bBottom, isoOuterW, isoC, cyanColor);
+            var isoOuterH = isoTop - (context.bBottom - isoC);
             /* 左 / Left */
-            drawIsolationRect(isoGroup, isoLeft, isoTop, C, isoOuterH, cyanColor);
+            drawIsolationRect(isoGroup, isoLeft, isoTop, isoC, isoOuterH, cyanColor);
             /* 右 / Right */
-            drawIsolationRect(isoGroup, context.bRight, isoTop, C, isoOuterH, cyanColor);
+            drawIsolationRect(isoGroup, context.bRight, isoTop, isoC, isoOuterH, cyanColor);
         }
 
         /* ガイド化（本番のみ） / Convert to guides (final only) */

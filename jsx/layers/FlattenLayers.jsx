@@ -1,10 +1,14 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+// スクリプトバージョン
+
+var SCRIPT_VERSION = "v1.6.1";
+
 /*
 レイヤー統合（フラット化）を行うIllustrator用スクリプト。
-除外名（例：bg/背景/background）を持つレイヤーを残しつつ、その他のレイヤー配下の全オブジェクトを
-「_mergedLayer」に集約（移動）します。その後、空になったレイヤーを再帰的に検出して削除します。
+除外名（例：bg/背景/background）を持つレイヤーを残しつつ、その他のレイヤー／サブレイヤー配下の全オブジェクトを
+「_mergedLayer」に集約（移動）してフラット化します。その後、空になったレイヤーを再帰的に検出して削除します。
 
 ### スクリプト名：
 
@@ -17,38 +21,27 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 ### 概要：
 
 - 実行前にダイアログを表示し、処理条件を選択可能
-- 除外レイヤーを残し、それ以外のレイヤー配下のオブジェクトを「_mergedLayer」に移動
+- 除外レイヤーを残し、それ以外のレイヤー／サブレイヤー配下のオブジェクトを「_mergedLayer」に移動してフラット化
 - ロック / 非表示のレイヤー・オブジェクトをそれぞれ対象外にするか選択可能
-- 空レイヤー削除、既存「_mergedLayer」の使用、レイヤーカラー設定の可否を選択可能
-
-### 主な機能：
-
-- ダイアログで処理条件を選択
-- レイヤー配下オブジェクトの一括移動（ロック項目は一時解除→移動→再ロック）
-- 除外レイヤー名（bg / 背景 / background）対応
-- ロック / 非表示のレイヤー・オブジェクトの対象外切り替え
-- 空レイヤーの再帰削除（ON/OFF）
-- 既存「_mergedLayer」の使用 / 新規作成
-- 「_mergedLayer」のレイヤーカラー設定（ON/OFF）
+- 必要に応じて、中身が残ったサブレイヤーを最上位のレイヤーへ移動可能
+- 空のレイヤー／サブレイヤーを、削除可能なものがなくなるまで再帰反復で削除
+- まとめ先のレイヤー名、既存まとめ先の再利用、レイヤーカラーを指定可能
 
 ### 処理の流れ：
 
 1. ドキュメント取得（未オープンなら終了）
 2. ダイアログで処理条件を選択（キャンセル時は終了）
 3. 設定に応じて既存「_mergedLayer」を取得、または新規作成
-4. 除外レイヤーを除いて、条件に合う全レイヤー配下のオブジェクトを「_mergedLayer」に移動
-5. 設定が ON の場合、ドキュメント内の空レイヤーを再帰的に収集し、一括削除
+4. 除外レイヤーを除いて、条件に合う全レイヤー／サブレイヤー配下のオブジェクトを「_mergedLayer」に移動してフラット化
+5. 必要に応じて、中身が残ったサブレイヤーを最上位のレイヤーへ移動
+6. 設定が ON の場合、空のレイヤー／サブレイヤーがなくなるまで再帰反復で削除
 
 ### 更新履歴：
 
 - v1.0 (20250414) : 初期バージョン
-- v1.1 (20250818) : 微調整
-- v1.2 (20250818) : 空レイヤー再帰削除ロジックを組み込み、説明文を再構成
-- v1.3 (20260406) : 前後関係維持ロジックを修正し、ロック／非表示レイヤーを対象外とする仕様を明記
-- v1.4 (20260406) : ダイアログを追加し、ロック / 非表示のレイヤー・オブジェクト、空レイヤー削除、既存 mergedLayer 使用、レイヤーカラー設定を選択可能に
 
 Illustrator script to flatten layers. It consolidates all objects (except in excluded layers
-such as bg/背景/background) into a single layer named "_mergedLayer", then recursively
+such as bg/背景/background) from layers and sublayers into a single layer named "_mergedLayer", then recursively
 removes layers that became empty.
 
 ### Script Name:
@@ -62,41 +55,26 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 ### Overview:
 
 - Show a dialog before execution so the processing conditions can be selected
-- Move objects from non-excluded layers into "_mergedLayer"
+- Flatten objects from non-excluded layers and sublayers into "_mergedLayer"
 - Allow the user to choose whether locked / hidden layers and objects are excluded
-- Allow the user to choose empty-layer deletion, reuse of an existing "_mergedLayer", and layer-color assignment
-
-### Key Features:
-
-- Select processing conditions in a dialog
-- Bulk move items (temporarily unlock item → move → restore lock)
-- Excluded layer names (bg / 背景 / background)
-- Toggle exclusion of locked / hidden layers and objects
-- Recursive empty-layer deletion (ON/OFF)
-- Reuse existing "_mergedLayer" or create a new one
-- Set "_mergedLayer" layer color (ON/OFF)
+- Optionally move remaining non-empty sublayers to the top level
+- Delete empty layers / sublayers repeatedly until no more removable empty layers remain
+- Let the user specify the destination layer name, reuse an existing destination layer, and set the destination layer color
 
 ### Process Flow:
 
 1. Get the active document (exit if none)
 2. Show the options dialog (exit if canceled)
 3. Reuse or create "_mergedLayer" according to the selected options
-4. Move items from eligible non-excluded layers into "_mergedLayer"
-5. If enabled, collect and delete empty layers recursively
+4. Flatten items from eligible non-excluded layers and sublayers into "_mergedLayer"
+5. Optionally move remaining non-empty sublayers to the top level
+6. If enabled, repeatedly delete empty layers / sublayers until none remain
 
 ### Update History:
 
 - v1.0 (20250414) : Initial release
-- v1.1 (20250818) : Minor adjustments
-- v1.2 (20250818) : Added recursive empty-layer removal and rewrote the description
-- v1.3 (20260406) : Fixed stacking-order preservation logic and documented that locked/hidden layers are excluded
-- v1.4 (20260406) : Added a dialog so locked/hidden layers and objects, empty-layer deletion, merged-layer reuse, and layer-color assignment can be selected
 
 */
-
-// スクリプトバージョン
-
-var SCRIPT_VERSION = "v1.4";
 
 function getCurrentLang() {
     return ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
@@ -112,6 +90,14 @@ var LABELS = {
     options: {
         ja: '後処理',
         en: 'Cleanup'
+    },
+    process: {
+        ja: '処理',
+        en: 'Process'
+    },
+    promoteSublayers: {
+        ja: '中身が残るサブレイヤーを最上位化',
+        en: 'Promote remaining sublayers to the top level'
     },
     exclude: {
         ja: '対象外にする',
@@ -129,6 +115,18 @@ var LABELS = {
         ja: 'レイヤーカラー',
         en: 'Layer color'
     },
+    reuseExistingMergedLayer: {
+        ja: '既存のまとめ先を再利用',
+        en: 'Reuse existing destination layer'
+    },
+    lockedPanelTitle: {
+        ja: 'ロック',
+        en: 'Locked'
+    },
+    hiddenPanelTitle: {
+        ja: '非表示',
+        en: 'Hidden'
+    },
     skipLockedLayers: {
         ja: 'レイヤー',
         en: 'Layers'
@@ -144,6 +142,10 @@ var LABELS = {
     skipHiddenObjects: {
         ja: 'オブジェクト',
         en: 'Objects'
+    },
+    toggleAllExclusions: {
+        ja: '対象外設定を一括切替',
+        en: 'Toggle all on/off'
     },
     deleteEmptyLayers: {
         ja: '空のレイヤー／サブレイヤーを削除',
@@ -165,10 +167,30 @@ function L(key) {
     return entry[lang] || entry.en;
 }
 
-function showOptionsDialog(hasExistingMergedLayer) {
+function createProcessStats() {
+    return {
+        moveFailureCount: 0,
+        deleteFailureCount: 0,
+        visibilityRestoreFailureCount: 0,
+        layerLockRestoreFailureCount: 0,
+        itemLockRestoreFailureCount: 0,
+        topLevelPromotionFailureCount: 0,
+        parentAccessFailureCount: 0
+    };
+}
+
+function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
     dlg.orientation = 'column';
     dlg.alignChildren = 'fill';
+
+    var processPanel = dlg.add('panel', undefined, L('process'));
+    processPanel.orientation = 'column';
+    processPanel.alignChildren = 'fill';
+    processPanel.margins = [15, 20, 15, 10];
+
+    var cbPromoteSublayers = processPanel.add('checkbox', undefined, L('promoteSublayers'));
+    cbPromoteSublayers.value = true;
 
     var destPanel = dlg.add('panel', undefined, L('destination'));
     destPanel.orientation = 'column';
@@ -181,6 +203,29 @@ function showOptionsDialog(hasExistingMergedLayer) {
     var nameLabel = nameGroup.add('statictext', undefined, L('layerName'));
     var etLayerName = nameGroup.add('edittext', undefined, '_mergedLayer');
     etLayerName.characters = 19;
+
+    var cbReuseExistingMergedLayer = destPanel.add('checkbox', undefined, L('reuseExistingMergedLayer'));
+    cbReuseExistingMergedLayer.value = hasExistingMergedLayer;
+    cbReuseExistingMergedLayer.enabled = hasExistingMergedLayer;
+
+    function updateReuseExistingMergedLayerState() {
+        var layerName = etLayerName.text;
+        var hasMatchingLayer = false;
+
+        if (layerName && layerName !== '') {
+            try {
+                documentRef.layers.getByName(layerName);
+                hasMatchingLayer = true;
+            } catch (e) {
+                hasMatchingLayer = false;
+            }
+        }
+
+        cbReuseExistingMergedLayer.enabled = hasMatchingLayer;
+        if (!hasMatchingLayer) {
+            cbReuseExistingMergedLayer.value = false;
+        }
+    }
 
     var colorGroup = destPanel.add('group');
     colorGroup.orientation = 'row';
@@ -211,7 +256,11 @@ function showOptionsDialog(hasExistingMergedLayer) {
     etLayerColor.onChange = updateColorSwatch;
     updateColorSwatch();
 
-    var excludePanel = dlg.add('panel', undefined, L('exclude'));
+    etLayerName.onChanging = updateReuseExistingMergedLayerState;
+    etLayerName.onChange = updateReuseExistingMergedLayerState;
+    updateReuseExistingMergedLayerState();
+
+    var excludePanel = processPanel.add('panel', undefined, L('exclude'));
     excludePanel.orientation = 'column';
     excludePanel.alignChildren = 'fill';
     excludePanel.margins = [15, 20, 15, 10];
@@ -222,7 +271,7 @@ function showOptionsDialog(hasExistingMergedLayer) {
     excludeGroup.spacing = 15;
 
     // 左カラム：ロック
-    var lockedPanel = excludeGroup.add('panel', undefined, 'ロック');
+    var lockedPanel = excludeGroup.add('panel', undefined, L('lockedPanelTitle'));
     lockedPanel.orientation = 'column';
     lockedPanel.alignChildren = 'left';
     lockedPanel.margins = [15, 20, 15, 10];
@@ -233,7 +282,7 @@ function showOptionsDialog(hasExistingMergedLayer) {
     cbSkipLockedObjects.value = true;
 
     // 右カラム：非表示
-    var hiddenPanel = excludeGroup.add('panel', undefined, '非表示');
+    var hiddenPanel = excludeGroup.add('panel', undefined, L('hiddenPanelTitle'));
     hiddenPanel.orientation = 'column';
     hiddenPanel.alignChildren = 'left';
     hiddenPanel.margins = [15, 20, 15, 10];
@@ -243,10 +292,34 @@ function showOptionsDialog(hasExistingMergedLayer) {
     var cbSkipHiddenObjects = hiddenPanel.add('checkbox', undefined, L('skipHiddenObjects'));
     cbSkipHiddenObjects.value = true;
 
+    var toggleAllGroup = excludePanel.add('group');
+    toggleAllGroup.orientation = 'row';
+    toggleAllGroup.alignment = ['left', 'top'];
+    var cbToggleAllExclusions = toggleAllGroup.add('checkbox', undefined, L('toggleAllExclusions'));
+    cbToggleAllExclusions.value = true;
+
+    function updateToggleAllExclusionsState() {
+        cbToggleAllExclusions.value = cbSkipLocked.value && cbSkipLockedObjects.value && cbSkipHidden.value && cbSkipHiddenObjects.value;
+    }
+
+    cbToggleAllExclusions.onClick = function () {
+        var newValue = cbToggleAllExclusions.value;
+        cbSkipLocked.value = newValue;
+        cbSkipLockedObjects.value = newValue;
+        cbSkipHidden.value = newValue;
+        cbSkipHiddenObjects.value = newValue;
+    };
+
+    cbSkipLocked.onClick = updateToggleAllExclusionsState;
+    cbSkipLockedObjects.onClick = updateToggleAllExclusionsState;
+    cbSkipHidden.onClick = updateToggleAllExclusionsState;
+    cbSkipHiddenObjects.onClick = updateToggleAllExclusionsState;
+
     var optionsPanel = dlg.add('panel', undefined, L('options'));
     optionsPanel.orientation = 'column';
     optionsPanel.alignChildren = 'left';
     optionsPanel.margins = [15, 20, 15, 10];
+
 
     var cbDeleteEmpty = optionsPanel.add('checkbox', undefined, L('deleteEmptyLayers'));
     cbDeleteEmpty.value = true;
@@ -255,8 +328,8 @@ function showOptionsDialog(hasExistingMergedLayer) {
     buttonGroup.orientation = 'row';
     buttonGroup.alignment = ['center', 'center'];
     buttonGroup.alignChildren = ['center', 'center'];
-    var btnCancel = buttonGroup.add('button', undefined, L('cancel'), { name: 'cancel' });
-    var btnOk = buttonGroup.add('button', undefined, L('ok'), { name: 'ok' });
+    buttonGroup.add('button', undefined, L('cancel'), { name: 'cancel' });
+    buttonGroup.add('button', undefined, L('ok'), { name: 'ok' });
 
     if (dlg.show() !== 1) {
         return null;
@@ -267,9 +340,10 @@ function showOptionsDialog(hasExistingMergedLayer) {
         skipHiddenLayers: cbSkipHidden.value,
         skipLockedObjects: cbSkipLockedObjects.value,
         skipHiddenObjects: cbSkipHiddenObjects.value,
+        promoteSublayersToTopLevel: cbPromoteSublayers.value,
         mergedLayerName: etLayerName.text,
         deleteEmptyLayers: cbDeleteEmpty.value,
-        reuseExistingMergedLayer: true,
+        reuseExistingMergedLayer: cbReuseExistingMergedLayer.value,
         layerColorValue: etLayerColor.text
     };
 }
@@ -339,9 +413,7 @@ function main() {
         return;
     }
 
-    var allTopLayers = documentRef.layers;
     var mergedLayerName = "_mergedLayer";
-
     var hasExistingMergedLayer = false;
 
     try {
@@ -351,7 +423,7 @@ function main() {
         hasExistingMergedLayer = false;
     }
 
-    var options = showOptionsDialog(hasExistingMergedLayer);
+    var options = showOptionsDialog(documentRef, hasExistingMergedLayer);
     if (!options) {
         return;
     }
@@ -360,71 +432,176 @@ function main() {
         mergedLayerName = options.mergedLayerName;
     }
 
+    var stats = createProcessStats();
     var mergedLayer = getOrCreateMergedLayer(documentRef, mergedLayerName, options.reuseExistingMergedLayer);
     applyMergedLayerSettings(mergedLayer, options.layerColorValue);
 
-    var topCount = allTopLayers.length;
-    for (var i = topCount - 1; i >= 0; i--) {
+    var allTopLayers = documentRef.layers;
+    for (var i = allTopLayers.length - 1; i >= 0; i--) {
         var currentLayer = allTopLayers[i];
-
-        if (isExcludedLayer(currentLayer.name) || currentLayer === mergedLayer) {
+        if (currentLayer === mergedLayer) {
             continue;
         }
+        if (isExcludedLayer(currentLayer.name)) {
+            continue;
+        }
+        moveItemsToTargetLayer(currentLayer, mergedLayer, options, stats);
+    }
 
-        moveItemsToTargetLayer(currentLayer, mergedLayer, options);
+    if (options.promoteSublayersToTopLevel) {
+        promoteSublayersToTop(documentRef, mergedLayer, options, stats);
     }
 
     if (options.deleteEmptyLayers) {
-        var emptyLayerList = [];
-        findEmptyLayers(documentRef, emptyLayerList, mergedLayer, options);
-        deleteLayers(emptyLayerList);
+        deleteEmptyLayersRecursively(documentRef, mergedLayer, options, stats);
+    }
+
+    var messages = [];
+    if (stats.moveFailureCount > 0) {
+        messages.push((lang === 'ja' ? '移動失敗' : 'Move failures') + ': ' + stats.moveFailureCount);
+    }
+    if (stats.deleteFailureCount > 0) {
+        messages.push((lang === 'ja' ? '削除失敗' : 'Delete failures') + ': ' + stats.deleteFailureCount);
+    }
+    if (stats.visibilityRestoreFailureCount > 0) {
+        messages.push((lang === 'ja' ? '表示状態の復元失敗' : 'Visibility restore failures') + ': ' + stats.visibilityRestoreFailureCount);
+    }
+    if (stats.layerLockRestoreFailureCount > 0) {
+        messages.push((lang === 'ja' ? 'レイヤーロック復元失敗' : 'Layer lock restore failures') + ': ' + stats.layerLockRestoreFailureCount);
+    }
+    if (stats.itemLockRestoreFailureCount > 0) {
+        messages.push((lang === 'ja' ? 'オブジェクトロック復元失敗' : 'Item lock restore failures') + ': ' + stats.itemLockRestoreFailureCount);
+    }
+    if (stats.topLevelPromotionFailureCount > 0) {
+        messages.push((lang === 'ja' ? '最上位化失敗' : 'Top-level promotion failures') + ': ' + stats.topLevelPromotionFailureCount);
+    }
+    if (stats.parentAccessFailureCount > 0) {
+        messages.push((lang === 'ja' ? '親レイヤーアクセス失敗' : 'Parent access failures') + ': ' + stats.parentAccessFailureCount);
+    }
+    if (messages.length > 0) {
+        alert(messages.join('\n'));
     }
 }
 
+
 /*
- * 指定レイヤー配下の全ページアイテムを再帰的に destinationLayer へ移動。
- * Move all page items under sourceLayer recursively to destinationLayer.
- * Returns true if any items were moved.
+ * 指定レイヤー配下を再帰走査し、各レイヤー直下のページアイテムだけを destinationLayer へ移動。
+ * Recursively walk sourceLayer and move only the page items directly under each layer to destinationLayer.
  */
-function moveItemsToTargetLayer(sourceLayer, destinationLayer, options) {
+function moveItemsToTargetLayer(sourceLayer, destinationLayer, options, stats) {
     if (sourceLayer === destinationLayer) return false;
     if (options.skipLockedLayers && sourceLayer.locked) return false;
     if (options.skipHiddenLayers && !sourceLayer.visible) return false;
+
     var didMove = false;
 
-    var sublayers = sourceLayer.layers;
-    for (var i = sublayers.length - 1; i >= 0; i--) {
-        if (moveItemsToTargetLayer(sublayers[i], destinationLayer, options)) {
+    var restoreVisibility = false;
+    var originalVisibility = true;
+
+    var restoreLayerLock = false;
+    var originalLayerLock = false;
+
+    if (!options.skipHiddenLayers && !sourceLayer.visible) {
+        try {
+            originalVisibility = sourceLayer.visible;
+            sourceLayer.visible = true;
+            restoreVisibility = true;
+        } catch (e0) { }
+    }
+
+    if (!options.skipLockedLayers && sourceLayer.locked) {
+        try {
+            originalLayerLock = sourceLayer.locked;
+            sourceLayer.locked = false;
+            restoreLayerLock = true;
+        } catch (e00) { }
+    }
+
+    for (var i = sourceLayer.layers.length - 1; i >= 0; i--) {
+        if (moveItemsToTargetLayer(sourceLayer.layers[i], destinationLayer, options, stats)) {
             didMove = true;
         }
     }
 
     var pageItems = sourceLayer.pageItems;
-    // ロック項目は一時解除→移動→元に戻す。逆順走査 + PLACEATBEGINNING で前後関係を保ちやすくする / Temporarily unlock, move, then restore lock. Reverse traversal + PLACEATBEGINNING helps preserve stacking order.
     for (var j = pageItems.length - 1; j >= 0; j--) {
         var item = pageItems[j];
+        if (item.parent !== sourceLayer) {
+            continue;
+        }
+
         var wasLocked = false;
         try {
             wasLocked = item.locked;
             if (options.skipLockedObjects && wasLocked) {
                 continue;
             }
-            if (options.skipHiddenObjects && item.hidden) {
+            if (shouldSkipHiddenItem(item, options)) {
                 continue;
             }
             if (wasLocked) item.locked = false;
             item.move(destinationLayer, ElementPlacement.PLACEATBEGINNING);
             didMove = true;
         } catch (error) {
+            if (stats) {
+                stats.moveFailureCount++;
+            }
             // 移動できない項目は無視 / ignore items that still cannot be moved
         } finally {
             try {
                 if (wasLocked) item.locked = true;
-            } catch (e2) { }
+            } catch (e2) {
+                if (stats) {
+                    stats.itemLockRestoreFailureCount++;
+                }
+            }
+        }
+    }
+
+    if (restoreVisibility) {
+        try {
+            sourceLayer.visible = originalVisibility;
+        } catch (e3) {
+            if (stats) {
+                stats.visibilityRestoreFailureCount++;
+            }
+        }
+    }
+    if (restoreLayerLock) {
+        try {
+            sourceLayer.locked = originalLayerLock;
+        } catch (e4) {
+            if (stats) {
+                stats.layerLockRestoreFailureCount++;
+            }
         }
     }
 
     return didMove;
+}
+
+function shouldSkipHiddenItem(item, options) {
+    if (!options.skipHiddenObjects) {
+        return false;
+    }
+    if (!item.hidden) {
+        return false;
+    }
+    if (!options.skipHiddenLayers && isHiddenOnlyByLayerVisibility(item)) {
+        return false;
+    }
+    return true;
+}
+
+function isHiddenOnlyByLayerVisibility(item) {
+    var current = item;
+    while (current && current.parent) {
+        current = current.parent;
+        if (current.typename === 'Layer' && !current.visible) {
+            return true;
+        }
+    }
+    return false;
 }
 
 /* Exclude-name map for layers (case-insensitive, trimmed) */
@@ -441,8 +618,117 @@ function isExcludedLayer(layerName) {
     return EXCLUDE[key] === 1;
 }
 
+
 // ==========================
-// 空レイヤーを収集する関数（再帰処理） / Collect empty layers recursively
+// 中身が残るサブレイヤーをトップレベルへ移動
+// ==========================
+function promoteSublayersToTop(documentRef, mergedLayer, options, stats) {
+    var guard = 0;
+    while (guard < 1000) {
+        var batch = [];
+        collectDirectSublayers(documentRef, batch, mergedLayer, options);
+        if (batch.length === 0) {
+            break;
+        }
+
+        for (var i = 0; i < batch.length; i++) {
+            moveLayerToTopLevel(documentRef, batch[i], mergedLayer, stats);
+        }
+        guard++;
+    }
+}
+
+function collectDirectSublayers(container, resultArray, mergedLayer, options) {
+    var layers = container.layers;
+
+    for (var i = layers.length - 1; i >= 0; i--) {
+        var currentLayer = layers[i];
+
+        if (currentLayer === mergedLayer) {
+            continue;
+        }
+        if (isExcludedLayer(currentLayer.name)) {
+            continue;
+        }
+        if (options.skipLockedLayers && currentLayer.locked) {
+            continue;
+        }
+        if (options.skipHiddenLayers && !currentLayer.visible && !(currentLayer.parent && currentLayer.parent.typename === 'Layer')) {
+            continue;
+        }
+
+        if (currentLayer.parent && currentLayer.parent.typename === 'Layer' && layerHasRemainingContent(currentLayer)) {
+            resultArray.push(currentLayer);
+        }
+
+        if (currentLayer.layers.length > 0) {
+            collectDirectSublayers(currentLayer, resultArray, mergedLayer, options);
+        }
+    }
+}
+
+function layerHasRemainingContent(layerRef) {
+    return hasDirectPageItems(layerRef) || layerRef.layers.length > 0;
+}
+
+function moveLayerToTopLevel(documentRef, layerRef, mergedLayer, stats) {
+    if (!layerRef || !layerRef.parent || layerRef.parent.typename !== 'Layer') {
+        return;
+    }
+
+    var anchor = getTopLevelMoveAnchor(documentRef, mergedLayer, layerRef);
+    if (!anchor) {
+        return;
+    }
+
+    try {
+        layerRef.move(anchor, ElementPlacement.PLACEAFTER);
+    } catch (e) {
+        if (stats) {
+            stats.topLevelPromotionFailureCount++;
+        }
+    }
+}
+
+function getTopLevelMoveAnchor(documentRef, mergedLayer, movingLayer) {
+    var topLayers = documentRef.layers;
+    for (var i = topLayers.length - 1; i >= 0; i--) {
+        var candidate = topLayers[i];
+        if (candidate === movingLayer) {
+            continue;
+        }
+        if (candidate !== mergedLayer) {
+            return candidate;
+        }
+    }
+    return mergedLayer || null;
+}
+
+// ==========================
+// 空レイヤー削除の制御関数 / Control loop for empty-layer deletion
+// - findEmptyLayers() : 現時点で空のレイヤー／サブレイヤーを収集
+// - deleteLayers()    : 収集済みレイヤーを実際に削除
+// - この関数          : 親レイヤーが後から空になるケースに備え、空がなくなるまで反復
+// ==========================
+function deleteEmptyLayersRecursively(documentRef, mergedLayer, options, stats) {
+    var guard = 0;
+    while (guard < 1000) {
+        var emptyLayerList = [];
+        findEmptyLayers(documentRef, emptyLayerList, mergedLayer, options);
+        if (emptyLayerList.length === 0) {
+            break;
+        }
+        deleteLayers(emptyLayerList, stats);
+        guard++;
+    }
+}
+
+// ==========================
+// 空レイヤー収集関数 / Collect empty layers recursively
+// - 削除は行わず、削除候補の収集だけを担当
+// - mergedLayer と除外名レイヤーは対象外
+// - トップレベルの非表示 / ロック除外はここで判定
+// - 子を先に走査し、現時点で空のレイヤーを resultArray に積む
 // ==========================
 function findEmptyLayers(container, resultArray, mergedLayer, options) {
     var layers = container.layers;
@@ -452,18 +738,29 @@ function findEmptyLayers(container, resultArray, mergedLayer, options) {
         if (currentLayer === mergedLayer) {
             continue;
         }
-        if (options.skipLockedLayers && currentLayer.locked) {
+        if (isExcludedLayer(currentLayer.name)) {
             continue;
         }
-        if (options.skipHiddenLayers && !currentLayer.visible) {
-            continue;
+
+        var isTopLevelLayer = !(currentLayer.parent && currentLayer.parent.typename === 'Layer');
+        var skipCurrentLayerDeletion = false;
+
+        if (options.skipLockedLayers && currentLayer.locked && isTopLevelLayer) {
+            skipCurrentLayerDeletion = true;
+        }
+        if (options.skipHiddenLayers && !currentLayer.visible && isTopLevelLayer) {
+            skipCurrentLayerDeletion = true;
         }
 
         if (currentLayer.layers.length > 0) {
             findEmptyLayers(currentLayer, resultArray, mergedLayer, options);
         }
 
-        var hasItems = currentLayer.pageItems.length > 0;
+        if (skipCurrentLayerDeletion) {
+            continue;
+        }
+
+        var hasItems = hasDirectPageItems(currentLayer);
         var hasChildLayers = currentLayer.layers.length > 0;
         if (!hasItems && !hasChildLayers) {
             resultArray.push(currentLayer);
@@ -471,13 +768,78 @@ function findEmptyLayers(container, resultArray, mergedLayer, options) {
     }
 }
 
-// ==========================
-// 指定レイヤー配列を削除する関数 / Delete listed layers
-// ==========================
-function deleteLayers(layerArray) {
-    for (var i = 0; i < layerArray.length; i++) {
-        try { layerArray[i].remove(); } catch (e) { }
+// 直属アイテム判定専用 / Check only whether the layer itself directly owns pageItems
+// 子サブレイヤー配下のアイテムは含めない。
+function hasDirectPageItems(layerRef) {
+    var items = layerRef.pageItems;
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].parent === layerRef) {
+            return true;
+        }
     }
+    return false;
+}
+
+// ==========================
+// 空レイヤー削除実行関数 / Delete listed layers
+// - 収集済みの削除候補だけを削除
+// - 深いサブレイヤーから先に削除
+// - 削除前に親レイヤーを一時的に visible / unlocked にして到達可能にする
+// - 収集ロジックや再試行制御は持たない
+// ==========================
+function deleteLayers(layerArray, stats) {
+    var sortedLayers = layerArray.slice(0);
+    sortedLayers.sort(function (a, b) {
+        return getLayerDepth(b) - getLayerDepth(a);
+    });
+
+    for (var i = 0; i < sortedLayers.length; i++) {
+        var layerRef = sortedLayers[i];
+        try {
+            if (!ensureLayerParentsAccessible(layerRef, stats)) {
+                if (stats) {
+                    stats.parentAccessFailureCount++;
+                }
+                continue;
+            }
+            layerRef.visible = true;
+            layerRef.locked = false;
+            layerRef.remove();
+        } catch (e) {
+            if (stats) {
+                stats.deleteFailureCount++;
+            }
+        }
+    }
+}
+
+function getLayerDepth(layerRef) {
+    var depth = 0;
+    var current = layerRef;
+    while (current && current.parent && current.parent.typename === 'Layer') {
+        depth++;
+        current = current.parent;
+    }
+    return depth;
+}
+
+function ensureLayerParentsAccessible(layerRef, stats) {
+    var chain = [];
+    var current = layerRef;
+    while (current && current.parent && current.parent.typename === 'Layer') {
+        current = current.parent;
+        chain.unshift(current);
+    }
+
+    for (var i = 0; i < chain.length; i++) {
+        try {
+            chain[i].visible = true;
+            chain[i].locked = false;
+        } catch (e) {
+            return false;
+        }
+    }
+    return true;
 }
 
 main();
