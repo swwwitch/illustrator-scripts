@@ -3,7 +3,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // スクリプトバージョン
 
-var SCRIPT_VERSION = "v1.7.1";
+var SCRIPT_VERSION = "v1.7.2";
 
 /*
 レイヤー統合（フラット化）を行うIllustrator用スクリプト。
@@ -185,9 +185,21 @@ var LABELS = {
         ja: 'ロック',
         en: 'Locked'
     },
+    layersPanelTitle: {
+        ja: 'レイヤー',
+        en: 'Layers'
+    },
     hiddenPanelTitle: {
         ja: '非表示',
         en: 'Hidden'
+    },
+    slashSlashLayer: {
+        ja: '「//」レイヤー',
+        en: '“//” layers'
+    },
+    objectsPanelTitle: {
+        ja: 'オブジェクト',
+        en: 'Objects'
     },
     skipLockedLayers: {
         ja: 'レイヤー',
@@ -207,7 +219,7 @@ var LABELS = {
     },
     toggleAllExclusions: {
         ja: '対象外設定を一括切替',
-        en: 'Toggle all on/off'
+        en: 'Toggle all exclusions'
     },
     deleteEmptyLayers: {
         ja: '空のレイヤー／サブレイヤーを削除',
@@ -315,6 +327,31 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
         return false;
     }
 
+    function documentHasAnySlashSlashLayers(container) {
+        var layers = container.layers;
+        for (var i = 0; i < layers.length; i++) {
+            if (layerHasAnySlashSlashLayers(layers[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function layerHasAnySlashSlashLayers(layerRef) {
+        if (isSlashSlashLayer(layerRef)) {
+            return true;
+        }
+
+        var childLayers = layerRef.layers;
+        for (var i = 0; i < childLayers.length; i++) {
+            if (layerHasAnySlashSlashLayers(childLayers[i])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     function layerHasAnyHiddenObjects(layerRef) {
         var pageItems = layerRef.pageItems;
         for (var i = 0; i < pageItems.length; i++) {
@@ -389,6 +426,7 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     var hasAnyLockedLayers = documentHasAnyLockedLayers(documentRef);
     var hasAnyHiddenLayers = documentHasAnyHiddenLayers(documentRef);
     var hasAnyHiddenObjects = documentHasAnyHiddenObjects(documentRef);
+    var hasAnySlashSlashLayers = documentHasAnySlashSlashLayers(documentRef);
     var hasAnyGuides = documentHasAnyGuides(documentRef);
     cbPromoteSublayers.enabled = hasAnySublayers;
     if (!hasAnySublayers) cbPromoteSublayers.value = false;
@@ -531,31 +569,37 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     excludeGroup.alignChildren = ['left', 'top'];
     excludeGroup.spacing = 15;
 
-    // 左カラム：ロック / Left column: locked
-    var lockedPanel = excludeGroup.add('panel', undefined, L('lockedPanelTitle'));
-    lockedPanel.orientation = 'column';
-    lockedPanel.alignChildren = 'left';
-    lockedPanel.margins = [15, 20, 15, 10];
+    // 左カラム：レイヤー / Left column: layers
+    var layerExcludePanel = excludeGroup.add('panel', undefined, L('layersPanelTitle'));
+    layerExcludePanel.orientation = 'column';
+    layerExcludePanel.alignChildren = 'left';
+    layerExcludePanel.margins = [15, 20, 15, 10];
 
-    var cbSkipLocked = lockedPanel.add('checkbox', undefined, L('skipLockedLayers'));
+    var cbSkipLocked = layerExcludePanel.add('checkbox', undefined, L('lockedPanelTitle'));
     cbSkipLocked.value = false;
     cbSkipLocked.enabled = hasAnyLockedLayers;
     if (!hasAnyLockedLayers) cbSkipLocked.value = false;
-    var cbSkipLockedObjects = lockedPanel.add('checkbox', undefined, L('skipLockedObjects'));
-    cbSkipLockedObjects.value = false;
 
-    // 右カラム：非表示 / Right column: hidden
-    var hiddenPanel = excludeGroup.add('panel', undefined, L('hiddenPanelTitle'));
-    hiddenPanel.orientation = 'column';
-    hiddenPanel.alignChildren = 'left';
-    hiddenPanel.margins = [15, 20, 15, 10];
-
-    var cbSkipHidden = hiddenPanel.add('checkbox', undefined, L('skipHiddenLayers'));
+    var cbSkipHidden = layerExcludePanel.add('checkbox', undefined, L('hiddenPanelTitle'));
     cbSkipHidden.value = false;
     cbSkipHidden.enabled = hasAnyHiddenLayers;
     if (!hasAnyHiddenLayers) cbSkipHidden.value = false;
 
-    var cbSkipHiddenObjects = hiddenPanel.add('checkbox', undefined, L('skipHiddenObjects'));
+    var cbSkipSlashSlashLayers = layerExcludePanel.add('checkbox', undefined, L('slashSlashLayer'));
+    cbSkipSlashSlashLayers.value = false;
+    cbSkipSlashSlashLayers.enabled = hasAnySlashSlashLayers;
+    if (!hasAnySlashSlashLayers) cbSkipSlashSlashLayers.value = false;
+
+    // 右カラム：オブジェクト / Right column: objects
+    var objectExcludePanel = excludeGroup.add('panel', undefined, L('objectsPanelTitle'));
+    objectExcludePanel.orientation = 'column';
+    objectExcludePanel.alignChildren = 'left';
+    objectExcludePanel.margins = [15, 20, 15, 10];
+
+    var cbSkipLockedObjects = objectExcludePanel.add('checkbox', undefined, L('lockedPanelTitle'));
+    cbSkipLockedObjects.value = false;
+
+    var cbSkipHiddenObjects = objectExcludePanel.add('checkbox', undefined, L('hiddenPanelTitle'));
     cbSkipHiddenObjects.value = false;
     cbSkipHiddenObjects.enabled = hasAnyHiddenObjects;
     if (!hasAnyHiddenObjects) cbSkipHiddenObjects.value = false;
@@ -572,11 +616,14 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
         if (cbSkipLocked.enabled) {
             enabledValues.push(cbSkipLocked.value);
         }
-        if (cbSkipLockedObjects.enabled) {
-            enabledValues.push(cbSkipLockedObjects.value);
-        }
         if (cbSkipHidden.enabled) {
             enabledValues.push(cbSkipHidden.value);
+        }
+        if (cbSkipSlashSlashLayers.enabled) {
+            enabledValues.push(cbSkipSlashSlashLayers.value);
+        }
+        if (cbSkipLockedObjects.enabled) {
+            enabledValues.push(cbSkipLockedObjects.value);
         }
         if (cbSkipHiddenObjects.enabled) {
             enabledValues.push(cbSkipHiddenObjects.value);
@@ -599,11 +646,14 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
         if (cbSkipLocked.enabled) {
             cbSkipLocked.value = newValue;
         }
-        if (cbSkipLockedObjects.enabled) {
-            cbSkipLockedObjects.value = newValue;
-        }
         if (cbSkipHidden.enabled) {
             cbSkipHidden.value = newValue;
+        }
+        if (cbSkipSlashSlashLayers.enabled) {
+            cbSkipSlashSlashLayers.value = newValue;
+        }
+        if (cbSkipLockedObjects.enabled) {
+            cbSkipLockedObjects.value = newValue;
         }
         if (cbSkipHiddenObjects.enabled) {
             cbSkipHiddenObjects.value = newValue;
@@ -612,8 +662,9 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     };
 
     cbSkipLocked.onClick = updateToggleAllExclusionsState;
-    cbSkipLockedObjects.onClick = updateToggleAllExclusionsState;
     cbSkipHidden.onClick = updateToggleAllExclusionsState;
+    cbSkipSlashSlashLayers.onClick = updateToggleAllExclusionsState;
+    cbSkipLockedObjects.onClick = updateToggleAllExclusionsState;
     cbSkipHiddenObjects.onClick = updateToggleAllExclusionsState;
     updateToggleAllExclusionsState();
 
@@ -640,6 +691,7 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     return {
         skipLockedLayers: cbSkipLocked.value,
         skipHiddenLayers: cbSkipHidden.value,
+        skipSlashSlashLayers: cbSkipSlashSlashLayers.value,
         skipLockedObjects: cbSkipLockedObjects.value,
         skipHiddenObjects: cbSkipHiddenObjects.value,
         promoteSublayersToTopLevel: cbPromoteSublayers.value,
@@ -888,7 +940,7 @@ function isGuideItem(item) {
         if (item.guides === true) {
             return true;
         }
-    } catch (e) {}
+    } catch (e) { }
 
     return false;
 }
@@ -954,6 +1006,7 @@ function moveItemsToTargetLayer(sourceLayer, destinationLayer, options, stats) {
     if (sourceLayer === destinationLayer) return false;
     if (options.skipLockedLayers && sourceLayer.locked) return false;
     if (options.skipHiddenLayers && !sourceLayer.visible) return false;
+    if (options.skipSlashSlashLayers && isSlashSlashLayer(sourceLayer)) return false;
 
     var didMove = false;
 
@@ -1069,6 +1122,13 @@ function isHiddenOnlyByLayerVisibility(item) {
     return false;
 }
 
+function isSlashSlashLayer(layerRef) {
+    if (!layerRef || layerRef.name == null) {
+        return false;
+    }
+    return String(layerRef.name).indexOf('//') === 0;
+}
+
 /* Exclude-name map for layers (case-insensitive, trimmed) */
 var EXCLUDE = {
     "bg": 1,
@@ -1119,6 +1179,9 @@ function collectDirectSublayers(container, resultArray, mergedLayer, options) {
             continue;
         }
         if (options.skipHiddenLayers && !currentLayer.visible) {
+            continue;
+        }
+        if (options.skipSlashSlashLayers && isSlashSlashLayer(currentLayer)) {
             continue;
         }
 
@@ -1213,6 +1276,9 @@ function findEmptyLayers(container, resultArray, mergedLayer, options) {
             skipCurrentLayerDeletion = true;
         }
         if (options.skipHiddenLayers && !currentLayer.visible) {
+            skipCurrentLayerDeletion = true;
+        }
+        if (options.skipSlashSlashLayers && isSlashSlashLayer(currentLayer)) {
             skipCurrentLayerDeletion = true;
         }
 
