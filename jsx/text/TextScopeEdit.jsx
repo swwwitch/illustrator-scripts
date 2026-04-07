@@ -1,7 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.2.8";
+var SCRIPT_VERSION = "v1.3.5";
 
 /*
 
@@ -16,9 +16,9 @@ TextScopeEdit.jsx
 ロックまたは非表示のテキストを対象に含めた場合でも、一時的に編集可能な状態にしてから内容を更新し、処理後に元の状態へ戻します。収集時のロック・非表示判定は、親グループや親コンテナの状態も含めて確認します。
 シンボル内のテキストは編集対象外ですが、一覧表示には対応します。現在のアートボード内を選んだときは、そのアートボード内にあるシンボルインスタンスのみを対象にします。シンボル内テキストの読み取り結果は、対象範囲・//レイヤー・ロック・非表示の条件ごとにダイアログ表示中キャッシュします。条件が変わった場合のみ再読込します。
 シンボル内テキストの読み取りは、同名シンボルをアートボードごとに1回だけ対象にします。対象条件の判定、重複除外、一時レイヤーでの複製・breakLink・後始末は共通処理化しています。読み取りに使った複製オブジェクトは削除し、元のカンバス上のシンボルには触れません。一時レイヤーは必要時のみ作成し、このスクリプトが作成した場合のみ削除します。
-ダイアログ左側には「テキスト一覧」「テキスト編集」「シンボル内テキスト（編集不可）」を表示します。テキスト編集欄の高さは4行分です。シンボル内テキスト一覧の高さは内容件数に応じて自動調整され、最小4行・最大8行の範囲で表示します。
+ダイアログ全体をタブ構成にしています。カンバスタブには従来どおり「テキスト一覧」「テキスト編集」「シンボル内テキスト（編集不可）」と各種オプションを表示します。追加した「レイヤー名」タブは常にドキュメント全体を対象とし、上部のラジオボタンで「すべてのレイヤー」と「上位レベルのレイヤーのみ」を切り替えできます。デフォルトは「上位レベルのレイヤーのみ」です。「アートボード名」タブも常にドキュメント全体を対象とし、上部のラジオボタンで「番号つき」と「アートボード名のみ」を切り替えできます。デフォルトは「番号つき」です。「フォント名」タブは常にドキュメント全体・すべてのレイヤー・ロック・非表示を含めて収集し、「PostScript名」「フォント名」「スタイル」の3列で表示します。上部のチェックボックスで各列の表示・非表示を切り替えられ、項目をクリックすると、該当するテキストオブジェクトを選択します。テキスト編集欄の高さは4行分です。シンボル内テキスト一覧の高さは内容件数に応じて自動調整され、最小4行・最大8行の範囲で表示します。
 段落書式を保持がオンのときは、プレビューを自動でオフにして無効化します。プレビュー中に切り替えた場合も、プレビュー状態を解除してから反映します。
-［テキスト書き出し］で、ドキュメント内の通常テキストとシンボル内テキストをアートボードごとにまとめてデスクトップへテキストファイルとして書き出します。書き出し時は、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体の範囲指定、および //ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかの条件を反映します。重複のまとめ表示やソート状態には影響されません。各アートボードは ---アートボード番号: アートボード名--- / アートボード外は ---アートボード外--- の見出しで区切られ、シンボル内テキストも配置されているアートボードごとにまとめて出力します。シンボル内テキストは「〈シンボル：名前〉」の形式で末尾に付加されます。OKで現在選択中のテキストに編集内容を反映して閉じます。キャンセルでダイアログを閉じます。
+［テキスト書き出し］実行時には、書き出し情報ダイアログを表示します。ダイアログでは「テキスト」と「フォント名」を出力するかどうか、および書き出し後にファイルを開くかどうかを選べます。デフォルトでは書き出し後にファイルを開きます。書き出し時は、現在のアートボード内 / すべてのアートボード内 / ドキュメント全体の範囲指定、および //ではじめるレイヤーを含めるかどうか、ロックされたテキスト、非表示のテキストを対象に含めるかどうかの条件を反映します。重複のまとめ表示やソート状態には影響されません。各アートボードは ---アートボード番号: アートボード名--- / アートボード外は ---アートボード外--- の見出しで区切られ、必要に応じてテキストとフォント名を書き出します。シンボル内テキストは「〈シンボル：名前〉」の形式で末尾に付加されます。OKで現在選択中のテキストに編集内容を反映して閉じます。キャンセルでダイアログを閉じます。
 
 Overview
 Collect text in the document based on the selected conditions, show it in a list, and edit the contents.
@@ -29,11 +29,11 @@ Text inside groups and sublayers is supported. Effectively empty text objects ar
 When locked or hidden text is included, the script temporarily makes it editable, updates the contents, and then restores the original state. Collectability checks for locked and hidden states also inspect parent groups and parent containers.
 Text inside symbols is not editable, but listing is supported. When Current Artboard Only is selected, only symbol instances on the current artboard are targeted. Symbol text results are cached while the dialog is open per condition set, including scope, // layers, locked text, and hidden text. They are reloaded only when those conditions change.
 To read text inside symbols, the script targets each symbol name once per artboard. Scope filtering, duplicate elimination, temporary-layer duplication, break-linking, and cleanup are shared internally. The temporary duplicate objects are then removed, and the original symbols on the canvas remain untouched. The temporary layer is created only when needed and is removed only if this script created it.
-The left side of the dialog shows Text List, Edit Text, and Text in Symbols (Read-Only). The Edit Text field height is 4 lines. The height of the symbol text list adjusts automatically to the number of items, with a minimum of 4 rows and a maximum of 8 rows.
+The whole dialog now uses tabs. The Canvas tab keeps the existing Text List, Edit Text, Text in Symbols (Read-Only), and the existing option controls. The Layer Names tab always targets the entire document and provides radio buttons to switch between All Layers and Top-Level Layers Only. The default is Top-Level Layers Only. The Artboard Names tab also always targets the entire document and provides radio buttons to switch between Numbered and Names Only. The default is Numbered. The Font Name tab always collects items from the entire document including all layers, locked text, and hidden text, and displays them in three columns: PostScript name, font family name, and style. The checkboxes above the list let you show or hide each column independently, and clicking an item selects all matching text objects. The Edit Text field height is 4 lines. The height of the symbol text list adjusts automatically to the number of items, with a minimum of 4 rows and a maximum of 8 rows.
 When Keep Paragraph Formatting is enabled, Preview is turned off automatically and disabled. If you switch it on while previewing, the preview state is cleared before the change is applied.
-[Export Text] writes regular text in the document and the text found inside symbols to a text file on the Desktop, grouped by artboard. Export respects the current scope setting (current artboard, all artboards, or entire document), as well as whether layers starting with // are included and whether locked or hidden text is included. Duplicate grouping and sort state do not affect export. Each artboard is written under a ---Artboard Number: Artboard Name--- heading, and items outside all artboards are written under ---Outside Artboards---. Text found inside symbols is also grouped under the artboard where that symbol instance is placed. Symbol text lines append "«Symbol: name»" in English. Pressing OK applies the current edit to the selected text and closes the dialog. Cancel closes the dialog.
+When [Export Text] is clicked, the script first shows an Export Information dialog. In that dialog, you can choose whether to include Text and Font Names, and whether to open the exported file afterward. Opening the file after export is enabled by default. Export respects the current scope setting (current artboard, all artboards, or entire document), as well as whether layers starting with // are included and whether locked or hidden text is included. Duplicate grouping and sort state do not affect export. Each artboard is written under a ---Artboard Number: Artboard Name--- heading, and, depending on the selected options, the export includes text and font names. Text found inside symbols is also grouped under the artboard where that symbol instance is placed. Symbol text lines append "«Symbol: name»" in English. Pressing OK applies the current edit to the selected text and closes the dialog. Cancel closes the dialog.
 
-更新日 / Updated: 2026-04-03
+更新日 / Updated: 2026-04-08
 
 紹介記事（note）
 https://note.com/dtp_tranist/n/nb845889dd553
@@ -58,7 +58,7 @@ var lang = getCurrentLang();
 var LABELS = {
     dialogTitle: { ja: "テキストの収集と編集", en: "Collect and Edit Text" },
     panelTargetText: { ja: "対象テキスト（アートボード）", en: "Text Scope (Artboards)" },
-    panelLayerText: { ja: "対象テキスト（レイヤー）", en: "Text Scope (Layers)" },
+    panelLayerText: { ja: "対象テキスト（レイヤーなど）", en: "Text Scope (Layers)" },
     rbCurrentArtboard: { ja: "現在のアートボード内", en: "Current Artboard Only" },
     rbAllArtboards: { ja: "すべてのアートボード内", en: "All Artboards Only" },
     cbDedup: { ja: "同じ内容を一括編集", en: "Treat Same Text as One" },
@@ -77,6 +77,12 @@ var LABELS = {
     exportText: { ja: "テキスト書き出し", en: "Export Text" },
     exportDone: { ja: "テキストを書き出しました", en: "Text exported" },
     exportFailed: { ja: "テキストを書き出せませんでした", en: "Failed to export text" },
+
+    exportDialogTitle: { ja: "書き出し情報", en: "Export Information" },
+    exportIncludeText: { ja: "テキスト", en: "Text" },
+    exportIncludeFonts: { ja: "フォント名", en: "Font Names" },
+    exportOpenAfter: { ja: "書き出し後にファイルを開く", en: "Open file after export" },
+
     preview: { ja: "プレビュー", en: "Preview" },
     previewTip: { ja: "編集結果をリアルタイムで\nプレビューします", en: "Preview the edited result\nin real time" },
     previewDisabledTip: { ja: "CC 2020ではプレビュー無効", en: "Preview is disabled in CC 2020" },
@@ -84,7 +90,29 @@ var LABELS = {
     itemPrefix: { ja: ": ", en: ": " },
     symbolTextLabel: { ja: "シンボル内テキスト（編集不可）", en: "Text in Symbols (Read-Only)" },
     textListLabel: { ja: "テキスト一覧", en: "Text List" },
-    textEditLabel: { ja: "テキスト編集", en: "Edit Text" }
+    textEditLabel: { ja: "テキスト編集", en: "Edit Text" },
+    tabCanvas: { ja: "カンバス", en: "Canvas" },
+    tabLayerNames: { ja: "レイヤー名", en: "Layer Names" },
+    tabArtboardNames: { ja: "アートボード名", en: "Artboard Names" },
+    tabFontNames: { ja: "フォント名", en: "Font Name" },
+    layerNameListLabel: { ja: "レイヤー名一覧", en: "Layer Name List" },
+    layerScopeAll: { ja: "すべてのレイヤー", en: "All Layers" },
+    layerScopeTop: { ja: "上位レベルのレイヤーのみ", en: "Top-Level Layers Only" },
+    layerScopePanel: { ja: "表示範囲", en: "Scope" },
+    artboardNameListLabel: { ja: "アートボード名一覧", en: "Artboard Name List" },
+    artboardScopeNumbered: { ja: "番号つき", en: "Numbered" },
+    artboardScopeRaw: { ja: "アートボード名のみ", en: "Names Only" },
+    artboardScopePanel: { ja: "表示形式", en: "Display" },
+    fontListLabel: { ja: "フォント一覧", en: "Font List" },
+    fontColumnPS: { ja: "PostScript名", en: "PostScript Name" },
+    fontColumnFamily: { ja: "フォント名", en: "Font Name" },
+    fontColumnStyle: { ja: "スタイル", en: "Style" },
+    fontTogglePS: { ja: "PostScript名", en: "PostScript Name" },
+    fontToggleFamily: { ja: "フォント名", en: "Font Name" },
+    fontToggleStyle: { ja: "スタイル", en: "Style" },
+    outsideArtboards: { ja: "アートボード外", en: "Outside Artboards" },
+    unknownFont: { ja: "不明", en: "Unknown" },
+    noMatchingFontText: { ja: "該当するテキストがありません", en: "No matching text found" }
 };
 
 function L(key) {
@@ -388,6 +416,270 @@ function main() {
             return result;
         }
 
+        function getCurrentScopeModeValue() {
+            if (cbOutside.value) {
+                return 'all';
+            }
+            if (rbAll.value) {
+                return 'allArtboards';
+            }
+            return 'current';
+        }
+
+        function getScopedFramesForInfoTabs() {
+            var options = {
+                includeComment: true,
+                includeLocked: true,
+                includeHidden: true
+            };
+            return collectFramesByScope('all', options);
+        }
+
+        function collectAllLayerNamesFromLayer(layer, layerNames, layerMap) {
+            var name = '';
+            var i;
+            if (!layer) return;
+
+            try {
+                name = layer.name;
+            } catch (e) {
+                name = '';
+            }
+            if (name && !layerMap[name]) {
+                layerMap[name] = true;
+                layerNames.push(name);
+            }
+
+            for (i = 0; i < layer.layers.length; i++) {
+                collectAllLayerNamesFromLayer(layer.layers[i], layerNames, layerMap);
+            }
+        }
+
+        function collectAllDocumentLayerNames() {
+            var layerNames = [];
+            var layerMap = {};
+            var i;
+            for (i = 0; i < doc.layers.length; i++) {
+                collectAllLayerNamesFromLayer(doc.layers[i], layerNames, layerMap);
+            }
+            return layerNames;
+        }
+
+        function collectTopLevelLayerNames() {
+            var layerNames = [];
+            var i;
+            var name;
+            for (i = 0; i < doc.layers.length; i++) {
+                try {
+                    name = doc.layers[i].name;
+                } catch (e) {
+                    name = '';
+                }
+                if (name) {
+                    layerNames.push(name);
+                }
+            }
+            return layerNames;
+        }
+
+        function getTextFrameFontNames(tf) {
+            var names = {};
+            var result = [];
+            var chars;
+            var i;
+            var fontName;
+
+            if (!tf) return result;
+
+            try {
+                chars = tf.characters;
+                for (i = 0; i < chars.length; i++) {
+                    try {
+                        fontName = chars[i].characterAttributes.textFont.name;
+                    } catch (e) {
+                        fontName = '';
+                    }
+                    if (!fontName) continue;
+                    if (!names[fontName]) {
+                        names[fontName] = true;
+                        result.push(fontName);
+                    }
+                }
+            } catch (err) { }
+
+            if (result.length === 0) {
+                result.push(L('unknownFont'));
+            }
+            return result;
+        }
+
+        function getTextFrameFontStyles(tf) {
+            var names = {};
+            var result = [];
+            var chars;
+            var i;
+            var styleName;
+            if (!tf) return result;
+
+            try {
+                chars = tf.characters;
+                for (i = 0; i < chars.length; i++) {
+                    try {
+                        styleName = chars[i].characterAttributes.textFont.style;
+                    } catch (e) {
+                        styleName = '';
+                    }
+                    if (!styleName) continue;
+                    if (!names[styleName]) {
+                        names[styleName] = true;
+                        result.push(styleName);
+                    }
+                }
+            } catch (err) { }
+
+            if (result.length === 0) {
+                result.push('');
+            }
+            return result;
+        }
+
+        function getTextFrameFontTriples(tf) {
+            var triples = [];
+            var seen = {};
+            var chars;
+            var i;
+            var fontObj;
+            var psName;
+            var familyName;
+            var styleName;
+            var key;
+
+            if (!tf) return triples;
+
+            try {
+                chars = tf.characters;
+                for (i = 0; i < chars.length; i++) {
+                    try {
+                        fontObj = chars[i].characterAttributes.textFont;
+                        psName = fontObj.name || L('unknownFont');
+                        familyName = fontObj.family || L('unknownFont');
+                        styleName = fontObj.style || '';
+                    } catch (e) {
+                        psName = L('unknownFont');
+                        familyName = L('unknownFont');
+                        styleName = '';
+                    }
+                    key = psName + '\t' + familyName + '\t' + styleName;
+                    if (!seen[key]) {
+                        seen[key] = true;
+                        triples.push({
+                            psName: psName,
+                            familyName: familyName,
+                            styleName: styleName
+                        });
+                    }
+                }
+            } catch (err) { }
+
+            if (triples.length === 0) {
+                triples.push({
+                    psName: L('unknownFont'),
+                    familyName: L('unknownFont'),
+                    styleName: ''
+                });
+            }
+            return triples;
+        }
+
+        // Helper function: getTextFrameFontFamilies
+        function getTextFrameFontFamilies(tf) {
+            var names = {};
+            var result = [];
+            var chars;
+            var i;
+            var fontFamily;
+            var fontStyle;
+            var combined;
+            if (!tf) return result;
+
+            try {
+                chars = tf.characters;
+                for (i = 0; i < chars.length; i++) {
+                    try {
+                        var fontObj = chars[i].characterAttributes.textFont;
+                        fontFamily = fontObj.family;
+                        fontStyle = fontObj.style;
+                        combined = fontStyle ? (fontFamily + " " + fontStyle) : fontFamily;
+                    } catch (e) {
+                        combined = '';
+                    }
+
+                    if (!combined) continue;
+                    if (!names[combined]) {
+                        names[combined] = true;
+                        result.push(combined);
+                    }
+                }
+            } catch (err) { }
+
+            if (result.length === 0) {
+                result.push(L('unknownFont'));
+            }
+            return result;
+        }
+
+        function refreshInfoTabs() {
+            var frames = getScopedFramesForInfoTabs();
+            var fontDisplayMap = {};
+            var layerNames = rbLayerScopeTop.value ? collectTopLevelLayerNames() : collectAllDocumentLayerNames();
+            var artboardNames = [];
+            var fontRows = [];
+            var i;
+            var j;
+            var triples;
+            var key;
+
+            // Make artboard scope switch robust if rbArtboardScopeRaw is not defined
+            for (i = 0; i < doc.artboards.length; i++) {
+                var useRaw = (typeof rbArtboardScopeRaw !== 'undefined' && rbArtboardScopeRaw && rbArtboardScopeRaw.value);
+                artboardNames.push(useRaw ? getRawArtboardName(i) : getArtboardTabDisplayName(i));
+            }
+
+            for (i = 0; i < frames.length; i++) {
+                triples = getTextFrameFontTriples(frames[i]);
+                for (j = 0; j < triples.length; j++) {
+                    key = triples[j].psName + '\t' + triples[j].familyName + '\t' + triples[j].styleName;
+                    if (!fontDisplayMap[key]) {
+                        fontDisplayMap[key] = true;
+                        fontRows.push(triples[j]);
+                    }
+                }
+            }
+
+            layerNames.sort();
+            artboardNames.sort();
+            fontRows.sort(function (a, b) {
+                var ak = a.psName + '\t' + a.familyName + '\t' + a.styleName;
+                var bk = b.psName + '\t' + b.familyName + '\t' + b.styleName;
+                if (ak < bk) return -1;
+                if (ak > bk) return 1;
+                return 0;
+            });
+
+            layerNameEdit.text = layerNames.join("\n");
+            artboardNameEdit.text = artboardNames.join("\n");
+            fontNameListBox.removeAll();
+            for (i = 0; i < fontRows.length; i++) {
+                var firstColText = cbFontPS.value ? fontRows[i].psName : '';
+                var secondColText = cbFontFamily.value ? fontRows[i].familyName : '';
+                var thirdColText = cbFontStyle.value ? fontRows[i].styleName : '';
+                var item = fontNameListBox.add('item', firstColText);
+                item.subItems[0].text = secondColText;
+                item.subItems[1].text = thirdColText;
+                item.psNameKey = fontRows[i].psName;
+            }
+        }
+
         function gatherFrames(mode) {
             var options = {
                 includeComment: cbSkipComment.value,
@@ -666,16 +958,6 @@ function main() {
             }
         }
 
-        function getCurrentScopeMode() {
-            if (cbOutside.value) {
-                return 'all';
-            }
-            if (rbAll.value) {
-                return 'allArtboards';
-            }
-            return 'current';
-        }
-
         function buildSymbolCollectOptions() {
             return {
                 includeComment: cbSkipComment.value,
@@ -806,9 +1088,9 @@ function main() {
 
         function collectSymbolTexts() {
             var results = [];
-            var scopeMode = getCurrentScopeMode();
+            var exportScopeMode = getCurrentScopeModeValue();
             var options = buildSymbolCollectOptions();
-            var scopedItems = collectScopedSymbolItems(options, scopeMode);
+            var scopedItems = collectScopedSymbolItems(options, exportScopeMode);
 
             collectTextsFromScopedSymbolItems(scopedItems, function (symbolName, artboardIndex, text) {
                 var sep = (lang === 'ja') ? '：' : ': ';
@@ -853,6 +1135,7 @@ function main() {
             if (textFrameList.length > 0) {
                 listBox.selection = 0;
             }
+            refreshInfoTabs();
         }
 
         function getSymbolTexts(forceRefresh) {
@@ -896,22 +1179,32 @@ function main() {
             dlg.orientation = "column";
             dlg.alignChildren = ["fill", "top"];
 
-            /* 2カラム: 左=listbox+editbox、右=オプション、下=ボタンエリア / Two columns: left = listbox + edit box, right = options, bottom = button area */
-            var mainGroup = dlg.add("group");
+            /* ダイアログ全体をタブで構成 / Use tabs for the whole dialog */
+            var infoTabs = dlg.add("tabbedpanel");
+            infoTabs.alignChildren = ["fill", "fill"];
+            infoTabs.preferredSize = [550, 350];
+            infoTabs.margins = [15, 10, 1, 10];
+
+            var canvasTab = infoTabs.add("tab", undefined, L("tabCanvas"));
+            canvasTab.orientation = "row";
+            canvasTab.alignChildren = ["fill", "fill"];
+            canvasTab.margins = [15, 20, 1, 10];
+            canvasTab.spacing = 15;
+
+            var mainGroup = canvasTab.add("group");
             mainGroup.orientation = "row";
             mainGroup.alignChildren = ["fill", "fill"];
 
             /* 左カラム / Left column */
             var leftCol = mainGroup.add("group");
             leftCol.orientation = "column";
-            leftCol.alignChildren = ["fill", "top"];
+            leftCol.alignChildren = ["fill", "fill"];
 
             leftCol.add("statictext", undefined, L("textListLabel"));
             var listBox = leftCol.add("listbox", [0, 0, 250, 194], []);
             leftCol.add("statictext", undefined, L("textEditLabel"));
             var editBox = leftCol.add("edittext", [0, 0, 250, 72], "", { multiline: true, scrolling: true });
 
-            /* シンボル内テキスト / Text in symbols */
             leftCol.add("statictext", undefined, L("symbolTextLabel"));
             var symbolListBox = leftCol.add("listbox", [0, 0, 250, SYMBOL_LIST_MIN_ROWS * SYMBOL_LIST_ROW_HEIGHT + SYMBOL_LIST_EXTRA_HEIGHT], []);
             symbolListBox.alignment = ["fill", "fill"];
@@ -925,7 +1218,7 @@ function main() {
             var targetPanel = rightCol.add("panel", undefined, L("panelTargetText"));
             targetPanel.orientation = "column";
             targetPanel.alignChildren = ["left", "top"];
-            targetPanel.margins = [15, 20, 15, 10];
+            targetPanel.margins = [15, 20, 1, 10];
 
             var rbGroup = targetPanel.add("group");
             rbGroup.orientation = "column";
@@ -943,7 +1236,7 @@ function main() {
             var layerPanel = rightCol.add("panel", undefined, L("panelLayerText"));
             layerPanel.orientation = "column";
             layerPanel.alignChildren = ["left", "top"];
-            layerPanel.margins = [15, 20, 15, 10];
+            layerPanel.margins = [15, 20, 1, 10];
 
             var cbSkipComment = layerPanel.add("checkbox", undefined, L("cbSkipComment"));
             cbSkipComment.value = false;
@@ -956,7 +1249,7 @@ function main() {
             var sortPanel = rightCol.add("panel", undefined, L("panelSort"));
             sortPanel.orientation = "column";
             sortPanel.alignChildren = ["left", "top"];
-            sortPanel.margins = [15, 20, 15, 10];
+            sortPanel.margins = [15, 20, 1, 10];
             var sortGroup = sortPanel.add("group");
             sortGroup.orientation = "row";
             sortGroup.alignChildren = ["left", "center"];
@@ -979,6 +1272,76 @@ function main() {
 
             var isPreview = optionsGroup.add("checkbox", undefined, L("preview"));
             isPreview.helpTip = L("previewTip");
+
+            var layerNamesTab = infoTabs.add("tab", undefined, L("tabLayerNames"));
+            layerNamesTab.orientation = "column";
+            layerNamesTab.alignChildren = ["fill", "top"];
+            layerNamesTab.margins = [15, 20, 0, 10];
+            layerNamesTab.spacing = 10;
+
+            layerNamesTab.add("statictext", undefined, L("layerNameListLabel"));
+
+            var layerScopePanel = layerNamesTab.add("group");
+            layerScopePanel.orientation = "row";
+            layerScopePanel.alignChildren = ["left", "center"];
+            layerScopePanel.spacing = 15;
+
+            var rbLayerScopeTop = layerScopePanel.add("radiobutton", undefined, L("layerScopeTop"));
+            var rbLayerScopeAll = layerScopePanel.add("radiobutton", undefined, L("layerScopeAll"));
+            rbLayerScopeTop.value = true;
+
+            var layerNameEdit = layerNamesTab.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: true });
+            layerNameEdit.alignment = ["fill", "fill"];
+
+            var artboardNamesTab = infoTabs.add("tab", undefined, L("tabArtboardNames"));
+            artboardNamesTab.orientation = "column";
+            artboardNamesTab.alignChildren = ["fill", "top"];
+            artboardNamesTab.margins = [15, 20, 0, 10];
+            artboardNamesTab.spacing = 10;
+
+            artboardNamesTab.add("statictext", undefined, L("artboardNameListLabel"));
+
+            var artboardScopeGroup = artboardNamesTab.add("group");
+            artboardScopeGroup.orientation = "row";
+            artboardScopeGroup.alignChildren = ["left", "center"];
+            artboardScopeGroup.spacing = 15;
+
+            var rbArtboardScopeNumbered = artboardScopeGroup.add("radiobutton", undefined, L("artboardScopeNumbered"));
+            var rbArtboardScopeRaw = artboardScopeGroup.add("radiobutton", undefined, L("artboardScopeRaw"));
+            rbArtboardScopeNumbered.value = true;
+
+            var artboardNameEdit = artboardNamesTab.add("edittext", undefined, "", { multiline: true, scrolling: true, readonly: true });
+            artboardNameEdit.alignment = ["fill", "fill"];
+
+            var fontNamesTab = infoTabs.add("tab", undefined, L("tabFontNames"));
+            fontNamesTab.orientation = "column";
+            fontNamesTab.alignChildren = ["fill", "top"];
+            fontNamesTab.margins = [15, 20, 0, 10];
+            fontNamesTab.spacing = 10;
+
+            fontNamesTab.add("statictext", undefined, L("fontListLabel"));
+
+            var fontToggleGroup = fontNamesTab.add("group");
+            fontToggleGroup.orientation = "row";
+            fontToggleGroup.alignChildren = ["left", "center"];
+            fontToggleGroup.spacing = 15;
+
+            var cbFontPS = fontToggleGroup.add("checkbox", undefined, L("fontTogglePS"));
+            cbFontPS.value = true;
+            var cbFontFamily = fontToggleGroup.add("checkbox", undefined, L("fontToggleFamily"));
+            cbFontFamily.value = true;
+            var cbFontStyle = fontToggleGroup.add("checkbox", undefined, L("fontToggleStyle"));
+            cbFontStyle.value = true;
+
+            var fontNameListBox = fontNamesTab.add("listbox", undefined, [], {
+                numberOfColumns: 3,
+                showHeaders: true,
+                columnTitles: [L("fontColumnPS"), L("fontColumnFamily"), L("fontColumnStyle")],
+                columnWidths: [180, 180, 120]
+            });
+            fontNameListBox.alignment = ["fill", "fill"];
+
+            infoTabs.selection = canvasTab;
 
             var buttonRow = dlg.add("group");
             buttonRow.orientation = "row";
@@ -1025,7 +1388,17 @@ function main() {
                 closeBtn: closeBtn,
                 exportTextBtn: exportTextBtn,
                 isPreview: isPreview,
-                symbolListBox: symbolListBox
+                symbolListBox: symbolListBox,
+                layerNameEdit: layerNameEdit,
+                rbLayerScopeAll: rbLayerScopeAll,
+                rbLayerScopeTop: rbLayerScopeTop,
+                artboardNameEdit: artboardNameEdit,
+                rbArtboardScopeNumbered: rbArtboardScopeNumbered,
+                rbArtboardScopeRaw: rbArtboardScopeRaw,
+                fontNameListBox: fontNameListBox,
+                cbFontPS: cbFontPS,
+                cbFontFamily: cbFontFamily,
+                cbFontStyle: cbFontStyle
             };
         }
 
@@ -1049,6 +1422,16 @@ function main() {
         var exportTextBtn = ui.exportTextBtn;
         var isPreview = ui.isPreview;
         var symbolListBox = ui.symbolListBox;
+        var layerNameEdit = ui.layerNameEdit;
+        var rbLayerScopeAll = ui.rbLayerScopeAll;
+        var rbLayerScopeTop = ui.rbLayerScopeTop;
+        var artboardNameEdit = ui.artboardNameEdit;
+        var rbArtboardScopeNumbered = ui.rbArtboardScopeNumbered;
+        var rbArtboardScopeRaw = ui.rbArtboardScopeRaw;
+        var fontNameListBox = ui.fontNameListBox;
+        var cbFontPS = ui.cbFontPS;
+        var cbFontFamily = ui.cbFontFamily;
+        var cbFontStyle = ui.cbFontStyle;
 
         // =========================================
         // イベントハンドラ / Event handlers
@@ -1061,6 +1444,48 @@ function main() {
                 editBox.text = textFrameList[idx].contents.replace(/\x03/g, SOFT_BREAK);
             }
         };
+
+        fontNameListBox.onChange = function () {
+            if (fontNameListBox.selection !== null) {
+                selectTextFramesByFontMatch(fontNameListBox.selection.psNameKey);
+            }
+        };
+        function selectTextFramesByFontMatch(targetPSName) {
+            var frames = getScopedFramesForInfoTabs();
+            var matches = [];
+            var i;
+
+            if (!targetPSName) return;
+
+            for (i = 0; i < frames.length; i++) {
+                if (getTextFrameFontNames(frames[i]).join('\n').indexOf(targetPSName) >= 0) {
+                    matches.push(frames[i]);
+                }
+            }
+
+            try {
+                doc.selection = null;
+            } catch (e1) { }
+
+            if (matches.length === 0) {
+                alert(L('noMatchingFontText'));
+                return;
+            }
+
+            for (i = 0; i < matches.length; i++) {
+                try {
+                    matches[i].selected = true;
+                } catch (e2) { }
+            }
+
+            try {
+                app.redraw();
+            } catch (e3) { }
+        }
+
+        cbFontPS.onClick = function () { refreshInfoTabs(); };
+        cbFontFamily.onClick = function () { refreshInfoTabs(); };
+        cbFontStyle.onClick = function () { refreshInfoTabs(); };
 
         function reflectPreviewEnabledState() {
             if (parseInt(app.version) != 24) {
@@ -1129,9 +1554,15 @@ function main() {
             var file = null;
             var content;
             var wasPreviewActive = isUndo;
+            var exportSettings;
             try {
                 clearPreviewIfNeeded();
-                content = buildExportText();
+                exportSettings = showExportOptionsDialog();
+                if (!exportSettings) {
+                    restorePreviewIfNeeded(wasPreviewActive);
+                    return;
+                }
+                content = buildExportText(exportSettings);
                 filePath = Folder.desktop.fsName + '/text-' + sanitizeFileName(getDocumentBaseName(doc)) + '-' + getDateTimeStamp() + '.txt';
                 file = new File(filePath);
                 file.encoding = 'UTF-8';
@@ -1142,7 +1573,11 @@ function main() {
                 file.write(content);
                 file.close();
                 restorePreviewIfNeeded(wasPreviewActive);
-                alert(L('exportDone') + '\n' + file.fsName);
+                if (exportSettings.openAfter) {
+                    try {
+                        file.execute();
+                    } catch (openErr) { }
+                }
             } catch (e) {
                 try {
                     if (file && file.opened) file.close();
@@ -1167,21 +1602,24 @@ function main() {
         }
 
         /* テキスト書き出し用テキスト生成 / Build export text grouped by artboard */
-        function buildExportText() {
+        function buildExportText(exportSettings) {
             var exportOptions = {
                 includeComment: cbSkipComment.value,
                 includeLocked: cbIncludeLocked.value,
                 includeHidden: cbIncludeHidden.value
             };
-            var exportScopeMode;
-            if (cbOutside.value) {
-                exportScopeMode = 'all';
-            } else if (rbAll.value) {
-                exportScopeMode = 'allArtboards';
-            } else {
-                exportScopeMode = 'current';
-            }
+            var exportScopeMode = getCurrentScopeModeValue();
             var artboardGroups = collectArtboardGroupedExportData(exportOptions, exportScopeMode);
+            var artboardFontGroups = collectArtboardGroupedFontFrames(exportOptions, exportScopeMode);
+
+            if (!exportSettings) {
+                exportSettings = {
+                    includeText: true,
+                    includeFonts: true,
+                    openAfter: false
+                };
+            }
+
             var lines = [];
             var i;
             var j;
@@ -1189,25 +1627,46 @@ function main() {
             for (i = 0; i < artboardGroups.length; i++) {
                 if (i > 0) lines.push('');
                 lines.push('---' + artboardGroups[i].name + '---');
-                for (j = 0; j < artboardGroups[i].texts.length; j++) {
-                    lines.push(artboardGroups[i].texts[j]);
+
+                if (exportSettings.includeText) {
+                    lines.push('[Text]');
+                    for (j = 0; j < artboardGroups[i].texts.length; j++) {
+                        lines.push(artboardGroups[i].texts[j]);
+                    }
+                    lines.push('');
+                }
+
+                if (exportSettings.includeFonts) {
+                    lines.push('[Font Names]');
+                    var fontLines = collectFontDisplayNamesFromFrames(artboardFontGroups[i].frames);
+                    for (var k = 0; k < fontLines.length; k++) {
+                        lines.push(fontLines[k]);
+                    }
+                    lines.push('');
                 }
             }
 
             return lines.join('\n');
         }
 
-        function getArtboardDisplayName(index) {
+        function getArtboardTabDisplayName(index) {
+            return (index + 1) + ': ' + getRawArtboardName(index);
+        }
+
+        function getRawArtboardName(index) {
             var name = '';
-            var numberText = '';
             try {
                 name = doc.artboards[index].name;
             } catch (e) { }
             if (!name) {
-                name = (lang === 'ja') ? 'アートボード ' + (index + 1) : 'Artboard ' + (index + 1);
+                name = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
             }
-            numberText = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
-            return numberText + ': ' + name;
+            return name;
+        }
+
+        function getArtboardDisplayName(index) {
+            var numberText = (lang === 'ja') ? ('アートボード' + (index + 1)) : ('Artboard ' + (index + 1));
+            return numberText + ': ' + getRawArtboardName(index);
         }
 
         function getItemArtboardIndex(item) {
@@ -1239,6 +1698,142 @@ function main() {
 
         function collectExportTextFrames(options, scopeMode) {
             return collectFramesByScope(scopeMode, options);
+        }
+
+        function collectFontDisplayNamesFromFrames(frames) {
+            var fontMap = {};
+            var fontLines = [];
+            var i;
+            var m;
+            var triples;
+            var key;
+            var line;
+
+            for (i = 0; i < frames.length; i++) {
+                triples = getTextFrameFontTriples(frames[i]);
+                for (m = 0; m < triples.length; m++) {
+                    key = triples[m].psName + '\t' + triples[m].familyName + '\t' + triples[m].styleName;
+                    line = triples[m].psName + '  ' + triples[m].familyName + (triples[m].styleName ? ('  ' + triples[m].styleName) : '');
+                    if (!fontMap[key]) {
+                        fontMap[key] = true;
+                        fontLines.push(line);
+                    }
+                }
+            }
+
+            fontLines.sort();
+            return fontLines;
+        }
+
+        function collectArtboardGroupedFontFrames(options, scopeMode) {
+            var groups = [];
+            var outsideGroup = {
+                name: (lang === 'ja') ? 'アートボード外' : 'Outside Artboards',
+                frames: []
+            };
+            var i;
+            var frames = collectExportTextFrames(options, scopeMode);
+            var abIndex;
+            var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
+            var groupIndexMap = {};
+
+            if (scopeMode === 'current') {
+                groups.push({
+                    name: getArtboardDisplayName(activeArtboardIndex),
+                    frames: []
+                });
+                groupIndexMap[activeArtboardIndex] = 0;
+            } else {
+                for (i = 0; i < doc.artboards.length; i++) {
+                    groupIndexMap[i] = groups.length;
+                    groups.push({
+                        name: getArtboardDisplayName(i),
+                        frames: []
+                    });
+                }
+            }
+
+            for (i = 0; i < frames.length; i++) {
+                abIndex = getItemArtboardIndex(frames[i]);
+                if (scopeMode === 'current') {
+                    if (abIndex === activeArtboardIndex) {
+                        groups[groupIndexMap[activeArtboardIndex]].frames.push(frames[i]);
+                    }
+                } else if (scopeMode === 'allArtboards') {
+                    if (abIndex >= 0) {
+                        groups[groupIndexMap[abIndex]].frames.push(frames[i]);
+                    }
+                } else {
+                    if (abIndex >= 0) {
+                        groups[groupIndexMap[abIndex]].frames.push(frames[i]);
+                    } else {
+                        outsideGroup.frames.push(frames[i]);
+                    }
+                }
+            }
+
+            if (scopeMode === 'all' && outsideGroup.frames.length > 0) {
+                groups.push(outsideGroup);
+            }
+            return groups;
+        }
+
+        function showExportOptionsDialog() {
+            var exportDlg = new Window('dialog', L('exportDialogTitle'));
+            var optionsPanel;
+            var cbExportText;
+            var cbExportFonts;
+            var cbOpenAfter;
+            var buttonRow;
+            var spacer;
+            var rightButtons;
+            var cancelButton;
+            var okButton;
+
+            exportDlg.orientation = 'column';
+            exportDlg.alignChildren = ['fill', 'top'];
+
+            optionsPanel = exportDlg.add('panel', undefined, L('exportDialogTitle'));
+            optionsPanel.orientation = 'column';
+            optionsPanel.alignChildren = ['left', 'top'];
+            optionsPanel.margins = [15, 20, 15, 10];
+
+            cbExportText = optionsPanel.add('checkbox', undefined, L('exportIncludeText'));
+            cbExportText.value = true;
+
+            cbExportFonts = optionsPanel.add('checkbox', undefined, L('exportIncludeFonts'));
+            cbExportFonts.value = true;
+
+            cbOpenAfter = optionsPanel.add('checkbox', undefined, L('exportOpenAfter'));
+            cbOpenAfter.value = true;
+
+            buttonRow = exportDlg.add('group');
+            buttonRow.orientation = 'row';
+            buttonRow.alignChildren = ['fill', 'center'];
+
+            buttonRow.add('group');
+
+            spacer = buttonRow.add('group');
+            spacer.alignment = ['fill', 'fill'];
+            spacer.minimumSize.width = 0;
+
+            rightButtons = buttonRow.add('group');
+            rightButtons.orientation = 'row';
+            rightButtons.alignChildren = ['right', 'center'];
+
+            cancelButton = rightButtons.add('button', undefined, L('cancel'), { name: 'cancel' });
+            okButton = rightButtons.add('button', undefined, L('ok'), { name: 'ok' });
+            exportDlg.defaultElement = okButton;
+
+            if (exportDlg.show() !== 1) {
+                return null;
+            }
+
+            return {
+                includeText: cbExportText.value,
+                includeFonts: cbExportFonts.value,
+                openAfter: cbOpenAfter.value
+            };
         }
 
         function collectArtboardGroupedExportData(options, scopeMode) {
@@ -1317,6 +1912,7 @@ function main() {
         /* 初回収集 / Initial collection */
         updateList();
         refreshSymbolList(false);
+        refreshInfoTabs();
 
         /* ラジオボタン・チェックボックス切り替え時に更新 / Refresh when radio buttons or checkboxes change */
         rbArtboard.onClick = function () {
@@ -1339,6 +1935,11 @@ function main() {
         rbSortNone.onClick = function () { updateList(); };
         rbSortXY.onClick = function () { updateList(); };
         rbSortABC.onClick = function () { updateList(); };
+        rbLayerScopeAll.onClick = function () { refreshInfoTabs(); };
+        rbLayerScopeTop.onClick = function () { refreshInfoTabs(); };
+
+        rbArtboardScopeNumbered.onClick = function () { refreshInfoTabs(); };
+        rbArtboardScopeRaw.onClick = function () { refreshInfoTabs(); };
 
         /* キャンセルボタンで閉じる / Close the dialog when Cancel is pressed */
         cancelBtn.onClick = function () {
