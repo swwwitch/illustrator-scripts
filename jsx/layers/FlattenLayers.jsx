@@ -3,14 +3,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // スクリプトバージョン
 
-var SCRIPT_VERSION = "v1.7.0";
+var SCRIPT_VERSION = "v1.7.1";
 
 /*
 レイヤー統合（フラット化）を行うIllustrator用スクリプト。
-除外名（例：bg/背景/background）を持つレイヤーを残しつつ、その他のレイヤー／サブレイヤー配下の全オブジェクトを
+除外名（例：bg/背景/background）を持つレイヤーを残しつつ、その他のレイヤー／サブレイヤー配下のオブジェクトを
 指定したまとめ先レイヤーへ集約（移動）してフラット化します。必要に応じて、中身が残ったサブレイヤーを上位レベルの
-レイヤーへ移動し、空になったレイヤーを再帰的に検出して削除します。ガイドは「統合」「現在のレイヤーに保持」
-「別レイヤーに移動」の3つのモードから選択できます。
+レイヤーへ移動し、空になったレイヤーを再帰的に検出して削除します。ロック / 非表示のレイヤー・オブジェクトは
+個別に対象外指定でき、該当するものが存在しない項目はダイアログ上で自動的にディム表示されます。ガイドは
+「統合」「現在のレイヤーに保持」「別レイヤーに移動」の3つのモードから選択できます。
 
 ### スクリプト名：
 
@@ -26,18 +27,21 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 ### 更新日：
 
-2026-04-07
+2026-04-08
 
 ### 概要：
 
 - 実行前にダイアログを表示し、処理条件を選択可能
 - 除外レイヤーを残し、それ以外のレイヤー／サブレイヤー配下のオブジェクトを指定レイヤーへ移動してフラット化
 - ロック / 非表示のレイヤー・オブジェクトをそれぞれ対象外にするか選択可能
+- ロックレイヤー / 非表示レイヤー / 非表示オブジェクト / ガイド / サブレイヤーが存在しない場合、対応するUIを自動的にディム表示
+- 対象外設定の一括切替は、有効な項目だけを一括で ON / OFF
 - 必要に応じて、中身が残ったサブレイヤーを上位レベルのレイヤーへ移動可能
 - ガイドの扱いを「統合」「現在のレイヤーに保持」「別レイヤーに移動」から選択可能
 - 「現在のレイヤーに保持」では、サブレイヤー直下のガイドを1つ上のレイヤーへ繰り上げて保持
 - 「別レイヤーに移動」では、統合後のガイドを指定レイヤーへ移動
 - 空のレイヤー／サブレイヤーを、削除可能なものがなくなるまで再帰反復で削除
+- skipLockedLayers / skipHiddenLayers はトップレベルレイヤーとサブレイヤーの両方に一貫適用
 - ガイドだけ残っているレイヤーは空レイヤーとは見なさない
 - まとめ先のレイヤー名、既存まとめ先の再利用、レイヤーカラーを指定可能
 - 既存まとめ先を再利用しない場合、同名レイヤーが存在すれば連番付きの別名で新規作成
@@ -45,23 +49,26 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 ### 処理の流れ：
 
 1. ドキュメント取得（未オープンなら終了）
-2. ダイアログで処理条件を選択（キャンセル時は終了）
+2. ダイアログで処理条件を選択（該当しない項目は自動的にディム表示、キャンセル時は終了）
 3. 設定に応じて既存まとめ先レイヤーを取得、または一意な名前で新規作成
 4. 除外レイヤーを除いて、条件に合う全レイヤー／サブレイヤー配下のオブジェクトをまとめ先レイヤーへ移動してフラット化
 5. ガイドモードが「現在のレイヤーに保持」の場合、サブレイヤー直下のガイドを上位レイヤーへ繰り上げ
 6. 必要に応じて、中身が残ったサブレイヤーを上位レベルのレイヤーへ移動
 7. ガイドモードが「別レイヤーに移動」の場合、統合後のガイドを指定レイヤーへ移動
 8. 設定が ON の場合、空のレイヤー／サブレイヤーがなくなるまで再帰反復で削除
+9. 失敗件数があれば、処理後に件数だけを簡潔に通知
 
 ### 更新履歴：
 
 - v1.0 (20250414) : 初期バージョン
-- v1.7.0 (20260407) : ガイドモード（統合／現在のレイヤーに保持／別レイヤーに移動）、サブレイヤー直下ガイドの繰り上げ、ガイド残存レイヤーの空判定補正、まとめ先レイヤー名の正規化と一意化、親レイヤー状態の復元に対応
+- v1.7.1 (20260408) : 対象外UIの自動ディム表示、一括切替の有効項目限定、skipLockedLayers / skipHiddenLayers のサブレイヤーまでの一貫適用、ガイド panel 初期化の明確化、概要とコメントの更新
 
 Illustrator script to flatten layers. It keeps excluded layers (such as bg/背景/background),
-moves all other objects under layers and sublayers into a specified destination layer, optionally
+moves objects under all other layers and sublayers into a specified destination layer, optionally
 promotes remaining non-empty sublayers to the top level, and recursively deletes layers that become empty.
-Guides can be handled in one of three modes: integrate, keep in the current layer, or move to another layer.
+Locked / hidden layers and objects can be excluded independently, and dialog items with no matching targets
+are dimmed automatically. Guides can be handled in one of three modes: integrate, keep in the current layer,
+or move to another layer.
 
 ### Script Name:
 
@@ -77,18 +84,21 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 ### Updated:
 
-2026-04-07
+2026-04-08
 
 ### Overview:
 
 - Show a dialog before execution so the processing conditions can be selected
 - Flatten objects from non-excluded layers and sublayers into the specified destination layer
-- Allow the user to choose whether locked / hidden layers and objects are excluded
+- Let the user choose whether locked / hidden layers and objects are excluded
+- Automatically dim UI items when there are no locked layers, hidden layers, hidden objects, guides, or sublayers in the document
+- Toggle all exclusion options on / off only for the items that are currently enabled
 - Optionally move remaining non-empty sublayers to the top level
 - Let the user choose how guides are handled: integrate, keep in the current layer, or move to another layer
 - In “Keep in the current layer” mode, guides directly under sublayers are hoisted to the parent layer
 - In “Move to another layer” mode, guides are moved to the specified guide layer after flattening
 - Delete empty layers / sublayers repeatedly until no more removable empty layers remain
+- Apply skipLockedLayers / skipHiddenLayers consistently to both top-level layers and sublayers
 - Layers that still contain only guides are not treated as empty
 - Let the user specify the destination layer name, reuse an existing destination layer, and set the destination layer color
 - If destination-layer reuse is off and the same name already exists, create a new layer with a numbered unique name
@@ -96,18 +106,19 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 ### Process Flow:
 
 1. Get the active document (exit if none)
-2. Show the options dialog (exit if canceled)
+2. Show the options dialog, automatically dim irrelevant items, and exit if canceled
 3. Reuse the existing destination layer or create a new uniquely named one according to the selected options
 4. Flatten items from eligible non-excluded layers and sublayers into the destination layer
 5. If the guide mode is “Keep in the current layer,” hoist guides directly under sublayers to the parent layer
 6. Optionally move remaining non-empty sublayers to the top level
 7. If the guide mode is “Move to another layer,” move guides from the flattened result into the specified guide layer
 8. If enabled, repeatedly delete empty layers / sublayers until none remain
+9. If any failures occurred, show only the failure counts after processing
 
 ### Update History:
 
 - v1.0 (20250414) : Initial release
-- v1.7.0 (20260407) : Added guide modes (integrate / keep in the current layer / move to another layer), hoisting of guides directly under sublayers, non-empty handling for guide-only layers, normalized and uniquified destination layer names, and restoration of parent-layer access states
+- v1.7.1 (20260408) : Added automatic dimming of irrelevant exclusion UI, enabled-only toggle-all behavior, consistent skipLockedLayers / skipHiddenLayers handling for sublayers, clearer guides-panel initialization, and updated overview/comments
 
 */
 
@@ -244,11 +255,150 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     var cbPromoteSublayers = processPanel.add('checkbox', undefined, L('promoteSublayers'));
     cbPromoteSublayers.value = true;
 
-    // --- Guides panel ---
+    function documentHasAnyLockedLayers(container) {
+        var layers = container.layers;
+        for (var i = 0; i < layers.length; i++) {
+            if (layerHasAnyLockedLayers(layers[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function layerHasAnyLockedLayers(layerRef) {
+        if (layerRef.locked) {
+            return true;
+        }
+
+        var childLayers = layerRef.layers;
+        for (var i = 0; i < childLayers.length; i++) {
+            if (layerHasAnyLockedLayers(childLayers[i])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function documentHasAnyHiddenLayers(container) {
+        var layers = container.layers;
+        for (var i = 0; i < layers.length; i++) {
+            if (layerHasAnyHiddenLayers(layers[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function layerHasAnyHiddenLayers(layerRef) {
+        if (!layerRef.visible) {
+            return true;
+        }
+
+        var childLayers = layerRef.layers;
+        for (var i = 0; i < childLayers.length; i++) {
+            if (layerHasAnyHiddenLayers(childLayers[i])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function documentHasAnyHiddenObjects(container) {
+        var layers = container.layers;
+        for (var i = 0; i < layers.length; i++) {
+            if (layerHasAnyHiddenObjects(layers[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function layerHasAnyHiddenObjects(layerRef) {
+        var pageItems = layerRef.pageItems;
+        for (var i = 0; i < pageItems.length; i++) {
+            if (pageItems[i].parent === layerRef && isActuallyHiddenItem(pageItems[i])) {
+                return true;
+            }
+        }
+
+        var childLayers = layerRef.layers;
+        for (var j = 0; j < childLayers.length; j++) {
+            if (layerHasAnyHiddenObjects(childLayers[j])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    function isActuallyHiddenItem(item) {
+        try {
+            return item.hidden === true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function documentHasAnySublayers(container) {
+        var layers = container.layers;
+        for (var i = 0; i < layers.length; i++) {
+            if (layers[i].parent && layers[i].parent.typename === 'Layer') {
+                return true;
+            }
+            if (layers[i].layers && layers[i].layers.length > 0) {
+                return true;
+            }
+            if (documentHasAnySublayers(layers[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function documentHasAnyGuides(container) {
+        var layers = container.layers;
+        for (var i = 0; i < layers.length; i++) {
+            if (layerHasAnyGuides(layers[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function layerHasAnyGuides(layerRef) {
+        var pageItems = layerRef.pageItems;
+        for (var i = 0; i < pageItems.length; i++) {
+            if (pageItems[i].parent === layerRef && isGuideItem(pageItems[i])) {
+                return true;
+            }
+        }
+
+        var childLayers = layerRef.layers;
+        for (var j = 0; j < childLayers.length; j++) {
+            if (layerHasAnyGuides(childLayers[j])) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    var hasAnySublayers = documentHasAnySublayers(documentRef);
+    var hasAnyLockedLayers = documentHasAnyLockedLayers(documentRef);
+    var hasAnyHiddenLayers = documentHasAnyHiddenLayers(documentRef);
+    var hasAnyHiddenObjects = documentHasAnyHiddenObjects(documentRef);
+    var hasAnyGuides = documentHasAnyGuides(documentRef);
+    cbPromoteSublayers.enabled = hasAnySublayers;
+    if (!hasAnySublayers) cbPromoteSublayers.value = false;
+
+    // ガイド設定パネル / Guides panel
     var guidesPanel = processPanel.add('panel', undefined, L('guides'));
     guidesPanel.orientation = 'column';
     guidesPanel.alignChildren = 'left';
     guidesPanel.margins = [15, 20, 15, 10];
+    guidesPanel.enabled = hasAnyGuides;
 
     var rbIntegrateGuides = guidesPanel.add('radiobutton', undefined, L('integrateGuides'));
     rbIntegrateGuides.value = false;
@@ -290,7 +440,18 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     rbSeparateGuides.onClick = function () {
         updateGuideOptionsState('separate');
     };
-    updateGuideOptionsState('separate');
+
+    if (hasAnyGuides) {
+        rbIntegrateGuides.value = false;
+        rbKeepGuidesInCurrentLayer.value = false;
+        rbSeparateGuides.value = true;
+        updateGuideOptionsState('separate');
+    } else {
+        rbIntegrateGuides.value = true;
+        rbKeepGuidesInCurrentLayer.value = false;
+        rbSeparateGuides.value = false;
+        updateGuideOptionsState('integrate');
+    }
 
     var destPanel = dlg.add('panel', undefined, L('destination'));
     destPanel.orientation = 'column';
@@ -370,7 +531,7 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     excludeGroup.alignChildren = ['left', 'top'];
     excludeGroup.spacing = 15;
 
-    // 左カラム：ロック
+    // 左カラム：ロック / Left column: locked
     var lockedPanel = excludeGroup.add('panel', undefined, L('lockedPanelTitle'));
     lockedPanel.orientation = 'column';
     lockedPanel.alignChildren = 'left';
@@ -378,10 +539,12 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
 
     var cbSkipLocked = lockedPanel.add('checkbox', undefined, L('skipLockedLayers'));
     cbSkipLocked.value = false;
+    cbSkipLocked.enabled = hasAnyLockedLayers;
+    if (!hasAnyLockedLayers) cbSkipLocked.value = false;
     var cbSkipLockedObjects = lockedPanel.add('checkbox', undefined, L('skipLockedObjects'));
     cbSkipLockedObjects.value = false;
 
-    // 右カラム：非表示
+    // 右カラム：非表示 / Right column: hidden
     var hiddenPanel = excludeGroup.add('panel', undefined, L('hiddenPanelTitle'));
     hiddenPanel.orientation = 'column';
     hiddenPanel.alignChildren = 'left';
@@ -389,8 +552,13 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
 
     var cbSkipHidden = hiddenPanel.add('checkbox', undefined, L('skipHiddenLayers'));
     cbSkipHidden.value = false;
+    cbSkipHidden.enabled = hasAnyHiddenLayers;
+    if (!hasAnyHiddenLayers) cbSkipHidden.value = false;
+
     var cbSkipHiddenObjects = hiddenPanel.add('checkbox', undefined, L('skipHiddenObjects'));
     cbSkipHiddenObjects.value = false;
+    cbSkipHiddenObjects.enabled = hasAnyHiddenObjects;
+    if (!hasAnyHiddenObjects) cbSkipHiddenObjects.value = false;
 
     var toggleAllGroup = excludePanel.add('group');
     toggleAllGroup.orientation = 'row';
@@ -399,21 +567,55 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     cbToggleAllExclusions.value = false;
 
     function updateToggleAllExclusionsState() {
-        cbToggleAllExclusions.value = cbSkipLocked.value && cbSkipLockedObjects.value && cbSkipHidden.value && cbSkipHiddenObjects.value;
+        var enabledValues = [];
+
+        if (cbSkipLocked.enabled) {
+            enabledValues.push(cbSkipLocked.value);
+        }
+        if (cbSkipLockedObjects.enabled) {
+            enabledValues.push(cbSkipLockedObjects.value);
+        }
+        if (cbSkipHidden.enabled) {
+            enabledValues.push(cbSkipHidden.value);
+        }
+        if (cbSkipHiddenObjects.enabled) {
+            enabledValues.push(cbSkipHiddenObjects.value);
+        }
+
+        cbToggleAllExclusions.value = enabledValues.length > 0 && allValuesAreTrue(enabledValues);
+    }
+
+    function allValuesAreTrue(values) {
+        for (var i = 0; i < values.length; i++) {
+            if (!values[i]) {
+                return false;
+            }
+        }
+        return true;
     }
 
     cbToggleAllExclusions.onClick = function () {
         var newValue = cbToggleAllExclusions.value;
-        cbSkipLocked.value = newValue;
-        cbSkipLockedObjects.value = newValue;
-        cbSkipHidden.value = newValue;
-        cbSkipHiddenObjects.value = newValue;
+        if (cbSkipLocked.enabled) {
+            cbSkipLocked.value = newValue;
+        }
+        if (cbSkipLockedObjects.enabled) {
+            cbSkipLockedObjects.value = newValue;
+        }
+        if (cbSkipHidden.enabled) {
+            cbSkipHidden.value = newValue;
+        }
+        if (cbSkipHiddenObjects.enabled) {
+            cbSkipHiddenObjects.value = newValue;
+        }
+        updateToggleAllExclusionsState();
     };
 
     cbSkipLocked.onClick = updateToggleAllExclusionsState;
     cbSkipLockedObjects.onClick = updateToggleAllExclusionsState;
     cbSkipHidden.onClick = updateToggleAllExclusionsState;
     cbSkipHiddenObjects.onClick = updateToggleAllExclusionsState;
+    updateToggleAllExclusionsState();
 
     var optionsPanel = dlg.add('panel', undefined, L('options'));
     optionsPanel.orientation = 'column';
@@ -916,7 +1118,7 @@ function collectDirectSublayers(container, resultArray, mergedLayer, options) {
         if (options.skipLockedLayers && currentLayer.locked) {
             continue;
         }
-        if (options.skipHiddenLayers && !currentLayer.visible && !(currentLayer.parent && currentLayer.parent.typename === 'Layer')) {
+        if (options.skipHiddenLayers && !currentLayer.visible) {
             continue;
         }
 
@@ -990,7 +1192,7 @@ function deleteEmptyLayersRecursively(documentRef, mergedLayer, options, stats) 
 // 空レイヤー収集関数 / Collect empty layers recursively
 // - 削除は行わず、削除候補の収集だけを担当
 // - mergedLayer と除外名レイヤーは対象外
-// - トップレベルの非表示 / ロック除外はここで判定
+// - 非表示 / ロック除外はトップレベル・サブレイヤーを問わずここで判定
 // - 子を先に走査し、現時点で空のレイヤーを resultArray に積む
 // ==========================
 function findEmptyLayers(container, resultArray, mergedLayer, options) {
@@ -1005,13 +1207,12 @@ function findEmptyLayers(container, resultArray, mergedLayer, options) {
             continue;
         }
 
-        var isTopLevelLayer = !(currentLayer.parent && currentLayer.parent.typename === 'Layer');
         var skipCurrentLayerDeletion = false;
 
-        if (options.skipLockedLayers && currentLayer.locked && isTopLevelLayer) {
+        if (options.skipLockedLayers && currentLayer.locked) {
             skipCurrentLayerDeletion = true;
         }
-        if (options.skipHiddenLayers && !currentLayer.visible && isTopLevelLayer) {
+        if (options.skipHiddenLayers && !currentLayer.visible) {
             skipCurrentLayerDeletion = true;
         }
 
@@ -1033,7 +1234,6 @@ function findEmptyLayers(container, resultArray, mergedLayer, options) {
 
 // 直属アイテム判定専用 / Check only whether the layer itself directly owns pageItems
 // 子サブレイヤー配下のアイテムは含めない。
-// ガイドしか残っていないレイヤーも空とは見なさないため、ガイドは別判定で補完する。
 function hasDirectPageItems(layerRef) {
     var items = layerRef.pageItems;
     for (var i = 0; i < items.length; i++) {
