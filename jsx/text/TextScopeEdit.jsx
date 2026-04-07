@@ -1,7 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.3.5";
+var SCRIPT_VERSION = "v1.3.6";
 
 /*
 
@@ -78,7 +78,7 @@ var LABELS = {
     exportDone: { ja: "テキストを書き出しました", en: "Text exported" },
     exportFailed: { ja: "テキストを書き出せませんでした", en: "Failed to export text" },
 
-    exportDialogTitle: { ja: "書き出し情報", en: "Export Information" },
+    exportDialogTitle: { ja: "書き出しオプション", en: "Export Options" },
     exportIncludeText: { ja: "テキスト", en: "Text" },
     exportIncludeFonts: { ja: "フォント名", en: "Font Names" },
     exportOpenAfter: { ja: "書き出し後にファイルを開く", en: "Open file after export" },
@@ -1785,8 +1785,6 @@ function main() {
             var cbExportFonts;
             var cbOpenAfter;
             var buttonRow;
-            var spacer;
-            var rightButtons;
             var cancelButton;
             var okButton;
 
@@ -1804,25 +1802,20 @@ function main() {
             cbExportFonts = optionsPanel.add('checkbox', undefined, L('exportIncludeFonts'));
             cbExportFonts.value = true;
 
-            cbOpenAfter = optionsPanel.add('checkbox', undefined, L('exportOpenAfter'));
+            // Move "Open file after export" checkbox below the panel
+            // (see below)
+
+            // Add "Open file after export" checkbox below the panel
+            cbOpenAfter = exportDlg.add('checkbox', undefined, L('exportOpenAfter'));
             cbOpenAfter.value = true;
 
             buttonRow = exportDlg.add('group');
             buttonRow.orientation = 'row';
-            buttonRow.alignChildren = ['fill', 'center'];
+            buttonRow.alignChildren = ['center', 'center'];
+            buttonRow.alignment = ['center', 'center'];
 
-            buttonRow.add('group');
-
-            spacer = buttonRow.add('group');
-            spacer.alignment = ['fill', 'fill'];
-            spacer.minimumSize.width = 0;
-
-            rightButtons = buttonRow.add('group');
-            rightButtons.orientation = 'row';
-            rightButtons.alignChildren = ['right', 'center'];
-
-            cancelButton = rightButtons.add('button', undefined, L('cancel'), { name: 'cancel' });
-            okButton = rightButtons.add('button', undefined, L('ok'), { name: 'ok' });
+            cancelButton = buttonRow.add('button', undefined, L('cancel'), { name: 'cancel' });
+            okButton = buttonRow.add('button', undefined, L('ok'), { name: 'ok' });
             exportDlg.defaultElement = okButton;
 
             if (exportDlg.show() !== 1) {
