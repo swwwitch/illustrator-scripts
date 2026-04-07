@@ -8,7 +8,9 @@ var SCRIPT_VERSION = "v1.7.0";
 /*
 レイヤー統合（フラット化）を行うIllustrator用スクリプト。
 除外名（例：bg/背景/background）を持つレイヤーを残しつつ、その他のレイヤー／サブレイヤー配下の全オブジェクトを
-「_mergedLayer」に集約（移動）してフラット化します。その後、空になったレイヤーを再帰的に検出して削除します。
+指定したまとめ先レイヤーへ集約（移動）してフラット化します。必要に応じて、中身が残ったサブレイヤーを上位レベルの
+レイヤーへ移動し、空になったレイヤーを再帰的に検出して削除します。ガイドは「統合」「現在のレイヤーに保持」
+「別レイヤーに移動」の3つのモードから選択できます。
 
 ### スクリプト名：
 
@@ -18,33 +20,48 @@ var SCRIPT_VERSION = "v1.7.0";
 
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
 
+### 作成日：
+
+2025-04-14
+
+### 更新日：
+
+2026-04-07
+
 ### 概要：
 
 - 実行前にダイアログを表示し、処理条件を選択可能
-- 除外レイヤーを残し、それ以外のレイヤー／サブレイヤー配下のオブジェクトを「_mergedLayer」に移動してフラット化
+- 除外レイヤーを残し、それ以外のレイヤー／サブレイヤー配下のオブジェクトを指定レイヤーへ移動してフラット化
 - ロック / 非表示のレイヤー・オブジェクトをそれぞれ対象外にするか選択可能
-- 必要に応じて、中身が残ったサブレイヤーを最上位のレイヤーへ移動可能
-- 必要に応じて、ガイドを指定レイヤーへ分離可能
+- 必要に応じて、中身が残ったサブレイヤーを上位レベルのレイヤーへ移動可能
+- ガイドの扱いを「統合」「現在のレイヤーに保持」「別レイヤーに移動」から選択可能
+- 「現在のレイヤーに保持」では、サブレイヤー直下のガイドを1つ上のレイヤーへ繰り上げて保持
+- 「別レイヤーに移動」では、統合後のガイドを指定レイヤーへ移動
 - 空のレイヤー／サブレイヤーを、削除可能なものがなくなるまで再帰反復で削除
+- ガイドだけ残っているレイヤーは空レイヤーとは見なさない
 - まとめ先のレイヤー名、既存まとめ先の再利用、レイヤーカラーを指定可能
+- 既存まとめ先を再利用しない場合、同名レイヤーが存在すれば連番付きの別名で新規作成
 
 ### 処理の流れ：
 
 1. ドキュメント取得（未オープンなら終了）
 2. ダイアログで処理条件を選択（キャンセル時は終了）
-3. 設定に応じて既存「_mergedLayer」を取得、または新規作成
-4. 除外レイヤーを除いて、条件に合う全レイヤー／サブレイヤー配下のオブジェクトを「_mergedLayer」に移動してフラット化
-5. 必要に応じて、中身が残ったサブレイヤーを最上位のレイヤーへ移動
-6. 必要に応じて、ガイドを指定レイヤーへ移動
-7. 設定が ON の場合、空のレイヤー／サブレイヤーがなくなるまで再帰反復で削除
+3. 設定に応じて既存まとめ先レイヤーを取得、または一意な名前で新規作成
+4. 除外レイヤーを除いて、条件に合う全レイヤー／サブレイヤー配下のオブジェクトをまとめ先レイヤーへ移動してフラット化
+5. ガイドモードが「現在のレイヤーに保持」の場合、サブレイヤー直下のガイドを上位レイヤーへ繰り上げ
+6. 必要に応じて、中身が残ったサブレイヤーを上位レベルのレイヤーへ移動
+7. ガイドモードが「別レイヤーに移動」の場合、統合後のガイドを指定レイヤーへ移動
+8. 設定が ON の場合、空のレイヤー／サブレイヤーがなくなるまで再帰反復で削除
 
 ### 更新履歴：
 
 - v1.0 (20250414) : 初期バージョン
+- v1.7.0 (20260407) : ガイドモード（統合／現在のレイヤーに保持／別レイヤーに移動）、サブレイヤー直下ガイドの繰り上げ、ガイド残存レイヤーの空判定補正、まとめ先レイヤー名の正規化と一意化、親レイヤー状態の復元に対応
 
-Illustrator script to flatten layers. It consolidates all objects (except in excluded layers
-such as bg/背景/background) from layers and sublayers into a single layer named "_mergedLayer", then recursively
-removes layers that became empty.
+Illustrator script to flatten layers. It keeps excluded layers (such as bg/背景/background),
+moves all other objects under layers and sublayers into a specified destination layer, optionally
+promotes remaining non-empty sublayers to the top level, and recursively deletes layers that become empty.
+Guides can be handled in one of three modes: integrate, keep in the current layer, or move to another layer.
 
 ### Script Name:
 
@@ -54,29 +71,43 @@ Flatten Layers
 
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLayers.jsx
 
+### Created:
+
+2025-04-14
+
+### Updated:
+
+2026-04-07
+
 ### Overview:
 
 - Show a dialog before execution so the processing conditions can be selected
-- Flatten objects from non-excluded layers and sublayers into "_mergedLayer"
+- Flatten objects from non-excluded layers and sublayers into the specified destination layer
 - Allow the user to choose whether locked / hidden layers and objects are excluded
 - Optionally move remaining non-empty sublayers to the top level
-- Optionally separate guides into a specified layer
+- Let the user choose how guides are handled: integrate, keep in the current layer, or move to another layer
+- In “Keep in the current layer” mode, guides directly under sublayers are hoisted to the parent layer
+- In “Move to another layer” mode, guides are moved to the specified guide layer after flattening
 - Delete empty layers / sublayers repeatedly until no more removable empty layers remain
+- Layers that still contain only guides are not treated as empty
 - Let the user specify the destination layer name, reuse an existing destination layer, and set the destination layer color
+- If destination-layer reuse is off and the same name already exists, create a new layer with a numbered unique name
 
 ### Process Flow:
 
 1. Get the active document (exit if none)
 2. Show the options dialog (exit if canceled)
-3. Reuse or create "_mergedLayer" according to the selected options
-4. Flatten items from eligible non-excluded layers and sublayers into "_mergedLayer"
-5. Optionally move remaining non-empty sublayers to the top level
-6. Optionally move guides into a specified layer
-7. If enabled, repeatedly delete empty layers / sublayers until none remain
+3. Reuse the existing destination layer or create a new uniquely named one according to the selected options
+4. Flatten items from eligible non-excluded layers and sublayers into the destination layer
+5. If the guide mode is “Keep in the current layer,” hoist guides directly under sublayers to the parent layer
+6. Optionally move remaining non-empty sublayers to the top level
+7. If the guide mode is “Move to another layer,” move guides from the flattened result into the specified guide layer
+8. If enabled, repeatedly delete empty layers / sublayers until none remain
 
 ### Update History:
 
 - v1.0 (20250414) : Initial release
+- v1.7.0 (20260407) : Added guide modes (integrate / keep in the current layer / move to another layer), hoisting of guides directly under sublayers, non-empty handling for guide-only layers, normalized and uniquified destination layer names, and restoration of parent-layer access states
 
 */
 
@@ -103,13 +134,21 @@ var LABELS = {
         ja: 'サブレイヤーを上位レベルのレイヤーに変更',
         en: 'Move sublayers to top-level layers'
     },
-    separateGuides: {
-        ja: 'ガイドを別レイヤーに',
-        en: 'Separate guides into another layer'
+    guides: {
+        ja: 'ガイド',
+        en: 'Guides'
     },
-    guideLayerName: {
-        ja: 'レイヤー名',
-        en: 'Layer name'
+    separateGuides: {
+        ja: '別レイヤーに移動',
+        en: 'Move to another layer'
+    },
+    keepGuidesInCurrentLayer: {
+        ja: '現在のレイヤーに保持',
+        en: 'Keep in the current layer'
+    },
+    integrateGuides: {
+        ja: '統合',
+        en: 'Integrate'
     },
     exclude: {
         ja: '対象外にする',
@@ -205,23 +244,53 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     var cbPromoteSublayers = processPanel.add('checkbox', undefined, L('promoteSublayers'));
     cbPromoteSublayers.value = true;
 
-    // --- Guides group (for separate guides and layer name) ---
-    var guidesGroup = processPanel.add('group');
-    guidesGroup.orientation = 'row';
-    guidesGroup.alignChildren = ['left', 'center'];
+    // --- Guides panel ---
+    var guidesPanel = processPanel.add('panel', undefined, L('guides'));
+    guidesPanel.orientation = 'column';
+    guidesPanel.alignChildren = 'left';
+    guidesPanel.margins = [15, 20, 15, 10];
 
-    var cbSeparateGuides = guidesGroup.add('checkbox', undefined, L('separateGuides'));
-    cbSeparateGuides.value = true;
+    var rbIntegrateGuides = guidesPanel.add('radiobutton', undefined, L('integrateGuides'));
+    rbIntegrateGuides.value = false;
 
-    var etGuideLayerName = guidesGroup.add('edittext', undefined, '_guide');
+    var rbKeepGuidesInCurrentLayer = guidesPanel.add('radiobutton', undefined, L('keepGuidesInCurrentLayer'));
+    rbKeepGuidesInCurrentLayer.value = false;
+
+    var separateGuidesGroup = guidesPanel.add('group');
+    separateGuidesGroup.orientation = 'row';
+    separateGuidesGroup.alignChildren = ['left', 'center'];
+
+    var rbSeparateGuides = separateGuidesGroup.add('radiobutton', undefined, L('separateGuides'));
+    rbSeparateGuides.value = true;
+
+    var etGuideLayerName = separateGuidesGroup.add('edittext', undefined, '_guide');
     etGuideLayerName.characters = 12;
 
-    function updateGuideLayerNameState() {
-        etGuideLayerName.enabled = cbSeparateGuides.value;
+    function updateGuideOptionsState(selected) {
+        if (selected === 'integrate' && rbIntegrateGuides.value) {
+            rbKeepGuidesInCurrentLayer.value = false;
+            rbSeparateGuides.value = false;
+        } else if (selected === 'keep' && rbKeepGuidesInCurrentLayer.value) {
+            rbIntegrateGuides.value = false;
+            rbSeparateGuides.value = false;
+        } else if (selected === 'separate' && rbSeparateGuides.value) {
+            rbIntegrateGuides.value = false;
+            rbKeepGuidesInCurrentLayer.value = false;
+        }
+
+        etGuideLayerName.enabled = rbSeparateGuides.value;
     }
 
-    cbSeparateGuides.onClick = updateGuideLayerNameState;
-    updateGuideLayerNameState();
+    rbIntegrateGuides.onClick = function () {
+        updateGuideOptionsState('integrate');
+    };
+    rbKeepGuidesInCurrentLayer.onClick = function () {
+        updateGuideOptionsState('keep');
+    };
+    rbSeparateGuides.onClick = function () {
+        updateGuideOptionsState('separate');
+    };
+    updateGuideOptionsState('separate');
 
     var destPanel = dlg.add('panel', undefined, L('destination'));
     destPanel.orientation = 'column';
@@ -240,10 +309,10 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     cbReuseExistingMergedLayer.enabled = hasExistingMergedLayer;
 
     function updateReuseExistingMergedLayerState() {
-        var layerName = etLayerName.text;
+        var layerName = normalizeLayerName(etLayerName.text, '');
         var hasMatchingLayer = false;
 
-        if (layerName && layerName !== '') {
+        if (layerName !== '') {
             try {
                 documentRef.layers.getByName(layerName);
                 hasMatchingLayer = true;
@@ -372,8 +441,8 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
         skipLockedObjects: cbSkipLockedObjects.value,
         skipHiddenObjects: cbSkipHiddenObjects.value,
         promoteSublayersToTopLevel: cbPromoteSublayers.value,
-        separateGuidesToLayer: cbSeparateGuides.value,
-        guideLayerName: etGuideLayerName.text,
+        guideMode: rbSeparateGuides.value ? 'separate' : (rbKeepGuidesInCurrentLayer.value ? 'keep' : 'integrate'),
+        guideLayerName: normalizeLayerName(etGuideLayerName.text, '_guide'),
         mergedLayerName: etLayerName.text,
         deleteEmptyLayers: cbDeleteEmpty.value,
         reuseExistingMergedLayer: cbReuseExistingMergedLayer.value,
@@ -382,11 +451,12 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
 }
 
 function getOrCreateMergedLayer(documentRef, mergedLayerName, reuseExistingMergedLayer) {
+    var normalizedName = normalizeLayerName(mergedLayerName, '_mergedLayer');
     var mergedLayer = null;
 
     if (reuseExistingMergedLayer) {
         try {
-            mergedLayer = documentRef.layers.getByName(mergedLayerName);
+            mergedLayer = documentRef.layers.getByName(normalizedName);
         } catch (e) {
             mergedLayer = null;
         }
@@ -394,10 +464,36 @@ function getOrCreateMergedLayer(documentRef, mergedLayerName, reuseExistingMerge
 
     if (mergedLayer === null) {
         mergedLayer = documentRef.layers.add();
-        mergedLayer.name = mergedLayerName;
+        mergedLayer.name = reuseExistingMergedLayer ? normalizedName : generateUniqueLayerName(documentRef, normalizedName);
     }
 
     return mergedLayer;
+}
+
+function normalizeLayerName(layerName, fallbackName) {
+    var normalized = layerName == null ? '' : String(layerName).replace(/^\s+|\s+$/g, '');
+    return normalized !== '' ? normalized : fallbackName;
+}
+
+function generateUniqueLayerName(documentRef, baseName) {
+    var candidate = baseName;
+    var suffix = 2;
+
+    while (layerExistsByName(documentRef, candidate)) {
+        candidate = baseName + ' ' + suffix;
+        suffix++;
+    }
+
+    return candidate;
+}
+
+function layerExistsByName(documentRef, layerName) {
+    try {
+        documentRef.layers.getByName(layerName);
+        return true;
+    } catch (e) {
+        return false;
+    }
 }
 
 function clampColorValue(value) {
@@ -461,9 +557,7 @@ function main() {
         return;
     }
 
-    if (options.mergedLayerName && options.mergedLayerName !== '') {
-        mergedLayerName = options.mergedLayerName;
-    }
+    mergedLayerName = normalizeLayerName(options.mergedLayerName, '_mergedLayer');
 
     var stats = createProcessStats();
     var mergedLayer = getOrCreateMergedLayer(documentRef, mergedLayerName, options.reuseExistingMergedLayer);
@@ -481,11 +575,16 @@ function main() {
         moveItemsToTargetLayer(currentLayer, mergedLayer, options, stats);
     }
 
+    // 「現在のレイヤーに保持」時は、サブレイヤー直下のガイドを上位レイヤーへ繰り上げる。
+    if (options.guideMode === 'keep') {
+        hoistGuideItemsFromSublayers(documentRef, stats);
+    }
+
     if (options.promoteSublayersToTopLevel) {
         promoteSublayersToTop(documentRef, mergedLayer, options, stats);
     }
 
-    if (options.separateGuidesToLayer) {
+    if (options.guideMode === 'separate') {
         separateGuidesToLayer(documentRef, mergedLayer, options, stats);
     }
 
@@ -518,8 +617,13 @@ function main() {
     if (stats.parentAccessFailureCount > 0) {
         messages.push((lang === 'ja' ? '親レイヤーアクセス失敗' : 'Parent access failures') + ': ' + stats.parentAccessFailureCount);
     }
+    if (messages.length > 0) {
+        alert(messages.join('\n'));
+    }
+}
+
 function separateGuidesToLayer(documentRef, mergedLayer, options, stats) {
-    var guideLayerName = options.guideLayerName && options.guideLayerName !== '' ? options.guideLayerName : '_guide';
+    var guideLayerName = normalizeLayerName(options.guideLayerName, '_guide');
     var guideLayer = getOrCreateGuideLayer(documentRef, guideLayerName);
     applyMergedLayerSettings(guideLayer, options.layerColorValue);
 
@@ -527,6 +631,7 @@ function separateGuidesToLayer(documentRef, mergedLayer, options, stats) {
 }
 
 function getOrCreateGuideLayer(documentRef, guideLayerName) {
+    guideLayerName = normalizeLayerName(guideLayerName, '_guide');
     try {
         return documentRef.layers.getByName(guideLayerName);
     } catch (e) {
@@ -586,8 +691,55 @@ function isGuideItem(item) {
     return false;
 }
 
-    if (messages.length > 0) {
-        alert(messages.join('\n'));
+function hoistGuideItemsFromSublayers(documentRef, stats) {
+    var topLayers = documentRef.layers;
+    for (var i = 0; i < topLayers.length; i++) {
+        hoistGuideItemsFromChildLayers(topLayers[i], stats);
+    }
+}
+
+function hoistGuideItemsFromChildLayers(parentLayer, stats) {
+    var childLayers = parentLayer.layers;
+    for (var i = childLayers.length - 1; i >= 0; i--) {
+        var childLayer = childLayers[i];
+        hoistGuideItemsFromChildLayers(childLayer, stats);
+        moveDirectGuideItemsToLayer(childLayer, parentLayer, stats);
+    }
+}
+
+function moveDirectGuideItemsToLayer(sourceLayer, destinationLayer, stats) {
+    var pageItems = sourceLayer.pageItems;
+    for (var i = pageItems.length - 1; i >= 0; i--) {
+        var item = pageItems[i];
+        if (item.parent !== sourceLayer) {
+            continue;
+        }
+        if (!isGuideItem(item)) {
+            continue;
+        }
+
+        var wasLocked = false;
+        try {
+            wasLocked = item.locked;
+            if (wasLocked) {
+                item.locked = false;
+            }
+            item.move(destinationLayer, ElementPlacement.PLACEATBEGINNING);
+        } catch (e) {
+            if (stats) {
+                stats.guideSeparationFailureCount++;
+            }
+        } finally {
+            try {
+                if (wasLocked) {
+                    item.locked = true;
+                }
+            } catch (restoreError) {
+                if (stats) {
+                    stats.itemLockRestoreFailureCount++;
+                }
+            }
+        }
     }
 }
 
@@ -645,6 +797,9 @@ function moveItemsToTargetLayer(sourceLayer, destinationLayer, options, stats) {
                 continue;
             }
             if (shouldSkipHiddenItem(item, options)) {
+                continue;
+            }
+            if (options.guideMode === 'keep' && isGuideItem(item)) {
                 continue;
             }
             if (wasLocked) item.locked = false;
@@ -776,7 +931,7 @@ function collectDirectSublayers(container, resultArray, mergedLayer, options) {
 }
 
 function layerHasRemainingContent(layerRef) {
-    return hasDirectPageItems(layerRef) || layerRef.layers.length > 0;
+    return hasDirectPageItems(layerRef) || hasDirectGuideItems(layerRef) || layerRef.layers.length > 0;
 }
 
 function moveLayerToTopLevel(documentRef, layerRef, mergedLayer, stats) {
@@ -868,7 +1023,7 @@ function findEmptyLayers(container, resultArray, mergedLayer, options) {
             continue;
         }
 
-        var hasItems = hasDirectPageItems(currentLayer);
+        var hasItems = hasDirectPageItems(currentLayer) || hasDirectGuideItems(currentLayer);
         var hasChildLayers = currentLayer.layers.length > 0;
         if (!hasItems && !hasChildLayers) {
             resultArray.push(currentLayer);
@@ -878,10 +1033,21 @@ function findEmptyLayers(container, resultArray, mergedLayer, options) {
 
 // 直属アイテム判定専用 / Check only whether the layer itself directly owns pageItems
 // 子サブレイヤー配下のアイテムは含めない。
+// ガイドしか残っていないレイヤーも空とは見なさないため、ガイドは別判定で補完する。
 function hasDirectPageItems(layerRef) {
     var items = layerRef.pageItems;
     for (var i = 0; i < items.length; i++) {
         if (items[i].parent === layerRef) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function hasDirectGuideItems(layerRef) {
+    var items = layerRef.pathItems;
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].parent === layerRef && isGuideItem(items[i])) {
             return true;
         }
     }
@@ -903,8 +1069,10 @@ function deleteLayers(layerArray, stats) {
 
     for (var i = 0; i < sortedLayers.length; i++) {
         var layerRef = sortedLayers[i];
+        var parentStates = null;
         try {
-            if (!ensureLayerParentsAccessible(layerRef, stats)) {
+            parentStates = ensureLayerParentsAccessible(layerRef, stats);
+            if (!parentStates) {
                 if (stats) {
                     stats.parentAccessFailureCount++;
                 }
@@ -917,6 +1085,8 @@ function deleteLayers(layerArray, stats) {
             if (stats) {
                 stats.deleteFailureCount++;
             }
+        } finally {
+            restoreLayerAccessStates(parentStates, stats);
         }
     }
 }
@@ -939,15 +1109,46 @@ function ensureLayerParentsAccessible(layerRef, stats) {
         chain.unshift(current);
     }
 
+    var states = [];
     for (var i = 0; i < chain.length; i++) {
         try {
+            states.push({
+                layer: chain[i],
+                visible: chain[i].visible,
+                locked: chain[i].locked
+            });
             chain[i].visible = true;
             chain[i].locked = false;
         } catch (e) {
+            restoreLayerAccessStates(states, stats);
             return false;
         }
     }
-    return true;
+    return states;
+}
+
+function restoreLayerAccessStates(states, stats) {
+    if (!states || states.length === 0) {
+        return;
+    }
+
+    for (var i = states.length - 1; i >= 0; i--) {
+        try {
+            states[i].layer.visible = states[i].visible;
+        } catch (e1) {
+            if (stats) {
+                stats.visibilityRestoreFailureCount++;
+            }
+        }
+
+        try {
+            states[i].layer.locked = states[i].locked;
+        } catch (e2) {
+            if (stats) {
+                stats.layerLockRestoreFailureCount++;
+            }
+        }
+    }
 }
 
 main();
