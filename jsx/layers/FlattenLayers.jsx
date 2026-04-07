@@ -3,7 +3,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // スクリプトバージョン
 
-var SCRIPT_VERSION = "v1.6.1";
+var SCRIPT_VERSION = "v1.7.0";
 
 /*
 レイヤー統合（フラット化）を行うIllustrator用スクリプト。
@@ -24,6 +24,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 - 除外レイヤーを残し、それ以外のレイヤー／サブレイヤー配下のオブジェクトを「_mergedLayer」に移動してフラット化
 - ロック / 非表示のレイヤー・オブジェクトをそれぞれ対象外にするか選択可能
 - 必要に応じて、中身が残ったサブレイヤーを最上位のレイヤーへ移動可能
+- 必要に応じて、ガイドを指定レイヤーへ分離可能
 - 空のレイヤー／サブレイヤーを、削除可能なものがなくなるまで再帰反復で削除
 - まとめ先のレイヤー名、既存まとめ先の再利用、レイヤーカラーを指定可能
 
@@ -34,7 +35,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 3. 設定に応じて既存「_mergedLayer」を取得、または新規作成
 4. 除外レイヤーを除いて、条件に合う全レイヤー／サブレイヤー配下のオブジェクトを「_mergedLayer」に移動してフラット化
 5. 必要に応じて、中身が残ったサブレイヤーを最上位のレイヤーへ移動
-6. 設定が ON の場合、空のレイヤー／サブレイヤーがなくなるまで再帰反復で削除
+6. 必要に応じて、ガイドを指定レイヤーへ移動
+7. 設定が ON の場合、空のレイヤー／サブレイヤーがなくなるまで再帰反復で削除
 
 ### 更新履歴：
 
@@ -58,6 +60,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 - Flatten objects from non-excluded layers and sublayers into "_mergedLayer"
 - Allow the user to choose whether locked / hidden layers and objects are excluded
 - Optionally move remaining non-empty sublayers to the top level
+- Optionally separate guides into a specified layer
 - Delete empty layers / sublayers repeatedly until no more removable empty layers remain
 - Let the user specify the destination layer name, reuse an existing destination layer, and set the destination layer color
 
@@ -68,7 +71,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 3. Reuse or create "_mergedLayer" according to the selected options
 4. Flatten items from eligible non-excluded layers and sublayers into "_mergedLayer"
 5. Optionally move remaining non-empty sublayers to the top level
-6. If enabled, repeatedly delete empty layers / sublayers until none remain
+6. Optionally move guides into a specified layer
+7. If enabled, repeatedly delete empty layers / sublayers until none remain
 
 ### Update History:
 
@@ -96,8 +100,16 @@ var LABELS = {
         en: 'Process'
     },
     promoteSublayers: {
-        ja: '中身が残るサブレイヤーを最上位化',
-        en: 'Promote remaining sublayers to the top level'
+        ja: 'サブレイヤーを上位レベルのレイヤーに変更',
+        en: 'Move sublayers to top-level layers'
+    },
+    separateGuides: {
+        ja: 'ガイドを別レイヤーに',
+        en: 'Separate guides into another layer'
+    },
+    guideLayerName: {
+        ja: 'レイヤー名',
+        en: 'Layer name'
     },
     exclude: {
         ja: '対象外にする',
@@ -175,6 +187,7 @@ function createProcessStats() {
         layerLockRestoreFailureCount: 0,
         itemLockRestoreFailureCount: 0,
         topLevelPromotionFailureCount: 0,
+        guideSeparationFailureCount: 0,
         parentAccessFailureCount: 0
     };
 }
@@ -191,6 +204,24 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
 
     var cbPromoteSublayers = processPanel.add('checkbox', undefined, L('promoteSublayers'));
     cbPromoteSublayers.value = true;
+
+    // --- Guides group (for separate guides and layer name) ---
+    var guidesGroup = processPanel.add('group');
+    guidesGroup.orientation = 'row';
+    guidesGroup.alignChildren = ['left', 'center'];
+
+    var cbSeparateGuides = guidesGroup.add('checkbox', undefined, L('separateGuides'));
+    cbSeparateGuides.value = true;
+
+    var etGuideLayerName = guidesGroup.add('edittext', undefined, '_guide');
+    etGuideLayerName.characters = 12;
+
+    function updateGuideLayerNameState() {
+        etGuideLayerName.enabled = cbSeparateGuides.value;
+    }
+
+    cbSeparateGuides.onClick = updateGuideLayerNameState;
+    updateGuideLayerNameState();
 
     var destPanel = dlg.add('panel', undefined, L('destination'));
     destPanel.orientation = 'column';
@@ -277,9 +308,9 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     lockedPanel.margins = [15, 20, 15, 10];
 
     var cbSkipLocked = lockedPanel.add('checkbox', undefined, L('skipLockedLayers'));
-    cbSkipLocked.value = true;
+    cbSkipLocked.value = false;
     var cbSkipLockedObjects = lockedPanel.add('checkbox', undefined, L('skipLockedObjects'));
-    cbSkipLockedObjects.value = true;
+    cbSkipLockedObjects.value = false;
 
     // 右カラム：非表示
     var hiddenPanel = excludeGroup.add('panel', undefined, L('hiddenPanelTitle'));
@@ -288,15 +319,15 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     hiddenPanel.margins = [15, 20, 15, 10];
 
     var cbSkipHidden = hiddenPanel.add('checkbox', undefined, L('skipHiddenLayers'));
-    cbSkipHidden.value = true;
+    cbSkipHidden.value = false;
     var cbSkipHiddenObjects = hiddenPanel.add('checkbox', undefined, L('skipHiddenObjects'));
-    cbSkipHiddenObjects.value = true;
+    cbSkipHiddenObjects.value = false;
 
     var toggleAllGroup = excludePanel.add('group');
     toggleAllGroup.orientation = 'row';
     toggleAllGroup.alignment = ['left', 'top'];
     var cbToggleAllExclusions = toggleAllGroup.add('checkbox', undefined, L('toggleAllExclusions'));
-    cbToggleAllExclusions.value = true;
+    cbToggleAllExclusions.value = false;
 
     function updateToggleAllExclusionsState() {
         cbToggleAllExclusions.value = cbSkipLocked.value && cbSkipLockedObjects.value && cbSkipHidden.value && cbSkipHiddenObjects.value;
@@ -341,6 +372,8 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
         skipLockedObjects: cbSkipLockedObjects.value,
         skipHiddenObjects: cbSkipHiddenObjects.value,
         promoteSublayersToTopLevel: cbPromoteSublayers.value,
+        separateGuidesToLayer: cbSeparateGuides.value,
+        guideLayerName: etGuideLayerName.text,
         mergedLayerName: etLayerName.text,
         deleteEmptyLayers: cbDeleteEmpty.value,
         reuseExistingMergedLayer: cbReuseExistingMergedLayer.value,
@@ -452,6 +485,10 @@ function main() {
         promoteSublayersToTop(documentRef, mergedLayer, options, stats);
     }
 
+    if (options.separateGuidesToLayer) {
+        separateGuidesToLayer(documentRef, mergedLayer, options, stats);
+    }
+
     if (options.deleteEmptyLayers) {
         deleteEmptyLayersRecursively(documentRef, mergedLayer, options, stats);
     }
@@ -475,9 +512,80 @@ function main() {
     if (stats.topLevelPromotionFailureCount > 0) {
         messages.push((lang === 'ja' ? '最上位化失敗' : 'Top-level promotion failures') + ': ' + stats.topLevelPromotionFailureCount);
     }
+    if (stats.guideSeparationFailureCount > 0) {
+        messages.push((lang === 'ja' ? 'ガイド分離失敗' : 'Guide separation failures') + ': ' + stats.guideSeparationFailureCount);
+    }
     if (stats.parentAccessFailureCount > 0) {
         messages.push((lang === 'ja' ? '親レイヤーアクセス失敗' : 'Parent access failures') + ': ' + stats.parentAccessFailureCount);
     }
+function separateGuidesToLayer(documentRef, mergedLayer, options, stats) {
+    var guideLayerName = options.guideLayerName && options.guideLayerName !== '' ? options.guideLayerName : '_guide';
+    var guideLayer = getOrCreateGuideLayer(documentRef, guideLayerName);
+    applyMergedLayerSettings(guideLayer, options.layerColorValue);
+
+    moveGuideItemsFromLayer(mergedLayer, guideLayer, stats);
+}
+
+function getOrCreateGuideLayer(documentRef, guideLayerName) {
+    try {
+        return documentRef.layers.getByName(guideLayerName);
+    } catch (e) {
+        var guideLayer = documentRef.layers.add();
+        guideLayer.name = guideLayerName;
+        return guideLayer;
+    }
+}
+
+function moveGuideItemsFromLayer(sourceLayer, destinationLayer, stats) {
+    var pageItems = sourceLayer.pageItems;
+    for (var i = pageItems.length - 1; i >= 0; i--) {
+        var item = pageItems[i];
+        if (item.parent !== sourceLayer) {
+            continue;
+        }
+        if (!isGuideItem(item)) {
+            continue;
+        }
+
+        var wasLocked = false;
+        try {
+            wasLocked = item.locked;
+            if (wasLocked) {
+                item.locked = false;
+            }
+            item.move(destinationLayer, ElementPlacement.PLACEATBEGINNING);
+        } catch (e) {
+            if (stats) {
+                stats.guideSeparationFailureCount++;
+            }
+        } finally {
+            try {
+                if (wasLocked) {
+                    item.locked = true;
+                }
+            } catch (restoreError) {
+                if (stats) {
+                    stats.itemLockRestoreFailureCount++;
+                }
+            }
+        }
+    }
+}
+
+function isGuideItem(item) {
+    if (!item) {
+        return false;
+    }
+
+    try {
+        if (item.guides === true) {
+            return true;
+        }
+    } catch (e) {}
+
+    return false;
+}
+
     if (messages.length > 0) {
         alert(messages.join('\n'));
     }
