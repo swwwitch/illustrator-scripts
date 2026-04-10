@@ -2,7 +2,7 @@
 
     /*
     概要:
-    ・選択オブジェクトの visibleBounds を基準に、ロゴ用の補助線およびクリアスペースを生成するスクリプトです。
+    ・選択オブジェクトの visibleBounds を基準に、ロゴ用の補助線およびクリアスペースを生成するスクリプトです（選択範囲の境界に一致する線を太く強調表示する機能に対応）。
     ・本スクリプトは「文字形状からグリッド構造を抽出する」ことを目的としています。
     
     【横線】
@@ -16,11 +16,11 @@
     【オプション（縦線）】
     ・縦分割数、垂直エレメント、斜線エレメントを制御できます。
     
-    【共通設定とクリアスペース】
-    ・分割数を基準にユニットを定義し、クリアスペースを生成します。
+    【共通設定とクリアスペース】 
     ・作成レイヤー名、線幅、ガイド化、グループ化を設定できます。
     ・クリアスペースON時は、横線・縦線はパネルごと無効化されます。
     ・このとき、線幅・ガイド化は無効、グループ化はON固定になります。
+    ・境界線を強調：境界に一致する線の線幅を強調（4倍）します。
     
     【プリセット】
     ・プリセットは配列定義から自動生成されます。
@@ -44,7 +44,7 @@
     ・単位はIllustratorのstrokeUnitsに準拠
     ・日英ローカライズ対応
     
-    更新日: 2026-04-09
+    更新日: 2026-04-10
     */
 
     (function () {
@@ -52,7 +52,7 @@
         // バージョンとローカライズ
         // =========================================
 
-        var SCRIPT_VERSION = "v1.3.1";
+        var SCRIPT_VERSION = "v1.4.0";
 
         function getCurrentLang() {
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -200,6 +200,10 @@
             checkGuides: {
                 ja: "ガイドに変換する",
                 en: "Convert to Guides"
+            },
+            checkWeighting: {
+                ja: "境界線を強調",
+                en: "Highlight Bounds"
             },
             panelOptions: {
                 ja: "オプション",
@@ -990,6 +994,7 @@
                     lineMethod: "none", lineEvenDivCount: "4",
                     vScale: "200.0", vOuter: true, vOuterCount: "1", vTopSpace: false,
                     vDiv: false, vDivisions: "2", vElements: false, vDiagonalElements: false,
+                    emphasizeBounds: false,
                     isolationArea: false, isolationAreaScale: "4"
                 },
                 "auto": {
@@ -997,6 +1002,7 @@
                     lineMethod: "auto", lineEvenDivCount: "4",
                     vScale: "200.0", vOuter: true, vOuterCount: "2", vTopSpace: false,
                     vDiv: false, vDivisions: "2", vElements: false, vDiagonalElements: false,
+                    emphasizeBounds: true,
                     isolationArea: false, isolationAreaScale: "4"
                 },
                 "element": {
@@ -1004,6 +1010,15 @@
                     lineMethod: "segment", lineEvenDivCount: "4",
                     vScale: "300", vOuter: false, vOuterCount: "2", vTopSpace: false,
                     vDiv: false, vDivisions: "3", vElements: true, vDiagonalElements: true,
+                    emphasizeBounds: false,
+                    isolationArea: false, isolationAreaScale: "5"
+                },
+                "element+": {
+                    hScale: "120.0", hExtra: true, hExtraCount: "2", hLeftExtra: false,
+                    lineMethod: "segment", lineEvenDivCount: "4",
+                    vScale: "300.0", vOuter: true, vOuterCount: "2", vTopSpace: false,
+                    vDiv: false, vDivisions: "3", vElements: true, vDiagonalElements: true,
+                    emphasizeBounds: true,
                     isolationArea: false, isolationAreaScale: "5"
                 },
                 "left": {
@@ -1011,6 +1026,7 @@
                     lineMethod: "even", lineEvenDivCount: "4",
                     vScale: "200.0", vOuter: true, vOuterCount: "2", vTopSpace: false,
                     vDiv: false, vDivisions: "2", vElements: false, vDiagonalElements: false,
+                    emphasizeBounds: true,
                     isolationArea: false, isolationAreaScale: "5"
                 },
                 "up-3": {
@@ -1018,6 +1034,7 @@
                     lineMethod: "even", lineEvenDivCount: "4",
                     vScale: "300", vOuter: true, vOuterCount: "2", vTopSpace: true,
                     vDiv: true, vDivisions: "3", vElements: false, vDiagonalElements: false,
+                    emphasizeBounds: true,
                     isolationArea: false, isolationAreaScale: "5"
                 },
                 "clear space": {
@@ -1025,6 +1042,7 @@
                     lineMethod: "none", lineEvenDivCount: "4",
                     vScale: "200.0", vOuter: true, vOuterCount: "1", vTopSpace: false,
                     vDiv: false, vDivisions: "2", vElements: false, vDiagonalElements: false,
+                    emphasizeBounds: false,
                     isolationArea: true, isolationAreaScale: "4"
                 }
             };
@@ -1050,36 +1068,43 @@
                 vDivisions: ui.vDivInput.text,
                 vElements: ui.vElementsCheck.value,
                 vDiagonalElements: ui.vDiagonalCheck.value,
+                emphasizeBounds: ui.weightingCheck.value,
                 isolationArea: ui.isolationAreaCheck.value,
                 isolationAreaScale: ui.isolationAreaInput.text
             };
 
-            var json = "{\n";
-            var keys = ["name", "hScale", "hExtra", "hExtraCount", "hLeftExtra",
-                "lineMethod", "lineEvenDivCount",
-                "vScale", "vOuter", "vOuterCount", "vTopSpace",
-                "vDiv", "vDivisions", "vElements", "vDiagonalElements",
-                "isolationArea", "isolationAreaScale"];
-            for (var i = 0; i < keys.length; i++) {
-                var k = keys[i];
-                var v = data[k];
-                if (typeof v === "string") {
-                    json += '  "' + k + '": "' + v + '"';
-                } else {
-                    json += '  "' + k + '": ' + String(v);
-                }
-                if (i < keys.length - 1) json += ",";
-                json += "\n";
-            }
-            json += "},";
+            var lines = [];
+            var row = function (k, v, isLast) {
+                var val = (typeof v === "string") ? '"' + v + '"' : String(v);
+                return k + ": " + val + (isLast ? "" : ", ");
+            };
+
+            lines.push('                "' + nameInput + '": {');
+            lines.push("                    " +
+                row("hScale", data.hScale) + row("hExtra", data.hExtra) +
+                row("hExtraCount", data.hExtraCount) + row("hLeftExtra", data.hLeftExtra, true) + ",");
+            lines.push("                    " +
+                row("lineMethod", data.lineMethod) + row("lineEvenDivCount", data.lineEvenDivCount, true) + ",");
+            lines.push("                    " +
+                row("vScale", data.vScale) + row("vOuter", data.vOuter) +
+                row("vOuterCount", data.vOuterCount) + row("vTopSpace", data.vTopSpace, true) + ",");
+            lines.push("                    " +
+                row("vDiv", data.vDiv) + row("vDivisions", data.vDivisions) +
+                row("vElements", data.vElements) + row("vDiagonalElements", data.vDiagonalElements, true) + ",");
+            lines.push("                    " +
+                row("emphasizeBounds", data.emphasizeBounds, true) + ",");
+            lines.push("                    " +
+                row("isolationArea", data.isolationArea) + row("isolationAreaScale", data.isolationAreaScale, true));
+            lines.push("                },");
+
+            var json = lines.join("\n");
 
             var desktop = Folder.desktop;
             var fileName = nameInput.replace(new RegExp('[\\\\/:*?"<>|]', "g"), "_") + ".json";
             var file = new File(desktop + "/" + fileName);
             file.encoding = "UTF-8";
             if (file.open("w")) {
-                var formatted = "  " + json.replace(/\n/g, "\n  ");
-                file.write(formatted);
+                file.write(json);
                 file.close();
                 alert((lang === "ja" ? "書き出しました（配列に貼り付け用）:\n" : "Exported (for array paste):\n") + file.fsName);
             }
@@ -1110,6 +1135,8 @@
 
             ui.vElementsCheck.value = p.vElements;
             ui.vDiagonalCheck.value = p.vDiagonalElements;
+
+            ui.weightingCheck.value = !!p.emphasizeBounds;
 
             ui.isolationAreaCheck.value = p.isolationArea;
             setUiValueAndNotify(ui.isolationAreaInput, p.isolationAreaScale, ui, context, suppressPreview);
@@ -1217,6 +1244,12 @@
                 }
             };
 
+            ui.weightingCheck.onClick = function () {
+                if (ui.previewCheck.value) {
+                    updatePreview(ui, context);
+                }
+            };
+
             ui.guideCheck.onClick = function () {
                 updateGroupCheckEnabled(ui);
                 if (ui.previewCheck.value) {
@@ -1308,23 +1341,28 @@
             csStrokeRow.alignChildren = ["left", "center"];
             csStrokeRow.add("statictext", undefined, L("labelStrokeWidth"));
             var swInput = csStrokeRow.add("edittext", undefined, "0.25");
-            swInput.characters = 3;
+            swInput.characters = 4;
             csStrokeRow.add("statictext", undefined, getCurrentStrokeUnitLabel());
+
+            var csWeightingRow = clearRight.add("group");
+            csWeightingRow.alignChildren = ["left", "center"];
+            var weightingCheck = csWeightingRow.add("checkbox", undefined, L("checkWeighting"));
+            weightingCheck.value = false;
 
             var csIsolationCheckRow = clearLeft.add("group");
             csIsolationCheckRow.alignChildren = ["left", "center"];
             var isolationAreaCheck = csIsolationCheckRow.add("checkbox", undefined, L("checkIsolationArea"));
             isolationAreaCheck.value = false;
 
+            var csGuideRow = clearLeft.add("group");
+            csGuideRow.alignChildren = ["left", "center"];
+            var guideCheck = csGuideRow.add("checkbox", undefined, L("checkGuides"));
+            guideCheck.value = false;
+
             var csGroupRow = clearRight.add("group");
             csGroupRow.alignChildren = ["left", "center"];
             var groupCheck = csGroupRow.add("checkbox", undefined, L("checkGroupItems"));
             groupCheck.value = true;
-
-            var csGuideRow = clearRight.add("group");
-            csGuideRow.alignChildren = ["left", "center"];
-            var guideCheck = csGuideRow.add("checkbox", undefined, L("checkGuides"));
-            guideCheck.value = false;
 
             var guideLayerRow = clearSpacePanel.add("group");
             guideLayerRow.alignChildren = ["left", "center"];
@@ -1474,6 +1512,7 @@
                 swInput: swInput,
                 guideCheck: guideCheck,
                 groupCheck: groupCheck,
+                weightingCheck: weightingCheck,
                 previewCheck: previewCheck,
                 cancelBtn: cancelBtn,
                 okBtn: okBtn
@@ -1577,6 +1616,7 @@
                 vTopSpace: ui.vTopSpaceCheck.value,
                 vElements: ui.vElementsCheck.value,
                 vDiagonalElements: ui.vDiagonalCheck.value,
+                emphasizeBounds: ui.weightingCheck.value,
                 isolationArea: ui.isolationAreaCheck.value,
                 isolationAreaScaleText: ui.isolationAreaInput.text,
                 isolationAreaScale: parseFloat(ui.isolationAreaInput.text)
@@ -1649,6 +1689,7 @@
                 vTopSpace: raw.vTopSpace,
                 vElements: raw.vElements,
                 vDiagonalElements: raw.vDiagonalElements,
+                emphasizeBounds: raw.emphasizeBounds,
                 isolationArea: raw.isolationArea,
                 isolationAreaScale: raw.isolationAreaScale
             };
@@ -1691,6 +1732,27 @@
                 vB = context.centerY - vLineHeight / 2;
             }
 
+            /* 最小値クランプ: 外側の線も含め必ず交差するよう自動補正 */
+            if (!params.isolationArea) {
+                var needLeft = context.bLeft;
+                var needRight = context.bRight;
+                var needTop = context.bTop;
+                var needBottom = context.bBottom;
+
+                if (params.vOuter && params.vOuterCount > 1) {
+                    needLeft = context.bLeft - C * (params.vOuterCount - 1);
+                    needRight = context.bRight + C * (params.vOuterCount - 1);
+                }
+                if (params.hExtra && params.hExtraCount > 1) {
+                    needTop = context.bTop + C * (params.hExtraCount - 1);
+                    needBottom = context.bBottom - C * (params.hExtraCount - 1);
+                }
+
+                if (hLeft > needLeft) hLeft = needLeft;
+                if (hRight < needRight) hRight = needRight;
+                if (vT < needTop) vT = needTop;
+                if (vB > needBottom) vB = needBottom;
+            }
 
             var strokeColor = new GrayColor();
             strokeColor.gray = 100;
@@ -1698,39 +1760,44 @@
             var group = context.guideLayer.groupItems.add();
             group.name = isPreview ? L("layerGuideLinesPreview") : L("layerGuideLines");
 
+            /* 境界線を強調 / Highlight Bounds: 選択範囲の境界に一致する線の線幅を4倍にする */
+            var sw = params.strokeWidth;
+            var swBound = params.emphasizeBounds ? sw * 4 : sw;
+
             if (!params.isolationArea) {
                 /* 横線 / Horizontal lines */
                 var isoC = context.A / params.isolationAreaScale;
                 if (params.hExtra) {
                     /* 境界線 (上下) / Boundary lines (top & bottom) */
-                    drawLine(group, hLeft, context.bTop, hRight, context.bTop, strokeColor, params.strokeWidth);
-                    drawLine(group, hLeft, context.bBottom, hRight, context.bBottom, strokeColor, params.strokeWidth);
+                    drawLine(group, hLeft, context.bTop, hRight, context.bTop, strokeColor, swBound);
+                    drawLine(group, hLeft, context.bBottom, hRight, context.bBottom, strokeColor, swBound);
                     /* 外側線 (hExtraCount - 1 本ずつ) / Outer lines */
                     for (var eT = 1; eT < params.hExtraCount; eT++) {
-                        drawLine(group, hLeft, context.bTop + isoC * eT, hRight, context.bTop + isoC * eT, strokeColor, params.strokeWidth);
+                        drawLine(group, hLeft, context.bTop + isoC * eT, hRight, context.bTop + isoC * eT, strokeColor, sw);
                     }
                     for (var eB = 1; eB < params.hExtraCount; eB++) {
-                        drawLine(group, hLeft, context.bBottom - isoC * eB, hRight, context.bBottom - isoC * eB, strokeColor, params.strokeWidth);
+                        drawLine(group, hLeft, context.bBottom - isoC * eB, hRight, context.bBottom - isoC * eB, strokeColor, sw);
                     }
                 }
 
                 /* ラインの決め方に基づく横線 / Horizontal lines based on line method */
                 var lineYs = getLineYPositions(sel, params.lineMethod, params.lineEvenDivCount);
                 for (var li = 0; li < lineYs.length; li++) {
-                    drawLine(group, hLeft, lineYs[li], hRight, lineYs[li], strokeColor, params.strokeWidth);
+                    var lySw = (params.emphasizeBounds && (lineYs[li] === context.bTop || lineYs[li] === context.bBottom)) ? swBound : sw;
+                    drawLine(group, hLeft, lineYs[li], hRight, lineYs[li], strokeColor, lySw);
                 }
 
                 /* 縦線 / Vertical lines */
                 if (params.vOuter) {
                     /* 境界線 / Boundary lines */
-                    drawLine(group, context.bLeft, vT, context.bLeft, vB, strokeColor, params.strokeWidth);
-                    drawLine(group, context.bRight, vT, context.bRight, vB, strokeColor, params.strokeWidth);
+                    drawLine(group, context.bLeft, vT, context.bLeft, vB, strokeColor, swBound);
+                    drawLine(group, context.bRight, vT, context.bRight, vB, strokeColor, swBound);
                     /* 外側線 (vOuterCount - 1 本ずつ) / Outer lines */
                     for (var oL = 1; oL < params.vOuterCount; oL++) {
-                        drawLine(group, context.bLeft - isoC * oL, vT, context.bLeft - isoC * oL, vB, strokeColor, params.strokeWidth);
+                        drawLine(group, context.bLeft - isoC * oL, vT, context.bLeft - isoC * oL, vB, strokeColor, sw);
                     }
                     for (var oR = 1; oR < params.vOuterCount; oR++) {
-                        drawLine(group, context.bRight + isoC * oR, vT, context.bRight + isoC * oR, vB, strokeColor, params.strokeWidth);
+                        drawLine(group, context.bRight + isoC * oR, vT, context.bRight + isoC * oR, vB, strokeColor, sw);
                     }
                 }
 
@@ -1739,7 +1806,7 @@
                     var vDivStep = (context.bRight - context.bLeft) / params.vDivisions;
                     for (var k = 1; k < params.vDivisions; k++) {
                         var xDiv = context.bLeft + vDivStep * k;
-                        drawLine(group, xDiv, vT, xDiv, vB, strokeColor, params.strokeWidth);
+                        drawLine(group, xDiv, vT, xDiv, vB, strokeColor, sw);
                     }
                 }
 
@@ -1747,7 +1814,8 @@
                 if (params.vElements) {
                     var vertXs = getVerticalLineXPositions(sel);
                     for (var vi = 0; vi < vertXs.length; vi++) {
-                        drawLine(group, vertXs[vi], vT, vertXs[vi], vB, strokeColor, params.strokeWidth);
+                        var vxSw = (params.emphasizeBounds && (vertXs[vi] === context.bLeft || vertXs[vi] === context.bRight)) ? swBound : sw;
+                        drawLine(group, vertXs[vi], vT, vertXs[vi], vB, strokeColor, vxSw);
                     }
                 }
 
@@ -1756,7 +1824,7 @@
                     var diagLines = getDiagonalElementLines(sel, hLeft, vT, hRight, vB);
                     for (var di = 0; di < diagLines.length; di++) {
                         drawLine(group, diagLines[di][0][0], diagLines[di][0][1],
-                            diagLines[di][1][0], diagLines[di][1][1], strokeColor, params.strokeWidth);
+                            diagLines[di][1][0], diagLines[di][1][1], strokeColor, sw);
                     }
                 }
             }
