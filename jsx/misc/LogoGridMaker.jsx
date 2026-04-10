@@ -44,7 +44,7 @@
     ・単位はIllustratorのstrokeUnitsに準拠
     ・日英ローカライズ対応
     
-    更新日: 2026-04-10
+    更新日: 2026-04-10（クリアスペースON時は、均等分割連動中でも共通設定の分割数を編集可能に調整）
     */
 
     (function () {
@@ -52,7 +52,7 @@
         // バージョンとローカライズ
         // =========================================
 
-        var SCRIPT_VERSION = "v1.4.0";
+        var SCRIPT_VERSION = "v1.4.1";
 
         function getCurrentLang() {
             return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -1571,12 +1571,13 @@
         function updateIsolationDivisionInputEnabled(ui) {
             var evenMode = ui.lineEvenDivRadio.value;
             var evenCount = parseInt(ui.lineEvenDivInput.text, 10);
+            var isolationMode = ui.isolationAreaCheck.value;
 
             if (evenMode && !isNaN(evenCount) && isFinite(evenCount) && evenCount >= 1) {
                 ui.isolationAreaInput.text = String(evenCount + 1);
             }
 
-            ui.isolationAreaInput.enabled = !evenMode;
+            ui.isolationAreaInput.enabled = isolationMode || !evenMode;
         }
 
         function normalizeLayerNameText(text) {
