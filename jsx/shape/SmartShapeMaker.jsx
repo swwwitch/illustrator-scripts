@@ -4,10 +4,10 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-SmartShapeMaker.jsx (v2.0)
+SmartShapeMaker.jsx (v2.1.0)
 
 Illustrator script to create custom shapes from a single dialog
-(Circle / Polygon / Star / Superellipse / Reuleaux-style).
+(Circle / Polygon / Star / Superellipse / Reuleaux).
 Real-time preview, adjustable sides, width, rotation, and advanced options are supported.
 Japanese / English UI.
 
@@ -35,16 +35,16 @@ Main Features:
   - Auto angle is used when Rotate is OFF (Circle=45°, Polygon=360/(sides*2))
   - When sides = 3 and Rotate is enabled, Triangle direction defaults to “Down” (60°)
   - Arrow-key editing supported
-- Reuleaux-style option (odd-sided polygons only)
+- Reuleaux option (odd-sided polygons only)
   - Adjustable appearance amount (0–200%)
   - Amount resets to 100% when Reuleaux is enabled
 - Options panel:
-  - Live Shape conversion (Convert to Shape) on finalize
+  - Live Shape on finalize (Convert to Shape)
   - Split at Anchor Points (creates open stroked segments)
-- Add via Roughen (Detail; value=1 on non-circles uses “Add Anchor Points2”)
+- Add Anchors (Roughen): Detail; value=1 on non-circles uses “Add Anchor Points2”
   - Mutual exclusivity:
-    - Add via Roughen ON → Split at Anchor Points OFF (disabled)
-    - Add via Roughen ON → Live Shape OFF (disabled)
+  - Add Anchors (Roughen) ON → Split at Anchor Points OFF (disabled)
+    - Add Anchors (Roughen) ON → Live Shape OFF (disabled)
 - Dialog opacity and position are restored within the current Illustrator session
 - Preview does not pollute Undo history; final result can be undone in a single step
 - View Zoom slider above OK / Cancel
@@ -63,7 +63,7 @@ Usage Flow:
 1. Set sides, width, star/circle options, rotation, and options in the dialog
 2. Preview updates in real-time
 3. Click OK to finalize the preview object at the artboard center
-4. If “Add via Roughen” is enabled, anchors are added after finalization (Roughen effect or fallback command depending on value)
+4. If “Add Anchors (Roughen)” is enabled, anchors are added after finalization (Roughen effect or fallback command depending on value)
 
 Original Idea: Seiji Miyazawa (Sankai Lab)
 https://x.com/onthehead/status/2007350198721483172
@@ -80,15 +80,19 @@ function getCurrentLang() {
 }
 var lang = getCurrentLang();
 
-var SCRIPT_VERSION = "v2.0";
+var SCRIPT_VERSION = "v2.1.0";
 
 var LABELS = {
     dialogTitle: {
         ja: "基本図形の作成 " + SCRIPT_VERSION,
-        en: "Create Basic Shapes " + SCRIPT_VERSION
+        en: "Shape Builder " + SCRIPT_VERSION
     },
     shapeType: { ja: "辺の数", en: "Sides" },
     circle: { ja: "円", en: "Circle" },
+    circleWithZero: {
+        ja: "0（円）",
+        en: "0 (Circle)"
+    },
     custom: { ja: "それ以外", en: "Other" },
     starPanel: { ja: "スター", en: "Star" },
     circlePanel: { ja: "円", en: "Circle" },
@@ -100,7 +104,6 @@ var LABELS = {
     triangleDown: { ja: "下", en: "Down" },
     star: { ja: "スター", en: "Star" },
     innerRadius: { ja: "第2半径：", en: "Inner Radius:" },
-    percent: { ja: "%", en: "%" },
     pentagram: { ja: "五芒星", en: "Pentagram" },
     rotation: { ja: "回転", en: "Rotate" },
     width: { ja: "幅：", en: "Width:" },
@@ -108,16 +111,21 @@ var LABELS = {
     fillAndStrokePanel: { ja: "塗りと線", en: "Fill & Stroke" },
     fill: { ja: "塗り", en: "Fill" },
     stroke: { ja: "線", en: "Stroke" },
-    strokeWidth: { ja: "線幅", en: "Stroke Width" },
+    strokeWidth: { ja: "線幅：", en: "Stroke Width:" },
     colorPicker: { ja: "カラーピッカー", en: "Color Picker" },
+    opacity: { ja: "不透明度：", en: "Opacity:" },
     cornerSmoothingPanel: { ja: "角丸", en: "Corner Smoothing" },
     cornerRadius: { ja: "半径：", en: "Radius:" },
-    smoothing: { ja: "スムージング", en: "Smoothing" },
+    smoothing: { ja: "スムージング：", en: "Smoothing:" },
     optionPanel: { ja: "オプション", en: "Options" },
-    reuleaux: { ja: "ルーロー（定幅図形）", en: "Reuleaux (Constant Width)" },
+    reuleaux: { ja: "ルーロー（定幅図形）", en: "Reuleaux (Constant-Width)" },
     splitAtAnchors: { ja: "アンカーポイントで分割", en: "Split at Anchor Points" },
+    strokeCap: { ja: "線端：", en: "Line Cap:" },
+    capButt: { ja: "なし", en: "Butt" },
+    capRound: { ja: "丸型", en: "Round" },
+    capProjecting: { ja: "突出", en: "Projecting" },
     liveShape: { ja: "ライブシェイプ化", en: "Live Shape" },
-    roughenAnchors: { ja: "ラフ効果で追加", en: "Add via Roughen" },
+    roughenAnchors: { ja: "ラフ効果で追加：", en: "Add Anchors (Roughen):" },
     ok: { ja: "OK", en: "OK" },
     cancel: { ja: "キャンセル", en: "Cancel" },
     viewZoom: { ja: "画面ズーム", en: "View Zoom" },
@@ -408,7 +416,7 @@ function createCirclePathWithNAnchors(doc, sizePt, N) {
     return pathItem;
 }
 
-// Convert an odd-sided polygon into a Reuleaux (constant-width) polygon by turning each edge into a circular arc.
+// Convert an odd-sided polygon into a Reuleaux shape by turning each edge into a circular arc.
 // This adapts the logic from the reference script `reuleaux_polygon.jsx`.
 function applyReuleauxToPolygon(pathItem, amount) {
     try {
@@ -582,7 +590,7 @@ function computeCornerH(arm, R) {
 }
 
 // Create shape based on parameters
-function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, superExp, circleAnchorCount, useReuleaux, reuleauxAmount, fillOpts, strokeOpts, cornerSmoothing) {
+function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rotateAngle, splitAtAnchors, useSuperEllipse, superExp, circleAnchorCount, useReuleaux, reuleauxAmount, fillOpts, strokeOpts, cornerSmoothing, strokeCap, opacity) {
     var layer = doc.activeLayer;
     layer.locked = false;
     layer.visible = true;
@@ -661,7 +669,11 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
         shape.rotate(rotateAngle, true, true, true, true, Transformation.CENTER);
     }
     if (splitAtAnchors) {
-        shape = splitPathAtAnchors(doc, shape, strokeOpts);
+        shape = splitPathAtAnchors(doc, shape, strokeOpts, strokeCap);
+    }
+    // Apply opacity
+    if (typeof opacity === "number" && opacity < 100) {
+        try { shape.opacity = opacity; } catch (e) { }
     }
     doc.selection = [shape];
     return shape;
@@ -669,7 +681,7 @@ function createShape(doc, sizePt, sides, isStar, innerRatio, rotateEnabled, rota
 
 // Split a path into segments at each anchor point.
 // Returns a GroupItem containing open PathItems (one per segment).
-function splitPathAtAnchors(doc, pathItem, strokeOpts) {
+function splitPathAtAnchors(doc, pathItem, strokeOpts, strokeCap) {
     if (!pathItem || !pathItem.pathPoints || pathItem.pathPoints.length < 2) return pathItem;
 
     var layer = doc.activeLayer;
@@ -728,6 +740,9 @@ function splitPathAtAnchors(doc, pathItem, strokeOpts) {
         } catch (e) { }
         try {
             seg.strokeWidth = (strokeOpts && strokeOpts.enabled) ? strokeOpts.widthPt : 0.3;
+        } catch (e) { }
+        try {
+            if (strokeCap) seg.strokeCap = strokeCap;
         } catch (e) { }
     }
 
@@ -903,7 +918,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     left.alignChildren = "left";
     left.margins = [20, 20, 10, 10];
 
-    radios[0] = left.add("radiobutton", undefined, "0 (" + LABELS.circle[lang] + ")");
+    radios[0] = left.add("radiobutton", undefined, LABELS.circleWithZero[lang]);
     radios[1] = left.add("radiobutton", undefined, "3");
     radios[2] = left.add("radiobutton", undefined, "4");
     radios[3] = left.add("radiobutton", undefined, "5");
@@ -1102,6 +1117,40 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     };
     updateStrokeWidthEnabled();
 
+    // Opacity row
+    var opacityRow = fillStrokePanel.add("group");
+    opacityRow.orientation = "row";
+    opacityRow.alignChildren = ["left", "center"];
+    opacityRow.spacing = 6;
+
+    opacityRow.add("statictext", undefined, LABELS.opacity[lang]);
+    var opacityInput = opacityRow.add("edittext", undefined, "100");
+    opacityInput.characters = 4;
+    changeValueByArrowKey(opacityInput);
+    opacityRow.add("statictext", undefined, "%");
+    var opacitySlider = fillStrokePanel.add("slider", undefined, 100, 0, 100);
+    opacitySlider.preferredSize.width = 200;
+
+    opacityInput.onChanging = function () {
+        var v = Math.round(Number(opacityInput.text));
+        if (isNaN(v)) v = 100;
+        if (v < 0) v = 0;
+        if (v > 100) v = 100;
+        opacitySlider.value = v;
+        updatePreview();
+    };
+
+    opacitySlider.onChanging = function () {
+        var v = Math.round(opacitySlider.value);
+        var keyboard = ScriptUI.environment.keyboardState;
+        if (keyboard.shiftKey) {
+            v = Math.round(v / 10) * 10;
+            opacitySlider.value = v;
+        }
+        opacityInput.text = String(v);
+        updatePreview();
+    };
+
     // Width panel placed under the Fill & Stroke panel (left column)
     var widthPanel = leftCol.add("panel", undefined, LABELS.widthPanel[lang]);
     widthPanel.orientation = "column";
@@ -1144,7 +1193,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     var innerRatioInput = innerGroup.add("edittext", undefined, "30");
     innerRatioInput.characters = 4;
     changeValueByArrowKey(innerRatioInput);
-    var innerPercentLabel = innerGroup.add("statictext", undefined, LABELS.percent[lang]);
+    var innerPercentLabel = innerGroup.add("statictext", undefined, "%");
 
     // Inner radius slider (0–100)
     var innerSliderRow = starPanel.add("group");
@@ -1424,7 +1473,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     var liveShapeCheck = optionPanel.add("checkbox", undefined, LABELS.liveShape[lang]);
     liveShapeCheck.value = true;
 
-    // Roughen anchors option (moved to anchorOpsPanel)
+    // Add Anchors (Roughen) option
     var roughenAnchorsRow = anchorOpsPanel.add("group");
     roughenAnchorsRow.orientation = "row";
     roughenAnchorsRow.alignChildren = ["left", "center"];
@@ -1458,11 +1507,42 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
     };
     roughenAnchorsInput.onChanging = function () { updatePreview(); };
 
-    // Split at anchor points (moved to anchorOpsPanel)
+// Split at Anchor Points option
     var splitAtAnchorsCheck = anchorOpsPanel.add("checkbox", undefined, LABELS.splitAtAnchors[lang]);
     splitAtAnchorsCheck.value = false;
 
-    // Reuleaux (constant-width shape) (logic TBD)
+    // Stroke cap radio buttons (below Split at Anchor Points)
+    var strokeCapRow = anchorOpsPanel.add("group");
+    strokeCapRow.orientation = "row";
+    strokeCapRow.alignChildren = ["left", "center"];
+    strokeCapRow.spacing = 4;
+
+    var strokeCapLabel = strokeCapRow.add("statictext", undefined, LABELS.strokeCap[lang]);
+    var capButtRadio = strokeCapRow.add("radiobutton", undefined, LABELS.capButt[lang]);
+    var capRoundRadio = strokeCapRow.add("radiobutton", undefined, LABELS.capRound[lang]);
+    var capProjectingRadio = strokeCapRow.add("radiobutton", undefined, LABELS.capProjecting[lang]);
+    capButtRadio.value = true;
+
+    function updateStrokeCapEnabled() {
+        var en = splitAtAnchorsCheck.value;
+        strokeCapLabel.enabled = en;
+        capButtRadio.enabled = en;
+        capRoundRadio.enabled = en;
+        capProjectingRadio.enabled = en;
+    }
+    updateStrokeCapEnabled();
+
+    capButtRadio.onClick = function () { updatePreview(); };
+    capRoundRadio.onClick = function () { updatePreview(); };
+    capProjectingRadio.onClick = function () { updatePreview(); };
+
+    function getSelectedStrokeCap() {
+        if (capRoundRadio.value) return StrokeCap.ROUNDENDCAP;
+        if (capProjectingRadio.value) return StrokeCap.PROJECTINGENDCAP;
+        return StrokeCap.BUTTENDCAP;
+    }
+
+    // Reuleaux option
     var reuleauxCheck = optionPanel.add("checkbox", undefined, LABELS.reuleaux[lang]);
     reuleauxCheck.value = false;
 
@@ -1567,6 +1647,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
             strokeCheck.value = true;
             updateStrokeWidthEnabled();
         }
+        updateStrokeCapEnabled();
         refreshLiveShapeAvailabilityFromUI();
         updateSuperellipseSmoothnessEnabled(getSelectedSideValue(radios, customInput));
         updatePreview();
@@ -1719,6 +1800,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
             rotate: rotate,
             angle: angle,
             splitAtAnchors: splitAtAnchors,
+            strokeCap: splitAtAnchors ? getSelectedStrokeCap() : null,
             superEllipse: superEllipse,
             superExp: superExp,
             circleAnchorCount: circleAnchorCount,
@@ -1736,7 +1818,8 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
             cornerSmoothing: (sides === 4 && cornerRadiusCheck.value) ? {
                 radius: parseFloat(cornerRadiusInput.text) * unitFactor,
                 smoothing: Math.round(smoothingSlider.value)
-            } : null
+            } : null,
+            opacity: Math.max(0, Math.min(100, parseFloat(opacityInput.text) || 100))
         };
     }
 
@@ -1749,7 +1832,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         var p = getCurrentParams();
         if (!isNaN(p.size) && !isNaN(p.ratio)) {
             previewMgr.addStep(function () {
-                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse, p.superExp, p.circleAnchorCount, p.reuleaux, p.reuleauxAmount, p.fillOpts, p.strokeOpts, p.cornerSmoothing);
+                previewShape = createShape(app.activeDocument, p.size, p.sides, p.isStar, p.ratio, p.rotate, p.angle, p.splitAtAnchors, p.superEllipse, p.superExp, p.circleAnchorCount, p.reuleaux, p.reuleauxAmount, p.fillOpts, p.strokeOpts, p.cornerSmoothing, p.strokeCap, p.opacity);
             });
         }
     }
@@ -1956,6 +2039,15 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         // Options
         // Always start with Split-at-Anchors OFF on dialog open (do not restore this from session state)
         splitAtAnchorsCheck.value = false;
+        // Restore stroke cap selection
+        if (st.strokeCapValue === "round") {
+            capRoundRadio.value = true;
+        } else if (st.strokeCapValue === "projecting") {
+            capProjectingRadio.value = true;
+        } else {
+            capButtRadio.value = true;
+        }
+        updateStrokeCapEnabled();
         if (typeof st.reuleauxCheck === "boolean") reuleauxCheck.value = st.reuleauxCheck;
         if (typeof st.liveShapeCheck === "boolean") liveShapeCheck.value = st.liveShapeCheck;
         if (typeof st.roughenAnchorsCheck === "boolean") roughenAnchorsCheck.value = st.roughenAnchorsCheck;
@@ -2041,6 +2133,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         // Options
         // This option is always reset to OFF on next open, but we still save the current value for the current session run
         st.splitAtAnchorsCheck = splitAtAnchorsCheck.value;
+        st.strokeCapValue = capRoundRadio.value ? "round" : (capProjectingRadio.value ? "projecting" : "butt");
         st.liveShapeCheck = liveShapeCheck.value;
         st.roughenAnchorsCheck = roughenAnchorsCheck.value;
         st.roughenAnchorsText = roughenAnchorsInput.text;
@@ -2186,7 +2279,7 @@ function showInputDialog(unitLabel, unitFactor, strokeUnit) {
         previewMgr.confirm(function () {
             if (!pFinal) return;
             if (isNaN(pFinal.size) || isNaN(pFinal.ratio)) return;
-            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse, pFinal.superExp, pFinal.circleAnchorCount, pFinal.reuleaux, pFinal.reuleauxAmount, pFinal.fillOpts, pFinal.strokeOpts, pFinal.cornerSmoothing);
+            previewShape = createShape(app.activeDocument, pFinal.size, pFinal.sides, pFinal.isStar, pFinal.ratio, pFinal.rotate, pFinal.angle, pFinal.splitAtAnchors, pFinal.superEllipse, pFinal.superExp, pFinal.circleAnchorCount, pFinal.reuleaux, pFinal.reuleauxAmount, pFinal.fillOpts, pFinal.strokeOpts, pFinal.cornerSmoothing, pFinal.strokeCap, pFinal.opacity);
         });
     }
 
