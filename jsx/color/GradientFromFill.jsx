@@ -4,11 +4,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
  * 概要：
  * 選択した塗りオブジェクトに対して、元の塗り色を始点にした線形グラデーションを作成します。
- * 単色オブジェクトを選択している場合はその塗り色を使用し、オブジェクトが1つで塗りがグラデーションの場合は、黒・白・透明を除いたグラデーションストップから始点色を選択できます。
+ * 単色オブジェクトを選択している場合はその塗り色をそのまま使用し、オブジェクトが1つで塗りがグラデーションの場合は、黒・白・透明を除いたグラデーションストップから始点色を選択できます。
  * 複数オブジェクト選択時は始点カラーパネル全体を無効化し、単一グラデーション選択時はドロップダウン内に実際の色情報を表示します。Auto は先頭の有効な候補色を使用し、同じ色のグラデーションストップは重複候補として扱わず、1色にまとめます。
  * 終点カラーと角度を2カラムで表示し、角度は 0、30、45、60、90 のラジオボタンから選択できます。
- * 終点カラーには、黒、白、透明、補色を選択できます。
- * セパレートグラデーション、反転、プレビューに対応し、キャンセル時には元の塗り色へ戻します。
+ * 終点カラーには、黒、白、透明、補色、淡色を選択できます。
+ * セパレートグラデーション、反転、プレビューに対応し、キャンセル時には元の塗り色へ戻します。プレビュー中に例外が発生した場合も、元の塗り色と選択状態を復元します。
  * CompoundPathItem、GroupItem 内の再帰処理、クリッピンググループ内のオブジェクトにも対応します。
  * グラデーション角度はオブジェクトごとに前回角度との差分で適用します。
  *
@@ -17,8 +17,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * For solid-color objects, the object's fill color is used directly. When exactly one gradient-filled object is selected, the source color can be chosen from gradient stops excluding black, white, and fully transparent stops.
  * When multiple objects are selected, the entire source-color panel is disabled. For a single gradient-filled object, the dropdown shows actual color information for each available source color. Auto uses the first valid source color, and duplicate stop colors are merged into a single option.
  * The end color and angle are shown in a two-column layout, and the angle can be selected with radio buttons for 0, 30, 45, 60, or 90 degrees.
- * The end color can be set to black, white, transparent, or a complementary color.
- * Supports separate gradients, reverse, and preview, and restores the original fill color when canceled.
+ * The end color can be set to black, white, transparent, complementary, or tint.
+ * Supports separate gradients, reverse, and preview, and restores the original fill color when canceled. If an exception occurs during preview, the script also restores the original fill color and selection state.
  * Compound paths, recursive traversal inside groups, and objects inside clipping groups are also supported.
  * The gradient angle is applied per object using the difference from the previously applied angle.
  */
@@ -27,7 +27,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // バージョンとローカライズ / Version and localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -60,6 +60,14 @@ var LABELS = {
         ja: "自動（先頭）",
         en: "Auto (First)"
     },
+    gray: {
+        ja: "グレー",
+        en: "Gray"
+    },
+    spot: {
+        ja: "特色",
+        en: "Spot"
+    },
     black: {
         ja: "黒",
         en: "Black"
@@ -75,6 +83,10 @@ var LABELS = {
     complementary: {
         ja: "補色",
         en: "Complementary"
+    },
+    tint: {
+        ja: "淡色",
+        en: "Tint"
     },
     optionsPanel: {
         ja: "オプション",
@@ -149,6 +161,9 @@ function main() {
         var radioWhite = ui.radioWhite;
         var radioTransparent = ui.radioTransparent;
         var radioComplementary = ui.radioComplementary;
+        var radioTint = ui.radioTint;
+        var tintSlider = ui.tintSlider;
+        var tintValue = ui.tintValue;
         var angle0 = ui.angle0;
         var angle30 = ui.angle30;
         var angle45 = ui.angle45;
@@ -185,6 +200,8 @@ function main() {
                     targetColor = createWhiteColor(isCMYK);
                 } else if (radioComplementary.value) {
                     targetColor = createComplementaryColor(orgColor, isCMYK);
+                } else if (radioTint.value) {
+                    targetColor = createTintColor(orgColor, tintSlider.value, isCMYK);
                 }
 
                 var startColor = orgColor;
@@ -273,15 +290,25 @@ function main() {
         }
 
         function updatePreview() {
-            if (chkPreview.value) {
-                applyGradient();
-            } else {
-                restoreOriginal();
-            }
-            restoreSelection();
             try {
-                app.redraw();
-            } catch (e) { }
+                if (chkPreview.value) {
+                    applyGradient();
+                } else {
+                    restoreOriginal();
+                }
+            } catch (e) {
+                try {
+                    restoreOriginal();
+                } catch (restoreErr) { }
+                try {
+                    cleanupAppliedGradients();
+                } catch (cleanupErr) { }
+            } finally {
+                restoreSelection();
+                try {
+                    app.redraw();
+                } catch (e2) { }
+            }
         }
 
         /* イベントの設定 / Set event handlers */
@@ -298,7 +325,43 @@ function main() {
         radioWhite.onClick = updatePreview;
         radioTransparent.onClick = updatePreview;
         radioComplementary.onClick = updatePreview;
-        addColorKeyHandler(dlg, radioBlack, radioWhite, radioTransparent, radioComplementary, updatePreview);
+        radioTint.onClick = function () {
+            radioBlack.value = false;
+            radioWhite.value = false;
+            radioTransparent.value = false;
+            radioComplementary.value = false;
+            tintSlider.enabled = radioTint.value;
+            updatePreview();
+        };
+        tintSlider.onChanging = function () {
+            if (ScriptUI.environment.keyboardState.shiftKey) {
+                tintSlider.value = Math.round(tintSlider.value / 10) * 10;
+            }
+            tintValue.text = Math.round(tintSlider.value) + "%";
+            updatePreview();
+        };
+        tintSlider.onChange = function () {
+            if (ScriptUI.environment.keyboardState.shiftKey) {
+                tintSlider.value = Math.round(tintSlider.value / 10) * 10;
+            }
+            tintValue.text = Math.round(tintSlider.value) + "%";
+            updatePreview();
+        };
+
+        /* 他のラジオ選択時にスライダーを無効化 / Disable slider when other radios selected */
+        var otherRadios = [radioBlack, radioWhite, radioTransparent, radioComplementary];
+        for (var ri = 0; ri < otherRadios.length; ri++) {
+            (function (radio) {
+                var originalOnClick = radio.onClick;
+                radio.onClick = function () {
+                    radioTint.value = false;
+                    tintSlider.enabled = false;
+                    if (originalOnClick) originalOnClick();
+                };
+            })(otherRadios[ri]);
+        }
+
+        addColorKeyHandler(dlg, radioBlack, radioWhite, radioTransparent, radioComplementary, radioTint, tintSlider, updatePreview);
 
         if (dlg.show() === 1) {
             if (!chkPreview.value) {
@@ -355,6 +418,18 @@ function buildDialogUI() {
     var radioWhite = panel.add("radiobutton", undefined, L("white"));
     var radioTransparent = panel.add("radiobutton", undefined, L("transparent"));
     var radioComplementary = panel.add("radiobutton", undefined, L("complementary"));
+    /* 淡色ラジオ＋スライダー / Tint radio + slider */
+    var tintLabelGroup = panel.add("group");
+    tintLabelGroup.orientation = "row";
+    tintLabelGroup.alignChildren = ["left", "center"];
+    tintLabelGroup.spacing = 4;
+    var radioTint = tintLabelGroup.add("radiobutton", undefined, L("tint"));
+    var tintValue = tintLabelGroup.add("statictext", undefined, "50%");
+    tintValue.characters = 5;
+
+    var tintSlider = panel.add("slider", undefined, 50, 0, 100);
+    tintSlider.alignment = ["fill", "top"];
+    tintSlider.enabled = false;
 
     radioTransparent.value = true; // デフォルト / Default
 
@@ -400,6 +475,9 @@ function buildDialogUI() {
         radioWhite: radioWhite,
         radioTransparent: radioTransparent,
         radioComplementary: radioComplementary,
+        radioTint: radioTint,
+        tintSlider: tintSlider,
+        tintValue: tintValue,
         angle0: angle0,
         angle30: angle30,
         angle45: angle45,
@@ -715,11 +793,11 @@ function formatColorLabel(color) {
     }
 
     if (color.typename === "GrayColor") {
-        return 'Gray ' + formatColorNumber(color.gray);
+        return L("gray") + ' ' + formatColorNumber(color.gray);
     }
 
     if (color.typename === "SpotColor") {
-        var spotName = (color.spot && color.spot.name) ? color.spot.name : 'Spot';
+        var spotName = (color.spot && color.spot.name) ? color.spot.name : L("spot");
         return spotName + ' ' + formatColorNumber(color.tint) + '%';
     }
 
@@ -818,19 +896,31 @@ function cloneSimpleColor(color, isCMYK) {
     return createBlackColor(isCMYK);
 }
 
-function addColorKeyHandler(dlg, blackRadio, whiteRadio, transparentRadio, complementaryRadio, onChange) {
+function addColorKeyHandler(dlg, blackRadio, whiteRadio, transparentRadio, complementaryRadio, tintRadio, tintSlider, onChange) {
+    function setEndpointMode(mode) {
+        blackRadio.value = (mode === "black");
+        whiteRadio.value = (mode === "white");
+        transparentRadio.value = (mode === "transparent");
+        complementaryRadio.value = (mode === "complementary");
+        tintRadio.value = (mode === "tint");
+        tintSlider.enabled = (mode === "tint");
+    }
+
     dlg.addEventListener("keydown", function (event) {
         if (event.keyName == "B") {
-            blackRadio.value = true;
+            setEndpointMode("black");
             event.preventDefault();
         } else if (event.keyName == "W") {
-            whiteRadio.value = true;
+            setEndpointMode("white");
             event.preventDefault();
         } else if (event.keyName == "T") {
-            transparentRadio.value = true;
+            setEndpointMode("transparent");
             event.preventDefault();
         } else if (event.keyName == "C") {
-            complementaryRadio.value = true;
+            setEndpointMode("complementary");
+            event.preventDefault();
+        } else if (event.keyName == "L") {
+            setEndpointMode("tint");
             event.preventDefault();
         } else {
             return;
@@ -916,6 +1006,34 @@ function createWhiteColor(isCMYK) {
     }
 }
 
+
+function createTintColor(orgColor, amount, isCMYK) {
+    var ratio = Math.max(0, Math.min(100, amount)) / 100;
+    if (orgColor.typename === "CMYKColor") {
+        var c = new CMYKColor();
+        c.cyan = orgColor.cyan * ratio;
+        c.magenta = orgColor.magenta * ratio;
+        c.yellow = orgColor.yellow * ratio;
+        c.black = orgColor.black * ratio;
+        return c;
+    } else if (orgColor.typename === "RGBColor") {
+        var c = new RGBColor();
+        c.red = Math.round(orgColor.red + (255 - orgColor.red) * (1 - ratio));
+        c.green = Math.round(orgColor.green + (255 - orgColor.green) * (1 - ratio));
+        c.blue = Math.round(orgColor.blue + (255 - orgColor.blue) * (1 - ratio));
+        return c;
+    } else if (orgColor.typename === "GrayColor") {
+        var c = new GrayColor();
+        c.gray = orgColor.gray * ratio;
+        return c;
+    } else if (orgColor.typename === "SpotColor") {
+        var c = new SpotColor();
+        c.spot = orgColor.spot;
+        c.tint = orgColor.tint * ratio;
+        return c;
+    }
+    return createWhiteColor(isCMYK);
+}
 
 function createComplementaryColor(orgColor, isCMYK) {
     if (orgColor.typename === "CMYKColor") {
