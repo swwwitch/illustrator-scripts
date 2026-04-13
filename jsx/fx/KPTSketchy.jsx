@@ -25,7 +25,7 @@ Version policy: Do not increment the version unless explicitly instructed.
 
 (function () {
 
-    var SCRIPT_VERSION = "v1.0.0";
+    var SCRIPT_VERSION = "v1.0.1";
 
     // =========================================
     // ローカライズ / localization
@@ -39,8 +39,8 @@ Version policy: Do not increment the version unless explicitly instructed.
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         dialogTitle: {
-            ja: "ランダム変形",
-            en: "Random Transform"
+            ja: "手書き・スケッチ風の調整",
+            en: "Sketchy Adjustments"
         },
         alertNoDocument: {
             ja: "ドキュメントが開かれていません。",
