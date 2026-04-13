@@ -25,7 +25,7 @@ Version policy: Do not increment the version unless explicitly instructed.
 
 (function () {
 
-    var SCRIPT_VERSION = "v1.0.1";
+    var SCRIPT_VERSION = "v1.0.2";
 
     // =========================================
     // ローカライズ / localization
@@ -119,8 +119,8 @@ Version policy: Do not increment the version unless explicitly instructed.
             en: "Apply Distortion"
         },
         preview: {
-            ja: "プレビュー",
-            en: "Preview"
+            ja: "再計算",
+            en: "Recalculate"
         },
         cancel: {
             ja: "キャンセル",
