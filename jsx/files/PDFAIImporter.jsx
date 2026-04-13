@@ -11,7 +11,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  *
  * 対象ページは次から選択できます。
  * ・全ページ（初期値）
- * ・先頭ページ
+ * ・先頭ページのみ
  * ・指定ページ（例: 1-10, 1,3,5）
  *
  * 読み込みファイルが確定するまでは、対象ページパネルと配置方法パネルは無効になります。
@@ -36,6 +36,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  * ・アートボードごと：アートボードの間隔
  * ・アートボードを無視：配置オブジェクト同士の間隔
  *
+ * ケイは次から選択できます。
+ * ・なし
+ * ・ケイ線のみを追加
+ *
+ * ケイ線のみを追加する場合は、角丸オプションを有効にして角丸半径を指定できます。
+ *
  * 列数・間隔・倍率の数値入力欄では、↑↓キーで ±1、Shift+↑↓キーで ±10 の増減ができます。
  * 列数が「自動」のときは、↑キーで 1 に切り替えます。
  *
@@ -49,7 +55,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // バージョンとローカライズ
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 // アートボードごと配置時のデフォルト間隔（pt）
 var DEFAULT_ARTBOARD_GAP = 100;
@@ -78,19 +84,20 @@ var LABELS = {
 
     // 読み込みパネル
     btnLoad: { ja: "ファイル指定", en: "Select File" },
-    range: { ja: "ページ:", en: "Page(s):" },
     rangeAll: { ja: "全ページ", en: "All Pages" },
     rangeFirst: { ja: "先頭ページのみ", en: "First Page Only" },
-    rangeCustom: { ja: "指定ページ", en: "Custom Pages" },
+    rangeCustom: { ja: "指定ページ：", en: "Custom Pages:" },
     dlgPickFile: { ja: "PDF/AIを選択してください", en: "Select a PDF/AI" },
     alertLinkUnknown: { ja: "画像のリンク先が不明でした。", en: "Image link not found." },
     alertPageCountFail: { ja: "リンクされたPDF/AIファイルのページ数を取得できませんでした。", en: "Could not determine the page count of the linked PDF/AI file." },
     alertPickPdfAi: { ja: "PDFまたはAIファイルを選択してください。", en: "Please select a PDF or AI file." },
     notSelected: { ja: "未指定", en: "Not selected" },
 
-    // 配置方法パネル
+    // モードパネル
+    panelMode: { ja: "モード", en: "Placement Mode" },
     placePerArtboard: { ja: "アートボードごと", en: "Per Artboard" },
-    placeIgnoreArtboard: { ja: "アートボードを無視", en: "Ignore Artboards" },
+    placeIgnoreArtboard: { ja: "アートボードを無視", en: "Place as Objects" },
+    // 配置方法パネル
     scaleLabel: { ja: "倍率:", en: "Scale" },
     scaleUnit: { ja: "%", en: "%" },
     gapLabel: { ja: "間隔:", en: "Gap" },
@@ -103,6 +110,14 @@ var LABELS = {
     cropTrim: { ja: "トリミング", en: "Trim" },
     cropCrop: { ja: "仕上がり", en: "Crop" },
     cropBleed: { ja: "裁ち落とし", en: "Bleed" },
+
+    // ケイパネル
+    panelKei: { ja: "ケイ", en: "Stroke" },
+    keiNone: { ja: "なし", en: "None" },
+    keiClipGroup: { ja: "クリップグループ化して追加", en: "Add Stroke Only" },
+
+    // ケイオプション
+    keiRoundCorner: { ja: "角丸", en: "Round corners" },
 
     // ボタン
     cancel: { ja: "キャンセル", en: "Cancel" },
@@ -119,6 +134,51 @@ function L(key) {
     var o = LABELS[key];
     if (!o) return key;
     return o[lang] || o.en || o.ja || key;
+}
+
+// 単位コードとラベルのマップ
+var unitLabelMap = {
+    0: "in",
+    1: "mm",
+    2: "pt",
+    3: "pica",
+    4: "cm",
+    5: "Q/H",
+    6: "px",
+    7: "ft/in",
+    8: "m",
+    9: "yd",
+    10: "ft"
+};
+
+function getPtFactorFromUnitCode(code) {
+    switch (code) {
+        case 0: return 72.0;                        // in
+        case 1: return 72.0 / 25.4;                 // mm
+        case 2: return 1.0;                         // pt
+        case 3: return 12.0;                        // pica
+        case 4: return 72.0 / 2.54;                 // cm
+        case 5: return 72.0 / 25.4 * 0.25;          // Q or H
+        case 6: return 1.0;                         // px
+        case 7: return 72.0 * 12.0;                 // ft/in
+        case 8: return 72.0 / 25.4 * 1000.0;        // m
+        case 9: return 72.0 * 36.0;                 // yd
+        case 10: return 72.0 * 12.0;                // ft
+        default: return 1.0;
+    }
+}
+
+function getCurrentRulerUnitCode() {
+    try {
+        return app.preferences.getIntegerPreference("rulerType");
+    } catch (_) {
+        return 2;
+    }
+}
+
+function getCurrentUnitLabel() {
+    var unitCode = getCurrentRulerUnitCode();
+    return unitLabelMap[unitCode] || "pt";
 }
 
 // アラート補助
@@ -215,10 +275,11 @@ function placementPlacePage(doc, fileObj, pageNum, pos, cropMode, scalePct) {
 function placementPlaceSinglePage(doc, fileObj, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, abGap) {
     var singleRect = [nextX, baseTop, nextX + pageW, baseTop - pageH];
     abCount = placementUseOrAddArtboard(doc, activeIdx, singleRect, abCount);
-    placementPlacePage(doc, fileObj, pageNum, [nextX, baseTop], cropMode, 100);
+    var item = placementPlacePage(doc, fileObj, pageNum, [nextX, baseTop], cropMode, 100);
     return {
         nextX: nextX + pageW + abGap,
-        abCount: abCount
+        abCount: abCount,
+        item: item
     };
 }
 
@@ -341,6 +402,63 @@ function placementFitItemsInView(targetDoc, items) {
     } catch (_) { }
 }
 
+
+// =========================================
+// ケイ処理ヘルパー
+// =========================================
+
+// 配置アイテムの外接矩形でクリッピングマスクグループを作成
+function keiCreateClippingMaskGroup(placedItem) {
+    var targetLayer = placedItem.layer;
+    var rect = targetLayer.pathItems.rectangle(
+        placedItem.top,
+        placedItem.left,
+        placedItem.width,
+        placedItem.height
+    );
+    rect.stroked = false;
+    rect.filled = false;
+
+    var groupItem = targetLayer.groupItems.add();
+    placedItem.moveToBeginning(groupItem);
+    rect.moveToBeginning(groupItem);
+    groupItem.clipped = true;
+
+    return groupItem;
+}
+
+// 角丸 LiveEffect を適用
+function keiApplyRoundCornersLiveEffect(targetItem, radius) {
+    if (!targetItem) return;
+    var r = Number(radius);
+    if (isNaN(r) || r <= 0) return;
+    var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + r + ' "/></LiveEffect>';
+    try {
+        targetItem.applyEffect(xml);
+    } catch (_) { }
+}
+
+// 配置アイテムにケイ処理を適用
+// keiOpts: { mode: 'clipGroup', roundCorners: bool, roundRadius: number }
+function keiApplyToPlacedItem(doc, placedItem, keiOpts) {
+    if (!keiOpts || !placedItem) return placedItem;
+
+    if (keiOpts.mode === 'clipGroup') {
+        var group = keiCreateClippingMaskGroup(placedItem);
+
+        if (keiOpts.roundCorners && keiOpts.roundRadius > 0) {
+            keiApplyRoundCornersLiveEffect(group, keiOpts.roundRadius);
+        }
+
+        doc.selection = [group];
+        app.executeMenuCommand('Adobe New Stroke Shortcut');
+        app.executeMenuCommand('Live Pathfinder Exclude');
+        doc.selection = null;
+        return group;
+    }
+
+    return placedItem;
+}
 
 // =========================================
 // 配置時の仕上がり設定
@@ -606,15 +724,19 @@ function main() {
         stTotalPages.characters = 8;
         stTotalPages.justify = 'right';
 
-        var panelCrop = rightCol.add("panel", undefined, L("panelItem"));
-        panelCrop.alignChildren = "left";
-        panelCrop.margins = [15, 20, 15, 10];
-        var rowPlaceMode = panelCrop.add("group");
+        var panelMode = leftCol.add("panel", undefined, L("panelMode"));
+        panelMode.alignChildren = "left";
+        panelMode.margins = [15, 20, 15, 10];
+        var rowPlaceMode = panelMode.add("group");
         rowPlaceMode.orientation = "column";
         rowPlaceMode.alignChildren = ["left", "top"];
         var rbPerArtboard = rowPlaceMode.add("radiobutton", undefined, L("placePerArtboard"));
         var rbIgnoreArtboard = rowPlaceMode.add("radiobutton", undefined, L("placeIgnoreArtboard"));
         rbPerArtboard.value = true;
+
+        var panelCrop = rightCol.add("panel", undefined, L("panelItem"));
+        panelCrop.alignChildren = "left";
+        panelCrop.margins = [15, 20, 15, 10];
 
         var rowCols = panelCrop.add("group");
         rowCols.orientation = "row";
@@ -622,9 +744,12 @@ function main() {
         var stColsLabel = rowCols.add("statictext", undefined, L("colsLabel"));
         var etCols = rowCols.add("edittext", undefined, L("colsAuto"));
         etCols.characters = 5;
-        var stEstimateLayout = rowCols.add("statictext", undefined, "");
+        var rowEstimate = panelCrop.add("group");
+        rowEstimate.orientation = "row";
+        rowEstimate.alignChildren = ["left", "center"];
+        rowEstimate.margins = [20, 0, 0, 0];
+        var stEstimateLayout = rowEstimate.add("statictext", undefined, "");
         stEstimateLayout.characters = 10;
-        // stEstimateLayout.justify = 'left';
 
         var rowArtboardGap = panelCrop.add("group");
         rowArtboardGap.orientation = "row";
@@ -646,6 +771,25 @@ function main() {
         ddCrop.selection = 2;
         ddCrop.enabled = false;
 
+        var panelKei = rightCol.add("panel", undefined, L("panelKei"));
+        panelKei.alignChildren = "left";
+        panelKei.margins = [15, 20, 15, 10];
+        var rowKeiMode = panelKei.add("group");
+        rowKeiMode.orientation = "column";
+        rowKeiMode.alignChildren = ["left", "top"];
+        var rbKeiNone = rowKeiMode.add("radiobutton", undefined, L("keiNone"));
+        var rbKeiClipGroup = rowKeiMode.add("radiobutton", undefined, L("keiClipGroup"));
+        rbKeiNone.value = true;
+
+        var rowRoundCorner = panelKei.add("group");
+        rowRoundCorner.orientation = "row";
+        rowRoundCorner.alignChildren = ["left", "center"];
+        var cbRoundCorner = rowRoundCorner.add("checkbox", undefined, L("keiRoundCorner"));
+        var etRoundCorner = rowRoundCorner.add("edittext", undefined, "3");
+        etRoundCorner.characters = 5;
+        var stRoundCornerUnit = rowRoundCorner.add("statictext", undefined, getCurrentUnitLabel());
+        cbRoundCorner.value = false;
+        etRoundCorner.enabled = false;
 
         var progressBar = win.add("progressbar", undefined, 0, 100);
         progressBar.preferredSize.width = 300;
@@ -664,7 +808,9 @@ function main() {
             etPath: etPath,
             stTotalPages: stTotalPages,
             pnlAB: pnlAB,
+            panelMode: panelMode,
             panelCrop: panelCrop,
+            panelKei: panelKei,
             rbRangeAll: rbRangeAll,
             rbRangeFirst: rbRangeFirst,
             rbRangeCustom: rbRangeCustom,
@@ -680,6 +826,11 @@ function main() {
             etArtboardGap: etArtboardGap,
             ddCrop: ddCrop,
             stEstimateLayout: stEstimateLayout,
+            rbKeiNone: rbKeiNone,
+            rbKeiClipGroup: rbKeiClipGroup,
+            cbRoundCorner: cbRoundCorner,
+            etRoundCorner: etRoundCorner,
+            stRoundCornerUnit: stRoundCornerUnit,
             progressBar: progressBar,
             btnCancel: btnCancel,
             btnOk: btnOk
@@ -693,7 +844,9 @@ function main() {
     var etPath = ui.etPath;
     var stTotalPages = ui.stTotalPages;
     var pnlAB = ui.pnlAB;
+    var panelMode = ui.panelMode;
     var panelCrop = ui.panelCrop;
+    var panelKei = ui.panelKei;
     var rbRangeAll = ui.rbRangeAll;
     var rbRangeFirst = ui.rbRangeFirst;
     var rbRangeCustom = ui.rbRangeCustom;
@@ -709,6 +862,11 @@ function main() {
     var etArtboardGap = ui.etArtboardGap;
     var ddCrop = ui.ddCrop;
     var stEstimateLayout = ui.stEstimateLayout;
+    var rbKeiNone = ui.rbKeiNone;
+    var rbKeiClipGroup = ui.rbKeiClipGroup;
+    var cbRoundCorner = ui.cbRoundCorner;
+    var etRoundCorner = ui.etRoundCorner;
+    var stRoundCornerUnit = ui.stRoundCornerUnit;
     var progressBar = ui.progressBar;
     var btnCancel = ui.btnCancel;
     var btnOk = ui.btnOk;
@@ -716,7 +874,9 @@ function main() {
     function updatePanelEnabledState() {
         var enabled = !!sourceFile;
         pnlAB.enabled = enabled;
+        panelMode.enabled = enabled;
         panelCrop.enabled = enabled;
+        panelKei.enabled = enabled;
     }
 
     function updateRangeEnabledState() {
@@ -736,12 +896,7 @@ function main() {
         var totalPages = 0;
         var placedPages = 0;
 
-        if (detectedRangeText) {
-            var m = detectedRangeText.match(/^(?:1-)?(\d+)$/);
-            if (m) {
-                totalPages = parseInt(m[1], 10) || 0;
-            }
-        }
+        totalPages = getDetectedTotalPages();
 
         if (rbRangeAll.value) {
             placedPages = totalPages;
@@ -751,7 +906,13 @@ function main() {
             placedPages = parsePageNumbers(customRangeText || detectedRangeText || '').length;
         }
 
-        stTotalPages.text = totalPages > 0 ? (placedPages + '／' + totalPages) : '';
+        stTotalPages.text = totalPages > 0 ? (placedPages + ' / ' + totalPages) : '';
+    }
+
+    function getDetectedTotalPages() {
+        if (!detectedRangeText) return 0;
+        var m = detectedRangeText.match(/^(?:1-)?(\d+)$/);
+        return m ? (parseInt(m[1], 10) || 0) : 0;
     }
 
     function updatePlacementEstimateInfo() {
@@ -759,12 +920,7 @@ function main() {
         var placedPages = 0;
         var colsPerRow = getColsPerRow();
 
-        if (detectedRangeText) {
-            var m = detectedRangeText.match(/^(?:1-)?(\d+)$/);
-            if (m) {
-                totalPages = parseInt(m[1], 10) || 0;
-            }
-        }
+        totalPages = getDetectedTotalPages();
 
         if (rbRangeAll.value) {
             placedPages = totalPages;
@@ -962,6 +1118,17 @@ function main() {
             updatePlacementEstimateInfo();
         };
 
+        function updateKeiRoundEnabled() {
+            var keiActive = !rbKeiNone.value;
+            cbRoundCorner.enabled = keiActive;
+            etRoundCorner.enabled = keiActive && cbRoundCorner.value;
+        }
+
+        rbKeiNone.onClick = function () { updateKeiRoundEnabled(); };
+        rbKeiClipGroup.onClick = function () { updateKeiRoundEnabled(); };
+        cbRoundCorner.onClick = function () { updateKeiRoundEnabled(); };
+        updateKeiRoundEnabled();
+
         btnCancel.onClick = function () {
             win.close(2);
         };
@@ -973,7 +1140,7 @@ function main() {
             }
             var finalPages;
             if (rbRangeAll.value) {
-                var lastPage = updatePageCountFromPlacedOrFile(srcDoc, sourceFile, null);
+                var lastPage = getDetectedTotalPages();
                 if (!lastPage || lastPage < 1) lastPage = 1;
                 finalPages = [];
                 for (var p = 1; p <= lastPage; p++) {
@@ -987,11 +1154,12 @@ function main() {
             }
 
             var cropMode = getCropModeFromUI();
+            var keiOpts = getKeiOptionsFromUI();
             if (rbPerArtboard.value) {
-                placeOnIndividualArtboards(finalPages, cropMode);
+                placeOnIndividualArtboards(finalPages, cropMode, keiOpts);
             } else {
                 var scale = getScaleFromUI();
-                placeIgnoringArtboards(finalPages, cropMode, scale);
+                placeIgnoringArtboards(finalPages, cropMode, scale, keiOpts);
             }
             win.close(1);
         };
@@ -1029,6 +1197,7 @@ function main() {
         updateGapHelpTip();
         updatePlacementEstimateInfo();
 
+        stRoundCornerUnit.text = getCurrentUnitLabel();
         changeValueByArrowKey(etCols);
         changeValueByArrowKey(etArtboardGap);
         changeValueByArrowKey(etScale);
@@ -1051,6 +1220,21 @@ function main() {
     // ------------------------
     // 配置オプション取得
     // ------------------------
+    function getKeiOptionsFromUI() {
+        if (rbKeiNone.value) {
+            return null;
+        }
+        return {
+            mode: 'clipGroup',
+            roundCorners: cbRoundCorner.value,
+            roundRadius: (function () {
+                var n = parseFloat(etRoundCorner.text);
+                if (isNaN(n) || n < 0) n = 0;
+                return n * getPtFactorFromUnitCode(getCurrentRulerUnitCode());
+            })()
+        };
+    }
+
     function getScaleFromUI() {
         var v = parseFloat(etScale.text);
         if (isNaN(v) || v <= 0) v = 100;
@@ -1090,7 +1274,7 @@ function main() {
     // ------------------------
     // 実行処理
     // ------------------------
-    function placeOnIndividualArtboards(targetPages, cropMode) {
+    function placeOnIndividualArtboards(targetPages, cropMode, keiOpts) {
         var activeIdx = doc.artboards.getActiveArtboardIndex();
         var baseRect = doc.artboards[activeIdx].artboardRect;
         var startX = baseRect[0];
@@ -1126,6 +1310,10 @@ function main() {
 
                 var result = placementPlaceSinglePage(doc, sourceFile, pageNum, pageW, pageH, nextX, baseTop, activeIdx, abCount, cropMode, abGap);
 
+                if (keiOpts && result.item) {
+                    try { keiApplyToPlacedItem(doc, result.item, keiOpts); } catch (_) { }
+                }
+
                 nextX = result.nextX;
                 abCount = result.abCount;
                 colCount++;
@@ -1145,7 +1333,7 @@ function main() {
         }
     }
 
-    function placeIgnoringArtboards(targetPages, cropMode, scale) {
+    function placeIgnoringArtboards(targetPages, cropMode, scale, keiOpts) {
         var activeIdx = doc.artboards.getActiveArtboardIndex();
         var baseRect = doc.artboards[activeIdx].artboardRect;
         var startX = baseRect[0];
@@ -1181,6 +1369,11 @@ function main() {
                 }
 
                 var placedItem = placementPlacePage(doc, sourceFile, pageNum, [nextX, baseTop], cropMode, scale);
+
+                if (keiOpts) {
+                    try { placedItem = keiApplyToPlacedItem(doc, placedItem, keiOpts); } catch (_) { }
+                }
+
                 placedItems.push(placedItem);
 
                 nextX += pageW + abGap;
