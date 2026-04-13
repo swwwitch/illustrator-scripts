@@ -3,12 +3,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // スクリプトバージョン
 
-var SCRIPT_VERSION = "v1.7.2";
+var SCRIPT_VERSION = "v1.7.3";
 
 /*
 レイヤー統合（フラット化）を行うIllustrator用スクリプト。
 
-- 除外名（例：bg/背景/background）を持つレイヤーを残しつつ、その他のレイヤー／サブレイヤー配下のオブジェクトを指定したまとめ先レイヤーへ集約（移動）してフラット化します。必要に応じて、中身が残ったサブレイヤーを上位レベルのレイヤーへ移動し、空になったレイヤーを再帰的に検出して削除します。
+- 除外名（bg）を持つレイヤーを残しつつ、その他のレイヤー／サブレイヤー配下のオブジェクトを指定したまとめ先レイヤーへ集約（移動）してフラット化します。必要に応じて、中身が残ったサブレイヤーを上位レベルのレイヤーへ移動し、空になったレイヤーを再帰的に検出して削除します。
 - ロック / 非表示のレイヤー・オブジェクトは個別に対象外指定でき、該当するものが存在しない項目はダイアログ上で自動的にディム表示されます。
 - ガイドは「統合」「現在のレイヤーに保持」「別レイヤーに移動」の3つのモードから選択できます。
 
@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 ### 更新日：
 
-2026-04-08
+2026-04-13
 
 ### 概要：
 
@@ -61,8 +61,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 - v1.0 (20250414) : 初期バージョン
 - v1.7.1 (20260408) : 対象外UIの自動ディム表示、一括切替の有効項目限定、skipLockedLayers / skipHiddenLayers のサブレイヤーまでの一貫適用、ガイド panel 初期化の明確化、概要とコメントの更新
+- v1.7.3 (20260413) : 除外レイヤー名を「bg」のみに変更（「背景」「background」を削除）
 
-Illustrator script to flatten layers. It keeps excluded layers (such as bg/背景/background),
+Illustrator script to flatten layers. It keeps excluded layers (bg),
 moves objects under all other layers and sublayers into a specified destination layer, optionally
 promotes remaining non-empty sublayers to the top level, and recursively deletes layers that become empty.
 Locked / hidden layers and objects can be excluded independently, and dialog items with no matching targets
@@ -83,7 +84,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 ### Updated:
 
-2026-04-08
+2026-04-13
 
 ### Overview:
 
@@ -118,6 +119,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 - v1.0 (20250414) : Initial release
 - v1.7.1 (20260408) : Added automatic dimming of irrelevant exclusion UI, enabled-only toggle-all behavior, consistent skipLockedLayers / skipHiddenLayers handling for sublayers, clearer guides-panel initialization, and updated overview/comments
+- v1.7.3 (20260413) : Narrowed excluded layer names to only "bg" (removed "背景" and "background")
 
 */
 
@@ -1130,9 +1132,7 @@ function isSlashSlashLayer(layerRef) {
 
 /* Exclude-name map for layers (case-insensitive, trimmed) */
 var EXCLUDE = {
-    "bg": 1,
-    "背景": 1,
-    "background": 1
+    "bg": 1
 };
 
 /* Check if the layer name is excluded from merging (trim + case-insensitive) */
