@@ -3,7 +3,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // スクリプトバージョン
 
-var SCRIPT_VERSION = "v1.7.3";
+var SCRIPT_VERSION = "v1.7.4";
 
 /*
 レイヤー統合（フラット化）を行うIllustrator用スクリプト。
@@ -26,7 +26,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 ### 更新日：
 
-2026-04-13
+2026-04-15
 
 ### 概要：
 
@@ -62,6 +62,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 - v1.0 (20250414) : 初期バージョン
 - v1.7.1 (20260408) : 対象外UIの自動ディム表示、一括切替の有効項目限定、skipLockedLayers / skipHiddenLayers のサブレイヤーまでの一貫適用、ガイド panel 初期化の明確化、概要とコメントの更新
 - v1.7.3 (20260413) : 除外レイヤー名を「bg」のみに変更（「背景」「background」を削除）
+- v1.7.4 (20260415) : 除外レイヤー内のガイドをガイドレイヤーへ移動するオプションを追加（「別レイヤーに移動」選択時、デフォルトON）
 
 Illustrator script to flatten layers. It keeps excluded layers (bg),
 moves objects under all other layers and sublayers into a specified destination layer, optionally
@@ -84,7 +85,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 
 ### Updated:
 
-2026-04-13
+2026-04-15
 
 ### Overview:
 
@@ -120,6 +121,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/layers/FlattenLa
 - v1.0 (20250414) : Initial release
 - v1.7.1 (20260408) : Added automatic dimming of irrelevant exclusion UI, enabled-only toggle-all behavior, consistent skipLockedLayers / skipHiddenLayers handling for sublayers, clearer guides-panel initialization, and updated overview/comments
 - v1.7.3 (20260413) : Narrowed excluded layer names to only "bg" (removed "背景" and "background")
+- v1.7.4 (20260415) : Added option to move guides from excluded layers to the guide layer (available when "Move to another layer" is selected, default ON)
 
 */
 
@@ -221,6 +223,10 @@ var LABELS = {
     toggleAllExclusions: {
         ja: '対象外設定を一括切替',
         en: 'Toggle all exclusions'
+    },
+    includeGuidesFromExcludedLayers: {
+        ja: '除外レイヤーのガイドも対象にする',
+        en: 'Include guides from excluded layers'
     },
     deleteEmptyLayers: {
         ja: '空のレイヤー／サブレイヤーを削除',
@@ -455,6 +461,22 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
     var etGuideLayerName = separateGuidesGroup.add('edittext', undefined, '_guide');
     etGuideLayerName.characters = 12;
 
+    function documentHasAnyGuidesInExcludedLayers(container) {
+        var layers = container.layers;
+        for (var i = 0; i < layers.length; i++) {
+            if (isExcludedLayer(layers[i].name) && layerHasAnyGuides(layers[i])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    var hasGuidesInExcludedLayers = documentHasAnyGuidesInExcludedLayers(documentRef);
+
+    var cbIncludeGuidesFromExcludedLayers = guidesPanel.add('checkbox', undefined, L('includeGuidesFromExcludedLayers'));
+    cbIncludeGuidesFromExcludedLayers.value = hasGuidesInExcludedLayers;
+    cbIncludeGuidesFromExcludedLayers.enabled = hasGuidesInExcludedLayers && rbSeparateGuides.value;
+
     function updateGuideOptionsState(selected) {
         if (selected === 'integrate' && rbIntegrateGuides.value) {
             rbKeepGuidesInCurrentLayer.value = false;
@@ -468,6 +490,10 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
         }
 
         etGuideLayerName.enabled = rbSeparateGuides.value;
+        cbIncludeGuidesFromExcludedLayers.enabled = hasGuidesInExcludedLayers && rbSeparateGuides.value;
+        if (!rbSeparateGuides.value) {
+            cbIncludeGuidesFromExcludedLayers.value = false;
+        }
     }
 
     rbIntegrateGuides.onClick = function () {
@@ -701,7 +727,8 @@ function showOptionsDialog(documentRef, hasExistingMergedLayer) {
         mergedLayerName: etLayerName.text,
         deleteEmptyLayers: cbDeleteEmpty.value,
         reuseExistingMergedLayer: cbReuseExistingMergedLayer.value,
-        layerColorValue: etLayerColor.text
+        layerColorValue: etLayerColor.text,
+        includeGuidesFromExcludedLayers: cbIncludeGuidesFromExcludedLayers.value
     };
 }
 
@@ -843,6 +870,10 @@ function main() {
         separateGuidesToLayer(documentRef, mergedLayer, options, stats);
     }
 
+    if (options.guideMode === 'separate' && options.includeGuidesFromExcludedLayers) {
+        moveGuidesFromExcludedLayers(documentRef, options, stats);
+    }
+
     if (options.deleteEmptyLayers) {
         deleteEmptyLayersRecursively(documentRef, mergedLayer, options, stats);
     }
@@ -874,6 +905,51 @@ function main() {
     }
     if (messages.length > 0) {
         alert(messages.join('\n'));
+    }
+}
+
+function moveGuidesFromExcludedLayers(documentRef, options, stats) {
+    var guideLayerName = normalizeLayerName(options.guideLayerName, '_guide');
+    var guideLayer = getOrCreateGuideLayer(documentRef, guideLayerName);
+
+    var allTopLayers = documentRef.layers;
+    for (var i = allTopLayers.length - 1; i >= 0; i--) {
+        var currentLayer = allTopLayers[i];
+        if (isExcludedLayer(currentLayer.name)) {
+            moveGuideItemsFromLayerRecursive(currentLayer, guideLayer, stats);
+        }
+    }
+}
+
+function moveGuideItemsFromLayerRecursive(sourceLayer, destinationLayer, stats) {
+    for (var i = sourceLayer.layers.length - 1; i >= 0; i--) {
+        moveGuideItemsFromLayerRecursive(sourceLayer.layers[i], destinationLayer, stats);
+    }
+
+    var restoreLayerLock = false;
+    var restoreVisibility = false;
+    try {
+        if (sourceLayer.locked) {
+            sourceLayer.locked = false;
+            restoreLayerLock = true;
+        }
+        if (!sourceLayer.visible) {
+            sourceLayer.visible = true;
+            restoreVisibility = true;
+        }
+    } catch (e) { }
+
+    moveGuideItemsFromLayer(sourceLayer, destinationLayer, stats);
+
+    if (restoreVisibility) {
+        try { sourceLayer.visible = false; } catch (e1) {
+            if (stats) stats.visibilityRestoreFailureCount++;
+        }
+    }
+    if (restoreLayerLock) {
+        try { sourceLayer.locked = true; } catch (e2) {
+            if (stats) stats.layerLockRestoreFailureCount++;
+        }
     }
 }
 
