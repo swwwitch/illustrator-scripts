@@ -22,6 +22,7 @@ UI仕様：
 ・角丸パネルは「角を丸くする」「オフセット」のチェックボックスで各機能をON/OFFできます。
 ・ラフ効果（ギザギザ／歪曲）はチェックOFF時に入力欄をディム表示します。
 ・スケール／移動／回転／ギザギザ／歪曲がすべてOFFのときは「再計算」ボタンを無効化します。
+・プレビューは Undo ベースで適用／解除されます。
 ・ズームは軽量モード付き（デフォルトOFF）です。
 
 This Illustrator script applies randomized transformations to selected objects.
@@ -43,6 +44,7 @@ UI behavior:
 • The Round Corners panel uses separate checkboxes for Round Corners and Offset.
 • Roughen controls are dimmed when disabled.
 • Recalculate is disabled when Scale, Move, Rotate, Jagged, and Distortion are all OFF.
+• Preview is applied and reverted using Undo.
 • Zoom includes a light mode (default OFF).
 
 Updated: 2026-04-14
@@ -55,7 +57,7 @@ Version policy: Do not increment the version unless explicitly instructed.
             app.executeMenuCommand('edge');
         } catch (_) { }
 
-        var SCRIPT_VERSION = "v1.1.0";
+        var SCRIPT_VERSION = "v1.1.1";
 
         // =========================================
         // ローカライズ / localization
@@ -858,6 +860,7 @@ Version policy: Do not increment the version unless explicitly instructed.
             }
         }
 
+
         function changeValueByArrowKey(editText) {
             editText.addEventListener("keydown", function (event) {
                 var value = Number(editText.text);
@@ -1218,6 +1221,7 @@ Version policy: Do not increment the version unless explicitly instructed.
             btnArea.alignment = ["fill", "top"];
 
             var btnLeft = btnArea.add("group");
+            btnLeft.orientation = "row";
             btnLeft.alignment = ["left", "center"];
             previewBtn = btnLeft.add("button", undefined, L("preview"));
             previewBtn.onClick = refreshPreview;
