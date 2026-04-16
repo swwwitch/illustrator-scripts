@@ -42,12 +42,13 @@ https://note.com/dtp_tranist/n/n3b33862538f6
 
 ### 更新日：
 
-- 2026-03-23（v1.6）
+- 2026-04-16（v1.6.3）
 
 ### 更新履歴：
 
 - v1.0 (20250807) : 初期リリース
 - v1.6（2026-03-23）：UI配置調整、ローカライズ改善、不要機能削除、キー修正（useSysDefEdit）
+- v1.6.3（2026-04-16）：プリセット1のアートボードハイライトカラーをブラックに変更
 
 ---
 
@@ -85,16 +86,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/Preference/Prese
 
 ### Updated:
 
-- 2026-03-23 (v1.6)
+- 2026-04-16 (v1.6.3)
 
 ### Changelog:
 
 - v1.0 (2025-08-07): Initial release
 - v1.6 (2026-03-23): UI layout adjustments, localization improvements, removed incomplete features, fixed preference key (useSysDefEdit)
+- v1.6.3 (2026-04-16): Changed Preset 1 artboard highlight color to Black
 
 */
 
-var SCRIPT_VERSION = "v1.6.2";
+var SCRIPT_VERSION = "v1.6.3";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -1216,7 +1218,7 @@ function main() {
         cbSmartHighlight: false,
         cbIncludeSVG: true,
         cbShowArtboardName: false,
-        artboardStrokeColor: 0,
+        artboardStrokeColor: 7,
         artboardStrokeWidth: 2
     };
 
