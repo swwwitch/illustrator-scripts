@@ -11,6 +11,7 @@ DESCRIPTION
 
 - ラスター/配置画像: 複製 → 画像トレース → 拡張で色を抽出
 - ベクター: 選択オブジェクトから直接カラーを抽出（ラスタライズ不要）
+  - グラデーション塗りのパスからは各カラーストップを個別に抽出
 - テキスト: 複製してアウトライン化した上で色を抽出
 - 16色／11色／8色／5色のパレットを、元オブジェクトの下に正方形で出力
   - 16色は対象幅にフィット、他の行も左右端を対象に揃えて出力
@@ -29,6 +30,7 @@ DESCRIPTION
 - 5色（CMYK補正）は単独でも出力可能
 - スウォッチ登録は、実際に描画された 5色パレットを元に作成
 - オブジェクト未選択時は、スウォッチパネルで選択中のスウォッチから色玉パレットを生成可能
+  - グラデーションスウォッチ選択時はカラーストップを展開して抽出
 
 色選出は段階的減色（16 → 11 → 8 → 5）で統一されています。
 
@@ -41,12 +43,12 @@ DESCRIPTION
 ダイアログ表示中はプレビューが更新され、
 OK確定後にスウォッチグループを作成します（キャンセル時は作成されません）。
 
-更新日: 2026-03-20
+更新日: 2026-04-17
 
 **********************************************************/
 
 
-var SCRIPT_VERSION = "v1.7.2";
+var SCRIPT_VERSION = "v1.7.3";
 
 var __DIALOG_BOUNDS_OUTPUT__ = null; // session-only dialog position memory
 
@@ -596,7 +598,21 @@ function getSelectedSwatchColors(doc) {
             // Skip [None] and registration-like swatches
             if (c.typename === "NoColor") continue;
             if (c.typename === "PatternColor") continue;
-            if (c.typename === "GradientColor") continue;
+            if (c.typename === "GradientColor") {
+                // グラデーションスウォッチのカラーストップを個別に抽出 / Extract gradient swatch color stops
+                try {
+                    var stops = c.gradient.gradientStops;
+                    for (var si = 0; si < stops.length; si++) {
+                        var sc = stops[si].color;
+                        if (sc.typename === "SpotColor") {
+                            try { sc = sc.spot.color; } catch (e2) { continue; }
+                        }
+                        if (sc.typename === "NoColor" || sc.typename === "PatternColor") continue;
+                        colors.push({ color: sc, area: 1 });
+                    }
+                } catch (e2) { __logError(e2, "getSelectedSwatchColors:gradient"); }
+                continue;
+            }
             colors.push({ color: c, area: 1 });
         }
     } catch (e) { __logError(e, "getSelectedSwatchColors"); }
@@ -1180,11 +1196,25 @@ function collectFillColors(item, out) {
     if (item.typename === "PathItem") {
         if (item.filled && item.fillColor) {
             var c = item.fillColor;
-            if (c.typename !== "NoColor" && c.typename !== "PatternColor" &&
-                c.typename !== "GradientColor" && c.typename !== "SpotColor") {
-                var a = 1;
-                try { a = Math.abs(item.area); } catch (e) { __logError(e); }
-                if (a < 1) a = 1;
+            var a = 1;
+            try { a = Math.abs(item.area); } catch (e) { __logError(e); }
+            if (a < 1) a = 1;
+            if (c.typename === "GradientColor") {
+                // グラデーションのカラーストップを個別に抽出 / Extract each gradient color stop
+                try {
+                    var stops = c.gradient.gradientStops;
+                    var n = stops.length;
+                    for (var si = 0; si < n; si++) {
+                        var sc = stops[si].color;
+                        if (sc.typename === "SpotColor") {
+                            try { sc = sc.spot.color; } catch (e2) { __logError(e2); continue; }
+                        }
+                        if (sc.typename === "NoColor" || sc.typename === "PatternColor") continue;
+                        out.push({ color: sc, area: a / n });
+                    }
+                } catch (e) { __logError(e, "collectFillColors:gradient"); }
+            } else if (c.typename !== "NoColor" && c.typename !== "PatternColor" &&
+                c.typename !== "SpotColor") {
                 out.push({ color: c, area: a });
             }
         }
