@@ -46,7 +46,7 @@ OK確定後にスウォッチグループを作成します（キャンセル時
 **********************************************************/
 
 
-var SCRIPT_VERSION = "v1.7.1";
+var SCRIPT_VERSION = "v1.7.2";
 
 var __DIALOG_BOUNDS_OUTPUT__ = null; // session-only dialog position memory
 
@@ -751,6 +751,60 @@ if (app.documents.length === 0) {
     var doc = app.activeDocument;
     var sel = doc.selection;
 
+    /* クリップグループのラスタライズ設定 / Rasterize settings for clip groups */
+    var RASTERIZE_RESOLUTION = 300;       // 解像度 (ppi)
+    var RASTERIZE_TRANSPARENCY = false;   // 背景: false=白, true=透明
+    var RASTERIZE_PADDING = 0;            // 余白 (px)
+    var RASTERIZE_ANTIALIAS = true;       // アンチエイリアス: true=ON, false=OFF
+
+    /* クリップグループが含まれていればラスタライズ / Rasterize clip groups before processing */
+    var rasterizedItems = [];
+    var clipAnchors = {};  // ラスタライズ結果のインデックス → クリップ範囲アンカー
+    var nonClipItems = [];
+    for (var ci = 0; ci < sel.length; ci++) {
+        if (sel[ci].typename === "GroupItem" && sel[ci].clipped) {
+            // クリッピングパスの範囲を保存（パレット配置の基準に使う）
+            var clipBounds = null;
+            try {
+                for (var cp = 0; cp < sel[ci].pageItems.length; cp++) {
+                    if (sel[ci].pageItems[cp].clipping) {
+                        clipBounds = sel[ci].pageItems[cp].geometricBounds;
+                        break;
+                    }
+                }
+            } catch (eCb) { __logError(eCb, "clip bounds"); }
+            if (!clipBounds) clipBounds = sel[ci].geometricBounds;
+
+            var rOpt = new RasterizeOptions();
+            rOpt.resolution = RASTERIZE_RESOLUTION;
+            rOpt.transparency = RASTERIZE_TRANSPARENCY;
+            rOpt.padding = RASTERIZE_PADDING;
+            rOpt.antiAliasing = RASTERIZE_ANTIALIAS;
+            rOpt.backgroundBlack = false;
+            var rasterized = doc.rasterize(sel[ci], clipBounds, rOpt);
+            var rIdx = rasterizedItems.length;
+            rasterizedItems.push(rasterized);
+            // クリップパスの範囲をアンカーとして記録
+            clipAnchors[rIdx] = {
+                typename: "BoundsAnchor",
+                left: clipBounds[0],
+                top: clipBounds[1],
+                width: clipBounds[2] - clipBounds[0],
+                height: clipBounds[1] - clipBounds[3],
+                layer: rasterized.layer,
+                geometricBounds: clipBounds
+            };
+        } else {
+            nonClipItems.push(sel[ci]);
+        }
+    }
+    if (rasterizedItems.length > 0) {
+        // ラスタライズ結果と非クリップアイテムを合わせて選択を復元
+        var newSel = nonClipItems.concat(rasterizedItems);
+        app.selection = newSel;
+        sel = doc.selection;
+    }
+
     /* 選択中のオブジェクトを収集（配置画像＋ベクター＋テキスト） / Collect selected items (placed + vector + text) */
     var rasterItems = [];
     var vectorItems = [];
@@ -769,11 +823,20 @@ if (app.documents.length === 0) {
     // NOTE: Separate "what we process" from "where we place palettes".
     // Raster/Placed items are processed one-by-one.
     // Vector selection is processed as a single grouped job, while palette placement uses the first vector as an anchor.
-    var jobs = []; // { type: "raster"|"vector", originalItem: PageItem }
+    var jobs = []; // { type: "raster"|"vector", originalItem: PageItem, workSource: PageItem }
 
     /* ラスター/配置画像は個別に処理 / Process raster/placed items individually */
     for (var s = 0; s < rasterItems.length; s++) {
-        jobs.push({ type: "raster", originalItem: rasterItems[s] });
+        // クリップグループ由来のラスタライズ結果にはアンカーを使用
+        var anchor = null;
+        for (var ai = 0; ai < rasterizedItems.length; ai++) {
+            if (rasterItems[s] === rasterizedItems[ai] && clipAnchors[ai]) {
+                anchor = clipAnchors[ai];
+                break;
+            }
+        }
+        // anchor がある場合: originalItem=アンカー(配置用), workSource=実アイテム(複製/トレース用)
+        jobs.push({ type: "raster", originalItem: anchor || rasterItems[s], workSource: anchor ? rasterItems[s] : null });
     }
 
     /* ベクター＋テキストは「まとめて1回」処理 / Vectors + text are processed once as a group */
@@ -892,7 +955,8 @@ if (app.documents.length === 0) {
                             }
                             itemsToProcess.push({ type: "vector", originalItem: jobs[i].originalItem, workItem: vecGroup });
                         } else {
-                            var dup = jobs[i].originalItem.duplicate();
+                            var dupSource = jobs[i].workSource || jobs[i].originalItem;
+                            var dup = dupSource.duplicate();
                             dup.move(workLayer, ElementPlacement.PLACEATEND);
                             itemsToProcess.push({ type: "raster", originalItem: jobs[i].originalItem, workItem: dup });
                         }
