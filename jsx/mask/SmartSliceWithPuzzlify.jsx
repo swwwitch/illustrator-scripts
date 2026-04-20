@@ -109,7 +109,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     explode: { ja: "バラけ処理", en: "Scatter" },
     offsetLabel: { ja: "オフセット", en: "Offset" },
     overlap: { ja: "オーバーラップ", en: "Overlap" },
-    ruleCheck: { ja: "ケイ", en: "Add Stroke" },
+    ruleCheck: { ja: "ケイ（1ptの罫線を追加）", en: "Add Stroke (1pt)" },
     roundCheck: { ja: "角丸", en: "Apply Round Corners" },
     shapeLabel: { ja: "形状：", en: "Shape:" },
     alertMaskNotPath: {
@@ -152,6 +152,8 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       ja: "オブジェクトの分割",
       en: "Split Artwork"
     },
+    panelSplit: { ja: "分割", en: "Split" },
+    panelOptions: { ja: "オプション", en: "Options" },
     okBtn: { ja: "OK", en: "OK" },
     cancel: { ja: "キャンセル", en: "Cancel" }
   };
@@ -285,8 +287,27 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     var modeRadioPuzzle = modeGroup.add("radiobutton", undefined, LABELS.modePuzzle[lang]);
     modeRadioGrid.value = true;
 
+    /* 縦積みのパネル群 / Vertically stacked panels */
+    var panelsGroup = dlg.add('group');
+    panelsGroup.orientation = 'column';
+    panelsGroup.alignChildren = 'fill';
+
+    /* 分割パネル: ピース数 / 列数・行数 / 形状 / オフセット / オーバーラップ */
+    var splitPanel = panelsGroup.add('panel', undefined, LABELS.panelSplit[lang]);
+    splitPanel.orientation = 'column';
+    splitPanel.alignChildren = 'left';
+    splitPanel.margins = [15, 20, 15, 10];
+
+    /* ピース数 */
+    var totalPiecesGroup = splitPanel.add("group");
+    totalPiecesGroup.orientation = "row";
+    totalPiecesGroup.alignment = "left";
+    var totalPiecesLabel = totalPiecesGroup.add("statictext", undefined, LABELS.totalPieces[lang]);
+    var totalPiecesInput = totalPiecesGroup.add("edittext", undefined, "25");
+    totalPiecesInput.characters = 4;
+
     /* 列数・行数 */
-    var rowColGroup = commonGroup.add('group');
+    var rowColGroup = splitPanel.add('group');
     rowColGroup.orientation = 'row';
     rowColGroup.alignChildren = 'left';
     var colGroup = rowColGroup.add('group');
@@ -300,93 +321,44 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     var rowsInput = rowGroup.add('edittext', undefined, "4");
     rowsInput.characters = 3;
 
-    /* 2カラム部 / Two-column area */
-    var columnsWrap = dlg.add('group');
-    columnsWrap.orientation = 'row';
-    columnsWrap.alignChildren = 'top';
-
-    /* 左カラム: ピース数 / 形状 / オーバーラップ */
-    var leftCol = columnsWrap.add('group');
-    leftCol.orientation = 'column';
-    leftCol.alignChildren = 'left';
-    leftCol.margins = [10, 5, 10, 5];
-
-    /* ピース数 */
-    var totalPiecesGroup = leftCol.add("group");
-    totalPiecesGroup.orientation = "row";
-    totalPiecesGroup.alignment = "left";
-    var totalPiecesLabel = totalPiecesGroup.add("statictext", undefined, LABELS.totalPieces[lang]);
-    var totalPiecesInput = totalPiecesGroup.add("edittext", undefined, "25");
-    totalPiecesInput.characters = 4;
-
-    function getSelectedArtworkItem() {
+    function getSelectedArtworkSize() {
       if (app.documents.length > 0 && app.selection.length == 1) {
-        var selectedItem = app.selection[0];
+        var selectedArtworkItem = app.selection[0];
         if (
-          selectedItem.typename === "RasterItem" ||
-          selectedItem.typename === "PlacedItem" ||
-          selectedItem.typename === "SymbolItem" ||
-          selectedItem.typename === "PathItem" ||
-          selectedItem.typename === "GroupItem" ||
-          selectedItem.typename === "CompoundPathItem"
+          selectedArtworkItem.typename === "RasterItem" ||
+          selectedArtworkItem.typename === "PlacedItem" ||
+          selectedArtworkItem.typename === "SymbolItem" ||
+          selectedArtworkItem.typename === "PathItem" ||
+          selectedArtworkItem.typename === "GroupItem" ||
+          selectedArtworkItem.typename === "CompoundPathItem"
         ) {
-          var gb = selectedItem.geometricBounds;
-          var width = gb[2] - gb[0];
-          var height = gb[1] - gb[3];
-          if (height < 0) height = -height;
-          return { width: width, height: height };
+          var artworkBounds = selectedArtworkItem.geometricBounds;
+          var artworkWidth = artworkBounds[2] - artworkBounds[0];
+          var artworkHeight = artworkBounds[1] - artworkBounds[3];
+          if (artworkHeight < 0) artworkHeight = -artworkHeight;
+          return { width: artworkWidth, height: artworkHeight };
         }
       }
       return null;
     }
-    var selectedImage = getSelectedArtworkItem();
-    if (selectedImage) {
-      var grid = getInitialGridSize(selectedImage.width, selectedImage.height, 25);
+    var selectedArtwork = getSelectedArtworkSize();
+    if (selectedArtwork) {
+      var grid = getInitialGridSize(selectedArtwork.width, selectedArtwork.height, 25);
       rowsInput.text = String(grid[0]);
       columnsInput.text = String(grid[1]);
     }
 
-    function autoCalcRowsCols() {
-      if (app.documents.length > 0 && app.selection.length === 1) {
-        var selectedItem = app.activeDocument.selection[0];
-        if (
-          selectedItem.typename === "PlacedItem" ||
-          selectedItem.typename === "SymbolItem" ||
-          selectedItem.typename === "PathItem" ||
-          selectedItem.typename === "GroupItem" ||
-          selectedItem.typename === "CompoundPathItem"
-        ) {
-          if (!isNaN(parseInt(totalPiecesInput.text, 10)) && parseInt(totalPiecesInput.text, 10) > 0) {
-            var pieceCount = parseInt(totalPiecesInput.text, 10);
-          } else {
-            return;
-          }
-          var bounds = selectedItem.geometricBounds;
-          var w = bounds[2] - bounds[0];
-          var h = bounds[1] - bounds[3];
-          if (h < 0) h = -h;
-          var aspect = w / h;
-          var cols = Math.round(Math.sqrt(pieceCount * aspect));
-          if (cols < 1) cols = 1;
-          var rows = Math.round(pieceCount / cols);
-          if (rows < 1) rows = 1;
-          rowsInput.text = rows;
-          columnsInput.text = cols;
-        }
-      }
-    }
 
 
     function updateRowsColsFromTotalPieces() {
       var val = parseInt(totalPiecesInput.text, 10);
       if (isNaN(val) || val < 1) return;
-      var selectedArtwork = getSelectedArtworkItem();
+      var selectedArtwork = getSelectedArtworkSize();
       if (selectedArtwork) {
         var grid = getInitialGridSize(selectedArtwork.width, selectedArtwork.height, val);
         rowsInput.text = String(grid[0]);
         columnsInput.text = String(grid[1]);
       }
-      autoCalcRowsCols();
     }
 
     totalPiecesInput.onChanging = function () {
@@ -395,7 +367,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 
 
     /* 形状 */
-    var shapeGroup = leftCol.add("group");
+    var shapeGroup = splitPanel.add("group");
     shapeGroup.orientation = "row";
     shapeGroup.alignChildren = ["left", "top"];
     shapeGroup.margins = [0, 10, 0, 10];
@@ -411,35 +383,8 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     var shapeRadioRandom = shapeOptions.add("radiobutton", undefined, LABELS.shapeRandom[lang]);
     shapeRadioTraditional.value = true;
 
-    /* オーバーラップ */
-    var overlapGroup = leftCol.add("group");
-    overlapGroup.orientation = "column";
-    overlapGroup.alignChildren = "left";
-    var overlapCheckbox = overlapGroup.add('checkbox', undefined, LABELS.overlap[lang]);
-    overlapCheckbox.value = true;
-    var overlapInputRow = overlapGroup.add("group");
-    overlapInputRow.orientation = "row";
-    overlapInputRow.alignChildren = "left";
-    overlapInputRow.margins = [20, 0, 0, 0];
-    var overlapInput = overlapInputRow.add("edittext", undefined, "0");
-    overlapInput.characters = 4;
-    var overlapUnitLabel = overlapInputRow.add("statictext", undefined, getCurrentUnitLabel());
-    overlapInput.enabled = overlapCheckbox.value;
-    overlapUnitLabel.enabled = overlapCheckbox.value;
-    overlapCheckbox.onClick = function () {
-      var gridMode = modeRadioGrid.value;
-      overlapInput.enabled = gridMode && overlapCheckbox.value;
-      overlapUnitLabel.enabled = gridMode && overlapCheckbox.value;
-    };
-
-    /* 右カラム: オフセット / バラけ処理 / ケイ / 角丸 */
-    var rightCol = columnsWrap.add('group');
-    rightCol.orientation = 'column';
-    rightCol.alignChildren = 'left';
-    rightCol.margins = [10, 5, 10, 5];
-
     /* オフセット */
-    var offsetGroup = rightCol.add("group");
+    var offsetGroup = splitPanel.add("group");
     offsetGroup.orientation = "row";
     offsetGroup.alignChildren = "left";
     var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel[lang]);
@@ -455,8 +400,31 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       offsetUnitLabel.enabled = puzzle && offsetCheckbox.value;
     };
 
+    /* オーバーラップ */
+    var overlapGroup = splitPanel.add("group");
+    overlapGroup.orientation = "row";
+    overlapGroup.alignChildren = "left";
+    var overlapCheckbox = overlapGroup.add('checkbox', undefined, LABELS.overlap[lang]);
+    overlapCheckbox.value = true;
+    var overlapInput = overlapGroup.add("edittext", undefined, "0");
+    overlapInput.characters = 4;
+    var overlapUnitLabel = overlapGroup.add("statictext", undefined, getCurrentUnitLabel());
+    overlapInput.enabled = overlapCheckbox.value;
+    overlapUnitLabel.enabled = overlapCheckbox.value;
+    overlapCheckbox.onClick = function () {
+      var gridMode = modeRadioGrid.value;
+      overlapInput.enabled = gridMode && overlapCheckbox.value;
+      overlapUnitLabel.enabled = gridMode && overlapCheckbox.value;
+    };
+
+    /* オプションパネル: バラけ処理 / ケイ / 角丸 */
+    var optionsPanel = panelsGroup.add('panel', undefined, LABELS.panelOptions[lang]);
+    optionsPanel.orientation = 'column';
+    optionsPanel.alignChildren = 'left';
+    optionsPanel.margins = [15, 20, 15, 10];
+
     /* バラけ処理 */
-    var scatterGroup = rightCol.add("group");
+    var scatterGroup = optionsPanel.add("group");
     scatterGroup.orientation = "row";
     scatterGroup.alignChildren = "left";
     var scatterCheckbox = scatterGroup.add('checkbox', undefined, LABELS.explode[lang]);
@@ -472,14 +440,14 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     };
 
     /* ケイ */
-    var ruleGroup = rightCol.add("group");
+    var ruleGroup = optionsPanel.add("group");
     ruleGroup.orientation = "row";
     ruleGroup.alignChildren = "left";
     var ruleCheckbox = ruleGroup.add('checkbox', undefined, LABELS.ruleCheck[lang]);
     ruleCheckbox.value = false;
 
     /* 角丸 */
-    var roundCornerGroup = rightCol.add("group");
+    var roundCornerGroup = optionsPanel.add("group");
     roundCornerGroup.orientation = "row";
     roundCornerGroup.alignChildren = "left";
     var roundCornerCheckbox = roundCornerGroup.add('checkbox', undefined, LABELS.roundCheck[lang]);
@@ -521,15 +489,11 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     function applyModeDefaults() {
       if (modeRadioGrid.value) {
         totalPiecesInput.text = "2";
-        columnsInput.text = "2";
-        rowsInput.text = "1";
         offsetValueInput.text = "0";
         offsetCheckbox.value = false;
         overlapCheckbox.value = true;
       } else {
         totalPiecesInput.text = "25";
-        columnsInput.text = "6";
-        rowsInput.text = "4";
         offsetValueInput.text = "-2";
         offsetCheckbox.value = true;
         overlapCheckbox.value = false;
@@ -541,12 +505,14 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 
     function onModeChange() {
       applyModeDefaults();
+      updateRowsColsFromTotalPieces();
       updateModeDependentEnabled();
     }
     modeRadioPuzzle.onClick = onModeChange;
     modeRadioGrid.onClick = onModeChange;
     /* デフォルトはグリッド分割 / Default to grid split */
     applyModeDefaults();
+    updateRowsColsFromTotalPieces();
     updateModeDependentEnabled();
 
     /* OK・キャンセルボタン / OK and Cancel buttons */
@@ -692,7 +658,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
   }
 
   function prepareSourceItems() {
-    var sourceItem;
+    var workingSourceItem;
     var contentSourceItem = null;
     var maskSourceItem;
     var isTemporaryBoundsRect = false;
@@ -702,11 +668,11 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       try {
         var tempGroup = app.activeDocument.groupItems.add();
         var selectedItems = [];
-        for (var i = 0; i < app.selection.length; i++) {
-          selectedItems.push(app.selection[i]);
+        for (var selectedIndex = 0; selectedIndex < app.selection.length; selectedIndex++) {
+          selectedItems.push(app.selection[selectedIndex]);
         }
-        for (var j = selectedItems.length - 1; j >= 0; j--) {
-          selectedItems[j].move(tempGroup, ElementPlacement.PLACEATBEGINNING);
+        for (var selectedItemIndex = selectedItems.length - 1; selectedItemIndex >= 0; selectedItemIndex--) {
+          selectedItems[selectedItemIndex].move(tempGroup, ElementPlacement.PLACEATBEGINNING);
         }
         var groupLeft = tempGroup.left;
         var groupTop = tempGroup.top;
@@ -716,28 +682,28 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
         symbolItem.left = groupLeft;
         symbolItem.top = groupTop;
         tempGroup.remove();
-        sourceItem = symbolItem;
+        workingSourceItem = symbolItem;
       } catch (e) {
         alert(L("alertMultiSymbolizeFailed") + e);
         return null;
       }
     } else {
-      sourceItem = app.selection[0];
+      workingSourceItem = app.selection[0];
     }
-    maskSourceItem = sourceItem;
+    maskSourceItem = workingSourceItem;
 
     /* 埋め込み画像(RasterItem)をSymbolItemに変換 */
-    if (sourceItem.typename === "RasterItem") {
+    if (workingSourceItem.typename === "RasterItem") {
       try {
-        var rasterLeft = sourceItem.left;
-        var rasterTop = sourceItem.top;
-        var rasterParent = sourceItem.parent;
-        var tempSymbol = app.activeDocument.symbols.add(sourceItem);
+        var rasterLeft = workingSourceItem.left;
+        var rasterTop = workingSourceItem.top;
+        var rasterParent = workingSourceItem.parent;
+        var tempSymbol = app.activeDocument.symbols.add(workingSourceItem);
         var rasterSymbolItem = rasterParent.symbolItems.add(tempSymbol);
         rasterSymbolItem.left = rasterLeft;
         rasterSymbolItem.top = rasterTop;
-        sourceItem.remove();
-        sourceItem = rasterSymbolItem;
+        workingSourceItem.remove();
+        workingSourceItem = rasterSymbolItem;
       } catch (e) {
         alert(L("alertRasterSymbolizeFailed") + e);
         return null;
@@ -745,20 +711,20 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     }
     /* ベクターオブジェクトをSymbolItemに変換 */
     else if (
-      sourceItem.typename === "PathItem" ||
-      sourceItem.typename === "GroupItem" ||
-      sourceItem.typename === "CompoundPathItem"
+      workingSourceItem.typename === "PathItem" ||
+      workingSourceItem.typename === "GroupItem" ||
+      workingSourceItem.typename === "CompoundPathItem"
     ) {
       try {
-        var vectorLeft = sourceItem.left;
-        var vectorTop = sourceItem.top;
-        var vectorParent = sourceItem.parent;
-        var vectorSymbol = app.activeDocument.symbols.add(sourceItem);
+        var vectorLeft = workingSourceItem.left;
+        var vectorTop = workingSourceItem.top;
+        var vectorParent = workingSourceItem.parent;
+        var vectorSymbol = app.activeDocument.symbols.add(workingSourceItem);
         var vectorSymbolItem = vectorParent.symbolItems.add(vectorSymbol);
         vectorSymbolItem.left = vectorLeft;
         vectorSymbolItem.top = vectorTop;
-        sourceItem.remove();
-        sourceItem = vectorSymbolItem;
+        workingSourceItem.remove();
+        workingSourceItem = vectorSymbolItem;
       } catch (e) {
         alert(L("alertVectorSymbolizeFailed") + e);
         return null;
@@ -766,20 +732,19 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     }
 
     /* PlacedItem/RasterItem/SymbolItemは矩形化 */
-    var sourceType = sourceItem.typename;
-    if (sourceType == "PlacedItem" || sourceType == "RasterItem" || sourceType == "SymbolItem") {
-      var gb = sourceItem.geometricBounds;
-      var rectWidth = gb[2] - gb[0];
-      var rectHeight = gb[1] - gb[3];
+    var workingSourceType = workingSourceItem.typename;
+    if (workingSourceType == "PlacedItem" || workingSourceType == "RasterItem" || workingSourceType == "SymbolItem") {
+      var sourceBounds = workingSourceItem.geometricBounds;
+      var rectWidth = sourceBounds[2] - sourceBounds[0];
+      var rectHeight = sourceBounds[1] - sourceBounds[3];
       if (rectHeight < 0) rectHeight = -rectHeight;
-      var temporaryBoundsRect = app.activeDocument.pathItems.rectangle(gb[1], gb[0], rectWidth, rectHeight);
-      maskSourceItem = temporaryBoundsRect;
-      contentSourceItem = sourceItem;
+      var tempBoundsRect = app.activeDocument.pathItems.rectangle(sourceBounds[1], sourceBounds[0], rectWidth, rectHeight);
+      maskSourceItem = tempBoundsRect;
+      contentSourceItem = workingSourceItem;
       isTemporaryBoundsRect = true;
     }
 
     return {
-      sourceItem: sourceItem,
       contentSourceItem: contentSourceItem,
       maskSourceItem: maskSourceItem,
       isTemporaryBoundsRect: isTemporaryBoundsRect
@@ -798,6 +763,10 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       alert(L("alertMaskNotPath"));
     }
     return clippingGroup;
+  }
+
+  function isClippableContent(item) {
+    return item && (item.typename === "PlacedItem" || item.typename === "SymbolItem");
   }
 
   function finalizePieceAppearance(pieceItem, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints) {
@@ -1108,7 +1077,6 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
   }
 
   function main() {
-    app.undoGroup = "ジグソー作成";
     try {
 
       var ui = createDialog();
@@ -1183,17 +1151,17 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
             rowCount = Math.round(aspectRatio * columnCount);
           }
 
-          var bounds = maskSourceItem.geometricBounds;
-          var left = bounds[0];
-          var top = bounds[1];
-          var right = bounds[2];
-          var bottom = bounds[3];
+          var maskBounds = maskSourceItem.geometricBounds;
+          var maskLeft = maskBounds[0];
+          var maskTop = maskBounds[1];
+          var maskRight = maskBounds[2];
+          var maskBottom = maskBounds[3];
 
-          var originX = left;
-          var originY = top;
+          var originX = maskLeft;
+          var originY = maskTop;
 
-          var pieceWidth = (right - left) / columnCount;
-          var pieceHeight = (top - bottom) / rowCount;
+          var pieceWidth = (maskRight - maskLeft) / columnCount;
+          var pieceHeight = (maskTop - maskBottom) / rowCount;
 
           var oneThirdWide = pieceWidth / 3;
           var oneQuarterHigh = pieceHeight / 4;
@@ -1229,11 +1197,10 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 
           /* グリッド形状（矩形マスク）モード */
           if (modeRadioGrid.value) {
-            var imgLeft = left;
-            var imgRight = right;
-            var imgTop = top;
-            var imgBottom = bottom;
-            var generatedPieces = [];
+            var imgLeft = maskLeft;
+            var imgRight = maskRight;
+            var imgTop = maskTop;
+            var imgBottom = maskBottom;
             for (var y = 0; y < rowCount; y++) {
               for (var x = 0; x < columnCount; x++) {
                 var gridMask = createGridMask(
@@ -1249,12 +1216,10 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
                   imgTop,
                   imgBottom
                 );
-                if (contentSourceItem && (contentSourceItem.typename === "PlacedItem" || contentSourceItem.typename === "SymbolItem")) {
+                if (isClippableContent(contentSourceItem)) {
                   var clippedPiece = createClippedPiece(contentSourceItem, gridMask);
-                  generatedPieces.push(clippedPiece);
                   finalizePieceAppearance(clippedPiece, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
                 } else {
-                  generatedPieces.push(gridMask);
                   finalizePieceAppearance(gridMask, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
                 }
               }
@@ -1265,7 +1230,6 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
           }
 
           /* ジグソー形状モード */
-          var generatedPieces = [];
           for (var y = 0; y < rowCount; y++) {
             for (var x = 0; x < columnCount; x++) {
               var maskPath = createPuzzleMaskPath(
@@ -1295,9 +1259,9 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
                     if (offsetResultItem.typename === "PathItem") {
                       maskPath = offsetResultItem;
                     } else if (offsetResultItem.typename === "GroupItem") {
-                      for (var i = 0; i < offsetResultItem.pageItems.length; i++) {
-                        if (offsetResultItem.pageItems[i].typename === "PathItem") {
-                          maskPath = offsetResultItem.pageItems[i];
+                      for (var pageItemIndex = 0; pageItemIndex < offsetResultItem.pageItems.length; pageItemIndex++) {
+                        if (offsetResultItem.pageItems[pageItemIndex].typename === "PathItem") {
+                          maskPath = offsetResultItem.pageItems[pageItemIndex];
                           break;
                         }
                       }
@@ -1314,12 +1278,10 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
               }
 
               /* 画像クリッピンググループ処理 */
-              if (contentSourceItem && (contentSourceItem.typename === "PlacedItem" || contentSourceItem.typename === "SymbolItem")) {
+              if (isClippableContent(contentSourceItem)) {
                 var clippedPiece = createClippedPiece(contentSourceItem, maskPath);
-                generatedPieces.push(clippedPiece);
                 finalizePieceAppearance(clippedPiece, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
               } else {
-                generatedPieces.push(maskPath);
                 finalizePieceAppearance(maskPath, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
               }
             }
