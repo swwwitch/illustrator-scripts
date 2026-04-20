@@ -1,222 +1,3 @@
-function appendTopEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, rowCount, oneThirdWide, oneQuarterHigh, pieceEdgeData) {
-  /* 上辺突起 */
-  if (y < rowCount - 1) {
-    if (pieceEdgeData[y + 1][x].topOut) {
-      var curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-    } else {
-      var curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - 3 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight - 2.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight - 3.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - 3 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight - 3.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight - 2.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-    }
-  }
-}
-
-function appendRightEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, columnCount, oneThirdHigh, oneQuarterWide, pieceEdgeData) {
-  /* 右辺突起 */
-  if (x < columnCount - 1) {
-    if (pieceEdgeData[y][x + 1].rightOut) {
-      var curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 5.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 5.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-    } else {
-      var curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 3 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 2.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 3 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 2.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-    }
-  }
-}
-
-function appendBottomEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, oneThirdWide, oneQuarterHigh, pieceEdgeData) {
-  /* 下辺突起 */
-  if (y > 0) {
-    if (pieceEdgeData[y][x].topOut) {
-      var curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-    } else {
-      var curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight + oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight + 1.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight + 0.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight + oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight + 0.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight + 1.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset];
-      curvept.rightDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.leftDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
-      curvept.pointType = PointType.SMOOTH;
-    }
-  }
-}
-
-function appendLeftEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, oneThirdHigh, oneQuarterWide, pieceEdgeData) {
-  /* 左辺突起 */
-  if (x > 0) {
-    if (pieceEdgeData[y][x].rightOut) {
-      var curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth + oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-    } else {
-      var curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth - oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth - 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth - oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth - 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-
-      curvept = maskPath.pathPoints.add();
-      curvept.anchor = [originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
-      curvept.leftDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
-      curvept.rightDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
-      curvept.pointType = PointType.SMOOTH;
-    }
-  }
-}
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -314,7 +95,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 
 (function () {
 
-  var SCRIPT_VERSION = "v1.4.0";
+  var SCRIPT_VERSION = "v1.4.1";
 
   function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -1307,3 +1088,223 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
   main();
 
 })();
+
+function appendTopEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, rowCount, oneThirdWide, oneQuarterHigh, pieceEdgeData) {
+  /* 上辺突起 */
+  if (y < rowCount - 1) {
+    if (pieceEdgeData[y + 1][x].topOut) {
+      var curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - (y + 1) * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+    } else {
+      var curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - 3 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight - 2.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight - 3.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - 3 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight - 3.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight - 2.5 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - (y + 1) * pieceHeight - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - (y + 1) * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - (y + 1) * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y + 1][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+    }
+  }
+}
+
+function appendRightEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, columnCount, oneThirdHigh, oneQuarterWide, pieceEdgeData) {
+  /* 右辺突起 */
+  if (x < columnCount - 1) {
+    if (pieceEdgeData[y][x + 1].rightOut) {
+      var curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 5.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 5.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+    } else {
+      var curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 3 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 2.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 3 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 2.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 4 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 4.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 3.5 * oneQuarterWide - pieceEdgeData[y][x + 1].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+    }
+  }
+}
+
+function appendBottomEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, oneThirdWide, oneQuarterHigh, pieceEdgeData) {
+  /* 下辺突起 */
+  if (y > 0) {
+    if (pieceEdgeData[y][x].topOut) {
+      var curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight - oneQuarterHigh + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+    } else {
+      var curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + 2 * oneThirdWide, originY - y * pieceHeight + oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 1.67 * oneThirdWide, originY - y * pieceHeight + 1.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 2.33 * oneThirdWide, originY - y * pieceHeight + 0.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight + oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight + 0.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight + 1.5 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneThirdWide, originY - y * pieceHeight - pieceEdgeData[y][x].verticalOffset];
+      curvept.rightDirection = [originX + x * pieceWidth + 0.67 * oneThirdWide, originY - y * pieceHeight - 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.leftDirection = [originX + x * pieceWidth + 1.33 * oneThirdWide, originY - y * pieceHeight + 0.33 * oneQuarterHigh - pieceEdgeData[y][x].verticalOffset];
+      curvept.pointType = PointType.SMOOTH;
+    }
+  }
+}
+
+function appendLeftEdge(maskPath, originX, originY, x, y, pieceWidth, pieceHeight, oneThirdHigh, oneQuarterWide, pieceEdgeData) {
+  /* 左辺突起 */
+  if (x > 0) {
+    if (pieceEdgeData[y][x].rightOut) {
+      var curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth + oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+    } else {
+      var curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth - oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 0.67 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth - 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.33 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth - oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth - 1.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+
+      curvept = maskPath.pathPoints.add();
+      curvept.anchor = [originX + x * pieceWidth - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2 * oneThirdHigh];
+      curvept.leftDirection = [originX + x * pieceWidth - 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 1.67 * oneThirdHigh];
+      curvept.rightDirection = [originX + x * pieceWidth + 0.5 * oneQuarterWide - pieceEdgeData[y][x].horizontalOffset, originY - y * pieceHeight - 2.33 * oneThirdHigh];
+      curvept.pointType = PointType.SMOOTH;
+    }
+  }
+}
