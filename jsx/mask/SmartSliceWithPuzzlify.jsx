@@ -42,7 +42,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 ### 更新履歴
 
 - v1.0 (20250607) : 初期バージョン
-- v1.4.5 (20250610) : オフセット、単位対応、UI整理、キーボード操作、ローカライズ改善
+- v1.5.0 (20260421) : scatterを一様分布→ガウス分布（中央寄り・クランプ付き）に変更、scatterを含む単位のpt正規化、オーバーラップ初期OFF＋値保持、オフセット初期OFF＋デフォルト値-2、モードごとに既定値で初期化（UI仕様整理）、offset処理のtry/finally化による安全化
 
 ---
 
@@ -86,11 +86,11 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 ### Update History
 
 - v1.0 (20250607): Initial version
-- v1.4.5 (20250610): Added offset, unit handling, UI cleanup, keyboard controls, and localization improvements
+- v1.5.0 (20260421): Scatter changed from uniform to Gaussian distribution (center-biased with clamp), unit normalization to pt including scatter, overlap default OFF with value retention, offset default OFF with default value -2, mode-based initialization (UI behavior clarified), and safer offset processing using try/finally
 */
 
 (function () {
-  var SCRIPT_VERSION = "v1.4.5";
+  var SCRIPT_VERSION = "v1.5.0";
 
   function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -388,7 +388,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     offsetGroup.orientation = "row";
     offsetGroup.alignChildren = "left";
     var offsetCheckbox = offsetGroup.add('checkbox', undefined, LABELS.offsetLabel[lang]);
-    offsetCheckbox.value = true;
+    offsetCheckbox.value = false;
     var offsetValueInput = offsetGroup.add("edittext", undefined, "-2");
     offsetValueInput.characters = 4;
     var offsetUnitLabel = offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
@@ -405,8 +405,8 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     overlapGroup.orientation = "row";
     overlapGroup.alignChildren = "left";
     var overlapCheckbox = overlapGroup.add('checkbox', undefined, LABELS.overlap[lang]);
-    overlapCheckbox.value = true;
-    var overlapInput = overlapGroup.add("edittext", undefined, "0");
+    overlapCheckbox.value = false;
+    var overlapInput = overlapGroup.add("edittext", undefined, "10");
     overlapInput.characters = 4;
     var overlapUnitLabel = overlapGroup.add("statictext", undefined, getCurrentUnitLabel());
     overlapInput.enabled = overlapCheckbox.value;
@@ -485,22 +485,28 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       roundCornerUnitLabel.enabled = !puzzle && roundCornerCheckbox.value;
     }
 
-    /* モード切替時の既定値適用 / Apply defaults when mode changes */
+    /* モードごとの既定値を適用 / Apply mode-specific defaults */
     function applyModeDefaults() {
       if (modeRadioGrid.value) {
         totalPiecesInput.text = "2";
-        offsetValueInput.text = "0";
+        offsetValueInput.text = "-2";
         offsetCheckbox.value = false;
-        overlapCheckbox.value = true;
+        overlapCheckbox.value = false;
+        overlapInput.text = "10";
+        ruleCheckbox.value = false;
+        roundCornerCheckbox.value = false;
+        roundRadiusInput.text = "3";
       } else {
         totalPiecesInput.text = "25";
         offsetValueInput.text = "-2";
-        offsetCheckbox.value = true;
+        offsetCheckbox.value = false;
+        scatterCheckbox.value = false;
+        scatterStrengthInput.text = "30";
         overlapCheckbox.value = false;
+        ruleCheckbox.value = false;
+        roundCornerCheckbox.value = false;
+        roundRadiusInput.text = "3";
       }
-      overlapInput.text = "0";
-      ruleCheckbox.value = false;
-      roundCornerCheckbox.value = false;
     }
 
     function onModeChange() {
@@ -515,11 +521,20 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     updateRowsColsFromTotalPieces();
     updateModeDependentEnabled();
 
+    /* プログレスバー（処理中のみ表示） / Progress bar (shown during processing) */
+    var progressGroup = dlg.add('group');
+    progressGroup.orientation = 'column';
+    progressGroup.alignChildren = 'fill';
+    progressGroup.margins = [10, 0, 10, 0];
+    var progressBar = progressGroup.add('progressbar', undefined, 0, 100);
+    progressBar.preferredSize = [200, 7];
+    progressGroup.visible = false;
+
     /* OK・キャンセルボタン / OK and Cancel buttons */
     var buttonGroup = dlg.add('group');
     buttonGroup.orientation = 'row';
     buttonGroup.alignment = "center";
-    buttonGroup.add('button', undefined, LABELS.cancel[lang], { name: "cancel" });
+    var cancelBtn = buttonGroup.add('button', undefined, LABELS.cancel[lang], { name: "cancel" });
     var okBtn = buttonGroup.add('button', undefined, LABELS.okBtn[lang], { name: "ok" });
     okBtn.active = true;
 
@@ -549,7 +564,15 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       overlapInput: overlapInput,
       ruleCheckbox: ruleCheckbox,
       roundCornerCheckbox: roundCornerCheckbox,
-      roundRadiusInput: roundRadiusInput
+      roundRadiusInput: roundRadiusInput,
+      okBtn: okBtn,
+      cancelBtn: cancelBtn,
+      commonGroup: commonGroup,
+      splitPanel: splitPanel,
+      optionsPanel: optionsPanel,
+      buttonGroup: buttonGroup,
+      progressGroup: progressGroup,
+      progressBar: progressBar
     };
   }
 
@@ -560,8 +583,13 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
   }
 
   function applyOffsetPathToSelection(offsetVal) {
+    var doc = app.activeDocument;
+    var prevUIL = app.userInteractionLevel;
+    if (!doc.selection || doc.selection.length === 0) {
+      return null;
+    }
+    var prevSelection = doc.selection ? doc.selection.slice(0) : null;
     try {
-      var doc = app.activeDocument;
       var sourceItem = doc.selection[0];
 
       app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
@@ -575,16 +603,24 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       app.redraw();
       app.executeMenuCommand('expandStyle');
 
-      app.userInteractionLevel = UserInteractionLevel.DISPLAYALERTS;
-
       if (app.selection && app.selection.length > 0) {
         return app.selection[0];
-      } else {
-        return null;
       }
+      return null;
     } catch (err) {
       alert(L("alertGeneralError") + err.message);
       return null;
+    } finally {
+      // 必ず UIレベルと選択状態を戻す
+      try { app.userInteractionLevel = prevUIL; } catch (e) {}
+      try {
+        if (prevSelection && prevSelection.length) {
+          doc.selection = null;
+          for (var i = 0; i < prevSelection.length; i++) {
+            try { prevSelection[i].selected = true; } catch (e) {}
+          }
+        }
+      } catch (e) {}
     }
   }
 
@@ -634,7 +670,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 
     var shouldScatter = scatterCheckbox.value;
     var scatterStrengthInputValue = parseFloat(scatterStrengthInput.text);
-    var scatterStrength = isNaN(scatterStrengthInputValue) ? 0 : scatterStrengthInputValue;
+    var scatterStrength = (isNaN(scatterStrengthInputValue) ? 0 : scatterStrengthInputValue) * getUnitToPtFactor();
 
     var shouldApplyOffset = offsetCheckbox.value;
     var offsetInputValue = parseFloat(offsetValueInput.text);
@@ -770,9 +806,23 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
   }
 
   function finalizePieceAppearance(pieceItem, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints) {
-    if (shouldScatter) {
-      var offsetX = Math.random() * scatterStrength * 2 - scatterStrength;
-      var offsetY = Math.random() * scatterStrength * 2 - scatterStrength;
+    if (shouldScatter && scatterStrength > 0) {
+      // ガウス分布（中央寄り）+ 最大移動量でクランプ / Gaussian distribution (center-biased) with max-offset clamp
+      function randomGaussian() {
+        var u = 0, v = 0;
+        while (u === 0) u = Math.random();
+        while (v === 0) v = Math.random();
+        return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+      }
+
+      function clamp(value, minValue, maxValue) {
+        return Math.max(minValue, Math.min(maxValue, value));
+      }
+
+      var maxOffset = scatterStrength;
+      var offsetX = clamp(randomGaussian() * scatterStrength * 0.5, -maxOffset, maxOffset);
+      var offsetY = clamp(randomGaussian() * scatterStrength * 0.5, -maxOffset, maxOffset);
+
       var moveMatrix = app.getTranslationMatrix(offsetX, offsetY);
       pieceItem.transform(moveMatrix);
     }
@@ -1076,224 +1126,247 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     }
   }
 
+  function executeSlice(ui, onProgress) {
+    var modeRadioGrid = ui.modeRadioGrid;
+    var shapeRadioRandom = ui.shapeRadioRandom;
+
+    /* ダイアログ値取得 / Read dialog values */
+    var dialogValues = readDialogValues(ui);
+    var shouldAddStroke = dialogValues.shouldAddStroke;
+    var shouldApplyRoundCorners = dialogValues.shouldApplyRoundCorners;
+    var roundRadiusInPoints = dialogValues.roundRadiusInPoints;
+    var overlapInPoints = dialogValues.overlapInPoints;
+    var shouldScatter = dialogValues.shouldScatter;
+    var scatterStrength = dialogValues.scatterStrength;
+    var shouldApplyOffset = dialogValues.shouldApplyOffset;
+    var offsetInPoints = dialogValues.offsetInPoints;
+
+    // 選択オブジェクト取得 / Get selected object
+    var preparedItems = prepareSourceItems();
+    if (!preparedItems) {
+      return;
+    }
+
+    var contentSourceItem = preparedItems.contentSourceItem;
+    var maskSourceItem = preparedItems.maskSourceItem;
+    var isTemporaryBoundsRect = preparedItems.isTemporaryBoundsRect;
+
+    /* 列・行数取得 */
+    var columnCount = dialogValues.columnCount;
+    var rowCount = dialogValues.rowCount;
+
+    if (
+      (columnCount >= 1 && rowCount >= 1) ||
+      (columnCount == 0 && rowCount >= 1) ||
+      (columnCount >= 1 && rowCount == 0)
+    ) {
+      maskSourceItem.selected = false;
+
+      var aspectRatio;
+      if (columnCount == 0) {
+        aspectRatio = Math.abs(
+          (maskSourceItem.geometricBounds[2] - maskSourceItem.geometricBounds[0]) /
+          (maskSourceItem.geometricBounds[3] - maskSourceItem.geometricBounds[1])
+        );
+        columnCount = Math.round(aspectRatio * rowCount);
+      }
+      if (rowCount == 0) {
+        aspectRatio = Math.abs(
+          (maskSourceItem.geometricBounds[3] - maskSourceItem.geometricBounds[1]) /
+          (maskSourceItem.geometricBounds[2] - maskSourceItem.geometricBounds[0])
+        );
+        rowCount = Math.round(aspectRatio * columnCount);
+      }
+
+      var maskBounds = maskSourceItem.geometricBounds;
+      var maskLeft = maskBounds[0];
+      var maskTop = maskBounds[1];
+      var maskRight = maskBounds[2];
+      var maskBottom = maskBounds[3];
+
+      var originX = maskLeft;
+      var originY = maskTop;
+
+      var pieceWidth = (maskRight - maskLeft) / columnCount;
+      var pieceHeight = (maskTop - maskBottom) / rowCount;
+
+      var oneThirdWide = pieceWidth / 3;
+      var oneQuarterHigh = pieceHeight / 4;
+      var oneThirdHigh = pieceHeight / 3;
+      var oneQuarterWide = pieceWidth / 4;
+
+      var pieceEdgeData = new Array(rowCount);
+      if (shapeRadioRandom.value) {
+        for (var y = 0; y < rowCount; y++) {
+          pieceEdgeData[y] = new Array(columnCount);
+          for (var x = 0; x < columnCount; x++) {
+            pieceEdgeData[y][x] = {
+              topOut: Math.random() < 0.5,
+              rightOut: Math.random() < 0.5,
+              verticalOffset: pieceHeight * (Math.random() - 0.5) / 10,
+              horizontalOffset: pieceWidth * (Math.random() - 0.5) / 10
+            };
+          }
+        }
+      } else {
+        for (var y = 0; y < rowCount; y++) {
+          pieceEdgeData[y] = new Array(columnCount);
+          for (var x = 0; x < columnCount; x++) {
+            pieceEdgeData[y][x] = {
+              topOut: (x & 1) ^ (y & 1),
+              rightOut: !((x & 1) ^ (y & 1)),
+              verticalOffset: pieceHeight * (Math.random() - 0.5) / 10,
+              horizontalOffset: pieceWidth * (Math.random() - 0.5) / 10
+            };
+          }
+        }
+      }
+
+      var totalPieces = rowCount * columnCount;
+      var piecesDone = 0;
+      if (onProgress) onProgress(0, totalPieces);
+
+      /* グリッド形状（矩形マスク）モード */
+      if (modeRadioGrid.value) {
+        var imgLeft = maskLeft;
+        var imgRight = maskRight;
+        var imgTop = maskTop;
+        var imgBottom = maskBottom;
+        for (var y = 0; y < rowCount; y++) {
+          for (var x = 0; x < columnCount; x++) {
+            var gridMask = createGridMask(
+              originX,
+              originY,
+              x,
+              y,
+              pieceWidth,
+              pieceHeight,
+              overlapInPoints,
+              imgLeft,
+              imgRight,
+              imgTop,
+              imgBottom
+            );
+            if (isClippableContent(contentSourceItem)) {
+              var clippedPiece = createClippedPiece(contentSourceItem, gridMask);
+              finalizePieceAppearance(clippedPiece, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
+            } else {
+              finalizePieceAppearance(gridMask, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
+            }
+            piecesDone++;
+            if (onProgress) onProgress(piecesDone, totalPieces);
+          }
+        }
+
+        cleanupSourceItems(contentSourceItem, maskSourceItem, isTemporaryBoundsRect);
+        return;
+      }
+
+      /* ジグソー形状モード */
+      for (var y = 0; y < rowCount; y++) {
+        for (var x = 0; x < columnCount; x++) {
+          var maskPath = createPuzzleMaskPath(
+            originX,
+            originY,
+            x,
+            y,
+            pieceWidth,
+            pieceHeight,
+            columnCount,
+            rowCount,
+            oneThirdWide,
+            oneQuarterHigh,
+            oneThirdHigh,
+            oneQuarterWide,
+            pieceEdgeData
+          );
+
+          /* オフセット効果を適用 */
+          if (shouldApplyOffset && maskPath) {
+            var offsetVal = offsetInPoints;
+            app.selection = null;
+            try {
+              maskPath.selected = true;
+              var offsetResultItem = applyOffsetPathToSelection(offsetVal);
+              if (offsetResultItem) {
+                if (offsetResultItem.typename === "PathItem") {
+                  maskPath = offsetResultItem;
+                } else if (offsetResultItem.typename === "GroupItem") {
+                  for (var pageItemIndex = 0; pageItemIndex < offsetResultItem.pageItems.length; pageItemIndex++) {
+                    if (offsetResultItem.pageItems[pageItemIndex].typename === "PathItem") {
+                      maskPath = offsetResultItem.pageItems[pageItemIndex];
+                      break;
+                    }
+                  }
+                  if (maskPath.typename !== "PathItem") {
+                    alert(L("alertOffsetGroupNoPath"));
+                  }
+                } else {
+                  alert(L("alertOffsetUnexpectedType"));
+                }
+              }
+            } catch (e) {
+              alert(L("alertOffsetError") + e.message);
+            }
+          }
+
+          /* 画像クリッピンググループ処理 */
+          if (isClippableContent(contentSourceItem)) {
+            var clippedPiece = createClippedPiece(contentSourceItem, maskPath);
+            finalizePieceAppearance(clippedPiece, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
+          } else {
+            finalizePieceAppearance(maskPath, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
+          }
+
+          piecesDone++;
+          if (onProgress) onProgress(piecesDone, totalPieces);
+        }
+      }
+
+      cleanupSourceItems(contentSourceItem, maskSourceItem, isTemporaryBoundsRect);
+    }
+  }
+
   function main() {
     try {
+      /* Illustrator状態チェック / Illustrator state check */
+      if (app.documents.length === 0 || app.selection.length === 0) {
+        return;
+      }
 
       var ui = createDialog();
       var puzzlifyDialog = ui.dialog;
-      var modeRadioGrid = ui.modeRadioGrid;
-      var totalPiecesInput = ui.totalPiecesInput;
-      var columnsInput = ui.columnsInput;
-      var rowsInput = ui.rowsInput;
-      var shapeRadioRandom = ui.shapeRadioRandom;
-      var scatterCheckbox = ui.scatterCheckbox;
-      var scatterStrengthInput = ui.scatterStrengthInput;
-      var offsetCheckbox = ui.offsetCheckbox;
-      var offsetValueInput = ui.offsetValueInput;
-      var overlapCheckbox = ui.overlapCheckbox;
-      var overlapInput = ui.overlapInput;
-      var ruleCheckbox = ui.ruleCheckbox;
-      var roundCornerCheckbox = ui.roundCornerCheckbox;
-      var roundRadiusInput = ui.roundRadiusInput;
 
-      /* Illustrator状態とダイアログ入力チェック / Illustrator state and dialog input check */
-      if (
-        app.documents.length > 0 &&
-        app.selection.length > 0 &&
-        puzzlifyDialog.show() == 1 &&
-        (columnsInput.text || rowsInput.text)
-      ) {
-        /* ダイアログ値取得 / Read dialog values */
-        var dialogValues = readDialogValues(ui);
-        var shouldAddStroke = dialogValues.shouldAddStroke;
-        var shouldApplyRoundCorners = dialogValues.shouldApplyRoundCorners;
-        var roundRadiusInPoints = dialogValues.roundRadiusInPoints;
-        var overlapInPoints = dialogValues.overlapInPoints;
-        var shouldScatter = dialogValues.shouldScatter;
-        var scatterStrength = dialogValues.scatterStrength;
-        var shouldApplyOffset = dialogValues.shouldApplyOffset;
-        var offsetInPoints = dialogValues.offsetInPoints;
-
-        // 選択オブジェクト取得 / Get selected object
-        var preparedItems = prepareSourceItems();
-        if (!preparedItems) {
+      ui.okBtn.onClick = function () {
+        /* 入力チェック / Input validation */
+        if (!(ui.columnsInput.text || ui.rowsInput.text)) {
           return;
         }
 
-        var contentSourceItem = preparedItems.contentSourceItem;
-        var maskSourceItem = preparedItems.maskSourceItem;
-        var isTemporaryBoundsRect = preparedItems.isTemporaryBoundsRect;
+        /* プログレス表示モードへ切替 / Switch to progress display */
+        ui.commonGroup.enabled = false;
+        ui.splitPanel.enabled = false;
+        ui.optionsPanel.enabled = false;
+        ui.buttonGroup.visible = false;
+        ui.progressGroup.visible = true;
+        ui.progressBar.value = 0;
+        puzzlifyDialog.layout.layout(true);
+        puzzlifyDialog.update();
 
-        /* 列・行数取得 */
-        var columnCount = dialogValues.columnCount;
-        var rowCount = dialogValues.rowCount;
-
-        if (
-          (columnCount >= 1 && rowCount >= 1) ||
-          (columnCount == 0 && rowCount >= 1) ||
-          (columnCount >= 1 && rowCount == 0)
-        ) {
-          maskSourceItem.selected = false;
-
-          var aspectRatio;
-          if (columnCount == 0) {
-            aspectRatio = Math.abs(
-              (maskSourceItem.geometricBounds[2] - maskSourceItem.geometricBounds[0]) /
-              (maskSourceItem.geometricBounds[3] - maskSourceItem.geometricBounds[1])
-            );
-            columnCount = Math.round(aspectRatio * rowCount);
-          }
-          if (rowCount == 0) {
-            aspectRatio = Math.abs(
-              (maskSourceItem.geometricBounds[3] - maskSourceItem.geometricBounds[1]) /
-              (maskSourceItem.geometricBounds[2] - maskSourceItem.geometricBounds[0])
-            );
-            rowCount = Math.round(aspectRatio * columnCount);
-          }
-
-          var maskBounds = maskSourceItem.geometricBounds;
-          var maskLeft = maskBounds[0];
-          var maskTop = maskBounds[1];
-          var maskRight = maskBounds[2];
-          var maskBottom = maskBounds[3];
-
-          var originX = maskLeft;
-          var originY = maskTop;
-
-          var pieceWidth = (maskRight - maskLeft) / columnCount;
-          var pieceHeight = (maskTop - maskBottom) / rowCount;
-
-          var oneThirdWide = pieceWidth / 3;
-          var oneQuarterHigh = pieceHeight / 4;
-          var oneThirdHigh = pieceHeight / 3;
-          var oneQuarterWide = pieceWidth / 4;
-
-          var pieceEdgeData = new Array(rowCount);
-          if (shapeRadioRandom.value) {
-            for (var y = 0; y < rowCount; y++) {
-              pieceEdgeData[y] = new Array(columnCount);
-              for (var x = 0; x < columnCount; x++) {
-                pieceEdgeData[y][x] = {
-                  topOut: Math.random() < 0.5,
-                  rightOut: Math.random() < 0.5,
-                  verticalOffset: pieceHeight * (Math.random() - 0.5) / 10,
-                  horizontalOffset: pieceWidth * (Math.random() - 0.5) / 10
-                };
-              }
-            }
-          } else {
-            for (var y = 0; y < rowCount; y++) {
-              pieceEdgeData[y] = new Array(columnCount);
-              for (var x = 0; x < columnCount; x++) {
-                pieceEdgeData[y][x] = {
-                  topOut: (x & 1) ^ (y & 1),
-                  rightOut: !((x & 1) ^ (y & 1)),
-                  verticalOffset: pieceHeight * (Math.random() - 0.5) / 10,
-                  horizontalOffset: pieceWidth * (Math.random() - 0.5) / 10
-                };
-              }
-            }
-          }
-
-          /* グリッド形状（矩形マスク）モード */
-          if (modeRadioGrid.value) {
-            var imgLeft = maskLeft;
-            var imgRight = maskRight;
-            var imgTop = maskTop;
-            var imgBottom = maskBottom;
-            for (var y = 0; y < rowCount; y++) {
-              for (var x = 0; x < columnCount; x++) {
-                var gridMask = createGridMask(
-                  originX,
-                  originY,
-                  x,
-                  y,
-                  pieceWidth,
-                  pieceHeight,
-                  overlapInPoints,
-                  imgLeft,
-                  imgRight,
-                  imgTop,
-                  imgBottom
-                );
-                if (isClippableContent(contentSourceItem)) {
-                  var clippedPiece = createClippedPiece(contentSourceItem, gridMask);
-                  finalizePieceAppearance(clippedPiece, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
-                } else {
-                  finalizePieceAppearance(gridMask, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
-                }
-              }
-            }
-
-            cleanupSourceItems(contentSourceItem, maskSourceItem, isTemporaryBoundsRect);
-            return;
-          }
-
-          /* ジグソー形状モード */
-          for (var y = 0; y < rowCount; y++) {
-            for (var x = 0; x < columnCount; x++) {
-              var maskPath = createPuzzleMaskPath(
-                originX,
-                originY,
-                x,
-                y,
-                pieceWidth,
-                pieceHeight,
-                columnCount,
-                rowCount,
-                oneThirdWide,
-                oneQuarterHigh,
-                oneThirdHigh,
-                oneQuarterWide,
-                pieceEdgeData
-              );
-
-              /* オフセット効果を適用 */
-              if (shouldApplyOffset && maskPath) {
-                var offsetVal = offsetInPoints;
-                app.selection = null;
-                try {
-                  maskPath.selected = true;
-                  var offsetResultItem = applyOffsetPathToSelection(offsetVal);
-                  if (offsetResultItem) {
-                    if (offsetResultItem.typename === "PathItem") {
-                      maskPath = offsetResultItem;
-                    } else if (offsetResultItem.typename === "GroupItem") {
-                      for (var pageItemIndex = 0; pageItemIndex < offsetResultItem.pageItems.length; pageItemIndex++) {
-                        if (offsetResultItem.pageItems[pageItemIndex].typename === "PathItem") {
-                          maskPath = offsetResultItem.pageItems[pageItemIndex];
-                          break;
-                        }
-                      }
-                      if (maskPath.typename !== "PathItem") {
-                        alert(L("alertOffsetGroupNoPath"));
-                      }
-                    } else {
-                      alert(L("alertOffsetUnexpectedType"));
-                    }
-                  }
-                } catch (e) {
-                  alert(L("alertOffsetError") + e.message);
-                }
-              }
-
-              /* 画像クリッピンググループ処理 */
-              if (isClippableContent(contentSourceItem)) {
-                var clippedPiece = createClippedPiece(contentSourceItem, maskPath);
-                finalizePieceAppearance(clippedPiece, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
-              } else {
-                finalizePieceAppearance(maskPath, shouldScatter, scatterStrength, shouldAddStroke, shouldApplyRoundCorners, roundRadiusInPoints);
-              }
-            }
-          }
-
-          cleanupSourceItems(contentSourceItem, maskSourceItem, isTemporaryBoundsRect);
+        try {
+          executeSlice(ui, function (current, total) {
+            ui.progressBar.value = total > 0 ? (current / total) * 100 : 0;
+            puzzlifyDialog.update();
+          });
+        } catch (e) {
+          alert(L("alertScriptError") + e);
         }
-      } else {
-        puzzlifyDialog.hide();
-      }
 
+        /* 処理完了後にダイアログを閉じる / Close dialog after processing completes */
+        puzzlifyDialog.close(1);
+      };
 
+      puzzlifyDialog.show();
     } catch (e) {
       alert(L("alertScriptError") + e);
     }
