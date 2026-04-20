@@ -9,14 +9,14 @@ SmartSliceWithPuzzlify.jsx
 ### 概要
 
 - 選択した画像や図形を、グリッドまたはジグソーパズル形状に分割し、それぞれにマスクを適用するIllustrator用スクリプトです。
-- 行数・列数・ピース数の指定に対応し、オフセット、オーバーラップ、バラけ処理、ケイ、角丸などを組み合わせて調整できます。
+- 行数・列数・ピース数の指定に対応し、オフセット、オーバーラップ、バラけ（Scatter）、ケイ、角丸などを組み合わせて調整できます。
 - 日本語／英語UIに対応し、入力欄では ↑↓ / Shift+↑↓ / Option+↑↓ による値の増減も行えます。
 
 ### 主な機能
 
 - グリッド分割、トラディショナル、ランダムなジグソー形状の生成
 - 行数・列数・ピース数の指定と、選択オブジェクト比率に応じた自動行列算出
-- オフセット、オーバーラップ、散乱（バラけ）処理の適用
+- オフセット、オーバーラップ、バラけ（Scatter）処理の適用
 - ケイの追加、角丸の適用
 - 画像、シンボル、ベクターアートワーク、複数選択オブジェクトへの対応
 - 複数選択時の一時グループ化とシンボル化処理
@@ -42,7 +42,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 ### 更新履歴
 
 - v1.0 (20250607) : 初期バージョン
-- v1.4.4 (20250610) : オフセット機能追加、単位コード対応、ダイアログUI整理、入力欄のキー操作対応
+- v1.4.5 (20250610) : オフセット、単位対応、UI整理、キーボード操作、ローカライズ改善
 
 ---
 
@@ -52,14 +52,14 @@ SmartSliceWithPuzzlify.jsx
 
 ### Overview
 
-- An Illustrator script that splits a selected image or shape into either a grid or jigsaw puzzle pieces and applies a mask to each piece.
+- An Illustrator script that splits a selected image or artwork into grid or jigsaw puzzle pieces and applies a mask to each piece.
 - Supports rows, columns, and total piece count, along with offset, overlap, scatter, stroke, and round-corner adjustments.
-- Supports Japanese and English UI, and numeric fields can be adjusted with ↑↓ / Shift+↑↓ / Option+↑↓ keyboard shortcuts.
+- Supports Japanese and English UI, and numeric fields can be adjusted using ↑↓ / Shift+↑↓ / Option+↑↓ keyboard shortcuts.
 
 ### Main Features
 
 - Generate grid, traditional, or random jigsaw-shaped pieces
-- Specify rows, columns, and total pieces, with automatic row/column calculation based on the selected artwork ratio
+- Specify rows, columns, and total pieces, with automatic row/column calculation based on artwork ratio
 - Apply offset, overlap, and scatter effects
 - Add stroke and apply round corners
 - Supports images, symbols, vector artwork, and multiple selected objects
@@ -86,11 +86,11 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 ### Update History
 
 - v1.0 (20250607): Initial version
-- v1.4.4 (20250610): Added offset support, unit-code handling, dialog UI cleanup, and keyboard increment support for numeric fields
+- v1.4.5 (20250610): Added offset, unit handling, UI cleanup, keyboard controls, and localization improvements
 */
 
 (function () {
-  var SCRIPT_VERSION = "v1.4.4";
+  var SCRIPT_VERSION = "v1.4.5";
 
   function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -106,11 +106,48 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     totalPieces: { ja: "ピース数", en: "Total pieces" },
     columns: { ja: "列数", en: "Columns" },
     rows: { ja: "行数", en: "Rows" },
-    explode: { ja: "バラけ処理", en: "Explode" },
+    explode: { ja: "バラけ処理", en: "Scatter" },
     offsetLabel: { ja: "オフセット", en: "Offset" },
     overlap: { ja: "オーバーラップ", en: "Overlap" },
     ruleCheck: { ja: "ケイ", en: "Add Stroke" },
     roundCheck: { ja: "角丸", en: "Apply Round Corners" },
+    shapeLabel: { ja: "形状：", en: "Shape:" },
+    alertMaskNotPath: {
+      ja: "マスク用オブジェクトが PathItem ではないため、マスクをスキップします。",
+      en: "The mask object is not a PathItem, so the mask step will be skipped."
+    },
+    alertMultiSymbolizeFailed: {
+      ja: "複数オブジェクトのシンボル化に失敗しました: ",
+      en: "Failed to symbolize multiple objects: "
+    },
+    alertRasterSymbolizeFailed: {
+      ja: "埋め込み画像のシンボル化に失敗しました: ",
+      en: "Failed to symbolize embedded artwork: "
+    },
+    alertVectorSymbolizeFailed: {
+      ja: "ベクターオブジェクトのシンボル化に失敗しました: ",
+      en: "Failed to symbolize vector artwork: "
+    },
+    alertOffsetGroupNoPath: {
+      ja: "オフセット後の GroupItem に PathItem が含まれていません。マスク処理をスキップします。",
+      en: "The offset GroupItem does not contain a PathItem, so the mask step will be skipped."
+    },
+    alertOffsetUnexpectedType: {
+      ja: "オフセット後のオブジェクトが予期しない型です。マスク処理をスキップします。",
+      en: "The object after offsetting has an unexpected type, so the mask step will be skipped."
+    },
+    alertOffsetError: {
+      ja: "オフセット適用中にエラーが発生しました: ",
+      en: "An error occurred while applying the offset: "
+    },
+    alertScriptError: {
+      ja: "スクリプト実行中にエラーが発生しました: ",
+      en: "An error occurred while running the script: "
+    },
+    alertGeneralError: {
+      ja: "エラーが発生しました：\n",
+      en: "An error occurred:\n"
+    },
     dialogTitle: {
       ja: "オブジェクトの分割",
       en: "Split Artwork"
@@ -363,7 +400,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
     shapeGroup.alignChildren = ["left", "top"];
     shapeGroup.margins = [0, 10, 0, 10];
 
-    var shapeLabel = shapeGroup.add('statictext', undefined, lang === 'ja' ? '形状：' : 'Shape:');
+    var shapeLabel = shapeGroup.add('statictext', undefined, L('shapeLabel'));
     shapeLabel.preferredSize.width = 28;
 
     var shapeOptions = shapeGroup.add("group");
@@ -580,7 +617,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
         return null;
       }
     } catch (err) {
-      alert("エラーが発生しました：\n" + err.message);
+      alert(L("alertGeneralError") + err.message);
       return null;
     }
   }
@@ -681,7 +718,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
         tempGroup.remove();
         sourceItem = symbolItem;
       } catch (e) {
-        alert("複数オブジェクトのシンボル化に失敗しました: " + e);
+        alert(L("alertMultiSymbolizeFailed") + e);
         return null;
       }
     } else {
@@ -702,7 +739,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
         sourceItem.remove();
         sourceItem = rasterSymbolItem;
       } catch (e) {
-        alert("埋め込み画像のシンボル化に失敗しました: " + e);
+        alert(L("alertRasterSymbolizeFailed") + e);
         return null;
       }
     }
@@ -723,7 +760,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
         sourceItem.remove();
         sourceItem = vectorSymbolItem;
       } catch (e) {
-        alert("ベクターオブジェクトのシンボル化に失敗しました: " + e);
+        alert(L("alertVectorSymbolizeFailed") + e);
         return null;
       }
     }
@@ -758,7 +795,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
       maskPath.clipping = true;
       clippingGroup.clipped = true;
     } else {
-      alert("マスク用オブジェクトが PathItem ではないため、マスクをスキップします。");
+      alert(L("alertMaskNotPath"));
     }
     return clippingGroup;
   }
@@ -1114,11 +1151,10 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
         if (!preparedItems) {
           return;
         }
-        
+
         var contentSourceItem = preparedItems.contentSourceItem;
         var maskSourceItem = preparedItems.maskSourceItem;
         var isTemporaryBoundsRect = preparedItems.isTemporaryBoundsRect;
-        selectedImage = app.selection[0];
 
         /* 列・行数取得 */
         var columnCount = dialogValues.columnCount;
@@ -1266,14 +1302,14 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
                         }
                       }
                       if (maskPath.typename !== "PathItem") {
-                        alert("オフセット後の GroupItem に PathItem が含まれていません。マスク処理をスキップします。");
+                        alert(L("alertOffsetGroupNoPath"));
                       }
                     } else {
-                      alert("オフセット後のオブジェクトが予期しない型です。マスク処理をスキップします。");
+                      alert(L("alertOffsetUnexpectedType"));
                     }
                   }
                 } catch (e) {
-                  alert("オフセット適用中にエラーが発生しました：" + e.message);
+                  alert(L("alertOffsetError") + e.message);
                 }
               }
 
@@ -1297,7 +1333,7 @@ https://community.adobe.com/t5/illustrator-discussions/cut-multiple-jigsaw-shape
 
 
     } catch (e) {
-      alert("スクリプト実行中にエラーが発生しました: " + e);
+      alert(L("alertScriptError") + e);
     }
   }
 
