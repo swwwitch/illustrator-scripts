@@ -2,11 +2,11 @@
 
 // =========================================
 // SmartFreeDistort.jsx
-// バージョン: v1.1.0
-// 更新日: 2026-03-23
+// バージョン: v1.1.1
+// 更新日: 2026-04-24
 // =========================================
 // ### 概要:
-// ライブ効果「自由変形（Adobe Free Distort）」を、プリセット・変形量・強度の組み合わせで適用するスクリプト。
+// 「自由変形」効果を、プリセット・変形量・強度の組み合わせで適用するスクリプト。
 // 選択オブジェクトに対して、ダイアログUIから変形プリセットを選択し、プレビューで確認しながら適用できます。
 //
 // ### 主な機能:
@@ -22,27 +22,8 @@
 //   - 三角形（左下 / 右下 / 左上 / 右上）
 //   - 対角線（＼ / ／）
 // ・プレビュー機能（Undoベースで一時適用）
-// ・日英ローカライズ対応UI
-//
-// ### 仕様・注意:
-// ・三角形および対角線プリセットでは、変形量と強度は使用されません。
-// ### 概要:
-// ライブ効果「自由変形（Adobe Free Distort）」を、プリセット・変形量・強度の組み合わせで適用するスクリプト。
-// 選択オブジェクトに対して、ダイアログUIから変形プリセットを選択し、プレビューで確認しながら適用できます。
-//
-// ### 主な機能:
-// ・調整変形
-//   - 台形（上辺を狭く / 広く、下辺を狭く / 広く）
-//   - 平行四辺形（右シアー / 左シアー / 上シアー / 下シアー）
-//   - 変形量スライダー（0.00〜0.49、ドラッグと↑↓キー操作に対応）
-//   - 強度切替（マイルド / ノーマル / ブースト）
-//     - 台形 / 平行四辺形で有効
-//     - 三角形 / 対角線ではディム表示
-//     - 選択対象にテキストが含まれる場合、初期値はマイルド
-// ・固定変形
-//   - 三角形（左下 / 右下 / 左上 / 右上）
-//   - 対角線（＼ / ／）
-// ・プレビュー機能（Undoベースで一時適用）
+//   - スライダーのドラッグ中は更新頻度を抑制
+//   - 同一条件では再計算をスキップ
 // ・日英ローカライズ対応UI
 //
 // ### 仕様・注意:
@@ -58,16 +39,17 @@
 // https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDistort.jsx
 //
 // ### 更新履歴:
-// v1.1.0 (2026-03-23)
+// v1.1.1 (2026-04-24)
 // ・台形 / 平行四辺形 / 三角形 / 対角線のプリセットUIを実装
 // ・変形量スライダーとプレビューを実装
 // ・強度切替（ノーマル / マイルド / ブースト）を追加
 // ・台形 / 平行四辺形で強度切替を有効化
 // ・台形 / 平行四辺形ともに強度切替の3段階を利用可能
 // ・選択対象にテキストが含まれる場合、強度初期値をマイルドに設定
+// ・プレビュー更新の間引きと同一条件スキップを追加
 // ・日英ローカライズ対応UIを実装
 
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.1.1";
 
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -590,6 +572,9 @@ function L(key) {
 
         // プレビュー管理
         var previewed = false;
+        var lastPreviewUpdateTime = 0;
+        var PREVIEW_THROTTLE_MS = 150;
+        var lastPreviewSignature = null;
 
         function getSelectedIndex() {
             for (var i = 0; i < rbTypes.length; i++) {
@@ -608,8 +593,27 @@ function L(key) {
             return "normal";
         }
 
-        function updatePreview() {
+        function buildPreviewSignature() {
+            return [
+                getSelectedIndex(),
+                slAmount.value,
+                getStrengthKey(),
+                chkPreview.value ? 1 : 0
+            ].join("|");
+        }
+
+        function updatePreview(force) {
             if (!chkPreview.value) return;
+
+            var signature = buildPreviewSignature();
+            if (signature === lastPreviewSignature) return;
+
+            var now = new Date().getTime();
+            if (!force && (now - lastPreviewUpdateTime) < PREVIEW_THROTTLE_MS) {
+                return;
+            }
+            lastPreviewUpdateTime = now;
+
             var amount = slAmount.value / 100;
 
             removePreview();
@@ -620,6 +624,7 @@ function L(key) {
             applySmartFreeDistort(doc.selection, { distortRect: rect });
             app.redraw();
             previewed = true;
+            lastPreviewSignature = signature;
         }
 
         function removePreview() {
@@ -628,6 +633,7 @@ function L(key) {
                 app.redraw();
                 previewed = false;
             }
+            lastPreviewSignature = null;
         }
 
         function isTrapezoidSelected(idx) {
@@ -654,32 +660,32 @@ function L(key) {
         // イベントハンドラ
         slAmount.onChanging = function () {
             updateAmountText();
-            updatePreview();
+            updatePreview(false);
         };
 
         slAmount.onChange = function () {
             updateAmountText();
-            updatePreview();
+            updatePreview(true);
         };
 
         chkPreview.onClick = function () {
             if (chkPreview.value) {
-                updatePreview();
+                updatePreview(true);
             } else {
                 removePreview();
             }
         };
 
         rbStrengthNormal.onClick = function () {
-            updatePreview();
+            updatePreview(true);
         };
 
         rbStrengthMild.onClick = function () {
-            updatePreview();
+            updatePreview(true);
         };
 
         rbStrengthBoost.onClick = function () {
-            updatePreview();
+            updatePreview(true);
         };
 
         for (var r = 0; r < rbTypes.length; r++) {
@@ -689,7 +695,7 @@ function L(key) {
                 }
                 updateAmountEnabled();
                 updateAmountText();
-                updatePreview();
+                updatePreview(true);
             };
         }
 

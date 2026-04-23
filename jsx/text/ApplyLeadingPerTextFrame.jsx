@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 (function () {
 
-    var SCRIPT_VERSION = "v1.0";
+    var SCRIPT_VERSION = "v1.0.0";
 
     /*
      * 概要 / Overview
