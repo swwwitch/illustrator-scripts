@@ -43,7 +43,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.2.1";
+    var SCRIPT_VERSION = "v1.2.5";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -352,10 +352,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "拡張子変更で参照するフォルダーを選択してください",
             en: "Select the folder to search for files with the new extension"
         },
-        alertNoExtensionReferenceFolder: {
-            ja: "参照フォルダーが選択されていません。処理を中断します。",
-            en: "No reference folder was selected. Aborting."
-        },
         chooseExtensionReferenceFolderBtn: {
             ja: "フォルダー指定",
             en: "Choose Folder"
@@ -363,10 +359,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         extensionReferenceFolderPlaceholder: {
             ja: "参照フォルダー未指定",
             en: "No reference folder selected"
-        },
-        alertNoTargetInFolder: {
-            ja: "選択したフォルダー内にリンク画像が見つかりません。",
-            en: "No linked images were found in the selected folder."
         },
         alertChangeExtDone: {
             ja: "拡張子を変更しました",
@@ -500,17 +492,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // Dropbox のローカルマウントパス接頭辞（ここを自分の環境に書き換えてください）
     var DROPBOX_PREFIX = "/Users/takano/sw Dropbox/takano masahiro/";
 
-    var CHANGE_EXT_OPTIONS = [
-        { label: "png", ext: ".png" },
-        { label: "jpg / jpeg", ext: ".jpg", alt: ".jpeg" },
-        { label: "psd", ext: ".psd", isDefault: true },
-        { label: "gif", ext: ".gif" },
-        { label: "webp", ext: ".webp" },
-        { label: "avif", ext: ".avif" },
-        { label: "ai", ext: ".ai" },
-        { label: "pdf", ext: ".pdf" }
-    ];
-
     // ファイルパスからファイル名を除いた親フォルダ（末尾セパレータ付き）を返す
     function toFolderOnly(path) {
         if (!path || path === "---") return path;
@@ -564,12 +545,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     // ファイル名を base（拡張子なし）と ext（"."付き、なしは ""）に分割
+    // 「.」が先頭にしかない隠しファイル（.DS_Store など）は拡張子なし扱い
     function splitFileName(name) {
-        var m = name.match(/\.[^.]+$/);
-        var ext = m ? m[0] : "";
+        var dotIdx = name.lastIndexOf(".");
+        if (dotIdx <= 0) {
+            return { base: name, ext: "" };
+        }
         return {
-            base: ext ? name.slice(0, -ext.length) : name,
-            ext: ext
+            base: name.substring(0, dotIdx),
+            ext: name.substring(dotIdx)
         };
     }
 
@@ -703,7 +687,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }, fallback);
     }
 
-    // JPEG / PNG ファイルヘッダからピクセル寸法 {width, height} を読み取る。取得不可なら null
+    // JPEG / PNG / PSD ファイルヘッダからピクセル寸法 {width, height} を読み取る。取得不可なら null
     function readImagePixelSize(file) {
         if (!file) return null;
         if (!safeExists(file)) return null;
@@ -755,6 +739,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                         if (!lenBytes || lenBytes.length < 2) break;
                         var len = readU16BE(lenBytes, 0);
                         f.seek(f.tell() + len - 2);
+                    }
+                }
+                // PSD: "8BPS"
+                else if (b0 === 0x38 && b1 === 0x42 && b2 === 0x50 && b3 === 0x53) {
+                    // PSD header: sig(4) + ver(2) + reserved(6) + channels(2) + rows(4) + cols(4)
+                    // → rows は offset 14、cols は offset 18
+                    f.seek(14);
+                    var dims = f.read(8);
+                    if (dims && dims.length === 8) {
+                        result = { width: readU32BE(dims, 4), height: readU32BE(dims, 0) };
                     }
                 }
             }
@@ -947,8 +941,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     if (irLenBytes && irLenBytes.length === 4) {
                         var irLen = readU32BE(irLenBytes, 0);
                         var irEnd = imgResStart + 4 + irLen;
-                        for (var ri = 0; ri < 256; ri++) {
-                            if (f.tell() >= irEnd) break;
+                        // リソースセクション終端まで走査。壊れたファイルで f.tell() が進まない場合は無限ループを避けて break
+                        while (f.tell() < irEnd) {
+                            var posBefore = f.tell();
                             var sigBytes = f.read(4);
                             if (!sigBytes || sigBytes.length < 4 || sigBytes !== "8BIM") break;
                             var idBytes = f.read(2);
@@ -971,6 +966,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                             } else {
                                 f.seek(f.tell() + paddedDataSize);
                             }
+                            // 進行していない（seek が無効）なら壊れたファイル。無限ループ回避
+                            if (f.tell() <= posBefore) break;
                         }
                     }
                 }
@@ -2081,20 +2078,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             return null;
         }
 
+        // 参照フォルダー内を列挙し、baseName と拡張子を大小文字無視で比較する。
+        // ファイルシステムが case-sensitive（APFS の一部構成など）でも
+        // 拡張子の揺れ（.PNG / .Jpg など）を拾えるようにするため。
         function findReplacementFileByExtension(folder, baseName, primaryExt, fallbackExt) {
             if (!folder || !baseName || !primaryExt) return null;
 
-            var folderPath = folder.fsName;
-            var candidateExts = [primaryExt];
+            var candidateExts = [String(primaryExt).toLowerCase()];
+            if (fallbackExt) candidateExts.push(String(fallbackExt).toLowerCase());
 
-            if (fallbackExt) {
-                candidateExts.push(fallbackExt);
+            var baseLower = String(baseName).toLowerCase();
+            var files;
+            try {
+                files = folder.getFiles(function (f) { return !(f instanceof Folder); });
+            } catch (e) {
+                return null;
             }
+            if (!files) return null;
 
-            for (var i = 0; i < candidateExts.length; i++) {
-                var candidateFile = new File(folderPath + "/" + baseName + candidateExts[i]);
-                if (candidateFile.exists) {
-                    return candidateFile;
+            // primary → fallback の優先順で探す
+            for (var e = 0; e < candidateExts.length; e++) {
+                var targetExt = candidateExts[e];
+                for (var i = 0; i < files.length; i++) {
+                    var fname = decodeURI(files[i].name);
+                    var dotIdx = fname.lastIndexOf(".");
+                    if (dotIdx < 0) continue;
+                    var fBase = fname.substring(0, dotIdx).toLowerCase();
+                    var fExt = fname.substring(dotIdx).toLowerCase();
+                    if (fBase === baseLower && fExt === targetExt) {
+                        return files[i];
+                    }
                 }
             }
 
@@ -2200,7 +2213,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
             var newFile = new File(oldFolder.fsName + "/" + newName);
             if (newFile.exists) {
-                if (!confirm(L('confirmOverwrite') + newFile.fsName)) return;
+                // 大小文字だけの違いは macOS の case-insensitive FS で同一ファイルを指すため
+                // 削除対象にしない（rename は OS 側で正しく処理される）
+                var caseOnlyDiff = (newFile.fsName.toLowerCase() === oldFile.fsName.toLowerCase());
+                if (!caseOnlyDiff) {
+                    if (!confirm(L('confirmOverwrite') + newFile.fsName)) return;
+                    // File.rename は既存ファイルがあると失敗するので、先に削除してから rename する
+                    var removed = false;
+                    try { removed = newFile.remove(); } catch (e) { removed = false; }
+                    if (!removed) {
+                        alert(L('alertRenameFailed'));
+                        return;
+                    }
+                }
             }
 
             // 物理リネーム（失敗時は再リンクしない）
@@ -2266,8 +2291,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // 「同一ファイルをまとめる」の状態に応じて、再リンクボタンの意味を明示する
         // ただし、まとめ対象の使用数が 1 の場合は「一括」ではなく単数ラベルを使う
-        // 「同一ファイルをまとめる」の状態に応じて、再リンクボタンの意味を明示する
-        // ただし、まとめ対象の使用数が 1 の場合は「一括」ではなく単数ラベルを使う
         function updateRelinkButtonLabel() {
             var placementCount = (selectedEntry && selectedEntry.itemIndices) ? selectedEntry.itemIndices.length : 0;
             var useBatchLabel = dedupCheck.value && placementCount > 1;
@@ -2305,9 +2328,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
 
         // 初期状態：まだ選択がないので各ボタンを無効化し、再リンクボタンの表示も整える
-        updateActionButtonStates();
-
-        // 初期状態：まだ選択がないので再リンクボタンを無効化
         updateActionButtonStates();
 
         // --- リンクフォルダ一覧（パスパネル内、重複排除） ---
@@ -2463,19 +2483,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 linkedFolderPaths[foldersListBox.selection.index]
             );
 
-            // 1. 参照フォルダーを選択
+            // 1. 参照フォルダー＋拡張子を選択
             var extPrefs = showChangeExtensionDialog();
             if (!extPrefs) return;
 
             var referenceFolder = extPrefs.referenceFolder;
 
-            // 2. 拡張子の変更ダイアログボックス
-            var extPrefs = showChangeExtensionDialog();
-            if (!extPrefs) return;
-
-            // 3. 実行
+            // 2. 実行
             var success = 0;
             var failed = 0;
+            var skipped = 0;
             var total = 0;
 
             for (var i = 0; i < allPlacementEntries.length; i++) {
@@ -2511,6 +2528,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     continue;
                 }
 
+                // 置換先が現在のリンクと同一ファイルなら差し替え不要
+                try {
+                    var currentPath = placedItem.file ? placedItem.file.fsName : null;
+                    if (currentPath && currentPath === replacementFile.fsName) {
+                        skipped++;
+                        continue;
+                    }
+                } catch (e) { }
+
                 try {
                     placedItem.file = replacementFile;
                     success++;
@@ -2522,43 +2548,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             app.redraw();
             refreshFromDoc();
 
+            var colon = (lang === 'ja' ? '：' : ': ');
             alert(
                 L('alertChangeExtDone') + "\n" +
-                L('labelTarget') + (lang === 'ja' ? '：' : ': ') + withUnit(total, 'labelItems') + "\n" +
-                L('labelSuccess') + "：" + withUnit(success, 'labelItems') + "\n" +
-                L('labelFailed') + "：" + withUnit(failed, 'labelItems')
+                L('labelTarget') + colon + withUnit(total, 'labelItems') + "\n" +
+                L('labelSuccess') + colon + withUnit(success, 'labelItems') + "\n" +
+                L('labelSkipped') + colon + withUnit(skipped, 'labelItems') + "\n" +
+                L('labelFailed') + colon + withUnit(failed, 'labelItems')
             );
         };
 
         changeExtensionBtn.enabled = false;
-        var CHANGE_EXT_OPTIONS = [
-            { label: "png", ext: ".png" },
-            { label: "jpg / jpeg", ext: ".jpg", alt: ".jpeg" },
-            { label: "psd", ext: ".psd" },
-            { label: "gif", ext: ".gif" },
-            { label: "webp", ext: ".webp" },
-            { label: "avif", ext: ".avif" },
-            { label: "ai", ext: ".ai" },
-            { label: "pdf", ext: ".pdf" }
-        ];
-
-        function normalizeFolderPathForCompare(path) {
-            if (!path) return "";
-            path = String(path);
-            path = path.replace(/\\/g, "/");
-            path = path.replace(/\/+$/g, "");
-            return path;
-        }
-
-        function getParentFolderPathFromFilePath(filePath) {
-            if (!filePath || filePath === "---") return "";
-            var normalized = String(filePath).replace(/\\/g, "/");
-            var separatorIndex = normalized.lastIndexOf("/");
-            if (separatorIndex <= 0) return "";
-            return normalized.substring(0, separatorIndex);
-        }
-
-
 
         var collectLinksBtn = folderActionRight.add("button", undefined, L('collectLinksBtn'));
         collectLinksBtn.onClick = function () {
