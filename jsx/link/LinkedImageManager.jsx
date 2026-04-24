@@ -43,7 +43,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.1.0";
+    var SCRIPT_VERSION = "v1.2.0";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -112,6 +112,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "ステータス",
             en: "Status"
         },
+        sortColorSpace: {
+            ja: "カラースペース",
+            en: "Color Space"
+        },
         ascOrder: {
             ja: "昇順",
             en: "Ascending"
@@ -133,11 +137,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Group Same Files"
         },
         unitCheck: {
-            ja: "MBで統一",
+            ja: "単位を「MB」で統一",
             en: "Use MB"
         },
         filterPanelTitle: {
-            ja: "フィルター",
+            ja: "ステータス",
             en: "Filters"
         },
         filterOk: {
@@ -188,6 +192,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "サイズ、%、PPI",
             en: "Dimensions, Scale, PPI"
         },
+        displayColorSpace: {
+            ja: "カラースペース",
+            en: "Color Space"
+        },
         colIndex: {
             ja: "No.",
             en: "No."
@@ -228,9 +236,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "アートボード",
             en: "Artboards"
         },
+        colColorSpace: {
+            ja: "カラースペース",
+            en: "Color Space"
+        },
         pathPanelTitle: {
-            ja: "パス",
-            en: "Path"
+            ja: "ファイルパス",
+            en: "File Path"
         },
         pathPlaceholder: {
             ja: "リストからアイテムを選択してください",
@@ -241,8 +253,56 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "File path"
         },
         tildeCheck: {
-            ja: "~",
-            en: "~"
+            ja: "フルパス",
+            en: "Full path"
+        },
+        renameLinkBtn: {
+            ja: "リンクファイルをリネーム",
+            en: "Rename Linked File"
+        },
+        copyFileNameBtn: {
+            ja: "ファイル名をコピー",
+            en: "Copy File Name"
+        },
+        alertCopyFileNameDone: {
+            ja: "ファイル名をコピーしました",
+            en: "File name copied to clipboard"
+        },
+        alertCopyFileNameFailed: {
+            ja: "ファイル名のコピーに失敗しました",
+            en: "Failed to copy file name"
+        },
+        promptNewFileName: {
+            ja: "新しいファイル名を入力してください。\n（拡張子 {ext} は自動で保持されます）\n\n現在のファイル名：{name}",
+            en: "Enter the new file name.\n(Extension {ext} will be kept automatically)\n\nCurrent file name: {name}"
+        },
+        labelNoExt: {
+            ja: "(なし)",
+            en: "(none)"
+        },
+        alertInvalidFileName: {
+            ja: "ファイル名に / や \\ は使用できません。",
+            en: "File name must not contain / or \\."
+        },
+        alertLinkFileNotFound: {
+            ja: "リンクファイルが見つかりません：",
+            en: "Linked file not found: "
+        },
+        confirmOverwrite: {
+            ja: "同名のファイルが既に存在します。\n上書きしますか？\n\n",
+            en: "A file with the same name already exists.\nOverwrite?\n\n"
+        },
+        alertRenameFailed: {
+            ja: "ファイルのリネームに失敗しました。",
+            en: "Failed to rename the file."
+        },
+        alertRenameDone: {
+            ja: "リネームして再リンクしました",
+            en: "Renamed and relinked"
+        },
+        alertNameUnchanged: {
+            ja: "ファイル名が変更されていません。処理を中断します。",
+            en: "The file name has not changed. Aborting."
         },
         dropboxCheck: {
             ja: "Dropboxパスを短縮",
@@ -269,8 +329,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Linked Folders"
         },
         reloadFolderBtn: {
-            ja: "フォルダを再リンク",
+            ja: "フォルダーを再リンク",
             en: "Relink Folder"
+        },
+        changeExtensionBtn: {
+            ja: "拡張子の変更",
+            en: "Change Extension"
+        },
+        changeExtDialogTitle: {
+            ja: "拡張子の変更",
+            en: "Change Extension"
+        },
+        changeExtPanelTitle: {
+            ja: "拡張子",
+            en: "Extension"
+        },
+        alertNoTargetInFolder: {
+            ja: "選択したフォルダー内にリンク画像が見つかりません。",
+            en: "No linked images were found in the selected folder."
+        },
+        alertChangeExtDone: {
+            ja: "拡張子を変更しました",
+            en: "Extension changed"
         },
         collectLinksBtn: {
             ja: "リンクを収集",
@@ -288,6 +368,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "リンクのコピーと再リンクが完了しました",
             en: "Copy and Relink Complete"
         },
+        labelItems: {
+            ja: "件",
+            en: "item(s)"
+        },
         labelCopied: {
             ja: "コピー",
             en: "Copied"
@@ -296,6 +380,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "スキップ",
             en: "Skipped"
         },
+        openLinksPanelBtn: {
+            ja: "［リンク］パネルを開く",
+            en: "Open Links Panel"
+        },
         showOnCanvasCheck: {
             ja: "選択時にズーム表示",
             en: "Zoom to Selection"
@@ -303,6 +391,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         closeBtn: {
             ja: "閉じる",
             en: "Close"
+        },
+        cancelBtn: {
+            ja: "キャンセル",
+            en: "Cancel"
+        },
+        okBtn: {
+            ja: "実行",
+            en: "Run"
         },
         fileNameUnknown: {
             ja: "(ファイル名不明)",
@@ -374,6 +470,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return L(key) + (lang === 'ja' ? '：' : ':');
     }
 
+    // 数値＋単位をローカライズ付きで整形
+    function withUnit(value, unitKey) {
+        return (lang === 'ja')
+            ? (value + L(unitKey))
+            : (value + " " + L(unitKey));
+    }
+
     // Dropbox のローカルマウントパス接頭辞（ここを自分の環境に書き換えてください）
     var DROPBOX_PREFIX = "/Users/takano/sw Dropbox/takano masahiro/";
 
@@ -395,6 +498,80 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             return toTildePath(absPath);
         }
         return absPath;
+    }
+
+    // 文字列をクリップボードへコピー：一時テキストフレームを作って app.copy() でクリップボードに送る
+    function copyTextToClipboard(text) {
+        if (text === null || text === undefined) text = "";
+        text = String(text);
+        var activeDoc = tryGet(function () { return app.activeDocument; }, null);
+        if (!activeDoc) return false;
+
+        var prevSelection = tryGet(function () { return activeDoc.selection; }, null);
+        var tempFrame = null;
+        try {
+            tempFrame = activeDoc.textFrames.add();
+            tempFrame.contents = text;
+            activeDoc.selection = null;
+            tempFrame.selected = true;
+            app.copy();
+            tempFrame.remove();
+            tempFrame = null;
+
+            // 元の選択を可能な限り復元
+            try { activeDoc.selection = null; } catch (e0) { }
+            if (prevSelection && prevSelection.length) {
+                for (var i = 0; i < prevSelection.length; i++) {
+                    try { prevSelection[i].selected = true; } catch (ei) { }
+                }
+            }
+            return true;
+        } catch (e) {
+            try { if (tempFrame) tempFrame.remove(); } catch (e3) { }
+            return false;
+        }
+    }
+
+    // ファイル名を base（拡張子なし）と ext（"."付き、なしは ""）に分割
+    function splitFileName(name) {
+        var m = name.match(/\.[^.]+$/);
+        var ext = m ? m[0] : "";
+        return {
+            base: ext ? name.slice(0, -ext.length) : name,
+            ext: ext
+        };
+    }
+
+    // File から fsName ベースで実ファイル名を取り出す
+    // displayName は Finder の「拡張子を隠す」設定で拡張子が欠落することがあるため使わない
+    function getRealFileName(file) {
+        return file.fsName.split(/[\\\/]/).pop();
+    }
+
+    // 拡張子を保持したまま新しいファイル名をユーザーに入力させる
+    // ・prompt の初期値は拡張子なしのベース名
+    // ・誤って末尾に拡張子まで入力した場合は除去（大小文字無視）
+    // ・キャンセル／空は null
+    function promptNewFileName(originalName, message) {
+        var parts = splitFileName(originalName);
+        var ext = parts.ext;
+        var base = parts.base;
+
+        var msg = message || L('promptNewFileName')
+            .replace("{ext}", ext || L('labelNoExt'))
+            .replace("{name}", originalName);
+
+        var input = prompt(msg, base);
+        if (input === null) return null;
+        input = input.replace(/^\s+|\s+$/g, "");
+        if (input === "") return null;
+
+        if (ext && input.length > ext.length &&
+            input.substr(input.length - ext.length).toLowerCase() === ext.toLowerCase()) {
+            input = input.slice(0, -ext.length);
+        }
+
+        return input + ext;
     }
 
     // ホームディレクトリ配下のパスを "~/..." 形式に短縮（範囲外はそのまま）
@@ -553,6 +730,226 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         } catch (e) { }
         f.close();
         return result;
+    }
+
+    // ICC プロファイルのバイナリから desc タグ（プロファイル名）を取り出す
+    function readIccDesc(buf) {
+        if (!buf || buf.length < 132) return "";
+        try {
+            var tagCount = readU32BE(buf, 128);
+            for (var i = 0; i < tagCount; i++) {
+                var tagOff = 132 + i * 12;
+                if (tagOff + 12 > buf.length) break;
+                var sig = buf.substr(tagOff, 4);
+                if (sig === "desc") {
+                    var dataOff = readU32BE(buf, tagOff + 4);
+                    var dataSize = readU32BE(buf, tagOff + 8);
+                    if (dataOff + dataSize > buf.length) return "";
+                    var type = buf.substr(dataOff, 4);
+                    if (type === "desc") {
+                        // ICC v2: reserved(4) + asciiCount(4) + ascii...
+                        var asciiCount = readU32BE(buf, dataOff + 8);
+                        if (asciiCount > 0) {
+                            var s = buf.substr(dataOff + 12, asciiCount);
+                            return s.replace(/\0+$/g, "").replace(/\0.*$/g, "");
+                        }
+                    } else if (type === "mluc") {
+                        // ICC v4: reserved(4) + recordCount(4) + recordSize(4) + records
+                        var recordCount = readU32BE(buf, dataOff + 8);
+                        if (recordCount > 0) {
+                            var recOff = dataOff + 16;
+                            var strLen = readU32BE(buf, recOff + 4);
+                            var strOff = readU32BE(buf, recOff + 8);
+                            if (dataOff + strOff + strLen <= buf.length && strLen > 0) {
+                                var raw = buf.substr(dataOff + strOff, strLen);
+                                var out = "";
+                                for (var c = 0; c + 1 < raw.length; c += 2) {
+                                    var ch = ((raw.charCodeAt(c) & 0xFF) << 8) | (raw.charCodeAt(c + 1) & 0xFF);
+                                    if (ch === 0) break;
+                                    out += String.fromCharCode(ch);
+                                }
+                                return out;
+                            }
+                        }
+                    }
+                    break;
+                }
+            }
+        } catch (e) { }
+        return "";
+    }
+
+    // 画像ファイルヘッダからカラーモードと ICC プロファイル名を読み取り、"RGB（Adobe RGB (1998)）" 形式で返す
+    function readImageColorSpace(file) {
+        if (!file) return null;
+        if (!safeExists(file)) return null;
+
+        var f = new File(file.fsName);
+        f.encoding = "BINARY";
+        if (!f.open("r")) return null;
+
+        var mode = "";
+        var iccDesc = "";
+
+        try {
+            var sig = f.read(8);
+            if (!sig || sig.length < 4) { f.close(); return null; }
+            var b0 = sig.charCodeAt(0) & 0xFF;
+            var b1 = sig.charCodeAt(1) & 0xFF;
+            var b2 = sig.charCodeAt(2) & 0xFF;
+            var b3 = sig.charCodeAt(3) & 0xFF;
+
+            // PNG: 89 50 4E 47
+            if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4E && b3 === 0x47) {
+                f.seek(16);
+                var ihdr = f.read(10);
+                if (ihdr && ihdr.length === 10) {
+                    var colorType = ihdr.charCodeAt(9) & 0xFF;
+                    if (colorType === 0 || colorType === 4) mode = "Grayscale";
+                    else if (colorType === 3) mode = "Indexed";
+                    else mode = "RGB";
+                }
+                // iCCP / sRGB チャンクを探す
+                f.seek(8 + 4 + 4 + 13 + 4); // PNG sig + IHDR length + "IHDR" + IHDR data + CRC
+                for (var pi = 0; pi < 32; pi++) {
+                    var plenBytes = f.read(4);
+                    if (!plenBytes || plenBytes.length < 4) break;
+                    var chunkLen = readU32BE(plenBytes, 0);
+                    var ctype = f.read(4);
+                    if (!ctype || ctype.length < 4) break;
+                    if (ctype === "iCCP") {
+                        var chunkData = f.read(chunkLen);
+                        if (chunkData) {
+                            var nulIdx = chunkData.indexOf("\0");
+                            if (nulIdx > 0) {
+                                iccDesc = chunkData.substring(0, nulIdx);
+                            }
+                        }
+                        break;
+                    } else if (ctype === "sRGB") {
+                        iccDesc = "sRGB IEC61966-2.1";
+                        break;
+                    } else if (ctype === "IDAT" || ctype === "IEND") {
+                        break;
+                    } else {
+                        f.seek(f.tell() + chunkLen + 4); // data + CRC
+                    }
+                }
+            }
+            // JPEG: FF D8
+            else if (b0 === 0xFF && b1 === 0xD8) {
+                f.seek(2);
+                var iccPieces = {};
+                var iccTotal = 0;
+                var components = 0;
+                for (var ji = 0; ji < 64; ji++) {
+                    var mark = f.read(2);
+                    if (!mark || mark.length < 2) break;
+                    if ((mark.charCodeAt(0) & 0xFF) !== 0xFF) break;
+                    var m = mark.charCodeAt(1) & 0xFF;
+                    if (m === 0xD9 || m === 0xDA) break;
+                    var lenBytes = f.read(2);
+                    if (!lenBytes || lenBytes.length < 2) break;
+                    var segLen = readU16BE(lenBytes, 0);
+                    var segDataLen = segLen - 2;
+                    if (segDataLen < 0) break;
+                    var segStart = f.tell();
+
+                    var isSof = (m >= 0xC0 && m <= 0xCF) && m !== 0xC4 && m !== 0xC8 && m !== 0xCC;
+                    if (isSof) {
+                        var sof = f.read(6);
+                        if (sof && sof.length === 6) {
+                            components = sof.charCodeAt(5) & 0xFF;
+                        }
+                        f.seek(segStart + segDataLen);
+                    } else if (m === 0xE2) {
+                        var sig14 = f.read(14);
+                        if (sig14 && sig14.length === 14 && sig14.substring(0, 12) === "ICC_PROFILE\0") {
+                            var seqNum = sig14.charCodeAt(12) & 0xFF;
+                            var totalNum = sig14.charCodeAt(13) & 0xFF;
+                            iccTotal = totalNum;
+                            var pieceLen = segDataLen - 14;
+                            if (pieceLen > 0) iccPieces[seqNum] = f.read(pieceLen);
+                            else f.seek(segStart + segDataLen);
+                        } else {
+                            f.seek(segStart + segDataLen);
+                        }
+                    } else {
+                        f.seek(segStart + segDataLen);
+                    }
+                }
+                if (components === 1) mode = "Grayscale";
+                else if (components === 4) mode = "CMYK";
+                else if (components > 0) mode = "RGB";
+                if (iccTotal > 0) {
+                    var icc = "";
+                    var ok = true;
+                    for (var p = 1; p <= iccTotal; p++) {
+                        if (!iccPieces[p]) { ok = false; break; }
+                        icc += iccPieces[p];
+                    }
+                    if (ok && icc.length > 0) iccDesc = readIccDesc(icc);
+                }
+            }
+            // PSD: "8BPS"
+            else if (b0 === 0x38 && b1 === 0x42 && b2 === 0x50 && b3 === 0x53) {
+                f.seek(24);
+                var modeBytes = f.read(2);
+                if (modeBytes && modeBytes.length === 2) {
+                    var modeCode = readU16BE(modeBytes, 0);
+                    if (modeCode === 0) mode = "Bitmap";
+                    else if (modeCode === 1) mode = "Grayscale";
+                    else if (modeCode === 2) mode = "Indexed";
+                    else if (modeCode === 3) mode = "RGB";
+                    else if (modeCode === 4) mode = "CMYK";
+                    else if (modeCode === 7) mode = "Multichannel";
+                    else if (modeCode === 8) mode = "Duotone";
+                    else if (modeCode === 9) mode = "Lab";
+                }
+                f.seek(26);
+                var cmdLenBytes = f.read(4);
+                if (cmdLenBytes && cmdLenBytes.length === 4) {
+                    var cmdLen = readU32BE(cmdLenBytes, 0);
+                    var imgResStart = 30 + cmdLen;
+                    f.seek(imgResStart);
+                    var irLenBytes = f.read(4);
+                    if (irLenBytes && irLenBytes.length === 4) {
+                        var irLen = readU32BE(irLenBytes, 0);
+                        var irEnd = imgResStart + 4 + irLen;
+                        for (var ri = 0; ri < 256; ri++) {
+                            if (f.tell() >= irEnd) break;
+                            var sigBytes = f.read(4);
+                            if (!sigBytes || sigBytes.length < 4 || sigBytes !== "8BIM") break;
+                            var idBytes = f.read(2);
+                            if (!idBytes || idBytes.length < 2) break;
+                            var resId = readU16BE(idBytes, 0);
+                            var nameLenByte = f.read(1);
+                            if (!nameLenByte) break;
+                            var nameLen = nameLenByte.charCodeAt(0) & 0xFF;
+                            var nameTotal = nameLen + 1;
+                            if (nameTotal % 2 !== 0) nameTotal++;
+                            f.seek(f.tell() + (nameTotal - 1));
+                            var dataSizeBytes = f.read(4);
+                            if (!dataSizeBytes || dataSizeBytes.length < 4) break;
+                            var dataSize = readU32BE(dataSizeBytes, 0);
+                            var paddedDataSize = (dataSize % 2 === 0) ? dataSize : dataSize + 1;
+                            if (resId === 0x040F) {
+                                var iccPsd = f.read(dataSize);
+                                if (iccPsd && iccPsd.length > 0) iccDesc = readIccDesc(iccPsd);
+                                break;
+                            } else {
+                                f.seek(f.tell() + paddedDataSize);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e) { }
+        f.close();
+
+        if (!mode) return null;
+        if (iccDesc) return mode + "（" + iccDesc + "）";
+        return mode;
     }
 
     // 配置サイズ（pt）とピクセル寸法から実効 PPI を算出
@@ -764,9 +1161,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
             var ppi = null;
             var pxSize = null;
+            var colorSpace = "";
             if (f) {
                 pxSize = tryGet(function () { return readImagePixelSize(f); }, null);
                 ppi = getEffectivePPI(item, pxSize);
+                colorSpace = tryGet(function () { return readImageColorSpace(f); }, "") || "";
             }
             var ppiText = (ppi !== null) ? String(ppi) : "---";
 
@@ -791,6 +1190,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 scaleText: scaleInfo.scaleText,
                 ppi: ppi,
                 ppiText: ppiText,
+                colorSpace: colorSpace,
                 itemIndices: [i]
             });
         }
@@ -843,6 +1243,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     scaleText: nInfo.scaleText,
                     ppi: nInfo.ppi,
                     ppiText: nInfo.ppiText,
+                    colorSpace: nInfo.colorSpace,
                     itemIndices: [nInfo.itemIndex]
                 };
                 keyToEntry[nKey] = entry;
@@ -941,10 +1342,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         sortKeyRow.orientation = "row";
         sortKeyRow.alignChildren = ["left", "center"];
         sortKeyRow.add("statictext", undefined, labelText('sortLabel'));
-        var sortDropdown = sortKeyRow.add("dropdownlist", undefined,
-            [L('sortIndex'), L('sortFileName'), L('sortFileSize'), L('sortFileCount'), L('sortArtboard'), L('sortWidth'), L('sortHeight'), L('sortScale'), L('sortPpi'), L('sortStatus')]
-        );
-        sortDropdown.selection = 2; // サイズ
+        var sortDropdown = sortKeyRow.add("dropdownlist", undefined, []);
+        // ソート対象は列の表示状態と連動（rebuildSortDropdown で動的に構築）
+        var currentVisibleSpecs = [];
         var orderRow = sortPanel.add("group");
         orderRow.orientation = "row";
         orderRow.alignChildren = ["left", "center"];
@@ -988,9 +1388,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var unitCheck = optionPanel.add("checkbox", undefined, L('unitCheck'));
 
         var dimScalePpiCheck = optionPanel.add("checkbox", undefined, L('displayDimScalePpi'));
-        sizeColCheck.value = true;
+        var colorSpaceColCheck = optionPanel.add("checkbox", undefined, L('displayColorSpace'));
+        sizeColCheck.value = false;
         unitCheck.value = true; // ON：全行 MB で統一表示、OFF：B/KB/MB/GB の自動単位
+        unitCheck.enabled = sizeColCheck.value;
         dimScalePpiCheck.value = false;
+        colorSpaceColCheck.value = false;
 
         // 右：フィルター
         var filterPanel = otherTopRow.add("panel", undefined, L('filterPanelTitle'));
@@ -1038,10 +1441,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         abFilterDropdown.selection = 0;
         abFilterDropdown.preferredSize.width = 200;
 
-        var abPrevBtn = abPanel.add("button", undefined, "↑");
+        var abPrevBtn = abPanel.add("button", undefined, "◀");
         abPrevBtn.preferredSize = [30, 22];
         abPrevBtn.helpTip = L('prevArtboardTip');
-        var abNextBtn = abPanel.add("button", undefined, "↓");
+        var abNextBtn = abPanel.add("button", undefined, "▶");
         abNextBtn.preferredSize = [30, 22];
         abNextBtn.helpTip = L('nextArtboardTip');
 
@@ -1080,6 +1483,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 cols.push({ key: "heightText", title: L('colHeightMm'), width: 60 });
                 cols.push({ key: "scaleText", title: L('colScale'), width: 60 });
                 cols.push({ key: "ppiText", title: L('colPpi'), width: 50 });
+            }
+            if (colorSpaceColCheck.value) {
+                cols.push({ key: "colorSpace", title: L('colColorSpace'), width: 160 });
             }
             // Show/hide Artboard column based on artboard dropdown selection
             var shouldShowArtboardColumn = !abFilterDropdown.selection || abFilterDropdown.selection.index === 0;
@@ -1128,21 +1534,44 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
         createListBox();
 
-        // ソートキーの値取り出し
-        function getSortValue(info, sortBy) {
-            switch (sortBy) {
-                case 0: return info.index;
-                case 1: return info.fileName;
-                case 2: return info.fileSizeBytes;
-                case 3: return info.fileCount;
-                case 4: return (info.artboardNum === null) ? null : info.artboardNum;
-                case 5: return info.widthMm;
-                case 6: return info.heightMm;
-                case 7: return info.scalePct;
-                case 8: return info.ppi;
-                case 9: return info.status;
+        // ソートキー仕様：listbox で非表示の項目はドロップダウンから自動的に除外される
+        var SORT_SPECS = [
+            { key: 'fileName', labelKey: 'sortFileName', preferDesc: false, getValue: function (i) { return i.fileName; }, isVisible: function () { return true; } },
+            { key: 'fileSize', labelKey: 'sortFileSize', preferDesc: true, getValue: function (i) { return i.fileSizeBytes; }, isVisible: function () { return sizeColCheck.value; } },
+            { key: 'fileCount', labelKey: 'sortFileCount', preferDesc: true, getValue: function (i) { return i.fileCount; }, isVisible: function () { return countColCheck.value; } },
+            { key: 'artboard', labelKey: 'sortArtboard', preferDesc: false, getValue: function (i) { return (i.artboardNum === null) ? null : i.artboardNum; }, isVisible: function () { return !abFilterDropdown.selection || abFilterDropdown.selection.index === 0; } },
+            { key: 'width', labelKey: 'sortWidth', preferDesc: true, getValue: function (i) { return i.widthMm; }, isVisible: function () { return dimScalePpiCheck.value; } },
+            { key: 'height', labelKey: 'sortHeight', preferDesc: true, getValue: function (i) { return i.heightMm; }, isVisible: function () { return dimScalePpiCheck.value; } },
+            { key: 'scale', labelKey: 'sortScale', preferDesc: true, getValue: function (i) { return i.scalePct; }, isVisible: function () { return dimScalePpiCheck.value; } },
+            { key: 'ppi', labelKey: 'sortPpi', preferDesc: true, getValue: function (i) { return i.ppi; }, isVisible: function () { return dimScalePpiCheck.value; } },
+            { key: 'status', labelKey: 'sortStatus', preferDesc: false, getValue: function (i) { return i.status; }, isVisible: function () { return true; } },
+            { key: 'colorSpace', labelKey: 'sortColorSpace', preferDesc: false, getValue: function (i) { return i.colorSpace || ""; }, isVisible: function () { return colorSpaceColCheck.value; } }
+        ];
+
+        function rebuildSortDropdown() {
+            var prevKey = null;
+            if (sortDropdown.selection && currentVisibleSpecs.length > 0) {
+                var ps = currentVisibleSpecs[sortDropdown.selection.index];
+                if (ps) prevKey = ps.key;
             }
-            return info.index;
+            currentVisibleSpecs = [];
+            for (var si = 0; si < SORT_SPECS.length; si++) {
+                if (SORT_SPECS[si].isVisible()) currentVisibleSpecs.push(SORT_SPECS[si]);
+            }
+            sortDropdown.removeAll();
+            var nextIdx = 0;
+            for (var vi = 0; vi < currentVisibleSpecs.length; vi++) {
+                sortDropdown.add("item", L(currentVisibleSpecs[vi].labelKey));
+                if (prevKey && currentVisibleSpecs[vi].key === prevKey) nextIdx = vi;
+            }
+            if (currentVisibleSpecs.length > 0) sortDropdown.selection = nextIdx;
+        }
+
+        // ソートキーの値取り出し（currentVisibleSpecs のインデックス経由）
+        function getSortValue(info, sortBy) {
+            var spec = currentVisibleSpecs[sortBy];
+            if (!spec) return info.fileName;
+            return spec.getValue(info);
         }
 
         function isMissing(v) {
@@ -1264,10 +1693,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         }
 
-        // 並び順を「サイズ」「使用数」「幅」「高さ」「スケール」「PPI」に変えたら自動で降順 ON
+        // 数値系のソートに切り替えたら自動で降順 ON（spec.preferDesc による）
         sortDropdown.onChange = function () {
             var idx = sortDropdown.selection ? sortDropdown.selection.index : 0;
-            if (idx === 2 || idx === 3 || idx === 5 || idx === 6 || idx === 7 || idx === 8) {
+            var spec = currentVisibleSpecs[idx];
+            if (spec && spec.preferDesc) {
                 descRadio.value = true;
                 ascRadio.value = false;
             }
@@ -1324,6 +1754,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
 
             createListBox();
+            rebuildSortDropdown();
             dlg.layout.layout(true);
             rebuildList();
         }
@@ -1361,19 +1792,41 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         };
 
-        // 列の表示/非表示・ヘッダ更新時の共通処理（listBox を作り直す）
+        // 列の表示/非表示・ヘッダ更新時の共通処理（listBox を作り直し、ソート候補も更新）
         function recreateListBoxAndRebuildList() {
             createListBox();
+            rebuildSortDropdown();
             dlg.layout.layout(true);
             rebuildList();
         }
         unitCheck.onClick = recreateListBoxAndRebuildList;
-        sizeColCheck.onClick = recreateListBoxAndRebuildList;
+        sizeColCheck.onClick = function () {
+            unitCheck.enabled = sizeColCheck.value;
+            recreateListBoxAndRebuildList();
+        };
         countColCheck.onClick = recreateListBoxAndRebuildList;
         dimScalePpiCheck.onClick = recreateListBoxAndRebuildList;
+        colorSpaceColCheck.onClick = recreateListBoxAndRebuildList;
+
+        // ソートドロップダウンの初期構築：使用数をデフォルト選択
+        rebuildSortDropdown();
+        for (var initSi = 0; initSi < currentVisibleSpecs.length; initSi++) {
+            if (currentVisibleSpecs[initSi].key === 'fileCount') {
+                sortDropdown.selection = initSi;
+                break;
+            }
+        }
 
         // 初期表示
         rebuildList();
+
+        // --- パスパネル直上：選択時の挙動オプション ---
+        var viewOptRow = dlg.add("group");
+        viewOptRow.orientation = "row";
+        viewOptRow.alignment = ["fill", "top"];
+        viewOptRow.alignChildren = ["left", "center"];
+        var showOnCanvasCheck = viewOptRow.add("checkbox", undefined, L('showOnCanvasCheck'));
+        showOnCanvasCheck.value = true; // ON：行選択でカンバス上の該当画像をフィット表示
 
         // --- パスパネル ---
         var pathPanel = dlg.add("panel", undefined, L('pathPanelTitle'));
@@ -1394,7 +1847,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         pathStaticText.preferredSize = [450, 20];
         pathStaticText.helpTip = L('pathHelpTip');
 
-        // 2 行目：3 カラム（左：整形オプション / 中央：spacer / 右：アクションボタン）
+        // 2 行目：整形オプション（アクションボタンはさらに下の独立行に配置）
         var pathOptRow = pathPanel.add("group");
         pathOptRow.orientation = "row";
         pathOptRow.alignment = "fill";
@@ -1407,7 +1860,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var tildeCheck = pathOptLeft.add("checkbox", undefined, L('tildeCheck'));
         var dropboxCheck = pathOptLeft.add("checkbox", undefined, L('dropboxCheck'));
         var fileNameCheck = pathOptLeft.add("checkbox", undefined, L('fileNameCheck'));
-        tildeCheck.value = true;
+        // フルパス表示（ON）時は ~ 短縮を無効化する（意味は内部的に反転）
+        tildeCheck.value = false;
         dropboxCheck.value = true;
         fileNameCheck.value = false; // ON：パスにファイル名まで含める。OFF：親フォルダまで表示
 
@@ -1423,15 +1877,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var selectedFilePath = "";
         var selectedEntry = null;
 
-        // ファイル名ON時は短縮せず、ファイル名を含むフルパスを表示
+        // ファイル名ON時も ~ 短縮や Dropbox 短縮は適用する（フルパスONのときだけ生パスを表示）
         function buildDisplayedPath(absPath) {
             if (!absPath || absPath === "---") return absPath;
 
-            if (fileNameCheck.value) {
-                return absPath;
-            }
-
-            return formatDisplayPath(toFolderOnly(absPath), tildeCheck.value, dropboxCheck.value);
+            var pathToFormat = fileNameCheck.value ? absPath : toFolderOnly(absPath);
+            return formatDisplayPath(pathToFormat, !tildeCheck.value, dropboxCheck.value);
         }
         function updatePathDisplay() {
             if (!selectedFilePath) return;
@@ -1496,9 +1947,94 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             return { success: success, failed: failed, total: total };
         }
 
-        // アクションボタンは右カラム（pathOptRight）に追加
+        // アクションボタンは pathPanel 直下の独立行に 3 カラム（左：ファイル名コピー / 中央：spacer / 右：リネーム・再リンク）
+        var actionBtnRow = pathPanel.add("group");
+        actionBtnRow.orientation = "row";
+        actionBtnRow.alignment = ["fill", "top"];
+        actionBtnRow.alignChildren = ["fill", "center"];
 
-        var reloadOneBtn = pathOptRight.add("button", undefined, "");
+        var actionBtnLeft = actionBtnRow.add("group");
+        actionBtnLeft.orientation = "row";
+        actionBtnLeft.alignChildren = ["left", "center"];
+        actionBtnLeft.alignment = ["left", "center"];
+
+        var actionBtnSpacer = actionBtnRow.add("group");
+        actionBtnSpacer.alignment = ["fill", "fill"];
+
+        var actionBtnRight = actionBtnRow.add("group");
+        actionBtnRight.orientation = "row";
+        actionBtnRight.alignChildren = ["right", "center"];
+        actionBtnRight.alignment = ["right", "center"];
+
+        var renameLinkBtn = actionBtnRight.add("button", undefined, L('renameLinkBtn'));
+        renameLinkBtn.onClick = function () {
+            if (!selectedEntry) {
+                alert(L('alertSelectItem'));
+                return;
+            }
+            var absPath = selectedEntry.filePath;
+            if (!absPath || absPath === "---") {
+                alert(L('alertNoValidPath'));
+                return;
+            }
+            var oldFile = new File(absPath);
+            if (!oldFile.exists) {
+                alert(L('alertLinkFileNotFound') + absPath);
+                return;
+            }
+
+            var oldName = getRealFileName(oldFile);
+            var oldFolder = oldFile.parent;
+
+            var newName = promptNewFileName(oldName);
+            if (newName === null) return;
+            if (newName === oldName) {
+                alert(L('alertNameUnchanged'));
+                return;
+            }
+            if (/[\/\\]/.test(newName)) {
+                alert(L('alertInvalidFileName'));
+                return;
+            }
+
+            var newFile = new File(oldFolder.fsName + "/" + newName);
+            if (newFile.exists) {
+                if (!confirm(L('confirmOverwrite') + newFile.fsName)) return;
+            }
+
+            // 物理リネーム（失敗時は再リンクしない）
+            var renamed;
+            try { renamed = oldFile.rename(newName); } catch (e) { renamed = false; }
+            if (!renamed) {
+                alert(L('alertRenameFailed'));
+                return;
+            }
+
+            var res = relinkIndicesTo(selectedEntry.itemIndices, newFile);
+            app.redraw();
+            refreshFromDoc();
+            alert(
+                L('alertRenameDone') + "\n" +
+                oldName + " → " + newName + "\n" +
+                L('labelSuccess') + (lang === 'ja' ? '：' : ': ') + withUnit(res.success, 'labelItems') + "\n" +
+                L('labelFailed') + (lang === 'ja' ? '：' : ': ') + withUnit(res.failed, 'labelItems')
+            );
+        };
+        var copyFileNameBtn = actionBtnLeft.add("button", undefined, L('copyFileNameBtn'));
+        copyFileNameBtn.onClick = function () {
+            if (!selectedEntry) {
+                alert(L('alertSelectItem'));
+                return;
+            }
+            var name = selectedEntry.fileName || "";
+            if (copyTextToClipboard(name)) {
+                alert(L('alertCopyFileNameDone') + "\n" + name);
+            } else {
+                alert(L('alertCopyFileNameFailed'));
+            }
+        };
+        var reloadOneBtn = actionBtnRight.add("button", undefined, L('reloadOneBtnSingle'));
+
         reloadOneBtn.onClick = function () {
             if (!selectedEntry) {
                 alert(L('alertSelectItem'));
@@ -1510,7 +2046,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 : 0;
             if (relinkCount > 1) {
                 var confirmMessage = L('confirmBatchRelink') + "\n" +
-                    L('labelTarget') + (lang === 'ja' ? '：' : ': ') + relinkCount + (lang === 'ja' ? ' 件' : ' item(s)');
+                    L('labelTarget') + (lang === 'ja' ? '：' : ': ') + withUnit(relinkCount, 'labelItems');
                 if (!confirm(confirmMessage)) return;
             }
 
@@ -1521,21 +2057,29 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             refreshFromDoc();
             alert(
                 L('alertRelinkDone') + "\n" +
-                L('labelSuccess') + (lang === 'ja' ? '：' : ': ') + res.success + (lang === 'ja' ? ' 件' : '') + "\n" +
-                L('labelFailed') + (lang === 'ja' ? '：' : ': ') + res.failed + (lang === 'ja' ? ' 件' : '')
+                L('labelSuccess') + (lang === 'ja' ? '：' : ': ') + withUnit(res.success, 'labelItems') + "\n" +
+                L('labelFailed') + (lang === 'ja' ? '：' : ': ') + withUnit(res.failed, 'labelItems')
             );
         };
 
         // 「同一ファイルをまとめる」の状態に応じて、再リンクボタンの意味を明示する
+        // ただし、まとめ対象の使用数が 1 の場合は「一括」ではなく単数ラベルを使う
         function updateRelinkButtonLabel() {
-            reloadOneBtn.text = dedupCheck.value ? L('reloadOneBtnBatch') : L('reloadOneBtnSingle');
+            var placementCount = (selectedEntry && selectedEntry.itemIndices) ? selectedEntry.itemIndices.length : 0;
+            var useBatchLabel = dedupCheck.value && placementCount > 1;
+            reloadOneBtn.text = useBatchLabel ? L('reloadOneBtnBatch') : L('reloadOneBtnSingle');
         }
 
         // パスが「---」（不明）のときは再リンクボタンを無効化
         function updateActionButtonStates() {
             reloadOneBtn.enabled = (selectedEntry !== null);
+            renameLinkBtn.enabled = (selectedEntry !== null);
+            copyFileNameBtn.enabled = (selectedEntry !== null);
             updateRelinkButtonLabel();
         }
+
+        // 初期状態：まだ選択がないので各ボタンを無効化し、再リンクボタンの表示も整える
+        updateActionButtonStates();
 
         // 初期状態：まだ選択がないので再リンクボタンを無効化
         updateActionButtonStates();
@@ -1562,7 +2106,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
         rebuildFolderList();
 
-        var folderCountLabel = pathPanel.add("statictext", undefined, L('linkedFolderListLabel') + " (" + linkedFolderPaths.length + (lang === 'ja' ? ' 件)' : ' items)'));
+        var folderCountLabel = pathPanel.add("statictext", undefined, L('linkedFolderListLabel') + " (" + withUnit(linkedFolderPaths.length, 'labelItems') + ")");
         var foldersListBox = pathPanel.add("listbox", undefined, [], { multiselect: false });
         foldersListBox.preferredSize = FOLDER_LISTBOX_SIZE;
         foldersListBox.alignment = ["fill", "fill"];
@@ -1571,7 +2115,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             foldersListBox.removeAll();
             for (var ii = 0; ii < linkedFolderPaths.length; ii++) {
                 foldersListBox.add("item",
-                    formatDisplayPath(linkedFolderPaths[ii], tildeCheck.value, dropboxCheck.value)
+                    formatDisplayPath(linkedFolderPaths[ii], !tildeCheck.value, dropboxCheck.value)
                 );
             }
         }
@@ -1605,7 +2149,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
 
             rebuildFolderList();
-            folderCountLabel.text = L('linkedFolderListLabel') + " (" + linkedFolderPaths.length + (lang === 'ja' ? ' 件)' : ' items)');
+            folderCountLabel.text = L('linkedFolderListLabel') + " (" + withUnit(linkedFolderPaths.length, 'labelItems') + ")";
             populateFoldersList();
             rebuildList();
 
@@ -1681,6 +2225,124 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         reloadFolderBtn.enabled = false;
         openFolderBtn.enabled = false;
 
+        var changeExtensionBtn = folderActionLeft.add("button", undefined, L('changeExtensionBtn'));
+        changeExtensionBtn.enabled = false;
+        var CHANGE_EXT_OPTIONS = [
+            { label: "png", ext: ".png" },
+            { label: "jpg / jpeg", ext: ".jpg", alt: ".jpeg" },
+            { label: "psd", ext: ".psd" },
+            { label: "gif", ext: ".gif" },
+            { label: "webp", ext: ".webp" },
+            { label: "avif", ext: ".avif" },
+            { label: "ai", ext: ".ai" },
+            { label: "pdf", ext: ".pdf" }
+        ];
+        changeExtensionBtn.onClick = function () {
+            if (foldersListBox.selection === null) {
+                alert(L('alertSelectLinkedFolder'));
+                return;
+            }
+            var folderPath = linkedFolderPaths[foldersListBox.selection.index];
+
+            // 対象フォルダ内の配置画像と、現在使われている拡張子を収集
+            var targets = [];
+            var existingExts = {};
+            for (var k = 0; k < allPlacementEntries.length; k++) {
+                var ent = allPlacementEntries[k];
+                if (!ent.filePath || ent.filePath === "---") continue;
+                var sp = Math.max(ent.filePath.lastIndexOf("/"), ent.filePath.lastIndexOf("\\"));
+                if (sp <= 0) continue;
+                if (ent.filePath.substring(0, sp) !== folderPath) continue;
+                targets.push(ent);
+                var fname = ent.filePath.substring(sp + 1);
+                var parts = splitFileName(fname);
+                if (parts.ext) existingExts[parts.ext.toLowerCase()] = true;
+            }
+
+            if (targets.length === 0) {
+                alert(L('alertNoTargetInFolder'));
+                return;
+            }
+
+            // 拡張子選択ダイアログ
+            var extDlg = new Window("dialog", L('changeExtDialogTitle'));
+            extDlg.alignChildren = "left";
+            var extP = extDlg.add("panel", undefined, L('changeExtPanelTitle'));
+            extP.margins = PANEL_MARGINS;
+            extP.alignChildren = "left";
+            var radios = [];
+            var firstEnabledIdx = -1;
+            for (var ri = 0; ri < CHANGE_EXT_OPTIONS.length; ri++) {
+                var opt = CHANGE_EXT_OPTIONS[ri];
+                var rb = extP.add("radiobutton", undefined, opt.label);
+                var matched = existingExts[opt.ext.toLowerCase()] ||
+                    (opt.alt && existingExts[opt.alt.toLowerCase()]);
+                rb.enabled = !matched;
+                if (rb.enabled && firstEnabledIdx < 0) firstEnabledIdx = ri;
+                radios.push(rb);
+            }
+            if (firstEnabledIdx < 0) {
+                for (var ai = 0; ai < radios.length; ai++) radios[ai].enabled = true;
+                firstEnabledIdx = 0;
+            }
+            radios[firstEnabledIdx].value = true;
+
+            var btnGroup = extDlg.add("group");
+            btnGroup.alignment = "center";
+            var cancelBtn = btnGroup.add("button", undefined, L('cancelBtn'), { name: "cancel" });
+            var okBtn = btnGroup.add("button", undefined, L('okBtn'), { name: "ok" });
+            var chosen = null;
+            cancelBtn.onClick = function () { extDlg.close(); };
+            okBtn.onClick = function () {
+                for (var c = 0; c < radios.length; c++) {
+                    if (radios[c].value) { chosen = CHANGE_EXT_OPTIONS[c]; break; }
+                }
+                extDlg.close();
+            };
+            extDlg.center();
+            extDlg.show();
+            if (!chosen) return;
+
+            // 置換実行：同一ベース名 + 新しい拡張子のファイルを再リンク
+            var candidateExts = [chosen.ext];
+            if (chosen.alt) candidateExts.push(chosen.alt);
+
+            var success = 0, failed = 0;
+            for (var ti = 0; ti < targets.length; ti++) {
+                var tEntry = targets[ti];
+                var sep2 = Math.max(tEntry.filePath.lastIndexOf("/"), tEntry.filePath.lastIndexOf("\\"));
+                var fname2 = tEntry.filePath.substring(sep2 + 1);
+                var base = splitFileName(fname2).base;
+                if (!base) { failed++; continue; }
+
+                var relinked = false;
+                for (var ci = 0; ci < candidateExts.length; ci++) {
+                    var newFile = new File(folderPath + "/" + base + candidateExts[ci]);
+                    if (newFile.exists) {
+                        try {
+                            placedItems[tEntry.itemIndex].file = newFile;
+                            success++;
+                            relinked = true;
+                            break;
+                        } catch (e) { }
+                    }
+                }
+                if (!relinked) failed++;
+            }
+
+            app.redraw();
+            refreshFromDoc();
+
+            var colon = (lang === 'ja' ? '：' : ': ');
+            var unit = (lang === 'ja' ? ' 件' : '');
+            alert(
+                L('alertChangeExtDone') + "\n" +
+                L('labelTarget') + colon + targets.length + unit + "\n" +
+                L('labelSuccess') + colon + success + unit + "\n" +
+                L('labelFailed') + colon + failed + unit
+            );
+        };
+
         var collectLinksBtn = folderActionRight.add("button", undefined, L('collectLinksBtn'));
         collectLinksBtn.onClick = function () {
             var docFile = null;
@@ -1745,6 +2407,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var hasSelection = (foldersListBox.selection !== null);
             reloadFolderBtn.enabled = hasSelection;
             openFolderBtn.enabled = hasSelection;
+            changeExtensionBtn.enabled = hasSelection;
         };
 
         // メインリスト選択に合わせてフォルダ一覧の該当行をハイライト
@@ -1781,15 +2444,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             zoomToSelection(doc);
         }
 
-        // --- ボタングループ（左：カンバス上で表示 / 右：キャンセル） ---
+        // --- ボタングループ（左：リンクパネル起動 / 右：キャンセル） ---
         var btnGroup = dlg.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignment = "fill";
         btnGroup.alignChildren = ["fill", "center"];
 
-        var showOnCanvasCheck = btnGroup.add("checkbox", undefined, L('showOnCanvasCheck'));
-        showOnCanvasCheck.value = true; // ON：行選択でカンバス上の該当画像をフィット表示
-        showOnCanvasCheck.alignment = ["left", "center"];
+        var openLinksPanelBtn = btnGroup.add("button", undefined, L('openLinksPanelBtn'));
+        openLinksPanelBtn.alignment = ["left", "center"];
+        openLinksPanelBtn.onClick = function () {
+            try { app.executeMenuCommand('Adobe LinkPalette Menu Item'); } catch (e) { }
+        };
 
         var spacer = btnGroup.add("group");
         spacer.alignment = ["fill", "fill"];
