@@ -43,7 +43,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.2.0";
+    var SCRIPT_VERSION = "v1.2.1";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -329,7 +329,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Linked Folders"
         },
         reloadFolderBtn: {
-            ja: "フォルダーを再リンク",
+            ja: "フォルダーに再リンク",
             en: "Relink Folder"
         },
         changeExtensionBtn: {
@@ -343,6 +343,26 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         changeExtPanelTitle: {
             ja: "拡張子",
             en: "Extension"
+        },
+        changeExtFolderPanelTitle: {
+            ja: "変更先のフォルダー",
+            en: "Destination Folder"
+        },
+        selectExtensionReferenceFolder: {
+            ja: "拡張子変更で参照するフォルダーを選択してください",
+            en: "Select the folder to search for files with the new extension"
+        },
+        alertNoExtensionReferenceFolder: {
+            ja: "参照フォルダーが選択されていません。処理を中断します。",
+            en: "No reference folder was selected. Aborting."
+        },
+        chooseExtensionReferenceFolderBtn: {
+            ja: "フォルダー指定",
+            en: "Choose Folder"
+        },
+        extensionReferenceFolderPlaceholder: {
+            ja: "参照フォルダー未指定",
+            en: "No reference folder selected"
         },
         alertNoTargetInFolder: {
             ja: "選択したフォルダー内にリンク画像が見つかりません。",
@@ -479,6 +499,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     // Dropbox のローカルマウントパス接頭辞（ここを自分の環境に書き換えてください）
     var DROPBOX_PREFIX = "/Users/takano/sw Dropbox/takano masahiro/";
+
+    var CHANGE_EXT_OPTIONS = [
+        { label: "png", ext: ".png" },
+        { label: "jpg / jpeg", ext: ".jpg", alt: ".jpeg" },
+        { label: "psd", ext: ".psd", isDefault: true },
+        { label: "gif", ext: ".gif" },
+        { label: "webp", ext: ".webp" },
+        { label: "avif", ext: ".avif" },
+        { label: "ai", ext: ".ai" },
+        { label: "pdf", ext: ".pdf" }
+    ];
 
     // ファイルパスからファイル名を除いた親フォルダ（末尾セパレータ付き）を返す
     function toFolderOnly(path) {
@@ -1922,6 +1953,176 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             return { success: success, failed: failed };
         }
 
+        function showChangeExtensionDialog() {
+            var extDlg = new Window("dialog", L('changeExtDialogTitle'));
+            extDlg.orientation = "column";
+            extDlg.alignChildren = ["fill", "top"];
+
+            var folderPanel = extDlg.add("panel", undefined, L('changeExtFolderPanelTitle'));
+            folderPanel.orientation = "column";
+            folderPanel.alignChildren = ["fill", "top"];
+            folderPanel.margins = PANEL_MARGINS;
+
+            var chooseFolderBtn = folderPanel.add("button", undefined, L('chooseExtensionReferenceFolderBtn'));
+            chooseFolderBtn.alignment = ["left", "top"];
+
+            var folderLabel = folderPanel.add("statictext", undefined, L('extensionReferenceFolderPlaceholder'));
+            folderLabel.alignment = ["fill", "top"];
+            folderLabel.preferredSize = [300, 20];
+
+            var extPanel = extDlg.add("panel", undefined, L('changeExtPanelTitle'));
+            extPanel.orientation = "column";
+            extPanel.alignChildren = ["fill", "top"];
+            extPanel.margins = PANEL_MARGINS;
+
+            var referenceFolder = null;
+            var okBtn = null;
+
+            chooseFolderBtn.onClick = function () {
+                var selectedFolder = Folder.selectDialog(L('selectExtensionReferenceFolder'));
+                if (!selectedFolder) return;
+
+                referenceFolder = selectedFolder;
+                folderLabel.text = selectedFolder.fsName;
+                if (okBtn) okBtn.enabled = true;
+                try { extDlg.layout.layout(true); } catch (e) { }
+            };
+
+            var radios = [];
+
+            var radioRow = extPanel.add("group");
+            radioRow.orientation = "row";
+            radioRow.alignment = ["fill", "top"];
+            radioRow.alignChildren = ["fill", "top"];
+
+            var colLeft = radioRow.add("group");
+            colLeft.orientation = "column";
+            colLeft.alignment = ["fill", "top"];
+            colLeft.alignChildren = ["left", "top"];
+            colLeft.preferredSize.width = 110;
+
+            var colCenter = radioRow.add("group");
+            colCenter.orientation = "column";
+            colCenter.alignment = ["fill", "top"];
+            colCenter.alignChildren = ["left", "top"];
+            colCenter.preferredSize.width = 110;
+
+            var colRight = radioRow.add("group");
+            colRight.orientation = "column";
+            colRight.alignment = ["fill", "top"];
+            colRight.alignChildren = ["left", "top"];
+            colRight.preferredSize.width = 110;
+
+            function addRadio(parent, label, ext, alt, isDefault) {
+                var r = parent.add("radiobutton", undefined, label);
+                if (isDefault) r.value = true;
+
+                var entry = {
+                    ui: r,
+                    ext: ext,
+                    alt: alt || ""
+                };
+                radios.push(entry);
+
+                r.onClick = function () {
+                    // 他のラジオをすべてOFFにする（グループを跨いで排他にする）
+                    for (var i = 0; i < radios.length; i++) {
+                        if (radios[i].ui !== r) {
+                            radios[i].ui.value = false;
+                        }
+                    }
+                    r.value = true;
+                };
+            }
+
+            // 左カラム
+            addRadio(colLeft, "png", ".png");
+            addRadio(colLeft, "jpg / jpeg", ".jpg", ".jpeg");
+            addRadio(colLeft, "psd", ".psd", null, true);
+
+            // 中央カラム
+            addRadio(colCenter, "tiff", ".tif", ".tiff");
+            addRadio(colCenter, "webp", ".webp");
+            addRadio(colCenter, "avif", ".avif");
+
+            // 右カラム
+            addRadio(colRight, "gif", ".gif");
+            addRadio(colRight, "ai", ".ai");
+            addRadio(colRight, "pdf", ".pdf");
+
+            var btnRow = extDlg.add("group");
+            btnRow.alignment = ["right", "top"];
+
+            var cancelBtn = btnRow.add("button", undefined, L('cancelBtn'));
+            okBtn = btnRow.add("button", undefined, L('okBtn'));
+            okBtn.enabled = false;
+
+            cancelBtn.onClick = function () {
+                extDlg.close(0);
+            };
+
+            okBtn.onClick = function () {
+                if (!referenceFolder) return;
+                extDlg.close(1);
+            };
+
+            if (extDlg.show() !== 1) return null;
+
+            for (var r = 0; r < radios.length; r++) {
+                if (radios[r].ui.value) {
+                    return {
+                        referenceFolder: referenceFolder,
+                        primaryExt: radios[r].ext,
+                        fallbackExt: radios[r].alt
+                    };
+                }
+            }
+
+            return null;
+        }
+
+        function findReplacementFileByExtension(folder, baseName, primaryExt, fallbackExt) {
+            if (!folder || !baseName || !primaryExt) return null;
+
+            var folderPath = folder.fsName;
+            var candidateExts = [primaryExt];
+
+            if (fallbackExt) {
+                candidateExts.push(fallbackExt);
+            }
+
+            for (var i = 0; i < candidateExts.length; i++) {
+                var candidateFile = new File(folderPath + "/" + baseName + candidateExts[i]);
+                if (candidateFile.exists) {
+                    return candidateFile;
+                }
+            }
+
+            return null;
+        }
+
+        function normalizeFolderPathForCompare(path) {
+            if (!path) return "";
+            path = String(path).replace(/\\/g, "/");
+            path = path.replace(/\/+$/g, "");
+            return path;
+        }
+
+        function getParentFolderPathFromFilePath(filePath) {
+            if (!filePath || filePath === "---") return "";
+            var normalized = String(filePath).replace(/\\/g, "/");
+            var separatorIndex = normalized.lastIndexOf("/");
+            if (separatorIndex <= 0) return "";
+            return normalized.substring(0, separatorIndex);
+        }
+
+        function stripExtensionForRelink(filename) {
+            if (!filename) return "";
+            var dotIndex = String(filename).lastIndexOf(".");
+            if (dotIndex < 0) return String(filename);
+            return String(filename).substring(0, dotIndex);
+        }
+
         // oldFolder 配下に配置された全ファイルを newFolder 内の同名ファイルに差し替え
         // （InDesign の「フォルダーに再リンク」相当）
         function relinkFolder(oldFolder, newFolder) {
@@ -2034,6 +2235,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         };
         var reloadOneBtn = actionBtnRight.add("button", undefined, L('reloadOneBtnSingle'));
+        reloadOneBtn.preferredSize = [80, 24];
 
         reloadOneBtn.onClick = function () {
             if (!selectedEntry) {
@@ -2064,10 +2266,34 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // 「同一ファイルをまとめる」の状態に応じて、再リンクボタンの意味を明示する
         // ただし、まとめ対象の使用数が 1 の場合は「一括」ではなく単数ラベルを使う
+        // 「同一ファイルをまとめる」の状態に応じて、再リンクボタンの意味を明示する
+        // ただし、まとめ対象の使用数が 1 の場合は「一括」ではなく単数ラベルを使う
         function updateRelinkButtonLabel() {
             var placementCount = (selectedEntry && selectedEntry.itemIndices) ? selectedEntry.itemIndices.length : 0;
             var useBatchLabel = dedupCheck.value && placementCount > 1;
-            reloadOneBtn.text = useBatchLabel ? L('reloadOneBtnBatch') : L('reloadOneBtnSingle');
+            var nextLabel = useBatchLabel ? L('reloadOneBtnBatch') : L('reloadOneBtnSingle');
+            var nextWidth = useBatchLabel ? 130 : 80;
+            var nextHeight = 24;
+
+            reloadOneBtn.text = nextLabel;
+
+            // ScriptUI は text 変更後に preferredSize だけでは反映されない場合があるため、
+            // size / bounds も明示的に更新する。
+            reloadOneBtn.preferredSize = [nextWidth, nextHeight];
+            reloadOneBtn.size = [nextWidth, nextHeight];
+            try {
+                reloadOneBtn.bounds = [
+                    reloadOneBtn.bounds[0],
+                    reloadOneBtn.bounds[1],
+                    reloadOneBtn.bounds[0] + nextWidth,
+                    reloadOneBtn.bounds[1] + nextHeight
+                ];
+            } catch (e0) { }
+
+            try { actionBtnRight.layout.layout(true); } catch (e1) { }
+            try { actionBtnRow.layout.layout(true); } catch (e2) { }
+            try { pathPanel.layout.layout(true); } catch (e3) { }
+            try { dlg.layout.layout(true); } catch (e4) { }
         }
 
         // パスが「---」（不明）のときは再リンクボタンを無効化
@@ -2121,7 +2347,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
         populateFoldersList();
 
-        // リリンク後に doc から再収集してリストを更新
+        // リンク後に doc から再収集してリストを更新
         function refreshFromDoc() {
             var collected = collectLinkInfo(doc, placedItems);
             allPlacementEntries = collected.linkInfoList;
@@ -2226,6 +2452,84 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         openFolderBtn.enabled = false;
 
         var changeExtensionBtn = folderActionLeft.add("button", undefined, L('changeExtensionBtn'));
+
+        changeExtensionBtn.onClick = function () {
+            if (foldersListBox.selection === null) {
+                alert(L('alertSelectLinkedFolder'));
+                return;
+            }
+
+            var sourceFolderPath = normalizeFolderPathForCompare(
+                linkedFolderPaths[foldersListBox.selection.index]
+            );
+
+            // 1. 参照フォルダーを選択
+            var extPrefs = showChangeExtensionDialog();
+            if (!extPrefs) return;
+
+            var referenceFolder = extPrefs.referenceFolder;
+
+            // 2. 拡張子の変更ダイアログボックス
+            var extPrefs = showChangeExtensionDialog();
+            if (!extPrefs) return;
+
+            // 3. 実行
+            var success = 0;
+            var failed = 0;
+            var total = 0;
+
+            for (var i = 0; i < allPlacementEntries.length; i++) {
+                var entry = allPlacementEntries[i];
+                if (!entry || !entry.filePath || entry.filePath === "---") continue;
+
+                var entryFolderPath = normalizeFolderPathForCompare(
+                    getParentFolderPathFromFilePath(entry.filePath)
+                );
+
+                if (entryFolderPath !== sourceFolderPath) continue;
+
+                total++;
+
+                var placedItem = placedItems[entry.itemIndex];
+                var sourceFileName = entry.fileName || entry.filePath.replace(/^.*[\\\/]/, "");
+                var baseName = stripExtensionForRelink(sourceFileName);
+
+                if (!baseName) {
+                    failed++;
+                    continue;
+                }
+
+                var replacementFile = findReplacementFileByExtension(
+                    referenceFolder,
+                    baseName,
+                    extPrefs.primaryExt,
+                    extPrefs.fallbackExt
+                );
+
+                if (!replacementFile) {
+                    failed++;
+                    continue;
+                }
+
+                try {
+                    placedItem.file = replacementFile;
+                    success++;
+                } catch (e) {
+                    failed++;
+                }
+            }
+
+            app.redraw();
+            refreshFromDoc();
+
+            alert(
+                L('alertChangeExtDone') + "\n" +
+                L('labelTarget') + (lang === 'ja' ? '：' : ': ') + withUnit(total, 'labelItems') + "\n" +
+                L('labelSuccess') + "：" + withUnit(success, 'labelItems') + "\n" +
+                L('labelFailed') + "：" + withUnit(failed, 'labelItems')
+            );
+        };
+
         changeExtensionBtn.enabled = false;
         var CHANGE_EXT_OPTIONS = [
             { label: "png", ext: ".png" },
@@ -2237,111 +2541,24 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             { label: "ai", ext: ".ai" },
             { label: "pdf", ext: ".pdf" }
         ];
-        changeExtensionBtn.onClick = function () {
-            if (foldersListBox.selection === null) {
-                alert(L('alertSelectLinkedFolder'));
-                return;
-            }
-            var folderPath = linkedFolderPaths[foldersListBox.selection.index];
 
-            // 対象フォルダ内の配置画像と、現在使われている拡張子を収集
-            var targets = [];
-            var existingExts = {};
-            for (var k = 0; k < allPlacementEntries.length; k++) {
-                var ent = allPlacementEntries[k];
-                if (!ent.filePath || ent.filePath === "---") continue;
-                var sp = Math.max(ent.filePath.lastIndexOf("/"), ent.filePath.lastIndexOf("\\"));
-                if (sp <= 0) continue;
-                if (ent.filePath.substring(0, sp) !== folderPath) continue;
-                targets.push(ent);
-                var fname = ent.filePath.substring(sp + 1);
-                var parts = splitFileName(fname);
-                if (parts.ext) existingExts[parts.ext.toLowerCase()] = true;
-            }
+        function normalizeFolderPathForCompare(path) {
+            if (!path) return "";
+            path = String(path);
+            path = path.replace(/\\/g, "/");
+            path = path.replace(/\/+$/g, "");
+            return path;
+        }
 
-            if (targets.length === 0) {
-                alert(L('alertNoTargetInFolder'));
-                return;
-            }
+        function getParentFolderPathFromFilePath(filePath) {
+            if (!filePath || filePath === "---") return "";
+            var normalized = String(filePath).replace(/\\/g, "/");
+            var separatorIndex = normalized.lastIndexOf("/");
+            if (separatorIndex <= 0) return "";
+            return normalized.substring(0, separatorIndex);
+        }
 
-            // 拡張子選択ダイアログ
-            var extDlg = new Window("dialog", L('changeExtDialogTitle'));
-            extDlg.alignChildren = "left";
-            var extP = extDlg.add("panel", undefined, L('changeExtPanelTitle'));
-            extP.margins = PANEL_MARGINS;
-            extP.alignChildren = "left";
-            var radios = [];
-            var firstEnabledIdx = -1;
-            for (var ri = 0; ri < CHANGE_EXT_OPTIONS.length; ri++) {
-                var opt = CHANGE_EXT_OPTIONS[ri];
-                var rb = extP.add("radiobutton", undefined, opt.label);
-                var matched = existingExts[opt.ext.toLowerCase()] ||
-                    (opt.alt && existingExts[opt.alt.toLowerCase()]);
-                rb.enabled = !matched;
-                if (rb.enabled && firstEnabledIdx < 0) firstEnabledIdx = ri;
-                radios.push(rb);
-            }
-            if (firstEnabledIdx < 0) {
-                for (var ai = 0; ai < radios.length; ai++) radios[ai].enabled = true;
-                firstEnabledIdx = 0;
-            }
-            radios[firstEnabledIdx].value = true;
 
-            var btnGroup = extDlg.add("group");
-            btnGroup.alignment = "center";
-            var cancelBtn = btnGroup.add("button", undefined, L('cancelBtn'), { name: "cancel" });
-            var okBtn = btnGroup.add("button", undefined, L('okBtn'), { name: "ok" });
-            var chosen = null;
-            cancelBtn.onClick = function () { extDlg.close(); };
-            okBtn.onClick = function () {
-                for (var c = 0; c < radios.length; c++) {
-                    if (radios[c].value) { chosen = CHANGE_EXT_OPTIONS[c]; break; }
-                }
-                extDlg.close();
-            };
-            extDlg.center();
-            extDlg.show();
-            if (!chosen) return;
-
-            // 置換実行：同一ベース名 + 新しい拡張子のファイルを再リンク
-            var candidateExts = [chosen.ext];
-            if (chosen.alt) candidateExts.push(chosen.alt);
-
-            var success = 0, failed = 0;
-            for (var ti = 0; ti < targets.length; ti++) {
-                var tEntry = targets[ti];
-                var sep2 = Math.max(tEntry.filePath.lastIndexOf("/"), tEntry.filePath.lastIndexOf("\\"));
-                var fname2 = tEntry.filePath.substring(sep2 + 1);
-                var base = splitFileName(fname2).base;
-                if (!base) { failed++; continue; }
-
-                var relinked = false;
-                for (var ci = 0; ci < candidateExts.length; ci++) {
-                    var newFile = new File(folderPath + "/" + base + candidateExts[ci]);
-                    if (newFile.exists) {
-                        try {
-                            placedItems[tEntry.itemIndex].file = newFile;
-                            success++;
-                            relinked = true;
-                            break;
-                        } catch (e) { }
-                    }
-                }
-                if (!relinked) failed++;
-            }
-
-            app.redraw();
-            refreshFromDoc();
-
-            var colon = (lang === 'ja' ? '：' : ': ');
-            var unit = (lang === 'ja' ? ' 件' : '');
-            alert(
-                L('alertChangeExtDone') + "\n" +
-                L('labelTarget') + colon + targets.length + unit + "\n" +
-                L('labelSuccess') + colon + success + unit + "\n" +
-                L('labelFailed') + colon + failed + unit
-            );
-        };
 
         var collectLinksBtn = folderActionRight.add("button", undefined, L('collectLinksBtn'));
         collectLinksBtn.onClick = function () {
@@ -2454,6 +2671,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         openLinksPanelBtn.alignment = ["left", "center"];
         openLinksPanelBtn.onClick = function () {
             try { app.executeMenuCommand('Adobe LinkPalette Menu Item'); } catch (e) { }
+            dlg.close();
         };
 
         var spacer = btnGroup.add("group");
