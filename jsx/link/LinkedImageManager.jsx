@@ -11,22 +11,29 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         一覧表示・絞り込み・重複管理・再リンクを一元化するユーティリティ。
 
         Illustrator標準機能では行いにくい
-        「全体把握・状態確認・重複管理・再リンク作業」を一元的に行えるようにすることを目的とする。
+        「全体把握・状態確認・重複管理・再リンク作業」を効率化することを目的とする。
 
         ### 主な機能
 
-        ・ファイル名／サイズ／配置寸法／拡大率／PPI の一覧表示
+        ・ファイル名／サイズ／配置寸法／スケール／PPI の一覧表示
         ・リンク状態（正常／リンク切れ／更新が必要）の判定とフィルタリング
         ・リンク切れ時のファイル名フォールバック取得（XMPメタデータ参照）
-        ・配置先アートボードの特定とアートボード単位での絞り込み
-        ・アートボード選択に連動したビュー移動・ズーム表示
+        ・アートボード単位での絞り込みとビュー連動（選択時に移動・ズーム）
         ・同一ファイルの重複検出・統合表示・使用数カウント
         ・任意列でのソート（昇順／降順）
         ・行選択に連動したカンバス上での選択・ズーム表示
-        ・パス表示の最適化（~/ 表示／Dropbox パス短縮）
-        ・リンク先フォルダの表示とフォルダ一覧からのアクセス
+        ・パス表示の最適化（~/ 表示／Dropbox パス短縮／ファイル名表示切替）
+        ・リンク先フォルダの一覧表示／選択フォルダの直接オープン
         ・単一ファイル／フォルダ単位での再リンク
         ・リンクファイルのコピーと再リンク（Linksフォルダーへの収集）
+
+        ### UI構成（現行）
+
+        左：ソート／まとめて表示（同一ファイル）
+        右：表示列／フィルター／アートボード
+
+        ※ 機能優先のため2カラム構成とし、右カラムに関連機能を集約
+        ※ フォルダ操作（開く／フォルダ再リンク／収集）は下部に集約
 
         ============================================================
     */
@@ -36,7 +43,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.0";
+    var SCRIPT_VERSION = "v1.1.0";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -114,8 +121,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Descending"
         },
         optionPanelTitle: {
-            ja: "オプション",
-            en: "Options"
+            ja: "同一ファイル",
+            en: "Same Files"
         },
         otherPanelTitle: {
             ja: "その他",
@@ -126,8 +133,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Group Same Files"
         },
         unitCheck: {
-            ja: "サイズをMBで統一",
-            en: "Show File Size in MB"
+            ja: "MBで統一",
+            en: "Use MB"
         },
         filterPanelTitle: {
             ja: "フィルター",
@@ -174,8 +181,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Size"
         },
         displayFileCount: {
-            ja: "使用数",
-            en: "Usage Count"
+            ja: "使用数を表示",
+            en: "Show Usage Count"
         },
         displayDimScalePpi: {
             ja: "サイズ、%、PPI",
@@ -229,6 +236,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "リストからアイテムを選択してください",
             en: "Select an item from the list."
         },
+        pathHelpTip: {
+            ja: "パスの表示",
+            en: "File path"
+        },
         tildeCheck: {
             ja: "~",
             en: "~"
@@ -245,21 +256,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "開く",
             en: "Open"
         },
-        reloadOneBtn: {
+        reloadOneBtnSingle: {
             ja: "再リンク",
-            en: "Relink Selected File"
+            en: "Relink Selected"
+        },
+        reloadOneBtnBatch: {
+            ja: "再リンク（一括）",
+            en: "Relink All"
         },
         linkedFolderListLabel: {
             ja: "リンクフォルダ一覧",
             en: "Linked Folders"
         },
         reloadFolderBtn: {
-            ja: "選択フォルダーへのリンクを変更",
-            en: "Relink Folder Links"
+            ja: "フォルダを再リンク",
+            en: "Relink Folder"
         },
         collectLinksBtn: {
-            ja: "収集（リンクをコピー＋再リンク）",
-            en: "Collect (Copy + Relink)"
+            ja: "リンクを収集",
+            en: "Collect Links"
         },
         alertDocNotSaved: {
             ja: "ドキュメントが保存されていません。保存してからもう一度お試しください。",
@@ -320,6 +335,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         selectNewLinkFile: {
             ja: "新しいリンクファイルを選択",
             en: "Select a new linked file"
+        },
+        confirmBatchRelink: {
+            ja: "複数のリンクを一括で再リンクします。よろしいですか？",
+            en: "Multiple links will be relinked at once. Continue?"
         },
         alertRelinkDone: {
             ja: "リンク更新完了",
@@ -900,6 +919,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var filteredEntries = sourceEntries;
         // プログラムから選択を入れる際に、カンバス側の再選択＆ズームを 1 回だけ抑制するフラグ
         var suppressCanvasOnce = false;
+        // リスト再構築後に選択を復元するための配置アイテム index
+        var pendingSelectionItemIndex = -1;
 
         // --- 上部 2 カラム：左（ソート + オプション） / 右（その他） ---
         var topRow = dlg.add("group");
@@ -938,8 +959,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         optPanel.margins = PANEL_MARGINS;
         var dedupCheck = optPanel.add("checkbox", undefined, L('dedupCheck'));
         dedupCheck.value = true; // ON：同一ファイルは 1 行にまとめる
-        var unitCheck = optPanel.add("checkbox", undefined, L('unitCheck'));
-        unitCheck.value = true; // ON：全行 MB で統一表示、OFF：B/KB/MB/GB の自動単位
+        dedupCheck.helpTip = (lang === 'ja')
+            ? "ON：同じリンクファイルを1行にまとめ、再リンクは“すべて一括”で実行されます（複数変更に注意）。\nOFF：配置ごとに個別表示され、再リンクも1件ずつ実行されます。"
+            : "ON: Group same linked files into one row; relink applies to ALL placements (affects multiple items).\nOFF: Each placement is listed separately; relink applies individually.";
+        var countColCheck = optPanel.add("checkbox", undefined, L('displayFileCount'));
+        countColCheck.value = true;
 
         // 右カラム：その他（表示オプション + フィルター / アートボード）
         var otherPanel = topRow.add("group");
@@ -956,11 +980,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         optionPanel.orientation = "column";
         optionPanel.alignChildren = ["left", "top"];
         optionPanel.margins = PANEL_MARGINS;
-        var sizeColCheck = optionPanel.add("checkbox", undefined, L('displaySize'));
-        var countColCheck = optionPanel.add("checkbox", undefined, L('displayFileCount'));
+        var sizeRow = optionPanel.add("group");
+        sizeRow.orientation = "row";
+        sizeRow.alignChildren = ["left", "center"];
+        var sizeColCheck = sizeRow.add("checkbox", undefined, L('displaySize'));
+
+        var unitCheck = optionPanel.add("checkbox", undefined, L('unitCheck'));
+
         var dimScalePpiCheck = optionPanel.add("checkbox", undefined, L('displayDimScalePpi'));
         sizeColCheck.value = true;
-        countColCheck.value = true;
+        unitCheck.value = true; // ON：全行 MB で統一表示、OFF：B/KB/MB/GB の自動単位
         dimScalePpiCheck.value = false;
 
         // 右：フィルター
@@ -1087,7 +1116,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 var info = filteredEntries[listBox.selection.index];
                 selectedEntry = info;
                 selectedFilePath = info.filePath;
-                pathText.text = buildDisplayedPath(info.filePath);
+                pathStaticText.text = buildDisplayedPath(info.filePath);
                 updateActionButtonStates();
                 highlightFolderFor(info.filePath);
                 if (suppressCanvasOnce) {
@@ -1122,6 +1151,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // ソート＋フィルタ適用 → リスト再構築
         function rebuildList() {
+            var selectionItemIndexToRestore = pendingSelectionItemIndex;
+            pendingSelectionItemIndex = -1;
+            if (selectionItemIndexToRestore < 0 && selectedEntry && selectedEntry.itemIndices && selectedEntry.itemIndices.length > 0) {
+                selectionItemIndexToRestore = selectedEntry.itemIndices[0];
+            }
+
             var sortBy = sortDropdown.selection ? sortDropdown.selection.index : 0;
             var desc = descRadio.value;
 
@@ -1194,6 +1229,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     row.subItems[cj - 1].text = (txt === undefined || txt === null) ? "" : txt;
                 }
             }
+
+            restoreListSelectionByItemIndex(selectionItemIndexToRestore);
+        }
+
+        // リスト再構築後、配置アイテム index を基準に該当行を再選択する
+        function restoreListSelectionByItemIndex(itemIndexToRestore) {
+            if (itemIndexToRestore < 0 || !filteredEntries || filteredEntries.length === 0) return;
+
+            for (var i = 0; i < filteredEntries.length; i++) {
+                var entry = filteredEntries[i];
+                if (!entry || !entry.itemIndices) continue;
+
+                for (var j = 0; j < entry.itemIndices.length; j++) {
+                    if (entry.itemIndices[j] === itemIndexToRestore) {
+                        suppressCanvasOnce = true;
+                        selectedEntry = entry;
+                        selectedFilePath = entry.filePath;
+                        pathStaticText.text = buildDisplayedPath(entry.filePath);
+                        updateActionButtonStates();
+                        highlightFolderFor(entry.filePath);
+                        try {
+                            var targetItem = listBox.items[i];
+                            listBox.selection = targetItem;
+                            if (typeof listBox.revealItem === "function") {
+                                listBox.revealItem(targetItem);
+                            }
+                        } catch (e) {
+                            try { listBox.selection = i; } catch (e2) { }
+                        }
+                        return;
+                    }
+                }
+            }
         }
 
         // 並び順を「サイズ」「使用数」「幅」「高さ」「スケール」「PPI」に変えたら自動で降順 ON
@@ -1210,6 +1278,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // 「重複」チェックボックス：ON で重複をまとめる、OFF で全配置を個別表示
         dedupCheck.onClick = function () {
+            pendingSelectionItemIndex = (selectedEntry && selectedEntry.itemIndices && selectedEntry.itemIndices.length > 0)
+                ? selectedEntry.itemIndices[0]
+                : -1;
             sourceEntries = dedupCheck.value ? uniqueFileEntries : allPlacementEntries;
             rebuildList();
         };
@@ -1315,11 +1386,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         pathRow.orientation = "row";
         pathRow.alignChildren = ["fill", "center"];
 
-        var pathText = pathRow.add(
-            "edittext", undefined, L('pathPlaceholder'),
-            { readonly: true, multiline: false }
+        var pathStaticText = pathRow.add(
+            "statictext", undefined, L('pathPlaceholder'),
+            { multiline: true }
         );
-        pathText.preferredSize = [500, 30];
+        pathStaticText.alignment = ["fill", "fill"];
+        pathStaticText.preferredSize = [450, 20];
+        pathStaticText.helpTip = L('pathHelpTip');
 
         // 2 行目：3 カラム（左：整形オプション / 中央：spacer / 右：アクションボタン）
         var pathOptRow = pathPanel.add("group");
@@ -1350,14 +1423,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var selectedFilePath = "";
         var selectedEntry = null;
 
-        // ファイル名チェックに応じて「フォルダのみ」「ファイル名まで」を切替
+        // ファイル名ON時は短縮せず、ファイル名を含むフルパスを表示
         function buildDisplayedPath(absPath) {
-            var base = fileNameCheck.value ? absPath : toFolderOnly(absPath);
-            return formatDisplayPath(base, tildeCheck.value, dropboxCheck.value);
+            if (!absPath || absPath === "---") return absPath;
+
+            if (fileNameCheck.value) {
+                return absPath;
+            }
+
+            return formatDisplayPath(toFolderOnly(absPath), tildeCheck.value, dropboxCheck.value);
         }
         function updatePathDisplay() {
             if (!selectedFilePath) return;
-            pathText.text = buildDisplayedPath(selectedFilePath);
+            pathStaticText.text = buildDisplayedPath(selectedFilePath);
         }
         function onPathOptionChange() {
             updatePathDisplay();
@@ -1372,7 +1450,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             updateTildeEnable();
             onPathOptionChange();
         };
-        fileNameCheck.onClick = updatePathDisplay; // フォルダ一覧には影響しない
+        fileNameCheck.onClick = function () {
+            updatePathDisplay();
+            pathPanel.layout.layout(true);
+            dlg.layout.layout(true);
+        }; // フォルダ一覧には影響しない
         updateTildeEnable(); // 初期化
 
         // 選択エントリに対応する itemIndices のリンク先を newFile に差し替え
@@ -1415,26 +1497,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
 
         // アクションボタンは右カラム（pathOptRight）に追加
-        var openFolderBtn = pathOptRight.add("button", undefined, L('openFolderBtn'));
-        openFolderBtn.onClick = function () {
-            if (!selectedFilePath || selectedFilePath === "---") {
-                alert(L('alertNoValidPath'));
-                return;
-            }
-            try {
-                var f = new File(selectedFilePath);
-                if (f.parent) f.parent.execute();
-            } catch (e) {
-                alert(L('alertOpenFolderFailed') + e.message);
-            }
-        };
 
-        var reloadOneBtn = pathOptRight.add("button", undefined, L('reloadOneBtn'));
+        var reloadOneBtn = pathOptRight.add("button", undefined, "");
         reloadOneBtn.onClick = function () {
             if (!selectedEntry) {
                 alert(L('alertSelectItem'));
                 return;
             }
+
+            var relinkCount = (selectedEntry.itemIndices && selectedEntry.itemIndices.length)
+                ? selectedEntry.itemIndices.length
+                : 0;
+            if (relinkCount > 1) {
+                var confirmMessage = L('confirmBatchRelink') + "\n" +
+                    L('labelTarget') + (lang === 'ja' ? '：' : ': ') + relinkCount + (lang === 'ja' ? ' 件' : ' item(s)');
+                if (!confirm(confirmMessage)) return;
+            }
+
             var picked = File.openDialog(L('selectNewLinkFile'));
             if (!picked) return;
             var res = relinkIndicesTo(selectedEntry.itemIndices, picked);
@@ -1447,14 +1526,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             );
         };
 
-        // パスが「---」（不明）のときはフォルダ操作系ボタンを無効化
-        function updateActionButtonStates() {
-            var hasPath = !!selectedFilePath && selectedFilePath !== "---";
-            openFolderBtn.enabled = hasPath;
-            reloadOneBtn.enabled = (selectedEntry !== null);
+        // 「同一ファイルをまとめる」の状態に応じて、再リンクボタンの意味を明示する
+        function updateRelinkButtonLabel() {
+            reloadOneBtn.text = dedupCheck.value ? L('reloadOneBtnBatch') : L('reloadOneBtnSingle');
         }
 
-        // 初期状態：まだ選択がないのでフォルダ系ボタンを無効化
+        // パスが「---」（不明）のときは再リンクボタンを無効化
+        function updateActionButtonStates() {
+            reloadOneBtn.enabled = (selectedEntry !== null);
+            updateRelinkButtonLabel();
+        }
+
+        // 初期状態：まだ選択がないので再リンクボタンを無効化
         updateActionButtonStates();
 
         // --- リンクフォルダ一覧（パスパネル内、重複排除） ---
@@ -1517,7 +1600,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 }
                 selectedEntry = rematched;
                 selectedFilePath = rematched ? rematched.filePath : "";
-                pathText.text = selectedFilePath ? buildDisplayedPath(selectedFilePath) : L('pathPlaceholder');
+                pathStaticText.text = selectedFilePath ? buildDisplayedPath(selectedFilePath) : L('pathPlaceholder');
                 updateActionButtonStates();
             }
 
@@ -1553,6 +1636,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         folderActionLeft.alignChildren = ["left", "center"];
         folderActionLeft.alignment = ["left", "center"];
 
+        var openFolderBtn = folderActionLeft.add("button", undefined, L('openFolderBtn'));
+        openFolderBtn.onClick = function () {
+            if (foldersListBox.selection === null) {
+                alert(L('alertSelectLinkedFolder'));
+                return;
+            }
+            try {
+                var folderPath = linkedFolderPaths[foldersListBox.selection.index];
+                var f = new Folder(folderPath);
+                if (f.exists) f.execute();
+            } catch (e) {
+                alert(L('alertOpenFolderFailed') + e.message);
+            }
+        };
+
         var folderActionSpacer = folderActionRow.add("group");
         folderActionSpacer.alignment = ["fill", "fill"];
 
@@ -1581,6 +1679,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             );
         };
         reloadFolderBtn.enabled = false;
+        openFolderBtn.enabled = false;
 
         var collectLinksBtn = folderActionRight.add("button", undefined, L('collectLinksBtn'));
         collectLinksBtn.onClick = function () {
@@ -1643,7 +1742,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // フォルダ選択が変わったらボタンを enable/disable
         foldersListBox.onChange = function () {
-            reloadFolderBtn.enabled = (foldersListBox.selection !== null);
+            var hasSelection = (foldersListBox.selection !== null);
+            reloadFolderBtn.enabled = hasSelection;
+            openFolderBtn.enabled = hasSelection;
         };
 
         // メインリスト選択に合わせてフォルダ一覧の該当行をハイライト
@@ -1713,7 +1814,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     suppressCanvasOnce = true;
                     selectedEntry = ent;
                     selectedFilePath = ent.filePath;
-                    pathText.text = buildDisplayedPath(ent.filePath);
+                    pathStaticText.text = buildDisplayedPath(ent.filePath);
                     updateActionButtonStates();
                     highlightFolderFor(ent.filePath);
                     // ScriptUI の一部環境で数値代入が無視されるため ListItem で選択し revealItem で表示位置も合わせる
