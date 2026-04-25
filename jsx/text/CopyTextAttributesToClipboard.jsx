@@ -10,8 +10,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 $.global.FontClipboard に保存します。
 保存する内容は、フォントの PostScript 名・フォントファミリ名・スタイル・フォントサイズ・行送り・自動行送り・
 トラッキング・自動カーニング・自動カーニングの表示名・プロポーショナルメトリクス・
-組み方向・組み方向の表示名・行揃え・行揃えの表示名です。
-フォントサイズは Illustrator 内部値の pt で保存し、完了メッセージでは text/units の設定に合わせて表示します。
+組み方向・組み方向の表示名・行揃え・行揃えの表示名・塗り色（複製）・塗り色の表示名です。
+フォントサイズは Illustrator 内部値の pt で保存し、結果ダイアログでは text/units の設定に合わせて表示します。
+自動行送りがオンのときは、実効値として扱いにくい行送りの数値を表示せず、「—」で表示します。
 同じ #targetengine を指定した適用用スクリプトから値を読み取れます。
 
 Overview
@@ -21,19 +22,21 @@ of the selected text object or partially selected text range, then stores them i
 on the persistent "FontClipboard" engine.
 The stored values include the font PostScript name, font family name, style, font size, leading,
 auto leading, tracking, auto kerning, auto kerning label, proportional metrics,
-text orientation, orientation label, alignment, and alignment label.
-Font size is stored as Illustrator's internal point value, while the completion message displays it
+text orientation, orientation label, alignment, alignment label, fill color (cloned), and fill color label.
+Font size is stored as Illustrator's internal point value, while the result dialog displays it
 according to the text/units preference.
+When auto leading is on, the leading value is displayed as "—" instead of showing a numeric value that may be misleading.
 A separate apply script using the same #targetengine can read the saved values.
 
 作成日 / Created: 2026-04-25
+更新日 / Updated: 2026-04-25
 */
 
 // =========================================
 // バージョンとローカライズ / Version and localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 function getCurrentLocaleLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -102,6 +105,14 @@ var LABELS = {
     justification: {
         ja: "行揃え",
         en: "Alignment"
+    },
+    fillColor: {
+        ja: "塗り",
+        en: "Fill"
+    },
+    fillColorNone: {
+        ja: "なし",
+        en: "None"
     },
     valueOn: {
         ja: "オン",
@@ -208,6 +219,90 @@ function formatBooleanLabel(boolValue) {
 }
 
 // =========================================
+// 塗り色ユーティリティ / Fill color utilities
+// =========================================
+
+/* 色を安全に複製 / Safely clone a color */
+// 参照のまま保持すると Illustrator 側の状態に引きずられるため、新規インスタンスを返す
+function cloneColor(color) {
+    if (!color) return null;
+    switch (color.typename) {
+        case "RGBColor":
+            var rgb = new RGBColor();
+            rgb.red = color.red;
+            rgb.green = color.green;
+            rgb.blue = color.blue;
+            return rgb;
+        case "CMYKColor":
+            var cmyk = new CMYKColor();
+            cmyk.cyan = color.cyan;
+            cmyk.magenta = color.magenta;
+            cmyk.yellow = color.yellow;
+            cmyk.black = color.black;
+            return cmyk;
+        case "GrayColor":
+            var gray = new GrayColor();
+            gray.gray = color.gray;
+            return gray;
+        case "SpotColor":
+            var spot = new SpotColor();
+            spot.spot = color.spot;
+            spot.tint = color.tint;
+            return spot;
+        case "GradientColor":
+            var grad = new GradientColor();
+            grad.gradient = color.gradient;
+            grad.angle = color.angle;
+            grad.length = color.length;
+            grad.origin = color.origin;
+            grad.matrix = color.matrix;
+            return grad;
+        case "NoColor":
+            return new NoColor();
+        default:
+            return null;
+    }
+}
+
+/* テキスト範囲から塗り色を取得 / Get fill color from a text range */
+function getTextRangeFillColor(textRange) {
+    try {
+        return textRange.characterAttributes.fillColor;
+    } catch (e) {
+        return null;
+    }
+}
+
+/* 色を表示用文字列へ整形 / Format color for display */
+function formatColorForDisplay(color) {
+    if (!color || !color.typename) return L("fillColorNone");
+    switch (color.typename) {
+        case "RGBColor":
+            return "RGB(" + Math.round(color.red) + ", " + Math.round(color.green) + ", " + Math.round(color.blue) + ")";
+        case "CMYKColor":
+            return "CMYK(" + Math.round(color.cyan) + ", " + Math.round(color.magenta) + ", " + Math.round(color.yellow) + ", " + Math.round(color.black) + ")";
+        case "GrayColor":
+            return "Gray(" + Math.round(color.gray) + ")";
+        case "SpotColor":
+            try {
+                return "Spot: " + color.spot.name + " (" + Math.round(color.tint) + "%)";
+            } catch (e) {
+                return "Spot";
+            }
+        case "GradientColor":
+            try {
+                return "Gradient: " + color.gradient.name;
+            } catch (e) {
+                return "Gradient";
+            }
+        case "NoColor":
+            return L("fillColorNone");
+        default:
+            return color.typename;
+    }
+}
+
+// =========================================
 // 文字属性ユーティリティ / Text attribute utilities
 // =========================================
 
@@ -221,7 +316,7 @@ function getParentTextFrameFromTextRange(textRange) {
         if (story && story.textFrames && story.textFrames.length > 0) {
             return story.textFrames[0];
         }
-    } catch (e) {}
+    } catch (e) { }
     var parentItem = textRange.parent;
     while (parentItem && parentItem.typename !== "TextFrame") {
         parentItem = parentItem.parent;
@@ -279,13 +374,14 @@ function showResultDialog(info) {
     addRow("fontFamilyName", info.font.family);
     addRow("fontStyle", info.font.style);
     addRow("fontSize", formatPointValueForDisplay(info.size));
-    addRow("leading", formatPointValueForDisplay(info.leading));
+    addRow("leading", info.autoLeading ? "—" : formatPointValueForDisplay(info.leading));
     addRow("autoLeading", formatBooleanLabel(info.autoLeading));
     addRow("tracking", info.tracking);
     addRow("kerningMethod", info.kerningMethodLabel);
     addRow("proportionalMetrics", formatBooleanLabel(info.proportionalMetrics));
     addRow("orientation", info.orientationLabel);
     addRow("justification", info.justificationLabel);
+    addRow("fillColor", info.fillColorLabel);
 
     var buttonGroup = dialog.add("group");
     buttonGroup.alignment = "right";
@@ -366,6 +462,10 @@ function getJustificationLabel(justification) {
     var copiedOrientationLabel = getOrientationLabel(sourceTextFrame);
     var copiedKerningMethodLabel = getKerningMethodLabel(copiedKerningMethod);
 
+    /* 先頭文字の塗り色を取得 / Get fill color from the first character */
+    var copiedFillColor = cloneColor(getTextRangeFillColor(sourceFirstCharacter));
+    var copiedFillColorLabel = formatColorForDisplay(copiedFillColor);
+
     $.global.FontClipboard = {
         font: {
             name: sourceCharacterAttributes.textFont.name,
@@ -382,7 +482,9 @@ function getJustificationLabel(justification) {
         orientation: copiedOrientation,
         orientationLabel: copiedOrientationLabel,
         justification: copiedJustification,
-        justificationLabel: copiedJustificationLabel
+        justificationLabel: copiedJustificationLabel,
+        fillColor: copiedFillColor,
+        fillColorLabel: copiedFillColorLabel
         // 将来拡張
     };
 

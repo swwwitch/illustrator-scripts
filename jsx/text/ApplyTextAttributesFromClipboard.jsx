@@ -10,51 +10,68 @@ $.global.FontClipboard に保存した文字属性・段落属性を、選択中
 テキスト編集モードで文字列を部分選択している場合はその範囲に、複数のテキストオブジェクトを選択している場合はそれぞれに同じ属性を適用します。
 保存された内容は、フォント・スタイル・フォントサイズ・行送り・自動行送り・
 トラッキング・自動カーニング・自動カーニングの表示名・プロポーショナルメトリクス・
-組み方向・組み方向の表示名・行揃え・行揃えの表示名です。
+組み方向・組み方向の表示名・行揃え・行揃えの表示名・塗り色です。
 PostScript名は内部のフォント適用に使用しますが、ダイアログには表示しません。
 ダイアログでは適用する項目をチェックボックスで選択できます。
 初期状態ではフォントのみONにし、Optionクリックでクリックした項目以外をOFFにできます。
-フォントのスタイルは、独立した適用項目ではなく、フォント名の下に補足情報として表示します。
-自動カーニングのうち、メトリクス・オプティカル・0は Illustrator ExtendScript で取得できても直接適用できないため、
+フォントのスタイルは独立した適用項目ではなく、補足情報として表示します。
+
+自動行送りがONのコピー元に対しては、行送りの数値は適用対象として扱わず、
+行送りチェックボックスは無効化されます。
+
+自動カーニング（メトリクス／オプティカル／0）は ExtendScript から直接適用できないため、
 ダイナミックアクションを一時的に読み込んで適用します。
-プロポーショナルメトリクスは通常の文字属性として読み書きします。
-プレビューをONにすると、ダイアログを閉じずに一時適用し、OFFまたはキャンセルでスクリプト開始前の属性へ戻します。
-行揃えは段落属性として扱い、プレビュー解除・キャンセル時には段落ごとの行揃えも復元します。
-フォントサイズと行送りは Illustrator 内部値の pt で適用し、ダイアログ上では text/units の設定に合わせて表示します。
-選択範囲内で属性が混在（例：文字ごとに異なるフォントやサイズ）している場合、退避・復元は代表値での上書きとなり、元の混在状態は再現されません。
+
+プレビューをONにするとダイアログを閉じずに一時適用され、OFFまたはキャンセル時には、
+「実際に変更した項目のみ」元の状態へ戻します（限定復元）。
+未適用項目を代表値で上書きすることはありません。
+
+行揃えは段落属性として扱い、段落ごとの状態も含めて復元します。
+
+フォントサイズと行送りは Illustrator 内部値（pt）で適用し、ダイアログ上では text/units に従って表示します。
+
+選択範囲内で属性が混在している場合、退避・復元は代表値ベースとなるため、
+元の混在状態は完全には再現されません。
+
 Illustrator を再起動するとエンジンが破棄され、記憶した値は消えます。
 
 Overview
 
-This script applies text and paragraph attributes stored by "CopyTextAttributesToClipboard.jsx" in
-$.global.FontClipboard on the persistent "FontClipboard" engine to the selected text.
-If a text range is partially selected in text editing mode, the attributes are applied to that range;
-when multiple text objects are selected, the same attributes are applied to each object.
-The stored values include font, style, font size, leading, auto leading,
-tracking, auto kerning, auto kerning label, proportional metrics,
-text orientation, orientation label, alignment, and alignment label.
-The PostScript name is used internally for font application but is not shown in the dialog.
-The dialog lets you choose which attributes to apply using checkboxes.
-By default, only Font is enabled; Option-click turns off all items except the clicked one.
-The font style is shown as supplemental information under the font name, not as an independent apply item.
-For auto kerning, Metrics, Optical, and 0 can be read by Illustrator ExtendScript but cannot be applied directly,
+This script applies text and paragraph attributes stored by "CopyTextAttributesToClipboard.jsx"
+from $.global.FontClipboard (persistent engine "FontClipboard") to the selected text.
+If a text range is partially selected, attributes are applied to that range;
+if multiple text objects are selected, they are applied to each object.
+
+Stored attributes include font, style, font size, leading, auto leading,
+tracking, auto kerning (with label), proportional metrics,
+text orientation (with label), alignment (with label), and fill color.
+
+If the source uses auto leading, the leading value is not treated as an applicable value,
+and the leading checkbox is disabled.
+
+Auto kerning (Metrics / Optical / 0) cannot be applied directly via ExtendScript,
 so this script temporarily loads dynamic actions to apply them.
-Proportional metrics are read and written as a normal character attribute.
-When Preview is enabled, the selected attributes are applied temporarily without closing the dialog,
-and turning Preview off or canceling restores the attributes from before the script started.
-Alignment is handled as a paragraph attribute, and paragraph-level alignment is also restored when Preview is turned off or the dialog is canceled.
-Font size and leading are applied as Illustrator's internal point values, while the dialog displays them
+
+When Preview is enabled, attributes are applied temporarily without closing the dialog.
+Turning Preview off or canceling restores only the attributes that were actually changed
+(selective restore), avoiding unintended overwrites of untouched properties.
+
+Alignment is handled as a paragraph attribute and restored per paragraph.
+
+Font size and leading are applied in internal point units, while the dialog displays them
 according to the text/units preference.
-If the selection contains mixed attributes (for example, different fonts or sizes per character), capture and restore
-overwrite the range with a single representative value, so the original mixed state cannot be reproduced.
-When Illustrator is restarted, the engine is destroyed and the stored values are cleared.
+
+If the selection contains mixed attributes, restoration is based on representative values
+and the original mixed state cannot be fully reconstructed.
+
+Restarting Illustrator clears the stored values as the engine is destroyed.
 
 作成日 / Created: 2026-04-25
 更新日 / Updated: 2026-04-25
 */
 
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 function getCurrentLocaleLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -135,6 +152,14 @@ var LABELS = {
     justificationLabel: {
         ja: "行揃え",
         en: "Alignment"
+    },
+    fillColorLabel: {
+        ja: "塗り",
+        en: "Fill"
+    },
+    fillColorNone: {
+        ja: "なし",
+        en: "None"
     },
     horizontalOrientation: {
         ja: "横組み",
@@ -258,6 +283,129 @@ function formatPointValueForDialog(pointValue) {
 }
 
 // =========================================
+// 塗り色ユーティリティ / Fill color utilities
+// =========================================
+
+/* 色を安全に複製 / Safely clone a color */
+// 復元・適用時の独立性を保つため、毎回新規インスタンスを返す
+function cloneColor(color) {
+    if (!color) return null;
+    switch (color.typename) {
+        case "RGBColor":
+            var rgb = new RGBColor();
+            rgb.red = color.red;
+            rgb.green = color.green;
+            rgb.blue = color.blue;
+            return rgb;
+        case "CMYKColor":
+            var cmyk = new CMYKColor();
+            cmyk.cyan = color.cyan;
+            cmyk.magenta = color.magenta;
+            cmyk.yellow = color.yellow;
+            cmyk.black = color.black;
+            return cmyk;
+        case "GrayColor":
+            var gray = new GrayColor();
+            gray.gray = color.gray;
+            return gray;
+        case "SpotColor":
+            var spot = new SpotColor();
+            spot.spot = color.spot;
+            spot.tint = color.tint;
+            return spot;
+        case "GradientColor":
+            var grad = new GradientColor();
+            grad.gradient = color.gradient;
+            grad.angle = color.angle;
+            grad.length = color.length;
+            grad.origin = color.origin;
+            grad.matrix = color.matrix;
+            return grad;
+        case "NoColor":
+            return new NoColor();
+        default:
+            return null;
+    }
+}
+
+/* 色を表示用文字列へ整形 / Format color for display */
+function formatColorForDialog(color) {
+    if (!color || !color.typename) return L("fillColorNone");
+    switch (color.typename) {
+        case "RGBColor":
+            return "RGB(" + Math.round(color.red) + ", " + Math.round(color.green) + ", " + Math.round(color.blue) + ")";
+        case "CMYKColor":
+            return "CMYK(" + Math.round(color.cyan) + ", " + Math.round(color.magenta) + ", " + Math.round(color.yellow) + ", " + Math.round(color.black) + ")";
+        case "GrayColor":
+            return "Gray(" + Math.round(color.gray) + ")";
+        case "SpotColor":
+            try {
+                return "Spot: " + color.spot.name + " (" + Math.round(color.tint) + "%)";
+            } catch (e) {
+                return "Spot";
+            }
+        case "GradientColor":
+            try {
+                return "Gradient: " + color.gradient.name;
+            } catch (e) {
+                return "Gradient";
+            }
+        case "NoColor":
+            return L("fillColorNone");
+        default:
+            return color.typename;
+    }
+}
+
+/* テキスト範囲の塗り色を取得 / Get fill color from text range */
+function getTextRangeFillColor(textRange) {
+    try {
+        return textRange.characterAttributes.fillColor;
+    } catch (e) {
+        return null;
+    }
+}
+
+/* テキスト範囲へ塗り色を適用 / Apply fill color to a text range */
+// textRange.characterAttributes に一括代入すると例外が出ないまま無視されてブラックになることがあるため、
+// FillStrokeSwitcher と同じく文字単位の代入を優先し、文字列挙ができないときだけ範囲一括にフォールバックする
+function applyFillColorToTextRange(textRange, color) {
+    if (!textRange || !color) return false;
+
+    var characters = null;
+    try {
+        characters = textRange.characters;
+    } catch (e1) {
+        characters = null;
+    }
+
+    if (characters && characters.length > 0) {
+        var appliedAny = false;
+        for (var i = 0; i < characters.length; i++) {
+            var clonedForChar = cloneColor(color);
+            if (!clonedForChar) continue;
+            try {
+                characters[i].characterAttributes.fillColor = clonedForChar;
+                appliedAny = true;
+            } catch (charError) {
+            }
+        }
+        if (appliedAny) return true;
+    }
+
+    /* 文字列挙ができない場合の最終フォールバック / Final fallback when characters cannot be enumerated */
+    var clonedForRange = cloneColor(color);
+    if (!clonedForRange) return false;
+    try {
+        textRange.characterAttributes.fillColor = clonedForRange;
+        return true;
+    } catch (e2) {
+    }
+
+    return false;
+}
+
+// =========================================
 // 文字属性ユーティリティ / Text attribute utilities
 // =========================================
 
@@ -373,42 +521,70 @@ function captureCurrentTextAttributes(textRange, textFrame) {
         proportionalMetrics: characterAttributes.proportionalMetrics,
         orientation: textFrame ? textFrame.orientation : null,
         justification: paragraphAttributes.justification,
-        paragraphJustifications: captureParagraphJustifications(textRange)
+        paragraphJustifications: captureParagraphJustifications(textRange),
+        fillColor: cloneColor(getTextRangeFillColor(firstCharacter))
     };
 }
 
-/* 退避した属性を復元 / Restore captured attributes */
-function restoreTextAttributes(textRange, textFrame, capturedAttributes) {
+/* 実際に適用した属性だけを退避値へ戻す / Restore only applied attributes to captured values */
+// appliedState を受け取り、プレビューで実際に変更した項目だけ退避値へ戻す
+// 混在書式の未適用項目を代表値で上書きしないため、通常の完全復元とは分けて扱う
+// （特に自動カーニングは復元のためにダイナミックアクションを読み込む必要があるため、未適用なら呼び出さない）
+function restoreAppliedTextAttributes(textRange, textFrame, capturedAttributes, appliedState) {
     if (!capturedAttributes) return;
+    if (!appliedState) return;
 
     var characterAttributes = textRange.characterAttributes;
 
-    try {
-        characterAttributes.textFont = app.textFonts.getByName(capturedAttributes.fontName);
-    } catch (e) {
-        // 復元時にフォントが見つからない場合は無視 / Ignore if the font cannot be found while restoring
+    if (appliedState.applyFont) {
+        try {
+            characterAttributes.textFont = app.textFonts.getByName(capturedAttributes.fontName);
+        } catch (e) {
+            // 復元時にフォントが見つからない場合は無視 / Ignore if the font cannot be found while restoring
+        }
     }
 
-    characterAttributes.size = capturedAttributes.size;
-    characterAttributes.autoLeading = capturedAttributes.autoLeading;
-    if (!capturedAttributes.autoLeading) {
+    if (appliedState.applySize) {
+        characterAttributes.size = capturedAttributes.size;
+    }
+
+    if (appliedState.applyAutoLeading) {
+        characterAttributes.autoLeading = capturedAttributes.autoLeading;
+    }
+
+    if (appliedState.applyLeading && !capturedAttributes.autoLeading) {
         characterAttributes.leading = capturedAttributes.leading;
     }
-    characterAttributes.tracking = capturedAttributes.tracking;
 
-
-
-
-    applyKerningMethodSafely(characterAttributes, capturedAttributes, textRange);
-    characterAttributes.proportionalMetrics = capturedAttributes.proportionalMetrics;
-    if (capturedAttributes.paragraphJustifications && capturedAttributes.paragraphJustifications.length > 0) {
-        restoreParagraphJustifications(textRange, textFrame, capturedAttributes.paragraphJustifications);
+    if (appliedState.applyTracking) {
+        characterAttributes.tracking = capturedAttributes.tracking;
     }
-    if (typeof capturedAttributes.justification !== "undefined" && capturedAttributes.justification !== null) {
-        applyJustificationSafely(textRange, textFrame, capturedAttributes.justification);
+
+    /* 自動カーニングは適用していないときは復元不要（ダイナミックアクションのロードを避ける） */
+    /*   Skip kerning restore unless it was actually applied (avoid loading the dynamic action) */
+    if (appliedState && appliedState.applyKerningMethod) {
+        applyKerningMethodSafely(characterAttributes, capturedAttributes, textRange);
     }
-    if (textFrame && capturedAttributes.orientation !== null && typeof capturedAttributes.orientation !== "undefined") {
+
+    if (appliedState.applyProportionalMetrics) {
+        characterAttributes.proportionalMetrics = capturedAttributes.proportionalMetrics;
+    }
+
+    if (appliedState.applyJustification) {
+        if (capturedAttributes.paragraphJustifications && capturedAttributes.paragraphJustifications.length > 0) {
+            restoreParagraphJustifications(textRange, textFrame, capturedAttributes.paragraphJustifications);
+        }
+        if (typeof capturedAttributes.justification !== "undefined" && capturedAttributes.justification !== null) {
+            applyJustificationSafely(textRange, textFrame, capturedAttributes.justification);
+        }
+    }
+
+    if (appliedState.applyOrientation && textFrame && capturedAttributes.orientation !== null && typeof capturedAttributes.orientation !== "undefined") {
         textFrame.orientation = capturedAttributes.orientation;
+    }
+
+    if (appliedState.applyFillColor && capturedAttributes.fillColor) {
+        applyFillColorToTextRange(textRange, capturedAttributes.fillColor);
     }
 }
 
@@ -421,11 +597,11 @@ function captureCurrentTextAttributesForTargets(targets) {
     return capturedList;
 }
 
-/* 複数対象の退避属性を復元 / Restore captured attributes for multiple targets */
-function restoreTextAttributesForTargets(targets, capturedList) {
+/* 複数対象で実際に適用した属性だけを退避値へ戻す / Restore only applied attributes for multiple targets */
+function restoreAppliedTextAttributesForTargets(targets, capturedList, appliedState) {
     if (!targets || !capturedList) return;
     for (var targetIndex = 0; targetIndex < targets.length; targetIndex++) {
-        restoreTextAttributes(targets[targetIndex].textRange, targets[targetIndex].textFrame, capturedList[targetIndex]);
+        restoreAppliedTextAttributes(targets[targetIndex].textRange, targets[targetIndex].textFrame, capturedList[targetIndex], appliedState);
     }
 }
 
@@ -559,7 +735,7 @@ function applyKerningMethodSafely(characterAttributes, copiedAttributes, textRan
     /* Illustrator ExtendScriptでは自動カーニング／メトリクス・オプティカル・0を取得できても直接適用できないため、対象範囲を選択してからアクションで適用する必要がある / In Illustrator ExtendScript, auto kerning Metrics, Optical, and 0 cannot be applied directly even if they can be read, so it is necessary to select the target range and apply it with an action. */
     if (isMetricsKerningMethod(copiedAttributes)) {
         try {
-            runKerningActionWithSelection(textRange, runKerningMetricsAction);
+            runKerningActionWithSelection(textRange, function () { runKerningActionByType('metrics'); });
         } catch (actionError) {
             // アクションでメトリクスを適用できない場合はスキップ / Skip if Metrics cannot be applied by action
         }
@@ -568,7 +744,7 @@ function applyKerningMethodSafely(characterAttributes, copiedAttributes, textRan
 
     if (isOpticalKerningMethod(copiedAttributes)) {
         try {
-            runKerningActionWithSelection(textRange, runKerningOpticalAction);
+            runKerningActionWithSelection(textRange, function () { runKerningActionByType('optical'); });
         } catch (actionError2) {
             // アクションでオプティカルを適用できない場合はスキップ / Skip if Optical cannot be applied by action
         }
@@ -577,7 +753,7 @@ function applyKerningMethodSafely(characterAttributes, copiedAttributes, textRan
 
     if (isZeroKerningMethod(copiedAttributes)) {
         try {
-            runKerningActionWithSelection(textRange, runKerningZeroAction);
+            runKerningActionWithSelection(textRange, function () { runKerningActionByType('zero'); });
         } catch (actionError3) {
             // アクションで0を適用できない場合はスキップ / Skip if 0 cannot be applied by action
         }
@@ -591,22 +767,54 @@ function applyKerningMethodSafely(characterAttributes, copiedAttributes, textRan
     }
 }
 
-/* 自動カーニング／メトリクス用アクションを実行 / Run auto kerning Metrics action */
-function runKerningMetricsAction() {
-    var str = '/version 3' + '/name [ 7' + ' 4b65726e696e67' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 7' + ' 4d657472696373' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (adobe_SLOCharacterPalette)' + ' /localizedName [ 6' + ' e69687e5ad97' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 0' + ' /parameterCount 1' + ' /parameter-1 {' + ' /key 1635019621' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 0' + ' }' + ' }' + '}';
+/* 自動カーニング用ダイナミックアクションのキャッシュ / Cache for auto kerning dynamic actions */
+// 同じ種別のアクションを複数テキストへ繰り返し適用しても loadAction が一度で済むよう、現在ロード中の種別を保持する
+// #targetengine "FontClipboard" はエンジンが残り続けるため、main の開始時に必ず resetKerningActionCache() を呼んで初期化する
+var kerningActionCache = {
+    setName: 'Kerning',
+    loadedType: null,
+    aiaBodies: {
+        metrics: '/version 3' + '/name [ 7' + ' 4b65726e696e67' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 7' + ' 4d657472696373' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (adobe_SLOCharacterPalette)' + ' /localizedName [ 6' + ' e69687e5ad97' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 0' + ' /parameterCount 1' + ' /parameter-1 {' + ' /key 1635019621' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 0' + ' }' + ' }' + '}',
+        optical: '/version 3' + '/name [ 7' + ' 4b65726e696e67' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 7' + ' 4f70746963616c' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (adobe_SLOCharacterPalette)' + ' /localizedName [ 6' + ' e69687e5ad97' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 0' + ' /parameterCount 1' + ' /parameter-1 {' + ' /key 1869638501' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 1' + ' }' + ' }' + '}',
+        zero: '/version 3' + '/name [ 7' + ' 4b65726e696e67' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 8' + ' 4b65726e696e6730' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (adobe_SLOCharacterPalette)' + ' /localizedName [ 6' + ' e69687e5ad97' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 0' + ' /parameterCount 1' + ' /parameter-1 {' + ' /key 1801810542' + ' /showInPalette 4294967295' + ' /type (integer)' + ' /value 0' + ' }' + ' }' + '}'
+    },
+    actionNames: {
+        metrics: 'Metrics',
+        optical: 'Optical',
+        zero: 'Kerning0'
+    }
+};
 
-    var actionFile = new File('~/ScriptAction.aia');
-    try {
-        actionFile.open('w');
-        actionFile.write(str);
-        actionFile.close();
-        app.loadAction(actionFile);
-        app.doScript('Metrics', 'Kerning', false);
-    } finally {
+/* キャッシュ状態を初期化 / Reset cache state */
+// #targetengine の永続性により持ち越される loadedType を毎回クリアする
+function resetKerningActionCache() {
+    kerningActionCache.loadedType = null;
+}
+
+/* 指定種別のダイナミックアクションを必要なときだけ読み込む / Lazy-load the kerning action of the given type */
+function ensureKerningActionLoaded(type) {
+    if (kerningActionCache.loadedType === type) return;
+
+    /* 別種別がロード中の場合は入れ替え / Swap if a different type is currently loaded */
+    if (kerningActionCache.loadedType !== null) {
         try {
-            app.unloadAction('Kerning', '');
+            app.unloadAction(kerningActionCache.setName, '');
         } catch (unloadError) {
         }
+        kerningActionCache.loadedType = null;
+    }
+
+    var actionBody = kerningActionCache.aiaBodies[type];
+    if (!actionBody) return;
+
+    var actionFile = new File(Folder.temp.fsName + '/ScriptAction_Kerning_' + new Date().getTime() + '_' + Math.floor(Math.random() * 100000) + '.aia');
+    try {
+        actionFile.open('w');
+        actionFile.write(actionBody);
+        actionFile.close();
+        app.loadAction(actionFile);
+        kerningActionCache.loadedType = type;
+    } finally {
         try {
             if (actionFile.exists) actionFile.remove();
         } catch (removeError) {
@@ -614,50 +822,21 @@ function runKerningMetricsAction() {
     }
 }
 
-/* 自動カーニング／オプティカル用アクションを実行 / Run auto kerning Optical action */
-function runKerningOpticalAction() {
-    var str = '/version 3' + '/name [ 7' + ' 4b65726e696e67' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 7' + ' 4f70746963616c' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (adobe_SLOCharacterPalette)' + ' /localizedName [ 6' + ' e69687e5ad97' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 0' + ' /parameterCount 1' + ' /parameter-1 {' + ' /key 1869638501' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 1' + ' }' + ' }' + '}';
-
-    var actionFile = new File('~/ScriptAction.aia');
-    try {
-        actionFile.open('w');
-        actionFile.write(str);
-        actionFile.close();
-        app.loadAction(actionFile);
-        app.doScript('Optical', 'Kerning', false);
-    } finally {
-        try {
-            app.unloadAction('Kerning', '');
-        } catch (unloadError) {
-        }
-        try {
-            if (actionFile.exists) actionFile.remove();
-        } catch (removeError) {
-        }
-    }
+/* キャッシュされたカーニングアクションを実行 / Run a cached kerning action */
+function runKerningActionByType(type) {
+    ensureKerningActionLoaded(type);
+    if (kerningActionCache.loadedType !== type) return;
+    app.doScript(kerningActionCache.actionNames[type], kerningActionCache.setName, false);
 }
 
-/* 自動カーニング／0用アクションを実行 / Run auto kerning 0 action */
-function runKerningZeroAction() {
-    var str = '/version 3' + '/name [ 7' + ' 4b65726e696e67' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 8' + ' 4b65726e696e6730' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (adobe_SLOCharacterPalette)' + ' /localizedName [ 6' + ' e69687e5ad97' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 0' + ' /parameterCount 1' + ' /parameter-1 {' + ' /key 1801810542' + ' /showInPalette 4294967295' + ' /type (integer)' + ' /value 0' + ' }' + ' }' + '}';
-
-    var actionFile = new File('~/ScriptAction.aia');
+/* 読み込んだカーニングアクションを破棄 / Unload the cached kerning action */
+function unloadCachedKerningAction() {
+    if (kerningActionCache.loadedType === null) return;
     try {
-        actionFile.open('w');
-        actionFile.write(str);
-        actionFile.close();
-        app.loadAction(actionFile);
-        app.doScript('Kerning0', 'Kerning', false);
-    } finally {
-        try {
-            app.unloadAction('Kerning', '');
-        } catch (unloadError) {
-        }
-        try {
-            if (actionFile.exists) actionFile.remove();
-        } catch (removeError) {
-        }
+        app.unloadAction(kerningActionCache.setName, '');
+    } catch (unloadError) {
     }
+    kerningActionCache.loadedType = null;
 }
 
 
@@ -751,6 +930,10 @@ function applyCopiedTextAttributes(textRange, textFrame, copiedAttributes, uiSta
     if (uiState.applyOrientation && textFrame && copiedAttributes.orientation !== null) {
         textFrame.orientation = copiedAttributes.orientation;
     }
+
+    if (uiState.applyFillColor && copiedAttributes.fillColor) {
+        applyFillColorToTextRange(textRange, copiedAttributes.fillColor);
+    }
 }
 
 /* 複数対象へコピー済み属性を適用 / Apply copied attributes to multiple targets */
@@ -771,7 +954,8 @@ function readApplyUIState(ui) {
         applyKerningMethod: ui.cbKerningMethod.value,
         applyProportionalMetrics: ui.cbProportionalMetrics.value,
         applyOrientation: ui.cbOrientation.value,
-        applyJustification: ui.cbJustification.value
+        applyJustification: ui.cbJustification.value,
+        applyFillColor: ui.cbFillColor.value
     };
 }
 
@@ -785,7 +969,8 @@ function hasAnyApplyTarget(uiState) {
         uiState.applyKerningMethod ||
         uiState.applyProportionalMetrics ||
         uiState.applyOrientation ||
-        uiState.applyJustification;
+        uiState.applyJustification ||
+        uiState.applyFillColor;
 }
 
 /* コピー済み属性の有無を確認 / Check whether copied attributes exist */
@@ -836,6 +1021,14 @@ function hasCopiedJustification(copiedAttributes) {
         copiedAttributes.justification !== null &&
         typeof copiedAttributes.justification !== "undefined"
     );
+}
+
+/* コピー済みの塗り色があるか確認 / Check whether copied fill color exists */
+function hasCopiedFillColor(copiedAttributes) {
+    if (!copiedAttributes) return false;
+    var color = copiedAttributes.fillColor;
+    if (!color || !color.typename) return false;
+    return color.typename !== "NoColor";
 }
 
 /* コピー済みの自動カーニングがあるか確認 / Check whether copied auto kerning exists */
@@ -961,8 +1154,9 @@ function bindExclusiveOptionClick(checkboxes) {
     var hasProportionalMetrics = hasCopiedBoolean(copiedTextAttributes, "proportionalMetrics");
     var hasOrientation = hasCopiedOrientation(copiedTextAttributes);
     var hasJustification = hasCopiedJustification(copiedTextAttributes);
+    var hasFillColor = hasCopiedFillColor(copiedTextAttributes);
 
-    if (!hasFont && !hasSize && !hasLeading && !hasAutoLeading && !hasTracking && !hasKerningMethod && !hasProportionalMetrics && !hasOrientation && !hasJustification) {
+    if (!hasFont && !hasSize && !hasLeading && !hasAutoLeading && !hasTracking && !hasKerningMethod && !hasProportionalMetrics && !hasOrientation && !hasJustification && !hasFillColor) {
         alert(L("errorNoCopiedAttributes"));
         return;
     }
@@ -1011,10 +1205,19 @@ function bindExclusiveOptionClick(checkboxes) {
     var justificationDisplay = hasJustification
         ? (copiedTextAttributes.justificationLabel || String(copiedTextAttributes.justification))
         : L("notStored");
+    var fillColorDisplay = hasFillColor
+        ? (copiedTextAttributes.fillColorLabel || formatColorForDialog(copiedTextAttributes.fillColor))
+        : L("notStored");
 
     var cbFont = addFontCheckboxRow(dlg, fontDisplay, fontStyleDisplay, hasFont, true, ATTRIBUTE_LABEL_WIDTH);
     var cbSize = addAttributeCheckboxRow(dlg, "sizeLabel", sizeDisplay, hasSize, false, ATTRIBUTE_LABEL_WIDTH);
     var cbLeading = addAttributeCheckboxRow(dlg, "leadingLabel", leadingDisplay, hasLeading, false, ATTRIBUTE_LABEL_WIDTH);
+    /* コピー元が自動行送りの場合は、行送りの適用はできないためチェックボックスを無効化
+       Disable leading checkbox when the copied source uses auto leading */
+    if (hasAutoLeading && copiedTextAttributes.autoLeading === true) {
+        cbLeading.enabled = false;
+        cbLeading.value = false;
+    }
     var cbAutoLeading = addAttributeCheckboxRow(dlg, "autoLeadingLabel", autoLeadingDisplay, hasAutoLeading, false, ATTRIBUTE_LABEL_WIDTH);
     var cbTracking = addAttributeCheckboxRow(dlg, "trackingLabel", trackingDisplay, hasTracking, false, ATTRIBUTE_LABEL_WIDTH);
     var cbKerningMethod = addAttributeCheckboxRow(dlg, "kerningMethodLabel", kerningMethodDisplay, hasKerningMethod, false, ATTRIBUTE_LABEL_WIDTH);
@@ -1022,6 +1225,7 @@ function bindExclusiveOptionClick(checkboxes) {
     var cbOrientation = addAttributeCheckboxRow(dlg, "orientationLabel", orientationDisplay, hasOrientation, false, ATTRIBUTE_LABEL_WIDTH);
     cbOrientation.enabled = hasOrientation && canApplyOrientation;
     var cbJustification = addAttributeCheckboxRow(dlg, "justificationLabel", justificationDisplay, hasJustification, false, ATTRIBUTE_LABEL_WIDTH);
+    var cbFillColor = addAttributeCheckboxRow(dlg, "fillColorLabel", fillColorDisplay, hasFillColor, false, ATTRIBUTE_LABEL_WIDTH);
 
     var attributeCheckboxes = [
         cbFont,
@@ -1032,7 +1236,8 @@ function bindExclusiveOptionClick(checkboxes) {
         cbKerningMethod,
         cbProportionalMetrics,
         cbOrientation,
-        cbJustification
+        cbJustification,
+        cbFillColor
     ];
     bindExclusiveOptionClick(attributeCheckboxes);
 
@@ -1062,97 +1267,119 @@ function bindExclusiveOptionClick(checkboxes) {
     btnGroup.add("button", undefined, L("cancelButton"), { name: "cancel" });
     btnGroup.add("button", undefined, L("applyButton"), { name: "ok" });
 
+    /* スクリプト実行ごとにアクションキャッシュを初期化（#targetengine の永続性対策）
+       Reset the action cache at the start of each run (handles #targetengine persistence) */
+    resetKerningActionCache();
+
     var originalTextAttributesList = captureCurrentTextAttributesForTargets(applyTargets);
     var isPreviewApplied = false;
+    /* 直近の適用状態を保持し、復元時に「実際に適用した項目だけ戻す」判定に使う
+       Track the last applied state so restore can selectively undo only what was applied */
+    var lastAppliedState = null;
 
-    function removePreview() {
-        if (!isPreviewApplied) return;
-        restoreTextAttributesForTargets(applyTargets, originalTextAttributesList);
-        isPreviewApplied = false;
-    }
+    try {
+        function removePreview() {
+            if (!isPreviewApplied) return;
+            restoreAppliedTextAttributesForTargets(applyTargets, originalTextAttributesList, lastAppliedState);
+            isPreviewApplied = false;
+            lastAppliedState = null;
+        }
 
-    function updatePreview() {
-        if (!cbPreview.value) {
-            removePreview();
+        function updatePreview() {
+            if (!cbPreview.value) {
+                removePreview();
+                return;
+            }
+
+            try {
+                removePreview();
+                var previewState = readApplyUIState({
+                    cbFont: cbFont,
+                    cbSize: cbSize,
+                    cbLeading: cbLeading,
+                    cbAutoLeading: cbAutoLeading,
+                    cbTracking: cbTracking,
+                    cbKerningMethod: cbKerningMethod,
+                    cbProportionalMetrics: cbProportionalMetrics,
+                    cbOrientation: cbOrientation,
+                    cbJustification: cbJustification,
+                    cbFillColor: cbFillColor
+                });
+                applyCopiedTextAttributesToTargets(applyTargets, copiedTextAttributes, previewState);
+                isPreviewApplied = true;
+                lastAppliedState = previewState;
+                app.redraw();
+            } catch (e) {
+                restoreAppliedTextAttributesForTargets(applyTargets, originalTextAttributesList, lastAppliedState);
+                isPreviewApplied = false;
+                lastAppliedState = null;
+                cbPreview.value = false;
+                alert(e.message);
+            }
+        }
+
+        cbPreview.onClick = updatePreview;
+
+        for (var previewCheckboxIndex = 0; previewCheckboxIndex < attributeCheckboxes.length; previewCheckboxIndex++) {
+            attributeCheckboxes[previewCheckboxIndex].onClick = (function (originalOnClick) {
+                return function () {
+                    if (originalOnClick) originalOnClick.call(this);
+                    updatePreview();
+                };
+            })(attributeCheckboxes[previewCheckboxIndex].onClick);
+        }
+
+        var dialogResult = dlg.show();
+        if (dialogResult !== 1) {
+            restoreAppliedTextAttributesForTargets(applyTargets, originalTextAttributesList, lastAppliedState);
+            isPreviewApplied = false;
+            lastAppliedState = null;
             return;
         }
 
+        var applyState = readApplyUIState({
+            cbFont: cbFont,
+            cbSize: cbSize,
+            cbLeading: cbLeading,
+            cbAutoLeading: cbAutoLeading,
+            cbTracking: cbTracking,
+            cbKerningMethod: cbKerningMethod,
+            cbProportionalMetrics: cbProportionalMetrics,
+            cbOrientation: cbOrientation,
+            cbJustification: cbJustification,
+            cbFillColor: cbFillColor
+        });
+
+        if (!hasAnyApplyTarget(applyState)) {
+            restoreAppliedTextAttributesForTargets(applyTargets, originalTextAttributesList, lastAppliedState);
+            isPreviewApplied = false;
+            lastAppliedState = null;
+            alert(L("errorNoApplyItem"));
+            return;
+        }
+
+        /* 適用 / Apply */
+        // textRange 全体に対して characterAttributes を書き換える / Rewrite characterAttributes for the entire textRange
+        // プレビューONで表示済みの状態は適用内容と一致するため、戻す→再適用はスキップ /
+        // When preview is ON, the on-screen state already matches applyState, so skip the revert/re-apply cycle
         try {
-            removePreview();
-            var previewState = readApplyUIState({
-                cbFont: cbFont,
-                cbSize: cbSize,
-                cbLeading: cbLeading,
-                cbAutoLeading: cbAutoLeading,
-                cbTracking: cbTracking,
-                cbKerningMethod: cbKerningMethod,
-                cbProportionalMetrics: cbProportionalMetrics,
-                cbOrientation: cbOrientation,
-                cbJustification: cbJustification
-            });
-            applyCopiedTextAttributesToTargets(applyTargets, copiedTextAttributes, previewState);
-            isPreviewApplied = true;
-            app.redraw();
+            if (isPreviewApplied && cbPreview.value) {
+                isPreviewApplied = false;
+                /* lastAppliedState は表示中の状態を保持し続ける / Keep lastAppliedState reflecting the current on-screen state */
+            } else {
+                removePreview();
+                applyCopiedTextAttributesToTargets(applyTargets, copiedTextAttributes, applyState);
+                lastAppliedState = applyState;
+            }
         } catch (e) {
-            restoreTextAttributesForTargets(applyTargets, originalTextAttributesList);
+            restoreAppliedTextAttributesForTargets(applyTargets, originalTextAttributesList, lastAppliedState);
             isPreviewApplied = false;
-            cbPreview.value = false;
+            lastAppliedState = null;
             alert(e.message);
+            return;
         }
-    }
-
-    cbPreview.onClick = updatePreview;
-
-    for (var previewCheckboxIndex = 0; previewCheckboxIndex < attributeCheckboxes.length; previewCheckboxIndex++) {
-        attributeCheckboxes[previewCheckboxIndex].onClick = (function (originalOnClick) {
-            return function () {
-                if (originalOnClick) originalOnClick.call(this);
-                updatePreview();
-            };
-        })(attributeCheckboxes[previewCheckboxIndex].onClick);
-    }
-
-    var dialogResult = dlg.show();
-    if (dialogResult !== 1) {
-        restoreTextAttributesForTargets(applyTargets, originalTextAttributesList);
-        isPreviewApplied = false;
-        return;
-    }
-
-    var applyState = readApplyUIState({
-        cbFont: cbFont,
-        cbSize: cbSize,
-        cbLeading: cbLeading,
-        cbAutoLeading: cbAutoLeading,
-        cbTracking: cbTracking,
-        cbKerningMethod: cbKerningMethod,
-        cbProportionalMetrics: cbProportionalMetrics,
-        cbOrientation: cbOrientation,
-        cbJustification: cbJustification
-    });
-
-    if (!hasAnyApplyTarget(applyState)) {
-        restoreTextAttributesForTargets(applyTargets, originalTextAttributesList);
-        isPreviewApplied = false;
-        alert(L("errorNoApplyItem"));
-        return;
-    }
-
-    /* 適用 / Apply */
-    // textRange 全体に対して characterAttributes を書き換える / Rewrite characterAttributes for the entire textRange
-    // プレビューONで表示済みの状態は適用内容と一致するため、戻す→再適用はスキップ /
-    // When preview is ON, the on-screen state already matches applyState, so skip the revert/re-apply cycle
-    try {
-        if (isPreviewApplied && cbPreview.value) {
-            isPreviewApplied = false;
-        } else {
-            removePreview();
-            applyCopiedTextAttributesToTargets(applyTargets, copiedTextAttributes, applyState);
-        }
-    } catch (e) {
-        restoreTextAttributesForTargets(applyTargets, originalTextAttributesList);
-        isPreviewApplied = false;
-        alert(e.message);
-        return;
+    } finally {
+        /* スクリプト終了時にダイナミックアクションをアンロード / Unload the dynamic action when the script ends */
+        unloadCachedKerningAction();
     }
 })();
