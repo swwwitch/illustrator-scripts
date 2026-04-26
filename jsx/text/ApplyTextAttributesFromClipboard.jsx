@@ -8,7 +8,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 「CopyTextAttributesToClipboard.jsx」が永続エンジン "FontClipboard" の
 $.global.FontClipboard に保存した文字属性・段落属性を、選択中のテキストへ適用します。
 テキスト編集モードで文字列を部分選択している場合はその範囲に、複数のテキストオブジェクトを選択している場合はそれぞれに同じ属性を適用します。
-保存された内容は、フォント・スタイル・フォントサイズ・行送り・自動行送り・
+保存された内容は、フォント・スタイル・フォントサイズ・行送り・自動行送り・文字ツメ・
 トラッキング・自動カーニング・自動カーニングの表示名・プロポーショナルメトリクス・
 組み方向・組み方向の表示名・行揃え・行揃えの表示名・塗り色です。
 PostScript名は内部のフォント適用に使用しますが、ダイアログには表示しません。
@@ -45,7 +45,7 @@ from $.global.FontClipboard (persistent engine "FontClipboard") to the selected 
 If a text range is partially selected, attributes are applied to that range;
 if multiple text objects are selected, they are applied to each object.
 
-Stored attributes include font, style, font size, leading, auto leading,
+Stored attributes include font, style, font size, leading, auto leading, Tsume,
 tracking, auto kerning (with label), proportional metrics,
 text orientation (with label), alignment (with label), and fill color.
 
@@ -76,7 +76,7 @@ Restarting Illustrator clears the stored values as the engine is destroyed.
 */
 
 
-var SCRIPT_VERSION = "v1.1.1";
+var SCRIPT_VERSION = "v1.2.0";
 
 function getCurrentLocaleLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -122,6 +122,18 @@ var LABELS = {
         ja: "\" が見つかりませんでした。\nこの環境にインストールされていない可能性があります。",
         en: "\" was not found.\nIt may not be installed in this environment."
     },
+    fontSizeLeadingPanelTitle: {
+        ja: "フォント・サイズ、行送り",
+        en: "Font, Size & Leading"
+    },
+    kerningPanelTitle: {
+        ja: "カーニング関連",
+        en: "Kerning"
+    },
+    paragraphOtherPanelTitle: {
+        ja: "段落属性ほか",
+        en: "Paragraph & Other"
+    },
     fontLabel: {
         ja: "フォント",
         en: "Font"
@@ -137,6 +149,10 @@ var LABELS = {
     autoLeadingLabel: {
         ja: "自動行送り",
         en: "Auto leading"
+    },
+    tsumeLabel: {
+        ja: "文字ツメ",
+        en: "Tsume"
     },
     trackingLabel: {
         ja: "トラッキング",
@@ -521,6 +537,7 @@ function captureCurrentTextAttributes(textRange, textFrame) {
         size: characterAttributes.size,
         leading: characterAttributes.leading,
         autoLeading: characterAttributes.autoLeading,
+        tsume: characterAttributes.Tsume,
         tracking: characterAttributes.tracking,
         kerningMethod: characterAttributes.kerningMethod,
         proportionalMetrics: characterAttributes.proportionalMetrics,
@@ -560,6 +577,10 @@ function restoreAppliedTextAttributes(textRange, textFrame, capturedAttributes, 
     if (appliedState.applyLeading && !capturedAttributes.autoLeading) {
         characterAttributes.autoLeading = false;
         characterAttributes.leading = capturedAttributes.leading;
+    }
+
+    if (appliedState.applyTsume) {
+        characterAttributes.Tsume = Math.round(capturedAttributes.tsume);
     }
 
     if (appliedState.applyTracking) {
@@ -934,6 +955,10 @@ function applyCopiedTextAttributes(textRange, textFrame, copiedAttributes, uiSta
         characterAttributes.leading = copiedAttributes.leading;
     }
 
+    if (uiState.applyTsume) {
+        characterAttributes.Tsume = Math.round(copiedAttributes.tsume);
+    }
+
     if (uiState.applyTracking) {
         characterAttributes.tracking = copiedAttributes.tracking;
     }
@@ -973,6 +998,7 @@ function readApplyUIState(ui) {
         applySize: ui.cbSize.value,
         applyLeading: ui.cbLeading.value,
         applyAutoLeading: ui.cbAutoLeading.value,
+        applyTsume: ui.cbTsume.value,
         applyTracking: ui.cbTracking.value,
         applyKerningMethod: ui.cbKerningMethod.value,
         applyProportionalMetrics: ui.cbProportionalMetrics.value,
@@ -988,6 +1014,7 @@ function hasAnyApplyTarget(uiState) {
         uiState.applySize ||
         uiState.applyLeading ||
         uiState.applyAutoLeading ||
+        uiState.applyTsume ||
         uiState.applyTracking ||
         uiState.applyKerningMethod ||
         uiState.applyProportionalMetrics ||
@@ -1173,6 +1200,7 @@ function bindExclusiveOptionClick(checkboxes) {
     var hasSize = hasCopiedSize(copiedTextAttributes);
     var hasLeading = hasCopiedNumber(copiedTextAttributes, "leading");
     var hasAutoLeading = hasCopiedBoolean(copiedTextAttributes, "autoLeading");
+    var hasTsume = hasCopiedNumber(copiedTextAttributes, "tsume");
     var hasTracking = hasCopiedNumber(copiedTextAttributes, "tracking");
     var hasKerningMethod = hasCopiedKerningMethod(copiedTextAttributes);
     var hasProportionalMetrics = hasCopiedBoolean(copiedTextAttributes, "proportionalMetrics");
@@ -1180,7 +1208,7 @@ function bindExclusiveOptionClick(checkboxes) {
     var hasJustification = hasCopiedJustification(copiedTextAttributes);
     var hasFillColor = hasCopiedFillColor(copiedTextAttributes);
 
-    if (!hasFont && !hasSize && !hasLeading && !hasAutoLeading && !hasTracking && !hasKerningMethod && !hasProportionalMetrics && !hasOrientation && !hasJustification && !hasFillColor) {
+    if (!hasFont && !hasSize && !hasLeading && !hasAutoLeading && !hasTsume && !hasTracking && !hasKerningMethod && !hasProportionalMetrics && !hasOrientation && !hasJustification && !hasFillColor) {
         alert(L("errorNoCopiedAttributes"));
         return;
     }
@@ -1218,6 +1246,7 @@ function bindExclusiveOptionClick(checkboxes) {
     var sizeDisplay = hasSize ? formatPointValueForDialog(copiedTextAttributes.size) : L("notStored");
     var leadingDisplay = hasLeading ? formatPointValueForDialog(copiedTextAttributes.leading) : L("notStored");
     var autoLeadingDisplay = hasAutoLeading ? formatBooleanForDialog(copiedTextAttributes.autoLeading) : L("notStored");
+    var tsumeDisplay = hasTsume ? String(copiedTextAttributes.tsume) : L("notStored");
     var trackingDisplay = hasTracking ? String(copiedTextAttributes.tracking) : L("notStored");
     var kerningMethodDisplay = hasKerningMethod
         ? (copiedTextAttributes.kerningMethodLabel || String(copiedTextAttributes.kerningMethod))
@@ -1233,32 +1262,57 @@ function bindExclusiveOptionClick(checkboxes) {
         ? (copiedTextAttributes.fillColorLabel || formatColorForDialog(copiedTextAttributes.fillColor))
         : L("notStored");
 
-    var cbFont = addFontCheckboxRow(dlg, fontDisplay, fontStyleDisplay, hasFont, true, ATTRIBUTE_LABEL_WIDTH);
-    var cbSize = addAttributeCheckboxRow(dlg, "sizeLabel", sizeDisplay, hasSize, false, ATTRIBUTE_LABEL_WIDTH);
-    var cbLeading = addAttributeCheckboxRow(dlg, "leadingLabel", leadingDisplay, hasLeading, false, ATTRIBUTE_LABEL_WIDTH);
+    var fontSizeLeadingPanel = dlg.add("panel", undefined, L("fontSizeLeadingPanelTitle"));
+    fontSizeLeadingPanel.orientation = "column";
+    fontSizeLeadingPanel.alignChildren = "left";
+    fontSizeLeadingPanel.margins = [15, 20, 15, 10];
+    fontSizeLeadingPanel.spacing = 4;
+    fontSizeLeadingPanel.alignment = ["fill", "top"];
+
+    var cbFont = addFontCheckboxRow(fontSizeLeadingPanel, fontDisplay, fontStyleDisplay, hasFont, true, ATTRIBUTE_LABEL_WIDTH);
+    var cbSize = addAttributeCheckboxRow(fontSizeLeadingPanel, "sizeLabel", sizeDisplay, hasSize, false, ATTRIBUTE_LABEL_WIDTH);
+    var cbLeading = addAttributeCheckboxRow(fontSizeLeadingPanel, "leadingLabel", leadingDisplay, hasLeading, false, ATTRIBUTE_LABEL_WIDTH);
     /* コピー元が自動行送りの場合は、行送りの適用はできないためチェックボックスを無効化
        Disable leading checkbox when the copied source uses auto leading */
     if (hasAutoLeading && copiedTextAttributes.autoLeading === true) {
         cbLeading.enabled = false;
         cbLeading.value = false;
     }
-    var cbAutoLeading = addAttributeCheckboxRow(dlg, "autoLeadingLabel", autoLeadingDisplay, hasAutoLeading, false, ATTRIBUTE_LABEL_WIDTH);
-    var cbTracking = addAttributeCheckboxRow(dlg, "trackingLabel", trackingDisplay, hasTracking, false, ATTRIBUTE_LABEL_WIDTH);
-    var cbKerningMethod = addAttributeCheckboxRow(dlg, "kerningMethodLabel", kerningMethodDisplay, hasKerningMethod, false, ATTRIBUTE_LABEL_WIDTH);
-    var cbProportionalMetrics = addAttributeCheckboxRow(dlg, "proportionalMetricsLabel", proportionalMetricsDisplay, hasProportionalMetrics, false, ATTRIBUTE_LABEL_WIDTH);
-    var cbOrientation = addAttributeCheckboxRow(dlg, "orientationLabel", orientationDisplay, hasOrientation, false, ATTRIBUTE_LABEL_WIDTH);
+    var cbAutoLeading = addAttributeCheckboxRow(fontSizeLeadingPanel, "autoLeadingLabel", autoLeadingDisplay, hasAutoLeading, false, ATTRIBUTE_LABEL_WIDTH);
+
+    var kerningPanel = dlg.add("panel", undefined, L("kerningPanelTitle"));
+    kerningPanel.orientation = "column";
+    kerningPanel.alignChildren = "left";
+    kerningPanel.margins = [15, 20, 15, 10];
+    kerningPanel.spacing = 4;
+    kerningPanel.alignment = ["fill", "top"];
+
+    var cbKerningMethod = addAttributeCheckboxRow(kerningPanel, "kerningMethodLabel", kerningMethodDisplay, hasKerningMethod, false, ATTRIBUTE_LABEL_WIDTH);
+    var cbProportionalMetrics = addAttributeCheckboxRow(kerningPanel, "proportionalMetricsLabel", proportionalMetricsDisplay, hasProportionalMetrics, false, ATTRIBUTE_LABEL_WIDTH);
+    var cbTracking = addAttributeCheckboxRow(kerningPanel, "trackingLabel", trackingDisplay, hasTracking, false, ATTRIBUTE_LABEL_WIDTH);
+    var cbTsume = addAttributeCheckboxRow(kerningPanel, "tsumeLabel", tsumeDisplay, hasTsume, false, ATTRIBUTE_LABEL_WIDTH);
+
+    var paragraphOtherPanel = dlg.add("panel", undefined, L("paragraphOtherPanelTitle"));
+    paragraphOtherPanel.orientation = "column";
+    paragraphOtherPanel.alignChildren = "left";
+    paragraphOtherPanel.margins = [15, 20, 15, 10];
+    paragraphOtherPanel.spacing = 4;
+    paragraphOtherPanel.alignment = ["fill", "top"];
+
+    var cbOrientation = addAttributeCheckboxRow(paragraphOtherPanel, "orientationLabel", orientationDisplay, hasOrientation, false, ATTRIBUTE_LABEL_WIDTH);
     cbOrientation.enabled = hasOrientation && canApplyOrientation;
-    var cbJustification = addAttributeCheckboxRow(dlg, "justificationLabel", justificationDisplay, hasJustification, false, ATTRIBUTE_LABEL_WIDTH);
-    var cbFillColor = addAttributeCheckboxRow(dlg, "fillColorLabel", fillColorDisplay, hasFillColor, false, ATTRIBUTE_LABEL_WIDTH);
+    var cbJustification = addAttributeCheckboxRow(paragraphOtherPanel, "justificationLabel", justificationDisplay, hasJustification, false, ATTRIBUTE_LABEL_WIDTH);
+    var cbFillColor = addAttributeCheckboxRow(paragraphOtherPanel, "fillColorLabel", fillColorDisplay, hasFillColor, false, ATTRIBUTE_LABEL_WIDTH);
 
     var attributeCheckboxes = [
         cbFont,
         cbSize,
         cbLeading,
         cbAutoLeading,
-        cbTracking,
         cbKerningMethod,
         cbProportionalMetrics,
+        cbTracking,
+        cbTsume,
         cbOrientation,
         cbJustification,
         cbFillColor
@@ -1322,6 +1376,7 @@ function bindExclusiveOptionClick(checkboxes) {
                     cbSize: cbSize,
                     cbLeading: cbLeading,
                     cbAutoLeading: cbAutoLeading,
+                    cbTsume: cbTsume,
                     cbTracking: cbTracking,
                     cbKerningMethod: cbKerningMethod,
                     cbProportionalMetrics: cbProportionalMetrics,
@@ -1366,6 +1421,7 @@ function bindExclusiveOptionClick(checkboxes) {
             cbSize: cbSize,
             cbLeading: cbLeading,
             cbAutoLeading: cbAutoLeading,
+            cbTsume: cbTsume,
             cbTracking: cbTracking,
             cbKerningMethod: cbKerningMethod,
             cbProportionalMetrics: cbProportionalMetrics,

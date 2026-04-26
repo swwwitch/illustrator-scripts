@@ -10,7 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 $.global.FontClipboard に保存します。
 
 保存する内容は、フォントの PostScript 名・フォントファミリ名・スタイル・フォントサイズ・
-行送り・自動行送り・トラッキング・自動カーニング・自動カーニングの表示名・
+行送り・自動行送り・文字ツメ・トラッキング・自動カーニング・自動カーニングの表示名・
 プロポーショナルメトリクス・組み方向・組み方向の表示名・行揃え・行揃えの表示名・
 塗り色（複製）・塗り色の表示名です。
 
@@ -26,7 +26,7 @@ of the selected text object or partially selected text range, then stores them i
 on the persistent "FontClipboard" engine.
 
 The stored values include the font PostScript name, font family name, style, font size,
-leading, auto leading, tracking, auto kerning, auto kerning label, proportional metrics,
+leading, auto leading, Tsume, tracking, auto kerning, auto kerning label, proportional metrics,
 text orientation, orientation label, alignment, alignment label, fill color (cloned), and fill color label.
 
 Font size and leading are stored as Illustrator's internal point values, while the result dialog displays them
@@ -43,7 +43,7 @@ A separate apply script using the same #targetengine can read the saved values.
 // バージョンとローカライズ / Version and localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.1.1";
+var SCRIPT_VERSION = "v1.2.0";
 
 function getCurrentLocaleLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -69,6 +69,18 @@ var LABELS = {
         ja: "フォント情報を取得しました",
         en: "Font information copied"
     },
+    fontSizeLeadingPanelTitle: {
+        ja: "フォント・サイズ、行送り",
+        en: "Font, Size & Leading"
+    },
+    kerningPanelTitle: {
+        ja: "カーニング関連",
+        en: "Kerning"
+    },
+    paragraphOtherPanelTitle: {
+        ja: "段落属性ほか",
+        en: "Paragraph & Other"
+    },
     postScriptName: {
         ja: "PostScript名",
         en: "PostScript name"
@@ -92,6 +104,10 @@ var LABELS = {
     autoLeading: {
         ja: "自動行送り",
         en: "Auto leading"
+    },
+    tsume: {
+        ja: "文字ツメ",
+        en: "Tsume"
     },
     tracking: {
         ja: "トラッキング",
@@ -433,14 +449,18 @@ function showResultDialog(info) {
     dialog.spacing = 10;
     dialog.margins = 16;
 
-    var infoPanel = dialog.add("panel", undefined, "");
-    infoPanel.orientation = "column";
-    infoPanel.alignChildren = "left";
-    infoPanel.margins = 14;
-    infoPanel.spacing = 8;
+    function createInfoPanel(titleKey) {
+        var panel = dialog.add("panel", undefined, L(titleKey));
+        panel.orientation = "column";
+        panel.alignChildren = "left";
+        panel.margins = [15, 20, 15, 10];
+        panel.spacing = 8;
+        panel.alignment = ["fill", "top"];
+        return panel;
+    }
 
-    function addRow(key, value) {
-        var row = infoPanel.add("group");
+    function addRow(parent, key, value) {
+        var row = parent.add("group");
         row.orientation = "row";
         row.alignChildren = ["left", "center"];
         row.spacing = 8;
@@ -450,18 +470,25 @@ function showResultDialog(info) {
         row.add("statictext", undefined, String(value));
     }
 
-    addRow("postScriptName", info.font.name);
-    addRow("fontFamilyName", info.font.family);
-    addRow("fontStyle", info.font.style);
-    addRow("fontSize", formatPointValueForDisplay(info.size));
-    addRow("leading", info.autoLeading ? "—" : formatPointValueForDisplay(info.leading));
-    addRow("autoLeading", formatBooleanLabel(info.autoLeading));
-    addRow("tracking", info.tracking);
-    addRow("kerningMethod", info.kerningMethodLabel);
-    addRow("proportionalMetrics", formatBooleanLabel(info.proportionalMetrics));
-    addRow("orientation", info.orientationLabel);
-    addRow("justification", info.justificationLabel);
-    addRow("fillColor", info.fillColorLabel);
+    var fontSizeLeadingPanel = createInfoPanel("fontSizeLeadingPanelTitle");
+    var kerningPanel = createInfoPanel("kerningPanelTitle");
+    var paragraphOtherPanel = createInfoPanel("paragraphOtherPanelTitle");
+
+    addRow(fontSizeLeadingPanel, "postScriptName", info.font.name);
+    addRow(fontSizeLeadingPanel, "fontFamilyName", info.font.family);
+    addRow(fontSizeLeadingPanel, "fontStyle", info.font.style);
+    addRow(fontSizeLeadingPanel, "fontSize", formatPointValueForDisplay(info.size));
+    addRow(fontSizeLeadingPanel, "leading", info.autoLeading ? "—" : formatPointValueForDisplay(info.leading));
+    addRow(fontSizeLeadingPanel, "autoLeading", formatBooleanLabel(info.autoLeading));
+
+    addRow(kerningPanel, "kerningMethod", info.kerningMethodLabel);
+    addRow(kerningPanel, "proportionalMetrics", formatBooleanLabel(info.proportionalMetrics));
+    addRow(kerningPanel, "tracking", info.tracking);
+    addRow(kerningPanel, "tsume", info.tsume);
+
+    addRow(paragraphOtherPanel, "orientation", info.orientationLabel);
+    addRow(paragraphOtherPanel, "justification", info.justificationLabel);
+    addRow(paragraphOtherPanel, "fillColor", info.fillColorLabel);
 
     var buttonGroup = dialog.add("group");
     buttonGroup.alignment = "right";
@@ -541,6 +568,7 @@ function getJustificationLabel(justification) {
 
     var copiedLeading = sourceCharacterAttributes.leading;
     var copiedAutoLeading = getAutoLeadingState(sourceTextRange, sourceFirstCharacter, sourceTextFrame);
+    var copiedTsume = Math.round(sourceCharacterAttributes.Tsume);
     var copiedKerningMethod = sourceCharacterAttributes.kerningMethod;
     var copiedProportionalMetrics = sourceCharacterAttributes.proportionalMetrics;
     var copiedTracking = sourceCharacterAttributes.tracking;
@@ -564,6 +592,7 @@ function getJustificationLabel(justification) {
         size: sourceCharacterAttributes.size,
         leading: copiedLeading,
         autoLeading: copiedAutoLeading,
+        tsume: copiedTsume,
         tracking: copiedTracking,
         kerningMethod: copiedKerningMethod,
         kerningMethodLabel: copiedKerningMethodLabel,
