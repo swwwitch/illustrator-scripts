@@ -7,19 +7,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 線幅は Illustrator の strokeUnits、短辺しきい値は rulerType を参照し、表示値と内部pt換算を一元管理
 - 線幅の共通化・代表値選択・指定値、印刷用ブラック化、グループ化など仕上げ処理も含む
 - IIFE構成、UI構築／イベント配線／値取得／実行フローを分離し、保守しやすい構造に整理
-- Illustrator DOM の不安定な操作（move/remove/selection 等）は安全ヘルパー経由で実行し、例外処理を集約
+// - Illustrator DOM の不安定な操作（move/remove/selection 等）は安全ヘルパー経由で実行し、生成結果は専用作業レイヤーに作成してロックレイヤー依存を回避
 
 - Illustrator script that generates rule lines (grids / frames) from rectangles copied and pasted from sources such as Excel, then grids, connects, or unifies them based on line relationships
 - Supports center-line conversion (toggleable), rotation correction, exclusion rules, grid mode, and outer-frame rectangle conversion
 - Uses Illustrator strokeUnits for stroke width and rulerType for the short-side threshold, with centralized conversion between display units and internal points
 - Includes finishing controls such as stroke normalization, representative width selection, custom width, print black, and grouping
 - Uses an IIFE structure and separates UI building, event binding, value reading, and execution flow for easier maintenance
-- Runs unstable Illustrator DOM operations such as move/remove/selection through safe helper functions to centralize exception handling
+- Runs unstable Illustrator DOM operations such as move/remove/selection through safe helper functions and creates generated results on a dedicated work layer to avoid locked-layer dependency
 
 ### 更新履歴 / Update History
 
 - v1.0.0 (20250612) : 初版作成 / Initial version
-- v1.6.0 (20260427) : UI構造の分離（パネル・イベント・状態・プレビュー）、単位管理の整理（strokeUnits / rulerType）、安全操作ヘルパーの導入、命名整理 / Refactored UI structure (panels, events, state, preview), unified unit handling (strokeUnits / rulerType), added safe operation helpers, improved naming consistency
+- v1.6.0 (20260427) : UI構造の分離（パネル・イベント・状態・プレビュー）、単位管理の整理（strokeUnits / rulerType）、安全操作ヘルパーの導入、命名整理、生成専用レイヤーによるロックレイヤー依存の解消 / Refactored UI structure (panels, events, state, preview), unified unit handling (strokeUnits / rulerType), added safe operation helpers, improved naming consistency, removed locked-layer dependency by creating results on a dedicated generated layer
+- v1.6.5 (20260427) : UI構造の改善（事後処理パネル追加、オプション整理、ラベル改善）、生成レイヤー設計の最適化 / Improved UI structure (post-process panel, option refinement, labeling), optimized generated-layer workflow
 
 */
 
@@ -29,7 +30,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.6.0";
+    var SCRIPT_VERSION = "v1.6.5";
+    var DEFAULT_STROKE_WIDTH_PT = 0.25;
+
+    // =========================================
+    // レイヤー設定 / Layer Settings
+    // =========================================
+
+    var GENERATED_WORK_LAYER_NAME = "__generated_center_line__";
+    var EXCLUSION_PREVIEW_LAYER_NAME = "__center_line_preview__";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -38,17 +47,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: { ja: "長方形を線に変換し、連結処理", en: "Convert Rectangles to Lines and Connect" },
+        dialogTitle: { ja: "長方形を線に変換・連結", en: "Convert Rectangles to Lines & Connect" },
         lblShortSideLength: { ja: "短辺が", en: "Short side is" },
         lblGreaterEqual: { ja: "以上の長方形は対象外", en: "below threshold — skip" },
         pnlCenterLineConversion: { ja: "中心線化", en: "Center Line Conversion" },
         chkAngleCorrect: { ja: "角度補正", en: "Correct rotation" },
-        pnlOption: { ja: "オプション", en: "Options" },
+        pnlOption: { ja: "線の連結・調整", en: "Line connection & adjustment" },
         pnlRule: { ja: "罫線", en: "Rule" },
-        chkConnectAll: { ja: "連結処理", en: "Connect lines" },
+        chkConnectAll: { ja: "連結", en: "Connect" },
         rdoConnectNone: { ja: "なし", en: "None" },
-        rdoConnectGrid: { ja: "格子状に", en: "Grid" },
-        chkOuterRect: { ja: "外枠を長方形化", en: "Outer frame as rectangle" },
+        rdoConnectGrid: { ja: "格子化", en: "Grid" },
+        chkOuterRect: { ja: "外枠を長方形に", en: "Outer frame as rectangle" },
         chkPrintBlack: { ja: "印刷用の「黒」（K100）にする", en: "Use print black (K100)" },
         lblStrokePref: { ja: "線幅", en: "Stroke Width" },
         chkCommonStroke: { ja: "線幅を共通にする", en: "Make stroke widths common" },
@@ -187,11 +196,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return value * getUnitToPointFactor(unitCode);
     }
 
-    // =========================================
-    // 対象外マーカー（プレビュー）/ Exclusion markers (preview)
-    // =========================================
-
-    var EXCLUSION_PREVIEW_LAYER_NAME = "__center_line_preview__";
 
 
     function createExclusionMarkerColor() {
@@ -215,12 +219,75 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         try {
             layer = doc.layers.getByName(EXCLUSION_PREVIEW_LAYER_NAME);
         } catch (e) {
-            layer = doc.layers.add();
-            layer.name = EXCLUSION_PREVIEW_LAYER_NAME;
+            layer = addLayerSafely(EXCLUSION_PREVIEW_LAYER_NAME);
         }
         layer.locked = false;
         layer.visible = true;
         return layer;
+    }
+
+    /* レイヤー作成時に最前面レイヤーがロック／非表示でも失敗しないよう一時解除
+       Temporarily unlock/show the top layer so a new layer can be created safely */
+    function addLayerSafely(layerName) {
+        var doc = app.activeDocument;
+        var previousActiveLayer = null;
+        var topLayer = null;
+        var topWasLocked = false;
+        var topWasHidden = false;
+        var newLayer = null;
+
+        try { previousActiveLayer = doc.activeLayer; } catch (eA) { }
+        try {
+            topLayer = doc.layers[0];
+            topWasLocked = topLayer.locked;
+            topWasHidden = !topLayer.visible;
+            if (topWasLocked) topLayer.locked = false;
+            if (topWasHidden) topLayer.visible = true;
+        } catch (eB) { }
+
+        try {
+            newLayer = doc.layers.add();
+            newLayer.name = layerName;
+        } finally {
+            try {
+                if (topLayer) {
+                    if (topWasLocked) topLayer.locked = true;
+                    if (topWasHidden) topLayer.visible = false;
+                }
+            } catch (eC) { }
+            if (previousActiveLayer) {
+                try { doc.activeLayer = previousActiveLayer; } catch (eD) { }
+            }
+        }
+
+        return newLayer;
+    }
+
+    /* 生成専用の安全な作業レイヤーを取得／作成
+       Get or create a writable layer dedicated to generated results */
+    function ensureGeneratedWorkLayer() {
+        var doc = app.activeDocument;
+        var layer;
+        try {
+            layer = doc.layers.getByName(GENERATED_WORK_LAYER_NAME);
+        } catch (e) {
+            layer = addLayerSafely(GENERATED_WORK_LAYER_NAME);
+        }
+        layer.locked = false;
+        layer.visible = true;
+        return layer;
+    }
+
+    /* activeLayer や最前面レイヤーに依存せず、安全な生成専用レイヤーに PathItem を作成
+       Create a PathItem on the dedicated writable layer instead of relying on active/top layer state */
+    function createGeneratedPathItem() {
+        return ensureGeneratedWorkLayer().pathItems.add();
+    }
+
+    /* 生成結果をまとめる安全なグループを作成
+       Create a safe group for generated results */
+    function createGeneratedGroup() {
+        return ensureGeneratedWorkLayer().groupItems.add();
     }
 
     function clearExclusionPreviewLayer() {
@@ -363,6 +430,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         minShortSideGroup.add("statictext", undefined, rulerUnitLabel + getLabel('lblGreaterEqual'));
 
         var minShortSideSlider = panel.add("slider", undefined, SHORT_DEFAULT, SHORT_MIN, SHORT_MAX);
+        minShortSideSlider.alignment = ["center", "center"];
         minShortSideSlider.preferredSize.width = 247;
 
         return {
@@ -386,18 +454,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         panel.margins = PANEL_MARGINS;
         panel.spacing = 8;
 
-        var rbConnectNone = panel.add("radiobutton", undefined, getLabel('rdoConnectNone'));
-        var rbConnectAll = panel.add("radiobutton", undefined, getLabel('chkConnectAll'));
+        var radioRow = panel.add("group");
+        radioRow.orientation = "row";
+        radioRow.alignChildren = "center";
+        radioRow.spacing = 12;
 
-        var gridRow = panel.add("group");
-        gridRow.orientation = "row";
-        gridRow.alignChildren = "left";
-        gridRow.spacing = 12;
-        gridRow.margins = 0;
+        var rbConnectNone = radioRow.add("radiobutton", undefined, getLabel('rdoConnectNone'));
+        var rbConnectAll = radioRow.add("radiobutton", undefined, getLabel('chkConnectAll'));
+        var rbConnectGrid = radioRow.add("radiobutton", undefined, getLabel('rdoConnectGrid'));
 
-        var rbConnectGrid = gridRow.add("radiobutton", undefined, getLabel('rdoConnectGrid'));
-        var cbOuterRect = gridRow.add("checkbox", undefined, getLabel('chkOuterRect'));
-
+        var cbOuterRect = radioRow.add("checkbox", undefined, getLabel('chkOuterRect'));
         cbOuterRect.value = false;
         rbConnectGrid.value = true;
 
@@ -438,18 +504,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var rbStrokeAvg = strokeRadioGroup.add("radiobutton", undefined, getLabel('strokeAvg'));
         var rbStrokeCustom = strokeRadioGroup.add("radiobutton", undefined, getLabel('strokeCustom'));
 
-        rbStrokeMin.value = true;
+        rbStrokeCustom.value = true;
 
-        var customStrokeInput = strokeRadioGroup.add("edittext", undefined, "0.25");
+        var customStrokeInput = strokeRadioGroup.add("edittext", undefined, DEFAULT_STROKE_WIDTH_PT.toString());
         customStrokeInput.characters = 4;
 
         strokeRadioGroup.add("statictext", undefined, strokeUnitLabel);
 
         var cbCommonStroke = strokeWidthPanel.add("checkbox", undefined, getLabel('chkCommonStroke'));
-        cbCommonStroke.value = false;
-
-        var cbGroup = panel.add("checkbox", undefined, getLabel('chkGroup'));
-        cbGroup.value = true;
+        cbCommonStroke.value = true;
 
         return {
             panel: panel,
@@ -459,8 +522,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             rbStrokeAvg: rbStrokeAvg,
             rbStrokeCustom: rbStrokeCustom,
             customStrokeInput: customStrokeInput,
-            cbCommonStroke: cbCommonStroke,
-            cbGroup: cbGroup
+            cbCommonStroke: cbCommonStroke
+        };
+    }
+
+    /* 事後処理パネルを構築 / Build post-process panel */
+    function buildPostProcessPanel(parent, PANEL_MARGINS) {
+        var panel = parent.add("panel", undefined, "事後処理");
+        panel.orientation = "column";
+        panel.alignChildren = "left";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = 6;
+
+        var row = panel.add("group");
+        row.orientation = "row";
+        row.alignChildren = ["left", "center"];
+        row.spacing = 12;
+
+        var cbGroup = row.add("checkbox", undefined, getLabel('chkGroup'));
+        cbGroup.value = true;
+
+        var cbReturnToOriginal = row.add("checkbox", undefined, "元のレイヤーに戻す");
+        cbReturnToOriginal.value = false;
+
+        return {
+            panel: panel,
+            cbGroup: cbGroup,
+            cbReturnToOriginal: cbReturnToOriginal
         };
     }
 
@@ -510,6 +598,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var center = buildCenterLinePanel(panelColumn, PANEL_MARGINS, rulerUnitCode, rulerUnitLabel);
         var connect = buildConnectOptionsPanel(panelColumn, PANEL_MARGINS);
         var rule = buildRulePanel(panelColumn, PANEL_MARGINS, strokeUnitLabel);
+        var post = buildPostProcessPanel(panelColumn, PANEL_MARGINS);
         var buttons = buildDialogButtonRow(dialog);
 
         var snapshotSelection = [];
@@ -537,6 +626,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             rbConnectGrid: connect.rbConnectGrid,
             cbOuterRect: connect.cbOuterRect,
             connectRadios: connect.connectRadios,
+            cbReturnToOriginal: post.cbReturnToOriginal,
 
             cbPrintBlack: rule.cbPrintBlack,
             rbStrokeMax: rule.rbStrokeMax,
@@ -545,7 +635,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             rbStrokeCustom: rule.rbStrokeCustom,
             customStrokeInput: rule.customStrokeInput,
             cbCommonStroke: rule.cbCommonStroke,
-            cbGroup: rule.cbGroup,
+            cbGroup: post.cbGroup,
 
             btnOutlineToggle: buttons.btnOutlineToggle,
             isOutlineMode: buttons.isOutlineMode
@@ -561,7 +651,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         else strokeStrategy = "max";
 
         var customStrokeWidth = parseFloat(ui.customStrokeInput.text);
-        if (isNaN(customStrokeWidth) || customStrokeWidth <= 0) customStrokeWidth = 0.25;
+        if (isNaN(customStrokeWidth) || customStrokeWidth <= 0) customStrokeWidth = DEFAULT_STROKE_WIDTH_PT;
 
         // Strengthen NaN handling for minShortSideInput
         var minShortSideValue = parseFloat(ui.minShortSideInput.text);
@@ -581,7 +671,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             commonStroke: ui.cbCommonStroke.value,
             strokeStrategy: strokeStrategy,
             customStrokeWidth: unitValueToPoints(customStrokeWidth, ui.strokeUnitCode),
-            groupResult: ui.cbGroup.value
+            groupResult: ui.cbGroup.value,
+            returnToOriginal: ui.cbReturnToOriginal.value
         };
     }
 
@@ -672,6 +763,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         ui.rbConnectAll.onClick = function () {
             selectConnectRadio(ui.rbConnectAll);
             syncUIState(ui);
+
+            // 連結処理時は線幅を「最小」に強制
+            ui.rbStrokeMin.value = true;
+            ui.rbStrokeMax.value = false;
+            ui.rbStrokeAvg.value = false;
+            ui.rbStrokeCustom.value = false;
         };
 
         ui.rbConnectGrid.onClick = function () {
@@ -773,7 +870,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         if (typeof minShortSidePt === "number" && shortSide < minShortSidePt) return null;
 
         /* 中心線を生成 / Create center line */
-        var centerLine = app.activeDocument.pathItems.add();
+        var centerLine = createGeneratedPathItem();
         centerLine.stroked = true;
         centerLine.filled = false;
         centerLine.strokeColor = rect.fillColor;
@@ -948,7 +1045,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
 
         /* 交点を頂点とする閉じた長方形を生成 / Create closed rectangle through intersections */
-        var rectanglePath = app.activeDocument.pathItems.add();
+        var rectanglePath = createGeneratedPathItem();
         rectanglePath.closed = true;
         rectanglePath.stroked = lines[0].stroked;
         rectanglePath.strokeColor = lines[0].strokeColor;
@@ -1045,7 +1142,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             return null;
         }
 
-        var path = app.activeDocument.pathItems.add();
+        var path = createGeneratedPathItem();
         path.closed = false;
         path.stroked = lines[0].stroked;
         path.strokeColor = lines[0].strokeColor;
@@ -1106,7 +1203,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             [farEndX, horizontalLineInfo.y]
         ];
 
-        var path = app.activeDocument.pathItems.add();
+        var path = createGeneratedPathItem();
         path.closed = false;
         path.stroked = lines[0].stroked;
         path.strokeColor = lines[0].strokeColor;
@@ -1209,20 +1306,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             : getRepresentativeStrokeWidth(lines, strokeStrategy, customWidth);
         var representativeStrokeColor = lines[0].strokeColor;
 
-        /* グループの配置先（最初の線の親レイヤー or 親グループ）/ Determine parent for the wrapping group */
-        var groupParent = doc.activeLayer;
-        try {
-            var firstParent = lines[0].parent;
-            if (firstParent && firstParent.typename === "CompoundPathItem") firstParent = firstParent.parent;
-            if (firstParent && (firstParent.typename === "Layer" || firstParent.typename === "GroupItem")) {
-                groupParent = firstParent;
-            }
-        } catch (e) { }
+        /* 生成専用レイヤー上でグループ化し、ロックされた親レイヤー／activeLayer に依存しない
+           Group on the dedicated generated layer to avoid relying on locked parent layers or activeLayer */
+        var groupParent = ensureGeneratedWorkLayer();
 
         /* 1. 線をすべて1つのグループに集める / Move all lines into a single group */
-        var group;
-        try { group = groupParent.groupItems.add(); }
-        catch (e) { group = doc.activeLayer.groupItems.add(); }
+        var group = createGeneratedGroup();
         for (var lineIndex = lines.length - 1; lineIndex >= 0; lineIndex--) {
             movePageItemSafely(lines[lineIndex], group, ElementPlacement.PLACEATBEGINNING);
         }
@@ -1355,7 +1444,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var minY = bottomHorizontalInfo.y;
         var maxY = topHorizontalInfo.y;
 
-        var rectanglePath = app.activeDocument.pathItems.add();
+        var rectanglePath = createGeneratedPathItem();
         rectanglePath.closed = true;
         rectanglePath.stroked = topHorizontalInfo.path.stroked;
         rectanglePath.strokeColor = topHorizontalInfo.path.strokeColor;
@@ -1488,13 +1577,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         for (var rectangleIndex = 0; rectangleIndex < rectangleItemsToProcess.length; rectangleIndex++) {
             var rectangleItem = rectangleItemsToProcess[rectangleIndex];
-            var placeTarget = getCenterLinePlacementTarget(rectangleItem);
             var newLine = convertRectToCenterLine(rectangleItem, options.correctRotation, options.minShortSidePt);
 
             if (newLine) {
-                if (placeTarget) {
-                    movePageItemSafely(newLine, placeTarget, ElementPlacement.PLACEATEND);
-                }
+                // 生成レイヤーに統一（元レイヤーには戻さない）
                 generatedCenterLines.push(newLine);
             }
         }
@@ -1502,19 +1588,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return generatedCenterLines;
     }
 
-    /* 中心線の配置先を取得（CompoundPathItem 内サブパスは親へ配置）
-       Get placement target for a generated center line (subpaths in compounds use compound parent) */
-    function getCenterLinePlacementTarget(rectangleItem) {
-        var placeTarget = rectangleItem.parent;
-        try {
-            if (placeTarget && placeTarget.typename === "CompoundPathItem") {
-                placeTarget = placeTarget.parent;
-            }
-        } catch (e) {
-            placeTarget = null;
-        }
-        return placeTarget;
-    }
 
     /* 生成済み中心線を連結モードに応じてクラスタ単位で処理
        Process generated center lines cluster-by-cluster according to connect mode */
@@ -1586,7 +1659,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var gridAligned = tryAlignClusterAsGrid(cluster);
         if (gridAligned && options.outerRect) {
             var withFrame = convertOuterFrameToRect(gridAligned, options.strokeStrategy, options.customStrokeWidth);
-            if (withFrame) gridAligned = withFrame;
+            if (withFrame) {
+                gridAligned = withFrame;
+
+                // 外枠長方形化後に「Convert to Shape」を適用
+                try {
+                    app.activeDocument.selection = gridAligned;
+                    app.executeMenuCommand('Convert to Shape');
+                } catch (e) { }
+            }
         }
         return gridAligned;
     }
@@ -1603,9 +1684,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     /* 結果を選択状態にし、必要に応じて1つのグループにまとめる
-       Select results and optionally wrap them into one group */
+       Select results and optionally wrap them into one group (and move all to generated layer) */
     function selectOrGroupResults(generatedCenterLines, options) {
-        if (options.groupResult && options.connectMode === "grid" && generatedCenterLines.length > 0) {
+        if (!generatedCenterLines || generatedCenterLines.length === 0) return;
+
+        // すでに生成レイヤーに集約されている前提で、そのまま扱う
+        if (options.groupResult && options.connectMode === "grid") {
             var resultGroup = groupGeneratedCenterLines(generatedCenterLines);
             app.activeDocument.selection = [resultGroup];
         } else {
@@ -1617,7 +1701,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
        Wrap generated results into one group */
     function groupGeneratedCenterLines(generatedCenterLines) {
         var groupParent = getGeneratedResultGroupParent(generatedCenterLines);
-        var resultGroup = groupParent.groupItems.add();
+        var resultGroup = createGeneratedGroup();
 
         for (var groupItemIndex = generatedCenterLines.length - 1; groupItemIndex >= 0; groupItemIndex--) {
             movePageItemSafely(generatedCenterLines[groupItemIndex], resultGroup, ElementPlacement.PLACEATBEGINNING);
@@ -1629,15 +1713,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     /* 生成結果をまとめる親レイヤー／親グループを決定
        Determine parent layer/group for wrapping generated results */
     function getGeneratedResultGroupParent(generatedCenterLines) {
-        var groupParent = app.activeDocument.activeLayer;
-        try {
-            var firstParent = generatedCenterLines[0].parent;
-            if (firstParent && firstParent.typename === "CompoundPathItem") firstParent = firstParent.parent;
-            if (firstParent && (firstParent.typename === "Layer" || firstParent.typename === "GroupItem")) {
-                groupParent = firstParent;
-            }
-        } catch (e) { }
-        return groupParent;
+        return ensureGeneratedWorkLayer();
     }
 
     // =========================================
@@ -1645,11 +1721,39 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // =========================================
 
     function main() {
+        var savedActiveLayer = null;
+        var savedActiveLayerLocked = false;
+        var savedActiveLayerHidden = false;
+        var savedTopLayer = null;
+        var savedTopLayerLocked = false;
+        var savedTopLayerHidden = false;
         try {
             if (app.documents.length === 0 || app.activeDocument.selection.length === 0) {
                 alert(getLabel('alertNoSelection'));
                 return;
             }
+
+            /* activeLayer または最前面レイヤーがロック／非表示だと pathItems.add() 等で
+               "Target layer cannot be modified" になることがあるため一時解除 */
+            try {
+                savedActiveLayer = app.activeDocument.activeLayer;
+                savedActiveLayerLocked = savedActiveLayer.locked;
+                savedActiveLayerHidden = !savedActiveLayer.visible;
+                if (savedActiveLayerLocked) savedActiveLayer.locked = false;
+                if (savedActiveLayerHidden) savedActiveLayer.visible = true;
+            } catch (e) { }
+
+            try {
+                savedTopLayer = app.activeDocument.layers[0];
+                if (savedTopLayer && savedTopLayer !== savedActiveLayer) {
+                    savedTopLayerLocked = savedTopLayer.locked;
+                    savedTopLayerHidden = !savedTopLayer.visible;
+                    if (savedTopLayerLocked) savedTopLayer.locked = false;
+                    if (savedTopLayerHidden) savedTopLayer.visible = true;
+                }
+            } catch (e) { }
+
+            var originalLayer = app.activeDocument.activeLayer;
 
             var options = showOptionDialog();
             if (options === null) return;
@@ -1661,9 +1765,32 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 generatedCenterLines = processCenterLineClusters(generatedCenterLines, options);
                 applyFinishingOptions(generatedCenterLines, options);
                 selectOrGroupResults(generatedCenterLines, options);
+                if (options.returnToOriginal && originalLayer) {
+                    try {
+                        var genLayer = app.activeDocument.layers.getByName(GENERATED_WORK_LAYER_NAME);
+                        for (var i = genLayer.pageItems.length - 1; i >= 0; i--) {
+                            movePageItemSafely(genLayer.pageItems[i], originalLayer, ElementPlacement.PLACEATEND);
+                        }
+                        genLayer.remove();
+                    } catch (e) { }
+                }
             }
         } catch (e) {
             alert(labelText('alertError') + "\n" + e);
+        } finally {
+            try {
+                if (savedTopLayer && savedTopLayer !== savedActiveLayer) {
+                    if (savedTopLayerLocked) savedTopLayer.locked = true;
+                    if (savedTopLayerHidden) savedTopLayer.visible = false;
+                }
+            } catch (e) { }
+
+            try {
+                if (savedActiveLayer) {
+                    if (savedActiveLayerLocked) savedActiveLayer.locked = true;
+                    if (savedActiveLayerHidden) savedActiveLayer.visible = false;
+                }
+            } catch (e) { }
         }
     }
 
