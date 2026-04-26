@@ -28,6 +28,9 @@ PostScript名は内部のフォント適用に使用しますが、ダイアロ�
 
 行揃えは段落属性として扱い、段落ごとの状態も含めて復元します。
 
+
+行送りを数値適用するときは、自動行送りをOFFにしてから行送り値を適用します。
+
 フォントサイズと行送りは Illustrator 内部値（pt）で適用し、ダイアログ上では text/units に従って表示します。
 
 選択範囲内で属性が混在している場合、退避・復元は代表値ベースとなるため、
@@ -61,17 +64,19 @@ Alignment is handled as a paragraph attribute and restored per paragraph.
 Font size and leading are applied in internal point units, while the dialog displays them
 according to the text/units preference.
 
+When applying a numeric leading value, auto leading is turned off before setting the leading value.
+
 If the selection contains mixed attributes, restoration is based on representative values
 and the original mixed state cannot be fully reconstructed.
 
 Restarting Illustrator clears the stored values as the engine is destroyed.
 
-作成日 / Created: 2026-04-25
+作成日 / Created: 2021-04-10
 更新日 / Updated: 2026-04-25
 */
 
 
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.1.1";
 
 function getCurrentLocaleLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -553,6 +558,7 @@ function restoreAppliedTextAttributes(textRange, textFrame, capturedAttributes, 
     }
 
     if (appliedState.applyLeading && !capturedAttributes.autoLeading) {
+        characterAttributes.autoLeading = false;
         characterAttributes.leading = capturedAttributes.leading;
     }
 
@@ -840,10 +846,26 @@ function unloadCachedKerningAction() {
 }
 
 
+/* 対応する行揃え値か判定 / Check whether the justification value is supported */
+function isSupportedJustification(justification) {
+    try {
+        return justification === Justification.LEFT ||
+            justification === Justification.CENTER ||
+            justification === Justification.RIGHT ||
+            justification === Justification.FULLJUSTIFYLASTLINELEFT ||
+            justification === Justification.FULLJUSTIFYLASTLINECENTER ||
+            justification === Justification.FULLJUSTIFYLASTLINERIGHT ||
+            justification === Justification.FULLJUSTIFY;
+    } catch (e) {
+        return false;
+    }
+}
+
 /* 行揃えを安全に適用 / Apply justification safely */
 function applyJustificationSafely(textRange, textFrame, justification) {
     if (!textRange) return false;
     if (typeof justification === "undefined" || justification === null) return false;
+    if (!isSupportedJustification(justification)) return false;
 
     try {
         textRange.paragraphAttributes.justification = justification;
@@ -908,6 +930,7 @@ function applyCopiedTextAttributes(textRange, textFrame, copiedAttributes, uiSta
     }
 
     if (uiState.applyLeading && !copiedAttributes.autoLeading) {
+        characterAttributes.autoLeading = false;
         characterAttributes.leading = copiedAttributes.leading;
     }
 
@@ -1019,7 +1042,8 @@ function hasCopiedJustification(copiedAttributes) {
     return !!(
         copiedAttributes &&
         copiedAttributes.justification !== null &&
-        typeof copiedAttributes.justification !== "undefined"
+        typeof copiedAttributes.justification !== "undefined" &&
+        isSupportedJustification(copiedAttributes.justification)
     );
 }
 
