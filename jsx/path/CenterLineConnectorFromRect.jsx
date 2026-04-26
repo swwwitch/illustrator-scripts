@@ -39,7 +39,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 更新履歴 / Update History
 
 - v1.0.0 (20250612) : 初版作成 / Initial version
-- v1.3.0 (20260426) : 連結処理UIを統合し、短辺除外スライダー上限と線幅共通化ロジックを調整 / Unified connection UI and refined short-side exclusion slider maximum and common stroke width logic
+- v1.3.1 (20260427) : 除外条件のUI文言を整理し、印刷用の黒にするオプションを追加 / Refined exclusion UI wording and added an option to use print black
 
 */
 
@@ -47,7 +47,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // バージョンとローカライズ / Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.3.0";
+var SCRIPT_VERSION = "v1.3.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -57,13 +57,15 @@ var lang = getCurrentLang();
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     dialogTitle: { ja: "長方形を線に変換し、連結処理", en: "Convert Rectangles to Lines and Connect" },
-    chkRotate: { ja: "回転を補正", en: "Correct rotation" },
-    lblExcludeShortSide: { ja: "短辺が未満なら除外", en: "Exclude if short side <" },
+    chkExclude: { ja: "長方形を除外", en: "Exclude rectangles" },
+    lblShortSideLength: { ja: "短辺が", en: "Short side is" },
+    lblGreaterEqual: { ja: "mm以上", en: "mm or more" },
     pnlCenterLineConversion: { ja: "中心線化", en: "Center Line Conversion" },
     pnlOption: { ja: "オプション", en: "Options" },
     chkConnectAll: { ja: "連結処理", en: "Connect lines" },
+    chkPrintBlack: { ja: "印刷用の黒にする", en: "Use print black" },
     lblStrokePref: { ja: "線幅", en: "Stroke Width" },
-    chkCommonStroke: { ja: "すべて共通に", en: "Make all widths common" },
+    chkCommonStroke: { ja: "線幅を共通にする", en: "Make stroke widths common" },
     strokeMax: { ja: "最大", en: "Max" },
     strokeMin: { ja: "最小", en: "Min" },
     strokeAvg: { ja: "平均", en: "Average" },
@@ -91,10 +93,20 @@ function labelText(key) {
 
 var EXCLUSION_PREVIEW_LAYER_NAME = "__center_line_preview__";
 
+
 function makeMagentaYellow() {
     var markerColor = new CMYKColor();
     markerColor.cyan = 0; markerColor.magenta = 100; markerColor.yellow = 100; markerColor.black = 0;
     return markerColor;
+}
+
+function makePrintBlack() {
+    var blackColor = new CMYKColor();
+    blackColor.cyan = 0;
+    blackColor.magenta = 0;
+    blackColor.yellow = 0;
+    blackColor.black = 100;
+    return blackColor;
 }
 
 function ensureExclusionPreviewLayer() {
@@ -222,9 +234,6 @@ function showOptionDialog() {
     centerLinePanel.margins = PANEL_MARGINS;
     centerLinePanel.spacing = 6;
 
-    /* 回転補正チェックボックス / Rotation correction checkbox */
-    var cbRotate = centerLinePanel.add("checkbox", undefined, L('chkRotate'));
-    cbRotate.value = true;
 
     /* 短辺の下限（mm）：スライダー上限は選択中の長方形の短辺最大値
        Min short side (mm): slider maximum = largest short side among selected rectangles */
@@ -233,13 +242,15 @@ function showOptionDialog() {
     if (SHORT_MAX <= 0) SHORT_MAX = 10;
     var SHORT_DEFAULT = Math.min(10, SHORT_MAX);
 
+    var cbMinShortSide = centerLinePanel.add("checkbox", undefined, L('chkExclude'));
+    cbMinShortSide.value = false;
+
     var minShortSideGroup = centerLinePanel.add("group");
     minShortSideGroup.alignment = "left";
-    var cbMinShortSide = minShortSideGroup.add("checkbox", undefined, L('lblExcludeShortSide'));
-    cbMinShortSide.value = false;
+    minShortSideGroup.add("statictext", undefined, L('lblShortSideLength'));
     var minShortSideInput = minShortSideGroup.add("edittext", undefined, SHORT_DEFAULT.toFixed(1));
     minShortSideInput.characters = 5;
-    minShortSideGroup.add("statictext", undefined, "mm");
+    minShortSideGroup.add("statictext", undefined, L('lblGreaterEqual'));
 
     var minShortSideSlider = centerLinePanel.add("slider", undefined, SHORT_DEFAULT, SHORT_MIN, SHORT_MAX);
     minShortSideSlider.preferredSize.width = 190;
@@ -297,6 +308,9 @@ function showOptionDialog() {
     /* 連結処理チェックボックス / Connect lines checkbox */
     var cbConnectAll = pnlOpt.add("checkbox", undefined, L('chkConnectAll'));
     cbConnectAll.value = true;
+
+    var cbPrintBlack = pnlOpt.add("checkbox", undefined, L('chkPrintBlack'));
+    cbPrintBlack.value = false;
 
     /* 線幅の決定パネル / Stroke width panel */
     var pnlStroke = pnlOpt.add("panel", undefined, L('lblStrokePref'));
@@ -358,9 +372,10 @@ function showOptionDialog() {
     var strokeStrategy = rbStrokeMin.value ? "min" : (rbStrokeAvg.value ? "avg" : "max");
 
     return {
-        correctRotation: cbRotate.value,
+        correctRotation: true,
         minShortSideMm: cbMinShortSide.value ? parseFloat(minShortSideInput.text) : 0,
         connectLines: cbConnectAll.value,
+        printBlack: cbPrintBlack.value,
         commonStroke: cbCommonStroke.value,
         strokeStrategy: strokeStrategy
     };
@@ -460,6 +475,7 @@ function getRepresentativeStrokeWidth(lines, strategy) {
 
 /* 生成結果の線幅を共通化（コンパウンド／グループ内のサブパスも対象）
    Make stroke width common across generated results (recurses into compounds and groups) */
+
 function applyCommonStrokeWidth(items, strategy) {
     if (!items || items.length === 0) return;
 
@@ -483,6 +499,35 @@ function applyCommonStrokeWidth(items, strategy) {
     var commonWidth = getRepresentativeStrokeWidth(strokeItems, strategy);
     for (var j = 0; j < strokeItems.length; j++) {
         try { strokeItems[j].strokeWidth = commonWidth; } catch (e) { }
+    }
+}
+
+/* 生成結果の線色を印刷用の黒（C0 M0 Y0 K100）に統一
+   Apply print black (C0 M0 Y0 K100) to generated result strokes */
+function applyPrintBlackStroke(items) {
+    if (!items || items.length === 0) return;
+
+    var blackColor = makePrintBlack();
+
+    function applyBlackRecursive(item) {
+        try {
+            if (item.typename === 'PathItem') {
+                item.stroked = true;
+                item.strokeColor = blackColor;
+            } else if (item.typename === 'CompoundPathItem') {
+                for (var compoundPathIndex = 0; compoundPathIndex < item.pathItems.length; compoundPathIndex++) {
+                    applyBlackRecursive(item.pathItems[compoundPathIndex]);
+                }
+            } else if (item.typename === 'GroupItem') {
+                for (var groupItemIndex = 0; groupItemIndex < item.pageItems.length; groupItemIndex++) {
+                    applyBlackRecursive(item.pageItems[groupItemIndex]);
+                }
+            }
+        } catch (e) { }
+    }
+
+    for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        if (items[itemIndex]) applyBlackRecursive(items[itemIndex]);
     }
 }
 
@@ -931,7 +976,7 @@ function main() {
                 }
             } catch (e) { placeTarget = null; }
 
-            var newLine = convertRectToCenterLine(rect, opts.correctRotation, minShortSidePt);
+            var newLine = convertRectToCenterLine(rect, true, minShortSidePt);
             if (newLine) {
                 if (placeTarget) {
                     try { newLine.move(placeTarget, ElementPlacement.PLACEATEND); } catch (e) { }
@@ -969,6 +1014,9 @@ function main() {
             generatedCenterLines = resultLines;
             if (opts.commonStroke) {
                 applyCommonStrokeWidth(generatedCenterLines, opts.strokeStrategy);
+            }
+            if (opts.printBlack) {
+                applyPrintBlackStroke(generatedCenterLines);
             }
             app.activeDocument.selection = generatedCenterLines;
         }
