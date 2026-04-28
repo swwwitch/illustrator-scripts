@@ -4,276 +4,421 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 ### スクリプト名：
 
-ConvertFontInfoUI.jsx
+ConvertFontInfo.jsx
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ConvertFontInfo.jsx
+
 
 ### 概要
 
-- 選択したテキストの内容をフォント情報に変換するIllustrator用スクリプトです。
-- ダイアログで形式を選択し、選択中テキストをリアルタイムに書き換えることができます。
+- 選択したテキストをフォント情報に変換するIllustrator用スクリプトです。
+- ダイアログで変換形式を選び、対象テキストを即時プレビューしながら書き換えます。
+- 右列には、選択中テキストの実フォント情報をもとにした変換結果を表示します。
+- OK時は選択中の形式を再適用し、キャンセル時は開始時の内容、フォント、サイズ、行揃えに戻します。
 
 ### 主な機能
 
-- フォントファミリー名、スタイル、PostScript名、フルネーム＋サイズ、3行詳細表示を選択可能
-- 変換後のプレビューを即時表示
-- フォントサイズは環境設定「文字の単位」に従い小数第2位まで換算表示
-- キャンセル時には元のテキスト内容と書式を復元
+- フォント名、スタイル、フォント名＋スタイル、PostScript名、フルネーム＋サイズ、詳細表示を選択可能
+- 初期状態は「フォント名＋スタイル」を選択
+- F/S/B/P/M/Dキーで変換形式を切り替え
+- 詳細表示ではラベル行と値行を分け、行揃えを左揃えに変更
+- 選択したテキストフレームを保持し、プレビュー中に選択状態が変わっても同じ対象を更新
+- フォントサイズは環境設定「文字の単位」に従い、小数第2位まで換算表示
 - 日本語／英語インターフェース対応
 
-### 処理の流れ
-
-1. 選択中のテキストを解析しフォント情報を取得
-2. ダイアログで変換形式を選択
-3. 選択に応じて即座にプレビュー表示
-4. OKで確定、キャンセルで元に戻す
 
 ### 更新履歴
 
 - v1.0.0 (20250509) : 初期バージョン
+- v1.1.0 (20260428) : 変換形式を拡張し、実フォント情報プレビュー、キー操作、OK時の再適用を追加
 
 ---
 
 ### Script Name:
 
-ConvertFontInfoUI.jsx
+ConvertFontInfo.jsx
 
 ### Overview
 
-- An Illustrator script to convert the contents of selected text into font information.
-- Allows you to select format via dialog and rewrite text content in real time.
+- An Illustrator script that converts selected text into font information.
+- Choose a conversion format in the dialog and rewrite the target text with an immediate preview.
+- The right column shows conversion results generated from the actual font information of the selected text.
+- Reapplies the selected format on OK, and restores original contents, font, size, and justification when canceled.
 
 ### Main Features
 
-- Choose from font family name, style, PostScript name, full name + size, or detailed 3-line view
-- Instantly preview the converted text
-- Font size is converted based on "Type Units" preference, rounded to two decimals
-- Restore original text and formatting when canceled
+- Choose from font family, style, font family + style, PostScript name, full name + size, or detail view
+- Defaults to Font Family + Style
+- Switch conversion formats with the F/S/B/P/M/D keys
+- Detail view separates label lines and value lines, and sets justification to left
+- Keeps references to the selected text frames, so the same targets are updated even if the selection changes during preview
+- Converts font size according to the Illustrator "Type Units" preference and rounds it to two decimals
 - Japanese and English UI support
 
-### Process Flow
-
-1. Analyze selected text and retrieve font information
-2. Choose conversion format in the dialog
-3. Preview changes instantly as you select
-4. Confirm with OK, or revert with Cancel
 
 ### Update History
 
 - v1.0.0 (20250509): Initial version
+- v1.1.0 (20260428): Expanded conversion formats and added actual font preview, keyboard shortcuts, and final reapply on OK
 */
 
-function getCurrentLang() {
-    return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-}
+(function () {
 
-var lang = getCurrentLang();
-
-var LABELS = {
-    dialogTitle: { ja: "フォント情報に変換", en: "Convert Font Info" },
-    panelTitle:  { ja: "変換形式",         en: "Conversion Format" },
-    radio1:      { ja: "フォントファミリー名（.family）", en: "Font Family (.family)" },
-    radio2:      { ja: "スタイル（例：Bold / Italic）（.style）", en: "Style (e.g. Bold/Italic) (.style)" },
-    radio3:      { ja: "PostScript 名（.name）", en: "PostScript Name (.name)" },
-    radio4:      { ja: "フルネーム＋サイズ（.fullName + size）", en: "Full Name + Size (.fullName + size)" },
-    radio5:      { ja: "項目ラベル付きの詳細（3行表示）", en: "Labeled Detail (3-line view)" },
-    cancel:      { ja: "キャンセル", en: "Cancel" },
-    ok:          { ja: "OK",        en: "OK" }
-};
-
-// 単位変換処理（pt → 指定単位、小数第2位）
-function getFontSizeWithUnit(sizePt) {
-    var unitPref = app.preferences.getIntegerPreference('text/units');
-    var unitLabel = "pt";
-    var convertedSize = sizePt;
-
-    switch (unitPref) {
-        case 0: unitLabel = "inch"; convertedSize = sizePt / 72; break;
-        case 1: unitLabel = "mm";   convertedSize = sizePt * 25.4 / 72; break;
-        case 2: unitLabel = "pt";   convertedSize = sizePt; break;
-        case 3: unitLabel = "pica"; convertedSize = sizePt / 12; break;
-        case 4: unitLabel = "cm";   convertedSize = sizePt * 2.54 / 72; break;
-        case 5: unitLabel = "Q";    convertedSize = sizePt * (25.4 / 72) * 4; break;
-        case 6: unitLabel = "px";   convertedSize = sizePt * (96 / 72); break;
+    function getCurrentLang() {
+        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
     }
 
-    return (Math.round(convertedSize * 100) / 100) + " " + unitLabel;
-}
+    var lang = getCurrentLang();
 
-var fontMap = {};
+    var SCRIPT_VERSION = "v1.1.0";
 
-main();
+    function L(key) {
+        if (!LABELS[key]) {
+            $.writeln("[ConvertFontInfo] Missing LABELS key: " + key);
+            return "[" + key + "]";
+        }
 
-function main() {
-    if (app.documents.length === 0) return;
+        if (LABELS[key][lang]) {
+            return LABELS[key][lang];
+        }
 
-    if (app.selection.constructor.name === "TextRange") {
-        var frames = app.selection.story.textFrames;
-        if (frames.length === 1) app.selection = [frames[0]];
+        if (LABELS[key].en) {
+            $.writeln("[ConvertFontInfo] Missing locale '" + lang + "' for LABELS key: " + key + ". Fallback to en.");
+            return LABELS[key].en;
+        }
+
+        $.writeln("[ConvertFontInfo] Missing locale '" + lang + "' and fallback 'en' for LABELS key: " + key);
+        return "[" + key + "]";
     }
 
-    var sel = app.selection;
-    if (!sel || sel.length === 0 || sel.length >= 1000) return;
+    var LABELS = {
+        dialogTitle: { ja: "フォント情報に変換", en: "Convert Font Info" },
+        panelTitle: { ja: "変換形式", en: "Conversion Format" },
+        radio1: { ja: "フォント名", en: "Font Family" },
+        radio2: { ja: "スタイル", en: "Style" },
+        radio3: { ja: "フォント名＋スタイル", en: "Font Family + Style" },
+        radio4: { ja: "PostScript 名", en: "PostScript Name" },
+        radio5: { ja: "フルネーム＋サイズ", en: "Full Name + Size" },
+        radio6: { ja: "詳細", en: "Labeled Detail" },
+        cancel: { ja: "キャンセル", en: "Cancel" },
+        ok: { ja: "OK", en: "OK" },
+        helpFontFamily: { ja: "ショートカット: F", en: "Shortcut: F" },
+        helpStyle: { ja: "ショートカット: S", en: "Shortcut: S" },
+        helpFontFamilyStyle: { ja: "ショートカット: B", en: "Shortcut: B" },
+        helpPostScriptName: { ja: "ショートカット: P", en: "Shortcut: P" },
+        helpFullNameSize: { ja: "ショートカット: M", en: "Shortcut: M" },
+        helpDetailLines: { ja: "ショートカット: D", en: "Shortcut: D" },
+        detailFamilyLabel: { ja: "フォント名", en: "Font Family" },
+        detailStyleLabel: { ja: "スタイル", en: "Style" },
+        detailNameLabel: { ja: "PostScript 名", en: "PostScript Name" }
+    };
 
-    for (var i = 0; i < sel.length; i++) {
-        var item = sel[i];
-        if (item.typename !== "TextFrame") continue;
+    // 単位変換処理（pt → 指定単位、小数第2位）
+    function getFontSizeWithUnit(sizePt) {
+        var unitPref = app.preferences.getIntegerPreference('text/units');
+        var unitLabel = "pt";
+        var convertedSize = sizePt;
+
+        switch (unitPref) {
+            case 0: unitLabel = "inch"; convertedSize = sizePt / 72; break;
+            case 1: unitLabel = "mm"; convertedSize = sizePt * 25.4 / 72; break;
+            case 2: unitLabel = "pt"; convertedSize = sizePt; break;
+            case 3: unitLabel = "pica"; convertedSize = sizePt / 12; break;
+            case 4: unitLabel = "cm"; convertedSize = sizePt * 2.54 / 72; break;
+            case 5: unitLabel = "Q"; convertedSize = sizePt * (25.4 / 72) * 4; break;
+            case 6: unitLabel = "px"; convertedSize = sizePt * (96 / 72); break;
+        }
+
+        return (Math.round(convertedSize * 100) / 100) + " " + unitLabel;
+    }
+
+    var originalTextFrameInfos = [];
+
+    main();
+
+    function main() {
+        if (app.documents.length === 0) return;
+
+        if (app.selection.constructor.name === "TextRange") {
+            var frames = app.selection.story.textFrames;
+            if (frames.length === 1) app.selection = [frames[0]];
+        }
+
+        var selectedItems = app.selection;
+        if (!selectedItems || selectedItems.length === 0 || selectedItems.length >= 1000) return;
+
+        for (var selectedIndex = 0; selectedIndex < selectedItems.length; selectedIndex++) {
+            var selectedItem = selectedItems[selectedIndex];
+            if (selectedItem.typename !== "TextFrame") continue;
+            try {
+                var textRange = selectedItem.textRange;
+                originalTextFrameInfos.push({
+                    textFrame: selectedItem,
+                    font: textRange.characterAttributes.textFont,
+                    originalSize: textRange.characterAttributes.size,
+                    originalJustification: textRange.paragraphAttributes.justification,
+                    originalText: selectedItem.contents
+                });
+            } catch (e) { }
+        }
+
+        if (originalTextFrameInfos.length === 0) return;
+
+        showDialog();
+    }
+
+    function getConvertedFontInfoText(originalTextFrameInfo, format) {
+        var sourceFont = originalTextFrameInfo.font;
+        var sourceFontSize = originalTextFrameInfo.originalSize;
+
+        switch (format) {
+            case "style":
+                return sourceFont.style;
+            case "family+style":
+                return sourceFont.family + " " + sourceFont.style;
+            case "postscript":
+                return sourceFont.name;
+            case "fullName+size":
+                var fontSizeText = getFontSizeWithUnit(sourceFontSize);
+                return (sourceFont.fullName && sourceFont.fullName !== "")
+                    ? sourceFont.fullName + "\t" + fontSizeText
+                    : sourceFont.family + " " + sourceFont.style + "\t" + fontSizeText;
+            default:
+                return sourceFont.family;
+        }
+    }
+
+    function buildDetailLineItems(originalTextFrameInfo) {
+        var sourceFont = originalTextFrameInfo.font;
+
+        return [
+            { label: L('detailFamilyLabel'), value: sourceFont.family },
+            { label: L('detailStyleLabel'), value: sourceFont.style },
+            { label: L('detailNameLabel'), value: sourceFont.name }
+        ];
+    }
+
+    function updateFontInfoPreview(format) {
+        var detailLabelFont = null;
+
         try {
-            var tf = item.textRange;
-            var key = item.name || ("_tmp_" + i);
-            fontMap[key] = {
-                font: tf.characterAttributes.textFont,
-                originalSize: tf.characterAttributes.size,
-                originalText: item.contents
-            };
-        } catch (e) {}
-    }
+            detailLabelFont = textFonts.getByName("HiraginoSans-W3");
+        } catch (e) { }
 
-    showDialog();
-}
+        for (var textFrameIndex = 0; textFrameIndex < originalTextFrameInfos.length; textFrameIndex++) {
+            var originalTextFrameInfo = originalTextFrameInfos[textFrameIndex];
+            var textFrame = originalTextFrameInfo.textFrame;
 
-function previewChange(format) {
-    var sel = app.selection;
-    var labelFont = null;
+            try {
+                var sourceFont = originalTextFrameInfo.font;
+                var sourceFontSize = originalTextFrameInfo.originalSize;
+                var convertedText = "";
 
-    try {
-        labelFont = textFonts.getByName("HiraginoSans-W3");
-    } catch (e) {}
+                if (format === "label3lines") {
+                    var lineBreak = String.fromCharCode(13);
+                    var detailLineItems = buildDetailLineItems(originalTextFrameInfo);
+                    var detailTextParts = [];
 
-    for (var i = 0; i < sel.length; i++) {
-        var item = sel[i];
-        if (item.typename !== "TextFrame") continue;
+                    for (var detailItemIndex = 0; detailItemIndex < detailLineItems.length; detailItemIndex++) {
+                        detailTextParts.push(detailLineItems[detailItemIndex].label);
+                        detailTextParts.push(detailLineItems[detailItemIndex].value);
+                    }
 
-        try {
-            var key = item.name || ("_tmp_" + i);
-            var saved = fontMap[key];
-            if (!saved || !saved.font) continue;
+                    convertedText = detailTextParts.join(lineBreak);
+                    textFrame.contents = convertedText;
+                    textFrame.textRange.paragraphAttributes.justification = Justification.LEFT;
 
-            var baseFont = saved.font;
-            var originalSize = saved.originalSize;
-            var cr = String.fromCharCode(13);
-            var tf = item.textRange;
-            var content = "";
+                    var previewLines = textFrame.textRange.lines;
+                    if (previewLines.length > 0 && detailLabelFont) {
+                        for (var lineIndex = 0; lineIndex < previewLines.length; lineIndex++) {
+                            var isLabelLine = (lineIndex % 2 === 0);
+                            var attributes = previewLines[lineIndex].characterAttributes;
+                            attributes.textFont = isLabelLine ? detailLabelFont : sourceFont;
+                            attributes.size = isLabelLine ? 10 : sourceFontSize;
+                        }
+                    }
 
-            if (format === "label3lines") {
-                content =
-                    ".family（フォント名）" + cr + baseFont.family + cr +
-                    ".style（ウエイト/スタイル）" + cr + baseFont.style + cr +
-                    ".name（PostScript名）" + cr + baseFont.name;
-                item.contents = content;
+                } else {
+                    var textRange = textFrame.textRange;
+                    textRange.characterAttributes.textFont = sourceFont;
+                    textRange.characterAttributes.size = sourceFontSize;
 
-                var lines = item.textRange.lines;
-                if (lines.length >= 6 && labelFont) {
-                    lines[0].characterAttributes.textFont = labelFont;
-                    lines[0].characterAttributes.size = 10;
-                    lines[2].characterAttributes.textFont = labelFont;
-                    lines[2].characterAttributes.size = 10;
-                    lines[4].characterAttributes.textFont = labelFont;
-                    lines[4].characterAttributes.size = 10;
+                    convertedText = getConvertedFontInfoText(originalTextFrameInfo, format);
 
-                    lines[1].characterAttributes.textFont = baseFont;
-                    lines[1].characterAttributes.size = originalSize;
-                    lines[3].characterAttributes.textFont = baseFont;
-                    lines[3].characterAttributes.size = originalSize;
-                    lines[5].characterAttributes.textFont = baseFont;
-                    lines[5].characterAttributes.size = originalSize;
+                    textFrame.contents = convertedText;
                 }
 
-            } else {
-                tf.characterAttributes.textFont = baseFont;
-                tf.characterAttributes.size = originalSize;
+            } catch (e) { }
+        }
 
-                switch (format) {
-                    case "style":
-                        content = baseFont.style;
-                        break;
-                    case "postscript":
-                        content = baseFont.name;
-                        break;
-                    case "name+style":
-                        var sizeText = getFontSizeWithUnit(originalSize);
-                        content = (baseFont.fullName && baseFont.fullName !== "")
-                            ? baseFont.fullName + "\t" + sizeText
-                            : baseFont.family + " " + baseFont.style + "\t" + sizeText;
-                        break;
-                    default:
-                        content = baseFont.family;
-                }
+        app.redraw();
+    }
 
-                item.contents = content;
+    function restoreOriginalText() {
+        for (var textFrameIndex = 0; textFrameIndex < originalTextFrameInfos.length; textFrameIndex++) {
+            var originalTextFrameInfo = originalTextFrameInfos[textFrameIndex];
+            var textFrame = originalTextFrameInfo.textFrame;
+
+            try {
+                textFrame.contents = originalTextFrameInfo.originalText;
+                var textRange = textFrame.textRange;
+                textRange.characterAttributes.textFont = originalTextFrameInfo.font;
+                textRange.characterAttributes.size = originalTextFrameInfo.originalSize;
+                textRange.paragraphAttributes.justification = originalTextFrameInfo.originalJustification;
+            } catch (e) { }
+        }
+
+        app.redraw();
+    }
+
+    function showDialog() {
+        var dialog = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
+
+        var dialogContainer = dialog.add("group");
+        dialogContainer.orientation = "column";
+        dialogContainer.alignChildren = "left";
+        dialogContainer.alignment = "fill";
+        var radioPanel = dialogContainer.add("panel", undefined, L('panelTitle'));
+        radioPanel.orientation = "column";
+        radioPanel.alignChildren = "left";
+        radioPanel.alignment = "fill";
+        radioPanel.margins = [15, 20, 15, 10];
+
+        var formatRowsGroup = radioPanel.add("group");
+        formatRowsGroup.orientation = "column";
+        formatRowsGroup.alignChildren = ["fill", "top"];
+        formatRowsGroup.spacing = 6;
+
+        var previewSourceInfo = originalTextFrameInfos[0];
+        var leftColumnWidth = 180;
+
+        function addFormatRow(labelKey, previewText, helpTipKey) {
+            var formatRow = formatRowsGroup.add("group");
+            formatRow.orientation = "row";
+            formatRow.alignChildren = ["left", "center"];
+
+            var leftColumn = formatRow.add("group");
+            leftColumn.preferredSize.width = leftColumnWidth;
+            var radioButton = leftColumn.add("radiobutton", undefined, L(labelKey));
+
+            if (helpTipKey) {
+                radioButton.helpTip = L(helpTipKey);
             }
 
-        } catch (e) {}
+            if (previewText) {
+                var previewStaticText = formatRow.add("statictext", undefined, previewText);
+                previewStaticText.helpTip = previewText;
+            }
+
+            return radioButton;
+        }
+
+        var fontFamilyRadio = addFormatRow('radio1', getConvertedFontInfoText(previewSourceInfo, "name"), 'helpFontFamily');
+        var styleRadio = addFormatRow('radio2', getConvertedFontInfoText(previewSourceInfo, "style"), 'helpStyle');
+        var fontFamilyStyleRadio = addFormatRow('radio3', getConvertedFontInfoText(previewSourceInfo, "family+style"), 'helpFontFamilyStyle');
+        var postScriptNameRadio = addFormatRow('radio4', getConvertedFontInfoText(previewSourceInfo, "postscript"), 'helpPostScriptName');
+        var fullNameSizeRadio = addFormatRow('radio5', getConvertedFontInfoText(previewSourceInfo, "fullName+size"), 'helpFullNameSize');
+        var detailLinesRadio = addFormatRow('radio6', "", 'helpDetailLines');
+
+        fontFamilyStyleRadio.value = true;
+
+        function setExclusiveRadio(selectedRadio) {
+            fontFamilyRadio.value = false;
+            styleRadio.value = false;
+            fontFamilyStyleRadio.value = false;
+            postScriptNameRadio.value = false;
+            fullNameSizeRadio.value = false;
+            detailLinesRadio.value = false;
+            selectedRadio.value = true;
+        }
+
+        function selectFormatRadio(radioButton, format) {
+            setExclusiveRadio(radioButton);
+            updateFontInfoPreview(format);
+        }
+
+        function bindFormatRadio(radioButton, format) {
+            radioButton.onClick = function () {
+                selectFormatRadio(radioButton, format);
+            };
+        }
+
+        function addFormatKeyHandler(dialog) {
+            dialog.addEventListener("keydown", function (event) {
+                var keyName = String(event.keyName).toUpperCase();
+
+                if (keyName === "F") {
+                    selectFormatRadio(fontFamilyRadio, "name");
+                    event.preventDefault();
+                } else if (keyName === "S") {
+                    selectFormatRadio(styleRadio, "style");
+                    event.preventDefault();
+                } else if (keyName === "B") {
+                    selectFormatRadio(fontFamilyStyleRadio, "family+style");
+                    event.preventDefault();
+                } else if (keyName === "P") {
+                    selectFormatRadio(postScriptNameRadio, "postscript");
+                    event.preventDefault();
+                } else if (keyName === "M") {
+                    selectFormatRadio(fullNameSizeRadio, "fullName+size");
+                    event.preventDefault();
+                }
+                else if (keyName === "D") {
+                    selectFormatRadio(detailLinesRadio, "label3lines");
+                    event.preventDefault();
+                }
+            });
+        }
+
+        bindFormatRadio(fontFamilyRadio, "name");
+        bindFormatRadio(styleRadio, "style");
+        bindFormatRadio(fontFamilyStyleRadio, "family+style");
+        bindFormatRadio(postScriptNameRadio, "postscript");
+        bindFormatRadio(fullNameSizeRadio, "fullName+size");
+        bindFormatRadio(detailLinesRadio, "label3lines");
+
+        function getSelectedFormat() {
+            if (fontFamilyRadio.value) return "name";
+            if (styleRadio.value) return "style";
+            if (fontFamilyStyleRadio.value) return "family+style";
+            if (postScriptNameRadio.value) return "postscript";
+            if (fullNameSizeRadio.value) return "fullName+size";
+            if (detailLinesRadio.value) return "label3lines";
+            return "family+style";
+        }
+
+        addFormatKeyHandler(dialog);
+
+        updateFontInfoPreview("family+style");
+
+        var buttonGroup = dialogContainer.add("group");
+        buttonGroup.orientation = "row";
+        buttonGroup.alignChildren = ["fill", "center"];
+        buttonGroup.alignment = "fill";
+        buttonGroup.margins = [0, 10, 0, 0];
+
+        var leftButtonGroup = buttonGroup.add("group");
+        leftButtonGroup.orientation = "row";
+        leftButtonGroup.alignChildren = ["left", "center"];
+        leftButtonGroup.alignment = ["left", "center"];
+        leftButtonGroup.add("button", undefined, L('cancel'), { name: "cancel" });
+
+        var centerSpacerGroup = buttonGroup.add("group");
+        centerSpacerGroup.alignment = ["fill", "fill"];
+        centerSpacerGroup.minimumSize.width = 100;
+
+        var rightButtonGroup = buttonGroup.add("group");
+        rightButtonGroup.orientation = "row";
+        rightButtonGroup.alignChildren = ["right", "center"];
+        rightButtonGroup.alignment = ["right", "center"];
+        rightButtonGroup.add("button", undefined, L('ok'), { name: "ok" });
+
+        var dialogResult = dialog.show();
+        if (dialogResult === 1) {
+            updateFontInfoPreview(getSelectedFormat());
+        } else {
+            restoreOriginalText();
+        }
     }
 
-    app.redraw();
-}
-
-function restoreOriginalText() {
-    var sel = app.selection;
-    for (var i = 0; i < sel.length; i++) {
-        var item = sel[i];
-        if (item.typename !== "TextFrame") continue;
-
-        var key = item.name || ("_tmp_" + i);
-        var saved = fontMap[key];
-        if (!saved) continue;
-
-        try {
-            item.contents = saved.originalText;
-            var tf = item.textRange;
-            tf.characterAttributes.textFont = saved.font;
-            tf.characterAttributes.size = saved.originalSize;
-        } catch (e) {}
-    }
-
-    app.redraw();
-}
-
-function showDialog() {
-    var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
-
-    var outer = dlg.add("group");
-    outer.orientation = "column";
-    outer.alignChildren = "left";
-    outer.alignment = "fill";
-    outer.margins = 10;
-
-    var radioPanel = outer.add("panel", undefined, LABELS.panelTitle[lang]);
-    radioPanel.orientation = "column";
-    radioPanel.alignChildren = "left";
-    radioPanel.alignment = "fill";
-    radioPanel.margins = [10, 22, 10, 20];
-
-    var r1 = radioPanel.add("radiobutton", undefined, LABELS.radio1[lang]);
-    var r2 = radioPanel.add("radiobutton", undefined, LABELS.radio2[lang]);
-    var r3 = radioPanel.add("radiobutton", undefined, LABELS.radio3[lang]);
-    var r4 = radioPanel.add("radiobutton", undefined, LABELS.radio4[lang]);
-    var r5 = radioPanel.add("radiobutton", undefined, LABELS.radio5[lang]);
-    r1.value = true;
-
-    r1.onClick = function () { previewChange("name"); };
-    r2.onClick = function () { previewChange("style"); };
-    r3.onClick = function () { previewChange("postscript"); };
-    r4.onClick = function () { previewChange("name+style"); };
-    r5.onClick = function () { previewChange("label3lines"); };
-
-    previewChange("name");
-
-    var btnGroup = outer.add("group");
-    btnGroup.orientation = "row";
-    btnGroup.alignChildren = ["fill", "center"];
-    btnGroup.alignment = "fill";
-    btnGroup.margins = [10, 20, 10, 0];
-    btnGroup.spacing = 10;
-
-    var btnCancel = btnGroup.add("button", undefined, LABELS.cancel[lang], { name: "cancel" });
-    var spacer = btnGroup.add("group");
-    spacer.alignment = ["fill", "fill"];
-    spacer.minimumSize.width = 100;
-    var btnOK = btnGroup.add("button", undefined, LABELS.ok[lang], { name: "ok" });
-    btnOK.alignment = ["right", "center"];
-
-    var result = dlg.show();
-    if (result !== 1) { // キャンセル時
-        restoreOriginalText();
-    }
-}
+})();
