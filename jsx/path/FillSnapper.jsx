@@ -25,7 +25,7 @@ target edge may move to the nearest reference; 0 means no distance limit.
 // バージョンとローカライズ / Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -53,10 +53,6 @@ var LABELS = {
         btnOK: { ja: "OK", en: "OK" },
         btnCancel: { ja: "キャンセル", en: "Cancel" }
     },
-    description: {
-        maxDistanceDescription: { ja: "0で制限なし", en: "0 = no limit" },
-        maxDistanceInlineDescription: { ja: "（0で制限なし）", en: "(0 = no limit)" }
-    },
     error: {
         errNoDoc: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
         errSelect: { ja: "スナップ対象のオブジェクトを選択してください。", en: "Select a snap target object." }, errNoTarget: { ja: "変形対象が見つかりません。", en: "No transformable target found." },
@@ -66,7 +62,7 @@ var LABELS = {
 
 /* ラベル取得 / Get localized label */
 function getLabel(key) {
-    var categories = [LABELS.ui, LABELS.description, LABELS.error];
+    var categories = [LABELS.ui, LABELS.error];
     for (var i = 0; i < categories.length; i++) {
         var entry = categories[i][key];
         if (entry) return entry[lang] || entry.en || key;
@@ -575,9 +571,7 @@ function showSnapDialog(defaults, onPreview) {
     var maxDistanceLabel = maxDistanceGroup.add("statictext", undefined, labelText('maxDistance'));
     maxDistanceLabel.preferredSize = [OPTION_LABEL_WIDTH, -1];
     var maxDistanceInput = maxDistanceGroup.add("edittext", undefined, formatUnitValue(pointsToUnit(defaults.maxDistance, currentUnitCode))); maxDistanceInput.characters = 3;
-    maxDistanceInput.helpTip = L('maxDistanceDescription');
     maxDistanceGroup.add("statictext", undefined, currentUnitLabel);
-    maxDistanceGroup.add("statictext", undefined, L('maxDistanceInlineDescription'));
 
     /* 下段：左＝プレビュー、中央＝余白、右＝ボタン / Bottom row: left=preview, center=spacer, right=buttons */
     var bottomGroup = dialog.add("group");
