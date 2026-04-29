@@ -27,7 +27,7 @@ Main features:
     // バージョンとローカライズ / Version and localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.1.0";
+    var SCRIPT_VERSION = "v1.2.0";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -38,8 +38,8 @@ Main features:
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
         dialogTitle: {
-            ja: "逆・長方形グリッドツール",
-            en: "Rectangular Grid Reverse Tool"
+            ja: "グリッド再構築",
+            en: "Rebuild Grid"
         },
         optionEven: {
             ja: "均等に（強制）",
@@ -68,6 +68,14 @@ Main features:
         optionEqualizeHorizontal: {
             ja: "横罫",
             en: "Horizontal lines"
+        },
+        optionLockFirstColumn: {
+            ja: "1列目を固定",
+            en: "Lock first column"
+        },
+        optionLockFirstRow: {
+            ja: "1行目を固定",
+            en: "Lock first row"
         },
         panelLine: {
             ja: "線",
@@ -232,6 +240,9 @@ Main features:
     // グループ等を再帰展開して PathItem の平坦リストにする / Flatten selection (descending into groups) to PathItems
     var flatPathItems = flattenSelectionToPathItems(selectedItems);
 
+    // 塗りのあるパスは対象外 / Exclude paths that have a fill
+    flatPathItems = excludeFilledPaths(flatPathItems);
+
     // 軸並行の長方形は4本の罫線に分解 / Decompose axis-aligned rectangles into 4 lines
     var expansionResult = expandRectanglesInSelection(flatPathItems);
     var workingItems = expansionResult.items;
@@ -308,6 +319,15 @@ Main features:
                 collectPathItemsRecursively(item.pathItems, pathItems);
             }
         }
+    }
+
+    // 塗りのあるパスを対象から除外 / Exclude filled paths from the working set
+    function excludeFilledPaths(pathItems) {
+        var result = [];
+        for (var itemIndex = 0; itemIndex < pathItems.length; itemIndex++) {
+            if (!pathItems[itemIndex].filled) result.push(pathItems[itemIndex]);
+        }
+        return result;
     }
 
     // 軸並行の長方形か判定（閉じた4点・各辺が水平または垂直）/ Check if path is an axis-aligned rectangle
@@ -585,6 +605,8 @@ Main features:
             specifiedStrokeWidthPt: dialogUi.strokeWidthSpecifiedRadio && dialogUi.strokeWidthSpecifiedRadio.value
                 ? unitValueToPoints(readNumericText(dialogUi.strokeWidthInput.text, 0), dialogUi.strokeUnitInfo)
                 : 0,
+            lockFirstColumn: dialogUi.lockFirstColumnCheckbox.value,
+            lockFirstRow: dialogUi.lockFirstRowCheckbox.value,
             frameToRect: dialogUi.frameToRectangleCheckbox.value,
             group: dialogUi.groupingCheckbox.value
         };
@@ -774,9 +796,21 @@ Main features:
         var horizontalLineYPositions = [];
         if (dialogOptions.evenHorizontal && horizontalLines.length >= 2) {
             horizontalLines.sort(function (lineA, lineB) { return lineA.y - lineB.y; });
-            var horizontalStep = (gridBounds.maxY - gridBounds.minY) / (horizontalLines.length - 1);
-            for (var horizontalIndex = 0; horizontalIndex < horizontalLines.length; horizontalIndex++) {
-                horizontalLineYPositions.push(gridBounds.minY + horizontalStep * horizontalIndex);
+            if (dialogOptions.lockFirstRow && horizontalLines.length >= 3) {
+                // 1行目（最上）・2行目を固定し、2行目と最下を基準に残りを均等配置 / Lock 1st & 2nd from top; distribute the rest between 2nd-from-top and bottom
+                var topY = horizontalLines[horizontalLines.length - 1].y;
+                var lockedAnchorY = horizontalLines[horizontalLines.length - 2].y;
+                var bottommostY = horizontalLines[0].y;
+                var lockedHorizontalStep = (lockedAnchorY - bottommostY) / (horizontalLines.length - 2);
+                for (var lockedHorizontalIndex = 0; lockedHorizontalIndex < horizontalLines.length - 1; lockedHorizontalIndex++) {
+                    horizontalLineYPositions.push(bottommostY + lockedHorizontalStep * lockedHorizontalIndex);
+                }
+                horizontalLineYPositions.push(topY);
+            } else {
+                var horizontalStep = (gridBounds.maxY - gridBounds.minY) / (horizontalLines.length - 1);
+                for (var horizontalIndex = 0; horizontalIndex < horizontalLines.length; horizontalIndex++) {
+                    horizontalLineYPositions.push(gridBounds.minY + horizontalStep * horizontalIndex);
+                }
             }
         } else {
             for (var originalHorizontalIndex = 0; originalHorizontalIndex < horizontalLines.length; originalHorizontalIndex++) {
@@ -788,9 +822,20 @@ Main features:
         var verticalLineXPositions = [];
         if (dialogOptions.evenVertical && verticalLines.length >= 2) {
             verticalLines.sort(function (lineA, lineB) { return lineA.x - lineB.x; });
-            var verticalStep = (gridBounds.maxX - gridBounds.minX) / (verticalLines.length - 1);
-            for (var verticalIndex = 0; verticalIndex < verticalLines.length; verticalIndex++) {
-                verticalLineXPositions.push(gridBounds.minX + verticalStep * verticalIndex);
+            if (dialogOptions.lockFirstColumn && verticalLines.length >= 3) {
+                // 1本目・2本目を固定し、2本目と最右を基準に残りを均等配置 / Lock 1st & 2nd; distribute the rest between 2nd and rightmost
+                var lockedAnchorX = verticalLines[1].x;
+                var rightmostVerticalX = verticalLines[verticalLines.length - 1].x;
+                var lockedVerticalStep = (rightmostVerticalX - lockedAnchorX) / (verticalLines.length - 2);
+                verticalLineXPositions.push(verticalLines[0].x);
+                for (var lockedVerticalIndex = 1; lockedVerticalIndex < verticalLines.length; lockedVerticalIndex++) {
+                    verticalLineXPositions.push(lockedAnchorX + lockedVerticalStep * (lockedVerticalIndex - 1));
+                }
+            } else {
+                var verticalStep = (gridBounds.maxX - gridBounds.minX) / (verticalLines.length - 1);
+                for (var verticalIndex = 0; verticalIndex < verticalLines.length; verticalIndex++) {
+                    verticalLineXPositions.push(gridBounds.minX + verticalStep * verticalIndex);
+                }
             }
         } else {
             for (var originalVerticalIndex = 0; originalVerticalIndex < verticalLines.length; originalVerticalIndex++) {
@@ -822,9 +867,21 @@ Main features:
         // 各グループの新しい Y 位置（行）/ New Y position for each horizontal group (row)
         var horizontalGroupYPositions = [];
         if (dialogOptions.evenHorizontal && horizontalGroups.length >= 2) {
-            var horizontalStep = (gridBounds.maxY - gridBounds.minY) / (horizontalGroups.length - 1);
-            for (var horizontalGroupIndex = 0; horizontalGroupIndex < horizontalGroups.length; horizontalGroupIndex++) {
-                horizontalGroupYPositions.push(gridBounds.minY + horizontalStep * horizontalGroupIndex);
+            if (dialogOptions.lockFirstRow && horizontalGroups.length >= 3) {
+                // 1行目（最上）・2行目を固定し、2行目と最下を基準に残りを均等配置 / Lock 1st & 2nd rows from top; distribute the rest between 2nd-from-top and bottom
+                var topRowY = horizontalGroups[horizontalGroups.length - 1].coord;
+                var lockedAnchorRowY = horizontalGroups[horizontalGroups.length - 2].coord;
+                var bottommostRowY = horizontalGroups[0].coord;
+                var lockedRowStep = (lockedAnchorRowY - bottommostRowY) / (horizontalGroups.length - 2);
+                for (var lockedRowIndex = 0; lockedRowIndex < horizontalGroups.length - 1; lockedRowIndex++) {
+                    horizontalGroupYPositions.push(bottommostRowY + lockedRowStep * lockedRowIndex);
+                }
+                horizontalGroupYPositions.push(topRowY);
+            } else {
+                var horizontalStep = (gridBounds.maxY - gridBounds.minY) / (horizontalGroups.length - 1);
+                for (var horizontalGroupIndex = 0; horizontalGroupIndex < horizontalGroups.length; horizontalGroupIndex++) {
+                    horizontalGroupYPositions.push(gridBounds.minY + horizontalStep * horizontalGroupIndex);
+                }
             }
         } else {
             for (var originalHorizontalGroupIndex = 0; originalHorizontalGroupIndex < horizontalGroups.length; originalHorizontalGroupIndex++) {
@@ -835,9 +892,20 @@ Main features:
         // 各グループの新しい X 位置（列）/ New X position for each vertical group (column)
         var verticalGroupXPositions = [];
         if (dialogOptions.evenVertical && verticalGroups.length >= 2) {
-            var verticalStep = (gridBounds.maxX - gridBounds.minX) / (verticalGroups.length - 1);
-            for (var verticalGroupIndex = 0; verticalGroupIndex < verticalGroups.length; verticalGroupIndex++) {
-                verticalGroupXPositions.push(gridBounds.minX + verticalStep * verticalGroupIndex);
+            if (dialogOptions.lockFirstColumn && verticalGroups.length >= 3) {
+                // 1列目・2列目を固定し、2列目と最右を基準に残りを均等配置 / Lock 1st & 2nd columns; distribute the rest between 2nd and rightmost
+                var lockedAnchorColumnX = verticalGroups[1].coord;
+                var rightmostColumnX = verticalGroups[verticalGroups.length - 1].coord;
+                var lockedColumnStep = (rightmostColumnX - lockedAnchorColumnX) / (verticalGroups.length - 2);
+                verticalGroupXPositions.push(verticalGroups[0].coord);
+                for (var lockedColumnIndex = 1; lockedColumnIndex < verticalGroups.length; lockedColumnIndex++) {
+                    verticalGroupXPositions.push(lockedAnchorColumnX + lockedColumnStep * (lockedColumnIndex - 1));
+                }
+            } else {
+                var verticalStep = (gridBounds.maxX - gridBounds.minX) / (verticalGroups.length - 1);
+                for (var verticalGroupIndex = 0; verticalGroupIndex < verticalGroups.length; verticalGroupIndex++) {
+                    verticalGroupXPositions.push(gridBounds.minX + verticalStep * verticalGroupIndex);
+                }
             }
         } else {
             for (var originalVerticalGroupIndex = 0; originalVerticalGroupIndex < verticalGroups.length; originalVerticalGroupIndex++) {
@@ -984,8 +1052,17 @@ Main features:
         equalizePanel.alignChildren = "left";
         equalizePanel.margins = [10, 20, 10, 10];
 
-        var equalizeVerticalCheckbox = equalizePanel.add("checkbox", undefined, getLabel("optionEqualizeVertical"));
-        var equalizeHorizontalCheckbox = equalizePanel.add("checkbox", undefined, getLabel("optionEqualizeHorizontal"));
+        var equalizeVerticalRow = equalizePanel.add("group");
+        equalizeVerticalRow.orientation = "row";
+        equalizeVerticalRow.alignChildren = ["left", "center"];
+        var equalizeVerticalCheckbox = equalizeVerticalRow.add("checkbox", undefined, getLabel("optionEqualizeVertical"));
+        var lockFirstColumnCheckbox = equalizeVerticalRow.add("checkbox", undefined, getLabel("optionLockFirstColumn"));
+
+        var equalizeHorizontalRow = equalizePanel.add("group");
+        equalizeHorizontalRow.orientation = "row";
+        equalizeHorizontalRow.alignChildren = ["left", "center"];
+        var equalizeHorizontalCheckbox = equalizeHorizontalRow.add("checkbox", undefined, getLabel("optionEqualizeHorizontal"));
+        var lockFirstRowCheckbox = equalizeHorizontalRow.add("checkbox", undefined, getLabel("optionLockFirstRow"));
 
         // デフォルトは両方 OFF / Default both to OFF
         equalizeVerticalCheckbox.value = false;
@@ -1072,7 +1149,9 @@ Main features:
             frameToRectangleCheckbox: frameToRectangleCheckbox,
             groupingCheckbox: groupingCheckbox,
             equalizeVerticalCheckbox: equalizeVerticalCheckbox,
-            equalizeHorizontalCheckbox: equalizeHorizontalCheckbox
+            equalizeHorizontalCheckbox: equalizeHorizontalCheckbox,
+            lockFirstColumnCheckbox: lockFirstColumnCheckbox,
+            lockFirstRowCheckbox: lockFirstRowCheckbox
         };
 
         // 配置モードに応じて平均化パネルの有効/無効を同期 / Sync equalize panel enabled state with distribution mode
@@ -1080,6 +1159,8 @@ Main features:
             var enabled = !distributionNoneRadio.value;
             equalizeVerticalCheckbox.enabled = enabled;
             equalizeHorizontalCheckbox.enabled = enabled;
+            lockFirstColumnCheckbox.enabled = enabled && equalizeVerticalCheckbox.value;
+            lockFirstRowCheckbox.enabled = enabled && equalizeHorizontalCheckbox.value;
         }
 
         syncEqualizePanelEnabled();
@@ -1103,12 +1184,20 @@ Main features:
             if (ScriptUI.environment.keyboardState.altKey) {
                 equalizeHorizontalCheckbox.value = equalizeVerticalCheckbox.value;
             }
+            syncEqualizePanelEnabled();
             updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
         };
         equalizeHorizontalCheckbox.onClick = function () {
             if (ScriptUI.environment.keyboardState.altKey) {
                 equalizeVerticalCheckbox.value = equalizeHorizontalCheckbox.value;
             }
+            syncEqualizePanelEnabled();
+            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+        };
+        lockFirstColumnCheckbox.onClick = function () {
+            updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
+        };
+        lockFirstRowCheckbox.onClick = function () {
             updatePreviewFromDialogState(dialogUi, classified, gridBounds, originalLineStates);
         };
         projectingCapCheckbox.onClick = function () {
