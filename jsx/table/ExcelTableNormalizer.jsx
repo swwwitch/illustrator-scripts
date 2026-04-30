@@ -397,6 +397,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var doc = app.activeDocument;
         var selectionItems = doc.selection;
 
+        // 元の選択範囲の外形バウンズを保存（以後の処理で参照範囲をこれに限定する）
+        // Snapshot original selection bounds so subsequent steps stay within the user's selection
+        var initialSelectionBounds = computeUnionGeometricBounds(selectionItems);
+
         if (removeDuplicate) {
             processClipGroupTexts(selectionItems);
         }
@@ -446,7 +450,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             if (centerLines && centerLines.length > 0) {
                 centerLines = dedupeOverlappingLines(centerLines);
                 if (placementMode) {
-                    applyPlacementMode(centerLines, placementMode);
+                    applyPlacementMode(centerLines, placementMode, initialSelectionBounds);
                     centerLines = dedupeOverlappingLines(centerLines);
                 }
                 finalItems = centerLines;
@@ -465,7 +469,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         // 外枠矩形化より前に、純粋な中心線群に対してセル背景をスナップする
         // Snap cell backgrounds while finalItems is still a homogeneous set of centerlines
         if (adjustCellBg && equalizeHeights && finalItems && finalItems.length > 0) {
-            snapCellBackgroundsAcrossLayers(doc, [TEXT_LAYER_NAME], finalItems, 0);
+            snapCellBackgroundsAcrossLayers(doc, [TEXT_LAYER_NAME], finalItems, 0, initialSelectionBounds);
         }
 
         // 外枠矩形化より前に線幅・色を確定させる
@@ -737,11 +741,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         dlg.spacing = 10;
         dlg.margins = 20;
 
-        dlg.add("statictext", undefined, L('columnAlignmentDescription'));
-
         var rowsPanel = dlg.add("panel", undefined, L('columnAlignmentDialogTitle'));
         setupPanel(rowsPanel, 6);
         rowsPanel.alignChildren = "fill";
+
+        var SAMPLE_LABEL_CHARS = 17;
+        var columnLabelTexts = [];
+        var sampleLabelTexts = [];
+        var columnLabelCharCount = 0;
+        for (var labelIndex = 0; labelIndex < columnSamples.length; labelIndex++) {
+            var columnLabelText = getColumnAlignmentColumnLabel(labelIndex);
+            var rawSample = columnSamples[labelIndex] || "";
+            var sampleLabelText = rawSample.replace(/^[\(（]/, "").replace(/[\)）]$/, "");
+            columnLabelTexts.push(columnLabelText);
+            sampleLabelTexts.push(sampleLabelText);
+            if (columnLabelText.length > columnLabelCharCount) columnLabelCharCount = columnLabelText.length;
+        }
+        if (columnLabelCharCount < 4) columnLabelCharCount = 4;
 
         var radioRows = [];
         for (var columnIndex = 0; columnIndex < columnSamples.length; columnIndex++) {
@@ -749,12 +765,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             row.orientation = "row";
             row.alignChildren = "center";
 
-            var label = row.add("statictext", undefined, getColumnAlignmentRowLabel(columnIndex, columnSamples[columnIndex]));
-            label.characters = 30;
+            var columnLabel = row.add("statictext", undefined, columnLabelTexts[columnIndex]);
+            columnLabel.characters = columnLabelCharCount;
 
             var leftRadio = row.add("radiobutton", undefined, L('columnAlignmentLeft'));
             var centerRadio = row.add("radiobutton", undefined, L('columnAlignmentCenter'));
             var rightRadio = row.add("radiobutton", undefined, L('columnAlignmentRight'));
+
+            var sampleLabel = row.add("statictext", undefined, sampleLabelTexts[columnIndex]);
+            sampleLabel.characters = SAMPLE_LABEL_CHARS;
 
             radioRows.push({ left: leftRadio, center: centerRadio, right: rightRadio });
             setColumnAlignmentRadioValue(radioRows[columnIndex], initialAlignments[columnIndex] || "left");
@@ -764,6 +783,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         footer.orientation = "row";
         footer.alignChildren = ["fill", "center"];
         footer.alignment = "fill";
+        footer.margins = [0, 10, 0, 0];
 
         // 左：自動判定 / Left: Auto
         var leftGroup = footer.add("group");
@@ -812,6 +832,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             return String(columnIndex + 1) + L('columnAlignmentColumn') + "（" + sampleText + "）";
         }
         return L('columnAlignmentColumn') + " " + String(columnIndex + 1) + " (" + sampleText + ")";
+    }
+
+    /* 列番号ラベル / Column number label */
+    function getColumnAlignmentColumnLabel(columnIndex) {
+        if (lang === "ja") {
+            return String(columnIndex + 1) + L('columnAlignmentColumn');
+        }
+        return L('columnAlignmentColumn') + " " + String(columnIndex + 1);
     }
 
     /* 配置ラジオを設定 / Set alignment radio value */
@@ -1113,7 +1141,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
      from their bounds, then delegates to a specific placement strategy.
     */
     /* 配置モード適用 / Apply placement mode to lines */
-    function applyPlacementMode(lines, mode) {
+    function applyPlacementMode(lines, mode, outerBounds) {
         if (!lines || lines.length === 0) return;
 
         var horizontalLines = [];
@@ -1158,6 +1186,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             if (horizontalLines[horizontalIndex].y > maxY) maxY = horizontalLines[horizontalIndex].y;
         }
         var lineBounds = { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
+
+        // 外周に罫線がない辺は、表全体の外形（セル背景＋罫線の合算バウンズ）まで拡張
+        // For edges without rules, expand bounds to the full table outline (cell backgrounds + rules)
+        if (outerBounds) {
+            var tol = 0.5;
+            if (outerBounds.left < lineBounds.minX - tol) lineBounds.minX = outerBounds.left;
+            if (outerBounds.right > lineBounds.maxX + tol) lineBounds.maxX = outerBounds.right;
+            if (outerBounds.bottom < lineBounds.minY - tol) lineBounds.minY = outerBounds.bottom;
+            if (outerBounds.top > lineBounds.maxY + tol) lineBounds.maxY = outerBounds.top;
+        }
 
         if (mode === "forced") {
             alignLines(horizontalLines, verticalLines, lineBounds, true);
@@ -1490,7 +1528,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /* レイヤー横断でセル背景（塗りクローズパス）を罫線中心線にスナップ
        Snap filled closed paths across all visible layers (FillSnapper-style) */
-    function snapCellBackgroundsAcrossLayers(doc, excludeLayerNames, ruleItems, insetPt) {
+    function snapCellBackgroundsAcrossLayers(doc, excludeLayerNames, ruleItems, insetPt, selectionBounds) {
         var ruleCenters = collectRuleCenterPositionsFromItems(ruleItems);
         if (!ruleCenters || ruleCenters.xPositions.length < 2 || ruleCenters.yPositions.length < 2) return 0;
 
@@ -1506,6 +1544,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             if (shouldSkipLayer || layer.locked || !layer.visible) continue;
             collectCellBackgroundSnapTargetsInItems(layer.pageItems, rectangleItems);
         }
+
+        // 元の選択範囲外のセル背景は対象外にする
+        // Limit cell backgrounds to those inside the original selection bounds
+        if (selectionBounds) {
+            rectangleItems = filterItemsWithinBounds(rectangleItems, selectionBounds, 1.0);
+        }
+
+        if (rectangleItems.length === 0) return 0;
+
+        // 選択範囲の外周に罫線がない辺は、選択範囲の外形を仮想罫線として補う
+        // For edges without rules, augment ruleCenters with virtual positions at the selection outline
+        var virtualOuterBounds = selectionBounds || null;
+        if (!virtualOuterBounds) {
+            virtualOuterBounds = computeUnionGeometricBounds(ruleItems);
+            virtualOuterBounds = mergeGeometricBounds(virtualOuterBounds, computeUnionGeometricBounds(rectangleItems));
+        }
+        augmentRuleCentersWithBounds(ruleCenters, virtualOuterBounds, 0.5);
 
         var inset = (typeof insetPt === "number" && insetPt > 0) ? insetPt : 0;
         var snapped = 0;
@@ -1680,6 +1735,76 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 }
             }
         } catch (e) { }
+    }
+
+    /* 罫線中心座標に外周仮想位置を追加 / Augment rule centers with a virtual outer rectangle */
+    function augmentRuleCentersWithBounds(ruleCenters, outerBounds, tolerance) {
+        if (!outerBounds) return;
+        var tol = (typeof tolerance === "number" && tolerance > 0) ? tolerance : 0.5;
+        var xs = ruleCenters.xPositions;
+        var ys = ruleCenters.yPositions;
+
+        if (xs.length === 0 || outerBounds.left < xs[0] - tol) xs.unshift(outerBounds.left);
+        if (xs.length === 0 || outerBounds.right > xs[xs.length - 1] + tol) xs.push(outerBounds.right);
+        if (ys.length === 0 || outerBounds.bottom < ys[0] - tol) ys.unshift(outerBounds.bottom);
+        if (ys.length === 0 || outerBounds.top > ys[ys.length - 1] + tol) ys.push(outerBounds.top);
+    }
+
+    /* 指定バウンズ内に収まるアイテムだけを残す / Keep only items whose bounds fit inside the given bounds */
+    function filterItemsWithinBounds(items, bounds, tolerance) {
+        if (!items || items.length === 0 || !bounds) return items || [];
+        var tol = (typeof tolerance === "number" && tolerance >= 0) ? tolerance : 0;
+        var result = [];
+        for (var i = 0; i < items.length; i++) {
+            try {
+                var item = items[i];
+                if (!item) continue;
+                var b = item.geometricBounds;
+                if (!b) continue;
+                if (b[0] >= bounds.left - tol &&
+                    b[2] <= bounds.right + tol &&
+                    b[1] <= bounds.top + tol &&
+                    b[3] >= bounds.bottom - tol) {
+                    result.push(item);
+                }
+            } catch (e) { }
+        }
+        return result;
+    }
+
+    /* 複数アイテムのジオメトリックバウンズの和集合 / Union geometric bounds of multiple items */
+    function computeUnionGeometricBounds(items) {
+        if (!items || items.length === 0) return null;
+        var unionBounds = null;
+        for (var i = 0; i < items.length; i++) {
+            try {
+                var item = items[i];
+                if (!item || item.locked || item.hidden) continue;
+                var b = item.geometricBounds;
+                if (!b) continue;
+                if (!unionBounds) {
+                    unionBounds = { left: b[0], top: b[1], right: b[2], bottom: b[3] };
+                } else {
+                    if (b[0] < unionBounds.left) unionBounds.left = b[0];
+                    if (b[1] > unionBounds.top) unionBounds.top = b[1];
+                    if (b[2] > unionBounds.right) unionBounds.right = b[2];
+                    if (b[3] < unionBounds.bottom) unionBounds.bottom = b[3];
+                }
+            } catch (e) { }
+        }
+        return unionBounds;
+    }
+
+    /* 2つのバウンズを和集合化 / Merge two bounds objects */
+    function mergeGeometricBounds(a, b) {
+        if (!a) return b;
+        if (!b) return a;
+        return {
+            left: Math.min(a.left, b.left),
+            top: Math.max(a.top, b.top),
+            right: Math.max(a.right, b.right),
+            bottom: Math.min(a.bottom, b.bottom)
+        };
     }
 
     /* 近接値を統合して昇順化 / Merge nearby values and sort ascending */

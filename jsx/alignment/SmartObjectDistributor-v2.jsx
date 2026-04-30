@@ -10,6 +10,7 @@ SmartObjectDistributor.jsx
 
 - 選択オブジェクトを指定した行数・列数のグリッドに沿ってアートボードまたは「_target」レイヤー内の長方形内に整列配置するIllustrator用スクリプトです。
 - 背景長方形の描画、ガイド化、アートボード化、ランダム配置、リアルタイムプレビューに対応します。
+- プレビュー更新時にUndo履歴を汚さない（rollback→addStep）／OK時に1回のUndoで戻せるように確定処理を1アクション化します（PreviewManager）。
 
 ### 主な機能
 
@@ -36,6 +37,7 @@ SmartObjectDistributor.jsx
 - v1.4 (20250605) : マージン即時プレビュー反映
 - v1.5 (20250605) : _target レイヤーのアートボード一時使用追加
 - v1.6 (20250804) : ↑↓キーでの値変更を追加
+- v1.7 (20260125) : プレビューのUndo汚染防止（PreviewManager）とOK時の一括Undo対応
 ---
 
 ### Script Name:
@@ -46,6 +48,7 @@ SmartObjectDistributor.jsx
 
 - An Illustrator script to distribute selected objects into a grid on the artboard or within a rectangle in the "_target" layer.
 - Supports drawing background rectangles, converting them to guides or artboards, random placement, and real-time preview.
+- Keeps Undo clean during preview (rollback→addStep) and confirms as a single action on OK (PreviewManager).
 
 ### Main Features
 
@@ -72,21 +75,22 @@ SmartObjectDistributor.jsx
 - v1.4 (20250605) : Immediate margin preview reflection
 - v1.5 (20250605) : Temporary use of _target layer for artboard addition
 - v1.6 (20250804) : Added ↑↓ key value change support
+- v1.7 (20260125) : Added PreviewManager to keep Undo clean during preview and enable single-step undo on OK
 
 */
 
-var SCRIPT_VERSION = "v1.6";
+var SCRIPT_VERSION = "v1.7";
 
 // 言語判定関数とラベル定義（グローバル）
 function getCurrentLang() {
-  return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
 var labels = {
     dialogTitle: {
         ja: "グリッド状に配置 " + SCRIPT_VERSION,
-        en: "Distribute in Grid "+ SCRIPT_VERSION
+        en: "Distribute in Grid " + SCRIPT_VERSION
     },
     infoText: {
         ja: "「_target」レイヤーの長方形を優先",
@@ -174,6 +178,75 @@ var labels = {
     }
 };
 
+// 汎用 Undo/Preview 管理クラス (PreviewManager)
+// - プレビュー更新のたびに rollback → addStep で「履歴を汚さない」
+// - OK時は confirm(finalAction) で「1回のUndoで戻せる」状態にする
+function PreviewManager(doc, historyName) {
+    this.doc = doc;
+    this.historyName = historyName || "Preview";
+    this.undoDepth = 0; // プレビュー中に実行されたアクションの回数
+
+    /**
+     * 変更操作を実行し、履歴としてカウントする
+     * @param {Function} func - 実行したい処理（無名関数で渡す）
+     */
+    this.addStep = function (func) {
+        try {
+            // 可能なら1ステップにまとめる（環境によっては使えない場合がある）
+            if (this.doc && this.doc.suspendHistory) {
+                var _fn = func;
+                PreviewManager._tempFunc = function () { _fn(); };
+                this.doc.suspendHistory(this.historyName, "PreviewManager._tempFunc()");
+                PreviewManager._tempFunc = null;
+            } else {
+                func();
+            }
+            this.undoDepth++;
+            app.redraw();
+        } catch (e) {
+            alert("Preview Error: " + e);
+        }
+    };
+
+    /**
+     * プレビューのために行った変更を全て取り消す（キャンセル時など）
+     */
+    this.rollback = function () {
+        while (this.undoDepth > 0) {
+            try { app.undo(); } catch (e) { break; }
+            this.undoDepth--;
+        }
+        app.redraw();
+    };
+
+    /**
+     * 現在の状態を確定する（OK時）
+     * @param {Function} [finalAction] - (任意) 全てUndoした後に実行する「本番」の処理
+     */
+    this.confirm = function (finalAction) {
+        if (finalAction) {
+            this.rollback();
+
+            // 最終処理も可能なら1ステップにまとめる
+            try {
+                if (this.doc && this.doc.suspendHistory) {
+                    PreviewManager._tempFunc = function () { finalAction(); };
+                    this.doc.suspendHistory("SmartObjectDistributor", "PreviewManager._tempFunc()");
+                    PreviewManager._tempFunc = null;
+                } else {
+                    finalAction();
+                }
+            } catch (e) {
+                // suspendHistory が失敗した場合は通常実行にフォールバック
+                try { finalAction(); } catch (e2) { throw e2; }
+            }
+        } else {
+            this.undoDepth = 0;
+        }
+    };
+}
+PreviewManager._tempFunc = null;
+
 // 選択オブジェクトがアートボードに重なっている場合、他と重ならない位置へ一時的に退避
 function moveObjectsOutsideArtboard(doc, selection) {
     var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
@@ -191,7 +264,7 @@ function moveObjectsOutsideArtboard(doc, selection) {
         for (var i = 0; i < movedObjects.length; i++) {
             var b = movedObjects[i];
             if (!(newBounds[2] < b[0] - BOUNDARY_MARGIN || newBounds[0] > b[2] + BOUNDARY_MARGIN ||
-                    newBounds[1] < b[3] - BOUNDARY_MARGIN || newBounds[3] > b[1] + BOUNDARY_MARGIN)) {
+                newBounds[1] < b[3] - BOUNDARY_MARGIN || newBounds[3] > b[1] + BOUNDARY_MARGIN)) {
                 return true;
             }
         }
@@ -203,9 +276,9 @@ function moveObjectsOutsideArtboard(doc, selection) {
             if (i === activeArtboardIndex) continue;
             var ab = doc.artboards[i].artboardRect;
             if (!(newBounds[2] < ab[0] - BOUNDARY_MARGIN - ARTBOARD_BUFFER ||
-                    newBounds[0] > ab[2] + BOUNDARY_MARGIN + ARTBOARD_BUFFER ||
-                    newBounds[1] < ab[3] - BOUNDARY_MARGIN - ARTBOARD_BUFFER ||
-                    newBounds[3] > ab[1] + BOUNDARY_MARGIN + ARTBOARD_BUFFER)) {
+                newBounds[0] > ab[2] + BOUNDARY_MARGIN + ARTBOARD_BUFFER ||
+                newBounds[1] < ab[3] - BOUNDARY_MARGIN - ARTBOARD_BUFFER ||
+                newBounds[3] > ab[1] + BOUNDARY_MARGIN + ARTBOARD_BUFFER)) {
                 return true;
             }
         }
@@ -228,8 +301,8 @@ function moveObjectsOutsideArtboard(doc, selection) {
             movedObjects.push(newBounds);
         }
     }
-
 }
+
 var originalPositions = [];
 
 function saveOriginalPositions(items) {
@@ -257,10 +330,12 @@ function restoreOriginalPositions(items) {
 
 function main() {
     addTemporaryArtboardFromTarget();
+
     if (app.documents.length === 0) {
         alert("ドキュメントを開いてください。\nPlease open a document.");
         return;
     }
+
     // "cell-background" レイヤーが存在する場合は削除
     try {
         var existingLayer = app.activeDocument.layers.getByName("cell-background");
@@ -270,9 +345,18 @@ function main() {
     }
 
     var doc = app.activeDocument;
+
+    // 以後の計算は「ダイアログ起動時点のアクティブアートボード」を基準に固定
+    var baseArtboardIndex = doc.artboards.getActiveArtboardIndex();
+    var baseArtboardRect = doc.artboards[baseArtboardIndex].artboardRect;
+
+    // PreviewManager
+    var previewMgr = new PreviewManager(doc, "SmartObjectDistributor Preview");
+
     var rulerUnit = app.preferences.getIntegerPreference("rulerType");
     var unitLabel = "pt";
     var unitFactor = 1.0;
+
     // 単位設定 (switch文)
     switch (rulerUnit) {
         case 0: // inch
@@ -307,6 +391,7 @@ function main() {
             unitLabel = "pt";
             unitFactor = 1.0;
     }
+
     // ダイアログ作成
     var dlg = new Window("dialog", labels.dialogTitle[lang]);
     dlg.orientation = "column";
@@ -393,68 +478,6 @@ function main() {
     // === 「アートボード化」チェックボックス追加 ===
     var convertToArtboardCheckbox = rectOptionsGroup.add("checkbox", undefined, labels.convertToArtboardLabel[lang]);
     convertToArtboardCheckbox.value = false;
-    // オプション切り替え時のUI状態反映（冗長な分岐を整理）
-    function handleToggleOptions(isArtboardToggled, isGuideToggled) {
-        var isArtboard = isArtboardToggled !== undefined ? isArtboardToggled : convertToArtboardCheckbox.value;
-        var isGuide = isGuideToggled !== undefined ? isGuideToggled : convertToGuideCheckbox.value;
-        if (isArtboard) {
-            setArtboardOptionUI();
-            renderGrid(true, true, true);
-        } else if (isGuide) {
-            setGuideOptionUI();
-            renderGrid(true, true, isGuide);
-        } else {
-            setNormalOptionUI();
-            renderGrid(true);
-        }
-    }
-    // サブ関数：アートボード化時のUI
-    function setArtboardOptionUI() {
-        cellRectCheckbox.enabled = false;
-        cellRectCheckbox.value = true;
-        convertToGuideCheckbox.enabled = false;
-        convertToGuideCheckbox.value = false;
-        rbBlack.enabled = false;
-        rbWhite.enabled = false;
-        rbNone.enabled = false;
-        rbNone.value = true;
-        inputOpacity.enabled = false;
-    }
-    // サブ関数：ガイド化時のUI
-    function setGuideOptionUI() {
-        cellRectCheckbox.enabled = true;
-        convertToGuideCheckbox.enabled = true;
-        rbBlack.enabled = false;
-        rbWhite.enabled = false;
-        rbNone.enabled = false;
-        rbNone.value = true;
-        inputOpacity.enabled = false;
-        updateColorOpacity();
-    }
-    // サブ関数：通常時のUI
-    function setNormalOptionUI() {
-        cellRectCheckbox.enabled = true;
-        cellRectCheckbox.value = true;
-        convertToGuideCheckbox.enabled = cellRectCheckbox.value;
-        rbBlack.enabled = true;
-        rbWhite.enabled = true;
-        rbNone.enabled = true;
-        rbBlack.value = true;
-        inputOpacity.enabled = rbBlack.value || rbWhite.value;
-    }
-    cellRectCheckbox.onClick = function() {
-        convertToGuideCheckbox.enabled = cellRectCheckbox.value;
-        if (!cellRectCheckbox.value) {
-            convertToGuideCheckbox.value = false;
-        }
-        renderGrid(true);
-    };
-    convertToArtboardCheckbox.onClick = function() {
-        handleToggleOptions(convertToArtboardCheckbox.value, false);
-    };
-    convertToGuideCheckbox.onClick = function() {
-        handleToggleOptions(false, convertToGuideCheckbox.value);
-    };
 
     // カラー選択ラジオ（黒・白・透過）
     var colorGroup = rectPanel.add("group");
@@ -480,34 +503,119 @@ function main() {
 
     rbBlack.value = true; // 初期選択は黒
 
+    // プレビュー更新（Undo汚染防止）
+    function requestPreviewUpdate(convertToGuideOverride) {
+        var convertToGuide = (convertToGuideOverride !== undefined) ? convertToGuideOverride : convertToGuideCheckbox.value;
+        previewMgr.rollback();
+        previewMgr.addStep(function () {
+            renderGrid(true, true, convertToGuide);
+        });
+    }
+
+    // オプション切り替え時のUI状態反映（冗長な分岐を整理）
+    function handleToggleOptions(isArtboardToggled, isGuideToggled) {
+        var isArtboard = isArtboardToggled !== undefined ? isArtboardToggled : convertToArtboardCheckbox.value;
+        var isGuide = isGuideToggled !== undefined ? isGuideToggled : convertToGuideCheckbox.value;
+
+        if (isArtboard) {
+            setArtboardOptionUI();
+            requestPreviewUpdate(true);
+        } else if (isGuide) {
+            setGuideOptionUI();
+            requestPreviewUpdate(isGuide);
+        } else {
+            setNormalOptionUI();
+            requestPreviewUpdate(convertToGuideCheckbox.value);
+        }
+    }
+
+    // サブ関数：アートボード化時のUI
+    function setArtboardOptionUI() {
+        cellRectCheckbox.enabled = false;
+        cellRectCheckbox.value = true;
+        convertToGuideCheckbox.enabled = false;
+        convertToGuideCheckbox.value = false;
+
+        rbBlack.enabled = false;
+        rbWhite.enabled = false;
+        rbNone.enabled = false;
+        rbNone.value = true;
+        inputOpacity.enabled = false;
+    }
+
+    // サブ関数：ガイド化時のUI
+    function setGuideOptionUI() {
+        cellRectCheckbox.enabled = true;
+        convertToGuideCheckbox.enabled = true;
+
+        rbBlack.enabled = false;
+        rbWhite.enabled = false;
+        rbNone.enabled = false;
+        rbNone.value = true;
+        inputOpacity.enabled = false;
+        updateColorOpacity(); // 内部でプレビュー更新
+    }
+
+    // サブ関数：通常時のUI
+    function setNormalOptionUI() {
+        cellRectCheckbox.enabled = true;
+        cellRectCheckbox.value = true;
+        convertToGuideCheckbox.enabled = cellRectCheckbox.value;
+
+        rbBlack.enabled = true;
+        rbWhite.enabled = true;
+        rbNone.enabled = true;
+        rbBlack.value = true;
+        inputOpacity.enabled = rbBlack.value || rbWhite.value;
+    }
+
+    cellRectCheckbox.onClick = function () {
+        convertToGuideCheckbox.enabled = cellRectCheckbox.value;
+        if (!cellRectCheckbox.value) {
+            convertToGuideCheckbox.value = false;
+        }
+        requestPreviewUpdate();
+    };
+
+    convertToArtboardCheckbox.onClick = function () {
+        handleToggleOptions(convertToArtboardCheckbox.value, false);
+    };
+
+    convertToGuideCheckbox.onClick = function () {
+        handleToggleOptions(false, convertToGuideCheckbox.value);
+    };
+
     // 不透明度欄：黒・白のとき有効、透過時は無効
     function updateColorOpacity() {
         var previousValue = inputOpacity.text;
         var previousEnabled = inputOpacity.enabled;
+
         inputOpacity.enabled = rbBlack.value || rbWhite.value;
+
         // カラー選択時の不透明度値をUIに反映
         if (rbBlack.value) {
             inputOpacity.text = "15";
         } else if (rbWhite.value) {
             inputOpacity.text = "100";
         }
+
         if (previousValue !== inputOpacity.text || previousEnabled !== (rbBlack.value || rbWhite.value)) {
-            renderGrid(true, true, convertToGuideCheckbox.value);
+            requestPreviewUpdate(convertToGuideCheckbox.value);
         }
     }
     rbBlack.onClick = rbWhite.onClick = rbNone.onClick = updateColorOpacity;
+
     // 初期状態反映
     updateColorOpacity();
 
     // 不透明度変更時のみプレビュー更新
     var lastOpacityValue = inputOpacity.text;
-    inputOpacity.onChanging = function() {
+    inputOpacity.onChanging = function () {
         if (inputOpacity.text !== lastOpacityValue) {
             lastOpacityValue = inputOpacity.text;
-            renderGrid(true, true, convertToGuideCheckbox.value);
+            requestPreviewUpdate(convertToGuideCheckbox.value);
         }
     };
-
 
     // === ボタンエリア（レイアウト変更版）===
     var outerGroup = dlg.add("group");
@@ -516,17 +624,70 @@ function main() {
     outerGroup.margins = [0, 10, 0, 0];
     outerGroup.spacing = 0;
 
-
-
-    // --- 左グループ（キャンセルボタンのみ） ---
+    // --- 左グループ（ランダム） ---
     var leftGroup = outerGroup.add("group");
     leftGroup.orientation = "row";
     leftGroup.alignChildren = "left";
 
     var btnRandom = leftGroup.add("button", undefined, labels.randomLabel[lang]);
 
+    // スペーサー（横に伸びる空白）
+    var spacer = outerGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = (lang === 'ja') ? 80 : 120;
+    spacer.maximumSize.height = 0;
+
+    // 右グループ（Cancel/OK）
+    var rightGroup = outerGroup.add("group");
+    rightGroup.orientation = "row";
+    rightGroup.alignChildren = "right";
+    rightGroup.spacing = 10;
+
+    var btnCancel = rightGroup.add("button", undefined, labels.cancelLabel[lang], { name: "cancel" });
+    var btnOK = rightGroup.add("button", undefined, labels.okLabel[lang], { name: "ok" });
+
+    // 行数・列数に応じてガター入力欄の有効/無効を切り替える
+    function updateGutterEnable() {
+        var yVal = parseInt(inputYText.text, 10);
+        inputRowGutter.enabled = (yVal > 1);
+    }
+
+    inputXText.onChanging = inputYText.onChanging = function () {
+        updateGutterEnable();
+        requestPreviewUpdate();
+    };
+
+    inputRowGutter.onChanging = function () {
+        requestPreviewUpdate();
+    };
+    marginInput.onChanging = function () {
+        requestPreviewUpdate();
+    };
+
+
+    // 選択状態を退避／復元（Undo rollback 後に selection が空になるケース対策）
+    function getSelectionSnapshot() {
+        var a = [];
+        try {
+            var sel = doc.selection;
+            if (sel && sel.length) {
+                for (var i = 0; i < sel.length; i++) a.push(sel[i]);
+            }
+        } catch (e) { }
+        return a;
+    }
+
+    function restoreSelectionSnapshot(snapshot) {
+        if (!snapshot || snapshot.length === 0) return;
+        try {
+            doc.selection = snapshot;
+        } catch (e) { }
+    }
+    // グローバル変数：ランダム順序保持用
+    var randomizedSelection = null;
+
     // ランダムボタン押下時
-    btnRandom.onClick = function() {
+    btnRandom.onClick = function () {
         var selectedItems = doc.selection;
         if (!selectedItems || selectedItems.length === 0) {
             alert(labels.noSelection[lang]);
@@ -537,132 +698,85 @@ function main() {
             randomizedSelection.push(selectedItems[i]);
         }
         // Fisher-Yates シャッフルで順序をランダム化
-        for (var i = randomizedSelection.length - 1; i > 0; i--) {
-            var j = Math.floor(Math.random() * (i + 1));
-            var temp = randomizedSelection[i];
-            randomizedSelection[i] = randomizedSelection[j];
+        for (var k = randomizedSelection.length - 1; k > 0; k--) {
+            var j = Math.floor(Math.random() * (k + 1));
+            var temp = randomizedSelection[k];
+            randomizedSelection[k] = randomizedSelection[j];
             randomizedSelection[j] = temp;
         }
-        // プレビューを更新
-        renderGrid(true, true, convertToGuideCheckbox.value);
+        requestPreviewUpdate(convertToGuideCheckbox.value);
         app.redraw();
     };
 
-    // スペーサー（横に伸びる空白）
-    var spacer = outerGroup.add("group");
-    spacer.alignment = ["fill", "fill"];
-    spacer.minimumSize.width = (lang === 'ja') ? 80 : 120;
-    spacer.maximumSize.height = 0;
-
-    // 右グループ（OKボタンのみ）
-    var rightGroup = outerGroup.add("group");
-    rightGroup.orientation = "row";
-    rightGroup.alignChildren = "right";
-    rightGroup.spacing = 10;
-    var btnCancel = rightGroup.add("button", undefined, labels.cancelLabel[lang], {
-        name: "cancel"
-    });
-
-    var btnOK = rightGroup.add("button", undefined, labels.okLabel[lang], {
-        name: "ok"
-    });
-
-    // 行数・列数に応じてガター入力欄の有効/無効を切り替える
-    function updateGutterEnable() {
-        var yVal = parseInt(inputYText.text, 10);
-        inputRowGutter.enabled = (yVal > 1);
-    }
-    inputXText.onChanging = inputYText.onChanging = function() {
+    // OKボタン押下時（確定を1アクション化）
+    btnOK.onClick = function () {
         updateGutterEnable();
-        renderGrid(true);
-    };
+        var selectionSnapshot = getSelectionSnapshot();
 
+        previewMgr.confirm(function () {
+            randomizedSelection = null;
+            originalPositions = [];
 
-    inputRowGutter.onChanging = function() {
-        renderGrid(true);
-    };
-    marginInput.onChanging = function() {
-        renderGrid(true);
-    };
+            // app.executeMenuCommand("deselectall");
 
+            // プレビュー用レイヤーを削除（Undoで消えないケースの保険）
+            removePreviewGuides();
 
-    // グローバル変数：ランダム順序保持用
-    var randomizedSelection = null;
+            // rollback後に選択が外れてしまう環境向けに復元
+            restoreSelectionSnapshot(selectionSnapshot);
 
-    // OKボタン押下時
-    btnOK.onClick = function() {
-        updateGutterEnable();
-        randomizedSelection = null;
-        originalPositions = [];
-
-        app.executeMenuCommand("deselectall");
-
-        // === convertToArtboardCheckboxがONの場合は_Preview_Backgroundレイヤーの長方形をアートボードに変換 ===
-        if (convertToArtboardCheckbox.value) {
+            // アートボード化
+            if (convertToArtboardCheckbox.value) {
+                try {
+                    var geomForArtboard = computeGridGeometry();
+                    var createdCount = createArtboardsFromGrid(geomForArtboard);
+                    alert(createdCount + labels.artboardCreated[lang]);
+                } catch (e) {
+                    alert(labels.artboardError[lang]);
+                }
+            }
+            // 念のため：本番処理前に基準アートボードへ戻す
             try {
-                var bgLayer = doc.layers.getByName("_Preview_Background");
-                var bgRects = [];
-                for (var i = 0; i < bgLayer.pathItems.length; i++) {
-                    var item = bgLayer.pathItems[i];
-                    if (item.typename === "PathItem") {
-                        bgRects.push(item);
-                    }
+                if (doc.artboards.setActiveArtboardIndex) {
+                    doc.artboards.setActiveArtboardIndex(baseArtboardIndex);
                 }
-                var createdCount = 0;
-                for (var j = 0; j < bgRects.length; j++) {
-                    var bounds = bgRects[j].geometricBounds;
-                    var left = bounds[0],
-                        top = bounds[1],
-                        right = bounds[2],
-                        bottom = bounds[3];
-                    if (isNaN(left) || isNaN(top) || isNaN(right) || isNaN(bottom) || right <= left || top <= bottom) {
-                        continue;
-                    }
-                    try {
-                        doc.artboards.add([left, top, right, bottom]);
-                        createdCount++;
-                    } catch (e) {
-                        alert("アートボード作成エラー：" + e.message + "\n座標：" + bounds.join(", "));
-                    }
-                }
-                alert(createdCount + labels.artboardCreated[lang]);
-            } catch (e) {
-                alert(labels.artboardError[lang]);
-            }
-        }
+            } catch (eSet) { }
 
-        // === OK時にcell-backgroundレイヤー内の図形を選択状態にする ===
-        try {
-            var bgLayerForSelect = doc.layers.getByName("cell-background");
-            var bgItems = [];
-            for (var i = 0; i < bgLayerForSelect.pathItems.length; i++) {
-                var it = bgLayerForSelect.pathItems[i];
-                if (it.typename === "PathItem") {
-                    bgItems.push(it);
-                }
-            }
-            doc.selection = bgItems;
-        } catch (e) {
-            // レイヤーが見つからない場合は無視
-        }
+            // 本番描画・配置（アートボード化のときはkeepRects=falseで後片付け）
+            var keepRects = !convertToArtboardCheckbox.value;
+            renderGrid(false, keepRects, convertToGuideCheckbox.value);
 
-        // 移動: OK時のグリッド描画・ガイド消去
-        removePreviewGuides();
-        var shouldDraw = !convertToArtboardCheckbox.value;
-        renderGrid(false, shouldDraw, convertToGuideCheckbox.value);
+            // === OK時にcell-backgroundレイヤー内の図形を選択状態にする ===
+            try {
+                var bgLayerForSelect = doc.layers.getByName("cell-background");
+                var bgItems = [];
+                for (var ii = 0; ii < bgLayerForSelect.pathItems.length; ii++) {
+                    var it = bgLayerForSelect.pathItems[ii];
+                    if (it.typename === "PathItem") {
+                        bgItems.push(it);
+                    }
+                }
+                doc.selection = bgItems;
+            } catch (e2) {
+                // レイヤーが見つからない場合は無視
+            }
+
+            removeTemporaryArtboard();
+        });
 
         dlg.close(1);
-        removeTemporaryArtboard();
     };
 
     // キャンセルボタン押下時
-    btnCancel.onClick = function() {
-        removePreviewGuides(); // プレビュー削除
+    btnCancel.onClick = function () {
+        previewMgr.rollback();
+        removePreviewGuides(); // 念のため（Undoで消えないケース対策）
         randomizedSelection = null;
         originalPositions = [];
-        dlg.close(0); // ダイアログを閉じる
+        dlg.close(0);
         removeTemporaryArtboard();
     };
+
     // 長方形描画処理（背景長方形は専用レイヤーに描画する）
     function drawCellRectangles(cellLayer, baseLeft, baseTop, cellWidth, cellHeight, xDiv, yDiv, colGutter, rowGutter, convertToGuide, isPreview) {
         var opacityValue = parseFloat(inputOpacity.text);
@@ -672,6 +786,7 @@ function main() {
                 var cellX = baseLeft + (cellWidth + colGutter) * col;
                 var rect = cellLayer.pathItems.rectangle(cellY, cellX, cellWidth, cellHeight);
                 rect.stroked = false;
+
                 // カラーラジオボタンの値による分岐
                 if (rbBlack.value) {
                     rect.filled = true;
@@ -682,15 +797,18 @@ function main() {
                 } else {
                     rect.filled = false;
                 }
+
                 if (!isNaN(opacityValue)) {
                     rect.opacity = opacityValue;
                 }
+
                 if (convertToGuide) {
                     rect.guides = true;
                 }
             }
         }
-        // 背景長方形レイヤーを最背面に移動（プレビュー時"_Preview_Guides"または確定描画時"cell-rectangle"）
+
+        // 背景長方形レイヤーを最背面に移動
         if ((isPreview && cellLayer.name === "_Preview_Guides") || (!isPreview && cellLayer.name === "cell-rectangle")) {
             cellLayer.zOrder(ZOrderMethod.SENDTOBACK);
         }
@@ -705,9 +823,11 @@ function main() {
             var cellY = baseTop - (cellHeight + rowGutter) * row;
             for (var col = 0; col < xDiv; col++) {
                 if (index >= items.length) return;
+
                 var cellX = baseLeft + (cellWidth + colGutter) * col;
                 var cellCenterX = cellX + cellWidth / 2;
                 var cellCenterY = cellY - cellHeight / 2;
+
                 var item = items[index];
                 var bounds = item.visibleBounds;
                 var itemCenterX = (bounds[0] + bounds[2]) / 2;
@@ -715,9 +835,87 @@ function main() {
                 var dx = cellCenterX - itemCenterX;
                 var dy = cellCenterY - itemCenterY;
                 item.translate(dx, dy);
+
                 index++;
             }
         }
+    }
+
+    // グリッド計算結果をまとめて返す（プレビュー/本番で共通利用）
+    function computeGridGeometry() {
+        var xDiv = parseInt(inputXText.text, 10);
+        var yDiv = parseInt(inputYText.text, 10);
+        if (isNaN(xDiv) || xDiv <= 0 || isNaN(yDiv) || yDiv <= 0) return null;
+
+        var marginVal = parseFloat(marginInput.text) * unitFactor;
+        var top = marginVal;
+        var bottom = marginVal;
+        var left = marginVal;
+        var right = marginVal;
+
+        var rowGutter = parseFloat(inputRowGutter.text) * unitFactor;
+        var colGutter = rowGutter;
+
+        // アートボード化でアクティブが移動しても、基準は固定したアートボードを使う
+        var rect = baseArtboardRect;
+        var abLeft = rect[0], abTop = rect[1], abRight = rect[2], abBottom = rect[3];
+
+        var baseLeft = abLeft + left;
+        var baseRight = abRight - right;
+        var baseTop = abTop - top;
+        var baseBottom = abBottom + bottom;
+
+        var usableWidth = baseRight - baseLeft;
+        var usableHeight = baseTop - baseBottom;
+        var totalColGutter = (xDiv - 1) * colGutter;
+        var totalRowGutter = (yDiv - 1) * rowGutter;
+        var cellWidth = (usableWidth - totalColGutter) / xDiv;
+        var cellHeight = (usableHeight - totalRowGutter) / yDiv;
+
+        return {
+            xDiv: xDiv,
+            yDiv: yDiv,
+            baseLeft: baseLeft,
+            baseTop: baseTop,
+            cellWidth: cellWidth,
+            cellHeight: cellHeight,
+            colGutter: colGutter,
+            rowGutter: rowGutter
+        };
+    }
+
+    // セルの幾何情報からアートボードを作成
+    function createArtboardsFromGrid(geom) {
+
+        var prevIndex = -1;
+        try { prevIndex = doc.artboards.getActiveArtboardIndex(); } catch (e) { }
+
+        if (!geom) return 0;
+        var createdCount = 0;
+        for (var row = 0; row < geom.yDiv; row++) {
+            var cellY = geom.baseTop - (geom.cellHeight + geom.rowGutter) * row;
+            for (var col = 0; col < geom.xDiv; col++) {
+                var cellX = geom.baseLeft + (geom.cellWidth + geom.colGutter) * col;
+                var left = cellX;
+                var top = cellY;
+                var right = cellX + geom.cellWidth;
+                var bottom = cellY - geom.cellHeight;
+                if (isNaN(left) || isNaN(top) || isNaN(right) || isNaN(bottom) || right <= left || top <= bottom) continue;
+                try {
+                    doc.artboards.add([left, top, right, bottom]);
+                    createdCount++;
+                } catch (e) {
+                    // 個別エラーは握りつぶして続行
+                }
+            }
+        }
+        // アクティブアートボードを元に戻す（最後の追加ABがアクティブになるのを防ぐ）
+        try {
+            if (prevIndex >= 0 && doc.artboards.setActiveArtboardIndex) {
+                doc.artboards.setActiveArtboardIndex(prevIndex);
+            }
+        } catch (e2) { }
+        return createdCount;
     }
 
     // ガイド描画／長方形描画／オブジェクト配置を制御
@@ -734,19 +932,19 @@ function main() {
             removePreviewGuides();
         }
 
-        var xDiv = parseInt(inputXText.text, 10);
-        var yDiv = parseInt(inputYText.text, 10);
-        // 個別マージン削除・共通マージンのみ使用
-        var marginVal = parseFloat(marginInput.text) * unitFactor;
-        var top = marginVal;
-        var bottom = marginVal;
-        var left = marginVal;
-        var right = marginVal;
-        var rowGutter = parseFloat(inputRowGutter.text) * unitFactor;
-        var colGutter = rowGutter;
-        var drawCells = cellRectCheckbox.value;
+        var geom = computeGridGeometry();
+        if (!geom) return;
 
-        if (isNaN(xDiv) || xDiv <= 0 || isNaN(yDiv) || yDiv <= 0) return;
+        var xDiv = geom.xDiv;
+        var yDiv = geom.yDiv;
+        var baseLeft = geom.baseLeft;
+        var baseTop = geom.baseTop;
+        var cellWidth = geom.cellWidth;
+        var cellHeight = geom.cellHeight;
+        var colGutter = geom.colGutter;
+        var rowGutter = geom.rowGutter;
+
+        var drawCells = cellRectCheckbox.value;
 
         // レイヤー名整理：ガイドレイヤーは現在は長方形と配置用にのみ利用
         var gridLayerName = isPreview ? "_Preview_Guides" : "placement_layer";
@@ -764,30 +962,11 @@ function main() {
         var cellLayer;
         try {
             cellLayer = doc.layers.getByName(bgLayerName);
-        } catch (e) {
+        } catch (e2) {
             cellLayer = doc.layers.add();
             cellLayer.name = bgLayerName;
         }
         cellLayer.locked = false;
-
-        var b = doc.artboards.getActiveArtboardIndex();
-        var ab = doc.artboards[b];
-        var rect = ab.artboardRect;
-        var abLeft = rect[0],
-            abTop = rect[1],
-            abRight = rect[2],
-            abBottom = rect[3];
-        var baseLeft = abLeft + left;
-        var baseRight = abRight - right;
-        var baseTop = abTop - top;
-        var baseBottom = abBottom + bottom;
-
-        var usableWidth = baseRight - baseLeft;
-        var usableHeight = baseTop - baseBottom;
-        var totalColGutter = (xDiv - 1) * colGutter;
-        var totalRowGutter = (yDiv - 1) * rowGutter;
-        var cellWidth = (usableWidth - totalColGutter) / xDiv;
-        var cellHeight = (usableHeight - totalRowGutter) / yDiv;
 
         if ((drawCells || (convertToArtboardCheckbox.value && isPreview)) && cellLayer) {
             drawCellRectangles(cellLayer, baseLeft, baseTop, cellWidth, cellHeight, xDiv, yDiv, colGutter, rowGutter, convertToGuide, isPreview);
@@ -798,7 +977,7 @@ function main() {
                     var bg = doc.layers.getByName("_Preview_Background");
                     fg.zOrder(ZOrderMethod.BRINGTOFRONT);
                     bg.zOrder(ZOrderMethod.SENDTOBACK);
-                } catch (e) {}
+                } catch (e3) { }
             }
 
             if (drawCells) {
@@ -811,7 +990,7 @@ function main() {
             try {
                 var cellLayerToRemove = doc.layers.getByName("cell-background");
                 if (cellLayerToRemove) cellLayerToRemove.remove();
-            } catch (e) {}
+            } catch (e4) { }
         }
 
         // OK実行時の後処理
@@ -820,24 +999,25 @@ function main() {
             try {
                 var placement = doc.layers.getByName("placement_layer");
                 if (placement) placement.remove();
-            } catch (e) {}
+            } catch (e5) { }
 
             // cell-background を最背面に
             try {
                 var bgFinal = doc.layers.getByName("cell-background");
                 if (bgFinal) bgFinal.zOrder(ZOrderMethod.SENDTOBACK);
-            } catch (e) {}
+            } catch (e6) { }
 
             // gridLayerをロック（削除されていなければ）
             try {
                 if (gridLayer) gridLayer.locked = true;
-            } catch (e) {}
+            } catch (e7) { }
         }
 
         if (isPreview) {
             app.redraw();
         }
     }
+
     // 黒色（CMYK or RGB）を返す
     function createBlackColor() {
         if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
@@ -855,6 +1035,7 @@ function main() {
             return rgb;
         }
     }
+
     // 白色（CMYK or RGB）を返す
     function createWhiteColor() {
         if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
@@ -878,24 +1059,23 @@ function main() {
         try {
             var previewLayer = doc.layers.getByName("_Preview_Guides");
             if (previewLayer) previewLayer.remove();
-        } catch (e) {}
+        } catch (e) { }
         try {
             var bgLayer = doc.layers.getByName("_Preview_Background");
             if (bgLayer) bgLayer.remove();
-        } catch (e) {}
+        } catch (e2) { }
     }
-
 
     // convertToGuideCheckboxの有効/無効をcellRectCheckbox.valueに応じて初期設定
     convertToGuideCheckbox.enabled = cellRectCheckbox.value;
 
     // ダイアログ初期プレビュー＆終了時処理
     updateGutterEnable();
-    renderGrid(true, true, convertToGuideCheckbox.value); // プレビュー時は仮でtrue
+    requestPreviewUpdate(convertToGuideCheckbox.value);
 
     // 値を矢印キーで増減する関数
     function changeValueByArrowKey(editText) {
-        editText.addEventListener("keydown", function(event) {
+        editText.addEventListener("keydown", function (event) {
             var value = Number(editText.text);
             if (isNaN(value)) return;
 
@@ -940,7 +1120,7 @@ function main() {
             }
 
             editText.text = value;
-            renderGrid(true, true, convertToGuideCheckbox.value);
+            requestPreviewUpdate(convertToGuideCheckbox.value);
         });
     }
 
@@ -953,6 +1133,7 @@ function main() {
 
     dlg.show();
 }
+
 main();
 
 var tempArtboardIndex = -1;
