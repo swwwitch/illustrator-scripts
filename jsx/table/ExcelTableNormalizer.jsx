@@ -9,7 +9,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  主な処理:
  - 実行時にカラーモード関連のメニューコマンドを実行し、以後の色指定を安定させます。
  - クリッピングマスクを解除し、エラーインジケーターなどの小さいマークなどの不要なオブジェクトを削除します。
- - テキストを専用レイヤー（_text_all）へ移動し、重複テキストの削除や印刷用黒への変換を行います。
+ - テキストを専用レイヤー（_text_all）へ移動し、重複テキストの削除、列ごとの配置（ダイアログで左／中央／右を指定）、印刷用黒への変換を行います。
+ - 罫線グリッドから列を推定し、列サンプルを表示したうえで配置を一括指定できます（自動判定あり）。
  - セル背景を専用レイヤー（_cell_rectangle）へ抽出・調整し、必要に応じて高さを均等化します。
  - 長方形状の罫線を中心線化し、配置モードに応じて均等配置・結合セル対応・列幅保持を行います。
  - 外枠の長方形化、線幅統一、罫線の印刷用黒への変換に対応します。
@@ -22,20 +23,22 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
  Main features:
  - Runs the color-related menu command at startup to stabilize subsequent color settings.
  - Releases clipping masks and removes unnecessary small marks.
- - Moves text to the dedicated layer (_text_all), removes duplicate text, and converts text to print black.
+ - Moves text to the dedicated layer (_text_all), removes duplicate text, applies column-based alignment (left/center/right via dialog), and converts text to print black.
+ - Infers columns from the rule grid, shows per-column samples, and lets you set alignment in one dialog (with auto detection).
  - Extracts and adjusts cell backgrounds on the dedicated layer (_cell_rectangle), and equalizes their heights when needed.
  - Converts rectangular rules to centerlines and applies uniform placement, merged-cell handling, or column-width preservation according to the placement mode.
  - Supports converting the outer frame to a rectangle, unifying stroke width, and setting rules to print black.
  - Stroke width input follows Illustrator strokeUnits, defaulting to 0.1 mm in mm environments and 0.25 pt in pt environments.
 
- 更新日 / Updated: 2026-04-27
+ 更新日 / Updated: 2026-04-30 (v1.1.0)
  */
 
 (function () {
-    var SCRIPT_VERSION = "v1.0.0";
+    var SCRIPT_VERSION = "v1.1.0";
 
     var TEXT_LAYER_NAME = "_text_all";
     var PATH_LAYER_NAME = "_cell_rectangle";
+    var USER_CANCELLED_COLUMN_ALIGNMENT = "USER_CANCELLED_COLUMN_ALIGNMENT";
 
     var lang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
@@ -73,6 +76,40 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "重複テキストを削除",
             en: "Remove duplicate texts"
         },
+        // --- 列ごとの配置ダイアログ / Column alignment dialog labels ---
+        columnAlignmentDialogTitle: {
+            ja: "列ごとの配置",
+            en: "Column Alignment"
+        },
+        columnAlignmentDescription: {
+            ja: "列ごとにテキストの配置を指定します。",
+            en: "Set text alignment for each column."
+        },
+        columnAlignmentAuto: {
+            ja: "自動判定",
+            en: "Auto"
+        },
+        columnAlignmentLeft: {
+            ja: "左",
+            en: "Left"
+        },
+        columnAlignmentCenter: {
+            ja: "中央",
+            en: "Center"
+        },
+        columnAlignmentRight: {
+            ja: "右",
+            en: "Right"
+        },
+        columnAlignmentColumn: {
+            ja: "列目",
+            en: "Column"
+        },
+        columnAlignmentSampleEmpty: {
+            ja: "サンプルなし",
+            en: "No sample"
+        },
+        // --- 列ごとの配置ダイアログここまで / End column alignment dialog labels ---
         removeSmallObjects: {
             ja: "小さいマークなどを削除",
             en: "Remove small marks"
@@ -261,6 +298,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         var equalizeHeightsCheckbox = cellBgPanel.add("checkbox", undefined, L('equalizeHeights'));
         equalizeHeightsCheckbox.value = true;
+        equalizeHeightsCheckbox.enabled = adjustCellBgCheckbox.value;
 
         adjustCellBgCheckbox.onClick = function () {
             equalizeHeightsCheckbox.enabled = adjustCellBgCheckbox.value;
@@ -329,10 +367,24 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var strokeWidthPt = convertLengthToPoints(strokeWidthValue, strokeUnitLabel);
             var rulesK100 = rulesK100Checkbox.value;
             dlg.close();
-            executeRelease(releaseMask, moveText, setK100, removeDuplicate, removeSmall, adjustCellBg, equalizeHeights, centerline, placementMode, outerToRect, strokeWidthPt, rulesK100);
+            runWithUndoRollback(function () {
+                executeRelease(releaseMask, moveText, setK100, removeDuplicate, removeSmall, adjustCellBg, equalizeHeights, centerline, placementMode, outerToRect, strokeWidthPt, rulesK100);
+            });
         };
-
         dlg.show();
+    }
+
+    /* 実行中キャンセル時のUndo補助 / Undo helper for mid-process cancellation */
+    function runWithUndoRollback(callback) {
+        try {
+            callback();
+        } catch (e) {
+            if (e === USER_CANCELLED_COLUMN_ALIGNMENT || (e && e.message === USER_CANCELLED_COLUMN_ALIGNMENT)) {
+                safeCall(function () { app.undo(); });
+                return;
+            }
+            throw e;
+        }
     }
 
     /* 実処理：選択オブジェクトに対して整形処理を実行 / Core processing pipeline */
@@ -403,6 +455,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
         if (!finalItems) {
             finalItems = collectRuleLines(doc, [TEXT_LAYER_NAME, PATH_LAYER_NAME]);
+        }
+        if (finalItems && finalItems.length > 0) {
+            if (alignTextFramesByColumnDialog(doc, finalItems) === false) {
+                throw new Error(USER_CANCELLED_COLUMN_ALIGNMENT);
+            }
         }
 
         // 外枠矩形化より前に、純粋な中心線群に対してセル背景をスナップする
@@ -533,6 +590,431 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     collectTextFrames(pageItem, out);
                 }
             } catch (e) { }
+        }
+    }
+
+    /* 列ごとの配置ダイアログを開いてテキストを配置 / Open column alignment dialog and align text frames */
+    function alignTextFramesByColumnDialog(doc, ruleItems) {
+        var grid = getRuleGridForTextAlignment(ruleItems);
+        if (!grid || grid.xPositions.length < 2 || grid.yPositions.length < 2) {
+            var numericTextFrames = collectNumericTextFrames(doc);
+            alignNumericTextFramesRightByColumns(numericTextFrames);
+            return true;
+        }
+
+        var textFramesByColumn = collectTextFramesByGridColumn(doc, grid);
+        var columnCount = grid.xPositions.length - 1;
+        if (columnCount <= 0) return true;
+
+        var columnSamples = getColumnSamples(textFramesByColumn, columnCount);
+        var columnAlignments = getDefaultColumnAlignments(textFramesByColumn, columnCount);
+        var selectedAlignments = showColumnAlignmentDialog(columnSamples, columnAlignments);
+        if (!selectedAlignments) return false;
+
+        applyColumnTextAlignments(textFramesByColumn, grid, selectedAlignments, getTextAlignmentPadding(doc));
+        return true;
+    }
+
+    /* 数字テキスト収集 / Collect numeric text frames */
+    function collectNumericTextFrames(doc) {
+        var numericTextFrames = [];
+        for (var textFrameIndex = 0; textFrameIndex < doc.textFrames.length; textFrameIndex++) {
+            var textFrame = doc.textFrames[textFrameIndex];
+            try {
+                if (isRightAlignNumericText(textFrame.contents)) {
+                    numericTextFrames.push(textFrame);
+                }
+            } catch (e) { }
+        }
+        return numericTextFrames;
+    }
+
+    /* 罫線グリッド取得 / Get rule grid for text alignment */
+    function getRuleGridForTextAlignment(ruleItems) {
+        var centers = collectRuleCenterPositionsFromItems(ruleItems);
+        if (!centers) return null;
+        return {
+            xPositions: uniqueSortedValues(centers.xPositions, 0.5),
+            yPositions: uniqueSortedValues(centers.yPositions, 0.5)
+        };
+    }
+
+    /* グリッド列ごとにテキストを収集 / Collect text frames by grid column */
+    function collectTextFramesByGridColumn(doc, grid) {
+        var textFramesByColumn = [];
+        var columnCount = grid.xPositions.length - 1;
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+            textFramesByColumn[columnIndex] = [];
+        }
+
+        for (var textFrameIndex = 0; textFrameIndex < doc.textFrames.length; textFrameIndex++) {
+            var textFrame = doc.textFrames[textFrameIndex];
+            var center = getTextCenter(textFrame);
+            if (!center) continue;
+
+            var columnIndex = findGridIntervalIndex(center.x, grid.xPositions);
+            var rowIndex = findGridIntervalIndex(center.y, grid.yPositions);
+            if (columnIndex < 0 || rowIndex < 0) continue;
+
+            textFramesByColumn[columnIndex].push(textFrame);
+        }
+        return textFramesByColumn;
+    }
+
+    /* 列サンプル取得 / Get representative text sample for each column */
+    function getColumnSamples(textFramesByColumn, columnCount) {
+        var samples = [];
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+            var items = (textFramesByColumn[columnIndex] || []).slice();
+            sortTextFramesTopToBottom(items);
+
+            var sample = "";
+            for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+                try {
+                    var content = normalizeSampleText(items[itemIndex].contents);
+                    if (content !== "") {
+                        sample = content;
+                        break;
+                    }
+                } catch (e) { }
+            }
+            samples.push(sample || L('columnAlignmentSampleEmpty'));
+        }
+        return samples;
+    }
+
+    /* テキストを上から下、同じ高さなら左から右に並べる / Sort text frames top-to-bottom, then left-to-right */
+    function sortTextFramesTopToBottom(textFrames) {
+        textFrames.sort(function (textFrameA, textFrameB) {
+            var boundsA = getTextBounds(textFrameA);
+            var boundsB = getTextBounds(textFrameB);
+            if (!boundsA || !boundsB) return 0;
+
+            var topA = boundsA[1];
+            var topB = boundsB[1];
+            if (Math.abs(topA - topB) > 0.5) return topB - topA;
+
+            var leftA = boundsA[0];
+            var leftB = boundsB[0];
+            return leftA - leftB;
+        });
+    }
+
+    /* サンプル文字列を整える / Normalize sample text */
+    function normalizeSampleText(textContent) {
+        if (textContent === null || typeof textContent === "undefined") return "";
+        var text = String(textContent).replace(/[\r\n\t]+/g, " ").replace(/^\s+|\s+$/g, "");
+        if (text.length > 16) text = text.substring(0, 16) + "…";
+        return text;
+    }
+
+    /* 列ごとの初期配置を自動判定 / Get default alignment for each column */
+    function getDefaultColumnAlignments(textFramesByColumn, columnCount) {
+        var alignments = [];
+        for (var columnIndex = 0; columnIndex < columnCount; columnIndex++) {
+            var items = textFramesByColumn[columnIndex] || [];
+            var numericCount = 0;
+            var textCount = 0;
+            for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+                try {
+                    if (isRightAlignNumericText(items[itemIndex].contents)) {
+                        numericCount++;
+                    } else if (normalizeSampleText(items[itemIndex].contents) !== "") {
+                        textCount++;
+                    }
+                } catch (e) { }
+            }
+            alignments.push(numericCount > 0 && numericCount >= textCount ? "right" : "left");
+        }
+        return alignments;
+    }
+
+    /* 列ごとの配置ダイアログ / Column alignment dialog */
+    function showColumnAlignmentDialog(columnSamples, initialAlignments) {
+        var dlg = new Window('dialog', L('columnAlignmentDialogTitle'));
+        dlg.orientation = "column";
+        dlg.alignChildren = "fill";
+        dlg.spacing = 10;
+        dlg.margins = 20;
+
+        dlg.add("statictext", undefined, L('columnAlignmentDescription'));
+
+        var rowsPanel = dlg.add("panel", undefined, L('columnAlignmentDialogTitle'));
+        setupPanel(rowsPanel, 6);
+        rowsPanel.alignChildren = "fill";
+
+        var radioRows = [];
+        for (var columnIndex = 0; columnIndex < columnSamples.length; columnIndex++) {
+            var row = rowsPanel.add("group");
+            row.orientation = "row";
+            row.alignChildren = "center";
+
+            var label = row.add("statictext", undefined, getColumnAlignmentRowLabel(columnIndex, columnSamples[columnIndex]));
+            label.characters = 30;
+
+            var leftRadio = row.add("radiobutton", undefined, L('columnAlignmentLeft'));
+            var centerRadio = row.add("radiobutton", undefined, L('columnAlignmentCenter'));
+            var rightRadio = row.add("radiobutton", undefined, L('columnAlignmentRight'));
+
+            radioRows.push({ left: leftRadio, center: centerRadio, right: rightRadio });
+            setColumnAlignmentRadioValue(radioRows[columnIndex], initialAlignments[columnIndex] || "left");
+        }
+
+        var footer = dlg.add("group");
+        footer.orientation = "row";
+        footer.alignChildren = ["fill", "center"];
+        footer.alignment = "fill";
+
+        // 左：自動判定 / Left: Auto
+        var leftGroup = footer.add("group");
+        leftGroup.orientation = "row";
+        leftGroup.alignment = ["left", "center"];
+        var autoButton = leftGroup.add("button", undefined, L('columnAlignmentAuto'));
+
+        // 中央：スペーサー / Center: spacer
+        var spacer = footer.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
+
+        // 右：キャンセル / OK / Right: Cancel / OK
+        var rightGroup = footer.add("group");
+        rightGroup.orientation = "row";
+        rightGroup.alignment = ["right", "center"];
+        var cancelButton = rightGroup.add("button", undefined, L('cancel'), { name: "cancel" });
+        var okButton = rightGroup.add("button", undefined, L('ok'), { name: "ok" });
+
+        autoButton.onClick = function () {
+            for (var i = 0; i < radioRows.length; i++) {
+                setColumnAlignmentRadioValue(radioRows[i], initialAlignments[i] || "left");
+            }
+        };
+
+        var result = null;
+        okButton.onClick = function () {
+            result = [];
+            for (var rowIndex = 0; rowIndex < radioRows.length; rowIndex++) {
+                result.push(getColumnAlignmentRadioValue(radioRows[rowIndex]));
+            }
+            dlg.close();
+        };
+        cancelButton.onClick = function () {
+            result = null;
+            dlg.close();
+        };
+
+        dlg.show();
+        return result;
+    }
+
+    /* 列行ラベル / Column row label */
+    function getColumnAlignmentRowLabel(columnIndex, sampleText) {
+        if (lang === "ja") {
+            return String(columnIndex + 1) + L('columnAlignmentColumn') + "（" + sampleText + "）";
+        }
+        return L('columnAlignmentColumn') + " " + String(columnIndex + 1) + " (" + sampleText + ")";
+    }
+
+    /* 配置ラジオを設定 / Set alignment radio value */
+    function setColumnAlignmentRadioValue(radioRow, alignment) {
+        radioRow.left.value = alignment === "left";
+        radioRow.center.value = alignment === "center";
+        radioRow.right.value = alignment === "right";
+    }
+
+
+    /* 配置ラジオの値を取得 / Get alignment radio value */
+    function getColumnAlignmentRadioValue(radioRow) {
+        if (radioRow.center.value) return "center";
+        if (radioRow.right.value) return "right";
+        return "left";
+    }
+
+    /* グリッドの区間番号を取得 / Find interval index in sorted grid positions */
+    function findGridIntervalIndex(value, sortedPositions) {
+        if (!sortedPositions || sortedPositions.length < 2) return -1;
+        for (var positionIndex = 0; positionIndex < sortedPositions.length - 1; positionIndex++) {
+            if (value >= sortedPositions[positionIndex] && value <= sortedPositions[positionIndex + 1]) {
+                return positionIndex;
+            }
+        }
+        return -1;
+    }
+
+    /* テキスト中央座標取得 / Get text frame center */
+    function getTextCenter(textFrame) {
+        var bounds = getTextBounds(textFrame);
+        if (!bounds) return null;
+        return {
+            x: (bounds[0] + bounds[2]) / 2,
+            y: (bounds[1] + bounds[3]) / 2
+        };
+    }
+
+    /* テキスト境界取得 / Get text frame bounds */
+    function getTextBounds(textFrame) {
+        try {
+            return textFrame.visibleBounds;
+        } catch (e) {
+            try {
+                return textFrame.geometricBounds;
+            } catch (e2) {
+                return null;
+            }
+        }
+    }
+
+    /* 右揃え余白を取得 / Get padding for right-aligned text */
+    function getTextAlignmentPadding(doc) {
+        var modeTextSize = getModeTextSize(doc);
+        if (modeTextSize && modeTextSize > 0) return modeTextSize * 0.35;
+        return 2;
+    }
+
+    /* 列ごとの配置を適用 / Apply text alignment by column */
+    function applyColumnTextAlignments(textFramesByColumn, grid, columnAlignments, padding) {
+        for (var columnIndex = 0; columnIndex < columnAlignments.length; columnIndex++) {
+            var items = textFramesByColumn[columnIndex] || [];
+            for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+                alignTextFrameToGridColumn(items[itemIndex], grid, columnIndex, columnAlignments[columnIndex], padding);
+            }
+        }
+    }
+
+    /* テキストを列内の指定位置に配置 / Align one text frame within a grid column */
+    function alignTextFrameToGridColumn(textFrame, grid, columnIndex, alignment, padding) {
+        if (columnIndex < 0 || columnIndex >= grid.xPositions.length - 1) return;
+
+        var left = grid.xPositions[columnIndex];
+        var right = grid.xPositions[columnIndex + 1];
+        if (alignment === "right") {
+            alignToRightEdge(textFrame, right - padding);
+        } else if (alignment === "center") {
+            alignToCenterX(textFrame, (left + right) / 2);
+        } else {
+            alignToLeftEdge(textFrame, left + padding);
+        }
+    }
+
+    /* 左端合わせ / Align text frame to left edge */
+    function alignToLeftEdge(textFrame, targetLeft) {
+        var bounds = getTextBounds(textFrame);
+        if (!bounds) return;
+
+        safeCall(function () {
+            textFrame.textRange.paragraphAttributes.justification = Justification.LEFT;
+        });
+
+        bounds = getTextBounds(textFrame);
+        if (!bounds) return;
+        var dx = targetLeft - bounds[0];
+        if (Math.abs(dx) > 0.001) {
+            safeCall(function () { textFrame.translate(dx, 0); });
+        }
+    }
+
+    /* 中央合わせ / Align text frame to center X */
+    function alignToCenterX(textFrame, targetCenterX) {
+        var bounds = getTextBounds(textFrame);
+        if (!bounds) return;
+
+        safeCall(function () {
+            textFrame.textRange.paragraphAttributes.justification = Justification.CENTER;
+        });
+
+        bounds = getTextBounds(textFrame);
+        if (!bounds) return;
+        var currentCenterX = (bounds[0] + bounds[2]) / 2;
+        var dx = targetCenterX - currentCenterX;
+        if (Math.abs(dx) > 0.001) {
+            safeCall(function () { textFrame.translate(dx, 0); });
+        }
+    }
+
+    /* 罫線グリッドが使えない場合の列単位右揃え / Column-based fallback when no rule grid is available */
+    function alignNumericTextFramesRightByColumns(numericTextFrames) {
+        var columns = [];
+        var tolerance = 10;
+
+        for (var i = 0; i < numericTextFrames.length; i++) {
+            var textFrame = numericTextFrames[i];
+            var right = getTextRight(textFrame);
+            if (right === null) continue;
+
+            var assigned = false;
+            for (var columnIndex = 0; columnIndex < columns.length; columnIndex++) {
+                if (Math.abs(columns[columnIndex].x - right) < tolerance) {
+                    columns[columnIndex].items.push(textFrame);
+                    columns[columnIndex].x = (columns[columnIndex].x + right) / 2;
+                    assigned = true;
+                    break;
+                }
+            }
+
+            if (!assigned) {
+                columns.push({ x: right, items: [textFrame] });
+            }
+        }
+
+        for (var col = 0; col < columns.length; col++) {
+            var colItems = columns[col].items;
+            var maxRight = null;
+            for (var itemIndex = 0; itemIndex < colItems.length; itemIndex++) {
+                var itemRight = getTextRight(colItems[itemIndex]);
+                if (itemRight === null) continue;
+                if (maxRight === null || itemRight > maxRight) maxRight = itemRight;
+            }
+            if (maxRight === null) continue;
+            for (var alignIndex = 0; alignIndex < colItems.length; alignIndex++) {
+                alignToRightEdge(colItems[alignIndex], maxRight);
+            }
+        }
+    }
+
+    /* 右揃え対象の数字判定 / Check whether text should be right-aligned as a number */
+    function isRightAlignNumericText(textContent) {
+        if (textContent === null || typeof textContent === "undefined") return false;
+        var normalizedText = String(textContent)
+            .replace(/[\r\n\t ]+/g, "")
+            .replace(/[￥¥]/g, "")
+            .replace(/,/g, "")
+            .replace(/，/g, "")
+            .replace(/−/g, "-")
+            .replace(/－/g, "-")
+            .replace(/―/g, "-")
+            .replace(/▲/g, "-");
+
+        if (normalizedText === "") return false;
+        return /^-?\d+(\.\d+)?$/.test(normalizedText);
+    }
+
+    function getTextRight(textFrame) {
+        try {
+            return textFrame.visibleBounds[2];
+        } catch (e) {
+            try {
+                return textFrame.geometricBounds[2];
+            } catch (e2) {
+                return null;
+            }
+        }
+    }
+
+    function alignToRightEdge(textFrame, targetRight) {
+        var currentRight = getTextRight(textFrame);
+        if (currentRight === null) return;
+
+        safeCall(function () {
+            textFrame.textRange.paragraphAttributes.justification = Justification.RIGHT;
+        });
+
+        var newRight = getTextRight(textFrame);
+        if (newRight === null) return;
+
+        var dx = targetRight - newRight;
+        if (Math.abs(dx) > 0.001) {
+            safeCall(function () {
+                textFrame.translate(dx, 0);
+            });
         }
     }
 
@@ -678,38 +1160,51 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var lineBounds = { minX: minX, maxX: maxX, minY: minY, maxY: maxY };
 
         if (mode === "forced") {
-            alignLinesEvenly(horizontalLines, verticalLines, lineBounds);
+            alignLines(horizontalLines, verticalLines, lineBounds, true);
         } else if (mode === "merged") {
             alignLinesWithMergedCells(horizontalLines, verticalLines, lineBounds);
         } else if (mode === "keepColumnWidths") {
-            alignLinesKeepingColumnWidths(horizontalLines, verticalLines, lineBounds);
+            alignLines(horizontalLines, verticalLines, lineBounds, false);
         }
     }
 
-    /* 列幅保持で整列 / Align lines keeping column widths */
-    function alignLinesKeepingColumnWidths(horizontalLines, verticalLines, bounds) {
-        var horizontalYPositions = [];
-        if (horizontalLines.length >= 2) {
-            horizontalLines.sort(function (lineA, lineB) { return lineA.y - lineB.y; });
-            var horizontalStep = (bounds.maxY - bounds.minY) / (horizontalLines.length - 1);
-            for (var horizontalIndex = 0; horizontalIndex < horizontalLines.length; horizontalIndex++) {
-                horizontalYPositions.push(bounds.minY + horizontalStep * horizontalIndex);
-            }
-        } else {
-            for (var fallbackHorizontalIndex = 0; fallbackHorizontalIndex < horizontalLines.length; fallbackHorizontalIndex++) {
-                horizontalYPositions.push(horizontalLines[fallbackHorizontalIndex].y);
-            }
-        }
+    /* 配置適用：水平線は常に Y を等分。垂直線は evenColumns=true で X も等分、false で元の X を保持
+       Apply alignment: horizontal lines always evenly distributed in Y.
+       Vertical lines redistributed in X when evenColumns is true, otherwise X preserved. */
+    function alignLines(horizontalLines, verticalLines, bounds, evenColumns) {
+        var horizontalYPositions = distributePositions(horizontalLines, "y", bounds.minY, bounds.maxY);
+        var verticalXPositions = evenColumns
+            ? distributePositions(verticalLines, "x", bounds.minX, bounds.maxX)
+            : null;
 
         var topY = Math.max(bounds.minY, bounds.maxY);
         var bottomY = Math.min(bounds.minY, bounds.maxY);
 
-        for (var horizontalLineIndex = 0; horizontalLineIndex < horizontalLines.length; horizontalLineIndex++) {
-            setLineEndpointsSafe(horizontalLines[horizontalLineIndex].path, [bounds.minX, horizontalYPositions[horizontalLineIndex]], [bounds.maxX, horizontalYPositions[horizontalLineIndex]]);
+        for (var hi = 0; hi < horizontalLines.length; hi++) {
+            setLineEndpointsSafe(horizontalLines[hi].path, [bounds.minX, horizontalYPositions[hi]], [bounds.maxX, horizontalYPositions[hi]]);
         }
-        for (var verticalLineIndex = 0; verticalLineIndex < verticalLines.length; verticalLineIndex++) {
-            setLineEndpointsSafe(verticalLines[verticalLineIndex].path, [verticalLines[verticalLineIndex].x, topY], [verticalLines[verticalLineIndex].x, bottomY]);
+        for (var vi = 0; vi < verticalLines.length; vi++) {
+            var x = verticalXPositions ? verticalXPositions[vi] : verticalLines[vi].x;
+            setLineEndpointsSafe(verticalLines[vi].path, [x, topY], [x, bottomY]);
         }
+    }
+
+    /* 線群を minVal..maxVal で等分。線が 1 本以下のときは元の値を保持
+       Distribute lines evenly between minVal and maxVal; preserve original values when 0–1 line. */
+    function distributePositions(lines, prop, minVal, maxVal) {
+        var result = [];
+        if (lines.length >= 2) {
+            lines.sort(function (a, b) { return a[prop] - b[prop]; });
+            var step = (maxVal - minVal) / (lines.length - 1);
+            for (var i = 0; i < lines.length; i++) {
+                result.push(minVal + step * i);
+            }
+        } else {
+            for (var j = 0; j < lines.length; j++) {
+                result.push(lines[j][prop]);
+            }
+        }
+        return result;
     }
 
     /* 線端座標を安全に設定 / Safely set line endpoints */
@@ -722,45 +1217,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             path.pathPoints[1].leftDirection = endPoint;
             path.pathPoints[1].rightDirection = endPoint;
         });
-    }
-
-    /* 均等配置 / Evenly distribute lines */
-    function alignLinesEvenly(horizontalLines, verticalLines, bounds) {
-        var horizontalYPositions = [];
-        if (horizontalLines.length >= 2) {
-            horizontalLines.sort(function (lineA, lineB) { return lineA.y - lineB.y; });
-            var horizontalStep = (bounds.maxY - bounds.minY) / (horizontalLines.length - 1);
-            for (var horizontalIndex = 0; horizontalIndex < horizontalLines.length; horizontalIndex++) {
-                horizontalYPositions.push(bounds.minY + horizontalStep * horizontalIndex);
-            }
-        } else {
-            for (var fallbackHorizontalIndex = 0; fallbackHorizontalIndex < horizontalLines.length; fallbackHorizontalIndex++) {
-                horizontalYPositions.push(horizontalLines[fallbackHorizontalIndex].y);
-            }
-        }
-
-        var verticalXPositions = [];
-        if (verticalLines.length >= 2) {
-            verticalLines.sort(function (lineA, lineB) { return lineA.x - lineB.x; });
-            var verticalStep = (bounds.maxX - bounds.minX) / (verticalLines.length - 1);
-            for (var verticalIndex = 0; verticalIndex < verticalLines.length; verticalIndex++) {
-                verticalXPositions.push(bounds.minX + verticalStep * verticalIndex);
-            }
-        } else {
-            for (var fallbackVerticalIndex = 0; fallbackVerticalIndex < verticalLines.length; fallbackVerticalIndex++) {
-                verticalXPositions.push(verticalLines[fallbackVerticalIndex].x);
-            }
-        }
-
-        var topY = Math.max(bounds.minY, bounds.maxY);
-        var bottomY = Math.min(bounds.minY, bounds.maxY);
-
-        for (var horizontalLineIndex = 0; horizontalLineIndex < horizontalLines.length; horizontalLineIndex++) {
-            setLineEndpointsSafe(horizontalLines[horizontalLineIndex].path, [bounds.minX, horizontalYPositions[horizontalLineIndex]], [bounds.maxX, horizontalYPositions[horizontalLineIndex]]);
-        }
-        for (var verticalLineIndex = 0; verticalLineIndex < verticalLines.length; verticalLineIndex++) {
-            setLineEndpointsSafe(verticalLines[verticalLineIndex].path, [verticalXPositions[verticalLineIndex], topY], [verticalXPositions[verticalLineIndex], bottomY]);
-        }
     }
 
     /*
@@ -780,29 +1236,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var horizontalGroups = groupLinesByCoordinate(horizontalLines, "y", coordinateTolerance);
         var verticalGroups = groupLinesByCoordinate(verticalLines, "x", coordinateTolerance);
 
-        var horizontalYPositions = [];
-        if (horizontalGroups.length >= 2) {
-            var horizontalStep = (bounds.maxY - bounds.minY) / (horizontalGroups.length - 1);
-            for (var horizontalGroupIndex = 0; horizontalGroupIndex < horizontalGroups.length; horizontalGroupIndex++) {
-                horizontalYPositions.push(bounds.minY + horizontalStep * horizontalGroupIndex);
-            }
-        } else {
-            for (var fallbackHorizontalGroupIndex = 0; fallbackHorizontalGroupIndex < horizontalGroups.length; fallbackHorizontalGroupIndex++) {
-                horizontalYPositions.push(horizontalGroups[fallbackHorizontalGroupIndex].coord);
-            }
-        }
-
-        var verticalXPositions = [];
-        if (verticalGroups.length >= 2) {
-            var verticalStep = (bounds.maxX - bounds.minX) / (verticalGroups.length - 1);
-            for (var verticalGroupIndex = 0; verticalGroupIndex < verticalGroups.length; verticalGroupIndex++) {
-                verticalXPositions.push(bounds.minX + verticalStep * verticalGroupIndex);
-            }
-        } else {
-            for (var fallbackVerticalGroupIndex = 0; fallbackVerticalGroupIndex < verticalGroups.length; fallbackVerticalGroupIndex++) {
-                verticalXPositions.push(verticalGroups[fallbackVerticalGroupIndex].coord);
-            }
-        }
+        var horizontalYPositions = distributePositions(horizontalGroups, "coord", bounds.minY, bounds.maxY);
+        var verticalXPositions = distributePositions(verticalGroups, "coord", bounds.minX, bounds.maxX);
 
         for (var rowGroupIndex = 0; rowGroupIndex < horizontalGroups.length; rowGroupIndex++) {
             var rowY = horizontalYPositions[rowGroupIndex];
