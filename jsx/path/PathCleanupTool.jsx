@@ -28,7 +28,7 @@ PathCleanupTool
 - コーナーポイント化
 - アンカーポイントの追加
 - アンカーポイントで分割
-- マド埋め（Unite）
+- マド埋め（複合パスの解除と合体）
 
 ---
 
@@ -39,7 +39,7 @@ PathCleanupTool
 - 実行中の例外は最小限ログ出力
 */
 
-var SCRIPT_VERSION = "v1.5.0";
+var SCRIPT_VERSION = "v1.5.1";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -133,7 +133,7 @@ var LABELS = {
         en: "Split at anchor points"
     },
     rbFillHoles: {
-        ja: "マド埋め",
+        ja: "マド埋め（複合パスの解除と合体）",
         en: "Unite (Fill holes)"
     }
 };
