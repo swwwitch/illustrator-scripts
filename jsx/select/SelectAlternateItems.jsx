@@ -8,34 +8,22 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 /* バージョン / Version */
-var SCRIPT_VERSION = "v1.1";
+var SCRIPT_VERSION = "v1.1.0";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
-var lang = getCurrentLang();
+var currentLanguage = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
-var LABELS = {
+/* UIラベル定義 / UI label definitions */
+var UI_LABELS = {
   dialogTitle: {
     ja: "互い違いに選択",
     en: "Alternate Select"
   },
-  alertNoDoc: {
-    ja: "ドキュメントを開いてください。",
-    en: "Please open a document."
-  },
-  alertNoSelection: {
-    ja: "オブジェクトを選択してください。",
-    en: "Please select objects."
-  },
-  alertNoValidItems: {
-    ja: "有効なオブジェクトが選択されていません。",
-    en: "No valid objects are selected."
-  },
   panelSelect: {
     ja: "選択",
-    en: "Select"
+    en: "Selection"
   },
   odd: {
     ja: "奇数",
@@ -59,7 +47,7 @@ var LABELS = {
   },
   zOrder: {
     ja: "重ね順",
-    en: "Z-Order"
+    en: "Z-order"
   },
   ok: {
     ja: "OK",
@@ -71,9 +59,66 @@ var LABELS = {
   }
 };
 
-function L(key) {
-  if (!LABELS[key]) return key;
-  return LABELS[key][lang] || LABELS[key].en || key;
+/* エラー／ログ文言定義 / Error and log message definitions */
+var ERROR_LABELS = {
+  noDocument: {
+    ja: "ドキュメントを開いてください。",
+    en: "Please open a document."
+  },
+  noSelection: {
+    ja: "オブジェクトを選択してください。",
+    en: "Please select objects."
+  },
+  noValidItems: {
+    ja: "有効なオブジェクトが選択されていません。",
+    en: "No valid objects are selected."
+  },
+  preview: {
+    ja: "プレビューエラー：",
+    en: "Preview Error: "
+  },
+  prefix: {
+    ja: "エラー：",
+    en: "Error: "
+  },
+  debugPrefix: {
+    ja: "デバッグ：",
+    en: "Debug: "
+  }
+};
+
+function getLocalizedText(table, key) {
+  if (!table[key]) return key;
+  return table[key][currentLanguage] || table[key].en || key;
+}
+
+function getUILabel(key) {
+  return getLocalizedText(UI_LABELS, key);
+}
+
+function getErrorLabel(key) {
+  return getLocalizedText(ERROR_LABELS, key);
+}
+
+function getErrorMessage(key, detail) {
+  var message = getErrorLabel(key);
+  if (detail !== undefined && detail !== null && String(detail) !== "") {
+    message += String(detail);
+  }
+  return message;
+}
+
+function showError(key, detail) {
+  alert(getErrorMessage(key, detail));
+}
+
+function throwLocalizedError(key, detail) {
+  throw new Error(getErrorMessage(key, detail));
+}
+
+function debugLog(key, detail) {
+  if (typeof $.writeln !== "function") return;
+  $.writeln(getErrorLabel("debugPrefix") + getErrorMessage(key, detail));
 }
 
 /* プレビュー管理 / Preview manager
@@ -88,11 +133,13 @@ function PreviewManager() {
   this.captureSelection = function (doc) {
     var snap = [];
     try {
-      var s = doc.selection;
-      if (s && s.length) {
-        for (var i = 0; i < s.length; i++) snap.push(s[i]);
+      var currentSelection = doc.selection;
+      if (currentSelection && currentSelection.length) {
+        for (var selectionIndex = 0; selectionIndex < currentSelection.length; selectionIndex++) {
+          snap.push(currentSelection[selectionIndex]);
+        }
       }
-    } catch (e) {}
+    } catch (e) { }
     this.selectionSnapshot = snap;
   };
 
@@ -101,12 +148,12 @@ function PreviewManager() {
     try {
       doc.selection = null;
       if (this.selectionSnapshot && this.selectionSnapshot.length) {
-        for (var i = 0; i < this.selectionSnapshot.length; i++) {
-          try { this.selectionSnapshot[i].selected = true; } catch (e) {}
+        for (var snapshotIndex = 0; snapshotIndex < this.selectionSnapshot.length; snapshotIndex++) {
+          try { this.selectionSnapshot[snapshotIndex].selected = true; } catch (e) { }
         }
       }
       app.redraw();
-    } catch (e) {}
+    } catch (e) { }
   };
 
   /**
@@ -120,7 +167,7 @@ function PreviewManager() {
       if (undoable) this.undoDepth++;
       app.redraw();
     } catch (e) {
-      alert("Preview Error: " + e);
+      showError("preview", e);
     }
   };
 
@@ -162,24 +209,24 @@ var PREF_KEY_LAST_DIR = "AlternateSelect.LastDirectionMode";
    - mode: "vertical" | "horizontal" | "zorder"
 */
 function loadLastDirectionMode() {
-    try {
-        var desc = app.getCustomOptions(PREF_KEY_LAST_DIR);
-        if (desc && desc.hasKey(stringIDToTypeID("mode"))) {
-            return desc.getString(stringIDToTypeID("mode"));
-        }
-    } catch (e) {}
-    return null;
+  try {
+    var desc = app.getCustomOptions(PREF_KEY_LAST_DIR);
+    if (desc && desc.hasKey(stringIDToTypeID("mode"))) {
+      return desc.getString(stringIDToTypeID("mode"));
+    }
+  } catch (e) { }
+  return null;
 }
 
 /* 前回の方向モードを保存 / Save last direction mode (custom options) */
 function saveLastDirectionMode(mode) {
-    try {
-        var m = String(mode);
-        if (m !== "vertical" && m !== "horizontal" && m !== "zorder") return;
-        var desc = new ActionDescriptor();
-        desc.putString(stringIDToTypeID("mode"), m);
-        app.putCustomOptions(PREF_KEY_LAST_DIR, desc, true);
-    } catch (e) {}
+  try {
+    var m = String(mode);
+    if (m !== "vertical" && m !== "horizontal" && m !== "zorder") return;
+    var desc = new ActionDescriptor();
+    desc.putString(stringIDToTypeID("mode"), m);
+    app.putCustomOptions(PREF_KEY_LAST_DIR, desc, true);
+  } catch (e) { }
 }
 
 /* 方向の自動推定 / Auto detect direction (initial)
@@ -189,307 +236,286 @@ function saveLastDirectionMode(mode) {
    - それ以外（僅差/グリッド等）は「前回mode優先（fallback）」を返す
 */
 function guessInitialDirectionMode(items, fallbackMode) {
-    var fb = (fallbackMode !== undefined && fallbackMode !== null) ? String(fallbackMode) : "vertical";
-    if (fb !== "vertical" && fb !== "horizontal" && fb !== "zorder") fb = "vertical";
+  var fallbackDirectionMode = (fallbackMode !== undefined && fallbackMode !== null) ? String(fallbackMode) : "vertical";
+  if (fallbackDirectionMode !== "vertical" && fallbackDirectionMode !== "horizontal" && fallbackDirectionMode !== "zorder") fallbackDirectionMode = "vertical";
 
-    if (!items || items.length < 2) return fb;
+  if (!items || items.length < 2) return fallbackDirectionMode;
 
-    var xs = [];
-    var ys = [];
+  var xs = [];
+  var ys = [];
 
-    for (var i = 0; i < items.length; i++) {
-        var it = items[i];
-        if (!it) continue;
+  for (var i = 0; i < items.length; i++) {
+    var candidateItem = items[i];
+    if (!candidateItem) continue;
 
-        // geometricBounds: [left, top, right, bottom]
-        var b;
-        try { b = it.geometricBounds; } catch (e) { continue; }
-        if (!b || b.length < 4) continue;
+    // geometricBounds: [left, top, right, bottom]
+    var geometricBounds;
+    try { geometricBounds = candidateItem.geometricBounds; } catch (e) { continue; }
+    if (!geometricBounds || geometricBounds.length < 4) continue;
 
-        var cx = (b[0] + b[2]) / 2;
-        var cy = (b[1] + b[3]) / 2;
-        xs.push(cx);
-        ys.push(cy);
-    }
+    var centerX = (geometricBounds[0] + geometricBounds[2]) / 2;
+    var centerY = (geometricBounds[1] + geometricBounds[3]) / 2;
+    xs.push(centerX);
+    ys.push(centerY);
+  }
 
-    if (xs.length < 2 || ys.length < 2) return fb;
+  if (xs.length < 2 || ys.length < 2) return fallbackDirectionMode;
 
-    xs.sort(function (a, b) { return a - b; });
-    ys.sort(function (a, b) { return a - b; });
+  xs.sort(function (firstItem, secondItem) { return firstItem - secondItem; });
+  ys.sort(function (firstItem, secondItem) { return firstItem - secondItem; });
 
-    // 外れ値耐性：両端を少し落としてレンジを取る（nが大きいほど効果）
-    var n = xs.length;
-    var trim = 0;
-    if (n >= 10) trim = Math.floor(n * 0.10); // 10% trimming
-    else if (n >= 6) trim = 1;
+  // 外れ値耐性：両端を少し落としてレンジを取る（nが大きいほど効果）
+  var n = xs.length;
+  var trim = 0;
+  if (n >= 10) trim = Math.floor(n * 0.10); // 10% trimming
+  else if (n >= 6) trim = 1;
 
-    var minX = xs[trim];
-    var maxX = xs[n - 1 - trim];
-    var minY = ys[trim];
-    var maxY = ys[n - 1 - trim];
+  var minX = xs[trim];
+  var maxX = xs[n - 1 - trim];
+  var minY = ys[trim];
+  var maxY = ys[n - 1 - trim];
 
-    var rangeX = maxX - minX;
-    var rangeY = maxY - minY;
+  var rangeX = maxX - minX;
+  var rangeY = maxY - minY;
 
-    // しきい値判定（明確な差があるときだけ自動切替）
-    if (rangeX > rangeY * DIRECTION_THRESHOLD) return "horizontal";
-    if (rangeY > rangeX * DIRECTION_THRESHOLD) return "vertical";
+  // しきい値判定（明確な差があるときだけ自動切替）
+  if (rangeX > rangeY * DIRECTION_THRESHOLD) return "horizontal";
+  if (rangeY > rangeX * DIRECTION_THRESHOLD) return "vertical";
 
-    // 僅差（グリッド等）は前回mode優先
-    return fb;
+  // 僅差（グリッド等）は前回mode優先
+  return fallbackDirectionMode;
 }
 
 (function () {
-    /* ドキュメント確認 / Check document */
-    if (app.documents.length === 0) {
-        alert(L("alertNoDoc"));
-        return;
+  /* ドキュメント確認 / Check document */
+  if (app.documents.length === 0) {
+    showError("noDocument");
+    return;
+  }
+
+  var doc = app.activeDocument;
+
+  /* プレビューマネージャ / Preview manager */
+  var previewMgr = new PreviewManager();
+  previewMgr.captureSelection(doc);
+
+  var originalSelection = doc.selection;
+
+  /* 選択確認 / Check selection */
+  if (!originalSelection || originalSelection.length === 0) {
+    showError("noSelection");
+    return;
+  }
+
+  /* 有効なオブジェクト抽出 / Collect valid items */
+  var items = [];
+  for (var selectionIndex = 0; selectionIndex < originalSelection.length; selectionIndex++) {
+    var selectedItem = originalSelection[selectionIndex];
+    if (!selectedItem.locked && !selectedItem.hidden) {
+      items.push(selectedItem);
     }
+  }
 
-    var doc = app.activeDocument;
+  if (items.length === 0) {
+    showError("noValidItems");
+    return;
+  }
 
-    /* プレビューマネージャ / Preview manager */
-    var previewMgr = new PreviewManager();
-    previewMgr.captureSelection(doc);
+  function applySelectionPreview() {
+    // まず前回プレビューを巻き戻す（選択はスナップショットで復元）
+    previewMgr.rollback(doc);
 
-    var sel = doc.selection;
+    // 今回のプレビューを適用（選択変更は通常 Undoable ではないので undoable=false）
+    previewMgr.addStep(function () {
+      var selectOdd = oddRadio.value;
+      var mode = verticalRadio.value ? "vertical" : (horizontalRadio.value ? "horizontal" : "zorder");
 
-    /* 選択確認 / Check selection */
-    if (!sel || sel.length === 0) {
-        alert(L("alertNoSelection"));
-        return;
-    }
-
-    /* 有効なオブジェクト抽出 / Collect valid items */
-    var items = [];
-    for (var i = 0; i < sel.length; i++) {
-        if (!sel[i].locked && !sel[i].hidden) {
-            items.push(sel[i]);
-        }
-    }
-
-    if (items.length === 0) {
-        alert(L("alertNoValidItems"));
-        return;
-    }
-
-    function applySelectionPreview() {
-        // まず前回プレビューを巻き戻す（選択はスナップショットで復元）
-        previewMgr.rollback(doc);
-
-        // 今回のプレビューを適用（選択変更は通常 Undoable ではないので undoable=false）
-        previewMgr.addStep(function () {
-            var selectOdd = rbOdd.value;
-            var mode = rbVertical.value ? "vertical" : (rbHorizontal.value ? "horizontal" : "zorder");
-
-            /* 並び順ソート / Sort order */
-            if (mode === "vertical") {
-                /* 垂直：Y降順（上→下） / Vertical: Y desc (top to bottom) */
-                items.sort(function (a, b) { return b.position[1] - a.position[1]; });
-            } else if (mode === "horizontal") {
-                /* 水平：X昇順（左→右） / Horizontal: X asc (left to right) */
-                items.sort(function (a, b) { return a.position[0] - b.position[0]; });
-            } else {
-                /* 重ね順：zOrderPosition 昇順 / Z-order: zOrderPosition asc */
-                items.sort(function (a, b) {
-                    var za = 0, zb = 0;
-                    try { za = a.zOrderPosition; } catch (e) { za = 0; }
-                    try { zb = b.zOrderPosition; } catch (e) { zb = 0; }
-                    return za - zb;
-                });
-            }
-
-            /* 互い違い選択 / Alternate selection */
-            doc.selection = null;
-            for (var i = 0; i < items.length; i++) {
-                var isOddIndex = (i % 2 === 0); // 0,2,4... => 1,3,5...
-                if ((selectOdd && isOddIndex) || (!selectOdd && !isOddIndex)) {
-                    items[i].selected = true;
-                }
-            }
-        }, false);
-    }
-
-    /* ダイアログ表示調整用パラメータ / Dialog display adjustment parameters */
-    var offsetX = 300;
-    var offsetY = 0;
-    var dialogOpacity = 0.975;
-
-    function shiftDialogPosition(dlg, offsetX, offsetY) {
-        dlg.onShow = function () {
-            var currentX = dlg.location[0];
-            var currentY = dlg.location[1];
-            dlg.location = [currentX + offsetX, currentY + offsetY];
-        };
-    }
-
-    function setDialogOpacity(dlg, opacityValue) {
-        try {
-            dlg.opacity = opacityValue;
-        } catch (e) {
-            // opacity 非対応環境対策（無視） / Ignore if opacity not supported
-        }
-    }
-
-    /* キー入力でラジオ切替 / Key handler for radio buttons
-       Odd: O / Even: E / Vertical: V / Horizontal: H / Z-Order: A
-    */
-    function addRadioKeyHandler(dialog) {
-        dialog.addEventListener("keydown", function (event) {
-            var k = event.keyName;
-
-            // 奇数 / 偶数
-            if (k === "O") {
-                rbOdd.value = true;
-                rbEven.value = false;
-                applySelectionPreview();
-                event.preventDefault();
-                return;
-            } else if (k === "E") {
-                rbOdd.value = false;
-                rbEven.value = true;
-                applySelectionPreview();
-                event.preventDefault();
-                return;
-            }
-
-            // 方向（垂直 / 水平 / 重ね順）
-            if (k === "V") {
-                rbVertical.value = true;
-                rbHorizontal.value = false;
-                rbZOrder.value = false;
-                saveLastDirectionMode("vertical");
-                applySelectionPreview();
-                event.preventDefault();
-                return;
-            } else if (k === "H") {
-                rbVertical.value = false;
-                rbHorizontal.value = true;
-                rbZOrder.value = false;
-                saveLastDirectionMode("horizontal");
-                applySelectionPreview();
-                event.preventDefault();
-                return;
-            } else if (k === "A") {
-                rbVertical.value = false;
-                rbHorizontal.value = false;
-                rbZOrder.value = true;
-                saveLastDirectionMode("zorder");
-                applySelectionPreview();
-                event.preventDefault();
-                return;
-            }
+      /* 並び順ソート / Sort order */
+      if (mode === "vertical") {
+        /* 垂直：Y降順（上→下） / Vertical: Y desc (top to bottom) */
+        items.sort(function (firstItem, secondItem) { return secondItem.position[1] - firstItem.position[1]; });
+      } else if (mode === "horizontal") {
+        /* 水平：X昇順（左→右） / Horizontal: X asc (left to right) */
+        items.sort(function (firstItem, secondItem) { return firstItem.position[0] - secondItem.position[0]; });
+      } else {
+        /* 重ね順：zOrderPosition 昇順 / Z-order: zOrderPosition asc */
+        items.sort(function (firstItem, secondItem) {
+          var firstZOrderPosition = 0, secondZOrderPosition = 0;
+          try { firstZOrderPosition = firstItem.zOrderPosition; } catch (e) { firstZOrderPosition = 0; }
+          try { secondZOrderPosition = secondItem.zOrderPosition; } catch (e) { secondZOrderPosition = 0; }
+          return firstZOrderPosition - secondZOrderPosition;
         });
-    }
+      }
 
-    /* ダイアログボックス / Dialog box */
-    var dlg = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-    setDialogOpacity(dlg, dialogOpacity);
-    shiftDialogPosition(dlg, offsetX, offsetY);
-    dlg.orientation = "column";
-    dlg.alignChildren = "left";
+      /* 互い違い選択 / Alternate selection */
+      doc.selection = null;
+      for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        var isOddIndex = (itemIndex % 2 === 0); // 0,2,4... => 1,3,5...
+        if ((selectOdd && isOddIndex) || (!selectOdd && !isOddIndex)) {
+          items[itemIndex].selected = true;
+        }
+      }
+    }, false);
+  }
 
-    var panel = dlg.add("panel", undefined, L("panelSelect"));
-    panel.margins = [15, 20, 15, 10];
-    panel.orientation = "column";
-    panel.alignChildren = "left";
 
-    var selectGroup = panel.add("group");
-    selectGroup.orientation = "row";
-    selectGroup.alignChildren = "left";
+  /* キー入力でラジオ切替 / Key handler for radio buttons
+     Odd: O / Even: E / Vertical: V / Horizontal: H / Z-Order: A
+  */
+  function addRadioKeyHandler(dialog) {
+    dialog.addEventListener("keydown", function (event) {
+      var pressedKeyName = event.keyName;
 
-    var rbOdd = selectGroup.add("radiobutton", undefined, L("odd"));
-    var rbEven = selectGroup.add("radiobutton", undefined, L("even"));
-    rbOdd.value = true; // デフォルトは奇数 / Default is odd
+      // 奇数 / 偶数
+      if (pressedKeyName === "O") {
+        setAlternateSelectionMode("odd");
+        event.preventDefault();
+        return;
+      } else if (pressedKeyName === "E") {
+        setAlternateSelectionMode("even");
+        event.preventDefault();
+        return;
+      }
 
-    /* 方向パネル / Direction panel */
-    var dirPanel = dlg.add("panel", undefined, L("panelDirection"));
-    dirPanel.margins = [15, 20, 15, 10];
-    dirPanel.orientation = "column";
-    dirPanel.alignChildren = "left";
+      // 方向（垂直 / 水平 / 重ね順）
+      if (pressedKeyName === "V") {
+        setDirectionMode("vertical");
+        event.preventDefault();
+        return;
+      } else if (pressedKeyName === "H") {
+        setDirectionMode("horizontal");
+        event.preventDefault();
+        return;
+      } else if (pressedKeyName === "A") {
+        setDirectionMode("zorder");
+        event.preventDefault();
+        return;
+      }
+    });
+  }
 
-    var dirGroup = dirPanel.add("group");
-    dirGroup.orientation = "row";
-    dirGroup.alignChildren = "left";
+  /* ダイアログボックス / Dialog box */
+  var dialog = new Window("dialog", getUILabel("dialogTitle") + " " + SCRIPT_VERSION);
+  dialog.orientation = "column";
+  dialog.alignChildren = "left";
 
-    var rbVertical = dirGroup.add("radiobutton", undefined, L("vertical"));
-    var rbHorizontal = dirGroup.add("radiobutton", undefined, L("horizontal"));
-    var rbZOrder = dirGroup.add("radiobutton", undefined, L("zOrder"));
-    // 前回値を基本にし、差が明確なときだけ自動切替 / Prefer last value; auto-switch only if clear
-    var lastMode = loadLastDirectionMode();
-    if (lastMode === null) lastMode = "vertical";
+  var selectionPanel = dialog.add("panel", undefined, getUILabel("panelSelect"));
+  selectionPanel.margins = [15, 20, 15, 10];
+  selectionPanel.orientation = "column";
+  selectionPanel.alignChildren = "left";
 
-    var initialMode = guessInitialDirectionMode(items, lastMode);
-    rbVertical.value = (initialMode === "vertical");
-    rbHorizontal.value = (initialMode === "horizontal");
-    rbZOrder.value = (initialMode === "zorder");
+  var selectGroup = selectionPanel.add("group");
+  selectGroup.orientation = "row";
+  selectGroup.alignChildren = "left";
 
-    addRadioKeyHandler(dlg);
+  var oddRadio = selectGroup.add("radiobutton", undefined, getUILabel("odd"));
+  var evenRadio = selectGroup.add("radiobutton", undefined, getUILabel("even"));
+  oddRadio.value = true; // デフォルトは奇数 / Default is odd
 
-    var btnGroup = dlg.add("group");
-    btnGroup.alignment = "right";
-    var cancelBtn = btnGroup.add("button", undefined, L("cancel"));
-    var okBtn = btnGroup.add("button", undefined, L("ok"));
-
-    rbOdd.onClick = applySelectionPreview;
-    rbEven.onClick = applySelectionPreview;
-    rbVertical.onClick = function () {
-        saveLastDirectionMode("vertical");
-        applySelectionPreview();
-    };
-    rbHorizontal.onClick = function () {
-        saveLastDirectionMode("horizontal");
-        applySelectionPreview();
-    };
-    rbZOrder.onClick = function () {
-        saveLastDirectionMode("zorder");
-        applySelectionPreview();
-    };
-
-    /* ボタン動作 / Button handlers */
-    cancelBtn.onClick = function () {
-        // キャンセル：プレビューを巻き戻して閉じる / Cancel: rollback and close
-        previewMgr.rollback(doc);
-        dlg.close(0);
-    };
-
-    okBtn.onClick = function () {
-        // OK：Undo を綺麗にするため「一度戻して再実行」 / OK: rollback then re-apply once
-        previewMgr.confirm(doc, function () {
-            // 最終適用（1回） / Final apply (single step)
-            var selectOdd = rbOdd.value;
-            var mode = rbVertical.value ? "vertical" : (rbHorizontal.value ? "horizontal" : "zorder");
-
-            if (mode === "vertical") {
-                items.sort(function (a, b) { return b.position[1] - a.position[1]; });
-            } else if (mode === "horizontal") {
-                items.sort(function (a, b) { return a.position[0] - b.position[0]; });
-            } else {
-                items.sort(function (a, b) {
-                    var za = 0, zb = 0;
-                    try { za = a.zOrderPosition; } catch (e) { za = 0; }
-                    try { zb = b.zOrderPosition; } catch (e) { zb = 0; }
-                    return za - zb;
-                });
-            }
-
-            doc.selection = null;
-            for (var i = 0; i < items.length; i++) {
-                var isOddIndex = (i % 2 === 0);
-                if ((selectOdd && isOddIndex) || (!selectOdd && !isOddIndex)) {
-                    items[i].selected = true;
-                }
-            }
-            app.redraw();
-        });
-        var modeToSave = rbVertical.value ? "vertical" : (rbHorizontal.value ? "horizontal" : "zorder");
-        saveLastDirectionMode(modeToSave);
-        dlg.close(1);
-    };
-
-    // 初期状態をプレビュー反映（ダイアログ表示直後に選択を更新） / Initial preview
+  function setAlternateSelectionMode(selectionMode) {
+    oddRadio.value = (selectionMode === "odd");
+    evenRadio.value = (selectionMode === "even");
     applySelectionPreview();
+  }
 
-    // ダイアログ表示 / Show dialog
-    dlg.show();
+  /* 方向パネル / Direction panel */
+  var dirPanel = dialog.add("panel", undefined, getUILabel("panelDirection"));
+  dirPanel.margins = [15, 20, 15, 10];
+  dirPanel.orientation = "column";
+  dirPanel.alignChildren = "left";
+
+  var dirGroup = dirPanel.add("group");
+  dirGroup.orientation = "row";
+  dirGroup.alignChildren = "left";
+
+  var verticalRadio = dirGroup.add("radiobutton", undefined, getUILabel("vertical"));
+  var horizontalRadio = dirGroup.add("radiobutton", undefined, getUILabel("horizontal"));
+  var zOrderRadio = dirGroup.add("radiobutton", undefined, getUILabel("zOrder"));
+
+  function setDirectionMode(directionMode) {
+    verticalRadio.value = (directionMode === "vertical");
+    horizontalRadio.value = (directionMode === "horizontal");
+    zOrderRadio.value = (directionMode === "zorder");
+    saveLastDirectionMode(directionMode);
+    applySelectionPreview();
+  }
+  // 前回値を基本にし、差が明確なときだけ自動切替 / Prefer last value; auto-switch only if clear
+  var lastMode = loadLastDirectionMode();
+  if (lastMode === null) lastMode = "vertical";
+
+  var initialMode = guessInitialDirectionMode(items, lastMode);
+  verticalRadio.value = (initialMode === "vertical");
+  horizontalRadio.value = (initialMode === "horizontal");
+  zOrderRadio.value = (initialMode === "zorder");
+
+  addRadioKeyHandler(dialog);
+
+  var buttonGroup = dialog.add("group");
+  buttonGroup.alignment = "right";
+  var cancelBtn = buttonGroup.add("button", undefined, getUILabel("cancel"));
+  var okBtn = buttonGroup.add("button", undefined, getUILabel("ok"));
+
+  oddRadio.onClick = function () {
+    setAlternateSelectionMode("odd");
+  };
+  evenRadio.onClick = function () {
+    setAlternateSelectionMode("even");
+  };
+  verticalRadio.onClick = function () {
+    setDirectionMode("vertical");
+  };
+  horizontalRadio.onClick = function () {
+    setDirectionMode("horizontal");
+  };
+  zOrderRadio.onClick = function () {
+    setDirectionMode("zorder");
+  };
+
+  /* ボタン動作 / Button handlers */
+  cancelBtn.onClick = function () {
+    // キャンセル：プレビューを巻き戻して閉じる / Cancel: rollback and close
+    previewMgr.rollback(doc);
+    dialog.close(0);
+  };
+
+  okBtn.onClick = function () {
+    // OK：Undo を綺麗にするため「一度戻して再実行」 / OK: rollback then re-apply once
+    previewMgr.confirm(doc, function () {
+      // 最終適用（1回） / Final apply (single step)
+      var selectOdd = oddRadio.value;
+      var mode = verticalRadio.value ? "vertical" : (horizontalRadio.value ? "horizontal" : "zorder");
+
+      if (mode === "vertical") {
+        items.sort(function (firstItem, secondItem) { return secondItem.position[1] - firstItem.position[1]; });
+      } else if (mode === "horizontal") {
+        items.sort(function (firstItem, secondItem) { return firstItem.position[0] - secondItem.position[0]; });
+      } else {
+        items.sort(function (firstItem, secondItem) {
+          var firstZOrderPosition = 0, secondZOrderPosition = 0;
+          try { firstZOrderPosition = firstItem.zOrderPosition; } catch (e) { firstZOrderPosition = 0; }
+          try { secondZOrderPosition = secondItem.zOrderPosition; } catch (e) { secondZOrderPosition = 0; }
+          return firstZOrderPosition - secondZOrderPosition;
+        });
+      }
+
+      doc.selection = null;
+      for (var itemIndex = 0; itemIndex < items.length; itemIndex++) {
+        var isOddIndex = (itemIndex % 2 === 0);
+        if ((selectOdd && isOddIndex) || (!selectOdd && !isOddIndex)) {
+          items[itemIndex].selected = true;
+        }
+      }
+      app.redraw();
+    });
+    var modeToSave = verticalRadio.value ? "vertical" : (horizontalRadio.value ? "horizontal" : "zorder");
+    saveLastDirectionMode(modeToSave);
+    dialog.close(1);
+  };
+
+  // 初期状態をプレビュー反映（ダイアログ表示直後に選択を更新） / Initial preview
+  applySelectionPreview();
+
+
+  // ダイアログ表示 / Show dialog
+  dialog.show();
 })();

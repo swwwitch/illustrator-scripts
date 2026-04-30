@@ -10,24 +10,36 @@ PathCleanupTool
 20260320
 
 ### 概要 / Overview:
-選択したパス（グループ/複合パス内も含む）を対象に、
-- 直線上で冗長なアンカーポイント
-- 同じ座標のアンカーポイント
-- 直線として扱えるベジェ区間上のハンドル
-を削除（最適化）します。ロック/非表示（親やレイヤー含む）はスキップします。
-さらに「その他」タブでは、スムーズ化／コーナー化／アンカーポイント追加／アンカーポイント分割を実行できます。
-許容誤差はアンカーポイント削除用・ハンドル削除用それぞれ個別に調整できます。
+選択したパス（グループ／複合パスを含む）を対象に、パス構造を最適化します。
 
-ダイアログ表示時点の選択を固定し、情報表示と実行対象が一致するようにしています。
-その他タブの処理も、OK時に選択固定した同一対象へ確実に適用されるように状態管理を見直しています。
-スムーズ化では、前後アンカーが同一点または極端に近い場合でも破綻しにくいようガードを入れています。
-また、オープンパスの先頭・末尾は循環参照せず、端点として自然な方向を使うようにしています。
-方向は45度刻みに丸めず、前後アンカーから求めた自然な接線方向をそのまま使う「通常のスムーズポイント化」に調整しています。
-また、前後セグメントの角度差や長さ差が大きい場合はハンドル長を少し抑えて、鋭角や偏った間隔でも暴れにくいようにしています。
-実処理中の例外は、UI系の保存復元とは分けて最小限のログを出すよう整理しています。
+主な機能：
+- 直線上の冗長なアンカーポイントの削除
+- 同一座標のアンカーポイントの削除
+- 直線として扱えるベジェ区間のハンドルの整理
+
+ロック／非表示オブジェクト（親・レイヤー含む）は自動的にスキップされます。
+
+ダイアログ表示時点の選択状態を固定し、情報表示と実行対象が常に一致するように設計されています。
+
+---
+
+「その他」タブでは以下の変換処理を実行できます：
+- スムーズポイント化
+- コーナーポイント化
+- アンカーポイントの追加
+- アンカーポイントで分割
+- マド埋め（Unite）
+
+---
+
+補足：
+- アンカー削除用／ハンドル削除用の許容誤差は個別に調整可能
+- スムーズ化は前後アンカーの距離・角度に応じて安定するよう補正
+- オープンパス端点は安全に処理（循環参照なし）
+- 実行中の例外は最小限ログ出力
 */
 
-var SCRIPT_VERSION = "v1.4.1";
+var SCRIPT_VERSION = "v1.5.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -46,19 +58,19 @@ var LABELS = {
     },
     panelCurrentInfo: {
         ja: "情報",
-        en: "Info"
+        en: "Stats"
     },
     labelPathCount: {
-        ja: "パスの数：",
-        en: "Paths: "
+        ja: "パスの数",
+        en: "Paths"
     },
     labelAnchorCount: {
-        ja: "アンカーポイント数：",
-        en: "Anchor points: "
+        ja: "アンカーポイント数",
+        en: "Anchor points"
     },
     labelHandleCount: {
-        ja: "ハンドル数：",
-        en: "Handles: "
+        ja: "ハンドル数",
+        en: "Handles"
     },
     cbRemoveAnchors: {
         ja: "直線上のアンカーポイント",
@@ -102,7 +114,7 @@ var LABELS = {
     },
     tabOther: {
         ja: "その他",
-        en: "Other"
+        en: "Transform / Other"
     },
     rbConvertSmooth: {
         ja: "スムーズポイントに変換",
@@ -119,6 +131,10 @@ var LABELS = {
     rbSplitAtAnchors: {
         ja: "アンカーポイントで分割",
         en: "Split at anchor points"
+    },
+    rbFillHoles: {
+        ja: "マド埋め",
+        en: "Unite (Fill holes)"
     }
 };
 
@@ -176,7 +192,7 @@ var LABELS = {
 
                 for (var i = start; i >= end; i--) {
                     var curLen = pts.length;
-                    if (curLen < 2) break;
+                    if (curLen <= 2) break;
 
                     if (i > curLen - 1) i = curLen - 1;
                     if (!isClosed && (i <= 0 || i >= curLen - 1)) continue;
@@ -201,7 +217,11 @@ var LABELS = {
     }
 
     /**
-     * 同一座標のアンカーポイント（重複点）を削除（UI/外部呼び出し用）
+     * 互換用：現在の選択を対象に重複アンカーを削除
+     * Backward-compatible wrapper using the current selection.
+     *
+     * 現在の実行フローでは、ダイアログ表示時点の targets を固定して
+     * removeDuplicateAnchorsOnTargets() を直接呼び出す。
      */
     function removeDuplicateAnchors() {
         var selection = getSelectionOrAlert();
@@ -211,9 +231,14 @@ var LABELS = {
     }
 
     function L(key) {
-        var v = LABELS[key];
-        if (!v) return String(key);
-        return v[lang] || v.ja || String(key);
+        var labelSet = LABELS[key];
+        if (!labelSet) return String(key);
+        return labelSet[lang] || labelSet.ja || String(key);
+    }
+
+    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
+    function labelText(key) {
+        return L(key) + (lang === 'ja' ? '：' : ': ');
     }
 
     function getSelectionOrAlert() {
@@ -231,35 +256,35 @@ var LABELS = {
     }
 
     // 3点が一直線上にあるか判定（外積を使用）
-    function isCollinear(p1, p2, p3, tol) {
-        var area = (p2[0] - p1[0]) * (p3[1] - p1[1]) - (p2[1] - p1[1]) * (p3[0] - p1[0]);
-        return Math.abs(area) < (tol || TOL_ANCHOR_COLLINEAR);
+    function isCollinear(pointA, pointB, pointC, tolerance) {
+        var area = (pointB[0] - pointA[0]) * (pointC[1] - pointA[1]) - (pointB[1] - pointA[1]) * (pointC[0] - pointA[0]);
+        return Math.abs(area) < (tolerance || TOL_ANCHOR_COLLINEAR);
     }
 
-    function samePoint(a, b, tol) {
-        return (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) < (tol || TOL_SAMEPOINT);
+    function samePoint(pointA, pointB, tolerance) {
+        return (Math.abs(pointA[0] - pointB[0]) + Math.abs(pointA[1] - pointB[1])) < (tolerance || TOL_SAMEPOINT);
     }
 
     // 点pが線分a-bの直線上にあるか（点から直線までの距離で判定）
-    // tol は「距離（pt）」として扱う。線分が極端に短い場合は samePoint にフォールバック。
-    function isPointOnLineByDistance(a, b, p, tol) {
-        tol = (tol != null) ? tol : TOL_HANDLE_COLLINEAR;
+    // tolerance は「距離（pt）」として扱う。線分が極端に短い場合は samePoint にフォールバック。
+    function isPointOnLineByDistance(lineStart, lineEnd, testPoint, tolerance) {
+        tolerance = (tolerance != null) ? tolerance : TOL_HANDLE_COLLINEAR;
 
-        var abx = b[0] - a[0];
-        var aby = b[1] - a[1];
+        var abx = lineEnd[0] - lineStart[0];
+        var aby = lineEnd[1] - lineStart[1];
         var len = Math.sqrt(abx * abx + aby * aby);
 
         if (len < 1e-9) {
             // a と b がほぼ同一点
-            return samePoint(a, p, Math.max(TOL_SAMEPOINT, tol));
+            return samePoint(lineStart, testPoint, Math.max(TOL_SAMEPOINT, tolerance));
         }
 
         // cross product magnitude / |AB| = perpendicular distance
-        var apx = p[0] - a[0];
-        var apy = p[1] - a[1];
+        var apx = testPoint[0] - lineStart[0];
+        var apy = testPoint[1] - lineStart[1];
         var area2 = abx * apy - aby * apx; // signed
         var dist = Math.abs(area2) / len;
-        return dist <= tol;
+        return dist <= tolerance;
     }
 
     // --- dialog position persistence (session only) ---
@@ -269,9 +294,9 @@ var LABELS = {
 
     function loadDialogLocation() {
         try {
-            var p = $.global[DLG_LOC_KEY];
-            if (!p || p.length !== 2) return null;
-            return [Number(p[0]), Number(p[1])];
+            var savedLocation = $.global[DLG_LOC_KEY];
+            if (!savedLocation || savedLocation.length !== 2) return null;
+            return [Number(savedLocation[0]), Number(savedLocation[1])];
         } catch (_) {
             return null;
         }
@@ -280,19 +305,19 @@ var LABELS = {
     function saveDialogLocation(dlg) {
         if (!dlg) return;
         try {
-            var p = dlg.location; // [x,y]
-            if (!p || p.length !== 2) return;
-            $.global[DLG_LOC_KEY] = [Number(p[0]), Number(p[1])];
+            var dialogLocation = dlg.location; // [x,y]
+            if (!dialogLocation || dialogLocation.length !== 2) return;
+            $.global[DLG_LOC_KEY] = [Number(dialogLocation[0]), Number(dialogLocation[1])];
         } catch (_) {
             // ignore
         }
     }
 
     function tryRestoreDialogLocation(dlg) {
-        var p = loadDialogLocation();
-        if (!p) return;
+        var savedLocation = loadDialogLocation();
+        if (!savedLocation) return;
         try {
-            dlg.location = p;
+            dlg.location = savedLocation;
         } catch (_) {
             // ignore
         }
@@ -300,24 +325,24 @@ var LABELS = {
 
     /* ロック・非表示を判定（親・レイヤーも含む） / Check locked/hidden including parents and layers */
     function isSkippableItem(item) {
-        var cur = item;
-        while (cur) {
+        var currentItem = item;
+        while (currentItem) {
             try {
                 // PageItem / GroupItem / PathItem etc.
-                if (cur.locked === true) return true;
-                if (cur.hidden === true) return true;
+                if (currentItem.locked === true) return true;
+                if (currentItem.hidden === true) return true;
 
                 // Layer
-                if (cur.typename === "Layer") {
-                    if (cur.locked === true) return true;
-                    if (cur.visible === false) return true;
+                if (currentItem.typename === "Layer") {
+                    if (currentItem.locked === true) return true;
+                    if (currentItem.visible === false) return true;
                 }
 
                 // If the item has a layer reference, also respect it
-                if (cur.layer) {
+                if (currentItem.layer) {
                     try {
-                        if (cur.layer.locked === true) return true;
-                        if (cur.layer.visible === false) return true;
+                        if (currentItem.layer.locked === true) return true;
+                        if (currentItem.layer.visible === false) return true;
                     } catch (_) { }
                 }
             } catch (_) {
@@ -326,33 +351,33 @@ var LABELS = {
 
             // Walk up
             try {
-                cur = cur.parent;
+                currentItem = currentItem.parent;
             } catch (_) {
                 break;
             }
 
             // Stop when reaching document-like root
-            if (!cur || cur.typename === "Document") break;
+            if (!currentItem || currentItem.typename === "Document") break;
         }
         return false;
     }
 
     /* 選択からPathItemを再帰的に収集 / Collect PathItems recursively from selection */
-    function collectPathItemsFromAny(item, out) {
+    function collectPathItemsFromAny(item, pathItems) {
         if (!item) return;
         if (isSkippableItem(item)) return;
 
         try {
             // Direct PathItem
             if (item.typename === "PathItem") {
-                out.push(item);
+                pathItems.push(item);
                 return;
             }
 
             // CompoundPathItem contains pathItems
             if (item.typename === "CompoundPathItem") {
                 for (var i = 0; i < item.pathItems.length; i++) {
-                    if (!isSkippableItem(item.pathItems[i])) out.push(item.pathItems[i]);
+                    if (!isSkippableItem(item.pathItems[i])) pathItems.push(item.pathItems[i]);
                 }
                 return;
             }
@@ -360,7 +385,7 @@ var LABELS = {
             // GroupItem (including clipped groups)
             if (item.typename === "GroupItem") {
                 for (var g = 0; g < item.pageItems.length; g++) {
-                    collectPathItemsFromAny(item.pageItems[g], out);
+                    collectPathItemsFromAny(item.pageItems[g], pathItems);
                 }
                 return;
             }
@@ -368,7 +393,7 @@ var LABELS = {
             // Other container types we may want to traverse
             if (item.pageItems && item.pageItems.length) {
                 for (var p = 0; p < item.pageItems.length; p++) {
-                    collectPathItemsFromAny(item.pageItems[p], out);
+                    collectPathItemsFromAny(item.pageItems[p], pathItems);
                 }
             }
         } catch (e) {
@@ -377,14 +402,20 @@ var LABELS = {
     }
 
     function getTargetPathItemsFromSelection(selection) {
-        var out = [];
+        var pathItems = [];
         for (var i = 0; i < selection.length; i++) {
-            collectPathItemsFromAny(selection[i], out);
+            collectPathItemsFromAny(selection[i], pathItems);
         }
-        return out;
+        return pathItems;
     }
 
-    /* 現在の情報（数）を取得 / Get current info counts */
+    /*
+     * 互換用：現在の選択から情報（数）を取得
+     * Backward-compatible helper using the current selection.
+     *
+     * 現在の情報表示は、ダイアログ表示時点の targets を固定して
+     * getInfoCountsFromTargets() を使用する。
+     */
     function getCurrentInfoCounts() {
         var info = { paths: 0, anchors: 0, handles: 0 };
 
@@ -496,7 +527,11 @@ var LABELS = {
     }
 
     /**
-     * 不要なアンカーポイント（直線上の冗長点）を削除（UI/外部呼び出し用）
+     * 互換用：現在の選択を対象に直線上の冗長アンカーを削除
+     * Backward-compatible wrapper using the current selection.
+     *
+     * 現在の実行フローでは、ダイアログ表示時点の targets を固定して
+     * removeRedundantAnchorsOnTargets() を直接呼び出す。
      */
     function removeRedundantAnchors() {
         var selection = getSelectionOrAlert();
@@ -570,7 +605,11 @@ var LABELS = {
     }
 
     /**
-     * 不要なハンドルを削除（直線になっているベジェ区間のハンドルをアンカーに戻す）（UI/外部呼び出し用）
+     * 互換用：現在の選択を対象に直線区間上の冗長ハンドルを削除
+     * Backward-compatible wrapper using the current selection.
+     *
+     * 現在の実行フローでは、ダイアログ表示時点の targets を固定して
+     * removeRedundantHandlesOnTargets() を直接呼び出す。
      */
     function removeRedundantHandles() {
         var selection = getSelectionOrAlert();
@@ -664,7 +703,7 @@ var LABELS = {
 
             for (var i = start; i >= end; i--) {
                 var curLen = pts.length;
-                if (curLen < 2) break;
+                if (curLen <= 2) break;
 
                 if (i > curLen - 1) i = curLen - 1;
                 if (!isClosed && (i <= 0 || i >= curLen - 1)) continue;
@@ -783,7 +822,13 @@ var LABELS = {
         };
     }
 
-    // 互換用：現在の選択を対象に予測 / Backward-compatible wrapper using current selection
+    /*
+     * 互換用：現在の選択を対象に予測
+     * Backward-compatible wrapper using the current selection.
+     *
+     * 現在の情報表示は、ダイアログ表示時点の targets を固定して
+     * getPredictedInfoCountsForTargets() を使用する。
+     */
     function getPredictedInfoCounts(doSameAnchors, doAnchors, doHandles) {
         if (!hasDocument()) {
             return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
@@ -837,6 +882,11 @@ var LABELS = {
             pathsAfter = totalSegs2;
             anchorsAfter = totalSegs2 * 2;
             handlesAfter = '-';
+        } else if (mode === 'fillHoles') {
+            // パスファインダー結果は事前に正確に出せないため未確定
+            pathsAfter = '-';
+            anchorsAfter = '-';
+            handlesAfter = '-';
         }
 
         return {
@@ -874,7 +924,7 @@ var LABELS = {
             row.orientation = 'row';
             row.alignChildren = ['left', 'center'];
 
-            var stLabel = row.add('statictext', undefined, L(labelKey));
+            var stLabel = row.add('statictext', undefined, labelText(labelKey));
             stLabel.characters = 16;
             stLabel.justify = 'right';
 
@@ -887,29 +937,30 @@ var LABELS = {
         var stAnchorCount = addInfoRow('labelAnchorCount');
         var stHandleCount = addInfoRow('labelHandleCount');
 
-        function fmtArrow(a, b) {
-            return String(a) + " → " + String(b);
+        function fmtArrow(beforeValue, afterValue) {
+            return String(beforeValue) + " → " + String(afterValue);
         }
 
         function refreshInfoPreview(doSameAnchors, doAnchors, doHandles) {
-            var p = getPredictedInfoCountsForTargets(frozenTargets, doSameAnchors, doAnchors, doHandles);
-            stPathCount.text = String(p.paths);
-            stAnchorCount.text = fmtArrow(p.anchorsNow, p.anchorsAfter);
-            stHandleCount.text = fmtArrow(p.handlesNow, p.handlesAfter);
+            var predictedInfo = getPredictedInfoCountsForTargets(frozenTargets, doSameAnchors, doAnchors, doHandles);
+            stPathCount.text = String(predictedInfo.paths);
+            stAnchorCount.text = fmtArrow(predictedInfo.anchorsNow, predictedInfo.anchorsAfter);
+            stHandleCount.text = fmtArrow(predictedInfo.handlesNow, predictedInfo.handlesAfter);
         }
 
         function refreshInfoForConvert(mode) {
-            var p = getPredictedInfoForConvert(frozenTargets, mode);
-            stPathCount.text = fmtArrow(p.paths, p.pathsAfter);
-            stAnchorCount.text = fmtArrow(p.anchorsNow, p.anchorsAfter);
-            stHandleCount.text = fmtArrow(p.handlesNow, p.handlesAfter);
+            var predictedInfo = getPredictedInfoForConvert(frozenTargets, mode);
+            stPathCount.text = fmtArrow(predictedInfo.paths, predictedInfo.pathsAfter);
+            stAnchorCount.text = fmtArrow(predictedInfo.anchorsNow, predictedInfo.anchorsAfter);
+            stHandleCount.text = fmtArrow(predictedInfo.handlesNow, predictedInfo.handlesAfter);
         }
 
         function getSelectedConvertMode() {
             if (rbSmooth.value) return 'smooth';
             if (rbCorner.value) return 'corner';
             if (rbAdd.value) return 'add';
-            return 'split';
+            if (rbSplit.value) return 'split';
+            return 'fillHoles';
         }
 
         function refreshByActiveTab() {
@@ -932,7 +983,7 @@ var LABELS = {
         tabProcess.margins = [15, 15, 15, 10];
 
         var cbSameAnchors = tabProcess.add('checkbox', undefined, L('cbRemoveSameAnchors'));
-        cbSameAnchors.value = false;
+        cbSameAnchors.value = true;
 
         // Tolerance for collinear anchor detection (0.01 - 3.00)
 
@@ -1028,11 +1079,11 @@ var LABELS = {
             slTol.value = Math.round(v * 100);
         }
 
-        function parseTolText(s) {
-            if (!s) return NaN;
+        function parseTolText(text) {
+            if (!text) return NaN;
             // accept formats like "[0.01]", "0.01", and full-width brackets
-            s = String(s).replace(/\[/g, '').replace(/\]/g, '').replace(/［/g, '').replace(/］/g, '').replace(/\s/g, '');
-            return parseFloat(s);
+            text = String(text).replace(/\[/g, '').replace(/\]/g, '').replace(/［/g, '').replace(/］/g, '').replace(/\s/g, '');
+            return parseFloat(text);
         }
 
         slTol.onChanging = function () {
@@ -1077,9 +1128,10 @@ var LABELS = {
         var rbCorner = tabOther.add('radiobutton', undefined, L('rbConvertCorner'));
         var rbAdd = tabOther.add('radiobutton', undefined, L('rbAddAnchors'));
         var rbSplit = tabOther.add('radiobutton', undefined, L('rbSplitAtAnchors'));
+        var rbFillHoles = tabOther.add('radiobutton', undefined, L('rbFillHoles'));
         rbSmooth.value = true;
 
-        rbSmooth.onClick = rbCorner.onClick = rbAdd.onClick = rbSplit.onClick = function () {
+        rbSmooth.onClick = rbCorner.onClick = rbAdd.onClick = rbSplit.onClick = rbFillHoles.onClick = function () {
             refreshInfoForConvert(getSelectedConvertMode());
         };
 
@@ -1093,6 +1145,7 @@ var LABELS = {
         btns.orientation = 'row';
         btns.alignChildren = ['center', 'center'];
         btns.alignment = ['center', 'top'];
+        btns.margins = [0, 10, 0, 0];
 
         var btnCancel = btns.add('button', undefined, L('btnCancel'), { name: 'cancel' });
         var btnOK = btns.add('button', undefined, L('btnOK'), { name: 'ok' });
@@ -1240,16 +1293,21 @@ var LABELS = {
     }
 
     function convertPathItem(item, mode) {
+        if (!item || isSkippableItem(item)) return;
         var func = (mode === 'smooth') ? convertToSmooth : convertToCorner;
         if (item.typename === 'PathItem') {
             func(item);
         } else if (item.typename === 'CompoundPathItem') {
             for (var i = 0; i < item.pathItems.length; i++) {
-                func(item.pathItems[i]);
+                if (!isSkippableItem(item.pathItems[i])) {
+                    func(item.pathItems[i]);
+                }
             }
         } else if (item.typename === 'GroupItem') {
             for (var j = 0; j < item.pageItems.length; j++) {
-                convertPathItem(item.pageItems[j], mode);
+                if (!isSkippableItem(item.pageItems[j])) {
+                    convertPathItem(item.pageItems[j], mode);
+                }
             }
         }
     }
@@ -1293,13 +1351,29 @@ var LABELS = {
         pathItem.remove();
     }
 
+    // マド埋め：複合パスを解除→ライブパスファインダー（合体）→アピアランス展開→グループ解除
+    function fillHolesOnSelection() {
+        app.executeMenuCommand('group');
+        app.executeMenuCommand('noCompoundPath');
+        app.executeMenuCommand('Live Pathfinder Add');
+        app.executeMenuCommand('expandStyle');
+        try {
+            app.executeMenuCommand('ungroup');
+        } catch (e) {
+            // 単一オブジェクトでグループ化されていない場合があるため握りつぶす
+        }
+    }
+
     function splitItem(item) {
+        if (!item || isSkippableItem(item)) return;
         if (item.typename === 'PathItem') {
             splitAtAnchors(item);
         } else if (item.typename === 'CompoundPathItem') {
             var paths = [];
             for (var i = 0; i < item.pathItems.length; i++) {
-                paths.push(item.pathItems[i]);
+                if (!isSkippableItem(item.pathItems[i])) {
+                    paths.push(item.pathItems[i]);
+                }
             }
             for (var ii = 0; ii < paths.length; ii++) {
                 splitAtAnchors(paths[ii]);
@@ -1307,7 +1381,9 @@ var LABELS = {
         } else if (item.typename === 'GroupItem') {
             var items = [];
             for (var j = 0; j < item.pageItems.length; j++) {
-                items.push(item.pageItems[j]);
+                if (!isSkippableItem(item.pageItems[j])) {
+                    items.push(item.pageItems[j]);
+                }
             }
             for (var jj = 0; jj < items.length; jj++) {
                 splitItem(items[jj]);
@@ -1324,19 +1400,80 @@ var LABELS = {
     if (!ui.ok) return;
 
     // タブindex依存だと ScriptUI 環境差で誤判定しうるため、明示状態で分岐する
+    // 選択をダイアログ表示時点に復元
+    function restoreSelection(selectionSnapshot) {
+        var restoredCount = 0;
+        try {
+            if (!hasDocument()) return 0;
+            var doc = app.activeDocument;
+            doc.selection = null;
+            for (var i = 0; i < selectionSnapshot.length; i++) {
+                var item = selectionSnapshot[i];
+                if (!item) continue;
+                try {
+                    item.selected = true;
+                    restoredCount++;
+                } catch (_) {
+                    // skip items that can no longer be selected
+                }
+            }
+        } catch (e) {
+            logProcessError("restoreSelection", e);
+        }
+        return restoredCount;
+    }
+
+    // 選択依存のメニューコマンド用に、スキップ対象を除いた PathItem だけを選択復元
+    function restoreSelectableSelection(selectionSnapshot) {
+        var restoredCount = 0;
+        try {
+            if (!hasDocument()) return 0;
+            var doc = app.activeDocument;
+            var selectablePathItems = getTargetPathItemsFromSelection(selectionSnapshot);
+
+            doc.selection = null;
+            for (var i = 0; i < selectablePathItems.length; i++) {
+                var pathItem = selectablePathItems[i];
+                if (!pathItem || isSkippableItem(pathItem)) continue;
+                try {
+                    pathItem.selected = true;
+                    restoredCount++;
+                } catch (_) {
+                    // skip items that can no longer be selected
+                }
+            }
+        } catch (e) {
+            logProcessError("restoreSelectableSelection", e);
+        }
+        return restoredCount;
+    }
+
+    // 実行前に選択を復元
+    if (restoreSelection(selectionAtOpen) === 0) {
+        return;
+    }
+
     if (ui.activeMode === 'other') {
         // --- その他タブ: 変換・分割処理 ---
-        var sel = selectionAtOpen.slice(0);
+        var selectionSnapshot = selectionAtOpen.slice(0);
         if (ui.convertMode === 'add') {
-            app.executeMenuCommand('Add Anchor Points2');
+            if (restoreSelectableSelection(selectionSnapshot) > 0) {
+                app.executeMenuCommand('Add Anchor Points2');
+            }
         } else if (ui.convertMode === 'split') {
-            for (var n = 0; n < sel.length; n++) {
-                splitItem(sel[n]);
+            for (var n = 0; n < selectionSnapshot.length; n++) {
+                if (!isSkippableItem(selectionSnapshot[n])) {
+                    splitItem(selectionSnapshot[n]);
+                }
+            }
+        } else if (ui.convertMode === 'fillHoles') {
+            if (restoreSelectableSelection(selectionSnapshot) > 0) {
+                fillHolesOnSelection();
             }
         } else {
-            for (var n = 0; n < sel.length; n++) {
-                if (!sel[n]) continue;
-                convertPathItem(sel[n], ui.convertMode);
+            for (var n = 0; n < selectionSnapshot.length; n++) {
+                if (!selectionSnapshot[n] || isSkippableItem(selectionSnapshot[n])) continue;
+                convertPathItem(selectionSnapshot[n], ui.convertMode);
             }
         }
     } else {
