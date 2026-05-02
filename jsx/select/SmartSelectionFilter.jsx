@@ -20,7 +20,7 @@ OKで現在の選択状態を確定し、キャンセルでスクリプト開始
 // Version and localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.0.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
