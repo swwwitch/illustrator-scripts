@@ -10,6 +10,8 @@ https://github.com/swwwitch/illustrator-scripts
 
 ### 概要 / Overview:
 - 選択中のオブジェクトが「だいたいグリッド状」に並んでいることを前提に、左右・上下の間隔で再配置します。
+- 常時プレビュー対応。値はEditTextで直接入力でき、↑↓キー（Shiftで×10、Optionで×0.1）でも増減できます。
+- すでにグループになっているもの（クリップグループ含む）は、中身を分解せず「1つのオブジェクト＝1つの外接bbox」として扱います。
 - 実行後に自動でグループ化はしません（選択状態のまま）。
 - ダイアログは日本語／英語の自動切り替えに対応（$.locale）。
 - ［連動］で左右の値を上下に反映できます。
@@ -20,11 +22,13 @@ https://github.com/swwwitch/illustrator-scripts
 - 1行だけ→1列、1列だけ→1行の転置にも対応します。
 
 ### 更新日 / Updated:
-- 2026-02-01
+- 2026-05-06
 
 Illustrator Grid Re-spacing Script (always-on preview, link option)
 
 - Assumes the selected objects are arranged in an "approximately grid-like" layout.
+- Always-on preview. Values can be entered directly in the EditText fields, and adjusted via ↑↓ keys (×10 with Shift, ×0.1 with Option).
+- Existing groups (including clipped groups) are treated as a single object — one outer bounding box — and never broken apart.
 - Does not auto-group results (keeps items selected).
 - Repositions them using the horizontal/vertical gaps entered in the dialog.
 - The dialog supports automatic Japanese/English switching (based on $.locale).
@@ -36,7 +40,7 @@ Illustrator Grid Re-spacing Script (always-on preview, link option)
 - Supports transposing a single row into a single column, and a single column into a single row.
 
 ### Updated:
-- 2026-02-01
+- 2026-05-06
 
 更新履歴 / Update history
 - 2026-05-06: v1.5.9 グループ／クリップグループは中身を分解せず1オブジェクトとして扱うよう統一（行列入れ替えも getLayoutBounds 基準に変更）
