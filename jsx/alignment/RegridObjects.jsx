@@ -39,23 +39,14 @@ Illustrator Grid Re-spacing Script (always-on preview, link option)
 - 2026-02-01
 
 更新履歴 / Update history
-- 2026-02-01: v1.5.7 クリップグループはクリップパス基準でグリッド計算（六角形/ハニカムの整列を安定化）
-- 2026-02-01: v1.5.6 ［強制グリッド］オプションを追加（行ごと左→右の順でセル割り当て）
-- 2026-02-01: v1.5.3 ［六角形］オプションを追加（プレビュー/OKの分岐を修正）
-- 2026-02-01: v1.5.2 ［レンガ状］で六角形（ハニカム）配置に対応
-- 2026-02-01: v1.5.1 実行後にグループ化しないように変更
-- 2026-02-01: v1.5 ［レンガ状］チェックボックス（UIのみ）を追加
-- 2026-01-26: v1.4 1行→1列、1列→1行の転置に対応（行列入れ替え）
-- 2026-01-25: v1.3 ［行列入れ替え］のロジックを実装（歯抜け対応・左上基準）
-- 2026-01-25: v1.2 ［行列入れ替え］チェックボックス（UIのみ）を追加、冒頭コメントを更新
-- 2025-10-31: v1.1 ローカライズ対応、タイトルにバージョン表示、コメントを日英に整理
+- 2026-05-06: v1.5.9 グループ／クリップグループは中身を分解せず1オブジェクトとして扱うよう統一（行列入れ替えも getLayoutBounds 基準に変更）
 - 2025-10-31: v1.0 プレビューの常時ON、連動（上下ディム）、↑↓キーでの増減
 */
 
 //
 // バージョン / Version
 //
-var SCRIPT_VERSION = "v1.5.7";
+var SCRIPT_VERSION = "v1.5.9";
 
 // 強制グリッド（ダイアログから切替）/ Force Grid mode (toggled from dialog)
 $.global.__regridForceGrid = $.global.__regridForceGrid || false;
@@ -590,8 +581,9 @@ function main() {
 
     /*
 レイアウト計算用の境界を取得 / Get bounds for layout calculation
-- クリップグループの場合はクリップパスの geometricBounds を優先
-- それ以外は item.geometricBounds
+- すでにグループになっているものは、中身を分解せず「グループ＝1つのオブジェクト」として扱う
+- クリップグループの場合はクリップパスの geometricBounds を優先（=可視領域）
+- それ以外は item.geometricBounds（GroupItem なら子全体の外接 bbox）
 */
     function getLayoutBounds(item) {
         try {
@@ -846,7 +838,8 @@ function main() {
 
     /*
     行列入れ替え（歯抜け対応）/ Transpose rows & columns (tolerate missing cells)
-    - 選択の可視境界（visibleBounds）の left/top を基準に、行・列をクラスタリングして推定
+    - getLayoutBounds() の left/top を基準に、行・列をクラスタリングして推定
+    - グループは中身を見ず、グループ全体の外接 bbox（クリップグループはクリップパス）で1オブジェクトとして扱う
     - 推定したピッチ（隣接差の中央値）で左上基準に再配置
     - 1行→1列 / 1列→1行 も対応（ピッチ流用）
     */
@@ -857,9 +850,9 @@ function main() {
         var SNAP_X_TOL = 8.0;   // X方向の「同じ列」とみなす許容（pt）
         var SNAP_Y_TOL = 8.0;   // Y方向の「同じ行」とみなす許容（pt）
 
-        // visibleBounds: [left, top, right, bottom]
-        function leftX(it) { return it.visibleBounds[0]; }
-        function topY(it) { return it.visibleBounds[1]; }
+        // getLayoutBounds: [left, top, right, bottom]（グループは1つのbboxとして扱う）
+        function leftX(it) { return getLayoutBounds(it)[0]; }
+        function topY(it) { return getLayoutBounds(it)[1]; }
 
         // 近い値をクラスタリングして中心値配列を作る / cluster near values into centers
         function clusterValues(values, tol) {
@@ -980,7 +973,7 @@ function main() {
             var targetLeft = originLeft + newCol * pitchXEff;
             var targetTop = originTop - newRow * pitchYEff;
 
-            var b = obj.visibleBounds;
+            var b = getLayoutBounds(obj);
             var curLeft = b[0];
             var curTop = b[1];
 
