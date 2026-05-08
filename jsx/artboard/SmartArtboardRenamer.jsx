@@ -43,6 +43,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     ### 更新履歴
 
     - v1.0 (20250509) : 初期バージョン
+    - v1.5.1 (20260508) : 接頭辞／接尾辞のクリア x ボタンを各行から最終行 1 個のみに整理
 
     ---
 
@@ -85,13 +86,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     ### Update History
 
     - v1.0 (20250509): Initial version
+    - v1.5.1 (20260508): Consolidated the prefix/suffix clear "x" button to a single one on the last row
     */
 
     // =========================================
     // バージョンとローカライズ
     // =========================================
 
-    var SCRIPT_VERSION = "v1.5.0";
+    var SCRIPT_VERSION = "v1.5.1";
 
     var lang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
@@ -391,13 +393,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     };
                 })(tokens[tokenIdx]);
             }
-            /* 対象フィールド（接頭辞／接尾辞）をクリアする x ボタン / Clear button for the target prefix/suffix field */
-            var clearFieldBtn = tokenButtonRow.add("button", undefined, "x");
-            clearFieldBtn.preferredSize = [22, 20];
-            clearFieldBtn.onClick = function () {
-                targetInput.text = "";
-                targetInput.notify("onChange");
-            };
+            /* 最終行末にのみ、対象フィールドをクリアする x ボタンを配置 / Add the clear button only on the last row */
+            if (rowIdx === tokenRows.length - 1) {
+                var clearFieldBtn = tokenButtonRow.add("button", undefined, "x");
+                clearFieldBtn.preferredSize = [22, 20];
+                clearFieldBtn.onClick = function () {
+                    targetInput.text = "";
+                    targetInput.notify("onChange");
+                };
+            }
         }
     }
 
