@@ -20,7 +20,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     - 「レイヤー」モードで、指定レイヤー配下（サブレイヤー・グループ含む）のテキストを結合して参照
     - 「元のアートボード名」モードでダイアログを開いた時点の名前を参照（[更新] 後の名前ではない）
     - 「指定」モードで入力した任意のテキストを参照（空にすれば参照テキストなし）
-    - 同名が重複する場合は "_2", "_3" などを自動付加（接頭辞・接尾辞に連番トークンがある場合はスキップ）
+    - 同名が重複する場合は "_1", "_2" などを自動付加（重複しない名前はそのまま。接頭辞・接尾辞に連番トークンがある場合はスキップ）
     - 非表示レイヤーは無視
 
     #### 対象アートボード（右カラム上段）
@@ -44,6 +44,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     - v1.0 (20250509) : 初期バージョン
     - v1.5.2 (20260508) : ［更新］ボタンで右カラムの手動編集名と並び替えも確定するように変更
+    - v1.5.3 (20260508) : 同名重複時、最初のアートボードから "_1" を付加するように変更（重複しない名前はそのまま）
 
     ---
 
@@ -63,7 +64,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     - "Layer" mode combines text from the selected layer hierarchy (including sublayers and groups)
     - "Original Artboard Name" mode uses the name as it was when the dialog opened (not the post-[Refresh] name)
     - "Custom" mode uses the entered text as the reference text (leave empty for no reference text)
-    - Automatically appends "_2", "_3", etc. on name collision (skipped when prefix/suffix contains a sequence token)
+    - Automatically appends "_1", "_2", etc. only on name collision (non-duplicates stay as-is; skipped when prefix/suffix contains a sequence token)
     - Ignores hidden layers
 
     #### Target artboards (right column, top)
@@ -87,13 +88,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     - v1.0 (20250509): Initial version
     - v1.5.2 (20260508): Refresh now commits right-column manual name edits and reorder changes
+    - v1.5.3 (20260508): On name collisions, the first occurrence now starts at "_1" (non-duplicates remain untouched)
     */
 
     // =========================================
     // バージョンとローカライズ
     // =========================================
 
-    var SCRIPT_VERSION = "v1.5.2";
+    var SCRIPT_VERSION = "v1.5.3";
 
     var lang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
@@ -1095,10 +1097,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var targetIndices = getTargetArtboardIndices(artboardCount, targetType, numberInput);
 
         // 対象外アートボードは現在の名前を維持するため、それらを衝突回避リストに含める
-        var usedNames = getReservedArtboardNames(artboards, targetIndices);
+        var reservedNames = getReservedArtboardNames(artboards, targetIndices);
 
-        // 接頭辞・接尾辞に連番トークンがあれば結果がユニークになる前提で _2/_3 自動付加をスキップ
+        // 接頭辞・接尾辞に連番トークンがあれば結果がユニークになる前提で _1/_2 自動付加をスキップ
         var skipUniquification = hasSequenceToken(prefix) || hasSequenceToken(suffix);
+
+        // 1パス目: 各ターゲットの baseName を計算（結果が空のものは reserved に逃がす）
+        var plannedBaseNames = [];
+        var plannedIndices = [];
         var sequenceIndex = 1;
         for (var artboardIdx = 0; artboardIdx < artboardCount; artboardIdx++) {
             if (!contains(targetIndices, artboardIdx)) continue;
@@ -1106,15 +1112,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var expandedSuffix = expandTemplateTokens(suffix, sequenceIndex);
             var textPart = artboardTextMap[artboardIdx] ? artboardTextMap[artboardIdx].join(" ") : "";
             if (expandedPrefix || expandedSuffix || textPart) {
-                var baseName = expandedPrefix + textPart + expandedSuffix;
-                var uniqueName = skipUniquification ? baseName : generateUniqueName(baseName, usedNames);
-                usedNames.push(uniqueName);
-                previewNames[artboardIdx] = uniqueName;
+                plannedBaseNames.push(expandedPrefix + textPart + expandedSuffix);
+                plannedIndices.push(artboardIdx);
                 sequenceIndex++;
             } else {
                 // 対象だが結果が空のためスキップ → 現在の名前を予約して衝突を防ぐ
-                usedNames.push(previewNames[artboardIdx]);
+                reservedNames.push(previewNames[artboardIdx]);
             }
+        }
+
+        // 2パス目: 重複している baseName のみ "_1", "_2" ... を付加
+        var finalNames = resolveUniqueNames(plannedBaseNames, reservedNames, skipUniquification);
+        for (var f = 0; f < plannedIndices.length; f++) {
+            previewNames[plannedIndices[f]] = finalNames[f];
         }
 
         return previewNames;
@@ -1265,15 +1275,45 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return false;
     }
 
-    /* 重複を避けるため "_2", "_3" 付きの一意な名前を生成 / Generate a unique name by appending "_2", "_3" on conflict */
-    function generateUniqueName(baseName, usedNames) {
-        var name = baseName;
-        var count = 2;
-        while (contains(usedNames, name)) {
-            name = baseName + "_" + count;
-            count++;
+    /* 計画名のリストから、重複しているものだけ "_1", "_2" を付けて最終名を返す（重複しない名前はそのまま） / Resolve unique names by appending "_1", "_2" only when collisions exist (in plan or reserved) */
+    function resolveUniqueNames(plannedBaseNames, reservedNames, skipUniquification) {
+        var result = [];
+        if (skipUniquification) {
+            for (var i = 0; i < plannedBaseNames.length; i++) {
+                result.push(plannedBaseNames[i]);
+            }
+            return result;
         }
-        return name;
+
+        // plan 内での baseName 出現回数（>1 なら重複）
+        var baseNameCountInPlan = {};
+        for (var c = 0; c < plannedBaseNames.length; c++) {
+            var bn = plannedBaseNames[c];
+            baseNameCountInPlan[bn] = (baseNameCountInPlan[bn] || 0) + 1;
+        }
+
+        var usedNames = [];
+        for (var u = 0; u < reservedNames.length; u++) usedNames.push(reservedNames[u]);
+
+        var baseNameSeq = {};
+        for (var p = 0; p < plannedBaseNames.length; p++) {
+            var base = plannedBaseNames[p];
+            var needsSuffix = baseNameCountInPlan[base] > 1 || contains(reservedNames, base);
+            var finalName;
+            if (!needsSuffix) {
+                finalName = base;
+            } else {
+                baseNameSeq[base] = (baseNameSeq[base] || 0) + 1;
+                finalName = base + "_" + baseNameSeq[base];
+                while (contains(usedNames, finalName)) {
+                    baseNameSeq[base]++;
+                    finalName = base + "_" + baseNameSeq[base];
+                }
+            }
+            usedNames.push(finalName);
+            result.push(finalName);
+        }
+        return result;
     }
 
     /* テンプレート文字列の連番／#FN／#DT トークンを展開 / Expand sequence/#FN/#DT tokens in a template */
@@ -1311,9 +1351,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /* 対象アートボードを実際にリネーム実行（リネーム本体） / Perform the actual rename pass over target artboards */
     function renameArtboards(artboards, artboardTextMap, prefixTemplate, suffixTemplate, targetIndices) {
-        // 接頭辞・接尾辞に連番トークンがあれば結果がユニークになる前提で _2/_3 自動付加をスキップ
+        // 接頭辞・接尾辞に連番トークンがあれば結果がユニークになる前提で _1/_2 自動付加をスキップ
         var skipUniquification = hasSequenceToken(prefixTemplate) || hasSequenceToken(suffixTemplate);
-        var usedNames = getReservedArtboardNames(artboards, targetIndices);
+        var reservedNames = getReservedArtboardNames(artboards, targetIndices);
+
+        // 1パス目: 各ターゲットの baseName を計算（結果が空のものは reserved に逃がす）
+        var plannedBaseNames = [];
+        var plannedIndices = [];
         var sequenceIndex = 1;
         for (var artboardIdx = 0; artboardIdx < artboards.length; artboardIdx++) {
             if (!contains(targetIndices, artboardIdx)) continue;
@@ -1321,18 +1365,22 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var expandedSuffix = expandTemplateTokens(suffixTemplate, sequenceIndex);
             var textPart = artboardTextMap[artboardIdx] ? artboardTextMap[artboardIdx].join(" ") : "";
             if (expandedPrefix || expandedSuffix || textPart) {
-                var baseName = expandedPrefix + textPart + expandedSuffix;
-                var uniqueName = skipUniquification ? baseName : generateUniqueName(baseName, usedNames);
-                usedNames.push(uniqueName);
-                try {
-                    artboards[artboardIdx].name = uniqueName;
-                } catch (renameError) {
-                    $.writeln("[SmartArtboardRenamer] Failed to rename artboard index " + artboardIdx + " to '" + uniqueName + "': " + renameError);
-                }
+                plannedBaseNames.push(expandedPrefix + textPart + expandedSuffix);
+                plannedIndices.push(artboardIdx);
                 sequenceIndex++;
             } else {
                 // リネーム対象だが結果が空のためスキップ → 現在の名前を予約して衝突を防ぐ
-                usedNames.push(artboards[artboardIdx].name);
+                reservedNames.push(artboards[artboardIdx].name);
+            }
+        }
+
+        // 2パス目: 重複している baseName のみ "_1", "_2" ... を付加
+        var finalNames = resolveUniqueNames(plannedBaseNames, reservedNames, skipUniquification);
+        for (var f = 0; f < plannedIndices.length; f++) {
+            try {
+                artboards[plannedIndices[f]].name = finalNames[f];
+            } catch (renameError) {
+                $.writeln("[SmartArtboardRenamer] Failed to rename artboard index " + plannedIndices[f] + " to '" + finalNames[f] + "': " + renameError);
             }
         }
     }
