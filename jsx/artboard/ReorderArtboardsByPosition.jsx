@@ -42,6 +42,7 @@ ReorderArtboardsByPosition.jsx
 - v1.0 (20231115) : 初期バージョン（Andrew_BJ による UI 改良と上限拡張）
 - v1.2.0 (20260415) : 左上基準専用ツールとしてUIと構成を整理、再配置設定とプレビュー表示を調整
 - v1.3.0 (20260508) : アートボード名パネル追加（「行-列」形式の自動命名、既存名の整形、区切り文字／桁数の選択）、再配置ロジックとUI構築を責務ごとの関数に分割、L() 経由のローカライズに統一、列間／行間の連動処理を整理
+- v1.3.1 (20260508) : 再配置とパネル並び順の実行順を入れ替え、再配置後の見た目に合わせてパネル順が更新されるよう修正
 
 ---
 
@@ -85,6 +86,7 @@ ReorderArtboardsByPosition.jsx
 - v1.0 (20231115): Initial version (UI improvements and limit extension by Andrew_BJ)
 - v1.2.0 (20260415): Refined the UI and structure as a dedicated Top Left reorder tool, and adjusted rearrange settings and preview display
 - v1.3.0 (20260508): Added Artboard Names panel (auto row-column naming, reformat existing names, separator and digit width selection), split rearrange logic and UI construction into responsibility-based helper functions, unified localization via L(), and refined linked column/row gap behavior
+- v1.3.1 (20260508): Swapped the execution order of rearrange and panel reorder so the panel order matches the post-rearrange visual layout
 */
 
 (function () {
@@ -93,7 +95,7 @@ ReorderArtboardsByPosition.jsx
     // バージョンとローカライズ、ユーティリティ / Version, localization, and utility functions  
     // =========================================
 
-    var SCRIPT_VERSION = "v1.3.0";
+    var SCRIPT_VERSION = "v1.3.1";
 
     var COORDINATE_PRECISION_DIGITS = 3;
     var PANEL_MARGINS = [15, 20, 15, 10];
@@ -289,15 +291,9 @@ ReorderArtboardsByPosition.jsx
     function executeReorder(doc, ui) {
         var tolerance = Math.round(ui.preview.toleranceSlider.value) || 0;
 
-        /* 並び替えを実行（チェック ON のときのみ） / Reorder only when checkbox is ON */
-        if (ui.preview.enableCheckbox.value) {
-            var topLeftSorter = function (_artboards, dp) {
-                sortArtboardsTopLeftWithTolerance(_artboards, dp, tolerance);
-            };
-            rebuildArtboardsInSortedOrder(doc, topLeftSorter, COORDINATE_PRECISION_DIGITS);
-        }
-
-        /* 再配置を実行（入力値は表示単位として受け取り、ptに変換して渡す） / Rearrange using display-unit input converted to points */
+        /* 再配置を先に実行（入力値は表示単位として受け取り、ptに変換して渡す）
+         * パネル並び順より先に再配置すると、パネル順が「再配置後の見た目」と揃う
+         * Run rearrange first so the panel order reflects post-rearrange positions */
         if (ui.rearrange.modeChecks.byColumns.value) {
             var columns = parseInt(ui.rearrange.columnsInput.text, 10) || 4;
             var columnGapPoints = readDisplayUnitInputAsPoints(ui.rearrange.columnGapInput, 100);
@@ -320,6 +316,14 @@ ReorderArtboardsByPosition.jsx
             } catch (e) {
                 alert(L("errorPrefix") + e.message);
             }
+        }
+
+        /* 並び替えを実行（チェック ON のときのみ） / Reorder only when checkbox is ON */
+        if (ui.preview.enableCheckbox.value) {
+            var topLeftSorter = function (_artboards, dp) {
+                sortArtboardsTopLeftWithTolerance(_artboards, dp, tolerance);
+            };
+            rebuildArtboardsInSortedOrder(doc, topLeftSorter, COORDINATE_PRECISION_DIGITS);
         }
 
         /* 命名（配置位置から作成 / 既存名を整形） / Update or reformat artboard names as row-column */
