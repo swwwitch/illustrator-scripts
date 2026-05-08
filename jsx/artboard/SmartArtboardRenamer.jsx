@@ -43,7 +43,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     ### 更新履歴
 
     - v1.0 (20250509) : 初期バージョン
-    - v1.5.1 (20260508) : 接頭辞／接尾辞のクリア x ボタンを各行から最終行 1 個のみに整理
+    - v1.5.2 (20260508) : ［更新］ボタンで右カラムの手動編集名と並び替えも確定するように変更
 
     ---
 
@@ -86,14 +86,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     ### Update History
 
     - v1.0 (20250509): Initial version
-    - v1.5.1 (20260508): Consolidated the prefix/suffix clear "x" button to a single one on the last row
+    - v1.5.2 (20260508): Refresh now commits right-column manual name edits and reorder changes
     */
 
     // =========================================
     // バージョンとローカライズ
     // =========================================
 
-    var SCRIPT_VERSION = "v1.5.1";
+    var SCRIPT_VERSION = "v1.5.2";
 
     var lang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
@@ -275,8 +275,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
 
         function commitCurrentSettings() {
-            // 現在の設定を canvas に確定（[更新] / OK）
-            if (executeRename(doc, buildSettings(), { silent: true })) {
+            /* 現在の設定と右カラムの手動編集を canvas に確定（[更新]） / Commit current settings and right-column manual edits to the canvas (Refresh) */
+            if (dialogUI.syncEditingValues) {
+                dialogUI.syncEditingValues();
+            }
+
+            var settings = buildSettings();
+            if (dialogUI.getArtboardEntries) {
+                settings.artboardEntries = dialogUI.getArtboardEntries();
+            }
+
+            if (executeRename(doc, settings, { silent: true })) {
+                applyReorderAndRename(doc, settings.artboardEntries, settings);
                 app.redraw();
             }
             updatePreview();
