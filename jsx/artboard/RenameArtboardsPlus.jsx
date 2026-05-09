@@ -38,7 +38,7 @@ RenameArtboardsPlus.jsx
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.2.0";
+    var SCRIPT_VERSION = "v1.3.0";
 
     /* 現在のロケール判定 / Detect current locale */
     function getCurrentLang() {
@@ -83,6 +83,10 @@ RenameArtboardsPlus.jsx
         errorInput: {
             ja: "入力内容に誤りがあります。\n正しい数値を指定してください。",
             en: "There is an error in your input.\nPlease enter valid numbers."
+        },
+        errorEmptyName: {
+            ja: "アートボード名が空になります。\n接頭辞・名称・接尾辞・連番のいずれかを指定してください。",
+            en: "Artboard name would be empty.\nSpecify at least one of prefix, name, suffix, or numbering."
         },
         exportSuccess: { ja: "プリセットを書き出しました：\n", en: "Preset exported:\n" },
         exportFailed: { ja: "ファイルを書き込めませんでした。", en: "Could not write the file." },
@@ -131,7 +135,7 @@ RenameArtboardsPlus.jsx
             nameStyleKey: "none",
             separator: "",
             formatKey: "numeric",
-            start: "01",
+            start: "001",
             increment: "1",
             suffix: ""
         },
@@ -194,16 +198,25 @@ RenameArtboardsPlus.jsx
         return -1;
     }
 
+    /* 区切り文字グループに各ラジオの値を関連付け（ラジオ配列順序への依存を排除）
+       Attach the separator value to each radio so callers don't depend on array order */
+    function tagSeparatorRadios(radios, values) {
+        for (var i = 0; i < radios.length; i++) radios[i]._separator = values[i];
+    }
+
     /* ラジオボタン群から選択中の区切り文字を取得 / Get separator string from radio group */
     function getSeparator(radios) {
-        return radios[1].value ? "-" : (radios[2].value ? "_" : "");
+        for (var i = 0; i < radios.length; i++) {
+            if (radios[i].value) return radios[i]._separator;
+        }
+        return "";
     }
 
     /* 区切り文字値からラジオボタンの状態を設定 / Set radio state from separator value */
     function setSeparatorRadios(radios, value) {
-        radios[0].value = (value === "");
-        radios[1].value = (value === "-");
-        radios[2].value = (value === "_");
+        for (var i = 0; i < radios.length; i++) {
+            radios[i].value = (radios[i]._separator === value);
+        }
     }
 
     /* 配列要素にイベントハンドラを一括バインド / Bind handler to all elements */
@@ -241,18 +254,25 @@ RenameArtboardsPlus.jsx
     // プリセット保存処理 / Preset save handler
     // =========================================
 
+    /* JS リテラル用に文字列をエスケープ（\ と " のみ。改行はテキストフィールドに入らない想定）
+       Escape a string for use inside a JS double-quoted literal */
+    function escapeJSString(s) {
+        return String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    }
+
     /* プリセット設定を直書きできるテキスト形式に変換 / Serialize preset settings into a literal-style text */
     function serializePreset(label, s) {
-        return '{ label: "' + label + '", ' +
+        var q = function (v) { return '"' + escapeJSString(v) + '"'; };
+        return '{ label: ' + q(label) + ', ' +
             'useFilename: ' + (s.useFilename ? 'true' : 'false') + ', ' +
-            'prefixSeparator: "' + s.prefixSeparator + '", ' +
-            'prefix: "' + s.prefix + '", ' +
-            'nameStyleKey: "' + s.nameStyleKey + '", ' +
-            'separator: "' + s.separator + '", ' +
-            'formatKey: "' + s.formatKey + '", ' +
-            'start: "' + s.start + '", ' +
-            'increment: "' + s.increment + '", ' +
-            'suffix: "' + s.suffix + '" }';
+            'prefixSeparator: ' + q(s.prefixSeparator) + ', ' +
+            'prefix: ' + q(s.prefix) + ', ' +
+            'nameStyleKey: ' + q(s.nameStyleKey) + ', ' +
+            'separator: ' + q(s.separator) + ', ' +
+            'formatKey: ' + q(s.formatKey) + ', ' +
+            'start: ' + q(s.start) + ', ' +
+            'increment: ' + q(s.increment) + ', ' +
+            'suffix: ' + q(s.suffix) + ' }';
     }
 
     /* プリセットをテキストファイルに書き出し / Export preset to text file */
@@ -326,6 +346,7 @@ RenameArtboardsPlus.jsx
             prefixSeparatorGroup.add("radiobutton", undefined, "-"),
             prefixSeparatorGroup.add("radiobutton", undefined, "_")
         ];
+        tagSeparatorRadios(prefixSeparatorRadios, ["", "-", "_"]);
         prefixSeparatorRadios[0].value = true;
         for (var i = 0; i < 3; i++) prefixSeparatorRadios[i].enabled = false;
 
@@ -370,6 +391,7 @@ RenameArtboardsPlus.jsx
             suffixSeparatorGroup.add("radiobutton", undefined, "-"),
             suffixSeparatorGroup.add("radiobutton", undefined, "_")
         ];
+        tagSeparatorRadios(suffixSeparatorRadios, ["", "-", "_"]);
         suffixSeparatorRadios[0].value = true;
 
         var formatGroup = suffixPanel.add("group");
@@ -524,6 +546,16 @@ RenameArtboardsPlus.jsx
                 alert(L("errorInput"), L("errorTitle"));
                 return null;
             }
+            // 連番なしの場合のみ空名になり得る（連番ありなら label が必ず入る）
+            // Empty name only possible when there is no numbering (label is always non-empty otherwise)
+            if (!context.hasNumber) {
+                for (var i = 0; i < artboardCount; i++) {
+                    if (buildArtboardName(i, context, originalNames) === "") {
+                        alert(L("errorEmptyName"), L("errorTitle"));
+                        return null;
+                    }
+                }
+            }
             return context;
         }
 
@@ -571,6 +603,9 @@ RenameArtboardsPlus.jsx
         function applyPreset(preset) {
             prefixUI.useFilenameRadios[0].value = !preset.useFilename;
             prefixUI.useFilenameRadios[1].value = preset.useFilename;
+            for (var i = 0; i < 3; i++) {
+                prefixUI.prefixSeparatorRadios[i].enabled = preset.useFilename;
+            }
             setSeparatorRadios(prefixUI.prefixSeparatorRadios, preset.prefixSeparator);
             prefixUI.prefixInput.text = preset.prefix;
 
@@ -580,23 +615,29 @@ RenameArtboardsPlus.jsx
             setSeparatorRadios(suffixUI.suffixSeparatorRadios, preset.separator);
 
             var fmtIdx = indexOfKey(FORMAT_KEYS, preset.formatKey);
-            if (fmtIdx >= 0) suffixUI.formatDropdown.selection = fmtIdx;
+            if (fmtIdx >= 0) {
+                suffixUI.formatDropdown.selection = fmtIdx;
+                // 活性状態とデフォルト開始値の更新を委譲。preset.start は後段で上書き
+                // Delegate enabled-state and default-start updates; preset.start is restored below
+                suffixUI.formatDropdown.onChange();
+            }
 
             suffixUI.startValueInput.text = preset.start;
             suffixUI.incrementInput.text = preset.increment;
             suffixUI.suffixInput.text = preset.suffix;
+            updatePreview();
         }
 
         // =========================================
         // イベント配線 / Event wiring
         // =========================================
 
-        /* プリセット選択時：UIに反映してプレビュー更新 / On preset selection */
+        /* プリセット選択時：UIに反映してプレビュー更新（applyPreset 側で updatePreview 済み）
+           On preset selection (applyPreset already calls updatePreview) */
         presetUI.presetDropdown.onChange = function () {
             var index = presetUI.presetDropdown.selection.index;
             if (index <= 0) return;
             applyPreset(BUILTIN_PRESETS[index - 1]);
-            updatePreview();
         };
 
         /* プリセット書き出し / Export preset */
