@@ -23,6 +23,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         placeRight: { ja: "最終アートボードの右側", en: "Right of last artboard" },
         placeBelow: { ja: "最終アートボードの下側", en: "Below last artboard" },
         artboardPanel: { ja: "アートボード", en: "Artboard" },
+        bgColor: { ja: "背景色", en: "Background" },
+        bgNone: { ja: "なし", en: "None" },
+        bgBlack: { ja: "黒", en: "Black" },
+        bgWhite: { ja: "白", en: "White" },
+        bgGray: { ja: "グレー（K50）", en: "Gray (K50)" },
+        tipBgNone: { ja: "背景の塗りを作成しない", en: "Do not create a background fill" },
+        tipBgBlack: { ja: "アートボード背面に黒（K100）の塗りを敷く", en: "Place a solid black (K100) fill behind the artboard" },
+        tipBgWhite: { ja: "アートボード背面に白の塗りを敷く", en: "Place a solid white fill behind the artboard" },
+        tipBgGray: { ja: "アートボード背面にグレー（K50）の塗りを敷く", en: "Place a 50% gray (K50) fill behind the artboard" },
         symbolPanel: { ja: "シンボルの配置", en: "Symbol placement" },
         gap: { ja: "間隔", en: "Gap" },
         margin: { ja: "マージン", en: "Margin" },
@@ -109,7 +118,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             '"showCaption":' + (settings.showCaption ? "true" : "false") + ',',
             '"filter":"' + settings.filter + '",',
             '"symbolGap":' + settings.symbolGap + ',',
-            '"maxRowWidth":' + settings.maxRowWidth,
+            '"maxRowWidth":' + settings.maxRowWidth + ',',
+            '"bgColor":"' + settings.bgColor + '"',
             '}'
         ].join('');
     }
@@ -135,6 +145,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         var position = readString("position");
         var filter = readString("filter");
+        var bgColor = readString("bgColor");
         var artboardGap = readNumber("artboardGap");
         var margin = readNumber("margin");
         var symbolGap = readNumber("symbolGap");
@@ -150,6 +161,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             return null;
         }
 
+        if (bgColor !== "none" && bgColor !== "black" && bgColor !== "white" && bgColor !== "gray") {
+            bgColor = "none";
+        }
+
         return {
             position: position,
             artboardGap: artboardGap,
@@ -158,7 +173,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             showCaption: showCaption,
             filter: filter,
             symbolGap: symbolGap,
-            maxRowWidth: maxRowWidth
+            maxRowWidth: maxRowWidth,
+            bgColor: bgColor
         };
     }
 
@@ -411,6 +427,44 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
     }
 
+    /* 背景色選択からドキュメントカラースペースに合った塗り色を生成
+     * Resolve fill color matching the document color space */
+    function createBgFillColor(doc, choice) {
+        if (!choice || choice === "none") return null;
+        var isCMYK = (doc.documentColorSpace === DocumentColorSpace.CMYK);
+        var k;
+        if (choice === "black") k = 100;
+        else if (choice === "white") k = 0;
+        else if (choice === "gray") k = 50;
+        else return null;
+
+        if (isCMYK) {
+            var cmyk = new CMYKColor();
+            cmyk.cyan = 0; cmyk.magenta = 0; cmyk.yellow = 0; cmyk.black = k;
+            return cmyk;
+        }
+        var v = Math.round(255 * (1 - k / 100));
+        var rgb = new RGBColor();
+        rgb.red = v; rgb.green = v; rgb.blue = v;
+        return rgb;
+    }
+
+    /* アートボード矩形いっぱいに背景塗りを敷く（最背面に送る）
+     * Place a background fill across the artboard rect and send it to back */
+    function createBackgroundFill(layer, rect, color) {
+        if (!color) return null;
+        var left = rect[0];
+        var top = rect[1];
+        var width = rect[2] - rect[0];
+        var height = rect[1] - rect[3];
+        var bg = layer.pathItems.rectangle(top, left, width, height);
+        bg.filled = true;
+        bg.stroked = false;
+        bg.fillColor = color;
+        try { bg.zOrder(ZOrderMethod.SENDTOBACK); } catch (e) { }
+        return bg;
+    }
+
     /* ひとまとまりのレイアウトを構築（既存はプレビュー中常に保持、削除は OK 時のみ）
      * Build layout (existing symbol-list artboards are kept during preview; removal only at OK) */
     function buildLayout(doc, settings) {
@@ -429,6 +483,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ARTBOARD_NAME
         );
         placeEntries(entries, origin.left, origin.top, settings.margin);
+
+        createBackgroundFill(layer, artboardInfo.rect, createBgFillColor(doc, settings.bgColor));
 
         return { layer: layer, artboardInfo: artboardInfo, count: entries.length };
     }
@@ -534,10 +590,47 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         setupPanel(panel, 6);
         var marginInput = addValueRow(panel, labelText(LABELS.margin),
             getSavedSetting(savedSettings, "margin", DEFAULT_ARTBOARD_MARGIN_PT), L(LABELS.tipMargin));
+
+        /* 背景色（ラジオ） / Background fill (radios) */
+        var bgRow = panel.add("group");
+        bgRow.orientation = "row";
+        bgRow.alignChildren = "center";
+        bgRow.spacing = 6;
+        var bgLabelColumn = bgRow.add("group");
+        bgLabelColumn.orientation = "row";
+        bgLabelColumn.alignChildren = ["right", "center"];
+        bgLabelColumn.margins = 0;
+        bgLabelColumn.spacing = 0;
+        bgLabelColumn.preferredSize.width = VALUE_ROW_LABEL_WIDTH;
+        bgLabelColumn.add("statictext", undefined, labelText(LABELS.bgColor));
+        var bgRadios = bgRow.add("group");
+        bgRadios.orientation = "row";
+        bgRadios.spacing = 10;
+        var bgNoneRadio = bgRadios.add("radiobutton", undefined, L(LABELS.bgNone));
+        bgNoneRadio.helpTip = L(LABELS.tipBgNone);
+        var bgBlackRadio = bgRadios.add("radiobutton", undefined, L(LABELS.bgBlack));
+        bgBlackRadio.helpTip = L(LABELS.tipBgBlack);
+        var bgWhiteRadio = bgRadios.add("radiobutton", undefined, L(LABELS.bgWhite));
+        bgWhiteRadio.helpTip = L(LABELS.tipBgWhite);
+        var bgGrayRadio = bgRadios.add("radiobutton", undefined, L(LABELS.bgGray));
+        bgGrayRadio.helpTip = L(LABELS.tipBgGray);
+        var savedBgColor = getSavedSetting(savedSettings, "bgColor", "none");
+        bgNoneRadio.value = (savedBgColor === "none");
+        bgBlackRadio.value = (savedBgColor === "black");
+        bgWhiteRadio.value = (savedBgColor === "white");
+        bgGrayRadio.value = (savedBgColor === "gray");
+
         var updateCheckbox = panel.add("checkbox", undefined, L(LABELS.update));
         updateCheckbox.value = getSavedSetting(savedSettings, "update", true);
         updateCheckbox.helpTip = L(LABELS.tipUpdate);
-        return { marginInput: marginInput, updateCheckbox: updateCheckbox };
+        return {
+            marginInput: marginInput,
+            bgNoneRadio: bgNoneRadio,
+            bgBlackRadio: bgBlackRadio,
+            bgWhiteRadio: bgWhiteRadio,
+            bgGrayRadio: bgGrayRadio,
+            updateCheckbox: updateCheckbox
+        };
     }
 
     function buildSymbolPanel(parent, savedSettings) {
@@ -604,6 +697,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             belowRadio: placementRefs.belowRadio,
             artboardGapInput: placementRefs.artboardGapInput,
             marginInput: artboardRefs.marginInput,
+            bgNoneRadio: artboardRefs.bgNoneRadio,
+            bgBlackRadio: artboardRefs.bgBlackRadio,
+            bgWhiteRadio: artboardRefs.bgWhiteRadio,
+            bgGrayRadio: artboardRefs.bgGrayRadio,
             updateCheckbox: artboardRefs.updateCheckbox,
             filterAllRadio: symbolRefs.filterAllRadio,
             filterUsedRadio: symbolRefs.filterUsedRadio,
@@ -621,6 +718,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return isNaN(parsedValue) ? defaultPt : unitToPt(parsedValue);
     }
 
+    function readBgColorChoice(controls) {
+        if (controls.bgBlackRadio.value) return "black";
+        if (controls.bgWhiteRadio.value) return "white";
+        if (controls.bgGrayRadio.value) return "gray";
+        return "none";
+    }
+
     function readDialogSettings(controls) {
         return {
             position: controls.rightRadio.value ? "right" : "below",
@@ -630,7 +734,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             showCaption: controls.showCaptionCheckbox.value,
             filter: controls.filterUsedRadio.value ? "used" : "all",
             symbolGap: readInputPt(controls.symbolGapInput.text, DEFAULT_SYMBOL_GAP_PT),
-            maxRowWidth: readInputPt(controls.maxRowWidthInput.text, DEFAULT_MAX_ROW_WIDTH_PT)
+            maxRowWidth: readInputPt(controls.maxRowWidthInput.text, DEFAULT_MAX_ROW_WIDTH_PT),
+            bgColor: readBgColorChoice(controls)
         };
     }
 
@@ -660,6 +765,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var triggers = [
             controls.rightRadio, controls.belowRadio,
             controls.updateCheckbox,
+            controls.bgNoneRadio, controls.bgBlackRadio, controls.bgWhiteRadio, controls.bgGrayRadio,
             controls.filterAllRadio, controls.filterUsedRadio,
             controls.showCaptionCheckbox
         ];
