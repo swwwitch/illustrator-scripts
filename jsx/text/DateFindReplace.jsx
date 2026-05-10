@@ -7,25 +7,29 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ドキュメント内のテキストフレームから日付を検索し、選択した項目のみを置換するスクリプト。
 オブジェクトが選択されている場合は、その選択範囲（グループ内を含む）のテキストフレームのみを検索対象とする。
+文字の一部を選択している場合は、その親テキストフレームを検索対象に含める。
 
 日付形式：
   検出時は、各形式に付いた曜日サフィックス（例：金曜 / 金曜日 / (金) / （金） / Fri / Friday）も対象にする。
   単独の漢字曜日（例：金）は、日付本文のサフィックスとしては検出せず、GroupItem 内の曜日のみフレームとしてのみ扱う。
-  月・日は 0 を許容しない（例：2026.0.8 / 2026.5.0 / R8/0/0 は検出対象外）。
+  月・日は 0 を許容せず、実在しない日付（例：2026.0.8 / 2026.5.0 / 2026.2.31）は検出対象外。
+  元号範囲外の日付（例：R1.1.1 ＝ 令和元年1月1日は令和開始前）も同様に対象外。
   出力時は、フォーマットドロップダウンで「元の形式を保持」または下記の形式を選択できる。
   - YYYY年M月D日 / M月D日
   - YYYY.M.D / M.D
   - YYYY/M/D / M/D
   - 令和Y年M月D日 / 平成Y年M月D日
   - RY.M.D / RY/M/D / HY.M.D / HY/M/D
-  令和形式は2019/5/1以降、平成形式は1989/1/8〜2019/4/30の範囲のみ有効。
+  令和形式は 2019/5/1 以降、平成形式は 1989/1/8〜2019/4/30 の範囲のみ有効。
+  検出時も、この範囲外の日付は対象外。
 
 曜日表記（曜日ドロップダウン）：
   なし / 火 / 火曜 / 火曜日 / （火） / (火) / Tue / Tuesday
   ドロップダウンの表示は固定し、置換時に入力日付に応じた実際の曜日へ変換する。
   日付内の曜日サフィックス、または GroupItem 内の曜日のみフレームから初期選択を推定する。
   「元の形式を保持」でも、曜日ドロップダウンの選択を反映する。
-  「なし」を選ぶと、日付内の曜日表記だけを削除する。連動する曜日のみフレームは安全のため更新しない。
+  「なし」を選ぶと、日付内の曜日表記のみ削除する。
+  連動する曜日のみフレームは、意図しない空文字化を避けるため更新しない。
 
 数字の書式を保持：
   「元の形式を保持」を選んだ場合のみ、年・月・日それぞれの文字書式
@@ -45,7 +49,7 @@ GroupItem 内の曜日ペアリング：
   単独の漢字曜日（例：金）は、この曜日のみフレームでは有効。
   日付内に曜日がなくても、曜日のみフレームの表記スタイルを曜日ドロップダウンの初期選択に反映する。
   日付置換時には、曜日のみフレームも連動して更新する。ただし、曜日ドロップダウンが「なし」の場合は更新しない。
-  同一グループ内に複数の日付がある場合は、対応が曖昧になるためペアリングしない。
+  同一グループ内に複数の日付フレームがある場合は、対応関係が曖昧になるため曜日フレームをペアリングしない。
 
 入力補助：
   年・月・日の入力欄では、↑↓キーで±1、Shift＋↑↓で±10増減する。
@@ -58,11 +62,12 @@ GroupItem 内の曜日ペアリング：
     曜日フレームは検出されない。必要なら、日付フレームと同じ階層に置くか、
     グループ構造を平坦化する。
   - プレビューの巻き戻しは app.undo() を文字操作回数ぶん呼ぶ実装。
-    Illustrator の undo グループ化の挙動次第で過不足が生じる可能性があるため、
-    プレビューを多用したあとに想定外の状態になった場合はキャンセルで明示的に戻すか、
-    ダイアログを開き直す。
-  - 「令和Y.M.D」（ドット区切りの令和）は検出対象外。
-    ドット／スラッシュ区切りの略記は RY.M.D または RY/M/D 形式を使用する。
+    Illustrator の undo グループ化の挙動に依存するため、
+    環境や操作状況によっては undo 回数がずれる可能性がある。
+    プレビューを多用したあとに状態が不安定になった場合は、
+    キャンセルで戻すか、ダイアログを開き直す。
+  - 「令和Y.M.D」「平成Y.M.D」（ドット区切りの和暦）は検出対象外。
+    ドット／スラッシュ区切りの略記は RY.M.D / RY/M/D / HY.M.D / HY/M/D を使用する。
 
 */
 
@@ -72,7 +77,7 @@ GroupItem 内の曜日ペアリング：
     // バージョン
     // =========================================
 
-    var SCRIPT_VERSION = "v1.0.1";
+    var SCRIPT_VERSION = "v1.0.2";
 
     /* エラー件数メッセージ */
     function formatErrorMessage(count) {
@@ -209,6 +214,23 @@ GroupItem 内の曜日ペアリング：
     var REIWA_START_DATE = new Date(2019, 4, 1);                 /* 2019/5/1 〜 */
     var HEISEI_START_DATE = new Date(1989, 0, 8);                /* 1989/1/8 〜 */
     var HEISEI_END_DATE_EXCLUSIVE = new Date(2019, 4, 1);        /* 〜 2019/4/30 */
+
+    /* 実在する日付かを判定 / Check whether the date exists */
+    function isRealDate(year, month, day) {
+        var checkDate = new Date(year, month - 1, day);
+        return checkDate.getFullYear() === year &&
+            checkDate.getMonth() === month - 1 &&
+            checkDate.getDate() === day;
+    }
+
+    /* 元号形式の日付が元号の有効範囲内かを判定 / Check whether an era date is within its valid range */
+    function isEraDateValid(parsed) {
+        if (!parsed) return false;
+        var checkDate = new Date(parsed.year, parsed.month - 1, parsed.day);
+        if (parsed.era === 'reiwa') return checkDate >= REIWA_START_DATE;
+        if (parsed.era === 'heisei') return checkDate >= HEISEI_START_DATE && checkDate < HEISEI_END_DATE_EXCLUSIVE;
+        return true;
+    }
 
     /*
        マッチ文字列を解析し、形式種別と各構成要素を返す。
@@ -442,14 +464,42 @@ GroupItem 内の曜日ペアリング：
         "g"
     );
 
+    /* テキストフレームを重複なく追加 / Add a text frame without duplicates */
+    function addTextFrameOnce(textFrame, accumulator) {
+        if (!textFrame || textFrame.typename !== "TextFrame") return;
+        for (var frameIndex = 0; frameIndex < accumulator.length; frameIndex++) {
+            if (accumulator[frameIndex] === textFrame) return;
+        }
+        accumulator.push(textFrame);
+    }
+
+    /* 部分テキスト選択から親テキストフレームを取得 / Get parent text frame from partial text selection */
+    function getParentTextFrameFromTextSelection(item) {
+        var currentItem = item;
+        /* parent が自身を指すような壊れた参照に備え、辿る階層数に上限を設ける */
+        var MAX_PARENT_DEPTH = 10;
+        for (var depth = 0; depth < MAX_PARENT_DEPTH && currentItem; depth++) {
+            try {
+                if (currentItem.typename === "TextFrame") return currentItem;
+                currentItem = currentItem.parent;
+            } catch (eParentTextFrame) {
+                break;
+            }
+        }
+        return null;
+    }
+
     /* 選択オブジェクト（およびその子）からテキストフレームを再帰的に収集 */
     function collectTextFramesFromItems(items, accumulator) {
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
+            if (!item) continue;
             if (item.typename === "TextFrame") {
-                accumulator.push(item);
+                addTextFrameOnce(item, accumulator);
             } else if (item.typename === "GroupItem") {
                 collectTextFramesFromItems(item.pageItems, accumulator);
+            } else if (item.typename === "TextRange" || item.typename === "InsertionPoint" || item.typename === "Character") {
+                addTextFrameOnce(getParentTextFrameFromTextSelection(item), accumulator);
             }
         }
     }
@@ -498,6 +548,8 @@ GroupItem 内の曜日ペアリング：
             }
             var parsed = detectFormatAndParse(match[0]);
             if (!parsed) continue;
+            if (!isRealDate(parsed.year, parsed.month, parsed.day)) continue;
+            if (!isEraDateValid(parsed)) continue;
             foundMatches.push({
                 frameIndex: frameIdx,
                 text: match[0],
@@ -739,36 +791,51 @@ GroupItem 内の曜日ペアリング：
     var weekdayDropdown = formatRow.add("dropdownlist", undefined, WEEKDAY_LABELS);
     weekdayDropdown.helpTip = "出力に付与する曜日表記。「元の形式を保持」選択時もこの選択を反映し、「なし」で日付内の曜日表記を削除。連動曜日フレームは更新しません";
 
-    /* 日付内の曜日サフィックス、または曜日のみフレームがあれば、その形式を初期選択にする
-       （日付サフィックスは単独漢字曜日を許可しないため 'kanji' は返らない。曜日のみフレームでのみ拾う） */
-    function detectInitialWeekdayChoice() {
-        for (var fi = 0; fi < foundMatches.length; fi++) {
-            var suffixStyle = foundMatches[fi].weekdaySuffixStyle;
-            if (suffixStyle === 'medium') return 'medium';
-            if (suffixStyle === 'long') return 'long';
-            if (suffixStyle === 'full-paren') return 'full-paren';
-            if (suffixStyle === 'half-paren') return 'half-paren';
-            if (suffixStyle === 'en-short') return 'en-short';
-            if (suffixStyle === 'en-full') return 'en-full';
+    /* 最初に見つかった置換対象を基準に、曜日サフィックスまたは曜日のみフレームの形式を初期選択にする。
+       日付サフィックスは単独漢字曜日を許可しないため 'kanji' は返らない。曜日のみフレームでのみ拾う */
+    function getSuffixStyleAsWeekdayChoice(matchInfo) {
+        if (!matchInfo) return null;
+        var suffixStyle = matchInfo.weekdaySuffixStyle;
+        if (suffixStyle === 'medium') return 'medium';
+        if (suffixStyle === 'long') return 'long';
+        if (suffixStyle === 'full-paren') return 'full-paren';
+        if (suffixStyle === 'half-paren') return 'half-paren';
+        if (suffixStyle === 'en-short') return 'en-short';
+        if (suffixStyle === 'en-full') return 'en-full';
+        return null;
+    }
+
+    function getPairStyleAsWeekdayChoice(matchInfo) {
+        if (!matchInfo || !matchInfo.weekdayPairs || matchInfo.weekdayPairs.length === 0) return null;
+
+        for (var pairIndex = 0; pairIndex < matchInfo.weekdayPairs.length; pairIndex++) {
+            var pairStyle = matchInfo.weekdayPairs[pairIndex].style;
+            if (pairStyle === 'kanji') return 'kanji';
+            if (pairStyle === 'medium') return 'medium';
+            if (pairStyle === 'long') return 'long';
+            if (pairStyle === 'full-paren') return 'full-paren';
+            if (pairStyle === 'half-paren') return 'half-paren';
+            if (pairStyle === 'en-short') return 'en-short';
+            if (pairStyle === 'en-full') return 'en-full';
         }
 
+        return null;
+    }
+
+    function detectInitialWeekdayChoice() {
+        var choice;
+
         for (var matchIndex = 0; matchIndex < foundMatches.length; matchIndex++) {
-            var weekdayPairs = foundMatches[matchIndex].weekdayPairs;
-            if (!weekdayPairs || weekdayPairs.length === 0) continue;
-            for (var pairIndex = 0; pairIndex < weekdayPairs.length; pairIndex++) {
-                var pairStyle = weekdayPairs[pairIndex].style;
-                if (pairStyle === 'kanji') return 'kanji';
-                if (pairStyle === 'medium') return 'medium';
-                if (pairStyle === 'long') return 'long';
-                if (pairStyle === 'full-paren') return 'full-paren';
-                if (pairStyle === 'half-paren') return 'half-paren';
-                if (pairStyle === 'en-short') return 'en-short';
-                if (pairStyle === 'en-full') return 'en-full';
-            }
+            choice = getSuffixStyleAsWeekdayChoice(foundMatches[matchIndex]);
+            if (choice) return choice;
+
+            choice = getPairStyleAsWeekdayChoice(foundMatches[matchIndex]);
+            if (choice) return choice;
         }
 
         return 'none';
     }
+
     var initialWeekdayChoice = detectInitialWeekdayChoice();
     var initialWeekdayIndex = 0;
     for (var wi = 0; wi < WEEKDAY_VALUES.length; wi++) {
