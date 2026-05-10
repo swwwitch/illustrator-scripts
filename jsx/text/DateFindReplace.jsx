@@ -16,8 +16,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   - YYYY年M月D日 / M月D日
   - YYYY.M.D / M.D
   - YYYY/M/D / M/D
-  - 令和Y年M月D日
-  - RY.M.D / RY/M/D
+  - 令和Y年M月D日 / 平成Y年M月D日
+  - RY.M.D / RY/M/D / HY.M.D / HY/M/D
+  令和形式は2019/5/1以降、平成形式は1989/1/8〜2019/4/30の範囲のみ有効。
 
 曜日表記（曜日ドロップダウン）：
   なし / 火 / 火曜 / 火曜日 / （火） / (火) / Tue / Tuesday
@@ -71,7 +72,7 @@ GroupItem 内の曜日ペアリング：
     // バージョン
     // =========================================
 
-    var SCRIPT_VERSION = "v1.0.0";
+    var SCRIPT_VERSION = "v1.0.1";
 
     /* エラー件数メッセージ */
     function formatErrorMessage(count) {
@@ -178,18 +179,43 @@ GroupItem 内の曜日ペアリング：
         return null;
     }
 
-    /* 令和元年 = 2019 年（令和Y = 西暦 Y + 2018） */
+    /* 令和元年 = 2019 年（令和Y = 西暦 Y + 2018）／平成元年 = 1989 年（平成Y = 西暦 Y + 1988） */
     var REIWA_BASE_YEAR = 2018;
+    var HEISEI_BASE_YEAR = 1988;
 
+    /* 元号→西暦／西暦→元号 */
     function reiwaToGregorian(reiwaYear) { return reiwaYear + REIWA_BASE_YEAR; }
     function gregorianToReiwa(gregorianYear) { return gregorianYear - REIWA_BASE_YEAR; }
+    function heiseiToGregorian(heiseiYear) { return heiseiYear + HEISEI_BASE_YEAR; }
+    function gregorianToHeisei(gregorianYear) { return gregorianYear - HEISEI_BASE_YEAR; }
+
+    /* 元号年の文字列化。漢字フォーマット（reiwa-jp / heisei-jp）では元年 1 を「元」と表記する */
+    function formatEraYearText(eraYear, useGanText) {
+        if (useGanText && eraYear === 1) return "元";
+        return String(eraYear);
+    }
+
+    /* 元の数字テキストが 2 桁ゼロ詰め（"05" 等）なら、新しい数字も同じ桁数に揃える。
+       新しい文字列が数字以外（例：「元」）の場合は揃えない */
+    function applyZeroPaddingFrom(oldText, newValue) {
+        var newStr = String(newValue);
+        if (oldText.length === 2 && oldText.charAt(0) === '0' && newStr.length === 1 && /^[0-9]$/.test(newStr)) {
+            return "0" + newStr;
+        }
+        return newStr;
+    }
+
+    /* 各元号の有効範囲（getValidationErrorMessage で使用） */
+    var REIWA_START_DATE = new Date(2019, 4, 1);                 /* 2019/5/1 〜 */
+    var HEISEI_START_DATE = new Date(1989, 0, 8);                /* 1989/1/8 〜 */
+    var HEISEI_END_DATE_EXCLUSIVE = new Date(2019, 4, 1);        /* 〜 2019/4/30 */
 
     /*
        マッチ文字列を解析し、形式種別と各構成要素を返す。
        戻り値の主要フィールド：
-         format: 'jp' | 'dot' | 'slash' | 'reiwa-jp' | 'r-dot' | 'r-slash'
-         era:    'reiwa' | null
-         year, month, day: 西暦の数値（令和形式の場合は変換後）
+         format: 'jp' | 'dot' | 'slash' | 'reiwa-jp' | 'r-dot' | 'r-slash' | 'heisei-jp' | 'h-dot' | 'h-slash'
+         era:    'reiwa' | 'heisei' | null
+         year, month, day: 西暦の数値（令和・平成形式の場合は変換後）
          parts:  元テキストの分解（prefix, year, sep1, month, sep2, day, sep3, suffix）
     */
     function detectFormatAndParse(matchText) {
@@ -201,6 +227,18 @@ GroupItem 内の曜日ペアリング：
             return {
                 format: 'reiwa-jp', era: 'reiwa',
                 year: reiwaToGregorian(parseInt(m[2], 10)),
+                month: parseInt(m[4], 10),
+                day: parseInt(m[6], 10),
+                parts: { prefix: m[1], year: m[2], sep1: m[3], month: m[4], sep2: m[5], day: m[6], sep3: m[7], suffix: m[8] || "" }
+            };
+        }
+
+        /* 平成Y年M月D日（曜日サフィックスは末尾に残す） */
+        m = String(matchText).match(/^(平成)([0-9]{1,2})(年)(0?[1-9]|1[0-2])(月)(0?[1-9]|[12][0-9]|3[01])(日)(.*)$/);
+        if (m) {
+            return {
+                format: 'heisei-jp', era: 'heisei',
+                year: heiseiToGregorian(parseInt(m[2], 10)),
                 month: parseInt(m[4], 10),
                 day: parseInt(m[6], 10),
                 parts: { prefix: m[1], year: m[2], sep1: m[3], month: m[4], sep2: m[5], day: m[6], sep3: m[7], suffix: m[8] || "" }
@@ -225,6 +263,30 @@ GroupItem 内の曜日ペアリング：
             return {
                 format: 'r-slash', era: 'reiwa',
                 year: reiwaToGregorian(parseInt(m[2], 10)),
+                month: parseInt(m[3], 10),
+                day: parseInt(m[4], 10),
+                parts: { prefix: m[1], year: m[2], sep1: "/", month: m[3], sep2: "/", day: m[4], sep3: "", suffix: m[5] || "" }
+            };
+        }
+
+        /* HY.M.D（曜日サフィックスは末尾に残す） */
+        m = String(matchText).match(/^(H)([0-9]{1,2})\.(0?[1-9]|1[0-2])\.(0?[1-9]|[12][0-9]|3[01])(.*)$/);
+        if (m) {
+            return {
+                format: 'h-dot', era: 'heisei',
+                year: heiseiToGregorian(parseInt(m[2], 10)),
+                month: parseInt(m[3], 10),
+                day: parseInt(m[4], 10),
+                parts: { prefix: m[1], year: m[2], sep1: ".", month: m[3], sep2: ".", day: m[4], sep3: "", suffix: m[5] || "" }
+            };
+        }
+
+        /* HY/M/D（曜日サフィックスは末尾に残す） */
+        m = String(matchText).match(/^(H)([0-9]{1,2})\/(0?[1-9]|1[0-2])\/(0?[1-9]|[12][0-9]|3[01])(.*)$/);
+        if (m) {
+            return {
+                format: 'h-slash', era: 'heisei',
+                year: heiseiToGregorian(parseInt(m[2], 10)),
                 month: parseInt(m[3], 10),
                 day: parseInt(m[4], 10),
                 parts: { prefix: m[1], year: m[2], sep1: "/", month: m[3], sep2: "/", day: m[4], sep3: "", suffix: m[5] || "" }
@@ -279,10 +341,12 @@ GroupItem 内の曜日ペアリング：
             if (textFrame.contents.substr(matchStart, oldLen) === newText) return 0;
         } catch (eSameTextCheck) { }
         var minLen = Math.min(oldLen, newLen);
+        /* 伸長時は最後の元文字を「最後の新文字＋追加分」で一度だけ書き換えるため、ループは手前で止める */
+        var loopEnd = (newLen > oldLen) ? minLen - 1 : minLen;
         var opCount = 0;
 
         /* 重複部分は文字単位で書き換え。各 character.contents の代入は元の文字属性を維持 */
-        for (var i = 0; i < minLen; i++) {
+        for (var i = 0; i < loopEnd; i++) {
             textFrame.characters[matchStart + i].contents = newText.charAt(i);
             opCount++;
         }
@@ -367,8 +431,11 @@ GroupItem 内の曜日ペアリング：
     var weekdaySuffixPattern = "(?:[日月火水木金土]曜日|[日月火水木金土]曜|\\([日月火水木金土]\\)|（[日月火水木金土]）|Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sun|Mon|Tue|Wed|Thu|Fri|Sat)?";
     var dateRegex = new RegExp(
         "令和[0-9]{1,2}年" + monthPattern + "月" + dayPattern + "日" + weekdaySuffixPattern +
+        "|平成[0-9]{1,2}年" + monthPattern + "月" + dayPattern + "日" + weekdaySuffixPattern +
         "|R[0-9]{1,2}\\." + monthPattern + "\\." + dayPattern + weekdaySuffixPattern +
         "|R[0-9]{1,2}/" + monthPattern + "/" + dayPattern + weekdaySuffixPattern +
+        "|H[0-9]{1,2}\\." + monthPattern + "\\." + dayPattern + weekdaySuffixPattern +
+        "|H[0-9]{1,2}/" + monthPattern + "/" + dayPattern + weekdaySuffixPattern +
         "|[0-9]{4}年" + monthPattern + "月" + dayPattern + "日" + weekdaySuffixPattern +
         "|[0-9]{4}\\." + monthPattern + "\\." + dayPattern + weekdaySuffixPattern +
         "|[0-9]{4}/" + monthPattern + "/" + dayPattern + weekdaySuffixPattern,
@@ -422,6 +489,13 @@ GroupItem 内の曜日ペアリング：
         dateRegex.lastIndex = 0;
 
         while ((match = dateRegex.exec(frameContent)) !== null) {
+            /* 直前が数字、かつマッチが数字始まり（YYYY 系）の場合は、5 桁以上の連続数字を切り出した
+               誤検出とみなしてスキップ。R/H/令和/平成 始まりはこの判定の対象外 */
+            if (match.index > 0 &&
+                /[0-9]/.test(frameContent.charAt(match.index - 1)) &&
+                /^[0-9]/.test(match[0])) {
+                continue;
+            }
             var parsed = detectFormatAndParse(match[0]);
             if (!parsed) continue;
             foundMatches.push({
@@ -629,7 +703,7 @@ GroupItem 内の曜日ペアリング：
        曜日表記は「元の形式を保持」でも隣の「曜日」ドロップダウンの選択を反映する。
        それ以外は、選択した形式で全マッチを統一して書き換える。
     */
-    var FORMAT_VALUES = ["preserve", "jp", "jp-md", "dot", "dot-md", "slash", "slash-md", "reiwa-jp", "r-dot", "r-slash"];
+    var FORMAT_VALUES = ["preserve", "jp", "jp-md", "dot", "dot-md", "slash", "slash-md", "reiwa-jp", "r-dot", "r-slash", "heisei-jp", "h-dot", "h-slash"];
     var FORMAT_LABELS = [
         "元の形式を保持",
         "YYYY年M月D日",
@@ -640,7 +714,10 @@ GroupItem 内の曜日ペアリング：
         "M/D",
         "令和Y年M月D日",
         "RY.M.D",
-        "RY/M/D"
+        "RY/M/D",
+        "平成Y年M月D日",
+        "HY.M.D",
+        "HY/M/D"
     ];
 
     /* 曜日サフィックスのスタイル（「元の形式を保持」以外の出力に付与） */
@@ -662,11 +739,11 @@ GroupItem 内の曜日ペアリング：
     var weekdayDropdown = formatRow.add("dropdownlist", undefined, WEEKDAY_LABELS);
     weekdayDropdown.helpTip = "出力に付与する曜日表記。「元の形式を保持」選択時もこの選択を反映し、「なし」で日付内の曜日表記を削除。連動曜日フレームは更新しません";
 
-    /* 日付内の曜日サフィックス、または曜日のみフレームがあれば、その形式を初期選択にする */
+    /* 日付内の曜日サフィックス、または曜日のみフレームがあれば、その形式を初期選択にする
+       （日付サフィックスは単独漢字曜日を許可しないため 'kanji' は返らない。曜日のみフレームでのみ拾う） */
     function detectInitialWeekdayChoice() {
         for (var fi = 0; fi < foundMatches.length; fi++) {
             var suffixStyle = foundMatches[fi].weekdaySuffixStyle;
-            if (suffixStyle === 'kanji') return 'kanji';
             if (suffixStyle === 'medium') return 'medium';
             if (suffixStyle === 'long') return 'long';
             if (suffixStyle === 'full-paren') return 'full-paren';
@@ -805,6 +882,36 @@ GroupItem 内の曜日ペアリング：
             checkDate.getMonth() !== m - 1 ||
             checkDate.getDate() !== d
         ) return "存在しない日付です。";
+
+        /* 元号フォーマット選択時は、各元号の有効範囲に収まることを要求 */
+        var formatChoice = getDropdownValue(formatDropdown, FORMAT_VALUES, 'preserve');
+        var isReiwaFormat = (formatChoice === 'reiwa-jp' || formatChoice === 'r-dot' || formatChoice === 'r-slash');
+        var isHeiseiFormat = (formatChoice === 'heisei-jp' || formatChoice === 'h-dot' || formatChoice === 'h-slash');
+        if (isReiwaFormat && checkDate < REIWA_START_DATE) {
+            return "令和形式は 2019/5/1 以降の日付で指定してください。";
+        }
+        if (isHeiseiFormat && (checkDate < HEISEI_START_DATE || checkDate >= HEISEI_END_DATE_EXCLUSIVE)) {
+            return "平成形式は 1989/1/8〜2019/4/30 の範囲で指定してください。";
+        }
+
+        /* 「元の形式を保持」では、チェック済みマッチの元号がそれぞれ有効になる範囲を要求 */
+        if (formatChoice === 'preserve') {
+            var hasReiwaMatch = false, hasHeiseiMatch = false;
+            for (var fmIdx = 0; fmIdx < foundMatches.length; fmIdx++) {
+                var fm = foundMatches[fmIdx];
+                if (fm.checkbox && !fm.checkbox.value) continue;
+                if (!fm.parsed) continue;
+                if (fm.parsed.era === 'reiwa') hasReiwaMatch = true;
+                if (fm.parsed.era === 'heisei') hasHeiseiMatch = true;
+            }
+            if (hasReiwaMatch && checkDate < REIWA_START_DATE) {
+                return "令和形式のマッチが含まれているため、2019/5/1 以降の日付を指定してください。";
+            }
+            if (hasHeiseiMatch && (checkDate < HEISEI_START_DATE || checkDate >= HEISEI_END_DATE_EXCLUSIVE)) {
+                return "平成形式のマッチが含まれているため、1989/1/8〜2019/4/30 の日付を指定してください。";
+            }
+        }
+
         return null;
     }
 
@@ -856,14 +963,18 @@ GroupItem 内の曜日ペアリング：
             var parsed = matchInfo.parsed;
             if (!parsed) return null;
             var oldParts = parsed.parts;
-            var newYearText = (parsed.era === 'reiwa') ? String(gregorianToReiwa(newYear)) : String(newYear);
+            var newYearText;
+            if (parsed.era === 'reiwa') newYearText = formatEraYearText(gregorianToReiwa(newYear), parsed.format === 'reiwa-jp');
+            else if (parsed.era === 'heisei') newYearText = formatEraYearText(gregorianToHeisei(newYear), parsed.format === 'heisei-jp');
+            else newYearText = String(newYear);
+            newYearText = applyZeroPaddingFrom(oldParts.year, newYearText);
             var text =
                 oldParts.prefix +
                 newYearText +
                 oldParts.sep1 +
-                String(newMonth) +
+                applyZeroPaddingFrom(oldParts.month, newMonth) +
                 oldParts.sep2 +
-                String(newDay) +
+                applyZeroPaddingFrom(oldParts.day, newDay) +
                 oldParts.sep3;
             /* 曜日ドロップダウンの選択を常に反映（「なし」なら元の suffix を削除） */
             text += explicitWeekdayText;
@@ -872,6 +983,9 @@ GroupItem 内の曜日ペアリング：
 
         function buildExplicitFormatText(format) {
             var reiwaYear = gregorianToReiwa(newYear);
+            var heiseiYear = gregorianToHeisei(newYear);
+            var reiwaJpYearText = formatEraYearText(reiwaYear, true);
+            var heiseiJpYearText = formatEraYearText(heiseiYear, true);
             switch (format) {
                 case 'jp': return newYear + "年" + newMonth + "月" + newDay + "日" + explicitWeekdayText;
                 case 'jp-md': return newMonth + "月" + newDay + "日" + explicitWeekdayText;
@@ -879,9 +993,12 @@ GroupItem 内の曜日ペアリング：
                 case 'dot-md': return newMonth + "." + newDay + explicitWeekdayText;
                 case 'slash': return newYear + "/" + newMonth + "/" + newDay + explicitWeekdayText;
                 case 'slash-md': return newMonth + "/" + newDay + explicitWeekdayText;
-                case 'reiwa-jp': return "令和" + reiwaYear + "年" + newMonth + "月" + newDay + "日" + explicitWeekdayText;
+                case 'reiwa-jp': return "令和" + reiwaJpYearText + "年" + newMonth + "月" + newDay + "日" + explicitWeekdayText;
                 case 'r-dot': return "R" + reiwaYear + "." + newMonth + "." + newDay + explicitWeekdayText;
                 case 'r-slash': return "R" + reiwaYear + "/" + newMonth + "/" + newDay + explicitWeekdayText;
+                case 'heisei-jp': return "平成" + heiseiJpYearText + "年" + newMonth + "月" + newDay + "日" + explicitWeekdayText;
+                case 'h-dot': return "H" + heiseiYear + "." + newMonth + "." + newDay + explicitWeekdayText;
+                case 'h-slash': return "H" + heiseiYear + "/" + newMonth + "/" + newDay + explicitWeekdayText;
             }
             return null;
         }
@@ -902,17 +1019,21 @@ GroupItem 内の曜日ペアリング：
                 segments.push({ offset: pos, oldLen: oldText.length, newText: newText });
                 pos += oldText.length;
             }
-            var newYearText = (parsed.era === 'reiwa') ? String(gregorianToReiwa(newYear)) : String(newYear);
-            var hasJpSuffixSlot = (parsed.format === 'jp' || parsed.format === 'reiwa-jp');
+            var newYearText;
+            if (parsed.era === 'reiwa') newYearText = formatEraYearText(gregorianToReiwa(newYear), parsed.format === 'reiwa-jp');
+            else if (parsed.era === 'heisei') newYearText = formatEraYearText(gregorianToHeisei(newYear), parsed.format === 'heisei-jp');
+            else newYearText = String(newYear);
+            newYearText = applyZeroPaddingFrom(oldParts.year, newYearText);
+            var hasJpSuffixSlot = (parsed.format === 'jp' || parsed.format === 'reiwa-jp' || parsed.format === 'heisei-jp');
 
             pushSegment(oldParts.prefix, oldParts.prefix);
             pushSegment(oldParts.year, newYearText);
             pushSegment(oldParts.sep1, oldParts.sep1);
-            pushSegment(oldParts.month, String(newMonth));
+            pushSegment(oldParts.month, applyZeroPaddingFrom(oldParts.month, newMonth));
             pushSegment(oldParts.sep2, oldParts.sep2);
 
             if (hasJpSuffixSlot) {
-                pushSegment(oldParts.day, String(newDay));
+                pushSegment(oldParts.day, applyZeroPaddingFrom(oldParts.day, newDay));
                 if (oldParts.suffix.length > 0) {
                     /* 元 suffix を曜日ドロップダウンの選択で置換（「なし」のときは空文字で削除） */
                     pushSegment(oldParts.sep3, oldParts.sep3);
@@ -1038,8 +1159,18 @@ GroupItem 内の曜日ペアリング：
         applyPreview();
     }
 
+    /* 「数字の書式を保持」は preserve 選択時のみ有効。フォーマット切替で enabled を連動させる */
+    function updatePreserveNumberFormatEnabled() {
+        var fc = getDropdownValue(formatDropdown, FORMAT_VALUES, 'preserve');
+        preserveNumberFormatCheckbox.enabled = (fc === 'preserve');
+    }
+    updatePreserveNumberFormatEnabled();
+
     /* フォーマット選択 / 曜日 / 数字書式保持の変更でもプレビューを更新 */
-    formatDropdown.onChange = function () { refreshPreview(); };
+    formatDropdown.onChange = function () {
+        updatePreserveNumberFormatEnabled();
+        refreshPreview();
+    };
     weekdayDropdown.onChange = function () {
         updateCurrentWeekdayChoice();
         refreshPreview();
