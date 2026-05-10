@@ -1,4 +1,40 @@
 #target illustrator
+/*
+ * SymbolListBuilder.jsx
+ * ----------------------------------------------------------------------------
+ * 概要 / Overview
+ *   Illustrator ドキュメントに登録されたシンボルを一覧表示する専用アートボード
+ *   「シンボル一覧」を自動生成するスクリプト。ダイアログでパラメータを操作しな
+ *   がらライブプレビューでき、OK で確定（プレビュー削除 → 最終ビルド → 旧版掃除）。
+ *
+ *   Generates a dedicated "Symbol List" artboard that lays out every (or only
+ *   used) symbol registered in the active Illustrator document. Live preview
+ *   updates while the dialog is open; clicking OK rebuilds the final layout
+ *   and sweeps any previous Symbol List artboards/backgrounds.
+ *
+ * 主な機能 / Key features
+ *   - 配置位置：最終アートボードの右／下を選択
+ *   - 大きさとマージン：幅・高さ・内側マージン（幅変更時は最大幅も自動追従）
+ *   - 背景色：なし／黒／白／グレー（K50）。背景黒のときキャプションを白に
+ *   - シンボルの絞り込み：すべて／使用中のみ
+ *   - シンボル名キャプション：しない／上／下、フォントサイズ（pt 単位）
+ *   - 既定キャプションフォントはロケール別（ja → HiraginoSans-W3 / en → MyriadPro-Regular）
+ *   - 「更新」ON で既存「シンボル一覧」アートボード／背景塗りを置換
+ *
+ * 単位系 / Units
+ *   ルーラー単位 (rulerType) … 寸法・マージン・間隔
+ *   テキスト単位 (text/units) … フォントサイズ
+ *
+ * 互換性 / Compatibility
+ *   Illustrator ExtendScript（ES3 相当）。設定は app.preferences の string
+ *   プリファレンスに JSON 風文字列で保存／復元（eval 不使用）。
+ *
+ * 更新履歴 / Changelog
+ *   v1.1.0  パネル再構成（2 カラム）、背景色、幅・高さ override、
+ *           キャプション 3 ラジオ（しない／上／下）、ロケール別既定フォント、
+ *           黒背景時のキャプション白文字、更新時の旧背景塗り掃除。
+ *   v1.0    初版 / Initial release.
+ */
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 (function () {
@@ -8,7 +44,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // =========================================
 
     /* スクリプトバージョン / Script version */
-    var SCRIPT_VERSION = "v1.0";
+    var SCRIPT_VERSION = "v1.1.0";
 
     /* ロケール判定 / Locale detection */
     function getCurrentLang() {
@@ -19,26 +55,41 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     /* ラベル定義 / Label definitions */
     var LABELS = {
         dialogTitle: { ja: "シンボル一覧を配置", en: "List All Symbols" },
-        placePanel: { ja: "アートボードの位置", en: "Artboard position" },
+        placePanel: { ja: "作成する位置", en: "Create at" },
         placeRight: { ja: "最終アートボードの右側", en: "Right of last artboard" },
         placeBelow: { ja: "最終アートボードの下側", en: "Below last artboard" },
         artboardPanel: { ja: "アートボード", en: "Artboard" },
+        marginPanel: { ja: "大きさとマージン", en: "Size & margin" },
         bgColor: { ja: "背景色", en: "Background" },
         bgNone: { ja: "なし", en: "None" },
         bgBlack: { ja: "黒", en: "Black" },
         bgWhite: { ja: "白", en: "White" },
-        bgGray: { ja: "グレー（K50）", en: "Gray (K50)" },
+        bgGray: { ja: "グレー", en: "Gray" },
         tipBgNone: { ja: "背景の塗りを作成しない", en: "Do not create a background fill" },
         tipBgBlack: { ja: "アートボード背面に黒（K100）の塗りを敷く", en: "Place a solid black (K100) fill behind the artboard" },
         tipBgWhite: { ja: "アートボード背面に白の塗りを敷く", en: "Place a solid white fill behind the artboard" },
         tipBgGray: { ja: "アートボード背面にグレー（K50）の塗りを敷く", en: "Place a 50% gray (K50) fill behind the artboard" },
+        symbolGroupPanel: { ja: "シンボル", en: "Symbol" },
         symbolPanel: { ja: "シンボルの配置", en: "Symbol placement" },
+        captionPanel: { ja: "シンボル名", en: "Symbol name" },
         gap: { ja: "間隔", en: "Gap" },
         margin: { ja: "マージン", en: "Margin" },
+        width: { ja: "幅", en: "Width" },
+        height: { ja: "高さ", en: "Height" },
+        tipWidth: { ja: "アートボードの幅。空欄または 0 で自動計算、入力すると指定値で固定", en: "Artboard width. Empty/0 = auto; a number forces that exact size" },
+        tipHeight: { ja: "アートボードの高さ。空欄または 0 で自動計算、入力すると指定値で固定", en: "Artboard height. Empty/0 = auto; a number forces that exact size" },
         update: { ja: "更新", en: "Update" },
         tipUpdate: { ja: "既存の「シンボル一覧」アートボードがあれば置き換え", en: "Replace existing Symbol List artboard if present" },
-        showCaption: { ja: "シンボル名を表示", en: "Show symbol names" },
         tipShowCaption: { ja: "各シンボルの下にシンボル名を表示", en: "Show symbol name below each symbol" },
+        captionPosition: { ja: "表示位置", en: "Position" },
+        captionNone: { ja: "しない", en: "Off" },
+        captionAbove: { ja: "上", en: "Top" },
+        captionBelow: { ja: "下", en: "Bottom" },
+        tipCaptionNone: { ja: "シンボル名を表示しない", en: "Do not show the symbol name" },
+        tipCaptionAbove: { ja: "シンボルの上にシンボル名を表示", en: "Place the name above the symbol" },
+        tipCaptionBelow: { ja: "シンボルの下にシンボル名を表示", en: "Place the name below the symbol" },
+        fontSize: { ja: "フォントサイズ", en: "Font size" },
+        tipFontSize: { ja: "シンボル名のフォントサイズ（pt）", en: "Symbol name font size (pt)" },
         filterAll: { ja: "すべて", en: "All" },
         filterUsed: { ja: "使用中のみ", en: "Used only" },
         tipFilterAll: { ja: "登録されているすべてのシンボルを並べる", en: "List every registered symbol" },
@@ -75,7 +126,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var DEFAULT_SYMBOL_GAP_PT = 20;
     var DEFAULT_ARTBOARD_GAP_PT = 100;
     var DEFAULT_ARTBOARD_MARGIN_PT = 50;
-    var CAPTION_FONT_SIZE_PT = 9;
+    var DEFAULT_CAPTION_FONT_SIZE_PT = 9;
+    /* ロケール別の既定フォント。UI からは指定しないが createCaption 内で適用する
+     * Locale-based default caption font (no UI; applied silently in createCaption) */
+    var DEFAULT_CAPTION_FONT_NAME = (currentLanguage === "ja") ? "HiraginoSans-W3" : "MyriadPro-Regular";
     var CAPTION_GAP_PT = 6;
     var LAYER_NAME = "シンボル一覧";
     var ARTBOARD_NAME = "シンボル一覧";
@@ -102,6 +156,27 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     function ptToUnit(pt) { return pt / UNIT.factor; }
     function unitToPt(value) { return value * UNIT.factor; }
 
+    /* text/units（文字単位）から表示単位とポイント変換係数を取得
+     * Resolve type-unit display label & point conversion from `text/units` preference */
+    function getTypeUnitInfo() {
+        var u;
+        try { u = app.preferences.getIntegerPreference("text/units"); }
+        catch (e) { u = -1; }
+        switch (u) {
+            case 0: return { label: "inch", factor: 72.0 };
+            case 1: return { label: "mm", factor: 72.0 / 25.4 };
+            case 3: return { label: "pica", factor: 12.0 };
+            case 4: return { label: "cm", factor: 72.0 / 2.54 };
+            case 5: return { label: "Q", factor: 72.0 / 25.4 * 0.25 };
+            case 6: return { label: "px", factor: 1.0 };
+            default: return { label: "pt", factor: 1.0 };
+        }
+    }
+    var TYPE_UNIT = getTypeUnitInfo();
+
+    function ptToTypeUnit(pt) { return pt / TYPE_UNIT.factor; }
+    function typeUnitToPt(value) { return value * TYPE_UNIT.factor; }
+
     // =========================================
     // 設定の保存・復元
     // =========================================
@@ -119,7 +194,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             '"filter":"' + settings.filter + '",',
             '"symbolGap":' + settings.symbolGap + ',',
             '"maxRowWidth":' + settings.maxRowWidth + ',',
-            '"bgColor":"' + settings.bgColor + '"',
+            '"bgColor":"' + settings.bgColor + '",',
+            '"captionPosition":"' + settings.captionPosition + '",',
+            '"fontSize":' + settings.fontSize,
             '}'
         ].join('');
     }
@@ -146,10 +223,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var position = readString("position");
         var filter = readString("filter");
         var bgColor = readString("bgColor");
+        var captionPosition = readString("captionPosition");
         var artboardGap = readNumber("artboardGap");
         var margin = readNumber("margin");
         var symbolGap = readNumber("symbolGap");
         var maxRowWidth = readNumber("maxRowWidth");
+        var fontSize = readNumber("fontSize");
         var update = readBoolean("update");
         var showCaption = readBoolean("showCaption");
 
@@ -165,6 +244,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             bgColor = "none";
         }
 
+        if (captionPosition !== "above" && captionPosition !== "below") {
+            captionPosition = "above";
+        }
+
+        if (fontSize === null || fontSize <= 0) {
+            fontSize = DEFAULT_CAPTION_FONT_SIZE_PT;
+        }
+
         return {
             position: position,
             artboardGap: artboardGap,
@@ -174,7 +261,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             filter: filter,
             symbolGap: symbolGap,
             maxRowWidth: maxRowWidth,
-            bgColor: bgColor
+            bgColor: bgColor,
+            captionPosition: captionPosition,
+            fontSize: fontSize
         };
     }
 
@@ -199,6 +288,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /* パネル共通設定 / Panel layout helpers */
     var PANEL_MARGINS = [15, 20, 15, 10];
+    var PANEL_SPACING = 8;
     var VALUE_ROW_LABEL_WIDTH = 70;
 
     function setupPanel(panel, spacing) {
@@ -206,7 +296,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         panel.alignChildren = "left";
         panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
-        if (typeof spacing === "number") panel.spacing = spacing;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /* ↑↓キーで値を増減
@@ -269,6 +359,35 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return filtered;
     }
 
+    /* 指定アートボード矩形と (ほぼ) 一致する塗り長方形を削除（過去版が別レイヤーへ移されていても掴めるよう全レイヤー対象）
+     * keepLayer を指定すると、そのレイヤー上のパスは保護（同位置・同寸の新アートボードに作った
+     * 新しい背景塗りを巻き添えで消さないため）。
+     * Remove fill rectangles whose bounds match the artboard rect; preserves any path on keepLayer
+     * so the freshly-created background fill is not collateral-deleted when old/new artboards
+     * happen to share bounds. */
+    function removeBackgroundFillsForArtboard(doc, artboardRect, keepLayer) {
+        var tolerance = 1.0;
+        var allPaths = doc.pathItems;
+        var toRemove = [];
+        for (var i = 0; i < allPaths.length; i++) {
+            var p = allPaths[i];
+            try {
+                if (keepLayer && p.layer === keepLayer) continue;
+                var b = p.geometricBounds;
+                if (Math.abs(b[0] - artboardRect[0]) < tolerance &&
+                    Math.abs(b[1] - artboardRect[1]) < tolerance &&
+                    Math.abs(b[2] - artboardRect[2]) < tolerance &&
+                    Math.abs(b[3] - artboardRect[3]) < tolerance &&
+                    p.filled && !p.stroked) {
+                    toRemove.push(p);
+                }
+            } catch (boundsError) { }
+        }
+        for (var j = 0; j < toRemove.length; j++) {
+            try { toRemove[j].remove(); } catch (removeError) { }
+        }
+    }
+
     /* 確定後に他の「シンボル一覧」アートボード／レイヤーを削除（state は保持）
      * Remove other symbol-list artboards/layers, keeping the one we just built */
     function removeOtherSymbolLists(doc, state) {
@@ -280,6 +399,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         for (var i = doc.artboards.length - 1; i >= 0; i--) {
             if (i === keepIndex) continue;
             if (doc.artboards[i].name === ARTBOARD_NAME && doc.artboards.length > 1) {
+                /* 旧アートボード矩形と一致する塗り（背景）を先に掃除。新レイヤー上の塗りは保護
+                 * Sweep old bg fills first; never touch the just-created (kept) layer */
+                removeBackgroundFillsForArtboard(doc, doc.artboards[i].artboardRect, state.layer);
                 try {
                     doc.artboards.remove(i);
                     if (i < keepIndex) keepIndex--;
@@ -310,18 +432,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     /* 1 シンボル分のキャプション TextFrame を生成 / Create a caption text frame */
-    function createCaption(layer, symbolName) {
+    function createCaption(layer, symbolName, fontSizePt, fillColor) {
         var caption = layer.textFrames.add();
         caption.contents = symbolName;
         try {
-            caption.textRange.characterAttributes.size = CAPTION_FONT_SIZE_PT;
-        } catch (e) { }
+            caption.textRange.characterAttributes.size = fontSizePt;
+        } catch (sizeError) { }
+        try {
+            caption.textRange.characterAttributes.textFont = app.textFonts.getByName(DEFAULT_CAPTION_FONT_NAME);
+        } catch (fontError) { }
+        if (fillColor) {
+            try {
+                caption.textRange.characterAttributes.fillColor = fillColor;
+            } catch (colorError) { }
+        }
         return caption;
     }
 
     /* シンボルをインスタンス化し、必要ならキャプションも作成、エントリ配列を返す
      * Instantiate symbols (and optional captions), measure, return entries */
     function instantiateSymbols(doc, layer, settings, targetSymbols) {
+        /* 背景が黒のときだけキャプションを白に。それ以外は既定（黒）/ White caption only when bg is black */
+        var captionFillColor = (settings.bgColor === "black") ? createBgFillColor(doc, "white") : null;
         var entries = [];
         for (var i = 0; i < targetSymbols.length; i++) {
             var symbol = targetSymbols[i];
@@ -338,7 +470,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             };
 
             if (settings.showCaption) {
-                var caption = createCaption(layer, symbol.name);
+                var caption = createCaption(layer, symbol.name, settings.fontSize, captionFillColor);
                 var capBounds = caption.visibleBounds;
                 entry.caption = caption;
                 entry.captionWidth = capBounds[2] - capBounds[0];
@@ -409,7 +541,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /* パッキング結果に従って各エントリ（シンボル＋任意のキャプション）を配置
      * Place entries (symbol + optional caption) based on packing result */
-    function placeEntries(entries, originLeft, originTop, margin) {
+    function placeEntries(entries, originLeft, originTop, margin, captionPosition) {
+        var captionAbove = (captionPosition === "above");
         for (var i = 0; i < entries.length; i++) {
             var entry = entries[i];
             var slotLeft = originLeft + margin + entry.x;
@@ -417,11 +550,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
             /* スロット内でシンボルを水平中央寄せ / Center symbol within slot */
             var symbolLeft = slotLeft + (entry.width - entry.symbolWidth) / 2;
-            entry.item.position = [symbolLeft, slotTop];
+            var symbolTop = (entry.caption && captionAbove)
+                ? slotTop - entry.captionHeight - CAPTION_GAP_PT
+                : slotTop;
+            entry.item.position = [symbolLeft, symbolTop];
 
             if (entry.caption) {
                 var captionLeft = slotLeft + (entry.width - entry.captionWidth) / 2;
-                var captionTop = slotTop - entry.symbolHeight - CAPTION_GAP_PT;
+                var captionTop = captionAbove
+                    ? slotTop
+                    : slotTop - entry.symbolHeight - CAPTION_GAP_PT;
                 entry.caption.position = [captionLeft, captionTop];
             }
         }
@@ -476,13 +614,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var size = packShelf(entries, settings.maxRowWidth, settings.symbolGap);
 
         var origin = computeArtboardOrigin(doc, settings);
+        var artboardWidth = (settings.widthOverridePt && settings.widthOverridePt > 0)
+            ? settings.widthOverridePt
+            : size.width + settings.margin * 2;
+        var artboardHeight = (settings.heightOverridePt && settings.heightOverridePt > 0)
+            ? settings.heightOverridePt
+            : size.height + settings.margin * 2;
         var artboardInfo = addArtboard(
             doc, origin.left, origin.top,
-            size.width + settings.margin * 2,
-            size.height + settings.margin * 2,
+            artboardWidth, artboardHeight,
             ARTBOARD_NAME
         );
-        placeEntries(entries, origin.left, origin.top, settings.margin);
+        placeEntries(entries, origin.left, origin.top, settings.margin, settings.captionPosition);
 
         createBackgroundFill(layer, artboardInfo.rect, createBgFillColor(doc, settings.bgColor));
 
@@ -572,7 +715,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     function buildPlacementPanel(parent, savedSettings) {
         var panel = parent.add("panel", undefined, L(LABELS.placePanel));
-        setupPanel(panel, 6);
+        setupPanel(panel);
         var savedPosition = getSavedSetting(savedSettings, "position", "right");
         var rightRadio = panel.add("radiobutton", undefined, L(LABELS.placeRight));
         rightRadio.helpTip = L(LABELS.tipPlaceRight);
@@ -585,57 +728,117 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return { rightRadio: rightRadio, belowRadio: belowRadio, artboardGapInput: artboardGapInput };
     }
 
-    function buildArtboardPanel(parent, savedSettings) {
-        var panel = parent.add("panel", undefined, L(LABELS.artboardPanel));
-        setupPanel(panel, 6);
+    function buildMarginPanel(parent, savedSettings) {
+        var panel = parent.add("panel", undefined, L(LABELS.marginPanel));
+        setupPanel(panel);
+        var widthInput = addValueRow(panel, labelText(LABELS.width), 0, L(LABELS.tipWidth));
+        var heightInput = addValueRow(panel, labelText(LABELS.height), 0, L(LABELS.tipHeight));
         var marginInput = addValueRow(panel, labelText(LABELS.margin),
             getSavedSetting(savedSettings, "margin", DEFAULT_ARTBOARD_MARGIN_PT), L(LABELS.tipMargin));
+        return {
+            widthInput: widthInput,
+            heightInput: heightInput,
+            marginInput: marginInput
+        };
+    }
 
-        /* 背景色（ラジオ） / Background fill (radios) */
-        var bgRow = panel.add("group");
-        bgRow.orientation = "row";
-        bgRow.alignChildren = "center";
-        bgRow.spacing = 6;
-        var bgLabelColumn = bgRow.add("group");
-        bgLabelColumn.orientation = "row";
-        bgLabelColumn.alignChildren = ["right", "center"];
-        bgLabelColumn.margins = 0;
-        bgLabelColumn.spacing = 0;
-        bgLabelColumn.preferredSize.width = VALUE_ROW_LABEL_WIDTH;
-        bgLabelColumn.add("statictext", undefined, labelText(LABELS.bgColor));
-        var bgRadios = bgRow.add("group");
-        bgRadios.orientation = "row";
-        bgRadios.spacing = 10;
-        var bgNoneRadio = bgRadios.add("radiobutton", undefined, L(LABELS.bgNone));
+    function buildBgColorPanel(parent, savedSettings) {
+        var panel = parent.add("panel", undefined, L(LABELS.bgColor));
+        setupPanel(panel);
+
+        /* 2 行 2 列。各ラジオの幅を揃えて列をきれいに整える / 2x2 grid; equal widths align columns */
+        var BG_RADIO_WIDTH = 60;
+
+        var row1 = panel.add("group");
+        row1.orientation = "row";
+        row1.spacing = 10;
+        var bgNoneRadio = row1.add("radiobutton", undefined, L(LABELS.bgNone));
         bgNoneRadio.helpTip = L(LABELS.tipBgNone);
-        var bgBlackRadio = bgRadios.add("radiobutton", undefined, L(LABELS.bgBlack));
+        bgNoneRadio.preferredSize.width = BG_RADIO_WIDTH;
+        var bgBlackRadio = row1.add("radiobutton", undefined, L(LABELS.bgBlack));
         bgBlackRadio.helpTip = L(LABELS.tipBgBlack);
-        var bgWhiteRadio = bgRadios.add("radiobutton", undefined, L(LABELS.bgWhite));
+        bgBlackRadio.preferredSize.width = BG_RADIO_WIDTH;
+
+        var row2 = panel.add("group");
+        row2.orientation = "row";
+        row2.spacing = 10;
+        var bgWhiteRadio = row2.add("radiobutton", undefined, L(LABELS.bgWhite));
         bgWhiteRadio.helpTip = L(LABELS.tipBgWhite);
-        var bgGrayRadio = bgRadios.add("radiobutton", undefined, L(LABELS.bgGray));
+        bgWhiteRadio.preferredSize.width = BG_RADIO_WIDTH;
+        var bgGrayRadio = row2.add("radiobutton", undefined, L(LABELS.bgGray));
         bgGrayRadio.helpTip = L(LABELS.tipBgGray);
+        bgGrayRadio.preferredSize.width = BG_RADIO_WIDTH;
+
         var savedBgColor = getSavedSetting(savedSettings, "bgColor", "none");
         bgNoneRadio.value = (savedBgColor === "none");
         bgBlackRadio.value = (savedBgColor === "black");
         bgWhiteRadio.value = (savedBgColor === "white");
         bgGrayRadio.value = (savedBgColor === "gray");
-
-        var updateCheckbox = panel.add("checkbox", undefined, L(LABELS.update));
-        updateCheckbox.value = getSavedSetting(savedSettings, "update", true);
-        updateCheckbox.helpTip = L(LABELS.tipUpdate);
         return {
-            marginInput: marginInput,
             bgNoneRadio: bgNoneRadio,
             bgBlackRadio: bgBlackRadio,
             bgWhiteRadio: bgWhiteRadio,
-            bgGrayRadio: bgGrayRadio,
-            updateCheckbox: updateCheckbox
+            bgGrayRadio: bgGrayRadio
+        };
+    }
+
+    function buildCaptionPanel(parent, savedSettings) {
+        var panel = parent.add("panel", undefined, L(LABELS.captionPanel));
+        setupPanel(panel);
+
+        /* 表示位置（横並び 3 ラジオ）。「しない」が「シンボル名を表示」OFF を兼ねる
+         * Caption position as a 3-way horizontal radio; "Off" replaces the show-caption checkbox */
+        var posRow = panel.add("group");
+        posRow.orientation = "row";
+        posRow.alignChildren = ["left", "center"];
+        posRow.spacing = 6;
+        posRow.add("statictext", undefined, labelText(LABELS.captionPosition));
+        var posRadios = posRow.add("group");
+        posRadios.orientation = "row";
+        posRadios.alignChildren = "left";
+        posRadios.spacing = 10;
+        var captionNoneRadio = posRadios.add("radiobutton", undefined, L(LABELS.captionNone));
+        captionNoneRadio.helpTip = L(LABELS.tipCaptionNone);
+        var captionAboveRadio = posRadios.add("radiobutton", undefined, L(LABELS.captionAbove));
+        captionAboveRadio.helpTip = L(LABELS.tipCaptionAbove);
+        var captionBelowRadio = posRadios.add("radiobutton", undefined, L(LABELS.captionBelow));
+        captionBelowRadio.helpTip = L(LABELS.tipCaptionBelow);
+        var savedShowCaption = getSavedSetting(savedSettings, "showCaption", true);
+        var savedCaptionPosition = getSavedSetting(savedSettings, "captionPosition", "above");
+        captionNoneRadio.value = (savedShowCaption === false);
+        captionAboveRadio.value = (savedShowCaption !== false && savedCaptionPosition === "above");
+        captionBelowRadio.value = (savedShowCaption !== false && savedCaptionPosition === "below");
+
+        /* フォントサイズ（単位は環境設定 text/units に従う）/ Font size in the user's text-unit pref */
+        var fontSizeRow = panel.add("group");
+        fontSizeRow.orientation = "row";
+        fontSizeRow.alignChildren = "center";
+        fontSizeRow.spacing = 6;
+        var fsLabelColumn = fontSizeRow.add("group");
+        fsLabelColumn.orientation = "row";
+        fsLabelColumn.alignChildren = ["right", "center"];
+        fsLabelColumn.margins = 0;
+        fsLabelColumn.spacing = 0;
+        fsLabelColumn.preferredSize.width = VALUE_ROW_LABEL_WIDTH;
+        var fsLabel = fsLabelColumn.add("statictext", undefined, labelText(LABELS.fontSize));
+        fsLabel.helpTip = L(LABELS.tipFontSize);
+        var savedFontSize = getSavedSetting(savedSettings, "fontSize", DEFAULT_CAPTION_FONT_SIZE_PT);
+        var fontSizeInput = fontSizeRow.add("edittext", undefined, String(Math.round(ptToTypeUnit(savedFontSize))));
+        fontSizeInput.characters = 4;
+        fontSizeInput.helpTip = L(LABELS.tipFontSize);
+        fontSizeRow.add("statictext", undefined, TYPE_UNIT.label);
+
+        return {
+            captionNoneRadio: captionNoneRadio,
+            captionAboveRadio: captionAboveRadio,
+            captionBelowRadio: captionBelowRadio,
+            fontSizeInput: fontSizeInput
         };
     }
 
     function buildSymbolPanel(parent, savedSettings) {
         var panel = parent.add("panel", undefined, L(LABELS.symbolPanel));
-        setupPanel(panel, 6);
+        setupPanel(panel);
 
         /* 対象フィルタ / Filter radios */
         var filterGroup = panel.add("group");
@@ -649,11 +852,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         filterAllRadio.value = (savedFilter === "all");
         filterUsedRadio.value = (savedFilter === "used");
 
-        /* キャプション表示 / Caption checkbox */
-        var showCaptionCheckbox = panel.add("checkbox", undefined, L(LABELS.showCaption));
-        showCaptionCheckbox.value = getSavedSetting(savedSettings, "showCaption", false);
-        showCaptionCheckbox.helpTip = L(LABELS.tipShowCaption);
-
         var symbolGapInput = addValueRow(panel, labelText(LABELS.gap),
             getSavedSetting(savedSettings, "symbolGap", DEFAULT_SYMBOL_GAP_PT), L(LABELS.tipSymbolGap));
         var maxRowWidthInput = addValueRow(panel, labelText(LABELS.maxRowWidth),
@@ -662,19 +860,40 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return {
             filterAllRadio: filterAllRadio,
             filterUsedRadio: filterUsedRadio,
-            showCaptionCheckbox: showCaptionCheckbox,
             symbolGapInput: symbolGapInput,
             maxRowWidthInput: maxRowWidthInput
         };
     }
 
-    function buildButtonRow(parent) {
-        var group = parent.add("group");
-        group.alignment = "center";
-        group.spacing = 8;
-        var cancelButton = group.add("button", undefined, L(LABELS.cancel), { name: "cancel" });
-        var okButton = group.add("button", undefined, "OK", { name: "OK" });
-        return { okButton: okButton, cancelButton: cancelButton };
+    function buildButtonRow(parent, savedSettings) {
+        var row = parent.add("group");
+        row.alignment = "fill";
+        row.orientation = "row";
+        row.spacing = 8;
+
+        /* 左：更新チェックボックス / Left: update checkbox */
+        var leftCol = row.add("group");
+        leftCol.alignment = ["left", "center"];
+        var updateCheckbox = leftCol.add("checkbox", undefined, L(LABELS.update));
+        updateCheckbox.value = true;
+        updateCheckbox.helpTip = L(LABELS.tipUpdate);
+
+        /* 中央：スペーサー / Center: spacer */
+        var spacer = row.add("group");
+        spacer.alignment = ["fill", "center"];
+
+        /* 右：キャンセル / OK / Right: Cancel / OK */
+        var rightCol = row.add("group");
+        rightCol.alignment = ["right", "center"];
+        rightCol.spacing = 8;
+        var cancelButton = rightCol.add("button", undefined, L(LABELS.cancel), { name: "cancel" });
+        var okButton = rightCol.add("button", undefined, "OK", { name: "OK" });
+
+        return {
+            updateCheckbox: updateCheckbox,
+            okButton: okButton,
+            cancelButton: cancelButton
+        };
     }
 
     /* ダイアログを構築し、コントロール参照を返す / Build dialog and return refs */
@@ -685,26 +904,59 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         dialog.margins = 16;
         dialog.spacing = 12;
 
-        var placementRefs = buildPlacementPanel(dialog, savedSettings);
-        var artboardRefs = buildArtboardPanel(dialog, savedSettings);
-        var symbolRefs = buildSymbolPanel(dialog, savedSettings);
+        /* 2 カラム構成 / Two-column layout */
+        var columns = dialog.add("group");
+        columns.orientation = "row";
+        columns.alignChildren = ["fill", "top"];
+        columns.spacing = 12;
 
-        var buttonRefs = buildButtonRow(dialog);
+        var leftColumn = columns.add("group");
+        leftColumn.orientation = "column";
+        leftColumn.alignChildren = "fill";
+        leftColumn.spacing = 12;
+
+        var rightColumn = columns.add("group");
+        rightColumn.orientation = "column";
+        rightColumn.alignChildren = "fill";
+        rightColumn.spacing = 12;
+
+        /* アートボード関連パネルを内包するラッパー / Wrapper for artboard-related panels */
+        var artboardGroupPanel = leftColumn.add("panel", undefined, L(LABELS.artboardPanel));
+        setupPanel(artboardGroupPanel);
+        artboardGroupPanel.margins = [15, 20, 15, 15];
+
+        var placementRefs = buildPlacementPanel(artboardGroupPanel, savedSettings);
+        var marginRefs = buildMarginPanel(artboardGroupPanel, savedSettings);
+        var bgColorRefs = buildBgColorPanel(artboardGroupPanel, savedSettings);
+
+        /* シンボル関連パネルを内包するラッパー / Wrapper for symbol-related panels */
+        var symbolGroupPanel = rightColumn.add("panel", undefined, L(LABELS.symbolGroupPanel));
+        setupPanel(symbolGroupPanel);
+        symbolGroupPanel.margins = [15, 20, 15, 15];
+        var symbolRefs = buildSymbolPanel(symbolGroupPanel, savedSettings);
+        var captionRefs = buildCaptionPanel(symbolGroupPanel, savedSettings);
+
+        var buttonRefs = buildButtonRow(dialog, savedSettings);
 
         return {
             dialog: dialog,
             rightRadio: placementRefs.rightRadio,
             belowRadio: placementRefs.belowRadio,
             artboardGapInput: placementRefs.artboardGapInput,
-            marginInput: artboardRefs.marginInput,
-            bgNoneRadio: artboardRefs.bgNoneRadio,
-            bgBlackRadio: artboardRefs.bgBlackRadio,
-            bgWhiteRadio: artboardRefs.bgWhiteRadio,
-            bgGrayRadio: artboardRefs.bgGrayRadio,
-            updateCheckbox: artboardRefs.updateCheckbox,
+            widthInput: marginRefs.widthInput,
+            heightInput: marginRefs.heightInput,
+            marginInput: marginRefs.marginInput,
+            bgNoneRadio: bgColorRefs.bgNoneRadio,
+            bgBlackRadio: bgColorRefs.bgBlackRadio,
+            bgWhiteRadio: bgColorRefs.bgWhiteRadio,
+            bgGrayRadio: bgColorRefs.bgGrayRadio,
+            updateCheckbox: buttonRefs.updateCheckbox,
+            fontSizeInput: captionRefs.fontSizeInput,
             filterAllRadio: symbolRefs.filterAllRadio,
             filterUsedRadio: symbolRefs.filterUsedRadio,
-            showCaptionCheckbox: symbolRefs.showCaptionCheckbox,
+            captionNoneRadio: captionRefs.captionNoneRadio,
+            captionAboveRadio: captionRefs.captionAboveRadio,
+            captionBelowRadio: captionRefs.captionBelowRadio,
             symbolGapInput: symbolRefs.symbolGapInput,
             maxRowWidthInput: symbolRefs.maxRowWidthInput,
             okButton: buttonRefs.okButton,
@@ -725,62 +977,147 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return "none";
     }
 
+    /* フォントサイズ入力。表示は TYPE_UNIT、内部は常に pt
+     * Font size input is shown in the user's text-unit preference; stored in pt internally */
+    function readFontSizePt(controls) {
+        var v = parseFloat(controls.fontSizeInput.text);
+        if (isNaN(v) || v <= 0) return DEFAULT_CAPTION_FONT_SIZE_PT;
+        return typeUnitToPt(v);
+    }
+
     function readDialogSettings(controls) {
         return {
             position: controls.rightRadio.value ? "right" : "below",
             artboardGap: readInputPt(controls.artboardGapInput.text, DEFAULT_ARTBOARD_GAP_PT),
             margin: readInputPt(controls.marginInput.text, DEFAULT_ARTBOARD_MARGIN_PT),
             update: controls.updateCheckbox.value,
-            showCaption: controls.showCaptionCheckbox.value,
+            showCaption: !controls.captionNoneRadio.value,
             filter: controls.filterUsedRadio.value ? "used" : "all",
             symbolGap: readInputPt(controls.symbolGapInput.text, DEFAULT_SYMBOL_GAP_PT),
             maxRowWidth: readInputPt(controls.maxRowWidthInput.text, DEFAULT_MAX_ROW_WIDTH_PT),
-            bgColor: readBgColorChoice(controls)
+            bgColor: readBgColorChoice(controls),
+            captionPosition: controls.captionBelowRadio.value ? "below" : "above",
+            fontSize: readFontSizePt(controls)
         };
     }
 
     /* プレビュー再構築用クロージャ（常時 ON）。前回プレビューを削除してから再構築。
-     * Build a refresher (always-on preview) that removes the previous preview before rebuilding. */
+     * - widthOverridePt / heightOverridePt が非 null の場合、その固定サイズでアートボード生成
+     * - ビルド後、有効サイズを width/height 入力欄に書き戻す（プログラム的設定なので onChange は発火しない）
+     * Build a refresher (always-on preview); supports user-typed width/height overrides */
     function makePreviewRefresher(doc, controls) {
-        var state = { current: null };
+        var state = {
+            current: null,
+            widthOverridePt: null,
+            heightOverridePt: null
+        };
+        function clearOverrides() {
+            state.widthOverridePt = null;
+            state.heightOverridePt = null;
+        }
         function refresh() {
             if (state.current) {
                 clearLayout(doc, state.current);
                 state.current = null;
             }
             var settings = readDialogSettings(controls);
-            /* 使用中のみ指定で対象 0 個の場合はプレビューせず終了 / Skip preview if no target */
+            settings.widthOverridePt = state.widthOverridePt;
+            settings.heightOverridePt = state.heightOverridePt;
+
             if (settings.filter === "used" && getTargetSymbols(doc, settings).length === 0) {
                 app.redraw();
                 return;
             }
             state.current = buildLayout(doc, settings);
+            if (state.current) {
+                var rect = state.current.artboardInfo.rect;
+                var widthPt = rect[2] - rect[0];
+                var heightPt = rect[1] - rect[3];
+                if (state.widthOverridePt === null) {
+                    controls.widthInput.text = String(Math.round(ptToUnit(widthPt)));
+                }
+                if (state.heightOverridePt === null) {
+                    controls.heightInput.text = String(Math.round(ptToUnit(heightPt)));
+                }
+            }
             app.redraw();
         }
-        return { refresh: refresh, state: state };
+        return { refresh: refresh, state: state, clearOverrides: clearOverrides };
     }
 
     /* 入力イベントを refresh に結線 / Wire input events to refresh */
-    function wireDialogEvents(controls, refresh) {
+    function wireDialogEvents(controls, refresher) {
+        function refresh() { refresher.refresh(); }
+        function clearAndRefresh() {
+            refresher.clearOverrides();
+            refresher.refresh();
+        }
+
+        /* 背景色は親グループが分かれているため ScriptUI 標準の排他選択が効かない。手動で他を解除。
+         * Background radios live in separate parent groups, so we enforce exclusivity manually. */
+        var bgRadios = [
+            controls.bgNoneRadio, controls.bgBlackRadio, controls.bgWhiteRadio, controls.bgGrayRadio
+        ];
+        function applyBgExclusive(target) {
+            for (var b = 0; b < bgRadios.length; b++) {
+                if (bgRadios[b] !== target) bgRadios[b].value = false;
+            }
+        }
+        for (var k = 0; k < bgRadios.length; k++) {
+            (function (radio) {
+                radio.onClick = function () {
+                    applyBgExclusive(radio);
+                    clearAndRefresh();
+                };
+            })(bgRadios[k]);
+        }
+
+        /* 寸法以外の操作は幅・高さオーバーライドを解除して再描画
+         * Non-size triggers clear the width/height override before refreshing */
         var triggers = [
             controls.rightRadio, controls.belowRadio,
             controls.updateCheckbox,
-            controls.bgNoneRadio, controls.bgBlackRadio, controls.bgWhiteRadio, controls.bgGrayRadio,
             controls.filterAllRadio, controls.filterUsedRadio,
-            controls.showCaptionCheckbox
+            controls.captionNoneRadio, controls.captionAboveRadio, controls.captionBelowRadio
         ];
-        for (var i = 0; i < triggers.length; i++) triggers[i].onClick = refresh;
+        for (var i = 0; i < triggers.length; i++) triggers[i].onClick = clearAndRefresh;
 
         var inputs = [
             controls.artboardGapInput,
             controls.marginInput,
             controls.symbolGapInput,
-            controls.maxRowWidthInput
+            controls.maxRowWidthInput,
+            controls.fontSizeInput
         ];
         for (var j = 0; j < inputs.length; j++) {
-            inputs[j].onChange = refresh;
-            changeValueByArrowKey(inputs[j], false, refresh);
+            inputs[j].onChange = clearAndRefresh;
+            changeValueByArrowKey(inputs[j], false, clearAndRefresh);
         }
+
+        /* 幅・高さ：入力されたら override として固定。0/空欄は自動 / Width-height override
+         * 幅を変えたときは「最大幅」も内側マージンを引いた値に追従させる
+         * Adjusting width also retunes maxRowWidth (= width − margin × 2) so packing fits naturally. */
+        function applyWidthFromInput() {
+            var pt = readInputPt(controls.widthInput.text, 0);
+            refresher.state.widthOverridePt = (pt > 0) ? pt : null;
+            if (pt > 0) {
+                var marginPt = readInputPt(controls.marginInput.text, DEFAULT_ARTBOARD_MARGIN_PT);
+                var newMaxPt = pt - 2 * marginPt;
+                if (newMaxPt > 0) {
+                    controls.maxRowWidthInput.text = String(Math.round(ptToUnit(newMaxPt)));
+                }
+            }
+            refresh();
+        }
+        function applyHeightFromInput() {
+            var pt = readInputPt(controls.heightInput.text, 0);
+            refresher.state.heightOverridePt = (pt > 0) ? pt : null;
+            refresh();
+        }
+        controls.widthInput.onChange = applyWidthFromInput;
+        controls.heightInput.onChange = applyHeightFromInput;
+        changeValueByArrowKey(controls.widthInput, false, applyWidthFromInput);
+        changeValueByArrowKey(controls.heightInput, false, applyHeightFromInput);
     }
 
     /* OK/キャンセルを結線して show / Wire buttons and show */
@@ -797,7 +1134,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var savedSettings = loadSettings();
         var controls = buildDialog(savedSettings);
         var refresher = makePreviewRefresher(doc, controls);
-        wireDialogEvents(controls, refresher.refresh);
+        wireDialogEvents(controls, refresher);
 
         /* 起動直後に初回プレビューを表示 / Initial preview before showing dialog */
         refresher.refresh();
@@ -806,6 +1143,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         if (result === "ok") {
             var finalSettings = readDialogSettings(controls);
+            finalSettings.widthOverridePt = refresher.state.widthOverridePt;
+            finalSettings.heightOverridePt = refresher.state.heightOverridePt;
             if (refresher.state.current) {
                 clearLayout(doc, refresher.state.current);
                 refresher.state.current = null;
