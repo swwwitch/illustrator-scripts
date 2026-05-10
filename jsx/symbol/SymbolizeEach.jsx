@@ -63,7 +63,7 @@ or as one combined symbol, replacing originals with new instances when applicabl
 // バージョンとローカライズ / Version and localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 /* 現在の UI 言語 / Current UI language */
 var currentLang = ($.locale.indexOf('ja') === 0) ? 'ja' : 'en';
