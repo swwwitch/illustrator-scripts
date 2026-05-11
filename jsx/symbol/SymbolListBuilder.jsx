@@ -1,4 +1,6 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
+
 /*
  * SymbolListBuilder.jsx
  * ----------------------------------------------------------------------------
@@ -30,12 +32,15 @@
  *   プリファレンスに JSON 風文字列で保存／復元（eval 不使用）。
  *
  * 更新履歴 / Changelog
+ *   v1.2.0  画面ズームスライダー（軽量モード）、起動時に新アートボード中心へ 60% ズーム、
+ *           右カラムを「対象 / 配置 / シンボル名」3 サブパネルに再編、
+ *           シンボル名表示を独立チェックボックス化（位置は上／下の 2 択）、
+ *           表示位置デフォルトを「下」、対象は起動時「すべて」を固定。
  *   v1.1.0  パネル再構成（2 カラム）、背景色、幅・高さ override、
  *           キャプション 3 ラジオ（しない／上／下）、ロケール別既定フォント、
  *           黒背景時のキャプション白文字、更新時の旧背景塗り掃除。
  *   v1.0    初版 / Initial release.
  */
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 (function () {
 
@@ -44,7 +49,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // =========================================
 
     /* スクリプトバージョン / Script version */
-    var SCRIPT_VERSION = "v1.1.1";
+    var SCRIPT_VERSION = "v1.2.0";
 
     /* ロケール判定 / Locale detection */
     function getCurrentLang() {
@@ -70,8 +75,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         tipBgWhite: { ja: "アートボード背面に白の塗りを敷く", en: "Place a solid white fill behind the artboard" },
         tipBgGray: { ja: "アートボード背面にグレー（K50）の塗りを敷く", en: "Place a 50% gray (K50) fill behind the artboard" },
         symbolGroupPanel: { ja: "シンボル", en: "Symbol" },
-        symbolPanel: { ja: "シンボルの配置", en: "Symbol placement" },
+        symbolPanel: { ja: "配置", en: "Placement" },
         captionPanel: { ja: "シンボル名", en: "Symbol name" },
+        targetPanel: { ja: "対象", en: "Target" },
         gap: { ja: "間隔", en: "Gap" },
         margin: { ja: "マージン", en: "Margin" },
         width: { ja: "幅", en: "Width" },
@@ -80,12 +86,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         tipHeight: { ja: "アートボードの高さ。空欄または 0 で自動計算、入力すると指定値で固定", en: "Artboard height. Empty/0 = auto; a number forces that exact size" },
         update: { ja: "更新", en: "Update" },
         tipUpdate: { ja: "既存の「シンボル一覧」アートボードがあれば置き換え", en: "Replace existing Symbol List artboard if present" },
-        tipShowCaption: { ja: "各シンボルの下にシンボル名を表示", en: "Show symbol name below each symbol" },
+        showCaption: { ja: "シンボル名を表示", en: "Show symbol name" },
+        tipShowCaption: { ja: "各シンボルの近くにシンボル名を表示", en: "Show symbol name near each symbol" },
         captionPosition: { ja: "表示位置", en: "Position" },
-        captionNone: { ja: "しない", en: "Off" },
         captionAbove: { ja: "上", en: "Top" },
         captionBelow: { ja: "下", en: "Bottom" },
-        tipCaptionNone: { ja: "シンボル名を表示しない", en: "Do not show the symbol name" },
         tipCaptionAbove: { ja: "シンボルの上にシンボル名を表示", en: "Place the name above the symbol" },
         tipCaptionBelow: { ja: "シンボルの下にシンボル名を表示", en: "Place the name below the symbol" },
         fontSize: { ja: "フォントサイズ", en: "Font size" },
@@ -102,6 +107,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         tipSymbolGap: { ja: "シンボル同士の間隔", en: "Spacing between adjacent symbols" },
         maxRowWidth: { ja: "最大幅", en: "Max row width" },
         tipMaxRowWidth: { ja: "1行に並べる最大幅。超えたら折り返し", en: "Max width per row before wrapping" },
+        zoom: { ja: "画面ズーム", en: "Zoom" },
+        lightMode: { ja: "軽量モード", en: "Light mode" },
         noDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
         noSymbols: { ja: "登録されているシンボルがありません。", en: "No symbols are registered." },
         noUsedSymbols: { ja: "ドキュメント内で使用中のシンボルがありません。", en: "No symbols are currently used in the document." }
@@ -542,6 +549,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return { index: index, name: name, rect: rect };
     }
 
+    /* 指定アートボードをアクティブにし、その中心に指定倍率でズーム
+     * Activate the artboard and center the view on it at the given zoom factor */
+    function zoomToArtboard(doc, index, zoomFactor) {
+        if (index === null || index < 0 || index >= doc.artboards.length) return;
+        try { doc.artboards.setActiveArtboardIndex(index); } catch (e) { }
+        try {
+            var rect = doc.artboards[index].artboardRect; // [left, top, right, bottom]
+            var center = [(rect[0] + rect[2]) / 2, (rect[1] + rect[3]) / 2];
+            var view = doc.views[0];
+            view.zoom = zoomFactor;
+            view.centerPoint = center;
+        } catch (e) { }
+    }
+
     /* パッキング結果に従って各エントリ（シンボル＋任意のキャプション）を配置
      * Place entries (symbol + optional caption) based on packing result */
     function placeEntries(entries, originLeft, originTop, margin, captionPosition) {
@@ -686,6 +707,172 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     // =========================================
+    // TMK Zoom Module (collision-safe + Light mode)
+    // - Light mode: apply zoom only on slider release
+    // =========================================
+
+    function __TMKZoom_captureViewState(doc) {
+        var st = { view: null, zoom: null, center: null };
+        try {
+            st.view = doc.activeView;
+            st.zoom = st.view.zoom;
+            st.center = st.view.centerPoint;
+        } catch (_) { }
+        return st;
+    }
+
+    function __TMKZoom_restoreViewState(doc, state) {
+        if (!state) return;
+        try {
+            var v = state.view || doc.activeView;
+            if (v && state.zoom != null) v.zoom = state.zoom;
+            if (v && state.center != null) v.centerPoint = state.center;
+        } catch (_) { }
+    }
+
+    function __TMKZoom_addControls(parent, doc, labelText, initialState, options) {
+        options = options || {};
+        var minZoom = (typeof options.min === "number") ? options.min : 0.1;
+        var maxZoom = (typeof options.max === "number") ? options.max : 16;
+        var sliderWidth = (typeof options.sliderWidth === "number") ? options.sliderWidth : 240;
+        var doRedraw = (options.redraw !== false);
+
+        // Light mode options
+        var showLightMode = (options.lightMode !== false);            // default: show
+        var lightModeLabel = options.lightModeLabel || "Light mode";
+        var lightModeDefault = (options.lightModeDefault === true);   // default: false
+
+        // UI group
+        var g = parent.add("group");
+        g.orientation = "row";
+        g.alignChildren = ["center", "center"];
+        g.alignment = "center";
+        try { if (options.margins) g.margins = options.margins; } catch (_) { }
+
+        var stLabel = g.add("statictext", undefined, String(labelText || "Zoom"));
+
+        // Initial zoom
+        var initZoom = 1;
+        try {
+            if (initialState && initialState.zoom != null) initZoom = Number(initialState.zoom);
+            else initZoom = Number(doc.activeView.zoom);
+        } catch (_) { }
+        if (!initZoom || isNaN(initZoom)) initZoom = 1;
+
+        var sld = g.add("slider", undefined, initZoom, minZoom, maxZoom);
+        try { sld.preferredSize.width = sliderWidth; } catch (_) { }
+
+        var chkLight = null;
+        if (showLightMode) {
+            chkLight = g.add("checkbox", undefined, String(lightModeLabel));
+            chkLight.value = lightModeDefault;
+        }
+
+        function isLightMode() {
+            return !!(chkLight && chkLight.value);
+        }
+
+        function applyZoom(z) {
+            try {
+                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+                if (!v) return;
+
+                // --- Enhanced zoom center behavior with modifier keys ---
+                try {
+                    var kb = null;
+                    try { kb = ScriptUI.environment.keyboardState; } catch (_) { kb = null; }
+
+                    var isAlt = !!(kb && kb.altKey);
+                    var isShift = !!(kb && kb.shiftKey);
+
+                    // Alt + Shift → 選択をウィンドウにフィット
+                    if (isAlt && isShift) {
+                        try {
+                            if (doc.selection && doc.selection.length > 0) {
+                                app.executeMenuCommand("fitinwindow");
+                                return; // fit がズームを処理するので終了
+                            }
+                        } catch (_) { }
+                    }
+
+                    // Alt → アートボード中心
+                    if (isAlt) {
+                        try {
+                            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+                            var cx = (ab[0] + ab[2]) / 2;
+                            var cy = (ab[1] + ab[3]) / 2;
+                            v.centerPoint = [cx, cy];
+                        } catch (_) { }
+                    }
+                    // Shift → 選択中心
+                    else if (isShift) {
+                        var sel = doc.selection;
+                        if (sel && sel.length > 0) {
+                            var b = null;
+                            for (var i = 0; i < sel.length; i++) {
+                                try {
+                                    var gb = sel[i].geometricBounds;
+                                    if (!b) {
+                                        b = [gb[0], gb[1], gb[2], gb[3]];
+                                    } else {
+                                        if (gb[0] < b[0]) b[0] = gb[0];
+                                        if (gb[1] > b[1]) b[1] = gb[1];
+                                        if (gb[2] > b[2]) b[2] = gb[2];
+                                        if (gb[3] < b[3]) b[3] = gb[3];
+                                    }
+                                } catch (_) { }
+                            }
+                            if (b) {
+                                var cx2 = (b[0] + b[2]) / 2;
+                                var cy2 = (b[1] + b[3]) / 2;
+                                v.centerPoint = [cx2, cy2];
+                            }
+                        }
+                    }
+                } catch (_) { }
+
+                v.zoom = z;
+                if (doRedraw) { try { app.redraw(); } catch (_) { } }
+            } catch (_) { }
+        }
+        function syncFromView() {
+            try {
+                var v = (initialState && initialState.view) ? initialState.view : doc.activeView;
+                if (!v) return;
+                sld.value = v.zoom;
+            } catch (_) { }
+        }
+
+        // Live drag (disabled in light mode)
+        sld.onChanging = function () {
+            if (isLightMode()) return; // ✅ lightweight: do nothing while dragging
+            applyZoom(Number(sld.value));
+        };
+
+        // Always apply once on release
+        sld.onChange = function () {
+            applyZoom(Number(sld.value));
+        };
+
+        if (chkLight) {
+            chkLight.onClick = function () {
+                // Toggle feels consistent: apply current value immediately
+                try { applyZoom(Number(sld.value)); } catch (_) { }
+            };
+        }
+
+        return {
+            group: g,
+            label: stLabel,
+            slider: sld,
+            lightModeCheckbox: chkLight,
+            applyZoom: applyZoom,
+            syncFromView: syncFromView,
+            restoreInitial: function () { __TMKZoom_restoreViewState(doc, initialState); }
+        };
+    }
+
+    // =========================================
     // ダイアログ
     // =========================================
 
@@ -789,8 +976,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var panel = parent.add("panel", undefined, L(LABELS.captionPanel));
         setupPanel(panel);
 
-        /* 表示位置（横並び 3 ラジオ）。「しない」が「シンボル名を表示」OFF を兼ねる
-         * Caption position as a 3-way horizontal radio; "Off" replaces the show-caption checkbox */
+        var savedShowCaption = getSavedSetting(savedSettings, "showCaption", false);
+        var savedCaptionPosition = getSavedSetting(savedSettings, "captionPosition", "below");
+
+        /* シンボル名表示の ON/OFF / Toggle caption visibility */
+        var showCaptionCheckbox = panel.add("checkbox", undefined, L(LABELS.showCaption));
+        showCaptionCheckbox.helpTip = L(LABELS.tipShowCaption);
+        showCaptionCheckbox.value = (savedShowCaption !== false);
+
+        /* 表示位置（横並び 2 ラジオ）/ Caption position as 2-way horizontal radio */
         var posRow = panel.add("group");
         posRow.orientation = "row";
         posRow.alignChildren = ["left", "center"];
@@ -800,17 +994,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         posRadios.orientation = "row";
         posRadios.alignChildren = "left";
         posRadios.spacing = 10;
-        var captionNoneRadio = posRadios.add("radiobutton", undefined, L(LABELS.captionNone));
-        captionNoneRadio.helpTip = L(LABELS.tipCaptionNone);
         var captionAboveRadio = posRadios.add("radiobutton", undefined, L(LABELS.captionAbove));
         captionAboveRadio.helpTip = L(LABELS.tipCaptionAbove);
         var captionBelowRadio = posRadios.add("radiobutton", undefined, L(LABELS.captionBelow));
         captionBelowRadio.helpTip = L(LABELS.tipCaptionBelow);
-        var savedShowCaption = getSavedSetting(savedSettings, "showCaption", false);
-        var savedCaptionPosition = getSavedSetting(savedSettings, "captionPosition", "above");
-        captionNoneRadio.value = (savedShowCaption === false);
-        captionAboveRadio.value = (savedShowCaption !== false && savedCaptionPosition === "above");
-        captionBelowRadio.value = (savedShowCaption !== false && savedCaptionPosition === "below");
+        captionAboveRadio.value = (savedCaptionPosition === "above");
+        captionBelowRadio.value = (savedCaptionPosition !== "above");
 
         /* フォントサイズ（単位は環境設定 text/units に従う）/ Font size in the user's text-unit pref */
         var fontSizeRow = panel.add("group");
@@ -832,7 +1021,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         fontSizeRow.add("statictext", undefined, TYPE_UNIT.label);
 
         return {
-            captionNoneRadio: captionNoneRadio,
+            showCaptionCheckbox: showCaptionCheckbox,
+            posRow: posRow,
             captionAboveRadio: captionAboveRadio,
             captionBelowRadio: captionBelowRadio,
             fontSizeRow: fontSizeRow,
@@ -840,21 +1030,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         };
     }
 
+    function buildTargetPanel(parent) {
+        var panel = parent.add("panel", undefined, L(LABELS.targetPanel));
+        setupPanel(panel);
+        var filterAllRadio = panel.add("radiobutton", undefined, L(LABELS.filterAll));
+        filterAllRadio.helpTip = L(LABELS.tipFilterAll);
+        var filterUsedRadio = panel.add("radiobutton", undefined, L(LABELS.filterUsed));
+        filterUsedRadio.helpTip = L(LABELS.tipFilterUsed);
+        /* 起動時は常に「すべて」を選択（保存値は無視）/ Always start with "all" on launch */
+        filterAllRadio.value = true;
+        filterUsedRadio.value = false;
+        return {
+            filterAllRadio: filterAllRadio,
+            filterUsedRadio: filterUsedRadio
+        };
+    }
+
     function buildSymbolPanel(parent, savedSettings) {
         var panel = parent.add("panel", undefined, L(LABELS.symbolPanel));
         setupPanel(panel);
-
-        /* 対象フィルタ / Filter radios */
-        var filterGroup = panel.add("group");
-        filterGroup.orientation = "row";
-        filterGroup.spacing = 12;
-        var filterAllRadio = filterGroup.add("radiobutton", undefined, L(LABELS.filterAll));
-        filterAllRadio.helpTip = L(LABELS.tipFilterAll);
-        var filterUsedRadio = filterGroup.add("radiobutton", undefined, L(LABELS.filterUsed));
-        filterUsedRadio.helpTip = L(LABELS.tipFilterUsed);
-        var savedFilter = getSavedSetting(savedSettings, "filter", "all");
-        filterAllRadio.value = (savedFilter === "all");
-        filterUsedRadio.value = (savedFilter === "used");
 
         var symbolGapInput = addValueRow(panel, labelText(LABELS.gap),
             getSavedSetting(savedSettings, "symbolGap", DEFAULT_SYMBOL_GAP_PT), L(LABELS.tipSymbolGap));
@@ -862,8 +1056,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             getSavedSetting(savedSettings, "maxRowWidth", DEFAULT_MAX_ROW_WIDTH_PT), L(LABELS.tipMaxRowWidth));
 
         return {
-            filterAllRadio: filterAllRadio,
-            filterUsedRadio: filterUsedRadio,
             symbolGapInput: symbolGapInput,
             maxRowWidthInput: maxRowWidthInput
         };
@@ -901,7 +1093,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     /* ダイアログを構築し、コントロール参照を返す / Build dialog and return refs */
-    function buildDialog(savedSettings) {
+    function buildDialog(savedSettings, doc, zoomState) {
         var dialog = new Window("dialog", L(LABELS.dialogTitle) + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
@@ -937,13 +1129,27 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var symbolGroupPanel = rightColumn.add("panel", undefined, L(LABELS.symbolGroupPanel));
         setupPanel(symbolGroupPanel);
         symbolGroupPanel.margins = [15, 20, 15, 15];
+        var targetRefs = buildTargetPanel(symbolGroupPanel);
         var symbolRefs = buildSymbolPanel(symbolGroupPanel, savedSettings);
         var captionRefs = buildCaptionPanel(symbolGroupPanel, savedSettings);
+
+        /* 画面ズームスライダー / Screen zoom slider */
+        var zoomCtrl = __TMKZoom_addControls(dialog, doc, L(LABELS.zoom), zoomState, {
+            min: 0.1,
+            max: 8,
+            sliderWidth: 240,
+            margins: [0, 0, 0, 10],
+            redraw: true,
+            lightMode: true,
+            lightModeLabel: L(LABELS.lightMode),
+            lightModeDefault: false
+        });
 
         var buttonRefs = buildButtonRow(dialog, savedSettings);
 
         return {
             dialog: dialog,
+            zoomCtrl: zoomCtrl,
             rightRadio: placementRefs.rightRadio,
             belowRadio: placementRefs.belowRadio,
             artboardGapInput: placementRefs.artboardGapInput,
@@ -956,9 +1162,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             bgGrayRadio: bgColorRefs.bgGrayRadio,
             updateCheckbox: buttonRefs.updateCheckbox,
             fontSizeInput: captionRefs.fontSizeInput,
-            filterAllRadio: symbolRefs.filterAllRadio,
-            filterUsedRadio: symbolRefs.filterUsedRadio,
-            captionNoneRadio: captionRefs.captionNoneRadio,
+            filterAllRadio: targetRefs.filterAllRadio,
+            filterUsedRadio: targetRefs.filterUsedRadio,
+            showCaptionCheckbox: captionRefs.showCaptionCheckbox,
+            captionPosRow: captionRefs.posRow,
             captionAboveRadio: captionRefs.captionAboveRadio,
             captionBelowRadio: captionRefs.captionBelowRadio,
             fontSizeRow: captionRefs.fontSizeRow,
@@ -996,7 +1203,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             artboardGap: readInputPt(controls.artboardGapInput.text, DEFAULT_ARTBOARD_GAP_PT),
             margin: readInputPt(controls.marginInput.text, DEFAULT_ARTBOARD_MARGIN_PT),
             update: controls.updateCheckbox.value,
-            showCaption: !controls.captionNoneRadio.value,
+            showCaption: controls.showCaptionCheckbox.value,
             filter: controls.filterUsedRadio.value ? "used" : "all",
             symbolGap: readInputPt(controls.symbolGapInput.text, DEFAULT_SYMBOL_GAP_PT),
             maxRowWidth: readInputPt(controls.maxRowWidthInput.text, DEFAULT_MAX_ROW_WIDTH_PT),
@@ -1077,10 +1284,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             })(bgRadios[k]);
         }
 
-        /* キャプション「しない」のときフォントサイズ行をディム
-         * Dim font-size row when caption is set to "Off" */
+        /* 「シンボル名を表示」OFF のとき表示位置とフォントサイズ行をディム
+         * Dim position row and font-size row when caption is off */
         function updateCaptionEnabled() {
-            controls.fontSizeRow.enabled = !controls.captionNoneRadio.value;
+            var on = controls.showCaptionCheckbox.value;
+            controls.captionPosRow.enabled = on;
+            controls.fontSizeRow.enabled = on;
         }
 
         /* 寸法以外の操作は幅・高さオーバーライドを解除して再描画
@@ -1092,14 +1301,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         ];
         for (var i = 0; i < triggers.length; i++) triggers[i].onClick = clearAndRefresh;
 
-        var captionRadios = [
-            controls.captionNoneRadio, controls.captionAboveRadio, controls.captionBelowRadio
-        ];
+        controls.showCaptionCheckbox.onClick = function () {
+            updateCaptionEnabled();
+            clearAndRefresh();
+        };
+
+        var captionRadios = [controls.captionAboveRadio, controls.captionBelowRadio];
         for (var c = 0; c < captionRadios.length; c++) {
-            captionRadios[c].onClick = function () {
-                updateCaptionEnabled();
-                clearAndRefresh();
-            };
+            captionRadios[c].onClick = clearAndRefresh;
         }
         updateCaptionEnabled();
 
@@ -1153,12 +1362,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     /* ダイアログ全体のオーケストレーション / Orchestrate the dialog session */
     function showDialog(doc) {
         var savedSettings = loadSettings();
-        var controls = buildDialog(savedSettings);
+        var zoomState = __TMKZoom_captureViewState(doc);
+        var controls = buildDialog(savedSettings, doc, zoomState);
         var refresher = makePreviewRefresher(doc, controls);
         wireDialogEvents(controls, refresher);
 
-        /* 起動直後に初回プレビューを表示 / Initial preview before showing dialog */
+        /* 起動直後に初回プレビューを表示し、新アートボードの中心に 60% ズーム。
+         * スライダー値を現在のビューに合わせる
+         * Initial preview, then center on the new artboard at 60% zoom and sync slider */
         refresher.refresh();
+        if (refresher.state.current) {
+            zoomToArtboard(doc, refresher.state.current.artboardInfo.index, 0.6);
+            controls.zoomCtrl.syncFromView();
+            app.redraw();
+        }
 
         var result = runDialog(controls);
 
@@ -1186,8 +1403,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         if (refresher.state.current) {
             clearLayout(doc, refresher.state.current);
-            app.redraw();
         }
+        controls.zoomCtrl.restoreInitial();
+        app.redraw();
         return null;
     }
 

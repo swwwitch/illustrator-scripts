@@ -1,9 +1,7 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-(function () {
-
-    /*
+/*
     ### スクリプト名：
 
     SmartRenamer.jsx
@@ -13,30 +11,30 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     - Illustrator のアートボード／シンボル／レイヤー名を、接頭辞・接尾辞・名前ソース・検索置換を組み合わせて一括リネーム／並び替えするスクリプトです。
     - ダイアログ上で設定を変更すると、結果を自動でプレビュー更新します。
 
-    #### 対象タイプ（ダイアログ最上段・group）
+    #### 種類（ダイアログ最上段）
 
-    - 「アートボード」「シンボル」「レイヤー」から切り替え可能（中央配置の group UI）
-    - 切替時は右カラムの一覧と「フィルター」「固定」パネルの状態がそのタイプ向けに再構築される
-    - シンボル／レイヤーでも「固定」パネルを表示し、「元の名称」または指定テキストをベースに接頭辞・接尾辞・検索置換を適用
+    - 「アートボード」「シンボル」「レイヤー」から切り替え可能
+    - 切替時は右カラムの一覧と「フィルター」「名前の基準」パネルの状態がその種類向けに再構築される
+    - シンボル／レイヤーでも「名前の基準」パネルを表示し、「元の名称」または指定テキストをベースに接頭辞・接尾辞・検索置換を適用
 
     #### リネーム条件（左カラム）
 
     - 接頭辞・接尾辞：連番トークン（`{#1}` → 1,2,3 ／ `{#01}` → 01,02,03 のゼロパディング対応）、`#FN`（ファイル名）、`#DT`（日付）、区切り（`-` `_`）の挿入ボタン
-    - 固定：「元の名称」「最前面のテキスト」（アートボード時のみ。レイヤー／グループを再帰スキャンし、アートボード内で最初に見つかった可視・非ロック TextFrame）または「指定」（任意テキスト）
+    - 名前の基準：「元の名称」「最前面のテキスト」（アートボード時のみ。レイヤー／グループを再帰スキャンし、アートボード内で最初に見つかった可視・非ロック TextFrame）または「指定」（任意テキスト）
     - 検索・置換：検索文字列と置換文字列。`正規表現` チェックで RegExp 動作（既定 ON）、OFF はリテラル（特殊文字エスケープ）。置換側にもトークンボタン（`#`→`{#1}` ／ `##`→`{#01}` ／ `-` ／ `_` ／ `x` でクリア）。検索側にも `\d` / `\d+` / `.+`（全体マッチ）を入力するショートカットボタンを追加
     - 同名が重複する場合は "_1", "_2" などを自動付加（接頭辞・接尾辞・置換テキストに連番トークンがある場合はユニーク前提でスキップ）
 
     #### フィルター（右カラム上段パネル）
 
-    - 1 行目：「すべて」または「指定範囲」（`1-3,5` 形式）。並び替え／リネームパネルのチェックと双方向連動
-    - 2 行目：「検索でフィルター」チェック＋テキスト。ON のときは対象選択（すべて／指定範囲）を無視し、現在名に該当文字列を含むアイテムだけを対象化
+    - 1 行目：「すべて」または「指定範囲」（`1-3,5` 形式）。右カラム一覧のチェックと双方向連動
+    - 2 行目：「検索でフィルター」チェック＋テキスト。ON のときは「すべて／指定範囲」を無視し、現在名に該当文字列を含むアイテムだけをチェックする
     - フィルター UI は専用パネル化され、右カラム上部へ移動
 
     #### 並び替え／リネーム（右カラム下段）
 
-    - 各アイテムの「元の名前 → 新しい名前」を一覧表示。［更新］後は確定後の現在名を右カラムの基準名として再取得
+    - 各アイテムの「現在の名前 → 新しい名前」を一覧表示。［更新］後は確定後の現在名を右カラムの基準名として再取得し、設定変更がないまま OK した場合は二重適用を防止
     - チェックを付けた行のみ「新しい名前」を手動上書き可能（手動編集後はプレビューで上書きされない）
-    - チェック行を「↑先頭へ／↑上へ／↓下へ／↓末尾へ」で並び替え。アートボードは rect 入れ替え、レイヤーは `.move()`、シンボルは並び替え不可
+    - チェック行を「↑先頭へ／↑上へ／↓下へ／↓末尾へ」で並び替え。アートボードは rect 入れ替え、シンボル／レイヤーは `.move()` で並び替え
     - チェックボックスで Option+クリック：
       - 全行 OFF 状態：全行 ON
       - 一部 ON 状態：クリック値に合わせて一括切替
@@ -45,14 +43,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     #### ボタン
 
     - 「更新」で現在の設定・並び替え・手動編集名を canvas に即時反映。シンボル／レイヤーでも OK 前に即時反映される
-    - キャンセル時はダイアログ表示前の名前を全タイプ復元
+    - キャンセル時はダイアログ表示前の名前をすべての種類で復元
 
     ### 更新履歴
 
     - v1.0 (20250509) : 初期バージョン
     - v1.5.2 (20260508) : ［更新］ボタンで右カラムの手動編集名と並び替えも確定するように変更
     - v1.5.3 (20260508) : 同名重複時、最初のアイテムから "_1" を付加するように変更（重複しない名前はそのまま）
-    - v1.6.0 (20260511) : 対象タイプ（アートボード／シンボル／レイヤー）対応、フィルターパネル追加、「元の名称」モード追加、検索でフィルター、検索・置換（正規表現対応）、検索正規表現ショートカット、`{#N}` 連番トークン、Option+クリック孤立化、［更新］後の再ベースライン化、シンボル／レイヤーの即時更新対応を追加
+    - v1.6.0 (20260511) : 種類（アートボード／シンボル／レイヤー）切替対応、フィルターパネル追加、「元の名称」モード追加、検索でフィルター、検索・置換（正規表現対応）、検索正規表現ショートカット、`{#N}` 連番トークン、Option+クリック孤立化、［更新］後の再ベースライン化、シンボル／レイヤーの即時更新、［更新］後に設定変更なしで OK した場合の二重適用防止を追加
 
     ---
 
@@ -65,30 +63,30 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     - Batch rename and reorder Illustrator artboards / symbols / layers by combining prefix, suffix, name source, and find/replace.
     - As settings change in the dialog, results are updated automatically for preview.
 
-    #### Target Type (top dialog group)
+    #### Item Type (top of dialog)
 
-    - Switch between Artboard / Symbol / Layer (center-aligned group UI)
-    - On switch, the right-side list and Filter / Fixed panels are rebuilt for that type
-    - In Symbol / Layer mode the Fixed panel remains visible, and renaming can use "Original Name" or custom text plus prefix / suffix / find-replace
+    - Switch between Artboard / Symbol / Layer
+    - On switch, the right-side list and Filter / Name Source panels are rebuilt for that type
+    - In Symbol / Layer mode the Name Source panel remains visible, and renaming can use "Original Name" or custom text plus prefix / suffix / find-replace
 
     #### Rename conditions (left column)
 
     - Prefix / Suffix: sequence tokens (`{#1}` → 1,2,3 ; `{#01}` → 01,02,03 with zero padding), `#FN` (file name), `#DT` (date), separators (`-` `_`)
-    - Fixed: "Original Name", "Frontmost Text" (Artboard mode only; recursively scans layers/groups and uses the first visible unlocked TextFrame found inside the artboard), or "Custom" (free text)
+    - Name Source: "Original Name", "Frontmost Text" (Artboard mode only; recursively scans layers/groups and uses the first visible unlocked TextFrame found inside the artboard), or "Custom" (free text)
     - Find / Replace: find and replace strings. The Regex checkbox switches between RegExp mode (default ON) and literal (escaped) mode. The replace field also has token buttons (`#`→`{#1}`, `##`→`{#01}`, `-`, `_`, `x` to clear). The find field also includes shortcut buttons for `\d`, `\d+`, and `.+` (match-all)
     - Automatically appends "_1", "_2", etc. only on name collision (skipped when prefix / suffix / replace contains a sequence token, since results are assumed unique)
 
     #### Filter (top-right panel)
 
     - Row 1: "All" or "Range" (`1-3,5` form). Two-way linked with the Reorder / Rename checkboxes
-    - Row 2: "Filter by search" checkbox + text. When ON, ignores the All/Range selection and only checks items whose current name contains the text
+    - Row 2: "Filter by search" checkbox + text. When ON, ignores the All/Range selection and checks only items whose current name contains the text
     - The filter UI is grouped into its own dedicated panel at the top of the right column
 
     #### Reorder / Rename (right column, bottom)
 
-    - Lists each item as "Original Name -> New Name". After Refresh, the committed current names are reloaded as the right-column baseline names
+    - Lists each item as "Current Name -> New Name". After Refresh, committed current names are reloaded as the right-column baseline names, and unchanged OK execution avoids double-apply
     - Checked rows allow manual override of the new name (manual edits stay sticky)
-    - Move checked rows with Top / Up / Down / Bottom. Artboards swap rects, layers use `.move()`, symbols are not reorderable
+    - Move checked rows with Top / Up / Down / Bottom. Artboards swap rects, symbols / layers use `.move()`
     - Option-click a checkbox:
       - When no rows are checked: turn all rows ON
       - When some rows are checked: bulk toggle to the new value
@@ -97,15 +95,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     #### Buttons
 
     - "Refresh" immediately commits current settings, reorder state, and manual-edited names. Symbols and layers are also updated immediately before pressing OK
-    - Cancelling restores pre-dialog names for all three target types
+    - Cancelling restores pre-dialog names for all three item types
 
     ### Update History
 
     - v1.0 (20250509): Initial version
     - v1.5.2 (20260508): Refresh now commits right-column manual name edits and reorder changes
     - v1.5.3 (20260508): On name collisions, the first occurrence now starts at "_1" (non-duplicates remain untouched)
-    - v1.6.0 (20260511): Added target type (artboard / symbol / layer), dedicated filter panel, "Original Name" mode, search filter, regex shortcut buttons, find / replace (regex-capable), `{#N}` sequence tokens, Option-click isolate, post-Refresh re-baselining, and immediate symbol/layer Refresh updates
+    - v1.6.0 (20260511): Added item type switching (artboard / symbol / layer), dedicated filter panel, "Original Name" mode, search filter, regex shortcut buttons, find / replace (regex-capable), `{#N}` sequence tokens, Option-click isolate, post-Refresh re-baselining, immediate symbol/layer Refresh updates, and double-apply prevention when pressing OK without changes after Refresh
     */
+
+(function () {
 
     // =========================================
     // バージョンとローカライズ
@@ -139,12 +139,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Suffix"
         },
         sourceLabel: {
-            ja: "固定",
-            en: "Fixed"
+            ja: "名前の基準",
+            en: "Name Source"
         },
         basicLabel: {
-            ja: "リネーム",
-            en: "Rename"
+            ja: "リネーム条件",
+            en: "Rename Rules"
         },
         originalNameOption: {
             ja: "元の名称",
@@ -158,35 +158,31 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             ja: "指定",
             en: "Custom"
         },
-        targetLabel: {
-            ja: "対象",
-            en: "Target"
-        },
         filterPanelLabel: {
             ja: "フィルター",
             en: "Filter"
         },
-        targetTypeLabel: {
-            ja: "対象",
-            en: "Target"
-        },
-        targetTypeArtboard: {
+        itemTypeArtboard: {
             ja: "アートボード",
             en: "Artboard"
         },
-        targetTypeSymbol: {
+        itemTypeSymbol: {
             ja: "シンボル",
             en: "Symbol"
         },
-        targetTypeLayer: {
+        itemTypeLayer: {
             ja: "レイヤー",
             en: "Layer"
         },
-        allBoards: {
+        itemTypeGraphicStyle: {
+            ja: "グラフィックスタイル",
+            en: "Graphic Style"
+        },
+        allItems: {
             ja: "すべて",
             en: "All"
         },
-        specificBoards: {
+        rangeItems: {
             ja: "指定範囲",
             en: "Range"
         },
@@ -195,8 +191,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Filter by search"
         },
         searchHelpTip: {
-            ja: "テキストに照合するものだけに絞り込み",
-            en: "Narrow down to only those matching the text"
+            ja: "現在の名前に指定文字列を含む項目だけをチェックします",
+            en: "Check only items whose current names contain the specified text"
         },
         findReplaceLabel: {
             ja: "検索・置換",
@@ -223,24 +219,24 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "OK"
         },
         alertNeedSettings: {
-            ja: "接頭辞・接尾辞のいずれかを入力するか、アートボード名を指定してください。",
-            en: "Enter a prefix or suffix, or choose an artboard name source."
+            ja: "接頭辞・接尾辞・検索文字列のいずれかを入力してください。",
+            en: "Enter a prefix, suffix, or find text to rename."
         },
         reorderLabel: {
-            ja: "並び替え／リネーム",
-            en: "Reorder / Rename"
+            ja: "リスト（並び替え／リネーム）",
+            en: "List (Reorder / Rename)"
         },
         orderHeader: {
             ja: "順",
             en: "#"
         },
-        targetHeader: {
-            ja: "対象",
+        selectHeader: {
+            ja: "選択",
             en: "Sel"
         },
-        originalNameHeader: {
-            ja: "元の名前",
-            en: "Original Name"
+        currentNameHeader: {
+            ja: "現在の名前",
+            en: "Current Name"
         },
         newNameHeader: {
             ja: "新しい名前",
@@ -264,7 +260,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         },
         emptyNameAlert: {
             ja: "{n} 番目の新しい名前が空です。名前を入力してください。",
-            en: "Artboard {n}: new name is empty. Please enter a name."
+            en: "Item {n}: new name is empty. Please enter a name."
         },
         refreshBtn: {
             ja: "更新",
@@ -288,12 +284,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // 設定の読み書きとダイアログイベント / Settings I/O and dialog events
     // =========================================
 
-    /* ダイアログ表示前の状態（名前・アートボードrect・レイヤー順）をキャプチャ / Capture pre-dialog state (names, artboard rects, layer order) */
+    /* ダイアログ表示前の状態（名前・アートボードrect・シンボル順・レイヤー順・グラフィックスタイル順）をキャプチャ / Capture pre-dialog state (names, artboard rects, symbol order, layer order, graphic style order) */
     function captureOriginalState(doc) {
         var state = {
             artboard: { names: [], rects: [] },
-            symbol: { names: [] },
-            layer: { names: [], refs: [] }
+            symbol: { names: [], refs: [] },
+            layer: { names: [], refs: [] },
+            graphicStyle: { names: [], refs: [] }
         };
         for (var ai = 0; ai < doc.artboards.length; ai++) {
             state.artboard.names.push(doc.artboards[ai].name);
@@ -301,15 +298,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
         for (var si = 0; si < doc.symbols.length; si++) {
             state.symbol.names.push(doc.symbols[si].name);
+            state.symbol.refs.push(doc.symbols[si]);
         }
         for (var li = 0; li < doc.layers.length; li++) {
             state.layer.names.push(doc.layers[li].name);
             state.layer.refs.push(doc.layers[li]);
         }
+        var renamableGraphicStyles = getRenamableGraphicStyles(doc);
+        for (var gsi = 0; gsi < renamableGraphicStyles.length; gsi++) {
+            state.graphicStyle.names.push(renamableGraphicStyles[gsi].name);
+            state.graphicStyle.refs.push(renamableGraphicStyles[gsi]);
+        }
         return state;
     }
 
-    /* キャンセル時にダイアログ表示前の状態を復元（名前・アートボードrect・レイヤー順） / Restore pre-dialog state on cancel */
+    /* キャンセル時にダイアログ表示前の状態を復元（名前・アートボードrect・シンボル順・レイヤー順・グラフィックスタイル順） / Restore pre-dialog state on cancel */
     function restoreOriginalState(doc, originalState) {
         // アートボード：rect と名前を復元（一時名で衝突回避）
         var artboards = doc.artboards;
@@ -324,11 +327,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             } catch (abError) { $.writeln("[SmartRenamer] artboard restore failed at " + abIdx + ": " + abError); }
         }
 
-        // シンボル：インデックス順で復元（並び替え非対応）
-        var symbols = doc.symbols;
-        var symbolCount = Math.min(symbols.length, originalState.symbol.names.length);
-        for (var symIdx = 0; symIdx < symbolCount; symIdx++) {
-            try { symbols[symIdx].name = originalState.symbol.names[symIdx]; } catch (symError) { $.writeln("[SmartRenamer] symbol restore failed at " + symIdx + ": " + symError); }
+        // シンボル：安定参照を使って元の順序へ戻し、各参照に元の名前を当てる
+        var symbolRefs = originalState.symbol.refs;
+        for (var symReverseIdx = symbolRefs.length - 1; symReverseIdx >= 0; symReverseIdx--) {
+            try { symbolRefs[symReverseIdx].move(doc, ElementPlacement.PLACEATBEGINNING); } catch (symOrderError) { $.writeln("[SmartRenamer] symbol order restore failed at " + symReverseIdx + ": " + symOrderError); }
+        }
+        for (var symNameIdx = 0; symNameIdx < symbolRefs.length; symNameIdx++) {
+            try { symbolRefs[symNameIdx].name = originalState.symbol.names[symNameIdx]; } catch (symNameError) { $.writeln("[SmartRenamer] symbol name restore failed at " + symNameIdx + ": " + symNameError); }
         }
 
         // レイヤー：安定参照を使って元の順序へ戻し、各参照に元の名前を当てる
@@ -339,27 +344,37 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         for (var nameIdx = 0; nameIdx < layerRefs.length; nameIdx++) {
             try { layerRefs[nameIdx].name = originalState.layer.names[nameIdx]; } catch (layerNameError) { $.writeln("[SmartRenamer] layer name restore failed at " + nameIdx + ": " + layerNameError); }
         }
+
+        // グラフィックスタイル：安定参照を使って元の順序へ戻し、各参照に元の名前を当てる（`[Default]` 等は対象外）
+        var gsRefs = originalState.graphicStyle.refs;
+        for (var gsReverseIdx = gsRefs.length - 1; gsReverseIdx >= 0; gsReverseIdx--) {
+            try { gsRefs[gsReverseIdx].move(doc, ElementPlacement.PLACEATBEGINNING); } catch (gsOrderError) { $.writeln("[SmartRenamer] graphic style order restore failed at " + gsReverseIdx + ": " + gsOrderError); }
+        }
+        for (var gsNameIdx = 0; gsNameIdx < gsRefs.length; gsNameIdx++) {
+            try { gsRefs[gsNameIdx].name = originalState.graphicStyle.names[gsNameIdx]; } catch (gsNameError) { $.writeln("[SmartRenamer] graphic style name restore failed at " + gsNameIdx + ": " + gsNameError); }
+        }
     }
 
     /* ダイアログ各コントロールから設定オブジェクトを構築 / Read settings object from dialog controls */
-    /* rangeMode / rangeText は itemEntries の checked 状態から実効値を導出する（検索フィルタ・手動チェック後の選択を反映） */
+    /* rangeMode / rangeText は itemEntries の checked 状態から実効値を導出する（検索フィルター・手動チェック後の選択を反映） */
     function readDialogSettings(dialogUI) {
         var mode = dialogUI.frontmostRadio.value ? "frontmost"
             : (dialogUI.originalNameRadio.value ? "original" : "custom");
-        var targetType = dialogUI.targetTypeSymbolRadio.value ? "symbol"
-            : (dialogUI.targetTypeLayerRadio.value ? "layer" : "artboard");
+        var itemType = dialogUI.itemTypeSymbolRadio.value ? "symbol"
+            : (dialogUI.itemTypeLayerRadio.value ? "layer"
+                : (dialogUI.itemTypeGraphicStyleRadio.value ? "graphicstyle" : "artboard"));
 
         var settings = {
             mode: mode,
-            targetType: targetType,
+            itemType: itemType,
             prefix: dialogUI.prefixInput.text,
             suffix: dialogUI.suffixInput.text,
             customText: dialogUI.customInput.text,
-            rangeMode: dialogUI.targetAllRadio.value ? "all" : "numbered",
+            rangeMode: dialogUI.filterAllRadio.value ? "all" : "numbered",
             rangeText: dialogUI.rangeInput.text,
             findText: dialogUI.findInput.text,
             replaceText: dialogUI.replaceInput.text,
-            useRegex: dialogUI.regexCheckbox.value,
+            useRegex: dialogUI.regexCheckbox.value
         };
 
         if (dialogUI.getItemEntries) {
@@ -401,8 +416,55 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
     }
 
+    /* 現在設定＋右カラム状態から比較用署名を生成（[更新]→OK の差分判定用） / Build a comparable signature from current settings and reorder rows (used to detect changes between Refresh and OK) */
+    function buildSettingsSignature(settings) {
+        var parts = [];
+
+        parts.push("itemType=" + (settings.itemType || ""));
+        parts.push("mode=" + (settings.mode || ""));
+        parts.push("prefix=" + (settings.prefix || ""));
+        parts.push("suffix=" + (settings.suffix || ""));
+        parts.push("customText=" + (settings.customText || ""));
+        parts.push("rangeMode=" + (settings.rangeMode || ""));
+        parts.push("rangeText=" + (settings.rangeText || ""));
+        parts.push("findText=" + (settings.findText || ""));
+        parts.push("replaceText=" + (settings.replaceText || ""));
+        parts.push("useRegex=" + (!!settings.useRegex));
+
+        if (settings.itemEntries) {
+            for (var entryIdx = 0; entryIdx < settings.itemEntries.length; entryIdx++) {
+                var entry = settings.itemEntries[entryIdx];
+                parts.push([
+                    "entry",
+                    entryIdx,
+                    entry.originalIndex,
+                    entry.checked ? "1" : "0",
+                    entry.userEdited ? "1" : "0",
+                    entry.newName || ""
+                ].join(":"));
+            }
+        }
+
+        return parts.join("\n");
+    }
+
     /* ダイアログ各コントロールにイベントハンドラを設定 / Wire dialog event handlers */
     function bindDialogEvents(dialogUI, doc) {
+        var lastCommittedSignature = null;
+
+        /* 編集中UIを同期して現在設定を取得 / Sync edit fields and collect current settings */
+        function readCurrentCommittedSettings() {
+            if (dialogUI.syncEditingValues) {
+                dialogUI.syncEditingValues();
+            }
+
+            var settings = readDialogSettings(dialogUI);
+            if (dialogUI.getItemEntries) {
+                settings.itemEntries = dialogUI.getItemEntries();
+            }
+
+            return settings;
+        }
         function updatePreview() {
             // canvas は触らず、未確定プレビュー名を計算して右カラムを更新
             var previewNames = computePreviewNames(doc, readDialogSettings(dialogUI));
@@ -413,14 +475,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         function commitCurrentSettings() {
             /* 現在の設定と右カラムの手動編集を canvas に確定（[更新]） / Commit current settings and right-column manual edits to the canvas (Refresh) */
-            if (dialogUI.syncEditingValues) {
-                dialogUI.syncEditingValues();
-            }
-
-            var settings = readDialogSettings(dialogUI);
-            if (dialogUI.getItemEntries) {
-                settings.itemEntries = dialogUI.getItemEntries();
-            }
+            var settings = readCurrentCommittedSettings();
 
             var hasManualOrReorder = settings.itemEntries && hasReorderOrRename(settings.itemEntries);
             var committed = false;
@@ -437,49 +492,59 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 if (dialogUI.rebaselineEntriesAfterCommit) {
                     dialogUI.rebaselineEntriesAfterCommit();
                 }
+                if (dialogUI.syncReorderRowsToCurrentNames) {
+                    dialogUI.syncReorderRowsToCurrentNames();
+                }
+                lastCommittedSignature = buildSettingsSignature(readCurrentCommittedSettings());
+                if (dialogUI.setLastCommittedSignature) {
+                    dialogUI.setLastCommittedSignature(lastCommittedSignature);
+                }
+                return;
             }
             updatePreview();
         }
 
-        function syncTargetInput() {
-            dialogUI.rangeInput.enabled = dialogUI.targetRangeRadio.value;
-            if (dialogUI.applyTargetToCheckboxes) {
-                if (dialogUI.targetAllRadio.value) {
-                    dialogUI.applyTargetToCheckboxes("all", "");
+        function syncFilterInput() {
+            dialogUI.rangeInput.enabled = dialogUI.filterRangeRadio.value;
+            if (dialogUI.applyFilterToCheckboxes) {
+                if (dialogUI.filterAllRadio.value) {
+                    dialogUI.applyFilterToCheckboxes("all", "");
                 } else {
-                    dialogUI.applyTargetToCheckboxes("numbered", dialogUI.rangeInput.text);
+                    dialogUI.applyFilterToCheckboxes("numbered", dialogUI.rangeInput.text);
                 }
             }
             updatePreview();
         }
-        dialogUI.targetAllRadio.onClick = function () {
-            dialogUI.targetRangeRadio.value = false;
-            syncTargetInput();
+        dialogUI.filterAllRadio.onClick = function () {
+            dialogUI.filterRangeRadio.value = false;
+            syncFilterInput();
         };
-        dialogUI.targetRangeRadio.onClick = function () {
-            dialogUI.targetAllRadio.value = false;
-            syncTargetInput();
+        dialogUI.filterRangeRadio.onClick = function () {
+            dialogUI.filterAllRadio.value = false;
+            syncFilterInput();
         };
 
-        /* 対象タイプ切替後に呼ばれる：「すべて」適用とプレビュー更新 / Post type-switch: apply "all" target and refresh preview */
-        if (dialogUI.setTypeChangeCallback) {
-            dialogUI.setTypeChangeCallback(function () {
-                if (dialogUI.applyTargetToCheckboxes) {
-                    dialogUI.applyTargetToCheckboxes("all", "");
+        /* タイプ切替後に呼ばれる：「すべて」フィルター適用とプレビュー更新 / Post item-type switch: apply "all" filter and refresh preview */
+        if (dialogUI.setItemTypeChangeCallback) {
+            dialogUI.setItemTypeChangeCallback(function () {
+                if (dialogUI.applyFilterToCheckboxes) {
+                    dialogUI.applyFilterToCheckboxes("all", "");
                 }
                 updatePreview();
             });
         }
 
-        function selectTargetTypeRadio(type) {
-            dialogUI.targetTypeArtboardRadio.value = (type === "artboard");
-            dialogUI.targetTypeSymbolRadio.value = (type === "symbol");
-            dialogUI.targetTypeLayerRadio.value = (type === "layer");
-            dialogUI.setTargetType(type);
+        function selectItemTypeRadio(type) {
+            dialogUI.itemTypeArtboardRadio.value = (type === "artboard");
+            dialogUI.itemTypeSymbolRadio.value = (type === "symbol");
+            dialogUI.itemTypeLayerRadio.value = (type === "layer");
+            dialogUI.itemTypeGraphicStyleRadio.value = (type === "graphicstyle");
+            dialogUI.setItemType(type);
         }
-        dialogUI.targetTypeArtboardRadio.onClick = function () { selectTargetTypeRadio("artboard"); };
-        dialogUI.targetTypeSymbolRadio.onClick = function () { selectTargetTypeRadio("symbol"); };
-        dialogUI.targetTypeLayerRadio.onClick = function () { selectTargetTypeRadio("layer"); };
+        dialogUI.itemTypeArtboardRadio.onClick = function () { selectItemTypeRadio("artboard"); };
+        dialogUI.itemTypeSymbolRadio.onClick = function () { selectItemTypeRadio("symbol"); };
+        dialogUI.itemTypeLayerRadio.onClick = function () { selectItemTypeRadio("layer"); };
+        dialogUI.itemTypeGraphicStyleRadio.onClick = function () { selectItemTypeRadio("graphicstyle"); };
 
         var sourceRadios = [dialogUI.originalNameRadio, dialogUI.customRadio, dialogUI.frontmostRadio];
 
@@ -506,40 +571,40 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         dialogUI.prefixInput.onChange = updatePreview;
         dialogUI.suffixInput.onChange = updatePreview;
         dialogUI.rangeInput.onChange = function () {
-            if (dialogUI.targetRangeRadio.value) {
-                if (dialogUI.applyTargetToCheckboxes) {
-                    dialogUI.applyTargetToCheckboxes("numbered", dialogUI.rangeInput.text);
+            if (dialogUI.filterRangeRadio.value) {
+                if (dialogUI.applyFilterToCheckboxes) {
+                    dialogUI.applyFilterToCheckboxes("numbered", dialogUI.rangeInput.text);
                 }
                 updatePreview();
             }
         };
 
-        /* 現在の対象モード（すべて／指定範囲）を再適用（検索フィルタも反映） / Re-apply current target mode (with search filter) */
-        function reapplyCurrentTarget() {
-            if (!dialogUI.applyTargetToCheckboxes) return;
-            if (dialogUI.targetAllRadio.value) {
-                dialogUI.applyTargetToCheckboxes("all", "");
+        /* 現在のフィルターモード（すべて／指定範囲）を再適用（検索フィルターも反映） / Re-apply current filter mode (with search filter) */
+        function reapplyCurrentFilter() {
+            if (!dialogUI.applyFilterToCheckboxes) return;
+            if (dialogUI.filterAllRadio.value) {
+                dialogUI.applyFilterToCheckboxes("all", "");
             } else {
-                dialogUI.applyTargetToCheckboxes("numbered", dialogUI.rangeInput.text);
+                dialogUI.applyFilterToCheckboxes("numbered", dialogUI.rangeInput.text);
             }
         }
 
         dialogUI.searchFilterCheckbox.onClick = function () {
             var filterOn = dialogUI.searchFilterCheckbox.value;
             dialogUI.searchInput.enabled = filterOn;
-            // フィルタ ON 中は「すべて／指定範囲」を無効化し、状態が紛らわしくならないようにする
-            dialogUI.targetAllRadio.enabled = !filterOn;
-            dialogUI.targetRangeRadio.enabled = !filterOn;
-            dialogUI.rangeInput.enabled = !filterOn && dialogUI.targetRangeRadio.value;
+            // フィルター ON 中は「すべて／指定範囲」を無効化し、状態が紛らわしくならないようにする
+            dialogUI.filterAllRadio.enabled = !filterOn;
+            dialogUI.filterRangeRadio.enabled = !filterOn;
+            dialogUI.rangeInput.enabled = !filterOn && dialogUI.filterRangeRadio.value;
             if (filterOn) {
                 try { dialogUI.searchInput.active = true; } catch (focusError) { }
             }
-            reapplyCurrentTarget();
+            reapplyCurrentFilter();
             updatePreview();
         };
         dialogUI.searchInput.onChange = function () {
             if (dialogUI.searchFilterCheckbox.value) {
-                reapplyCurrentTarget();
+                reapplyCurrentFilter();
                 updatePreview();
             }
         };
@@ -550,23 +615,34 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         if (dialogUI.refreshBtn) {
             dialogUI.refreshBtn.onClick = function () {
-                /* edittext のフォーカス未解除でも値を確実に反映させる / Force onChange to commit pending edittext value */
-                try { dialogUI.rangeInput.notify("onChange"); } catch (notifyError) { }
+                /* 編集中の edittext をフォーカス未解除でも反映させるため、関連フィールドの onChange を一括で発火 / Force onChange on all edittexts so pending edits commit even without losing focus */
+                var pendingFields = [
+                    dialogUI.prefixInput,
+                    dialogUI.suffixInput,
+                    dialogUI.customInput,
+                    dialogUI.findInput,
+                    dialogUI.replaceInput,
+                    dialogUI.rangeInput,
+                    dialogUI.searchInput
+                ];
+                for (var pendingIdx = 0; pendingIdx < pendingFields.length; pendingIdx++) {
+                    try { pendingFields[pendingIdx].notify("onChange"); } catch (notifyError) { }
+                }
                 commitCurrentSettings();
             };
         }
 
-        // チェックボックス操作 → 対象設定 への逆同期に updatePreview を注入
+        // チェックボックス操作 → フィルター設定 への逆同期に updatePreview を注入
         if (dialogUI.setRequestPreviewUpdate) {
             dialogUI.setRequestPreviewUpdate(updatePreview);
         }
 
-        // 初期同期：対象設定 → チェックボックス
-        if (dialogUI.applyTargetToCheckboxes) {
-            if (dialogUI.targetAllRadio.value) {
-                dialogUI.applyTargetToCheckboxes("all", "");
+        // 初期同期：フィルター設定 → チェックボックス
+        if (dialogUI.applyFilterToCheckboxes) {
+            if (dialogUI.filterAllRadio.value) {
+                dialogUI.applyFilterToCheckboxes("all", "");
             } else {
-                dialogUI.applyTargetToCheckboxes("numbered", dialogUI.rangeInput.text);
+                dialogUI.applyFilterToCheckboxes("numbered", dialogUI.rangeInput.text);
             }
         }
 
@@ -616,19 +692,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
 
-        // 対象タイプ（ダイアログ最上段：アートボード／シンボル／レイヤー）
-        var targetTypePanel = dialog.add("group");
-        targetTypePanel.orientation = "row";
-        targetTypePanel.alignChildren = ["center", "center"];
-        targetTypePanel.alignment = ["fill", "top"];
-        targetTypePanel.margins = [0, 0, 0, 0];
+        // 種類（ダイアログ最上段：アートボード／シンボル／レイヤー）
+        var itemTypePanel = dialog.add("group");
+        itemTypePanel.orientation = "row";
+        itemTypePanel.alignChildren = ["center", "center"];
+        itemTypePanel.alignment = ["fill", "top"];
+        itemTypePanel.margins = [0, 0, 0, 0];
 
-        var targetTypeArtboardRadio = targetTypePanel.add("radiobutton", undefined, L('targetTypeArtboard'));
-        var targetTypeSymbolRadio = targetTypePanel.add("radiobutton", undefined, L('targetTypeSymbol'));
-        var targetTypeLayerRadio = targetTypePanel.add("radiobutton", undefined, L('targetTypeLayer'));
-        targetTypeArtboardRadio.value = true;
+        var itemTypeArtboardRadio = itemTypePanel.add("radiobutton", undefined, L('itemTypeArtboard'));
+        var itemTypeSymbolRadio = itemTypePanel.add("radiobutton", undefined, L('itemTypeSymbol'));
+        var itemTypeLayerRadio = itemTypePanel.add("radiobutton", undefined, L('itemTypeLayer'));
+        var itemTypeGraphicStyleRadio = itemTypePanel.add("radiobutton", undefined, L('itemTypeGraphicStyle'));
+        itemTypeArtboardRadio.value = true;
 
-        // コンテンツ行（左：リネーム条件、右：対象＋並び替え／リネーム）
+        // コンテンツ行（左：リネーム条件、右：フィルター＋並び替え／リネーム）
         var contentRow = dialog.add("group");
         contentRow.orientation = "row";
         contentRow.alignChildren = "top";
@@ -652,7 +729,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         prefixInput.active = true;
         addTokenButtons(prefixPanel, prefixInput);
 
-        // アートボード名
+        // 固定（元の名称／最前面のテキスト／指定）
         var sourcePanel = basicPanel.add("panel", undefined, L('sourceLabel'));
         sourcePanel.orientation = "column";
         sourcePanel.alignChildren = "left";
@@ -671,9 +748,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var frontmostRadio = sourcePanel.add("radiobutton", undefined, L('frontmostOption'));
 
         // 全ラジオを追加した後に初期値を設定
-        originalNameRadio.value = false;
+        originalNameRadio.value = true;
         customRadio.value = false;
-        frontmostRadio.value = true;
+        frontmostRadio.value = false;
 
         // 検索・置換
         var findReplacePanel = basicPanel.add("panel", undefined, L('findReplaceLabel'));
@@ -756,34 +833,34 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         suffixInput.characters = 16;
         addTokenButtons(suffixPanel, suffixInput);
 
-        // 右カラム：対象＋並び替え／リネーム
+        // 右カラム：フィルター＋並び替え／リネーム
         var rightColumn = contentRow.add("group");
         rightColumn.orientation = "column";
         rightColumn.alignChildren = "fill";
 
         // フィルター（右カラム上段）
-        var targetPanel = rightColumn.add("panel", undefined, L('filterPanelLabel'));
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = ["left", "center"];
-        setupPanel(targetPanel, 6);
+        var filterPanel = rightColumn.add("panel", undefined, L('filterPanelLabel'));
+        filterPanel.orientation = "column";
+        filterPanel.alignChildren = ["left", "center"];
+        setupPanel(filterPanel, 6);
 
-        var targetRangeRow = targetPanel.add("group");
-        targetRangeRow.orientation = "row";
-        targetRangeRow.alignChildren = ["left", "center"];
-        var targetAllRadio = targetRangeRow.add("radiobutton", undefined, L('allBoards'));
-        var targetRangeRadio = targetRangeRow.add("radiobutton", undefined, L('specificBoards'));
-        var rangeInput = targetRangeRow.add("edittext", undefined, "");
+        var rangeFilterRow = filterPanel.add("group");
+        rangeFilterRow.orientation = "row";
+        rangeFilterRow.alignChildren = ["left", "center"];
+        var filterAllRadio = rangeFilterRow.add("radiobutton", undefined, L('allItems'));
+        var filterRangeRadio = rangeFilterRow.add("radiobutton", undefined, L('rangeItems'));
+        var rangeInput = rangeFilterRow.add("edittext", undefined, "");
         rangeInput.characters = 10;
         rangeInput.enabled = false;
-        targetAllRadio.value = true;
-        targetRangeRadio.value = false;
+        filterAllRadio.value = true;
+        filterRangeRadio.value = false;
 
-        var targetSearchRow = targetPanel.add("group");
-        targetSearchRow.orientation = "row";
-        targetSearchRow.alignChildren = ["left", "center"];
-        var searchFilterCheckbox = targetSearchRow.add("checkbox", undefined, L('searchLabel'));
+        var searchFilterRow = filterPanel.add("group");
+        searchFilterRow.orientation = "row";
+        searchFilterRow.alignChildren = ["left", "center"];
+        var searchFilterCheckbox = searchFilterRow.add("checkbox", undefined, L('searchLabel'));
         searchFilterCheckbox.value = false;
-        var searchInput = targetSearchRow.add("edittext", undefined, "");
+        var searchInput = searchFilterRow.add("edittext", undefined, "");
         searchInput.characters = 10;
         searchInput.helpTip = L('searchHelpTip');
         searchInput.enabled = false;
@@ -793,10 +870,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         reorderPanel.alignChildren = "fill";
         setupPanel(reorderPanel, 6);
 
-        var currentTargetType = "artboard";
+        var currentItemType = "artboard";
 
-        function buildEntriesForType(type) {
-            var items = getDocumentItems(doc, type);
+        function buildEntriesForItemType(itemType) {
+            var items = getDocumentItems(doc, itemType);
             var entries = [];
             for (var i = 0; i < items.length; i++) {
                 var entry = {
@@ -806,7 +883,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     checked: false,
                     userEdited: false
                 };
-                if (type === "artboard") {
+                if (itemType === "artboard") {
                     entry.rect = items[i].artboardRect;
                 }
                 entries.push(entry);
@@ -814,74 +891,74 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             return entries;
         }
 
-        var itemEntries = buildEntriesForType(currentTargetType);
+        var itemEntries = buildEntriesForItemType(currentItemType);
 
-        // bindDialogEvents から updatePreview / 対象タイプ切替後処理を注入してもらうコールバック
+        // bindDialogEvents から updatePreview / タイプ切替後処理を注入してもらうコールバック
         var requestPreviewUpdate = null;
-        var typeChangeCallback = null;
+        var itemTypeChangeCallback = null;
+        var lastCommittedSignature = null;
+        var skipApplyOnOk = false;
 
         /* ［更新］確定後の再ベースライン化：entries の name / originalIndex を canvas 現状に合わせ、userEdited を解除 / Re-baseline entries to current canvas after Refresh; clear userEdited so future previews pick up new prefix/suffix changes */
         function rebaselineEntriesAfterCommit() {
-            var items = getDocumentItems(doc, currentTargetType);
+            var items = getDocumentItems(doc, currentItemType);
             for (var i = 0; i < itemEntries.length && i < items.length; i++) {
                 itemEntries[i].originalIndex = i;
                 itemEntries[i].name = items[i].name;
                 itemEntries[i].newName = items[i].name;
                 itemEntries[i].userEdited = false;
-                if (currentTargetType === "artboard") {
+                if (currentItemType === "artboard") {
                     itemEntries[i].rect = items[i].artboardRect;
                 }
             }
         }
 
-        /* 対象タイプ切替：エントリを再構築し UI 状態をリセット / Switch target type: rebuild entries and reset UI state */
-        function setTargetType(type) {
-            currentTargetType = type;
-            itemEntries = buildEntriesForType(type);
+        /* タイプ切替：エントリを再構築し UI 状態をリセット / Switch item type: rebuild entries and reset UI state */
+        function setItemType(itemType) {
+            currentItemType = itemType;
+            itemEntries = buildEntriesForItemType(itemType);
+            lastCommittedSignature = null;
+            skipApplyOnOk = false;
 
-            // 対象パネルを「すべて」に初期化（検索フィルタが ON なら依然として無効）
-            var filterOn = searchFilterCheckbox.value;
-            targetAllRadio.value = true;
-            targetRangeRadio.value = false;
+            // 種類が変わると名前体系も変わるため、検索フィルターは OFF にしてクリア（前タイプ用の語が紛れて効くのを防ぐ）
+            searchFilterCheckbox.value = false;
+            searchInput.text = "";
+            searchInput.enabled = false;
+
+            // フィルターパネルを「すべて」に初期化
+            filterAllRadio.value = true;
+            filterRangeRadio.value = false;
             rangeInput.text = "";
-            targetAllRadio.enabled = !filterOn;
-            targetRangeRadio.enabled = !filterOn;
+            filterAllRadio.enabled = true;
+            filterRangeRadio.enabled = true;
             rangeInput.enabled = false;
 
-            // 「固定」パネルはすべての対象タイプで表示
-            sourcePanel.visible = true;
-            sourcePanel.maximumSize.height = 1000;
-            sourcePanel.minimumSize.height = 0;
-
             // 「最前面のテキスト」はアートボード時のみ有効。シンボル／レイヤーでは「指定」を使う
-            frontmostRadio.enabled = (type === "artboard");
+            frontmostRadio.enabled = (itemType === "artboard");
             if (!frontmostRadio.enabled && frontmostRadio.value) {
                 frontmostRadio.value = false;
                 customRadio.value = true;
             }
             customInput.enabled = customRadio.value;
 
-            // パネル高さ変更後にレイアウトを再計算
-            leftColumn.layout.layout(true);
-            contentRow.layout.layout(true);
             dialog.layout.layout(true);
             refreshReorderRows();
-            if (typeChangeCallback) typeChangeCallback();
+            if (itemTypeChangeCallback) itemTypeChangeCallback();
         }
 
-        /* チェック状態 → 対象設定（ラジオ＋指定範囲テキスト）への逆同期 / Sync target settings from checkbox state */
-        function syncTargetFromCheckboxes() {
+        /* チェック状態 → フィルター設定（すべて／指定範囲）への逆同期 / Sync filter settings from checkbox state */
+        function syncFilterFromCheckboxes() {
             var checkedPositions = [];
             for (var i = 0; i < itemEntries.length; i++) {
                 if (itemEntries[i].checked) checkedPositions.push(i);
             }
             if (checkedPositions.length === itemEntries.length) {
-                targetAllRadio.value = true;
-                targetRangeRadio.value = false;
+                filterAllRadio.value = true;
+                filterRangeRadio.value = false;
                 rangeInput.enabled = false;
             } else {
-                targetAllRadio.value = false;
-                targetRangeRadio.value = true;
+                filterAllRadio.value = false;
+                filterRangeRadio.value = true;
                 rangeInput.enabled = true;
                 /* 並び替え後の表示位置を基準に指定範囲へ反映（チェック0件なら空文字） / Reflect reordered display positions in the range field (empty when no rows checked) */
                 rangeInput.text = buildRangeString(checkedPositions);
@@ -982,12 +1059,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             headerRow.orientation = "row";
             headerRow.spacing = 6;
             var orderHeaderLbl = headerRow.add("statictext", undefined, L('orderHeader'));
-            var targetHeaderLbl = headerRow.add("statictext", undefined, L('targetHeader'));
-            var currentNameHeaderLbl = headerRow.add("statictext", undefined, L('originalNameHeader'));
+            var selectHeaderLbl = headerRow.add("statictext", undefined, L('selectHeader'));
+            var currentNameHeaderLbl = headerRow.add("statictext", undefined, L('currentNameHeader'));
             var arrowHeaderLbl = headerRow.add("statictext", undefined, "→");
             var newNameHeaderLbl = headerRow.add("statictext", undefined, L('newNameHeader'));
             orderHeaderLbl.preferredSize.width = 24;
-            targetHeaderLbl.preferredSize.width = 28;
+            selectHeaderLbl.preferredSize.width = 28;
             currentNameHeaderLbl.preferredSize.width = 140;
             arrowHeaderLbl.preferredSize.width = 14;
             newNameHeaderLbl.preferredSize.width = 160;
@@ -1069,7 +1146,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                                 itemEntries[idx].userEdited = false;
                             }
                         }
-                        syncTargetFromCheckboxes();
+                        syncFilterFromCheckboxes();
                         if (requestPreviewUpdate) requestPreviewUpdate();
                         updateMoveButtonsState();
                     };
@@ -1142,6 +1219,32 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     return;
                 }
             }
+
+            skipApplyOnOk = false;
+
+            if (lastCommittedSignature !== null) {
+                var okSettings = readDialogSettings({
+                    frontmostRadio: frontmostRadio,
+                    originalNameRadio: originalNameRadio,
+                    itemTypeSymbolRadio: itemTypeSymbolRadio,
+                    itemTypeLayerRadio: itemTypeLayerRadio,
+                    itemTypeGraphicStyleRadio: itemTypeGraphicStyleRadio,
+                    prefixInput: prefixInput,
+                    suffixInput: suffixInput,
+                    customInput: customInput,
+                    filterAllRadio: filterAllRadio,
+                    rangeInput: rangeInput,
+                    findInput: findInput,
+                    replaceInput: replaceInput,
+                    regexCheckbox: regexCheckbox,
+                    getItemEntries: function () { return itemEntries; }
+                });
+                okSettings.itemEntries = itemEntries;
+                if (buildSettingsSignature(okSettings) === lastCommittedSignature) {
+                    skipApplyOnOk = true;
+                }
+            }
+
             dialog.close(1);
         };
 
@@ -1156,8 +1259,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             originalNameRadio: originalNameRadio,
             customRadio: customRadio,
             customInput: customInput,
-            targetAllRadio: targetAllRadio,
-            targetRangeRadio: targetRangeRadio,
+            filterAllRadio: filterAllRadio,
+            filterRangeRadio: filterRangeRadio,
             rangeInput: rangeInput,
             searchFilterCheckbox: searchFilterCheckbox,
             searchInput: searchInput,
@@ -1165,25 +1268,51 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             replaceInput: replaceInput,
             regexCheckbox: regexCheckbox,
             refreshBtn: refreshBtn,
-            targetTypeArtboardRadio: targetTypeArtboardRadio,
-            targetTypeSymbolRadio: targetTypeSymbolRadio,
-            targetTypeLayerRadio: targetTypeLayerRadio,
-            setTargetType: setTargetType,
-            getCurrentTargetType: function () { return currentTargetType; },
-            setTypeChangeCallback: function (callback) { typeChangeCallback = callback; },
+            itemTypeArtboardRadio: itemTypeArtboardRadio,
+            itemTypeSymbolRadio: itemTypeSymbolRadio,
+            itemTypeLayerRadio: itemTypeLayerRadio,
+            itemTypeGraphicStyleRadio: itemTypeGraphicStyleRadio,
+            setItemType: setItemType,
+            getCurrentItemType: function () { return currentItemType; },
+            setItemTypeChangeCallback: function (callback) { itemTypeChangeCallback = callback; },
+
+            setLastCommittedSignature: function (signature) { lastCommittedSignature = signature; },
+            getLastCommittedSignature: function () { return lastCommittedSignature; },
+            getSkipApplyOnOk: function () { return skipApplyOnOk; },
+
             getItemEntries: function () { return itemEntries; },
             rebaselineEntriesAfterCommit: rebaselineEntriesAfterCommit,
             syncEditingValues: syncEditingValues,
-            setRequestPreviewUpdate: function (callback) { requestPreviewUpdate = callback; },
-            syncPreviewToReorderRows: function (previewNames) {
-                var items = getDocumentItems(doc, currentTargetType);
+
+            syncReorderRowsToCurrentNames: function () {
+                var items = getDocumentItems(doc, currentItemType);
                 for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
                     var row = entryRows[rowIdx];
                     var entry = itemEntries[row.dataIndex];
                     var originalIdx = entry.originalIndex;
                     var currentName = items[originalIdx].name;
 
-                    // 元の名前 列：現在の canvas 名（[更新] 後は確定後の名前を表示）
+                    row.currentNameLabel.text = currentName;
+                    row.currentNameLabel.helpTip = currentName;
+                    row.newNameField.text = currentName;
+                    row.newNameField.enabled = entry.checked;
+
+                    entry.name = currentName;
+                    entry.newName = currentName;
+                    entry.userEdited = false;
+                }
+            },
+
+            setRequestPreviewUpdate: function (callback) { requestPreviewUpdate = callback; },
+            syncPreviewToReorderRows: function (previewNames) {
+                var items = getDocumentItems(doc, currentItemType);
+                for (var rowIdx = 0; rowIdx < entryRows.length; rowIdx++) {
+                    var row = entryRows[rowIdx];
+                    var entry = itemEntries[row.dataIndex];
+                    var originalIdx = entry.originalIndex;
+                    var currentName = items[originalIdx].name;
+
+                    // 現在の名前 列：現在の canvas 名（[更新] 後は確定後の名前を表示）
                     row.currentNameLabel.text = currentName;
                     row.currentNameLabel.helpTip = currentName;
 
@@ -1196,16 +1325,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     entry.newName = previewName;
                 }
             },
-            applyTargetToCheckboxes: function (rangeMode, rangeText) {
-                // 検索フィルタ：ON かつテキスト非空のときは、検索条件に見合うものだけにチェック（対象選択は無視）
+            applyFilterToCheckboxes: function (rangeMode, rangeText) {
+                // 検索フィルター：ON かつテキスト非空のときは、検索条件に見合うものだけにチェック（すべて／指定範囲は無視）
                 var filterActive = searchFilterCheckbox.value && searchInput.text !== "";
                 var lowerQuery = filterActive ? searchInput.text.toLowerCase() : null;
 
-                var isTargetIndex = {};
+                var isFilteredIndex = {};
                 if (!filterActive) {
-                    var targetIndices = getTargetItemIndices(getDocumentItems(doc, currentTargetType).length, rangeMode, rangeText);
-                    for (var targetIdx = 0; targetIdx < targetIndices.length; targetIdx++) {
-                        isTargetIndex[targetIndices[targetIdx]] = true;
+                    var filteredIndices = getRangeItemIndices(getDocumentItems(doc, currentItemType).length, rangeMode, rangeText);
+                    for (var filteredIdx = 0; filteredIdx < filteredIndices.length; filteredIdx++) {
+                        isFilteredIndex[filteredIndices[filteredIdx]] = true;
                     }
                 }
 
@@ -1214,7 +1343,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     if (filterActive) {
                         entry.checked = entry.name.toLowerCase().indexOf(lowerQuery) !== -1;
                     } else {
-                        entry.checked = !!isTargetIndex[entry.originalIndex];
+                        entry.checked = !!isFilteredIndex[entry.originalIndex];
                     }
                 }
 
@@ -1247,6 +1376,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         if (dialogUI.getItemEntries) {
             settings.itemEntries = dialogUI.getItemEntries();
         }
+        if (dialogUI.getSkipApplyOnOk && dialogUI.getSkipApplyOnOk()) {
+            settings.skipApplyOnOk = true;
+        }
         return settings;
     }
 
@@ -1267,8 +1399,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     function applyReorderAndRename(doc, itemEntries, settings) {
         if (!itemEntries || !hasReorderOrRename(itemEntries)) return;
 
-        var targetType = (settings && settings.targetType) || "artboard";
-        var items = getDocumentItems(doc, targetType);
+        var itemType = (settings && settings.itemType) || "artboard";
+        var items = getDocumentItems(doc, itemType);
         var itemCount = items.length;
 
         // ユーザーが手動上書きした行を新しい位置で記録
@@ -1285,7 +1417,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             currentNamesByOriginalIndex.push(items[origIdx].name);
         }
 
-        if (targetType === "artboard") {
+        if (itemType === "artboard") {
             // rect と現在の canvas 名を新しい位置に並べ替え（一時名で衝突回避）
             for (var tempIdx = 0; tempIdx < itemCount; tempIdx++) {
                 items[tempIdx].name = "__tmp_ab_" + tempIdx + "__";
@@ -1294,7 +1426,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 items[newPos].artboardRect = itemEntries[newPos].rect;
                 items[newPos].name = currentNamesByOriginalIndex[itemEntries[newPos].originalIndex];
             }
-        } else if (targetType === "layer") {
+        } else if (itemType === "symbol") {
+            // シンボル：安定参照を取得し、末尾から先頭へ PLACEATBEGINNING で並び替え
+            var symbolRefs = [];
+            for (var symbolInitIdx = 0; symbolInitIdx < itemCount; symbolInitIdx++) symbolRefs.push(items[symbolInitIdx]);
+            for (var symbolEntryReverseIdx = itemEntries.length - 1; symbolEntryReverseIdx >= 0; symbolEntryReverseIdx--) {
+                try {
+                    symbolRefs[itemEntries[symbolEntryReverseIdx].originalIndex].move(doc, ElementPlacement.PLACEATBEGINNING);
+                } catch (symbolMoveError) {
+                    $.writeln("[SmartRenamer] Symbol move failed at entry " + symbolEntryReverseIdx + ": " + symbolMoveError);
+                }
+            }
+            items = getDocumentItems(doc, "symbol");
+        } else if (itemType === "layer") {
             // レイヤー：安定参照を取得し、末尾から先頭へ PLACEATBEGINNING で並び替え
             var layerRefs = [];
             for (var layerInitIdx = 0; layerInitIdx < itemCount; layerInitIdx++) layerRefs.push(items[layerInitIdx]);
@@ -1306,15 +1450,26 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 }
             }
             items = getDocumentItems(doc, "layer");
+        } else if (itemType === "graphicstyle") {
+            // グラフィックスタイル：安定参照を取得し、末尾から先頭へ PLACEATBEGINNING で並び替え（`[Default]` 等は items から除外済み）
+            var gsRefs = [];
+            for (var gsInitIdx = 0; gsInitIdx < itemCount; gsInitIdx++) gsRefs.push(items[gsInitIdx]);
+            for (var gsEntryReverseIdx = itemEntries.length - 1; gsEntryReverseIdx >= 0; gsEntryReverseIdx--) {
+                try {
+                    gsRefs[itemEntries[gsEntryReverseIdx].originalIndex].move(doc, ElementPlacement.PLACEATBEGINNING);
+                } catch (gsMoveError) {
+                    $.writeln("[SmartRenamer] GraphicStyle move failed at entry " + gsEntryReverseIdx + ": " + gsMoveError);
+                }
+            }
+            items = getDocumentItems(doc, "graphicstyle");
         }
-        // symbol: 並び替え不可、リネームのみ
 
-        /* 並び替え後の位置を基準に対象範囲を作り直して再リネーム / Rebuild the target range based on reordered positions before renaming */
+        /* 並び替え後の位置を基準にチェック範囲を作り直して再リネーム / Rebuild the checked range based on reordered positions before renaming */
         if (settings) {
-            var reorderedTargetPositions = [];
-            for (var targetPos = 0; targetPos < itemEntries.length; targetPos++) {
-                if (itemEntries[targetPos].checked) {
-                    reorderedTargetPositions.push(targetPos);
+            var reorderedCheckedPositions = [];
+            for (var checkedPos = 0; checkedPos < itemEntries.length; checkedPos++) {
+                if (itemEntries[checkedPos].checked) {
+                    reorderedCheckedPositions.push(checkedPos);
                 }
             }
 
@@ -1325,19 +1480,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 }
             }
 
-            if (reorderedTargetPositions.length === itemCount) {
+            if (reorderedCheckedPositions.length === itemCount) {
                 reorderedSettings.rangeMode = "all";
                 reorderedSettings.rangeText = "";
             } else {
                 reorderedSettings.rangeMode = "numbered";
-                reorderedSettings.rangeText = buildRangeString(reorderedTargetPositions);
+                reorderedSettings.rangeText = buildRangeString(reorderedCheckedPositions);
             }
 
             executeRename(doc, reorderedSettings, { silent: true });
         }
 
         // 手動上書きを適用（items を再取得：レイヤー移動後の最新参照に追従）
-        items = getDocumentItems(doc, targetType);
+        items = getDocumentItems(doc, itemType);
         for (var posKey in userOverridesByNewPosition) {
             if (!userOverridesByNewPosition.hasOwnProperty(posKey)) continue;
             var positionIndex = parseInt(posKey, 10);
@@ -1363,7 +1518,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var dialogResult = showRenameDialog(doc);
 
         if (dialogResult) {
-            // OK：途中の [更新] コミットを残したまま、最後の設定をもう一度適用
+            // OK：最後の［更新］以降に差分がなければ、二重適用を避けて何もしない
+            if (dialogResult.skipApplyOnOk) {
+                return;
+            }
             if (dialogResult.itemEntries && hasReorderOrRename(dialogResult.itemEntries)) {
                 applyReorderAndRename(doc, dialogResult.itemEntries, dialogResult);
             } else {
@@ -1387,7 +1545,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         var customText = settings.customText;
         var rangeMode = settings.rangeMode;
         var rangeText = settings.rangeText;
-        var targetType = settings.targetType || "artboard";
+        var itemType = settings.itemType || "artboard";
         var findReplace = {
             findText: settings.findText || "",
             replaceText: settings.replaceText || "",
@@ -1403,9 +1561,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             return false;
         }
 
-        var items = getDocumentItems(doc, targetType);
+        var items = getDocumentItems(doc, itemType);
         var itemTextMap = {};
-        if (mode === "frontmost" && targetType === "artboard") {
+        if (mode === "frontmost" && itemType === "artboard") {
             itemTextMap = mapTextFramesToArtboards(getFrontmostTextFramesPerArtboard(doc), items);
         } else if (mode === "original") {
             for (var originalModeIdx = 0; originalModeIdx < items.length; originalModeIdx++) {
@@ -1417,18 +1575,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         }
 
-        var targetIndices = getTargetItemIndices(items.length, rangeMode, rangeText);
-        renameItems(items, itemTextMap, prefix, suffix, targetIndices, findReplace);
+        var selectedIndices = getRangeItemIndices(items.length, rangeMode, rangeText);
+        renameItems(items, itemTextMap, prefix, suffix, selectedIndices, findReplace);
         return true;
     }
 
     /* canvas を変更せずに「いま [更新] したらこうなる」名前を計算する / Compute preview names without modifying the canvas */
+    /* 注意：連番トークン {#N} は現在の canvas 順で採番するため、右カラムで並び替えただけのプレビュー値は確定後の値と一時的にずれる。［更新］または OK で確定すると一致する。 */
+    /* Note: sequence tokens {#N} are numbered in the current canvas order, so previews after reordering rows (but before Refresh/OK) may show numbers that differ from the final committed values. */
     function computePreviewNames(doc, settings) {
-        var targetType = settings.targetType || "artboard";
-        var items = getDocumentItems(doc, targetType);
+        var itemType = settings.itemType || "artboard";
+        var items = getDocumentItems(doc, itemType);
         var itemCount = items.length;
 
-        // 既存の名前で初期化（対象外は現在の名前を維持）
+        // 既存の名前で初期化（未選択アイテムは現在の名前を維持）
         var previewNames = [];
         for (var initIdx = 0; initIdx < itemCount; initIdx++) {
             previewNames.push(items[initIdx].name);
@@ -1449,7 +1609,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
 
         var itemTextMap = {};
-        if (mode === "frontmost" && targetType === "artboard") {
+        if (mode === "frontmost" && itemType === "artboard") {
             itemTextMap = mapTextFramesToArtboards(getFrontmostTextFramesPerArtboard(doc), items);
         } else if (mode === "original") {
             for (var originalModeIdx = 0; originalModeIdx < itemCount; originalModeIdx++) {
@@ -1461,8 +1621,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
         }
 
-        var targetIndices = getTargetItemIndices(itemCount, rangeMode, rangeText);
-        var renamePlan = buildRenamePlan(items, itemTextMap, prefix, suffix, targetIndices, {
+        var selectedIndices = getRangeItemIndices(itemCount, rangeMode, rangeText);
+        var renamePlan = buildRenamePlan(items, itemTextMap, prefix, suffix, selectedIndices, {
             findText: findText,
             replaceText: replaceText,
             useRegex: useRegex
@@ -1473,21 +1633,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         return previewNames;
     }
-    /* リネーム対象の最終名プランを作成（プレビュー／本番共通） / Build the final rename plan shared by preview and execution */
-    function buildRenamePlan(items, itemTextMap, prefixTemplate, suffixTemplate, targetIndices, findReplace) {
+    /* 選択アイテムの最終名プランを作成（プレビュー／本番共通） / Build the final rename plan for selected items, shared by preview and execution */
+    function buildRenamePlan(items, itemTextMap, prefixTemplate, suffixTemplate, selectedIndices, findReplace) {
         var findText = findReplace ? findReplace.findText : "";
         var replaceText = findReplace ? findReplace.replaceText : "";
         var useRegex = findReplace ? findReplace.useRegex : false;
         var skipUniquification = hasSequenceToken(prefixTemplate) || hasSequenceToken(suffixTemplate) || (findText && hasSequenceToken(replaceText));
-        var reservedNames = getReservedItemNames(items, targetIndices);
-        var targetIndexSet = makeIndexSet(targetIndices);
+        var reservedNames = getReservedItemNames(items, selectedIndices);
+        var selectedIndexSet = makeIndexSet(selectedIndices);
         var tokenContext = createTokenContext();
         var plannedBaseNames = [];
         var plannedIndices = [];
         var sequenceIndex = 1;
 
         for (var itemIdx = 0; itemIdx < items.length; itemIdx++) {
-            if (!targetIndexSet[itemIdx]) continue;
+            if (!selectedIndexSet[itemIdx]) continue;
             var expandedPrefix = expandTemplateTokens(prefixTemplate, sequenceIndex, tokenContext);
             var expandedSuffix = expandTemplateTokens(suffixTemplate, sequenceIndex, tokenContext);
             var textPart = itemTextMap[itemIdx] ? itemTextMap[itemIdx].join(" ") : "";
@@ -1508,7 +1668,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 plannedIndices.push(itemIdx);
                 sequenceIndex++;
             } else {
-                // 対象だが結果が空のためスキップ → 現在の名前を予約して衝突を防ぐ
+                // 選択済みだが結果が空のためスキップ → 現在の名前を予約して衝突を防ぐ
                 reservedNames.push(items[itemIdx].name);
             }
         }
@@ -1523,19 +1683,32 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // ユーティリティ / Utilities
     // =========================================
 
-    /* 対象タイプ（artboard / symbol / layer）に応じたドキュメントコレクションを返す / Return the document collection for the given target type */
-    function getDocumentItems(doc, targetType) {
-        if (targetType === "symbol") return doc.symbols;
-        if (targetType === "layer") return doc.layers;
+    /* 種類（artboard / symbol / layer / graphicstyle）に応じたドキュメントコレクションを返す / Return the document collection for the given item type */
+    /* グラフィックスタイルは `[Default]` などのリネーム不可な予約スタイル（角括弧で囲まれた名前）を除外した配列を返す */
+    function getDocumentItems(doc, itemType) {
+        if (itemType === "symbol") return doc.symbols;
+        if (itemType === "layer") return doc.layers;
+        if (itemType === "graphicstyle") return getRenamableGraphicStyles(doc);
         return doc.artboards;
     }
 
-    /* 対象外アイテムの名前を予約として返す（衝突回避用） / Return non-target item names as reserved set */
-    function getReservedItemNames(items, targetIndices) {
-        var targetIndexSet = makeIndexSet(targetIndices);
+    /* リネーム可能なグラフィックスタイルのみを配列で返す（`[Default]` 等の予約スタイルを除外） / Return an array of renamable graphic styles, excluding reserved ones like `[Default]` */
+    function getRenamableGraphicStyles(doc) {
+        var renamable = [];
+        for (var gsi = 0; gsi < doc.graphicStyles.length; gsi++) {
+            var gs = doc.graphicStyles[gsi];
+            if (/^\[.*\]$/.test(gs.name)) continue;
+            renamable.push(gs);
+        }
+        return renamable;
+    }
+
+    /* 未選択アイテムの名前を予約として返す（衝突回避用） / Return unselected item names as reserved set */
+    function getReservedItemNames(items, selectedIndices) {
+        var selectedIndexSet = makeIndexSet(selectedIndices);
         var reserved = [];
         for (var i = 0; i < items.length; i++) {
-            if (!targetIndexSet[i]) {
+            if (!selectedIndexSet[i]) {
                 reserved.push(items[i].name);
             }
         }
@@ -1549,7 +1722,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     }
 
     /* "1-3,5" 形式の範囲文字列を 0-based のインデックス配列にパース / Parse "1-3,5" range string into 0-based indices */
-    function parseRangeString(rangeText) {
+    function parseItemRangeString(rangeText) {
         var result = [];
         var parts = rangeText.split(",");
         for (var i = 0; i < parts.length; i++) {
@@ -1566,14 +1739,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return result;
     }
 
-    /* "all" / "numbered" モードに応じて対象アイテムのインデックス配列を返す / Get target item indices based on range mode */
-    function getTargetItemIndices(itemCount, rangeMode, rangeText) {
+    /* "all" / "numbered" モードに応じて範囲内アイテムのインデックス配列を返す / Get range item indices based on range mode */
+    function getRangeItemIndices(itemCount, rangeMode, rangeText) {
         if (rangeMode === "all") {
             var allIndices = [];
             for (var i = 0; i < itemCount; i++) allIndices.push(i);
             return allIndices;
         }
-        return parseRangeString(rangeText);
+        return parseItemRangeString(rangeText);
     }
 
     /* 0-based のインデックス配列から "1-3,5" 形式の 1-based 範囲文字列を生成 / Build "1-3,5" string from 0-based indices */
@@ -1716,9 +1889,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         return /\{#\d+\}/.test(template);
     }
 
-    /* 対象アイテムを実際にリネーム実行（リネーム本体） / Perform the actual rename pass over target items */
-    function renameItems(items, itemTextMap, prefixTemplate, suffixTemplate, targetIndices, findReplace) {
-        var renamePlan = buildRenamePlan(items, itemTextMap, prefixTemplate, suffixTemplate, targetIndices, findReplace);
+    /* 選択アイテムを実際にリネーム実行（リネーム本体） / Perform the actual rename pass over selected items */
+    function renameItems(items, itemTextMap, prefixTemplate, suffixTemplate, selectedIndices, findReplace) {
+        var renamePlan = buildRenamePlan(items, itemTextMap, prefixTemplate, suffixTemplate, selectedIndices, findReplace);
         for (var finalIdx = 0; finalIdx < renamePlan.indices.length; finalIdx++) {
             try {
                 items[renamePlan.indices[finalIdx]].name = renamePlan.names[finalIdx];
