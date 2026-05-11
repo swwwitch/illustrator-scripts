@@ -44,7 +44,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // =========================================
 
     /* スクリプトバージョン / Script version */
-    var SCRIPT_VERSION = "v1.1.0";
+    var SCRIPT_VERSION = "v1.1.1";
 
     /* ロケール判定 / Locale detection */
     function getCurrentLang() {
@@ -441,6 +441,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         try {
             caption.textRange.characterAttributes.textFont = app.textFonts.getByName(DEFAULT_CAPTION_FONT_NAME);
         } catch (fontError) { }
+        try {
+            caption.textRange.paragraphAttributes.justification = Justification.CENTER;
+        } catch (justifyError) { }
         if (fillColor) {
             try {
                 caption.textRange.characterAttributes.fillColor = fillColor;
@@ -803,7 +806,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         captionAboveRadio.helpTip = L(LABELS.tipCaptionAbove);
         var captionBelowRadio = posRadios.add("radiobutton", undefined, L(LABELS.captionBelow));
         captionBelowRadio.helpTip = L(LABELS.tipCaptionBelow);
-        var savedShowCaption = getSavedSetting(savedSettings, "showCaption", true);
+        var savedShowCaption = getSavedSetting(savedSettings, "showCaption", false);
         var savedCaptionPosition = getSavedSetting(savedSettings, "captionPosition", "above");
         captionNoneRadio.value = (savedShowCaption === false);
         captionAboveRadio.value = (savedShowCaption !== false && savedCaptionPosition === "above");
@@ -832,6 +835,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             captionNoneRadio: captionNoneRadio,
             captionAboveRadio: captionAboveRadio,
             captionBelowRadio: captionBelowRadio,
+            fontSizeRow: fontSizeRow,
             fontSizeInput: fontSizeInput
         };
     }
@@ -957,6 +961,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             captionNoneRadio: captionRefs.captionNoneRadio,
             captionAboveRadio: captionRefs.captionAboveRadio,
             captionBelowRadio: captionRefs.captionBelowRadio,
+            fontSizeRow: captionRefs.fontSizeRow,
             symbolGapInput: symbolRefs.symbolGapInput,
             maxRowWidthInput: symbolRefs.maxRowWidthInput,
             okButton: buttonRefs.okButton,
@@ -1072,15 +1077,31 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             })(bgRadios[k]);
         }
 
+        /* キャプション「しない」のときフォントサイズ行をディム
+         * Dim font-size row when caption is set to "Off" */
+        function updateCaptionEnabled() {
+            controls.fontSizeRow.enabled = !controls.captionNoneRadio.value;
+        }
+
         /* 寸法以外の操作は幅・高さオーバーライドを解除して再描画
          * Non-size triggers clear the width/height override before refreshing */
         var triggers = [
             controls.rightRadio, controls.belowRadio,
             controls.updateCheckbox,
-            controls.filterAllRadio, controls.filterUsedRadio,
-            controls.captionNoneRadio, controls.captionAboveRadio, controls.captionBelowRadio
+            controls.filterAllRadio, controls.filterUsedRadio
         ];
         for (var i = 0; i < triggers.length; i++) triggers[i].onClick = clearAndRefresh;
+
+        var captionRadios = [
+            controls.captionNoneRadio, controls.captionAboveRadio, controls.captionBelowRadio
+        ];
+        for (var c = 0; c < captionRadios.length; c++) {
+            captionRadios[c].onClick = function () {
+                updateCaptionEnabled();
+                clearAndRefresh();
+            };
+        }
+        updateCaptionEnabled();
 
         var inputs = [
             controls.artboardGapInput,
