@@ -12,7 +12,7 @@ ver. 0.5.0
 	var SCRIPT_TITLE = 'シンボルに置き換え';
 	var SCRIPT_VERSION = '0.5.0';
 
-	var MAX_VISIBLE_SYMBOLS = 10;
+	var MAX_VISIBLE_SYMBOLS = 20;
 	var RADIO_ROW_HEIGHT = 20;
 	var SLOW_SELECTION_THRESHOLD = 20;
 	var ERROR_PREFIX = 'エラーが発生して処理を実行できませんでした\nエラー内容：';
@@ -26,7 +26,10 @@ ver. 0.5.0
 	var activeLayer = activeDoc.activeLayer;
 	var selectedItems = activeDoc.selection;
 	var documentSymbols = activeDoc.symbols;
-	var symbolNames = getSymbolNames(documentSymbols);
+	var symbolEntries = getSortedSymbolEntries(documentSymbols);
+	if (symbolEntries.length > 0) {
+		settings.symbolIndex = symbolEntries[0].index;
+	}
 
 	if (canRun()) {
 		createDialog().show();
@@ -64,12 +67,13 @@ ver. 0.5.0
 			radioGroup.alignChildren = 'left';
 			radioGroup.spacing = 2;
 
-			var visibleCount = Math.min(symbolNames.length, MAX_VISIBLE_SYMBOLS);
+			var visibleCount = Math.min(symbolEntries.length, MAX_VISIBLE_SYMBOLS);
 			var radios = [];
 			for (var i = 0; i < visibleCount; i++) {
-				var radio = radioGroup.add('radiobutton', undefined, symbolNames[i]);
-				radio.symbolIndex = i;
-				radio.value = (i === settings.symbolIndex);
+				var entry = symbolEntries[i];
+				var radio = radioGroup.add('radiobutton', undefined, entry.name);
+				radio.symbolIndex = entry.index;
+				radio.value = (entry.index === settings.symbolIndex);
 				radio.onClick = onRadioClick;
 				radios.push(radio);
 			}
@@ -77,24 +81,24 @@ ver. 0.5.0
 				radios[0].active = true;
 			}
 
-			if (symbolNames.length > MAX_VISIBLE_SYMBOLS) {
+			if (symbolEntries.length > MAX_VISIBLE_SYMBOLS) {
 				addScrollbar(listContainer, radios);
 			}
 			return radios;
 		}
 
 		function addScrollbar(parent, radios) {
-			var maxOffset = symbolNames.length - MAX_VISIBLE_SYMBOLS;
+			var maxOffset = symbolEntries.length - MAX_VISIBLE_SYMBOLS;
 			var scrollbar = parent.add('scrollbar', undefined, 0, 0, maxOffset);
 			scrollbar.preferredSize.width = 16;
 			scrollbar.preferredSize.height = RADIO_ROW_HEIGHT * MAX_VISIBLE_SYMBOLS;
 			scrollbar.onChanging = function () {
 				var offset = Math.round(scrollbar.value);
 				for (var idx = 0; idx < radios.length; idx++) {
-					var symbolIdx = offset + idx;
-					radios[idx].text = symbolNames[symbolIdx];
-					radios[idx].symbolIndex = symbolIdx;
-					radios[idx].value = (symbolIdx === settings.symbolIndex);
+					var entry = symbolEntries[offset + idx];
+					radios[idx].text = entry.name;
+					radios[idx].symbolIndex = entry.index;
+					radios[idx].value = (entry.index === settings.symbolIndex);
 				}
 			};
 		}
@@ -180,12 +184,19 @@ ver. 0.5.0
 		return items;
 	}
 
-	// Get symbol names
-	function getSymbolNames(symbolCollection) {
-		var names = [];
+	// Build {name, index} entries sorted by name (case-insensitive)
+	function getSortedSymbolEntries(symbolCollection) {
+		var entries = [];
 		for (var i = 0; i < symbolCollection.length; i++) {
-			names.push(symbolCollection[i].name);
+			entries.push({ name: symbolCollection[i].name, index: i });
 		}
-		return names;
+		entries.sort(function (a, b) {
+			var an = a.name.toLowerCase();
+			var bn = b.name.toLowerCase();
+			if (an < bn) return -1;
+			if (an > bn) return 1;
+			return 0;
+		});
+		return entries;
 	}
 }());
