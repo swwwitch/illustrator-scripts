@@ -40,7 +40,7 @@ Illustrator標準機能では行いにくい
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.2.6";
+    var SCRIPT_VERSION = "v1.2.7";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -260,7 +260,7 @@ Illustrator標準機能では行いにくい
         deleteLinkBtn: {
             ja: "削除",
             en: "Delete"
-        }
+        },
         confirmDeleteLinks: {
             ja: "選択したリンクファイルをドキュメントからすべて削除します。",
             en: "The selected file(s) will be removed from the document.?"
