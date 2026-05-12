@@ -1,49 +1,46 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
+/*
+
+LinkedImageManager.jsx
+
+ドキュメント内の配置画像（リンク画像）を解析し、
+一覧表示・絞り込み・重複管理・再リンクを一元化するユーティリティ。
+
+Illustrator標準機能では行いにくい
+「全体把握・状態確認・重複管理・再リンク作業」を効率化することを目的とする。
+
+### 主な機能
+
+・ファイル名／サイズ／配置寸法／スケール／PPI の一覧表示
+・リンク状態（正常／リンク切れ／更新が必要）の判定とフィルタリング
+・リンク切れ時のファイル名フォールバック取得（XMPメタデータ参照）
+・アートボード単位での絞り込みとビュー連動（選択時に移動・ズーム）
+・同一ファイルの重複検出・統合表示・使用数カウント
+・任意列でのソート（昇順／降順）
+・行選択に連動したカンバス上での選択・ズーム表示
+・パス表示の最適化（~/ 表示／Dropbox パス短縮／ファイル名表示切替）
+・リンク先フォルダの一覧表示／選択フォルダの直接オープン
+・単一ファイル／フォルダ単位での再リンク
+・リンクファイルのコピーと再リンク（Linksフォルダーへの収集）
+
+### UI構成（現行）
+
+左：ソート／まとめて表示（同一ファイル）
+右：表示列／フィルター／アートボード
+
+※ 機能優先のため2カラム構成とし、右カラムに関連機能を集約
+※ フォルダ操作（開く／フォルダ再リンク／収集）は下部に集約
+*/
+
 (function () {
-
-    /*
-        ============================================================
-        LinkedImageManager.jsx
-        ------------------------------------------------------------
-        ドキュメント内の配置画像（リンク画像）を解析し、
-        一覧表示・絞り込み・重複管理・再リンクを一元化するユーティリティ。
-
-        Illustrator標準機能では行いにくい
-        「全体把握・状態確認・重複管理・再リンク作業」を効率化することを目的とする。
-
-        ### 主な機能
-
-        ・ファイル名／サイズ／配置寸法／スケール／PPI の一覧表示
-        ・リンク状態（正常／リンク切れ／更新が必要）の判定とフィルタリング
-        ・リンク切れ時のファイル名フォールバック取得（XMPメタデータ参照）
-        ・アートボード単位での絞り込みとビュー連動（選択時に移動・ズーム）
-        ・同一ファイルの重複検出・統合表示・使用数カウント
-        ・任意列でのソート（昇順／降順）
-        ・行選択に連動したカンバス上での選択・ズーム表示
-        ・パス表示の最適化（~/ 表示／Dropbox パス短縮／ファイル名表示切替）
-        ・リンク先フォルダの一覧表示／選択フォルダの直接オープン
-        ・単一ファイル／フォルダ単位での再リンク
-        ・リンクファイルのコピーと再リンク（Linksフォルダーへの収集）
-
-        ### UI構成（現行）
-
-        左：ソート／まとめて表示（同一ファイル）
-        右：表示列／フィルター／アートボード
-
-        ※ 機能優先のため2カラム構成とし、右カラムに関連機能を集約
-        ※ フォルダ操作（開く／フォルダ再リンク／収集）は下部に集約
-
-        ============================================================
-    */
-
 
     // =========================================
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.2.5";
+    var SCRIPT_VERSION = "v1.2.6";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -257,8 +254,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Full path"
         },
         renameLinkBtn: {
-            ja: "リンクファイルをリネーム",
-            en: "Rename Linked File"
+            ja: "リネーム",
+            en: "Rename"
+        },
+        deleteLinkBtn: {
+            ja: "削除",
+            en: "Delete"
+        }
+        confirmDeleteLinks: {
+            ja: "選択したリンクファイルをドキュメントからすべて削除します。",
+            en: "The selected file(s) will be removed from the document.?"
+        },
+        alertDeleteDone: {
+            ja: "削除完了",
+            en: "Delete Complete"
+        },
+        clipGroupDeleteTitle: {
+            ja: "クリップグループ内の画像",
+            en: "Image inside a clip group"
+        },
+        clipGroupDeleteMessage: {
+            ja: "選択した画像はクリップグループ内にあります。どのように削除しますか？",
+            en: "The selected image is inside a clip group. How would you like to delete it?"
+        },
+        deleteImageOnlyBtn: {
+            ja: "画像のみを削除",
+            en: "Delete image only"
+        },
+        deleteWithClipGroupBtn: {
+            ja: "クリップグループごと削除",
+            en: "Delete entire clip group"
         },
         copyFileNameBtn: {
             ja: "ファイル名をコピー",
@@ -325,7 +350,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             en: "Relink All"
         },
         linkedFolderListLabel: {
-            ja: "リンクフォルダ一覧",
+            ja: "リンクフォルダー一覧",
             en: "Linked Folders"
         },
         reloadFolderBtn: {
@@ -677,6 +702,54 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // File / Folder などの .exists を安全に取得
     function safeExists(target) {
         return tryGet(function () { return !!(target && target.exists); }, false);
+    }
+
+    // doc.selection から「単一の PlacedItem」を抜き出す
+    // ・PlacedItem そのもの → そのまま返す
+    // ・GroupItem（クリップグループ含む）配下に PlacedItem が 1 つだけ → その PlacedItem を返す
+    // ・上記以外（複数選択、PlacedItem 非含有、複数の PlacedItem を含むグループなど）→ null
+    function pickSinglePlacedItem(sel) {
+        if (!sel || sel.length !== 1) return null;
+        var top = sel[0];
+        if (!top) return null;
+        var tn = tryGet(function () { return top.typename; }, "");
+        if (tn === "PlacedItem") return top;
+        if (tn !== "GroupItem") return null;
+
+        var found = null;
+        var multiple = false;
+        function visit(g) {
+            if (multiple) return;
+            var items = tryGet(function () { return g.pageItems; }, null);
+            if (!items) return;
+            for (var i = 0; i < items.length; i++) {
+                var c = items[i];
+                var ctn = tryGet(function () { return c.typename; }, "");
+                if (ctn === "PlacedItem") {
+                    if (found) { multiple = true; return; }
+                    found = c;
+                } else if (ctn === "GroupItem") {
+                    visit(c);
+                    if (multiple) return;
+                }
+            }
+        }
+        visit(top);
+        return (found && !multiple) ? found : null;
+    }
+
+    // PlacedItem の祖先を辿り、最も近い「クリップグループ（GroupItem.clipped === true）」を返す
+    // 見つからなければ null
+    function findEnclosingClipGroup(item) {
+        var p = tryGet(function () { return item.parent; }, null);
+        while (p) {
+            var tn = tryGet(function () { return p.typename; }, "");
+            if (tn !== "GroupItem") return null; // GroupItem 以外（Layer / Document）に出たら終了
+            var clipped = tryGet(function () { return p.clipped; }, false);
+            if (clipped) return p;
+            p = tryGet(function () { return p.parent; }, null);
+        }
+        return null;
     }
 
     // オブジェクトのプロパティ値を安全に取得
@@ -1314,15 +1387,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var uniqueList = collected.uniqueList;
 
     // ---- 実行前の選択状態チェック：PlacedItem 1 つだけなら初期選択行として渡す / Capture initial selection before dialog ----
+    // PlacedItem 直接選択のほか、クリップグループなど GroupItem 配下に PlacedItem が 1 つだけ含まれる場合にも対応
     var preselectedItemIndex = -1;
     var selection = tryGet(function () { return doc.selection; }, null);
-    if (selection && selection.length === 1) {
-        var selItem = selection[0];
-        if (selItem && selItem.typename === "PlacedItem") {
-            for (var si = 0; si < placedItems.length; si++) {
-                if (placedItems[si] === selItem) {
-                    preselectedItemIndex = si;
-                    break;
+    var selPlaced = pickSinglePlacedItem(selection);
+    if (selPlaced) {
+        // まず参照同一性で照合
+        for (var si = 0; si < placedItems.length; si++) {
+            if (placedItems[si] === selPlaced) {
+                preselectedItemIndex = si;
+                break;
+            }
+        }
+        // === が DOM プロキシ差で失敗するケースに備え、geometricBounds で再照合
+        if (preselectedItemIndex < 0) {
+            var sb = tryGet(function () { return selPlaced.geometricBounds; }, null);
+            if (sb) {
+                for (var sj = 0; sj < placedItems.length; sj++) {
+                    var jb = tryGet(function () { return placedItems[sj].geometricBounds; }, null);
+                    if (jb && jb[0] === sb[0] && jb[1] === sb[1] && jb[2] === sb[2] && jb[3] === sb[3]) {
+                        preselectedItemIndex = sj;
+                        break;
+                    }
                 }
             }
         }
@@ -2180,6 +2266,106 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         actionBtnRight.alignChildren = ["right", "center"];
         actionBtnRight.alignment = ["right", "center"];
 
+        var deleteLinkBtn = actionBtnRight.add("button", undefined, L('deleteLinkBtn'));
+        deleteLinkBtn.onClick = function () {
+            if (!selectedEntry) {
+                alert(L('alertSelectItem'));
+                return;
+            }
+            var indices = selectedEntry.itemIndices || [];
+            if (indices.length === 0) return;
+
+            var colon = (lang === 'ja' ? '：' : ': ');
+
+            // インデックスを伴う削除は collection の再採番で破綻するため、先に PageItem 参照を集める
+            // 各対象について、内包しているクリップグループ（あれば）も併せて保持
+            var refs = [];
+            for (var di = 0; di < indices.length; di++) {
+                try {
+                    var p = placedItems[indices[di]];
+                    refs.push({ placed: p, clipGroup: findEnclosingClipGroup(p) });
+                } catch (eRef) { }
+            }
+
+            var hasClipped = false;
+            for (var dc = 0; dc < refs.length; dc++) {
+                if (refs[dc].clipGroup) { hasClipped = true; break; }
+            }
+
+            // 確認ダイアログ：
+            // ・クリップグループを含まない → 通常の確認ダイアログ（はい/いいえ）
+            // ・含む                      → 確認と削除モード選択を 1 つにまとめた 3 ボタンダイアログ
+            var clipMode = 'image';
+            if (hasClipped) {
+                clipMode = askDeleteModeWithConfirm(indices.length);
+                if (clipMode === null) return;
+            } else {
+                var confirmMessage = L('confirmDeleteLinks') + "\n" +
+                    L('labelTarget') + colon + withUnit(indices.length, 'labelItems');
+                if (!confirm(confirmMessage)) return;
+            }
+
+            var success = 0, failed = 0;
+            for (var dk = 0; dk < refs.length; dk++) {
+                var entry = refs[dk];
+                try {
+                    if (entry.clipGroup && clipMode === 'group') {
+                        entry.clipGroup.remove();
+                    } else {
+                        entry.placed.remove();
+                    }
+                    success++;
+                } catch (eRm) {
+                    failed++;
+                }
+            }
+
+            // 選択は削除済みなので解除しておく（refreshFromDoc の itemIndex 復元に巻き込まれないように）
+            selectedEntry = null;
+            selectedFilePath = "";
+
+            app.redraw();
+            refreshFromDoc();
+            updateActionButtonStates();
+            alert(
+                L('alertDeleteDone') + "\n" +
+                L('labelSuccess') + colon + withUnit(success, 'labelItems') + "\n" +
+                L('labelFailed') + colon + withUnit(failed, 'labelItems')
+            );
+        };
+
+        // クリップグループ内の画像が含まれる場合の、確認 + 削除モード選択を兼ねたダイアログ
+        // 戻り値: 'image' / 'group' / null（キャンセル）
+        function askDeleteModeWithConfirm(targetCount) {
+            var colon = (lang === 'ja' ? '：' : ': ');
+            var w = new Window("dialog", L('clipGroupDeleteTitle'));
+            w.orientation = "column";
+            w.alignChildren = ["fill", "top"];
+            w.margins = 16;
+
+            var msgText = L('confirmDeleteLinks') + "\n" +
+                L('labelTarget') + colon + withUnit(targetCount, 'labelItems') + "\n\n" +
+                L('clipGroupDeleteMessage');
+            var msg = w.add("statictext", undefined, msgText, { multiline: true });
+            msg.preferredSize.width = 360;
+
+            var btnRow = w.add("group");
+            btnRow.orientation = "row";
+            btnRow.alignment = ["right", "center"];
+            var cancelBtn = btnRow.add("button", undefined, L('cancelBtn'), { name: "cancel" });
+            var imageOnlyBtn = btnRow.add("button", undefined, L('deleteImageOnlyBtn'));
+            var withGroupBtn = btnRow.add("button", undefined, L('deleteWithClipGroupBtn'), { name: "ok" });
+
+            cancelBtn.onClick = function () { w.close(0); };
+            imageOnlyBtn.onClick = function () { w.close(1); };
+            withGroupBtn.onClick = function () { w.close(2); };
+
+            var r = w.show();
+            if (r === 1) return 'image';
+            if (r === 2) return 'group';
+            return null;
+        }
+
         var renameLinkBtn = actionBtnRight.add("button", undefined, L('renameLinkBtn'));
         renameLinkBtn.onClick = function () {
             if (!selectedEntry) {
@@ -2323,6 +2509,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         function updateActionButtonStates() {
             reloadOneBtn.enabled = (selectedEntry !== null);
             renameLinkBtn.enabled = (selectedEntry !== null);
+            deleteLinkBtn.enabled = (selectedEntry !== null);
             copyFileNameBtn.enabled = (selectedEntry !== null);
             updateRelinkButtonLabel();
         }
