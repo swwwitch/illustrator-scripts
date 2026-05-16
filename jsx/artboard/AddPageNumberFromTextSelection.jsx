@@ -12,25 +12,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
 ### 概要：
 
-- 選択中のポイントテキスト（_pagenumber レイヤー推奨）を雛形に、すべてのアートボードへ連番テキストを配置します。
-- 更新日：20260516
-- 値の変更（接頭辞・開始番号・接尾辞・ゼロパディング・総ページ）や ↑↓/Shift+↑↓ による数値変更で、ドキュメント上のプレビューが即時更新されます（OK は確定のみ、キャンセルでプレビューを破棄）。
-- _pagenumber レイヤーが無い場合は自動作成し、プレビュー中は一時的にロック解除・可視化・最前面移動して安全に処理します。OK/キャンセル時に元のロック／可視状態と重ね順を確実に復元します。
+選択中のポイントテキストを雛形に、すべてのアートボードへ連番テキストを配置します。
+値を変更すると即時プレビューし、OKで確定、キャンセルでプレビューを破棄します。
+_pagenumber レイヤーが無い場合は自動作成し、OK時は残します。キャンセル時は、元々存在しなかった場合のみ削除します。
 
 ### 主な機能：
 
-- 開始番号／接頭辞／接尾辞／ゼロパディング／総ページの指定
-- 3カラムUI、ダイアログの透明度・表示位置の調整
-- テンプレートが1件のみでも、プレビュー中に全アートボードへ仮増殖して確認可能（内部: pasteInAllArtboard）
-- _pagenumber レイヤーの自動作成・一時解除・最前面化・確定/取消時の復元
-- ダイアログタイトルにバージョン番号を表示（SCRIPT_VERSION）
-
-### 処理の流れ：
-
-1) 適当なポイントテキストを選択（_pagenumber レイヤー推奨）
-2) ダイアログで各値を設定（↑↓/Shift+↑↓で数値調整、Zでゼロ埋め、Aで総ページ表示を切替）
-3) 値変更ごとにライブプレビューを確認（プレビュー中は _pagenumber を一時解除＋最前面化）
-4) OK で確定（プレビュー用バックアップ破棄＆状態復元）／キャンセルでプレビューを破棄して完全復元
+- 開始番号／接頭辞／接尾辞／ゼロパディング／総ページ数表示
+- ライブプレビューとキャンセル時の復元
+- _pagenumber レイヤーの自動作成・一時解除・状態復元
+- ダイアログタイトルにバージョン番号を表示
 
 ### note：
 
@@ -38,13 +29,13 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
 ### 更新履歴：
 
-- v2.0.1 (20260516) : 内部リファクタリング（IIFE化、関数分割、命名整理、try/catch を共通ヘルパーへ集約）。動作の変更なし。
-- v2.0 (20260108) : プレビュー時にUndo履歴を汚しにくいよう、app.undo() を用いたロールバック型プレビュー管理（PreviewManager）を追加。OK時は一括Undo後に本処理を1回で再実行し、取り消しを1回で戻せるように改善。
-- v1.9 (20250810) : _pagenumber の自動作成、ロック/可視の一時解除、最前面化、OK/キャンセル時の重ね順・可視・ロックの完全復元を追加。プレビュー耐性を強化。
-- v1.8 (20250625) : リファクタリング、ライブプレビューと全ABプレビュー複製に対応、UI整理
+- v2.0.1 (20260516) : 内部整理。OK確定時の雛形判定、プレビューUndo管理、_pagenumber 復元処理を改善。
+- v2.0 (20260108) : PreviewManager によるロールバック型プレビュー管理を追加。
+- v1.9 (20250810) : _pagenumber レイヤーの自動作成・一時解除・復元に対応。
+- v1.8 (20250625) : ライブプレビューと全アートボード複製に対応。
 - v1.0 (20250625) : 初期バージョン
 
----
+----
 
 ### Script Name：
 
@@ -56,25 +47,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
 ### Overview：
 
-- Places sequential page-number text on all artboards using the currently selected point text as a template (the _pagenumber layer is recommended).
-- Updated: 2026-05-16
-- Live preview updates instantly when values change (prefix, start number, suffix, zero padding, total pages) and on Up/Down or Shift+Up/Down. OK commits; Cancel discards the preview.
-- If the _pagenumber layer doesn’t exist, it is auto-created. During preview, the layer is temporarily unlocked, shown, and moved to the top; on OK/Cancel, its lock/visibility and stacking order are fully restored.
+Places sequential page-number text on all artboards using the selected point text as a template.
+Value changes update the live preview immediately. OK commits the result; Cancel discards the preview.
+If the _pagenumber layer does not exist, it is auto-created and kept on OK. On Cancel, it is removed only if it did not originally exist.
 
 ### Main Features：
 
-- Configure start number / prefix / suffix / zero padding / total pages
-- 3-column dialog UI; adjustable dialog opacity and position
-- Preview can temporarily duplicate a single template across all artboards (internally: pasteInAllArtboard)
-- Auto-create, temporarily unlock/show/move-to-top for _pagenumber; fully restore state on commit/cancel
-- Version number shown in the dialog title (SCRIPT_VERSION)
-
-### Flow：
-
-1) Select a point text object (the _pagenumber layer is recommended)
-2) Set values in the dialog (Up/Down or Shift+Up/Down; Z toggles zero-pad; A toggles total pages)
-3) Live preview updates every change (_pagenumber is temporarily prepared and brought to front)
-4) Click OK to commit (discard preview backup & restore state) or Cancel to discard and fully restore
+- Start number / prefix / suffix / zero padding / total page display
+- Live preview with cancel restoration
+- Auto-create, temporarily unlock, and restore the _pagenumber layer
+- Version number shown in the dialog title
 
 ### Notes：
 
@@ -82,10 +64,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
 ### Update History：
 
-- v2.0.1 (2026-05-16): Internal refactor (IIFE wrapper, function splitting, clearer naming, try/catch consolidated into shared helpers). No behavior change.
-- v2.0 (2026-01-08): Added rollback-based preview history management using app.undo() (PreviewManager). On OK, undo preview steps and re-run the final action once so users can undo the whole operation with a single Ctrl/Cmd+Z.
-- v1.9 (2025-08-10): Added auto-create for _pagenumber, temporary unlock/visibility, move-to-top during preview, and full restoration of stacking order & visibility/lock on OK/Cancel; improved preview robustness.
-- v1.8 (2025-06-25): Refactor; added live preview and all-artboards preview duplication; UI cleanup
+- v2.0.1 (2026-05-16): Internal cleanup. Improved final template detection, preview undo tracking, and _pagenumber restoration.
+- v2.0 (2026-01-08): Added rollback-based preview management with PreviewManager.
+- v1.9 (2025-08-10): Added auto-create, temporary unlock, and restoration for the _pagenumber layer.
+- v1.8 (2025-06-25): Added live preview and all-artboards duplication.
 - v1.0 (2025-06-25): Initial release
 */
 
@@ -95,7 +77,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
     // バージョンとローカライズ / Version & Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v2.0.1";
+    var SCRIPT_VERSION = "v2.0.2";
 
     // 連番テキストを配置する対象レイヤー名 / Layer that receives the page-number text
     var PAGENUMBER_LAYER_NAME = "_pagenumber";
@@ -120,8 +102,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
         cancelLabel: { ja: "キャンセル", en: "Cancel" },
         errorNotNumber: { ja: "有効な数字を入力してください", en: "Please enter a valid number" },
         errorInvalidSelection: {
-            ja: "ポイントテキストを選択してください（_pagenumber レイヤー推奨）",
-            en: "Please select a point text (the _pagenumber layer is recommended)."
+            ja: "各アートボードのノンブルのテンプレとなるテキストを入力し、選択してください。",
+            en: "Please create and select the template text used for page numbers on each artboard."
         }
     };
 
@@ -130,7 +112,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
     // =========================================
 
     /* 関数を try/catch 内で実行し、fn の戻り値を返す。例外時は onError(e) を呼ぶ（省略時は無視）。
-       本スクリプトで唯一 try/catch を持つ基盤関数 / The single try/catch primitive: run fn and return its value, calling onError(e) on failure */
+       例外を握りつぶしてよい処理の共通ヘルパー / Shared helper for operations where ignored exceptions are acceptable */
     function tryCall(fn, onError) {
         try {
             return fn ? fn() : undefined;
@@ -206,13 +188,15 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
     function PreviewManager() {
         this.undoDepth = 0; // プレビュー中に実行したアクション数 / number of preview actions executed
 
-        // 変更操作を実行し、1ステップとしてカウント / Run an action and count it as one preview step
+        // 変更操作を実行し、実際に変更があった場合だけ1ステップとしてカウント / Run an action and count it only when it actually changes the document
         this.addStep = function (func) {
             var self = this;
             runOrAlert("Preview Error", function () {
-                if (typeof func === "function") func();
-                self.undoDepth++;
-                safeRedraw();
+                var changed = (typeof func === "function") ? func() : false;
+                if (changed) {
+                    self.undoDepth++;
+                    safeRedraw();
+                }
             });
         };
 
@@ -244,7 +228,9 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
     /* オブジェクトが TextFrame かどうかを判定 / Return true if the object is a TextFrame */
     function isTextFrame(obj) {
-        return !!obj && obj.typename === "TextFrame";
+        return tryCall(function () {
+            return !!obj && obj.typename === "TextFrame";
+        }) === true;
     }
 
     /* 選択先頭が TextFrame ならそれを返す（無ければ null）/ Return the selected TextFrame, or null if none is selected */
@@ -274,12 +260,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
     }
 
     /* _pagenumber レイヤーの現在状態（ロック・表示・並び順）を記録 / Capture the current state (lock, visibility, stacking order) of the _pagenumber layer */
-    function capturePagenumberState(doc, layer) {
+    function capturePagenumberState(doc, layer, existed) {
         var index = getLayerIndex(doc, layer);
         return {
+            existed: !!existed,
             locked: layer.locked,
             visible: layer.visible,
-            index: index,
             // ひとつ上（前面側）のレイヤー名を復元の基準として記録 / remember the neighbor layer above as a restore anchor
             neighborAboveName: (index > 0) ? getLayerNameAtIndex(doc, index - 1) : null
         };
@@ -293,8 +279,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
     }
 
     /* capturePagenumberState で記録した状態へ _pagenumber レイヤーを復元 / Restore the _pagenumber layer to the captured state */
-    function restorePagenumberState(doc, layer, layerState) {
+    function restorePagenumberState(doc, layer, layerState, removeIfNew) {
         if (!layer || !layerState) return;
+
+        // キャンセル時のみ、元々存在しなかった _pagenumber を削除 / remove an auto-created _pagenumber only on Cancel
+        if (!layerState.existed && removeIfNew) {
+            forceRemoveLayerByName(doc, PAGENUMBER_LAYER_NAME);
+            return;
+        }
 
         // 並び順を復元 / restore stacking order
         if (layerState.neighborAboveName) {
@@ -360,14 +352,6 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
         var sorted = [];
         for (var j = 0; j < entries.length; j++) sorted.push(entries[j].frame);
         return sorted;
-    }
-
-    /* 選択中の TextFrame を指定レイヤーの先頭へ移動して返す（無ければ null）/ Move the selected TextFrame to the front of the layer and return it (or null) */
-    function moveSelectionToLayer(doc, layer) {
-        var textFrame = getSelectedTextFrame();
-        if (!textFrame) return null;
-        tryCall(function () { textFrame.move(layer, ElementPlacement.PLACEATBEGINNING); });
-        return textFrame;
     }
 
     // =========================================
@@ -477,13 +461,13 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
     /* 選択テキスト（無ければレイヤー上の先頭テキスト）を雛形に、全アートボードへ連番をプレビュー / Render a sequential-numbering preview on every artboard, using the selected text (or the first text on the layer) as a template */
     function updatePreview(doc, layerName, start, prefix, suffix, zeroPad, showTotal) {
-        if (!doc || isNaN(start)) return;
+        if (!doc || isNaN(start)) return false;
         var layer = findLayerByName(doc, layerName);
-        if (!layer) return;
+        if (!layer) return false;
 
         // 雛形を決定：選択を優先、無ければアートボード順の先頭フレーム / pick the template: prefer the selection
         var template = getSelectedTextFrame() || sortFramesByArtboard(doc, layer.textFrames, null)[0];
-        if (!template) return;
+        if (!template) return false;
 
         rebuildFramesAcrossArtboards(doc, layer, template);
 
@@ -494,10 +478,11 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
             prefix || "", suffix || "", !!zeroPad, maxNum, !!showTotal);
 
         safeRedraw();
+        return true;
     }
 
     /* 退避レイヤーに残ったテキストを _pagenumber へ戻し、退避レイヤーを削除 / Move any text left on the backup layer back to _pagenumber, then remove the backup layer */
-    function restoreTextFromBackupLayer(doc) {
+    function restorePreviewBackupOnCancel(doc) {
         var backupLayer = findLayerByName(doc, TMP_LAYER_NAME);
         if (!backupLayer) return;
 
@@ -644,16 +629,20 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
     /* ダイアログを表示し、選択テキストを雛形に全アートボードへページ番号を配置 / Show the dialog and place page numbers on every artboard using the selected text as a template */
     function main() {
         // テキスト未選択なら終了 / Exit if no text is selected
-        if (app.documents.length === 0 || !getSelectedTextFrame()) {
+        var originalTemplateText = getSelectedTextFrame();
+        if (app.documents.length === 0 || !originalTemplateText) {
             alert(LABELS.errorInvalidSelection[lang]);
             return;
         }
 
         var doc = app.activeDocument;
 
+        // _pagenumber レイヤーの存在有無を記録
+        var pagenumberLayerExisted = !!findLayerByName(doc, PAGENUMBER_LAYER_NAME);
+
         // _pagenumber レイヤーを事前作成し、元状態を保存してから作業用に準備 / pre-create _pagenumber, capture its state, then prepare it for work
         var pagenumberLayer = getOrCreatePagenumberLayer(doc);
-        var pagenumberLayerState = capturePagenumberState(doc, pagenumberLayer);
+        var pagenumberLayerState = capturePagenumberState(doc, pagenumberLayer, pagenumberLayerExisted);
         preparePagenumberForWork(doc, pagenumberLayer);
 
         var ui = buildDialog();
@@ -666,20 +655,51 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
 
             previewManager.rollback();
             previewManager.addStep(function () {
-                updatePreview(doc, PAGENUMBER_LAYER_NAME, start,
+                return updatePreview(doc, PAGENUMBER_LAYER_NAME, start,
                     ui.prefixField.text || "", ui.suffixField.text || "",
                     !!ui.zeroPadCheckbox.value, !!ui.totalPageCheckbox.value);
             });
         }
 
         /* 捕捉済みの _pagenumber レイヤー状態を復元 / Restore the captured _pagenumber layer state */
-        function restoreCapturedState() {
+        function restoreCapturedState(removeIfNew) {
             tryCall(function () {
-                restorePagenumberState(doc, pagenumberLayer, pagenumberLayerState);
+                restorePagenumberState(doc, pagenumberLayer, pagenumberLayerState, !!removeIfNew);
             });
         }
 
-        /* OK確定時の本処理：選択テキストを _pagenumber へ移し、全アートボードへ連番を確定配置 / Final commit: move the selected text to _pagenumber and place sequential numbers on every artboard */
+        /* OK確定時の雛形テキストを取得 / Resolve the template text used for the final commit */
+        function resolveFinalTemplateText(layer) {
+            var targetText = isTextFrame(originalTemplateText) ? originalTemplateText : getSelectedTextFrame();
+            if (!isTextFrame(targetText)) {
+                targetText = findTextFrameOnAnyArtboard(layer, doc);
+            }
+            return isTextFrame(targetText) ? targetText : null;
+        }
+
+        /* 雛形テキストを _pagenumber 上へ移し、他のテキストを除去 / Move the template to _pagenumber and remove the other text frames */
+        function prepareFinalTemplateText(layer, targetText) {
+            if (!isTextFrame(targetText)) return false;
+            if (targetText.layer.name !== PAGENUMBER_LAYER_NAME) {
+                tryCall(function () { targetText.move(layer, ElementPlacement.PLACEATBEGINNING); });
+            }
+            if (targetText.layer.name !== PAGENUMBER_LAYER_NAME) return false;
+            removeOtherTextFrames(layer, targetText);
+            return true;
+        }
+
+        /* 確定用の連番を全アートボードへ適用 / Apply final sequential page numbers to every artboard */
+        function applyFinalNumbering(layer, targetText, startNum) {
+            seedAndPasteToAllArtboards(doc, targetText, startNum);
+
+            var frames = sortFramesByArtboard(doc, layer.textFrames, targetText);
+            var maxNum = startNum + doc.artboards.length - 1;
+            applyNumbering(frames, startNum, String(maxNum).length,
+                ui.prefixField.text || "", ui.suffixField.text || "",
+                !!ui.zeroPadCheckbox.value, maxNum, !!ui.totalPageCheckbox.value);
+        }
+
+        /* OK確定時の本処理：雛形テキストを _pagenumber へ移し、全アートボードへ連番を確定配置 / Final commit: move the template text to _pagenumber and place sequential numbers on every artboard */
         function runFinalAction() {
             var startNum = parseInt(ui.startNumberField.text, 10);
             if (isNaN(startNum)) {
@@ -691,48 +711,17 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
             forceRemoveLayerByName(doc, TMP_LAYER_NAME);
 
             var layer = getOrCreatePagenumberLayer(doc);
-
-            // 選択テキストを _pagenumber へ移し、他のテキストを除去 / move the selection onto _pagenumber and clear the rest
-            var movedText = moveSelectionToLayer(doc, layer);
-            removeOtherTextFrames(layer, movedText);
-
-            // 雛形テキストを決定（選択優先、無ければ _pagenumber 内を探索）/ resolve the template text (prefer the selection)
-            var targetText = getSelectedTextFrame() || findTextFrameOnAnyArtboard(layer, doc);
-            if (!isTextFrame(targetText)) {
+            var targetText = resolveFinalTemplateText(layer);
+            if (!targetText || !prepareFinalTemplateText(layer, targetText)) {
                 alert(LABELS.errorInvalidSelection[lang]);
                 return;
             }
 
-            // 対象を _pagenumber 上へ確実に配置 / make sure the target sits on _pagenumber
-            if (targetText.layer.name !== PAGENUMBER_LAYER_NAME) {
-                tryCall(function () { targetText.move(layer, ElementPlacement.PLACEATBEGINNING); });
-            }
-            removeOtherTextFrames(layer, targetText);
-            if (targetText.layer.name !== PAGENUMBER_LAYER_NAME) {
-                alert(LABELS.errorInvalidSelection[lang]);
-                return;
-            }
-
-            // 開始番号で初期化し、全アートボードへ複製 / seed with the start number and duplicate across all artboards
-            seedAndPasteToAllArtboards(doc, targetText, startNum);
-
-            // アートボード順に連番を流し込む / write sequential numbers in artboard order
-            var frames = sortFramesByArtboard(doc, layer.textFrames, targetText);
-            var maxNum = startNum + doc.artboards.length - 1;
-            applyNumbering(frames, startNum, String(maxNum).length,
-                ui.prefixField.text || "", ui.suffixField.text || "",
-                !!ui.zeroPadCheckbox.value, maxNum, !!ui.totalPageCheckbox.value);
-
+            applyFinalNumbering(layer, targetText, startNum);
             safeRedraw();
-            restoreCapturedState();
+            restoreCapturedState(false);
         }
 
-        // 値の変更でプレビューを更新 / refresh the preview whenever a value changes
-        ui.prefixField.addEventListener("changing", triggerPreview);
-        ui.startNumberField.addEventListener("changing", triggerPreview);
-        ui.suffixField.addEventListener("changing", triggerPreview);
-        ui.zeroPadCheckbox.onClick = triggerPreview;
-        ui.totalPageCheckbox.onClick = triggerPreview;
         changeValueByArrowKey(ui.startNumberField, triggerPreview);
 
         // Zキーでゼロ埋め、Aキーで総ページ表示をトグル / Z toggles zero-pad, A toggles show-total
@@ -749,8 +738,8 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/artboard/AddPage
         // キャンセル：プレビューを巻き戻し、退避テキストと _pagenumber 状態を復元 / Cancel: roll back the preview, restore the backed-up text and the _pagenumber state
         ui.cancelButton.onClick = function () {
             previewManager.rollback();
-            restoreTextFromBackupLayer(doc);
-            restoreCapturedState();
+            restorePreviewBackupOnCancel(doc);
+            restoreCapturedState(true);
             ui.dialog.close(0);
         };
 
