@@ -3,68 +3,76 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-概要
+## 概要
 
 アクティブドキュメントのアートボードを一覧表示し、表示・並び替え・追加・
 リネーム・再配置をまとめて行うスクリプト。
 
-■ 一覧と表示
-リスト項目をクリックすると、そのアートボードを画面いっぱいに表示する。
-⌘+クリックで複数選択でき、選択したすべてのアートボードが収まるように表示する。
-数字キー 1〜9 でも該当アートボードを表示できる。
-画面下部の「全体を表示」で全アートボードを一覧表示できる。
+### 一覧と表示
 
-■ 並び替え（アートボードパネル上）
+- リスト項目をクリックすると、そのアートボードを画面いっぱいに表示する。
+- ⌘+クリックで複数選択でき、選択したすべてのアートボードが収まるように表示する。
+- 数字キー 1〜9 でも該当アートボードを表示できる。
+- 画面下部の「全体を表示」で全アートボードを一覧表示できる。
+
+### 並び替え（アートボードパネル上）
+
 移動ボタンで選択アートボードの並び順をまとめて変更でき、
 「名前順に並び替え」で全アートボードを名前順に整列する。
 
-■ アートボードの追加と複製
+### アートボードの追加と複製
+
 追加位置（現在の次／末尾）を選んで、空のアートボードの追加または
 現在のアートボードの複製ができる。既存の行・列レイアウトを保ったまま挿入する。
 
-■ 一括リネーム（すべて）
-# / ## トークンを含むパターン文字列で、全アートボードを連番付きで一括リネームできる。
+### 一括リネーム（すべて）
 
-■ 再配置（カンバス上）
+「#」「##」トークンを含むパターン文字列で、全アートボードを連番付きで一括リネームできる。
+
+### 再配置（カンバス上）
+
 全アートボードをグリッド状に再配置できる。「スクエアに近づける」「横方向に配置」
 「縦方向に配置」のほか、「アートボード名の行列を参照」では「1-2」等の名前から
 行・列を決めて配置する。行数・列数や間隔（定規単位、列間／行間の連動可）も指定でき、
-アートワークも一緒に移動する。
+アートワークも一緒に移動する。「ピクセルグリッドに最適化」をオンにすると、
+再配置後にオブジェクトをピクセルグリッドへ最適化する。
 
-■ その他
-「ビデオ定規」でビデオ定規の表示／非表示を切り替えられる。
-スクリプト実行中はアートボードの枠線を太く表示し、終了時に元の太さへ戻す。
+### その他
 
-Overview
+- 「ビデオ定規」でビデオ定規の表示／非表示を切り替えられる。
+- スクリプト実行中はアートボードの枠線を太く表示し、終了時に元の太さへ戻す。
+
+## Overview
 
 Lists the artboards of the active document and bundles viewing,
 reordering, adding, renaming and repositioning into one palette.
 
-■ List & view
+### 一覧と表示 / List & view
 Clicking a row fits that artboard in the window; ⌘-click selects
 multiple rows and fits them all at once, and number keys 1-9 fit the
 matching artboard. The "Fit All" button frames every artboard.
 
-■ Reorder (Artboards panel)
+### 並び替え（アートボードパネル上） / Reorder (Artboards panel)
 The move buttons reorder the selected artboards as a group, and "Sort
 by Name" sorts every artboard alphabetically.
 
-■ Add & duplicate artboards
+### アートボードの追加と複製 / Add & duplicate artboards
 Choose the insert position (after the current artboard or at the end)
 to add a blank artboard or duplicate the current one, preserving the
 existing row/column layout.
 
-■ Batch rename (all)
+### 一括リネーム（すべて） / Batch rename (all)
 Renames every artboard at once from a pattern string with # / ## number
 tokens.
 
-■ Reposition (canvas)
+### 再配置（カンバス上） / Reposition (canvas)
 Rearranges every artboard into a grid — near-square, horizontal,
 vertical, or by row-column artboard names such as "1-2". Rows, columns
 and spacing (in ruler units, with optional column/row link) can be
-specified, and the artwork moves with the artboards.
+specified, and the artwork moves with the artboards. When "Make Pixel
+Perfect" is checked, objects are made pixel-perfect after rearranging.
 
-■ Other
+### その他 / Other
 The "Video Ruler" button toggles the video ruler. While the script is
 running the artboard border is shown thicker, and its original width is
 restored on exit.
@@ -75,7 +83,7 @@ restored on exit.
 // バージョンとローカライズ / Version and localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.2.2";
 
 /* 現在のUI言語を判定（ja / en）/ Detect the current UI language (ja / en) */
 function getCurrentLang() {
@@ -86,16 +94,22 @@ var lang = getCurrentLang();
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
     dialogTitle: { ja: "アートボード一覧", en: "Artboard List" },
+    tabRename: { ja: "名前の変更", en: "Rename" },
+    tabAdd: { ja: "追加・複製", en: "Add & Duplicate" },
+    tabDelete: { ja: "削除", en: "Delete" },
+    tabReposition: { ja: "再配置", en: "Rearrange" },
     noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
     untitled: { ja: "名称未設定", en: "Untitled" },
     headerNumber: { ja: "番号", en: "No." },
     headerName: { ja: "名前", en: "Name" },
+    headerWidth: { ja: "幅", en: "Width" },
+    headerHeight: { ja: "高さ", en: "Height" },
     fitAll: { ja: "全体を表示", en: "Fit All" },
     fitAllTip: { ja: "すべてのアートボードが収まるように表示します。", en: "Fit all artboards in the window." },
     videoRuler: { ja: "ビデオ定規", en: "Video Ruler" },
     videoRulerTip: { ja: "ビデオ定規の表示／非表示を切り替えます。", en: "Toggle the video ruler." },
     close: { ja: "閉じる", en: "Close" },
-    sortByName: { ja: "名前順に並び替え", en: "Sort by Name" },
+    sortByName: { ja: "名前順", en: "By Name" },
     sortByNameTip: { ja: "すべてのアートボードを名前順に並び替えます。", en: "Sort all artboards by name." },
     reorderPanel: { ja: "並び替え（アートボードパネル上）", en: "Reorder (Artboards panel)" },
     moveTopBtn: { ja: "↑ 先頭へ", en: "↑ Top" },
@@ -107,11 +121,6 @@ var LABELS = {
     moveTopTip: { ja: "選択を先頭へ移動", en: "Move selection to top" },
     moveBottomTip: { ja: "選択を末尾へ移動", en: "Move selection to bottom" },
     reorderError: { ja: "アートボードの並び替えに失敗しました。", en: "Failed to reorder the artboards." },
-    artboardAddPanel: { ja: "アートボードの追加と複製", en: "Add & Duplicate Artboards" },
-    artboardAddPanelTip: {
-        ja: "空のアートボードを追加、または現在のアートボードを複製します。",
-        en: "Add a blank artboard or duplicate the current artboard."
-    },
     addArtboard: { ja: "新規（空）", en: "New (Blank)" },
     addArtboardTip: {
         ja: "空のアートボードを追加します。",
@@ -135,7 +144,6 @@ var LABELS = {
     },
     artboardLimitError: { ja: "アートボードの最大作成可能数を超えています。", en: "The maximum number of artboards would be exceeded." },
     noSpaceError: { ja: "アートボードを作成する十分なスペースがありません。", en: "There is not enough space to create the artboard." },
-    repositionPanel: { ja: "再配置（カンバス上）", en: "Rearrange (Canvas)" },
     repositionNone: { ja: "しない", en: "None" },
     rowsAndColumnsPanel: { ja: "行と列", en: "Rows and Columns" },
     rowsAndColumnsPanelTip: {
@@ -152,6 +160,8 @@ var LABELS = {
     squareGridTip: { ja: "外形が正方形に近くなるグリッドへ再配置", en: "Rearrange into a near-square grid" },
     horizontalRowTip: { ja: "横方向に詰めて配置（入りきらなければ次の行へ）", en: "Fill rows (wraps to the next row when needed)" },
     singleColumnTip: { ja: "縦方向に詰めて配置（入りきらなければ次の列へ）", en: "Fill a column (wraps to the next column when needed)" },
+    optimizePixelGrid: { ja: "ピクセルグリッドに最適化", en: "Make Pixel Perfect" },
+    optimizePixelGridTip: { ja: "再配置のあと、オブジェクトをピクセルグリッドに最適化します。", en: "Make objects pixel-perfect after rearranging." },
     repositionByName: { ja: "アートボード名の行列を参照", en: "Use row-column names" },
     repositionByNameTip: { ja: "「1-2」など 行-列／接頭辞-番号 形式の名前からグリッド配置", en: "Place into a grid from row-column / prefix-number names (e.g. 1-2)" },
     noNameMatch: { ja: "「行-列」（例: 1-2）または「接頭辞-番号」（例: banner-1）形式のアートボード名が見つかりませんでした。", en: "No artboard names in row-column (e.g. 1-2) or prefix-number (e.g. banner-1) format were found." },
@@ -183,7 +193,68 @@ var LABELS = {
     renameNumberTip: { ja: "連番（1, 2, 3 …）を挿入します。", en: "Insert a sequential number token (1, 2, 3 …)." },
     renameNumberPaddedTip: { ja: "2桁ゼロ埋めの連番（01, 02, 03 …）を挿入します。", en: "Insert a zero-padded number token (01, 02, 03 …)." },
     renameHyphenTip: { ja: "ハイフンを挿入します。", en: "Insert a hyphen." },
-    renameUnderscoreTip: { ja: "アンダースコアを挿入します。", en: "Insert an underscore." }
+    renameUnderscoreTip: { ja: "アンダースコアを挿入します。", en: "Insert an underscore." },
+    renameSelectedPanel: { ja: "個別に変更", en: "Rename Individually" },
+    renameSelectedPanelTip: {
+        ja: "一覧で選択中のアートボード名を変更します。",
+        en: "Rename the artboard selected in the list."
+    },
+    renameSelectedLabel: { ja: "名前", en: "Name" },
+    renameSelectedInputTip: { ja: "新しいアートボード名を入力します。", en: "Enter the new artboard name." },
+    renameSelectedApply: { ja: "変更", en: "Rename" },
+    renameSelectedApplyTip: {
+        ja: "選択中のアートボードを入力した名前に変更します。",
+        en: "Rename the selected artboard to the entered name."
+    },
+    renameSelectedNeedText: { ja: "新しい名前を入力してください。", en: "Enter a new name." },
+    renameSelectedNeedSingle: {
+        ja: "名前を変更するアートボードを1つだけ選択してください。",
+        en: "Select exactly one artboard to rename."
+    },
+    deleteModeSelected: { ja: "選択したアートボード", en: "Selected artboards" },
+    deleteModeSelectedTip: {
+        ja: "一覧で選択中のアートボードを削除します（オブジェクトは残ります）。",
+        en: "Delete the artboards selected in the list (objects are kept)."
+    },
+    deleteModeEmpty: { ja: "空のアートボード", en: "Empty artboards" },
+    deleteModeEmptyTip: {
+        ja: "オブジェクトが1つも無いアートボードを削除します（非表示オブジェクトも中身ありとみなします）。",
+        en: "Delete artboards that contain no objects at all (hidden objects count as content)."
+    },
+    deleteModeEmptyHidden: { ja: "空のアートボード（非表示オブジェクト対応）", en: "Empty artboards (hidden-aware)" },
+    deleteModeEmptyHiddenTip: {
+        ja: "表示オブジェクトが無いアートボードを削除します（非表示オブジェクトしか無いものも対象）。",
+        en: "Delete artboards with no visible objects (those holding only hidden objects are included)."
+    },
+    deleteModeNonCurrent: { ja: "現在のアートボード以外", en: "All except current" },
+    deleteModeNonCurrentTip: {
+        ja: "現在のアートボード以外をすべて削除します（オブジェクトは残ります）。",
+        en: "Delete every artboard except the current one (objects are kept)."
+    },
+    deleteModeNonCurrentObjects: { ja: "現在のアートボード以外（オブジェクトを含む）", en: "All except current (with objects)" },
+    deleteModeNonCurrentObjectsTip: {
+        ja: "現在のアートボード以外を、上のオブジェクトごと削除します。",
+        en: "Delete every artboard except the current one, along with the objects on them."
+    },
+    deleteArtboardApply: { ja: "削除", en: "Delete" },
+    deleteArtboardApplyTip: {
+        ja: "選択した条件でアートボードを削除します。",
+        en: "Delete artboards using the chosen condition."
+    },
+    deleteArtboardNeedSelection: {
+        ja: "削除するアートボードを一覧で選択してください。",
+        en: "Select the artboards to delete in the list."
+    },
+    deleteArtboardNoTarget: {
+        ja: "条件に当てはまるアートボードがありません。",
+        en: "No artboards match the condition."
+    },
+    deleteArtboardKeepOne: {
+        ja: "すべてのアートボードは削除できません。1つ以上残してください。",
+        en: "Cannot delete every artboard; at least one must remain."
+    },
+    deleteArtboardConfirmPre: { ja: "アートボードを", en: "Delete " },
+    deleteArtboardConfirmPost: { ja: "個削除します。よろしいですか？", en: " artboard(s)?" }
 };
 
 /* ラベルを現在の言語で取得 / Get a label in the current language */
@@ -282,6 +353,31 @@ function labelText(key) {
         app.redraw();
     }
 
+    /* アートボードの設定を退避用オブジェクトへ取り出す / Capture an artboard's settings into a plain object
+       artboardRect は remove/insert をまたいで使うため、ここで一緒に控えておく
+       artboardRect is captured here too, so it survives a remove/insert */
+    function captureArtboardSettings(artboard) {
+        return {
+            name: artboard.name,
+            rect: artboard.artboardRect,
+            showCenter: artboard.showCenter,
+            showCrossHairs: artboard.showCrossHairs,
+            showSafeAreas: artboard.showSafeAreas,
+            rulerOrigin: artboard.rulerOrigin,
+            rulerPAR: artboard.rulerPAR
+        };
+    }
+
+    /* 退避したアートボード設定を適用（artboardRect は呼び出し側で設定）/ Apply captured artboard settings (artboardRect is set by the caller) */
+    function applyArtboardSettings(artboard, settings) {
+        artboard.name = settings.name;
+        artboard.showCenter = settings.showCenter;
+        artboard.showCrossHairs = settings.showCrossHairs;
+        artboard.showSafeAreas = settings.showSafeAreas;
+        artboard.rulerOrigin = settings.rulerOrigin;
+        artboard.rulerPAR = settings.rulerPAR;
+    }
+
     /* 1つのアートボードを別のインデックスへ移動 / Move one artboard to another index
        Illustrator には並び替えAPIが無いため remove/insert で作り直す
        Illustrator has no reorder API, so the artboard is rebuilt via remove/insert */
@@ -290,24 +386,15 @@ function labelText(key) {
             return;
         }
         var artboards = doc.artboards;
-        var sourceArtboard = artboards[fromIndex];
 
         // 移動元の状態を退避 / Capture the source artboard state
-        var savedName = sourceArtboard.name;
-        var savedRect = sourceArtboard.artboardRect;
-        var savedShowCenter = sourceArtboard.showCenter;
-        var savedShowCrossHairs = sourceArtboard.showCrossHairs;
-        var savedShowSafeAreas = sourceArtboard.showSafeAreas;
+        var savedSettings = captureArtboardSettings(artboards[fromIndex]);
 
         artboards.remove(fromIndex);
-        artboards.insert(savedRect, toIndex);
+        artboards.insert(savedSettings.rect, toIndex);
 
         // 作り直したアートボードへ状態を復元 / Restore the state onto the rebuilt artboard
-        var movedArtboard = artboards[toIndex];
-        movedArtboard.name = savedName;
-        movedArtboard.showCenter = savedShowCenter;
-        movedArtboard.showCrossHairs = savedShowCrossHairs;
-        movedArtboard.showSafeAreas = savedShowSafeAreas;
+        applyArtboardSettings(artboards[toIndex], savedSettings);
     }
 
     /* 目標順どおりにアートボードを並び替え / Reorder artboards to match the target order
@@ -360,28 +447,28 @@ function labelText(key) {
         }
 
         // 各選択アートボードの移動後インデックスを決定 / Decide the new index of each selected artboard
-        var newPos = [];
+        var newPositions = [];
         if (mode === "up") {
             // 上から順に、1つ上へ。先頭や他の選択にぶつかったら止まる / Move up, blocked by the top or another selected row
             for (i = 0; i < selected.length; i++) {
-                var lowerBound = (i === 0) ? 0 : newPos[i - 1] + 1;
+                var lowerBound = (i === 0) ? 0 : newPositions[i - 1] + 1;
                 var raised = selected[i] - 1;
-                newPos[i] = (raised > lowerBound) ? raised : lowerBound;
+                newPositions[i] = (raised > lowerBound) ? raised : lowerBound;
             }
         } else if (mode === "down") {
             // 下から順に、1つ下へ。末尾や他の選択にぶつかったら止まる / Move down, blocked by the bottom or another selected row
             for (i = selected.length - 1; i >= 0; i--) {
-                var upperBound = (i === selected.length - 1) ? artboardCount - 1 : newPos[i + 1] - 1;
+                var upperBound = (i === selected.length - 1) ? artboardCount - 1 : newPositions[i + 1] - 1;
                 var lowered = selected[i] + 1;
-                newPos[i] = (lowered < upperBound) ? lowered : upperBound;
+                newPositions[i] = (lowered < upperBound) ? lowered : upperBound;
             }
         } else if (mode === "top") {
             for (i = 0; i < selected.length; i++) {
-                newPos[i] = i;
+                newPositions[i] = i;
             }
         } else { // "bottom"
             for (i = 0; i < selected.length; i++) {
-                newPos[i] = artboardCount - selected.length + i;
+                newPositions[i] = artboardCount - selected.length + i;
             }
         }
 
@@ -391,16 +478,16 @@ function labelText(key) {
             order[i] = -1;
         }
         for (i = 0; i < selected.length; i++) {
-            order[newPos[i]] = selected[i];
+            order[newPositions[i]] = selected[i];
         }
         // 非選択アートボードを現在の順序のまま空きスロットへ / Fill the gaps with non-selected artboards, keeping order
-        var slot = 0;
+        var slotIndex = 0;
         for (i = 0; i < artboardCount; i++) {
             if (!isSelected[i]) {
-                while (order[slot] !== -1) {
-                    slot++;
+                while (order[slotIndex] !== -1) {
+                    slotIndex++;
                 }
-                order[slot] = i;
+                order[slotIndex] = i;
             }
         }
         return order;
@@ -411,9 +498,9 @@ function labelText(key) {
         // 数字と非数字のかたまりに分割 / Split each name into runs of digits and non-digits
         var chunksA = String(nameA).toLowerCase().match(/(\d+|\D+)/g) || [];
         var chunksB = String(nameB).toLowerCase().match(/(\d+|\D+)/g) || [];
-        var shorter = (chunksA.length < chunksB.length) ? chunksA.length : chunksB.length;
+        var shorterChunkCount = (chunksA.length < chunksB.length) ? chunksA.length : chunksB.length;
 
-        for (var i = 0; i < shorter; i++) {
+        for (var i = 0; i < shorterChunkCount; i++) {
             var partA = chunksA[i];
             var partB = chunksB[i];
             if (partA === partB) {
@@ -434,16 +521,16 @@ function labelText(key) {
         var artboards = doc.artboards;
         var artboardCount = artboards.length;
 
-        var names = [];
+        var artboardNames = [];
         var order = [];
         var i;
         for (i = 0; i < artboardCount; i++) {
-            names[i] = artboards[i].name;
+            artboardNames[i] = artboards[i].name;
             order[i] = i;
         }
         // 名前順、同名は元の順序を維持 / Sort by name, keeping the original order for equal names
         order.sort(function (a, b) {
-            var diff = compareArtboardName(names[a], names[b]);
+            var diff = compareArtboardName(artboardNames[a], artboardNames[b]);
             return (diff !== 0) ? diff : (a - b);
         });
         reorderArtboards(order);
@@ -642,8 +729,12 @@ function labelText(key) {
     /* unlockLayersAndItems で外したロックを元に戻す / Re-apply the locks released by unlockLayersAndItems */
     function restoreLockState(lockState) {
         var i;
-        for (i = 0; i < lockState.items.length; i++) { lockState.items[i].locked = true; }
-        for (i = 0; i < lockState.layers.length; i++) { lockState.layers[i].locked = true; }
+        for (i = 0; i < lockState.items.length; i++) {
+            try { lockState.items[i].locked = true; } catch (e) { }
+        }
+        for (i = 0; i < lockState.layers.length; i++) {
+            try { lockState.layers[i].locked = true; } catch (e) { }
+        }
     }
 
     /* 座標系を元に戻す / Restore the coordinate system */
@@ -775,6 +866,10 @@ function labelText(key) {
             }
         });
 
+        // チェックON時は再配置後にピクセルグリッドへ最適化 / Make objects pixel-perfect after rearranging when the checkbox is on
+        if (optimizePixelGridCheckbox.value) {
+            app.executeMenuCommand('Make Pixel Perfect');
+        }
         fitAllAfterReposition();
         return { columns: gridColumns, rows: gridRows, fillByColumn: fillByColumn };
     }
@@ -983,14 +1078,14 @@ function labelText(key) {
         // 列ごとの最大幅・行ごとの最大高さを集計 / Per-column max width and per-row max height
         var columnWidthByNumber = {}, rowHeightByNumber = {};
         for (i = 0; i < placementItems.length; i++) {
-            var metricsItem = placementItems[i];
-            if (columnWidthByNumber[metricsItem.assignedColumn] === undefined
-                || metricsItem.width > columnWidthByNumber[metricsItem.assignedColumn]) {
-                columnWidthByNumber[metricsItem.assignedColumn] = metricsItem.width;
+            var placementItem = placementItems[i];
+            if (columnWidthByNumber[placementItem.assignedColumn] === undefined
+                || placementItem.width > columnWidthByNumber[placementItem.assignedColumn]) {
+                columnWidthByNumber[placementItem.assignedColumn] = placementItem.width;
             }
-            if (rowHeightByNumber[metricsItem.assignedRow] === undefined
-                || metricsItem.height > rowHeightByNumber[metricsItem.assignedRow]) {
-                rowHeightByNumber[metricsItem.assignedRow] = metricsItem.height;
+            if (rowHeightByNumber[placementItem.assignedRow] === undefined
+                || placementItem.height > rowHeightByNumber[placementItem.assignedRow]) {
+                rowHeightByNumber[placementItem.assignedRow] = placementItem.height;
             }
         }
 
@@ -1026,6 +1121,10 @@ function labelText(key) {
             }
         });
 
+        // チェックON時は再配置後にピクセルグリッドへ最適化 / Make objects pixel-perfect after rearranging when the checkbox is on
+        if (optimizePixelGridCheckbox.value) {
+            app.executeMenuCommand('Make Pixel Perfect');
+        }
         fitAllAfterReposition();
         return true;
     }
@@ -1164,20 +1263,22 @@ function labelText(key) {
         }
     }
 
-    /* 末尾に追加されたアートボードを指定インデックスへ送る / Move the appended artboard into the requested index */
+    /* 末尾に追加されたアートボードを指定インデックスへ送る / Move the appended artboard into the requested index
+       rect だけでなく名前・表示設定・定規設定もまとめてスロット間でずらす
+       Name, display and ruler settings shift between slots together with the rect */
     function moveAppendedArtboardToIndex(artboards, insertIndex) {
         var lastIndex = artboards.length - 1;
         if (insertIndex >= lastIndex) {
             return;
         }
-        var appendedRect = artboards[lastIndex].artboardRect;
-        var appendedName = artboards[lastIndex].name;
+        var appendedSettings = captureArtboardSettings(artboards[lastIndex]);
         for (var k = lastIndex; k > insertIndex; k--) {
-            artboards[k].artboardRect = artboards[k - 1].artboardRect;
-            artboards[k].name = artboards[k - 1].name;
+            var shiftedSettings = captureArtboardSettings(artboards[k - 1]);
+            artboards[k].artboardRect = shiftedSettings.rect;
+            applyArtboardSettings(artboards[k], shiftedSettings);
         }
-        artboards[insertIndex].artboardRect = appendedRect;
-        artboards[insertIndex].name = appendedName;
+        artboards[insertIndex].artboardRect = appendedSettings.rect;
+        applyArtboardSettings(artboards[insertIndex], appendedSettings);
     }
 
     /* 複製元アートボードの内容を挿入先へコピー / Copy the source artboard artwork to the inserted artboard */
@@ -1187,8 +1288,8 @@ function labelText(key) {
         var offsetX = destinationRect[0] - sourceRect[0];
         var offsetY = destinationRect[1] - sourceRect[1];
         var itemsToCopy = collectItemsOnArtboard(sourceRect);
-        for (var m = 0; m < itemsToCopy.length; m++) {
-            try { itemsToCopy[m].duplicate().translate(offsetX, offsetY); } catch (e) { }
+        for (var i = 0; i < itemsToCopy.length; i++) {
+            try { itemsToCopy[i].duplicate().translate(offsetX, offsetY); } catch (e) { }
         }
     }
 
@@ -1255,6 +1356,8 @@ function labelText(key) {
     // パネル共通のマージンと行間 / Shared panel margins and spacing
     var PANEL_MARGINS = [15, 20, 15, 10];
     var PANEL_SPACING = 8;
+    // タブ共通のマージン / Shared tab margins
+    var TAB_MARGINS = [13, 20, 3, 10];
 
     /* パネルの体裁を共通化（縦並び・左寄せ・幅いっぱい・共通マージン）/ Apply the shared panel layout */
     function setupPanel(panel, spacing) {
@@ -1263,6 +1366,15 @@ function labelText(key) {
         panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /* タブの体裁を共通化（setupPanel と同じ要領）/ Apply the shared tab layout (mirrors setupPanel) */
+    function setupTab(tab, spacing) {
+        tab.orientation = "column";
+        tab.alignChildren = "left";
+        tab.alignment = "fill";
+        tab.margins = TAB_MARGINS;
+        tab.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /* ↑↓キーで数値を増減（Shift=±10 スナップ、Option=±0.1、通常=±1）。変更後は onChange を発火
@@ -1307,41 +1419,69 @@ function labelText(key) {
     dialog.spacing = 10;
     dialog.margins = 15;
 
-    // コンテンツ行（左カラム：操作パネル / 右カラム：アートボード一覧）/ Content row (left: control panels, right: artboard list)
-    var contentRow = dialog.add("group");
-    contentRow.orientation = "row";
-    contentRow.alignChildren = ["left", "top"];
-    contentRow.alignment = "fill";
-    contentRow.spacing = 10;
+    // メイン行（左カラム：タブ / 右カラム：アートボード一覧）/ Main row (left: tabs, right: artboard list)
+    var mainRow = dialog.add("group");
+    mainRow.orientation = "row";
+    mainRow.alignChildren = ["fill", "top"];
+    mainRow.alignment = ["fill", "top"];
+    mainRow.spacing = 10;
 
-    // 左カラム：操作パネルを縦に並べる / Left column: control panels stacked vertically
-    var leftColumn = contentRow.add("group");
-    leftColumn.orientation = "column";
-    leftColumn.alignChildren = ["fill", "top"];
-    leftColumn.spacing = 10;
+    // タブパネル（左カラム。幅は 320px に固定）/ Tabbed panel (left column; fixed 320px width)
+    var mainTabs = mainRow.add("tabbedpanel");
+    mainTabs.alignChildren = ["fill", "fill"];
+    mainTabs.alignment = ["fill", "top"];
+    mainTabs.preferredSize.width = 320;
+
+    // タブ（アートボード名の変更 / 追加・複製 / 削除 / 再配置）/ Tabs (rename / add / delete / rearrange)
+    var renameTab = mainTabs.add("tab", undefined, L('tabRename'));
+    setupTab(renameTab);
+
+    var addTab = mainTabs.add("tab", undefined, L('tabAdd'));
+    setupTab(addTab);
+
+    var deleteTab = mainTabs.add("tab", undefined, L('tabDelete'));
+    setupTab(deleteTab);
+
+    var repositionTab = mainTabs.add("tab", undefined, L('tabReposition'));
+    setupTab(repositionTab);
 
     // 右カラム：アートボード一覧と並び替えパネルを縦に並べる / Right column: artboard list with the reorder panel below it
-    var rightColumn = contentRow.add("group");
-    rightColumn.orientation = "column";
-    rightColumn.alignChildren = ["fill", "top"];
-    rightColumn.spacing = 10;
+    var listColumn = mainRow.add("group");
+    listColumn.orientation = "column";
+    listColumn.alignChildren = ["fill", "top"];
+    listColumn.spacing = 10;
 
-    // アートボード一覧（1列目：番号 / 2列目：名前、⌘+クリックで複数選択可）/ Artboard list (col 1: number, col 2: name; Cmd-click for multi-select)
-    var artboardList = rightColumn.add("listbox", undefined, [], {
+    // アートボード一覧（タブの外なので全タブ共通で常に表示）
+    // Artboard list (outside the tabs, so it stays visible on every tab)
+    // 1列目：番号 / 2列目：名前 / 3列目：幅 / 4列目：高さ、⌘+クリックで複数選択可 / col 1 number, 2 name, 3 width, 4 height; Cmd-click for multi-select
+    var listUnitInfo = getRulerUnitInfo();
+    var artboardList = listColumn.add("listbox", undefined, [], {
         multiselect: true,
-        numberOfColumns: 2,
+        numberOfColumns: 4,
         showHeaders: true,
-        columnTitles: [L('headerNumber'), L('headerName')],
-        columnWidths: [40, 244]
+        columnTitles: [
+            L('headerNumber'),
+            L('headerName'),
+            L('headerWidth') + " (" + listUnitInfo.label + ")",
+            L('headerHeight') + " (" + listUnitInfo.label + ")"
+        ],
+        columnWidths: [40, 200, 80, 80]
     });
-    artboardList.preferredSize = [300, 300];
+    artboardList.preferredSize = [416, 300];
 
-    // 並び替えパネル（右カラム下部、1行目：移動ボタン / 2行目：名前順）/ Reorder panel (below the list; row 1: move buttons, row 2: sort by name)
-    var reorderPanel = rightColumn.add("panel", undefined, L('reorderPanel'));
+    // 並び替えパネル（一覧の下）/ Reorder panel (below the list)
+    var reorderPanel = listColumn.add("panel", undefined, L('reorderPanel'));
     setupPanel(reorderPanel);
 
-    // 移動ボタン（先頭へ / 上へ / 下へ / 末尾へ）/ Move buttons (top / up / down / bottom)
-    var moveButtonRow = reorderPanel.add("group");
+    // 並び替え行（左：移動ボタン / 中央：スペーサー / 右：名前順）/ Reorder row (left: move buttons, center: spacer, right: sort by name)
+    var reorderRow = reorderPanel.add("group");
+    reorderRow.orientation = "row";
+    reorderRow.alignment = ["fill", "center"];
+    reorderRow.alignChildren = ["left", "center"];
+    reorderRow.spacing = 8;
+
+    // 左カラム：移動ボタン（先頭へ / 上へ / 下へ / 末尾へ）/ Left column: move buttons (top / up / down / bottom)
+    var moveButtonRow = reorderRow.add("group");
     moveButtonRow.orientation = "row";
     moveButtonRow.spacing = 4;
 
@@ -1353,7 +1493,7 @@ function labelText(key) {
     // 先頭へ／末尾へはラベルが1文字長いぶん少し広げる / Top/Bottom buttons are slightly wider for their 1-char-longer labels
     var moveButtonHeight = 22;
     var moveButtonWidth = 56;
-    var moveEndButtonWidth = 60;
+    var moveEndButtonWidth = 66;
     moveToTopButton.preferredSize = [moveEndButtonWidth, moveButtonHeight];
     moveUpButton.preferredSize = [moveButtonWidth, moveButtonHeight];
     moveDownButton.preferredSize = [moveButtonWidth, moveButtonHeight];
@@ -1364,27 +1504,64 @@ function labelText(key) {
     moveDownButton.helpTip = L('moveDownTip');
     moveToBottomButton.helpTip = L('moveBottomTip');
 
-    // アートボード名順ボタンは次の行へ / The sort-by-name button sits on its own row
-    var sortByNameButton = reorderPanel.add("button", undefined, L('sortByName'));
+    // 中央カラム：左右を引き離すスペーサー / Center column: spacer that pushes left and right apart
+    var reorderSpacer = reorderRow.add("group");
+    reorderSpacer.alignment = ["fill", "fill"];
+
+    // 右カラム：名前順ボタン / Right column: sort-by-name button
+    var sortByNameButton = reorderRow.add("button", undefined, L('sortByName'));
     sortByNameButton.preferredSize.height = 22;
     sortByNameButton.helpTip = L('sortByNameTip');
 
-    // アートボードの追加と複製パネル（右カラム最下部）/ Add & duplicate artboards panel (bottom of the right column)
-    var artboardAddPanel = rightColumn.add("panel", undefined, L('artboardAddPanel'));
-    setupPanel(artboardAddPanel);
-    artboardAddPanel.helpTip = L('artboardAddPanelTip');
+    // 削除対象を選ぶラジオボタン（「アートボードの削除」タブ、縦並び）/ Radio buttons selecting what to delete (Delete tab, stacked)
+    var deleteModeGroup = deleteTab.add("group");
+    deleteModeGroup.orientation = "column";
+    deleteModeGroup.alignChildren = ["left", "top"];
+    deleteModeGroup.spacing = 4;
 
-    // 追加位置（現在の次 / 末尾、横並び）/ Insert position (after current / at the end, in a row)
-    var addPositionRow = artboardAddPanel.add("group");
+    var deleteModeSelectedRadio = deleteModeGroup.add("radiobutton", undefined, L('deleteModeSelected'));
+    var deleteModeEmptyRadio = deleteModeGroup.add("radiobutton", undefined, L('deleteModeEmpty'));
+    var deleteModeEmptyHiddenRadio = deleteModeGroup.add("radiobutton", undefined, L('deleteModeEmptyHidden'));
+    var deleteModeNonCurrentRadio = deleteModeGroup.add("radiobutton", undefined, L('deleteModeNonCurrent'));
+    var deleteModeNonCurrentObjectsRadio = deleteModeGroup.add("radiobutton", undefined, L('deleteModeNonCurrentObjects'));
+    deleteModeSelectedRadio.value = true;
+
+    deleteModeSelectedRadio.helpTip = L('deleteModeSelectedTip');
+    deleteModeEmptyRadio.helpTip = L('deleteModeEmptyTip');
+    deleteModeEmptyHiddenRadio.helpTip = L('deleteModeEmptyHiddenTip');
+    deleteModeNonCurrentRadio.helpTip = L('deleteModeNonCurrentTip');
+    deleteModeNonCurrentObjectsRadio.helpTip = L('deleteModeNonCurrentObjectsTip');
+
+    // 削除ボタン（右寄せ。ラジオの直下に置き、余白は下のスペーサーへ逃がす）
+    // Delete button (right-aligned; placed right below the radios, slack pushed to the spacer below)
+    var deleteArtboardButtonRow = deleteTab.add("group");
+    deleteArtboardButtonRow.orientation = "row";
+    deleteArtboardButtonRow.alignment = ["fill", "top"];
+    deleteArtboardButtonRow.alignChildren = ["right", "center"];
+    // ラジオとの間に上マージンを確保 / Keep a top margin between the radios and the button
+    deleteArtboardButtonRow.margins = [0, 10, 0, 0];
+
+    var deleteArtboardButton = deleteArtboardButtonRow.add("button", undefined, L('deleteArtboardApply'));
+    deleteArtboardButton.preferredSize.height = 22;
+    deleteArtboardButton.helpTip = L('deleteArtboardApplyTip');
+
+    // 余白を吸収するスペーサー（削除ボタンの上に空きが出ないように）
+    // Spacer that absorbs slack so no gap appears above the Delete button
+    var deleteTabSpacer = deleteTab.add("group");
+    deleteTabSpacer.alignment = ["fill", "fill"];
+    deleteTabSpacer.minimumSize.height = 0;
+
+    // 追加位置（「アートボードの追加・複製」タブ、現在の次 / 末尾）/ Insert position (Add tab; after current / at the end)
+    var addPositionRow = addTab.add("group");
     addPositionRow.orientation = "row";
-    addPositionRow.alignChildren = ["left", "center"];
+    addPositionRow.alignChildren = ["left", "top"];
     addPositionRow.spacing = 6;
     addPositionRow.add("statictext", undefined, labelText('addPositionLabel'));
 
     var addPositionGroup = addPositionRow.add("group");
-    addPositionGroup.orientation = "row";
-    addPositionGroup.alignChildren = ["left", "center"];
-    addPositionGroup.spacing = 8;
+    addPositionGroup.orientation = "column";
+    addPositionGroup.alignChildren = ["left", "top"];
+    addPositionGroup.spacing = 4;
     var addAfterCurrentRadio = addPositionGroup.add("radiobutton", undefined, L('addAfterCurrent'));
     var addAtEndRadio = addPositionGroup.add("radiobutton", undefined, L('addAtEnd'));
     addAfterCurrentRadio.value = true;
@@ -1392,7 +1569,7 @@ function labelText(key) {
     addAtEndRadio.helpTip = L('addAtEndTip');
 
     // 追加ボタンを横並び（新規（空）／複製）/ Add buttons in a row (New (Blank) / Duplicate)
-    var addButtonRow = artboardAddPanel.add("group");
+    var addButtonRow = addTab.add("group");
     addButtonRow.orientation = "row";
     addButtonRow.alignChildren = ["left", "center"];
     addButtonRow.spacing = 6;
@@ -1423,8 +1600,36 @@ function labelText(key) {
     addArtboardButton.onClick = function () { runInsertArtboard(false); };
     duplicateArtboardButton.onClick = function () { runInsertArtboard(true); };
 
-    // 簡易リネームパネル（文字列＋トークンで全アートボードを一括リネーム）/ Quick rename panel (rename all artboards from a token pattern)
-    var renamePanel = leftColumn.add("panel", undefined, L('renamePanel'));
+    // 個別に変更パネル（「アートボード名の変更」タブ。一覧で選択中のアートボード名を変更）/ Rename-individually panel (Rename tab)
+    var renameSelectedPanel = renameTab.add("panel", undefined, L('renameSelectedPanel'));
+    setupPanel(renameSelectedPanel);
+    renameSelectedPanel.helpTip = L('renameSelectedPanelTip');
+
+    // 1行目：ラベル＋入力欄 / Row 1: label + name field
+    var renameSelectedRow = renameSelectedPanel.add("group");
+    renameSelectedRow.orientation = "row";
+    renameSelectedRow.alignment = ["fill", "center"];
+    renameSelectedRow.alignChildren = ["left", "center"];
+    renameSelectedRow.spacing = 6;
+
+    renameSelectedRow.add("statictext", undefined, labelText('renameSelectedLabel'));
+
+    var renameSelectedInput = renameSelectedRow.add("edittext", undefined, "");
+    renameSelectedInput.alignment = ["fill", "center"];
+    renameSelectedInput.helpTip = L('renameSelectedInputTip');
+
+    // 2行目：変更ボタン（右寄せ）/ Row 2: Rename button (right-aligned)
+    var renameSelectedButtonRow = renameSelectedPanel.add("group");
+    renameSelectedButtonRow.orientation = "row";
+    renameSelectedButtonRow.alignment = ["fill", "center"];
+    renameSelectedButtonRow.alignChildren = ["right", "center"];
+
+    var renameSelectedButton = renameSelectedButtonRow.add("button", undefined, L('renameSelectedApply'));
+    renameSelectedButton.preferredSize.height = 22;
+    renameSelectedButton.helpTip = L('renameSelectedApplyTip');
+
+    // 一括リネームパネル（文字列＋トークンで全アートボードを一括リネーム）/ Batch rename panel (rename all artboards from a token pattern)
+    var renamePanel = renameTab.add("panel", undefined, L('renamePanel'));
     setupPanel(renamePanel);
     renamePanel.helpTip = L('renamePanelTip');
 
@@ -1475,12 +1680,8 @@ function labelText(key) {
     insertNumberPaddedButton.preferredSize = tokenButtonSize;
     applyRenameButton.preferredSize.height = 22;
 
-    // 再配置パネル（カンバス上のレイアウト）/ Reposition panel (layout on the canvas)
-    var repositionPanel = leftColumn.add("panel", undefined, L('repositionPanel'));
-    setupPanel(repositionPanel);
-
-    // 行と列パネル（再配置モードのラジオ＋行/列の入力欄）/ Rows-and-columns panel (mode radios + rows/cols fields)
-    var rowsColumnsPanel = repositionPanel.add("panel", undefined, L('rowsAndColumnsPanel'));
+    // 行と列パネル（「再配置」タブ。再配置モードのラジオ＋行/列の入力欄）/ Rows-and-columns panel (Rearrange tab; mode radios + rows/cols fields)
+    var rowsColumnsPanel = repositionTab.add("panel", undefined, L('rowsAndColumnsPanel'));
     setupPanel(rowsColumnsPanel);
     rowsColumnsPanel.helpTip = L('rowsAndColumnsPanelTip');
 
@@ -1527,6 +1728,11 @@ function labelText(key) {
     // 既定は「しない」/ Default selection is "None"
     repositionNoneRadio.value = true;
 
+    // 再配置後にピクセルグリッドへ最適化するかどうか / Whether to make objects pixel-perfect after rearranging
+    var optimizePixelGridCheckbox = rowsColumnsPanel.add("checkbox", undefined, L('optimizePixelGrid'));
+    optimizePixelGridCheckbox.helpTip = L('optimizePixelGridTip');
+    optimizePixelGridCheckbox.value = true;
+
     /* 環境設定の定規単位（rulerType）を取得 / Get the ruler unit from preferences (rulerType) */
     function getRulerUnitInfo() {
         switch (app.preferences.getIntegerPreference("rulerType")) {
@@ -1541,18 +1747,18 @@ function labelText(key) {
     }
 
     /* 表示用に数値を整える（小数3桁で丸め）/ Round a number for display (3 decimals) */
-    function formatGapNumber(value) {
+    function formatDisplayNumber(value) {
         return String(Math.round(value * 1000) / 1000);
     }
 
     // ギャップパネル（左：列間・行間 / 右：連動チェック）/ Gap panel (left: gaps, right: link checkbox)
-    var gapPanel = repositionPanel.add("panel", undefined, L('gapPanel'));
+    var gapPanel = repositionTab.add("panel", undefined, L('gapPanel'));
     setupPanel(gapPanel, 4);
     gapPanel.helpTip = L('gapPanelTip');
 
     // 列間・行間は定規単位で入力（既定値は 100pt 相当）/ Gaps use the ruler unit (default ≈ 100 pt)
     var gapUnitInfo = getRulerUnitInfo();
-    var defaultGapText = formatGapNumber(100 / gapUnitInfo.factor);
+    var defaultGapText = formatDisplayNumber(100 / gapUnitInfo.factor);
 
     // 2カラム構成 / Two-column layout
     var gapColumns = gapPanel.add("group");
@@ -1644,7 +1850,7 @@ function labelText(key) {
     }
 
     // 未指定／重複パネル（名前が一致しないアートボードの扱い／「アートボード名の行列を参照」用）/ Unspecified/duplicate panel
-    var duplicatePanel = repositionPanel.add("panel", undefined, L('duplicatePanel'));
+    var duplicatePanel = repositionTab.add("panel", undefined, L('duplicatePanel'));
     setupPanel(duplicatePanel, 4);
     var duplicateRowEndRadio = duplicatePanel.add("radiobutton", undefined, L('duplicateRowEnd'));
     duplicateRowEndRadio.helpTip = L('duplicateRowEndTip');
@@ -1696,9 +1902,15 @@ function labelText(key) {
             if (!artboardName || artboardName === "") {
                 artboardName = L('untitled');
             }
-            // 1列目に番号、2列目に名前 / Column 1 = number, column 2 = name
+            // アートボードの幅・高さを定規単位で取得 / Artboard width/height in the ruler unit
+            var artboardRect = artboards[i].artboardRect; // [left, top, right, bottom]
+            var artboardWidth = (artboardRect[2] - artboardRect[0]) / listUnitInfo.factor;
+            var artboardHeight = (artboardRect[1] - artboardRect[3]) / listUnitInfo.factor;
+            // 1列目=番号 / 2列目=名前 / 3列目=幅 / 4列目=高さ / Col 1 = number, 2 = name, 3 = width, 4 = height
             var listItem = artboardList.add("item", String(i + 1));
             listItem.subItems[0].text = artboardName;
+            listItem.subItems[1].text = formatDisplayNumber(artboardWidth);
+            listItem.subItems[2].text = formatDisplayNumber(artboardHeight);
         }
         // 選択を復元 / Restore the selection
         if (selectionIndices) {
@@ -1710,6 +1922,8 @@ function labelText(key) {
             }
         }
         suppressListChange = false;
+        // 名前変更パネルを選択に同期 / Sync the rename panel with the selection
+        updateRenameSelectedPanel();
     }
 
     /* 選択中アートボードのインデックス配列を取得 / Get the indices of the selected artboards */
@@ -1738,6 +1952,8 @@ function labelText(key) {
             artboardList.items[k].selected = (k === index);
         }
         suppressListChange = false;
+        // 名前変更パネルを選択に同期 / Sync the rename panel with the selection
+        updateRenameSelectedPanel();
     }
 
     /* 並び替え処理を実行し、失敗時はメッセージを表示 / Run a reorder action with error handling */
@@ -1774,6 +1990,8 @@ function labelText(key) {
         if (indices.length >= 1) {
             fitAllButton.enabled = true;
         }
+        // 名前変更パネルを選択に同期 / Sync the rename panel with the selection
+        updateRenameSelectedPanel();
     };
 
     // 選択を1つ上へ移動 / Move the selection up
@@ -1837,6 +2055,148 @@ function labelText(key) {
         }
         refreshArtboardList(selected);
         // リネームで名前が変わったので参照オプションの可否を再判定 / Re-check the byName option after renaming
+        updateByNameRadioState();
+    };
+
+    /* 名前変更パネルを一覧の選択に同期（単一選択時のみ有効）
+       Sync the rename panel with the list selection (enabled only when exactly one row is selected) */
+    function updateRenameSelectedPanel() {
+        var indices = getSelectedIndices();
+        var singleSelected = (indices.length === 1);
+        renameSelectedInput.enabled = singleSelected;
+        renameSelectedButton.enabled = singleSelected;
+        renameSelectedInput.text = singleSelected ? doc.artboards[indices[0]].name : "";
+    }
+
+    // 一覧で選択中のアートボードを入力した名前に変更 / Rename the selected artboard to the entered name
+    renameSelectedButton.onClick = function () {
+        var indices = getSelectedIndices();
+        if (indices.length !== 1) {
+            alert(L('renameSelectedNeedSingle'));
+            return;
+        }
+        // 前後の空白を取り除いた名前を採用 / Use the name with leading/trailing whitespace trimmed
+        var newName = renameSelectedInput.text.replace(/^\s+|\s+$/g, "");
+        if (!newName) {
+            alert(L('renameSelectedNeedText'));
+            return;
+        }
+        var targetIndex = indices[0];
+        try {
+            doc.artboards[targetIndex].name = newName;
+        } catch (e) {
+            alert(e);
+            return;
+        }
+        refreshArtboardList([targetIndex]);
+        // 名前が変わったので参照オプションの可否を再判定 / Re-check the byName option after renaming
+        updateByNameRadioState();
+    };
+
+    /* 削除パネルで選択中のモードを返す / Return the mode selected in the delete panel */
+    function getDeleteMode() {
+        if (deleteModeEmptyRadio.value) { return "empty"; }
+        if (deleteModeEmptyHiddenRadio.value) { return "emptyHidden"; }
+        if (deleteModeNonCurrentRadio.value) { return "nonCurrent"; }
+        if (deleteModeNonCurrentObjectsRadio.value) { return "nonCurrentObjects"; }
+        return "selected";
+    }
+
+    /* アートボード上の全オブジェクト数と表示オブジェクト数を返す / Count all items and visible items on an artboard */
+    function getArtboardItemCounts(artboardIndex) {
+        var items = collectItemsOnArtboard(doc.artboards[artboardIndex].artboardRect);
+        var visible = 0;
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (!item.hidden && item.layer.visible) { visible++; }
+        }
+        return { total: items.length, visible: visible };
+    }
+
+    /* 指定アートボード上のオブジェクトを削除（ロック・非表示も対象）/ Delete the objects on the given artboards (locked/hidden included) */
+    function deleteItemsOnArtboards(artboardIndices) {
+        var itemsToDelete = [], unlockedLayers = [], i, j;
+        for (i = 0; i < artboardIndices.length; i++) {
+            var items = collectItemsOnArtboard(doc.artboards[artboardIndices[i]].artboardRect);
+            for (j = 0; j < items.length; j++) { itemsToDelete.push(items[j]); }
+        }
+        for (i = 0; i < itemsToDelete.length; i++) {
+            try {
+                var layer = itemsToDelete[i].layer;
+                if (layer && layer.locked) { layer.locked = false; unlockedLayers.push(layer); }
+                itemsToDelete[i].locked = false;
+                itemsToDelete[i].remove();
+            } catch (e) { }
+        }
+        // 解除したレイヤーのロックを戻す（レイヤーは残るので安全）/ Re-lock the layers we unlocked (layers persist)
+        for (i = 0; i < unlockedLayers.length; i++) {
+            try { unlockedLayers[i].locked = true; } catch (e) { }
+        }
+    }
+
+    // 選択したモードに従ってアートボードを削除 / Delete artboards according to the selected mode
+    deleteArtboardButton.onClick = function () {
+        var artboards = doc.artboards;
+        var artboardCount = artboards.length;
+        var mode = getDeleteMode();
+        var targetIndices = [];
+        var i;
+
+        if (mode === "selected") {
+            targetIndices = getSelectedIndices();
+            if (targetIndices.length === 0) {
+                alert(L('deleteArtboardNeedSelection'));
+                return;
+            }
+        } else if (mode === "empty" || mode === "emptyHidden") {
+            // 空（全オブジェクト無し）／空・非表示対応（表示オブジェクト無し）/ Empty (no items) or empty-hidden-aware (no visible items)
+            for (i = 0; i < artboardCount; i++) {
+                var counts = getArtboardItemCounts(i);
+                var isEmpty = (mode === "empty") ? (counts.total === 0) : (counts.visible === 0);
+                if (isEmpty) { targetIndices.push(i); }
+            }
+        } else {
+            // 現在のアートボード以外 / Every artboard except the current one
+            var activeIndex = artboards.getActiveArtboardIndex();
+            for (i = 0; i < artboardCount; i++) {
+                if (i !== activeIndex) { targetIndices.push(i); }
+            }
+        }
+
+        if (targetIndices.length === 0) {
+            alert(L('deleteArtboardNoTarget'));
+            return;
+        }
+        // Illustrator はアートボードを1つ以上必要とする / Illustrator requires at least one artboard
+        if (targetIndices.length >= artboardCount) {
+            alert(L('deleteArtboardKeepOne'));
+            return;
+        }
+        if (!confirm(L('deleteArtboardConfirmPre') + targetIndices.length + L('deleteArtboardConfirmPost'))) {
+            return;
+        }
+
+        // 後ろのインデックスから削除（前を消すと後続がずれるため）/ Remove from the highest index down so earlier removals don't shift the rest
+        targetIndices.sort(function (a, b) { return b - a; });
+        try {
+            // 「オブジェクトを含む」モードは先に上のオブジェクトを削除 / The "with objects" mode removes the objects first
+            if (mode === "nonCurrentObjects") {
+                deleteItemsOnArtboards(targetIndices);
+            }
+            for (i = 0; i < targetIndices.length; i++) {
+                artboards.remove(targetIndices[i]);
+            }
+        } catch (e) {
+            alert(e);
+            return;
+        }
+
+        // 削除後は残った中で最も先頭側の行を選択 / After deletion, select the earliest remaining nearby row
+        var nextSelection = Math.min(targetIndices[targetIndices.length - 1], doc.artboards.length - 1);
+        refreshArtboardList([nextSelection]);
+        // モーダルダイアログ表示中もカンバスの変化を反映 / Reflect the canvas change while the modal dialog is up
+        app.redraw();
+        // アートボード構成が変わったので参照オプションの可否を再判定 / Re-check the byName option after the artboard set changed
         updateByNameRadioState();
     };
 
