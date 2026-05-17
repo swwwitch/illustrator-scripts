@@ -10,6 +10,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 一覧と表示
 
+- 一覧では、幅・高さやXY座標（左上）の表示を切り替えられる。
 - リスト項目をクリックすると、そのアートボードを画面いっぱいに表示する。
 - ⌘+クリックで複数選択でき、選択したすべてのアートボードが収まるように表示する。
 - 数字キー 1〜9 でも該当アートボードを表示できる。
@@ -33,7 +34,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 全アートボードをグリッド状に再配置できる。「スクエアに近づける」「横方向に配置」
 「縦方向に配置」のほか、「アートボード名の行列を参照」では「1-2」等の名前から
-行・列を決めて配置する。行数・列数や間隔（定規単位、列間／行間の連動可）も指定でき、
+行・列を決めて配置する。行数・列数や間隔（定規単位、水平方向／垂直方向の連動可）も指定でき、
 アートワークも一緒に移動する。「ピクセルグリッドに最適化」をオンにすると、
 再配置後にオブジェクトをピクセルグリッドへ最適化する。
 
@@ -48,9 +49,10 @@ Lists the artboards of the active document and bundles viewing,
 reordering, adding, renaming and repositioning into one palette.
 
 ### 一覧と表示 / List & view
-Clicking a row fits that artboard in the window; ⌘-click selects
-multiple rows and fits them all at once, and number keys 1-9 fit the
-matching artboard. The "Fit All" button frames every artboard.
+The artboard list can optionally display width/height and top-left XY
+coordinates. Clicking a row fits that artboard in the window; ⌘-click
+selects multiple rows and fits them all at once, and number keys 1-9 fit
+the matching artboard. The "Fit All" button frames every artboard.
 
 ### 並び替え（アートボードパネル上） / Reorder (Artboards panel)
 The move buttons reorder the selected artboards as a group, and "Sort
@@ -68,7 +70,7 @@ tokens.
 ### 再配置（カンバス上） / Reposition (canvas)
 Rearranges every artboard into a grid — near-square, horizontal,
 vertical, or by row-column artboard names such as "1-2". Rows, columns
-and spacing (in ruler units, with optional column/row link) can be
+and spacing (in ruler units, with optional horizontal/vertical link) can be
 specified, and the artwork moves with the artboards. When "Make Pixel
 Perfect" is checked, objects are made pixel-perfect after rearranging.
 
@@ -83,7 +85,7 @@ restored on exit.
 // バージョンとローカライズ / Version and localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.2.2";
+var SCRIPT_VERSION = "v1.2.3";
 
 /* 現在のUI言語を判定（ja / en）/ Detect the current UI language (ja / en) */
 function getCurrentLang() {
@@ -104,6 +106,10 @@ var LABELS = {
     headerName: { ja: "名前", en: "Name" },
     headerWidth: { ja: "幅", en: "Width" },
     headerHeight: { ja: "高さ", en: "Height" },
+    showSizeColumns: { ja: "幅と高さ", en: "Width & Height" },
+    showPositionColumns: { ja: "XY座標（左上）", en: "XY Position (Top Left)" },
+    headerX: { ja: "X", en: "X" },
+    headerY: { ja: "Y", en: "Y" },
     fitAll: { ja: "全体を表示", en: "Fit All" },
     fitAllTip: { ja: "すべてのアートボードが収まるように表示します。", en: "Fit all artboards in the window." },
     videoRuler: { ja: "ビデオ定規", en: "Video Ruler" },
@@ -144,7 +150,8 @@ var LABELS = {
     },
     artboardLimitError: { ja: "アートボードの最大作成可能数を超えています。", en: "The maximum number of artboards would be exceeded." },
     noSpaceError: { ja: "アートボードを作成する十分なスペースがありません。", en: "There is not enough space to create the artboard." },
-    repositionNone: { ja: "しない", en: "None" },
+    repositionNone: { ja: "再配置しない", en: "Do Not Rearrange" },
+    repositionNoneTip: { ja: "アートボードの再配置を行いません。", en: "Do not rearrange the artboards." },
     rowsAndColumnsPanel: { ja: "行と列", en: "Rows and Columns" },
     rowsAndColumnsPanelTip: {
         ja: "再配置方法と、行数・列数を指定します。",
@@ -155,15 +162,15 @@ var LABELS = {
     rowsInputTip: { ja: "行数を指定して、列方向に流し込みます。", en: "Set the row count and fill by columns." },
     columnsInputTip: { ja: "列数を指定して、行方向に流し込みます。", en: "Set the column count and fill by rows." },
     squareGrid: { ja: "スクエアに近づける", en: "Near Square" },
-    horizontalRow: { ja: "横方向に配置", en: "Horizontal Flow" },
-    singleColumn: { ja: "縦方向に配置", en: "Vertical Flow" },
+    horizontalRow: { ja: "横方向に流し込み", en: "Horizontal Flow" },
+    singleColumn: { ja: "縦方向に流し込み", en: "Vertical Flow" },
     squareGridTip: { ja: "外形が正方形に近くなるグリッドへ再配置", en: "Rearrange into a near-square grid" },
     horizontalRowTip: { ja: "横方向に詰めて配置（入りきらなければ次の行へ）", en: "Fill rows (wraps to the next row when needed)" },
     singleColumnTip: { ja: "縦方向に詰めて配置（入りきらなければ次の列へ）", en: "Fill a column (wraps to the next column when needed)" },
     optimizePixelGrid: { ja: "ピクセルグリッドに最適化", en: "Make Pixel Perfect" },
     optimizePixelGridTip: { ja: "再配置のあと、オブジェクトをピクセルグリッドに最適化します。", en: "Make objects pixel-perfect after rearranging." },
-    repositionByName: { ja: "アートボード名の行列を参照", en: "Use row-column names" },
-    repositionByNameTip: { ja: "「1-2」など 行-列／接頭辞-番号 形式の名前からグリッド配置", en: "Place into a grid from row-column / prefix-number names (e.g. 1-2)" },
+    repositionByName: { ja: "アートボード名を参照", en: "Use artboard names" },
+    repositionByNameTip: { ja: "「1-2」「banner-1」などの名前からグリッド配置します。", en: "Place into a grid from names such as 1-2 or banner-1." },
     noNameMatch: { ja: "「行-列」（例: 1-2）または「接頭辞-番号」（例: banner-1）形式のアートボード名が見つかりませんでした。", en: "No artboard names in row-column (e.g. 1-2) or prefix-number (e.g. banner-1) format were found." },
     gapPanel: { ja: "間隔", en: "Spacing" },
     gapPanelTip: {
@@ -173,7 +180,7 @@ var LABELS = {
     columnGapLabel: { ja: "水平方向", en: "Horizontal" },
     rowGapLabel: { ja: "垂直方向", en: "Vertical" },
     linkGapLabel: { ja: "連動", en: "Link" },
-    linkGapTip: { ja: "列間と行間を同じ値で連動", en: "Keep column and row gaps in sync" },
+    linkGapTip: { ja: "水平方向と垂直方向の間隔を同じ値で連動", en: "Keep column and row gaps in sync" },
     duplicatePanel: { ja: "未指定／重複時", en: "Unmatched / Duplicates" },
     duplicateRowEnd: { ja: "各行の末尾に配置", en: "Append to row end" },
     duplicateRowEndTip: { ja: "形式に合わない名前や重複した位置は、直近の行の末尾に配置します。", en: "Place unmatched names or duplicate positions at the end of the nearest row." },
@@ -696,14 +703,25 @@ function labelText(key) {
         return allLayers;
     }
 
-    /* レイヤー直下の最上位アイテムのみ収集（グループ内は親と一緒に動く）/ Collect only top-level items (children move with their parent) */
+    /* レイヤー／サブレイヤー直下の最上位アイテムのみ収集（グループ内は親と一緒に動く）/ Collect only top-level items directly under layers/sublayers (children move with their parent) */
     function collectTopLevelItems() {
-        var topLevelItems = [], pageItems = doc.pageItems;
-        for (var i = 0; i < pageItems.length; i++) {
-            if (pageItems[i].parent && pageItems[i].parent.typename === "Layer") {
-                topLevelItems.push(pageItems[i]);
+        var topLevelItems = [];
+
+        function collectFromLayers(layers) {
+            for (var layerIndex = 0; layerIndex < layers.length; layerIndex++) {
+                var layer = layers[layerIndex];
+                var pageItems = layer.pageItems;
+                for (var itemIndex = 0; itemIndex < pageItems.length; itemIndex++) {
+                    var pageItem = pageItems[itemIndex];
+                    if (pageItem.parent === layer) {
+                        topLevelItems.push(pageItem);
+                    }
+                }
+                collectFromLayers(layer.layers);
             }
         }
+
+        collectFromLayers(doc.layers);
         return topLevelItems;
     }
 
@@ -790,9 +808,11 @@ function labelText(key) {
     }
 
     /* すべてのアートボードをグリッド状に再配置（アートワークも一緒に移動）/ Rearrange every artboard into a grid (artwork moves with it)
+       optimizePixelGridCheckbox は後段の UI 初期化で生成されるため、実行時参照で使用
+       optimizePixelGridCheckbox is created later during UI setup and is referenced at runtime.
        mode: "square"（外形が正方形に近い）/ "horizontal"（横方向に詰めて折り返し）/ "vertical"（縦方向に詰めて折り返し）
        manualColumns/manualRows/manualFillByColumn を渡すと、その列数・行数・方向で再配置（行/列の手動変更時）
-       間隔は列間／行間フィールド、セルは最大アートボードのサイズ。戻り値は成功時 { columns, rows, fillByColumn }、中止時 null
+       間隔は水平方向／垂直方向フィールド、セルは最大アートボードのサイズ。戻り値は成功時 { columns, rows, fillByColumn }、中止時 null
        mode: "square"/"horizontal"/"vertical"; pass manualColumns/Rows/FillByColumn to override.
        Returns { columns, rows, fillByColumn } on success, or null when aborted. */
     function arrangeArtboards(mode, manualColumns, manualRows, manualFillByColumn) {
@@ -809,7 +829,7 @@ function labelText(key) {
         var cellHeight = gridMetrics.cellHeight;
         var i, j;
 
-        // 間隔は列間／行間フィールドの値（pt）/ Gaps come from the column/row gap fields (points)
+        // 間隔は水平方向／垂直方向フィールドの値（pt）/ Gaps come from the horizontal/vertical gap fields (points)
         var gaps = readGapInputs();
         var columnGap = gaps.columnGap, rowGap = gaps.rowGap;
 
@@ -1055,7 +1075,9 @@ function labelText(key) {
     }
 
     /* アートボード名の「行-列」「接頭辞-番号」に従ってグリッド状に再配置（アートワークも一緒に移動）
-       間隔は列間／行間フィールド、グリッド原点は (0, 0)。exceptionMode で未指定／重複の扱いを指定
+       optimizePixelGridCheckbox は後段の UI 初期化で生成されるため、実行時参照で使用
+       optimizePixelGridCheckbox is created later during UI setup and is referenced at runtime.
+       間隔は水平方向／垂直方向フィールド、グリッド原点は (0, 0)。exceptionMode で未指定／重複の扱いを指定
        戻り値は成功時 true、一致名が無ければ false
        Rearrange artboards into a grid from "row-col"/"prefix-number" names (artwork moves with them).
        Returns true on success, false when no name matched. */
@@ -1089,7 +1111,7 @@ function labelText(key) {
             }
         }
 
-        // 間隔は列間／行間フィールドの値（pt）/ Gaps come from the column/row gap fields (points)
+        // 間隔は水平方向／垂直方向フィールドの値（pt）/ Gaps come from the horizontal/vertical gap fields (points)
         var gaps = readGapInputs();
         var columnOffsetByNumber = computeCumulativeOffsets(
             collectSortedNumericKeys(columnWidthByNumber), columnWidthByNumber, gaps.columnGap, placementContext.maxColumnNumber + 1);
@@ -1179,7 +1201,7 @@ function labelText(key) {
     function inferArtboardGridInfo(artboards, artboardCount) {
         var baseArtboardRect = artboards[0].artboardRect;
         var artboardWidth = baseArtboardRect[2] - baseArtboardRect[0];
-        var artboardHeight = baseArtboardRect[3] - baseArtboardRect[1];
+        var artboardHeight = baseArtboardRect[1] - baseArtboardRect[3];
         var artboardSpacing = app.preferences.getRealPreference("plugin/ArtboardRearrange/ArtboardSpacing");
         var gridStep = [artboardWidth + artboardSpacing, artboardHeight - artboardSpacing];
         var columns = 0;
@@ -1451,23 +1473,56 @@ function labelText(key) {
     listColumn.alignChildren = ["fill", "top"];
     listColumn.spacing = 10;
 
+    // アートボード一覧の表示列 / Visible columns for the artboard list
+    var listColumnOptionRow = listColumn.add("group");
+    listColumnOptionRow.orientation = "row";
+    listColumnOptionRow.alignChildren = ["left", "center"];
+    listColumnOptionRow.spacing = 10;
+
+    var showSizeColumnsCheckbox = listColumnOptionRow.add("checkbox", undefined, L('showSizeColumns'));
+    var showPositionColumnsCheckbox = listColumnOptionRow.add("checkbox", undefined, L('showPositionColumns'));
+    showSizeColumnsCheckbox.value = true;
+    showPositionColumnsCheckbox.value = false;
+
     // アートボード一覧（タブの外なので全タブ共通で常に表示）
     // Artboard list (outside the tabs, so it stays visible on every tab)
-    // 1列目：番号 / 2列目：名前 / 3列目：幅 / 4列目：高さ、⌘+クリックで複数選択可 / col 1 number, 2 name, 3 width, 4 height; Cmd-click for multi-select
+    // 1列目：番号 / 2列目：名前 / 任意列：幅・高さ、X・Y、⌘+クリックで複数選択可 / col 1 number, 2 name, optional width/height and X/Y; Cmd-click for multi-select
     var listUnitInfo = getRulerUnitInfo();
-    var artboardList = listColumn.add("listbox", undefined, [], {
-        multiselect: true,
-        numberOfColumns: 4,
-        showHeaders: true,
-        columnTitles: [
-            L('headerNumber'),
-            L('headerName'),
-            L('headerWidth') + " (" + listUnitInfo.label + ")",
-            L('headerHeight') + " (" + listUnitInfo.label + ")"
-        ],
-        columnWidths: [40, 200, 80, 80]
-    });
-    artboardList.preferredSize = [416, 300];
+
+    var artboardListContainer = listColumn.add("group");
+    artboardListContainer.orientation = "column";
+    artboardListContainer.alignChildren = ["fill", "top"];
+    artboardListContainer.alignment = ["fill", "top"];
+
+    /* 幅・高さチェックボックスの状態に応じて一覧を作成 / Create the list according to the width/height checkboxes */
+    function createArtboardListbox() {
+        var columnTitles = [L('headerNumber'), L('headerName')];
+        var columnWidths = [40, 200];
+
+        if (showSizeColumnsCheckbox.value) {
+            columnTitles.push(L('headerWidth') + " (" + listUnitInfo.label + ")");
+            columnTitles.push(L('headerHeight') + " (" + listUnitInfo.label + ")");
+            columnWidths.push(80, 80);
+        }
+
+        if (showPositionColumnsCheckbox.value) {
+            columnTitles.push(L('headerX') + " (px)");
+            columnTitles.push(L('headerY') + " (px)");
+            columnWidths.push(80, 80);
+        }
+
+        var listbox = artboardListContainer.add("listbox", undefined, [], {
+            multiselect: true,
+            numberOfColumns: columnTitles.length,
+            showHeaders: true,
+            columnTitles: columnTitles,
+            columnWidths: columnWidths
+        });
+        listbox.preferredSize = [416, 300];
+        return listbox;
+    }
+
+    var artboardList = createArtboardListbox();
 
     // 並び替えパネル（一覧の下）/ Reorder panel (below the list)
     var reorderPanel = listColumn.add("panel", undefined, L('reorderPanel'));
@@ -1716,6 +1771,7 @@ function labelText(key) {
     repositionRadioGroup.spacing = 4;
 
     var repositionNoneRadio = repositionRadioGroup.add("radiobutton", undefined, L('repositionNone'));
+    repositionNoneRadio.helpTip = L('repositionNoneTip');
     var squareGridRadio = repositionRadioGroup.add("radiobutton", undefined, L('squareGrid'));
     squareGridRadio.helpTip = L('squareGridTip');
     var horizontalRadio = repositionRadioGroup.add("radiobutton", undefined, L('horizontalRow'));
@@ -1751,12 +1807,12 @@ function labelText(key) {
         return String(Math.round(value * 1000) / 1000);
     }
 
-    // ギャップパネル（左：列間・行間 / 右：連動チェック）/ Gap panel (left: gaps, right: link checkbox)
+    // 間隔パネル（左：水平方向・垂直方向 / 右：連動チェック）/ Spacing panel (left: horizontal/vertical, right: link checkbox)
     var gapPanel = repositionTab.add("panel", undefined, L('gapPanel'));
     setupPanel(gapPanel, 4);
     gapPanel.helpTip = L('gapPanelTip');
 
-    // 列間・行間は定規単位で入力（既定値は 100pt 相当）/ Gaps use the ruler unit (default ≈ 100 pt)
+    // 水平方向・垂直方向の間隔は定規単位で入力（既定値は 100pt 相当）/ Horizontal/vertical gaps use the ruler unit (default ≈ 100 pt)
     var gapUnitInfo = getRulerUnitInfo();
     var defaultGapText = formatDisplayNumber(100 / gapUnitInfo.factor);
 
@@ -1902,15 +1958,35 @@ function labelText(key) {
             if (!artboardName || artboardName === "") {
                 artboardName = L('untitled');
             }
-            // アートボードの幅・高さを定規単位で取得 / Artboard width/height in the ruler unit
+
+            // アートボードの幅・高さを定規単位、左上座標をピクセルで取得 / Artboard width/height in the ruler unit; top-left position in pixels
             var artboardRect = artboards[i].artboardRect; // [left, top, right, bottom]
             var artboardWidth = (artboardRect[2] - artboardRect[0]) / listUnitInfo.factor;
             var artboardHeight = (artboardRect[1] - artboardRect[3]) / listUnitInfo.factor;
-            // 1列目=番号 / 2列目=名前 / 3列目=幅 / 4列目=高さ / Col 1 = number, 2 = name, 3 = width, 4 = height
+            var artboardLeftPx = artboardRect[0];
+            var artboardTopPx = artboardRect[1];
+            var artboardLeftPx = artboardRect[0];
+            var artboardTopPx = artboardRect[1];
+
+            // 1列目=番号 / 2列目=名前 / 任意列=幅・高さ / Col 1 = number, 2 = name, optional width/height
             var listItem = artboardList.add("item", String(i + 1));
-            listItem.subItems[0].text = artboardName;
-            listItem.subItems[1].text = formatDisplayNumber(artboardWidth);
-            listItem.subItems[2].text = formatDisplayNumber(artboardHeight);
+            var subItemIndex = 0;
+
+            listItem.subItems[subItemIndex].text = artboardName;
+            subItemIndex++;
+
+            if (showSizeColumnsCheckbox.value) {
+                listItem.subItems[subItemIndex].text = formatDisplayNumber(artboardWidth);
+                subItemIndex++;
+                listItem.subItems[subItemIndex].text = formatDisplayNumber(artboardHeight);
+                subItemIndex++;
+            }
+
+            if (showPositionColumnsCheckbox.value) {
+                listItem.subItems[subItemIndex].text = formatDisplayNumber(artboardLeftPx);
+                subItemIndex++;
+                listItem.subItems[subItemIndex].text = formatDisplayNumber(artboardTopPx);
+            }
         }
         // 選択を復元 / Restore the selection
         if (selectionIndices) {
@@ -1980,18 +2056,59 @@ function labelText(key) {
     }
 
     // 選択したアートボードを画面に表示（複数選択時は全体が収まるように）/ Fit the selected artboards (the whole group when multiple are selected)
-    artboardList.onChange = function () {
-        if (suppressListChange) {
-            return;
+    /* 一覧のイベントを現在のリストボックスへ割り当て / Bind events to the current listbox */
+    function bindArtboardListEvents() {
+        // 選択したアートボードを画面に表示（複数選択時は全体が収まるように）/ Fit the selected artboards (the whole group when multiple are selected)
+        artboardList.onChange = function () {
+            if (suppressListChange) {
+                return;
+            }
+            var indices = getSelectedIndices();
+            fitArtboardsToWindow(indices);
+            // 個別のアートボードを拡大表示したので全体表示ボタンを有効化 / A subset is shown — enable the Fit All button
+            if (indices.length >= 1) {
+                fitAllButton.enabled = true;
+            }
+            // 名前変更パネルを選択に同期 / Sync the rename panel with the selection
+            updateRenameSelectedPanel();
+        };
+    }
+
+    /* 現在の選択を保ったままアートボード一覧を作り直す / Rebuild the artboard list while keeping the current selection */
+    function rebuildArtboardList() {
+        var selectedIndices = getSelectedIndices();
+        artboardListContainer.remove(artboardList);
+        artboardList = createArtboardListbox();
+        bindArtboardListEvents();
+        refreshArtboardList(selectedIndices);
+        dialog.layout.layout(true);
+    }
+
+    bindArtboardListEvents();
+
+    /* Option+クリック時は、クリックした側だけをONにして他方をOFF / Option-click keeps only the clicked checkbox enabled */
+    function handleListColumnCheckboxClick(clickedCheckbox) {
+        var keyboard = ScriptUI.environment.keyboardState;
+
+        if (keyboard.altKey) {
+            if (clickedCheckbox === showSizeColumnsCheckbox) {
+                showSizeColumnsCheckbox.value = true;
+                showPositionColumnsCheckbox.value = false;
+            } else {
+                showSizeColumnsCheckbox.value = false;
+                showPositionColumnsCheckbox.value = true;
+            }
         }
-        var indices = getSelectedIndices();
-        fitArtboardsToWindow(indices);
-        // 個別のアートボードを拡大表示したので全体表示ボタンを有効化 / A subset is shown — enable the Fit All button
-        if (indices.length >= 1) {
-            fitAllButton.enabled = true;
-        }
-        // 名前変更パネルを選択に同期 / Sync the rename panel with the selection
-        updateRenameSelectedPanel();
+
+        rebuildArtboardList();
+    }
+
+    showSizeColumnsCheckbox.onClick = function () {
+        handleListColumnCheckboxClick(showSizeColumnsCheckbox);
+    };
+
+    showPositionColumnsCheckbox.onClick = function () {
+        handleListColumnCheckboxClick(showPositionColumnsCheckbox);
     };
 
     // 選択を1つ上へ移動 / Move the selection up
