@@ -6,7 +6,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 PathTextToolkit.jsx
  
 ### 更新日：
-20260303
+20260518
  
 ### 概要：
 ポイント文字／パス上文字を、用途に応じて「作成」「分離」「調整」できるツールです。
@@ -31,7 +31,7 @@ PathTextToolkit.jsx
 
     /* バージョン / Version */
     // Version
-    var SCRIPT_VERSION = "v1.3.2";
+    var SCRIPT_VERSION = "v1.3.3";
 
     // Language
     function getCurrentLang() {
@@ -76,6 +76,7 @@ PathTextToolkit.jsx
         arcDirection: { ja: "アーチ方向", en: "Arc Direction" },
         arcUp: { ja: "上", en: "Up" },
         arcDown: { ja: "下", en: "Down" },
+        arcRoundness: { ja: "まるみ", en: "Roundness" },
 
         /* Effects / 効果 */
         effectRainbow: { ja: "虹", en: "Rainbow" },
@@ -89,9 +90,9 @@ PathTextToolkit.jsx
         endPos: { ja: "終了位置", en: "End" },
 
         /* Text Adjust / テキスト調整 */
-        baseShift: { ja: "ベースライン", en: "Baseline Shift" },
-        tracking: { ja: "トラッキング", en: "Tracking" },
-        fontSize: { ja: "文字サイズ", en: "Font Size" },
+        baseShift: { ja: "ベースライン：", en: "Baseline Shift:" },
+        tracking: { ja: "トラッキング：", en: "Tracking:" },
+        fontSize: { ja: "文字サイズ：", en: "Font Size:" },
 
         /* Footer / フッター */
         preview: { ja: "プレビュー", en: "Preview" },
@@ -235,15 +236,13 @@ PathTextToolkit.jsx
             if (rbToPathText.value && !canToPathText) {
                 rbToPathText.value = false;
                 rbGenArcPath.value = true;
-                try { rbAlignCenter.value = true; } catch (_) { }
-                try { rbEffectRainbow.value = true; } catch (_) { }
+                applyArcModePresets();
             }
             if ((rbSplitTextAndPath.value || rbSplitTextAndPathNoFormat.value) && !canSplit) {
                 rbSplitTextAndPath.value = false;
                 rbSplitTextAndPathNoFormat.value = false;
                 rbGenArcPath.value = true;
-                try { rbAlignCenter.value = true; } catch (_) { }
-                try { rbEffectRainbow.value = true; } catch (_) { }
+                applyArcModePresets();
             }
         } catch (_) { }
 
@@ -407,15 +406,13 @@ PathTextToolkit.jsx
     if (!canToPathText && rbToPathText.value) {
         rbToPathText.value = false;
         rbGenArcPath.value = true;
-        try { rbAlignCenter.value = true; } catch (_) { }
-        // 虹はあとで作ってから適用
+        // Arc presets are applied after the whole UI is built (see applyArcModePresets call).
     }
     if (!canSplit && (rbSplitTextAndPath.value || rbSplitTextAndPathNoFormat.value)) {
         rbSplitTextAndPath.value = false;
         rbSplitTextAndPathNoFormat.value = false;
         rbGenArcPath.value = true;
-        try { rbAlignCenter.value = true; } catch (_) { }
-        // 虹はあとで作ってから適用
+        // Arc presets are applied after the whole UI is built (see applyArcModePresets call).
     }
 
     // Option panel (above Alignment in RIGHT column)
@@ -438,6 +435,17 @@ PathTextToolkit.jsx
     var rbArcUp = grpArcDir.add('radiobutton', undefined, L('arcUp'));
     var rbArcDown = grpArcDir.add('radiobutton', undefined, L('arcDown'));
     rbArcUp.value = true;
+
+    // Arc roundness UI (controls how round/curved the generated arch is)
+    var grpArcRoundness = pnlOption.add('group');
+    grpArcRoundness.orientation = 'row';
+    grpArcRoundness.alignChildren = ['left', 'center'];
+
+    var stArcRoundness = grpArcRoundness.add('statictext', undefined, L('arcRoundness'));
+
+    // Slider: 0 = flat, 50 = default arch, 100 = roundest
+    var slArcRoundness = grpArcRoundness.add('slider', undefined, 50, 0, 100);
+    slArcRoundness.preferredSize.width = 130;
 
     // Fit (overset fix) toggle button
     var __fitEnabled = false;
@@ -511,9 +519,16 @@ PathTextToolkit.jsx
     }
     __updateFitButtonLabel();
 
+    // Set Fit ON/OFF and refresh its button label
+    function setFitEnabled(enabled) {
+        try {
+            __fitEnabled = !!enabled;
+            __updateFitButtonLabel();
+        } catch (_) { }
+    }
+
     btnFit.onClick = function () {
-        __fitEnabled = !__fitEnabled;
-        __updateFitButtonLabel();
+        setFitEnabled(!__fitEnabled);
         refreshPreviewIfNeeded();
     };
 
@@ -528,8 +543,8 @@ PathTextToolkit.jsx
     var rbAlignRight = pnlAlignIndent.add('radiobutton', undefined, L('alignRight'));
     var rbAlignFullJustify = pnlAlignIndent.add('radiobutton', undefined, L('alignFullJustify'));
 
-    // Default: 左揃え
-    rbAlignLeft.value = true;
+    // Default: 中央
+    rbAlignCenter.value = true;
 
     // -------------------------------------------------
     // Full-width (span across columns): 効果 -> 位置 -> ベースラインシフト
@@ -608,7 +623,7 @@ PathTextToolkit.jsx
     rowBaseShift.alignChildren = ['left', 'center'];
 
     var stBaseShift = rowBaseShift.add('statictext', undefined, L('baseShift'));
-    stBaseShift.preferredSize.width = 80;
+    stBaseShift.preferredSize.width = 95;
 
     var etBaseShift = rowBaseShift.add('edittext', undefined, '0.0');
     etBaseShift.characters = 6;
@@ -624,7 +639,7 @@ PathTextToolkit.jsx
     rowTracking.alignChildren = ['left', 'center'];
 
     var stTracking = rowTracking.add('statictext', undefined, L('tracking'));
-    stTracking.preferredSize.width = 80;
+    stTracking.preferredSize.width = 95;
 
     var etTracking = rowTracking.add('edittext', undefined, '0');
     etTracking.characters = 6;
@@ -639,7 +654,7 @@ PathTextToolkit.jsx
     rowFontSize.alignChildren = ['left', 'center'];
 
     var stFontSize = rowFontSize.add('statictext', undefined, L('fontSize'));
-    stFontSize.preferredSize.width = 80;
+    stFontSize.preferredSize.width = 95;
 
     var etFontSize = rowFontSize.add('edittext', undefined, '0.0');
     etFontSize.characters = 6;
@@ -723,68 +738,59 @@ PathTextToolkit.jsx
         } catch (_) { }
     }
 
-    function __preview_applyPathStyle(basePath) {
+    // Run styleFn for each underlying PathItem (handles CompoundPathItem too).
+    function __forEachPathItem(pathItem, styleFn) {
         try {
-            if (!basePath) return;
-
-            function applyPreviewStyle(pi) {
-                __preview_recordPathState(pi);
-                try {
-                    pi.filled = false;
-                    pi.stroked = true;
-                    pi.strokeWidth = 1;
-
-                    var black = new CMYKColor();
-                    black.cyan = 0;
-                    black.magenta = 0;
-                    black.yellow = 0;
-                    black.black = 100;
-                    pi.strokeColor = black;
-
-                    pi.opacity = 50;
-                } catch (_) { }
-            }
-
-            if (basePath.typename === 'CompoundPathItem') {
-                for (var cp = 0; cp < basePath.pathItems.length; cp++) {
-                    applyPreviewStyle(basePath.pathItems[cp]);
+            if (!pathItem || !styleFn) return;
+            if (pathItem.typename === 'CompoundPathItem') {
+                for (var cp = 0; cp < pathItem.pathItems.length; cp++) {
+                    try { styleFn(pathItem.pathItems[cp]); } catch (_) { }
                 }
             } else {
-                applyPreviewStyle(basePath);
+                try { styleFn(pathItem); } catch (_) { }
             }
         } catch (_) { }
     }
 
-    // Apply path style for execute mode (keep path visible)
+    // Per-PathItem style: visible guide (no fill, black 1pt stroke, 50% opacity).
+    function __styleVisiblePath(pi) {
+        pi.filled = false;
+        pi.stroked = true;
+        pi.strokeWidth = 1;
+
+        var black = new CMYKColor();
+        black.cyan = 0;
+        black.magenta = 0;
+        black.yellow = 0;
+        black.black = 100;
+        pi.strokeColor = black;
+
+        pi.opacity = 50;
+    }
+
+    // Per-PathItem style: invisible (no fill, stroke color/weight 0).
+    function __styleInvisiblePath(pi) {
+        pi.filled = false;
+        pi.stroked = false;
+        pi.strokeWidth = 0;
+    }
+
+    // Preview: record each path's original style for restore, then make it a visible guide.
+    function __preview_applyPathStyle(basePath) {
+        __forEachPathItem(basePath, function (pi) {
+            __preview_recordPathState(pi);
+            __styleVisiblePath(pi);
+        });
+    }
+
+    // Execute: keep the path visible as a guide (no restore needed).
     function __applyExecutePathStyle(pathItem) {
-        try {
-            if (!pathItem) return;
+        __forEachPathItem(pathItem, __styleVisiblePath);
+    }
 
-            function applyStyle(pi) {
-                try {
-                    pi.filled = false;
-                    pi.stroked = true;
-                    pi.strokeWidth = 1;
-
-                    var black = new CMYKColor();
-                    black.cyan = 0;
-                    black.magenta = 0;
-                    black.yellow = 0;
-                    black.black = 100;
-                    pi.strokeColor = black;
-
-                    pi.opacity = 50;
-                } catch (_) { }
-            }
-
-            if (pathItem.typename === 'CompoundPathItem') {
-                for (var cp = 0; cp < pathItem.pathItems.length; cp++) {
-                    applyStyle(pathItem.pathItems[cp]);
-                }
-            } else {
-                applyStyle(pathItem);
-            }
-        } catch (_) { }
+    // Generated arc path: stroke color/weight 0 (invisible guide).
+    function __applyInvisiblePathStyle(pathItem) {
+        __forEachPathItem(pathItem, __styleInvisiblePath);
     }
 
     function __preview_hideOriginal(it) {
@@ -845,31 +851,41 @@ PathTextToolkit.jsx
         }
     }
 
+    // Presets applied whenever arc-path mode becomes active (manual click or
+    // auto-switch): center alignment, rainbow effect, and Fit turned ON.
+    function applyArcModePresets() {
+        try { rbAlignCenter.value = true; } catch (_) { }
+        try { rbEffectRainbow.value = true; } catch (_) { }
+        setFitEnabled(true);
+    }
+
     rbToPathText.onClick = function () {
         __clearSplitRadios();
+        setFitEnabled(false);
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
     rbGenCircle.onClick = function () {
         __clearSplitRadios();
+        setFitEnabled(false);
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
     rbGenArcPath.onClick = function () {
         __clearSplitRadios();
         __updatePanelsByMode();
-        // Auto-preset for arc path mode
-        try { rbAlignCenter.value = true; } catch (_) { }
-        try { rbEffectRainbow.value = true; } catch (_) { }
+        applyArcModePresets();
         refreshPreviewIfNeeded();
     };
     rbSplitTextAndPath.onClick = function () {
         __clearProcessRadios();
+        setFitEnabled(false);
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
     rbSplitTextAndPathNoFormat.onClick = function () {
         __clearProcessRadios();
+        setFitEnabled(false);
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
@@ -897,6 +913,9 @@ PathTextToolkit.jsx
         try { pnlEffect.enabled = en; } catch (_) { }
         try { pnlBaselineShift.enabled = en; } catch (_) { }
 
+        // まるみ：正円モードでは無効（アーチ生成時のみ意味を持つ）
+        try { grpArcRoundness.enabled = en && !isCircleMode; } catch (_) { }
+
         // 位置パネルは常に有効（Splitモードでない限り）
         try { pnlTValue.enabled = en; } catch (_) { }
         try { __updateFitButtonEnabled(); } catch (_) { }
@@ -916,6 +935,9 @@ PathTextToolkit.jsx
     // Arc direction radios: hook preview refresh
     rbArcUp.onClick = refreshPreviewIfNeeded;
     rbArcDown.onClick = refreshPreviewIfNeeded;
+
+    // Arc roundness slider: refresh preview on release
+    slArcRoundness.onChange = refreshPreviewIfNeeded;
     // Sync baseline shift UI (edittext <-> slider)
     // - slider unit: 0.1pt (value = delta * 10)
     // - slider range: ±fontSize (pt) based on current selection
@@ -1209,6 +1231,10 @@ PathTextToolkit.jsx
 
         dlg.close(1);
     };
+
+    // If arc mode ended up active at startup (auto-switched), apply its presets
+    // now that the whole UI exists.
+    if (rbGenArcPath.value) applyArcModePresets();
 
     // Set initial panel enabled state
     __updatePanelsByMode();
@@ -1679,13 +1705,10 @@ PathTextToolkit.jsx
                 continue;
             }
 
+            // Generated arc path: stroke color/weight 0 (invisible guide)
+            __applyInvisiblePathStyle(textPath);
             if (previewMode) {
-                // Apply preview style to generated arc path
-                __preview_applyPathStyle(textPath);
                 __previewTempItems.push(textPath);
-            } else {
-                // Execute: keep the generated arc path visible
-                __applyExecutePathStyle(textPath);
             }
 
             // Create Text on a path
@@ -1696,15 +1719,11 @@ PathTextToolkit.jsx
                 __previewTempItems.push(textOnAPath);
             }
 
-            // Ensure the path used by the PathText is visible (AI may override style on conversion)
+            // Keep the path used by the PathText invisible (AI may override style on conversion)
             try {
-                var tp = textOnAPath.textPath;
-                if (tp) {
-                    if (previewMode) {
-                        __preview_applyPathStyle(tp);
-                    } else {
-                        __applyExecutePathStyle(tp);
-                    }
+                var pathTextPath = textOnAPath.textPath;
+                if (pathTextPath) {
+                    __applyInvisiblePathStyle(pathTextPath);
                 }
             } catch (_) { }
 
@@ -1875,8 +1894,8 @@ PathTextToolkit.jsx
     // Create an arc-like path from point text using outline bounds (reference logic)
     function createArcPathFromText(originalText, layer) {
         // Reference defaults from the attached legacy script
-        var baseLineOffset = 1.02;
-        var handleOffsetDiv = [3.5, 4];
+        var baselineYMultiplier = 1.02;
+        var handleOffsetDivisors = [3.5, 4];
 
         // Guard: empty / invalid text
         try {
@@ -1888,57 +1907,80 @@ PathTextToolkit.jsx
         }
 
         try {
-            // Get bounds using outline (more stable than geometricBounds of live text)
-            var dummyTexts = [originalText.duplicate(), originalText.duplicate()];
-            dummyTexts[0].contents = '';
+            // Measure bounds using outlines (more stable than geometricBounds of live text)
+            var measureTexts = [originalText.duplicate(), originalText.duplicate()];
+            measureTexts[0].contents = '';
 
-            // Copy first line ranges into dummyTexts[0]
+            // Copy first line ranges into measureTexts[0]
             // (This mirrors the legacy approach; it assumes point text with at least one line)
             for (var i = 0; i < originalText.lines[0].length; i++) {
-                originalText.textRanges[i].duplicate(dummyTexts[0]);
+                originalText.textRanges[i].duplicate(measureTexts[0]);
             }
 
-            for (var k = 0; k < dummyTexts.length; k++) {
-                dummyTexts[k] = dummyTexts[k].createOutline();
+            for (var k = 0; k < measureTexts.length; k++) {
+                measureTexts[k] = measureTexts[k].createOutline();
             }
 
-            var bounds = dummyTexts[1].geometricBounds; // [L, T, R, B]
-            bounds[3] = dummyTexts[0].geometricBounds[3];
+            var textBounds = measureTexts[1].geometricBounds; // [L, T, R, B]
+            textBounds[3] = measureTexts[0].geometricBounds[3];
 
-            for (var r = 0; r < dummyTexts.length; r++) {
-                try { dummyTexts[r].remove(); } catch (_) { }
+            for (var r = 0; r < measureTexts.length; r++) {
+                try { measureTexts[r].remove(); } catch (_) { }
             }
 
-            // Create base straight path
-            var y = bounds[3] * baseLineOffset;
-            var p = layer.pathItems.add();
-            p.setEntirePath([
-                [bounds[0], y],
-                [bounds[2], y]
+            // Create base straight path along the baseline
+            var baselineY = textBounds[3] * baselineYMultiplier;
+            var arcPath = layer.pathItems.add();
+            arcPath.setEntirePath([
+                [textBounds[0], baselineY],
+                [textBounds[2], baselineY]
             ]);
 
             // Make the generated path invisible (no fill / no stroke)
             try {
-                p.stroked = false;
-                p.filled = false;
+                arcPath.stroked = false;
+                arcPath.filled = false;
             } catch (_) { }
 
             // Arc-like handle adjustment
-            var len = p.length;
-            var h = [len / handleOffsetDiv[0], len / handleOffsetDiv[1]];
-            var pts = p.pathPoints;
+            var pathLength = arcPath.length;
 
-            // Arc direction: Up (default) or Down
-            var dirY = 1;
+            // Roundness: read from UI slider (0-100). 50 = default arch (pathLength/4).
+            var arcRoundnessPercent = 50;
+            try {
+                if (typeof slArcRoundness !== 'undefined' && slArcRoundness) {
+                    arcRoundnessPercent = Number(slArcRoundness.value);
+                }
+            } catch (_) { arcRoundnessPercent = 50; }
+            if (isNaN(arcRoundnessPercent)) arcRoundnessPercent = 50;
+            if (arcRoundnessPercent < 0) arcRoundnessPercent = 0;
+            if (arcRoundnessPercent > 100) arcRoundnessPercent = 100;
+
+            // handleOffsets[0]: horizontal handle (fixed). handleOffsets[1]: vertical handle = curve depth.
+            // At 50% the vertical handle equals pathLength / handleOffsetDivisors[1] (legacy default).
+            var handleOffsets = [
+                pathLength / handleOffsetDivisors[0],
+                pathLength * (arcRoundnessPercent / 100) * (2 / handleOffsetDivisors[1])
+            ];
+            var pathPoints = arcPath.pathPoints;
+
+            // Arc direction: Up (default, +1) or Down (-1)
+            var arcDirectionSign = 1;
             try {
                 // Only available after UI exists; default to Up.
-                if (typeof rbArcDown !== 'undefined' && rbArcDown && rbArcDown.value) dirY = -1;
-            } catch (_) { dirY = 1; }
+                if (typeof rbArcDown !== 'undefined' && rbArcDown && rbArcDown.value) arcDirectionSign = -1;
+            } catch (_) { arcDirectionSign = 1; }
 
-            pts[0].rightDirection = [pts[0].rightDirection[0] + h[0], pts[0].rightDirection[1] + (dirY * h[1])];
-            pts[1].leftDirection = [pts[1].leftDirection[0] - h[0], pts[1].leftDirection[1] + (dirY * h[1])];
+            pathPoints[0].rightDirection = [
+                pathPoints[0].rightDirection[0] + handleOffsets[0],
+                pathPoints[0].rightDirection[1] + (arcDirectionSign * handleOffsets[1])
+            ];
+            pathPoints[1].leftDirection = [
+                pathPoints[1].leftDirection[0] - handleOffsets[0],
+                pathPoints[1].leftDirection[1] + (arcDirectionSign * handleOffsets[1])
+            ];
 
-            return p;
+            return arcPath;
         } catch (e) {
             return null;
         }
@@ -1956,35 +1998,35 @@ PathTextToolkit.jsx
 
         try {
             // Use outline bounds for stability
-            var dummy = originalText.duplicate();
-            var ol = null;
-            try { ol = dummy.createOutline(); } catch (_) { ol = null; }
-            try { dummy.remove(); } catch (_) { }
-            if (!ol) return null;
+            var measureText = originalText.duplicate();
+            var measureOutline = null;
+            try { measureOutline = measureText.createOutline(); } catch (_) { measureOutline = null; }
+            try { measureText.remove(); } catch (_) { }
+            if (!measureOutline) return null;
 
-            var b = ol.geometricBounds; // [L, T, R, B]
-            try { ol.remove(); } catch (_) { }
+            var outlineBounds = measureOutline.geometricBounds; // [L, T, R, B]
+            try { measureOutline.remove(); } catch (_) { }
 
-            var w = b[2] - b[0];
-            if (!w || isNaN(w) || w <= 0) return null;
+            var textWidth = outlineBounds[2] - outlineBounds[0];
+            if (!textWidth || isNaN(textWidth) || textWidth <= 0) return null;
 
             // Center of text outline
-            var cx = (b[0] + b[2]) / 2;
-            var cy = (b[1] + b[3]) / 2;
+            var centerX = (outlineBounds[0] + outlineBounds[2]) / 2;
+            var centerY = (outlineBounds[1] + outlineBounds[3]) / 2;
 
-            var d = w; // diameter = text width
-            var left = cx - (d / 2);
-            var top = cy + (d / 2);
+            var diameter = textWidth; // diameter = text width
+            var left = centerX - (diameter / 2);
+            var top = centerY + (diameter / 2);
 
-            var p = layer.pathItems.ellipse(top, left, d, d);
+            var circlePath = layer.pathItems.ellipse(top, left, diameter, diameter);
 
             // Default invisible (caller will set preview style if needed)
             try {
-                p.stroked = false;
-                p.filled = false;
+                circlePath.stroked = false;
+                circlePath.filled = false;
             } catch (_) { }
 
-            return p;
+            return circlePath;
         } catch (e) {
             return null;
         }
