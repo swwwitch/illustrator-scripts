@@ -7,7 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Illustratorドキュメント内のテキストフレームを、複数の条件で一括選択するスクリプトです。
 
 【選択条件】
-- 属性で選択：選択中テキストを基準に、フォントファミリー／＋スタイル／＋サイズ／フォントサイズ／テキストカラーをIllustrator標準コマンドで検索
+- 属性で選択：選択中テキストを基準に、フォントファミリー／＋スタイル／＋サイズ／フォントサイズ／テキストカラー／不透明度をIllustrator標準コマンドで検索
 - テキストの種類：すべて／ポイント文字／エリア内文字／パス上文字
 - 文字列で選択：完全一致／部分一致／先頭一致／末尾一致／正規表現（大小区別あり）
 
@@ -25,7 +25,7 @@ Illustratorドキュメント内のテキストフレームを、複数の条件
 Select text frames in an Illustrator document using multiple conditions.
 
 [Selection criteria]
-- By attribute: find text matching the selected text’s font family / + style / + size / font size / text color via Illustrator’s built-in commands
+- By attribute: find text matching the selected text’s font family / + style / + size / font size / text color / opacity via Illustrator’s built-in commands
 - By text type: All / Point Text / Area Text / Path Text
 - By string: Exact / Contains / Starts With / Ends With / Regex (case-sensitive)
 
@@ -66,6 +66,7 @@ var LABELS = {
     fontFamilyStyleSize: { ja: "+ スタイルとサイズ", en: "+ Style and Size" },
     fontSize: { ja: "フォントサイズ", en: "Font Size" },
     textFillColor: { ja: "テキストカラー", en: "Text Color" },
+    opacity: { ja: "不透明度", en: "Opacity" },
 
     allText: { ja: "すべて", en: "All" },
     pointText: { ja: "ポイント文字", en: "Point Text" },
@@ -90,6 +91,7 @@ var LABELS = {
     tipFontFamilyStyleSize: { ja: "選択中のテキストと同じフォントファミリー＋スタイル＋サイズのテキストを、Illustrator標準コマンドで検索します。", en: "Find text with the same font family, style, and size as the selected text using Illustrator’s built-in command." },
     tipFontSize: { ja: "選択中のテキストと同じフォントサイズのテキストを、Illustrator標準コマンドで検索します。", en: "Find text with the same font size as the selected text using Illustrator’s built-in command." },
     tipTextFillColor: { ja: "選択中のテキストと同じテキストカラーのテキストを、Illustrator標準コマンドで検索します。", en: "Find text with the same text color as the selected text using Illustrator’s built-in command." },
+    tipOpacity: { ja: "選択中のオブジェクトと同じ不透明度のオブジェクトを、Illustrator標準コマンドで検索します。テキスト以外のオブジェクトも対象になります。", en: "Find objects with the same opacity as the selected object using Illustrator’s built-in command. Non-text objects are also matched." },
 
     tipAllText: { ja: "ドキュメント内のすべてのテキストフレームを選択します。ショートカット：Option + Q", en: "Select all text frames in the document. Shortcut: Option + Q" },
     tipPointText: { ja: "ポイント文字だけを選択します。ショートカット：Option + W", en: "Select point text only. Shortcut: Option + W" },
@@ -245,7 +247,8 @@ function L(key) {
             family: "—",
             familyStyle: "—",
             familyStyleSize: "—",
-            size: "—"
+            size: "—",
+            opacity: "—"
         };
 
         var selectedItems = collectSelectionAsArray(app.activeDocument.selection);
@@ -256,7 +259,9 @@ function L(key) {
         for (var i = 0; i < selectedItems.length; i++) {
             var textRange = getTextRangeFromSelectionItem(selectedItems[i]);
             if (textRange) {
-                return getTextAttributePreviewFromTextRange(textRange);
+                var rangePreview = getTextAttributePreviewFromTextRange(textRange);
+                rangePreview.opacity = getOpacityPreviewFromSelectionItem(selectedItems[i]);
+                return rangePreview;
             }
         }
 
@@ -269,7 +274,8 @@ function L(key) {
             family: "—",
             familyStyle: "—",
             familyStyleSize: "—",
-            size: "—"
+            size: "—",
+            opacity: "—"
         };
 
         try {
@@ -289,6 +295,17 @@ function L(key) {
         }
 
         return preview;
+    }
+
+    /* 選択内容から不透明度プレビューを生成 / Build opacity preview from selected item */
+    function getOpacityPreviewFromSelectionItem(selectionItem) {
+        try {
+            if (selectionItem && typeof selectionItem.opacity === "number") {
+                return String(Math.round(selectionItem.opacity * 100) / 100) + " %";
+            }
+        } catch (opacityPreviewError) {
+        }
+        return "—";
     }
 
     /* ラジオボタンとプレビュー値の行を作成 / Create radio button row with preview value */
@@ -361,12 +378,15 @@ function L(key) {
     var rbFontFamilyStyleSize = fontFamilyStyleSizePreviewRow.radioButton;
     var rbFontSize = fontSizePreviewRow.radioButton;
     var rbTextFillColor = addRadioOnlyRow(attributePanel, L("textFillColor"), ATTRIBUTE_LABEL_WIDTH).radioButton;
+    var opacityPreviewRow = addRadioWithPreview(attributePanel, L("opacity"), initialAttributePreview.opacity, ATTRIBUTE_LABEL_WIDTH);
+    var rbOpacity = opacityPreviewRow.radioButton;
 
     setHelpTip(rbFontFamily, L("tipFontFamily"));
     setHelpTip(rbFontFamilyStyle, L("tipFontFamilyStyle"));
     setHelpTip(rbFontFamilyStyleSize, L("tipFontFamilyStyleSize"));
     setHelpTip(rbFontSize, L("tipFontSize"));
     setHelpTip(rbTextFillColor, L("tipTextFillColor"));
+    setHelpTip(rbOpacity, L("tipOpacity"));
 
     /* テキスト種類と文字列条件を横並びに配置 / Arrange text type and string condition panels side by side */
     var textConditionGroup = selectionPanel.add("group");
@@ -435,7 +455,7 @@ function L(key) {
 
     /* 選択条件ラジオボタンをまとめる / Collect selection condition radio buttons */
     var selectionRadios = [
-        rbFontFamily, rbFontFamilyStyle, rbFontFamilyStyleSize, rbFontSize, rbTextFillColor,
+        rbFontFamily, rbFontFamilyStyle, rbFontFamilyStyleSize, rbFontSize, rbTextFillColor, rbOpacity,
         rbAllText, rbPointText, rbAreaText, rbPathText,
         rbExactMatch, rbStartsWith, rbEndsWith, rbLooseMatch, rbRegexMatch
     ];
@@ -532,6 +552,9 @@ function L(key) {
         }
         if (rbTextFillColor.value) {
             return "Find Text Fill Color menu item";
+        }
+        if (rbOpacity.value) {
+            return "Find Opacity menu item";
         }
         return "";
     }
