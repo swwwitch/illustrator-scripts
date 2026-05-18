@@ -28,7 +28,7 @@ and generates one artboard variation per data row.
 // バージョンとローカライズ / Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.4";
+var SCRIPT_VERSION = "v1.4.1";
 
 /* 実行環境のロケールから表示言語を判定 / Detect the display language from the runtime locale */
 function getCurrentLang() {
@@ -517,6 +517,9 @@ function trimAndStripBom(text) {
         if (dataRows.length === 0) return;
         var layout = prepareLayout();
         if (!layout) return;
+
+        // プレビュー用ドキュメント・ファイルが残っていれば破棄してから実行 / Discard any leftover preview document & file before running
+        cleanupPreviewFile();
 
         var importDocument;
         try {
