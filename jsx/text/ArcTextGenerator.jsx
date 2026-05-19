@@ -6,13 +6,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ArcTextGenerator.jsx
 
 ### 更新日：
-20260518
+20260519
 
 ### 概要：
 選択したテキストからアーチ状のパスを自動生成し、パス上文字にするツールです。
 
 - まるみ：スライダーでアーチのカーブの深さを調整（0＝直線／50＝標準／100＝最も丸い）
-- フィット：常にON（文字サイズを自動調整してパス両端まで収める）
+- フィット：チェックでON／文字サイズを自動調整してパス両端まで収める（初期値＝OFF）
 - 行揃え：常に中央
 - アーチ方向：上向き／下向きを切り替え（初期値＝上）
 - 効果：パス上文字の効果を選択（虹／歪み／3D リボン／階段／引力）
@@ -28,7 +28,7 @@ https://note.com/gautt/n/n92f6faeda048
 (function () {
 
     /* バージョン / Version */
-    var SCRIPT_VERSION = "v1.0.0";
+    var SCRIPT_VERSION = "v1.0.1";
 
     /* 言語判定 / Language */
     function getCurrentLang() {
@@ -43,6 +43,7 @@ https://note.com/gautt/n/n92f6faeda048
         arcDirection: { ja: "アーチ方向：", en: "Arc direction:" },
         arcDirectionUp: { ja: "上", en: "Up" },
         arcDirectionDown: { ja: "下", en: "Down" },
+        fit: { ja: "フィット", en: "Fit" },
         effect: { ja: "効果：", en: "Effect:" },
         effectRainbow: { ja: "虹", en: "Rainbow" },
         effectDistort: { ja: "歪み", en: "Skew" },
@@ -180,6 +181,18 @@ https://note.com/gautt/n/n92f6faeda048
     var rbArcDirectionDown = grpArcDirection.add('radiobutton', undefined, L('arcDirectionDown'));
     rbArcDirectionUp.value = true;
 
+    /* フィット / Fit */
+    var grpFit = dlg.add('group');
+    grpFit.orientation = 'row';
+    grpFit.alignChildren = ['left', 'center'];
+
+    // 先頭ラベルは空にして、チェックボックスを他行のコントロール位置に揃える
+    var stFit = grpFit.add('statictext', undefined, '');
+    stFit.preferredSize.width = LABEL_COLUMN_WIDTH;
+    // フィット：ONで文字サイズを自動調整しパス両端まで収める（初期値＝OFF）
+    var cbFit = grpFit.add('checkbox', undefined, L('fit'));
+    cbFit.value = false;
+
     /* 効果 / Effect */
     var grpEffect = dlg.add('group');
     grpEffect.orientation = 'row';
@@ -289,6 +302,7 @@ https://note.com/gautt/n/n92f6faeda048
     slArcRoundness.onChange = refreshPreviewIfNeeded;
     rbArcDirectionUp.onClick = refreshPreviewIfNeeded;
     rbArcDirectionDown.onClick = refreshPreviewIfNeeded;
+    cbFit.onClick = refreshPreviewIfNeeded;
     rbEffectRainbow.onClick = refreshPreviewIfNeeded;
     rbEffectDistort.onClick = refreshPreviewIfNeeded;
     rbEffectRibbon.onClick = refreshPreviewIfNeeded;
@@ -670,8 +684,10 @@ https://note.com/gautt/n/n92f6faeda048
             }
         }
 
-        // フィット：常にON（ループ後にまとめて適用）
-        try { fitTextToOpenPath(createdTexts); } catch (_) { }
+        // フィット：チェックON時のみ（ループ後にまとめて適用）
+        if (cbFit.value) {
+            try { fitTextToOpenPath(createdTexts); } catch (_) { }
+        }
     }
 
     /* ===== フィット / Fit ===== */
