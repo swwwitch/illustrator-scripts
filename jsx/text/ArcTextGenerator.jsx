@@ -12,11 +12,11 @@ ArcTextGenerator.jsx
 選択したテキストからアーチ状のパスを自動生成し、パス上文字にするツールです。
 
 - まるみ：スライダーでアーチのカーブの深さを調整（0＝直線／50＝標準／100＝最も丸い）
-- フィット：チェックでON／文字サイズを自動調整してパス両端まで収める（初期値＝OFF）
+- フィット：「しない」「文字サイズ」「トラッキング」から選択／文字サイズまたはトラッキングを調整してパス両端まで収める（初期値＝しない）
 - 行揃え：常に中央
 - アーチ方向：上向き／下向きを切り替え（初期値＝上）
 - 効果：パス上文字の効果を選択（虹／歪み／3D リボン／階段／引力）
-- トラッキング：生成後の文字間隔を増減（既存のトラッキング値に加算）
+- トラッキング：チェックON時のみ／生成後の文字間隔を増減（既存のトラッキング値に加算・OFFで0）
 - プレビュー：ダイアログ操作中に結果を確認（OFF・キャンセルで元に戻せます）
 
 ### オリジナル
@@ -28,7 +28,7 @@ https://note.com/gautt/n/n92f6faeda048
 (function () {
 
     /* バージョン / Version */
-    var SCRIPT_VERSION = "v1.0.1";
+    var SCRIPT_VERSION = "v1.1.0";
 
     /* 言語判定 / Language */
     function getCurrentLang() {
@@ -38,12 +38,15 @@ https://note.com/gautt/n/n92f6faeda048
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: { ja: "アーチ文字を生成", en: "Generate Arc Text" },
-        arcRoundness: { ja: "まるみ：", en: "Roundness:" },
-        arcDirection: { ja: "アーチ方向：", en: "Arc direction:" },
-        arcDirectionUp: { ja: "上", en: "Up" },
-        arcDirectionDown: { ja: "下", en: "Down" },
-        fit: { ja: "フィット", en: "Fit" },
+        dialogTitle: { ja: "アーチ文字に変換", en: "Convert to Arc Text" },
+        arcRoundness: { ja: "カーブ：", en: "Curve:" },
+        arcDirection: { ja: "向き：", en: "Direction:" },
+        arcDirectionUp: { ja: "上向き", en: "Up" },
+        arcDirectionDown: { ja: "下向き", en: "Down" },
+        fit: { ja: "パス幅に合わせる：", en: "Fit to path width:" },
+        fitNone: { ja: "しない", en: "None" },
+        fitByFontSize: { ja: "文字サイズ", en: "Font size" },
+        fitByTracking: { ja: "トラッキング", en: "Tracking" },
         effect: { ja: "効果：", en: "Effect:" },
         effectRainbow: { ja: "虹", en: "Rainbow" },
         effectDistort: { ja: "歪み", en: "Skew" },
@@ -56,7 +59,16 @@ https://note.com/gautt/n/n92f6faeda048
         cancel: { ja: "キャンセル", en: "Cancel" },
         alertNoDoc: { ja: "ドキュメントが開かれていません", en: "No document is open." },
         alertNoText: { ja: "対象のテキストが見つかりません", en: "No target text found." },
-        alertArcFail: { ja: "アーチ状のパス生成に失敗しました", en: "Failed to generate an arc path." }
+        alertArcFail: { ja: "アーチ状のパス生成に失敗しました", en: "Failed to generate an arc path." },
+        tipRoundness: { ja: "0で直線に近く、100で最も丸くなります。", en: "0 is almost straight; 100 gives the roundest curve." },
+        tipDirection: { ja: "アーチの膨らむ方向を指定します。", en: "Sets the direction in which the arc bulges." },
+        tipFit: { ja: "パスの端まで文字を収める方法を選びます。", en: "Chooses how the text is fitted to the path endpoints." },
+        tipFitNone: { ja: "パス幅には合わせず、アーチ変換のみ行います。", en: "Does not fit to the path width; only converts to arc text." },
+        tipFitMethod: { ja: "文字サイズを変えて合わせるか、文字サイズを保ったままトラッキングで合わせるかを選びます。", en: "Choose whether to fit by changing the font size, or by keeping the font size and adjusting tracking." },
+        tipEffect: { ja: "Illustratorの「パス上文字オプション」の効果を適用します。", en: "Applies Illustrator's Type on a Path effect." },
+        tipTracking: { ja: "既存のトラッキング値に加算します。", en: "Adds this value to the existing tracking." },
+        tipTrackingToggle: { ja: "ONでトラッキングを調整できます。OFFにすると0に戻ります。", en: "Enable to adjust tracking. Turning it off resets it to 0." },
+        tipPreview: { ja: "ONの間は仮の結果を表示します。OFFまたはキャンセルで元に戻ります。", en: "Shows a temporary result while enabled. Turning it off or cancelling restores the original." }
     };
 
     function L(key) {
@@ -155,7 +167,7 @@ https://note.com/gautt/n/n92f6faeda048
     dlg.margins = [15, 20, 15, 15];
 
     // Common width for the leading label of each row (keeps controls aligned)
-    var LABEL_COLUMN_WIDTH = 100;
+    var LABEL_COLUMN_WIDTH = 120;
 
     /* まるみ / Roundness */
     var grpRoundness = dlg.add('group');
@@ -165,9 +177,11 @@ https://note.com/gautt/n/n92f6faeda048
 
     var stArcRoundness = grpRoundness.add('statictext', undefined, L('arcRoundness'));
     stArcRoundness.preferredSize.width = LABEL_COLUMN_WIDTH;
+    stArcRoundness.helpTip = L('tipRoundness');
     // Slider: 0 = flat, 50 = default arch, 100 = roundest
     var slArcRoundness = grpRoundness.add('slider', undefined, 50, 0, 100);
     slArcRoundness.preferredSize.width = 200;
+    slArcRoundness.helpTip = L('tipRoundness');
 
     /* アーチ方向 / Arc direction */
     var grpArcDirection = dlg.add('group');
@@ -177,8 +191,11 @@ https://note.com/gautt/n/n92f6faeda048
 
     var stArcDirection = grpArcDirection.add('statictext', undefined, L('arcDirection'));
     stArcDirection.preferredSize.width = LABEL_COLUMN_WIDTH;
+    stArcDirection.helpTip = L('tipDirection');
     var rbArcDirectionUp = grpArcDirection.add('radiobutton', undefined, L('arcDirectionUp'));
+    rbArcDirectionUp.helpTip = L('tipDirection');
     var rbArcDirectionDown = grpArcDirection.add('radiobutton', undefined, L('arcDirectionDown'));
+    rbArcDirectionDown.helpTip = L('tipDirection');
     rbArcDirectionUp.value = true;
 
     /* フィット / Fit */
@@ -186,12 +203,19 @@ https://note.com/gautt/n/n92f6faeda048
     grpFit.orientation = 'row';
     grpFit.alignChildren = ['left', 'center'];
 
-    // 先頭ラベルは空にして、チェックボックスを他行のコントロール位置に揃える
-    var stFit = grpFit.add('statictext', undefined, '');
+    // 先頭ラベル「パス幅に合わせる：」 / Leading label "Fit to path width:"
+    var stFit = grpFit.add('statictext', undefined, L('fit'));
     stFit.preferredSize.width = LABEL_COLUMN_WIDTH;
-    // フィット：ONで文字サイズを自動調整しパス両端まで収める（初期値＝OFF）
-    var cbFit = grpFit.add('checkbox', undefined, L('fit'));
-    cbFit.value = false;
+    stFit.helpTip = L('tipFit');
+    // フィット方法：しない（初期値）／文字サイズ＝サイズ変更／トラッキング＝サイズ維持で字間調整
+    var rbFitNone = grpFit.add('radiobutton', undefined, L('fitNone'));
+    rbFitNone.helpTip = L('tipFitNone');
+    var rbFitFontSize = grpFit.add('radiobutton', undefined, L('fitByFontSize'));
+    rbFitFontSize.helpTip = L('tipFitMethod');
+    var rbFitTracking = grpFit.add('radiobutton', undefined, L('fitByTracking'));
+    rbFitTracking.helpTip = L('tipFitMethod');
+    // 既定は従来どおりパス幅に合わせない / Default = no fit (legacy default)
+    rbFitNone.value = true;
 
     /* 効果 / Effect */
     var grpEffect = dlg.add('group');
@@ -201,11 +225,17 @@ https://note.com/gautt/n/n92f6faeda048
 
     var stEffect = grpEffect.add('statictext', undefined, L('effect'));
     stEffect.preferredSize.width = LABEL_COLUMN_WIDTH;
+    stEffect.helpTip = L('tipEffect');
     var rbEffectRainbow = grpEffect.add('radiobutton', undefined, L('effectRainbow'));
+    rbEffectRainbow.helpTip = L('tipEffect');
     var rbEffectDistort = grpEffect.add('radiobutton', undefined, L('effectDistort'));
+    rbEffectDistort.helpTip = L('tipEffect');
     var rbEffectRibbon = grpEffect.add('radiobutton', undefined, L('effectRibbon'));
+    rbEffectRibbon.helpTip = L('tipEffect');
     var rbEffectStep = grpEffect.add('radiobutton', undefined, L('effectStep'));
+    rbEffectStep.helpTip = L('tipEffect');
     var rbEffectGravity = grpEffect.add('radiobutton', undefined, L('effectGravity'));
+    rbEffectGravity.helpTip = L('tipEffect');
     // 既定はパス上文字の標準スタイルと同じ「虹」 / Default = Rainbow (Illustrator's own default)
     rbEffectRainbow.value = true;
 
@@ -217,10 +247,17 @@ https://note.com/gautt/n/n92f6faeda048
 
     var stTracking = grpTracking.add('statictext', undefined, L('tracking'));
     stTracking.preferredSize.width = LABEL_COLUMN_WIDTH;
+    stTracking.helpTip = L('tipTracking');
+    // チェックOFFでトラッキング加算を無効化（値は0に固定）/ Checkbox OFF disables tracking (forced to 0)
+    var cbTracking = grpTracking.add('checkbox', undefined, '');
+    cbTracking.helpTip = L('tipTrackingToggle');
+    cbTracking.value = true;
     var etTracking = grpTracking.add('edittext', undefined, '0');
     etTracking.characters = 6;
+    etTracking.helpTip = L('tipTracking');
     var slTracking = grpTracking.add('slider', undefined, 0, -100, 500);
     slTracking.preferredSize.width = 150;
+    slTracking.helpTip = L('tipTracking');
     // 矢印キーで増減 / Arrow-key support for tracking
     changeValueByArrowKey(etTracking, true, function () { syncTrackingFromEdit(); refreshPreviewIfNeeded(); });
 
@@ -234,6 +271,7 @@ https://note.com/gautt/n/n92f6faeda048
     leftFooter.orientation = 'row';
     leftFooter.alignment = ['left', 'center'];
     var cbPreview = leftFooter.add('checkbox', undefined, L('preview'));
+    cbPreview.helpTip = L('tipPreview');
     cbPreview.value = true;
 
     var rightFooter = footer.add('group');
@@ -302,7 +340,22 @@ https://note.com/gautt/n/n92f6faeda048
     slArcRoundness.onChange = refreshPreviewIfNeeded;
     rbArcDirectionUp.onClick = refreshPreviewIfNeeded;
     rbArcDirectionDown.onClick = refreshPreviewIfNeeded;
-    cbFit.onClick = refreshPreviewIfNeeded;
+    // 「トラッキング」フィット選択中は手動トラッキング行をディム表示
+    function updateTrackingEnabled() {
+        var fitByTrackingActive = rbFitTracking.value;
+        stTracking.enabled = !fitByTrackingActive;
+        cbTracking.enabled = !fitByTrackingActive;
+        var manualTrackingActive = cbTracking.value && !fitByTrackingActive;
+        etTracking.enabled = manualTrackingActive;
+        slTracking.enabled = manualTrackingActive;
+    }
+    function onFitMethodChanged() {
+        updateTrackingEnabled();
+        refreshPreviewIfNeeded();
+    }
+    rbFitNone.onClick = onFitMethodChanged;
+    rbFitFontSize.onClick = onFitMethodChanged;
+    rbFitTracking.onClick = onFitMethodChanged;
     rbEffectRainbow.onClick = refreshPreviewIfNeeded;
     rbEffectDistort.onClick = refreshPreviewIfNeeded;
     rbEffectRibbon.onClick = refreshPreviewIfNeeded;
@@ -336,7 +389,17 @@ https://note.com/gautt/n/n92f6faeda048
     etTracking.onChanging = function () { syncTrackingFromEdit(); refreshPreviewIfNeeded(); };
     slTracking.onChanging = function () { syncTrackingFromSlider(); };
     slTracking.onChange = function () { syncTrackingFromSlider(); refreshPreviewIfNeeded(); };
+    cbTracking.onClick = function () {
+        // OFFにしたらトラッキングを0に戻す / Reset tracking to 0 when turned off
+        if (!cbTracking.value) {
+            etTracking.text = '0';
+            syncTrackingFromEdit();
+        }
+        updateTrackingEnabled();
+        refreshPreviewIfNeeded();
+    };
     syncTrackingFromEdit();
+    updateTrackingEnabled();
 
     cbPreview.onClick = function () {
         if (cbPreview.value) {
@@ -498,6 +561,20 @@ https://note.com/gautt/n/n92f6faeda048
         try { doc.selection = prevSelection; } catch (_) { }
     }
 
+    // Collect every textRange of a frame (falls back to its single textRange)
+    function collectTextRanges(textFrame) {
+        var ranges = [];
+        try {
+            if (textFrame.textRanges && textFrame.textRanges.length > 0) {
+                for (var i = 0; i < textFrame.textRanges.length; i++) ranges.push(textFrame.textRanges[i]);
+            }
+        } catch (_) { }
+        if (ranges.length === 0) {
+            try { if (textFrame.textRange) ranges = [textFrame.textRange]; } catch (_) { ranges = []; }
+        }
+        return ranges;
+    }
+
     // Add the tracking delta to the existing tracking of each textRange
     function applyTrackingDelta(textFrame) {
         try {
@@ -505,16 +582,7 @@ https://note.com/gautt/n/n92f6faeda048
             var delta = Math.round(parseNumber(etTracking.text, 0));
             if (!delta) return; // 0 -> do nothing
 
-            var ranges = [];
-            try {
-                if (textFrame.textRanges && textFrame.textRanges.length > 0) {
-                    for (var i = 0; i < textFrame.textRanges.length; i++) ranges.push(textFrame.textRanges[i]);
-                }
-            } catch (_) { }
-            if (ranges.length === 0) {
-                try { if (textFrame.textRange) ranges = [textFrame.textRange]; } catch (_) { ranges = []; }
-            }
-
+            var ranges = collectTextRanges(textFrame);
             for (var r = 0; r < ranges.length; r++) {
                 var textRange = ranges[r];
                 try {
@@ -663,7 +731,8 @@ https://note.com/gautt/n/n92f6faeda048
             applyCenterJustification(textOnAPath);
 
             // トラッキング（既存値 + 指定値）※ フィット前に適用してオーバーセット判定へ反映
-            applyTrackingDelta(textOnAPath);
+            // 「トラッキング」フィット時は手動値を加算しない（ディム表示と挙動を一致させる）
+            if (!rbFitTracking.value) applyTrackingDelta(textOnAPath);
 
             // 効果（パス上文字の効果をメニューコマンドで適用）
             applyPathTextEffect(textOnAPath);
@@ -684,13 +753,80 @@ https://note.com/gautt/n/n92f6faeda048
             }
         }
 
-        // フィット：チェックON時のみ（ループ後にまとめて適用）
-        if (cbFit.value) {
+        // フィット：「しない」以外を選んだとき（ループ後にまとめて適用）
+        if (rbFitTracking.value) {
+            // 文字サイズを保ったまま、トラッキングでパス幅に合わせる
+            try { fitTextToOpenPathByTracking(createdTexts); } catch (_) { }
+        } else if (rbFitFontSize.value) {
+            // 文字サイズを変更してパス幅に合わせる（従来）
             try { fitTextToOpenPath(createdTexts); } catch (_) { }
         }
     }
 
     /* ===== フィット / Fit ===== */
+
+    // True if the path (or first sub-path of a compound path) is closed
+    function isClosedPathItem(item) {
+        try {
+            if (!item) return false;
+            if (item.typename === 'CompoundPathItem') {
+                if (item.pathItems && item.pathItems.length > 0) return !!item.pathItems[0].closed;
+                return false;
+            }
+            if (item.typename === 'PathItem') return !!item.closed;
+        } catch (_) { }
+        return false;
+    }
+
+    // True if the frame is editable PathText placed on an OPEN path (a fit target)
+    function isTargetPathText(textFrame) {
+        try {
+            if (!textFrame || textFrame.typename !== 'TextFrame') return false;
+            if (textFrame.kind !== TextType.PATHTEXT) return false;
+            if (!textFrame.editable || textFrame.locked || textFrame.hidden) return false;
+            var path = textFrame.textPath;
+            if (!path) return false;
+            // Only OPEN paths
+            if (isClosedPathItem(path)) return false;
+            return true;
+        } catch (_) { }
+        return false;
+    }
+
+    // Overset detection: some characters are pushed past the visible lines
+    function isOverset(textFrame, lineAmount) {
+        try {
+            if (!textFrame) return false;
+
+            if (textFrame.lines.length > 0) {
+                var charactersOnVisibleLines = 0;
+
+                if (typeof (lineAmount) === 'undefined' || lineAmount === null) {
+                    lineAmount = 1;
+                } else {
+                    lineAmount = Math.floor(lineAmount);
+                    if (lineAmount < 1) lineAmount = 1;
+                    if (lineAmount > textFrame.lines.length) lineAmount = textFrame.lines.length;
+                }
+
+                for (var i = 0; i < lineAmount; i++) {
+                    charactersOnVisibleLines += textFrame.lines[i].characters.length;
+                }
+                return (charactersOnVisibleLines < textFrame.characters.length);
+            } else if (textFrame.characters.length > 0) {
+                return true;
+            }
+        } catch (_) { }
+        return false;
+    }
+
+    // Visible line count of a frame (always >= 1)
+    function getLineAmount(textFrame) {
+        try {
+            if (textFrame.lines && textFrame.lines.length > 0) return textFrame.lines.length;
+        } catch (_) { }
+        return 1;
+    }
 
     // Fit PathText to OPEN path endpoints by adjusting font size only.
     // - If overset: shrink by small steps until it fits.
@@ -703,68 +839,14 @@ https://note.com/gautt/n/n92f6faeda048
             minFontSize: 0.1,
             maxShrinkIter: 2000,
             maxGrowIter: 10,
-            maxFontSize: 2000,
-            alertOnMaxIter: false
+            maxFontSize: 2000
         };
-
-        function isClosedPathItem(item) {
-            try {
-                if (!item) return false;
-                if (item.typename === 'CompoundPathItem') {
-                    if (item.pathItems && item.pathItems.length > 0) return !!item.pathItems[0].closed;
-                    return false;
-                }
-                if (item.typename === 'PathItem') return !!item.closed;
-            } catch (_) { }
-            return false;
-        }
-
-        function isTargetPathText(textFrame) {
-            try {
-                if (!textFrame || textFrame.typename !== 'TextFrame') return false;
-                if (textFrame.kind !== TextType.PATHTEXT) return false;
-                if (!textFrame.editable || textFrame.locked || textFrame.hidden) return false;
-                var path = textFrame.textPath;
-                if (!path) return false;
-                // Only OPEN paths
-                if (isClosedPathItem(path)) return false;
-                return true;
-            } catch (_) { }
-            return false;
-        }
-
-        // Overset detection
-        function isOverset(textFrame, lineAmount) {
-            try {
-                if (!textFrame) return false;
-
-                if (textFrame.lines.length > 0) {
-                    var charactersOnVisibleLines = 0;
-
-                    if (typeof (lineAmount) === 'undefined' || lineAmount === null) {
-                        lineAmount = 1;
-                    } else {
-                        lineAmount = Math.floor(lineAmount);
-                        if (lineAmount < 1) lineAmount = 1;
-                        if (lineAmount > textFrame.lines.length) lineAmount = textFrame.lines.length;
-                    }
-
-                    for (var i = 0; i < lineAmount; i++) {
-                        charactersOnVisibleLines += textFrame.lines[i].characters.length;
-                    }
-                    return (charactersOnVisibleLines < textFrame.characters.length);
-                } else if (textFrame.characters.length > 0) {
-                    return true;
-                }
-            } catch (_) { }
-            return false;
-        }
 
         function shrinkFont(textFrame) {
             try {
                 if (!textFrame || textFrame.characters.length <= 0) return;
 
-                var lineAmount = (textFrame.lines && textFrame.lines.length > 0) ? textFrame.lines.length : 1;
+                var lineAmount = getLineAmount(textFrame);
 
                 // If it is NOT overset, grow first (doubling) until it becomes overset
                 if (!isOverset(textFrame, lineAmount)) {
@@ -795,6 +877,92 @@ https://note.com/gautt/n/n92f6faeda048
             var textFrame = frames[i];
             if (!isTargetPathText(textFrame)) continue;
             shrinkFont(textFrame);
+        }
+
+        return true;
+    }
+
+    // Fit PathText to OPEN path endpoints by adjusting tracking only (font size kept).
+    // - A coarse pass drives the text across the overset boundary,
+    // - then a fine pass settles on the widest tracking that still fits.
+    function fitTextToOpenPathByTracking(frames) {
+        if (!frames || frames.length === 0) return false;
+
+        var opt = {
+            coarseStep: 50,     // tracking units per coarse step
+            fineStep: 1,        // tracking units per fine step
+            minTracking: -1000, // tightest allowed cumulative delta
+            maxTracking: 20000, // loosest allowed cumulative delta
+            maxIter: 4000
+        };
+
+        // Add a tracking delta to every textRange of the frame
+        function addTrackingToFrame(textFrame, delta) {
+            if (!delta) return;
+            var ranges = collectTextRanges(textFrame);
+            for (var r = 0; r < ranges.length; r++) {
+                try {
+                    var attributes = ranges[r].characterAttributes;
+                    attributes.tracking = attributes.tracking + delta;
+                } catch (_) { }
+            }
+        }
+
+        function fitByTracking(textFrame) {
+            try {
+                if (!textFrame || textFrame.characters.length <= 0) return;
+
+                var lineAmount = getLineAmount(textFrame);
+                var applied = 0; // cumulative tracking delta applied so far
+                var iterations;
+
+                if (isOverset(textFrame, lineAmount)) {
+                    // Too wide: tighten (coarse) until it fits
+                    iterations = 0;
+                    while (isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
+                        if (applied - opt.coarseStep < opt.minTracking) break;
+                        addTrackingToFrame(textFrame, -opt.coarseStep);
+                        applied -= opt.coarseStep;
+                        iterations++;
+                    }
+                    // Loosen back (fine) until it overflows again
+                    iterations = 0;
+                    while (!isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
+                        if (applied + opt.fineStep > opt.maxTracking) break;
+                        addTrackingToFrame(textFrame, opt.fineStep);
+                        applied += opt.fineStep;
+                        iterations++;
+                    }
+                    // Stepped one fineStep too far: pull back once so it fits
+                    if (isOverset(textFrame, lineAmount)) {
+                        addTrackingToFrame(textFrame, -opt.fineStep);
+                        applied -= opt.fineStep;
+                    }
+                } else {
+                    // Fits with room: loosen (coarse) until it overflows
+                    iterations = 0;
+                    while (!isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
+                        if (applied + opt.coarseStep > opt.maxTracking) break;
+                        addTrackingToFrame(textFrame, opt.coarseStep);
+                        applied += opt.coarseStep;
+                        iterations++;
+                    }
+                    // Tighten back (fine) until it fits
+                    iterations = 0;
+                    while (isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
+                        if (applied - opt.fineStep < opt.minTracking) break;
+                        addTrackingToFrame(textFrame, -opt.fineStep);
+                        applied -= opt.fineStep;
+                        iterations++;
+                    }
+                }
+            } catch (_) { }
+        }
+
+        for (var i = 0; i < frames.length; i++) {
+            var textFrame = frames[i];
+            if (!isTargetPathText(textFrame)) continue;
+            fitByTracking(textFrame);
         }
 
         return true;
