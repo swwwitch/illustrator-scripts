@@ -2,7 +2,7 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-概要
+## 概要
 
 選択したオブジェクトの境界に合わせて長方形を作成する Illustrator スクリプトです。
 作成単位は「オブジェクトごと」または「選択範囲全体」から選べます。
@@ -13,12 +13,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ロック・非表示オブジェクトは対象外です。プレビューで結果を確認しながら調整できます（マスク／削除は OK 後に反映）。
 スクリプト実行中はバウンディングボックスとエッジ表示を一時的に切り替え、終了時（OK／キャンセル／エラーいずれも）に元の状態へ戻します。
 
-キーボード操作
+### キーボード操作
 
 マージン入力：↑↓ で ±1、Shift+↑↓ で ±10、Alt+↑↓ で ±0.1。
 ショートカット：S/G（作成単位）、P/O/A/T（オプション）、F/B（重ね順）、N/M/D（元オブジェクト）。
 
-Overview
+## Overview
 
 Creates Illustrator rectangles that match the bounds of selected objects.
 The creation unit can be set to either per object or the whole selection.
@@ -29,7 +29,7 @@ Clipping-mask mode preserves the original z-order. Whole-selection mode anchors 
 Locked and hidden objects are excluded. Preview shows the result while you adjust (mask/delete is applied on OK).
 The bounding box and edge display are temporarily toggled during the script and restored on exit (OK, Cancel, or error).
 
-Keyboard
+### Keyboard
 
 Margin field: ↑↓ ±1, Shift+↑↓ ±10, Alt+↑↓ ±0.1.
 Shortcuts: S/G (creation unit), P/O/A/T (options), F/B (order), N/M/D (original).
