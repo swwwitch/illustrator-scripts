@@ -30,10 +30,9 @@ PathTextToolkit.jsx
 (function () {
 
     /* バージョン / Version */
-    // Version
     var SCRIPT_VERSION = "v1.3.3";
 
-    // Language
+    /* 表示言語を判定（ja / en）/ Detect the UI language (ja / en) */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
@@ -51,6 +50,7 @@ PathTextToolkit.jsx
         panelEffect: { ja: "効果", en: "Effect" },
         panelPosition: { ja: "位置", en: "Position" },
         panelTextAdjust: { ja: "テキスト調整", en: "Text Adjust" },
+        panelFitWidth: { ja: "パス幅に合わせる", en: "Fit to Path Width" },
 
         /* Process radios / 処理ラジオ */
         toPathText: { ja: "パス上文字にする", en: "Convert to Path Text" },
@@ -71,12 +71,16 @@ PathTextToolkit.jsx
 
         /* Options / オプション */
         optReverse: { ja: "内側配置", en: "Inside" },
-        optFixOverset: { ja: "フィット", en: "Fit" },
 
         arcDirection: { ja: "アーチ方向", en: "Arc Direction" },
         arcUp: { ja: "上", en: "Up" },
         arcDown: { ja: "下", en: "Down" },
         arcRoundness: { ja: "まるみ", en: "Roundness" },
+
+        /* Fit to path width / パス幅に合わせる */
+        fitWidthNone: { ja: "しない", en: "None" },
+        fitWidthFontSize: { ja: "文字サイズを調整", en: "Adjust Font Size" },
+        fitWidthTracking: { ja: "トラッキングを調整", en: "Adjust Tracking" },
 
         /* Effects / 効果 */
         effectRainbow: { ja: "虹", en: "Rainbow" },
@@ -90,9 +94,9 @@ PathTextToolkit.jsx
         endPos: { ja: "終了位置", en: "End" },
 
         /* Text Adjust / テキスト調整 */
-        baseShift: { ja: "ベースライン：", en: "Baseline Shift:" },
-        tracking: { ja: "トラッキング：", en: "Tracking:" },
-        fontSize: { ja: "文字サイズ：", en: "Font Size:" },
+        baseShift: { ja: "ベースライン", en: "Baseline Shift" },
+        tracking: { ja: "トラッキング", en: "Tracking" },
+        fontSize: { ja: "文字サイズ", en: "Font Size" },
 
         /* Footer / フッター */
         preview: { ja: "プレビュー", en: "Preview" },
@@ -108,15 +112,20 @@ PathTextToolkit.jsx
         alertNeedPathText: { ja: "パス上文字を選択してください", en: "Select path text." }
     };
 
+    /* キーからラベル文字列を取得 / Resolve a label string from its key */
     function L(key) {
-        try {
-            if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
-            if (LABELS[key] && LABELS[key].ja) return LABELS[key].ja;
-        } catch (_) { }
+        // LABELS は固定のオブジェクトリテラル。&& ガード済みで例外は起きないため try 不要
+        if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
+        if (LABELS[key] && LABELS[key].ja) return LABELS[key].ja;
         return key;
     }
 
-    // Arrow-key value change for ScriptUI edittext
+    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
+    function labelText(key) {
+        return L(key) + (lang === 'ja' ? '：' : ':');
+    }
+
+    /* edittext の値を矢印キーで増減（Up/Down=±1, Shift=±10, Option=±0.1）/ Change an edittext value with arrow keys */
     // Up/Down: ±1, Shift+Up/Down: ±10, Option(Alt)+Up/Down: ±0.1
     // allowNegative: false -> clamp to >= 0
     // onChanged: optional callback invoked after value change
@@ -177,15 +186,16 @@ PathTextToolkit.jsx
         return false;
     }
     var doc = app.activeDocument;
-    var sel = doc.selection;
+    var selection = doc.selection;
     // Base selection snapshot (used for stable preview while dialog is open)
     var __baseSelection = [];
-    try { __baseSelection = sel.slice(0); } catch (_) { __baseSelection = []; }
+    try { __baseSelection = selection.slice(0); } catch (_) { __baseSelection = []; }
 
-    var targetItems = getTargetTextItems(sel);
-    var selectedPaths = getSelectedPathItems(sel);
+    var targetItems = getTargetTextItems(selection);
+    var selectedPaths = getSelectedPathItems(selection);
 
 
+    /* 現在の選択からターゲット・パスと UI 有効状態を取り直す / Re-read targets, paths and UI enabled-state from the current selection */
     function __refreshInputsFromSelection() {
         var curSel = [];
         try { curSel = doc.selection; } catch (_) { curSel = []; }
@@ -248,13 +258,25 @@ PathTextToolkit.jsx
 
         // Update panel enabled state only after UI is ready
         try { __updatePanelsByMode(); } catch (_) { }
-        try { __updateFitButtonEnabled(); } catch (_) { }
     }
 
     // Validation
     if (targetItems.length === 0) {
         alert(L('alertNoText'));
         return false;
+    }
+
+    /* パネル共通設定 / Shared panel setup */
+    var PANEL_MARGINS = [15, 20, 15, 10];
+    var PANEL_SPACING = 8;
+
+    /* パネルを縦並び・共通マージン/間隔で初期化 / Initialize a panel as a column with shared margins/spacing */
+    function setupPanel(panel, spacing) {
+        panel.orientation = 'column';
+        panel.alignChildren = ['fill', 'top'];
+        panel.alignment = 'fill';
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === 'number') ? spacing : PANEL_SPACING;
     }
 
     /* ダイアログ表示 / Show dialog */
@@ -279,20 +301,18 @@ PathTextToolkit.jsx
     rightCol.alignChildren = ['fill', 'top'];
     rightCol.alignment = ['fill', 'top'];
 
-    // Option (radio)
-    var pnlOpt = leftCol.add('panel', undefined, L('panelProcess'));
-    pnlOpt.orientation = 'column';
-    pnlOpt.alignChildren = ['left', 'top'];
-    pnlOpt.margins = [15, 20, 15, 10];
+    // 処理パネル（パス上文字にする / アーチ生成 / 正円生成）/ Process panel
+    var pnlProcess = leftCol.add('panel', undefined, L('panelProcess'));
+    setupPanel(pnlProcess);
 
-    var rbToPathText = pnlOpt.add('radiobutton', undefined, L('toPathText'));
-    var rbGenArcPath = pnlOpt.add('radiobutton', undefined, L('genArcPath'));
-    var rbGenCircle = pnlOpt.add('radiobutton', undefined, L('genCircle'));
+    var rbToPathText = pnlProcess.add('radiobutton', undefined, L('toPathText'));
+    var rbGenArcPath = pnlProcess.add('radiobutton', undefined, L('genArcPath'));
+    var rbGenCircle = pnlProcess.add('radiobutton', undefined, L('genCircle'));
     rbToPathText.value = true;
 
     // Text edit button (logic improved)
-    var btnTextEdit = pnlOpt.add('button', undefined, L('btnTextEdit'));
-    btnTextEdit.alignment = ['fill', 'center'];
+    var btnTextEdit = pnlProcess.add('button', undefined, L('btnTextEdit'));
+    btnTextEdit.alignment = ['left', 'center'];
     btnTextEdit.onClick = function () {
         // --- Edit dialog logic ---
         var editDlg = new Window('dialog', L('dlgTextEditTitle'));
@@ -337,9 +357,9 @@ PathTextToolkit.jsx
             var newText = et.text;
             // Apply to all current targets at click-time
             for (var i = 0; i < __editTargets.length; i++) {
-                var tf = __editTargets[i];
-                if (!tf || tf.typename !== 'TextFrame') continue;
-                try { tf.contents = newText; } catch (_) { }
+                var textFrame = __editTargets[i];
+                if (!textFrame || textFrame.typename !== 'TextFrame') continue;
+                try { textFrame.contents = newText; } catch (_) { }
             }
             // Refresh input states and preview
             __refreshInputsFromSelection();
@@ -353,9 +373,7 @@ PathTextToolkit.jsx
 
     // Split panel (under Process)
     var pnlSplit = leftCol.add('panel', undefined, L('panelSplit'));
-    pnlSplit.orientation = 'column';
-    pnlSplit.alignChildren = ['left', 'top'];
-    pnlSplit.margins = [15, 20, 15, 10];
+    setupPanel(pnlSplit);
 
     var rbSplitTextAndPath = pnlSplit.add('radiobutton', undefined, L('splitTextAndPath'));
     var rbSplitTextAndPathNoFormat = pnlSplit.add('radiobutton', undefined, L('splitTextAndPathNoFormat'));
@@ -366,12 +384,14 @@ PathTextToolkit.jsx
     cbSplitDeletePath.value = false; // デフォルトOFF
 
     // --- Mutually exclusive helpers for Process/Split radios ---
+    /* 「処理」ラジオをすべて OFF（排他制御用）/ Turn off all "Process" radios (mutual-exclusion helper) */
     function __clearProcessRadios() {
         try { rbToPathText.value = false; } catch (_) { }
         try { rbGenArcPath.value = false; } catch (_) { }
         try { rbGenCircle.value = false; } catch (_) { }
     }
 
+    /* 「分離」ラジオをすべて OFF（排他制御用）/ Turn off all "Split" radios (mutual-exclusion helper) */
     function __clearSplitRadios() {
         try { rbSplitTextAndPath.value = false; } catch (_) { }
         try { rbSplitTextAndPathNoFormat.value = false; } catch (_) { }
@@ -417,9 +437,7 @@ PathTextToolkit.jsx
 
     // Option panel (above Alignment in RIGHT column)
     var pnlOption = rightCol.add('panel', undefined, L('panelOption'));
-    pnlOption.orientation = 'column';
-    pnlOption.alignChildren = ['left', 'top'];
-    pnlOption.margins = [15, 20, 15, 10];
+    setupPanel(pnlOption);
 
     var cbReverse = pnlOption.add('checkbox', undefined, L('optReverse'));
     cbReverse.value = false;
@@ -429,7 +447,7 @@ PathTextToolkit.jsx
     grpArcDir.orientation = 'row';
     grpArcDir.alignChildren = ['left', 'center'];
 
-    var stArcDir = grpArcDir.add('statictext', undefined, L('arcDirection'));
+    var stArcDir = grpArcDir.add('statictext', undefined, labelText('arcDirection'));
     stArcDir.preferredSize.width = 70;
 
     var rbArcUp = grpArcDir.add('radiobutton', undefined, L('arcUp'));
@@ -447,104 +465,32 @@ PathTextToolkit.jsx
     var slArcRoundness = grpArcRoundness.add('slider', undefined, 50, 0, 100);
     slArcRoundness.preferredSize.width = 130;
 
-    // Fit (overset fix) toggle button
-    var __fitEnabled = false;
-    var btnFit = pnlOption.add('button', undefined, L('optFixOverset'));
-    btnFit.alignment = ['left', 'center'];
+    // パス幅パネルの上に余白（10px）/ Spacer (10px) above the Fit-to-path-width panel
+    var fitWidthSpacer = pnlOption.add('group');
+    fitWidthSpacer.preferredSize.height = 5;
 
-    function __isClosedPathItem(it) {
+    /* パス幅に合わせるパネル（オプションパネル内の最下部）/ Fit-to-path-width panel (bottom of the Options panel) */
+    var pnlFitWidth = pnlOption.add('panel', undefined, L('panelFitWidth'));
+    setupPanel(pnlFitWidth);
+
+    var rbFitWidthNone = pnlFitWidth.add('radiobutton', undefined, L('fitWidthNone'));
+    var rbFitWidthFontSize = pnlFitWidth.add('radiobutton', undefined, L('fitWidthFontSize'));
+    var rbFitWidthTracking = pnlFitWidth.add('radiobutton', undefined, L('fitWidthTracking'));
+
+    // Default: しない / Default: None
+    rbFitWidthNone.value = true;
+
+    /* パネル選択に応じてパス幅フィットを適用 / Apply path-width fit according to the panel selection */
+    function applyFitToPathWidth(frames) {
         try {
-            if (!it) return false;
-            if (it.typename === 'CompoundPathItem') {
-                if (it.pathItems && it.pathItems.length > 0) return !!it.pathItems[0].closed;
-                return false;
+            if (rbFitWidthFontSize && rbFitWidthFontSize.value) {
+                fitTextToOpenPath(frames);            // 文字サイズで合わせる / fit by font size
+            } else if (rbFitWidthTracking && rbFitWidthTracking.value) {
+                fitTextToOpenPathByTracking(frames);  // トラッキングで合わせる / fit by tracking
             }
-            if (it.typename === 'PathItem') return !!it.closed;
-        } catch (_) { }
-        return false;
-    }
-
-    function __isClosedPathText(tf) {
-        try {
-            if (!tf || tf.typename !== 'TextFrame') return false;
-            if (tf.kind !== TextType.PATHTEXT) return false;
-            var p = tf.textPath;
-            if (!p) return false;
-            return __isClosedPathItem(p);
-        } catch (_) { }
-        return false;
-    }
-
-    function __fitAvailableNow() {
-        try {
-            // Split mode は panel 側でディムるが念のため
-            var isSplitMode = (rbSplitTextAndPath && rbSplitTextAndPath.value) ||
-                (rbSplitTextAndPathNoFormat && rbSplitTextAndPathNoFormat.value);
-            if (isSplitMode) return false;
-
-            // 正円はクローズ生成なので不可
-            if (rbGenCircle && rbGenCircle.value) return false;
-
-            // アーチはオープン生成なので可
-            if (rbGenArcPath && rbGenArcPath.value) return true;
-
-            // パス上文字：選択パス or PathText のパスがクローズなら不可
-            if (rbToPathText && rbToPathText.value) {
-                if (selectedPaths && selectedPaths.length > 0) {
-                    for (var i = 0; i < selectedPaths.length; i++) {
-                        if (__isClosedPathItem(selectedPaths[i])) return false;
-                    }
-                    return true;
-                }
-                if (targetItems && targetItems.length > 0) {
-                    for (var t = 0; t < targetItems.length; t++) {
-                        if (__isClosedPathText(targetItems[t])) return false;
-                    }
-                    return true;
-                }
-            }
-        } catch (_) { }
-        return false;
-    }
-
-    function __updateFitButtonEnabled() {
-        try { btnFit.enabled = __fitAvailableNow(); } catch (_) { }
-    }
-
-    function __updateFitButtonLabel() {
-        try {
-            // show state with a check mark
-            btnFit.text = L('optFixOverset') + (__fitEnabled ? ' ✓' : '');
+            // 「しない」: 何もしない / "None": do nothing
         } catch (_) { }
     }
-    __updateFitButtonLabel();
-
-    // Set Fit ON/OFF and refresh its button label
-    function setFitEnabled(enabled) {
-        try {
-            __fitEnabled = !!enabled;
-            __updateFitButtonLabel();
-        } catch (_) { }
-    }
-
-    btnFit.onClick = function () {
-        setFitEnabled(!__fitEnabled);
-        refreshPreviewIfNeeded();
-    };
-
-    // Alignment / Indent panel  (moved to RIGHT)
-    var pnlAlignIndent = rightCol.add('panel', undefined, L('panelAlign'));
-    pnlAlignIndent.orientation = 'column';
-    pnlAlignIndent.alignChildren = ['left', 'top'];
-    pnlAlignIndent.margins = [15, 20, 15, 10];
-
-    var rbAlignLeft = pnlAlignIndent.add('radiobutton', undefined, L('alignLeft'));
-    var rbAlignCenter = pnlAlignIndent.add('radiobutton', undefined, L('alignCenter'));
-    var rbAlignRight = pnlAlignIndent.add('radiobutton', undefined, L('alignRight'));
-    var rbAlignFullJustify = pnlAlignIndent.add('radiobutton', undefined, L('alignFullJustify'));
-
-    // Default: 中央
-    rbAlignCenter.value = true;
 
     // -------------------------------------------------
     // Full-width (span across columns): 効果 -> 位置 -> ベースラインシフト
@@ -556,9 +502,12 @@ PathTextToolkit.jsx
 
     // Effect panel (full-width)
     var pnlEffect = wideCol.add('panel', undefined, L('panelEffect'));
+    // 効果は5項目を横並びにするため setupPanel（縦並び）は使わず個別設定
     pnlEffect.orientation = 'row';
     pnlEffect.alignChildren = ['center', 'center'];
-    pnlEffect.margins = [15, 20, 15, 10];
+    pnlEffect.alignment = 'fill';
+    pnlEffect.margins = PANEL_MARGINS;
+    pnlEffect.spacing = PANEL_SPACING;
 
     var rbEffectRainbow = pnlEffect.add('radiobutton', undefined, L('effectRainbow'));
     var rbEffectDistort = pnlEffect.add('radiobutton', undefined, L('effectDistort'));
@@ -579,12 +528,10 @@ PathTextToolkit.jsx
     }
 
     // Position (start/end) panel  (moved to FULL WIDTH)
-    var pnlTValue = wideCol.add('panel', undefined, L('panelPosition'));
-    pnlTValue.orientation = 'column';
-    pnlTValue.alignChildren = ['left', 'top'];
-    pnlTValue.margins = [15, 20, 15, 10];
+    var pnlPosition = wideCol.add('panel', undefined, L('panelPosition'));
+    setupPanel(pnlPosition);
 
-    var rowStart = pnlTValue.add('group');
+    var rowStart = pnlPosition.add('group');
     rowStart.orientation = 'row';
     rowStart.alignChildren = ['left', 'center'];
     var cbStartT = rowStart.add('checkbox', undefined, '');
@@ -598,7 +545,7 @@ PathTextToolkit.jsx
     // Arrow-key support for startT
     changeValueByArrowKey(etStartT, false, function () { __syncTFromEdits(); refreshPreviewIfNeeded(); });
 
-    var rowEnd = pnlTValue.add('group');
+    var rowEnd = pnlPosition.add('group');
     rowEnd.orientation = 'row';
     rowEnd.alignChildren = ['left', 'center'];
     var cbEndT = rowEnd.add('checkbox', undefined, '');
@@ -613,16 +560,30 @@ PathTextToolkit.jsx
     changeValueByArrowKey(etEndT, false, function () { __syncTFromEdits(); refreshPreviewIfNeeded(); });
 
     // Baseline shift panel  (moved to FULL WIDTH)
-    var pnlBaselineShift = wideCol.add('panel', undefined, L('panelTextAdjust'));
-    pnlBaselineShift.orientation = 'column';
-    pnlBaselineShift.alignChildren = ['left', 'top'];
-    pnlBaselineShift.margins = [15, 20, 15, 10];
+    var pnlTextAdjust = wideCol.add('panel', undefined, L('panelTextAdjust'));
+    setupPanel(pnlTextAdjust);
 
-    var rowBaseShift = pnlBaselineShift.add('group');
+    // 行揃え（テキスト調整パネル先頭の行）/ Alignment (top row of Text Adjust panel)
+    var rowAlign = pnlTextAdjust.add('group');
+    rowAlign.orientation = 'row';
+    rowAlign.alignChildren = ['left', 'center'];
+
+    var stAlign = rowAlign.add('statictext', undefined, labelText('panelAlign'));
+    stAlign.preferredSize.width = 95;
+
+    var rbAlignLeft = rowAlign.add('radiobutton', undefined, L('alignLeft'));
+    var rbAlignCenter = rowAlign.add('radiobutton', undefined, L('alignCenter'));
+    var rbAlignRight = rowAlign.add('radiobutton', undefined, L('alignRight'));
+    var rbAlignFullJustify = rowAlign.add('radiobutton', undefined, L('alignFullJustify'));
+
+    // Default: 中央
+    rbAlignCenter.value = true;
+
+    var rowBaseShift = pnlTextAdjust.add('group');
     rowBaseShift.orientation = 'row';
     rowBaseShift.alignChildren = ['left', 'center'];
 
-    var stBaseShift = rowBaseShift.add('statictext', undefined, L('baseShift'));
+    var stBaseShift = rowBaseShift.add('statictext', undefined, labelText('baseShift'));
     stBaseShift.preferredSize.width = 95;
 
     var etBaseShift = rowBaseShift.add('edittext', undefined, '0.0');
@@ -634,11 +595,11 @@ PathTextToolkit.jsx
     changeValueByArrowKey(etBaseShift, true, function () { __syncBSFromEdit(); refreshPreviewIfNeeded(); });
 
     // Tracking panel row
-    var rowTracking = pnlBaselineShift.add('group');
+    var rowTracking = pnlTextAdjust.add('group');
     rowTracking.orientation = 'row';
     rowTracking.alignChildren = ['left', 'center'];
 
-    var stTracking = rowTracking.add('statictext', undefined, L('tracking'));
+    var stTracking = rowTracking.add('statictext', undefined, labelText('tracking'));
     stTracking.preferredSize.width = 95;
 
     var etTracking = rowTracking.add('edittext', undefined, '0');
@@ -649,11 +610,11 @@ PathTextToolkit.jsx
     changeValueByArrowKey(etTracking, true, function () { __syncTrkFromEdit(); refreshPreviewIfNeeded(); });
 
     // Font size panel row
-    var rowFontSize = pnlBaselineShift.add('group');
+    var rowFontSize = pnlTextAdjust.add('group');
     rowFontSize.orientation = 'row';
     rowFontSize.alignChildren = ['left', 'center'];
 
-    var stFontSize = rowFontSize.add('statictext', undefined, L('fontSize'));
+    var stFontSize = rowFontSize.add('statictext', undefined, labelText('fontSize'));
     stFontSize.preferredSize.width = 95;
 
     var etFontSize = rowFontSize.add('edittext', undefined, '0.0');
@@ -693,6 +654,7 @@ PathTextToolkit.jsx
 
     var __previewPathStates = [];       // { item: PathItem, stroked: Boolean, filled: Boolean, strokeWidth, strokeColor, opacity }
 
+    /* プレビューで作った一時オブジェクトを削除し元の状態へ戻す / Remove preview temp items and restore originals */
     function __preview_clear() {
         // Remove temp items
         for (var i = __previewTempItems.length - 1; i >= 0; i--) {
@@ -721,6 +683,7 @@ PathTextToolkit.jsx
         // Removed redundant redraw here to reduce flicker.
     }
 
+    /* プレビュー復元用にパスの元の見た目を記録 / Record a path's original appearance for preview restore */
     function __preview_recordPathState(pathItem) {
         try {
             if (!pathItem) return;
@@ -738,7 +701,7 @@ PathTextToolkit.jsx
         } catch (_) { }
     }
 
-    // Run styleFn for each underlying PathItem (handles CompoundPathItem too).
+    /* CompoundPath も展開して各 PathItem に処理を適用 / Run a function on each underlying PathItem (handles CompoundPathItem) */
     function __forEachPathItem(pathItem, styleFn) {
         try {
             if (!pathItem || !styleFn) return;
@@ -752,59 +715,64 @@ PathTextToolkit.jsx
         } catch (_) { }
     }
 
-    // Per-PathItem style: visible guide (no fill, black 1pt stroke, 50% opacity).
-    function __styleVisiblePath(pi) {
-        pi.filled = false;
-        pi.stroked = true;
-        pi.strokeWidth = 1;
-
+    /* スミ100%の CMYKColor を生成 / Create a 100%-black CMYKColor */
+    function makeBlackCMYK() {
         var black = new CMYKColor();
         black.cyan = 0;
         black.magenta = 0;
         black.yellow = 0;
         black.black = 100;
-        pi.strokeColor = black;
-
-        pi.opacity = 50;
+        return black;
     }
 
-    // Per-PathItem style: invisible (no fill, stroke color/weight 0).
-    function __styleInvisiblePath(pi) {
-        pi.filled = false;
-        pi.stroked = false;
-        pi.strokeWidth = 0;
+    /* パスを見えるガイド（塗りなし・黒1pt・不透明度50%）に整形 / Style a path as a visible guide (no fill, black 1pt stroke, 50% opacity) */
+    function __styleVisiblePath(pathItem) {
+        pathItem.filled = false;
+        pathItem.stroked = true;
+        pathItem.strokeWidth = 1;
+        pathItem.strokeColor = makeBlackCMYK();
+        pathItem.opacity = 50;
     }
 
-    // Preview: record each path's original style for restore, then make it a visible guide.
+    /* パスを非表示（塗り・線なし）に整形 / Style a path as invisible (no fill, no stroke) */
+    function __styleInvisiblePath(pathItem) {
+        pathItem.filled = false;
+        pathItem.stroked = false;
+        pathItem.strokeWidth = 0;
+    }
+
+    /* プレビュー：元の見た目を記録してから見えるガイドにする / Preview: record original style, then make the path a visible guide */
     function __preview_applyPathStyle(basePath) {
-        __forEachPathItem(basePath, function (pi) {
-            __preview_recordPathState(pi);
-            __styleVisiblePath(pi);
+        __forEachPathItem(basePath, function (pathItem) {
+            __preview_recordPathState(pathItem);
+            __styleVisiblePath(pathItem);
         });
     }
 
-    // Execute: keep the path visible as a guide (no restore needed).
+    /* 実行：パスを見えるガイドのまま残す（復元不要）/ Execute: keep the path visible as a guide (no restore needed) */
     function __applyExecutePathStyle(pathItem) {
         __forEachPathItem(pathItem, __styleVisiblePath);
     }
 
-    // Generated arc path: stroke color/weight 0 (invisible guide).
+    /* 生成パスを非表示ガイド（線幅0）にする / Make a generated path an invisible guide (zero stroke) */
     function __applyInvisiblePathStyle(pathItem) {
         __forEachPathItem(pathItem, __styleInvisiblePath);
     }
 
-    function __preview_hideOriginal(it) {
+    /* 元オブジェクトをプレビュー中だけ非表示にする / Hide an original item during preview */
+    function __preview_hideOriginal(item) {
         try {
-            if (!it) return;
+            if (!item) return;
             // Avoid duplicates
             for (var k = 0; k < __previewHiddenOriginals.length; k++) {
-                if (__previewHiddenOriginals[k] === it) return;
+                if (__previewHiddenOriginals[k] === item) return;
             }
-            it.hidden = true;
-            __previewHiddenOriginals.push(it);
+            item.hidden = true;
+            __previewHiddenOriginals.push(item);
         } catch (_) { }
     }
 
+    /* 現在の設定でプレビューを再生成（Undo なし）/ Rebuild the preview with the current settings (no undo) */
     function __preview_apply() {
         __preview_clear();
         // Restore base selection so preview stays stable even after selection changes
@@ -831,6 +799,7 @@ PathTextToolkit.jsx
         try { app.redraw(); } catch (_) { }
     }
 
+    /* プレビューを適用 / Apply the preview */
     function applyPreview() {
         __preview_apply();
     }
@@ -845,29 +814,31 @@ PathTextToolkit.jsx
         }
     };
 
+    /* プレビュー ON のときだけ再描画 / Refresh the preview only when it is ON */
     function refreshPreviewIfNeeded() {
         if (cbPreview.value) {
             applyPreview();
         }
     }
 
-    // Presets applied whenever arc-path mode becomes active (manual click or
-    // auto-switch): center alignment, rainbow effect, and Fit turned ON.
+    /* アーチモード時の既定値（中央揃え・虹・文字サイズでフィット）を適用 / Apply arc-mode presets (center align, rainbow effect, fit by font size) */
     function applyArcModePresets() {
-        try { rbAlignCenter.value = true; } catch (_) { }
-        try { rbEffectRainbow.value = true; } catch (_) { }
-        setFitEnabled(true);
+        try {
+            rbAlignCenter.value = true;
+            rbEffectRainbow.value = true;
+            rbFitWidthFontSize.value = true;
+        } catch (_) { }
     }
 
     rbToPathText.onClick = function () {
         __clearSplitRadios();
-        setFitEnabled(false);
+        try { rbFitWidthNone.value = true; } catch (_) { }
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
     rbGenCircle.onClick = function () {
         __clearSplitRadios();
-        setFitEnabled(false);
+        try { rbFitWidthNone.value = true; } catch (_) { }
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
@@ -879,17 +850,17 @@ PathTextToolkit.jsx
     };
     rbSplitTextAndPath.onClick = function () {
         __clearProcessRadios();
-        setFitEnabled(false);
+        try { rbFitWidthNone.value = true; } catch (_) { }
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
     rbSplitTextAndPathNoFormat.onClick = function () {
         __clearProcessRadios();
-        setFitEnabled(false);
+        try { rbFitWidthNone.value = true; } catch (_) { }
         __updatePanelsByMode();
         refreshPreviewIfNeeded();
     };
-    // Disable/enable panels depending on mode
+    /* モードに応じてパネルの有効/無効を切り替え / Enable or disable panels depending on the current mode */
     function __updatePanelsByMode() {
         var isSplitMode = false;
         var isCircleMode = false;
@@ -902,23 +873,22 @@ PathTextToolkit.jsx
             isCircleMode = false;
         }
 
-        // Keep "処理" and "分離" always enabled
-        try { pnlOpt.enabled = true; } catch (_) { }
-        try { pnlSplit.enabled = true; } catch (_) { }
-
-        // Splitモード時はそれ以外をすべてディム
+        // 各パネルの有効/無効をまとめて設定（UI 構築後のみ呼ばれるため try は1つで足りる）
         var en = !isSplitMode;
-        try { pnlOption.enabled = en; } catch (_) { }
-        try { pnlAlignIndent.enabled = en; } catch (_) { }
-        try { pnlEffect.enabled = en; } catch (_) { }
-        try { pnlBaselineShift.enabled = en; } catch (_) { }
-
-        // まるみ：正円モードでは無効（アーチ生成時のみ意味を持つ）
-        try { grpArcRoundness.enabled = en && !isCircleMode; } catch (_) { }
-
-        // 位置パネルは常に有効（Splitモードでない限り）
-        try { pnlTValue.enabled = en; } catch (_) { }
-        try { __updateFitButtonEnabled(); } catch (_) { }
+        try {
+            // 「処理」「分離」は常に有効
+            pnlProcess.enabled = true;
+            pnlSplit.enabled = true;
+            // Splitモード時はそれ以外をディム
+            pnlOption.enabled = en;
+            pnlEffect.enabled = en;
+            pnlTextAdjust.enabled = en;
+            pnlPosition.enabled = en;
+            // パス幅・アーチ方向・まるみは正円モードでも無効（オープンパスのみ対象）
+            pnlFitWidth.enabled = en && !isCircleMode;
+            grpArcDir.enabled = en && !isCircleMode;
+            grpArcRoundness.enabled = en && !isCircleMode;
+        } catch (_) { }
     }
 
     cbReverse.onClick = refreshPreviewIfNeeded;
@@ -935,6 +905,10 @@ PathTextToolkit.jsx
     // Arc direction radios: hook preview refresh
     rbArcUp.onClick = refreshPreviewIfNeeded;
     rbArcDown.onClick = refreshPreviewIfNeeded;
+    // Fit-to-path-width radios: hook preview refresh
+    rbFitWidthNone.onClick = refreshPreviewIfNeeded;
+    rbFitWidthFontSize.onClick = refreshPreviewIfNeeded;
+    rbFitWidthTracking.onClick = refreshPreviewIfNeeded;
 
     // Arc roundness slider: refresh preview on release
     slArcRoundness.onChange = refreshPreviewIfNeeded;
@@ -943,49 +917,43 @@ PathTextToolkit.jsx
     // - slider range: ±fontSize (pt) based on current selection
     var __bsSyncLock = false;
 
-    function __formatBS(n) {
-        // 0.1pt
-        var v = Math.round(n * 10) / 10;
-        return v.toFixed(1);
+    /* 数値を小数1桁の文字列へ整形（0.1pt 単位）/ Format a number to a one-decimal string (0.1pt steps) */
+    function formatOneDecimal(value) {
+        return (Math.round(value * 10) / 10).toFixed(1);
     }
 
-    function __getBaselineShiftRefFontSizePt() {
-        // Use first available target's font size as reference
+    /* 基準フォントサイズ（先頭ターゲット）を pt で取得 / Get the reference font size in pt (first target) */
+    function getReferenceFontSizePt() {
         try {
-            var s = null;
-            if (targetItems && targetItems.length > 0) {
-                s = targetItems[0];
-            }
-            if (s && s.typename === 'TextFrame') {
-                // Prefer first textRange
-                if (s.textRanges && s.textRanges.length > 0) {
-                    var sz = s.textRanges[0].characterAttributes.size;
-                    if (sz && !isNaN(sz)) return sz;
+            var firstTarget = (targetItems && targetItems.length > 0) ? targetItems[0] : null;
+            if (firstTarget && firstTarget.typename === 'TextFrame') {
+                // Prefer first textRange, fall back to whole range
+                if (firstTarget.textRanges && firstTarget.textRanges.length > 0) {
+                    var size = firstTarget.textRanges[0].characterAttributes.size;
+                    if (size && !isNaN(size)) return size;
                 }
-                // Fallback
-                var sz2 = s.textRange.characterAttributes.size;
-                if (sz2 && !isNaN(sz2)) return sz2;
+                var fallbackSize = firstTarget.textRange.characterAttributes.size;
+                if (fallbackSize && !isNaN(fallbackSize)) return fallbackSize;
             }
         } catch (_) { }
         return 100; // fallback
     }
 
-    function __updateBaselineShiftSliderRange() {
+    /* 増減スライダーの範囲を ±フォントサイズ（0.1pt 単位）に更新 / Update a delta slider range to ±font size (0.1pt steps) */
+    function updateDeltaSliderRange(slider) {
         try {
-            var fs = __getBaselineShiftRefFontSizePt();
-            // ±fontSize
-            var minV = -Math.max(1, Math.round(fs * 10));
-            var maxV = Math.max(1, Math.round(fs * 10));
-            slBaseShift.minvalue = minV;
-            slBaseShift.maxvalue = maxV;
+            var limit = Math.max(1, Math.round(getReferenceFontSizePt() * 10));
+            slider.minvalue = -limit;
+            slider.maxvalue = limit;
         } catch (_) { }
     }
 
+    /* 入力欄からベースラインのスライダーへ同期 / Sync the baseline-shift slider from the edit field */
     function __syncBSFromEdit() {
         if (__bsSyncLock) return;
         __bsSyncLock = true;
         try {
-            __updateBaselineShiftSliderRange();
+            updateDeltaSliderRange(slBaseShift);
 
             var v = __parseNumber(etBaseShift.text, 0);
             if (isNaN(v)) v = 0;
@@ -995,19 +963,20 @@ PathTextToolkit.jsx
             var maxPt = slBaseShift.maxvalue / 10.0;
             v = __clamp(v, minPt, maxPt);
 
-            etBaseShift.text = __formatBS(v);
+            etBaseShift.text = formatOneDecimal(v);
             try { slBaseShift.value = Math.round(v * 10); } catch (_) { }
         } catch (_) { }
         __bsSyncLock = false;
     }
 
+    /* スライダーからベースラインの入力欄へ同期 / Sync the baseline-shift edit field from the slider */
     function __syncBSFromSlider() {
         if (__bsSyncLock) return;
         __bsSyncLock = true;
         try {
-            __updateBaselineShiftSliderRange();
+            updateDeltaSliderRange(slBaseShift);
             var v = (slBaseShift.value / 10.0);
-            etBaseShift.text = __formatBS(v);
+            etBaseShift.text = formatOneDecimal(v);
         } catch (_) { }
         __bsSyncLock = false;
     }
@@ -1020,6 +989,7 @@ PathTextToolkit.jsx
     // Sync tracking UI (edittext <-> slider)
     var __trkSyncLock = false;
 
+    /* 入力欄からトラッキングのスライダーへ同期 / Sync the tracking slider from the edit field */
     function __syncTrkFromEdit() {
         if (__trkSyncLock) return;
         __trkSyncLock = true;
@@ -1033,6 +1003,7 @@ PathTextToolkit.jsx
         __trkSyncLock = false;
     }
 
+    /* スライダーからトラッキングの入力欄へ同期 / Sync the tracking edit field from the slider */
     function __syncTrkFromSlider() {
         if (__trkSyncLock) return;
         __trkSyncLock = true;
@@ -1053,43 +1024,12 @@ PathTextToolkit.jsx
     // - slider range: ±fontSize (pt) based on current selection
     var __fsSyncLock = false;
 
-    function __formatFS(n) {
-        var v = Math.round(n * 10) / 10;
-        return v.toFixed(1);
-    }
-
-    function __getFontSizeRefPt() {
-        // Use first available target's font size as reference
-        try {
-            var s = null;
-            if (targetItems && targetItems.length > 0) s = targetItems[0];
-            if (s && s.typename === 'TextFrame') {
-                if (s.textRanges && s.textRanges.length > 0) {
-                    var sz = s.textRanges[0].characterAttributes.size;
-                    if (sz && !isNaN(sz)) return sz;
-                }
-                var sz2 = s.textRange.characterAttributes.size;
-                if (sz2 && !isNaN(sz2)) return sz2;
-            }
-        } catch (_) { }
-        return 100;
-    }
-
-    function __updateFontSizeSliderRange() {
-        try {
-            var fs = __getFontSizeRefPt();
-            var minV = -Math.max(1, Math.round(fs * 10));
-            var maxV = Math.max(1, Math.round(fs * 10));
-            slFontSize.minvalue = minV;
-            slFontSize.maxvalue = maxV;
-        } catch (_) { }
-    }
-
+    /* 入力欄から文字サイズのスライダーへ同期 / Sync the font-size slider from the edit field */
     function __syncFSFromEdit() {
         if (__fsSyncLock) return;
         __fsSyncLock = true;
         try {
-            __updateFontSizeSliderRange();
+            updateDeltaSliderRange(slFontSize);
 
             var v = __parseNumber(etFontSize.text, 0);
             if (isNaN(v)) v = 0;
@@ -1098,19 +1038,20 @@ PathTextToolkit.jsx
             var maxPt = slFontSize.maxvalue / 10.0;
             v = __clamp(v, minPt, maxPt);
 
-            etFontSize.text = __formatFS(v);
+            etFontSize.text = formatOneDecimal(v);
             try { slFontSize.value = Math.round(v * 10); } catch (_) { }
         } catch (_) { }
         __fsSyncLock = false;
     }
 
+    /* スライダーから文字サイズの入力欄へ同期 / Sync the font-size edit field from the slider */
     function __syncFSFromSlider() {
         if (__fsSyncLock) return;
         __fsSyncLock = true;
         try {
-            __updateFontSizeSliderRange();
+            updateDeltaSliderRange(slFontSize);
             var v = (slFontSize.value / 10.0);
-            etFontSize.text = __formatFS(v);
+            etFontSize.text = formatOneDecimal(v);
         } catch (_) { }
         __fsSyncLock = false;
     }
@@ -1122,13 +1063,7 @@ PathTextToolkit.jsx
     // Sync t-value UI (edittext <-> slider)
     var __tSyncLock = false;
 
-    function __formatT(n) {
-        // keep 1 decimal
-        var v = Math.round(n * 10) / 10;
-        // force one decimal place
-        return v.toFixed(1);
-    }
-
+    /* チェックボックスに応じて開始/終了位置の入力を有効化 / Enable start/end position inputs per their checkboxes */
     function __updateTEnableUI() {
         try {
             var sOn = (cbStartT && cbStartT.value);
@@ -1140,6 +1075,7 @@ PathTextToolkit.jsx
         } catch (_) { }
     }
 
+    /* 入力欄から開始/終了位置のスライダーへ同期 / Sync start/end position sliders from the edit fields */
     function __syncTFromEdits() {
         if (__tSyncLock) return;
         __tSyncLock = true;
@@ -1159,8 +1095,8 @@ PathTextToolkit.jsx
             if (!sOn) s = 0.0;
             if (!eOn) e = 1.0;
 
-            etStartT.text = __formatT(s);
-            etEndT.text = __formatT(e);
+            etStartT.text = formatOneDecimal(s);
+            etEndT.text = formatOneDecimal(e);
 
             try { slStartT.value = Math.round(s * 100); } catch (_) { }
             try { slEndT.value = Math.round(e * 100); } catch (_) { }
@@ -1168,6 +1104,7 @@ PathTextToolkit.jsx
         __tSyncLock = false;
     }
 
+    /* スライダーから開始/終了位置の入力欄へ同期 / Sync start/end position edit fields from the sliders */
     function __syncTFromSliders() {
         if (__tSyncLock) return;
         __tSyncLock = true;
@@ -1187,8 +1124,8 @@ PathTextToolkit.jsx
             if (!sOn) s = 0.0;
             if (!eOn) e = 1.0;
 
-            etStartT.text = __formatT(s);
-            etEndT.text = __formatT(e);
+            etStartT.text = formatOneDecimal(s);
+            etEndT.text = formatOneDecimal(e);
         } catch (_) { }
         __tSyncLock = false;
     }
@@ -1238,7 +1175,6 @@ PathTextToolkit.jsx
 
     // Set initial panel enabled state
     __updatePanelsByMode();
-    try { __updateFitButtonEnabled(); } catch (_) { }
 
     // Auto-apply preview once on open (no undo)
     try {
@@ -1255,26 +1191,27 @@ PathTextToolkit.jsx
     // Remove old preview hook for the checkbox
     // cbFixOverset.onClick = refreshPreviewIfNeeded;
 
-    // Apply path text effect via menu command (requires selection)
+    /* メニューコマンドでパス上文字に効果（虹・歪み等）を適用 / Apply a path-text effect (rainbow, skew, etc.) via a menu command */
     function applyPathTextEffect(textFrame, previewMode) {
-        var cmd = getSelectedEffectCommand();
-        if (!cmd) return;
+        var effectCommand = getSelectedEffectCommand();
+        if (!effectCommand) return;
 
-        var prevSel = null;
-        try { prevSel = doc.selection; } catch (_) { prevSel = null; }
+        var previousSelection = null;
+        try { previousSelection = doc.selection; } catch (_) { previousSelection = null; }
 
         try {
             try { doc.selection = []; } catch (_) { }
             try { textFrame.selected = true; } catch (_) { }
-            app.executeMenuCommand(cmd);
+            app.executeMenuCommand(effectCommand);
         } catch (_) {
             // ignore
         }
 
         // Always restore selection (safer)
-        try { doc.selection = prevSel; } catch (_) { }
+        try { doc.selection = previousSelection; } catch (_) { }
     }
 
+    /* 選択中の効果に対応するメニューコマンド名を返す / Return the menu command name for the selected effect */
     function getSelectedEffectCommand() {
         if (rbEffectRainbow.value) return 'Rainbow';
         if (rbEffectDistort.value) return 'Skew';
@@ -1284,169 +1221,205 @@ PathTextToolkit.jsx
         return null;
     }
 
-    // Apply paragraph justification AFTER text content is duplicated (so it won't be overwritten)
-    function applyJustificationToTextFrame(tf) {
+    /* 行揃え（段落揃え）をテキストフレームへ適用（複製後に呼ぶ）/ Apply paragraph justification to a text frame (call after content is duplicated) */
+    function applyJustificationToTextFrame(textFrame) {
         try {
-            if (!tf) return;
+            if (!textFrame) return;
 
-            var just = Justification.FULLJUSTIFYLASTLINELEFT;
+            var justification = Justification.FULLJUSTIFYLASTLINELEFT;
             if (rbAlignFullJustify && rbAlignFullJustify.value) {
-                just = Justification.FULLJUSTIFY;
+                justification = Justification.FULLJUSTIFY;
             } else if (rbAlignRight && rbAlignRight.value) {
-                just = Justification.RIGHT;
+                justification = Justification.RIGHT;
             } else if (rbAlignCenter && rbAlignCenter.value) {
-                just = Justification.CENTER;
+                justification = Justification.CENTER;
             } else {
-                just = Justification.FULLJUSTIFYLASTLINELEFT;
+                justification = Justification.FULLJUSTIFYLASTLINELEFT;
             }
 
             // Apply to all paragraphs if available
             try {
-                if (tf.paragraphs && tf.paragraphs.length > 0) {
-                    for (var i = 0; i < tf.paragraphs.length; i++) {
-                        try { tf.paragraphs[i].paragraphAttributes.justification = just; } catch (_) { }
+                if (textFrame.paragraphs && textFrame.paragraphs.length > 0) {
+                    for (var i = 0; i < textFrame.paragraphs.length; i++) {
+                        try { textFrame.paragraphs[i].paragraphAttributes.justification = justification; } catch (_) { }
                     }
                 }
             } catch (_) { }
 
             // Fallback apply to whole range
-            try { tf.textRange.paragraphAttributes.justification = just; } catch (_) { }
+            try { textFrame.textRange.paragraphAttributes.justification = justification; } catch (_) { }
         } catch (_) { }
     }
 
+    /* 値を min〜max の範囲に収める / Clamp a number to the min–max range */
     function __clamp(n, min, max) {
         if (n < min) return min;
         if (n > max) return max;
         return n;
     }
 
+    /* 文字列を t 値（0〜5）として解釈 / Parse a string as a t-value (0–5) */
     function __parseTValue(str, fallback) {
         var n = Number(str);
         if (isNaN(n)) return fallback;
         return __clamp(n, 0, 5);
     }
 
-    function applyStartEndTValue(tf) {
+    /* UI の開始/終了位置をパス上文字へ適用 / Apply the start/end position from the UI to path text */
+    function applyStartEndTValue(textFrame) {
         try {
-            if (!tf) return;
+            if (!textFrame) return;
 
             if (cbStartT && cbStartT.value) {
-                var s = __parseTValue(etStartT.text, 0.0);
-                tf.startTValue = s;
+                var startValue = __parseTValue(etStartT.text, 0.0);
+                textFrame.startTValue = startValue;
             }
 
             if (cbEndT && cbEndT.value) {
-                var e = __parseTValue(etEndT.text, 1.0);
-                tf.endTValue = e;
+                var endValue = __parseTValue(etEndT.text, 1.0);
+                textFrame.endTValue = endValue;
             }
 
         } catch (_) { }
     }
 
+    /* 文字列を数値へ変換（失敗時は既定値）/ Parse a string as a number (fallback when invalid) */
     function __parseNumber(str, fallback) {
         var n = Number(str);
         if (isNaN(n)) return fallback;
         return n;
     }
 
-    // Add delta to existing baselineShift for each textRange (keep original values + delta)
-    function applyBaselineShiftDelta(tf) {
+    /* テキストフレームの textRange を配列で取得（無ければ textRange 単体）/ Collect a frame's textRanges as an array (falls back to its single textRange) */
+    function collectTextRanges(textFrame) {
+        var ranges = [];
         try {
-            if (!tf) return;
-            var delta = __parseNumber(etBaseShift.text, 0);
-            if (!delta) return; // 0 -> do nothing
-
-            var ranges = [];
-            try {
-                if (tf.textRanges && tf.textRanges.length > 0) {
-                    for (var i = 0; i < tf.textRanges.length; i++) ranges.push(tf.textRanges[i]);
-                }
-            } catch (_) { }
-            if (ranges.length === 0) {
-                try { if (tf.textRange) ranges = [tf.textRange]; } catch (_) { ranges = []; }
-            }
-
-            for (var r = 0; r < ranges.length; r++) {
-                var tr = ranges[r];
-                try {
-                    var cur = tr.characterAttributes.baselineShift;
-                    tr.characterAttributes.baselineShift = cur + delta;
-                } catch (_) { }
+            if (textFrame.textRanges && textFrame.textRanges.length > 0) {
+                for (var i = 0; i < textFrame.textRanges.length; i++) ranges.push(textFrame.textRanges[i]);
             }
         } catch (_) { }
+        if (ranges.length === 0) {
+            try { if (textFrame.textRange) ranges = [textFrame.textRange]; } catch (_) { ranges = []; }
+        }
+        return ranges;
     }
 
-    // Add delta to existing tracking for each textRange (keep original values + delta)
-    function applyTrackingDelta(tf) {
-        try {
-            if (!tf) return;
-            var delta = Math.round(__parseNumber(etTracking.text, 0));
-            if (!delta) return; // 0 -> do nothing
-
-            var ranges = [];
+    /* 各 textRange の文字属性に delta を加算（clampMin 指定時は下限を適用）/ Add a delta to a character attribute of every textRange (optional lower clamp) */
+    function addDeltaToTextRanges(textFrame, attributeName, delta, clampMin) {
+        if (!textFrame || !delta) return;
+        var ranges = collectTextRanges(textFrame);
+        for (var r = 0; r < ranges.length; r++) {
             try {
-                if (tf.textRanges && tf.textRanges.length > 0) {
-                    for (var i = 0; i < tf.textRanges.length; i++) ranges.push(tf.textRanges[i]);
-                }
+                var attributes = ranges[r].characterAttributes;
+                var nextValue = attributes[attributeName] + delta;
+                if (typeof clampMin === 'number' && nextValue < clampMin) nextValue = clampMin;
+                attributes[attributeName] = nextValue;
             } catch (_) { }
-            if (ranges.length === 0) {
-                try { if (tf.textRange) ranges = [tf.textRange]; } catch (_) { ranges = []; }
-            }
+        }
+    }
 
-            for (var r = 0; r < ranges.length; r++) {
-                var tr = ranges[r];
-                try {
-                    var cur = tr.characterAttributes.tracking;
-                    tr.characterAttributes.tracking = cur + delta;
-                } catch (_) { }
+    /* 各 textRange の既存ベースラインに UI 指定値を加算 / Add the UI delta to each textRange's baseline shift */
+    function applyBaselineShiftDelta(textFrame) {
+        addDeltaToTextRanges(textFrame, 'baselineShift', __parseNumber(etBaseShift.text, 0));
+    }
+
+    /* 各 textRange の既存トラッキングに UI 指定値を加算 / Add the UI delta to each textRange's tracking */
+    function applyTrackingDelta(textFrame) {
+        addDeltaToTextRanges(textFrame, 'tracking', Math.round(__parseNumber(etTracking.text, 0)));
+    }
+
+    /* 各 textRange の既存文字サイズに UI 指定値を加算（最小 0.1pt）/ Add the UI delta to each textRange's font size (min 0.1pt) */
+    function applyFontSizeDelta(textFrame) {
+        addDeltaToTextRanges(textFrame, 'size', __parseNumber(etFontSize.text, 0), 0.1);
+    }
+
+    /* 指定パス上にパス上文字を作成し、元テキストの直前へ配置 / Create path text on the given path, placed just before the original */
+    function createPathTextFrame(textPath, originalText, currentLayer, previewMode) {
+        var textOnAPath = currentLayer.textFrames.pathText(textPath);
+        // 重ね順を保持（他オブジェクトの背面に回り込まないように）/ Keep stacking order
+        try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (_) { }
+        if (previewMode) __previewTempItems.push(textOnAPath);
+        return textOnAPath;
+    }
+
+    /* 段落をすべて中央揃えにする / Set every paragraph to center justification */
+    function applyCenterJustification(textFrame) {
+        try {
+            if (textFrame.paragraphs && textFrame.paragraphs.length > 0) {
+                for (var p = 0; p < textFrame.paragraphs.length; p++) {
+                    try { textFrame.paragraphs[p].paragraphAttributes.justification = Justification.CENTER; } catch (_) { }
+                }
             }
         } catch (_) { }
+        try { textFrame.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (_) { }
     }
 
-    // Add delta to existing font size for each textRange (keep original values + delta)
-    function applyFontSizeDelta(tf) {
-        try {
-            if (!tf) return;
-            var delta = __parseNumber(etFontSize.text, 0);
-            if (!delta) return; // 0 -> do nothing
+    /* パス上文字の共通仕上げ：内側配置・効果・内容複製・各種調整を適用し元テキストを除去 / Shared finishing of path text (inside placement, effect, content copy, adjustments, remove original) */
+    function decoratePathText(textOnAPath, originalText, previewMode, options) {
+        options = options || {};
 
-            var ranges = [];
+        // 内側配置 / Inside placement
+        if (cbReverse.value) {
+            try { textOnAPath.textPath.polarity = PolarityValues.NEGATIVE; } catch (_) { }
+        }
+
+        applyPathTextEffect(textOnAPath, previewMode);
+        applyStartEndTValue(textOnAPath); // 位置（start/end）
+
+        // 正円＋内側：開始/終了位置を +0.5 ずらして見かけの開始位置を合わせる
+        if (options.circleInsideShift) {
             try {
-                if (tf.textRanges && tf.textRanges.length > 0) {
-                    for (var i = 0; i < tf.textRanges.length; i++) ranges.push(tf.textRanges[i]);
-                }
+                var shiftAmount = 0.5;
+                // Clamp only to the global end cap (0..5); start may exceed 1 for circles.
+                textOnAPath.startTValue = __clamp(textOnAPath.startTValue + shiftAmount, 0.0, 5.0);
+                textOnAPath.endTValue = __clamp(textOnAPath.endTValue + shiftAmount, 0.0, 5.0);
             } catch (_) { }
-            if (ranges.length === 0) {
-                try { if (tf.textRange) ranges = [tf.textRange]; } catch (_) { ranges = []; }
-            }
+        }
 
-            for (var r = 0; r < ranges.length; r++) {
-                var tr = ranges[r];
-                try {
-                    var cur = tr.characterAttributes.size;
-                    var next = cur + delta;
-                    if (next < 0.1) next = 0.1;
-                    tr.characterAttributes.size = next;
-                } catch (_) { }
-            }
-        } catch (_) { }
+        // テキスト内容を元から複製 / Copy text content from the original
+        for (var i = 0; i < originalText.textRanges.length; i++) {
+            originalText.textRanges[i].duplicate(textOnAPath);
+        }
+
+        applyFontSizeDelta(textOnAPath); // 文字サイズ（既存値 + 指定値）
+
+        // 行揃え（duplicate 後に適用しないと上書きされる）/ Justification (apply after content is copied)
+        if (options.forceCenter) {
+            applyCenterJustification(textOnAPath);
+        } else {
+            applyJustificationToTextFrame(textOnAPath);
+        }
+
+        applyBaselineShiftDelta(textOnAPath); // ベースラインシフト（既存値 + 指定値）
+        applyTrackingDelta(textOnAPath);      // トラッキング（既存値 + 指定値）
+
+        // 元テキストを隠す/削除 / Hide or remove the original text
+        if (previewMode) {
+            __preview_hideOriginal(originalText);
+        } else {
+            try { originalText.remove(); } catch (_) { }
+        }
+
+        // 実行時は生成したパス上文字を選択 / Select the created path text on execute
+        if (!previewMode) {
+            try { textOnAPath.selected = true; } catch (_) { }
+        }
     }
 
-    /* メイン処理 / Main process */
+    /* メイン処理：選択パスに沿ってパス上文字を作成 / Main process: lay text along the selected path */
     function mainProcess(showAlerts, previewMode) {
         if (typeof previewMode === 'undefined') previewMode = false;
         if (typeof showAlerts === 'undefined') showAlerts = true;
         var __createdTexts = [];
 
         for (var j = 0; j < targetItems.length; j++) {
-            // Get original text frame item & current layer
             var originalText = targetItems[j];
-            var currentlayer = originalText.layer;
+            var currentLayer = originalText.layer;
 
-            // Resolve base path + duplicate path for this text
+            // この文字に使う元パスを決定 / Resolve the base path for this text
             var basePath = resolveBasePathForText(selectedPaths, targetItems.length, j, originalText);
             if (!basePath) {
-                // Should not happen because of Validation, but keep defensive
+                // Validation 済みのため通常は来ないが、防御的に
                 if (showAlerts) alert(L('alertNeedPath'));
                 return;
             }
@@ -1454,80 +1427,29 @@ PathTextToolkit.jsx
             if (!previewMode) {
                 makeOriginalPathInvisible(basePath);
             } else {
-                // Preview: show original selected path as no fill / no stroke (restore on preview clear)
+                // Preview: show the original selected path with no fill/stroke (restored on preview clear)
                 __preview_applyPathStyle(basePath);
             }
-            var textPath = duplicatePathForText(basePath, currentlayer);
+
+            var textPath = duplicatePathForText(basePath, currentLayer);
             if (!textPath) {
                 if (showAlerts) alert(L('alertDupPathFail'));
                 continue;
             }
-
             if (previewMode) {
                 __previewTempItems.push(textPath);
             } else {
-                // Execute: keep the duplicated path visible
-                __applyExecutePathStyle(textPath);
+                __applyExecutePathStyle(textPath); // Execute: keep the duplicated path visible
             }
 
-            // Create Text on a path
-            var textOnAPath = currentlayer.textFrames.pathText(textPath);
-            // Keep stacking position (avoid appearing to disappear behind other objects)
-            try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (_) { }
-            if (previewMode) {
-                __previewTempItems.push(textOnAPath);
-            }
-
-            // Inside placement option
-            if (cbReverse.value) {
-                try {
-                    textOnAPath.textPath.polarity = PolarityValues.NEGATIVE;
-                } catch (_) { }
-            }
-
-            applyPathTextEffect(textOnAPath, previewMode);
-            // 位置（start/end）
-            applyStartEndTValue(textOnAPath);
-
-            // Duplicate textrange from original text frame item
-            for (var i = 0; i < originalText.textRanges.length; i++) {
-                originalText.textRanges[i].duplicate(textOnAPath);
-            }
-
-            // 文字サイズ（既存値 + 指定値）
-            applyFontSizeDelta(textOnAPath);
-
-            // 行揃え（段落揃え）※ duplicate 後に適用しないと上書きされる
-            applyJustificationToTextFrame(textOnAPath);
-
-            // Always collect created PathText for fit, even in preview
+            var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
+            decoratePathText(textOnAPath, originalText, previewMode);
             __createdTexts.push(textOnAPath);
-
-            // ベースラインシフト（既存値 + 指定値）
-            applyBaselineShiftDelta(textOnAPath);
-
-            // トラッキング（既存値 + 指定値）
-            applyTrackingDelta(textOnAPath);
-
-            // Remove or hide original text frame item
-            if (previewMode) {
-                __preview_hideOriginal(originalText);
-            } else {
-                originalText.remove();
-            }
-
-            // Select text on a path
-            if (!previewMode) {
-                try { textOnAPath.selected = true; } catch (_) { }
-            }
-            // (overset fix is applied once after the loop)
         }
-        if (__fitEnabled) {
-            try { fitTextToOpenPath(__createdTexts); } catch (_) { }
-        }
+        applyFitToPathWidth(__createdTexts);
     }
 
-    // Duplicate a path preserving handles/pointTypes (based on the provided reference logic)
+    /* ハンドル・ポイント種別を保持してパスを複製 / Duplicate a path preserving handles and point types */
     function duplicatePathWithHandles(originalPath, targetLayer) {
         try {
             if (!originalPath) return null;
@@ -1549,117 +1471,103 @@ PathTextToolkit.jsx
         }
     }
 
-    // Split PathText into (1) duplicated path (visible) + (2) point text with copied content/format
+    /* 1件のパス上文字をパス＋ポイント文字に分離（処理したら true）/ Split one path text into a path + point text (returns true if processed) */
+    function splitOnePathText(pathText, previewMode, keepFormatting) {
+        if (!pathText || pathText.typename !== 'TextFrame') return false;
+
+        var isPathText = false;
+        try { isPathText = (pathText.kind === TextType.PATHTEXT); } catch (_) { isPathText = false; }
+        if (!isPathText) return false;
+
+        var originalPath = null;
+        try { originalPath = pathText.textPath; } catch (_) { originalPath = null; }
+        if (!originalPath) return false;
+
+        var curLayer = null;
+        try { curLayer = pathText.layer; } catch (_) { curLayer = null; }
+
+        // 1) 「パスを削除」OFF ならハンドルを保持してパスを複製
+        var deletePath = false;
+        try { deletePath = (cbSplitDeletePath && cbSplitDeletePath.value); } catch (_) { deletePath = false; }
+
+        if (!deletePath) {
+            var newPath = duplicatePathWithHandles(originalPath, curLayer);
+            if (newPath) {
+                // 塗りなし・スミ1pt / no fill, black 1pt stroke
+                try {
+                    newPath.filled = false;
+                    newPath.stroked = true;
+                    newPath.strokeColor = makeBlackCMYK();
+                    newPath.strokeWidth = 1;
+                } catch (_) { }
+                if (previewMode) __previewTempItems.push(newPath);
+            }
+        }
+
+        // 2) 元の開始アンカー付近にポイント文字を作成
+        var newText = null;
+        try {
+            newText = (curLayer ? curLayer.textFrames.add() : doc.textFrames.add());
+        } catch (_) {
+            newText = null;
+        }
+
+        if (newText) {
+            try {
+                var anchorPoint = originalPath.pathPoints[0].anchor;
+                newText.position = [anchorPoint[0], anchorPoint[1]];
+            } catch (_) { }
+
+            // 内容コピー（書式を保持する/しない）/ Copy content (keep formatting or not)
+            if (keepFormatting) {
+                try { pathText.textRange.duplicate(newText); } catch (_) { }
+            } else {
+                try { newText.contents = pathText.contents; } catch (_) { }
+            }
+
+            applyFontSizeDelta(newText);      // 文字サイズ（既存値 + 指定値）
+            applyBaselineShiftDelta(newText); // ベースラインシフト（既存値 + 指定値）
+            applyTrackingDelta(newText);      // トラッキング（既存値 + 指定値）
+
+            // 書式保持時のみ塗り/線カラーを引き継ぐ
+            if (keepFormatting) {
+                for (var c = 0; c < pathText.textRanges.length; c++) {
+                    try {
+                        var srcAttr = pathText.textRanges[c].characterAttributes;
+                        var dstAttr = newText.textRanges[c].characterAttributes;
+                        dstAttr.fillColor = srcAttr.fillColor;
+                        dstAttr.strokeColor = srcAttr.strokeColor;
+                    } catch (_) { }
+                }
+            }
+
+            // 行揃え（duplicate 後に適用）と重ね順の保持
+            try { applyJustificationToTextFrame(newText); } catch (_) { }
+            try { newText.move(pathText, ElementPlacement.PLACEBEFORE); } catch (_) { }
+
+            if (previewMode) __previewTempItems.push(newText);
+        }
+
+        // 3) ポイント文字が作れたときだけ元のパス上文字を隠す/削除（失敗時は元を残す）
+        if (newText) {
+            if (previewMode) {
+                __preview_hideOriginal(pathText);
+            } else {
+                try { pathText.remove(); } catch (_) { }
+            }
+        }
+        return true;
+    }
+
+    /* パス上文字をパス（可視）とポイント文字に分離 / Split path text into a visible path and point text */
     function splitPathTextAndPath(showAlerts, previewMode, keepFormatting) {
         if (typeof keepFormatting === 'undefined') keepFormatting = true;
         if (typeof previewMode === 'undefined') previewMode = false;
         if (typeof showAlerts === 'undefined') showAlerts = true;
 
         var didAny = false;
-
         for (var j = targetItems.length - 1; j >= 0; j--) {
-            var pathText = targetItems[j];
-            if (!pathText || pathText.typename !== 'TextFrame') continue;
-
-            var isPathText = false;
-            try { isPathText = (pathText.kind === TextType.PATHTEXT); } catch (_) { isPathText = false; }
-            if (!isPathText) continue;
-
-            var originalPath = null;
-            try { originalPath = pathText.textPath; } catch (_) { originalPath = null; }
-            if (!originalPath) continue;
-
-            didAny = true;
-
-            var curLayer = null;
-            try { curLayer = pathText.layer; } catch (_) { curLayer = null; }
-
-            // 1) Duplicate path (preserve handles) unless "パスを削除" is ON
-            var deletePath = false;
-            try { deletePath = (cbSplitDeletePath && cbSplitDeletePath.value); } catch (_) { deletePath = false; }
-
-            var newPath = null;
-            if (!deletePath) {
-                newPath = duplicatePathWithHandles(originalPath, curLayer);
-                if (newPath) {
-                    // Path appearance: no fill, black 1pt stroke
-                    try {
-                        newPath.filled = false;
-                        newPath.stroked = true;
-
-                        var blackColor = new CMYKColor();
-                        blackColor.cyan = 0;
-                        blackColor.magenta = 0;
-                        blackColor.yellow = 0;
-                        blackColor.black = 100;
-
-                        newPath.strokeColor = blackColor;
-                        newPath.strokeWidth = 1;
-                    } catch (_) { }
-
-                    if (previewMode) __previewTempItems.push(newPath);
-                }
-            }
-
-            // 2) Create new point text near the original start anchor
-            var newText = null;
-            try {
-                newText = (curLayer ? curLayer.textFrames.add() : doc.textFrames.add());
-            } catch (_) {
-                newText = null;
-            }
-
-            if (newText) {
-                try {
-                    var anchorPoint = originalPath.pathPoints[0].anchor;
-                    newText.position = [anchorPoint[0], anchorPoint[1]];
-                } catch (_) { }
-
-                // Copy content
-                if (keepFormatting) {
-                    // Keep formatting
-                    try { pathText.textRange.duplicate(newText); } catch (_) { }
-                } else {
-                    // Do not keep formatting (use the new text frame defaults)
-                    try { newText.contents = pathText.contents; } catch (_) { }
-                }
-
-                // 文字サイズ（既存値 + 指定値）
-                applyFontSizeDelta(newText);
-
-                // ベースラインシフト（既存値 + 指定値）
-                applyBaselineShiftDelta(newText);
-
-                // トラッキング（既存値 + 指定値）
-                applyTrackingDelta(newText);
-
-                // Ensure fill/stroke colors are inherited only when keeping formatting
-                if (keepFormatting) {
-                    for (var c = 0; c < pathText.textRanges.length; c++) {
-                        try {
-                            var srcAttr = pathText.textRanges[c].characterAttributes;
-                            var dstAttr = newText.textRanges[c].characterAttributes;
-                            dstAttr.fillColor = srcAttr.fillColor;
-                            dstAttr.strokeColor = srcAttr.strokeColor;
-                        } catch (_) { }
-                    }
-                }
-
-                // Apply current justification option (after duplicate)
-                try { applyJustificationToTextFrame(newText); } catch (_) { }
-
-                // Keep stacking position similar to original
-                try { newText.move(pathText, ElementPlacement.PLACEBEFORE); } catch (_) { }
-
-                if (previewMode) __previewTempItems.push(newText);
-            }
-
-            // 3) Remove or hide original PathText
-            if (previewMode) {
-                __preview_hideOriginal(pathText);
-            } else {
-                try { pathText.remove(); } catch (_) { }
-            }
+            if (splitOnePathText(targetItems[j], previewMode, keepFormatting)) didAny = true;
         }
 
         if (!didAny && showAlerts) {
@@ -1667,9 +1575,7 @@ PathTextToolkit.jsx
         }
     }
 
-    // In Arc mode, if a path is selected together with text, it should not remain.
-    // Preview: hide it (restored by __preview_clear)
-    // Execute: delete it
+    /* アーチ/正円モードで一緒に選択されたパスを非表示（プレビュー）/削除（実行）/ Hide (preview) or remove (execute) paths selected together in arc/circle mode */
     function handleArcModeSelectedPaths(previewMode) {
         try {
             if (!selectedPaths || selectedPaths.length === 0) return;
@@ -1685,318 +1591,203 @@ PathTextToolkit.jsx
         } catch (_) { }
     }
 
-    // Main process (generate arc path)
+    /* メイン処理：アーチパスを生成してパス上文字を作成 / Main process: generate an arc path and create path text */
     function mainProcessGenerateArcPath(showAlerts, previewMode) {
         if (typeof previewMode === 'undefined') previewMode = false;
         if (typeof showAlerts === 'undefined') showAlerts = true;
         var __createdTexts = [];
 
-        // If a path is selected together, hide/remove it in arc mode
+        // アーチモードでは一緒に選択されたパスを隠す/削除
         handleArcModeSelectedPaths(previewMode);
 
         for (var j = 0; j < targetItems.length; j++) {
             var originalText = targetItems[j];
-            var currentlayer = originalText.layer;
+            var currentLayer = originalText.layer;
 
-            // Create an arc-like path from the text bounds (reference logic)
-            var textPath = createArcPathFromText(originalText, currentlayer);
+            // テキスト範囲からアーチ状パスを生成
+            var textPath = createArcPathFromText(originalText, currentLayer);
             if (!textPath) {
                 if (showAlerts) alert(L('alertArcFail'));
                 continue;
             }
 
-            // Generated arc path: stroke color/weight 0 (invisible guide)
+            // 生成アーチパスは非表示ガイド / Generated arc path is an invisible guide
             __applyInvisiblePathStyle(textPath);
-            if (previewMode) {
-                __previewTempItems.push(textPath);
-            }
+            if (previewMode) __previewTempItems.push(textPath);
 
-            // Create Text on a path
-            var textOnAPath = currentlayer.textFrames.pathText(textPath);
-            // Keep stacking position (avoid appearing to disappear behind other objects)
-            try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (_) { }
-            if (previewMode) {
-                __previewTempItems.push(textOnAPath);
-            }
+            var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
 
-            // Keep the path used by the PathText invisible (AI may override style on conversion)
+            // 変換時に AI がスタイルを上書きするため、パス上文字のパスも非表示に
             try {
-                var pathTextPath = textOnAPath.textPath;
-                if (pathTextPath) {
-                    __applyInvisiblePathStyle(pathTextPath);
-                }
+                if (textOnAPath.textPath) __applyInvisiblePathStyle(textOnAPath.textPath);
             } catch (_) { }
 
-            // Inside placement option
-            if (cbReverse.value) {
-                try {
-                    textOnAPath.textPath.polarity = PolarityValues.NEGATIVE;
-                } catch (_) { }
-            }
-
-            applyPathTextEffect(textOnAPath, previewMode);
-            // 位置（start/end）
-            applyStartEndTValue(textOnAPath);
-
-            // Duplicate textrange from original text frame item
-            for (var i = 0; i < originalText.textRanges.length; i++) {
-                originalText.textRanges[i].duplicate(textOnAPath);
-            }
-
-            // 文字サイズ（既存値 + 指定値）
-            applyFontSizeDelta(textOnAPath);
-
-            // 行揃え（段落揃え）※ duplicate 後に適用しないと上書きされる
-            applyJustificationToTextFrame(textOnAPath);
-
-            // Always collect created PathText for fit, even in preview
+            decoratePathText(textOnAPath, originalText, previewMode);
             __createdTexts.push(textOnAPath);
-
-            // ベースラインシフト（既存値 + 指定値）
-            applyBaselineShiftDelta(textOnAPath);
-
-            // トラッキング（既存値 + 指定値）
-            applyTrackingDelta(textOnAPath);
-
-            // Remove or hide original text frame item
-            if (previewMode) {
-                __preview_hideOriginal(originalText);
-            } else {
-                originalText.remove();
-            }
-
-            // Select text on a path
-            if (!previewMode) {
-                try { textOnAPath.selected = true; } catch (_) { }
-            }
-            // (overset fix is applied once after the loop)
         }
-        if (__fitEnabled) { try { fitTextToOpenPath(__createdTexts); } catch (_) { } }
+        applyFitToPathWidth(__createdTexts);
     }
 
-    // Main process (generate circle path with diameter = text width)
+    /* メイン処理：テキスト幅を直径とする正円を生成してパス上文字を作成 / Main process: generate a circle (diameter = text width) and create path text */
     function mainProcessGenerateCircle(showAlerts, previewMode) {
         if (typeof previewMode === 'undefined') previewMode = false;
         if (typeof showAlerts === 'undefined') showAlerts = true;
         var __createdTexts = [];
 
-        // If a path is selected together, hide/remove it in circle mode (same rule as arc mode)
+        // 正円モードでも一緒に選択されたパスを隠す/削除（アーチと同じ）
         handleArcModeSelectedPaths(previewMode);
 
         for (var j = 0; j < targetItems.length; j++) {
             var originalText = targetItems[j];
-            var currentlayer = originalText.layer;
+            var currentLayer = originalText.layer;
 
-            // Create a circle path from the text bounds
-            var textPath = createCirclePathFromText(originalText, currentlayer);
+            // テキスト幅を直径とする正円パスを生成
+            var textPath = createCirclePathFromText(originalText, currentLayer);
             if (!textPath) {
                 if (showAlerts) alert(L('alertArcFail'));
                 continue;
             }
 
             if (previewMode) {
-                // Apply preview style to generated circle path
                 __preview_applyPathStyle(textPath);
                 __previewTempItems.push(textPath);
             } else {
-                // Execute: keep the generated circle path visible
-                __applyExecutePathStyle(textPath);
+                __applyExecutePathStyle(textPath); // Execute: keep the generated circle visible
             }
 
-            // Rotate the generated circle 90° clockwise (about its center)
-            try {
-                textPath.rotate(90, true, true, true, true, Transformation.CENTER);
-            } catch (_) { }
+            // 生成した正円を中心まわりに時計回り90°回転
+            try { textPath.rotate(90, true, true, true, true, Transformation.CENTER); } catch (_) { }
 
-            // Create Text on a path
-            var textOnAPath = currentlayer.textFrames.pathText(textPath);
-            try { textOnAPath.move(originalText, ElementPlacement.PLACEBEFORE); } catch (_) { }
-            if (previewMode) __previewTempItems.push(textOnAPath);
+            var textOnAPath = createPathTextFrame(textPath, originalText, currentLayer, previewMode);
 
-            // Ensure the path used by the PathText is visible (AI may override style on conversion)
+            // 変換時に AI がスタイルを上書きするため、パス上文字のパスを再整形
             try {
-                var tp2 = textOnAPath.textPath;
-                if (tp2) {
+                if (textOnAPath.textPath) {
                     if (previewMode) {
-                        __preview_applyPathStyle(tp2);
+                        __preview_applyPathStyle(textOnAPath.textPath);
                     } else {
-                        __applyExecutePathStyle(tp2);
+                        __applyExecutePathStyle(textOnAPath.textPath);
                     }
                 }
             } catch (_) { }
 
-            // Inside placement option
-            var __circleInside = false;
-            if (cbReverse.value) {
-                __circleInside = true;
-                try { textOnAPath.textPath.polarity = PolarityValues.NEGATIVE; } catch (_) { }
-            }
-
-            applyPathTextEffect(textOnAPath, previewMode);
-
-            // 正円モードでもUIの開始/終了位置を適用
-            applyStartEndTValue(textOnAPath);
-
-            // Circle + Inside compensation:
-            // keep the apparent start position consistent by shifting start/end by +0.5
-            if (__circleInside) {
-                try {
-                    var s0 = textOnAPath.startTValue;
-                    var e0 = textOnAPath.endTValue;
-                    var shift = 0.5;
-                    var s1 = s0 + shift;
-                    var e1 = e0 + shift;
-                    // Clamp only to the global end cap (0..5). start may exceed 1 for circles.
-                    s1 = __clamp(s1, 0.0, 5.0);
-                    e1 = __clamp(e1, 0.0, 5.0);
-                    textOnAPath.startTValue = s1;
-                    textOnAPath.endTValue = e1;
-                } catch (_) { }
-            }
-
-            // Duplicate textrange from original text frame item
-            for (var i = 0; i < originalText.textRanges.length; i++) {
-                originalText.textRanges[i].duplicate(textOnAPath);
-            }
-
-            applyFontSizeDelta(textOnAPath);
-            // 正円モードでは常に中央揃え
-            try {
-                if (textOnAPath.paragraphs && textOnAPath.paragraphs.length > 0) {
-                    for (var pj = 0; pj < textOnAPath.paragraphs.length; pj++) {
-                        try { textOnAPath.paragraphs[pj].paragraphAttributes.justification = Justification.CENTER; } catch (_) { }
-                    }
-                }
-            } catch (_) { }
-            try { textOnAPath.textRange.paragraphAttributes.justification = Justification.CENTER; } catch (_) { }
-
-            // Always collect created PathText for fit, even in preview
+            // 正円は常に中央揃え。内側配置時は開始/終了位置を +0.5 補正
+            decoratePathText(textOnAPath, originalText, previewMode, {
+                forceCenter: true,
+                circleInsideShift: cbReverse.value
+            });
             __createdTexts.push(textOnAPath);
-
-            applyBaselineShiftDelta(textOnAPath);
-            applyTrackingDelta(textOnAPath);
-
-            // Remove or hide original text frame item
-            if (previewMode) {
-                __preview_hideOriginal(originalText);
-            } else {
-                originalText.remove();
-            }
-
-            if (!previewMode) {
-                try { textOnAPath.selected = true; } catch (_) { }
-            }
         }
-
-        if (__fitEnabled) { try { fitTextToOpenPath(__createdTexts); } catch (_) { } }
+        applyFitToPathWidth(__createdTexts);
     }
 
-    // Create an arc-like path from point text using outline bounds (reference logic)
-    function createArcPathFromText(originalText, layer) {
-        // Reference defaults from the attached legacy script
-        var baselineYMultiplier = 1.02;
-        var handleOffsetDivisors = [3.5, 4];
+    /* アウトライン化でテキストの範囲を計測 / Measure the text bounds via outlines ([L, T, R, B]) */
+    function measureArcTextBounds(originalText) {
+        // ライブテキストの geometricBounds より安定するためアウトライン化して計測
+        var measureTexts = [originalText.duplicate(), originalText.duplicate()];
+        measureTexts[0].contents = '';
 
-        // Guard: empty / invalid text
+        // 先頭行の textRange を measureTexts[0] に複製（レガシー手法、ポイント文字＋1行以上を前提）
+        for (var i = 0; i < originalText.lines[0].length; i++) {
+            originalText.textRanges[i].duplicate(measureTexts[0]);
+        }
+        for (var k = 0; k < measureTexts.length; k++) {
+            measureTexts[k] = measureTexts[k].createOutline();
+        }
+
+        var textBounds = measureTexts[1].geometricBounds; // [L, T, R, B]
+        textBounds[3] = measureTexts[0].geometricBounds[3];
+
+        for (var r = 0; r < measureTexts.length; r++) {
+            try { measureTexts[r].remove(); } catch (_) { }
+        }
+        return textBounds;
+    }
+
+    /* まるみスライダー（0-100、50=既定）を読み取る / Read the roundness slider (0-100, 50 = default) */
+    function readArcRoundnessPercent() {
+        var percent = 50;
         try {
+            if (typeof slArcRoundness !== 'undefined' && slArcRoundness) {
+                percent = Number(slArcRoundness.value);
+            }
+        } catch (_) { percent = 50; }
+        if (isNaN(percent)) percent = 50;
+        if (percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+        return percent;
+    }
+
+    /* アーチ方向の符号を返す（上=+1 / 下=-1）/ Return the arc direction sign (Up=+1, Down=-1) */
+    function readArcDirectionSign() {
+        try {
+            if (typeof rbArcDown !== 'undefined' && rbArcDown && rbArcDown.value) return -1;
+        } catch (_) { }
+        return 1;
+    }
+
+    /* 直線パスのハンドルを調整してアーチ状に曲げる / Bend a straight path into an arc by adjusting handles */
+    function applyArcHandles(arcPath, roundnessPercent, directionSign) {
+        var handleOffsetDivisors = [3.5, 4];
+        var pathLength = arcPath.length;
+
+        // handleOffsets[0]: 水平ハンドル（固定）/ handleOffsets[1]: 垂直ハンドル＝カーブの深さ
+        // 50% で垂直ハンドルは pathLength / handleOffsetDivisors[1]（レガシー既定）
+        var handleOffsets = [
+            pathLength / handleOffsetDivisors[0],
+            pathLength * (roundnessPercent / 100) * (2 / handleOffsetDivisors[1])
+        ];
+        var pathPoints = arcPath.pathPoints;
+
+        pathPoints[0].rightDirection = [
+            pathPoints[0].rightDirection[0] + handleOffsets[0],
+            pathPoints[0].rightDirection[1] + (directionSign * handleOffsets[1])
+        ];
+        pathPoints[1].leftDirection = [
+            pathPoints[1].leftDirection[0] - handleOffsets[0],
+            pathPoints[1].leftDirection[1] + (directionSign * handleOffsets[1])
+        ];
+    }
+
+    /* テキストのアウトライン範囲からアーチ状のパスを生成 / Build an arc-like path from the text outline bounds */
+    function createArcPathFromText(originalText, layer) {
+        try {
+            // Guard: empty / invalid text
             if (!originalText || originalText.typename !== 'TextFrame') return null;
             if (!originalText.lines || originalText.lines.length === 0) return null;
             if (!originalText.textRanges || originalText.textRanges.length === 0) return null;
-        } catch (_) {
-            return null;
-        }
 
-        try {
-            // Measure bounds using outlines (more stable than geometricBounds of live text)
-            var measureTexts = [originalText.duplicate(), originalText.duplicate()];
-            measureTexts[0].contents = '';
+            var textBounds = measureArcTextBounds(originalText);
 
-            // Copy first line ranges into measureTexts[0]
-            // (This mirrors the legacy approach; it assumes point text with at least one line)
-            for (var i = 0; i < originalText.lines[0].length; i++) {
-                originalText.textRanges[i].duplicate(measureTexts[0]);
-            }
-
-            for (var k = 0; k < measureTexts.length; k++) {
-                measureTexts[k] = measureTexts[k].createOutline();
-            }
-
-            var textBounds = measureTexts[1].geometricBounds; // [L, T, R, B]
-            textBounds[3] = measureTexts[0].geometricBounds[3];
-
-            for (var r = 0; r < measureTexts.length; r++) {
-                try { measureTexts[r].remove(); } catch (_) { }
-            }
-
-            // Create base straight path along the baseline
-            var baselineY = textBounds[3] * baselineYMultiplier;
+            // ベースラインに沿った直線パスを作成（baselineYMultiplier=1.02 はレガシー既定）
+            var baselineY = textBounds[3] * 1.02;
             var arcPath = layer.pathItems.add();
             arcPath.setEntirePath([
                 [textBounds[0], baselineY],
                 [textBounds[2], baselineY]
             ]);
 
-            // Make the generated path invisible (no fill / no stroke)
+            // 生成パスは非表示（塗り・線なし）/ Make the generated path invisible
             try {
                 arcPath.stroked = false;
                 arcPath.filled = false;
             } catch (_) { }
 
-            // Arc-like handle adjustment
-            var pathLength = arcPath.length;
-
-            // Roundness: read from UI slider (0-100). 50 = default arch (pathLength/4).
-            var arcRoundnessPercent = 50;
-            try {
-                if (typeof slArcRoundness !== 'undefined' && slArcRoundness) {
-                    arcRoundnessPercent = Number(slArcRoundness.value);
-                }
-            } catch (_) { arcRoundnessPercent = 50; }
-            if (isNaN(arcRoundnessPercent)) arcRoundnessPercent = 50;
-            if (arcRoundnessPercent < 0) arcRoundnessPercent = 0;
-            if (arcRoundnessPercent > 100) arcRoundnessPercent = 100;
-
-            // handleOffsets[0]: horizontal handle (fixed). handleOffsets[1]: vertical handle = curve depth.
-            // At 50% the vertical handle equals pathLength / handleOffsetDivisors[1] (legacy default).
-            var handleOffsets = [
-                pathLength / handleOffsetDivisors[0],
-                pathLength * (arcRoundnessPercent / 100) * (2 / handleOffsetDivisors[1])
-            ];
-            var pathPoints = arcPath.pathPoints;
-
-            // Arc direction: Up (default, +1) or Down (-1)
-            var arcDirectionSign = 1;
-            try {
-                // Only available after UI exists; default to Up.
-                if (typeof rbArcDown !== 'undefined' && rbArcDown && rbArcDown.value) arcDirectionSign = -1;
-            } catch (_) { arcDirectionSign = 1; }
-
-            pathPoints[0].rightDirection = [
-                pathPoints[0].rightDirection[0] + handleOffsets[0],
-                pathPoints[0].rightDirection[1] + (arcDirectionSign * handleOffsets[1])
-            ];
-            pathPoints[1].leftDirection = [
-                pathPoints[1].leftDirection[0] - handleOffsets[0],
-                pathPoints[1].leftDirection[1] + (arcDirectionSign * handleOffsets[1])
-            ];
-
+            // ハンドルを調整してアーチ状に曲げる / Bend into an arc
+            applyArcHandles(arcPath, readArcRoundnessPercent(), readArcDirectionSign());
             return arcPath;
         } catch (e) {
             return null;
         }
     }
 
-    // Create a circle path whose diameter equals the full text width (using outline bounds)
+    /* テキスト幅を直径とする正円パスを生成 / Build a circle path whose diameter equals the full text width */
     function createCirclePathFromText(originalText, layer) {
-        // Guard
         try {
+            // Guard
             if (!originalText || originalText.typename !== 'TextFrame') return null;
             if (!originalText.textRanges || originalText.textRanges.length === 0) return null;
-        } catch (_) {
-            return null;
-        }
 
-        try {
             // Use outline bounds for stability
             var measureText = originalText.duplicate();
             var measureOutline = null;
@@ -2032,9 +1823,7 @@ PathTextToolkit.jsx
         }
     }
 
-    // Resolve which base path to use for each text
-    // - If paths are selected: use them (1-to-1 if counts match, otherwise first)
-    // - If no path is selected but target is PathText: use its own textPath
+    /* 各テキストに使う元パスを決定（選択パス優先、無ければ自身の textPath）/ Decide the base path for each text (selected paths first, else its own textPath) */
     function resolveBasePathForText(selectedPaths, textCount, index, originalText) {
         if (selectedPaths && selectedPaths.length > 0) {
             if (selectedPaths.length === textCount) return selectedPaths[index];
@@ -2051,7 +1840,7 @@ PathTextToolkit.jsx
         return null;
     }
 
-    // Make ORIGINAL selected path invisible (no fill / no stroke)
+    /* 選択された元パスを非表示（塗り・線なし）にする / Make the original selected path invisible (no fill, no stroke) */
     function makeOriginalPathInvisible(basePath) {
         try {
             if (basePath.typename === 'CompoundPathItem') {
@@ -2066,7 +1855,7 @@ PathTextToolkit.jsx
         } catch (_) { }
     }
 
-    // Resolve actual PathItem to duplicate (CompoundPathItem -> first pathItem)
+    /* 複製対象の PathItem を取得（CompoundPath は先頭を使用）/ Resolve the PathItem to duplicate (first item for a CompoundPathItem) */
     function resolveSourcePath(basePath) {
         try {
             return (basePath.typename === 'CompoundPathItem') ? basePath.pathItems[0] : basePath;
@@ -2075,7 +1864,7 @@ PathTextToolkit.jsx
         }
     }
 
-    // Duplicate a path for the text and place it on the same layer
+    /* テキスト用にパスを複製し同じレイヤーへ配置 / Duplicate a path for the text and place it on the same layer */
     function duplicatePathForText(basePath, currentLayer) {
         var srcPath = resolveSourcePath(basePath);
         if (!srcPath) return null;
@@ -2096,50 +1885,106 @@ PathTextToolkit.jsx
         }
     }
 
-    // Get target point-text items (recursive)
-    // Get target text items (recursive)
+    /* 選択内のポイント文字/パス上文字を再帰的に収集 / Collect point/path text items recursively from the selection */
     function getTargetTextItems(items) {
-        var ti = [];
+        var textItems = [];
         for (var i = 0; i < items.length; i++) {
-            var it = items[i];
-            if (it.typename === 'TextFrame') {
+            var item = items[i];
+            if (item.typename === 'TextFrame') {
                 try {
-                    if (it.kind === TextType.POINTTEXT || it.kind === TextType.PATHTEXT) {
-                        ti.push(it);
+                    if (item.kind === TextType.POINTTEXT || item.kind === TextType.PATHTEXT) {
+                        textItems.push(item);
                     }
                 } catch (_) { }
-            } else if (it.typename === 'GroupItem') {
-                ti = ti.concat(getTargetTextItems(it.pageItems));
+            } else if (item.typename === 'GroupItem') {
+                textItems = textItems.concat(getTargetTextItems(item.pageItems));
             }
         }
-        return ti;
+        return textItems;
     }
 
-    // Get selected path items (PathItem). If GroupItem contains paths, collect them too.
+    /* 選択内のパス（PathItem/CompoundPathItem）を再帰的に収集 / Collect path items recursively from the selection (groups included) */
     function getSelectedPathItems(items) {
-        var pi = [];
+        var pathItems = [];
         for (var i = 0; i < items.length; i++) {
-            var it = items[i];
-            if (it.typename === 'PathItem') {
-                pi.push(it);
-            } else if (it.typename === 'CompoundPathItem') {
-                pi.push(it);
-            } else if (it.typename === 'GroupItem') {
-                pi = pi.concat(getSelectedPathItems(it.pageItems));
+            var item = items[i];
+            if (item.typename === 'PathItem') {
+                pathItems.push(item);
+            } else if (item.typename === 'CompoundPathItem') {
+                pathItems.push(item);
+            } else if (item.typename === 'GroupItem') {
+                pathItems = pathItems.concat(getSelectedPathItems(item.pageItems));
             }
         }
-        return pi;
+        return pathItems;
     }
 
-    // Fit PathText to OPEN path endpoints by adjusting font size only (do not touch tracking)
-    // Logic replaced:
+    /* パスが閉じているか判定 / Tell whether a path item is closed */
+    function isClosedPathItem(item) {
+        try {
+            if (!item) return false;
+            if (item.typename === 'CompoundPathItem') {
+                if (item.pathItems && item.pathItems.length > 0) return !!item.pathItems[0].closed;
+                return false;
+            }
+            if (item.typename === 'PathItem') return !!item.closed;
+        } catch (_) { }
+        return false;
+    }
+
+    /* フィット対象（編集可能なオープンパス上文字）か判定 / Tell whether a frame is editable open path text to fit */
+    function isTargetPathText(textFrame) {
+        try {
+            if (!textFrame || textFrame.typename !== 'TextFrame') return false;
+            if (textFrame.kind !== TextType.PATHTEXT) return false;
+            if (!textFrame.editable || textFrame.locked || textFrame.hidden) return false;
+            var textPath = textFrame.textPath;
+            if (!textPath) return false;
+            // Only OPEN paths
+            if (isClosedPathItem(textPath)) return false;
+            return true;
+        } catch (_) { }
+        return false;
+    }
+
+    /* 表示行数を取得（最低1）/ Get the visible line count (at least 1) */
+    function getLineAmount(textFrame) {
+        try {
+            if (textFrame.lines && textFrame.lines.length > 0) return textFrame.lines.length;
+        } catch (_) { }
+        return 1;
+    }
+
+    /* テキストがあふれている（オーバーセット）か判定 / Detect whether the text is overset */
+    function isOverset(textFrame, lineAmount) {
+        try {
+            if (!textFrame) return false;
+            if (textFrame.lines.length > 0) {
+                var charactersOnVisibleLines = 0;
+                if (typeof (lineAmount) === 'undefined' || lineAmount === null) {
+                    lineAmount = 1;
+                } else {
+                    lineAmount = Math.floor(lineAmount);
+                    if (lineAmount < 1) lineAmount = 1;
+                    if (lineAmount > textFrame.lines.length) lineAmount = textFrame.lines.length;
+                }
+                for (var i = 0; i < lineAmount; i++) {
+                    charactersOnVisibleLines += textFrame.lines[i].characters.length;
+                }
+                return (charactersOnVisibleLines < textFrame.characters.length);
+            } else if (textFrame.characters.length > 0) {
+                return true;
+            }
+        } catch (_) { }
+        return false;
+    }
+
+    /* オープンパスの端まで文字サイズだけでパス上文字をフィット / Fit path text to the open-path endpoints by adjusting font size only */
     // - If overset: shrink by small steps until it fits.
     // - If NOT overset: grow to intentionally create overset, then shrink to fit (near-maximum).
-    // This is based on the attached "パステキストをフィット" logic (overset-based fit).
     function fitTextToOpenPath(frames) {
         if (!frames || frames.length === 0) return false;
 
-        // --- options (same spirit as the attached script) ---
         var opt = {
             increment: 0.1,
             minFontSize: 0.1,
@@ -2149,86 +1994,34 @@ PathTextToolkit.jsx
             alertOnMaxIter: false
         };
 
-        function isClosedPathItem(it) {
+        /* オーバーセットになるまで拡大→収まるまで縮小 / Grow until overset, then shrink until it fits */
+        function shrinkFont(textFrame) {
             try {
-                if (!it) return false;
-                if (it.typename === 'CompoundPathItem') {
-                    if (it.pathItems && it.pathItems.length > 0) return !!it.pathItems[0].closed;
-                    return false;
-                }
-                if (it.typename === 'PathItem') return !!it.closed;
-            } catch (_) { }
-            return false;
-        }
+                if (!textFrame || textFrame.characters.length <= 0) return;
 
-        function isTargetPathText(tf) {
-            try {
-                if (!tf || tf.typename !== 'TextFrame') return false;
-                if (tf.kind !== TextType.PATHTEXT) return false;
-                if (!tf.editable || tf.locked || tf.hidden) return false;
-                var p = tf.textPath;
-                if (!p) return false;
-                // Only OPEN paths
-                if (isClosedPathItem(p)) return false;
-                return true;
-            } catch (_) { }
-            return false;
-        }
-
-        // Overset detection from the attached logic
-        function isOverset(tf, lineAmt) {
-            try {
-                if (!tf) return false;
-
-                if (tf.lines.length > 0) {
-                    var charactersOnVisibleLines = 0;
-
-                    if (typeof (lineAmt) === 'undefined' || lineAmt === null) {
-                        lineAmt = 1;
-                    } else {
-                        lineAmt = Math.floor(lineAmt);
-                        if (lineAmt < 1) lineAmt = 1;
-                        if (lineAmt > tf.lines.length) lineAmt = tf.lines.length;
-                    }
-
-                    for (var i = 0; i < lineAmt; i++) {
-                        charactersOnVisibleLines += tf.lines[i].characters.length;
-                    }
-                    return (charactersOnVisibleLines < tf.characters.length);
-                } else if (tf.characters.length > 0) {
-                    return true;
-                }
-            } catch (_) { }
-            return false;
-        }
-
-        function shrinkFont(tf) {
-            try {
-                if (!tf || tf.characters.length <= 0) return;
-
-                var lineAmt = (tf.lines && tf.lines.length > 0) ? tf.lines.length : 1;
+                var lineAmount = getLineAmount(textFrame);
 
                 // If it is NOT overset, grow first (doubling) until it becomes overset (or hits safety limit)
-                if (!isOverset(tf, lineAmt)) {
-                    var growIter = 0;
-                    while (!isOverset(tf, lineAmt) && growIter < opt.maxGrowIter) {
-                        var curG = tf.textRange.characterAttributes.size;
-                        if (curG >= opt.maxFontSize) break;
-                        tf.textRange.characterAttributes.size = Math.min(opt.maxFontSize, curG * 2);
-                        growIter++;
+                if (!isOverset(textFrame, lineAmount)) {
+                    var growIterations = 0;
+                    while (!isOverset(textFrame, lineAmount) && growIterations < opt.maxGrowIter) {
+                        var growSize = textFrame.textRange.characterAttributes.size;
+                        if (growSize >= opt.maxFontSize) break;
+                        textFrame.textRange.characterAttributes.size = Math.min(opt.maxFontSize, growSize * 2);
+                        growIterations++;
                     }
                 }
 
                 // Then shrink in small steps until it fits
-                var iter = 0;
-                while (isOverset(tf, lineAmt)) {
-                    var cur = tf.textRange.characterAttributes.size;
-                    if (cur <= opt.minFontSize) break;
+                var shrinkIterations = 0;
+                while (isOverset(textFrame, lineAmount)) {
+                    var currentSize = textFrame.textRange.characterAttributes.size;
+                    if (currentSize <= opt.minFontSize) break;
 
-                    tf.textRange.characterAttributes.size = Math.max(opt.minFontSize, cur - opt.increment);
+                    textFrame.textRange.characterAttributes.size = Math.max(opt.minFontSize, currentSize - opt.increment);
 
-                    iter++;
-                    if (iter >= opt.maxShrinkIter) {
+                    shrinkIterations++;
+                    if (shrinkIterations >= opt.maxShrinkIter) {
                         if (opt.alertOnMaxIter) {
                             try { alert('フィット処理（縮小）が上限回数に達しました'); } catch (_) { }
                         }
@@ -2239,9 +2032,82 @@ PathTextToolkit.jsx
         }
 
         for (var i = 0; i < frames.length; i++) {
-            var tf = frames[i];
-            if (!isTargetPathText(tf)) continue;
-            shrinkFont(tf);
+            var textFrame = frames[i];
+            if (!isTargetPathText(textFrame)) continue;
+            shrinkFont(textFrame);
+        }
+
+        return true;
+    }
+
+    /* オープンパスの端までトラッキングだけで合わせる（文字サイズは維持）/ Fit path text to the open-path endpoints by adjusting tracking only (font size kept) */
+    function fitTextToOpenPathByTracking(frames) {
+        if (!frames || frames.length === 0) return false;
+
+        var opt = {
+            coarseStep: 50,     // 粗調整1ステップのトラッキング量 / tracking units per coarse step
+            fineStep: 1,        // 微調整1ステップのトラッキング量 / tracking units per fine step
+            minTracking: -1000, // 累積トラッキングの下限 / tightest allowed cumulative delta
+            maxTracking: 20000, // 累積トラッキングの上限 / loosest allowed cumulative delta
+            maxIter: 4000
+        };
+
+        /* 1フレームをトラッキングでパス幅にフィット / Fit a single frame to the path width by tracking */
+        function fitByTracking(textFrame) {
+            try {
+                if (!textFrame || textFrame.characters.length <= 0) return;
+
+                var lineAmount = getLineAmount(textFrame);
+                var applied = 0; // これまでに適用した累積トラッキング / cumulative tracking delta applied so far
+                var iterations;
+
+                if (isOverset(textFrame, lineAmount)) {
+                    // あふれている：収まるまで粗く詰める / too wide: tighten (coarse) until it fits
+                    iterations = 0;
+                    while (isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
+                        if (applied - opt.coarseStep < opt.minTracking) break;
+                        addDeltaToTextRanges(textFrame, 'tracking', -opt.coarseStep);
+                        applied -= opt.coarseStep;
+                        iterations++;
+                    }
+                    // 再びあふれるまで微調整で広げる / loosen back (fine) until it overflows again
+                    iterations = 0;
+                    while (!isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
+                        if (applied + opt.fineStep > opt.maxTracking) break;
+                        addDeltaToTextRanges(textFrame, 'tracking', opt.fineStep);
+                        applied += opt.fineStep;
+                        iterations++;
+                    }
+                    // 1ステップ行き過ぎたら戻して収める / stepped one step too far: pull back once so it fits
+                    if (isOverset(textFrame, lineAmount)) {
+                        addDeltaToTextRanges(textFrame, 'tracking', -opt.fineStep);
+                        applied -= opt.fineStep;
+                    }
+                } else {
+                    // 余裕あり：あふれるまで粗く広げる / fits with room: loosen (coarse) until it overflows
+                    iterations = 0;
+                    while (!isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
+                        if (applied + opt.coarseStep > opt.maxTracking) break;
+                        addDeltaToTextRanges(textFrame, 'tracking', opt.coarseStep);
+                        applied += opt.coarseStep;
+                        iterations++;
+                    }
+                    // 収まるまで微調整で詰める / tighten back (fine) until it fits
+                    iterations = 0;
+                    while (isOverset(textFrame, lineAmount) && iterations < opt.maxIter) {
+                        if (applied - opt.fineStep < opt.minTracking) break;
+                        addDeltaToTextRanges(textFrame, 'tracking', -opt.fineStep);
+                        applied -= opt.fineStep;
+                        iterations++;
+                    }
+                }
+            } catch (_) { }
+        }
+
+        for (var i = 0; i < frames.length; i++) {
+            var textFrame = frames[i];
+            if (!isTargetPathText(textFrame)) continue;
+            fitByTracking(textFrame);
         }
 
         return true;

@@ -43,6 +43,7 @@ ReorderArtboardsByPosition.jsx
 - v1.2.0 (20260415) : 左上基準専用ツールとしてUIと構成を整理、再配置設定とプレビュー表示を調整
 - v1.3.0 (20260508) : アートボード名パネル追加（「行-列」形式の自動命名、既存名の整形、区切り文字／桁数の選択）、再配置ロジックとUI構築を責務ごとの関数に分割、L() 経由のローカライズに統一、列間／行間の連動処理を整理
 - v1.3.1 (20260508) : 再配置とパネル並び順の実行順を入れ替え、再配置後の見た目に合わせてパネル順が更新されるよう修正
+- v1.4.0 (20260513) : パネル上の並び順を「名前順／カンバス上の並び順に／変更しない」のラジオボタンに変更、名前順は数字列を10桁ゼロ埋めした自然順ソート
 
 ---
 
@@ -140,7 +141,6 @@ ReorderArtboardsByPosition.jsx
         noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
         noArtboards: { ja: "アートボードが存在しません。", en: "No artboards found." },
         preview: { ja: "パネル上の並び順", en: "Artboards Panel Order" },
-        reorderEnable: { ja: "並び順を変更", en: "Reorder in Artboards panel" },
         execute: { ja: "OK", en: "OK" },
         close: { ja: "キャンセル", en: "Cancel" },
         rearrange: { ja: "カンバス上のアートボードを再配置", en: "Rearrange Canvas Artboards" },
@@ -160,6 +160,9 @@ ReorderArtboardsByPosition.jsx
         namingFromExisting: { ja: "既存名を整形", en: "Reformat existing names" },
         namingSeparator: { ja: "区切り文字", en: "Separator" },
         namingPadWidth: { ja: "桁数", en: "Digits" },
+        sortByPosition: { ja: "カンバス上の並び順に", en: "Match canvas order" },
+        sortByName: { ja: "名前順", en: "By name" },
+        sortKeepAsIs: { ja: "変更しない", en: "Keep as is" },
         noMatchAlert: {
             ja: "「行-列」（例: 1-2）または「接頭辞-番号」（例: banner-1）形式のアートボード名が見つかりませんでした。",
             en: "No artboard names in '<row><sep><column>' (e.g., 1-2) or '<prefix><sep><number>' (e.g., banner-1) format were found."
@@ -272,12 +275,39 @@ ReorderArtboardsByPosition.jsx
     }
 
     function bindEvents(doc, previewContext, ui) {
-        updateReorderPreview(previewContext, ui, previewContext.defaultTolerance);
+        var sortRadios = ui.preview.sortModeRadios;
+
+        /* ラジオは親グループが異なるため、ScriptUI の自動排他が効かない。
+         * 手動で他のラジオを OFF にして相互排他を成立させる。
+         * Radios live in separate parent groups, so ScriptUI's built-in exclusion
+         * does not apply. Toggle the others off manually to enforce exclusivity. */
+        function selectSortMode(targetRadio) {
+            sortRadios.byName.value = (targetRadio === sortRadios.byName);
+            sortRadios.byPosition.value = (targetRadio === sortRadios.byPosition);
+            sortRadios.keepAsIs.value = (targetRadio === sortRadios.keepAsIs);
+            syncSortMode();
+        }
+
+        function syncSortMode() {
+            var byPositionSelected = sortRadios.byPosition.value;
+            ui.preview.toleranceSlider.enabled = byPositionSelected;
+            var currentTolerance = Math.round(ui.preview.toleranceSlider.value);
+            updateReorderPreview(previewContext, ui, currentTolerance);
+            /* リスト更新後に enabled を当て直す（add の影響でディムが効かないケースを回避）
+             * Re-apply enabled after add() to make dimming take effect reliably */
+            ui.preview.reorderList.enabled = byPositionSelected;
+        }
+
+        syncSortMode();
 
         ui.preview.toleranceSlider.onChanging = function () {
             var tolerance = Math.round(ui.preview.toleranceSlider.value);
             updateReorderPreview(previewContext, ui, tolerance);
         };
+
+        sortRadios.byPosition.onClick = function () { selectSortMode(sortRadios.byPosition); };
+        sortRadios.byName.onClick = function () { selectSortMode(sortRadios.byName); };
+        sortRadios.keepAsIs.onClick = function () { selectSortMode(sortRadios.keepAsIs); };
 
         ui.buttons.executeBtn.onClick = function () {
             executeReorder(doc, ui);
@@ -318,12 +348,20 @@ ReorderArtboardsByPosition.jsx
             }
         }
 
-        /* 並び替えを実行（チェック ON のときのみ） / Reorder only when checkbox is ON */
-        if (ui.preview.enableCheckbox.value) {
-            var topLeftSorter = function (_artboards, dp) {
-                sortArtboardsTopLeftWithTolerance(_artboards, dp, tolerance);
-            };
-            rebuildArtboardsInSortedOrder(doc, topLeftSorter, COORDINATE_PRECISION_DIGITS);
+        /* 並び順モードに応じてソーター切替（変更しない場合はスキップ）
+         * Pick a sorter based on the selected sort mode; skip when "Keep as is" */
+        if (!ui.preview.sortModeRadios.keepAsIs.value) {
+            var sorter;
+            if (ui.preview.sortModeRadios.byName.value) {
+                sorter = function (_artboards) {
+                    sortArtboardsByName(_artboards);
+                };
+            } else {
+                sorter = function (_artboards, dp) {
+                    sortArtboardsTopLeftWithTolerance(_artboards, dp, tolerance);
+                };
+            }
+            rebuildArtboardsInSortedOrder(doc, sorter, COORDINATE_PRECISION_DIGITS);
         }
 
         /* 命名（配置位置から作成 / 既存名を整形） / Update or reformat artboard names as row-column */
@@ -343,14 +381,33 @@ ReorderArtboardsByPosition.jsx
     }
 
     function updateReorderPreview(previewContext, ui, tolerance) {
+        var reorderList = ui.preview.reorderList;
+        reorderList.removeAll();
+
+        /* 変更しないモード: 現在の並びをそのまま表示 / Keep-as-is mode: show current order untouched */
+        if (ui.preview.sortModeRadios.keepAsIs.value) {
+            for (var keepIndex = 0; keepIndex < previewContext.artboardEntries.length; keepIndex++) {
+                reorderList.add("item", previewContext.artboardEntries[keepIndex].name);
+            }
+            return;
+        }
+
+        /* 名前順モード: アートボード名で並べてリスト表示 / By-name mode: list names in name-sort order */
+        if (ui.preview.sortModeRadios.byName.value) {
+            var byNameEntries = previewContext.artboardEntries.slice();
+            sortArtboardsByName(byNameEntries);
+            for (var nameIndex = 0; nameIndex < byNameEntries.length; nameIndex++) {
+                reorderList.add("item", byNameEntries[nameIndex].name);
+            }
+            return;
+        }
+
         var decimalPlaces = Math.pow(10, COORDINATE_PRECISION_DIGITS);
         var sortedEntries = previewContext.artboardEntries.slice();
         sortArtboardsTopLeftWithTolerance(sortedEntries, decimalPlaces, tolerance);
 
         var rowGroups = groupSortedIntoRows(sortedEntries, tolerance, decimalPlaces);
 
-        var reorderList = ui.preview.reorderList;
-        reorderList.removeAll();
         for (var rowIndex = 0; rowIndex < rowGroups.length; rowIndex++) {
             var rowNames = [];
             for (var columnIndex = 0; columnIndex < rowGroups[rowIndex].length; columnIndex++) {
@@ -404,22 +461,34 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
-    /* プレビューパネル（並び替え ON/OFF＋許容差スライダー＋並び順リスト） / Preview panel */
+    /* プレビューパネル（並び順モード＋許容差スライダー＋並び順リスト） / Preview panel */
     function buildPreviewPanel(parent, defaultTolerance, sliderMax) {
         var reorderPanel = parent.add("panel", undefined, L("preview"));
         setupPanel(reorderPanel);
 
-        /* チェックボックスとスライダーを同じ行に配置 / Checkbox and slider on the same row */
-        var enableRow = reorderPanel.add("group");
-        enableRow.orientation = "row";
-        enableRow.alignChildren = ['left', 'center'];
+        /* 名前順（ラジオ） / Radio "By name" */
+        var byNameRow = reorderPanel.add("group");
+        byNameRow.orientation = "row";
+        byNameRow.alignChildren = ['left', 'center'];
+        var sortByNameRadio = byNameRow.add("radiobutton", undefined, L("sortByName"));
 
-        /* 並び替えを実行するかの ON/OFF（デフォルト ON） / Enable reorder (default ON) */
-        var reorderEnableCheckbox = enableRow.add("checkbox", undefined, L("reorderEnable"));
-        reorderEnableCheckbox.value = true;
+        /* カンバス上の並び順に（ラジオ）＋ 許容差スライダーを同じ行に配置
+         * Radio "Match canvas order" and tolerance slider on the same row */
+        var byPositionRow = reorderPanel.add("group");
+        byPositionRow.orientation = "row";
+        byPositionRow.alignChildren = ['left', 'center'];
 
-        var toleranceSlider = enableRow.add("slider", undefined, defaultTolerance, 0, sliderMax);
+        var sortByPositionRadio = byPositionRow.add("radiobutton", undefined, L("sortByPosition"));
+        sortByPositionRadio.value = true;
+
+        var toleranceSlider = byPositionRow.add("slider", undefined, defaultTolerance, 0, sliderMax);
         toleranceSlider.preferredSize = [250, 20];
+
+        /* 変更しない（ラジオ） / Radio "Keep as is" */
+        var keepAsIsRow = reorderPanel.add("group");
+        keepAsIsRow.orientation = "row";
+        keepAsIsRow.alignChildren = ['left', 'center'];
+        var sortKeepAsIsRadio = keepAsIsRow.add("radiobutton", undefined, L("sortKeepAsIs"));
 
         var reorderList = reorderPanel.add("listbox", undefined, [], { multiselect: false });
         reorderList.preferredSize.width = 160;
@@ -427,7 +496,11 @@ ReorderArtboardsByPosition.jsx
         reorderList.alignment = ['fill', 'fill'];
 
         return {
-            enableCheckbox: reorderEnableCheckbox,
+            sortModeRadios: {
+                byPosition: sortByPositionRadio,
+                byName: sortByNameRadio,
+                keepAsIs: sortKeepAsIsRadio
+            },
             toleranceSlider: toleranceSlider,
             reorderList: reorderList
         };
@@ -727,7 +800,8 @@ ReorderArtboardsByPosition.jsx
             artboardSnapshots.push(snapshot);
             sortableEntries.push({
                 artboardRect: sourceArtboard.artboardRect,
-                sourceIndex: artboardIndex
+                sourceIndex: artboardIndex,
+                name: sourceArtboard.name
             });
         }
 
@@ -759,6 +833,26 @@ ReorderArtboardsByPosition.jsx
                 return firstLeft - secondLeft;
             }
             return secondTop - firstTop;
+        });
+    }
+
+    /* 名前順（自然順）ソート: 数字を10桁ゼロ埋めして比較、大文字小文字は無視
+     * Natural sort by artboard name: pad digits to 10 zeros, compare case-insensitively. */
+    function sortArtboardsByName(artboardEntries) {
+        artboardEntries.sort(function (firstEntry, secondEntry) {
+            var firstName = padNumbersForNaturalSort((firstEntry.name || "").toLowerCase());
+            var secondName = padNumbersForNaturalSort((secondEntry.name || "").toLowerCase());
+            if (firstName < secondName) return -1;
+            if (firstName > secondName) return 1;
+            return 0;
+        });
+    }
+
+    /* 文字列中の数字列を10桁ゼロ埋め / Zero-pad each run of digits in the string to 10 chars */
+    function padNumbersForNaturalSort(text) {
+        return text.replace(/\d+/g, function (digitRun) {
+            var pad = "0000000000";
+            return (pad + digitRun).slice(-pad.length);
         });
     }
 

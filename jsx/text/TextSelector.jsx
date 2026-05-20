@@ -44,7 +44,7 @@ Select text frames in an Illustrator document using multiple conditions.
 // =========================================
 // バージョンとローカライズ
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 var currentLanguage = ($.locale || "").toLowerCase().indexOf("ja") === 0 ? "ja" : "en";
 

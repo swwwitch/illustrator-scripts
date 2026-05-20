@@ -7,34 +7,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトの境界に合わせて長方形を作成する Illustrator スクリプトです。
 作成単位は「オブジェクトごと」または「選択範囲全体」から選べます。
 プレビュー境界での計測、テキストのアウトライン化計測、定規単位に連動したマージン（負値で内側）を指定できます。
+ダイアログ表示中は選択オブジェクトの不透明度を一時的に 50% へ下げてプレビューを見やすくできます（不透明度を変えるプリセット選択時は自動で無効化）。
 塗り・線プリセット（線幅は Illustrator の「線幅」単位に連動）、重ね順、元オブジェクトの扱い（残す／クリッピングマスクにする／削除）を設定できます。
 クリッピングマスク化では元オブジェクトの重ね順を維持します。「選択範囲全体」では「前面／背面」に応じて最前面／最背面の項目を基準にします。
 ロック・非表示オブジェクトは対象外です。プレビューで結果を確認しながら調整できます（マスク／削除は OK 後に反映）。
+スクリプト実行中はバウンディングボックスとエッジ表示を一時的に切り替え、終了時（OK／キャンセル／エラーいずれも）に元の状態へ戻します。
 
 キーボード操作
 
 マージン入力：↑↓ で ±1、Shift+↑↓ で ±10、Alt+↑↓ で ±0.1。
-ショートカット：S/G（作成単位）、P/O/A（オプション）、F/B（重ね順）、N/M/D（元オブジェクト）。
+ショートカット：S/G（作成単位）、P/O/A/T（オプション）、F/B（重ね順）、N/M/D（元オブジェクト）。
 
 Overview
 
 Creates Illustrator rectangles that match the bounds of selected objects.
 The creation unit can be set to either per object or the whole selection.
 You can measure preview bounds, measure text as outlines, and add a ruler-unit margin (negative shrinks).
+While the dialog is open, the selected objects can be temporarily dimmed to 50% opacity to make the preview easier to see (auto-disabled when a preset that changes opacity is selected).
 Choose a fill/stroke preset (stroke width follows the Stroke Units preference), rectangle order, and original handling (keep / make clipping mask / delete).
 Clipping-mask mode preserves the original z-order. Whole-selection mode anchors the new rectangle to the top-/bottom-most item based on the front/back setting.
 Locked and hidden objects are excluded. Preview shows the result while you adjust (mask/delete is applied on OK).
+The bounding box and edge display are temporarily toggled during the script and restored on exit (OK, Cancel, or error).
 
 Keyboard
 
 Margin field: ↑↓ ±1, Shift+↑↓ ±10, Alt+↑↓ ±0.1.
-Shortcuts: S/G (creation unit), P/O/A (options), F/B (order), N/M/D (original).
+Shortcuts: S/G (creation unit), P/O/A/T (options), F/B (order), N/M/D (original).
 */
 
 // ==============================
 // スクリプト情報 / Script information
 // ==============================
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 // ==============================
 // 言語判定 / Language detection
@@ -74,6 +78,8 @@ var LABELS = {
     outlineTextTip: { ja: "元のテキストは変更せず、複製を一時的にアウトライン化して境界を計測します", en: "Measures a temporary outlined copy without modifying the original text" },
     useMargin: { ja: "マージンを追加", en: "Add margin" },
     marginTip: { ja: "オンにすると、計測した境界から指定値だけ外側へ広げます。単位は Illustrator の定規単位に連動します（負値で内側）", en: "When on, expands the measured bounds outward by this amount. The unit follows Illustrator's ruler unit (negative shrinks)" },
+    dimSelection: { ja: "実行中は不透明度を下げる", en: "Dim selection while running" },
+    dimSelectionTip: { ja: "ダイアログを開いている間、選択オブジェクトの不透明度を一時的に 50% にして、閉じたときに元に戻します", en: "Temporarily sets the selected objects to 50% opacity while the dialog is open, and restores it when the dialog closes" },
 
     /* Appearance / 塗りと線 */
     currentTip: { ja: "ドキュメントの現在の既定値（直前に使った塗り・線）をそのまま使います", en: "Uses the document's current default fill and stroke" },
@@ -415,12 +421,17 @@ function buildOptionsPanel(parent) {
     var marginUnitLabel = marginRow.add("statictext", undefined, getRulerUnitLabel());
     marginUnitLabel.enabled = false;
 
+    var dimCheck = optionsPanel.add("checkbox", undefined, L("dimSelection"));
+    dimCheck.helpTip = L("dimSelectionTip");
+    dimCheck.value = true;
+
     return {
         previewBoundsCheck: previewBoundsCheck,
         outlineTextCheck: outlineTextCheck,
         useMarginCheck: useMarginCheck,
         marginInput: marginInput,
-        marginUnitLabel: marginUnitLabel
+        marginUnitLabel: marginUnitLabel,
+        dimCheck: dimCheck
     };
 }
 
@@ -528,6 +539,29 @@ function clearPreviewItems(previewItems) {
     previewItems.splice(0, previewItems.length);
 }
 
+// 元の不透明度を退避（後で確実に復元するため）
+function captureItemOpacities(items) {
+    var snapshots = [];
+    for (var i = 0; i < items.length; i++) {
+        var current = 100;
+        try { current = items[i].opacity; } catch (ignoreOpacityRead) { }
+        snapshots.push({ item: items[i], opacity: current });
+    }
+    return snapshots;
+}
+
+function applyDimmedOpacity(items) {
+    for (var i = 0; i < items.length; i++) {
+        try { items[i].opacity = 50; } catch (ignoreDim) { }
+    }
+}
+
+function restoreItemOpacities(snapshots) {
+    for (var i = 0; i < snapshots.length; i++) {
+        try { snapshots[i].item.opacity = snapshots[i].opacity; } catch (ignoreRestore) { }
+    }
+}
+
 function renderDialogPreview(doc, eligibleItems, ui, previewItems, outlinedBoundsCache) {
     clearPreviewItems(previewItems);
 
@@ -547,6 +581,49 @@ function renderDialogPreview(doc, eligibleItems, ui, previewItems, outlinedBound
 function createDialogState(doc, eligibleItems, ui) {
     var previewItems = [];
     var outlinedBoundsCache = [];
+    var opacitySnapshots = captureItemOpacities(eligibleItems);
+    var dimmed = false;
+    /* 不透明度付きプリセットで強制 OFF にする前の値を保存する（戻すときに使う）/
+       Saves the dim value before being forced off by an opacity preset */
+    var savedDimValue = null;
+
+    function syncDimAvailability() {
+        var appearanceIndex = findSelectedRadioIndex(ui.appearanceRadios, DEFAULT_PRESET_INDEX);
+        var preset = FILL_STROKE_PRESETS[appearanceIndex];
+        var presetHasOpacity = preset && typeof preset.opacity === "number";
+        if (presetHasOpacity) {
+            if (savedDimValue === null) {
+                savedDimValue = ui.options.dimCheck.value;
+            }
+            ui.options.dimCheck.value = false;
+            ui.options.dimCheck.enabled = false;
+        } else {
+            if (savedDimValue !== null) {
+                ui.options.dimCheck.value = savedDimValue;
+                savedDimValue = null;
+            }
+            ui.options.dimCheck.enabled = true;
+        }
+    }
+
+    function syncDimming() {
+        var shouldDim = ui.options.dimCheck.value;
+        if (shouldDim && !dimmed) {
+            applyDimmedOpacity(eligibleItems);
+            dimmed = true;
+        } else if (!shouldDim && dimmed) {
+            restoreItemOpacities(opacitySnapshots);
+            dimmed = false;
+        }
+        app.redraw();
+    }
+
+    function restoreOpacity() {
+        if (dimmed) {
+            restoreItemOpacities(opacitySnapshots);
+            dimmed = false;
+        }
+    }
 
     return {
         buildSettings: function (forPreview) {
@@ -557,19 +634,16 @@ function createDialogState(doc, eligibleItems, ui) {
         },
         renderPreview: function () {
             renderDialogPreview(doc, eligibleItems, ui, previewItems, outlinedBoundsCache);
-        }
+        },
+        syncDimAvailability: syncDimAvailability,
+        syncDimming: syncDimming,
+        restoreOpacity: restoreOpacity
     };
 }
 
 function syncOrderEnabled(ui) {
     ui.order.frontRadio.enabled = ui.original.keepRadio.value;
     ui.order.backRadio.enabled = ui.original.keepRadio.value;
-}
-
-function assignPreviewHandlersToRadios(radios, renderPreview) {
-    for (var i = 0; i < radios.length; i++) {
-        radios[i].onClick = renderPreview;
-    }
 }
 
 function bindPreviewEvents(ui, state) {
@@ -582,7 +656,14 @@ function bindPreviewEvents(ui, state) {
         state.renderPreview();
     };
     ui.options.marginInput.onChange = state.renderPreview;
-    assignPreviewHandlersToRadios(ui.appearanceRadios, state.renderPreview);
+    ui.options.dimCheck.onClick = state.syncDimming;
+    for (var appearanceRadioIndex = 0; appearanceRadioIndex < ui.appearanceRadios.length; appearanceRadioIndex++) {
+        ui.appearanceRadios[appearanceRadioIndex].onClick = function () {
+            state.syncDimAvailability();
+            state.syncDimming();
+            state.renderPreview();
+        };
+    }
     ui.order.frontRadio.onClick = state.renderPreview;
     ui.order.backRadio.onClick = state.renderPreview;
     ui.buttons.previewCheck.onClick = state.renderPreview;
@@ -601,6 +682,11 @@ function bindDialogKeyboardShortcuts(dialog, ui, state) {
         "P": function () { ui.options.previewBoundsCheck.value = !ui.options.previewBoundsCheck.value; state.renderPreview(); },
         "O": function () { ui.options.outlineTextCheck.value = !ui.options.outlineTextCheck.value; state.renderPreview(); },
         "A": function () { ui.options.useMarginCheck.value = !ui.options.useMarginCheck.value; syncMarginEnabled(ui); state.renderPreview(); },
+        "T": function () {
+            if (!ui.options.dimCheck.enabled) return; // 不透明度プリセット選択中は無効化されているのでスキップ
+            ui.options.dimCheck.value = !ui.options.dimCheck.value;
+            state.syncDimming();
+        },
         "F": function () { ui.order.frontRadio.value = true; state.renderPreview(); },
         "B": function () { ui.order.backRadio.value = true; state.renderPreview(); },
         "N": function () { ui.original.keepRadio.value = true; syncOrderEnabled(ui); },
@@ -635,8 +721,13 @@ function showSettingsDialog(doc, eligibleItems, selectionAllImages) {
     syncMarginEnabled(ui);
     syncOrderEnabled(ui);
     bindDialogEvents(dialog, ui, state);
+    state.syncDimAvailability();
+    state.syncDimming();
 
-    dialog.onClose = state.clearPreview;
+    dialog.onClose = function () {
+        state.clearPreview();
+        state.restoreOpacity();
+    };
 
     var dialogResult = null;
     ui.buttons.okButton.onClick = function () {
@@ -933,20 +1024,27 @@ function main() {
         return;
     }
 
-    var settings = showSettingsDialog(doc, eligibleItems, isSelectionAllImages(eligibleItems));
-    if (!settings) {
-        return; // キャンセル / Cancelled
+    app.executeMenuCommand('AI Bounding Box Toggle');
+    app.executeMenuCommand('edge');
+    try {
+        var settings = showSettingsDialog(doc, eligibleItems, isSelectionAllImages(eligibleItems));
+        if (!settings) {
+            return; // キャンセル / Cancelled
+        }
+
+        var createdItems = produceRectangles(doc, eligibleItems, settings);
+
+        if (createdItems.length === 0) {
+            alert(L("noResult"));
+            return;
+        }
+
+        // 作成した長方形（マスク時はマスクグループ）のみを選択
+        doc.selection = createdItems;
+    } finally {
+        app.executeMenuCommand('edge');
+        app.executeMenuCommand('AI Bounding Box Toggle');
     }
-
-    var createdItems = produceRectangles(doc, eligibleItems, settings);
-
-    if (createdItems.length === 0) {
-        alert(L("noResult"));
-        return;
-    }
-
-    // 作成した長方形（マスク時はマスクグループ）のみを選択
-    doc.selection = createdItems;
 }
 
 main();
