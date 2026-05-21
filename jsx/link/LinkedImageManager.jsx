@@ -6,24 +6,36 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 LinkedImageManager.jsx
 
 ドキュメント内の配置画像（リンク画像）を解析し、
-一覧表示・絞り込み・重複管理・再リンクを一元化するユーティリティ。
+一覧表示・絞り込み・重複管理・再リンク・リネーム・削除を一元化するユーティリティ。
 
 Illustrator標準機能では行いにくい
 「全体把握・状態確認・重複管理・再リンク作業」を効率化することを目的とする。
 
 ### 主な機能
 
-・ファイル名／サイズ／配置寸法／スケール／PPI の一覧表示
+・ファイル名／サイズ／使用数／配置寸法／スケール／PPI／カラースペースの一覧表示
+・カラースペース表示（カラーモード + ICC プロファイル名／PNG・JPEG・PSD 対応）
+・ファイルサイズの単位切替（自動単位 B/KB/MB/GB ↔ MB 統一）
 ・リンク状態（正常／リンク切れ／更新が必要）の判定とフィルタリング
 ・リンク切れ時のファイル名フォールバック取得（XMPメタデータ参照）
 ・アートボード単位での絞り込みとビュー連動（選択時に移動・ズーム）
 ・同一ファイルの重複検出・統合表示・使用数カウント
-・任意列でのソート（昇順／降順）
+・任意列でのソート（昇順／降順、数値系は自動降順）
 ・行選択に連動したカンバス上での選択・ズーム表示
-・パス表示の最適化（~/ 表示／Dropbox パス短縮／ファイル名表示切替）
+・パス表示の最適化（~/ 表示／Dropbox パス短縮［未使用時は自動非表示］／ファイル名表示切替）
 ・リンク先フォルダの一覧表示／選択フォルダの直接オープン
 ・単一ファイル／フォルダ単位での再リンク
+・参照フォルダ内の別拡張子ファイルへの一括再リンク（拡張子の変更）
+・リンクファイルのリネーム（物理ファイル名変更＋再リンクを同時実行）
+・配置画像の削除（クリップグループ内は「画像のみ」「クリップグループごと」を選択）
+・ファイル名のクリップボードコピー
 ・リンクファイルのコピーと再リンク（Linksフォルダーへの収集）
+
+### 設定
+
+・DROPBOX_PREFIX：Dropbox のローカルマウントパスを指定すると、
+  リンクパス表示時に接頭辞を省略できる。
+  使わない場合は "" を指定すると、関連チェックボックスが非表示になる。
 
 ### 参考記事
 
@@ -37,13 +49,14 @@ https://note.com/dtp_tranist/n/na66732d2056a
     // バージョン / Version
     // =========================================
 
-    var SCRIPT_VERSION = "v1.2.8";
+    var SCRIPT_VERSION = "v1.2.9";
 
     // =========================================
     // ユーザー設定 / User configuration
     // =========================================
 
     // Dropbox のローカルマウントパス接頭辞（ここを自分の環境に書き換えてください）
+    // Dropbox を使わない場合は "" を指定すると、パネルの「Dropboxパスを短縮」チェックボックス自体が非表示になります
     var DROPBOX_PREFIX = "/Users/takano/sw Dropbox/takano masahiro/";
 
     // =========================================
@@ -53,7 +66,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var currentLanguage = getCurrentLang();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
@@ -63,7 +76,6 @@ https://note.com/dtp_tranist/n/na66732d2056a
         dialogTitle: { ja: "リンク画像の管理", en: "Linked Image Manager" },
         sortPanelTitle: { ja: "ソート", en: "Sort" },
         sortLabel: { ja: "並び順", en: "Sort by" },
-        sortIndex: { ja: "No.", en: "No." },
         sortFileName: { ja: "ファイル名", en: "File Name" },
         sortFileSize: { ja: "サイズ", en: "Size" },
         sortFileCount: { ja: "使用数", en: "Usage Count" },
@@ -77,10 +89,9 @@ https://note.com/dtp_tranist/n/na66732d2056a
         ascOrder: { ja: "昇順", en: "Ascending" },
         descOrder: { ja: "降順", en: "Descending" },
         optionPanelTitle: { ja: "同一ファイル", en: "Same Files" },
-        otherPanelTitle: { ja: "その他", en: "Other" },
         dedupCheck: { ja: "同一ファイルをまとめる", en: "Group Same Files" },
         unitCheck: { ja: "単位を「MB」で統一", en: "Use MB" },
-        filterPanelTitle: { ja: "ステータス", en: "Filters" },
+        filterPanelTitle: { ja: "ステータス", en: "Status" },
         filterOk: { ja: "✓ リンク正常", en: "✓ Link OK" },
         filterBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
         filterUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" },
@@ -94,7 +105,6 @@ https://note.com/dtp_tranist/n/na66732d2056a
         displayFileCount: { ja: "使用数を表示", en: "Show Usage Count" },
         displayDimScalePpi: { ja: "サイズ、%、PPI", en: "Dimensions, Scale, PPI" },
         displayColorSpace: { ja: "カラースペース", en: "Color Space" },
-        colIndex: { ja: "No.", en: "No." },
         colFileName: { ja: "ファイル名", en: "File Name" },
         colFileSizeMb: { ja: "サイズ(MB)", en: "Size (MB)" },
         colFileSize: { ja: "サイズ", en: "Size" },
@@ -111,7 +121,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             en: "Select an item from the list."
         },
         pathHelpTip: { ja: "パスの表示", en: "File path" },
-        tildeCheck: { ja: "フルパス", en: "Full path" },
+        fullPathCheck: { ja: "フルパス", en: "Full path" },
         renameLinkBtn: { ja: "リネーム", en: "Rename" },
         openFileBtn: { ja: "開く", en: "Open" },
         deleteLinkBtn: { ja: "削除", en: "Delete" },
@@ -149,7 +159,6 @@ https://note.com/dtp_tranist/n/na66732d2056a
         showOnCanvasCheck: { ja: "選択時にズーム表示", en: "Zoom to Selection" },
         closeBtn: { ja: "閉じる", en: "Close" },
         cancelBtn: { ja: "キャンセル", en: "Cancel" },
-        okBtn: { ja: "実行", en: "Run" },
         fileNameUnknown: { ja: "(ファイル名不明)", en: "(Unknown File Name)" },
         statusBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
         statusUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" },
@@ -173,7 +182,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         alertSelectLinkedFolder: { ja: "リンクフォルダを選択してください。", en: "Please select a linked folder." },
         confirmDeleteLinks: {
             ja: "選択したリンクファイルをドキュメントからすべて削除します。",
-            en: "The selected file(s) will be removed from the document.?"
+            en: "Remove the selected file(s) from the document?"
         },
         alertDeleteDone: { ja: "削除完了", en: "Delete Complete" },
         alertCopyFileNameDone: { ja: "ファイル名をコピーしました", en: "File name copied to clipboard" },
@@ -209,16 +218,16 @@ https://note.com/dtp_tranist/n/na66732d2056a
     };
 
     function L(key) {
-        return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key;
+        return (LABELS[key] && LABELS[key][currentLanguage]) ? LABELS[key][currentLanguage] : key;
     }
 
     function labelText(key) {
-        return L(key) + (lang === 'ja' ? '：' : ':');
+        return L(key) + (currentLanguage === 'ja' ? '：' : ':');
     }
 
     // 数値＋単位をローカライズ付きで整形
     function withUnit(value, unitKey) {
-        return (lang === 'ja')
+        return (currentLanguage === 'ja')
             ? (value + L(unitKey))
             : (value + " " + L(unitKey));
     }
@@ -226,7 +235,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
     // alert / confirm 用に「ラベル：値+単位」を 1 行で組み立てる
     // 例: kvLine('labelSuccess', 3, 'labelItems') → "成功：3件" / "Succeeded: 3 item(s)"
     function kvLine(labelKey, value, unitKey) {
-        var sep = (lang === 'ja' ? '：' : ': ');
+        var sep = (currentLanguage === 'ja' ? '：' : ': ');
         var valueText = unitKey ? withUnit(value, unitKey) : String(value);
         return L(labelKey) + sep + valueText;
     }
@@ -279,35 +288,24 @@ https://note.com/dtp_tranist/n/na66732d2056a
         return absPath;
     }
 
-    // 文字列をクリップボードへコピー：一時テキストフレームを作って app.copy() でクリップボードに送る
+    // 文字列をクリップボードへコピー：pbcopy を経由してドキュメントの UNDO スタックを汚さない（Mac 規約）
+    // 一時ファイル経由にすることでシェルの引用符問題を回避し、UTF-8 の日本語も安全に渡せる
     function copyTextToClipboard(text) {
         if (text === null || text === undefined) text = "";
         text = String(text);
-        var activeDoc = tryGet(function () { return app.activeDocument; }, null);
-        if (!activeDoc) return false;
-
-        var prevSelection = tryGet(function () { return activeDoc.selection; }, null);
-        var tempFrame = null;
+        var tmpFile = null;
         try {
-            tempFrame = activeDoc.textFrames.add();
-            tempFrame.contents = text;
-            activeDoc.selection = null;
-            tempFrame.selected = true;
-            app.copy();
-            tempFrame.remove();
-            tempFrame = null;
-
-            // 元の選択を可能な限り復元
-            try { activeDoc.selection = null; } catch (e0) { }
-            if (prevSelection && prevSelection.length) {
-                for (var i = 0; i < prevSelection.length; i++) {
-                    try { prevSelection[i].selected = true; } catch (ei) { }
-                }
-            }
+            tmpFile = new File(Folder.temp.fsName + "/lim_clip_" + (new Date()).getTime() + ".txt");
+            tmpFile.encoding = "UTF-8";
+            if (!tmpFile.open("w")) return false;
+            tmpFile.write(text);
+            tmpFile.close();
+            app.system('/bin/cat "' + tmpFile.fsName + '" | /usr/bin/pbcopy');
             return true;
         } catch (e) {
-            try { if (tempFrame) tempFrame.remove(); } catch (e3) { }
             return false;
+        } finally {
+            try { if (tmpFile) tmpFile.remove(); } catch (eRm) { }
         }
     }
 
@@ -502,8 +500,174 @@ https://note.com/dtp_tranist/n/na66732d2056a
         }, fallback);
     }
 
-    // JPEG / PNG / PSD ファイルヘッダからピクセル寸法 {width, height} を読み取る。取得不可なら null
-    function readImagePixelSize(file) {
+    // PNG IHDR から幅/高さ・カラーモード、iCCP/sRGB チャンクから ICC プロファイル名を 1 度の走査でまとめて取得
+    function readPngImageInfo(binaryFile) {
+        var info = { width: null, height: null, colorMode: "", iccDesc: "" };
+        // 8(sig) + 4(chunk length) + 4("IHDR") = 16 から IHDR データ。先頭 10 バイトに width/height/bitDepth/colorType まで含む
+        binaryFile.seek(16);
+        var ihdrBytes = binaryFile.read(10);
+        if (ihdrBytes && ihdrBytes.length === 10) {
+            info.width = readU32BE(ihdrBytes, 0);
+            info.height = readU32BE(ihdrBytes, 4);
+            var colorType = ihdrBytes.charCodeAt(9) & 0xFF;
+            if (colorType === 0 || colorType === 4) info.colorMode = "Grayscale";
+            else if (colorType === 3) info.colorMode = "Indexed";
+            else info.colorMode = "RGB";
+        }
+        // iCCP / sRGB チャンクを探す（PNG sig + IHDR length + "IHDR" + IHDR data + CRC を飛ばす）
+        binaryFile.seek(8 + 4 + 4 + 13 + 4);
+        for (var chunkIdx = 0; chunkIdx < 32; chunkIdx++) {
+            var pngChunkLengthBytes = binaryFile.read(4);
+            if (!pngChunkLengthBytes || pngChunkLengthBytes.length < 4) break;
+            var chunkLength = readU32BE(pngChunkLengthBytes, 0);
+            var chunkType = binaryFile.read(4);
+            if (!chunkType || chunkType.length < 4) break;
+            if (chunkType === "iCCP") {
+                var chunkData = binaryFile.read(chunkLength);
+                if (chunkData) {
+                    var nullIndex = chunkData.indexOf("\0");
+                    if (nullIndex > 0) info.iccDesc = chunkData.substring(0, nullIndex);
+                }
+                break;
+            } else if (chunkType === "sRGB") {
+                info.iccDesc = "sRGB IEC61966-2.1";
+                break;
+            } else if (chunkType === "IDAT" || chunkType === "IEND") {
+                break;
+            } else {
+                binaryFile.seek(binaryFile.tell() + chunkLength + 4); // data + CRC
+            }
+        }
+        return info;
+    }
+
+    // JPEG マーカーを 1 度走査して SOFn から幅/高さ・コンポーネント数、APP2 から ICC プロファイルを集約
+    function readJpegImageInfo(binaryFile) {
+        var info = { width: null, height: null, colorMode: "", iccDesc: "" };
+        binaryFile.seek(2);
+        var iccPieces = {};
+        var iccTotalPieces = 0;
+        var componentCount = 0;
+        for (var markerIdx = 0; markerIdx < 64; markerIdx++) {
+            var markerBytes = binaryFile.read(2);
+            if (!markerBytes || markerBytes.length < 2) break;
+            if ((markerBytes.charCodeAt(0) & 0xFF) !== 0xFF) break;
+            var markerCode = markerBytes.charCodeAt(1) & 0xFF;
+            if (markerCode === 0xD9 || markerCode === 0xDA) break;
+            var segmentLengthBytes = binaryFile.read(2);
+            if (!segmentLengthBytes || segmentLengthBytes.length < 2) break;
+            var segmentLength = readU16BE(segmentLengthBytes, 0);
+            var segmentDataLength = segmentLength - 2;
+            if (segmentDataLength < 0) break;
+            var segmentStart = binaryFile.tell();
+
+            // SOFn（0xC0〜0xCF, ただし 0xC4/0xC8/0xCC は除く）
+            var isSof = (markerCode >= 0xC0 && markerCode <= 0xCF) && markerCode !== 0xC4 && markerCode !== 0xC8 && markerCode !== 0xCC;
+            if (isSof) {
+                // SOFn segment data: precision(1) + height(2) + width(2) + Nf(1) + ...
+                var sofBytes = binaryFile.read(6);
+                if (sofBytes && sofBytes.length === 6) {
+                    info.height = readU16BE(sofBytes, 1);
+                    info.width = readU16BE(sofBytes, 3);
+                    componentCount = sofBytes.charCodeAt(5) & 0xFF;
+                }
+                binaryFile.seek(segmentStart + segmentDataLength);
+            } else if (markerCode === 0xE2) {
+                var appSegmentHeader = binaryFile.read(14);
+                if (appSegmentHeader && appSegmentHeader.length === 14 && appSegmentHeader.substring(0, 12) === "ICC_PROFILE\0") {
+                    var sequenceNumber = appSegmentHeader.charCodeAt(12) & 0xFF;
+                    var totalPieces = appSegmentHeader.charCodeAt(13) & 0xFF;
+                    iccTotalPieces = totalPieces;
+                    var pieceLength = segmentDataLength - 14;
+                    if (pieceLength > 0) iccPieces[sequenceNumber] = binaryFile.read(pieceLength);
+                    else binaryFile.seek(segmentStart + segmentDataLength);
+                } else {
+                    binaryFile.seek(segmentStart + segmentDataLength);
+                }
+            } else {
+                binaryFile.seek(segmentStart + segmentDataLength);
+            }
+        }
+        if (componentCount === 1) info.colorMode = "Grayscale";
+        else if (componentCount === 4) info.colorMode = "CMYK";
+        else if (componentCount > 0) info.colorMode = "RGB";
+        if (iccTotalPieces > 0) {
+            var iccData = "";
+            var allPiecesReceived = true;
+            for (var pieceIdx = 1; pieceIdx <= iccTotalPieces; pieceIdx++) {
+                if (!iccPieces[pieceIdx]) { allPiecesReceived = false; break; }
+                iccData += iccPieces[pieceIdx];
+            }
+            if (allPiecesReceived && iccData.length > 0) info.iccDesc = readIccDesc(iccData);
+        }
+        return info;
+    }
+
+    // PSD ヘッダから幅/高さ・modeCode、Image Resources の resourceId=0x040F から ICC を取り出す
+    function readPsdImageInfo(binaryFile) {
+        var info = { width: null, height: null, colorMode: "", iccDesc: "" };
+        // PSD header: sig(4) + ver(2) + reserved(6) + channels(2) + rows(4) + cols(4) + depth(2) + mode(2)
+        binaryFile.seek(14);
+        var psdDimsBytes = binaryFile.read(8);
+        if (psdDimsBytes && psdDimsBytes.length === 8) {
+            info.height = readU32BE(psdDimsBytes, 0);
+            info.width = readU32BE(psdDimsBytes, 4);
+        }
+        var depthModeBytes = binaryFile.read(4); // depth(2) + mode(2)
+        if (depthModeBytes && depthModeBytes.length === 4) {
+            var modeCode = readU16BE(depthModeBytes, 2);
+            if (modeCode === 0) info.colorMode = "Bitmap";
+            else if (modeCode === 1) info.colorMode = "Grayscale";
+            else if (modeCode === 2) info.colorMode = "Indexed";
+            else if (modeCode === 3) info.colorMode = "RGB";
+            else if (modeCode === 4) info.colorMode = "CMYK";
+            else if (modeCode === 7) info.colorMode = "Multichannel";
+            else if (modeCode === 8) info.colorMode = "Duotone";
+            else if (modeCode === 9) info.colorMode = "Lab";
+        }
+        var colorModeDataLengthBytes = binaryFile.read(4);
+        if (!colorModeDataLengthBytes || colorModeDataLengthBytes.length < 4) return info;
+        var colorModeDataLength = readU32BE(colorModeDataLengthBytes, 0);
+        var imageResourceStart = 30 + colorModeDataLength;
+        binaryFile.seek(imageResourceStart);
+        var imageResourceLengthBytes = binaryFile.read(4);
+        if (!imageResourceLengthBytes || imageResourceLengthBytes.length < 4) return info;
+        var imageResourceLength = readU32BE(imageResourceLengthBytes, 0);
+        var imageResourceEnd = imageResourceStart + 4 + imageResourceLength;
+        // リソースセクション終端まで走査。壊れたファイルで binaryFile.tell() が進まない場合は無限ループを避けて break
+        while (binaryFile.tell() < imageResourceEnd) {
+            var positionBefore = binaryFile.tell();
+            var resourceSigBytes = binaryFile.read(4);
+            if (!resourceSigBytes || resourceSigBytes.length < 4 || resourceSigBytes !== "8BIM") break;
+            var resourceIdBytes = binaryFile.read(2);
+            if (!resourceIdBytes || resourceIdBytes.length < 2) break;
+            var resourceId = readU16BE(resourceIdBytes, 0);
+            var nameLengthByte = binaryFile.read(1);
+            if (!nameLengthByte) break;
+            var nameLength = nameLengthByte.charCodeAt(0) & 0xFF;
+            var paddedNameLength = nameLength + 1;
+            if (paddedNameLength % 2 !== 0) paddedNameLength++;
+            binaryFile.seek(binaryFile.tell() + (paddedNameLength - 1));
+            var dataSizeBytes = binaryFile.read(4);
+            if (!dataSizeBytes || dataSizeBytes.length < 4) break;
+            var dataSize = readU32BE(dataSizeBytes, 0);
+            var paddedDataSize = (dataSize % 2 === 0) ? dataSize : dataSize + 1;
+            if (resourceId === 0x040F) {
+                var iccProfileData = binaryFile.read(dataSize);
+                if (iccProfileData && iccProfileData.length > 0) info.iccDesc = readIccDesc(iccProfileData);
+                break;
+            } else {
+                binaryFile.seek(binaryFile.tell() + paddedDataSize);
+            }
+            // 進行していない（seek が無効）なら壊れたファイル。無限ループ回避
+            if (binaryFile.tell() <= positionBefore) break;
+        }
+        return info;
+    }
+
+    // 画像ファイルを 1 度だけ開いてピクセル寸法・カラーモード・ICC プロファイル名をまとめて取得
+    // 旧 readImagePixelSize / readImageColorSpace を統合したもの。戻り値: { width, height, colorMode, iccDesc } もしくは null
+    function readImageInfo(file) {
         if (!file) return null;
         if (!safeExists(file)) return null;
 
@@ -511,7 +675,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         binaryFile.encoding = "BINARY";
         if (!binaryFile.open("r")) return null;
 
-        var result = null;
+        var info = null;
         try {
             var signature = binaryFile.read(8);
             if (signature && signature.length >= 4) {
@@ -520,56 +684,17 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 var b2 = signature.charCodeAt(2) & 0xFF;
                 var b3 = signature.charCodeAt(3) & 0xFF;
 
-                // PNG: 89 50 4E 47 0D 0A 1A 0A
                 if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4E && b3 === 0x47) {
-                    // 8(sig) + 4(chunk length) + 4("IHDR") = 16 から幅/高さ
-                    binaryFile.seek(16);
-                    var ihdrBytes = binaryFile.read(8);
-                    if (ihdrBytes && ihdrBytes.length === 8) {
-                        result = { width: readU32BE(ihdrBytes, 0), height: readU32BE(ihdrBytes, 4) };
-                    }
-                }
-                // JPEG: FF D8
-                else if (b0 === 0xFF && b1 === 0xD8) {
-                    binaryFile.seek(2);
-                    while (true) {
-                        var markerBytes = binaryFile.read(2);
-                        if (!markerBytes || markerBytes.length < 2) break;
-                        if ((markerBytes.charCodeAt(0) & 0xFF) !== 0xFF) break;
-                        var markerCode = markerBytes.charCodeAt(1) & 0xFF;
-                        // SOFn（0xC0〜0xCF, ただし 0xC4/0xC8/0xCC は除く）
-                        if ((markerCode >= 0xC0 && markerCode <= 0xC3) ||
-                            (markerCode >= 0xC5 && markerCode <= 0xC7) ||
-                            (markerCode >= 0xC9 && markerCode <= 0xCB) ||
-                            (markerCode >= 0xCD && markerCode <= 0xCF)) {
-                            binaryFile.read(3); // length(2) + precision(1)
-                            var heightBytes = binaryFile.read(2);
-                            var widthBytes = binaryFile.read(2);
-                            if (heightBytes && widthBytes && heightBytes.length === 2 && widthBytes.length === 2) {
-                                result = { width: readU16BE(widthBytes, 0), height: readU16BE(heightBytes, 0) };
-                            }
-                            break;
-                        }
-                        var segmentLengthBytes = binaryFile.read(2);
-                        if (!segmentLengthBytes || segmentLengthBytes.length < 2) break;
-                        var segmentLength = readU16BE(segmentLengthBytes, 0);
-                        binaryFile.seek(binaryFile.tell() + segmentLength - 2);
-                    }
-                }
-                // PSD: "8BPS"
-                else if (b0 === 0x38 && b1 === 0x42 && b2 === 0x50 && b3 === 0x53) {
-                    // PSD header: sig(4) + ver(2) + reserved(6) + channels(2) + rows(4) + cols(4)
-                    // → rows は offset 14、cols は offset 18
-                    binaryFile.seek(14);
-                    var psdDimsBytes = binaryFile.read(8);
-                    if (psdDimsBytes && psdDimsBytes.length === 8) {
-                        result = { width: readU32BE(psdDimsBytes, 4), height: readU32BE(psdDimsBytes, 0) };
-                    }
+                    info = readPngImageInfo(binaryFile);
+                } else if (b0 === 0xFF && b1 === 0xD8) {
+                    info = readJpegImageInfo(binaryFile);
+                } else if (b0 === 0x38 && b1 === 0x42 && b2 === 0x50 && b3 === 0x53) {
+                    info = readPsdImageInfo(binaryFile);
                 }
             }
         } catch (e) { }
         binaryFile.close();
-        return result;
+        return info;
     }
 
     // ICC プロファイルのバイナリから desc タグ（プロファイル名）を取り出す
@@ -617,182 +742,6 @@ https://note.com/dtp_tranist/n/na66732d2056a
             }
         } catch (e) { }
         return "";
-    }
-
-    // 画像ファイルヘッダからカラーモードと ICC プロファイル名を読み取り、"RGB（Adobe RGB (1998)）" 形式で返す
-    function readImageColorSpace(file) {
-        if (!file) return null;
-        if (!safeExists(file)) return null;
-
-        var binaryFile = new File(file.fsName);
-        binaryFile.encoding = "BINARY";
-        if (!binaryFile.open("r")) return null;
-
-        var colorMode = "";
-        var iccDesc = "";
-
-        try {
-            var signature = binaryFile.read(8);
-            if (!signature || signature.length < 4) { binaryFile.close(); return null; }
-            var b0 = signature.charCodeAt(0) & 0xFF;
-            var b1 = signature.charCodeAt(1) & 0xFF;
-            var b2 = signature.charCodeAt(2) & 0xFF;
-            var b3 = signature.charCodeAt(3) & 0xFF;
-
-            // PNG: 89 50 4E 47
-            if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4E && b3 === 0x47) {
-                binaryFile.seek(16);
-                var ihdrBytes = binaryFile.read(10);
-                if (ihdrBytes && ihdrBytes.length === 10) {
-                    var colorType = ihdrBytes.charCodeAt(9) & 0xFF;
-                    if (colorType === 0 || colorType === 4) colorMode = "Grayscale";
-                    else if (colorType === 3) colorMode = "Indexed";
-                    else colorMode = "RGB";
-                }
-                // iCCP / sRGB チャンクを探す
-                binaryFile.seek(8 + 4 + 4 + 13 + 4); // PNG sig + IHDR length + "IHDR" + IHDR data + CRC
-                for (var pi = 0; pi < 32; pi++) {
-                    var pngChunkLengthBytes = binaryFile.read(4);
-                    if (!pngChunkLengthBytes || pngChunkLengthBytes.length < 4) break;
-                    var chunkLength = readU32BE(pngChunkLengthBytes, 0);
-                    var chunkType = binaryFile.read(4);
-                    if (!chunkType || chunkType.length < 4) break;
-                    if (chunkType === "iCCP") {
-                        var chunkData = binaryFile.read(chunkLength);
-                        if (chunkData) {
-                            var nullIndex = chunkData.indexOf("\0");
-                            if (nullIndex > 0) {
-                                iccDesc = chunkData.substring(0, nullIndex);
-                            }
-                        }
-                        break;
-                    } else if (chunkType === "sRGB") {
-                        iccDesc = "sRGB IEC61966-2.1";
-                        break;
-                    } else if (chunkType === "IDAT" || chunkType === "IEND") {
-                        break;
-                    } else {
-                        binaryFile.seek(binaryFile.tell() + chunkLength + 4); // data + CRC
-                    }
-                }
-            }
-            // JPEG: FF D8
-            else if (b0 === 0xFF && b1 === 0xD8) {
-                binaryFile.seek(2);
-                var iccPieces = {};
-                var iccTotalPieces = 0;
-                var componentCount = 0;
-                for (var ji = 0; ji < 64; ji++) {
-                    var markerBytes = binaryFile.read(2);
-                    if (!markerBytes || markerBytes.length < 2) break;
-                    if ((markerBytes.charCodeAt(0) & 0xFF) !== 0xFF) break;
-                    var markerCode = markerBytes.charCodeAt(1) & 0xFF;
-                    if (markerCode === 0xD9 || markerCode === 0xDA) break;
-                    var segmentLengthBytes = binaryFile.read(2);
-                    if (!segmentLengthBytes || segmentLengthBytes.length < 2) break;
-                    var segmentLength = readU16BE(segmentLengthBytes, 0);
-                    var segmentDataLength = segmentLength - 2;
-                    if (segmentDataLength < 0) break;
-                    var segmentStart = binaryFile.tell();
-
-                    var isSof = (markerCode >= 0xC0 && markerCode <= 0xCF) && markerCode !== 0xC4 && markerCode !== 0xC8 && markerCode !== 0xCC;
-                    if (isSof) {
-                        var sofBytes = binaryFile.read(6);
-                        if (sofBytes && sofBytes.length === 6) {
-                            componentCount = sofBytes.charCodeAt(5) & 0xFF;
-                        }
-                        binaryFile.seek(segmentStart + segmentDataLength);
-                    } else if (markerCode === 0xE2) {
-                        var appSegmentHeader = binaryFile.read(14);
-                        if (appSegmentHeader && appSegmentHeader.length === 14 && appSegmentHeader.substring(0, 12) === "ICC_PROFILE\0") {
-                            var sequenceNumber = appSegmentHeader.charCodeAt(12) & 0xFF;
-                            var totalPieces = appSegmentHeader.charCodeAt(13) & 0xFF;
-                            iccTotalPieces = totalPieces;
-                            var pieceLength = segmentDataLength - 14;
-                            if (pieceLength > 0) iccPieces[sequenceNumber] = binaryFile.read(pieceLength);
-                            else binaryFile.seek(segmentStart + segmentDataLength);
-                        } else {
-                            binaryFile.seek(segmentStart + segmentDataLength);
-                        }
-                    } else {
-                        binaryFile.seek(segmentStart + segmentDataLength);
-                    }
-                }
-                if (componentCount === 1) colorMode = "Grayscale";
-                else if (componentCount === 4) colorMode = "CMYK";
-                else if (componentCount > 0) colorMode = "RGB";
-                if (iccTotalPieces > 0) {
-                    var iccData = "";
-                    var allPiecesReceived = true;
-                    for (var pieceIdx = 1; pieceIdx <= iccTotalPieces; pieceIdx++) {
-                        if (!iccPieces[pieceIdx]) { allPiecesReceived = false; break; }
-                        iccData += iccPieces[pieceIdx];
-                    }
-                    if (allPiecesReceived && iccData.length > 0) iccDesc = readIccDesc(iccData);
-                }
-            }
-            // PSD: "8BPS"
-            else if (b0 === 0x38 && b1 === 0x42 && b2 === 0x50 && b3 === 0x53) {
-                binaryFile.seek(24);
-                var modeBytes = binaryFile.read(2);
-                if (modeBytes && modeBytes.length === 2) {
-                    var modeCode = readU16BE(modeBytes, 0);
-                    if (modeCode === 0) colorMode = "Bitmap";
-                    else if (modeCode === 1) colorMode = "Grayscale";
-                    else if (modeCode === 2) colorMode = "Indexed";
-                    else if (modeCode === 3) colorMode = "RGB";
-                    else if (modeCode === 4) colorMode = "CMYK";
-                    else if (modeCode === 7) colorMode = "Multichannel";
-                    else if (modeCode === 8) colorMode = "Duotone";
-                    else if (modeCode === 9) colorMode = "Lab";
-                }
-                binaryFile.seek(26);
-                var colorModeDataLengthBytes = binaryFile.read(4);
-                if (colorModeDataLengthBytes && colorModeDataLengthBytes.length === 4) {
-                    var colorModeDataLength = readU32BE(colorModeDataLengthBytes, 0);
-                    var imageResourceStart = 30 + colorModeDataLength;
-                    binaryFile.seek(imageResourceStart);
-                    var imageResourceLengthBytes = binaryFile.read(4);
-                    if (imageResourceLengthBytes && imageResourceLengthBytes.length === 4) {
-                        var imageResourceLength = readU32BE(imageResourceLengthBytes, 0);
-                        var imageResourceEnd = imageResourceStart + 4 + imageResourceLength;
-                        // リソースセクション終端まで走査。壊れたファイルで binaryFile.tell() が進まない場合は無限ループを避けて break
-                        while (binaryFile.tell() < imageResourceEnd) {
-                            var positionBefore = binaryFile.tell();
-                            var resourceSigBytes = binaryFile.read(4);
-                            if (!resourceSigBytes || resourceSigBytes.length < 4 || resourceSigBytes !== "8BIM") break;
-                            var resourceIdBytes = binaryFile.read(2);
-                            if (!resourceIdBytes || resourceIdBytes.length < 2) break;
-                            var resourceId = readU16BE(resourceIdBytes, 0);
-                            var nameLengthByte = binaryFile.read(1);
-                            if (!nameLengthByte) break;
-                            var nameLength = nameLengthByte.charCodeAt(0) & 0xFF;
-                            var paddedNameLength = nameLength + 1;
-                            if (paddedNameLength % 2 !== 0) paddedNameLength++;
-                            binaryFile.seek(binaryFile.tell() + (paddedNameLength - 1));
-                            var dataSizeBytes = binaryFile.read(4);
-                            if (!dataSizeBytes || dataSizeBytes.length < 4) break;
-                            var dataSize = readU32BE(dataSizeBytes, 0);
-                            var paddedDataSize = (dataSize % 2 === 0) ? dataSize : dataSize + 1;
-                            if (resourceId === 0x040F) {
-                                var iccProfileData = binaryFile.read(dataSize);
-                                if (iccProfileData && iccProfileData.length > 0) iccDesc = readIccDesc(iccProfileData);
-                                break;
-                            } else {
-                                binaryFile.seek(binaryFile.tell() + paddedDataSize);
-                            }
-                            // 進行していない（seek が無効）なら壊れたファイル。無限ループ回避
-                            if (binaryFile.tell() <= positionBefore) break;
-                        }
-                    }
-                }
-            }
-        } catch (e) { }
-        binaryFile.close();
-
-        if (!colorMode) return null;
-        if (iccDesc) return colorMode + "（" + iccDesc + "）";
-        return colorMode;
     }
 
     // 配置サイズ（pt）とピクセル寸法から実効 PPI を算出
@@ -945,114 +894,148 @@ https://note.com/dtp_tranist/n/na66732d2056a
         return fileName;
     }
 
-    // placedItems からリンク情報を収集し、フラットリストと重複排除済みリストを返す
-    function collectLinkInfo(doc, placedItems) {
-        var linkInfoList = [];
+    // 配置画像のファイル参照・リンク状態・サイズ・ファイル名を解決する
+    function getPlacementFileBasics(item, xmpRef, doc) {
+        var basics = {
+            linkedFile: tryGet(function () { return item.file; }, null),
+            filePath: "---",
+            fileName: L('fileNameUnknown'),
+            fileSize: "---",
+            fileSizeBytes: -1,
+            status: L('statusBroken'),
+            statusCode: "broken",
+            statusIcon: "⚠",
+            isLinkOk: false
+        };
 
-        var xmpRefs = collectXmpLinkedRefs(doc);
-
-        for (var i = 0; i < placedItems.length; i++) {
-            var item = placedItems[i];
-            var xmpRef = xmpRefs[i] || null;
-            var filePath = "---";
-            var fileName = L('fileNameUnknown');
-            var fileSize = "---";
-            var fileSizeBytes = -1; // ソート用（-1 は不明）
-            var status = L('statusBroken');
-
-            var linkedFile = tryGet(function () { return item.file; }, null);
-
-            var isLinkOk = false;
-            var statusCode = "broken";
-            var statusIcon = "⚠";
-
-            if (linkedFile) {
-                fileName = safeProp(linkedFile, "name", fileName);
-                filePath = safeProp(linkedFile, "fsName", filePath);
-                var resolvedStatus = resolveLinkStatus(linkedFile, item, doc, xmpRef ? xmpRef.lastModifyDate : "");
-                statusCode = resolvedStatus.statusCode;
-                status = resolvedStatus.status;
-                statusIcon = resolvedStatus.statusIcon;
-                isLinkOk = resolvedStatus.isLinkOk;
-                if (safeExists(linkedFile)) {
-                    var byteLength = tryGet(function () { return linkedFile.length; }, -1);
-                    if (byteLength >= 0) {
-                        fileSizeBytes = byteLength;
-                        fileSize = formatFileSize(fileSizeBytes);
-                    }
+        if (basics.linkedFile) {
+            basics.fileName = safeProp(basics.linkedFile, "name", basics.fileName);
+            basics.filePath = safeProp(basics.linkedFile, "fsName", basics.filePath);
+            var resolvedStatus = resolveLinkStatus(basics.linkedFile, item, doc, xmpRef ? xmpRef.lastModifyDate : "");
+            basics.statusCode = resolvedStatus.statusCode;
+            basics.status = resolvedStatus.status;
+            basics.statusIcon = resolvedStatus.statusIcon;
+            basics.isLinkOk = resolvedStatus.isLinkOk;
+            if (safeExists(basics.linkedFile)) {
+                var byteLength = tryGet(function () { return basics.linkedFile.length; }, -1);
+                if (byteLength >= 0) {
+                    basics.fileSizeBytes = byteLength;
+                    basics.fileSize = formatFileSize(basics.fileSizeBytes);
                 }
             }
-
-            fileName = getPlacedItemFileName(item, xmpRef ? xmpRef.fileName : "", fileName);
-
-            if (fileName === L('fileNameUnknown') && filePath !== "---") {
-                var derivedName = pathBaseName(filePath);
-                if (derivedName) fileName = derivedName;
-            }
-
-            var artboardNum = getArtboardNumber(item, doc);
-
-            var dimensions = getDimensionsMm(item);
-            var widthText = (dimensions.widthMm !== null) ? dimensions.widthMm.toFixed(1) : "---";
-            var heightText = (dimensions.heightMm !== null) ? dimensions.heightMm.toFixed(1) : "---";
-
-            var scaleInfo = getScaleInfo(item);
-
-            var ppi = null;
-            var pixelSize = null;
-            var colorSpace = "";
-            if (linkedFile) {
-                pixelSize = tryGet(function () { return readImagePixelSize(linkedFile); }, null);
-                ppi = getEffectivePPI(item, pixelSize);
-                colorSpace = tryGet(function () { return readImageColorSpace(linkedFile); }, "") || "";
-            }
-            var ppiText = (ppi !== null) ? String(ppi) : "---";
-
-            linkInfoList.push({
-                itemIndex: i,
-                index: i + 1,
-                fileName: fileName,
-                filePath: filePath,
-                fileSize: fileSize,
-                fileSizeBytes: fileSizeBytes,
-                status: status,
-                statusIcon: statusIcon,
-                statusCode: statusCode,
-                isLinkOk: isLinkOk,
-                artboardNum: artboardNum,
-                artboards: (artboardNum !== null) ? String(artboardNum) : "-",
-                widthMm: dimensions.widthMm,
-                heightMm: dimensions.heightMm,
-                widthText: widthText,
-                heightText: heightText,
-                scalePct: scaleInfo.scalePct,
-                scaleText: scaleInfo.scaleText,
-                ppi: ppi,
-                ppiText: ppiText,
-                colorSpace: colorSpace,
-                itemIndices: [i]
-            });
         }
 
-        // 同一ファイルの配置数をカウント
+        basics.fileName = getPlacedItemFileName(item, xmpRef ? xmpRef.fileName : "", basics.fileName);
+
+        if (basics.fileName === L('fileNameUnknown') && basics.filePath !== "---") {
+            var derivedName = pathBaseName(basics.filePath);
+            if (derivedName) basics.fileName = derivedName;
+        }
+
+        return basics;
+    }
+
+    // 配置オブジェクトの寸法（mm）・スケール・所属アートボードを返す
+    function getPlacementGeometry(item, doc) {
+        var dimensions = getDimensionsMm(item);
+        var widthText = (dimensions.widthMm !== null) ? dimensions.widthMm.toFixed(1) : "---";
+        var heightText = (dimensions.heightMm !== null) ? dimensions.heightMm.toFixed(1) : "---";
+        var scaleInfo = getScaleInfo(item);
+        return {
+            artboardNum: getArtboardNumber(item, doc),
+            widthMm: dimensions.widthMm,
+            heightMm: dimensions.heightMm,
+            widthText: widthText,
+            heightText: heightText,
+            scalePct: scaleInfo.scalePct,
+            scaleText: scaleInfo.scaleText
+        };
+    }
+
+    // リンクファイルから実効 PPI とカラースペース表示を組み立てる
+    // 旧実装では幅高さ取得用とカラースペース取得用に同じファイルを 2 回開いていたが、readImageInfo に統合済み
+    function getPlacementImageMeta(item, linkedFile) {
+        var ppi = null;
+        var colorSpace = "";
+        if (linkedFile) {
+            var info = tryGet(function () { return readImageInfo(linkedFile); }, null);
+            if (info) {
+                if (info.width && info.height) {
+                    ppi = getEffectivePPI(item, { width: info.width, height: info.height });
+                }
+                if (info.colorMode) {
+                    colorSpace = info.iccDesc
+                        ? info.colorMode + "（" + info.iccDesc + "）"
+                        : info.colorMode;
+                }
+            }
+        }
+        return {
+            ppi: ppi,
+            ppiText: (ppi !== null) ? String(ppi) : "---",
+            colorSpace: colorSpace
+        };
+    }
+
+    // placedItems からリンク情報を収集し、フラットリストと重複排除済みリストを返す
+    // 1 つの placedItem からファイル情報・寸法・PPI・カラースペース等を抽出して 1 行分の info を作る
+    function buildPlacementEntry(item, itemIndex, xmpRef, doc) {
+        var basics = getPlacementFileBasics(item, xmpRef, doc);
+        var geometry = getPlacementGeometry(item, doc);
+        var imageMeta = getPlacementImageMeta(item, basics.linkedFile);
+
+        return {
+            itemIndex: itemIndex,
+            index: itemIndex + 1,
+            fileName: basics.fileName,
+            filePath: basics.filePath,
+            fileSize: basics.fileSize,
+            fileSizeBytes: basics.fileSizeBytes,
+            status: basics.status,
+            statusIcon: basics.statusIcon,
+            statusCode: basics.statusCode,
+            isLinkOk: basics.isLinkOk,
+            artboardNum: geometry.artboardNum,
+            artboards: (geometry.artboardNum !== null) ? String(geometry.artboardNum) : "-",
+            widthMm: geometry.widthMm,
+            heightMm: geometry.heightMm,
+            widthText: geometry.widthText,
+            heightText: geometry.heightText,
+            scalePct: geometry.scalePct,
+            scaleText: geometry.scaleText,
+            ppi: imageMeta.ppi,
+            ppiText: imageMeta.ppiText,
+            colorSpace: imageMeta.colorSpace,
+            itemIndices: [itemIndex]
+        };
+    }
+
+    // 集約用キー：filePath が取れていればそれで集約、リンク切れ（"---"）は itemIndex 付きで個別扱い
+    // 同名でも元ファイルが別物の可能性があるため、XMP 由来のファイル名で安易にまとめない
+    function getLinkGroupKey(info) {
+        if (info.filePath && info.filePath !== "---") return info.filePath;
+        return "__broken__#" + info.itemIndex + "#" + (info.fileName || "");
+    }
+
+    // info の同一ファイル数を集計し、各 info に fileCount を付加する（破壊的）
+    function assignFileCounts(linkInfoList) {
         var countMap = {};
-        for (var ci = 0; ci < linkInfoList.length; ci++) {
-            var countInfo = linkInfoList[ci];
-            var countKey = (countInfo.filePath !== "---") ? countInfo.filePath : countInfo.fileName;
-            countMap[countKey] = (countMap[countKey] || 0) + 1;
+        for (var i = 0; i < linkInfoList.length; i++) {
+            var key = getLinkGroupKey(linkInfoList[i]);
+            countMap[key] = (countMap[key] || 0) + 1;
         }
-        for (var ai = 0; ai < linkInfoList.length; ai++) {
-            var assignInfo = linkInfoList[ai];
-            var assignKey = (assignInfo.filePath !== "---") ? assignInfo.filePath : assignInfo.fileName;
-            assignInfo.fileCount = countMap[assignKey];
+        for (var j = 0; j < linkInfoList.length; j++) {
+            linkInfoList[j].fileCount = countMap[getLinkGroupKey(linkInfoList[j])];
         }
+    }
 
-        // 重複排除
+    // 同一ファイルでまとめた重複排除済みリストを返す。artboardSet / artboards / artboardNum も集約。
+    function dedupeByFile(linkInfoList) {
         var uniqueList = [];
         var keyToEntry = {};
         for (var di = 0; di < linkInfoList.length; di++) {
             var dedupInfo = linkInfoList[di];
-            var dedupKey = (dedupInfo.filePath !== "---") ? dedupInfo.filePath : dedupInfo.fileName;
+            var dedupKey = getLinkGroupKey(dedupInfo);
             if (keyToEntry[dedupKey]) {
                 keyToEntry[dedupKey].itemIndices.push(dedupInfo.itemIndex);
                 if (dedupInfo.artboardNum !== null) {
@@ -1100,7 +1083,17 @@ https://note.com/dtp_tranist/n/na66732d2056a
             uniqueEntry.artboards = (artboardNumbers.length > 0) ? artboardNumbers.join(", ") : "-";
             uniqueEntry.artboardNum = (artboardNumbers.length > 0) ? artboardNumbers[0] : null;
         }
+        return uniqueList;
+    }
 
+    function collectLinkInfo(doc, placedItems) {
+        var xmpRefs = collectXmpLinkedRefs(doc);
+        var linkInfoList = [];
+        for (var i = 0; i < placedItems.length; i++) {
+            linkInfoList.push(buildPlacementEntry(placedItems[i], i, xmpRefs[i] || null, doc));
+        }
+        assignFileCounts(linkInfoList);
+        var uniqueList = dedupeByFile(linkInfoList);
         return { linkInfoList: linkInfoList, uniqueList: uniqueList };
     }
 
@@ -1161,10 +1154,10 @@ https://note.com/dtp_tranist/n/na66732d2056a
         var MAIN_LISTBOX_SIZE = [500, 190]; // メイン一覧のサイズ
         var FOLDER_LISTBOX_SIZE = [500, 120]; // リンクフォルダ一覧のサイズ
 
-        var dlg = new Window("dialog", L('dialogTitle') + " " + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = ["fill", "top"];
-        dlg.preferredSize.width = 500;
+        var dialog = new Window("dialog", L('dialogTitle') + " " + SCRIPT_VERSION);
+        dialog.orientation = "column";
+        dialog.alignChildren = ["fill", "top"];
+        dialog.preferredSize.width = 500;
 
         // ソート・フィルタ前の元データ（重複チェックボックスで切り替え）
         var sourceEntries = uniqueFileEntries;
@@ -1176,7 +1169,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         var pendingSelectionItemIndex = -1;
 
         // --- 上部 2 カラム：左（ソート + オプション） / 右（その他） ---
-        var topRow = dlg.add("group");
+        var topRow = dialog.add("group");
         topRow.orientation = "row";
         topRow.alignChildren = ["fill", "top"];
 
@@ -1211,13 +1204,13 @@ https://note.com/dtp_tranist/n/na66732d2056a
         optPanel.margins = PANEL_MARGINS;
         var dedupCheck = optPanel.add("checkbox", undefined, L('dedupCheck'));
         dedupCheck.value = true; // ON：同一ファイルは 1 行にまとめる
-        dedupCheck.helpTip = (lang === 'ja')
+        dedupCheck.helpTip = (currentLanguage === 'ja')
             ? "ON：同じリンクファイルを1行にまとめ、再リンクは“すべて一括”で実行されます（複数変更に注意）。\nOFF：配置ごとに個別表示され、再リンクも1件ずつ実行されます。"
             : "ON: Group same linked files into one row; relink applies to ALL placements (affects multiple items).\nOFF: Each placement is listed separately; relink applies individually.";
         var countColCheck = optPanel.add("checkbox", undefined, L('displayFileCount'));
         countColCheck.value = true;
 
-        // 右カラム：その他（表示オプション + フィルター / アートボード）
+        // 右カラム：表示列・ステータス・アートボードを配置
         var otherPanel = topRow.add("group");
         otherPanel.orientation = "column";
         otherPanel.alignChildren = ["fill", "top"];
@@ -1227,7 +1220,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         otherTopRow.orientation = "row";
         otherTopRow.alignChildren = ["fill", "top"];
 
-        // 左：表示オプション（列の表示/非表示を切替）
+        // 左：表示列の表示／非表示を切り替える
         var optionPanel = otherTopRow.add("panel", undefined, L('displayOptionPanelTitle'));
         optionPanel.orientation = "column";
         optionPanel.alignChildren = ["left", "top"];
@@ -1247,7 +1240,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         dimScalePpiCheck.value = false;
         colorSpaceColCheck.value = false;
 
-        // 右：フィルター
+        // 右：ステータスフィルター
         var filterPanel = otherTopRow.add("panel", undefined, L('filterPanelTitle'));
         filterPanel.orientation = "column";
         filterPanel.alignChildren = ["left", "top"];
@@ -1270,16 +1263,17 @@ https://note.com/dtp_tranist/n/na66732d2056a
         abPanel.margins = PANEL_MARGINS;
         // 配置画像のあるアートボード番号を収集（無い番号はドロップダウンでディム表示）
         var artboardsWithImages = {};
-        for (var pi = 0; pi < allPlacementEntries.length; pi++) {
-            var abNum = allPlacementEntries[pi].artboardNum;
+        for (var entryIdx = 0; entryIdx < allPlacementEntries.length; entryIdx++) {
+            var abNum = allPlacementEntries[entryIdx].artboardNum;
             if (abNum !== null) artboardsWithImages[abNum] = true;
         }
 
         var artboardDropdownItems = [L('artboardAll')];
+        var artboardSep = (currentLanguage === 'ja') ? '：' : ': ';
         for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
             var artboardName = "";
             artboardName = safeProp(doc.artboards[artboardIndex], "name", artboardName);
-            artboardDropdownItems.push((artboardIndex + 1) + "：" + (artboardName || L('artboardFallback') + (artboardIndex + 1)));
+            artboardDropdownItems.push((artboardIndex + 1) + artboardSep + (artboardName || L('artboardFallback') + (artboardIndex + 1)));
         }
         var abFilterDropdown = abPanel.add("dropdownlist", undefined, artboardDropdownItems);
 
@@ -1310,11 +1304,19 @@ https://note.com/dtp_tranist/n/na66732d2056a
         }
 
         // --- リストボックス（アートボード列の有無で再生成するため、コンテナ経由で配置） ---
-        var listHolder = dlg.add("group");
+        var listHolder = dialog.add("group");
         listHolder.orientation = "column";
         listHolder.alignChildren = ["fill", "top"];
 
         var listBox = null;
+        // 行選択中の絶対パス＋エントリ（ボタンや整形切替で使用）
+        // Absolute path and entry for the currently selected row.
+        var selectedFilePath = "";
+        var selectedEntry = null;
+        // rebuildList() から呼ぶ選択復元処理。path UI 側の依存関数定義後に実体を代入する。
+        // Selection-restore handler called from rebuildList(); assigned after path-UI dependent functions are defined.
+        var restoreListSelectionByItemIndex = null;
+
         // 各列の有効/無効・キー・タイトル・幅を表示オプションに応じて返す
         function getColumnSpec() {
             var cols = [];
@@ -1339,7 +1341,8 @@ https://note.com/dtp_tranist/n/na66732d2056a
             if (colorSpaceColCheck.value) {
                 cols.push({ key: "colorSpace", title: L('colColorSpace'), width: 160 });
             }
-            // Show/hide Artboard column based on artboard dropdown selection
+            // アートボードドロップダウンの選択に応じて列を表示／非表示
+            // Show/hide the Artboard column based on the artboard dropdown selection.
             var shouldShowArtboardColumn = !abFilterDropdown.selection || abFilterDropdown.selection.index === 0;
             if (shouldShowArtboardColumn) {
                 cols.push({ key: "artboards", title: L('colArtboards'), width: 70 });
@@ -1367,26 +1370,16 @@ https://note.com/dtp_tranist/n/na66732d2056a
             });
             listBox.preferredSize = MAIN_LISTBOX_SIZE;
             listBox.alignment = ["fill", "fill"];
-
-            // 行選択時：パス表示を更新。「カンバス上で表示」が ON なら該当画像を選択＆フィット
-            listBox.onChange = function () {
-                if (listBox.selection === null) return;
-                var info = filteredEntries[listBox.selection.index];
-                selectedEntry = info;
-                selectedFilePath = info.filePath;
-                pathStaticText.text = buildDisplayedPath(info.filePath);
-                updateActionButtonStates();
-                highlightFolderFor(info.filePath);
-                if (suppressCanvasOnce) {
-                    suppressCanvasOnce = false;
-                    return;
-                }
-                if (showOnCanvasCheck.value) selectPlacedItemsOnCanvas(info);
-            };
         }
-        createListBox();
 
-        // ソートキー仕様：listbox で非表示の項目はドロップダウンから自動的に除外される
+        // ソートキー仕様：listBox で非表示の項目はドロップダウンから自動的に除外
+        // Hidden listBox columns are automatically removed from the sort dropdown.
+        function getStatusSortValue(statusCode) {
+            if (statusCode === "broken") return 1;
+            if (statusCode === "update") return 2;
+            if (statusCode === "ok") return 3;
+            return 9;
+        }
         var SORT_SPECS = [
             { key: 'fileName', labelKey: 'sortFileName', preferDesc: false, getValue: function (i) { return i.fileName; }, isVisible: function () { return true; } },
             { key: 'fileSize', labelKey: 'sortFileSize', preferDesc: true, getValue: function (i) { return i.fileSizeBytes; }, isVisible: function () { return sizeColCheck.value; } },
@@ -1396,7 +1389,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             { key: 'height', labelKey: 'sortHeight', preferDesc: true, getValue: function (i) { return i.heightMm; }, isVisible: function () { return dimScalePpiCheck.value; } },
             { key: 'scale', labelKey: 'sortScale', preferDesc: true, getValue: function (i) { return i.scalePct; }, isVisible: function () { return dimScalePpiCheck.value; } },
             { key: 'ppi', labelKey: 'sortPpi', preferDesc: true, getValue: function (i) { return i.ppi; }, isVisible: function () { return dimScalePpiCheck.value; } },
-            { key: 'status', labelKey: 'sortStatus', preferDesc: false, getValue: function (i) { return i.status; }, isVisible: function () { return true; } },
+            { key: 'status', labelKey: 'sortStatus', preferDesc: false, getValue: function (i) { return getStatusSortValue(i.statusCode); }, isVisible: function () { return true; } },
             { key: 'colorSpace', labelKey: 'sortColorSpace', preferDesc: false, getValue: function (i) { return i.colorSpace || ""; }, isVisible: function () { return colorSpaceColCheck.value; } }
         ];
 
@@ -1419,7 +1412,8 @@ https://note.com/dtp_tranist/n/na66732d2056a
             if (currentVisibleSpecs.length > 0) sortDropdown.selection = nextIdx;
         }
 
-        // ソートキーの値取り出し（currentVisibleSpecs のインデックス経由）
+        // ソートキーの値を取得（currentVisibleSpecs のインデックス経由）
+        // Resolve the sort value via the currentVisibleSpecs index.
         function getSortValue(info, sortBy) {
             var spec = currentVisibleSpecs[sortBy];
             if (!spec) return info.fileName;
@@ -1475,14 +1469,20 @@ https://note.com/dtp_tranist/n/na66732d2056a
             filteredEntries.sort(function (a, b) {
                 var valA = getSortValue(a, sortBy);
                 var valB = getSortValue(b, sortBy);
+
                 // 欠損値は常に末尾
+                // Missing values are always placed at the end.
                 var aMissing = isMissing(valA), bMissing = isMissing(valB);
-                if (aMissing && bMissing) return 0;
+                if (aMissing && bMissing) return a.index - b.index;
                 if (aMissing) return 1;
                 if (bMissing) return -1;
+
                 if (valA < valB) return desc ? 1 : -1;
                 if (valA > valB) return desc ? -1 : 1;
-                return 0;
+
+                // ExtendScript の sort 不安定対策：最後は元 index で固定
+                // Stabilize ExtendScript sort by falling back to original index.
+                return a.index - b.index;
             });
 
             // 列スペックに沿って動的にセル値を流し込む
@@ -1511,39 +1511,11 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 }
             }
 
-            restoreListSelectionByItemIndex(selectionItemIndexToRestore);
-        }
-
-        // リスト再構築後、配置アイテム index を基準に該当行を再選択する
-        function restoreListSelectionByItemIndex(itemIndexToRestore) {
-            if (itemIndexToRestore < 0 || !filteredEntries || filteredEntries.length === 0) return;
-
-            for (var i = 0; i < filteredEntries.length; i++) {
-                var entry = filteredEntries[i];
-                if (!entry || !entry.itemIndices) continue;
-
-                for (var j = 0; j < entry.itemIndices.length; j++) {
-                    if (entry.itemIndices[j] === itemIndexToRestore) {
-                        suppressCanvasOnce = true;
-                        selectedEntry = entry;
-                        selectedFilePath = entry.filePath;
-                        pathStaticText.text = buildDisplayedPath(entry.filePath);
-                        updateActionButtonStates();
-                        highlightFolderFor(entry.filePath);
-                        try {
-                            var targetItem = listBox.items[i];
-                            listBox.selection = targetItem;
-                            if (typeof listBox.revealItem === "function") {
-                                listBox.revealItem(targetItem);
-                            }
-                        } catch (e) {
-                            try { listBox.selection = i; } catch (e2) { }
-                        }
-                        return;
-                    }
-                }
+            if (restoreListSelectionByItemIndex) {
+                restoreListSelectionByItemIndex(selectionItemIndexToRestore);
             }
         }
+
 
         // 数値系のソートに切り替えたら自動で降順 ON（spec.preferDesc による）
         sortDropdown.onChange = function () {
@@ -1606,8 +1578,9 @@ https://note.com/dtp_tranist/n/na66732d2056a
             }
 
             createListBox();
+            bindListBoxEvents();
             rebuildSortDropdown();
-            dlg.layout.layout(true);
+            dialog.layout.layout(true);
             rebuildList();
         }
         abFilterDropdown.onChange = applyArtboardFilter;
@@ -1636,8 +1609,9 @@ https://note.com/dtp_tranist/n/na66732d2056a
         // 列の表示/非表示・ヘッダ更新時の共通処理（listBox を作り直し、ソート候補も更新）
         function recreateListBoxAndRebuildList() {
             createListBox();
+            bindListBoxEvents();
             rebuildSortDropdown();
-            dlg.layout.layout(true);
+            dialog.layout.layout(true);
             rebuildList();
         }
         unitCheck.onClick = recreateListBoxAndRebuildList;
@@ -1649,20 +1623,12 @@ https://note.com/dtp_tranist/n/na66732d2056a
         dimScalePpiCheck.onClick = recreateListBoxAndRebuildList;
         colorSpaceColCheck.onClick = recreateListBoxAndRebuildList;
 
-        // ソートドロップダウンの初期構築：使用数をデフォルト選択
-        rebuildSortDropdown();
-        for (var initSi = 0; initSi < currentVisibleSpecs.length; initSi++) {
-            if (currentVisibleSpecs[initSi].key === 'fileCount') {
-                sortDropdown.selection = initSi;
-                break;
-            }
-        }
-
-        // 初期表示
-        rebuildList();
+        // 初期表示（createListBox / rebuildSortDropdown / rebuildList）は
+        // pathStaticText など UI 構築後にまとめて実行する
+        // The initial display calls are batched after the path UI is built.
 
         // --- パスパネル直上：選択時の挙動オプション ---
-        var viewOptRow = dlg.add("group");
+        var viewOptRow = dialog.add("group");
         viewOptRow.orientation = "row";
         viewOptRow.alignment = ["fill", "top"];
         viewOptRow.alignChildren = ["left", "center"];
@@ -1670,7 +1636,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         showOnCanvasCheck.value = true; // ON：行選択でカンバス上の該当画像をフィット表示
 
         // --- パスパネル ---
-        var pathPanel = dlg.add("panel", undefined, L('pathPanelTitle'));
+        var pathPanel = dialog.add("panel", undefined, L('pathPanelTitle'));
         pathPanel.orientation = "column";
         pathPanel.alignChildren = ["fill", "top"];
         pathPanel.margins = PANEL_MARGINS;
@@ -1698,12 +1664,17 @@ https://note.com/dtp_tranist/n/na66732d2056a
         pathOptLeft.orientation = "row";
         pathOptLeft.alignChildren = ["left", "center"];
         pathOptLeft.alignment = ["left", "center"];
-        var tildeCheck = pathOptLeft.add("checkbox", undefined, L('tildeCheck'));
-        var dropboxCheck = pathOptLeft.add("checkbox", undefined, L('dropboxCheck'));
+        var fullPathCheck = pathOptLeft.add("checkbox", undefined, L('fullPathCheck'));
+        // DROPBOX_PREFIX が空文字なら Dropbox チェックボックスは追加せず、参照だけ満たすスタブを使う
+        var dropboxCheck;
+        if (DROPBOX_PREFIX) {
+            dropboxCheck = pathOptLeft.add("checkbox", undefined, L('dropboxCheck'));
+            dropboxCheck.value = true;
+        } else {
+            dropboxCheck = { value: false, enabled: false };
+        }
         var fileNameCheck = pathOptLeft.add("checkbox", undefined, L('fileNameCheck'));
-        // フルパス表示（ON）時は ~ 短縮を無効化する（意味は内部的に反転）
-        tildeCheck.value = false;
-        dropboxCheck.value = true;
+        fullPathCheck.value = false; // ON：フルパスをそのまま表示。OFF：~/ や Dropbox 接頭辞で短縮
         fileNameCheck.value = false; // ON：パスにファイル名まで含める。OFF：親フォルダまで表示
 
         var pathOptSpacer = pathOptRow.add("group");
@@ -1713,10 +1684,6 @@ https://note.com/dtp_tranist/n/na66732d2056a
         pathOptRight.orientation = "row";
         pathOptRight.alignChildren = ["right", "center"];
         pathOptRight.alignment = ["right", "center"];
-
-        // 行選択中の絶対パス＋エントリ（ボタンや整形切替で使用）
-        var selectedFilePath = "";
-        var selectedEntry = null;
 
         // selectedEntry 未選択ガード付きで onClick ハンドラを生成
         function requireSelectedEntry(handler) {
@@ -1729,36 +1696,113 @@ https://note.com/dtp_tranist/n/na66732d2056a
             };
         }
 
-        // ファイル名ON時も ~ 短縮や Dropbox 短縮は適用する（フルパスONのときだけ生パスを表示）
+        // listBox.onChange / rebuildList() から呼ばれるため、初期表示前に定義しておく
+        // Defined before the initial list build because listBox.onChange / rebuildList() depend on these functions.
+
+        // フルパス ON：そのまま表示。OFF：~ 短縮や Dropbox 短縮を適用する（ファイル名 ON でも短縮は効く）
         function buildDisplayedPath(absPath) {
             if (!absPath || absPath === "---") return absPath;
-
-            var pathToFormat = fileNameCheck.value ? absPath : toFolderOnly(absPath);
-            return formatDisplayPath(pathToFormat, !tildeCheck.value, dropboxCheck.value);
+            var displayPath = fileNameCheck.value ? absPath : toFolderOnly(absPath);
+            if (fullPathCheck.value) return displayPath;
+            return formatDisplayPath(displayPath, true, dropboxCheck.value);
         }
+        function updateSelectedEntryDisplay(info) {
+            selectedEntry = info;
+            selectedFilePath = info.filePath;
+            pathStaticText.text = buildDisplayedPath(info.filePath);
+            updateActionButtonStates();
+            highlightFolderFor(info.filePath);
+        }
+
+        function handleListSelectionChange() {
+            if (listBox.selection === null) return;
+
+            var info = filteredEntries[listBox.selection.index];
+            updateSelectedEntryDisplay(info);
+
+            if (suppressCanvasOnce) {
+                suppressCanvasOnce = false;
+                return;
+            }
+            if (showOnCanvasCheck.value) selectPlacedItemsOnCanvas(info);
+        }
+
+        function bindListBoxEvents() {
+            if (!listBox) return;
+            listBox.onChange = handleListSelectionChange;
+        }
+
+        // リスト再構築後、配置アイテム index を基準に該当行を再選択する
+        // Restore the row selection by the placed item index after rebuilding the list.
+        restoreListSelectionByItemIndex = function (itemIndexToRestore) {
+            if (itemIndexToRestore < 0 || !filteredEntries || filteredEntries.length === 0) return;
+
+            for (var i = 0; i < filteredEntries.length; i++) {
+                var entry = filteredEntries[i];
+                if (!entry || !entry.itemIndices) continue;
+
+                for (var j = 0; j < entry.itemIndices.length; j++) {
+                    if (entry.itemIndices[j] === itemIndexToRestore) {
+                        suppressCanvasOnce = true;
+                        updateSelectedEntryDisplay(entry);
+                        try {
+                            var targetItem = listBox.items[i];
+                            listBox.selection = targetItem;
+                            if (typeof listBox.revealItem === "function") {
+                                listBox.revealItem(targetItem);
+                            }
+                        } catch (e) {
+                            try { listBox.selection = i; } catch (e2) { }
+                        }
+                        return;
+                    }
+                }
+            }
+        };
+
         function updatePathDisplay() {
             if (!selectedFilePath) return;
             pathStaticText.text = buildDisplayedPath(selectedFilePath);
         }
+
         function onPathOptionChange() {
             updatePathDisplay();
             populateFoldersList();
         }
-        // Dropbox 対応が ON のときは、~ 置換が上書きされる前提なので ~ チェックをディム
-        function updateTildeEnable() {
-            tildeCheck.enabled = !dropboxCheck.value;
+
+        // 初期表示：listBox とソートドロップダウンを構築し、使用数をデフォルト選択
+        // Initial display: build listBox / sort dropdown and default to fileCount.
+        createListBox();
+        bindListBoxEvents();
+        rebuildSortDropdown();
+
+        for (var initSi = 0; initSi < currentVisibleSpecs.length; initSi++) {
+            if (currentVisibleSpecs[initSi].key === 'fileCount') {
+                sortDropdown.selection = initSi;
+                break;
+            }
         }
-        tildeCheck.onClick = onPathOptionChange;
+        rebuildList();
+
+        // Dropbox 対応が ON のときは Dropbox 接頭辞短縮が優先されるので、フルパスチェックをディム
+        // ディムするだけだと .value が残って buildDisplayedPath / populateFoldersList で挙動がズレるため、
+        // 無効化と同時に value も false に倒して状態を一本化する
+        function updateFullPathEnable() {
+            fullPathCheck.enabled = !dropboxCheck.value;
+            if (!fullPathCheck.enabled) fullPathCheck.value = false;
+        }
+
+        fullPathCheck.onClick = onPathOptionChange;
         dropboxCheck.onClick = function () {
-            updateTildeEnable();
+            updateFullPathEnable();
             onPathOptionChange();
         };
         fileNameCheck.onClick = function () {
             updatePathDisplay();
             pathPanel.layout.layout(true);
-            dlg.layout.layout(true);
+            dialog.layout.layout(true);
         }; // フォルダ一覧には影響しない
-        updateTildeEnable(); // 初期化
+        updateFullPathEnable(); // 初期化
 
         // 選択エントリに対応する itemIndices のリンク先を newFile に差し替え
         function relinkIndicesTo(indices, newFile) {
@@ -1775,11 +1819,11 @@ https://note.com/dtp_tranist/n/na66732d2056a
         }
 
         function showChangeExtensionDialog() {
-            var extDlg = new Window("dialog", L('changeExtDialogTitle'));
-            extDlg.orientation = "column";
-            extDlg.alignChildren = ["fill", "top"];
+            var extdialog = new Window("dialog", L('changeExtDialogTitle'));
+            extdialog.orientation = "column";
+            extdialog.alignChildren = ["fill", "top"];
 
-            var folderPanel = extDlg.add("panel", undefined, L('changeExtFolderPanelTitle'));
+            var folderPanel = extdialog.add("panel", undefined, L('changeExtFolderPanelTitle'));
             folderPanel.orientation = "column";
             folderPanel.alignChildren = ["fill", "top"];
             folderPanel.margins = PANEL_MARGINS;
@@ -1791,7 +1835,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             folderLabel.alignment = ["fill", "top"];
             folderLabel.preferredSize = [300, 20];
 
-            var extPanel = extDlg.add("panel", undefined, L('changeExtPanelTitle'));
+            var extPanel = extdialog.add("panel", undefined, L('changeExtPanelTitle'));
             extPanel.orientation = "column";
             extPanel.alignChildren = ["fill", "top"];
             extPanel.margins = PANEL_MARGINS;
@@ -1806,7 +1850,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 referenceFolder = selectedFolder;
                 folderLabel.text = selectedFolder.fsName;
                 if (okBtn) okBtn.enabled = true;
-                safeRelayout(extDlg);
+                safeRelayout(extdialog);
             };
 
             var radios = [];
@@ -1816,23 +1860,15 @@ https://note.com/dtp_tranist/n/na66732d2056a
             radioRow.alignment = ["fill", "top"];
             radioRow.alignChildren = ["fill", "top"];
 
-            var colLeft = radioRow.add("group");
-            colLeft.orientation = "column";
-            colLeft.alignment = ["fill", "top"];
-            colLeft.alignChildren = ["left", "top"];
-            colLeft.preferredSize.width = 110;
-
-            var colCenter = radioRow.add("group");
-            colCenter.orientation = "column";
-            colCenter.alignment = ["fill", "top"];
-            colCenter.alignChildren = ["left", "top"];
-            colCenter.preferredSize.width = 110;
-
-            var colRight = radioRow.add("group");
-            colRight.orientation = "column";
-            colRight.alignment = ["fill", "top"];
-            colRight.alignChildren = ["left", "top"];
-            colRight.preferredSize.width = 110;
+            // 110px 幅の縦カラムを 1 つ追加して返す
+            function addRadioColumn(parent) {
+                var col = parent.add("group");
+                col.orientation = "column";
+                col.alignment = ["fill", "top"];
+                col.alignChildren = ["left", "top"];
+                col.preferredSize.width = 110;
+                return col;
+            }
 
             function addRadio(parent, label, ext, alt, isDefault) {
                 var radioBtn = parent.add("radiobutton", undefined, label);
@@ -1856,50 +1892,64 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 };
             }
 
-            // 左カラム
-            addRadio(colLeft, "png", ".png");
-            addRadio(colLeft, "jpg / jpeg", ".jpg", ".jpeg");
-            addRadio(colLeft, "psd", ".psd", null, true);
+            // 3 カラム × 3 行のラジオを定義どおりに配置
+            var radioColumns = [
+                [
+                    { label: "png", ext: ".png" },
+                    { label: "jpg / jpeg", ext: ".jpg", alt: ".jpeg" },
+                    { label: "psd", ext: ".psd", isDefault: true }
+                ],
+                [
+                    { label: "tiff", ext: ".tif", alt: ".tiff" },
+                    { label: "webp", ext: ".webp" },
+                    { label: "avif", ext: ".avif" }
+                ],
+                [
+                    { label: "gif", ext: ".gif" },
+                    { label: "ai", ext: ".ai" },
+                    { label: "pdf", ext: ".pdf" }
+                ]
+            ];
+            for (var colIdx = 0; colIdx < radioColumns.length; colIdx++) {
+                var column = addRadioColumn(radioRow);
+                for (var entryIdx = 0; entryIdx < radioColumns[colIdx].length; entryIdx++) {
+                    var spec = radioColumns[colIdx][entryIdx];
+                    addRadio(column, spec.label, spec.ext, spec.alt || null, !!spec.isDefault);
+                }
+            }
 
-            // 中央カラム
-            addRadio(colCenter, "tiff", ".tif", ".tiff");
-            addRadio(colCenter, "webp", ".webp");
-            addRadio(colCenter, "avif", ".avif");
+            function findSelectedRadioSpec() {
+                for (var radioIdx = 0; radioIdx < radios.length; radioIdx++) {
+                    if (radios[radioIdx].ui.value) return radios[radioIdx];
+                }
+                return null;
+            }
 
-            // 右カラム
-            addRadio(colRight, "gif", ".gif");
-            addRadio(colRight, "ai", ".ai");
-            addRadio(colRight, "pdf", ".pdf");
-
-            var btnRow = extDlg.add("group");
+            var btnRow = extdialog.add("group");
             btnRow.alignment = ["right", "top"];
 
             var cancelBtn = btnRow.add("button", undefined, L('cancelBtn'));
-            okBtn = btnRow.add("button", undefined, L('okBtn'));
+            okBtn = btnRow.add("button", undefined, "OK");
             okBtn.enabled = false;
 
             cancelBtn.onClick = function () {
-                extDlg.close(0);
+                extdialog.close(0);
             };
 
             okBtn.onClick = function () {
                 if (!referenceFolder) return;
-                extDlg.close(1);
+                extdialog.close(1);
             };
 
-            if (extDlg.show() !== 1) return null;
+            if (extdialog.show() !== 1) return null;
 
-            for (var radioIdx = 0; radioIdx < radios.length; radioIdx++) {
-                if (radios[radioIdx].ui.value) {
-                    return {
-                        referenceFolder: referenceFolder,
-                        primaryExt: radios[radioIdx].ext,
-                        fallbackExt: radios[radioIdx].alt
-                    };
-                }
-            }
-
-            return null;
+            var selected = findSelectedRadioSpec();
+            if (!selected) return null;
+            return {
+                referenceFolder: referenceFolder,
+                primaryExt: selected.ext,
+                fallbackExt: selected.alt
+            };
         }
 
         // 参照フォルダー内を列挙し、baseName と拡張子を大小文字無視で比較する。
@@ -1966,7 +2016,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             return { success: success, failed: failed, total: total };
         }
 
-        // アクションボタンは pathPanel 直下の独立行に 3 カラム（左：ファイル名コピー / 中央：spacer / 右：リネーム・再リンク）
+        // アクションボタンは pathPanel 直下の独立行に 3 カラム（左：ファイル名コピー / 中央：spacer / 右：開く・削除・リネーム・再リンク）
         var actionBtnRow = pathPanel.add("group");
         actionBtnRow.orientation = "row";
         actionBtnRow.alignment = ["fill", "top"];
@@ -2001,14 +2051,8 @@ https://note.com/dtp_tranist/n/na66732d2056a
             fileToOpen.execute();
         });
 
-        var deleteLinkBtn = actionBtnRight.add("button", undefined, L('deleteLinkBtn'));
-        deleteLinkBtn.preferredSize = [50, 24];
-        deleteLinkBtn.onClick = requireSelectedEntry(function () {
-            var indices = selectedEntry.itemIndices || [];
-            if (indices.length === 0) return;
-
-            // インデックスを伴う削除は collection の再採番で破綻するため、先に PageItem 参照を集める
-            // 各対象について、内包しているクリップグループ（あれば）も併せて保持
+        // インデックス列から PlacedItem 参照と内包クリップグループのペアを集める
+        function collectDeleteRefs(indices) {
             var refs = [];
             for (var di = 0; di < indices.length; di++) {
                 try {
@@ -2016,25 +2060,19 @@ https://note.com/dtp_tranist/n/na66732d2056a
                     refs.push({ placed: placedRef, clipGroup: findEnclosingClipGroup(placedRef) });
                 } catch (eRef) { }
             }
+            return refs;
+        }
 
-            var hasClipped = false;
+        // refs の中にクリップグループ内のものが 1 つでもあるか
+        function hasClippedRef(refs) {
             for (var dc = 0; dc < refs.length; dc++) {
-                if (refs[dc].clipGroup) { hasClipped = true; break; }
+                if (refs[dc].clipGroup) return true;
             }
+            return false;
+        }
 
-            // 確認ダイアログ：
-            // ・クリップグループを含まない → 通常の確認ダイアログ（はい/いいえ）
-            // ・含む                      → 確認と削除モード選択を 1 つにまとめた 3 ボタンダイアログ
-            var clipMode = 'image';
-            if (hasClipped) {
-                clipMode = askDeleteModeWithConfirm(indices.length);
-                if (clipMode === null) return;
-            } else {
-                var confirmMessage = L('confirmDeleteLinks') + "\n" +
-                    kvLine('labelTarget', indices.length, 'labelItems');
-                if (!confirm(confirmMessage)) return;
-            }
-
+        // refs を一括削除（clipMode='group' なら囲むクリップグループごと削除）
+        function deleteRefs(refs, clipMode) {
             var success = 0, failed = 0;
             for (var dk = 0; dk < refs.length; dk++) {
                 var entry = refs[dk];
@@ -2049,6 +2087,30 @@ https://note.com/dtp_tranist/n/na66732d2056a
                     failed++;
                 }
             }
+            return { success: success, failed: failed };
+        }
+
+        function handleDeleteSelected() {
+            var indices = selectedEntry.itemIndices || [];
+            if (indices.length === 0) return;
+
+            // インデックスを伴う削除は collection の再採番で破綻するため、先に PageItem 参照を集める
+            var refs = collectDeleteRefs(indices);
+
+            // 確認ダイアログ：
+            // ・クリップグループを含まない → 通常の確認ダイアログ（はい/いいえ）
+            // ・含む                      → 確認と削除モード選択を 1 つにまとめた 3 ボタンダイアログ
+            var clipMode = 'image';
+            if (hasClippedRef(refs)) {
+                clipMode = askDeleteModeWithConfirm(indices.length);
+                if (clipMode === null) return;
+            } else {
+                var confirmMessage = L('confirmDeleteLinks') + "\n" +
+                    kvLine('labelTarget', indices.length, 'labelItems');
+                if (!confirm(confirmMessage)) return;
+            }
+
+            var res = deleteRefs(refs, clipMode);
 
             // 選択は削除済みなので解除しておく（refreshFromDoc の itemIndex 復元に巻き込まれないように）
             selectedEntry = null;
@@ -2059,10 +2121,14 @@ https://note.com/dtp_tranist/n/na66732d2056a
             updateActionButtonStates();
             alert(
                 L('alertDeleteDone') + "\n" +
-                kvLine('labelSuccess', success, 'labelItems') + "\n" +
-                kvLine('labelFailed', failed, 'labelItems')
+                kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
+                kvLine('labelFailed', res.failed, 'labelItems')
             );
-        });
+        }
+
+        var deleteLinkBtn = actionBtnRight.add("button", undefined, L('deleteLinkBtn'));
+        deleteLinkBtn.preferredSize = [50, 24];
+        deleteLinkBtn.onClick = requireSelectedEntry(handleDeleteSelected);
 
         // クリップグループ内の画像が含まれる場合の、確認 + 削除モード選択を兼ねたダイアログ
         // 戻り値: 'image' / 'group' / null（キャンセル）
@@ -2095,9 +2161,24 @@ https://note.com/dtp_tranist/n/na66732d2056a
             return null;
         }
 
-        var renameLinkBtn = actionBtnRight.add("button", undefined, L('renameLinkBtn'));
-        renameLinkBtn.preferredSize = [70, 24];
-        renameLinkBtn.onClick = requireSelectedEntry(function () {
+        // newName と oldFile を比較し、上書き先がいる場合の処理（確認＋削除）を行う
+        // 戻り値: true = rename を続行してよい、false = 中止
+        function prepareRenameOverwrite(oldFile, newFile) {
+            if (!newFile.exists) return true;
+            // 大小文字だけの違いは macOS の case-insensitive FS で同一ファイルを指すため
+            // 削除対象にしない（rename は OS 側で正しく処理される）
+            if (newFile.fsName.toLowerCase() === oldFile.fsName.toLowerCase()) return true;
+            if (!confirm(L('confirmOverwrite') + newFile.fsName)) return false;
+            // File.rename は既存ファイルがあると失敗するので、先に削除してから rename する
+            var removed = tryGet(function () { return newFile.remove(); }, false);
+            if (!removed) {
+                alert(L('alertRenameFailed'));
+                return false;
+            }
+            return true;
+        }
+
+        function handleRenameSelected() {
             var absPath = selectedEntry.filePath;
             if (!absPath || absPath === "---") {
                 alert(L('alertNoValidPath'));
@@ -2124,20 +2205,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             }
 
             var newFile = new File(oldFolder.fsName + "/" + newName);
-            if (newFile.exists) {
-                // 大小文字だけの違いは macOS の case-insensitive FS で同一ファイルを指すため
-                // 削除対象にしない（rename は OS 側で正しく処理される）
-                var caseOnlyDiff = (newFile.fsName.toLowerCase() === oldFile.fsName.toLowerCase());
-                if (!caseOnlyDiff) {
-                    if (!confirm(L('confirmOverwrite') + newFile.fsName)) return;
-                    // File.rename は既存ファイルがあると失敗するので、先に削除してから rename する
-                    var removed = tryGet(function () { return newFile.remove(); }, false);
-                    if (!removed) {
-                        alert(L('alertRenameFailed'));
-                        return;
-                    }
-                }
-            }
+            if (!prepareRenameOverwrite(oldFile, newFile)) return;
 
             // 物理リネーム（失敗時は再リンクしない）
             var renamed = tryGet(function () { return oldFile.rename(newName); }, false);
@@ -2155,7 +2223,11 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
                 kvLine('labelFailed', res.failed, 'labelItems')
             );
-        });
+        }
+
+        var renameLinkBtn = actionBtnRight.add("button", undefined, L('renameLinkBtn'));
+        renameLinkBtn.preferredSize = [70, 24];
+        renameLinkBtn.onClick = requireSelectedEntry(handleRenameSelected);
         var copyFileNameBtn = actionBtnLeft.add("button", undefined, L('copyFileNameBtn'));
         copyFileNameBtn.onClick = requireSelectedEntry(function () {
             var name = selectedEntry.fileName || "";
@@ -2214,7 +2286,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 ];
             } catch (e0) { }
 
-            safeRelayout(actionBtnRight, actionBtnRow, pathPanel, dlg);
+            safeRelayout(actionBtnRight, actionBtnRow, pathPanel, dialog);
         }
 
         // パスが「---」（不明）のときは再リンクボタンを無効化
@@ -2258,7 +2330,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             foldersListBox.removeAll();
             for (var ii = 0; ii < linkedFolderPaths.length; ii++) {
                 foldersListBox.add("item",
-                    formatDisplayPath(linkedFolderPaths[ii], !tildeCheck.value, dropboxCheck.value)
+                    formatDisplayPath(linkedFolderPaths[ii], !fullPathCheck.value, dropboxCheck.value)
                 );
             }
         }
@@ -2362,15 +2434,43 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 L('alertRelinkDone') + "\n" +
                 kvLine('labelTarget', res.total, 'labelItems') + "\n" +
                 kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
-                kvLine('labelFailed', res.failed, 'labelItems') + (lang === 'ja' ? '（同名ファイルなし）' : ' (same-name file not found)')
+                kvLine('labelFailed', res.failed, 'labelItems') + (currentLanguage === 'ja' ? '（同名ファイルなし）' : ' (same-name file not found)')
             );
         };
         reloadFolderBtn.enabled = false;
         openFolderBtn.enabled = false;
 
-        var changeExtensionBtn = folderActionLeft.add("button", undefined, L('changeExtensionBtn'));
+        // entry に対し referenceFolder 内の同名・指定拡張子ファイルへ再リンク
+        // 戻り値: 'success' / 'failed' / 'skipped'
+        function applyExtensionChangeToEntry(entry, referenceFolder, extPrefs) {
+            var placedItem = placedItems[entry.itemIndex];
+            // entry.fileName は File.name 由来で URI エンコード済みの可能性があるため、
+            // 比較側（findReplacementFileByExtension で decodeURI したファイル名）と揃えるためデコードする
+            var sourceFileName = entry.fileName || pathBaseName(entry.filePath);
+            sourceFileName = tryGet(function () { return decodeURI(String(sourceFileName)); }, String(sourceFileName));
+            var baseName = splitFileName(sourceFileName).base;
+            if (!baseName) return 'failed';
 
-        changeExtensionBtn.onClick = function () {
+            var replacementFile = findReplacementFileByExtension(
+                referenceFolder, baseName, extPrefs.primaryExt, extPrefs.fallbackExt
+            );
+            if (!replacementFile) return 'failed';
+
+            // 置換先が現在のリンクと同一ファイルなら差し替え不要
+            try {
+                var currentPath = placedItem.file ? placedItem.file.fsName : null;
+                if (currentPath && currentPath === replacementFile.fsName) return 'skipped';
+            } catch (e) { }
+
+            try {
+                placedItem.file = replacementFile;
+                return 'success';
+            } catch (e2) {
+                return 'failed';
+            }
+        }
+
+        function handleChangeExtension() {
             if (foldersListBox.selection === null) {
                 alert(L('alertSelectLinkedFolder'));
                 return;
@@ -2384,60 +2484,18 @@ https://note.com/dtp_tranist/n/na66732d2056a
             var extPrefs = showChangeExtensionDialog();
             if (!extPrefs) return;
 
-            var referenceFolder = extPrefs.referenceFolder;
-
             // 2. 実行
-            var success = 0;
-            var failed = 0;
-            var skipped = 0;
-            var total = 0;
-
+            var success = 0, failed = 0, skipped = 0, total = 0;
             for (var i = 0; i < allPlacementEntries.length; i++) {
                 var entry = allPlacementEntries[i];
                 if (!entry || !entry.filePath || entry.filePath === "---") continue;
-
-                var entryFolderPath = normalizeFolderPathForCompare(pathParent(entry.filePath));
-
-                if (entryFolderPath !== sourceFolderPath) continue;
+                if (normalizeFolderPathForCompare(pathParent(entry.filePath)) !== sourceFolderPath) continue;
 
                 total++;
-
-                var placedItem = placedItems[entry.itemIndex];
-                var sourceFileName = entry.fileName || pathBaseName(entry.filePath);
-                var baseName = splitFileName(String(sourceFileName)).base;
-
-                if (!baseName) {
-                    failed++;
-                    continue;
-                }
-
-                var replacementFile = findReplacementFileByExtension(
-                    referenceFolder,
-                    baseName,
-                    extPrefs.primaryExt,
-                    extPrefs.fallbackExt
-                );
-
-                if (!replacementFile) {
-                    failed++;
-                    continue;
-                }
-
-                // 置換先が現在のリンクと同一ファイルなら差し替え不要
-                try {
-                    var currentPath = placedItem.file ? placedItem.file.fsName : null;
-                    if (currentPath && currentPath === replacementFile.fsName) {
-                        skipped++;
-                        continue;
-                    }
-                } catch (e) { }
-
-                try {
-                    placedItem.file = replacementFile;
-                    success++;
-                } catch (e) {
-                    failed++;
-                }
+                var outcome = applyExtensionChangeToEntry(entry, extPrefs.referenceFolder, extPrefs);
+                if (outcome === 'success') success++;
+                else if (outcome === 'skipped') skipped++;
+                else failed++;
             }
 
             app.redraw();
@@ -2450,52 +2508,65 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 kvLine('labelSkipped', skipped, 'labelItems') + "\n" +
                 kvLine('labelFailed', failed, 'labelItems')
             );
-        };
+        }
 
+        var changeExtensionBtn = folderActionLeft.add("button", undefined, L('changeExtensionBtn'));
+        changeExtensionBtn.onClick = handleChangeExtension;
         changeExtensionBtn.enabled = false;
 
-        var collectLinksBtn = folderActionRight.add("button", undefined, L('collectLinksBtn'));
-        collectLinksBtn.onClick = function () {
+        // 保存済みドキュメントの隣に Links フォルダーを用意する。失敗時は alert を出して null
+        function ensureLinksFolder() {
             var docFile = tryGet(function () { return doc.fullName; }, null);
             if (!docFile || !docFile.parent || !docFile.parent.exists) {
                 alert(L('alertDocNotSaved'));
-                return;
+                return null;
             }
-
             var linksFolder = new Folder(docFile.parent.fsName + "/Links");
-            if (!linksFolder.exists) {
-                if (!linksFolder.create()) {
-                    alert(L('alertCreateLinksFolderFailed'));
-                    return;
-                }
+            if (!linksFolder.exists && !linksFolder.create()) {
+                alert(L('alertCreateLinksFolderFailed'));
+                return null;
             }
+            return linksFolder;
+        }
+
+        // 1 件分のコピー＆再リンク。戻り値: 'copied' / 'skipped' / 'failed'
+        function collectLinkForEntry(ent, linksFolder) {
+            try {
+                var srcFile = new File(ent.filePath);
+                if (!srcFile.exists) return 'failed';
+
+                var destFile = new File(linksFolder.fsName + "/" + getRealFileName(srcFile));
+                // 既に収集先に同名ファイルがある場合はコピーをスキップ（同一パスなら再リンクも不要）
+                if (destFile.fsName === srcFile.fsName) return 'skipped';
+
+                var outcome;
+                if (destFile.exists) {
+                    outcome = 'skipped';
+                } else {
+                    if (!srcFile.copy(destFile.fsName)) return 'failed';
+                    outcome = 'copied';
+                }
+
+                placedItems[ent.itemIndex].file = destFile;
+                return outcome;
+            } catch (e) {
+                return 'failed';
+            }
+        }
+
+        function handleCollectLinks() {
+            var linksFolder = ensureLinksFolder();
+            if (!linksFolder) return;
 
             var copied = 0, skipped = 0, failed = 0, total = 0;
             for (var k = 0; k < allPlacementEntries.length; k++) {
                 var ent = allPlacementEntries[k];
                 if (!ent.filePath || ent.filePath === "---") continue;
                 total++;
-                try {
-                    var srcFile = new File(ent.filePath);
-                    if (!srcFile.exists) { failed++; continue; }
-
-                    var destFile = new File(linksFolder.fsName + "/" + srcFile.name);
-                    // 既に収集先に同名ファイルがある場合はコピーをスキップ（同一パスなら再リンクも不要）
-                    if (destFile.fsName === srcFile.fsName) {
-                        skipped++;
-                        continue;
-                    }
-                    if (destFile.exists) {
-                        skipped++;
-                    } else {
-                        if (!srcFile.copy(destFile.fsName)) { failed++; continue; }
-                        copied++;
-                    }
-
-                    placedItems[ent.itemIndex].file = destFile;
-                } catch (e) {
-                    failed++;
-                }
+                var outcome = collectLinkForEntry(ent, linksFolder);
+                if (outcome === 'copied') copied++;
+                else if (outcome === 'skipped') skipped++;
+                else failed++;
             }
 
             app.redraw();
@@ -2508,7 +2579,10 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 kvLine('labelSkipped', skipped, 'labelItems') + "\n" +
                 kvLine('labelFailed', failed, 'labelItems')
             );
-        };
+        }
+
+        var collectLinksBtn = folderActionRight.add("button", undefined, L('collectLinksBtn'));
+        collectLinksBtn.onClick = handleCollectLinks;
 
         // フォルダ選択が変わったらボタンを enable/disable
         foldersListBox.onChange = function () {
@@ -2552,7 +2626,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         }
 
         // --- ボタングループ（左：リンクパネル起動 / 右：キャンセル） ---
-        var btnGroup = dlg.add("group");
+        var btnGroup = dialog.add("group");
         btnGroup.orientation = "row";
         btnGroup.alignment = "fill";
         btnGroup.alignChildren = ["fill", "center"];
@@ -2561,7 +2635,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         openLinksPanelBtn.alignment = ["left", "center"];
         openLinksPanelBtn.onClick = function () {
             try { app.executeMenuCommand('Adobe LinkPalette Menu Item'); } catch (e) { }
-            dlg.close();
+            dialog.close();
         };
 
         var spacer = btnGroup.add("group");
@@ -2572,16 +2646,16 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
         // 「閉じる」ボタン
         closeBtn.onClick = function () {
-            dlg.close();
+            dialog.close();
         };
 
         // 実行前に選択していた PlacedItem があれば、対応行を初期選択（カンバス側は触らない）
         if (typeof preselectedItemIndex === "number" && preselectedItemIndex >= 0) {
-            for (var pi = 0; pi < filteredEntries.length; pi++) {
-                var ent = filteredEntries[pi];
+            for (var rowIdx = 0; rowIdx < filteredEntries.length; rowIdx++) {
+                var ent = filteredEntries[rowIdx];
                 var found = false;
-                for (var pj = 0; pj < ent.itemIndices.length; pj++) {
-                    if (ent.itemIndices[pj] === preselectedItemIndex) { found = true; break; }
+                for (var indexIdx = 0; indexIdx < ent.itemIndices.length; indexIdx++) {
+                    if (ent.itemIndices[indexIdx] === preselectedItemIndex) { found = true; break; }
                 }
                 if (found) {
                     suppressCanvasOnce = true;
@@ -2592,20 +2666,20 @@ https://note.com/dtp_tranist/n/na66732d2056a
                     highlightFolderFor(ent.filePath);
                     // ScriptUI の一部環境で数値代入が無視されるため ListItem で選択し revealItem で表示位置も合わせる
                     try {
-                        var targetItem = listBox.items[pi];
+                        var targetItem = listBox.items[rowIdx];
                         listBox.selection = targetItem;
                         if (typeof listBox.revealItem === "function") {
                             listBox.revealItem(targetItem);
                         }
                     } catch (e) {
-                        try { listBox.selection = pi; } catch (e2) { }
+                        try { listBox.selection = rowIdx; } catch (e2) { }
                     }
                     break;
                 }
             }
         }
 
-        dlg.show();
+        dialog.show();
     }
 
 })();
