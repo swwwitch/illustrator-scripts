@@ -25,22 +25,30 @@ Illustrator標準機能では行いにくい
 ・単一ファイル／フォルダ単位での再リンク
 ・リンクファイルのコピーと再リンク（Linksフォルダーへの収集）
 
-### UI構成（現行）
+### 参考記事
 
-左：ソート／まとめて表示（同一ファイル）
-右：表示列／フィルター／アートボード
+https://note.com/dtp_tranist/n/na66732d2056a
 
-※ 機能優先のため2カラム構成とし、右カラムに関連機能を集約
-※ フォルダ操作（開く／フォルダ再リンク／収集）は下部に集約
 */
 
 (function () {
 
     // =========================================
-    // バージョンとローカライズ / Version & Localization
+    // バージョン / Version
     // =========================================
 
-    var SCRIPT_VERSION = "v1.2.7";
+    var SCRIPT_VERSION = "v1.2.8";
+
+    // =========================================
+    // ユーザー設定 / User configuration
+    // =========================================
+
+    // Dropbox のローカルマウントパス接頭辞（ここを自分の環境に書き換えてください）
+    var DROPBOX_PREFIX = "/Users/takano/sw Dropbox/takano masahiro/";
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -49,454 +57,155 @@ Illustrator標準機能では行いにくい
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: {
-            ja: "リンク画像の管理",
-            en: "Linked Image Manager"
-        },
-        alertNoDocument: {
-            ja: "ドキュメントが開いていません。",
-            en: "No document is open."
-        },
-        alertNoPlacedItems: {
-            ja: "配置されているリンク画像が見つかりませんでした。",
-            en: "No linked placed images were found."
-        },
-        sortPanelTitle: {
-            ja: "ソート",
-            en: "Sort"
-        },
-        sortLabel: {
-            ja: "並び順",
-            en: "Sort by"
-        },
-        sortIndex: {
-            ja: "No.",
-            en: "No."
-        },
-        sortFileName: {
-            ja: "ファイル名",
-            en: "File Name"
-        },
-        sortFileSize: {
-            ja: "サイズ",
-            en: "Size"
-        },
-        sortFileCount: {
-            ja: "使用数",
-            en: "Usage Count"
-        },
-        sortArtboard: {
-            ja: "アートボード",
-            en: "Artboard"
-        },
-        sortWidth: {
-            ja: "幅",
-            en: "Width"
-        },
-        sortHeight: {
-            ja: "高さ",
-            en: "Height"
-        },
-        sortScale: {
-            ja: "スケール",
-            en: "Scale"
-        },
-        sortPpi: {
-            ja: "PPI",
-            en: "PPI"
-        },
-        sortStatus: {
-            ja: "ステータス",
-            en: "Status"
-        },
-        sortColorSpace: {
-            ja: "カラースペース",
-            en: "Color Space"
-        },
-        ascOrder: {
-            ja: "昇順",
-            en: "Ascending"
-        },
-        descOrder: {
-            ja: "降順",
-            en: "Descending"
-        },
-        optionPanelTitle: {
-            ja: "同一ファイル",
-            en: "Same Files"
-        },
-        otherPanelTitle: {
-            ja: "その他",
-            en: "Other"
-        },
-        dedupCheck: {
-            ja: "同一ファイルをまとめる",
-            en: "Group Same Files"
-        },
-        unitCheck: {
-            ja: "単位を「MB」で統一",
-            en: "Use MB"
-        },
-        filterPanelTitle: {
-            ja: "ステータス",
-            en: "Filters"
-        },
-        filterOk: {
-            ja: "✓ リンク正常",
-            en: "✓ Link OK"
-        },
-        filterBroken: {
-            ja: "⚠ リンク切れ",
-            en: "⚠ Broken Link"
-        },
-        filterUpdate: {
-            ja: "⟳ 更新が必要",
-            en: "⟳ Needs Update"
-        },
-        artboardPanelTitle: {
-            ja: "アートボード",
-            en: "Artboard"
-        },
-        artboardAll: {
-            ja: "すべて",
-            en: "All"
-        },
-        artboardFallback: {
-            ja: "アートボード",
-            en: "Artboard"
-        },
-        prevArtboardTip: {
-            ja: "前のアートボード",
-            en: "Previous Artboard"
-        },
-        nextArtboardTip: {
-            ja: "次のアートボード",
-            en: "Next Artboard"
-        },
-        displayOptionPanelTitle: {
-            ja: "表示列",
-            en: "Display Options"
-        },
-        displaySize: {
-            ja: "サイズ",
-            en: "Size"
-        },
-        displayFileCount: {
-            ja: "使用数を表示",
-            en: "Show Usage Count"
-        },
-        displayDimScalePpi: {
-            ja: "サイズ、%、PPI",
-            en: "Dimensions, Scale, PPI"
-        },
-        displayColorSpace: {
-            ja: "カラースペース",
-            en: "Color Space"
-        },
-        colIndex: {
-            ja: "No.",
-            en: "No."
-        },
-        colFileName: {
-            ja: "ファイル名",
-            en: "File Name"
-        },
-        colFileSizeMb: {
-            ja: "サイズ(MB)",
-            en: "Size (MB)"
-        },
-        colFileSize: {
-            ja: "サイズ",
-            en: "Size"
-        },
-        colFileCount: {
-            ja: "使用数",
-            en: "Usage Count"
-        },
-        colWidthMm: {
-            ja: "幅(mm)",
-            en: "Width (mm)"
-        },
-        colHeightMm: {
-            ja: "高さ(mm)",
-            en: "Height (mm)"
-        },
-        colScale: {
-            ja: "スケール",
-            en: "Scale"
-        },
-        colPpi: {
-            ja: "PPI",
-            en: "PPI"
-        },
-        colArtboards: {
-            ja: "アートボード",
-            en: "Artboards"
-        },
-        colColorSpace: {
-            ja: "カラースペース",
-            en: "Color Space"
-        },
-        pathPanelTitle: {
-            ja: "ファイルパス",
-            en: "File Path"
-        },
+
+        // UI labels
+
+        dialogTitle: { ja: "リンク画像の管理", en: "Linked Image Manager" },
+        sortPanelTitle: { ja: "ソート", en: "Sort" },
+        sortLabel: { ja: "並び順", en: "Sort by" },
+        sortIndex: { ja: "No.", en: "No." },
+        sortFileName: { ja: "ファイル名", en: "File Name" },
+        sortFileSize: { ja: "サイズ", en: "Size" },
+        sortFileCount: { ja: "使用数", en: "Usage Count" },
+        sortArtboard: { ja: "アートボード", en: "Artboard" },
+        sortWidth: { ja: "幅", en: "Width" },
+        sortHeight: { ja: "高さ", en: "Height" },
+        sortScale: { ja: "スケール", en: "Scale" },
+        sortPpi: { ja: "PPI", en: "PPI" },
+        sortStatus: { ja: "ステータス", en: "Status" },
+        sortColorSpace: { ja: "カラースペース", en: "Color Space" },
+        ascOrder: { ja: "昇順", en: "Ascending" },
+        descOrder: { ja: "降順", en: "Descending" },
+        optionPanelTitle: { ja: "同一ファイル", en: "Same Files" },
+        otherPanelTitle: { ja: "その他", en: "Other" },
+        dedupCheck: { ja: "同一ファイルをまとめる", en: "Group Same Files" },
+        unitCheck: { ja: "単位を「MB」で統一", en: "Use MB" },
+        filterPanelTitle: { ja: "ステータス", en: "Filters" },
+        filterOk: { ja: "✓ リンク正常", en: "✓ Link OK" },
+        filterBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
+        filterUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" },
+        artboardPanelTitle: { ja: "アートボード", en: "Artboard" },
+        artboardAll: { ja: "すべて", en: "All" },
+        artboardFallback: { ja: "アートボード", en: "Artboard" },
+        prevArtboardTip: { ja: "前のアートボード", en: "Previous Artboard" },
+        nextArtboardTip: { ja: "次のアートボード", en: "Next Artboard" },
+        displayOptionPanelTitle: { ja: "表示列", en: "Display Options" },
+        displaySize: { ja: "サイズ", en: "Size" },
+        displayFileCount: { ja: "使用数を表示", en: "Show Usage Count" },
+        displayDimScalePpi: { ja: "サイズ、%、PPI", en: "Dimensions, Scale, PPI" },
+        displayColorSpace: { ja: "カラースペース", en: "Color Space" },
+        colIndex: { ja: "No.", en: "No." },
+        colFileName: { ja: "ファイル名", en: "File Name" },
+        colFileSizeMb: { ja: "サイズ(MB)", en: "Size (MB)" },
+        colFileSize: { ja: "サイズ", en: "Size" },
+        colFileCount: { ja: "使用数", en: "Usage Count" },
+        colWidthMm: { ja: "幅(mm)", en: "Width (mm)" },
+        colHeightMm: { ja: "高さ(mm)", en: "Height (mm)" },
+        colScale: { ja: "スケール", en: "Scale" },
+        colPpi: { ja: "PPI", en: "PPI" },
+        colArtboards: { ja: "アートボード", en: "Artboards" },
+        colColorSpace: { ja: "カラースペース", en: "Color Space" },
+        pathPanelTitle: { ja: "ファイルパス", en: "File Path" },
         pathPlaceholder: {
             ja: "リストからアイテムを選択してください",
             en: "Select an item from the list."
         },
-        pathHelpTip: {
-            ja: "パスの表示",
-            en: "File path"
-        },
-        tildeCheck: {
-            ja: "フルパス",
-            en: "Full path"
-        },
-        renameLinkBtn: {
-            ja: "リネーム",
-            en: "Rename"
-        },
-        deleteLinkBtn: {
-            ja: "削除",
-            en: "Delete"
-        },
-        confirmDeleteLinks: {
-            ja: "選択したリンクファイルをドキュメントからすべて削除します。",
-            en: "The selected file(s) will be removed from the document.?"
-        },
-        alertDeleteDone: {
-            ja: "削除完了",
-            en: "Delete Complete"
-        },
-        clipGroupDeleteTitle: {
-            ja: "クリップグループ内の画像",
-            en: "Image inside a clip group"
-        },
+        pathHelpTip: { ja: "パスの表示", en: "File path" },
+        tildeCheck: { ja: "フルパス", en: "Full path" },
+        renameLinkBtn: { ja: "リネーム", en: "Rename" },
+        openFileBtn: { ja: "開く", en: "Open" },
+        deleteLinkBtn: { ja: "削除", en: "Delete" },
+        clipGroupDeleteTitle: { ja: "クリップグループ内の画像", en: "Image inside a clip group" },
         clipGroupDeleteMessage: {
             ja: "選択した画像はクリップグループ内にあります。どのように削除しますか？",
             en: "The selected image is inside a clip group. How would you like to delete it?"
         },
-        deleteImageOnlyBtn: {
-            ja: "画像のみを削除",
-            en: "Delete image only"
-        },
-        deleteWithClipGroupBtn: {
-            ja: "クリップグループごと削除",
-            en: "Delete entire clip group"
-        },
-        copyFileNameBtn: {
-            ja: "ファイル名をコピー",
-            en: "Copy File Name"
-        },
-        alertCopyFileNameDone: {
-            ja: "ファイル名をコピーしました",
-            en: "File name copied to clipboard"
-        },
-        alertCopyFileNameFailed: {
-            ja: "ファイル名のコピーに失敗しました",
-            en: "Failed to copy file name"
-        },
-        promptNewFileName: {
-            ja: "新しいファイル名を入力してください。\n（拡張子 {ext} は自動で保持されます）\n\n現在のファイル名：{name}",
-            en: "Enter the new file name.\n(Extension {ext} will be kept automatically)\n\nCurrent file name: {name}"
-        },
-        labelNoExt: {
-            ja: "(なし)",
-            en: "(none)"
-        },
-        alertInvalidFileName: {
-            ja: "ファイル名に / や \\ は使用できません。",
-            en: "File name must not contain / or \\."
-        },
-        alertLinkFileNotFound: {
-            ja: "リンクファイルが見つかりません：",
-            en: "Linked file not found: "
-        },
-        confirmOverwrite: {
-            ja: "同名のファイルが既に存在します。\n上書きしますか？\n\n",
-            en: "A file with the same name already exists.\nOverwrite?\n\n"
-        },
-        alertRenameFailed: {
-            ja: "ファイルのリネームに失敗しました。",
-            en: "Failed to rename the file."
-        },
-        alertRenameDone: {
-            ja: "リネームして再リンクしました",
-            en: "Renamed and relinked"
-        },
-        alertNameUnchanged: {
-            ja: "ファイル名が変更されていません。処理を中断します。",
-            en: "The file name has not changed. Aborting."
-        },
-        dropboxCheck: {
-            ja: "Dropboxパスを短縮",
-            en: "Shorten Dropbox Path"
-        },
-        fileNameCheck: {
-            ja: "ファイル名",
-            en: "Name"
-        },
-        openFolderBtn: {
-            ja: "開く",
-            en: "Open"
-        },
-        reloadOneBtnSingle: {
-            ja: "再リンク",
-            en: "Relink Selected"
-        },
-        reloadOneBtnBatch: {
-            ja: "再リンク（一括）",
-            en: "Relink All"
-        },
-        linkedFolderListLabel: {
-            ja: "リンクフォルダー一覧",
-            en: "Linked Folders"
-        },
-        reloadFolderBtn: {
-            ja: "フォルダーに再リンク",
-            en: "Relink Folder"
-        },
-        changeExtensionBtn: {
-            ja: "拡張子の変更",
-            en: "Change Extension"
-        },
-        changeExtDialogTitle: {
-            ja: "拡張子の変更",
-            en: "Change Extension"
-        },
-        changeExtPanelTitle: {
-            ja: "拡張子",
-            en: "Extension"
-        },
-        changeExtFolderPanelTitle: {
-            ja: "変更先のフォルダー",
-            en: "Destination Folder"
-        },
+        deleteImageOnlyBtn: { ja: "画像のみを削除", en: "Delete image only" },
+        deleteWithClipGroupBtn: { ja: "クリップグループごと削除", en: "Delete entire clip group" },
+        copyFileNameBtn: { ja: "ファイル名をコピー", en: "Copy File Name" },
+        labelNoExt: { ja: "(なし)", en: "(none)" },
+        dropboxCheck: { ja: "Dropboxパスを短縮", en: "Shorten Dropbox Path" },
+        fileNameCheck: { ja: "ファイル名", en: "Name" },
+        openFolderBtn: { ja: "開く", en: "Open" },
+        reloadOneBtnSingle: { ja: "再リンク", en: "Relink Selected" },
+        reloadOneBtnBatch: { ja: "一括再リンク", en: "Relink All" },
+        linkedFolderListLabel: { ja: "リンクフォルダー一覧", en: "Linked Folders" },
+        reloadFolderBtn: { ja: "フォルダーに再リンク", en: "Relink Folder" },
+        changeExtensionBtn: { ja: "拡張子の変更", en: "Change Extension" },
+        changeExtDialogTitle: { ja: "拡張子の変更", en: "Change Extension" },
+        changeExtPanelTitle: { ja: "拡張子", en: "Extension" },
+        changeExtFolderPanelTitle: { ja: "変更先のフォルダー", en: "Destination Folder" },
         selectExtensionReferenceFolder: {
             ja: "拡張子変更で参照するフォルダーを選択してください",
             en: "Select the folder to search for files with the new extension"
         },
-        chooseExtensionReferenceFolderBtn: {
-            ja: "フォルダー指定",
-            en: "Choose Folder"
+        chooseExtensionReferenceFolderBtn: { ja: "フォルダー指定", en: "Choose Folder" },
+        extensionReferenceFolderPlaceholder: { ja: "参照フォルダー未指定", en: "No reference folder selected" },
+        collectLinksBtn: { ja: "リンクを収集", en: "Collect Links" },
+        labelItems: { ja: "件", en: "item(s)" },
+        labelCopied: { ja: "コピー", en: "Copied" },
+        labelSkipped: { ja: "スキップ", en: "Skipped" },
+        openLinksPanelBtn: { ja: "［リンク］パネルを開く", en: "Open Links Panel" },
+        showOnCanvasCheck: { ja: "選択時にズーム表示", en: "Zoom to Selection" },
+        closeBtn: { ja: "閉じる", en: "Close" },
+        cancelBtn: { ja: "キャンセル", en: "Cancel" },
+        okBtn: { ja: "実行", en: "Run" },
+        fileNameUnknown: { ja: "(ファイル名不明)", en: "(Unknown File Name)" },
+        statusBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
+        statusUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" },
+        statusOk: { ja: "✓ リンク正常", en: "✓ Link OK" },
+        selectNewLinkFile: { ja: "新しいリンクファイルを選択", en: "Select a new linked file" },
+        selectAltFolder: { ja: "代替フォルダを選択", en: "Select a replacement folder" },
+        labelSuccess: { ja: "成功", en: "Succeeded" },
+        labelFailed: { ja: "失敗", en: "Failed" },
+        labelTarget: { ja: "対象", en: "Target" },
+
+        // Alerts
+
+        alertNoDocument: { ja: "ドキュメントが開いていません。", en: "No document is open." },
+        alertNoPlacedItems: {
+            ja: "配置されているリンク画像が見つかりませんでした。",
+            en: "No linked placed images were found."
         },
-        extensionReferenceFolderPlaceholder: {
-            ja: "参照フォルダー未指定",
-            en: "No reference folder selected"
+        alertSelectItem: { ja: "リストからアイテムを選択してください。", en: "Please select an item from the list." },
+        alertNoValidPath: { ja: "有効なファイルパスがありません。", en: "No valid file path is available." },
+        alertOpenFolderFailed: { ja: "フォルダを開けませんでした：", en: "Could not open the folder: " },
+        alertSelectLinkedFolder: { ja: "リンクフォルダを選択してください。", en: "Please select a linked folder." },
+        confirmDeleteLinks: {
+            ja: "選択したリンクファイルをドキュメントからすべて削除します。",
+            en: "The selected file(s) will be removed from the document.?"
         },
-        alertChangeExtDone: {
-            ja: "拡張子を変更しました",
-            en: "Extension changed"
+        alertDeleteDone: { ja: "削除完了", en: "Delete Complete" },
+        alertCopyFileNameDone: { ja: "ファイル名をコピーしました", en: "File name copied to clipboard" },
+        alertCopyFileNameFailed: { ja: "ファイル名のコピーに失敗しました", en: "Failed to copy file name" },
+        promptNewFileName: {
+            ja: "新しいファイル名を入力してください。\n（拡張子 {ext} は自動で保持されます）\n\n現在のファイル名：{name}",
+            en: "Enter the new file name.\n(Extension {ext} will be kept automatically)\n\nCurrent file name: {name}"
         },
-        collectLinksBtn: {
-            ja: "リンクを収集",
-            en: "Collect Links"
+        alertInvalidFileName: { ja: "ファイル名に / や \\ は使用できません。", en: "File name must not contain / or \\." },
+        alertLinkFileNotFound: { ja: "リンクファイルが見つかりません：", en: "Linked file not found: " },
+        confirmOverwrite: {
+            ja: "同名のファイルが既に存在します。\n上書きしますか？\n\n",
+            en: "A file with the same name already exists.\nOverwrite?\n\n"
         },
-        alertDocNotSaved: {
-            ja: "ドキュメントが保存されていません。保存してからもう一度お試しください。",
-            en: "The document has not been saved. Please save the document and try again."
-        },
-        alertCreateLinksFolderFailed: {
-            ja: "Linksフォルダーを作成できませんでした。",
-            en: "Could not create the Links folder."
-        },
-        alertCollectLinksDone: {
-            ja: "リンクのコピーと再リンクが完了しました",
-            en: "Copy and Relink Complete"
-        },
-        labelItems: {
-            ja: "件",
-            en: "item(s)"
-        },
-        labelCopied: {
-            ja: "コピー",
-            en: "Copied"
-        },
-        labelSkipped: {
-            ja: "スキップ",
-            en: "Skipped"
-        },
-        openLinksPanelBtn: {
-            ja: "［リンク］パネルを開く",
-            en: "Open Links Panel"
-        },
-        showOnCanvasCheck: {
-            ja: "選択時にズーム表示",
-            en: "Zoom to Selection"
-        },
-        closeBtn: {
-            ja: "閉じる",
-            en: "Close"
-        },
-        cancelBtn: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        okBtn: {
-            ja: "実行",
-            en: "Run"
-        },
-        fileNameUnknown: {
-            ja: "(ファイル名不明)",
-            en: "(Unknown File Name)"
-        },
-        statusBroken: {
-            ja: "⚠ リンク切れ",
-            en: "⚠ Broken Link"
-        },
-        statusUpdate: {
-            ja: "⟳ 更新が必要",
-            en: "⟳ Needs Update"
-        },
-        statusOk: {
-            ja: "✓ リンク正常",
-            en: "✓ Link OK"
-        },
-        alertNoValidPath: {
-            ja: "有効なファイルパスがありません。",
-            en: "No valid file path is available."
-        },
-        alertOpenFolderFailed: {
-            ja: "フォルダを開けませんでした：",
-            en: "Could not open the folder: "
-        },
-        alertSelectItem: {
-            ja: "リストからアイテムを選択してください。",
-            en: "Please select an item from the list."
-        },
-        selectNewLinkFile: {
-            ja: "新しいリンクファイルを選択",
-            en: "Select a new linked file"
+        alertRenameFailed: { ja: "ファイルのリネームに失敗しました。", en: "Failed to rename the file." },
+        alertRenameDone: { ja: "リネームして再リンクしました", en: "Renamed and relinked" },
+        alertNameUnchanged: {
+            ja: "ファイル名が変更されていません。処理を中断します。",
+            en: "The file name has not changed. Aborting."
         },
         confirmBatchRelink: {
             ja: "複数のリンクを一括で再リンクします。よろしいですか？",
             en: "Multiple links will be relinked at once. Continue?"
         },
-        alertRelinkDone: {
-            ja: "リンク更新完了",
-            en: "Relink Complete"
+        alertRelinkDone: { ja: "リンク更新完了", en: "Relink Complete" },
+        alertChangeExtDone: { ja: "拡張子を変更しました", en: "Extension changed" },
+        alertDocNotSaved: {
+            ja: "ドキュメントが保存されていません。保存してからもう一度お試しください。",
+            en: "The document has not been saved. Please save the document and try again."
         },
-        labelSuccess: {
-            ja: "成功",
-            en: "Succeeded"
-        },
-        labelFailed: {
-            ja: "失敗",
-            en: "Failed"
-        },
-        alertSelectLinkedFolder: {
-            ja: "リンクフォルダを選択してください。",
-            en: "Please select a linked folder."
-        },
-        selectAltFolder: {
-            ja: "代替フォルダを選択",
-            en: "Select a replacement folder"
-        },
-        labelTarget: {
-            ja: "対象",
-            en: "Target"
-        }
+        alertCreateLinksFolderFailed: { ja: "Linksフォルダーを作成できませんでした。", en: "Could not create the Links folder." },
+        alertCollectLinksDone: { ja: "リンクのコピーと再リンクが完了しました", en: "Copy and Relink Complete" }
     };
 
     function L(key) {
@@ -514,13 +223,46 @@ Illustrator標準機能では行いにくい
             : (value + " " + L(unitKey));
     }
 
-    // Dropbox のローカルマウントパス接頭辞（ここを自分の環境に書き換えてください）
-    var DROPBOX_PREFIX = "/Users/takano/sw Dropbox/takano masahiro/";
+    // alert / confirm 用に「ラベル：値+単位」を 1 行で組み立てる
+    // 例: kvLine('labelSuccess', 3, 'labelItems') → "成功：3件" / "Succeeded: 3 item(s)"
+    function kvLine(labelKey, value, unitKey) {
+        var sep = (lang === 'ja' ? '：' : ': ');
+        var valueText = unitKey ? withUnit(value, unitKey) : String(value);
+        return L(labelKey) + sep + valueText;
+    }
+
+    // ScriptUI のレイアウト再計算を例外抑止付きで呼ぶ。引数は可変（複数コンテナを順に再計算）
+    function safeRelayout() {
+        for (var i = 0; i < arguments.length; i++) {
+            var comp = arguments[i];
+            if (!comp) continue;
+            try { comp.layout.layout(true); } catch (e) { }
+        }
+    }
+
+    // パスから最後のセパレータ（/ または \）の位置を返す。なければ -1
+    function lastPathSep(path) {
+        return Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+    }
+
+    // パスから親フォルダ部分を返す（末尾セパレータなし）。判別不能なら ""
+    function pathParent(path) {
+        if (!path || path === "---") return "";
+        var sep = lastPathSep(path);
+        return (sep > 0) ? path.substring(0, sep) : "";
+    }
+
+    // パスからファイル名部分（最後のセパレータ以降）を返す
+    function pathBaseName(path) {
+        if (!path || path === "---") return "";
+        var sep = lastPathSep(path);
+        return (sep >= 0) ? path.substring(sep + 1) : path;
+    }
 
     // ファイルパスからファイル名を除いた親フォルダ（末尾セパレータ付き）を返す
     function toFolderOnly(path) {
         if (!path || path === "---") return path;
-        var sep = Math.max(path.lastIndexOf("/"), path.lastIndexOf("\\"));
+        var sep = lastPathSep(path);
         if (sep < 0) return path;
         return path.substring(0, sep + 1);
     }
@@ -643,51 +385,51 @@ Illustrator標準機能では行いにくい
 
     // 現在選択中のオブジェクトが画面いっぱいに収まるようズーム・センタリング
     function zoomToSelection(doc) {
-        var sel = doc.selection;
-        if (!sel || sel.length === 0) return;
+        var selection = doc.selection;
+        if (!selection || selection.length === 0) return;
 
-        var first = sel[0].visibleBounds; // [left, top, right, bottom]
-        var minL = first[0], maxT = first[1], maxR = first[2], minB = first[3];
-        for (var i = 1; i < sel.length; i++) {
-            var b = sel[i].visibleBounds;
-            if (b[0] < minL) minL = b[0];
-            if (b[1] > maxT) maxT = b[1];
-            if (b[2] > maxR) maxR = b[2];
-            if (b[3] < minB) minB = b[3];
+        var firstBounds = selection[0].visibleBounds; // [left, top, right, bottom]
+        var minL = firstBounds[0], maxT = firstBounds[1], maxR = firstBounds[2], minB = firstBounds[3];
+        for (var i = 1; i < selection.length; i++) {
+            var bounds = selection[i].visibleBounds;
+            if (bounds[0] < minL) minL = bounds[0];
+            if (bounds[1] > maxT) maxT = bounds[1];
+            if (bounds[2] > maxR) maxR = bounds[2];
+            if (bounds[3] < minB) minB = bounds[3];
         }
 
-        var cx = (minL + maxR) / 2;
-        var cy = (maxT + minB) / 2;
-        var w = Math.max(maxR - minL, 1);
-        var h = Math.max(maxT - minB, 1);
+        var centerX = (minL + maxR) / 2;
+        var centerY = (maxT + minB) / 2;
+        var selectionWidth = Math.max(maxR - minL, 1);
+        var selectionHeight = Math.max(maxT - minB, 1);
 
         var view = doc.views[0];
-        var vb = view.bounds; // 現在の表示領域（ドキュメント座標）
-        var vw = Math.abs(vb[2] - vb[0]);
-        var vh = Math.abs(vb[1] - vb[3]);
+        var viewBounds = view.bounds; // 現在の表示領域（ドキュメント座標）
+        var viewWidth = Math.abs(viewBounds[2] - viewBounds[0]);
+        var viewHeight = Math.abs(viewBounds[1] - viewBounds[3]);
 
         var margin = 1.2; // 上下左右に 20% の余白
-        var zx = view.zoom * vw / (w * margin);
-        var zy = view.zoom * vh / (h * margin);
-        var newZoom = Math.min(zx, zy);
+        var zoomX = view.zoom * viewWidth / (selectionWidth * margin);
+        var zoomY = view.zoom * viewHeight / (selectionHeight * margin);
+        var newZoom = Math.min(zoomX, zoomY);
 
         // Illustrator のズーム上限/下限に合わせて安全側にクランプ
         if (newZoom < 0.03125) newZoom = 0.03125; //  3.125%
         if (newZoom > 64) newZoom = 64;      // 6400%
 
         view.zoom = newZoom;
-        view.centerPoint = [cx, cy];
+        view.centerPoint = [centerX, centerY];
     }
 
     // バイナリ文字列から big-endian の 16bit / 32bit 整数を取り出す
-    function readU16BE(s, o) {
-        return ((s.charCodeAt(o) & 0xFF) << 8) | (s.charCodeAt(o + 1) & 0xFF);
+    function readU16BE(bytes, offset) {
+        return ((bytes.charCodeAt(offset) & 0xFF) << 8) | (bytes.charCodeAt(offset + 1) & 0xFF);
     }
-    function readU32BE(s, o) {
-        return ((s.charCodeAt(o) & 0xFF) * 16777216) +
-            ((s.charCodeAt(o + 1) & 0xFF) << 16) +
-            ((s.charCodeAt(o + 2) & 0xFF) << 8) +
-            (s.charCodeAt(o + 3) & 0xFF);
+    function readU32BE(bytes, offset) {
+        return ((bytes.charCodeAt(offset) & 0xFF) * 16777216) +
+            ((bytes.charCodeAt(offset + 1) & 0xFF) << 16) +
+            ((bytes.charCodeAt(offset + 2) & 0xFF) << 8) +
+            (bytes.charCodeAt(offset + 3) & 0xFF);
     }
 
     // 例外を無視して評価し、失敗時は fallback を返す
@@ -708,46 +450,46 @@ Illustrator標準機能では行いにくい
     // ・PlacedItem そのもの → そのまま返す
     // ・GroupItem（クリップグループ含む）配下に PlacedItem が 1 つだけ → その PlacedItem を返す
     // ・上記以外（複数選択、PlacedItem 非含有、複数の PlacedItem を含むグループなど）→ null
-    function pickSinglePlacedItem(sel) {
-        if (!sel || sel.length !== 1) return null;
-        var top = sel[0];
-        if (!top) return null;
-        var tn = tryGet(function () { return top.typename; }, "");
-        if (tn === "PlacedItem") return top;
-        if (tn !== "GroupItem") return null;
+    function pickSinglePlacedItem(selection) {
+        if (!selection || selection.length !== 1) return null;
+        var topItem = selection[0];
+        if (!topItem) return null;
+        var typeName = tryGet(function () { return topItem.typename; }, "");
+        if (typeName === "PlacedItem") return topItem;
+        if (typeName !== "GroupItem") return null;
 
         var found = null;
         var multiple = false;
-        function visit(g) {
+        function visit(group) {
             if (multiple) return;
-            var items = tryGet(function () { return g.pageItems; }, null);
-            if (!items) return;
-            for (var i = 0; i < items.length; i++) {
-                var c = items[i];
-                var ctn = tryGet(function () { return c.typename; }, "");
-                if (ctn === "PlacedItem") {
+            var children = tryGet(function () { return group.pageItems; }, null);
+            if (!children) return;
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                var childTypeName = tryGet(function () { return child.typename; }, "");
+                if (childTypeName === "PlacedItem") {
                     if (found) { multiple = true; return; }
-                    found = c;
-                } else if (ctn === "GroupItem") {
-                    visit(c);
+                    found = child;
+                } else if (childTypeName === "GroupItem") {
+                    visit(child);
                     if (multiple) return;
                 }
             }
         }
-        visit(top);
+        visit(topItem);
         return (found && !multiple) ? found : null;
     }
 
     // PlacedItem の祖先を辿り、最も近い「クリップグループ（GroupItem.clipped === true）」を返す
     // 見つからなければ null
     function findEnclosingClipGroup(item) {
-        var p = tryGet(function () { return item.parent; }, null);
-        while (p) {
-            var tn = tryGet(function () { return p.typename; }, "");
-            if (tn !== "GroupItem") return null; // GroupItem 以外（Layer / Document）に出たら終了
-            var clipped = tryGet(function () { return p.clipped; }, false);
-            if (clipped) return p;
-            p = tryGet(function () { return p.parent; }, null);
+        var ancestor = tryGet(function () { return item.parent; }, null);
+        while (ancestor) {
+            var typeName = tryGet(function () { return ancestor.typename; }, "");
+            if (typeName !== "GroupItem") return null; // GroupItem 以外（Layer / Document）に出たら終了
+            var clipped = tryGet(function () { return ancestor.clipped; }, false);
+            if (clipped) return ancestor;
+            ancestor = tryGet(function () { return ancestor.parent; }, null);
         }
         return null;
     }
@@ -765,108 +507,108 @@ Illustrator標準機能では行いにくい
         if (!file) return null;
         if (!safeExists(file)) return null;
 
-        var f = new File(file.fsName);
-        f.encoding = "BINARY";
-        if (!f.open("r")) return null;
+        var binaryFile = new File(file.fsName);
+        binaryFile.encoding = "BINARY";
+        if (!binaryFile.open("r")) return null;
 
         var result = null;
         try {
-            var sig = f.read(8);
-            if (sig && sig.length >= 4) {
-                var b0 = sig.charCodeAt(0) & 0xFF;
-                var b1 = sig.charCodeAt(1) & 0xFF;
-                var b2 = sig.charCodeAt(2) & 0xFF;
-                var b3 = sig.charCodeAt(3) & 0xFF;
+            var signature = binaryFile.read(8);
+            if (signature && signature.length >= 4) {
+                var b0 = signature.charCodeAt(0) & 0xFF;
+                var b1 = signature.charCodeAt(1) & 0xFF;
+                var b2 = signature.charCodeAt(2) & 0xFF;
+                var b3 = signature.charCodeAt(3) & 0xFF;
 
                 // PNG: 89 50 4E 47 0D 0A 1A 0A
                 if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4E && b3 === 0x47) {
                     // 8(sig) + 4(chunk length) + 4("IHDR") = 16 から幅/高さ
-                    f.seek(16);
-                    var ihdr = f.read(8);
-                    if (ihdr && ihdr.length === 8) {
-                        result = { width: readU32BE(ihdr, 0), height: readU32BE(ihdr, 4) };
+                    binaryFile.seek(16);
+                    var ihdrBytes = binaryFile.read(8);
+                    if (ihdrBytes && ihdrBytes.length === 8) {
+                        result = { width: readU32BE(ihdrBytes, 0), height: readU32BE(ihdrBytes, 4) };
                     }
                 }
                 // JPEG: FF D8
                 else if (b0 === 0xFF && b1 === 0xD8) {
-                    f.seek(2);
+                    binaryFile.seek(2);
                     while (true) {
-                        var mark = f.read(2);
-                        if (!mark || mark.length < 2) break;
-                        if ((mark.charCodeAt(0) & 0xFF) !== 0xFF) break;
-                        var m = mark.charCodeAt(1) & 0xFF;
+                        var markerBytes = binaryFile.read(2);
+                        if (!markerBytes || markerBytes.length < 2) break;
+                        if ((markerBytes.charCodeAt(0) & 0xFF) !== 0xFF) break;
+                        var markerCode = markerBytes.charCodeAt(1) & 0xFF;
                         // SOFn（0xC0〜0xCF, ただし 0xC4/0xC8/0xCC は除く）
-                        if ((m >= 0xC0 && m <= 0xC3) ||
-                            (m >= 0xC5 && m <= 0xC7) ||
-                            (m >= 0xC9 && m <= 0xCB) ||
-                            (m >= 0xCD && m <= 0xCF)) {
-                            f.read(3); // length(2) + precision(1)
-                            var hh = f.read(2);
-                            var ww = f.read(2);
-                            if (hh && ww && hh.length === 2 && ww.length === 2) {
-                                result = { width: readU16BE(ww, 0), height: readU16BE(hh, 0) };
+                        if ((markerCode >= 0xC0 && markerCode <= 0xC3) ||
+                            (markerCode >= 0xC5 && markerCode <= 0xC7) ||
+                            (markerCode >= 0xC9 && markerCode <= 0xCB) ||
+                            (markerCode >= 0xCD && markerCode <= 0xCF)) {
+                            binaryFile.read(3); // length(2) + precision(1)
+                            var heightBytes = binaryFile.read(2);
+                            var widthBytes = binaryFile.read(2);
+                            if (heightBytes && widthBytes && heightBytes.length === 2 && widthBytes.length === 2) {
+                                result = { width: readU16BE(widthBytes, 0), height: readU16BE(heightBytes, 0) };
                             }
                             break;
                         }
-                        var lenBytes = f.read(2);
-                        if (!lenBytes || lenBytes.length < 2) break;
-                        var len = readU16BE(lenBytes, 0);
-                        f.seek(f.tell() + len - 2);
+                        var segmentLengthBytes = binaryFile.read(2);
+                        if (!segmentLengthBytes || segmentLengthBytes.length < 2) break;
+                        var segmentLength = readU16BE(segmentLengthBytes, 0);
+                        binaryFile.seek(binaryFile.tell() + segmentLength - 2);
                     }
                 }
                 // PSD: "8BPS"
                 else if (b0 === 0x38 && b1 === 0x42 && b2 === 0x50 && b3 === 0x53) {
                     // PSD header: sig(4) + ver(2) + reserved(6) + channels(2) + rows(4) + cols(4)
                     // → rows は offset 14、cols は offset 18
-                    f.seek(14);
-                    var dims = f.read(8);
-                    if (dims && dims.length === 8) {
-                        result = { width: readU32BE(dims, 4), height: readU32BE(dims, 0) };
+                    binaryFile.seek(14);
+                    var psdDimsBytes = binaryFile.read(8);
+                    if (psdDimsBytes && psdDimsBytes.length === 8) {
+                        result = { width: readU32BE(psdDimsBytes, 4), height: readU32BE(psdDimsBytes, 0) };
                     }
                 }
             }
         } catch (e) { }
-        f.close();
+        binaryFile.close();
         return result;
     }
 
     // ICC プロファイルのバイナリから desc タグ（プロファイル名）を取り出す
-    function readIccDesc(buf) {
-        if (!buf || buf.length < 132) return "";
+    function readIccDesc(iccBuffer) {
+        if (!iccBuffer || iccBuffer.length < 132) return "";
         try {
-            var tagCount = readU32BE(buf, 128);
+            var tagCount = readU32BE(iccBuffer, 128);
             for (var i = 0; i < tagCount; i++) {
-                var tagOff = 132 + i * 12;
-                if (tagOff + 12 > buf.length) break;
-                var sig = buf.substr(tagOff, 4);
-                if (sig === "desc") {
-                    var dataOff = readU32BE(buf, tagOff + 4);
-                    var dataSize = readU32BE(buf, tagOff + 8);
-                    if (dataOff + dataSize > buf.length) return "";
-                    var type = buf.substr(dataOff, 4);
-                    if (type === "desc") {
+                var tagOffset = 132 + i * 12;
+                if (tagOffset + 12 > iccBuffer.length) break;
+                var tagSignature = iccBuffer.substr(tagOffset, 4);
+                if (tagSignature === "desc") {
+                    var dataOffset = readU32BE(iccBuffer, tagOffset + 4);
+                    var dataSize = readU32BE(iccBuffer, tagOffset + 8);
+                    if (dataOffset + dataSize > iccBuffer.length) return "";
+                    var dataType = iccBuffer.substr(dataOffset, 4);
+                    if (dataType === "desc") {
                         // ICC v2: reserved(4) + asciiCount(4) + ascii...
-                        var asciiCount = readU32BE(buf, dataOff + 8);
+                        var asciiCount = readU32BE(iccBuffer, dataOffset + 8);
                         if (asciiCount > 0) {
-                            var s = buf.substr(dataOff + 12, asciiCount);
-                            return s.replace(/\0+$/g, "").replace(/\0.*$/g, "");
+                            var asciiString = iccBuffer.substr(dataOffset + 12, asciiCount);
+                            return asciiString.replace(/\0+$/g, "").replace(/\0.*$/g, "");
                         }
-                    } else if (type === "mluc") {
+                    } else if (dataType === "mluc") {
                         // ICC v4: reserved(4) + recordCount(4) + recordSize(4) + records
-                        var recordCount = readU32BE(buf, dataOff + 8);
+                        var recordCount = readU32BE(iccBuffer, dataOffset + 8);
                         if (recordCount > 0) {
-                            var recOff = dataOff + 16;
-                            var strLen = readU32BE(buf, recOff + 4);
-                            var strOff = readU32BE(buf, recOff + 8);
-                            if (dataOff + strOff + strLen <= buf.length && strLen > 0) {
-                                var raw = buf.substr(dataOff + strOff, strLen);
-                                var out = "";
-                                for (var c = 0; c + 1 < raw.length; c += 2) {
-                                    var ch = ((raw.charCodeAt(c) & 0xFF) << 8) | (raw.charCodeAt(c + 1) & 0xFF);
-                                    if (ch === 0) break;
-                                    out += String.fromCharCode(ch);
+                            var recordOffset = dataOffset + 16;
+                            var stringLength = readU32BE(iccBuffer, recordOffset + 4);
+                            var stringOffset = readU32BE(iccBuffer, recordOffset + 8);
+                            if (dataOffset + stringOffset + stringLength <= iccBuffer.length && stringLength > 0) {
+                                var rawBytes = iccBuffer.substr(dataOffset + stringOffset, stringLength);
+                                var decoded = "";
+                                for (var byteIdx = 0; byteIdx + 1 < rawBytes.length; byteIdx += 2) {
+                                    var codeUnit = ((rawBytes.charCodeAt(byteIdx) & 0xFF) << 8) | (rawBytes.charCodeAt(byteIdx + 1) & 0xFF);
+                                    if (codeUnit === 0) break;
+                                    decoded += String.fromCharCode(codeUnit);
                                 }
-                                return out;
+                                return decoded;
                             }
                         }
                     }
@@ -882,185 +624,185 @@ Illustrator標準機能では行いにくい
         if (!file) return null;
         if (!safeExists(file)) return null;
 
-        var f = new File(file.fsName);
-        f.encoding = "BINARY";
-        if (!f.open("r")) return null;
+        var binaryFile = new File(file.fsName);
+        binaryFile.encoding = "BINARY";
+        if (!binaryFile.open("r")) return null;
 
-        var mode = "";
+        var colorMode = "";
         var iccDesc = "";
 
         try {
-            var sig = f.read(8);
-            if (!sig || sig.length < 4) { f.close(); return null; }
-            var b0 = sig.charCodeAt(0) & 0xFF;
-            var b1 = sig.charCodeAt(1) & 0xFF;
-            var b2 = sig.charCodeAt(2) & 0xFF;
-            var b3 = sig.charCodeAt(3) & 0xFF;
+            var signature = binaryFile.read(8);
+            if (!signature || signature.length < 4) { binaryFile.close(); return null; }
+            var b0 = signature.charCodeAt(0) & 0xFF;
+            var b1 = signature.charCodeAt(1) & 0xFF;
+            var b2 = signature.charCodeAt(2) & 0xFF;
+            var b3 = signature.charCodeAt(3) & 0xFF;
 
             // PNG: 89 50 4E 47
             if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4E && b3 === 0x47) {
-                f.seek(16);
-                var ihdr = f.read(10);
-                if (ihdr && ihdr.length === 10) {
-                    var colorType = ihdr.charCodeAt(9) & 0xFF;
-                    if (colorType === 0 || colorType === 4) mode = "Grayscale";
-                    else if (colorType === 3) mode = "Indexed";
-                    else mode = "RGB";
+                binaryFile.seek(16);
+                var ihdrBytes = binaryFile.read(10);
+                if (ihdrBytes && ihdrBytes.length === 10) {
+                    var colorType = ihdrBytes.charCodeAt(9) & 0xFF;
+                    if (colorType === 0 || colorType === 4) colorMode = "Grayscale";
+                    else if (colorType === 3) colorMode = "Indexed";
+                    else colorMode = "RGB";
                 }
                 // iCCP / sRGB チャンクを探す
-                f.seek(8 + 4 + 4 + 13 + 4); // PNG sig + IHDR length + "IHDR" + IHDR data + CRC
+                binaryFile.seek(8 + 4 + 4 + 13 + 4); // PNG sig + IHDR length + "IHDR" + IHDR data + CRC
                 for (var pi = 0; pi < 32; pi++) {
-                    var plenBytes = f.read(4);
-                    if (!plenBytes || plenBytes.length < 4) break;
-                    var chunkLen = readU32BE(plenBytes, 0);
-                    var ctype = f.read(4);
-                    if (!ctype || ctype.length < 4) break;
-                    if (ctype === "iCCP") {
-                        var chunkData = f.read(chunkLen);
+                    var pngChunkLengthBytes = binaryFile.read(4);
+                    if (!pngChunkLengthBytes || pngChunkLengthBytes.length < 4) break;
+                    var chunkLength = readU32BE(pngChunkLengthBytes, 0);
+                    var chunkType = binaryFile.read(4);
+                    if (!chunkType || chunkType.length < 4) break;
+                    if (chunkType === "iCCP") {
+                        var chunkData = binaryFile.read(chunkLength);
                         if (chunkData) {
-                            var nulIdx = chunkData.indexOf("\0");
-                            if (nulIdx > 0) {
-                                iccDesc = chunkData.substring(0, nulIdx);
+                            var nullIndex = chunkData.indexOf("\0");
+                            if (nullIndex > 0) {
+                                iccDesc = chunkData.substring(0, nullIndex);
                             }
                         }
                         break;
-                    } else if (ctype === "sRGB") {
+                    } else if (chunkType === "sRGB") {
                         iccDesc = "sRGB IEC61966-2.1";
                         break;
-                    } else if (ctype === "IDAT" || ctype === "IEND") {
+                    } else if (chunkType === "IDAT" || chunkType === "IEND") {
                         break;
                     } else {
-                        f.seek(f.tell() + chunkLen + 4); // data + CRC
+                        binaryFile.seek(binaryFile.tell() + chunkLength + 4); // data + CRC
                     }
                 }
             }
             // JPEG: FF D8
             else if (b0 === 0xFF && b1 === 0xD8) {
-                f.seek(2);
+                binaryFile.seek(2);
                 var iccPieces = {};
-                var iccTotal = 0;
-                var components = 0;
+                var iccTotalPieces = 0;
+                var componentCount = 0;
                 for (var ji = 0; ji < 64; ji++) {
-                    var mark = f.read(2);
-                    if (!mark || mark.length < 2) break;
-                    if ((mark.charCodeAt(0) & 0xFF) !== 0xFF) break;
-                    var m = mark.charCodeAt(1) & 0xFF;
-                    if (m === 0xD9 || m === 0xDA) break;
-                    var lenBytes = f.read(2);
-                    if (!lenBytes || lenBytes.length < 2) break;
-                    var segLen = readU16BE(lenBytes, 0);
-                    var segDataLen = segLen - 2;
-                    if (segDataLen < 0) break;
-                    var segStart = f.tell();
+                    var markerBytes = binaryFile.read(2);
+                    if (!markerBytes || markerBytes.length < 2) break;
+                    if ((markerBytes.charCodeAt(0) & 0xFF) !== 0xFF) break;
+                    var markerCode = markerBytes.charCodeAt(1) & 0xFF;
+                    if (markerCode === 0xD9 || markerCode === 0xDA) break;
+                    var segmentLengthBytes = binaryFile.read(2);
+                    if (!segmentLengthBytes || segmentLengthBytes.length < 2) break;
+                    var segmentLength = readU16BE(segmentLengthBytes, 0);
+                    var segmentDataLength = segmentLength - 2;
+                    if (segmentDataLength < 0) break;
+                    var segmentStart = binaryFile.tell();
 
-                    var isSof = (m >= 0xC0 && m <= 0xCF) && m !== 0xC4 && m !== 0xC8 && m !== 0xCC;
+                    var isSof = (markerCode >= 0xC0 && markerCode <= 0xCF) && markerCode !== 0xC4 && markerCode !== 0xC8 && markerCode !== 0xCC;
                     if (isSof) {
-                        var sof = f.read(6);
-                        if (sof && sof.length === 6) {
-                            components = sof.charCodeAt(5) & 0xFF;
+                        var sofBytes = binaryFile.read(6);
+                        if (sofBytes && sofBytes.length === 6) {
+                            componentCount = sofBytes.charCodeAt(5) & 0xFF;
                         }
-                        f.seek(segStart + segDataLen);
-                    } else if (m === 0xE2) {
-                        var sig14 = f.read(14);
-                        if (sig14 && sig14.length === 14 && sig14.substring(0, 12) === "ICC_PROFILE\0") {
-                            var seqNum = sig14.charCodeAt(12) & 0xFF;
-                            var totalNum = sig14.charCodeAt(13) & 0xFF;
-                            iccTotal = totalNum;
-                            var pieceLen = segDataLen - 14;
-                            if (pieceLen > 0) iccPieces[seqNum] = f.read(pieceLen);
-                            else f.seek(segStart + segDataLen);
+                        binaryFile.seek(segmentStart + segmentDataLength);
+                    } else if (markerCode === 0xE2) {
+                        var appSegmentHeader = binaryFile.read(14);
+                        if (appSegmentHeader && appSegmentHeader.length === 14 && appSegmentHeader.substring(0, 12) === "ICC_PROFILE\0") {
+                            var sequenceNumber = appSegmentHeader.charCodeAt(12) & 0xFF;
+                            var totalPieces = appSegmentHeader.charCodeAt(13) & 0xFF;
+                            iccTotalPieces = totalPieces;
+                            var pieceLength = segmentDataLength - 14;
+                            if (pieceLength > 0) iccPieces[sequenceNumber] = binaryFile.read(pieceLength);
+                            else binaryFile.seek(segmentStart + segmentDataLength);
                         } else {
-                            f.seek(segStart + segDataLen);
+                            binaryFile.seek(segmentStart + segmentDataLength);
                         }
                     } else {
-                        f.seek(segStart + segDataLen);
+                        binaryFile.seek(segmentStart + segmentDataLength);
                     }
                 }
-                if (components === 1) mode = "Grayscale";
-                else if (components === 4) mode = "CMYK";
-                else if (components > 0) mode = "RGB";
-                if (iccTotal > 0) {
-                    var icc = "";
-                    var ok = true;
-                    for (var p = 1; p <= iccTotal; p++) {
-                        if (!iccPieces[p]) { ok = false; break; }
-                        icc += iccPieces[p];
+                if (componentCount === 1) colorMode = "Grayscale";
+                else if (componentCount === 4) colorMode = "CMYK";
+                else if (componentCount > 0) colorMode = "RGB";
+                if (iccTotalPieces > 0) {
+                    var iccData = "";
+                    var allPiecesReceived = true;
+                    for (var pieceIdx = 1; pieceIdx <= iccTotalPieces; pieceIdx++) {
+                        if (!iccPieces[pieceIdx]) { allPiecesReceived = false; break; }
+                        iccData += iccPieces[pieceIdx];
                     }
-                    if (ok && icc.length > 0) iccDesc = readIccDesc(icc);
+                    if (allPiecesReceived && iccData.length > 0) iccDesc = readIccDesc(iccData);
                 }
             }
             // PSD: "8BPS"
             else if (b0 === 0x38 && b1 === 0x42 && b2 === 0x50 && b3 === 0x53) {
-                f.seek(24);
-                var modeBytes = f.read(2);
+                binaryFile.seek(24);
+                var modeBytes = binaryFile.read(2);
                 if (modeBytes && modeBytes.length === 2) {
                     var modeCode = readU16BE(modeBytes, 0);
-                    if (modeCode === 0) mode = "Bitmap";
-                    else if (modeCode === 1) mode = "Grayscale";
-                    else if (modeCode === 2) mode = "Indexed";
-                    else if (modeCode === 3) mode = "RGB";
-                    else if (modeCode === 4) mode = "CMYK";
-                    else if (modeCode === 7) mode = "Multichannel";
-                    else if (modeCode === 8) mode = "Duotone";
-                    else if (modeCode === 9) mode = "Lab";
+                    if (modeCode === 0) colorMode = "Bitmap";
+                    else if (modeCode === 1) colorMode = "Grayscale";
+                    else if (modeCode === 2) colorMode = "Indexed";
+                    else if (modeCode === 3) colorMode = "RGB";
+                    else if (modeCode === 4) colorMode = "CMYK";
+                    else if (modeCode === 7) colorMode = "Multichannel";
+                    else if (modeCode === 8) colorMode = "Duotone";
+                    else if (modeCode === 9) colorMode = "Lab";
                 }
-                f.seek(26);
-                var cmdLenBytes = f.read(4);
-                if (cmdLenBytes && cmdLenBytes.length === 4) {
-                    var cmdLen = readU32BE(cmdLenBytes, 0);
-                    var imgResStart = 30 + cmdLen;
-                    f.seek(imgResStart);
-                    var irLenBytes = f.read(4);
-                    if (irLenBytes && irLenBytes.length === 4) {
-                        var irLen = readU32BE(irLenBytes, 0);
-                        var irEnd = imgResStart + 4 + irLen;
-                        // リソースセクション終端まで走査。壊れたファイルで f.tell() が進まない場合は無限ループを避けて break
-                        while (f.tell() < irEnd) {
-                            var posBefore = f.tell();
-                            var sigBytes = f.read(4);
-                            if (!sigBytes || sigBytes.length < 4 || sigBytes !== "8BIM") break;
-                            var idBytes = f.read(2);
-                            if (!idBytes || idBytes.length < 2) break;
-                            var resId = readU16BE(idBytes, 0);
-                            var nameLenByte = f.read(1);
-                            if (!nameLenByte) break;
-                            var nameLen = nameLenByte.charCodeAt(0) & 0xFF;
-                            var nameTotal = nameLen + 1;
-                            if (nameTotal % 2 !== 0) nameTotal++;
-                            f.seek(f.tell() + (nameTotal - 1));
-                            var dataSizeBytes = f.read(4);
+                binaryFile.seek(26);
+                var colorModeDataLengthBytes = binaryFile.read(4);
+                if (colorModeDataLengthBytes && colorModeDataLengthBytes.length === 4) {
+                    var colorModeDataLength = readU32BE(colorModeDataLengthBytes, 0);
+                    var imageResourceStart = 30 + colorModeDataLength;
+                    binaryFile.seek(imageResourceStart);
+                    var imageResourceLengthBytes = binaryFile.read(4);
+                    if (imageResourceLengthBytes && imageResourceLengthBytes.length === 4) {
+                        var imageResourceLength = readU32BE(imageResourceLengthBytes, 0);
+                        var imageResourceEnd = imageResourceStart + 4 + imageResourceLength;
+                        // リソースセクション終端まで走査。壊れたファイルで binaryFile.tell() が進まない場合は無限ループを避けて break
+                        while (binaryFile.tell() < imageResourceEnd) {
+                            var positionBefore = binaryFile.tell();
+                            var resourceSigBytes = binaryFile.read(4);
+                            if (!resourceSigBytes || resourceSigBytes.length < 4 || resourceSigBytes !== "8BIM") break;
+                            var resourceIdBytes = binaryFile.read(2);
+                            if (!resourceIdBytes || resourceIdBytes.length < 2) break;
+                            var resourceId = readU16BE(resourceIdBytes, 0);
+                            var nameLengthByte = binaryFile.read(1);
+                            if (!nameLengthByte) break;
+                            var nameLength = nameLengthByte.charCodeAt(0) & 0xFF;
+                            var paddedNameLength = nameLength + 1;
+                            if (paddedNameLength % 2 !== 0) paddedNameLength++;
+                            binaryFile.seek(binaryFile.tell() + (paddedNameLength - 1));
+                            var dataSizeBytes = binaryFile.read(4);
                             if (!dataSizeBytes || dataSizeBytes.length < 4) break;
                             var dataSize = readU32BE(dataSizeBytes, 0);
                             var paddedDataSize = (dataSize % 2 === 0) ? dataSize : dataSize + 1;
-                            if (resId === 0x040F) {
-                                var iccPsd = f.read(dataSize);
-                                if (iccPsd && iccPsd.length > 0) iccDesc = readIccDesc(iccPsd);
+                            if (resourceId === 0x040F) {
+                                var iccProfileData = binaryFile.read(dataSize);
+                                if (iccProfileData && iccProfileData.length > 0) iccDesc = readIccDesc(iccProfileData);
                                 break;
                             } else {
-                                f.seek(f.tell() + paddedDataSize);
+                                binaryFile.seek(binaryFile.tell() + paddedDataSize);
                             }
                             // 進行していない（seek が無効）なら壊れたファイル。無限ループ回避
-                            if (f.tell() <= posBefore) break;
+                            if (binaryFile.tell() <= positionBefore) break;
                         }
                     }
                 }
             }
         } catch (e) { }
-        f.close();
+        binaryFile.close();
 
-        if (!mode) return null;
-        if (iccDesc) return mode + "（" + iccDesc + "）";
-        return mode;
+        if (!colorMode) return null;
+        if (iccDesc) return colorMode + "（" + iccDesc + "）";
+        return colorMode;
     }
 
     // 配置サイズ（pt）とピクセル寸法から実効 PPI を算出
     function getEffectivePPI(item, pixelSize) {
         if (!pixelSize) return null;
-        var w = tryGet(function () { return item.width; }, null);
-        var h = tryGet(function () { return item.height; }, null);
-        if (!w || !h) return null;
-        var ppiX = pixelSize.width * 72 / w;
-        var ppiY = pixelSize.height * 72 / h;
+        var placedWidthPt = tryGet(function () { return item.width; }, null);
+        var placedHeightPt = tryGet(function () { return item.height; }, null);
+        if (!placedWidthPt || !placedHeightPt) return null;
+        var ppiX = pixelSize.width * 72 / placedWidthPt;
+        var ppiY = pixelSize.height * 72 / placedHeightPt;
         return Math.round((ppiX + ppiY) / 2);
     }
 
@@ -1115,46 +857,46 @@ Illustrator標準機能では行いにくい
 
     // 配置行列から拡大縮小率（%）を算出。X/Y が異なる場合は "X% × Y%"、同じなら単一値
     function getScaleInfo(item) {
-        var m = tryGet(function () { return item.matrix; }, null);
-        if (!m) return { scalePct: null, scaleText: "---" };
-        var sx = Math.sqrt(m.mValueA * m.mValueA + m.mValueB * m.mValueB);
-        var sy = Math.sqrt(m.mValueC * m.mValueC + m.mValueD * m.mValueD);
-        var sxPct = sx * 100;
-        var syPct = sy * 100;
-        var avg = (sxPct + syPct) / 2;
-        var text = (Math.abs(sxPct - syPct) < 0.1)
-            ? sxPct.toFixed(1) + "%"
-            : sxPct.toFixed(1) + "% × " + syPct.toFixed(1) + "%";
-        return { scalePct: avg, scaleText: text };
+        var matrix = tryGet(function () { return item.matrix; }, null);
+        if (!matrix) return { scalePct: null, scaleText: "---" };
+        var scaleX = Math.sqrt(matrix.mValueA * matrix.mValueA + matrix.mValueB * matrix.mValueB);
+        var scaleY = Math.sqrt(matrix.mValueC * matrix.mValueC + matrix.mValueD * matrix.mValueD);
+        var scaleXPct = scaleX * 100;
+        var scaleYPct = scaleY * 100;
+        var averagePct = (scaleXPct + scaleYPct) / 2;
+        var scaleText = (Math.abs(scaleXPct - scaleYPct) < 0.1)
+            ? scaleXPct.toFixed(1) + "%"
+            : scaleXPct.toFixed(1) + "% × " + scaleYPct.toFixed(1) + "%";
+        return { scalePct: averagePct, scaleText: scaleText };
     }
 
     // 配置サイズ（pt）を mm に変換して {widthMm, heightMm} を返す。不明なら {null, null}
     function getDimensionsMm(item) {
-        var w = tryGet(function () { return item.width; }, null);   // pt
-        var h = tryGet(function () { return item.height; }, null);
-        if (!w || !h) return { widthMm: null, heightMm: null };
+        var widthPt = tryGet(function () { return item.width; }, null);   // pt
+        var heightPt = tryGet(function () { return item.height; }, null);
+        if (!widthPt || !heightPt) return { widthMm: null, heightMm: null };
         return {
-            widthMm: w * 25.4 / 72,
-            heightMm: h * 25.4 / 72
+            widthMm: widthPt * 25.4 / 72,
+            heightMm: heightPt * 25.4 / 72
         };
     }
 
     // 指定アイテムの中心が含まれるアートボード番号（1 始まり）を返す。無ければ null
     function getArtboardNumber(item, doc) {
-        var b = tryGet(function () { return item.visibleBounds; }, null); // [left, top, right, bottom]
-        if (!b) return null;
-        var cx = (b[0] + b[2]) / 2;
-        var cy = (b[1] + b[3]) / 2;
+        var itemBounds = tryGet(function () { return item.visibleBounds; }, null); // [left, top, right, bottom]
+        if (!itemBounds) return null;
+        var centerX = (itemBounds[0] + itemBounds[2]) / 2;
+        var centerY = (itemBounds[1] + itemBounds[3]) / 2;
         var artboards = tryGet(function () { return doc.artboards; }, null);
         if (!artboards) return null;
         for (var i = 0; i < artboards.length; i++) {
-            var r = tryGet(function () { return artboards[i].artboardRect; }, null);
-            if (!r) continue;
-            var xMin = Math.min(r[0], r[2]);
-            var xMax = Math.max(r[0], r[2]);
-            var yMin = Math.min(r[1], r[3]);
-            var yMax = Math.max(r[1], r[3]);
-            if (cx >= xMin && cx <= xMax && cy >= yMin && cy <= yMax) {
+            var artboardRect = tryGet(function () { return artboards[i].artboardRect; }, null);
+            if (!artboardRect) continue;
+            var xMin = Math.min(artboardRect[0], artboardRect[2]);
+            var xMax = Math.max(artboardRect[0], artboardRect[2]);
+            var yMin = Math.min(artboardRect[1], artboardRect[3]);
+            var yMax = Math.max(artboardRect[1], artboardRect[3]);
+            if (centerX >= xMin && centerX <= xMax && centerY >= yMin && centerY <= yMax) {
                 return i + 1;
             }
         }
@@ -1218,24 +960,24 @@ Illustrator標準機能では行いにくい
             var fileSizeBytes = -1; // ソート用（-1 は不明）
             var status = L('statusBroken');
 
-            var f = tryGet(function () { return item.file; }, null);
+            var linkedFile = tryGet(function () { return item.file; }, null);
 
             var isLinkOk = false;
             var statusCode = "broken";
             var statusIcon = "⚠";
 
-            if (f) {
-                fileName = safeProp(f, "name", fileName);
-                filePath = safeProp(f, "fsName", filePath);
-                var resolvedStatus = resolveLinkStatus(f, item, doc, xmpRef ? xmpRef.lastModifyDate : "");
+            if (linkedFile) {
+                fileName = safeProp(linkedFile, "name", fileName);
+                filePath = safeProp(linkedFile, "fsName", filePath);
+                var resolvedStatus = resolveLinkStatus(linkedFile, item, doc, xmpRef ? xmpRef.lastModifyDate : "");
                 statusCode = resolvedStatus.statusCode;
                 status = resolvedStatus.status;
                 statusIcon = resolvedStatus.statusIcon;
                 isLinkOk = resolvedStatus.isLinkOk;
-                if (safeExists(f)) {
-                    var len = tryGet(function () { return f.length; }, -1);
-                    if (len >= 0) {
-                        fileSizeBytes = len;
+                if (safeExists(linkedFile)) {
+                    var byteLength = tryGet(function () { return linkedFile.length; }, -1);
+                    if (byteLength >= 0) {
+                        fileSizeBytes = byteLength;
                         fileSize = formatFileSize(fileSizeBytes);
                     }
                 }
@@ -1244,29 +986,25 @@ Illustrator標準機能では行いにくい
             fileName = getPlacedItemFileName(item, xmpRef ? xmpRef.fileName : "", fileName);
 
             if (fileName === L('fileNameUnknown') && filePath !== "---") {
-                var slash = filePath.lastIndexOf("/");
-                var bslash = filePath.lastIndexOf("\\");
-                var cut = Math.max(slash, bslash);
-                if (cut >= 0 && cut < filePath.length - 1) {
-                    fileName = filePath.substring(cut + 1);
-                }
+                var derivedName = pathBaseName(filePath);
+                if (derivedName) fileName = derivedName;
             }
 
             var artboardNum = getArtboardNumber(item, doc);
 
-            var dim = getDimensionsMm(item);
-            var widthText = (dim.widthMm !== null) ? dim.widthMm.toFixed(1) : "---";
-            var heightText = (dim.heightMm !== null) ? dim.heightMm.toFixed(1) : "---";
+            var dimensions = getDimensionsMm(item);
+            var widthText = (dimensions.widthMm !== null) ? dimensions.widthMm.toFixed(1) : "---";
+            var heightText = (dimensions.heightMm !== null) ? dimensions.heightMm.toFixed(1) : "---";
 
             var scaleInfo = getScaleInfo(item);
 
             var ppi = null;
-            var pxSize = null;
+            var pixelSize = null;
             var colorSpace = "";
-            if (f) {
-                pxSize = tryGet(function () { return readImagePixelSize(f); }, null);
-                ppi = getEffectivePPI(item, pxSize);
-                colorSpace = tryGet(function () { return readImageColorSpace(f); }, "") || "";
+            if (linkedFile) {
+                pixelSize = tryGet(function () { return readImagePixelSize(linkedFile); }, null);
+                ppi = getEffectivePPI(item, pixelSize);
+                colorSpace = tryGet(function () { return readImageColorSpace(linkedFile); }, "") || "";
             }
             var ppiText = (ppi !== null) ? String(ppi) : "---";
 
@@ -1283,8 +1021,8 @@ Illustrator標準機能では行いにくい
                 isLinkOk: isLinkOk,
                 artboardNum: artboardNum,
                 artboards: (artboardNum !== null) ? String(artboardNum) : "-",
-                widthMm: dim.widthMm,
-                heightMm: dim.heightMm,
+                widthMm: dimensions.widthMm,
+                heightMm: dimensions.heightMm,
                 widthText: widthText,
                 heightText: heightText,
                 scalePct: scaleInfo.scalePct,
@@ -1298,69 +1036,69 @@ Illustrator標準機能では行いにくい
 
         // 同一ファイルの配置数をカウント
         var countMap = {};
-        for (var k = 0; k < linkInfoList.length; k++) {
-            var kInfo = linkInfoList[k];
-            var kKey = (kInfo.filePath !== "---") ? kInfo.filePath : kInfo.fileName;
-            countMap[kKey] = (countMap[kKey] || 0) + 1;
+        for (var ci = 0; ci < linkInfoList.length; ci++) {
+            var countInfo = linkInfoList[ci];
+            var countKey = (countInfo.filePath !== "---") ? countInfo.filePath : countInfo.fileName;
+            countMap[countKey] = (countMap[countKey] || 0) + 1;
         }
-        for (var m = 0; m < linkInfoList.length; m++) {
-            var mInfo = linkInfoList[m];
-            var mKey = (mInfo.filePath !== "---") ? mInfo.filePath : mInfo.fileName;
-            mInfo.fileCount = countMap[mKey];
+        for (var ai = 0; ai < linkInfoList.length; ai++) {
+            var assignInfo = linkInfoList[ai];
+            var assignKey = (assignInfo.filePath !== "---") ? assignInfo.filePath : assignInfo.fileName;
+            assignInfo.fileCount = countMap[assignKey];
         }
 
         // 重複排除
         var uniqueList = [];
         var keyToEntry = {};
-        for (var n = 0; n < linkInfoList.length; n++) {
-            var nInfo = linkInfoList[n];
-            var nKey = (nInfo.filePath !== "---") ? nInfo.filePath : nInfo.fileName;
-            if (keyToEntry[nKey]) {
-                keyToEntry[nKey].itemIndices.push(nInfo.itemIndex);
-                if (nInfo.artboardNum !== null) {
-                    keyToEntry[nKey].artboardSet[nInfo.artboardNum] = true;
+        for (var di = 0; di < linkInfoList.length; di++) {
+            var dedupInfo = linkInfoList[di];
+            var dedupKey = (dedupInfo.filePath !== "---") ? dedupInfo.filePath : dedupInfo.fileName;
+            if (keyToEntry[dedupKey]) {
+                keyToEntry[dedupKey].itemIndices.push(dedupInfo.itemIndex);
+                if (dedupInfo.artboardNum !== null) {
+                    keyToEntry[dedupKey].artboardSet[dedupInfo.artboardNum] = true;
                 }
             } else {
-                var abSet = {};
-                if (nInfo.artboardNum !== null) abSet[nInfo.artboardNum] = true;
+                var artboardSet = {};
+                if (dedupInfo.artboardNum !== null) artboardSet[dedupInfo.artboardNum] = true;
                 var entry = {
                     index: uniqueList.length + 1,
-                    fileName: nInfo.fileName,
-                    filePath: nInfo.filePath,
-                    fileSize: nInfo.fileSize,
-                    fileSizeBytes: nInfo.fileSizeBytes,
-                    status: nInfo.status,
-                    statusIcon: nInfo.statusIcon,
-                    statusCode: nInfo.statusCode,
-                    isLinkOk: nInfo.isLinkOk,
-                    fileCount: nInfo.fileCount,
-                    artboardNum: nInfo.artboardNum,
-                    artboardSet: abSet,
-                    widthMm: nInfo.widthMm,
-                    heightMm: nInfo.heightMm,
-                    widthText: nInfo.widthText,
-                    heightText: nInfo.heightText,
-                    scalePct: nInfo.scalePct,
-                    scaleText: nInfo.scaleText,
-                    ppi: nInfo.ppi,
-                    ppiText: nInfo.ppiText,
-                    colorSpace: nInfo.colorSpace,
-                    itemIndices: [nInfo.itemIndex]
+                    fileName: dedupInfo.fileName,
+                    filePath: dedupInfo.filePath,
+                    fileSize: dedupInfo.fileSize,
+                    fileSizeBytes: dedupInfo.fileSizeBytes,
+                    status: dedupInfo.status,
+                    statusIcon: dedupInfo.statusIcon,
+                    statusCode: dedupInfo.statusCode,
+                    isLinkOk: dedupInfo.isLinkOk,
+                    fileCount: dedupInfo.fileCount,
+                    artboardNum: dedupInfo.artboardNum,
+                    artboardSet: artboardSet,
+                    widthMm: dedupInfo.widthMm,
+                    heightMm: dedupInfo.heightMm,
+                    widthText: dedupInfo.widthText,
+                    heightText: dedupInfo.heightText,
+                    scalePct: dedupInfo.scalePct,
+                    scaleText: dedupInfo.scaleText,
+                    ppi: dedupInfo.ppi,
+                    ppiText: dedupInfo.ppiText,
+                    colorSpace: dedupInfo.colorSpace,
+                    itemIndices: [dedupInfo.itemIndex]
                 };
-                keyToEntry[nKey] = entry;
+                keyToEntry[dedupKey] = entry;
                 uniqueList.push(entry);
             }
         }
 
-        for (var q = 0; q < uniqueList.length; q++) {
-            var u = uniqueList[q];
-            var nums = [];
-            for (var abKey in u.artboardSet) {
-                if (u.artboardSet.hasOwnProperty(abKey)) nums.push(parseInt(abKey, 10));
+        for (var ui = 0; ui < uniqueList.length; ui++) {
+            var uniqueEntry = uniqueList[ui];
+            var artboardNumbers = [];
+            for (var abKey in uniqueEntry.artboardSet) {
+                if (uniqueEntry.artboardSet.hasOwnProperty(abKey)) artboardNumbers.push(parseInt(abKey, 10));
             }
-            nums.sort(function (a, b) { return a - b; });
-            u.artboards = (nums.length > 0) ? nums.join(", ") : "-";
-            u.artboardNum = (nums.length > 0) ? nums[0] : null;
+            artboardNumbers.sort(function (a, b) { return a - b; });
+            uniqueEntry.artboards = (artboardNumbers.length > 0) ? artboardNumbers.join(", ") : "-";
+            uniqueEntry.artboardNum = (artboardNumbers.length > 0) ? artboardNumbers[0] : null;
         }
 
         return { linkInfoList: linkInfoList, uniqueList: uniqueList };
@@ -1390,22 +1128,22 @@ Illustrator標準機能では行いにくい
     // PlacedItem 直接選択のほか、クリップグループなど GroupItem 配下に PlacedItem が 1 つだけ含まれる場合にも対応
     var preselectedItemIndex = -1;
     var selection = tryGet(function () { return doc.selection; }, null);
-    var selPlaced = pickSinglePlacedItem(selection);
-    if (selPlaced) {
+    var selectedPlacedItem = pickSinglePlacedItem(selection);
+    if (selectedPlacedItem) {
         // まず参照同一性で照合
         for (var si = 0; si < placedItems.length; si++) {
-            if (placedItems[si] === selPlaced) {
+            if (placedItems[si] === selectedPlacedItem) {
                 preselectedItemIndex = si;
                 break;
             }
         }
         // === が DOM プロキシ差で失敗するケースに備え、geometricBounds で再照合
         if (preselectedItemIndex < 0) {
-            var sb = tryGet(function () { return selPlaced.geometricBounds; }, null);
-            if (sb) {
+            var selectedBounds = tryGet(function () { return selectedPlacedItem.geometricBounds; }, null);
+            if (selectedBounds) {
                 for (var sj = 0; sj < placedItems.length; sj++) {
-                    var jb = tryGet(function () { return placedItems[sj].geometricBounds; }, null);
-                    if (jb && jb[0] === sb[0] && jb[1] === sb[1] && jb[2] === sb[2] && jb[3] === sb[3]) {
+                    var candidateBounds = tryGet(function () { return placedItems[sj].geometricBounds; }, null);
+                    if (candidateBounds && candidateBounds[0] === selectedBounds[0] && candidateBounds[1] === selectedBounds[1] && candidateBounds[2] === selectedBounds[2] && candidateBounds[3] === selectedBounds[3]) {
                         preselectedItemIndex = sj;
                         break;
                     }
@@ -1613,11 +1351,11 @@ Illustrator標準機能では行いにくい
             if (listBox) {
                 try { listHolder.remove(listBox); } catch (e) { }
             }
-            var cols = getColumnSpec();
+            var columns = getColumnSpec();
             var titles = [], widths = [];
-            for (var cc = 0; cc < cols.length; cc++) {
-                titles.push(cols[cc].title);
-                widths.push(cols[cc].width);
+            for (var colIdx = 0; colIdx < columns.length; colIdx++) {
+                titles.push(columns[colIdx].title);
+                widths.push(columns[colIdx].width);
             }
 
             listBox = listHolder.add("listbox", undefined, [], {
@@ -1714,19 +1452,19 @@ Illustrator標準機能では行いにくい
 
             if (hasStatusFlt || hasArtboardFilter) {
                 filteredEntries = [];
-                for (var k = 0; k < sourceEntries.length; k++) {
-                    var entry = sourceEntries[k];
+                for (var sourceIdx = 0; sourceIdx < sourceEntries.length; sourceIdx++) {
+                    var entry = sourceEntries[sourceIdx];
                     if (hasStatusFlt) {
-                        var sc = entry.statusCode;
-                        if (sc === "ok" && !allowOk) continue;
-                        if (sc === "broken" && !allowBroken) continue;
-                        if (sc === "update" && !allowUpdate) continue;
+                        var statusCode = entry.statusCode;
+                        if (statusCode === "ok" && !allowOk) continue;
+                        if (statusCode === "broken" && !allowBroken) continue;
+                        if (statusCode === "update" && !allowUpdate) continue;
                     }
                     if (hasArtboardFilter) {
-                        var match = entry.artboardSet
+                        var matchesArtboard = entry.artboardSet
                             ? !!entry.artboardSet[targetArtboardNumber]
                             : (entry.artboardNum === targetArtboardNumber);
-                        if (!match) continue;
+                        if (!matchesArtboard) continue;
                     }
                     filteredEntries.push(entry);
                 }
@@ -1735,41 +1473,41 @@ Illustrator標準機能では行いにくい
             }
 
             filteredEntries.sort(function (a, b) {
-                var va = getSortValue(a, sortBy);
-                var vb = getSortValue(b, sortBy);
+                var valA = getSortValue(a, sortBy);
+                var valB = getSortValue(b, sortBy);
                 // 欠損値は常に末尾
-                var am = isMissing(va), bm = isMissing(vb);
-                if (am && bm) return 0;
-                if (am) return 1;
-                if (bm) return -1;
-                if (va < vb) return desc ? 1 : -1;
-                if (va > vb) return desc ? -1 : 1;
+                var aMissing = isMissing(valA), bMissing = isMissing(valB);
+                if (aMissing && bMissing) return 0;
+                if (aMissing) return 1;
+                if (bMissing) return -1;
+                if (valA < valB) return desc ? 1 : -1;
+                if (valA > valB) return desc ? -1 : 1;
                 return 0;
             });
 
             // 列スペックに沿って動的にセル値を流し込む
-            var cols = getColumnSpec();
-            var unified = unitCheck.value;
+            var columns = getColumnSpec();
+            var useUnifiedSize = unitCheck.value;
             listBox.removeAll();
-            for (var j = 0; j < filteredEntries.length; j++) {
-                var info = filteredEntries[j];
+            for (var rowIdx = 0; rowIdx < filteredEntries.length; rowIdx++) {
+                var info = filteredEntries[rowIdx];
                 // 先頭列は .text、残りは subItems にセット
-                var firstKey = cols[0].key;
+                var firstKey = columns[0].key;
                 var firstText = info[firstKey];
                 var row = listBox.add("item", (firstText === undefined || firstText === null) ? "" : String(firstText));
-                for (var cj = 1; cj < cols.length; cj++) {
-                    var key = cols[cj].key;
-                    var txt;
+                for (var colIdx = 1; colIdx < columns.length; colIdx++) {
+                    var key = columns[colIdx].key;
+                    var cellText;
                     if (key === "fileSize") {
-                        txt = unified
+                        cellText = useUnifiedSize
                             ? formatFileSize(info.fileSizeBytes)
                             : formatFileSizeAuto(info.fileSizeBytes);
                     } else if (key === "fileCount") {
-                        txt = String(info.fileCount);
+                        cellText = String(info.fileCount);
                     } else {
-                        txt = info[key];
+                        cellText = info[key];
                     }
-                    row.subItems[cj - 1].text = (txt === undefined || txt === null) ? "" : txt;
+                    row.subItems[colIdx - 1].text = (cellText === undefined || cellText === null) ? "" : cellText;
                 }
             }
 
@@ -1874,37 +1612,26 @@ Illustrator標準機能では行いにくい
         }
         abFilterDropdown.onChange = applyArtboardFilter;
 
-        abPrevBtn.onClick = function () {
-            var n = abFilterDropdown.items.length;
-            if (n <= 1) return;
-            var cur = abFilterDropdown.selection ? abFilterDropdown.selection.index : 0;
-            var next = cur;
-            for (var step = 0; step < n; step++) {
-                next = next - 1;
-                if (next < 1) next = n - 1;
+        // direction: -1 で前、+1 で次のアートボードへ移動。enabled な項目だけを巡回
+        function stepArtboard(direction) {
+            var itemCount = abFilterDropdown.items.length;
+            if (itemCount <= 1) return;
+            var currentIdx = abFilterDropdown.selection ? abFilterDropdown.selection.index : 0;
+            var next = currentIdx;
+            for (var step = 0; step < itemCount; step++) {
+                next = next + direction;
+                if (next < 1) next = itemCount - 1;
+                else if (next >= itemCount) next = 1;
                 if (abFilterDropdown.items[next].enabled) {
                     abFilterDropdown.selection = next;
                     applyArtboardFilter();
                     return;
                 }
             }
-        };
+        }
 
-        abNextBtn.onClick = function () {
-            var n = abFilterDropdown.items.length;
-            if (n <= 1) return;
-            var cur = abFilterDropdown.selection ? abFilterDropdown.selection.index : 0;
-            var next = cur;
-            for (var step = 0; step < n; step++) {
-                next = next + 1;
-                if (next >= n) next = 1;
-                if (abFilterDropdown.items[next].enabled) {
-                    abFilterDropdown.selection = next;
-                    applyArtboardFilter();
-                    return;
-                }
-            }
-        };
+        abPrevBtn.onClick = function () { stepArtboard(-1); };
+        abNextBtn.onClick = function () { stepArtboard(1); };
 
         // 列の表示/非表示・ヘッダ更新時の共通処理（listBox を作り直し、ソート候補も更新）
         function recreateListBoxAndRebuildList() {
@@ -1991,6 +1718,17 @@ Illustrator標準機能では行いにくい
         var selectedFilePath = "";
         var selectedEntry = null;
 
+        // selectedEntry 未選択ガード付きで onClick ハンドラを生成
+        function requireSelectedEntry(handler) {
+            return function () {
+                if (!selectedEntry) {
+                    alert(L('alertSelectItem'));
+                    return;
+                }
+                return handler.apply(this, arguments);
+            };
+        }
+
         // ファイル名ON時も ~ 短縮や Dropbox 短縮は適用する（フルパスONのときだけ生パスを表示）
         function buildDisplayedPath(absPath) {
             if (!absPath || absPath === "---") return absPath;
@@ -2068,7 +1806,7 @@ Illustrator標準機能では行いにくい
                 referenceFolder = selectedFolder;
                 folderLabel.text = selectedFolder.fsName;
                 if (okBtn) okBtn.enabled = true;
-                try { extDlg.layout.layout(true); } catch (e) { }
+                safeRelayout(extDlg);
             };
 
             var radios = [];
@@ -2097,24 +1835,24 @@ Illustrator標準機能では行いにくい
             colRight.preferredSize.width = 110;
 
             function addRadio(parent, label, ext, alt, isDefault) {
-                var r = parent.add("radiobutton", undefined, label);
-                if (isDefault) r.value = true;
+                var radioBtn = parent.add("radiobutton", undefined, label);
+                if (isDefault) radioBtn.value = true;
 
                 var entry = {
-                    ui: r,
+                    ui: radioBtn,
                     ext: ext,
                     alt: alt || ""
                 };
                 radios.push(entry);
 
-                r.onClick = function () {
+                radioBtn.onClick = function () {
                     // 他のラジオをすべてOFFにする（グループを跨いで排他にする）
                     for (var i = 0; i < radios.length; i++) {
-                        if (radios[i].ui !== r) {
+                        if (radios[i].ui !== radioBtn) {
                             radios[i].ui.value = false;
                         }
                     }
-                    r.value = true;
+                    radioBtn.value = true;
                 };
             }
 
@@ -2151,12 +1889,12 @@ Illustrator標準機能では行いにくい
 
             if (extDlg.show() !== 1) return null;
 
-            for (var r = 0; r < radios.length; r++) {
-                if (radios[r].ui.value) {
+            for (var radioIdx = 0; radioIdx < radios.length; radioIdx++) {
+                if (radios[radioIdx].ui.value) {
                     return {
                         referenceFolder: referenceFolder,
-                        primaryExt: radios[r].ext,
-                        fallbackExt: radios[r].alt
+                        primaryExt: radios[radioIdx].ext,
+                        fallbackExt: radios[radioIdx].alt
                     };
                 }
             }
@@ -2183,15 +1921,12 @@ Illustrator標準機能では行いにくい
             if (!files) return null;
 
             // primary → fallback の優先順で探す
-            for (var e = 0; e < candidateExts.length; e++) {
-                var targetExt = candidateExts[e];
+            for (var extIdx = 0; extIdx < candidateExts.length; extIdx++) {
+                var targetExt = candidateExts[extIdx];
                 for (var i = 0; i < files.length; i++) {
-                    var fname = decodeURI(files[i].name);
-                    var dotIdx = fname.lastIndexOf(".");
-                    if (dotIdx < 0) continue;
-                    var fBase = fname.substring(0, dotIdx).toLowerCase();
-                    var fExt = fname.substring(dotIdx).toLowerCase();
-                    if (fBase === baseLower && fExt === targetExt) {
+                    var parts = splitFileName(decodeURI(files[i].name));
+                    if (!parts.ext) continue;
+                    if (parts.base.toLowerCase() === baseLower && parts.ext.toLowerCase() === targetExt) {
                         return files[i];
                     }
                 }
@@ -2207,21 +1942,6 @@ Illustrator標準機能では行いにくい
             return path;
         }
 
-        function getParentFolderPathFromFilePath(filePath) {
-            if (!filePath || filePath === "---") return "";
-            var normalized = String(filePath).replace(/\\/g, "/");
-            var separatorIndex = normalized.lastIndexOf("/");
-            if (separatorIndex <= 0) return "";
-            return normalized.substring(0, separatorIndex);
-        }
-
-        function stripExtensionForRelink(filename) {
-            if (!filename) return "";
-            var dotIndex = String(filename).lastIndexOf(".");
-            if (dotIndex < 0) return String(filename);
-            return String(filename).substring(0, dotIndex);
-        }
-
         // oldFolder 配下に配置された全ファイルを newFolder 内の同名ファイルに差し替え
         // （InDesign の「フォルダーに再リンク」相当）
         function relinkFolder(oldFolder, newFolder) {
@@ -2229,10 +1949,9 @@ Illustrator標準機能では行いにくい
             for (var k = 0; k < allPlacementEntries.length; k++) {
                 var ent = allPlacementEntries[k];
                 if (!ent.filePath || ent.filePath === "---") continue;
-                var sp = Math.max(ent.filePath.lastIndexOf("/"), ent.filePath.lastIndexOf("\\"));
-                if (sp > 0 && ent.filePath.substring(0, sp) === oldFolder) {
+                if (pathParent(ent.filePath) === oldFolder) {
                     total++;
-                    var fname = ent.filePath.substring(sp + 1);
+                    var fname = pathBaseName(ent.filePath);
                     try {
                         var nf = new File(newFolder.fsName + "/" + fname);
                         if (nf.exists) {
@@ -2266,24 +1985,35 @@ Illustrator標準機能では行いにくい
         actionBtnRight.alignChildren = ["right", "center"];
         actionBtnRight.alignment = ["right", "center"];
 
-        var deleteLinkBtn = actionBtnRight.add("button", undefined, L('deleteLinkBtn'));
-        deleteLinkBtn.onClick = function () {
-            if (!selectedEntry) {
-                alert(L('alertSelectItem'));
+        var openFileBtn = actionBtnRight.add("button", undefined, L('openFileBtn'));
+        openFileBtn.preferredSize = [50, 24];
+        openFileBtn.onClick = requireSelectedEntry(function () {
+            var absPath = selectedEntry.filePath;
+            if (!absPath || absPath === "---") {
+                alert(L('alertNoValidPath'));
                 return;
             }
+            var fileToOpen = new File(absPath);
+            if (!fileToOpen.exists) {
+                alert(L('alertLinkFileNotFound') + absPath);
+                return;
+            }
+            fileToOpen.execute();
+        });
+
+        var deleteLinkBtn = actionBtnRight.add("button", undefined, L('deleteLinkBtn'));
+        deleteLinkBtn.preferredSize = [50, 24];
+        deleteLinkBtn.onClick = requireSelectedEntry(function () {
             var indices = selectedEntry.itemIndices || [];
             if (indices.length === 0) return;
-
-            var colon = (lang === 'ja' ? '：' : ': ');
 
             // インデックスを伴う削除は collection の再採番で破綻するため、先に PageItem 参照を集める
             // 各対象について、内包しているクリップグループ（あれば）も併せて保持
             var refs = [];
             for (var di = 0; di < indices.length; di++) {
                 try {
-                    var p = placedItems[indices[di]];
-                    refs.push({ placed: p, clipGroup: findEnclosingClipGroup(p) });
+                    var placedRef = placedItems[indices[di]];
+                    refs.push({ placed: placedRef, clipGroup: findEnclosingClipGroup(placedRef) });
                 } catch (eRef) { }
             }
 
@@ -2301,7 +2031,7 @@ Illustrator標準機能では行いにくい
                 if (clipMode === null) return;
             } else {
                 var confirmMessage = L('confirmDeleteLinks') + "\n" +
-                    L('labelTarget') + colon + withUnit(indices.length, 'labelItems');
+                    kvLine('labelTarget', indices.length, 'labelItems');
                 if (!confirm(confirmMessage)) return;
             }
 
@@ -2329,49 +2059,45 @@ Illustrator標準機能では行いにくい
             updateActionButtonStates();
             alert(
                 L('alertDeleteDone') + "\n" +
-                L('labelSuccess') + colon + withUnit(success, 'labelItems') + "\n" +
-                L('labelFailed') + colon + withUnit(failed, 'labelItems')
+                kvLine('labelSuccess', success, 'labelItems') + "\n" +
+                kvLine('labelFailed', failed, 'labelItems')
             );
-        };
+        });
 
         // クリップグループ内の画像が含まれる場合の、確認 + 削除モード選択を兼ねたダイアログ
         // 戻り値: 'image' / 'group' / null（キャンセル）
         function askDeleteModeWithConfirm(targetCount) {
-            var colon = (lang === 'ja' ? '：' : ': ');
-            var w = new Window("dialog", L('clipGroupDeleteTitle'));
-            w.orientation = "column";
-            w.alignChildren = ["fill", "top"];
-            w.margins = 16;
+            var deleteDialog = new Window("dialog", L('clipGroupDeleteTitle'));
+            deleteDialog.orientation = "column";
+            deleteDialog.alignChildren = ["fill", "top"];
+            deleteDialog.margins = 16;
 
             var msgText = L('confirmDeleteLinks') + "\n" +
-                L('labelTarget') + colon + withUnit(targetCount, 'labelItems') + "\n\n" +
+                kvLine('labelTarget', targetCount, 'labelItems') + "\n\n" +
                 L('clipGroupDeleteMessage');
-            var msg = w.add("statictext", undefined, msgText, { multiline: true });
+            var msg = deleteDialog.add("statictext", undefined, msgText, { multiline: true });
             msg.preferredSize.width = 360;
 
-            var btnRow = w.add("group");
+            var btnRow = deleteDialog.add("group");
             btnRow.orientation = "row";
             btnRow.alignment = ["right", "center"];
             var cancelBtn = btnRow.add("button", undefined, L('cancelBtn'), { name: "cancel" });
             var imageOnlyBtn = btnRow.add("button", undefined, L('deleteImageOnlyBtn'));
             var withGroupBtn = btnRow.add("button", undefined, L('deleteWithClipGroupBtn'), { name: "ok" });
 
-            cancelBtn.onClick = function () { w.close(0); };
-            imageOnlyBtn.onClick = function () { w.close(1); };
-            withGroupBtn.onClick = function () { w.close(2); };
+            cancelBtn.onClick = function () { deleteDialog.close(0); };
+            imageOnlyBtn.onClick = function () { deleteDialog.close(1); };
+            withGroupBtn.onClick = function () { deleteDialog.close(2); };
 
-            var r = w.show();
-            if (r === 1) return 'image';
-            if (r === 2) return 'group';
+            var dialogResult = deleteDialog.show();
+            if (dialogResult === 1) return 'image';
+            if (dialogResult === 2) return 'group';
             return null;
         }
 
         var renameLinkBtn = actionBtnRight.add("button", undefined, L('renameLinkBtn'));
-        renameLinkBtn.onClick = function () {
-            if (!selectedEntry) {
-                alert(L('alertSelectItem'));
-                return;
-            }
+        renameLinkBtn.preferredSize = [70, 24];
+        renameLinkBtn.onClick = requireSelectedEntry(function () {
             var absPath = selectedEntry.filePath;
             if (!absPath || absPath === "---") {
                 alert(L('alertNoValidPath'));
@@ -2405,8 +2131,7 @@ Illustrator標準機能では行いにくい
                 if (!caseOnlyDiff) {
                     if (!confirm(L('confirmOverwrite') + newFile.fsName)) return;
                     // File.rename は既存ファイルがあると失敗するので、先に削除してから rename する
-                    var removed = false;
-                    try { removed = newFile.remove(); } catch (e) { removed = false; }
+                    var removed = tryGet(function () { return newFile.remove(); }, false);
                     if (!removed) {
                         alert(L('alertRenameFailed'));
                         return;
@@ -2415,8 +2140,7 @@ Illustrator標準機能では行いにくい
             }
 
             // 物理リネーム（失敗時は再リンクしない）
-            var renamed;
-            try { renamed = oldFile.rename(newName); } catch (e) { renamed = false; }
+            var renamed = tryGet(function () { return oldFile.rename(newName); }, false);
             if (!renamed) {
                 alert(L('alertRenameFailed'));
                 return;
@@ -2428,38 +2152,29 @@ Illustrator標準機能では行いにくい
             alert(
                 L('alertRenameDone') + "\n" +
                 oldName + " → " + newName + "\n" +
-                L('labelSuccess') + (lang === 'ja' ? '：' : ': ') + withUnit(res.success, 'labelItems') + "\n" +
-                L('labelFailed') + (lang === 'ja' ? '：' : ': ') + withUnit(res.failed, 'labelItems')
+                kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
+                kvLine('labelFailed', res.failed, 'labelItems')
             );
-        };
+        });
         var copyFileNameBtn = actionBtnLeft.add("button", undefined, L('copyFileNameBtn'));
-        copyFileNameBtn.onClick = function () {
-            if (!selectedEntry) {
-                alert(L('alertSelectItem'));
-                return;
-            }
+        copyFileNameBtn.onClick = requireSelectedEntry(function () {
             var name = selectedEntry.fileName || "";
             if (copyTextToClipboard(name)) {
                 alert(L('alertCopyFileNameDone') + "\n" + name);
             } else {
                 alert(L('alertCopyFileNameFailed'));
             }
-        };
+        });
         var reloadOneBtn = actionBtnRight.add("button", undefined, L('reloadOneBtnSingle'));
         reloadOneBtn.preferredSize = [80, 24];
 
-        reloadOneBtn.onClick = function () {
-            if (!selectedEntry) {
-                alert(L('alertSelectItem'));
-                return;
-            }
-
+        reloadOneBtn.onClick = requireSelectedEntry(function () {
             var relinkCount = (selectedEntry.itemIndices && selectedEntry.itemIndices.length)
                 ? selectedEntry.itemIndices.length
                 : 0;
             if (relinkCount > 1) {
                 var confirmMessage = L('confirmBatchRelink') + "\n" +
-                    L('labelTarget') + (lang === 'ja' ? '：' : ': ') + withUnit(relinkCount, 'labelItems');
+                    kvLine('labelTarget', relinkCount, 'labelItems');
                 if (!confirm(confirmMessage)) return;
             }
 
@@ -2470,10 +2185,10 @@ Illustrator標準機能では行いにくい
             refreshFromDoc();
             alert(
                 L('alertRelinkDone') + "\n" +
-                L('labelSuccess') + (lang === 'ja' ? '：' : ': ') + withUnit(res.success, 'labelItems') + "\n" +
-                L('labelFailed') + (lang === 'ja' ? '：' : ': ') + withUnit(res.failed, 'labelItems')
+                kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
+                kvLine('labelFailed', res.failed, 'labelItems')
             );
-        };
+        });
 
         // 「同一ファイルをまとめる」の状態に応じて、再リンクボタンの意味を明示する
         // ただし、まとめ対象の使用数が 1 の場合は「一括」ではなく単数ラベルを使う
@@ -2481,7 +2196,7 @@ Illustrator標準機能では行いにくい
             var placementCount = (selectedEntry && selectedEntry.itemIndices) ? selectedEntry.itemIndices.length : 0;
             var useBatchLabel = dedupCheck.value && placementCount > 1;
             var nextLabel = useBatchLabel ? L('reloadOneBtnBatch') : L('reloadOneBtnSingle');
-            var nextWidth = useBatchLabel ? 130 : 80;
+            var nextWidth = 94;
             var nextHeight = 24;
 
             reloadOneBtn.text = nextLabel;
@@ -2499,16 +2214,14 @@ Illustrator標準機能では行いにくい
                 ];
             } catch (e0) { }
 
-            try { actionBtnRight.layout.layout(true); } catch (e1) { }
-            try { actionBtnRow.layout.layout(true); } catch (e2) { }
-            try { pathPanel.layout.layout(true); } catch (e3) { }
-            try { dlg.layout.layout(true); } catch (e4) { }
+            safeRelayout(actionBtnRight, actionBtnRow, pathPanel, dlg);
         }
 
         // パスが「---」（不明）のときは再リンクボタンを無効化
         function updateActionButtonStates() {
             reloadOneBtn.enabled = (selectedEntry !== null);
             renameLinkBtn.enabled = (selectedEntry !== null);
+            openFileBtn.enabled = (selectedEntry !== null);
             deleteLinkBtn.enabled = (selectedEntry !== null);
             copyFileNameBtn.enabled = (selectedEntry !== null);
             updateRelinkButtonLabel();
@@ -2525,13 +2238,10 @@ Illustrator標準機能では行いにくい
             for (var fi = 0; fi < allPlacementEntries.length; fi++) {
                 var filePath = allPlacementEntries[fi].filePath;
                 if (filePath && filePath !== "---") {
-                    var folderSeparatorIndex = Math.max(filePath.lastIndexOf("/"), filePath.lastIndexOf("\\"));
-                    if (folderSeparatorIndex > 0) {
-                        var linkedFolderPath = filePath.substring(0, folderSeparatorIndex);
-                        if (!linkedFolderMap[linkedFolderPath]) {
-                            linkedFolderMap[linkedFolderPath] = true;
-                            linkedFolderPaths.push(linkedFolderPath);
-                        }
+                    var linkedFolderPath = pathParent(filePath);
+                    if (linkedFolderPath && !linkedFolderMap[linkedFolderPath]) {
+                        linkedFolderMap[linkedFolderPath] = true;
+                        linkedFolderPaths.push(linkedFolderPath);
                     }
                 }
             }
@@ -2567,10 +2277,10 @@ Illustrator標準機能では行いにくい
                     ? selectedEntry.itemIndices[0] : -1;
                 var rematched = null;
                 if (anchor >= 0) {
-                    for (var r = 0; r < sourceEntries.length; r++) {
-                        var re = sourceEntries[r];
-                        for (var rj = 0; rj < re.itemIndices.length; rj++) {
-                            if (re.itemIndices[rj] === anchor) { rematched = re; break; }
+                    for (var srcIdx = 0; srcIdx < sourceEntries.length; srcIdx++) {
+                        var candidateEntry = sourceEntries[srcIdx];
+                        for (var idxIdx = 0; idxIdx < candidateEntry.itemIndices.length; idxIdx++) {
+                            if (candidateEntry.itemIndices[idxIdx] === anchor) { rematched = candidateEntry; break; }
                         }
                         if (rematched) break;
                     }
@@ -2621,8 +2331,8 @@ Illustrator標準機能では行いにくい
             }
             try {
                 var folderPath = linkedFolderPaths[foldersListBox.selection.index];
-                var f = new Folder(folderPath);
-                if (f.exists) f.execute();
+                var folderToOpen = new Folder(folderPath);
+                if (folderToOpen.exists) folderToOpen.execute();
             } catch (e) {
                 alert(L('alertOpenFolderFailed') + e.message);
             }
@@ -2650,9 +2360,9 @@ Illustrator標準機能では行いにくい
             refreshFromDoc();
             alert(
                 L('alertRelinkDone') + "\n" +
-                L('labelTarget') + (lang === 'ja' ? '：' : ': ') + res.total + (lang === 'ja' ? ' 件' : '') + "\n" +
-                L('labelSuccess') + (lang === 'ja' ? '：' : ': ') + res.success + (lang === 'ja' ? ' 件' : '') + "\n" +
-                L('labelFailed') + (lang === 'ja' ? '：' : ': ') + res.failed + (lang === 'ja' ? ' 件（同名ファイルなし）' : ' item(s) (same-name file not found)')
+                kvLine('labelTarget', res.total, 'labelItems') + "\n" +
+                kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
+                kvLine('labelFailed', res.failed, 'labelItems') + (lang === 'ja' ? '（同名ファイルなし）' : ' (same-name file not found)')
             );
         };
         reloadFolderBtn.enabled = false;
@@ -2686,17 +2396,15 @@ Illustrator標準機能では行いにくい
                 var entry = allPlacementEntries[i];
                 if (!entry || !entry.filePath || entry.filePath === "---") continue;
 
-                var entryFolderPath = normalizeFolderPathForCompare(
-                    getParentFolderPathFromFilePath(entry.filePath)
-                );
+                var entryFolderPath = normalizeFolderPathForCompare(pathParent(entry.filePath));
 
                 if (entryFolderPath !== sourceFolderPath) continue;
 
                 total++;
 
                 var placedItem = placedItems[entry.itemIndex];
-                var sourceFileName = entry.fileName || entry.filePath.replace(/^.*[\\\/]/, "");
-                var baseName = stripExtensionForRelink(sourceFileName);
+                var sourceFileName = entry.fileName || pathBaseName(entry.filePath);
+                var baseName = splitFileName(String(sourceFileName)).base;
 
                 if (!baseName) {
                     failed++;
@@ -2735,13 +2443,12 @@ Illustrator標準機能では行いにくい
             app.redraw();
             refreshFromDoc();
 
-            var colon = (lang === 'ja' ? '：' : ': ');
             alert(
                 L('alertChangeExtDone') + "\n" +
-                L('labelTarget') + colon + withUnit(total, 'labelItems') + "\n" +
-                L('labelSuccess') + colon + withUnit(success, 'labelItems') + "\n" +
-                L('labelSkipped') + colon + withUnit(skipped, 'labelItems') + "\n" +
-                L('labelFailed') + colon + withUnit(failed, 'labelItems')
+                kvLine('labelTarget', total, 'labelItems') + "\n" +
+                kvLine('labelSuccess', success, 'labelItems') + "\n" +
+                kvLine('labelSkipped', skipped, 'labelItems') + "\n" +
+                kvLine('labelFailed', failed, 'labelItems')
             );
         };
 
@@ -2749,8 +2456,7 @@ Illustrator標準機能では行いにくい
 
         var collectLinksBtn = folderActionRight.add("button", undefined, L('collectLinksBtn'));
         collectLinksBtn.onClick = function () {
-            var docFile = null;
-            try { docFile = doc.fullName; } catch (e) { docFile = null; }
+            var docFile = tryGet(function () { return doc.fullName; }, null);
             if (!docFile || !docFile.parent || !docFile.parent.exists) {
                 alert(L('alertDocNotSaved'));
                 return;
@@ -2795,14 +2501,12 @@ Illustrator標準機能では行いにくい
             app.redraw();
             refreshFromDoc();
 
-            var colon = (lang === 'ja' ? '：' : ': ');
-            var unit = (lang === 'ja' ? ' 件' : '');
             alert(
                 L('alertCollectLinksDone') + "\n" +
-                L('labelTarget') + colon + total + unit + "\n" +
-                L('labelCopied') + colon + copied + unit + "\n" +
-                L('labelSkipped') + colon + skipped + unit + "\n" +
-                L('labelFailed') + colon + failed + unit
+                kvLine('labelTarget', total, 'labelItems') + "\n" +
+                kvLine('labelCopied', copied, 'labelItems') + "\n" +
+                kvLine('labelSkipped', skipped, 'labelItems') + "\n" +
+                kvLine('labelFailed', failed, 'labelItems')
             );
         };
 
@@ -2820,15 +2524,14 @@ Illustrator標準機能では行いにくい
                 foldersListBox.selection = null;
                 return;
             }
-            var sep = Math.max(absPath.lastIndexOf("/"), absPath.lastIndexOf("\\"));
-            if (sep <= 0) return;
-            var folder = absPath.substring(0, sep);
-            for (var f = 0; f < linkedFolderPaths.length; f++) {
-                if (linkedFolderPaths[f] === folder) {
+            var folder = pathParent(absPath);
+            if (!folder) return;
+            for (var folderIdx = 0; folderIdx < linkedFolderPaths.length; folderIdx++) {
+                if (linkedFolderPaths[folderIdx] === folder) {
                     try {
-                        foldersListBox.selection = foldersListBox.items[f];
+                        foldersListBox.selection = foldersListBox.items[folderIdx];
                         if (typeof foldersListBox.revealItem === "function") {
-                            foldersListBox.revealItem(foldersListBox.items[f]);
+                            foldersListBox.revealItem(foldersListBox.items[folderIdx]);
                         }
                     } catch (e) { }
                     return;
@@ -2842,8 +2545,8 @@ Illustrator標準機能では行いにくい
             if (!info) return;
             var indices = info.itemIndices;
             doc.selection = null;
-            for (var t = 0; t < indices.length; t++) {
-                placedItems[indices[t]].selected = true;
+            for (var idx = 0; idx < indices.length; idx++) {
+                placedItems[indices[idx]].selected = true;
             }
             zoomToSelection(doc);
         }
