@@ -2,7 +2,6 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-
 スクリプトの概要 / Script overview
 選択したオブジェクトの塗りと線を調整するスクリプトです。
 Tool for adjusting fill and stroke on selected objects.
@@ -31,9 +30,7 @@ Tool for adjusting fill and stroke on selected objects.
 しぶやみゃむさんのスクリプトをベースに、機能追加とリファクタリングを行いました。
 Based on a script by しぶやみゃむさん, with added features and refactoring.
 https://note.com/shibumi/n/n5229b4357dd3
-
 */
-
 
 (function () {
 
