@@ -2,28 +2,85 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  概要 / Overview
 
-  選択中のオブジェクトに対して以下の処理を順に適用します。
-  1. 複合パスの解除
-  2. パスの合体（ライブパスファインダ）
-  3. アピアランスの拡張
-  4. グループ解除
-  5. 指定値（mm）でオフセットパス効果を適用
+### スクリプト名：
 
-  Apply the following operations to the selected objects in order:
-  1. Release compound paths
-  2. Unite paths (Live Pathfinder Add)
-  3. Expand appearance
-  4. Ungroup
-  5. Apply Offset Path effect with the specified value (mm)
+PathUniteOffsetTool.jsx
 
-  ダイアログでプレビューにチェックを入れると、ダイアログを閉じずに結果を確認できます。
-  When the Preview checkbox is enabled, the result is shown live without closing the dialog.
+### Readme （GitHub）：
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUniteOffsetTool.md
+
+### 概要：
+
+- 更新日：2026-05-10
+- 選択中のオブジェクトに対して複合パス解除 → パスの合体 → アピアランス拡張 → グループ解除 → オフセットパスを一括実行
+- ダイアログでプレビューを有効化すると、閉じずに結果を確認可能
+
+### 主な機能：
+
+- 複合パスの解除
+- パスの合体（ライブパスファインダ）
+- アピアランスの拡張
+- グループ解除
+- 指定値（mm）でオフセットパス効果を適用
+- プレビュー機能
+
+### 処理の流れ：
+
+1) 複合パスの解除
+2) パスの合体（ライブパスファインダ）
+3) アピアランスの拡張
+4) グループ解除
+5) 指定値（mm）でオフセットパス効果を適用
+
+### 更新履歴：
+
+- v1.0.0 (2026-05-10) : 初期バージョン
+
+*/
+
+/*
+
+### Script Name:
+
+PathUniteOffsetTool.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathUniteOffsetTool.md
+
+### Description:
+
+- Last Updated: 2026-05-10
+- Applies Release Compound Path → Unite → Expand Appearance → Ungroup → Offset Path in sequence to the current selection
+- When the Preview checkbox is enabled, the result is shown live without closing the dialog
+
+### Main Features:
+
+- Release compound paths
+- Unite paths (Live Pathfinder Add)
+- Expand appearance
+- Ungroup
+- Apply Offset Path effect with the specified value (mm)
+- Live preview
+
+### Process Flow:
+
+1) Release compound paths
+2) Unite paths (Live Pathfinder Add)
+3) Expand appearance
+4) Ungroup
+5) Apply Offset Path effect with the specified value (mm)
+
+### Changelog:
+
+- v1.0.0 (2026-05-10) : Initial version
+
 */
 
 // =========================================
-// バージョンとローカライズ / Version and Localization
+// バージョンとローカライズ / Version and localization
 // =========================================
 
 var SCRIPT_VERSION = "v1.0.0";

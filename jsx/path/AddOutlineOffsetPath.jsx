@@ -2,17 +2,69 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### Script name
+
+### スクリプト名：
+
 AddOutlineOffsetPath.jsx
 
-### GitHub
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/AddOutlineOffsetPath.jsx
+### Readme （GitHub）：
 
-### Overview
-Duplicate selection → send to back → Offset Path (Live Effect) → Outline Stroke → Unite → Expand.
-Finally, group the original with the result, run Subtract, and fill the result with white.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddOutlineOffsetPath.md
 
-### Main features
+### 概要：
+
+- 更新日：2025-08-13
+- 選択オブジェクトを複製 → 背面配置 → オフセットパス（Live Effect）→ アウトライン → 合体 → 拡張
+- 元オブジェクトと結果をグループ化し、Subtract を実行して白で塗りつぶす
+
+### 主な機能：
+
+- 複数選択対応
+- 単位対応（pt, mm, in, cm など）
+- 角の形状（マイター、ラウンド、ベベル）設定可能
+- オフセット値のダイアログ入力
+- ダイアログの位置調整と透明度設定
+- Shift/Option キーによる数値入力の増減制御
+
+### 処理の流れ：
+
+1) 選択オブジェクトを複製し、背面へ移動
+2) オフセットパス（Live Effect）を適用
+3) アウトライン化し、合体（Unite）後に拡張（Expand）
+4) 元オブジェクトと結果をグループ化し、Subtract を実行
+5) 結果を白で塗りつぶす
+
+### クレジット：
+
+このスクリプトの一部は、以下のスクリプトを参考にして開発しました。
+Outline.jsx (illustrator-outline-script) 作者: Oğuzhan Yıldırım @oguzhanyildirim01
+https://github.com/oguzhanyildirim01/illustrator-outline-script/blob/main/Outline.jsx
+
+### 更新履歴：
+
+- v1.0.0 (2025-08-13) : 初期バージョン
+- v1.1.0 (2025-08-13) : オフセット値の自動計算
+
+*/
+
+/*
+
+### Script Name:
+
+AddOutlineOffsetPath.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AddOutlineOffsetPath.md
+
+### Description:
+
+- Last Updated: 2025-08-13
+- Duplicate selection → send to back → Offset Path (Live Effect) → Outline Stroke → Unite → Expand
+- Group the original with the result, run Subtract, and fill the result with white
+
+### Main Features:
+
 - Supports multiple selection
 - Unit support (pt, mm, in, cm, etc.)
 - Join type setting (Miter, Round, Bevel)
@@ -20,64 +72,32 @@ Finally, group the original with the result, run Subtract, and fill the result w
 - Dialog position adjustment and opacity setting
 - Increment/decrement control with Shift/Option keys
 
-### Process flow
+### Process Flow:
+
 1) Duplicate selected objects and send to back
 2) Apply Offset Path (Live Effect)
 3) Outline stroke, Unite, then Expand
 4) Group original and result, then execute Subtract
 5) Fill the result with white
 
-### Inspiration
+### Credits:
 
 Portions of this script were developed with reference to:
 Outline.jsx (illustrator-outline-script) by Oğuzhan Yıldırım @oguzhanyildirim01
 https://github.com/oguzhanyildirim01/illustrator-outline-script/blob/main/Outline.jsx
 
-### Change log
+### Changelog:
 
-- v1.0 (20250813): Initial version
-- v1.1 (20250813): Automatic calculation of offset value
-
-*/
-/*
-### スクリプト名
-AddOutlineOffsetPath.jsx
-
-### GitHub
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/path/AddOutlineOffsetPath.jsx
-
-### 概要
-選択オブジェクトを複製→背面配置→オフセットパス（Live Effect）→アウトライン→合体→拡張。
-最後に、元オブジェクトと結果をグループ化し、Subtract を実行して白で塗りつぶします。
-
-### 主な機能
-- 複数選択対応
-- 単位対応（pt, mm, in, cm など）
-- 角の形状（マイター、ラウンド、ベベル）設定可能
-- オフセット値のダイアログ入力
-- ダイアログの位置調整と透明度設定
-- Shift/Optionキーによる数値入力の増減制御
-
-### 処理の流れ
-1) 選択オブジェクトを複製し、背面へ移動
-2) オフセットパス（Live Effect）を適用
-3) アウトライン化し、合体（Unite）後に拡張（Expand）
-4) 元オブジェクトと結果をグループ化し、Subtract を実行
-5) 結果を白で塗りつぶす
-
-###　謝辞
-
-このスクリプトの一部は、以下のスクリプトを参考にして開発しました。
-Outline.jsx（illustrator-outline-script） 作者：Oğuzhan Yıldırım @oguzhanyildirim01
-https://github.com/oguzhanyildirim01/illustrator-outline-script/blob/main/Outline.jsx
-
-### 更新履歴
-- v1.0 (20250813): 初期バージョン
-- v1.1 (20250813):オフセット値の自動計算
+- v1.0.0 (2025-08-13) : Initial version
+- v1.1.0 (2025-08-13) : Automatic calculation of offset value
 
 */
 
-var SCRIPT_VERSION = "v1.1";
+// =========================================
+// バージョンとローカライズ / Version and localization
+// =========================================
+
+var SCRIPT_VERSION = "v1.1.0";
 
 function getCurrentLang() {
   return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

@@ -2,16 +2,22 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
 ### スクリプト名：
 
 ColorToK100Converter.jsx
 
-### 概要
+### Readme （GitHub）：
 
-- RGB または CMYK で構成された黒を安定した K100 の黒に変換する Illustrator 用スクリプトです。
-- テキスト、パス、スウォッチの塗りおよび線カラーが一括対象になります。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorToK100Converter.md
 
-### 主な機能
+### 概要：
+
+- 更新日：2025-06-15
+- RGB または CMYK で構成された黒を安定した K100 の黒に変換する Illustrator 用スクリプト
+- テキスト、パス、スウォッチの塗りおよび線カラーが一括対象
+
+### 主な機能：
 
 - RGB 黒（RGB 各値が 39 未満）を K100 に変換
 - CMYK の多色ブラック（CMY 全てが 70 以上 または合計が 310 以上）を K100 に変換
@@ -19,30 +25,37 @@ ColorToK100Converter.jsx
 - スウォッチカラーも自動変換
 - 日本語／英語インターフェース対応
 
-### 処理の流れ
+### 処理の流れ：
 
-1. テキストの文字単位の塗り・線カラーを変換
-2. パス、コンパウンドパスの塗り・線カラーを変換
-3. グループ内オブジェクトを再帰的に変換
-4. スウォッチのカラー定義を変換
+1) テキストの文字単位の塗り・線カラーを変換
+2) パス、コンパウンドパスの塗り・線カラーを変換
+3) グループ内オブジェクトを再帰的に変換
+4) スウォッチのカラー定義を変換
 
-### 更新履歴
+### 更新履歴：
 
-- v1.0.0 (20250612) : 初期バージョン
-- v1.0.1 (20250615) : 処理構造とコメント整理
+- v1.0.0 (2025-06-12) : 初期バージョン
+- v1.0.1 (2025-06-15) : 処理構造とコメント整理
 
----
+*/
+
+/*
 
 ### Script Name:
 
 ColorToK100Converter.jsx
 
-### Overview
+### GitHub:
 
-- An Illustrator script that converts RGB or CMYK-based blacks into stable K100 black.
-- Targets fills and strokes in text, paths, and swatches all at once.
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ColorToK100Converter.md
 
-### Main Features
+### Description:
+
+- Last Updated: 2025-06-15
+- Converts RGB or CMYK-based blacks into stable K100 black
+- Targets fills and strokes in text, paths, and swatches all at once
+
+### Main Features:
 
 - Converts RGB blacks (each channel under 39) to K100
 - Converts CMYK rich blacks (all CMY ≥ 70 or total ≥ 310) to K100
@@ -50,18 +63,25 @@ ColorToK100Converter.jsx
 - Also converts swatch colors automatically
 - Japanese and English UI support
 
-### Process Flow
+### Process Flow:
 
-1. Convert text character fill/stroke colors
-2. Convert path and compound path fill/stroke colors
-3. Recursively convert objects in groups
-4. Convert swatch color definitions
+1) Convert text character fill/stroke colors
+2) Convert path and compound path fill/stroke colors
+3) Recursively convert objects in groups
+4) Convert swatch color definitions
 
-### Update History
+### Changelog:
 
-- v1.0.0 (20250612): Initial version
-- v1.0.1 (20250615): Refined structure and cleaned comments
+- v1.0.0 (2025-06-12) : Initial version
+- v1.0.1 (2025-06-15) : Refined structure and cleaned comments
+
 */
+
+// =========================================
+// バージョンとローカライズ / Version and localization
+// =========================================
+
+var SCRIPT_VERSION = "v1.0.1";
 
 // ロック／非表示オブジェクトの除外が必要な場合は、ここで判定を追加すると良い（現状は全対象）
 

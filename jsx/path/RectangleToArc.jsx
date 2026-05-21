@@ -2,28 +2,65 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
+
+### スクリプト名：
+
 RectangleToArc.jsx
 
-概要 / Overview:
-選択した長方形を、左下隅・上辺中央・右下隅の 3 点を通る円弧に変換する。
-長方形の幅と高さから円の半径・中心・開始角・終了角を求め、
-90 度以内のベジェセグメントに分割して円弧を生成する。
+### Readme （GitHub）：
 
-対象は、閉じた 4 点パスかつ各辺が水平／垂直の長方形に限定する。
-回転した長方形、台形、菱形、不定形の 4 点パスは処理しない。
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RectangleToArc.md
 
-元の長方形は削除する。
-生成する円弧は塗りなし・線ありとし、元長方形に線がある場合は
-線の色・太さを引き継ぐ。元長方形が線なしでも変換は実行する。
+### 概要：
 
-Converts each selected rectangle into a circular arc passing through
-its bottom-left corner, top-edge midpoint, and bottom-right corner.
-Only closed 4-point paths with horizontal/vertical edges are processed.
-Rotated rectangles and other 4-point shapes are skipped.
+- 更新日：2026-05-19
+- 選択した長方形を、左下隅・上辺中央・右下隅の 3 点を通る円弧に変換
+- 長方形の幅と高さから円の半径・中心・開始角・終了角を求め、90 度以内のベジェセグメントに分割して円弧を生成
+- 元の長方形は削除
 
-対象 / Target:
-Illustrator の長方形パスアイテム。複数選択に対応。
-Rectangle PathItems in Illustrator. Multiple selected items are supported.
+### 主な機能：
+
+- 閉じた 4 点パスかつ各辺が水平／垂直の長方形のみ処理（回転長方形・台形・菱形・不定形は対象外）
+- 生成する円弧は塗りなし・線あり
+- 元長方形に線がある場合は線の色・太さを引き継ぎ
+- 元長方形が線なしでも変換は実行
+- 複数選択に対応
+
+### 更新履歴：
+
+- v1.0.1 (2026-05-19) : 現行版
+
+*/
+
+/*
+
+### Script Name:
+
+RectangleToArc.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RectangleToArc.md
+
+### Description:
+
+- Last Updated: 2026-05-19
+- Converts each selected rectangle into a circular arc passing through its bottom-left corner, top-edge midpoint, and bottom-right corner
+- Derives the radius, center, start angle, and end angle from the rectangle's width and height, then splits the arc into bezier segments of 90 degrees or less
+- The original rectangle is deleted
+
+### Main Features:
+
+- Only closed 4-point paths with horizontal/vertical edges are processed (rotated rectangles, trapezoids, rhombi, and other 4-point shapes are skipped)
+- Generated arc is fill-less and stroked
+- Inherits stroke color/width from the source rectangle when present
+- Conversion runs even if the source rectangle has no stroke
+- Multiple selection supported
+
+### Changelog:
+
+- v1.0.1 (2026-05-19) : Current version
+
 */
 
 (function () {

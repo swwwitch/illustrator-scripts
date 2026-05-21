@@ -3,29 +3,78 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名 / Script name:
-PathCleanupTool
 
-### 更新日 / Updated:
-20260320
+### スクリプト名：
 
-### 概要 / Overview:
-選択したパス（グループ/複合パス内も含む）を対象に、
-- 直線上で冗長なアンカーポイント
-- 同じ座標のアンカーポイント
-- 直線として扱えるベジェ区間上のハンドル
-を削除（最適化）します。ロック/非表示（親やレイヤー含む）はスキップします。
-さらに「その他」タブでは、スムーズ化／コーナー化／アンカーポイント追加／アンカーポイント分割を実行できます。
-許容誤差はアンカーポイント削除用・ハンドル削除用それぞれ個別に調整できます。
+PathCleanupTool-v2.jsx
 
-ダイアログ表示時点の選択を固定し、情報表示と実行対象が一致するようにしています。
-その他タブの処理も、OK時に選択固定した同一対象へ確実に適用されるように状態管理を見直しています。
-スムーズ化では、前後アンカーが同一点または極端に近い場合でも破綻しにくいようガードを入れています。
-また、オープンパスの先頭・末尾は循環参照せず、端点として自然な方向を使うようにしています。
-方向は45度刻みに丸めず、前後アンカーから求めた自然な接線方向をそのまま使う「通常のスムーズポイント化」に調整しています。
-また、前後セグメントの角度差や長さ差が大きい場合はハンドル長を少し抑えて、鋭角や偏った間隔でも暴れにくいようにしています。
-実処理中の例外は、UI系の保存復元とは分けて最小限のログを出すよう整理しています。
+### Readme （GitHub）：
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool-v2.md
+
+### 概要：
+
+- 更新日：2026-03-20
+- 選択したパス（グループ／複合パス内も含む）の冗長アンカー・同座標アンカー・直線扱い可能なベジェハンドルを削除して最適化
+- 「その他」タブからスムーズ化／コーナー化／アンカー追加／アンカー分割も実行可能
+
+### 主な機能：
+
+- 直線上で冗長なアンカーポイントを削除
+- 同じ座標のアンカーポイントを削除
+- 直線として扱えるベジェ区間のハンドルを削除
+- ロック／非表示オブジェクト（親・レイヤー含む）は自動スキップ
+- ダイアログ表示時点の選択を固定し、情報表示と実行対象を一致
+- 許容誤差はアンカー削除用とハンドル削除用で個別に調整可能
+- スムーズ化は前後アンカーが同一点や極端に近い場合のガード付き
+- オープンパス端点は循環参照せず自然な接線方向を使用
+- 角度差・長さ差が大きい場合はハンドル長を抑えて破綻を抑制
+- 実処理中の例外は UI 系の保存復元と分離して最小限ログ出力
+
+### 更新履歴：
+
+- v1.4.1 (2026-03-20) : 現行版
+
 */
+
+/*
+
+### Script Name:
+
+PathCleanupTool-v2.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool-v2.md
+
+### Description:
+
+- Last Updated: 2026-03-20
+- Optimizes selected paths (including inside groups / compound paths) by removing redundant anchors, duplicate-coordinate anchors, and handles on bezier segments that can be treated as straight
+- The "Other" tab can additionally smooth / cornerize / add anchors / split anchors
+
+### Main Features:
+
+- Removes redundant anchors on straight segments
+- Removes duplicate-coordinate anchors
+- Removes handles on bezier segments that can be treated as straight
+- Skips locked / hidden objects (including parents and layers)
+- Locks selection at dialog open time so display and execution targets match
+- Separate tolerance controls for anchor removal and handle removal
+- Smoothing includes guards for adjacent anchors that are identical or extremely close
+- Open-path endpoints use natural tangent directions without circular referencing
+- When neighboring segments differ greatly in angle or length, handle length is reduced to prevent runaway results
+- Minimal logging for runtime exceptions, separated from UI state save/restore
+
+### Changelog:
+
+- v1.4.1 (2026-03-20) : Current version
+
+*/
+
+// =========================================
+// バージョンとローカライズ / Version and localization
+// =========================================
 
 var SCRIPT_VERSION = "v1.4.1";
 

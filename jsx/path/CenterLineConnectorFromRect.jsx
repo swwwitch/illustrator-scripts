@@ -2,25 +2,68 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-- Excelなどからコピー＆ペーストされた長方形から罫線（グリッド・枠線）を自動生成し、線同士の関係に応じて格子化・結合・統合まで行う Illustrator 用スクリプト
-- 中心線化（任意ON/OFF）、回転補正、除外条件、格子モード、外枠長方形化に対応
-- 線幅は Illustrator の strokeUnits、短辺しきい値は rulerType を参照し、表示値と内部pt換算を一元管理
-- 線幅の共通化・代表値選択・指定値、印刷用ブラック化、グループ化など仕上げ処理も含む
-- IIFE構成、UI構築／イベント配線／値取得／実行フローを分離し、保守しやすい構造に整理
-// - Illustrator DOM の不安定な操作（move/remove/selection 等）は安全ヘルパー経由で実行し、生成結果は専用作業レイヤーに作成してロックレイヤー依存を回避
 
-- Illustrator script that generates rule lines (grids / frames) from rectangles copied and pasted from sources such as Excel, then grids, connects, or unifies them based on line relationships
-- Supports center-line conversion (toggleable), rotation correction, exclusion rules, grid mode, and outer-frame rectangle conversion
-- Uses Illustrator strokeUnits for stroke width and rulerType for the short-side threshold, with centralized conversion between display units and internal points
-- Includes finishing controls such as stroke normalization, representative width selection, custom width, print black, and grouping
-- Uses an IIFE structure and separates UI building, event binding, value reading, and execution flow for easier maintenance
-- Runs unstable Illustrator DOM operations such as move/remove/selection through safe helper functions and creates generated results on a dedicated work layer to avoid locked-layer dependency
+### スクリプト名：
 
-### 更新履歴 / Update History
+CenterLineConnectorFromRect.jsx
 
-- v1.0.0 (20250612) : 初版作成 / Initial version
-- v1.6.0 (20260427) : UI構造の分離（パネル・イベント・状態・プレビュー）、単位管理の整理（strokeUnits / rulerType）、安全操作ヘルパーの導入、命名整理、生成専用レイヤーによるロックレイヤー依存の解消 / Refactored UI structure (panels, events, state, preview), unified unit handling (strokeUnits / rulerType), added safe operation helpers, improved naming consistency, removed locked-layer dependency by creating results on a dedicated generated layer
-- v1.6.5 (20260427) : UI構造の改善（事後処理パネル追加、オプション整理、ラベル改善）、生成レイヤー設計の最適化 / Improved UI structure (post-process panel, option refinement, labeling), optimized generated-layer workflow
+### Readme （GitHub）：
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CenterLineConnectorFromRect.md
+
+### 概要：
+
+- 更新日：2026-04-27
+- Excel などからコピー＆ペーストした長方形から罫線（グリッド・枠線）を自動生成
+- 線同士の関係に応じて格子化・結合・統合まで実行する Illustrator 用スクリプト
+
+### 主な機能：
+
+- 中心線化（任意 ON/OFF）、回転補正、除外条件、格子モード、外枠長方形化に対応
+- 線幅は Illustrator の strokeUnits、短辺しきい値は rulerType を参照し、表示値と内部 pt 換算を一元管理
+- 線幅の共通化・代表値選択・指定値、印刷用ブラック化、グループ化など仕上げ処理を内蔵
+- IIFE 構成で UI 構築／イベント配線／値取得／実行フローを分離し、保守性を確保
+- Illustrator DOM の不安定な操作（move/remove/selection 等）は安全ヘルパー経由で実行
+- 生成結果は専用作業レイヤーに作成し、ロックレイヤー依存を回避
+
+### 更新履歴：
+
+- v1.0.0 (2025-06-12) : 初版作成
+- v1.6.0 (2026-04-27) : UI 構造の分離、単位管理の整理、安全操作ヘルパー導入、命名整理、生成専用レイヤー対応
+- v1.6.5 (2026-04-27) : UI 構造の改善（事後処理パネル追加、オプション整理、ラベル改善）、生成レイヤー設計の最適化
+
+*/
+
+/*
+
+### Script Name:
+
+CenterLineConnectorFromRect.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CenterLineConnectorFromRect.md
+
+### Description:
+
+- Last Updated: 2026-04-27
+- Generates rule lines (grids / frames) from rectangles copied and pasted from sources such as Excel
+- Grids, connects, or unifies the generated lines based on their relationships
+
+### Main Features:
+
+- Center-line conversion (toggleable), rotation correction, exclusion rules, grid mode, and outer-frame conversion
+- Uses Illustrator strokeUnits for stroke width and rulerType for the short-side threshold (unified display ↔ pt)
+- Finishing controls such as stroke normalization, representative width selection, custom width, print black, and grouping
+- IIFE structure with UI building, event binding, value reading, and execution flow separated for maintainability
+- Runs unstable Illustrator DOM operations (move/remove/selection etc.) through safe helpers
+- Creates results on a dedicated work layer to avoid locked-layer dependency
+
+### Changelog:
+
+- v1.0.0 (2025-06-12) : Initial version
+- v1.6.0 (2026-04-27) : Refactored UI structure, unified unit handling, added safe operation helpers, improved naming, dedicated generated layer
+- v1.6.5 (2026-04-27) : Improved UI structure (post-process panel, option refinement, labeling), optimized generated-layer workflow
 
 */
 

@@ -2,22 +2,68 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-MenuCommandBatch
 
-### 更新日：
-20260301-5
+### スクリプト名：
+
+OverlapRemover.jsx
+
+### Readme （GitHub）：
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/OverlapRemover.md
 
 ### 概要：
-現在選択しているオブジェクトのみに対して、Illustratorのメニューコマンドを連続実行します。
-（オフセットパス → グループ化 → パスファインダー：合流 → 形状を拡張）
 
-### 使い方：
-1) ドキュメントを開き、対象を選択
-2) スクリプトを実行
+- 更新日：2026-03-01
+- 選択オブジェクトに対して Illustrator のメニューコマンドを連続実行
+- オフセットパス → グループ化 → パスファインダー：合流 → 形状を拡張
 
-※メニューコマンドはIllustratorの状態や環境に依存します。エラー時は中断します。
+### 主な機能：
+
+- 選択オブジェクトのみを処理対象とする
+- オフセットパス実行後、元選択と新規生成物を結合して後続処理に引き渡し
+- 失敗時はアラートを表示して中断
+- 可能な環境では suspendHistory による単一 Undo ステップ化
+
+### 更新履歴：
+
+- v1.0.0 (2026-03-01) : 初期バージョン
+
 */
+
+/*
+
+### Script Name:
+
+OverlapRemover.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/OverlapRemover.md
+
+### Description:
+
+- Last Updated: 2026-03-01
+- Run a sequence of Illustrator menu commands against the current selection
+- Offset Path → Group → Pathfinder: Merge → Expand Shape
+
+### Main Features:
+
+- Operates only on the current selection
+- After Offset Path, combines the original selection with newly created items for follow-up steps
+- Aborts with an alert on failure
+- Wraps the run in a single Undo step via suspendHistory when available
+
+### Changelog:
+
+- v1.0.0 (2026-03-01) : Initial version
+
+*/
+
+// =========================================
+// バージョンとローカライズ / Version and localization
+// =========================================
+
+var SCRIPT_VERSION = "v1.0.0";
 
 (function () {
     if (app.documents.length === 0) {

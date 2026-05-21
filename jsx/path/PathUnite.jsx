@@ -2,20 +2,80 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  概要 / Overview
 
-  選択中のオブジェクトに対して以下の処理を順に適用します。
-  1. 複合パスの解除
-  2. パスの合体（ライブパスファインダ）
-  3. アピアランスの拡張
-  4. グループ解除
+### スクリプト名：
 
-  Apply the following operations to the selected objects in order:
-  1. Release compound paths
-  2. Unite paths (Live Pathfinder Add)
-  3. Expand appearance
-  4. Ungroup
+PathUnite.jsx
+
+### Readme （GitHub）：
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUnite.md
+
+### 概要：
+
+- 更新日：2026-05-10
+- 選択中のオブジェクトに対して、複合パスの解除 → パスの合体 → アピアランスの拡張 → グループ解除を一括実行する Illustrator スクリプト
+
+### 主な機能：
+
+- 複合パスの解除
+- パスの合体（ライブパスファインダ）
+- アピアランスの拡張
+- グループ解除
+
+### 処理の流れ：
+
+1) 複合パスの解除
+2) パスの合体（ライブパスファインダ）
+3) アピアランスの拡張
+4) グループ解除
+
+### 更新履歴：
+
+- v1.0.0 (2026-05-10) : 初期バージョン
+
 */
+
+/*
+
+### Script Name:
+
+PathUnite.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathUnite.md
+
+### Description:
+
+- Last Updated: 2026-05-10
+- Applies Release Compound Path → Unite (Live Pathfinder Add) → Expand Appearance → Ungroup in sequence to the current selection
+
+### Main Features:
+
+- Release compound paths
+- Unite paths (Live Pathfinder Add)
+- Expand appearance
+- Ungroup
+
+### Process Flow:
+
+1) Release compound paths
+2) Unite paths (Live Pathfinder Add)
+3) Expand appearance
+4) Ungroup
+
+### Changelog:
+
+- v1.0.0 (2026-05-10) : Initial version
+
+*/
+
+// =========================================
+// バージョンとローカライズ / Version and localization
+// =========================================
+
+var SCRIPT_VERSION = "v1.0.0";
 
 // =========================================
 // ローカライズ / Localization

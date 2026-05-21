@@ -2,42 +2,82 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-## 概要
 
-選択したオブジェクトの境界に合わせて長方形を作成する Illustrator スクリプトです。
-作成単位は「オブジェクトごと」または「選択範囲全体」から選べます。
-プレビュー境界での計測、テキストのアウトライン化計測、定規単位に連動したマージン（負値で内側）を指定できます。
-ダイアログ表示中は選択オブジェクトの不透明度を一時的に 50% へ下げてプレビューを見やすくできます（不透明度を変えるプリセット選択時は自動で無効化）。
-塗り・線プリセット（線幅は Illustrator の「線幅」単位に連動）、重ね順、元オブジェクトの扱い（残す／クリッピングマスクにする／削除）を設定できます。
-クリッピングマスク化では元オブジェクトの重ね順を維持します。「選択範囲全体」では「前面／背面」に応じて最前面／最背面の項目を基準にします。
-ロック・非表示オブジェクトは対象外です。プレビューで結果を確認しながら調整できます（マスク／削除は OK 後に反映）。
-スクリプト実行中はバウンディングボックスとエッジ表示を一時的に切り替え、終了時（OK／キャンセル／エラーいずれも）に元の状態へ戻します。
+### スクリプト名：
 
-### キーボード操作
+ConvertToRectangle.jsx
 
-マージン入力：↑↓ で ±1、Shift+↑↓ で ±10、Alt+↑↓ で ±0.1。
-ショートカット：S/G（作成単位）、P/O/A/T（オプション）、F/B（重ね順）、N/M/D（元オブジェクト）。
+### Readme （GitHub）：
 
-## Overview
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToRectangle.md
 
-Creates Illustrator rectangles that match the bounds of selected objects.
-The creation unit can be set to either per object or the whole selection.
-You can measure preview bounds, measure text as outlines, and add a ruler-unit margin (negative shrinks).
-While the dialog is open, the selected objects can be temporarily dimmed to 50% opacity to make the preview easier to see (auto-disabled when a preset that changes opacity is selected).
-Choose a fill/stroke preset (stroke width follows the Stroke Units preference), rectangle order, and original handling (keep / make clipping mask / delete).
-Clipping-mask mode preserves the original z-order. Whole-selection mode anchors the new rectangle to the top-/bottom-most item based on the front/back setting.
-Locked and hidden objects are excluded. Preview shows the result while you adjust (mask/delete is applied on OK).
-The bounding box and edge display are temporarily toggled during the script and restored on exit (OK, Cancel, or error).
+### 概要：
 
-### Keyboard
+- 更新日：2026-05-20
+- 選択オブジェクトの境界に合わせて長方形を作成する Illustrator スクリプト
+- 作成単位は「オブジェクトごと」または「選択範囲全体」から選択可能
 
-Margin field: ↑↓ ±1, Shift+↑↓ ±10, Alt+↑↓ ±0.1.
-Shortcuts: S/G (creation unit), P/O/A/T (options), F/B (order), N/M/D (original).
+### 主な機能：
+
+- プレビュー境界での計測、テキストのアウトライン化計測、定規単位に連動したマージン（負値で内側）を指定可能
+- ダイアログ表示中は選択オブジェクトの不透明度を一時的に 50% へ下げてプレビューしやすく（不透明度を変えるプリセット選択時は自動で無効化）
+- 塗り・線プリセット（線幅は Illustrator の「線幅」単位に連動）、重ね順、元オブジェクトの扱い（残す／クリッピングマスクにする／削除）を設定可能
+- クリッピングマスク化では元オブジェクトの重ね順を維持
+- 「選択範囲全体」では前面／背面に応じて最前面／最背面の項目を基準
+- ロック・非表示オブジェクトは対象外
+- 実行中はバウンディングボックスとエッジ表示を一時切替し、終了時（OK／キャンセル／エラー）に元へ復元
+
+### キーボード操作：
+
+- マージン入力：↑↓ で ±1、Shift+↑↓ で ±10、Alt+↑↓ で ±0.1
+- ショートカット：S/G（作成単位）、P/O/A/T（オプション）、F/B（重ね順）、N/M/D（元オブジェクト）
+
+### 更新履歴：
+
+- v1.0.1 (2026-05-20) : 現行版
+
 */
 
-// ==============================
-// スクリプト情報 / Script information
-// ==============================
+/*
+
+### Script Name:
+
+ConvertToRectangle.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToRectangle.md
+
+### Description:
+
+- Last Updated: 2026-05-20
+- Creates Illustrator rectangles that match the bounds of selected objects
+- Creation unit can be set to either per object or the whole selection
+
+### Main Features:
+
+- Measure preview bounds, measure text as outlines, and add a ruler-unit margin (negative shrinks)
+- While the dialog is open, selected objects can be temporarily dimmed to 50% opacity for preview (auto-disabled when a preset that changes opacity is selected)
+- Choose a fill/stroke preset (stroke width follows Stroke Units), rectangle order, and original handling (keep / make clipping mask / delete)
+- Clipping-mask mode preserves the original z-order
+- Whole-selection mode anchors the new rectangle to the top-/bottom-most item based on the front/back setting
+- Locked and hidden objects are excluded
+- Bounding box and edge display are temporarily toggled and restored on exit (OK, Cancel, or error)
+
+### Keyboard:
+
+- Margin field: ↑↓ ±1, Shift+↑↓ ±10, Alt+↑↓ ±0.1
+- Shortcuts: S/G (creation unit), P/O/A/T (options), F/B (order), N/M/D (original)
+
+### Changelog:
+
+- v1.0.1 (2026-05-20) : Current version
+
+*/
+
+// =========================================
+// バージョンとローカライズ / Version and localization
+// =========================================
 var SCRIPT_VERSION = "v1.0.1";
 
 // ==============================

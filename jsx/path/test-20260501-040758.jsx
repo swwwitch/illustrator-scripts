@@ -2,31 +2,72 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-  概要 / Overview
 
-  選択中のオブジェクトに対して以下の処理を順に適用します。
-  1. 複合パスの解除
-  2. パスの合体（ライブパスファインダ）
-  3. アピアランスの拡張
-  4. グループ解除
-  5. 指定値（mm）でオフセットパス効果を適用
+### スクリプト名：
 
-  Apply the following operations to the selected objects in order:
-  1. Release compound paths
-  2. Unite paths (Live Pathfinder Add)
-  3. Expand appearance
-  4. Ungroup
-  5. Apply Offset Path effect with the specified value (mm)
+test-20260501-040758.jsx
 
-  ダイアログでプレビューにチェックを入れると、ダイアログを閉じずに結果を確認できます。
-  When the Preview checkbox is enabled, the result is shown live without closing the dialog.
+### Readme （GitHub）：
+
+（テスト用ファイルのため未公開）
+
+### 概要：
+
+- 更新日：2026-05-01
+- PathUniteOffsetTool.jsx の作業用派生テストファイル
+- 選択中のオブジェクトに対して複合パス解除 → パスの合体 → アピアランス拡張 → グループ解除 → オフセットパスを一括実行
+
+### 主な機能：
+
+- 複合パスの解除
+- パスの合体（ライブパスファインダ）
+- アピアランスの拡張
+- グループ解除
+- 指定値（mm）でオフセットパス効果を適用
+- プレビュー機能
+
+### 更新履歴：
+
+- v1.0.0 (2026-05-01) : 初期テスト版
+
+*/
+
+/*
+
+### Script Name:
+
+test-20260501-040758.jsx
+
+### GitHub:
+
+(Working test file, not published)
+
+### Description:
+
+- Last Updated: 2026-05-01
+- Working test derivative of PathUniteOffsetTool.jsx
+- Applies Release Compound Path → Unite → Expand Appearance → Ungroup → Offset Path in sequence to the current selection
+
+### Main Features:
+
+- Release compound paths
+- Unite paths (Live Pathfinder Add)
+- Expand appearance
+- Ungroup
+- Apply Offset Path effect with the specified value (mm)
+- Live preview
+
+### Changelog:
+
+- v1.0.0 (2026-05-01) : Initial test build
+
 */
 
 // =========================================
-// バージョンとローカライズ / Version and Localization
+// バージョンとローカライズ / Version and localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0";
+var SCRIPT_VERSION = "v1.0.0";
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

@@ -3,41 +3,76 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名 / Script name:
-PathCleanupTool
 
-### 更新日 / Updated:
-20260320
+### スクリプト名：
 
-### 概要 / Overview:
-選択したパス（グループ／複合パスを含む）を対象に、パス構造を最適化します。
+PathCleanupTool.jsx
 
-主な機能：
+### Readme （GitHub）：
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool.md
+
+### 概要：
+
+- 更新日：2026-03-20
+- 選択したパス（グループ／複合パスを含む）のパス構造を最適化
+- ロック／非表示オブジェクト（親・レイヤー含む）は自動スキップ
+- ダイアログ表示時点の選択状態を固定し、情報表示と実行対象を一致
+
+### 主な機能：
+
 - 直線上の冗長なアンカーポイントの削除
 - 同一座標のアンカーポイントの削除
 - 直線として扱えるベジェ区間のハンドルの整理
-
-ロック／非表示オブジェクト（親・レイヤー含む）は自動的にスキップされます。
-
-ダイアログ表示時点の選択状態を固定し、情報表示と実行対象が常に一致するように設計されています。
-
----
-
-「その他」タブでは以下の変換処理を実行できます：
-- スムーズポイント化
-- コーナーポイント化
-- アンカーポイントの追加
-- アンカーポイントで分割
-- マド埋め（複合パスの解除と合体）
-
----
-
-補足：
-- アンカー削除用／ハンドル削除用の許容誤差は個別に調整可能
+- 「その他」タブでスムーズポイント化／コーナーポイント化／アンカーポイント追加／アンカーポイント分割／マド埋め（複合パスの解除と合体）を実行可能
+- アンカー削除用／ハンドル削除用の許容誤差を個別調整可能
 - スムーズ化は前後アンカーの距離・角度に応じて安定するよう補正
 - オープンパス端点は安全に処理（循環参照なし）
 - 実行中の例外は最小限ログ出力
+
+### 更新履歴：
+
+- v1.5.1 (2026-03-20) : 現行版
+
 */
+
+/*
+
+### Script Name:
+
+PathCleanupTool.jsx
+
+### GitHub:
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool.md
+
+### Description:
+
+- Last Updated: 2026-03-20
+- Optimizes the structure of selected paths (including inside groups / compound paths)
+- Locked / hidden objects (including parents and layers) are skipped automatically
+- Selection is locked at dialog open time so the display and execution targets always match
+
+### Main Features:
+
+- Removes redundant anchors on straight segments
+- Removes duplicate-coordinate anchors
+- Cleans up handles on bezier segments that can be treated as straight
+- "Other" tab can smooth / cornerize / add anchors / split at anchors / fill gaps (release compound + unite)
+- Independent tolerance controls for anchor removal and handle removal
+- Smoothing is corrected for stability based on adjacent anchor distance / angle
+- Open-path endpoints are processed safely (no circular references)
+- Minimal logging for runtime exceptions
+
+### Changelog:
+
+- v1.5.1 (2026-03-20) : Current version
+
+*/
+
+// =========================================
+// バージョンとローカライズ / Version and localization
+// =========================================
 
 var SCRIPT_VERSION = "v1.5.1";
 
