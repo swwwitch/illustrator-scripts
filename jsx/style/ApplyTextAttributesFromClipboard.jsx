@@ -78,7 +78,7 @@ Units and persistence
 */
 
 
-var SCRIPT_VERSION = "v1.3.0";
+var SCRIPT_VERSION = "v1.3.1";
 
 function getCurrentLocaleLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -1443,7 +1443,7 @@ function bindExclusiveOptionClick(checkboxes) {
         graphicStyleRowText = L("notStored");
     }
 
-    var FILL_GS_RADIO_NAME_WIDTH = 140;
+    var FILL_GS_RADIO_NAME_WIDTH = 165;
 
     /* 「しない」行 / "None" row */
     var fgsNoneRow = fillGraphicStylePanel.add("group");

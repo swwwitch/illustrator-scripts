@@ -1,10 +1,11 @@
 #target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /*
       選択オブジェクトに既存のグラフィックスタイル「temp_style」を適用
       Apply the existing graphic style "temp_style" to selected objects
     
-      オリジナルアイデア
+     ### オリジナルアイデア
     
     @comsk(asa me)さん
     https://qiita.com/comsk/items/87161b2b7d2336b161c4
