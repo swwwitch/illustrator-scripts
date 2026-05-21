@@ -288,24 +288,36 @@ https://note.com/dtp_tranist/n/na66732d2056a
         return absPath;
     }
 
-    // 文字列をクリップボードへコピー：pbcopy を経由してドキュメントの UNDO スタックを汚さない（Mac 規約）
-    // 一時ファイル経由にすることでシェルの引用符問題を回避し、UTF-8 の日本語も安全に渡せる
+    // 文字列をクリップボードへコピー：一時テキストフレームを作って app.copy() でクリップボードに送る
+    // pbcopy 経由（app.system）は modern Illustrator で非同期動作になり、finally の tmpFile 削除が先に走って失敗するため使わない
     function copyTextToClipboard(text) {
         if (text === null || text === undefined) text = "";
         text = String(text);
-        var tmpFile = null;
+        var activeDoc = tryGet(function () { return app.activeDocument; }, null);
+        if (!activeDoc) return false;
+
+        var prevSelection = tryGet(function () { return activeDoc.selection; }, null);
+        var tempFrame = null;
         try {
-            tmpFile = new File(Folder.temp.fsName + "/lim_clip_" + (new Date()).getTime() + ".txt");
-            tmpFile.encoding = "UTF-8";
-            if (!tmpFile.open("w")) return false;
-            tmpFile.write(text);
-            tmpFile.close();
-            app.system('/bin/cat "' + tmpFile.fsName + '" | /usr/bin/pbcopy');
+            tempFrame = activeDoc.textFrames.add();
+            tempFrame.contents = text;
+            activeDoc.selection = null;
+            tempFrame.selected = true;
+            app.copy();
+            tempFrame.remove();
+            tempFrame = null;
+
+            // 元の選択を可能な限り復元
+            try { activeDoc.selection = null; } catch (e0) { }
+            if (prevSelection && prevSelection.length) {
+                for (var i = 0; i < prevSelection.length; i++) {
+                    try { prevSelection[i].selected = true; } catch (ei) { }
+                }
+            }
             return true;
         } catch (e) {
+            try { if (tempFrame) tempFrame.remove(); } catch (e3) { }
             return false;
-        } finally {
-            try { if (tmpFile) tmpFile.remove(); } catch (eRm) { }
         }
     }
 
