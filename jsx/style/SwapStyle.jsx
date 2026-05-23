@@ -53,6 +53,7 @@ note：
 更新履歴：
 
 * v1.0.0 (2026-05-21) : 初期バージョン
+* v1.1.0 (2026-05-23) : ダイアログにプレビューを追加
 
 ⸻
 
@@ -106,6 +107,7 @@ note:
 Changelog:
 
 * v1.0.0 (2026-05-21): Initial release
+* v1.1.0 (2026-05-23): Add preview to the dialog
 
 */
 
@@ -113,7 +115,7 @@ Changelog:
 // バージョンとローカライズ / Version & Localization
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 /* 現在の言語を返す / Return the current language */
 function getCurrentLanguage() {
@@ -184,6 +186,10 @@ var LABELS = {
     cancel: {
         ja: "キャンセル",
         en: "Cancel"
+    },
+    preview: {
+        ja: "プレビュー",
+        en: "Preview"
     },
 
     // Tooltips
@@ -322,13 +328,22 @@ function buildGraphicStylePanel(dialog) {
     };
 }
 
+/* プレビューチェックボックス行を作成 / Build the preview checkbox row */
+function buildPreviewGroup(dialog) {
+    var previewGroup = dialog.add('group');
+    previewGroup.alignment = 'center';
+    var previewCheckbox = previewGroup.add('checkbox', undefined, getLabel('preview'));
+    previewCheckbox.value = false;
+    return { group: previewGroup, previewCheckbox: previewCheckbox };
+}
+
 /* ボタン行を作成 / Build the button row */
 function buildButtonGroup(dialog) {
     var buttonGroup = dialog.add('group');
     buttonGroup.alignment = 'right';
-    buttonGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
-    buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
-    return buttonGroup;
+    var cancelButton = buttonGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+    var okButton = buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
+    return { group: buttonGroup, cancelButton: cancelButton, okButton: okButton };
 }
 
 /* ダイアログの有効／無効状態を更新 / Update dialog enabled states */
@@ -343,17 +358,6 @@ function updateDialogEnabled(ui, bothAreText) {
     if (isStyleSwap) {
         ui.graphicStyle.deleteStylesCheckbox.enabled = ui.graphicStyle.swapGraphicStylesCheckbox.value;
     }
-}
-
-/* ダイアログイベントを接続 / Bind dialog events */
-function bindDialogEvents(ui, bothAreText) {
-    var refreshEnabled = function () { updateDialogEnabled(ui, bothAreText); };
-    ui.mode.styleSwapRadio.onClick = refreshEnabled;
-    ui.mode.contentSwapRadio.onClick = refreshEnabled;
-    ui.graphicStyle.swapGraphicStylesCheckbox.onClick = refreshEnabled;
-    ui.basicFillStroke.fillCheckbox.onClick = refreshEnabled;
-    ui.basicFillStroke.strokeColorCheckbox.onClick = refreshEnabled;
-    ui.basicFillStroke.strokeWidthCheckbox.onClick = refreshEnabled;
 }
 
 /* ダイアログの選択内容を読む / Read dialog choices */
@@ -373,8 +377,8 @@ function readDialogOptions(ui) {
     };
 }
 
-/* オプションダイアログを表示し、ユーザーの選択を返す / Show the options dialog and return user's choices */
-function showOptionsDialog(bothAreText) {
+/* オプションダイアログを表示し、プレビューと確定を駆動 / Show the options dialog and drive preview / commit */
+function showOptionsDialog(bothAreText, performSwapFn) {
     var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
     dialog.alignChildren = 'fill';
 
@@ -384,12 +388,45 @@ function showOptionsDialog(bothAreText) {
         basicFillStroke: buildBasicFillStrokePanel(dialog),
         graphicStyle: buildGraphicStylePanel(dialog)
     };
-    buildButtonGroup(dialog);
-    bindDialogEvents(ui, bothAreText);
+    var previewUi = buildPreviewGroup(dialog);
+    var buttons = buildButtonGroup(dialog);
+
+    var previewState = { isUndo: false };
+
+    /* UI 変更時：有効状態を更新し、プレビューを再描画 / On UI change: refresh enabled state and re-render preview */
+    var refresh = function () {
+        updateDialogEnabled(ui, bothAreText);
+        runPreview(previewState, function () {
+            performSwapFn(readDialogOptions(ui), true);
+        }, previewUi.previewCheckbox.value);
+    };
+
+    ui.mode.styleSwapRadio.onClick = refresh;
+    ui.mode.contentSwapRadio.onClick = refresh;
+    ui.graphicStyle.swapGraphicStylesCheckbox.onClick = refresh;
+    ui.graphicStyle.deleteStylesCheckbox.onClick = refresh;
+    ui.basicFillStroke.fillCheckbox.onClick = refresh;
+    ui.basicFillStroke.strokeColorCheckbox.onClick = refresh;
+    ui.basicFillStroke.strokeWidthCheckbox.onClick = refresh;
+    ui.format.fontAndStyleCheckbox.onClick = refresh;
+    ui.format.fontSizeCheckbox.onClick = refresh;
+    previewUi.previewCheckbox.onClick = refresh;
+
     updateDialogEnabled(ui, bothAreText);
 
-    if (dialog.show() !== 1) return null;
-    return readDialogOptions(ui);
+    /* OK：プレビュー分を巻き戻してから本番として再実行 / OK: undo preview then commit cleanly */
+    buttons.okButton.onClick = function () {
+        undoPreview(previewState);
+        performSwapFn(readDialogOptions(ui), false);
+        // `{ name: 'ok' }` 指定により dialog はこの後自動でクローズする
+    };
+
+    /* キャンセル含むクローズ時：残ったプレビューを巻き戻す / On any close (incl. cancel): undo leftover preview */
+    dialog.onClose = function () {
+        cleanupPreview(previewState, app.activeDocument);
+    };
+
+    return dialog.show() === 1;
 }
 
 // =========================================
@@ -528,36 +565,75 @@ function swapTextCharacterFillStroke(textFrameA, textFrameB, options) {
 }
 
 // =========================================
-// メイン処理 / Main
+// プレビュー undo ヘルパー / Preview Undo Helpers
+// =========================================
+/*
+ * 設定変更のたびに「仮配置 → undo → 再生成」する典型パターンを
+ * 共通化したユーティリティ。
+ * Reusable preview/undo pattern for Illustrator dialog scripts.
+ *
+ * 使い方の概略 / Usage:
+ *   var previewState = { isUndo: false };
+ *   // UI 変更ごとに: runPreview(previewState, process, isPreview.value);
+ *   // OK 時に:       undoPreview(previewState); process(); win.close();
+ *   // onClose 時:    cleanupPreview(previewState, app.activeDocument);
+ *
+ * 注意 / Notes:
+ *  - process() 内で graphicStyles.add() / layers.add() など
+ *    app.undo() で戻らない副作用を起こす場合、cleanupPreview だけでは
+ *    残骸が残る可能性がある（呼び出し側で手動 .remove() を検討）。
+ *  - process() は ScriptUI の選択値を参照する純粋な再描画関数として
+ *    書くと、内部状態を保持しない実装にしやすい。
+ */
+
+/* プレビューを再描画する / Re-render preview */
+function runPreview(state, processFn, isEnabled) {
+    try {
+        if (isEnabled) {
+            if (state.isUndo) app.undo();
+            else state.isUndo = true;
+            processFn();
+            app.redraw();
+        } else if (state.isUndo) {
+            app.undo();
+            app.redraw();
+            state.isUndo = false;
+        }
+    } catch (err) { }
+}
+
+/* 確定処理の直前にプレビュー分を巻き戻す / Undo preview before the final commit */
+function undoPreview(state) {
+    try {
+        if (state.isUndo) app.undo();
+    } catch (err) { }
+    state.isUndo = false;
+}
+
+/* ダイアログクローズ時のクリーンアップ / Cleanup on dialog close */
+function cleanupPreview(state, doc, tempLayerName) {
+    try {
+        if (state.isUndo) app.undo();
+        state.isUndo = false;
+    } catch (err) { }
+    if (tempLayerName) {
+        try {
+            var tmpLay = doc.layers.getByName(tempLayerName);
+            tmpLay.remove();
+        } catch (err) { }
+    }
+}
+
+// =========================================
+// 交換処理本体 / Swap Operation
 // =========================================
 
-(function () {
-    if (app.documents.length === 0) {
-        alert(getLabel('alertNoDocument'));
-        return;
-    }
-    var activeDoc = app.activeDocument;
-    var graphicStyles = activeDoc.graphicStyles;
-
-    var selectedItems = activeDoc.selection;
-    if (selectedItems.length !== 2) {
-        alert(getLabel('alertSelectTwo'));
-        return;
-    }
-
-    // selection は後続処理で変更するため、対象2件を配列として保持 / Keep the two targets as an array because selection changes later
-    var targetItems = [selectedItems[0], selectedItems[1]];
-
-    var bothAreText = (targetItems[0].typename === 'TextFrame'
-        && targetItems[1].typename === 'TextFrame');
-
-    var options = showOptionsDialog(bothAreText);
-    if (!options) return;
-
+/* スタイル／文字列の交換を実行（プレビュー・本番共通） / Run the swap (used for both preview and commit) */
+function performSwap(activeDoc, graphicStyles, targetItems, options, isPreview) {
     // 文字列交換モード：テキストオブジェクト同士で contents を入れ替えるだけ
     if (options.mode === 'content') {
         if (targetItems[0].typename !== 'TextFrame' || targetItems[1].typename !== 'TextFrame') {
-            alert(getLabel('alertContentTextOnly'));
+            if (!isPreview) alert(getLabel('alertContentTextOnly'));
             return;
         }
         var contentA = targetItems[0].contents;
@@ -570,7 +646,7 @@ function swapTextCharacterFillStroke(textFrameA, textFrameB, options) {
     if (options.swapGraphicStyles) {
         var tempStyleNamePair = findNextStyleNamePair(graphicStyles);
         if (!tempStyleNamePair) {
-            alert(getLabel('alertNoFreePair'));
+            if (!isPreview) alert(getLabel('alertNoFreePair'));
             return;
         }
 
@@ -612,7 +688,7 @@ function swapTextCharacterFillStroke(textFrameA, textFrameB, options) {
                 catch (e) { }
             }
             if (actionLoaded) unloadForceNewGraphicStyleAction();
-            alert(getLabel('alertSwapFailed'));
+            if (!isPreview) alert(getLabel('alertSwapFailed'));
             return;
         }
         if (actionLoaded) unloadForceNewGraphicStyleAction();
@@ -646,4 +722,35 @@ function swapTextCharacterFillStroke(textFrameA, textFrameB, options) {
 
     // 選択を元の2つに戻す
     activeDoc.selection = targetItems;
+}
+
+// =========================================
+// メイン処理 / Main
+// =========================================
+
+(function () {
+    if (app.documents.length === 0) {
+        alert(getLabel('alertNoDocument'));
+        return;
+    }
+    var activeDoc = app.activeDocument;
+    var graphicStyles = activeDoc.graphicStyles;
+
+    var selectedItems = activeDoc.selection;
+    if (selectedItems.length !== 2) {
+        alert(getLabel('alertSelectTwo'));
+        return;
+    }
+
+    // selection は後続処理で変更するため、対象2件を配列として保持 / Keep the two targets as an array because selection changes later
+    var targetItems = [selectedItems[0], selectedItems[1]];
+
+    var bothAreText = (targetItems[0].typename === 'TextFrame'
+        && targetItems[1].typename === 'TextFrame');
+
+    var performSwapFn = function (options, isPreview) {
+        performSwap(activeDoc, graphicStyles, targetItems, options, isPreview);
+    };
+
+    showOptionsDialog(bothAreText, performSwapFn);
 })();
