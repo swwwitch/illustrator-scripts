@@ -13,15 +13,19 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToR
 
 ### 概要：
 
-- 更新日：2026-05-20
+- 更新日：2026-05-24
 - 選択オブジェクトの境界に合わせて長方形を作成する Illustrator スクリプト
-- 作成単位は「オブジェクトごと」または「選択範囲全体」から選択可能
+- 作成単位は「オブジェクトごと」または「選択範囲全体」から選択
+- マージン（定規単位、負値で内側）、角丸ライブエフェクト、塗り・線プリセットを指定して生成
+- 元オブジェクトは「残す」「クリッピングマスクにする」「削除」から選択可能
+- プレビュー対応。ダイアログ表示中は選択を一時的に 50% にディムして比較しやすく
 
 ### 主な機能：
 
-- プレビュー境界での計測、テキストのアウトライン化計測、定規単位に連動したマージン（負値で内側）を指定可能
+- プレビュー境界での計測、テキストのアウトライン化計測（テキスト選択時のみ有効）、定規単位に連動したマージン（負値で内側）を指定可能
 - ダイアログ表示中は選択オブジェクトの不透明度を一時的に 50% へ下げてプレビューしやすく（不透明度を変えるプリセット選択時は自動で無効化）
-- 塗り・線プリセット（線幅は Illustrator の「線幅」単位に連動）、重ね順、元オブジェクトの扱い（残す／クリッピングマスクにする／削除）を設定可能
+- 塗り・線プリセット（線幅は Illustrator の「線幅」単位に連動）、角丸ライブエフェクト（定規単位の半径）、重ね順、元オブジェクトの扱い（残す／クリッピングマスクにする／削除）を設定可能
+- 「クリッピングマスクにする」はリンク画像／埋め込み画像が選択されているときのみ選択可
 - クリッピングマスク化では元オブジェクトの重ね順を維持
 - 「選択範囲全体」では前面／背面に応じて最前面／最背面の項目を基準
 - ロック・非表示オブジェクトは対象外
@@ -29,12 +33,13 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ConvertToR
 
 ### キーボード操作：
 
-- マージン入力：↑↓ で ±1、Shift+↑↓ で ±10、Alt+↑↓ で ±0.1
+- マージン・角丸半径入力：↑↓ で ±1、Shift+↑↓ で ±10、Alt+↑↓ で ±0.1
 - ショートカット：S/G（作成単位）、P/O/A/T（オプション）、F/B（重ね順）、N/M/D（元オブジェクト）
 
 ### 更新履歴：
 
-- v1.0.1 (2026-05-20) : 現行版
+- v1.0.1 (2026-05-20) : 初版
+- v1.1.0 (2026-05-24) : 単位換算情報を集約し、表示切替の復元処理を安全化
 
 */
 
@@ -50,15 +55,19 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToR
 
 ### Description:
 
-- Last Updated: 2026-05-20
+- Last Updated: 2026-05-24
 - Creates Illustrator rectangles that match the bounds of selected objects
 - Creation unit can be set to either per object or the whole selection
+- Configure margin (ruler unit, negative for inset), a Round Corners live effect, and fill/stroke presets
+- Choose to keep, clip-mask, or delete the original objects
+- Live preview with an option to dim the selection to 50% for easier comparison
 
 ### Main Features:
 
-- Measure preview bounds, measure text as outlines, and add a ruler-unit margin (negative shrinks)
+- Measure preview bounds, measure text as outlines (only when the selection includes text), and add a ruler-unit margin (negative shrinks)
 - While the dialog is open, selected objects can be temporarily dimmed to 50% opacity for preview (auto-disabled when a preset that changes opacity is selected)
-- Choose a fill/stroke preset (stroke width follows Stroke Units), rectangle order, and original handling (keep / make clipping mask / delete)
+- Choose a fill/stroke preset (stroke width follows Stroke Units), a Round Corners live effect radius (ruler unit), rectangle order, and original handling (keep / make clipping mask / delete)
+- "Make clipping mask" is available only when the selection consists of linked or embedded images
 - Clipping-mask mode preserves the original z-order
 - Whole-selection mode anchors the new rectangle to the top-/bottom-most item based on the front/back setting
 - Locked and hidden objects are excluded
@@ -66,19 +75,20 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ConvertToR
 
 ### Keyboard:
 
-- Margin field: ↑↓ ±1, Shift+↑↓ ±10, Alt+↑↓ ±0.1
+- Margin / corner radius field: ↑↓ ±1, Shift+↑↓ ±10, Alt+↑↓ ±0.1
 - Shortcuts: S/G (creation unit), P/O/A/T (options), F/B (order), N/M/D (original)
 
 ### Changelog:
 
-- v1.0.1 (2026-05-20) : Current version
+- v1.0.1 (2026-05-20) : Initial version
+- v1.1.0 (2026-05-24) : Consolidated unit conversion info and made display-toggle restoration safer
 
 */
 
 // =========================================
 // バージョンとローカライズ / Version and localization
 // =========================================
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.1.0";
 
 // ==============================
 // 言語判定 / Language detection
@@ -86,7 +96,7 @@ var SCRIPT_VERSION = "v1.0.1";
 function getCurrentLang() {
     return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
-var lang = getCurrentLang();
+var currentLanguage = getCurrentLang();
 
 // ==============================
 // ラベル定義 / Label definitions
@@ -102,6 +112,7 @@ var LABELS = {
     panelTarget: { ja: "作成単位", en: "Creation unit" },
     panelOptions: { ja: "オプション", en: "Options" },
     panelAppearance: { ja: "塗りと線", en: "Fill and stroke" },
+    panelCorner: { ja: "角丸", en: "Rounded corners" },
     panelOrder: { ja: "長方形の重ね順", en: "Rectangle order" },
     panelOriginal: { ja: "元オブジェクトの扱い", en: "Original handling" },
 
@@ -116,6 +127,7 @@ var LABELS = {
     boundsTip: { ja: "オンで線幅・効果を含む見た目のサイズを基準にします。オフではパス本体の境界を使います", en: "When on, measures the visible size including stroke and effects. When off, uses the path bounds" },
     outlineText: { ja: "テキストはアウトライン化して計測", en: "Measure text as outlines" },
     outlineTextTip: { ja: "元のテキストは変更せず、複製を一時的にアウトライン化して境界を計測します", en: "Measures a temporary outlined copy without modifying the original text" },
+    outlineTextDisabledTip: { ja: "選択にテキストが含まれていないため無効です", en: "Disabled because the selection does not include text" },
     useMargin: { ja: "マージンを追加", en: "Add margin" },
     marginTip: { ja: "オンにすると、計測した境界から指定値だけ外側へ広げます。単位は Illustrator の定規単位に連動します（負値で内側）", en: "When on, expands the measured bounds outward by this amount. The unit follows Illustrator's ruler unit (negative shrinks)" },
     dimSelection: { ja: "実行中は不透明度を下げる", en: "Dim selection while running" },
@@ -124,6 +136,10 @@ var LABELS = {
     /* Appearance / 塗りと線 */
     currentTip: { ja: "ドキュメントの現在の既定値（直前に使った塗り・線）をそのまま使います", en: "Uses the document's current default fill and stroke" },
     imageNotice: { ja: "画像では直前の塗り・線を取得できないため選択できません", en: "Current fill/stroke is not available for image items" },
+
+    /* Corner / 角丸 */
+    cornerRadius: { ja: "半径", en: "Radius" },
+    cornerRadiusTip: { ja: "生成する長方形に角丸ライブエフェクトを適用します。0 で角丸なし（単位は定規単位）。マスクのクリップ形状はパス本体に従うため、丸めるには「アピアランスを分割」で実体化が必要", en: "Applies a Round Corners live effect to the new rectangle. 0 means no rounding (unit follows the ruler). Clipping uses the geometric path, so use Expand Appearance to bake the corners when masking" },
 
     /* Order radios / 重ね順 */
     orderFront: { ja: "前面に作成", en: "Create in front" },
@@ -136,6 +152,7 @@ var LABELS = {
     originalKeepTip: { ja: "元オブジェクトを残し、長方形だけを追加します", en: "Keeps the original object and adds the rectangle" },
     originalMask: { ja: "クリッピングマスクにする", en: "Make clipping mask" },
     maskTip: { ja: "生成した長方形をクリップパスとして、元オブジェクトをクリッピングマスク化します", en: "Uses the new rectangle as the clipping path for the original object" },
+    maskImageOnly: { ja: "選択がリンク画像／埋め込み画像のときだけ選べます", en: "Available only when the selection is linked or embedded images" },
     originalDelete: { ja: "削除", en: "Delete" },
     originalDeleteTip: { ja: "長方形の作成後、元オブジェクトを削除します", en: "Deletes the original object after creating the rectangle" },
 
@@ -146,10 +163,10 @@ var LABELS = {
 };
 
 // ラベル取得 / Get label
-function L(labelText) {
-    var labelEntry = LABELS[labelText];
-    if (!labelEntry) return labelText;
-    return labelEntry[lang] || labelEntry.en || labelText;
+function L(labelKey) {
+    var labelEntry = LABELS[labelKey];
+    if (!labelEntry) return labelKey;
+    return labelEntry[currentLanguage] || labelEntry.en || labelKey;
 }
 
 // ==============================
@@ -189,32 +206,30 @@ function getStrokeUnitsPreference() {
     return strokeUnits;
 }
 
+// Illustrator の単位設定値ごとの換算情報 / Conversion info for Illustrator unit preferences
+var UNIT_INFO_BY_TYPE = {
+    0: { factor: 72, label: "in" },        // inch
+    1: { factor: 72 / 25.4, label: "mm" }, // mm
+    2: { factor: 1, label: "pt" },         // pt
+    3: { factor: 12, label: "pc" },        // pica
+    4: { factor: 72 / 2.54, label: "cm" }, // cm
+    5: { factor: 0.25, label: "Q" },       // Q/H
+    6: { factor: 1, label: "px" }          // px
+};
+
+// Illustrator の単位設定値に対応する換算情報を返す / Get conversion info for an Illustrator unit preference value
+function getUnitInfo(unitType) {
+    return UNIT_INFO_BY_TYPE[unitType] || UNIT_INFO_BY_TYPE[2];
+}
+
 // Illustrator の単位設定値を pt 変換係数に変換する / Convert Illustrator unit preference value to a points factor
 function getUnitToPointFactor(unitType) {
-    switch (unitType) {
-        case 0: return 72;              // inch
-        case 1: return 72 / 25.4;       // mm
-        case 2: return 1;               // pt
-        case 3: return 12;              // pica
-        case 4: return 72 / 2.54;       // cm
-        case 5: return 0.25;            // Q/H
-        case 6: return 1;               // px
-        default: return 1;
-    }
+    return getUnitInfo(unitType).factor;
 }
 
 // Illustrator の単位設定値を表示用単位ラベルに変換する / Convert Illustrator unit preference value to a display label
 function getUnitLabel(unitType) {
-    switch (unitType) {
-        case 0: return "in";
-        case 1: return "mm";
-        case 2: return "pt";
-        case 3: return "pc";
-        case 4: return "cm";
-        case 5: return "Q";
-        case 6: return "px";
-        default: return "pt";
-    }
+    return getUnitInfo(unitType).label;
 }
 
 // Illustrator の strokeUnits 設定値を pt 変換係数に変換する / Convert Illustrator strokeUnits to a points factor
@@ -271,7 +286,7 @@ function makeBlack(isRgbDocument) {
 
 // 線幅プリセット名に現在の線幅単位を反映する / Apply the current stroke unit to preset labels
 function formatFillStrokePresetLabel(preset) {
-    var presetLabel = preset[lang] || preset.en;
+    var presetLabel = preset[currentLanguage] || preset.en;
     if (presetLabel.indexOf("{width}") < 0) return presetLabel;
 
     return presetLabel
@@ -295,6 +310,15 @@ function isSelectionAllImages(pageItems) {
         if (!isImageItem(pageItems[i])) return false;
     }
     return true;
+}
+
+// 選択オブジェクトに TextFrame が含まれるかどうか / True when any selected item is a TextFrame
+function selectionHasText(pageItems) {
+    if (!pageItems || pageItems.length === 0) return false;
+    for (var i = 0; i < pageItems.length; i++) {
+        if (pageItems[i].typename === "TextFrame") return true;
+    }
+    return false;
 }
 
 // ==============================
@@ -442,12 +466,13 @@ function buildTargetPanel(parent) {
     };
 }
 
-function buildOptionsPanel(parent) {
+function buildOptionsPanel(parent, selectionHasTextItem) {
     var optionsPanel = addColumnPanel(parent, "panelOptions");
     var previewBoundsCheck = optionsPanel.add("checkbox", undefined, L("previewBounds"));
     previewBoundsCheck.helpTip = L("boundsTip");
     var outlineTextCheck = optionsPanel.add("checkbox", undefined, L("outlineText"));
-    outlineTextCheck.helpTip = L("outlineTextTip");
+    outlineTextCheck.helpTip = selectionHasTextItem ? L("outlineTextTip") : L("outlineTextDisabledTip");
+    outlineTextCheck.enabled = selectionHasTextItem;
 
     var marginRow = optionsPanel.add("group");
     marginRow.orientation = "row";
@@ -475,12 +500,13 @@ function buildOptionsPanel(parent) {
     };
 }
 
-function buildOriginalPanel(parent) {
+function buildOriginalPanel(parent, selectionAllImages) {
     var originalPanel = addColumnPanel(parent, "panelOriginal");
     var keepRadio = originalPanel.add("radiobutton", undefined, L("originalKeep"));
     keepRadio.helpTip = L("originalKeepTip");
     var maskRadio = originalPanel.add("radiobutton", undefined, L("originalMask"));
-    maskRadio.helpTip = L("maskTip");
+    maskRadio.helpTip = selectionAllImages ? L("maskTip") : L("maskImageOnly");
+    maskRadio.enabled = selectionAllImages;
     var deleteRadio = originalPanel.add("radiobutton", undefined, L("originalDelete"));
     deleteRadio.helpTip = L("originalDeleteTip");
     keepRadio.value = true;
@@ -508,6 +534,23 @@ function buildAppearancePanel(parent, selectionAllImages) {
         radios[CURRENT_PRESET_INDEX].helpTip = L("imageNotice");
     }
     return radios;
+}
+
+function buildCornerPanel(parent) {
+    var cornerPanel = addColumnPanel(parent, "panelCorner");
+    var cornerRow = cornerPanel.add("group");
+    cornerRow.orientation = "row";
+    cornerRow.alignChildren = ["left", "center"];
+    var cornerRadiusLabel = cornerRow.add("statictext", undefined, L("cornerRadius"));
+    cornerRadiusLabel.helpTip = L("cornerRadiusTip");
+    var cornerRadiusInput = cornerRow.add("edittext", undefined, "0");
+    cornerRadiusInput.characters = 5;
+    cornerRadiusInput.helpTip = L("cornerRadiusTip");
+    var cornerUnitLabel = cornerRow.add("statictext", undefined, getRulerUnitLabel());
+    return {
+        cornerRadiusInput: cornerRadiusInput,
+        cornerUnitLabel: cornerUnitLabel
+    };
 }
 
 function buildOrderPanel(parent) {
@@ -554,6 +597,12 @@ function getMarginValue(ui) {
     return rulerUnitValueToPoints(parseFloat(ui.options.marginInput.text) || 0);
 }
 
+function getCornerRadiusValue(ui) {
+    var raw = parseFloat(ui.corner.cornerRadiusInput.text) || 0;
+    if (raw <= 0) return 0;
+    return rulerUnitValueToPoints(raw);
+}
+
 function buildDialogSettings(ui, forPreview) {
     var appearanceIndex = findSelectedRadioIndex(ui.appearanceRadios, DEFAULT_PRESET_INDEX);
     return {
@@ -562,9 +611,9 @@ function buildDialogSettings(ui, forPreview) {
         outlineText: ui.options.outlineTextCheck.value,
         margin: getMarginValue(ui),
         appearancePreset: FILL_STROKE_PRESETS[appearanceIndex],
+        cornerRadius: getCornerRadiusValue(ui),
         placeInFront: ui.order.frontRadio.value,
-        originalMode: forPreview ? "keep" : getOriginalMode(ui.original.maskRadio, ui.original.deleteRadio),
-        preview: ui.buttons.previewCheck.value
+        originalMode: forPreview ? "keep" : getOriginalMode(ui.original.maskRadio, ui.original.deleteRadio)
     };
 }
 function syncMarginEnabled(ui) {
@@ -572,11 +621,67 @@ function syncMarginEnabled(ui) {
     ui.options.marginUnitLabel.enabled = ui.options.useMarginCheck.value;
 }
 
-function clearPreviewItems(previewItems) {
-    for (var i = 0; i < previewItems.length; i++) {
-        try { previewItems[i].remove(); } catch (ignorePreview) { }
+// ==============================
+// プレビュー undo ヘルパー / Preview undo helpers
+// ==============================
+// 設定変更のたびに「仮配置 → undo → 再生成」するパターン
+// state: { isUndo: boolean, items: [...] } を呼び出し側で保持する
+// process() の戻り値（追加された PageItem 配列）が state.items に格納される
+
+// 残ったプレビューアイテムを直接削除する（app.undo() が複数ステップを巻き戻さない場合の保険）
+function removePreviewRemnants(state) {
+    if (!state.items) {
+        state.items = [];
+        return;
     }
-    previewItems.splice(0, previewItems.length);
+    for (var i = 0; i < state.items.length; i++) {
+        try { state.items[i].remove(); } catch (ignoreRemoveRemnant) { }
+    }
+    state.items = [];
+}
+
+// プレビューを再生成する / Re-render preview
+// processFn は追加された PageItem の配列を返すこと
+function runPreview(state, processFn, isEnabled) {
+    try {
+        if (isEnabled) {
+            if (state.isUndo) {
+                app.undo();
+                removePreviewRemnants(state);
+            } else {
+                state.isUndo = true;
+            }
+            state.items = processFn() || [];
+            app.redraw();
+        } else if (state.isUndo) {
+            app.undo();
+            removePreviewRemnants(state);
+            app.redraw();
+            state.isUndo = false;
+        }
+    } catch (ignorePreviewRun) { }
+}
+
+// 確定処理の直前にプレビュー分を巻き戻す / Undo preview before commit
+function undoPreview(state) {
+    try {
+        if (state.isUndo) {
+            app.undo();
+            removePreviewRemnants(state);
+        }
+    } catch (ignorePreviewUndo) { }
+    state.isUndo = false;
+}
+
+// ダイアログクローズ時のクリーンアップ / Cleanup on dialog close
+function cleanupPreview(state) {
+    try {
+        if (state.isUndo) {
+            app.undo();
+            removePreviewRemnants(state);
+        }
+        state.isUndo = false;
+    } catch (ignorePreviewCleanup) { }
 }
 
 // 元の不透明度を退避（後で確実に復元するため）
@@ -602,24 +707,15 @@ function restoreItemOpacities(snapshots) {
     }
 }
 
-function renderDialogPreview(doc, eligibleItems, ui, previewItems, outlinedBoundsCache) {
-    clearPreviewItems(previewItems);
-
-    if (ui.buttons.previewCheck.value) {
-        try {
-            var previewSettings = buildDialogSettings(ui, true);
-            var createdPreviewItems = produceRectangles(doc, eligibleItems, previewSettings, outlinedBoundsCache);
-            for (var i = 0; i < createdPreviewItems.length; i++) {
-                previewItems.push(createdPreviewItems[i]);
-            }
-        } catch (ignoreRender) { }
-    }
-
-    app.redraw();
+function renderDialogPreview(doc, eligibleItems, ui, previewState, outlinedBoundsCache) {
+    runPreview(previewState, function () {
+        var previewSettings = buildDialogSettings(ui, true);
+        return produceRectangles(doc, eligibleItems, previewSettings, outlinedBoundsCache);
+    }, ui.buttons.previewCheck.value);
 }
 
 function createDialogState(doc, eligibleItems, ui) {
-    var previewItems = [];
+    var previewState = { isUndo: false, items: [] };
     var outlinedBoundsCache = [];
     var opacitySnapshots = captureItemOpacities(eligibleItems);
     var dimmed = false;
@@ -669,11 +765,14 @@ function createDialogState(doc, eligibleItems, ui) {
         buildSettings: function (forPreview) {
             return buildDialogSettings(ui, forPreview);
         },
-        clearPreview: function () {
-            clearPreviewItems(previewItems);
+        undoPreview: function () {
+            undoPreview(previewState);
+        },
+        cleanupPreview: function () {
+            cleanupPreview(previewState);
         },
         renderPreview: function () {
-            renderDialogPreview(doc, eligibleItems, ui, previewItems, outlinedBoundsCache);
+            renderDialogPreview(doc, eligibleItems, ui, previewState, outlinedBoundsCache);
         },
         syncDimAvailability: syncDimAvailability,
         syncDimming: syncDimming,
@@ -696,14 +795,21 @@ function bindPreviewEvents(ui, state) {
         state.renderPreview();
     };
     ui.options.marginInput.onChange = state.renderPreview;
-    ui.options.dimCheck.onClick = state.syncDimming;
+    /* ディム変更は opacity 書き換えで undo エントリを作るので、プレビュー巻き戻しを先に行う */
+    ui.options.dimCheck.onClick = function () {
+        state.undoPreview();
+        state.syncDimming();
+        state.renderPreview();
+    };
     for (var appearanceRadioIndex = 0; appearanceRadioIndex < ui.appearanceRadios.length; appearanceRadioIndex++) {
         ui.appearanceRadios[appearanceRadioIndex].onClick = function () {
+            state.undoPreview();
             state.syncDimAvailability();
             state.syncDimming();
             state.renderPreview();
         };
     }
+    ui.corner.cornerRadiusInput.onChange = state.renderPreview;
     ui.order.frontRadio.onClick = state.renderPreview;
     ui.order.backRadio.onClick = state.renderPreview;
     ui.buttons.previewCheck.onClick = state.renderPreview;
@@ -720,17 +826,27 @@ function bindDialogKeyboardShortcuts(dialog, ui, state) {
         "S": function () { ui.target.eachRadio.value = true; state.renderPreview(); },
         "G": function () { ui.target.groupRadio.value = true; state.renderPreview(); },
         "P": function () { ui.options.previewBoundsCheck.value = !ui.options.previewBoundsCheck.value; state.renderPreview(); },
-        "O": function () { ui.options.outlineTextCheck.value = !ui.options.outlineTextCheck.value; state.renderPreview(); },
+        "O": function () {
+            if (!ui.options.outlineTextCheck.enabled) return; // テキスト非選択時はスキップ
+            ui.options.outlineTextCheck.value = !ui.options.outlineTextCheck.value;
+            state.renderPreview();
+        },
         "A": function () { ui.options.useMarginCheck.value = !ui.options.useMarginCheck.value; syncMarginEnabled(ui); state.renderPreview(); },
         "T": function () {
             if (!ui.options.dimCheck.enabled) return; // 不透明度プリセット選択中は無効化されているのでスキップ
+            state.undoPreview();
             ui.options.dimCheck.value = !ui.options.dimCheck.value;
             state.syncDimming();
+            state.renderPreview();
         },
         "F": function () { ui.order.frontRadio.value = true; state.renderPreview(); },
         "B": function () { ui.order.backRadio.value = true; state.renderPreview(); },
         "N": function () { ui.original.keepRadio.value = true; syncOrderEnabled(ui); },
-        "M": function () { ui.original.maskRadio.value = true; syncOrderEnabled(ui); },
+        "M": function () {
+            if (!ui.original.maskRadio.enabled) return; // 画像以外ではマスク選択不可
+            ui.original.maskRadio.value = true;
+            syncOrderEnabled(ui);
+        },
         "D": function () { ui.original.deleteRadio.value = true; syncOrderEnabled(ui); }
     });
 }
@@ -741,23 +857,25 @@ function bindDialogEvents(dialog, ui, state) {
     bindDialogKeyboardShortcuts(dialog, ui, state);
 }
 
-function buildDialogUI(dialog, selectionAllImages) {
+function buildDialogUI(dialog, selectionAllImages, selectionHasTextItem) {
     var columns = createDialogColumns(dialog);
     return {
         target: buildTargetPanel(columns.leftColumn),
-        options: buildOptionsPanel(columns.leftColumn),
-        original: buildOriginalPanel(columns.leftColumn),
+        options: buildOptionsPanel(columns.leftColumn, selectionHasTextItem),
+        original: buildOriginalPanel(columns.leftColumn, selectionAllImages),
         appearanceRadios: buildAppearancePanel(columns.rightColumn, selectionAllImages),
+        corner: buildCornerPanel(columns.rightColumn),
         order: buildOrderPanel(columns.rightColumn),
         buttons: buildButtonRow(dialog)
     };
 }
 
-function showSettingsDialog(doc, eligibleItems, selectionAllImages) {
+function showSettingsDialog(doc, eligibleItems, selectionAllImages, selectionHasTextItem) {
     var dialog = createSettingsDialogWindow();
-    var ui = buildDialogUI(dialog, selectionAllImages);
+    var ui = buildDialogUI(dialog, selectionAllImages, selectionHasTextItem);
     var state = createDialogState(doc, eligibleItems, ui);
     changeValueByArrowKey(ui.options.marginInput, true, state.renderPreview);
+    changeValueByArrowKey(ui.corner.cornerRadiusInput, false, state.renderPreview);
     syncMarginEnabled(ui);
     syncOrderEnabled(ui);
     bindDialogEvents(dialog, ui, state);
@@ -765,13 +883,14 @@ function showSettingsDialog(doc, eligibleItems, selectionAllImages) {
     state.syncDimming();
 
     dialog.onClose = function () {
-        state.clearPreview();
+        state.cleanupPreview();
         state.restoreOpacity();
     };
 
     var dialogResult = null;
     ui.buttons.okButton.onClick = function () {
         dialogResult = state.buildSettings(false);
+        state.undoPreview();
         dialog.close();
     };
     ui.buttons.cancelButton.onClick = function () {
@@ -780,6 +899,18 @@ function showSettingsDialog(doc, eligibleItems, selectionAllImages) {
 
     dialog.show();
     return dialogResult;
+}
+
+// ==============================
+// 角丸エフェクト / Round Corners effect
+// ==============================
+// 生成した長方形に「角を丸くする」ライブエフェクトを適用する（半径は pt）
+function applyCornerRadius(rect, radiusPt) {
+    if (!radiusPt || radiusPt <= 0) return;
+    try {
+        var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radiusPt + ' "/></LiveEffect>';
+        rect.applyEffect(xml);
+    } catch (ignoreCornerApply) { }
 }
 
 // ==============================
@@ -899,6 +1030,7 @@ function createRectFromBounds(doc, bounds, settings, referenceItem) {
     // 塗り・線は生成した長方形に直接適用する（選択中の元オブジェクトには触れない）
     var isRgbDocument = (doc.documentColorSpace === DocumentColorSpace.RGB);
     applyRectAppearance(rect, settings.appearancePreset, isRgbDocument);
+    applyCornerRadius(rect, settings.cornerRadius);
     return rect;
 }
 
@@ -925,10 +1057,10 @@ function applyClippingMask(doc, clipRect, contentItems) {
     clipGroup.move(topMost, ElementPlacement.PLACEBEFORE);
     // 元オブジェクトをグループへ移動
     for (var i = 0; i < contentItems.length; i++) {
-        contentItems[i].move(clipGroup, ElementPlacement.MOVETOEND);
+        contentItems[i].move(clipGroup, ElementPlacement.PLACEATEND);
     }
     // クリップパス（長方形）は最前面に置く
-    clipRect.move(clipGroup, ElementPlacement.MOVETOBEGINNING);
+    clipRect.move(clipGroup, ElementPlacement.PLACEATBEGINNING);
     clipRect.clipping = true;
     clipGroup.clipped = true;
     return clipGroup;
@@ -1043,6 +1175,16 @@ function produceRectangles(doc, items, settings, outlinedBoundsCache) {
     return produceIndividualRectangles(doc, items, settings, outlinedBoundsCache);
 }
 
+// 表示切替コマンドを実行し、成功したかどうかを返す / Toggle a display command and return whether it succeeded
+function toggleDisplayCommand(commandName) {
+    try {
+        app.executeMenuCommand(commandName);
+        return true;
+    } catch (ignoreDisplayToggle) {
+        return false;
+    }
+}
+
 // ==============================
 // メイン処理 / Main
 // ==============================
@@ -1064,10 +1206,10 @@ function main() {
         return;
     }
 
-    app.executeMenuCommand('AI Bounding Box Toggle');
-    app.executeMenuCommand('edge');
+    var didToggleBoundingBox = toggleDisplayCommand('AI Bounding Box Toggle');
+    var didToggleEdges = toggleDisplayCommand('edge');
     try {
-        var settings = showSettingsDialog(doc, eligibleItems, isSelectionAllImages(eligibleItems));
+        var settings = showSettingsDialog(doc, eligibleItems, isSelectionAllImages(eligibleItems), selectionHasText(eligibleItems));
         if (!settings) {
             return; // キャンセル / Cancelled
         }
@@ -1082,8 +1224,8 @@ function main() {
         // 作成した長方形（マスク時はマスクグループ）のみを選択
         doc.selection = createdItems;
     } finally {
-        app.executeMenuCommand('edge');
-        app.executeMenuCommand('AI Bounding Box Toggle');
+        if (didToggleEdges) toggleDisplayCommand('edge');
+        if (didToggleBoundingBox) toggleDisplayCommand('AI Bounding Box Toggle');
     }
 }
 
