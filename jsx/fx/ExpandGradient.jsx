@@ -51,6 +51,13 @@ var DEFAULT_FURTHER_EXPAND = true;
 /* ダイアログ表示の有無（false で既定値のまま即実行） / Show dialog (false: run silently with default) */
 var SHOW_DIALOG = true;
 
+/* Pathfinder Merge ライブエフェクトの XML（command 8 = Merge 固定）
+   Live effect XML for Pathfinder Merge (command 8, all other params at defaults) */
+var PATHFINDER_MERGE_XML = '<LiveEffect name="Adobe Pathfinder" isPre="1">'
+    + '<Dict data="I Command 8 B ConvertCustom 1 B ExtractUnpainted 1 R Mix 0.5 R Precision 10 B RemovePoints 1 R TrapAspect 1 B TrapConvertCustom 1 R TrapMaxTint 1 B TrapReverse 0 R TrapThickness 0.25 R TrapTint 0.4 R TrapTintTolerance 0.05">'
+    + '<Entry name="DisplayString" value="Merge" valueType="S"/>'
+    + '</Dict></LiveEffect>';
+
 (function () {
 
     var SCRIPT_VERSION = "v1.0.0";
@@ -150,6 +157,7 @@ var SHOW_DIALOG = true;
         app.executeMenuCommand('releaseMask');
         deleteReleasedMaskPathInSelection();
         deleteFilledTwoPointPathsInSelection();
+        applyLiveEffectAndExpand(activeDoc, PATHFINDER_MERGE_XML);
     }
 
 })();
@@ -191,34 +199,22 @@ function showStepsDialog(scriptVersion, defaultSteps, defaultFurtherExpand, L, l
 
 function changeValueByArrowKey(editText) {
     editText.addEventListener("keydown", function (event) {
+        if (event.keyName !== "Up" && event.keyName !== "Down") return;
+
         var value = parseInt(editText.text, 10);
         if (isNaN(value)) return;
 
-        var keyboard = ScriptUI.environment.keyboardState;
-        var delta = 1;
-
-        if (keyboard.shiftKey) {
-            delta = 10;
+        var sign = (event.keyName === "Up") ? 1 : -1;
+        if (ScriptUI.environment.keyboardState.shiftKey) {
             /* Shiftキー押下時は10の倍数にスナップ / Snap to multiples of 10 when Shift is held */
-            if (event.keyName == "Up") {
-                value = Math.ceil((value + 1) / delta) * delta;
-                event.preventDefault();
-            } else if (event.keyName == "Down") {
-                value = Math.floor((value - 1) / delta) * delta;
-                event.preventDefault();
-            }
+            value = (sign > 0) ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
         } else {
-            if (event.keyName == "Up") {
-                value += delta;
-                event.preventDefault();
-            } else if (event.keyName == "Down") {
-                value -= delta;
-                event.preventDefault();
-            }
+            value += sign;
         }
 
         if (value < 2) value = 2;
         editText.text = String(Math.round(value));
+        event.preventDefault();
     });
 }
 
@@ -228,22 +224,16 @@ function deleteReleasedMaskPathInSelection() {
 
     var candidates = [];
     for (var i = 0; i < sel.length; i++) {
-        if (isReleasedMaskPathCandidate(sel[i])) {
-            candidates.push(sel[i]);
+        var item = sel[i];
+        /* PathItem かつ塗りも線もないもの＝解除済みマスクパス候補 / PathItem with no fill and no stroke */
+        if (isPathItem(item) && !item.filled && !item.stroked) {
+            candidates.push(item);
         }
     }
 
     /* 候補が複数ある場合は誤削除を避ける / Avoid accidental deletion when multiple candidates exist */
     if (candidates.length !== 1) return;
     candidates[0].remove();
-}
-
-function isReleasedMaskPathCandidate(item) {
-    if (!item) return false;
-    if (!isPathItem(item)) return false;
-    if (item.filled) return false;
-    if (item.stroked) return false;
-    return true;
 }
 
 function isPathItem(item) {
@@ -269,7 +259,49 @@ function deleteFilledTwoPointPathsInSelection() {
 }
 
 function buildExpandActionSource(gradientSteps) {
-    return '/version 3' + '/name [ 6' + ' 457870616e64' + ']' + '/isOpen 1' + '/actionCount 1' + '/action-1 {' + ' /name [ 15' + ' 457870616e642d6772616469656e74' + ' ]' + ' /keyIndex 0' + ' /colorIndex 0' + ' /isOpen 1' + ' /eventCount 1' + ' /event-1 {' + ' /useRulersIn1stQuadrant 0' + ' /internalName (ai_plugin_expand)' + ' /localizedName [ 15' + ' e58886e589b2e383bbe68ba1e5bcb5' + ' ]' + ' /isOpen 1' + ' /isOn 1' + ' /hasDialog 1' + ' /showDialog 0' + ' /parameterCount 5' + ' /parameter-1 {' + ' /key 1868720756' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 0' + ' }' + ' /parameter-2 {' + ' /key 1718185068' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 1' + ' }' + ' /parameter-3 {' + ' /key 1937011307' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 0' + ' }' + ' /parameter-4 {' + ' /key 1936553064' + ' /showInPalette 4294967295' + ' /type (boolean)' + ' /value 0' + ' }' + ' /parameter-5 {' + ' /key 1937007984' + ' /showInPalette 4294967295' + ' /type (integer)' + ' /value ' + gradientSteps + ' }' + ' }' + '}';
+    return ''
+        + '/version 3'
+        + '/name [ 6 457870616e64]'
+        + '/isOpen 1'
+        + '/actionCount 1'
+        + '/action-1 {'
+        +   ' /name [ 15 457870616e642d6772616469656e74 ]'
+        +   ' /keyIndex 0'
+        +   ' /colorIndex 0'
+        +   ' /isOpen 1'
+        +   ' /eventCount 1'
+        +   ' /event-1 {'
+        +     ' /useRulersIn1stQuadrant 0'
+        +     ' /internalName (ai_plugin_expand)'
+        +     ' /localizedName [ 15 e58886e589b2e383bbe68ba1e5bcb5 ]'
+        +     ' /isOpen 1'
+        +     ' /isOn 1'
+        +     ' /hasDialog 1'
+        +     ' /showDialog 0'
+        +     ' /parameterCount 5'
+        +     ' /parameter-1 { /key 1868720756 /showInPalette 4294967295 /type (boolean) /value 0 }'
+        +     ' /parameter-2 { /key 1718185068 /showInPalette 4294967295 /type (boolean) /value 1 }'
+        +     ' /parameter-3 { /key 1937011307 /showInPalette 4294967295 /type (boolean) /value 0 }'
+        +     ' /parameter-4 { /key 1936553064 /showInPalette 4294967295 /type (boolean) /value 0 }'
+        +     ' /parameter-5 { /key 1937007984 /showInPalette 4294967295 /type (integer) /value ' + gradientSteps + ' }'
+        +   ' }'
+        + '}';
+}
+
+/* ====== ライブエフェクト適用＋アピアランス分割 / Apply live effect and expand ======
+   選択をグループ化し、線を塗りに変換してから指定 XML のライブエフェクトを適用、アピアランスを分割してグループを解除
+   Group selection, convert strokes to fills, apply the given live effect XML, expand appearance, then ungroup */
+function applyLiveEffectAndExpand(doc, liveEffectXml) {
+    app.executeMenuCommand('group');
+    /* 線を塗りに変換 / Convert strokes to fills */
+    app.executeMenuCommand('OffsetPath v22');
+    var group = doc.selection[0];
+    group.applyEffect(liveEffectXml);
+    app.redraw();
+    doc.selection = null;
+    group.selected = true;
+    app.executeMenuCommand('expandStyle');
+    app.executeMenuCommand('ungroup');
 }
 
 function playEmbeddedAction(actionSource, setName, actionName) {
@@ -290,10 +322,6 @@ function playEmbeddedAction(actionSource, setName, actionName) {
 
         app.loadAction(actionFile);
         isActionLoaded = true;
-
-        if (actionFile.exists) {
-            try { actionFile.remove(); } catch (_) { }
-        }
 
         app.doScript(actionName, setName, false);
     } finally {
