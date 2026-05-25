@@ -5,32 +5,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     /*
     FitShapeToContent.jsx
     座布団メーカー
-    
-     * スクリプトの概要:
-     * テキストやグループに合わせて、背面の座布団形状を手早く作成・調整するスクリプトです。
-     * - 【1つ選択】テキストまたはグループのみを選ぶと、背面に座布団用の長方形を自動作成します
-     * - 【2つ選択】テキストまたはグループと図形を選ぶと、既存の図形を座布団として使えます
-     * - パディングの幅・高さをプレビューしながら調整できます
-     * - 「連動」ON時は幅と高さを同じ値で扱えます
-     * - 座布団の調整をOFFにすると、サイズ変更や角丸調整は行わず、中央合わせのみで使えます
-     * - 角丸は有効/無効を切り替えできます
-     * - 「ピル形状」ON時は高さに合わせたカプセル形状にできます
-     * - セッション中は前回の入力値を保持します
-     * - キャンセル時はプレビューを破棄し、1つ選択時に自動作成した長方形も削除します
-     *
-     * 紹介記事（note）
-     * https://note.com/dtp_tranist/n/n6e4a6a2b175f
-     *
-     * 作成日: 2026-03-25
-     * 更新日: 2026-03-27（概要コメントをユーザー視点に整理）
-     */
+
+    概要：
+    テキストやグループに合わせて、背面の座布団形状を手早く作成・調整するスクリプトです。
+    - 【1つ選択】テキストまたはグループのみを選ぶと、背面に座布団用の長方形を自動作成します
+    - 【2つ選択】テキストまたはグループと図形を選ぶと、既存の図形を座布団として使えます
+    - パディングの幅・高さをプレビューしながら調整できます
+    - 「連動」ON時は幅と高さを同じ値で扱えます
+    - 座布団の調整をOFFにすると、サイズ変更や角丸調整は行わず、中央合わせのみで使えます
+    - 角丸は有効/無効を切り替えできます
+    - 「ピル形状」ON時は高さに合わせたカプセル形状にできます
+    - セッション中は前回の入力値を保持します
+    - キャンセル時はプレビューを破棄し、1つ選択時に自動作成した長方形も削除します
+    - OK確定後の Undo は 1 ステップで全変更を巻き戻せます
+
+    紹介記事（note）
+    https://note.com/dtp_tranist/n/n6e4a6a2b175f
+
+    作成日: 2026-03-25
+    更新日: 2026-05-25（プレビューを runPreview/undoPreview パターンに刷新し、main を 5 関数 + プレビューコントローラに分割、safeRemove ヘルパー導入）
+    */
 
     (function () {
         // =========================================
         // バージョンとローカライズ / Version and Localization
         // =========================================
 
-        var SCRIPT_VERSION = "v2.0.0";
+        var SCRIPT_VERSION = "v2.0.2";
         var AUTO_CREATED_SHAPE_OPACITY = 20;
 
         var __FS2C_SESSION_KEY = "__FitShapeToContentSession__";
@@ -79,19 +80,25 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             10: "ft"
         };
 
-
         var LABELS = {
+            /* === ダイアログ / Dialog === */
             dialogTitle: { ja: "座布団メーカー", en: "Fit Shape to Content" },
-            labelAdjustEnabled: { ja: "座布団の調整", en: "Adjust Shape" },
             panelPadding: { ja: "パディング", en: "Padding" },
             panelCorner: { ja: "角丸", en: "Rounded Corners" },
+
+            /* === ラベル / Labels === */
+            labelAdjustEnabled: { ja: "座布団の調整", en: "Adjust Shape" },
             labelWidth: { ja: "幅:", en: "Width:" },
             labelHeight: { ja: "高さ:", en: "Height:" },
             labelRadius: { ja: "半径:", en: "Radius:" },
             labelLink: { ja: "連動", en: "Link" },
             labelPill: { ja: "ピル形状", en: "Pill Shape" },
+
+            /* === ボタン / Buttons === */
             btnCancel: { ja: "キャンセル", en: "Cancel" },
             btnOK: { ja: "OK", en: "OK" },
+
+            /* === アラート / Alerts === */
             alertNoDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
             alertSelectOne: { ja: "テキストまたはグループを1つ、もしくはテキスト/グループと図形を計2つ選択して実行してください。", en: "Select one text/group item, or one text/group and one shape (2 items total)." },
             alertSelectError: { ja: "選択エラー", en: "Selection Error" },
@@ -106,7 +113,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             if (!entry) return key;
             return entry[lang] || entry.ja || key;
         }
-
 
         /* 単位ラベルを取得 / Get unit label */
         function getUnitLabel(code, prefKey) {
@@ -178,6 +184,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 if (typeof onChanged === "function") onChanged();
             });
         }
+
+        /* 例外を握り潰す共通ラッパ / Swallow-exception wrappers */
+        function safeDo(fn) { try { fn(); } catch (e) { } }
+        function safeRemove(item) { safeDo(function () { if (item) item.remove(); }); }
 
         /* 数値を解析し、無効時は既定値を返す / Parse number or return default */
         function parseNumberOrDefault(value, defaultValue) {
@@ -334,18 +344,278 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 app.doScript('clear', 'Appearance', false);
                 restoreShapeStyle(targetItem, originalStyle);
             } finally {
-                try {
-                    app.unloadAction('Appearance', '');
-                } catch (e) { }
-                try {
-                    if (f && f.exists) {
-                        f.remove();
-                    }
-                } catch (e) { }
-                try {
-                    doc.selection = null;
-                } catch (e) { }
+                try { app.unloadAction('Appearance', ''); } catch (e) { }
+                if (f && f.exists) f.remove();
+                doc.selection = null;
             }
+        }
+
+        /* =========================================
+         * プレビュー undo ヘルパー / Preview undo helpers
+         *
+         * 「設定変更のたびに 前回 undo → 再生成」を回す共通パターン。
+         * process() は ScriptUI 値から毎回再構築する純粋関数として書く。
+         * - runPreview: UI 変更ごと
+         * - undoPreview: OK 直前。前回プレビューを巻き戻して process() を本番として再実行する
+         * - cleanupPreview: Cancel / ダイアログクローズ時
+         * ========================================= */
+
+        function runPreview(state, processFn, isEnabled) {
+            try {
+                if (isEnabled) {
+                    if (state.isUndo) app.undo();
+                    else state.isUndo = true;
+                    processFn();
+                    app.redraw();
+                } else if (state.isUndo) {
+                    app.undo();
+                    app.redraw();
+                    state.isUndo = false;
+                }
+            } catch (err) { }
+        }
+
+        function undoPreview(state) {
+            try {
+                if (state.isUndo) app.undo();
+            } catch (err) { }
+            state.isUndo = false;
+        }
+
+        function cleanupPreview(state) {
+            try {
+                if (state.isUndo) app.undo();
+                state.isUndo = false;
+            } catch (err) { }
+        }
+
+        /* =========================================
+         * プレビューコントローラ / Preview controller
+         *
+         * widget / geometry / template / previewState を束ねて preview ロジックを一括管理。
+         * 公開 API: reflectEnabled, refresh, getFinalValues, commitFinal。
+         * widgets   = { chkAdjustEnabled, chkRadiusEnabled, chkPill, linkCheck, inputW, inputH, inputR }
+         * geometry  = { outWidth, outHeight, contentCenterX, contentCenterY }
+         * templates = { previewSourceShapeItem, previewBaseShapeItem }
+         * previewState = { isUndo: boolean }
+         * ========================================= */
+        function createPreviewController(widgets, geometry, templates, previewState) {
+            var MIN_PREVIEW_SIZE = 0.1;
+
+            function getMaxRadiusFromAddW(addW) {
+                var effectiveWidth = Math.max(MIN_PREVIEW_SIZE, geometry.outWidth + addW);
+                return effectiveWidth / 2;
+            }
+
+            // UI の enabled 状態を現在のチェック状態から計算して反映 / Reflect enabled state
+            function reflectEnabled() {
+                var isAdjustEnabled = widgets.chkAdjustEnabled.value;
+                var isRadiusEnabled = widgets.chkRadiusEnabled.value;
+                var isPill = widgets.chkPill.value;
+                var isLinked = widgets.linkCheck.value;
+
+                if (isPill && isLinked) {
+                    widgets.linkCheck.value = false;
+                    isLinked = false;
+                }
+
+                widgets.inputW.enabled = isAdjustEnabled && !isPill;
+                widgets.inputH.enabled = isAdjustEnabled && (isPill || !isLinked);
+                widgets.inputR.enabled = isAdjustEnabled && isRadiusEnabled && !isPill;
+                widgets.chkPill.enabled = isAdjustEnabled && isRadiusEnabled;
+                widgets.linkCheck.enabled = isAdjustEnabled && !isPill;
+                widgets.chkAdjustEnabled.enabled = true;
+                widgets.chkRadiusEnabled.enabled = isAdjustEnabled;
+            }
+
+            function readUIValues() {
+                return {
+                    adjustEnabled: widgets.chkAdjustEnabled.value,
+                    addW: parseNumberOrDefault(widgets.inputW.text, 0),
+                    addH: parseNumberOrDefault(widgets.inputH.text, 0),
+                    radius: parseNumberOrDefault(widgets.inputR.text, 0),
+                    radiusEnabled: widgets.chkRadiusEnabled.value,
+                    pill: widgets.chkPill.value,
+                    link: widgets.linkCheck.value,
+                    widthText: widgets.inputW.text,
+                    heightText: widgets.inputH.text,
+                    radiusText: widgets.inputR.text
+                };
+            }
+
+            function computePreviewValues(uiValues) {
+                var addW = uiValues.addW;
+                var addH = uiValues.addH;
+                var radius = uiValues.radius;
+                if (isNaN(addW)) addW = 0;
+                if (isNaN(addH)) addH = 0;
+                if (isNaN(radius) || radius < 0) radius = 0;
+
+                if (!uiValues.adjustEnabled) {
+                    return {
+                        addW: 0, addH: 0, radius: 0,
+                        widthText: uiValues.widthText,
+                        heightText: uiValues.heightText,
+                        radiusText: uiValues.radiusText
+                    };
+                }
+
+                if (!uiValues.radiusEnabled) {
+                    radius = 0;
+                } else if (uiValues.pill) {
+                    var previewHeight = Math.max(MIN_PREVIEW_SIZE, geometry.outHeight + addH);
+                    radius = previewHeight / 2;
+                    addW = Math.max(MIN_PREVIEW_SIZE, radius * 2);
+                } else {
+                    var maxRadius = getMaxRadiusFromAddW(addW);
+                    if (radius > maxRadius) radius = maxRadius;
+                }
+
+                return {
+                    addW: addW, addH: addH, radius: radius,
+                    widthText: String(addW),
+                    heightText: String(addH),
+                    radiusText: String(radius)
+                };
+            }
+
+            function applyDerivedUIValues(previewValues) {
+                if (!widgets.chkAdjustEnabled.value) return;
+                if (!widgets.chkRadiusEnabled.value) {
+                    widgets.inputR.text = "0";
+                    return;
+                }
+                widgets.inputR.text = previewValues.radiusText;
+                if (widgets.chkPill.value) {
+                    widgets.inputW.text = previewValues.widthText;
+                    widgets.inputH.text = previewValues.heightText;
+                }
+            }
+
+            /*
+             * 現在の UI 値からプレビュー shape を毎回ゼロから再構築する純粋関数。
+             * runPreview / undoPreview / cleanupPreview ヘルパーが undo タイミングを管理し、
+             * ユーザー履歴には「最後の process() 1 回分」だけが残る。
+             * 確定後の特定用に末尾で previewItem を選択する。
+             */
+            function process() {
+                var uiValues = readUIValues();
+                var previewValues = computePreviewValues(uiValues);
+                applyDerivedUIValues(previewValues);
+
+                var addW = previewValues.addW;
+                var addH = previewValues.addH;
+                var radius = previewValues.radius;
+
+                var doc = app.activeDocument;
+                var useAdjustedPreview = widgets.chkAdjustEnabled.value;
+                var previewTemplate = (useAdjustedPreview || !templates.previewSourceShapeItem)
+                    ? templates.previewBaseShapeItem : templates.previewSourceShapeItem;
+
+                var previewItem = previewTemplate.duplicate();
+                previewItem.hidden = false;
+
+                if (useAdjustedPreview || !templates.previewSourceShapeItem) {
+                    var newWidth = Math.max(MIN_PREVIEW_SIZE, geometry.outWidth + addW);
+                    var newHeight = Math.max(MIN_PREVIEW_SIZE, geometry.outHeight + addH);
+                    previewItem.width = newWidth;
+                    previewItem.height = newHeight;
+                    previewItem.left = geometry.contentCenterX - (newWidth / 2);
+                    previewItem.top = geometry.contentCenterY + (newHeight / 2);
+
+                    if (radius > 0) {
+                        var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radius + ' "/></LiveEffect>';
+                        previewItem.applyEffect(xml);
+                    }
+                } else {
+                    var bounds = getBoundsFromItem(previewItem);
+                    previewItem.left = geometry.contentCenterX - (bounds.width / 2);
+                    previewItem.top = geometry.contentCenterY + (bounds.height / 2);
+                }
+
+                // 後で finalPreviewItem として特定するため選択 / Select for post-OK identification
+                doc.selection = null;
+                previewItem.selected = true;
+            }
+
+            function refresh() {
+                runPreview(previewState, process, true);
+            }
+
+            // バリデーション専用：validateNumericField 呼び出しと link/pill 連動の text 書き換え。
+            // 成功 → true、失敗 → null（呼び出し側は OK を中断する。alert は validateNumericField が出す）
+            // Validation only. Returns true on success, null on failure (alert already shown).
+            function validateInputs() {
+                if (!widgets.chkAdjustEnabled.value) return true;
+
+                var addW = validateNumericField(widgets.inputW, false, "dialogTitle", "alertInvalidNumber");
+                if (addW === null) return null;
+
+                var addH;
+                if (widgets.linkCheck.value) {
+                    addH = addW;
+                    widgets.inputH.text = String(addH);
+                } else {
+                    addH = validateNumericField(widgets.inputH, false, "dialogTitle", "alertInvalidNumber");
+                    if (addH === null) return null;
+                }
+
+                if (!widgets.chkRadiusEnabled.value) {
+                    widgets.inputR.text = "0";
+                } else if (widgets.chkPill.value) {
+                    widgets.inputH.text = String(addH);
+                } else {
+                    var radius = validateNumericField(widgets.inputR, false, "dialogTitle", "alertInvalidRadius");
+                    if (radius === null) return null;
+                    widgets.inputR.text = String(radius);
+                }
+                return true;
+            }
+
+            // バリデーション済み前提で UI 値から確定オブジェクトを派生
+            // Assumes inputs are already validated. Returns the final values object.
+            function deriveFinalValues() {
+                if (!widgets.chkAdjustEnabled.value) {
+                    return {
+                        addW: 0, addH: 0, radius: 0,
+                        radiusEnabled: false,
+                        shouldRunPathfinder: false,
+                        adjustEnabled: false
+                    };
+                }
+
+                var uiValues = readUIValues();
+                var previewValues = computePreviewValues(uiValues);
+                applyDerivedUIValues(previewValues);
+
+                return {
+                    addW: previewValues.addW,
+                    addH: previewValues.addH,
+                    radius: previewValues.radius,
+                    radiusEnabled: widgets.chkRadiusEnabled.value,
+                    shouldRunPathfinder: widgets.chkRadiusEnabled.value && widgets.chkPill.value,
+                    adjustEnabled: true
+                };
+            }
+
+            function getFinalValues() {
+                if (validateInputs() === null) return null;
+                return deriveFinalValues();
+            }
+
+            // OK 確定：前回プレビューを undo して process を本番として 1 回だけ実行 /
+            // Undo last preview then run process once as the final commit
+            function commitFinal() {
+                undoPreview(previewState);
+                process();
+            }
+
+            return {
+                reflectEnabled: reflectEnabled,
+                refresh: refresh,
+                getFinalValues: getFinalValues,
+                commitFinal: commitFinal
+            };
         }
 
         /* ダイアログを表示 / Show dialog */
@@ -354,90 +624,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var radiusUnit = "pt";
             var sessionState = getSessionState();
 
-            var currentPreviewItem = null;
+            var finalPreviewItem = null;
             var confirmedDialogValues = null;
+            var previewState = { isUndo: false };
 
-            function reflectAdjustEnabledUI() {
-                var isAdjustEnabled = chkAdjustEnabled.value;
-                var isRadiusEnabled = chkRadiusEnabled.value;
-                var isPill = chkPill.value;
-                var isLinked = linkCheck.value;
-                var widthEnabled;
-                var heightEnabled;
-                var radiusEnabled;
-                var pillEnabled;
-                var linkEnabled;
-
-                if (isPill && isLinked) {
-                    linkCheck.value = false;
-                    isLinked = false;
-                }
-
-                widthEnabled = isAdjustEnabled && !isPill;
-                heightEnabled = isAdjustEnabled && (isPill || !isLinked);
-                radiusEnabled = isAdjustEnabled && isRadiusEnabled && !isPill;
-                pillEnabled = isAdjustEnabled && isRadiusEnabled;
-                linkEnabled = isAdjustEnabled && !isPill;
-
-                inputW.enabled = widthEnabled;
-                inputH.enabled = heightEnabled;
-                inputR.enabled = radiusEnabled;
-                chkPill.enabled = pillEnabled;
-                linkCheck.enabled = linkEnabled;
-                chkAdjustEnabled.enabled = true;
-                chkRadiusEnabled.enabled = isAdjustEnabled;
-            }
-            var MIN_PREVIEW_SIZE = 0.1;
-
-            function removePreviewItem() {
-                if (currentPreviewItem) {
-                    try {
-                        currentPreviewItem.remove();
-                    } catch (e) { }
-                    currentPreviewItem = null;
-                }
-            }
-
-            function getMaxRadiusFromAddW(addW) {
-                var effectiveWidth = Math.max(MIN_PREVIEW_SIZE, outWidth + addW);
-                return effectiveWidth / 2;
-            }
-
-            function buildPreview(addW, addH, radius) {
-                if (isNaN(addW)) addW = 0;
-                if (isNaN(addH)) addH = 0;
-                if (isNaN(radius) || radius < 0) radius = 0;
-
-                removePreviewItem();
-
-                var useAdjustedPreview = chkAdjustEnabled.value;
-                var previewTemplate = (useAdjustedPreview || !previewSourceShapeItem) ? previewBaseShapeItem : previewSourceShapeItem;
-                if (previewSourceShapeItem) previewSourceShapeItem.hidden = true;
-                previewBaseShapeItem.hidden = true;
-
-                currentPreviewItem = previewTemplate.duplicate();
-                currentPreviewItem.hidden = false;
-
-                if (useAdjustedPreview || !previewSourceShapeItem) {
-                    var newWidth = Math.max(MIN_PREVIEW_SIZE, outWidth + addW);
-                    var newHeight = Math.max(MIN_PREVIEW_SIZE, outHeight + addH);
-                    currentPreviewItem.width = newWidth;
-                    currentPreviewItem.height = newHeight;
-                    currentPreviewItem.left = contentCenterX - (newWidth / 2);
-                    currentPreviewItem.top = contentCenterY + (newHeight / 2);
-
-                    if (radius > 0) {
-                        var xml = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius ' + radius + ' "/></LiveEffect>';
-                        currentPreviewItem.applyEffect(xml);
-                    }
-                } else {
-                    var bounds = getBoundsFromItem(currentPreviewItem);
-                    currentPreviewItem.left = contentCenterX - (bounds.width / 2);
-                    currentPreviewItem.top = contentCenterY + (bounds.height / 2);
-                }
-
-                app.redraw();
-            }
+            // コントローラはダイアログ UI 全 widget 生成後に作成する（後段の var で参照可能）
+            // Controller is instantiated after all widgets exist; ctrl is hoisted via var
+            var ctrl;
 
             var win = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
             win.orientation = "column";
@@ -494,159 +687,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 inputH.text = inputW.text;
             }
 
-            // 現在のUI入力値を読む / Read current UI input values
-            function readUIValues() {
-                return {
-                    adjustEnabled: chkAdjustEnabled.value,
-                    addW: parseNumberOrDefault(inputW.text, 0),
-                    addH: parseNumberOrDefault(inputH.text, 0),
-                    radius: parseNumberOrDefault(inputR.text, 0),
-                    radiusEnabled: chkRadiusEnabled.value,
-                    pill: chkPill.value,
-                    link: linkCheck.value,
-                    widthText: inputW.text,
-                    heightText: inputH.text,
-                    radiusText: inputR.text
-                };
-            }
-
-            // UI入力値からプレビュー用の派生値を計算 / Compute preview values from UI inputs
-            function computePreviewValues(uiValues) {
-                var addW = uiValues.addW;
-                var addH = uiValues.addH;
-                var radius = uiValues.radius;
-                var previewHeight;
-                var newWidth;
-                var maxRadius;
-
-                if (isNaN(addW)) addW = 0;
-                if (isNaN(addH)) addH = 0;
-                if (isNaN(radius) || radius < 0) radius = 0;
-
-                if (!uiValues.adjustEnabled) {
-                    return {
-                        addW: 0,
-                        addH: 0,
-                        radius: 0,
-                        widthText: uiValues.widthText,
-                        heightText: uiValues.heightText,
-                        radiusText: uiValues.radiusText
-                    };
-                }
-
-                if (!uiValues.radiusEnabled) {
-                    radius = 0;
-                } else if (uiValues.pill) {
-                    previewHeight = Math.max(MIN_PREVIEW_SIZE, outHeight + addH);
-                    radius = previewHeight / 2;
-                    newWidth = Math.max(MIN_PREVIEW_SIZE, radius * 2);
-                    addW = newWidth;
-                } else {
-                    maxRadius = getMaxRadiusFromAddW(addW);
-                    if (radius > maxRadius) radius = maxRadius;
-                }
-
-                return {
-                    addW: addW,
-                    addH: addH,
-                    radius: radius,
-                    widthText: String(addW),
-                    heightText: String(addH),
-                    radiusText: String(radius)
-                };
-            }
-
-            // 派生UI値を反映 / Apply derived UI values
-            function applyDerivedUIValues(previewValues) {
-                if (!chkAdjustEnabled.value) {
-                    return;
-                }
-
-                if (!chkRadiusEnabled.value) {
-                    inputR.text = "0";
-                    return;
-                }
-
-                inputR.text = previewValues.radiusText;
-
-                if (chkPill.value) {
-                    inputW.text = previewValues.widthText;
-                    inputH.text = previewValues.heightText;
-                }
-            }
-
-            // プレビュー更新関数（描画のみ担当） / Update preview (drawing only)
-            function updatePreview() {
-                var uiValues = readUIValues();
-                var previewValues = computePreviewValues(uiValues);
-                buildPreview(previewValues.addW, previewValues.addH, previewValues.radius);
-            }
-
-            function refreshPreviewFromUI() {
-                var uiValues = readUIValues();
-                var previewValues = computePreviewValues(uiValues);
-                applyDerivedUIValues(previewValues);
-                buildPreview(previewValues.addW, previewValues.addH, previewValues.radius);
-            }
-
-            function getFinalDialogValues() {
-                var addW = 0;
-                var addH = 0;
-                var radius = 0;
-                var uiValues;
-                var previewValues;
-
-                if (!chkAdjustEnabled.value) {
-                    return {
-                        addW: 0,
-                        addH: 0,
-                        radius: 0,
-                        radiusEnabled: false,
-                        shouldRunPathfinder: false,
-                        adjustEnabled: false
-                    };
-                }
-
-                addW = validateNumericField(inputW, false, "dialogTitle", "alertInvalidNumber");
-                if (addW === null) return null;
-
-                if (linkCheck.value) {
-                    addH = addW;
-                    inputH.text = String(addH);
-                } else {
-                    addH = validateNumericField(inputH, false, "dialogTitle", "alertInvalidNumber");
-                    if (addH === null) return null;
-                }
-
-                if (!chkRadiusEnabled.value) {
-                    inputR.text = "0";
-                } else {
-                    if (chkPill.value) {
-                        inputH.text = String(addH);
-                    } else {
-                        radius = validateNumericField(inputR, false, "dialogTitle", "alertInvalidRadius");
-                        if (radius === null) return null;
-                        inputR.text = String(radius);
-                    }
-                }
-
-                uiValues = readUIValues();
-                previewValues = computePreviewValues(uiValues);
-                applyDerivedUIValues(previewValues);
-
-                return {
-                    addW: previewValues.addW,
-                    addH: previewValues.addH,
-                    radius: previewValues.radius,
-                    radiusEnabled: chkRadiusEnabled.value,
-                    shouldRunPathfinder: chkRadiusEnabled.value && chkPill.value,
-                    adjustEnabled: true
-                };
-            }
-
             chkAdjustEnabled.onClick = function () {
-                reflectAdjustEnabledUI();
-                refreshPreviewFromUI();
+                ctrl.reflectEnabled();
+                ctrl.refresh();
             };
 
             // 連動チェック変更時 / When link checkbox changes
@@ -654,42 +697,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 if (linkCheck.value) {
                     inputH.text = inputW.text;
                 }
-                reflectAdjustEnabledUI();
-                refreshPreviewFromUI();
+                ctrl.reflectEnabled();
+                ctrl.refresh();
             };
+
+            // 負値を 0 にクランプ / Clamp negative input text to 0
+            function clampNonNegativeText(editText) {
+                var v = parseFloat(editText.text);
+                if (!isNaN(v) && v < 0) editText.text = "0";
+            }
 
             // 連動同期＋プレビュー更新 / Sync linked values and update preview
             function syncAndPreviewW() {
-                if (linkCheck.value) {
-                    inputH.text = inputW.text;
-                }
-                refreshPreviewFromUI();
+                if (linkCheck.value) inputH.text = inputW.text;
+                ctrl.refresh();
             }
             function syncAndPreviewH() {
-                if (linkCheck.value) {
-                    inputW.text = inputH.text;
-                }
-                refreshPreviewFromUI();
-            }
-
-            // 角丸入力変更時のプレビュー更新 / Update preview when the corner radius input changes
-            function syncAndPreviewR() {
-                refreshPreviewFromUI();
+                if (linkCheck.value) inputW.text = inputH.text;
+                ctrl.refresh();
             }
 
             // 入力値変更時にプレビューを更新（連動対応） / Update preview while editing inputs
             inputW.onChanging = function () {
-                var widthValue = parseFloat(inputW.text);
-                if (!isNaN(widthValue) && widthValue < 0) {
-                    inputW.text = "0";
-                }
+                clampNonNegativeText(inputW);
                 syncAndPreviewW();
             };
             inputH.onChanging = function () {
-                var heightValue = parseFloat(inputH.text);
-                if (!isNaN(heightValue) && heightValue < 0) {
-                    inputH.text = "0";
-                }
+                clampNonNegativeText(inputH);
                 syncAndPreviewH();
             };
 
@@ -719,12 +753,37 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             groupPill.alignment = ["left", "top"];
             var chkPill = groupPill.add("checkbox", undefined, L("labelPill"));
             chkPill.value = !!sessionState.pill;
+
+            // 全 widget が揃ったのでコントローラを生成 / All widgets exist; instantiate controller
+            ctrl = createPreviewController(
+                {
+                    chkAdjustEnabled: chkAdjustEnabled,
+                    chkRadiusEnabled: chkRadiusEnabled,
+                    chkPill: chkPill,
+                    linkCheck: linkCheck,
+                    inputW: inputW,
+                    inputH: inputH,
+                    inputR: inputR
+                },
+                {
+                    outWidth: outWidth,
+                    outHeight: outHeight,
+                    contentCenterX: contentCenterX,
+                    contentCenterY: contentCenterY
+                },
+                {
+                    previewSourceShapeItem: previewSourceShapeItem,
+                    previewBaseShapeItem: previewBaseShapeItem
+                },
+                previewState
+            );
+
             chkPill.onClick = function () {
                 if (!chkPill.value && linkCheck.value) {
                     inputH.text = inputW.text;
                 }
-                reflectAdjustEnabledUI();
-                refreshPreviewFromUI();
+                ctrl.reflectEnabled();
+                ctrl.refresh();
             };
 
             chkRadiusEnabled.onClick = function () {
@@ -735,24 +794,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 if (linkCheck.value) {
                     inputH.text = inputW.text;
                 }
-                reflectAdjustEnabledUI();
-                refreshPreviewFromUI();
+                ctrl.reflectEnabled();
+                ctrl.refresh();
             };
 
             if (chkPill.value) {
                 linkCheck.value = false;
             }
-            reflectAdjustEnabledUI();
-            refreshPreviewFromUI();
+            ctrl.reflectEnabled();
+            ctrl.refresh();
 
             inputR.onChanging = function () {
-                var radiusValue = parseFloat(inputR.text);
-                if (!isNaN(radiusValue) && radiusValue < 0) {
-                    inputR.text = "0";
-                }
-                syncAndPreviewR();
+                clampNonNegativeText(inputR);
+                ctrl.refresh();
             };
-            changeValueByArrowKey(inputR, syncAndPreviewR, 0);
+            changeValueByArrowKey(inputR, ctrl.refresh, 0);
 
 
             var btnGroup = win.add("group");
@@ -760,32 +816,48 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var btnCancel = btnGroup.add("button", undefined, L("btnCancel"), { name: "cancel" });
             var btnOK = btnGroup.add("button", undefined, L("btnOK"), { name: "ok" });
 
-            btnOK.onClick = function () {
-                confirmedDialogValues = getFinalDialogValues();
-                if (!confirmedDialogValues) return;
-
-                saveSessionState({
+            // 現在の UI 状態からセッション保存ペイロードを作る / Build session payload from current UI
+            function buildSessionPayload() {
+                return {
                     addW: inputW.text,
                     addH: inputH.text,
                     radius: inputR.text,
                     radiusEnabled: chkRadiusEnabled.value,
                     link: linkCheck.value,
                     pill: chkPill.value
-                });
+                };
+            }
+
+            btnOK.onClick = function () {
+                confirmedDialogValues = ctrl.getFinalValues();
+                if (!confirmedDialogValues) return;
+
+                saveSessionState(buildSessionPayload());
+
+                // 前回プレビューを巻き戻して、本番として 1 回だけ確定 /
+                // Undo last preview then commit as the final operation
+                ctrl.commitFinal();
+
+                // commitFinal の末尾で previewItem を選択しているので、そこから取得 /
+                // commitFinal leaves the previewItem selected
+                var sel = app.activeDocument.selection;
+                if (sel && sel.length > 0) {
+                    finalPreviewItem = sel[0];
+                }
 
                 win.close(1);
             };
 
             btnCancel.onClick = function () {
-                saveSessionState({
-                    addW: inputW.text,
-                    addH: inputH.text,
-                    radius: inputR.text,
-                    radiusEnabled: chkRadiusEnabled.value,
-                    link: linkCheck.value,
-                    pill: chkPill.value
-                });
+                saveSessionState(buildSessionPayload());
+                // 残ったプレビューは win.onClose の cleanupPreview で巻き戻す / onClose handles undo
                 win.close(0);
+            };
+
+            // ダイアログがどう閉じられても（OK / Cancel / Esc / X ボタン）残プレビューを片付ける /
+            // Catch-all: revert any leftover preview when the dialog closes
+            win.onClose = function () {
+                cleanupPreview(previewState);
             };
 
             win.onShow = function () {
@@ -794,17 +866,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 if (chkPill.value) {
                     linkCheck.value = false;
                 }
-                reflectAdjustEnabledUI();
-                refreshPreviewFromUI();
+                ctrl.reflectEnabled();
+                ctrl.refresh();
             };
 
-            updatePreview();
+            // 初回プレビューは win.onShow（コールバック）から起動する。main() 同期側で呼ぶと
+            // 後続コールバックの app.undo() が main の setup（テンプレート作成等）まで巻き戻すリスクがある。
+            // Initial preview is fired from win.onShow (callback) — calling it from main()'s sync
+            // context risks subsequent app.undo() rolling back template setup.
 
             // ダイアログ表示 / Show dialog
             if (win.show() === 1) {
-                var finalValues = confirmedDialogValues || getFinalDialogValues();
+                var finalValues = confirmedDialogValues || ctrl.getFinalValues();
                 if (!finalValues) {
-                    removePreviewItem();
+                    if (finalPreviewItem) {
+                        safeRemove(finalPreviewItem);
+                        finalPreviewItem = null;
+                    }
                     return null;
                 }
                 return {
@@ -814,10 +892,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     radiusEnabled: finalValues.radiusEnabled,
                     shouldRunPathfinder: finalValues.shouldRunPathfinder,
                     adjustEnabled: finalValues.adjustEnabled,
-                    previewItem: currentPreviewItem
+                    previewItem: finalPreviewItem
                 };
             } else {
-                removePreviewItem();
+                // キャンセル時は最後の app.undo() で内部は未適用に戻り済み / On cancel, last app.undo() already reverted
                 return null;
             }
         }
@@ -861,28 +939,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             contentChild.move(insertBefore, ElementPlacement.PLACEBEFORE);
             shapeChild.move(contentChild, ElementPlacement.PLACEAFTER);
 
-            // 空になったグループを削除 / Remove the now-empty group
-            try { groupItem.remove(); } catch (e) { }
-
-            // 旧図形を削除 / Remove the old shape
-            try { shapeChild.remove(); } catch (e) { }
+            // 空になったグループと旧図形を削除 / Remove the empty group and old shape
+            safeRemove(groupItem);
+            safeRemove(shapeChild);
 
             return contentChild;
         }
 
-        /* メイン処理 / Main process */
-        function main() {
-            if (app.documents.length === 0) {
-                alert(L("alertNoDocument"));
-                return;
-            }
-
-            var doc = app.activeDocument;
-            var sel = doc.selection;
-
+        /* 選択を検証して { contentItem, shapeItem, shapeIsAutoCreated } を返す。不正なら alert を出して null。
+           Validate selection. Returns parsed object or null (with alert) on invalid input. */
+        function parseSelection(sel) {
             if (sel.length < 1 || sel.length > 2) {
                 alert(L("alertSelectOne"), L("alertSelectError"));
-                return;
+                return null;
             }
 
             var contentItem = null;
@@ -890,56 +959,62 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var shapeIsAutoCreated = false;
 
             if (sel.length === 2) {
-                // 2つ選択：テキスト/グループ＋図形（従来動作） / Two items: text/group + shape (original behavior)
+                // 2つ選択：テキスト/グループ＋図形 / Two items: text/group + shape
                 for (var i = 0; i < sel.length; i++) {
                     var item = sel[i];
                     if (isContentItem(item)) {
                         if (contentItem) {
                             alert(L("alertSelectOne"), L("alertSelectError"));
-                            return;
+                            return null;
                         }
                         contentItem = item;
                     } else if (isShapeItem(item)) {
                         if (shapeItem) {
                             alert(L("alertSelectOne"), L("alertSelectError"));
-                            return;
+                            return null;
                         }
                         shapeItem = item;
                     } else {
                         alert(L("alertSelectOne"), L("alertSelectError"));
-                        return;
+                        return null;
                     }
                 }
                 if (!contentItem || !shapeItem) {
                     alert(L("alertSelectOne"), L("alertSelectError"));
-                    return;
+                    return null;
                 }
             } else {
-                // 1つ選択：テキスト/グループのみ / One item: text/group only
+                // 1つ選択：テキスト/グループのみ。グループはテキスト＋図形なら分解して採用 /
+                // One item: text/group; if a group contains text+shape, extract and adopt
                 var selectedItem = sel[0];
-
-                // グループ内がテキスト＋図形の場合は分解して続行 / If group contains text+shape, extract and continue
                 if (selectedItem.typename === "GroupItem" && !isClippingGroupItem(selectedItem)) {
                     contentItem = tryExtractContentFromGroup(selectedItem);
                 }
-
                 if (!contentItem) {
                     if (!isContentItem(selectedItem)) {
                         alert(L("alertSelectOne"), L("alertSelectError"));
-                        return;
+                        return null;
                     }
                     contentItem = selectedItem;
                 }
-
                 shapeIsAutoCreated = true;
             }
 
             if (isClippingGroupItem(contentItem)) {
                 alert(L("alertClippingGroupNotSupported"), L("alertSelectError"));
-                return;
+                return null;
             }
 
-            // 1. コンテンツを複製して計測用オブジェクトを作成 / Duplicate content and create measurement item
+            return {
+                contentItem: contentItem,
+                shapeItem: shapeItem,
+                shapeIsAutoCreated: shapeIsAutoCreated
+            };
+        }
+
+        /* コンテンツを複製して bounds を計測。失敗時 alert + null。
+           Duplicate content (outline if text) and read bounds. Returns boundsInfo or null. */
+        function measureContent(contentItem) {
             var measureItem = null;
             var dupText = null;
             var boundsInfo = null;
@@ -954,48 +1029,34 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     boundsInfo = getBoundsFromItem(measureItem);
                 }
             } finally {
-                if (measureItem) {
-                    try {
-                        measureItem.remove();
-                    } catch (e) { }
-                }
-                if (dupText) {
-                    try {
-                        dupText.remove();
-                    } catch (e) { }
-                }
+                safeRemove(measureItem);
+                safeRemove(dupText);
             }
 
             if (!boundsInfo) {
                 alert(L("alertMeasureFailed"), L("alertSelectError"));
-                return;
+                return null;
             }
+            return boundsInfo;
+        }
 
-            // 2. 幅と高さ、およびコンテンツの中心座標を計測 / Measure width, height, and content center
-            var outWidth = boundsInfo.width;
-            var outHeight = boundsInfo.height;
-            var contentCenterX = boundsInfo.centerX;
-            var contentCenterY = boundsInfo.centerY;
-
-            // 3. 図形の準備 / Prepare shape item
+        /* auto モードなら長方形を作成。プレビュー用テンプレートを用意し、元図形を非表示にする。
+           Auto-create rectangle if needed, prepare preview templates, hide original. */
+        function prepareShapeAndPreviews(doc, contentItem, shapeItem, shapeIsAutoCreated, boundsInfo) {
             if (shapeIsAutoCreated) {
-                // 1つ選択時：コンテンツ背面に長方形を自動作成（初期不透明度は定数で管理） / Auto-create rectangle behind content (initial opacity is managed by a constant)
+                // 初期不透明度は定数管理 / Initial opacity controlled by constant
                 shapeItem = doc.pathItems.rectangle(
-                    boundsInfo.top,
-                    boundsInfo.left,
-                    boundsInfo.width,
-                    boundsInfo.height
+                    boundsInfo.top, boundsInfo.left, boundsInfo.width, boundsInfo.height
                 );
                 shapeItem.opacity = AUTO_CREATED_SHAPE_OPACITY;
                 shapeItem.move(contentItem, ElementPlacement.PLACEAFTER);
             }
 
-            // 4. プレビュー用の複製を作成 / Create preview duplicates
             var previewSourceShapeItem = null;
             var previewBaseShapeItem = null;
 
             if (!shapeIsAutoCreated) {
-                // 2つ選択時：整列専用と調整専用の2つを作成 / Two-item mode: create align-only and adjust-only copies
+                // 2つ選択：整列専用と調整専用の2つ / Two-item: align-only + adjust-only
                 previewSourceShapeItem = shapeItem.duplicate();
                 previewSourceShapeItem.hidden = true;
 
@@ -1004,113 +1065,122 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 clearAppearanceByAction(previewBaseShapeItem);
                 previewBaseShapeItem.hidden = true;
             } else {
-                // 1つ選択時：ベース図形のみ / One-item mode: base shape only
+                // 1つ選択：ベース図形のみ / One-item: base only
                 previewBaseShapeItem = shapeItem.duplicate();
                 previewBaseShapeItem.hidden = true;
             }
 
-            // 5. 元の図形は非表示にし、ダイアログ中はプレビュー専用オブジェクトを使う / Hide original shape and use preview-only object in dialog
             shapeItem.hidden = true;
             app.redraw();
 
-            // 6. ダイアログ表示 / Show dialog
-            var result = showDialog(outWidth, outHeight, previewSourceShapeItem, previewBaseShapeItem, contentCenterX, contentCenterY, shapeIsAutoCreated);
+            return {
+                shapeItem: shapeItem,
+                previewSourceShapeItem: previewSourceShapeItem,
+                previewBaseShapeItem: previewBaseShapeItem
+            };
+        }
 
-            if (result) {
-                try {
-                    if (previewSourceShapeItem && previewSourceShapeItem !== result.previewItem) {
-                        previewSourceShapeItem.remove();
-                        previewSourceShapeItem = null;
-                    }
-                } catch (e) {
-                    previewSourceShapeItem = null;
+        /* OK 確定：使わないテンプレートを削除、必要なら Live Pathfinder、元図形削除、最終選択を設定。
+           On OK: drop unused templates, run pathfinder if needed, remove original, set final selection. */
+        function commitDialogResult(doc, result, prepared, contentItem, shapeIsAutoCreated) {
+            var previewSourceShapeItem = prepared.previewSourceShapeItem;
+            var previewBaseShapeItem = prepared.previewBaseShapeItem;
+            var shapeItem = prepared.shapeItem;
+
+            if (previewSourceShapeItem && previewSourceShapeItem !== result.previewItem) {
+                safeRemove(previewSourceShapeItem);
+                previewSourceShapeItem = null;
+            }
+            if (previewBaseShapeItem && previewBaseShapeItem !== result.previewItem) {
+                safeRemove(previewBaseShapeItem);
+                previewBaseShapeItem = null;
+            }
+
+            if (result.previewItem) {
+                var finalPreviewItem = result.previewItem;
+                finalPreviewItem.hidden = false;
+
+                var baseShapeRef = result.adjustEnabled ? previewBaseShapeItem : previewSourceShapeItem;
+                if (baseShapeRef && baseShapeRef !== finalPreviewItem) {
+                    try { baseShapeRef.hidden = true; } catch (e) { }
                 }
-                try {
-                    if (previewBaseShapeItem && previewBaseShapeItem !== result.previewItem) {
-                        previewBaseShapeItem.remove();
-                        previewBaseShapeItem = null;
-                    }
-                } catch (e) {
-                    previewBaseShapeItem = null;
-                }
-                // OKの場合、元の図形を削除してプレビュー専用オブジェクトを確定版として残す / On OK, remove the original shape and keep the preview object as the final shape
 
-                if (result.previewItem) {
-                    var finalPreviewItem = result.previewItem;
-                    finalPreviewItem.hidden = false;
-
-                    var baseShapeRef = result.adjustEnabled ? previewBaseShapeItem : previewSourceShapeItem;
-                    if (baseShapeRef && baseShapeRef !== finalPreviewItem) {
-                        try {
-                            baseShapeRef.hidden = true;
-                        } catch (e) { }
-                    }
-
-                    if (result.shouldRunPathfinder) {
-                        doc.selection = null;
-                        try {
-                            finalPreviewItem.selected = true;
-                        } catch (e) {
-                            throw new Error('Preview item became invalid before Live Pathfinder Add.');
-                        }
-
-                        app.executeMenuCommand('Live Pathfinder Add');
-
-                        if (!doc.selection || doc.selection.length !== 1) {
-                            throw new Error('Live Pathfinder Add did not return exactly one selected item.');
-                        }
-
-                        finalPreviewItem = doc.selection[0];
-                        try {
-                            finalPreviewItem.hidden = false;
-                        } catch (e) {
-                            throw new Error('Live Pathfinder Add returned an invalid item.');
-                        }
-                    }
-
-                    // OKの場合、元の図形を削除 / On OK, remove the original shape
-                    try {
-                        shapeItem.remove();
-                    } catch (removeError) {
-                        if (!shapeIsAutoCreated) {
-                            shapeItem.hidden = false;
-                        }
-                        throw removeError;
-                    }
-
-                    result.previewItem = finalPreviewItem;
-
+                if (result.shouldRunPathfinder) {
                     doc.selection = null;
                     try {
-                        contentItem.selected = true;
-                    } catch (e) { }
-                    try {
                         finalPreviewItem.selected = true;
-                    } catch (e) { }
+                    } catch (e) {
+                        throw new Error('Preview item became invalid before Live Pathfinder Add.');
+                    }
+                    app.executeMenuCommand('Live Pathfinder Add');
+                    if (!doc.selection || doc.selection.length !== 1) {
+                        throw new Error('Live Pathfinder Add did not return exactly one selected item.');
+                    }
+                    finalPreviewItem = doc.selection[0];
+                    try {
+                        finalPreviewItem.hidden = false;
+                    } catch (e) {
+                        throw new Error('Live Pathfinder Add returned an invalid item.');
+                    }
                 }
 
-                app.redraw();
-            } else {
                 try {
-                    if (previewSourceShapeItem) {
-                        previewSourceShapeItem.remove();
-                    }
-                } catch (e) { }
-                try {
-                    if (previewBaseShapeItem) {
-                        previewBaseShapeItem.remove();
-                    }
-                } catch (e) { }
-                if (shapeIsAutoCreated) {
-                    // キャンセル時：自動作成した長方形を削除 / On cancel: remove auto-created rectangle
-                    try {
-                        shapeItem.remove();
-                    } catch (e) { }
-                } else {
-                    // キャンセル時：元の図形を復元 / On cancel: restore original shape
-                    shapeItem.hidden = false;
+                    shapeItem.remove();
+                } catch (removeError) {
+                    if (!shapeIsAutoCreated) shapeItem.hidden = false;
+                    throw removeError;
                 }
-                app.redraw();
+
+                doc.selection = null;
+                contentItem.selected = true;
+                finalPreviewItem.selected = true;
+            }
+
+            app.redraw();
+        }
+
+        /* キャンセル：テンプレート削除、auto なら長方形も削除、それ以外は元図形を再表示。
+           On cancel: drop templates; drop or restore the original shape. */
+        function cancelDialogResult(prepared, shapeIsAutoCreated) {
+            safeRemove(prepared.previewSourceShapeItem);
+            safeRemove(prepared.previewBaseShapeItem);
+            if (shapeIsAutoCreated) {
+                safeRemove(prepared.shapeItem);
+            } else {
+                prepared.shapeItem.hidden = false;
+            }
+            app.redraw();
+        }
+
+        /* メイン処理 / Main process */
+        function main() {
+            if (app.documents.length === 0) {
+                alert(L("alertNoDocument"));
+                return;
+            }
+
+            var doc = app.activeDocument;
+            var parsed = parseSelection(doc.selection);
+            if (!parsed) return;
+
+            var boundsInfo = measureContent(parsed.contentItem);
+            if (!boundsInfo) return;
+
+            var prepared = prepareShapeAndPreviews(
+                doc, parsed.contentItem, parsed.shapeItem, parsed.shapeIsAutoCreated, boundsInfo
+            );
+
+            var result = showDialog(
+                boundsInfo.width, boundsInfo.height,
+                prepared.previewSourceShapeItem, prepared.previewBaseShapeItem,
+                boundsInfo.centerX, boundsInfo.centerY,
+                parsed.shapeIsAutoCreated
+            );
+
+            if (result) {
+                commitDialogResult(doc, result, prepared, parsed.contentItem, parsed.shapeIsAutoCreated);
+            } else {
+                cancelDialogResult(prepared, parsed.shapeIsAutoCreated);
             }
         }
 
