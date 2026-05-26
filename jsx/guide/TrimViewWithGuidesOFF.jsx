@@ -2,23 +2,46 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * TrimViewWithGuidesOFF.jsx
- *
- * 概要:
- * 本スクリプトは、ガイド可視化用に作成されたプレビューレイヤー（内部識別子: __GUIDES_PREVIEW_TRIM_VIEW__）を削除し、
- * Trim View の表示状態を切り替えます。
- *
- * 既存レイヤーの削除判定は内部識別子（note一致）を最優先し、note一致が複数ある場合はそのすべてを削除対象にします。
- * note一致がない場合のみ同名レイヤーを削除対象として扱います。
- *
- * プレビューレイヤー削除前には、内部アイテムとサブレイヤーのロック・非表示状態を再帰的に解除します。
- * レイヤー削除に失敗した場合は中身を空にし、処理全体の後始末は finally で実行します。
- * 
- * 作成日: 2026-03-19
- * 更新日: 2026-03-20
- */
+TrimViewWithGuidesOFF.jsx
 
-var SCRIPT_VERSION = "v1.1";
+概要:
+本スクリプトは、ガイド可視化用に作成されたプレビューレイヤー（内部識別子: __GUIDES_PREVIEW_TRIM_VIEW__）を削除し、
+Trim View の表示状態を切り替えます。
+
+既存レイヤーの削除判定は内部識別子（note一致）を最優先し、note一致が複数ある場合はそのすべてを削除対象にします。
+note一致がない場合のみ同名レイヤーを削除対象として扱います。
+
+プレビューレイヤー削除前には、内部アイテムとサブレイヤーのロック・非表示状態を再帰的に解除します。
+レイヤー削除に失敗した場合は中身を空にし、処理全体の後始末は finally で実行します。
+
+作成日: 2026-03-19
+更新日: 2026-03-20
+*/
+
+// =========================================
+// バージョン / Version
+// =========================================
+
+var SCRIPT_VERSION = "v1.1.1";
+
+// =========================================
+// ローカライズ / Localization
+// =========================================
+
+var lang = ($.locale && /^ja/i.test($.locale)) ? "ja" : "en";
+
+function L(labelText) {
+    return (labelText && labelText[lang]) || (labelText && labelText.ja) || "";
+}
+
+var LABELS = {
+    err_remove_preview: {
+        ja: "プレビューレイヤーの削除に失敗し、中身のクリアにも失敗しました。",
+        en: "Failed to remove the preview layer; clearing its contents also failed."
+    },
+    field_layer_name: { ja: "レイヤー名: ", en: "Layer: " },
+    field_error: { ja: "エラー: ", en: "Error: " }
+};
 
 (function () {
     if (app.documents.length === 0) {
@@ -31,16 +54,17 @@ var SCRIPT_VERSION = "v1.1";
 
     var i;
 
-    // Trim View を切り替える
+    /* Trim View 表示の ON/OFF を切り替え / Toggle Trim View on/off */
     function toggleTrimView() {
         app.executeMenuCommand('TrimView');
     }
 
+    /* スクリプトが生成したプレビューレイヤーかどうかを判定 / Check if a layer was created as a preview layer by this script */
     function isPreviewLayer(layer) {
         return layer && layer.note === previewLayerNote;
     }
 
-    // 既存のプレビューレイヤーを検索（note一致を最優先し、なければ同名を対象にする）
+    /* 既存プレビューレイヤーを検索（note 一致を最優先、なければ同名を対象） / Find existing preview layers (note match preferred, otherwise same-name) */
     function findExistingPreviewLayers() {
         var j;
         var layer;
@@ -63,10 +87,10 @@ var SCRIPT_VERSION = "v1.1";
         return sameNameLayers;
     }
 
-    // プレビューレイヤー削除前に内部アイテムとサブレイヤーのロックを再帰的に解除
+    /* コンテナ内のアイテムとサブレイヤーのロック・非表示を再帰的に解除 / Recursively unlock/unhide items and sublayers inside a container */
     function unlockItemsInContainer(container) {
         var k;
-        var item;
+        var pageItem;
         var subLayer;
 
         if (!container) {
@@ -94,27 +118,27 @@ var SCRIPT_VERSION = "v1.1";
 
         if (container.pageItems && container.pageItems.length) {
             for (k = 0; k < container.pageItems.length; k++) {
-                item = container.pageItems[k];
-                if (!item) {
+                pageItem = container.pageItems[k];
+                if (!pageItem) {
                     continue;
                 }
 
-                if (item.locked) {
+                if (pageItem.locked) {
                     try {
-                        item.locked = false;
+                        pageItem.locked = false;
                     } catch (e) { }
                 }
 
-                if (item.hidden) {
+                if (pageItem.hidden) {
                     try {
-                        item.hidden = false;
+                        pageItem.hidden = false;
                     } catch (e) { }
                 }
             }
         }
     }
 
-    // コンテナ内のページアイテムを末尾から削除
+    /* コンテナ内のページアイテムを末尾から削除 / Remove pageItems in a container from the tail */
     function removePageItemsInContainer(container) {
         var k;
 
@@ -133,12 +157,10 @@ var SCRIPT_VERSION = "v1.1";
         return true;
     }
 
-    // レイヤー削除に失敗した場合は中身を空にする
+    /* レイヤー削除失敗時の後始末として中身を空にする / Empty a layer's contents as fallback when layer removal fails */
     function clearPreviewLayerContents(layer) {
         var k;
         var subLayer;
-        var childCleared;
-        var removed;
 
         if (!layer) {
             return false;
@@ -149,8 +171,7 @@ var SCRIPT_VERSION = "v1.1";
         if (layer.layers && layer.layers.length) {
             for (k = layer.layers.length - 1; k >= 0; k--) {
                 subLayer = layer.layers[k];
-                childCleared = clearPreviewLayerContents(subLayer);
-                if (!childCleared) {
+                if (!clearPreviewLayerContents(subLayer)) {
                     return false;
                 }
                 try {
@@ -161,60 +182,37 @@ var SCRIPT_VERSION = "v1.1";
             }
         }
 
-        removed = removePageItemsInContainer(layer);
-        if (!removed) {
+        if (!removePageItemsInContainer(layer)) {
             return false;
         }
 
-        return (layer.layers.length === 0 && layer.pageItems.length === 0);
+        return true;
     }
 
-    var touchedLayers = [];
-    var existingLayers;
+    var existingLayers = findExistingPreviewLayers();
     var existingLayer;
-    var cleared;
 
-    try {
-        // 全レイヤーのロックを一時解除
-        for (i = 0; i < doc.layers.length; i++) {
-            var layer = doc.layers[i];
-            if (layer.locked) {
-                touchedLayers.push({ layer: layer, locked: true });
-                layer.locked = false;
-            }
-        }
+    // 既存のプレビューレイヤーがある場合は削除（note一致を最優先し、複数一致はすべて削除）
+    if (existingLayers.length > 0) {
+        for (i = 0; i < existingLayers.length; i++) {
+            existingLayer = existingLayers[i];
+            existingLayer.locked = false;
+            existingLayer.visible = true;
+            unlockItemsInContainer(existingLayer);
 
-        existingLayers = findExistingPreviewLayers();
-
-        // 既存のプレビューレイヤーがある場合は削除（note一致を最優先し、複数一致はすべて削除）
-        if (existingLayers.length > 0) {
-            for (i = 0; i < existingLayers.length; i++) {
-                existingLayer = existingLayers[i];
-                existingLayer.locked = false;
-                existingLayer.visible = true;
-                unlockItemsInContainer(existingLayer);
-
-                try {
-                    existingLayer.remove();
-                } catch (e) {
-                    cleared = clearPreviewLayerContents(existingLayer);
-                    if (!cleared) {
-                        alert("プレビューレイヤーの削除に失敗し、中身のクリアにも失敗しました。\n" +
-                            "レイヤー名: " + existingLayer.name + "\n" +
-                            "エラー: " + e);
-                        return;
-                    }
+            try {
+                existingLayer.remove();
+            } catch (e) {
+                if (!clearPreviewLayerContents(existingLayer)) {
+                    alert(L(LABELS.err_remove_preview) + "\n" +
+                        L(LABELS.field_layer_name) + existingLayer.name + "\n" +
+                        L(LABELS.field_error) + e);
+                    return;
                 }
             }
         }
-
-        // トリム表示切り替え
-        toggleTrimView();
-    } finally {
-        for (i = 0; i < touchedLayers.length; i++) {
-            try {
-                touchedLayers[i].layer.locked = touchedLayers[i].locked;
-            } catch (e) { }
-        }
     }
+
+    // トリム表示切り替え
+    toggleTrimView();
 })();

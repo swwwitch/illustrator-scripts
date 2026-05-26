@@ -2,62 +2,185 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
- * TrimViewWithGuidesToggle.jsx
- *
- * 概要:
- * 「Guides Preview for Trim View」レイヤーの有無に応じて、ガイドプレビュー表示をトグルするスクリプトです。
- *
- * 既存の同レイヤー（__GUIDES_PREVIEW_TRIM_VIEW__）がある場合は、そのレイヤーを削除して Trim View を切り替えて終了します。
- * 既存レイヤーがない場合は、表示中のガイドだけを通常パスとして専用レイヤーに複製し、複製完了後にテンプレートレイヤー化します。
- * テンプレートレイヤー化は、プレビューレイヤーをアクティブにした状態で動的アクションを実行し、変換対象を「Guides Preview for Trim View」レイヤーのみに限定します。
- *
- * 既存レイヤーの検出は note 一致を最優先とし、なければ同名レイヤーを対象にします。複数一致した場合はすべて削除対象です。
- * 既存プレビューレイヤーの削除に失敗した場合は、中身のクリアを試み、継続不能なら中止します。
- * 非表示レイヤー配下のガイドおよび非表示ガイドは対象外です。
- * レイヤーの一括アンロックは行わず、既存プレビューレイヤー削除時とガイド複製時に必要な対象だけを個別にアンロックします。
- * ガイド複製中に1件でも失敗した場合は、途中まで作成したプレビューの後始末を試みた上で中止し、後始末失敗も通知します。
- *
- * 紹介記事（note）
- * https://note.com/dtp_tranist/n/n338bdcc94636
- *
- * 作成日：2026-03-19
- * 更新日: 2026-03-25
- */
+TrimViewWithGuidesToggle.jsx
 
-var SCRIPT_VERSION = "v1.3.2";
+概要:
+「Guides Preview for Trim View」レイヤーの有無に応じて、ガイドプレビュー表示をトグルするスクリプトです。
+
+既存の同レイヤー（__GUIDES_PREVIEW_TRIM_VIEW__）がある場合は、そのレイヤーを削除して Trim View を切り替えて終了します。
+既存レイヤーがない場合は、表示中のガイドだけを通常パスとして専用レイヤーに複製し、複製完了後にテンプレートレイヤー化します。
+テンプレートレイヤー化は、プレビューレイヤーをアクティブにした状態で動的アクションを実行し、変換対象を「Guides Preview for Trim View」レイヤーのみに限定します。
+
+既存レイヤーの検出は note 一致を最優先とし、なければ同名レイヤーを対象にします。複数一致した場合はすべて削除対象です。
+既存プレビューレイヤーの削除に失敗した場合は、中身のクリアを試み、継続不能なら中止します。
+非表示レイヤー配下のガイドおよび非表示ガイドは対象外です。
+レイヤーの一括アンロックは行わず、既存プレビューレイヤー削除時とガイド複製時に必要な対象だけを個別にアンロックします。
+ガイド複製中に1件でも失敗した場合は、途中まで作成したプレビューの後始末を試みた上で中止し、後始末失敗も通知します。
+
+紹介記事（note）
+https://note.com/dtp_tranist/n/n338bdcc94636
+
+作成日：2026-03-19
+更新日: 2026-03-25
+*/
+
+// =========================================
+// バージョン / Version
+// =========================================
+
+var SCRIPT_VERSION = "v1.3.3";
+
+// =========================================
+// ユーザー設定 / User settings
+// =========================================
+
 var GUIDE_STROKE_WIDTH = 1;
 
 var TEMPLATE_ACTION_NAME = "template";
 var TEMPLATE_ACTION_SET_NAME = "layer";
 var TEMPLATE_ACTION_FILE_NAME = "TrimViewWithGuidesTemplateAction.aia";
 
-function loadAndRunAction(actionString, actionName, actionSetName) {
-    var f = new File(Folder.temp + '/' + TEMPLATE_ACTION_FILE_NAME);
+// =========================================
+// ローカライズ / Localization
+// =========================================
 
-    try {
-        f.open('w');
-        f.write(actionString);
-        f.close();
+var lang = ($.locale && /^ja/i.test($.locale)) ? "ja" : "en";
 
-        app.loadAction(f);
-        try {
-            app.doScript(actionName, actionSetName, false);
-        } finally {
-            try {
-                app.unloadAction(actionSetName, '');
-            } catch (_) { }
-        }
-    } finally {
-        try {
-            if (f.exists) {
-                f.remove();
-            }
-        } catch (_) { }
-    }
+function L(labelText) {
+    return (labelText && labelText[lang]) || (labelText && labelText.ja) || "";
 }
 
-function getTemplateLayerActionString() {
-    return '/version 3/name [ 5 6c61796572 ]/isOpen 1/actionCount 1/action-1 { /name [ 8 74656d706c617465 ] /keyIndex 0 /colorIndex 0 /isOpen 1 /eventCount 1 /event-1 { /useRulersIn1stQuadrant 0 /internalName (ai_plugin_Layer) /localizedName [ 9 e8a1a8e7a4ba203a20 ] /isOpen 1 /isOn 1 /hasDialog 1 /showDialog 0 /parameterCount 9 /parameter-1 { /key 1836411236 /showInPalette 4294967295 /type (integer) /value 4 } /parameter-2 { /key 1851878757 /showInPalette 4294967295 /type (ustring) /value [ 36 e383ace382a4e383a4e383bce38391e3838de383abe382aae38397e382b7e383a7e383b3 ] } /parameter-3 { /key 1953329260 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-4 { /key 1936224119 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-5 { /key 1819239275 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-6 { /key 1886549623 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-7 { /key 1886547572 /showInPalette 4294967295 /type (boolean) /value 0 } /parameter-8 { /key 1684630830 /showInPalette 4294967295 /type (boolean) /value 1 } /parameter-9 { /key 1885564532 /showInPalette 4294967295 /type (unit real) /value 50.0 /unit 592474723 } }}';
+var LABELS = {
+    err_unlock_existing: {
+        ja: "既存プレビューレイヤーのロック解除に失敗しました。",
+        en: "Failed to unlock the existing preview layer."
+    },
+    err_remove_preview: {
+        ja: "プレビューレイヤーの削除に失敗し、中身のクリアにも失敗しました。",
+        en: "Failed to remove the preview layer; clearing its contents also failed."
+    },
+    err_create_preview: {
+        ja: "プレビューレイヤーの作成に失敗しました。",
+        en: "Failed to create the preview layer."
+    },
+    err_create_preview_invalid: {
+        ja: "Layer オブジェクトを取得できませんでした。",
+        en: "Could not obtain a Layer object."
+    },
+    err_duplicate_aborted: {
+        ja: "ガイドの複製中にエラーが発生したため、プレビューの作成を中止しました。",
+        en: "An error occurred while duplicating guides; preview creation has been aborted."
+    },
+    err_preview_failed: {
+        ja: "ガイドのプレビューを作成できませんでした。",
+        en: "Could not create the guide preview."
+    },
+    err_cleanup_failed: {
+        ja: "プレビューレイヤーの後始末にも失敗しました。",
+        en: "Cleanup of the preview layer also failed."
+    },
+    field_layer_name: { ja: "レイヤー名: ", en: "Layer: " },
+    field_error: { ja: "エラー: ", en: "Error: " },
+    field_guide_count: { ja: "ガイド本数: ", en: "Guide count: " },
+    field_success_count: { ja: "複製成功数: ", en: "Success count: " },
+    field_failure_count: { ja: "複製失敗数: ", en: "Failure count: " }
+};
+
+// =========================================
+// 一時アクション生成 / Temporary action generation
+// =========================================
+
+/* テンプレートレイヤー化アクションのソースを生成 / Build action source for converting a layer to template */
+function buildTemplateLayerActionSource(setName, actionName) {
+    return ''
+        + '/version 3\n'
+        + buildActionNameLine(setName)
+        + '/isOpen 1\n'
+        + '/actionCount 1\n'
+        + '/action-1 {\n'
+        + buildActionNameLine(actionName)
+        + ' /keyIndex 0\n'
+        + ' /colorIndex 0\n'
+        + ' /isOpen 1\n'
+        + ' /eventCount 1\n'
+        + ' /event-1 {\n'
+        + ' /useRulersIn1stQuadrant 0\n'
+        + ' /internalName (ai_plugin_Layer)\n'
+        + ' /localizedName [ 9 e8a1a8e7a4ba203a20 ]\n'
+        + ' /isOpen 1\n'
+        + ' /isOn 1\n'
+        + ' /hasDialog 1\n'
+        + ' /showDialog 0\n'
+        + ' /parameterCount 9\n'
+        + ' /parameter-1 { /key 1836411236 /showInPalette 4294967295 /type (integer) /value 4 }\n'
+        + ' /parameter-2 { /key 1851878757 /showInPalette 4294967295 /type (ustring) /value [ 36 e383ace382a4e383a4e383bce38391e3838de383abe382aae38397e382b7e383a7e383b3 ] }\n'
+        + ' /parameter-3 { /key 1953329260 /showInPalette 4294967295 /type (boolean) /value 1 }\n'
+        + ' /parameter-4 { /key 1936224119 /showInPalette 4294967295 /type (boolean) /value 1 }\n'
+        + ' /parameter-5 { /key 1819239275 /showInPalette 4294967295 /type (boolean) /value 1 }\n'
+        + ' /parameter-6 { /key 1886549623 /showInPalette 4294967295 /type (boolean) /value 1 }\n'
+        + ' /parameter-7 { /key 1886547572 /showInPalette 4294967295 /type (boolean) /value 0 }\n'
+        + ' /parameter-8 { /key 1684630830 /showInPalette 4294967295 /type (boolean) /value 1 }\n'
+        + ' /parameter-9 { /key 1885564532 /showInPalette 4294967295 /type (unit real) /value 50.0 /unit 592474723 }\n'
+        + ' }\n'
+        + '}\n';
+}
+
+/* アクション名行を生成（長さ＋ヘキサ） / Build the action /name line (length + hex) */
+function buildActionNameLine(actionName) {
+    return '/name [ ' + actionName.length + ' ' + stringToHex(actionName) + ' ]\n';
+}
+
+/* 文字列をヘキサ文字列に変換 / Convert a string to a hex string */
+function stringToHex(sourceText) {
+    var hexText = "";
+    for (var i = 0; i < sourceText.length; i++) {
+        var hexValue = sourceText.charCodeAt(i).toString(16);
+        if (hexValue.length < 2) hexValue = "0" + hexValue;
+        hexText += hexValue;
+    }
+    return hexText;
+}
+
+// =========================================
+// 一時アクション実行 / Temporary action playback
+// =========================================
+
+/* 一時アクションを生成・実行・後始末 / Create, run, and clean up a temporary action */
+function playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
+    var actionFile = new File(actionFilePath);
+    var isActionLoaded = false;
+    var isActionFileOpen = false;
+
+    try { app.unloadAction(setName, ""); } catch (e) { }
+
+    try {
+        if (!actionFile.open("w")) {
+            throw new Error("Failed to open temporary action file.");
+        }
+        isActionFileOpen = true;
+
+        actionFile.write(actionSource);
+        actionFile.close();
+        isActionFileOpen = false;
+
+        app.loadAction(actionFile);
+        isActionLoaded = true;
+
+        app.doScript(actionName, setName, false);
+
+    } finally {
+        if (isActionFileOpen) {
+            try { actionFile.close(); } catch (e) { }
+        }
+
+        if (actionFile.exists) {
+            try { actionFile.remove(); } catch (e) { }
+        }
+
+        if (isActionLoaded) {
+            try { app.unloadAction(setName, ""); } catch (e) { }
+        }
+    }
 }
 
 (function () {
@@ -68,7 +191,7 @@ function getTemplateLayerActionString() {
     var doc = app.activeDocument;
     var previewLayerName = "Guides Preview for Trim View";
     var previewLayerNote = "__GUIDES_PREVIEW_TRIM_VIEW__";
-    var touchedItems = [];
+    var guidesToRelock = [];
     var guides = [];
     var previewLayer = null;
     var guideCount = 0;
@@ -79,7 +202,7 @@ function getTemplateLayerActionString() {
     var originalActiveLayer = null;
     var previewCleanupFailed = false;
 
-    // 指定レイヤーをテンプレートレイヤーに変換
+    /* 指定レイヤーをテンプレートレイヤーに変換 / Convert the given layer to a template layer */
     function makeLayerTemplate(targetLayer) {
         if (!targetLayer) {
             return;
@@ -90,49 +213,148 @@ function getTemplateLayerActionString() {
         doc.selection = null;
         doc.activeLayer = targetLayer;
 
-        try {
-            loadAndRunAction(getTemplateLayerActionString(), TEMPLATE_ACTION_NAME, TEMPLATE_ACTION_SET_NAME);
-        } finally {
-            try {
-                if (originalActiveLayer) {
-                    doc.activeLayer = originalActiveLayer;
-                }
-            } catch (_) { }
-        }
+        var actionSource = buildTemplateLayerActionSource(TEMPLATE_ACTION_SET_NAME, TEMPLATE_ACTION_NAME);
+        var actionFilePath = Folder.temp + '/' + TEMPLATE_ACTION_FILE_NAME;
+        playTemporaryAction(actionSource, TEMPLATE_ACTION_SET_NAME, TEMPLATE_ACTION_NAME, actionFilePath);
 
         targetLayer.name = previewLayerName;
         targetLayer.note = previewLayerNote;
     }
 
-    // プレビュー用カラー（ドキュメントのカラーモードに応じてCMYK/RGB切替）
+    /* ガイドをプレビューレイヤーに複製してパスとして整形 / Duplicate a guide to the preview layer and style it as a stroked path */
+    function duplicateGuideToPreview(guide, previewLayer) {
+        var previewPath = guide.duplicate(previewLayer, ElementPlacement.PLACEATBEGINNING);
+        previewPath.guides = false;
+        previewPath.stroked = true;
+        previewPath.strokeWidth = GUIDE_STROKE_WIDTH;
+        previewPath.strokeColor = createPreviewColor();
+        previewPath.filled = false;
+        previewPath.locked = false;
+        return previewPath;
+    }
+
+    /* プレビュー用カラーを生成（CMYK/RGB をドキュメントモードで切替） / Build preview color (CMYK or RGB depending on document mode) */
     function createPreviewColor() {
         if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-            var c = new CMYKColor();
-            c.cyan = 0;
-            c.magenta = 60;
-            c.yellow = 0;
-            c.black = 0;
-            return c;
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = 0;
+            cmykColor.magenta = 60;
+            cmykColor.yellow = 0;
+            cmykColor.black = 0;
+            return cmykColor;
         } else {
-            var r = new RGBColor();
-            r.red = 227;
-            r.green = 120;
-            r.blue = 180;
-            return r;
+            var rgbColor = new RGBColor();
+            rgbColor.red = 227;
+            rgbColor.green = 120;
+            rgbColor.blue = 180;
+            return rgbColor;
         }
     }
 
-    // Trim View を切り替える
+    /* Trim View 表示の ON/OFF を切り替え / Toggle Trim View on/off */
     function toggleTrimView() {
         app.executeMenuCommand('TrimView');
     }
 
-    // スクリプトが生成したプレビューレイヤーかどうかを判定
+    /* 既存プレビューレイヤーを順に削除（失敗時は中身クリアでフォールバック） / Remove existing preview layers one by one (fallback to content clearing on failure) */
+    function removeExistingPreviewLayers(layers) {
+        for (var idx = 0; idx < layers.length; idx++) {
+            var existingLayer = layers[idx];
+            try {
+                existingLayer.locked = false;
+            } catch (e) {
+                alert(L(LABELS.err_unlock_existing) + "\n" +
+                    L(LABELS.field_layer_name) + existingLayer.name + "\n" +
+                    L(LABELS.field_error) + e);
+                return false;
+            }
+
+            unlockItemsInContainer(existingLayer);
+
+            try {
+                existingLayer.remove();
+            } catch (e) {
+                if (!clearPreviewLayerContents(existingLayer)) {
+                    alert(L(LABELS.err_remove_preview) + "\n" +
+                        L(LABELS.field_layer_name) + existingLayer.name + "\n" +
+                        L(LABELS.field_error) + e);
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
+    /* 表示中ガイドを収集（非表示・非表示レイヤー配下を除外） / Collect visible guides (excluding hidden ones and those under hidden layers) */
+    function collectVisibleGuides() {
+        var collected = [];
+        for (var idx = 0; idx < doc.pageItems.length; idx++) {
+            var pageItem = doc.pageItems[idx];
+            if (!pageItem || pageItem.guides !== true) continue;
+            if (pageItem.hidden) continue;
+            if (isInHiddenLayer(pageItem)) continue;
+            collected.push(pageItem);
+        }
+        return collected;
+    }
+
+    /* プレビューレイヤーを新規作成して名前・note・ロック解除を設定 / Create a new preview layer with name/note/unlock set */
+    function createPreviewLayer() {
+        var layer;
+        try {
+            layer = doc.layers.add();
+        } catch (e) {
+            alert(L(LABELS.err_create_preview) + "\n" +
+                L(LABELS.field_error) + e);
+            return null;
+        }
+
+        if (!layer || layer.typename !== "Layer") {
+            alert(L(LABELS.err_create_preview) + "\n" +
+                L(LABELS.err_create_preview_invalid));
+            return null;
+        }
+
+        layer.name = previewLayerName;
+        layer.note = previewLayerNote;
+        layer.locked = false;
+        return layer;
+    }
+
+    /* ガイドを順に複製。1 件でも失敗したら break / Duplicate guides in order; break on first failure */
+    function duplicateGuidesToPreview() {
+        for (var idx = 0; idx < guides.length; idx++) {
+            var guide = guides[idx];
+            if (!guide) continue;
+
+            var wasLocked = false;
+            try { wasLocked = guide.locked; } catch (e) { }
+
+            if (wasLocked) {
+                try {
+                    guidesToRelock.push(guide);
+                    guide.locked = false;
+                } catch (e) {
+                    continue;
+                }
+            }
+
+            try {
+                duplicateGuideToPreview(guide, previewLayer);
+                duplicateSuccessCount++;
+            } catch (e) {
+                duplicateFailureCount++;
+                break;
+            }
+        }
+    }
+
+    /* スクリプトが生成したプレビューレイヤーかどうかを判定 / Check if a layer was created as a preview layer by this script */
     function isPreviewLayer(layer) {
         return layer && layer.note === previewLayerNote;
     }
 
-    // 親 Layer を上にたどり、どこか1つでも非表示なら true
+    /* 親 Layer を上にたどり、どれか 1 つでも非表示なら true / Walk up parents and return true if any ancestor Layer is hidden */
     function isInHiddenLayer(item) {
         var parent = item ? item.parent : null;
 
@@ -146,7 +368,7 @@ function getTemplateLayerActionString() {
         return false;
     }
 
-    // 既存のプレビューレイヤーを検索（note一致を最優先し、なければ同名を対象にする）
+    /* 既存プレビューレイヤーを検索（note 一致を最優先、なければ同名を対象） / Find existing preview layers (note match preferred, otherwise same-name) */
     function findExistingPreviewLayers() {
         var j;
         var layer;
@@ -169,10 +391,10 @@ function getTemplateLayerActionString() {
         return sameNameLayer ? [sameNameLayer] : [];
     }
 
-    // プレビューレイヤー削除前に内部アイテムとサブレイヤーのロックを再帰的に解除
+    /* コンテナ内のアイテムとサブレイヤーのロック・非表示を再帰的に解除 / Recursively unlock/unhide items and sublayers inside a container */
     function unlockItemsInContainer(container) {
         var k;
-        var item;
+        var pageItem;
         var subLayer;
 
         if (!container) {
@@ -194,27 +416,27 @@ function getTemplateLayerActionString() {
 
         if (container.pageItems && container.pageItems.length) {
             for (k = 0; k < container.pageItems.length; k++) {
-                item = container.pageItems[k];
-                if (!item) {
+                pageItem = container.pageItems[k];
+                if (!pageItem) {
                     continue;
                 }
 
-                if (item.locked) {
+                if (pageItem.locked) {
                     try {
-                        item.locked = false;
+                        pageItem.locked = false;
                     } catch (e) { }
                 }
 
-                if (item.hidden) {
+                if (pageItem.hidden) {
                     try {
-                        item.hidden = false;
+                        pageItem.hidden = false;
                     } catch (e) { }
                 }
             }
         }
     }
 
-    // コンテナ内のページアイテムを末尾から削除
+    /* コンテナ内のページアイテムを末尾から削除 / Remove pageItems in a container from the tail */
     function removePageItemsInContainer(container) {
         var k;
 
@@ -233,12 +455,23 @@ function getTemplateLayerActionString() {
         return true;
     }
 
-    // レイヤー削除失敗時の後始末として、中身を空にする
+    /* プレビューレイヤーを「中身クリア＋削除」で完全に片付ける / Fully clean up a preview layer (clear contents then remove) */
+    function cleanupPartialPreview(layer) {
+        if (!clearPreviewLayerContents(layer)) {
+            return false;
+        }
+        try {
+            layer.remove();
+        } catch (e) {
+            return false;
+        }
+        return true;
+    }
+
+    /* レイヤー削除失敗時の後始末として中身を空にする / Empty a layer's contents as fallback when layer removal fails */
     function clearPreviewLayerContents(layer) {
         var k;
         var subLayer;
-        var childCleared;
-        var removed;
 
         if (!layer) {
             return false;
@@ -249,8 +482,7 @@ function getTemplateLayerActionString() {
         if (layer.layers && layer.layers.length) {
             for (k = layer.layers.length - 1; k >= 0; k--) {
                 subLayer = layer.layers[k];
-                childCleared = clearPreviewLayerContents(subLayer);
-                if (!childCleared) {
+                if (!clearPreviewLayerContents(subLayer)) {
                     return false;
                 }
                 try {
@@ -261,179 +493,63 @@ function getTemplateLayerActionString() {
             }
         }
 
-        removed = removePageItemsInContainer(layer);
-        if (!removed) {
+        if (!removePageItemsInContainer(layer)) {
             return false;
         }
 
-        return (layer.layers.length === 0 && layer.pageItems.length === 0);
+        return true;
     }
 
     try {
         var existingLayers = findExistingPreviewLayers();
-        var existingLayer;
-        var cleared;
 
+        // 既存プレビューがあれば削除して Trim View をトグルして終了
         if (existingLayers.length > 0) {
-            for (i = 0; i < existingLayers.length; i++) {
-                existingLayer = existingLayers[i];
-                try {
-                    existingLayer.locked = false;
-                } catch (e) {
-                    alert("既存プレビューレイヤーのロック解除に失敗しました。\n" +
-                        "レイヤー名: " + existingLayer.name + "\n" +
-                        "エラー: " + e);
-                    return;
-                }
-
-                unlockItemsInContainer(existingLayer);
-
-                try {
-                    existingLayer.remove();
-                } catch (e) {
-                    cleared = clearPreviewLayerContents(existingLayer);
-                    if (!cleared) {
-                        alert("プレビューレイヤーの削除に失敗し、中身のクリアにも失敗しました。\n" +
-                            "レイヤー名: " + existingLayer.name + "\n" +
-                            "エラー: " + e);
-                        return;
-                    }
-                }
+            if (!removeExistingPreviewLayers(existingLayers)) {
+                return;
             }
-
-            // トグル：既存があった場合は削除して終了（Trim View 切り替え）
             toggleTrimView();
             return;
         }
 
-        // 全ページアイテムからガイドを収集（非表示レイヤー配下・非表示ガイドは除外）
-        for (i = 0; i < doc.pageItems.length; i++) {
-            var item = doc.pageItems[i];
-            if (!item || item.guides !== true) {
-                continue;
-            }
-            if (item.hidden) {
-                continue;
-            }
-            if (isInHiddenLayer(item)) {
-                continue;
-            }
-            guides.push(item);
-        }
-
+        guides = collectVisibleGuides();
         guideCount = guides.length;
-        duplicateSuccessCount = 0;
-        duplicateFailureCount = 0;
 
-        // ガイドが1本もない場合は Trim View の切り替えのみ実行
+        // ガイドが 1 本もない場合は Trim View の切り替えのみ実行
         if (guideCount === 0) {
             toggleTrimView();
             return;
         }
 
-        // プレビューレイヤーを新規作成（ON）
-        try {
-            previewLayer = doc.layers.add();
-        } catch (e) {
-            alert("プレビューレイヤーの作成に失敗しました。\n" +
-                "エラー: " + e);
+        previewLayer = createPreviewLayer();
+        if (!previewLayer) {
             return;
         }
 
-        if (!previewLayer || previewLayer.typename !== "Layer") {
-            alert("プレビューレイヤーの作成に失敗しました。\n" +
-                "Layer オブジェクトを取得できませんでした。");
-            return;
-        }
-
-        previewLayer.name = previewLayerName;
-        previewLayer.note = previewLayerNote;
-        previewLayer.locked = false;
-
-        // ガイドを必要なものだけ一時アンロックして複製
-        for (i = 0; i < guides.length; i++) {
-            var guide = guides[i];
-            var wasLocked = false;
-            var dup;
-
-            if (!guide) {
-                continue;
-            }
-
-            try {
-                wasLocked = guide.locked;
-            } catch (e) {
-                wasLocked = false;
-            }
-
-            if (wasLocked) {
-                try {
-                    touchedItems.push({ item: guide, locked: true });
-                    guide.locked = false;
-                } catch (e) {
-                    continue;
-                }
-            }
-
-            try {
-                dup = guide.duplicate(previewLayer, ElementPlacement.PLACEATBEGINNING);
-
-                // ガイド解除
-                dup.guides = false;
-
-                // 線を有効化
-                dup.stroked = true;
-                dup.strokeWidth = GUIDE_STROKE_WIDTH;
-                dup.strokeColor = createPreviewColor();
-
-                // 塗りなし
-                dup.filled = false;
-
-                // レイヤー側で管理するため個別にはロックしない
-                dup.locked = false;
-                duplicateSuccessCount++;
-            } catch (e) {
-                duplicateFailureCount++;
-                break;
-            }
-        }
+        duplicateGuidesToPreview();
 
         if (duplicateFailureCount > 0) {
             if (previewLayer) {
-                previewCleanupFailed = !clearPreviewLayerContents(previewLayer);
-
-                if (!previewCleanupFailed) {
-                    try {
-                        previewLayer.remove();
-                    } catch (e) {
-                        previewCleanupFailed = true;
-                    }
-                }
+                previewCleanupFailed = !cleanupPartialPreview(previewLayer);
             }
 
-            alert("ガイドの複製中にエラーが発生したため、プレビューの作成を中止しました。\n" +
-                "ガイド本数: " + guideCount + "\n" +
-                "複製成功数: " + duplicateSuccessCount + "\n" +
-                "複製失敗数: " + duplicateFailureCount +
-                (previewCleanupFailed ? "\nプレビューレイヤーの後始末にも失敗しました。" : ""));
+            alert(L(LABELS.err_duplicate_aborted) + "\n" +
+                L(LABELS.field_guide_count) + guideCount + "\n" +
+                L(LABELS.field_success_count) + duplicateSuccessCount + "\n" +
+                L(LABELS.field_failure_count) + duplicateFailureCount +
+                (previewCleanupFailed ? "\n" + L(LABELS.err_cleanup_failed) : ""));
             return;
         }
 
-        if (guideCount > 0 && duplicateSuccessCount === 0) {
-            alert("ガイドのプレビューを作成できませんでした。\n" +
-                "ガイド本数: " + guideCount + "\n" +
-                "複製成功数: " + duplicateSuccessCount + "\n" +
-                "複製失敗数: " + duplicateFailureCount);
+        if (duplicateSuccessCount === 0) {
+            alert(L(LABELS.err_preview_failed) + "\n" +
+                L(LABELS.field_guide_count) + guideCount + "\n" +
+                L(LABELS.field_success_count) + duplicateSuccessCount + "\n" +
+                L(LABELS.field_failure_count) + duplicateFailureCount);
             return;
         }
 
-        // 複製完了後にテンプレートレイヤー化
         makeLayerTemplate(previewLayer);
-
-        // // プレビューレイヤー自体をロック
-        // previewLayer.locked = true;
-
-        // トリム表示切り替え
         toggleTrimView();
     } finally {
         try {
@@ -449,9 +565,9 @@ function getTemplateLayerActionString() {
         } catch (e) { }
 
         // 元のアイテムのロック状態を復元
-        for (i = 0; i < touchedItems.length; i++) {
+        for (i = 0; i < guidesToRelock.length; i++) {
             try {
-                touchedItems[i].item.locked = touchedItems[i].locked;
+                guidesToRelock[i].locked = true;
             } catch (e) { }
         }
     }
