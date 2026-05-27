@@ -11,31 +11,32 @@
     - アクティブな Illustrator ドキュメントのファイル名を変更（実ファイルのリネーム）／別名で保存／コピーを保存します。
     - 保存先は常に現在のファイルと同じフォルダ。未保存ドキュメントは保存先フォルダを選択して保存します。
     - ファイル名を base / title / status / timestamp / version の各セグメントに分解し、UI から個別に編集できます。
-      - base: 先頭の固定部分（UI には出さずロジック側で保持）
-      - title: 「タイトル」ラジオで「なし / 親フォルダー / 指定（入力欄）」を選択。入力欄はデフォルト空白
+      - base: 先頭の固定部分。「ベース」入力欄で編集可能（検出値が初期値、空欄可）
+      - title: 「サブテキスト」ラジオで「なし / 親フォルダー / 指定（入力欄）」を選択。入力欄はデフォルト空白
       - status: 「ステータス」dropdown で制作ステータス（wip / draft / review / approved / outlined など）を挿入。`：` より前の値だけがファイル名に入る
       - timestamp: 「タイムスタンプ」ラジオで「なし / YYYYMMDD / YYYY-MM-DD」を選択（デフォルト YYYYMMDD）
-      - version: 「バージョン番号」ラジオで「なし / -vN / -v0N」を選択（デフォルト -vN）。既存の v 番号は +1、無い場合は v2 / v02 を付与
+      - version: 「バージョン番号」ラジオで「なし / v1, v2… / v01, v02… / v001, v002…」を選択（デフォルト v1, v2…）。既存の v 番号は +1、無い場合は v2 / v02 / v002 を付与。さらに親フォルダ内に同パターンのファイルがあれば、その最大 v 番号 +1 まで自動で繰り上げ
     - 整形ルール：
       - 区切り記号: 「変更しない / `-` / `_`」。`-` または `_` を選ぶとピース内の `-` `_` `.`（FEATURE_DOT_NORMALIZE）を統一。`YYYY-MM-DD` のタイムスタンプは対象外（内部 `-` を保護）
       - スペースの扱い: 「変更しない / -に変更 / _に変更」で半角スペース（タブ・改行含む `\s+`）を置換
+      - 濁点処理: 「変更しない / 結合する」。HFS+/APFS 由来の分離した濁点・半濁点（NFD）を結合済み文字（NFC）に正規化（デフォルト 結合する）
     - 構成要素順のカスタマイズ：
       - 上部「構成要素の順序」パネルで「カスタム順」を選び、［順序を編集...］ボタンから ↑↓ で並び替え
       - 設定はプリセットに保存され次回起動時に復元
-    - 動作モード: 「元ファイルをリネーム」（新名で保存後に元ファイルを削除）／「別名で保存」（元ファイルは残り、作業中のドキュメントが新ファイルに切り替わる。デフォルト）／「コピーを保存」（元ファイルを上書き保存したうえで別名のコピーを作成。作業中のドキュメントは元ファイルのまま）
-    - UI 構成: 上部「動作 + 構成要素の順序」の 2 カラム → 「ファイル名プレビュー」（現在 / 保存後の名前）→ 「ファイル名の設定」 → Cancel / OK（右寄せ）
-    - トップ部の FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_SPACES / FEATURE_DOT_NORMALIZE で各機能を個別オフ可能。FEATURE_SEPARATOR は `'-'` / `'_'` の文字列で既定の区切りも指定
+    - 動作モード: 「元ファイルをリネーム」（新名で保存後に元ファイルを削除）／「別名で保存」（元ファイルは残り、作業中のドキュメントが新ファイルに切り替わる。デフォルト）／「コピー（複製）を保存」（元ファイルを上書き保存したうえで別名のコピーを作成。作業中のドキュメントは元ファイルのまま）
+    - UI 構成: 上部「動作 + 構成要素の順序」の 2 カラム → 「ファイル名プレビュー」（現在 / 保存後の名前、ラベルは右揃え）→ 「ファイル名の設定」 → Cancel / OK（右寄せ）
+    - トップ部の FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_SPACES / FEATURE_DOT_NORMALIZE / FEATURE_NFC で各機能を個別オフ可能。FEATURE_SEPARATOR は `'-'` / `'_'` の文字列で既定の区切りも指定
 
     ### 主な機能：
 
     - 元ファイルをリネーム（新名で保存後に元ファイルを削除して実質的にリネーム）
     - 別名で保存（元ファイルは保持。アクティブドキュメントは新ファイルに切り替わる。デフォルト）
-    - コピーを保存（元ファイルに上書き保存後、別名のコピーを物理ファイルとして作成）
-    - セグメント分解による独立編集（base / title / status / timestamp / version。status / date / version は自動検出）
+    - コピー（複製）を保存（元ファイルに上書き保存後、別名のコピーを物理ファイルとして作成）
+    - セグメント分解による独立編集（base / title / status / timestamp / version。base は UI 入力で編集、status / date / version は自動検出）
     - ステータス dropdown（11 種類 + 区切り線、ファイル名に入るのは `：` より前のみ。既存ファイル名から自動検出）
     - 構成要素順のカスタマイズ（サブダイアログで ↑↓、プリセット保存）
-    - タイムスタンプ／バージョン番号は「なし」で削除、形式切替（YYYYMMDD / YYYY-MM-DD / -vN / -v0N）
-    - 区切り記号統一（`-` `_` `.`）／空白置換（半角スペース・タブ・改行を `-` or `_` に置換）／YYYY-MM-DD の内部 `-` 保護
+    - タイムスタンプ／バージョン番号は「なし」で削除、形式切替（YYYYMMDD / YYYY-MM-DD / v1, v2… / v01, v02… / v001, v002…）。バージョン番号は親フォルダ内の同パターン最大 v +1 へ自動繰り上げ
+    - 区切り記号統一（`-` `_` `.`）／空白置換（半角スペース・タブ・改行を `-` or `_` に置換）／YYYY-MM-DD の内部 `-` 保護／NFC 正規化（分離した濁点・半濁点の結合、デフォルトオン）
     - 各機能を FEATURE_* 定数で個別にオフ可能
 
     ### 処理の流れ：
@@ -53,6 +54,7 @@
     - v1.0 (2026-05-27) : 初期バージョン
     - v1.1 (2026-06-01) : コロン付きラベル関数追加
     - (2026-05-27 追記) : ステータス dropdown、構成要素順カスタマイズ、スペース置換、YYYY-MM-DD タイムスタンプ、`.` 区切り正規化、整形機能の FEATURE スイッチ化、UI 整理（ベース行非表示、動作・構成要素 2 カラム、ボタン右寄せ）
+    - (2026-05-28 追記) : ベース行 UI 復活（入力欄）、「タイトル」→「サブテキスト」（英語: Project Name）改名、バージョン番号表記を v1, v2… / v01, v02… / v001, v002… の 3 段階に拡張、親フォルダ内の同パターンから最大 v +1 を採用、NFC 正規化（濁点・半濁点の結合、FEATURE_NFC）追加、「コピー（複製）を保存」表記、「現在 / 保存後の名前」ラベル右揃え
     
     ---
     
@@ -65,31 +67,32 @@
     - Renames the active Illustrator document (true rename), saves as a new file, or saves a copy.
     - Destination is always the same folder as the current file; for unsaved docs, a destination folder is chosen.
     - Decomposes the filename into base / title / status / timestamp / version segments and lets you edit them.
-      - base: the leading fixed part; not shown in the UI but preserved by the logic
-      - title: "Title" radio (None / Parent Folder / Custom input); input field is empty by default
+      - base: editable via the "Base" input (defaults to the detected value; may be empty)
+      - title: "Project Name" radio (None / Parent Folder / Custom input); input field is empty by default
       - status: "Status" dropdown (wip / draft / review / approved / outlined, etc.); only the text before `:` is written to the filename
       - timestamp: "Timestamp" radio selects "None / YYYYMMDD / YYYY-MM-DD" (default YYYYMMDD)
-      - version: "Version" radio selects "None / -vN / -v0N" (default -vN). An existing v-number is bumped by +1; otherwise v2 / v02 is added
+      - version: "Version" radio selects "None / v1, v2… / v01, v02… / v001, v002…" (default v1, v2…). An existing v-number is bumped by +1; otherwise v2 / v02 / v002 is added. If files matching the same pattern exist in the parent folder, the result is bumped further to (max v) + 1.
     - Formatting rules:
       - Separator: "Don't change / `-` / `_`". Selecting `-` or `_` unifies `-`, `_`, and `.` (FEATURE_DOT_NORMALIZE) inside each piece. `YYYY-MM-DD` timestamps are exempt (internal `-` is preserved)
       - Spaces: "Don't change / Change to - / Change to _" replaces ASCII whitespace (incl. tabs/newlines via `\s+`)
+      - NFC: "Don't change / Combine". Normalizes separated dakuten/handakuten (NFD) to combined characters (NFC). Default: Combine.
     - Custom segment order:
       - In the top "Segment Order" panel, choose "Custom" and click [Edit order...] to reorder with ↑↓
       - The order is persisted to prefs and restored on next launch
     - Modes: "Rename Original" (saves with the new name, then deletes the original), "Save As" (keeps the original; the active document switches to the new file; default), and "Save a Copy" (saves over the original, then creates a separate copy; the active document remains the original file).
-    - UI layout: top row "Mode + Segment Order" (2 columns) → "File Name Preview" (Current / Saved Name) → "Filename Settings" → Cancel / OK (right-aligned)
-    - Features can be toggled individually via FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_SPACES / FEATURE_DOT_NORMALIZE. FEATURE_SEPARATOR accepts `'-'` or `'_'` to also pick the default separator.
+    - UI layout: top row "Mode + Segment Order" (2 columns) → "File Name Preview" (Current / Saved Name, labels right-aligned) → "Filename Settings" → Cancel / OK (right-aligned)
+    - Features can be toggled individually via FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_SPACES / FEATURE_DOT_NORMALIZE / FEATURE_NFC. FEATURE_SEPARATOR accepts `'-'` or `'_'` to also pick the default separator.
 
     ### Key features:
 
     - Rename Original (saves with the new name, then removes the original)
     - Save As (keeps the original; the active document switches to the new file; default)
     - Save a Copy (saves over the original, then creates a separate copy; the active document remains the original file)
-    - Segment-based editing (base / title / status / timestamp / version; status / date / version auto-detected)
+    - Segment-based editing (base / title / status / timestamp / version; base edited via input, status / date / version auto-detected)
     - Status dropdown (11 entries + divider; only the text before `:` is used; detected from existing filenames)
     - Custom segment order via sub-dialog (↑↓; persisted to prefs)
-    - Timestamp / version: "None" removes the segment; switch format (YYYYMMDD / YYYY-MM-DD / -vN / -v0N)
-    - Separator unification (`-` `_` `.`) / space replacement / `-` protection inside YYYY-MM-DD
+    - Timestamp / version: "None" removes the segment; switch format (YYYYMMDD / YYYY-MM-DD / v1, v2… / v01, v02… / v001, v002…). Version auto-bumps to (max v in folder) + 1 when collisions exist.
+    - Separator unification (`-` `_` `.`) / space replacement / `-` protection inside YYYY-MM-DD / NFC normalization for separated dakuten/handakuten (default on)
     - Each feature toggleable via FEATURE_* constants
 
     ### Flow:
@@ -106,6 +109,7 @@
 
     - v1.0 (2026-05-27): Initial release
     - (2026-05-27 update): Added status dropdown, custom segment order, space replacement, YYYY-MM-DD timestamp, `.` separator normalization, FEATURE switches, UI cleanup (no base row, 2-col top, right-aligned buttons)
+    - (2026-05-28 update): Restored editable Base input, renamed "Title" → "Project Name", expanded version format to v1, v2… / v01, v02… / v001, v002…, auto-bump to (folder max v) + 1, added NFC normalization (FEATURE_NFC, default on), "Save a Copy" wording, right-aligned Current/Saved Name labels
     
     */
 
@@ -115,7 +119,7 @@
         // バージョン / Version
         // =========================================
 
-        var SCRIPT_VERSION = "v1.1.0";
+        var SCRIPT_VERSION = "v1.2.0";
 
         // =========================================
         // ユーザー設定 / User Settings
@@ -128,6 +132,7 @@
         var FEATURE_SEPARATOR = '-';      // 区切り記号統一: '-' / '_' で有効化＋既定値、false で無効 / '-' or '_' enables with that default; false disables
         var FEATURE_SPACES = '-';         // スペース置換: '-' / '_' で有効化＋既定値、false で無効 / '-' or '_' enables with that default; false disables
         var FEATURE_DOT_NORMALIZE = true; // "." を区切り記号にあわせて置換（要 FEATURE_SEPARATOR） / "." normalization with the chosen separator
+        var FEATURE_NFC = true;           // 濁点・半濁点の NFC 結合 / Combine separated dakuten/handakuten (NFC)
 
         /* 出力時のセグメント順序。base / title / status / timestamp / version。FEATURE_STATUS=false なら status は除外
            / Output segment order; "status" is dropped when FEATURE_STATUS is false */
@@ -188,7 +193,7 @@
             radio: {
                 rename: { ja: "元ファイルをリネーム", en: "Rename Original" },
                 saveAs: { ja: "別名で保存", en: "Save As" },
-                saveCopy: { ja: "コピーを保存", en: "Save a Copy" },
+                saveCopy: { ja: "コピー（複製）を保存", en: "Save a Copy" },
                 opVersionOnly: { ja: "バージョン番号のみ", en: "Version Only" },
                 opFull: { ja: "全体", en: "Full" },
                 noChange: { ja: "変更しない", en: "No Change" },
@@ -199,10 +204,12 @@
                 timestampDate: { ja: "YYYYMMDD", en: "YYYYMMDD" },
                 timestampDateDash: { ja: "YYYY-MM-DD", en: "YYYY-MM-DD" },
                 versionNone: { ja: "なし", en: "None" },
-                versionShort: { ja: "-vN", en: "-vN" },
-                versionPadded: { ja: "-v0N", en: "-v0N" },
+                versionShort: { ja: "v1, v2…", en: "v1, v2…" },
+                versionPadded: { ja: "v01, v02…", en: "v01, v02…" },
+                versionPaddedWide: { ja: "v001, v002…", en: "v001, v002…" },
                 changeToDash: { ja: "-に変更", en: "Change to -" },
                 changeToUnderscore: { ja: "_に変更", en: "Change to _" },
+                nfcCombine: { ja: "結合する", en: "Combine" },
                 sortOff: { ja: "標準順", en: "Default" },
                 sortOn: { ja: "カスタム順", en: "Custom" }
             },
@@ -210,12 +217,13 @@
                 currentName: { ja: "現在", en: "Current" },
                 finalName: { ja: "保存後の名前", en: "Saved Name" },
                 base: { ja: "ベース", en: "Base" },
-                title: { ja: "タイトル", en: "Title" },
+                title: { ja: "サブテキスト", en: "Project Name" },
                 status: { ja: "ステータス", en: "Status" },
                 timestamp: { ja: "タイムスタンプ", en: "Timestamp" },
                 version: { ja: "バージョン番号", en: "Version" },
                 separator: { ja: "区切り記号", en: "Separator" },
-                spaces: { ja: "スペースの扱い", en: "Spaces" }
+                spaces: { ja: "スペースの扱い", en: "Spaces" },
+                nfc: { ja: "濁点処理", en: "NFC" }
             },
             tip: {
                 rename: {
@@ -230,9 +238,13 @@
                     ja: "元ファイルに上書き保存したうえで、別名のコピーを作成します。作業中のドキュメントは元ファイルのまま残ります。",
                     en: "Saves the original, then creates a copy with the new name. The active document remains the original file."
                 },
+                base: {
+                    ja: "ファイル名の先頭部分。空欄にすると省略されます。",
+                    en: "Leading part of the filename. Leave empty to omit."
+                },
                 title: {
-                    ja: "ファイル名のタイトル部分の扱いを選択します。「指定」で入力欄の文字列を使用します。",
-                    en: "Choose how to set the title part of the filename. With \"Custom\", the entered text is used."
+                    ja: "ファイル名に追加する案件名・補足テキスト。「指定」で入力欄の文字列を使用します。",
+                    en: "Choose how to set the project name in the filename. With \"Custom\", the entered text is used."
                 },
                 status: {
                     ja: "ファイル名に挿入する制作ステータスを選択します。「：」より前の文字列が入ります。",
@@ -243,8 +255,8 @@
                     en: "Choose timestamp format. \"None\" removes any existing date."
                 },
                 version: {
-                    ja: "バージョン番号の形式。-vN はパディング無し、-v0N はゼロ埋め。既存の v 番号は +1、無い場合は v2 / v02 を付与。「なし」で削除。",
-                    en: "Version format. -vN has no padding, -v0N is zero-padded. An existing v-number is bumped by +1; otherwise v2 / v02 is added. \"None\" removes."
+                    ja: "バージョン番号の形式。v1/v2 はパディング無し、v01/v02 は 2 桁、v001/v002 は 3 桁ゼロ埋め。既存の v 番号は +1、無い場合は v2/v02/v002 を付与。「なし」で削除。",
+                    en: "Version format. v1/v2 has no padding, v01/v02 is 2-digit, v001/v002 is 3-digit zero-padded. An existing v-number is bumped by +1; otherwise v2/v02/v002 is added. \"None\" removes."
                 },
                 separator: {
                     ja: "ファイル名全体の区切り記号の扱いを選択します。「-」「_」「.」が対象。YYYY-MM-DD のタイムスタンプは保護されます。",
@@ -257,6 +269,10 @@
                 sort: {
                     ja: "「カスタム順」を選び［順序を編集］から並び順を編集します。",
                     en: "Choose \"Custom\" and click [Edit order] to edit the order."
+                },
+                nfc: {
+                    ja: "ファイル名に分離した濁点・半濁点が含まれる場合、結合済み文字（NFC）に正規化します。",
+                    en: "Normalize separated dakuten/handakuten to combined characters (NFC)."
                 }
             },
             button: {
@@ -403,6 +419,29 @@
             return segments;
         }
 
+        /* 複数の text セグメントが分散している（間に date/version/status が挟まる）場合、
+           それらをまとめて 1 つの text として再結合。subtext として完全な文字列を扱えるようにする
+           / Merge fragmented text segments back into one (with the in-between non-text segments inlined) */
+        function mergeFragmentedText(segments) {
+            var firstText = -1, lastText = -1;
+            for (var i = 0; i < segments.length; i++) {
+                if (segments[i].kind === 'text') {
+                    if (firstText === -1) firstText = i;
+                    lastText = i;
+                }
+            }
+            if (firstText === -1 || firstText === lastText) return segments;
+            var combined = segments[firstText].value;
+            for (var j = firstText + 1; j <= lastText; j++) {
+                combined += segments[j].sep + segments[j].value;
+            }
+            var merged = { kind: 'text', value: combined, sep: segments[firstText].sep };
+            var result = segments.slice(0, firstText);
+            result.push(merged);
+            for (var k = lastText + 1; k < segments.length; k++) result.push(segments[k]);
+            return result;
+        }
+
         /* segments から最初に出現する kind の value を取得 / Get the value of the first segment of the given kind */
         function getFirstSegmentValue(segments, kind) {
             for (var i = 0; i < segments.length; i++) {
@@ -443,8 +482,9 @@
             return currentBaseName + '-v2';
         }
 
-        /* バージョン文字列を +1。mode='padded' でゼロ埋め（最低 2 桁）。元バージョンが無ければ新規付与（v2 / v02）
-           / Bump the version string by +1. 'padded' zero-pads to at least 2 digits. Returns v2 / v02 if no original */
+        /* バージョン文字列を +1。mode='padded' で 2 桁ゼロ埋め、'paddedWide' で 3 桁ゼロ埋め。
+           元バージョンが無ければ新規付与（v2 / v02 / v002）
+           / Bump the version string by +1. 'padded'=min 2 digits, 'paddedWide'=min 3. Returns v2/v02/v002 if no original */
         function formatVersion(originalVersion, mode) {
             var match = String(originalVersion || '').match(/^([vV])(\d+)$/);
             var letter = match ? match[1] : 'v';
@@ -453,7 +493,64 @@
                 var width = match ? Math.max(match[2].length, 2) : 2;
                 return letter + padLeft(String(nextNum), width);
             }
+            if (mode === 'paddedWide') {
+                var widthWide = match ? Math.max(match[2].length, 3) : 3;
+                return letter + padLeft(String(nextNum), widthWide);
+            }
             return letter + String(nextNum);
+        }
+
+        /* baseName 内の最初の v+数字パターンを抽出。マッチしなければ null
+           / Extract the first v+digits in baseName; null if no v-number */
+        function extractVersionParts(baseName) {
+            var m = String(baseName).match(/^(.*?)([vV])(\d+)(.*)$/);
+            if (!m) return null;
+            return { prefix: m[1], letter: m[2], digits: m[3], suffix: m[4] };
+        }
+
+        /* 正規表現エスケープ / Escape for use in RegExp */
+        function escapeRegExp(s) {
+            return String(s).replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+        }
+
+        /* baseName と同じ prefix / suffix を持つファイルを folder から探し、最大の v 番号を返す
+           / Scan folder for files matching baseName's v-pattern; return max v-number or null */
+        function findMaxVersionInFolder(baseName, folder, ext) {
+            if (!folder) return null;
+            var parts = extractVersionParts(baseName);
+            if (!parts) return null;
+            var re = new RegExp(
+                '^' + escapeRegExp(parts.prefix) + '[vV](\\d+)'
+                + escapeRegExp(parts.suffix) + escapeRegExp(ext) + '$',
+                'i'
+            );
+            var files;
+            try { files = folder.getFiles(); } catch (e) { return null; }
+            var maxNum = -1;
+            for (var i = 0; i < files.length; i++) {
+                if (!(files[i] instanceof File)) continue;
+                var fname = decodePercentEncoded(files[i].name);
+                var fm = fname.match(re);
+                if (!fm) continue;
+                var num = parseInt(fm[1], 10);
+                if (num > maxNum) maxNum = num;
+            }
+            return maxNum >= 0 ? maxNum : null;
+        }
+
+        /* 親フォルダー内の同パターンファイルの最大 v 番号 +1 に置き換える。
+           無い、または +1 が現在値以下のときは baseName のまま返す。桁数は維持
+           / Replace v-number with (folder max + 1); preserves digit width */
+        function nextAvailableVersionName(baseName, folder, ext) {
+            var maxNum = findMaxVersionInFolder(baseName, folder, ext);
+            if (maxNum === null) return baseName;
+            var parts = extractVersionParts(baseName);
+            if (!parts) return baseName;
+            var current = parseInt(parts.digits, 10);
+            var target = maxNum + 1;
+            if (target <= current) return baseName;
+            var width = Math.max(parts.digits.length, String(target).length);
+            return parts.prefix + parts.letter + padLeft(String(target), width) + parts.suffix;
         }
 
         /* % エンコードを 1 回デコード / Decode a percent-encoded string once (best-effort) */
@@ -476,6 +573,30 @@
         /* ファイル名として無効な文字を除去し前後空白をトリム / Strip invalid filename chars and trim whitespace */
         function sanitizeFilename(str) {
             return String(str).replace(/[\\\/:*?"<>|]/g, '').replace(/^\s+|\s+$/g, '');
+        }
+
+        /* HFS+/APFS 由来の NFD 文字列（か + ゛など）を NFC（が）に結合。
+           ひらがな・カタカナ + U+3099/U+309A を主に対象。う/ウ/ワ/ヰ/ヱ/ヲ は特例マッピング
+           / Normalize NFD-style hiragana/katakana + combining marks to composed NFC form */
+        function normalizeNFC(str) {
+            return String(str).replace(/(.)([゙゚])/g, function (_, base, mark) {
+                var voiced = (mark === '゙');
+                if (voiced) {
+                    if (base === 'う') return 'ゔ';
+                    if (base === 'ウ') return 'ヴ';
+                    if (base === 'ワ') return 'ヷ';
+                    if (base === 'ヰ') return 'ヸ';
+                    if (base === 'ヱ') return 'ヹ';
+                    if (base === 'ヲ') return 'ヺ';
+                }
+                var code = base.charCodeAt(0);
+                var isHiragana = code >= 0x3041 && code <= 0x3093;
+                var isKatakana = code >= 0x30A1 && code <= 0x30F3;
+                if (isHiragana || isKatakana) {
+                    return String.fromCharCode(code + (voiced ? 1 : 2));
+                }
+                return base + mark;
+            });
         }
 
         /* 保存先ダイアログ。.ai 拡張子を補正して File を返す。キャンセルは null / Show save dialog, normalize to .ai; null on cancel */
@@ -603,7 +724,7 @@
 
             function valueForKind(kind) {
                 if (kind === 'base') {
-                    return getFirstSegmentValue(segments, 'base');
+                    return sanitizeFilename(uiState.baseText || '');
                 }
                 if (kind === 'title') {
                     if (uiState.titleMode === 'none') return '';
@@ -761,26 +882,24 @@
 
             var currentNameRow = panel.add('group');
             currentNameRow.orientation = 'row';
-            var currentNameLabel = currentNameRow.add('statictext', undefined, labelText('label.currentName'));
+            var currentNameLabel = currentNameRow.add('statictext', undefined, labelText('label.currentName'), { justify: 'right' });
             currentNameRow.add('statictext', undefined, currentName);
 
             var finalNameRow = panel.add('group');
             finalNameRow.orientation = 'row';
-            var finalNameLabel = finalNameRow.add('statictext', undefined, labelText('label.finalName'));
+            var finalNameLabel = finalNameRow.add('statictext', undefined, labelText('label.finalName'), { justify: 'right' });
             // 「変更後：」は statictext のためレイアウト後にサイズ固定。
             // 現在のファイル名と「入力フィールド + 余白」の大きい方を確保しておく
             var finalNameValue = finalNameRow.add('statictext', undefined, currentName + '.ai');
             var currentNameWidth = panel.graphics.measureString(currentName + '.ai').width;
             finalNameValue.preferredSize.width = Math.max(currentNameWidth + 20, NEW_NAME_FIELD_WIDTH + 150);
 
-            alignLabelWidths(panel, [
-                labelText('label.currentName'),
-                labelText('label.finalName')
-            ], [currentNameLabel, finalNameLabel]);
-
+            // 個別整列はせず、ラベル参照を呼び出し側に返し、後段で全パネル統一整列する
             return {
                 panel: panel,
-                finalNameValue: finalNameValue
+                finalNameValue: finalNameValue,
+                labels: [currentNameLabel, finalNameLabel],
+                labelTexts: [labelText('label.currentName'), labelText('label.finalName')]
             };
         }
 
@@ -789,11 +908,20 @@
             var panel = parent.add('panel', undefined, L('panel.options'));
             setupPanel(panel);
 
-            // ベースは UI には出さず、ロジック内（buildFinalName）で segments から取得
-            // 元ファイル名のテキスト部（base / status / date / version 以外）をタイトルとして検出
+            // ベース: 検出値を初期表示する入力欄。空欄可、prefs には保存しない
+            var detectedBase = getFirstSegmentValue(segments, 'base');
+            var baseRow = panel.add('group');
+            baseRow.orientation = 'row';
+            var baseLabel = baseRow.add('statictext', undefined, labelText('label.base'));
+            baseLabel.helpTip = L('tip.base');
+            var baseField = baseRow.add('edittext', undefined, detectedBase);
+            baseField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
+            baseField.helpTip = L('tip.base');
+
+            // 元ファイル名のテキスト部（base / status / date / version 以外）をサブテキストとして検出
             var detectedTitle = getFirstSegmentValue(segments, 'text');
 
-            // タイトル: 1 行目 = ラベル + 3 ラジオ、2 行目 = 「指定」用の入力欄
+            // サブテキスト: 1 行目 = ラベル + 3 ラジオ、2 行目 = 「指定」用の入力欄
             var titleSection = panel.add('group');
             titleSection.orientation = 'column';
             titleSection.alignChildren = ['fill', 'top'];
@@ -823,17 +951,15 @@
             titleField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
             titleField.helpTip = L('tip.title');
 
-            // 初期モード: prefs.titleMode を優先（parent は parentFolderName 必須）。
-            // 未保存かつ元ファイル名からタイトルを検出できた場合は 'custom'、それ以外は 'none'
+            // 初期モード: 元ファイル名にサブテキストが無ければ「なし」を強制。
+            // 検出できた場合は prefs.titleMode を優先、無ければ 'custom'（parent は parentFolderName 必須）
             var initialTitleMode;
-            if (prefs && (prefs.titleMode === 'parent' || prefs.titleMode === 'custom')) {
+            if (!detectedTitle) {
+                initialTitleMode = 'none';
+            } else if (prefs && (prefs.titleMode === 'none' || prefs.titleMode === 'parent' || prefs.titleMode === 'custom')) {
                 initialTitleMode = prefs.titleMode;
-            } else if (prefs && prefs.titleMode === 'none') {
-                initialTitleMode = 'none';
-            } else if (detectedTitle) {
-                initialTitleMode = 'custom';
             } else {
-                initialTitleMode = 'none';
+                initialTitleMode = 'custom';
             }
             if (initialTitleMode === 'parent' && !parentFolderName) {
                 initialTitleMode = detectedTitle ? 'custom' : 'none';
@@ -890,7 +1016,7 @@
             timestampDateRadio.value = (initialTimestamp === 'date');
             timestampDateDashRadio.value = (initialTimestamp === 'dateDash');
 
-            // バージョン番号（なし / -vN / -v0N。デフォルト -vN）
+            // バージョン番号（なし / v1, v2… / v01, v02… / v001, v002…。デフォルト v1, v2…）
             var versionRow = panel.add('group');
             versionRow.orientation = 'row';
             var versionLabel = versionRow.add('statictext', undefined, labelText('label.version'));
@@ -901,10 +1027,13 @@
             versionShortRadio.helpTip = L('tip.version');
             var versionPaddedRadio = versionRow.add('radiobutton', undefined, L('radio.versionPadded'));
             versionPaddedRadio.helpTip = L('tip.version');
-            var initialVersion = (prefs && (prefs.version === 'none' || prefs.version === 'padded')) ? prefs.version : 'short';
+            var versionPaddedWideRadio = versionRow.add('radiobutton', undefined, L('radio.versionPaddedWide'));
+            versionPaddedWideRadio.helpTip = L('tip.version');
+            var initialVersion = (prefs && (prefs.version === 'none' || prefs.version === 'padded' || prefs.version === 'paddedWide')) ? prefs.version : 'short';
             versionNoneRadio.value = (initialVersion === 'none');
             versionShortRadio.value = (initialVersion === 'short');
             versionPaddedRadio.value = (initialVersion === 'padded');
+            versionPaddedWideRadio.value = (initialVersion === 'paddedWide');
 
             // 区切り記号（変更しない / - / _ 横並び。デフォルト "-"）
             var separatorLabel = null, noChangeRadio = null, dashRadio = null, underscoreRadio = null;
@@ -927,7 +1056,7 @@
                 underscoreRadio.value = (initialSeparator === '_');
             }
 
-            // スペースの扱い（変更しない / -に変更 / _に変更。デフォルト "変更しない"）
+            // スペースの扱い（変更しない / -に変更 / _に変更。デフォルトは FEATURE_SPACES 値、初期 "-"）
             var spacesLabel = null, spaceNoChangeRadio = null, spaceDashRadio = null, spaceUnderscoreRadio = null;
             if (FEATURE_SPACES) {
                 var spacesRow = panel.add('group');
@@ -948,21 +1077,41 @@
                 spaceUnderscoreRadio.value = (initialSpaces === '_');
             }
 
+            // 濁点処理（変更しない / 結合する。デフォルト "結合する"）
+            var nfcLabel = null, nfcNoChangeRadio = null, nfcCombineRadio = null;
+            if (FEATURE_NFC) {
+                var nfcRow = panel.add('group');
+                nfcRow.orientation = 'row';
+                nfcLabel = nfcRow.add('statictext', undefined, labelText('label.nfc'));
+                nfcLabel.helpTip = L('tip.nfc');
+                nfcNoChangeRadio = nfcRow.add('radiobutton', undefined, L('radio.noChange'));
+                nfcNoChangeRadio.helpTip = L('tip.nfc');
+                nfcCombineRadio = nfcRow.add('radiobutton', undefined, L('radio.nfcCombine'));
+                nfcCombineRadio.helpTip = L('tip.nfc');
+                var initialNfc = (prefs && (prefs.nfc === 'keep' || prefs.nfc === 'combine')) ? prefs.nfc : 'combine';
+                nfcNoChangeRadio.value = (initialNfc === 'keep');
+                nfcCombineRadio.value = (initialNfc === 'combine');
+            }
+
             // ラベル幅を統一（FEATURE で UI 非表示の行は除外）
-            var labelTexts = [labelText('label.title')];
-            var labelControls = [titleLabel];
+            var labelTexts = [labelText('label.base'), labelText('label.title')];
+            var labelControls = [baseLabel, titleLabel];
             if (FEATURE_STATUS) { labelTexts.push(labelText('label.status')); labelControls.push(statusLabel); }
             labelTexts.push(labelText('label.timestamp')); labelControls.push(timestampLabel);
             labelTexts.push(labelText('label.version')); labelControls.push(versionLabel);
             if (FEATURE_SEPARATOR) { labelTexts.push(labelText('label.separator')); labelControls.push(separatorLabel); }
             if (FEATURE_SPACES) { labelTexts.push(labelText('label.spaces')); labelControls.push(spacesLabel); }
-            alignLabelWidths(panel, labelTexts, labelControls);
-
-            // タイトル 2 行目「指定」入力欄の左余白をラベル列幅と一致させる
-            titleFieldSpacer.preferredSize = [titleLabel.preferredSize.width, 1];
+            if (FEATURE_NFC) { labelTexts.push(labelText('label.nfc')); labelControls.push(nfcLabel); }
+            // 個別整列はせず、呼び出し側に渡してファイル名パネルと統一整列する
+            // titleFieldSpacer の幅は createDialog 側で整列後に設定する
 
             return {
                 panel: panel,
+                baseField: baseField,
+                titleLabel: titleLabel,
+                titleFieldSpacer: titleFieldSpacer,
+                labels: labelControls,
+                labelTexts: labelTexts,
                 titleNoneRadio: titleNoneRadio,
                 titleParentRadio: titleParentRadio,
                 titleCustomRadio: titleCustomRadio,
@@ -975,12 +1124,15 @@
                 versionNoneRadio: versionNoneRadio,
                 versionShortRadio: versionShortRadio,
                 versionPaddedRadio: versionPaddedRadio,
+                versionPaddedWideRadio: versionPaddedWideRadio,
                 noChangeRadio: noChangeRadio,
                 dashRadio: dashRadio,
                 underscoreRadio: underscoreRadio,
                 spaceNoChangeRadio: spaceNoChangeRadio,
                 spaceDashRadio: spaceDashRadio,
                 spaceUnderscoreRadio: spaceUnderscoreRadio,
+                nfcNoChangeRadio: nfcNoChangeRadio,
+                nfcCombineRadio: nfcCombineRadio,
                 /* '' = 変更しない、'-' / '_' = 統一。FEATURE_SEPARATOR=false なら常に '' */
                 getSeparator: function () {
                     if (!FEATURE_SEPARATOR || !noChangeRadio) return '';
@@ -994,6 +1146,12 @@
                     if (spaceNoChangeRadio.value) return '';
                     if (spaceDashRadio.value) return '-';
                     return '_';
+                },
+                /* 'keep' = そのまま、'combine' = 濁点・半濁点を NFC 結合。FEATURE_NFC=false なら常に 'keep' */
+                getNfc: function () {
+                    if (!FEATURE_NFC || !nfcNoChangeRadio) return 'keep';
+                    if (nfcNoChangeRadio.value) return 'keep';
+                    return 'combine';
                 },
                 /* 'none' / 'date' / 'dateDash' */
                 getTimestamp: function () {
@@ -1009,17 +1167,22 @@
                     if (!item || isStatusDivider(item)) return '';
                     return item.value;
                 },
-                /* 'none' / 'short' / 'padded' */
+                /* 'none' / 'short' / 'padded' / 'paddedWide' */
                 getVersion: function () {
                     if (versionNoneRadio.value) return 'none';
                     if (versionShortRadio.value) return 'short';
-                    return 'padded';
+                    if (versionPaddedRadio.value) return 'padded';
+                    return 'paddedWide';
                 },
                 /* 'none' / 'parent' / 'custom' */
                 getTitleMode: function () {
                     if (titleNoneRadio.value) return 'none';
                     if (titleParentRadio.value) return 'parent';
                     return 'custom';
+                },
+                /* ベース入力欄の現在値 / Current value of the base input */
+                getBase: function () {
+                    return baseField.text;
                 }
             };
         }
@@ -1138,7 +1301,7 @@
         }
 
         /* ダイアログ全体を組み立て、イベント配線とプレビューを行う / Compose the full dialog, wire events, and run live preview */
-        function createDialog(segments, currentName, prefs, parentFolderName) {
+        function createDialog(segments, currentName, prefs, parentFolderName, folder) {
             var dialog = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
             dialog.opacity = DIALOG_OPACITY;
             dialog.orientation = 'column';
@@ -1160,10 +1323,18 @@
             var filename = buildFilenamePanel(dialog, currentName);
             var options = buildOptionsPanel(dialog, segments, prefs, parentFolderName);
 
+            // 2 つのパネルのラベル幅を統一整列（測定基準は options.panel）
+            var combinedTexts = filename.labelTexts.concat(options.labelTexts);
+            var combinedLabels = filename.labels.concat(options.labels);
+            alignLabelWidths(options.panel, combinedTexts, combinedLabels);
+            // サブテキスト 2 行目「指定」入力欄の左余白を統一後のラベル列幅に合わせる
+            options.titleFieldSpacer.preferredSize = [options.titleLabel.preferredSize.width, 1];
+
             // ---- ライブプレビュー ----
             function currentUIState() {
                 return {
                     opMode: opMode.getOpMode(),
+                    baseText: options.getBase(),
                     titleMode: options.getTitleMode(),
                     titleText: options.titleField.text,
                     parentFolderName: parentFolderName,
@@ -1172,6 +1343,7 @@
                     version: options.getVersion(),
                     separator: options.getSeparator(),
                     spaces: options.getSpaces(),
+                    nfc: options.getNfc(),
                     sort: (FEATURE_SORT && sort && sort.isSortOn()) ? 'on' : 'off',
                     customSegmentOrder: customOrder.slice(),
                     segmentOrder: (FEATURE_SORT && sort && sort.isSortOn()) ? customOrder : SEGMENT_ORDER
@@ -1192,8 +1364,16 @@
                 var finalBase;
                 if (opMode.isVersionOnly()) {
                     finalBase = bumpVersionInPlace(stripExtension(currentName));
+                    finalBase = nextAvailableVersionName(finalBase, folder, '.ai');
                 } else {
-                    finalBase = buildFinalName(segments, currentUIState());
+                    var st = currentUIState();
+                    finalBase = buildFinalName(segments, st);
+                    if (st.version === 'short' || st.version === 'padded' || st.version === 'paddedWide') {
+                        finalBase = nextAvailableVersionName(finalBase, folder, '.ai');
+                    }
+                }
+                if (FEATURE_NFC && options.getNfc() === 'combine') {
+                    finalBase = normalizeNFC(finalBase);
                 }
                 filename.finalNameValue.text = finalBase + '.ai';
             }
@@ -1210,6 +1390,7 @@
             options.titleNoneRadio.onClick = refreshPreviews;
             options.titleParentRadio.onClick = refreshPreviews;
             options.titleCustomRadio.onClick = refreshPreviews;
+            options.baseField.onChanging = refreshPreviews;
             options.titleField.onChanging = refreshPreviews;
             if (options.statusDropdown) options.statusDropdown.onChange = refreshPreviews;
             options.timestampNoneRadio.onClick = refreshPreviews;
@@ -1218,6 +1399,7 @@
             options.versionNoneRadio.onClick = refreshPreviews;
             options.versionShortRadio.onClick = refreshPreviews;
             options.versionPaddedRadio.onClick = refreshPreviews;
+            options.versionPaddedWideRadio.onClick = refreshPreviews;
             if (options.noChangeRadio) {
                 options.noChangeRadio.onClick = refreshPreviews;
                 options.dashRadio.onClick = refreshPreviews;
@@ -1227,6 +1409,10 @@
                 options.spaceNoChangeRadio.onClick = refreshPreviews;
                 options.spaceDashRadio.onClick = refreshPreviews;
                 options.spaceUnderscoreRadio.onClick = refreshPreviews;
+            }
+            if (options.nfcNoChangeRadio) {
+                options.nfcNoChangeRadio.onClick = refreshPreviews;
+                options.nfcCombineRadio.onClick = refreshPreviews;
             }
 
             // ソートパネルの ON/OFF とサブダイアログ起動（FEATURE_SORT のとき）
@@ -1274,10 +1460,10 @@
 
             var doc = app.activeDocument;
             var info = gatherDocumentInfo(doc);
-            var segments = parseFileName(info.baseName);
+            var segments = mergeFragmentedText(parseFileName(info.baseName));
             var prefs = loadPrefs();
 
-            var ui = createDialog(segments, info.currentName, prefs, info.parentFolderName);
+            var ui = createDialog(segments, info.currentName, prefs, info.parentFolderName, info.folder);
             if (ui.dialog.show() !== 1) return; // キャンセル
 
             var uiState = ui.getUIState();
@@ -1291,6 +1477,14 @@
 
             var targetFolder = ensureTargetFolder(info.folder);
             if (!targetFolder) return; // キャンセル
+
+            if (uiState.opMode === 'versionOnly' || uiState.version === 'short' || uiState.version === 'padded' || uiState.version === 'paddedWide') {
+                newBaseName = nextAvailableVersionName(newBaseName, targetFolder, '.ai');
+            }
+
+            if (FEATURE_NFC && uiState.nfc === 'combine') {
+                newBaseName = normalizeNFC(newBaseName);
+            }
 
             var destFile = File(targetFolder.fsName + '/' + newBaseName + '.ai');
             if (!confirmOverwriteIfExists(destFile, info.fsPath)) return;
@@ -1307,6 +1501,7 @@
                     if (FEATURE_STATUS) prefsToSave.status = uiState.status;
                     if (FEATURE_SEPARATOR) prefsToSave.separator = uiState.separator;
                     if (FEATURE_SPACES) prefsToSave.spaces = uiState.spaces;
+                    if (FEATURE_NFC) prefsToSave.nfc = uiState.nfc;
                     if (FEATURE_SORT) {
                         prefsToSave.sort = uiState.sort;
                         prefsToSave.segmentOrder = uiState.customSegmentOrder.join(',');
