@@ -180,6 +180,7 @@
             },
             panel: {
                 mode: { ja: "動作", en: "Mode" },
+                opMode: { ja: "モード", en: "Scope" },
                 filename: { ja: "ファイル名プレビュー", en: "File Name Preview" },
                 options: { ja: "ファイル名の設定", en: "Filename Settings" },
                 sort: { ja: "構成要素の順序", en: "Segment Order" }
@@ -188,6 +189,8 @@
                 rename: { ja: "元ファイルをリネーム", en: "Rename Original" },
                 saveAs: { ja: "別名で保存", en: "Save As" },
                 saveCopy: { ja: "コピーを保存", en: "Save a Copy" },
+                opVersionOnly: { ja: "バージョン番号のみ", en: "Version Only" },
+                opFull: { ja: "全体", en: "Full" },
                 noChange: { ja: "変更しない", en: "No Change" },
                 titleNone: { ja: "なし", en: "None" },
                 titleParent: { ja: "親フォルダー", en: "Parent Folder" },
@@ -422,6 +425,22 @@
             return String(d.getFullYear()) + sep +
                 padLeft(String(d.getMonth() + 1), 2) + sep +
                 padLeft(String(d.getDate()), 2);
+        }
+
+        /* 現在のファイル名（拡張子なし）の v 番号だけを桁数維持で +1。
+           v 番号が無ければ末尾に "-v2" を付与
+           / Bump the v-number inside the current basename in place (preserving digit width).
+           Appends "-v2" if no v-number exists. */
+        function bumpVersionInPlace(currentBaseName) {
+            var match = String(currentBaseName).match(/([vV])(\d+)/);
+            if (match) {
+                var letter = match[1];
+                var digits = match[2];
+                var nextNum = parseInt(digits, 10) + 1;
+                var newDigits = padLeft(String(nextNum), digits.length);
+                return currentBaseName.replace(/([vV])\d+/, letter + newDigits);
+            }
+            return currentBaseName + '-v2';
         }
 
         /* バージョン文字列を +1。mode='padded' でゼロ埋め（最低 2 桁）。元バージョンが無ければ新規付与（v2 / v02）
@@ -689,6 +708,24 @@
             };
         }
 
+        /* 「モード」パネルを構築（バージョン番号のみ / 全体）。常に「全体」が初期値
+           / Build the scope panel (Version Only / Full); always defaults to "Full" */
+        function buildOpModePanel(parent) {
+            var panel = parent.add('panel', undefined, L('panel.opMode'));
+            setupPanel(panel);
+            var versionOnlyRadio = panel.add('radiobutton', undefined, L('radio.opVersionOnly'));
+            var fullRadio = panel.add('radiobutton', undefined, L('radio.opFull'));
+            versionOnlyRadio.value = false;
+            fullRadio.value = true;
+            return {
+                panel: panel,
+                versionOnlyRadio: versionOnlyRadio,
+                fullRadio: fullRadio,
+                isVersionOnly: function () { return versionOnlyRadio.value; },
+                getOpMode: function () { return versionOnlyRadio.value ? 'versionOnly' : 'full'; }
+            };
+        }
+
         /* モード選択パネルを構築（リネーム / 別名で保存 / コピーを保存） / Build the mode panel (Rename / Save As / Save a Copy) */
         function buildModePanel(parent, prefs) {
             var panel = parent.add('panel', undefined, L('panel.mode'));
@@ -699,11 +736,10 @@
             saveAsRadio.helpTip = L('tip.saveAs');
             var saveCopyRadio = panel.add('radiobutton', undefined, L('radio.saveCopy'));
             saveCopyRadio.helpTip = L('tip.saveCopy');
-            // 初期選択（プリセットがあれば優先、無ければ「別名で保存」）
-            var initialMode = (prefs && (prefs.mode === 'rename' || prefs.mode === 'copy')) ? prefs.mode : 'saveAs';
-            renameRadio.value = (initialMode === 'rename');
-            saveAsRadio.value = (initialMode === 'saveAs');
-            saveCopyRadio.value = (initialMode === 'copy');
+            // 初期選択は常に「別名で保存」
+            renameRadio.value = false;
+            saveAsRadio.value = true;
+            saveCopyRadio.value = false;
             return {
                 panel: panel,
                 renameRadio: renameRadio,
@@ -754,7 +790,8 @@
             setupPanel(panel);
 
             // ベースは UI には出さず、ロジック内（buildFinalName）で segments から取得
-            // タイトル入力欄はデフォルト空白（元ファイル名のテキスト部は自動投入しない）
+            // 元ファイル名のテキスト部（base / status / date / version 以外）をタイトルとして検出
+            var detectedTitle = getFirstSegmentValue(segments, 'text');
 
             // タイトル: 1 行目 = ラベル + 3 ラジオ、2 行目 = 「指定」用の入力欄
             var titleSection = panel.add('group');
@@ -782,19 +819,24 @@
             titleFieldRow.orientation = 'row';
             titleFieldRow.alignment = ['left', 'top'];
             var titleFieldSpacer = titleFieldRow.add('statictext', undefined, '');
-            var titleField = titleFieldRow.add('edittext', undefined, '');
+            var titleField = titleFieldRow.add('edittext', undefined, detectedTitle);
             titleField.preferredSize.width = NEW_NAME_FIELD_WIDTH;
             titleField.helpTip = L('tip.title');
 
-            // 初期モード: プリセット優先、無ければ 'none'。parent 指定で親フォルダー名が無ければ 'none'
+            // 初期モード: prefs.titleMode を優先（parent は parentFolderName 必須）。
+            // 未保存かつ元ファイル名からタイトルを検出できた場合は 'custom'、それ以外は 'none'
             var initialTitleMode;
-            if (prefs && (prefs.titleMode === 'none' || prefs.titleMode === 'parent' || prefs.titleMode === 'custom')) {
+            if (prefs && (prefs.titleMode === 'parent' || prefs.titleMode === 'custom')) {
                 initialTitleMode = prefs.titleMode;
+            } else if (prefs && prefs.titleMode === 'none') {
+                initialTitleMode = 'none';
+            } else if (detectedTitle) {
+                initialTitleMode = 'custom';
             } else {
                 initialTitleMode = 'none';
             }
             if (initialTitleMode === 'parent' && !parentFolderName) {
-                initialTitleMode = 'none';
+                initialTitleMode = detectedTitle ? 'custom' : 'none';
             }
             titleNoneRadio.value = (initialTitleMode === 'none');
             titleParentRadio.value = (initialTitleMode === 'parent');
@@ -1102,11 +1144,12 @@
             dialog.orientation = 'column';
             dialog.alignChildren = 'fill';
 
-            // 上部 2 カラム: 動作パネル + ソートパネル（FEATURE_SORT=false ならソートパネル無し）
+            // 上部: 動作パネル + モードパネル + ソートパネル（FEATURE_SORT=false ならソートパネル無し）
             var topRow = dialog.add('group');
             topRow.orientation = 'row';
             topRow.alignChildren = ['fill', 'top'];
             var mode = buildModePanel(topRow, prefs);
+            var opMode = buildOpModePanel(topRow);
             var sort = FEATURE_SORT ? buildSortPanel(topRow, prefs) : null;
 
             // 並び順カスタム値（prefs に保存されたものを採用、不正・未保存ならデフォルト）
@@ -1120,6 +1163,7 @@
             // ---- ライブプレビュー ----
             function currentUIState() {
                 return {
+                    opMode: opMode.getOpMode(),
                     titleMode: options.getTitleMode(),
                     titleText: options.titleField.text,
                     parentFolderName: parentFolderName,
@@ -1134,11 +1178,34 @@
                 };
             }
 
+            // 「バージョン番号のみ」モード時に隠す UI（ソート + ファイル名の設定）
+            function syncOpModeVisibility() {
+                var versionOnly = opMode.isVersionOnly();
+                if (sort) sort.panel.visible = !versionOnly;
+                options.panel.visible = !versionOnly;
+                dialog.layout.layout(true);
+                dialog.layout.resize();
+            }
+
             function refreshPreviews() {
                 options.syncTitleFieldEnabled();
-                var finalBase = buildFinalName(segments, currentUIState());
+                var finalBase;
+                if (opMode.isVersionOnly()) {
+                    finalBase = bumpVersionInPlace(stripExtension(currentName));
+                } else {
+                    finalBase = buildFinalName(segments, currentUIState());
+                }
                 filename.finalNameValue.text = finalBase + '.ai';
             }
+
+            opMode.versionOnlyRadio.onClick = function () {
+                syncOpModeVisibility();
+                refreshPreviews();
+            };
+            opMode.fullRadio.onClick = function () {
+                syncOpModeVisibility();
+                refreshPreviews();
+            };
 
             options.titleNoneRadio.onClick = refreshPreviews;
             options.titleParentRadio.onClick = refreshPreviews;
@@ -1214,7 +1281,9 @@
             if (ui.dialog.show() !== 1) return; // キャンセル
 
             var uiState = ui.getUIState();
-            var newBaseName = buildFinalName(segments, uiState);
+            var newBaseName = (uiState.opMode === 'versionOnly')
+                ? bumpVersionInPlace(info.baseName)
+                : buildFinalName(segments, uiState);
             if (!newBaseName) {
                 alert(L('message.emptyName'));
                 return;
@@ -1228,21 +1297,22 @@
 
             try {
                 executeOutput(doc, destFile, ui.getMode(), info.fsPath);
-                // 成功したら今回の選択をプリセットとして保存
-                var prefsToSave = {
-                    mode: ui.getMode(),
-                    titleMode: uiState.titleMode,
-                    timestamp: uiState.timestamp,
-                    version: uiState.version
-                };
-                if (FEATURE_STATUS) prefsToSave.status = uiState.status;
-                if (FEATURE_SEPARATOR) prefsToSave.separator = uiState.separator;
-                if (FEATURE_SPACES) prefsToSave.spaces = uiState.spaces;
-                if (FEATURE_SORT) {
-                    prefsToSave.sort = uiState.sort;
-                    prefsToSave.segmentOrder = uiState.customSegmentOrder.join(',');
+                // 成功したら今回の選択をプリセットとして保存（versionOnly モードでは保存しない）
+                if (uiState.opMode !== 'versionOnly') {
+                    var prefsToSave = {
+                        titleMode: uiState.titleMode,
+                        timestamp: uiState.timestamp,
+                        version: uiState.version
+                    };
+                    if (FEATURE_STATUS) prefsToSave.status = uiState.status;
+                    if (FEATURE_SEPARATOR) prefsToSave.separator = uiState.separator;
+                    if (FEATURE_SPACES) prefsToSave.spaces = uiState.spaces;
+                    if (FEATURE_SORT) {
+                        prefsToSave.sort = uiState.sort;
+                        prefsToSave.segmentOrder = uiState.customSegmentOrder.join(',');
+                    }
+                    savePrefs(prefsToSave);
                 }
-                savePrefs(prefsToSave);
             } catch (e) {
                 alert(L('message.saveFailed') + '\n' + e);
             }
