@@ -26,7 +26,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - ドキュメント無し／選択無し／色 1 色以下／例外発生時は無言で終了
 - ダイアログ値は targetengine 内でセッション保持（再起動では消える）
 
-Version: v1.9.1
+Version: v1.9.2
 更新日: 2026-05-28
 
 */
@@ -35,7 +35,7 @@ Version: v1.9.1
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.9.1";
+var SCRIPT_VERSION = "v1.9.2";
 
 // =========================================
 // ユーザー設定 / User Settings
@@ -304,14 +304,24 @@ function collectFillColorEntries(item, outEntries) {
     } catch (e) { /* 取得できないアイテムは無視 / skip unreadable items */ }
 }
 
-/* 選択範囲から重複除外したカラー配列を「左→右・上→下」順で返す / Collect unique colors from a selection sorted left→right, top→bottom */
-function collectColorsFromSelection(selection) {
+/* 選択範囲から重複除外したカラー配列を、長辺方向（横なら左→右／縦なら上→下）順で返す / Collect unique colors sorted along the longer axis of the selection */
+function collectColorsFromSelection(selection, orientation) {
     var entries = [];
     for (var i = 0; i < selection.length; i++) {
         collectFillColorEntries(selection[i], entries);
     }
 
+    /* 縦並び（dy > dx）なら上→下を優先キーに / Use top→bottom as primary key when vertical */
+    var verticalPrimary = !!(orientation && orientation.orientation === "vertical");
+
     entries.sort(function (a, b) {
+        if (verticalPrimary) {
+            if (a.top > b.top) return -1;
+            if (a.top < b.top) return 1;
+            if (a.left < b.left) return -1;
+            if (a.left > b.left) return 1;
+            return 0;
+        }
         if (a.left < b.left) return -1;
         if (a.left > b.left) return 1;
         if (a.top > b.top) return -1;
@@ -556,9 +566,9 @@ function collectInputColors(doc) {
     };
 
     if (doc.selection && doc.selection.length > 0) {
-        result.colors = collectColorsFromSelection(doc.selection);
-        result.selectionBounds = getSelectionBounds(doc.selection);
         result.selectionOrientation = detectSelectionOrientation(doc.selection);
+        result.colors = collectColorsFromSelection(doc.selection, result.selectionOrientation);
+        result.selectionBounds = getSelectionBounds(doc.selection);
         result.itemCount = doc.selection.length;
         return result;
     }
