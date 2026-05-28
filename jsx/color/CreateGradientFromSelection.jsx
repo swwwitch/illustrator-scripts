@@ -1,100 +1,361 @@
 #target illustrator
-// Use a script-specific engine for session-persistent values (not across restarts)
 #targetengine "CreateGradientFromSelectionEngine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-var SCRIPT_VERSION = "v1.9";
-
 /*
-  CreateGradientFromSelection.jsx
 
-  選択オブジェクトの塗り／線カラーを、配置順（左→右、上→下）で抽出し、
-  スウォッチグループに登録してグラデーションを自動生成します。
+# CreateGradientFromSelection.jsx
 
-  ・グループ／複合パス／テキストは再帰的に処理
-  ・塗り（フィル）と線（ストローク）の両方を対象
-  ・抽出色をスウォッチ化（必要に応じてグローバルカラー（プロセス）に変換）
-  ・抽出色数に合わせて線形グラデーションを作成（各ストップにスウォッチの色を適用）
-  ・オプションで「グローバルカラー化／グラデーション作成／長方形作成」を切り替え可能
-  ・長方形を作成する場合、サイズは「固定(100)」または「選択オブジェクトに合わせる」を選択可能
-  ・長方形の配置は、選択が横並びなら下方向へ、縦並びなら右方向へ“長方形1個分”ずらして配置
-  ・縦並び判定時は、アクション（gradient/90degree）で角度調整を実行（アクションが無い場合は無言でスキップ）
-  ・（任意）長方形の見た目をグラフィックスタイルに登録
-  ・ドキュメントが無い／選択が無い／色が1色以下の場合やエラー発生時は無言で終了
-  ・オプションで「セパレートグラデーション」（ラジオ）を切り替え可能（2〜4色: 100÷色数で自動分割）
-  ・選択オブジェクトが5つ以上の場合、「セパレートグラデーション」は選択不可（通常のみ）
+選択オブジェクトの塗り／線カラーを、配置順（左→右、上→下）で抽出し、
+スウォッチグループに登録してグラデーションを自動生成するスクリプトです。
 
-  Version: v1.9
-  更新日: 2026-02-18
+## 主な機能
+
+- グループ／複合パス／テキストを再帰的に走査
+- 塗り（フィル）と線（ストローク）の両方を対象
+- 抽出色をスウォッチ化（オプションでグローバルカラー化）
+- 線形グラデーションを生成し、各ストップにスウォッチ色を割り当て
+- 長方形を作成してグラデーションを適用（任意）
+- 長方形の見た目をグラフィックスタイルに登録（任意・長方形 OFF でも一時長方形で登録可）
+- 選択の並びを判定し、縦並びならアクション（gradient/90degree）で角度を 90° に
+- 「セパレートグラデーション」モード（2〜6 色、100÷色数で自動分割）
+- 選択が 7 つ以上の場合はセパレートを無効化
+
+## 既定の挙動
+
+- ドキュメント無し／選択無し／色 1 色以下／例外発生時は無言で終了
+- ダイアログ値は targetengine 内でセッション保持（再起動では消える）
+
+Version: v1.9.1
+更新日: 2026-05-28
+
 */
+
+// =========================================
+// バージョン / Version
+// =========================================
+
+var SCRIPT_VERSION = "v1.9.1";
+
+// =========================================
+// ユーザー設定 / User Settings
+// =========================================
+
+/* セパレートグラデーションで許可する最大色数 / Max colors allowed for Separate gradients */
+var SEPARATE_MAX_COLORS = 6;
+
+/* 長方形サイズの既定値（pt）/ Default rectangle size in points */
+var DEFAULT_RECT_SIZE = 100;
+
+/* スウォッチ由来時の固定サイズ（pt）/ Fixed size when invoked from swatches */
+var SWATCH_RECT_WIDTH = 200;
+var SWATCH_RECT_HEIGHT = 100;
+
+/* 新規スウォッチグループの既定名 / Default name for the new swatch group */
+var SWATCH_GROUP_BASE_NAME = "AutoGradient";
+var SWATCH_BASE_NAME = "AutoColor";
+var GRADIENT_BASE_NAME = "New Gradient";
+
+/* ダイアログのデフォルトオプション / Default dialog values */
+var DEFAULT_OPTIONS = {
+    makeGlobal: true,
+    makeGradient: true,
+    makeRect: true,
+    useSelectionSize: true,
+    registerGraphicStyle: true,
+    separateGradient: false
+};
+
+// =========================================
+// ローカライズ / Localization
+// =========================================
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
-    dialogTitle: {
-        ja: "グラデーション作成",
-        en: "Create Gradient"
+    dialog: {
+        title: { ja: "グラデーション作成", en: "Create Gradient" }
     },
-    globalColor: {
-        ja: "グローバルカラー",
-        en: "Global colors"
+    panel: {
+        color: { ja: "カラー", en: "Colors" },
+        rect: { ja: "長方形", en: "Rectangle" }
     },
-    createGradient: {
-        ja: "グラデーションを作成",
-        en: "Create gradient"
+    checkbox: {
+        globalColor: { ja: "グローバルカラー化", en: "Make Global colors" },
+        createGradient: { ja: "グラデーションを作成", en: "Create gradient" },
+        createRect: { ja: "長方形を作成してグラデーションを適用", en: "Create rectangle and apply gradient" },
+        useSelectionSize: { ja: "選択オブジェクトのサイズに合わせる", en: "Match selection size" },
+        registerGraphicStyle: { ja: "グラフィックスタイルとして登録", en: "Save as Graphic Style" }
     },
-    separateGradient: {
-        ja: "セパレートグラデーション",
-        en: "Separate gradients"
+    radio: {
+        normal: { ja: "通常", en: "Smooth" },
+        separate: { ja: "セパレート", en: "Segmented" }
     },
-    normalGradient: {
-        ja: "通常",
-        en: "Normal"
+    button: {
+        cancel: { ja: "キャンセル", en: "Cancel" }
     },
-    createRect: {
-        ja: "長方形を作成し、グラデーションを適用",
-        en: "Create rectangle and apply gradient"
-    },
-    useSelectionSize: {
-        ja: "選択オブジェクトに合わせてサイズ指定",
-        en: "Match rectangle size to selection"
-    },
-    registerGraphicStyle: {
-        ja: "グラフィックスタイルに登録",
-        en: "Save as Graphic Style"
-    },
-    ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
-    },
-    panelColor: {
-        ja: "カラー",
-        en: "Colors"
-    },
-    panelRect: {
-        ja: "長方形（適用）",
-        en: "Rectangle"
+    tooltip: {
+        globalColor: {
+            ja: "スウォッチをグローバルカラー（プロセス）として登録し、後から一括で色を変更可能にします。",
+            en: "Register swatches as Global Process colors so they can be edited together later."
+        },
+        separate: {
+            ja: "色の境界をくっきり分割するグラデーション（最大 6 色）。選択が 7 つ以上のときは使えません。",
+            en: "Hard-edged segmented gradient (up to 6 colors). Disabled when 7 or more items are selected."
+        },
+        useSelectionSize: {
+            ja: "選択オブジェクトの外接サイズに合わせて長方形を作成します。",
+            en: "Use the bounding size of the selection for the rectangle."
+        },
+        registerGraphicStyle: {
+            ja: "作成した長方形の見た目をグラフィックスタイルに登録します。長方形作成 OFF のときは一時長方形で登録します。",
+            en: "Register the rectangle's appearance as a Graphic Style. When rectangle output is off, a temporary rectangle is used."
+        }
     }
 };
 
-function L(key) {
-    try { return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key; } catch (e) { return key; }
+/* ドット区切りパスで多言語ラベルを取得 / Resolve a localized label by dot-path */
+function L(path) {
+    var parts = path.split(".");
+    var node = LABELS;
+    for (var i = 0; i < parts.length; i++) {
+        node = node && node[parts[i]];
+    }
+    if (node && node[lang]) return node[lang];
+    if (node && node.en) return node.en;
+    return path;
 }
 
-// 縦並び時: グラデーション角度を90度にするアクションを実行 / If vertical: run action to set gradient angle to 90 degrees
-function runGradientAngle90Action() {
-    var actionSetName = "gradient";
-    var actionName = "90degree";
+// =========================================
+// セッション設定 / Session Settings
+// =========================================
 
-    // アクション定義テキスト（改行は CR を使用）
+/* targetengine 内でダイアログ値を保持 / Persist dialog values within the targetengine */
+function getSessionSettings() {
+    if (!$.global.__CGFS_SETTINGS) $.global.__CGFS_SETTINGS = {};
+    return $.global.__CGFS_SETTINGS;
+}
+function loadBool(key, defaultValue) {
+    var settings = getSessionSettings();
+    if (typeof settings[key] === 'boolean') return settings[key];
+    return defaultValue;
+}
+function saveBool(key, value) {
+    getSessionSettings()[key] = !!value;
+}
+
+// =========================================
+// 選択範囲の解析 / Selection Analysis
+// =========================================
+
+/* アイテムの左上座標を取得 / Get an item's top-left position */
+function getItemTopLeft(item) {
+    try {
+        var bounds = item.geometricBounds; // [left, top, right, bottom]
+        return { left: bounds[0], top: bounds[1] };
+    } catch (e) {
+        return { left: 0, top: 0 };
+    }
+}
+
+/* 選択全体の外接バウンディングを取得 / Get the union bounds of the selection */
+function getSelectionBounds(selection) {
+    if (!selection || selection.length === 0) return null;
+
+    var left = 1e12, top = -1e12, right = -1e12, bottom = 1e12;
+    var got = false;
+
+    for (var i = 0; i < selection.length; i++) {
+        try {
+            var bounds = selection[i].geometricBounds;
+            if (bounds[0] < left) left = bounds[0];
+            if (bounds[1] > top) top = bounds[1];
+            if (bounds[2] > right) right = bounds[2];
+            if (bounds[3] < bottom) bottom = bounds[3];
+            got = true;
+        } catch (e) { /* 無視 / ignore */ }
+    }
+
+    if (!got || left > right || bottom > top) return null;
+    return { left: left, top: top, right: right, bottom: bottom };
+}
+
+/* 選択が横並びか縦並びかを判定 / Detect whether the selection is horizontal or vertical */
+function detectSelectionOrientation(selection) {
+    if (!selection || selection.length < 2) {
+        return { orientation: "unknown", dx: 0, dy: 0, ratio: 0 };
+    }
+
+    var minX = 1e12, maxX = -1e12;
+    var minY = 1e12, maxY = -1e12;
+
+    for (var i = 0; i < selection.length; i++) {
+        try {
+            var bounds = selection[i].geometricBounds;
+            var centerX = (bounds[0] + bounds[2]) / 2;
+            var centerY = (bounds[1] + bounds[3]) / 2;
+            if (centerX < minX) minX = centerX;
+            if (centerX > maxX) maxX = centerX;
+            if (centerY < minY) minY = centerY;
+            if (centerY > maxY) maxY = centerY;
+        } catch (e) { /* 無視 / ignore */ }
+    }
+
+    if (minX > maxX || minY > maxY) {
+        return { orientation: "unknown", dx: 0, dy: 0, ratio: 0 };
+    }
+
+    var dx = Math.abs(maxX - minX);
+    var dy = Math.abs(maxY - minY);
+
+    var ratio = 0;
+    if (dx === 0 && dy === 0) ratio = 0;
+    else if (dx === 0 || dy === 0) ratio = 1e12;
+    else ratio = (dx > dy) ? (dx / dy) : (dy / dx);
+
+    var orientation = "mixed";
+    if (dx > dy) orientation = "horizontal";
+    else if (dy > dx) orientation = "vertical";
+
+    return { orientation: orientation, dx: dx, dy: dy, ratio: ratio };
+}
+
+// =========================================
+// カラーユーティリティ / Color Utilities
+// =========================================
+
+/* NoColor 判定 / Detect NoColor values */
+function isNoColor(color) {
+    try {
+        return (color == null) || (color.typename === "NoColor");
+    } catch (e) {
+        return true;
+    }
+}
+
+/* 重複除去用のカラーキーを生成 / Build a dedup key for a color */
+function colorKey(color) {
+    if (!color) return "null";
+    var typeName = color.typename;
+    try {
+        if (typeName === "RGBColor") return "RGB:" + [color.red, color.green, color.blue].join(",");
+        if (typeName === "CMYKColor") return "CMYK:" + [color.cyan, color.magenta, color.yellow, color.black].join(",");
+        if (typeName === "GrayColor") return "Gray:" + color.gray;
+        if (typeName === "SpotColor") {
+            var spotName = (color.spot && color.spot.name) ? color.spot.name : "(spot)";
+            return "Spot:" + spotName + ":" + color.tint;
+        }
+        if (typeName === "PatternColor") {
+            var patternName = (color.pattern && color.pattern.name) ? color.pattern.name : "(pattern)";
+            return "Pattern:" + patternName;
+        }
+        if (typeName === "GradientColor") {
+            var gradientName = (color.gradient && color.gradient.name) ? color.gradient.name : "(gradient)";
+            return "Gradient:" + gradientName;
+        }
+    } catch (e) { /* 無視 / ignore */ }
+    return "Other:" + typeName;
+}
+
+/* アイテムから塗り・線の色＋位置エントリを収集（再帰） / Collect fill and stroke color entries with positions (recursive) */
+function collectFillColorEntries(item, outEntries) {
+    if (!item) return;
+
+    try {
+        if (item.typename === "GroupItem") {
+            for (var i = 0; i < item.pageItems.length; i++) {
+                collectFillColorEntries(item.pageItems[i], outEntries);
+            }
+            return;
+        }
+
+        if (item.typename === "CompoundPathItem") {
+            for (var j = 0; j < item.pathItems.length; j++) {
+                collectFillColorEntries(item.pathItems[j], outEntries);
+            }
+            return;
+        }
+
+        if (item.typename === "TextFrame") {
+            var textPos = getItemTopLeft(item);
+            var textFill = item.textRange.characterAttributes.fillColor;
+            if (!isNoColor(textFill)) outEntries.push({ left: textPos.left, top: textPos.top, color: textFill });
+            try {
+                var textStroke = item.textRange.characterAttributes.strokeColor;
+                if (!isNoColor(textStroke)) outEntries.push({ left: textPos.left, top: textPos.top, color: textStroke });
+            } catch (e) { /* 無視 / ignore */ }
+            return;
+        }
+
+        if (typeof item.filled !== "undefined" || typeof item.stroked !== "undefined") {
+            var pathPos = getItemTopLeft(item);
+            if (item.filled) {
+                var pathFill = item.fillColor;
+                if (!isNoColor(pathFill)) outEntries.push({ left: pathPos.left, top: pathPos.top, color: pathFill });
+            }
+            if (item.stroked) {
+                var pathStroke = item.strokeColor;
+                if (!isNoColor(pathStroke)) outEntries.push({ left: pathPos.left, top: pathPos.top, color: pathStroke });
+            }
+        }
+    } catch (e) { /* 取得できないアイテムは無視 / skip unreadable items */ }
+}
+
+/* 選択範囲から重複除外したカラー配列を「左→右・上→下」順で返す / Collect unique colors from a selection sorted left→right, top→bottom */
+function collectColorsFromSelection(selection) {
+    var entries = [];
+    for (var i = 0; i < selection.length; i++) {
+        collectFillColorEntries(selection[i], entries);
+    }
+
+    entries.sort(function (a, b) {
+        if (a.left < b.left) return -1;
+        if (a.left > b.left) return 1;
+        if (a.top > b.top) return -1;
+        if (a.top < b.top) return 1;
+        return 0;
+    });
+
+    var colors = [];
+    var seen = {};
+    for (var k = 0; k < entries.length; k++) {
+        var color = entries[k].color;
+        if (isNoColor(color)) continue;
+        var key = colorKey(color);
+        if (seen[key]) continue;
+        seen[key] = true;
+        colors.push(color);
+    }
+    return colors;
+}
+
+// =========================================
+// アクション定義 / Action Definitions
+// =========================================
+
+/* 一時アクションをロードして実行し、後始末を行う共通処理 / Load a temp action, run it, then clean up */
+function runTempAction(actionCode, actionSetName, actionName) {
+    var tempFile = new File(Folder.temp + "/temp_action_" + actionSetName + ".aia");
+    try {
+        tempFile.open("w");
+        tempFile.write(actionCode);
+        tempFile.close();
+
+        app.loadAction(tempFile);
+        app.doScript(actionName, actionSetName);
+        app.unloadAction(actionSetName, "");
+
+        try { tempFile.remove(); } catch (e) { /* 無視 / ignore */ }
+    } catch (e) {
+        try { app.unloadAction(actionSetName, ""); } catch (e2) { /* 無視 / ignore */ }
+    }
+}
+
+/* グラデーション角度を 90° に設定するアクションを実行 / Run an action that sets the gradient angle to 90° */
+function runGradientAngle90Action() {
     var CR = String.fromCharCode(13);
     var actionCode = [
         " /version 3",
@@ -132,994 +393,540 @@ function runGradientAngle90Action() {
         "}",
         ""
     ].join(CR);
+    runTempAction(actionCode, "gradient", "90degree");
+}
 
+/* 「新規グラフィックスタイル」を呼び出すアクション / Trigger the "New Graphic Style" command via action */
+function runGraphicStyleAction() {
+    var CR = String.fromCharCode(13);
+    var actionCode = [
+        " /version 3",
+        "/name [ 12",
+        "\t477261706869635374796c65",
+        "]",
+        "/isOpen 1",
+        "/actionCount 1",
+        "/action-1 {",
+        "\t/name [ 3",
+        "\t\t6e6577",
+        "\t]",
+        "\t/keyIndex 0",
+        "\t/colorIndex 0",
+        "\t/isOpen 1",
+        "\t/eventCount 1",
+        "\t/event-1 {",
+        "\t\t/useRulersIn1stQuadrant 0",
+        "\t\t/internalName (ai_plugin_styles)",
+        "\t\t/localizedName [ 30",
+        "\t\t\te382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382a4e383ab",
+        "\t\t]",
+        "\t\t/isOpen 1",
+        "\t\t/isOn 1",
+        "\t\t/hasDialog 1",
+        "\t\t/showDialog 0",
+        "\t\t/parameterCount 1",
+        "\t\t/parameter-1 {",
+        "\t\t\t/key 1835363957",
+        "\t\t\t/showInPalette 4294967295",
+        "\t\t\t/type (enumerated)",
+        "\t\t\t/name [ 36",
+        "\t\t\t\te696b0e8a68fe382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382",
+        "\t\t\t\ta4e383ab",
+        "\t\t\t]",
+        "\t\t\t/value 1",
+        "\t\t}",
+        "\t}",
+        "}",
+        ""
+    ].join(CR);
+    runTempAction(actionCode, "GraphicStyle", "new");
+}
+
+// =========================================
+// スウォッチ操作 / Swatch Operations
+// =========================================
+
+/* 命名衝突を避けた一意な名前を作る / Build a unique name avoiding collisions */
+function uniqueName(baseName, existsFunc) {
+    var name = baseName;
+    var suffix = 1;
+    while (existsFunc(name)) {
+        name = baseName + " " + suffix;
+        suffix++;
+    }
+    return name;
+}
+
+function swatchExists(doc, name) {
+    try { doc.swatches.getByName(name); return true; } catch (e) { return false; }
+}
+
+function swatchGroupExists(doc, name) {
+    try { doc.swatchGroups.getByName(name); return true; } catch (e) { return false; }
+}
+
+function gradientExists(doc, name) {
+    try { doc.gradients.getByName(name); return true; } catch (e) { return false; }
+}
+
+/* ベースカラーをグローバル（プロセス）スポットに変換 / Convert a base color into a Global Process spot */
+function toGlobalProcessColor(doc, baseColor, baseName) {
     try {
-        var tempFile = new File(Folder.temp + "/temp_action.aia");
-        tempFile.open("w");
-        tempFile.write(actionCode);
-        tempFile.close();
+        var spot = doc.spots.add();
+        spot.name = baseName;
+        spot.colorType = ColorModel.PROCESS;
+        spot.color = baseColor;
 
-        app.loadAction(tempFile);
-        app.doScript(actionName, actionSetName);
-        app.unloadAction(actionSetName, "");
-
-        try { tempFile.remove(); } catch (eDel) { }
+        var spotColor = new SpotColor();
+        spotColor.spot = spot;
+        spotColor.tint = 100;
+        return spotColor;
     } catch (e) {
-        // 無言
-        try { app.unloadAction(actionSetName, ""); } catch (e2) { }
+        return baseColor;
     }
 }
 
-function main() {
-    // ドキュメントが開かれているか確認
-    if (app.documents.length === 0) {
-        return;
+/* 1 色をスウォッチに登録（必要に応じてグローバル化） / Register a color as a swatch (optionally as Global Process) */
+function addSwatchForColor(doc, colorObj, baseName, makeGlobal) {
+    var swatch = doc.swatches.add();
+    var name = uniqueName(baseName, function (n) { return swatchExists(doc, n); });
+    swatch.name = name;
+    swatch.color = makeGlobal ? toGlobalProcessColor(doc, colorObj, name) : colorObj;
+    try { swatch.selected = false; } catch (e) { /* 無視 / ignore */ }
+    return swatch;
+}
+
+// =========================================
+// レイヤー操作 / Layer Helpers
+// =========================================
+
+/* 描画可能なレイヤーを返す（activeLayer 優先） / Return a drawable layer, preferring activeLayer */
+function getUnlockedVisibleLayer(doc) {
+    var activeLayer = doc.activeLayer;
+    if (activeLayer && !activeLayer.locked && activeLayer.visible) return activeLayer;
+    for (var i = 0; i < doc.layers.length; i++) {
+        var layer = doc.layers[i];
+        if (!layer.locked && layer.visible) return layer;
     }
+    return null;
+}
 
-    var doc = app.activeDocument;
+// =========================================
+// グラフィックスタイル登録 / Graphic Style Registration
+// =========================================
 
-    // 選択があるか確認（オブジェクト or スウォッチ）
-    var fromSwatches = false;
-    var selectedSwatchColors = [];
+/* 選択中アイテムをグラフィックスタイルとして登録 / Register the selected item's appearance as a Graphic Style */
+function registerGraphicStyleFromSelected(doc) {
+    if (!doc.graphicStyles) return;
 
-    if (!doc.selection || doc.selection.length === 0) {
-        // オブジェクト未選択 → スウォッチパネルの選択を確認
+    var selectedItems = [];
+    if (doc.selection && doc.selection.length) {
+        for (var i = 0; i < doc.selection.length; i++) selectedItems.push(doc.selection[i]);
+    }
+    if (!selectedItems.length) return;
+
+    for (var k = 0; k < selectedItems.length; k++) {
         try {
-            var selSwatches = doc.swatches.getSelected();
-            if (selSwatches && selSwatches.length >= 2) {
-                fromSwatches = true;
-                for (var si = 0; si < selSwatches.length; si++) {
-                    try {
-                        var sc = selSwatches[si].color;
-                        if (sc && sc.typename !== "NoColor") {
-                            selectedSwatchColors.push(sc);
-                        }
-                    } catch (eSC) { }
-                }
-            }
-        } catch (eGetSel) { }
+            var beforeLen = doc.graphicStyles.length;
+            try { doc.selection = null; } catch (e) { /* 無視 / ignore */ }
+            try { doc.selection = [selectedItems[k]]; }
+            catch (e) { try { selectedItems[k].selected = true; } catch (e2) { /* 無視 / ignore */ } }
 
-        if (!fromSwatches || selectedSwatchColors.length < 2) {
-            return;
-        }
+            runGraphicStyleAction();
+
+            var afterLen = doc.graphicStyles.length;
+            if (afterLen <= beforeLen) continue;
+            // 既定名のまま使用 / leave the default name
+        } catch (eEach) { /* 1 件失敗しても続行 / keep going on per-item failure */ }
     }
+}
 
-    // 選択の並びを推定（この結果で後続の処理を分岐するため保持）
-    var selOri = fromSwatches
-        ? { orientation: "horizontal", dx: 0, dy: 0, ratio: 0 }
-        : detectSelectionOrientation(doc.selection);
+// =========================================
+// 入力収集 / Input Collection
+// =========================================
 
-    var selBounds = fromSwatches ? null : getSelectionBounds(doc.selection); // 選択の外接（サイズ算出用）
-
-    // If 5+ objects/swatches are selected, disable Separate gradients option
-    var disallowSeparate = false;
-    try {
-        var itemCount = fromSwatches ? selectedSwatchColors.length : doc.selection.length;
-        disallowSeparate = (itemCount >= 5);
-    } catch (e) { disallowSeparate = false; }
-
-    /* =========================================
-     * Options dialog / オプションダイアログ
-     * ========================================= */
-
-    // Persist dialog values in this targetengine (session-only) / ダイアログ値をエンジン内に保持（Illustrator再起動では消える）
-    function getSessionSettings() {
-        try {
-            if (!$.global.__CGFS_SETTINGS) {
-                $.global.__CGFS_SETTINGS = {};
-            }
-            return $.global.__CGFS_SETTINGS;
-        } catch (e) {
-            return {};
-        }
-    }
-    function loadBool(key, defVal) {
-        try {
-            var s = getSessionSettings();
-            if (typeof s[key] === 'boolean') return s[key];
-        } catch (e) { }
-        return defVal;
-    }
-    function saveBool(key, val) {
-        try {
-            var s = getSessionSettings();
-            s[key] = !!val;
-        } catch (e) { }
-    }
-
-    var opts = {
-        makeGlobal: loadBool('makeGlobal', true),
-        makeGradient: loadBool('makeGradient', true),
-        makeRect: loadBool('makeRect', true),
-        useSelectionSize: loadBool('useSelectionSize', true),
-        registerGraphicStyle: loadBool('registerGraphicStyle', true),
-        separateGradient: (disallowSeparate ? false : loadBool('separateGradient', false))
+/* 選択オブジェクトかスウォッチ選択から、色配列と関連情報を集める / Gather colors plus context from object or swatch selection */
+function collectInputColors(doc) {
+    var result = {
+        colors: [],
+        fromSwatches: false,
+        selectionBounds: null,
+        selectionOrientation: { orientation: "unknown", dx: 0, dy: 0, ratio: 0 },
+        itemCount: 0
     };
 
+    if (doc.selection && doc.selection.length > 0) {
+        result.colors = collectColorsFromSelection(doc.selection);
+        result.selectionBounds = getSelectionBounds(doc.selection);
+        result.selectionOrientation = detectSelectionOrientation(doc.selection);
+        result.itemCount = doc.selection.length;
+        return result;
+    }
+
+    var selectedSwatches = null;
+    try { selectedSwatches = doc.swatches.getSelected(); } catch (e) { selectedSwatches = null; }
+    if (!selectedSwatches || selectedSwatches.length < 2) return result;
+
+    result.fromSwatches = true;
+    for (var i = 0; i < selectedSwatches.length; i++) {
+        try {
+            var swatchColor = selectedSwatches[i].color;
+            if (swatchColor && swatchColor.typename !== "NoColor") result.colors.push(swatchColor);
+        } catch (e) { /* 無視 / ignore */ }
+    }
+    result.itemCount = result.colors.length;
+    return result;
+}
+
+// =========================================
+// ダイアログ / Options Dialog
+// =========================================
+
+/* オプションダイアログを表示し、確定値を返す（キャンセル時は null） / Show options dialog; return resolved values or null on cancel */
+function showOptionsDialog(disallowSeparate, fromSwatches) {
+    var opts = {
+        makeGlobal: loadBool('makeGlobal', DEFAULT_OPTIONS.makeGlobal),
+        makeGradient: loadBool('makeGradient', DEFAULT_OPTIONS.makeGradient),
+        makeRect: loadBool('makeRect', DEFAULT_OPTIONS.makeRect),
+        useSelectionSize: loadBool('useSelectionSize', DEFAULT_OPTIONS.useSelectionSize),
+        registerGraphicStyle: loadBool('registerGraphicStyle', DEFAULT_OPTIONS.registerGraphicStyle),
+        separateGradient: (disallowSeparate ? false : loadBool('separateGradient', DEFAULT_OPTIONS.separateGradient))
+    };
+
+    var dlg = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
+    dlg.orientation = 'column';
+    dlg.alignChildren = ['fill', 'top'];
+
+    /* カラー関連パネル / Color-related panel */
+    var colorPanel = dlg.add('panel', undefined, L('panel.color'));
+    colorPanel.orientation = 'column';
+    colorPanel.alignChildren = ['fill', 'top'];
+    colorPanel.margins = [15, 20, 15, 10];
+
+    var cbGlobal = colorPanel.add('checkbox', undefined, L('checkbox.globalColor'));
+    cbGlobal.value = opts.makeGlobal;
+    cbGlobal.helpTip = L('tooltip.globalColor');
+
+    var cbGradient = colorPanel.add('checkbox', undefined, L('checkbox.createGradient'));
+    cbGradient.value = opts.makeGradient;
+
+    var radioGroup = colorPanel.add('group');
+    radioGroup.orientation = 'row';
+    radioGroup.alignChildren = ['left', 'center'];
+
+    var rbNormal = radioGroup.add('radiobutton', undefined, L('radio.normal'));
+    var rbSeparate = radioGroup.add('radiobutton', undefined, L('radio.separate'));
+    rbSeparate.helpTip = L('tooltip.separate');
+    rbSeparate.value = !!opts.separateGradient;
+    rbNormal.value = !rbSeparate.value;
+
+    /* 長方形パネル / Rectangle panel */
+    var rectPanel = dlg.add('panel', undefined, L('panel.rect'));
+    rectPanel.orientation = 'column';
+    rectPanel.alignChildren = ['fill', 'top'];
+    rectPanel.margins = [15, 20, 15, 10];
+
+    var cbRect = rectPanel.add('checkbox', undefined, L('checkbox.createRect'));
+    cbRect.value = opts.makeRect;
+
+    var cbSelSize = rectPanel.add('checkbox', undefined, L('checkbox.useSelectionSize'));
+    cbSelSize.value = opts.useSelectionSize;
+    cbSelSize.helpTip = L('tooltip.useSelectionSize');
+
+    var cbGStyle = rectPanel.add('checkbox', undefined, L('checkbox.registerGraphicStyle'));
+    cbGStyle.value = opts.registerGraphicStyle;
+    cbGStyle.helpTip = L('tooltip.registerGraphicStyle');
+
+    /* チェック状態の連動 / Sync enabled state across controls */
+    function syncEnable() {
+        cbRect.enabled = cbGradient.value;
+        cbSelSize.enabled = cbGradient.value && cbRect.value && !fromSwatches;
+        cbGStyle.enabled = cbGradient.value;
+
+        rbNormal.enabled = cbGradient.value;
+        rbSeparate.enabled = cbGradient.value && !disallowSeparate;
+        radioGroup.enabled = cbGradient.value;
+
+        if (!cbGradient.value) {
+            cbRect.value = false;
+            cbSelSize.value = false;
+            cbGStyle.value = false;
+        }
+        if (fromSwatches) cbSelSize.value = false;
+        if (!cbGradient.value || disallowSeparate) {
+            rbSeparate.value = false;
+            rbNormal.value = true;
+        }
+    }
+    cbGradient.onClick = syncEnable;
+    cbRect.onClick = syncEnable;
+    syncEnable();
+
+    /* OK／キャンセル / OK and Cancel */
+    var buttonGroup = dlg.add('group');
+    buttonGroup.alignment = 'right';
+    buttonGroup.add('button', undefined, L('button.cancel'), { name: 'cancel' });
+    buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
+
+    function persistFromUI() {
+        saveBool('makeGlobal', cbGlobal.value);
+        saveBool('makeGradient', cbGradient.value);
+        saveBool('makeRect', cbRect.value);
+        saveBool('useSelectionSize', cbSelSize.value);
+        saveBool('registerGraphicStyle', cbGStyle.value);
+        saveBool('separateGradient', (disallowSeparate ? false : rbSeparate.value));
+    }
+    dlg.onClose = function () { try { persistFromUI(); } catch (e) { /* 無視 / ignore */ } };
+
+    if (dlg.show() !== 1) return null;
+
+    return {
+        makeGlobal: !!cbGlobal.value,
+        makeGradient: !!cbGradient.value,
+        makeRect: !!cbRect.value,
+        useSelectionSize: !!cbSelSize.value,
+        registerGraphicStyle: !!cbGStyle.value,
+        separateGradient: (disallowSeparate ? false : !!rbSeparate.value)
+    };
+}
+
+// =========================================
+// グラデーション生成 / Gradient Construction
+// =========================================
+
+/* 作成済みスウォッチがあればそれを、無ければ元色を返す / Prefer the created swatch's color over the raw input color */
+function pickStopColor(createdSwatches, colors, index) {
     try {
-        var dlg = new Window('dialog', L('dialogTitle') + ' ' + SCRIPT_VERSION);
-        dlg.orientation = 'column';
-        dlg.alignChildren = ['fill', 'top'];
-
-        var pColor = dlg.add('panel', undefined, L('panelColor'));
-        pColor.orientation = 'column';
-        pColor.alignChildren = ['fill', 'top'];
-        pColor.margins = [15, 20, 15, 10];
-
-        var cbGlobal = pColor.add('checkbox', undefined, L('globalColor'));
-        cbGlobal.value = opts.makeGlobal;
-
-        var cbGradient = pColor.add('checkbox', undefined, L('createGradient'));
-        cbGradient.value = opts.makeGradient;
-
-        // Separate gradient option (radio)
-        var gSep = pColor.add('group');
-        gSep.orientation = 'row';
-        gSep.alignChildren = ['left', 'center'];
-
-        var rbGradNormal = gSep.add('radiobutton', undefined, L('normalGradient'));
-        var rbGradSeparate = gSep.add('radiobutton', undefined, L('separateGradient'));
-
-        rbGradSeparate.value = !!opts.separateGradient;
-        rbGradNormal.value = !rbGradSeparate.value;
-
-        var pRect = dlg.add('panel', undefined, L('panelRect'));
-        pRect.orientation = 'column';
-        pRect.alignChildren = ['fill', 'top'];
-        pRect.margins = [15, 20, 15, 10];
-
-        var cbRect = pRect.add('checkbox', undefined, L('createRect'));
-        cbRect.value = opts.makeRect;
-
-        var cbSelSize = pRect.add('checkbox', undefined, L('useSelectionSize'));
-        cbSelSize.value = opts.useSelectionSize;
-
-        var cbGStyle = pRect.add('checkbox', undefined, L('registerGraphicStyle'));
-        cbGStyle.value = opts.registerGraphicStyle;
-
-        function syncEnable() {
-            cbRect.enabled = cbGradient.value;
-            // スウォッチ由来の場合は「選択オブジェクトに合わせる」を無効化（バウンズが無い）
-            cbSelSize.enabled = cbGradient.value && cbRect.value && !fromSwatches;
-            // Graphic style can be created even if rectangle output is OFF (temporary rectangle)
-            cbGStyle.enabled = cbGradient.value;
-
-            // Separate gradient UI: if disallowed, force Normal and disable Separate radio
-            rbGradNormal.enabled = cbGradient.value;
-            rbGradSeparate.enabled = cbGradient.value && !disallowSeparate;
-            gSep.enabled = cbGradient.value; // keep group visible for Normal option
-
-            if (!cbGradient.value) cbRect.value = false;
-            if (!cbGradient.value) cbSelSize.value = false;
-            if (!cbGradient.value) cbGStyle.value = false;
-
-            if (fromSwatches) cbSelSize.value = false;
-
-            if (!cbGradient.value || disallowSeparate) {
-                rbGradSeparate.value = false;
-                rbGradNormal.value = true;
-            }
-
-            cbSelSize.enabled = cbGradient.value && cbRect.value && !fromSwatches;
-            cbGStyle.enabled = cbGradient.value;
+        if (createdSwatches && createdSwatches[index] && createdSwatches[index].color) {
+            return createdSwatches[index].color;
         }
-        cbGradient.onClick = syncEnable;
-        cbRect.onClick = syncEnable;
-        syncEnable();
+    } catch (e) { /* 無視 / ignore */ }
+    return colors[index];
+}
 
-        var btns = dlg.add('group');
-        btns.alignment = 'right';
-        var cancelBtn = btns.add('button', undefined, L('cancel'), { name: 'cancel' });
-        var okBtn = btns.add('button', undefined, L('ok'), { name: 'ok' });
+/* グラデーションのストップ数を target に合わせる / Resize the gradient stop count to match target */
+function resizeGradientStops(gradient, target) {
+    while (gradient.gradientStops.length < target) gradient.gradientStops.add();
+    while (gradient.gradientStops.length > target) {
+        gradient.gradientStops[gradient.gradientStops.length - 1].remove();
+    }
+}
 
-        function persistFromUI() {
-            saveBool('makeGlobal', cbGlobal.value);
-            saveBool('makeGradient', cbGradient.value);
-            saveBool('makeRect', cbRect.value);
-            saveBool('useSelectionSize', cbSelSize.value);
-            saveBool('registerGraphicStyle', cbGStyle.value);
-            saveBool('separateGradient', (disallowSeparate ? false : rbGradSeparate.value));
-        }
-        dlg.onClose = function () {
-            try { persistFromUI(); } catch (e) { }
-        };
+/* 通常（スムーズ）グラデーションを作成 / Build a smooth gradient evenly spaced across stops */
+function buildNormalGradient(doc, colors, createdSwatches) {
+    var gradient = doc.gradients.add();
+    gradient.type = GradientType.LINEAR;
+    resizeGradientStops(gradient, colors.length);
 
-        if (dlg.show() !== 1) {
-            return; // キャンセル時は無言で終了
-        }
-
-        opts.makeGlobal = !!cbGlobal.value;
-        opts.makeGradient = !!cbGradient.value;
-        opts.makeRect = !!cbRect.value;
-        opts.useSelectionSize = !!cbSelSize.value;
-        opts.registerGraphicStyle = !!cbGStyle.value;
-        opts.separateGradient = (disallowSeparate ? false : !!rbGradSeparate.value);
-        try { persistFromUI(); } catch (ePersist) { }
-    } catch (eDlg) {
-        // ダイアログ生成に失敗しても無言で既定値のまま続行
+    for (var i = 0; i < colors.length; i++) {
+        var stop = gradient.gradientStops[i];
+        stop.rampPoint = (i / (colors.length - 1)) * 100;
+        try { stop.color = pickStopColor(createdSwatches, colors, i); }
+        catch (e) { try { stop.color = colors[i]; } catch (e2) { /* 無視 / ignore */ } }
+        stop.midPoint = 50;
+        stop.opacity = 100;
     }
 
-    /* =========================================
-     * Color utilities / カラー取得ユーティリティ
-     * ========================================= */
+    gradient.name = uniqueName(GRADIENT_BASE_NAME, function (n) { return gradientExists(doc, n); });
+    return gradient;
+}
 
-    function isNoColor(c) {
-        // NoColor は typename が "NoColor" になる
+/* セパレート（境界がくっきり）グラデーションを作成（2〜SEPARATE_MAX_COLORS 色） / Build a segmented gradient with hard edges */
+function buildSeparateGradient(doc, colors, createdSwatches) {
+    var n = colors.length;
+    var epsilon = 0.01;
+    var step = 100 / n;
+    if (n === 3 || n === 6) step = Math.round(step * 10) / 10;
+
+    var stopPoints = [0];
+    var stopColors = [pickStopColor(createdSwatches, colors, 0)];
+
+    for (var k = 1; k <= n - 1; k++) {
+        var boundary = step * k;
+        if (n === 3 || n === 6) boundary = Math.round(boundary * 10) / 10;
+        var leftPoint = Math.max(0, boundary - epsilon);
+        var rightPoint = Math.min(100, boundary + epsilon);
+
+        stopPoints.push(leftPoint);
+        stopColors.push(pickStopColor(createdSwatches, colors, k - 1));
+        stopPoints.push(rightPoint);
+        stopColors.push(pickStopColor(createdSwatches, colors, k));
+    }
+
+    stopPoints.push(100);
+    stopColors.push(pickStopColor(createdSwatches, colors, n - 1));
+
+    var gradient = doc.gradients.add();
+    gradient.type = GradientType.LINEAR;
+    resizeGradientStops(gradient, stopPoints.length);
+
+    for (var i = 0; i < stopPoints.length; i++) {
+        var stop = gradient.gradientStops[i];
+        stop.rampPoint = stopPoints[i];
+        try { stop.color = stopColors[i]; }
+        catch (e) {
+            try { stop.color = colors[Math.min(colors.length - 1, Math.max(0, Math.floor(i / 2)))]; } catch (e2) { /* 無視 / ignore */ }
+        }
+        stop.midPoint = 50;
+        stop.opacity = 100;
+    }
+    return gradient;
+}
+
+// =========================================
+// 長方形配置 / Rectangle Placement
+// =========================================
+
+/* 長方形サイズを決定 / Decide the rectangle size */
+function computeRectSize(opts, input) {
+    if (input.fromSwatches) return { width: SWATCH_RECT_WIDTH, height: SWATCH_RECT_HEIGHT };
+    if (opts.useSelectionSize && input.selectionBounds) {
+        var w = Math.abs(input.selectionBounds.right - input.selectionBounds.left);
+        var h = Math.abs(input.selectionBounds.top - input.selectionBounds.bottom);
+        if (w > 0 && h > 0) return { width: w, height: h };
+    }
+    return { width: DEFAULT_RECT_SIZE, height: DEFAULT_RECT_SIZE };
+}
+
+/* 長方形の配置（左上座標）を決定 / Decide the rectangle anchor (top-left) */
+function computeRectPosition(doc, input, size) {
+    var viewCenterX = doc.activeView.centerPoint[0];
+    var viewCenterY = doc.activeView.centerPoint[1];
+    var left = viewCenterX - size.width / 2;
+    var top = viewCenterY + size.height / 2;
+
+    if (!input.fromSwatches && input.selectionBounds) {
+        if (input.selectionOrientation.orientation === "horizontal") {
+            /* 横並び: 選択の左端揃え／真下に 1 個分離す / Horizontal: align to left edge, offset below */
+            left = input.selectionBounds.left;
+            top = input.selectionBounds.bottom - size.height;
+        } else if (input.selectionOrientation.orientation === "vertical") {
+            /* 縦並び: 選択の上端揃え／右に 1 個分離す / Vertical: align to top edge, offset to right */
+            left = input.selectionBounds.right + size.width;
+            top = input.selectionBounds.top;
+        }
+    }
+    return { left: left, top: top };
+}
+
+/* 長方形を作成し、グラデーション適用（必要に応じてスタイル登録）を行う / Create a rectangle, apply gradient, optionally register a style */
+function createGradientRect(doc, gradient, opts, input) {
+    var targetLayer = getUnlockedVisibleLayer(doc);
+    if (!targetLayer) return;
+
+    var tempRectForStyle = (!opts.makeRect && opts.registerGraphicStyle);
+    var prevSelection = null;
+    var prevActiveLayer = null;
+    var tempLayer = null;
+
+    try { prevActiveLayer = doc.activeLayer; } catch (e) { /* 無視 / ignore */ }
+    if (doc.selection && doc.selection.length) {
+        prevSelection = [];
+        for (var i = 0; i < doc.selection.length; i++) prevSelection.push(doc.selection[i]);
+    }
+
+    if (tempRectForStyle) {
         try {
-            return (c == null) || (c.typename === "NoColor");
-        } catch (e) {
-            return true;
-        }
+            tempLayer = doc.layers.add();
+            tempLayer.name = "__TempGraphicStyle";
+            doc.activeLayer = tempLayer;
+        } catch (e) { tempLayer = null; }
     }
 
-    function colorKey(c) {
-        // 重複除去用の簡易キー
-        if (!c) return "null";
-        var t = c.typename;
-        try {
-            if (t === "RGBColor") {
-                return "RGB:" + [c.red, c.green, c.blue].join(",");
-            }
-            if (t === "CMYKColor") {
-                return "CMYK:" + [c.cyan, c.magenta, c.yellow, c.black].join(",");
-            }
-            if (t === "GrayColor") {
-                return "Gray:" + c.gray;
-            }
-            if (t === "SpotColor") {
-                // スポットはスポット名＋濃度
-                var spotName = (c.spot && c.spot.name) ? c.spot.name : "(spot)";
-                return "Spot:" + spotName + ":" + c.tint;
-            }
-            if (t === "PatternColor") {
-                var patName = (c.pattern && c.pattern.name) ? c.pattern.name : "(pattern)";
-                return "Pattern:" + patName;
-            }
-            if (t === "GradientColor") {
-                var gName = (c.gradient && c.gradient.name) ? c.gradient.name : "(gradient)";
-                return "Gradient:" + gName;
-            }
-        } catch (e) { }
-        return "Other:" + t;
+    var drawLayer = (tempRectForStyle && tempLayer) ? tempLayer : targetLayer;
+    var size = computeRectSize(opts, input);
+    var pos = computeRectPosition(doc, input, size);
+
+    var rect = drawLayer.pathItems.rectangle(pos.top, pos.left, size.width, size.height);
+    doc.selection = null;
+    rect.selected = true;
+
+    /* 縦並びならグラデーション角度を 90° に / If vertical, rotate gradient by action */
+    if (input.selectionOrientation.orientation === "vertical") {
+        try { runGradientAngle90Action(); } catch (e) { /* 無視 / ignore */ }
     }
 
-    function pushUniqueColor(list, seenMap, c) {
-        if (isNoColor(c)) return;
-        var k = colorKey(c);
-        if (seenMap[k]) return;
-        seenMap[k] = true;
-        list.push(c);
+    rect.stroked = false;
+    rect.filled = true;
+    var gradientFill = new GradientColor();
+    gradientFill.gradient = gradient;
+    rect.fillColor = gradientFill;
+
+    if (opts.registerGraphicStyle) {
+        doc.selection = null;
+        rect.selected = true;
+        try { registerGraphicStyleFromSelected(doc); } catch (e) { /* 無視 / ignore */ }
     }
 
-
-    // 位置情報（左上）を取得 / Get top-left position
-    function getItemTopLeft(item) {
-        // geometricBounds: [left, top, right, bottom]
-        try {
-            var b = item.geometricBounds;
-            return { left: b[0], top: b[1] };
-        } catch (e) {
-            return { left: 0, top: 0 };
-        }
-    }
-
-    // 選択範囲の外接バウンディングを取得 / Get union bounds of selection
-    // 戻り値: { left:Number, top:Number, right:Number, bottom:Number } または null
-    function getSelectionBounds(selection) {
-        try {
-            if (!selection || selection.length === 0) return null;
-
-            var left = 1e12, top = -1e12, right = -1e12, bottom = 1e12;
-            var got = false;
-
-            for (var i = 0; i < selection.length; i++) {
-                var it = selection[i];
-                if (!it) continue;
-                try {
-                    var b = it.geometricBounds; // [left, top, right, bottom]
-                    if (b[0] < left) left = b[0];
-                    if (b[1] > top) top = b[1];
-                    if (b[2] > right) right = b[2];
-                    if (b[3] < bottom) bottom = b[3];
-                    got = true;
-                } catch (eB) {
-                    // 無視
-                }
-            }
-
-            if (!got) return null;
-            if (left > right || bottom > top) return null;
-
-            return { left: left, top: top, right: right, bottom: bottom };
-        } catch (e) {
-            return null;
-        }
-    }
-
-    // 選択オブジェクトが横並びか縦並びかを推定 / Detect whether selection is horizontal or vertical
-    // 戻り値: { orientation: "horizontal"|"vertical"|"mixed"|"unknown", dx: Number, dy: Number, ratio: Number }
-    function detectSelectionOrientation(selection) {
-        try {
-            if (!selection || selection.length < 2) {
-                return { orientation: "unknown", dx: 0, dy: 0, ratio: 0 };
-            }
-
-            var minX = 1e12, maxX = -1e12;
-            var minY = 1e12, maxY = -1e12;
-
-            // 各アイテムの中心点を使って分布を測る
-            for (var i = 0; i < selection.length; i++) {
-                var it = selection[i];
-                if (!it) continue;
-
-                try {
-                    var b = it.geometricBounds; // [left, top, right, bottom]
-                    var cx = (b[0] + b[2]) / 2;
-                    var cy = (b[1] + b[3]) / 2;
-
-                    if (cx < minX) minX = cx;
-                    if (cx > maxX) maxX = cx;
-                    if (cy < minY) minY = cy;
-                    if (cy > maxY) maxY = cy;
-                } catch (eB) {
-                    // bounds 取得できないものは無視
-                }
-            }
-
-            if (minX > maxX || minY > maxY) {
-                return { orientation: "unknown", dx: 0, dy: 0, ratio: 0 };
-            }
-
-            var dx = Math.abs(maxX - minX);
-            var dy = Math.abs(maxY - minY);
-
-            // ratio = 大きい方 / 小さい方（0除算回避）
-            var ratio = 0;
-            if (dx === 0 && dy === 0) {
-                ratio = 0;
-            } else if (dx === 0) {
-                ratio = 1e12;
-            } else if (dy === 0) {
-                ratio = 1e12;
-            } else {
-                ratio = (dx > dy) ? (dx / dy) : (dy / dx);
-            }
-
-            // ここでは「推定」だけ。判定閾値・例外処理などの最終ロジックは後で詰める。
-            var orientation = "mixed";
-            if (dx > dy) orientation = "horizontal";
-            else if (dy > dx) orientation = "vertical";
-            else orientation = "mixed";
-
-            return { orientation: orientation, dx: dx, dy: dy, ratio: ratio };
-        } catch (e) {
-            return { orientation: "unknown", dx: 0, dy: 0, ratio: 0 };
-        }
-    }
-
-    // Separate gradient boundary prompt (0-100). Returns Number or null if canceled/invalid.
-    function promptSeparateBoundary(defaultVal) {
-        try {
-            var defStr = (defaultVal != null) ? String(defaultVal) : "50";
-            var input = prompt((lang === 'ja') ? "境界位置（0〜100）を入力してください" : "Enter boundary position (0-100)", defStr);
-            if (input === null) return null;
-            var p = parseFloat(input);
-            if (isNaN(p)) return null;
-            // clamp 0..100
-            if (p < 0) p = 0;
-            if (p > 100) p = 100;
-            return p;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    // 色＋位置のエントリを収集 / Collect color entries with position
-    function collectFillColorEntries(item, outEntries) {
-        if (!item) return;
-
-        try {
-            // グループなどは再帰
-            if (item.typename === "GroupItem") {
-                for (var i = 0; i < item.pageItems.length; i++) {
-                    collectFillColorEntries(item.pageItems[i], outEntries);
-                }
-                return;
-            }
-
-            // compoundPath は pathItems を辿る
-            if (item.typename === "CompoundPathItem") {
-                for (var j = 0; j < item.pathItems.length; j++) {
-                    collectFillColorEntries(item.pathItems[j], outEntries);
-                }
-                return;
-            }
-
-            // テキスト
-            if (item.typename === "TextFrame") {
-                var pT = getItemTopLeft(item);
-
-                // Fill
-                var tf = item.textRange.characterAttributes.fillColor;
-                if (!isNoColor(tf)) {
-                    outEntries.push({ left: pT.left, top: pT.top, color: tf });
-                }
-
-                // Stroke
-                try {
-                    var ts = item.textRange.characterAttributes.strokeColor;
-                    if (!isNoColor(ts)) {
-                        outEntries.push({ left: pT.left, top: pT.top, color: ts });
-                    }
-                } catch (eTS) { }
-
-                return;
-            }
-
-            // PathItem など
-            if (typeof item.filled !== "undefined" || typeof item.stroked !== "undefined") {
-                var p = getItemTopLeft(item);
-
-                // Fill
-                if (typeof item.filled !== "undefined" && item.filled) {
-                    var fc = item.fillColor;
-                    if (!isNoColor(fc)) {
-                        outEntries.push({ left: p.left, top: p.top, color: fc });
-                    }
-                }
-
-                // Stroke
-                if (typeof item.stroked !== "undefined" && item.stroked) {
-                    var sc = item.strokeColor;
-                    if (!isNoColor(sc)) {
-                        outEntries.push({ left: p.left, top: p.top, color: sc });
-                    }
-                }
-
-                return;
-            }
-        } catch (e) {
-            // 取得できないアイテムは無視
-        }
-    }
-
-    // 選択から色を「左→右、上→下」順で収集（重複は除外）
-    function collectColorsFromSelection(selection) {
-        var entries = [];
-        for (var i = 0; i < selection.length; i++) {
-            collectFillColorEntries(selection[i], entries);
-        }
-
-        // 左→右（left 昇順）、上→下（top 降順）でソート
-        entries.sort(function (a, b) {
-            if (a.left < b.left) return -1;
-            if (a.left > b.left) return 1;
-            // top は上ほど値が大きい（座標系の都合）ため降順
-            if (a.top > b.top) return -1;
-            if (a.top < b.top) return 1;
-            return 0;
-        });
-
-        // 重複除外（同一色は最初の1つだけ）
-        var colors = [];
-        var seen = {};
-        for (var k = 0; k < entries.length; k++) {
-            var c = entries[k].color;
-            if (isNoColor(c)) continue;
-            var key = colorKey(c);
-            if (seen[key]) continue;
-            seen[key] = true;
-            colors.push(c);
-        }
-
-        return colors;
-    }
-
-
-    // Run Graphic Style creation via Action (ai_plugin_styles) / アクションでグラフィックスタイル作成
-    function runGraphicStyleAction() {
-        try {
-            var CR = String.fromCharCode(13);
-            var actionCode = [
-                " /version 3",
-                "/name [ 12",
-                "\t477261706869635374796c65",
-                "]",
-                "/isOpen 1",
-                "/actionCount 1",
-                "/action-1 {",
-                "\t/name [ 3",
-                "\t\t6e6577",
-                "\t]",
-                "\t/keyIndex 0",
-                "\t/colorIndex 0",
-                "\t/isOpen 1",
-                "\t/eventCount 1",
-                "\t/event-1 {",
-                "\t\t/useRulersIn1stQuadrant 0",
-                "\t\t/internalName (ai_plugin_styles)",
-                "\t\t/localizedName [ 30",
-                "\t\t\te382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382a4e383ab",
-                "\t\t]",
-                "\t\t/isOpen 1",
-                "\t\t/isOn 1",
-                "\t\t/hasDialog 1",
-                "\t\t/showDialog 0",
-                "\t\t/parameterCount 1",
-                "\t\t/parameter-1 {",
-                "\t\t\t/key 1835363957",
-                "\t\t\t/showInPalette 4294967295",
-                "\t\t\t/type (enumerated)",
-                "\t\t\t/name [ 36",
-                "\t\t\t\te696b0e8a68fe382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382",
-                "\t\t\t\ta4e383ab",
-                "\t\t\t]",
-                "\t\t\t/value 1",
-                "\t\t}",
-                "\t}",
-                "}",
-                ""
-            ].join(CR);
-
-            var actionSetName = "GraphicStyle";
-            var actionName = "new";
-            var tempFile = new File(Folder.temp + "/temp_graphicstyle.aia");
-            tempFile.open("w");
-            tempFile.write(actionCode);
-            tempFile.close();
-
-            app.loadAction(tempFile);
-            app.doScript(actionName, actionSetName);
-            app.unloadAction(actionSetName, "");
-            try { tempFile.remove(); } catch (eDel) { }
-        } catch (e) {
-            try { app.unloadAction("GraphicStyle", ""); } catch (e2) { }
-        }
-    }
-
-    // Register the selected item's appearance as a new Graphic Style / 選択アイテムの見た目をグラフィックスタイルとして登録
-    function registerGraphicStyleFromSelected(baseName) {
-        try {
-            if (!doc.graphicStyles) return;
-
-            // 参照ロジック: 1つだけ選択 → アクション経由で新規スタイル作成
-            var selectedItems = [];
-            try {
-                if (doc.selection && doc.selection.length) {
-                    for (var i = 0; i < doc.selection.length; i++) selectedItems.push(doc.selection[i]);
-                }
-            } catch (eSel) { }
-
-            if (!selectedItems.length) return;
-
-            for (var i = 0; i < selectedItems.length; i++) {
-                try {
-                    var beforeLen = 0;
-                    try { beforeLen = doc.graphicStyles.length; } catch (eLen) { beforeLen = 0; }
-
-                    // 1つだけ選択
-                    try {
-                        doc.selection = null;
-                    } catch (eClr) { }
-                    try {
-                        doc.selection = [selectedItems[i]];
-                    } catch (eSetSel) {
-                        // フォールバック
-                        try {
-                            selectedItems[i].selected = true;
-                        } catch (eSel2) { }
-                    }
-
-                    // 新規グラフィックスタイル（アクション経由）
-                    runGraphicStyleAction();
-
-                    var afterLen = 0;
-                    try { afterLen = doc.graphicStyles.length; } catch (eLen2) { afterLen = beforeLen; }
-                    if (afterLen <= 0) continue;
-
-                    // 追加された（はずの）末尾を取得
-                    var gs = null;
-                    try {
-                        gs = doc.graphicStyles[afterLen - 1];
-                    } catch (eGs) {
-                        gs = null;
-                    }
-                    if (!gs) continue;
-
-                    // グラフィックスタイル名の設定は不要（既定名のまま）
-                } catch (eEach) {
-                    // 1件失敗しても続行
-                }
-            }
-        } catch (e) {
-            // silent
-        }
-    }
-
-    function uniqueName(baseName, existsFunc) {
-        var name = baseName;
-        var n = 1;
-        while (true) {
-            try {
-                if (existsFunc(name)) {
-                    name = baseName + " " + n;
-                    n++;
-                    continue;
-                }
-                break;
-            } catch (e) {
-                break;
-            }
-        }
-        return name;
-    }
-
-    function swatchExists(name) {
-        try {
-            doc.swatches.getByName(name);
-            return true;
-        } catch (e) {
-            return false;
-        }
-    }
-
-    function swatchGroupExists(name) {
-        try {
-            doc.swatchGroups.getByName(name);
-            return true;
-        } catch (e) {
-            return false;
-        }
-    }
-
-    // カラーを「グローバルカラー（プロセス）」に変換して返す
-    function toGlobalProcessColor(doc, baseColor, baseName) {
-        try {
-            var spot = doc.spots.add();
-            spot.name = baseName;
-            spot.colorType = ColorModel.PROCESS; // グローバル（プロセス）
-            spot.color = baseColor;
-
-            var sc = new SpotColor();
-            sc.spot = spot;
-            sc.tint = 100;
-            return sc;
-        } catch (e) {
-            // 失敗時は元のカラーを返す（無言）
-            return baseColor;
-        }
-    }
-
-    function addSwatchForColor(colorObj, baseName, makeGlobal) {
-        var s = doc.swatches.add();
-        var nm = uniqueName(baseName, swatchExists);
-        s.name = nm;
-
-        // グローバルカラー（プロセス）に変換して登録（オプション）
-        if (makeGlobal) {
-            var globalColor = toGlobalProcessColor(doc, colorObj, nm);
-            s.color = globalColor;
-        } else {
-            s.color = colorObj;
-        }
-
-        try { s.selected = false; } catch (e) { }
-        return s;
-    }
-
-    function getUnlockedVisibleLayer(doc) {
-        try {
-            if (doc.activeLayer && !doc.activeLayer.locked && doc.activeLayer.visible) return doc.activeLayer;
-        } catch (e) { }
-        for (var i = 0; i < doc.layers.length; i++) {
-            try {
-                if (!doc.layers[i].locked && doc.layers[i].visible) return doc.layers[i];
-            } catch (e2) { }
-        }
-        return null;
-    }
-
-    // 色を抽出（スウォッチ由来 or オブジェクト由来）
-    var colors = fromSwatches ? selectedSwatchColors : collectColorsFromSelection(doc.selection);
-
-    if (colors.length < 2) {
-        return;
-    }
-
-    try {
-        // 新規スウォッチグループを作成（重複回避）
-        var baseGroupName = "AutoGradient";
-        var groupName = uniqueName(baseGroupName, swatchGroupExists);
-        var swGroup = doc.swatchGroups.add();
-        swGroup.name = groupName;
-
-        // 抽出色をスウォッチに登録（順番は選択の走査順）
-        var createdSwatches = [];
-        for (var i = 0; i < colors.length; i++) {
-            var cs = addSwatchForColor(colors[i], "AutoColor", opts.makeGlobal);
-            createdSwatches.push(cs);
-            try { swGroup.addSwatch(cs); } catch (eAdd1) { }
-        }
-
-        // オブジェクトの選択解除（以降の処理は選択に依存しない）
+    /* 一時長方形だった場合の後始末 / Clean up the temporary rectangle */
+    if (tempRectForStyle) {
+        try { rect.remove(); } catch (e) { /* 無視 / ignore */ }
+        if (tempLayer) { try { tempLayer.remove(); } catch (e) { /* 無視 / ignore */ } }
+        try { if (prevActiveLayer) doc.activeLayer = prevActiveLayer; } catch (e) { /* 無視 / ignore */ }
         try {
             doc.selection = null;
-        } catch (eSelClear) { }
+            if (prevSelection && prevSelection.length) doc.selection = prevSelection;
+        } catch (e) { /* 無視 / ignore */ }
+    }
+}
 
-        var newGradient = null;
+// =========================================
+// メイン処理 / Main
+// =========================================
+
+/* 全体フロー: 入力 → ダイアログ → スウォッチ登録 → グラデーション → 長方形・スタイル / Top-level flow */
+function main() {
+    if (app.documents.length === 0) return;
+    var doc = app.activeDocument;
+
+    var input = collectInputColors(doc);
+    if (input.colors.length < 2) return;
+
+    var disallowSeparate = (input.itemCount >= 7);
+    var opts = showOptionsDialog(disallowSeparate, input.fromSwatches);
+    if (!opts) return;
+
+    try {
+        /* 新規スウォッチグループ / Create a new swatch group */
+        var groupName = uniqueName(SWATCH_GROUP_BASE_NAME, function (n) { return swatchGroupExists(doc, n); });
+        var swatchGroup = doc.swatchGroups.add();
+        swatchGroup.name = groupName;
+
+        /* 抽出色をスウォッチに登録 / Register extracted colors as swatches */
+        var createdSwatches = [];
+        for (var i = 0; i < input.colors.length; i++) {
+            var swatch = addSwatchForColor(doc, input.colors[i], SWATCH_BASE_NAME, opts.makeGlobal);
+            createdSwatches.push(swatch);
+            try { swatchGroup.addSwatch(swatch); } catch (e) { /* 無視 / ignore */ }
+        }
+
+        try { doc.selection = null; } catch (e) { /* 無視 / ignore */ }
+
+        /* グラデーション作成 / Build the gradient */
+        var gradient = null;
         if (opts.makeGradient) {
-            // Separate gradient (auto split, 2..4 colors)
-            if (opts.separateGradient && (colors.length === 2 || colors.length === 3 || colors.length === 4)) {
-                var n = colors.length;
-                var d = 0.01;
+            var canSeparate = opts.separateGradient
+                && input.colors.length >= 2
+                && input.colors.length <= SEPARATE_MAX_COLORS;
+            gradient = canSeparate
+                ? buildSeparateGradient(doc, input.colors, createdSwatches)
+                : buildNormalGradient(doc, input.colors, createdSwatches);
+        }
 
-                // step = 100 / n. For n=3, round to 1 decimal to match 33.3 style.
-                var step = 100 / n;
-                if (n === 3) step = Math.round(step * 10) / 10; // 33.3
+        /* 長方形・グラフィックスタイル / Rectangle and Graphic Style */
+        if ((opts.makeRect || opts.registerGraphicStyle) && gradient) {
+            try { createGradientRect(doc, gradient, opts, input); } catch (e) { /* 無視 / ignore */ }
+        }
 
-                // Build stop points/colors for hard edges: total stops = 2n
-                var stopPoints = [];
-                var stopColors = [];
-
-                function pickColor(idx) {
-                    try {
-                        if (createdSwatches && createdSwatches[idx] && createdSwatches[idx].color) return createdSwatches[idx].color;
-                    } catch (_) { }
-                    return colors[idx];
-                }
-
-                // Start
-                stopPoints.push(0);
-                stopColors.push(pickColor(0));
-
-                // Boundaries: p = step*k
-                for (var k = 1; k <= n - 1; k++) {
-                    var p = step * k;
-                    if (n === 3) p = Math.round(p * 10) / 10; // 33.3, 66.7
-
-                    var p1 = p - d;
-                    var p2 = p + d;
-
-                    // Clamp safety
-                    if (p1 < 0) p1 = 0;
-                    if (p2 > 100) p2 = 100;
-
-                    // left side keeps previous color, right side switches to next color
-                    stopPoints.push(p1);
-                    stopColors.push(pickColor(k - 1));
-
-                    stopPoints.push(p2);
-                    stopColors.push(pickColor(k));
-                }
-
-                // End
-                stopPoints.push(100);
-                stopColors.push(pickColor(n - 1));
-
-                // Ensure exact stop count
-                newGradient = doc.gradients.add();
-                newGradient.type = GradientType.LINEAR;
-                while (newGradient.gradientStops.length < stopPoints.length) newGradient.gradientStops.add();
-                while (newGradient.gradientStops.length > stopPoints.length) newGradient.gradientStops[newGradient.gradientStops.length - 1].remove();
-
-                for (var j = 0; j < stopPoints.length; j++) {
-                    var stop = newGradient.gradientStops[j];
-                    stop.rampPoint = stopPoints[j];
-                    try {
-                        stop.color = stopColors[j];
-                    } catch (eStopColor) {
-                        // Fallback: best-effort
-                        try { stop.color = colors[Math.min(colors.length - 1, Math.max(0, Math.floor(j / 2)))]; } catch (e2) { }
-                    }
-                    stop.midPoint = 50;
-                    stop.opacity = 100;
-                }
-
-                // Do not assign a unique name for separate gradients (keep default)
-            } else {
-                // Normal gradient logic
-                newGradient = doc.gradients.add();
-                newGradient.type = GradientType.LINEAR; // 線形グラデーション（必要に応じてRADIALに変更可）
-
-                // ストップ数を抽出色数に合わせる
-                while (newGradient.gradientStops.length < colors.length) {
-                    newGradient.gradientStops.add();
-                }
-                while (newGradient.gradientStops.length > colors.length) {
-                    newGradient.gradientStops[newGradient.gradientStops.length - 1].remove();
-                }
-
-                // 抽出色をグラデーションストップに適用
-                for (var j = 0; j < colors.length; j++) {
-                    var stop = newGradient.gradientStops[j];
-
-                    // 位置（RampPoint）を計算 (0 〜 100)
-                    var location = (j / (colors.length - 1)) * 100;
-                    stop.rampPoint = location;
-
-                    // 色を適用（スウォッチ登録時に作成したグローバルカラーを優先）
-                    try {
-                        if (createdSwatches && createdSwatches[j] && createdSwatches[j].color) {
-                            stop.color = createdSwatches[j].color; // SpotColor（グローバル）を渡す
-                        } else {
-                            stop.color = colors[j];
-                        }
-                    } catch (eStopColor) {
-                        // 無言フォールバック
-                        try { stop.color = colors[j]; } catch (e2) { }
-                    }
-
-                    // 中間点（MidPoint）をデフォルトの50に設定
-                    stop.midPoint = 50;
-
-                    // 不透明度
-                    stop.opacity = 100;
-                }
-                // グラデーション名（重複回避）: only for normal gradients or non-2color separate
-                if (!(opts.separateGradient && colors.length === 2)) {
-                    var baseGradientName = "New Gradient";
-                    var gradientName = uniqueName(baseGradientName, function (nm) {
-                        try {
-                            doc.gradients.getByName(nm);
-                            return true;
-                        } catch (e) {
-                            return false;
-                        }
-                    });
-                    newGradient.name = gradientName;
-                }
+        /* 作成した最後のスウォッチ（= グラデーション）を選択 / Select the last created swatch */
+        if (gradient) {
+            var idx = doc.swatches.length - 1;
+            if (idx >= 0) {
+                try { doc.swatches[idx].selected = true; } catch (e) { /* 無視 / ignore */ }
             }
         }
-
-        // 参考: ビュー中心に長方形を作成して、作成したグラデーションを適用（またはスタイル登録用の一時長方形）
-        if ((opts.makeRect || opts.registerGraphicStyle) && newGradient) {
-            try {
-                var targetLayer = getUnlockedVisibleLayer(doc);
-                if (targetLayer) {
-                    // Save state for temporary rectangle flow / 一時長方形用に状態を退避
-                    var tempOnly = (!opts.makeRect && opts.registerGraphicStyle);
-                    var prevSelection = null;
-                    var prevActiveLayer = null;
-                    var tempLayer = null;
-                    try { prevActiveLayer = doc.activeLayer; } catch (eAL) { prevActiveLayer = null; }
-                    try {
-                        if (doc.selection && doc.selection.length) {
-                            prevSelection = [];
-                            for (var ps = 0; ps < doc.selection.length; ps++) prevSelection.push(doc.selection[ps]);
-                        }
-                    } catch (ePS) { prevSelection = null; }
-
-                    // If tempOnly, create a dedicated temp layer and draw there / 一時用レイヤーを作成してそこに作る
-                    if (tempOnly) {
-                        try {
-                            tempLayer = doc.layers.add();
-                            tempLayer.name = "__TempGraphicStyle";
-                            tempLayer.visible = true;
-                            tempLayer.locked = false;
-                            try { doc.activeLayer = tempLayer; } catch (eSetAL) { }
-                        } catch (eTL) {
-                            tempLayer = null;
-                        }
-                    }
-
-                    // Decide drawing layer: normal uses targetLayer, tempOnly uses tempLayer if available
-                    var drawLayer = (tempOnly && tempLayer) ? tempLayer : targetLayer;
-
-                    var viewCenterX = doc.activeView.centerPoint[0];
-                    var viewCenterY = doc.activeView.centerPoint[1];
-
-                    // 長方形サイズ：スウォッチ由来は固定(200x100)、オブジェクト由来は選択サイズまたは固定(100)
-                    var rectWidth = 100;
-                    var rectHeight = 100;
-                    if (fromSwatches) {
-                        rectWidth = 200;
-                        rectHeight = 100;
-                    } else if (opts.useSelectionSize) {
-                        try {
-                            if (selBounds) {
-                                rectWidth = Math.abs(selBounds.right - selBounds.left);
-                                rectHeight = Math.abs(selBounds.top - selBounds.bottom);
-                            }
-                        } catch (eSize) { }
-                    }
-
-                    // 念のため最小サイズ
-                    if (!rectWidth || rectWidth <= 0) rectWidth = 100;
-                    if (!rectHeight || rectHeight <= 0) rectHeight = 100;
-
-                    // 位置：スウォッチ由来はビュー中心、オブジェクト由来は選択に沿って配置
-                    var rectTop = viewCenterY + rectHeight / 2;
-                    var rectLeft = viewCenterX - rectWidth / 2;
-
-                    if (!fromSwatches) {
-                        try {
-                            if (selBounds && selOri && (selOri.orientation === "horizontal" || selOri.orientation === "vertical")) {
-                                var selW = Math.abs(selBounds.right - selBounds.left);
-                                var selH = Math.abs(selBounds.top - selBounds.bottom);
-
-                                if (selOri.orientation === "horizontal") {
-                                    // 左：選択の左に合わせる／上：選択の下に「長方形1個分」離して配置
-                                    rectLeft = selBounds.left;
-                                    rectTop = selBounds.bottom - rectHeight;
-                                } else if (selOri.orientation === "vertical") {
-                                    // 上：選択の上に合わせる／左：選択の右に「長方形1個分」離して配置
-                                    rectLeft = selBounds.right + rectWidth;
-                                    rectTop = selBounds.top;
-                                }
-                            }
-                        } catch (ePos) { }
-                    }
-
-                    var rect = drawLayer.pathItems.rectangle(rectTop, rectLeft, rectWidth, rectHeight);
-
-                    // 作成した長方形を選択状態にする
-                    try {
-                        doc.selection = null; // 念のためクリア
-                        rect.selected = true;
-                        // 元の選択が縦並びなら、グラデーション角度を90度に
-                        try {
-                            if (selOri && selOri.orientation === "vertical") {
-                                runGradientAngle90Action();
-                            }
-                        } catch (eAct) { }
-                    } catch (eSelRect) { }
-
-                    rect.stroked = false;
-                    rect.filled = true;
-
-                    var gc = new GradientColor();
-                    gc.gradient = newGradient;
-                    rect.fillColor = gc;
-
-                    // Optionally register as Graphic Style / （任意）グラフィックスタイルに登録
-                    if (opts.registerGraphicStyle) {
-                        try {
-                            // Ensure the rectangle is selected for the action
-                            doc.selection = null;
-                            rect.selected = true;
-                            registerGraphicStyleFromSelected('AutoStyle');
-                        } catch (eGS) { }
-                    }
-
-                    // If rectangle output is OFF but style registration is ON, delete the temporary rectangle and clean up
-                    if (tempOnly) {
-                        try { rect.remove(); } catch (eRm) { }
-
-                        // Remove temp layer if we created it
-                        if (tempLayer) {
-                            try { tempLayer.remove(); } catch (eLayRm) { }
-                        }
-
-                        // Restore active layer
-                        try {
-                            if (prevActiveLayer) doc.activeLayer = prevActiveLayer;
-                        } catch (eRestoreAL) { }
-
-                        // Restore selection (best-effort)
-                        try {
-                            doc.selection = null;
-                            if (prevSelection && prevSelection.length) {
-                                doc.selection = prevSelection;
-                            }
-                        } catch (eRestoreSel) { }
-                    }
-                }
-            } catch (eRect) { }
-        }
-
-        // 最後に追加されたスウォッチ（= 作成したグラデーション）を選択（グラデーション作成時のみ）
-        if (newGradient) {
-            try {
-                var idx = doc.swatches.length - 1;
-                if (idx >= 0) {
-                    doc.swatches[idx].selected = true;
-                }
-            } catch (e) { }
-        }
-
-
     } catch (e) {
-        // 無言（エラー通知しない）
+        /* 無言で終了 / silent */
     }
 }
 
