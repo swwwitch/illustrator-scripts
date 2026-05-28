@@ -12,20 +12,23 @@
     - 保存先は常に現在のファイルと同じフォルダ。未保存ドキュメントは保存先フォルダを選択して保存します。
     - ファイル名を base / title / status / timestamp / version の各セグメントに分解し、UI から個別に編集できます。
       - base: 先頭の固定部分。「ベース」入力欄で編集可能（検出値が初期値、空欄可）
-      - title: 「サブテキスト」ラジオで「なし / 親フォルダー / 指定（入力欄）」を選択。入力欄はデフォルト空白
+      - title: 「サブテキスト」ラジオで「なし / 指定（入力欄）/ 親フォルダー / 2 階層上のフォルダー」を選択
       - status: 「ステータス」dropdown で制作ステータス（wip / draft / review / approved / outlined など）を挿入。`：` より前の値だけがファイル名に入る
       - timestamp: 「タイムスタンプ」ラジオで「なし / YYYYMMDD / YYYY-MM-DD」を選択（デフォルト YYYYMMDD）
-      - version: 「バージョン番号」ラジオで「なし / v1, v2… / v01, v02… / v001, v002…」を選択（デフォルト v1, v2…）。既存の v 番号は +1、無い場合は v2 / v02 / v002 を付与。さらに親フォルダ内に同パターンのファイルがあれば、その最大 v 番号 +1 まで自動で繰り上げ
+      - version: 「バージョン番号」ラジオで「なし / v1, v2… / v01, v02… / v001, v002…」を選択（元ファイルに v 番号が無ければ強制的に v01 形式）。既存の v 番号は +1、親フォルダ内に同パターンがあれば最大 v +1 まで自動繰り上げ
     - 整形ルール：
       - 区切り記号: 「変更しない / `-` / `_`」。`-` または `_` を選ぶとピース内の `-` `_` `.`（FEATURE_DOT_NORMALIZE）を統一。`YYYY-MM-DD` のタイムスタンプは対象外（内部 `-` を保護）
-      - スペースの扱い: 「変更しない / -に変更 / _に変更」で半角スペース（タブ・改行含む `\s+`）を置換
-      - 濁点処理: 「変更しない / 結合する」。HFS+/APFS 由来の分離した濁点・半濁点（NFD）を結合済み文字（NFC）に正規化（デフォルト 結合する）
+      - 濁点・半濁点の正規化: 「変更しない / 結合する」。HFS+/APFS 由来の分離した濁点・半濁点（NFD）を結合済み文字（NFC）に正規化（デフォルト 結合する）
+      - クリーンなファイル名: 「削除する / -に変更 / _に変更」。OS 禁止文字（`\ / : * ? " < > |`）／絵文字／機種依存文字／半角・全角スペース・タブ・改行をまとめて処理（連続するスペースは 1 つに畳んでから置換）
+      - 丸数字や法人略記など: 「変更しない / 変換する」。法人略記（㈱→株 等）／白丸 ①-⑳ / 黒丸 ❶-⓴ / 括弧 ⑴-⒇ / ローマ数字 Ⅰ-Ⅻ・ⅰ-ⅻ / 略記号（℡ № ）/ 単位（㎜ ㎝ ㎞ ㎎ ㎏ ㎡ ㎥）/ チルダ（〜 ～ → `~`）/ ハイフン類（― – — − 等 → `-`）を ASCII 相当に変換
     - 構成要素順のカスタマイズ：
-      - 上部「構成要素の順序」パネルで「カスタム順」を選び、［順序を編集...］ボタンから ↑↓ で並び替え
+      - 上部「構成要素の順序」パネルで「標準順 / 現在のファイル名に準じる / カスタム順」を選択
+      - 「現在のファイル名に準じる」は、現在のファイル名で検出された要素のみをその並び順で出力
+      - 「カスタム順」で［順序を編集...］ボタンから ↑↓ で並び替え
       - 設定はプリセットに保存され次回起動時に復元
     - 動作モード: 「元ファイルをリネーム」（新名で保存後に元ファイルを削除）／「別名で保存」（元ファイルは残り、作業中のドキュメントが新ファイルに切り替わる。デフォルト）／「コピー（複製）を保存」（元ファイルを上書き保存したうえで別名のコピーを作成。作業中のドキュメントは元ファイルのまま）
-    - UI 構成: 上部「動作 + 構成要素の順序」の 2 カラム → 「ファイル名プレビュー」（現在 / 保存後の名前、ラベルは右揃え）→ 「ファイル名の設定」 → Cancel / OK（右寄せ）
-    - トップ部の FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_SPACES / FEATURE_DOT_NORMALIZE / FEATURE_NFC で各機能を個別オフ可能。FEATURE_SEPARATOR は `'-'` / `'_'` の文字列で既定の区切りも指定
+    - UI 構成: 上部「動作 + モード + 構成要素の順序」の 3 カラム → 「ファイル名プレビュー」（現在 / 保存後の名前）→ 「ファイル名の設定」 → Cancel / OK（右寄せ）
+    - トップ部の FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_DOT_NORMALIZE / FEATURE_NFC / FEATURE_CLEAN / FEATURE_TRANSLITERATE で各機能を個別オフ可能。FEATURE_SEPARATOR は `'-'` / `'_'` の文字列で既定の区切りも指定
 
     ### 主な機能：
 
@@ -34,9 +37,12 @@
     - コピー（複製）を保存（元ファイルに上書き保存後、別名のコピーを物理ファイルとして作成）
     - セグメント分解による独立編集（base / title / status / timestamp / version。base は UI 入力で編集、status / date / version は自動検出）
     - ステータス dropdown（11 種類 + 区切り線、ファイル名に入るのは `：` より前のみ。既存ファイル名から自動検出）
-    - 構成要素順のカスタマイズ（サブダイアログで ↑↓、プリセット保存）
+    - サブテキストは「指定／親フォルダー／2 階層上のフォルダー」から選択可能（フォルダ名が存在しないと該当ラジオは無効化）
+    - 構成要素順のカスタマイズ（標準順／現在のファイル名に準じる／カスタム順。プリセット保存）
     - タイムスタンプ／バージョン番号は「なし」で削除、形式切替（YYYYMMDD / YYYY-MM-DD / v1, v2… / v01, v02… / v001, v002…）。バージョン番号は親フォルダ内の同パターン最大 v +1 へ自動繰り上げ
-    - 区切り記号統一（`-` `_` `.`）／空白置換（半角スペース・タブ・改行を `-` or `_` に置換）／YYYY-MM-DD の内部 `-` 保護／NFC 正規化（分離した濁点・半濁点の結合、デフォルトオン）
+    - 区切り記号統一（`-` `_` `.`）／NFC 正規化（分離した濁点・半濁点の結合、デフォルトオン）
+    - クリーンなファイル名（OS 禁止文字 + 絵文字 + 機種依存文字 + スペースを統一処理）
+    - 丸数字や法人略記など（㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / ― → - 等の ASCII 化、デフォルトオフ）
     - 各機能を FEATURE_* 定数で個別にオフ可能
 
     ### 処理の流れ：
@@ -55,6 +61,7 @@
     - v1.1 (2026-06-01) : コロン付きラベル関数追加
     - (2026-05-27 追記) : ステータス dropdown、構成要素順カスタマイズ、スペース置換、YYYY-MM-DD タイムスタンプ、`.` 区切り正規化、整形機能の FEATURE スイッチ化、UI 整理（ベース行非表示、動作・構成要素 2 カラム、ボタン右寄せ）
     - (2026-05-28 追記) : ベース行 UI 復活（入力欄）、「タイトル」→「サブテキスト」（英語: Project Name）改名、バージョン番号表記を v1, v2… / v01, v02… / v001, v002… の 3 段階に拡張、親フォルダ内の同パターンから最大 v +1 を採用、NFC 正規化（濁点・半濁点の結合、FEATURE_NFC）追加、「コピー（複製）を保存」表記、「現在 / 保存後の名前」ラベル右揃え
+    - v1.2.5 (2026-05-28) : 「現在のファイル名に準じる」並び順モード追加、元ファイルに v 番号が無い場合のデフォルトを v01 形式に固定、サブテキストに「2 階層上のフォルダー」追加・順序を「なし／指定／親フォルダー／2 階層上」に変更、「クリーンなファイル名」（OS 禁止文字 + 絵文字 + 機種依存文字 + スペースの統一処理。「スペースの扱い」を吸収）、「丸数字や法人略記など」（㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / ハイフン類 → `-` 等）追加、「濁点処理」→「濁点・半濁点の正規化」改名、内部リファクタ（addRadioRow / pickPref / wireRefresh ヘルパー導入で重複削減）
     
     ---
     
@@ -68,20 +75,23 @@
     - Destination is always the same folder as the current file; for unsaved docs, a destination folder is chosen.
     - Decomposes the filename into base / title / status / timestamp / version segments and lets you edit them.
       - base: editable via the "Base" input (defaults to the detected value; may be empty)
-      - title: "Project Name" radio (None / Parent Folder / Custom input); input field is empty by default
+      - title: "Project Name" radio (None / Custom input / Parent Folder / Grandparent Folder)
       - status: "Status" dropdown (wip / draft / review / approved / outlined, etc.); only the text before `:` is written to the filename
       - timestamp: "Timestamp" radio selects "None / YYYYMMDD / YYYY-MM-DD" (default YYYYMMDD)
-      - version: "Version" radio selects "None / v1, v2… / v01, v02… / v001, v002…" (default v1, v2…). An existing v-number is bumped by +1; otherwise v2 / v02 / v002 is added. If files matching the same pattern exist in the parent folder, the result is bumped further to (max v) + 1.
+      - version: "Version" radio selects "None / v1, v2… / v01, v02… / v001, v002…". When the original has no v-number, defaults to v01 form. Existing v-numbers are bumped by +1; if files matching the same pattern exist in the parent folder, the result is bumped further to (max v) + 1.
     - Formatting rules:
       - Separator: "Don't change / `-` / `_`". Selecting `-` or `_` unifies `-`, `_`, and `.` (FEATURE_DOT_NORMALIZE) inside each piece. `YYYY-MM-DD` timestamps are exempt (internal `-` is preserved)
-      - Spaces: "Don't change / Change to - / Change to _" replaces ASCII whitespace (incl. tabs/newlines via `\s+`)
-      - NFC: "Don't change / Combine". Normalizes separated dakuten/handakuten (NFD) to combined characters (NFC). Default: Combine.
-    - Custom segment order:
-      - In the top "Segment Order" panel, choose "Custom" and click [Edit order...] to reorder with ↑↓
-      - The order is persisted to prefs and restored on next launch
+      - NFC Normalization: "Don't change / Combine". Normalizes separated dakuten/handakuten (NFD) to combined characters (NFC). Default: Combine.
+      - Clean Filename: "Remove / Change to - / Change to _". Handles OS-invalid chars (`\ / : * ? " < > |`), emoji, platform-dependent chars, and spaces (incl. tabs/newlines/fullwidth space) in one pass. Consecutive whitespace is collapsed to one before replacement.
+      - Symbols (translit): "Don't change / Convert". Converts corporate abbreviations (㈱→株 etc.), circled numbers (white ①-⑳ / black ❶-⓴ / parenthesized ⑴-⒇), Roman numerals (Ⅰ-Ⅻ / ⅰ-ⅻ), abbrev symbols (℡ →TEL / № →No), units (㎜→mm / ㎏→kg etc.), tildes (〜 ～ → `~`), and dashes (― – — − etc. → `-`) to ASCII equivalents.
+    - Segment order:
+      - In the top "Segment Order" panel, choose "Default" / "Match Current" / "Custom"
+      - "Match Current" outputs only the elements present in the current filename, in their original order
+      - "Custom" enables [Edit order...] for ↑↓ reordering
+      - The setting is persisted to prefs
     - Modes: "Rename Original" (saves with the new name, then deletes the original), "Save As" (keeps the original; the active document switches to the new file; default), and "Save a Copy" (saves over the original, then creates a separate copy; the active document remains the original file).
-    - UI layout: top row "Mode + Segment Order" (2 columns) → "File Name Preview" (Current / Saved Name, labels right-aligned) → "Filename Settings" → Cancel / OK (right-aligned)
-    - Features can be toggled individually via FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_SPACES / FEATURE_DOT_NORMALIZE / FEATURE_NFC. FEATURE_SEPARATOR accepts `'-'` or `'_'` to also pick the default separator.
+    - UI layout: top row "Mode + Scope + Segment Order" (3 columns) → "File Name Preview" (Current / Saved Name) → "Filename Settings" → Cancel / OK (right-aligned)
+    - Features can be toggled individually via FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_DOT_NORMALIZE / FEATURE_NFC / FEATURE_CLEAN / FEATURE_TRANSLITERATE. FEATURE_SEPARATOR accepts `'-'` or `'_'` to also pick the default separator.
 
     ### Key features:
 
@@ -90,9 +100,12 @@
     - Save a Copy (saves over the original, then creates a separate copy; the active document remains the original file)
     - Segment-based editing (base / title / status / timestamp / version; base edited via input, status / date / version auto-detected)
     - Status dropdown (11 entries + divider; only the text before `:` is used; detected from existing filenames)
-    - Custom segment order via sub-dialog (↑↓; persisted to prefs)
+    - Project Name selectable from Custom / Parent Folder / Grandparent Folder (radios are disabled when no such folder exists)
+    - Segment order via Default / Match Current / Custom (persisted to prefs)
     - Timestamp / version: "None" removes the segment; switch format (YYYYMMDD / YYYY-MM-DD / v1, v2… / v01, v02… / v001, v002…). Version auto-bumps to (max v in folder) + 1 when collisions exist.
-    - Separator unification (`-` `_` `.`) / space replacement / `-` protection inside YYYY-MM-DD / NFC normalization for separated dakuten/handakuten (default on)
+    - Separator unification (`-` `_` `.`) / NFC normalization for separated dakuten/handakuten (default on)
+    - Clean Filename (unified handling of OS-invalid chars + emoji + platform-dependent chars + spaces)
+    - Symbols (㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / ― → - etc., default off)
     - Each feature toggleable via FEATURE_* constants
 
     ### Flow:
@@ -110,6 +123,7 @@
     - v1.0 (2026-05-27): Initial release
     - (2026-05-27 update): Added status dropdown, custom segment order, space replacement, YYYY-MM-DD timestamp, `.` separator normalization, FEATURE switches, UI cleanup (no base row, 2-col top, right-aligned buttons)
     - (2026-05-28 update): Restored editable Base input, renamed "Title" → "Project Name", expanded version format to v1, v2… / v01, v02… / v001, v002…, auto-bump to (folder max v) + 1, added NFC normalization (FEATURE_NFC, default on), "Save a Copy" wording, right-aligned Current/Saved Name labels
+    - v1.2.5 (2026-05-28): Added "Match Current" segment-order mode, forced v01 default when no v-number exists in original, added "Grandparent Folder" as Project Name option with reordered radios (None / Custom / Parent / Grandparent), added "Clean Filename" (OS-invalid + emoji + platform-dependent chars + spaces in one pass; absorbs the former "Spaces" option), added "Symbols" transliteration (㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / dashes → `-` etc.), renamed "NFC" label to "NFC Normalization", internal refactor (addRadioRow / pickPref / wireRefresh helpers to reduce duplication)
     
     */
 
@@ -119,7 +133,7 @@
         // バージョン / Version
         // =========================================
 
-        var SCRIPT_VERSION = "v1.2.0";
+        var SCRIPT_VERSION = "v1.2.5";
 
         // =========================================
         // ユーザー設定 / User Settings
@@ -130,9 +144,58 @@
         var FEATURE_STATUS = true;        // ステータス dropdown と検出 / Status dropdown + detection
         var FEATURE_SORT = true;          // ソートパネル + 並び順カスタマイズ / Sort panel + custom segment order
         var FEATURE_SEPARATOR = '-';      // 区切り記号統一: '-' / '_' で有効化＋既定値、false で無効 / '-' or '_' enables with that default; false disables
-        var FEATURE_SPACES = '-';         // スペース置換: '-' / '_' で有効化＋既定値、false で無効 / '-' or '_' enables with that default; false disables
         var FEATURE_DOT_NORMALIZE = true; // "." を区切り記号にあわせて置換（要 FEATURE_SEPARATOR） / "." normalization with the chosen separator
         var FEATURE_NFC = true;           // 濁点・半濁点の NFC 結合 / Combine separated dakuten/handakuten (NFC)
+        var FEATURE_CLEAN = true;         // クリーンなファイル名（OS 禁止文字 + 絵文字・機種依存文字の処理） / Clean filename (OS-invalid + emoji + platform-dependent)
+        var FEATURE_TRANSLITERATE = true; // 法人略記・丸数字などを ASCII 相当に変換 / Transliterate corp abbrev / circled numbers / etc.
+
+        /* 文字 → 置換文字列のマップ。法人略記、丸数字（白・黒・括弧）、ローマ数字、略記号、単位、ダッシュ類
+           / Char → replacement map: corporate abbrev, circled (white/black/parenthesized), Roman numerals, abbrev symbols, units, dashes */
+        var TRANSLITERATE_MAP = {
+            // 法人略記
+            '㈱': '株', '㈲': '有', '㈹': '代', '㈳': '社',
+            '㈵': '特', '㈶': '財', '㈻': '学', '㍿': '株式会社',
+            // 白丸数字 ①-⑳ (U+2460-U+2473)
+            '①': '1', '②': '2', '③': '3', '④': '4', '⑤': '5',
+            '⑥': '6', '⑦': '7', '⑧': '8', '⑨': '9', '⑩': '10',
+            '⑪': '11', '⑫': '12', '⑬': '13', '⑭': '14', '⑮': '15',
+            '⑯': '16', '⑰': '17', '⑱': '18', '⑲': '19', '⑳': '20',
+            // 黒丸数字 ❶-❿ (U+2776-U+277F) + ⓫-⓴ (U+24EB-U+24F4)
+            '❶': '1', '❷': '2', '❸': '3', '❹': '4', '❺': '5',
+            '❻': '6', '❼': '7', '❽': '8', '❾': '9', '❿': '10',
+            '⓫': '11', '⓬': '12', '⓭': '13', '⓮': '14', '⓯': '15',
+            '⓰': '16', '⓱': '17', '⓲': '18', '⓳': '19', '⓴': '20',
+            // 括弧数字 ⑴-⒇ (U+2474-U+2487)
+            '⑴': '1', '⑵': '2', '⑶': '3', '⑷': '4', '⑸': '5',
+            '⑹': '6', '⑺': '7', '⑻': '8', '⑼': '9', '⑽': '10',
+            '⑾': '11', '⑿': '12', '⒀': '13', '⒁': '14', '⒂': '15',
+            '⒃': '16', '⒄': '17', '⒅': '18', '⒆': '19', '⒇': '20',
+            // ローマ数字 大文字 Ⅰ-Ⅻ (U+2160-U+216B)
+            'Ⅰ': '1', 'Ⅱ': '2', 'Ⅲ': '3', 'Ⅳ': '4', 'Ⅴ': '5',
+            'Ⅵ': '6', 'Ⅶ': '7', 'Ⅷ': '8', 'Ⅸ': '9', 'Ⅹ': '10',
+            'Ⅺ': '11', 'Ⅻ': '12',
+            // ローマ数字 小文字 ⅰ-ⅻ (U+2170-U+217B)
+            'ⅰ': '1', 'ⅱ': '2', 'ⅲ': '3', 'ⅳ': '4', 'ⅴ': '5',
+            'ⅵ': '6', 'ⅶ': '7', 'ⅷ': '8', 'ⅸ': '9', 'ⅹ': '10',
+            'ⅺ': '11', 'ⅻ': '12',
+            // 略記号
+            '℡': 'TEL', '№': 'No',
+            // 単位記号
+            '㎜': 'mm', '㎝': 'cm', '㎞': 'km',
+            '㎎': 'mg', '㎏': 'kg',
+            '㎡': 'm2', '㎥': 'm3',
+            // チルダ類
+            '〜': '~', '～': '~',  // 〜 WAVE DASH / ～ FULLWIDTH TILDE
+            // ハイフン・ダッシュ類
+            '－': '-',  // － FULLWIDTH HYPHEN-MINUS
+            '‐': '-',  // ‐ HYPHEN
+            '‑': '-',  // ‑ NON-BREAKING HYPHEN
+            '‒': '-',  // ‒ FIGURE DASH
+            '–': '-',  // – EN DASH
+            '—': '-',  // — EM DASH
+            '―': '-',  // ― HORIZONTAL BAR
+            '−': '-'   // − MINUS SIGN
+        };
 
         /* 出力時のセグメント順序。base / title / status / timestamp / version。FEATURE_STATUS=false なら status は除外
            / Output segment order; "status" is dropped when FEATURE_STATUS is false */
@@ -199,6 +262,7 @@
                 noChange: { ja: "変更しない", en: "No Change" },
                 titleNone: { ja: "なし", en: "None" },
                 titleParent: { ja: "親フォルダー", en: "Parent Folder" },
+                titleGrandparent: { ja: "2 階層上のフォルダー", en: "Grandparent Folder" },
                 titleCustom: { ja: "指定", en: "Custom" },
                 timestampNone: { ja: "なし", en: "None" },
                 timestampDate: { ja: "YYYYMMDD", en: "YYYYMMDD" },
@@ -210,7 +274,10 @@
                 changeToDash: { ja: "-に変更", en: "Change to -" },
                 changeToUnderscore: { ja: "_に変更", en: "Change to _" },
                 nfcCombine: { ja: "結合する", en: "Combine" },
+                cleanRemove: { ja: "削除する", en: "Remove" },
+                translitConvert: { ja: "変換する", en: "Convert" },
                 sortOff: { ja: "標準順", en: "Default" },
+                sortCurrent: { ja: "現在のファイル名に準じる", en: "Match Current" },
                 sortOn: { ja: "カスタム順", en: "Custom" }
             },
             label: {
@@ -222,8 +289,9 @@
                 timestamp: { ja: "タイムスタンプ", en: "Timestamp" },
                 version: { ja: "バージョン番号", en: "Version" },
                 separator: { ja: "区切り記号", en: "Separator" },
-                spaces: { ja: "スペースの扱い", en: "Spaces" },
-                nfc: { ja: "濁点処理", en: "NFC" }
+                nfc: { ja: "濁点・半濁点の正規化", en: "NFC Normalization" },
+                clean: { ja: "クリーンなファイル名", en: "Clean Filename" },
+                translit: { ja: "丸数字や法人略記など", en: "Symbols" }
             },
             tip: {
                 rename: {
@@ -255,24 +323,28 @@
                     en: "Choose timestamp format. \"None\" removes any existing date."
                 },
                 version: {
-                    ja: "バージョン番号の形式。v1/v2 はパディング無し、v01/v02 は 2 桁、v001/v002 は 3 桁ゼロ埋め。既存の v 番号は +1、無い場合は v2/v02/v002 を付与。「なし」で削除。",
-                    en: "Version format. v1/v2 has no padding, v01/v02 is 2-digit, v001/v002 is 3-digit zero-padded. An existing v-number is bumped by +1; otherwise v2/v02/v002 is added. \"None\" removes."
+                    ja: "バージョン番号の形式。v1/v2 はパディング無し、v01/v02 は 2 桁、v001/v002 は 3 桁ゼロ埋め。既存の v 番号は +1、無い場合は v1/v01/v001 を付与。「なし」で削除。",
+                    en: "Version format. v1/v2 has no padding, v01/v02 is 2-digit, v001/v002 is 3-digit zero-padded. An existing v-number is bumped by +1; otherwise v1/v01/v001 is added. \"None\" removes."
                 },
                 separator: {
                     ja: "ファイル名全体の区切り記号の扱いを選択します。「-」「_」「.」が対象。YYYY-MM-DD のタイムスタンプは保護されます。",
                     en: "Choose how separators in the filename are handled. Targets `-`, `_`, and `.`. YYYY-MM-DD timestamps are preserved."
                 },
-                spaces: {
-                    ja: "最終ファイル名に含まれるスペースの扱いを選択します。",
-                    en: "Choose how spaces in the final filename are handled."
-                },
                 sort: {
-                    ja: "「カスタム順」を選び［順序を編集］から並び順を編集します。",
-                    en: "Choose \"Custom\" and click [Edit order] to edit the order."
+                    ja: "並び順を選択。「現在のファイル名に準じる」は検出された要素のみ、「カスタム順」は［順序を編集］で並び替え。",
+                    en: "Choose order. \"Match Current\" uses only detected segments; \"Custom\" enables [Edit order]."
                 },
                 nfc: {
                     ja: "ファイル名に分離した濁点・半濁点が含まれる場合、結合済み文字（NFC）に正規化します。",
                     en: "Normalize separated dakuten/handakuten to combined characters (NFC)."
+                },
+                clean: {
+                    ja: "OS で使えない文字（\\ / : * ? \" < > |）、絵文字・機種依存文字（㈱・①・㌔ など）、スペースの扱いをまとめて選択します。連続するスペースは 1 つにまとめてから処理。",
+                    en: "How to handle OS-invalid characters (\\ / : * ? \" < > |), emoji, platform-dependent chars (㈱, ①, ㌔), and spaces. Consecutive spaces collapse to one before replacement."
+                },
+                translit: {
+                    ja: "法人略記（㈱→株）、丸数字（①→1）、ローマ数字（Ⅰ→1）、TEL/No、単位記号（㎜→mm）、ダッシュ類を ASCII 相当に変換します。",
+                    en: "Convert corporate abbreviations (㈱→株), circled numbers (①→1), Roman numerals, TEL/No, units (㎜→mm), and dashes to ASCII equivalents."
                 }
             },
             button: {
@@ -442,6 +514,30 @@
             return result;
         }
 
+        /* parseFileName の kind を SEGMENT_ORDER の kind に変換しつつ、現在のファイル名で
+           実際に出現した要素の並びを返す。重複・FEATURE_STATUS=false の status は除外
+           / Map parsed segment kinds to SEGMENT_ORDER kinds in appearance order;
+           dedupe and drop 'status' when FEATURE_STATUS is false */
+        function deriveOrderFromSegments(segments) {
+            var kindToOrder = {
+                base: 'base',
+                text: 'title',
+                status: 'status',
+                date: 'timestamp',
+                version: 'version'
+            };
+            var order = [];
+            var seen = {};
+            for (var i = 0; i < segments.length; i++) {
+                var k = kindToOrder[segments[i].kind];
+                if (!k || seen[k]) continue;
+                if (k === 'status' && !FEATURE_STATUS) continue;
+                order.push(k);
+                seen[k] = true;
+            }
+            return order;
+        }
+
         /* segments から最初に出現する kind の value を取得 / Get the value of the first segment of the given kind */
         function getFirstSegmentValue(segments, kind) {
             for (var i = 0; i < segments.length; i++) {
@@ -483,12 +579,12 @@
         }
 
         /* バージョン文字列を +1。mode='padded' で 2 桁ゼロ埋め、'paddedWide' で 3 桁ゼロ埋め。
-           元バージョンが無ければ新規付与（v2 / v02 / v002）
-           / Bump the version string by +1. 'padded'=min 2 digits, 'paddedWide'=min 3. Returns v2/v02/v002 if no original */
+           元バージョンが無ければ新規付与（v1 / v01 / v001）
+           / Bump the version string by +1. 'padded'=min 2 digits, 'paddedWide'=min 3. Returns v1/v01/v001 if no original */
         function formatVersion(originalVersion, mode) {
             var match = String(originalVersion || '').match(/^([vV])(\d+)$/);
             var letter = match ? match[1] : 'v';
-            var nextNum = match ? (parseInt(match[2], 10) + 1) : 2;
+            var nextNum = match ? (parseInt(match[2], 10) + 1) : 1;
             if (mode === 'padded') {
                 var width = match ? Math.max(match[2].length, 2) : 2;
                 return letter + padLeft(String(nextNum), width);
@@ -570,9 +666,12 @@
             return (dot > 0) ? name.substring(0, dot) : name;
         }
 
-        /* ファイル名として無効な文字を除去し前後空白をトリム / Strip invalid filename chars and trim whitespace */
+        /* 前後空白をトリム。FEATURE_CLEAN=false のときは OS 禁止文字も除去（後段で処理されないため）
+           / Trim whitespace. When FEATURE_CLEAN is off, also strip OS-invalid chars (no post-process safety net) */
         function sanitizeFilename(str) {
-            return String(str).replace(/[\\\/:*?"<>|]/g, '').replace(/^\s+|\s+$/g, '');
+            var trimmed = String(str).replace(/^\s+|\s+$/g, '');
+            if (FEATURE_CLEAN) return trimmed;
+            return trimmed.replace(/[\\\/:*?"<>|]/g, '');
         }
 
         /* HFS+/APFS 由来の NFD 文字列（か + ゛など）を NFC（が）に結合。
@@ -597,6 +696,74 @@
                 }
                 return base + mark;
             });
+        }
+
+        /* ファイル名で安全に使える「標準」文字か。
+           OS 禁止文字（\ / : * ? " < > |）と半角・全角スペースは ASCII / CJK 範囲だが除外。
+           ASCII printable / CJK 記号 / 仮名 / 漢字 / 全角 ASCII / 半角カタカナ を許容
+           / Whether a code point is "standard" for filenames; OS-invalid chars and spaces are excluded */
+        function isStandardFilenameChar(code) {
+            // OS 禁止文字: \ 5C / 2F : 3A * 2A ? 3F " 22 < 3C > 3E | 7C
+            if (code === 0x5C || code === 0x2F || code === 0x3A || code === 0x2A
+                || code === 0x3F || code === 0x22 || code === 0x3C
+                || code === 0x3E || code === 0x7C) return false;
+            // 半角・全角スペース
+            if (code === 0x20 || code === 0x3000) return false;
+            if (code >= 0x21 && code <= 0x7E) return true;     // ASCII printable（space を除く）
+            if (code >= 0x3001 && code <= 0x303F) return true; // CJK 記号と句読点（、。「」など / 全角スペースを除く）
+            if (code >= 0x3040 && code <= 0x309F) return true; // ひらがな
+            if (code >= 0x30A0 && code <= 0x30FF) return true; // カタカナ
+            if (code >= 0x3400 && code <= 0x4DBF) return true; // CJK 拡張 A
+            if (code >= 0x4E00 && code <= 0x9FFF) return true; // CJK 基本
+            if (code >= 0xFF00 && code <= 0xFF5E) return true; // 全角 ASCII
+            if (code >= 0xFF61 && code <= 0xFF9F) return true; // 半角カタカナ
+            return false;
+        }
+
+        /* OS 禁止文字 + 絵文字 + 機種依存文字 + スペースを mode に応じて置換／削除。
+           連続するスペース（タブ・改行含む）は事前に 1 つに畳んでから処理。サロゲートペアは 2 文字単位
+           mode: 'remove'（削除） / 'dash'（-）/ 'underscore'（_）
+           / Clean OS-invalid + emoji + platform-dependent chars + spaces per mode */
+        function cleanFilenameChars(str, mode) {
+            var replacement = (mode === 'dash') ? '-' : (mode === 'underscore') ? '_' : '';
+            // 連続する空白を 1 つにまとめてから per-char で置換（mode='dash' で "  " が "--" にならないように）
+            var s = String(str).replace(/\s+/g, ' ');
+            var result = '';
+            var i = 0;
+            while (i < s.length) {
+                var code = s.charCodeAt(i);
+                if (code >= 0xD800 && code <= 0xDBFF && i + 1 < s.length) {
+                    // 高サロゲート + 低サロゲートは常に非標準（BMP 外の絵文字など）
+                    result += replacement;
+                    i += 2;
+                    continue;
+                }
+                if (isStandardFilenameChar(code)) {
+                    result += s.charAt(i);
+                } else {
+                    result += replacement;
+                }
+                i++;
+            }
+            return result;
+        }
+
+        /* TRANSLITERATE_MAP に従って 1 文字ずつ置換。マップにないものはそのまま
+           値が文字列のときのみ置換（toString などの prototype プロパティ衝突を回避）
+           / Per-char replacement via TRANSLITERATE_MAP; guards against prototype properties */
+        function transliterate(str) {
+            var s = String(str);
+            var result = '';
+            for (var i = 0; i < s.length; i++) {
+                var ch = s.charAt(i);
+                var mapped = TRANSLITERATE_MAP[ch];
+                if (typeof mapped === 'string') {
+                    result += mapped;
+                } else {
+                    result += ch;
+                }
+            }
+            return result;
         }
 
         /* 保存先ダイアログ。.ai 拡張子を補正して File を返す。キャンセルは null / Show save dialog, normalize to .ai; null on cancel */
@@ -662,15 +829,20 @@
             var rawName = (fullName && fullName.name) ? fullName.name : doc.name;
             var currentName = decodePercentEncoded(rawName);
             var parentFolderName = '';
+            var grandparentFolderName = '';
             if (savedToDisk && fullName.parent) {
                 parentFolderName = decodePercentEncoded(fullName.parent.name);
+                if (fullName.parent.parent) {
+                    grandparentFolderName = decodePercentEncoded(fullName.parent.parent.name);
+                }
             }
             return {
                 currentName: currentName,
                 baseName: stripExtension(currentName),
                 fsPath: savedToDisk ? fullName.fsName : null,
                 folder: savedToDisk ? fullName.parent : null,
-                parentFolderName: parentFolderName
+                parentFolderName: parentFolderName,
+                grandparentFolderName: grandparentFolderName
             };
         }
 
@@ -729,6 +901,7 @@
                 if (kind === 'title') {
                     if (uiState.titleMode === 'none') return '';
                     if (uiState.titleMode === 'parent') return sanitizeFilename(uiState.parentFolderName);
+                    if (uiState.titleMode === 'grandparent') return sanitizeFilename(uiState.grandparentFolderName);
                     return sanitizeFilename(uiState.titleText);
                 }
                 if (kind === 'status') {
@@ -765,16 +938,7 @@
                 pieces.push(value);
             }
             var result = pieces.join(defaultSep);
-
-            // スペースの置換は区切り記号統一の後に行う（連続スペースは 1 文字に畳む）
-            if (FEATURE_SPACES) {
-                if (uiState.spaces === '-') {
-                    result = result.replace(/\s+/g, '-');
-                } else if (uiState.spaces === '_') {
-                    result = result.replace(/\s+/g, '_');
-                }
-            }
-
+            // スペース（半角・全角・タブ・改行）の処理は後段の cleanFilenameChars に集約
             return result;
         }
 
@@ -801,17 +965,24 @@
             panel.spacing = (typeof spacing === 'number') ? spacing : PANEL_SPACING;
         }
 
-        /* ソートパネルを構築（しない / する + [ソート] ボタン）。ボタンは「する」のとき有効
-           / Build the sort panel: Off/On radios + [Sort] button (enabled only when "On") */
-        function buildSortPanel(parent, prefs) {
+        /* ソートパネルを構築（標準順 / 現在のファイル名に準じる / カスタム順 + [順序を編集] ボタン）。
+           ボタンは「カスタム順」のときだけ有効。currentOrderAvailable=false なら「現在...」は無効化
+           / Build the sort panel: Default / Match Current / Custom + [Edit order] button.
+           The button is enabled only for "Custom". When currentOrderAvailable=false, "Match Current" is disabled */
+        function buildSortPanel(parent, prefs, currentOrderAvailable) {
             var panel = parent.add('panel', undefined, L('panel.sort'));
             setupPanel(panel);
             var sortOffRadio = panel.add('radiobutton', undefined, L('radio.sortOff'));
             sortOffRadio.helpTip = L('tip.sort');
+            var sortCurrentRadio = panel.add('radiobutton', undefined, L('radio.sortCurrent'));
+            sortCurrentRadio.helpTip = L('tip.sort');
+            if (!currentOrderAvailable) sortCurrentRadio.enabled = false;
             var sortOnRadio = panel.add('radiobutton', undefined, L('radio.sortOn'));
             sortOnRadio.helpTip = L('tip.sort');
-            var initialSort = (prefs && prefs.sort === 'on') ? 'on' : 'off';
+            var initialSort = pickPref(prefs, 'sort', ['off', 'current', 'on'], 'off');
+            if (initialSort === 'current' && !currentOrderAvailable) initialSort = 'off';
             sortOffRadio.value = (initialSort === 'off');
+            sortCurrentRadio.value = (initialSort === 'current');
             sortOnRadio.value = (initialSort === 'on');
             var sortButton = panel.add('button', undefined, L('button.sort'));
             sortButton.enabled = (initialSort === 'on');
@@ -822,8 +993,15 @@
             return {
                 panel: panel,
                 sortOffRadio: sortOffRadio,
+                sortCurrentRadio: sortCurrentRadio,
                 sortOnRadio: sortOnRadio,
                 sortButton: sortButton,
+                /* 'off' / 'current' / 'on' */
+                getSortMode: function () {
+                    if (sortOnRadio.value) return 'on';
+                    if (sortCurrentRadio.value) return 'current';
+                    return 'off';
+                },
                 isSortOn: function () { return sortOnRadio.value; },
                 syncSortButtonEnabled: syncSortButtonEnabled
             };
@@ -904,7 +1082,7 @@
         }
 
         /* オプションパネルを構築（ベース表示・タイトル選択・タイムスタンプ・バージョン番号・区切り） / Build the options panel */
-        function buildOptionsPanel(parent, segments, prefs, parentFolderName) {
+        function buildOptionsPanel(parent, segments, prefs, parentFolderName, grandparentFolderName) {
             var panel = parent.add('panel', undefined, L('panel.options'));
             setupPanel(panel);
 
@@ -927,20 +1105,18 @@
             titleSection.alignChildren = ['fill', 'top'];
             titleSection.spacing = 4;
 
-            var titleRow = titleSection.add('group');
-            titleRow.orientation = 'row';
-            titleRow.alignment = ['left', 'top'];
-            var titleLabel = titleRow.add('statictext', undefined, labelText('label.title'));
-            titleLabel.helpTip = L('tip.title');
-            var titleNoneRadio = titleRow.add('radiobutton', undefined, L('radio.titleNone'));
-            titleNoneRadio.helpTip = L('tip.title');
-            var titleParentRadio = titleRow.add('radiobutton', undefined, L('radio.titleParent'));
-            titleParentRadio.helpTip = parentFolderName
-                ? L('tip.title') + ' (' + parentFolderName + ')'
-                : L('tip.title');
-            if (!parentFolderName) titleParentRadio.enabled = false;
-            var titleCustomRadio = titleRow.add('radiobutton', undefined, L('radio.titleCustom'));
-            titleCustomRadio.helpTip = L('tip.title');
+            var titleRow = addRadioRow(titleSection, 'label.title', 'tip.title', [
+                { key: 'none', text: L('radio.titleNone') },
+                { key: 'custom', text: L('radio.titleCustom') },
+                { key: 'parent', text: L('radio.titleParent') },
+                { key: 'grandparent', text: L('radio.titleGrandparent') }
+            ]);
+            titleRow.group.alignment = ['left', 'top'];
+            // 親/2 階層上のフォルダー名がある場合は helpTip にフォルダ名を追記、無ければ無効化
+            if (parentFolderName) titleRow.radios.parent.helpTip = L('tip.title') + ' (' + parentFolderName + ')';
+            else titleRow.radios.parent.enabled = false;
+            if (grandparentFolderName) titleRow.radios.grandparent.helpTip = L('tip.title') + ' (' + grandparentFolderName + ')';
+            else titleRow.radios.grandparent.enabled = false;
 
             // 「指定」用の入力欄は次の行（ラベル列幅だけ左に余白を入れて radios に揃える）
             var titleFieldRow = titleSection.add('group');
@@ -952,25 +1128,23 @@
             titleField.helpTip = L('tip.title');
 
             // 初期モード: 元ファイル名にサブテキストが無ければ「なし」を強制。
-            // 検出できた場合は prefs.titleMode を優先、無ければ 'custom'（parent は parentFolderName 必須）
-            var initialTitleMode;
-            if (!detectedTitle) {
-                initialTitleMode = 'none';
-            } else if (prefs && (prefs.titleMode === 'none' || prefs.titleMode === 'parent' || prefs.titleMode === 'custom')) {
-                initialTitleMode = prefs.titleMode;
-            } else {
-                initialTitleMode = 'custom';
-            }
+            // 検出できた場合は prefs.titleMode を優先、無ければ 'custom'（parent/grandparent は対応フォルダ名必須）
+            var initialTitleMode = !detectedTitle ? 'none' :
+                pickPref(prefs, 'titleMode', ['none', 'parent', 'grandparent', 'custom'], 'custom');
             if (initialTitleMode === 'parent' && !parentFolderName) {
                 initialTitleMode = detectedTitle ? 'custom' : 'none';
             }
-            titleNoneRadio.value = (initialTitleMode === 'none');
-            titleParentRadio.value = (initialTitleMode === 'parent');
-            titleCustomRadio.value = (initialTitleMode === 'custom');
+            if (initialTitleMode === 'grandparent' && !grandparentFolderName) {
+                initialTitleMode = detectedTitle ? 'custom' : 'none';
+            }
+            titleRow.radios.none.value = (initialTitleMode === 'none');
+            titleRow.radios.parent.value = (initialTitleMode === 'parent');
+            titleRow.radios.grandparent.value = (initialTitleMode === 'grandparent');
+            titleRow.radios.custom.value = (initialTitleMode === 'custom');
             titleField.enabled = (initialTitleMode === 'custom');
 
             function syncTitleFieldEnabled() {
-                titleField.enabled = titleCustomRadio.value;
+                titleField.enabled = titleRow.radios.custom.value;
             }
 
             // ステータス（dropdown。先頭は「なし」）
@@ -1001,162 +1175,145 @@
             }
 
             // タイムスタンプ（なし / YYYYMMDD / YYYY-MM-DD。デフォルト YYYYMMDD）
-            var timestampRow = panel.add('group');
-            timestampRow.orientation = 'row';
-            var timestampLabel = timestampRow.add('statictext', undefined, labelText('label.timestamp'));
-            timestampLabel.helpTip = L('tip.timestamp');
-            var timestampNoneRadio = timestampRow.add('radiobutton', undefined, L('radio.timestampNone'));
-            timestampNoneRadio.helpTip = L('tip.timestamp');
-            var timestampDateRadio = timestampRow.add('radiobutton', undefined, L('radio.timestampDate'));
-            timestampDateRadio.helpTip = L('tip.timestamp');
-            var timestampDateDashRadio = timestampRow.add('radiobutton', undefined, L('radio.timestampDateDash'));
-            timestampDateDashRadio.helpTip = L('tip.timestamp');
-            var initialTimestamp = (prefs && (prefs.timestamp === 'none' || prefs.timestamp === 'dateDash')) ? prefs.timestamp : 'date';
-            timestampNoneRadio.value = (initialTimestamp === 'none');
-            timestampDateRadio.value = (initialTimestamp === 'date');
-            timestampDateDashRadio.value = (initialTimestamp === 'dateDash');
+            var timestampRow = addRadioRow(panel, 'label.timestamp', 'tip.timestamp', [
+                { key: 'none', text: L('radio.timestampNone') },
+                { key: 'date', text: L('radio.timestampDate') },
+                { key: 'dateDash', text: L('radio.timestampDateDash') }
+            ]);
+            var initialTimestamp = pickPref(prefs, 'timestamp', ['none', 'date', 'dateDash'], 'date');
+            timestampRow.radios.none.value = (initialTimestamp === 'none');
+            timestampRow.radios.date.value = (initialTimestamp === 'date');
+            timestampRow.radios.dateDash.value = (initialTimestamp === 'dateDash');
 
             // バージョン番号（なし / v1, v2… / v01, v02… / v001, v002…。デフォルト v1, v2…）
-            var versionRow = panel.add('group');
-            versionRow.orientation = 'row';
-            var versionLabel = versionRow.add('statictext', undefined, labelText('label.version'));
-            versionLabel.helpTip = L('tip.version');
-            var versionNoneRadio = versionRow.add('radiobutton', undefined, L('radio.versionNone'));
-            versionNoneRadio.helpTip = L('tip.version');
-            var versionShortRadio = versionRow.add('radiobutton', undefined, L('radio.versionShort'));
-            versionShortRadio.helpTip = L('tip.version');
-            var versionPaddedRadio = versionRow.add('radiobutton', undefined, L('radio.versionPadded'));
-            versionPaddedRadio.helpTip = L('tip.version');
-            var versionPaddedWideRadio = versionRow.add('radiobutton', undefined, L('radio.versionPaddedWide'));
-            versionPaddedWideRadio.helpTip = L('tip.version');
-            var initialVersion = (prefs && (prefs.version === 'none' || prefs.version === 'padded' || prefs.version === 'paddedWide')) ? prefs.version : 'short';
-            versionNoneRadio.value = (initialVersion === 'none');
-            versionShortRadio.value = (initialVersion === 'short');
-            versionPaddedRadio.value = (initialVersion === 'padded');
-            versionPaddedWideRadio.value = (initialVersion === 'paddedWide');
+            // ES3 で 'short' を裸キーにすると予約語エラーになるため、ローカル変数名は short_ にする
+            var versionRow = addRadioRow(panel, 'label.version', 'tip.version', [
+                { key: 'none', text: L('radio.versionNone') },
+                { key: 'short_', text: L('radio.versionShort') },
+                { key: 'padded', text: L('radio.versionPadded') },
+                { key: 'paddedWide', text: L('radio.versionPaddedWide') }
+            ]);
+            // 元ファイルに v 番号が無ければ常に 'padded' を強制（保存済み prefs を上書き）
+            var hasOriginalVersion = !!getFirstSegmentValue(segments, 'version');
+            var initialVersion = !hasOriginalVersion ? 'padded' :
+                pickPref(prefs, 'version', ['none', 'short', 'padded', 'paddedWide'], 'padded');
+            versionRow.radios.none.value = (initialVersion === 'none');
+            versionRow.radios.short_.value = (initialVersion === 'short');
+            versionRow.radios.padded.value = (initialVersion === 'padded');
+            versionRow.radios.paddedWide.value = (initialVersion === 'paddedWide');
 
             // 区切り記号（変更しない / - / _ 横並び。デフォルト "-"）
-            var separatorLabel = null, noChangeRadio = null, dashRadio = null, underscoreRadio = null;
+            var separatorRow = null;
             if (FEATURE_SEPARATOR) {
-                var separatorRow = panel.add('group');
-                separatorRow.orientation = 'row';
-                separatorLabel = separatorRow.add('statictext', undefined, labelText('label.separator'));
-                separatorLabel.helpTip = L('tip.separator');
-                noChangeRadio = separatorRow.add('radiobutton', undefined, L('radio.noChange'));
-                noChangeRadio.helpTip = L('tip.separator');
-                dashRadio = separatorRow.add('radiobutton', undefined, '-');
-                dashRadio.helpTip = L('tip.separator');
-                underscoreRadio = separatorRow.add('radiobutton', undefined, '_');
-                underscoreRadio.helpTip = L('tip.separator');
+                separatorRow = addRadioRow(panel, 'label.separator', 'tip.separator', [
+                    { key: 'noChange', text: L('radio.noChange') },
+                    { key: 'dash', text: '-' },
+                    { key: 'underscore', text: '_' }
+                ]);
                 // prefs があればそれを優先、無ければ FEATURE_SEPARATOR の指定文字（'-' or '_'）を初期値に
                 var defaultSeparator = (FEATURE_SEPARATOR === '_') ? '_' : '-';
-                var initialSeparator = (prefs && (prefs.separator === '' || prefs.separator === '-' || prefs.separator === '_')) ? prefs.separator : defaultSeparator;
-                noChangeRadio.value = (initialSeparator === '');
-                dashRadio.value = (initialSeparator === '-');
-                underscoreRadio.value = (initialSeparator === '_');
-            }
-
-            // スペースの扱い（変更しない / -に変更 / _に変更。デフォルトは FEATURE_SPACES 値、初期 "-"）
-            var spacesLabel = null, spaceNoChangeRadio = null, spaceDashRadio = null, spaceUnderscoreRadio = null;
-            if (FEATURE_SPACES) {
-                var spacesRow = panel.add('group');
-                spacesRow.orientation = 'row';
-                spacesLabel = spacesRow.add('statictext', undefined, labelText('label.spaces'));
-                spacesLabel.helpTip = L('tip.spaces');
-                spaceNoChangeRadio = spacesRow.add('radiobutton', undefined, L('radio.noChange'));
-                spaceNoChangeRadio.helpTip = L('tip.spaces');
-                spaceDashRadio = spacesRow.add('radiobutton', undefined, L('radio.changeToDash'));
-                spaceDashRadio.helpTip = L('tip.spaces');
-                spaceUnderscoreRadio = spacesRow.add('radiobutton', undefined, L('radio.changeToUnderscore'));
-                spaceUnderscoreRadio.helpTip = L('tip.spaces');
-                // prefs があればそれを優先、無ければ FEATURE_SPACES の指定文字（'-' or '_'）を初期値に
-                var defaultSpaces = (FEATURE_SPACES === '_') ? '_' : '-';
-                var initialSpaces = (prefs && (prefs.spaces === '' || prefs.spaces === '-' || prefs.spaces === '_')) ? prefs.spaces : defaultSpaces;
-                spaceNoChangeRadio.value = (initialSpaces === '');
-                spaceDashRadio.value = (initialSpaces === '-');
-                spaceUnderscoreRadio.value = (initialSpaces === '_');
+                var initialSeparator = pickPref(prefs, 'separator', ['', '-', '_'], defaultSeparator);
+                separatorRow.radios.noChange.value = (initialSeparator === '');
+                separatorRow.radios.dash.value = (initialSeparator === '-');
+                separatorRow.radios.underscore.value = (initialSeparator === '_');
             }
 
             // 濁点処理（変更しない / 結合する。デフォルト "結合する"）
-            var nfcLabel = null, nfcNoChangeRadio = null, nfcCombineRadio = null;
+            var nfcRow = null;
             if (FEATURE_NFC) {
-                var nfcRow = panel.add('group');
-                nfcRow.orientation = 'row';
-                nfcLabel = nfcRow.add('statictext', undefined, labelText('label.nfc'));
-                nfcLabel.helpTip = L('tip.nfc');
-                nfcNoChangeRadio = nfcRow.add('radiobutton', undefined, L('radio.noChange'));
-                nfcNoChangeRadio.helpTip = L('tip.nfc');
-                nfcCombineRadio = nfcRow.add('radiobutton', undefined, L('radio.nfcCombine'));
-                nfcCombineRadio.helpTip = L('tip.nfc');
-                var initialNfc = (prefs && (prefs.nfc === 'keep' || prefs.nfc === 'combine')) ? prefs.nfc : 'combine';
-                nfcNoChangeRadio.value = (initialNfc === 'keep');
-                nfcCombineRadio.value = (initialNfc === 'combine');
+                nfcRow = addRadioRow(panel, 'label.nfc', 'tip.nfc', [
+                    { key: 'keep', text: L('radio.noChange') },
+                    { key: 'combine', text: L('radio.nfcCombine') }
+                ]);
+                var initialNfc = pickPref(prefs, 'nfc', ['keep', 'combine'], 'combine');
+                nfcRow.radios.keep.value = (initialNfc === 'keep');
+                nfcRow.radios.combine.value = (initialNfc === 'combine');
+            }
+
+            // クリーンなファイル名（削除する / -に変更 / _に変更。デフォルト "削除する"）
+            // OS 禁止文字（\/:*?"<>|）と絵文字・機種依存文字をまとめて処理
+            var cleanRow = null;
+            if (FEATURE_CLEAN) {
+                cleanRow = addRadioRow(panel, 'label.clean', 'tip.clean', [
+                    { key: 'remove', text: L('radio.cleanRemove') },
+                    { key: 'dash', text: L('radio.changeToDash') },
+                    { key: 'underscore', text: L('radio.changeToUnderscore') }
+                ]);
+                var initialClean = pickPref(prefs, 'clean', ['remove', 'dash', 'underscore'], 'remove');
+                cleanRow.radios.remove.value = (initialClean === 'remove');
+                cleanRow.radios.dash.value = (initialClean === 'dash');
+                cleanRow.radios.underscore.value = (initialClean === 'underscore');
+            }
+
+            // 法人略記・丸数字（変更しない / 変換する。デフォルト "変更しない"）
+            var translitRow = null;
+            if (FEATURE_TRANSLITERATE) {
+                translitRow = addRadioRow(panel, 'label.translit', 'tip.translit', [
+                    { key: 'keep', text: L('radio.noChange') },
+                    { key: 'convert', text: L('radio.translitConvert') }
+                ]);
+                var initialTranslit = pickPref(prefs, 'translit', ['keep', 'convert'], 'keep');
+                translitRow.radios.keep.value = (initialTranslit === 'keep');
+                translitRow.radios.convert.value = (initialTranslit === 'convert');
             }
 
             // ラベル幅を統一（FEATURE で UI 非表示の行は除外）
             var labelTexts = [labelText('label.base'), labelText('label.title')];
-            var labelControls = [baseLabel, titleLabel];
+            var labelControls = [baseLabel, titleRow.label];
             if (FEATURE_STATUS) { labelTexts.push(labelText('label.status')); labelControls.push(statusLabel); }
-            labelTexts.push(labelText('label.timestamp')); labelControls.push(timestampLabel);
-            labelTexts.push(labelText('label.version')); labelControls.push(versionLabel);
-            if (FEATURE_SEPARATOR) { labelTexts.push(labelText('label.separator')); labelControls.push(separatorLabel); }
-            if (FEATURE_SPACES) { labelTexts.push(labelText('label.spaces')); labelControls.push(spacesLabel); }
-            if (FEATURE_NFC) { labelTexts.push(labelText('label.nfc')); labelControls.push(nfcLabel); }
+            labelTexts.push(labelText('label.timestamp')); labelControls.push(timestampRow.label);
+            labelTexts.push(labelText('label.version')); labelControls.push(versionRow.label);
+            if (FEATURE_SEPARATOR) { labelTexts.push(labelText('label.separator')); labelControls.push(separatorRow.label); }
+            if (FEATURE_NFC) { labelTexts.push(labelText('label.nfc')); labelControls.push(nfcRow.label); }
+            if (FEATURE_CLEAN) { labelTexts.push(labelText('label.clean')); labelControls.push(cleanRow.label); }
+            if (FEATURE_TRANSLITERATE) { labelTexts.push(labelText('label.translit')); labelControls.push(translitRow.label); }
             // 個別整列はせず、呼び出し側に渡してファイル名パネルと統一整列する
             // titleFieldSpacer の幅は createDialog 側で整列後に設定する
 
             return {
                 panel: panel,
                 baseField: baseField,
-                titleLabel: titleLabel,
+                titleRow: titleRow,
+                titleField: titleField,
                 titleFieldSpacer: titleFieldSpacer,
+                syncTitleFieldEnabled: syncTitleFieldEnabled,
                 labels: labelControls,
                 labelTexts: labelTexts,
-                titleNoneRadio: titleNoneRadio,
-                titleParentRadio: titleParentRadio,
-                titleCustomRadio: titleCustomRadio,
-                titleField: titleField,
-                syncTitleFieldEnabled: syncTitleFieldEnabled,
                 statusDropdown: statusDropdown,
-                timestampNoneRadio: timestampNoneRadio,
-                timestampDateRadio: timestampDateRadio,
-                timestampDateDashRadio: timestampDateDashRadio,
-                versionNoneRadio: versionNoneRadio,
-                versionShortRadio: versionShortRadio,
-                versionPaddedRadio: versionPaddedRadio,
-                versionPaddedWideRadio: versionPaddedWideRadio,
-                noChangeRadio: noChangeRadio,
-                dashRadio: dashRadio,
-                underscoreRadio: underscoreRadio,
-                spaceNoChangeRadio: spaceNoChangeRadio,
-                spaceDashRadio: spaceDashRadio,
-                spaceUnderscoreRadio: spaceUnderscoreRadio,
-                nfcNoChangeRadio: nfcNoChangeRadio,
-                nfcCombineRadio: nfcCombineRadio,
+                timestampRow: timestampRow,
+                versionRow: versionRow,
+                separatorRow: separatorRow,
+                nfcRow: nfcRow,
+                cleanRow: cleanRow,
+                translitRow: translitRow,
                 /* '' = 変更しない、'-' / '_' = 統一。FEATURE_SEPARATOR=false なら常に '' */
                 getSeparator: function () {
-                    if (!FEATURE_SEPARATOR || !noChangeRadio) return '';
-                    if (noChangeRadio.value) return '';
-                    if (dashRadio.value) return '-';
-                    return '_';
-                },
-                /* '' = 変更しない、'-' / '_' = 半角スペースを置換。FEATURE_SPACES=false なら常に '' */
-                getSpaces: function () {
-                    if (!FEATURE_SPACES || !spaceNoChangeRadio) return '';
-                    if (spaceNoChangeRadio.value) return '';
-                    if (spaceDashRadio.value) return '-';
+                    if (!separatorRow) return '';
+                    if (separatorRow.radios.noChange.value) return '';
+                    if (separatorRow.radios.dash.value) return '-';
                     return '_';
                 },
                 /* 'keep' = そのまま、'combine' = 濁点・半濁点を NFC 結合。FEATURE_NFC=false なら常に 'keep' */
                 getNfc: function () {
-                    if (!FEATURE_NFC || !nfcNoChangeRadio) return 'keep';
-                    if (nfcNoChangeRadio.value) return 'keep';
-                    return 'combine';
+                    if (!nfcRow) return 'keep';
+                    return nfcRow.radios.keep.value ? 'keep' : 'combine';
+                },
+                /* 'remove' / 'dash' / 'underscore'。FEATURE_CLEAN=false なら常に '' を返す（無処理） */
+                getClean: function () {
+                    if (!cleanRow) return '';
+                    if (cleanRow.radios.dash.value) return 'dash';
+                    if (cleanRow.radios.underscore.value) return 'underscore';
+                    return 'remove';
+                },
+                /* 'keep' = そのまま、'convert' = TRANSLITERATE_MAP で変換。FEATURE_TRANSLITERATE=false なら常に 'keep' */
+                getTranslit: function () {
+                    if (!translitRow) return 'keep';
+                    return translitRow.radios.convert.value ? 'convert' : 'keep';
                 },
                 /* 'none' / 'date' / 'dateDash' */
                 getTimestamp: function () {
-                    if (timestampNoneRadio.value) return 'none';
-                    if (timestampDateDashRadio.value) return 'dateDash';
+                    if (timestampRow.radios.none.value) return 'none';
+                    if (timestampRow.radios.dateDash.value) return 'dateDash';
                     return 'date';
                 },
                 /* STATUS_ITEMS の value（'' = なし）。FEATURE_STATUS=false なら常に '' */
@@ -1169,15 +1326,16 @@
                 },
                 /* 'none' / 'short' / 'padded' / 'paddedWide' */
                 getVersion: function () {
-                    if (versionNoneRadio.value) return 'none';
-                    if (versionShortRadio.value) return 'short';
-                    if (versionPaddedRadio.value) return 'padded';
+                    if (versionRow.radios.none.value) return 'none';
+                    if (versionRow.radios.short_.value) return 'short';
+                    if (versionRow.radios.padded.value) return 'padded';
                     return 'paddedWide';
                 },
-                /* 'none' / 'parent' / 'custom' */
+                /* 'none' / 'parent' / 'grandparent' / 'custom' */
                 getTitleMode: function () {
-                    if (titleNoneRadio.value) return 'none';
-                    if (titleParentRadio.value) return 'parent';
+                    if (titleRow.radios.none.value) return 'none';
+                    if (titleRow.radios.parent.value) return 'parent';
+                    if (titleRow.radios.grandparent.value) return 'grandparent';
                     return 'custom';
                 },
                 /* ベース入力欄の現在値 / Current value of the base input */
@@ -1260,6 +1418,13 @@
             return false;
         }
 
+        /* prefs[key] が validValues 内ならそれを、そうでなければ fallback を返す
+           / Returns prefs[key] if it's in validValues, else fallback */
+        function pickPref(prefs, key, validValues, fallback) {
+            var v = prefs && prefs[key];
+            return arrayContains(validValues, v) ? v : fallback;
+        }
+
         /* 保存された並び順文字列を妥当性チェックして配列で返す。不正なら null
            / Parse a comma-separated segment order; returns null if invalid */
         function parseSegmentOrderPref(value) {
@@ -1300,8 +1465,41 @@
             }
         }
 
+        /* ラベル + ラジオ群を 1 行追加して { group, label, radios: { key: radio, ... } } を返す。
+           radioDefs: [{ key, text }, ...]。すべてのコントロールに L(tipKey) の helpTip を設定
+           / Add a label + radio row; returns { group, label, radios } */
+        function addRadioRow(panel, labelKey, tipKey, radioDefs) {
+            var row = panel.add('group');
+            row.orientation = 'row';
+            var tip = L(tipKey);
+            var label = row.add('statictext', undefined, labelText(labelKey));
+            label.helpTip = tip;
+            var radios = {};
+            for (var i = 0; i < radioDefs.length; i++) {
+                var def = radioDefs[i];
+                var r = row.add('radiobutton', undefined, def.text);
+                r.helpTip = tip;
+                radios[def.key] = r;
+            }
+            return { group: row, label: label, radios: radios };
+        }
+
+        /* 各コントロールの種類に応じた変更イベントに callback を割り当てる。null/undefined はスキップ。
+           radiobutton/checkbox → onClick、edittext → onChanging、dropdownlist → onChange
+           / Wire a refresh callback to each control's appropriate change event */
+        function wireRefresh(callback, controls) {
+            for (var i = 0; i < controls.length; i++) {
+                var c = controls[i];
+                if (!c) continue;
+                var t = c.type;
+                if (t === 'radiobutton' || t === 'checkbox') c.onClick = callback;
+                else if (t === 'edittext') c.onChanging = callback;
+                else if (t === 'dropdownlist') c.onChange = callback;
+            }
+        }
+
         /* ダイアログ全体を組み立て、イベント配線とプレビューを行う / Compose the full dialog, wire events, and run live preview */
-        function createDialog(segments, currentName, prefs, parentFolderName, folder) {
+        function createDialog(segments, currentName, prefs, parentFolderName, grandparentFolderName, folder) {
             var dialog = new Window('dialog', L('dialog.title') + ' ' + SCRIPT_VERSION);
             dialog.opacity = DIALOG_OPACITY;
             dialog.orientation = 'column';
@@ -1313,7 +1511,9 @@
             topRow.alignChildren = ['fill', 'top'];
             var mode = buildModePanel(topRow, prefs);
             var opMode = buildOpModePanel(topRow);
-            var sort = FEATURE_SORT ? buildSortPanel(topRow, prefs) : null;
+            // 現在のファイル名から検出した並び順（要素ゼロなら「現在に準じる」は無効化）
+            var currentOrder = FEATURE_SORT ? deriveOrderFromSegments(segments) : [];
+            var sort = FEATURE_SORT ? buildSortPanel(topRow, prefs, currentOrder.length > 0) : null;
 
             // 並び順カスタム値（prefs に保存されたものを採用、不正・未保存ならデフォルト）
             var customOrder = FEATURE_SORT
@@ -1321,32 +1521,39 @@
                 : SEGMENT_ORDER.slice();
 
             var filename = buildFilenamePanel(dialog, currentName);
-            var options = buildOptionsPanel(dialog, segments, prefs, parentFolderName);
+            var options = buildOptionsPanel(dialog, segments, prefs, parentFolderName, grandparentFolderName);
 
             // 2 つのパネルのラベル幅を統一整列（測定基準は options.panel）
             var combinedTexts = filename.labelTexts.concat(options.labelTexts);
             var combinedLabels = filename.labels.concat(options.labels);
             alignLabelWidths(options.panel, combinedTexts, combinedLabels);
             // サブテキスト 2 行目「指定」入力欄の左余白を統一後のラベル列幅に合わせる
-            options.titleFieldSpacer.preferredSize = [options.titleLabel.preferredSize.width, 1];
+            options.titleFieldSpacer.preferredSize = [options.titleRow.label.preferredSize.width, 1];
 
             // ---- ライブプレビュー ----
             function currentUIState() {
+                var sortMode = (FEATURE_SORT && sort) ? sort.getSortMode() : 'off';
+                var segmentOrder;
+                if (sortMode === 'on') segmentOrder = customOrder;
+                else if (sortMode === 'current') segmentOrder = currentOrder;
+                else segmentOrder = SEGMENT_ORDER;
                 return {
                     opMode: opMode.getOpMode(),
                     baseText: options.getBase(),
                     titleMode: options.getTitleMode(),
                     titleText: options.titleField.text,
                     parentFolderName: parentFolderName,
+                    grandparentFolderName: grandparentFolderName,
                     status: options.getStatus(),
                     timestamp: options.getTimestamp(),
                     version: options.getVersion(),
                     separator: options.getSeparator(),
-                    spaces: options.getSpaces(),
                     nfc: options.getNfc(),
-                    sort: (FEATURE_SORT && sort && sort.isSortOn()) ? 'on' : 'off',
+                    translit: options.getTranslit(),
+                    clean: options.getClean(),
+                    sort: sortMode,
                     customSegmentOrder: customOrder.slice(),
-                    segmentOrder: (FEATURE_SORT && sort && sort.isSortOn()) ? customOrder : SEGMENT_ORDER
+                    segmentOrder: segmentOrder
                 };
             }
 
@@ -1375,6 +1582,13 @@
                 if (FEATURE_NFC && options.getNfc() === 'combine') {
                     finalBase = normalizeNFC(finalBase);
                 }
+                // translit はクリーンより先に行う（㈱→株 などを残すため）
+                if (FEATURE_TRANSLITERATE && options.getTranslit() === 'convert') {
+                    finalBase = transliterate(finalBase);
+                }
+                if (FEATURE_CLEAN) {
+                    finalBase = cleanFilenameChars(finalBase, options.getClean());
+                }
                 filename.finalNameValue.text = finalBase + '.ai';
             }
 
@@ -1387,33 +1601,20 @@
                 refreshPreviews();
             };
 
-            options.titleNoneRadio.onClick = refreshPreviews;
-            options.titleParentRadio.onClick = refreshPreviews;
-            options.titleCustomRadio.onClick = refreshPreviews;
-            options.baseField.onChanging = refreshPreviews;
-            options.titleField.onChanging = refreshPreviews;
-            if (options.statusDropdown) options.statusDropdown.onChange = refreshPreviews;
-            options.timestampNoneRadio.onClick = refreshPreviews;
-            options.timestampDateRadio.onClick = refreshPreviews;
-            options.timestampDateDashRadio.onClick = refreshPreviews;
-            options.versionNoneRadio.onClick = refreshPreviews;
-            options.versionShortRadio.onClick = refreshPreviews;
-            options.versionPaddedRadio.onClick = refreshPreviews;
-            options.versionPaddedWideRadio.onClick = refreshPreviews;
-            if (options.noChangeRadio) {
-                options.noChangeRadio.onClick = refreshPreviews;
-                options.dashRadio.onClick = refreshPreviews;
-                options.underscoreRadio.onClick = refreshPreviews;
-            }
-            if (options.spaceNoChangeRadio) {
-                options.spaceNoChangeRadio.onClick = refreshPreviews;
-                options.spaceDashRadio.onClick = refreshPreviews;
-                options.spaceUnderscoreRadio.onClick = refreshPreviews;
-            }
-            if (options.nfcNoChangeRadio) {
-                options.nfcNoChangeRadio.onClick = refreshPreviews;
-                options.nfcCombineRadio.onClick = refreshPreviews;
-            }
+            // ファイル名設定パネル内のすべての入力（無効化中の FEATURE は row が null で来るので skip される）
+            var tr = options.titleRow, ts = options.timestampRow, vr = options.versionRow;
+            var sr = options.separatorRow, nr = options.nfcRow, cr = options.cleanRow, lr = options.translitRow;
+            wireRefresh(refreshPreviews, [
+                tr.radios.none, tr.radios.parent, tr.radios.grandparent, tr.radios.custom,
+                options.baseField, options.titleField,
+                options.statusDropdown,
+                ts.radios.none, ts.radios.date, ts.radios.dateDash,
+                vr.radios.none, vr.radios.short_, vr.radios.padded, vr.radios.paddedWide,
+                sr && sr.radios.noChange, sr && sr.radios.dash, sr && sr.radios.underscore,
+                nr && nr.radios.keep, nr && nr.radios.combine,
+                cr && cr.radios.remove, cr && cr.radios.dash, cr && cr.radios.underscore,
+                lr && lr.radios.keep, lr && lr.radios.convert
+            ]);
 
             // ソートパネルの ON/OFF とサブダイアログ起動（FEATURE_SORT のとき）
             if (FEATURE_SORT && sort) {
@@ -1422,6 +1623,7 @@
                     refreshPreviews();
                 };
                 sort.sortOffRadio.onClick = onSortToggle;
+                sort.sortCurrentRadio.onClick = onSortToggle;
                 sort.sortOnRadio.onClick = onSortToggle;
                 sort.sortButton.onClick = function () {
                     var newOrder = openSortDialog(customOrder);
@@ -1463,7 +1665,7 @@
             var segments = mergeFragmentedText(parseFileName(info.baseName));
             var prefs = loadPrefs();
 
-            var ui = createDialog(segments, info.currentName, prefs, info.parentFolderName, info.folder);
+            var ui = createDialog(segments, info.currentName, prefs, info.parentFolderName, info.grandparentFolderName, info.folder);
             if (ui.dialog.show() !== 1) return; // キャンセル
 
             var uiState = ui.getUIState();
@@ -1485,6 +1687,12 @@
             if (FEATURE_NFC && uiState.nfc === 'combine') {
                 newBaseName = normalizeNFC(newBaseName);
             }
+            if (FEATURE_TRANSLITERATE && uiState.translit === 'convert') {
+                newBaseName = transliterate(newBaseName);
+            }
+            if (FEATURE_CLEAN) {
+                newBaseName = cleanFilenameChars(newBaseName, uiState.clean);
+            }
 
             var destFile = File(targetFolder.fsName + '/' + newBaseName + '.ai');
             if (!confirmOverwriteIfExists(destFile, info.fsPath)) return;
@@ -1500,8 +1708,9 @@
                     };
                     if (FEATURE_STATUS) prefsToSave.status = uiState.status;
                     if (FEATURE_SEPARATOR) prefsToSave.separator = uiState.separator;
-                    if (FEATURE_SPACES) prefsToSave.spaces = uiState.spaces;
                     if (FEATURE_NFC) prefsToSave.nfc = uiState.nfc;
+                    if (FEATURE_CLEAN) prefsToSave.clean = uiState.clean;
+                    if (FEATURE_TRANSLITERATE) prefsToSave.translit = uiState.translit;
                     if (FEATURE_SORT) {
                         prefsToSave.sort = uiState.sort;
                         prefsToSave.segmentOrder = uiState.customSegmentOrder.join(',');
