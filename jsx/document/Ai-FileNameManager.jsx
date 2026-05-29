@@ -62,6 +62,9 @@
     - (2026-05-27 追記) : ステータス dropdown、構成要素順カスタマイズ、スペース置換、YYYY-MM-DD タイムスタンプ、`.` 区切り正規化、整形機能の FEATURE スイッチ化、UI 整理（ベース行非表示、動作・構成要素 2 カラム、ボタン右寄せ）
     - (2026-05-28 追記) : ベース行 UI 復活（入力欄）、「タイトル」→「サブテキスト」（英語: Project Name）改名、バージョン番号表記を v1, v2… / v01, v02… / v001, v002… の 3 段階に拡張、親フォルダ内の同パターンから最大 v +1 を採用、NFC 正規化（濁点・半濁点の結合、FEATURE_NFC）追加、「コピー（複製）を保存」表記、「現在 / 保存後の名前」ラベル右揃え
     - v1.2.5 (2026-05-28) : 「現在のファイル名に準じる」並び順モード追加、元ファイルに v 番号が無い場合のデフォルトを v01 形式に固定、サブテキストに「2 階層上のフォルダー」追加・順序を「なし／指定／親フォルダー／2 階層上」に変更、「クリーンなファイル名」（OS 禁止文字 + 絵文字 + 機種依存文字 + スペースの統一処理。「スペースの扱い」を吸収）、「丸数字や法人略記など」（㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / ハイフン類 → `-` 等）追加、「濁点処理」→「濁点・半濁点の正規化」改名、内部リファクタ（addRadioRow / pickPref / wireRefresh ヘルパー導入で重複削減）
+    - v1.2.6 (2026-05-29) : 「クリーンなファイル名」行に「半角カナ → 全角」チェックボックス追加（クリーンが `-` または `_` のときだけ有効・濁点／半濁点も結合）、「丸数字や法人略記など」に「削除する」を追加（変更しない／削除する／変換する）、UI デフォルト見直し（並び順「現在のファイル名に準じる」／クリーン「-に変更」／丸数字や法人略記など「変換する」）、「バージョン番号のみ」→「バージョンのみ」改名、ソートパネルの編集ボタンを「カスタム順」の右に移動し、ラベルを「順序を編集...」→「編集」に短縮
+    - v1.2.7 (2026-05-29) : 自動整形（連続する `-` `_` `.` を 1 つに圧縮・先頭末尾のトリム）、ファイル名長の事前チェック（拡張子込み UTF-8 240 バイト超過で確認ダイアログ・FEATURE_MAX_FILENAME_BYTES）、rename 時の元ファイル削除を `~/.Trash` 移動へ変更（FEATURE_USE_TRASH、失敗時は file.remove() にフォールバック）、「元ファイルをリネーム」の helpTip に配置リンク切れ注意を追記、Windows 予約名（CON / PRN / AUX / NUL / COM1-9 / LPT1-9）を末尾 `_` で回避、ハングル音節（U+AC00–U+D7A3）を「標準」文字に追加、タイムスタンプに「時刻も付与」(HHMM) チェックボックス追加
+    - v1.2.8 (2026-05-29) : 「バージョンのみ」モードでは UI 整形（NFC / 半角カナ / translit / クリーン / 連続区切り圧縮 / Windows 予約名回避）を一切かけず、元ファイル名の v 番号だけ更新するように変更、ソートパネルの初期値を prefs と無関係に常に「現在のファイル名に準じる」（不可なら「標準順」）に固定（カスタム並び順 segmentOrder は引き続き保存）、Ai 版に欠落していた `LABELS.sort`（サブダイアログのタイトル／ヒント）を追加、`tip.sort` をボタン名「編集」に揃えて短縮、ラベル表記を Id 版に統一（「2 階層上のフォルダー」「-に変更」「_に変更」）
     
     ---
     
@@ -124,6 +127,9 @@
     - (2026-05-27 update): Added status dropdown, custom segment order, space replacement, YYYY-MM-DD timestamp, `.` separator normalization, FEATURE switches, UI cleanup (no base row, 2-col top, right-aligned buttons)
     - (2026-05-28 update): Restored editable Base input, renamed "Title" → "Project Name", expanded version format to v1, v2… / v01, v02… / v001, v002…, auto-bump to (folder max v) + 1, added NFC normalization (FEATURE_NFC, default on), "Save a Copy" wording, right-aligned Current/Saved Name labels
     - v1.2.5 (2026-05-28): Added "Match Current" segment-order mode, forced v01 default when no v-number exists in original, added "Grandparent Folder" as Project Name option with reordered radios (None / Custom / Parent / Grandparent), added "Clean Filename" (OS-invalid + emoji + platform-dependent chars + spaces in one pass; absorbs the former "Spaces" option), added "Symbols" transliteration (㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / dashes → `-` etc.), renamed "NFC" label to "NFC Normalization", internal refactor (addRadioRow / pickPref / wireRefresh helpers to reduce duplication)
+    - v1.2.6 (2026-05-29): Added "Half-width → Full-width Kana" checkbox inside the Clean Filename row (active only when Clean is `-` or `_`; merges voiced/semi-voiced marks), expanded "Symbols" to 3-way (Keep / Remove / Convert), updated UI defaults (Sort → Match Current, Clean → `-`, Symbols → Convert), renamed "Version Only" to drop the word "Number" in JA, moved the order-edit button next to the "Custom" radio and shortened "Edit order..." → "Edit"
+    - v1.2.7 (2026-05-29): Auto cleanup (collapse `-` / `_` / `.` runs to one; trim leading/trailing separators), pre-save length check (confirm dialog when basename+ext exceeds 240 UTF-8 bytes; FEATURE_MAX_FILENAME_BYTES), rename moves the original to `~/.Trash` instead of hard-removing it (FEATURE_USE_TRASH; falls back to file.remove() on failure), added a placed-link warning to the rename helpTip, escape Windows reserved names (CON / PRN / AUX / NUL / COM1-9 / LPT1-9) with a trailing `_`, treat Hangul syllables (U+AC00–U+D7A3) as standard characters, added an "Append HHMM" checkbox to the timestamp row
+    - v1.2.8 (2026-05-29): "Version Only" mode no longer applies any cleanup (NFC / half-width kana / translit / clean / collapse separators / Windows reserved escape); the original filename is preserved and only its v-number is bumped, the sort panel default is now always "Match Current" (or "Default" when unavailable) regardless of prefs (custom `segmentOrder` is still persisted), added the missing `LABELS.sort` (reorder sub-dialog title / hint) to the AI version, shortened `tip.sort` to match the "Edit" button label, and unified label spelling with the InDesign version ("Grandparent Folder" radio / "Change to -" / "Change to _")
     
     */
 
@@ -133,7 +139,7 @@
         // バージョン / Version
         // =========================================
 
-        var SCRIPT_VERSION = "v1.2.5";
+        var SCRIPT_VERSION = "v1.2.8";
 
         // =========================================
         // ユーザー設定 / User Settings
@@ -148,6 +154,15 @@
         var FEATURE_NFC = true;           // 濁点・半濁点の NFC 結合 / Combine separated dakuten/handakuten (NFC)
         var FEATURE_CLEAN = true;         // クリーンなファイル名（OS 禁止文字 + 絵文字・機種依存文字の処理） / Clean filename (OS-invalid + emoji + platform-dependent)
         var FEATURE_TRANSLITERATE = true; // 法人略記・丸数字などを ASCII 相当に変換 / Transliterate corp abbrev / circled numbers / etc.
+        var FEATURE_HALFWIDTH_KANA = true; // 半角カナ → 全角カナ変換（クリーンが '-' / '_' のときのみ有効） / Halfwidth-kana → fullwidth (active only when Clean is '-' or '_')
+
+        /* ファイル名（拡張子込み）の UTF-8 バイト長の上限。超過時は確認ダイアログを出して続行可
+           / Max UTF-8 byte length of the basename + extension; exceeding it triggers a confirm dialog */
+        var FEATURE_MAX_FILENAME_BYTES = 240;
+
+        /* rename モードで元ファイルを削除するときに、即削除ではなく ~/.Trash に移動
+           / In rename mode, move the original to ~/.Trash instead of removing it outright */
+        var FEATURE_USE_TRASH = true;
 
         /* 文字 → 置換文字列のマップ。法人略記、丸数字（白・黒・括弧）、ローマ数字、略記号、単位、ダッシュ類
            / Char → replacement map: corporate abbrev, circled (white/black/parenthesized), Roman numerals, abbrev symbols, units, dashes */
@@ -257,7 +272,7 @@
                 rename: { ja: "元ファイルをリネーム", en: "Rename Original" },
                 saveAs: { ja: "別名で保存", en: "Save As" },
                 saveCopy: { ja: "コピー（複製）を保存", en: "Save a Copy" },
-                opVersionOnly: { ja: "バージョン番号のみ", en: "Version Only" },
+                opVersionOnly: { ja: "バージョンのみ", en: "Version Only" },
                 opFull: { ja: "全体", en: "Full" },
                 noChange: { ja: "変更しない", en: "No Change" },
                 titleNone: { ja: "なし", en: "None" },
@@ -267,6 +282,7 @@
                 timestampNone: { ja: "なし", en: "None" },
                 timestampDate: { ja: "YYYYMMDD", en: "YYYYMMDD" },
                 timestampDateDash: { ja: "YYYY-MM-DD", en: "YYYY-MM-DD" },
+                timestampWithTime: { ja: "時刻も付与", en: "Append HHMM" },
                 versionNone: { ja: "なし", en: "None" },
                 versionShort: { ja: "v1, v2…", en: "v1, v2…" },
                 versionPadded: { ja: "v01, v02…", en: "v01, v02…" },
@@ -275,7 +291,9 @@
                 changeToUnderscore: { ja: "_に変更", en: "Change to _" },
                 nfcCombine: { ja: "結合する", en: "Combine" },
                 cleanRemove: { ja: "削除する", en: "Remove" },
+                translitRemove: { ja: "削除する", en: "Remove" },
                 translitConvert: { ja: "変換する", en: "Convert" },
+                halfwidthKanaConvert: { ja: "半角カナ → 全角", en: "Half-width → Full-width Kana" },
                 sortOff: { ja: "標準順", en: "Default" },
                 sortCurrent: { ja: "現在のファイル名に準じる", en: "Match Current" },
                 sortOn: { ja: "カスタム順", en: "Custom" }
@@ -295,8 +313,8 @@
             },
             tip: {
                 rename: {
-                    ja: "新しい名前で保存したあと、元ファイルを削除します（実質的にリネーム）。",
-                    en: "Saves with the new name, then deletes the original file (effectively a rename)."
+                    ja: "新しい名前で保存したあと、元ファイルをゴミ箱に移します（実質的にリネーム）。元ファイルを参照している他のドキュメント（配置 .ai／InDesign のリンクなど）はリンク切れになります。",
+                    en: "Saves with the new name, then moves the original to the Trash (effectively a rename). Documents that reference the original file (placed .ai or InDesign links) will lose the link."
                 },
                 saveAs: {
                     ja: "新しい名前で保存します。元ファイルは残り、作業中のドキュメントが新ファイルに切り替わります。",
@@ -322,6 +340,10 @@
                     ja: "タイムスタンプの形式を選択。「なし」で元の日付があっても削除します。",
                     en: "Choose timestamp format. \"None\" removes any existing date."
                 },
+                timestampWithTime: {
+                    ja: "タイムスタンプの末尾に時刻（HHMM）を付加します。1 日に複数版を出すときに便利。",
+                    en: "Append the current time (HHMM) to the timestamp. Useful for multiple versions per day."
+                },
                 version: {
                     ja: "バージョン番号の形式。v1/v2 はパディング無し、v01/v02 は 2 桁、v001/v002 は 3 桁ゼロ埋め。既存の v 番号は +1、無い場合は v1/v01/v001 を付与。「なし」で削除。",
                     en: "Version format. v1/v2 has no padding, v01/v02 is 2-digit, v001/v002 is 3-digit zero-padded. An existing v-number is bumped by +1; otherwise v1/v01/v001 is added. \"None\" removes."
@@ -331,8 +353,8 @@
                     en: "Choose how separators in the filename are handled. Targets `-`, `_`, and `.`. YYYY-MM-DD timestamps are preserved."
                 },
                 sort: {
-                    ja: "並び順を選択。「現在のファイル名に準じる」は検出された要素のみ、「カスタム順」は［順序を編集］で並び替え。",
-                    en: "Choose order. \"Match Current\" uses only detected segments; \"Custom\" enables [Edit order]."
+                    ja: "並び順を選択。「現在のファイル名に準じる」は検出された要素のみ、「カスタム順」は［編集］で並び替え。",
+                    en: "Choose order. \"Match Current\" uses only detected segments; \"Custom\" enables [Edit]."
                 },
                 nfc: {
                     ja: "ファイル名に分離した濁点・半濁点が含まれる場合、結合済み文字（NFC）に正規化します。",
@@ -345,11 +367,19 @@
                 translit: {
                     ja: "法人略記（㈱→株）、丸数字（①→1）、ローマ数字（Ⅰ→1）、TEL/No、単位記号（㎜→mm）、ダッシュ類を ASCII 相当に変換します。",
                     en: "Convert corporate abbreviations (㈱→株), circled numbers (①→1), Roman numerals, TEL/No, units (㎜→mm), and dashes to ASCII equivalents."
+                },
+                halfwidthKana: {
+                    ja: "「-」または「_」を選んだとき、半角カタカナを全角カタカナに変換します（濁点・半濁点付きは結合）。",
+                    en: "When `-` or `_` is selected, convert half-width katakana to full-width (voiced/semi-voiced marks are merged)."
                 }
             },
             button: {
                 cancel: { ja: "キャンセル", en: "Cancel" },
-                sort: { ja: "順序を編集...", en: "Edit order..." }
+                sort: { ja: "編集", en: "Edit" }
+            },
+            sort: {
+                title: { ja: "ファイル名の並び順", en: "Filename Order" },
+                hint: { ja: "選択中の項目を ↑↓ で並び替え", en: "Select an item and use ↑↓ to reorder" }
             },
             message: {
                 noDoc: { ja: "ドキュメントが開かれていません", en: "No document is open." },
@@ -358,6 +388,10 @@
                 confirmOverwrite: {
                     ja: "同名ファイルが存在します。上書きしますか？",
                     en: "A file with the same name exists. Overwrite?"
+                },
+                confirmTooLong: {
+                    ja: "ファイル名が長すぎる可能性があります（{bytes} バイト / 上限 {limit} バイト）。このまま続行しますか？",
+                    en: "The filename may be too long ({bytes} bytes / limit {limit}). Continue anyway?"
                 },
                 saveFailed: { ja: "保存に失敗しました", en: "Failed to save" }
             }
@@ -552,14 +586,16 @@
             return str;
         }
 
-        /* 今日の日付を返す。sep を渡すと YYYY{sep}MM{sep}DD、未指定で YYYYMMDD
-           / Today's date; with `sep` returns YYYY{sep}MM{sep}DD, otherwise YYYYMMDD */
-        function todayTimestamp(sep) {
+        /* 今日の日付を返す。sep で日付内区切り、withTime=true で末尾に "-HHMM" を付加
+           / Today's date; with `sep` between Y/M/D parts; `withTime=true` appends "-HHMM" */
+        function todayTimestamp(sep, withTime) {
             sep = sep || '';
             var d = new Date();
-            return String(d.getFullYear()) + sep +
+            var date = String(d.getFullYear()) + sep +
                 padLeft(String(d.getMonth() + 1), 2) + sep +
                 padLeft(String(d.getDate()), 2);
+            if (!withTime) return date;
+            return date + '-' + padLeft(String(d.getHours()), 2) + padLeft(String(d.getMinutes()), 2);
         }
 
         /* 現在のファイル名（拡張子なし）の v 番号だけを桁数維持で +1。
@@ -649,6 +685,23 @@
             return parts.prefix + parts.letter + padLeft(String(target), width) + parts.suffix;
         }
 
+        /* Windows 予約名（拡張子の有無を問わず使用不可）。一致したら末尾に "_" を足してエスケープ
+           / Windows-reserved basenames (regardless of extension); append "_" to escape them */
+        var WINDOWS_RESERVED_NAMES = {
+            CON: 1, PRN: 1, AUX: 1, NUL: 1,
+            COM1: 1, COM2: 1, COM3: 1, COM4: 1, COM5: 1,
+            COM6: 1, COM7: 1, COM8: 1, COM9: 1,
+            LPT1: 1, LPT2: 1, LPT3: 1, LPT4: 1, LPT5: 1,
+            LPT6: 1, LPT7: 1, LPT8: 1, LPT9: 1
+        };
+
+        /* baseName が Windows 予約名と衝突するなら末尾に "_" を足して回避（大文字小文字無視）
+           / If baseName matches a Windows reserved name, append "_" to avoid the collision */
+        function escapeWindowsReserved(baseName) {
+            var key = String(baseName).toUpperCase();
+            return (WINDOWS_RESERVED_NAMES[key] === 1) ? baseName + '_' : baseName;
+        }
+
         /* % エンコードを 1 回デコード / Decode a percent-encoded string once (best-effort) */
         function decodePercentEncoded(str) {
             str = String(str);
@@ -664,6 +717,38 @@
         function stripExtension(name) {
             var dot = name.lastIndexOf('.');
             return (dot > 0) ? name.substring(0, dot) : name;
+        }
+
+        /* 連続する区切り（- _ .）を 1 つに圧縮し、先頭・末尾の区切りと空白をトリム。
+           sep は最終的な区切り文字（'-' / '_' / '' のいずれか、'' のときは混在をそのまま残す）
+           / Collapse runs of separators (-, _, .) to one and trim leading/trailing separators + spaces */
+        function collapseAndTrimSeparators(str, sep) {
+            var s = String(str);
+            if (sep === '-' || sep === '_') {
+                // 異種の混在も含めて連続した区切りを sep 1 つに統一（YYYY-MM-DD 等は呼び出し前に通過済み想定）
+                s = s.replace(/[-_.]{2,}/g, sep);
+            } else {
+                // 区切り未指定でも同種連続だけは圧縮（-- → -, __ → _, .. → .）
+                s = s.replace(/--+/g, '-').replace(/__+/g, '_').replace(/\.\.+/g, '.');
+            }
+            // 先頭末尾の区切り・空白を除去
+            s = s.replace(/^[-_.\s]+|[-_.\s]+$/g, '');
+            return s;
+        }
+
+        /* 文字列の UTF-8 バイト長（拡張子込みのファイル名サイズ判定用）。ES3 / ExtendScript 向け
+           / UTF-8 byte length of a string (for file-name size checks); ES3-safe */
+        function byteLengthUTF8(str) {
+            var s = String(str);
+            var n = 0;
+            for (var i = 0; i < s.length; i++) {
+                var code = s.charCodeAt(i);
+                if (code < 0x80) n += 1;
+                else if (code < 0x800) n += 2;
+                else if (code >= 0xD800 && code <= 0xDBFF) { n += 4; i++; } // サロゲートペア（4 バイト）
+                else n += 3;
+            }
+            return n;
         }
 
         /* 前後空白をトリム。FEATURE_CLEAN=false のときは OS 禁止文字も除去（後段で処理されないため）
@@ -715,6 +800,7 @@
             if (code >= 0x30A0 && code <= 0x30FF) return true; // カタカナ
             if (code >= 0x3400 && code <= 0x4DBF) return true; // CJK 拡張 A
             if (code >= 0x4E00 && code <= 0x9FFF) return true; // CJK 基本
+            if (code >= 0xAC00 && code <= 0xD7A3) return true; // ハングル音節
             if (code >= 0xFF00 && code <= 0xFF5E) return true; // 全角 ASCII
             if (code >= 0xFF61 && code <= 0xFF9F) return true; // 半角カタカナ
             return false;
@@ -748,17 +834,82 @@
             return result;
         }
 
-        /* TRANSLITERATE_MAP に従って 1 文字ずつ置換。マップにないものはそのまま
-           値が文字列のときのみ置換（toString などの prototype プロパティ衝突を回避）
-           / Per-char replacement via TRANSLITERATE_MAP; guards against prototype properties */
-        function transliterate(str) {
+        /* 半角カタカナ → 全角カタカナのマップ（清音）/ Half-width → full-width katakana (unvoiced) */
+        var HALFWIDTH_KANA_MAP = {
+            'ｦ': 'ヲ', 'ｧ': 'ァ', 'ｨ': 'ィ', 'ｩ': 'ゥ', 'ｪ': 'ェ', 'ｫ': 'ォ',
+            'ｬ': 'ャ', 'ｭ': 'ュ', 'ｮ': 'ョ', 'ｯ': 'ッ', 'ｰ': 'ー',
+            'ｱ': 'ア', 'ｲ': 'イ', 'ｳ': 'ウ', 'ｴ': 'エ', 'ｵ': 'オ',
+            'ｶ': 'カ', 'ｷ': 'キ', 'ｸ': 'ク', 'ｹ': 'ケ', 'ｺ': 'コ',
+            'ｻ': 'サ', 'ｼ': 'シ', 'ｽ': 'ス', 'ｾ': 'セ', 'ｿ': 'ソ',
+            'ﾀ': 'タ', 'ﾁ': 'チ', 'ﾂ': 'ツ', 'ﾃ': 'テ', 'ﾄ': 'ト',
+            'ﾅ': 'ナ', 'ﾆ': 'ニ', 'ﾇ': 'ヌ', 'ﾈ': 'ネ', 'ﾉ': 'ノ',
+            'ﾊ': 'ハ', 'ﾋ': 'ヒ', 'ﾌ': 'フ', 'ﾍ': 'ヘ', 'ﾎ': 'ホ',
+            'ﾏ': 'マ', 'ﾐ': 'ミ', 'ﾑ': 'ム', 'ﾒ': 'メ', 'ﾓ': 'モ',
+            'ﾔ': 'ヤ', 'ﾕ': 'ユ', 'ﾖ': 'ヨ',
+            'ﾗ': 'ラ', 'ﾘ': 'リ', 'ﾙ': 'ル', 'ﾚ': 'レ', 'ﾛ': 'ロ',
+            'ﾜ': 'ワ', 'ﾝ': 'ン'
+        };
+
+        /* 半角カナ + ﾞ の結合マップ（濁音）/ Half-width + dakuten → voiced full-width */
+        var HALFWIDTH_KANA_VOICED = {
+            'ｶ': 'ガ', 'ｷ': 'ギ', 'ｸ': 'グ', 'ｹ': 'ゲ', 'ｺ': 'ゴ',
+            'ｻ': 'ザ', 'ｼ': 'ジ', 'ｽ': 'ズ', 'ｾ': 'ゼ', 'ｿ': 'ゾ',
+            'ﾀ': 'ダ', 'ﾁ': 'ヂ', 'ﾂ': 'ヅ', 'ﾃ': 'デ', 'ﾄ': 'ド',
+            'ﾊ': 'バ', 'ﾋ': 'ビ', 'ﾌ': 'ブ', 'ﾍ': 'ベ', 'ﾎ': 'ボ',
+            'ｳ': 'ヴ'
+        };
+
+        /* 半角カナ + ﾟ の結合マップ（半濁音）/ Half-width + handakuten → semi-voiced full-width */
+        var HALFWIDTH_KANA_SEMI_VOICED = {
+            'ﾊ': 'パ', 'ﾋ': 'ピ', 'ﾌ': 'プ', 'ﾍ': 'ペ', 'ﾎ': 'ポ'
+        };
+
+        /* 半角カタカナを全角カタカナへ変換。ｶﾞ → ガ、ﾊﾟ → パ のように濁点・半濁点も結合
+           / Convert half-width katakana to full-width; merges trailing dakuten / handakuten */
+        function convertHalfwidthKana(str) {
+            var s = String(str);
+            var result = '';
+            var i = 0;
+            while (i < s.length) {
+                var ch = s.charAt(i);
+                var next = (i + 1 < s.length) ? s.charAt(i + 1) : '';
+                if (next === 'ﾞ' && typeof HALFWIDTH_KANA_VOICED[ch] === 'string') {
+                    result += HALFWIDTH_KANA_VOICED[ch];
+                    i += 2;
+                    continue;
+                }
+                if (next === 'ﾟ' && typeof HALFWIDTH_KANA_SEMI_VOICED[ch] === 'string') {
+                    result += HALFWIDTH_KANA_SEMI_VOICED[ch];
+                    i += 2;
+                    continue;
+                }
+                var mapped = HALFWIDTH_KANA_MAP[ch];
+                if (typeof mapped === 'string') {
+                    result += mapped;
+                } else if (ch === 'ﾞ') {
+                    result += '゛';
+                } else if (ch === 'ﾟ') {
+                    result += '゜';
+                } else {
+                    result += ch;
+                }
+                i++;
+            }
+            return result;
+        }
+
+        /* TRANSLITERATE_MAP に従って 1 文字ずつ処理。mode='convert' は変換、'remove' は削除、'keep' は無処理。
+           値が文字列のときのみ対象（toString などの prototype プロパティ衝突を回避）
+           / Per-char transform via TRANSLITERATE_MAP: 'convert' replaces, 'remove' drops, 'keep' returns as-is */
+        function transliterate(str, mode) {
+            if (mode === 'keep') return String(str);
             var s = String(str);
             var result = '';
             for (var i = 0; i < s.length; i++) {
                 var ch = s.charAt(i);
                 var mapped = TRANSLITERATE_MAP[ch];
                 if (typeof mapped === 'string') {
-                    result += mapped;
+                    result += (mode === 'remove') ? '' : mapped;
                 } else {
                     result += ch;
                 }
@@ -860,11 +1011,38 @@
             return confirm(L('message.confirmOverwrite') + '\n\n' + destFile.fsName);
         }
 
-        /* 旧ファイルを削除（失敗時は黙って継続） / Remove the original file (silently ignore failure) */
+        /* file を ~/.Trash に移動。同名衝突時は連番でユニーク化。成功で true、失敗で false
+           / Move file to ~/.Trash, disambiguating by appending a counter. Returns true on success */
+        function moveToTrash(file) {
+            if (!file || !file.exists) return false;
+            var trash = Folder("~/.Trash");
+            if (!trash.exists) return false;
+            var origName = file.name;
+            var dot = origName.lastIndexOf('.');
+            var stem = (dot > 0) ? origName.substring(0, dot) : origName;
+            var ext = (dot > 0) ? origName.substring(dot) : '';
+            var dest = File(trash.fsName + '/' + origName);
+            var counter = 1;
+            while (dest.exists) {
+                dest = File(trash.fsName + '/' + stem + ' ' + counter + ext);
+                counter++;
+                if (counter > 9999) return false; // 暴走防止
+            }
+            try {
+                if (!file.copy(dest)) return false;
+                return file.remove();
+            } catch (e) {
+                return false;
+            }
+        }
+
+        /* 旧ファイルを削除（FEATURE_USE_TRASH=true ならゴミ箱に移動、失敗時は file.remove() にフォールバック）
+           / Remove the original file: move to ~/.Trash when enabled, else (or on failure) hard-remove */
         function removeOriginalFile(originalFsPath, destFsPath) {
             if (!originalFsPath || originalFsPath === destFsPath) return;
             var file = File(originalFsPath);
             if (!file.exists) return;
+            if (FEATURE_USE_TRASH && moveToTrash(file)) return;
             try { file.remove(); } catch (e) { /* 削除できない場合は黙って継続 */ }
         }
 
@@ -908,8 +1086,9 @@
                     return uiState.status || '';
                 }
                 if (kind === 'timestamp') {
-                    if (uiState.timestamp === 'date') return todayTimestamp();
-                    if (uiState.timestamp === 'dateDash') return todayTimestamp('-');
+                    var withTime = (uiState.timestampTime === 'hhmm');
+                    if (uiState.timestamp === 'date') return todayTimestamp('', withTime);
+                    if (uiState.timestamp === 'dateDash') return todayTimestamp('-', withTime);
                     return '';
                 }
                 if (kind === 'version') {
@@ -926,7 +1105,9 @@
                 var kind = order[i];
                 var value = valueForKind(kind);
                 if (!value) continue;
-                var isProtectedDate = (kind === 'timestamp' && uiState.timestamp === 'dateDash');
+                // YYYY-MM-DD（および YYYY-MM-DD-HHMM、YYYYMMDD-HHMM）は内部の "-" を保護
+                var isProtectedDate = (kind === 'timestamp')
+                    && (uiState.timestamp === 'dateDash' || uiState.timestampTime === 'hhmm');
                 if (!isProtectedDate && FEATURE_SEPARATOR) {
                     // 区切り記号統一。FEATURE_DOT_NORMALIZE が true なら "." も対象
                     if (uiState.separator === '-') {
@@ -977,14 +1158,20 @@
             var sortCurrentRadio = panel.add('radiobutton', undefined, L('radio.sortCurrent'));
             sortCurrentRadio.helpTip = L('tip.sort');
             if (!currentOrderAvailable) sortCurrentRadio.enabled = false;
-            var sortOnRadio = panel.add('radiobutton', undefined, L('radio.sortOn'));
+            // 「カスタム順」ラジオと「順序を編集...」ボタンを同じ行に並べる
+            var customRow = panel.add('group');
+            customRow.orientation = 'row';
+            customRow.alignment = ['fill', 'top'];
+            customRow.alignChildren = ['left', 'center'];
+            customRow.spacing = 8;
+            var sortOnRadio = customRow.add('radiobutton', undefined, L('radio.sortOn'));
             sortOnRadio.helpTip = L('tip.sort');
-            var initialSort = pickPref(prefs, 'sort', ['off', 'current', 'on'], 'off');
-            if (initialSort === 'current' && !currentOrderAvailable) initialSort = 'off';
+            var sortButton = customRow.add('button', undefined, L('button.sort'));
+            // 並び順の初期値は prefs を見ず、常に「現在のファイル名に準じる」（不可なら「標準順」）に固定
+            var initialSort = currentOrderAvailable ? 'current' : 'off';
             sortOffRadio.value = (initialSort === 'off');
             sortCurrentRadio.value = (initialSort === 'current');
             sortOnRadio.value = (initialSort === 'on');
-            var sortButton = panel.add('button', undefined, L('button.sort'));
             sortButton.enabled = (initialSort === 'on');
             function syncSortButtonEnabled() {
                 sortButton.enabled = sortOnRadio.value;
@@ -1175,6 +1362,7 @@
             }
 
             // タイムスタンプ（なし / YYYYMMDD / YYYY-MM-DD。デフォルト YYYYMMDD）
+            // 末尾に「時刻も付与」(HHMM) チェックボックスを同居
             var timestampRow = addRadioRow(panel, 'label.timestamp', 'tip.timestamp', [
                 { key: 'none', text: L('radio.timestampNone') },
                 { key: 'date', text: L('radio.timestampDate') },
@@ -1184,6 +1372,15 @@
             timestampRow.radios.none.value = (initialTimestamp === 'none');
             timestampRow.radios.date.value = (initialTimestamp === 'date');
             timestampRow.radios.dateDash.value = (initialTimestamp === 'dateDash');
+
+            var timestampHHMMCheckbox = timestampRow.group.add('checkbox', undefined, L('radio.timestampWithTime'));
+            timestampHHMMCheckbox.helpTip = L('tip.timestampWithTime');
+            timestampHHMMCheckbox.value = pickPref(prefs, 'timestampTime', ['no', 'hhmm'], 'no') === 'hhmm';
+
+            function syncTimestampHHMMEnabled() {
+                timestampHHMMCheckbox.enabled = !timestampRow.radios.none.value;
+            }
+            syncTimestampHHMMEnabled();
 
             // バージョン番号（なし / v1, v2… / v01, v02… / v001, v002…。デフォルト v1, v2…）
             // ES3 で 'short' を裸キーにすると予約語エラーになるため、ローカル変数名は short_ にする
@@ -1230,32 +1427,49 @@
                 nfcRow.radios.combine.value = (initialNfc === 'combine');
             }
 
-            // クリーンなファイル名（削除する / -に変更 / _に変更。デフォルト "削除する"）
-            // OS 禁止文字（\/:*?"<>|）と絵文字・機種依存文字をまとめて処理
+            // クリーンなファイル名（削除する / -に変更 / _に変更。デフォルト "-に変更"）
+            // OS 禁止文字（\/:*?"<>|）と絵文字・機種依存文字をまとめて処理。
+            // 末尾に「半角カナ → 全角」チェックボックスを同居（'-' / '_' のときだけ有効）
             var cleanRow = null;
+            var halfwidthKanaCheckbox = null;
             if (FEATURE_CLEAN) {
                 cleanRow = addRadioRow(panel, 'label.clean', 'tip.clean', [
                     { key: 'remove', text: L('radio.cleanRemove') },
                     { key: 'dash', text: L('radio.changeToDash') },
                     { key: 'underscore', text: L('radio.changeToUnderscore') }
                 ]);
-                var initialClean = pickPref(prefs, 'clean', ['remove', 'dash', 'underscore'], 'remove');
+                var initialClean = pickPref(prefs, 'clean', ['remove', 'dash', 'underscore'], 'dash');
                 cleanRow.radios.remove.value = (initialClean === 'remove');
                 cleanRow.radios.dash.value = (initialClean === 'dash');
                 cleanRow.radios.underscore.value = (initialClean === 'underscore');
+
+                if (FEATURE_HALFWIDTH_KANA) {
+                    halfwidthKanaCheckbox = cleanRow.group.add('checkbox', undefined, L('radio.halfwidthKanaConvert'));
+                    halfwidthKanaCheckbox.helpTip = L('tip.halfwidthKana');
+                    halfwidthKanaCheckbox.value = pickPref(prefs, 'halfwidthKana', ['keep', 'convert'], 'convert') === 'convert';
+                }
             }
 
-            // 法人略記・丸数字（変更しない / 変換する。デフォルト "変更しない"）
+            // 法人略記・丸数字（変更しない / 削除する / 変換する。デフォルト "変換する"）
             var translitRow = null;
             if (FEATURE_TRANSLITERATE) {
                 translitRow = addRadioRow(panel, 'label.translit', 'tip.translit', [
                     { key: 'keep', text: L('radio.noChange') },
+                    { key: 'remove', text: L('radio.translitRemove') },
                     { key: 'convert', text: L('radio.translitConvert') }
                 ]);
-                var initialTranslit = pickPref(prefs, 'translit', ['keep', 'convert'], 'keep');
+                var initialTranslit = pickPref(prefs, 'translit', ['keep', 'remove', 'convert'], 'convert');
                 translitRow.radios.keep.value = (initialTranslit === 'keep');
+                translitRow.radios.remove.value = (initialTranslit === 'remove');
                 translitRow.radios.convert.value = (initialTranslit === 'convert');
             }
+
+            // クリーンが '-' / '_' のときだけ「半角カナ → 全角」を有効化
+            function syncHalfwidthKanaEnabled() {
+                if (!halfwidthKanaCheckbox || !cleanRow) return;
+                halfwidthKanaCheckbox.enabled = (cleanRow.radios.dash.value || cleanRow.radios.underscore.value);
+            }
+            syncHalfwidthKanaEnabled();
 
             // ラベル幅を統一（FEATURE で UI 非表示の行は除外）
             var labelTexts = [labelText('label.base'), labelText('label.title')];
@@ -1281,11 +1495,15 @@
                 labelTexts: labelTexts,
                 statusDropdown: statusDropdown,
                 timestampRow: timestampRow,
+                timestampHHMMCheckbox: timestampHHMMCheckbox,
+                syncTimestampHHMMEnabled: syncTimestampHHMMEnabled,
                 versionRow: versionRow,
                 separatorRow: separatorRow,
                 nfcRow: nfcRow,
                 cleanRow: cleanRow,
+                halfwidthKanaCheckbox: halfwidthKanaCheckbox,
                 translitRow: translitRow,
+                syncHalfwidthKanaEnabled: syncHalfwidthKanaEnabled,
                 /* '' = 変更しない、'-' / '_' = 統一。FEATURE_SEPARATOR=false なら常に '' */
                 getSeparator: function () {
                     if (!separatorRow) return '';
@@ -1305,16 +1523,27 @@
                     if (cleanRow.radios.underscore.value) return 'underscore';
                     return 'remove';
                 },
-                /* 'keep' = そのまま、'convert' = TRANSLITERATE_MAP で変換。FEATURE_TRANSLITERATE=false なら常に 'keep' */
+                /* 'keep' = そのまま、'remove' = 削除、'convert' = TRANSLITERATE_MAP で変換。FEATURE_TRANSLITERATE=false なら常に 'keep' */
                 getTranslit: function () {
                     if (!translitRow) return 'keep';
-                    return translitRow.radios.convert.value ? 'convert' : 'keep';
+                    if (translitRow.radios.convert.value) return 'convert';
+                    if (translitRow.radios.remove.value) return 'remove';
+                    return 'keep';
+                },
+                /* 'keep' = そのまま、'convert' = 半角カナを全角カナに。FEATURE_HALFWIDTH_KANA=false なら常に 'keep' */
+                getHalfwidthKana: function () {
+                    if (!halfwidthKanaCheckbox) return 'keep';
+                    return halfwidthKanaCheckbox.value ? 'convert' : 'keep';
                 },
                 /* 'none' / 'date' / 'dateDash' */
                 getTimestamp: function () {
                     if (timestampRow.radios.none.value) return 'none';
                     if (timestampRow.radios.dateDash.value) return 'dateDash';
                     return 'date';
+                },
+                /* 'no' / 'hhmm'（時刻 HHMM をタイムスタンプ末尾に付与するか）*/
+                getTimestampTime: function () {
+                    return timestampHHMMCheckbox.value ? 'hhmm' : 'no';
                 },
                 /* STATUS_ITEMS の value（'' = なし）。FEATURE_STATUS=false なら常に '' */
                 getStatus: function () {
@@ -1546,11 +1775,13 @@
                     grandparentFolderName: grandparentFolderName,
                     status: options.getStatus(),
                     timestamp: options.getTimestamp(),
+                    timestampTime: options.getTimestampTime(),
                     version: options.getVersion(),
                     separator: options.getSeparator(),
                     nfc: options.getNfc(),
                     translit: options.getTranslit(),
                     clean: options.getClean(),
+                    halfwidthKana: options.getHalfwidthKana(),
                     sort: sortMode,
                     customSegmentOrder: customOrder.slice(),
                     segmentOrder: segmentOrder
@@ -1568,27 +1799,39 @@
 
             function refreshPreviews() {
                 options.syncTitleFieldEnabled();
-                var finalBase;
+                options.syncHalfwidthKanaEnabled();
+                options.syncTimestampHHMMEnabled();
+                // 「バージョンのみ」モードでは UI 整形を一切かけず、元ファイル名の v 番号だけ更新
                 if (opMode.isVersionOnly()) {
-                    finalBase = bumpVersionInPlace(stripExtension(currentName));
+                    var versionOnlyBase = bumpVersionInPlace(stripExtension(currentName));
+                    versionOnlyBase = nextAvailableVersionName(versionOnlyBase, folder, '.ai');
+                    filename.finalNameValue.text = versionOnlyBase + '.ai';
+                    return;
+                }
+                var st = currentUIState();
+                var finalBase = buildFinalName(segments, st);
+                if (st.version === 'short' || st.version === 'padded' || st.version === 'paddedWide') {
                     finalBase = nextAvailableVersionName(finalBase, folder, '.ai');
-                } else {
-                    var st = currentUIState();
-                    finalBase = buildFinalName(segments, st);
-                    if (st.version === 'short' || st.version === 'padded' || st.version === 'paddedWide') {
-                        finalBase = nextAvailableVersionName(finalBase, folder, '.ai');
-                    }
                 }
                 if (FEATURE_NFC && options.getNfc() === 'combine') {
                     finalBase = normalizeNFC(finalBase);
                 }
+                // 半角カナ → 全角カナ（clean が '-' / '_' のときだけ）。translit より先に行う
+                if (FEATURE_HALFWIDTH_KANA && options.getHalfwidthKana() === 'convert') {
+                    var cleanMode = options.getClean();
+                    if (cleanMode === 'dash' || cleanMode === 'underscore') {
+                        finalBase = convertHalfwidthKana(finalBase);
+                    }
+                }
                 // translit はクリーンより先に行う（㈱→株 などを残すため）
-                if (FEATURE_TRANSLITERATE && options.getTranslit() === 'convert') {
-                    finalBase = transliterate(finalBase);
+                if (FEATURE_TRANSLITERATE) {
+                    finalBase = transliterate(finalBase, options.getTranslit());
                 }
                 if (FEATURE_CLEAN) {
                     finalBase = cleanFilenameChars(finalBase, options.getClean());
                 }
+                finalBase = collapseAndTrimSeparators(finalBase, options.getSeparator());
+                finalBase = escapeWindowsReserved(finalBase);
                 filename.finalNameValue.text = finalBase + '.ai';
             }
 
@@ -1609,11 +1852,13 @@
                 options.baseField, options.titleField,
                 options.statusDropdown,
                 ts.radios.none, ts.radios.date, ts.radios.dateDash,
+                options.timestampHHMMCheckbox,
                 vr.radios.none, vr.radios.short_, vr.radios.padded, vr.radios.paddedWide,
                 sr && sr.radios.noChange, sr && sr.radios.dash, sr && sr.radios.underscore,
                 nr && nr.radios.keep, nr && nr.radios.combine,
                 cr && cr.radios.remove, cr && cr.radios.dash, cr && cr.radios.underscore,
-                lr && lr.radios.keep, lr && lr.radios.convert
+                options.halfwidthKanaCheckbox,
+                lr && lr.radios.keep, lr && lr.radios.remove, lr && lr.radios.convert
             ]);
 
             // ソートパネルの ON/OFF とサブダイアログ起動（FEATURE_SORT のとき）
@@ -1684,17 +1929,36 @@
                 newBaseName = nextAvailableVersionName(newBaseName, targetFolder, '.ai');
             }
 
-            if (FEATURE_NFC && uiState.nfc === 'combine') {
-                newBaseName = normalizeNFC(newBaseName);
-            }
-            if (FEATURE_TRANSLITERATE && uiState.translit === 'convert') {
-                newBaseName = transliterate(newBaseName);
-            }
-            if (FEATURE_CLEAN) {
-                newBaseName = cleanFilenameChars(newBaseName, uiState.clean);
+            // 「バージョンのみ」モードでは UI 整形をスキップして元ファイル名をそのまま尊重
+            if (uiState.opMode !== 'versionOnly') {
+                if (FEATURE_NFC && uiState.nfc === 'combine') {
+                    newBaseName = normalizeNFC(newBaseName);
+                }
+                if (FEATURE_HALFWIDTH_KANA && uiState.halfwidthKana === 'convert'
+                    && (uiState.clean === 'dash' || uiState.clean === 'underscore')) {
+                    newBaseName = convertHalfwidthKana(newBaseName);
+                }
+                if (FEATURE_TRANSLITERATE) {
+                    newBaseName = transliterate(newBaseName, uiState.translit);
+                }
+                if (FEATURE_CLEAN) {
+                    newBaseName = cleanFilenameChars(newBaseName, uiState.clean);
+                }
+                newBaseName = collapseAndTrimSeparators(newBaseName, uiState.separator);
+                newBaseName = escapeWindowsReserved(newBaseName);
             }
 
             var destFile = File(targetFolder.fsName + '/' + newBaseName + '.ai');
+
+            // 長さチェック（拡張子込み）: 上限超過なら確認ダイアログを出して続行可
+            var fullByteLength = byteLengthUTF8(newBaseName + '.ai');
+            if (fullByteLength > FEATURE_MAX_FILENAME_BYTES) {
+                var msg = L('message.confirmTooLong')
+                    .replace('{bytes}', String(fullByteLength))
+                    .replace('{limit}', String(FEATURE_MAX_FILENAME_BYTES));
+                if (!confirm(msg + '\n\n' + newBaseName + '.ai')) return;
+            }
+
             if (!confirmOverwriteIfExists(destFile, info.fsPath)) return;
 
             try {
@@ -1704,15 +1968,17 @@
                     var prefsToSave = {
                         titleMode: uiState.titleMode,
                         timestamp: uiState.timestamp,
+                        timestampTime: uiState.timestampTime,
                         version: uiState.version
                     };
                     if (FEATURE_STATUS) prefsToSave.status = uiState.status;
                     if (FEATURE_SEPARATOR) prefsToSave.separator = uiState.separator;
                     if (FEATURE_NFC) prefsToSave.nfc = uiState.nfc;
                     if (FEATURE_CLEAN) prefsToSave.clean = uiState.clean;
+                    if (FEATURE_HALFWIDTH_KANA && FEATURE_CLEAN) prefsToSave.halfwidthKana = uiState.halfwidthKana;
                     if (FEATURE_TRANSLITERATE) prefsToSave.translit = uiState.translit;
                     if (FEATURE_SORT) {
-                        prefsToSave.sort = uiState.sort;
+                        // sort モード自体は復元しない（毎回「現在のファイル名に準じる」が初期値）
                         prefsToSave.segmentOrder = uiState.customSegmentOrder.join(',');
                     }
                     savePrefs(prefsToSave);
