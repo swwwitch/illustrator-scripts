@@ -64,7 +64,7 @@
     - v1.2.5 (2026-05-28) : 「現在のファイル名に準じる」並び順モード追加、元ファイルに v 番号が無い場合のデフォルトを v01 形式に固定、サブテキストに「2 階層上のフォルダー」追加・順序を「なし／指定／親フォルダー／2 階層上」に変更、「クリーンなファイル名」（OS 禁止文字 + 絵文字 + 機種依存文字 + スペースの統一処理。「スペースの扱い」を吸収）、「丸数字や法人略記など」（㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / ハイフン類 → `-` 等）追加、「濁点処理」→「濁点・半濁点の正規化」改名、内部リファクタ（addRadioRow / pickPref / wireRefresh ヘルパー導入で重複削減）
     - v1.2.6 (2026-05-29) : 「クリーンなファイル名」行に「半角カナ → 全角」チェックボックス追加（クリーンが `-` または `_` のときだけ有効・濁点／半濁点も結合）、「丸数字や法人略記など」に「削除する」を追加（変更しない／削除する／変換する）、UI デフォルト見直し（並び順「現在のファイル名に準じる」／クリーン「-に変更」／丸数字や法人略記など「変換する」）、「バージョン番号のみ」→「バージョンのみ」改名、ソートパネルの編集ボタンを「カスタム順」の右に移動し、ラベルを「順序を編集...」→「編集」に短縮
     - v1.2.7 (2026-05-29) : 自動整形（連続する `-` `_` `.` を 1 つに圧縮・先頭末尾のトリム）、ファイル名長の事前チェック（拡張子込み UTF-8 240 バイト超過で確認ダイアログ・FEATURE_MAX_FILENAME_BYTES）、rename 時の元ファイル削除を `~/.Trash` 移動へ変更（FEATURE_USE_TRASH、失敗時は file.remove() にフォールバック）、「元ファイルをリネーム」の helpTip に配置リンク切れ注意を追記、Windows 予約名（CON / PRN / AUX / NUL / COM1-9 / LPT1-9）を末尾 `_` で回避、ハングル音節（U+AC00–U+D7A3）を「標準」文字に追加、タイムスタンプに「時刻も付与」(HHMM) チェックボックス追加
-    - v1.2.8 (2026-05-29) : 「バージョンのみ」モードでは UI 整形（NFC / 半角カナ / translit / クリーン / 連続区切り圧縮 / Windows 予約名回避）を一切かけず、元ファイル名の v 番号だけ更新するように変更、ソートパネルの初期値を prefs と無関係に常に「現在のファイル名に準じる」（不可なら「標準順」）に固定（カスタム並び順 segmentOrder は引き続き保存）、Ai 版に欠落していた `LABELS.sort`（サブダイアログのタイトル／ヒント）を追加、`tip.sort` をボタン名「編集」に揃えて短縮、ラベル表記を Id 版に統一（「2 階層上のフォルダー」「-に変更」「_に変更」）
+    - v1.3.0 (2026-05-29) : 「バージョンのみ」モードでは UI 整形（NFC / 半角カナ / translit / クリーン / 連続区切り圧縮 / Windows 予約名回避）を一切かけず、元ファイル名の v 番号だけ更新するように変更、並び順の初期値を prefs と無関係に常に「現在のファイル名に準じる」（不可なら「標準順」）に固定（カスタム並び順 segmentOrder は引き続き保存）、構成要素（ベース／サブテキスト／ステータス／タイムスタンプ／ページ番号／バージョン）を変更したら並び順「現在のファイル名に準じる」を自動で「標準順」に降格（整形系の変更では維持）、バージョン番号のデフォルトを「v1, v2…」系から「なし」に変更、新セグメント「ページ番号」(FEATURE_PAGE) 追加（チェックボックス + 桁数 dropdown「2 桁／3 桁」。timestamp の後・version の前。保存時は同フォルダ内の最大 page +1 へ自動繰り上げ。検出は行わず UI のみ）、Ai 版に欠落していた `LABELS.sort`（サブダイアログのタイトル／ヒント）を追加、`tip.sort` をボタン名「編集」に揃えて短縮、ラベル表記を Id 版に統一（「2 階層上のフォルダー」「-に変更」「_に変更」）
     
     ---
     
@@ -129,7 +129,7 @@
     - v1.2.5 (2026-05-28): Added "Match Current" segment-order mode, forced v01 default when no v-number exists in original, added "Grandparent Folder" as Project Name option with reordered radios (None / Custom / Parent / Grandparent), added "Clean Filename" (OS-invalid + emoji + platform-dependent chars + spaces in one pass; absorbs the former "Spaces" option), added "Symbols" transliteration (㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / dashes → `-` etc.), renamed "NFC" label to "NFC Normalization", internal refactor (addRadioRow / pickPref / wireRefresh helpers to reduce duplication)
     - v1.2.6 (2026-05-29): Added "Half-width → Full-width Kana" checkbox inside the Clean Filename row (active only when Clean is `-` or `_`; merges voiced/semi-voiced marks), expanded "Symbols" to 3-way (Keep / Remove / Convert), updated UI defaults (Sort → Match Current, Clean → `-`, Symbols → Convert), renamed "Version Only" to drop the word "Number" in JA, moved the order-edit button next to the "Custom" radio and shortened "Edit order..." → "Edit"
     - v1.2.7 (2026-05-29): Auto cleanup (collapse `-` / `_` / `.` runs to one; trim leading/trailing separators), pre-save length check (confirm dialog when basename+ext exceeds 240 UTF-8 bytes; FEATURE_MAX_FILENAME_BYTES), rename moves the original to `~/.Trash` instead of hard-removing it (FEATURE_USE_TRASH; falls back to file.remove() on failure), added a placed-link warning to the rename helpTip, escape Windows reserved names (CON / PRN / AUX / NUL / COM1-9 / LPT1-9) with a trailing `_`, treat Hangul syllables (U+AC00–U+D7A3) as standard characters, added an "Append HHMM" checkbox to the timestamp row
-    - v1.2.8 (2026-05-29): "Version Only" mode no longer applies any cleanup (NFC / half-width kana / translit / clean / collapse separators / Windows reserved escape); the original filename is preserved and only its v-number is bumped, the sort panel default is now always "Match Current" (or "Default" when unavailable) regardless of prefs (custom `segmentOrder` is still persisted), added the missing `LABELS.sort` (reorder sub-dialog title / hint) to the AI version, shortened `tip.sort` to match the "Edit" button label, and unified label spelling with the InDesign version ("Grandparent Folder" radio / "Change to -" / "Change to _")
+    - v1.3.0 (2026-05-29): "Version Only" mode no longer applies any cleanup (NFC / half-width kana / translit / clean / collapse separators / Windows reserved escape); the original filename is preserved and only its v-number is bumped, the sort panel initial value is now always "Match Current" (or "Default" when unavailable) regardless of prefs (custom `segmentOrder` is still persisted), changing any segment input (base / project name / status / timestamp / page / version) now auto-demotes the sort selection from "Match Current" to "Default" (formatting-only changes keep it), version radio default changed from "v1, v2…" to "None", added a new "Page Number" segment (FEATURE_PAGE) with a checkbox + width dropdown (2 / 3 digits) placed between timestamp and version (auto-bumps to (max page in folder) + 1 on save; no parser detection), added the missing `LABELS.sort` (reorder sub-dialog title / hint) to the AI version, shortened `tip.sort` to match the "Edit" button label, and unified label spelling with the InDesign version ("Grandparent Folder" radio / "Change to -" / "Change to _")
     
     */
 
@@ -139,7 +139,7 @@
         // バージョン / Version
         // =========================================
 
-        var SCRIPT_VERSION = "v1.2.8";
+        var SCRIPT_VERSION = "v1.3.0";
 
         // =========================================
         // ユーザー設定 / User Settings
@@ -155,6 +155,7 @@
         var FEATURE_CLEAN = true;         // クリーンなファイル名（OS 禁止文字 + 絵文字・機種依存文字の処理） / Clean filename (OS-invalid + emoji + platform-dependent)
         var FEATURE_TRANSLITERATE = true; // 法人略記・丸数字などを ASCII 相当に変換 / Transliterate corp abbrev / circled numbers / etc.
         var FEATURE_HALFWIDTH_KANA = true; // 半角カナ → 全角カナ変換（クリーンが '-' / '_' のときのみ有効） / Halfwidth-kana → fullwidth (active only when Clean is '-' or '_')
+        var FEATURE_PAGE = true;          // 連番（pageNN）セグメント / Page-number segment (pageNN)
 
         /* ファイル名（拡張子込み）の UTF-8 バイト長の上限。超過時は確認ダイアログを出して続行可
            / Max UTF-8 byte length of the basename + extension; exceeding it triggers a confirm dialog */
@@ -212,11 +213,17 @@
             '−': '-'   // − MINUS SIGN
         };
 
-        /* 出力時のセグメント順序。base / title / status / timestamp / version。FEATURE_STATUS=false なら status は除外
-           / Output segment order; "status" is dropped when FEATURE_STATUS is false */
-        var SEGMENT_ORDER = FEATURE_STATUS
-            ? ['base', 'title', 'status', 'timestamp', 'version']
-            : ['base', 'title', 'timestamp', 'version'];
+        /* 出力時のセグメント順序。base / title / status / timestamp / page / version。
+           FEATURE_STATUS=false なら status を、FEATURE_PAGE=false なら page を除外
+           / Output segment order; "status" / "page" are dropped when their FEATURE_* flags are false */
+        var SEGMENT_ORDER = (function () {
+            var order = ['base', 'title'];
+            if (FEATURE_STATUS) order.push('status');
+            order.push('timestamp');
+            if (FEATURE_PAGE) order.push('page');
+            order.push('version');
+            return order;
+        })();
 
         /* ステータス選択肢。value がファイル名に入り、ja / en が UI 表示。先頭は「なし」。
            ja が '---' の項目は dropdown 上の区切り線として表示（選択不可）
@@ -294,6 +301,9 @@
                 translitRemove: { ja: "削除する", en: "Remove" },
                 translitConvert: { ja: "変換する", en: "Convert" },
                 halfwidthKanaConvert: { ja: "半角カナ → 全角", en: "Half-width → Full-width Kana" },
+                pageEnable: { ja: "連番を付与", en: "Append Sequence" },
+                pagePad2: { ja: "01, 02…", en: "01, 02…" },
+                pagePad3: { ja: "001, 002…", en: "001, 002…" },
                 sortOff: { ja: "標準順", en: "Default" },
                 sortCurrent: { ja: "現在のファイル名に準じる", en: "Match Current" },
                 sortOn: { ja: "カスタム順", en: "Custom" }
@@ -306,6 +316,7 @@
                 status: { ja: "ステータス", en: "Status" },
                 timestamp: { ja: "タイムスタンプ", en: "Timestamp" },
                 version: { ja: "バージョン番号", en: "Version" },
+                page: { ja: "連番", en: "Sequence" },
                 separator: { ja: "区切り記号", en: "Separator" },
                 nfc: { ja: "濁点・半濁点の正規化", en: "NFC Normalization" },
                 clean: { ja: "クリーンなファイル名", en: "Clean Filename" },
@@ -347,6 +358,10 @@
                 version: {
                     ja: "バージョン番号の形式。v1/v2 はパディング無し、v01/v02 は 2 桁、v001/v002 は 3 桁ゼロ埋め。既存の v 番号は +1、無い場合は v1/v01/v001 を付与。「なし」で削除。",
                     en: "Version format. v1/v2 has no padding, v01/v02 is 2-digit, v001/v002 is 3-digit zero-padded. An existing v-number is bumped by +1; otherwise v1/v01/v001 is added. \"None\" removes."
+                },
+                page: {
+                    ja: "「page01」「page001」のような連番をファイル名に追加します。プレフィックス（page 等）と桁数（01 / 001）を選択。保存時に同フォルダ内の最大連番 +1 へ自動繰り上げ。",
+                    en: "Append a sequence such as page01 / page001. Configure prefix (e.g. page) and width (01 / 001). On save, bumps to (max in folder) + 1 if collisions exist."
                 },
                 separator: {
                     ja: "ファイル名全体の区切り記号の扱いを選択します。「-」「_」「.」が対象。YYYY-MM-DD のタイムスタンプは保護されます。",
@@ -640,6 +655,18 @@
             return { prefix: m[1], letter: m[2], digits: m[3], suffix: m[4] };
         }
 
+        /* baseName 内の最初の {prefix}+数字パターンを抽出。マッチしなければ null
+           prefix は "page" などユーザー指定可能（空文字なら null）
+           / Extract the first {prefix} + digits in baseName; null if no match (or empty prefix) */
+        function extractPageParts(baseName, prefix) {
+            var p = String(prefix || '');
+            if (!p) return null;
+            var re = new RegExp('^(.*?)(' + escapeRegExp(p) + ')(\\d+)(.*)$', 'i');
+            var m = String(baseName).match(re);
+            if (!m) return null;
+            return { prefix: m[1], digits: m[3], suffix: m[4] };
+        }
+
         /* 正規表現エスケープ / Escape for use in RegExp */
         function escapeRegExp(s) {
             return String(s).replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
@@ -683,6 +710,49 @@
             if (target <= current) return baseName;
             var width = Math.max(parts.digits.length, String(target).length);
             return parts.prefix + parts.letter + padLeft(String(target), width) + parts.suffix;
+        }
+
+        /* 親フォルダー内で baseName の連番（{prefix}NN）と同じ prefix / suffix を持つ最大連番を返す
+           / Scan folder for files matching baseName's sequence pattern; return max sequence number or null */
+        function findMaxPageInFolder(baseName, folder, ext, prefix) {
+            if (!folder) return null;
+            var p = String(prefix || '');
+            if (!p) return null;
+            var parts = extractPageParts(baseName, p);
+            if (!parts) return null;
+            var re = new RegExp(
+                '^' + escapeRegExp(parts.prefix) + escapeRegExp(p) + '(\\d+)'
+                + escapeRegExp(parts.suffix) + escapeRegExp(ext) + '$',
+                'i'
+            );
+            var files;
+            try { files = folder.getFiles(); } catch (e) { return null; }
+            var maxNum = -1;
+            for (var i = 0; i < files.length; i++) {
+                if (!(files[i] instanceof File)) continue;
+                var fname = decodePercentEncoded(files[i].name);
+                var fm = fname.match(re);
+                if (!fm) continue;
+                var num = parseInt(fm[1], 10);
+                if (num > maxNum) maxNum = num;
+            }
+            return maxNum >= 0 ? maxNum : null;
+        }
+
+        /* baseName 内の連番を、親フォルダー内の同パターンの最大連番 +1 に置き換える
+           / Replace sequence number with (folder max + 1); preserves digit width */
+        function nextAvailablePageName(baseName, folder, ext, prefix) {
+            var p = String(prefix || '');
+            if (!p) return baseName;
+            var maxNum = findMaxPageInFolder(baseName, folder, ext, p);
+            if (maxNum === null) return baseName;
+            var parts = extractPageParts(baseName, p);
+            if (!parts) return baseName;
+            var current = parseInt(parts.digits, 10);
+            var target = maxNum + 1;
+            if (target <= current) return baseName;
+            var width = Math.max(parts.digits.length, String(target).length);
+            return parts.prefix + p + padLeft(String(target), width) + parts.suffix;
         }
 
         /* Windows 予約名（拡張子の有無を問わず使用不可）。一致したら末尾に "_" を足してエスケープ
@@ -1095,6 +1165,11 @@
                     if (uiState.version === 'none') return '';
                     return formatVersion(getFirstSegmentValue(segments, 'version'), uiState.version);
                 }
+                if (kind === 'page') {
+                    if (uiState.pageEnable !== 'yes') return '';
+                    var pageWidth = (uiState.pagePad === '3') ? 3 : 2;
+                    return (uiState.pagePrefix || '') + padLeft('1', pageWidth);
+                }
                 return '';
             }
 
@@ -1257,7 +1332,7 @@
             // 現在のファイル名と「入力フィールド + 余白」の大きい方を確保しておく
             var finalNameValue = finalNameRow.add('statictext', undefined, currentName + '.ai');
             var currentNameWidth = panel.graphics.measureString(currentName + '.ai').width;
-            finalNameValue.preferredSize.width = Math.max(currentNameWidth + 20, NEW_NAME_FIELD_WIDTH + 150);
+            finalNameValue.preferredSize.width = Math.max(currentNameWidth + 20, 340);
 
             // 個別整列はせず、ラベル参照を呼び出し側に返し、後段で全パネル統一整列する
             return {
@@ -1382,6 +1457,44 @@
             }
             syncTimestampHHMMEnabled();
 
+            // 連番（チェックボックス + プレフィックス入力 + 桁数ラジオ）。デフォルト OFF / "page" / 2 桁
+            // SEGMENT_ORDER 内では timestamp の後・version の前に配置
+            var pageRow = null;
+            var pageCheckbox = null;
+            var pagePrefixField = null;
+            var pagePadRadio2 = null;
+            var pagePadRadio3 = null;
+            if (FEATURE_PAGE) {
+                pageRow = panel.add('group');
+                pageRow.orientation = 'row';
+                var pageLabelCtrl = pageRow.add('statictext', undefined, labelText('label.page'));
+                pageLabelCtrl.helpTip = L('tip.page');
+                pageCheckbox = pageRow.add('checkbox', undefined, L('radio.pageEnable'));
+                pageCheckbox.helpTip = L('tip.page');
+                pageCheckbox.value = pickPref(prefs, 'pageEnable', ['no', 'yes'], 'no') === 'yes';
+                pagePrefixField = pageRow.add('edittext', undefined, '');
+                pagePrefixField.preferredSize.width = 60;
+                pagePrefixField.helpTip = L('tip.page');
+                pagePrefixField.text = (prefs && typeof prefs.pagePrefix === 'string') ? prefs.pagePrefix : 'page';
+                pagePadRadio2 = pageRow.add('radiobutton', undefined, L('radio.pagePad2'));
+                pagePadRadio2.helpTip = L('tip.page');
+                pagePadRadio3 = pageRow.add('radiobutton', undefined, L('radio.pagePad3'));
+                pagePadRadio3.helpTip = L('tip.page');
+                var initialPagePad = pickPref(prefs, 'pagePad', ['2', '3'], '2');
+                pagePadRadio2.value = (initialPagePad === '2');
+                pagePadRadio3.value = (initialPagePad === '3');
+                pageRow.label = pageLabelCtrl; // alignLabelWidths 用に統一形にしておく
+            }
+
+            function syncPageControlsEnabled() {
+                if (!pageCheckbox) return;
+                var enabled = pageCheckbox.value;
+                if (pagePrefixField) pagePrefixField.enabled = enabled;
+                if (pagePadRadio2) pagePadRadio2.enabled = enabled;
+                if (pagePadRadio3) pagePadRadio3.enabled = enabled;
+            }
+            syncPageControlsEnabled();
+
             // バージョン番号（なし / v1, v2… / v01, v02… / v001, v002…。デフォルト v1, v2…）
             // ES3 で 'short' を裸キーにすると予約語エラーになるため、ローカル変数名は short_ にする
             var versionRow = addRadioRow(panel, 'label.version', 'tip.version', [
@@ -1390,10 +1503,11 @@
                 { key: 'padded', text: L('radio.versionPadded') },
                 { key: 'paddedWide', text: L('radio.versionPaddedWide') }
             ]);
-            // 元ファイルに v 番号が無ければ常に 'padded' を強制（保存済み prefs を上書き）
+            // デフォルトは「なし」。元ファイルに v 番号がある場合は prefs を優先（無ければ「なし」）
             var hasOriginalVersion = !!getFirstSegmentValue(segments, 'version');
-            var initialVersion = !hasOriginalVersion ? 'padded' :
-                pickPref(prefs, 'version', ['none', 'short', 'padded', 'paddedWide'], 'padded');
+            var initialVersion = hasOriginalVersion
+                ? pickPref(prefs, 'version', ['none', 'short', 'padded', 'paddedWide'], 'none')
+                : 'none';
             versionRow.radios.none.value = (initialVersion === 'none');
             versionRow.radios.short_.value = (initialVersion === 'short');
             versionRow.radios.padded.value = (initialVersion === 'padded');
@@ -1476,6 +1590,7 @@
             var labelControls = [baseLabel, titleRow.label];
             if (FEATURE_STATUS) { labelTexts.push(labelText('label.status')); labelControls.push(statusLabel); }
             labelTexts.push(labelText('label.timestamp')); labelControls.push(timestampRow.label);
+            if (FEATURE_PAGE) { labelTexts.push(labelText('label.page')); labelControls.push(pageRow.label); }
             labelTexts.push(labelText('label.version')); labelControls.push(versionRow.label);
             if (FEATURE_SEPARATOR) { labelTexts.push(labelText('label.separator')); labelControls.push(separatorRow.label); }
             if (FEATURE_NFC) { labelTexts.push(labelText('label.nfc')); labelControls.push(nfcRow.label); }
@@ -1497,6 +1612,11 @@
                 timestampRow: timestampRow,
                 timestampHHMMCheckbox: timestampHHMMCheckbox,
                 syncTimestampHHMMEnabled: syncTimestampHHMMEnabled,
+                pageCheckbox: pageCheckbox,
+                pagePrefixField: pagePrefixField,
+                pagePadRadio2: pagePadRadio2,
+                pagePadRadio3: pagePadRadio3,
+                syncPageControlsEnabled: syncPageControlsEnabled,
                 versionRow: versionRow,
                 separatorRow: separatorRow,
                 nfcRow: nfcRow,
@@ -1544,6 +1664,21 @@
                 /* 'no' / 'hhmm'（時刻 HHMM をタイムスタンプ末尾に付与するか）*/
                 getTimestampTime: function () {
                     return timestampHHMMCheckbox.value ? 'hhmm' : 'no';
+                },
+                /* 'no' / 'yes'（ページ番号セグメントを付与するか）。FEATURE_PAGE=false なら常に 'no' */
+                getPageEnable: function () {
+                    if (!pageCheckbox) return 'no';
+                    return pageCheckbox.value ? 'yes' : 'no';
+                },
+                /* '2' / '3'（連番のゼロ埋め桁数）。FEATURE_PAGE=false なら '2' */
+                getPagePad: function () {
+                    if (!pagePadRadio3) return '2';
+                    return pagePadRadio3.value ? '3' : '2';
+                },
+                /* 連番のプレフィックス（例: "page"）。FEATURE_PAGE=false なら '' */
+                getPagePrefix: function () {
+                    if (!pagePrefixField) return '';
+                    return pagePrefixField.text;
                 },
                 /* STATUS_ITEMS の value（'' = なし）。FEATURE_STATUS=false なら常に '' */
                 getStatus: function () {
@@ -1776,6 +1911,9 @@
                     status: options.getStatus(),
                     timestamp: options.getTimestamp(),
                     timestampTime: options.getTimestampTime(),
+                    pageEnable: options.getPageEnable(),
+                    pagePad: options.getPagePad(),
+                    pagePrefix: options.getPagePrefix(),
                     version: options.getVersion(),
                     separator: options.getSeparator(),
                     nfc: options.getNfc(),
@@ -1801,6 +1939,7 @@
                 options.syncTitleFieldEnabled();
                 options.syncHalfwidthKanaEnabled();
                 options.syncTimestampHHMMEnabled();
+                options.syncPageControlsEnabled();
                 // 「バージョンのみ」モードでは UI 整形を一切かけず、元ファイル名の v 番号だけ更新
                 if (opMode.isVersionOnly()) {
                     var versionOnlyBase = bumpVersionInPlace(stripExtension(currentName));
@@ -1812,6 +1951,9 @@
                 var finalBase = buildFinalName(segments, st);
                 if (st.version === 'short' || st.version === 'padded' || st.version === 'paddedWide') {
                     finalBase = nextAvailableVersionName(finalBase, folder, '.ai');
+                }
+                if (st.pageEnable === 'yes') {
+                    finalBase = nextAvailablePageName(finalBase, folder, '.ai', st.pagePrefix);
                 }
                 if (FEATURE_NFC && options.getNfc() === 'combine') {
                     finalBase = normalizeNFC(finalBase);
@@ -1847,13 +1989,33 @@
             // ファイル名設定パネル内のすべての入力（無効化中の FEATURE は row が null で来るので skip される）
             var tr = options.titleRow, ts = options.timestampRow, vr = options.versionRow;
             var sr = options.separatorRow, nr = options.nfcRow, cr = options.cleanRow, lr = options.translitRow;
-            wireRefresh(refreshPreviews, [
+
+            // 構成要素（ベース／サブテキスト／ステータス／タイムスタンプ／バージョン）を変更したら、
+            // 「現在のファイル名に準じる」は前提が崩れるので「標準順」に降格させる
+            function demoteSortToDefault() {
+                if (!sort) return;
+                if (!sort.sortCurrentRadio.value) return;
+                sort.sortCurrentRadio.value = false;
+                sort.sortOffRadio.value = true;
+                sort.syncSortButtonEnabled();
+            }
+            function refreshAndDemoteSort() {
+                demoteSortToDefault();
+                refreshPreviews();
+            }
+
+            // 構成要素を変える操作（「現在のファイル名に準じる」は解除）
+            wireRefresh(refreshAndDemoteSort, [
                 tr.radios.none, tr.radios.parent, tr.radios.grandparent, tr.radios.custom,
                 options.baseField, options.titleField,
                 options.statusDropdown,
                 ts.radios.none, ts.radios.date, ts.radios.dateDash,
                 options.timestampHHMMCheckbox,
-                vr.radios.none, vr.radios.short_, vr.radios.padded, vr.radios.paddedWide,
+                options.pageCheckbox, options.pagePrefixField, options.pagePadRadio2, options.pagePadRadio3,
+                vr.radios.none, vr.radios.short_, vr.radios.padded, vr.radios.paddedWide
+            ]);
+            // 整形のみ変える操作（並び順には影響しないので「現在のファイル名に準じる」を維持）
+            wireRefresh(refreshPreviews, [
                 sr && sr.radios.noChange, sr && sr.radios.dash, sr && sr.radios.underscore,
                 nr && nr.radios.keep, nr && nr.radios.combine,
                 cr && cr.radios.remove, cr && cr.radios.dash, cr && cr.radios.underscore,
@@ -1928,6 +2090,9 @@
             if (uiState.opMode === 'versionOnly' || uiState.version === 'short' || uiState.version === 'padded' || uiState.version === 'paddedWide') {
                 newBaseName = nextAvailableVersionName(newBaseName, targetFolder, '.ai');
             }
+            if (uiState.opMode !== 'versionOnly' && uiState.pageEnable === 'yes') {
+                newBaseName = nextAvailablePageName(newBaseName, targetFolder, '.ai', uiState.pagePrefix);
+            }
 
             // 「バージョンのみ」モードでは UI 整形をスキップして元ファイル名をそのまま尊重
             if (uiState.opMode !== 'versionOnly') {
@@ -1971,6 +2136,11 @@
                         timestampTime: uiState.timestampTime,
                         version: uiState.version
                     };
+                    if (FEATURE_PAGE) {
+                        prefsToSave.pageEnable = uiState.pageEnable;
+                        prefsToSave.pagePad = uiState.pagePad;
+                        prefsToSave.pagePrefix = uiState.pagePrefix;
+                    }
                     if (FEATURE_STATUS) prefsToSave.status = uiState.status;
                     if (FEATURE_SEPARATOR) prefsToSave.separator = uiState.separator;
                     if (FEATURE_NFC) prefsToSave.nfc = uiState.nfc;
@@ -1978,7 +2148,7 @@
                     if (FEATURE_HALFWIDTH_KANA && FEATURE_CLEAN) prefsToSave.halfwidthKana = uiState.halfwidthKana;
                     if (FEATURE_TRANSLITERATE) prefsToSave.translit = uiState.translit;
                     if (FEATURE_SORT) {
-                        // sort モード自体は復元しない（毎回「現在のファイル名に準じる」が初期値）
+                        // sort モード自体は復元しない（毎回「現在のファイル名に準じる」を初期値）
                         prefsToSave.segmentOrder = uiState.customSegmentOrder.join(',');
                     }
                     savePrefs(prefsToSave);
