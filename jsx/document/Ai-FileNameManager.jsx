@@ -10,61 +10,24 @@
 
     - アクティブな Illustrator ドキュメントのファイル名を変更（実ファイルのリネーム）／別名で保存／コピーを保存します。
     - 保存先は常に現在のファイルと同じフォルダ。未保存ドキュメントは保存先フォルダを選択して保存します。
-    - ファイル名を base / title / status / timestamp / version の各セグメントに分解し、UI から個別に編集できます。
+    - ファイル名を base / title / status / timestamp / page / version の各セグメントに分解し、UI から個別に編集できます。
       - base: 先頭の固定部分。「ベース」入力欄で編集可能（検出値が初期値、空欄可）
       - title: 「サブテキスト」ラジオで「なし / 指定（入力欄）/ 親フォルダー / 2 階層上のフォルダー」を選択
       - status: 「ステータス」dropdown で制作ステータス（wip / draft / review / approved / outlined など）を挿入。`：` より前の値だけがファイル名に入る
       - timestamp: 「タイムスタンプ」ラジオで「なし / YYYYMMDD / YYYY-MM-DD」を選択（デフォルト YYYYMMDD）
+      - page: 「連番」で page01 / page001 のようなページ番号セグメントを追加（保存時に同フォルダ内の最大連番 +1 へ自動繰り上げ）
       - version: 「バージョン番号」ラジオで「なし / v1, v2… / v01, v02… / v001, v002…」を選択（元ファイルに v 番号が無ければ強制的に v01 形式）。既存の v 番号は +1、親フォルダ内に同パターンがあれば最大 v +1 まで自動繰り上げ
-    - 整形ルール：
-      - 区切り記号: 「変更しない / `-` / `_`」。`-` または `_` を選ぶとピース内の `-` `_` `.`（FEATURE_DOT_NORMALIZE）を統一。`YYYY-MM-DD` のタイムスタンプは対象外（内部 `-` を保護）
-      - 濁点・半濁点の正規化: 「変更しない / 結合する」。HFS+/APFS 由来の分離した濁点・半濁点（NFD）を結合済み文字（NFC）に正規化（デフォルト 結合する）
-      - クリーンなファイル名: 「削除する / -に変更 / _に変更」。OS 禁止文字（`\ / : * ? " < > |`）／絵文字／機種依存文字／半角・全角スペース・タブ・改行をまとめて処理（連続するスペースは 1 つに畳んでから置換）
-      - 丸数字や法人略記など: 「変更しない / 変換する」。法人略記（㈱→株 等）／白丸 ①-⑳ / 黒丸 ❶-⓴ / 括弧 ⑴-⒇ / ローマ数字 Ⅰ-Ⅻ・ⅰ-ⅻ / 略記号（℡ № ）/ 単位（㎜ ㎝ ㎞ ㎎ ㎏ ㎡ ㎥）/ チルダ（〜 ～ → `~`）/ ハイフン類（― – — − 等 → `-`）を ASCII 相当に変換
-    - 構成要素順のカスタマイズ：
-      - 上部「構成要素の順序」パネルで「標準順 / 現在のファイル名に準じる / カスタム順」を選択
-      - 「現在のファイル名に準じる」は、現在のファイル名で検出された要素のみをその並び順で出力
-      - 「カスタム順」で［順序を編集...］ボタンから ↑↓ で並び替え
-      - 設定はプリセットに保存され次回起動時に復元
-    - 動作モード: 「元ファイルをリネーム」（新名で保存後に元ファイルを削除）／「別名で保存」（元ファイルは残り、作業中のドキュメントが新ファイルに切り替わる。デフォルト）／「コピー（複製）を保存」（元ファイルを上書き保存したうえで別名のコピーを作成。作業中のドキュメントは元ファイルのまま）
-    - UI 構成: 上部「動作 + モード + 構成要素の順序」の 3 カラム → 「ファイル名プレビュー」（現在 / 保存後の名前）→ 「ファイル名の設定」 → Cancel / OK（右寄せ）
-    - トップ部の FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_DOT_NORMALIZE / FEATURE_NFC / FEATURE_CLEAN / FEATURE_TRANSLITERATE で各機能を個別オフ可能。FEATURE_SEPARATOR は `'-'` / `'_'` の文字列で既定の区切りも指定
+    - ステータス検出、サブテキスト選択、構成要素順のカスタマイズ、連番（pageNN）、タイムスタンプ／バージョン番号の形式切替や自動繰り上げに対応します。
+    - 区切り記号統一、NFC 正規化、クリーンなファイル名処理、丸数字や法人略記などの ASCII 化など、ファイル名整形機能を搭載しています。
 
-    ### 主な機能：
+    ### 解説記事：
 
-    - 元ファイルをリネーム（新名で保存後に元ファイルを削除して実質的にリネーム）
-    - 別名で保存（元ファイルは保持。アクティブドキュメントは新ファイルに切り替わる。デフォルト）
-    - コピー（複製）を保存（元ファイルに上書き保存後、別名のコピーを物理ファイルとして作成）
-    - セグメント分解による独立編集（base / title / status / timestamp / version。base は UI 入力で編集、status / date / version は自動検出）
-    - ステータス dropdown（11 種類 + 区切り線、ファイル名に入るのは `：` より前のみ。既存ファイル名から自動検出）
-    - サブテキストは「指定／親フォルダー／2 階層上のフォルダー」から選択可能（フォルダ名が存在しないと該当ラジオは無効化）
-    - 構成要素順のカスタマイズ（標準順／現在のファイル名に準じる／カスタム順。プリセット保存）
-    - タイムスタンプ／バージョン番号は「なし」で削除、形式切替（YYYYMMDD / YYYY-MM-DD / v1, v2… / v01, v02… / v001, v002…）。バージョン番号は親フォルダ内の同パターン最大 v +1 へ自動繰り上げ
-    - 区切り記号統一（`-` `_` `.`）／NFC 正規化（分離した濁点・半濁点の結合、デフォルトオン）
-    - クリーンなファイル名（OS 禁止文字 + 絵文字 + 機種依存文字 + スペースを統一処理）
-    - 丸数字や法人略記など（㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / ― → - 等の ASCII 化、デフォルトオフ）
-    - 各機能を FEATURE_* 定数で個別にオフ可能
-
-    ### 処理の流れ：
-
-    1) ドキュメント検証 → gatherDocumentInfo() でファイル情報を取得
-    2) parseFileName() でセグメント配列に分解（区切り文字も保持、status も検出）
-    3) createDialog() でダイアログを構築（buildModePanel + buildSortPanel + buildFilenamePanel + buildOptionsPanel）
-    4) buildFinalName() で UI 状態と segments、現在の SEGMENT_ORDER（カスタム順含む）から最終ファイル名を構築
-    5) ensureTargetFolder() で未保存ドキュメントは保存先フォルダを取得
-    6) confirmOverwriteIfExists() で既存同名の上書きを確認
-    7) executeOutput() で選択モード（rename / saveAs / copy）に応じた出力を実行
-
+    https://note.com/dtp_tranist/n/nc88dd887eb1c
+    
     ### 更新履歴：
 
     - v1.0 (2026-05-27) : 初期バージョン
-    - v1.1 (2026-06-01) : コロン付きラベル関数追加
-    - (2026-05-27 追記) : ステータス dropdown、構成要素順カスタマイズ、スペース置換、YYYY-MM-DD タイムスタンプ、`.` 区切り正規化、整形機能の FEATURE スイッチ化、UI 整理（ベース行非表示、動作・構成要素 2 カラム、ボタン右寄せ）
-    - (2026-05-28 追記) : ベース行 UI 復活（入力欄）、「タイトル」→「サブテキスト」（英語: Project Name）改名、バージョン番号表記を v1, v2… / v01, v02… / v001, v002… の 3 段階に拡張、親フォルダ内の同パターンから最大 v +1 を採用、NFC 正規化（濁点・半濁点の結合、FEATURE_NFC）追加、「コピー（複製）を保存」表記、「現在 / 保存後の名前」ラベル右揃え
-    - v1.2.5 (2026-05-28) : 「現在のファイル名に準じる」並び順モード追加、元ファイルに v 番号が無い場合のデフォルトを v01 形式に固定、サブテキストに「2 階層上のフォルダー」追加・順序を「なし／指定／親フォルダー／2 階層上」に変更、「クリーンなファイル名」（OS 禁止文字 + 絵文字 + 機種依存文字 + スペースの統一処理。「スペースの扱い」を吸収）、「丸数字や法人略記など」（㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / ハイフン類 → `-` 等）追加、「濁点処理」→「濁点・半濁点の正規化」改名、内部リファクタ（addRadioRow / pickPref / wireRefresh ヘルパー導入で重複削減）
-    - v1.2.6 (2026-05-29) : 「クリーンなファイル名」行に「半角カナ → 全角」チェックボックス追加（クリーンが `-` または `_` のときだけ有効・濁点／半濁点も結合）、「丸数字や法人略記など」に「削除する」を追加（変更しない／削除する／変換する）、UI デフォルト見直し（並び順「現在のファイル名に準じる」／クリーン「-に変更」／丸数字や法人略記など「変換する」）、「バージョン番号のみ」→「バージョンのみ」改名、ソートパネルの編集ボタンを「カスタム順」の右に移動し、ラベルを「順序を編集...」→「編集」に短縮
-    - v1.2.7 (2026-05-29) : 自動整形（連続する `-` `_` `.` を 1 つに圧縮・先頭末尾のトリム）、ファイル名長の事前チェック（拡張子込み UTF-8 240 バイト超過で確認ダイアログ・FEATURE_MAX_FILENAME_BYTES）、rename 時の元ファイル削除を `~/.Trash` 移動へ変更（FEATURE_USE_TRASH、失敗時は file.remove() にフォールバック）、「元ファイルをリネーム」の helpTip に配置リンク切れ注意を追記、Windows 予約名（CON / PRN / AUX / NUL / COM1-9 / LPT1-9）を末尾 `_` で回避、ハングル音節（U+AC00–U+D7A3）を「標準」文字に追加、タイムスタンプに「時刻も付与」(HHMM) チェックボックス追加
-    - v1.3.0 (2026-05-29) : 「バージョンのみ」モードでは UI 整形（NFC / 半角カナ / translit / クリーン / 連続区切り圧縮 / Windows 予約名回避）を一切かけず、元ファイル名の v 番号だけ更新するように変更、並び順の初期値を prefs と無関係に常に「現在のファイル名に準じる」（不可なら「標準順」）に固定（カスタム並び順 segmentOrder は引き続き保存）、構成要素（ベース／サブテキスト／ステータス／タイムスタンプ／ページ番号／バージョン）を変更したら並び順「現在のファイル名に準じる」を自動で「標準順」に降格（整形系の変更では維持）、バージョン番号のデフォルトを「v1, v2…」系から「なし」に変更、新セグメント「ページ番号」(FEATURE_PAGE) 追加（チェックボックス + 桁数 dropdown「2 桁／3 桁」。timestamp の後・version の前。保存時は同フォルダ内の最大 page +1 へ自動繰り上げ。検出は行わず UI のみ）、Ai 版に欠落していた `LABELS.sort`（サブダイアログのタイトル／ヒント）を追加、`tip.sort` をボタン名「編集」に揃えて短縮、ラベル表記を Id 版に統一（「2 階層上のフォルダー」「-に変更」「_に変更」）
+    - v1.3.1 (2026-05-29) : 概要コメント整理。処理の流れと中間履歴を削除し、概要と主な機能を統合。page セグメントの説明を追加。
     
     ---
     
@@ -76,60 +39,20 @@
 
     - Renames the active Illustrator document (true rename), saves as a new file, or saves a copy.
     - Destination is always the same folder as the current file; for unsaved docs, a destination folder is chosen.
-    - Decomposes the filename into base / title / status / timestamp / version segments and lets you edit them.
+    - Decomposes the filename into base / title / status / timestamp / page / version segments and lets you edit them.
       - base: editable via the "Base" input (defaults to the detected value; may be empty)
       - title: "Project Name" radio (None / Custom input / Parent Folder / Grandparent Folder)
       - status: "Status" dropdown (wip / draft / review / approved / outlined, etc.); only the text before `:` is written to the filename
       - timestamp: "Timestamp" radio selects "None / YYYYMMDD / YYYY-MM-DD" (default YYYYMMDD)
+      - page: "Sequence" adds a page number segment such as page01 / page001 and auto-bumps to (max sequence in folder) + 1 on save
       - version: "Version" radio selects "None / v1, v2… / v01, v02… / v001, v002…". When the original has no v-number, defaults to v01 form. Existing v-numbers are bumped by +1; if files matching the same pattern exist in the parent folder, the result is bumped further to (max v) + 1.
-    - Formatting rules:
-      - Separator: "Don't change / `-` / `_`". Selecting `-` or `_` unifies `-`, `_`, and `.` (FEATURE_DOT_NORMALIZE) inside each piece. `YYYY-MM-DD` timestamps are exempt (internal `-` is preserved)
-      - NFC Normalization: "Don't change / Combine". Normalizes separated dakuten/handakuten (NFD) to combined characters (NFC). Default: Combine.
-      - Clean Filename: "Remove / Change to - / Change to _". Handles OS-invalid chars (`\ / : * ? " < > |`), emoji, platform-dependent chars, and spaces (incl. tabs/newlines/fullwidth space) in one pass. Consecutive whitespace is collapsed to one before replacement.
-      - Symbols (translit): "Don't change / Convert". Converts corporate abbreviations (㈱→株 etc.), circled numbers (white ①-⑳ / black ❶-⓴ / parenthesized ⑴-⒇), Roman numerals (Ⅰ-Ⅻ / ⅰ-ⅻ), abbrev symbols (℡ →TEL / № →No), units (㎜→mm / ㎏→kg etc.), tildes (〜 ～ → `~`), and dashes (― – — − etc. → `-`) to ASCII equivalents.
-    - Segment order:
-      - In the top "Segment Order" panel, choose "Default" / "Match Current" / "Custom"
-      - "Match Current" outputs only the elements present in the current filename, in their original order
-      - "Custom" enables [Edit order...] for ↑↓ reordering
-      - The setting is persisted to prefs
-    - Modes: "Rename Original" (saves with the new name, then deletes the original), "Save As" (keeps the original; the active document switches to the new file; default), and "Save a Copy" (saves over the original, then creates a separate copy; the active document remains the original file).
-    - UI layout: top row "Mode + Scope + Segment Order" (3 columns) → "File Name Preview" (Current / Saved Name) → "Filename Settings" → Cancel / OK (right-aligned)
-    - Features can be toggled individually via FEATURE_STATUS / FEATURE_SORT / FEATURE_SEPARATOR / FEATURE_DOT_NORMALIZE / FEATURE_NFC / FEATURE_CLEAN / FEATURE_TRANSLITERATE. FEATURE_SEPARATOR accepts `'-'` or `'_'` to also pick the default separator.
-
-    ### Key features:
-
-    - Rename Original (saves with the new name, then removes the original)
-    - Save As (keeps the original; the active document switches to the new file; default)
-    - Save a Copy (saves over the original, then creates a separate copy; the active document remains the original file)
-    - Segment-based editing (base / title / status / timestamp / version; base edited via input, status / date / version auto-detected)
-    - Status dropdown (11 entries + divider; only the text before `:` is used; detected from existing filenames)
-    - Project Name selectable from Custom / Parent Folder / Grandparent Folder (radios are disabled when no such folder exists)
-    - Segment order via Default / Match Current / Custom (persisted to prefs)
-    - Timestamp / version: "None" removes the segment; switch format (YYYYMMDD / YYYY-MM-DD / v1, v2… / v01, v02… / v001, v002…). Version auto-bumps to (max v in folder) + 1 when collisions exist.
-    - Separator unification (`-` `_` `.`) / NFC normalization for separated dakuten/handakuten (default on)
-    - Clean Filename (unified handling of OS-invalid chars + emoji + platform-dependent chars + spaces)
-    - Symbols (㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / ― → - etc., default off)
-    - Each feature toggleable via FEATURE_* constants
-
-    ### Flow:
-
-    1) gatherDocumentInfo() collects file info
-    2) parseFileName() splits the name into ordered segments (separators preserved; status detected)
-    3) createDialog() composes the dialog (buildModePanel + buildSortPanel + buildFilenamePanel + buildOptionsPanel)
-    4) buildFinalName() composes the final filename from UI state, segments, and the current SEGMENT_ORDER (custom order included)
-    5) ensureTargetFolder() prompts for a destination folder if the doc is unsaved
-    6) confirmOverwriteIfExists() confirms before overwriting an existing file
-    7) executeOutput() runs the action for the selected mode (rename / saveAs / copy)
+    - Supports status detection, project name selection from folder hierarchy, customizable segment order, sequence numbers (pageNN), timestamp/version formatting, and auto-increment.
+    - Includes separator unification, NFC normalization, filename cleaning, and ASCII conversion of symbols/corporate abbreviations for safer filename formatting.
 
     ### Changelog:
 
     - v1.0 (2026-05-27): Initial release
-    - (2026-05-27 update): Added status dropdown, custom segment order, space replacement, YYYY-MM-DD timestamp, `.` separator normalization, FEATURE switches, UI cleanup (no base row, 2-col top, right-aligned buttons)
-    - (2026-05-28 update): Restored editable Base input, renamed "Title" → "Project Name", expanded version format to v1, v2… / v01, v02… / v001, v002…, auto-bump to (folder max v) + 1, added NFC normalization (FEATURE_NFC, default on), "Save a Copy" wording, right-aligned Current/Saved Name labels
-    - v1.2.5 (2026-05-28): Added "Match Current" segment-order mode, forced v01 default when no v-number exists in original, added "Grandparent Folder" as Project Name option with reordered radios (None / Custom / Parent / Grandparent), added "Clean Filename" (OS-invalid + emoji + platform-dependent chars + spaces in one pass; absorbs the former "Spaces" option), added "Symbols" transliteration (㈱→株 / ①→1 / Ⅰ→1 / ㎜→mm / dashes → `-` etc.), renamed "NFC" label to "NFC Normalization", internal refactor (addRadioRow / pickPref / wireRefresh helpers to reduce duplication)
-    - v1.2.6 (2026-05-29): Added "Half-width → Full-width Kana" checkbox inside the Clean Filename row (active only when Clean is `-` or `_`; merges voiced/semi-voiced marks), expanded "Symbols" to 3-way (Keep / Remove / Convert), updated UI defaults (Sort → Match Current, Clean → `-`, Symbols → Convert), renamed "Version Only" to drop the word "Number" in JA, moved the order-edit button next to the "Custom" radio and shortened "Edit order..." → "Edit"
-    - v1.2.7 (2026-05-29): Auto cleanup (collapse `-` / `_` / `.` runs to one; trim leading/trailing separators), pre-save length check (confirm dialog when basename+ext exceeds 240 UTF-8 bytes; FEATURE_MAX_FILENAME_BYTES), rename moves the original to `~/.Trash` instead of hard-removing it (FEATURE_USE_TRASH; falls back to file.remove() on failure), added a placed-link warning to the rename helpTip, escape Windows reserved names (CON / PRN / AUX / NUL / COM1-9 / LPT1-9) with a trailing `_`, treat Hangul syllables (U+AC00–U+D7A3) as standard characters, added an "Append HHMM" checkbox to the timestamp row
-    - v1.3.0 (2026-05-29): "Version Only" mode no longer applies any cleanup (NFC / half-width kana / translit / clean / collapse separators / Windows reserved escape); the original filename is preserved and only its v-number is bumped, the sort panel initial value is now always "Match Current" (or "Default" when unavailable) regardless of prefs (custom `segmentOrder` is still persisted), changing any segment input (base / project name / status / timestamp / page / version) now auto-demotes the sort selection from "Match Current" to "Default" (formatting-only changes keep it), version radio default changed from "v1, v2…" to "None", added a new "Page Number" segment (FEATURE_PAGE) with a checkbox + width dropdown (2 / 3 digits) placed between timestamp and version (auto-bumps to (max page in folder) + 1 on save; no parser detection), added the missing `LABELS.sort` (reorder sub-dialog title / hint) to the AI version, shortened `tip.sort` to match the "Edit" button label, and unified label spelling with the InDesign version ("Grandparent Folder" radio / "Change to -" / "Change to _")
+    - v1.3.1 (2026-05-29): Cleaned up the overview comments, removed flow and intermediate history sections, merged overview and feature descriptions, and added page-segment documentation.
     
     */
 
@@ -139,7 +62,7 @@
         // バージョン / Version
         // =========================================
 
-        var SCRIPT_VERSION = "v1.3.0";
+        var SCRIPT_VERSION = "v1.3.1";
 
         // =========================================
         // ユーザー設定 / User Settings
@@ -260,7 +183,7 @@
         // ローカライズ / Localization
         // =========================================
 
-        var lang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+        var currentLanguage = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
         /* 日英ラベル定義 / Japanese-English label definitions */
 
@@ -420,12 +343,12 @@
                 entry = entry && entry[parts[i]];
                 if (!entry) return path;
             }
-            return entry[lang] || entry.en || path;
+            return entry[currentLanguage] || entry.en || path;
         }
 
         /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
         function labelText(path) {
-            return L(path) + (lang === 'ja' ? '：' : ':');
+            return L(path) + (currentLanguage === 'ja' ? '：' : ':');
         }
 
         // =========================================
@@ -1121,7 +1044,10 @@
             if (mode === 'copy' && originalFsPath) {
                 // 現在の変更を元ファイルへ保存してから、物理ファイルとしてコピー
                 if (!doc.saved) doc.save();
-                File(originalFsPath).copy(destFile);
+                var originalFile = File(originalFsPath);
+                if (!originalFile.exists || !originalFile.copy(destFile)) {
+                    throw new Error(L('message.saveFailed') + '\n' + destFile.fsName);
+                }
                 return;
             }
             // rename / saveAs / 未保存ドキュメントの copy: 新名で保存
@@ -1423,7 +1349,7 @@
                 var initialStatusIdx = -1;
                 for (var siItem = 0; siItem < STATUS_ITEMS.length; siItem++) {
                     var sItem = STATUS_ITEMS[siItem];
-                    var ddItem = statusDropdown.add('item', (lang === 'ja' ? sItem.ja : sItem.en));
+                    var ddItem = statusDropdown.add('item', (currentLanguage === 'ja' ? sItem.ja : sItem.en));
                     if (isStatusDivider(sItem)) {
                         ddItem.enabled = false;
                         continue;
