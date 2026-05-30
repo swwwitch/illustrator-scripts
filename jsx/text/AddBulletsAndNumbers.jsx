@@ -16,18 +16,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ダイアログを開くと現在の行頭マーカーから種類・記号・番号スタイル・区切り文字を
 推定し、「現状の続き」として編集できます。
 
-- 箇条書き: 記号（● ○ ◎ ■ □ ◆ ◇）を選択
+- 箇条書き: 記号（• - ● ○ ◎ ■ □ ◆ ◇）を選択
 - 番号リスト: 数字／白丸数字／黒丸数字／ABC／abc、開始番号・ゼロ埋め・区切り文字（. ： |）に対応
   （白丸・黒丸数字は箇条書きと同じくタブストップ1つで配置）
 - 位置調整: マーカー位置・本文位置・揃え（左／中央／右）を指定
-- マーカーの書式: フォント・スタイル・比率・ベースラインシフト・カラーを適用
+  （既定のタブストップは種類・記号ごとに自動設定。数字=1.5/2.0、ABC/abc=1.0/2.0、箇条書き=1.2、•/-=本文0.8 など、文字サイズ基準）
+- マーカーの書式: フォント・スタイル・比率・ベースラインシフトに加え、記号／番号と区切り文字のカラーを個別に指定
 - 段落設定: 行送り・段落後のアキ・インデント（折り返し位置を揃えるに対応）
-- 行の並べ替え: 行を上下移動、名前順・数値順・数値順（逆）で並べ替え可能
+- 行の並べ替え: 行を複数選択して上下移動／先頭・末尾へ移動、名前順・数値順・数値順（逆）で並べ替え可能
 - フレームごとにリセット: 複数テキストフレーム選択時に各フレームで連番を振り直し
 - リセット: 比率・ベースライン・カラー・インデント・タブストップをまとめて初期化
 
 複数のテキストフレームを選択した場合は、上→下（同じ高さなら左→右）の順に
-通し番号が付きます。実行時、行頭の中黒（・ ･ ·）は自動的に除去します。
+通し番号が付きます。実行時、行頭の中黒（・ ･ ·）と、後ろにタブ・空白を伴う
+ハイフン（-）は自動的に除去します。
 
 Adds a bullet symbol or sequential numbers to the head of each line in the
 selected text frames. Switch between "Bullets", "Numbered List", and "None"
@@ -35,18 +37,20 @@ with the radio buttons, reorder lines, and tune the settings while watching a li
 On open, the current leading markers are detected so you can keep editing
 from the existing state.
 
-- Bullets: choose a glyph (● ○ ◎ ■ □ ◆ ◇)
+- Bullets: choose a glyph (• - ● ○ ◎ ■ □ ◆ ◇)
 - Numbered: numbers / circled (white/black) / ABC / abc, with start number, zero padding, and delimiter (. ： |)
   (circled numbers use a single tab stop, like bullets)
 - Position: marker position, body position, and alignment (left/center/right)
-- Marker format: font family, style, scale, baseline shift, and color
+  (default tab stops are set automatically per type/glyph, relative to font size: numbers = 1.5/2.0, ABC/abc = 1.0/2.0, bullets = 1.2, •/- = 0.8 body, etc.)
+- Marker format: font family, style, scale, baseline shift, plus separate colors for the marker/number and the delimiter
 - Paragraph settings: leading, space-after, and indent (supports aligning wrapped lines to the body)
-- Reorder lines: move rows up/down or sort by name, number, or reverse number
+- Reorder lines: multi-select rows to move up/down or to top/bottom, or sort by name, number, or reverse number
 - Restart each frame: restart numbering from the start number in each selected text frame
 - Reset: clears scale, baseline, color, indent, and tab stops at once
 
 With multiple frames selected, numbering runs continuously top→bottom
-(then left→right). Leading middle dots (・ ･ ·) are stripped on run.
+(then left→right). Leading middle dots (・ ･ ·) and a hyphen (-) followed by a
+tab/space are stripped on run.
 
 */
 
@@ -54,7 +58,7 @@ With multiple frames selected, numbering runs continuously top→bottom
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 (function () {
 
@@ -65,8 +69,11 @@ var SCRIPT_VERSION = "v1.0.0";
     var BULLET_MARK = "・"; // 箇条書き記号の既定 / Default bullet symbol
     var START_NUMBER = 1;   // 開始番号 / Start number
 
-    // 箇条書き記号の候補と、選択時に適用する比率(%) / Bullet symbol candidates and the scale (%) applied when selected
+    // 箇条書き記号の候補と、選択時に適用する比率(%)・本文タブストップ倍率 / Bullet symbol candidates, the scale (%) and the body tab-stop ratio applied when selected
+    // bodyRatio 省略時は TAB_STOP_RATIO_1 を使用 / when bodyRatio is omitted, TAB_STOP_RATIO_1 is used
     var BULLET_SYMBOLS = [
+        { mark: "•", scale: 100, bodyRatio: 0.8 },
+        { mark: "-", scale: 100, bodyRatio: 0.8 },
         { mark: "●", scale: 50 },
         { mark: "○", scale: 50 },
         { mark: "◎", scale: 90 },
@@ -80,9 +87,11 @@ var SCRIPT_VERSION = "v1.0.0";
     var DELIMITERS = ["", ".", "：", "|"];
 
     // tabストップ既定倍率（文字サイズ基準, 種類ごと）/ Default tab stop ratios (relative to font size, per type)
-    var TAB_STOP_RATIO_1 = 1.5;          // 1つ目（共通: 箇条書きの記号 / 番号）/ 1st stop (shared: bullet / number)
+    var TAB_STOP_RATIO_1 = 1.2;          // 箇条書き・丸数字の1つ目／本文（1ストップ）/ bullet & circled: 1st stop / body (single stop)
     var BULLET_TAB_STOP_RATIO_2 = 2.0;   // 箇条書きの2つ目（本文）/ bullet 2nd stop (text)
-    var NUMBERED_TAB_STOP_RATIO_2 = 3.0; // 番号リストの2つ目（本文）/ numbered 2nd stop (text)
+    var NUMBERED_TAB_STOP_RATIO_1 = 1.5; // 数字の1つ目（番号列）/ numbers 1st stop (number column)
+    var ALPHA_TAB_STOP_RATIO_1 = 1.0;    // ABC/abc の1つ目（マーカー列）/ ABC/abc 1st stop (marker column)
+    var NUMBERED_TAB_STOP_RATIO_2 = 2.0; // 番号リストの2つ目（本文）/ numbered 2nd stop (text)
 
     /* パネル共通の余白・間隔 / Common panel margins and spacing */
     var PANEL_MARGINS = [15, 20, 15, 10];
@@ -159,6 +168,7 @@ var SCRIPT_VERSION = "v1.0.0";
             spaceAfter: { ja: "段落後のアキ", en: "Space After" },
             leftIndent: { ja: "インデント", en: "Indent" },
             color: { ja: "カラー", en: "Color" },
+            markerColor: { ja: "記号／番号", en: "Marker/Number" },
             startNumber: { ja: "開始番号", en: "Start No." }
         },
         colorPicker: { ja: "カラーピッカー", en: "Color Picker" },
@@ -235,8 +245,12 @@ var SCRIPT_VERSION = "v1.0.0";
                 en: "Toggle display of hidden characters such as tabs and line breaks"
             },
             color: {
-                ja: "行頭マーカーのカラー。四角をクリックするとカラーピッカーを開きます。",
-                en: "Color of the leading marker. Click the swatch to open the color picker."
+                ja: "記号・番号のカラー。四角をクリックするとカラーピッカーを開きます。",
+                en: "Color of the marker/number. Click the swatch to open the color picker."
+            },
+            delimiterColor: {
+                ja: "区切り文字のカラー。四角をクリックするとカラーピッカーを開きます。",
+                en: "Color of the delimiter. Click the swatch to open the color picker."
             },
             reset: {
                 ja: "比率・ベースライン・カラー・インデント・タブストップをまとめてリセット",
@@ -505,12 +519,26 @@ var SCRIPT_VERSION = "v1.0.0";
             return Math.round(valuePt / unitInfo.factor * 10) / 10;
         }
 
+        /* 選択中の箇条書き記号の本文タブストップ倍率（•/- は0.8など）。初期化中（ラジオ未生成）は先頭記号 / Body tab-stop ratio of the selected bullet glyph (e.g. 0.8 for •/-); during init (before radios exist) use the first symbol */
+        function selectedBulletBodyRatio() {
+            var symbol = BULLET_SYMBOLS[0];
+            if (typeof bulletRadios !== "undefined" && bulletRadios) {
+                for (var bi = 0; bi < bulletRadios.length; bi++) {
+                    if (bulletRadios[bi].value) { symbol = BULLET_SYMBOLS[bi]; break; }
+                }
+            }
+            return (symbol && symbol.bodyRatio != null) ? symbol.bodyRatio : TAB_STOP_RATIO_1;
+        }
+
         /* 種類ごとの既定tabストップ（pt）/ Per-type default tab stops (pt) */
-        // 本文位置: 数字/ABC/abc は広め(3.0)。箇条書き・丸数字は1ストップなので元のマーカー位置に準じる(1.5)。
-        // Body position: 3.0 for number/ABC/abc; bullet & circled use a single stop, so it follows the original marker ratio (1.5).
+        // 数字: マーカー×1.5・本文×2.0。ABC/abc: マーカー×1.0・本文×2.0。箇条書きは本文＝記号ごとの bodyRatio（既定×1.2, •/-=0.8）。丸数字・なしは×1.2。
+        // numbers: marker ×1.5, body ×2.0. ABC/abc: marker ×1.0, body ×2.0. Bullet: body = each glyph's bodyRatio (default ×1.2, •/- = 0.8). Circled & none: ×1.2.
         function defaultStopsForType(type) {
-            var bodyRatio = (type === "numbered") ? NUMBERED_TAB_STOP_RATIO_2 : TAB_STOP_RATIO_1;
-            return { stop1Pt: baseFontSize * TAB_STOP_RATIO_1, stop2Pt: baseFontSize * bodyRatio };
+            if (type === "numbered") return { stop1Pt: baseFontSize * NUMBERED_TAB_STOP_RATIO_1, stop2Pt: baseFontSize * NUMBERED_TAB_STOP_RATIO_2 };
+            if (type === "alpha") return { stop1Pt: baseFontSize * ALPHA_TAB_STOP_RATIO_1, stop2Pt: baseFontSize * NUMBERED_TAB_STOP_RATIO_2 };
+            if (type === "bullet") return { stop1Pt: baseFontSize * TAB_STOP_RATIO_1, stop2Pt: baseFontSize * selectedBulletBodyRatio() };
+            // 丸数字・なし（1ストップ）/ circled, none (single stop)
+            return { stop1Pt: baseFontSize * TAB_STOP_RATIO_1, stop2Pt: baseFontSize * TAB_STOP_RATIO_1 };
         }
 
         // 初期は箇条書き / Initial type is bullet
@@ -656,7 +684,7 @@ var SCRIPT_VERSION = "v1.0.0";
         tabStopRow1.alignment = "left";
         var tabStopLabel1 = tabStopRow1.add("statictext", undefined, labelText('label.tabStop1'));
         var inputTabStop1 = tabStopRow1.add("edittext", undefined, String(toDisplayUnit(initialStops.stop1Pt)));
-        inputTabStop1.characters = 3;
+        inputTabStop1.characters = 4;
         tabStopRow1.add("statictext", undefined, unitInfo.label);
 
         // 1つ目のタブストップの揃え種類（左／中央／右）/ Alignment type of the 1st tab stop (left/center/right)
@@ -676,7 +704,7 @@ var SCRIPT_VERSION = "v1.0.0";
         tabStopRow2.alignment = ["left", "top"];
         var tabStopLabel2 = tabStopRow2.add("statictext", undefined, labelText('label.tabStop2'));
         var inputTabStop2 = tabStopRow2.add("edittext", undefined, String(toDisplayUnit(initialStops.stop2Pt)));
-        inputTabStop2.characters = 3;
+        inputTabStop2.characters = 4;
         tabStopRow2.add("statictext", undefined, unitInfo.label);
 
         /* 上段右カラム: 要素のソート / Top-right column: sort elements */
@@ -700,6 +728,7 @@ var SCRIPT_VERSION = "v1.0.0";
         var previewList = sortPanel.add("listbox", undefined, [], {
             numberOfColumns: 2,
             showHeaders: true,
+            multiselect: true, // 複数行を選択して一括移動できるように / allow selecting multiple rows to move them together
             columnTitles: [L('header.number'), L('header.text')],
             columnWidths: [numberColWidth, previewListWidth - numberColWidth]
         });
@@ -833,26 +862,40 @@ var SCRIPT_VERSION = "v1.0.0";
         formatRight.alignChildren = ["left", "top"];
         formatRight.spacing = 6;
 
-        // カラー（■をクリックでカラーピッカー）/ Color (click the swatch to open the picker)
-        var colorRow = formatRight.add("group");
-        colorRow.orientation = "row";
-        colorRow.alignment = "left";
-        colorRow.alignChildren = ["left", "center"];
-        var colorLabel = colorRow.add("statictext", undefined, labelText('label.color'));
+        // カラー（■をクリックでカラーピッカー）。記号／番号と区切り文字を別々に指定 / Color (click a swatch to open the picker). Marker/number and delimiter are set separately
         var baseFillColor = getBaseFillColor(targetSelection);
-        var colorSwatch = createColorSwatch(colorRow, baseFillColor, 40); // 大きめのスウォッチ / larger swatch
-        colorSwatch.addEventListener("click", function () {
-            var result = ColorPicker.show({
-                value: aiColorToPickerString(colorSwatch._aiColor),
-                title: L('colorPicker'),
-                lang: currentLanguage
+
+        // カラー行のラベル幅（比率・ベースラインの tabLabelWidth とは独立）/ Color-row label width (independent of tabLabelWidth used by scale/baseline)
+        var colorLabelWidth = (currentLanguage === 'ja') ? 80 : 110;
+
+        /* ラベル＋カラースウォッチの1行を作る（クリックでピッカー→プレビュー）/ Build one label + swatch row (click opens the picker → preview) */
+        function addColorRow(parent, labelStr, initColor) {
+            var row = parent.add("group");
+            row.orientation = "row";
+            row.alignment = "left";
+            row.alignChildren = ["left", "center"];
+            var lbl = row.add("statictext", undefined, labelStr);
+            lbl.preferredSize.width = colorLabelWidth;
+            var swatch = createColorSwatch(row, initColor, 20);
+            swatch.addEventListener("click", function () {
+                var result = ColorPicker.show({
+                    value: aiColorToPickerString(swatch._aiColor),
+                    title: L('colorPicker'),
+                    lang: currentLanguage
+                });
+                if (result !== null) {
+                    swatch._aiColor = pickerStringToAiColor(result);
+                    try { swatch.hide(); swatch.show(); } catch (e) { }
+                    updatePreview();
+                }
             });
-            if (result !== null) {
-                colorSwatch._aiColor = pickerStringToAiColor(result);
-                try { colorSwatch.hide(); colorSwatch.show(); } catch (e) { }
-                updatePreview();
-            }
-        });
+            return { row: row, label: lbl, swatch: swatch };
+        }
+
+        var markerColorUI = addColorRow(formatRight, labelText('label.markerColor'), baseFillColor);
+        var delimiterColorUI = addColorRow(formatRight, labelText('delimiter.label'), baseFillColor);
+        var colorSwatch = markerColorUI.swatch;             // 記号／番号のカラー / marker-number color
+        var delimiterColorSwatch = delimiterColorUI.swatch; // 区切り文字のカラー / delimiter color
 
         /* 下段右カラム / Bottom-right column */
         var bottomRight = bottomRow.add("group");
@@ -1004,7 +1047,8 @@ var SCRIPT_VERSION = "v1.0.0";
                 horizontalScale: scale,
                 verticalScale: scale,
                 baselineShiftPt: baseline * unitInfo.factor,
-                fillColor: colorSwatch._aiColor // 行頭マーカーの塗り色 / marker fill color
+                fillColor: colorSwatch._aiColor,          // 記号／番号の塗り色 / marker-number fill color
+                delimiterFillColor: delimiterColorSwatch._aiColor // 区切り文字の塗り色 / delimiter fill color
             };
         }
 
@@ -1048,11 +1092,13 @@ var SCRIPT_VERSION = "v1.0.0";
             return (isNaN(value) || value < 0) ? toDisplayUnit(fallbackPt) : value;
         }
 
-        /* タブストップ既定用の種類（丸数字は本文位置1ストップなので区別）/ Type for default tab stops (circled is distinguished: single body stop) */
+        /* タブストップ既定用の種類（丸数字=1ストップ, ABC/abc=マーカー×1.0 で区別）/ Type for default tab stops (circled = single stop; ABC/abc = marker ×1.0) */
         function currentStopType() {
             if (rbBullet.value) return "bullet";
             if (rbNone.value) return "none";
-            return (rbStyleCircledWhite.value || rbStyleCircledBlack.value) ? "circled" : "numbered";
+            if (rbStyleCircledWhite.value || rbStyleCircledBlack.value) return "circled";
+            if (rbStyleUpperAlpha.value || rbStyleLowerAlpha.value) return "alpha";
+            return "numbered";
         }
 
         /* 各tabストップ入力値をポイントへ換算 / Convert each tab stop input to points */
@@ -1116,57 +1162,97 @@ var SCRIPT_VERSION = "v1.0.0";
             updateMoveButtonEnabled();
         }
 
-        /* 選択中の行インデックス（未選択は -1）/ Selected row index (-1 if none) */
-        function selectedRowIndex() {
-            return (previewList.selection) ? previewList.selection.index : -1;
+        /* 選択中の行インデックスを昇順配列で取得（複数選択対応, 未選択は空配列）/ Selected row indices as a sorted array (multi-select; empty if none) */
+        function selectedRowIndices() {
+            var sel = previewList.selection;
+            if (!sel) return [];
+            // multiselect では配列、単一選択でも item が返るため両対応 / multiselect returns an array; a single item is also handled
+            var items = (sel instanceof Array) ? sel : [sel];
+            var indices = [];
+            for (var i = 0; i < items.length; i++) {
+                if (items[i]) indices.push(items[i].index);
+            }
+            indices.sort(function (a, b) { return a - b; });
+            return indices;
         }
 
         function updateMoveButtonEnabled() {
-            var hasSelection = selectedRowIndex() >= 0;
+            var hasSelection = selectedRowIndices().length > 0;
             btnMoveTop.enabled = hasSelection;
             btnMoveUp.enabled = hasSelection;
             btnMoveDown.enabled = hasSelection;
             btnMoveBottom.enabled = hasSelection;
         }
 
-        /* 並べ替え後に baseline へ反映し、プレビュー・選択を更新 / Write the reorder back, refresh preview, restore selection */
-        function applyReorder(flatEntries, newIndex) {
+        /* 並べ替え後に baseline へ反映し、プレビュー・選択を更新（複数選択を復元）/ Write the reorder back, refresh preview, restore the (multi) selection */
+        function applyReorder(flatEntries, newIndices) {
             writeFlatBodyEntries(baseline, flatEntries);
             updatePreview(); // 一覧の再構築と再適用 / rebuilds the list and reapplies
-            if (newIndex >= 0 && newIndex < previewList.items.length) {
-                previewList.selection = newIndex;
+            var valid = [];
+            for (var i = 0; i < newIndices.length; i++) {
+                if (newIndices[i] >= 0 && newIndices[i] < previewList.items.length) valid.push(newIndices[i]);
             }
+            if (valid.length) previewList.selection = valid; // 配列で複数選択を復元 / restore multi-selection via an array
             updateMoveButtonEnabled();
         }
 
-        /* 選択行を delta（±1）だけ移動 / Move the selected row by delta (±1) */
-        function moveSelectedRow(delta) {
-            var index = selectedRowIndex();
-            if (index < 0) return;
+        /* 選択行（複数可）を delta（±1）だけ移動。相対順を保ち、端や他の選択行で詰まる分は動かさない / Move selected rows by delta (±1), preserving order; blocked by the edge or another selected row */
+        function moveSelectedRows(delta) {
+            var indices = selectedRowIndices();
+            if (!indices.length) return;
             var flatEntries = getFlatBodyEntries(baseline);
-            var target = index + delta;
-            if (target < 0 || target >= flatEntries.length) return;
-            var swap = flatEntries[index]; flatEntries[index] = flatEntries[target]; flatEntries[target] = swap;
-            applyReorder(flatEntries, target);
+            var n = flatEntries.length;
+            var selected = {};
+            for (var s = 0; s < indices.length; s++) selected[indices[s]] = true;
+
+            if (delta < 0) {
+                // 上へ: 上から順に、直上が未選択なら入れ替え / up: top-down, swap with the slot above when it's free
+                for (var up = 1; up < n; up++) {
+                    if (selected[up] && !selected[up - 1]) {
+                        var t1 = flatEntries[up]; flatEntries[up] = flatEntries[up - 1]; flatEntries[up - 1] = t1;
+                        delete selected[up]; selected[up - 1] = true;
+                    }
+                }
+            } else if (delta > 0) {
+                // 下へ: 下から順に、直下が未選択なら入れ替え / down: bottom-up, swap with the slot below when it's free
+                for (var dn = n - 2; dn >= 0; dn--) {
+                    if (selected[dn] && !selected[dn + 1]) {
+                        var t2 = flatEntries[dn]; flatEntries[dn] = flatEntries[dn + 1]; flatEntries[dn + 1] = t2;
+                        delete selected[dn]; selected[dn + 1] = true;
+                    }
+                }
+            }
+
+            var newIndices = [];
+            for (var k = 0; k < n; k++) { if (selected[k]) newIndices.push(k); }
+            applyReorder(flatEntries, newIndices);
         }
 
-        /* 選択行を先頭/末尾へ移動 / Move the selected row to top/bottom */
-        function moveSelectedRowTo(position) {
-            var index = selectedRowIndex();
-            if (index < 0) return;
+        /* 選択行（複数可）を先頭/末尾へ移動（選択順＝元の並び順を維持）/ Move selected rows to top/bottom (keeping their original relative order) */
+        function moveSelectedRowsTo(position) {
+            var indices = selectedRowIndices();
+            if (!indices.length) return;
             var flatEntries = getFlatBodyEntries(baseline);
-            var moved = flatEntries.splice(index, 1)[0];
-            var newIndex;
-            if (position === "top") { flatEntries.unshift(moved); newIndex = 0; }
-            else { flatEntries.push(moved); newIndex = flatEntries.length - 1; }
-            applyReorder(flatEntries, newIndex);
+            // 後ろから抜き出してインデックスのズレを防ぎ、元の順序で moved に並べる / splice from the end to avoid index drift; keep original order in `moved`
+            var moved = [];
+            for (var i = indices.length - 1; i >= 0; i--) {
+                moved.unshift(flatEntries.splice(indices[i], 1)[0]);
+            }
+            var newIndices = [];
+            if (position === "top") {
+                for (var j = 0; j < moved.length; j++) { flatEntries.splice(j, 0, moved[j]); newIndices.push(j); }
+            } else {
+                var base = flatEntries.length;
+                for (var j2 = 0; j2 < moved.length; j2++) { flatEntries.push(moved[j2]); newIndices.push(base + j2); }
+            }
+            applyReorder(flatEntries, newIndices);
         }
 
         /* 全行を名前順（昇順）に並べ替え / Sort all rows by name (ascending) */
         function sortRowsByName() {
             var flatEntries = getFlatBodyEntries(baseline);
             flatEntries.sort(function (a, b) { return (a.text < b.text) ? -1 : (a.text > b.text ? 1 : 0); });
-            applyReorder(flatEntries, -1);
+            applyReorder(flatEntries, []);
         }
 
         /* 本文中の最初の数値を取り出す（小数・マイナス可、なければ null）/ Extract the first number from the text (decimals/negatives ok; null if none) */
@@ -1185,7 +1271,7 @@ var SCRIPT_VERSION = "v1.0.0";
                 if (bv === null) return -1;
                 return descending ? (bv - av) : (av - bv);
             });
-            applyReorder(flatEntries, -1);
+            applyReorder(flatEntries, []);
         }
 
         /* パネルの有効/無効を切り替え（種類に応じてディム）/ Enable/disable panels based on the list type */
@@ -1201,6 +1287,11 @@ var SCRIPT_VERSION = "v1.0.0";
             chkZeroPad.enabled = rbStyleNumber.value;     // ゼロ埋めは「数字」のみ有効 / Zero padding only for the numbers style
             chkResetPerFrame.enabled = targetSelection.length > 1; // フレームごとにリセットは複数選択時のみ / per-frame reset only when 2+ frames selected
             formatPanel.enabled = !rbNone.value;          // 書式は「なし」では未使用 / Format unused for "none"
+
+            // 区切り文字カラーは「数字／ABC／abc かつ区切り文字あり」のときだけ有効 / Delimiter color only when number/ABC/abc with a delimiter
+            var delimiterColorApplicable = twoStopNumbered && currentDelimiter() !== "";
+            delimiterColorUI.label.enabled = delimiterColorApplicable;
+            delimiterColorUI.swatch.enabled = delimiterColorApplicable;
 
             // マーカー位置は数字/ABC/abc のみ有効、本文位置は全種類で有効（ハンギングON時のみ左インデント参照でディム）
             // Marker position only for number/ABC/abc; body position for all types (dimmed under hanging since it follows the left indent)
@@ -1262,6 +1353,8 @@ var SCRIPT_VERSION = "v1.0.0";
             } else if (rbStyleNumber.value) {
                 rbAlignRight.value = true;
             }
+            // タブストップ既定を種類に合わせて更新（数字/ABC/abc=1.5/2.0、白丸・黒丸数字=1.2の1ストップ）/ Reset tab stops to the style's defaults (number/ABC/abc = 1.5/2.0; circled = single ×1.2 stop)
+            applyTypeDefaults();
             updateEnabledStates(); // 丸数字は2つ目タブストップ・揃え種類をディム / circled dims the 2nd stop & alignment
             updatePreview();
             // 丸数字で21以上になる場合は範囲外（素の数字）になるため警告 / Warn when circled numbering exceeds 20 (the rest become plain numbers)
@@ -1270,11 +1363,12 @@ var SCRIPT_VERSION = "v1.0.0";
             }
         }
 
-        /* 箇条書き記号変更時は比率を記号ごとの既定へ（記号別の比率を適用）/ On bullet change, apply each symbol's scale */
+        /* 箇条書き記号変更時は比率・本文タブストップを記号ごとの既定へ / On bullet change, apply each symbol's scale and body tab stop */
         function onBulletChange() {
             for (var bi = 0; bi < bulletRadios.length; bi++) {
                 if (bulletRadios[bi].value) { inputScale.text = String(BULLET_SYMBOLS[bi].scale); break; }
             }
+            applyTypeDefaults();   // 本文位置を記号の bodyRatio（•/-=0.8 など）で更新 / refresh body position with the glyph's bodyRatio (e.g. 0.8 for •/-)
             updateEnabledStates(); // •選択時は「線のみ」をディム / dim "stroke only" when "•" is selected
             updatePreview();
         }
@@ -1284,8 +1378,12 @@ var SCRIPT_VERSION = "v1.0.0";
             inputScale.text = "100";                                   // 比率 / scale
             inputBaseline.text = "0";                                  // ベースラインシフト / baseline shift
             inputStartNumber.text = String(START_NUMBER);              // 開始番号を1へ / start number back to 1
-            colorSwatch._aiColor = getBaseFillColor(targetSelection);  // カラー（基準色へ）/ color (back to base)
+            // カラー（記号／番号・区切り文字とも基準色へ）/ color (marker-number & delimiter back to base)
+            var resetColor = getBaseFillColor(targetSelection);
+            colorSwatch._aiColor = resetColor;
+            delimiterColorSwatch._aiColor = resetColor;
             try { colorSwatch.hide(); colorSwatch.show(); } catch (e) { }
+            try { delimiterColorSwatch.hide(); delimiterColorSwatch.show(); } catch (eD) { }
             inputLeftIndent.text = "0";                                // 左インデント（1行目は内部で正負反転）/ left indent (first-line derived internally)
             // 左・1行目インデントを実際に0へ（ハンギングOFFでも確実にクリア）/ Force left & first-line indent to 0 (even when hanging is off)
             // すべてのタブストップを削除（baselineの控えを空にし、入力欄は種類の既定へ）/ Delete all tab stops (clear snapshot; reset inputs to type defaults)
@@ -1320,14 +1418,17 @@ var SCRIPT_VERSION = "v1.0.0";
         }
         rbAlignLeft.onClick = rbAlignCenter.onClick = rbAlignRight.onClick = updatePreview; // 1つ目の揃え種類 / 1st-stop alignment
         for (var delimWireIndex = 0; delimWireIndex < delimiterRadios.length; delimWireIndex++) {
-            delimiterRadios[delimWireIndex].onClick = updatePreview;
+            delimiterRadios[delimWireIndex].onClick = function () {
+                updateEnabledStates(); // 区切り文字なし→カラー行をディム / dim the color row when delimiter is "none"
+                updatePreview();
+            };
         }
 
         /* 並べ替えボタン / Reorder buttons */
-        btnMoveTop.onClick = function () { moveSelectedRowTo("top"); };
-        btnMoveUp.onClick = function () { moveSelectedRow(-1); };
-        btnMoveDown.onClick = function () { moveSelectedRow(1); };
-        btnMoveBottom.onClick = function () { moveSelectedRowTo("bottom"); };
+        btnMoveTop.onClick = function () { moveSelectedRowsTo("top"); };
+        btnMoveUp.onClick = function () { moveSelectedRows(-1); };
+        btnMoveDown.onClick = function () { moveSelectedRows(1); };
+        btnMoveBottom.onClick = function () { moveSelectedRowsTo("bottom"); };
         previewList.onChange = updateMoveButtonEnabled;
         btnSortByName.onClick = sortRowsByName;
         btnSortByValue.onClick = function () { sortRowsByValue(false); };
@@ -1391,7 +1492,8 @@ var SCRIPT_VERSION = "v1.0.0";
         fontStyleLabel.helpTip = fontStyleDropdown.helpTip = L('tip.fontStyle');
 
         chkJPOnly.helpTip = L('tip.jpOnly');
-        colorLabel.helpTip = colorSwatch.helpTip = L('tip.color');
+        markerColorUI.label.helpTip = markerColorUI.swatch.helpTip = L('tip.color');
+        delimiterColorUI.label.helpTip = delimiterColorUI.swatch.helpTip = L('tip.delimiterColor');
         leadingLabel.helpTip = inputLeading.helpTip = L('tip.leading');
         spaceAfterLabel.helpTip = inputSpaceAfter.helpTip = L('tip.spaceAfter');
         chkHanging.helpTip = L('tip.hanging');
@@ -1523,9 +1625,13 @@ var SCRIPT_VERSION = "v1.0.0";
 
         // 元テキストのマーカー（箇条書き記号 / 数字.）を除去。数字.の直後が数字の場合（例: 12.5）は対象外
         // 中黒は異体字（・=U+30FB / ･=U+FF65 / ·=U+00B7）も対象。行頭の空白・タブも一緒に除去
+        // 文字クラスは BULLET_SYMBOLS の記号をすべて含めること（記号を追加したらここにも追加）
+        // 「-」だけは直後がタブ/空白のときのみ除去（本文の行頭ハイフン例: -5℃ / -10% を守る）
         // Strip original markers (bullet symbols / number.); "number." followed by a digit (e.g. 12.5) is left intact.
         // Middle-dot variants (・ U+30FB / ･ U+FF65 / · U+00B7) are included; leading whitespace/tab is removed too.
-        return line.replace(/^[\t 　]*(?:[・･·•◦●○◎□■◆◇✓]|\d+\.(?!\d))[\t 　]*/, "");
+        // The class must cover every BULLET_SYMBOLS glyph (add new glyphs here too).
+        // "-" is stripped only when immediately followed by a tab/space, so body text like "-5℃" / "-10%" is preserved.
+        return line.replace(/^[\t 　]*(?:[・･·•◦●○◎□■◆◇✓]|-(?=[\t 　])|\d+\.(?!\d))[\t 　]*/, "");
     }
 
     /* 1フレーム分の行へマーカーを付与（連番カウンタを共有）/ Build marked lines for one frame (shares the number counter) */
@@ -1622,7 +1728,7 @@ var SCRIPT_VERSION = "v1.0.0";
             }
 
             // 行頭マーカーに書式（フォント・サイズ・ベースラインシフト）を適用 / Apply marker format
-            applyMarkerFormat(selectedObject, listType, options.format, options.numberStyle);
+            applyMarkerFormat(selectedObject, listType, options.format, options.numberStyle, options.delimiter);
 
             // 段落の書式（行送り・段落前/後のアキ）を適用 / Apply paragraph format (leading, space before/after)
             applyParagraphFormat(selectedObject, options.paragraphFormat);
@@ -1812,9 +1918,13 @@ var SCRIPT_VERSION = "v1.0.0";
     // 書式（マーカーへのフォント・サイズ・ベースラインシフト）/ Marker format
     // =========================================
 
-    /* 行頭マーカーの文字にフォント・サイズ・ベースラインシフトを適用 / Apply font, size, and baseline shift to the marker characters */
-    function applyMarkerFormat(frame, listType, format, numberStyle) {
+    /* 行頭マーカーの文字にフォント・サイズ・ベースラインシフト・カラーを適用 / Apply font, size, baseline shift, and color to the marker characters */
+    function applyMarkerFormat(frame, listType, format, numberStyle, delimiter) {
         if (!format || listType === "none") return;
+
+        // 数字／ABC／abc では番号の末尾に区切り文字が付く（その分だけ別カラーにできる）/ For number/ABC/abc, the delimiter trails the number, so it can take a separate color
+        var delimiterText = delimiter || "";
+        var delimiterLen = (listType === "numbered" && !isCircledStyle(numberStyle)) ? delimiterText.length : 0;
 
         var font = null;
         if (format.fontName) {
@@ -1841,6 +1951,8 @@ var SCRIPT_VERSION = "v1.0.0";
                     while (markerEnd < paragraphText.length && paragraphText.charAt(markerEnd) !== "\t") markerEnd++;
                 }
 
+                // 区切り文字部分の開始位置（マーカー範囲の末尾から delimiterLen 文字）/ Where the delimiter chars start (last delimiterLen chars of the marker range)
+                var delimiterStart = markerEnd - delimiterLen;
                 for (var c = markerStart; c < markerEnd; c++) {
                     if (c >= paragraph.characters.length) break;
                     var charAttr = paragraph.characters[c].characterAttributes;
@@ -1848,7 +1960,10 @@ var SCRIPT_VERSION = "v1.0.0";
                     if (format.horizontalScale) { try { charAttr.horizontalScale = format.horizontalScale; } catch (e3) { } }
                     if (format.verticalScale) { try { charAttr.verticalScale = format.verticalScale; } catch (e4) { } }
                     try { charAttr.baselineShift = format.baselineShiftPt; } catch (e5) { }
-                    if (format.fillColor) { try { charAttr.fillColor = format.fillColor; } catch (e6) { } }
+                    // カラー: 区切り文字は専用色、それ以外（記号・番号）はマーカー色 / Color: delimiter chars use their own color, the rest use the marker color
+                    var isDelimiterChar = (delimiterLen > 0 && c >= delimiterStart);
+                    var fillColorToUse = isDelimiterChar ? format.delimiterFillColor : format.fillColor;
+                    if (fillColorToUse) { try { charAttr.fillColor = fillColorToUse; } catch (e6) { } }
                 }
             }
         } catch (eOuter) { }
