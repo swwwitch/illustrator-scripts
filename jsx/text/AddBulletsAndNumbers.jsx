@@ -58,7 +58,7 @@ tab/space are stripped on run.
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.0.2";
 
 (function () {
 
@@ -733,6 +733,9 @@ var SCRIPT_VERSION = "v1.0.1";
             columnWidths: [numberColWidth, previewListWidth - numberColWidth]
         });
         previewList.preferredSize = [previewListWidth, 350];
+        // リストの文字サイズを 14pt 相当に / set the list font size to 14pt
+        var previewListFont = previewList.graphics.font;
+        previewList.graphics.font = ScriptUI.newFont(previewListFont.name, previewListFont.style, 14);
 
         /* 並べ替え行（左: 先頭へ/上へ/下へ/末尾へ・右: 名前順）/ Reorder row (left: top/up/down/bottom, right: by name) */
         var reorderRow = sortPanel.add("group");
@@ -1384,6 +1387,7 @@ var SCRIPT_VERSION = "v1.0.1";
             delimiterColorSwatch._aiColor = resetColor;
             try { colorSwatch.hide(); colorSwatch.show(); } catch (e) { }
             try { delimiterColorSwatch.hide(); delimiterColorSwatch.show(); } catch (eD) { }
+            inputSpaceAfter.text = "0";                                // 段落後のアキ / space after
             inputLeftIndent.text = "0";                                // 左インデント（1行目は内部で正負反転）/ left indent (first-line derived internally)
             // 左・1行目インデントを実際に0へ（ハンギングOFFでも確実にクリア）/ Force left & first-line indent to 0 (even when hanging is off)
             // すべてのタブストップを削除（baselineの控えを空にし、入力欄は種類の既定へ）/ Delete all tab stops (clear snapshot; reset inputs to type defaults)
