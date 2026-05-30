@@ -58,7 +58,7 @@ tab/space are stripped on run.
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.2";
+var SCRIPT_VERSION = "v1.1.0";
 
 (function () {
 
@@ -77,6 +77,8 @@ var SCRIPT_VERSION = "v1.0.2";
         { mark: "●", scale: 50 },
         { mark: "○", scale: 50 },
         { mark: "◎", scale: 90 },
+        // { mark: "★", scale: 90 },
+        // { mark: "☆", scale: 90 },
         { mark: "■", scale: 90 },
         { mark: "□", scale: 90 },
         { mark: "◆", scale: 90 },
@@ -507,8 +509,11 @@ var SCRIPT_VERSION = "v1.0.2";
 
     /* ダイアログを表示し、プレビューと確定適用を行う / Show the dialog, drive live preview, and apply on OK */
     function showDialog(targetSelection) {
-        // プレビュー前の状態を保存（キャンセル時に復元）/ Snapshot the pre-preview state (restored on cancel)
+        // プレビュー前の状態を保存（キャンセル時に復元・並べ替えの作業領域）/ Snapshot the pre-preview state (restored on cancel; also the reorder work area)
         var baseline = captureBaseline(targetSelection);
+
+        // プレビューの undo 状態（直前のプレビューを app.undo() で巻き戻すため）/ Preview undo state (so the previous preview can be rolled back via app.undo())
+        var previewState = { isUndo: false };
 
         // 表示単位（text/units）と基準文字サイズ / Display unit (text/units) and base font size
         var unitInfo = getTextUnitInfo();
@@ -1156,12 +1161,27 @@ var SCRIPT_VERSION = "v1.0.2";
 
         /* 一覧を更新（左=行番号, 右=マーカーを除いた本文）/ Refresh the list (left = row number, right = body without markers) */
         function refreshList() {
+            // removeAll で選択も消えるため、先に選択行を退避して再構築後に復元
+            // removeAll() drops the selection too, so capture it first and restore after rebuilding
+            // （並べ替え時は applyReorder が後から正しい選択で上書きするので競合しない / on reorder, applyReorder overrides this afterward)
+            var prevSelected = selectedRowIndices();
+
             previewList.removeAll();
             var bodyLines = computeBodyLines(baseline);
             for (var k = 0; k < bodyLines.length; k++) {
                 var row = previewList.add("item", String(k + 1)); // 左カラム: 連番 / Left column: sequential number
                 row.subItems[0].text = bodyLines[k];               // 右カラム: 本文 / Right column: body text
             }
+
+            // 退避した選択を復元（行数が減っている場合は範囲内のみ）/ Restore selection (only indices still in range)
+            if (prevSelected.length) {
+                var restore = [];
+                for (var s = 0; s < prevSelected.length; s++) {
+                    if (prevSelected[s] < previewList.items.length) restore.push(prevSelected[s]);
+                }
+                if (restore.length) previewList.selection = restore;
+            }
+
             updateMoveButtonEnabled();
         }
 
@@ -1304,9 +1324,13 @@ var SCRIPT_VERSION = "v1.0.2";
             syncHangingTabStop();                              // 本文位置に左インデントを反映 / mirror left indent into the body position
         }
 
-        /* プレビューを更新（毎回ベースラインへ戻してから再適用, 常時ON）/ Refresh preview (restore baseline then reapply; always on) */
+        /* プレビューを更新（直前のプレビューを app.undo() で巻き戻してから再適用）/ Refresh preview (undo the previous preview, then reapply) */
         function updatePreview() {
             refreshList();
+            // 直前のプレビュー1回ぶんを巻き戻す（実機検証: 1プレビュー = app.undo() 1回で完全復元）/ Roll back the previous preview pass (verified: one preview = one app.undo())
+            if (previewState.isUndo) { try { app.undo(); app.redraw(); } catch (eUndo) {} previewState.isUndo = false; }
+            // 並べ替えはJS側 baseline で管理しているため、undo 後に並べ替え済みの素テキストを書き戻してから付与
+            // Reordering lives in the JS-side baseline, so after undo write back the (reordered) plain text, then apply
             restoreBaseline(baseline);
             applyListMarkers(targetSelection, {
                 listType: currentType(),
@@ -1323,6 +1347,7 @@ var SCRIPT_VERSION = "v1.0.2";
                 format: currentFormat(),
                 paragraphFormat: currentParagraphFormat()
             });
+            previewState.isUndo = true; // 次回はこのプレビューを巻き戻す / next call rolls this one back
             app.redraw();
         }
 
@@ -1372,7 +1397,7 @@ var SCRIPT_VERSION = "v1.0.2";
                 if (bulletRadios[bi].value) { inputScale.text = String(BULLET_SYMBOLS[bi].scale); break; }
             }
             applyTypeDefaults();   // 本文位置を記号の bodyRatio（•/-=0.8 など）で更新 / refresh body position with the glyph's bodyRatio (e.g. 0.8 for •/-)
-            updateEnabledStates(); // •選択時は「線のみ」をディム / dim "stroke only" when "•" is selected
+            updateEnabledStates(); 
             updatePreview();
         }
 
@@ -1394,6 +1419,7 @@ var SCRIPT_VERSION = "v1.0.2";
             for (var i = 0; i < baseline.length; i++) {
                 baseline[i].tabStops = [];
                 if (baseline[i].paraFormat) {
+                    baseline[i].paraFormat.spaceAfter = 0;     // 段落後のアキも控えごと0へ（restoreBaselineで元値に戻るのを防ぐ）/ clear snapshot space-after too (else restoreBaseline brings the old value back)
                     baseline[i].paraFormat.leftIndent = 0;
                     baseline[i].paraFormat.firstLineIndent = 0;
                 }
@@ -1508,7 +1534,9 @@ var SCRIPT_VERSION = "v1.0.2";
         var committed = false;
 
         btnOK.onClick = function () {
-            // いったん原状へ戻し、本番設定で1回だけ適用 / Reset, then apply once with the final settings
+            // プレビュー分を app.undo() で巻き戻してから、本番設定で1回だけ適用（履歴を最小化）
+            // Roll back the preview via app.undo(), then apply once with the final settings (minimal history)
+            if (previewState.isUndo) { try { app.undo(); app.redraw(); } catch (eUndo) {} previewState.isUndo = false; }
             restoreBaseline(baseline);
             applyListMarkers(targetSelection, {
                 listType: currentType(),
@@ -1534,6 +1562,8 @@ var SCRIPT_VERSION = "v1.0.2";
         /* OK以外で閉じた場合はプレビューを取り消す / Roll back preview unless committed via OK */
         dlg.onClose = function () {
             if (!committed) {
+                // プレビュー分を巻き戻し、原状（並べ替えは baseline 準拠）へ / Roll back the preview, then restore (reorder follows baseline)
+                if (previewState.isUndo) { try { app.undo(); app.redraw(); } catch (eUndo) {} previewState.isUndo = false; }
                 restoreBaseline(baseline);
                 app.redraw();
             }
@@ -1543,10 +1573,13 @@ var SCRIPT_VERSION = "v1.0.2";
         // 現在の状態から初期選択を復元（「現状の続き」として編集）/ Initialize from the current state so editing continues from it
         applyDetectedState(detectInitialState(targetSelection));
 
-        // 表示前に初期状態（ディム）とプレビューを反映 / Apply initial dim state and preview before showing
+        // 表示前に初期状態（ディム）だけ反映（プレビューは onShow から起動）/ Apply initial dim state before showing (preview is kicked off from onShow)
         updateEnabledStates();
         updateHangingEnabled();       // ハンギング対応の初期ディム / initial dim state for hanging
-        updatePreview();
+
+        // 初期プレビューは onShow から起動（同期実行だと undo トランザクションが閉じず履歴が残るため）
+        // Kick off the first preview from onShow (a synchronous pre-show preview leaves the undo transaction open → history piles up)
+        dlg.onShow = function () { updatePreview(); };
         dlg.show();
     }
 
@@ -1554,11 +1587,20 @@ var SCRIPT_VERSION = "v1.0.2";
     // 入力補助 / Input helpers
     // =========================================
 
-    /* ↑↓キーで値を増減（Shift=±10, Option=±0.1）し、任意で更新コールバックを実行 / Arrow keys adjust the value (Shift=±10, Option=±0.1) and optionally run an update callback */
+    /* ↑↓キーで値を増減（Shift=±10, Option=±0.1）。プレビューは keyup まで遅延し、値が変わった時だけ1回実行
+       Arrow keys adjust the value (Shift=±10, Option=±0.1). Preview is deferred to keyup and runs once only when the value actually changed
+       - keydown: 値の更新のみ（押しっぱなしのオートリピートでもプレビューしない）/ keydown: update the value only (no preview, even on auto-repeat)
+       - keyup:   keydown 前の値と比較し、変化があればプレビュー1回 / keyup: compare with the value before keydown and preview once if it changed */
     function changeValueByArrowKey(editText, allowNegative, onUpdate) {
         editText.addEventListener("keydown", function (event) {
+            if (event.keyName != "Up" && event.keyName != "Down") return; // ↑↓以外は通常入力に任せる / leave non-arrow keys to normal input
+
             var value = Number(editText.text);
             if (isNaN(value)) return;
+
+            // 一連の ↑↓ 操作の開始値を控える（keyup での変化判定用。連続押下では最初の1回だけ記録）
+            // Remember the value at the start of this arrow burst (for the keyup change check; recorded only on the first press of a burst)
+            if (editText._arrowBaseValue == null) editText._arrowBaseValue = value;
 
             var keyboard = ScriptUI.environment.keyboardState;
             var delta = 1;
@@ -1602,8 +1644,15 @@ var SCRIPT_VERSION = "v1.0.2";
 
             if (!allowNegative && value < 0) value = 0;
 
-            editText.text = value;
-            /* プレビュー更新 / Update preview */
+            editText.text = value; /* 値は即時反映、プレビューは keyup まで遅延 / reflect the value now; defer preview to keyup */
+        });
+
+        editText.addEventListener("keyup", function (event) {
+            if (event.keyName != "Up" && event.keyName != "Down") return;
+            var baseValue = editText._arrowBaseValue;
+            editText._arrowBaseValue = null; // バースト終了 / end of burst
+            // 値が変わっていない（下限張り付きなど）ならプレビューしない / skip preview when the value did not change (e.g. clamped at the lower bound)
+            if (baseValue != null && Number(editText.text) === baseValue) return;
             if (typeof onUpdate === "function") onUpdate();
         });
     }
@@ -1742,23 +1791,24 @@ var SCRIPT_VERSION = "v1.0.2";
     /* 段落の書式（行送り・段落前/後のアキ）をフレーム全体へ適用。null は変更しない / Apply paragraph format to the whole frame; null leaves a value unchanged */
     function applyParagraphFormat(frame, paragraphFormat) {
         if (!paragraphFormat) return;
-        try {
-            if (paragraphFormat.leadingPt != null) {
-                // 行送りは文字属性（自動行送りを解除して固定値に）/ Leading is a character attribute (disable auto-leading)
-                try { frame.textRange.characterAttributes.autoLeading = false; } catch (eAuto) { }
-                frame.textRange.characterAttributes.leading = paragraphFormat.leadingPt;
-            }
-            if (paragraphFormat.spaceAfterPt != null) {
-                frame.textRange.paragraphAttributes.spaceAfter = paragraphFormat.spaceAfterPt;
-            }
-            // インデント（ハンギング対応OFFのときは null で渡され、変更しない）/ Indents (null when hanging is off → unchanged)
-            if (paragraphFormat.leftIndentPt != null) {
-                frame.textRange.paragraphAttributes.leftIndent = paragraphFormat.leftIndentPt;
-            }
-            if (paragraphFormat.firstLineIndentPt != null) {
-                frame.textRange.paragraphAttributes.firstLineIndent = paragraphFormat.firstLineIndentPt;
-            }
-        } catch (e) { }
+        // 各設定は個別に try で囲む。1項目（例: 行送り）の例外で後続（spaceAfter・インデント）が
+        // 巻き込まれてスキップされるのを防ぐ / Guard each setter separately so a failure in one
+        // (e.g. leading) does not skip the rest (spaceAfter, indents)
+        if (paragraphFormat.leadingPt != null) {
+            // 行送りは文字属性（自動行送りを解除して固定値に）/ Leading is a character attribute (disable auto-leading)
+            try { frame.textRange.characterAttributes.autoLeading = false; } catch (eAuto) { }
+            try { frame.textRange.characterAttributes.leading = paragraphFormat.leadingPt; } catch (eLead) { }
+        }
+        if (paragraphFormat.spaceAfterPt != null) {
+            try { frame.textRange.paragraphAttributes.spaceAfter = paragraphFormat.spaceAfterPt; } catch (eSA) { }
+        }
+        // インデント（ハンギング対応OFFのときは null で渡され、変更しない）/ Indents (null when hanging is off → unchanged)
+        if (paragraphFormat.leftIndentPt != null) {
+            try { frame.textRange.paragraphAttributes.leftIndent = paragraphFormat.leftIndentPt; } catch (eLI) { }
+        }
+        if (paragraphFormat.firstLineIndentPt != null) {
+            try { frame.textRange.paragraphAttributes.firstLineIndent = paragraphFormat.firstLineIndentPt; } catch (eFLI) { }
+        }
     }
 
     /* 一覧表示用に、マーカーを除いた本文の全行を算出（ドキュメントは変更しない）/ Compute body lines without markers for the list display (no document changes) */
@@ -1985,42 +2035,6 @@ var SCRIPT_VERSION = "v1.0.2";
             }
         }
         return null;
-    }
-
-    // フォント名キャッシュは $.global に保持（#targetengine の永続エンジンで実行をまたいで再利用）
-    // Font-name cache lives on $.global so it survives across runs under the persistent engine (#targetengine).
-    // 注意: フォントを追加/削除した場合は古くなる（Illustrator 再起動でクリア）/ Note: stale if fonts change (cleared on Illustrator restart)
-
-    /*
-    未使用確認:
-    getAllFontNames()
-    getJapaneseFontNames()
-
-    フォント一覧をファミリー＋スタイルへ分離したため、現在未使用の可能性あり。
-    削除前に参照箇所を確認すること。
-    */
-    /* 全フォント名を取得（初回のみ走査してキャッシュ）/ Get all font names (scan once, then cache) */
-    function getAllFontNames() {
-        if ($.global.abnAllFontNames) return $.global.abnAllFontNames;
-        var names = [];
-        var fonts = app.textFonts;
-        for (var i = 0; i < fonts.length; i++) {
-            try { names.push(fonts[i].name); } catch (e) { }
-        }
-        $.global.abnAllFontNames = names;
-        return names;
-    }
-
-    /* 和文フォント名を取得（初回のみ判定してキャッシュ）/ Get Japanese font names (detect once, then cache) */
-    function getJapaneseFontNames() {
-        if ($.global.abnJapaneseFontNames) return $.global.abnJapaneseFontNames;
-        var names = [];
-        var fonts = app.textFonts;
-        for (var i = 0; i < fonts.length; i++) {
-            try { if (isJapaneseFont(fonts[i])) names.push(fonts[i].name); } catch (e) { }
-        }
-        $.global.abnJapaneseFontNames = names;
-        return names;
     }
 
     /* フォント一覧をファミリー別にまとめる / Group Illustrator fonts by family */
