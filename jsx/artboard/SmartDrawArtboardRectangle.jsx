@@ -26,7 +26,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 - v1.0 (20250820) : 初期バージョン
 - v1.5.1 (20250824) : ライブシェイプ化・ガイド化などのオプション追加
-- v1.5.2 (20260531) : 中心の○を常に表示、単位テーブル統合、CMYK入力修正、ホットキー再編、最新バージョン
+- v1.5.2 (20260531) : 中心の○を常に表示、単位テーブル統合、CMYK入力修正、ホットキー再編
+- v1.5.3 (20260531) : オブジェクト名を「<長方形>」に変更、オフセット入力欄の幅を調整、最新バージョン
 
 ---
 
@@ -53,7 +54,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 - v1.0 (20250820): Initial version
 - v1.5.1 (20250824): Added post-draw options (Convert to Live Shape, Make guides)
-- v1.5.2 (20260531): Always show center widget, unified unit table, CMYK input fix, hotkey rework; latest version
+- v1.5.2 (20260531): Always show center widget, unified unit table, CMYK input fix, hotkey rework
+- v1.5.3 (20260531): Renamed object to "<Rectangle>", tweaked offset field width; latest version
 
 */
 
@@ -63,7 +65,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョン / Version
     // =========================================
 
-    var SCRIPT_VERSION = "v1.5.2";
+    var SCRIPT_VERSION = "v1.5.3";
 
     // =========================================
     // ユーザー設定 / User settings
@@ -72,7 +74,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     /* ダイアログの初期位置・不透明度（調整可）/ Dialog position & opacity (tunable) */
     var DIALOG_OFFSET_X = 300; // 右(+)／左(-) / shift right (+) / left (-)
     var DIALOG_OFFSET_Y = 0; //   下(+)／上(-) / shift down (+) / up (-)
-    var DIALOG_OPACITY = 0.93; // 0.0 - 1.0
+    var DIALOG_OPACITY = 0.97; // 0.0 - 1.0
 
     /* 入力中のプレビュー遅延（タイプしやすさ優先）/ Preview delay while typing */
     var PREVIEW_DELAY_TYPING_MS = 110; // recommend 100–120ms
@@ -247,8 +249,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 en: "_preview"
             },
             rect: {
-                ja: "アートボードサイズの長方形",
-                en: "Artboard Size Rectangle"
+                ja: "<長方形>",
+                en: "<Rectangle>"
             },
             previewRect: {
                 ja: "__プレビュー_アートボードサイズの長方形",
@@ -1030,7 +1032,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         offsetRow.alignment = 'center';
 
         var offsetInput = offsetRow.add('edittext', undefined, '0');
-        offsetInput.characters = 5;
+        offsetInput.characters = 4;
         offsetInput.helpTip = getLocalizedText('helpTip.offsetInput');
         changeValueByArrowKey(offsetInput, function () {
             requestDelayedPreviewUpdate();
