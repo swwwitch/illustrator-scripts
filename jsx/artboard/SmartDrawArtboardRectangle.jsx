@@ -201,12 +201,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 en: "Cancel"
             },
             previewOutline: {
-                ja: "アウトライン表示へ",
-                en: "Show Outline"
+                ja: "アウトライン表示",
+                en: "Outline/Preview"
             },
             previewPreview: {
-                ja: "プレビュー表示へ",
-                en: "Show Preview"
+                ja: "プレビュー表示",
+                en: "Outline/Preview"
             }
         },
         helpTip: {
