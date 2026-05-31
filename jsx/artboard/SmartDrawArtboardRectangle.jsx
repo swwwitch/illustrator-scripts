@@ -103,8 +103,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     var LABELS = {
         dialog: {
             title: {
-                ja: "アートボード境界を描画",
-                en: "Draw Artboard Bounds"
+                ja: "アートボードサイズの長方形を描画",
+                en: "Draw Artboard Size Rectangle"
             }
         },
         panel: {
@@ -247,12 +247,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 en: "_preview"
             },
             rect: {
-                ja: "アートボード境界",
-                en: "Artboard Bounds"
+                ja: "アートボードサイズの長方形",
+                en: "Artboard Size Rectangle"
             },
             previewRect: {
-                ja: "__プレビュー_アートボード境界",
-                en: "__Preview_ArtboardBounds"
+                ja: "__プレビュー_アートボードサイズの長方形",
+                en: "__Preview_ArtboardSizeRectangle"
             }
         }
     };
