@@ -27,7 +27,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - v1.0 (20250820) : 初期バージョン
 - v1.5.1 (20250824) : ライブシェイプ化・ガイド化などのオプション追加
 - v1.5.2 (20260531) : 中心の○を常に表示、単位テーブル統合、CMYK入力修正、ホットキー再編
-- v1.5.3 (20260531) : オブジェクト名を「<長方形>」に変更、オフセット入力欄の幅を調整、最新バージョン
+- v1.5.3 (20260531) : オブジェクト名を「<長方形>」に変更、オフセット入力欄の幅を調整
+- v1.5.4 (20260601) : 最前面がテンプレート／ロックレイヤーのときの Error 8705 を修正、最新バージョン
 
 ---
 
@@ -55,7 +56,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - v1.0 (20250820): Initial version
 - v1.5.1 (20250824): Added post-draw options (Convert to Live Shape, Make guides)
 - v1.5.2 (20260531): Always show center widget, unified unit table, CMYK input fix, hotkey rework
-- v1.5.3 (20260531): Renamed object to "<Rectangle>", tweaked offset field width; latest version
+- v1.5.3 (20260531): Renamed object to "<Rectangle>", tweaked offset field width
+- v1.5.4 (20260601): Fixed Error 8705 when the front-most layer is a template/locked layer; latest version
 
 */
 
@@ -65,7 +67,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョン / Version
     // =========================================
 
-    var SCRIPT_VERSION = "v1.5.3";
+    var SCRIPT_VERSION = "v1.5.4";
 
     // =========================================
     // ユーザー設定 / User settings
@@ -1680,13 +1682,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     function getWritableLayer(doc) {
         try {
             var lyr = doc.activeLayer;
-            if (lyr && !lyr.locked && lyr.visible) return lyr;
+            // テンプレートレイヤーは locked が false でも編集できない（Error 8705）ので除外
+            // Template layers can't be modified even when locked is false (Error 8705), so exclude them
+            if (lyr && !lyr.locked && lyr.visible && !lyr.template) return lyr;
         } catch (e) { }
-        // try find first unlocked & visible layer
+        // try find first unlocked, visible & non-template layer
         try {
             for (var i = 0; i < doc.layers.length; i++) {
                 var l = doc.layers[i];
-                if (!l.locked && l.visible) return l;
+                if (!l.locked && l.visible && !l.template) return l;
             }
         } catch (e) { }
         // last resort: create a new layer at top
@@ -1742,6 +1746,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         var o = choice.offset;
         var targetLayer = (choice.zOrder === 'bg') ? getOrCreateBgLayer(doc) : getWritableLayer(doc);
+        // アクティブレイヤーがロックされたままだと、別の編集可能レイヤーへ作成しても
+        // Illustrator が Error 8705（対象レイヤーは編集できません）を投げる。
+        // 作成前に対象レイヤーを編集可能かつアクティブにしておく。
+        // Make the target layer editable AND active before creating; otherwise a locked
+        // active (e.g. top-most) layer triggers Error 8705 "Target layer cannot be modified".
+        try {
+            targetLayer.locked = false;
+            targetLayer.visible = true;
+            doc.activeLayer = targetLayer;
+        } catch (e) { }
         // Create on the chosen layer to avoid "Target layer cannot be modified"
         var artboardRectangle = targetLayer.pathItems.rectangle(
             artboardRect[1] + o,
