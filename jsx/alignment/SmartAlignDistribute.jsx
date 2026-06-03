@@ -11,6 +11,7 @@ SmartAlignDistribute.jsx
 縦並び時にテキストを含む場合、ダイアログ中だけ一度だけ計測用に複製→アウトライン化して高さ（必要に応じて幅も）を計測し、その結果をダイアログ中だけキャッシュします（プレビューのたびに複製しない）。
 
 ### オリジナルアイデア
+
 John Wundes
 Distribute Stacked Objects v1.1
 https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
@@ -19,14 +20,16 @@ Gorolib Design
 https://gorolib.blog.jp/archives/77282974.html
 
 ### 更新日 / Updated: 2026-02-26
+
 */
 
-(function () {
+// =========================================
+// バージョン / Version
+// =========================================
+var SCRIPT_VERSION = "v1.2.1";
 
-    // =========================================
-    // バージョン / Version
-    // =========================================
-    var SCRIPT_VERSION = "v1.2.0";
+
+(function () {
 
     // =========================================
     // ユーザー設定 / User Settings
@@ -39,65 +42,93 @@ https://gorolib.blog.jp/archives/77282974.html
     // =========================================
     // ローカライズ / Localization
     // =========================================
+
+    /* 現在のロケールから言語を判定 / Detect language from locale */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
     var lang = getCurrentLang();
 
     var LABELS = {
+        /* === ダイアログ / Dialog === */
+        dialog: {
+            title: { ja: "整列と分布", en: "Align & Distribute" }
+        },
+
         /* === 共通 / Common === */
-        dialogTitle: { ja: "整列と分布", en: "Align & Distribute" },
-        cancel: { ja: "キャンセル", en: "Cancel" },
+        common: {
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
 
         /* === 方向 / Direction === */
-        directionPanel: { ja: "方向", en: "Direction" },
-        dirAuto: { ja: "自動", en: "Auto" },
-        dirVertical: { ja: "縦", en: "Vertical" },
-        dirHorizontal: { ja: "横", en: "Horizontal" },
+        direction: {
+            panel: { ja: "方向", en: "Direction" },
+            auto: { ja: "自動", en: "Auto" },
+            vertical: { ja: "縦", en: "Vertical" },
+            horizontal: { ja: "横", en: "Horizontal" }
+        },
 
         /* === 間隔 / Spacing === */
-        spacingLabel: { ja: "間隔", en: "Spacing" },
+        spacing: {
+            label: { ja: "間隔", en: "Spacing" },
+            tip: {
+                ja: "オブジェクト間のすき間。マイナス値で重ねられます。",
+                en: "Gap between objects. Negative values overlap them."
+            }
+        },
 
         /* === 揃え / Alignment === */
-        alignH: { ja: "揃え（左右）", en: "Align (H)" },
-        alignV: { ja: "揃え（上下）", en: "Align (V)" },
-        hAlignLeft: { ja: "左", en: "Left" },
-        hAlignCenter: { ja: "中央", en: "Center" },
-        hAlignRight: { ja: "右", en: "Right" },
-        hAlignNone: { ja: "なし", en: "None" },
-        vAlignTop: { ja: "上", en: "Top" },
-        vAlignMiddle: { ja: "中央", en: "Middle" },
-        vAlignBottom: { ja: "下", en: "Bottom" },
-        vAlignNone: { ja: "なし", en: "None" },
+        align: {
+            horizontalTitle: { ja: "揃え（左右）", en: "Align (H)" },
+            verticalTitle: { ja: "揃え（上下）", en: "Align (V)" },
+            hLeft: { ja: "左", en: "Left" },
+            hCenter: { ja: "中央", en: "Center" },
+            hRight: { ja: "右", en: "Right" },
+            hNone: { ja: "なし", en: "None" },
+            vTop: { ja: "上", en: "Top" },
+            vMiddle: { ja: "中央", en: "Middle" },
+            vBottom: { ja: "下", en: "Bottom" },
+            vNone: { ja: "なし", en: "None" }
+        },
 
         /* === オプション / Options === */
-        useBounds: { ja: "プレビュー境界を使用", en: "Use preview bounds" },
-        random: { ja: "ランダム", en: "Random" },
-        measureTextOutline: { ja: "テキストの高さを計測", en: "V: Measure text" },
-        measureTextOutlineTip: {
-            ja: "縦並び時のみ、テキストを一度だけ複製→アウトライン化して境界を計測します（ダイアログ中だけキャッシュ）。",
-            en: "Only in vertical layout, measures text by duplicating and outlining once (cached for this dialog only)."
+        options: {
+            useBounds: { ja: "プレビュー境界を使用", en: "Use preview bounds" },
+            useBoundsTip: {
+                ja: "線や効果を含む見た目の境界で整列します。オフはパスのみのジオメトリ境界。",
+                en: "Align by visible bounds (incl. strokes/effects). Off uses geometric (path-only) bounds."
+            },
+            random: { ja: "ランダム", en: "Random" },
+            randomTip: {
+                ja: "並び順をランダムに入れ替えます（左上の位置は維持）。",
+                en: "Shuffle the stacking order at random (top-left position is kept)."
+            },
+            measureText: { ja: "テキストの高さを計測", en: "Measure text height" },
+            measureTextTip: {
+                ja: "縦並び時のみ、テキストを一度だけ複製→アウトライン化して境界を計測します（ダイアログ中だけキャッシュ）。",
+                en: "Only in vertical layout, measures text by duplicating and outlining once (cached for this dialog only)."
+            }
         },
 
         /* === エラー / Errors === */
-        needSelection: { ja: "オブジェクトを選択してください。", en: "Please select objects." },
-        errorPrefix: { ja: "エラーが発生しました: ", en: "An error has occurred: " }
+        error: {
+            needSelection: { ja: "オブジェクトを選択してください。", en: "Please select objects." },
+            prefix: { ja: "エラーが発生しました: ", en: "An error has occurred: " }
+        }
     };
 
-    /* キーで LABELS から現在言語の文字列を取得 / Get current-language string from LABELS by key */
-    function L(key) {
-        return LABELS[key][lang];
-    }
-
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
-        return L(key) + (lang === 'ja' ? '：' : ':');
-    }
-
-    /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA, half-width EN) */
-    function labelWithCount(key, count) {
-        if (lang === "ja") return L(key) + "（" + count + "）";
-        return L(key) + " (" + count + ")";
+    /* ドットパスのキーで LABELS から現在言語の文字列を取得（{slash}→"/"） / Resolve dotted key in LABELS for current language ({slash}→"/") */
+    function L(path) {
+        var node = LABELS;
+        var parts = path.split(".");
+        for (var i = 0; i < parts.length; i++) {
+            if (node == null) return path;
+            node = node[parts[i]];
+        }
+        if (node == null) return path;
+        var text = (node[lang] != null) ? node[lang] : node.en;
+        if (text == null) return path;
+        return String(text).replace(/\{slash\}/g, "/");
     }
 
     // =========================================
@@ -160,7 +191,7 @@ https://gorolib.blog.jp/archives/77282974.html
         state.isUndo = false;
     }
 
-    /* ダイアログクローズ時のクリーンアップ / Cleanup on dialog close */
+    /* ダイアログクローズ時のクリーンアップ（プレビュー巻き戻し＋一時レイヤー削除） / Cleanup on dialog close (undo preview + remove temp layer) */
     function cleanupPreview(state, doc, tempLayerName) {
         try {
             if (state.isUndo) app.undo();
@@ -168,83 +199,107 @@ https://gorolib.blog.jp/archives/77282974.html
         } catch (err) { }
         if (tempLayerName) {
             try {
-                var tmpLay = doc.layers.getByName(tempLayerName);
-                tmpLay.remove();
+                var tempLayer = doc.layers.getByName(tempLayerName);
+                tempLayer.remove();
             } catch (err) { }
         }
     }
 
-    /* ダイアログ位置をセッション内に保存/復元 / Save & load dialog position within session */
+    /* ダイアログ位置をセッション内に復元 / Load dialog position within session */
     function loadDialogPosition() {
         try {
-            var p = $.global[DLG_POS_MEM_KEY];
-            if (p && p.length === 2) return [p[0], p[1]];
+            var savedPosition = $.global[DLG_POS_MEM_KEY];
+            if (savedPosition && savedPosition.length === 2) return [savedPosition[0], savedPosition[1]];
         } catch (e) { }
         return null;
     }
-    function saveDialogPosition(loc) {
+
+    /* ダイアログ位置をセッション内に保存 / Save dialog position within session */
+    function saveDialogPosition(location) {
         try {
-            if (!loc || loc.length !== 2) return;
-            $.global[DLG_POS_MEM_KEY] = [Math.round(loc[0]), Math.round(loc[1])];
+            if (!location || location.length !== 2) return;
+            $.global[DLG_POS_MEM_KEY] = [Math.round(location[0]), Math.round(location[1])];
         } catch (e) { }
     }
 
-    /* アイテムの境界を取得（visible/geometric） / Get item bounds */
+    /* クリップグループのクリッピングパスを取得（無ければ null） / Get clipping path of a clip group (null if none) */
+    function getClippingPath(item) {
+        if (!item) return null;
+        try {
+            if (item.typename !== "GroupItem" || !item.clipped) return null;
+            var children = item.pageItems;
+            for (var i = 0; i < children.length; i++) {
+                var child = children[i];
+                try {
+                    if (child.clipping === true) return child;
+                } catch (eClip) { }
+                /* 複合パスはマスク本体に clipping が無く、内部パスに付く / Compound path: clipping flag sits on inner path, not the wrapper */
+                if (child.typename === "CompoundPathItem" && child.pathItems && child.pathItems.length) {
+                    try { if (child.pathItems[0].clipping === true) return child; } catch (eCompound) { }
+                }
+            }
+        } catch (e) { }
+        return null;
+    }
+
+    /* アイテムの境界を取得（クリップグループはクリッピングパスを対象） / Get item bounds (clip group → its clipping path) */
     function getItemBounds(item, usePreviewBounds) {
+        var clipPath = getClippingPath(item);
+        if (clipPath) item = clipPath;
         return usePreviewBounds ? item.visibleBounds : item.geometricBounds;
     }
 
     /* 選択範囲の幅・高さスパンを取得 / Get the span of a selection */
     function getSelectionSpan(items, usePreviewBounds) {
-        var minL = null, maxR = null, maxT = null, minB = null;
+        var minLeft = null, maxRight = null, maxTop = null, minBottom = null;
         for (var i = 0; i < items.length; i++) {
-            var it = items[i];
-            if (!it) continue;
-            var b = getItemBounds(it, usePreviewBounds);
-            if (minL === null || b[0] < minL) minL = b[0];
-            if (maxR === null || b[2] > maxR) maxR = b[2];
-            if (maxT === null || b[1] > maxT) maxT = b[1];
-            if (minB === null || b[3] < minB) minB = b[3];
+            var item = items[i];
+            if (!item) continue;
+            var bounds = getItemBounds(item, usePreviewBounds);
+            if (minLeft === null || bounds[0] < minLeft) minLeft = bounds[0];
+            if (maxRight === null || bounds[2] > maxRight) maxRight = bounds[2];
+            if (maxTop === null || bounds[1] > maxTop) maxTop = bounds[1];
+            if (minBottom === null || bounds[3] < minBottom) minBottom = bounds[3];
         }
-        if (minL === null) return { spanX: 0, spanY: 0 };
-        return { spanX: (maxR - minL), spanY: (maxT - minB) };
+        if (minLeft === null) return { spanX: 0, spanY: 0 };
+        return { spanX: (maxRight - minLeft), spanY: (maxTop - minBottom) };
     }
 
     /* 自動方向判定（geometricBoundsで安定判定） / Auto-detect direction */
     function detectDirection(items) {
-        var s = getSelectionSpan(items, false);
-        return (s.spanX >= s.spanY) ? "horizontal" : "vertical";
+        var span = getSelectionSpan(items, false);
+        return (span.spanX >= span.spanY) ? "horizontal" : "vertical";
     }
 
     /* Y座標でソート（上→下、同じなら左→右） / Sort by Y (top to bottom, then left) */
     function sortByY(items) {
-        var copy = items.slice();
-        copy.sort(function (a, b) {
+        var sorted = items.slice();
+        sorted.sort(function (a, b) {
             if (a.top !== b.top) return b.top - a.top;
             return a.left - b.left;
         });
-        return copy;
+        return sorted;
     }
 
     /* X座標でソート（左→右、同じなら上→下） / Sort by X (left to right, then top) */
     function sortByX(items) {
-        var copy = items.slice();
-        copy.sort(function (a, b) {
+        var sorted = items.slice();
+        sorted.sort(function (a, b) {
             if (a.left !== b.left) return a.left - b.left;
             return b.top - a.top;
         });
-        return copy;
+        return sorted;
     }
 
     /* Fisher-Yatesでインデックス配列をシャッフル / Fisher-Yates shuffle of index array */
-    function makeShuffledIndices(length) {
-        var order = [];
-        for (var i = 0; i < length; i++) order.push(i);
-        for (var j = order.length - 1; j > 0; j--) {
+    function makeShuffledIndices(count) {
+        var indices = [];
+        for (var i = 0; i < count; i++) indices.push(i);
+        for (var j = indices.length - 1; j > 0; j--) {
             var k = Math.floor(Math.random() * (j + 1));
-            var tmp = order[j]; order[j] = order[k]; order[k] = tmp;
+            var swap = indices[j]; indices[j] = indices[k]; indices[k] = swap;
         }
-        return order;
+        return indices;
     }
 
     /* アイテム（または子孫）がテキストを含むか / Whether item (or descendants) contains text */
@@ -262,12 +317,12 @@ https://gorolib.blog.jp/archives/77282974.html
         return false;
     }
 
-    /* edittextで上下キーで数値を増減（Shiftで10刻みスナップ） / Up/Down arrow increments edittext value */
+    /* edittextで上下キーで数値を増減（Shiftで10刻みスナップ） / Up/Down arrow increments edittext value (Shift snaps to 10s) */
     function changeValueByArrowKey(editText, allowNegative, onUpdate) {
         editText.addEventListener("keydown", function (event) {
             if (editText.text.length === 0) return;
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
+            var currentValue = Number(editText.text);
+            if (isNaN(currentValue)) return;
 
             var keyboard = ScriptUI.environment.keyboardState;
             if (event.keyName == "Up" || event.keyName == "Down") {
@@ -275,24 +330,24 @@ https://gorolib.blog.jp/archives/77282974.html
                 var delta = 1;
                 if (keyboard.shiftKey) {
                     /* 10の倍数にスナップ / Snap to multiples of 10 */
-                    value = Math.floor(value / 10) * 10;
+                    currentValue = Math.floor(currentValue / 10) * 10;
                     delta = 10;
                 }
-                value += isUp ? delta : -delta;
-                if (!allowNegative && value < 0) value = 0;
+                currentValue += isUp ? delta : -delta;
+                if (!allowNegative && currentValue < 0) currentValue = 0;
 
                 event.preventDefault();
-                editText.text = value;
+                editText.text = currentValue;
                 if (typeof onUpdate === "function") onUpdate();
             }
         });
     }
 
     /* N/L/C/R/T/M/B キーで揃えラジオを切替 / Keyboard handler for align radio switching */
-    function addAlignKeyHandler(target, getDir, rbHNone, rbHLeft, rbHCenter, rbHRight, rbVNone, rbVTop, rbVMiddle, rbVBottom, onUpdate) {
+    function addAlignKeyHandler(target, getDirection, rbHNone, rbHLeft, rbHCenter, rbHRight, rbVNone, rbVTop, rbVMiddle, rbVBottom, onUpdate) {
         target.addEventListener("keydown", function (event) {
-            var k = event.keyName;
-            var dir = (typeof getDir === "function") ? getDir() : "vertical";
+            var keyName = event.keyName;
+            var direction = (typeof getDirection === "function") ? getDirection() : "vertical";
 
             function applyAndUpdate() {
                 event.preventDefault();
@@ -300,25 +355,25 @@ https://gorolib.blog.jp/archives/77282974.html
             }
 
             /* "なし" は両方向共通 / "None" works for both axes */
-            if (k === "N") {
-                if (dir === "horizontal") rbVNone.value = true;
+            if (keyName === "N") {
+                if (direction === "horizontal") rbVNone.value = true;
                 else rbHNone.value = true;
                 applyAndUpdate();
                 return;
             }
 
             /* 縦並び: L/C/R で左右揃え / Vertical stacking: L/C/R for horizontal alignment */
-            if (dir !== "horizontal") {
-                if (k === "L") { rbHLeft.value = true; applyAndUpdate(); return; }
-                if (k === "C") { rbHCenter.value = true; applyAndUpdate(); return; }
-                if (k === "R") { rbHRight.value = true; applyAndUpdate(); return; }
+            if (direction !== "horizontal") {
+                if (keyName === "L") { rbHLeft.value = true; applyAndUpdate(); return; }
+                if (keyName === "C") { rbHCenter.value = true; applyAndUpdate(); return; }
+                if (keyName === "R") { rbHRight.value = true; applyAndUpdate(); return; }
                 return;
             }
 
             /* 横並び: T/M/B で上下揃え / Horizontal stacking: T/M/B for vertical alignment */
-            if (k === "T") { rbVTop.value = true; applyAndUpdate(); return; }
-            if (k === "M") { rbVMiddle.value = true; applyAndUpdate(); return; }
-            if (k === "B") { rbVBottom.value = true; applyAndUpdate(); return; }
+            if (keyName === "T") { rbVTop.value = true; applyAndUpdate(); return; }
+            if (keyName === "M") { rbVMiddle.value = true; applyAndUpdate(); return; }
+            if (keyName === "B") { rbVBottom.value = true; applyAndUpdate(); return; }
         });
     }
 
@@ -343,45 +398,45 @@ https://gorolib.blog.jp/archives/77282974.html
         } catch (e) { }
     }
 
-    /* 複製してアウトライン化した境界を計測（cacheに保存） / Measure outlined bounds with cache */
-    function measureOutlineBoundsOnce(originalItem, cache) {
+    /* 複製してアウトライン化した境界を計測（boundsCacheに保存して再利用） / Measure outlined bounds once, cached for reuse */
+    function measureOutlineBoundsOnce(originalItem, boundsCache) {
         if (!originalItem) return null;
 
-        for (var i = 0; i < cache.length; i++) {
-            if (cache[i].ref === originalItem) return cache[i].b;
+        for (var i = 0; i < boundsCache.length; i++) {
+            if (boundsCache[i].item === originalItem) return boundsCache[i].bounds;
         }
         if (!containerHasText(originalItem)) return null;
 
         var doc = activeDocument;
-        var tempGroup = null;
+        var measureGroup = null;
         try {
             var layer = null;
             try { layer = originalItem.layer; } catch (eLayer) { }
             if (!layer) layer = doc.activeLayer;
-            tempGroup = layer.groupItems.add();
-            try { tempGroup.name = "__SAT_TempMeasure__"; } catch (_) { }
+            measureGroup = layer.groupItems.add();
+            try { measureGroup.name = "__SAT_TempMeasure__"; } catch (_) { }
 
-            var dup = null;
+            var duplicatedItem = null;
             try {
-                dup = originalItem.duplicate(tempGroup, ElementPlacement.PLACEATEND);
+                duplicatedItem = originalItem.duplicate(measureGroup, ElementPlacement.PLACEATEND);
             } catch (eDup) {
-                dup = originalItem.duplicate();
-                try { dup.move(tempGroup, ElementPlacement.PLACEATEND); } catch (_) { }
+                duplicatedItem = originalItem.duplicate();
+                try { duplicatedItem.move(measureGroup, ElementPlacement.PLACEATEND); } catch (_) { }
             }
 
-            outlineAllTextInContainer(dup);
+            outlineAllTextInContainer(duplicatedItem);
 
-            var b = null;
-            try { b = tempGroup.visibleBounds; }
-            catch (eB) { try { b = tempGroup.geometricBounds; } catch (eB2) { } }
-            if (!b) return null;
+            var bounds = null;
+            try { bounds = measureGroup.visibleBounds; }
+            catch (eVisible) { try { bounds = measureGroup.geometricBounds; } catch (eGeometric) { } }
+            if (!bounds) return null;
 
-            cache.push({ ref: originalItem, b: [b[0], b[1], b[2], b[3]] });
-            return [b[0], b[1], b[2], b[3]];
+            boundsCache.push({ item: originalItem, bounds: [bounds[0], bounds[1], bounds[2], bounds[3]] });
+            return [bounds[0], bounds[1], bounds[2], bounds[3]];
         } catch (e) {
             return null;
         } finally {
-            try { if (tempGroup) tempGroup.remove(); } catch (eRm) { }
+            try { if (measureGroup) measureGroup.remove(); } catch (eRemove) { }
         }
     }
 
@@ -389,75 +444,75 @@ https://gorolib.blog.jp/archives/77282974.html
     // レイアウト適用 / Layout application
     // =========================================
 
-    /* ソート/シャッフルしたアイテムと、ランダム時の基準位置 / Sorted-or-shuffled items + random base */
-    function buildArrangementOrder(items, direction, useRandom, prevRandomCache) {
-        var result = { items: [], baseLeft: null, baseTop: null, cache: prevRandomCache };
+    /* ソート/シャッフルしたアイテムと、ランダム時の基準位置を返す / Return sorted-or-shuffled items + random base position */
+    function buildArrangementOrder(items, direction, useRandom, previousShuffleOrder) {
+        var arrangement = { items: [], baseLeft: null, baseTop: null, shuffleOrder: previousShuffleOrder };
 
         if (useRandom) {
-            if (!result.cache || result.cache.length !== items.length) {
-                result.cache = makeShuffledIndices(items.length);
+            if (!arrangement.shuffleOrder || arrangement.shuffleOrder.length !== items.length) {
+                arrangement.shuffleOrder = makeShuffledIndices(items.length);
             }
-            for (var si = 0; si < result.cache.length; si++) {
-                result.items.push(items[result.cache[si]]);
+            for (var si = 0; si < arrangement.shuffleOrder.length; si++) {
+                arrangement.items.push(items[arrangement.shuffleOrder[si]]);
             }
             /* ランダム時は元の左上を基準として保持 / Preserve top-left base for random */
             for (var k = 0; k < items.length; k++) {
-                var it = items[k];
-                if (!it) continue;
-                if (result.baseLeft === null || it.left < result.baseLeft) result.baseLeft = it.left;
-                if (result.baseTop === null || it.top > result.baseTop) result.baseTop = it.top;
+                var item = items[k];
+                if (!item) continue;
+                if (arrangement.baseLeft === null || item.left < arrangement.baseLeft) arrangement.baseLeft = item.left;
+                if (arrangement.baseTop === null || item.top > arrangement.baseTop) arrangement.baseTop = item.top;
             }
-            if (result.baseLeft === null && result.items[0]) result.baseLeft = result.items[0].left;
-            if (result.baseTop === null && result.items[0]) result.baseTop = result.items[0].top;
+            if (arrangement.baseLeft === null && arrangement.items[0]) arrangement.baseLeft = arrangement.items[0].left;
+            if (arrangement.baseTop === null && arrangement.items[0]) arrangement.baseTop = arrangement.items[0].top;
         } else {
-            result.cache = null;
-            result.items = (direction === "horizontal") ? sortByX(items) : sortByY(items);
+            arrangement.shuffleOrder = null;
+            arrangement.items = (direction === "horizontal") ? sortByX(items) : sortByY(items);
         }
-        return result;
+        return arrangement;
     }
 
-    /* 最大幅 / Max item width */
+    /* アイテム群の最大幅を計算 / Compute the max item width */
     function computeMaxWidth(items, getBounds) {
-        var max = 0;
+        var maxWidth = 0;
         for (var i = 0; i < items.length; i++) {
-            var b = getBounds(items[i]);
-            var w = b[2] - b[0];
-            if (w > max) max = w;
+            var bounds = getBounds(items[i]);
+            var width = bounds[2] - bounds[0];
+            if (width > maxWidth) maxWidth = width;
         }
-        return max;
+        return maxWidth;
     }
 
-    /* 最大高さ / Max item height */
+    /* アイテム群の最大高さを計算 / Compute the max item height */
     function computeMaxHeight(items, getBounds) {
-        var max = 0;
+        var maxHeight = 0;
         for (var i = 0; i < items.length; i++) {
-            var b = getBounds(items[i]);
-            var h = b[1] - b[3];
-            if (h > max) max = h;
+            var bounds = getBounds(items[i]);
+            var height = bounds[1] - bounds[3];
+            if (height > maxHeight) maxHeight = height;
         }
-        return max;
+        return maxHeight;
     }
 
-    /* 横並び配置（左→右） / Horizontal placement (left → right) */
-    function applyHorizontalLayout(items, startX, startY, refHeight, spacingPt, vAlignMode, getBounds) {
+    /* 横並び配置（左→右、上下揃えを適用） / Horizontal placement (left → right, with vertical align) */
+    function applyHorizontalLayout(items, startX, startY, referenceHeight, spacingPt, vAlignMode, getBounds) {
         var currentX = startX;
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
             if (!item) continue;
-            var b = getBounds(item);
-            var itemWidth = b[2] - b[0];
+            var bounds = getBounds(item);
+            var itemWidth = bounds[2] - bounds[0];
 
             /* Xは左基準で配置 / Place by left edge on X */
-            item.left = item.left + (currentX - b[0]);
+            item.left = item.left + (currentX - bounds[0]);
 
             /* 上下揃え / Vertical alignment */
             if (vAlignMode !== "none") {
                 var cellTop = startY;
-                var cellBottom = startY - refHeight;
+                var cellBottom = startY - referenceHeight;
                 var dy = 0;
-                if (vAlignMode === "middle") dy = ((cellTop + cellBottom) / 2) - ((b[1] + b[3]) / 2);
-                else if (vAlignMode === "bottom") dy = cellBottom - b[3];
-                else dy = cellTop - b[1]; /* top */
+                if (vAlignMode === "middle") dy = ((cellTop + cellBottom) / 2) - ((bounds[1] + bounds[3]) / 2);
+                else if (vAlignMode === "bottom") dy = cellBottom - bounds[3];
+                else dy = cellTop - bounds[1]; /* top */
                 item.top = item.top + dy;
             }
 
@@ -467,28 +522,28 @@ https://gorolib.blog.jp/archives/77282974.html
         }
     }
 
-    /* 縦並び配置（上→下） / Vertical placement (top → bottom) */
-    function applyVerticalLayout(items, startX, startY, refWidth, spacingPt, hAlignMode, getBounds) {
+    /* 縦並び配置（上→下、左右揃えを適用） / Vertical placement (top → bottom, with horizontal align) */
+    function applyVerticalLayout(items, startX, startY, referenceWidth, spacingPt, hAlignMode, getBounds) {
         var currentY = startY;
         for (var i = 0; i < items.length; i++) {
             var item = items[i];
             if (!item) continue;
-            var b = getBounds(item);
-            var itemHeight = b[1] - b[3];
+            var bounds = getBounds(item);
+            var itemHeight = bounds[1] - bounds[3];
 
             /* 左右揃え / Horizontal alignment */
             if (hAlignMode !== "none") {
                 var cellLeft = startX;
-                var cellRight = cellLeft + refWidth;
+                var cellRight = cellLeft + referenceWidth;
                 var dx = 0;
-                if (hAlignMode === "center") dx = ((cellLeft + cellRight) / 2) - ((b[0] + b[2]) / 2);
-                else if (hAlignMode === "right") dx = cellRight - b[2];
-                else dx = cellLeft - b[0]; /* left */
+                if (hAlignMode === "center") dx = ((cellLeft + cellRight) / 2) - ((bounds[0] + bounds[2]) / 2);
+                else if (hAlignMode === "right") dx = cellRight - bounds[2];
+                else dx = cellLeft - bounds[0]; /* left */
                 item.left = item.left + dx;
             }
 
             /* YはTop揃えで積む / Stack by top on Y */
-            item.top = item.top + (currentY - b[1]);
+            item.top = item.top + (currentY - bounds[1]);
 
             if (i < items.length - 1) {
                 currentY -= itemHeight + spacingPt;
@@ -512,14 +567,15 @@ https://gorolib.blog.jp/archives/77282974.html
     // ダイアログ / Dialog
     // =========================================
 
+    /* メインダイアログを構築して整列/分布を実行 / Build the main dialog and run align/distribute */
     function showArrangeDialog() {
-        var dlg = new Window("dialog", L('dialogTitle') + ' ' + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = "fill";
-        dlg.opacity = dialogOpacity;
+        var dialog = new Window("dialog", L('dialog.title') + ' ' + SCRIPT_VERSION);
+        dialog.orientation = "column";
+        dialog.alignChildren = "fill";
+        dialog.opacity = dialogOpacity;
 
-        var lastPos = loadDialogPosition();
-        if (lastPos) dlg.location = lastPos;
+        var lastPosition = loadDialogPosition();
+        if (lastPosition) dialog.location = lastPosition;
 
         /* キャンセル時に復元するため現在のプリファレンスを保存 / Preserve preference for cancel */
         var originalIncludeStrokeInBounds = app.preferences.getBooleanPreference("includeStrokeInBounds");
@@ -527,7 +583,7 @@ https://gorolib.blog.jp/archives/77282974.html
         /* 選択スナップショット / Snapshot selection */
         var originalSelection = activeDocument.selection.slice();
         var previewState = { isUndo: false };
-        var detectedDir = detectDirection(originalSelection);
+        var detectedDirection = detectDirection(originalSelection);
 
         /* 選択にテキストが含まれているか / Whether selection contains any text */
         var selectionHasText = false;
@@ -536,23 +592,24 @@ https://gorolib.blog.jp/archives/77282974.html
         }
 
         /* ---- UI: 方向 / Direction ---- */
-        var directionPanel = dlg.add("panel", undefined, L('directionPanel'));
+        var directionPanel = dialog.add("panel", undefined, L('direction.panel'));
         directionPanel.orientation = "row";
         directionPanel.alignChildren = ["center", "center"];
         directionPanel.margins = [15, 20, 15, 10];
-        var rbDirAuto = directionPanel.add("radiobutton", undefined, L('dirAuto'));
-        var rbDirV = directionPanel.add("radiobutton", undefined, L('dirVertical'));
-        var rbDirH = directionPanel.add("radiobutton", undefined, L('dirHorizontal'));
-        rbDirV.value = true; /* デフォルトを「縦」に / Default to Vertical */
+        var rbDirAuto = directionPanel.add("radiobutton", undefined, L('direction.auto'));
+        var rbDirVertical = directionPanel.add("radiobutton", undefined, L('direction.vertical'));
+        var rbDirHorizontal = directionPanel.add("radiobutton", undefined, L('direction.horizontal'));
+        rbDirVertical.value = true; /* デフォルトを「縦」に / Default to Vertical */
 
+        /* 選択中のラジオから実効方向を返す（自動は判定結果） / Resolve effective direction from radios (auto → detected) */
         function getEffectiveDirection() {
-            if (rbDirV.value) return "vertical";
-            if (rbDirH.value) return "horizontal";
-            return detectedDir;
+            if (rbDirVertical.value) return "vertical";
+            if (rbDirHorizontal.value) return "horizontal";
+            return detectedDirection;
         }
 
         /* ---- UI: 間隔 / Spacing ---- */
-        var spacingPanel = dlg.add("panel", undefined, L('spacingLabel'));
+        var spacingPanel = dialog.add("panel", undefined, L('spacing.label'));
         spacingPanel.orientation = "column";
         spacingPanel.alignChildren = ["center", "center"];
         spacingPanel.margins = [15, 20, 15, 10];
@@ -561,11 +618,12 @@ https://gorolib.blog.jp/archives/77282974.html
         spacingRow.alignChildren = ["left", "center"];
         var spacingInput = spacingRow.add("edittext", undefined, "0");
         spacingInput.characters = 3;
+        spacingInput.helpTip = L('spacing.tip');
         spacingRow.add("statictext", undefined, getCurrentUnitLabel());
         changeValueByArrowKey(spacingInput, true, function () { requestPreviewUpdate(); });
 
         /* ---- UI: 揃え / Alignment ---- */
-        var alignPanel = dlg.add("panel", undefined, "");
+        var alignPanel = dialog.add("panel", undefined, "");
         alignPanel.orientation = "column";
         alignPanel.alignChildren = ["left", "center"];
         alignPanel.margins = [15, 20, 15, 10];
@@ -573,19 +631,19 @@ https://gorolib.blog.jp/archives/77282974.html
         var hAlignGroup = alignPanel.add("group");
         hAlignGroup.orientation = "row";
         hAlignGroup.alignChildren = ["left", "center"];
-        var rbHNone = hAlignGroup.add("radiobutton", undefined, L('hAlignNone'));
-        var rbHLeft = hAlignGroup.add("radiobutton", undefined, L('hAlignLeft'));
-        var rbHCenter = hAlignGroup.add("radiobutton", undefined, L('hAlignCenter'));
-        var rbHRight = hAlignGroup.add("radiobutton", undefined, L('hAlignRight'));
+        var rbHNone = hAlignGroup.add("radiobutton", undefined, L('align.hNone'));
+        var rbHLeft = hAlignGroup.add("radiobutton", undefined, L('align.hLeft'));
+        var rbHCenter = hAlignGroup.add("radiobutton", undefined, L('align.hCenter'));
+        var rbHRight = hAlignGroup.add("radiobutton", undefined, L('align.hRight'));
         rbHCenter.value = true; /* デフォルトを「中央」に / Default to Center */
 
         var vAlignGroup = alignPanel.add("group");
         vAlignGroup.orientation = "row";
         vAlignGroup.alignChildren = ["left", "center"];
-        var rbVNone = vAlignGroup.add("radiobutton", undefined, L('vAlignNone'));
-        var rbVTop = vAlignGroup.add("radiobutton", undefined, L('vAlignTop'));
-        var rbVMiddle = vAlignGroup.add("radiobutton", undefined, L('vAlignMiddle'));
-        var rbVBottom = vAlignGroup.add("radiobutton", undefined, L('vAlignBottom'));
+        var rbVNone = vAlignGroup.add("radiobutton", undefined, L('align.vNone'));
+        var rbVTop = vAlignGroup.add("radiobutton", undefined, L('align.vTop'));
+        var rbVMiddle = vAlignGroup.add("radiobutton", undefined, L('align.vMiddle'));
+        var rbVBottom = vAlignGroup.add("radiobutton", undefined, L('align.vBottom'));
         rbVMiddle.value = true;
 
         rbVNone.onClick = function () { requestPreviewUpdate(); };
@@ -598,48 +656,51 @@ https://gorolib.blog.jp/archives/77282974.html
         rbHNone.onClick = function () { requestPreviewUpdate(); };
 
         /* ---- UI: オプション / Options ---- */
-        var optionsGroup = dlg.add("group");
+        var optionsGroup = dialog.add("group");
         optionsGroup.orientation = "column";
         optionsGroup.alignChildren = ["left", "center"];
         optionsGroup.alignment = ["fill", "top"];
         optionsGroup.margins = [15, 5, 15, 5];
 
-        var usePreviewBoundsCheckbox = optionsGroup.add("checkbox", undefined, L('useBounds'));
+        var usePreviewBoundsCheckbox = optionsGroup.add("checkbox", undefined, L('options.useBounds'));
         usePreviewBoundsCheckbox.value = true;
+        usePreviewBoundsCheckbox.helpTip = L('options.useBoundsTip');
         usePreviewBoundsCheckbox.onClick = function () {
             /* 境界モードが変わるとアウトライン計測結果も再計算 / Outline cache invalid when bounds mode changes */
             outlineMeasureCache = [];
             requestPreviewUpdate();
         };
 
-        var measureTextOutlineCheckbox = optionsGroup.add("checkbox", undefined, L('measureTextOutline'));
+        var measureTextOutlineCheckbox = optionsGroup.add("checkbox", undefined, L('options.measureText'));
         measureTextOutlineCheckbox.value = false;
-        measureTextOutlineCheckbox.helpTip = L('measureTextOutlineTip');
+        measureTextOutlineCheckbox.helpTip = L('options.measureTextTip');
 
-        var randomCheckbox = optionsGroup.add("checkbox", undefined, L('random'));
+        var randomCheckbox = optionsGroup.add("checkbox", undefined, L('options.random'));
         randomCheckbox.value = false;
+        randomCheckbox.helpTip = L('options.randomTip');
 
         /* ---- UI: ボタン / Buttons ---- */
-        var buttonGroup = dlg.add("group");
+        var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "center";
         buttonGroup.alignChildren = ["center", "center"];
-        buttonGroup.add("button", undefined, L('cancel'), { name: "cancel" });
+        buttonGroup.add("button", undefined, L('common.cancel'), { name: "cancel" });
         buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
         /* ---- 内部状態 / Internal state ---- */
         var randomOrderCache = null;
-        var outlineMeasureCache = []; /* [{ref:PageItem, b:[l,t,r,b]}] */
+        var outlineMeasureCache = []; /* [{item:PageItem, bounds:[l,t,r,b]}] */
 
-        /* レイアウト用に境界を取得（必要なら計測キャッシュ経由） / Get bounds for layout (with optional outline cache) */
+        /* レイアウト用に境界を取得（縦並び時はテキスト計測キャッシュ経由） / Get bounds for layout (outline cache when vertical) */
         function getBoundsForLayout(item) {
-            var dir = getEffectiveDirection();
-            if (measureTextOutlineCheckbox.value && dir !== "horizontal") {
-                var ob = measureOutlineBoundsOnce(item, outlineMeasureCache);
-                if (ob) return ob;
+            var direction = getEffectiveDirection();
+            if (measureTextOutlineCheckbox.value && direction !== "horizontal") {
+                var outlinedBounds = measureOutlineBoundsOnce(item, outlineMeasureCache);
+                if (outlinedBounds) return outlinedBounds;
             }
             return getItemBounds(item, usePreviewBoundsCheckbox.value);
         }
 
+        /* 左右揃えモードを取得 / Get horizontal align mode */
         function getHAlignMode() {
             if (rbHNone.value) return "none";
             if (rbHCenter.value) return "center";
@@ -647,6 +708,7 @@ https://gorolib.blog.jp/archives/77282974.html
             return "left";
         }
 
+        /* 上下揃えモードを取得 / Get vertical align mode */
         function getVAlignMode() {
             if (rbVNone.value) return "none";
             if (rbVMiddle.value) return "middle";
@@ -654,23 +716,24 @@ https://gorolib.blog.jp/archives/77282974.html
             return "top";
         }
 
+        /* 入力値を現在の単位からポイントへ換算 / Convert input value from current unit to points */
         function getSpacingPt() {
-            var v = parseFloat(spacingInput.text);
-            if (isNaN(v)) v = 0;
+            var spacingValue = parseFloat(spacingInput.text);
+            if (isNaN(spacingValue)) spacingValue = 0;
             var unitCode = app.preferences.getIntegerPreference("rulerType");
-            return v * getPtFactorFromUnitCode(unitCode);
+            return spacingValue * getPtFactorFromUnitCode(unitCode);
         }
 
-        /* レイアウト適用 / Apply layout to current selection */
+        /* 現在の設定で選択にレイアウトを適用 / Apply layout to current selection with current settings */
         function applyLayoutToSelection() {
             if (!originalSelection || originalSelection.length === 0) return;
 
             var direction = getEffectiveDirection();
             var spacingPt = getSpacingPt();
 
-            var order = buildArrangementOrder(originalSelection, direction, randomCheckbox.value, randomOrderCache);
-            randomOrderCache = order.cache;
-            var items = order.items;
+            var arrangement = buildArrangementOrder(originalSelection, direction, randomCheckbox.value, randomOrderCache);
+            randomOrderCache = arrangement.shuffleOrder;
+            var items = arrangement.items;
             if (!items.length) return;
 
             var startBounds = getBoundsForLayout(items[0]);
@@ -678,45 +741,47 @@ https://gorolib.blog.jp/archives/77282974.html
             var startY = startBounds[1];
 
             if (direction === "horizontal") {
-                var refHeight = computeMaxHeight(items, getBoundsForLayout);
-                applyHorizontalLayout(items, startX, startY, refHeight, spacingPt, getVAlignMode(), getBoundsForLayout);
+                var referenceHeight = computeMaxHeight(items, getBoundsForLayout);
+                applyHorizontalLayout(items, startX, startY, referenceHeight, spacingPt, getVAlignMode(), getBoundsForLayout);
             } else {
-                var refWidth = computeMaxWidth(items, getBoundsForLayout);
-                applyVerticalLayout(items, startX, startY, refWidth, spacingPt, getHAlignMode(), getBoundsForLayout);
+                var referenceWidth = computeMaxWidth(items, getBoundsForLayout);
+                applyVerticalLayout(items, startX, startY, referenceWidth, spacingPt, getHAlignMode(), getBoundsForLayout);
             }
 
             if (randomCheckbox.value) {
-                applyRandomBaseOffset(items, order.baseLeft, order.baseTop);
+                applyRandomBaseOffset(items, arrangement.baseLeft, arrangement.baseTop);
             }
         }
 
-        /* ---- 揃えパネル/オプションの有効状態を同期 / Sync enabled state of align panel & options ---- */
+        /* 方向に応じて揃えパネル/オプションの有効状態を同期 / Sync enabled state of align panel & options to direction */
         function syncAlignUI() {
-            var d = getEffectiveDirection();
+            var direction = getEffectiveDirection();
             hAlignGroup.visible = true;
             vAlignGroup.visible = true;
 
-            if (d === "horizontal") {
-                alignPanel.text = L('alignV');
+            if (direction === "horizontal") {
+                alignPanel.text = L('align.verticalTitle');
                 hAlignGroup.enabled = false;
                 vAlignGroup.enabled = true;
             } else {
-                alignPanel.text = L('alignH');
+                alignPanel.text = L('align.horizontalTitle');
                 hAlignGroup.enabled = true;
                 vAlignGroup.enabled = false;
             }
 
             /* テキスト計測は縦並び時かつ選択にテキストがある場合のみ有効 / Enable text-measure only when vertical & selection has text */
             try {
-                measureTextOutlineCheckbox.enabled = (d !== "horizontal") && selectionHasText;
+                measureTextOutlineCheckbox.enabled = (direction !== "horizontal") && selectionHasText;
             } catch (e) { }
 
-            try { dlg.layout.layout(true); } catch (e) { }
+            try { dialog.layout.layout(true); } catch (e) { }
         }
 
         /* ---- プレビュー更新（前回 preview を app.undo() で巻き戻して再生成） / Preview update via app.undo() ---- */
         var __isPreviewUpdating = false;
         var __lastPreviewAt = 0;
+
+        /* 連続呼び出しを間引きつつプレビューを再描画 / Re-render preview, throttled against rapid calls */
         function updatePreview() {
             if (__isPreviewUpdating) return;
             var now = new Date().getTime();
@@ -748,13 +813,14 @@ https://gorolib.blog.jp/archives/77282974.html
         }
 
         /* ---- イベントバインド / Event bindings ---- */
-        addAlignKeyHandler(dlg, getEffectiveDirection, rbHNone, rbHLeft, rbHCenter, rbHRight, rbVNone, rbVTop, rbVMiddle, rbVBottom, requestPreviewUpdate);
+        addAlignKeyHandler(dialog, getEffectiveDirection, rbHNone, rbHLeft, rbHCenter, rbHRight, rbVNone, rbVTop, rbVMiddle, rbVBottom, requestPreviewUpdate);
         addAlignKeyHandler(spacingInput, getEffectiveDirection, rbHNone, rbHLeft, rbHCenter, rbHRight, rbVNone, rbVTop, rbVMiddle, rbVBottom, requestPreviewUpdate);
 
+        /* 方向変更時に揃えUIを同期してプレビュー更新 / On direction change, sync align UI and refresh preview */
         function onDirChanged() { syncAlignUI(); requestPreviewUpdate(); }
         rbDirAuto.onClick = onDirChanged;
-        rbDirV.onClick = onDirChanged;
-        rbDirH.onClick = onDirChanged;
+        rbDirVertical.onClick = onDirChanged;
+        rbDirHorizontal.onClick = onDirChanged;
 
         randomCheckbox.onClick = function () {
             randomOrderCache = null;
@@ -771,11 +837,11 @@ https://gorolib.blog.jp/archives/77282974.html
         requestPreviewUpdate();
         spacingInput.active = true;
 
-        var dlgResult = dlg.show();
+        var dialogResult = dialog.show();
         try { if (__previewTaskId) app.cancelTask(__previewTaskId); } catch (e) { }
-        saveDialogPosition(dlg.location);
+        saveDialogPosition(dialog.location);
 
-        if (dlgResult !== 1) {
+        if (dialogResult !== 1) {
             /* キャンセル: プレビューを undo してプリファレンスも戻す / Cancel: undo preview & restore preference */
             cleanupPreview(previewState, activeDocument);
             app.preferences.setBooleanPreference("includeStrokeInBounds", originalIncludeStrokeInBounds);
@@ -795,16 +861,17 @@ https://gorolib.blog.jp/archives/77282974.html
     // メイン / Main
     // =========================================
 
+    /* 選択を検証してダイアログを起動 / Validate selection and launch the dialog */
     function main() {
         try {
             var selectedItems = activeDocument.selection;
             if (!selectedItems || selectedItems.length === 0) {
-                alert(L('needSelection'));
+                alert(L('error.needSelection'));
                 return;
             }
             showArrangeDialog();
         } catch (e) {
-            alert(L('errorPrefix') + e.message);
+            alert(L('error.prefix') + e.message);
         }
     }
 
