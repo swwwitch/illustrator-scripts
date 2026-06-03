@@ -8,49 +8,104 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   ArtboardNavigator.jsx
   アートボード間をなめらかにズーム移動する Illustrator 用パレット。
 
-  ■ ナビゲーションボタン（左から）
-  ・|<  … 最初のアートボードへ
+  ### ナビゲーションボタン（左から）
+
+  ・|<  … 最初のアートボードへ（先頭にいるときは無効・グレーアウト）
   ・<   … 前のアートボードへ（端で循環、Ctrl+Shift+Opt+←）
   ・■■ … 全アートボードを画面に収めて表示（Ctrl+Shift+Opt+↑）
   ・>   … 次のアートボードへ（端で循環、Ctrl+Shift+Opt+→）
-  ・>|  … 最後のアートボードへ
+  ・>|  … 最後のアートボードへ（最終にいるときは無効・グレーアウト）
+  ・ボタンはクリック中だけ明るさが少し変化（押下フィードバック）
 
-  ■ オプションパネル
+  ### オプションパネル
+
   ・アニメーション … OFF で補間せず瞬時に切り替え（以降の項目はディム表示）
   ・スピード       … 移動アニメーションの速さ（右ほど速い＝ステップ数を削減）
   ・イーズアウト   … ON で easeOut の加減速、OFF で等速移動
-  ・Preziモード    … 前後移動の中盤で一度ズームを引いてから寄せる
-  ・俯瞰の強さ     … Prezi モードで引くズーム量（0〜1、中央 0.5）
+  ・Preziライクモード … 前後移動の中盤で一度ズームを引いてから寄せる
+  ・俯瞰の強さ        … Prezi ライクモードで引くズーム量（0〜1、中央 0.5）
+  ・アートボード名を表示 … ON のときだけ移動先にラベルを描画（OFF は描画もレイヤー作成もしない）
 
-  ■ アートボード一覧
+  ### アートボード一覧
+
   ・チェックボックスで一覧の表示／非表示を切り替え（OFF はパレットを縮めて領域も確保しない）
   ・一覧（番号｜名前）… 行をクリックでそのアートボードへ移動
   ・パレットはリサイズ可能（一覧が追従して広がる）
 
+  ### アートボードラベル（「アートボード名を表示」ON のとき）
+
+  ・個別のアートボードへ移動した直後、その左上に「番号：アートボード名」を表示
+  ・テキストは白／HiraginoSans-W6、背景は黒の長方形
+  ・文字サイズ・背景／文字の不透明度はスクリプト先頭の変数で調整可能
+  ・専用レイヤー "ArtboardNavigator"（ロックON・プリントOFF）に描画し、切替ごとに作り直す
+  ・全体表示・「アートボード名を表示」OFF・パレットを閉じるときは、このレイヤーごと削除
+  ・一覧の選択はクリック時にパレット側で確定（BridgeTalk の onResult に依存しない）
+
   目標ズームは view.bounds から数式で算出し、開始前のタイムラグを抑える。
   実際のビュー操作・アニメーションは BridgeTalk でメインエンジンへ送って実行する。
+
+  ### 謝辞
+　
+  古島佑起さん
+  BridgeTalk のワーカー登録と呼び出しの仕組み、アートボードラベルの描画方法など、多くのアイデアとコードを提供していただきました。
+  https://note.com/yukifurushima/n/n9f2078dc156f
+
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.2.0";
 
 (function () {
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    var currentLanguage = ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
+
+    var LABELS = {
+        alertIllustrator:  { ja: "Adobe Illustratorで実行してください。", en: "Please run this in Adobe Illustrator." },
+        alertNeedArtboards:{ ja: "アートボードが2つ以上あるドキュメントで実行してください。", en: "Please run this on a document with two or more artboards." },
+        scriptName:        { ja: "アートボードナビゲーター", en: "Artboard Navigator" },
+        tipFirst:          { ja: "最初のアートボードへ", en: "First artboard" },
+        tipPrev:           { ja: "前のアートボードへ (Ctrl+Shift+Opt+←)", en: "Previous artboard (Ctrl+Shift+Opt+←)" },
+        tipList:           { ja: "全アートボードを一覧表示 (Ctrl+Shift+Opt+↑)", en: "Fit all artboards (Ctrl+Shift+Opt+↑)" },
+        tipNext:           { ja: "次のアートボードへ (Ctrl+Shift+Opt+→)", en: "Next artboard (Ctrl+Shift+Opt+→)" },
+        tipLast:           { ja: "最後のアートボードへ", en: "Last artboard" },
+        panelOptions:      { ja: "オプション", en: "Options" },
+        animation:         { ja: "アニメーション", en: "Animation" },
+        speed:             { ja: "スピード", en: "Speed" },
+        ease:              { ja: "イーズアウト", en: "Ease Out" },
+        prezi:             { ja: "Preziライクモード", en: "Prezi-like mode" },
+        preziDip:          { ja: "俯瞰の強さ", en: "Zoom-out amount" },
+        showLabel:         { ja: "アートボード名を表示", en: "Show artboard name" },
+        listVisible:       { ja: "アートボード一覧", en: "Artboard list" },
+        columnNumber:      { ja: "番号", en: "No." },
+        columnName:        { ja: "アートボード名", en: "Artboard name" }
+    };
+
+    function L(key) {
+        if (LABELS[key] && LABELS[key][currentLanguage]) {
+            return LABELS[key][currentLanguage];
+        }
+        return key;
+    }
+
     if (app.name !== "Adobe Illustrator") {
-        alert("Adobe Illustratorで実行してください。");
+        alert(L("alertIllustrator"));
         return;
     }
 
     // 単一アートボード（または2つ未満）のときはパレットを出さずに終了
     // Exit without showing the palette unless there are 2+ artboards
     if (app.documents.length === 0 || app.activeDocument.artboards.length < 2) {
-        alert("アートボードが2つ以上あるドキュメントで実行してください。");
+        alert(L("alertNeedArtboards"));
         return;
     }
 
-    var SCRIPT_NAME = "アートボードナビゲーター " + SCRIPT_VERSION;
+    var SCRIPT_NAME = L("scriptName") + " " + SCRIPT_VERSION;
     var PREF_FILE = new File(Folder.userData + "/ArtboardNavigator/palette-position.txt");
     var SETTINGS_FILE = new File(Folder.userData + "/ArtboardNavigator/settings.txt");
 
@@ -71,6 +126,15 @@ var SCRIPT_VERSION = "v1.1.0";
 
     // Prezi モードで途中に下げるズーム比率（0=引かない 〜 1=最大、中央 0.5）
     var preziDipRatio = settingNumber(savedSettings, "preziDip", 0.2, 0, 1);
+
+    // アートボードラベルの見た目（ここで自由に調整できる） / Tunable label appearance
+    var LABEL_BACKGROUND_OPACITY = 80; // 背景の長方形の不透明度（%）
+    var LABEL_TEXT_OPACITY = 100;      // アートボード名（文字）の不透明度（%）
+    var LABEL_FONT_RATIO = 0.03;       // 文字サイズ＝アートボード幅 × この比率
+
+    // ボタンの配色は環境設定「ユーザーインターフェイスの明るさ」に追従
+    // 明るいUI = 白バック・枠線・黒記号 / 暗いUI = 黒バック・白記号（従来）
+    var useLightButtons = isLightUI();
 
     /* スピード値（1〜10）をステップ数に変換 / Convert a speed value (1-10) to a step count */
     function speedToStepCount(speed) {
@@ -100,13 +164,19 @@ var SCRIPT_VERSION = "v1.1.0";
         $.global.artboardNavigatorJobs = [];
     }
 
+    // ラベルは worker（メインエンジン）が専用レイヤー（ロックON・プリントOFF）へ描画し、
+    // 切替ごとに作り直す。OFF・全体表示・閉じる時はレイヤーごと削除する。
+
     var navButtonDefinitions = [
-        { tip: "最初のアートボードへ", icon: "first", command: "first" },
-        { tip: "前のアートボードへ (Ctrl+Shift+Opt+←)", icon: "prev", command: "prev" },
-        { tip: "全アートボードを一覧表示 (Ctrl+Shift+Opt+↑)", icon: "list", command: "list" },
-        { tip: "次のアートボードへ (Ctrl+Shift+Opt+→)", icon: "next", command: "next" },
-        { tip: "最後のアートボードへ", icon: "last", command: "last" }
+        { tip: L("tipFirst"), icon: "first", command: "first" },
+        { tip: L("tipPrev"), icon: "prev", command: "prev" },
+        { tip: L("tipList"), icon: "list", command: "list" },
+        { tip: L("tipNext"), icon: "next", command: "next" },
+        { tip: L("tipLast"), icon: "last", command: "last" }
     ];
+
+    // コマンド名 → ボタンの対応（先頭／最終ボタンの有効・無効切替に使う）
+    var navButtonsByCommand = {};
 
     // =========================================================
     // パレット
@@ -133,14 +203,14 @@ var SCRIPT_VERSION = "v1.1.0";
     }
 
     // オプション設定パネル / Options panel
-    var optionsPanel = paletteWindow.add("panel", undefined, "オプション");
+    var optionsPanel = paletteWindow.add("panel", undefined, L("panelOptions"));
     optionsPanel.orientation = "column";
     optionsPanel.alignChildren = ["left", "top"];
     optionsPanel.alignment = ["fill", "top"];
     optionsPanel.margins = [16, 20, 16, 12];
 
     // アニメーションの ON/OFF（OFF で以降のオプションをディム表示）
-    var animationCheckbox = optionsPanel.add("checkbox", undefined, "アニメーション");
+    var animationCheckbox = optionsPanel.add("checkbox", undefined, L("animation"));
     animationCheckbox.value = settingBool(savedSettings, "animation", true);
 
     // 前後のアートボードへ移動するスピード（右ほど速い） / Speed of moving to the prev/next artboard (faster toward the right)
@@ -149,7 +219,7 @@ var SCRIPT_VERSION = "v1.1.0";
     speedRow.alignChildren = ["left", "center"];
     speedRow.alignment = ["fill", "top"];
 
-    var speedLabel = speedRow.add("statictext", undefined, "スピード");
+    var speedLabel = speedRow.add("statictext", undefined, L("speed"));
     var speedSlider = speedRow.add("slider", undefined, initialSpeed, MIN_SPEED, MAX_SPEED);
     speedSlider.alignment = ["fill", "center"];
     speedSlider.preferredSize = [120, -1];
@@ -164,14 +234,14 @@ var SCRIPT_VERSION = "v1.1.0";
     };
 
     // イーズの ON/OFF（OFF で線形＝イーズなし）
-    var easeCheckbox = optionsPanel.add("checkbox", undefined, "イーズアウト");
+    var easeCheckbox = optionsPanel.add("checkbox", undefined, L("ease"));
     easeCheckbox.value = settingBool(savedSettings, "ease", true);
     easeCheckbox.onClick = function () {
         saveSettings();
     };
 
     // Prezi モード：前後移動の途中で一度ズームを下げてから寄せる（Prezi 風）
-    var preziCheckbox = optionsPanel.add("checkbox", undefined, "Preziモード");
+    var preziCheckbox = optionsPanel.add("checkbox", undefined, L("prezi"));
     preziCheckbox.value = settingBool(savedSettings, "prezi", true);
 
     // Prezi モードで下げるズーム量（中央 0.5、左ほど弱く右ほど強い） / Prezi zoom-out amount
@@ -180,7 +250,7 @@ var SCRIPT_VERSION = "v1.1.0";
     preziDipRow.alignChildren = ["left", "center"];
     preziDipRow.alignment = ["fill", "top"];
 
-    var preziDipLabel = preziDipRow.add("statictext", undefined, "俯瞰の強さ");
+    var preziDipLabel = preziDipRow.add("statictext", undefined, L("preziDip"));
     var preziDipSlider = preziDipRow.add("slider", undefined, preziDipRatio, 0, 1);
     preziDipSlider.alignment = ["fill", "center"];
     preziDipSlider.preferredSize = [120, -1];
@@ -219,6 +289,19 @@ var SCRIPT_VERSION = "v1.1.0";
 
     applyAnimationEnabled(animationCheckbox.value);
 
+    // アートボード名ラベルの表示 ON/OFF
+    // ON のときだけ、移動先の左上に「番号：アートボード名」を専用レイヤー
+    //（ロックON・プリントOFF）へ描画する。OFF のときは描画もレイヤー作成もしない。
+    var showArtboardNameCheckbox = optionsPanel.add("checkbox", undefined, L("showLabel"));
+    showArtboardNameCheckbox.value = settingBool(savedSettings, "showLabel", true);
+    showArtboardNameCheckbox.onClick = function () {
+        // OFF にしたら今表示中のラベル（専用レイヤー）を即削除
+        if (!this.value) {
+            requestLabelRemoval();
+        }
+        saveSettings();
+    };
+
     // アートボード一覧の表示 ON/OFF（OFF で一覧を隠し、領域も確保しない）
     var listVisibilityRow = paletteWindow.add("group");
     listVisibilityRow.orientation = "row";
@@ -226,14 +309,14 @@ var SCRIPT_VERSION = "v1.1.0";
     listVisibilityRow.alignment = ["fill", "top"];
     listVisibilityRow.margins = 5;
 
-    var listVisibilityCheckbox = listVisibilityRow.add("checkbox", undefined, "アートボード一覧");
+    var listVisibilityCheckbox = listVisibilityRow.add("checkbox", undefined, L("listVisible"));
     listVisibilityCheckbox.value = settingBool(savedSettings, "listVisible", true);
 
     // アートボード一覧（番号｜アートボード名）。行を選ぶとそのアートボードへ移動
     var artboardListBox = paletteWindow.add("listbox", undefined, [], {
         numberOfColumns: 2,
         showHeaders: true,
-        columnTitles: ["番号", "アートボード名"],
+        columnTitles: [L("columnNumber"), L("columnName")],
         columnWidths: [44, 156]
     });
     // リサイズ時に一覧が縦横とも追従して広がるようにする
@@ -271,10 +354,23 @@ var SCRIPT_VERSION = "v1.1.0";
     paletteWindow.onClose = function () {
         saveWindowPosition(paletteWindow);
         saveSettings();
+        // 表示中のラベルをメインエンジン側で消してから閉じる
+        requestLabelRemoval();
         $.global.artboardNavigatorWindow = null;
     };
 
     paletteWindow.onActivate = function () {
+        // 環境設定のUI明るさが変わっていたらボタンの配色を切り替えて描き直す
+        var nowLight = isLightUI();
+        if (nowLight !== useLightButtons) {
+            useLightButtons = nowLight;
+            try {
+                for (var bi = 0; bi < navButtonRow.children.length; bi++) {
+                    navButtonRow.children[bi].notify("onDraw");
+                }
+            } catch (redrawError) {
+            }
+        }
         refreshArtboardList();
     };
 
@@ -328,23 +424,70 @@ var SCRIPT_VERSION = "v1.1.0";
         button.maximumSize = [26, 26];
         button.iconType = buttonDefinition.icon;
         button.navCommand = buttonDefinition.command;
+        button.pressed = false;
+        navButtonsByCommand[buttonDefinition.command] = button;
         button.onDraw = function () {
             drawNavButton(this);
         };
         button.onClick = function () {
             runNavigation(this.navCommand);
         };
+        // クリック中だけ背景の明るさを少し変える（押下フィードバック）
+        button.addEventListener("mousedown", function () {
+            this.pressed = true;
+            this.notify("onDraw");
+        });
+        button.addEventListener("mouseup", function () {
+            this.pressed = false;
+            this.notify("onDraw");
+        });
+        // ボタン外でマウスを離したときも押下状態を戻す
+        button.addEventListener("mouseout", function () {
+            if (this.pressed) {
+                this.pressed = false;
+                this.notify("onDraw");
+            }
+        });
+    }
+
+    /* 環境設定のUI明るさが明るい側かどうか / Whether the UI brightness preference is on the light side */
+    // uiBrightness は 0（最暗）〜1（最明）。0.5 以上を「明るいUI」とみなす。
+    function isLightUI() {
+        try {
+            return app.preferences.getRealPreference("uiBrightness") >= 0.5;
+        } catch (e) {
+            return false;
+        }
     }
 
     /* ボタンの背景とアイコンを描画 / Draw the button background and icon */
+    // 明るいUI = 白バック＋枠線＋黒記号 / 暗いUI = 黒バック＋白記号
     function drawNavButton(button) {
         var graphics = button.graphics;
         var width = button.size[0];
         var height = button.size[1];
 
+        var backgroundColor = useLightButtons ? [1, 1, 1, 1] : [0.30, 0.30, 0.30, 1];
+        var glyphColor = useLightButtons ? [0.15, 0.15, 0.15, 1] : [0.92, 0.92, 0.92, 1];
+
+        // クリック中は明るさを少しだけ変える（明るいUIは少し暗く、暗いUIは少し明るく）
+        if (button.pressed) {
+            backgroundColor = useLightButtons ? [0.86, 0.86, 0.86, 1] : [0.46, 0.46, 0.46, 1];
+        }
+
+        // 無効（端にいる先頭／最終ボタン）は記号を淡くしてグレーアウト表示
+        if (button.enabled === false) {
+            glyphColor = useLightButtons ? [0.75, 0.75, 0.75, 1] : [0.50, 0.50, 0.50, 1];
+        }
+
         try {
             graphics.rectPath(0, 0, width, height);
-            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, [0.30, 0.30, 0.30, 1]));
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, backgroundColor));
+            // 明るいUIでは白バックが背景に溶けるので枠線を足す
+            if (useLightButtons) {
+                graphics.rectPath(0, 0, width, height);
+                graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, [0.62, 0.62, 0.62, 1], 1));
+            }
         } catch (e1) {
             try {
                 graphics.drawOSControl();
@@ -352,12 +495,11 @@ var SCRIPT_VERSION = "v1.1.0";
             }
         }
 
-        drawNavGlyph(graphics, button.iconType, width, height);
+        drawNavGlyph(graphics, button.iconType, width, height, glyphColor);
     }
 
     /* < / > / グリッド / |< / >| のアイコン形状を描く / Draw the glyph */
-    function drawNavGlyph(graphics, iconType, width, height) {
-        var glyphColor = [0.92, 0.92, 0.92, 1];
+    function drawNavGlyph(graphics, iconType, width, height, glyphColor) {
 
         if (iconType === "first") {
             // |< 形状（左端の縦棒＋左向き山）
@@ -417,6 +559,9 @@ var SCRIPT_VERSION = "v1.1.0";
             var cellSize = 6;
             var cellOrigins = [[5, 5], [15, 5], [5, 15], [15, 15]];
             for (var i = 0; i < cellOrigins.length; i++) {
+                // セルごとに newPath() で前のパス（背景・枠の矩形を含む）をクリアしてから描く。
+                // これを省くとボタン外枠の矩形が残ってグリフ色で stroke され、枠が濃く見える。
+                graphics.newPath();
                 graphics.rectPath(cellOrigins[i][0], cellOrigins[i][1], cellSize, cellSize);
                 graphics.strokePath(listPen);
             }
@@ -428,6 +573,8 @@ var SCRIPT_VERSION = "v1.1.0";
     // =========================================================
 
     /* ナビゲーションを実行（必要ならワーカーを登録） / Run navigation (install worker if needed) */
+    // listbox 選択はクリック時にパレット側で確定（onResult に依存しない）。
+    // ラベルの描画・自動消去は worker（メインエンジン）側で完結する。
     function runNavigation(navCommand) {
         if (typeof BridgeTalk === "undefined") {
             return;
@@ -435,7 +582,111 @@ var SCRIPT_VERSION = "v1.1.0";
         if (!workerInstalled) {
             installNavigationWorker();
         }
-        sendNavigation(navCommand, true);
+
+        if (navCommand === "list") {
+            sendNavigation("list", true);
+            return;
+        }
+
+        // パレット側で移動先の絶対インデックスを確定（listbox の選択を現在地とみなす）
+        var targetIndex = resolveTargetIndex(navCommand);
+        if (targetIndex >= 0) {
+            // 一覧の選択を即反映し、ワーカーには絶対インデックスを渡して両者を一致させる
+            selectArtboardInList(targetIndex);
+            sendNavigation(String(targetIndex), true);
+        } else {
+            // 解決できなければ元のコマンドのままワーカーへ委ねる
+            sendNavigation(navCommand, true);
+        }
+    }
+
+    /* ナビゲーションコマンドを移動先の絶対インデックスへ解決（list は -1） / Resolve a command to an absolute artboard index (-1 for list) */
+    function resolveTargetIndex(navCommand) {
+        var count = artboardListBox.items.length;
+        if (count === 0) {
+            try {
+                count = app.activeDocument.artboards.length;
+            } catch (e) {
+                return -1;
+            }
+        }
+        if (navCommand === "list") {
+            return -1;
+        }
+        var current = currentListIndex();
+        if (navCommand === "prev") {
+            return (current - 1 + count) % count;
+        }
+        if (navCommand === "next") {
+            return (current + 1) % count;
+        }
+        if (navCommand === "first") {
+            return 0;
+        }
+        if (navCommand === "last") {
+            return count - 1;
+        }
+        var explicitIndex = parseInt(navCommand, 10);
+        if (!isNaN(explicitIndex) && explicitIndex >= 0 && explicitIndex < count) {
+            return explicitIndex;
+        }
+        return -1;
+    }
+
+    /* 現在地とみなすインデックス（listbox の選択 → 無ければドキュメント） / Current index (listbox selection, fallback to document) */
+    function currentListIndex() {
+        if (artboardListBox.selection) {
+            return artboardListBox.selection.index;
+        }
+        try {
+            return app.activeDocument.artboards.getActiveArtboardIndex();
+        } catch (e) {
+            return 0;
+        }
+    }
+
+    /* onChange を発火させずに一覧の選択を更新 / Select a list row without triggering onChange */
+    function selectArtboardInList(index) {
+        if (index < 0 || index >= artboardListBox.items.length) {
+            return;
+        }
+        isPopulatingList = true;
+        try {
+            artboardListBox.selection = index;
+        } catch (e) {
+        }
+        isPopulatingList = false;
+        updateNavButtonStates(index);
+    }
+
+    /* 先頭にいるとき先頭ボタン、最終にいるとき最終ボタンを無効化 / Disable first/last button at the respective ends */
+    // prev/next は循環移動なので常に有効のまま。
+    function updateNavButtonStates(currentIndex) {
+        var count = artboardListBox.items.length;
+        if (count === 0) {
+            try {
+                count = app.activeDocument.artboards.length;
+            } catch (e) {
+                return;
+            }
+        }
+        if (typeof currentIndex !== "number" || currentIndex < 0) {
+            currentIndex = currentListIndex();
+        }
+        setButtonEnabled(navButtonsByCommand.first, currentIndex > 0);
+        setButtonEnabled(navButtonsByCommand.last, currentIndex < count - 1);
+    }
+
+    /* ボタンの有効状態を変え、必要なら再描画 / Set a button's enabled state and repaint if it changed */
+    function setButtonEnabled(button, enabled) {
+        if (!button || button.enabled === enabled) {
+            return;
+        }
+        button.enabled = enabled;
+        try {
+            button.notify("onDraw");
+        } catch (e) {
+        }
     }
 
     /* ナビゲーション本体をメインエンジンへ一度だけ登録 / Install the worker into the main engine once */
@@ -461,8 +712,7 @@ var SCRIPT_VERSION = "v1.1.0";
         bridgeTalk.body = buildNavigationCall(navCommand);
         bridgeTalk.onResult = function () {
             removeNavigationJob(bridgeTalk);
-            // 移動後のアクティブアートボードを一覧の選択に反映
-            refreshArtboardList();
+            // 一覧の選択・ラベル消去予約はクリック時に確定済み（onResult には依存しない）
         };
         bridgeTalk.onError = function () {
             removeNavigationJob(bridgeTalk);
@@ -476,6 +726,28 @@ var SCRIPT_VERSION = "v1.1.0";
         $.global.artboardNavigatorJobs.push(bridgeTalk);
         trimNavigationJobs();
         bridgeTalk.send();
+    }
+
+    /* メインエンジンへラベル即時消去を依頼（パレットを閉じるときなど） / Ask the main engine to remove labels now (e.g. on close) */
+    function requestLabelRemoval() {
+        if (typeof BridgeTalk === "undefined") {
+            return;
+        }
+        try {
+            var bridgeTalk = newIllustratorBridgeTalk();
+            bridgeTalk.body = "if($.global.artboardNavigatorRemoveLabels)$.global.artboardNavigatorRemoveLabels();";
+            // 送信完了前に GC されないよう、他の送信と同じジョブ配列で保持する
+            bridgeTalk.onResult = function () {
+                removeNavigationJob(bridgeTalk);
+            };
+            bridgeTalk.onError = function () {
+                removeNavigationJob(bridgeTalk);
+            };
+            $.global.artboardNavigatorJobs.push(bridgeTalk);
+            trimNavigationJobs();
+            bridgeTalk.send();
+        } catch (e) {
+        }
     }
 
     /* Illustrator 宛ての BridgeTalk を生成 / Create a BridgeTalk addressed to Illustrator */
@@ -530,6 +802,9 @@ var SCRIPT_VERSION = "v1.1.0";
         } finally {
             isPopulatingList = false;
         }
+
+        // 先頭／最終ボタンの有効・無効を現在地に合わせて更新
+        updateNavButtonStates(activeIndex);
     }
 
     // 一覧表示時のウィンドウ高さ（再表示でこの値へ正確に戻す）
@@ -568,7 +843,11 @@ var SCRIPT_VERSION = "v1.1.0";
             (easeCheckbox.value ? "true" : "false") + "," +
             (preziCheckbox.value ? "true" : "false") + "," +
             (animationCheckbox.value ? "true" : "false") + "," +
-            preziDipRatio +
+            preziDipRatio + "," +
+            LABEL_FONT_RATIO + "," +
+            LABEL_BACKGROUND_OPACITY + "," +
+            LABEL_TEXT_OPACITY + "," +
+            (showArtboardNameCheckbox.value ? "true" : "false") +
         ");";
     }
 
@@ -602,7 +881,7 @@ var SCRIPT_VERSION = "v1.1.0";
     // =========================================================
 
     /* メインエンジンで移動を実行する本体 / Worker that performs the move in the main engine */
-    function navigationScriptMain(navCommand, stepCount, delayMs, marginRatio, useEasing, preziMode, animate, preziDipRatio) {
+    function navigationScriptMain(navCommand, stepCount, delayMs, marginRatio, useEasing, preziMode, animate, preziDipRatio, labelFontRatio, labelBackgroundOpacity, labelTextOpacity, showLabel) {
         try {
             if (!app.documents || app.documents.length < 1) {
                 return "ドキュメントが開かれていません。";
@@ -618,6 +897,37 @@ var SCRIPT_VERSION = "v1.1.0";
 
             // Prezi 風のズームダウンは個別アートボードへの移動時のみ（全体表示では使わない）
             var usePreziDip = false;
+
+            // 移動先のラベルを出すアートボード番号（-1 = ラベルを出さない＝全体表示）
+            var labelIndex = -1;
+
+            // ラベルは専用レイヤー "ArtboardNavigator"（ロックON・プリントOFF）に描画する。
+            var LABEL_LAYER_NAME = "ArtboardNavigator";
+            var LABEL_ITEM_NAME = "__ArtboardNavigatorLabel";
+
+            // パレットからの即時消去依頼（チェックOFF・パレットを閉じる時など）に応える削除関数。
+            // 専用レイヤーごと削除し、レイヤーも残さない。文字列から呼べるよう $.global に公開。
+            if (typeof $.global.artboardNavigatorRemoveLabels !== "function") {
+                $.global.artboardNavigatorRemoveLabels = function () {
+                    try {
+                        if (app.documents.length === 0) {
+                            return;
+                        }
+                        var labelDoc = app.activeDocument;
+                        for (var k = labelDoc.layers.length - 1; k >= 0; k--) {
+                            if (labelDoc.layers[k].name === "ArtboardNavigator") {
+                                try {
+                                    labelDoc.layers[k].locked = false;
+                                    labelDoc.layers[k].remove();
+                                } catch (layerError) {
+                                }
+                            }
+                        }
+                        app.redraw();
+                    } catch (removeError) {
+                    }
+                };
+            }
 
             if (navCommand === "list") {
                 targetView = measureAllArtboardsView();
@@ -645,12 +955,30 @@ var SCRIPT_VERSION = "v1.1.0";
                 targetView = measureArtboardView(targetIndex);
                 doc.artboards.setActiveArtboardIndex(targetIndex);
                 usePreziDip = preziMode;
+                labelIndex = targetIndex;
             }
 
             animateViewTo(targetView.centerX, targetView.centerY, targetView.zoom, usePreziDip);
+
+            // 移動後に左上ラベルを更新。
+            // ・「アートボード名を表示」OFF、または全体表示のときは描画せず専用レイヤーごと削除
+            // ・ラベル描画が失敗しても移動自体は成立させる
+            try {
+                if (showLabel && labelIndex >= 0) {
+                    showArtboardLabel(labelIndex);
+                } else {
+                    removeLabelLayer();
+                    app.redraw();
+                }
+            } catch (labelError) {
+            }
+
             return "ok";
 
             // ----- 以下、メインエンジン内のヘルパー（巻き上げで先に定義扱い） -----
+            // 役割ごとに ①アニメーション ②ビュー計測 ③ラベルレイヤー操作 ④ラベル処理 に分かれる。
+
+            // ===== ① アニメーション / Animation =====
 
             /* 現在のビューから目標へなめらかに移動 / Animate the view from current to target */
             function animateViewTo(targetCenterX, targetCenterY, targetZoom, preziDip) {
@@ -750,6 +1078,8 @@ var SCRIPT_VERSION = "v1.1.0";
                 return resolvedSteps;
             }
 
+            // ===== ② ビュー計測（中心・ズームの算出）/ View metrics =====
+
             /* 指定アートボードの中心とズームを求める / Compute center and zoom for one artboard */
             function measureArtboardView(artboardIndex) {
                 var rect = doc.artboards[artboardIndex].artboardRect;
@@ -825,10 +1155,134 @@ var SCRIPT_VERSION = "v1.1.0";
                 return fitZoom * marginRatio;
             }
 
-            /* 指定ミリ秒だけ待機（同期） / Busy-wait for the given milliseconds */
+            /* 指定ミリ秒だけ待機（同期、アニメーションのフレーム間隔用） / Busy-wait for the given milliseconds (animation frame delay) */
             function sleep(durationMs) {
                 var sleepStartTime = new Date().getTime();
                 while (new Date().getTime() - sleepStartTime < durationMs) {}
+            }
+
+            // ===== ③ ラベルレイヤー操作 / Label layer =====
+
+            /* ラベル専用レイヤーを探す（無ければ null） / Find the dedicated label layer (null if absent) */
+            function findLabelLayer() {
+                for (var i = 0; i < doc.layers.length; i++) {
+                    if (doc.layers[i].name === LABEL_LAYER_NAME) {
+                        return doc.layers[i];
+                    }
+                }
+                return null;
+            }
+
+            /* ラベル専用レイヤーごと削除（レイヤーも残さない） / Remove the dedicated label layer entirely */
+            function removeLabelLayer() {
+                var layer = findLabelLayer();
+                if (!layer) {
+                    return;
+                }
+                try {
+                    layer.locked = false;
+                    layer.remove();
+                } catch (removeError) {
+                }
+            }
+
+            // ===== ④ ラベル処理（描画）/ Label drawing =====
+
+            /* ドキュメントのカラースペースに合わせて白／黒を作る / Build white or black for the document color space */
+            function makeLabelColor(isWhite) {
+                if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+                    var cmyk = new CMYKColor();
+                    cmyk.cyan = 0;
+                    cmyk.magenta = 0;
+                    cmyk.yellow = 0;
+                    cmyk.black = isWhite ? 0 : 100;
+                    return cmyk;
+                }
+                var rgb = new RGBColor();
+                var value = isWhite ? 255 : 0;
+                rgb.red = value;
+                rgb.green = value;
+                rgb.blue = value;
+                return rgb;
+            }
+
+            /* アートボード左上に「番号：名前」ラベルを専用レイヤー（ロックON・プリントOFF）へ描画 / Draw the "index: name" label on a dedicated locked, non-printing layer */
+            function showArtboardLabel(artboardIndex) {
+                var artboard = doc.artboards[artboardIndex];
+                var artboardRect = artboard.artboardRect; // [left, top, right, bottom]
+                var artboardLeft = artboardRect[0];
+                var artboardTop = artboardRect[1];
+                var artboardWidth = artboardRect[2] - artboardRect[0];
+
+                // 文字サイズはアートボード幅に比例（画面フィット後の見た目をほぼ一定に）
+                var fontSize = artboardWidth * labelFontRatio;
+                if (fontSize < 1) {
+                    fontSize = 1;
+                }
+
+                var paddingX = fontSize * 0.45;
+                var paddingY = fontSize * 0.30;
+                var edgeMargin = fontSize * 0.6;
+
+                var labelText = (artboardIndex + 1) + "：" + artboard.name;
+
+                // 専用レイヤーを作り直す（位置・内容をリセットし、常に1枚に保つ）。
+                // 作業レイヤーを巻き込まないよう、描画後にアクティブレイヤーを元へ戻す。
+                var prevActiveLayer = doc.activeLayer;
+                removeLabelLayer();
+                var labelLayer = doc.layers.add();
+                labelLayer.name = LABEL_LAYER_NAME;
+
+                var labelGroup = labelLayer.groupItems.add();
+                labelGroup.name = LABEL_ITEM_NAME;
+
+                // テキスト（白・HiraginoSans-W6）
+                var textFrame = labelLayer.textFrames.pointText([0, 0]);
+                textFrame.contents = labelText;
+                var attributes = textFrame.textRange.characterAttributes;
+                try {
+                    attributes.textFont = app.textFonts.getByName("HiraginoSans-W6");
+                } catch (fontError) {
+                }
+                attributes.size = fontSize;
+                attributes.fillColor = makeLabelColor(true);
+                textFrame.opacity = labelTextOpacity;
+
+                var textBounds = textFrame.geometricBounds; // [left, top, right, bottom]
+                var textLeft = textBounds[0];
+                var textTop = textBounds[1];
+                var textWidth = textBounds[2] - textBounds[0];
+                var textHeight = textBounds[1] - textBounds[3];
+
+                // 背景の長方形（黒・不透明度は呼び出し側の設定値）
+                var backgroundRect = labelLayer.pathItems.rectangle(
+                    textTop + paddingY,
+                    textLeft - paddingX,
+                    textWidth + paddingX * 2,
+                    textHeight + paddingY * 2
+                );
+                backgroundRect.stroked = false;
+                backgroundRect.filled = true;
+                backgroundRect.fillColor = makeLabelColor(false);
+                backgroundRect.opacity = labelBackgroundOpacity;
+
+                // 重ね順を明示：背景の長方形を背面（PLACEATEND）、テキストを前面（PLACEATBEGINNING）へ。
+                // 挿入順に依存せず、必ずテキストが前面・長方形が背面になる。
+                backgroundRect.move(labelGroup, ElementPlacement.PLACEATEND);
+                textFrame.move(labelGroup, ElementPlacement.PLACEATBEGINNING);
+
+                // アートボードの左上へ少し内側に配置
+                labelGroup.position = [artboardLeft + edgeMargin, artboardTop - edgeMargin];
+
+                // レイヤーをプリントOFF・ロックON にし、作業レイヤーを元に戻す
+                labelLayer.printable = false;
+                labelLayer.locked = true;
+                try {
+                    doc.activeLayer = prevActiveLayer;
+                } catch (restoreError) {
+                }
+
+                app.redraw();
             }
         } catch (e) {
             return "エラー: " + e.message;
@@ -846,7 +1300,9 @@ var SCRIPT_VERSION = "v1.1.0";
         }
 
         try {
-            PREF_FILE.open("r");
+            if (!PREF_FILE.open("r")) {
+                return;
+            }
             var savedPositionText = PREF_FILE.read();
             PREF_FILE.close();
 
@@ -857,11 +1313,39 @@ var SCRIPT_VERSION = "v1.1.0";
 
             var x = parseInt(positionParts[0], 10);
             var y = parseInt(positionParts[1], 10);
-            if (!isNaN(x) && !isNaN(y)) {
-                windowRef.location = [x, y];
+            if (isNaN(x) || isNaN(y)) {
+                return;
             }
+
+            // モニタ構成の変更などで画面外（不可視）になる位置は無視し、既定位置で開く
+            if (!isLocationVisible(x, y)) {
+                return;
+            }
+
+            windowRef.location = [x, y];
         } catch (e) {
         }
+    }
+
+    /* 指定座標（ウィンドウ左上）がいずれかのスクリーン内で、タイトルバーを掴める範囲か / Whether the top-left point sits on a screen with the title bar reachable */
+    function isLocationVisible(x, y) {
+        var screens;
+        try {
+            screens = $.screens;
+        } catch (screenError) {
+            return true; // スクリーン情報を取得できない環境では従来どおり許可
+        }
+        if (!screens || !screens.length) {
+            return true;
+        }
+        for (var i = 0; i < screens.length; i++) {
+            var s = screens[i];
+            // 左上がスクリーン内に収まり、右端・下端には掴むための余白（幅60/高さ40）を残す
+            if (x >= s.left && x <= s.right - 60 && y >= s.top && y <= s.bottom - 40) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /* 現在のウィンドウ位置を保存 / Save the current window position */
@@ -872,7 +1356,9 @@ var SCRIPT_VERSION = "v1.1.0";
                 prefFolder.create();
             }
 
-            PREF_FILE.open("w");
+            if (!PREF_FILE.open("w")) {
+                return;
+            }
             PREF_FILE.write(windowRef.location[0] + "," + windowRef.location[1]);
             PREF_FILE.close();
         } catch (e) {
@@ -891,7 +1377,9 @@ var SCRIPT_VERSION = "v1.1.0";
         }
 
         try {
-            SETTINGS_FILE.open("r");
+            if (!SETTINGS_FILE.open("r")) {
+                return result;
+            }
             var content = SETTINGS_FILE.read();
             SETTINGS_FILE.close();
 
@@ -924,10 +1412,13 @@ var SCRIPT_VERSION = "v1.1.0";
                 "ease=" + (easeCheckbox.value ? "1" : "0"),
                 "prezi=" + (preziCheckbox.value ? "1" : "0"),
                 "preziDip=" + preziDipSlider.value,
-                "listVisible=" + (listVisibilityCheckbox.value ? "1" : "0")
+                "listVisible=" + (listVisibilityCheckbox.value ? "1" : "0"),
+                "showLabel=" + (showArtboardNameCheckbox.value ? "1" : "0")
             ];
 
-            SETTINGS_FILE.open("w");
+            if (!SETTINGS_FILE.open("w")) {
+                return;
+            }
             SETTINGS_FILE.write(lines.join("\n"));
             SETTINGS_FILE.close();
         } catch (e) {
