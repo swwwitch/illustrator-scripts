@@ -36,8 +36,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
   ・個別のアートボードへ移動した直後、その左上に「番号：アートボード名」を表示
   ・テキストは白／HiraginoSans-W6、背景は黒の長方形
-  ・文字サイズ・背景／文字の不透明度はスクリプト先頭の変数で調整可能
+  ・文字サイズ・背景／文字の不透明度・自動消去までの時間はスクリプト先頭の変数で調整可能
   ・専用レイヤー "ArtboardNavigator"（ロックON・プリントOFF）に描画し、切替ごとに作り直す
+  ・表示後は一定時間（既定 2 秒）で自動消去（移動するたびにタイマーを張り直す）
   ・全体表示・「アートボード名を表示」OFF・パレットを閉じるときは、このレイヤーごと削除
   ・一覧の選択はクリック時にパレット側で確定（BridgeTalk の onResult に依存しない）
 
@@ -56,7 +57,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.2.0";
+var SCRIPT_VERSION = "v1.2.1";
 
 (function () {
     // =========================================
@@ -131,6 +132,7 @@ var SCRIPT_VERSION = "v1.2.0";
     var LABEL_BACKGROUND_OPACITY = 80; // 背景の長方形の不透明度（%）
     var LABEL_TEXT_OPACITY = 100;      // アートボード名（文字）の不透明度（%）
     var LABEL_FONT_RATIO = 0.03;       // 文字サイズ＝アートボード幅 × この比率
+    var LABEL_AUTO_HIDE_MS = 2000;     // ラベルを自動で消すまでの時間（ミリ秒）。0 で自動消去しない
 
     // ボタンの配色は環境設定「ユーザーインターフェイスの明るさ」に追従
     // 明るいUI = 白バック・枠線・黒記号 / 暗いUI = 黒バック・白記号（従来）
@@ -451,10 +453,12 @@ var SCRIPT_VERSION = "v1.2.0";
     }
 
     /* 環境設定のUI明るさが明るい側かどうか / Whether the UI brightness preference is on the light side */
-    // uiBrightness は 0（最暗）〜1（最明）。0.5 以上を「明るいUI」とみなす。
+    // uiBrightness は 0（最暗）〜1（最明）の 4 段階。
+    // 0=暗 / 0.5=やや暗め → 暗いUI、0.51=やや明るめ / 1=明るい → 明るいUI。
+    // 「やや暗め(0.5)」を暗い側に含めるため 0.5 より大きいかで判定する。
     function isLightUI() {
         try {
-            return app.preferences.getRealPreference("uiBrightness") >= 0.5;
+            return app.preferences.getRealPreference("uiBrightness") > 0.5;
         } catch (e) {
             return false;
         }
@@ -847,7 +851,8 @@ var SCRIPT_VERSION = "v1.2.0";
             LABEL_FONT_RATIO + "," +
             LABEL_BACKGROUND_OPACITY + "," +
             LABEL_TEXT_OPACITY + "," +
-            (showArtboardNameCheckbox.value ? "true" : "false") +
+            (showArtboardNameCheckbox.value ? "true" : "false") + "," +
+            LABEL_AUTO_HIDE_MS +
         ");";
     }
 
@@ -881,7 +886,7 @@ var SCRIPT_VERSION = "v1.2.0";
     // =========================================================
 
     /* メインエンジンで移動を実行する本体 / Worker that performs the move in the main engine */
-    function navigationScriptMain(navCommand, stepCount, delayMs, marginRatio, useEasing, preziMode, animate, preziDipRatio, labelFontRatio, labelBackgroundOpacity, labelTextOpacity, showLabel) {
+    function navigationScriptMain(navCommand, stepCount, delayMs, marginRatio, useEasing, preziMode, animate, preziDipRatio, labelFontRatio, labelBackgroundOpacity, labelTextOpacity, showLabel, labelAutoHideMs) {
         try {
             if (!app.documents || app.documents.length < 1) {
                 return "ドキュメントが開かれていません。";
@@ -910,6 +915,14 @@ var SCRIPT_VERSION = "v1.2.0";
             if (typeof $.global.artboardNavigatorRemoveLabels !== "function") {
                 $.global.artboardNavigatorRemoveLabels = function () {
                     try {
+                        // 自動消去タスクが残っていればキャンセル（手動消去・自動消去どちらの経路でもクリア）
+                        if ($.global.artboardNavigatorLabelTaskId) {
+                            try {
+                                app.cancelTask($.global.artboardNavigatorLabelTaskId);
+                            } catch (cancelError) {
+                            }
+                            $.global.artboardNavigatorLabelTaskId = 0;
+                        }
                         if (app.documents.length === 0) {
                             return;
                         }
@@ -966,7 +979,10 @@ var SCRIPT_VERSION = "v1.2.0";
             try {
                 if (showLabel && labelIndex >= 0) {
                     showArtboardLabel(labelIndex);
+                    // 描画後、一定時間でラベルを自動消去（移動のたびにタイマーを張り直す）
+                    scheduleLabelAutoHide(labelAutoHideMs);
                 } else {
+                    cancelLabelAutoHide();
                     removeLabelLayer();
                     app.redraw();
                 }
@@ -1171,6 +1187,35 @@ var SCRIPT_VERSION = "v1.2.0";
                     }
                 }
                 return null;
+            }
+
+            /* 予約済みの自動消去タスクをキャンセル / Cancel the pending auto-hide task */
+            function cancelLabelAutoHide() {
+                try {
+                    if ($.global.artboardNavigatorLabelTaskId) {
+                        app.cancelTask($.global.artboardNavigatorLabelTaskId);
+                        $.global.artboardNavigatorLabelTaskId = 0;
+                    }
+                } catch (cancelError) {
+                }
+            }
+
+            /* 一定時間後にラベルを自動消去するタスクを予約 / Schedule auto-hide of the label after a delay */
+            // app.scheduleTask の文字列はグローバルスコープで評価されるため、
+            // $.global に公開済みの削除関数を文字列から呼び出す。
+            function scheduleLabelAutoHide(delayMs) {
+                cancelLabelAutoHide();
+                if (!delayMs || delayMs <= 0) {
+                    return;
+                }
+                try {
+                    $.global.artboardNavigatorLabelTaskId = app.scheduleTask(
+                        "if($.global.artboardNavigatorRemoveLabels)$.global.artboardNavigatorRemoveLabels();",
+                        delayMs,
+                        false
+                    );
+                } catch (scheduleError) {
+                }
             }
 
             /* ラベル専用レイヤーごと削除（レイヤーも残さない） / Remove the dedicated label layer entirely */
