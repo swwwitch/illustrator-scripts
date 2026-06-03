@@ -36,10 +36,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
   ・個別のアートボードへ移動した直後、その左上に「番号：アートボード名」を表示
   ・テキストは白／HiraginoSans-W6、背景は黒の長方形
-  ・文字サイズ・背景／文字の不透明度・自動消去までの時間はスクリプト先頭の変数で調整可能
+  ・文字サイズ・背景／文字の不透明度はスクリプト先頭の変数で調整可能
   ・専用レイヤー "ArtboardNavigator"（ロックON・プリントOFF）に描画し、切替ごとに作り直す
-  ・表示後は一定時間（既定 2 秒）で自動消去（パレット側から別 BridgeTalk ジョブで削除）
-  ・全体表示・「アートボード名を表示」OFF・パレットを閉じるときは、このレイヤーごと削除
+  ・「アートボード名を表示」OFF・全体表示・パレットを閉じるときは、このレイヤーごと削除
   ・一覧の選択はクリック時にパレット側で確定（BridgeTalk の onResult に依存しない）
 
   目標ズームは view.bounds から数式で算出し、開始前のタイムラグを抑える。
@@ -57,7 +56,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.2.4";
+var SCRIPT_VERSION = "v1.2.5";
 
 (function () {
     // =========================================
@@ -172,8 +171,8 @@ var SCRIPT_VERSION = "v1.2.4";
         return steps;
     }
 
-    // 画面いっぱいに対する余白率（90% に収める）
-    var fitMarginRatio = 0.9;
+    // 画面いっぱいに対する余白率（92% に収める）
+    var fitMarginRatio = 0.92;
 
     // BridgeTalk: ナビゲーション本体をメインエンジンへ登録済みか
     var workerInstalled = false;
@@ -604,7 +603,7 @@ var SCRIPT_VERSION = "v1.2.4";
 
     /* ナビゲーションを実行（必要ならワーカーを登録） / Run navigation (install worker if needed) */
     // listbox 選択はクリック時にパレット側で確定（onResult に依存しない）。
-    // ラベル描画は worker 側、自動消去はパレット側から別 BridgeTalk ジョブで依頼する。
+    // ラベル描画と削除は worker 側で行う。OFF にしたときはパレット側でも直接削除する。
     function runNavigation(navCommand) {
         if (typeof BridgeTalk === "undefined") {
             return;
@@ -878,10 +877,16 @@ var SCRIPT_VERSION = "v1.2.4";
             shownWindowHeight = null;
             paletteWindow.layout.resize();
         } else {
-            // 戻すべき高さを記録してから、固定高さへ詰める
+            // 戻すべき高さを記録してから、一覧を隠した状態の実高さへ詰める
             shownWindowHeight = paletteWindow.size[1];
             artboardListBox.visible = false;
-            paletteWindow.size = [keptWidth, 290];
+
+            paletteWindow.preferredSize = [-1, -1];
+            paletteWindow.layout.layout(true);
+
+            var collapsedHeight = paletteWindow.bounds.height;
+            // alert(collapsedHeight);
+            paletteWindow.size = [keptWidth, collapsedHeight];
             paletteWindow.layout.resize();
         }
     }
@@ -1019,7 +1024,6 @@ var SCRIPT_VERSION = "v1.2.4";
             try {
                 if (showLabel && labelIndex >= 0) {
                     showArtboardLabel(labelIndex);
-                    // 自動消去はパレット側から別 BridgeTalk ジョブで依頼する。
                 } else {
                     removeLabelLayer();
                     app.redraw();
