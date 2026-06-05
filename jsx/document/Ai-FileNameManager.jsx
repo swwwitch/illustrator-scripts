@@ -28,6 +28,7 @@
 
     - v1.0 (2026-05-27) : 初期バージョン
     - v1.3.1 (2026-05-29) : 概要コメント整理。処理の流れと中間履歴を削除し、概要と主な機能を統合。page セグメントの説明を追加。
+    - v1.3.2 (2026-06-05) : 元ファイル名にタイムスタンプが無く、バージョン番号（-vN）がある場合、初期モードを「バージョンのみ」に設定。
     
     ---
     
@@ -53,6 +54,7 @@
 
     - v1.0 (2026-05-27): Initial release
     - v1.3.1 (2026-05-29): Cleaned up the overview comments, removed flow and intermediate history sections, merged overview and feature descriptions, and added page-segment documentation.
+    - v1.3.2 (2026-06-05): Default the scope mode to "Version Only" when the original filename has no timestamp but has a version number (-vN).
     
     */
 
@@ -62,7 +64,7 @@
         // バージョン / Version
         // =========================================
 
-        var SCRIPT_VERSION = "v1.3.1";
+        var SCRIPT_VERSION = "v1.3.2";
 
         // =========================================
         // ユーザー設定 / User Settings
@@ -516,6 +518,14 @@
                 if (segments[i].kind === kind) return segments[i].value;
             }
             return '';
+        }
+
+        /* 指定 kind の segment が存在するか / Whether a segment of the given kind exists */
+        function hasSegmentKind(segments, kind) {
+            for (var i = 0; i < segments.length; i++) {
+                if (segments[i].kind === kind) return true;
+            }
+            return false;
         }
 
         /* 文字列を左 0 パディング / Left-pad a string with zeros to the given width */
@@ -1195,15 +1205,16 @@
             };
         }
 
-        /* 「モード」パネルを構築（バージョン番号のみ / 全体）。常に「全体」が初期値
-           / Build the scope panel (Version Only / Full); always defaults to "Full" */
-        function buildOpModePanel(parent) {
+        /* 「モード」パネルを構築（バージョン番号のみ / 全体）。
+           defaultVersionOnly=true なら「バージョンのみ」、それ以外は「全体」を初期選択
+           / Build the scope panel (Version Only / Full); defaults to "Version Only" when defaultVersionOnly is true, else "Full" */
+        function buildOpModePanel(parent, defaultVersionOnly) {
             var panel = parent.add('panel', undefined, L('panel.opMode'));
             setupPanel(panel);
             var versionOnlyRadio = panel.add('radiobutton', undefined, L('radio.opVersionOnly'));
             var fullRadio = panel.add('radiobutton', undefined, L('radio.opFull'));
-            versionOnlyRadio.value = false;
-            fullRadio.value = true;
+            versionOnlyRadio.value = !!defaultVersionOnly;
+            fullRadio.value = !defaultVersionOnly;
             return {
                 panel: panel,
                 versionOnlyRadio: versionOnlyRadio,
@@ -1800,7 +1811,9 @@
             topRow.orientation = 'row';
             topRow.alignChildren = ['fill', 'top'];
             var mode = buildModePanel(topRow, prefs);
-            var opMode = buildOpModePanel(topRow);
+            // 元ファイル名が「タイムスタンプ無し」かつ「バージョン番号あり（-vN）」なら、初期モードを「バージョンのみ」に
+            var defaultVersionOnly = !hasSegmentKind(segments, 'date') && hasSegmentKind(segments, 'version');
+            var opMode = buildOpModePanel(topRow, defaultVersionOnly);
             // 現在のファイル名から検出した並び順（要素ゼロなら「現在に準じる」は無効化）
             var currentOrder = FEATURE_SORT ? deriveOrderFromSegments(segments) : [];
             var sort = FEATURE_SORT ? buildSortPanel(topRow, prefs, currentOrder.length > 0) : null;
@@ -1974,6 +1987,9 @@
             buttonGroup.alignment = ['right', 'top'];
             buttonGroup.add('button', undefined, L('button.cancel'), { name: 'cancel' });
             buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
+
+            // 初期モードが「バージョンのみ」のときは該当 UI を隠した状態で表示
+            if (opMode.isVersionOnly()) syncOpModeVisibility();
 
             return {
                 dialog: dialog,
