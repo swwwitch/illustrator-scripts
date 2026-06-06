@@ -96,11 +96,14 @@ var SCRIPT_VERSION = 'v1.1.0';
             next: { ja: '現在のアートボードの次', en: 'After Current Artboard' },
             last: { ja: '末尾', en: 'At End' },
             scopeNew: { ja: '追加するアートボードのみ', en: 'Added artboards only' },
-            scopeAll: { ja: 'すべてのアートボード', en: 'All artboards' }
+            scopeAll: { ja: 'すべてのアートボード', en: 'All artboards' },
+            directionRight: { ja: '右', en: 'Right' },
+            directionDown: { ja: '下', en: 'Down' }
         },
         label: {
             spacing: { ja: '間隔', en: 'Spacing' },
-            count: { ja: '追加数', en: 'Count' }
+            count: { ja: '追加数', en: 'Count' },
+            direction: { ja: '方向', en: 'Direction' }
         },
         button: {
             cancel: { ja: 'キャンセル', en: 'Cancel' },
@@ -302,6 +305,13 @@ var SCRIPT_VERSION = 'v1.1.0';
         var rbNext = posPanel.add('radiobutton', undefined, L(LABELS.radio.next));
         var rbLast = posPanel.add('radiobutton', undefined, L(LABELS.radio.last));
 
+        // 追加方向（右＝横並び / 下＝縦並び）/ Add direction (right = horizontal, down = vertical)
+        var directionGroup = posPanel.add('group');
+        directionGroup.add('statictext', undefined, L(LABELS.label.direction) + '：');
+        var rbDirectionRight = directionGroup.add('radiobutton', undefined, L(LABELS.radio.directionRight));
+        var rbDirectionDown = directionGroup.add('radiobutton', undefined, L(LABELS.radio.directionDown));
+        rbDirectionRight.value = true;
+
         // 追加方法に応じて UI を更新 / Update the UI according to the add method:
         //  - 追加数は「空のアートボード」のときのみ有効 / Count is enabled only for blank artboards
         //  - 追加位置の既定は 複製→現在の次 / 空→末尾 / Default position: duplicate → next, blank → end
@@ -374,7 +384,10 @@ var SCRIPT_VERSION = 'v1.1.0';
         // Spacing scope: true = all artboards, false = added artboards only
         var spacingScopeAll = rbScopeAll.value;
 
-        insertArtboardWithShift(duplicateMode, insertNext, spacing, useManualSpacing, count, spacingScopeAll);
+        // 追加方向：0=右（横並び）/ 1=下（縦並び）/ Add direction: 0 = right (horizontal), 1 = down (vertical)
+        var directionAxis = rbDirectionDown.value ? 1 : 0;
+
+        insertArtboardWithShift(duplicateMode, insertNext, spacing, useManualSpacing, count, spacingScopeAll, directionAxis);
 
     } catch (e) {
         alert(L(LABELS.error.exception) + e);
@@ -410,7 +423,7 @@ var SCRIPT_VERSION = 'v1.1.0';
         );
     }
 
-    function insertArtboardWithShift(duplicateMode, insertNext, spacing, useManualSpacing, count, spacingScopeAll) {
+    function insertArtboardWithShift(duplicateMode, insertNext, spacing, useManualSpacing, count, spacingScopeAll, directionAxis) {
         var artboards = doc.artboards;
         var artboardCount = artboards.length;
         var artboardLimit = (parseFloat(app.version) >= 22) ? 1000 : 100;
@@ -436,23 +449,30 @@ var SCRIPT_VERSION = 'v1.1.0';
         ];
         var columns = 0;
         var rows = 0;
-        var layoutPrimaryAxisIndex = 0;
-        var layoutSecondaryAxisIndex = 1;
 
-        // アートボードの並び方向から主軸（横 or 縦）を推定
-        // Determine the primary layout axis (horizontal or vertical) from the artboard arrangement
+        // 主軸はダイアログで選んだ追加方向（0=右＝横 / 1=下＝縦）
+        // Primary axis is the chosen add direction (0 = right/horizontal, 1 = down/vertical)
+        var layoutPrimaryAxisIndex = directionAxis;
+        var layoutSecondaryAxisIndex = 1 - directionAxis;
+
+        // 既存の並びが指定方向と一致するときだけ、ピッチと列数を引き継ぐ
+        // （一致しない・1枚のみのときは既定グリッド〔サイズ+間隔〕で指定方向に並べる）
+        // Inherit pitch and columns only when the existing layout matches the chosen direction
+        // (otherwise place along the chosen direction using the default grid of size + spacing)
         if (artboardCount >= 2) {
             var adjacentArtboardRect = artboards[1].artboardRect;
-            layoutPrimaryAxisIndex = getPrimaryAxis(baseArtboardRect, adjacentArtboardRect);
-            layoutSecondaryAxisIndex = 1 - layoutPrimaryAxisIndex;
-            gridStep[layoutPrimaryAxisIndex] = adjacentArtboardRect[layoutPrimaryAxisIndex] - baseArtboardRect[layoutPrimaryAxisIndex];
+            var detectedPrimaryAxis = getPrimaryAxis(baseArtboardRect, adjacentArtboardRect);
 
-            for (var i = 2; i < artboardCount; i++) {
-                var iterArtboardRect = artboards[i].artboardRect;
-                if (baseArtboardRect[layoutSecondaryAxisIndex] != iterArtboardRect[layoutSecondaryAxisIndex]) {
-                    gridStep[layoutSecondaryAxisIndex] = iterArtboardRect[layoutSecondaryAxisIndex] - baseArtboardRect[layoutSecondaryAxisIndex];
-                    columns = i;
-                    break;
+            if (detectedPrimaryAxis === directionAxis) {
+                gridStep[layoutPrimaryAxisIndex] = adjacentArtboardRect[layoutPrimaryAxisIndex] - baseArtboardRect[layoutPrimaryAxisIndex];
+
+                for (var i = 2; i < artboardCount; i++) {
+                    var iterArtboardRect = artboards[i].artboardRect;
+                    if (baseArtboardRect[layoutSecondaryAxisIndex] != iterArtboardRect[layoutSecondaryAxisIndex]) {
+                        gridStep[layoutSecondaryAxisIndex] = iterArtboardRect[layoutSecondaryAxisIndex] - baseArtboardRect[layoutSecondaryAxisIndex];
+                        columns = i;
+                        break;
+                    }
                 }
             }
 
