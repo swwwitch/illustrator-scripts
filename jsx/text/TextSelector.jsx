@@ -44,7 +44,7 @@ Select text frames in an Illustrator document using multiple conditions.
 // =========================================
 // バージョンとローカライズ
 // =========================================
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.1.0";
 
 var currentLanguage = ($.locale || "").toLowerCase().indexOf("ja") === 0 ? "ja" : "en";
 
@@ -56,6 +56,7 @@ var LABELS = {
     errNoMatch: { ja: "条件に一致するテキストが見つかりませんでした。", en: "No text matched the criteria." },
 
     selectionPanel: { ja: "選択条件", en: "Selection Criteria" },
+    artboardScopePanel: { ja: "対象とするアートボード", en: "Target Artboard" },
     attributePanel: { ja: "属性で選択", en: "Select by Attribute" },
     textTypePanel: { ja: "テキストの種類", en: "Text Type" },
     textMatchPanel: { ja: "文字列で選択", en: "Select by String" },
@@ -67,6 +68,9 @@ var LABELS = {
     fontSize: { ja: "フォントサイズ", en: "Font Size" },
     textFillColor: { ja: "テキストカラー", en: "Text Color" },
     opacity: { ja: "不透明度", en: "Opacity" },
+
+    artboardAll: { ja: "すべて", en: "All" },
+    artboardCurrent: { ja: "現在のアートボードのみ", en: "Current Artboard Only" },
 
     allText: { ja: "すべて", en: "All" },
     pointText: { ja: "ポイント文字", en: "Point Text" },
@@ -81,6 +85,7 @@ var LABELS = {
 
     noPostProcess: { ja: "なし", en: "None" },
     hideAfterSelection: { ja: "選択後に非表示", en: "Hide after selection" },
+    hideOthers: { ja: "選択したテキスト以外を非表示", en: "Hide all but selected" },
     moveToTextLayer: { ja: "選択後に「_text」レイヤーへ移動", en: "Move to “_text” layer after selection" },
     bulkEdit: { ja: "一括編集", en: "Bulk edit" },
     bulkEditDialogTitle: { ja: "テキストを一括変更", en: "Bulk Edit Text" },
@@ -104,8 +109,12 @@ var LABELS = {
     tipContainsMatch: { ja: "入力した文字列を含むテキストを選択します。大小区別あり。ショートカット：Option + I", en: "Select text that contains the entered string. Case-sensitive. Shortcut: Option + I" },
     tipRegexMatch: { ja: "入力した正規表現に一致するテキストを選択します。大小区別あり。ショートカット：Option + R", en: "Select text that matches the entered regular expression. Case-sensitive. Shortcut: Option + R" },
 
+    tipArtboardAll: { ja: "ドキュメント内のすべてのアートボードを対象に選択します。", en: "Select across all artboards in the document." },
+    tipArtboardCurrent: { ja: "現在のアートボードに重なるオブジェクトだけを対象に選択します。", en: "Select only objects that overlap the active artboard." },
+
     tipNoPostProcess: { ja: "選択後に追加処理を行いません。", en: "Do not apply any additional processing after selection." },
     tipHideAfterSelection: { ja: "選択されたテキストを非表示にします。", en: "Hide the selected text." },
+    tipHideOthers: { ja: "選択されたテキスト以外のオブジェクトを非表示にします。ロックされたオブジェクトは除きます。", en: "Hide all objects except the selected text. Locked objects are left untouched." },
     tipMoveToTextLayer: { ja: "選択されたテキストを「_text」レイヤーへ移動します。レイヤーがない場合は作成します。", en: "Move the selected text to the “_text” layer. The layer will be created if it does not exist." },
     tipBulkEdit: { ja: "選択されたテキストの内容をまとめて置き換えます。書式は維持されます。", en: "Replace contents of all selected text frames at once. Formatting is preserved." }
 };
@@ -362,6 +371,23 @@ function L(key) {
     setupPanelLayout(selectionPanel, 10);
     selectionPanel.margins = [15, 20, 15, 15];
 
+    /* 対象アートボードパネル / Target artboard panel */
+    var artboardScopePanel = selectionPanel.add("panel", undefined, L("artboardScopePanel"));
+    artboardScopePanel.orientation = "row";
+    artboardScopePanel.alignChildren = ["left", "center"];
+    artboardScopePanel.alignment = "fill";
+    artboardScopePanel.margins = [15, 20, 15, 15];
+    artboardScopePanel.spacing = 20;
+
+    var rbArtboardAll = artboardScopePanel.add("radiobutton", undefined, L("artboardAll"));
+    var rbArtboardCurrent = artboardScopePanel.add("radiobutton", undefined, L("artboardCurrent"));
+    rbArtboardCurrent.value = true;
+
+    setHelpTip(rbArtboardAll, L("tipArtboardAll"));
+    setHelpTip(rbArtboardCurrent, L("tipArtboardCurrent"));
+
+    setupExclusiveRadioButtons([rbArtboardAll, rbArtboardCurrent]);
+
     /* 属性選択パネル / Attribute selection panel */
     var attributePanel = selectionPanel.add("panel", undefined, L("attributePanel"));
     setupPanelLayout(attributePanel, 6);
@@ -409,8 +435,12 @@ function L(key) {
     setHelpTip(rbAreaText, L("tipAreaText"));
     setHelpTip(rbPathText, L("tipPathText"));
 
-    /* 初期選択を設定 / Set initial selection */
-    rbAllText.value = true;
+    /* 初期選択を設定（選択があれば「＋スタイルとサイズ」、なければ「すべて」） / Set initial selection */
+    if (hasInitialSelection) {
+        rbFontFamilyStyleSize.value = true;
+    } else {
+        rbAllText.value = true;
+    }
 
     /* 文字列条件パネルを作成 / Create string condition panel */
     var textMatchPanelTitle = L("textMatchPanel");
@@ -626,7 +656,7 @@ function L(key) {
     }
 
     /* 文字列条件でテキストを選択 / Select text frames by string condition */
-    function selectTextFramesByString(keyword, matchMode, regex) {
+    function selectTextFramesByString(keyword, matchMode, regex, artboardScope) {
         var doc = app.activeDocument;
         var allItems = doc.textFrames;
         var selected = [];
@@ -638,6 +668,10 @@ function L(key) {
             if (textMatches(textContents, keyword, matchMode, regex)) {
                 selected.push(textFrame);
             }
+        }
+
+        if (artboardScope === "current") {
+            selected = filterItemsByActiveArtboard(selected);
         }
 
         doc.selection = selected;
@@ -669,6 +703,7 @@ function L(key) {
 
     var rbNoPostProcess = optionPanel.add("radiobutton", undefined, L("noPostProcess"));
     var rbHide = optionPanel.add("radiobutton", undefined, L("hideAfterSelection"));
+    var rbHideOthers = optionPanel.add("radiobutton", undefined, L("hideOthers"));
     var rbMove = optionPanel.add("radiobutton", undefined, L("moveToTextLayer"));
     var rbBulkEdit = optionPanel.add("radiobutton", undefined, L("bulkEdit"));
 
@@ -676,12 +711,14 @@ function L(key) {
 
     setHelpTip(rbNoPostProcess, L("tipNoPostProcess"));
     setHelpTip(rbHide, L("tipHideAfterSelection"));
+    setHelpTip(rbHideOthers, L("tipHideOthers"));
     setHelpTip(rbMove, L("tipMoveToTextLayer"));
     setHelpTip(rbBulkEdit, L("tipBulkEdit"));
 
     setupExclusiveRadioButtons([
         rbNoPostProcess,
         rbHide,
+        rbHideOthers,
         rbMove,
         rbBulkEdit
     ]);
@@ -696,6 +733,9 @@ function L(key) {
         }
         if (rbHide.value) {
             return "hide";
+        }
+        if (rbHideOthers.value) {
+            return "hideOthers";
         }
         if (rbMove.value) {
             return "moveToTextLayer";
@@ -788,6 +828,52 @@ function L(key) {
         };
     }
 
+    /* 選択中の子孫を持つか判定 / Check whether the item contains any selected descendant */
+    function containsSelectedDescendant(item) {
+        var children;
+        try {
+            children = item.pageItems;
+        } catch (childAccessError) {
+            return false;
+        }
+        if (!children || children.length === 0) {
+            return false;
+        }
+        for (var i = 0; i < children.length; i++) {
+            var child = children[i];
+            try {
+                if (child.selected) {
+                    return true;
+                }
+            } catch (selectedReadError) {
+            }
+            if (containsSelectedDescendant(child)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /* 選択中以外のオブジェクトを非表示（ロックは除く） / Hide all objects except the selection (locked items are skipped) */
+    function hideItemsExceptSelection(doc) {
+        var allPageItems = doc.pageItems;
+        for (var i = 0; i < allPageItems.length; i++) {
+            var pageItem = allPageItems[i];
+            try {
+                /* 選択中・ロック中・選択を内包するグループは残す / Keep selected, locked, or selection-containing items */
+                if (pageItem.selected || pageItem.locked) {
+                    continue;
+                }
+                if (containsSelectedDescendant(pageItem)) {
+                    continue;
+                }
+                pageItem.hidden = true;
+            } catch (hideOtherError) {
+                /* ロックされたレイヤー上などで非表示化できない場合はスキップ / Skip items that cannot be hidden because of parent layer state */
+            }
+        }
+    }
+
     /* 選択後の後処理を適用 / Apply post-process to selected items */
     function applyPostProcessToSelection(postProcessMode) {
         if (!postProcessMode) {
@@ -808,6 +894,11 @@ function L(key) {
                     /* ロックされたレイヤー上などで非表示化できない場合はスキップ / Skip items that cannot be hidden because of parent layer state */
                 }
             }
+            return;
+        }
+
+        if (postProcessMode === "hideOthers") {
+            hideItemsExceptSelection(doc);
             return;
         }
 
@@ -843,10 +934,55 @@ function L(key) {
     }
 
     // =========================================
+    // 対象アートボードによる絞り込み / Filter by target artboard
+    // =========================================
+    /* 対象アートボードスコープを取得 / Get target artboard scope */
+    function getSelectedArtboardScope() {
+        return rbArtboardCurrent.value ? "current" : "all";
+    }
+
+    /* 現在のアートボードの矩形を取得 / Get active artboard rectangle */
+    function getActiveArtboardRect(doc) {
+        try {
+            var activeIndex = doc.artboards.getActiveArtboardIndex();
+            return doc.artboards[activeIndex].artboardRect; /* [left, top, right, bottom] */
+        } catch (artboardRectError) {
+            return null;
+        }
+    }
+
+    /* アイテムが矩形に重なるか判定 / Check whether item overlaps the rectangle */
+    function isItemWithinArtboardRect(item, artboardRect) {
+        if (!artboardRect) {
+            return true;
+        }
+        try {
+            var bounds = item.visibleBounds; /* [left, top, right, bottom] */
+            var overlapsHorizontally = bounds[2] >= artboardRect[0] && bounds[0] <= artboardRect[2];
+            var overlapsVertically = bounds[1] >= artboardRect[3] && bounds[3] <= artboardRect[1];
+            return overlapsHorizontally && overlapsVertically;
+        } catch (boundsError) {
+            return true;
+        }
+    }
+
+    /* 現在のアートボード内のアイテムへ絞り込み / Filter items to those on the active artboard */
+    function filterItemsByActiveArtboard(items) {
+        var artboardRect = getActiveArtboardRect(app.activeDocument);
+        var filtered = [];
+        for (var i = 0; i < items.length; i++) {
+            if (isItemWithinArtboardRect(items[i], artboardRect)) {
+                filtered.push(items[i]);
+            }
+        }
+        return filtered;
+    }
+
+    // =========================================
     // テキスト選択処理 / Text selection processing
     // =========================================
     /* 種類ごとにテキストを選択 / Select text frames by text type */
-    function selectTextFramesByType(textType) {
+    function selectTextFramesByType(textType, artboardScope) {
 
         var doc = app.activeDocument;
         var allItems = doc.textFrames;
@@ -878,6 +1014,10 @@ function L(key) {
             }
         }
 
+        if (artboardScope === "current") {
+            selected = filterItemsByActiveArtboard(selected);
+        }
+
         /* 選択を適用 / Apply selection */
         doc.selection = selected;
         return selected.length;
@@ -896,10 +1036,19 @@ function L(key) {
     /* OKボタン実行処理 / Handle OK button action */
     okBtn.onClick = function () {
         var selectedPostProcessMode = getSelectedPostProcessMode();
+        var artboardScope = getSelectedArtboardScope();
         var selectedAttributeCommand = getSelectedAttributeCommand();
         if (selectedAttributeCommand) {
             dialog.close();
             executeSelectedAttributeCommand(selectedAttributeCommand);
+            if (artboardScope === "current") {
+                var filteredAttributeSelection = filterItemsByActiveArtboard(collectSelectionAsArray(app.activeDocument.selection));
+                app.activeDocument.selection = filteredAttributeSelection;
+                if (filteredAttributeSelection.length === 0) {
+                    alert(L("errNoMatch"));
+                    return;
+                }
+            }
             applyPostProcessToSelection(selectedPostProcessMode);
             return;
         }
@@ -912,7 +1061,7 @@ function L(key) {
                 return;
             }
             dialog.close();
-            var matchedCount = selectTextFramesByString(keyword, textMatchMode, validation.regex);
+            var matchedCount = selectTextFramesByString(keyword, textMatchMode, validation.regex, artboardScope);
             if (matchedCount === 0) {
                 alert(L("errNoMatch"));
                 return;
@@ -923,7 +1072,7 @@ function L(key) {
 
         var selectedTextType = getSelectedTextType();
         dialog.close();
-        var typeMatchedCount = selectTextFramesByType(selectedTextType);
+        var typeMatchedCount = selectTextFramesByType(selectedTextType, artboardScope);
         if (typeMatchedCount === 0) {
             alert(L("errNoMatch"));
             return;
