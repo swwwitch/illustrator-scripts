@@ -6,29 +6,22 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
 
+概要
 選択したテキストフレーム（グループ内も再帰的に対象。ロック・非表示は除外）の
 各行（段落）について、その行の文字列をフォント名とみなして検索し、行単位で適用する。
 
-【フォント照合】
-- 段階的にマッチング（PostScript名 → ファミリー+スタイル → ファミリー → 部分一致
-  → 先頭ワード）。複数スタイルがあれば Regular を優先する。
-- 厳密一致は自動適用。あいまい一致・未一致は対話ピッカーに回す。
-- CUSTOM_MAP で特定文字列を任意のフォントへ強制割り当てできる。
-- 空白だけの行は無視。スペース・ピリオドのゆれは吸収して照合する。
-  （例: "Bank Gothic"⇄"BankGothic"、"Mrs. Eaves"⇄"Mrs Eaves OT"）
+主な機能
+・CUSTOM_MAP による特定文字列の強制割り当て
+・PostScript 名、ファミリー名＋スタイル名、ファミリー名による厳密一致
+・ファミリー名／フォント名全体／先頭ワードによるあいまい一致
+・厳密一致は自動適用、あいまい一致・未一致は対話ピッカーで確認
+・同じ文字列は実行中に再質問せず、選択結果を再利用
+・未適用の行を含むフレームには「// missing-fonts」レイヤー上に赤い目印を作成
+・未適用文字列を一覧表示し、クリップボードへコピー可能
 
-【処理の流れ】
-1. プログレスバー表示中は厳密一致だけを自動適用し、あいまい／未一致の行は保留する。
-2. プログレスバー終了後、保留分を対話ピッカーで1件ずつ決めさせる。
-   - 対象テキストを画面にフィット（ZOOM_FIT_RATIO）してズーム表示。
-   - 「適用するフォント」パネルでフォント／スタイルをプルダウン選択、変更するとライブプレビュー。
-   - 「適用」で確定、「スキップ」でこの行は未適用のまま次へ、
-     「終了」で残りをすべて未適用にして選択を打ち切る。
-   - 同じ文字列はこの実行中に一度決めれば、以降は自動で揃える（再質問しない）。
-3. スキップ／未一致の行を含むフレームは、背面に赤・半透明の長方形を「// missing-fonts」
-   レイヤー（最背面・ロック）へ目印として作成する（テキスト自体は非破壊）。
-   既存の目印レイヤーは実行のたびに削除してから作り直す。
-4. 最後に、適用できなかった文字列をダイアログで一覧表示し、クリップボードへコピーできる。
+履歴
+v1.0.0  初期バージョン
+v1.1.1  現行バージョン
 
 */
 
@@ -37,18 +30,19 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
     // ============================================================
     // 設定 / バージョン / ローカライズ（Settings / Version / Localization）
     // ============================================================
-    var SCRIPT_VERSION = "v1.1.0";
+    var SCRIPT_VERSION = "v1.1.1";
 
     // ============================================================
     // 【カスタム置換ルール】
     // 特定の行のテキストに対して、強制的に適用したいフォントを定義できます。
     // ============================================================
     var CUSTOM_MAP = {
-        "Jenson": "Adobe Jenson Pro Light",
-        "Garamond": "Adobe Garamond Pro Regular",
-        "Myriad": "Myriad Pro Regular",
-        "Frutiger": "Neue Frutiger World Regular",
-        "FF DIN": "DIN 2014 Regular"
+        "Jenson": "Adobe Jenson Pro",
+        "Garamond": "Adobe Garamond Pro",
+        "Myriad": "Myriad Pro",
+        "Frutiger": "Neue Frutiger World",
+        "FF DIN": "DIN 2014",
+        "Minion": "Minion Pro",
     };
 
     // 未適用の行を含むフレームの「目印」を置くレイヤー名と長方形の不透明度
@@ -58,8 +52,15 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
     // 対話ピッカーで対象へズームするときの、表示領域に対する占有率（0〜1）
     var ZOOM_FIT_RATIO = 0.6;
 
+    // ファミリー名一致などで複数スタイルが候補になったとき、どのスタイルを選ぶかの優先順位。
+    // 先頭にあるスタイルほど優先される（小文字で比較。どれにも該当しなければ候補の先頭）。
+    // Regular 優先にしたいときは ["regular", "medium", "semibold", "bold"] に並べ替える。
+    var STYLE_PRIORITY = ["bold", "semibold", "medium", "regular"];
+
     // showFontPicker が「終了」されたときに返す番兵（選択ループを打ち切る合図）
     var PICKER_QUIT = {};
+
+    var fontIndex;
 
     // ============================================================
     // ローカライズ
@@ -117,6 +118,10 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
                 ja: "適用するフォント",
                 en: "Font to apply"
             },
+            search: {
+                ja: "検索：",
+                en: "Search:"
+            },
             family: {
                 ja: "フォント：",
                 en: "Font:"
@@ -157,6 +162,7 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
     }
 
     var doc = app.activeDocument;
+    fontIndex = createFontIndex();
     var currentSelection = doc.selection;
     var selection = [];
     if (currentSelection) {
@@ -174,19 +180,22 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
     var textFrames = [];
     collectTextFrames(selection, textFrames);
 
+    if (textFrames.length === 0) {
+        alert(L(LABELS.message.noSelection));
+        return;
+    }
+
     // フェーズ1：プログレスバー表示中は「厳密一致だけ自動適用」。
     // あいまい／未一致の行は保留キュー（pendingPicks）に貯め、確認は後回しにする。
-    var progress = (textFrames.length > 0) ? createProgress(textFrames.length) : null;
+    var progress = createProgress(textFrames.length);
     var pendingPicks = [];
     for (var i = 0; i < textFrames.length; i++) {
-        if (progress) {
-            progress.bar.value = i + 1;
-            progress.countLabel.text = (i + 1) + " / " + textFrames.length;
-            progress.window.update();
-        }
+        progress.bar.value = i + 1;
+        progress.countLabel.text = (i + 1) + " / " + textFrames.length;
+        progress.window.update();
         autoApplyAndQueue(textFrames[i], pendingPicks);
     }
-    if (progress) progress.window.close();
+    progress.window.close();
 
     // フェーズ2：プログレスバー終了後に、保留分を対話ピッカーで1件ずつ決めさせる。
     // スキップされた行（＝未適用）はフレームと文字列を控える。
@@ -304,7 +313,7 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
             tempFrame = doc.textFrames.add();
             tempFrame.contents = textToCopy;
             tempFrame.position = [-100000, -100000]; // 画面外に逃がす
-            app.selection = null;
+            doc.selection = null;
             tempFrame.selected = true;
             app.copy();
         } catch (e) {
@@ -312,7 +321,7 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
             if (tempFrame) {
                 try { tempFrame.remove(); } catch (e2) { }
             }
-            app.selection = null;
+            doc.selection = null;
         }
     }
 
@@ -325,25 +334,19 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
         // 対象テキストを画面にフィット
         zoomToFrame(targetFrame);
 
-        var families = collectFamilies();
+        var families = fontIndex.families;
 
         // UI は createFontPickerDialog が生成。ここではロジック（選択・プレビュー・確定）だけ扱う
         var pickerUI = createFontPickerDialog(lineText, families);
         var dialog = pickerUI.dialog;
         var familyList = pickerUI.familyList;
         var styleList = pickerUI.styleList;
+        var searchField = pickerUI.searchField;
 
         // 初期選択（initialFont があればそれに合わせる）
         initializeFontPickerSelection(familyList, styleList, families, initialFont);
 
-        familyList.onChange = function () {
-            populateFontPickerStyles(familyList, styleList);
-            if (styleList.items.length > 0) styleList.selection = 0;
-            applyFontPickerPreview(paragraph, familyList, styleList);
-        };
-        styleList.onChange = function () {
-            applyFontPickerPreview(paragraph, familyList, styleList);
-        };
+        bindFontPickerEvents(paragraph, familyList, styleList, searchField, families);
 
         // あいまい候補があるときだけ初回プレビュー。未一致のときは元の見た目を保つ
         if (initialFont) applyFontPickerPreview(paragraph, familyList, styleList);
@@ -351,21 +354,26 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
         // 「適用」=1 / 「スキップ」=2（閉じる含む）/ 「終了」=3
         var result = dialog.show();
 
+        return handleFontPickerResult(result, paragraph, originalFont, familyList, styleList);
+    }
+
+    // フォントピッカーの結果を処理して返す
+    function handleFontPickerResult(result, paragraph, originalFont, familyList, styleList) {
         if (result === 1 && familyList.selection && styleList.selection) {
             var chosenFont = fontFor(familyList.selection.text, styleList.selection.text);
             if (chosenFont) {
-                paragraph.characterAttributes.textFont = chosenFont; // 確定
-                return chosenFont;
+                try {
+                    paragraph.characterAttributes.textFont = chosenFont;
+                    return chosenFont;
+                } catch (e) { }
             }
         }
 
-        // 適用以外（スキップ／終了／閉じる）：プレビューを元へ戻す
-        try { paragraph.characterAttributes.textFont = originalFont; } catch (e) { }
-        app.redraw();
-
-        // 「終了」なら呼び出し側の選択ループを止めるシグナルを返す
+        // スキップ／終了時の復元処理で Illustrator が落ちるケースがあるため、ここでは復元しない。
+        // 未適用として記録し、後続のマーカー処理に任せる。
         return (result === 3) ? PICKER_QUIT : null;
     }
+
 
     // フォントピッカーの UI を生成して { dialog, familyList, styleList } を返す。
     // ボタンは name:"ok"/"cancel" なので、判定は dialog.show() の戻り値で行う。
@@ -373,7 +381,6 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
         var dialog = new Window("dialog", L(LABELS.picker.title) + " " + SCRIPT_VERSION);
         dialog.alignChildren = "fill";
         dialog.margins = 15;
-        // dialog.preferredSize.width = 550; // 最小幅（左右ボタンを確実に分割するため）
 
         // 対象テキスト（パネルの外）
         var targetRow = dialog.add("group");
@@ -386,15 +393,29 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
         replacePanel.alignChildren = "left";
         replacePanel.margins = 15;
 
+        // 各行のラベル幅をそろえる
+        var labelWidth = 70;
+
+        // 検索フィルター（入力した文字列でファミリーのプルダウンを絞り込む）
+        var searchRow = replacePanel.add("group");
+        var searchLabel = searchRow.add("statictext", undefined, L(LABELS.picker.search));
+        searchLabel.preferredSize.width = labelWidth;
+        var searchField = searchRow.add("edittext", undefined, "");
+        searchField.preferredSize.width = 200;
+
         // フォント（ファミリー）プルダウン
         var familyRow = replacePanel.add("group");
-        familyRow.add("statictext", undefined, L(LABELS.picker.family));
+        var familyLabel = familyRow.add("statictext", undefined, L(LABELS.picker.family));
+        familyLabel.preferredSize.width = labelWidth;
         var familyList = familyRow.add("dropdownlist", undefined, families);
+        familyList.preferredSize.width = 200;
 
         // スタイルプルダウン
         var styleRow = replacePanel.add("group");
-        styleRow.add("statictext", undefined, L(LABELS.picker.style));
+        var styleLabel = styleRow.add("statictext", undefined, L(LABELS.picker.style));
+        styleLabel.preferredSize.width = labelWidth;
         var styleList = styleRow.add("dropdownlist", undefined, []);
+        styleList.preferredSize.width = 200;
 
         // === ボタンエリア（左右分割：左=終了／右=スキップ・適用）===
         // メイングループ（横並び） / Main group (horizontal layout)
@@ -417,10 +438,35 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
         // 右側グループ / Right-side button group
         var btnRightGroup = btnRowGroup.add("group");
         btnRightGroup.alignChildren = ["right", "center"];
-        var btnSkip = btnRightGroup.add("button", undefined, L(LABELS.picker.skip), { name: "cancel" });
-        var btnApply = btnRightGroup.add("button", undefined, L(LABELS.picker.apply), { name: "ok" });
+        btnRightGroup.add("button", undefined, L(LABELS.picker.skip), { name: "cancel" });
+        btnRightGroup.add("button", undefined, L(LABELS.picker.apply), { name: "ok" });
 
-        return { dialog: dialog, familyList: familyList, styleList: styleList };
+        return { dialog: dialog, familyList: familyList, styleList: styleList, searchField: searchField };
+    }
+
+    // フォントピッカーの検索・ファミリー・スタイル変更イベントを接続する
+    function bindFontPickerEvents(paragraph, familyList, styleList, searchField, families) {
+        // 検索フィールドに入力するたびに、ファミリーのプルダウンを絞り込む
+        searchField.onChanging = function () {
+            filterFamilyList(familyList, families, searchField.text);
+            updateFontPickerStyleSelection(familyList, styleList);
+            applyFontPickerPreview(paragraph, familyList, styleList);
+        };
+
+        familyList.onChange = function () {
+            updateFontPickerStyleSelection(familyList, styleList);
+            applyFontPickerPreview(paragraph, familyList, styleList);
+        };
+
+        styleList.onChange = function () {
+            applyFontPickerPreview(paragraph, familyList, styleList);
+        };
+    }
+
+    // 選択中のファミリーに合わせてスタイル一覧を更新し、先頭スタイルを選択する
+    function updateFontPickerStyleSelection(familyList, styleList) {
+        populateFontPickerStyles(familyList, styleList);
+        if (styleList.items.length > 0) styleList.selection = 0;
     }
 
     // フォントピッカーのスタイル一覧を、選択中のファミリーに合わせて更新する
@@ -447,11 +493,32 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
     // 選択中の family / style に対応するフォントを対象段落へ反映する（ライブプレビュー）
     function applyFontPickerPreview(paragraph, familyList, styleList) {
         if (!familyList.selection || !styleList.selection) return;
+
         var font = fontFor(familyList.selection.text, styleList.selection.text);
-        if (font) {
+        if (!font) return;
+
+        try {
             paragraph.characterAttributes.textFont = font;
             app.redraw();
+        } catch (e) { }
+    }
+
+    // 検索クエリ（部分一致・大文字小文字を無視）でファミリーのドロップダウンを絞り込む。
+    // 絞り込み後も、可能なら直前に選択していたファミリーを選び直す。
+    // 一致が無くなった場合は空のまま（プレビュー側でガードしている）。
+    function filterFamilyList(familyList, allFamilies, query) {
+        var previousFamily = familyList.selection ? familyList.selection.text : null;
+        var needle = String(query).toLowerCase();
+
+        familyList.removeAll();
+        for (var i = 0; i < allFamilies.length; i++) {
+            if (needle === "" || allFamilies[i].toLowerCase().indexOf(needle) !== -1) {
+                familyList.add("item", allFamilies[i]);
+            }
         }
+
+        if (previousFamily) selectInList(familyList, previousFamily);
+        if (!familyList.selection && familyList.items.length > 0) familyList.selection = 0;
     }
 
     // dropdownlist で指定テキストの項目を選択する（無ければ何もしない）
@@ -485,43 +552,60 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
         } catch (e) { }
     }
 
-    // インストール済みフォントのファミリー名一覧（重複なし・ソート済み）
-    function collectFamilies() {
+    // インストール済みフォントを索引化する
+    function createFontIndex() {
         var fonts = app.textFonts;
-        var seen = {}, families = [];
+        var index = {
+            fonts: fonts,
+            families: [],
+            stylesByFamily: {},
+            fontByFamilyStyle: {},
+            normalizedFonts: []
+        };
+
         for (var i = 0; i < fonts.length; i++) {
             var family = fonts[i].family;
-            if (!seen.hasOwnProperty(family)) {
-                seen[family] = true;
-                families.push(family);
+            var style = fonts[i].style;
+
+            if (!index.stylesByFamily.hasOwnProperty(family)) {
+                index.stylesByFamily[family] = [];
+                index.families.push(family);
+            }
+
+            index.stylesByFamily[family].push(style);
+            index.fontByFamilyStyle[makeFamilyStyleKey(family, style)] = fonts[i];
+            index.normalizedFonts.push({
+                font: fonts[i],
+                family: normalize(family),
+                full: normalize(family + " " + style),
+                name: normalize(fonts[i].name)
+            });
+        }
+
+        index.families.sort();
+
+        for (var familyName in index.stylesByFamily) {
+            if (index.stylesByFamily.hasOwnProperty(familyName)) {
+                index.stylesByFamily[familyName].sort();
             }
         }
-        families.sort();
-        return families;
+
+        return index;
+    }
+
+    // ファミリー名＋スタイル名の索引用キーを作る
+    function makeFamilyStyleKey(family, style) {
+        return family + "\u0000" + style;
     }
 
     // 指定ファミリーに属するスタイル名の一覧
     function stylesForFamily(family) {
-        var fonts = app.textFonts;
-        var styles = [];
-        for (var i = 0; i < fonts.length; i++) {
-            if (fonts[i].family === family) {
-                styles.push(fonts[i].style);
-            }
-        }
-        styles.sort();
-        return styles;
+        return fontIndex.stylesByFamily[family] || [];
     }
 
     // ファミリー名＋スタイル名から TextFont を取得（無ければ null）
     function fontFor(family, style) {
-        var fonts = app.textFonts;
-        for (var i = 0; i < fonts.length; i++) {
-            if (fonts[i].family === family && fonts[i].style === style) {
-                return fonts[i];
-            }
-        }
-        return null;
+        return fontIndex.fontByFamilyStyle[makeFamilyStyleKey(family, style)] || null;
     }
 
     // 選択物（配列）を再帰的にたどり、TextFrame を collected に集める
@@ -602,16 +686,55 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
 
     // 指定名のレイヤーがあれば削除する（無ければ何もしない）
     function removeLayerByName(name) {
-        var layer;
+        var layer = getLayerByName(name);
+        if (!layer) return;
+
+        unlockLayerTree(layer);
+
         try {
-            layer = doc.layers.getByName(name);
-        } catch (e) {
-            return;
-        }
-        try {
-            layer.locked = false;
             layer.remove();
+        } catch (e) { }
+    }
+
+    // 指定名のレイヤーを取得する（無ければ null）
+    function getLayerByName(name) {
+        try {
+            return doc.layers.getByName(name);
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // レイヤーと配下アイテムを、可能な範囲でロック解除・表示する
+    function unlockLayerTree(layer) {
+        unlockContainer(layer);
+        unlockPageItems(layer.pageItems);
+    }
+
+    // レイヤー／アイテム共通のロック解除・表示処理
+    function unlockContainer(item) {
+        try {
+            item.locked = false;
+        } catch (e) { }
+
+        try {
+            item.visible = true;
         } catch (e2) { }
+
+        try {
+            item.hidden = false;
+        } catch (e3) { }
+    }
+
+    // PageItems コレクション内を再帰的にロック解除・表示する
+    function unlockPageItems(items) {
+        for (var i = 0; i < items.length; i++) {
+            unlockContainer(items[i]);
+
+            if (items[i].typename === "GroupItem") {
+                unlockPageItems(items[i].pageItems);
+            }
+        }
     }
 
     // 目印レイヤーを新規作成し、テキストの背面に来るよう最背面へ送る
@@ -663,12 +786,13 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
         return rgb;
     }
 
-    // app.textFonts から条件に合うフォントを集めて配列で返す
-    function collectFonts(fonts, isMatch) {
+    // 正規化済みフォント索引から条件に合うフォントを集めて配列で返す
+    function collectIndexedFonts(isMatch) {
         var matchedFonts = [];
-        for (var i = 0; i < fonts.length; i++) {
-            if (isMatch(fonts[i])) {
-                matchedFonts.push(fonts[i]);
+        var normalizedFonts = fontIndex.normalizedFonts;
+        for (var i = 0; i < normalizedFonts.length; i++) {
+            if (isMatch(normalizedFonts[i])) {
+                matchedFonts.push(normalizedFonts[i].font);
             }
         }
         return matchedFonts;
@@ -685,38 +809,36 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
             fontName = CUSTOM_MAP[fontName];
         }
 
-        var fonts = app.textFonts;
-
         // 2. PostScript名での完全一致（厳密）
         try {
-            return { font: fonts.getByName(fontName), confident: true };
+            return { font: fontIndex.fonts.getByName(fontName), confident: true };
         } catch (e) { }
 
         // 以降はあいまい照合。スペース・ピリオドを除去した文字列で比較する
         var query = normalize(fontName);
 
         // 3. ファミリー名＋スタイル名の完全一致（厳密）
-        var exactFull = collectFonts(fonts, function (font) {
-            return normalize(font.family + " " + font.style) === query;
+        var exactFull = collectIndexedFonts(function (fontInfo) {
+            return fontInfo.full === query;
         });
         if (exactFull.length > 0) return { font: getBestStyle(exactFull), confident: true };
 
-        // 4. ファミリー名のみの完全一致（厳密。スタイルは Regular 優先で確定）
-        var exactFamily = collectFonts(fonts, function (font) {
-            return normalize(font.family) === query;
+        // 4. ファミリー名のみの完全一致（厳密。スタイルは Bold 優先で確定）
+        var exactFamily = collectIndexedFonts(function (fontInfo) {
+            return fontInfo.family === query;
         });
         if (exactFamily.length > 0) return { font: getBestStyle(exactFamily), confident: true };
 
         // 5. ファミリー名への部分一致（あいまい。例: "Jenson" → "Adobe Jenson Pro"）
-        var partialFamily = collectFonts(fonts, function (font) {
-            return normalize(font.family).indexOf(query) !== -1;
+        var partialFamily = collectIndexedFonts(function (fontInfo) {
+            return fontInfo.family.indexOf(query) !== -1;
         });
         if (partialFamily.length > 0) return { font: getBestStyle(partialFamily), confident: false };
 
         // 6. フォント名全体への部分一致（あいまい）
-        var partialFull = collectFonts(fonts, function (font) {
-            return normalize(font.family + " " + font.style).indexOf(query) !== -1
-                || normalize(font.name).indexOf(query) !== -1;
+        var partialFull = collectIndexedFonts(function (fontInfo) {
+            return fontInfo.full.indexOf(query) !== -1
+                || fontInfo.name.indexOf(query) !== -1;
         });
         if (partialFull.length > 0) return { font: getBestStyle(partialFull), confident: false };
 
@@ -726,8 +848,8 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
         var firstWord = String(fontName).toLowerCase()
             .replace(/[.　]+/g, " ").replace(/^\s+/, "").split(/\s+/)[0] || "";
         if (firstWord.length >= 3) {
-            var looseFamily = collectFonts(fonts, function (font) {
-                return normalize(font.family).indexOf(firstWord) !== -1;
+            var looseFamily = collectIndexedFonts(function (fontInfo) {
+                return fontInfo.family.indexOf(firstWord) !== -1;
             });
             if (looseFamily.length > 0) return { font: getBestStyle(looseFamily), confident: false };
         }
@@ -744,9 +866,10 @@ ApplyFontByLine.jsx — 行ごとにフォントを適用するスクリプト
             .replace(/[.\s　]+/g, "");
     }
 
-    // マッチしたフォント群から、最適なスタイル（優先順位）を選択して返す関数
+    // マッチしたフォント群から、最適なスタイルを選択して返す。
+    // 優先順位は STYLE_PRIORITY の並び順に従う（いずれにも該当しなければ候補の先頭）。
     function getBestStyle(candidates) {
-        var preferredStyles = ["regular", "roman", "plain", "book", "medium", "normal", "light"];
+        var preferredStyles = STYLE_PRIORITY;
         for (var k = 0; k < preferredStyles.length; k++) {
             for (var j = 0; j < candidates.length; j++) {
                 if (candidates[j].style.toLowerCase() === preferredStyles[k]) {
