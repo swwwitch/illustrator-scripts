@@ -5,36 +5,46 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 # ペア間隔調整スクリプト
 
-選択したオブジェクトを最も近いもの同士でペアにし、各ペアの水平方向の間隔を指定値にそろえます。
+オブジェクトの水平方向の間隔を指定値にそろえます。2つのモードがあります。
+
+- 自動ペア認識：選択オブジェクトを最も近いもの同士でペアにし、各ペアの間隔をそろえます
+- グループ：選択した各グループの中身を左端順に並べ、隣り合う間隔をすべて指定値にそろえます（2個に限らず、3個以上もカスケードで分配）
+
+選択がすべてグループのときは起動時に自動で「グループ」、それ以外は「自動ペア認識」が選ばれます（ダイアログで切り替え可能）。
 
 ## 使い方
 
-- 間隔をそろえたいオブジェクトを偶数個（2つずつのペア）選択して実行
-- ダイアログで「固定オブジェクト（左 / 右）」と「間隔」を指定（間隔は↑↓キーで±1、Shiftで±10、Optionで±0.1）
+- 間隔をそろえたいオブジェクト、またはグループを選択して実行
+- ダイアログで「モード」「固定オブジェクト（左 / 右）」「間隔」を指定（間隔は↑↓キーで±1、Shiftで±10、Optionで±0.1）
+- 「固定オブジェクト」で基準にする側を選びます。グループモードでは、固定した端（左 or 右）を起点に残りをカスケード配置します
 - 「プレビュー境界」をオンにすると、線幅や効果を含む見た目の境界で間隔を測ります
 - 設定はダイアログを閉じずにライブプレビューで確認できます
 
 ## 注意
 
-- 選択数が奇数の場合は処理しません
+- 自動ペア認識：選択数が奇数のときは末尾の1つがペアにならず、そのまま残ります
+- グループ：子が2個未満のグループ、およびグループ以外のオブジェクトは対象外です
 
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 // =========================================
 // ユーザー設定 / User settings
 // =========================================
-var DEFAULT_GAP = 30; // 既定の間隔（pt）/ Default gap (pt)
+var DEFAULT_GAP = 30; // 平均間隔を測れないときのフォールバック（pt）/ Fallback gap when no average can be measured (pt)
 
 // =========================================
 // ローカライズ / Localization
 // =========================================
 var LABELS = {
     dialogTitle: { ja: "ペア間隔の調整", en: "Adjust Pair Gap" },
+    mode: { ja: "モード", en: "Mode" },
+    modeGroup: { ja: "グループ", en: "Group" },
+    modeAutoPair: { ja: "自動ペア認識", en: "Auto Pair Detection" },
     fixedSide: { ja: "固定オブジェクト", en: "Fixed Object" },
     sideLeft: { ja: "左", en: "Left" },
     sideRight: { ja: "右", en: "Right" },
@@ -219,6 +229,76 @@ function createNearestPairs(selectedItems) {
     return pairs;
 }
 
+/* GroupItem の直下オブジェクトを配列で返す。グループ以外は null。
+   Return a GroupItem's direct children as an array; null for non-groups. */
+function getGroupChildren(item) {
+    if (item.typename !== "GroupItem") return null;
+    var children = [];
+    for (var i = 0; i < item.pageItems.length; i++) {
+        children.push(item.pageItems[i]);
+    }
+    return children;
+}
+
+/* 選択した各グループの一番左・一番右を取り出してペアにする / Pair the leftmost and
+   rightmost object inside each selected group.
+   ペア認識の代わりにグループ単位で組む。左右は geometricBounds の左端 x で判定し、
+   どちらを固定するかは固定オブジェクト（左/右）ラジオに従う（applySpacing 側で処理）。
+   Built per group instead of nearest-neighbor pairing; which side stays fixed is
+   decided by the Fixed Object (left/right) radio, handled in applySpacing. */
+function createGroupPairs(selectedItems) {
+    var pairs = [];
+    for (var i = 0; i < selectedItems.length; i++) {
+        var children = getGroupChildren(selectedItems[i]);
+        // グループでない、または子が2個未満なら間隔を調整できない / Need a group with 2+ children
+        if (!children || children.length < 2) continue;
+
+        // グループは2つに限らない。含まれる全オブジェクトを members として持ち、
+        // applySpacing 側で左端順に等間隔へ分配する（固定側を基準に配置）。
+        // A group may hold any number of objects; keep them all as members and let
+        // applySpacing distribute them with a uniform gap, anchored at the fixed side.
+        pairs.push({ members: children });
+    }
+    return pairs;
+}
+
+/* 選択オブジェクトの現在の水平間隔の平均（pt）を求める。測れない場合は null。
+   モードに合わせて測る：自動ペア認識は各ペアの間隔、グループは各グループ内の隣接間隔。
+   常に geometricBounds（幾何境界）基準。Average current horizontal gap (pt) of the
+   selection, matching the mode; null if nothing measurable. Always geometric bounds. */
+function computeAverageGap(selectedItems, mode) {
+    var gaps = [];
+
+    if (mode === "group") {
+        // 各グループ内：左端順に並べて隣り合う間隔を測る / Adjacent gaps inside each group
+        for (var i = 0; i < selectedItems.length; i++) {
+            var children = getGroupChildren(selectedItems[i]);
+            if (!children || children.length < 2) continue;
+            var sorted = children.slice(0);
+            sorted.sort(function (a, b) { return a.geometricBounds[0] - b.geometricBounds[0]; });
+            for (var j = 1; j < sorted.length; j++) {
+                // 次の左端 - 前の右端 / next left edge - previous right edge
+                gaps.push(sorted[j].geometricBounds[0] - sorted[j - 1].geometricBounds[2]);
+            }
+        }
+    } else {
+        // 自動ペア認識：各ペアの間隔を測る / Gap of each nearest pair
+        var pairs = createNearestPairs(selectedItems);
+        for (var p = 0; p < pairs.length; p++) {
+            var boundsA = pairs[p].a.geometricBounds;
+            var boundsB = pairs[p].b.geometricBounds;
+            var leftBounds = (boundsA[0] < boundsB[0]) ? boundsA : boundsB;
+            var rightBounds = (boundsA[0] < boundsB[0]) ? boundsB : boundsA;
+            gaps.push(rightBounds[0] - leftBounds[2]);
+        }
+    }
+
+    if (gaps.length === 0) return null;
+    var sum = 0;
+    for (var g = 0; g < gaps.length; g++) sum += gaps[g];
+    return sum / gaps.length;
+}
+
 (function () {
     if (app.documents.length === 0) {
         alert(getLocalizedText('alertNoDocument'));
@@ -241,32 +321,31 @@ function createNearestPairs(selectedItems) {
         selectedItems.push(liveSelection[i]);
     }
 
-    if (selectedItems.length < 2) {
+    if (selectedItems.length < 1) {
         alert(getLocalizedText('alertSelectTwo'));
         return;
     }
 
-    // 選択数が奇数の場合はエラーを出す / Reject an odd number of objects
-    if (selectedItems.length % 2 !== 0) {
-        alert(getLocalizedText('alertOddCount'));
-        return;
-    }
+    // ペアはモード（自動ペア認識 / グループ）に応じて後で組み直すため、ここでは器だけ用意する。
+    // 自動ペア認識は最近傍で偶数個を組むので奇数なら末尾が1つ余るが、createNearestPairs が
+    // 黙って捨てる（プレビューで何も動かないだけ）。グループモードは選択数の偶奇に依らない。
+    // Pairs are (re)built per mode later; declare the holder here. Odd selections in
+    // auto mode simply drop the last item; group mode is independent of the count.
+    var objectPairs = [];
 
-    var objectPairs = createNearestPairs(selectedItems);
-
-    // 各オブジェクトの元の境界を一度だけキャッシュする。
-    // プレビューは適用前に必ず元位置へ巻き戻すため、適用時は常に元位置 →
-    // キャッシュした境界で計算でき、プレビューごとの境界再取得を避けられる（高速化）。
-    // Cache original bounds once. Preview always reverts to the original position
-    // before re-applying, so cached bounds stay valid and we avoid re-reading
-    // bounds on every preview (the slow part).
-    for (var p = 0; p < objectPairs.length; p++) {
-        var pair = objectPairs[p];
-        pair.geometricA = pair.a.geometricBounds;
-        pair.visibleA = pair.a.visibleBounds;
-        pair.geometricB = pair.b.geometricBounds;
-        pair.visibleB = pair.b.visibleBounds;
+    // 選択がすべてグループなら既定でグループモードにする（それ以外は自動ペア認識）。
+    // Default to group mode when every selected object is a group; otherwise auto pair.
+    var selectionIsGroupsOnly = true;
+    for (var gi = 0; gi < selectedItems.length; gi++) {
+        if (selectedItems[gi].typename !== "GroupItem") { selectionIsGroupsOnly = false; break; }
     }
+    var defaultMode = selectionIsGroupsOnly ? "group" : "auto";
+
+    // 間隔の初期値は選択オブジェクトの現在の平均間隔。測れなければ DEFAULT_GAP を使う。
+    // 負（重なり）の場合は 0 にクランプ。Initial gap = current average gap of the
+    // selection (clamped to >= 0); fall back to DEFAULT_GAP when nothing measurable.
+    var measuredGap = computeAverageGap(selectedItems, defaultMode);
+    var initialGapPoints = (measuredGap !== null) ? Math.max(0, measuredGap) : DEFAULT_GAP;
 
     // =========================================
     // プレビュー / Live preview
@@ -286,11 +365,57 @@ function createNearestPairs(selectedItems) {
         appliedMoves = [];
     }
 
+    /* グループ内の全オブジェクトを左端順に並べ、隣り合う間隔を gap にそろえる。
+       固定側（左/右）のオブジェクトは動かさず、そこを起点にカスケードで再配置する。
+       Distribute all objects in a group left-to-right with a uniform gap, anchored at
+       the fixed side (the fixed-side object stays; the rest cascade from it). */
+    function distributeGroup(pair, fixedSide, gapInPoints, useVisible) {
+        var members = pair.members;
+        var cachedBounds = useVisible ? pair.memberVis : pair.memberGeo;
+        var count = members.length;
+
+        // 左端の昇順に並べたインデックス / Indices ordered by left edge ascending
+        var order = [];
+        for (var i = 0; i < count; i++) order.push(i);
+        order.sort(function (x, y) { return cachedBounds[x][0] - cachedBounds[y][0]; });
+
+        if (fixedSide === "right") {
+            // 右端を固定し、右から左へ配置 / Anchor the rightmost; walk leftward
+            var nextLeft = cachedBounds[order[count - 1]][0]; // 右端オブジェクトの左端（不動）
+            for (var r = count - 2; r >= 0; r--) {
+                var idxR = order[r];
+                var desiredRight = nextLeft - gapInPoints;
+                var dxR = desiredRight - cachedBounds[idxR][2];
+                if (dxR !== 0) { members[idxR].translate(dxR, 0); appliedMoves.push({ obj: members[idxR], dx: dxR }); }
+                nextLeft = cachedBounds[idxR][0] + dxR; // この要素の新しい左端 / its new left edge
+            }
+        } else {
+            // 左端を固定し、左から右へ配置 / Anchor the leftmost; walk rightward
+            var prevRight = cachedBounds[order[0]][2]; // 左端オブジェクトの右端（不動）
+            for (var f = 1; f < count; f++) {
+                var idxF = order[f];
+                var desiredLeft = prevRight + gapInPoints;
+                var dxF = desiredLeft - cachedBounds[idxF][0];
+                if (dxF !== 0) { members[idxF].translate(dxF, 0); appliedMoves.push({ obj: members[idxF], dx: dxF }); }
+                prevRight = cachedBounds[idxF][2] + dxF; // この要素の新しい右端 / its new right edge
+            }
+        }
+    }
+
     /* 設定値で各ペアの間隔を調整する / Apply the gap to every pair */
     function applySpacing(fixedSide, gapInPoints, boundsType) {
         var useVisible = (boundsType === "visibleBounds");
         for (var k = 0; k < objectPairs.length; k++) {
             var pair = objectPairs[k];
+
+            if (pair.members) {
+                // グループモード：全オブジェクトを等間隔に分配（固定側を基準）
+                // Group mode: distribute all objects with a uniform gap, anchored at the fixed side
+                distributeGroup(pair, fixedSide, gapInPoints, useVisible);
+                continue;
+            }
+
+            // 自動ペア認識：2オブジェクトの間隔を調整 / Auto mode: adjust the gap of a pair
             // キャッシュ済みの元の境界を使用 / Use cached original bounds
             var boundsA = useVisible ? pair.visibleA : pair.geometricA;
             var boundsB = useVisible ? pair.visibleB : pair.geometricB;
@@ -325,6 +450,40 @@ function createNearestPairs(selectedItems) {
         app.redraw();
     }
 
+    /* 各ペアの元の境界をキャッシュする / Cache original bounds of every pair.
+       適用時は常に元位置へ巻き戻してから計算するので、ここで一度取れば使い回せる。 */
+    function cachePairBounds(pairs) {
+        for (var p = 0; p < pairs.length; p++) {
+            var pair = pairs[p];
+            if (pair.members) {
+                // グループ：全メンバーの境界をキャッシュ / Group: cache every member's bounds
+                pair.memberGeo = [];
+                pair.memberVis = [];
+                for (var m = 0; m < pair.members.length; m++) {
+                    pair.memberGeo.push(pair.members[m].geometricBounds);
+                    pair.memberVis.push(pair.members[m].visibleBounds);
+                }
+            } else {
+                pair.geometricA = pair.a.geometricBounds;
+                pair.visibleA = pair.a.visibleBounds;
+                pair.geometricB = pair.b.geometricBounds;
+                pair.visibleB = pair.b.visibleBounds;
+            }
+        }
+    }
+
+    /* モードに応じてペアを組み直す / Rebuild pairs for the given mode ("auto" | "group").
+       境界キャッシュは必ず元位置で取るため、先にプレビューを巻き戻してから組む。
+       Always revert the preview first so cached bounds reflect original positions. */
+    function buildPairs(mode) {
+        undoPreview();
+        var pairs = (mode === "group")
+            ? createGroupPairs(selectedItems)
+            : createNearestPairs(selectedItems);
+        cachePairBounds(pairs);
+        objectPairs = pairs;
+    }
+
     // =========================================
     // ダイアログ / Dialog
     // =========================================
@@ -333,6 +492,17 @@ function createNearestPairs(selectedItems) {
         var dialog = new Window("dialog", getLocalizedText('dialogTitle') + ' ' + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
+
+        // モード / Mode（ラジオ縦並び）
+        var modePanel = dialog.add("panel", undefined, getLocalizedText('mode'));
+        setupPanel(modePanel, 6);
+        modePanel.alignChildren = ["left", "top"]; // ラジオは左寄せで縦並び / Stack radios, left-aligned
+        var modeGroupRadio = modePanel.add("radiobutton", undefined, getLocalizedText('modeGroup'));       // グループ
+        var modeAutoPairRadio = modePanel.add("radiobutton", undefined, getLocalizedText('modeAutoPair')); // 自動ペア認識
+        // 既定モードは選択内容で決める：グループのみ→グループ、それ以外→自動ペア認識。
+        // Default mode follows the selection: groups only → group, otherwise → auto pair.
+        modeGroupRadio.value = selectionIsGroupsOnly;
+        modeAutoPairRadio.value = !selectionIsGroupsOnly;
 
         // 固定オブジェクト / Fixed object
         var fixedSidePanel = dialog.add("panel", undefined, getLocalizedText('fixedSide'));
@@ -358,7 +528,7 @@ function createNearestPairs(selectedItems) {
         setupGroup(spacingRow, "row");
         spacingRow.alignment = "left"; // 広げず左寄せ / Keep at natural width, packed left
         spacingRow.add("statictext", undefined, labelText('spacing'));
-        var defaultSpacingDisplay = Math.round((DEFAULT_GAP / pointsPerUnit) * 100) / 100;
+        var defaultSpacingDisplay = Math.round((initialGapPoints / pointsPerUnit) * 100) / 100;
         var spacingInput = spacingRow.add("edittext", undefined, String(defaultSpacingDisplay));
         spacingInput.characters = 4;
         spacingInput.helpTip = getLocalizedText('tipSpacing');
@@ -374,6 +544,17 @@ function createNearestPairs(selectedItems) {
         previewBoundsCheckbox.value = false; // OFF=幾何境界 / ON=プレビュー境界
         previewBoundsCheckbox.helpTip = getLocalizedText('tipPreviewBounds');
 
+        /* 現在のモードを取得する / Get the current mode ("group" | "auto") */
+        function getMode() {
+            return modeGroupRadio.value ? "group" : "auto";
+        }
+
+        /* モードを切り替えてペアを組み直し、プレビューを更新する / Switch mode, rebuild pairs, refresh */
+        function onModeChange() {
+            buildPairs(getMode());
+            refreshPreview();
+        }
+
         /* 現在固定する側を取得する / Get the currently fixed side */
         function getFixedSide() {
             return leftRadio.value ? "left" : "right";
@@ -382,7 +563,7 @@ function createNearestPairs(selectedItems) {
         /* 入力値を pt に換算して取得する / Get the gap in pt from the input */
         function getSpacingInPoints() {
             var value = parseFloat(spacingInput.text);
-            if (isNaN(value)) { value = DEFAULT_GAP / pointsPerUnit; }
+            if (isNaN(value)) { value = initialGapPoints / pointsPerUnit; }
             return value * pointsPerUnit;
         }
 
@@ -397,6 +578,8 @@ function createNearestPairs(selectedItems) {
         }
 
         // 設定変更でライブプレビュー / Update preview on change
+        modeGroupRadio.onClick = onModeChange;
+        modeAutoPairRadio.onClick = onModeChange;
         leftRadio.onClick = refreshPreview;
         rightRadio.onClick = refreshPreview;
         spacingInput.onChanging = refreshPreview;
@@ -408,9 +591,10 @@ function createNearestPairs(selectedItems) {
         buttonRow.add("button", undefined, getLocalizedText('cancel'), { name: "cancel" });
         buttonRow.add("button", undefined, "OK", { name: "ok" });
 
-        // ダイアログ表示時に初回プレビュー（同期側 undo を避けて onShow から起動）
-        // Initial preview from onShow (avoid synchronous undo)
+        // ダイアログ表示時に既定モードでペアを組んで初回プレビュー（同期側 undo を避けて onShow から起動）
+        // Build pairs for the default mode, then run the first preview (from onShow to avoid sync undo)
         dialog.onShow = function () {
+            buildPairs(getMode());
             refreshPreview();
         };
 
