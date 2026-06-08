@@ -22,10 +22,14 @@ DistributeUpFromTop.jsx
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 (function () {
     if (app.documents.length < 1) return
+
+    // テキスト範囲（カーソル）を選択しているときは、その story の単一 TextFrame を選択し直す
+    selectSingleTextFrameFromTextRange()
+
     var selection = app.activeDocument.selection
     if (selection.length < 1) return
 
@@ -36,7 +40,9 @@ var SCRIPT_VERSION = "v1.0.0";
     // テキストを1つだけ選択 → 行送りから「サイズ／行送り」分を引く
     if (selection.length === 1 && selection[0].typename === "TextFrame") {
         var attributes = selection[0].textRange.characterAttributes
-        attributes.leading = attributes.leading - sizeLeadingStep
+        var currentLeading = attributes.leading // 自動行送りのときは算出値が返る
+        attributes.autoLeading = false          // 自動行送りを解除して強制適用
+        attributes.leading = currentLeading - sizeLeadingStep
         return
     }
 
@@ -65,5 +71,19 @@ var SCRIPT_VERSION = "v1.0.0";
             return b.position[1] - a.position[1]
         })
         return sorted
+    }
+
+    // 選択中の TextRange を含む単一の TextFrame を選択し直す
+    function selectSingleTextFrameFromTextRange() {
+        if (app.selection.constructor.name === "TextRange") {
+            var textFramesInStory = app.selection.story.textFrames
+            if (textFramesInStory.length === 1) {
+                app.executeMenuCommand("deselectall") // 現在の選択を解除
+                app.selection = [textFramesInStory[0]] // 該当の TextFrame を選択
+                try {
+                    app.selectTool("Adobe Select Tool") // 選択ツールに戻す
+                } catch (e) {}
+            }
+        }
     }
 })()
