@@ -58,7 +58,7 @@ tab/space are stripped on run.
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.1.1";
 
 (function () {
 
@@ -472,12 +472,15 @@ var SCRIPT_VERSION = "v1.1.0";
         var line = firstMarkedLine(selection);
         if (line == null) return state;
 
-        // 丸数字（箇条書き式: 先頭タブなし）/ circled-as-bullet (no leading tab)
-        if (/^[①-⑳]\t/.test(line)) { state.type = "numbered"; state.numberStyle = "circledWhite"; state.delimiterIndex = 0; return state; }
-        if (/^(?:[❶-❿]|[⓫-⓴])\t/.test(line)) { state.type = "numbered"; state.numberStyle = "circledBlack"; state.delimiterIndex = 0; return state; }
+        // 丸数字（先頭タブなし／あり、区切りはタブまたはスペース）/ circled (with/without leading tab, separated by tab or space)
+        if (/^\t?[①-⑳][\t 　]/.test(line)) { state.type = "numbered"; state.numberStyle = "circledWhite"; state.delimiterIndex = 0; return state; }
+        if (/^\t?(?:[❶-❿]|[⓫-⓴])[\t 　]/.test(line)) { state.type = "numbered"; state.numberStyle = "circledBlack"; state.delimiterIndex = 0; return state; }
 
-        // 数字 / ABC / abc（先頭タブ + 記号 + 区切り? + タブ）/ number / ABC / abc (leading tab + glyph + delim? + tab)
-        var numberedMatch = line.match(/^\t([A-Z]+|[a-z]+|\d+)([.：:|]?)\t/);
+        // 数字 / ABC / abc / number / ABC / abc
+        // 先頭タブあり: 区切りは任意・タブまたはスペース / leading tab: delimiter optional, separated by tab or space
+        // 先頭タブなし（手打ち）: 区切り必須・スペース/タブ（本文の誤検出を抑える）/ no leading tab (hand-typed): delimiter required + space/tab (avoids false positives in body text)
+        var numberedMatch = line.match(/^\t([A-Z]+|[a-z]+|\d+)([.：:|]?)[\t 　]/) ||
+                            line.match(/^([A-Z]+|[a-z]+|\d+)([.：:|])[\t 　]/);
         if (numberedMatch) {
             var markerGlyph = numberedMatch[1];
             if (/^\d+$/.test(markerGlyph)) state.numberStyle = "number";
@@ -1672,9 +1675,15 @@ var SCRIPT_VERSION = "v1.1.0";
         var generated = /^\t(?:[①-⑳]|[❶-❿]|[⓫-⓴]|[A-Za-z]+|[〇一二三四五六七八九十百千]+|\d+)[.:：|]?\t/;
         if (generated.test(line)) return line.replace(generated, "");
 
-        // 丸数字（箇条書き式: 先頭タブなしで「丸数字 + タブ」）を除去 / Strip circled-as-bullet marker (no leading tab: "circled glyph + tab")
-        var circledLed = /^(?:[①-⑳]|[❶-❿]|[⓫-⓴])\t/;
+        // 丸数字（先頭タブなしで「丸数字 + タブ/スペース」）を除去。丸数字は一意なので区切りなしでも対象 / Strip circled marker (no leading tab: circled glyph + tab/space). Circled glyphs are unambiguous, so no delimiter is required
+        var circledLed = /^(?:[①-⑳]|[❶-❿]|[⓫-⓴])[\t 　]*/;
         if (circledLed.test(line)) return line.replace(circledLed, "");
+
+        // 手打ちの番号リスト（先頭タブなし・「数字/ABC/abc + 区切り + スペース/タブ」）を除去
+        // 区切り文字を必須にして本文（例: "Apple is" / "Mr. Smith"）の誤除去を抑える。"12.5" は区切り直後が数字で [\t 　]+ に一致せず対象外
+        // Strip hand-typed lists (no leading tab: "number/ABC/abc + delimiter + space/tab"). A delimiter is required so body text is mostly preserved; "12.5" is excluded because a digit (not whitespace) follows the delimiter
+        var spacedLed = /^(?:[A-Za-z]+|\d+)[.:：|][\t 　]+/;
+        if (spacedLed.test(line)) return line.replace(spacedLed, "");
 
         // 元テキストのマーカー（箇条書き記号 / 数字.）を除去。数字.の直後が数字の場合（例: 12.5）は対象外
         // 中黒は異体字（・=U+30FB / ･=U+FF65 / ·=U+00B7）も対象。行頭の空白・タブも一緒に除去
