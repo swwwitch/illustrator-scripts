@@ -31,6 +31,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 自動ペア認識：選択数が奇数のときは末尾の1つがペアにならず、そのまま残ります
 - グループ：子が2個未満のグループ、およびグループ以外のオブジェクトは対象外です
 
+### 紹介記事
+
+https://note.com/dtp_tranist/n/nc8fab19d8164
+
 */
 
 // =========================================
