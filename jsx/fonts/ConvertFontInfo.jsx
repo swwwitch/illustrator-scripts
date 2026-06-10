@@ -33,6 +33,7 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fonts/ConvertFon
 - v1.0.0 (20250509) : 初期バージョン
 - v1.1.0 (20260428) : 変換形式を拡張し、実フォント情報プレビュー、キー操作、OK時の再適用を追加
 - v1.1.1 (20260608) : 文字の部分選択（TextRange）からも実行可能に、OKをデフォルトボタン化、内部リファクタ
+- v1.1.2 (20260611) : OK確定時の二重適用を廃止しクラッシュを回避（プレビュー状態をそのまま確定）
 
 ---
 
@@ -63,12 +64,14 @@ ConvertFontInfo.jsx
 
 - v1.0.0 (20250509): Initial version
 - v1.1.0 (20260428): Expanded conversion formats and added actual font preview, keyboard shortcuts, and final reapply on OK
+- v1.1.1 (20260608): Allow running from a partial character selection (TextRange), made OK the default button, internal refactor
+- v1.1.2 (20260611): Removed the redundant re-apply on OK to avoid crashes (commit the previewed state as-is)
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.1.1";
+var SCRIPT_VERSION = "v1.1.2";
 
 (function () {
 
@@ -400,13 +403,14 @@ var SCRIPT_VERSION = "v1.1.1";
         dialogContainer.alignChildren = "left";
         dialogContainer.alignment = "fill";
 
-        var getSelectedFormat = buildFormatPanel(dialog, dialogContainer, originalTextFrameInfos);
+        buildFormatPanel(dialog, dialogContainer, originalTextFrameInfos);
         buildButtonRow(dialog, dialogContainer);
 
+        // 選択中の形式はライブプレビューで既にドキュメントへ適用済み。
+        // OK時は再適用せずそのまま確定し（二重適用によるクラッシュを回避）、
+        // キャンセル時のみ開始時の内容・フォント・サイズ・行揃えに戻す。
         var dialogResult = dialog.show();
-        if (dialogResult === 1) {
-            updateFontInfoPreview(originalTextFrameInfos, getSelectedFormat());
-        } else {
+        if (dialogResult !== 1) {
             restoreOriginalText(originalTextFrameInfos);
         }
     }
@@ -480,13 +484,6 @@ var SCRIPT_VERSION = "v1.1.1";
         });
 
         selectFormat(DEFAULT_FORMAT);
-
-        return function () {
-            for (var itemIndex = 0; itemIndex < FORMAT_ITEMS.length; itemIndex++) {
-                if (formatRadioButtons[itemIndex].value) return FORMAT_ITEMS[itemIndex].format;
-            }
-            return DEFAULT_FORMAT;
-        };
     }
 
     // キャンセル／OK ボタン行を組み立て、OK をデフォルトボタンに設定
