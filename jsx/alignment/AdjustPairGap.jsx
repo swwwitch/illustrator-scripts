@@ -40,7 +40,7 @@ https://note.com/dtp_tranist/n/nc8fab19d8164
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.2.1";
+var SCRIPT_VERSION = "v1.2.2";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -111,10 +111,6 @@ var LABELS = {
     alertSelectTwo: {
         ja: "オブジェクトを2つ以上選択してください。",
         en: "Select at least two objects."
-    },
-    alertOddCount: {
-        ja: "選択されたオブジェクトの数が奇数です。\n2つずつのペア（偶数個）になるように選択してください。",
-        en: "The number of selected objects is odd.\nSelect an even number so they form pairs."
     }
     // OK はローカライズしない / "OK" is not localized
 };
@@ -165,7 +161,7 @@ function changeValueByArrowKey(editText, onUpdate) {
             // Shift：±10、10の倍数にスナップ / Shift: ±10 snapped to multiples of 10
             var step = 10;
             value = isUp ? Math.ceil((value + 1) / step) * step
-                         : Math.floor((value - 1) / step) * step;
+                : Math.floor((value - 1) / step) * step;
         } else if (keyboard.altKey) {
             // Option：±0.1 / Option: ±0.1
             value = isUp ? value + 0.1 : value - 0.1;
@@ -207,9 +203,230 @@ function setupPanel(panel, spacing) {
 /* グループの共通設定（orientation は呼び出し側で指定）/ Apply shared group layout (orientation passed in) */
 function setupGroup(group, orientation, spacing) {
     group.orientation = orientation || "column";
-    group.alignChildren = ["fill", "top"];
+    group.alignChildren = ["left", "center"];
     group.alignment = "fill";
     group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/* 固定オブジェクト（上 / 左 / 右 / 下）パネルを生成する。
+   上下左右を厳密な3×3グリッドに配置する（中央・四隅は空セル）。
+   セルを固定幅にして列を確実にそろえる。4つのラジオは親が別なので自動グループ化されない。
+   既定は「右」を固定（左が動く＝水平）。イベント結線は呼び出し側で行う。
+   Build the Fixed Object panel (top/left/right/bottom on a strict 3×3 grid; center &
+   corners are empty cells, fixed-width cells keep columns aligned). The four radios live
+   in different parents, so ScriptUI won't group them — exclusivity is enforced by hand.
+   Default fixes the right side (horizontal). Event wiring is left to the caller.
+   返り値 / Returns: { panel, fixedRadios, selectFixedRadio, getFixedSide } */
+function buildFixedSidePanel(parentGroup) {
+    var panel = parentGroup.add("panel", undefined, getLocalizedText('fixedSide'));
+    setupPanel(panel, 2);
+    // 十字レイアウトの左右に余白を足す（+8）/ Add left/right margin to the cross layout (+8)
+    panel.margins = [PANEL_MARGINS[0] + 8, PANEL_MARGINS[1], PANEL_MARGINS[2] + 8, PANEL_MARGINS[3]];
+    panel.alignChildren = ["center", "top"]; // 各行を中央そろえで十字に / Center each row
+
+    //   ・  上  ・
+    //   左  ・  右
+    //   ・  下  ・
+    var GRID_CELL = [22, 20]; // セルの幅・高さ(px) / cell width, height (px)
+
+    /* グリッドの1セルを作る。withRadio が真ならラジオを入れて返す / Build one grid cell */
+    function addGridCell(rowGroup, withRadio) {
+        var cell = rowGroup.add("group");
+        cell.margins = 0;
+        cell.alignChildren = ["center", "center"];
+        cell.preferredSize = GRID_CELL;
+        return withRadio ? cell.add("radiobutton", undefined, "") : null;
+    }
+
+    /* グリッドの1行（3セル）を作る / Build one grid row (3 cells) */
+    function addGridRow() {
+        var row = panel.add("group");
+        row.orientation = "row";
+        row.alignment = "center";
+        row.spacing = 0;
+        row.margins = 0;
+        return row;
+    }
+
+    var gridRowTop = addGridRow();
+    addGridCell(gridRowTop, false);
+    var topRadio = addGridCell(gridRowTop, true);       // 上 / Top
+    addGridCell(gridRowTop, false);
+
+    var gridRowMid = addGridRow();
+    var leftRadio = addGridCell(gridRowMid, true);      // 左 / Left
+    addGridCell(gridRowMid, false);                     // 中央は空 / center empty
+    var rightRadio = addGridCell(gridRowMid, true);     // 右 / Right
+
+    var gridRowBottom = addGridRow();
+    addGridCell(gridRowBottom, false);
+    var bottomRadio = addGridCell(gridRowBottom, true); // 下 / Bottom
+    addGridCell(gridRowBottom, false);
+
+    var fixedRadios = [topRadio, leftRadio, rightRadio, bottomRadio];
+
+    /* 指定したラジオだけ ON にして排他制御する / Turn on only the chosen radio (manual exclusivity) */
+    function selectFixedRadio(chosen) {
+        for (var fi = 0; fi < fixedRadios.length; fi++) {
+            fixedRadios[fi].value = (fixedRadios[fi] === chosen);
+        }
+    }
+    for (var ti = 0; ti < fixedRadios.length; ti++) {
+        fixedRadios[ti].helpTip = getLocalizedText('tipFixedSide');
+    }
+    rightRadio.value = true; // 既定：右を固定（左が動く＝水平）/ Default: fix right (horizontal)
+
+    /* 現在固定する側を取得する / Get the currently fixed side */
+    function getFixedSide() {
+        if (topRadio.value) return "top";
+        if (leftRadio.value) return "left";
+        if (bottomRadio.value) return "bottom";
+        return "right";
+    }
+
+    /* 固定する側を設定する（"top"/"left"/"right"/"bottom"）。未知の値は無視 / Set the fixed side */
+    function setFixedSide(side) {
+        var radioBySide = { top: topRadio, left: leftRadio, right: rightRadio, bottom: bottomRadio };
+        if (radioBySide[side]) selectFixedRadio(radioBySide[side]);
+    }
+
+    return {
+        panel: panel,
+        fixedRadios: fixedRadios,
+        selectFixedRadio: selectFixedRadio,
+        getFixedSide: getFixedSide,
+        setFixedSide: setFixedSide
+    };
+}
+
+/* オプションパネル（間隔の入力・クリア・プレビュー境界）を生成する。
+   間隔は現在のルーラー単位で表示し、getSpacingInPoints() が pt に換算して返す。
+   initialGapPoints は初期値・入力が空のときのフォールバック（pt）。
+   イベント結線（↑↓キー・クリア・プレビュー更新）は呼び出し側で行う。
+   Build the Options panel (gap input, clear, preview-bounds). The gap is shown in the
+   current ruler unit; getSpacingInPoints() converts back to pt. initialGapPoints is the
+   default and the fallback when the field is empty. Event wiring is left to the caller.
+   返り値 / Returns: { panel, spacingInput, clearButton, previewBoundsCheckbox,
+                       getSpacingInPoints, getBoundsType } */
+function buildSpacingOptionsPanel(parentGroup, initialGapPoints) {
+    var panel = parentGroup.add("panel", undefined, getLocalizedText('options'));
+    setupPanel(panel, 6);
+
+    // 行：間隔（ラベル＋入力＋単位）/ Row: gap (label + input + unit)
+    var spacingRow = panel.add("group");
+    setupGroup(spacingRow, "row");
+    spacingRow.alignment = "left"; // 広げず左寄せ / Keep at natural width, packed left
+    spacingRow.add("statictext", undefined, labelText('spacing'));
+    var defaultSpacingDisplay = Math.round((initialGapPoints / pointsPerUnit) * 100) / 100;
+    var spacingInput = spacingRow.add("edittext", undefined, String(defaultSpacingDisplay));
+    spacingInput.characters = 4;
+    spacingInput.helpTip = getLocalizedText('tipSpacing');
+    spacingRow.add("statictext", undefined, rulerUnitLabel);
+
+    // クリアボタン：間隔を 0 にする / Clear button: set the gap to 0
+    var clearButton = spacingRow.add("button", undefined, getLocalizedText('clear'));
+    clearButton.helpTip = getLocalizedText('tipClear');
+
+    // チェックボックス：プレビュー境界（groupに入れて左添え）/ Checkbox in a left-aligned group
+    var previewBoundsGroup = panel.add("group");
+    previewBoundsGroup.orientation = "row";
+    previewBoundsGroup.alignment = "left";   // パネル内で左添え / Left within panel
+    previewBoundsGroup.margins = [0, 5, 0, 0]; // 上マージン5 / Top margin 5
+    var previewBoundsCheckbox = previewBoundsGroup.add("checkbox", undefined, getLocalizedText('previewBounds'));
+    previewBoundsCheckbox.value = false; // OFF=幾何境界 / ON=プレビュー境界
+    previewBoundsCheckbox.helpTip = getLocalizedText('tipPreviewBounds');
+
+    /* 入力値を pt に換算して取得する / Get the gap in pt from the input */
+    function getSpacingInPoints() {
+        var value = parseFloat(spacingInput.text);
+        if (isNaN(value)) { value = initialGapPoints / pointsPerUnit; }
+        return value * pointsPerUnit;
+    }
+
+    /* チェックに応じた境界プロパティ名を返す / Bounds property per checkbox */
+    function getBoundsType() {
+        return previewBoundsCheckbox.value ? "visibleBounds" : "geometricBounds";
+    }
+
+    return {
+        panel: panel,
+        spacingInput: spacingInput,
+        clearButton: clearButton,
+        previewBoundsCheckbox: previewBoundsCheckbox,
+        getSpacingInPoints: getSpacingInPoints,
+        getBoundsType: getBoundsType
+    };
+}
+
+/* 整列パネル（移動側の整列）を生成する。左右方向と上下方向の2グループを1つのパネルにまとめる。
+   行ごとに独立したラジオグループ（なし / 先頭 / 中央 / 後ろ → "none"/"start"/"center"/"end"）。
+   整列はギャップ軸に直交する方向：上下固定→左右整列、左右固定→上下整列。該当しない側の行は無効化する。
+   現在の固定側に依存するので getFixedSide を受け取り、updateAlignPanels()/getAlignMode() がそれを参照する。
+   イベント結線（onClick→プレビュー更新）は呼び出し側で行う。
+   Build the Alignment panel (one panel with two independent radio groups). Alignment is
+   perpendicular to the gap axis; the inapplicable row is disabled. Takes getFixedSide since
+   the active row depends on the fixed side. Event wiring is left to the caller.
+   返り値 / Returns: { panel, hAlign, vAlign, updateAlignPanels, getAlignMode } */
+function buildAlignmentPanel(parentGroup, getFixedSide) {
+    var panel = parentGroup.add("panel", undefined, getLocalizedText('align'));
+    setupPanel(panel, 6);
+
+    /* 整列1行（ラベル＋なし/先頭/中央/後ろ）を作る / Build one alignment row (label + radios) */
+    function buildAlignRow(labelKey, startKey, endKey, tipKey) {
+        var row = panel.add("group");
+        setupGroup(row, "row");
+        row.alignment = "left";              // 広げず左寄せ / Keep at natural width, packed left
+        row.alignChildren = ["left", "center"];
+        var label = row.add("statictext", undefined, labelText(labelKey));
+        var radios = {
+            none: row.add("radiobutton", undefined, getLocalizedText('alignNone')),
+            start: row.add("radiobutton", undefined, getLocalizedText(startKey)),
+            center: row.add("radiobutton", undefined, getLocalizedText('alignCenter')),
+            end: row.add("radiobutton", undefined, getLocalizedText(endKey))
+        };
+        radios.none.value = true; // 既定：整列なし / Default: no alignment
+        var tip = getLocalizedText(tipKey);
+        for (var key in radios) { radios[key].helpTip = tip; }
+        return { row: row, label: label, radios: radios };
+    }
+
+    // 左右方向の整列（上下固定で縦に並べたとき有効）/ Horizontal align (active when stacking vertically)
+    var hAlign = buildAlignRow('alignH', 'sideLeft', 'sideRight', 'tipAlignH');
+    // 上下方向の整列（左右固定で横に並べたとき有効）/ Vertical align (active when laying out horizontally)
+    var vAlign = buildAlignRow('alignV', 'sideTop', 'sideBottom', 'tipAlignV');
+
+    // ラベル幅をそろえて2行のラジオ開始位置を合わせる / Match label widths so radios line up
+    var alignLabelWidth = Math.max(hAlign.label.preferredSize.width, vAlign.label.preferredSize.width);
+    hAlign.label.preferredSize.width = alignLabelWidth;
+    vAlign.label.preferredSize.width = alignLabelWidth;
+
+    /* 上下固定ならギャップは垂直 / Gap is vertical when the top/bottom side is fixed */
+    function isVerticalGap() {
+        var side = getFixedSide();
+        return side === "top" || side === "bottom";
+    }
+    /* 固定側に合わせて該当する整列行だけ有効化する / Enable only the applicable alignment row */
+    function updateAlignPanels() {
+        var vertical = isVerticalGap();
+        hAlign.row.enabled = vertical;   // 左右整列は縦並びのとき / Horizontal align when stacking vertically
+        vAlign.row.enabled = !vertical;  // 上下整列は横並びのとき / Vertical align when laying out horizontally
+    }
+    /* 現在有効な整列パネルの値を "none"/"start"/"center"/"end" で返す / Active alignment value */
+    function getAlignMode() {
+        var radios = isVerticalGap() ? hAlign.radios : vAlign.radios;
+        if (radios.start.value) return "start";
+        if (radios.center.value) return "center";
+        if (radios.end.value) return "end";
+        return "none";
+    }
+
+    return {
+        panel: panel,
+        hAlign: hAlign,
+        vAlign: vAlign,
+        updateAlignPanels: updateAlignPanels,
+        getAlignMode: getAlignMode
+    };
 }
 
 // =========================================
@@ -227,13 +444,13 @@ function makeAxis(isVertical) {
         return {
             vertical: true,
             start: function (bounds) { return -bounds[1]; }, // 上端 / top edge
-            end:   function (bounds) { return -bounds[3]; }  // 下端 / bottom edge
+            end: function (bounds) { return -bounds[3]; }  // 下端 / bottom edge
         };
     }
     return {
         vertical: false,
         start: function (bounds) { return bounds[0]; }, // 左端 / left edge
-        end:   function (bounds) { return bounds[2]; }  // 右端 / right edge
+        end: function (bounds) { return bounds[2]; }  // 右端 / right edge
     };
 }
 
@@ -257,9 +474,10 @@ function isAnchorEnd(fixedSide) {
    Pairing always uses geometricBounds (centers); the Preview Bounds option
    only changes how the gap is measured, never which objects are paired. */
 function createNearestPairs(selectedItems) {
-    /* オブジェクトの中心座標を取得する（常に幾何境界）/ Object center (always geometric bounds) */
+    /* オブジェクトの中心座標を取得する（常に幾何境界。クリップグループはクリッピングパス基準）
+       Object center (always geometric bounds; clip groups use their clipping path) */
     function getObjectCenter(item) {
-        var bounds = item.geometricBounds;
+        var bounds = geometricBoundsOf(item);
         return {
             x: (bounds[0] + bounds[2]) / 2,
             y: (bounds[1] + bounds[3]) / 2
@@ -313,6 +531,39 @@ function getGroupChildren(item) {
     return children;
 }
 
+/* クリップグループならクリッピングパス（マスク）を返す。クリップグループでなければ null。
+   クリップグループの geometricBounds／visibleBounds はマスクで隠れた部分まで含むことがあり、
+   間隔計算がずれる。基準をマスクの形（クリッピングパス）にそろえるために使う。
+   Return the clipping path (mask) if the item is a clip group, else null. A clip group's
+   bounds can include artwork hidden by the mask, throwing off gap math, so we measure
+   against the mask shape instead. */
+function getClippingPath(item) {
+    if (item.typename !== "GroupItem" || !item.clipped) return null;
+    var children = item.pageItems;
+    for (var i = 0; i < children.length; i++) {
+        var child = children[i];
+        if (child.typename === "PathItem" && child.clipping) return child;
+        // 複合パスのマスクは先頭サブパスの clipping で判定 / Compound-path mask: check the first subpath
+        if (child.typename === "CompoundPathItem" &&
+            child.pathItems.length > 0 && child.pathItems[0].clipping) return child;
+    }
+    return null;
+}
+
+/* 間隔計算に使う幾何境界。クリップグループはクリッピングパスを基準にする。
+   Geometric bounds for gap math; clip groups measure against their clipping path. */
+function geometricBoundsOf(item) {
+    var clip = getClippingPath(item);
+    return clip ? clip.geometricBounds : item.geometricBounds;
+}
+
+/* 間隔計算に使うプレビュー境界。クリップグループはクリッピングパスを基準にする。
+   Visible bounds for gap math; clip groups measure against their clipping path. */
+function visibleBoundsOf(item) {
+    var clip = getClippingPath(item);
+    return clip ? clip.visibleBounds : item.visibleBounds;
+}
+
 /* 選択した各グループの一番左・一番右を取り出してペアにする / Pair the leftmost and
    rightmost object inside each selected group.
    ペア認識の代わりにグループ単位で組む。左右は geometricBounds の左端 x で判定し、
@@ -348,18 +599,18 @@ function computeAverageGap(selectedItems, mode, axis) {
             var children = getGroupChildren(selectedItems[i]);
             if (!children || children.length < 2) continue;
             var sorted = children.slice(0);
-            sorted.sort(function (a, b) { return axis.start(a.geometricBounds) - axis.start(b.geometricBounds); });
+            sorted.sort(function (a, b) { return axis.start(geometricBoundsOf(a)) - axis.start(geometricBoundsOf(b)); });
             for (var j = 1; j < sorted.length; j++) {
                 // 次の先頭辺 - 前の後ろ辺 / next leading edge - previous trailing edge
-                gaps.push(axis.start(sorted[j].geometricBounds) - axis.end(sorted[j - 1].geometricBounds));
+                gaps.push(axis.start(geometricBoundsOf(sorted[j])) - axis.end(geometricBoundsOf(sorted[j - 1])));
             }
         }
     } else {
         // 自動ペア認識：各ペアの間隔を測る / Gap of each nearest pair
         var pairs = createNearestPairs(selectedItems);
         for (var p = 0; p < pairs.length; p++) {
-            var boundsA = pairs[p].a.geometricBounds;
-            var boundsB = pairs[p].b.geometricBounds;
+            var boundsA = geometricBoundsOf(pairs[p].a);
+            var boundsB = geometricBoundsOf(pairs[p].b);
             var leadBounds = (axis.start(boundsA) < axis.start(boundsB)) ? boundsA : boundsB;
             var trailBounds = (axis.start(boundsA) < axis.start(boundsB)) ? boundsB : boundsA;
             gaps.push(axis.start(trailBounds) - axis.end(leadBounds));
@@ -370,6 +621,62 @@ function computeAverageGap(selectedItems, mode, axis) {
     var sum = 0;
     for (var g = 0; g < gaps.length; g++) sum += gaps[g];
     return sum / gaps.length;
+}
+
+// =========================================
+// 設定の保存 / Persistence
+// =========================================
+// ダイアログを閉じるときに「固定側・プレビュー境界・整列」だけを覚え、次回開いたときに復元する。
+// モードと間隔は選択内容から毎回決めるので保存しない。Folder.userData に key=value 形式で1ファイル。
+// Remember only the fixed side, preview-bounds, and alignment on close; restore them next time.
+// Mode and gap are re-derived from the selection each run, so they are not saved.
+var SETTINGS_FILE = Folder.userData + "/AdjustPairGapSettings.txt";
+
+/* 設定ファイルを key=value 形式で読み、オブジェクトで返す。無ければ空オブジェクト。
+   Read the settings file (key=value lines) into an object; empty object if missing. */
+function loadSettings() {
+    var settings = {};
+    var file = new File(SETTINGS_FILE);
+    if (!file.exists || !file.open("r")) return settings;
+    var content = file.read();
+    file.close();
+    var lines = content.split("\n");
+    for (var i = 0; i < lines.length; i++) {
+        var eq = lines[i].indexOf("=");
+        if (eq <= 0) continue;
+        var key = lines[i].substring(0, eq).replace(/^\s+|\s+$/g, "");
+        var value = lines[i].substring(eq + 1).replace(/^\s+|\s+$/g, "");
+        settings[key] = value;
+    }
+    return settings;
+}
+
+/* 設定を key=value 形式で書き出す / Persist settings as key=value lines */
+function saveSettings(settings) {
+    var file = new File(SETTINGS_FILE);
+    if (!file.open("w")) return;
+    var lines = [];
+    for (var key in settings) {
+        if (settings.hasOwnProperty(key)) lines.push(key + "=" + settings[key]);
+    }
+    file.write(lines.join("\n"));
+    file.close();
+}
+
+/* 整列行で選択中の値（none/start/center/end）を返す / Selected value of an alignment row */
+function getAlignRowValue(alignRow) {
+    var radios = alignRow.radios;
+    if (radios.start.value) return "start";
+    if (radios.center.value) return "center";
+    if (radios.end.value) return "end";
+    return "none";
+}
+
+/* 保存済みの整列値を行のラジオへ反映する。未知の値は無視 / Apply a saved alignment value (ignore unknown) */
+function applySavedAlign(alignRow, value) {
+    if (!alignRow || !value) return;
+    var radio = alignRow.radios[value];
+    if (radio) radio.value = true;
 }
 
 (function () {
@@ -394,16 +701,12 @@ function computeAverageGap(selectedItems, mode, axis) {
         selectedItems.push(liveSelection[i]);
     }
 
-    if (selectedItems.length < 1) {
+    if (selectedItems.length < 2) {
         alert(getLocalizedText('alertSelectTwo'));
         return;
     }
 
-    // ペアはモード（自動ペア認識 / グループ）に応じて後で組み直すため、ここでは器だけ用意する。
-    // 自動ペア認識は最近傍で偶数個を組むので奇数なら末尾が1つ余るが、createNearestPairs が
-    // 黙って捨てる（プレビューで何も動かないだけ）。グループモードは選択数の偶奇に依らない。
-    // Pairs are (re)built per mode later; declare the holder here. Odd selections in
-    // auto mode simply drop the last item; group mode is independent of the count.
+    // モード切り替え時に組み直すペアを保持する / Holds pairs rebuilt when the mode changes
     var objectPairs = [];
 
     // 選択がすべてグループなら既定でグループモードにする（それ以外は自動ペア認識）。
@@ -601,14 +904,14 @@ function computeAverageGap(selectedItems, mode, axis) {
                 pair.memberGeo = [];
                 pair.memberVis = [];
                 for (var m = 0; m < pair.members.length; m++) {
-                    pair.memberGeo.push(pair.members[m].geometricBounds);
-                    pair.memberVis.push(pair.members[m].visibleBounds);
+                    pair.memberGeo.push(geometricBoundsOf(pair.members[m]));
+                    pair.memberVis.push(visibleBoundsOf(pair.members[m]));
                 }
             } else {
-                pair.geometricA = pair.a.geometricBounds;
-                pair.visibleA = pair.a.visibleBounds;
-                pair.geometricB = pair.b.geometricBounds;
-                pair.visibleB = pair.b.visibleBounds;
+                pair.geometricA = geometricBoundsOf(pair.a);
+                pair.visibleA = visibleBoundsOf(pair.a);
+                pair.geometricB = geometricBoundsOf(pair.b);
+                pair.visibleB = visibleBoundsOf(pair.b);
             }
         }
     }
@@ -654,66 +957,12 @@ function computeAverageGap(selectedItems, mode, axis) {
         modeAutoPairRadio.value = !selectionIsGroupsOnly;
 
         // 固定オブジェクト / Fixed object（上・左・右・下を十字に配置 / arranged as a cross）
-        var fixedSidePanel = topColumns.add("panel", undefined, getLocalizedText('fixedSide'));
-        setupPanel(fixedSidePanel, 2);
-        // 十字レイアウトの左右に余白を足す（+8）/ Add left/right margin to the cross layout (+8)
-        fixedSidePanel.margins = [PANEL_MARGINS[0] + 8, PANEL_MARGINS[1], PANEL_MARGINS[2] + 8, PANEL_MARGINS[3]];
-        fixedSidePanel.alignChildren = ["center", "top"]; // 各行を中央そろえで十字に / Center each row
-
-        // 上下左右を厳密な3×3グリッドに配置する（中央・四隅は空セル）。
-        // セルを固定幅にして列を確実にそろえる。Lay out top/left/right/bottom on a strict
-        // 3×3 grid (center & corners are empty cells); fixed-width cells keep columns aligned.
-        //   ・  上  ・
-        //   左  ・  右
-        //   ・  下  ・
-        var GRID_CELL = [22, 20]; // セルの幅・高さ(px) / cell width, height (px)
-
-        /* グリッドの1セルを作る。withRadio が真ならラジオを入れて返す / Build one grid cell */
-        function addGridCell(rowGroup, withRadio) {
-            var cell = rowGroup.add("group");
-            cell.margins = 0;
-            cell.alignChildren = ["center", "center"];
-            cell.preferredSize = GRID_CELL;
-            return withRadio ? cell.add("radiobutton", undefined, "") : null;
-        }
-
-        /* グリッドの1行（3セル）を作る / Build one grid row (3 cells) */
-        function addGridRow() {
-            var row = fixedSidePanel.add("group");
-            row.orientation = "row";
-            row.alignment = "center";
-            row.spacing = 0;
-            row.margins = 0;
-            return row;
-        }
-
-        var gridRowTop = addGridRow();
-        addGridCell(gridRowTop, false);
-        var topRadio = addGridCell(gridRowTop, true);       // 上 / Top
-        addGridCell(gridRowTop, false);
-
-        var gridRowMid = addGridRow();
-        var leftRadio = addGridCell(gridRowMid, true);      // 左 / Left
-        addGridCell(gridRowMid, false);                     // 中央は空 / center empty
-        var rightRadio = addGridCell(gridRowMid, true);     // 右 / Right
-
-        var gridRowBottom = addGridRow();
-        addGridCell(gridRowBottom, false);
-        var bottomRadio = addGridCell(gridRowBottom, true); // 下 / Bottom
-        addGridCell(gridRowBottom, false);
-
-        // 4つのラジオは親が別なので自動グループ化されない。手動で排他制御する。
-        // The four radios live in different parents, so ScriptUI won't group them — enforce exclusivity by hand.
-        var fixedRadios = [topRadio, leftRadio, rightRadio, bottomRadio];
-        function selectFixedRadio(chosen) {
-            for (var fi = 0; fi < fixedRadios.length; fi++) {
-                fixedRadios[fi].value = (fixedRadios[fi] === chosen);
-            }
-        }
-        for (var ti = 0; ti < fixedRadios.length; ti++) {
-            fixedRadios[ti].helpTip = getLocalizedText('tipFixedSide');
-        }
-        rightRadio.value = true; // 既定：右を固定（左が動く＝水平）/ Default: fix right (horizontal)
+        var fixedSideRefs = buildFixedSidePanel(topColumns);
+        var fixedSidePanel = fixedSideRefs.panel;
+        var fixedRadios = fixedSideRefs.fixedRadios;
+        var selectFixedRadio = fixedSideRefs.selectFixedRadio;
+        var getFixedSide = fixedSideRefs.getFixedSide;
+        var setFixedSide = fixedSideRefs.setFixedSide;
 
         // 上段2パネルを全幅・等幅にそろえる：preferred 幅を広い方に合わせ、fill で均等に広げる。
         // Make the two top panels full-width and equal: match preferred widths, fill expands them evenly.
@@ -723,96 +972,28 @@ function computeAverageGap(selectedItems, mode, axis) {
         modePanel.preferredSize.width = topPanelWidth;
         fixedSidePanel.preferredSize.width = topPanelWidth;
 
-        // オプション / Options
-        var optionsPanel = dialog.add("panel", undefined, getLocalizedText('options'));
-        setupPanel(optionsPanel, 6);
+        // オプション / Options（間隔の入力・クリア・プレビュー境界）
+        var optionsRefs = buildSpacingOptionsPanel(dialog, initialGapPoints);
+        var spacingInput = optionsRefs.spacingInput;
+        var clearButton = optionsRefs.clearButton;
+        var previewBoundsCheckbox = optionsRefs.previewBoundsCheckbox;
+        var getSpacingInPoints = optionsRefs.getSpacingInPoints;
+        var getBoundsType = optionsRefs.getBoundsType;
 
-        // 行：間隔（ラベル＋入力＋単位）/ Row: gap (label + input + unit)
-        var spacingRow = optionsPanel.add("group");
-        setupGroup(spacingRow, "row");
-        spacingRow.alignment = "left"; // 広げず左寄せ / Keep at natural width, packed left
-        spacingRow.add("statictext", undefined, labelText('spacing'));
-        var defaultSpacingDisplay = Math.round((initialGapPoints / pointsPerUnit) * 100) / 100;
-        var spacingInput = spacingRow.add("edittext", undefined, String(defaultSpacingDisplay));
-        spacingInput.characters = 4;
-        spacingInput.helpTip = getLocalizedText('tipSpacing');
-        spacingRow.add("statictext", undefined, rulerUnitLabel);
-        changeValueByArrowKey(spacingInput, refreshPreview); // ↑↓キーで増減＋プレビュー更新 / Arrow keys + preview
+        // 整列パネル / Alignment（移動側の整列。固定側に依存するので getFixedSide を渡す）
+        var alignRefs = buildAlignmentPanel(dialog, getFixedSide);
+        var hAlign = alignRefs.hAlign;
+        var vAlign = alignRefs.vAlign;
+        var updateAlignPanels = alignRefs.updateAlignPanels;
+        var getAlignMode = alignRefs.getAlignMode;
 
-        // クリアボタン：間隔を 0 にする / Clear button: set the gap to 0
-        var clearButton = spacingRow.add("button", undefined, getLocalizedText('clear'));
-        clearButton.helpTip = getLocalizedText('tipClear');
-        clearButton.onClick = function () {
-            spacingInput.text = "0";
-            refreshPreview();
-        };
-
-        // チェックボックス：プレビュー境界（groupに入れて左添え）/ Checkbox in a left-aligned group
-        var previewBoundsGroup = optionsPanel.add("group");
-        previewBoundsGroup.orientation = "row";
-        previewBoundsGroup.alignment = "left";   // パネル内で左添え / Left within panel
-        previewBoundsGroup.margins = [0, 5, 0, 0]; // 上マージン5 / Top margin 5
-        var previewBoundsCheckbox = previewBoundsGroup.add("checkbox", undefined, getLocalizedText('previewBounds'));
-        previewBoundsCheckbox.value = false; // OFF=幾何境界 / ON=プレビュー境界
-        previewBoundsCheckbox.helpTip = getLocalizedText('tipPreviewBounds');
-
-        // 整列パネル：左右方向と上下方向の2グループを1つのパネルにまとめる。
-        // 行ごとに独立したラジオグループ（なし / 先頭 / 中央 / 後ろ → "none"/"start"/"center"/"end"）。
-        // One Alignment panel holding two independent radio groups (horizontal & vertical),
-        // each row mapped to "none"/"start"/"center"/"end".
-        var alignPanel = dialog.add("panel", undefined, getLocalizedText('align'));
-        setupPanel(alignPanel, 6);
-
-        /* 整列1行（ラベル＋なし/先頭/中央/後ろ）を作る / Build one alignment row (label + radios) */
-        function buildAlignRow(labelKey, startKey, endKey, tipKey) {
-            var row = alignPanel.add("group");
-            setupGroup(row, "row");
-            row.alignment = "left";              // 広げず左寄せ / Keep at natural width, packed left
-            row.alignChildren = ["left", "center"];
-            var label = row.add("statictext", undefined, labelText(labelKey));
-            var radios = {
-                none:   row.add("radiobutton", undefined, getLocalizedText('alignNone')),
-                start:  row.add("radiobutton", undefined, getLocalizedText(startKey)),
-                center: row.add("radiobutton", undefined, getLocalizedText('alignCenter')),
-                end:    row.add("radiobutton", undefined, getLocalizedText(endKey))
-            };
-            radios.none.value = true; // 既定：整列なし / Default: no alignment
-            var tip = getLocalizedText(tipKey);
-            for (var key in radios) { radios[key].helpTip = tip; radios[key].onClick = refreshPreview; }
-            return { row: row, label: label, radios: radios };
-        }
-
-        // 左右方向の整列（上下固定で縦に並べたとき有効）/ Horizontal align (active when stacking vertically)
-        var hAlign = buildAlignRow('alignH', 'sideLeft', 'sideRight', 'tipAlignH');
-        // 上下方向の整列（左右固定で横に並べたとき有効）/ Vertical align (active when laying out horizontally)
-        var vAlign = buildAlignRow('alignV', 'sideTop', 'sideBottom', 'tipAlignV');
-
-        // ラベル幅をそろえて2行のラジオ開始位置を合わせる / Match label widths so radios line up
-        var alignLabelWidth = Math.max(hAlign.label.preferredSize.width, vAlign.label.preferredSize.width);
-        hAlign.label.preferredSize.width = alignLabelWidth;
-        vAlign.label.preferredSize.width = alignLabelWidth;
-
-        /* 整列はギャップ軸に直交する方向。上下固定→左右整列、左右固定→上下整列。
-           該当しない側の行は無効化する。Alignment is perpendicular to the gap axis;
-           disable the row that doesn't apply to the current fixed side. */
-        function isVerticalGap() {
-            var side = getFixedSide();
-            return side === "top" || side === "bottom";
-        }
-        function updateAlignPanels() {
-            var vertical = isVerticalGap();
-            hAlign.row.enabled = vertical;   // 左右整列は縦並びのとき / Horizontal align when stacking vertically
-            vAlign.row.enabled = !vertical;  // 上下整列は横並びのとき / Vertical align when laying out horizontally
-        }
-
-        /* 現在有効な整列パネルの値を "none"/"start"/"center"/"end" で返す / Active alignment value */
-        function getAlignMode() {
-            var radios = isVerticalGap() ? hAlign.radios : vAlign.radios;
-            if (radios.start.value) return "start";
-            if (radios.center.value) return "center";
-            if (radios.end.value) return "end";
-            return "none";
-        }
+        // 前回終了時の設定を復元（固定側・プレビュー境界・整列の3つだけ。モード／間隔は選択から毎回決める）。
+        // Restore last-used settings: fixed side, preview bounds, alignment only (mode/gap stay auto).
+        var savedSettings = loadSettings();
+        if (savedSettings.fixedSide) setFixedSide(savedSettings.fixedSide);
+        if (savedSettings.previewBounds === "true") previewBoundsCheckbox.value = true;
+        applySavedAlign(hAlign, savedSettings.alignH);
+        applySavedAlign(vAlign, savedSettings.alignV);
 
         /* 現在のモードを取得する / Get the current mode ("group" | "auto") */
         function getMode() {
@@ -823,26 +1004,6 @@ function computeAverageGap(selectedItems, mode, axis) {
         function onModeChange() {
             buildPairs(getMode());
             refreshPreview();
-        }
-
-        /* 現在固定する側を取得する / Get the currently fixed side */
-        function getFixedSide() {
-            if (topRadio.value) return "top";
-            if (leftRadio.value) return "left";
-            if (bottomRadio.value) return "bottom";
-            return "right";
-        }
-
-        /* 入力値を pt に換算して取得する / Get the gap in pt from the input */
-        function getSpacingInPoints() {
-            var value = parseFloat(spacingInput.text);
-            if (isNaN(value)) { value = initialGapPoints / pointsPerUnit; }
-            return value * pointsPerUnit;
-        }
-
-        /* チェックに応じた境界プロパティ名を返す / Bounds property per checkbox */
-        function getBoundsType() {
-            return previewBoundsCheckbox.value ? "visibleBounds" : "geometricBounds";
         }
 
         /* 現在の設定でプレビューを更新する / Refresh preview with current settings */
@@ -860,8 +1021,20 @@ function computeAverageGap(selectedItems, mode, axis) {
                 return function () { selectFixedRadio(radio); updateAlignPanels(); refreshPreview(); };
             })(fixedRadios[ri]);
         }
+        changeValueByArrowKey(spacingInput, refreshPreview); // ↑↓キーで増減＋プレビュー更新 / Arrow keys + preview
         spacingInput.onChanging = refreshPreview;
         previewBoundsCheckbox.onClick = refreshPreview;
+        // 整列ラジオ（左右/上下の各行）：選択でプレビュー更新 / Alignment radios refresh on click
+        var alignRows = [hAlign, vAlign];
+        for (var ai = 0; ai < alignRows.length; ai++) {
+            var alignRadios = alignRows[ai].radios;
+            for (var key in alignRadios) { alignRadios[key].onClick = refreshPreview; }
+        }
+        // クリアボタン：間隔を 0 にしてプレビュー更新 / Clear button: set gap to 0, refresh
+        clearButton.onClick = function () {
+            spacingInput.text = "0";
+            refreshPreview();
+        };
 
         // ボタン（Mac 規約：Cancel → OK）/ Buttons (Mac order: Cancel → OK)
         var buttonRow = dialog.add("group");
@@ -877,7 +1050,17 @@ function computeAverageGap(selectedItems, mode, axis) {
             refreshPreview();
         };
 
-        return dialog.show() === 1;
+        var accepted = (dialog.show() === 1);
+        if (accepted) {
+            // OK時に現在の設定を保存（固定側・プレビュー境界・整列）/ Save settings on OK
+            saveSettings({
+                fixedSide: getFixedSide(),
+                previewBounds: previewBoundsCheckbox.value ? "true" : "false",
+                alignH: getAlignRowValue(hAlign),
+                alignV: getAlignRowValue(vAlign)
+            });
+        }
+        return accepted;
     }
 
     if (showSettingsDialog()) {
