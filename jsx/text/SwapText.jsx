@@ -1,7 +1,29 @@
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-// 選択中の2つのテキストの文字列を入れ替える
+/*
+
+### 概要
+
+選択中の2つのテキストオブジェクトの文字列（contents）を入れ替えます。
+
+- 選択は2つ、かつ両方ともテキストオブジェクトである必要があります。
+- 条件を満たさない場合はアラートを表示します。
+
+### Overview
+
+Swaps the contents of two selected text objects.
+
+- Exactly two objects must be selected, and both must be text objects.
+- Shows an alert if the conditions are not met.
+
+### 紹介記事
+
+https://note.com/dtp_tranist/n/n071e09af28a7
+
+*/
+
+var SCRIPT_VERSION = "v1.0.0";
 
 if (app.documents.length === 0) {
     alert("ドキュメントが開かれていません。");
