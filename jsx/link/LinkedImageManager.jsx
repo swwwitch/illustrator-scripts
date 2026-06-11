@@ -49,7 +49,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
     // バージョン / Version
     // =========================================
 
-    var SCRIPT_VERSION = "v1.2.9";
+    var SCRIPT_VERSION = "v1.3.0";
 
     // =========================================
     // ユーザー設定 / User configuration
@@ -71,154 +71,190 @@ https://note.com/dtp_tranist/n/na66732d2056a
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
 
-        // UI labels
+        // ダイアログタイトル / Dialog titles
+        dialog: {
+            main: { ja: "リンク画像の管理", en: "Linked Image Manager" },
+            changeExt: { ja: "拡張子の変更", en: "Change Extension" },
+            clipGroupDelete: { ja: "クリップグループ内の画像", en: "Image inside a clip group" }
+        },
 
-        dialogTitle: { ja: "リンク画像の管理", en: "Linked Image Manager" },
-        sortPanelTitle: { ja: "ソート", en: "Sort" },
-        sortLabel: { ja: "並び順", en: "Sort by" },
-        sortFileName: { ja: "ファイル名", en: "File Name" },
-        sortFileSize: { ja: "サイズ", en: "Size" },
-        sortFileCount: { ja: "使用数", en: "Usage Count" },
-        sortArtboard: { ja: "アートボード", en: "Artboard" },
-        sortWidth: { ja: "幅", en: "Width" },
-        sortHeight: { ja: "高さ", en: "Height" },
-        sortScale: { ja: "スケール", en: "Scale" },
-        sortPpi: { ja: "PPI", en: "PPI" },
-        sortStatus: { ja: "ステータス", en: "Status" },
-        sortColorSpace: { ja: "カラースペース", en: "Color Space" },
-        ascOrder: { ja: "昇順", en: "Ascending" },
-        descOrder: { ja: "降順", en: "Descending" },
-        optionPanelTitle: { ja: "同一ファイル", en: "Same Files" },
-        dedupCheck: { ja: "同一ファイルをまとめる", en: "Group Same Files" },
-        unitCheck: { ja: "単位を「MB」で統一", en: "Use MB" },
-        filterPanelTitle: { ja: "ステータス", en: "Status" },
-        filterOk: { ja: "✓ リンク正常", en: "✓ Link OK" },
-        filterBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
-        filterUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" },
-        artboardPanelTitle: { ja: "アートボード", en: "Artboard" },
-        artboardAll: { ja: "すべて", en: "All" },
-        artboardFallback: { ja: "アートボード", en: "Artboard" },
-        prevArtboardTip: { ja: "前のアートボード", en: "Previous Artboard" },
-        nextArtboardTip: { ja: "次のアートボード", en: "Next Artboard" },
-        displayOptionPanelTitle: { ja: "表示列", en: "Display Options" },
-        displaySize: { ja: "サイズ", en: "Size" },
-        displayFileCount: { ja: "使用数を表示", en: "Show Usage Count" },
-        displayDimScalePpi: { ja: "サイズ、%、PPI", en: "Dimensions, Scale, PPI" },
-        displayColorSpace: { ja: "カラースペース", en: "Color Space" },
-        colFileName: { ja: "ファイル名", en: "File Name" },
-        colFileSizeMb: { ja: "サイズ(MB)", en: "Size (MB)" },
-        colFileSize: { ja: "サイズ", en: "Size" },
-        colFileCount: { ja: "使用数", en: "Usage Count" },
-        colWidthMm: { ja: "幅(mm)", en: "Width (mm)" },
-        colHeightMm: { ja: "高さ(mm)", en: "Height (mm)" },
-        colScale: { ja: "スケール", en: "Scale" },
-        colPpi: { ja: "PPI", en: "PPI" },
-        colArtboards: { ja: "アートボード", en: "Artboards" },
-        colColorSpace: { ja: "カラースペース", en: "Color Space" },
-        pathPanelTitle: { ja: "ファイルパス", en: "File Path" },
-        pathPlaceholder: {
-            ja: "リストからアイテムを選択してください",
-            en: "Select an item from the list."
+        // パネルタイトル / Panel titles
+        panel: {
+            sort: { ja: "ソート", en: "Sort" },
+            sameFile: { ja: "同一ファイル", en: "Same Files" },
+            status: { ja: "ステータス", en: "Status" },
+            artboard: { ja: "アートボード", en: "Artboard" },
+            displayColumn: { ja: "表示列", en: "Display Options" },
+            path: { ja: "ファイルパス", en: "File Path" },
+            extension: { ja: "拡張子", en: "Extension" },
+            destFolder: { ja: "変更先のフォルダー", en: "Destination Folder" }
         },
-        pathHelpTip: { ja: "パスの表示", en: "File path" },
-        fullPathCheck: { ja: "フルパス", en: "Full path" },
-        renameLinkBtn: { ja: "リネーム", en: "Rename" },
-        openFileBtn: { ja: "開く", en: "Open" },
-        deleteLinkBtn: { ja: "削除", en: "Delete" },
-        clipGroupDeleteTitle: { ja: "クリップグループ内の画像", en: "Image inside a clip group" },
-        clipGroupDeleteMessage: {
-            ja: "選択した画像はクリップグループ内にあります。どのように削除しますか？",
-            en: "The selected image is inside a clip group. How would you like to delete it?"
-        },
-        deleteImageOnlyBtn: { ja: "画像のみを削除", en: "Delete image only" },
-        deleteWithClipGroupBtn: { ja: "クリップグループごと削除", en: "Delete entire clip group" },
-        copyFileNameBtn: { ja: "ファイル名をコピー", en: "Copy File Name" },
-        labelNoExt: { ja: "(なし)", en: "(none)" },
-        dropboxCheck: { ja: "Dropboxパスを短縮", en: "Shorten Dropbox Path" },
-        fileNameCheck: { ja: "ファイル名", en: "Name" },
-        openFolderBtn: { ja: "開く", en: "Open" },
-        reloadOneBtnSingle: { ja: "再リンク", en: "Relink Selected" },
-        reloadOneBtnBatch: { ja: "一括再リンク", en: "Relink All" },
-        linkedFolderListLabel: { ja: "リンクフォルダー一覧", en: "Linked Folders" },
-        reloadFolderBtn: { ja: "フォルダーに再リンク", en: "Relink Folder" },
-        changeExtensionBtn: { ja: "拡張子の変更", en: "Change Extension" },
-        changeExtDialogTitle: { ja: "拡張子の変更", en: "Change Extension" },
-        changeExtPanelTitle: { ja: "拡張子", en: "Extension" },
-        changeExtFolderPanelTitle: { ja: "変更先のフォルダー", en: "Destination Folder" },
-        selectExtensionReferenceFolder: {
-            ja: "拡張子変更で参照するフォルダーを選択してください",
-            en: "Select the folder to search for files with the new extension"
-        },
-        chooseExtensionReferenceFolderBtn: { ja: "フォルダー指定", en: "Choose Folder" },
-        extensionReferenceFolderPlaceholder: { ja: "参照フォルダー未指定", en: "No reference folder selected" },
-        collectLinksBtn: { ja: "リンクを収集", en: "Collect Links" },
-        labelItems: { ja: "件", en: "item(s)" },
-        labelCopied: { ja: "コピー", en: "Copied" },
-        labelSkipped: { ja: "スキップ", en: "Skipped" },
-        openLinksPanelBtn: { ja: "［リンク］パネルを開く", en: "Open Links Panel" },
-        showOnCanvasCheck: { ja: "選択時にズーム表示", en: "Zoom to Selection" },
-        closeBtn: { ja: "閉じる", en: "Close" },
-        cancelBtn: { ja: "キャンセル", en: "Cancel" },
-        fileNameUnknown: { ja: "(ファイル名不明)", en: "(Unknown File Name)" },
-        statusBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
-        statusUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" },
-        statusOk: { ja: "✓ リンク正常", en: "✓ Link OK" },
-        selectNewLinkFile: { ja: "新しいリンクファイルを選択", en: "Select a new linked file" },
-        selectAltFolder: { ja: "代替フォルダを選択", en: "Select a replacement folder" },
-        labelSuccess: { ja: "成功", en: "Succeeded" },
-        labelFailed: { ja: "失敗", en: "Failed" },
-        labelTarget: { ja: "対象", en: "Target" },
 
-        // Alerts
+        // ソート / Sort options
+        sort: {
+            by: { ja: "並び順", en: "Sort by" },
+            fileName: { ja: "ファイル名", en: "File Name" },
+            fileSize: { ja: "サイズ", en: "Size" },
+            fileCount: { ja: "使用数", en: "Usage Count" },
+            artboard: { ja: "アートボード", en: "Artboard" },
+            width: { ja: "幅", en: "Width" },
+            height: { ja: "高さ", en: "Height" },
+            scale: { ja: "スケール", en: "Scale" },
+            ppi: { ja: "PPI", en: "PPI" },
+            status: { ja: "ステータス", en: "Status" },
+            colorSpace: { ja: "カラースペース", en: "Color Space" },
+            asc: { ja: "昇順", en: "Ascending" },
+            desc: { ja: "降順", en: "Descending" }
+        },
 
-        alertNoDocument: { ja: "ドキュメントが開いていません。", en: "No document is open." },
-        alertNoPlacedItems: {
-            ja: "配置されているリンク画像が見つかりませんでした。",
-            en: "No linked placed images were found."
+        // 一覧の列見出し / List column headers
+        column: {
+            fileName: { ja: "ファイル名", en: "File Name" },
+            fileSizeMb: { ja: "サイズ(MB)", en: "Size (MB)" },
+            fileSize: { ja: "サイズ", en: "Size" },
+            fileCount: { ja: "使用数", en: "Usage Count" },
+            widthMm: { ja: "幅(mm)", en: "Width (mm)" },
+            heightMm: { ja: "高さ(mm)", en: "Height (mm)" },
+            scale: { ja: "スケール", en: "Scale" },
+            ppi: { ja: "PPI", en: "PPI" },
+            artboards: { ja: "アートボード", en: "Artboards" },
+            colorSpace: { ja: "カラースペース", en: "Color Space" }
         },
-        alertSelectItem: { ja: "リストからアイテムを選択してください。", en: "Please select an item from the list." },
-        alertNoValidPath: { ja: "有効なファイルパスがありません。", en: "No valid file path is available." },
-        alertOpenFolderFailed: { ja: "フォルダを開けませんでした：", en: "Could not open the folder: " },
-        alertSelectLinkedFolder: { ja: "リンクフォルダを選択してください。", en: "Please select a linked folder." },
-        confirmDeleteLinks: {
-            ja: "選択したリンクファイルをドキュメントからすべて削除します。",
-            en: "Remove the selected file(s) from the document?"
+
+        // チェックボックス / Checkboxes
+        checkbox: {
+            dedup: { ja: "同一ファイルをまとめる", en: "Group Same Files" },
+            unit: { ja: "単位を「MB」で統一", en: "Use MB" },
+            displaySize: { ja: "サイズ", en: "Size" },
+            displayFileCount: { ja: "使用数を表示", en: "Show Usage Count" },
+            displayDimScalePpi: { ja: "サイズ、%、PPI", en: "Dimensions, Scale, PPI" },
+            displayColorSpace: { ja: "カラースペース", en: "Color Space" },
+            fullPath: { ja: "フルパス", en: "Full path" },
+            dropbox: { ja: "Dropboxパスを短縮", en: "Shorten Dropbox Path" },
+            fileName: { ja: "ファイル名", en: "Name" },
+            showOnCanvas: { ja: "選択時にズーム表示", en: "Zoom to Selection" },
+            filterOk: { ja: "✓ リンク正常", en: "✓ Link OK" },
+            filterBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
+            filterUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" }
         },
-        alertDeleteDone: { ja: "削除完了", en: "Delete Complete" },
-        alertCopyFileNameDone: { ja: "ファイル名をコピーしました", en: "File name copied to clipboard" },
-        alertCopyFileNameFailed: { ja: "ファイル名のコピーに失敗しました", en: "Failed to copy file name" },
-        promptNewFileName: {
-            ja: "新しいファイル名を入力してください。\n（拡張子 {ext} は自動で保持されます）\n\n現在のファイル名：{name}",
-            en: "Enter the new file name.\n(Extension {ext} will be kept automatically)\n\nCurrent file name: {name}"
+
+        // ボタン / Buttons
+        button: {
+            rename: { ja: "リネーム", en: "Rename" },
+            open: { ja: "開く", en: "Open" },
+            "delete": { ja: "削除", en: "Delete" },
+            deleteImageOnly: { ja: "画像のみを削除", en: "Delete image only" },
+            deleteWithClipGroup: { ja: "クリップグループごと削除", en: "Delete entire clip group" },
+            copyFileName: { ja: "ファイル名をコピー", en: "Copy File Name" },
+            openFolder: { ja: "開く", en: "Open" },
+            relinkSelected: { ja: "再リンク", en: "Relink Selected" },
+            relinkAll: { ja: "一括再リンク", en: "Relink All" },
+            relinkFolder: { ja: "フォルダーに再リンク", en: "Relink Folder" },
+            changeExtension: { ja: "拡張子の変更", en: "Change Extension" },
+            chooseFolder: { ja: "フォルダー指定", en: "Choose Folder" },
+            collectLinks: { ja: "リンクを収集", en: "Collect Links" },
+            openLinksPanel: { ja: "［リンク］パネルを開く", en: "Open Links Panel" },
+            close: { ja: "閉じる", en: "Close" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
         },
-        alertInvalidFileName: { ja: "ファイル名に / や \\ は使用できません。", en: "File name must not contain / or \\." },
-        alertLinkFileNotFound: { ja: "リンクファイルが見つかりません：", en: "Linked file not found: " },
-        confirmOverwrite: {
-            ja: "同名のファイルが既に存在します。\n上書きしますか？\n\n",
-            en: "A file with the same name already exists.\nOverwrite?\n\n"
+
+        // アラート・確認・プロンプト / Alerts, confirmations, prompts
+        message: {
+            clipGroupDelete: {
+                ja: "選択した画像はクリップグループ内にあります。どのように削除しますか？",
+                en: "The selected image is inside a clip group. How would you like to delete it?"
+            },
+            noDocument: { ja: "ドキュメントが開いていません。", en: "No document is open." },
+            noPlacedItems: {
+                ja: "配置されているリンク画像が見つかりませんでした。",
+                en: "No linked placed images were found."
+            },
+            selectItem: { ja: "リストからアイテムを選択してください。", en: "Please select an item from the list." },
+            noValidPath: { ja: "有効なファイルパスがありません。", en: "No valid file path is available." },
+            openFolderFailed: { ja: "フォルダを開けませんでした：", en: "Could not open the folder: " },
+            selectLinkedFolder: { ja: "リンクフォルダを選択してください。", en: "Please select a linked folder." },
+            confirmDeleteLinks: {
+                ja: "選択したリンクファイルをドキュメントからすべて削除します。",
+                en: "Remove the selected file(s) from the document?"
+            },
+            deleteDone: { ja: "削除完了", en: "Delete Complete" },
+            copyFileNameDone: { ja: "ファイル名をコピーしました", en: "File name copied to clipboard" },
+            copyFileNameFailed: { ja: "ファイル名のコピーに失敗しました", en: "Failed to copy file name" },
+            promptNewFileName: {
+                ja: "新しいファイル名を入力してください。\n（拡張子 {ext} は自動で保持されます）\n\n現在のファイル名：{name}",
+                en: "Enter the new file name.\n(Extension {ext} will be kept automatically)\n\nCurrent file name: {name}"
+            },
+            invalidFileName: { ja: "ファイル名に / や \\ は使用できません。", en: "File name must not contain / or \\." },
+            linkFileNotFound: { ja: "リンクファイルが見つかりません：", en: "Linked file not found: " },
+            confirmOverwrite: {
+                ja: "同名のファイルが既に存在します。\n上書きしますか？\n\n",
+                en: "A file with the same name already exists.\nOverwrite?\n\n"
+            },
+            renameFailed: { ja: "ファイルのリネームに失敗しました。", en: "Failed to rename the file." },
+            renameDone: { ja: "リネームして再リンクしました", en: "Renamed and relinked" },
+            nameUnchanged: {
+                ja: "ファイル名が変更されていません。処理を中断します。",
+                en: "The file name has not changed. Aborting."
+            },
+            confirmBatchRelink: {
+                ja: "複数のリンクを一括で再リンクします。よろしいですか？",
+                en: "Multiple links will be relinked at once. Continue?"
+            },
+            relinkDone: { ja: "リンク更新完了", en: "Relink Complete" },
+            changeExtDone: { ja: "拡張子を変更しました", en: "Extension changed" },
+            docNotSaved: {
+                ja: "ドキュメントが保存されていません。保存してからもう一度お試しください。",
+                en: "The document has not been saved. Please save the document and try again."
+            },
+            createLinksFolderFailed: { ja: "Linksフォルダーを作成できませんでした。", en: "Could not create the Links folder." },
+            collectLinksDone: { ja: "リンクのコピーと再リンクが完了しました", en: "Copy and Relink Complete" }
         },
-        alertRenameFailed: { ja: "ファイルのリネームに失敗しました。", en: "Failed to rename the file." },
-        alertRenameDone: { ja: "リネームして再リンクしました", en: "Renamed and relinked" },
-        alertNameUnchanged: {
-            ja: "ファイル名が変更されていません。処理を中断します。",
-            en: "The file name has not changed. Aborting."
-        },
-        confirmBatchRelink: {
-            ja: "複数のリンクを一括で再リンクします。よろしいですか？",
-            en: "Multiple links will be relinked at once. Continue?"
-        },
-        alertRelinkDone: { ja: "リンク更新完了", en: "Relink Complete" },
-        alertChangeExtDone: { ja: "拡張子を変更しました", en: "Extension changed" },
-        alertDocNotSaved: {
-            ja: "ドキュメントが保存されていません。保存してからもう一度お試しください。",
-            en: "The document has not been saved. Please save the document and try again."
-        },
-        alertCreateLinksFolderFailed: { ja: "Linksフォルダーを作成できませんでした。", en: "Could not create the Links folder." },
-        alertCollectLinksDone: { ja: "リンクのコピーと再リンクが完了しました", en: "Copy and Relink Complete" }
+
+        // ステータス・その他ラベル / Status and miscellaneous labels
+        label: {
+            statusOk: { ja: "✓ リンク正常", en: "✓ Link OK" },
+            statusBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
+            statusUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" },
+            artboardAll: { ja: "すべて", en: "All" },
+            artboardFallback: { ja: "アートボード", en: "Artboard" },
+            prevArtboardTip: { ja: "前のアートボード", en: "Previous Artboard" },
+            nextArtboardTip: { ja: "次のアートボード", en: "Next Artboard" },
+            pathPlaceholder: {
+                ja: "リストからアイテムを選択してください",
+                en: "Select an item from the list."
+            },
+            pathHelpTip: { ja: "パスの表示", en: "File path" },
+            items: { ja: "件", en: "item(s)" },
+            target: { ja: "対象", en: "Target" },
+            success: { ja: "成功", en: "Succeeded" },
+            failed: { ja: "失敗", en: "Failed" },
+            skipped: { ja: "スキップ", en: "Skipped" },
+            copied: { ja: "コピー", en: "Copied" },
+            noExt: { ja: "(なし)", en: "(none)" },
+            fileNameUnknown: { ja: "(ファイル名不明)", en: "(Unknown File Name)" },
+            selectNewLinkFile: { ja: "新しいリンクファイルを選択", en: "Select a new linked file" },
+            selectAltFolder: { ja: "代替フォルダを選択", en: "Select a replacement folder" },
+            linkedFolders: { ja: "リンクフォルダー一覧", en: "Linked Folders" },
+            selectExtensionReferenceFolder: {
+                ja: "拡張子変更で参照するフォルダーを選択してください",
+                en: "Select the folder to search for files with the new extension"
+            },
+            extensionReferenceFolderPlaceholder: { ja: "参照フォルダー未指定", en: "No reference folder selected" }
+        }
     };
 
+    // ドット区切りキー（例 'panel.sort'）で LABELS を辿る。見つからなければキー文字列を返す
     function L(key) {
-        return (LABELS[key] && LABELS[key][currentLanguage]) ? LABELS[key][currentLanguage] : key;
+        var node = LABELS;
+        var parts = key.split(".");
+        for (var i = 0; i < parts.length; i++) {
+            if (node && typeof node === "object" && node.hasOwnProperty(parts[i])) {
+                node = node[parts[i]];
+            } else {
+                return key;
+            }
+        }
+        return (node && node[currentLanguage]) ? node[currentLanguage] : key;
     }
 
     function labelText(key) {
@@ -233,11 +269,36 @@ https://note.com/dtp_tranist/n/na66732d2056a
     }
 
     // alert / confirm 用に「ラベル：値+単位」を 1 行で組み立てる
-    // 例: kvLine('labelSuccess', 3, 'labelItems') → "成功：3件" / "Succeeded: 3 item(s)"
+    // 例: kvLine('label.success', 3, 'label.items') → "成功：3件" / "Succeeded: 3 item(s)"
     function kvLine(labelKey, value, unitKey) {
         var sep = (currentLanguage === 'ja' ? '：' : ': ');
         var valueText = unitKey ? withUnit(value, unitKey) : String(value);
         return L(labelKey) + sep + valueText;
+    }
+
+    // =========================================
+    // パネル・グループ共通レイアウト / Shared panel & group layout
+    // =========================================
+
+    /* パネルの余白と間隔 / Panel margins and spacing */
+    var PANEL_MARGINS = [16, 20, 16, 12];
+    var PANEL_SPACING = 8;
+
+    /* パネルの共通設定 / Apply shared panel layout */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /* グループの共通設定（orientation は呼び出し側で指定）/ Apply shared group layout (orientation passed in) */
+    function setupGroup(group, orientation, spacing) {
+        group.orientation = orientation || "column";
+        group.alignChildren = ["left", "center"];
+        group.alignment = "fill";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     // ScriptUI のレイアウト再計算を例外抑止付きで呼ぶ。引数は可変（複数コンテナを順に再計算）
@@ -349,8 +410,8 @@ https://note.com/dtp_tranist/n/na66732d2056a
         var ext = parts.ext;
         var base = parts.base;
 
-        var msg = message || L('promptNewFileName')
-            .replace("{ext}", ext || L('labelNoExt'))
+        var msg = message || L('message.promptNewFileName')
+            .replace("{ext}", ext || L('label.noExt'))
             .replace("{name}", originalName);
 
         var input = prompt(msg, base);
@@ -793,7 +854,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         if (!safeExists(placedFile)) {
             return {
                 statusCode: "broken",
-                status: L('statusBroken'),
+                status: L('label.statusBroken'),
                 statusIcon: "⚠",
                 isLinkOk: false
             };
@@ -802,7 +863,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         if (isLinkOutOfDate(placedFile, xmpLastModifyDate)) {
             return {
                 statusCode: "update",
-                status: L('statusUpdate'),
+                status: L('label.statusUpdate'),
                 statusIcon: "⟳",
                 isLinkOk: false
             };
@@ -810,7 +871,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
         return {
             statusCode: "ok",
-            status: L('statusOk'),
+            status: L('label.statusOk'),
             statusIcon: "✓",
             isLinkOk: true
         };
@@ -888,18 +949,18 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
     // 配置アイテムからファイル名を取得。リンク切れ時は XMP 由来の fallbackName を優先 / Get file name from placed item with XMP fallback
     function getPlacedItemFileName(placedItem, fallbackName, defaultName) {
-        var fileName = defaultName || L('fileNameUnknown');
+        var fileName = defaultName || L('label.fileNameUnknown');
 
         var placedFile = tryGet(function () { return placedItem.file; }, null);
         if (placedFile) {
             fileName = safeProp(placedFile, "name", fileName);
         }
 
-        if (fileName === L('fileNameUnknown') && fallbackName) {
+        if (fileName === L('label.fileNameUnknown') && fallbackName) {
             fileName = fallbackName;
         }
 
-        if (fileName === L('fileNameUnknown')) {
+        if (fileName === L('label.fileNameUnknown')) {
             fileName = safeProp(placedItem, "name", fileName);
         }
 
@@ -911,10 +972,10 @@ https://note.com/dtp_tranist/n/na66732d2056a
         var basics = {
             linkedFile: tryGet(function () { return item.file; }, null),
             filePath: "---",
-            fileName: L('fileNameUnknown'),
+            fileName: L('label.fileNameUnknown'),
             fileSize: "---",
             fileSizeBytes: -1,
-            status: L('statusBroken'),
+            status: L('label.statusBroken'),
             statusCode: "broken",
             statusIcon: "⚠",
             isLinkOk: false
@@ -939,7 +1000,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
         basics.fileName = getPlacedItemFileName(item, xmpRef ? xmpRef.fileName : "", basics.fileName);
 
-        if (basics.fileName === L('fileNameUnknown') && basics.filePath !== "---") {
+        if (basics.fileName === L('label.fileNameUnknown') && basics.filePath !== "---") {
             var derivedName = pathBaseName(basics.filePath);
             if (derivedName) basics.fileName = derivedName;
         }
@@ -1111,7 +1172,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
     // ドキュメントが開いているか確認
     if (app.documents.length === 0) {
-        alert(L('alertNoDocument'));
+        alert(L('message.noDocument'));
         return;
     }
 
@@ -1120,7 +1181,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
     // 配置画像が存在するか確認
     if (placedItems.length === 0) {
-        alert(L('alertNoPlacedItems'));
+        alert(L('message.noPlacedItems'));
         return;
     }
 
@@ -1162,11 +1223,10 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
     // ---- ダイアログ構築 / Build dialog ----
     function showLinkDialog(allPlacementEntries, uniqueFileEntries, placedItems, doc, preselectedItemIndex) {
-        var PANEL_MARGINS = [10, 20, 10, 10]; // 全パネル共通のマージン
         var MAIN_LISTBOX_SIZE = [500, 190]; // メイン一覧のサイズ
         var FOLDER_LISTBOX_SIZE = [500, 120]; // リンクフォルダ一覧のサイズ
 
-        var dialog = new Window("dialog", L('dialogTitle') + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", L('dialog.main') + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = ["fill", "top"];
         dialog.preferredSize.width = 500;
@@ -1191,35 +1251,31 @@ https://note.com/dtp_tranist/n/na66732d2056a
         leftCol.alignChildren = ["fill", "top"];
 
         // ソート
-        var sortPanel = leftCol.add("panel", undefined, L('sortPanelTitle'));
-        sortPanel.orientation = "column";
-        sortPanel.alignChildren = ["left", "top"];
-        sortPanel.margins = PANEL_MARGINS;
+        var sortPanel = leftCol.add("panel", undefined, L('panel.sort'));
+        setupPanel(sortPanel);
         var sortKeyRow = sortPanel.add("group");
         sortKeyRow.orientation = "row";
         sortKeyRow.alignChildren = ["left", "center"];
-        sortKeyRow.add("statictext", undefined, labelText('sortLabel'));
+        sortKeyRow.add("statictext", undefined, labelText('sort.by'));
         var sortDropdown = sortKeyRow.add("dropdownlist", undefined, []);
         // ソート対象は列の表示状態と連動（rebuildSortDropdown で動的に構築）
         var currentVisibleSpecs = [];
         var orderRow = sortPanel.add("group");
         orderRow.orientation = "row";
         orderRow.alignChildren = ["left", "center"];
-        var ascRadio = orderRow.add("radiobutton", undefined, L('ascOrder'));
-        var descRadio = orderRow.add("radiobutton", undefined, L('descOrder'));
+        var ascRadio = orderRow.add("radiobutton", undefined, L('sort.asc'));
+        var descRadio = orderRow.add("radiobutton", undefined, L('sort.desc'));
         descRadio.value = true;
 
         // オプション（重複 / ファイルサイズの単位を統一）
-        var optPanel = leftCol.add("panel", undefined, L('optionPanelTitle'));
-        optPanel.orientation = "column";
-        optPanel.alignChildren = ["left", "top"];
-        optPanel.margins = PANEL_MARGINS;
-        var dedupCheck = optPanel.add("checkbox", undefined, L('dedupCheck'));
+        var optPanel = leftCol.add("panel", undefined, L('panel.sameFile'));
+        setupPanel(optPanel);
+        var dedupCheck = optPanel.add("checkbox", undefined, L('checkbox.dedup'));
         dedupCheck.value = true; // ON：同一ファイルは 1 行にまとめる
         dedupCheck.helpTip = (currentLanguage === 'ja')
             ? "ON：同じリンクファイルを1行にまとめ、再リンクは“すべて一括”で実行されます（複数変更に注意）。\nOFF：配置ごとに個別表示され、再リンクも1件ずつ実行されます。"
             : "ON: Group same linked files into one row; relink applies to ALL placements (affects multiple items).\nOFF: Each placement is listed separately; relink applies individually.";
-        var countColCheck = optPanel.add("checkbox", undefined, L('displayFileCount'));
+        var countColCheck = optPanel.add("checkbox", undefined, L('checkbox.displayFileCount'));
         countColCheck.value = true;
 
         // 右カラム：表示列・ステータス・アートボードを配置
@@ -1233,19 +1289,17 @@ https://note.com/dtp_tranist/n/na66732d2056a
         otherTopRow.alignChildren = ["fill", "top"];
 
         // 左：表示列の表示／非表示を切り替える
-        var optionPanel = otherTopRow.add("panel", undefined, L('displayOptionPanelTitle'));
-        optionPanel.orientation = "column";
-        optionPanel.alignChildren = ["left", "top"];
-        optionPanel.margins = PANEL_MARGINS;
+        var optionPanel = otherTopRow.add("panel", undefined, L('panel.displayColumn'));
+        setupPanel(optionPanel);
         var sizeRow = optionPanel.add("group");
         sizeRow.orientation = "row";
         sizeRow.alignChildren = ["left", "center"];
-        var sizeColCheck = sizeRow.add("checkbox", undefined, L('displaySize'));
+        var sizeColCheck = sizeRow.add("checkbox", undefined, L('checkbox.displaySize'));
 
-        var unitCheck = optionPanel.add("checkbox", undefined, L('unitCheck'));
+        var unitCheck = optionPanel.add("checkbox", undefined, L('checkbox.unit'));
 
-        var dimScalePpiCheck = optionPanel.add("checkbox", undefined, L('displayDimScalePpi'));
-        var colorSpaceColCheck = optionPanel.add("checkbox", undefined, L('displayColorSpace'));
+        var dimScalePpiCheck = optionPanel.add("checkbox", undefined, L('checkbox.displayDimScalePpi'));
+        var colorSpaceColCheck = optionPanel.add("checkbox", undefined, L('checkbox.displayColorSpace'));
         sizeColCheck.value = false;
         unitCheck.value = true; // ON：全行 MB で統一表示、OFF：B/KB/MB/GB の自動単位
         unitCheck.enabled = sizeColCheck.value;
@@ -1253,22 +1307,20 @@ https://note.com/dtp_tranist/n/na66732d2056a
         colorSpaceColCheck.value = false;
 
         // 右：ステータスフィルター
-        var filterPanel = otherTopRow.add("panel", undefined, L('filterPanelTitle'));
-        filterPanel.orientation = "column";
-        filterPanel.alignChildren = ["left", "top"];
-        filterPanel.margins = PANEL_MARGINS;
+        var filterPanel = otherTopRow.add("panel", undefined, L('panel.status'));
+        setupPanel(filterPanel);
         var statusGroup = filterPanel.add("group");
         statusGroup.orientation = "column";
         statusGroup.alignChildren = ["left", "top"];
-        var okCheck = statusGroup.add("checkbox", undefined, L('filterOk'));
-        var brokenCheck = statusGroup.add("checkbox", undefined, L('filterBroken'));
-        var updateCheck = statusGroup.add("checkbox", undefined, L('filterUpdate'));
+        var okCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterOk'));
+        var brokenCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterBroken'));
+        var updateCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterUpdate'));
         okCheck.value = true;
         brokenCheck.value = true;
         updateCheck.value = true;
 
         // 下段：アートボード（右カラム内で左右貫通）
-        var abPanel = otherPanel.add("panel", undefined, L('artboardPanelTitle'));
+        var abPanel = otherPanel.add("panel", undefined, L('panel.artboard'));
         abPanel.orientation = "row";
         abPanel.alignChildren = ["left", "center"];
         abPanel.alignment = ["fill", "top"];
@@ -1280,12 +1332,12 @@ https://note.com/dtp_tranist/n/na66732d2056a
             if (abNum !== null) artboardsWithImages[abNum] = true;
         }
 
-        var artboardDropdownItems = [L('artboardAll')];
+        var artboardDropdownItems = [L('label.artboardAll')];
         var artboardSep = (currentLanguage === 'ja') ? '：' : ': ';
         for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
             var artboardName = "";
             artboardName = safeProp(doc.artboards[artboardIndex], "name", artboardName);
-            artboardDropdownItems.push((artboardIndex + 1) + artboardSep + (artboardName || L('artboardFallback') + (artboardIndex + 1)));
+            artboardDropdownItems.push((artboardIndex + 1) + artboardSep + (artboardName || L('label.artboardFallback') + (artboardIndex + 1)));
         }
         var abFilterDropdown = abPanel.add("dropdownlist", undefined, artboardDropdownItems);
 
@@ -1301,10 +1353,10 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
         var abPrevBtn = abPanel.add("button", undefined, "◀");
         abPrevBtn.preferredSize = [30, 22];
-        abPrevBtn.helpTip = L('prevArtboardTip');
+        abPrevBtn.helpTip = L('label.prevArtboardTip');
         var abNextBtn = abPanel.add("button", undefined, "▶");
         abNextBtn.preferredSize = [30, 22];
-        abNextBtn.helpTip = L('nextArtboardTip');
+        abNextBtn.helpTip = L('label.nextArtboardTip');
 
         var enabledCount = 0;
         for (var i = 1; i < abFilterDropdown.items.length; i++) {
@@ -1333,31 +1385,31 @@ https://note.com/dtp_tranist/n/na66732d2056a
         function getColumnSpec() {
             var cols = [];
             cols.push({ key: "statusIcon", title: "", width: 30 });
-            cols.push({ key: "fileName", title: L('colFileName'), width: 210 });
+            cols.push({ key: "fileName", title: L('column.fileName'), width: 210 });
             if (sizeColCheck.value) {
                 cols.push({
                     key: "fileSize",
-                    title: unitCheck.value ? L('colFileSizeMb') : L('colFileSize'),
+                    title: unitCheck.value ? L('column.fileSizeMb') : L('column.fileSize'),
                     width: 65
                 });
             }
             if (countColCheck.value) {
-                cols.push({ key: "fileCount", title: L('colFileCount'), width: 45 });
+                cols.push({ key: "fileCount", title: L('column.fileCount'), width: 45 });
             }
             if (dimScalePpiCheck.value) {
-                cols.push({ key: "widthText", title: L('colWidthMm'), width: 60 });
-                cols.push({ key: "heightText", title: L('colHeightMm'), width: 60 });
-                cols.push({ key: "scaleText", title: L('colScale'), width: 60 });
-                cols.push({ key: "ppiText", title: L('colPpi'), width: 50 });
+                cols.push({ key: "widthText", title: L('column.widthMm'), width: 60 });
+                cols.push({ key: "heightText", title: L('column.heightMm'), width: 60 });
+                cols.push({ key: "scaleText", title: L('column.scale'), width: 60 });
+                cols.push({ key: "ppiText", title: L('column.ppi'), width: 50 });
             }
             if (colorSpaceColCheck.value) {
-                cols.push({ key: "colorSpace", title: L('colColorSpace'), width: 160 });
+                cols.push({ key: "colorSpace", title: L('column.colorSpace'), width: 160 });
             }
             // アートボードドロップダウンの選択に応じて列を表示／非表示
             // Show/hide the Artboard column based on the artboard dropdown selection.
             var shouldShowArtboardColumn = !abFilterDropdown.selection || abFilterDropdown.selection.index === 0;
             if (shouldShowArtboardColumn) {
-                cols.push({ key: "artboards", title: L('colArtboards'), width: 70 });
+                cols.push({ key: "artboards", title: L('column.artboards'), width: 70 });
             }
             return cols;
         }
@@ -1393,16 +1445,16 @@ https://note.com/dtp_tranist/n/na66732d2056a
             return 9;
         }
         var SORT_SPECS = [
-            { key: 'fileName', labelKey: 'sortFileName', preferDesc: false, getValue: function (i) { return i.fileName; }, isVisible: function () { return true; } },
-            { key: 'fileSize', labelKey: 'sortFileSize', preferDesc: true, getValue: function (i) { return i.fileSizeBytes; }, isVisible: function () { return sizeColCheck.value; } },
-            { key: 'fileCount', labelKey: 'sortFileCount', preferDesc: true, getValue: function (i) { return i.fileCount; }, isVisible: function () { return countColCheck.value; } },
-            { key: 'artboard', labelKey: 'sortArtboard', preferDesc: false, getValue: function (i) { return (i.artboardNum === null) ? null : i.artboardNum; }, isVisible: function () { return !abFilterDropdown.selection || abFilterDropdown.selection.index === 0; } },
-            { key: 'width', labelKey: 'sortWidth', preferDesc: true, getValue: function (i) { return i.widthMm; }, isVisible: function () { return dimScalePpiCheck.value; } },
-            { key: 'height', labelKey: 'sortHeight', preferDesc: true, getValue: function (i) { return i.heightMm; }, isVisible: function () { return dimScalePpiCheck.value; } },
-            { key: 'scale', labelKey: 'sortScale', preferDesc: true, getValue: function (i) { return i.scalePct; }, isVisible: function () { return dimScalePpiCheck.value; } },
-            { key: 'ppi', labelKey: 'sortPpi', preferDesc: true, getValue: function (i) { return i.ppi; }, isVisible: function () { return dimScalePpiCheck.value; } },
-            { key: 'status', labelKey: 'sortStatus', preferDesc: false, getValue: function (i) { return getStatusSortValue(i.statusCode); }, isVisible: function () { return true; } },
-            { key: 'colorSpace', labelKey: 'sortColorSpace', preferDesc: false, getValue: function (i) { return i.colorSpace || ""; }, isVisible: function () { return colorSpaceColCheck.value; } }
+            { key: 'fileName', labelKey: 'sort.fileName', preferDesc: false, getValue: function (i) { return i.fileName; }, isVisible: function () { return true; } },
+            { key: 'fileSize', labelKey: 'sort.fileSize', preferDesc: true, getValue: function (i) { return i.fileSizeBytes; }, isVisible: function () { return sizeColCheck.value; } },
+            { key: 'fileCount', labelKey: 'sort.fileCount', preferDesc: true, getValue: function (i) { return i.fileCount; }, isVisible: function () { return countColCheck.value; } },
+            { key: 'artboard', labelKey: 'sort.artboard', preferDesc: false, getValue: function (i) { return (i.artboardNum === null) ? null : i.artboardNum; }, isVisible: function () { return !abFilterDropdown.selection || abFilterDropdown.selection.index === 0; } },
+            { key: 'width', labelKey: 'sort.width', preferDesc: true, getValue: function (i) { return i.widthMm; }, isVisible: function () { return dimScalePpiCheck.value; } },
+            { key: 'height', labelKey: 'sort.height', preferDesc: true, getValue: function (i) { return i.heightMm; }, isVisible: function () { return dimScalePpiCheck.value; } },
+            { key: 'scale', labelKey: 'sort.scale', preferDesc: true, getValue: function (i) { return i.scalePct; }, isVisible: function () { return dimScalePpiCheck.value; } },
+            { key: 'ppi', labelKey: 'sort.ppi', preferDesc: true, getValue: function (i) { return i.ppi; }, isVisible: function () { return dimScalePpiCheck.value; } },
+            { key: 'status', labelKey: 'sort.status', preferDesc: false, getValue: function (i) { return getStatusSortValue(i.statusCode); }, isVisible: function () { return true; } },
+            { key: 'colorSpace', labelKey: 'sort.colorSpace', preferDesc: false, getValue: function (i) { return i.colorSpace || ""; }, isVisible: function () { return colorSpaceColCheck.value; } }
         ];
 
         function rebuildSortDropdown() {
@@ -1644,14 +1696,12 @@ https://note.com/dtp_tranist/n/na66732d2056a
         viewOptRow.orientation = "row";
         viewOptRow.alignment = ["fill", "top"];
         viewOptRow.alignChildren = ["left", "center"];
-        var showOnCanvasCheck = viewOptRow.add("checkbox", undefined, L('showOnCanvasCheck'));
+        var showOnCanvasCheck = viewOptRow.add("checkbox", undefined, L('checkbox.showOnCanvas'));
         showOnCanvasCheck.value = true; // ON：行選択でカンバス上の該当画像をフィット表示
 
         // --- パスパネル ---
-        var pathPanel = dialog.add("panel", undefined, L('pathPanelTitle'));
-        pathPanel.orientation = "column";
-        pathPanel.alignChildren = ["fill", "top"];
-        pathPanel.margins = PANEL_MARGINS;
+        var pathPanel = dialog.add("panel", undefined, L('panel.path'));
+        setupPanel(pathPanel);
 
         // 1 行目：選択中の親フォルダ表示
         var pathRow = pathPanel.add("group");
@@ -1659,12 +1709,12 @@ https://note.com/dtp_tranist/n/na66732d2056a
         pathRow.alignChildren = ["fill", "center"];
 
         var pathStaticText = pathRow.add(
-            "statictext", undefined, L('pathPlaceholder'),
+            "statictext", undefined, L('label.pathPlaceholder'),
             { multiline: true }
         );
         pathStaticText.alignment = ["fill", "fill"];
         pathStaticText.preferredSize = [450, 20];
-        pathStaticText.helpTip = L('pathHelpTip');
+        pathStaticText.helpTip = L('label.pathHelpTip');
 
         // 2 行目：整形オプション（アクションボタンはさらに下の独立行に配置）
         var pathOptRow = pathPanel.add("group");
@@ -1676,16 +1726,16 @@ https://note.com/dtp_tranist/n/na66732d2056a
         pathOptLeft.orientation = "row";
         pathOptLeft.alignChildren = ["left", "center"];
         pathOptLeft.alignment = ["left", "center"];
-        var fullPathCheck = pathOptLeft.add("checkbox", undefined, L('fullPathCheck'));
+        var fullPathCheck = pathOptLeft.add("checkbox", undefined, L('checkbox.fullPath'));
         // DROPBOX_PREFIX が空文字なら Dropbox チェックボックスは追加せず、参照だけ満たすスタブを使う
         var dropboxCheck;
         if (DROPBOX_PREFIX) {
-            dropboxCheck = pathOptLeft.add("checkbox", undefined, L('dropboxCheck'));
+            dropboxCheck = pathOptLeft.add("checkbox", undefined, L('checkbox.dropbox'));
             dropboxCheck.value = true;
         } else {
             dropboxCheck = { value: false, enabled: false };
         }
-        var fileNameCheck = pathOptLeft.add("checkbox", undefined, L('fileNameCheck'));
+        var fileNameCheck = pathOptLeft.add("checkbox", undefined, L('checkbox.fileName'));
         fullPathCheck.value = false; // ON：フルパスをそのまま表示。OFF：~/ や Dropbox 接頭辞で短縮
         fileNameCheck.value = false; // ON：パスにファイル名まで含める。OFF：親フォルダまで表示
 
@@ -1701,7 +1751,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         function requireSelectedEntry(handler) {
             return function () {
                 if (!selectedEntry) {
-                    alert(L('alertSelectItem'));
+                    alert(L('message.selectItem'));
                     return;
                 }
                 return handler.apply(this, arguments);
@@ -1831,32 +1881,28 @@ https://note.com/dtp_tranist/n/na66732d2056a
         }
 
         function showChangeExtensionDialog() {
-            var extdialog = new Window("dialog", L('changeExtDialogTitle'));
+            var extdialog = new Window("dialog", L('dialog.changeExt'));
             extdialog.orientation = "column";
             extdialog.alignChildren = ["fill", "top"];
 
-            var folderPanel = extdialog.add("panel", undefined, L('changeExtFolderPanelTitle'));
-            folderPanel.orientation = "column";
-            folderPanel.alignChildren = ["fill", "top"];
-            folderPanel.margins = PANEL_MARGINS;
+            var folderPanel = extdialog.add("panel", undefined, L('panel.destFolder'));
+            setupPanel(folderPanel);
 
-            var chooseFolderBtn = folderPanel.add("button", undefined, L('chooseExtensionReferenceFolderBtn'));
+            var chooseFolderBtn = folderPanel.add("button", undefined, L('button.chooseFolder'));
             chooseFolderBtn.alignment = ["left", "top"];
 
-            var folderLabel = folderPanel.add("statictext", undefined, L('extensionReferenceFolderPlaceholder'));
+            var folderLabel = folderPanel.add("statictext", undefined, L('label.extensionReferenceFolderPlaceholder'));
             folderLabel.alignment = ["fill", "top"];
             folderLabel.preferredSize = [300, 20];
 
-            var extPanel = extdialog.add("panel", undefined, L('changeExtPanelTitle'));
-            extPanel.orientation = "column";
-            extPanel.alignChildren = ["fill", "top"];
-            extPanel.margins = PANEL_MARGINS;
+            var extPanel = extdialog.add("panel", undefined, L('panel.extension'));
+            setupPanel(extPanel);
 
             var referenceFolder = null;
             var okBtn = null;
 
             chooseFolderBtn.onClick = function () {
-                var selectedFolder = Folder.selectDialog(L('selectExtensionReferenceFolder'));
+                var selectedFolder = Folder.selectDialog(L('label.selectExtensionReferenceFolder'));
                 if (!selectedFolder) return;
 
                 referenceFolder = selectedFolder;
@@ -1940,7 +1986,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             var btnRow = extdialog.add("group");
             btnRow.alignment = ["right", "top"];
 
-            var cancelBtn = btnRow.add("button", undefined, L('cancelBtn'));
+            var cancelBtn = btnRow.add("button", undefined, L('button.cancel'));
             okBtn = btnRow.add("button", undefined, "OK");
             okBtn.enabled = false;
 
@@ -2047,17 +2093,17 @@ https://note.com/dtp_tranist/n/na66732d2056a
         actionBtnRight.alignChildren = ["right", "center"];
         actionBtnRight.alignment = ["right", "center"];
 
-        var openFileBtn = actionBtnRight.add("button", undefined, L('openFileBtn'));
+        var openFileBtn = actionBtnRight.add("button", undefined, L('button.open'));
         openFileBtn.preferredSize = [50, 24];
         openFileBtn.onClick = requireSelectedEntry(function () {
             var absPath = selectedEntry.filePath;
             if (!absPath || absPath === "---") {
-                alert(L('alertNoValidPath'));
+                alert(L('message.noValidPath'));
                 return;
             }
             var fileToOpen = new File(absPath);
             if (!fileToOpen.exists) {
-                alert(L('alertLinkFileNotFound') + absPath);
+                alert(L('message.linkFileNotFound') + absPath);
                 return;
             }
             fileToOpen.execute();
@@ -2117,8 +2163,8 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 clipMode = askDeleteModeWithConfirm(indices.length);
                 if (clipMode === null) return;
             } else {
-                var confirmMessage = L('confirmDeleteLinks') + "\n" +
-                    kvLine('labelTarget', indices.length, 'labelItems');
+                var confirmMessage = L('message.confirmDeleteLinks') + "\n" +
+                    kvLine('label.target', indices.length, 'label.items');
                 if (!confirm(confirmMessage)) return;
             }
 
@@ -2132,36 +2178,36 @@ https://note.com/dtp_tranist/n/na66732d2056a
             refreshFromDoc();
             updateActionButtonStates();
             alert(
-                L('alertDeleteDone') + "\n" +
-                kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
-                kvLine('labelFailed', res.failed, 'labelItems')
+                L('message.deleteDone') + "\n" +
+                kvLine('label.success', res.success, 'label.items') + "\n" +
+                kvLine('label.failed', res.failed, 'label.items')
             );
         }
 
-        var deleteLinkBtn = actionBtnRight.add("button", undefined, L('deleteLinkBtn'));
+        var deleteLinkBtn = actionBtnRight.add("button", undefined, L('button.delete'));
         deleteLinkBtn.preferredSize = [50, 24];
         deleteLinkBtn.onClick = requireSelectedEntry(handleDeleteSelected);
 
         // クリップグループ内の画像が含まれる場合の、確認 + 削除モード選択を兼ねたダイアログ
         // 戻り値: 'image' / 'group' / null（キャンセル）
         function askDeleteModeWithConfirm(targetCount) {
-            var deleteDialog = new Window("dialog", L('clipGroupDeleteTitle'));
+            var deleteDialog = new Window("dialog", L('dialog.clipGroupDelete'));
             deleteDialog.orientation = "column";
             deleteDialog.alignChildren = ["fill", "top"];
             deleteDialog.margins = 16;
 
-            var msgText = L('confirmDeleteLinks') + "\n" +
-                kvLine('labelTarget', targetCount, 'labelItems') + "\n\n" +
-                L('clipGroupDeleteMessage');
+            var msgText = L('message.confirmDeleteLinks') + "\n" +
+                kvLine('label.target', targetCount, 'label.items') + "\n\n" +
+                L('message.clipGroupDelete');
             var msg = deleteDialog.add("statictext", undefined, msgText, { multiline: true });
             msg.preferredSize.width = 360;
 
             var btnRow = deleteDialog.add("group");
             btnRow.orientation = "row";
             btnRow.alignment = ["right", "center"];
-            var cancelBtn = btnRow.add("button", undefined, L('cancelBtn'), { name: "cancel" });
-            var imageOnlyBtn = btnRow.add("button", undefined, L('deleteImageOnlyBtn'));
-            var withGroupBtn = btnRow.add("button", undefined, L('deleteWithClipGroupBtn'), { name: "ok" });
+            var cancelBtn = btnRow.add("button", undefined, L('button.cancel'), { name: "cancel" });
+            var imageOnlyBtn = btnRow.add("button", undefined, L('button.deleteImageOnly'));
+            var withGroupBtn = btnRow.add("button", undefined, L('button.deleteWithClipGroup'), { name: "ok" });
 
             cancelBtn.onClick = function () { deleteDialog.close(0); };
             imageOnlyBtn.onClick = function () { deleteDialog.close(1); };
@@ -2180,11 +2226,11 @@ https://note.com/dtp_tranist/n/na66732d2056a
             // 大小文字だけの違いは macOS の case-insensitive FS で同一ファイルを指すため
             // 削除対象にしない（rename は OS 側で正しく処理される）
             if (newFile.fsName.toLowerCase() === oldFile.fsName.toLowerCase()) return true;
-            if (!confirm(L('confirmOverwrite') + newFile.fsName)) return false;
+            if (!confirm(L('message.confirmOverwrite') + newFile.fsName)) return false;
             // File.rename は既存ファイルがあると失敗するので、先に削除してから rename する
             var removed = tryGet(function () { return newFile.remove(); }, false);
             if (!removed) {
-                alert(L('alertRenameFailed'));
+                alert(L('message.renameFailed'));
                 return false;
             }
             return true;
@@ -2193,12 +2239,12 @@ https://note.com/dtp_tranist/n/na66732d2056a
         function handleRenameSelected() {
             var absPath = selectedEntry.filePath;
             if (!absPath || absPath === "---") {
-                alert(L('alertNoValidPath'));
+                alert(L('message.noValidPath'));
                 return;
             }
             var oldFile = new File(absPath);
             if (!oldFile.exists) {
-                alert(L('alertLinkFileNotFound') + absPath);
+                alert(L('message.linkFileNotFound') + absPath);
                 return;
             }
 
@@ -2208,11 +2254,11 @@ https://note.com/dtp_tranist/n/na66732d2056a
             var newName = promptNewFileName(oldName);
             if (newName === null) return;
             if (newName === oldName) {
-                alert(L('alertNameUnchanged'));
+                alert(L('message.nameUnchanged'));
                 return;
             }
             if (/[\/\\]/.test(newName)) {
-                alert(L('alertInvalidFileName'));
+                alert(L('message.invalidFileName'));
                 return;
             }
 
@@ -2222,7 +2268,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             // 物理リネーム（失敗時は再リンクしない）
             var renamed = tryGet(function () { return oldFile.rename(newName); }, false);
             if (!renamed) {
-                alert(L('alertRenameFailed'));
+                alert(L('message.renameFailed'));
                 return;
             }
 
@@ -2230,26 +2276,26 @@ https://note.com/dtp_tranist/n/na66732d2056a
             app.redraw();
             refreshFromDoc();
             alert(
-                L('alertRenameDone') + "\n" +
+                L('message.renameDone') + "\n" +
                 oldName + " → " + newName + "\n" +
-                kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
-                kvLine('labelFailed', res.failed, 'labelItems')
+                kvLine('label.success', res.success, 'label.items') + "\n" +
+                kvLine('label.failed', res.failed, 'label.items')
             );
         }
 
-        var renameLinkBtn = actionBtnRight.add("button", undefined, L('renameLinkBtn'));
+        var renameLinkBtn = actionBtnRight.add("button", undefined, L('button.rename'));
         renameLinkBtn.preferredSize = [70, 24];
         renameLinkBtn.onClick = requireSelectedEntry(handleRenameSelected);
-        var copyFileNameBtn = actionBtnLeft.add("button", undefined, L('copyFileNameBtn'));
+        var copyFileNameBtn = actionBtnLeft.add("button", undefined, L('button.copyFileName'));
         copyFileNameBtn.onClick = requireSelectedEntry(function () {
             var name = selectedEntry.fileName || "";
             if (copyTextToClipboard(name)) {
-                alert(L('alertCopyFileNameDone') + "\n" + name);
+                alert(L('message.copyFileNameDone') + "\n" + name);
             } else {
-                alert(L('alertCopyFileNameFailed'));
+                alert(L('message.copyFileNameFailed'));
             }
         });
-        var reloadOneBtn = actionBtnRight.add("button", undefined, L('reloadOneBtnSingle'));
+        var reloadOneBtn = actionBtnRight.add("button", undefined, L('button.relinkSelected'));
         reloadOneBtn.preferredSize = [80, 24];
 
         reloadOneBtn.onClick = requireSelectedEntry(function () {
@@ -2257,20 +2303,20 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 ? selectedEntry.itemIndices.length
                 : 0;
             if (relinkCount > 1) {
-                var confirmMessage = L('confirmBatchRelink') + "\n" +
-                    kvLine('labelTarget', relinkCount, 'labelItems');
+                var confirmMessage = L('message.confirmBatchRelink') + "\n" +
+                    kvLine('label.target', relinkCount, 'label.items');
                 if (!confirm(confirmMessage)) return;
             }
 
-            var picked = File.openDialog(L('selectNewLinkFile'));
+            var picked = File.openDialog(L('label.selectNewLinkFile'));
             if (!picked) return;
             var res = relinkIndicesTo(selectedEntry.itemIndices, picked);
             app.redraw();
             refreshFromDoc();
             alert(
-                L('alertRelinkDone') + "\n" +
-                kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
-                kvLine('labelFailed', res.failed, 'labelItems')
+                L('message.relinkDone') + "\n" +
+                kvLine('label.success', res.success, 'label.items') + "\n" +
+                kvLine('label.failed', res.failed, 'label.items')
             );
         });
 
@@ -2279,7 +2325,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         function updateRelinkButtonLabel() {
             var placementCount = (selectedEntry && selectedEntry.itemIndices) ? selectedEntry.itemIndices.length : 0;
             var useBatchLabel = dedupCheck.value && placementCount > 1;
-            var nextLabel = useBatchLabel ? L('reloadOneBtnBatch') : L('reloadOneBtnSingle');
+            var nextLabel = useBatchLabel ? L('button.relinkAll') : L('button.relinkSelected');
             var nextWidth = 94;
             var nextHeight = 24;
 
@@ -2333,7 +2379,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         }
         rebuildFolderList();
 
-        var folderCountLabel = pathPanel.add("statictext", undefined, L('linkedFolderListLabel') + " (" + withUnit(linkedFolderPaths.length, 'labelItems') + ")");
+        var folderCountLabel = pathPanel.add("statictext", undefined, L('label.linkedFolders') + " (" + withUnit(linkedFolderPaths.length, 'label.items') + ")");
         var foldersListBox = pathPanel.add("listbox", undefined, [], { multiselect: false });
         foldersListBox.preferredSize = FOLDER_LISTBOX_SIZE;
         foldersListBox.alignment = ["fill", "fill"];
@@ -2371,12 +2417,12 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 }
                 selectedEntry = rematched;
                 selectedFilePath = rematched ? rematched.filePath : "";
-                pathStaticText.text = selectedFilePath ? buildDisplayedPath(selectedFilePath) : L('pathPlaceholder');
+                pathStaticText.text = selectedFilePath ? buildDisplayedPath(selectedFilePath) : L('label.pathPlaceholder');
                 updateActionButtonStates();
             }
 
             rebuildFolderList();
-            folderCountLabel.text = L('linkedFolderListLabel') + " (" + withUnit(linkedFolderPaths.length, 'labelItems') + ")";
+            folderCountLabel.text = L('label.linkedFolders') + " (" + withUnit(linkedFolderPaths.length, 'label.items') + ")";
             populateFoldersList();
             rebuildList();
 
@@ -2392,7 +2438,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 var ff = new Folder(folderPath);
                 if (ff.exists) ff.execute();
             } catch (e) {
-                alert(L('alertOpenFolderFailed') + e.message);
+                alert(L('message.openFolderFailed') + e.message);
             }
         };
 
@@ -2407,10 +2453,10 @@ https://note.com/dtp_tranist/n/na66732d2056a
         folderActionLeft.alignChildren = ["left", "center"];
         folderActionLeft.alignment = ["left", "center"];
 
-        var openFolderBtn = folderActionLeft.add("button", undefined, L('openFolderBtn'));
+        var openFolderBtn = folderActionLeft.add("button", undefined, L('button.openFolder'));
         openFolderBtn.onClick = function () {
             if (foldersListBox.selection === null) {
-                alert(L('alertSelectLinkedFolder'));
+                alert(L('message.selectLinkedFolder'));
                 return;
             }
             try {
@@ -2418,7 +2464,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 var folderToOpen = new Folder(folderPath);
                 if (folderToOpen.exists) folderToOpen.execute();
             } catch (e) {
-                alert(L('alertOpenFolderFailed') + e.message);
+                alert(L('message.openFolderFailed') + e.message);
             }
         };
 
@@ -2430,23 +2476,23 @@ https://note.com/dtp_tranist/n/na66732d2056a
         folderActionRight.alignChildren = ["right", "center"];
         folderActionRight.alignment = ["right", "center"];
 
-        var reloadFolderBtn = folderActionLeft.add("button", undefined, L('reloadFolderBtn'));
+        var reloadFolderBtn = folderActionLeft.add("button", undefined, L('button.relinkFolder'));
         reloadFolderBtn.onClick = function () {
             if (foldersListBox.selection === null) {
-                alert(L('alertSelectLinkedFolder'));
+                alert(L('message.selectLinkedFolder'));
                 return;
             }
             var oldFolder = linkedFolderPaths[foldersListBox.selection.index];
-            var newFolder = Folder.selectDialog(L('selectAltFolder'));
+            var newFolder = Folder.selectDialog(L('label.selectAltFolder'));
             if (!newFolder) return;
             var res = relinkFolder(oldFolder, newFolder);
             app.redraw();
             refreshFromDoc();
             alert(
-                L('alertRelinkDone') + "\n" +
-                kvLine('labelTarget', res.total, 'labelItems') + "\n" +
-                kvLine('labelSuccess', res.success, 'labelItems') + "\n" +
-                kvLine('labelFailed', res.failed, 'labelItems') + (currentLanguage === 'ja' ? '（同名ファイルなし）' : ' (same-name file not found)')
+                L('message.relinkDone') + "\n" +
+                kvLine('label.target', res.total, 'label.items') + "\n" +
+                kvLine('label.success', res.success, 'label.items') + "\n" +
+                kvLine('label.failed', res.failed, 'label.items') + (currentLanguage === 'ja' ? '（同名ファイルなし）' : ' (same-name file not found)')
             );
         };
         reloadFolderBtn.enabled = false;
@@ -2484,7 +2530,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
         function handleChangeExtension() {
             if (foldersListBox.selection === null) {
-                alert(L('alertSelectLinkedFolder'));
+                alert(L('message.selectLinkedFolder'));
                 return;
             }
 
@@ -2514,15 +2560,15 @@ https://note.com/dtp_tranist/n/na66732d2056a
             refreshFromDoc();
 
             alert(
-                L('alertChangeExtDone') + "\n" +
-                kvLine('labelTarget', total, 'labelItems') + "\n" +
-                kvLine('labelSuccess', success, 'labelItems') + "\n" +
-                kvLine('labelSkipped', skipped, 'labelItems') + "\n" +
-                kvLine('labelFailed', failed, 'labelItems')
+                L('message.changeExtDone') + "\n" +
+                kvLine('label.target', total, 'label.items') + "\n" +
+                kvLine('label.success', success, 'label.items') + "\n" +
+                kvLine('label.skipped', skipped, 'label.items') + "\n" +
+                kvLine('label.failed', failed, 'label.items')
             );
         }
 
-        var changeExtensionBtn = folderActionLeft.add("button", undefined, L('changeExtensionBtn'));
+        var changeExtensionBtn = folderActionLeft.add("button", undefined, L('button.changeExtension'));
         changeExtensionBtn.onClick = handleChangeExtension;
         changeExtensionBtn.enabled = false;
 
@@ -2530,12 +2576,12 @@ https://note.com/dtp_tranist/n/na66732d2056a
         function ensureLinksFolder() {
             var docFile = tryGet(function () { return doc.fullName; }, null);
             if (!docFile || !docFile.parent || !docFile.parent.exists) {
-                alert(L('alertDocNotSaved'));
+                alert(L('message.docNotSaved'));
                 return null;
             }
             var linksFolder = new Folder(docFile.parent.fsName + "/Links");
             if (!linksFolder.exists && !linksFolder.create()) {
-                alert(L('alertCreateLinksFolderFailed'));
+                alert(L('message.createLinksFolderFailed'));
                 return null;
             }
             return linksFolder;
@@ -2585,15 +2631,15 @@ https://note.com/dtp_tranist/n/na66732d2056a
             refreshFromDoc();
 
             alert(
-                L('alertCollectLinksDone') + "\n" +
-                kvLine('labelTarget', total, 'labelItems') + "\n" +
-                kvLine('labelCopied', copied, 'labelItems') + "\n" +
-                kvLine('labelSkipped', skipped, 'labelItems') + "\n" +
-                kvLine('labelFailed', failed, 'labelItems')
+                L('message.collectLinksDone') + "\n" +
+                kvLine('label.target', total, 'label.items') + "\n" +
+                kvLine('label.copied', copied, 'label.items') + "\n" +
+                kvLine('label.skipped', skipped, 'label.items') + "\n" +
+                kvLine('label.failed', failed, 'label.items')
             );
         }
 
-        var collectLinksBtn = folderActionRight.add("button", undefined, L('collectLinksBtn'));
+        var collectLinksBtn = folderActionRight.add("button", undefined, L('button.collectLinks'));
         collectLinksBtn.onClick = handleCollectLinks;
 
         // フォルダ選択が変わったらボタンを enable/disable
@@ -2643,7 +2689,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         btnGroup.alignment = "fill";
         btnGroup.alignChildren = ["fill", "center"];
 
-        var openLinksPanelBtn = btnGroup.add("button", undefined, L('openLinksPanelBtn'));
+        var openLinksPanelBtn = btnGroup.add("button", undefined, L('button.openLinksPanel'));
         openLinksPanelBtn.alignment = ["left", "center"];
         openLinksPanelBtn.onClick = function () {
             try { app.executeMenuCommand('Adobe LinkPalette Menu Item'); } catch (e) { }
@@ -2653,7 +2699,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         var spacer = btnGroup.add("group");
         spacer.alignment = ["fill", "fill"];
 
-        var closeBtn = btnGroup.add("button", undefined, L('closeBtn'), { name: "cancel" });
+        var closeBtn = btnGroup.add("button", undefined, L('button.close'), { name: "ok" });
         closeBtn.alignment = ["right", "center"];
 
         // 「閉じる」ボタン
