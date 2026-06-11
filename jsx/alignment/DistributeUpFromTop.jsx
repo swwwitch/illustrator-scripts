@@ -7,12 +7,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 /*
 DistributeUpFromTop.jsx
 
-複数オブジェクトを選択しているとき:
-  最上部のオブジェクトを固定し、以降を「サイズ／行送り」の値ぶんずつ
-  上方向へ等間隔に再配置する。
+選択内容に応じて、行送り（leading）と配置を調整する。判定は以下の順で行う。
 
-テキストを 1 つだけ選択しているとき:
-  そのテキストの行送りから「サイズ／行送り」の値を引く。
+(1) テキストを 1 つだけ選択しているとき:
+    そのテキストの行送りから「サイズ／行送り」の値を引く。
+
+(2) 複数のテキストを選択していて、上端 Y がほぼ同じ（横並び）のとき:
+    位置は動かさず、行送りだけを調整する。
+      ・初回（行送りがバラバラ） → 全テキストの行送りを平均値に統一する。
+      ・再実行（行送りが揃っている）→「複数行の 1 テキスト」のように、
+        全テキストの行送りを「サイズ／行送り」分ずつ減らす。
+
+(3) それ以外の複数選択（縦積み）:
+    最上部のオブジェクトを固定し、以降を「サイズ／行送り」の値ぶんずつ
+    上方向へ等間隔に再配置する。
 
 移動・減算に使う値は、環境設定［テキスト］の「サイズ／行送り」キー入力増分
 （text/sizeIncrement）を、表示単位（text/units）込みで pt 換算したもの。
@@ -22,7 +30,13 @@ DistributeUpFromTop.jsx
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.2.0";
+
+// 「Y座標がほぼ同じ（横並び）」とみなす上端 Y の許容差（pt）
+var SAME_Y_TOLERANCE_PT = 2.0;
+
+// 行送りがこの差以内なら「すでに統一済み」とみなし、再実行で行送りを減らす（pt）
+var LEADING_UNIFORM_TOLERANCE_PT = 0.01;
 
 (function () {
     if (app.documents.length < 1) return
@@ -46,8 +60,21 @@ var SCRIPT_VERSION = "v1.0.1";
         return
     }
 
-    // 複数選択 → 最上部を固定し、以降を sizeLeadingStep ずつ上へ等間隔配置
     if (selection.length < 2) return
+
+    // 全てテキストで、上端 Y がほぼ同じ（横並び）→ 位置は動かさず行送りを調整
+    if (allTextFrames(selection) && topYNearlySame(selection, SAME_Y_TOLERANCE_PT)) {
+        if (leadingsAreUniform(selection, LEADING_UNIFORM_TOLERANCE_PT)) {
+            // 再実行 → 「複数行の1テキスト」のように全体の行送りを減らす
+            decreaseLeading(selection, sizeLeadingStep)
+        } else {
+            // 初回 → 行送りを平均値に統一
+            unifyLeadingToAverage(selection)
+        }
+        return
+    }
+
+    // それ以外（縦積み）→ 最上部を固定し、以降を sizeLeadingStep ずつ上へ等間隔配置
     var selectedItems = sortByVerticalPosition(selection)
     for (var i = 1; i < selectedItems.length; i++) {
         selectedItems[i].translate(0, i * sizeLeadingStep)
@@ -62,6 +89,64 @@ var SCRIPT_VERSION = "v1.0.1";
         if (unitType === 4) return 72 / 2.54         // cm
         if (unitType === 5) return 72 / 25.4 * 0.25  // Q（1Q = 0.25mm）
         return 1                                     // pt / px / 既定
+    }
+
+    // 選択がすべて TextFrame かどうか
+    function allTextFrames(items) {
+        for (var i = 0; i < items.length; i++) {
+            if (items[i].typename !== "TextFrame") return false
+        }
+        return true
+    }
+
+    // 上端 Y（geometricBounds[1]）の最大差が許容内なら「横並び（同じ行）」とみなす
+    // ※ position はベースライン基準でズレるため geometricBounds を使う
+    function topYNearlySame(items, tolerancePt) {
+        var maxTop = items[0].geometricBounds[1]
+        var minTop = maxTop
+        for (var i = 1; i < items.length; i++) {
+            var top = items[i].geometricBounds[1]
+            if (top > maxTop) maxTop = top
+            if (top < minTop) minTop = top
+        }
+        return (maxTop - minTop) <= tolerancePt
+    }
+
+    // 全テキストの行送りが許容内で揃っているか（揃っていれば再実行とみなす）
+    function leadingsAreUniform(textFrames, tolerancePt) {
+        var maxLeading = textFrames[0].textRange.characterAttributes.leading
+        var minLeading = maxLeading
+        for (var i = 1; i < textFrames.length; i++) {
+            var leading = textFrames[i].textRange.characterAttributes.leading
+            if (leading > maxLeading) maxLeading = leading
+            if (leading < minLeading) minLeading = leading
+        }
+        return (maxLeading - minLeading) <= tolerancePt
+    }
+
+    // 全テキストの行送りを stepPt 分だけ減らす（位置は動かさない）
+    function decreaseLeading(textFrames, stepPt) {
+        for (var i = 0; i < textFrames.length; i++) {
+            var attributes = textFrames[i].textRange.characterAttributes
+            var currentLeading = attributes.leading // 自動行送りのときは算出値が返る
+            attributes.autoLeading = false // 自動行送りを解除して強制適用
+            attributes.leading = currentLeading - stepPt
+        }
+    }
+
+    // 各テキストの行送りを平均値に統一する（位置は動かさない）
+    function unifyLeadingToAverage(textFrames) {
+        var totalLeading = 0
+        for (var i = 0; i < textFrames.length; i++) {
+            // 自動行送りのときは算出値が返る
+            totalLeading += textFrames[i].textRange.characterAttributes.leading
+        }
+        var averageLeading = totalLeading / textFrames.length
+        for (var j = 0; j < textFrames.length; j++) {
+            var attributes = textFrames[j].textRange.characterAttributes
+            attributes.autoLeading = false // 自動行送りを解除して強制適用
+            attributes.leading = averageLeading
+        }
     }
 
     function sortByVerticalPosition(selection) {
