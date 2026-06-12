@@ -5,13 +5,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 円とテキストを 1 つずつ選択し、テキストを指定回数繰り返して円のパス上文字に変換する
+- 円（パス）とテキストを 1 つずつ選択し、テキストを指定回数繰り返して、円を複製したパス上の文字に変換する
 - 連結文字は「スペース」または任意の入力文字（初期値は欧文 bullet「•」）を選択でき、末尾にも連結文字を付与
+- 連結文字の前後に入れる半角スペース数を指定可能（スペースのみの場合は区切りの間隔になる）
 - スペース以外の連結文字は、スケール（水平・垂直比率）とベースライン（環境設定のテキスト単位）を調整可能
-- 円周に合わせて文字サイズを自動調整（補正率で開始・終了の隙間を微調整）
+- 円周に合わせた文字サイズの自動調整は ON/OFF 可能（補正率で開始・終了の隙間を微調整）
 - 生成結果を円の中心基準で回転
 - 数値フィールドは ↑↓ キーで増減（Shift で ±10・10 の倍数にスナップ、Option で ±0.1）
-- プレビュー対応
+- プレビュー対応（確定までは元のテキスト・円を保持し、OK で元を削除して生成結果を選択）
 
 */
 
@@ -155,8 +156,8 @@ var LABELS = {
     }
 };
 
-/* ネストキーからローカライズ文字列を取得 / Resolve a localized string from a dotted key */
-function getLabel(key) {
+/* ネストキー（例 "panel.fit"）からローカライズ文字列を取得 / Resolve a localized string from a dotted key (e.g. "panel.fit") */
+function getLocalizedText(key) {
     var parts = key.split(".");
     var node = LABELS;
     for (var i = 0; i < parts.length; i++) {
@@ -167,19 +168,14 @@ function getLabel(key) {
     return (node[currentLanguage] != null) ? node[currentLanguage] : node.en;
 }
 
-/* ローカライズ文字列を返す / Return a localized string */
-function L(key) {
-    return getLabel(key);
-}
-
 /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
 function labelText(key) {
-    return getLabel(key) + (currentLanguage === "ja" ? "：" : ":");
+    return getLocalizedText(key) + (currentLanguage === "ja" ? "：" : ":");
 }
 
 /* tooltip を設定 / Set tooltip text */
 function setTooltip(control, key) {
-    control.helpTip = getLabel(key);
+    control.helpTip = getLocalizedText(key);
 }
 
 // =========================================
@@ -209,7 +205,7 @@ var PANEL_MARGINS = [16, 20, 16, 12];
 var PANEL_SPACING = 8;
 
 /* パネルの共通設定 / Apply shared panel layout */
-function setupPanel(panel, spacing) {
+function setupColumnPanel(panel, spacing) {
     panel.orientation = "column";
     panel.alignChildren = ["fill", "top"];
     panel.alignment = "fill";
@@ -221,7 +217,7 @@ function setupPanel(panel, spacing) {
 
     /* ドキュメントの有無を確認 / Ensure a document is open */
     if (app.documents.length === 0) {
-        alert(L("alert.noDocument"));
+        alert(getLocalizedText("alert.noDocument"));
         return;
     }
 
@@ -229,7 +225,7 @@ function setupPanel(panel, spacing) {
 
     /* 選択数を確認（円とテキストの2つ）/ Ensure exactly two objects are selected */
     if (activeDoc.selection.length !== 2) {
-        alert(L("alert.selectTwo"));
+        alert(getLocalizedText("alert.selectTwo"));
         return;
     }
 
@@ -247,12 +243,12 @@ function setupPanel(panel, spacing) {
     }
 
     if (sourceTextFrame === null || circlePath === null) {
-        alert(L("alert.needTextAndPath"));
+        alert(getLocalizedText("alert.needTextAndPath"));
         return;
     }
 
     if (sourceTextFrame.contents === "") {
-        alert(L("alert.emptyText"));
+        alert(getLocalizedText("alert.emptyText"));
         return;
     }
 
@@ -292,38 +288,31 @@ function setupPanel(panel, spacing) {
         return perimeter;
     }
 
-    /* 文字属性をコピー / Copy character attributes */
-    function copyTextAttributes(sourceFrame, targetFrame) {
+    /* 属性を1つだけ安全にコピー（1つ失敗しても他へ波及させない）/ Copy a single attribute safely (one failure won't affect the others) */
+    function safeCopyAttribute(sourceAttributes, targetAttributes, attributeName) {
         try {
-            targetFrame.textRange.characterAttributes.size =
-                sourceFrame.textRange.characterAttributes.size;
-
-            targetFrame.textRange.characterAttributes.textFont =
-                sourceFrame.textRange.characterAttributes.textFont;
-
-            targetFrame.textRange.characterAttributes.fillColor =
-                sourceFrame.textRange.characterAttributes.fillColor;
-
-            targetFrame.textRange.characterAttributes.tracking =
-                sourceFrame.textRange.characterAttributes.tracking;
-
-            targetFrame.textRange.characterAttributes.horizontalScale =
-                sourceFrame.textRange.characterAttributes.horizontalScale;
-
-            targetFrame.textRange.characterAttributes.verticalScale =
-                sourceFrame.textRange.characterAttributes.verticalScale;
-
-            targetFrame.textRange.characterAttributes.baselineShift =
-                sourceFrame.textRange.characterAttributes.baselineShift;
+            targetAttributes[attributeName] = sourceAttributes[attributeName];
         } catch (e) { }
+    }
+
+    /* 文字属性をコピー（属性ごとに独立してコピー）/ Copy character attributes (each attribute copied independently) */
+    function copyTextAttributes(sourceFrame, targetFrame) {
+        var sourceAttributes = sourceFrame.textRange.characterAttributes;
+        var targetAttributes = targetFrame.textRange.characterAttributes;
+        var attributeNames = ["size", "textFont", "fillColor", "tracking",
+            "horizontalScale", "verticalScale", "baselineShift"];
+        for (var i = 0; i < attributeNames.length; i++) {
+            safeCopyAttribute(sourceAttributes, targetAttributes, attributeNames[i]);
+        }
     }
 
     /* 段落属性をコピー / Copy paragraph attributes */
     function copyParagraphAttributes(sourceFrame, targetFrame) {
-        try {
-            targetFrame.textRange.paragraphAttributes.justification =
-                sourceFrame.textRange.paragraphAttributes.justification;
-        } catch (e) { }
+        safeCopyAttribute(
+            sourceFrame.textRange.paragraphAttributes,
+            targetFrame.textRange.paragraphAttributes,
+            "justification"
+        );
     }
 
     /* 計測用フレームを1枚だけ用意（画面外に配置して使い回す）/ Ensure a single reusable measurement frame, placed off-canvas */
@@ -553,13 +542,13 @@ function setupPanel(panel, spacing) {
     var textUnitInfo = getUnitInfo(app.preferences.getIntegerPreference("text/units"));
 
     /* タイトルバーにバージョンを表示 / Show the version in the title bar */
-    var dialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
+    var dialog = new Window("dialog", getLocalizedText("dialog.title") + " " + SCRIPT_VERSION);
 
     dialog.orientation = "column";
     dialog.alignChildren = "fill";
 
-    var settingsPanel = dialog.add("panel", undefined, L("panel.settings"));
-    setupPanel(settingsPanel);
+    var settingsPanel = dialog.add("panel", undefined, getLocalizedText("panel.settings"));
+    setupColumnPanel(settingsPanel);
 
     var repeatCountGroup = settingsPanel.add("group");
     repeatCountGroup.orientation = "row";
@@ -579,8 +568,8 @@ function setupPanel(panel, spacing) {
 
     rotationGroup.add("statictext", undefined, "°");
 
-    var joinPanel = dialog.add("panel", undefined, L("panel.join"));
-    setupPanel(joinPanel);
+    var joinPanel = dialog.add("panel", undefined, getLocalizedText("panel.join"));
+    setupColumnPanel(joinPanel);
 
     var separatorGroup = joinPanel.add("group");
     separatorGroup.orientation = "row";
@@ -591,13 +580,13 @@ function setupPanel(panel, spacing) {
     separatorRadioGroup.orientation = "column";
     separatorRadioGroup.alignChildren = "left";
 
-    var separatorSpaceRadio = separatorRadioGroup.add("radiobutton", undefined, L("radio.space"));
+    var separatorSpaceRadio = separatorRadioGroup.add("radiobutton", undefined, getLocalizedText("radio.space"));
     setTooltip(separatorSpaceRadio, "tooltip.separatorSpace");
 
     /* 「文字」ラジオ＋自由入力フィールド（初期値は欧文 bullet）/ "Character" radio plus a free-input field (defaults to the bullet) */
     var separatorCharRow = separatorRadioGroup.add("group");
     separatorCharRow.orientation = "row";
-    var separatorCharRadio = separatorCharRow.add("radiobutton", undefined, L("radio.character"));
+    var separatorCharRadio = separatorCharRow.add("radiobutton", undefined, getLocalizedText("radio.character"));
     setTooltip(separatorCharRadio, "tooltip.separatorCharacter");
     var separatorCharInput = separatorCharRow.add("edittext", undefined, DEFAULT_SEPARATOR_CHAR);
     separatorCharInput.characters = 3;
@@ -636,10 +625,10 @@ function setupPanel(panel, spacing) {
     /* 単位ラベルは環境設定のテキスト単位を表示 / The unit label shows the preferences text unit */
     baselineGroup.add("statictext", undefined, textUnitInfo.label);
 
-    var fitPanel = dialog.add("panel", undefined, L("panel.fit"));
-    setupPanel(fitPanel);
+    var fitPanel = dialog.add("panel", undefined, getLocalizedText("panel.fit"));
+    setupColumnPanel(fitPanel);
 
-    var fitSizeCheckbox = fitPanel.add("checkbox", undefined, L("checkbox.fitSize"));
+    var fitSizeCheckbox = fitPanel.add("checkbox", undefined, getLocalizedText("checkbox.fitSize"));
     fitSizeCheckbox.value = true;
     setTooltip(fitSizeCheckbox, "tooltip.fitSize");
 
@@ -664,7 +653,7 @@ function setupPanel(panel, spacing) {
     var previewArea = footerGroup.add("group");
     previewArea.alignment = ["left", "center"];
 
-    var previewCheckbox = previewArea.add("checkbox", undefined, L("checkbox.preview"));
+    var previewCheckbox = previewArea.add("checkbox", undefined, getLocalizedText("checkbox.preview"));
     previewCheckbox.value = true;
     setTooltip(previewCheckbox, "tooltip.preview");
 
@@ -676,7 +665,7 @@ function setupPanel(panel, spacing) {
     var actionButtonGroup = footerGroup.add("group");
     actionButtonGroup.alignment = ["right", "center"];
 
-    var cancelButton = actionButtonGroup.add("button", undefined, L("button.cancel"));
+    var cancelButton = actionButtonGroup.add("button", undefined, getLocalizedText("button.cancel"));
     var okButton = actionButtonGroup.add("button", undefined, "OK");
 
     /* 繰り返し数を取得（1 以上の整数のみ）/ Get the repeat count (integer >= 1 only) */
@@ -724,7 +713,7 @@ function setupPanel(panel, spacing) {
     }
 
     /* 補正率を取得（0 より大きい数値のみ）/ Get the correction (number > 0 only) */
-    function getFitCorrection() {
+    function getCorrectionPercent() {
         var parsedCorrection = parseFloat(correctionInput.text);
 
         if (isNaN(parsedCorrection) || parsedCorrection <= 0) {
@@ -759,7 +748,7 @@ function setupPanel(panel, spacing) {
         }
 
         /* 補正率はフィット ON のときだけ必須 / The correction is required only when fitting is on */
-        var correctionPercent = getFitCorrection();
+        var correctionPercent = getCorrectionPercent();
         if (fitSizeCheckbox.value && correctionPercent === null) {
             app.redraw();
             return;
@@ -768,8 +757,8 @@ function setupPanel(panel, spacing) {
         /* 計測は redraw を含むため適用バッチの前に実行 / Measure before the apply batch (it involves a redraw) */
         var fontSize = computeFitSize(repeatCount, correctionPercent, fitSizeCheckbox.value);
 
-        /* 仮アイテムで強制的に変化を起こし、undo の空振りを防ぐ（変数に保持しない＝undo で消えるため）/ Force a change with a dummy item so undo cannot misfire (not kept in a variable since undo removes it) */
-        activeDoc.pathItems.rectangle(0, 0, 1, 1);
+        /* 仮アイテムで強制的に変化を起こし、undo の空振りを防ぐ。画面外に作り、変数にも保持しない（undo で消える）/ Force a change with an off-canvas dummy so undo cannot misfire (not kept in a variable since undo removes it) */
+        activeDoc.pathItems.rectangle(-100000, -100000, 1, 1);
 
         createPathTypeText(repeatCount, fontSize, getScale(), getBaselineShiftPt(), getRotation(), true);
 
@@ -839,16 +828,16 @@ function setupPanel(panel, spacing) {
 
     okButton.onClick = function () {
         var repeatCount = getRepeatCount();
-        var correctionPercent = getFitCorrection();
+        var correctionPercent = getCorrectionPercent();
 
         if (repeatCount === null) {
-            alert(L("alert.invalidCount"));
+            alert(getLocalizedText("alert.invalidCount"));
             return;
         }
 
         /* 補正率はフィット ON のときだけ必須 / The correction is required only when fitting is on */
         if (fitSizeCheckbox.value && correctionPercent === null) {
-            alert(L("alert.invalidCorrection"));
+            alert(getLocalizedText("alert.invalidCorrection"));
             return;
         }
 
