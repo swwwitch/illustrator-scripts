@@ -136,12 +136,16 @@ var LABELS = {
         en: "Swap Mode"
     },
     modeStyle: {
-        ja: "スタイル交換",
-        en: "Style Swap"
+        ja: "スタイル",
+        en: "Style"
     },
     modeContent: {
-        ja: "文字列交換",
-        en: "Content Swap"
+        ja: "文字列",
+        en: "Content"
+    },
+    modeCoordinate: {
+        ja: "座標",
+        en: "Position"
     },
     formatPanel: {
         ja: "文字書式",
@@ -174,6 +178,34 @@ var LABELS = {
     graphicStylePanel: {
         ja: "グラフィックスタイル",
         en: "Graphic Style"
+    },
+    coordinatePanel: {
+        ja: "座標",
+        en: "Position"
+    },
+    tipAnchor: {
+        ja: "選択した基準点で2つのオブジェクトの座標を交換します。",
+        en: "Swap positions of the two objects by the selected reference point."
+    },
+    axisLabel: {
+        ja: "交換する軸",
+        en: "Axis"
+    },
+    axisBoth: {
+        ja: "両方",
+        en: "Both"
+    },
+    axisX: {
+        ja: "横（X）",
+        en: "X"
+    },
+    axisY: {
+        ja: "縦（Y）",
+        en: "Y"
+    },
+    swapZOrder: {
+        ja: "重ね順",
+        en: "Stacking order"
     },
     swapGraphicStyles: {
         ja: "交換する",
@@ -257,10 +289,11 @@ function buildModePanel(dialog, bothAreText) {
     var modePanel = dialog.add('panel', undefined, getLabel('modePanel'));
     setupPanel(modePanel);
     modePanel.orientation = "row";
-    modePanel.alignChildren = ['left', 'center'];
+    modePanel.alignChildren = ['center', 'center'];
 
-    var styleSwapRadio = modePanel.add('radiobutton', undefined, getLabel('modeStyle'));
     var contentSwapRadio = modePanel.add('radiobutton', undefined, getLabel('modeContent'));
+    var styleSwapRadio = modePanel.add('radiobutton', undefined, getLabel('modeStyle'));
+    var coordinateSwapRadio = modePanel.add('radiobutton', undefined, getLabel('modeCoordinate'));
     contentSwapRadio.enabled = bothAreText;
     contentSwapRadio.helpTip = getLabel('tipContentSwap');
     styleSwapRadio.value = true;
@@ -268,7 +301,8 @@ function buildModePanel(dialog, bothAreText) {
     return {
         panel: modePanel,
         styleSwapRadio: styleSwapRadio,
-        contentSwapRadio: contentSwapRadio
+        contentSwapRadio: contentSwapRadio,
+        coordinateSwapRadio: coordinateSwapRadio
     };
 }
 
@@ -328,33 +362,106 @@ function buildGraphicStylePanel(dialog) {
     };
 }
 
-/* プレビューチェックボックス行を作成 / Build the preview checkbox row */
-function buildPreviewGroup(dialog) {
-    var previewGroup = dialog.add('group');
-    previewGroup.alignment = 'center';
-    var previewCheckbox = previewGroup.add('checkbox', undefined, getLabel('preview'));
-    previewCheckbox.value = false;
-    return { group: previewGroup, previewCheckbox: previewCheckbox };
+/* 座標パネルを作成（3×3 の基準点ラジオ） / Build the position panel (3x3 reference-point radios) */
+function buildCoordinatePanel(parent) {
+    var coordinatePanel = parent.add('panel', undefined, getLabel('coordinatePanel'));
+    setupPanel(coordinatePanel);
+    coordinatePanel.alignChildren = ['center', 'top'];
+    coordinatePanel.helpTip = getLabel('tipAnchor');
+
+    var grid = coordinatePanel.add('group');
+    grid.orientation = 'column';
+    grid.spacing = 4;
+    grid.alignChildren = ['center', 'center'];
+
+    // 行優先（row-major）の 9 個。index 0=左上 … 4=中央 … 8=右下
+    var anchorRadios = [];
+    for (var row = 0; row < 3; row++) {
+        var rowGroup = grid.add('group');
+        rowGroup.orientation = 'row';
+        rowGroup.spacing = 4;
+        for (var col = 0; col < 3; col++) {
+            anchorRadios.push(rowGroup.add('radiobutton', undefined, ''));
+        }
+    }
+    anchorRadios[4].value = true; // 中央を初期値
+
+    // 軸ロック（両方／横X／縦Y）。同一グループ内なので自動排他
+    var axisGroup = coordinatePanel.add('group');
+    axisGroup.orientation = 'column';
+    axisGroup.alignChildren = ['left', 'center'];
+    axisGroup.spacing = 6;
+    axisGroup.add('statictext', undefined, getLabel('axisLabel'));
+    var axisBothRadio = axisGroup.add('radiobutton', undefined, getLabel('axisBoth'));
+    var axisXRadio = axisGroup.add('radiobutton', undefined, getLabel('axisX'));
+    var axisYRadio = axisGroup.add('radiobutton', undefined, getLabel('axisY'));
+    axisBothRadio.value = true;
+
+    // 重なり順（前後関係）も交換
+    var zOrderCheckbox = coordinatePanel.add('checkbox', undefined, getLabel('swapZOrder'));
+    zOrderCheckbox.value = false;
+
+    return {
+        panel: coordinatePanel,
+        anchorRadios: anchorRadios,
+        axisBothRadio: axisBothRadio,
+        axisXRadio: axisXRadio,
+        axisYRadio: axisYRadio,
+        zOrderCheckbox: zOrderCheckbox
+    };
 }
 
-/* ボタン行を作成 / Build the button row */
-function buildButtonGroup(dialog) {
-    var buttonGroup = dialog.add('group');
-    buttonGroup.alignment = 'right';
-    var cancelButton = buttonGroup.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
-    var okButton = buttonGroup.add('button', undefined, 'OK', { name: 'ok' });
-    return { group: buttonGroup, cancelButton: cancelButton, okButton: okButton };
+/* 選択中の基準点インデックス（0〜8、未選択時は中央=4） / Selected reference-point index */
+function getSelectedAnchorIndex(anchorRadios) {
+    for (var i = 0; i < anchorRadios.length; i++) {
+        if (anchorRadios[i].value) return i;
+    }
+    return 4;
+}
+
+/* フッター行を作成（左：プレビュー／中央：スペーサー／右：ボタン） / Build the footer row (left: preview / center: spacer / right: buttons) */
+function buildFooter(dialog) {
+    var footer = dialog.add('group');
+    footer.orientation = 'row';
+    footer.alignment = 'fill';
+    footer.alignChildren = ['fill', 'center'];
+
+    // 左：プレビュー
+    var footerLeft = footer.add('group');
+    footerLeft.alignment = ['left', 'center'];
+    var previewCheckbox = footerLeft.add('checkbox', undefined, getLabel('preview'));
+    previewCheckbox.value = false;
+
+    // 中央：スペーサー（残り幅を吸収して左右を引き離す）
+    var footerCenter = footer.add('group');
+    footerCenter.alignment = ['fill', 'center'];
+
+    // 右：キャンセル／OK
+    var footerRight = footer.add('group');
+    footerRight.alignment = ['right', 'center'];
+    var cancelButton = footerRight.add('button', undefined, getLabel('cancel'), { name: 'cancel' });
+    var okButton = footerRight.add('button', undefined, 'OK', { name: 'ok' });
+
+    return {
+        group: footer,
+        previewCheckbox: previewCheckbox,
+        cancelButton: cancelButton,
+        okButton: okButton
+    };
 }
 
 /* ダイアログの有効／無効状態を更新 / Update dialog enabled states */
 function updateDialogEnabled(ui, bothAreText) {
     var isStyleSwap = ui.mode.styleSwapRadio.value;
+    var isCoordinateSwap = ui.mode.coordinateSwapRadio.value;
     var anyBasicOn = ui.basicFillStroke.fillCheckbox.value
         || ui.basicFillStroke.strokeColorCheckbox.value
         || ui.basicFillStroke.strokeWidthCheckbox.value;
     ui.format.panel.enabled = isStyleSwap && bothAreText;
     ui.basicFillStroke.panel.enabled = isStyleSwap;
     ui.graphicStyle.panel.enabled = isStyleSwap && !anyBasicOn;
+    // 座標パネルは「座標」選択時のみ有効（それ以外はディム）
+    ui.coordinate.panel.enabled = isCoordinateSwap;
     if (isStyleSwap) {
         ui.graphicStyle.deleteStylesCheckbox.enabled = ui.graphicStyle.swapGraphicStylesCheckbox.value;
     }
@@ -366,30 +473,54 @@ function readDialogOptions(ui) {
         || ui.basicFillStroke.strokeColorCheckbox.value
         || ui.basicFillStroke.strokeWidthCheckbox.value;
     return {
-        mode: ui.mode.styleSwapRadio.value ? 'style' : 'content',
+        mode: ui.mode.styleSwapRadio.value ? 'style'
+            : (ui.mode.coordinateSwapRadio.value ? 'coordinate' : 'content'),
         swapGraphicStyles: ui.graphicStyle.swapGraphicStylesCheckbox.value && !anyBasicOn,
         deleteStyles: ui.graphicStyle.deleteStylesCheckbox.value,
         includeFontAndStyle: ui.format.fontAndStyleCheckbox.value,
         includeFontSize: ui.format.fontSizeCheckbox.value,
         includeFill: ui.basicFillStroke.fillCheckbox.value,
         includeStrokeColor: ui.basicFillStroke.strokeColorCheckbox.value,
-        includeStrokeWidth: ui.basicFillStroke.strokeWidthCheckbox.value
+        includeStrokeWidth: ui.basicFillStroke.strokeWidthCheckbox.value,
+        anchor: getSelectedAnchorIndex(ui.coordinate.anchorRadios),
+        axis: ui.coordinate.axisXRadio.value ? 'x'
+            : (ui.coordinate.axisYRadio.value ? 'y' : 'both'),
+        swapZOrder: ui.coordinate.zOrderCheckbox.value
     };
 }
 
 /* オプションダイアログを表示し、プレビューと確定を駆動 / Show the options dialog and drive preview / commit */
 function showOptionsDialog(bothAreText, performSwapFn) {
     var dialog = new Window('dialog', getLabel('dialogTitle') + ' ' + SCRIPT_VERSION);
+    dialog.orientation = 'column';
     dialog.alignChildren = 'fill';
 
+    var modeUi = buildModePanel(dialog, bothAreText);
+
+    // 本体を2カラムに：左＝スタイル系、右＝座標 / Two-column body: left = style panels, right = position
+    var columns = dialog.add('group');
+    columns.orientation = 'row';
+    columns.alignment = 'fill';
+    columns.alignChildren = ['fill', 'top'];
+
+    var leftColumn = columns.add('group');
+    leftColumn.orientation = 'column';
+    leftColumn.alignChildren = ['fill', 'top'];
+
+    var rightColumn = columns.add('group');
+    rightColumn.orientation = 'column';
+    rightColumn.alignChildren = ['fill', 'top'];
+
     var ui = {
-        mode: buildModePanel(dialog, bothAreText),
-        format: buildFormatPanel(dialog),
-        basicFillStroke: buildBasicFillStrokePanel(dialog),
-        graphicStyle: buildGraphicStylePanel(dialog)
+        mode: modeUi,
+        format: buildFormatPanel(leftColumn),
+        basicFillStroke: buildBasicFillStrokePanel(leftColumn),
+        graphicStyle: buildGraphicStylePanel(leftColumn),
+        coordinate: buildCoordinatePanel(rightColumn)
     };
-    var previewUi = buildPreviewGroup(dialog);
-    var buttons = buildButtonGroup(dialog);
+    var footer = buildFooter(dialog);
+    var previewUi = { previewCheckbox: footer.previewCheckbox };
+    var buttons = footer;
 
     var previewState = { isUndo: false };
 
@@ -403,6 +534,7 @@ function showOptionsDialog(bothAreText, performSwapFn) {
 
     ui.mode.styleSwapRadio.onClick = refresh;
     ui.mode.contentSwapRadio.onClick = refresh;
+    ui.mode.coordinateSwapRadio.onClick = refresh;
     ui.graphicStyle.swapGraphicStylesCheckbox.onClick = refresh;
     ui.graphicStyle.deleteStylesCheckbox.onClick = refresh;
     ui.basicFillStroke.fillCheckbox.onClick = refresh;
@@ -410,6 +542,22 @@ function showOptionsDialog(bothAreText, performSwapFn) {
     ui.basicFillStroke.strokeWidthCheckbox.onClick = refresh;
     ui.format.fontAndStyleCheckbox.onClick = refresh;
     ui.format.fontSizeCheckbox.onClick = refresh;
+    // 3×3 ラジオは行ごとにグループが分かれ自動排他が効かないため、手動で排他制御
+    var anchorRadios = ui.coordinate.anchorRadios;
+    for (var ai = 0; ai < anchorRadios.length; ai++) {
+        (function (index) {
+            anchorRadios[index].onClick = function () {
+                for (var k = 0; k < anchorRadios.length; k++) {
+                    anchorRadios[k].value = (k === index);
+                }
+                refresh();
+            };
+        })(ai);
+    }
+    ui.coordinate.axisBothRadio.onClick = refresh;
+    ui.coordinate.axisXRadio.onClick = refresh;
+    ui.coordinate.axisYRadio.onClick = refresh;
+    ui.coordinate.zOrderCheckbox.onClick = refresh;
     previewUi.previewCheckbox.onClick = refresh;
 
     updateDialogEnabled(ui, bothAreText);
@@ -418,7 +566,7 @@ function showOptionsDialog(bothAreText, performSwapFn) {
     buttons.okButton.onClick = function () {
         undoPreview(previewState);
         performSwapFn(readDialogOptions(ui), false);
-        // `{ name: 'ok' }` 指定により dialog はこの後自動でクローズする
+        dialog.close(1);
     };
 
     /* キャンセル含むクローズ時：残ったプレビューを巻き戻す / On any close (incl. cancel): undo leftover preview */
@@ -481,6 +629,50 @@ function runForceNewGraphicStyleAction() {
 /* アクションセットをアンロード / Unload the action set */
 function unloadForceNewGraphicStyleAction() {
     try { app.unloadAction(TEMP_ACTION_SET_NAME, ''); } catch (e) { }
+}
+
+// =========================================
+// 座標の交換 / Position Swap
+// =========================================
+
+/* geometricBounds と基準点インデックスから基準点座標を返す / Reference point from geometricBounds + anchor index */
+function anchorPoint(bounds, anchorIndex) {
+    // geometricBounds = [left, top, right, bottom]、index は行優先（0=左上 … 4=中央 … 8=右下）
+    var col = anchorIndex % 3;
+    var row = Math.floor(anchorIndex / 3);
+    var x = (col === 0) ? bounds[0] : (col === 2 ? bounds[2] : (bounds[0] + bounds[2]) / 2);
+    var y = (row === 0) ? bounds[1] : (row === 2 ? bounds[3] : (bounds[1] + bounds[3]) / 2);
+    return [x, y];
+}
+
+/* 2つのオブジェクトの位置を入れ替える（基準点・軸ロックを反映） / Swap positions by reference point with axis lock */
+function swapPositions(itemA, itemB, options) {
+    var anchorIndex = (typeof options.anchor === 'number') ? options.anchor : 4;
+    var axis = options.axis || 'both';
+    var moveX = (axis === 'both' || axis === 'x');
+    var moveY = (axis === 'both' || axis === 'y');
+    var boundsA = itemA.geometricBounds;
+    var boundsB = itemB.geometricBounds;
+    var pointA = anchorPoint(boundsA, anchorIndex);
+    var pointB = anchorPoint(boundsB, anchorIndex);
+    // translate(deltaX, deltaY)：deltaY は上方向が正なので geometricBounds と整合
+    itemA.translate(moveX ? (pointB[0] - pointA[0]) : 0, moveY ? (pointB[1] - pointA[1]) : 0);
+    itemB.translate(moveX ? (pointA[0] - pointB[0]) : 0, moveY ? (pointA[1] - pointB[1]) : 0);
+}
+
+/* 2つのオブジェクトの重なり順を入れ替える / Swap the stacking order of two objects */
+function swapZOrder(itemA, itemB) {
+    try {
+        // 各オブジェクトの直前にマーカーを置いて元位置を記録し、相手側のマーカー位置へ移動
+        var markerA = itemA.parent.pathItems.add();
+        markerA.move(itemA, ElementPlacement.PLACEBEFORE);
+        var markerB = itemB.parent.pathItems.add();
+        markerB.move(itemB, ElementPlacement.PLACEBEFORE);
+        itemA.move(markerB, ElementPlacement.PLACEBEFORE);
+        itemB.move(markerA, ElementPlacement.PLACEBEFORE);
+        markerA.remove();
+        markerB.remove();
+    } catch (e) { }
 }
 
 // =========================================
@@ -639,6 +831,16 @@ function performSwap(activeDoc, graphicStyles, targetItems, options, isPreview) 
         var contentA = targetItems[0].contents;
         targetItems[0].contents = targetItems[1].contents;
         targetItems[1].contents = contentA;
+        activeDoc.selection = targetItems;
+        return;
+    }
+
+    // 座標交換モード：2つのオブジェクトの位置（左上基準）を入れ替える
+    if (options.mode === 'coordinate') {
+        swapPositions(targetItems[0], targetItems[1], options);
+        if (options.swapZOrder) {
+            swapZOrder(targetItems[0], targetItems[1]);
+        }
         activeDoc.selection = targetItems;
         return;
     }
