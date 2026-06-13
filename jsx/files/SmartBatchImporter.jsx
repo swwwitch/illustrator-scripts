@@ -8,12 +8,12 @@ SmartBatchImporter.jsx
 
 ### 概要
 
-- 複数のIllustratorファイル（.ai/.svg）を一括で読み込み、取り込んだファイル（またはアートボード）ごとに1つのアートボードを作成して、全体が正方形に近くなるグリッドでキャンバス中央に整列配置するスクリプトです。
+- 複数のIllustratorファイル（.ai/.svg/.eps）を一括で読み込み、取り込んだファイル（またはアートボード）ごとに1つのアートボードを作成して、全体が正方形に近くなるグリッドでキャンバス中央に整列配置するスクリプトです。
 - 読み込み対象の選択、種別フィルター、アートボード単位読み込み、ガイドの取り込み、スケール、ファイル名ラベルなど多彩なオプションを備えています。
 
 ### 主な機能
 
-- 開いているファイル、またはフォルダー指定による一括読み込み（種別：AI / SVG）
+- 開いているファイル、またはフォルダー指定による一括読み込み（種別：AI / SVG / EPS）
 - 取り込んだファイル（またはアートボード）ごとに1つのアートボードを作成
 - 全体が正方形に近くなるよう列数・行数を自動調整し、キャンバス中央へ整列（完了後に全体を表示）
 - アートボード単位での読み込み（ロック・非表示も対象、元のアートボードサイズと相対位置を保持）
@@ -33,6 +33,7 @@ https://note.com/dtp_tranist/n/n8180588e5630
 
 - v1.0.0 (20250529) : 初期バージョン
 - v1.2.0 (20260613) : 読み込み対象選択（開いているファイル／フォルダー指定＋種別フィルタ AI/SVG）、新しいドキュメント設定（カラースペース・サイズプリセット・単位自動切替・ラージカンバス）、アートボード単位読み込み（ロック・非表示対象／元サイズ保持）、スケール、ファイル名ラベル、読み込み後の動作
+- v1.2.1 (20260613) : 種別フィルタに EPS を追加、ダイアログのパネル構成を2カラム化（読み込み対象／種別、カラースペース／ドキュメントサイズ、読み込みオプション）
 
 ---
 
@@ -42,12 +43,12 @@ SmartBatchImporter.jsx
 
 ### Overview
 
-- A script to batch import multiple Illustrator files (.ai/.svg), turn each imported file (or artboard) into one artboard, and arrange them into a near-square grid centered on the canvas.
+- A script to batch import multiple Illustrator files (.ai/.svg/.eps), turn each imported file (or artboard) into one artboard, and arrange them into a near-square grid centered on the canvas.
 - Offers source selection, a type filter, per-artboard import, guide import, scaling, filename labels, and more.
 
 ### Main Features
 
-- Batch import from currently open files or a chosen folder (types: AI / SVG)
+- Batch import from currently open files or a chosen folder (types: AI / SVG / EPS)
 - One artboard per imported file (or artboard)
 - Auto-adjusts the number of columns/rows so the whole layout is near-square, centered on the canvas (fits all in the window when done)
 - Per-artboard import (includes locked/hidden objects, preserves the original artboard size and relative positions)
@@ -63,12 +64,13 @@ SmartBatchImporter.jsx
 
 - v1.0.0 (20250529): Initial version
 - v1.2.0 (20260613): Source selection (open files / folder + AI/SVG type filter), new-document settings (color space, size presets, auto unit switching, Large Canvas), per-artboard import (incl. locked/hidden, preserves original size), scale, file-name label, and after-import action
+- v1.2.1 (20260613): Added EPS to the type filter; reorganized the dialog into two-column panels (source / type, color space / document size, import options)
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.2.0";
+var SCRIPT_VERSION = "v1.2.1";
 
 // =========================================
 // ユーザー設定 / User Settings
@@ -103,27 +105,26 @@ var LABELS = {
         colorSpace: { ja: "カラースペース", en: "Color Space" },
         docSize: { ja: "ドキュメントサイズ", en: "Document Size" },
         options: { ja: "読み込みオプション", en: "Import Options" },
-        afterImport: { ja: "読み込み後の動作", en: "After Import" }
+        afterImport: { ja: "読み込み後", en: "After Import" }
     },
     radio: {
         openFiles: { ja: "現在、開いているファイル", en: "Currently open files" },
         specifyFolder: { ja: "フォルダーを指定", en: "Specify folder" },
         rgb: { ja: "RGB", en: "RGB" },
         cmyk: { ja: "CMYK", en: "CMYK" },
-        closeDoc: { ja: "読み込み後に閉じる", en: "Close After Import" },
-        keepOpen: { ja: "開いたままにする", en: "Keep Open" }
+        closeDoc: { ja: "閉じる", en: "Close" },
+        keepOpen: { ja: "開いたまま", en: "Keep Open" }
     },
     checkbox: {
-        byArtboard: { ja: "アートボード単位で読み込む", en: "Import per artboard" },
+        byArtboard: { ja: "アートボード単位", en: "Import per artboard" },
         includeGuides: { ja: "短いガイドを含める", en: "Include short guides" },
         attachLabel: { ja: "ファイル名ラベルを追加", en: "Add file-name labels" },
-        scale: { ja: "拡大・縮小", en: "Scale" },
-        allTypes: { ja: "すべて", en: "All" }
+        scale: { ja: "拡大・縮小", en: "Scale" }
     },
     preset: {
         custom: { ja: "カスタム", en: "Custom" },
-        a4: { ja: "A4（210mm × 297mm）", en: "A4 (210mm × 297mm)" },
-        fullHD: { ja: "フルHD（1920px × 1080px）", en: "Full HD (1920px × 1080px)" },
+        a4: { ja: "A4：210 × 297 mm", en: "A4: 210 × 297 mm" },
+        fullHD: { ja: "フルHD：1920 × 1080 px", en: "Full HD: 1920 × 1080 px" },
         largeCanvas: { ja: "ラージカンバス", en: "Large Canvas" }
     },
     field: {
@@ -574,8 +575,13 @@ function layoutCellsAsCenteredGrid(ctx) {
     dialog.orientation = "column";
     dialog.alignChildren = ["left", "top"];
 
-    // --- ファイルソースパネル / Source file panel ---
-    var sourcePanel = dialog.add("panel", undefined, getLocalizedText('panel.source'));
+    // --- 読み込み対象パネルと種別パネルを2カラムで並べる / Source panel and type panel in two columns ---
+    var sourceRow = dialog.add("group");
+    setupGroup(sourceRow, "row");
+    sourceRow.alignChildren = ["left", "fill"]; // 読み込み対象と種別の高さを揃える / Match the two panels' heights
+
+    // 左カラム：読み込み対象（ソース選択、ラジオは縦並び）/ Left column: source panel (radios stacked)
+    var sourcePanel = sourceRow.add("panel", undefined, getLocalizedText('panel.source'));
     setupPanel(sourcePanel);
     var openDocsRadio = sourcePanel.add("radiobutton", undefined, getLocalizedText('radio.openFiles'));
     openDocsRadio.helpTip = getLocalizedText('tooltip.openFiles');
@@ -594,19 +600,18 @@ function layoutCellsAsCenteredGrid(ctx) {
     folderNameText.preferredSize = [260, 20];
     folderNameText.minimumSize = [260, 20];
 
-    // 読み込む種別（フォルダー指定時のフィルタ、横並び）/ File types to import (folder-mode filter, in a row)
-    var typeRow = sourcePanel.add("group");
-    setupGroup(typeRow, "row");
-    typeRow.add("statictext", undefined, labelText('field.fileType'));
-    var aiCheckbox = typeRow.add("checkbox", undefined, "AI");
+    // 右カラム：種別（フォルダー指定時のフィルタ、縦並び）/ Right column: file types (folder-mode filter, stacked)
+    var typePanel = sourceRow.add("panel", undefined, getLocalizedText('field.fileType'));
+    setupPanel(typePanel);
+    var aiCheckbox = typePanel.add("checkbox", undefined, "AI");
     aiCheckbox.helpTip = getLocalizedText('tooltip.fileType');
-    var svgCheckbox = typeRow.add("checkbox", undefined, "SVG");
+    var svgCheckbox = typePanel.add("checkbox", undefined, "SVG");
     svgCheckbox.helpTip = getLocalizedText('tooltip.fileType');
-    var allTypesCheckbox = typeRow.add("checkbox", undefined, getLocalizedText('checkbox.allTypes'));
-    allTypesCheckbox.helpTip = getLocalizedText('tooltip.fileType');
+    var epsCheckbox = typePanel.add("checkbox", undefined, "EPS");
+    epsCheckbox.helpTip = getLocalizedText('tooltip.fileType');
     aiCheckbox.value = true;   // 既定は AI のみ ON / Default: AI only
     svgCheckbox.value = false;
-    allTypesCheckbox.value = false;
+    epsCheckbox.value = false;
 
     // ファイル数はパネルのタイトルに「読み込み対象（5）」のように表示する
     // Show the file count in the panel title, e.g. "Source (5)"
@@ -618,12 +623,15 @@ function layoutCellsAsCenteredGrid(ctx) {
     // 「読み込み後の動作」は開いているファイルを選んだときのみ有効（フォルダ指定ではディム）
     // The "After Import" action is available only for open files (dimmed for folder import)
     function updateAfterImportState() {
-        closePanel.enabled = openDocsRadio.value;
+        var enabled = openDocsRadio.value;
+        afterImportLabel.enabled = enabled;
+        closeRadio.enabled = enabled;
+        keepOpenRadio.enabled = enabled;
     }
 
     // 種別は「フォルダー指定」のときのみ有効 / File types are available only in folder mode
     function updateTypeRowState() {
-        typeRow.enabled = folderRadio.value;
+        typePanel.enabled = folderRadio.value;
     }
 
     // ファイル名ラベルはフォルダー指定では既定OFF、開いているファイルではON
@@ -637,6 +645,7 @@ function layoutCellsAsCenteredGrid(ctx) {
         var exts = [];
         if (aiCheckbox.value) exts.push("ai");
         if (svgCheckbox.value) exts.push("svg");
+        if (epsCheckbox.value) exts.push("eps");
         return exts;
     }
 
@@ -655,21 +664,11 @@ function layoutCellsAsCenteredGrid(ctx) {
         updateFileCount();
     }
 
-    // 「すべて」チェックを AI/SVG の状態に同期 / Sync the "All" checkbox with AI/SVG
-    function syncAllTypesCheckbox() {
-        allTypesCheckbox.value = aiCheckbox.value && svgCheckbox.value;
-    }
-
     aiCheckbox.onClick = function () {
-        syncAllTypesCheckbox();
         refreshFolderFiles();
     };
     svgCheckbox.onClick = aiCheckbox.onClick;
-    allTypesCheckbox.onClick = function () {
-        aiCheckbox.value = this.value;
-        svgCheckbox.value = this.value;
-        refreshFolderFiles();
-    };
+    epsCheckbox.onClick = aiCheckbox.onClick;
 
     // 開いているファイルが無ければフォルダ指定をデフォルトに
     // Default to folder mode when no document is open
@@ -719,19 +718,22 @@ function layoutCellsAsCenteredGrid(ctx) {
     var newDocPanel = dialog.add("panel", undefined, getLocalizedText('panel.newDocument'));
     setupPanel(newDocPanel);
 
-    // カラースペースはラベル＋ラジオの行（パネルにはしない）/ Color space as a label + radios row (not a panel)
-    var colorRow = newDocPanel.add("group");
-    setupGroup(colorRow, "row");
-    colorRow.margins = [0, 0, 0, 5];          // 下マージン5 / 5pt bottom margin
-    colorRow.alignChildren = ["left", "center"]; // ラベルとラジオを天地中央で揃える / Vertically center the label and radios
-    colorRow.add("statictext", undefined, labelText('panel.colorSpace'));
-    var rgbRadio = colorRow.add("radiobutton", undefined, getLocalizedText('radio.rgb'));
+    // カラースペースとドキュメントサイズを横2カラムで並べる / Lay out color space and document size in two columns
+    var newDocColumns = newDocPanel.add("group");
+    setupGroup(newDocColumns, "row");
+    newDocColumns.alignChildren = ["left", "fill"]; // 2つのパネルの高さを揃える / Match the two panels' heights
+    newDocColumns.spacing = 15;                     // カラースペースとサイズの2カラム間隔 / Gap between the color-space and size columns
+
+    // カラースペース（ラジオは縦並び）/ Color space (radios stacked vertically)
+    var colorPanel = newDocColumns.add("panel", undefined, getLocalizedText('panel.colorSpace'));
+    setupPanel(colorPanel);
+    var rgbRadio = colorPanel.add("radiobutton", undefined, getLocalizedText('radio.rgb'));
     rgbRadio.helpTip = getLocalizedText('tooltip.colorSpace');
-    var cmykRadio = colorRow.add("radiobutton", undefined, getLocalizedText('radio.cmyk'));
+    var cmykRadio = colorPanel.add("radiobutton", undefined, getLocalizedText('radio.cmyk'));
     cmykRadio.helpTip = getLocalizedText('tooltip.colorSpace');
     rgbRadio.value = true;
 
-    var sizePanel = newDocPanel.add("panel", undefined, getLocalizedText('panel.docSize'));
+    var sizePanel = newDocColumns.add("panel", undefined, getLocalizedText('panel.docSize'));
     setupPanel(sizePanel);
 
     var presetDropdown = sizePanel.add("dropdownlist", undefined, [
@@ -793,20 +795,33 @@ function layoutCellsAsCenteredGrid(ctx) {
     // --- 読み込みオプションパネル / Import options panel ---
     var optionsPanel = dialog.add("panel", undefined, getLocalizedText('panel.options'));
     setupPanel(optionsPanel);
-    var byArtboardCheckbox = optionsPanel.add("checkbox", undefined, getLocalizedText('checkbox.byArtboard'));
+    // オプションを2カラムで並べる（左：アートボード単位／ファイル名ラベル、右：短いガイド／拡大・縮小）
+    // Lay out options in two columns (left: per-artboard / file-name label, right: short guides / scale)
+    var optionsColumns = optionsPanel.add("group");
+    setupGroup(optionsColumns, "row");
+    optionsColumns.alignChildren = ["left", "top"]; // 2カラムを上端で揃える / Top-align the two columns
+    optionsColumns.spacing = 20;                     // 左右カラムの間隔 / Gap between the two columns
+
+    // 左カラム：アートボード単位／ファイル名ラベル / Left column
+    var optionsLeft = optionsColumns.add("group");
+    setupGroup(optionsLeft, "column");
+    var byArtboardCheckbox = optionsLeft.add("checkbox", undefined, getLocalizedText('checkbox.byArtboard'));
     byArtboardCheckbox.value = true;
     byArtboardCheckbox.helpTip = getLocalizedText('tooltip.byArtboard');
 
-    var includeGuidesCheckbox = optionsPanel.add("checkbox", undefined, getLocalizedText('checkbox.includeGuides'));
-    includeGuidesCheckbox.value = false;
-    includeGuidesCheckbox.helpTip = getLocalizedText('tooltip.includeGuides');
-
-    var showLabelCheckbox = optionsPanel.add("checkbox", undefined, getLocalizedText('checkbox.attachLabel'));
+    var showLabelCheckbox = optionsLeft.add("checkbox", undefined, getLocalizedText('checkbox.attachLabel'));
     showLabelCheckbox.value = openDocsRadio.value; // フォルダー指定では既定OFF / Default off in folder mode
     showLabelCheckbox.helpTip = getLocalizedText('tooltip.attachLabel');
 
+    // 右カラム：短いガイド／拡大・縮小 / Right column
+    var optionsRight = optionsColumns.add("group");
+    setupGroup(optionsRight, "column");
+    var includeGuidesCheckbox = optionsRight.add("checkbox", undefined, getLocalizedText('checkbox.includeGuides'));
+    includeGuidesCheckbox.value = false;
+    includeGuidesCheckbox.helpTip = getLocalizedText('tooltip.includeGuides');
+
     // スケール（チェックON時に％で拡大縮小）/ Scale (resize by percent when checked)
-    var scaleRow = optionsPanel.add("group");
+    var scaleRow = optionsRight.add("group");
     setupGroup(scaleRow, "row");
     var scaleCheckbox = scaleRow.add("checkbox", undefined, getLocalizedText('checkbox.scale'));
     scaleCheckbox.value = false;
@@ -820,14 +835,14 @@ function layoutCellsAsCenteredGrid(ctx) {
         scaleInput.enabled = this.value;
     };
 
-    // --- 読み込み後の動作パネル（ラジオは横並び）/ After-import panel (radios in a row) ---
-    var closePanel = dialog.add("panel", undefined, getLocalizedText('panel.afterImport'));
-    setupPanel(closePanel);
-    var closeRow = closePanel.add("group");
-    setupGroup(closeRow, "row");
-    var closeRadio = closeRow.add("radiobutton", undefined, getLocalizedText('radio.closeDoc'));
+    // 読み込み後の動作（ラベル＋ラジオの横並び。開いているファイル選択時のみ有効）
+    // After-import action (label + radios in a row; enabled only when importing open files)
+    var afterImportRow = optionsPanel.add("group");
+    setupGroup(afterImportRow, "row");
+    var afterImportLabel = afterImportRow.add("statictext", undefined, labelText('panel.afterImport'));
+    var closeRadio = afterImportRow.add("radiobutton", undefined, getLocalizedText('radio.closeDoc'));
     closeRadio.helpTip = getLocalizedText('tooltip.closeDoc');
-    var keepOpenRadio = closeRow.add("radiobutton", undefined, getLocalizedText('radio.keepOpen'));
+    var keepOpenRadio = afterImportRow.add("radiobutton", undefined, getLocalizedText('radio.keepOpen'));
     keepOpenRadio.helpTip = getLocalizedText('tooltip.keepOpen');
     closeRadio.value = true;
 
