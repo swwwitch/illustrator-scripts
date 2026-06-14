@@ -14,13 +14,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 処理の流れ / Process flow
 
-1. 選択から登録ジョブ（テキスト＋スタイル対象オブジェクトの組）を集める。グループ1点はその中身、複数グループはグループごと / Collect register jobs (text + style-target pairs) from the selection: a single group is unwrapped, multiple groups are processed one by one.
-2. テキストから文字列を取得（前後の空白を除去、空なら終了） / Get the text content (trimmed); exit if empty.
-3. 既存の同名スタイルを削除 / Remove the existing style with the same name, if any.
-4. スタイル対象オブジェクトだけを選択し直す / Reselect only the style-target object (exclude the text's appearance).
-5. 一時アクションをロード→実行→アンロードして、無名のグラフィックスタイルを末尾に追加 / Load, run, and unload a temporary action that appends an unnamed graphic style.
-6. 末尾のスタイルを取得した文字列に改名 / Rename the last style to the text content.
-7. 元の選択に戻す / Restore the original selection.
+1. 選択から登録ジョブ（テキスト＋スタイル対象オブジェクトの組）を集める。グループ1点はその中身、複数グループはグループごと（1件も無ければ終了） / Collect register jobs (text + style-target pairs) from the selection: a single group is unwrapped, multiple groups are processed one by one (exit if none).
+2. 一時アクションを一度だけロード / Load the temporary action once.
+3. ジョブごとに以下を実行 / For each job:
+   1. テキストから文字列を取得（前後の空白を除去、空ならそのジョブはスキップ） / Get the text content (trimmed); skip the job if empty.
+   2. 既存の同名スタイルを削除 / Remove the existing style with the same name, if any.
+   3. スタイル対象オブジェクトだけを選択し直す（テキストの見た目は含めない） / Reselect only the style-target object (exclude the text's appearance).
+   4. アクションを実行して無名のグラフィックスタイルを末尾に追加し、末尾を取得した文字列に改名 / Run the action to append an unnamed graphic style, then rename the last style to the text content.
+4. アクションをアンロード / Unload the action.
+5. 元の選択に戻す / Restore the original selection.
 
 */
 
