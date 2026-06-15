@@ -20,14 +20,17 @@ Illustrator 用のメモ入力フローティングパレット。
 #### 編集・コピー
 
 - 「空行削除」でテキスト欄の空行（空白のみの行を含む）を除去
+- 「改行削除」でテキスト欄の改行をすべて除去し1行にまとめる
 - 「すべてをコピー」でテキスト欄の内容をシステムクリップボードへコピー（一時テキストフレーム + `app.copy()` を BridgeTalk 実行）
-- テキストが空／対象が無いときは該当ボタンを自動でディム
+- テキストが空／対象が無いときは該当ボタンを自動でディム（空行が無ければ「空行削除」、改行が無ければ「改行削除」もディム）
 
 #### 保存・その他
 
 - 入力したメモを UTF-8 のテキストファイル（.txt）へ保存（保存元・保存日時のフッター付き）
 - 保存先は `SAVE_LOCATION_MODE` で切替：保存ダイアログで選択（A）/ 常にデスクトップへ `memo-<ドキュメント名>-<yyyymmdd>.txt`（B＝既定）
-- 保存・クリア後はスクリプトを再起動し、入力内容を引き継ぐ
+- 保存後はパレットを閉じず、入力内容とウィンドウ位置をそのまま保持（再起動しない）
+- クリア後はスクリプトを再起動して空の状態で起動し直す
+- ボタンエリアはテキスト欄の上＝読み込み系（読み込む／空行削除／改行削除）、下＝3カラム（左:保存・すべてをコピー／中央:スペーサー／右:クリア）
 - 閉じたときの挙動は `CLEAR_ON_CLOSE` で切替：内容を保持（既定）/ クリア。ウィンドウ位置は常に保持
 - UI・メッセージ・保存フッターまで日本語／英語にローカライズ（ロケール自動判定）
 
@@ -53,7 +56,7 @@ https://note.com/nice_lotus120/n/n6291a432b30d
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.1.0";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -96,7 +99,8 @@ var LABELS = {
         save: { ja: "保存", en: "Save" },
         clear: { ja: "クリア", en: "Clear" },
         copyAll: { ja: "すべてをコピー", en: "Copy All" },
-        removeBlanks: { ja: "空行削除", en: "Remove Blanks" }
+        removeBlanks: { ja: "空行削除", en: "Remove Blanks" },
+        removeBreaks: { ja: "改行削除", en: "Remove Breaks" }
     },
     tooltip: {
         load: {
@@ -106,6 +110,10 @@ var LABELS = {
         removeBlanks: {
             ja: "テキスト欄の空行（空白のみの行を含む）を削除します",
             en: "Remove blank lines (including whitespace-only lines) from the memo"
+        },
+        removeBreaks: {
+            ja: "テキスト欄の改行をすべて削除して1行にまとめます",
+            en: "Remove all line breaks in the memo, joining everything into one line"
         },
         clear: {
             ja: "テキスト欄を空にして再起動します",
@@ -193,7 +201,7 @@ function L(labelNode) {
     var modeReplace = modeSelectGroup.add('radiobutton', undefined, L(LABELS.radio.replace));
     modeAppend.value = true; // デフォルトは追加 / Append by default
 
-    /* 読み込み・クリア行（テキスト欄の上）/ Load & Clear row (above the text area) */
+    /* 読み込み行（テキスト欄の上）/ Load row (above the text area) */
     var buttonRow = win.add('group');
     buttonRow.orientation = 'row';
     buttonRow.alignment = ['center', 'top'];
@@ -201,15 +209,15 @@ function L(labelNode) {
 
     var loadButton = buttonRow.add('button', undefined, L(LABELS.button.load));
     var removeBlanksButton = buttonRow.add('button', undefined, L(LABELS.button.removeBlanks));
-    var clearButton = buttonRow.add('button', undefined, L(LABELS.button.clear));
+    var removeBreaksButton = buttonRow.add('button', undefined, L(LABELS.button.removeBreaks));
     /* ボタンは少し小さめに統一 / Make the buttons a bit smaller and uniform */
     loadButton.preferredSize = [76, 24];
     removeBlanksButton.preferredSize.height = 24; // 幅はラベルに合わせて自動 / Auto width to fit the label
-    clearButton.preferredSize = [76, 24];
+    removeBreaksButton.preferredSize.height = 24; // 幅はラベルに合わせて自動 / Auto width to fit the label
     /* ツールチップ / Tooltips */
     loadButton.helpTip = L(LABELS.tooltip.load);
     removeBlanksButton.helpTip = L(LABELS.tooltip.removeBlanks);
-    clearButton.helpTip = L(LABELS.tooltip.clear);
+    removeBreaksButton.helpTip = L(LABELS.tooltip.removeBreaks);
 
     /* メモ入力テキストエリア / Memo text area */
     var memoTextArea = win.add('edittext', undefined, savedText, {
@@ -220,17 +228,34 @@ function L(labelNode) {
     memoTextArea.minimumSize.width = 300;
     memoTextArea.alignment = ['fill', 'fill']; // 上下リサイズ対応 / Resize vertically
 
-    /* 保存・コピー行（テキスト欄の下）/ Save & Copy row (below the text area) */
+    /* 保存・コピー・クリア行（テキスト欄の下、3カラム）/ Save / Copy / Clear row (below the text area, 3 columns) */
     var saveButtonRow = win.add('group');
     saveButtonRow.orientation = 'row';
-    saveButtonRow.alignment = ['center', 'top'];
-    saveButtonRow.alignChildren = ['center', 'center'];
-    var saveButton = saveButtonRow.add('button', undefined, L(LABELS.button.save));
+    saveButtonRow.alignment = ['fill', 'top']; // 行を幅いっぱいに広げて左右に振り分ける / Span full width to push columns left & right
+    saveButtonRow.alignChildren = ['fill', 'center'];
+
+    /* 左カラム：保存・すべてをコピー / Left column: Save & Copy All */
+    var leftButtonGroup = saveButtonRow.add('group');
+    leftButtonGroup.orientation = 'row';
+    leftButtonGroup.alignment = ['left', 'center'];
+    var saveButton = leftButtonGroup.add('button', undefined, L(LABELS.button.save));
     saveButton.preferredSize = [76, 24];
     saveButton.helpTip = L(LABELS.tooltip.save);
-    var copyAllButton = saveButtonRow.add('button', undefined, L(LABELS.button.copyAll));
+    var copyAllButton = leftButtonGroup.add('button', undefined, L(LABELS.button.copyAll));
     copyAllButton.preferredSize = [120, 24];
     copyAllButton.helpTip = L(LABELS.tooltip.copyAll);
+
+    /* 中央カラム：スペーサー（余白を吸収して左右を振り分ける）/ Center column: spacer that absorbs slack */
+    var centerSpacer = saveButtonRow.add('group');
+    centerSpacer.alignment = ['fill', 'center'];
+
+    /* 右カラム：クリア / Right column: Clear */
+    var rightButtonGroup = saveButtonRow.add('group');
+    rightButtonGroup.orientation = 'row';
+    rightButtonGroup.alignment = ['right', 'center'];
+    var clearButton = rightButtonGroup.add('button', undefined, L(LABELS.button.clear));
+    clearButton.preferredSize = [76, 24];
+    clearButton.helpTip = L(LABELS.tooltip.clear);
 
     /* レイアウトとリサイズ / Layout and resize */
     win.layout.layout(true);
@@ -321,6 +346,16 @@ function L(labelNode) {
             if (lines[i].replace(/^\s+|\s+$/g, '') === '') return true;
         }
         return false;
+    }
+
+    /* 改行をすべて除去して1行にまとめる / Remove all line breaks, joining everything into one line */
+    function removeLineBreaks(text) {
+        return text.replace(/\r\n|\r|\n/g, '');
+    }
+
+    /* 改行が1つでもあるか判定 / Check whether there is at least one line break */
+    function hasLineBreaks(text) {
+        return /\r|\n/.test(text);
     }
 
     /* クリップボードを貼り付けてテキストを読み取る / Paste the clipboard and read its text */
@@ -514,9 +549,10 @@ function L(labelNode) {
             return;
         }
 
-        $.global.__TextMemoContent = memoTextArea.text; // フッターは含めず入力内容のみ引き継ぐ / Carry over the typed memo only (without footer)
+        // 保存後もパレットは開いたまま：内容・ウィンドウ位置をそのまま保持する（再起動しない）
+        // Keep the palette open after saving: preserve the content and window position as-is (no restart)
+        $.global.__TextMemoContent = memoTextArea.text; // フッターは含めず入力内容のみ保持 / Keep the typed memo only (without footer)
         storeWinBounds();
-        restartScript();
     };
 
     /* メモをクリアして再起動 / Clear the memo, then restart */
@@ -541,6 +577,13 @@ function L(labelNode) {
         updateButtonState();
     };
 
+    /* 改行削除：テキスト欄の改行をすべて除去して1行にまとめる / Remove Breaks: strip all line breaks from the memo */
+    removeBreaksButton.onClick = function () {
+        memoTextArea.text = removeLineBreaks(memoTextArea.text);
+        $.global.__TextMemoContent = memoTextArea.text;
+        updateButtonState();
+    };
+
     /* テキストの有無・空行の有無でボタンの活性を切り替え / Toggle buttons by whether there is text / blank lines */
     function updateButtonState() {
         var text = memoTextArea.text;
@@ -548,6 +591,7 @@ function L(labelNode) {
         clearButton.enabled = hasText;
         copyAllButton.enabled = hasText;
         removeBlanksButton.enabled = hasText && hasBlankLines(text); // 空行が無ければディム / Dim when there are no blank lines
+        removeBreaksButton.enabled = hasText && hasLineBreaks(text); // 改行が無ければディム / Dim when there are no line breaks
     }
     memoTextArea.onChanging = updateButtonState; // 入力中もリアルタイムに反映 / Update live while typing
     updateButtonState();
