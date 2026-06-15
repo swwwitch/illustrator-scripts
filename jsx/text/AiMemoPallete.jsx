@@ -37,6 +37,10 @@ Illustrator 用のメモ入力フローティングパレット。
 Illustrator には `app.system` が無いため、クリップボードへのコピーは一時テキストフレーム + `app.copy()` で行う。
 逆方向（他アプリでコピーしたテキストの取り込み）はスクリプトから確実に取得する手段が無いため未対応。
 
+### 解説
+
+https://note.com/dtp_tranist/n/n41e91e4b1a09
+
 ### オリジナル
 
 こじらせたクマーさんの以下の記事をもとに、機能追加やリファクタリングを行いました。
@@ -47,7 +51,7 @@ https://note.com/nice_lotus120/n/n6291a432b30d
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -91,6 +95,28 @@ var LABELS = {
         clear: { ja: "クリア", en: "Clear" },
         copyAll: { ja: "すべてをコピー", en: "Copy All" },
         removeBlanks: { ja: "空行削除", en: "Remove Blanks" }
+    },
+    tooltip: {
+        load: {
+            ja: "選択オブジェクトのテキストを読み込みます（モードに従って追加／置き換え）。「追加」モードでは既存テキストとの間に空行を入れます",
+            en: "Load text from the selected objects (append or replace per mode). In Append mode, a blank line is inserted between the existing and new text"
+        },
+        removeBlanks: {
+            ja: "テキスト欄の空行（空白のみの行を含む）を削除します",
+            en: "Remove blank lines (including whitespace-only lines) from the memo"
+        },
+        clear: {
+            ja: "テキスト欄を空にして再起動します",
+            en: "Clear the memo and restart"
+        },
+        save: {
+            ja: "メモをデスクトップにテキストファイルとして保存します",
+            en: "Save the memo to the Desktop as a text file"
+        },
+        copyAll: {
+            ja: "テキスト欄の内容をクリップボードへコピーします",
+            en: "Copy the memo to the clipboard"
+        }
     },
     message: {
         savePrompt: {
@@ -178,6 +204,10 @@ function L(labelNode) {
     loadButton.preferredSize = [76, 24];
     removeBlanksButton.preferredSize.height = 24; // 幅はラベルに合わせて自動 / Auto width to fit the label
     clearButton.preferredSize = [76, 24];
+    /* ツールチップ / Tooltips */
+    loadButton.helpTip = L(LABELS.tooltip.load);
+    removeBlanksButton.helpTip = L(LABELS.tooltip.removeBlanks);
+    clearButton.helpTip = L(LABELS.tooltip.clear);
 
     /* メモ入力テキストエリア / Memo text area */
     var memoTextArea = win.add('edittext', undefined, savedText, {
@@ -195,8 +225,10 @@ function L(labelNode) {
     saveButtonRow.alignChildren = ['center', 'center'];
     var saveButton = saveButtonRow.add('button', undefined, L(LABELS.button.save));
     saveButton.preferredSize = [76, 24];
+    saveButton.helpTip = L(LABELS.tooltip.save);
     var copyAllButton = saveButtonRow.add('button', undefined, L(LABELS.button.copyAll));
     copyAllButton.preferredSize = [120, 24];
+    copyAllButton.helpTip = L(LABELS.tooltip.copyAll);
 
     /* レイアウトとリサイズ / Layout and resize */
     win.layout.layout(true);
@@ -230,14 +262,19 @@ function L(labelNode) {
     loadButton.onClick = function () {
         // 選択テキストの取得は DOM 接続を保つメインエンジンに委譲（非同期）
         fetchSelectedTextFrames(function (status, loadedText) {
-            // 選択オブジェクトが無ければクリップボードのテキストを読み込む
+            // 選択オブジェクトが無ければクリップボードを貼り付けて読み込む
             if (status === 'nosel' || status === 'nodoc') {
-                var clipboardText = readClipboardText();
-                if (clipboardText === '') {
-                    alert(L(LABELS.message.clipboardEmpty));
-                    return;
-                }
-                applyLoadedText(clipboardText);
+                pasteAndReadClipboardText(function (pasteStatus, clipboardText) {
+                    if (pasteStatus === 'nodoc') {
+                        alert(L(LABELS.message.noDocument));
+                        return;
+                    }
+                    if (pasteStatus !== 'ok' || !clipboardText) {
+                        alert(L(LABELS.message.clipboardEmpty));
+                        return;
+                    }
+                    applyLoadedText(clipboardText);
+                });
                 return;
             }
             if (status === 'notextframe') {
@@ -284,12 +321,90 @@ function L(labelNode) {
         return false;
     }
 
-    /* クリップボードのプレーンテキストを取得 / Get plain text from the clipboard */
-    /* 注意: Illustrator には app.system が無く、app.paste は内部クリップボードを参照するため、
-       他アプリでコピーしたシステムクリップボードのテキストを確実に読む手段がない。
-       現状は機能しないため空文字を返す（フォールバックは実質無効）。要再設計。 */
-    function readClipboardText() {
-        return '';
+    /* クリップボードを貼り付けてテキストを読み取る / Paste the clipboard and read its text */
+    /* 選択オブジェクトが無いときのフォールバック。Illustrator には app.system が無く
+       システムクリップボードを直接読めないため、いったんドキュメントへ貼り付け
+       （pasteInAllArtboard）→ 貼り付いたオブジェクトのテキストを収集 → そのオブジェクトを削除、
+       という手順で取り出す。パレット常駐エンジンは表示中に DOM が切れるため、
+       生きた DOM を持つメインエンジンへ BridgeTalk で委譲（非同期）。
+       pasteInAllArtboard はアートボードごとに複製を作るため、同一テキストは重複除去する。
+       テキストは encodeURIComponent で安全に受け渡す。
+       コールバック: onDone(status, text)  status = 'ok' | 'nodoc' | 'notext' | 'error' */
+    function pasteAndReadClipboardText(onDone) {
+        var pasteSource =
+            '(function () {' +
+            '    if (app.documents.length === 0) return "NODOC:";' +
+            '    var targetDoc;' +
+            '    try { targetDoc = app.activeDocument; } catch (e0) { targetDoc = app.documents[0]; }' +
+            // 貼り付け前の選択を控えて解除
+            '    var prevSel = [];' +
+            '    try { for (var i = 0; i < targetDoc.selection.length; i++) prevSel.push(targetDoc.selection[i]); } catch (e1) {}' +
+            '    try { targetDoc.selection = null; } catch (e2) {}' +
+            // クリップボードを貼り付け。直後の選択が貼り付いたオブジェクト
+            '    var pasted = [];' +
+            '    try {' +
+            '        app.executeMenuCommand("pasteInAllArtboard");' +
+            '        for (var p = 0; p < targetDoc.selection.length; p++) pasted.push(targetDoc.selection[p]);' +
+            '    } catch (e3) {}' +
+            // テキストと位置（geometricBounds の上端・左端）を収集。実質的に空のフレームは無視
+            '    var collected = [];' +
+            '    function pushFrame(frame) {' +
+            '        var contents = frame.contents;' +
+            '        if (!contents || contents.replace(/[\\r\\n\\x03]/g, "").replace(/\\s+/g, "") === "") return;' +
+            '        var topY = 0, leftX = 0;' +
+            '        try { var bounds = frame.geometricBounds; leftX = bounds[0]; topY = bounds[1]; } catch (eg) {}' +
+            '        collected.push({ text: contents, top: topY, left: leftX });' +
+            '    }' +
+            '    function collectFrom(item) {' +
+            '        if (item.typename === "TextFrame") pushFrame(item);' +
+            '        else if (item.typename === "GroupItem") { for (var k = 0; k < item.pageItems.length; k++) collectFrom(item.pageItems[k]); }' +
+            '    }' +
+            '    for (var j = 0; j < pasted.length; j++) collectFrom(pasted[j]);' +
+            // 貼り付けたオブジェクトを削除（元のドキュメントは汚さない）
+            '    for (var d = 0; d < pasted.length; d++) { try { pasted[d].remove(); } catch (e4) {} }' +
+            // 元の選択を復元
+            '    try { targetDoc.selection = null; } catch (e5) {}' +
+            '    for (var q = 0; q < prevSel.length; q++) { try { prevSel[q].selected = true; } catch (e6) {} }' +
+            '    if (collected.length === 0) return "NOTX:";' +
+            // カンバス上の位置で上から順（同じ高さは左から右）に並べる
+            '    collected.sort(function (a, b) {' +
+            '        if (Math.abs(b.top - a.top) <= 10) return a.left - b.left;' +
+            '        return b.top - a.top;' +
+            '    });' +
+            // 重複テキストを除去（アートボードごとの複製を1つにまとめる）
+            '    var seen = {};' +
+            '    var texts = [];' +
+            '    for (var x = 0; x < collected.length; x++) {' +
+            '        var key = "k_" + collected[x].text;' +
+            '        if (seen[key]) continue;' +
+            '        seen[key] = true;' +
+            '        texts.push(collected[x].text);' +
+            '    }' +
+            '    return "OK:" + encodeURIComponent(texts.join(String.fromCharCode(10)));' +
+            '})();';
+
+        var bridge = new BridgeTalk();
+        bridge.target = 'illustrator';
+        bridge.body = pasteSource;
+        bridge.onResult = function (response) {
+            var payload = response.body || '';
+            var colonIndex = payload.indexOf(':');
+            var marker = colonIndex >= 0 ? payload.substring(0, colonIndex) : payload;
+            var rest = colonIndex >= 0 ? payload.substring(colonIndex + 1) : '';
+            if (marker === 'OK') {
+                onDone('ok', decodeURIComponent(rest));
+            } else if (marker === 'NODOC') {
+                onDone('nodoc');
+            } else if (marker === 'NOTX') {
+                onDone('notext');
+            } else {
+                onDone('error', payload);
+            }
+        };
+        bridge.onError = function (response) {
+            onDone('error', response.body);
+        };
+        bridge.send();
     }
 
     /* テキストをクリップボードへコピー / Copy text to the clipboard */
