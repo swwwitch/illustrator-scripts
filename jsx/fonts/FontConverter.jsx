@@ -13,19 +13,23 @@
 - A1明朝など特殊シリーズは太さ等価で対応（A-OTF A1明朝 Std B ＝ A P-OTF A1明朝 StdN R）
 - CID フォント・実行前確認は先頭のスイッチ（UI 非表示）で制御
 - 段落スタイル・文字スタイル、ロック / 非表示オブジェクトも対象に含められる
-- 実行前に変更内容（旧 → 新）をプレビュー確認、未インストールフォントは事前に警告
+- 実行前に変更内容（旧 → 新）を和文フォント名でプレビュー確認、カンバス上の位置順（上→下）に表示、未インストールフォントは事前に警告
 - 同名ウエイトが見つからない場合は近いウエイトへ置換
 - 適用は textRange 単位でまとめて処理（高速）
 - 変換対象ファミリーはフォントデータベースから生成（FONT_FAMILIES）
 
 ### 参考
 
-https://sttk3.com/blog/tips/illustrator/unify-char
-1acter-set.html
+https://sttk3.com/blog/tips/illustrator/unify-character-set.html
 
 ### 紹介記事
 
-追って
+https://note.com/dtp_tranist/n/n261c771b4b41
+
+### 変更履歴
+
+- v1.0.0 : 初版
+- v1.0.1 : 確認ダイアログを和文フォント名で表示・カンバス上から順（上→下）に並べ替え・→ の位置をそろえる（変更前列を固定幅）・タイトルのバージョン表記を削除・左右マージンを調整
 
 */
 
@@ -36,7 +40,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -510,6 +514,9 @@ function setupGroup(group, orientation, spacing) {
 
     var targetFrames = collectTargetTextFrames(targetMode);
 
+    // カンバス上の位置（上→下、同じ高さは左→右）で並べ替え / Sort by canvas position (top→bottom, then left→right)
+    sortFramesByCanvasPosition(targetFrames);
+
     if (targetFrames.length === 0 && !includeStyles) {
         alert(L("alert.noTarget"));
         return;
@@ -585,6 +592,16 @@ function setupGroup(group, orientation, spacing) {
     // =========================================
     // 対象収集 / Target collection
     // =========================================
+
+    /* テキストフレームをカンバス上の位置順（上→下、同じ高さは左→右）に並べ替え / Sort frames by canvas position */
+    function sortFramesByCanvasPosition(frames) {
+        frames.sort(function (a, b) {
+            var ba = a.geometricBounds; // [left, top, right, bottom]
+            var bb = b.geometricBounds;
+            if (Math.abs(bb[1] - ba[1]) > 1.0) return bb[1] - ba[1]; // top が大きい方が上 / larger top = higher
+            return ba[0] - bb[0];                                     // left が小さい方が先 / smaller left first
+        });
+    }
 
     /* 対象モードに応じてテキストフレームを集める / Gather text frames by target mode */
     function collectTargetTextFrames(mode) {
@@ -677,7 +694,7 @@ function setupGroup(group, orientation, spacing) {
 
     /* コンテナのロック状態を設定 / Set lock state of a container */
     function setContainerLocked(container, locked) {
-        try { container.locked = locked; } catch (e) {}
+        try { container.locked = locked; } catch (e) { }
     }
 
     /* コンテナの非表示状態を設定 / Set hidden state of a container */
@@ -685,7 +702,7 @@ function setupGroup(group, orientation, spacing) {
         try {
             if (container.typename === "Layer") { container.visible = !hidden; }
             else { container.hidden = hidden; }
-        } catch (e) {}
+        } catch (e) { }
     }
 
     // =========================================
@@ -962,19 +979,25 @@ function setupGroup(group, orientation, spacing) {
 
     /* 変更プレビューを表示し、各項目を ON/OFF させて結果を返す / Show preview with per-item ON/OFF and return the result */
     function showConfirmDialog() {
-        var confirmDialog = new Window("dialog", L("confirm.title") + " " + SCRIPT_VERSION);
+        var confirmDialog = new Window("dialog", L("confirm.title"));
         confirmDialog.orientation = "column";
         confirmDialog.alignChildren = "fill";
+        // 左右マージンを +10 / Add 10 to left & right margins
+        confirmDialog.margins.left += 10;
+        confirmDialog.margins.right += 10;
 
         var itemCheckboxes = []; // {checkbox, oldName}
 
+        // 「変更前」列の幅を全項目でそろえ、→ の位置を一定にする / Fix the "before" column width so arrows line up
+        var beforeWidth = computeBeforeColumnWidth(confirmDialog, [directChanges, weightSubChanges]);
+
         if (directChanges.length > 0) {
             confirmDialog.add("statictext", undefined, L("confirm.willChange"));
-            addChangeCheckboxes(confirmDialog, directChanges, itemCheckboxes);
+            addChangeCheckboxes(confirmDialog, directChanges, itemCheckboxes, beforeWidth);
         }
         if (weightSubChanges.length > 0) {
             confirmDialog.add("statictext", undefined, L("confirm.nearWeight"));
-            addChangeCheckboxes(confirmDialog, weightSubChanges, itemCheckboxes);
+            addChangeCheckboxes(confirmDialog, weightSubChanges, itemCheckboxes, beforeWidth);
         }
         if (missingChanges.length > 0) {
             confirmDialog.add("statictext", undefined, L("confirm.notInstalled"));
@@ -1009,17 +1032,52 @@ function setupGroup(group, orientation, spacing) {
     }
 
     /* 変更項目をチェックボックス（既定 ON）として追加 / Add change items as checkboxes (on by default) */
-    function addChangeCheckboxes(parent, changes, itemCheckboxes) {
+    function addChangeCheckboxes(parent, changes, itemCheckboxes, beforeWidth) {
         for (var i = 0; i < changes.length; i++) {
             var change = changes[i];
-            var itemLabel = change.oldName + " → " + change.newName;
-            if (change.oldWeight) {
-                itemLabel += "（" + change.oldWeight + " → " + change.newWeight + "）";
-            }
-            var checkbox = parent.add("checkbox", undefined, itemLabel);
+            var row = parent.add("group");
+            row.orientation = "row";
+            row.alignChildren = ["left", "center"];
+            row.spacing = 4;
+
+            // 「変更前」はチェックボックス。幅を固定して → の位置をそろえる / "Before" is the checkbox; fixed width aligns the arrow
+            var checkbox = row.add("checkbox", undefined, toDisplayFontName(change.oldName));
             checkbox.value = true;
+            checkbox.preferredSize.width = beforeWidth;
+
+            var afterLabel = "→ " + toDisplayFontName(change.newName);
+            if (change.oldWeight) {
+                afterLabel += "（" + change.oldWeight + " → " + change.newWeight + "）";
+            }
+            row.add("statictext", undefined, afterLabel);
+
             itemCheckboxes.push({ checkbox: checkbox, oldName: change.oldName });
         }
+    }
+
+    /* PostScript 名を和文表示名（family + style）に変換。未インストール時は元の名前 / Convert PostScript name to Japanese display name (falls back to the PostScript name) */
+    function toDisplayFontName(psName) {
+        try {
+            var fontObject = getFontObject(psName);
+            return fontObject.style ? (fontObject.family + " " + fontObject.style) : fontObject.family;
+        } catch (e) {
+            return psName;
+        }
+    }
+
+    /* 「変更前」列に必要な最大幅（チェックボックスのボックス幅＋余白を加味）/ Max width needed for the "before" column, incl. checkbox box & margin */
+    function computeBeforeColumnWidth(dialog, changeLists) {
+        var graphics = dialog.graphics;
+        var maxTextWidth = 0;
+        for (var a = 0; a < changeLists.length; a++) {
+            var list = changeLists[a];
+            for (var i = 0; i < list.length; i++) {
+                var displayName = toDisplayFontName(list[i].oldName);
+                var textWidth = graphics.measureString(displayName, graphics.font).width;
+                if (textWidth > maxTextWidth) maxTextWidth = textWidth;
+            }
+        }
+        return maxTextWidth + 30; // チェックボックスのボックス＋すき間 / checkbox box + gap
     }
 
     /* 選択された（または全件の）変更を変換マップに追加 / Add selected (or all) changes to the name map */
@@ -1073,7 +1131,7 @@ function setupGroup(group, orientation, spacing) {
             try {
                 runRange.characterAttributes.textFont = getFontObject(newName);
                 frameChanged = true;
-            } catch (e) {}
+            } catch (e) { }
         });
 
         // 状態を復元 / Restore states
@@ -1097,7 +1155,7 @@ function setupGroup(group, orientation, spacing) {
             try {
                 styles[k].characterAttributes.textFont = getFontObject(newName);
                 changed++;
-            } catch (e) {}
+            } catch (e) { }
         }
         return changed;
     }
