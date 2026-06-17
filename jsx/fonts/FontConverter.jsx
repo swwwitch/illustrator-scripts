@@ -16,7 +16,7 @@
 - 実行前に変更内容（旧 → 新）を和文フォント名でプレビュー確認、カンバス上の位置順（上→下）に表示、未インストールフォントは事前に警告
 - 同名ウエイトが見つからない場合は近いウエイトへ置換
 - 適用は textRange 単位でまとめて処理（高速）
-- 変換対象ファミリーはフォントデータベースから生成（FONT_FAMILIES）
+- 変換対象ファミリーはフォントデータベースから生成（FONT_FAMILIES）。モリサワ基幹書体に加え、筑紫書体シリーズ・UD書体・Fontworks 由来デザイン（セザンヌ / マティス / ロダン など）までカバー
 
 ### 参考
 
@@ -30,6 +30,7 @@ https://note.com/dtp_tranist/n/n261c771b4b41
 
 - v1.0.0 : 初版
 - v1.0.1 : 確認ダイアログを和文フォント名で表示・カンバス上から順（上→下）に並べ替え・→ の位置をそろえる（変更前列を固定幅）・タイトルのバージョン表記を削除・左右マージンを調整
+- v1.1.0 : 変換対象ファミリーを拡充（筑紫書体シリーズ・UD書体・Fontworks 由来デザインなど）
 
 */
 
@@ -40,7 +41,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.1.0";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -118,8 +119,45 @@ var FONT_FAMILIES = [
     { label: "UD黎ミン", baseName: "Reimin", regex: /^(P)?(UD)?Reimin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
     { label: "游明朝体", baseName: "YuMin", regex: /^YuMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
     { label: "黎ミン", baseName: "Reim", regex: /^(P)?Reim(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
-    { label: "游ゴシック体", baseName: "YuGo", regex: /^YuGo(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ }
+    { label: "游ゴシック体", baseName: "YuGo", regex: /^YuGo(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+
+    // --- フォントワークス書体 ---
+    { label: "セザンヌ", baseName: "Cezanne", regex: /^(P)?Cezanne(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "DNP 秀英明朝", baseName: "FOT_DNPShueiMin", regex: /^(P)?FOT_DNPShueiMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "ハミング", baseName: "Humming", regex: /^(P)?Humming(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "マティス", baseName: "Matisse", regex: /^(P)?Matisse(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "モード明朝Aラージ", baseName: "ModeMinALarge", regex: /^(P)?ModeMinALarge(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "モード明朝Bラージ", baseName: "ModeMinBLarge", regex: /^(P)?ModeMinBLarge(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "ニューセザンヌ", baseName: "NewCezanne", regex: /^(P)?NewCezanne(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "ニューグレコ", baseName: "NewGreco", regex: /^(P)?NewGreco(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "ニューロダン", baseName: "NewRodin", regex: /^(P)?NewRodin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "ロダン", baseName: "Rodin", regex: /^(P)?Rodin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "スーラ", baseName: "Seurat", regex: /^(P)?Seurat(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "スキップ", baseName: "Skip", regex: /^(P)?Skip(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "テロップ明朝", baseName: "TelopMin", regex: /^(P)?TelopMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫A見出ミン", baseName: "TsukuAMDMin", regex: /^(P)?TsukuAMDMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫Aオールド明朝", baseName: "TsukuAOldMin", regex: /^(P)?TsukuAOldMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫Aヴィンテージ明L", baseName: "TsukuAVintageMinL", regex: /^(P)?TsukuAVintageMinL(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫Aヴィンテージ明S", baseName: "TsukuAVintageMinS", regex: /^(P)?TsukuAVintageMinS(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫B見出ミン", baseName: "TsukuBMDMin", regex: /^(P)?TsukuBMDMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫B明朝", baseName: "TsukuBMin", regex: /^(P)?TsukuBMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫Bオールド明朝", baseName: "TsukuBOldMin", regex: /^(P)?TsukuBOldMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫Bヴィンテージ明L", baseName: "TsukuBVintageMinL", regex: /^(P)?TsukuBVintageMinL(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫Bヴィンテージ明S", baseName: "TsukuBVintageMinS", regex: /^(P)?TsukuBVintageMinS(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫C見出ミン", baseName: "TsukuCMDMin", regex: /^(P)?TsukuCMDMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫Cオールド明朝", baseName: "TsukuCOldMin", regex: /^(P)?TsukuCOldMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫Cヴィンテージ明L", baseName: "TsukuCVintageMinL", regex: /^(P)?TsukuCVintageMinL(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫Cヴィンテージ明S", baseName: "TsukuCVintageMinS", regex: /^(P)?TsukuCVintageMinS(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫ゴシック", baseName: "TsukuGo", regex: /^(P)?TsukuGo(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫明朝", baseName: "TsukuMin", regex: /^(P)?TsukuMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "筑紫新聞明朝", baseName: "TsukuNewsMin", regex: /^(P)?TsukuNewsMin(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "UD角ゴ_ラージ", baseName: "UDKakugo_Large", regex: /^(P)?UDKakugo_Large(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "UD角ゴ_スモール", baseName: "UDKakugo_Small", regex: /^(P)?UDKakugo_Small(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "UD丸ゴ_ラージ", baseName: "UDMarugo_Large", regex: /^(P)?UDMarugo_Large(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "UD丸ゴ_スモール", baseName: "UDMarugo_Small", regex: /^(P)?UDMarugo_Small(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ },
+    { label: "UD明朝", baseName: "UDMincho", regex: /^(P)?UDMincho(?:(Pro|Pr5|Pr6|Std)(N)?)?-(.+)$/ }
 ];
+
 
 // =========================================
 // ローカライズ / Localization
