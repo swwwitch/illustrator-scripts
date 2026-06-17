@@ -1,5 +1,4 @@
 #target illustrator
-#targetengine "applyFontByLine"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -31,6 +30,11 @@ v1.1.1  現行バージョン
     // 設定 / バージョン / ローカライズ（Settings / Version / Localization）
     // ============================================================
     var SCRIPT_VERSION = "v1.1.1";
+
+    // クラッシュ箇所を特定するためのデバッグログ（true でデスクトップにログ出力）。
+    // 各ステップで「開く→書く→閉じる」を行い、その都度ディスクへ確定させるので、
+    // Illustrator が落ちてもログの最終行までは残る＝その次の処理が犯人。
+    var DEBUG_LOG = true;
 
     // ============================================================
     // 【カスタム置換ルール】
@@ -203,26 +207,39 @@ v1.1.1  現行バージョン
     var unappliedFrames = [];
     var unappliedTexts = [];
     var pickMemo = {}; // lineText -> TextFont（適用）/ null（スキップ）
+    var picker = null; // ピッカーは初回だけ生成して全ピックで使い回す（dropdownlist 再生成クラッシュ対策）
+    dlog("=== run start === pendingPicks=" + pendingPicks.length);
     for (var i = 0; i < pendingPicks.length; i++) {
         var pick = pendingPicks[i];
-        var paragraph = pick.frame.paragraphs[pick.index]; // 再取得（段落数は不変なので添字は有効）
+        dlog("pick[" + i + "] index=" + pick.index + " text=[" + pick.lineText + "]");
 
         // 同じ文字列を既に決めていれば、その結果を再利用（ピッカーを出さない）
         if (pickMemo.hasOwnProperty(pick.lineText)) {
             var remembered = pickMemo[pick.lineText];
             var reapplied = false;
             if (remembered) {
-                try {
-                    paragraph.characterAttributes.textFont = remembered;
-                    reapplied = true;
-                } catch (e) { }
+                // 段落は保持参照を使い回さず、使用直前にライブ取得する（無効化クラッシュ対策）
+                var rememberParagraph = getLiveParagraph(pick.frame, pick.index);
+                if (rememberParagraph) {
+                    try {
+                        rememberParagraph.characterAttributes.textFont = remembered;
+                        reapplied = true;
+                    } catch (e) { }
+                }
             }
             if (!reapplied) recordUnapplied(unappliedFrames, unappliedTexts, pick);
             continue;
         }
 
         // 初登場の文字列はピッカーで決めさせ、結果を記憶する
-        var picked = showFontPicker(pick.frame, paragraph, pick.lineText, pick.initialFont);
+        dlog("  -> showFontPicker open");
+        if (!picker) {
+            dlog("  -> createFontPickerDialog (once, families=" + fontIndex.families.length + ")");
+            picker = createFontPickerDialog(fontIndex.families);
+            dlog("  -> createFontPickerDialog done");
+        }
+        var picked = showFontPicker(picker, pick.frame, pick.index, pick.lineText, pick.initialFont);
+        dlog("  -> showFontPicker closed: " + (picked === PICKER_QUIT ? "QUIT" : (picked === null ? "SKIP" : "APPLIED")));
         if (picked === PICKER_QUIT) {
             // 「終了」：このピック以降の保留分をすべて未適用として記録し、選択を打ち切る
             for (var q = i; q < pendingPicks.length; q++) {
@@ -236,28 +253,52 @@ v1.1.1  現行バージョン
         }
     }
 
+    dlog("loop done. unappliedFrames=" + unappliedFrames.length + " unappliedTexts=" + unappliedTexts.length);
+
     // 未適用の行を含むフレームには、背面に赤・半透明（MARKER_OPACITY%）の長方形を置いて目印にする
     // （テキスト自体は変更しない非破壊マーカー）。実行のたびに古い目印レイヤーは削除する。
+    dlog("before removeLayerByName");
     removeLayerByName(MARKER_LAYER_NAME);
+    dlog("after removeLayerByName");
 
     // 未適用があれば、目印レイヤーを新規作成して長方形を置く
     if (unappliedFrames.length > 0) {
+        dlog("before createMarkerLayer");
         var markerLayer = createMarkerLayer(MARKER_LAYER_NAME);
+        dlog("after createMarkerLayer");
         for (var i = 0; i < unappliedFrames.length; i++) {
+            dlog("  createMarkerRect[" + i + "]");
             createMarkerRect(unappliedFrames[i], markerLayer);
         }
         // 目印を誤って動かさないよう、作成後にレイヤーをロック
+        dlog("before markerLayer.locked");
         markerLayer.locked = true;
+        dlog("after markerLayer.locked");
     }
 
     // 適用できなかった文字列のみをダイアログで表示（コピー用ボタン付き）
     if (unappliedTexts.length > 0) {
+        dlog("before showResultDialog");
         showResultDialog(unappliedTexts);
+        dlog("after showResultDialog");
     }
+    dlog("=== run end ===");
 
     // ============================================================
     // 関数（Functions）
     // ============================================================
+
+    // デバッグログを1行追記する。書き込みごとに close() してディスクへ確定させる。
+    function dlog(message) {
+        if (!DEBUG_LOG) return;
+        try {
+            var logFile = new File(Folder.desktop + "/ApplyFontByLine-debug.log");
+            logFile.encoding = "UTF-8";
+            logFile.open("a");
+            logFile.writeln(message);
+            logFile.close();
+        } catch (e) { }
+    }
 
     // 適用中に表示するプログレスバー（パレット）を作成して返す
     function createProgress(total) {
@@ -327,65 +368,87 @@ v1.1.1  現行バージョン
 
     // 候補が曖昧／未適用の行について、フォントを対話的に選ばせる。
     // 「適用」で選んだ TextFont を返し、「スキップ」／閉じるでは null を返す。
-    // ライブプレビューのため、操作中は対象段落のフォントを直接変更する（スキップ時に復元）。
-    function showFontPicker(targetFrame, paragraph, lineText, initialFont) {
-        var originalFont = paragraph.characterAttributes.textFont;
-
-        // 対象テキストを画面にフィット
+    // モーダルダイアログ表示中はドキュメントを一切変更しない（ライブプレビューは
+    // Illustrator のハードクラッシュ要因のため廃止）。実適用は閉じた後にまとめて行う。
+    // ダイアログ（picker）は作り直さず使い回す。ここでは対象テキストと選択をリセットするだけ。
+    function showFontPicker(picker, targetFrame, paragraphIndex, lineText, initialFont) {
+        // 対象テキストを画面にフィット（モーダル表示前に行う）
+        dlog("    showFontPicker: before zoomToFrame");
         zoomToFrame(targetFrame);
+        dlog("    showFontPicker: after zoomToFrame");
 
-        var families = fontIndex.families;
-
-        // UI は createFontPickerDialog が生成。ここではロジック（選択・プレビュー・確定）だけ扱う
-        var pickerUI = createFontPickerDialog(lineText, families);
-        var dialog = pickerUI.dialog;
-        var familyList = pickerUI.familyList;
-        var styleList = pickerUI.styleList;
-        var searchField = pickerUI.searchField;
-
-        // 初期選択（initialFont があればそれに合わせる）
-        initializeFontPickerSelection(familyList, styleList, families, initialFont);
-
-        bindFontPickerEvents(paragraph, familyList, styleList, searchField, families);
-
-        // あいまい候補があるときだけ初回プレビュー。未一致のときは元の見た目を保つ
-        if (initialFont) applyFontPickerPreview(paragraph, familyList, styleList);
+        // このピック用に UI をリセット（対象テキスト差し替え／検索クリア／一覧と選択の再設定）
+        dlog("    showFontPicker: before reset");
+        picker.targetLabel.text = lineText;
+        picker.searchField.text = "";
+        resetFamilyListToAll(picker.familyList, picker.families);
+        initializeFontPickerSelection(picker.familyList, picker.styleList, picker.families, initialFont);
+        dlog("    showFontPicker: after reset");
 
         // 「適用」=1 / 「スキップ」=2（閉じる含む）/ 「終了」=3
-        var result = dialog.show();
+        dlog("    showFontPicker: before dialog.show()");
+        var result = picker.dialog.show();
+        dlog("    showFontPicker: after dialog.show() result=" + result);
 
-        return handleFontPickerResult(result, paragraph, originalFont, familyList, styleList);
+        return handleFontPickerResult(result, targetFrame, paragraphIndex, picker.familyList, picker.styleList);
     }
 
-    // フォントピッカーの結果を処理して返す
-    function handleFontPickerResult(result, paragraph, originalFont, familyList, styleList) {
+    // 検索で絞り込まれている可能性のある familyList を全件に戻す。
+    // 全件と同数なら何もしない（スキップ連打のような未検索ケースで再構築を避ける）。
+    // ※ 既存コントロールへの item 追加は安全。落ちるのは「巨大配列での新規 dropdownlist 生成」だけ。
+    function resetFamilyListToAll(familyList, families) {
+        if (familyList.items.length === families.length) return;
+        familyList.removeAll();
+        for (var i = 0; i < families.length; i++) {
+            familyList.add("item", families[i]);
+        }
+    }
+
+    // frame と段落インデックスから段落（TextRange）を毎回ライブ取得する。
+    // フォント適用後に保持参照を使い回すと無効化され、try/catch でも拾えない
+    // ネイティブクラッシュ（Illustrator ごと落ちる）を起こすため、使用直前に都度取り直す。
+    function getLiveParagraph(frame, index) {
+        try {
+            return frame.paragraphs[index];
+        } catch (e) {
+            return null;
+        }
+    }
+
+    // フォントピッカーの結果を処理して返す。
+    // 実適用はダイアログを閉じた後（＝モーダル表示外）に行うため安全。
+    function handleFontPickerResult(result, targetFrame, paragraphIndex, familyList, styleList) {
         if (result === 1 && familyList.selection && styleList.selection) {
             var chosenFont = fontFor(familyList.selection.text, styleList.selection.text);
             if (chosenFont) {
-                try {
-                    paragraph.characterAttributes.textFont = chosenFont;
-                    return chosenFont;
-                } catch (e) { }
+                // 段落は保持参照を使い回さず、使用直前にライブ取得（無効化クラッシュ対策）
+                var applyParagraph = getLiveParagraph(targetFrame, paragraphIndex);
+                if (applyParagraph) {
+                    try {
+                        applyParagraph.characterAttributes.textFont = chosenFont;
+                        return chosenFont;
+                    } catch (e) { }
+                }
             }
         }
 
-        // スキップ／終了時の復元処理で Illustrator が落ちるケースがあるため、ここでは復元しない。
-        // 未適用として記録し、後続のマーカー処理に任せる。
+        // スキップ／終了：ダイアログ中にドキュメントを変更していないので復元は不要。
         return (result === 3) ? PICKER_QUIT : null;
     }
 
 
     // フォントピッカーの UI を生成して { dialog, familyList, styleList } を返す。
     // ボタンは name:"ok"/"cancel" なので、判定は dialog.show() の戻り値で行う。
-    function createFontPickerDialog(lineText, families) {
+    function createFontPickerDialog(families) {
         var dialog = new Window("dialog", L(LABELS.picker.title) + " " + SCRIPT_VERSION);
         dialog.alignChildren = "fill";
         dialog.margins = 15;
 
-        // 対象テキスト（パネルの外）
+        // 対象テキスト（パネルの外）。値はピックごとに差し替えるので空で作り、幅だけ確保する
         var targetRow = dialog.add("group");
         targetRow.add("statictext", undefined, L(LABELS.picker.target));
-        targetRow.add("statictext", undefined, lineText);
+        var targetLabel = targetRow.add("statictext", undefined, "", { truncate: "end" });
+        targetLabel.preferredSize.width = 260;
 
         // 置換パネル（フォント／スタイル）
         var replacePanel = dialog.add("panel", undefined, L(LABELS.picker.replace));
@@ -407,7 +470,11 @@ v1.1.1  現行バージョン
         var familyRow = replacePanel.add("group");
         var familyLabel = familyRow.add("statictext", undefined, L(LABELS.picker.family));
         familyLabel.preferredSize.width = labelWidth;
+        // 巨大配列での dropdownlist 生成を繰り返すと Illustrator が落ちるため、
+        // このダイアログ（と familyList）は実行中に1回だけ生成して使い回す。
+        dlog("      createFontPickerDialog: before family dropdownlist add");
         var familyList = familyRow.add("dropdownlist", undefined, families);
+        dlog("      createFontPickerDialog: after family dropdownlist add");
         familyList.preferredSize.width = 200;
 
         // スタイルプルダウン
@@ -441,25 +508,30 @@ v1.1.1  現行バージョン
         btnRightGroup.add("button", undefined, L(LABELS.picker.skip), { name: "cancel" });
         btnRightGroup.add("button", undefined, L(LABELS.picker.apply), { name: "ok" });
 
-        return { dialog: dialog, familyList: familyList, styleList: styleList, searchField: searchField };
+        // イベントもダイアログ生成時に1回だけ接続する（使い回すため）
+        bindFontPickerEvents(familyList, styleList, searchField, families);
+
+        return {
+            dialog: dialog,
+            familyList: familyList,
+            styleList: styleList,
+            searchField: searchField,
+            targetLabel: targetLabel,
+            families: families
+        };
     }
 
-    // フォントピッカーの検索・ファミリー・スタイル変更イベントを接続する
-    function bindFontPickerEvents(paragraph, familyList, styleList, searchField, families) {
+    // フォントピッカーの検索・ファミリー変更イベントを接続する。
+    // （ドキュメントは変更しない。実適用は「適用」確定後にまとめて行う）
+    function bindFontPickerEvents(familyList, styleList, searchField, families) {
         // 検索フィールドに入力するたびに、ファミリーのプルダウンを絞り込む
         searchField.onChanging = function () {
             filterFamilyList(familyList, families, searchField.text);
             updateFontPickerStyleSelection(familyList, styleList);
-            applyFontPickerPreview(paragraph, familyList, styleList);
         };
 
         familyList.onChange = function () {
             updateFontPickerStyleSelection(familyList, styleList);
-            applyFontPickerPreview(paragraph, familyList, styleList);
-        };
-
-        styleList.onChange = function () {
-            applyFontPickerPreview(paragraph, familyList, styleList);
         };
     }
 
@@ -488,19 +560,6 @@ v1.1.1  現行バージョン
 
         if (initialFont) selectInList(styleList, initialFont.style);
         if (!styleList.selection && styleList.items.length > 0) styleList.selection = 0;
-    }
-
-    // 選択中の family / style に対応するフォントを対象段落へ反映する（ライブプレビュー）
-    function applyFontPickerPreview(paragraph, familyList, styleList) {
-        if (!familyList.selection || !styleList.selection) return;
-
-        var font = fontFor(familyList.selection.text, styleList.selection.text);
-        if (!font) return;
-
-        try {
-            paragraph.characterAttributes.textFont = font;
-            app.redraw();
-        } catch (e) { }
     }
 
     // 検索クエリ（部分一致・大文字小文字を無視）でファミリーのドロップダウンを絞り込む。
