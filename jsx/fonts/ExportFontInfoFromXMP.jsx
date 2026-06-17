@@ -1,6 +1,3 @@
-#target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
-
 /*
 
 ### 概要 / Overview
@@ -39,6 +36,9 @@ https://note.com/dtp_tranist/n/n16e7e95652b6
 - v1.0.1 (20260617) : 書き出し先（デスクトップ／同じ階層）の選択、パネル化、未保存チェックを追加 / Added destination choice (desktop / same folder), panel layout, and unsaved-document check
 
 */
+
+#target illustrator
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 // =========================================
 // バージョン / Version
