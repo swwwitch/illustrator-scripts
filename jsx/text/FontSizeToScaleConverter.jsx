@@ -38,9 +38,12 @@ var LABELS = {
     }
 };
 
-/* ラベルを現在の言語で取得 / Resolve a label in the current language */
-function L(labelObj) {
-    return labelObj[currentLanguage] || labelObj.en;
+/* キーからラベルを現在の言語で取得（"alert.noDocument" のようにドット区切り）
+   Resolve a label by key in the current language (dot-separated, e.g. "alert.noDocument") */
+function getLocalizedText(key) {
+    var parts = key.split(".");
+    var label = LABELS[parts[0]][parts[1]];
+    return label[currentLanguage] || label.en;
 }
 
 // =========================================
@@ -49,18 +52,24 @@ function L(labelObj) {
 (function () {
     /* ドキュメントの有無を確認 / Check that a document is open */
     if (app.documents.length === 0) {
-        alert(L(LABELS.alert.noDocument));
+        alert(getLocalizedText("alert.noDocument"));
         return;
     }
+
+    var doc = app.activeDocument;
 
     /* 選択の有無を確認 / Check that something is selected */
-    if (app.selection.length === 0) {
-        alert(L(LABELS.alert.noSelection));
+    if (doc.selection.length === 0) {
+        alert(getLocalizedText("alert.noSelection"));
         return;
     }
 
-    var selectedItems = app.selection;
-    var processedCount = 0;
+    var selectedItems = [];
+    var targetTextCount = 0;
+
+    for (var i = 0; i < doc.selection.length; i++) {
+        selectedItems.push(doc.selection[i]);
+    }
 
     /* 選択した各オブジェクトを処理 / Process each selected object */
     for (var i = 0; i < selectedItems.length; i++) {
@@ -68,21 +77,23 @@ function L(labelObj) {
     }
 
     /* 処理対象が無かった場合の通知 / Notify when nothing could be processed */
-    if (processedCount === 0) {
-        alert(L(LABELS.alert.noText));
+    if (targetTextCount === 0) {
+        alert(getLocalizedText("alert.noText"));
     }
 
     /* オブジェクト種別ごとに振り分け（テキストは変換、グループは再帰）
        Dispatch by object type (convert text, recurse into groups) */
     function convertPageItem(pageItem) {
+        /* ロック中・非表示のオブジェクトはスキップ（TextRange は該当プロパティが無く undefined＝対象）
+           Skip locked or hidden objects (TextRange has no such property → undefined, so it is processed) */
+        if (pageItem.locked || pageItem.hidden) return;
+
         if (pageItem.typename === "TextFrame") {
             /* ポイント文字・エリア内文字・パス上文字はすべて TextFrame として扱える
                Point, area, and path text are all TextFrame objects */
-            convertTextRangeSizes(pageItem.textRange);
-            processedCount++;
+            if (convertTextRangeSizes(pageItem.textRange)) targetTextCount++;
         } else if (pageItem.typename === "TextRange") {
-            convertTextRangeSizes(pageItem);
-            processedCount++;
+            if (convertTextRangeSizes(pageItem)) targetTextCount++;
         } else if (pageItem.typename === "GroupItem") {
             /* グループ内のテキストを再帰的にたどる / Recurse into group contents */
             for (var j = 0; j < pageItem.pageItems.length; j++) {
@@ -91,13 +102,17 @@ function L(labelObj) {
         }
     }
 
-    /* テキスト内の各文字サイズを先頭文字サイズへ揃え、差分を比率へ変換
-       Unify each character's size to the first character's size, converting the difference into scale */
+    /* テキスト内の各文字サイズを先頭文字サイズへ揃え、差分を比率へ変換（空なら false を返す）
+       Unify each character's size to the first character's size, converting the difference into scale (returns false when empty) */
     function convertTextRangeSizes(textRange) {
-        if (textRange.characters.length === 0) return;
+        /* 空テキストは処理対象に数えない / Do not count empty text as processed */
+        if (textRange.characters.length === 0) return false;
 
         /* 先頭文字のサイズを基準にする / Use the first character's size as the base */
         var baseFontSize = textRange.characters[0].characterAttributes.size;
+
+        /* 基準サイズが 0 や不正値なら除算できないのでスキップ / Skip when the base size is zero or invalid (cannot divide) */
+        if (!baseFontSize || baseFontSize <= 0) return false;
 
         for (var i = 0; i < textRange.characters.length; i++) {
             var charAttributes = textRange.characters[i].characterAttributes;
@@ -116,5 +131,6 @@ function L(labelObj) {
                 charAttributes.verticalScale = currentVerticalScale * sizeRatio;
             }
         }
+        return true;
     }
 })();
