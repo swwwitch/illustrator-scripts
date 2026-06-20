@@ -17,7 +17,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 紹介記事（note: Japanese only）
 
-
+https://note.com/dtp_tranist/n/n0f1203d5f8f8
 
 ### Overview
 
