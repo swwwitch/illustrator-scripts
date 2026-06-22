@@ -19,15 +19,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   ヒラギノ角ゴシック W3   12pt     16pt    メトリクス       0         0             ON
   ヒラギノ角ゴシック W3   10.5pt   14pt    メトリクス       10        25            OFF
 
-- パレットは列付きリストと、その下のボタンエリア（左：「クリックで適用」チェック
-  ボックス／中央：スペーサー／右：「選択した条件のフォントを選択」ボタン）で構成
+- パレットは上部のチェックボックス（「現在のアートボードに限定」）、列付きリスト、
+  その下のボタンエリア（左：「クリックで適用」チェックボックス／中央：スペーサー／
+  右：「リストを更新」「選択した条件のフォントを選択」ボタン）で構成
 - 「クリックで適用」が ON のとき、行をクリックすると選択中のテキストへその組み合わせ
   （フォント・サイズ・行送り・自動カーニング・文字ツメ・トラッキング・
   プロポーショナルメトリクス）をまとめて適用。OFF のあいだはクリックしても適用しない
 - 「選択した条件のフォントを選択」ボタンで、その条件に一致する文字を含むテキスト
   フレームをドキュメント上で選択する（押すと「クリックで適用」は自動 OFF）
-- 走査はドキュメント全体（全テキストフレーム）。適用先は現在の選択
-- 一覧はパレット表示のたびに再走査する
+- 「リストを更新」ボタンで一覧をその場で再走査する
+- 「現在のアートボードに限定」を ON にすると、走査・条件一致選択を現在のアートボードと
+  重なるテキストフレームだけに絞る（OFF はドキュメント全体）。適用先は常に現在の選択
+- 一覧はパレット表示時・「リストを更新」・「現在のアートボードに限定」切り替え時に再走査する
 - 常駐エンジン（#targetengine）でパレット表示。常駐エンジンの app は
   パレット表示中に DOM 接続を失うため、DOM 処理はメインエンジンへ
   BridgeTalk で都度委譲する（コードは encodeURIComponent で包んで送信）
@@ -42,16 +45,20 @@ listed as a separate candidate.
 The list is shown as seven columns: Font / Size / Leading / Auto Kerning / Tsume /
 Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
 
-- The palette is the column list plus a button area below it (left: an
-  "Apply on click" checkbox / center: a spacer / right: a "Select matching
-  text" button)
+- The palette is a top checkbox ("Current artboard only"), the column list, and
+  a button area below it (left: an "Apply on click" checkbox / center: a spacer /
+  right: "Refresh list" and "Select matching text" buttons)
 - While "Apply on click" is ON, clicking a row applies that combination (font,
   size, leading, auto kerning, Tsume, tracking, proportional metrics) to the
   current selection; while OFF, clicking does not apply
 - The "Select matching text" button selects the text frames containing
   characters that match the selected condition (this turns "Apply on click" OFF)
-- The scan covers the whole document; the target is the current selection
-- The list is rescanned each time the palette is shown
+- The "Refresh list" button rescans the list on demand
+- Turning on "Current artboard only" limits the scan and matching selection to
+  text frames overlapping the active artboard (off = whole doc); the apply target
+  is always the current selection
+- The list is rescanned when shown, on "Refresh list", and when "Current artboard
+  only" is toggled
 - Runs as a persistent palette (#targetengine). The persistent engine's app
   loses its DOM connection while the palette is shown, so all DOM work is
   delegated to the main engine via BridgeTalk (code wrapped in encodeURIComponent)
@@ -63,7 +70,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
     // =========================================
     // バージョン / Version
     // =========================================
-    var SCRIPT_VERSION = "v1.0.0";
+    var SCRIPT_VERSION = "v1.1.1";
 
     // =========================================
     // ローカライズ / Localization
@@ -90,9 +97,11 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
             propMetrics: { ja: "プロポーショナル", en: "Prop. Metrics" }
         },
         control: {
-            applyOnClick: { ja: "クリックで適用", en: "Apply on click" }
+            applyOnClick: { ja: "クリックで適用", en: "Apply on click" },
+            currentArtboardOnly: { ja: "現在のアートボードに限定", en: "Current artboard only" }
         },
         button: {
+            refresh: { ja: "リストを更新", en: "Refresh list" },
             selectMatching: { ja: "選択した条件のフォントを選択", en: "Select matching text" }
         },
         autoLeading: { ja: "自動", en: "Auto" },
@@ -237,13 +246,39 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
         ].join("|");
     }
 
-    /* ドキュメント全体を走査し、組み合わせを TAB 区切り行（LF 連結）で返す / Scan the whole document; return combos as TAB-joined rows (LF-joined)
+    /* 現在のアートボードの矩形を取得（取れなければ null）/ Get the active artboard rect ([L,T,R,B]); null if unavailable */
+    function getActiveArtboardRect(activeDocument) {
+        try {
+            var activeIndex = activeDocument.artboards.getActiveArtboardIndex();
+            return activeDocument.artboards[activeIndex].artboardRect;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /* テキストフレームがアートボード矩形と重なるか / Whether a text frame overlaps the artboard rect
+       Illustrator の y 軸は上が大きい（top > bottom）。矩形が無ければ常に true */
+    function frameOverlapsArtboard(textFrame, artboardRect) {
+        if (!artboardRect) return true;
+        var bounds;
+        try { bounds = textFrame.geometricBounds; } catch (e) { return false; }
+        var frameLeft = bounds[0], frameTop = bounds[1], frameRight = bounds[2], frameBottom = bounds[3];
+        var artLeft = artboardRect[0], artTop = artboardRect[1], artRight = artboardRect[2], artBottom = artboardRect[3];
+        if (frameRight < artLeft || frameLeft > artRight) return false;
+        if (frameBottom > artTop || frameTop < artBottom) return false;
+        return true;
+    }
+
+    /* ドキュメントを走査し、組み合わせを TAB 区切り行（LF 連結）で返す / Scan the document; return combos as TAB-joined rows (LF-joined)
+       currentArtboardOnly が true なら現在のアートボードと重なるフレームだけ対象 / If currentArtboardOnly, only frames overlapping the active artboard
        1行 = psName \t displayName \t size \t leading \t autoLeading(0/1) \t tsume \t tracking \t kernId \t proportionalMetrics(0/1) */
-    function collectDocumentCombosRaw(activeDocument) {
+    function collectDocumentCombosRaw(activeDocument, currentArtboardOnly) {
         var seenComboKeys = {}, comboRows = [];
         var TAB = String.fromCharCode(9), LF = String.fromCharCode(10);
+        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
         var textFrames = activeDocument.textFrames;
         for (var f = 0; f < textFrames.length; f++) {
+            if (artboardRect && !frameOverlapsArtboard(textFrames[f], artboardRect)) continue;
             var characters;
             try { characters = textFrames[f].characters; } catch (eFrame) { continue; }
             for (var c = 0; c < characters.length; c++) {
@@ -294,11 +329,13 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
 
     /* 組み合わせに一致する文字を含むテキストフレームを選択 / Select text frames containing characters that match the combo
        戻り値: 選択したフレーム数 / Returns the number of selected frames */
-    function selectFramesMatchingCombo(activeDocument, combo) {
+    function selectFramesMatchingCombo(activeDocument, combo, currentArtboardOnly) {
         var targetKey = comboKey(combo);
+        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
         var textFrames = activeDocument.textFrames;
         var matchedFrames = [];
         for (var f = 0; f < textFrames.length; f++) {
+            if (artboardRect && !frameOverlapsArtboard(textFrames[f], artboardRect)) continue;
             var characters;
             try { characters = textFrames[f].characters; } catch (eFrame) { continue; }
             for (var c = 0; c < characters.length; c++) {
@@ -322,6 +359,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
         getTypeName, collectRangesFromItem, getSelectedTextRanges,
         kernMethodToId, resolveAutoKernType, formatNumber,
         getFontDisplayName, readComboFromCharacter, comboKey,
+        getActiveArtboardRect, frameOverlapsArtboard,
         collectDocumentCombosRaw, applyComboToRanges, selectFramesMatchingCombo
     ];
 
@@ -345,7 +383,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
         try { app.activeDocument; } catch (e) { return "ERR:nodoc"; }
 
         if (actionId === "getCombos") {
-            return "OK:" + encodeURIComponent(collectDocumentCombosRaw(app.activeDocument));
+            return "OK:" + encodeURIComponent(collectDocumentCombosRaw(app.activeDocument, params && params.currentArtboardOnly));
         }
         if (actionId === "applyCombo") {
             var selectedRanges = getSelectedTextRanges();
@@ -360,7 +398,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
             return "OK:" + appliedCount;
         }
         if (actionId === "selectMatching") {
-            var matchedCount = selectFramesMatchingCombo(app.activeDocument, params);
+            var matchedCount = selectFramesMatchingCombo(app.activeDocument, params, params && params.currentArtboardOnly);
             app.redraw();
             return "OK:" + matchedCount;
         }
@@ -369,22 +407,26 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
     var DISPATCH_SOURCE = "(" + dispatch.toString() + ")";
 
     /* パラメータを安全な JS リテラル文字列へ / Serialize params to a safe JS literal
-       params は comboToParams（全フィールドあり）か null のどちらか / params is either a full combo-params object or null */
+       params はフラグだけ（getCombos）か comboToParams（全フィールド＋フラグ）か null / flag-only, full combo+flag, or null
+       currentArtboardOnly は常に出力する / currentArtboardOnly is always emitted */
     function paramsToSource(params) {
         if (!params) return "{}";
         function numberLiteral(value) { return isNaN(value) ? "NaN" : value; }
         function stringLiteral(value) { return 'decodeURIComponent("' + encodeURIComponent(value) + '")'; }
         function boolLiteral(value) { return value ? "true" : "false"; }
-        return "{" + [
-            "psName:" + stringLiteral(params.psName),
-            "kernId:" + stringLiteral(params.kernId),
-            "size:" + numberLiteral(params.size),
-            "leading:" + numberLiteral(params.leading),
-            "tsume:" + (isNaN(params.tsume) ? 0 : params.tsume),
-            "tracking:" + numberLiteral(params.tracking),
-            "autoLeading:" + boolLiteral(params.autoLeading),
-            "proportionalMetrics:" + boolLiteral(params.proportionalMetrics)
-        ].join(",") + "}";
+        var fields = [];
+        if (params.psName !== undefined) {
+            fields.push("psName:" + stringLiteral(params.psName));
+            fields.push("kernId:" + stringLiteral(params.kernId));
+            fields.push("size:" + numberLiteral(params.size));
+            fields.push("leading:" + numberLiteral(params.leading));
+            fields.push("tsume:" + (isNaN(params.tsume) ? 0 : params.tsume));
+            fields.push("tracking:" + numberLiteral(params.tracking));
+            fields.push("autoLeading:" + boolLiteral(params.autoLeading));
+            fields.push("proportionalMetrics:" + boolLiteral(params.proportionalMetrics));
+        }
+        fields.push("currentArtboardOnly:" + boolLiteral(params.currentArtboardOnly));
+        return "{" + fields.join(",") + "}";
     }
 
     /*
@@ -511,6 +553,14 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
         ];
         var columnWidths = [200, 60, 70, 90, 70, 90, 110];
 
+        // 上部：走査を現在のアートボードに限定するか / Top: limit the scan to the active artboard
+        var topRow = palette.add("group");
+        topRow.orientation = "row";
+        topRow.alignment = ["fill", "center"];
+        var currentArtboardCheckbox = topRow.add("checkbox", undefined, getLocalizedText(LABELS.control.currentArtboardOnly));
+        currentArtboardCheckbox.alignment = ["left", "center"];
+        currentArtboardCheckbox.value = false;
+
         var comboListBox = palette.add("listbox", undefined, [], {
             multiselect: false,
             numberOfColumns: columnTitles.length,
@@ -537,6 +587,10 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
         spacer.alignment = ["fill", "center"];
         spacer.minimumSize = [10, 1];
 
+        // 右：一覧を再走査 / Right: rescan the list
+        var refreshButton = buttonRow.add("button", undefined, getLocalizedText(LABELS.button.refresh));
+        refreshButton.alignment = ["right", "center"];
+
         // 右：選択中の条件に一致するテキストを選択 / Right: select text matching the selected condition
         var selectMatchingButton = buttonRow.add("button", undefined, getLocalizedText(LABELS.button.selectMatching));
         selectMatchingButton.alignment = ["right", "center"];
@@ -544,7 +598,9 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
         return {
             palette: palette,
             comboListBox: comboListBox,
+            currentArtboardCheckbox: currentArtboardCheckbox,
             applyOnClickCheckbox: applyOnClickCheckbox,
+            refreshButton: refreshButton,
             selectMatchingButton: selectMatchingButton
         };
     }
@@ -557,7 +613,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
 
         /* 組み合わせ一覧を読み直して listbox に反映 / Reload the combos into the listbox */
         function refreshCombos() {
-            runWorker("getCombos", null, function (status, payload) {
+            runWorker("getCombos", { currentArtboardOnly: paletteUI.currentArtboardCheckbox.value }, function (status, payload) {
                 paletteUI.comboListBox.removeAll();
                 currentCombos = (status === "ok") ? parseCombosPayload(decodeURIComponent(payload)) : [];
                 for (var i = 0; i < currentCombos.length; i++) {
@@ -601,12 +657,20 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
             if (!combo) return;
             // 一致選択後は選択が変わるので、クリック適用を自動 OFF にする / Selection changes after matching, so turn apply-on-click OFF
             paletteUI.applyOnClickCheckbox.value = false;
-            runWorker("selectMatching", comboToParams(combo), function (status, payload) {
+            var matchingParams = comboToParams(combo);
+            matchingParams.currentArtboardOnly = paletteUI.currentArtboardCheckbox.value;
+            runWorker("selectMatching", matchingParams, function (status, payload) {
                 if (status === "ok" && payload === "0") {
                     alert(getLocalizedText(LABELS.status.noMatch));
                 }
             });
         };
+
+        // 「リストを更新」で一覧を再走査 / Rescan the list on demand
+        paletteUI.refreshButton.onClick = function () { refreshCombos(); };
+
+        // 「現在のアートボードに限定」を切り替えたら一覧を再走査 / Rescan when the artboard-only toggle changes
+        paletteUI.currentArtboardCheckbox.onClick = function () { refreshCombos(); };
 
         // 表示のたびに一覧を再走査 / Rescan the combos whenever the palette is shown
         paletteUI.palette.onShow = function () { refreshCombos(); };
