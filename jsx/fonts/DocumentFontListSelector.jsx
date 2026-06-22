@@ -11,13 +11,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 重複を除いた一覧をパレットに表示する常駐スクリプトです。同じフォントでも
 これらの設定が異なれば、別の候補としてリストアップします。
 
-一覧は「フォント／サイズ／行送り／自動カーニング／文字ツメ／トラッキング／
-プロポーショナル」の7列で表示します（プロポーショナルメトリクスは ON/OFF）。
+一覧は「使用数／フォント／サイズ／行送り／自動カーニング／文字ツメ／トラッキング／
+プロポーショナル」の8列で表示します（プロポーショナルメトリクスは ON/OFF）。
+使用数は、その組み合わせを含むテキストフレームの数（1フレーム内で複数回使っても1）。
 
 例）
-  フォント               サイズ   行送り  自動カーニング  文字ツメ  トラッキング  プロポーショナル
-  ヒラギノ角ゴシック W3   12pt     16pt    メトリクス       0         0             ON
-  ヒラギノ角ゴシック W3   10.5pt   14pt    メトリクス       10        25            OFF
+  使用数  フォント               サイズ   行送り  自動カーニング  文字ツメ  トラッキング  プロポーショナル
+  3       ヒラギノ角ゴシック W3   12pt     16pt    メトリクス       0         0             ON
+  1       ヒラギノ角ゴシック W3   10.5pt   14pt    メトリクス       10        25            OFF
 
 - パレットは上部のチェックボックス（「現在のアートボードに限定」）、列付きリスト、
   その下のボタンエリア（左：「クリックで適用」チェックボックス／中央：スペーサー／
@@ -42,8 +43,9 @@ document (font, size, leading, Tsume, tracking, auto-kerning and proportional
 metrics), deduped. Even for the same font, a different combination of these is
 listed as a separate candidate.
 
-The list is shown as seven columns: Font / Size / Leading / Auto Kerning / Tsume /
-Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
+The list is shown as eight columns: Count / Font / Size / Leading / Auto Kerning /
+Tsume / Tracking / Prop. Metrics (proportional metrics shown as ON/OFF). Count is
+the number of text frames that use the combination (a frame counts once).
 
 - The palette is a top checkbox ("Current artboard only"), the column list, and
   a button area below it (left: an "Apply on click" checkbox / center: a spacer /
@@ -70,7 +72,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
     // =========================================
     // バージョン / Version
     // =========================================
-    var SCRIPT_VERSION = "v1.1.1";
+    var SCRIPT_VERSION = "v1.1.2";
 
     // =========================================
     // ローカライズ / Localization
@@ -88,6 +90,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
             title: { ja: "ドキュメントフォントリスト", en: "Document Font List" }
         },
         column: {
+            count: { ja: "使用数", en: "Count" },
             font: { ja: "フォント", en: "Font" },
             size: { ja: "サイズ", en: "Size" },
             leading: { ja: "行送り", en: "Leading" },
@@ -271,9 +274,10 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
 
     /* ドキュメントを走査し、組み合わせを TAB 区切り行（LF 連結）で返す / Scan the document; return combos as TAB-joined rows (LF-joined)
        currentArtboardOnly が true なら現在のアートボードと重なるフレームだけ対象 / If currentArtboardOnly, only frames overlapping the active artboard
-       1行 = psName \t displayName \t size \t leading \t autoLeading(0/1) \t tsume \t tracking \t kernId \t proportionalMetrics(0/1) */
+       使用数 = その組み合わせを含むテキストフレームの数（1フレーム内で複数回使っても1）/ count = number of text frames that use the combo (a frame counts once)
+       1行 = psName \t displayName \t size \t leading \t autoLeading(0/1) \t tsume \t tracking \t kernId \t proportionalMetrics(0/1) \t count */
     function collectDocumentCombosRaw(activeDocument, currentArtboardOnly) {
-        var seenComboKeys = {}, comboRows = [];
+        var comboOrder = [], comboData = {}, comboRows = [];
         var TAB = String.fromCharCode(9), LF = String.fromCharCode(10);
         var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
         var textFrames = activeDocument.textFrames;
@@ -281,18 +285,30 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
             if (artboardRect && !frameOverlapsArtboard(textFrames[f], artboardRect)) continue;
             var characters;
             try { characters = textFrames[f].characters; } catch (eFrame) { continue; }
+            var seenInFrame = {};
             for (var c = 0; c < characters.length; c++) {
                 var combo = readComboFromCharacter(characters[c]);
                 if (!combo) continue;
                 var dedupeKey = comboKey(combo);
-                if (seenComboKeys[dedupeKey]) continue;
-                seenComboKeys[dedupeKey] = true;
-                comboRows.push([
-                    combo.psName, combo.displayName, String(combo.size), String(combo.leading),
-                    combo.autoLeading ? "1" : "0", String(combo.tsume), String(combo.tracking), combo.kernId,
-                    combo.proportionalMetrics ? "1" : "0"
-                ].join(TAB));
+                if (!comboData[dedupeKey]) {
+                    comboData[dedupeKey] = { combo: combo, count: 0 };
+                    comboOrder.push(dedupeKey);
+                }
+                // 同じフレーム内で同じ組み合わせを複数回使っても使用数は1だけ増やす / Count each frame once per combo
+                if (!seenInFrame[dedupeKey]) {
+                    seenInFrame[dedupeKey] = true;
+                    comboData[dedupeKey].count++;
+                }
             }
+        }
+        for (var i = 0; i < comboOrder.length; i++) {
+            var entry = comboData[comboOrder[i]];
+            var entryCombo = entry.combo;
+            comboRows.push([
+                entryCombo.psName, entryCombo.displayName, String(entryCombo.size), String(entryCombo.leading),
+                entryCombo.autoLeading ? "1" : "0", String(entryCombo.tsume), String(entryCombo.tracking), entryCombo.kernId,
+                entryCombo.proportionalMetrics ? "1" : "0", String(entry.count)
+            ].join(TAB));
         }
         return comboRows.join(LF);
     }
@@ -468,8 +484,9 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
     }
 
     /* 各列のセル文字列を組み立て / Build the per-column cell strings
-       [フォント, サイズ, 行送り, 自動カーニング, 文字ツメ, トラッキング, プロポーショナル] */
+       [使用数, フォント, サイズ, 行送り, 自動カーニング, 文字ツメ, トラッキング, プロポーショナル] */
     function comboCells(combo) {
+        var countText = isNaN(combo.count) ? "?" : String(combo.count);
         var sizeText = formatNumber(combo.size) + "pt";
         var leadingText = combo.autoLeading
             ? getLocalizedText(LABELS.autoLeading)
@@ -477,7 +494,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
         var tsumeText = String(Math.round(combo.tsume));
         var trackingText = isNaN(combo.tracking) ? "?" : String(Math.round(combo.tracking));
         var propMetricsText = combo.proportionalMetrics ? "ON" : "OFF";
-        return [combo.displayName, sizeText, leadingText, kernLabel(combo.kernId), tsumeText, trackingText, propMetricsText];
+        return [countText, combo.displayName, sizeText, leadingText, kernLabel(combo.kernId), tsumeText, trackingText, propMetricsText];
     }
 
     /* 委譲結果（デコード済み）を組み合わせ配列に復元し、表示順に並べる / Parse the worker payload into combos and sort them */
@@ -488,7 +505,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
         var comboRows = rawPayload.split(LF);
         for (var i = 0; i < comboRows.length; i++) {
             var fields = comboRows[i].split(TAB);
-            if (fields.length < 9) continue;
+            if (fields.length < 10) continue;
             var combo = {
                 psName: fields[0],
                 displayName: fields[1],
@@ -498,7 +515,8 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
                 tsume: parseFloat(fields[5]),
                 tracking: parseFloat(fields[6]),
                 kernId: fields[7],
-                proportionalMetrics: fields[8] === "1"
+                proportionalMetrics: fields[8] === "1",
+                count: parseInt(fields[9], 10)
             };
             combo.cells = comboCells(combo);
             combos.push(combo);
@@ -543,6 +561,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
         palette.spacing = 10;
 
         var columnTitles = [
+            getLocalizedText(LABELS.column.count),
             getLocalizedText(LABELS.column.font),
             getLocalizedText(LABELS.column.size),
             getLocalizedText(LABELS.column.leading),
@@ -551,7 +570,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
             getLocalizedText(LABELS.column.tracking),
             getLocalizedText(LABELS.column.propMetrics)
         ];
-        var columnWidths = [200, 60, 70, 90, 70, 90, 110];
+        var columnWidths = [50, 200, 60, 70, 90, 70, 90, 110];
 
         // 上部：走査を現在のアートボードに限定するか / Top: limit the scan to the active artboard
         var topRow = palette.add("group");
@@ -568,7 +587,7 @@ Tracking / Prop. Metrics (proportional metrics shown as ON/OFF).
             columnTitles: columnTitles,
             columnWidths: columnWidths
         });
-        comboListBox.preferredSize = [710, 300];
+        comboListBox.preferredSize = [760, 300];
 
         // ボタンエリア：左＝クリックで適用 / 中央＝スペーサー / 右＝条件一致テキストを選択
         // Button area: left = apply-on-click / center = spacer / right = select matching text
