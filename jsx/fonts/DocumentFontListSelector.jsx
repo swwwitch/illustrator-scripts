@@ -20,7 +20,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   3       ヒラギノ角ゴシック W3   12pt     16pt    メトリクス       0         0             ON
   1       ヒラギノ角ゴシック W3   10.5pt   14pt    メトリクス       10        25            OFF
 
-- パレットは上部のチェックボックス（「現在のアートボードに限定」）、列付きリスト、
+- パレットは上部に横並び・中央寄せのチェックボックス（「ロックされたテキストを含む」
+  「非表示のテキストを含む」「現在のアートボードに限定」）、列付きリスト、
   その下のボタンエリア（左：「クリックで適用」チェックボックス／中央：スペーサー／
   右：「リストを更新」「選択した条件のフォントを選択」ボタン）で構成
 - 「クリックで適用」が ON のとき、行をクリックすると選択中のテキストへその組み合わせ
@@ -31,7 +32,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 「リストを更新」ボタンで一覧をその場で再走査する
 - 「現在のアートボードに限定」を ON にすると、走査・条件一致選択を現在のアートボードと
   重なるテキストフレームだけに絞る（OFF はドキュメント全体）。適用先は常に現在の選択
-- 一覧はパレット表示時・「リストを更新」・「現在のアートボードに限定」切り替え時に再走査する
+- 「非表示のテキストを含む」が OFF のあいだは、非表示のテキスト（hidden なオブジェクト・
+  グループや、非表示レイヤー上のもの）を走査・条件一致選択から除外する（ON で含める）
+- 「ロックされたテキストを含む」が OFF のあいだは、ロックされたテキスト（locked な
+  オブジェクト・グループや、ロックレイヤー上のもの）を走査・条件一致選択から除外する（ON で含める）
+- 一覧の並び順は フォント名→サイズ→行送り→自動カーニング→文字ツメ→トラッキング→
+  プロポーショナル（使用数では並べ替えない）
+- 一覧はパレット表示時・「リストを更新」・各チェックボックス切り替え時に再走査する
 - 常駐エンジン（#targetengine）でパレット表示。常駐エンジンの app は
   パレット表示中に DOM 接続を失うため、DOM 処理はメインエンジンへ
   BridgeTalk で都度委譲する（コードは encodeURIComponent で包んで送信）
@@ -47,7 +54,8 @@ The list is shown as eight columns: Count / Font / Size / Leading / Auto Kerning
 Tsume / Tracking / Prop. Metrics (proportional metrics shown as ON/OFF). Count is
 the number of text frames that use the combination (a frame counts once).
 
-- The palette is a top checkbox ("Current artboard only"), the column list, and
+- The palette is a centered row of top checkboxes ("Include locked text" /
+  "Include hidden text" / "Current artboard only"), the column list, and
   a button area below it (left: an "Apply on click" checkbox / center: a spacer /
   right: "Refresh list" and "Select matching text" buttons)
 - While "Apply on click" is ON, clicking a row applies that combination (font,
@@ -59,8 +67,13 @@ the number of text frames that use the combination (a frame counts once).
 - Turning on "Current artboard only" limits the scan and matching selection to
   text frames overlapping the active artboard (off = whole doc); the apply target
   is always the current selection
-- The list is rescanned when shown, on "Refresh list", and when "Current artboard
-  only" is toggled
+- While "Include hidden text" is OFF, hidden text (hidden items/groups, or items
+  on hidden layers) is excluded from the scan and matching selection (ON includes it)
+- While "Include locked text" is OFF, locked text (locked items/groups, or items
+  on locked layers) is excluded from the scan and matching selection (ON includes it)
+- The list is sorted by font, then size, leading, auto kerning, Tsume, tracking,
+  and prop. metrics (not by count)
+- The list is rescanned when shown, on "Refresh list", and when a checkbox is toggled
 - Runs as a persistent palette (#targetengine). The persistent engine's app
   loses its DOM connection while the palette is shown, so all DOM work is
   delegated to the main engine via BridgeTalk (code wrapped in encodeURIComponent)
@@ -72,7 +85,7 @@ the number of text frames that use the combination (a frame counts once).
     // =========================================
     // バージョン / Version
     // =========================================
-    var SCRIPT_VERSION = "v1.1.2";
+    var SCRIPT_VERSION = "v1.1.3";
 
     // =========================================
     // ローカライズ / Localization
@@ -101,7 +114,9 @@ the number of text frames that use the combination (a frame counts once).
         },
         control: {
             applyOnClick: { ja: "クリックで適用", en: "Apply on click" },
-            currentArtboardOnly: { ja: "現在のアートボードに限定", en: "Current artboard only" }
+            currentArtboardOnly: { ja: "現在のアートボードに限定", en: "Current artboard only" },
+            includeHidden: { ja: "非表示のテキストを含む", en: "Include hidden text" },
+            includeLocked: { ja: "ロックされたテキストを含む", en: "Include locked text" }
         },
         button: {
             refresh: { ja: "リストを更新", en: "Refresh list" },
@@ -272,16 +287,54 @@ the number of text frames that use the combination (a frame counts once).
         return true;
     }
 
+    /* アイテムが表示されているか（自身と親グループの hidden、所属レイヤーの visible を遡って確認）/ Whether an item is visible
+       自身・親グループの hidden、所属レイヤーの visible を親方向にたどって判定 / Walks up parents checking item.hidden and layer.visible */
+    function isItemVisible(pageItem) {
+        var node = pageItem;
+        try {
+            while (node) {
+                var nodeType = node.typename;
+                if (nodeType === "Document") break;
+                if (nodeType === "Layer") {
+                    if (!node.visible) return false;
+                } else {
+                    if (node.hidden) return false;
+                }
+                node = node.parent;
+            }
+        } catch (e) { }
+        return true;
+    }
+
+    /* アイテムがロックされていないか（自身と親グループの locked、所属レイヤーの locked を遡って確認）/ Whether an item is unlocked
+       自身・親グループの locked、所属レイヤーの locked を親方向にたどって判定 / Walks up parents checking item.locked and layer.locked */
+    function isItemUnlocked(pageItem) {
+        var node = pageItem;
+        try {
+            while (node) {
+                var nodeType = node.typename;
+                if (nodeType === "Document") break;
+                if (node.locked) return false;
+                node = node.parent;
+            }
+        } catch (e) { }
+        return true;
+    }
+
     /* ドキュメントを走査し、組み合わせを TAB 区切り行（LF 連結）で返す / Scan the document; return combos as TAB-joined rows (LF-joined)
        currentArtboardOnly が true なら現在のアートボードと重なるフレームだけ対象 / If currentArtboardOnly, only frames overlapping the active artboard
+       includeHidden が false なら非表示のテキストフレームは除外 / If includeHidden is false, skip hidden text frames
+       includeLocked が false ならロックされたテキストフレームは除外 / If includeLocked is false, skip locked text frames
        使用数 = その組み合わせを含むテキストフレームの数（1フレーム内で複数回使っても1）/ count = number of text frames that use the combo (a frame counts once)
        1行 = psName \t displayName \t size \t leading \t autoLeading(0/1) \t tsume \t tracking \t kernId \t proportionalMetrics(0/1) \t count */
-    function collectDocumentCombosRaw(activeDocument, currentArtboardOnly) {
+    function collectDocumentCombosRaw(activeDocument, currentArtboardOnly, includeHidden, includeLocked) {
         var comboOrder = [], comboData = {}, comboRows = [];
         var TAB = String.fromCharCode(9), LF = String.fromCharCode(10);
         var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
         var textFrames = activeDocument.textFrames;
         for (var f = 0; f < textFrames.length; f++) {
+            if (!includeHidden && !isItemVisible(textFrames[f])) continue;
+            if (!includeLocked && !isItemUnlocked(textFrames[f])) continue;
             if (artboardRect && !frameOverlapsArtboard(textFrames[f], artboardRect)) continue;
             var characters;
             try { characters = textFrames[f].characters; } catch (eFrame) { continue; }
@@ -345,12 +398,14 @@ the number of text frames that use the combination (a frame counts once).
 
     /* 組み合わせに一致する文字を含むテキストフレームを選択 / Select text frames containing characters that match the combo
        戻り値: 選択したフレーム数 / Returns the number of selected frames */
-    function selectFramesMatchingCombo(activeDocument, combo, currentArtboardOnly) {
+    function selectFramesMatchingCombo(activeDocument, combo, currentArtboardOnly, includeHidden, includeLocked) {
         var targetKey = comboKey(combo);
         var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
         var textFrames = activeDocument.textFrames;
         var matchedFrames = [];
         for (var f = 0; f < textFrames.length; f++) {
+            if (!includeHidden && !isItemVisible(textFrames[f])) continue;
+            if (!includeLocked && !isItemUnlocked(textFrames[f])) continue;
             if (artboardRect && !frameOverlapsArtboard(textFrames[f], artboardRect)) continue;
             var characters;
             try { characters = textFrames[f].characters; } catch (eFrame) { continue; }
@@ -375,7 +430,7 @@ the number of text frames that use the combination (a frame counts once).
         getTypeName, collectRangesFromItem, getSelectedTextRanges,
         kernMethodToId, resolveAutoKernType, formatNumber,
         getFontDisplayName, readComboFromCharacter, comboKey,
-        getActiveArtboardRect, frameOverlapsArtboard,
+        getActiveArtboardRect, frameOverlapsArtboard, isItemVisible, isItemUnlocked,
         collectDocumentCombosRaw, applyComboToRanges, selectFramesMatchingCombo
     ];
 
@@ -399,7 +454,7 @@ the number of text frames that use the combination (a frame counts once).
         try { app.activeDocument; } catch (e) { return "ERR:nodoc"; }
 
         if (actionId === "getCombos") {
-            return "OK:" + encodeURIComponent(collectDocumentCombosRaw(app.activeDocument, params && params.currentArtboardOnly));
+            return "OK:" + encodeURIComponent(collectDocumentCombosRaw(app.activeDocument, params && params.currentArtboardOnly, params && params.includeHidden, params && params.includeLocked));
         }
         if (actionId === "applyCombo") {
             var selectedRanges = getSelectedTextRanges();
@@ -414,7 +469,7 @@ the number of text frames that use the combination (a frame counts once).
             return "OK:" + appliedCount;
         }
         if (actionId === "selectMatching") {
-            var matchedCount = selectFramesMatchingCombo(app.activeDocument, params, params && params.currentArtboardOnly);
+            var matchedCount = selectFramesMatchingCombo(app.activeDocument, params, params && params.currentArtboardOnly, params && params.includeHidden, params && params.includeLocked);
             app.redraw();
             return "OK:" + matchedCount;
         }
@@ -424,7 +479,7 @@ the number of text frames that use the combination (a frame counts once).
 
     /* パラメータを安全な JS リテラル文字列へ / Serialize params to a safe JS literal
        params はフラグだけ（getCombos）か comboToParams（全フィールド＋フラグ）か null / flag-only, full combo+flag, or null
-       currentArtboardOnly は常に出力する / currentArtboardOnly is always emitted */
+       currentArtboardOnly / includeHidden は常に出力する / the flags are always emitted */
     function paramsToSource(params) {
         if (!params) return "{}";
         function numberLiteral(value) { return isNaN(value) ? "NaN" : value; }
@@ -442,6 +497,8 @@ the number of text frames that use the combination (a frame counts once).
             fields.push("proportionalMetrics:" + boolLiteral(params.proportionalMetrics));
         }
         fields.push("currentArtboardOnly:" + boolLiteral(params.currentArtboardOnly));
+        fields.push("includeHidden:" + boolLiteral(params.includeHidden));
+        fields.push("includeLocked:" + boolLiteral(params.includeLocked));
         return "{" + fields.join(",") + "}";
     }
 
@@ -570,14 +627,26 @@ the number of text frames that use the combination (a frame counts once).
             getLocalizedText(LABELS.column.tracking),
             getLocalizedText(LABELS.column.propMetrics)
         ];
-        var columnWidths = [50, 200, 60, 70, 90, 70, 90, 110];
+        var columnWidths = [50, 160, 60, 70, 90, 70, 70, 70];
 
-        // 上部：走査を現在のアートボードに限定するか / Top: limit the scan to the active artboard
+        // 最上部：走査オプションのチェックボックスを横並び・左右中央に配置 / Topmost: scan-option checkboxes in one row, centered horizontally
+        //   ロックされたテキストを含む（OFF ならロックされたフレームを除外）/ Include locked text (off = skip locked frames)
+        //   非表示のテキストを含む（OFF なら非表示フレームを除外）/ Include hidden text (off = skip hidden frames)
+        //   現在のアートボードに限定 / Limit the scan to the active artboard
         var topRow = palette.add("group");
         topRow.orientation = "row";
-        topRow.alignment = ["fill", "center"];
+        topRow.alignment = ["center", "top"];
+        topRow.spacing = 16;
+        // 下マージンを +5（チェックボックス行とリストの間隔を少し広げる）/ +5 bottom margin (a bit more gap below the checkboxes)
+        topRow.margins = [0, 0, 0, 5];
+
+        var includeLockedCheckbox = topRow.add("checkbox", undefined, getLocalizedText(LABELS.control.includeLocked));
+        includeLockedCheckbox.value = true;
+
+        var includeHiddenCheckbox = topRow.add("checkbox", undefined, getLocalizedText(LABELS.control.includeHidden));
+        includeHiddenCheckbox.value = true;
+
         var currentArtboardCheckbox = topRow.add("checkbox", undefined, getLocalizedText(LABELS.control.currentArtboardOnly));
-        currentArtboardCheckbox.alignment = ["left", "center"];
         currentArtboardCheckbox.value = false;
 
         var comboListBox = palette.add("listbox", undefined, [], {
@@ -587,13 +656,15 @@ the number of text frames that use the combination (a frame counts once).
             columnTitles: columnTitles,
             columnWidths: columnWidths
         });
-        comboListBox.preferredSize = [760, 300];
+        comboListBox.preferredSize = [640, 300];
 
         // ボタンエリア：左＝クリックで適用 / 中央＝スペーサー / 右＝条件一致テキストを選択
         // Button area: left = apply-on-click / center = spacer / right = select matching text
         var buttonRow = palette.add("group");
         buttonRow.orientation = "row";
         buttonRow.alignment = ["fill", "center"];
+        // 上マージンを +10（リストとボタンの間隔を少し広げる）/ +10 top margin (a bit more gap above the buttons)
+        buttonRow.margins = [0, 10, 0, 0];
 
         // 左：クリックで適用するか（OFF のあいだはクリックしても適用しない）/ Left: whether a click applies (no apply while OFF)
         var applyOnClickCheckbox = buttonRow.add("checkbox", undefined, getLocalizedText(LABELS.control.applyOnClick));
@@ -617,6 +688,8 @@ the number of text frames that use the combination (a frame counts once).
         return {
             palette: palette,
             comboListBox: comboListBox,
+            includeLockedCheckbox: includeLockedCheckbox,
+            includeHiddenCheckbox: includeHiddenCheckbox,
             currentArtboardCheckbox: currentArtboardCheckbox,
             applyOnClickCheckbox: applyOnClickCheckbox,
             refreshButton: refreshButton,
@@ -632,7 +705,7 @@ the number of text frames that use the combination (a frame counts once).
 
         /* 組み合わせ一覧を読み直して listbox に反映 / Reload the combos into the listbox */
         function refreshCombos() {
-            runWorker("getCombos", { currentArtboardOnly: paletteUI.currentArtboardCheckbox.value }, function (status, payload) {
+            runWorker("getCombos", { currentArtboardOnly: paletteUI.currentArtboardCheckbox.value, includeHidden: paletteUI.includeHiddenCheckbox.value, includeLocked: paletteUI.includeLockedCheckbox.value }, function (status, payload) {
                 paletteUI.comboListBox.removeAll();
                 currentCombos = (status === "ok") ? parseCombosPayload(decodeURIComponent(payload)) : [];
                 for (var i = 0; i < currentCombos.length; i++) {
@@ -678,6 +751,8 @@ the number of text frames that use the combination (a frame counts once).
             paletteUI.applyOnClickCheckbox.value = false;
             var matchingParams = comboToParams(combo);
             matchingParams.currentArtboardOnly = paletteUI.currentArtboardCheckbox.value;
+            matchingParams.includeHidden = paletteUI.includeHiddenCheckbox.value;
+            matchingParams.includeLocked = paletteUI.includeLockedCheckbox.value;
             runWorker("selectMatching", matchingParams, function (status, payload) {
                 if (status === "ok" && payload === "0") {
                     alert(getLocalizedText(LABELS.status.noMatch));
@@ -690,6 +765,12 @@ the number of text frames that use the combination (a frame counts once).
 
         // 「現在のアートボードに限定」を切り替えたら一覧を再走査 / Rescan when the artboard-only toggle changes
         paletteUI.currentArtboardCheckbox.onClick = function () { refreshCombos(); };
+
+        // 「非表示のテキストを含む」を切り替えたら一覧を再走査 / Rescan when the include-hidden toggle changes
+        paletteUI.includeHiddenCheckbox.onClick = function () { refreshCombos(); };
+
+        // 「ロックされたテキストを含む」を切り替えたら一覧を再走査 / Rescan when the include-locked toggle changes
+        paletteUI.includeLockedCheckbox.onClick = function () { refreshCombos(); };
 
         // 表示のたびに一覧を再走査 / Rescan the combos whenever the palette is shown
         paletteUI.palette.onShow = function () { refreshCombos(); };
