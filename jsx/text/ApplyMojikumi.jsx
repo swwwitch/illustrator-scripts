@@ -25,7 +25,7 @@ var SCRIPT_VERSION = "v1.0.0";
 
 ### 紹介記事
 
-
+https://note.com/dtp_tranist/n/nb9c089e378d2
 
 */
 
