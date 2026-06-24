@@ -27,6 +27,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 制御文字の表示／非表示の切り替え、再読み込み（選択の現在値を読み直して反映）、
   リセット（標準値に戻す。カーニングはメトリクス・文字組みはツメ組み・字前/字後のアキは自動に設定）
 - ラジオや入力を操作すると、その場で選択中のテキストへ即時適用する
+- 選択は単体のテキストフレームだけでなく、グループ内のテキストやテキスト編集モードでの範囲選択にも対応（行送りを含む全機能で共通）
 - パレットにフォーカスが戻るたび、または「再読み込み」で選択の現在値を読み取って UI に反映する
 - 常駐エンジン（#targetengine）でパレット表示。常駐エンジンの app は
   パレット表示中に DOM 接続を失うため、DOM 処理はメインエンジンへ
@@ -60,6 +61,7 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
 - Show/hide hidden characters, Reload (re-read the selection's current values), and
   Reset (restore defaults; kerning Metrics, mojikumi Tight, and aki before/after set to auto)
 - Operating a radio or field applies it immediately to the current selection
+- Selection handling covers not just standalone text frames but text nested in groups and ranges selected in text-edit mode (consistent across all features, including leading)
 - Whenever the palette regains focus — or via "Reload" — the current selection's values are read back into the UI
 - Runs as a persistent palette (#targetengine). The persistent engine's app
   loses its DOM connection while the palette is shown, so all DOM work is
@@ -70,7 +72,7 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.0.2";
 
 (function () {
 
@@ -161,7 +163,7 @@ var SCRIPT_VERSION = "v1.0.1";
             justifyAll: { ja: "両端揃え", en: "Justify all" }
         },
         button: {
-            addPreset: { ja: "追加", en: "Add Preset" },
+            addPreset: { ja: "追加", en: "Add" },
             overwritePreset: { ja: "上書き", en: "Overwrite" },
             deletePreset: { ja: "削除", en: "Delete" },
             reset: { ja: "リセット", en: "Reset" },
@@ -184,11 +186,11 @@ var SCRIPT_VERSION = "v1.0.1";
             align: { ja: "文字の縦方向の揃え基準。「その他」で残りの基準をポップアップから選びます。", en: "Vertical alignment basis. Use “Other” to pick the rest from the popup." },
             justify: { ja: "段落の行揃え。テキストの見た目の位置を保ったまま変更します。", en: "Paragraph justification, applied while keeping the text's visual position." },
             role: { ja: "本文＝和文等幅／行送り150%／均等配置（最終行左）、見出し＝メトリクス／行送り110%／左揃え をまとめて適用。", en: "Body = Japanese equal width / 150% leading / justify (last left); Heading = Metrics / 110% leading / left." },
-            leading: { ja: "行送り。110%／150%／その他（%で直接入力）／自動。", en: "Leading: 110% / 150% / Other (enter a %) / Auto." },
+            leading: { ja: "行送り。110%／125%／150%／その他（%で直接入力）／自動。", en: "Leading: 110% / 125% / 150% / Other (enter a %) / Auto." },
             leadingType: { ja: "行送りを測る基準位置（仮想ボディの上／欧文ベースライン）。", en: "The reference position for measuring leading (virtual body top / Roman baseline)." },
             mojikumi: { ja: "段落の文字組みアキ量設定（約物の詰め方など）をまとめて適用します。", en: "Applies a mojikumi spacing set (punctuation spacing, etc.) to the paragraphs." },
             changeAuto: { ja: "自動行送りの割合（%）を変更します。クリックして値を入力してください。", en: "Change the auto-leading percentage. Click to enter a new value." },
-            reset: { ja: "標準値に戻します（フォントサイズ12pt・比率100%・ツメ0・トラッキング0・自動カーニング和文等幅・欧文ベースライン・左揃え・行送り自動・文字組み約物半角）。", en: "Reset to defaults (12pt / 100% scale / 0 Tsume / 0 tracking / JP equal-width kerning / Roman baseline / left / auto leading / half-width punctuation mojikumi)." },
+            reset: { ja: "標準値に戻します（フォントサイズ12pt・比率100%・ツメ0・トラッキング0・自動カーニングメトリクス・欧文ベースライン・左揃え・行送り自動・文字組みツメ組み）。", en: "Reset to defaults (12pt / 100% scale / 0 Tsume / 0 tracking / Metrics kerning / Roman baseline / left / auto leading / Tight mojikumi)." },
             reload: { ja: "選択中のテキストの現在値を読み取り直して UI に反映します。", en: "Re-read the current values from the selection and reflect them in the UI." },
             hiddenChar: { ja: "制御文字（改行・スペースなど）の表示／非表示を切り替えます。", en: "Toggle the display of hidden characters (returns, spaces, etc.)." }
         }
@@ -616,15 +618,32 @@ var SCRIPT_VERSION = "v1.0.1";
     /* 選択から重複なしの処理対象テキストフレームを収集 / Collect unique processable text frames from the selection */
     function collectLeadingFrames(selectionItems) {
         var frames = [];
-        if (!selectionItems || !selectionItems.length) return frames;
-        for (var i = 0; i < selectionItems.length; i++) {
-            var textFrame = getProcessableTextFrame(selectionItems[i]);
-            if (!textFrame) continue;
-            var isDuplicate = false;
-            for (var j = 0; j < frames.length; j++) { if (frames[j] === textFrame) { isDuplicate = true; break; } }
-            if (!isDuplicate) frames.push(textFrame);
-        }
+        var seenFrameKeys = {};
+        var list = (selectionItems && selectionItems.typename) ? [selectionItems] : (selectionItems || []);
+        for (var i = 0; i < list.length; i++) collectLeadingFramesFromItem(list[i], frames, seenFrameKeys);
         return frames;
+    }
+
+    /* 1 アイテムからフレームを収集（グループは中を走査、テキスト編集モードの範囲は親フレームへ）
+       Collect frames from one item (descend into groups; resolve text-edit ranges to their parent frame) */
+    function collectLeadingFramesFromItem(item, frames, seenFrameKeys) {
+        if (!item) return;
+        var typeName = getTypeName(item);
+        if (typeName === "TextFrame") { addLeadingFrame(item, frames, seenFrameKeys); return; }
+        if (isTextRangeLikeType(typeName)) { addLeadingFrame(findParentTextFrame(item), frames, seenFrameKeys); return; }
+        if (typeName === "GroupItem" && item.pageItems) {
+            for (var i = 0; i < item.pageItems.length; i++) collectLeadingFramesFromItem(item.pageItems[i], frames, seenFrameKeys);
+        }
+    }
+
+    /* 処理可能なフレームを重複なく追加 / Add a processable frame, skipping duplicates */
+    function addLeadingFrame(frame, frames, seenFrameKeys) {
+        var textFrame = getProcessableTextFrame(frame);
+        if (!textFrame) return;
+        var frameKey = getTextFrameKey(textFrame);
+        if (seenFrameKeys[frameKey]) return;
+        seenFrameKeys[frameKey] = true;
+        frames.push(textFrame);
     }
 
     /* 行送りの基準 ID を AutoLeadingType へ変換 / Resolve a leading-basis id to AutoLeadingType */
@@ -823,7 +842,8 @@ var SCRIPT_VERSION = "v1.0.1";
         forceLeftJustification, justifyKeepingPosition,
         resolveAlignment, alignmentToId, getAlignmentCharAttrs, getFirstAlignmentCharAttrs, applyStyleRunAlignment,
         getLineSampleFontSizes, getMostFrequentNumber, getBaseFontSizeFromLine, getCommonBaseFontSize,
-        getProcessableTextFrame, collectLeadingFrames, resolveLeadingType, leadingTypeToId,
+        getProcessableTextFrame, collectLeadingFrames, collectLeadingFramesFromItem, addLeadingFrame,
+        resolveLeadingType, leadingTypeToId,
         applyLeadingToFrames, applyLineLeadingToFrames, applyAlignmentToSelection,
         applyMojikumiToTextFrame, applyMojikumiToItem, applyMojikumiToSelection, matchMojikumiName, mojikumiToId,
         readLeadingState
@@ -1493,18 +1513,14 @@ var SCRIPT_VERSION = "v1.0.1";
         leftColumn.spacing = 8;
 
         var fontPanel = leftColumn.add("panel", undefined, getLocalizedText(LABELS.field.docFonts));
-        fontPanel.orientation = "column";
-        fontPanel.alignChildren = ["fill", "top"];
-        fontPanel.margins = [16, 20, 16, 12];
+        setupPanel(fontPanel);
 
         var fontList = fontPanel.add("listbox", undefined, [], { multiselect: false });
         fontList.preferredSize = [184, 200]; // 1行分低く / One row shorter
         fontList.helpTip = getLocalizedText(LABELS.tip.docFonts);
 
         var presetPanel = leftColumn.add("panel", undefined, getLocalizedText(LABELS.field.presets));
-        presetPanel.orientation = "column";
-        presetPanel.alignChildren = ["fill", "top"];
-        presetPanel.margins = [16, 20, 16, 12];
+        setupPanel(presetPanel);
 
         var presetList = presetPanel.add("listbox", undefined, [], { multiselect: false });
         presetList.preferredSize = [184, 200];
@@ -1517,8 +1533,8 @@ var SCRIPT_VERSION = "v1.0.1";
         presetButtonRow.alignment = ["center", "top"]; // 幅いっぱいにしない / Don't stretch to full width
         presetButtonRow.spacing = 6;
 
-        // 小さめのボタンサイズ / Slightly smaller button size
-        var presetButtonSize = [54, 22];
+        // 小さめのボタンサイズ（英語はラベルが長いので広め）/ Slightly smaller buttons (wider in English where labels run long)
+        var presetButtonSize = (currentLanguage === "ja") ? [54, 22] : [72, 22];
 
         var addPresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.addPreset));
         addPresetButton.preferredSize = presetButtonSize;
@@ -1540,10 +1556,8 @@ var SCRIPT_VERSION = "v1.0.1";
 
         // フォントサイズ（文字サイズ・比率・見かけ＋焼き込みトグル）/ Font size (size, scale, apparent + bake toggle)
         var fontSizePanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.fontSizePanel));
-        fontSizePanel.orientation = "column";
+        setupPanel(fontSizePanel, 6);
         fontSizePanel.alignChildren = ["left", "top"];
-        fontSizePanel.margins = [16, 20, 16, 12];
-        fontSizePanel.spacing = 6;
 
         var sizeColon = currentLanguage === "ja" ? "：" : ": ";
 
@@ -1582,10 +1596,8 @@ var SCRIPT_VERSION = "v1.0.1";
         fsApparentLabel.preferredSize.width = fsLabelWidth;
 
         var autoKernPanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.autoKern));
-        autoKernPanel.orientation = "column";
+        setupPanel(autoKernPanel, 6); // spacing は行送りのラジオと同じ / Same row spacing as the leading radios
         autoKernPanel.alignChildren = ["left", "top"];
-        autoKernPanel.margins = [16, 20, 16, 12];
-        autoKernPanel.spacing = 6; // 行送りのラジオと同じ間隔 / Same row spacing as the leading radios
         autoKernPanel.helpTip = getLocalizedText(LABELS.tip.autoKern);
 
         var kernRadios = [];
@@ -1625,10 +1637,8 @@ var SCRIPT_VERSION = "v1.0.1";
         trackingSlider.preferredSize.width = 150;
 
         var alignPanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.align));
-        alignPanel.orientation = "column";
+        setupPanel(alignPanel, 6);
         alignPanel.alignChildren = ["left", "top"];
-        alignPanel.margins = [16, 20, 16, 12];
-        alignPanel.spacing = 6;
         alignPanel.helpTip = getLocalizedText(LABELS.tip.align);
 
         // 3つのラジオ：欧文ベースライン／中央／その他（その他は残りをポップアップで指定）
@@ -1671,9 +1681,8 @@ var SCRIPT_VERSION = "v1.0.1";
         rightColumn.spacing = 8;
 
         var rolePanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.role));
-        rolePanel.orientation = "column";
+        setupPanel(rolePanel);
         rolePanel.alignChildren = ["center", "top"];
-        rolePanel.margins = [16, 20, 16, 12];
         var roleRow = rolePanel.add("group");
         roleRow.orientation = "row";
         roleRow.spacing = 16;
@@ -1685,10 +1694,9 @@ var SCRIPT_VERSION = "v1.0.1";
         roleHeadingRadio.helpTip = rolePanel.helpTip;
 
         var justifyPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.justify));
+        setupPanel(justifyPanel, 7);
         justifyPanel.orientation = "row";
         justifyPanel.alignChildren = ["center", "center"]; // ボタン列を左右中央に / Center the button row horizontally
-        justifyPanel.margins = [16, 20, 16, 12];
-        justifyPanel.spacing = 7;
         justifyPanel.helpTip = getLocalizedText(LABELS.tip.justify);
 
         // アクティブな行揃え id と UI 明暗を共有（onDraw のクロージャから参照）/ Shared active id + theme (read by onDraw closures)
@@ -1708,10 +1716,8 @@ var SCRIPT_VERSION = "v1.0.1";
         }
 
         var leadingPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.leading));
-        leadingPanel.orientation = "column";
+        setupPanel(leadingPanel);
         leadingPanel.alignChildren = "left";
-        leadingPanel.margins = PANEL_MARGINS;
-        leadingPanel.spacing = 8;
         leadingPanel.helpTip = getLocalizedText(LABELS.tip.leading);
 
         // 個別／共通はタイトルなしのパネルに入れる / Individual / Common in a titleless panel
@@ -1791,10 +1797,8 @@ var SCRIPT_VERSION = "v1.0.1";
 
         // 文字組みアキ量設定（ポップアップ）/ Mojikumi spacing set (popup)
         var mojikumiPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.mojikumi));
-        mojikumiPanel.orientation = "column";
+        setupPanel(mojikumiPanel);
         mojikumiPanel.alignChildren = "fill";
-        mojikumiPanel.margins = PANEL_MARGINS;
-        mojikumiPanel.spacing = 8;
         mojikumiPanel.helpTip = getLocalizedText(LABELS.tip.mojikumi);
 
         var mojikumiItems = [];
