@@ -22,13 +22,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - ホットキー（F：最前面／B：最背面／L：bgレイヤー／G：ガイド化／C：現在のアートボード／A：すべて）
 - ダイアログの初期位置・不透明度の設定
 
+### 紹介記事
+
+https://note.com/dtp_tranist/n/n1ba88513a9c8
+
 ### 更新履歴：
 
 - v1.0 (20250820) : 初期バージョン
 - v1.5.1 (20250824) : ライブシェイプ化・ガイド化などのオプション追加
 - v1.5.2 (20260531) : 中心の○を常に表示、単位テーブル統合、CMYK入力修正、ホットキー再編
 - v1.5.3 (20260531) : オブジェクト名を「<長方形>」に変更、オフセット入力欄の幅を調整
-- v1.5.4 (20260601) : 最前面がテンプレート／ロックレイヤーのときの Error 8705 を修正、最新バージョン
+- v1.5.4 (20260601) : 最前面がテンプレート／ロックレイヤーのときの Error 8705 を修正
+- v1.5.5 (20260625) : プレビューレイヤーの後始末を確実化（残存・誤描画を防止）、ガイド化時はオブジェクト名を「<ガイド>」にして選択解除、HEX欄で色名／#RGB短縮／grayNN を許容、ホットキー抑止の堅牢化、中心の○はライブシェイプ時のみ、内部リファクタリング、最新バージョン
 
 ---
 
@@ -57,7 +62,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - v1.5.1 (20250824): Added post-draw options (Convert to Live Shape, Make guides)
 - v1.5.2 (20260531): Always show center widget, unified unit table, CMYK input fix, hotkey rework
 - v1.5.3 (20260531): Renamed object to "<Rectangle>", tweaked offset field width
-- v1.5.4 (20260601): Fixed Error 8705 when the front-most layer is a template/locked layer; latest version
+- v1.5.4 (20260601): Fixed Error 8705 when the front-most layer is a template/locked layer
+- v1.5.5 (20260625): Reliable preview-layer cleanup (no leftover/mis-draw), guide mode renames to "<Guide>" and clears selection, HEX field accepts color names / #RGB shorthand / grayNN, sturdier hotkey guard, center widget only on live shapes, internal refactoring; latest version
 
 */
 
@@ -67,7 +73,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // バージョン / Version
     // =========================================
 
-    var SCRIPT_VERSION = "v1.5.4";
+    var SCRIPT_VERSION = "v1.5.5";
 
     // =========================================
     // ユーザー設定 / User settings
@@ -76,13 +82,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     /* ダイアログの初期位置・不透明度（調整可）/ Dialog position & opacity (tunable) */
     var DIALOG_OFFSET_X = 300; // 右(+)／左(-) / shift right (+) / left (-)
     var DIALOG_OFFSET_Y = 0; //   下(+)／上(-) / shift down (+) / up (-)
-    var DIALOG_OPACITY = 0.97; // 0.0 - 1.0
+    var DIALOG_OPACITY = 0.98; // 0.0 - 1.0
 
     /* 入力中のプレビュー遅延（タイプしやすさ優先）/ Preview delay while typing */
     var PREVIEW_DELAY_TYPING_MS = 110; // recommend 100–120ms
 
-    /* 全パネル共通の余白・行間 / Shared panel margins & spacing */
-    var PANEL_MARGINS = [15, 20, 15, 10];
+    /* パネルの余白と間隔 / Panel margins and spacing */
+    var PANEL_MARGINS = [16, 20, 16, 12];
     var PANEL_SPACING = 8;
 
     /* カラーモード定数 / Color mode constants */
@@ -204,11 +210,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             },
             previewOutline: {
                 ja: "アウトライン表示",
-                en: "Outline/Preview"
+                en: "Outline"
             },
             previewPreview: {
                 ja: "プレビュー表示",
-                en: "Outline/Preview"
+                en: "Preview"
             }
         },
         helpTip: {
@@ -221,8 +227,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 en: "Automatically fills a bleed-equivalent offset based on the current unit."
             },
             hexInput: {
-                ja: "#RRGGBB 形式で塗りカラーを指定します。",
-                en: "Enter a fill color in #RRGGBB format."
+                ja: "#RRGGBB（#RGB 短縮・red などの色名・gray50 も可）で塗りカラーを指定します。",
+                en: "Enter a fill color: #RRGGBB (also #RGB shorthand, color names like red, or gray50)."
             },
             cmykInput: {
                 ja: "0〜100の範囲でCMYK値を指定します。未入力は0として扱います。",
@@ -253,6 +259,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             rect: {
                 ja: "<長方形>",
                 en: "<Rectangle>"
+            },
+            guide: {
+                ja: "<ガイド>",
+                en: "<Guide>"
             },
             previewRect: {
                 ja: "__プレビュー_アートボードサイズの長方形",
@@ -310,6 +320,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 g.foregroundColor = g.newPen(g.PenType.SOLID_COLOR, [0, 0, 0], 1);
             }
             et.notify('onDraw'); // redraw
+        } catch (e) { }
+    }
+
+    /* 入力欄の文字色を警告(赤)/通常(黒)に / Set field text color to warning (red) or normal (black) */
+    function setFieldWarnColor(et, warn) {
+        try {
+            var g = et.graphics;
+            g.foregroundColor = g.newPen(g.PenType.SOLID_COLOR, warn ? [1, 0, 0] : [0, 0, 0], 1);
         } catch (e) { }
     }
 
@@ -555,17 +573,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // 単位コード→ラベルとpt係数のテーブル（rulerType基準）
     // Map rulerType codes to label & points-per-unit factor
     var UNIT_TABLE = {
-        0:  { label: "in",    factor: 72.0 },                 // inch
-        1:  { label: "mm",    factor: 72.0 / 25.4 },          // mm
-        2:  { label: "pt",    factor: 1.0 },                  // pt
-        3:  { label: "pica",  factor: 12.0 },                 // pica
-        4:  { label: "cm",    factor: 72.0 / 2.54 },          // cm
-        5:  { label: "Q/H",   factor: 72.0 / 25.4 * 0.25 },   // Q or H
-        6:  { label: "px",    factor: 1.0 },                  // px (Illustrator: 1px=1pt)
-        7:  { label: "ft/in", factor: 72.0 * 12.0 },          // ft/in
-        8:  { label: "m",     factor: 72.0 / 25.4 * 1000.0 }, // m
-        9:  { label: "yd",    factor: 72.0 * 36.0 },          // yd
-        10: { label: "ft",    factor: 72.0 * 12.0 }           // ft
+        0: { label: "in", factor: 72.0 },                 // inch
+        1: { label: "mm", factor: 72.0 / 25.4 },          // mm
+        2: { label: "pt", factor: 1.0 },                  // pt
+        3: { label: "pica", factor: 12.0 },                 // pica
+        4: { label: "cm", factor: 72.0 / 2.54 },          // cm
+        5: { label: "Q/H", factor: 72.0 / 25.4 * 0.25 },   // Q or H
+        6: { label: "px", factor: 1.0 },                  // px (Illustrator: 1px=1pt)
+        7: { label: "ft/in", factor: 72.0 * 12.0 },          // ft/in
+        8: { label: "m", factor: 72.0 / 25.4 * 1000.0 }, // m
+        9: { label: "yd", factor: 72.0 * 36.0 },          // yd
+        10: { label: "ft", factor: 72.0 * 12.0 }           // ft
     };
 
     // 現在の単位コードを取得 / Get current rulerType code
@@ -610,8 +628,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 displayText = '12'; // 12H
                 pt = 12 * getPtFactorFromUnitCode(5);
             } else if (unitCode === 2) { // pt
-                displayText = '0.125 inches'; // show inches text (UI意図どおり)
-                pt = 0.125 * 72.0; // 0.125in = 9pt
+                // 0.125in = 9pt。単位ラベル(pt)と一致させ、欄には pt 値を表示
+                // 0.125in = 9pt. Show the value in pt so it matches the unit label
+                displayText = '9';
+                pt = 0.125 * 72.0;
             } else {
                 // Fallback: treat as 3mm equivalent for any other unit
                 displayText = displayText || '3';
@@ -761,35 +781,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
     }
 
+    /* プレビュー用レイヤー名か判定（現行名＋レガシー名）/ Is this name the dedicated preview layer (current + legacy names)? */
+    function isPreviewLayerName(layerName) {
+        var names = [getLocalizedText('name.previewLayer'), "プレビュー", "Preview", "_preview"]; // legacy names
+        for (var i = 0; i < names.length; i++) {
+            if (layerName === names[i]) return true;
+        }
+        return false;
+    }
+
     function clearPreview(removeLayer) {
         try {
             var doc = app.activeDocument;
-            var names = [getLocalizedText('name.previewLayer'), "プレビュー", "Preview", "_preview"]; // legacy names
             for (var i = doc.layers.length - 1; i >= 0; i--) {
                 var layer = doc.layers[i];
-                var nm = layer.name;
-                for (var j = 0; j < names.length; j++) {
-                    if (nm === names[j]) {
-                        if (removeLayer) {
+                if (!isPreviewLayerName(layer.name)) continue;
+                if (removeLayer) {
+                    try {
+                        layer.remove();
+                    } catch (e) { }
+                } else {
+                    // live update: hide only preview items created by this script
+                    var previewNameBase = getLocalizedText('name.previewRect') + "#";
+                    try {
+                        for (var k = layer.pathItems.length - 1; k >= 0; k--) {
                             try {
-                                layer.remove();
-                            } catch (e) { }
-                        } else {
-                            // live update: hide only preview items created by this script
-                            var previewNameBase = getLocalizedText('name.previewRect') + "#";
-                            try {
-                                for (var k = layer.pathItems.length - 1; k >= 0; k--) {
-                                    try {
-                                        var itemName = String(layer.pathItems[k].name || "");
-                                        if (itemName.indexOf(previewNameBase) === 0) {
-                                            layer.pathItems[k].hidden = true;
-                                        }
-                                    } catch (e) { }
+                                var itemName = String(layer.pathItems[k].name || "");
+                                if (itemName.indexOf(previewNameBase) === 0) {
+                                    layer.pathItems[k].hidden = true;
                                 }
                             } catch (e) { }
                         }
-                        break;
-                    }
+                    } catch (e) { }
                 }
             }
         } catch (e) { }
@@ -970,13 +993,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         app.redraw();
     }
 
-    /* パネルの体裁を共通設定（余白・行間・整列）/ Apply shared panel layout (margins, spacing, alignment) */
+    /* パネルの共通設定 / Apply shared panel layout */
     function setupPanel(panel, spacing) {
         panel.orientation = "column";
-        panel.alignChildren = ['fill', 'top'];
+        panel.alignChildren = ["fill", "top"];
         panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
+    function setupGroup(group, orientation, spacing) {
+        var groupOrientation = orientation || "column";
+        group.orientation = groupOrientation;
+        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
+        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
+        group.alignment = "fill";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /* オプションパネルを構築（ガイド化／ライブシェイプ変換）
@@ -1008,19 +1041,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // --- Add two-column group container ---
         var mainColumnsGroup = dialog.add('group');
-        mainColumnsGroup.orientation = 'row';
-        mainColumnsGroup.alignChildren = ['fill', 'top'];
-        mainColumnsGroup.spacing = 12;
+        setupGroup(mainColumnsGroup, 'row', 12);
+        mainColumnsGroup.alignChildren = ['fill', 'top']; // 2カラムを上揃え・横いっぱいに / fill columns, top-aligned
 
         var leftColumnGroup = mainColumnsGroup.add('group');
-        leftColumnGroup.orientation = 'column';
-        leftColumnGroup.alignChildren = 'fill';
-        leftColumnGroup.spacing = 10;
+        setupGroup(leftColumnGroup, 'column', 10);
+        leftColumnGroup.alignChildren = 'fill'; // パネルを列幅いっぱいに / panels fill column width
 
         var rightColumnGroup = mainColumnsGroup.add('group');
-        rightColumnGroup.orientation = 'column';
-        rightColumnGroup.alignChildren = 'fill';
-        rightColumnGroup.spacing = 10;
+        setupGroup(rightColumnGroup, 'column', 10);
+        rightColumnGroup.alignChildren = 'fill'; // パネルを列幅いっぱいに / panels fill column width
 
         // Limit column widths to keep layout balanced
 
@@ -1113,10 +1143,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // HEX radio + input on the same row
         var hexRow = colorSettingsPanel.add('group');
-        hexRow.orientation = 'row';
-        hexRow.alignment = 'left';
-        hexRow.alignChildren = ['left', 'center'];
-        hexRow.spacing = 6;
+        setupGroup(hexRow, 'row', 6);
         var hexRadio = hexRow.add('radiobutton', undefined, getLocalizedText('color.hex'));
         var hexInput = hexRow.add('edittext', undefined, '#');
         hexInput.characters = 14; // narrower to avoid column growth
@@ -1124,17 +1151,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // --- HEX validation & feedback ---
         function setHexWarn(et, warn, msg) {
-            try {
-                var g = et.graphics;
-                var pen = g.newPen(g.PenType.SOLID_COLOR, warn ? [1, 0, 0] : [0, 0, 0], 1);
-                g.foregroundColor = pen; // text color fallback for border
-                if (warn) {
-                    et.helpTip = (currentLanguage === 'ja') ? (msg || '正しい #RRGGBB を入力してください') : (msg || 'Enter a valid #RRGGBB value');
-                } else {
-                    et.helpTip = getLocalizedText('helpTip.hexInput');
-                }
-                et.notify('onDraw');
-            } catch (e) { }
+            setFieldWarnColor(et, warn);
+            if (warn) {
+                et.helpTip = (currentLanguage === 'ja') ? (msg || '正しい #RRGGBB を入力してください') : (msg || 'Enter a valid #RRGGBB value');
+            } else {
+                et.helpTip = getLocalizedText('helpTip.hexInput');
+            }
+            try { et.notify('onDraw'); } catch (e) { }
         }
 
         hexInput.onChanging = function () {
@@ -1150,8 +1173,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     updatePreviewWhileTyping();
                     return;
                 }
-                // Validate only exact #RRGGBB on-the-fly
-                var valid = /^#([0-9a-fA-F]{6})$/.test(t);
+                // parseCustomColor が解釈できる入力（#RRGGBB／#RGB 短縮／色名／grayNN）はすべて有効
+                // Anything parseCustomColor can resolve is valid (#RRGGBB, #RGB shorthand, color names, grayNN)
+                var valid = !!parseCustomColor(app.activeDocument, t);
                 setHexWarn(hexInput, !valid);
                 updatePreviewWhileTyping();
             } catch (e) { }
@@ -1161,8 +1185,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             try {
                 var t = String(hexInput.text || '').replace(/\s+/g, '');
                 if (/^[0-9a-fA-F]{6}$/.test(t)) {
-                    t = '#' + t.toUpperCase();
-                    hexInput.text = t;
+                    // 先頭 # 無しの 6 桁 HEX は # を補って大文字化 / bare 6-digit hex: add # and uppercase
+                    hexInput.text = '#' + t.toUpperCase();
                     setHexWarn(hexInput, false);
                 } else if (/^#([0-9a-fA-F]{6})$/.test(t)) {
                     hexInput.text = ('#' + RegExp.$1.toUpperCase());
@@ -1170,7 +1194,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                 } else if (t === '#') {
                     setHexWarn(hexInput, true, (currentLanguage === 'ja') ? 'HEX未入力（# のみ）' : 'HEX not entered (# only)');
                 } else {
-                    setHexWarn(hexInput, true);
+                    // 色名・短縮 HEX・grayNN は整形せずそのまま受理（解釈可能なら警告しない）
+                    // Names / shorthand hex / grayNN: accept as-is, warn only if unresolvable
+                    setHexWarn(hexInput, !parseCustomColor(app.activeDocument, t));
                 }
                 updatePreviewImmediately();
             } catch (e) { }
@@ -1181,56 +1207,42 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // Custom CMYK input fields (two-row grid: labels on top, fields below)
         var cmykRow = colorSettingsPanel.add('group');
-        cmykRow.orientation = 'column';
-        cmykRow.alignment = 'left';
-        cmykRow.spacing = 4;
+        setupGroup(cmykRow, 'column', 4);
 
         var cmykLabelRow = cmykRow.add('group');
-        cmykLabelRow.orientation = 'row';
-        cmykLabelRow.alignChildren = ['left', 'center'];
-        cmykLabelRow.spacing = 10;
+        setupGroup(cmykLabelRow, 'row', 10);
 
         var cmykFieldRow = cmykRow.add('group');
-        cmykFieldRow.orientation = 'row';
-        cmykFieldRow.alignChildren = ['left', 'center'];
-        cmykFieldRow.spacing = 10;
+        setupGroup(cmykFieldRow, 'row', 10);
 
         var cmykColWidth = 40; // fixed width to align columns
 
-        var cyanLabel = cmykLabelRow.add('statictext', undefined, '  C');
-        cyanLabel.preferredSize.width = cmykColWidth;
-        var magentaLabel = cmykLabelRow.add('statictext', undefined, '  M');
-        magentaLabel.preferredSize.width = cmykColWidth;
-        var yellowLabel = cmykLabelRow.add('statictext', undefined, '  Y');
-        yellowLabel.preferredSize.width = cmykColWidth;
-        var blackLabel = cmykLabelRow.add('statictext', undefined, '  K');
-        blackLabel.preferredSize.width = cmykColWidth;
+        // ラベル行とフィールド行へ1チャンネル分を追加 / Add one channel column (label row + field row)
+        function addCmykColumn(labelText) {
+            var lbl = cmykLabelRow.add('statictext', undefined, labelText);
+            lbl.preferredSize.width = cmykColWidth;
+            var inp = cmykFieldRow.add('edittext', undefined, '');
+            inp.characters = 3;
+            inp.preferredSize.width = cmykColWidth;
+            inp.helpTip = getLocalizedText('helpTip.cmykInput');
+            return { label: lbl, input: inp };
+        }
 
-        var cyanInput = cmykFieldRow.add('edittext', undefined, '');
-        cyanInput.characters = 3;
-        cyanInput.preferredSize.width = cmykColWidth;
-        var magentaInput = cmykFieldRow.add('edittext', undefined, '');
-        magentaInput.characters = 3;
-        magentaInput.preferredSize.width = cmykColWidth;
-        var yellowInput = cmykFieldRow.add('edittext', undefined, '');
-        yellowInput.characters = 3;
-        yellowInput.preferredSize.width = cmykColWidth;
-        var blackInput = cmykFieldRow.add('edittext', undefined, '');
-        blackInput.characters = 3;
-        blackInput.preferredSize.width = cmykColWidth;
-        cyanInput.helpTip = getLocalizedText('helpTip.cmykInput');
-        magentaInput.helpTip = getLocalizedText('helpTip.cmykInput');
-        yellowInput.helpTip = getLocalizedText('helpTip.cmykInput');
-        blackInput.helpTip = getLocalizedText('helpTip.cmykInput');
+        var cmykLabelTexts = ['  C', '  M', '  Y', '  K'];
+        var cmykInputs = [];
+        var cmykLabels = [];
+        for (var ci = 0; ci < cmykLabelTexts.length; ci++) {
+            var col = addCmykColumn(cmykLabelTexts[ci]);
+            cmykLabels.push(col.label);
+            cmykInputs.push(col.input);
+        }
+        // 下流コードからの参照用に名前付きエイリアスも残す / Keep named aliases for downstream references
+        var cyanInput = cmykInputs[0], magentaInput = cmykInputs[1], yellowInput = cmykInputs[2], blackInput = cmykInputs[3];
 
         // --- CMYK validation helpers (empty→0, clamp 0–100, red text warning) ---
         function setCmykFieldWarn(et, warn) {
-            try {
-                var g = et.graphics;
-                var pen = g.newPen(g.PenType.SOLID_COLOR, warn ? [1, 0, 0] : [0, 0, 0], 1);
-                g.foregroundColor = pen; // text color as fallback to 'red border'
-                et.helpTip = warn ? '0–100 の範囲にしてください（未入力は 0 として扱います）' : getLocalizedText('helpTip.cmykInput');
-            } catch (e) { }
+            setFieldWarnColor(et, warn);
+            et.helpTip = warn ? '0–100 の範囲にしてください（未入力は 0 として扱います）' : getLocalizedText('helpTip.cmykInput');
         }
 
         function validateCmykField(et) {
@@ -1264,60 +1276,38 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
         // If the field currently holds exactly "0", clear it on focus for easier typing
         function clearZeroOnFocus(et) {
-            try {
-                et.addEventListener('focus', function () {
-                    try {
-                        if (String(et.text) === '0') {
-                            et.text = '';
-                            // caret will be at the end by default
-                        }
-                    } catch (e) { }
-                });
-            } catch (e) { }
+            et.addEventListener('focus', function () {
+                if (String(et.text) === '0') et.text = ''; // caret stays at the end
+            });
         }
 
         // Prevent any leading-zero integer like "03" from being typed (but allow decimals like "0.5")
         function replaceZeroOnFirstDigit(et) {
-            try {
-                et.addEventListener('keydown', function (ev) {
-                    var k = String(ev.keyName || '');
-                    // Only care about single digit keys 0-9
-                    if (!/^[0-9]$/.test(k)) return;
-                    try {
-                        var t = String(et.text || '');
-                        // If user is composing a decimal number, do nothing here
-                        if (/\./.test(t)) return;
-
-                        // If the field is exactly "0" (or series of zeros), clear it **before** the new digit is inserted
-                        // so typing "3" results directly in "3" (never "03").
-                        if (/^0+$/.test(t)) {
-                            et.text = '';
-                            return; // let default insertion append the digit
-                        }
-
-                        // If there are leading zeros with other digits (e.g. "007"), normalize immediately.
-                        if (/^0\d+$/.test(t)) {
-                            et.text = t.replace(/^0+/, '');
-                            // Do not prevent the default; allow the typed digit to insert normally after normalization.
-                            return;
-                        }
-                    } catch (e) { }
-                });
-            } catch (e) { }
+            et.addEventListener('keydown', function (ev) {
+                var k = String(ev.keyName || '');
+                // Only care about single digit keys 0-9
+                if (!/^[0-9]$/.test(k)) return;
+                var t = String(et.text || '');
+                // If user is composing a decimal number, do nothing here
+                if (/\./.test(t)) return;
+                // "0"（または0の連続）は新しい数字が入る前にクリア → "03" にならない
+                // Clear a pure-zero field before the new digit so typing "3" yields "3", never "03"
+                if (/^0+$/.test(t)) {
+                    et.text = ''; // let default insertion append the digit
+                } else if (/^0\d+$/.test(t)) {
+                    // 先頭ゼロ＋他桁（"007"）は即正規化。default 挿入はそのまま許可
+                    et.text = t.replace(/^0+/, '');
+                }
+            });
         }
 
         // Bind common handlers to a CMYK EditText
         function bindCmykField(et) {
             et.onChanging = function () {
-                try {
-                    var t = String(et.text || '');
-                    // Normalize leading zeros for integers: "03" -> "3", "007" -> "7"
-                    // Do NOT touch decimals like "0.5" (only pure digits)
-                    if (/^0\d+$/.test(t)) {
-                        et.text = t.replace(/^0+/, '');
-                        t = String(et.text || '');
-                    }
-                } catch (e) { }
+                // 整数の先頭ゼロのみ正規化（"03"→"3"）。小数 "0.5" は触らない
+                // Normalize leading zeros for integers only; leave decimals like "0.5" alone
+                var t = String(et.text || '');
+                if (/^0\d+$/.test(t)) et.text = t.replace(/^0+/, '');
                 validateCmykField(et);
                 updatePreviewWhileTyping();
             };
@@ -1331,46 +1321,34 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             });
         }
 
-        // --- Hotkey guard: disable N/K/H/C while typing in fields ---
+        // --- Hotkey guard: disable hotkeys while typing in fields ---
+        // 単一 boolean だと「新フィールドの focus → 旧フィールドの blur」の順で false に落ちる。
+        // フォーカス中のコントロール自体を保持し、自分の blur のときだけクリアする（順序非依存）。
+        // A single boolean breaks when blur(old) fires after focus(new). Track the focused control
+        // and clear only on its own blur, so it's robust to focus/blur ordering.
         var hotkeyState = {
-            v: false
+            focused: null
         };
 
         function _attachBlockOnFocusBlur(ctrl) {
-            try {
-                ctrl.addEventListener('focus', function () {
-                    hotkeyState.v = true;
-                });
-            } catch (e) { }
-            try {
-                ctrl.addEventListener('blur', function () {
-                    hotkeyState.v = false;
-                });
-            } catch (e) { }
+            ctrl.addEventListener('focus', function () {
+                hotkeyState.focused = ctrl;
+            });
+            ctrl.addEventListener('blur', function () {
+                if (hotkeyState.focused === ctrl) hotkeyState.focused = null;
+            });
         }
-        // Block on all edit fields
+        // ホットキー抑止は全入力欄に / Block hotkeys on all edit fields
         _attachBlockOnFocusBlur(offsetInput);
         _attachBlockOnFocusBlur(hexInput);
-        _attachBlockOnFocusBlur(cyanInput);
-        _attachBlockOnFocusBlur(magentaInput);
-        _attachBlockOnFocusBlur(yellowInput);
-        _attachBlockOnFocusBlur(blackInput);
 
-        clearZeroOnFocus(cyanInput);
-        clearZeroOnFocus(magentaInput);
-        clearZeroOnFocus(yellowInput);
-        clearZeroOnFocus(blackInput);
-
-        replaceZeroOnFirstDigit(cyanInput);
-        replaceZeroOnFirstDigit(magentaInput);
-        replaceZeroOnFirstDigit(yellowInput);
-        replaceZeroOnFirstDigit(blackInput);
-
-        // --- Bind CMYK fields (common handlers)
-        bindCmykField(cyanInput);
-        bindCmykField(magentaInput);
-        bindCmykField(yellowInput);
-        bindCmykField(blackInput);
+        // CMYK 各欄へ共通ハンドラをまとめて登録 / Bind common handlers to every CMYK field
+        for (var bi = 0; bi < cmykInputs.length; bi++) {
+            _attachBlockOnFocusBlur(cmykInputs[bi]);
+            clearZeroOnFocus(cmykInputs[bi]);
+            replaceZeroOnFirstDigit(cmykInputs[bi]);
+            bindCmykField(cmykInputs[bi]);
+        }
 
         // Default selection
         k100Radio.value = true;
@@ -1379,30 +1357,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         /* HEX 有効/無効を切替 / Enable-Disable HEX input */
         function setHexEnabled(on) {
-            try {
-                hexInput.enabled = !!on;
-            } catch (e) { }
+            hexInput.enabled = !!on;
         }
 
         /* CMYK 有効/無効を切替 / Enable-Disable CMYK inputs */
         function setCmykEnabled(on) {
             var v = !!on;
-            try {
-                cyanInput.enabled = v;
-                cyanLabel.enabled = v;
-                magentaInput.enabled = v;
-                magentaLabel.enabled = v;
-                yellowInput.enabled = v;
-                yellowLabel.enabled = v;
-                blackInput.enabled = v;
-                blackLabel.enabled = v;
-                if (!v) {
-                    setCmykFieldWarn(cyanInput, false);
-                    setCmykFieldWarn(magentaInput, false);
-                    setCmykFieldWarn(yellowInput, false);
-                    setCmykFieldWarn(blackInput, false);
-                }
-            } catch (e) { }
+            for (var i = 0; i < cmykInputs.length; i++) {
+                cmykInputs[i].enabled = v;
+                cmykLabels[i].enabled = v;
+                if (!v) setCmykFieldWarn(cmykInputs[i], false);
+            }
         }
 
         /* ラジオ選択に応じて一括反映 / Apply enable states from radio values */
@@ -1415,7 +1380,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
         // Add new panel for zOrder
         var placementPanel = leftColumnGroup.add('panel', undefined, getLocalizedText('panel.zorder'));
-        setupPanel(placementPanel);
+        setupPanel(placementPanel, 6);
 
         var frontRadio = placementPanel.add('radiobutton', undefined, getLocalizedText('zorder.front'));
         var backRadio = placementPanel.add('radiobutton', undefined, getLocalizedText('zorder.back'));
@@ -1468,31 +1433,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var resolved = resolveOffsetToPt(offsetInput.text, unitCode, !!bleedCheckbox.value);
             var offsetPt = resolved.pt;
 
-            var customValue = '';
-            try {
-                customValue = String(hexInput.text || '').replace(/^\s+|\s+$/g, '');
-            } catch (e) { }
+            var customValue = String(hexInput.text || '').replace(/^\s+|\s+$/g, '');
 
-            var cmykObj = {
-                c: 0,
-                m: 0,
-                y: 0,
-                k: 0
-            };
-            try {
-                var cTmp = parseFloat(cyanInput.text);
-                if (isNaN(cTmp)) cTmp = 0;
-                cmykObj.c = clampValue(cTmp, 0, 100);
-                var mTmp = parseFloat(magentaInput.text);
-                if (isNaN(mTmp)) mTmp = 0;
-                cmykObj.m = clampValue(mTmp, 0, 100);
-                var yTmp = parseFloat(yellowInput.text);
-                if (isNaN(yTmp)) yTmp = 0;
-                cmykObj.y = clampValue(yTmp, 0, 100);
-                var kTmp = parseFloat(blackInput.text);
-                if (isNaN(kTmp)) kTmp = 0;
-                cmykObj.k = clampValue(kTmp, 0, 100);
-            } catch (e) { }
+            // 各欄を 0–100 にクランプ（空欄・不正は0）/ Clamp each field to 0–100 (empty/invalid → 0)
+            var cmykKeys = ['c', 'm', 'y', 'k'];
+            var cmykObj = { c: 0, m: 0, y: 0, k: 0 };
+            for (var ck = 0; ck < cmykInputs.length; ck++) {
+                var n = parseFloat(cmykInputs[ck].text);
+                if (isNaN(n)) n = 0;
+                cmykObj[cmykKeys[ck]] = clampValue(n, 0, 100);
+            }
 
             return {
                 colorMode: colorMode,
@@ -1558,7 +1508,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         /* 重ね順・ガイド化・対象範囲をホットキーで切替 / Toggle z-order, make-guides & target scope via hotkeys */
         function addDialogHotkeys(dialog) {
             dialog.addEventListener('keydown', function (event) {
-                if (hotkeyState.v) return; // ignore when typing in fields
+                if (hotkeyState.focused) return; // ignore when typing in fields
                 var key = (event && event.keyName) ? String(event.keyName).toUpperCase() : '';
 
                 // Z-order: F = Front, B = Back, L = bg Layer
@@ -1607,12 +1557,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
         addDialogHotkeys(dialog);
 
-        frontRadio.onClick = updatePreviewImmediately;
-        backRadio.onClick = updatePreviewImmediately;
-        bgLayerRadio.onClick = updatePreviewImmediately;
-
-        currentArtboardRadio.onClick = updatePreviewImmediately;
-        allArtboardsRadio.onClick = updatePreviewImmediately;
+        // 重ね順・対象のラジオは選択でプレビュー更新 / Z-order & target radios refresh the preview on change
+        var previewRefreshRadios = [frontRadio, backRadio, bgLayerRadio, currentArtboardRadio, allArtboardsRadio];
+        for (var ri = 0; ri < previewRefreshRadios.length; ri++) {
+            previewRefreshRadios[ri].onClick = updatePreviewImmediately;
+        }
+        // 対象ラジオはキーボード等での変更（onChanging）でも更新 / Target radios also refresh on keyboard change
         currentArtboardRadio.onChanging = updatePreviewImmediately;
         allArtboardsRadio.onChanging = updatePreviewImmediately;
 
@@ -1631,7 +1581,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         buttonRowGroup.alignment = 'fill';
 
         var leftButtonGroup = buttonRowGroup.add('group');
-        leftButtonGroup.orientation = 'row';
+        setupGroup(leftButtonGroup, 'row');
 
         var isPreviewDisplay = true;
         var previewButton = leftButtonGroup.add('button', undefined, getLocalizedText('button.previewOutline'));
@@ -1658,11 +1608,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         okButton.onClick = function () {
             if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
             PreviewHistory.undo();
+            clearPreview(true); // undo 回数に依存せず _preview レイヤーを確実に削除 / remove the preview layer regardless of undo count
             dialog.close(1);
         };
         cancelButton.onClick = function () {
             if (__previewDebounceTask) PreviewHistory.cancelTask(__previewDebounceTask);
             PreviewHistory.undo();
+            clearPreview(true); // 同上 / same
             dialog.close(0);
         };
 
@@ -1683,14 +1635,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         try {
             var lyr = doc.activeLayer;
             // テンプレートレイヤーは locked が false でも編集できない（Error 8705）ので除外
-            // Template layers can't be modified even when locked is false (Error 8705), so exclude them
-            if (lyr && !lyr.locked && lyr.visible && !lyr.template) return lyr;
+            // プレビュー用レイヤーは本番描画先に使わない（残存時の誤描画防止）
+            // Template layers can't be modified even when locked is false (Error 8705); also never draw onto the preview layer
+            if (lyr && !lyr.locked && lyr.visible && !lyr.template && !isPreviewLayerName(lyr.name)) return lyr;
         } catch (e) { }
-        // try find first unlocked, visible & non-template layer
+        // try find first unlocked, visible, non-template & non-preview layer
         try {
             for (var i = 0; i < doc.layers.length; i++) {
                 var l = doc.layers[i];
-                if (!l.locked && l.visible && !l.template) return l;
+                if (!l.locked && l.visible && !l.template && !isPreviewLayerName(l.name)) return l;
             }
         } catch (e) { }
         // last resort: create a new layer at top
@@ -1872,20 +1825,26 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             try { app.executeMenuCommand('Convert to Shape'); } catch (e) { }
         }
 
-        // 中心の○を表示（常にON・UI非掲載）：新規長方形だけを選択し直してからアクション再生
-        // Show center widget (always ON, no UI): re-select only the new rectangles, then replay the action
-        try { app.executeMenuCommand('deselectall'); } catch (e) { }
-        for (var c = 0; c < createdRectangles.length; c++) {
-            try { createdRectangles[c].selected = true; } catch (e) { }
+        // 中心の○はライブシェイプにのみ表示される。ライブシェイプ化したときだけアクション再生
+        // The center widget only renders on live shapes; replay the action only when we converted to one
+        if (choice.convertToLiveShape) {
+            try { app.executeMenuCommand('deselectall'); } catch (e) { }
+            for (var c = 0; c < createdRectangles.length; c++) {
+                try { createdRectangles[c].selected = true; } catch (e) { }
+            }
+            showShapeCenterWidget();
         }
-        showShapeCenterWidget();
 
         // ガイド化：PathItem.guides を直接立てる（選択・メニュー状態に依存せず確実）
-        // Make guides: set PathItem.guides directly — robust, independent of selection/menu state
+        // 併せてオブジェクト名を <ガイド> に変更し、最後に選択を解除する
+        // Make guides: set PathItem.guides directly — robust, independent of selection/menu state.
+        // Also rename the item to <Guide> and clear the selection at the end.
         if (choice.makeGuide) {
             for (var g = 0; g < createdRectangles.length; g++) {
+                try { createdRectangles[g].name = getLocalizedText('name.guide'); } catch (e) { }
                 try { createdRectangles[g].guides = true; } catch (e) { }
             }
+            try { app.executeMenuCommand('deselectall'); } catch (e) { }
         }
     }
 
