@@ -5,36 +5,56 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-未使用のパネル項目（スウォッチ・グラフィックスタイル・シンボル・ブラシ・段落スタイル・文字スタイル）、不要なオブジェクト、未使用アートボードをまとめて削除します。
+ドキュメント内の不要な要素をまとめて削除するクリーンアップツールです。ダイアログで対象を選びます。
 
-- ダイアログで削除対象を選択（パネル項目 / オブジェクト / その他）
-- スウォッチ・グラフィックスタイル・シンボル・ブラシは、各パネルの「未使用をすべて選択 → 削除」アクションを一時的に作成・再生して未使用のみ削除（Illustrator 本体の判定）
-- 段落スタイル・文字スタイルは使用情報を取得できないため、強制 ON のときだけ既定以外を削除
-- オブジェクトは「不透明度0%」「アートボード外」「アクティブアートボード外」を削除
-- アートボードはアートワークが載っていない空のものを削除（強制 ON ですべて。最低1つは残す）
-- 「使用中も削除（強制）」ON ではパネル項目を DOM で保護対象・既定以外まで総当たり削除
+- パネル項目（スウォッチ・シンボル・ブラシ・グラフィックスタイル・段落スタイル・文字スタイル）
+  - スウォッチ・シンボル・ブラシ・グラフィックスタイルは、各パネルの「未使用をすべて選択 → 削除」アクションを一時生成・再生して未使用のみ削除（Illustrator 本体の判定）
+  - 段落スタイル・文字スタイルは使用情報を取得できないため、強制 ON のときだけ既定（先頭）以外を削除
+  - 「使用中も削除（強制）」ON では、パネル項目を DOM で保護対象・既定以外まで総当たり削除（ブラシは使用中・基本ブラシ以外を削除）
+- パス/オブジェクト
+  - 孤立点、空のテキスト、塗りも線もない（不可視）パス（ガイド・クリッピング・コンパウンドパスの構成は除外）、不透明度0%、非表示オブジェクト、リンク切れの配置画像
+- グループ/レイヤー
+  - 空のグループ（通常／クリップ）を再帰削除（空になった親もカスケード削除）
+  - 空のレイヤー／サブレイヤーを再帰削除（ガイドだけのレイヤーは残す。_guide / _pasteboard は保護。トップレベルは最低1つ残す）
+- ガイド（ラジオで1つ選択。既定は「削除しない」）
+  - ガイド：メニュー「ガイドを消去」で削除
+  - すべてのガイド（強制）：レイヤーのロックも一時解除して全削除
+  - 現在のアートボードのみ残す：アクティブなアートボード上にないガイドを削除
+- アートボード
+  - アートボード外／アクティブアートボード外のオブジェクト、空のアートボード（強制 ON ですべて。最低1つは残す）
+- 誤削除しやすい項目（非表示オブジェクト・リンク切れの配置画像・アートボード外／アクティブアートボード外）は初期 OFF。ガイドは既定「削除しない」
 - 一時アクションは finally で必ず解放・削除
-- 種類ごとに削除件数を集計して結果を表示
+- 種類ごとに削除件数を集計して表示（0件の種類は省略）
 
 ### Overview
 
-Removes unused panel items (swatches, graphic styles, symbols, brushes, paragraph styles, character styles), stray objects, and unused artboards in one pass.
+A cleanup tool that removes unneeded elements from a document in one pass. Choose targets in the dialog.
 
-- Choose targets in the dialog (Panel items / Objects / Other)
-- Swatches / graphic styles / symbols / brushes are pruned by building and playing each panel's "Select All Unused -> Delete" action (Illustrator's own judgment)
-- Paragraph / character styles have no usage info, so they are removed only in force mode
-- Objects: removes those at 0% opacity, outside all artboards, or outside the active artboard
-- Artboards are removed when empty (all in force mode; at least one is kept)
-- In force mode, panel items are brute-force removed via the DOM down to protected/default ones
+- Panel items (swatches, symbols, brushes, graphic styles, paragraph styles, character styles)
+  - Swatches / symbols / brushes / graphic styles are pruned by building and playing each panel's "Select All Unused -> Delete" action (Illustrator's own judgment)
+  - Paragraph / character styles have no usage info, so they are removed only in force mode (all but the default/first)
+  - In force mode, panel items are brute-force removed via the DOM down to protected/default ones (brushes: every removable one except in-use and basic brushes)
+- Paths / Objects
+  - Stray points, empty text frames, unpainted (invisible) paths (guides, clipping, and compound-path members excluded), 0% opacity, hidden objects, broken-link placed images
+- Groups / Layers
+  - Recursively removes empty groups (ordinary and clip; a parent that becomes empty is also removed)
+  - Recursively removes empty layers and sublayers (guide-only layers are kept; _guide / _pasteboard are protected; at least one top-level layer remains)
+- Guides (pick one radio option; default "Don't delete")
+  - Guides: remove via the Clear Guides menu command
+  - All guides (force): unlock layers temporarily and remove everything
+  - Keep only the active artboard's guides: remove guides not on the active artboard
+- Artboards
+  - Objects outside all / the active artboard, and empty artboards (all in force mode; at least one is kept)
+- Deletion-prone options (hidden objects, broken-link placed images, objects outside all / the active artboard) start unchecked; guides default to "Don't delete"
 - The temporary action is always unloaded and deleted in a finally block
-- Reports the deleted count per type
+- Reports the deleted count per type (zero-count types are omitted)
 
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.2";
 
 // =========================================
 // ユーザー設定 / User Settings
@@ -44,6 +64,12 @@ var SCRIPT_VERSION = "v1.0.0";
 var PANEL_MARGINS = [16, 20, 16, 12];
 var PANEL_SPACING = 8;
 
+/* システム管理レイヤー名（空でも削除しない）/ System-managed layer names (kept even when empty) */
+var PROTECTED_LAYER_NAMES = { "_guide": true, "_pasteboard": true };
+
+/* 初期状態でOFFにするチェックボックス（誤削除を招きやすい積極的な項目）/ Checkboxes that start unchecked (aggressive options prone to false positives) */
+var UNCHECKED_BY_DEFAULT = { hiddenObjects: true, brokenLink: true, outsideAllArtboards: true, outsideActiveArtboard: true };
+
 /* パネルの共通設定 / Apply shared panel layout */
 function setupPanel(panel, spacing) {
     panel.orientation = "column";
@@ -51,16 +77,6 @@ function setupPanel(panel, spacing) {
     panel.alignment = "fill";
     panel.margins = PANEL_MARGINS;
     panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-function setupGroup(group, orientation, spacing) {
-    var groupOrientation = orientation || "column";
-    group.orientation = groupOrientation;
-    /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-    group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-    group.alignment = "fill";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
 // =========================================
@@ -94,13 +110,13 @@ var currentLanguage = getCurrentLang();
 
 var LABELS = {
     dialog: {
-        title: { ja: "未使用項目を削除", en: "Delete Unused Items" }
+        title: { ja: "不要な要素を削除", en: "Remove Unneeded Items" }
     },
     panel: {
         panelItems: { ja: "パネル項目", en: "Panel items" },
-        graphic: { ja: "グラフィック関連", en: "Graphic" },
-        text: { ja: "テキスト関連", en: "Text" },
-        object: { ja: "オブジェクト", en: "Objects" },
+        object: { ja: "パス/オブジェクト", en: "Paths/Objects" },
+        container: { ja: "グループ/レイヤー", en: "Groups/Layers" },
+        guide: { ja: "ガイド", en: "Guides" },
         artboard: { ja: "アートボード", en: "Artboards" }
     },
     checkbox: {
@@ -110,13 +126,22 @@ var LABELS = {
         brushes: { ja: "ブラシ", en: "Brushes" },
         paragraphStyles: { ja: "段落スタイル", en: "Paragraph styles" },
         characterStyles: { ja: "文字スタイル", en: "Character styles" },
-        zeroOpacity: { ja: "不透明度が0%のオブジェクト", en: "Objects at 0% opacity" },
+        strayPoints: { ja: "孤立点", en: "Stray points" },
+        emptyText: { ja: "空のテキスト", en: "Empty text frames" },
+        noPaintPath: { ja: "塗りも線もないオブジェクト", en: "Objects with no fill or stroke" },
+        zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
+        hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
+        brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
         outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
         outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
-        emptyClipGroup: { ja: "空のクリップグループ", en: "Empty clip groups" },
-        guides: { ja: "すべてのガイド", en: "All guides" },
-        artboards: { ja: "アートボード", en: "Artboards" },
-        force: { ja: "使用中の項目も削除（強制）", en: "Delete items even if in use (force)" }
+        emptyGroup: { ja: "空のグループ", en: "Empty groups" },
+        guidesNone: { ja: "削除しない", en: "Don't delete" },
+        clearGuides: { ja: "ガイド", en: "Guides" },
+        guides: { ja: "すべてのガイド（強制）", en: "All guides (force)" },
+        guidesOutsideActiveArtboard: { ja: "現在のアートボードのみ残す", en: "Keep only the active artboard's guides" },
+        emptyLayer: { ja: "空のレイヤー／サブレイヤー", en: "Empty layers / sublayers" },
+        artboards: { ja: "空のアートボード", en: "Empty artboards" },
+        force: { ja: "使用中の項目も削除", en: "Delete items even if in use" }
     },
     button: {
         cancel: { ja: "キャンセル", en: "Cancel" },
@@ -129,16 +154,25 @@ var LABELS = {
         brushes: { ja: "ブラシ", en: "Brushes" },
         paragraphStyles: { ja: "段落スタイル", en: "Paragraph styles" },
         characterStyles: { ja: "文字スタイル", en: "Character styles" },
+        strayPoints: { ja: "孤立点", en: "Stray points" },
+        emptyText: { ja: "空のテキスト", en: "Empty text frames" },
+        noPaintPath: { ja: "塗りも線もないオブジェクト", en: "Objects with no fill or stroke" },
         zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "0% opacity objects" },
+        hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
+        brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
         outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
         outsideActiveArtboard: { ja: "アクティブアートボード外のオブジェクト", en: "Objects outside the active artboard" },
-        emptyClipGroup: { ja: "空のクリップグループ", en: "Empty clip groups" },
-        guides: { ja: "ガイド", en: "Guides" },
+        emptyGroup: { ja: "空のグループ", en: "Empty groups" },
+        clearGuides: { ja: "ガイド", en: "Guides" },
+        guides: { ja: "すべてのガイド（強制）", en: "All guides (force)" },
+        guidesOutsideActiveArtboard: { ja: "現在のアートボード外のガイド", en: "Guides outside the active artboard" },
+        emptyLayer: { ja: "空のレイヤー／サブレイヤー", en: "Empty layers / sublayers" },
         artboards: { ja: "アートボード", en: "Artboards" }
     },
     alert: {
         noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        done: { ja: "削除が完了しました。", en: "Deletion complete." }
+        done: { ja: "削除が完了しました。", en: "Deletion complete." },
+        noTarget: { ja: "削除対象はありませんでした。", en: "No items to delete." }
     },
     tooltip: {
         swatches: {
@@ -157,9 +191,29 @@ var LABELS = {
             ja: "未使用のブラシをアクションで削除します。",
             en: "Prunes unused brushes via an action."
         },
+        strayPoints: {
+            ja: "アンカーが1点だけで長さを持たないパス（孤立点）を削除します。",
+            en: "Removes stray points (single-anchor paths with no length)."
+        },
+        emptyText: {
+            ja: "文字が入っていない空のテキストを削除します（ポイント文字／塗り・線のないエリア内・パス上文字）。",
+            en: "Removes empty text frames (point text, and area/path text whose path has no fill or stroke)."
+        },
+        noPaintPath: {
+            ja: "塗りも線もない（画面に見えない）パスを削除します。ガイドとクリッピングパスは対象外です。",
+            en: "Removes paths with no fill and no stroke (invisible). Guides and clipping paths are excluded."
+        },
         zeroOpacity: {
             ja: "不透明度が0%（完全に透明）のオブジェクトを削除します。グループ内も対象です。",
             en: "Removes objects at 0% opacity (fully transparent), including those inside groups."
+        },
+        hiddenObjects: {
+            ja: "非表示（隠した）オブジェクトを削除します。非表示グループはその中身ごと削除されます。",
+            en: "Removes hidden objects. A hidden group is removed together with its contents."
+        },
+        brokenLink: {
+            ja: "リンク先ファイルが見つからない配置画像（リンク切れ）を削除します。埋め込み画像や正常なリンクは対象外です。",
+            en: "Removes placed images whose linked file is missing (broken links). Embedded images and valid links are kept."
         },
         outsideAllArtboards: {
             ja: "どのアートボードにも載っていないオブジェクトを削除します。",
@@ -169,13 +223,25 @@ var LABELS = {
             ja: "アクティブなアートボードに載っていないオブジェクトを削除します。",
             en: "Removes objects that do not sit on the active artboard."
         },
-        emptyClipGroup: {
-            ja: "クリッピングマスクのみで中身が空（塗り・線なしのパスだけ）のグループを削除します。",
-            en: "Removes clip groups whose contents are empty (only paths with no fill or stroke)."
+        emptyGroup: {
+            ja: "中身のない空のグループを削除します。クリップグループは、マスク以外が塗り・線なしのパスだけの場合も対象です。",
+            en: "Removes empty groups with no contents. Clip groups also count when their non-mask contents are only paths with no fill or stroke."
+        },
+        clearGuides: {
+            ja: "メニューの「ガイドを消去」でガイドを削除します。ロックされたレイヤー上のガイドは残ることがあります（その場合は「すべてのガイド（強制）」を使用）。",
+            en: "Removes guides via the Clear Guides menu command. Guides on locked layers may remain (use \"All guides (force)\" for those)."
         },
         guides: {
             ja: "ドキュメント内のすべてのガイドを削除します（ロックされたレイヤーも一時的に解除）。",
             en: "Removes all guides in the document (temporarily unlocking locked layers)."
+        },
+        guidesOutsideActiveArtboard: {
+            ja: "現在（アクティブ）のアートボード上にないガイドを削除し、そのアートボード上のガイドだけを残します。",
+            en: "Removes guides that are not on the active artboard, keeping only that artboard's guides."
+        },
+        emptyLayer: {
+            ja: "中身が空のレイヤー／サブレイヤーを再帰的に削除します。ガイドだけが残っているレイヤーは残し、トップレベルは最低1つ残します。",
+            en: "Recursively removes empty layers and sublayers. Layers holding only guides are kept, and at least one top-level layer remains."
         },
         paragraphStyles: {
             ja: "使用状況を取得できないため、強制ON時のみ [標準段落スタイル] 以外を削除します。",
@@ -212,19 +278,6 @@ function L(path) {
     return node[currentLanguage] || node.ja || path;
 }
 
-/* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-function labelText(key) {
-    return L(key) + (currentLanguage === "ja" ? "：" : ":");
-}
-
-/* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
-function labelWithCount(key, count) {
-    if (currentLanguage === "ja") {
-        return L(key) + "（" + count + "）";
-    }
-    return L(key) + " (" + count + ")";
-}
-
 // =========================================
 // メイン処理 / Main
 // =========================================
@@ -242,38 +295,58 @@ function labelWithCount(key, count) {
         swatches:              function (force) { return deleteUnusedSwatches(doc, force); },
         graphicStyles:         function (force) { return deleteUnusedGraphicStyles(doc, force); },
         symbols:               function (force) { return deleteUnusedSymbols(doc, force); },
-        brushes:               function ()      { return deleteUnusedBrushes(doc); },
+        brushes:               function (force) { return deleteUnusedBrushes(doc, force); },
         paragraphStyles:       function (force) { return deleteUnusedParagraphStyles(doc, force); },
         characterStyles:       function (force) { return deleteUnusedCharacterStyles(doc, force); },
+        strayPoints:           function ()      { return deleteStrayPoints(doc); },
+        emptyText:             function ()      { return deleteEmptyTextFrames(doc); },
+        noPaintPath:           function ()      { return deleteUnpaintedPaths(doc); },
         zeroOpacity:           function ()      { return deleteZeroOpacityObjects(doc); },
+        hiddenObjects:         function ()      { return deleteHiddenObjects(doc); },
+        brokenLink:            function ()      { return deleteBrokenLinkImages(doc); },
         outsideAllArtboards:   function ()      { return deleteObjectsOutsideAllArtboards(doc); },
         outsideActiveArtboard: function ()      { return deleteObjectsOutsideActiveArtboard(doc); },
-        emptyClipGroup:        function ()      { return deleteEmptyClipGroups(doc); },
+        emptyGroup:            function ()      { return deleteEmptyGroups(doc); },
+        clearGuides:           function ()      { return clearGuides(doc); },
         guides:                function ()      { return deleteAllGuides(doc); },
+        guidesOutsideActiveArtboard: function () { return deleteGuidesOutsideActiveArtboard(doc); },
+        emptyLayer:            function ()      { return deleteEmptyLayers(doc); },
         artboards:             function (force) { return deleteUnusedArtboards(doc, force); }
     };
 
     /* ダイアログの構成（トップパネル → サブパネル/チェックボックス）。force はパネル項目パネルの末尾に置く / Dialog layout; the force option sits at the bottom of the panel-items panel */
     var DIALOG_LAYOUT = [
-        { titleKey: "panel.panelItems", force: true, subPanels: [
-            { titleKey: "panel.graphic", keys: ["swatches", "graphicStyles", "symbols", "brushes"] },
-            { titleKey: "panel.text", keys: ["paragraphStyles", "characterStyles"] }
+        { row: [
+            { column: [
+                { titleKey: "panel.panelItems", force: true, keys: ["swatches", "symbols", "brushes", "graphicStyles", "paragraphStyles", "characterStyles"] },
+                { titleKey: "panel.container", keys: ["emptyGroup", "emptyLayer"] }
+            ] },
+            { column: [
+                { titleKey: "panel.object", keys: ["strayPoints", "emptyText", "noPaintPath", "zeroOpacity", "hiddenObjects", "brokenLink"] },
+                { titleKey: "panel.guide", radio: true, noneKey: "guidesNone", keys: ["clearGuides", "guides", "guidesOutsideActiveArtboard"] }
+            ] }
         ] },
-        { titleKey: "panel.object", keys: ["zeroOpacity", "emptyClipGroup", "guides"] },
         { titleKey: "panel.artboard", keys: ["outsideAllArtboards", "outsideActiveArtboard", "artboards"] }
     ];
 
     /* レイアウトを順に辿って全キーを取り出す / Flatten all keys in layout order */
     var ALL_KEYS = (function (layout) {
         var keys = [];
-        for (var i = 0; i < layout.length; i++) {
-            if (layout[i].subPanels) {
-                for (var s = 0; s < layout[i].subPanels.length; s++) {
-                    keys = keys.concat(layout[i].subPanels[s].keys);
+        function collectFromNode(node) {
+            if (node.row) {
+                for (var r = 0; r < node.row.length; r++) {
+                    collectFromNode(node.row[r]);
+                }
+            } else if (node.column) {
+                for (var c = 0; c < node.column.length; c++) {
+                    collectFromNode(node.column[c]);
                 }
             } else {
-                keys = keys.concat(layout[i].keys);
+                keys = keys.concat(node.keys);
             }
+        }
+        for (var i = 0; i < layout.length; i++) {
+            collectFromNode(layout[i]);
         }
         return keys;
     })(DIALOG_LAYOUT);
@@ -298,15 +371,16 @@ function labelWithCount(key, count) {
     /* パネル表示を更新 / Refresh the panels */
     app.redraw();
 
-    /* 完了メッセージを組み立てて表示 / Build and show the completion message */
-    var resultMessage = L('alert.done') + "\n\n";
+    /* 完了メッセージを組み立てて表示（0件の項目は省略）/ Build and show the completion message (omit zero-count types) */
+    var resultLines = "";
     for (i = 0; i < ALL_KEYS.length; i++) {
         key = ALL_KEYS[i];
-        if (dialogChoices[key]) {
-            resultMessage += formatResultLine('result.' + key, deletedCounts[key]);
+        if (dialogChoices[key] && deletedCounts[key] > 0) {
+            resultLines += formatResultLine('result.' + key, deletedCounts[key]);
         }
     }
-    alert(resultMessage);
+    /* 1件も削除されなければ「対象なし」だけ表示 / If nothing was deleted, show only the no-target message */
+    alert(resultLines === "" ? L('alert.noTarget') : L('alert.done') + "\n\n" + resultLines);
 
     /* 集計1行を組み立て（日本語は「件」を付ける）/ Build one result line (JA appends a counter word) */
     function formatResultLine(key, count) {
@@ -329,34 +403,57 @@ function labelWithCount(key, count) {
         /* レイアウト定義どおりにパネル・サブパネル・チェックボックスを生成 / Build panels, sub-panels, and checkboxes per the layout */
         var checkboxes = {};
         var forceCheckbox = null;
-        for (var i = 0; i < DIALOG_LAYOUT.length; i++) {
-            var node = DIALOG_LAYOUT[i];
-            var panel = dialog.add("panel", undefined, L(node.titleKey));
-            setupPanel(panel, 6);
 
-            if (node.subPanels) {
-                /* サブパネルは横並び（2カラム）/ Lay sub-panels out side by side (two columns) */
-                var columns = panel.add("group");
-                columns.orientation = "row";
-                columns.alignChildren = ["fill", "top"];
-                columns.alignment = "fill";
-                columns.spacing = PANEL_SPACING;
-                for (var s = 0; s < node.subPanels.length; s++) {
-                    var sub = node.subPanels[s];
-                    var subPanel = columns.add("panel", undefined, L(sub.titleKey));
-                    setupPanel(subPanel, 6);
-                    addCheckboxes(subPanel, sub.keys, checkboxes);
+        /* 1ノードぶんのパネルを親コンテナに生成 / Build one node's panel inside a parent container */
+        function buildPanelNode(parent, node) {
+            /* column ノードは複数パネルを縦積みするグループ / A column node stacks several panels vertically */
+            if (node.column) {
+                var stack = parent.add("group");
+                stack.orientation = "column";
+                stack.alignChildren = ["fill", "top"];
+                stack.alignment = "fill";
+                stack.spacing = PANEL_SPACING;
+                for (var k = 0; k < node.column.length; k++) {
+                    buildPanelNode(stack, node.column[k]);
                 }
+                return;
+            }
+
+            var panel = parent.add("panel", undefined, L(node.titleKey));
+            setupPanel(panel, 6);
+            if (node.radio) {
+                addRadioGroup(panel, node, checkboxes);
             } else {
                 addCheckboxes(panel, node.keys, checkboxes);
             }
 
-            /* 強制オプションは対象パネル（パネル項目）の末尾に追加 / The force option goes at the bottom of its panel (panel items) */
+            /* 強制オプションはグループに入れて対象パネル（パネル項目）の末尾に追加、上にマージン6 / The force option sits in a group at the bottom of its panel (panel items), with a 6px top margin */
             if (node.force) {
-                forceCheckbox = panel.add("checkbox", undefined, L('checkbox.force'));
-                forceCheckbox.alignment = "left";
+                var forceGroup = panel.add("group");
+                forceGroup.orientation = "column";
+                forceGroup.alignChildren = ["left", "top"];
+                forceGroup.alignment = "left";
+                forceGroup.margins = [0, 6, 0, 0];
+                forceCheckbox = forceGroup.add("checkbox", undefined, L('checkbox.force'));
                 forceCheckbox.value = false;
                 forceCheckbox.helpTip = L('tooltip.force');
+            }
+        }
+
+        for (var i = 0; i < DIALOG_LAYOUT.length; i++) {
+            var node = DIALOG_LAYOUT[i];
+            if (node.row) {
+                /* 複数パネルを横並び / Lay multiple panels side by side */
+                var panelRow = dialog.add("group");
+                panelRow.orientation = "row";
+                panelRow.alignChildren = ["fill", "top"];
+                panelRow.alignment = "fill";
+                panelRow.spacing = PANEL_SPACING;
+                for (var r = 0; r < node.row.length; r++) {
+                    buildPanelNode(panelRow, node.row[r]);
+                }
+            } else {
+                buildPanelNode(dialog, node);
             }
         }
 
@@ -381,9 +478,21 @@ function labelWithCount(key, count) {
     function addCheckboxes(parent, keys, checkboxes) {
         for (var i = 0; i < keys.length; i++) {
             var checkbox = parent.add("checkbox", undefined, L('checkbox.' + keys[i]));
-            checkbox.value = true;
+            checkbox.value = !UNCHECKED_BY_DEFAULT[keys[i]];
             checkbox.helpTip = L('tooltip.' + keys[i]);
             checkboxes[keys[i]] = checkbox;
+        }
+    }
+
+    /* ラジオグループを生成。先頭に「削除しない」（既定で選択）を置き、各キーのラジオを記録 / Build a radio group with a "Don't delete" option (selected by default) first, recording each key's radio */
+    function addRadioGroup(panel, node, checkboxes) {
+        var noneRadio = panel.add("radiobutton", undefined, L('checkbox.' + node.noneKey));
+        noneRadio.value = true;
+        for (var i = 0; i < node.keys.length; i++) {
+            var radio = panel.add("radiobutton", undefined, L('checkbox.' + node.keys[i]));
+            radio.helpTip = L('tooltip.' + node.keys[i]);
+            radio.value = false;
+            checkboxes[node.keys[i]] = radio;
         }
     }
 
@@ -459,6 +568,15 @@ function labelWithCount(key, count) {
         ].join("\n");
     }
 
+    /* 失敗しても無視してよい後始末を実行 / Run best-effort cleanup, ignoring any failure */
+    function ignoringErrors(action) {
+        try {
+            action();
+        } catch (e) {
+            /* 後始末の失敗は無視 / Ignore cleanup failures */
+        }
+    }
+
     /* アクションを一時ファイルに書き出して再生。close/unload/remove は finally で必ず試みる / Write, load, and play the action; close/unload/remove are always attempted in finally */
     function playTemporaryAction(actionSource, setName, actionName, fileName) {
         var actionFile = new File(fileName);
@@ -472,7 +590,7 @@ function labelWithCount(key, count) {
             actionFile.close();
 
             /* loadAction 前に同名セットを解放 / Unload any same-name set before loading */
-            try { app.unloadAction(setName, ""); } catch (e1) {}
+            ignoringErrors(function () { app.unloadAction(setName, ""); });
 
             app.loadAction(actionFile);
             app.doScript(actionName, setName);
@@ -480,9 +598,9 @@ function labelWithCount(key, count) {
         } catch (e) {
             /* 書き出し・読み込み・再生に失敗 / Failed to write, load, or play */
         } finally {
-            try { actionFile.close(); } catch (e2) {}
-            try { app.unloadAction(setName, ""); } catch (e3) {}
-            try { actionFile.remove(); } catch (e4) {}
+            ignoringErrors(function () { actionFile.close(); });
+            ignoringErrors(function () { app.unloadAction(setName, ""); });
+            ignoringErrors(function () { actionFile.remove(); });
         }
         return played;
     }
@@ -544,8 +662,95 @@ function labelWithCount(key, count) {
     }
 
     // ==================================================
+    // 孤立点・空テキスト削除 / Stray points and empty text
+    // 移植元 / Ported from: 不要なアイテムを削除.jsx (c) 2020 Toshiyuki Takahashi, MIT License
+    // ==================================================
+
+    /* 孤立点（アンカー1点・長さ0のパス）を削除し、件数を返す / Remove stray points (single-anchor, zero-length paths), return the count */
+    function deleteStrayPoints(doc) {
+        var removedCount = 0;
+        for (var i = doc.pageItems.length - 1; i >= 0; i--) {
+            var item = doc.pageItems[i];
+            if (item.typename !== "PathItem") {
+                continue;
+            }
+            try {
+                if (item.pathPoints.length < 2 && item.length <= 0) {
+                    item.remove();
+                    removedCount++;
+                }
+            } catch (e) {
+                /* 削除不可 / Not removable */
+            }
+        }
+        return removedCount;
+    }
+
+    /* 文字のない空テキストを削除し、件数を返す（エリア内/パス上は塗り・線のないパスのみ）/ Remove empty text frames, return the count (area/path text only when the path has no fill/stroke) */
+    function deleteEmptyTextFrames(doc) {
+        var removedCount = 0;
+        for (var i = doc.pageItems.length - 1; i >= 0; i--) {
+            var item = doc.pageItems[i];
+            if (item.typename !== "TextFrame") {
+                continue;
+            }
+            try {
+                if (item.contents.length >= 1) {
+                    continue;
+                }
+                var shouldRemove = false;
+                if (item.kind === TextType.POINTTEXT) {
+                    shouldRemove = true;
+                } else if (item.kind === TextType.AREATEXT || item.kind === TextType.PATHTEXT) {
+                    /* テキストパスが塗り・線なしのときだけ削除 / Remove only when the text path has no fill/stroke */
+                    if (!item.textPath.stroked && !item.textPath.filled) {
+                        shouldRemove = true;
+                    }
+                }
+                if (shouldRemove) {
+                    item.remove();
+                    removedCount++;
+                }
+            } catch (e) {
+                /* 削除不可 / Not removable */
+            }
+        }
+        return removedCount;
+    }
+
+    // ==================================================
     // オブジェクト削除 / Object deletion
     // ==================================================
+
+    /* 塗りも線もない（不可視の）パスを削除し、件数を返す。ガイド・クリッピングパスは除外 / Remove paths with no fill and no stroke (invisible) and return the count; guides and clipping paths are excluded */
+    function deleteUnpaintedPaths(doc) {
+        var removedCount = 0;
+        var paths = doc.pathItems;
+        for (var i = paths.length - 1; i >= 0; i--) {
+            var path = paths[i];
+            try {
+                /* ガイドは別オプションで扱う / Guides are handled by a separate option */
+                if (path.guides) {
+                    continue;
+                }
+                /* クリッピングパスはグループの一部なので残す / Keep clipping paths (part of a clip group) */
+                if (path.clipping) {
+                    continue;
+                }
+                /* コンパウンドパスの構成パス（穴など）は単体で削除しない / Don't delete a compound path's member paths (holes, etc.) */
+                if (path.parent && path.parent.typename === "CompoundPathItem") {
+                    continue;
+                }
+                if (!path.filled && !path.stroked) {
+                    path.remove();
+                    removedCount++;
+                }
+            } catch (e) {
+                /* 削除不可 / Not removable */
+            }
+        }
+        return removedCount;
+    }
 
     /* 不透明度が0%のオブジェクトを削除し、件数を返す（グループ内も対象）/ Remove objects at 0% opacity and return the count (including inside groups) */
     function deleteZeroOpacityObjects(doc) {
@@ -564,6 +769,50 @@ function labelWithCount(key, count) {
                 }
             } catch (e) {
                 /* 削除不可 / Not removable */
+            }
+        }
+        return removedCount;
+    }
+
+    /* 非表示オブジェクトを削除し、件数を返す（非表示グループは中身ごと）/ Remove hidden objects and return the count (hidden groups go with their contents) */
+    function deleteHiddenObjects(doc) {
+        var removedCount = 0;
+        /* doc.pageItems はグループ内も含む平坦なコレクション。末尾から削除 / doc.pageItems is flat (includes nested); remove from the end */
+        for (var i = doc.pageItems.length - 1; i >= 0; i--) {
+            try {
+                var item = doc.pageItems[i];
+                if (item.hidden) {
+                    item.remove();
+                    removedCount++;
+                }
+            } catch (e) {
+                /* 親ごと削除済み、または削除不可 / Already removed with its parent, or not removable */
+            }
+        }
+        return removedCount;
+    }
+
+    /* リンク切れ（リンク先が見つからない）の配置画像を削除し、件数を返す。埋め込み・正常リンクは対象外 / Remove placed images with a missing link and return the count; embedded images and valid links are kept */
+    function deleteBrokenLinkImages(doc) {
+        var removedCount = 0;
+        var placed = doc.placedItems;
+        for (var i = placed.length - 1; i >= 0; i--) {
+            var item = placed[i];
+            var isBroken = false;
+            try {
+                var linkedFile = item.file;
+                isBroken = (!linkedFile || !linkedFile.exists);
+            } catch (e) {
+                /* .file 取得で例外＝リンク切れ扱い / A throwing .file access means a missing link */
+                isBroken = true;
+            }
+            if (isBroken) {
+                try {
+                    item.remove();
+                    removedCount++;
+                } catch (e2) {
+                    /* 削除不可 / Not removable */
+                }
             }
         }
         return removedCount;
@@ -613,44 +862,51 @@ function labelWithCount(key, count) {
         return removedCount;
     }
 
-    /* 中身が空のクリップグループを削除し、件数を返す / Remove empty clip groups and return the count */
-    function deleteEmptyClipGroups(doc) {
+    /* 空のグループ（通常グループ・クリップグループ）を削除し、件数を返す / Remove empty groups (ordinary and clip groups) and return the count */
+    function deleteEmptyGroups(doc) {
         var removedCount = 0;
         for (var i = 0; i < doc.layers.length; i++) {
-            removedCount += removeEmptyClipGroupsIn(doc.layers[i]);
+            removedCount += removeEmptyGroupsIn(doc.layers[i]);
         }
         return removedCount;
     }
 
-    /* コンテナ内を再帰的に探索し、空のクリップグループを削除して件数を返す / Recurse a container, removing empty clip groups, and return the count */
-    function removeEmptyClipGroupsIn(container) {
+    /* コンテナ内を再帰的に探索し、空のグループを削除して件数を返す。子を先に掃除するので、空になった親も同じパスで削除できる / Recurse a container removing empty groups; children are cleaned first so a parent that becomes empty is removed in the same pass */
+    function removeEmptyGroupsIn(container) {
         var removed = 0;
         /* 削除でインデックスがずれるため末尾から / Iterate from the end because removal shifts indices */
         for (var i = container.pageItems.length - 1; i >= 0; i--) {
             var item = container.pageItems[i];
-            if (isEmptyClipGroup(item)) {
-                try {
-                    item.remove();
-                    removed++;
-                } catch (e) {
-                    /* 削除不可 / Not removable */
+            if (item.typename === "GroupItem") {
+                /* 先に中を掃除してから自身の空判定 / Clean inside first, then test this group */
+                removed += removeEmptyGroupsIn(item);
+                if (isEmptyGroup(item)) {
+                    try {
+                        item.remove();
+                        removed++;
+                    } catch (e) {
+                        /* 削除不可 / Not removable */
+                    }
                 }
-            } else if (item.typename === "GroupItem") {
-                /* 通常グループは中を再帰探索 / Recurse into ordinary groups */
-                removed += removeEmptyClipGroupsIn(item);
             }
         }
         return removed;
     }
 
-    /* クリップグループで、子がすべて塗り・線なしの PathItem か判定 / Whether the item is a clip group whose children are all paths with no fill/stroke */
-    function isEmptyClipGroup(item) {
-        if (!(item.typename === "GroupItem" && item.clipped === true)) {
+    /* グループが空か判定。子が無いグループ、またはマスク以外が塗り・線なしのパスだけのクリップグループ / Whether a group is empty: no children, or a clip group whose non-mask contents are only paths with no fill/stroke */
+    function isEmptyGroup(item) {
+        if (item.typename !== "GroupItem") {
             return false;
         }
 
         var children = item.pageItems;
+        /* 子のないグループは空 / A group with no children is empty */
         if (children.length === 0) {
+            return true;
+        }
+
+        /* クリップグループのみ、中身が塗り・線なしパスだけなら空とみなす / Only for clip groups: empty when all contents are unpainted paths */
+        if (item.clipped !== true) {
             return false;
         }
 
@@ -669,8 +925,37 @@ function labelWithCount(key, count) {
         return true;
     }
 
-    /* すべてのガイドを削除し、件数を返す（レイヤーを一時アンロックし、後で元に戻す）/ Remove all guides and return the count (temporarily unlocking layers, then restoring) */
-    function deleteAllGuides(doc) {
+    /* ガイド属性を持つパスの数を数える / Count paths flagged as guides */
+    function countGuidePaths(doc) {
+        var count = 0;
+        var paths = doc.pathItems;
+        for (var i = 0; i < paths.length; i++) {
+            if (paths[i].guides) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    /* メニューコマンド「ガイドを消去」でガイドを削除し、件数を返す / Remove guides via the Clear Guides menu command, return the count */
+    function clearGuides(doc) {
+        var countBefore = countGuidePaths(doc);
+        var guidesWereLocked = doc.guidesLocked;
+        try {
+            /* ロックされたガイドも消去できるよう一時解除 / Temporarily unlock so locked guides can be cleared too */
+            doc.guidesLocked = false;
+            app.executeMenuCommand("clearguide");
+        } catch (e) {
+            /* 消去不可 / Could not clear */
+        } finally {
+            /* 例外時もロック状態を必ず元に戻す / Always restore the lock state, even on error */
+            doc.guidesLocked = guidesWereLocked;
+        }
+        return Math.max(0, countBefore - countGuidePaths(doc));
+    }
+
+    /* ガイドのロック・レイヤーロックを一時解除し、判定関数が真のガイドを削除して件数を返す。ロック状態は finally で必ず復元 / Temporarily clear guide/layer locks, remove guides for which the predicate is true, return the count; locks are always restored in finally */
+    function removeGuidesWhere(doc, shouldRemove) {
         var removedCount = 0;
         var layers = doc.layers;
 
@@ -684,28 +969,97 @@ function labelWithCount(key, count) {
         }
 
         var guidesWereLocked = doc.guidesLocked;
-        doc.guidesLocked = false;
 
-        /* ガイド属性を持つパスを削除 / Remove paths flagged as guides */
-        var paths = doc.pathItems;
-        for (var p = paths.length - 1; p >= 0; p--) {
-            if (paths[p].guides) {
+        try {
+            doc.guidesLocked = false;
+
+            var paths = doc.pathItems;
+            for (var p = paths.length - 1; p >= 0; p--) {
+                if (!paths[p].guides) {
+                    continue;
+                }
                 try {
-                    paths[p].remove();
+                    if (shouldRemove(paths[p])) {
+                        paths[p].remove();
+                        removedCount++;
+                    }
+                } catch (e) {
+                    /* 判定不可・削除不可はスキップ / Skip guides we can't test or remove */
+                }
+            }
+        } finally {
+            /* 例外時もロック状態を必ず元に戻す / Always restore the lock states, even on error */
+            for (var j = 0; j < layers.length; j++) {
+                layers[j].locked = lockStates[j];
+            }
+            doc.guidesLocked = guidesWereLocked;
+        }
+
+        return removedCount;
+    }
+
+    /* すべてのガイドを削除し、件数を返す / Remove all guides and return the count */
+    function deleteAllGuides(doc) {
+        return removeGuidesWhere(doc, function () { return true; });
+    }
+
+    /* 現在（アクティブ）のアートボード上にないガイドを削除し、件数を返す / Remove guides not on the active artboard and return the count */
+    function deleteGuidesOutsideActiveArtboard(doc) {
+        var activeRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+        return removeGuidesWhere(doc, function (guidePath) {
+            return !rectsIntersect(activeRect, guidePath.geometricBounds);
+        });
+    }
+
+    // ==================================================
+    // 関数：空のレイヤー削除 / Delete empty layers
+    // ==================================================
+
+    /* 中身が空（pageItems もサブレイヤーも無い）のレイヤーを削除し、件数を返す。ガイドは pageItems に含まれるためガイドのみのレイヤーは残る。トップレベルは最低1つ残す
+       Remove empty layers (no pageItems and no sublayers) and return the count; guides count as pageItems so guide-only layers stay, and at least one top-level layer remains */
+    function deleteEmptyLayers(doc) {
+        var removedCount = 0;
+        for (var i = doc.layers.length - 1; i >= 0; i--) {
+            var topLayer = doc.layers[i];
+            /* 先に空のサブレイヤーを削除 / Remove empty sublayers first */
+            removedCount += removeEmptySublayers(topLayer);
+            if (PROTECTED_LAYER_NAMES[topLayer.name]) {
+                continue;
+            }
+            /* トップレベルは最低1つ必要 / At least one top-level layer must remain */
+            if (topLayer.pageItems.length === 0 && topLayer.layers.length === 0 && doc.layers.length > 1) {
+                try {
+                    topLayer.locked = false;
+                    topLayer.remove();
                     removedCount++;
                 } catch (e) {
                     /* 削除不可 / Not removable */
                 }
             }
         }
-
-        /* ロック状態を元に戻す / Restore the original lock states */
-        for (var j = 0; j < layers.length; j++) {
-            layers[j].locked = lockStates[j];
-        }
-        doc.guidesLocked = guidesWereLocked;
-
         return removedCount;
+    }
+
+    /* サブレイヤーを再帰的に処理し、空のものを削除して件数を返す / Recurse sublayers, removing empty ones, return the count */
+    function removeEmptySublayers(parentLayer) {
+        var removed = 0;
+        for (var i = parentLayer.layers.length - 1; i >= 0; i--) {
+            var subLayer = parentLayer.layers[i];
+            removed += removeEmptySublayers(subLayer);
+            if (PROTECTED_LAYER_NAMES[subLayer.name]) {
+                continue;
+            }
+            if (subLayer.pageItems.length === 0 && subLayer.layers.length === 0) {
+                try {
+                    subLayer.locked = false;
+                    subLayer.remove();
+                    removed++;
+                } catch (e) {
+                    /* 削除不可 / Not removable */
+                }
+            }
+        }
+        return removed;
     }
 
     // ==================================================
@@ -794,9 +1148,22 @@ function labelWithCount(key, count) {
     // 関数：未使用ブラシ削除 / Delete unused brushes
     // ==================================================
 
-    /* アクションで未使用ブラシを削除し、件数を返す / Prune unused brushes via action and return the count */
-    function deleteUnusedBrushes(doc) {
-        return pruneUnusedViaAction(doc.brushes, PRUNE_SPECS.brush);
+    /* 通常はアクションで未使用のみ、強制時は削除できるものをすべて削除（使用中・基本ブラシは不可）。件数を返す / Normally prune unused via action; force mode removes every removable brush (in-use and basic brushes can't be removed). Returns the count */
+    function deleteUnusedBrushes(doc, force) {
+        if (!force) {
+            return pruneUnusedViaAction(doc.brushes, PRUNE_SPECS.brush);
+        }
+
+        var removedCount = 0;
+        for (var i = doc.brushes.length - 1; i >= 0; i--) {
+            try {
+                doc.brushes[i].remove();
+                removedCount++;
+            } catch (e) {
+                /* 使用中・基本ブラシなど削除不可 / In use, basic brush, or otherwise not removable */
+            }
+        }
+        return removedCount;
     }
 
     // ==================================================
