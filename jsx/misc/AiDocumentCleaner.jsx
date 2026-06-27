@@ -26,6 +26,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 一時アクションは finally で必ず解放・削除
 - 種類ごとに削除件数を集計して表示（0件の種類は省略）
 
+### 紹介記事
+
+https://note.com/dtp_tranist/n/n0d70178f0f65
+
 ### Overview
 
 A cleanup tool that removes unneeded elements from a document in one pass. Choose targets in the dialog.
