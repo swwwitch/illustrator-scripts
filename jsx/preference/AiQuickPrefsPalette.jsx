@@ -94,7 +94,7 @@ var SCRIPT_VERSION = "v1.7.2";
             transform: { ja: "変形オプション", en: "Transform Options" },
             flip: { ja: "変形（反転）", en: "Transform (Flip)" },
             glyphBounds: { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
-            artboard: { ja: "アートボード名と枠線", en: "Artboard Name & Border" },
+            artboard: { ja: "アートボード名と枠線", en: "Artboard Name / Border" },
             artboardBorder: { ja: "アートボードの枠線", en: "Artboard Border" },
             copyPaste: { ja: "コピー/ペースト", en: "Copy / Paste" },
             drawing: { ja: "描画", en: "Drawing" }
