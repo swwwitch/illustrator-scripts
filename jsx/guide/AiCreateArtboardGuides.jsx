@@ -11,6 +11,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 中心ガイド：各アートボードの垂直・水平の中心にガイドを作成
 - エッジガイド：各アートボードの上下左右にガイドを作成（マスターON/OFF、既定はOFF）
 - ガイドが1本も無くても、中心・エッジの作成だけ実行可能
+- 作成したガイドはすべて「_guide」レイヤーに集約（無ければ自動作成、ロック/非表示は解除して使用）
 
 設定
 
@@ -27,6 +28,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - ↑↓キーで±1増減
 - shiftキーを併用すると±10増減
 
+### 紹介記事（note）
+
+https://note.com/dtp_tranist/n/n56d9c936a364
+
 */
 
 /*
@@ -39,6 +44,7 @@ A tool to organize/create guides relative to artboards. Three groups are configu
 - Center guides: add vertical/horizontal guides at each artboard center
 - Edge guides: add guides on each artboard's top/bottom/left/right edges (master toggle, off by default)
 - Center/edge creation can run even when there are no guides at all
+- All created guides are collected on a "_guide" layer (created if missing; unlocked/shown when reused)
 
 Settings
 
@@ -61,7 +67,7 @@ Preview
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -630,9 +636,26 @@ function getTargetArtboardRects(doc, allArtboards) {
     return rects;
 }
 
+/* 確定ガイドを作成するレイヤー名 / Layer name where committed guides are created */
+var GUIDE_LAYER_NAME = "_guide";
+
+/* 「_guide」レイヤーを取得（無ければ作成。ロック/非表示は解除）/ Get the "_guide" layer (create if missing; unlock/show) */
+function getGuideLayer(doc) {
+    var layer;
+    try {
+        layer = doc.layers.getByName(GUIDE_LAYER_NAME);
+    } catch (e) {
+        layer = doc.layers.add();
+        layer.name = GUIDE_LAYER_NAME;
+    }
+    layer.locked = false;
+    layer.visible = true;
+    return layer;
+}
+
 /* 直線のガイドを 1 本作成 / Create a single straight guide */
 function addGuideLine(doc, startPoint, endPoint) {
-    var guidePath = doc.pathItems.add();
+    var guidePath = getGuideLayer(doc).pathItems.add();
     guidePath.setEntirePath([startPoint, endPoint]);
     guidePath.stroked = false;
     guidePath.filled = false;
