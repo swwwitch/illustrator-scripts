@@ -6,21 +6,22 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustrator の各種環境設定を、常駐パレットでまとめて切り替えるユーティリティです。設定は操作した時点で即時反映されます。
+Illustrator の各種環境設定の切り替えと、選択オブジェクトの反転を、常駐パレットでまとめて操作するユーティリティです。操作した時点で即時反映されます。
 
-- パレット（常駐エンジン）で表示し、書き込みは BridgeTalk でメインエンジンへ委譲（読み出しは同期で直接取得）
-- 2カラム構成：左＝変形／整列、右＝キー入力／テキスト／単位、最下部（全幅）＝アートボード名と枠線／その他
+- パレット（常駐エンジン）で表示し、書き込み・DOM 操作は BridgeTalk でメインエンジンへ委譲（読み出しは同期で直接取得）
+- 2カラム構成：左＝キー入力／整列／字形の境界に整列、右＝変形オプション／変形（反転）、最下部（全幅）＝アートボード名と枠線／その他
 - 環境設定ダイアログ等の外部変更は、パレットをクリック（再アクティブ）で同期
+- パレットがアクティブなとき esc キーで閉じる
 
 #### パネルと項目
 
-- 変形：パターンを変形／角を拡大・縮小／線幅と効果も拡大・縮小
-- 整列：プレビュー境界／字形の境界に整列（ポイント文字・エリア内文字）
 - キー入力：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
-- テキスト：サイズ/行送り（text/sizeIncrement）・ベースライン（text/riseIncrement）。単位は text/units・text/asianunits を参照して表示
-- 単位：線／文字／字送りの現在単位を表示（確認用・読み取り専用）
-- アートボード名と枠線：アートボード名を表示／カンバスカラーをホワイトに／ビデオ定規／枠線のカラー・幅
-- その他：リアルタイムの描画と編集／書式なしペースト
+- 整列：プレビュー境界
+- 字形の境界に整列：ポイント文字／エリア内文字
+- 変形オプション：パターン／角／線幅と効果
+- 変形（反転）：水平方向／垂直方向（選択全体の可視バウンディング中心を基点に反転）
+- アートボード名と枠線：アートボード名を表示／ビデオ定規／枠線のカラー・幅
+- その他：リアルタイムの描画と編集／書式なしペースト／コピー元のレイヤーにペースト
 
 
 ### 紹介記事（note）
@@ -29,24 +30,26 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 
 ### Overview
 
-A persistent-palette utility for batch-toggling various Illustrator preferences. Every setting applies immediately when changed.
+A persistent-palette utility for batch-toggling various Illustrator preferences and flipping the selection. Every action applies immediately when triggered.
 
-- Runs in a persistent-engine palette; writes are delegated to the main engine via BridgeTalk (reads are fetched directly/synchronously)
-- Two-column layout: left = Transform / Align, right = Key input / Text / Units, bottom (full width) = Artboard / Other
+- Runs in a persistent-engine palette; writes and DOM operations are delegated to the main engine via BridgeTalk (reads are fetched directly/synchronously)
+- Two-column layout: left = Key input / Align / Align to Glyph Bounds, right = Transform Options / Transform (Flip), bottom (full width) = Artboard / Other
 - External changes (e.g. the Preferences dialog) sync when you click (re-activate) the palette
+- Press Esc to close while the palette is active
 
 #### Panels & options
 
-- Transform: Transform Patterns / Scale Corners / Scale Strokes & Effects
-- Align: Preview Bounds / Align to Glyph Bounds (Point & Area Type)
 - Key input: cursor step (cursorKeyLength); switch ruler unit via popup, adjust with Up/Down / Shift / Option
-- Text: Size/Leading (text/sizeIncrement) and Baseline (text/riseIncrement); units shown from text/units and text/asianunits
-- Units: shows current Stroke / Type / Char-spacing units (read-only)
-- Artboard Name & Border: Show Artboard Name / Canvas to white / Video Ruler / border color & width
-- Other: Real-time Drawing & Editing / Paste without Formatting
+- Align: Preview Bounds
+- Align to Glyph Bounds: Point Type / Area Type
+- Transform Options: Pattern Tiles / Corners / Strokes & Effects
+- Transform (Flip): Horizontal / Vertical (around the center of the selection's visible bounds)
+- Artboard Name & Border: Show Artboard Name / Video Ruler / border color & width
+- Other: Real-time Drawing & Editing / Paste without Formatting / Paste Remembers Layers
 
 ### 更新履歴 / Change Log
 
+- v1.7.0 (20260627): 変形（反転）パネルを追加（選択中心基準・ロック／ガイド等はスキップ・合成行列で高速化）。レイアウト刷新（左＝キー入力／整列／字形の境界、右＝変形オプション／変形（反転））。テキスト／単位パネルとカンバスカラーを削除、「コピー元のレイヤーにペースト」を追加。esc キーで閉じる、編集中は同期を回避。命名整理、チェックボックス生成・ボタン高さ調整の共通化。
 - v1.6.0 (20260627): 標準フォーマットへ整理（IIFE 化、ローカライズ構造、ブロックコメント）。パレット化＋BridgeTalk 委譲、キー入力の単位ポップアップ、クリック同期、ガイド／アートボードパネルを追加、2カラムレイアウト。
 - v1.0 (20250804): 初期バージョン。
 
@@ -56,7 +59,7 @@ A persistent-palette utility for batch-toggling various Illustrator preferences.
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.6.0";
+var SCRIPT_VERSION = "v1.7.0";
 
 (function () {
 
@@ -84,11 +87,9 @@ var SCRIPT_VERSION = "v1.6.0";
         },
         panel: {
             keyInput: { ja: "キー入力", en: "Key Input" },
-            transform: { ja: "変形", en: "Transform" },
-            align: { ja: "整列", en: "Align" },
-            text: { ja: "テキスト", en: "Text" },
+            transform: { ja: "変形オプション", en: "Transform Options" },
+            flip: { ja: "変形（反転）", en: "Transform (Flip)" },
             glyphBounds: { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
-            unit: { ja: "単位", en: "Units" },
             artboard: { ja: "アートボード名と枠線", en: "Artboard Name & Border" },
             artboardBorder: { ja: "アートボードの枠線", en: "Artboard Border" },
             etc: { ja: "その他", en: "Other" }
@@ -97,25 +98,22 @@ var SCRIPT_VERSION = "v1.6.0";
             pointText: { ja: "ポイント文字", en: "Point Type" },
             areaText: { ja: "エリア内文字", en: "Area Type" },
             previewBounds: { ja: "プレビュー境界", en: "Preview Bounds" },
-            transformPattern: { ja: "パターンを変形", en: "Transform Pattern Tiles" },
-            scaleCorners: { ja: "角を拡大・縮小", en: "Scale Corners" },
-            scaleStroke: { ja: "線幅と効果も拡大・縮小", en: "Scale Strokes & Effects" },
+            transformPattern: { ja: "パターン", en: "Pattern Tiles" },
+            scaleCorners: { ja: "角", en: "Corners" },
+            scaleStroke: { ja: "線幅と効果", en: "Strokes & Effects" },
             showArtboardName: { ja: "アートボード名を表示", en: "Show Artboard Name" },
-            canvasWhite: { ja: "カンバスカラーをホワイトに", en: "Set Canvas Color to White" },
             realtimeDrawing: { ja: "リアルタイムの描画と編集", en: "Real-time Drawing & Editing" },
-            pastePlain: { ja: "書式なしペースト", en: "Paste without Formatting" }
+            pastePlain: { ja: "書式なしペースト", en: "Paste without Formatting" },
+            pastePreserve: { ja: "コピー元のレイヤーにペースト", en: "Paste Remembers Layers" }
         },
         label: {
             strokeColor: { ja: "ハイライトのカラー", en: "Highlight Color" },
-            strokeWidth: { ja: "ストロークの幅", en: "Stroke Width" },
-            sizeLeading: { ja: "サイズ/行送り", en: "Size/Leading" },
-            baselineShift: { ja: "ベースライン", en: "Baseline" },
-            unitStroke: { ja: "線", en: "Stroke" },
-            unitType: { ja: "文字", en: "Type" },
-            unitAsian: { ja: "字送り", en: "Char Spacing" }
+            strokeWidth: { ja: "ストロークの幅", en: "Stroke Width" }
         },
         button: {
-            videoRuler: { ja: "ビデオ定規", en: "Video Ruler" }
+            videoRuler: { ja: "ビデオ定規", en: "Video Ruler" },
+            flipHorizontal: { ja: "水平方向", en: "Horizontal" },
+            flipVertical: { ja: "垂直方向", en: "Vertical" }
         },
         color: {
             lightBlue: { ja: "ライトブルー", en: "Light Blue" },
@@ -187,12 +185,6 @@ var SCRIPT_VERSION = "v1.6.0";
         return unit ? unit.label : "pt";
     }
 
-    /* pt 値を表示用に整形（末尾ゼロ無し）/ Format a pt value for display (no trailing zeros) */
-    function formatPtValue(v) {
-        if (isNaN(v)) v = 0;
-        return String(Math.round(v * 100) / 100);
-    }
-
     /* 単位コードから pt への換算係数を取得 / Get the pt conversion factor from a unit code */
     function getPtFactorFromUnitCode(code) {
         var unit = getUnitByCode(code);
@@ -245,17 +237,17 @@ var SCRIPT_VERSION = "v1.6.0";
 
     /* RGB に最も近いプリセットの index を返す / Return the index of the preset closest to the given RGB */
     function findClosestStrokeColor(r, g, b) {
-        var bestIdx = 0;
-        var bestDist = Infinity;
+        var closestIndex = 0;
+        var closestDistance = Infinity;
         for (var i = 0; i < STROKE_COLOR_PRESETS.length; i++) {
-            var p = STROKE_COLOR_PRESETS[i];
-            var dist = Math.abs(p.r - r) + Math.abs(p.g - g) + Math.abs(p.b - b);
-            if (dist < bestDist) {
-                bestDist = dist;
-                bestIdx = i;
+            var preset = STROKE_COLOR_PRESETS[i];
+            var distance = Math.abs(preset.r - r) + Math.abs(preset.g - g) + Math.abs(preset.b - b);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closestIndex = i;
             }
         }
-        return bestIdx;
+        return closestIndex;
     }
 
     // =========================================
@@ -281,32 +273,27 @@ var SCRIPT_VERSION = "v1.6.0";
     // =========================================
 
     function readAllPreferences() {
-        var p = app.preferences;
-        function gb(key) { try { return p.getBooleanPreference(key); } catch (e) { return false; } }
-        function gi(key) { try { return p.getIntegerPreference(key); } catch (e) { return 0; } }
-        function gr(key) { try { return p.getRealPreference(key); } catch (e) { return 0; } }
+        var prefs = app.preferences;
+        function getBool(key) { try { return prefs.getBooleanPreference(key); } catch (e) { return false; } }
+        function getInt(key) { try { return prefs.getIntegerPreference(key); } catch (e) { return 0; } }
+        function getReal(key) { try { return prefs.getRealPreference(key); } catch (e) { return 0; } }
         return {
-            EnableActualPointTextSpaceAlign: gb("EnableActualPointTextSpaceAlign"),
-            EnableActualAreaTextSpaceAlign: gb("EnableActualAreaTextSpaceAlign"),
-            includeStrokeInBounds: gb("includeStrokeInBounds"),
-            transformPatterns: gb("transformPatterns"),
-            scaleLineWeight: gb("scaleLineWeight"),
-            showArtboardLabelOnCanvas: gb("showArtboardLabelOnCanvas"),
-            ArtboardBBColorRed: gr("ArtboardBBColorRed"),
-            ArtboardBBColorGreen: gr("ArtboardBBColorGreen"),
-            ArtboardBBColorBlue: gr("ArtboardBBColorBlue"),
-            ArtboardBBWidth: gr("ArtboardBBWidth"),
-            LiveEdit_State_Machine: gb("LiveEdit_State_Machine"),
-            pastePlain: gb("plugin/FileClipboard/pasteWithoutFormatting"),
-            policyForPreservingCorners: gi("policyForPreservingCorners"),
-            uiCanvasIsWhite: gi("uiCanvasIsWhite"),
-            rulerType: gi("rulerType"),
-            cursorKeyLength: gr("cursorKeyLength"),
-            textSizeIncrement: gr("text/sizeIncrement"),
-            textRiseIncrement: gr("text/riseIncrement"),
-            strokeUnits: gi("strokeUnits"),
-            textUnits: gi("text/units"),
-            textAsianUnits: gi("text/asianUnits")
+            EnableActualPointTextSpaceAlign: getBool("EnableActualPointTextSpaceAlign"),
+            EnableActualAreaTextSpaceAlign: getBool("EnableActualAreaTextSpaceAlign"),
+            includeStrokeInBounds: getBool("includeStrokeInBounds"),
+            transformPatterns: getBool("transformPatterns"),
+            scaleLineWeight: getBool("scaleLineWeight"),
+            showArtboardLabelOnCanvas: getBool("showArtboardLabelOnCanvas"),
+            ArtboardBBColorRed: getReal("ArtboardBBColorRed"),
+            ArtboardBBColorGreen: getReal("ArtboardBBColorGreen"),
+            ArtboardBBColorBlue: getReal("ArtboardBBColorBlue"),
+            ArtboardBBWidth: getReal("ArtboardBBWidth"),
+            LiveEdit_State_Machine: getBool("LiveEdit_State_Machine"),
+            pastePlain: getBool("plugin/FileClipboard/pasteWithoutFormatting"),
+            pastePreserve: getBool("layers/pastePreserve"),
+            policyForPreservingCorners: getInt("policyForPreservingCorners"),
+            rulerType: getInt("rulerType"),
+            cursorKeyLength: getReal("cursorKeyLength")
         };
     }
 
@@ -317,17 +304,17 @@ var SCRIPT_VERSION = "v1.6.0";
     /* メインエンジン（target="illustrator"）へ環境設定コードを送って実行 / Send preference code to the main engine and run it */
     function runInMainEngine(bodyCode) {
         try {
-            var bt = new BridgeTalk();
-            bt.target = "illustrator"; /* #targetengine 指定なし＝メインエンジン / no engine = main engine */
-            bt.body = bodyCode;
-            bt.onError = function (message) {
+            var bridge = new BridgeTalk();
+            bridge.target = "illustrator"; /* #targetengine 指定なし＝メインエンジン / no engine = main engine */
+            bridge.body = bodyCode;
+            bridge.onError = function (message) {
                 /* エラーは意図的に握りつぶす（常駐パレットなので alert は出さない）。
                    完全に無音だと失敗に気づけないため、デバッグ用に $.writeln にだけ残す。
                    Intentionally swallowed (no alert in a persistent palette);
                    logged to $.writeln only so failures stay noticeable while debugging. */
                 try { $.writeln("AiQuickPrefsPalette BridgeTalk error: " + message.body); } catch (e) {}
             };
-            bt.send();
+            bridge.send();
         } catch (e) {
             /* BridgeTalk 不可時は同一エンジンで直接実行 / Fallback: run directly in this engine */
             try {
@@ -366,6 +353,33 @@ var SCRIPT_VERSION = "v1.6.0";
         runInMainEngine(body);
     }
 
+    /* 選択オブジェクトを、選択全体の可視バウンディング中心を基点に反転（水平=-100,100／垂直=100,-100）。DOM 操作なのでメインエンジンへ委譲 */
+    /* Flip the selection around the center of its overall visible bounds (H=-100,100 / V=100,-100); delegated to the main engine since it touches the DOM */
+    /* 平行移動→反転→平行移動の3変形を1つの合成行列にまとめ、item.transform をオブジェクトあたり1回に削減（高速化）*/
+    /* Collapse the 3-step translate/scale/translate into a single matrix so each item is transformed only once (faster) */
+    /* visibleBounds が取れない/変形できない項目（ロック・非表示・ガイド等）は try/catch でスキップ。測定できた項目が無ければ中断 */
+    /* Skip items whose bounds/transform fail (locked, hidden, guides, ...) via try/catch; abort if nothing could be measured */
+    function btFlipSelection(scaleX, scaleY) {
+        var scaleFractionX = Number(scaleX) / 100; /* -1 or 1 */
+        var scaleFractionY = Number(scaleY) / 100;
+        var body = '' +
+            'if(app.documents.length>0){' +
+            'var doc=app.activeDocument;' +
+            'var selection=doc.selection;' +
+            'if(selection&&selection.length>0){' +
+            'var sx=' + scaleFractionX + ',sy=' + scaleFractionY + ';' +
+            'var left=Infinity,top=-Infinity,right=-Infinity,bottom=Infinity;' +
+            'var measured=false;' +
+            'for(var i=0;i<selection.length;i++){try{var bounds=selection[i].visibleBounds;if(bounds[0]<left)left=bounds[0];if(bounds[1]>top)top=bounds[1];if(bounds[2]>right)right=bounds[2];if(bounds[3]<bottom)bottom=bounds[3];measured=true;}catch(e){}}' +
+            'if(measured){' +
+            'var anchorX=(left+right)/2,anchorY=(top+bottom)/2;' +
+            /* 中心 (anchorX,anchorY) を基点に倍率 (sx,sy) で反転する原点基準行列 / Origin-based matrix reflecting about (anchorX,anchorY) by (sx,sy) */
+            'var matrix=app.getIdentityMatrix();matrix.mValueA=sx;matrix.mValueD=sy;matrix.mValueTX=anchorX*(1-sx);matrix.mValueTY=anchorY*(1-sy);' +
+            'for(var i=0;i<selection.length;i++){try{selection[i].transform(matrix,true,true,true,true,1,Transformation.DOCUMENTORIGIN);}catch(e){}}' +
+            '}}}';
+        runInMainEngine(body);
+    }
+
     // =========================================
     // カーソル移動量 / Cursor step
     // =========================================
@@ -387,14 +401,10 @@ var SCRIPT_VERSION = "v1.6.0";
     var __cursorKeyDebounceTaskId = null;
     var __cursorKeyPendingText = null;
 
-    /* 保留中のテキストを実際に保存（scheduleTask から呼ばれる）/ Save the pending text (called from scheduleTask) */
+    /* 保留中のテキストを実際に保存（scheduleTask から呼ばれる）。内部は例外を投げないため try 不要 / Save the pending text (called from scheduleTask); no try needed since the body cannot throw */
     function __runSaveCursorKeyLength() {
-        try {
-            if (__cursorKeyPendingText !== null) {
-                saveCursorKeyLengthInCurrentUnit(parseFloat(__cursorKeyPendingText));
-            }
-        } catch (e) {
-            // no-op on failure
+        if (__cursorKeyPendingText !== null) {
+            saveCursorKeyLengthInCurrentUnit(parseFloat(__cursorKeyPendingText));
         }
         __cursorKeyDebounceTaskId = null;
     }
@@ -420,56 +430,31 @@ var SCRIPT_VERSION = "v1.6.0";
     /* Arrow keys adjust the value (Shift = ±10 snapped to multiples of 10, Option = ±0.1, otherwise ±1); clamps at 0 */
     function changeValueByArrowKey(editText) {
         editText.addEventListener("keydown", function (event) {
-            var k = event.keyName;
-            if (k !== "Up" && k !== "Down") {
+            var keyName = event.keyName;
+            if (keyName !== "Up" && keyName !== "Down") {
                 return; /* 非矢印キーでは処理しない（Tabで0に丸められるのを防止）/ Ignore non-arrow keys (prevents Tab rounding to 0) */
             }
             var value = Number(editText.text);
             if (isNaN(value)) return;
 
             var keyboard = ScriptUI.environment.keyboardState;
-            var delta = 1;
+            var direction = (keyName === "Up") ? 1 : -1; /* ↑=+ / ↓=- */
 
             if (keyboard.shiftKey) {
-                delta = 10;
-                /* Shiftキー押下時は10の倍数にスナップ / Snap to multiples of 10 with Shift */
-                if (k == "Up") {
-                    value = Math.ceil((value + 1) / delta) * delta;
-                    event.preventDefault();
-                } else if (k == "Down") {
-                    value = Math.floor((value - 1) / delta) * delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
-            } else if (keyboard.altKey) {
-                delta = 0.1;
-                /* Optionキー押下時は0.1単位で増減 / Step by 0.1 with Option */
-                if (k == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (k == "Down") {
-                    value -= delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
+                /* Shift=±10：次の10の倍数へスナップ / Shift: snap to the next multiple of 10 */
+                value = (direction > 0)
+                    ? Math.ceil((value + 1) / 10) * 10
+                    : Math.floor((value - 1) / 10) * 10;
             } else {
-                delta = 1;
-                if (k == "Up") {
-                    value += delta;
-                    event.preventDefault();
-                } else if (k == "Down") {
-                    value -= delta;
-                    if (value < 0) value = 0;
-                    event.preventDefault();
-                }
+                /* Option=±0.1 / 通常=±1 / Option = ±0.1, otherwise ±1 */
+                value += direction * (keyboard.altKey ? 0.1 : 1);
             }
+            if (value < 0) value = 0;
 
-            if (keyboard.altKey) {
-                value = Math.round(value * 10) / 10; /* 小数第1位までに丸め / Round to 1 decimal */
-            } else {
-                value = Math.round(value); /* 整数に丸め / Round to integer */
-            }
+            /* Option のみ小数第1位、その他は整数に丸め / Round to 1 decimal with Option, otherwise to integer */
+            value = keyboard.altKey ? Math.round(value * 10) / 10 : Math.round(value);
 
+            event.preventDefault();
             /* 常に小数第1位で表示し、デバウンス保存 / Always show 1 decimal and save (debounced) */
             editText.text = (Math.round(value * 10) / 10).toFixed(1);
             scheduleSaveCursorKeyLengthDebounced(editText, SAVE_DEBOUNCE_MS);
@@ -480,15 +465,13 @@ var SCRIPT_VERSION = "v1.6.0";
     // UI ヘルパー / UI helpers
     // =========================================
 
-    /* 複数チェックボックスを Boolean 環境設定キーにバインド / Bind multiple checkboxes to boolean preference keys */
-    function bindCheckboxes(pairs) {
-        for (var i = 0; i < pairs.length; i++) {
-            (function (pair) {
-                pair.checkbox.onClick = function () {
-                    btSetBooleanPreference(pair.prefKey, pair.checkbox.value === true);
-                };
-            })(pairs[i]);
-        }
+    /* Boolean 環境設定にバインドしたチェックボックスを生成して返す / Create a checkbox bound to a boolean preference and return it */
+    function addBooleanCheckbox(parent, labelKey, prefKey) {
+        var checkbox = parent.add('checkbox', undefined, L(labelKey));
+        checkbox.onClick = function () {
+            btSetBooleanPreference(prefKey, checkbox.value === true);
+        };
+        return checkbox;
     }
 
     /* パネルの余白と間隔 / Panel margins and spacing */
@@ -504,14 +487,11 @@ var SCRIPT_VERSION = "v1.6.0";
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-    function setupGroup(group, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
-        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
+    function trimButtonHeight(button, px) {
+        try {
+            button.size = [button.size.width, button.size.height - px];
+        } catch (e) {}
     }
 
     // =========================================
@@ -549,6 +529,13 @@ var SCRIPT_VERSION = "v1.6.0";
             $.global.__aiQuickPrefsPalette = null;
         };
 
+        /* パレットがアクティブなとき esc キーで閉じる / Close the palette with Esc while it is active */
+        dialog.addEventListener('keydown', function (event) {
+            if (event.keyName === 'Escape') {
+                dialog.close();
+            }
+        });
+
         var mainGroup = dialog.add('group');
         mainGroup.orientation = 'column';
         mainGroup.alignChildren = ['fill', 'top'];
@@ -566,23 +553,28 @@ var SCRIPT_VERSION = "v1.6.0";
         rightColumn.orientation = 'column';
         rightColumn.alignChildren = ['fill', 'top'];
 
-        /* ----- 左列：キー入力 / 変形と整列 / Left column: Key input / Transform & Align ----- */
+        /* ----- 左列：キー入力 / 整列 / Left column: Key input / Align ----- */
 
         /* キー入力パネル（カーソル移動量）と単位ポップアップ / Key input panel (cursor step) with the unit popup */
-        var keyInputPanel = rightColumn.add('panel', undefined, L('panel.keyInput'));
+        var keyInputPanel = leftColumn.add('panel', undefined, L('panel.keyInput'));
         keyInputPanel.orientation = 'row';
         keyInputPanel.alignChildren = ['left', 'center'];
         keyInputPanel.margins = PANEL_MARGINS;
 
-        var keyField = keyInputPanel.add('edittext', undefined, "1.0");
-        keyField.characters = 4;
+        var cursorStepField = keyInputPanel.add('edittext', undefined, "1.0");
+        cursorStepField.characters = 4;
+
+        /* 編集中フラグ：キー入力欄にフォーカスがある間は外部同期で値を上書きしない / Editing flag: don't let external sync overwrite while the field has focus */
+        var isEditingCursorStep = false;
+        cursorStepField.onActivate = function () { isEditingCursorStep = true; };
+        cursorStepField.onDeactivate = function () { isEditingCursorStep = false; };
 
         var suppressUnitChange = false;
         var unitDropdown = keyInputPanel.add('dropdownlist', undefined, []);
-        for (var u = 0; u < UNIT_POPUP_CODES.length; u++) {
-            unitDropdown.add('item', getUnitLabel(UNIT_POPUP_CODES[u]));
+        for (var i = 0; i < UNIT_POPUP_CODES.length; i++) {
+            unitDropdown.add('item', getUnitLabel(UNIT_POPUP_CODES[i]));
         }
-        unitDropdown.preferredSize.width = 70;
+        unitDropdown.preferredSize.width = 55;
 
         /* 単位ポップアップ：選んだ単位を定規単位(rulerType)へ反映し、表示を再計算 / Unit popup: apply the chosen unit to rulerType and recompute the display */
         unitDropdown.onChange = function () {
@@ -591,129 +583,59 @@ var SCRIPT_VERSION = "v1.6.0";
             PREF_STATE.rulerType = code;
             btSetIntegerPreference("rulerType", code);
             /* 保存済み pt 値は不変。新しい単位で再表示 / Stored pt value is unchanged; redisplay in the new unit */
-            keyField.text = readCursorKeyLengthInCurrentUnit();
+            cursorStepField.text = readCursorKeyLengthInCurrentUnit();
         };
 
-        changeValueByArrowKey(keyField);
+        changeValueByArrowKey(cursorStepField);
 
-        /* 変形と整列パネル / Transform & Align panel */
-        var transformPanel = leftColumn.add('panel', undefined, L('panel.transform'));
+        /* 整列パネル（タイトルなし・枠のみ）/ Align panel (no title, frame only) */
+        var alignPanel = leftColumn.add('panel', undefined, '');
+        setupPanel(alignPanel);
+
+        /* プレビュー境界 / Preview bounds */
+        var checkboxPreview = addBooleanCheckbox(alignPanel, 'checkbox.previewBounds', 'includeStrokeInBounds');
+
+        /* 字形の境界に整列パネル（整列パネルとは独立、左列に並べる）/ Align to glyph bounds panel (independent of Align, stacked in the left column) */
+        var glyphBoundsPanel = leftColumn.add('panel', undefined, L('panel.glyphBounds'));
+        setupPanel(glyphBoundsPanel);
+
+        var checkboxPoint = addBooleanCheckbox(glyphBoundsPanel, 'checkbox.pointText', 'EnableActualPointTextSpaceAlign');
+        var checkboxArea = addBooleanCheckbox(glyphBoundsPanel, 'checkbox.areaText', 'EnableActualAreaTextSpaceAlign');
+
+        /* ----- 右列：変形 / Right column: Transform ----- */
+
+        /* 変形パネル / Transform panel */
+        var transformPanel = rightColumn.add('panel', undefined, L('panel.transform'));
         setupPanel(transformPanel);
 
         /* パターンを変形 / Transform patterns */
-        var checkboxPattern = transformPanel.add('checkbox', undefined, L('checkbox.transformPattern'));
-        checkboxPattern.onClick = function () {
-            btSetBooleanPreference("transformPatterns", checkboxPattern.value === true);
-        };
+        var checkboxPattern = addBooleanCheckbox(transformPanel, 'checkbox.transformPattern', 'transformPatterns');
 
-        /* 角を拡大・縮小（1=ON, 2=OFF）/ Scale corners (1=ON, 2=OFF) */
+        /* 角を拡大・縮小（1=ON, 2=OFF。Boolean でなく整数なので個別ハンドラ）/ Scale corners (1=ON, 2=OFF; integer, so a dedicated handler) */
         var checkboxCorner = transformPanel.add('checkbox', undefined, L('checkbox.scaleCorners'));
         checkboxCorner.onClick = function () {
             btSetIntegerPreference("policyForPreservingCorners", checkboxCorner.value ? 1 : 2);
         };
 
         /* 線幅と効果も拡大・縮小 / Scale strokes and effects */
-        var checkboxStroke = transformPanel.add('checkbox', undefined, L('checkbox.scaleStroke'));
-        checkboxStroke.onClick = function () {
-            btSetBooleanPreference("scaleLineWeight", checkboxStroke.value === true);
+        var checkboxStroke = addBooleanCheckbox(transformPanel, 'checkbox.scaleStroke', 'scaleLineWeight');
+
+        /* 変形（反転）パネル（変形オプションの下・縦並び・ラベル幅・左右中央）/ Transform (Flip) panel (below Transform Options, stacked, sized to label, centered) */
+        var flipPanel = rightColumn.add('panel', undefined, L('panel.flip'));
+        setupPanel(flipPanel);
+        flipPanel.alignChildren = ['center', 'top'];
+
+        /* 水平方向に反転（選択全体の中心を基点に左右反転）/ Flip horizontal (around selection center) */
+        var btnFlipHorizontal = flipPanel.add('button', undefined, L('button.flipHorizontal'));
+        btnFlipHorizontal.onClick = function () {
+            btFlipSelection(-100, 100);
         };
 
-        /* 整列パネル / Align panel */
-        var alignPanel = leftColumn.add('panel', undefined, L('panel.align'));
-        setupPanel(alignPanel);
-
-        /* プレビュー境界 / Preview bounds */
-        var checkboxPreview = alignPanel.add('checkbox', undefined, L('checkbox.previewBounds'));
-        checkboxPreview.onClick = function () {
-            btSetBooleanPreference("includeStrokeInBounds", checkboxPreview.value === true);
+        /* 垂直方向に反転（選択全体の中心を基点に上下反転）/ Flip vertical (around selection center) */
+        var btnFlipVertical = flipPanel.add('button', undefined, L('button.flipVertical'));
+        btnFlipVertical.onClick = function () {
+            btFlipSelection(100, -100);
         };
-
-        /* 字形の境界に整列サブパネル（パネルごと移動）/ Align to glyph bounds sub-panel (moved whole) */
-        var glyphPanel = alignPanel.add('panel', undefined, L('panel.glyphBounds'));
-        setupPanel(glyphPanel);
-
-        var checkboxPoint = glyphPanel.add('checkbox', undefined, L('checkbox.pointText'));
-        var checkboxArea = glyphPanel.add('checkbox', undefined, L('checkbox.areaText'));
-
-        bindCheckboxes([
-            { checkbox: checkboxPoint, prefKey: 'EnableActualPointTextSpaceAlign' },
-            { checkbox: checkboxArea, prefKey: 'EnableActualAreaTextSpaceAlign' }
-        ]);
-
-        /* ----- 右列：テキスト / 単位 / Right column: Text / Units ----- */
-
-        /* テキストパネル / Text panel */
-        var textPanel = rightColumn.add('panel', undefined, L('panel.text'));
-        setupPanel(textPanel);
-
-        /* テキスト行のラベル幅を一定に / Uniform label width for the text rows */
-        var TEXT_LABEL_WIDTH = 100;
-
-        /* サイズ/行送り（値は直値、単位は text/units を参照）/ Size/Leading (raw value; unit from text/units) */
-        var sizeRow = textPanel.add('group');
-        sizeRow.orientation = 'row';
-        sizeRow.alignChildren = ['left', 'center'];
-        var sizeLabel = sizeRow.add('statictext', undefined, labelText('label.sizeLeading'));
-        sizeLabel.preferredSize.width = TEXT_LABEL_WIDTH;
-        var sizeField = sizeRow.add('edittext', undefined, "1");
-        sizeField.characters = 4;
-        var sizeUnitLabel = sizeRow.add('statictext', undefined, 'pt');
-        sizeUnitLabel.preferredSize.width = 36;
-        sizeField.onChange = function () {
-            var v = parseFloat(sizeField.text);
-            if (isNaN(v) || v < 0) {
-                sizeField.text = formatPtValue(app.preferences.getRealPreference("text/sizeIncrement"));
-                return;
-            }
-            btSetRealPreference("text/sizeIncrement", v);
-        };
-
-        /* ベースライン（値は直値、単位は text/asianunits を参照）/ Baseline (raw value; unit from text/asianunits) */
-        var riseRow = textPanel.add('group');
-        riseRow.orientation = 'row';
-        riseRow.alignChildren = ['left', 'center'];
-        var riseLabel = riseRow.add('statictext', undefined, labelText('label.baselineShift'));
-        riseLabel.preferredSize.width = TEXT_LABEL_WIDTH;
-        var riseField = riseRow.add('edittext', undefined, "0.1");
-        riseField.characters = 4;
-        var riseUnitLabel = riseRow.add('statictext', undefined, 'pt');
-        riseUnitLabel.preferredSize.width = 36;
-        riseField.onChange = function () {
-            var v = parseFloat(riseField.text);
-            if (isNaN(v) || v < 0) {
-                riseField.text = formatPtValue(app.preferences.getRealPreference("text/riseIncrement"));
-                return;
-            }
-            btSetRealPreference("text/riseIncrement", v);
-        };
-
-        /* 単位パネル（表示のみ・確認用、入れ子にしない）/ Units panel (display only, not nested) */
-        var unitsPanel = rightColumn.add('panel', undefined, L('panel.unit'));
-        setupPanel(unitsPanel);
-
-        /* 単位行のラベル幅を一定に / Uniform label width for the unit rows */
-        var UNIT_LABEL_WIDTH = 64;
-
-        var unitStrokeRow = unitsPanel.add('group');
-        unitStrokeRow.orientation = 'row';
-        var unitStrokeLabel = unitStrokeRow.add('statictext', undefined, labelText('label.unitStroke'));
-        unitStrokeLabel.preferredSize.width = UNIT_LABEL_WIDTH;
-        var unitStrokeValue = unitStrokeRow.add('statictext', undefined, "pt");
-        unitStrokeValue.preferredSize.width = 60;
-
-        var unitTypeRow = unitsPanel.add('group');
-        unitTypeRow.orientation = 'row';
-        var unitTypeLabel = unitTypeRow.add('statictext', undefined, labelText('label.unitType'));
-        unitTypeLabel.preferredSize.width = UNIT_LABEL_WIDTH;
-        var unitTypeValue = unitTypeRow.add('statictext', undefined, "pt");
-        unitTypeValue.preferredSize.width = 60;
-
-        var unitAsianRow = unitsPanel.add('group');
-        unitAsianRow.orientation = 'row';
-        var unitAsianLabel = unitAsianRow.add('statictext', undefined, labelText('label.unitAsian'));
-        unitAsianLabel.preferredSize.width = UNIT_LABEL_WIDTH;
-        var unitAsianValue = unitAsianRow.add('statictext', undefined, "pt");
-        unitAsianValue.preferredSize.width = 60;
 
         /* ----- 全幅：アートボード名と枠線 / その他（一番下）/ Full width: Artboard / Other (bottom) ----- */
 
@@ -723,10 +645,10 @@ var SCRIPT_VERSION = "v1.6.0";
 
         var suppressArtboardChange = false;
 
-        /* 上部を2カラムに：左＝チェックボックス、右＝ビデオ定規ボタン / Top row in two columns: left = checkboxes, right = video ruler button */
+        /* 上部を2カラムに：左＝アートボード名チェック、右＝ビデオ定規ボタン（互いに天地中央）/ Top row in two columns: left = artboard-name checkbox, right = video ruler button (vertically centered) */
         var artboardTopRow = artboardPanel.add('group');
         artboardTopRow.orientation = 'row';
-        artboardTopRow.alignChildren = ['fill', 'top'];
+        artboardTopRow.alignChildren = ['fill', 'center'];
 
         var artboardLeftCol = artboardTopRow.add('group');
         artboardLeftCol.orientation = 'column';
@@ -737,18 +659,9 @@ var SCRIPT_VERSION = "v1.6.0";
         artboardRightCol.alignChildren = ['left', 'top'];
 
         /* アートボード名を表示 / Show artboard name */
-        var cbShowArtboardName = artboardLeftCol.add('checkbox', undefined, L('checkbox.showArtboardName'));
-        cbShowArtboardName.onClick = function () {
+        var checkboxShowArtboardName = artboardLeftCol.add('checkbox', undefined, L('checkbox.showArtboardName'));
+        checkboxShowArtboardName.onClick = function () {
             applyArtboard();
-        };
-
-        /* カンバスカラーをホワイトに（ON=1, OFF=0）。設定後にキャンバスを再描画して即時反映 */
-        /* Canvas color white (ON=1, OFF=0); refresh the canvas after setting so the change shows immediately */
-        var checkboxCanvasWhite = artboardLeftCol.add('checkbox', undefined, L('checkbox.canvasWhite'));
-        checkboxCanvasWhite.onClick = function () {
-            var body = 'app.preferences.setIntegerPreference("uiCanvasIsWhite",' + (checkboxCanvasWhite.value ? 1 : 0) + ');' +
-                'try{app.executeMenuCommand("zoomout");app.executeMenuCommand("zoomin");}catch(e){}';
-            runInMainEngine(body);
         };
 
         /* ビデオ定規（メニューコマンドのトグル）/ Video ruler (menu-command toggle) */
@@ -767,9 +680,9 @@ var SCRIPT_VERSION = "v1.6.0";
         strokeColorRow.orientation = 'row';
         strokeColorRow.alignChildren = ['left', 'center'];
         strokeColorRow.add('statictext', undefined, labelText('label.strokeColor'));
-        var ddStrokeColor = strokeColorRow.add('dropdownlist', undefined, buildStrokeColorNames());
-        ddStrokeColor.onChange = function () {
-            if (suppressArtboardChange || !ddStrokeColor.selection) return;
+        var strokeColorDropdown = strokeColorRow.add('dropdownlist', undefined, buildStrokeColorNames());
+        strokeColorDropdown.onChange = function () {
+            if (suppressArtboardChange || !strokeColorDropdown.selection) return;
             applyArtboard();
         };
 
@@ -783,8 +696,8 @@ var SCRIPT_VERSION = "v1.6.0";
         var rbStrokeWidth3 = strokeWidthRow.add('radiobutton', undefined, '3');
         var rbStrokeWidth4 = strokeWidthRow.add('radiobutton', undefined, '4');
         var rbStrokeWidths = [rbStrokeWidth1, rbStrokeWidth2, rbStrokeWidth3, rbStrokeWidth4];
-        for (var sw = 0; sw < rbStrokeWidths.length; sw++) {
-            rbStrokeWidths[sw].onClick = function () {
+        for (var i = 0; i < rbStrokeWidths.length; i++) {
+            rbStrokeWidths[i].onClick = function () {
                 applyArtboard();
             };
         }
@@ -799,9 +712,9 @@ var SCRIPT_VERSION = "v1.6.0";
 
         /* アートボード名・枠線の現在 UI 値をまとめて保存 / Save the current artboard name/border UI state */
         function applyArtboard() {
-            var idx = ddStrokeColor.selection ? ddStrokeColor.selection.index : STROKE_COLOR_BLACK_INDEX;
-            var c = STROKE_COLOR_PRESETS[idx];
-            btApplyArtboardBorder(cbShowArtboardName.value === true, c.r, c.g, c.b, getSelectedStrokeWidth());
+            var colorIndex = strokeColorDropdown.selection ? strokeColorDropdown.selection.index : STROKE_COLOR_BLACK_INDEX;
+            var colorPreset = STROKE_COLOR_PRESETS[colorIndex];
+            btApplyArtboardBorder(checkboxShowArtboardName.value === true, colorPreset.r, colorPreset.g, colorPreset.b, getSelectedStrokeWidth());
         }
 
         /* その他パネル（一番下）/ Other panel (bottom) */
@@ -809,21 +722,18 @@ var SCRIPT_VERSION = "v1.6.0";
         setupPanel(etcPanel);
 
         /* リアルタイムの描画と編集 / Real-time drawing & editing */
-        var checkboxRealtime = etcPanel.add('checkbox', undefined, L('checkbox.realtimeDrawing'));
-        checkboxRealtime.onClick = function () {
-            btSetBooleanPreference("LiveEdit_State_Machine", checkboxRealtime.value === true);
-        };
+        var checkboxRealtime = addBooleanCheckbox(etcPanel, 'checkbox.realtimeDrawing', 'LiveEdit_State_Machine');
 
         /* 書式なしペースト / Paste without formatting */
-        var checkboxPastePlain = etcPanel.add('checkbox', undefined, L('checkbox.pastePlain'));
-        checkboxPastePlain.onClick = function () {
-            btSetBooleanPreference("plugin/FileClipboard/pasteWithoutFormatting", checkboxPastePlain.value === true);
-        };
+        var checkboxPastePlain = addBooleanCheckbox(etcPanel, 'checkbox.pastePlain', 'plugin/FileClipboard/pasteWithoutFormatting');
+
+        /* コピー元のレイヤーにペースト / Paste remembers layers */
+        var checkboxPastePreserve = addBooleanCheckbox(etcPanel, 'checkbox.pastePreserve', 'layers/pastePreserve');
 
         /* 読み出した環境設定を UI へ反映 / Apply fetched preferences to the UI */
-        function applyPreferencesToUI(map) {
+        function applyPreferencesToUI(prefValues) {
             function asBool(prefKey) {
-                return String(map[prefKey]) === "true";
+                return prefValues[prefKey] === true;
             }
             checkboxPoint.value = asBool('EnableActualPointTextSpaceAlign');
             checkboxArea.value = asBool('EnableActualAreaTextSpaceAlign');
@@ -832,56 +742,47 @@ var SCRIPT_VERSION = "v1.6.0";
             checkboxStroke.value = asBool('scaleLineWeight');
             checkboxRealtime.value = asBool('LiveEdit_State_Machine');
             checkboxPastePlain.value = asBool('pastePlain');
-            checkboxCorner.value = (parseInt(map['policyForPreservingCorners'], 10) === 1);
+            checkboxPastePreserve.value = asBool('pastePreserve');
+            checkboxCorner.value = (parseInt(prefValues['policyForPreservingCorners'], 10) === 1);
 
             /* アートボード名と枠線 / Artboard name & border */
-            cbShowArtboardName.value = asBool('showArtboardLabelOnCanvas');
-            checkboxCanvasWhite.value = (parseInt(map['uiCanvasIsWhite'], 10) === 1);
-            var cr = parseFloat(map['ArtboardBBColorRed']);
-            var cg = parseFloat(map['ArtboardBBColorGreen']);
-            var cb2 = parseFloat(map['ArtboardBBColorBlue']);
-            if (isNaN(cr)) cr = 0;
-            if (isNaN(cg)) cg = 0;
-            if (isNaN(cb2)) cb2 = 0;
+            checkboxShowArtboardName.value = asBool('showArtboardLabelOnCanvas');
+            var borderColorRed = parseFloat(prefValues['ArtboardBBColorRed']);
+            var borderColorGreen = parseFloat(prefValues['ArtboardBBColorGreen']);
+            var borderColorBlue = parseFloat(prefValues['ArtboardBBColorBlue']);
+            if (isNaN(borderColorRed)) borderColorRed = 0;
+            if (isNaN(borderColorGreen)) borderColorGreen = 0;
+            if (isNaN(borderColorBlue)) borderColorBlue = 0;
             suppressArtboardChange = true;
-            ddStrokeColor.selection = findClosestStrokeColor(cr, cg, cb2);
+            strokeColorDropdown.selection = findClosestStrokeColor(borderColorRed, borderColorGreen, borderColorBlue);
             suppressArtboardChange = false;
-            var w = Math.round(parseFloat(map['ArtboardBBWidth']));
-            if (isNaN(w)) w = 1;
-            if (w < 1) w = 1;
-            if (w > 4) w = 4;
-            for (var wi = 0; wi < rbStrokeWidths.length; wi++) {
-                rbStrokeWidths[wi].value = (wi === w - 1);
+            var borderWidth = Math.round(parseFloat(prefValues['ArtboardBBWidth']));
+            if (isNaN(borderWidth)) borderWidth = 1;
+            if (borderWidth < 1) borderWidth = 1;
+            if (borderWidth > 4) borderWidth = 4;
+            for (var i = 0; i < rbStrokeWidths.length; i++) {
+                rbStrokeWidths[i].value = (i === borderWidth - 1);
             }
 
-            var ruler = parseInt(map['rulerType'], 10);
-            PREF_STATE.rulerType = isNaN(ruler) ? PREF_STATE.rulerType : ruler;
-            var ckl = parseFloat(map['cursorKeyLength']);
-            PREF_STATE.cursorKeyLengthPt = isNaN(ckl) ? PREF_STATE.cursorKeyLengthPt : ckl;
+            var rulerTypeCode = parseInt(prefValues['rulerType'], 10);
+            PREF_STATE.rulerType = isNaN(rulerTypeCode) ? PREF_STATE.rulerType : rulerTypeCode;
+            var cursorKeyLengthPt = parseFloat(prefValues['cursorKeyLength']);
+            PREF_STATE.cursorKeyLengthPt = isNaN(cursorKeyLengthPt) ? PREF_STATE.cursorKeyLengthPt : cursorKeyLengthPt;
 
             /* 単位ポップアップを現在の rulerType に同期（onChange を発火させない）/ Sync the unit popup to the current rulerType (without firing onChange) */
-            var unitIdx = unitCodeToPopupIndex(PREF_STATE.rulerType);
-            if (unitIdx >= 0) {
+            var unitPopupIndex = unitCodeToPopupIndex(PREF_STATE.rulerType);
+            if (unitPopupIndex >= 0) {
                 suppressUnitChange = true;
-                unitDropdown.selection = unitIdx;
+                unitDropdown.selection = unitPopupIndex;
                 suppressUnitChange = false;
             }
-            keyField.text = readCursorKeyLengthInCurrentUnit();
-
-            /* テキスト（増分は pt 直値、単位は表示のみ）/ Text (increments are raw pt; units are display-only) */
-            sizeField.text = formatPtValue(parseFloat(map['textSizeIncrement']));
-            sizeUnitLabel.text = getUnitLabel(parseInt(map['textUnits'], 10));
-            riseField.text = formatPtValue(parseFloat(map['textRiseIncrement']));
-            riseUnitLabel.text = getUnitLabel(parseInt(map['textAsianUnits'], 10));
-            unitStrokeValue.text = getUnitLabel(parseInt(map['strokeUnits'], 10));
-            unitTypeValue.text = getUnitLabel(parseInt(map['textUnits'], 10));
-            unitAsianValue.text = getUnitLabel(parseInt(map['textAsianUnits'], 10));
+            cursorStepField.text = readCursorKeyLengthInCurrentUnit();
         }
 
         /* キー入力の確定時に保存（不正値は元へ戻す）/ Save on commit (restore on invalid input) */
-        keyField.onChange = function () {
-            if (!saveCursorKeyLengthInCurrentUnit(parseFloat(keyField.text))) {
-                keyField.text = readCursorKeyLengthInCurrentUnit();
+        cursorStepField.onChange = function () {
+            if (!saveCursorKeyLengthInCurrentUnit(parseFloat(cursorStepField.text))) {
+                cursorStepField.text = readCursorKeyLengthInCurrentUnit();
             }
         };
 
@@ -890,21 +791,22 @@ var SCRIPT_VERSION = "v1.6.0";
 
         /* 表示時：フォーカスと最新値の再読込 / On show: focus and reload current values */
         dialog.onShow = function () {
-            keyField.active = true;
+            cursorStepField.active = true;
             applyPreferencesToUI(readAllPreferences());
         };
 
-        /* 再アクティブ時：外部変更（環境設定ダイアログ等）へクリックで追従 / On re-activate: follow external changes via click */
+        /* 再アクティブ時：外部変更（環境設定ダイアログ等）へクリックで追従。ただし編集中は同期しない（入力値の上書き防止）/ On re-activate: follow external changes via click, but skip while editing (avoid clobbering input) */
         dialog.onActivate = function () {
+            if (isEditingCursorStep) return;
             applyPreferencesToUI(readAllPreferences());
         };
 
         dialog.show();
 
-        /* ビデオ定規ボタンの高さを2px詰める（レイアウト確定後に1回）/ Trim the video ruler button height by 2px (once, after layout) */
-        try {
-            btnVideoRuler.size = [btnVideoRuler.size.width, btnVideoRuler.size.height - 2];
-        } catch (e) {}
+        /* ボタンの高さを2px詰める（レイアウト確定後に1回）/ Trim button heights by 2px (once, after layout) */
+        trimButtonHeight(btnVideoRuler, 2);
+        trimButtonHeight(btnFlipHorizontal, 2);
+        trimButtonHeight(btnFlipVertical, 2);
     }
 
     main();
