@@ -14,7 +14,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 「キーオブジェクト」（上／下）を基準に、もう一方を移動します
 - 間隔値は定規の単位で指定でき、↑↓キー（Shiftで±10／Optionで±0.1）で増減できます
 - 間隔値に負の値を指定すると、2点を重ねられます（オーバーラップ）
-- 左右方向の整列（整列しない／左／中央／右）も同時に行えます
+- 左右方向の整列（なし／左／中央／右）も同時に行えます
+- 整列後にさらに左右へずらす「横調整」値を指定できます（正の値で右・負の値で左、単位は定規に従う）。整列「なし」でもずらしのみ適用できます
 - テキストには段落の行揃え（変更しない／整列に連動／均等配置）を適用できます。左揃えは Illustrator のバグを resize で回避して実現します
 - クリップグループはクリップパスを基準に、プレビュー境界（線幅・効果込み）の使用も切替可能
 - ［記録］で現在の設定を記録してパネルをロック（ディム表示）し、ボタンは［編集］に切り替わります（再クリックでロック解除）
@@ -33,6 +34,7 @@ with a live preview that updates as you change the settings.
 - The gap value uses the document's ruler unit (arrow keys: Shift ±10 / Option ±0.1)
 - Negative gap values overlap the two objects
 - Optional horizontal alignment (none / left / center / right)
+- An extra "Offset" value shifts the moving object further horizontally after alignment (positive = right, negative = left; unit follows the ruler), and works even when align is none
 - Optional paragraph alignment for text (keep / match align / justify); left alignment works around an Illustrator bug via a temporary resize
 - Clip groups measure by their clipping path; preview bounds (stroke/effects) can be toggled
 - Record saves the current settings and locks (dims) the panels, switching the button to Edit (click again to unlock)
@@ -54,7 +56,7 @@ app.undo() してから再適用する（確定時は取り消さない）。
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.2.0";
+var SCRIPT_VERSION = "v1.3.0";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -81,7 +83,7 @@ var currentLanguage = getCurrentLang();
 
 var LABELS = {
     dialog: {
-        title: { ja: "上下の間隔を調整", en: "Adjust Vertical Gap" }
+        title: { ja: "上下間隔を調整", en: "Adjust Vertical Gap" }
     },
     anchor: {
         title: { ja: "キーオブジェクト", en: "Key object" },
@@ -89,17 +91,18 @@ var LABELS = {
         bottom: { ja: "下", en: "Bottom" }
     },
     gap: {
-        title: { ja: "間隔値", en: "Gap" }
+        title: { ja: "上下間隔", en: "Vertical Gap" }
     },
     checkbox: {
         previewBounds: { ja: "プレビュー境界", en: "Use preview bounds" }
     },
     align: {
-        title: { ja: "左右の整列", en: "Horizontal align" },
-        none: { ja: "整列しない", en: "Don't align" },
+        title: { ja: "横方向の整列", en: "Horizontal Alignment" },
+        none: { ja: "なし", en: "None" },
         left: { ja: "左", en: "Left" },
         center: { ja: "中央", en: "Center" },
-        right: { ja: "右", en: "Right" }
+        right: { ja: "右", en: "Right" },
+        adjust: { ja: "横調整", en: "Offset" }
     },
     justify: {
         title: { ja: "テキストの行揃え", en: "Text alignment" },
@@ -111,15 +114,6 @@ var LABELS = {
         record: { ja: "記録", en: "Record" },
         edit: { ja: "編集", en: "Edit" },
         apply: { ja: "適用", en: "Apply" }
-    },
-    status: {
-        ready: { ja: "オブジェクトを2つ（または2点入りグループ）選択して［適用］", en: "Select two objects (or one group of two), then Apply" },
-        previewed: { ja: "プレビュー中（［適用］で確定）", en: "Preview (Apply to commit)" },
-        done: { ja: "適用しました", en: "Applied" },
-        recorded: { ja: "記録しました", en: "Recorded" },
-        noDocument: { ja: "ドキュメントが開かれていません", en: "No document is open" },
-        selectTwo: { ja: "オブジェクトを2つ（または2点入りグループ1つ）選択してください", en: "Select two objects, or one group containing two" },
-        error: { ja: "エラー:", en: "Error:" }
     },
     tooltip: {
         anchorTop: {
@@ -141,6 +135,10 @@ var LABELS = {
         align: {
             ja: "移動するオブジェクトを、キーオブジェクトの左・中央・右にそろえます（ショートカット: 整列しない=N／左=L／中央=C／右=R）。",
             en: "Align the moving object to the left, center, or right of the key object (shortcuts: none=N / left=L / center=C / right=R)."
+        },
+        alignAdjust: {
+            ja: "移動するオブジェクトを左右へ追加でずらす量です。正の値で右へ、負の値で左へ移動します。整列「なし」でも有効です。↑↓キーで増減（Shiftで±10／Optionで±0.1）。単位は定規に従います。",
+            en: "Additional horizontal offset for the moving object. Positive moves right, negative moves left. Also works when alignment is None. Arrow keys change it (Shift: ±10 / Option: ±0.1). Unit follows the ruler."
         },
         justify: {
             ja: "テキストの段落の行揃え。「整列に連動」は左右の整列（左／中央／右）に合わせます。テキスト以外には影響しません（ショートカット: 整列に連動=S／均等配置=J）。",
@@ -366,7 +364,8 @@ function measureGap(options) {
         upper = boundsB;
         lower = boundsA;
     }
-    /* 上端の下辺 − 下端の上辺（重なりは負）/ Upper bottom − lower top (negative when overlapping) */
+    /* 上のオブジェクトの下辺 − 下のオブジェクトの上辺（重なりは負）/
+       Upper object's bottom edge − lower object's top edge (negative when overlapping) */
     return String(upper[3] - lower[1]);
 }
 
@@ -446,6 +445,13 @@ function applyToPair(itemA, itemB, options) {
         }
     }
 
+    /* 整列後の左右ずらし（正＝右／負＝左）。整列「なし」でも適用 /
+       Extra horizontal offset after alignment (positive = right, negative = left); applies even when align is none */
+    if (options.adjustPoints && Math.abs(options.adjustPoints) > MOVE_EPSILON) {
+        movingItem.translate(options.adjustPoints, 0);
+        changed = true;
+    }
+
     return changed;
 }
 
@@ -500,13 +506,11 @@ function runBatchAdjustment(options) {
         app.redraw();
         return "NOSEL";
     }
-    var count = 0;
     for (var i = 0; i < pairs.length; i++) {
         applyToPair(pairs[i][0], pairs[i][1], options);
-        count++;
     }
     app.redraw();
-    return "OK:" + count;
+    return "OK";
 }
 
 // =========================================
@@ -535,6 +539,7 @@ function optionsToLiteral(options) {
         + "anchorTop:" + options.anchorTop + ","
         + "gapPoints:" + options.gapPoints + ","
         + "align:\"" + options.align + "\","
+        + "adjustPoints:" + (options.adjustPoints || 0) + ","
         + "justify:\"" + options.justify + "\","
         + "usePreviewBounds:" + options.usePreviewBounds + ","
         + "undoFirst:" + (options.undoFirst === true)
@@ -586,20 +591,28 @@ function revertLastPreview() {
     return delegateToMainEngine(buildWorkerCode("undoLast()"));
 }
 
-/* 委譲結果をローカライズした文言に変換 / Map a worker result to a localized message */
-function describeResult(result) {
-    if (result === "NODOC") {
-        return L("status.noDocument");
-    }
-    if (result === "NOSEL") {
-        return L("status.selectTwo");
-    }
-    return L("status.error") + " " + result;
-}
-
 // =========================================
 // テキストフィールド操作 / Text field helpers
 // =========================================
+
+/* 現在値とキー・修飾キーから次の値を求める（↑↓以外は null）/
+   Compute the next value from the current value and modifiers (null for keys other than Up/Down) */
+function steppedValue(value, keyName, keyboard) {
+    if (keyName !== "Up" && keyName !== "Down") {
+        return null;
+    }
+    var up = (keyName === "Up");
+    if (keyboard.shiftKey) {
+        /* Shiftは10の倍数にスナップ / Shift snaps to multiples of 10 */
+        return up ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+    }
+    if (keyboard.altKey) {
+        /* Optionは0.1ずつ（小数1桁に丸め）/ Option steps by 0.1 (rounded to 1 decimal) */
+        return Math.round((value + (up ? 0.1 : -0.1)) * 10) / 10;
+    }
+    /* 通常は整数グリッドへ±1スナップ（1.7→↑2.0／↓1.0）/ Default: snap to the integer grid by ±1 */
+    return up ? Math.floor(value) + 1 : Math.ceil(value) - 1;
+}
 
 /* ↑↓キーで値を増減（Shiftで±10・10スナップ、Optionで±0.1、通常は±1）/ Arrow keys change the value (Shift: ±10 snapped, Option: ±0.1, default: ±1) */
 function changeValueByArrowKey(editText, onChangeCallback) {
@@ -607,60 +620,15 @@ function changeValueByArrowKey(editText, onChangeCallback) {
         var value = Number(editText.text);
         if (isNaN(value)) return;
 
-        var keyboard = ScriptUI.environment.keyboardState;
+        var next = steppedValue(value, event.keyName, ScriptUI.environment.keyboardState);
+        if (next === null) return;
 
-        if (keyboard.shiftKey) {
-            var delta = 10;
-            // Shiftキー押下時は10の倍数にスナップ / Snap to multiples of 10 with Shift
-            if (event.keyName === "Up") {
-                value = Math.ceil((value + 1) / delta) * delta;
-                event.preventDefault();
-            } else if (event.keyName === "Down") {
-                value = Math.floor((value - 1) / delta) * delta;                event.preventDefault();
-            }
-        } else if (keyboard.altKey) {
-            // Optionキー押下時は0.1ずつ（小数1桁に丸め）/ Option steps by 0.1 (rounded to 1 decimal)
-            if (event.keyName === "Up") {
-                value = Math.round((value + 0.1) * 10) / 10;
-                event.preventDefault();
-            } else if (event.keyName === "Down") {
-                value = Math.round((value - 0.1) * 10) / 10;                event.preventDefault();
-            }
-        } else {
-            // 通常は整数グリッドへ±1スナップ（1.7→↑2.0／↓1.0）/ Default: snap to the integer grid by ±1 (1.7 → up 2.0 / down 1.0)
-            if (event.keyName === "Up") {
-                value = Math.floor(value) + 1;
-                event.preventDefault();
-            } else if (event.keyName === "Down") {
-                value = Math.ceil(value) - 1;                event.preventDefault();
-            }
-        }
-
-        editText.text = value;
+        event.preventDefault();
+        editText.text = next;
 
         /* 値変更を通知 / Notify the change */
         if (typeof onChangeCallback === "function") {
             onChangeCallback();
-        }
-    });
-}
-
-/* A で適用を実行するキーハンドラ / Run apply with A */
-function addApplyKeyHandler(win, onApply) {
-    win.addEventListener("keydown", function (event) {
-        if (event.keyName === "A") {
-            onApply();
-            event.preventDefault();
-        }
-    });
-}
-
-/* Esc でパレットを閉じるキーハンドラ / Close the palette with Esc */
-function addCloseKeyHandler(win) {
-    win.addEventListener("keydown", function (event) {
-        if (event.keyName === "Escape") {
-            win.close();
-            event.preventDefault();
         }
     });
 }
@@ -670,58 +638,24 @@ function shortcutsDisabled(isLocked) {
     return typeof isLocked === "function" && isLocked();
 }
 
-/* T で上、B で下を選択するキーハンドラ（選択後にプレビュー更新。ロック中は無効）/ Select top with T, bottom with B (disabled while locked) */
-function addAnchorKeyHandler(win, topRadio, bottomRadio, onPreview, isLocked) {
-    win.addEventListener("keydown", function (event) {
-        if (shortcutsDisabled(isLocked)) return;
-        if (event.keyName === "T") {
-            topRadio.value = true;
-            onPreview();
-            event.preventDefault();
-        } else if (event.keyName === "B") {
-            bottomRadio.value = true;
-            onPreview();
-            event.preventDefault();
-        }
-    });
+/* ラジオを選んでプレビューするアクションを作る / Build an action that selects a radio then previews */
+function pickThenPreview(radio, onPreview) {
+    return function () {
+        radio.value = true;
+        onPreview();
+    };
 }
 
-/* N で整列しない、L で左、C で中央、R で右に整列（ロック中は無効）/ N none, L left, C center, R right (disabled while locked) */
-function addAlignKeyHandler(win, alignRadios, onPreview, isLocked) {
+/* キー→アクションのテーブルを win に登録（gated:true のものはロック中無効）/
+   Register a key→action table on the window (entries with gated:true are disabled while locked) */
+function addKeyHandlers(win, isLocked, bindings) {
     win.addEventListener("keydown", function (event) {
-        if (shortcutsDisabled(isLocked)) return;
-        if (event.keyName === "N") {
-            alignRadios.none.value = true;
-            onPreview();
+        for (var i = 0; i < bindings.length; i++) {
+            if (bindings[i].key !== event.keyName) continue;
+            if (bindings[i].gated && shortcutsDisabled(isLocked)) return;
+            bindings[i].run();
             event.preventDefault();
-        } else if (event.keyName === "L") {
-            alignRadios.left.value = true;
-            onPreview();
-            event.preventDefault();
-        } else if (event.keyName === "C") {
-            alignRadios.center.value = true;
-            onPreview();
-            event.preventDefault();
-        } else if (event.keyName === "R") {
-            alignRadios.right.value = true;
-            onPreview();
-            event.preventDefault();
-        }
-    });
-}
-
-/* S で整列に連動、J で均等配置（ロック中は無効）/ S match alignment, J justify (disabled while locked) */
-function addJustifyKeyHandler(win, justifyRadios, onPreview, isLocked) {
-    win.addEventListener("keydown", function (event) {
-        if (shortcutsDisabled(isLocked)) return;
-        if (event.keyName === "S") {
-            justifyRadios.link.value = true;
-            onPreview();
-            event.preventDefault();
-        } else if (event.keyName === "J") {
-            justifyRadios.full.value = true;
-            onPreview();
-            event.preventDefault();
+            return;
         }
     });
 }
@@ -757,10 +691,13 @@ function setupGroup(group, orientation, spacing) {
 function buildAnchorPanel(parent, onPreview) {
     var panel = parent.add("panel", undefined, L("anchor.title"));
     setupPanel(panel);
+    panel.helpTip = L("tooltip.anchorTop") + " / " + L("tooltip.anchorBottom");
 
-    /* 上下は縦並び（ショートカット T/B はラベル非表示）/ Stacked vertically (T/B shortcuts are not shown) */
-    var anchorTopRadio = panel.add("radiobutton", undefined, L("anchor.top"));
-    var anchorBottomRadio = panel.add("radiobutton", undefined, L("anchor.bottom"));
+    /* 上下は横並び（ショートカット T/B はラベル非表示）/ Top/bottom in a row (T/B shortcuts are not shown) */
+    var row = panel.add("group");
+    setupGroup(row, "row");
+    var anchorTopRadio = row.add("radiobutton", undefined, L("anchor.top"));
+    var anchorBottomRadio = row.add("radiobutton", undefined, L("anchor.bottom"));
     anchorTopRadio.value = true;
     anchorTopRadio.helpTip = L("tooltip.anchorTop");
     anchorBottomRadio.helpTip = L("tooltip.anchorBottom");
@@ -774,6 +711,7 @@ function buildAnchorPanel(parent, onPreview) {
 function buildGapPanel(parent, rulerUnit, onPreview) {
     var panel = parent.add("panel", undefined, L("gap.title"));
     setupPanel(panel);
+    panel.helpTip = L("tooltip.gap");
 
     var row = panel.add("group");
     setupGroup(row, "row");
@@ -796,26 +734,51 @@ function buildGapPanel(parent, rulerUnit, onPreview) {
 }
 
 /* 左右の整列パネル / Horizontal-alignment panel */
-function buildAlignPanel(parent, onPreview) {
+function buildAlignPanel(parent, rulerUnit, onPreview) {
     var panel = parent.add("panel", undefined, L("align.title"));
     setupPanel(panel);
     panel.helpTip = L("tooltip.align");
 
+    /* ラジオは横並び / Radios in a row */
+    var row = panel.add("group");
+    setupGroup(row, "row");
     var radios = {
-        none: panel.add("radiobutton", undefined, L("align.none")),
-        left: panel.add("radiobutton", undefined, L("align.left")),
-        center: panel.add("radiobutton", undefined, L("align.center")),
-        right: panel.add("radiobutton", undefined, L("align.right"))
+        none: row.add("radiobutton", undefined, L("align.none")),
+        left: row.add("radiobutton", undefined, L("align.left")),
+        center: row.add("radiobutton", undefined, L("align.center")),
+        right: row.add("radiobutton", undefined, L("align.right"))
     };
     radios.none.value = true;
     radios.none.onClick = onPreview;
     radios.left.onClick = onPreview;
-    radios.center.onClick = onPreview;
     radios.right.onClick = onPreview;
     radios.none.helpTip = L("tooltip.align");
     radios.left.helpTip = L("tooltip.align");
     radios.center.helpTip = L("tooltip.align");
     radios.right.helpTip = L("tooltip.align");
+
+    /* 整列後の左右ずらし量（正＝右／負＝左）/ Extra horizontal offset (positive = right, negative = left) */
+    var adjustRow = panel.add("group");
+    setupGroup(adjustRow, "row");
+    adjustRow.add("statictext", undefined, labelText("align.adjust"));
+    var adjustInput = adjustRow.add("edittext", undefined, "0");
+    adjustInput.characters = 5;
+    adjustInput.helpTip = L("tooltip.alignAdjust");
+    changeValueByArrowKey(adjustInput, onPreview);
+    adjustInput.onChange = onPreview;
+    adjustRow.add("statictext", undefined, rulerUnit.label);
+    radios.adjustInput = adjustInput;
+
+    /* 中央に設定したら横調整を0へリセット（マウス・キー操作共通）/
+       Selecting center resets the horizontal adjust to 0 (shared by mouse and keyboard) */
+    function selectCenter() {
+        radios.center.value = true;
+        adjustInput.text = "0";
+        onPreview();
+    }
+    radios.center.onClick = selectCenter;
+    radios.selectCenter = selectCenter;
+
     return radios;
 }
 
@@ -866,10 +829,16 @@ function readOptions(controls, rulerUnit) {
         controls.gap.gapValueInput.text = gapValue;
     }
 
+    var adjustValue = parseFloat(controls.align.adjustInput.text);
+    if (isNaN(adjustValue)) {
+        adjustValue = 0;
+    }
+
     return {
         anchorTop: controls.anchor.anchorTopRadio.value,
         gapPoints: gapValue * rulerUnit.factor,
         align: selectedRadioKey(controls.align, ["none", "left", "center", "right"]),
+        adjustPoints: adjustValue * rulerUnit.factor,
         justify: selectedRadioKey(controls.justify, ["none", "link", "full"]),
         usePreviewBounds: controls.gap.previewBoundsCheckbox.value
     };
@@ -894,10 +863,6 @@ function showPalette() {
     var controls = {};
     var previewState = { active: false }; /* プレビューが反映中か / Whether a preview is currently applied */
     var isBusy = false; /* 同期委譲中の再入防止 / Guard against re-entry during a synchronous delegation */
-
-    /* ステータス表示は廃止（説明文を削除）。呼び出し側を壊さないよう no-op /
-       Status line removed; keep as a no-op so existing callers don't break */
-    function setStatus(message) {}
 
     /* 選択2点の現在の間隔をフィールドへ取り込む / Load the current gap of the two selected items into the field */
     function loadGapFromSelection() {
@@ -924,34 +889,23 @@ function showPalette() {
     function updatePreview() {
         if (isBusy) return; /* 委譲中に発火した変更は無視 / ignore changes fired mid-delegation */
         isBusy = true;
-        var options = readOptions(controls, rulerUnit);
-        options.undoFirst = previewState.active;
-        var result = runAdjustmentPreview(options);
-        /* OK＝変更あり（undoステップ1つ）。NOCHANGE＝変更なし（undoステップ無し）→
-           次回 app.undo() で直前のユーザー操作を巻き戻さないよう active を false に /
-           OK = changed (one undo step). NOCHANGE = nothing changed (no undo step) →
-           keep active false so the next app.undo() won't revert the user's prior action. */
-        if (result === "OK") {
-            previewState.active = true;
-            setStatus(L("status.previewed"));
-        } else if (result === "NOCHANGE") {
-            previewState.active = false;
-            setStatus(L("status.previewed"));
-        } else {
-            previewState.active = false;
-            setStatus(describeResult(result));
+        try {
+            var options = readOptions(controls, rulerUnit);
+            options.undoFirst = previewState.active;
+            var result = runAdjustmentPreview(options);
+            /* OK＝変更あり（undoステップ1つ）。それ以外（NOCHANGE／エラー）は undo ステップが
+               無いので active=false にし、次回 app.undo() で直前のユーザー操作を巻き戻さない /
+               OK = changed (one undo step). Otherwise (NOCHANGE / error) there is no undo step,
+               so keep active false so the next app.undo() won't revert the user's prior action. */
+            previewState.active = (result === "OK");
+        } finally {
+            /* 委譲が例外で抜けても再入ガードを必ず解除 / Always clear the re-entry guard, even on error */
+            isBusy = false;
         }
-        isBusy = false;
     }
 
     /* 記録した設定（間隔・キー・整列・行揃え・境界）/ The recorded recipe */
     var recordedOptions = null;
-
-    /* 記録した間隔を定規単位の表示文字列にする / Recorded gap as a ruler-unit string */
-    function recordedGapText() {
-        var value = Math.round((recordedOptions.gapPoints / rulerUnit.factor) * 100) / 100;
-        return value + rulerUnit.label;
-    }
 
     /* プレビュー中なら戻してドキュメントを元の状態へ / Revert any active preview so the document is clean */
     function revertActivePreview() {
@@ -968,8 +922,7 @@ function showPalette() {
        Toggle the locked (dimmed) state of the setting panels; the button area stays enabled */
     function setLocked(isLocked) {
         locked = isLocked;
-        topRow.enabled = !isLocked;
-        bottomRow.enabled = !isLocked;
+        settingsColumn.enabled = !isLocked;
         recordBtn.text = isLocked ? L("button.edit") : L("button.record");
         recordBtn.helpTip = isLocked ? L("tooltip.edit") : L("tooltip.record");
     }
@@ -983,7 +936,6 @@ function showPalette() {
                app.undo() が走り選択が壊れるのを防ぐ / Commit the preview (keep it) and clear
                active so the next Apply won't app.undo() and clobber the selection */
             previewState.active = false;
-            setStatus(L("status.recorded") + " (" + recordedGapText() + ")");
             setLocked(true);
         } else {
             setLocked(false);
@@ -996,27 +948,17 @@ function showPalette() {
         revertActivePreview(); /* プレビュー分の二重適用を防ぐ / avoid double-applying the preview */
         var options = recordedOptions ? recordedOptions : readOptions(controls, rulerUnit);
         options.undoFirst = false;
-        var result = runBatchAdjustmentDelegate(options);
-        if (result.indexOf("OK:") === 0) {
-            setStatus(L("status.done") + " (" + result.substring(3) + ")");
-        } else {
-            setStatus(describeResult(result));
-        }
+        runBatchAdjustmentDelegate(options);
     }
 
-    /* 行1：間隔値＋プレビュー境界 ／ 固定するオブジェクト / Row 1: gap + preview bounds | anchor */
-    var topRow = win.add("group");
-    setupGroup(topRow, "row", COLUMN_SPACING);
-    topRow.alignChildren = ["fill", "top"];
-    controls.gap = buildGapPanel(topRow, rulerUnit, updatePreview);
-    controls.anchor = buildAnchorPanel(topRow, updatePreview);
-
-    /* 行2：整列設定 ／ テキストの行揃え / Row 2: align settings | text alignment */
-    var bottomRow = win.add("group");
-    setupGroup(bottomRow, "row", COLUMN_SPACING);
-    bottomRow.alignChildren = ["fill", "top"];
-    controls.align = buildAlignPanel(bottomRow, updatePreview);
-    controls.justify = buildJustifyPanel(bottomRow, updatePreview);
+    /* 1カラム：間隔値・キーオブジェクト・左右の整列・テキストの行揃えを縦に並べる /
+       Single column: gap, key object, horizontal align, text alignment stacked vertically */
+    var settingsColumn = win.add("group");
+    setupGroup(settingsColumn, "column");
+    controls.gap = buildGapPanel(settingsColumn, rulerUnit, updatePreview);
+    controls.anchor = buildAnchorPanel(settingsColumn, updatePreview);
+    controls.align = buildAlignPanel(settingsColumn, rulerUnit, updatePreview);
+    controls.justify = buildJustifyPanel(settingsColumn, updatePreview);
 
     /* ボタン：記録／適用 / Buttons: Record / Apply */
     var btnGroup = win.add("group");
@@ -1042,11 +984,18 @@ function showPalette() {
     function isLockedNow() {
         return locked;
     }
-    addApplyKeyHandler(win, applyBatch);
-    addAnchorKeyHandler(win, controls.anchor.anchorTopRadio, controls.anchor.anchorBottomRadio, updatePreview, isLockedNow);
-    addAlignKeyHandler(win, controls.align, updatePreview, isLockedNow);
-    addJustifyKeyHandler(win, controls.justify, updatePreview, isLockedNow);
-    addCloseKeyHandler(win);
+    addKeyHandlers(win, isLockedNow, [
+        { key: "A", run: applyBatch },
+        { key: "Escape", run: function () { win.close(); } },
+        { key: "T", gated: true, run: pickThenPreview(controls.anchor.anchorTopRadio, updatePreview) },
+        { key: "B", gated: true, run: pickThenPreview(controls.anchor.anchorBottomRadio, updatePreview) },
+        { key: "N", gated: true, run: pickThenPreview(controls.align.none, updatePreview) },
+        { key: "L", gated: true, run: pickThenPreview(controls.align.left, updatePreview) },
+        { key: "C", gated: true, run: controls.align.selectCenter },
+        { key: "R", gated: true, run: pickThenPreview(controls.align.right, updatePreview) },
+        { key: "S", gated: true, run: pickThenPreview(controls.justify.link, updatePreview) },
+        { key: "J", gated: true, run: pickThenPreview(controls.justify.full, updatePreview) }
+    ]);
 
     win.center();
     win.show();
