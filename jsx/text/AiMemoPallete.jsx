@@ -56,7 +56,7 @@ https://note.com/nice_lotus120/n/n6291a432b30d
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.1.1";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -448,6 +448,8 @@ function L(labelNode) {
     /* Illustrator には app.system が無いため、一時テキストフレーム + app.copy() でコピーする。
        パレット常駐エンジンは表示中に DOM が切れるため、メインエンジンへ BridgeTalk で委譲（非同期）。
        ドキュメントが開いていればその上で（画面外に一瞬作って削除）、無ければ一時ドキュメントで実行する。
+       アクティブレイヤーがロック/非表示だと textFrames.add() が 8705（Target layer cannot be modified）で
+       失敗するため、一時的にロック解除＋表示にしてからフレームを作り、処理後に元の状態へ戻す。
        テキストは encodeURIComponent で安全に受け渡す。onDone(status): 'ok' | 'error' */
     function copyTextToClipboard(text, onDone) {
         var copyScript =
@@ -463,14 +465,18 @@ function L(labelNode) {
             '    var previousSelection = [];' +
             '    if (!usingTempDoc) { try { for (var i = 0; i < targetDoc.selection.length; i++) previousSelection.push(targetDoc.selection[i]); } catch (e1) {} }' +
             '    var tempFrame = null;' +
+            '    var editLayer = null, savedLocked = false, savedVisible = true;' +
+            '    try { editLayer = targetDoc.activeLayer; savedLocked = editLayer.locked; savedVisible = editLayer.visible; } catch (eL) { editLayer = null; }' +
             '    try {' +
-            '        tempFrame = targetDoc.textFrames.add();' +
+            '        if (editLayer) { if (editLayer.locked) editLayer.locked = false; if (!editLayer.visible) editLayer.visible = true; }' +
+            '        tempFrame = (editLayer ? editLayer.textFrames.add() : targetDoc.textFrames.add());' +
             '        tempFrame.contents = memoText;' +
             '        try { targetDoc.selection = null; } catch (e2) {}' +
             '        tempFrame.selected = true;' +
             '        app.copy();' +
             '    } catch (e3) {' +
             '        if (tempFrame) { try { tempFrame.remove(); } catch (e4) {} }' +
+            '        if (editLayer) { try { editLayer.locked = savedLocked; } catch (eR1) {} try { editLayer.visible = savedVisible; } catch (eR2) {} }' +
             '        if (usingTempDoc) { try { targetDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (e5) {} }' +
             '        return "ERR";' +
             '    }' +
@@ -478,6 +484,7 @@ function L(labelNode) {
             '        try { targetDoc.close(SaveOptions.DONOTSAVECHANGES); } catch (e6) {}' +
             '    } else {' +
             '        try { tempFrame.remove(); } catch (e7) {}' +
+            '        if (editLayer) { try { editLayer.locked = savedLocked; } catch (eR3) {} try { editLayer.visible = savedVisible; } catch (eR4) {} }' +
             '        try { targetDoc.selection = null; } catch (e8) {}' +
             '        for (var j = 0; j < previousSelection.length; j++) { try { previousSelection[j].selected = true; } catch (e9) {} }' +
             '    }' +
