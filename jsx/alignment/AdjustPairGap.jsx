@@ -4,7 +4,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-# ペア間隔調整スクリプト
+# ペア配置調整スクリプト
 
 オブジェクトの間隔（および位置）を指定値にそろえます。キーオブジェクトで選んだ側を基準に、残りを動かします。ライブプレビュー対応。
 
@@ -78,7 +78,7 @@ var DEFAULT_GAP = 30; // 平均間隔を測れないときのフォールバッ�
 var LABELS = {
     // ダイアログ / Dialog
     dialog: {
-        title: { ja: "ペア間隔の調整", en: "Adjust Pair Gap" }
+        title: { ja: "ペア配置の調整", en: "Adjust Pair Layout" }
     },
     // モード / Mode
     mode: {
@@ -117,7 +117,7 @@ var LABELS = {
         left: { ja: "左", en: "Left" },
         center: { ja: "中央", en: "Center" },
         right: { ja: "右", en: "Right" },
-        full: { ja: "均等配置（左）", en: "Justify (last line left)" }
+        full: { ja: "均等配置", en: "Justify" }
     },
     // 整列 / Alignment
     align: {
@@ -151,16 +151,16 @@ var LABELS = {
             en: "Sets each selected object's gap (margin) to the artboard edge chosen in Key Object (top/left/right/bottom)."
         },
         fixedSide: {
-            ja: "基準にするキーオブジェクトの側。選んだ側は動かさず、残りを移動して間隔をそろえます。左右で水平、上下で垂直方向にそろえます。",
-            en: "The key object side used as the anchor. The chosen side stays put while the rest move. Left/Right adjusts horizontally, Top/Bottom vertically."
+            ja: "基準にする側。選んだ側は動かさず残りを移動します（左右＝水平、上下＝垂直）。",
+            en: "The anchor side. The chosen side stays put while the rest move (Left/Right = horizontal, Top/Bottom = vertical)."
         },
         spacing: {
             ja: "オブジェクト間の間隔。マイナスにすると重なります。↑↓キーで±1、Shiftで±10、Optionで±0.1。",
             en: "Gap between objects; a negative value overlaps them. Arrow keys ±1, Shift ±10, Option ±0.1."
         },
         clear: {
-            ja: "間隔を0にします。",
-            en: "Sets the gap to 0."
+            ja: "間隔だけを0に戻します。",
+            en: "Resets only the gap to 0."
         },
         offsetHorizontal: {
             ja: "上下をキーにしたとき有効。整列後の移動側を左右へ追加でずらします（正＝右）。↑↓キーで±1、Shiftで±10、Optionで±0.1。",
@@ -181,6 +181,26 @@ var LABELS = {
         previewBounds: {
             ja: "オンで線幅や効果を含む見た目の境界、オフで幾何境界を基準に間隔を測ります。",
             en: "On: measure by visible bounds (incl. stroke/effects). Off: geometric bounds."
+        },
+        justifyAuto: {
+            ja: "整列・キーに連動。エリア内文字は均等配置、ポイント文字は縦並びなら水平整列・横並びならキー側に合わせます。",
+            en: "Linked to align/key: area text is justified; point text follows the horizontal align (vertical stack) or the key side (horizontal row)."
+        },
+        justifyLeft: {
+            ja: "テキストを左揃えにします。",
+            en: "Left-aligns the text."
+        },
+        justifyCenter: {
+            ja: "テキストを中央揃えにします。",
+            en: "Center-aligns the text."
+        },
+        justifyRight: {
+            ja: "テキストを右揃えにします。",
+            en: "Right-aligns the text."
+        },
+        justifyFull: {
+            ja: "テキストを均等配置（最終行左）にします。",
+            en: "Justifies the text (last line left-aligned)."
         }
     },
     // アラート / Alerts
@@ -430,7 +450,7 @@ function buildFixedSidePanel(parentGroup) {
    Vertical panels, so this panel handles only the gap. Event wiring is left to the caller.
    返り値 / Returns: { panel, spacingInput, clearButton, previewBoundsCheckbox,
                        getSpacingInPoints, getBoundsType } */
-function buildSpacingOptionsPanel(parentGroup, initialGapPoints) {
+function buildGapPanel(parentGroup, initialGapPoints) {
     var panel = parentGroup.add("panel", undefined, getLocalizedText('options.label'));
     setupPanel(panel, 6);
 
@@ -571,6 +591,12 @@ function buildJustifyPanel(parentGroup) {
         full: panel.add("radiobutton", undefined, getLocalizedText('justify.full'))
     };
     radios.auto.value = true; // 既定：自動（整列・キーに連動）/ Default: auto (linked to align/key)
+    // 各ラジオにツールチップ / Tooltip per radio
+    radios.auto.helpTip = getLocalizedText('tip.justifyAuto');
+    radios.left.helpTip = getLocalizedText('tip.justifyLeft');
+    radios.center.helpTip = getLocalizedText('tip.justifyCenter');
+    radios.right.helpTip = getLocalizedText('tip.justifyRight');
+    radios.full.helpTip = getLocalizedText('tip.justifyFull');
 
     /* 選択中の行揃えモードを文字列で返す / Selected justify mode as a string */
     function getJustifyMode() {
@@ -1043,23 +1069,23 @@ function applySavedAlign(alignRow, value) {
 
         if (anchorEnd) {
             // 後ろ側（右 or 下）を固定し、後ろから前へ配置 / Anchor the trailing end; walk backward
-            var nextStart = axis.start(cachedBounds[order[count - 1]]); // 後ろ端オブジェクトの先頭辺（不動）
-            for (var r = count - 2; r >= 0; r--) {
-                var idxR = order[r];
-                var desiredEnd = nextStart - gapInPoints;
-                var pR = desiredEnd - axis.end(cachedBounds[idxR]);
-                moveByAxis(axis, members[idxR], pR);
-                nextStart = axis.start(cachedBounds[idxR]) + pR; // この要素の新しい先頭辺 / its new leading edge
+            var nextLeadingEdge = axis.start(cachedBounds[order[count - 1]]); // 後ろ端オブジェクトの先頭辺（不動）
+            for (var i = count - 2; i >= 0; i--) {
+                var memberIndex = order[i];
+                var desiredEnd = nextLeadingEdge - gapInPoints;
+                var shiftAmount = desiredEnd - axis.end(cachedBounds[memberIndex]);
+                moveByAxis(axis, members[memberIndex], shiftAmount);
+                nextLeadingEdge = axis.start(cachedBounds[memberIndex]) + shiftAmount; // この要素の新しい先頭辺 / its new leading edge
             }
         } else {
             // 先頭側（左 or 上）を固定し、前から後ろへ配置 / Anchor the leading end; walk forward
-            var prevEnd = axis.end(cachedBounds[order[0]]); // 先頭端オブジェクトの後ろ辺（不動）
-            for (var f = 1; f < count; f++) {
-                var idxF = order[f];
-                var desiredStart = prevEnd + gapInPoints;
-                var pF = desiredStart - axis.start(cachedBounds[idxF]);
-                moveByAxis(axis, members[idxF], pF);
-                prevEnd = axis.end(cachedBounds[idxF]) + pF; // この要素の新しい後ろ辺 / its new trailing edge
+            var prevTrailingEdge = axis.end(cachedBounds[order[0]]); // 先頭端オブジェクトの後ろ辺（不動）
+            for (var i = 1; i < count; i++) {
+                var memberIndex = order[i];
+                var desiredStart = prevTrailingEdge + gapInPoints;
+                var shiftAmount = desiredStart - axis.start(cachedBounds[memberIndex]);
+                moveByAxis(axis, members[memberIndex], shiftAmount);
+                prevTrailingEdge = axis.end(cachedBounds[memberIndex]) + shiftAmount; // この要素の新しい後ろ辺 / its new trailing edge
             }
         }
     }
@@ -1106,14 +1132,14 @@ function applySavedAlign(alignRow, value) {
         var bounds = useVisible ? pair.memberVis : pair.memberGeo;
 
         var order = [];
-        for (var s = 0; s < count; s++) order.push(s);
+        for (var i = 0; i < count; i++) order.push(i);
         order.sort(function (x, y) { return gapAxis.start(bounds[x]) - gapAxis.start(bounds[y]); });
 
-        var anchorIdx = anchorEnd ? order[count - 1] : order[0]; // 固定端のメンバー / member at the fixed end
-        var anchorBounds = bounds[anchorIdx];
-        for (var k = 0; k < count; k++) {
-            if (k === anchorIdx) continue;
-            alignToAnchor(alignAxis, members[k], bounds[k], anchorBounds, alignMode);
+        var anchorIndex = anchorEnd ? order[count - 1] : order[0]; // 固定端のメンバー / member at the fixed end
+        var anchorBounds = bounds[anchorIndex];
+        for (var i = 0; i < count; i++) {
+            if (i === anchorIndex) continue;
+            alignToAnchor(alignAxis, members[i], bounds[i], anchorBounds, alignMode);
         }
     }
 
@@ -1151,17 +1177,17 @@ function applySavedAlign(alignRow, value) {
         // 間隔・整列を行揃え後の実際の形で計算する）。applyJustification は冪等。
         // Apply justification to all text FIRST, then re-measure bounds, so gap/align use the
         // post-justification shape (point-text width changes with justification). Idempotent.
-        for (var pj = 0; pj < objectPairs.length; pj++) {
-            var pjp = objectPairs[pj];
-            if (pjp.single) {
-                applyJustification(pjp.single, resolveJustifyForObject(pjp.single));
-            } else if (pjp.members) {
-                for (var pm = 0; pm < pjp.members.length; pm++) {
-                    applyJustification(pjp.members[pm], resolveJustifyForObject(pjp.members[pm]));
+        for (var i = 0; i < objectPairs.length; i++) {
+            var justifyPair = objectPairs[i];
+            if (justifyPair.single) {
+                applyJustification(justifyPair.single, resolveJustifyForObject(justifyPair.single));
+            } else if (justifyPair.members) {
+                for (var j = 0; j < justifyPair.members.length; j++) {
+                    applyJustification(justifyPair.members[j], resolveJustifyForObject(justifyPair.members[j]));
                 }
             } else {
-                applyJustification(pjp.a, resolveJustifyForObject(pjp.a));
-                applyJustification(pjp.b, resolveJustifyForObject(pjp.b));
+                applyJustification(justifyPair.a, resolveJustifyForObject(justifyPair.a));
+                applyJustification(justifyPair.b, resolveJustifyForObject(justifyPair.b));
             }
         }
         cachePairBounds(objectPairs); // 行揃え後の境界で取り直す / re-cache post-justification bounds
@@ -1171,20 +1197,20 @@ function applySavedAlign(alignRow, value) {
         // Position offset along the perpendicular (align) axis only, applied to the non-key (moved) object(s).
         var offsetAlong = (!alignAxis.vertical) ? offsetHorizontalPt : offsetVerticalPt;
 
-        for (var k = 0; k < objectPairs.length; k++) {
-            var pair = objectPairs[k];
+        for (var i = 0; i < objectPairs.length; i++) {
+            var pair = objectPairs[i];
 
             if (pair.single) {
                 // アートボードモード：オブジェクトとアートボード端の間隔（マージン）を指定値にそろえる。
                 // Artboard mode: set the object's gap (margin) to the chosen artboard edge; align to it.
-                var sBounds = useVisible ? pair.visibleS : pair.geometricS;
-                var abRect = pair.artboardRect;
-                var pS = anchorEnd
-                    ? (axis.end(abRect) - gapInPoints) - axis.end(sBounds)    // 右/下端から内側へ / inset from trailing edge
-                    : (axis.start(abRect) + gapInPoints) - axis.start(sBounds); // 左/上端から内側へ / inset from leading edge
-                moveByAxis(axis, pair.single, pS);
+                var singleBounds = useVisible ? pair.visibleS : pair.geometricS;
+                var artboardRect = pair.artboardRect;
+                var marginShift = anchorEnd
+                    ? (axis.end(artboardRect) - gapInPoints) - axis.end(singleBounds)    // 右/下端から内側へ / inset from trailing edge
+                    : (axis.start(artboardRect) + gapInPoints) - axis.start(singleBounds); // 左/上端から内側へ / inset from leading edge
+                moveByAxis(axis, pair.single, marginShift);
                 if (alignMode !== "none") {
-                    alignToAnchor(alignAxis, pair.single, sBounds, abRect, alignMode);
+                    alignToAnchor(alignAxis, pair.single, singleBounds, artboardRect, alignMode);
                 }
                 moveByAxis(alignAxis, pair.single, offsetAlong); // 位置オフセット（アートボード基準なので常に対象）/ offset
                 continue;
@@ -1197,10 +1223,10 @@ function applySavedAlign(alignRow, value) {
                 alignGroup(pair, axis, anchorEnd, useVisible, alignAxis, alignMode);
                 // 位置オフセット：キーオブジェクト（固定端メンバー）以外を直交方向へずらす / Offset non-key members only
                 if (offsetAlong !== 0) {
-                    var keyIdx = groupAnchorIndex(pair, axis, anchorEnd, useVisible);
-                    for (var mo = 0; mo < pair.members.length; mo++) {
-                        if (mo === keyIdx) continue;
-                        moveByAxis(alignAxis, pair.members[mo], offsetAlong);
+                    var keyMemberIndex = groupAnchorIndex(pair, axis, anchorEnd, useVisible);
+                    for (var j = 0; j < pair.members.length; j++) {
+                        if (j === keyMemberIndex) continue;
+                        moveByAxis(alignAxis, pair.members[j], offsetAlong);
                     }
                 }
                 continue;
@@ -1222,16 +1248,16 @@ function applySavedAlign(alignRow, value) {
 
             // 固定側を基準に動く側だけ移動し、同じ動く側を整列軸でも固定側へそろえる。
             // Move only the non-fixed object for the gap, then align that same object to the fixed one.
-            var p, movedObject, movedBounds, anchorBounds;
+            var gapShift, movedObject, movedBounds, anchorBounds;
             if (anchorEnd) {
                 // 後ろ側（右 or 下）を固定：先頭側オブジェクトを動かす / Fix trailing end, move the leading object
-                p = (axis.start(trailBounds) - gapInPoints) - axis.end(leadBounds);
-                moveByAxis(axis, leadObject, p);
+                gapShift = (axis.start(trailBounds) - gapInPoints) - axis.end(leadBounds);
+                moveByAxis(axis, leadObject, gapShift);
                 movedObject = leadObject; movedBounds = leadBounds; anchorBounds = trailBounds;
             } else {
                 // 先頭側（左 or 上）を固定：後ろ側オブジェクトを動かす / Fix leading end, move the trailing object
-                p = (axis.end(leadBounds) + gapInPoints) - axis.start(trailBounds);
-                moveByAxis(axis, trailObject, p);
+                gapShift = (axis.end(leadBounds) + gapInPoints) - axis.start(trailBounds);
+                moveByAxis(axis, trailObject, gapShift);
                 movedObject = trailObject; movedBounds = trailBounds; anchorBounds = leadBounds;
             }
             // 整列はギャップ軸と直交方向：ギャップ移動で整列軸の値は変わらないのでキャッシュ境界で可。
@@ -1255,8 +1281,8 @@ function applySavedAlign(alignRow, value) {
     /* 各ペアの元の境界をキャッシュする / Cache original bounds of every pair.
        適用時は常に元位置へ巻き戻してから計算するので、ここで一度取れば使い回せる。 */
     function cachePairBounds(pairs) {
-        for (var p = 0; p < pairs.length; p++) {
-            var pair = pairs[p];
+        for (var i = 0; i < pairs.length; i++) {
+            var pair = pairs[i];
             if (pair.single) {
                 // アートボード：オブジェクト境界と所属アートボードの矩形をキャッシュ
                 // Artboard: cache the object's bounds and its artboard rect
@@ -1267,9 +1293,9 @@ function applySavedAlign(alignRow, value) {
                 // グループ：全メンバーの境界をキャッシュ / Group: cache every member's bounds
                 pair.memberGeo = [];
                 pair.memberVis = [];
-                for (var m = 0; m < pair.members.length; m++) {
-                    pair.memberGeo.push(geometricBoundsOf(pair.members[m]));
-                    pair.memberVis.push(visibleBoundsOf(pair.members[m]));
+                for (var j = 0; j < pair.members.length; j++) {
+                    pair.memberGeo.push(geometricBoundsOf(pair.members[j]));
+                    pair.memberVis.push(visibleBoundsOf(pair.members[j]));
                 }
             } else {
                 pair.geometricA = geometricBoundsOf(pair.a);
@@ -1337,16 +1363,16 @@ function applySavedAlign(alignRow, value) {
         var setFixedSide = fixedSideRefs.setFixedSide;
 
         // 位置調整 / Position（間隔・クリア・プレビュー境界）
-        var optionsRefs = buildSpacingOptionsPanel(keyPositionColumns, initialGapPoints);
-        var spacingInput = optionsRefs.spacingInput;
-        var clearButton = optionsRefs.clearButton;
-        var previewBoundsCheckbox = optionsRefs.previewBoundsCheckbox;
-        var getSpacingInPoints = optionsRefs.getSpacingInPoints;
-        var getBoundsType = optionsRefs.getBoundsType;
+        var gapPanelRefs = buildGapPanel(keyPositionColumns, initialGapPoints);
+        var spacingInput = gapPanelRefs.spacingInput;
+        var clearButton = gapPanelRefs.clearButton;
+        var previewBoundsCheckbox = gapPanelRefs.previewBoundsCheckbox;
+        var getSpacingInPoints = gapPanelRefs.getSpacingInPoints;
+        var getBoundsType = gapPanelRefs.getBoundsType;
 
         // キー／位置の2パネルの高さをそろえる / Match the two panel heights
         fixedSidePanel.alignment = ["fill", "fill"];
-        optionsRefs.panel.alignment = ["fill", "fill"];
+        gapPanelRefs.panel.alignment = ["fill", "fill"];
 
         // 水平 / 垂直パネル（整列＋位置オフセット）/ Horizontal & Vertical panels (alignment + offset)
         var horizontalRefs = buildOrientationPanel(dialog, "h");
@@ -1469,10 +1495,10 @@ function applySavedAlign(alignRow, value) {
         modeArtboardRadio.onClick = onModeChange;
         // 固定側のラジオ：手動で排他にしてからプレビュー更新（軸の切替もここで反映）
         // Fixed-side radios: enforce exclusivity by hand, then refresh (axis switch applies here too)
-        for (var ri = 0; ri < fixedRadios.length; ri++) {
-            fixedRadios[ri].onClick = (function (radio) {
+        for (var i = 0; i < fixedRadios.length; i++) {
+            fixedRadios[i].onClick = (function (radio) {
                 return function () { selectFixedRadio(radio); updateActivePanels(); refreshPreviewResetJustify(); };
-            })(fixedRadios[ri]);
+            })(fixedRadios[i]);
         }
         changeValueByArrowKey(spacingInput, refreshPreview); // ↑↓キーで増減＋プレビュー更新 / Arrow keys + preview
         spacingInput.onChanging = refreshPreview;
@@ -1484,14 +1510,14 @@ function applySavedAlign(alignRow, value) {
         previewBoundsCheckbox.onClick = refreshPreview;
         // 整列ラジオ（左右/上下の各行）：オフセットの有効/無効を更新し、行揃えを戻してから更新 / Alignment radios
         var alignRows = [hAlign, vAlign];
-        for (var ai = 0; ai < alignRows.length; ai++) {
-            var alignRadios = alignRows[ai].radios;
+        for (var i = 0; i < alignRows.length; i++) {
+            var alignRadios = alignRows[i].radios;
             for (var key in alignRadios) { alignRadios[key].onClick = onAlignChange; }
         }
         // 整列のキーボードショートカット（水平 L/C/R・垂直 T/M/B）。有効な向きだけ反応 / Alignment keyboard shortcuts (active orientation only)
         addAlignmentKeyHandler(dialog, hAlign, vAlign, isVerticalGap, onAlignChange);
         // テキストの行揃えラジオ：行揃えを戻してから再適用 / Justification radios: revert justify, then refresh
-        for (var jk in justifyRadios) { justifyRadios[jk].onClick = refreshPreviewResetJustify; }
+        for (var key in justifyRadios) { justifyRadios[key].onClick = refreshPreviewResetJustify; }
         // クリアボタン：間隔のみ 0 にしてプレビュー更新（左右/上下は対象外）/ Clear: gap only, refresh
         clearButton.onClick = function () {
             spacingInput.text = "0";
