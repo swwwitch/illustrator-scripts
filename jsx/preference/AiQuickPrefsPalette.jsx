@@ -6,21 +6,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustrator の各種環境設定の切り替えと、選択オブジェクトの反転を、常駐パレットでまとめて操作するユーティリティです。操作した時点で即時反映されます。
+Illustrator の各種環境設定の切り替えと、選択オブジェクトの反転・回転を、常駐パレットでまとめて操作するユーティリティです。操作した時点で即時反映されます。
 
 - パレット（常駐エンジン）で表示し、書き込み・DOM 操作は BridgeTalk でメインエンジンへ委譲（読み出しは同期で直接取得）
-- 2カラム構成：左＝キー入力／整列／字形の境界に整列、右＝変形オプション／変形（反転）、最下部（全幅）＝アートボード名と枠線／コピー/ペースト／描画
+- 2カラム構成：左＝キー入力／整列オプション／字形の境界に整列、右＝変形オプション／変形、最下部（全幅）＝アートボード／コピー/ペースト／描画
 - 環境設定ダイアログ等の外部変更は、パレットをクリック（再アクティブ）で同期
 - パレットがアクティブなとき esc キーで閉じる
 
 #### パネルと項目
 
 - キー入力：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
-- 整列：プレビュー境界
+- 整列オプション：プレビュー境界
 - 字形の境界に整列：ポイント文字／エリア内文字
 - 変形オプション：パターン／角／線幅と効果
-- 変形（反転）：水平方向／垂直方向（選択全体の可視バウンディング中心を基点に反転）
-- アートボード名と枠線：アートボード名を表示／ビデオ定規の表示／枠線のカラー・幅
+- 変形：水平反転／垂直反転（横並び）、45°回転（方向はラジオで指定・デフォルト反時計回り）。いずれも選択全体の可視バウンディング中心を基点
+- アートボード：アートボード名を表示／ビデオ定規の表示／枠線のカラー・幅
 - コピー/ペースト：書式なしペースト／コピー元のレイヤーにペースト
 - 描画：リアルタイムの描画と編集／プレビュー更新（GPU プレビューを更新）
 
@@ -31,27 +31,27 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 
 ### Overview
 
-A persistent-palette utility for batch-toggling various Illustrator preferences and flipping the selection. Every action applies immediately when triggered.
+A persistent-palette utility for batch-toggling various Illustrator preferences and flipping/rotating the selection. Every action applies immediately when triggered.
 
 - Runs in a persistent-engine palette; writes and DOM operations are delegated to the main engine via BridgeTalk (reads are fetched directly/synchronously)
-- Two-column layout: left = Key input / Align / Align to Glyph Bounds, right = Transform Options / Transform (Flip), bottom (full width) = Artboard / Copy / Paste / Drawing
+- Two-column layout: left = Key input / Align Options / Align to Glyph Bounds, right = Transform Options / Transform, bottom (full width) = Artboard / Copy / Paste / Drawing
 - External changes (e.g. the Preferences dialog) sync when you click (re-activate) the palette
 - Press Esc to close while the palette is active
 
 #### Panels & options
 
 - Key input: cursor step (cursorKeyLength); switch ruler unit via popup, adjust with Up/Down / Shift / Option
-- Align: Preview Bounds
+- Align Options: Preview Bounds
 - Align to Glyph Bounds: Point Type / Area Type
 - Transform Options: Pattern Tiles / Corners / Strokes & Effects
-- Transform (Flip): Horizontal / Vertical (around the center of the selection's visible bounds)
-- Artboard Name & Border: Show Artboard Name / Show Video Ruler / border color & width
+- Transform: Flip Horizontal / Vertical (side by side), Rotate 45° (direction via radios, default counterclockwise). All pivot about the center of the selection's visible bounds
+- Artboard: Show Artboard Name / Show Video Ruler / border color & width
 - Copy / Paste: Paste without Formatting / Paste Remembers Layers
 - Drawing: Real-time Drawing & Editing / Refresh Preview (GPU preview)
 
 ### 更新履歴 / Change Log
 
-- v1.7.2 (20260627): 全コントロールにツールチップ（helpTip）を追加。「コピー/ペースト」パネル名へ変更（タイトル見切れ対策）。プレビュー更新ボタン・「ビデオ定規の表示」などラベルを調整。
+- v1.8.0 (20260628): 「45°回転」ボタンを追加（方向はラジオで指定・デフォルト反時計回り・選択中心基準）。反転ボタンを水平／垂直で横並び化し「水平反転／垂直反転」へ改称、パネル名を「変形」に短縮。整列パネルに「整列オプション」タイトルを付与、アートボードパネル名を「アートボード」に短縮。2カラム間隔を COLUMN_SPACING で調整。
 - v1.7.1 (20260627): 「その他」を「コピー/ペースト」へ改称し、「描画」パネルを新設（リアルタイムの描画と編集を移動）。描画パネルにプレビュー更新ボタンを追加。
 - v1.7.0 (20260627): 変形（反転）パネルを追加（選択中心基準・ロック／ガイド等はスキップ・合成行列で高速化）。レイアウト刷新（左＝キー入力／整列／字形の境界、右＝変形オプション／変形（反転））。テキスト／単位パネルとカンバスカラーを削除、「コピー元のレイヤーにペースト」を追加。esc キーで閉じる、編集中は同期を回避。命名整理、チェックボックス生成・ボタン高さ調整の共通化。
 - v1.6.0 (20260627): 標準フォーマットへ整理（IIFE 化、ローカライズ構造、ブロックコメント）。パレット化＋BridgeTalk 委譲、キー入力の単位ポップアップ、クリック同期、ガイド／アートボードパネルを追加、2カラムレイアウト。
@@ -63,7 +63,7 @@ A persistent-palette utility for batch-toggling various Illustrator preferences 
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.7.2";
+var SCRIPT_VERSION = "v1.8.0";
 
 (function () {
 
@@ -91,10 +91,11 @@ var SCRIPT_VERSION = "v1.7.2";
         },
         panel: {
             keyInput: { ja: "キー入力", en: "Key Input" },
+            align: { ja: "整列オプション", en: "Align Options" },
             transform: { ja: "変形オプション", en: "Transform Options" },
-            flip: { ja: "変形（反転）", en: "Transform (Flip)" },
+            flip: { ja: "変形", en: "Transform (Flip)" },
             glyphBounds: { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
-            artboard: { ja: "アートボード名と枠線", en: "Artboard Name / Border" },
+            artboard: { ja: "アートボード", en: "Artboard" },
             artboardBorder: { ja: "アートボードの枠線", en: "Artboard Border" },
             copyPaste: { ja: "コピー/ペースト", en: "Copy / Paste" },
             drawing: { ja: "描画", en: "Drawing" }
@@ -126,6 +127,9 @@ var SCRIPT_VERSION = "v1.7.2";
             scaleStroke: { ja: "拡大・縮小時に線幅と効果も拡大・縮小", en: "Scale strokes & effects when scaling" },
             flipHorizontal: { ja: "選択を水平方向に反転（選択全体の中心が基点）", en: "Flip the selection horizontally (about the selection center)" },
             flipVertical: { ja: "選択を垂直方向に反転（選択全体の中心が基点）", en: "Flip the selection vertically (about the selection center)" },
+            rotate: { ja: "選択を45°回転（選択全体の中心が基点。方向は右のラジオで指定）", en: "Rotate the selection 45° (about the selection center; direction set by the radios)" },
+            rotateCW: { ja: "時計回りに回転", en: "Rotate clockwise" },
+            rotateCCW: { ja: "反時計回りに回転", en: "Rotate counterclockwise" },
             showArtboardName: { ja: "アートボード名をカンバスに表示", en: "Show artboard names on the canvas" },
             videoRuler: { ja: "ビデオ定規の表示を切り替え", en: "Toggle the video ruler" },
             strokeColor: { ja: "アートボードの枠線（ハイライト）のカラー", en: "Artboard border (highlight) color" },
@@ -137,8 +141,11 @@ var SCRIPT_VERSION = "v1.7.2";
         },
         button: {
             videoRuler: { ja: "ビデオ定規の表示", en: "Show Video Ruler" },
-            flipHorizontal: { ja: "水平方向", en: "Horizontal" },
-            flipVertical: { ja: "垂直方向", en: "Vertical" },
+            flipHorizontal: { ja: "水平反転", en: "Horizontal" },
+            flipVertical: { ja: "垂直反転", en: "Vertical" },
+            rotate: { ja: "45°回転", en: "Rotate 45°" },
+            rotateCW: { ja: "時計回り", en: "Clockwise" },
+            rotateCCW: { ja: "反時計回り", en: "Counterclockwise" },
             refreshGpuPreview: { ja: "プレビュー更新", en: "Refresh Preview" }
         },
         color: {
@@ -406,6 +413,32 @@ var SCRIPT_VERSION = "v1.7.2";
         runInMainEngine(body);
     }
 
+    /* 選択オブジェクトを、選択全体の可視バウンディング中心を基点に回転（angleDegrees：正＝反時計回り／負＝時計回り）。DOM 操作なのでメインエンジンへ委譲 */
+    /* Rotate the selection around the center of its overall visible bounds (angleDegrees: positive = CCW / negative = CW); delegated to the main engine since it touches the DOM */
+    /* 平行移動→回転→平行移動を1つの合成行列にまとめ、cos/sin はコントローラ側で算出して数値を埋め込む（btFlipSelection と同様）*/
+    /* Collapse translate/rotate/translate into one matrix; cos/sin are computed controller-side and embedded as numbers (same approach as btFlipSelection) */
+    function btRotateSelection(angleDegrees) {
+        var radians = Number(angleDegrees) * Math.PI / 180;
+        var cos = Math.cos(radians);
+        var sin = Math.sin(radians);
+        var body = '' +
+            'if(app.documents.length>0){' +
+            'var doc=app.activeDocument;' +
+            'var selection=doc.selection;' +
+            'if(selection&&selection.length>0){' +
+            'var ca=' + cos + ',sa=' + sin + ';' +
+            'var left=Infinity,top=-Infinity,right=-Infinity,bottom=Infinity;' +
+            'var measured=false;' +
+            'for(var i=0;i<selection.length;i++){try{var bounds=selection[i].visibleBounds;if(bounds[0]<left)left=bounds[0];if(bounds[1]>top)top=bounds[1];if(bounds[2]>right)right=bounds[2];if(bounds[3]<bottom)bottom=bounds[3];measured=true;}catch(e){}}' +
+            'if(measured){' +
+            'var anchorX=(left+right)/2,anchorY=(top+bottom)/2;' +
+            /* 中心 (anchorX,anchorY) を基点に角度で回転する原点基準行列（x'=A*x+C*y+TX, y'=B*x+D*y+TY）/ Origin-based matrix rotating about (anchorX,anchorY) */
+            'var matrix=app.getIdentityMatrix();matrix.mValueA=ca;matrix.mValueB=sa;matrix.mValueC=-sa;matrix.mValueD=ca;matrix.mValueTX=anchorX*(1-ca)+anchorY*sa;matrix.mValueTY=anchorY*(1-ca)-anchorX*sa;' +
+            'for(var i=0;i<selection.length;i++){try{selection[i].transform(matrix,true,true,true,true,1,Transformation.DOCUMENTORIGIN);}catch(e){}}' +
+            '}}}';
+        runInMainEngine(body);
+    }
+
     // =========================================
     // カーソル移動量 / Cursor step
     // =========================================
@@ -504,6 +537,7 @@ var SCRIPT_VERSION = "v1.7.2";
     /* パネルの余白と間隔 / Panel margins and spacing */
     var PANEL_MARGINS = [16, 20, 16, 12];
     var PANEL_SPACING = 8;
+    var COLUMN_SPACING = 12; /* 2カラムの間隔 / Gap between the two columns */
 
     /* パネルの共通設定 / Apply shared panel layout */
     function setupPanel(panel, spacing) {
@@ -571,6 +605,7 @@ var SCRIPT_VERSION = "v1.7.2";
         var columnsRow = mainGroup.add('group');
         columnsRow.orientation = 'row';
         columnsRow.alignChildren = ['fill', 'top'];
+        columnsRow.spacing = COLUMN_SPACING;
 
         var leftColumn = columnsRow.add('group');
         leftColumn.orientation = 'column';
@@ -617,8 +652,8 @@ var SCRIPT_VERSION = "v1.7.2";
 
         changeValueByArrowKey(cursorStepField);
 
-        /* 整列パネル（タイトルなし・枠のみ）/ Align panel (no title, frame only) */
-        var alignPanel = leftColumn.add('panel', undefined, '');
+        /* 整列パネル / Align panel */
+        var alignPanel = leftColumn.add('panel', undefined, L('panel.align'));
         setupPanel(alignPanel);
 
         /* プレビュー境界 / Preview bounds */
@@ -650,23 +685,51 @@ var SCRIPT_VERSION = "v1.7.2";
         /* 線幅と効果も拡大・縮小 / Scale strokes and effects */
         var checkboxStroke = addBooleanCheckbox(transformPanel, 'checkbox.scaleStroke', 'scaleLineWeight', 'tooltip.scaleStroke');
 
-        /* 変形（反転）パネル（変形オプションの下・縦並び・ラベル幅・左右中央）/ Transform (Flip) panel (below Transform Options, stacked, sized to label, centered) */
+        /* 変形（反転）パネル（変形オプションの下・横並び・ラベル幅・左右中央）/ Transform (Flip) panel (below Transform Options, side by side, sized to label, centered) */
         var flipPanel = rightColumn.add('panel', undefined, L('panel.flip'));
         setupPanel(flipPanel);
         flipPanel.alignChildren = ['center', 'top'];
 
+        /* 2ボタンを横並びに / Lay out the two buttons in a row */
+        var flipRow = flipPanel.add('group');
+        flipRow.orientation = 'row';
+        flipRow.alignChildren = ['center', 'center'];
+
         /* 水平方向に反転（選択全体の中心を基点に左右反転）/ Flip horizontal (around selection center) */
-        var btnFlipHorizontal = flipPanel.add('button', undefined, L('button.flipHorizontal'));
+        var btnFlipHorizontal = flipRow.add('button', undefined, L('button.flipHorizontal'));
         btnFlipHorizontal.helpTip = L('tooltip.flipHorizontal');
         btnFlipHorizontal.onClick = function () {
             btFlipSelection(-100, 100);
         };
 
         /* 垂直方向に反転（選択全体の中心を基点に上下反転）/ Flip vertical (around selection center) */
-        var btnFlipVertical = flipPanel.add('button', undefined, L('button.flipVertical'));
+        var btnFlipVertical = flipRow.add('button', undefined, L('button.flipVertical'));
         btnFlipVertical.helpTip = L('tooltip.flipVertical');
         btnFlipVertical.onClick = function () {
             btFlipSelection(100, -100);
+        };
+
+        /* 45°回転：ボタン1つ＋方向ラジオ（時計回り／反時計回り、デフォルトは反時計回り）/ 45° rotate: a single button plus direction radios (CW / CCW, default CCW) */
+        var rotateGroup = flipPanel.add('group');
+        rotateGroup.orientation = 'row';
+        rotateGroup.alignChildren = ['left', 'center'];
+
+        var btnRotate = rotateGroup.add('button', undefined, L('button.rotate'));
+        btnRotate.helpTip = L('tooltip.rotate');
+
+        var rotateDirGroup = rotateGroup.add('group');
+        rotateDirGroup.orientation = 'column';
+        rotateDirGroup.alignChildren = ['left', 'center'];
+
+        var radioRotateCCW = rotateDirGroup.add('radiobutton', undefined, L('button.rotateCCW'));
+        radioRotateCCW.helpTip = L('tooltip.rotateCCW');
+        var radioRotateCW = rotateDirGroup.add('radiobutton', undefined, L('button.rotateCW'));
+        radioRotateCW.helpTip = L('tooltip.rotateCW');
+        radioRotateCCW.value = true; /* デフォルトは反時計回り / Default: counterclockwise */
+
+        btnRotate.onClick = function () {
+            /* 正＝反時計回り／負＝時計回り / positive = CCW, negative = CW */
+            btRotateSelection(radioRotateCW.value ? -45 : 45);
         };
 
         /* ----- 全幅：アートボード名と枠線 / その他（一番下）/ Full width: Artboard / Other (bottom) ----- */
