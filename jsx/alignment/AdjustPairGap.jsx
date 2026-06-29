@@ -6,32 +6,31 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 # ペア配置調整スクリプト
 
-オブジェクトの間隔（および位置）を指定値にそろえます。キーオブジェクトで選んだ側を基準に、残りを動かします。ライブプレビュー対応。
+オブジェクトの間隔（および位置）を指定値にそろえます。「固定」で選んだ側を基準に、残りを動かします。ライブプレビュー対応。
 
 ## モード
 
 - 自動ペア認識：選択オブジェクトを最も近いもの同士でペアにし、各ペアの間隔をそろえます
 - グループ：選択した各グループの中身を並べ、隣り合う間隔をすべて指定値にそろえます（3個以上もカスケードで分配）
-- アートボード：各選択オブジェクトと、キーオブジェクトで選んだアートボード端（上 / 左 / 右 / 下）との間隔（マージン）をそろえます
+- アートボード：各選択オブジェクトと、「固定」で選んだアートボード端（上 / 左 / 右 / 下）との間隔（マージン）をそろえます
 
 選択がすべてグループなら起動時に「グループ」、それ以外は「自動ペア認識」が初期選択です（「アートボード」は手動。ダイアログで切替可）。
 
-## キーオブジェクト（基準）
+## 固定（基準）
 
 上 / 左 / 右 / 下 で基準にする側を選びます。左右なら水平方向、上下なら垂直方向の間隔をそろえ、選んだ側は動かしません。グループモードでは選んだ端を起点に残りをカスケード配置します。
 
 ## 間隔（位置調整パネル）
 
 - 「間隔」で対象間の距離を指定します（↑↓キーで±1、Shiftで±10、Optionで±0.1。マイナス値で重ねられます）
-- 「クリア」は間隔のみ 0 にします
 - 「プレビュー境界」オンで線幅や効果を含む見た目の境界を基準に測ります
 
 ## 水平 / 垂直パネル（移動側）
 
-キーが上下のときは「水平」パネル、左右のときは「垂直」パネルが有効になります（直交する側だけ操作可）。
+「固定」が上下のときは「水平」パネル、左右のときは「垂直」パネルが有効になります（直交する側だけ操作可）。
 
-- 整列：動かす側をキーオブジェクトの端／中央にそろえます（不要なら「移動しない」）
-- 位置：移動側（＝キーでない側）を直交方向へ微調整します（正＝右／下）。整列が「中央」のときは 0 にして無効化します
+- 整列：動かす側を固定側の端／中央にそろえます（不要なら「移動しない」）
+- 位置：移動側（＝固定でない側）を直交方向へ微調整します（正＝右／下）。整列が「中央」のときは 0 にして無効化します
 - ショートカット：水平＝L/C/R（左/中央/右）、垂直＝T/M/B（上/中央/下）
 
 ## テキストの行揃え
@@ -81,7 +80,6 @@ Choose the anchor side with top / left / right / bottom. Left/right aligns the h
 ## Gap (position panel)
 
 - "Gap" specifies the distance between targets (↑↓ keys ±1, Shift ±10, Option ±0.1; negative values overlap them)
-- "Clear" sets only the gap to 0
 - With "Preview bounds" on, the visual bounds including stroke width and effects are used for measurement
 
 ## Horizontal / Vertical panel (moving side)
@@ -123,7 +121,7 @@ https://note.com/dtp_tranist/n/nc8fab19d8164
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.3.0";
+var SCRIPT_VERSION = "v1.3.1";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -147,7 +145,7 @@ var LABELS = {
     },
     // キーオブジェクト / Key object
     fixedSide: {
-        label: { ja: "キーオブジェクト", en: "Key Object" },
+        label: { ja: "固定", en: "Key Object" },
         top: { ja: "上", en: "Top" },
         left: { ja: "左", en: "Left" },
         right: { ja: "右", en: "Right" },
@@ -155,8 +153,7 @@ var LABELS = {
     },
     // 間隔 / Spacing
     spacing: {
-        label: { ja: "間隔", en: "Gap" },
-        clear: { ja: "クリア", en: "Clear" }
+        label: { ja: "間隔", en: "Gap" }
     },
     // 位置オフセット（移動側をキーオブジェクトに対し直交方向へずらす）/ Position offset (perpendicular to the gap)
     offset: {
@@ -215,10 +212,6 @@ var LABELS = {
         spacing: {
             ja: "オブジェクト間の間隔。マイナスにすると重なります。↑↓キーで±1、Shiftで±10、Optionで±0.1。",
             en: "Gap between objects; a negative value overlaps them. Arrow keys ±1, Shift ±10, Option ±0.1."
-        },
-        clear: {
-            ja: "間隔だけを0に戻します。",
-            en: "Resets only the gap to 0."
         },
         offsetHorizontal: {
             ja: "上下をキーにしたとき有効。整列後の移動側を左右へ追加でずらします（正＝右）。↑↓キーで±1、Shiftで±10、Optionで±0.1。",
@@ -402,13 +395,6 @@ function setupGroup(group, orientation, spacing) {
     group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
-/* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
-function trimButtonHeight(button, px) {
-    try {
-        button.size = [button.size.width, button.size.height - px];
-    } catch (e) {}
-}
-
 /* 固定オブジェクト（上 / 左 / 右 / 下）パネルを生成する。
    上下左右を厳密な3×3グリッドに配置する（中央・四隅は空セル）。
    セルを固定幅にして列を確実にそろえる。4つのラジオは親が別なので自動グループ化されない。
@@ -500,13 +486,13 @@ function buildFixedSidePanel(parentGroup) {
     };
 }
 
-/* 位置調整パネル（間隔の入力・クリア・プレビュー境界）を生成する。
+/* 位置調整パネル（間隔の入力・プレビュー境界）を生成する。
    左右/上下オフセットは「水平」「垂直」パネルへ移動したので、ここは間隔だけを扱う。
    間隔は現在のルーラー単位で表示し、getSpacingInPoints() が pt に換算して返す。
    initialGapPoints は間隔の初期値・空欄時のフォールバック（pt）。イベント結線は呼び出し側で行う。
-   Build the Position panel (gap input, clear, preview-bounds). Offsets moved to the Horizontal/
+   Build the Position panel (gap input, preview-bounds). Offsets moved to the Horizontal/
    Vertical panels, so this panel handles only the gap. Event wiring is left to the caller.
-   返り値 / Returns: { panel, spacingInput, clearButton, previewBoundsCheckbox,
+   返り値 / Returns: { panel, spacingInput, previewBoundsCheckbox,
                        getSpacingInPoints, getBoundsType } */
 function buildGapPanel(parentGroup, initialGapPoints) {
     var panel = parentGroup.add("panel", undefined, getLocalizedText('options.label'));
@@ -522,13 +508,6 @@ function buildGapPanel(parentGroup, initialGapPoints) {
     spacingInput.characters = 4;
     spacingInput.helpTip = getLocalizedText('tip.spacing');
     spacingRow.add("statictext", undefined, rulerUnitLabel);
-
-    // クリアボタン（間隔の下）/ Clear button (below the gap row)
-    var clearGroup = panel.add("group");
-    clearGroup.orientation = "row";
-    clearGroup.alignment = "left"; // 左添え / left
-    var clearButton = clearGroup.add("button", undefined, getLocalizedText('spacing.clear'));
-    clearButton.helpTip = getLocalizedText('tip.clear');
 
     // チェックボックス：プレビュー境界（左添え）/ Preview-bounds checkbox (left)
     var previewBoundsGroup = panel.add("group");
@@ -554,7 +533,6 @@ function buildGapPanel(parentGroup, initialGapPoints) {
     return {
         panel: panel,
         spacingInput: spacingInput,
-        clearButton: clearButton,
         previewBoundsCheckbox: previewBoundsCheckbox,
         getSpacingInPoints: getSpacingInPoints,
         getBoundsType: getBoundsType
@@ -1420,10 +1398,9 @@ function applySavedAlign(alignRow, value) {
         var getFixedSide = fixedSideRefs.getFixedSide;
         var setFixedSide = fixedSideRefs.setFixedSide;
 
-        // 位置調整 / Position（間隔・クリア・プレビュー境界）
+        // 位置調整 / Position（間隔・プレビュー境界）
         var gapPanelRefs = buildGapPanel(keyPositionColumns, initialGapPoints);
         var spacingInput = gapPanelRefs.spacingInput;
-        var clearButton = gapPanelRefs.clearButton;
         var previewBoundsCheckbox = gapPanelRefs.previewBoundsCheckbox;
         var getSpacingInPoints = gapPanelRefs.getSpacingInPoints;
         var getBoundsType = gapPanelRefs.getBoundsType;
@@ -1576,11 +1553,6 @@ function applySavedAlign(alignRow, value) {
         addAlignmentKeyHandler(dialog, hAlign, vAlign, isVerticalGap, onAlignChange);
         // テキストの行揃えラジオ：行揃えを戻してから再適用 / Justification radios: revert justify, then refresh
         for (var key in justifyRadios) { justifyRadios[key].onClick = refreshPreviewResetJustify; }
-        // クリアボタン：間隔のみ 0 にしてプレビュー更新（左右/上下は対象外）/ Clear: gap only, refresh
-        clearButton.onClick = function () {
-            spacingInput.text = "0";
-            refreshPreview();
-        };
 
         // ボタン（Mac 規約：Cancel → OK）/ Buttons (Mac order: Cancel → OK)
         var buttonRow = dialog.add("group");
@@ -1591,7 +1563,6 @@ function applySavedAlign(alignRow, value) {
         // ダイアログ表示時に既定モードでペアを組んで初回プレビュー（同期側 undo を避けて onShow から起動）
         // Build pairs for the default mode, then run the first preview (from onShow to avoid sync undo)
         dialog.onShow = function () {
-            trimButtonHeight(clearButton, 2); // クリアボタンの高さを2px詰める / Trim Clear button height by 2px
             updateActivePanels(); // 既定のキー側に合わせて水平/垂直パネルとオフセットの有効/無効を初期化 / Init enabled state
             buildPairs(getMode());
             refreshPreview();
