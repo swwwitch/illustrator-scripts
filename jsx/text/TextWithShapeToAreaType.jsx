@@ -9,12 +9,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 処理の流れ：
 
-1. 実行時にオプションダイアログを表示（大きさ調整の する/しない と 幅%・高さ%、角丸の on/off）
-2. 変換前に、選択テキストの見た目をグラフィックスタイルとして一時登録（ダイナミックアクション）
+1. 実行時にオプションダイアログを表示（大きさ調整の する/しない と 幅%・高さ%、グラフィックスタイル：元の見た目／文字白抜き／枠のみ）
+2. 変換前に、適用するグラフィックスタイルを用意（「元の見た目」＝選択テキストの見た目を一時登録／「文字白抜き」「枠のみ」＝外部 AI ファイルから取り込み）
 3. ポイント文字 / パス上文字 → 計測した実寸（大きさ調整ONなら幅・高さに倍率）でエリア内文字へ変換
    テキスト＋長方形 → 長方形を複製してエリア内文字にし、テキストを流し込む
-4. ボタン背景（テキストのみ・する ／ テキスト＋長方形）→ New Fill を2枚追加＋長方形シェイプ効果。角丸ONなら高さの約1/5を半径に角丸
-5. 変換後のエリア内文字に登録したグラフィックスタイルを適用し、その一時スタイルを削除
+4. ボタン背景（テキストのみ・する ／ テキスト＋長方形。※外部スタイル未使用時のみ）→ New Fill を2枚追加＋長方形シェイプ効果
+5. 変換後のエリア内文字に用意したグラフィックスタイルを適用（「元の見た目」の一時スタイルのみ削除し、取り込んだ外部スタイルは残す）
 6. 行揃え・テキストの配置は常に中央
 
 #### 補足
@@ -38,14 +38,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 #### オプションの効き方
 
-| | 大きさ調整の倍率 | ボタン背景（塗り2枚＋長方形効果） | 角丸 |
-|---|---|---|---|
-| テキストのみ・する | ○（幅×1.2 / 高さ×1.6 等） | ○ | チェック時○ |
-| テキストのみ・しない | 等倍 | ✕ | ✕ |
-| テキスト＋長方形 | ―（長方形サイズ優先） | ○ | チェック時○ |
+| | 大きさ調整の倍率 | ボタン背景（塗り2枚＋長方形効果） |
+|---|---|---|
+| テキストのみ・する | ○（幅×1.2 / 高さ×1.6 等） | ○ |
+| テキストのみ・しない | 等倍 | ✕ |
+| テキスト＋長方形 | ―（長方形サイズ優先） | ○ |
 
 - ボタン背景は New Fill を2枚追加し、長方形シェイプ効果で背景化する。塗り色は設定しない（追加した塗りは既定のまま）。
-- 角丸の半径はフレーム高さの約1/5（整数に丸め）で自動決定する。
+- グラフィックスタイルで「文字白抜き」「枠のみ」を選んだ場合、そのスタイルが見た目を定義するためボタン背景は付与しない。未登録なら外部 AI ファイル（TARGET_FILE_PATH）から取り込んで適用する。
 
 ### Overview
 
@@ -53,12 +53,12 @@ Convert point text, path text, or text + shape into area type while preserving a
 
 Flow:
 
-1. On launch, show the options dialog (size adjustment On/Off with width% / height%, and round corners On/Off).
-2. Before converting, register the selected text's appearance as a temporary graphic style (dynamic action).
+1. On launch, show the options dialog (size adjustment On/Off with width% / height%, and a graphic-style choice: original appearance / white text / frame only).
+2. Before converting, prepare the graphic style to apply ("original appearance" = register the selected text's appearance temporarily; "white text" / "frame only" = import from an external AI file).
 3. Point / path text → area type at the measured real size (scaled by the width/height ratios when size adjustment is On).
    Text + rectangle → duplicate the rectangle into an area-type frame and fill it with the text.
-4. Button background (text-only "On" / text + rectangle) → add two fills via New Fill + a rectangle shape effect; when round corners is On, round at ~1/5 of the height.
-5. Apply the registered graphic style to the converted area type, then remove the temporary style.
+4. Button background (text-only "On" / text + rectangle; only when no external style is used) → add two fills via New Fill + a rectangle shape effect.
+5. Apply the prepared graphic style to the converted area type (remove only the temp "original appearance" style; keep imported external styles).
 6. Justification and vertical alignment are always centered.
 
 #### Notes
@@ -82,23 +82,39 @@ Flow:
 
 #### How the options behave
 
-| | Size ratio | Button background (2 fills + rectangle effect) | Round corners |
-|---|---|---|---|
-| Text only · On | Yes (e.g. W×1.2 / H×1.6) | Yes | If checked |
-| Text only · Off | 1× | No | No |
-| Text + rectangle | — (rectangle size wins) | Yes | If checked |
+| | Size ratio | Button background (2 fills + rectangle effect) |
+|---|---|---|
+| Text only · On | Yes (e.g. W×1.2 / H×1.6) | Yes |
+| Text only · Off | 1× | No |
+| Text + rectangle | — (rectangle size wins) | Yes |
 
 - The button background adds two fills via New Fill and reshapes them with the rectangle shape effect. Fill colors are not set (the added fills keep their defaults).
-- The round-corner radius is set automatically to about 1/5 of the frame height (rounded to an integer).
+- When the graphic style is "white text" or "frame only", the style defines the appearance, so no button background is added. If not yet registered, it is imported from the external AI file (TARGET_FILE_PATH) and applied.
+
+### 更新履歴 / Changelog
+
+- v1.1.0 (2026-07-01): ダイアログにグラフィックスタイル選択（元の見た目／文字白抜き／枠のみ）を追加。外部 AI ファイル（TARGET_FILE_PATH）から未登録スタイルを取り込んで適用（ImportGraphicStyles より移植）。角丸オプションを削除／ Added a graphic-style choice (original appearance / white text / frame only); imports the chosen style from an external AI file when it is not yet registered (ported from ImportGraphicStyles). Removed the round-corners option
+- v1.0.0 : 初期バージョン / Initial release
 
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.1.0";
 
 (function () {
+
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
+
+    /* スタイルを取り込む AI ファイル（環境に合わせて変更）/ AI file to import graphic styles from */
+    var TARGET_FILE_PATH = "/Users/takano/sw Dropbox/takano masahiro/sync-setting/ai/styles/StyleForAreaType.ai";
+
+    /* グラフィックスタイル名（AIファイル内の登録名に合わせる）/ Graphic style names as registered in the AI file */
+    var STYLE_NAME_WHITE_TEXT = "文字白抜き"; // ラジオ「文字白抜き」/ Radio "White text"
+    var STYLE_NAME_FRAME_ONLY = "枠のみ";     // ラジオ「枠のみ」/ Radio "Frame only"
 
     // =========================================
     // ローカライズ / Localization
@@ -125,6 +141,14 @@ var SCRIPT_VERSION = "v1.0.0";
             rectangleOnly: {
                 ja: "フレームに使える図形は長方形のみです。長方形を選択してください。",
                 en: "Only a rectangle can serve as the frame. Please select a rectangle."
+            },
+            fileNotFound: {
+                ja: "指定されたファイルが見つかりません：\n",
+                en: "The specified file was not found:\n"
+            },
+            styleNotFound: {
+                ja: "指定したグラフィックスタイルが見つかりません：\n",
+                en: "The graphic style was not found:\n"
             }
         },
         /* ダイアログUI / Dialog UI */
@@ -135,7 +159,10 @@ var SCRIPT_VERSION = "v1.0.0";
             dontAdjust: { ja: "しない", en: "Off" },
             widthRatio: { ja: "幅：", en: "Width:" },
             heightRatio: { ja: "高さ：", en: "Height:" },
-            roundCorners: { ja: "角丸", en: "Round corners" },
+            stylePanel: { ja: "グラフィックスタイル", en: "Graphic style" },
+            styleOriginal: { ja: "元の見た目", en: "Original appearance" },
+            styleWhiteText: { ja: "文字白抜き", en: "White text" },
+            styleFrameOnly: { ja: "枠のみ", en: "Frame only" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         }
     };
@@ -143,12 +170,12 @@ var SCRIPT_VERSION = "v1.0.0";
     /* ドット区切りキーから LABELS のエントリを取得 / Resolve a LABELS entry from a dot-separated key */
     function getLabelEntry(key) {
         var parts = key.split(".");
-        var cur = LABELS;
+        var node = LABELS;
         for (var i = 0; i < parts.length; i++) {
-            if (cur && typeof cur[parts[i]] !== "undefined") { cur = cur[parts[i]]; }
+            if (node && typeof node[parts[i]] !== "undefined") { node = node[parts[i]]; }
             else { return null; }
         }
-        return cur;
+        return node;
     }
 
     /* キーからローカライズ文字列を取得 / Get a localized string by key */
@@ -329,14 +356,14 @@ var SCRIPT_VERSION = "v1.0.0";
 
     /* アクションセット定義(.aia)文字列を組み立て / Build an action set (.aia) definition string */
     function _buildActionSetAIA(setName, internalName, localizedNameHex, paramKeyInt, actionDefs) {
-        var aia = "/version 3" +
+        var aiaString = "/version 3" +
             _nameBlockAscii(setName) +
             "/isOpen 1" +
             "/actionCount " + actionDefs.length;
 
         for (var i = 0; i < actionDefs.length; i++) {
             var actionDef = actionDefs[i];
-            aia += "/action-" + (i + 1) + " {" +
+            aiaString += "/action-" + (i + 1) + " {" +
                 " " + _nameBlockAscii(actionDef.name) +
                 " /keyIndex 0" +
                 " /colorIndex 0" +
@@ -359,7 +386,7 @@ var SCRIPT_VERSION = "v1.0.0";
                 " }" +
                 "}";
         }
-        return aia;
+        return aiaString;
     }
 
     /* フレーム整列アクションセット名 / Frame-alignment action set name */
@@ -371,13 +398,13 @@ var SCRIPT_VERSION = "v1.0.0";
             // 既存があれば一旦外して衝突回避 / Unload existing set first to avoid conflicts
             try { app.unloadAction(setName, ""); } catch (e0) { }
 
-            var f = new File(Folder.temp + "/AreaTypeToolkit_action_" + setName + ".aia");
-            f.open("w");
-            f.write(aiaString);
-            f.close();
+            var actionFile = new File(Folder.temp + "/AreaTypeToolkit_action_" + setName + ".aia");
+            actionFile.open("w");
+            actionFile.write(aiaString);
+            actionFile.close();
 
-            app.loadAction(f);
-            try { f.remove(); } catch (e1) { }
+            app.loadAction(actionFile);
+            try { actionFile.remove(); } catch (e1) { }
         } catch (e) { }
     }
 
@@ -388,7 +415,7 @@ var SCRIPT_VERSION = "v1.0.0";
 
     /* フレーム整列アクション（AlignTop/Center/Bottom/Justify）を読み込む / Load frame-alignment actions */
     function loadAreaTextActions() {
-        var aia = _buildActionSetAIA(
+        var aiaString = _buildActionSetAIA(
             AREA_TEXT_ACTION_SET,
             "adobe_frameAlignment",
             "39 e382a8e383aae382a2e58685e69687e5ad97e381aee38395e383ace383bce383a0e695b4e58897",
@@ -400,7 +427,7 @@ var SCRIPT_VERSION = "v1.0.0";
                 { name: "AlignJustify", value: 3 }
             ]
         );
-        loadActionSet(AREA_TEXT_ACTION_SET, aia);
+        loadActionSet(AREA_TEXT_ACTION_SET, aiaString);
     }
 
     /* フレーム整列アクションを破棄 / Unload frame-alignment actions */
@@ -410,7 +437,7 @@ var SCRIPT_VERSION = "v1.0.0";
 
     /* エリア内文字のフレーム整列（縦方向の配置）アクションを実行 / Run the area-text frame-alignment action (vertical placement)
        valueInt: 0=上/top, 1=中央/center, 2=下/bottom, 3=均等/justify */
-    function act_areaTextFrameAlignment(valueInt) {
+    function runAreaTextFrameAlignmentAction(valueInt) {
         if (valueInt !== 0 && valueInt !== 1 && valueInt !== 2 && valueInt !== 3) return;
 
         var actionName = "AlignTop";
@@ -428,7 +455,7 @@ var SCRIPT_VERSION = "v1.0.0";
             doc.selection = null;
             doc.selection = [areaType];
             app.redraw(); // 選択状態を確定 / Commit the selection
-            act_areaTextFrameAlignment(valueInt);
+            runAreaTextFrameAlignmentAction(valueInt);
         } catch (e) { }
     }
 
@@ -488,6 +515,79 @@ var SCRIPT_VERSION = "v1.0.0";
     }
 
     // =========================================
+    // スタイル読み込み / Import graphic styles
+    // =========================================
+
+    /* 取り込み用レイヤー「// _imported」を取得（無ければ作成）/ Get or create the import layer "// _imported" */
+    function getOrCreateImportLayer(destinationDoc) {
+        var importLayerName = "// _imported";
+        var importLayer;
+        try {
+            importLayer = destinationDoc.layers.getByName(importLayerName);
+        } catch (e) {
+            importLayer = destinationDoc.layers.add();
+            importLayer.name = importLayerName;
+        }
+        importLayer.locked = false;
+        importLayer.visible = true;
+        return importLayer;
+    }
+
+    /* パスから表示用ファイル名を取得 / Get a display-friendly filename from a path */
+    function getDisplayFileName(filePath) {
+        try { return decodeURI(new File(filePath).name); } catch (e) { return filePath; }
+    }
+
+    /* 名前でグラフィックスタイルを取得（無ければ null）/ Get a graphic style by name (null if none) */
+    function findGraphicStyle(destinationDoc, styleName) {
+        try { return destinationDoc.graphicStyles.getByName(styleName); } catch (e) { return null; }
+    }
+
+    /* 対象AIを開いてコピー→一時レイヤーへ貼り付け→レイヤーごと削除（スタイルのみ登録）
+       Import assets from the target AI: copy, paste to a temp layer, then remove the layer */
+    function importStylesFromTargetFile(destinationDoc) {
+        var styleFile = new File(encodeURI(TARGET_FILE_PATH));
+        if (!styleFile.exists) {
+            alert(L("alert.fileNotFound") + getDisplayFileName(TARGET_FILE_PATH));
+            return false;
+        }
+        var styleSourceDoc = app.open(styleFile);
+
+        // 作業アートボード内の全てをコピーして保存せず閉じる / Copy in-artboard objects, close without saving
+        app.executeMenuCommand("selectallinartboard");
+        app.executeMenuCommand("copy");
+        styleSourceDoc.close(SaveOptions.DONOTSAVECHANGES);
+
+        // 一時レイヤーへ貼り付け→登録後にレイヤーごと削除 / Paste to temp layer, then remove it
+        app.activeDocument = destinationDoc;
+        var importLayer = getOrCreateImportLayer(destinationDoc);
+        destinationDoc.activeLayer = importLayer;
+        app.executeMenuCommand("paste");
+        try { importLayer.remove(); } catch (e) { }
+        return true;
+    }
+
+    /* 指定スタイルを取得（未登録なら取り込んでから取得）。成功で true / Ensure the named style exists (import if needed) */
+    function ensureExternalStyle(destinationDoc, styleName) {
+        if (findGraphicStyle(destinationDoc, styleName)) return true;
+        if (!importStylesFromTargetFile(destinationDoc)) return false;
+        if (!findGraphicStyle(destinationDoc, styleName)) {
+            alert(L("alert.styleNotFound") + styleName);
+            return false;
+        }
+        return true;
+    }
+
+    /* 適用するグラフィックスタイルを決定（外部スタイル or 元テキストの一時スタイル）
+       Resolve the graphic style to apply (external style, or a temp style from the source text) */
+    function resolveStyleForSource(options, sourceText) {
+        if (options && options.externalStyleName) {
+            return { name: options.externalStyleName, isTemp: false };
+        }
+        return { name: registerTextFrameAsTempGraphicStyle(sourceText), isTemp: true };
+    }
+
+    // =========================================
     // 正確なサイズ計測 / Accurate size measurement
     // =========================================
 
@@ -496,13 +596,13 @@ var SCRIPT_VERSION = "v1.0.0";
         if (!sel || !sel.length) return null;
         var left = null, top = null, right = null, bottom = null;
         for (var i = 0; i < sel.length; i++) {
-            var vb;
-            try { vb = sel[i].visibleBounds; } catch (e) { continue; }
-            if (!vb) continue;
-            if (left === null || vb[0] < left) left = vb[0];
-            if (top === null || vb[1] > top) top = vb[1];
-            if (right === null || vb[2] > right) right = vb[2];
-            if (bottom === null || vb[3] < bottom) bottom = vb[3];
+            var itemBounds;
+            try { itemBounds = sel[i].visibleBounds; } catch (e) { continue; }
+            if (!itemBounds) continue;
+            if (left === null || itemBounds[0] < left) left = itemBounds[0];
+            if (top === null || itemBounds[1] > top) top = itemBounds[1];
+            if (right === null || itemBounds[2] > right) right = itemBounds[2];
+            if (bottom === null || itemBounds[3] < bottom) bottom = itemBounds[3];
         }
         if (left === null) return null;
         return [left, top, right, bottom];
@@ -513,12 +613,12 @@ var SCRIPT_VERSION = "v1.0.0";
     function measureAccurateBounds(item) {
         var doc = app.activeDocument;
         var savedSel = doc.selection;
-        var result = null;
-        var dup = null;
+        var measured = null;
+        var duplicatedItem = null;
         try {
-            dup = item.duplicate();
+            duplicatedItem = item.duplicate();
             doc.selection = null;
-            dup.selected = true;
+            duplicatedItem.selected = true;
             app.redraw();
 
             // アピアランスを分割 / Expand appearance
@@ -529,9 +629,9 @@ var SCRIPT_VERSION = "v1.0.0";
 
             // 分割・アウトライン後の選択全体のサイズを計測 / Measure bounds of the resulting selection
             var resultSel = doc.selection;
-            var b = getSelectionVisibleBounds(resultSel);
-            if (b) {
-                result = { left: b[0], top: b[1], right: b[2], bottom: b[3], width: b[2] - b[0], height: b[1] - b[3] };
+            var bounds = getSelectionVisibleBounds(resultSel);
+            if (bounds) {
+                measured = { left: bounds[0], top: bounds[1], right: bounds[2], bottom: bounds[3], width: bounds[2] - bounds[0], height: bounds[1] - bounds[3] };
             }
 
             // 複製（分割・アウトライン結果）を削除 / Remove the duplicate (expanded/outlined result)
@@ -539,11 +639,11 @@ var SCRIPT_VERSION = "v1.0.0";
                 try { resultSel[d].remove(); } catch (e2) { }
             }
         } catch (e0) {
-            if (dup) { try { dup.remove(); } catch (e3) { } }
+            if (duplicatedItem) { try { duplicatedItem.remove(); } catch (e3) { } }
         }
 
         try { doc.selection = savedSel; } catch (e4) { }
-        return result;
+        return measured;
     }
 
     // =========================================
@@ -552,20 +652,6 @@ var SCRIPT_VERSION = "v1.0.0";
 
     /* ［形状に変換：長方形］ライブエフェクトの定義 / "Convert to Shape: Rectangle" live-effect definition */
     var RECTANGLE_SHAPE_EFFECT_XML = '<LiveEffect name="Adobe Shape Effects" isPre="1"><Dict data="U DisplayString Rectangle I Shape 0 R RelWidth 0 R RelHeight 0 R AbsWidth 0 R AbsHeight 0 R Absolute 0 R CornerRadius 9 "/></LiveEffect>';
-
-    /* ［角を丸くする］ライブエフェクトの定義（#value# に半径pt）/ "Round Corners" live-effect definition (#value# = radius in pt) */
-    var ROUND_CORNERS_EFFECT_XML = '<LiveEffect name="Adobe Round Corners"><Dict data="R radius #value# "/></LiveEffect>';
-
-    /* 指定半径(pt)の角丸ライブエフェクトを適用 / Apply the Round Corners live effect at the given radius (pt) */
-    function applyRoundCornersEffect(item, radiusPt) {
-        if (!item || !(radiusPt > 0)) return;
-        try { item.applyEffect(ROUND_CORNERS_EFFECT_XML.replace('#value#', radiusPt)); } catch (e) { }
-    }
-
-    /* 高さの約1/5（整数）を半径として角丸を適用 / Apply round corners with radius = ~1/5 of the height (rounded) */
-    function applyRoundCornersByHeight(item, heightPt) {
-        applyRoundCornersEffect(item, Math.round(heightPt / ROUND_RADIUS_HEIGHT_DIVISOR));
-    }
 
     /* 塗りを2枚追加し、長方形のシェイプ効果でボタン状の背景にする（塗り色は設定しない）
        Add two fills and a rectangle shape effect for a button-like background (colors are left as-is) */
@@ -588,21 +674,18 @@ var SCRIPT_VERSION = "v1.0.0";
     var BUTTON_WIDTH_RATIO = 1.2;   // 元の幅に対する倍率 / Ratio of original width
     var BUTTON_HEIGHT_RATIO = 1.6;  // 元の高さに対する倍率 / Ratio of original height
 
-    /* 角丸半径の対高さ比（半径 = 高さ / 5、整数に丸め）/ Round-corner radius vs height (radius = height / 5, rounded) */
-    var ROUND_RADIUS_HEIGHT_DIVISOR = 5;
-
     /* 直線コーナーのみで構成される軸並行の長方形か / Is this an axis-aligned rectangle made of straight corners */
     function isRectanglePath(item) {
         if (!item || item.typename !== "PathItem" || !item.closed) return false;
-        var pts;
-        try { pts = item.pathPoints; } catch (e) { return false; }
-        if (!pts || pts.length !== 4) return false;
+        var points;
+        try { points = item.pathPoints; } catch (e) { return false; }
+        if (!points || points.length !== 4) return false;
 
         function approxEqual(a, b) { return Math.abs(a - b) < 0.01; }
 
         // 各コーナーがハンドルを持たない直線か / Each corner is a straight (handle-less) point
-        for (var i = 0; i < pts.length; i++) {
-            var anchor = pts[i].anchor, left = pts[i].leftDirection, right = pts[i].rightDirection;
+        for (var i = 0; i < points.length; i++) {
+            var anchor = points[i].anchor, left = points[i].leftDirection, right = points[i].rightDirection;
             if (!approxEqual(anchor[0], left[0]) || !approxEqual(anchor[1], left[1])) return false;
             if (!approxEqual(anchor[0], right[0]) || !approxEqual(anchor[1], right[1])) return false;
         }
@@ -613,9 +696,9 @@ var SCRIPT_VERSION = "v1.0.0";
             for (var k = 0; k < list.length; k++) { if (approxEqual(list[k], value)) return; }
             list.push(value);
         }
-        for (var j = 0; j < pts.length; j++) {
-            pushDistinct(distinctX, pts[j].anchor[0]);
-            pushDistinct(distinctY, pts[j].anchor[1]);
+        for (var j = 0; j < points.length; j++) {
+            pushDistinct(distinctX, points[j].anchor[0]);
+            pushDistinct(distinctY, points[j].anchor[1]);
         }
         return distinctX.length === 2 && distinctY.length === 2;
     }
@@ -733,25 +816,23 @@ var SCRIPT_VERSION = "v1.0.0";
         }
         if (!sourceText || !sourceShape) return created;
 
-        // 元テキストの見た目をグラフィックスタイルに登録 / Register source appearance as a graphic style
-        var graphicStyleName = registerTextFrameAsTempGraphicStyle(sourceText);
+        // 適用スタイルを決定（外部スタイル or 元テキストの見た目）/ Resolve the style to apply
+        var styleInfo = resolveStyleForSource(options, sourceText);
         try {
             var framePath = sourceShape.duplicate();
             framePath.filled = false; framePath.stroked = false;
-            var areaType = fillAreaTypeFromSourceText(doc, framePath, sourceText, graphicStyleName);
-            var buttonHeight = geometricBoundsOf(areaType).height;
+            var areaType = fillAreaTypeFromSourceText(doc, framePath, sourceText, styleInfo.name);
             centerAreaTypeContents(areaType);
-            // 塗り2枚＋長方形シェイプ効果でボタン状の背景に / Two fills + rectangle shape effect for a button-like background
-            applyButtonShapeAppearance(areaType);
-            // 角丸が有効なら高さの約1/5を半径として適用 / Apply round corners (radius = ~1/5 of the height) when enabled
-            if (options && options.roundCorners) { applyRoundCornersByHeight(areaType, buttonHeight); }
+            // 外部スタイル未使用時のみ塗り2枚＋長方形シェイプ効果でボタン状の背景に
+            // Add a button-like background only when no external style is used
+            if (styleInfo.isTemp) { applyButtonShapeAppearance(areaType); }
             sourceText.remove();
             sourceShape.remove();
             created.push(areaType);
         } catch (e) {
         } finally {
-            // 一時グラフィックスタイルは成否に関わらず削除 / Remove the temp graphic style regardless of success
-            removeGraphicStyleByName(graphicStyleName);
+            // 一時グラフィックスタイルのみ削除（外部スタイルは残す）/ Remove only the temp style; keep external styles
+            if (styleInfo.isTemp) { removeGraphicStyleByName(styleInfo.name); }
         }
 
         return created;
@@ -768,8 +849,8 @@ var SCRIPT_VERSION = "v1.0.0";
         for (var i = selection.length - 1; i >= 0; i--) {
             var sourceText = selection[i];
             if (!(sourceText.typename === "TextFrame" && sourceText.kind === TextType.POINTTEXT)) continue;
-            // 元テキストの見た目をグラフィックスタイルに登録 / Register source appearance as a graphic style
-            var graphicStyleName = registerTextFrameAsTempGraphicStyle(sourceText);
+            // 適用スタイルを決定（外部スタイル or 元テキストの見た目）/ Resolve the style to apply
+            var styleInfo = resolveStyleForSource(options, sourceText);
             try {
                 // 複製→アピアランス分割→アウトラインで正確な可視サイズを計測 / Measure accurate visible size
                 var measuredBounds = measureAccurateBounds(sourceText) || geometricBoundsOf(sourceText);
@@ -782,21 +863,19 @@ var SCRIPT_VERSION = "v1.0.0";
                 var frameTop = centerY + frameHeight / 2;
                 var framePath = doc.pathItems.rectangle(frameTop, frameLeft, frameWidth, frameHeight);
                 framePath.filled = false; framePath.stroked = false;
-                var areaType = fillAreaTypeFromSourceText(doc, framePath, sourceText, graphicStyleName);
+                var areaType = fillAreaTypeFromSourceText(doc, framePath, sourceText, styleInfo.name);
                 centerAreaTypeContents(areaType);
-                // 「する」のときは塗り2枚＋長方形シェイプ効果でボタン状の背景を付与
-                // When size adjustment is on, add 2 fills + a rectangle shape effect for a button-like background
+                // 「する」のときは塗り2枚＋長方形シェイプ効果でボタン状の背景を付与（外部スタイル未使用時のみ）
+                // When size adjustment is on, add a button-like background (only when no external style is used)
                 if (options && options.adjust) {
-                    applyButtonShapeAppearance(areaType);
-                    // 角丸が有効なら高さの約1/5を半径として適用 / Apply round corners (radius = ~1/5 of the height) when enabled
-                    if (options.roundCorners) { applyRoundCornersByHeight(areaType, frameHeight); }
+                    if (styleInfo.isTemp) { applyButtonShapeAppearance(areaType); }
                 }
                 created.push(areaType);
                 sourceText.remove();
             } catch (e) {
             } finally {
-                // 一時グラフィックスタイルは成否に関わらず削除 / Remove the temp graphic style regardless of success
-                removeGraphicStyleByName(graphicStyleName);
+                // 一時グラフィックスタイルのみ削除（外部スタイルは残す）/ Remove only the temp style; keep external styles
+                if (styleInfo.isTemp) { removeGraphicStyleByName(styleInfo.name); }
             }
         }
 
@@ -820,50 +899,53 @@ var SCRIPT_VERSION = "v1.0.0";
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    /* 大きさ調整の設定ダイアログ。OKなら{adjust, widthRatio, heightRatio}、キャンセルならnull
-       Size-adjustment options dialog. Returns {adjust, widthRatio, heightRatio} on OK, null on Cancel */
+    /* オプションダイアログ。OKなら{adjust, widthRatio, heightRatio, styleMode}、キャンセルならnull
+       Options dialog. Returns {adjust, widthRatio, heightRatio, styleMode} on OK, null on Cancel */
     function showOptionsDialog() {
         var dialog = new Window("dialog", L("ui.dialogTitle") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
         dialog.margins = 15;
 
-        var panel = dialog.add("panel", undefined, L("ui.sizeAdjustPanel"));
-        setupPanel(panel, 6);
+        var sizeAdjustPanel = dialog.add("panel", undefined, L("ui.sizeAdjustPanel"));
+        setupPanel(sizeAdjustPanel, 6);
 
         // 大きさ調整 する / しない / Size adjustment on / off
-        var radioGroup = panel.add("group");
-        var radioDo = radioGroup.add("radiobutton", undefined, L("ui.doAdjust"));
-        var radioDont = radioGroup.add("radiobutton", undefined, L("ui.dontAdjust"));
-        radioDont.value = true; // 既定は「しない」/ Default: off
+        var adjustModeGroup = sizeAdjustPanel.add("group");
+        var adjustOnRadio = adjustModeGroup.add("radiobutton", undefined, L("ui.doAdjust"));
+        var adjustOffRadio = adjustModeGroup.add("radiobutton", undefined, L("ui.dontAdjust"));
+        adjustOffRadio.value = true; // 既定は「しない」/ Default: off
 
         // 幅・高さの倍率（別々の行、百分率 % で入力）/ Width and height ratios (separate rows, entered as %)
-        var widthRow = panel.add("group");
+        var widthRow = sizeAdjustPanel.add("group");
         var widthLabel = widthRow.add("statictext", undefined, L("ui.widthRatio"));
         widthLabel.preferredSize.width = 44;
         var widthInput = widthRow.add("edittext", undefined, String(Math.round(BUTTON_WIDTH_RATIO * 100)));
         widthInput.characters = 5;
         widthRow.add("statictext", undefined, "%");
 
-        var heightRow = panel.add("group");
+        var heightRow = sizeAdjustPanel.add("group");
         var heightLabel = heightRow.add("statictext", undefined, L("ui.heightRatio"));
         heightLabel.preferredSize.width = 44;
         var heightInput = heightRow.add("edittext", undefined, String(Math.round(BUTTON_HEIGHT_RATIO * 100)));
         heightInput.characters = 5;
         heightRow.add("statictext", undefined, "%");
 
-        function updateEnabled() {
-            widthInput.enabled = radioDo.value;
-            heightInput.enabled = radioDo.value;
+        function updateRatioInputsEnabled() {
+            widthInput.enabled = adjustOnRadio.value;
+            heightInput.enabled = adjustOnRadio.value;
         }
-        radioDo.onClick = updateEnabled;
-        radioDont.onClick = updateEnabled;
-        updateEnabled();
+        adjustOnRadio.onClick = updateRatioInputsEnabled;
+        adjustOffRadio.onClick = updateRatioInputsEnabled;
+        updateRatioInputsEnabled();
 
-        // 角丸（半径はフレーム高さの約1/5で自動）/ Round corners (radius auto = ~1/5 of the frame height)
-        var roundGroup = dialog.add("group");
-        roundGroup.alignment = "left";
-        var roundCheck = roundGroup.add("checkbox", undefined, L("ui.roundCorners"));
+        // グラフィックスタイル（元の見た目／外部スタイル）/ Graphic style (original appearance / external style)
+        var stylePanel = dialog.add("panel", undefined, L("ui.stylePanel"));
+        setupPanel(stylePanel, 6);
+        var styleOriginalRadio = stylePanel.add("radiobutton", undefined, L("ui.styleOriginal"));
+        var styleWhiteRadio = stylePanel.add("radiobutton", undefined, L("ui.styleWhiteText"));
+        var styleFrameRadio = stylePanel.add("radiobutton", undefined, L("ui.styleFrameOnly"));
+        styleOriginalRadio.value = true; // 既定は「元の見た目」/ Default: original appearance
 
         // ボタン（Mac規約：キャンセル → OK）/ Buttons (Mac order: Cancel → OK)
         var buttonGroup = dialog.add("group");
@@ -871,23 +953,26 @@ var SCRIPT_VERSION = "v1.0.0";
         var cancelButton = buttonGroup.add("button", undefined, L("ui.cancel"), { name: "cancel" });
         var okButton = buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
-        var result = null;
+        var dialogResult = null;
         okButton.onClick = function () {
             // 幅・高さは百分率 % 入力を倍率へ換算 / Width/height: convert the % input to a ratio
             var wPercent = parseFloat(widthInput.text);
             var hPercent = parseFloat(heightInput.text);
-            result = {
-                adjust: radioDo.value,
+            var styleMode = "original";
+            if (styleWhiteRadio.value) styleMode = "white";
+            else if (styleFrameRadio.value) styleMode = "frame";
+            dialogResult = {
+                adjust: adjustOnRadio.value,
                 widthRatio: (isNaN(wPercent) || wPercent <= 0) ? BUTTON_WIDTH_RATIO : wPercent / 100,
                 heightRatio: (isNaN(hPercent) || hPercent <= 0) ? BUTTON_HEIGHT_RATIO : hPercent / 100,
-                roundCorners: roundCheck.value
+                styleMode: styleMode
             };
             dialog.close();
         };
-        cancelButton.onClick = function () { result = null; dialog.close(); };
+        cancelButton.onClick = function () { dialogResult = null; dialog.close(); };
 
         dialog.show();
-        return result;
+        return dialogResult;
     }
 
     // =========================================
@@ -909,12 +994,25 @@ var SCRIPT_VERSION = "v1.0.0";
                 // 大きさ調整の設定を確認（キャンセルで中止）/ Ask for size-adjustment options (Cancel aborts)
                 var options = showOptionsDialog();
                 if (options) {
-                    // フレーム整列アクションを読み込み、終了時に破棄 / Load frame-alignment actions, unload on exit
-                    loadAreaTextActions();
-                    try {
-                        convertSelectionToAreaType(doc, sel, options);
-                    } finally {
-                        unloadAreaTextActions();
+                    // 外部スタイル選択時は変換前に読み込み（未登録なら取り込み）/ Import the external style first when chosen
+                    var externalReady = true;
+                    if (options.styleMode === "white" || options.styleMode === "frame") {
+                        var wantStyleName = (options.styleMode === "white") ? STYLE_NAME_WHITE_TEXT : STYLE_NAME_FRAME_ONLY;
+                        externalReady = ensureExternalStyle(doc, wantStyleName);
+                        if (externalReady) {
+                            options.externalStyleName = wantStyleName;
+                            // 取り込みで選択が外れるため復帰 / Restore selection (import clears it)
+                            try { doc.selection = sel; } catch (eSel) { }
+                        }
+                    }
+                    if (externalReady) {
+                        // フレーム整列アクションを読み込み、終了時に破棄 / Load frame-alignment actions, unload on exit
+                        loadAreaTextActions();
+                        try {
+                            convertSelectionToAreaType(doc, sel, options);
+                        } finally {
+                            unloadAreaTextActions();
+                        }
                     }
                 }
             } else {
