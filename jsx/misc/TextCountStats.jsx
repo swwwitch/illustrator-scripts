@@ -1,4 +1,5 @@
 #target illustrator
+#targetengine "TextCountStatsSession"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -13,28 +14,29 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/TextCountSt
 
 ### 概要：
 
-- Illustratorの選択テキストや全体の文字情報を統計的に可視化
+- Illustrator の選択テキストや全体の文字情報を統計的に可視化
 - 文字数、段落数、行数、英単語数、全角文字数、半角カナ、種別（ポイント／エリア／パス上）、フォント数などをカウント
+- 常駐パレット化：開いたまま選択を切り替え、［更新］で再集計
 
 ### 主な機能：
 
-- 選択したテキストオブジェクトの各種統計をUI上に一覧表示
+- 選択したテキストオブジェクトの各種統計をパレット上に一覧表示
 - 選択がない場合はドキュメント全体のテキストを対象に集計
-- UIは日本語／英語対応
+- DOM 集計はメインエンジンへ BridgeTalk 委譲（常駐パレットの DOM 切断を回避）
+- UI は日本語／英語対応
 
 ### 処理の流れ：
 
-1. ダイアログボックスで統計情報を表示
-2. 各パネルに分類（文字・段落、チェック項目、種別、その他）
-3. 自動的に選択／全体を切り替えてカウント
+1. 常駐パレットを表示（多重起動は自動で閉じてから再表示）
+2. ［更新］押下（または表示直後）にメインエンジンへ集計を委譲
+3. 戻り値（マーカー方式）を解析し、各パネルの値を更新
 
 ### 更新履歴：
 
 - v1.0 (20250806) : 初期バージョン
+- v1.1 (20260702) : 常駐パレット化（#targetengine ＋ BridgeTalk 委譲）、更新ボタン・ステータス表示・ローカライズ整理
 
-*/
-
-/*
+---
 
 ### Script Name:
 
@@ -48,113 +50,306 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/TextCountSt
 
 - Visualize statistics of selected or all text objects in Illustrator
 - Count characters, paragraphs, lines, English words, full-width characters, half-width kana, type (point/area/path), and fonts
+- Persistent palette: keep it open, change selection, press Refresh to recount
 
 ### Main Features:
 
-- Shows a summary of various counts in a dialog
+- Shows a summary of various counts in a palette
 - Automatically switches between selected objects and all content
+- Delegates DOM counting to the main engine via BridgeTalk (avoids palette DOM disconnection)
 - UI supports Japanese and English
 
 ### Flow:
 
-1. Show dialog displaying text statistics
-2. Divide stats into panels (Text & Paragraphs, Checks, Types, Others)
-3. Auto-select between selection or whole document
+1. Show a persistent palette (existing one is closed first to prevent duplicates)
+2. On Refresh (or right after showing), delegate counting to the main engine
+3. Parse the marker-based result and update each panel value
 
 ### Change Log:
 
 - v1.0 (20250806): Initial version
+- v1.1 (20260702): Palette conversion (#targetengine + BridgeTalk delegation), refresh button, status line, localization cleanup
 
 */
 
-var SCRIPT_VERSION = "v1.0";
+/* ============================================================
+   バージョン / Version
+   ============================================================ */
+var SCRIPT_VERSION = "v1.1";
 
+/* ============================================================
+   言語判定・ローカライズ / Language & localization
+   ============================================================ */
 function getCurrentLang() {
-    // 言語判定 / Determine language
+    /* 言語判定 / Determine language */
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
+/* 日英ラベル定義（カテゴリ構造） / Japanese-English labels (categorized) */
 var LABELS = {
-    dialogTitle: {
-        ja: "文字数カウント " + SCRIPT_VERSION,
-        en: "Text Count Stats " + SCRIPT_VERSION
+    dialog: {
+        title: { ja: "文字数カウント", en: "Text Count Stats" }
     },
-    charPara: {
-        ja: "文字・段落",
-        en: "Characters & Paragraphs"
+    panel: {
+        charPara: { ja: "文字・段落", en: "Characters & Paragraphs" },
+        check: { ja: "チェック項目", en: "Check Items" },
+        kinds: { ja: "種別", en: "Type" },
+        other: { ja: "その他", en: "Other" }
     },
-    chars: {
-        ja: "文字：",
-        en: "Characters:"
+    row: {
+        chars: { ja: "文字：", en: "Characters:" },
+        paras: { ja: "段落：", en: "Paragraphs:" },
+        lines: { ja: "行：", en: "Lines:" },
+        words: { ja: "英単語：", en: "English Words:" },
+        fullwidth: { ja: "全角文字：", en: "Fullwidth Chars:" },
+        hankakuKana: { ja: "半角カナ：", en: "Half-width Kana:" },
+        pointText: { ja: "ポイント文字：", en: "Point Type:" },
+        areaText: { ja: "エリア内文字：", en: "Area Type:" },
+        pathText: { ja: "パス上文字：", en: "Type on a Path:" },
+        fonts: { ja: "使用フォント：", en: "Fonts Used:" }
     },
-    paras: {
-        ja: "段落：",
-        en: "Paragraphs:"
+    button: {
+        refresh: { ja: "更新", en: "Refresh" }
     },
-    lines: {
-        ja: "行：",
-        en: "Lines:"
+    status: {
+        ready: { ja: "準備完了", en: "Ready" },
+        noDoc: { ja: "ドキュメントが開かれていません", en: "No document open" },
+        wholeDoc: { ja: "選択なし（全体を集計）", en: "No selection (counting all)" },
+        selectedPrefix: { ja: "選択 ", en: "Selected " },
+        selectedSuffix: { ja: " 件を集計", en: " object(s)" },
+        timeout: { ja: "Illustrator から応答がありません", en: "No response from Illustrator" },
+        busy: { ja: "処理中です", en: "Busy" },
+        error: { ja: "エラー", en: "Error" }
     },
-    words: {
-        ja: "英単語：",
-        en: "English Words:"
-    },
-    checkTitle: {
-        ja: "チェック項目",
-        en: "Check Items"
-    },
-    fullwidth: {
-        ja: "全角文字：",
-        en: "Fullwidth Chars:"
-    },
-    hankakuKana: {
-        ja: "半角カナ：",
-        en: "Half-width Kana:"
-    },
-    kindTitle: {
-        ja: "種別",
-        en: "Type"
-    },
-    pointText: {
-        ja: "ポイント文字：",
-        en: "Point Type:"
-    },
-    areaText: {
-        ja: "エリア内文字：",
-        en: "Area Type:"
-    },
-    pathText: {
-        ja: "パス上文字：",
-        en: "Type on a Path:"
-    },
-    otherTitle: {
-        ja: "その他",
-        en: "Other"
-    },
-    fonts: {
-        ja: "使用フォント：",
-        en: "Fonts Used:"
-    },
-    ok: {
-        ja: "OK",
-        en: "OK"
-    },
-    cancel: {
-        ja: "キャンセル",
-        en: "Cancel"
+    hint: {
+        refresh: { ja: "選択内容を再集計（⌘R / Enter）", en: "Recount selection (Cmd+R / Enter)" },
+        esc: { ja: "Esc で閉じる", en: "Press Esc to close" }
     }
 };
 
-// 定数定義
-var LABEL_WIDTH = 110;
-var PANEL_MARGINS = [15, 20, 15, 10];
-var DIALOG_OFFSET_X = 300;
-var DIALOG_OPACITY = 0.97;
+/* L(): ドットパス参照（null 耐性） / Dot-path lookup with null tolerance */
+function L(path) {
+    var parts = String(path).split(".");
+    var node = LABELS;
+    for (var i = 0; i < parts.length; i++) {
+        if (node == null) return path;
+        node = node[parts[i]];
+    }
+    if (node == null) return path;
+    if (typeof node === "string") return node;
+    if (typeof node === "object" && node[lang] != null) return node[lang];
+    return path;
+}
 
-// 汎用：ラベル＋値行追加
-function addRow(panel, labelText, valueText) {
+/* ============================================================
+   定数 / Constants
+   ============================================================ */
+var LABEL_WIDTH = 110;
+var VALUE_WIDTH = 100;
+var PANEL_MARGINS = [15, 20, 15, 10];
+var PALETTE_OPACITY = 0.97;
+
+/* ============================================================
+   worker 関数（メインエンジンで実行）/ Worker functions (run in main engine)
+   ------------------------------------------------------------
+   注意 / Notes:
+   - toString() は改行を全削除するため、// 行コメント禁止・/* *\/ のみ・
+     各文は必ずセミコロンで終える
+   - toString strips newlines, so no // comments; use block comments and
+     always terminate statements with a semicolon
+   ============================================================ */
+function wkCountTextStats() {
+    if (app.documents.length === 0) { return "NODOC"; }
+    var doc = app.activeDocument;
+    var sel = doc.selection;
+    if (!sel) { sel = []; }
+    var selCount = sel.length;
+
+    var allCount = 0;
+    function countAll(items) {
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            allCount++;
+            if (it.typename === "GroupItem") { countAll(it.pageItems); }
+            else if (it.typename === "CompoundPathItem") { countAll(it.pathItems); }
+        }
+    }
+    countAll(doc.pageItems);
+
+    var pointTextSel = 0, areaTextSel = 0, pathTextSel = 0;
+    var pointTextAll = 0, areaTextAll = 0, pathTextAll = 0;
+    var fontSet = {};
+
+    for (var si = 0; si < sel.length; si++) {
+        if (sel[si].typename === "TextFrame") {
+            if (sel[si].kind === TextType.POINTTEXT) { pointTextSel++; }
+            else if (sel[si].kind === TextType.AREATEXT) { areaTextSel++; }
+            else if (sel[si].kind === TextType.PATHTEXT) { pathTextSel++; }
+            try {
+                var ran = sel[si].textRange || sel[si].textRanges[0];
+                var fnt = ran.characterAttributes.textFont.name;
+                fontSet[fnt] = true;
+            } catch (e) {}
+        }
+    }
+
+    var allItems = doc.pageItems;
+    for (var ai = 0; ai < allItems.length; ai++) {
+        var obj = allItems[ai];
+        if (obj.typename === "TextFrame") {
+            if (obj.kind === TextType.POINTTEXT) { pointTextAll++; }
+            else if (obj.kind === TextType.AREATEXT) { areaTextAll++; }
+            else if (obj.kind === TextType.PATHTEXT) { pathTextAll++; }
+            try {
+                var ran2 = obj.textRange || obj.textRanges[0];
+                var fnt2 = ran2.characterAttributes.textFont.name;
+                fontSet[fnt2] = true;
+            } catch (e2) {}
+        }
+    }
+
+    var totalCharSel = 0, totalCharAll = 0;
+    var paraCountSel = 0, paraCountAll = 0;
+    var wordCountSel = 0, wordCountAll = 0;
+    var fullwidthSel = 0, fullwidthAll = 0;
+    var kanaSel = 0, kanaAll = 0;
+    var lineCountSel = 0, lineCountAll = 0;
+
+    for (var sj = 0; sj < sel.length; sj++) {
+        if (sel[sj].typename === "TextFrame") {
+            try { totalCharSel += sel[sj].characters.length; } catch (e3) {}
+            try {
+                var paras = sel[sj].paragraphs;
+                var vp = 0;
+                for (var p = 0; p < paras.length; p++) {
+                    var c = paras[p].contents;
+                    if (c.replace(/[\s　]/g, "").length > 0) { vp++; }
+                }
+                paraCountSel += vp;
+            } catch (e4) {}
+            try { lineCountSel += sel[sj].lines.length; } catch (e5) {}
+            try {
+                var cont = sel[sj].contents;
+                if (typeof cont === "string") {
+                    var mw = cont.match(/\b[a-zA-Z]+\b/g); if (mw) { wordCountSel += mw.length; }
+                    var mf = cont.match(/[！-｠￠-￦]/g); if (mf) { fullwidthSel += mf.length; }
+                    var mk = cont.match(/[･-ﾟ]/g); if (mk) { kanaSel += mk.length; }
+                }
+            } catch (e6) {}
+        }
+    }
+
+    for (var aj = 0; aj < allItems.length; aj++) {
+        var obj2 = allItems[aj];
+        if (obj2.typename === "TextFrame") {
+            try { totalCharAll += obj2.characters.length; } catch (e7) {}
+            try {
+                var paras2 = obj2.paragraphs;
+                var vp2 = 0;
+                for (var p2 = 0; p2 < paras2.length; p2++) {
+                    var c2 = paras2[p2].contents;
+                    if (c2.replace(/[\s　]/g, "").length > 0) { vp2++; }
+                }
+                paraCountAll += vp2;
+            } catch (e8) {}
+            try { lineCountAll += obj2.lines.length; } catch (e9) {}
+            try {
+                var cont2 = obj2.contents;
+                if (typeof cont2 === "string") {
+                    var mw2 = cont2.match(/\b[a-zA-Z]+\b/g); if (mw2) { wordCountAll += mw2.length; }
+                    var mf2 = cont2.match(/[！-｠￠-￦]/g); if (mf2) { fullwidthAll += mf2.length; }
+                    var mk2 = cont2.match(/[･-ﾟ]/g); if (mk2) { kanaAll += mk2.length; }
+                }
+            } catch (e10) {}
+        }
+    }
+
+    var fontCount = 0;
+    for (var key in fontSet) { if (fontSet.hasOwnProperty(key)) { fontCount++; } }
+
+    var out = [];
+    out.push("selCount=" + selCount);
+    out.push("allCount=" + allCount);
+    out.push("charSel=" + totalCharSel);
+    out.push("charAll=" + totalCharAll);
+    out.push("paraSel=" + paraCountSel);
+    out.push("paraAll=" + paraCountAll);
+    out.push("lineSel=" + lineCountSel);
+    out.push("lineAll=" + lineCountAll);
+    out.push("wordSel=" + wordCountSel);
+    out.push("wordAll=" + wordCountAll);
+    out.push("fwSel=" + fullwidthSel);
+    out.push("fwAll=" + fullwidthAll);
+    out.push("kanaSel=" + kanaSel);
+    out.push("kanaAll=" + kanaAll);
+    out.push("pointSel=" + pointTextSel);
+    out.push("pointAll=" + pointTextAll);
+    out.push("areaSel=" + areaTextSel);
+    out.push("areaAll=" + areaTextAll);
+    out.push("pathSel=" + pathTextSel);
+    out.push("pathAll=" + pathTextAll);
+    out.push("fontCount=" + fontCount);
+    return "OK|" + out.join("|");
+}
+
+/* worker 関数は全登録（追加漏れ防止） / Register every worker function */
+var WORKER_FUNCS = [wkCountTextStats];
+
+/* ============================================================
+   BridgeTalk 委譲 / Delegation to the main engine
+   ============================================================ */
+var isBusy = false;
+
+function callMainEngine(callExpr) {
+    /* 再入防止 / Re-entrancy guard */
+    if (isBusy) { return "ERR:BUSY"; }
+    isBusy = true;
+
+    var holder = { value: null };
+    try {
+        /* worker 群を連結し、末尾に呼び出し式を付与 / Concatenate workers + call */
+        var src = "";
+        for (var i = 0; i < WORKER_FUNCS.length; i++) { src += WORKER_FUNCS[i].toString(); }
+        src += callExpr + ";";
+
+        var bt = new BridgeTalk();
+        bt.target = "illustrator";
+        /* encodeURIComponent で多バイト・改行・特殊文字の破損を回避 */
+        bt.body = "eval(decodeURIComponent(\"" + encodeURIComponent(src) + "\"));";
+        bt.onResult = function (res) {
+            holder.value = (res && res.body != null) ? String(res.body) : "";
+        };
+        bt.onError = function (err) {
+            holder.value = "ERR:" + ((err && err.body) ? err.body : "bridge");
+        };
+        bt.send(10);
+    } catch (e) {
+        holder.value = "ERR:" + e;
+    } finally {
+        isBusy = false;
+    }
+
+    if (holder.value === null) { return "ERR:TIMEOUT"; }
+    return holder.value;
+}
+
+/* 戻り値（OK|key=value|...）を解析 / Parse "OK|key=value|..." */
+function parseStats(resp) {
+    if (!resp || resp.indexOf("OK|") !== 0) return null;
+    var map = {};
+    var parts = resp.substring(3).split("|");
+    for (var i = 0; i < parts.length; i++) {
+        var kv = parts[i].split("=");
+        if (kv.length === 2) { map[kv[0]] = kv[1]; }
+    }
+    return map;
+}
+
+/* ============================================================
+   パレット構築 / Build palette
+   ============================================================ */
+function addRow(panel, labelText) {
     var row = panel.add("group");
     row.orientation = "row";
     row.alignChildren = ["left", "center"];
@@ -162,316 +357,152 @@ function addRow(panel, labelText, valueText) {
     var label = row.add("statictext", undefined, labelText);
     label.preferredSize.width = LABEL_WIDTH;
     label.justify = "right";
-    var value = row.add("statictext", undefined, valueText);
+
+    var value = row.add("statictext", undefined, "-");
+    value.preferredSize.width = VALUE_WIDTH;
     value.justify = "left";
     return value;
 }
 
-function main() {
-    try {
-        /* 選択オブジェクトを取得 / Get selected objects */
-        var sel = app.activeDocument.selection;
+function buildPalette() {
+    var win = new Window("palette", L('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
+    win.orientation = "column";
+    win.alignChildren = ["fill", "top"];
 
-        /* 選択がない場合の処理 / Handle case with no selection */
-        if (!sel) {
-            sel = [];
-        }
+    var columnGroup = win.add("group");
+    columnGroup.orientation = "column";
+    columnGroup.alignChildren = ["fill", "top"];
 
-        /* 選択数をカウント / Count selected objects */
-        var count = sel.length;
+    /* 1. 文字・段落 / Characters & Paragraphs */
+    var panelCharPara = columnGroup.add("panel", undefined, L('panel.charPara'));
+    panelCharPara.orientation = "column";
+    panelCharPara.alignChildren = ["fill", "top"];
+    panelCharPara.margins = PANEL_MARGINS;
 
-        /* ドキュメント全体のオブジェクト数をカウント / Count all objects in document */
-        var allCount = 0;
+    /* 2. チェック項目 / Check items */
+    var panelCheck = columnGroup.add("panel", undefined, L('panel.check'));
+    panelCheck.orientation = "column";
+    panelCheck.alignChildren = ["fill", "top"];
+    panelCheck.margins = PANEL_MARGINS;
 
-        function countAllObjects(items) {
-            for (var i = 0; i < items.length; i++) {
-                var it = items[i];
-                allCount++;
-                if (it.typename === "GroupItem") {
-                    countAllObjects(it.pageItems);
-                } else if (it.typename === "CompoundPathItem") {
-                    countAllObjects(it.pathItems);
-                }
-            }
-        }
-        countAllObjects(app.activeDocument.pageItems);
+    /* 3. 種別 / Type */
+    var panelKinds = columnGroup.add("panel", undefined, L('panel.kinds'));
+    panelKinds.orientation = "column";
+    panelKinds.alignChildren = ["fill", "top"];
+    panelKinds.margins = PANEL_MARGINS;
 
-        /* 種類ごとのカウント（選択と全体） / Count by type (selected and all) */
-        var textCountSel = 0,
-            textCountAll = 0;
-        var pathCountSel = 0,
-            pathCountAll = 0;
-        var anchorCountSel = 0,
-            anchorCountAll = 0;
+    /* 4. その他 / Other */
+    var panelOther = columnGroup.add("panel", undefined, L('panel.other'));
+    panelOther.orientation = "column";
+    panelOther.alignChildren = ["fill", "top"];
+    panelOther.margins = PANEL_MARGINS;
 
-        /* 種別のカウント（選択と全体） / Count text kinds (selected and all) */
-        var pointTextSel = 0,
-            areaTextSel = 0,
-            pathTextSel = 0;
-        var pointTextAll = 0,
-            areaTextAll = 0,
-            pathTextAll = 0;
+    /* 値の statictext 参照を保持 / Keep references to value fields */
+    var values = {
+        chars: addRow(panelCharPara, L('row.chars')),
+        paras: addRow(panelCharPara, L('row.paras')),
+        lines: addRow(panelCharPara, L('row.lines')),
+        words: addRow(panelCharPara, L('row.words')),
+        fullwidth: addRow(panelCheck, L('row.fullwidth')),
+        hankakuKana: addRow(panelCheck, L('row.hankakuKana')),
+        pointText: addRow(panelKinds, L('row.pointText')),
+        areaText: addRow(panelKinds, L('row.areaText')),
+        pathText: addRow(panelKinds, L('row.pathText')),
+        fonts: addRow(panelOther, L('row.fonts'))
+    };
 
-        /* フォントセットを作成 / Create font set */
-        var fontSet = {};
+    /* ステータス表示 / Status line */
+    var statusText = win.add("statictext", undefined, L('status.ready'));
+    statusText.alignment = ["fill", "bottom"];
 
-        /* 選択分をカウント / Count selected items */
-        for (var i = 0; i < sel.length; i++) {
-            if (sel[i].typename === "TextFrame") {
-                textCountSel++;
-                if (sel[i].kind === TextType.POINTTEXT) pointTextSel++;
-                else if (sel[i].kind === TextType.AREATEXT) areaTextSel++;
-                else if (sel[i].kind === TextType.PATHTEXT) pathTextSel++;
-                try {
-                    var ran = sel[i].textRange || sel[i].textRanges[0];
-                    var font = ran.characterAttributes.textFont.name;
-                    fontSet[font] = true;
-                } catch (e) {}
-            } else if (sel[i].typename === "PathItem") {
-                pathCountSel++;
-                anchorCountSel += sel[i].pathPoints.length;
-            } else if (sel[i].typename === "CompoundPathItem") {
-                for (var j = 0; j < sel[i].pathItems.length; j++) {
-                    pathCountSel++;
-                    anchorCountSel += sel[i].pathItems[j].pathPoints.length;
-                }
-            }
-        }
-
-        /* 全体をカウント / Count all items */
-        var allItems = app.activeDocument.pageItems;
-        for (var k = 0; k < allItems.length; k++) {
-            var obj = allItems[k];
-            if (obj.typename === "TextFrame") {
-                textCountAll++;
-                if (obj.kind === TextType.POINTTEXT) pointTextAll++;
-                else if (obj.kind === TextType.AREATEXT) areaTextAll++;
-                else if (obj.kind === TextType.PATHTEXT) pathTextAll++;
-                try {
-                    var ran = obj.textRange || obj.textRanges[0];
-                    var font = ran.characterAttributes.textFont.name;
-                    fontSet[font] = true;
-                } catch (e) {}
-            } else if (obj.typename === "PathItem") {
-                pathCountAll++;
-                anchorCountAll += obj.pathPoints.length;
-            } else if (obj.typename === "CompoundPathItem") {
-                for (var m = 0; m < obj.pathItems.length; m++) {
-                    pathCountAll++;
-                    anchorCountAll += obj.pathItems[m].pathPoints.length;
-                }
-            }
-        }
-
-        /* 結果を表示（ダイアログボックス） / Display results (dialog box) */
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
-        dlg.orientation = "column";
-        dlg.alignChildren = "center";
-
-
-        var totalObjSel = count;
-        var totalObjAll = allCount;
-        var artboardCount = app.activeDocument.artboards.length;
-
-        // 1カラムのグループ / Single-column group
-        var columnGroup = dlg.add("group");
-        columnGroup.orientation = "column";
-        columnGroup.alignChildren = ["fill", "top"];
-
-        // 1. 文字・段落の詳細を表示するパネル / Panel to display character and paragraph details
-        var panelCharPara = columnGroup.add("panel", undefined, LABELS.charPara[lang]);
-        panelCharPara.orientation = "column";
-        panelCharPara.alignChildren = ["fill", "top"];
-        panelCharPara.margins = PANEL_MARGINS;
-
-        var panelCheck = columnGroup.add("panel", undefined, LABELS.checkTitle[lang]);
-        panelCheck.orientation = "column";
-        panelCheck.alignChildren = ["fill", "top"];
-        panelCheck.margins = PANEL_MARGINS;
-
-        var panelKinds = columnGroup.add("panel", undefined, LABELS.kindTitle[lang]);
-        panelKinds.orientation = "column";
-        panelKinds.alignChildren = ["fill", "top"];
-        panelKinds.margins = PANEL_MARGINS;
-
-        var panelOther = columnGroup.add("panel", undefined, LABELS.otherTitle[lang]);
-        panelOther.orientation = "column";
-        panelOther.alignChildren = ["fill", "top"];
-        panelOther.margins = PANEL_MARGINS;
-
-        var totalCharSel = 0,
-            totalCharAll = 0;
-        var paraCountSel = 0,
-            paraCountAll = 0;
-        var wordCountSel = 0,
-            wordCountAll = 0;
-        var fullwidthCountSel = 0,
-            fullwidthCountAll = 0;
-        var hankakuKanaCountSel = 0,
-            hankakuKanaCountAll = 0;
-        // 行数カウント用変数 / Line count variables
-        var lineCountSel = 0,
-            lineCountAll = 0;
-
-        /* 選択オブジェクト / Selected objects */
-        for (var i = 0; i < sel.length; i++) {
-            if (sel[i].typename === "TextFrame") {
-                try {
-                    totalCharSel += sel[i].characters.length;
-                } catch (err) {}
-                // 段落数カウント（空段落除外）
-                try {
-                    var paras = sel[i].paragraphs;
-                    var validParaCount = 0;
-                    for (var p = 0; p < paras.length; p++) {
-                        var contents = paras[p].contents;
-                        if (contents.replace(/[\s\u3000]/g, "").length > 0) {
-                            validParaCount++;
-                        }
-                    }
-                    paraCountSel += validParaCount;
-                } catch (err) {}
-                // 行数カウント
-                try {
-                    lineCountSel += sel[i].lines.length;
-                } catch (err) {}
-                // 英単語数カウント・全角/半角カナカウント
-                try {
-                    var contents = sel[i].contents;
-                    if (typeof contents === "string") {
-                        var matches = contents.match(/\b[a-zA-Z]+\b/g);
-                        if (matches) wordCountSel += matches.length;
-                        // 全角文字数
-                        var fwMatches = contents.match(/[\uFF01-\uFF60\uFFE0-\uFFE6]/g);
-                        if (fwMatches) fullwidthCountSel += fwMatches.length;
-                        // 半角カナ数
-                        var kanaMatches = contents.match(/[\uFF65-\uFF9F]/g);
-                        if (kanaMatches) hankakuKanaCountSel += kanaMatches.length;
-                    }
-                } catch (err) {}
-            }
-        }
-
-        /* 全体 / All objects */
-        for (var k = 0; k < allItems.length; k++) {
-            var obj = allItems[k];
-            if (obj.typename === "TextFrame") {
-                try {
-                    totalCharAll += obj.characters.length;
-                } catch (err) {}
-                // 段落数カウント（空段落除外）
-                try {
-                    var paras = obj.paragraphs;
-                    var validParaCount = 0;
-                    for (var p = 0; p < paras.length; p++) {
-                        var contents = paras[p].contents;
-                        if (contents.replace(/[\s\u3000]/g, "").length > 0) {
-                            validParaCount++;
-                        }
-                    }
-                    paraCountAll += validParaCount;
-                } catch (err) {}
-                // 行数カウント
-                try {
-                    lineCountAll += obj.lines.length;
-                } catch (err) {}
-                // 英単語数カウント・全角/半角カナカウント
-                try {
-                    var contents = obj.contents;
-                    if (typeof contents === "string") {
-                        var matches = contents.match(/\b[a-zA-Z]+\b/g);
-                        if (matches) wordCountAll += matches.length;
-                        // 全角文字数
-                        var fwMatches = contents.match(/[\uFF01-\uFF60\uFFE0-\uFFE6]/g);
-                        if (fwMatches) fullwidthCountAll += fwMatches.length;
-                        // 半角カナ数
-                        var kanaMatches = contents.match(/[\uFF65-\uFF9F]/g);
-                        if (kanaMatches) hankakuKanaCountAll += kanaMatches.length;
-                    }
-                } catch (err) {}
-            }
-        }
-
-        // 1. 文字・段落パネルに行を追加
-        addRow(panelCharPara, LABELS.chars[lang], totalCharSel + " / " + totalCharAll);
-        addRow(panelCharPara, LABELS.paras[lang], paraCountSel + " / " + paraCountAll);
-        addRow(panelCharPara, LABELS.lines[lang], lineCountSel + " / " + lineCountAll);
-        addRow(panelCharPara, LABELS.words[lang], wordCountSel + " / " + wordCountAll);
-
-        // 2. チェック項目パネルに行を追加
-        addRow(panelCheck, LABELS.fullwidth[lang], fullwidthCountSel + " / " + fullwidthCountAll);
-        addRow(panelCheck, LABELS.hankakuKana[lang], hankakuKanaCountSel + " / " + hankakuKanaCountAll);
-
-        // 3. 種別パネルに行を追加
-        addRow(panelKinds, LABELS.pointText[lang], pointTextSel + " / " + pointTextAll);
-        addRow(panelKinds, LABELS.areaText[lang], areaTextSel + " / " + areaTextAll);
-        addRow(panelKinds, LABELS.pathText[lang], pathTextSel + " / " + pathTextAll);
-
-        // 4. その他パネルに行を追加
-        // フォント数をカウント / Count font usage
-        var fontCount = 0;
-        for (var key in fontSet) {
-            if (fontSet.hasOwnProperty(key)) fontCount++;
-        }
-        addRow(panelOther, LABELS.fonts[lang], fontCount.toString());
-
-        // メイングループ（横並び） / Main group (horizontal layout)
-        var btnRowGroup = dlg.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignChildren = ["fill", "center"];
-        btnRowGroup.margins = [10, 10, 10, 0];
-        btnRowGroup.alignment = ["fill", "bottom"];
-
-        // 左側グループ / Left-side button group
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.alignChildren = ["left", "center"];
-        var btnCancel = btnLeftGroup.add("button", undefined, LABELS.cancel[lang], {
-            name: "cancel"
-        });
-
-        // スペーサー（伸縮）/ Spacer (stretchable)
-        var spacer = btnRowGroup.add("statictext", undefined, "");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-        // もし他のラベル(statictext)を直接追加している場合は右寄せを明示
-        spacer.justify = "right";
-
-        // 右側グループ / Right-side button group
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignChildren = ["right", "center"];
-        var btnOK = btnRightGroup.add("button", undefined, LABELS.ok[lang], {
-            name: "ok"
-        });
-        btnOK.onClick = function() {
-            dlg.close();
-        };
-
-        // --- ダイアログ位置・透明度調整コードここから ---
-        var offsetX = 300;
-        var dialogOpacity = 0.97;
-
-        function shiftDialogPosition(dlg, offsetX, offsetY) {
-            dlg.onShow = function() {
-                var currentX = dlg.location[0];
-                var currentY = dlg.location[1];
-                dlg.location = [currentX + offsetX, currentY + offsetY];
-            };
-        }
-
-        function setDialogOpacity(dlg, opacityValue) {
-            dlg.opacity = opacityValue;
-        }
-
-        setDialogOpacity(dlg, dialogOpacity);
-        shiftDialogPosition(dlg, offsetX, 0);
-        // --- ダイアログ位置・透明度調整コードここまで ---
-
-        dlg.center();
-        dlg.show();
-
-    } catch (e) {
-        alert("エラーが発生しました: " + e);
+    function setStatus(msg) {
+        try { statusText.text = msg; } catch (e) {}
     }
+
+    /* 再集計 / Recount */
+    function refresh() {
+        setStatus(L('status.busy'));
+        var resp = callMainEngine("wkCountTextStats()");
+
+        if (resp === "ERR:BUSY") { setStatus(L('status.busy')); return; }
+        if (resp === null || resp === "ERR:TIMEOUT") { setStatus(L('status.timeout')); return; }
+        if (resp === "NODOC") { setStatus(L('status.noDoc')); return; }
+        if (resp.indexOf("ERR:") === 0) { setStatus(L('status.error') + ": " + resp.substring(4)); return; }
+
+        var m = parseStats(resp);
+        if (!m) { setStatus(L('status.error')); return; }
+
+        values.chars.text = m.charSel + " / " + m.charAll;
+        values.paras.text = m.paraSel + " / " + m.paraAll;
+        values.lines.text = m.lineSel + " / " + m.lineAll;
+        values.words.text = m.wordSel + " / " + m.wordAll;
+        values.fullwidth.text = m.fwSel + " / " + m.fwAll;
+        values.hankakuKana.text = m.kanaSel + " / " + m.kanaAll;
+        values.pointText.text = m.pointSel + " / " + m.pointAll;
+        values.areaText.text = m.areaSel + " / " + m.areaAll;
+        values.pathText.text = m.pathSel + " / " + m.pathAll;
+        values.fonts.text = m.fontCount;
+
+        var selN = parseInt(m.selCount, 10) || 0;
+        if (selN > 0) {
+            setStatus(L('status.selectedPrefix') + selN + L('status.selectedSuffix'));
+        } else {
+            setStatus(L('status.wholeDoc'));
+        }
+    }
+
+    /* ボタン（更新のみ。閉じるは × / Esc に任せる） / Button (refresh only) */
+    var btnRow = win.add("group");
+    btnRow.orientation = "row";
+    btnRow.alignment = ["fill", "bottom"];
+    btnRow.alignChildren = ["right", "center"];
+
+    var btnRefresh = btnRow.add("button", undefined, L('button.refresh'));
+    btnRefresh.helpTip = L('hint.refresh') + "\n" + L('hint.esc');
+    /* onClick 連結（addEventListener('click') は不発の環境がある） */
+    btnRefresh.onClick = refresh;
+
+    /* キー操作：Esc で閉じる、⌘R / Enter で更新 / Keys: Esc close, Cmd+R / Enter refresh */
+    win.addEventListener("keydown", function (ev) {
+        var k = "";
+        try { k = ev && ev.keyName ? String(ev.keyName).toUpperCase() : ""; } catch (e) { k = ""; }
+        if (k === "ESCAPE") {
+            try { win.close(); } catch (e1) {}
+        } else if (k === "R" || k === "ENTER" || k === "RETURN") {
+            refresh();
+        }
+    });
+
+    try { win.opacity = PALETTE_OPACITY; } catch (e) {}
+
+    /* 表示直後に一度集計 / Count once right after showing */
+    win.onShow = function () {
+        refresh();
+    };
+
+    return win;
 }
 
-main();
+/* ============================================================
+   起動 / Entry point
+   ============================================================ */
+function showPalette() {
+    /* 多重起動防止：既存パレットがあれば閉じる / Prevent duplicates */
+    if ($.global.__TextCountStatsPalette) {
+        try { $.global.__TextCountStatsPalette.close(); } catch (e) {}
+        $.global.__TextCountStatsPalette = null;
+    }
+
+    var win = buildPalette();
+
+    /* 常駐エンジンの変数に保持して GC 回避 / Keep in resident engine to avoid GC */
+    $.global.__TextCountStatsPalette = win;
+    win.onClose = function () {
+        try { $.global.__TextCountStatsPalette = null; } catch (e) {}
+    };
+
+    win.center();
+    win.show();
+}
+
+showPalette();

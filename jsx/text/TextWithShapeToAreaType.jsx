@@ -9,8 +9,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 処理の流れ：
 
-1. 実行時にオプションダイアログを表示（大きさ調整の する/しない と 幅%・高さ%、グラフィックスタイル：元の見た目／文字白抜き／枠のみ）
-2. 変換前に、適用するグラフィックスタイルを用意（「元の見た目」＝選択テキストの見た目を一時登録／「文字白抜き」「枠のみ」＝外部 AI ファイルから取り込み）
+1. 実行時にオプションダイアログを表示（大きさ調整の する/しない と 幅%・高さ%、グラフィックスタイル：元の見た目／読み込んだスタイル）
+2. 変換前に、適用するグラフィックスタイルを用意（「元の見た目」＝選択テキストの見た目を一時登録／読み込んだスタイル＝「読み込み」で選んだ AI ファイルから現書類へ取り込み）
 3. ポイント文字 / パス上文字 → 計測した実寸（大きさ調整ONなら幅・高さに倍率）でエリア内文字へ変換
    テキスト＋長方形 → 長方形を複製してエリア内文字にし、テキストを流し込む
 4. ボタン背景（テキストのみ・する ／ テキスト＋長方形。※外部スタイル未使用時のみ）→ New Fill を2枚追加＋長方形シェイプ効果
@@ -45,7 +45,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 | テキスト＋長方形 | ―（長方形サイズ優先） | ○ |
 
 - ボタン背景は New Fill を2枚追加し、長方形シェイプ効果で背景化する。塗り色は設定しない（追加した塗りは既定のまま）。
-- グラフィックスタイルで「文字白抜き」「枠のみ」を選んだ場合、そのスタイルが見た目を定義するためボタン背景は付与しない。未登録なら外部 AI ファイル（TARGET_FILE_PATH）から取り込んで適用する。
+- グラフィックスタイルで「読み込んだスタイル」を選んだ場合、そのスタイルが見た目を定義するためボタン背景は付与しない。現書類に未登録なら、記憶した AI ファイルから取り込んで適用する。参照ファイルとスタイル名は Folder.userData（styles_for_TextWithShapeToAreaType.txt）に記憶する。
 
 ### Overview
 
@@ -53,8 +53,8 @@ Convert point text, path text, or text + shape into area type while preserving a
 
 Flow:
 
-1. On launch, show the options dialog (size adjustment On/Off with width% / height%, and a graphic-style choice: original appearance / white text / frame only).
-2. Before converting, prepare the graphic style to apply ("original appearance" = register the selected text's appearance temporarily; "white text" / "frame only" = import from an external AI file).
+1. On launch, show the options dialog (size adjustment On/Off with width% / height%, and a graphic-style choice: original appearance / a loaded style).
+2. Before converting, prepare the graphic style to apply ("original appearance" = register the selected text's appearance temporarily; a loaded style = import from the AI file picked via "Load").
 3. Point / path text → area type at the measured real size (scaled by the width/height ratios when size adjustment is On).
    Text + rectangle → duplicate the rectangle into an area-type frame and fill it with the text.
 4. Button background (text-only "On" / text + rectangle; only when no external style is used) → add two fills via New Fill + a rectangle shape effect.
@@ -89,10 +89,11 @@ Flow:
 | Text + rectangle | — (rectangle size wins) | Yes |
 
 - The button background adds two fills via New Fill and reshapes them with the rectangle shape effect. Fill colors are not set (the added fills keep their defaults).
-- When the graphic style is "white text" or "frame only", the style defines the appearance, so no button background is added. If not yet registered, it is imported from the external AI file (TARGET_FILE_PATH) and applied.
+- When a loaded style is chosen, the style defines the appearance, so no button background is added. If not registered in the current document, it is imported from the remembered AI file and applied. The source file and its style names are remembered in Folder.userData (styles_for_TextWithShapeToAreaType.txt).
 
 ### 更新履歴 / Changelog
 
+- v1.2.0 (2026-07-01): 固定パス（TARGET_FILE_PATH）と固定スタイル名（文字白抜き／枠のみ）を撤去。ダイアログに「スタイルの読み込み」ボタンを追加し、選んだ AI ファイルとスタイル名を Folder.userData に記憶。取り込んだスタイル名からラジオを自動生成する構成へ変更（ImportGraphicStyles v1.7.0 より移植）／ Removed the hardcoded path (TARGET_FILE_PATH) and fixed style names (white text / frame only); added a "Load Styles" button that remembers the picked AI file and style names in Folder.userData; radios are now generated automatically from the imported style names (ported from ImportGraphicStyles v1.7.0)
 - v1.1.0 (2026-07-01): ダイアログにグラフィックスタイル選択（元の見た目／文字白抜き／枠のみ）を追加。外部 AI ファイル（TARGET_FILE_PATH）から未登録スタイルを取り込んで適用（ImportGraphicStyles より移植）。角丸オプションを削除／ Added a graphic-style choice (original appearance / white text / frame only); imports the chosen style from an external AI file when it is not yet registered (ported from ImportGraphicStyles). Removed the round-corners option
 - v1.0.0 : 初期バージョン / Initial release
 
@@ -101,20 +102,16 @@ Flow:
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.2.0";
 
 (function () {
 
     // =========================================
-    // ユーザー設定 / User Settings
+    // 設定ファイル / Preferences file
     // =========================================
 
-    /* スタイルを取り込む AI ファイル（環境に合わせて変更）/ AI file to import graphic styles from */
-    var TARGET_FILE_PATH = "/Users/takano/sw Dropbox/takano masahiro/sync-setting/ai/styles/StyleForAreaType.ai";
-
-    /* グラフィックスタイル名（AIファイル内の登録名に合わせる）/ Graphic style names as registered in the AI file */
-    var STYLE_NAME_WHITE_TEXT = "文字白抜き"; // ラジオ「文字白抜き」/ Radio "White text"
-    var STYLE_NAME_FRAME_ONLY = "枠のみ";     // ラジオ「枠のみ」/ Radio "Frame only"
+    /* 参照した AI ファイルとスタイル名を記憶する設定ファイル / Prefs file remembering the picked AI file and its style names */
+    var PREFS_FILE_NAME = "styles_for_TextWithShapeToAreaType.txt";
 
     // =========================================
     // ローカライズ / Localization
@@ -161,8 +158,19 @@ var SCRIPT_VERSION = "v1.1.0";
             heightRatio: { ja: "高さ：", en: "Height:" },
             stylePanel: { ja: "グラフィックスタイル", en: "Graphic style" },
             styleOriginal: { ja: "元の見た目", en: "Original appearance" },
-            styleWhiteText: { ja: "文字白抜き", en: "White text" },
-            styleFrameOnly: { ja: "枠のみ", en: "Frame only" },
+            loadPanel: { ja: "スタイルの読み込み", en: "Load Styles" },
+            loadButton: { ja: "読み込み", en: "Load" },
+            reloadButton: { ja: "再読み込み", en: "Reload" },
+            pickFile: { ja: "スタイルの AI ファイルを選択", en: "Select a style AI file" },
+            noFileSelected: { ja: "ファイル未選択", en: "No file selected" },
+            noStylesHint: {
+                ja: "「読み込み」でスタイルの AI ファイルを選択してください。",
+                en: "Click “Load” to choose a style AI file."
+            },
+            reloadHint: {
+                ja: "記憶したファイルからスタイルを取り込み直します。",
+                en: "Re-import styles from the remembered file."
+            },
             cancel: { ja: "キャンセル", en: "Cancel" }
         }
     };
@@ -543,15 +551,72 @@ var SCRIPT_VERSION = "v1.1.0";
         try { return destinationDoc.graphicStyles.getByName(styleName); } catch (e) { return null; }
     }
 
-    /* 対象AIを開いてコピー→一時レイヤーへ貼り付け→レイヤーごと削除（スタイルのみ登録）
-       Import assets from the target AI: copy, paste to a temp layer, then remove the layer */
-    function importStylesFromTargetFile(destinationDoc) {
-        var styleFile = new File(encodeURI(TARGET_FILE_PATH));
+    /* 設定ファイル（前回のスタイルファイルのパスとスタイル名を記憶）/ Prefs file remembering the last style file and names */
+    function getPrefsFile() {
+        return new File(Folder.userData + "/" + PREFS_FILE_NAME);
+    }
+
+    /* 記憶しているスタイルファイルのパスとスタイル名を読み込む / Load the remembered style-file path and names */
+    function loadSavedStyleState() {
+        var state = { filePath: "", styleNames: [] };
+        var prefsFile = getPrefsFile();
+        if (!prefsFile.exists) return state;
+        try {
+            prefsFile.encoding = "UTF-8";
+            prefsFile.open("r");
+            var content = prefsFile.read();
+            prefsFile.close();
+            var lines = content.split(/\r\n|\r|\n/);
+            for (var i = 0; i < lines.length; i++) {
+                var separatorIndex = lines[i].indexOf("=");
+                if (separatorIndex < 0) continue;
+                var key = lines[i].substring(0, separatorIndex);
+                var value = lines[i].substring(separatorIndex + 1);
+                if (key === "styleFilePath") state.filePath = value;
+                else if (key === "styleNames") state.styleNames = value ? value.split("\t") : [];
+            }
+        } catch (e) { }
+        return state;
+    }
+
+    /* スタイルファイルのパスとスタイル名を記憶する（key=value 形式）/ Remember the style-file path and names (key=value) */
+    function saveStyleState(filePath, styleNames) {
+        var prefsFile = getPrefsFile();
+        try {
+            prefsFile.encoding = "UTF-8";
+            prefsFile.open("w");
+            prefsFile.write("styleFilePath=" + filePath + "\n");
+            prefsFile.write("styleNames=" + styleNames.join("\t") + "\n");
+            prefsFile.close();
+        } catch (e) { }
+    }
+
+    /* スタイル用 AI ファイルを選ばせる（キャンセルで空文字）/ Let the user pick a style AI file */
+    function pickStyleFile() {
+        var picked = File.openDialog(L("ui.pickFile"), function (candidate) {
+            return (candidate instanceof Folder) || /\.ai$/i.test(candidate.name);
+        });
+        return picked ? picked.fsName : "";
+    }
+
+    /* 対象AIを開いてスタイル名を取得→コピー→一時レイヤーへ貼り付け→レイヤーごと削除（スタイルのみ登録）
+       戻り値: 現書類へ登録できたグラフィックスタイル名の配列（ファイル未検出時は警告して null）
+       Open the AI, read its style names, copy, paste to a temp layer, then remove it (assets only stay registered).
+       Returns the graphic-style names actually registered in the destination (null if the file is missing) */
+    function importStylesFrom(destinationDoc, filePath) {
+        var styleFile = new File(filePath);
         if (!styleFile.exists) {
-            alert(L("alert.fileNotFound") + getDisplayFileName(TARGET_FILE_PATH));
-            return false;
+            alert(L("alert.fileNotFound") + getDisplayFileName(filePath));
+            return null;
         }
         var styleSourceDoc = app.open(styleFile);
+
+        // 元ファイルのグラフィックスタイル名を取得（index 0 の既定スタイルは除外）
+        // Collect style names from the source (skip the default style at index 0)
+        var sourceStyleNames = [];
+        for (var i = 1; i < styleSourceDoc.graphicStyles.length; i++) {
+            sourceStyleNames.push(styleSourceDoc.graphicStyles[i].name);
+        }
 
         // 作業アートボード内の全てをコピーして保存せず閉じる / Copy in-artboard objects, close without saving
         app.executeMenuCommand("selectallinartboard");
@@ -564,13 +629,22 @@ var SCRIPT_VERSION = "v1.1.0";
         destinationDoc.activeLayer = importLayer;
         app.executeMenuCommand("paste");
         try { importLayer.remove(); } catch (e) { }
-        return true;
+        // モーダルダイアログ表示中でも貼り付けの残像を即座に消す / Redraw now so the paste doesn't linger under the modal dialog
+        try { app.redraw(); } catch (e2) { }
+
+        // 実際に書類へ登録されたスタイル名だけを返す / Keep only names actually registered in the destination
+        var importedStyleNames = [];
+        for (var k = 0; k < sourceStyleNames.length; k++) {
+            if (findGraphicStyle(destinationDoc, sourceStyleNames[k])) importedStyleNames.push(sourceStyleNames[k]);
+        }
+        return importedStyleNames;
     }
 
-    /* 指定スタイルを取得（未登録なら取り込んでから取得）。成功で true / Ensure the named style exists (import if needed) */
-    function ensureExternalStyle(destinationDoc, styleName) {
+    /* 指定スタイルを現書類に用意（未登録なら記憶したファイルから取り込む）。成功で true
+       Ensure the named style exists in the destination (import from the remembered file if needed) */
+    function ensureExternalStyle(destinationDoc, styleName, filePath) {
         if (findGraphicStyle(destinationDoc, styleName)) return true;
-        if (!importStylesFromTargetFile(destinationDoc)) return false;
+        if (importStylesFrom(destinationDoc, filePath) === null) return false;
         if (!findGraphicStyle(destinationDoc, styleName)) {
             alert(L("alert.styleNotFound") + styleName);
             return false;
@@ -899,9 +973,16 @@ var SCRIPT_VERSION = "v1.1.0";
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    /* オプションダイアログ。OKなら{adjust, widthRatio, heightRatio, styleMode}、キャンセルならnull
-       Options dialog. Returns {adjust, widthRatio, heightRatio, styleMode} on OK, null on Cancel */
-    function showOptionsDialog() {
+    /* オプションダイアログ。OKなら{adjust, widthRatio, heightRatio, externalStyleName, styleFilePath}、キャンセルならnull
+       「読み込み」ボタンで別の AI ファイルを選ぶと、その場でラジオを組み直す
+       Options dialog. Returns {adjust, widthRatio, heightRatio, externalStyleName, styleFilePath} on OK, null on Cancel.
+       The "Load" button re-imports and rebuilds the radios in place */
+    function showOptionsDialog(destinationDoc, savedStyleState) {
+        var styleState = {
+            filePath: (savedStyleState && savedStyleState.filePath) || "",
+            styleNames: (savedStyleState && savedStyleState.styleNames) || []
+        };
+
         var dialog = new Window("dialog", L("ui.dialogTitle") + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = "fill";
@@ -939,13 +1020,31 @@ var SCRIPT_VERSION = "v1.1.0";
         adjustOffRadio.onClick = updateRatioInputsEnabled;
         updateRatioInputsEnabled();
 
-        // グラフィックスタイル（元の見た目／外部スタイル）/ Graphic style (original appearance / external style)
+        // グラフィックスタイル（元の見た目／読み込んだスタイル）/ Graphic style (original appearance / loaded styles)
         var stylePanel = dialog.add("panel", undefined, L("ui.stylePanel"));
         setupPanel(stylePanel, 6);
         var styleOriginalRadio = stylePanel.add("radiobutton", undefined, L("ui.styleOriginal"));
-        var styleWhiteRadio = stylePanel.add("radiobutton", undefined, L("ui.styleWhiteText"));
-        var styleFrameRadio = stylePanel.add("radiobutton", undefined, L("ui.styleFrameOnly"));
         styleOriginalRadio.value = true; // 既定は「元の見た目」/ Default: original appearance
+
+        // 読み込んだスタイルのラジオを差し替えるためのコンテナ / Container whose radios get rebuilt on reload
+        var importedRadioGroup = stylePanel.add("group");
+        importedRadioGroup.orientation = "column";
+        importedRadioGroup.alignChildren = ["left", "top"];
+        importedRadioGroup.spacing = 6;
+        var importedRadios = []; // { radio, styleName }
+
+        // スタイルの読み込みパネル（ボタンの下にファイル名を表示）/ Load-styles panel (filename shown below the button)
+        var loadPanel = dialog.add("panel", undefined, L("ui.loadPanel"));
+        setupPanel(loadPanel, 6);
+        // 読み込み / 再読み込みボタンを左寄せで横並び / Load & Reload buttons in a left-aligned row
+        var loadButtonRow = loadPanel.add("group");
+        loadButtonRow.alignment = "left";
+        var loadButton = loadButtonRow.add("button", undefined, L("ui.loadButton"));
+        loadButton.helpTip = L("ui.noStylesHint"); // 使い方はツールチップで案内 / Usage hint shown as a tooltip
+        var reloadButton = loadButtonRow.add("button", undefined, L("ui.reloadButton"));
+        reloadButton.helpTip = L("ui.reloadHint"); // 記憶したファイルから再取り込み / Re-import from the remembered file
+        var fileNameText = loadPanel.add("statictext", undefined, "", { truncate: "middle" });
+        fileNameText.preferredSize.width = 240;
 
         // ボタン（Mac規約：キャンセル → OK）/ Buttons (Mac order: Cancel → OK)
         var buttonGroup = dialog.add("group");
@@ -953,19 +1052,70 @@ var SCRIPT_VERSION = "v1.1.0";
         var cancelButton = buttonGroup.add("button", undefined, L("ui.cancel"), { name: "cancel" });
         var okButton = buttonGroup.add("button", undefined, "OK", { name: "ok" });
 
+        /* 選択中のファイル名表示と再読み込みボタンの有効状態を更新 / Update the file-name label and Reload's enabled state */
+        function refreshFileLabel() {
+            fileNameText.text = styleState.filePath ? getDisplayFileName(styleState.filePath) : L("ui.noFileSelected");
+            reloadButton.enabled = !!styleState.filePath; // 記憶したファイルが無ければ再読み込み不可 / Disable Reload without a remembered file
+        }
+
+        /* 読み込んだスタイル名でラジオを組み直す / Rebuild the loaded-style radios from the current names */
+        function rebuildImportedRadios() {
+            for (var i = importedRadioGroup.children.length - 1; i >= 0; i--) {
+                importedRadioGroup.remove(importedRadioGroup.children[i]);
+            }
+            importedRadios = [];
+            for (var j = 0; j < styleState.styleNames.length; j++) {
+                var radio = importedRadioGroup.add("radiobutton", undefined, styleState.styleNames[j]);
+                importedRadios.push({ radio: radio, styleName: styleState.styleNames[j] });
+            }
+            dialog.layout.layout(true);
+            dialog.layout.resize();
+        }
+
+        // onClick で連結（addEventListener は発火しない環境があるため）/ Use onClick, not addEventListener
+        loadButton.onClick = function () {
+            var pickedPath = pickStyleFile();
+            if (!pickedPath) return;
+            var importedStyleNames = importStylesFrom(destinationDoc, pickedPath);
+            if (importedStyleNames === null) return; // ファイル未検出は importStylesFrom 側で警告済み
+            styleState.filePath = pickedPath;
+            styleState.styleNames = importedStyleNames;
+            saveStyleState(pickedPath, importedStyleNames); // 次回以降このファイルを参照 / Remember for next runs
+            refreshFileLabel();
+            rebuildImportedRadios();
+        };
+
+        // 記憶したファイルを選び直さずに再取り込み（別ドキュメントでも同じファイルを再利用）
+        // Re-import from the remembered file without re-picking (reuse the same file in another document)
+        reloadButton.onClick = function () {
+            if (!styleState.filePath) return;
+            var importedStyleNames = importStylesFrom(destinationDoc, styleState.filePath);
+            if (importedStyleNames === null) return; // ファイル未検出は importStylesFrom 側で警告済み
+            styleState.styleNames = importedStyleNames;
+            saveStyleState(styleState.filePath, importedStyleNames); // スタイル名の変化を反映 / Reflect any style-name changes
+            refreshFileLabel();
+            rebuildImportedRadios();
+        };
+
+        refreshFileLabel();
+        rebuildImportedRadios();
+
         var dialogResult = null;
         okButton.onClick = function () {
             // 幅・高さは百分率 % 入力を倍率へ換算 / Width/height: convert the % input to a ratio
             var wPercent = parseFloat(widthInput.text);
             var hPercent = parseFloat(heightInput.text);
-            var styleMode = "original";
-            if (styleWhiteRadio.value) styleMode = "white";
-            else if (styleFrameRadio.value) styleMode = "frame";
+            // 「元の見た目」なら null、読み込んだスタイルなら選択中の名前 / null for original, else the checked style name
+            var externalStyleName = null;
+            for (var k = 0; k < importedRadios.length; k++) {
+                if (importedRadios[k].radio.value) { externalStyleName = importedRadios[k].styleName; break; }
+            }
             dialogResult = {
                 adjust: adjustOnRadio.value,
                 widthRatio: (isNaN(wPercent) || wPercent <= 0) ? BUTTON_WIDTH_RATIO : wPercent / 100,
                 heightRatio: (isNaN(hPercent) || hPercent <= 0) ? BUTTON_HEIGHT_RATIO : hPercent / 100,
-                styleMode: styleMode
+                externalStyleName: externalStyleName,
+                styleFilePath: styleState.filePath
             };
             dialog.close();
         };
@@ -991,16 +1141,16 @@ var SCRIPT_VERSION = "v1.1.0";
             }
 
             if (hasConvertibleText) {
-                // 大きさ調整の設定を確認（キャンセルで中止）/ Ask for size-adjustment options (Cancel aborts)
-                var options = showOptionsDialog();
+                // 記憶した参照ファイルとスタイル名を読み込み、ダイアログを表示（キャンセルで中止）
+                // Load the remembered file/style names, then show the dialog (Cancel aborts)
+                var savedStyleState = loadSavedStyleState();
+                var options = showOptionsDialog(doc, savedStyleState);
                 if (options) {
-                    // 外部スタイル選択時は変換前に読み込み（未登録なら取り込み）/ Import the external style first when chosen
+                    // 読み込んだスタイル選択時は変換前に現書類へ用意（未登録なら取り込み）/ Ensure the chosen style is in the doc first
                     var externalReady = true;
-                    if (options.styleMode === "white" || options.styleMode === "frame") {
-                        var wantStyleName = (options.styleMode === "white") ? STYLE_NAME_WHITE_TEXT : STYLE_NAME_FRAME_ONLY;
-                        externalReady = ensureExternalStyle(doc, wantStyleName);
+                    if (options.externalStyleName) {
+                        externalReady = ensureExternalStyle(doc, options.externalStyleName, options.styleFilePath);
                         if (externalReady) {
-                            options.externalStyleName = wantStyleName;
                             // 取り込みで選択が外れるため復帰 / Restore selection (import clears it)
                             try { doc.selection = sel; } catch (eSel) { }
                         }

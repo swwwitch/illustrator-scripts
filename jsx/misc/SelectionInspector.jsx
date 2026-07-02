@@ -1,6 +1,6 @@
 #target illustrator
-app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 #targetengine "SelectionInspectorSession"
+app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
@@ -14,10 +14,12 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 
 ### 概要：
 
-- 選択中／全体のオブジェクト数をカウントし、2カラムのダイアログで表示
+- 選択中／全体のオブジェクト数をカウントし、2カラムのパレットで表示
 - テキスト・配置画像・透明・グループ・パス・ガイドの統計を表示
 - 「書き出し」でレポート（テキスト）を書き出し可能
-- UIと書き出しテキストの文言をローカライズ辞書で一元管理
+- メモ（属性パネルのメモ欄）の閲覧・編集に対応
+- 常駐パレット化：開いたまま選択を切り替え、［更新］で再集計
+- DOM 集計・メモ書き込みはメインエンジンへ BridgeTalk 委譲（常駐パレットの DOM 切断を回避）
 
 ### 主な機能：
 
@@ -29,14 +31,15 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - パス（オープン／クローズ／アンカー／ハンドル／複合パス／複合シェイプ）を表示
   ※ ガイド（guides=true）はパス統計から除外
 - ガイド（ルーラー／アートボード／その他）を表示
+- 「メモ」タブで選択オブジェクトのメモを編集・適用
 - 「書き出し」ボタンで集計結果をテキストファイルとして保存
 
 ### 処理の流れ：
 
-- ドキュメントと選択オブジェクトを解析し、各種情報を取得
-- ダイアログに2カラムで情報を整然と表示
-- 書き出し機能でデスクトップにテキスト保存
-
+- 常駐パレットを表示（多重起動は自動で閉じてから再表示）
+- ［更新］押下（または表示直後）にメインエンジンへ集計を委譲
+- 戻り値（マーカー方式）を解析し、各パネル・メモタブを更新
+- メモ適用・書き出しも同様に委譲／収集データから生成
 
 ### note：
 
@@ -56,6 +59,7 @@ https://note.com/dtp_tranist/n/nefcb1ce828ce
 - v1.5.3 (20260314) : ダイアログ位置をセッション中に記憶・復元
 - v1.6 (20260316) : 配置画像の下にメモパネルを追加（属性パネルのメモ欄を表示）
 - v1.6.1 (20260316) : ローカライズ整理（書き出し文言・セクション見出しをLABELSへ集約）
+- v1.7.0 (20260702) : 常駐パレット化（#targetengine ＋ BridgeTalk 委譲）、更新ボタン・ステータス表示、ローカライズをカテゴリ構造＋L()へ再編
 
 ---
 
@@ -69,28 +73,32 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 
 ### Overview:
 
-- Count selection / document totals and show them in a two-column dialog
+- Count selection / document totals and show them in a two-column palette
 - Show stats for text, images, transparency, groups, paths, and guides
 - Export the stats as a plain text report
-- Centralize UI and export strings in the localization dictionary
+- View and edit object notes (Attributes panel note field)
+- Persistent palette: keep it open, change selection, press Refresh to recount
+- Delegate DOM counting / note writing to the main engine via BridgeTalk
 
 ### Main Features:
 
 - Show object counts (Selection / All) and artboard count
 - Text stats: point/area/path text, characters, paragraphs, forced line breaks
 - Image stats: linked/embedded/broken links
-- Transparency stats: opacity < 100, blend mode ≠ Normal
+- Transparency stats: opacity < 100, blend mode != Normal
 - Group stats: groups and clipping groups
 - Path stats: open/closed, anchor points, handles, compound paths, compound shapes
   * Guide paths (guides=true) are excluded from path stats
 - Guide breakdown: ruler / artboard / other
+- Edit and apply notes on the Notes tab
 - Export button writes a plain text report to the desktop
 
 ### Process Flow:
 
-- Analyze document and selected objects
-- Display data in a two-column dialog UI
-- Export stats to desktop text file
+- Show a persistent palette (existing one is closed first to prevent duplicates)
+- On Refresh (or right after showing), delegate counting to the main engine
+- Parse the marker-based result and update each panel and the Notes tab
+- Note apply / export are delegated / generated from collected data
 
 ### Changelog:
 
@@ -99,1280 +107,1043 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 - v1.2 (20250807): UI adjustments
 - v1.3 (20260301): Added handle count for paths
 - v1.4 (20260301): Added forced line break (soft return) count
-- v1.4.1 (20260302): UI tweaks (OK→Close, removed Cancel, moved Export to left)
-- v1.5 (20260302): Added guide breakdown (ruler/artboard/other), excluded guides from path stats, updated panel arrangement and export layout
+- v1.4.1 (20260302): UI tweaks (OK->Close, removed Cancel, moved Export to left)
+- v1.5 (20260302): Added guide breakdown, excluded guides from path stats, updated layout
 - v1.5.1 (20260312): Recursively count path stats inside groups
 - v1.5.2 (20260312): Recursively count text stats inside groups
 - v1.5.3 (20260314): Remember and restore dialog position during the current session
-- v1.6 (20260316): Added Notes panel below Images (shows Attributes panel note field)
-- v1.6.1 (20260316): Localization cleanup (moved export strings and section headers into LABELS)
+- v1.6 (20260316): Added Notes panel below Images
+- v1.6.1 (20260316): Localization cleanup
+- v1.7.0 (20260702): Palette conversion (#targetengine + BridgeTalk delegation), refresh button, status line, categorized localization with L()
 
 */
 
-var SCRIPT_VERSION = "v1.6.2";
+/* ============================================================
+   バージョン / Version
+   ============================================================ */
+var SCRIPT_VERSION = "v1.7.0";
 
+/* ============================================================
+   言語判定・ローカライズ / Language & localization
+   ============================================================ */
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
+/* 日英ラベル定義（カテゴリ構造） / Japanese-English labels (categorized) */
 var LABELS = {
-    dialogTitle: {
-        ja: "選択／全体オブジェクトのカウント " + SCRIPT_VERSION,
-        en: "Selection / All Objects Count " + SCRIPT_VERSION
+    dialog: {
+        title: { ja: "選択／全体オブジェクトのカウント", en: "Selection / All Objects Count" }
     },
-    reportTitle: {
-        ja: "Selection Inspector Report",
-        en: "Selection Inspector Report"
+    report: {
+        title: { ja: "Selection Inspector Report", en: "Selection Inspector Report" },
+        document: { ja: "ドキュメント:", en: "Document:" },
+        date: { ja: "日付:", en: "Date:" },
+        valueNote: {
+            ja: "※ 値は『選択 / 全体』の形式です（アートボードのみ全体）",
+            en: "Note: values are formatted as 'Selection / All' (Artboards is All only)"
+        }
     },
-    reportDocument: {
-        ja: "ドキュメント:",
-        en: "Document:"
+    section: {
+        basics: { ja: "基本", en: "Basics" },
+        textFrames: { ja: "テキスト", en: "Text Frames" },
+        charPara: { ja: "文字・段落", en: "Characters & Paragraphs" },
+        images: { ja: "配置画像", en: "Images" },
+        notes: { ja: "メモ", en: "Notes" },
+        transparency: { ja: "透明", en: "Transparency" },
+        groups: { ja: "グループ", en: "Groups" },
+        paths: { ja: "パス", en: "Paths" },
+        guides: { ja: "ガイド", en: "Guides" }
     },
-    reportDate: {
-        ja: "日付:",
-        en: "Date:"
+    panel: {
+        basics: { ja: "基本", en: "Basics" },
+        texts: { ja: "テキスト", en: "Text Frames" },
+        charPara: { ja: "文字・段落", en: "Characters & Paragraphs" },
+        images: { ja: "配置画像", en: "Images" },
+        memo: { ja: "メモ", en: "Notes" },
+        group: { ja: "グループ", en: "Groups" },
+        transparency: { ja: "透明", en: "Transparency" },
+        path: { ja: "パス", en: "Paths" },
+        guide: { ja: "ガイド", en: "Guides" }
     },
-    reportValueNote: {
-        ja: "※ 値は『選択 / 全体』の形式です（アートボードのみ全体）",
-        en: "Note: values are formatted as 'Selection / All' (Artboards is All only)"
+    row: {
+        artboards: { ja: "アートボード：", en: "Artboards:" },
+        objects: { ja: "オブジェクト：", en: "Objects:" },
+        texts: { ja: "テキスト：", en: "Text Frames:" },
+        pointText: { ja: "ポイント文字：", en: "Point Type:" },
+        areaText: { ja: "エリア内文字：", en: "Area Type:" },
+        pathText: { ja: "パス上文字：", en: "Path Text:" },
+        chars: { ja: "文字数：", en: "Characters:" },
+        paras: { ja: "段落数：", en: "Paragraphs:" },
+        forcedBreaks: { ja: "強制改行：", en: "Line Breaks:" },
+        linked: { ja: "リンク：", en: "Linked Images:" },
+        embed: { ja: "埋め込み：", en: "Embedded Images:" },
+        broken: { ja: "リンク切れ：", en: "Broken Links:" },
+        group: { ja: "グループ：", en: "Groups:" },
+        clipGroup: { ja: "クリップグループ：", en: "Clipping Groups:" },
+        opacityLt100: { ja: "不透明度<100：", en: "Opacity < 100:" },
+        blendNotNormal: { ja: "描画モード≠通常：", en: "Blend Mode != Normal:" },
+        pathCount: { ja: "パス：", en: "Paths:" },
+        openPath: { ja: "オープンパス：", en: "Open Paths:" },
+        closedPath: { ja: "クローズパス：", en: "Closed Paths:" },
+        anchors: { ja: "アンカーポイント：", en: "Anchor Points:" },
+        handles: { ja: "ハンドル：", en: "Handles:" },
+        compoundPath: { ja: "複合パス：", en: "Compound Paths:" },
+        compoundShape: { ja: "複合シェイプ：", en: "Compound Shapes:" },
+        rulerGuides: { ja: "ルーラーガイド：", en: "Ruler Guides:" },
+        artboardGuides: { ja: "アートボードガイド：", en: "Artboard Guides:" },
+        otherGuides: { ja: "その他のガイド：", en: "Other Guides:" }
     },
-    sectionBasics: {
-        ja: "基本",
-        en: "Basics"
+    button: {
+        refresh: { ja: "更新", en: "Refresh" },
+        exportPreset: { ja: "書き出し", en: "Export" },
+        applyMemo: { ja: "適用", en: "Apply" }
     },
-    sectionTextFrames: {
-        ja: "テキスト",
-        en: "Text Frames"
-    },
-    sectionCharPara: {
-        ja: "文字・段落",
-        en: "Characters & Paragraphs"
-    },
-    sectionImages: {
-        ja: "配置画像",
-        en: "Images"
-    },
-    sectionNotes: {
-        ja: "メモ",
-        en: "Notes"
-    },
-    sectionTransparency: {
-        ja: "透明",
-        en: "Transparency"
-    },
-    sectionGroups: {
-        ja: "グループ",
-        en: "Groups"
-    },
-    sectionPaths: {
-        ja: "パス",
-        en: "Paths"
-    },
-    sectionGuides: {
-        ja: "ガイド",
-        en: "Guides"
-    },
-    other: {
-        ja: "基本",
-        en: "Basics"
-    },
-    artboards: {
-        ja: "アートボード：",
-        en: "Artboards:"
-    },
-    objects: {
-        ja: "オブジェクト：",
-        en: "Objects:"
-    },
-    charPara: {
-        ja: "文字・段落",
-        en: "Characters & Paragraphs"
-    },
-    transparency: {
-        ja: "透明",
-        en: "Transparency"
-    },
-    chars: {
-        ja: "文字数：",
-        en: "Characters:"
-    },
-    paras: {
-        ja: "段落数：",
-        en: "Paragraphs:"
-    },
-    forcedBreaks: {
-        ja: "強制改行：",
-        en: "Line Breaks:"
-    },
-    opacityLt100: {
-        ja: "不透明度<100：",
-        en: "Opacity < 100:"
-    },
-    blendNotNormal: {
-        ja: "描画モード≠通常：",
-        en: "Blend Mode ≠ Normal:"
-    },
-    texts: {
-        ja: "テキスト：",
-        en: "Text Frames:"
-    },
-    pointText: {
-        ja: "ポイント文字：",
-        en: "Point Type:"
-    },
-    areaText: {
-        ja: "エリア内文字：",
-        en: "Area Type:"
-    },
-    pathText: {
-        ja: "パス上文字：",
-        en: "Path Text:"
-    },
-    link: {
-        ja: "配置画像",
-        en: "Images"
-    },
-    images: {
-        ja: "配置画像",
-        en: "Images"
-    },
-    linked: {
-        ja: "リンク：",
-        en: "Linked Images:"
-    },
-    embed: {
-        ja: "埋め込み：",
-        en: "Embedded Images:"
-    },
-    broken: {
-        ja: "リンク切れ：",
-        en: "Broken Links:"
-    },
-    group: {
-        ja: "グループ：",
-        en: "Groups:"
-    },
-    clipGroup: {
-        ja: "クリップグループ：",
-        en: "Clipping Groups:"
-    },
-    path: {
-        ja: "パス",
-        en: "Paths"
-    },
-    guide: {
-        ja: "ガイド",
-        en: "Guides"
-    },
-    rulerGuides: {
-        ja: "ルーラーガイド：",
-        en: "Ruler Guides:"
-    },
-    artboardGuides: {
-        ja: "アートボードガイド：",
-        en: "Artboard Guides:"
-    },
-    otherGuides: {
-        ja: "その他のガイド：",
-        en: "Other Guides:"
-    },
-    pathCount: {
-        ja: "パス：",
-        en: "Paths:"
-    },
-    openPath: {
-        ja: "オープンパス：",
-        en: "Open Paths:"
-    },
-    closedPath: {
-        ja: "クローズパス：",
-        en: "Closed Paths:"
-    },
-    anchors: {
-        ja: "アンカーポイント：",
-        en: "Anchor Points:"
-    },
-    handles: {
-        ja: "ハンドル：",
-        en: "Handles:"
-    },
-    compoundPath: {
-        ja: "複合パス：",
-        en: "Compound Paths:"
-    },
-    compoundShape: {
-        ja: "複合シェイプ：",
-        en: "Compound Shapes:"
-    },
-    ok: {
-        ja: "閉じる",
-        en: "Close"
-    },
-    exportPreset: {
-        ja: "書き出し",
-        en: "Export"
-    },
-    applyMemo: {
-        ja: "適用",
-        en: "Apply"
-    },
-    tabCount: {
-        ja: "情報",
-        en: "Info"
-    },
-    tabMemo: {
-        ja: "メモ",
-        en: "Notes"
-    },
-    multipleMemosMsg: {
-        ja: "複数のメモがあります。\n「メモ」タブで確認",
-        en: "Multiple notes found.\nSee the \"Notes\" tab."
+    tab: {
+        info: { ja: "情報", en: "Info" },
+        memo: { ja: "メモ", en: "Notes" }
     },
     memo: {
-        ja: "メモ",
-        en: "Notes"
+        multiple: { ja: "複数のメモがあります。\n「メモ」タブで確認", en: "Multiple notes found.\nSee the \"Notes\" tab." },
+        none: { ja: "選択オブジェクトがありません", en: "No objects selected" }
     },
-    memoText: {
-        ja: "メモ：",
-        en: "Note:"
+    status: {
+        ready: { ja: "準備完了", en: "Ready" },
+        noDoc: { ja: "ドキュメントが開かれていません", en: "No document open" },
+        wholeDoc: { ja: "選択なし（全体を集計）", en: "No selection (counting all)" },
+        selectedPrefix: { ja: "選択 ", en: "Selected " },
+        selectedSuffix: { ja: " 件を集計", en: " object(s)" },
+        timeout: { ja: "Illustrator から応答がありません", en: "No response from Illustrator" },
+        busy: { ja: "処理中です", en: "Busy" },
+        error: { ja: "エラー", en: "Error" },
+        memoApplied: { ja: "メモを適用しました", en: "Note applied" },
+        selChanged: { ja: "選択が変わりました。更新してください", en: "Selection changed. Please refresh." },
+        exportedPrefix: { ja: "書き出しました: ", en: "Exported: " },
+        exportFailOpen: { ja: "ファイルを開けませんでした", en: "Failed to open the file" }
     },
-    shortcutHint: {
-        ja: "⌥I: 情報  ⌥M: メモ",
-        en: "⌥I: Info  ⌥M: Notes"
+    hint: {
+        shortcut: { ja: "⌥I: 情報  ⌥M: メモ  ⌘R: 更新", en: "⌥I: Info  ⌥M: Notes  ⌘R: Refresh" },
+        refresh: { ja: "選択内容を再集計（⌘R）", en: "Recount selection (Cmd+R)" },
+        esc: { ja: "Esc で閉じる", en: "Press Esc to close" }
     }
 };
 
-var __selectionInspectorDialogState = {
-    location: null
-};
+/* L(): ドットパス参照（null 耐性） / Dot-path lookup with null tolerance */
+function L(path) {
+    var parts = String(path).split(".");
+    var node = LABELS;
+    for (var i = 0; i < parts.length; i++) {
+        if (node == null) return path;
+        node = node[parts[i]];
+    }
+    if (node == null) return path;
+    if (typeof node === "string") return node;
+    if (typeof node === "object" && node[lang] != null) return node[lang];
+    return path;
+}
 
-function main() {
+/* 書き出し用：末尾コロンを半角へ正規化 / Normalize trailing colon for export */
+function LX(path) {
+    return L(path).replace(/[：:]\s*$/, ":");
+}
+
+/* ============================================================
+   定数 / Constants
+   ============================================================ */
+var LABEL_WIDTH_LEFT = 100;
+var LABEL_WIDTH_RIGHT = 130;
+var VALUE_WIDTH = 90;
+var PANEL_MARGINS = [15, 20, 0, 10];
+var PALETTE_OPACITY = 0.97;
+
+/* ============================================================
+   worker 関数（メインエンジンで実行）/ Worker functions (run in main engine)
+   ------------------------------------------------------------
+   注意 / Notes:
+   - toString() は改行を全削除するため、// 行コメント禁止・/* *\/ のみ・
+     各文は必ずセミコロンで終える
+   ============================================================ */
+function wkGetMaxArtboardSpan(doc) {
+    var maxSpan = 0;
     try {
-        /* 選択オブジェクトを取得 / Get selected objects */
-        var sel = app.activeDocument.selection;
-
-        /* 選択がない場合の処理 / Handle case with no selection */
-        if (!sel) {
-            sel = [];
+        var abs = Math.abs;
+        var ab = doc.artboards;
+        for (var i = 0; i < ab.length; i++) {
+            var r = ab[i].artboardRect;
+            var w = abs(r[2] - r[0]);
+            var h = abs(r[1] - r[3]);
+            if (w > maxSpan) { maxSpan = w; }
+            if (h > maxSpan) { maxSpan = h; }
         }
+    } catch (e) {}
+    return maxSpan;
+}
 
-        /* 選択数をカウント / Count selected objects */
-        var count = sel.length;
-
-        /* ドキュメント全体のオブジェクト数をカウント / Count all objects in document */
-        var allCount = 0;
-
-        function countAllObjects(items) {
-            for (var i = 0; i < items.length; i++) {
-                var it = items[i];
-                allCount++;
-                if (it.typename === "GroupItem") {
-                    countAllObjects(it.pageItems);
-                } else if (it.typename === "CompoundPathItem") {
-                    countAllObjects(it.pathItems);
-                }
-            }
+function wkIsArtboardGuide(pi, doc) {
+    try {
+        if (!pi || pi.typename !== "PathItem") { return false; }
+        if (!pi.guides) { return false; }
+        if (pi.closed) { return false; }
+        if (!pi.pathPoints || pi.pathPoints.length !== 2) { return false; }
+        var a0 = pi.pathPoints[0].anchor;
+        var a1 = pi.pathPoints[1].anchor;
+        var T = 0.01;
+        var sameX = Math.abs(a0[0] - a1[0]) <= T;
+        var sameY = Math.abs(a0[1] - a1[1]) <= T;
+        if (!(sameX || sameY)) { return false; }
+        var dx = a0[0] - a1[0];
+        var dy = a0[1] - a1[1];
+        var len = Math.sqrt(dx * dx + dy * dy);
+        var abs = Math.abs;
+        var tol = 0.5;
+        var ab = doc.artboards;
+        for (var i = 0; i < ab.length; i++) {
+            var r = ab[i].artboardRect;
+            var w = abs(r[2] - r[0]);
+            var h = abs(r[1] - r[3]);
+            if (abs(len - w) <= tol) { return true; }
+            if (abs(len - h) <= tol) { return true; }
         }
-        countAllObjects(app.activeDocument.pageItems);
+        return false;
+    } catch (e) { return false; }
+}
 
-        /* 種類ごとのカウント（選択と全体） / Count by type (selected and all) */
-        var pathCountSel = 0,
-            pathCountAll = 0;
-        var anchorCountSel = 0,
-            anchorCountAll = 0;
-        var handleCountSel = 0,
-            handleCountAll = 0;
-        var compoundPathSel = 0,
-            compoundPathAll = 0;
-        var compoundShapeSel = 0,
-            compoundShapeAll = 0;
+function wkIsRulerGuide(pi) {
+    try {
+        if (!pi || pi.typename !== "PathItem") { return false; }
+        if (!pi.guides) { return false; }
+        if (pi.closed) { return false; }
+        if (!pi.pathPoints || pi.pathPoints.length !== 2) { return false; }
+        var a0 = pi.pathPoints[0].anchor;
+        var a1 = pi.pathPoints[1].anchor;
+        var T = 0.01;
+        var sameX = Math.abs(a0[0] - a1[0]) <= T;
+        var sameY = Math.abs(a0[1] - a1[1]) <= T;
+        if (!(sameX || sameY)) { return false; }
+        var dx = a0[0] - a1[0];
+        var dy = a0[1] - a1[1];
+        var len = Math.sqrt(dx * dx + dy * dy);
+        var maxSpan = wkGetMaxArtboardSpan(app.activeDocument);
+        if (!(maxSpan > 0)) { return true; }
+        return (len > maxSpan);
+    } catch (e) { return false; }
+}
 
-        // ガイド（ルーラーガイド／アートボードガイド／その他のガイド）
-        // Guides (ruler / artboard / other)
-        var rulerGuideSel = 0,
-            rulerGuideAll = 0;
-        var artboardGuideSel = 0,
-            artboardGuideAll = 0;
-        var otherGuideSel = 0,
-            otherGuideAll = 0;
+function wkCountGuides(pi, doc) {
+    var r = { ruler: 0, artboard: 0, other: 0 };
+    try {
+        if (!pi || pi.typename !== "PathItem") { return r; }
+        if (!pi.guides) { return r; }
+        if (wkIsRulerGuide(pi)) { r.ruler = 1; }
+        else if (wkIsArtboardGuide(pi, doc)) { r.artboard = 1; }
+        else { r.other = 1; }
+    } catch (e) {}
+    return r;
+}
 
-        function __getMaxArtboardSpan(doc) {
-            // Returns max(width, height) among all artboards (in points)
-            var maxSpan = 0;
-            try {
-                var abs = Math.abs;
-                var ab = doc.artboards;
-                for (var i = 0; i < ab.length; i++) {
-                    var r = ab[i].artboardRect; // [left, top, right, bottom]
-                    var w = abs(r[2] - r[0]);
-                    var h = abs(r[1] - r[3]);
-                    if (w > maxSpan) maxSpan = w;
-                    if (h > maxSpan) maxSpan = h;
-                }
-            } catch (e) { }
-            return maxSpan;
+function wkCountTransparency(it) {
+    var r = { opacityLt100: 0, blendNotNormal: 0 };
+    if (!it) { return r; }
+    try { if (typeof it.opacity === "number" && it.opacity < 100) { r.opacityLt100 = 1; } } catch (e) {}
+    try { if (it.blendingMode !== undefined && it.blendingMode !== BlendModes.NORMAL) { r.blendNotNormal = 1; } } catch (e2) {}
+    return r;
+}
+
+function wkIsGuidePath(pi) {
+    try { return (pi && pi.typename === "PathItem" && pi.guides === true); } catch (e) { return false; }
+}
+
+function wkCountHandles(pi) {
+    var c = 0;
+    try {
+        var pts = pi.pathPoints;
+        for (var i = 0; i < pts.length; i++) {
+            var p = pts[i];
+            var a = p.anchor;
+            var l = p.leftDirection;
+            var rr = p.rightDirection;
+            if (l[0] !== a[0] || l[1] !== a[1]) { c++; }
+            if (rr[0] !== a[0] || rr[1] !== a[1]) { c++; }
         }
+    } catch (e) {}
+    return c;
+}
 
-        function __isArtboardGuidePathItem(pi, doc) {
-            // Artboard guide definition:
-            // - guide path (pi.guides)
-            // - open path
-            // - exactly 2 points
-            // - horizontal OR vertical
-            // - line length approximately equals width OR height of ANY artboard
-            try {
-                if (!pi || pi.typename !== "PathItem") return false;
-                if (!pi.guides) return false;
-                if (pi.closed) return false;
-                if (!pi.pathPoints || pi.pathPoints.length !== 2) return false;
-
-                var a0 = pi.pathPoints[0].anchor;
-                var a1 = pi.pathPoints[1].anchor;
-                var T = 0.01;
-                var sameX = Math.abs(a0[0] - a1[0]) <= T;
-                var sameY = Math.abs(a0[1] - a1[1]) <= T;
-                if (!(sameX || sameY)) return false;
-
-                var dx = a0[0] - a1[0];
-                var dy = a0[1] - a1[1];
-                var len = Math.sqrt(dx * dx + dy * dy);
-
-                // Compare against every artboard
-                var abs = Math.abs;
-                var tol = 0.5; // pt tolerance (rounding / pixel alignment)
-                var ab = doc.artboards;
-                for (var i = 0; i < ab.length; i++) {
-                    var r = ab[i].artboardRect; // [left, top, right, bottom]
-                    var w = abs(r[2] - r[0]);
-                    var h = abs(r[1] - r[3]);
-                    if (abs(len - w) <= tol) return true;
-                    if (abs(len - h) <= tol) return true;
-                }
-                return false;
-            } catch (e) {
-                return false;
-            }
+function wkCountPathStats(it, stats) {
+    if (it.typename === "GroupItem") {
+        for (var gi = 0; gi < it.pageItems.length; gi++) { wkCountPathStats(it.pageItems[gi], stats); }
+    } else if (it.typename === "PathItem") {
+        if (!wkIsGuidePath(it)) {
+            stats.pathCount++;
+            stats.anchorCount += it.pathPoints.length;
+            stats.handleCount += wkCountHandles(it);
+            if (it.closed) { stats.closedPath++; } else { stats.openPath++; }
         }
-
-        function __isRulerGuidePathItem(pi) {
-            // Best-effort heuristic:
-            // Ruler guides are typically a long straight horizontal/vertical open line.
-            // Here we treat it as:
-            // - guide path (pi.guides)
-            // - open path
-            // - exactly 2 points
-            // - horizontal OR vertical
-            // - line length is longer than the artboard width or height
-            try {
-                if (!pi || pi.typename !== "PathItem") return false;
-                if (!pi.guides) return false;
-                if (pi.closed) return false;
-                if (!pi.pathPoints || pi.pathPoints.length !== 2) return false;
-
-                var a0 = pi.pathPoints[0].anchor;
-                var a1 = pi.pathPoints[1].anchor;
-                var T = 0.01;
-
-                var sameX = Math.abs(a0[0] - a1[0]) <= T;
-                var sameY = Math.abs(a0[1] - a1[1]) <= T;
-                if (!(sameX || sameY)) return false;
-
-                var dx = a0[0] - a1[0];
-                var dy = a0[1] - a1[1];
-                var len = Math.sqrt(dx * dx + dy * dy);
-
-                var maxSpan = __getMaxArtboardSpan(app.activeDocument);
-                // If artboard span cannot be obtained, fall back to old behavior (treat as ruler guide)
-                if (!(maxSpan > 0)) return true;
-
-                return (len > maxSpan);
-            } catch (e) {
-                return false;
-            }
+    } else if (it.typename === "CompoundPathItem") {
+        for (var ci = 0; ci < it.pathItems.length; ci++) {
+            if (wkIsGuidePath(it.pathItems[ci])) { continue; }
+            stats.pathCount++;
+            stats.anchorCount += it.pathItems[ci].pathPoints.length;
+            stats.handleCount += wkCountHandles(it.pathItems[ci]);
+            if (it.pathItems[ci].closed) { stats.closedPath++; } else { stats.openPath++; }
         }
-
-        function __countGuidesForPathItem(pi) {
-            // returns { ruler:0/1, artboard:0/1, other:0/1 }
-            var r = { ruler: 0, artboard: 0, other: 0 };
-            try {
-                if (!pi || pi.typename !== "PathItem") return r;
-                if (!pi.guides) return r;
-
-                // Priority:
-                // 1) Ruler guide (longer than max artboard span)
-                // 2) Artboard guide (matches any artboard width/height)
-                // 3) Other guide
-                if (__isRulerGuidePathItem(pi)) {
-                    r.ruler = 1;
-                } else if (__isArtboardGuidePathItem(pi, app.activeDocument)) {
-                    r.artboard = 1;
-                } else {
-                    r.other = 1;
-                }
-            } catch (e) { }
-            return r;
-        }
-
-        // 透明（不透明度<100／描画モード≠通常）/ Transparency stats
-        var opacityLt100Sel = 0,
-            opacityLt100All = 0;
-        var blendNotNormalSel = 0,
-            blendNotNormalAll = 0;
-
-        function countTransparencyForItem(it) {
-            var r = { opacityLt100: 0, blendNotNormal: 0 };
-            if (!it) return r;
-
-            try {
-                if (typeof it.opacity === "number" && it.opacity < 100) r.opacityLt100 = 1;
-            } catch (e) { }
-
-            try {
-                if (it.blendingMode !== undefined && it.blendingMode !== BlendModes.NORMAL) r.blendNotNormal = 1;
-            } catch (e) { }
-
-            return r;
-        }
-
-        function __isGuidePathItem(pi) {
-            try {
-                return (pi && pi.typename === "PathItem" && pi.guides === true);
-            } catch (e) {
-                return false;
-            }
-        }
-
-        function countHandlesInPathItem(pi) {
-            // Count bezier handles: left/right direction differs from anchor
-            // A corner point typically has both directions == anchor => 0
-            // A smooth/curve point often has 2 handles
-            var c = 0;
-            try {
-                var pts = pi.pathPoints;
-                for (var i = 0; i < pts.length; i++) {
-                    var p = pts[i];
-                    var a = p.anchor;
-                    var l = p.leftDirection;
-                    var r = p.rightDirection;
-                    if (l[0] !== a[0] || l[1] !== a[1]) c++;
-                    if (r[0] !== a[0] || r[1] !== a[1]) c++;
-                }
-            } catch (e) { }
-            return c;
-        }
-
-        /* アイテムのパス統計を再帰的にカウント / Recursively count path stats for an item */
-        function countPathStatsForItem(it, stats) {
-            if (it.typename === "GroupItem") {
-                for (var gi = 0; gi < it.pageItems.length; gi++) {
-                    countPathStatsForItem(it.pageItems[gi], stats);
-                }
-            } else if (it.typename === "PathItem") {
-                if (!__isGuidePathItem(it)) {
-                    stats.pathCount++;
-                    stats.anchorCount += it.pathPoints.length;
-                    stats.handleCount += countHandlesInPathItem(it);
-                    if (it.closed) {
-                        stats.closedPath++;
-                    } else {
-                        stats.openPath++;
-                    }
-                }
-            } else if (it.typename === "CompoundPathItem") {
-                for (var ci = 0; ci < it.pathItems.length; ci++) {
-                    if (__isGuidePathItem(it.pathItems[ci])) continue;
-                    stats.pathCount++;
-                    stats.anchorCount += it.pathItems[ci].pathPoints.length;
-                    stats.handleCount += countHandlesInPathItem(it.pathItems[ci]);
-                    if (it.pathItems[ci].closed) {
-                        stats.closedPath++;
-                    } else {
-                        stats.openPath++;
-                    }
-                }
-            }
-        }
-
-        // 強制改行（ソフトリターン）をカウント / Count forced line breaks (soft returns)
-        // 段落改行（\r）は除外し、\u0003 / \n / \u2028 を強制改行として数える
-        function countForcedBreaksFromContents(s) {
-            if (!s || !s.length) return 0;
-            var m = s.match(/[\u0003\n\u2028]/g);
-            return m ? m.length : 0;
-        }
-
-        /* アイテムのテキスト統計を再帰的にカウント / Recursively count text stats for an item */
-        function countTextStatsForItem(it, stats) {
-            if (it.typename === "GroupItem") {
-                for (var gi = 0; gi < it.pageItems.length; gi++) {
-                    countTextStatsForItem(it.pageItems[gi], stats);
-                }
-            } else if (it.typename === "TextFrame") {
-                stats.textCount++;
-                try { stats.charCount += it.characters.length; } catch (e) { }
-                try { stats.paraCount += it.paragraphs.length; } catch (e) { }
-                try { stats.forcedBreakCount += countForcedBreaksFromContents(it.contents); } catch (e) { }
-                if (it.kind === TextType.POINTTEXT) {
-                    stats.pointText++;
-                } else if (it.kind === TextType.AREATEXT) {
-                    stats.areaText++;
-                } else if (it.kind === TextType.PATHTEXT) {
-                    stats.pathText++;
-                }
-            }
-        }
-
-        /* 選択分をカウント / Count selected items */
-        for (var i = 0; i < sel.length; i++) {
-            // CompoundPath/CompoundShape
-            if (sel[i].typename === "CompoundPathItem") {
-                compoundPathSel++;
-            }
-            if (sel[i].typename === "PluginItem") {
-                // 複合シェイプ（ライブパスファインダー）
-                try {
-                    if (sel[i].name && sel[i].name.indexOf("Compound Shape") !== -1) {
-                        compoundShapeSel++;
-                    }
-                } catch (e) { }
-            }
-            // 透明（選択）/ Transparency (selected)
-            try {
-                var t0 = countTransparencyForItem(sel[i]);
-                opacityLt100Sel += t0.opacityLt100;
-                blendNotNormalSel += t0.blendNotNormal;
-            } catch (e) { }
-
-            // ガイド（選択）/ Guides (selected)
-            try {
-                if (sel[i].typename === "PathItem") {
-                    var g0 = __countGuidesForPathItem(sel[i]);
-                    rulerGuideSel += g0.ruler;
-                    artboardGuideSel += g0.artboard;
-                    otherGuideSel += g0.other;
-                } else if (sel[i].typename === "CompoundPathItem") {
-                    for (var gg = 0; gg < sel[i].pathItems.length; gg++) {
-                        var g1 = __countGuidesForPathItem(sel[i].pathItems[gg]);
-                        rulerGuideSel += g1.ruler;
-                        artboardGuideSel += g1.artboard;
-                        otherGuideSel += g1.other;
-                    }
-                }
-            } catch (e) { }
-        }
-
-        // パス統計（選択）- グループ内も再帰的にカウント
-        // Path stats (selected) - recursively count inside groups
-        var pathStatsSel = { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 };
-        for (var i = 0; i < sel.length; i++) {
-            countPathStatsForItem(sel[i], pathStatsSel);
-        }
-        pathCountSel = pathStatsSel.pathCount;
-        anchorCountSel = pathStatsSel.anchorCount;
-        handleCountSel = pathStatsSel.handleCount;
-
-        /* 全体をカウント / Count all items */
-        var allItems = app.activeDocument.pageItems;
-        for (var k = 0; k < allItems.length; k++) {
-            var obj = allItems[k];
-
-            if (obj.typename === "CompoundPathItem") {
-                compoundPathAll++;
-            }
-            if (obj.typename === "PluginItem") {
-                try {
-                    if (obj.name && obj.name.indexOf("Compound Shape") !== -1) {
-                        compoundShapeAll++;
-                    }
-                } catch (e) { }
-            }
-
-            // 透明（全体）/ Transparency (all)
-            try {
-                var tAll = countTransparencyForItem(obj);
-                opacityLt100All += tAll.opacityLt100;
-                blendNotNormalAll += tAll.blendNotNormal;
-            } catch (e) { }
-
-            // ガイド（全体）/ Guides (all)
-            try {
-                if (obj.typename === "PathItem") {
-                    var gAll0 = __countGuidesForPathItem(obj);
-                    rulerGuideAll += gAll0.ruler;
-                    artboardGuideAll += gAll0.artboard;
-                    otherGuideAll += gAll0.other;
-                } else if (obj.typename === "CompoundPathItem") {
-                    for (var gg2 = 0; gg2 < obj.pathItems.length; gg2++) {
-                        var gAll1 = __countGuidesForPathItem(obj.pathItems[gg2]);
-                        rulerGuideAll += gAll1.ruler;
-                        artboardGuideAll += gAll1.artboard;
-                        otherGuideAll += gAll1.other;
-                    }
-                }
-            } catch (e) { }
-        }
-
-        // パス統計（全体）- グループ内も再帰的にカウント
-        // Path stats (all) - recursively count inside groups
-        var pathStatsAll = { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 };
-        for (var k = 0; k < allItems.length; k++) {
-            countPathStatsForItem(allItems[k], pathStatsAll);
-        }
-        pathCountAll = pathStatsAll.pathCount;
-        anchorCountAll = pathStatsAll.anchorCount;
-        handleCountAll = pathStatsAll.handleCount;
-
-        /* 結果を表示（ダイアログボックス） / Display results (dialog box) */
-        var dlg = new Window("dialog", LABELS.dialogTitle[lang]);
-        dlg.orientation = "column";
-        dlg.alignChildren = "center";
-        dlg.margins = [15, 0, 15, 20];
-
-        var LABEL_WIDTH = 130; /* 全ラベルの幅を統一 / Set uniform label width */
-        var LABEL_WIDTH_LEFT = 100; /* 左カラムのラベル幅 / Label width for left column */
-        var LABEL_WIDTH_TOP = 90; // オブジェクト・アートボード数専用ラベル幅
-        var LABEL_WIDTH_RIGHT = 140; /* 右カラムのラベル幅 / Label width for right column */
-
-        /* ラベルと値を2カラムで表示 / Display label and value in two columns */
-        var group = dlg.add("group");
-        group.orientation = "column";
-        group.alignChildren = ["fill", "top"];
-
-        // addRow: ラベル、値、カスタム幅（省略可） / label, value, customWidth (optional)
-        function addRow(labelText, valueText, customWidth) {
-            var g = group.add("group");
-            g.orientation = "row";
-            var label = g.add("statictext", undefined, labelText);
-            label.justify = "right";
-            label.preferredSize.width = (customWidth !== undefined) ? customWidth : LABEL_WIDTH;
-            g.add("statictext", undefined, valueText);
-        }
-
-        var totalObjSel = count;
-        var totalObjAll = allCount;
-        var artboardCount = app.activeDocument.artboards.length;
-
-        // 表示切り替え（ラジオボタン＋stack） / View switcher (radio buttons + stack)
-        var switchRow = dlg.add("group");
-        switchRow.orientation = "row";
-        switchRow.alignChildren = ["center", "center"];
-        switchRow.alignment = ["center", "top"];
-        switchRow.helpTip = LABELS.shortcutHint[lang];
-
-        var rbInfo = switchRow.add("radiobutton", undefined, LABELS.tabCount[lang]);
-        var rbMemo = switchRow.add("radiobutton", undefined, LABELS.tabMemo[lang]);
-        rbInfo.helpTip = LABELS.shortcutHint[lang];
-        rbMemo.helpTip = LABELS.shortcutHint[lang];
-        rbInfo.value = true;
-
-        var stackWrap = dlg.add("group");
-        stackWrap.orientation = "stack";
-        stackWrap.alignChildren = ["fill", "fill"];
-
-        var tab1 = stackWrap.add("group");
-        tab1.orientation = "column";
-        tab1.alignChildren = ["fill", "top"];
-        tab1.margins = [10, 15, 10, 10];
-
-        var tab2 = stackWrap.add("group");
-        tab2.orientation = "column";
-        tab2.alignChildren = ["fill", "top"];
-        tab2.margins = [10, 15, 10, 10];
-        tab2.visible = false;
-
-        function switchView(mode) {
-            var showInfo = (mode === "info");
-            rbInfo.value = showInfo;
-            rbMemo.value = !showInfo;
-            tab1.visible = showInfo;
-            tab2.visible = !showInfo;
-
-            try {
-                if (stackWrap && stackWrap.layout && stackWrap.layout.layout) {
-                    stackWrap.layout.layout(true);
-                }
-            } catch (e) { }
-
-            try {
-                if (dlg && dlg.layout && dlg.layout.layout) {
-                    dlg.layout.layout(true);
-                }
-            } catch (e2) { }
-        }
-
-        // 2カラムのグループ / Two-column group
-        var twoColGroup = tab1.add("group");
-        twoColGroup.orientation = "row";
-        twoColGroup.alignChildren = ["fill", "top"];
-
-        // 左カラム
-        var leftCol = twoColGroup.add("group");
-        leftCol.orientation = "column";
-        leftCol.alignChildren = ["fill", "top"];
-
-        /* その他の詳細を表示するパネル / Panel to display other details */
-        var panelOther = leftCol.add("panel", undefined, LABELS.other[lang]);
-        panelOther.orientation = "column";
-        panelOther.alignChildren = ["fill", "top"];
-        panelOther.margins = [15, 20, 0, 10];
-
-        function addOtherRow(label, value) {
-            var row = panelOther.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_LEFT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
-
-        addOtherRow(LABELS.artboards[lang], artboardCount.toString());
-        addOtherRow(LABELS.objects[lang], totalObjSel + " / " + totalObjAll);
-
-        /* テキストの詳細を表示するパネル / Panel to display text details */
-        var panelText = leftCol.add("panel", undefined, LABELS.texts[lang]);
-        panelText.orientation = "column";
-        panelText.alignChildren = ["fill", "top"];
-        panelText.margins = [15, 20, 0, 10];
-
-        /* 文字・段落の詳細を表示するパネル / Panel to display character and paragraph details */
-        var panelCharPara = leftCol.add("panel", undefined, LABELS.charPara[lang]);
-        panelCharPara.orientation = "column";
-        panelCharPara.alignChildren = ["fill", "top"];
-        panelCharPara.margins = [15, 20, 0, 10];
-
-
-        function addCharParaRow(label, value) {
-            var row = panelCharPara.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_LEFT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
-
-        // テキスト統計（選択）- グループ内も再帰的にカウント
-        // Text stats (selected) - recursively count inside groups
-        var textStatsSel = { textCount: 0, charCount: 0, paraCount: 0, forcedBreakCount: 0, pointText: 0, areaText: 0, pathText: 0 };
-        for (var i = 0; i < sel.length; i++) {
-            countTextStatsForItem(sel[i], textStatsSel);
-        }
-        var textCountSel = textStatsSel.textCount;
-        var totalCharSel = textStatsSel.charCount;
-        var paraCountSel = textStatsSel.paraCount;
-        var forcedBreakSel = textStatsSel.forcedBreakCount;
-        var pointTextSel = textStatsSel.pointText;
-        var areaTextSel = textStatsSel.areaText;
-        var pathTextSel = textStatsSel.pathText;
-
-        // テキスト統計（全体）- グループ内も再帰的にカウント
-        // Text stats (all) - recursively count inside groups
-        var textStatsAll = { textCount: 0, charCount: 0, paraCount: 0, forcedBreakCount: 0, pointText: 0, areaText: 0, pathText: 0 };
-        for (var k = 0; k < allItems.length; k++) {
-            countTextStatsForItem(allItems[k], textStatsAll);
-        }
-        var textCountAll = textStatsAll.textCount;
-        var totalCharAll = textStatsAll.charCount;
-        var paraCountAll = textStatsAll.paraCount;
-        var forcedBreakAll = textStatsAll.forcedBreakCount;
-        var pointTextAll = textStatsAll.pointText;
-        var areaTextAll = textStatsAll.areaText;
-        var pathTextAll = textStatsAll.pathText;
-
-        function addTextRow(label, value) {
-            var row = panelText.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_LEFT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
-
-        addCharParaRow(LABELS.chars[lang], totalCharSel + " / " + totalCharAll);
-        addCharParaRow(LABELS.paras[lang], paraCountSel + " / " + paraCountAll);
-        addCharParaRow(LABELS.forcedBreaks[lang], forcedBreakSel + " / " + forcedBreakAll);
-        addTextRow(LABELS.texts[lang], textCountSel + " / " + textCountAll);
-        addTextRow(LABELS.pointText[lang], pointTextSel + " / " + pointTextAll);
-        addTextRow(LABELS.areaText[lang], areaTextSel + " / " + areaTextAll);
-        addTextRow(LABELS.pathText[lang], pathTextSel + " / " + pathTextAll);
-
-        // 右カラム
-        var rightCol = twoColGroup.add("group");
-        rightCol.orientation = "column";
-        rightCol.alignChildren = ["fill", "top"];
-
-
-        /* 画像の詳細を表示するパネル / Panel to display image details */
-        var panelImage = leftCol.add("panel", undefined, LABELS.images[lang]);
-        panelImage.orientation = "column";
-        panelImage.alignChildren = ["fill", "top"];
-        panelImage.margins = [15, 20, 0, 10];
-
-        var linkedSel = 0,
-            linkedAll = 0;
-        var embeddedSel = 0,
-            embeddedAll = 0;
-        var brokenLinkSel = 0,
-            brokenLinkAll = 0;
-        var memoTextsSel = [];
-
-        /* 選択オブジェクト / Selected objects */
-        for (var i = 0; i < sel.length; i++) {
-            if (sel[i].typename === "PlacedItem") {
-                if (sel[i].embedded) {
-                    embeddedSel++;
-                } else {
-                    linkedSel++;
-                    try {
-                        var f = sel[i].file;
-                        if (!f || !f.exists) {
-                            brokenLinkSel++;
-                        }
-                    } catch (err) {
-                        brokenLinkSel++;
-                    }
-                }
-            }
-            try {
-                if (sel[i].note && sel[i].note !== "") {
-                    memoTextsSel.push(sel[i].note);
-                }
-            } catch (e) { }
-        }
-
-        /* 全体 / All objects */
-        for (var k = 0; k < allItems.length; k++) {
-            var obj = allItems[k];
-            if (obj.typename === "PlacedItem") {
-                if (obj.embedded) {
-                    embeddedAll++;
-                } else {
-                    linkedAll++;
-                    try {
-                        var fAll = obj.file;
-                        if (!fAll || !fAll.exists) {
-                            brokenLinkAll++;
-                        }
-                    } catch (err) {
-                        brokenLinkAll++;
-                    }
-                }
-            }
-        }
-
-        function addImageRow(label, value) {
-            var row = panelImage.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_LEFT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
-
-        addImageRow(LABELS.linked[lang], linkedSel + " / " + linkedAll);
-        addImageRow(LABELS.embed[lang], embeddedSel + " / " + embeddedAll);
-        addImageRow(LABELS.broken[lang], brokenLinkSel + " / " + brokenLinkAll);
-
-        /* メモパネル（表示のみ）/ Memo panel (read-only) */
-        var panelMemo = leftCol.add("panel", undefined, LABELS.memo[lang]);
-        panelMemo.orientation = "column";
-        panelMemo.alignChildren = ["fill", "top"];
-        panelMemo.margins = [15, 20, 0, 10];
-        var memoTab1Text = memoTextsSel.length === 1 ? memoTextsSel[0] : (memoTextsSel.length > 1 ? LABELS.multipleMemosMsg[lang] : "");
-        var memoReadOnly = panelMemo.add("statictext", undefined, memoTab1Text, { multiline: true });
-        memoReadOnly.preferredSize = [160, 50];
-        var firstMemoField = null;
-
-        /* メモタブ（位置順にソート）/ Notes tab (sorted by position) */
-        var sortedSel = [];
-        for (var si = 0; si < sel.length; si++) { sortedSel.push(sel[si]); }
-        sortedSel.sort(function (a, b) {
-            var aTop = 0, bTop = 0, aLeft = 0, bLeft = 0;
-            try { aTop = a.geometricBounds[1]; } catch (e) { }
-            try { bTop = b.geometricBounds[1]; } catch (e) { }
-            try { aLeft = a.geometricBounds[0]; } catch (e) { }
-            try { bLeft = b.geometricBounds[0]; } catch (e) { }
-            if (aTop !== bTop) return bTop - aTop; // 上から下（Y降順）
-            return aLeft - bLeft;                  // 左から右（X昇順）
-        });
-
-        for (var mi = 0; mi < sortedSel.length; mi++) {
-            (function (obj) {
-                var row = tab2.add("group");
-                row.orientation = "row";
-                row.alignChildren = ["fill", "center"];
-                var noteText = "";
-                try { noteText = obj.note || ""; } catch (e) { }
-                var noteField = row.add("edittext", undefined, noteText, { multiline: true });
-                noteField.preferredSize = [340, 44];
-                if (!firstMemoField) firstMemoField = noteField;
-                var applyBtn = row.add("button", undefined, LABELS.applyMemo[lang]);
-                // applyBtn.preferredSize.width = 30;
-                applyBtn.onClick = function () {
-                    try { obj.note = noteField.text; } catch (e) { }
-
-                    // Update the read‑only memo panel immediately
-                    try {
-                        if (memoTextsSel.length === 1) {
-                            memoReadOnly.text = noteField.text;
-                        }
-                    } catch (e2) { }
-
-                    // Force Illustrator UI refresh
-                    try { app.redraw(); } catch (e3) { }
-                };
-            })(sortedSel[mi]);
-        }
-
-        /* グループの詳細を表示するパネル / Panel to display group details */
-        var panelGroup = rightCol.add("panel", undefined, LABELS.group[lang]);
-        panelGroup.orientation = "column";
-        panelGroup.alignChildren = ["fill", "top"];
-        panelGroup.margins = [15, 20, 0, 10];
-
-        var groupSel = 0,
-            groupAll = 0;
-        var clipGroupSel = 0,
-            clipGroupAll = 0;
-
-        /* 選択オブジェクト / Selected objects */
-        for (var i = 0; i < sel.length; i++) {
-            if (sel[i].typename === "GroupItem") {
-                groupSel++;
-                if (sel[i].clipped) {
-                    clipGroupSel++;
-                }
-            }
-        }
-
-        /* 全体 / All objects */
-        for (var k = 0; k < allItems.length; k++) {
-            var obj = allItems[k];
-            if (obj.typename === "GroupItem") {
-                groupAll++;
-                if (obj.clipped) {
-                    clipGroupAll++;
-                }
-            }
-        }
-
-        function addGroupRow(label, value) {
-            var row = panelGroup.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_RIGHT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
-
-        addGroupRow(LABELS.group[lang], groupSel + " / " + groupAll);
-        addGroupRow(LABELS.clipGroup[lang], clipGroupSel + " / " + clipGroupAll);
-
-        /* 透明の詳細を表示するパネル / Panel to display transparency details */
-        var panelTransparency = rightCol.add("panel", undefined, LABELS.transparency[lang]);
-        panelTransparency.orientation = "column";
-        panelTransparency.alignChildren = ["fill", "top"];
-        panelTransparency.margins = [15, 20, 0, 10];
-
-        function addTransparencyRow(label, value) {
-            var row = panelTransparency.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_RIGHT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
-
-        addTransparencyRow(LABELS.opacityLt100[lang], opacityLt100Sel + " / " + opacityLt100All);
-        addTransparencyRow(LABELS.blendNotNormal[lang], blendNotNormalSel + " / " + blendNotNormalAll);
-
-        /* パスの詳細を表示するパネル / Panel to display path details */
-        var panelPath = rightCol.add("panel", undefined, LABELS.path[lang]);
-        panelPath.orientation = "column";
-        panelPath.alignChildren = ["fill", "top"];
-        panelPath.margins = [15, 20, 0, 10];
-
-        /* パス総数表示行を最上部に追加 / Add total path count row at top */
-        function addPathRow(label, value) {
-            var row = panelPath.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_RIGHT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
-        addPathRow(LABELS.pathCount[lang], pathCountSel + " / " + pathCountAll);
-
-        /* パスの種類（再帰カウント済み） / Path types (already counted recursively) */
-        var openPathSel = pathStatsSel.openPath;
-        var openPathAll = pathStatsAll.openPath;
-        var closedPathSel = pathStatsSel.closedPath;
-        var closedPathAll = pathStatsAll.closedPath;
-
-        addPathRow(LABELS.openPath[lang], openPathSel + " / " + openPathAll);
-        addPathRow(LABELS.closedPath[lang], closedPathSel + " / " + closedPathAll);
-        addPathRow(LABELS.anchors[lang], anchorCountSel + " / " + anchorCountAll);
-        addPathRow(LABELS.handles[lang], handleCountSel + " / " + handleCountAll);
-        addPathRow(LABELS.compoundPath[lang], compoundPathSel + " / " + compoundPathAll);
-        addPathRow(LABELS.compoundShape[lang], compoundShapeSel + " / " + compoundShapeAll);
-
-        /* ガイドの詳細を表示するパネル / Panel to display guide details */
-        var panelGuide = rightCol.add("panel", undefined, LABELS.guide[lang]);
-        panelGuide.orientation = "column";
-        panelGuide.alignChildren = ["fill", "top"];
-        panelGuide.margins = [15, 20, 0, 10];
-
-        function addGuideRow(label, value) {
-            var row = panelGuide.add("group");
-            row.orientation = "row";
-            var lbl = row.add("statictext", [0, 0, LABEL_WIDTH_RIGHT, 20], label);
-            lbl.justify = "right";
-            var val = row.add("statictext", undefined, value);
-            val.characters = value.length;
-        }
-
-        addGuideRow(LABELS.rulerGuides[lang], rulerGuideSel + " / " + rulerGuideAll);
-        addGuideRow(LABELS.artboardGuides[lang], artboardGuideSel + " / " + artboardGuideAll);
-        addGuideRow(LABELS.otherGuides[lang], otherGuideSel + " / " + otherGuideAll);
-
-        // メイングループ（横並び） / Main group (horizontal layout)
-        var btnRowGroup = dlg.add("group");
-        btnRowGroup.orientation = "row";
-        btnRowGroup.alignChildren = ["fill", "center"];
-        btnRowGroup.margins = [10, 10, 10, 0];
-        btnRowGroup.alignment = ["fill", "bottom"];
-
-        // 左側グループ / Left-side button group
-        var btnLeftGroup = btnRowGroup.add("group");
-        btnLeftGroup.alignChildren = ["left", "center"];
-        var btnExport = btnLeftGroup.add("button", undefined, LABELS.exportPreset[lang], {
-            name: "preview"
-        });
-
-        // スペーサー（伸縮）/ Spacer (stretchable)
-        var spacer = btnRowGroup.add("statictext", undefined, "");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 0;
-
-        // 右側グループ / Right-side button group
-        var btnRightGroup = btnRowGroup.add("group");
-        btnRightGroup.alignChildren = ["right", "center"];
-        var btnOK = btnRightGroup.add("button", undefined, LABELS.ok[lang], {
-            name: "ok"
-        });
-
-        btnExport.onClick = function () {
-            try {
-                var docName = app.activeDocument.name.replace(/\.[^\.]+$/, ""); // 拡張子を除いたファイル名
-                var today = new Date();
-                var yyyy = today.getFullYear();
-                var mm = ("0" + (today.getMonth() + 1)).slice(-2);
-                var dd = ("0" + today.getDate()).slice(-2);
-                var dateStr = yyyy + mm + dd;
-
-                var desktopPath = Folder.desktop + "/count-" + docName + "-" + dateStr + ".txt";
-                var file = new File(desktopPath);
-
-                // Helper: write a label + "sel / all" (layout aligned with dialog)
-                function wPair(labelJa, labelEn, selVal, allVal) {
-                    if (lang === "ja") {
-                        file.writeln(labelJa + " " + selVal + " / " + allVal);
-                    } else {
-                        file.writeln(labelEn + " " + selVal + " / " + allVal);
-                    }
-                }
-
-                // Helper: write a label + single value
-                function wSingle(labelJa, labelEn, val) {
-                    if (lang === "ja") {
-                        file.writeln(labelJa + " " + val);
-                    } else {
-                        file.writeln(labelEn + " " + val);
-                    }
-                }
-
-                // Helper: section header
-                function wSection(labelObj) {
-                    file.writeln("");
-                    file.writeln(labelObj[lang]);
-                }
-
-                if (file.open("w")) {
-                    // Header
-                    file.writeln(LABELS.reportTitle[lang]);
-                    file.writeln(LABELS.reportDocument[lang] + " " + app.activeDocument.name);
-                    file.writeln(LABELS.reportDate[lang] + " " + yyyy + "-" + mm + "-" + dd);
-                    file.writeln("");
-                    file.writeln(LABELS.reportValueNote[lang]);
-
-                    // Basics / Misc
-                    wSection(LABELS.sectionBasics);
-                    wSingle(LABELS.artboards.ja.replace(/：$/, ":"), LABELS.artboards.en.replace(/:$/, ":"), artboardCount);
-                    wPair(LABELS.objects.ja.replace(/：$/, ":"), LABELS.objects.en.replace(/:$/, ":"), totalObjSel, totalObjAll);
-
-                    // Text Frames
-                    wSection(LABELS.sectionTextFrames);
-                    wPair(LABELS.texts.ja.replace(/：$/, ":"), LABELS.texts.en.replace(/:$/, ":"), textCountSel, textCountAll);
-                    wPair(LABELS.pointText.ja.replace(/：$/, ":"), LABELS.pointText.en.replace(/:$/, ":"), pointTextSel, pointTextAll);
-                    wPair(LABELS.areaText.ja.replace(/：$/, ":"), LABELS.areaText.en.replace(/:$/, ":"), areaTextSel, areaTextAll);
-                    wPair(LABELS.pathText.ja.replace(/：$/, ":"), LABELS.pathText.en.replace(/:$/, ":"), pathTextSel, pathTextAll);
-
-                    // Characters & Paragraphs
-                    wSection(LABELS.sectionCharPara);
-                    wPair(LABELS.chars.ja.replace(/：$/, ":"), LABELS.chars.en.replace(/:$/, ":"), totalCharSel, totalCharAll);
-                    wPair(LABELS.paras.ja.replace(/：$/, ":"), LABELS.paras.en.replace(/:$/, ":"), paraCountSel, paraCountAll);
-                    wPair(LABELS.forcedBreaks.ja.replace(/：$/, ":"), LABELS.forcedBreaks.en.replace(/:$/, ":"), forcedBreakSel, forcedBreakAll);
-
-                    // Images
-                    wSection(LABELS.sectionImages);
-                    wPair(LABELS.linked.ja.replace(/：$/, ":"), LABELS.linked.en.replace(/:$/, ":"), linkedSel, linkedAll);
-                    wPair(LABELS.embed.ja.replace(/：$/, ":"), LABELS.embed.en.replace(/:$/, ":"), embeddedSel, embeddedAll);
-                    wPair(LABELS.broken.ja.replace(/：$/, ":"), LABELS.broken.en.replace(/:$/, ":"), brokenLinkSel, brokenLinkAll);
-
-                    // Notes
-                    wSection(LABELS.sectionNotes);
-                    if (memoTextsSel.length > 0) {
-                        file.writeln(memoTextsSel.join("\n"));
-                    }
-
-                    // Transparency
-                    wSection(LABELS.sectionTransparency);
-                    wPair(LABELS.opacityLt100.ja.replace(/：$/, ":"), LABELS.opacityLt100.en.replace(/:$/, ":"), opacityLt100Sel, opacityLt100All);
-                    wPair(LABELS.blendNotNormal.ja.replace(/：$/, ":"), LABELS.blendNotNormal.en.replace(/:$/, ":"), blendNotNormalSel, blendNotNormalAll);
-
-                    // Groups
-                    wSection(LABELS.sectionGroups);
-                    wPair(LABELS.group.ja.replace(/：$/, ":"), LABELS.group.en.replace(/:$/, ":"), groupSel, groupAll);
-                    wPair(LABELS.clipGroup.ja.replace(/：$/, ":"), LABELS.clipGroup.en.replace(/:$/, ":"), clipGroupSel, clipGroupAll);
-
-                    // Paths
-                    wSection(LABELS.sectionPaths);
-                    wPair(LABELS.pathCount.ja.replace(/：$/, ":"), LABELS.pathCount.en.replace(/:$/, ":"), pathCountSel, pathCountAll);
-                    wPair(LABELS.openPath.ja.replace(/：$/, ":"), LABELS.openPath.en.replace(/:$/, ":"), openPathSel, openPathAll);
-                    wPair(LABELS.closedPath.ja.replace(/：$/, ":"), LABELS.closedPath.en.replace(/:$/, ":"), closedPathSel, closedPathAll);
-                    wPair(LABELS.anchors.ja.replace(/：$/, ":"), LABELS.anchors.en.replace(/:$/, ":"), anchorCountSel, anchorCountAll);
-                    wPair(LABELS.handles.ja.replace(/：$/, ":"), LABELS.handles.en.replace(/:$/, ":"), handleCountSel, handleCountAll);
-                    wPair(LABELS.compoundPath.ja.replace(/：$/, ":"), LABELS.compoundPath.en.replace(/:$/, ":"), compoundPathSel, compoundPathAll);
-                    wPair(LABELS.compoundShape.ja.replace(/：$/, ":"), LABELS.compoundShape.en.replace(/:$/, ":"), compoundShapeSel, compoundShapeAll);
-
-                    // Guides
-                    wSection(LABELS.sectionGuides);
-                    wPair(LABELS.rulerGuides.ja.replace(/：$/, ":"), LABELS.rulerGuides.en.replace(/:$/, ":"), rulerGuideSel, rulerGuideAll);
-                    wPair(LABELS.artboardGuides.ja.replace(/：$/, ":"), LABELS.artboardGuides.en.replace(/:$/, ":"), artboardGuideSel, artboardGuideAll);
-                    wPair(LABELS.otherGuides.ja.replace(/：$/, ":"), LABELS.otherGuides.en.replace(/:$/, ":"), otherGuideSel, otherGuideAll);
-
-                    file.close();
-
-                    if (lang === "ja") {
-                        alert("書き出しました: " + desktopPath);
-                    } else {
-                        alert("Exported: " + desktopPath);
-                    }
-                } else {
-                    if (lang === "ja") {
-                        alert("ファイルを開けませんでした。");
-                    } else {
-                        alert("Failed to open the file.");
-                    }
-                }
-            } catch (err) {
-                if (lang === "ja") {
-                    alert("書き出し中にエラー: " + err);
-                } else {
-                    alert("Export error: " + err);
-                }
-            }
-        };
-        btnOK.onClick = function () {
-            dlg.close();
-        };
-
-        /* ダイアログ透明度と位置を調整 / Adjust dialog opacity and position */
-        var dialogOpacity = 0.97;
-
-        function setDialogOpacity(targetDlg, opacityValue) {
-            try {
-                if (targetDlg && typeof opacityValue === "number") {
-                    targetDlg.opacity = opacityValue;
-                }
-            } catch (e) { }
-        }
-
-        function restoreDialogLocation(targetDlg) {
-            try {
-                if (__selectionInspectorDialogState.location && __selectionInspectorDialogState.location.length === 2) {
-                    targetDlg.location = [
-                        __selectionInspectorDialogState.location[0],
-                        __selectionInspectorDialogState.location[1]
-                    ];
-                } else {
-                    targetDlg.center();
-                }
-            } catch (e) {
-                targetDlg.center();
-            }
-        }
-
-        function rememberDialogLocation(targetDlg) {
-            try {
-                if (targetDlg.location && targetDlg.location.length === 2) {
-                    __selectionInspectorDialogState.location = [
-                        targetDlg.location[0],
-                        targetDlg.location[1]
-                    ];
-                }
-            } catch (e) { }
-        }
-
-        dlg.onClose = function () {
-            rememberDialogLocation(dlg);
-            try { app.redraw(); } catch (e) { }
-        };
-
-        dlg.addEventListener("keydown", function (event) {
-            var key = "";
-            try {
-                key = event && event.keyName ? String(event.keyName).toUpperCase() : "";
-            } catch (e) {
-                key = "";
-            }
-
-            if (event && event.altKey && key === "I") {
-                switchView("info");
-                try { btnOK.active = true; } catch (e1) { }
-                try { if (event.preventDefault) event.preventDefault(); } catch (e2) { }
-            }
-            else if (event && event.altKey && key === "M") {
-                switchView("memo");
-                try {
-                    if (firstMemoField) {
-                        firstMemoField.active = true;
-                    }
-                } catch (e3) { }
-                try { if (event.preventDefault) event.preventDefault(); } catch (e4) { }
-            }
-        });
-
-        rbInfo.onClick = function () {
-            switchView("info");
-        };
-
-        rbMemo.onClick = function () {
-            switchView("memo");
-            try {
-                if (firstMemoField) firstMemoField.active = true;
-            } catch (e5) { }
-        };
-
-        switchView("info");
-        setDialogOpacity(dlg, dialogOpacity);
-        restoreDialogLocation(dlg);
-        dlg.show();
-
-    } catch (e) {
-        alert("エラーが発生しました: " + e);
     }
 }
 
-main();
+function wkCountForcedBreaks(s) {
+    if (!s || !s.length) { return 0; }
+    var m = s.match(/[\n]/g);
+    return m ? m.length : 0;
+}
+
+function wkCountTextStats(it, stats) {
+    if (it.typename === "GroupItem") {
+        for (var gi = 0; gi < it.pageItems.length; gi++) { wkCountTextStats(it.pageItems[gi], stats); }
+    } else if (it.typename === "TextFrame") {
+        stats.textCount++;
+        try { stats.charCount += it.characters.length; } catch (e) {}
+        try { stats.paraCount += it.paragraphs.length; } catch (e2) {}
+        try { stats.forcedBreakCount += wkCountForcedBreaks(it.contents); } catch (e3) {}
+        if (it.kind === TextType.POINTTEXT) { stats.pointText++; }
+        else if (it.kind === TextType.AREATEXT) { stats.areaText++; }
+        else if (it.kind === TextType.PATHTEXT) { stats.pathText++; }
+    }
+}
+
+function wkSortSelection(sel) {
+    var arr = [];
+    for (var i = 0; i < sel.length; i++) { arr.push(sel[i]); }
+    arr.sort(function (a, b) {
+        var aTop = 0, bTop = 0, aLeft = 0, bLeft = 0;
+        try { aTop = a.geometricBounds[1]; } catch (e) {}
+        try { bTop = b.geometricBounds[1]; } catch (e2) {}
+        try { aLeft = a.geometricBounds[0]; } catch (e3) {}
+        try { bLeft = b.geometricBounds[0]; } catch (e4) {}
+        if (aTop !== bTop) { return bTop - aTop; }
+        return aLeft - bLeft;
+    });
+    return arr;
+}
+
+function wkCollect() {
+    if (app.documents.length === 0) { return "NODOC"; }
+    var doc = app.activeDocument;
+    var sel = doc.selection;
+    if (!sel) { sel = []; }
+    var selCount = sel.length;
+
+    var allCount = 0;
+    function countAll(items) {
+        for (var i = 0; i < items.length; i++) {
+            var it = items[i];
+            allCount++;
+            if (it.typename === "GroupItem") { countAll(it.pageItems); }
+            else if (it.typename === "CompoundPathItem") { countAll(it.pathItems); }
+        }
+    }
+    countAll(doc.pageItems);
+
+    var allItems = doc.pageItems;
+
+    var cpathSel = 0, cpathAll = 0, cshapeSel = 0, cshapeAll = 0;
+    var opacitySel = 0, opacityAll = 0, blendSel = 0, blendAll = 0;
+    var rulerSel = 0, rulerAll = 0, abguideSel = 0, abguideAll = 0, otherguideSel = 0, otherguideAll = 0;
+
+    for (var i = 0; i < sel.length; i++) {
+        if (sel[i].typename === "CompoundPathItem") { cpathSel++; }
+        if (sel[i].typename === "PluginItem") {
+            try { if (sel[i].name && sel[i].name.indexOf("Compound Shape") !== -1) { cshapeSel++; } } catch (e) {}
+        }
+        try { var t0 = wkCountTransparency(sel[i]); opacitySel += t0.opacityLt100; blendSel += t0.blendNotNormal; } catch (e2) {}
+        try {
+            if (sel[i].typename === "PathItem") {
+                var g0 = wkCountGuides(sel[i], doc); rulerSel += g0.ruler; abguideSel += g0.artboard; otherguideSel += g0.other;
+            } else if (sel[i].typename === "CompoundPathItem") {
+                for (var gg = 0; gg < sel[i].pathItems.length; gg++) {
+                    var g1 = wkCountGuides(sel[i].pathItems[gg], doc); rulerSel += g1.ruler; abguideSel += g1.artboard; otherguideSel += g1.other;
+                }
+            }
+        } catch (e3) {}
+    }
+
+    var pathStatsSel = { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 };
+    for (var i2 = 0; i2 < sel.length; i2++) { wkCountPathStats(sel[i2], pathStatsSel); }
+
+    for (var k = 0; k < allItems.length; k++) {
+        var obj = allItems[k];
+        if (obj.typename === "CompoundPathItem") { cpathAll++; }
+        if (obj.typename === "PluginItem") {
+            try { if (obj.name && obj.name.indexOf("Compound Shape") !== -1) { cshapeAll++; } } catch (e4) {}
+        }
+        try { var tA = wkCountTransparency(obj); opacityAll += tA.opacityLt100; blendAll += tA.blendNotNormal; } catch (e5) {}
+        try {
+            if (obj.typename === "PathItem") {
+                var gA0 = wkCountGuides(obj, doc); rulerAll += gA0.ruler; abguideAll += gA0.artboard; otherguideAll += gA0.other;
+            } else if (obj.typename === "CompoundPathItem") {
+                for (var gg2 = 0; gg2 < obj.pathItems.length; gg2++) {
+                    var gA1 = wkCountGuides(obj.pathItems[gg2], doc); rulerAll += gA1.ruler; abguideAll += gA1.artboard; otherguideAll += gA1.other;
+                }
+            }
+        } catch (e6) {}
+    }
+
+    var pathStatsAll = { pathCount: 0, anchorCount: 0, handleCount: 0, openPath: 0, closedPath: 0 };
+    for (var k2 = 0; k2 < allItems.length; k2++) { wkCountPathStats(allItems[k2], pathStatsAll); }
+
+    var textStatsSel = { textCount: 0, charCount: 0, paraCount: 0, forcedBreakCount: 0, pointText: 0, areaText: 0, pathText: 0 };
+    for (var i3 = 0; i3 < sel.length; i3++) { wkCountTextStats(sel[i3], textStatsSel); }
+    var textStatsAll = { textCount: 0, charCount: 0, paraCount: 0, forcedBreakCount: 0, pointText: 0, areaText: 0, pathText: 0 };
+    for (var k3 = 0; k3 < allItems.length; k3++) { wkCountTextStats(allItems[k3], textStatsAll); }
+
+    var linkedSel = 0, linkedAll = 0, embedSel = 0, embedAll = 0, brokenSel = 0, brokenAll = 0;
+    for (var i4 = 0; i4 < sel.length; i4++) {
+        if (sel[i4].typename === "PlacedItem") {
+            if (sel[i4].embedded) { embedSel++; }
+            else {
+                linkedSel++;
+                try { var f = sel[i4].file; if (!f || !f.exists) { brokenSel++; } } catch (e7) { brokenSel++; }
+            }
+        }
+    }
+    for (var k4 = 0; k4 < allItems.length; k4++) {
+        var obj2 = allItems[k4];
+        if (obj2.typename === "PlacedItem") {
+            if (obj2.embedded) { embedAll++; }
+            else {
+                linkedAll++;
+                try { var fA = obj2.file; if (!fA || !fA.exists) { brokenAll++; } } catch (e8) { brokenAll++; }
+            }
+        }
+    }
+
+    var sorted = wkSortSelection(sel);
+    var memoParts = [];
+    for (var mi = 0; mi < sorted.length; mi++) {
+        var nt = "";
+        try { nt = sorted[mi].note || ""; } catch (e9) { nt = ""; }
+        memoParts.push(encodeURIComponent(nt));
+    }
+
+    var groupSel = 0, groupAll = 0, clipSel = 0, clipAll = 0;
+    for (var i5 = 0; i5 < sel.length; i5++) {
+        if (sel[i5].typename === "GroupItem") { groupSel++; if (sel[i5].clipped) { clipSel++; } }
+    }
+    for (var k5 = 0; k5 < allItems.length; k5++) {
+        if (allItems[k5].typename === "GroupItem") { groupAll++; if (allItems[k5].clipped) { clipAll++; } }
+    }
+
+    var artboards = doc.artboards.length;
+    var docName = "";
+    try { docName = doc.name; } catch (e10) { docName = ""; }
+
+    var out = [];
+    out.push("selCount=" + selCount);
+    out.push("allCount=" + allCount);
+    out.push("artboards=" + artboards);
+    out.push("docName=" + encodeURIComponent(docName));
+    out.push("textSel=" + textStatsSel.textCount);
+    out.push("textAll=" + textStatsAll.textCount);
+    out.push("pointSel=" + textStatsSel.pointText);
+    out.push("pointAll=" + textStatsAll.pointText);
+    out.push("areaSel=" + textStatsSel.areaText);
+    out.push("areaAll=" + textStatsAll.areaText);
+    out.push("pathSel=" + textStatsSel.pathText);
+    out.push("pathAll=" + textStatsAll.pathText);
+    out.push("charSel=" + textStatsSel.charCount);
+    out.push("charAll=" + textStatsAll.charCount);
+    out.push("paraSel=" + textStatsSel.paraCount);
+    out.push("paraAll=" + textStatsAll.paraCount);
+    out.push("fbSel=" + textStatsSel.forcedBreakCount);
+    out.push("fbAll=" + textStatsAll.forcedBreakCount);
+    out.push("linkedSel=" + linkedSel);
+    out.push("linkedAll=" + linkedAll);
+    out.push("embedSel=" + embedSel);
+    out.push("embedAll=" + embedAll);
+    out.push("brokenSel=" + brokenSel);
+    out.push("brokenAll=" + brokenAll);
+    out.push("groupSel=" + groupSel);
+    out.push("groupAll=" + groupAll);
+    out.push("clipSel=" + clipSel);
+    out.push("clipAll=" + clipAll);
+    out.push("opacitySel=" + opacitySel);
+    out.push("opacityAll=" + opacityAll);
+    out.push("blendSel=" + blendSel);
+    out.push("blendAll=" + blendAll);
+    out.push("pathCountSel=" + pathStatsSel.pathCount);
+    out.push("pathCountAll=" + pathStatsAll.pathCount);
+    out.push("openSel=" + pathStatsSel.openPath);
+    out.push("openAll=" + pathStatsAll.openPath);
+    out.push("closedSel=" + pathStatsSel.closedPath);
+    out.push("closedAll=" + pathStatsAll.closedPath);
+    out.push("anchorSel=" + pathStatsSel.anchorCount);
+    out.push("anchorAll=" + pathStatsAll.anchorCount);
+    out.push("handleSel=" + pathStatsSel.handleCount);
+    out.push("handleAll=" + pathStatsAll.handleCount);
+    out.push("cpathSel=" + cpathSel);
+    out.push("cpathAll=" + cpathAll);
+    out.push("cshapeSel=" + cshapeSel);
+    out.push("cshapeAll=" + cshapeAll);
+    out.push("rulerSel=" + rulerSel);
+    out.push("rulerAll=" + rulerAll);
+    out.push("abguideSel=" + abguideSel);
+    out.push("abguideAll=" + abguideAll);
+    out.push("otherguideSel=" + otherguideSel);
+    out.push("otherguideAll=" + otherguideAll);
+
+    return "OK|" + out.join("|") + "|MEMO|" + selCount + "|" + memoParts.join("|");
+}
+
+function wkApplyMemo(index, enc) {
+    if (app.documents.length === 0) { return "NODOC"; }
+    var sel = app.activeDocument.selection;
+    if (!sel) { sel = []; }
+    if (index < 0 || index >= sel.length) { return "IDX"; }
+    var sorted = wkSortSelection(sel);
+    try { sorted[index].note = decodeURIComponent(enc); } catch (e) { return "ERR:" + e; }
+    try { app.redraw(); } catch (e2) {}
+    return "OK";
+}
+
+/* worker 関数は全登録（追加漏れ防止） / Register every worker function */
+var WORKER_FUNCS = [
+    wkGetMaxArtboardSpan,
+    wkIsArtboardGuide,
+    wkIsRulerGuide,
+    wkCountGuides,
+    wkCountTransparency,
+    wkIsGuidePath,
+    wkCountHandles,
+    wkCountPathStats,
+    wkCountForcedBreaks,
+    wkCountTextStats,
+    wkSortSelection,
+    wkCollect,
+    wkApplyMemo
+];
+
+/* ============================================================
+   BridgeTalk 委譲 / Delegation to the main engine
+   ============================================================ */
+var isBusy = false;
+
+function callMainEngine(callExpr) {
+    if (isBusy) { return "ERR:BUSY"; }
+    isBusy = true;
+
+    var holder = { value: null };
+    try {
+        var src = "";
+        for (var i = 0; i < WORKER_FUNCS.length; i++) { src += WORKER_FUNCS[i].toString(); }
+        src += callExpr + ";";
+
+        var bt = new BridgeTalk();
+        bt.target = "illustrator";
+        bt.body = "eval(decodeURIComponent(\"" + encodeURIComponent(src) + "\"));";
+        bt.onResult = function (res) {
+            holder.value = (res && res.body != null) ? String(res.body) : "";
+        };
+        bt.onError = function (err) {
+            holder.value = "ERR:" + ((err && err.body) ? err.body : "bridge");
+        };
+        bt.send(10);
+    } catch (e) {
+        holder.value = "ERR:" + e;
+    } finally {
+        isBusy = false;
+    }
+
+    if (holder.value === null) { return "ERR:TIMEOUT"; }
+    return holder.value;
+}
+
+/* 戻り値（OK|key=value|...|MEMO|count|note...）を解析 / Parse collect result */
+function parseCollect(resp) {
+    if (!resp || resp.indexOf("OK|") !== 0) return null;
+    var raw = resp.substring(3);
+    var idx = raw.indexOf("|MEMO|");
+    if (idx < 0) return null;
+    var statPart = raw.substring(0, idx);
+    var memoPart = raw.substring(idx + 6);
+
+    var map = {};
+    var pairs = statPart.split("|");
+    for (var i = 0; i < pairs.length; i++) {
+        var eq = pairs[i].indexOf("=");
+        if (eq > 0) { map[pairs[i].substring(0, eq)] = pairs[i].substring(eq + 1); }
+    }
+    if (map.docName != null) { try { map.docName = decodeURIComponent(map.docName); } catch (e) {} }
+
+    var mm = memoPart.split("|");
+    var count = parseInt(mm[0], 10) || 0;
+    var memoList = [];
+    for (var k = 1; k <= count && k < mm.length; k++) {
+        var s = mm[k];
+        try { s = decodeURIComponent(s); } catch (e2) {}
+        memoList.push(s);
+    }
+    return { map: map, memoList: memoList };
+}
+
+/* ============================================================
+   状態保持（常駐エンジン） / Session state (resident engine)
+   ============================================================ */
+if (!$.global.__selectionInspectorState) {
+    $.global.__selectionInspectorState = { location: null };
+}
+
+/* ============================================================
+   パレット構築 / Build palette
+   ============================================================ */
+function addStatRow(panel, labelText, labelWidth) {
+    var row = panel.add("group");
+    row.orientation = "row";
+    var lbl = row.add("statictext", undefined, labelText);
+    lbl.justify = "right";
+    lbl.preferredSize.width = labelWidth;
+    var val = row.add("statictext", undefined, "-");
+    val.preferredSize.width = VALUE_WIDTH;
+    return val;
+}
+
+function buildPalette() {
+    var win = new Window("palette", L('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
+    win.orientation = "column";
+    win.alignChildren = "center";
+    win.margins = [15, 10, 15, 15];
+
+    var lastData = null;
+    var memoFields = [];
+
+    /* 表示切り替え（ラジオボタン＋stack）/ View switcher (radio buttons + stack) */
+    var switchRow = win.add("group");
+    switchRow.orientation = "row";
+    switchRow.alignChildren = ["center", "center"];
+    switchRow.helpTip = L('hint.shortcut');
+
+    var rbInfo = switchRow.add("radiobutton", undefined, L('tab.info'));
+    var rbMemo = switchRow.add("radiobutton", undefined, L('tab.memo'));
+    rbInfo.helpTip = L('hint.shortcut');
+    rbMemo.helpTip = L('hint.shortcut');
+    rbInfo.value = true;
+
+    var stackWrap = win.add("group");
+    stackWrap.orientation = "stack";
+    stackWrap.alignChildren = ["fill", "fill"];
+
+    var tab1 = stackWrap.add("group");
+    tab1.orientation = "column";
+    tab1.alignChildren = ["fill", "top"];
+    tab1.margins = [10, 15, 10, 10];
+
+    var tab2 = stackWrap.add("group");
+    tab2.orientation = "column";
+    tab2.alignChildren = ["fill", "top"];
+    tab2.margins = [10, 15, 10, 10];
+    tab2.visible = false;
+
+    /* --- 情報タブ（2カラム） / Info tab (two columns) --- */
+    var twoColGroup = tab1.add("group");
+    twoColGroup.orientation = "row";
+    twoColGroup.alignChildren = ["fill", "top"];
+
+    var leftCol = twoColGroup.add("group");
+    leftCol.orientation = "column";
+    leftCol.alignChildren = ["fill", "top"];
+
+    var rightCol = twoColGroup.add("group");
+    rightCol.orientation = "column";
+    rightCol.alignChildren = ["fill", "top"];
+
+    function addPanel(col, titlePath) {
+        var p = col.add("panel", undefined, L(titlePath));
+        p.orientation = "column";
+        p.alignChildren = ["fill", "top"];
+        p.margins = PANEL_MARGINS;
+        return p;
+    }
+
+    var v = {};
+
+    /* 左カラム / Left column */
+    var panelBasics = addPanel(leftCol, 'panel.basics');
+    v.artboards = addStatRow(panelBasics, L('row.artboards'), LABEL_WIDTH_LEFT);
+    v.objects = addStatRow(panelBasics, L('row.objects'), LABEL_WIDTH_LEFT);
+
+    var panelText = addPanel(leftCol, 'panel.texts');
+    v.texts = addStatRow(panelText, L('row.texts'), LABEL_WIDTH_LEFT);
+    v.pointText = addStatRow(panelText, L('row.pointText'), LABEL_WIDTH_LEFT);
+    v.areaText = addStatRow(panelText, L('row.areaText'), LABEL_WIDTH_LEFT);
+    v.pathText = addStatRow(panelText, L('row.pathText'), LABEL_WIDTH_LEFT);
+
+    var panelCharPara = addPanel(leftCol, 'panel.charPara');
+    v.chars = addStatRow(panelCharPara, L('row.chars'), LABEL_WIDTH_LEFT);
+    v.paras = addStatRow(panelCharPara, L('row.paras'), LABEL_WIDTH_LEFT);
+    v.forcedBreaks = addStatRow(panelCharPara, L('row.forcedBreaks'), LABEL_WIDTH_LEFT);
+
+    var panelImage = addPanel(leftCol, 'panel.images');
+    v.linked = addStatRow(panelImage, L('row.linked'), LABEL_WIDTH_LEFT);
+    v.embed = addStatRow(panelImage, L('row.embed'), LABEL_WIDTH_LEFT);
+    v.broken = addStatRow(panelImage, L('row.broken'), LABEL_WIDTH_LEFT);
+
+    var panelMemo = addPanel(leftCol, 'panel.memo');
+    var memoReadOnly = panelMemo.add("statictext", undefined, "", { multiline: true });
+    memoReadOnly.preferredSize = [160, 50];
+
+    /* 右カラム / Right column */
+    var panelGroup = addPanel(rightCol, 'panel.group');
+    v.group = addStatRow(panelGroup, L('row.group'), LABEL_WIDTH_RIGHT);
+    v.clipGroup = addStatRow(panelGroup, L('row.clipGroup'), LABEL_WIDTH_RIGHT);
+
+    var panelTransparency = addPanel(rightCol, 'panel.transparency');
+    v.opacityLt100 = addStatRow(panelTransparency, L('row.opacityLt100'), LABEL_WIDTH_RIGHT);
+    v.blendNotNormal = addStatRow(panelTransparency, L('row.blendNotNormal'), LABEL_WIDTH_RIGHT);
+
+    var panelPath = addPanel(rightCol, 'panel.path');
+    v.pathCount = addStatRow(panelPath, L('row.pathCount'), LABEL_WIDTH_RIGHT);
+    v.openPath = addStatRow(panelPath, L('row.openPath'), LABEL_WIDTH_RIGHT);
+    v.closedPath = addStatRow(panelPath, L('row.closedPath'), LABEL_WIDTH_RIGHT);
+    v.anchors = addStatRow(panelPath, L('row.anchors'), LABEL_WIDTH_RIGHT);
+    v.handles = addStatRow(panelPath, L('row.handles'), LABEL_WIDTH_RIGHT);
+    v.compoundPath = addStatRow(panelPath, L('row.compoundPath'), LABEL_WIDTH_RIGHT);
+    v.compoundShape = addStatRow(panelPath, L('row.compoundShape'), LABEL_WIDTH_RIGHT);
+
+    var panelGuide = addPanel(rightCol, 'panel.guide');
+    v.rulerGuides = addStatRow(panelGuide, L('row.rulerGuides'), LABEL_WIDTH_RIGHT);
+    v.artboardGuides = addStatRow(panelGuide, L('row.artboardGuides'), LABEL_WIDTH_RIGHT);
+    v.otherGuides = addStatRow(panelGuide, L('row.otherGuides'), LABEL_WIDTH_RIGHT);
+
+    /* ステータス / Status line */
+    var statusText = win.add("statictext", undefined, L('status.ready'));
+    statusText.alignment = ["fill", "bottom"];
+
+    function setStatus(msg) { try { statusText.text = msg; } catch (e) {} }
+
+    function relayout() {
+        try { if (stackWrap.layout) { stackWrap.layout.layout(true); } } catch (e) {}
+        try { if (win.layout) { win.layout.layout(true); } } catch (e2) {}
+    }
+
+    function switchView(mode) {
+        var showInfo = (mode === "info");
+        rbInfo.value = showInfo;
+        rbMemo.value = !showInfo;
+        tab1.visible = showInfo;
+        tab2.visible = !showInfo;
+        relayout();
+    }
+
+    /* 値の一括更新 / Apply all values */
+    function applyValues(m) {
+        v.artboards.text = m.artboards;
+        v.objects.text = m.selCount + " / " + m.allCount;
+        v.texts.text = m.textSel + " / " + m.textAll;
+        v.pointText.text = m.pointSel + " / " + m.pointAll;
+        v.areaText.text = m.areaSel + " / " + m.areaAll;
+        v.pathText.text = m.pathSel + " / " + m.pathAll;
+        v.chars.text = m.charSel + " / " + m.charAll;
+        v.paras.text = m.paraSel + " / " + m.paraAll;
+        v.forcedBreaks.text = m.fbSel + " / " + m.fbAll;
+        v.linked.text = m.linkedSel + " / " + m.linkedAll;
+        v.embed.text = m.embedSel + " / " + m.embedAll;
+        v.broken.text = m.brokenSel + " / " + m.brokenAll;
+        v.group.text = m.groupSel + " / " + m.groupAll;
+        v.clipGroup.text = m.clipSel + " / " + m.clipAll;
+        v.opacityLt100.text = m.opacitySel + " / " + m.opacityAll;
+        v.blendNotNormal.text = m.blendSel + " / " + m.blendAll;
+        v.pathCount.text = m.pathCountSel + " / " + m.pathCountAll;
+        v.openPath.text = m.openSel + " / " + m.openAll;
+        v.closedPath.text = m.closedSel + " / " + m.closedAll;
+        v.anchors.text = m.anchorSel + " / " + m.anchorAll;
+        v.handles.text = m.handleSel + " / " + m.handleAll;
+        v.compoundPath.text = m.cpathSel + " / " + m.cpathAll;
+        v.compoundShape.text = m.cshapeSel + " / " + m.cshapeAll;
+        v.rulerGuides.text = m.rulerSel + " / " + m.rulerAll;
+        v.artboardGuides.text = m.abguideSel + " / " + m.abguideAll;
+        v.otherGuides.text = m.otherguideSel + " / " + m.otherguideAll;
+    }
+
+    function clearValues() {
+        for (var kk in v) { if (v.hasOwnProperty(kk)) { try { v[kk].text = "-"; } catch (e) {} } }
+    }
+
+    function updateMemoReadonly(memoList) {
+        var nonEmpty = [];
+        for (var i = 0; i < memoList.length; i++) {
+            if (memoList[i] && memoList[i] !== "") { nonEmpty.push(memoList[i]); }
+        }
+        var text = (nonEmpty.length === 1) ? nonEmpty[0] : (nonEmpty.length > 1 ? L('memo.multiple') : "");
+        try { memoReadOnly.text = text; } catch (e) {}
+    }
+
+    /* メモタブを再構築 / Rebuild the Notes tab */
+    function rebuildMemo(memoList) {
+        while (tab2.children.length > 0) {
+            try { tab2.remove(tab2.children[0]); } catch (e) { break; }
+        }
+        memoFields = [];
+
+        if (!memoList || memoList.length === 0) {
+            tab2.add("statictext", undefined, L('memo.none'));
+            relayout();
+            return;
+        }
+
+        for (var i = 0; i < memoList.length; i++) {
+            (function (idx, noteText) {
+                var row = tab2.add("group");
+                row.orientation = "row";
+                row.alignChildren = ["fill", "center"];
+                var field = row.add("edittext", undefined, noteText, { multiline: true });
+                field.preferredSize = [340, 44];
+                memoFields.push(field);
+                var applyBtn = row.add("button", undefined, L('button.applyMemo'));
+                applyBtn.onClick = function () { applyMemo(idx, field.text); };
+            })(i, memoList[i]);
+        }
+        relayout();
+    }
+
+    /* 再集計 / Recount */
+    function refresh() {
+        setStatus(L('status.busy'));
+        var resp = callMainEngine("wkCollect()");
+
+        if (resp === "ERR:BUSY") { setStatus(L('status.busy')); return; }
+        if (resp === null || resp === "ERR:TIMEOUT") { setStatus(L('status.timeout')); return; }
+        if (resp === "NODOC") { setStatus(L('status.noDoc')); clearValues(); updateMemoReadonly([]); rebuildMemo([]); return; }
+        if (resp.indexOf("ERR:") === 0) { setStatus(L('status.error') + ": " + resp.substring(4)); return; }
+
+        var data = parseCollect(resp);
+        if (!data) { setStatus(L('status.error')); return; }
+
+        lastData = data;
+        applyValues(data.map);
+        updateMemoReadonly(data.memoList);
+        rebuildMemo(data.memoList);
+
+        var selN = parseInt(data.map.selCount, 10) || 0;
+        if (selN > 0) {
+            setStatus(L('status.selectedPrefix') + selN + L('status.selectedSuffix'));
+        } else {
+            setStatus(L('status.wholeDoc'));
+        }
+    }
+
+    /* メモ適用 / Apply a note */
+    function applyMemo(idx, text) {
+        setStatus(L('status.busy'));
+        var resp = callMainEngine("wkApplyMemo(" + idx + ",\"" + encodeURIComponent(text) + "\")");
+        if (resp === "OK") { setStatus(L('status.memoApplied')); refresh(); }
+        else if (resp === "NODOC") { setStatus(L('status.noDoc')); }
+        else if (resp === "IDX") { setStatus(L('status.selChanged')); }
+        else { setStatus(L('status.error') + ": " + resp); }
+    }
+
+    /* レポート書き出し（収集データからパレット側で生成） / Export report */
+    function exportReport() {
+        setStatus(L('status.busy'));
+        var resp = callMainEngine("wkCollect()");
+        if (resp === "NODOC") { setStatus(L('status.noDoc')); return; }
+        if (resp === null || resp === "ERR:TIMEOUT") { setStatus(L('status.timeout')); return; }
+        if (typeof resp === "string" && resp.indexOf("ERR:") === 0) { setStatus(L('status.error') + ": " + resp.substring(4)); return; }
+
+        var data = parseCollect(resp);
+        if (!data) { setStatus(L('status.error')); return; }
+        var m = data.map;
+
+        try {
+            var fullName = m.docName || "";
+            var baseName = fullName.replace(/\.[^\.]+$/, "");
+            var today = new Date();
+            var yyyy = today.getFullYear();
+            var mm = ("0" + (today.getMonth() + 1)).slice(-2);
+            var dd = ("0" + today.getDate()).slice(-2);
+            var dateStr = yyyy + mm + dd;
+
+            var path = Folder.desktop + "/count-" + baseName + "-" + dateStr + ".txt";
+            var file = new File(path);
+
+            function wPair(path2, selVal, allVal) { file.writeln(LX(path2) + " " + selVal + " / " + allVal); }
+            function wSingle(path2, val) { file.writeln(LX(path2) + " " + val); }
+            function wSection(path2) { file.writeln(""); file.writeln(L(path2)); }
+
+            if (file.open("w")) {
+                file.writeln(L('report.title'));
+                file.writeln(L('report.document') + " " + fullName);
+                file.writeln(L('report.date') + " " + yyyy + "-" + mm + "-" + dd);
+                file.writeln("");
+                file.writeln(L('report.valueNote'));
+
+                wSection('section.basics');
+                wSingle('row.artboards', m.artboards);
+                wPair('row.objects', m.selCount, m.allCount);
+
+                wSection('section.textFrames');
+                wPair('row.texts', m.textSel, m.textAll);
+                wPair('row.pointText', m.pointSel, m.pointAll);
+                wPair('row.areaText', m.areaSel, m.areaAll);
+                wPair('row.pathText', m.pathSel, m.pathAll);
+
+                wSection('section.charPara');
+                wPair('row.chars', m.charSel, m.charAll);
+                wPair('row.paras', m.paraSel, m.paraAll);
+                wPair('row.forcedBreaks', m.fbSel, m.fbAll);
+
+                wSection('section.images');
+                wPair('row.linked', m.linkedSel, m.linkedAll);
+                wPair('row.embed', m.embedSel, m.embedAll);
+                wPair('row.broken', m.brokenSel, m.brokenAll);
+
+                wSection('section.notes');
+                var nonEmpty = [];
+                for (var ni = 0; ni < data.memoList.length; ni++) {
+                    if (data.memoList[ni] && data.memoList[ni] !== "") { nonEmpty.push(data.memoList[ni]); }
+                }
+                if (nonEmpty.length > 0) { file.writeln(nonEmpty.join("\n")); }
+
+                wSection('section.transparency');
+                wPair('row.opacityLt100', m.opacitySel, m.opacityAll);
+                wPair('row.blendNotNormal', m.blendSel, m.blendAll);
+
+                wSection('section.groups');
+                wPair('row.group', m.groupSel, m.groupAll);
+                wPair('row.clipGroup', m.clipSel, m.clipAll);
+
+                wSection('section.paths');
+                wPair('row.pathCount', m.pathCountSel, m.pathCountAll);
+                wPair('row.openPath', m.openSel, m.openAll);
+                wPair('row.closedPath', m.closedSel, m.closedAll);
+                wPair('row.anchors', m.anchorSel, m.anchorAll);
+                wPair('row.handles', m.handleSel, m.handleAll);
+                wPair('row.compoundPath', m.cpathSel, m.cpathAll);
+                wPair('row.compoundShape', m.cshapeSel, m.cshapeAll);
+
+                wSection('section.guides');
+                wPair('row.rulerGuides', m.rulerSel, m.rulerAll);
+                wPair('row.artboardGuides', m.abguideSel, m.abguideAll);
+                wPair('row.otherGuides', m.otherguideSel, m.otherguideAll);
+
+                file.close();
+                setStatus(L('status.exportedPrefix') + path);
+            } else {
+                setStatus(L('status.exportFailOpen'));
+            }
+        } catch (err) {
+            setStatus(L('status.error') + ": " + err);
+        }
+    }
+
+    /* --- ボタン行 / Button row --- */
+    var btnRow = win.add("group");
+    btnRow.orientation = "row";
+    btnRow.alignChildren = ["fill", "center"];
+    btnRow.alignment = ["fill", "bottom"];
+
+    var btnLeft = btnRow.add("group");
+    btnLeft.alignChildren = ["left", "center"];
+    var btnExport = btnLeft.add("button", undefined, L('button.exportPreset'));
+    btnExport.helpTip = L('hint.esc');
+
+    var spacer = btnRow.add("statictext", undefined, "");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    var btnRight = btnRow.add("group");
+    btnRight.alignChildren = ["right", "center"];
+    var btnRefresh = btnRight.add("button", undefined, L('button.refresh'));
+    btnRefresh.helpTip = L('hint.refresh') + "\n" + L('hint.esc');
+
+    btnExport.onClick = exportReport;
+    btnRefresh.onClick = refresh;
+
+    rbInfo.onClick = function () { switchView("info"); };
+    rbMemo.onClick = function () {
+        switchView("memo");
+        try { if (memoFields.length > 0) { memoFields[0].active = true; } } catch (e) {}
+    };
+
+    /* キー操作 / Key handling
+       Esc: 閉じる / close
+       ⌥I / ⌥M: タブ切替 / switch tabs
+       ⌘R: 更新（Enter はメモ編集と衝突するため使わない）/ Cmd+R refresh */
+    win.addEventListener("keydown", function (ev) {
+        var key = "";
+        try { key = ev && ev.keyName ? String(ev.keyName).toUpperCase() : ""; } catch (e) { key = ""; }
+
+        if (key === "ESCAPE") {
+            try { win.close(); } catch (e1) {}
+        } else if (ev && ev.altKey && key === "I") {
+            switchView("info");
+            try { if (ev.preventDefault) ev.preventDefault(); } catch (e2) {}
+        } else if (ev && ev.altKey && key === "M") {
+            switchView("memo");
+            try { if (memoFields.length > 0) { memoFields[0].active = true; } } catch (e3) {}
+            try { if (ev.preventDefault) ev.preventDefault(); } catch (e4) {}
+        } else if (ev && ev.metaKey && key === "R") {
+            refresh();
+            try { if (ev.preventDefault) ev.preventDefault(); } catch (e5) {}
+        }
+    });
+
+    try { win.opacity = PALETTE_OPACITY; } catch (e) {}
+
+    switchView("info");
+
+    /* 表示直後に一度集計 / Count once right after showing */
+    win.onShow = function () {
+        refresh();
+    };
+
+    return win;
+}
+
+/* ============================================================
+   位置の記憶・復元 / Remember & restore location
+   ============================================================ */
+function restoreLocation(win) {
+    try {
+        var loc = $.global.__selectionInspectorState.location;
+        if (loc && loc.length === 2) {
+            win.location = [loc[0], loc[1]];
+        } else {
+            win.center();
+        }
+    } catch (e) {
+        win.center();
+    }
+}
+
+function rememberLocation(win) {
+    try {
+        if (win.location && win.location.length === 2) {
+            $.global.__selectionInspectorState.location = [win.location[0], win.location[1]];
+        }
+    } catch (e) {}
+}
+
+/* ============================================================
+   起動 / Entry point
+   ============================================================ */
+function showPalette() {
+    /* 多重起動防止：既存パレットがあれば閉じる / Prevent duplicates */
+    if ($.global.__SelectionInspectorPalette) {
+        try { $.global.__SelectionInspectorPalette.close(); } catch (e) {}
+        $.global.__SelectionInspectorPalette = null;
+    }
+
+    var win = buildPalette();
+
+    /* 常駐エンジンの変数に保持して GC 回避 / Keep in resident engine to avoid GC */
+    $.global.__SelectionInspectorPalette = win;
+    win.onClose = function () {
+        rememberLocation(win);
+        try { app.redraw(); } catch (e) {}
+        try { $.global.__SelectionInspectorPalette = null; } catch (e2) {}
+    };
+
+    restoreLocation(win);
+    win.show();
+}
+
+showPalette();
