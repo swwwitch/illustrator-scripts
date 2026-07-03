@@ -66,7 +66,7 @@ var LABELS = {
 	},
 	panel: {
 		direction: { ja: "移動・複製", en: "Move / Duplicate" },
-		flip: { ja: "反転・回転", en: "Flip & Rotate" },
+		flip: { ja: "反転・回転", en: "Flip / Rotate" },
 		options: { ja: "オプション", en: "Options" }
 	},
 	direction: {
@@ -461,8 +461,8 @@ function initIconColors() {
 	var lightUI = isLightUI();
 	var uiBrightness = getUIBrightness();
 	iconColor       = lightUI ? [0.25, 0.25, 0.25, 1] : [0.85, 0.85, 0.85, 1];
-	/* ライトモードは背景を塗らず（ウィンドウ色）薄いグレーの枠を付ける。ダークは枠なし / Light: no fill (window color) + light gray border; dark: no border */
-	iconBorderColor = lightUI ? [0.65, 0.65, 0.65, 1] : null;
+	/* ライトは薄いグレーの枠、ダークは背景より少し明るいグレーの枠でボタンの輪郭を出す / Light: light gray border; dark: a gray slightly brighter than the background so the button edge shows */
+	iconBorderColor = lightUI ? [0.65, 0.65, 0.65, 1] : [0.45, 0.45, 0.45, 1];
 	iconBaseBg      = lightUI ? grayColor(uiBrightness)        : [0.28, 0.28, 0.28, 1];
 	/* マウスオーバー時の背景（ライトは少し暗く、ダークは少し明るく）/ Hover background (slightly darker in light, lighter in dark) */
 	iconHoverBg     = lightUI ? grayColor(uiBrightness - 0.10) : [0.38, 0.38, 0.38, 1];
