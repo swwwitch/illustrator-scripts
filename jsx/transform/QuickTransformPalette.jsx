@@ -9,7 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトの移動・複製と反転・回転を、アイコンのクリックで即時実行する常駐パレットです（プレビューや適用ボタンはありません）。
 
 - 移動・複製: 上 / 左 / 右 / 下 の矢印アイコンをクリックでその方向へ移動。Option＋クリックで複製
-- 反転・回転: アイコンボタンで左右反転／上下反転／45°回転（反時計回り・時計回り）を即時実行。回転は Shift＋クリックで90°単位。Option＋クリックで複製してから変形（Shift＋Option で90°複製回転）。アイコン右の9軸（3×3）ウィジェットで基点を指定
+- 反転・回転: アイコンボタンで左右反転／上下反転／90°回転（反時計回り・時計回り）を即時実行。Option＋クリックで複製してから変形。パネル最下部のスライダー（-180〜180°・15°刻み）で任意角度に回転。アイコン右の9軸（3×3）ウィジェットで基点を指定
 - オプション（マージン／プレビュー境界。移動・複製と反転・回転の両方に適用）
 	- マージン: 変形後に基準点の反対方向へ足す余白（単位は定規に追従）。反転・回転では9軸が中心のときは無視
 	- プレビュー境界: 線や効果を含む見た目の境界でサイズ・基点を計算
@@ -27,7 +27,7 @@ https://x.com/ken_rainy/status/1472505526768783361
 A persistent palette that moves/duplicates and flips/rotates the selection immediately on an icon click (no preview, no Apply button).
 
 - Move / duplicate: click an Up / Left / Right / Down arrow icon to move in that direction; Option-click to duplicate
-- Flip & rotate: icon buttons flip horizontally/vertically and rotate 45° (CCW/CW), applied immediately; Shift-click rotates in 90° steps; Option-click duplicates before transforming (Shift+Option = duplicate + 90° rotation); a 9-axis (3x3) widget to the right of the icons sets the pivot
+- Flip & rotate: icon buttons flip horizontally/vertically and rotate 90° (CCW/CW), applied immediately; Option-click duplicates before transforming; a slider at the bottom of the panel (-180 to 180°, 15° steps) rotates by an arbitrary angle; a 9-axis (3x3) widget to the right of the icons sets the pivot
 - Options (Margin / Preview bounds; applied to both move-duplicate and flip-rotate)
 	- Margin: extra gap added after the transform, away from the anchor (unit follows the ruler); ignored for flip/rotate when the 9-axis anchor is centered
 	- Preview bounds: uses the visible bounds (including stroke/effects) for size and pivot
@@ -40,14 +40,13 @@ DOM work (selection, move, duplicate, flip, rotate) is delegated to the main eng
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.2.0";
 
 // =========================================
 // ユーザー設定 / User Settings
 // =========================================
 var DEFAULT_MARGIN = 0;          /* 元と複製の間に足す余白（定規の単位）/ Extra gap between original and copy (in ruler units) */
-var ROTATE_ANGLE = 45;           /* 回転アイコンの回転角（度）。正＝反時計回り / Rotate icon angle (deg); positive = CCW */
-var ROTATE_ANGLE_QUARTER = 90;   /* Shift＋クリック時の回転角（度、90°単位）/ Rotate angle when Shift is held (deg; 90° step) */
+var ROTATE_ANGLE = 90;           /* 回転アイコンのクリックで回す角度（度）。正＝反時計回り / Angle per rotate-icon click (deg); positive = CCW */
 var FLIP_COLUMNS_PER_ROW = 2;    /* 反転・回転アイコンを何個ごとに改行するか / Flip/rotate icons per row before wrapping */
 var ICON_SIZE = 30;              /* 方向・反転・回転アイコン1個の大きさ（px、両パネル共通）/ Size of each direction / flip / rotate icon (px, shared by both panels) */
 var ICON_LINE_WIDTH = 1;         /* 各アイコン内の線画（矢印・反転・回転）の線幅を統一（ボタン枠・9軸グリッドと同じ1）/ Uniform stroke width for the line art inside each icon (arrow / flip / rotate); matches the 1px button frames and 9-axis grid */
@@ -85,10 +84,11 @@ var LABELS = {
 	tooltip: {
 		flipHorizontal: { ja: "選択を水平方向に反転（基準点が基点）／ Option＋クリックで複製", en: "Flip the selection horizontally (about the anchor point) / Option-click to duplicate" },
 		flipVertical: { ja: "選択を垂直方向に反転（基準点が基点）／ Option＋クリックで複製", en: "Flip the selection vertically (about the anchor point) / Option-click to duplicate" },
-		rotateCCW: { ja: "選択を反時計回りに45°回転（基準点が基点）／ Shift＋クリックで90°単位／ Option＋クリックで複製", en: "Rotate the selection 45° counterclockwise (about the anchor point) / Shift-click for 90° steps / Option-click to duplicate" },
-		rotateCW: { ja: "選択を時計回りに45°回転（基準点が基点）／ Shift＋クリックで90°単位／ Option＋クリックで複製", en: "Rotate the selection 45° clockwise (about the anchor point) / Shift-click for 90° steps / Option-click to duplicate" },
+		rotateCCW: { ja: "選択を反時計回りに90°回転（基準点が基点）／ Option＋クリックで複製", en: "Rotate the selection 90° counterclockwise (about the anchor point) / Option-click to duplicate" },
+		rotateCW: { ja: "選択を時計回りに90°回転（基準点が基点）／ Option＋クリックで複製", en: "Rotate the selection 90° clockwise (about the anchor point) / Option-click to duplicate" },
 		anchor: { ja: "基準点（反転・回転の基点）", en: "Anchor point (pivot for flip / rotate)" },
-		moveDuplicate: { ja: "クリックで移動／ Option＋クリックで複製", en: "Click to move / Option-click to duplicate" }
+		moveDuplicate: { ja: "クリックで移動／ Option＋クリックで複製", en: "Click to move / Option-click to duplicate" },
+		rotateSlider: { ja: "スライダーで回転（-180〜180°・15°刻み、正＝反時計回り、基準点が基点）", en: "Rotate with the slider (-180 to 180°, 15° steps, positive = CCW, about the anchor point)" }
 	}
 };
 
@@ -480,24 +480,23 @@ function attachHover(button) {
 	} catch (e) {}
 }
 
-/* アイコンに対応する変形を実行する（duplicate=true で複製してから変形。quarter=true で回転を90°単位に。マージン／プレビュー境界はオプションパネルの設定を使用）*/
-/* Run the transform for an icon (duplicate first when duplicate=true; quarter=true rotates in 90° steps; margin / preview-bounds come from the Options panel) */
-function handleIconAction(name, duplicate, quarter) {
+/* アイコンに対応する変形を実行する（duplicate=true で複製してから変形。回転は1クリック＝90°。マージン／プレビュー境界はオプションパネルの設定を使用）*/
+/* Run the transform for an icon (duplicate first when duplicate=true; rotate is a fixed 90° per click; margin / preview-bounds come from the Options panel) */
+function handleIconAction(name, duplicate) {
 	if (isBusy) { return; } /* 連打の再入防止（移動・複製と共通のガード）/ Guard against rapid re-entry (shared with move/duplicate) */
 	isBusy = true;
 	try {
 		var settings = readTransformOptions ? readTransformOptions() : { marginPt: 0, usePreviewBounds: false };
 		var marginPt = settings.marginPt || 0;
 		var usePreviewBounds = settings.usePreviewBounds === true;
-		var rotateAngle = quarter ? ROTATE_ANGLE_QUARTER : ROTATE_ANGLE; /* Shift で90°単位 / Shift → 90° step */
 		if (name === "FLIP_HORIZONTAL") {
 			btFlipSelection(-100, 100, duplicate, marginPt, usePreviewBounds);
 		} else if (name === "FLIP_VERTICAL") {
 			btFlipSelection(100, -100, duplicate, marginPt, usePreviewBounds);
 		} else if (name === "ROTATE") {
-			btRotateSelection(rotateAngle, duplicate, marginPt, usePreviewBounds);     /* 反時計回り / counterclockwise */
+			btRotateSelection(ROTATE_ANGLE, duplicate, marginPt, usePreviewBounds);    /* 反時計回りに90° / 90° counterclockwise */
 		} else if (name === "ROTATE_FLIP") {
-			btRotateSelection(-rotateAngle, duplicate, marginPt, usePreviewBounds);    /* 時計回り / clockwise */
+			btRotateSelection(-ROTATE_ANGLE, duplicate, marginPt, usePreviewBounds);   /* 時計回りに90° / 90° clockwise */
 		}
 	} finally {
 		isBusy = false;
@@ -517,15 +516,13 @@ function addIconButton(parentGroup, buttonDef) {
 	button.onDraw = function () {
 		drawIcon(this);
 	};
-	/* Option＝複製、Shift＝回転を90°単位（回転アイコンのみ有効）/ Option = duplicate, Shift = 90° rotation step (only affects the rotate icons) */
+	/* Option＝複製してから変形 / Option = duplicate before transforming */
 	button.onClick = function () {
-		var duplicate = false, quarter = false;
+		var duplicate = false;
 		try {
-			var keyboard = ScriptUI.environment.keyboardState;
-			duplicate = keyboard.altKey === true;
-			quarter = keyboard.shiftKey === true;
+			duplicate = ScriptUI.environment.keyboardState.altKey === true;
 		} catch (e) {}
-		handleIconAction(buttonDef.name, duplicate, quarter);
+		handleIconAction(buttonDef.name, duplicate);
 	};
 	attachHover(button);
 }
@@ -924,6 +921,56 @@ function buildFlipPanel(win) {
 
 	/* 9軸（3×3）の基準点ウィジェット（アイコンの右。反転・回転の基点を指定）/ 9-axis (3x3) anchor widget (to the right of the icons; sets the flip/rotate pivot) */
 	addAnchorWidget(flipRow);
+
+	/* パネル最下部：回転スライダー（-180〜180°・15°刻み。正＝反時計回り。基準点は9軸ウィジェットに従う）/ Bottom of the panel: rotate slider (-180 to 180°, 15° steps; positive = CCW; pivot follows the 9-axis widget) */
+	var sliderRow = flipPanel.add('group');
+	sliderRow.orientation = 'row';
+	sliderRow.alignChildren = ['left', 'center'];
+	sliderRow.alignment = 'fill';
+	sliderRow.spacing = 6;
+
+	var rotateSlider = sliderRow.add('slider', undefined, 0, -180, 180);
+	rotateSlider.helpTip = L('tooltip.rotateSlider');
+	rotateSlider.alignment = ['fill', 'center'];
+	rotateSlider.preferredSize = [120, 18];
+
+	/* 前回適用したスナップ角（差分回転の基準。ドラッグ開始時は 0）/ Last applied snapped angle (baseline for delta rotation; 0 at drag start) */
+	var sliderPrevSnapped = 0;
+
+	/* -180〜180 を 15°刻みにスナップ / Snap -180..180 to 15° steps */
+	function snapSliderAngle(value) {
+		var snapped = Math.round(value / 15) * 15;
+		if (snapped < -180) { snapped = -180; }
+		if (snapped > 180) { snapped = 180; }
+		return snapped;
+	}
+
+	/* スナップ角まで前回位置との差分だけ回転（正＝反時計回り）。isBusy 中はスキップし、差分は次のティックで取り戻す（sliderPrevSnapped は適用時のみ更新）*/
+	/* Rotate by the delta from the previous position up to the snapped angle (positive = CCW); skip while isBusy and recover the delta on the next tick (sliderPrevSnapped advances only when applied) */
+	function applySliderRotation(snapped) {
+		if (snapped === sliderPrevSnapped) { return; }
+		if (isBusy) { return; }
+		isBusy = true;
+		try {
+			var settings = readTransformOptions ? readTransformOptions() : { marginPt: 0, usePreviewBounds: false };
+			btRotateSelection(snapped - sliderPrevSnapped, false, settings.marginPt || 0, settings.usePreviewBounds === true);
+			sliderPrevSnapped = snapped;
+		} finally {
+			isBusy = false;
+		}
+	}
+
+	/* ドラッグ中：15°境界を越えるたびに差分回転 / While dragging: rotate by the delta each time a 15° boundary is crossed */
+	rotateSlider.onChanging = function () {
+		applySliderRotation(snapSliderAngle(this.value));
+	};
+
+	/* 離した時：最終スナップ角まで回してからスライダーを 0 に戻す（次のドラッグ用。オブジェクトは回った位置のまま）/ On release: finish rotating to the final snapped angle, then reset the slider to 0 for the next drag (the object keeps its rotation) */
+	rotateSlider.onChange = function () {
+		applySliderRotation(snapSliderAngle(this.value));
+		sliderPrevSnapped = 0;
+		this.value = 0;
+	};
 }
 
 /* 移動・複製パネル（方向の十字ボタン。クリックで移動／Option＋クリックで複製）を win に追加し、方向ショートカット（e/d/s/f）も登録 / Add the Move-Duplicate panel (direction cross; click moves / Option-click duplicates) to win; also registers the direction shortcuts (e/d/s/f) */
@@ -1032,7 +1079,7 @@ function buildOptionsPanel(win) {
 	changeValueByArrowKey(marginInput, false, null, true); /* 負値を許可（値は実行時に読む）/ allow negatives (read at execution time) */
 
 	var previewBoundsCheck = optionsPanel.add('checkbox', undefined, L('checkbox.previewBounds'));
-	previewBoundsCheck.value = false; /* 既定は OFF（明示）/ default off (explicit) */
+	previewBoundsCheck.value = true; /* 既定は ON（明示）/ default on (explicit) */
 
 	/* UI からマージン／プレビュー境界を読み、不正値はここでクランプ / Read margin / preview-bounds from UI; clamp invalid values here */
 	function readSettings() {
