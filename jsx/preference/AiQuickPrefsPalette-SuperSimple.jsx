@@ -26,7 +26,7 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v2.0.0";
+var SCRIPT_VERSION = "v2.0.1";
 
 (function () {
 

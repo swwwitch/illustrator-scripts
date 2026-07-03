@@ -434,7 +434,8 @@ var iconColor, iconBorderColor, iconBaseBg, iconHoverBg;
 
 /* 9軸基準点セルの配色（各セルは塗り＋枠で構成）/ Anchor-cell colors (each cell = fill + border) */
 var ANCHOR_LINE_COLOR = [0.6, 0.6, 0.6, 1];      /* 枠線：薄いグレー（常時）/ Border: light gray (always) */
-var ANCHOR_SELECTED_FILL = [0.4, 0.4, 0.4, 1];   /* 選択時の塗り：濃いグレー（通常時は透過で塗らない）/ Fill when selected: dark gray (transparent = unpainted otherwise) */
+/* 選択時の塗り（通常時は透過で塗らない）。ライトは濃いグレー、ダークは明るいグレーで見やすく。initIconColors() で UI 明暗に合わせて上書き / Fill when selected (transparent = unpainted otherwise). Dark gray in light UI, bright gray in dark UI for visibility; overwritten in initIconColors() per light/dark UI */
+var ANCHOR_SELECTED_FILL = [0.4, 0.4, 0.4, 1];
 
 /* UI 明度(0..1)を取得、取得失敗時は 1（明るい）を返す / Get UI brightness (0..1); 1 on failure */
 function getUIBrightness() {
@@ -465,6 +466,8 @@ function initIconColors() {
 	iconBaseBg      = lightUI ? grayColor(uiBrightness)        : [0.28, 0.28, 0.28, 1];
 	/* マウスオーバー時の背景（ライトは少し暗く、ダークは少し明るく）/ Hover background (slightly darker in light, lighter in dark) */
 	iconHoverBg     = lightUI ? grayColor(uiBrightness - 0.10) : [0.38, 0.38, 0.38, 1];
+	/* 選択セルの塗り：ライトは濃いグレー、ダークは明るいグレー（暗い地色でも□が見えるように）/ Selected-cell fill: dark gray in light UI, bright gray in dark UI so the square stays visible on a dark background */
+	ANCHOR_SELECTED_FILL = lightUI ? [0.4, 0.4, 0.4, 1] : [0.8, 0.8, 0.8, 1];
 }
 
 /* コントロールを再描画（notify は環境により例外を投げ得るので保護）/ Redraw a control (notify can throw in some environments) */
