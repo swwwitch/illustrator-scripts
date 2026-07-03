@@ -40,7 +40,7 @@ DOM work (selection, move, duplicate, flip, rotate) is delegated to the main eng
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.2.0";
+var SCRIPT_VERSION = "v1.2.1";
 
 // =========================================
 // ユーザー設定 / User Settings
