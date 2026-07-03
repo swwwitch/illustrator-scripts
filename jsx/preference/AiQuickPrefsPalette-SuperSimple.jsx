@@ -27,7 +27,7 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v2.0.2";
+var SCRIPT_VERSION = "v2.0.3";
 
 (function () {
 
@@ -603,9 +603,14 @@ var SCRIPT_VERSION = "v2.0.2";
             }
         }
 
-        /* uiBrightness 値から選択状態だけ更新（適用はしない）/ Update selection only, from a uiBrightness value (no apply) */
+        /* uiBrightness 値から選択状態だけ更新（適用はしない）。値が変わらなければ再描画しない */
+        /* Update selection only, from a uiBrightness value (no apply). Skip repaint when unchanged */
+        /* onActivate は毎クリック発火するため、無駄な hide/show を避けてウィンドウ z-order の乱れを防ぐ */
+        /* onActivate fires on every click, so avoid needless hide/show that disturbs window z-order */
         function setByValue(value) {
-            selectedIndex = nearestBrightnessIndex(value);
+            var nextIndex = nearestBrightnessIndex(value);
+            if (nextIndex === selectedIndex) return;
+            selectedIndex = nextIndex;
             refresh();
         }
 
