@@ -10,7 +10,7 @@ SmartObjectResizer.jsx
 ### 概要
 
 - 選択中のオブジェクトを、指定した基準（最大／最小／指定サイズ／アートボード／裁ち落とし／面積）に基づいて柔軟にリサイズできるIllustrator用スクリプトです。
-- 縦横比保持・片辺のみモード、横位置／縦位置の整列、リアルタイムプレビューを備えています。整列は visibleBounds ではなく geometricBounds ベースで計算し、テキスト整列の安定性を高めています。基準を切り替えても、選択中の基準と整列は保持したまま再計算します。
+- 縦横比保持・片辺のみモード、横位置／縦位置の整列、リアルタイムプレビューを備えています。整列はリサイズと同じ境界基準で計算します（「プレビュー境界で計測」ON＝visibleBounds／OFF＝geometricBounds）。基準を切り替えても、選択中の基準と整列は保持したまま再計算します。
 
 ### 主な機能
 
@@ -39,6 +39,7 @@ https://note.com/dtp_tranist/n/n6f35bd4000ec
 
 - v1.0.0 (20250405) : 初期バージョン
 - v1.4.0 (20260704) : 全体リファクタ（UIレイアウト共通化、LABELS/L() 多言語化、命名整理、重複・デッドコード削除、リサイズ／整列処理の関数分割、不要な try 削減）。縦横比／片辺トグルで選択中の基準を保持、整列リセットで「0間隔」の取りこぼしを修正。基準変更時も整列を保持、リセットボタンで整列も解除、UI文言を明確化、ゼロ幅/高さでの Infinity をガード、指定サイズ欄を createFixedSizeGroup に分離、setupWindow 削除。アートボード／裁ち落としのリサイズを一時グループ廃止＝クラスタ等倍スケール化し親階層・重ね順を保護、整列に右揃え／下揃えを追加、整列を「整列（横）／整列（縦）」の2パネルに再構成、フッターを3カラム（リセット／キャンセル・OK）化、左右余白を dialog.margins に集約
+- v1.4.1 (20260704) : ダイアログを開いた直後は基準を未選択にして変形を起こさない、パネル見出しの「基準」重複を解消（パネル＝「リサイズ基準」／行ラベル＝「基準辺」）、非自明なオプションに helpTip（ツールチップ）を追加、行ラベルのコロンを fieldLabel() で付与（データからコロンを分離）。整列チェックのクリックで他軸の整列が消える不具合を修正（常に reapplyActiveAlignments() で両軸を再適用）、整列の計測基準を「プレビュー境界で計測」に追従（ON＝visibleBounds／OFF＝geometricBounds）させ、線幅・効果のあるオブジェクトでも見た目の端でそろうよう修正
 
 ----
 
@@ -49,7 +50,7 @@ SmartObjectResizer.jsx
 ### Overview
 
 - An Illustrator script that flexibly resizes selected objects based on a chosen criterion (Max / Min / Fixed Size / Artboard / Bleed / Area).
-- Supports Keep Aspect / One Side Only modes, horizontal- and vertical-position alignment, and real-time preview. Alignment is computed from geometricBounds (not visibleBounds) for more stable text alignment. Switching the base keeps the current criterion and alignment and recomputes them.
+- Supports Keep Aspect / One Side Only modes, horizontal- and vertical-position alignment, and real-time preview. Alignment uses the same bounds basis as resizing ("Measure by preview bounds" ON = visibleBounds / OFF = geometricBounds). Switching the base keeps the current criterion and alignment and recomputes them.
 
 ### Main Features
 
@@ -73,13 +74,13 @@ SmartObjectResizer.jsx
 ### Update History
 
 - v1.0.0 (20250405): Initial version
-- v1.4.0 (20260704): Overall refactor (shared UI layout, LABELS/L() localization, renaming, dedup/dead-code removal, split resize/alignment functions, fewer redundant try blocks). Fixed: aspect/one-side toggle keeps the current base selection; align reset also clears the "zero gap" checkboxes; alignment is preserved across base changes; Reset button also clears alignment; clearer UI wording; guarded against Infinity on zero width/height; split the fixed-size row into createFixedSizeGroup; removed setupWindow. Artboard/Bleed resize no longer uses a temp group (cluster uniform-scale) to protect parent hierarchy and stacking order; added Right/Bottom alignment; reorganized alignment into two panels (Align H / Align V); footer with three columns (Reset / Cancel・OK); consolidated left/right margins into dialog.margins
+- v1.4.0 (20260704): Overall refactor (shared UI layout, LABELS/L() localization, renaming, dedup/dead-code removal, split resize/alignment functions, fewer redundant try blocks). Fixed: aspect/one-side toggle keeps the current base selection; align reset also clears the "zero gap" checkboxes; alignment is preserved across base changes; Reset button also clears alignment; clearer UI wording; guarded against Infinity on zero width/height; split the fixed-size row into createFixedSizeGroup; removed setupWindow. Artboard/Bleed resize no longer uses a temp group (cluster uniform-scale) to protect parent hierarchy and stacking order; added Right/Bottom alignment; reorganized alignment into two panels (Align H / Align V); footer with three columns (Reset / Cancel・OK); consolidated left/right margins into dialog.margins. No base is selected when the dialog opens, so it performs no transform on show; resolved the duplicate "Base" label (panel = "Resize base" / row = "Ref. side"); added helpTips (tooltips) to non-obvious options; row-label colon is now appended by fieldLabel() (colon separated from label data). Fixed a bug where clicking an alignment checkbox wiped the other axis's alignment (now always re-applies both axes via reapplyActiveAlignments()); alignment now follows the "Measure by preview bounds" option (ON = visibleBounds / OFF = geometricBounds) so stroked/effected objects align by their visual edges
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.4.0";
+var SCRIPT_VERSION = "v1.4.1";
 
 (function () {
     // =========================================
@@ -125,6 +126,19 @@ var SCRIPT_VERSION = "v1.4.0";
         return spacer;
     }
 
+    /* helpTip（ツールチップ）を1コントロールまたはコントロール配列へ設定 */
+    /* Set helpTip on a single control or an array of controls */
+    function setHelpTip(target, tip) {
+        if (!tip || !target) return;
+        if (typeof target !== "string" && typeof target.length === "number") {
+            for (var i = 0; i < target.length; i++) {
+                if (target[i]) target[i].helpTip = tip;
+            }
+        } else {
+            target.helpTip = tip;
+        }
+    }
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
@@ -138,7 +152,7 @@ var SCRIPT_VERSION = "v1.4.0";
     LABELS のカテゴリ規約 / Category rules
       dialog   : ダイアログタイトル / dialog title
       panel    : パネル見出し / panel headers
-      field    : 行ラベル（末尾に {colon}） / row field labels
+      field    : 行ラベル（コロンは含めず、描画時に fieldLabel() が付与） / row field labels (colon added by fieldLabel())
       radio    : ラジオボタン / radio buttons
       checkbox : チェックボックス / checkboxes
       button   : ボタン（Cancel / Reset。OK は非ローカライズの "OK" 直書き）
@@ -151,7 +165,7 @@ var SCRIPT_VERSION = "v1.4.0";
             title: { ja: "オブジェクトのリサイズ", en: "SmartObjectResizer" }
         },
         panel: {
-            base:  { ja: "基準", en: "Base" },
+            base:  { ja: "リサイズ基準", en: "Resize base" },
             align: { ja: "整列", en: "Alignment" },
             // 整列（横）: 左/中央/右 ＋ 縦方向の分配 / horizontal alignment
             hAlign: { ja: "整列{openParen}横{closeParen}", en: "Align {openParen}H{closeParen}" },
@@ -159,13 +173,13 @@ var SCRIPT_VERSION = "v1.4.0";
             vAlign: { ja: "整列{openParen}縦{closeParen}", en: "Align {openParen}V{closeParen}" }
         },
         field: {
-            max:      { ja: "最大{colon}",         en: "Max{colon}" },
-            min:      { ja: "最小{colon}",         en: "Min{colon}" },
-            fixed:    { ja: "指定サイズ{colon}",   en: "Fixed Size{colon}" },
-            base:     { ja: "基準{colon}",         en: "Base{colon}" },
-            area:     { ja: "面積{colon}",         en: "Area{colon}" },
-            artboard: { ja: "アートボード{colon}", en: "Artboard{colon}" },
-            bleed:    { ja: "裁ち落とし{colon}",   en: "Bleed{colon}" }
+            max:      { ja: "最大",         en: "Max" },
+            min:      { ja: "最小",         en: "Min" },
+            fixed:    { ja: "指定サイズ",   en: "Fixed Size" },
+            base:     { ja: "基準辺",       en: "Ref. side" },
+            area:     { ja: "面積",         en: "Area" },
+            artboard: { ja: "アートボード", en: "Artboard" },
+            bleed:    { ja: "裁ち落とし",   en: "Bleed" }
         },
         radio: {
             keepAspect:  { ja: "縦横比保持", en: "Keep aspect" },
@@ -193,6 +207,20 @@ var SCRIPT_VERSION = "v1.4.0";
             cancel: { ja: "キャンセル", en: "Cancel" },
             reset:  { ja: "リセット",   en: "Reset" }
         },
+        // ツールチップ（helpTip）: 意味が自明でないコントロールにのみ設定 / Tooltips for non-obvious controls
+        tooltip: {
+            keepAspect:  { ja: "縦横比を保ったまま拡大／縮小します。", en: "Scale while keeping the aspect ratio." },
+            oneSideOnly: { ja: "幅または高さの片辺だけを変更します（縦横比は保持しません）。", en: "Change only one side (width or height); aspect ratio is not preserved." },
+            base:        { ja: "基準となる辺（長辺／短辺）の長さに合わせて、各オブジェクトをリサイズします。", en: "Resize each object to match the chosen reference side (long / short)." },
+            area:        { ja: "選択オブジェクトの面積を、最大／最小のものにそろえます。", en: "Match object areas to the largest / smallest in the selection." },
+            artboard:    { ja: "選択全体をアートボードの幅／高さに合わせ、中央に配置します。", en: "Fit the whole selection to the artboard width / height and center it." },
+            bleed:       { ja: "アートボード＋裁ち落とし（片側3mm）の幅／高さに合わせ、中央に配置します。", en: "Fit to the artboard plus bleed (3mm per side) and center it." },
+            alignEven:   { ja: "オブジェクトの間隔が均等になるように分配します（3つ以上で有効）。", en: "Distribute objects with equal gaps (needs 3+ objects)." },
+            alignZero:   { ja: "オブジェクトを間隔0で隙間なく並べます。", en: "Place objects with zero gap (no spacing)." },
+            textOutline: { ja: "テキストをアウトライン化した実際の字形の境界で計測します。", en: "Measure text by the actual outlined glyph bounds." },
+            preview:     { ja: "線幅や効果を含むプレビュー境界で計測します（オフは幾何境界）。", en: "Measure by preview bounds incl. strokes / effects (off = geometric bounds)." },
+            reset:       { ja: "サイズ・位置・整列をすべて元の状態に戻します。", en: "Revert size, position, and alignment to the original state." }
+        },
         alert: {
             selectObject: { ja: "オブジェクトを選択してください。", en: "Please select an object." }
         }
@@ -210,6 +238,12 @@ var SCRIPT_VERSION = "v1.4.0";
         var text = node[currentLanguage] || node.en;
         if (!text) return path;
         return applyUISymbols(text);
+    }
+
+    // 行ラベルに末尾コロンを付与（コロンのロケール差は uiSymbol("colon") に一元化）
+    // Field row label with a trailing locale-aware colon (full-width JA ： / half-width EN :)
+    function fieldLabel(path) {
+        return L(path) + uiSymbol("colon");
     }
 
     // LABELS 内の {colon} などのプレースホルダを言語別記号へ展開
@@ -316,8 +350,9 @@ var SCRIPT_VERSION = "v1.4.0";
         dialog.location = savedDialogPos;
     }
 
-    // --- 初期表示時に、選択中のモードを1回だけ適用 ---
-    // ※ 初期状態で「最大：幅」などが選択されていても、クリックするまで反映されない問題の対策
+    // --- 初期表示時の状態リセットとプレビュー ---
+    // 基準は初期未選択なので applyResizeBySelection() は何もしない（＝開いた直後は変形しない）。
+    // 復元とUI状態の初期化のみ行う。基準が選択済みの場合のみ、そのモードを1回だけ反映する。
     dialog.onShow = function () {
         // UI 状態の初期化（DOM に触れないので保護不要。失敗したら顕在化させる）
         resetAlignChecks();
@@ -331,7 +366,7 @@ var SCRIPT_VERSION = "v1.4.0";
             restoreOriginalGeometry();
             restoreOriginalPosition();
             app.redraw();
-            applyResizeBySelection(); // 現在選択されているラジオのモードを1回だけ適用
+            applyResizeBySelection(); // 基準が選択済みの場合のみ、そのモードを1回だけ適用（未選択なら何もしない）
         } catch (e) {
             $.writeln("SmartObjectResizer: 初期プレビューに失敗 / initial preview failed — " + e);
         }
@@ -361,6 +396,8 @@ var SCRIPT_VERSION = "v1.4.0";
     oneSideOnlyRadio.margins = [0, 0, 0, 0];
 
     keepRatioRadio.value = true; // デフォルトで「縦横比保持」を選択
+    setHelpTip(keepRatioRadio, L("tooltip.keepAspect"));
+    setHelpTip(oneSideOnlyRadio, L("tooltip.oneSideOnly"));
 
     // 「片辺のみ」選択時に即時ディム表示
     oneSideOnlyRadio.onClick = function () {
@@ -565,25 +602,31 @@ var SCRIPT_VERSION = "v1.4.0";
 
     // 新しい順序でラジオボタンとグループを作成
     // 1. 最大
-    var maxRadios = createRadioGroup(L("field.max"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var maxRadios = createRadioGroup(fieldLabel("field.max"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 2. 最小
-    var minRadios = createRadioGroup(L("field.min"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var minRadios = createRadioGroup(fieldLabel("field.min"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 3. 指定サイズ（ラジオ＋数値欄一体）
-    var fixedRadios = createFixedSizeGroup(L("field.fixed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
-    // 5. 基準
-    var baseRadios = createRadioGroup(L("field.base"), [L("radio.longSide"), L("radio.shortSide")], resizeBasePanel);
+    var fixedRadios = createFixedSizeGroup(fieldLabel("field.fixed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    // 5. 基準辺
+    var baseRadios = createRadioGroup(fieldLabel("field.base"), [L("radio.longSide"), L("radio.shortSide")], resizeBasePanel);
     // 6. 面積
-    var areaRadios = createRadioGroup(L("field.area"), [L("radio.areaMax"), L("radio.areaMin")], resizeBasePanel);
+    var areaRadios = createRadioGroup(fieldLabel("field.area"), [L("radio.areaMax"), L("radio.areaMin")], resizeBasePanel);
     // 7. --- ディバイダー ---
     var dividerLine = resizeBasePanel.add("statictext", undefined, "  ───────────────  ");
     // 8. アートボード
-    var artboardRadios = createRadioGroup(L("field.artboard"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var artboardRadios = createRadioGroup(fieldLabel("field.artboard"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 9. 裁ち落とし
-    var bleedRadios = createRadioGroup(L("field.bleed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
+    var bleedRadios = createRadioGroup(fieldLabel("field.bleed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
 
     // radioGroupsの並び順も新順に
-    // [最大, 最小, 指定サイズ, 基準, 面積, アートボード, 裁ち落とし]
+    // [最大, 最小, 指定サイズ, 基準辺, 面積, アートボード, 裁ち落とし]
     radioGroups.push(maxRadios, minRadios, fixedRadios, baseRadios, areaRadios, artboardRadios, bleedRadios);
+
+    // 意味が自明でない基準にツールチップを設定（最大／最小／指定サイズは自明なため付けない）
+    setHelpTip(baseRadios, L("tooltip.base"));
+    setHelpTip(areaRadios, L("tooltip.area"));
+    setHelpTip(artboardRadios, L("tooltip.artboard"));
+    setHelpTip(bleedRadios, L("tooltip.bleed"));
 
     // --- 整列チェック群 ---
     // 整列チェックボックスをすべてOFFにする共通関数
@@ -654,8 +697,11 @@ var SCRIPT_VERSION = "v1.4.0";
         }
     }
 
-    // 初期値: 最大・幅
-    radioGroups[0][0].value = true;
+    // 初期状態ではどの基準も選択しない。
+    // → ダイアログを開いた直後は getSelectedResizeMode() が null を返し、変形は一切起こらない。
+    //    ユーザーが基準ラジオをクリックした時点で初めてリサイズが実行される。
+    // No base is selected initially, so opening the dialog performs no transform;
+    // resizing starts only when the user clicks a base radio.
 
     // 指定サイズ入力欄の有効化制御
     function updateInputState() {
@@ -686,6 +732,7 @@ var SCRIPT_VERSION = "v1.4.0";
     var textOutlineBoundsCheck = previewGroup.add("checkbox", undefined, L("checkbox.textOutlineBounds"));
     textOutlineBoundsCheck.value = false;
     textOutlineBoundsCheck.onClick = onPreviewOptionChanged;
+    setHelpTip(textOutlineBoundsCheck, L("tooltip.textOutline"));
 
     function updateTextOutlineOptionState() {
         var hasText = false;
@@ -709,6 +756,7 @@ var SCRIPT_VERSION = "v1.4.0";
     var previewCheck = previewGroup.add("checkbox", undefined, L("checkbox.previewBounds"));
     previewCheck.value = true;
     previewCheck.onClick = onPreviewOptionChanged;
+    setHelpTip(previewCheck, L("tooltip.preview"));
 
     updateTextOutlineOptionState();
 
@@ -726,6 +774,8 @@ var SCRIPT_VERSION = "v1.4.0";
     addSpacer(hAlignPanel, 5); // 「均等」の上の余白（整列⇔分配の区切り）
     var alignEvenCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignEven"));
     var alignEvenZeroCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignZero"));
+    setHelpTip(alignEvenCheck, L("tooltip.alignEven"));
+    setHelpTip(alignEvenZeroCheck, L("tooltip.alignZero"));
     alignLeftCheck.value = false;
     alignCenterCheck.value = false;
     alignRightCheck.value = false;
@@ -741,6 +791,8 @@ var SCRIPT_VERSION = "v1.4.0";
     addSpacer(vAlignPanel, 5); // 「均等」の上の余白（整列⇔分配の区切り）
     var alignHorizontalEvenCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignEven"));
     var alignHorizontalEvenZeroCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignZero"));
+    setHelpTip(alignHorizontalEvenCheck, L("tooltip.alignEven"));
+    setHelpTip(alignHorizontalEvenZeroCheck, L("tooltip.alignZero"));
     alignTopCheck.value = false;
     alignMiddleCheck.value = false;
     alignBottomCheck.value = false;
@@ -751,19 +803,18 @@ var SCRIPT_VERSION = "v1.4.0";
     // 整列ハンドラ（同一軸内で排他） / Alignment handlers (exclusive per axis)
     // =========================================
 
-    // ON時: 同一軸の兄弟を OFF → base状態へ戻す → 整列を適用 / OFF時: base状態へ戻す
-    function makeAlignHandler(check, siblings, requiresMultiple, applyAlignment) {
+    // クリック時: ON なら同一軸の兄弟を OFF にし、base状態へ戻してから、
+    // 現在チェック中の整列（横軸・縦軸それぞれ最大1つ）を reapplyActiveAlignments() で再適用する。
+    // ※横軸=left / 縦軸=top は独立だが、restoreResizeBaseState() は left/top を両方戻すため、
+    //   自分の軸だけ再適用するともう一方の軸の整列が消える。常に両軸まとめて適用してこれを防ぐ。
+    //   OFF 時も同様に、残った軸の整列を維持するため両軸を再適用する。
+    function makeAlignHandler(check, siblings) {
         return function () {
             if (check.value) {
                 for (var i = 0; i < siblings.length; i++) siblings[i].value = false;
-                restoreResizeBaseState();
-                if (!requiresMultiple || workingItems.length > 1) {
-                    applyAlignment();
-                    app.redraw();
-                }
-            } else {
-                restoreResizeBaseState();
             }
+            restoreResizeBaseState();
+            reapplyActiveAlignments();
         };
     }
 
@@ -914,7 +965,7 @@ var SCRIPT_VERSION = "v1.4.0";
             for (var k = 0; k < axis.length; k++) {
                 if (k !== j) siblings.push(axis[k].check);
             }
-            axis[j].check.onClick = makeAlignHandler(axis[j].check, siblings, axis[j].requiresMultiple, axis[j].apply);
+            axis[j].check.onClick = makeAlignHandler(axis[j].check, siblings);
         }
     }
 
@@ -951,6 +1002,7 @@ var SCRIPT_VERSION = "v1.4.0";
     var btnLeftGroup = btnRowGroup.add("group");
     btnLeftGroup.alignChildren = ["left", "center"];
     var btnReset = btnLeftGroup.add("button", undefined, L("button.reset"));
+    setHelpTip(btnReset, L("tooltip.reset"));
     btnReset.onClick = function () {
         // 整列チェックもリセットして表示と実状態を揃える
         resetAlignChecks();
@@ -1232,13 +1284,19 @@ var SCRIPT_VERSION = "v1.4.0";
         return getPageItemBoundsObject(item, useVisibleBounds);
     }
 
-    // 整列処理は visibleBounds ではなく geometricBounds ベースで計算する
-    // Alignment calculations use geometricBounds instead of visibleBounds
+    // 整列も getReferenceBounds と同じ基準で計算する。
+    // 「プレビュー境界で計測」ON のときは visibleBounds（線幅・効果込み＝見た目の端）、
+    // OFF のときは geometricBounds（パスの端）。リサイズと基準を揃えることで、
+    // 線幅のあるオブジェクトでも「見た目の端」で整列がそろう。
+    // Alignment uses the same basis as getReferenceBounds: visibleBounds when
+    // "measure by preview bounds" is on (visual edges incl. strokes/effects),
+    // geometricBounds otherwise — so resize and alignment stay consistent.
     function getAlignmentBounds(item) {
+        var useVisibleBounds = !!(previewCheck && previewCheck.value);
         if (textOutlineBoundsCheck && textOutlineBoundsCheck.value && containsTextForOutlineBounds(item)) {
-            return getOutlinedBoundsCached(item, false);
+            return getOutlinedBoundsCached(item, useVisibleBounds);
         }
-        return getPageItemBoundsObject(item, false);
+        return getPageItemBoundsObject(item, useVisibleBounds);
     }
 
     function containsTextForOutlineBounds(item) {
