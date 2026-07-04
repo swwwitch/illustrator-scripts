@@ -8,9 +8,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 選択したテキストの文字組み設定（フォント・フォントサイズ・自動カーニング・字間・文字揃え・行揃え・行送り・
 文字組みアキ量設定）をまとめて行う常駐パレットスクリプトです。3カラム構成（左：ドキュメントフォント／プリセット、
-中央：フォントサイズ・自動カーニング・字間調整・文字揃え、右：種別・行揃え・行送り・行送りの基準・文字組みアキ量設定）。
+中央：フォントサイズ・自動カーニング・字間調整・文字揃え、右：種別・行揃え・行送り・行送りの基準・文字組みアキ量設定・禁則）。
 
-- 最上部にインフォバー：テキストが1つだけ選択されているとき、フォント名・スタイル・サイズ・行揃え・自動カーニングを表示
+- 最上部にインフォバー：テキストが1つだけ選択されているとき、フォント名・スタイル・サイズ・行送り・行揃え・自動カーニング・禁則を表示
 
 - ドキュメントフォント：書類で使用中のフォントを一覧表示。選ぶと選択テキストへ適用
 - プリセット：フォント＋カーニング・文字ツメ・トラッキングをまとめて登録。選ぶと一括適用。
@@ -21,9 +21,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 文字揃え：欧文ベースライン／中央／その他（仮想ボディの上下・平均字面の上下をポップアップで選択）
 - 行揃え：左／中央／右／均等配置（最終行左）／両端揃え（テキストの見た目の位置を保持して適用）
 - 種別：本文（文字組みベタ組み）／見出し（文字組みツメ組み）。よく使う組み合わせを一括適用
-- 行送り：110%／125%／150%／その他（%で直接入力）／自動、個別・共通、行送りの基準。
-  「その他」を選ぶと現在の行送りを % で補完。「自動の値を変更」ボタンで自動行送りの割合を変更
+- 行送り：115%／150%／その他（%で直接入力）／自動、行送りの基準。
+  「その他」を選ぶと現在の行送りを % で補完。「自動の値を変更」ボタンで自動行送りの割合を変更。
+  基準サイズの取り方（共通／個別）は UI を廃し、LEADING_USE_COMMON スイッチで制御（既定＝共通）
 - 文字組みアキ量設定：なし／約物半角／約物全角／ツメ組み／ベタ組み などをポップアップで一括適用
+- 禁則：なし／強い禁則／弱い禁則／弱い禁則 v2 をポップアップで一括適用（「なし」は scripting では設定不可）
 - 制御文字の表示／非表示の切り替え、再読み込み（選択の現在値を読み直して反映）、
   リセット（標準値に戻す。カーニングはメトリクス・文字組みはツメ組み・字前/字後のアキは自動に設定）
 - ラジオや入力を操作すると、その場で選択中のテキストへ即時適用する
@@ -44,7 +46,9 @@ https://note.com/yukifurushima/n/n9f2078dc156f
 A docked palette that sets text-composition attributes (font, font size, auto kerning,
 letter spacing, character alignment, justification, leading, and mojikumi) for the selected text.
 Three columns (left: document fonts / presets, center: font size, kerning, letter spacing
-& alignment, right: type, justification, leading, basis, mojikumi).
+& alignment, right: type, justification, leading, basis, mojikumi, kinsoku).
+
+- Top info bar: when exactly one text is selected, shows font family, style, size, leading, justification, auto kerning, and kinsoku
 
 - Document fonts: lists the fonts used in the document; clicking one applies it to the selection
 - Presets: a font plus kerning / Tsume / tracking, applied together when clicked. "Add"
@@ -55,7 +59,9 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
 - Character alignment: Roman baseline / center / Other (embox top-bottom & ICF box top-bottom via popup)
 - Justification: left / center / right / justify (last left) / justify all (applied while keeping the text's visual position)
 - Type: Body (solid mojikumi) / Heading (tight mojikumi); applies common combinations at once
-- Leading: 110% / 125% / 150% / Other (enter a %) / Auto, individual vs common, leading basis.
+- Leading: 115% / 150% / Other (enter a %) / Auto, and leading basis.
+  Individual vs common base size has no UI; it is fixed by the LEADING_USE_COMMON switch (default: common)
+  (Leading choices: 115% / 150% / Other / Auto)
   Choosing "Other" prefills the current leading as %; "Change auto value" edits the auto-leading percentage
 - Mojikumi: None / half-width punctuation / full-width punctuation / tight / solid, applied together via a popup
 - Show/hide hidden characters, Reload (re-read the selection's current values), and
@@ -72,7 +78,7 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.2";
+var SCRIPT_VERSION = "v1.0.3";
 
 (function () {
 
@@ -85,6 +91,16 @@ var SCRIPT_VERSION = "v1.0.2";
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
     var currentLanguage = getCurrentLang();
+
+    // =========================================
+    // 設定スイッチ / Settings
+    // =========================================
+    /* 行送りの基準サイズの取り方 / How the base size for leading is chosen
+       true  = 共通：フレーム全体の最頻サイズを1つの基準にして全行に同じ行送り
+       false = 個別：各行ごとに、その行の先頭数文字の最頻サイズを基準にする
+       true  = Common: one base size (frame's most frequent) → same leading for all lines
+       false = Individual: each line uses its own base size */
+    var LEADING_USE_COMMON = true;
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
@@ -107,7 +123,14 @@ var SCRIPT_VERSION = "v1.0.2";
             role: { ja: "種別", en: "Type" },
             leading: { ja: "行送り", en: "Leading" },
             leadingType: { ja: "行送りの基準", en: "Leading basis" },
-            mojikumi: { ja: "文字組みアキ量設定", en: "Mojikumi" }
+            mojikumi: { ja: "文字組みアキ量設定", en: "Mojikumi" },
+            kinsoku: { ja: "禁則", en: "Kinsoku" }
+        },
+        kinsoku: {
+            none: { ja: "なし", en: "None" },
+            hard: { ja: "強い禁則", en: "Strict" },
+            soft: { ja: "弱い禁則", en: "Loose" },
+            softV2: { ja: "弱い禁則 v2", en: "Loose v2" }
         },
         align: {
             roman: { ja: "欧文ベースライン", en: "Roman Baseline" },
@@ -130,8 +153,8 @@ var SCRIPT_VERSION = "v1.0.2";
                 ja: "フレーム全体の最頻サイズを1つの基準にして、全行に同じ行送りを適用します。",
                 en: "Use a single base size for the whole frame (its most frequent size) so every line gets the same leading."
             },
-            typeTop: { ja: "仮想ボディの上基準", en: "Top-to-top (virtual body)" },
-            typeBaseline: { ja: "欧文ベースライン基準", en: "Baseline-to-baseline" }
+            typeTop: { ja: "仮想ボディの上", en: "Top-to-top (virtual body)" },
+            typeBaseline: { ja: "欧文ベースライン", en: "Baseline-to-baseline" }
         },
         mojikumi: {
             none: { ja: "なし", en: "None" },
@@ -185,14 +208,18 @@ var SCRIPT_VERSION = "v1.0.2";
             tracking: { ja: "字間（1/1000em）をまとめて調整します（-100〜500）。", en: "Adjusts overall letter spacing in 1/1000 em (-100 to 500)." },
             align: { ja: "文字の縦方向の揃え基準。「その他」で残りの基準をポップアップから選びます。", en: "Vertical alignment basis. Use “Other” to pick the rest from the popup." },
             justify: { ja: "段落の行揃え。テキストの見た目の位置を保ったまま変更します。", en: "Paragraph justification, applied while keeping the text's visual position." },
-            role: { ja: "本文＝和文等幅／行送り150%／均等配置（最終行左）、見出し＝メトリクス／行送り110%／左揃え をまとめて適用。", en: "Body = Japanese equal width / 150% leading / justify (last left); Heading = Metrics / 110% leading / left." },
-            leading: { ja: "行送り。110%／125%／150%／その他（%で直接入力）／自動。", en: "Leading: 110% / 125% / 150% / Other (enter a %) / Auto." },
+            role: { ja: "本文＝和文等幅／行送り150%／均等配置（最終行左）、見出し＝メトリクス／行送り115%／左揃え をまとめて適用。", en: "Body = Japanese equal width / 150% leading / justify (last left); Heading = Metrics / 115% leading / left." },
+            leading: { ja: "行送り。115%／150%／その他（%で直接入力）／自動。", en: "Leading: 115% / 150% / Other (enter a %) / Auto." },
             leadingType: { ja: "行送りを測る基準位置（仮想ボディの上／欧文ベースライン）。", en: "The reference position for measuring leading (virtual body top / Roman baseline)." },
             mojikumi: { ja: "段落の文字組みアキ量設定（約物の詰め方など）をまとめて適用します。", en: "Applies a mojikumi spacing set (punctuation spacing, etc.) to the paragraphs." },
+            kinsoku: { ja: "段落の禁則処理（強い禁則／弱い禁則など）をまとめて適用します。", en: "Applies a kinsoku (line-break) set to the paragraphs." },
             changeAuto: { ja: "自動行送りの割合（%）を変更します。クリックして値を入力してください。", en: "Change the auto-leading percentage. Click to enter a new value." },
             reset: { ja: "標準値に戻します（フォントサイズ12pt・比率100%・ツメ0・トラッキング0・自動カーニングメトリクス・欧文ベースライン・左揃え・行送り自動・文字組みツメ組み）。", en: "Reset to defaults (12pt / 100% scale / 0 Tsume / 0 tracking / Metrics kerning / Roman baseline / left / auto leading / Tight mojikumi)." },
             reload: { ja: "選択中のテキストの現在値を読み取り直して UI に反映します。", en: "Re-read the current values from the selection and reflect them in the UI." },
             hiddenChar: { ja: "制御文字（改行・スペースなど）の表示／非表示を切り替えます。", en: "Toggle the display of hidden characters (returns, spaces, etc.)." }
+        },
+        msg: {
+            applyError: { ja: "適用に失敗しました", en: "Apply failed" }
         }
     };
 
@@ -312,8 +339,12 @@ var SCRIPT_VERSION = "v1.0.2";
     }
 
     /* ドキュメント内で使用しているフォントを収集 / Collect the fonts used in the document
-       各テキストフレームの代表フォントを名前で重複排除。返り値は "psName\tdisplay" を改行区切り
-       Dedup by name across text frames; returns "psName<TAB>display" joined by newlines */
+       1フレーム内でもフォントは混在しうるため、代表フォントだけでなく全文字を走査して名前で重複排除する。
+       返り値は "psName\tdisplay" を改行区切り。
+       注意: 文字数に比例して DOM アクセスが増えるため、極端に長いテキストでは重くなる
+       A single frame can mix fonts, so scan every character (not just the run's representative
+       font) and dedup by name. Returns "psName<TAB>display" joined by newlines.
+       Note: cost scales with character count (one DOM read per character), so very long text is slow */
     function collectDocumentFonts() {
         var doc = app.activeDocument;
         var seenFontNames = {}, lines = [];
@@ -321,11 +352,15 @@ var SCRIPT_VERSION = "v1.0.2";
         var frames = doc.textFrames;
         for (var i = 0; i < frames.length; i++) {
             try {
-                var font = frames[i].textRange.characterAttributes.textFont;
-                if (font && !seenFontNames[font.name]) {
-                    seenFontNames[font.name] = true;
-                    var display = font.family + (font.style ? " " + font.style : "");
-                    lines.push(font.name + TAB + display);
+                var characters = frames[i].textRange.characters;
+                for (var charIndex = 0; charIndex < characters.length; charIndex++) {
+                    var font;
+                    try { font = characters[charIndex].characterAttributes.textFont; } catch (eChar) { continue; }
+                    if (font && !seenFontNames[font.name]) {
+                        seenFontNames[font.name] = true;
+                        var display = font.family + (font.style ? " " + font.style : "");
+                        lines.push(font.name + TAB + display);
+                    }
                 }
             } catch (e) { }
         }
@@ -416,19 +451,27 @@ var SCRIPT_VERSION = "v1.0.2";
         return null;
     }
 
-    /* TextFrame の重複判定キー / A dedup key for a TextFrame */
+    /* TextFrame の重複判定キー / A dedup key for a TextFrame
+       uuid があれば一意。無い環境では「位置＋bounds＋文字数＋先頭文字列」で近似するが、
+       これらが完全一致する別フレームが重なっていると同一視され、片方がスキップされうる（レアケース）
+       uuid is unique when available; otherwise we approximate with position + bounds + length +
+       a content prefix. Two distinct frames sharing all of these (fully overlapping) could still
+       collide and cause one to be skipped (rare) */
     function getTextFrameKey(frame) {
         try { if (frame.uuid) return frame.uuid; } catch (e) { }
         var bounds = frame.visibleBounds;
-        return frame.typename + ":" + frame.position[0] + ":" + frame.position[1] + ":" + bounds.join(":");
+        var contents = "";
+        try { contents = String(frame.contents); } catch (eContents) { }
+        var contentKey = contents.length + ":" + contents.substring(0, 16);
+        return frame.typename + ":" + frame.position[0] + ":" + frame.position[1] + ":" + bounds.join(":") + ":" + contentKey;
     }
 
     /* 選択から行揃え対象（フレーム＋範囲）を収集 / Collect justification targets (frame + range) from a selection */
     function collectJustifyTargets(selection) {
         var targets = [];
         var seenFrameKeys = {};
-        var list = (selection && selection.typename) ? [selection] : (selection || []);
-        for (var i = 0; i < list.length; i++) collectJustifyTargetsFromItem(list[i], targets, seenFrameKeys);
+        var itemList = (selection && selection.typename) ? [selection] : (selection || []);
+        for (var i = 0; i < itemList.length; i++) collectJustifyTargetsFromItem(itemList[i], targets, seenFrameKeys);
         return targets;
     }
 
@@ -476,7 +519,16 @@ var SCRIPT_VERSION = "v1.0.2";
     /* 左揃えはスクリプトから無視されることがあるため、一時リサイズで段落属性を
        リフレッシュさせてから元に戻す（位置補正は呼び出し側で実施）
        Illustrator can ignore Justification.LEFT from scripts; a temporary resize
-       forces the attributes to refresh, then the frame is restored (caller fixes position) */
+       forces the attributes to refresh, then the frame is restored (caller fixes position)
+
+       ⚠️ 副作用リスクあり: resize(200,200)→resize(50,50) は強引な回避策で、
+          既に変形（回転・シアー等）済みのテキストやエリアテキストでは、matrix/position
+          の復元が完全でなく形状やパスがわずかに崩れる可能性がある。Justification.LEFT
+          の既知バグ（RIGHT/CENTER は効くが LEFT は無視される）専用のフォールバック。
+       ⚠️ Side-effect risk: the resize(200,200)→resize(50,50) dance is a brute-force
+          workaround. On already-transformed (rotated/sheared) text or area text, the
+          matrix/position restore may be imperfect and slightly distort the shape/path.
+          Used only as a fallback for the known Justification.LEFT bug (RIGHT/CENTER work). */
     function forceLeftJustification(target) {
         var frame = target.frame;
         var pos = [frame.position[0], frame.position[1]];
@@ -619,8 +671,8 @@ var SCRIPT_VERSION = "v1.0.2";
     function collectLeadingFrames(selectionItems) {
         var frames = [];
         var seenFrameKeys = {};
-        var list = (selectionItems && selectionItems.typename) ? [selectionItems] : (selectionItems || []);
-        for (var i = 0; i < list.length; i++) collectLeadingFramesFromItem(list[i], frames, seenFrameKeys);
+        var itemList = (selectionItems && selectionItems.typename) ? [selectionItems] : (selectionItems || []);
+        for (var i = 0; i < itemList.length; i++) collectLeadingFramesFromItem(itemList[i], frames, seenFrameKeys);
         return frames;
     }
 
@@ -741,8 +793,8 @@ var SCRIPT_VERSION = "v1.0.2";
        mojikumiIndex === -1 は「なし」/ -1 means "None" */
     function applyMojikumiToSelection(selection, mojikumiIndex) {
         var mojikumiValue = (mojikumiIndex === -1) ? "なし" : app.activeDocument.mojikumiSet[mojikumiIndex];
-        var list = (selection && selection.typename) ? [selection] : (selection || []);
-        for (var i = 0; i < list.length; i++) applyMojikumiToItem(list[i], mojikumiValue);
+        var itemList = (selection && selection.typename) ? [selection] : (selection || []);
+        for (var i = 0; i < itemList.length; i++) applyMojikumiToItem(itemList[i], mojikumiValue);
     }
 
     /* mojikumiSet 名からインデックスを引く（見つからなければ -2＝不明）/ Look up a mojikumiSet index by name (-2 = unknown) */
@@ -774,6 +826,49 @@ var SCRIPT_VERSION = "v1.0.2";
         return matchMojikumiName(mojikumiName);
     }
 
+    /* テキストフレームに禁則を適用（「なし」= "None" は scripting では設定不可で例外になる）
+       Apply kinsoku to a text frame ("None" can't be set via scripting and throws) */
+    function applyKinsokuToTextFrame(textFrame, kinsokuName) {
+        try {
+            textFrame.textRange.paragraphAttributes.kinsoku = kinsokuName;
+        } catch (e) {
+            /* 「なし」は scripting から設定できない（アクション再生が必要）/ "None" can't be set via scripting */
+        }
+    }
+
+    /* 種類で振り分け（TextFrame は直接、GroupItem は再帰、テキスト範囲は親フレームへ）
+       Dispatch by type (TextFrame directly, GroupItem recursively, text ranges to their parent frame) */
+    function applyKinsokuToItem(item, kinsokuName) {
+        var typeName = getTypeName(item);
+        if (typeName === "TextFrame") {
+            applyKinsokuToTextFrame(item, kinsokuName);
+        } else if (typeName === "GroupItem" && item.pageItems) {
+            for (var i = 0; i < item.pageItems.length; i++) applyKinsokuToItem(item.pageItems[i], kinsokuName);
+        } else if (isTextRangeLikeType(typeName)) {
+            var frame = findParentTextFrame(item);
+            if (frame) applyKinsokuToTextFrame(frame, kinsokuName);
+        }
+    }
+
+    /* 選択全体に禁則を適用 / Apply kinsoku to the whole selection */
+    function applyKinsokuToSelection(selection, kinsokuName) {
+        var itemList = (selection && selection.typename) ? [selection] : (selection || []);
+        for (var i = 0; i < itemList.length; i++) applyKinsokuToItem(itemList[i], kinsokuName);
+    }
+
+    /* 段落の禁則を id 文字列へ / Resolve a paragraph's kinsoku to an id string
+       禁則「なし」の段落は getter が例外（Error 9563）を投げるため "None" を返す
+       A no-kinsoku paragraph throws on read (Error 9563), so return "None" */
+    function kinsokuToId(paragraph) {
+        try {
+            var kinsokuValue = paragraph.paragraphAttributes.kinsoku;
+            if (kinsokuValue === undefined || kinsokuValue === null || kinsokuValue === "") return "None";
+            return String(kinsokuValue);
+        } catch (e) {
+            return "None";
+        }
+    }
+
     /* 選択へ文字揃え（縦方向の揃え）を適用 / Apply character alignment to the selection */
     function applyAlignmentToSelection(selection, alignValue) {
         if (getTypeName(selection) === "TextRange") { selection.characterAttributes.alignment = alignValue; return 1; }
@@ -786,12 +881,20 @@ var SCRIPT_VERSION = "v1.0.2";
 
     /* 選択の行送り状態を読み取り、初期表示用にエンコード / Read the selection's leading state for initial reflection
        戻り値: count|isAuto|leadingPt|baseFontSizePt|autoAmount|leadingTypeId|
-               paragraphCount|alignmentId|fontFamily(enc)|fontStyle(enc)|fontSizePt|kernId|justifyId|hScale|mojikumiId */
+               paragraphCount|alignmentId|fontFamily(enc)|fontStyle(enc)|fontSizePt|kernId|justifyId|hScale|mojikumiId|kinsokuId
+
+       注意: 値系（フォント・サイズ・行送り・カーニング・揃え・禁則など）は「最初のフレームの
+       先頭文字／先頭段落」だけを代表値として読む簡略化。複数フレームを選択したり、1フレーム内で
+       設定が混在している場合、UI 表示は先頭の値になり実態とズレる（count だけは全体数を返す）。
+       Note: the value fields (font, size, leading, kerning, alignment, kinsoku, ...) are read only
+       from the FIRST frame's first character/paragraph as a representative. With a multi-frame
+       selection or mixed settings within a frame, the UI shows the first value and may not reflect
+       the whole selection (only `count` reports the total). */
     function readLeadingState(frames) {
         var count = frames.length;
         var isAuto = 0, leadingPt = NaN, baseFontSizePt = NaN, autoAmount = 175;
         var leadingTypeId = "", paragraphCount = 0, alignmentId = "";
-        var fontFamily = "", fontStyle = "", fontSizePt = NaN, kernId = "", justifyId = "", hScale = NaN, mojikumiId = -1;
+        var fontFamily = "", fontStyle = "", fontSizePt = NaN, kernId = "", justifyId = "", hScale = NaN, mojikumiId = -1, kinsokuId = "None";
         for (var i = 0; i < frames.length; i++) {
             try {
                 var lines = frames[i].lines;
@@ -813,6 +916,7 @@ var SCRIPT_VERSION = "v1.0.2";
                         autoAmount = paragraphs[0].paragraphAttributes.autoLeadingAmount;
                         justifyId = justificationToId(paragraphs[0].paragraphAttributes.justification);
                         mojikumiId = mojikumiToId(paragraphs[0]);
+                        kinsokuId = kinsokuToId(paragraphs[0]);
                     }
                     leadingTypeId = leadingTypeToId(frames[i].textRange.leadingType);
                     break;
@@ -824,7 +928,7 @@ var SCRIPT_VERSION = "v1.0.2";
         }
         return [count, isAuto, leadingPt, baseFontSizePt, autoAmount, leadingTypeId,
             paragraphCount, alignmentId, encodeURIComponent(fontFamily), encodeURIComponent(fontStyle),
-            fontSizePt, kernId, justifyId, hScale, mojikumiId].join("|");
+            fontSizePt, kernId, justifyId, hScale, mojikumiId, kinsokuId].join("|");
     }
 
     // =========================================
@@ -846,6 +950,7 @@ var SCRIPT_VERSION = "v1.0.2";
         resolveLeadingType, leadingTypeToId,
         applyLeadingToFrames, applyLineLeadingToFrames, applyAlignmentToSelection,
         applyMojikumiToTextFrame, applyMojikumiToItem, applyMojikumiToSelection, matchMojikumiName, mojikumiToId,
+        applyKinsokuToTextFrame, applyKinsokuToItem, applyKinsokuToSelection, kinsokuToId,
         readLeadingState
     ];
 
@@ -1061,6 +1166,7 @@ var SCRIPT_VERSION = "v1.0.2";
                     applyLineLeadingToFrames(profFrames, params.ratio, profType);
                 }
                 if (params.mojikumiIndex !== undefined) applyMojikumiToSelection(profSel, params.mojikumiIndex);
+                if (params.kinsoku !== undefined) applyKinsokuToSelection(profSel, params.kinsoku);
                 if (params.clearAki) clearAkiOnRanges(ranges);
             } catch (errProfile) {
                 return "ERR:" + (errProfile && errProfile.message ? errProfile.message : String(errProfile));
@@ -1073,6 +1179,15 @@ var SCRIPT_VERSION = "v1.0.2";
                 applyMojikumiToSelection(app.activeDocument.selection, params.mojikumiIndex);
             } catch (errMojikumi) {
                 return "ERR:" + (errMojikumi && errMojikumi.message ? errMojikumi.message : String(errMojikumi));
+            }
+            app.redraw();
+            return "OK:1";
+        }
+        if (action === "applyKinsoku") {
+            try {
+                applyKinsokuToSelection(app.activeDocument.selection, params.kinsoku);
+            } catch (errKinsoku) {
+                return "ERR:" + (errKinsoku && errKinsoku.message ? errKinsoku.message : String(errKinsoku));
             }
             app.redraw();
             return "OK:1";
@@ -1099,6 +1214,7 @@ var SCRIPT_VERSION = "v1.0.2";
         if (params.ratio !== undefined) parts.push("ratio:" + (params.ratio === null ? "null" : params.ratio));
         if (params.leadingType !== undefined) parts.push('leadingType:"' + params.leadingType + '"');
         if (params.mojikumiIndex !== undefined) parts.push("mojikumiIndex:" + parseInt(params.mojikumiIndex, 10));
+        if (params.kinsoku !== undefined) parts.push('kinsoku:decodeURIComponent("' + encodeURIComponent(params.kinsoku) + '")');
         if (params.autoAmount !== undefined) parts.push("autoAmount:" + params.autoAmount);
         if (params.common !== undefined) parts.push("common:" + (params.common ? "true" : "false"));
         if (params.directMode !== undefined) parts.push("directMode:" + (params.directMode ? "true" : "false"));
@@ -1145,7 +1261,7 @@ var SCRIPT_VERSION = "v1.0.2";
     // =========================================
 
     /* パネルの余白と間隔 / Panel margins and spacing */
-    var PANEL_MARGINS = [16, 20, 16, 12];
+    var PANEL_MARGINS = [13, 20, 13, 12];
     var PANEL_SPACING = 8;
 
     /* パネルの共通設定 / Apply shared panel layout */
@@ -1187,8 +1303,7 @@ var SCRIPT_VERSION = "v1.0.2";
     /* 行送りの選択肢 / Leading choices
        ratio: 倍率 / undefined=その他（直接入力）/ null=自動 */
     var LEADING_CHOICES = [
-        { label: "110%", ratio: 1.1, auto: false, other: false },
-        { label: "125%", ratio: 1.25, auto: false, other: false },
+        { label: "115%", ratio: 1.15, auto: false, other: false },
         { label: "150%", ratio: 1.5, auto: false, other: false },
         { label: getLocalizedText(LABELS.leading.other), ratio: undefined, auto: false, other: true },
         { label: getLocalizedText(LABELS.leading.auto), ratio: null, auto: true, other: false }
@@ -1205,6 +1320,15 @@ var SCRIPT_VERSION = "v1.0.2";
         { index: 4, label: getLocalizedText(LABELS.mojikumi.punctFull) },
         { index: 5, label: getLocalizedText(LABELS.mojikumi.tight) },
         { index: 6, label: getLocalizedText(LABELS.mojikumi.solid) }
+    ];
+
+    /* 禁則の選択肢（id は paragraphAttributes.kinsoku に渡す値）
+       Kinsoku choices (id is the value passed to paragraphAttributes.kinsoku) */
+    var KINSOKU_CHOICES = [
+        { id: "None", label: getLocalizedText(LABELS.kinsoku.none) },
+        { id: "Hard", label: getLocalizedText(LABELS.kinsoku.hard) },
+        { id: "Soft", label: getLocalizedText(LABELS.kinsoku.soft) },
+        { id: "Soft_v2", label: getLocalizedText(LABELS.kinsoku.softV2) }
     ];
 
     /* 自動行送りラベルを組み立て（例: 自動（175%）/ Auto (175%)）/ Build the auto-leading label */
@@ -1241,25 +1365,25 @@ var SCRIPT_VERSION = "v1.0.2";
         function roundToStep(value, step) { return Math.round(value / step) * step; }
         editText.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
-            var value = Number(editText.text);
-            if (isNaN(value)) return;
+            var fieldValue = Number(editText.text);
+            if (isNaN(fieldValue)) return;
             var keyboard = ScriptUI.environment.keyboardState;
             var step = 1;
             if (keyboard.shiftKey) step = 10;
             else if (keyboard.altKey) step = 0.1;
-            if (keyboard.shiftKey) value = roundToStep(value, step);
-            if (event.keyName === "Up") value += step;
-            else value -= step;
-            if (keyboard.altKey) value = Math.round(value * 10) / 10;
-            else value = Math.round(value);
-            if (!allowNegative && value < 0) value = 0;
+            if (keyboard.shiftKey) fieldValue = roundToStep(fieldValue, step);
+            if (event.keyName === "Up") fieldValue += step;
+            else fieldValue -= step;
+            if (keyboard.altKey) fieldValue = Math.round(fieldValue * 10) / 10;
+            else fieldValue = Math.round(fieldValue);
+            if (!allowNegative && fieldValue < 0) fieldValue = 0;
             event.preventDefault();
             if (typeof decimals === "number" && decimals >= 0) {
                 var decimalFactor = Math.pow(10, decimals);
-                value = Math.round(value * decimalFactor) / decimalFactor;
-                editText.text = value.toFixed(decimals);
+                fieldValue = Math.round(fieldValue * decimalFactor) / decimalFactor;
+                editText.text = fieldValue.toFixed(decimals);
             } else {
-                editText.text = String(value);
+                editText.text = String(fieldValue);
             }
             if (typeof onUpdate === "function") onUpdate();
         });
@@ -1287,12 +1411,6 @@ var SCRIPT_VERSION = "v1.0.2";
        Presets (PostScript name + type-composition settings); all are applied together on selection
        kern: 自動カーニング method id（"metrics" 等）/ tsume: 文字ツメ%（0〜100）/ tracking: トラッキング（-500〜500）*/
     var DEFAULT_PRESETS = [
-        { psName: "ATC-73772d52", kern: "metrics", tsume: 0, tracking: 0 },
-        { psName: "ATC-73772d42", kern: "metrics", tsume: 0, tracking: 0 },
-        { psName: "ATC-73772d48", kern: "metrics", tsume: 0, tracking: 0 },
-        { psName: "ATC-73772d4c", kern: "metrics", tsume: 0, tracking: 0 },
-        { psName: "hanatotyoutyo", kern: "optical", tsume: 30, tracking: 0 },
-        { psName: "FontAwesome7Pro-Solid" },
         { psName: "HiraginoSans-W3", kern: "metrics", tsume: 0, tracking: 0 }
     ];
 
@@ -1346,20 +1464,65 @@ var SCRIPT_VERSION = "v1.0.2";
         return false;
     }
 
-    /* プリセットをファイルから読み込み（無ければ既定）/ Load presets (fall back to defaults) */
+    /* パース結果がプリセット配列として妥当か / Whether a parsed value is a valid preset array
+       各要素が psName（文字列）を持つ配列であることを要求 / Requires an array whose items each have a string psName */
+    function isValidPresetArray(parsed) {
+        if (!parsed || typeof parsed.length !== "number" || parsed.length === 0) return false;
+        for (var i = 0; i < parsed.length; i++) {
+            var entry = parsed[i];
+            if (!entry || typeof entry.psName !== "string" || entry.psName === "") return false;
+        }
+        return true;
+    }
+
+    /* 壊れた設定ファイルを .bak に退避（上書きせず原因調査できるように）
+       Move a corrupt preset file aside to .bak (don't overwrite, so it can be inspected) */
+    function backupCorruptPresetFile(file) {
+        try {
+            var backup = new File(file.fsName + ".bak");
+            if (backup.exists) backup.remove();
+            file.copy(backup);
+        } catch (eBackup) { }
+    }
+
+    /* プリセットをファイルから読み込み（無ければ既定）/ Load presets (fall back to defaults)
+       復旧方針を明示: (1) 読み込み失敗 → 既定 / (2) 空ファイル → 既定 /
+       (3) パース失敗・内容不正 → 破損ファイルを .bak に退避してから既定へ復帰
+       Recovery is explicit: (1) read error → defaults / (2) empty file → defaults /
+       (3) parse failure or invalid shape → move the file to .bak, then defaults */
     function loadPresets() {
         var file = getPresetFile();
         if (!file.exists) return DEFAULT_PRESETS;
+
+        /* 読み込み / Read */
+        var fileText = "";
         try {
             file.encoding = "UTF-8";
-            if (file.open("r")) {
-                var fileText = file.read();
-                file.close();
-                var parsed = eval("(" + fileText + ")");
-                if (parsed && parsed.length) return parsed;
-            }
-        } catch (e) { }
-        return DEFAULT_PRESETS;
+            if (!file.open("r")) return DEFAULT_PRESETS;
+            fileText = file.read();
+            file.close();
+        } catch (eRead) {
+            try { file.close(); } catch (eClose) { }
+            return DEFAULT_PRESETS;
+        }
+
+        /* 空ファイルは既定へ（破損扱いにしない）/ Empty file → defaults (not treated as corrupt) */
+        if (!fileText || fileText.replace(/^\s+|\s+$/g, "") === "") return DEFAULT_PRESETS;
+
+        /* パース（自前ファイルなので eval を許容）/ Parse (eval is acceptable for our own file) */
+        var parsed = null;
+        try {
+            parsed = eval("(" + fileText + ")");
+        } catch (eParse) {
+            parsed = null;
+        }
+
+        /* パース失敗・内容不正は破損として .bak 退避のうえ既定へ / Parse failure or invalid shape → back up and use defaults */
+        if (!isValidPresetArray(parsed)) {
+            backupCorruptPresetFile(file);
+            return DEFAULT_PRESETS;
+        }
+        return parsed;
     }
 
     /* プリセット配列でリストボックスを再構築（表示名は後で和文名に差し替え）
@@ -1516,14 +1679,14 @@ var SCRIPT_VERSION = "v1.0.2";
         setupPanel(fontPanel);
 
         var fontList = fontPanel.add("listbox", undefined, [], { multiselect: false });
-        fontList.preferredSize = [184, 200]; // 1行分低く / One row shorter
+        fontList.preferredSize = [164, 200]; // 1行分低く / One row shorter
         fontList.helpTip = getLocalizedText(LABELS.tip.docFonts);
 
         var presetPanel = leftColumn.add("panel", undefined, getLocalizedText(LABELS.field.presets));
         setupPanel(presetPanel);
 
         var presetList = presetPanel.add("listbox", undefined, [], { multiselect: false });
-        presetList.preferredSize = [184, 200];
+        presetList.preferredSize = [164, 200];
         presetList.helpTip = getLocalizedText(LABELS.tip.presets);
         fillPresetList(presetList, loadPresets());
 
@@ -1532,6 +1695,7 @@ var SCRIPT_VERSION = "v1.0.2";
         presetButtonRow.orientation = "row";
         presetButtonRow.alignment = ["center", "top"]; // 幅いっぱいにしない / Don't stretch to full width
         presetButtonRow.spacing = 6;
+        presetButtonRow.margins = [0, 5, 0, 0]; // ボタン行の上に余白 / Extra top margin above the button row
 
         // 小さめのボタンサイズ（英語はラベルが長いので広め）/ Slightly smaller buttons (wider in English where labels run long)
         var presetButtonSize = (currentLanguage === "ja") ? [54, 22] : [72, 22];
@@ -1580,6 +1744,7 @@ var SCRIPT_VERSION = "v1.0.2";
         var fsApparentRow = fontSizePanel.add("group");
         fsApparentRow.orientation = "row";
         fsApparentRow.alignChildren = ["left", "center"];
+        fsApparentRow.margins = [0, 5, 0, 0]; // 「実質」行の上に余白 / Extra top margin above the "Effective" row
         var fsApparentLabel = fsApparentRow.add("statictext", undefined, getLocalizedText(LABELS.field.apparent) + sizeColon);
         var apparentValueLabel = fsApparentRow.add("statictext", undefined, "--");
         apparentValueLabel.characters = 5;
@@ -1617,11 +1782,10 @@ var SCRIPT_VERSION = "v1.0.2";
         setupGroup(tsumeRow, "row");
         tsumeRow.add("statictext", undefined, labelText(LABELS.field.tsume));
         var tsumeInput = tsumeRow.add("edittext", undefined, "0");
-        tsumeInput.characters = 4;
+        tsumeInput.characters = 3;
         tsumeInput.helpTip = getLocalizedText(LABELS.tip.tsume);
         tsumeRow.add("statictext", undefined, "%");
         var tsumeSlider = spacingPanel.add("slider", undefined, 0, 0, 100);
-        tsumeSlider.preferredSize.width = 150;
 
         // 文字ツメとトラッキングの間に少し余白 / A little gap between Tsume and Tracking
         var spacingGap = spacingPanel.add("group");
@@ -1631,10 +1795,9 @@ var SCRIPT_VERSION = "v1.0.2";
         setupGroup(trackingRow, "row");
         trackingRow.add("statictext", undefined, labelText(LABELS.field.tracking));
         var trackingInput = trackingRow.add("edittext", undefined, "0");
-        trackingInput.characters = 4;
+        trackingInput.characters = 3;
         trackingInput.helpTip = getLocalizedText(LABELS.tip.tracking);
         var trackingSlider = spacingPanel.add("slider", undefined, 0, -100, 500);
-        trackingSlider.preferredSize.width = 150;
 
         var alignPanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.align));
         setupPanel(alignPanel, 6);
@@ -1657,7 +1820,7 @@ var SCRIPT_VERSION = "v1.0.2";
         alignOtherRow.orientation = "row";
         alignOtherRow.alignChildren = ["left", "center"];
         alignOtherRow.spacing = 6;
-        var alignOtherRadio = alignOtherRow.add("radiobutton", undefined, getLocalizedText(LABELS.leading.other));
+        var alignOtherRadio = alignOtherRow.add("radiobutton", undefined, ""); // ラベルなし（右のポップアップで内容を示す）/ No label (the popup shows the choice)
         alignOtherRadio.alignId = "other";
         alignRadios.push(alignOtherRadio);
         var alignOtherOptions = [
@@ -1671,7 +1834,7 @@ var SCRIPT_VERSION = "v1.0.2";
             alignOtherDropdown.add("item", getLocalizedText(alignOtherOptions[optionIndex].label));
         }
         alignOtherDropdown.selection = 0;
-        alignOtherDropdown.preferredSize.width = 110; // 少し狭く / A bit narrower
+        alignOtherDropdown.preferredSize.width = 124; // 少し狭く / A bit narrower
         alignRomanRadio.value = true;
 
         // ---- 右カラム：種別・行揃え・行送り・行送りの基準・文字組みアキ量設定 / Right column: type, justification, leading, basis, mojikumi ----
@@ -1694,7 +1857,7 @@ var SCRIPT_VERSION = "v1.0.2";
         roleHeadingRadio.helpTip = rolePanel.helpTip;
 
         var justifyPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.justify));
-        setupPanel(justifyPanel, 7);
+        setupPanel(justifyPanel, 5);
         justifyPanel.orientation = "row";
         justifyPanel.alignChildren = ["center", "center"]; // ボタン列を左右中央に / Center the button row horizontally
         justifyPanel.helpTip = getLocalizedText(LABELS.tip.justify);
@@ -1720,18 +1883,8 @@ var SCRIPT_VERSION = "v1.0.2";
         leadingPanel.alignChildren = "left";
         leadingPanel.helpTip = getLocalizedText(LABELS.tip.leading);
 
-        // 個別／共通はタイトルなしのパネルに入れる / Individual / Common in a titleless panel
-        var modePanel = leadingPanel.add("panel", undefined, "");
-        modePanel.orientation = "row";
-        modePanel.alignChildren = ["center", "center"];
-        modePanel.alignment = ["fill", "middle"];
-        modePanel.margins = [10, 6, 10, 4];
-        modePanel.spacing = 12;
-        var modePerLine = modePanel.add("radiobutton", undefined, getLocalizedText(LABELS.leading.perLine));
-        var modeCommon = modePanel.add("radiobutton", undefined, getLocalizedText(LABELS.leading.common));
-        modePerLine.helpTip = getLocalizedText(LABELS.leading.tipPerLine);
-        modeCommon.helpTip = getLocalizedText(LABELS.leading.tipCommon);
-        modePerLine.value = true;
+        // 個別／共通の基準サイズは LEADING_USE_COMMON スイッチで制御（UI は非表示）
+        // Individual vs common base size is governed by the LEADING_USE_COMMON switch (no UI)
 
         // ラジオを縦一列に並べる（「その他」「自動」は同じ行にインラインで入力欄）
         // Stack radios in one column; "Other"/"Auto" carry an inline input on the same row
@@ -1795,6 +1948,20 @@ var SCRIPT_VERSION = "v1.0.2";
         }
         leadingBasisRadios[0].value = true;
 
+        // 禁則（ポップアップ）/ Kinsoku (popup)
+        var kinsokuPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.kinsoku));
+        setupPanel(kinsokuPanel);
+        kinsokuPanel.alignChildren = "fill";
+        kinsokuPanel.helpTip = getLocalizedText(LABELS.tip.kinsoku);
+
+        var kinsokuItems = [];
+        for (var kinsokuChoiceIndex = 0; kinsokuChoiceIndex < KINSOKU_CHOICES.length; kinsokuChoiceIndex++) kinsokuItems.push(KINSOKU_CHOICES[kinsokuChoiceIndex].label);
+        var kinsokuDropdown = kinsokuPanel.add("dropdownlist", undefined, kinsokuItems);
+        kinsokuDropdown.selection = 0;
+        kinsokuDropdown.helpTip = kinsokuPanel.helpTip;
+        kinsokuDropdown.alignment = "left"; // fill を無効化して幅を指定 / Override fill so the explicit width applies
+        kinsokuDropdown.preferredSize.width = 150;
+
         // 文字組みアキ量設定（ポップアップ）/ Mojikumi spacing set (popup)
         var mojikumiPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.mojikumi));
         setupPanel(mojikumiPanel);
@@ -1806,6 +1973,8 @@ var SCRIPT_VERSION = "v1.0.2";
         var mojikumiDropdown = mojikumiPanel.add("dropdownlist", undefined, mojikumiItems);
         mojikumiDropdown.selection = 0;
         mojikumiDropdown.helpTip = mojikumiPanel.helpTip;
+        mojikumiDropdown.alignment = "left"; // fill を無効化して幅を指定 / Override fill so the explicit width applies
+        mojikumiDropdown.preferredSize.width = 150;
 
         // フッター（左=制御文字／中央=スペーサー／右=再読み込み・リセット）/ Footer: hidden-chars, spacer, reload, reset
         var footerGroup = palette.add("group");
@@ -1859,15 +2028,15 @@ var SCRIPT_VERSION = "v1.0.2";
             hiddenCharButton: hiddenCharButton,
             unit: unit,
             leadingBasisChoices: leadingBasisChoices,
-            modePerLine: modePerLine,
-            modeCommon: modeCommon,
             leadingRadios: leadingRadios,
             leadingInput: leadingInput,
             autoRadio: autoRadio,
             changeAutoButton: changeAutoButton,
             leadingBasisRadios: leadingBasisRadios,
             mojikumiDropdown: mojikumiDropdown,
-            mojikumiChoices: MOJIKUMI_CHOICES
+            mojikumiChoices: MOJIKUMI_CHOICES,
+            kinsokuDropdown: kinsokuDropdown,
+            kinsokuChoices: KINSOKU_CHOICES
         };
     }
 
@@ -1896,8 +2065,16 @@ var SCRIPT_VERSION = "v1.0.2";
         return (justifyId && LABELS.justify[justifyId]) ? getLocalizedText(LABELS.justify[justifyId]) : "—";
     }
 
+    /* 禁則 id を表示ラベルへ / Kinsoku id to a display label */
+    function kinsokuLabel(kinsokuId) {
+        for (var i = 0; i < KINSOKU_CHOICES.length; i++) {
+            if (KINSOKU_CHOICES[i].id === kinsokuId) return KINSOKU_CHOICES[i].label;
+        }
+        return "—";
+    }
+
     /* "count|isAuto|leadingPt|basePt|autoAmount|leadingTypeId|paraCount|alignmentId|
-        fontFamily|fontStyle|fontSizePt|kernId|justifyId|hScale|mojikumiId" を分解
+        fontFamily|fontStyle|fontSizePt|kernId|justifyId|hScale|mojikumiId|kinsokuId" を分解
        Parse the encoded leading state string */
     function parseLeadingState(rest) {
         var fields = String(rest || "").split("|");
@@ -1917,7 +2094,8 @@ var SCRIPT_VERSION = "v1.0.2";
             kernId: fields[11] || "",
             justifyId: fields[12] || "",
             hScale: toNumber(fields[13]),
-            mojikumiId: isNaN(parseInt(fields[14], 10)) ? -2 : parseInt(fields[14], 10)
+            mojikumiId: isNaN(parseInt(fields[14], 10)) ? -2 : parseInt(fields[14], 10),
+            kinsokuId: fields[15] || "None"
         };
     }
 
@@ -1930,12 +2108,21 @@ var SCRIPT_VERSION = "v1.0.2";
         var lastLeadingPercent = NaN; // 直近に読み取った行送りの割合（%）／「その他」初期値に使う / Last-read leading percentage (used as the default for "Other")
         var suppressUiEvents = false; // 反映中のドロップダウン onChange を抑止 / Suppress dropdown onChange while reflecting state
 
+        /* 重要処理の失敗をインフォバーに表示（握りつぶさず、どのアクションで何が起きたか見えるように）
+           Surface an important-op failure in the info bar (don't swallow it; show which action failed and why) */
+        function showWorkerError(actionId, payload) {
+            var detail = payload ? (": " + String(payload)) : "";
+            try { ui.infoText.text = "⚠ " + getLocalizedText(LABELS.msg.applyError) + " [" + actionId + "]" + detail; } catch (e) { }
+        }
+
         // 委譲する共通処理（連打抑止）/ Delegate an apply action (guarded against overlap)
         function runApply(actionId, params, onDone) {
             if (workerBusy) return;
             workerBusy = true;
             runWorker(actionId, params, function (status, payload) {
                 workerBusy = false;
+                // BridgeTalk エラーや dispatch の "ERR:<msg>" はここで可視化 / BridgeTalk errors and dispatch "ERR:<msg>" become visible here
+                if (status === "error") showWorkerError(actionId, payload);
                 if (onDone) onDone(status, payload);
             });
         }
@@ -2102,23 +2289,36 @@ var SCRIPT_VERSION = "v1.0.2";
                 if (ui.mojikumiChoices[i].index === mojikumiIndex) { ui.mojikumiDropdown.selection = i; return; }
             }
         }
+        // 禁則ポップアップを id（"None"/"Hard"/"Soft"/"Soft_v2"）で選択 / Select the kinsoku popup by id
+        function reflectKinsokuById(kinsokuId) {
+            for (var i = 0; i < ui.kinsokuChoices.length; i++) {
+                if (ui.kinsokuChoices[i].id === kinsokuId) {
+                    suppressUiEvents = true;
+                    ui.kinsokuDropdown.selection = i;
+                    suppressUiEvents = false;
+                    return;
+                }
+            }
+        }
 
         // 本文：和文等幅／行送り 150%／均等配置（最終行左）／文字組みベタ組み / Body preset (mojikumi: Solid)
         ui.roleBodyRadio.onClick = function () {
-            runApply("applyProfile", { kern: "mono", ratio: 1.5, justify: "justifyLeft", mojikumiIndex: 6 });
+            runApply("applyProfile", { kern: "mono", ratio: 1.5, justify: "justifyLeft", mojikumiIndex: 6, kinsoku: "Soft_v2" });
             selectRadioById(ui.kernRadios, autoKernOptions, "mono");
             reflectLeadingRatio(1.5);
             setActiveJustify("justifyLeft");
             reflectMojikumiByIndex(6); // ベタ組み / Solid
+            reflectKinsokuById("Soft_v2"); // 弱い禁則 v2 / Loose v2
         };
 
-        // 見出し：メトリクス／行送り 110%／左揃え／文字組みツメ組み / Heading preset (mojikumi: Tight)
+        // 見出し：メトリクス／行送り 115%／左揃え／文字組みツメ組み／弱い禁則 v2 / Heading preset (mojikumi: Tight, kinsoku: Soft_v2)
         ui.roleHeadingRadio.onClick = function () {
-            runApply("applyProfile", { kern: "metrics", ratio: 1.1, justify: "left", mojikumiIndex: 5 });
+            runApply("applyProfile", { kern: "metrics", ratio: 1.15, justify: "left", mojikumiIndex: 5, kinsoku: "Soft_v2" });
             selectRadioById(ui.kernRadios, autoKernOptions, "metrics");
-            reflectLeadingRatio(1.1);
+            reflectLeadingRatio(1.15);
             setActiveJustify("left");
             reflectMojikumiByIndex(5); // ツメ組み / Tight
+            reflectKinsokuById("Soft_v2"); // 弱い禁則 v2 / Loose v2
         };
 
         // 制御文字の表示／非表示 / Toggle hidden characters
@@ -2279,7 +2479,7 @@ var SCRIPT_VERSION = "v1.0.2";
                 ratio: ratio,
                 leadingType: ui.leadingBasisChoices[basisIndex].id,
                 autoAmount: autoAmount,
-                common: ui.modeCommon.value,
+                common: LEADING_USE_COMMON,
                 directMode: directMode,
                 directLeadingPt: directLeadingPt
             };
@@ -2315,8 +2515,6 @@ var SCRIPT_VERSION = "v1.0.2";
                 };
             })(basisRadioIndex);
         }
-        ui.modePerLine.onClick = applyLeading;
-        ui.modeCommon.onClick = applyLeading;
 
         // その他＝行送りを % で直接入力 / Editing the leading percentage selects "Other"
         var otherIndex = -1, autoIndex = -1;
@@ -2367,6 +2565,12 @@ var SCRIPT_VERSION = "v1.0.2";
             runApply("applyMojikumi", { mojikumiIndex: ui.mojikumiChoices[this.selection.index].index });
         };
 
+        // 禁則（ポップアップ）/ Kinsoku (popup)
+        ui.kinsokuDropdown.onChange = function () {
+            if (suppressUiEvents || !this.selection) return;
+            runApply("applyKinsoku", { kinsoku: ui.kinsokuChoices[this.selection.index].id });
+        };
+
         /* 選択状態を読み取って UI に反映 / Read the selection state and reflect it into the UI */
         function refreshState() {
             runWorker("getState", null, function (status, payload) {
@@ -2376,12 +2580,23 @@ var SCRIPT_VERSION = "v1.0.2";
                 // Top info bar: a single line of values only (no titles), shown when exactly one text is selected
                 if (state.count === 1) {
                     var sizeText = isNaN(state.fontSizePt) ? "—" : (Math.round((state.fontSizePt / unit.factor) * 10) / 10) + unit.label;
+                    // 行送り：自動は「自動（175%）」、固定は単位付き値のみ / Leading: "Auto (175%)" or a unit value only
+                    var leadingText;
+                    if (state.isAuto) {
+                        leadingText = formatAutoLabel(state.autoAmount);
+                    } else if (isNaN(state.leadingPt)) {
+                        leadingText = "—";
+                    } else {
+                        leadingText = (Math.round((state.leadingPt / unit.factor) * 10) / 10) + unit.label;
+                    }
                     ui.infoText.text = [
                         state.fontFamily || "—",
                         state.fontStyle || "—",
                         sizeText,
+                        leadingText,
                         justifyLabel(state.justifyId),
-                        kernLabel(state.kernId)
+                        kernLabel(state.kernId),
+                        kinsokuLabel(state.kinsokuId)
                     ].join(" / ");
                 } else {
                     ui.infoText.text = "";
@@ -2411,9 +2626,7 @@ var SCRIPT_VERSION = "v1.0.2";
                     lastAutoAmount = Math.round(state.autoAmount);
                     if (ui.autoRadio) ui.autoRadio.text = formatAutoLabel(lastAutoAmount);
                 }
-                // 共通／行ごと（段落が1つだけなら共通）/ Common when there is a single paragraph
-                ui.modeCommon.value = (state.paragraphCount === 1);
-                ui.modePerLine.value = !ui.modeCommon.value;
+                // 共通／個別は LEADING_USE_COMMON スイッチで固定（UI なし）/ Common vs individual is fixed by the switch (no UI)
                 // 行送りの基準 / Leading basis
                 var basisIndex = 0;
                 for (var choiceIndex = 0; choiceIndex < ui.leadingBasisChoices.length; choiceIndex++) {
@@ -2430,6 +2643,14 @@ var SCRIPT_VERSION = "v1.0.2";
                     ui.mojikumiDropdown.selection = mojikumiSelectionIndex;
                     suppressUiEvents = false;
                 }
+                // 禁則 / Kinsoku
+                var kinsokuSelectionIndex = 0;
+                for (var kinsokuChoiceIndex = 0; kinsokuChoiceIndex < ui.kinsokuChoices.length; kinsokuChoiceIndex++) {
+                    if (ui.kinsokuChoices[kinsokuChoiceIndex].id === state.kinsokuId) { kinsokuSelectionIndex = kinsokuChoiceIndex; break; }
+                }
+                suppressUiEvents = true;
+                ui.kinsokuDropdown.selection = kinsokuSelectionIndex;
+                suppressUiEvents = false;
                 // 文字揃え / Character alignment
                 if (state.alignmentId) {
                     selectAlignRadio(state.alignmentId);
