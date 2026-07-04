@@ -12,13 +12,23 @@ UI messages support Japanese/English. (Note format remains Japanese for compatib
 ### 概要
 
 - 常駐パレットから、選択テキストのアウトライン化（メモ付き）とその復元を行う
-- 選択オブジェクトの note（メモ）をパネルに表示
+- アウトライン化の直前に、文字・段落属性を note（メモ）へテキスト形式で保存
+- 復元時は note を解析してテキストフレームを再生成し、フォント・サイズ・行送り・カーニング・
+  文字カラー・行揃え・禁則・文字組み・長体／平体・組み方向・位置などをまとめて復元
+- 元のアウトラインは outlined_text レイヤーへ退避（淡く＋ロック）
+- 選択オブジェクトの note をパネルに一覧表示（読み込みボタン）
+- 旧 note（属性が未記録）は該当項目をスキップして従来動作を維持（後方互換）
 - DOM 処理はすべてメインエンジンへ BridgeTalk 委譲
 
 ### Overview
 
-- Outline selected text (saving its info to the note) and restore it back, from a persistent palette
-- Show the selected object's note in the panel
+- Outline selected text (saving its attributes to the note) and restore it back, from a persistent palette
+- Before outlining, character/paragraph attributes are serialized into the object's note as text
+- On restore, the note is parsed to recreate the text frame, bringing back font, size, leading,
+  kerning, fill color, alignment, kinsoku, mojikumi, horizontal/vertical scale, orientation, position, etc.
+- The original outlines are moved to the outlined_text layer (dimmed and locked)
+- The selected object's note is listed in the panel (Load button)
+- Older notes without newer fields fall back to previous behavior (backward compatible)
 - All DOM work is delegated to the main engine via BridgeTalk
 
 ### 主な機能 / Features
@@ -30,16 +40,21 @@ UI messages support Japanese/English. (Note format remains Japanese for compatib
 ### 保存・復元するプロパティ / Supported properties
 
 - 文字列（本文・複数行対応）/ Text contents (multi-line)
+- 組み方向（縦組み／横組み）/ Orientation (vertical / horizontal)
 - フォント（PostScript 名）/ Font (PostScript name)
 - フォントサイズ / Font size
 - 行送り / Leading
+- 自動行送り（オンのときは行送り値を自動計算に戻す）/ Auto leading
+- 水平比率・垂直比率（長体／平体）/ Horizontal & vertical scale
 - カーニング方式（メトリクス／オプティカル／和文等幅／なし）/ Kerning method
 - プロポーショナルメトリクス（カーニング方式に連動）/ Proportional metrics
 - トラッキング / Tracking
 - 文字ツメ（Tsume）/ Tsume
-- 組み方向（縦組み／横組み）/ Orientation (vertical / horizontal)
+- 行揃え（左／中央／右／均等配置）/ Alignment (left / center / right / justify)
+- 禁則（セット名。「なし」はスクリプト制約により復元スキップ）/ Kinsoku (set name; "none" is skipped)
+- 文字組みアキ量設定（セット名で復元。「なし」対応）/ Mojikumi (restored by set name)
 - 文字カラー（CMYK／RGB／グレー／スポット）/ Fill color (CMYK / RGB / Gray / Spot)
-- 位置（geometricBounds 基準）/ Position (by geometricBounds)
+- 位置（geometricBounds 基準。listbox 非表示）/ Position (by geometricBounds; not shown in the list)
 
 ※ グラデーション／パターン塗り、混在属性は非対応（先頭文字の値を採用）
 ※ Gradient/pattern fills and mixed attributes are not supported (the first character's value is used)
@@ -52,6 +67,8 @@ https://note.com/dtp_tranist/n/n3e0f241508db
 
 - v1.0 (20240723) : 初期バージョン
 - v1.9 (20260704) : 常駐パレット化＋テキスト復元・メモ表示・カーニング／文字カラー復元／複数行対応・堅牢化
+- v1.10 (20260705) : 行揃え・自動行送りフラグ・水平比率／垂直比率（長体／平体）・禁則・文字組みアキ量設定の保存・復元に対応
+- v2.0.0 (20260705) : 禁則・文字組みアキ量設定の listbox 日本語表示、表示順を整理、outlined_text レイヤーを再利用、タイトル変更
 
 */
 
@@ -60,7 +77,7 @@ https://note.com/dtp_tranist/n/n3e0f241508db
 // ==============================
 // バージョン / Version
 // ==============================
-var SCRIPT_VERSION = "v1.9";
+var SCRIPT_VERSION = "v2.0.0";
 
 // ==============================
 // ローカライズ / Localization
@@ -72,10 +89,10 @@ var CURRENT_LANG = getCurrentLang();
 
 var LABELS = {
     dialog: {
-        title: { ja: 'アウトライン化（メモ付き）', en: 'Outline with Memo' }
+        title: { ja: 'テキストのアウトライン化と復元', en: 'Outline & Restore Text' }
     },
     panel: {
-        selected: { ja: '先頭のメモ付きオブジェクト', en: 'First object with a note' },
+        selected: { ja: 'メモ付きオブジェクト', en: 'Object with a note' },
         commands: { ja: '操作', en: 'Commands' }
     },
     button: {
@@ -93,6 +110,11 @@ var LABELS = {
         loadTip: {
             ja: '選択オブジェクトの note を読み込んで表示',
             en: 'Load and show the selected object\'s note'
+        },
+        attributes: { ja: '属性パネル', en: 'Attributes' },
+        attributesTip: {
+            ja: '属性パネルを開く／閉じる',
+            en: 'Toggle the Attributes panel'
         }
     },
     memo: {
@@ -173,6 +195,15 @@ function workerRound(value) {
     return Math.round(value * 100) / 100;
 }
 
+/* --- 属性パネルを開閉（メニューコマンド）/ Toggle the Attributes panel via menu command --- */
+function workerToggleAttributesPanel() {
+    try {
+        app.executeMenuCommand("internal palettes posing as plug-in menus-attributes");
+    } catch (e) {
+    }
+    return "OK";
+}
+
 /* --- note 文字列を組み立て / Build the memo text from gathered values --- */
 function workerBuildMemoText(info) {
     return "文字列：\n" + info.content + "\n\n" +
@@ -185,7 +216,13 @@ function workerBuildMemoText(info) {
         "文字ツメ：\n" + info.tsume + "\n\n" +
         "組み方向：\n" + info.orientation + "\n\n" +
         "文字カラー：\n" + info.color + "\n\n" +
-        "座標（geometricBounds）：\nL = " + info.left + ", T = " + info.top + ", R = " + info.right + ", B = " + info.bottom;
+        "行揃え：\n" + info.justification + "\n\n" +
+        "禁則：\n" + info.kinsoku + "\n\n" +
+        "文字組み：\n" + info.mojikumi + "\n\n" +
+        "自動行送り：\n" + info.autoLeading + "\n\n" +
+        "水平比率：\n" + info.horizontalScale + "\n\n" +
+        "垂直比率：\n" + info.verticalScale + "\n\n" +
+        "座標：\nL = " + info.left + ", T = " + info.top + ", R = " + info.right + ", B = " + info.bottom;
 }
 
 function workerProcessTextFrame(textFrame) {
@@ -209,6 +246,12 @@ function workerProcessTextFrame(textFrame) {
         tsume: textRange.characterAttributes.Tsume,
         orientation: (textFrame.orientation == TextOrientation.VERTICAL) ? "縦組み" : "横組み",
         color: workerColorToText(textRange.characterAttributes.fillColor),
+        justification: workerJustificationToText(textRange.paragraphAttributes.justification),
+        kinsoku: workerKinsokuToText(textRange.paragraphAttributes),
+        mojikumi: workerMojikumiToText(textRange.paragraphAttributes),
+        autoLeading: textRange.characterAttributes.autoLeading ? "true" : "false",
+        horizontalScale: workerRound(textRange.characterAttributes.horizontalScale),
+        verticalScale: workerRound(textRange.characterAttributes.verticalScale),
         left: workerRound(bounds[0]),
         top: workerRound(bounds[1]),
         right: workerRound(bounds[2]),
@@ -241,10 +284,59 @@ function workerRunOutline() {
     return "OK:" + selectedTextFrames.length;
 }
 
+/* --- 表示用：禁則の内部名を日本語ラベルへ / Kinsoku internal name to Japanese label (display only) --- */
+/* note には内部名（Soft/Hard/Soft_v2 等）を保存して復元はそれで行い、listbox 表示だけ日本語化する */
+function workerKinsokuToDisplay(value) {
+    var kinsokuPresets = [
+        { kinsokuName: "None",    labelText: "なし" },
+        { kinsokuName: "なし",    labelText: "なし" },
+        { kinsokuName: "Hard",    labelText: "強い禁則" },
+        { kinsokuName: "Soft",    labelText: "弱い禁則" },
+        { kinsokuName: "Soft_v2", labelText: "弱い禁則 v2" }
+    ];
+    var i;
+    for (i = 0; i < kinsokuPresets.length; i++) {
+        if (kinsokuPresets[i].kinsokuName === value) { return kinsokuPresets[i].labelText; }
+    }
+    return value;
+}
+
+/* --- 表示用：文字組みアキ量設定を日本語ラベルへ / Mojikumi set name to Japanese label (display only) --- */
+/* 新 note は日本語ラベルで保存されるので大半は素通し。旧 note の内部名（例: Gyomatsu Yakumono Zenkaku Hankaku）は
+   (1) プリセット日本語ラベル一致 → (2) doc.mojikumiSet の位置で解決 → (3) 内部ローマ字名フォールバック の順で日本語化 */
+function workerMojikumiToDisplay(value) {
+    if (value == null || value === "" || value === "なし" || value === "None") { return "なし"; }
+    var normalizedValue = workerNormalizeMojikumiName(value);
+    var presets = workerMojikumiPresets();
+    var presetIndex;
+    for (presetIndex = 0; presetIndex < presets.length; presetIndex++) {
+        if (workerNormalizeMojikumiName(presets[presetIndex].labelText) === normalizedValue) { return presets[presetIndex].labelText; }
+    }
+    var byCollection = workerMojikumiLabelFromApplied(value);
+    if (byCollection != null) { return byCollection; }
+    /* コレクションでも引けない環境向け：内部ローマ字名を前方一致（長い key を先に、zenkaku が zenkakuhankaku を食わないよう） */
+    var romajiMap = [
+        { key: "gyomatsuyakumonozenkakuhankaku", name: "行末約物全角/半角" },
+        { key: "gyomatsuyakumonohankaku",        name: "行末約物半角" },
+        { key: "gyomatsuyakumonozenkaku",        name: "行末約物全角" },
+        { key: "yakumonohankaku",                name: "約物半角" },
+        { key: "yakumonozenkaku",                name: "約物全角" },
+        { key: "tsumegumi",                      name: "ツメ組み" },
+        { key: "tsume",                          name: "ツメ組み" },
+        { key: "betagumi",                       name: "ベタ組み" },
+        { key: "beta",                           name: "ベタ組み" }
+    ];
+    var mapIndex;
+    for (mapIndex = 0; mapIndex < romajiMap.length; mapIndex++) {
+        if (normalizedValue.indexOf(romajiMap[mapIndex].key) === 0) { return romajiMap[mapIndex].name; }
+    }
+    return value;
+}
+
 /* --- note を表示用にコンパクト整形 / Format the note for compact display --- */
 function workerFormatNoteForDisplay(noteText) {
     var noteLines = noteText.split("\n");
-    var displayLabels = ["文字列", "フォント", "フォントサイズ", "行送り", "カーニング", "プロポーショナルメトリクス", "トラッキング", "文字ツメ", "組み方向", "文字カラー"];
+    var displayLabels = ["文字列", "組み方向", "フォント", "フォントサイズ", "行送り", "自動行送り", "水平比率", "垂直比率", "カーニング", "プロポーショナルメトリクス", "トラッキング", "文字ツメ", "行揃え", "禁則", "文字組み", "文字カラー"];
     var displayLines = [];
     /* 本文（文字列）は複数行になりうるので "文字列：\n" 〜 "\n\nフォント：" を丸ごと取り出し、改行は ↵ で1行に畳む */
     var textStartMarker = "文字列：\n";
@@ -268,6 +360,8 @@ function workerFormatNoteForDisplay(noteText) {
                     var tsumeNumber = parseFloat(displayValue);
                     if (!isNaN(tsumeNumber)) { displayValue = Math.round(tsumeNumber) + "%"; }
                 }
+                if (currentLabel === "禁則") { displayValue = workerKinsokuToDisplay(displayValue); }
+                if (currentLabel === "文字組み") { displayValue = workerMojikumiToDisplay(displayValue); }
                 displayLines.push(currentLabel + "： " + displayValue);
                 break;
             }
@@ -312,6 +406,12 @@ function workerExtractTextAttributes(noteText) {
         kerningText: null,
         colorText: null,
         proportionalMetrics: null,
+        justificationText: null,
+        kinsokuText: null,
+        mojikumiText: null,
+        autoLeading: null,
+        horizontalScale: null,
+        verticalScale: null,
         x: null,
         y: null,
         savedBounds: null
@@ -340,6 +440,12 @@ function workerExtractTextAttributes(noteText) {
         if (noteLines[lineIndex].indexOf("文字ツメ：") === 0 && lineIndex + 1 < noteLines.length) { attributes.tsume = parseFloat(noteLines[lineIndex + 1]); }
         if (noteLines[lineIndex].indexOf("文字カラー：") === 0 && lineIndex + 1 < noteLines.length) { attributes.colorText = noteLines[lineIndex + 1]; }
         if (noteLines[lineIndex].indexOf("プロポーショナルメトリクス：") === 0 && lineIndex + 1 < noteLines.length) { attributes.proportionalMetrics = noteLines[lineIndex + 1] === "true"; }
+        if (noteLines[lineIndex].indexOf("行揃え：") === 0 && lineIndex + 1 < noteLines.length) { attributes.justificationText = noteLines[lineIndex + 1]; }
+        if (noteLines[lineIndex].indexOf("禁則：") === 0 && lineIndex + 1 < noteLines.length) { attributes.kinsokuText = noteLines[lineIndex + 1]; }
+        if (noteLines[lineIndex].indexOf("文字組み：") === 0 && lineIndex + 1 < noteLines.length) { attributes.mojikumiText = noteLines[lineIndex + 1]; }
+        if (noteLines[lineIndex].indexOf("自動行送り：") === 0 && lineIndex + 1 < noteLines.length) { attributes.autoLeading = noteLines[lineIndex + 1] === "true"; }
+        if (noteLines[lineIndex].indexOf("水平比率：") === 0 && lineIndex + 1 < noteLines.length) { attributes.horizontalScale = parseFloat(noteLines[lineIndex + 1]); }
+        if (noteLines[lineIndex].indexOf("垂直比率：") === 0 && lineIndex + 1 < noteLines.length) { attributes.verticalScale = parseFloat(noteLines[lineIndex + 1]); }
         if (noteLines[lineIndex].match(/^座標：\s*X\s*=\s*([-]?\d+(\.\d+)?),\s*Y\s*=\s*([-]?\d+(\.\d+)?)/)) {
             attributes.x = parseFloat(RegExp.$1);
             attributes.y = parseFloat(RegExp.$3);
@@ -374,12 +480,21 @@ function workerSetLayerUsable(layer) {
     try { layer.visible = true; } catch (eVis) {}
 }
 
-/* --- 復元：退避（アウトライン）レイヤーを毎回新規作成 / Restore: create a fresh stash layer --- */
+/* --- 復元：退避（アウトライン）レイヤーを用意（既存 outlined_text があればロック解除して再利用）
+       Restore: reuse the existing outlined_text layer (unlocked) if present, otherwise create a fresh stash layer --- */
 function workerCreateOutlineStashLayer(doc) {
     if (!doc) { return null; }
-    var stashLayer = doc.layers.add();
+    var stashLayer = null;
+    /* 既存の outlined_text レイヤーがあればロックを解除してそのまま退避先に使う（アウトラインを1枚に集約） */
+    var findIndex;
+    for (findIndex = 0; findIndex < doc.layers.length; findIndex++) {
+        if (doc.layers[findIndex].name === "outlined_text") { stashLayer = doc.layers[findIndex]; break; }
+    }
+    if (!stashLayer) {
+        stashLayer = doc.layers.add();
+        stashLayer.name = "__outlined_text_stash__";
+    }
     workerSetLayerUsable(stashLayer);
-    stashLayer.name = "__outlined_text_stash__";
     try {
         var markerGroup = stashLayer.groupItems.add();
         markerGroup.name = "__outlined_text_marker__";
@@ -698,6 +813,155 @@ function workerResolveKernType(kerningText) {
     return AutoKernType.NOAUTOKERN;
 }
 
+/* --- 行揃えを保存用テキストへ / Serialize justification to text --- */
+function workerJustificationToText(justification) {
+    if (justification == Justification.CENTER) { return "中央揃え"; }
+    if (justification == Justification.RIGHT) { return "右揃え"; }
+    if (justification == Justification.FULLJUSTIFYLASTLINELEFT) { return "均等配置（最終行左）"; }
+    if (justification == Justification.FULLJUSTIFYLASTLINECENTER) { return "均等配置（最終行中央）"; }
+    if (justification == Justification.FULLJUSTIFYLASTLINERIGHT) { return "均等配置（最終行右）"; }
+    if (justification == Justification.FULLJUSTIFY) { return "均等配置"; }
+    return "左揃え";
+}
+
+/* --- 復元：行揃えテキストを enum へ / Restore: resolve alignment label to Justification --- */
+/* 復元先は新規テキストフレームなので既定は LEFT。LEFT は代入が無視されることがあるが既定と一致するため実害なし */
+function workerResolveJustification(justificationText) {
+    if (justificationText === "中央揃え") { return Justification.CENTER; }
+    if (justificationText === "右揃え") { return Justification.RIGHT; }
+    if (justificationText === "均等配置（最終行左）") { return Justification.FULLJUSTIFYLASTLINELEFT; }
+    if (justificationText === "均等配置（最終行中央）") { return Justification.FULLJUSTIFYLASTLINECENTER; }
+    if (justificationText === "均等配置（最終行右）") { return Justification.FULLJUSTIFYLASTLINERIGHT; }
+    if (justificationText === "均等配置") { return Justification.FULLJUSTIFY; }
+    return Justification.LEFT;
+}
+
+/* --- 禁則を保存用テキストへ / Serialize kinsoku to text --- */
+/* kinsoku はセット名の文字列（"Soft"／"Hard"／"Soft_v2" 等）。取得不能・なしは "なし" とする */
+function workerKinsokuToText(paragraphAttributes) {
+    try {
+        var value = paragraphAttributes.kinsoku;
+        if (value == null) { return "なし"; }
+        if (typeof value === "string") {
+            if (value === "" || value === "None") { return "なし"; }
+            return value;
+        }
+        if (value.name != null) { return value.name; }
+        return "なし";
+    } catch (e) {
+        return "なし";
+    }
+}
+
+/* --- 復元：禁則を適用 / Restore: apply kinsoku --- */
+/* 「なし」はスクリプトから代入できずエラーになるため、なし／空／不正値はスキップ（既定のまま） */
+function workerApplyKinsoku(textRange, kinsokuText) {
+    if (kinsokuText == null || kinsokuText === "" || kinsokuText === "なし" || kinsokuText === "None") { return; }
+    try {
+        textRange.paragraphAttributes.kinsoku = kinsokuText;
+    } catch (e) {
+    }
+}
+
+/* --- 文字組み名の正規化（表記ゆれ吸収）/ Normalize a mojikumi name for tolerant compare --- */
+/* 内部名は環境で空白・区切り・大小が揺れる（例: "Gyomatsu Yakumono Zenkaku Hankaku"）ので畳んで比較 */
+function workerNormalizeMojikumiName(raw) {
+    return String(raw).replace(/[\s　_\/／・]/g, "").toLowerCase();
+}
+
+/* --- 文字組みプリセット（doc.mojikumiSet の index ↔ 日本語ラベル）/ Mojikumi presets (index <-> label) --- */
+/* ApplyMojikumi.jsx と同一。組み込み7セットは doc.mojikumiSet[0..6] に固定対応（「なし」は index -1 で対象外） */
+function workerMojikumiPresets() {
+    return [
+        { mojikumiIndex: 0, labelText: "行末約物全角/半角" },
+        { mojikumiIndex: 1, labelText: "約物半角" },
+        { mojikumiIndex: 2, labelText: "行末約物半角" },
+        { mojikumiIndex: 3, labelText: "行末約物全角" },
+        { mojikumiIndex: 4, labelText: "約物全角" },
+        { mojikumiIndex: 5, labelText: "ツメ組み" },
+        { mojikumiIndex: 6, labelText: "ベタ組み" }
+    ];
+}
+
+/* --- 適用中の文字組み（オブジェクト or 内部名）を doc.mojikumiSet の位置で日本語ラベルへ / Resolve applied mojikumi to preset label --- */
+/* 同一オブジェクト参照 → 正規化した内部名の順で突き合わせ、見つかった index のラベルを返す。引けなければ null */
+function workerMojikumiLabelFromApplied(applied) {
+    var presets = workerMojikumiPresets();
+    var sets = null;
+    try { sets = app.activeDocument.mojikumiSet; } catch (eSets) { sets = null; }
+    if (sets == null) { return null; }
+    var appliedName = null;
+    try { appliedName = (typeof applied === "string") ? applied : applied.name; } catch (eName) { appliedName = null; }
+    var normApplied = (appliedName != null) ? workerNormalizeMojikumiName(appliedName) : null;
+    var i;
+    for (i = 0; i < presets.length; i++) {
+        var idx = presets[i].mojikumiIndex;
+        if (idx < 0 || idx >= sets.length) { continue; }
+        var matched = false;
+        try { if (sets[idx] === applied) { matched = true; } } catch (eId) {}
+        if (!matched && normApplied != null) {
+            try { if (workerNormalizeMojikumiName(sets[idx].name) === normApplied) { matched = true; } } catch (eNm) {}
+        }
+        if (matched) { return presets[i].labelText; }
+    }
+    return null;
+}
+
+/* --- 文字組みアキ量設定を保存用テキストへ / Serialize mojikumi to text --- */
+/* 可能なら日本語ラベル（doc.mojikumiSet の index で解決）で保存。引けない場合は内部名を素通し（後方互換） */
+function workerMojikumiToText(paragraphAttributes) {
+    try {
+        var value = paragraphAttributes.mojikumi;
+        if (value == null) { return "なし"; }
+        if (typeof value === "string") {
+            if (value === "" || value === "None") { return "なし"; }
+            if (value === "なし") { return "なし"; }
+            var labelFromName = workerMojikumiLabelFromApplied(value);
+            return (labelFromName != null) ? labelFromName : value;
+        }
+        var label = workerMojikumiLabelFromApplied(value);
+        if (label != null) { return label; }
+        if (value.name != null) { return value.name; }
+        return "なし";
+    } catch (e) {
+        return "なし";
+    }
+}
+
+/* --- 復元：文字組みアキ量設定を適用 / Restore: apply mojikumi --- */
+/* 「なし」は代入可。日本語ラベル → その index の doc.mojikumiSet を適用（ApplyMojikumi と同方式）。
+   旧 note の内部名は doc.mojikumiSet 名との正規化一致でフォールバック */
+function workerApplyMojikumi(textRange, mojikumiText) {
+    if (mojikumiText == null || mojikumiText === "") { return; }
+    try {
+        if (mojikumiText === "なし" || mojikumiText === "None") {
+            textRange.paragraphAttributes.mojikumi = "なし";
+            return;
+        }
+        var sets = app.activeDocument.mojikumiSet;
+        var normalizedText = workerNormalizeMojikumiName(mojikumiText);
+        var presets = workerMojikumiPresets();
+        var presetIndex;
+        for (presetIndex = 0; presetIndex < presets.length; presetIndex++) {
+            if (workerNormalizeMojikumiName(presets[presetIndex].labelText) === normalizedText) {
+                var idx = presets[presetIndex].mojikumiIndex;
+                if (idx >= 0 && idx < sets.length) {
+                    textRange.paragraphAttributes.mojikumi = sets[idx];
+                    return;
+                }
+            }
+        }
+        var setIndex;
+        for (setIndex = 0; setIndex < sets.length; setIndex++) {
+            if (workerNormalizeMojikumiName(sets[setIndex].name) === normalizedText) {
+                textRange.paragraphAttributes.mojikumi = sets[setIndex];
+                return;
+            }
+        }
+    } catch (e) {
+    }
+}
+
 /* --- 復元：カーニング適用（AutoKerning.jsx の applyKerningToRanges と同一） / Apply kerning --- */
 /* メトリクス（AUTO）のときだけ proportionalMetrics を ON、それ以外は OFF */
 function workerApplyKerning(textRange, kerningMethod) {
@@ -727,8 +991,19 @@ function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, re
     /* 各属性は個別に適用（1つ失敗しても他の復元を止めない）。フォント取得の成否にも依存しない */
     var attrs = textFrame.textRange.characterAttributes;
     try { attrs.size = attributes.fontSize; } catch (eSize) {}
-    try { attrs.autoLeading = false; attrs.leading = attributes.leading; } catch (eLead) {}
+    /* 自動行送り ON のときは行送りを明示せず自動計算に任せる（旧 note は autoLeading 未記録なので false 扱い） */
+    try {
+        if (attributes.autoLeading === true) {
+            attrs.autoLeading = true;
+        } else {
+            attrs.autoLeading = false;
+            if (attributes.leading !== null) { attrs.leading = attributes.leading; }
+        }
+    } catch (eLead) {}
     try { attrs.tracking = attributes.tracking; } catch (eTrack) {}
+    /* 水平比率・垂直比率（長体／平体）。旧 note は未記録なので null のときは触らない */
+    try { if (attributes.horizontalScale !== null) { attrs.horizontalScale = attributes.horizontalScale; } } catch (eHScale) {}
+    try { if (attributes.verticalScale !== null) { attrs.verticalScale = attributes.verticalScale; } } catch (eVScale) {}
     try { if (attributes.tsume !== null) { attrs.Tsume = attributes.tsume; } } catch (eTsume) {}
     try {
         if (attributes.kerningText != null) {
@@ -740,6 +1015,15 @@ function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, re
         }
     } catch (eKern) {}
     try { textFrame.orientation = (attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL; } catch (eOri) {}
+    /* 行揃え（段落属性）。新規フレームの既定は LEFT なので左揃えは実質そのまま */
+    try {
+        if (attributes.justificationText != null) {
+            textFrame.textRange.paragraphAttributes.justification = workerResolveJustification(attributes.justificationText);
+        }
+    } catch (eJust) {}
+    /* 禁則・文字組みアキ量設定（段落属性）。旧 note は未記録なので null ならスキップ */
+    try { if (attributes.kinsokuText != null) { workerApplyKinsoku(textFrame.textRange, attributes.kinsokuText); } } catch (eKinsoku) {}
+    try { if (attributes.mojikumiText != null) { workerApplyMojikumi(textFrame.textRange, attributes.mojikumiText); } } catch (eMojikumi) {}
     try {
         if (attributes.colorText != null) {
             var restoredColor = workerColorFromText(attributes.colorText);
@@ -821,10 +1105,13 @@ function workerRestoreText() {
 // ワーカー関数はすべてここに登録（追加漏れ防止）
 var WORKER_FUNCS = [
     workerRound,
+    workerToggleAttributesPanel,
     workerSetLayerUsable,
     workerBuildMemoText,
     workerProcessTextFrame,
     workerRunOutline,
+    workerKinsokuToDisplay,
+    workerMojikumiToDisplay,
     workerFormatNoteForDisplay,
     workerInspectSelection,
     workerExtractTextAttributes,
@@ -840,6 +1127,15 @@ var WORKER_FUNCS = [
     workerFinalizeTemplateLayer,
     workerColorToText,
     workerColorFromText,
+    workerJustificationToText,
+    workerResolveJustification,
+    workerKinsokuToText,
+    workerApplyKinsoku,
+    workerNormalizeMojikumiName,
+    workerMojikumiPresets,
+    workerMojikumiLabelFromApplied,
+    workerMojikumiToText,
+    workerApplyMojikumi,
     workerResolveKernType,
     workerApplyKerning,
     workerCreateRestoredTextFrame,
@@ -921,6 +1217,12 @@ function onRestoreClick(win) {
     applyResultToStatus(win, result, 'status.doneRestore');
 }
 
+/* 属性パネルの開閉（メインエンジンにメニューコマンドを委譲）/ Toggle Attributes panel (delegated) */
+function onAttributesClick(win) {
+    if (isBusy) return;
+    callWorker("workerToggleAttributesPanel();", [workerToggleAttributesPanel]);
+}
+
 function populateNoteList(win, formattedNote) {
     win.noteList.removeAll();
     var noteLines = formattedNote.split("\n");
@@ -988,12 +1290,30 @@ function showPalette() {
         columnTitles: [L('listCol.item'), L('listCol.value')],
         columnWidths: [140, 170]
     });
-    win.noteList.preferredSize = [320, 205]; // 9行分 / 9 rows
+    win.noteList.preferredSize = [320, 340]; // 16行分 / 16 rows
 
-    var loadNoteButton = selectedObjectPanel.add("button", undefined, L('button.load'));
+    // メモ操作の行：左＝属性パネル / 中央＝スペーサー / 右＝メモを読み込み
+    var noteActionRow = selectedObjectPanel.add("group");
+    noteActionRow.orientation = "row";
+    noteActionRow.alignment = "fill"; // パネル幅いっぱいに広げて左右に振り分ける
+    noteActionRow.alignChildren = ["fill", "center"];
+    noteActionRow.margins = [0, 6, 0, 0]; // 行の上に余白 +6
+    noteActionRow.spacing = 8;
+
+    // 左：属性パネルの開閉
+    var attributesButton = noteActionRow.add("button", undefined, L('button.attributes'));
+    attributesButton.helpTip = L('button.attributesTip');
+    attributesButton.alignment = ["left", "center"];
+    attributesButton.onClick = function () { onAttributesClick(win); };
+
+    // 中央：フレキシブルスペーサー（左右のボタンを両端へ押し広げる）
+    var noteActionSpacer = noteActionRow.add("group");
+    noteActionSpacer.alignment = ["fill", "center"];
+
+    // 右：メモを読み込み
+    var loadNoteButton = noteActionRow.add("button", undefined, L('button.load'));
     loadNoteButton.helpTip = L('button.loadTip');
-    loadNoteButton.alignment = "left"; // ボタンは幅いっぱいに広げない
-    loadNoteButton.margins = [0, 6, 0, 0]; // ボタンの上に余白 +6
+    loadNoteButton.alignment = ["right", "center"];
     loadNoteButton.onClick = function () { refreshSelectedNote(win, false); };
 
     // 操作ボタン / Command buttons
