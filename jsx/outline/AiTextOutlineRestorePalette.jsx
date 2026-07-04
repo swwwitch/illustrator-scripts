@@ -61,7 +61,7 @@ UI messages support Japanese/English. (Note format remains Japanese for compatib
 
 ### note
 
-https://note.com/dtp_tranist/n/n3e0f241508db
+https://note.com/dtp_transit/n/n3e0f241508db
 
 ### 更新履歴 / Change Log
 
