@@ -9,26 +9,27 @@ SmartObjectResizer.jsx
 
 ### 概要
 
-- 選択中のオブジェクトを、指定した基準（最大／最小／指定サイズ／アートボード／裁ち落とし／面積）に基づいて柔軟にリサイズできるIllustrator用スクリプトです。
-- 縦横比保持・片辺のみモード、横位置／縦位置の整列、リアルタイムプレビューを備えています。整列はリサイズと同じ境界基準で計算します（「プレビュー境界で計測」ON＝visibleBounds／OFF＝geometricBounds）。基準を切り替えても、選択中の基準と整列は保持したまま再計算します。
+- 選択中のオブジェクトを、指定した基準（最大／最小／指定サイズ／基準辺／面積／アートボード／裁ち落とし）に基づいて柔軟にリサイズできるIllustrator用スクリプトです。
+- 縦横比保持・片辺のみモード、横位置／縦位置の整列、リアルタイムプレビューを備えています。ダイアログを開いた直後はどの基準も選択されておらず変形は起こらず、基準ラジオをクリックした時点でリサイズが始まります。整列はリサイズと同じ境界基準で計算します（「プレビュー境界で計測」ON＝visibleBounds／OFF＝geometricBounds）。基準を切り替えても、選択中の基準と整列は保持したまま再計算します。
 
 ### 主な機能
 
 - 縦横比保持と片辺のみの切り替え
-- 各種基準（最大／最小／指定サイズ／アートボード／裁ち落とし／面積）でのスケーリング
+- 各種基準（最大／最小／指定サイズ／基準辺／面積／アートボード／裁ち落とし）でのスケーリング
 - テキストをアウトライン境界で計測（複製→分割→アウトライン→計測→即削除）
-- 整列（右カラムの「整列」パネル）
-  - 横位置：左／中央／均等／0間隔
-  - 縦位置：上／中央／均等／0間隔
-  - 横位置と縦位置は同時指定可。基準を変えても維持される
+- 整列（右カラムの「整列（横）」「整列（縦）」パネル）
+  - 横位置：左／中央／右／均等／0間隔
+  - 縦位置：上／中央／下／均等／0間隔
+  - 横位置と縦位置は同時指定可（横=left・縦=top で独立）。基準を変えても維持される
+- 主要オプションにツールチップ（helpTip）を表示
 - リアルタイムプレビュー、リセット、フッターの リセット／キャンセル／OK
 - 日本語／英語インターフェース対応
 
 ### 処理の流れ
 
-1. ダイアログでリサイズ基準（と縦横比／片辺）を選択
+1. ダイアログでリサイズ基準（と縦横比／片辺）を選択（開いた直後は未選択＝変形なし。基準を選ぶとリサイズ開始）
 2. 選択基準でスケーリング（テキストは複製→分割→アウトライン化→計測し、元オブジェクトに反映）
-3. 整列（横位置／縦位置）や面積一致を適用。基準を変えると、再リサイズ後に整列を再適用
+3. 整列（横位置／縦位置）や面積一致を適用。整列チェックを切り替えると、基準状態に戻してから両軸の整列を再適用
 4. OKで確定、キャンセル／リセットで元に戻す
 
 ### 紹介記事（note）
@@ -49,32 +50,34 @@ SmartObjectResizer.jsx
 
 ### Overview
 
-- An Illustrator script that flexibly resizes selected objects based on a chosen criterion (Max / Min / Fixed Size / Artboard / Bleed / Area).
-- Supports Keep Aspect / One Side Only modes, horizontal- and vertical-position alignment, and real-time preview. Alignment uses the same bounds basis as resizing ("Measure by preview bounds" ON = visibleBounds / OFF = geometricBounds). Switching the base keeps the current criterion and alignment and recomputes them.
+- An Illustrator script that flexibly resizes selected objects based on a chosen criterion (Max / Min / Fixed Size / Ref. side / Area / Artboard / Bleed).
+- Supports Keep Aspect / One Side Only modes, horizontal- and vertical-position alignment, and real-time preview. No base is selected when the dialog opens, so nothing is transformed until you click a base radio. Alignment uses the same bounds basis as resizing ("Measure by preview bounds" ON = visibleBounds / OFF = geometricBounds). Switching the base keeps the current criterion and alignment and recomputes them.
 
 ### Main Features
 
 - Toggle between Keep Aspect and One Side Only
-- Scaling based on Max / Min / Fixed Size / Artboard / Bleed / Area
+- Scaling based on Max / Min / Fixed Size / Ref. side / Area / Artboard / Bleed
 - Text measured by outline bounds (duplicate → expand → outline → measure → immediate cleanup)
-- Alignment (the "Alignment" panel in the right column)
-  - Horizontal: Left / Center / Distribute evenly / Zero gap
-  - Vertical: Top / Center / Distribute evenly / Zero gap
-  - Horizontal and vertical can be combined; preserved across base changes
+- Alignment (the "Align (H)" / "Align (V)" panels in the right column)
+  - Horizontal: Left / Center / Right / Distribute evenly / Zero gap
+  - Vertical: Top / Center / Bottom / Distribute evenly / Zero gap
+  - Horizontal and vertical can be combined (independent: H = left, V = top); preserved across base changes
+- Tooltips (helpTips) on key options
 - Real-time preview, Reset, and a footer with Reset / Cancel / OK
 - Japanese and English UI support
 
 ### Process Flow
 
-1. Choose the resize base (and Keep Aspect / One Side Only) in the dialog
+1. Choose the resize base (and Keep Aspect / One Side Only) in the dialog (nothing is selected on open = no transform; picking a base starts resizing)
 2. Scale by the selected base (text is duplicated → expanded → outlined → measured, then applied back to originals)
-3. Apply alignment (horizontal / vertical) or area matching; changing the base re-applies alignment after re-resizing
+3. Apply alignment (horizontal / vertical) or area matching; toggling an alignment restores the base state and re-applies both axes
 4. Confirm with OK, or revert with Cancel / Reset
 
 ### Update History
 
 - v1.0.0 (20250405): Initial version
-- v1.4.0 (20260704): Overall refactor (shared UI layout, LABELS/L() localization, renaming, dedup/dead-code removal, split resize/alignment functions, fewer redundant try blocks). Fixed: aspect/one-side toggle keeps the current base selection; align reset also clears the "zero gap" checkboxes; alignment is preserved across base changes; Reset button also clears alignment; clearer UI wording; guarded against Infinity on zero width/height; split the fixed-size row into createFixedSizeGroup; removed setupWindow. Artboard/Bleed resize no longer uses a temp group (cluster uniform-scale) to protect parent hierarchy and stacking order; added Right/Bottom alignment; reorganized alignment into two panels (Align H / Align V); footer with three columns (Reset / Cancel・OK); consolidated left/right margins into dialog.margins. No base is selected when the dialog opens, so it performs no transform on show; resolved the duplicate "Base" label (panel = "Resize base" / row = "Ref. side"); added helpTips (tooltips) to non-obvious options; row-label colon is now appended by fieldLabel() (colon separated from label data). Fixed a bug where clicking an alignment checkbox wiped the other axis's alignment (now always re-applies both axes via reapplyActiveAlignments()); alignment now follows the "Measure by preview bounds" option (ON = visibleBounds / OFF = geometricBounds) so stroked/effected objects align by their visual edges
+- v1.4.0 (20260704): Overall refactor (shared UI layout, LABELS/L() localization, renaming, dedup/dead-code removal, split resize/alignment functions, fewer redundant try blocks). Fixed: aspect/one-side toggle keeps the current base selection; align reset also clears the "zero gap" checkboxes; alignment is preserved across base changes; Reset button also clears alignment; clearer UI wording; guarded against Infinity on zero width/height; split the fixed-size row into createFixedSizeGroup; removed setupWindow. Artboard/Bleed resize no longer uses a temp group (cluster uniform-scale) to protect parent hierarchy and stacking order; added Right/Bottom alignment; reorganized alignment into two panels (Align H / Align V); footer with three columns (Reset / Cancel・OK); consolidated left/right margins into dialog.margins
+- v1.4.1 (20260704): No base is selected when the dialog opens, so it performs no transform on show; resolved the duplicate "Base" label (panel = "Resize base" / row = "Ref. side"); added helpTips (tooltips) to non-obvious options; row-label colon is now appended by fieldLabel() (colon separated from label data). Fixed a bug where clicking an alignment checkbox wiped the other axis's alignment (now always re-applies both axes via reapplyActiveAlignments()); alignment now follows the "Measure by preview bounds" option (ON = visibleBounds / OFF = geometricBounds) so stroked/effected objects align by their visual edges
 */
 
 // =========================================
