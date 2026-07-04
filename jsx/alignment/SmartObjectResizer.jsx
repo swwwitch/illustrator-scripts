@@ -1,4 +1,4 @@
-#targetengine "TMK_SOR_Engine"
+#targetengine "SOR_Engine"
 #target illustrator
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
@@ -9,24 +9,27 @@ SmartObjectResizer.jsx
 
 ### 概要
 
-- 選択中のオブジェクトを指定した基準（最大、最小、指定サイズ、アートボード、裁ち落とし、面積）に基づいて柔軟にリサイズできるIllustrator用スクリプトです。
-- 縦横比保持モードや片辺のみモード、整列オプション、リアルタイムプレビュー機能を備えています。整列処理は visibleBounds ではなく geometricBounds ベースで計算し、テキスト整列の安定性を高めています。
+- 選択中のオブジェクトを、指定した基準（最大／最小／指定サイズ／アートボード／裁ち落とし／面積）に基づいて柔軟にリサイズできるIllustrator用スクリプトです。
+- 縦横比保持・片辺のみモード、横位置／縦位置の整列、リアルタイムプレビューを備えています。整列は visibleBounds ではなく geometricBounds ベースで計算し、テキスト整列の安定性を高めています。基準を切り替えても、選択中の基準と整列は保持したまま再計算します。
 
 ### 主な機能
 
 - 縦横比保持と片辺のみの切り替え
-- 各種基準（最大、最小、指定サイズ、アートボード、裁ち落とし、面積）でのスケーリング
-- テキストをアウトライン化したサイズで計算（複製→分割→アウトライン→計測→即削除）
-- 整列オプション（左、中央、均等、0間隔、上、中央、横均等、横0間隔）
-- リアルタイムプレビューとリセット機能
+- 各種基準（最大／最小／指定サイズ／アートボード／裁ち落とし／面積）でのスケーリング
+- テキストをアウトライン境界で計測（複製→分割→アウトライン→計測→即削除）
+- 整列（右カラムの「整列」パネル）
+  - 横位置：左／中央／均等／0間隔
+  - 縦位置：上／中央／均等／0間隔
+  - 横位置と縦位置は同時指定可。基準を変えても維持される
+- リアルタイムプレビュー、リセット、フッターの リセット／キャンセル／OK
 - 日本語／英語インターフェース対応
 
 ### 処理の流れ
 
-1. ダイアログでリサイズモードと基準を選択
-2. 選択モードに従ってスケーリング実行（テキストは複製→分割→アウトライン化→計測し、元オブジェクトに反映）
-3. 整列オプションや面積一致処理を適用
-4. OKで確定、キャンセルやリセットで元に戻す
+1. ダイアログでリサイズ基準（と縦横比／片辺）を選択
+2. 選択基準でスケーリング（テキストは複製→分割→アウトライン化→計測し、元オブジェクトに反映）
+3. 整列（横位置／縦位置）や面積一致を適用。基準を変えると、再リサイズ後に整列を再適用
+4. OKで確定、キャンセル／リセットで元に戻す
 
 ### 紹介記事（note）
 
@@ -34,15 +37,8 @@ https://note.com/dtp_tranist/n/n6f35bd4000ec
 
 ### 更新履歴
 
-- v1.0.0 (20250601) : 初期バージョン
-- v1.1.0 (20250601) : 「片辺のみ」＋「指定サイズ」での変形サポート
-- v1.2.0 (20250601) : バグ修正、細部改善
-- v1.2.1 (20260227) : ダイアログ初期表示時に、選択中モードを1回適用（初期状態でもリサイズが反映されるように）
-- v1.2.2 (20260227) : 指定サイズの数値欄で、↑↓/Shift+↑↓/Option+↑↓ による増減を追加（±1 / ±10 / ±0.1）
-- v1.2.3 (20260227) : ダイアログ位置をセッション内で記憶し、次回起動時に復元（Illustrator終了でリセット）
-- v1.3.0 (20260322) : テキストのアウトライン基準計測を再設計（差分検出＋即時削除＋キャッシュ化で残骸問題を解消、幾何変化対応のキャッシュ最適化）
-- v1.3.1 (20260322) : テキスト計測用の複製オブジェクトに、アウトライン化前の分割（expandStyle）を追加
-- v1.3.2 (20260322) : 整列処理のみ visibleBounds 依存をやめ、geometricBounds ベースに分離してテキスト整列精度を改善
+- v1.0.0 (20250405) : 初期バージョン
+- v1.4.0 (20260704) : 全体リファクタ（UIレイアウト共通化、LABELS/L() 多言語化、命名整理、重複・デッドコード削除、リサイズ／整列処理の関数分割、不要な try 削減）。縦横比／片辺トグルで選択中の基準を保持、整列リセットで「0間隔」の取りこぼしを修正。基準変更時も整列を保持、リセットボタンで整列も解除、UI文言を明確化、ゼロ幅/高さでの Infinity をガード、指定サイズ欄を createFixedSizeGroup に分離、setupWindow 削除。アートボード／裁ち落としのリサイズを一時グループ廃止＝クラスタ等倍スケール化し親階層・重ね順を保護、整列に右揃え／下揃えを追加、整列を「整列（横）／整列（縦）」の2パネルに再構成、フッターを3カラム（リセット／キャンセル・OK）化、左右余白を dialog.margins に集約
 
 ----
 
@@ -52,114 +48,208 @@ SmartObjectResizer.jsx
 
 ### Overview
 
-- An Illustrator script that flexibly resizes selected objects based on criteria such as Max, Min, Fixed Size, Artboard, Bleed, or Area.
-- Supports "Keep Aspect" and "One Side Only" modes, alignment options, and real-time preview. Alignment calculations use geometricBounds instead of visibleBounds for more stable text alignment.
+- An Illustrator script that flexibly resizes selected objects based on a chosen criterion (Max / Min / Fixed Size / Artboard / Bleed / Area).
+- Supports Keep Aspect / One Side Only modes, horizontal- and vertical-position alignment, and real-time preview. Alignment is computed from geometricBounds (not visibleBounds) for more stable text alignment. Switching the base keeps the current criterion and alignment and recomputes them.
 
 ### Main Features
 
-- Toggle between "Keep Aspect" and "One Side Only"
-- Scaling based on Max, Min, Fixed Size, Artboard, Bleed, or Area
-- Optional text measurement using outlined bounds (duplicate → expand appearance → outline → measure → immediate cleanup)
-- Alignment options (Left, Center, Evenly, Zero Gap, Top, Middle, Horizontal Evenly, Horizontal Zero Gap)
-- Real-time preview and reset function
+- Toggle between Keep Aspect and One Side Only
+- Scaling based on Max / Min / Fixed Size / Artboard / Bleed / Area
+- Text measured by outline bounds (duplicate → expand → outline → measure → immediate cleanup)
+- Alignment (the "Alignment" panel in the right column)
+  - Horizontal: Left / Center / Distribute evenly / Zero gap
+  - Vertical: Top / Center / Distribute evenly / Zero gap
+  - Horizontal and vertical can be combined; preserved across base changes
+- Real-time preview, Reset, and a footer with Reset / Cancel / OK
 - Japanese and English UI support
 
 ### Process Flow
 
-1. Select resize mode and base in the dialog
-2. Execute scaling according to selected mode (text objects are measured via duplicate → expand appearance → outline → bounds calculation and applied back to originals)
-3. Apply alignment or area-matching options
-4. Confirm with OK, or revert with Cancel or Reset
+1. Choose the resize base (and Keep Aspect / One Side Only) in the dialog
+2. Scale by the selected base (text is duplicated → expanded → outlined → measured, then applied back to originals)
+3. Apply alignment (horizontal / vertical) or area matching; changing the base re-applies alignment after re-resizing
+4. Confirm with OK, or revert with Cancel / Reset
 
 ### Update History
 
-- v1.0.0 (20250601): Initial version
-- v1.1.0 (20250601): Supported "One Side Only" with "Fixed Size"
-- v1.2.0 (20250601): Bug fixes and improvements
-- v1.2.1 (20260227): Apply the selected mode once on dialog show (so the default selection is applied immediately)
-- v1.2.2 (20260227): Added arrow-key value stepping for the Fixed Size input (±1 / ±10 with Shift / ±0.1 with Option)
-- v1.2.3 (20260227): Remember dialog position within the session and restore next run (reset when Illustrator quits)
-- v1.3.0 (20260322): Reworked text outline measurement using diff-based cleanup and caching (eliminates leftover outline artifacts and optimizes cache invalidation for geometry changes)
-- v1.3.1 (20260322): Added expand appearance (expandStyle) before outlining duplicated text objects used for measurement
-- v1.3.2 (20260322): Separated alignment calculations from visibleBounds and switched them to geometricBounds for more stable text alignment
+- v1.0.0 (20250405): Initial version
+- v1.4.0 (20260704): Overall refactor (shared UI layout, LABELS/L() localization, renaming, dedup/dead-code removal, split resize/alignment functions, fewer redundant try blocks). Fixed: aspect/one-side toggle keeps the current base selection; align reset also clears the "zero gap" checkboxes; alignment is preserved across base changes; Reset button also clears alignment; clearer UI wording; guarded against Infinity on zero width/height; split the fixed-size row into createFixedSizeGroup; removed setupWindow. Artboard/Bleed resize no longer uses a temp group (cluster uniform-scale) to protect parent hierarchy and stacking order; added Right/Bottom alignment; reorganized alignment into two panels (Align H / Align V); footer with three columns (Reset / Cancel・OK); consolidated left/right margins into dialog.margins
 */
 
+// =========================================
+// バージョン / Version
+// =========================================
+var SCRIPT_VERSION = "v1.4.0";
+
 (function () {
-    function getCurrentLang() {
-        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
-    }
+    // =========================================
+    // ユーザー設定 / User Settings
+    // =========================================
 
-    var lang = getCurrentLang();
+    /* UIレイアウトの余白・間隔（必要に応じて調整） / UI layout margins & spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 15;                 /* 2カラムの間隔 / gap between columns */
+    var LABEL_WIDTH    = 90;                 /* 行ラベルの共通幅 / shared row-label width */
+    var BLEED_OFFSET_PT = 6 * 2.83464567;    /* 裁ち落とし: 片側3mm＝幅/高さそれぞれ+6mm / bleed 3mm per side */
 
-    // スクリプトバージョン / Script version
-    var SCRIPT_VERSION = "v1.3.2";
-
-    // ダイアログ位置をセッション内で記憶（Illustrator終了でリセット）
-    // Remember dialog position within this Illustrator session (resets when Illustrator quits)
+    /* ダイアログ位置をセッション内で記憶（Illustrator終了でリセット） */
+    /* Remember dialog position within this Illustrator session (resets on quit) */
     var __SOR_SESSION_KEY = "SmartObjectResizer_dialogPos";
     if (typeof $.global[__SOR_SESSION_KEY] === "undefined") {
         $.global[__SOR_SESSION_KEY] = null;
     }
 
-    var labels = {
-        keepAspect: { ja: "縦横比保持", en: "Keep aspect" },
-        oneSideOnly: { ja: "片辺のみ", en: "One side only" },
-        max: { ja: "最大：", en: "Max:" },
-        min: { ja: "最小：", en: "Min:" },
-        fixed: { ja: "指定サイズ：", en: "Fixed Size:" },
-        width: { ja: "幅", en: "Width" },
-        height: { ja: "高さ", en: "Height" },
-        base: { ja: "基準：", en: "Base:" },
-        longSide: { ja: "長辺", en: "Long side" },
-        shortSide: { ja: "短辺", en: "Short side" },
-        area: { ja: "面積：", en: "Area:" },
-        areaMax: { ja: "最大", en: "Max" },
-        areaMin: { ja: "最小", en: "Min" },
-        artboard: { ja: "アートボード：", en: "Artboard:" },
-        bleed: { ja: "裁ち落とし：", en: "Bleed" },
-        textOutlineBounds: { ja: "テキスト（アウトライン化して計算）", en: "Text (outline for bounds)" },
-        previewBounds: { ja: "プレビュー境界", en: "Preview Bounds" },
-        alignTitle: { ja: "整列", en: "Alignment" },
-        alignVerticalLabel: { ja: "縦に並べる", en: "Vertical" },
-        alignLeft: { ja: "左", en: "Left" },
-        alignCenter: { ja: "中央", en: "Center" },
-        alignEven: { ja: "均等", en: "Distribute evenly" },
-        alignZero: { ja: "0", en: "0" },
-        alignHorizontalLabel: { ja: "横に並べる", en: "Horizontal" },
-        alignTop: { ja: "上", en: "Top" },
-        alignMiddle: { ja: "中央", en: "Middle" },
-        ok: { ja: "OK", en: "OK" },
-        cancel: { ja: "キャンセル", en: "Cancel" },
-        selectObject: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
-        reset: { ja: "リセット", en: "Reset" },
-        dialogTitle: { ja: "オブジェクトのリサイズ", en: "SmartObjectResizer" }
+    /* 共通レイアウト適用ヘルパー / Shared layout helpers */
+    /* パネルの共通設定 / Apply shared panel layout */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /* 行グループの共通設定（ボタン列など） / Apply a horizontal row group */
+    function setupRow(group, alignment, spacing) {
+        group.orientation = "row";
+        group.alignment = alignment || "left";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /* 縦方向のスペーサー（区切り用の空グループ） / Vertical spacer group */
+    function addSpacer(parent, height) {
+        var spacer = parent.add("group");
+        spacer.minimumSize.height = height;
+        spacer.maximumSize.height = height;
+        return spacer;
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    function getCurrentLang() {
+        return ($.locale && $.locale.indexOf('ja') === 0) ? 'ja' : 'en';
+    }
+    var currentLanguage = getCurrentLang();
+
+    /*
+    LABELS のカテゴリ規約 / Category rules
+      dialog   : ダイアログタイトル / dialog title
+      panel    : パネル見出し / panel headers
+      field    : 行ラベル（末尾に {colon}） / row field labels
+      radio    : ラジオボタン / radio buttons
+      checkbox : チェックボックス / checkboxes
+      button   : ボタン（Cancel / Reset。OK は非ローカライズの "OK" 直書き）
+      alert    : 警告メッセージ / alerts
+    記号は {colon} / {slash} / {comma} / {openParen} / {closeParen} で記述し、
+    applyUISymbols() が言語に応じた全角/半角へ展開する。
+    */
+    var LABELS = {
+        dialog: {
+            title: { ja: "オブジェクトのリサイズ", en: "SmartObjectResizer" }
+        },
+        panel: {
+            base:  { ja: "基準", en: "Base" },
+            align: { ja: "整列", en: "Alignment" },
+            // 整列（横）: 左/中央/右 ＋ 縦方向の分配 / horizontal alignment
+            hAlign: { ja: "整列{openParen}横{closeParen}", en: "Align {openParen}H{closeParen}" },
+            // 整列（縦）: 上/中央/下 ＋ 横方向の分配 / vertical alignment
+            vAlign: { ja: "整列{openParen}縦{closeParen}", en: "Align {openParen}V{closeParen}" }
+        },
+        field: {
+            max:      { ja: "最大{colon}",         en: "Max{colon}" },
+            min:      { ja: "最小{colon}",         en: "Min{colon}" },
+            fixed:    { ja: "指定サイズ{colon}",   en: "Fixed Size{colon}" },
+            base:     { ja: "基準{colon}",         en: "Base{colon}" },
+            area:     { ja: "面積{colon}",         en: "Area{colon}" },
+            artboard: { ja: "アートボード{colon}", en: "Artboard{colon}" },
+            bleed:    { ja: "裁ち落とし{colon}",   en: "Bleed{colon}" }
+        },
+        radio: {
+            keepAspect:  { ja: "縦横比保持", en: "Keep aspect" },
+            oneSideOnly: { ja: "片辺のみ",   en: "One side only" },
+            width:       { ja: "幅",         en: "Width" },
+            height:      { ja: "高さ",       en: "Height" },
+            longSide:    { ja: "長辺",       en: "Long side" },
+            shortSide:   { ja: "短辺",       en: "Short side" },
+            areaMax:     { ja: "最大",       en: "Max" },
+            areaMin:     { ja: "最小",       en: "Min" }
+        },
+        checkbox: {
+            textOutlineBounds: { ja: "テキストをアウトライン境界で計測", en: "Measure text by outline bounds" },
+            previewBounds:     { ja: "プレビュー境界で計測", en: "Measure by preview bounds" },
+            alignLeft:   { ja: "左",     en: "Left" },
+            alignCenter: { ja: "中央",   en: "Center" },
+            alignRight:  { ja: "右",     en: "Right" },
+            alignEven:   { ja: "均等",   en: "Distribute evenly" },
+            alignZero:   { ja: "0間隔",  en: "Zero gap" },
+            alignTop:    { ja: "上",   en: "Top" },
+            alignMiddle: { ja: "中央", en: "Middle" },
+            alignBottom: { ja: "下",   en: "Bottom" }
+        },
+        button: {
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            reset:  { ja: "リセット",   en: "Reset" }
+        },
+        alert: {
+            selectObject: { ja: "オブジェクトを選択してください。", en: "Please select an object." }
+        }
     };
 
+    // "panel.base" のようなドット区切りパスで LABELS から文字列を取得
+    // Resolve a dotted path like "panel.base" from LABELS
+    function L(path) {
+        var parts = path.split(".");
+        var node = LABELS;
+        for (var i = 0; i < parts.length; i++) {
+            node = node[parts[i]];
+            if (!node) return path;
+        }
+        var text = node[currentLanguage] || node.en;
+        if (!text) return path;
+        return applyUISymbols(text);
+    }
+
+    // LABELS 内の {colon} などのプレースホルダを言語別記号へ展開
+    // Expand {colon}-style placeholders into locale-specific symbols
+    function applyUISymbols(text) {
+        return text
+            .replace(/\{colon\}/g,      uiSymbol("colon"))
+            .replace(/\{slash\}/g,      uiSymbol("slash"))
+            .replace(/\{comma\}/g,      uiSymbol("comma"))
+            .replace(/\{openParen\}/g,  uiSymbol("openParen"))
+            .replace(/\{closeParen\}/g, uiSymbol("closeParen"));
+    }
+
+    // 言語別の記号セット（日本語は全角、英語は半角）
+    // Locale symbol set (full-width for JA, half-width for EN)
+    function uiSymbol(name) {
+        if (currentLanguage === "ja") {
+            switch (name) {
+                case "slash":      return "／";
+                case "colon":      return "：";
+                case "comma":      return "、";
+                case "openParen":  return "（";
+                case "closeParen": return "）";
+            }
+        }
+        switch (name) {
+            case "slash":      return "/";
+            case "colon":      return ":";
+            case "comma":      return ", ";
+            case "openParen":  return "(";
+            case "closeParen": return ")";
+        }
+        return "";
+    }
+
+    // =========================================
+    // 単位 / Units
+    // =========================================
+
     var doc = app.activeDocument;
-    var originalSelectedItems = doc.selection;
-    var workingItems = originalSelectedItems;
-    if (!originalSelectedItems || originalSelectedItems.length === 0) {
-        alert(labels.selectObject[lang]);
-        return;
-    }
-
-    var originalStates = [];
-    for (var i = 0; i < originalSelectedItems.length; i++) {
-        var item = originalSelectedItems[i];
-        originalStates.push({
-            item: item,
-            width: item.width,
-            height: item.height,
-            left: item.left,
-            top: item.top,
-            // strokeWidth: item.strokeWidth
-        });
-    }
-    var resizeBaseStates = [];
-
-    var outlineBoundsCache = {};
-    var outlineBoundsCacheSeq = 1;
-    var outlineIdMap = [];
 
     var unitLabel;
     switch (doc.rulerUnits) {
@@ -183,39 +273,67 @@ SmartObjectResizer.jsx
             break;
     }
 
-    var dialog = new Window("dialog", (labels.dialogTitle ? labels.dialogTitle[lang] : "SmartObjectResizer") + " " + SCRIPT_VERSION);
+    // =========================================
+    // 選択オブジェクトと初期状態 / Selection & initial state
+    // =========================================
+
+    if (!doc.selection || doc.selection.length === 0) {
+        alert(L("alert.selectObject"));
+        return;
+    }
+    // doc.selection はライブ参照になりうるため、配列にコピーして固定する
+    var originalSelectedItems = [];
+    for (var i = 0; i < doc.selection.length; i++) {
+        originalSelectedItems.push(doc.selection[i]);
+    }
+    var workingItems = originalSelectedItems;
+
+    var originalStates = [];
+    for (var i = 0; i < originalSelectedItems.length; i++) {
+        var item = originalSelectedItems[i];
+        originalStates.push({
+            item: item,
+            width: item.width,
+            height: item.height,
+            left: item.left,
+            top: item.top
+        });
+    }
+    var resizeBaseStates = [];
+
+    var outlineBoundsCache = {};
+    var outlineBoundsCacheSeq = 1;
+    var outlineIdMap = [];
+
+    var dialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
     dialog.alignChildren = ["left", "top"];
-    dialog.margins = [0, 0, 0, 10];
+    // 左右インセットと下余白はここで一括管理（各ペイン／フッターの左右マージンは 0）
+    dialog.margins = [20, 0, 20, 20];
 
     // 前回のダイアログ位置を復元（セッション内のみ）
-    try {
-        var _pos = $.global[__SOR_SESSION_KEY];
-        if (_pos && _pos.length === 2 && !isNaN(_pos[0]) && !isNaN(_pos[1])) {
-            dialog.location = _pos;
-        }
-    } catch (_) { }
+    var savedDialogPos = $.global[__SOR_SESSION_KEY];
+    if (savedDialogPos && savedDialogPos.length === 2 && !isNaN(savedDialogPos[0]) && !isNaN(savedDialogPos[1])) {
+        dialog.location = savedDialogPos;
+    }
 
     // --- 初期表示時に、選択中のモードを1回だけ適用 ---
     // ※ 初期状態で「最大：幅」などが選択されていても、クリックするまで反映されない問題の対策
     dialog.onShow = function () {
+        // UI 状態の初期化（DOM に触れないので保護不要。失敗したら顕在化させる）
+        resetAlignChecks();
+        updateInputState();
+        updateRadioGroupStates();
+        updateTextOutlineOptionState();
+
+        // 初期プレビュー（DOM 操作）のみ保護。失敗しても表示は継続するが、黙殺せずログに残す
         try {
-            // 整列は初期OFF、状態を元に戻してから適用
-            resetAlignChecks();
             clearOutlineBoundsCache();
             restoreOriginalGeometry();
             restoreOriginalPosition();
             app.redraw();
-
-            // UI状態に応じた有効/無効も更新
-            updateInputState();
-            updateRadioGroupStates();
-
-            updateTextOutlineOptionState();
-
-            // 現在選択されているラジオのモードを1回だけ適用
-            applyResizeBySelection();
+            applyResizeBySelection(); // 現在選択されているラジオのモードを1回だけ適用
         } catch (e) {
-            // 何もしない（ダイアログ表示は継続）
+            $.writeln("SmartObjectResizer: 初期プレビューに失敗 / initial preview failed — " + e);
         }
     };
 
@@ -228,7 +346,7 @@ SmartObjectResizer.jsx
     };
 
     // --- 縦横比と片辺オプションのグループ ---
-    // 縦横比・片辺選択ラジオボタン（mainGroupより前に配置）
+    // 縦横比・片辺選択ラジオボタン（columnsGroupより前に配置）
     var ratioGroup = dialog.add("group");
     ratioGroup.orientation = "row";
     ratioGroup.alignChildren = ["left", "center"];
@@ -236,8 +354,8 @@ SmartObjectResizer.jsx
     ratioGroup.alignment = ["center", "top"]; // 中央揃え
 
     // 「縦横比保持」「片辺のみ」ラジオボタン
-    var keepRatioRadio = ratioGroup.add("radiobutton", undefined, labels.keepAspect[lang]);
-    var oneSideOnlyRadio = ratioGroup.add("radiobutton", undefined, labels.oneSideOnly[lang]);
+    var keepRatioRadio = ratioGroup.add("radiobutton", undefined, L("radio.keepAspect"));
+    var oneSideOnlyRadio = ratioGroup.add("radiobutton", undefined, L("radio.oneSideOnly"));
     // ラジオボタン間のスペースを明示的に設定
     keepRatioRadio.margins = [0, 0, 20, 0]; // 右側に20px相当の余白
     oneSideOnlyRadio.margins = [0, 0, 0, 0];
@@ -268,7 +386,7 @@ SmartObjectResizer.jsx
             createRadioGroup.widthRadio.parent.enabled = true; // ラジオボタン行
         }
 
-        onAnyRadioClick.call(this);
+        reapplyCurrentSelection();
     };
 
     // 「縦横比保持」選択時に即時有効化
@@ -295,28 +413,26 @@ SmartObjectResizer.jsx
             createRadioGroup.widthRadio.parent.enabled = true;
         }
 
-        onAnyRadioClick.call(this);
+        reapplyCurrentSelection();
     };
 
-    var mainGroup = dialog.add("group");
-    mainGroup.orientation = "row";
+    var columnsGroup = dialog.add("group");
+    columnsGroup.orientation = "row";
     // 左右ペインを上揃えに
-    mainGroup.alignChildren = ["top", "top"];
+    columnsGroup.alignChildren = ["top", "top"];
+    // 2カラム（左ペイン／右ペイン）の間隔
+    columnsGroup.spacing = COLUMN_SPACING;
 
     // 左ペイン（各種設定）
-    var leftPane = mainGroup.add("group");
+    var leftPane = columnsGroup.add("group");
     leftPane.orientation = "column";
     leftPane.alignChildren = ["left", "top"];
-    leftPane.margins = [20, 20, 10, 0];
-    leftPane.margins = [leftPane.margins[0], 0, leftPane.margins[2], leftPane.margins[3]];
+    // 余白は dialog.margins（左右）と columnsGroup.spacing（カラム間）で管理
 
 
-    // containerPanel を左ペイン内にパネルとして追加
-    var containerPanel = leftPane.add("panel", undefined, "基準");
-    containerPanel.orientation = "column";
-    containerPanel.alignChildren = "left";
-    containerPanel.margins = [15, 20, 15, 15];
-    containerPanel.alignment = ["fill", "top"];
+    // resizeBasePanel を左ペイン内にパネルとして追加
+    var resizeBasePanel = leftPane.add("panel", undefined, L("panel.base"));
+    setupPanel(resizeBasePanel);
 
     var allRadioButtons = [];
     var radioGroups = [];
@@ -380,114 +496,90 @@ SmartObjectResizer.jsx
         });
     }
 
-    function createRadioGroup(label, optionLabels, parent, isFixedSizeGroup) {
-        if (!isFixedSizeGroup) {
-            var group = parent.add("group");
-            group.orientation = "row";
-            group.alignChildren = ["left", "center"];
-            var labelText = group.add("statictext", undefined, label);
-            // 「最小」のラベルに幅指定を追加
-            if (label === labels.min[lang]) {
-                labelText.preferredSize.width = 80;
-            } else {
-                labelText.preferredSize.width = 80;
-            }
-            var buttons = [];
-            for (var i = 0; i < optionLabels.length; i++) {
-                var btn = group.add("radiobutton", undefined, optionLabels[i]);
-                buttons.push(btn);
-                allRadioButtons.push(btn);
-            }
-            return buttons;
-        } else {
-            // --- 指定サイズ＋数値入力欄を2行構成に分割 ---
-            // 1行目：ラベルとラジオボタン
-            var sizeHeaderGroup = parent.add("group");
-            sizeHeaderGroup.orientation = "row";
-            sizeHeaderGroup.alignChildren = ["left", "center"];
-            var sizeLabel = sizeHeaderGroup.add("statictext", undefined, label);
-            sizeLabel.preferredSize.width = 80;
-            var widthRadio = sizeHeaderGroup.add("radiobutton", undefined, optionLabels[0]);
-            var heightRadio = sizeHeaderGroup.add("radiobutton", undefined, optionLabels[1]);
-            allRadioButtons.push(widthRadio, heightRadio);
-            // 2行目：空ラベルと入力欄
-            var sizeInputGroup = parent.add("group");
-            sizeInputGroup.orientation = "row";
-            sizeInputGroup.alignChildren = ["left", "center"];
-            var labelSpacer = sizeInputGroup.add("statictext", undefined, ""); // 空ラベル
-            labelSpacer.preferredSize.width = 80;
-            // 平均幅を初期値に
-            var totalWidth = 0;
-            for (var i = 0; i < originalSelectedItems.length; i++) {
-                var bounds = getReferenceBounds(originalSelectedItems[i], true);
-                totalWidth += bounds.width;
-            }
-            var avgWidth = originalSelectedItems.length > 0 ? (totalWidth / originalSelectedItems.length) : 100;
-            var sizeInput = sizeInputGroup.add("edittext", undefined, avgWidth.toFixed(0));
-            sizeInput.characters = 5;
-            changeValueByArrowKey(sizeInput, false);
-            var sizeUnit = sizeInputGroup.add("statictext", undefined, unitLabel);
-            // イベント連携
-            sizeInput.onChange = function () {
-                if ((widthRadio.value || heightRadio.value) && !isNaN(parseFloat(sizeInput.text))) {
-                    clearOutlineBoundsCache();
-                    restoreOriginalGeometry();
-                    restoreOriginalPosition();
-                    app.redraw();
-
-                    if (oneSideOnlyRadio.value) {
-                        var parsed = parseFloat(sizeInput.text);
-                        var factor = 1;
-                        if (unitLabel === "mm") factor = 2.83464567;
-                        else if (unitLabel === "cm") factor = 28.3464567;
-                        else if (unitLabel === "inch") factor = 72;
-                        else if (unitLabel === "pica") factor = 12;
-                        var referenceValue = parsed * factor;
-
-                        for (var i = 0; i < workingItems.length; i++) {
-                            var bounds = getReferenceBounds(workingItems[i], true);
-                            var currentSide = widthRadio.value ? bounds.width : bounds.height;
-                            if (currentSide === 0) continue;
-                            var scale = getScaleFactor(currentSide, referenceValue);
-                            workingItems[i].resize(
-                                widthRadio.value ? scale : 100,
-                                heightRadio.value ? scale : 100
-                            );
-                        }
-                        app.redraw();
-                    } else {
-                        applyResizeBySelection();
-                    }
-                }
-            };
-
-            // 保存: sizeInput, widthRadio, heightRadio, sizeUnit
-            createRadioGroup.sizeInput = sizeInput;
-            createRadioGroup.widthRadio = widthRadio;
-            createRadioGroup.heightRadio = heightRadio;
-            createRadioGroup.sizeUnit = sizeUnit;
-            // 返却: [widthRadio, heightRadio]（従来のラジオボタン配列として）
-            return [widthRadio, heightRadio];
+    // 単純な「ラベル＋ラジオ複数」の1行を作る
+    function createRadioGroup(label, optionLabels, parent) {
+        var group = parent.add("group");
+        group.orientation = "row";
+        group.alignChildren = ["left", "center"];
+        var labelText = group.add("statictext", undefined, label);
+        labelText.preferredSize.width = LABEL_WIDTH;
+        var buttons = [];
+        for (var i = 0; i < optionLabels.length; i++) {
+            var radioButton = group.add("radiobutton", undefined, optionLabels[i]);
+            buttons.push(radioButton);
+            allRadioButtons.push(radioButton);
         }
+        return buttons;
+    }
+
+    // 指定サイズ用: 「ラベル＋幅/高さラジオ」行と「数値入力＋単位」行の2段構成
+    // sizeInput 等は従来どおり createRadioGroup 上に保持して外部から参照する
+    function createFixedSizeGroup(label, optionLabels, parent) {
+        // 1行目：ラベルとラジオボタン
+        var sizeHeaderGroup = parent.add("group");
+        sizeHeaderGroup.orientation = "row";
+        sizeHeaderGroup.alignChildren = ["left", "center"];
+        var sizeLabel = sizeHeaderGroup.add("statictext", undefined, label);
+        sizeLabel.preferredSize.width = LABEL_WIDTH;
+        var widthRadio = sizeHeaderGroup.add("radiobutton", undefined, optionLabels[0]);
+        var heightRadio = sizeHeaderGroup.add("radiobutton", undefined, optionLabels[1]);
+        allRadioButtons.push(widthRadio, heightRadio);
+
+        // 2行目：空ラベルと入力欄
+        var sizeInputGroup = parent.add("group");
+        sizeInputGroup.orientation = "row";
+        sizeInputGroup.alignChildren = ["left", "center"];
+        var labelSpacer = sizeInputGroup.add("statictext", undefined, ""); // 空ラベル
+        labelSpacer.preferredSize.width = LABEL_WIDTH;
+
+        // 選択オブジェクトの平均幅を初期値に
+        var totalWidth = 0;
+        for (var i = 0; i < originalSelectedItems.length; i++) {
+            totalWidth += getReferenceBounds(originalSelectedItems[i], true).width;
+        }
+        var avgWidth = originalSelectedItems.length > 0 ? (totalWidth / originalSelectedItems.length) : 100;
+        var sizeInput = sizeInputGroup.add("edittext", undefined, avgWidth.toFixed(0));
+        sizeInput.characters = 5;
+        changeValueByArrowKey(sizeInput, false);
+        var sizeUnit = sizeInputGroup.add("statictext", undefined, unitLabel);
+
+        sizeInput.onChange = function () {
+            if ((widthRadio.value || heightRadio.value) && !isNaN(parseFloat(sizeInput.text))) {
+                clearOutlineBoundsCache();
+                restoreOriginalGeometry();
+                restoreOriginalPosition();
+                app.redraw();
+                // 片辺のみ／縦横比保持のどちらも applyResizeBySelection() に集約
+                // （指定サイズの単位換算・片辺スケールは同関数側で処理）
+                applyResizeBySelection();
+            }
+        };
+
+        // 外部参照用に保持（updateInputState / computeReferenceValue などが参照）
+        createRadioGroup.sizeInput = sizeInput;
+        createRadioGroup.widthRadio = widthRadio;
+        createRadioGroup.heightRadio = heightRadio;
+        createRadioGroup.sizeUnit = sizeUnit;
+        return [widthRadio, heightRadio];
     }
 
     // 新しい順序でラジオボタンとグループを作成
     // 1. 最大
-    var maxRadios = createRadioGroup(labels.max[lang], [labels.width[lang], labels.height[lang]], containerPanel);
+    var maxRadios = createRadioGroup(L("field.max"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 2. 最小
-    var minRadios = createRadioGroup(labels.min[lang], [labels.width[lang], labels.height[lang]], containerPanel);
+    var minRadios = createRadioGroup(L("field.min"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 3. 指定サイズ（ラジオ＋数値欄一体）
-    var fixedRadios = createRadioGroup(labels.fixed[lang], [labels.width[lang], labels.height[lang]], containerPanel, true);
+    var fixedRadios = createFixedSizeGroup(L("field.fixed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 5. 基準
-    var baseRadios = createRadioGroup(labels.base[lang], [labels.longSide[lang], labels.shortSide[lang]], containerPanel);
+    var baseRadios = createRadioGroup(L("field.base"), [L("radio.longSide"), L("radio.shortSide")], resizeBasePanel);
     // 6. 面積
-    var areaRadios = createRadioGroup(labels.area[lang], [labels.areaMax[lang], labels.areaMin[lang]], containerPanel);
+    var areaRadios = createRadioGroup(L("field.area"), [L("radio.areaMax"), L("radio.areaMin")], resizeBasePanel);
     // 7. --- ディバイダー ---
-    var dividerLine = containerPanel.add("statictext", undefined, "  ───────────────  ");
+    var dividerLine = resizeBasePanel.add("statictext", undefined, "  ───────────────  ");
     // 8. アートボード
-    var artboardRadios = createRadioGroup(labels.artboard[lang], [labels.width[lang], labels.height[lang]], containerPanel);
+    var artboardRadios = createRadioGroup(L("field.artboard"), [L("radio.width"), L("radio.height")], resizeBasePanel);
     // 9. 裁ち落とし
-    var bleedRadios = createRadioGroup(labels.bleed[lang], [labels.width[lang], labels.height[lang]], containerPanel);
+    var bleedRadios = createRadioGroup(L("field.bleed"), [L("radio.width"), L("radio.height")], resizeBasePanel);
 
     // radioGroupsの並び順も新順に
     // [最大, 最小, 指定サイズ, 基準, 面積, アートボード, 裁ち落とし]
@@ -498,10 +590,14 @@ SmartObjectResizer.jsx
     function resetAlignChecks() {
         alignLeftCheck.value = false;
         alignCenterCheck.value = false;
+        alignRightCheck.value = false;
         alignTopCheck.value = false;
         alignMiddleCheck.value = false;
+        alignBottomCheck.value = false;
         alignEvenCheck.value = false;
+        alignEvenZeroCheck.value = false;
         alignHorizontalEvenCheck.value = false;
+        alignHorizontalEvenZeroCheck.value = false;
     }
 
     function updateRadioGroupStates() {
@@ -522,50 +618,33 @@ SmartObjectResizer.jsx
         }
     }
 
-    // ラジオボタン選択時の共通処理
+    // 現在の選択モードを再適用（ラジオのクリアはしない）
+    // Re-apply the current selection WITHOUT clearing any radio.
+    // 縦横比／片辺トグルから使う（選択中の基準を保持したまま再計算する）
+    function reapplyCurrentSelection() {
+        clearOutlineBoundsCache();
+        updateInputState();
+        restoreOriginalGeometry();
+        restoreOriginalPosition();
+        app.redraw();
+        applyResizeBySelection();
+        // チェック中の整列は維持し、新しいサイズに対して再適用する
+        reapplyActiveAlignments();
+        updateRadioGroupStates();
+        // 指定サイズ入力の有効化は updateInputState() 済み。ここではディバイダーのみ制御
+        if (typeof dividerLine !== "undefined" && dividerLine) {
+            dividerLine.enabled = !oneSideOnlyRadio.value;
+        }
+    }
+
+    // ラジオボタン選択時の共通処理: 他の基準ラジオをOFFにしてから再適用
     function onAnyRadioClick() {
         for (var i = 0; i < allRadioButtons.length; i++) {
             if (allRadioButtons[i] !== this) {
                 allRadioButtons[i].value = false;
             }
         }
-        resetAlignChecks();
-        clearOutlineBoundsCache();
-        updateInputState();
-        // 一時グループが存在すれば解除
-        releaseTempGroup(ElementPlacement.PLACEATEND);
-        restoreOriginalGeometry();
-        restoreOriginalPosition();
-        app.redraw();
-        applyResizeBySelection();
-        updateRadioGroupStates();
-        // 指定サイズ入力有効化制御
-        var sizeInput = createRadioGroup.sizeInput;
-        var widthRadio = createRadioGroup.widthRadio;
-        var heightRadio = createRadioGroup.heightRadio;
-        var sizeGroup = sizeInput && sizeInput.parent;
-        var isFixed = false;
-        if (widthRadio && widthRadio.value) isFixed = true;
-        if (heightRadio && heightRadio.value) isFixed = true;
-        var targetIsWidth = widthRadio && widthRadio.value;
-        var targetIsHeight = heightRadio && heightRadio.value;
-        if (sizeInput && sizeGroup) {
-            if (isFixed && !oneSideOnlyRadio.value) {
-                sizeInput.enabled = true;
-            } else if (isFixed && oneSideOnlyRadio.value && (targetIsWidth || targetIsHeight)) {
-                sizeInput.enabled = true;
-            } else {
-                sizeInput.enabled = false;
-            }
-        }
-        // --- ディバイダーのディム制御 ---
-        if (typeof dividerLine !== "undefined" && dividerLine) {
-            if (oneSideOnlyRadio.value) {
-                dividerLine.enabled = false;
-            } else {
-                dividerLine.enabled = true;
-            }
-        }
+        reapplyCurrentSelection();
     }
 
     for (var i = 0; i < allRadioButtons.length; i++) {
@@ -583,39 +662,30 @@ SmartObjectResizer.jsx
         var widthRadio = createRadioGroup.widthRadio;
         var heightRadio = createRadioGroup.heightRadio;
         var sizeInput = createRadioGroup.sizeInput;
-        var sizeGroup = sizeInput && sizeInput.parent;
-        var isFixed = false;
-        if (widthRadio && widthRadio.value) isFixed = true;
-        if (heightRadio && heightRadio.value) isFixed = true;
-        var targetIsWidth = widthRadio && widthRadio.value;
-        var targetIsHeight = heightRadio && heightRadio.value;
-        if (sizeInput && sizeGroup) {
-            if (isFixed && !oneSideOnlyRadio.value) {
-                sizeInput.enabled = true;
-            } else if (isFixed && oneSideOnlyRadio.value && (targetIsWidth || targetIsHeight)) {
-                sizeInput.enabled = true;
-            } else {
-                sizeInput.enabled = false;
-            }
-        }
+        if (!sizeInput || !sizeInput.parent) return;
+        // 指定サイズ（幅/高さ）が選択されているときだけ入力欄を有効化
+        sizeInput.enabled = !!((widthRadio && widthRadio.value) || (heightRadio && heightRadio.value));
     }
 
     // Preview-related checkboxes
     var previewGroup = leftPane.add("group");
     previewGroup.orientation = "column";
     previewGroup.alignChildren = ["left", "top"];
-    previewGroup.margins = [0, 10, 0, 0]; // top margin
+    previewGroup.margins = [0, 5, 0, 0]; // top margin
 
-    var textOutlineBoundsCheck = previewGroup.add("checkbox", undefined, labels.textOutlineBounds[lang]);
-    textOutlineBoundsCheck.value = false;
-    textOutlineBoundsCheck.onClick = function () {
+    // プレビュー系チェック（アウトライン計測／プレビュー境界）切替時の共通処理
+    function onPreviewOptionChanged() {
         resetAlignChecks();
         clearOutlineBoundsCache();
         restoreOriginalGeometry();
         restoreOriginalPosition();
         app.redraw();
         applyResizeBySelection();
-    };
+    }
+
+    var textOutlineBoundsCheck = previewGroup.add("checkbox", undefined, L("checkbox.textOutlineBounds"));
+    textOutlineBoundsCheck.value = false;
+    textOutlineBoundsCheck.onClick = onPreviewOptionChanged;
 
     function updateTextOutlineOptionState() {
         var hasText = false;
@@ -636,385 +706,271 @@ SmartObjectResizer.jsx
         }
     }
 
-    var previewCheck = previewGroup.add("checkbox", undefined, labels.previewBounds[lang]);
+    var previewCheck = previewGroup.add("checkbox", undefined, L("checkbox.previewBounds"));
     previewCheck.value = true;
-    previewCheck.onClick = function () {
-        resetAlignChecks(); // ← 整列チェックボックスをすべてOFFに
-        clearOutlineBoundsCache();
-        restoreOriginalGeometry();
-        restoreOriginalPosition();
-        app.redraw();
-        applyResizeBySelection();
-    };
+    previewCheck.onClick = onPreviewOptionChanged;
 
     updateTextOutlineOptionState();
 
-    // 右ペイン（ボタン）
-    var rightPane = mainGroup.add("group");
+    // 右ペイン（整列）
+    var rightPane = columnsGroup.add("group");
     rightPane.orientation = "column";
     rightPane.alignChildren = ["fill", "top"];
-    rightPane.margins = [10, 20, 20, 20];
-    // 上マージンを0に
-    rightPane.margins = [rightPane.margins[0], 0, rightPane.margins[2], rightPane.margins[3]];
 
-    // 整列パネル
-    var alignPanel = rightPane.add("panel", undefined, labels.alignTitle[lang]);
-    alignPanel.orientation = "column";
-    alignPanel.alignChildren = ["fill", "top"];
-    // より見た目が整うようマージンを調整
-    alignPanel.margins = [10, 20, 10, 10];
-
-    // 横並びラベル（実際は縦並びラベル）
-    alignPanel.add("statictext", undefined, labels.alignVerticalLabel[lang]);
-
-    // 「左」「中央」チェックボックスを横並びに配置するグループ
-    var alignLeftGroup = alignPanel.add("group");
-    alignLeftGroup.orientation = "row";
-    alignLeftGroup.alignChildren = ["left", "center"];
-
-    var alignLeftCheck = alignLeftGroup.add("checkbox", undefined, labels.alignLeft[lang]);
-    var alignCenterCheck = alignLeftGroup.add("checkbox", undefined, labels.alignCenter[lang]);
+    // 横位置パネル（左/中央/右 ＋ 縦方向の分配）: チェックは縦並び
+    var hAlignPanel = rightPane.add("panel", undefined, L("panel.hAlign"));
+    setupPanel(hAlignPanel, 5);
+    var alignLeftCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignLeft"));
+    var alignCenterCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignCenter"));
+    var alignRightCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignRight"));
+    addSpacer(hAlignPanel, 5); // 「均等」の上の余白（整列⇔分配の区切り）
+    var alignEvenCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignEven"));
+    var alignEvenZeroCheck = hAlignPanel.add("checkbox", undefined, L("checkbox.alignZero"));
     alignLeftCheck.value = false;
     alignCenterCheck.value = false;
-
-    alignLeftCheck.onClick = function () {
-        if (alignLeftCheck.value) {
-            // 横方向の他チェックをOFF
-            alignCenterCheck.value = false;
-            alignHorizontalEvenCheck.value = false;
-            alignHorizontalEvenZeroCheck.value = false;
-            restoreResizeBaseState();
-        }
-        if (alignLeftCheck.value) {
-            var minLeft = null;
-            for (var i = 0; i < workingItems.length; i++) {
-                var bounds = getAlignmentBounds(workingItems[i]);
-                if (minLeft === null || bounds.left < minLeft) {
-                    minLeft = bounds.left;
-                }
-            }
-            if (minLeft !== null) {
-                for (var i = 0; i < workingItems.length; i++) {
-                    var item = workingItems[i];
-                    var bounds = getAlignmentBounds(item);
-                    var delta = minLeft - bounds.left;
-                    item.left += delta;
-                }
-            }
-            app.redraw();
-        } else {
-            restoreResizeBaseState();
-        }
-    };
-
-    alignCenterCheck.onClick = function () {
-        if (alignCenterCheck.value) {
-            // 横方向の他チェックをOFF
-            alignLeftCheck.value = false;
-            alignHorizontalEvenCheck.value = false;
-            alignHorizontalEvenZeroCheck.value = false;
-            restoreResizeBaseState();
-
-            var centerSum = 0;
-            for (var i = 0; i < workingItems.length; i++) {
-                var bounds = getAlignmentBounds(workingItems[i]);
-                centerSum += bounds.left + bounds.width / 2;
-            }
-            var averageCenter = centerSum / workingItems.length;
-
-            for (var j = 0; j < workingItems.length; j++) {
-                var item = workingItems[j];
-                var bounds = getAlignmentBounds(item);
-                var itemCenter = bounds.left + bounds.width / 2;
-                var delta = averageCenter - itemCenter;
-                item.left += delta;
-            }
-            app.redraw();
-        } else {
-            restoreResizeBaseState();
-        }
-    };
-
-    // 「均等」チェックボックスを新たなグループで配置
-    var alignEvenGroup = alignPanel.add("group");
-    alignEvenGroup.orientation = "row";
-    alignEvenGroup.alignChildren = ["left", "center"];
-    var alignEvenCheck = alignEvenGroup.add("checkbox", undefined, labels.alignEven[lang]);
+    alignRightCheck.value = false;
     alignEvenCheck.value = false;
-    // 追加: 0間隔チェックボックス（ラベル多言語対応）
-    var alignEvenZeroCheck = alignEvenGroup.add("checkbox", undefined, labels.alignZero[lang]);
     alignEvenZeroCheck.value = false;
 
-    alignEvenCheck.onClick = function () {
-        if (alignEvenCheck.value) {
-            // 縦方向の他チェックをOFF
-            alignTopCheck.value = false;
-            alignMiddleCheck.value = false;
-            alignEvenZeroCheck.value = false;
-            restoreResizeBaseState();
-        }
-        if (alignEvenCheck.value && workingItems.length > 1) {
-            // 0 チェックボックスと排他
-            alignEvenZeroCheck.value = false;
-            // geometricBounds.top を基準に上から順にソート
-            var sortedItems = workingItems.slice(0).sort(function (a, b) {
-                var topA = getAlignmentBounds(a).top;
-                var topB = getAlignmentBounds(b).top;
-                return topB - topA;
-            });
-
-            var topMost = getAlignmentBounds(sortedItems[0]).top;
-            var bottomMost = getAlignmentBounds(sortedItems[sortedItems.length - 1]).top -
-                getAlignmentBounds(sortedItems[sortedItems.length - 1]).height;
-
-            var totalHeight = 0;
-            for (var i = 0; i < sortedItems.length; i++) {
-                totalHeight += getAlignmentBounds(sortedItems[i]).height;
-            }
-
-            var gap = (topMost - bottomMost - totalHeight) / (sortedItems.length - 1);
-            var currentY = topMost;
-
-            for (var j = 0; j < sortedItems.length; j++) {
-                var item = sortedItems[j];
-                var bounds = getAlignmentBounds(item);
-                var height = bounds.height;
-                item.top = currentY;
-                currentY -= (height + gap);
-            }
-
-            app.redraw();
-        } else if (!alignEvenCheck.value) {
-            restoreResizeBaseState();
-        }
-    };
-
-    // 追加: 0間隔チェックボックスの挙動
-    alignEvenZeroCheck.onClick = function () {
-        if (alignEvenZeroCheck.value) {
-            // 縦方向の他チェックをOFF
-            alignTopCheck.value = false;
-            alignMiddleCheck.value = false;
-            alignEvenCheck.value = false;
-            restoreResizeBaseState();
-        }
-        if (alignEvenZeroCheck.value && workingItems.length > 1) {
-            alignEvenCheck.value = false;
-
-            var sortedItems = workingItems.slice(0).sort(function (a, b) {
-                var topA = getAlignmentBounds(a).top;
-                var topB = getAlignmentBounds(b).top;
-                return topB - topA;
-            });
-
-            var topMost = getAlignmentBounds(sortedItems[0]).top;
-
-            var currentY = topMost;
-            for (var j = 0; j < sortedItems.length; j++) {
-                var item = sortedItems[j];
-                var bounds = getAlignmentBounds(item);
-                var height = bounds.height;
-                item.top = currentY;
-                currentY -= height; // gap = 0
-            }
-
-            app.redraw();
-        }
-
-        // OFFになったらリサイズ後の基準状態に戻す
-        if (!alignEvenZeroCheck.value) {
-            restoreResizeBaseState();
-        }
-    };
-
-    // ディバイダー（横並びの前、中央に見えるよう調整）
-    alignPanel.add("statictext", undefined, "  ─────  ");
-    // 縦並びラベル（実際は横並びラベル）
-    alignPanel.add("statictext", undefined, labels.alignHorizontalLabel[lang]);
-
-    // 「上」「中央」チェックボックスを横並びに配置するグループ
-    var alignTopGroup = alignPanel.add("group");
-    alignTopGroup.orientation = "row";
-    alignTopGroup.alignChildren = ["left", "center"];
-
-    var alignTopCheck = alignTopGroup.add("checkbox", undefined, labels.alignTop[lang]);
-    var alignMiddleCheck = alignTopGroup.add("checkbox", undefined, labels.alignMiddle[lang]);
+    // 縦位置パネル（上/中央/下 ＋ 横方向の分配）: チェックは縦並び
+    var vAlignPanel = rightPane.add("panel", undefined, L("panel.vAlign"));
+    setupPanel(vAlignPanel, 5);
+    var alignTopCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignTop"));
+    var alignMiddleCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignMiddle"));
+    var alignBottomCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignBottom"));
+    addSpacer(vAlignPanel, 5); // 「均等」の上の余白（整列⇔分配の区切り）
+    var alignHorizontalEvenCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignEven"));
+    var alignHorizontalEvenZeroCheck = vAlignPanel.add("checkbox", undefined, L("checkbox.alignZero"));
     alignTopCheck.value = false;
     alignMiddleCheck.value = false;
-
-    alignTopCheck.onClick = function () {
-        if (alignTopCheck.value) {
-            // 縦方向の他チェックをOFF
-            alignMiddleCheck.value = false;
-            alignEvenCheck.value = false;
-            alignEvenZeroCheck.value = false;
-            restoreResizeBaseState();
-        }
-        if (alignTopCheck.value) {
-            var maxTop = null;
-            for (var i = 0; i < workingItems.length; i++) {
-                var bounds = getAlignmentBounds(workingItems[i]);
-                if (maxTop === null || bounds.top > maxTop) {
-                    maxTop = bounds.top;
-                }
-            }
-            if (maxTop !== null) {
-                for (var i = 0; i < workingItems.length; i++) {
-                    var item = workingItems[i];
-                    var bounds = getAlignmentBounds(item);
-                    var delta = maxTop - bounds.top;
-                    item.top += delta;
-                }
-            }
-            app.redraw();
-        } else {
-            restoreResizeBaseState();
-        }
-    };
-
-    alignMiddleCheck.onClick = function () {
-        if (alignMiddleCheck.value) {
-            // 縦方向の他チェックをOFF
-            alignTopCheck.value = false;
-            alignEvenCheck.value = false;
-            alignEvenZeroCheck.value = false;
-            restoreResizeBaseState();
-        }
-        if (alignMiddleCheck.value) {
-            var centerSum = 0;
-            for (var i = 0; i < workingItems.length; i++) {
-                var bounds = getAlignmentBounds(workingItems[i]);
-                centerSum += bounds.top - bounds.height / 2;
-            }
-            var averageCenter = centerSum / workingItems.length;
-
-            for (var j = 0; j < workingItems.length; j++) {
-                var item = workingItems[j];
-                var bounds = getAlignmentBounds(item);
-                var itemCenter = bounds.top - bounds.height / 2;
-                var delta = averageCenter - itemCenter;
-                item.top += delta;
-            }
-            app.redraw();
-        } else {
-            restoreResizeBaseState();
-        }
-    };
-
-    // 「均等」チェックボックス（横方向）を新たなグループで配置
-    var alignHorizontalEvenGroup = alignPanel.add("group");
-    alignHorizontalEvenGroup.orientation = "row";
-    alignHorizontalEvenGroup.alignChildren = ["left", "center"];
-    var alignHorizontalEvenCheck = alignHorizontalEvenGroup.add("checkbox", undefined, labels.alignEven[lang]);
+    alignBottomCheck.value = false;
     alignHorizontalEvenCheck.value = false;
-    // 「0」チェックボックスを横方向にも追加（ラベル多言語対応）
-    var alignHorizontalEvenZeroCheck = alignHorizontalEvenGroup.add("checkbox", undefined, labels.alignZero[lang]);
     alignHorizontalEvenZeroCheck.value = false;
 
-    alignHorizontalEvenCheck.onClick = function () {
-        if (alignHorizontalEvenCheck.value) {
-            // 横方向の他チェックをOFF
-            alignLeftCheck.value = false;
-            alignCenterCheck.value = false;
-            alignHorizontalEvenZeroCheck.value = false;
-            restoreResizeBaseState();
+    // =========================================
+    // 整列ハンドラ（同一軸内で排他） / Alignment handlers (exclusive per axis)
+    // =========================================
+
+    // ON時: 同一軸の兄弟を OFF → base状態へ戻す → 整列を適用 / OFF時: base状態へ戻す
+    function makeAlignHandler(check, siblings, requiresMultiple, applyAlignment) {
+        return function () {
+            if (check.value) {
+                for (var i = 0; i < siblings.length; i++) siblings[i].value = false;
+                restoreResizeBaseState();
+                if (!requiresMultiple || workingItems.length > 1) {
+                    applyAlignment();
+                    app.redraw();
+                }
+            } else {
+                restoreResizeBaseState();
+            }
+        };
+    }
+
+    // 端揃え・中央揃え（getAlignmentBounds 基準、base状態から実行）
+    function alignToMinLeft() {
+        var minLeft = null;
+        for (var i = 0; i < workingItems.length; i++) {
+            var left = getAlignmentBounds(workingItems[i]).left;
+            if (minLeft === null || left < minLeft) minLeft = left;
         }
-        if (alignHorizontalEvenCheck.value && workingItems.length > 1) {
-            alignHorizontalEvenZeroCheck.value = false;
+        if (minLeft === null) return;
+        for (var i = 0; i < workingItems.length; i++) {
+            workingItems[i].left += minLeft - getAlignmentBounds(workingItems[i]).left;
+        }
+    }
+    function alignToCenterX() {
+        var sum = 0;
+        for (var i = 0; i < workingItems.length; i++) {
+            var bounds = getAlignmentBounds(workingItems[i]);
+            sum += bounds.left + bounds.width / 2;
+        }
+        var average = sum / workingItems.length;
+        for (var i = 0; i < workingItems.length; i++) {
+            var bounds = getAlignmentBounds(workingItems[i]);
+            workingItems[i].left += average - (bounds.left + bounds.width / 2);
+        }
+    }
+    function alignToMaxRight() {
+        var maxRight = null;
+        for (var i = 0; i < workingItems.length; i++) {
+            var bounds = getAlignmentBounds(workingItems[i]);
+            var right = bounds.left + bounds.width;
+            if (maxRight === null || right > maxRight) maxRight = right;
+        }
+        if (maxRight === null) return;
+        for (var i = 0; i < workingItems.length; i++) {
+            var bounds = getAlignmentBounds(workingItems[i]);
+            workingItems[i].left += maxRight - (bounds.left + bounds.width);
+        }
+    }
+    function alignToMaxTop() {
+        var maxTop = null;
+        for (var i = 0; i < workingItems.length; i++) {
+            var top = getAlignmentBounds(workingItems[i]).top;
+            if (maxTop === null || top > maxTop) maxTop = top;
+        }
+        if (maxTop === null) return;
+        for (var i = 0; i < workingItems.length; i++) {
+            workingItems[i].top += maxTop - getAlignmentBounds(workingItems[i]).top;
+        }
+    }
+    function alignToCenterY() {
+        var sum = 0;
+        for (var i = 0; i < workingItems.length; i++) {
+            var bounds = getAlignmentBounds(workingItems[i]);
+            sum += bounds.top - bounds.height / 2;
+        }
+        var average = sum / workingItems.length;
+        for (var i = 0; i < workingItems.length; i++) {
+            var bounds = getAlignmentBounds(workingItems[i]);
+            workingItems[i].top += average - (bounds.top - bounds.height / 2);
+        }
+    }
+    function alignToMinBottom() {
+        var minBottom = null;
+        for (var i = 0; i < workingItems.length; i++) {
+            var bounds = getAlignmentBounds(workingItems[i]);
+            var bottom = bounds.top - bounds.height;
+            if (minBottom === null || bottom < minBottom) minBottom = bottom;
+        }
+        if (minBottom === null) return;
+        for (var i = 0; i < workingItems.length; i++) {
+            var bounds = getAlignmentBounds(workingItems[i]);
+            workingItems[i].top += minBottom - (bounds.top - bounds.height);
+        }
+    }
 
-            var sortedItems = workingItems.slice(0).sort(function (a, b) {
-                var leftA = getAlignmentBounds(a).left;
-                var leftB = getAlignmentBounds(b).left;
-                return leftA - leftB;
-            });
-
-            var leftMost = getAlignmentBounds(sortedItems[0]).left;
-            var rightMost = getAlignmentBounds(sortedItems[sortedItems.length - 1]).left +
-                getAlignmentBounds(sortedItems[sortedItems.length - 1]).width;
-
+    // 分配（縦=top降順 / 横=left昇順にソートして順に配置。useGap=false で 0 間隔）
+    function distributeVertical(useGap) {
+        var sortedItems = workingItems.slice(0).sort(function (a, b) {
+            return getAlignmentBounds(b).top - getAlignmentBounds(a).top;
+        });
+        var topMost = getAlignmentBounds(sortedItems[0]).top;
+        var gap = 0;
+        if (useGap) {
+            var lastBounds = getAlignmentBounds(sortedItems[sortedItems.length - 1]);
+            var bottomMost = lastBounds.top - lastBounds.height;
+            var totalHeight = 0;
+            for (var i = 0; i < sortedItems.length; i++) totalHeight += getAlignmentBounds(sortedItems[i]).height;
+            gap = (topMost - bottomMost - totalHeight) / (sortedItems.length - 1);
+        }
+        var currentY = topMost;
+        for (var j = 0; j < sortedItems.length; j++) {
+            var height = getAlignmentBounds(sortedItems[j]).height;
+            sortedItems[j].top = currentY;
+            currentY -= (height + gap);
+        }
+    }
+    function distributeHorizontal(useGap) {
+        var sortedItems = workingItems.slice(0).sort(function (a, b) {
+            return getAlignmentBounds(a).left - getAlignmentBounds(b).left;
+        });
+        var leftMost = getAlignmentBounds(sortedItems[0]).left;
+        var gap = 0;
+        if (useGap) {
+            var lastBounds = getAlignmentBounds(sortedItems[sortedItems.length - 1]);
+            var rightMost = lastBounds.left + lastBounds.width;
             var totalWidth = 0;
-            for (var i = 0; i < sortedItems.length; i++) {
-                totalWidth += getAlignmentBounds(sortedItems[i]).width;
+            for (var i = 0; i < sortedItems.length; i++) totalWidth += getAlignmentBounds(sortedItems[i]).width;
+            gap = (rightMost - leftMost - totalWidth) / (sortedItems.length - 1);
+        }
+        var currentX = leftMost;
+        for (var j = 0; j < sortedItems.length; j++) {
+            var width = getAlignmentBounds(sortedItems[j]).width;
+            sortedItems[j].left = currentX;
+            currentX += (width + gap);
+        }
+    }
+
+    // 整列の定義テーブル（軸ごとに排他）: onClick 割り当てと再適用の唯一のソース
+    // Alignment table (mutually exclusive within each axis) — drives both the
+    // onClick handlers and reapplyActiveAlignments (single source of truth).
+    // requiresMultiple=true は分配（2個以上でのみ動作）
+    var alignAxes = [
+        // 横位置（X座標を変更）: 左 / 中央 / 右 / 横均等 / 横0
+        [
+            { check: alignLeftCheck,               requiresMultiple: false, apply: alignToMinLeft },
+            { check: alignCenterCheck,             requiresMultiple: false, apply: alignToCenterX },
+            { check: alignRightCheck,              requiresMultiple: false, apply: alignToMaxRight },
+            { check: alignHorizontalEvenCheck,     requiresMultiple: true,  apply: function () { distributeHorizontal(true); } },
+            { check: alignHorizontalEvenZeroCheck, requiresMultiple: true,  apply: function () { distributeHorizontal(false); } }
+        ],
+        // 縦位置（Y座標を変更）: 上 / 中央 / 下 / 均等 / 0
+        [
+            { check: alignTopCheck,     requiresMultiple: false, apply: alignToMaxTop },
+            { check: alignMiddleCheck,  requiresMultiple: false, apply: alignToCenterY },
+            { check: alignBottomCheck,  requiresMultiple: false, apply: alignToMinBottom },
+            { check: alignEvenCheck,     requiresMultiple: true, apply: function () { distributeVertical(true); } },
+            { check: alignEvenZeroCheck, requiresMultiple: true, apply: function () { distributeVertical(false); } }
+        ]
+    ];
+
+    // onClick を割り当て（同一軸の他チェックを siblings として排他）
+    for (var i = 0; i < alignAxes.length; i++) {
+        var axis = alignAxes[i];
+        for (var j = 0; j < axis.length; j++) {
+            var siblings = [];
+            for (var k = 0; k < axis.length; k++) {
+                if (k !== j) siblings.push(axis[k].check);
             }
+            axis[j].check.onClick = makeAlignHandler(axis[j].check, siblings, axis[j].requiresMultiple, axis[j].apply);
+        }
+    }
 
-            var gap = (rightMost - leftMost - totalWidth) / (sortedItems.length - 1);
-            var currentX = leftMost;
-
-            for (var j = 0; j < sortedItems.length; j++) {
-                var item = sortedItems[j];
-                var bounds = getAlignmentBounds(item);
-                var width = bounds.width;
-                item.left = currentX;
-                currentX += (width + gap);
+    // 基準変更などで再リサイズした後、チェック中の整列を新サイズに対して再適用する
+    // 横軸・縦軸は独立（left/top を別々に動かす）ため両方同時に再適用（各軸1つだけ有効）
+    function reapplyActiveAlignments() {
+        var changed = false;
+        for (var i = 0; i < alignAxes.length; i++) {
+            var axis = alignAxes[i];
+            for (var j = 0; j < axis.length; j++) {
+                var entry = axis[j];
+                if (entry.check.value && (!entry.requiresMultiple || workingItems.length > 1)) {
+                    entry.apply();
+                    changed = true;
+                    break; // 同一軸は1つだけ
+                }
             }
-
-            app.redraw();
-        } else if (!alignHorizontalEvenCheck.value) {
-            restoreResizeBaseState();
         }
-    };
+        if (changed) app.redraw();
+    }
 
-    // 追加: 0間隔チェックボックスの挙動（横方向）
-    alignHorizontalEvenZeroCheck.onClick = function () {
-        if (alignHorizontalEvenZeroCheck.value) {
-            // 横方向の他チェックをOFF
-            alignLeftCheck.value = false;
-            alignCenterCheck.value = false;
-            alignHorizontalEvenCheck.value = false;
-            restoreResizeBaseState();
-        }
-        if (alignHorizontalEvenZeroCheck.value && workingItems.length > 1) {
-            alignHorizontalEvenCheck.value = false;
+    // =========================================
+    // フッター（左右分割: 左=リセット / スペーサー / 右=キャンセル・OK）
+    // Footer (split): Reset (left) / spacer / Cancel・OK (right)
+    // =========================================
 
-            var sortedItems = workingItems.slice(0).sort(function (a, b) {
-                var leftA = getAlignmentBounds(a).left;
-                var leftB = getAlignmentBounds(b).left;
-                return leftA - leftB;
-            });
+    // メイングループ（横並び） / Main group (horizontal layout)
+    var btnRowGroup = dialog.add("group");
+    btnRowGroup.orientation = "row";
+    btnRowGroup.alignment = ["fill", "bottom"];   // 左右下の余白は dialog.margins が担当
+    btnRowGroup.margins = [0, 5, 0, 0];           // 整列パネルとの間隔（上のみ）
 
-            var leftMost = getAlignmentBounds(sortedItems[0]).left;
-
-            var currentX = leftMost;
-            for (var j = 0; j < sortedItems.length; j++) {
-                var item = sortedItems[j];
-                var bounds = getAlignmentBounds(item);
-                var width = bounds.width;
-                item.left = currentX;
-                currentX += width; // gap = 0
-            }
-
-            app.redraw();
-        }
-
-        // OFFになったらリサイズ後の基準状態に戻す
-        if (!alignHorizontalEvenZeroCheck.value) {
-            restoreResizeBaseState();
-        }
-    };
-
-    // スペーサー
-    var spacer = rightPane.add("group");
-    spacer.alignment = ["fill", "fill"];
-    spacer.minimumSize.height = 10;
-
-    // --- リセットボタン追加 ---
-    // リセットボタンはキャンセルボタンの直前に配置
-    var resetButton = rightPane.add("button", undefined, labels.reset ? labels.reset[lang] : "Reset");
-    resetButton.onClick = function () {
-        // --- 一時グループ解除（明示的なリセット時） ---
-        releaseTempGroup(ElementPlacement.PLACEATEND);
+    // 左側グループ / Left-side button group
+    var btnLeftGroup = btnRowGroup.add("group");
+    btnLeftGroup.alignChildren = ["left", "center"];
+    var btnReset = btnLeftGroup.add("button", undefined, L("button.reset"));
+    btnReset.onClick = function () {
+        // 整列チェックもリセットして表示と実状態を揃える
+        resetAlignChecks();
         clearOutlineBoundsCache();
         restoreOriginalGeometry();
         restoreOriginalPosition();
         app.redraw();
     };
 
-    // ボタン類はスペーサーの後に配置
-    var cancelButton = rightPane.add("button", undefined, labels.cancel[lang], {
-        name: "cancel"
-    });
-    cancelButton.onClick = function () {
-        releaseTempGroup(ElementPlacement.PLACEATEND);
+    // スペーサー（伸縮）/ Spacer (stretchable)
+    var spacer = btnRowGroup.add("group");
+    spacer.alignment = ["fill", "fill"];
+    spacer.minimumSize.width = 0;
+
+    // 右側グループ / Right-side button group（Mac 規約で Cancel → OK の順）
+    var btnRightGroup = btnRowGroup.add("group");
+    btnRightGroup.alignChildren = ["right", "center"];
+
+    var btnCancel = btnRightGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
+    btnCancel.onClick = function () {
         restoreOriginalGeometry();
         restoreOriginalPosition();
         app.redraw();
@@ -1022,258 +978,216 @@ SmartObjectResizer.jsx
         dialog.close();
     };
 
-    var okButton = rightPane.add("button", undefined, labels.ok[lang], {
-        name: "ok"
-    });
-
-    // --- 一時グループ解除: OKボタン押下時 ---
-    okButton.onClick = function () {
-        // 一時グループを解除（アートボード／裁ち落とし時）
-        var tempGroup = getTempGroup();
-        if (tempGroup && tempGroup.pageItems.length > 0) {
-            // 保持順序のため逆順でPLACEATBEGINNING
-            var items = [];
-            while (tempGroup.pageItems.length > 0) {
-                items.push(tempGroup.pageItems[0]);
-                tempGroup.pageItems[0].move(doc, ElementPlacement.PLACEATBEGINNING);
-            }
-            // 逆順に配置して元の重ね順を保持
-            for (var i = items.length - 1; i >= 0; i--) {
-                items[i].move(doc, ElementPlacement.PLACEATBEGINNING);
-            }
-            tempGroup.remove();
-        }
-        setTempGroup(null);
+    var btnOK = btnRightGroup.add("button", undefined, "OK", { name: "ok" });
+    btnOK.onClick = function () {
+        // 確定（案B: 一時グループを使わないので親階層の復元処理は不要）
         clearOutlineBoundsCache();
         dialog.close();
     };
 
     dialog.show();
 
-    function getTempGroup() {
-        return applyResizeBySelection.tempGroup || null;
-    }
-
-    function setTempGroup(group) {
-        applyResizeBySelection.tempGroup = group || null;
-        workingItems = group ? [group] : originalSelectedItems;
-    }
-
-    function releaseTempGroup(placeMode) {
-        var tempGroup = getTempGroup();
-        if (!tempGroup || tempGroup.pageItems.length === 0) {
-            setTempGroup(null);
-            return null;
-        }
-
-        while (tempGroup.pageItems.length > 0) {
-            tempGroup.pageItems[0].move(doc, placeMode);
-        }
-        tempGroup.remove();
-        setTempGroup(null);
-        return null;
-    }
-
     function getScaleFactor(current, target) {
         return (target / current) * 100;
     }
 
-    // --- リサイズ適用 ---
-    function applyResizeBySelection() {
-        var option = null;
-        for (var g = 0; g < radioGroups.length; g++) {
-            if (radioGroups[g][0].value) {
-                option = [g, 0];
-                break;
-            }
-            if (radioGroups[g][1].value) {
-                option = [g, 1];
-                break;
-            }
+    // 現在の定規単位1つ分をポイントに換算 / Points per current ruler unit
+    function pointsPerUnit() {
+        switch (unitLabel) {
+            case "mm":   return 2.83464567;
+            case "cm":   return 28.3464567;
+            case "inch": return 72;
+            case "pica": return 12;
+            default:     return 1; // pt / px
         }
-        if (!option) return;
-        clearOutlineBoundsCache();
+    }
 
-        var isArtboard = option[0] === 5;
-        var isFixed = option[0] === 2;
-        var isBleed = option[0] === 6;
+    // アクティブアートボードの矩形 [left, top, right, bottom]
+    function getActiveArtboardRect() {
+        return doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
+    }
 
-        if (typeof applyResizeBySelection.tempGroup === "undefined") {
-            applyResizeBySelection.tempGroup = null;
+    // モードに応じて基準とする1辺の長さを返す（長辺／短辺／幅／高さ）
+    function measureSide(bounds, mode) {
+        if (mode.isLong) return Math.max(bounds.width, bounds.height);
+        if (mode.isShort) return Math.min(bounds.width, bounds.height);
+        return mode.isWidth ? bounds.width : bounds.height;
+    }
+
+    // 選択中のラジオからリサイズモードをフラグ付きで取得
+    // 基準グループの並び: 0=最大 1=最小 2=指定サイズ 3=基準(長/短) 4=面積 5=アートボード 6=裁ち落とし
+    function getSelectedResizeMode() {
+        for (var groupIndex = 0; groupIndex < radioGroups.length; groupIndex++) {
+            var sideIndex = -1;
+            if (radioGroups[groupIndex][0].value) sideIndex = 0;
+            else if (radioGroups[groupIndex][1].value) sideIndex = 1;
+            if (sideIndex < 0) continue;
+            return {
+                group: groupIndex,
+                side: sideIndex,
+                isWidth: sideIndex === 0,
+                isMax: groupIndex === 0,
+                isMin: groupIndex === 1,
+                isFixed: groupIndex === 2,
+                isLong: groupIndex === 3 && sideIndex === 0,
+                isShort: groupIndex === 3 && sideIndex === 1,
+                isArea: groupIndex === 4,
+                isAreaMax: groupIndex === 4 && sideIndex === 0,
+                isAreaMin: groupIndex === 4 && sideIndex === 1,
+                isArtboard: groupIndex === 5,
+                isBleed: groupIndex === 6
+            };
         }
-        var tempGroup = getTempGroup();
-        if (tempGroup && tempGroup.pageItems.length > 0) {
-            releaseTempGroup(ElementPlacement.PLACEATEND);
+        return null;
+    }
+
+    // 選択全体（クラスタ）の合成バウンズ（getReferenceBounds ベース）
+    function getCombinedReferenceBounds(items) {
+        var left = null, top = null, right = null, bottom = null;
+        for (var i = 0; i < items.length; i++) {
+            var itemBounds = getReferenceBounds(items[i]);
+            if (left === null || itemBounds.left < left) left = itemBounds.left;
+            if (top === null || itemBounds.top > top) top = itemBounds.top;
+            if (right === null || (itemBounds.left + itemBounds.width) > right) right = itemBounds.left + itemBounds.width;
+            if (bottom === null || (itemBounds.top - itemBounds.height) < bottom) bottom = itemBounds.top - itemBounds.height;
         }
-        if ((isArtboard || isBleed) && originalSelectedItems.length > 1) {
-            restoreOriginalGeometry();
-            restoreOriginalPosition();
-            app.redraw();
-            tempGroup = doc.groupItems.add();
-            // 重ね順を維持するため先に順番を記録
-            var itemsInOrder = [];
-            for (var i = 0; i < originalSelectedItems.length; i++) {
-                itemsInOrder.push(originalSelectedItems[i]);
-            }
-            // 重ね順を保持するため、逆順で moveToBeginning を使う
-            for (var j = itemsInOrder.length - 1; j >= 0; j--) {
-                itemsInOrder[j].moveToBeginning(tempGroup);
-            }
-            setTempGroup(tempGroup);
-        } else {
-            setTempGroup(null);
+        return { left: left, top: top, right: right, bottom: bottom, width: right - left, height: top - bottom };
+    }
+
+    // アートボード／裁ち落とし基準: 選択全体をひとまとまりとして等倍スケール（グループ化しない）。
+    // クラスタ左上を原点に、各アイテムのサイズと相対位置を同じ倍率でスケールする。
+    // → 親階層・重ね順を一切変更しないので、旧・一時グループ方式の復元リスクを構造的に回避する。
+    function applyClusterResize(mode, referenceValue) {
+        var clusterBounds = getCombinedReferenceBounds(workingItems);
+        var current = mode.isWidth ? clusterBounds.width : clusterBounds.height;
+        if (!current) return;
+        var scaleFactor = referenceValue / current;
+
+        // リサイズで位置がずれる前に、各アイテムの左上と原点（クラスタ左上）を記録
+        var originLeft = null, originTop = null;
+        var originalPositions = [];
+        for (var i = 0; i < workingItems.length; i++) {
+            var itemLeft = workingItems[i].left, itemTop = workingItems[i].top;
+            originalPositions.push({ left: itemLeft, top: itemTop });
+            if (originLeft === null || itemLeft < originLeft) originLeft = itemLeft;
+            if (originTop === null || itemTop > originTop) originTop = itemTop;
         }
 
+        var scalePct = scaleFactor * 100;
+        for (var i = 0; i < workingItems.length; i++) {
+            var item = workingItems[i];
+            item.resize(scalePct, scalePct, true, true, true, true, scalePct, Transformation.TOPLEFT);
+            // 原点からの相対位置も同倍率でスケール（クラスタとして拡大縮小）
+            item.left = originLeft + (originalPositions[i].left - originLeft) * scaleFactor;
+            item.top = originTop - (originTop - originalPositions[i].top) * scaleFactor;
+        }
+    }
+
+    // 目標寸法（ポイント）を算出。面積モードは applyAreaResize で別処理
+    function computeReferenceValue(mode) {
+        if (mode.isFixed) {
+            var parsed = parseFloat(createRadioGroup.sizeInput.text);
+            if (isNaN(parsed) || parsed <= 0) return null;
+            return parsed * pointsPerUnit();
+        }
+        if (mode.isArtboard) {
+            var rect = getActiveArtboardRect();
+            return mode.isWidth ? (rect[2] - rect[0]) : (rect[1] - rect[3]);
+        }
+        if (mode.isBleed) {
+            var bleedBase = getActiveArtboardRect();
+            var sideLength = mode.isWidth ? (bleedBase[2] - bleedBase[0]) : (bleedBase[1] - bleedBase[3]);
+            return sideLength + BLEED_OFFSET_PT;
+        }
+        // 最大／最小／長辺／短辺: 全アイテムから基準値を集計
         var referenceValue = null;
-        var isWidth = option[1] === 0;
-        var targetIsWidth = isWidth;
-        var targetIsHeight = !isWidth;
-        var isMax = option[0] === 0;
-        var isMin = option[0] === 1;
-        var isLong = option[0] === 3 && option[1] === 0;
-        var isShort = option[0] === 3 && option[1] === 1;
-        var isArea = option[0] === 4;
-        var isAreaMax = isArea && option[1] === 0;
-        var isAreaMin = isArea && option[1] === 1;
-
-        if (isArea) {
-            var areas = [];
-            for (var i = 0; i < workingItems.length; i++) {
-                var b = getReferenceBounds(workingItems[i]);
-                areas.push(b.width * b.height);
-            }
-            var baseArea = isAreaMax ?
-                Math.max.apply(null, areas) :
-                Math.min.apply(null, areas);
-            if (baseArea === null || baseArea <= 0) return;
-            for (var i = 0; i < workingItems.length; i++) {
-                resizeToMatchArea(workingItems[i], baseArea);
-            }
-            captureResizeBaseState();
-            app.redraw();
-            return;
+        for (var i = 0; i < workingItems.length; i++) {
+            var value = measureSide(getReferenceBounds(workingItems[i]), mode);
+            if (mode.isMin && value === 0) continue;
+            if (referenceValue === null) referenceValue = value;
+            else if (mode.isMax && value > referenceValue) referenceValue = value;
+            else if (mode.isMin && value < referenceValue) referenceValue = value;
         }
+        return referenceValue;
+    }
 
-        if (isFixed) {
-            var sizeInput = createRadioGroup.sizeInput;
-            var parsed = parseFloat(sizeInput.text);
-            if (isNaN(parsed) || parsed <= 0) return;
-            var factor = 1;
-            if (unitLabel === "mm") factor = 2.83464567;
-            else if (unitLabel === "cm") factor = 28.3464567;
-            else if (unitLabel === "inch") factor = 72;
-            else if (unitLabel === "pica") factor = 12;
-            referenceValue = parsed * factor;
-        } else if (isArtboard) {
-            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-            referenceValue = isWidth ? (ab[2] - ab[0]) : (ab[1] - ab[3]);
-        } else if (isBleed) {
-            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-            var abWidth = ab[2] - ab[0];
-            var abHeight = ab[1] - ab[3];
-            var bleedOffset = 6 * 2.83464567;
-            if (option[1] === 0) {
-                referenceValue = abWidth + bleedOffset;
-            } else if (option[1] === 1) {
-                referenceValue = abHeight + bleedOffset;
-            }
-        } else {
-            for (var i = 0; i < workingItems.length; i++) {
-                var bounds = getReferenceBounds(workingItems[i]);
-                var value;
-                if (isLong) {
-                    value = Math.max(bounds.width, bounds.height);
-                } else if (isShort) {
-                    value = Math.min(bounds.width, bounds.height);
-                } else {
-                    value = isWidth ? bounds.width : bounds.height;
-                }
-                if (isMin && value === 0) continue;
-                if (referenceValue === null) referenceValue = value;
-                else if (isMax && value > referenceValue) referenceValue = value;
-                else if (isMin && value < referenceValue) referenceValue = value;
-            }
-        }
-
-        if (referenceValue === null || referenceValue <= 0) return;
-
+    // 各アイテムを基準値に合わせてスケール（縦横比保持／片辺のみ）
+    function resizeItemsToReference(mode, referenceValue) {
         var keepOneSideOnly = oneSideOnlyRadio.value;
         for (var i = 0; i < workingItems.length; i++) {
             var bounds = getReferenceBounds(workingItems[i]);
-            var current;
-            if (isLong) {
-                current = Math.max(bounds.width, bounds.height);
-            } else if (isShort) {
-                current = Math.min(bounds.width, bounds.height);
-            } else {
-                current = isWidth ? bounds.width : bounds.height;
-            }
+            var current = measureSide(bounds, mode);
             if (current === 0) continue;
             var scale = getScaleFactor(current, referenceValue);
 
-            if (keepOneSideOnly) {
-                if (isFixed) {
-                    // referenceValueは既にテキストフィールドから取得済み
-                    var currentSide = targetIsWidth ? bounds.width : bounds.height;
-                    if (currentSide === 0) continue;
-                    var scaleFixed = getScaleFactor(currentSide, referenceValue);
-                    workingItems[i].resize(
-                        targetIsWidth ? scaleFixed : 100,
-                        targetIsHeight ? scaleFixed : 100
-                    );
-                } else {
-                    if (targetIsWidth) {
-                        workingItems[i].resize(scale, 100);
-                    } else {
-                        workingItems[i].resize(100, scale);
-                    }
-                }
-            } else {
+            if (!keepOneSideOnly) {
                 workingItems[i].resize(scale, scale, true, true, true, true, scale, Transformation.TOPLEFT);
+            } else if (mode.isFixed) {
+                var currentSide = mode.isWidth ? bounds.width : bounds.height;
+                if (currentSide === 0) continue;
+                var scaleFixed = getScaleFactor(currentSide, referenceValue);
+                workingItems[i].resize(mode.isWidth ? scaleFixed : 100, mode.isWidth ? 100 : scaleFixed);
+            } else if (mode.isWidth) {
+                workingItems[i].resize(scale, 100);
+            } else {
+                workingItems[i].resize(100, scale);
             }
         }
+    }
 
-        if (isArtboard || isBleed) {
-            var ab = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-            var centerX, centerY;
-            if (isBleed) {
-                var bleedOffset = 6 * 2.83464567;
-                var bleedRect = [
-                    ab[0] - bleedOffset / 2,
-                    ab[1] + bleedOffset / 2,
-                    ab[2] + bleedOffset / 2,
-                    ab[3] - bleedOffset / 2
-                ];
-                centerX = (bleedRect[0] + bleedRect[2]) / 2;
-                centerY = (bleedRect[1] + bleedRect[3]) / 2;
-            } else {
-                centerX = (ab[0] + ab[2]) / 2;
-                centerY = (ab[1] + ab[3]) / 2;
-            }
-            var groupBounds = {
-                left: null,
-                top: null,
-                right: null,
-                bottom: null
-            };
-            for (var i = 0; i < workingItems.length; i++) {
-                var b = getReferenceBounds(workingItems[i]);
-                if (groupBounds.left === null || b.left < groupBounds.left) groupBounds.left = b.left;
-                if (groupBounds.top === null || b.top > groupBounds.top) groupBounds.top = b.top;
-                if (groupBounds.right === null || (b.left + b.width) > groupBounds.right) groupBounds.right = b.left + b.width;
-                if (groupBounds.bottom === null || (b.top - b.height) < groupBounds.bottom) groupBounds.bottom = b.top - b.height;
-            }
-            var groupWidth = groupBounds.right - groupBounds.left;
-            var groupHeight = groupBounds.top - groupBounds.bottom;
-            var groupCenterX = groupBounds.left + groupWidth / 2;
-            var groupCenterY = groupBounds.top - groupHeight / 2;
-            var deltaX = centerX - groupCenterX;
-            var deltaY = centerY - groupCenterY;
-            for (var i = 0; i < workingItems.length; i++) {
-                workingItems[i].left += deltaX;
-                workingItems[i].top += deltaY;
-            }
-            doc.selection = workingItems;
+    // アートボード中心へ選択全体を移動
+    // （裁ち落としのオフセットは上下左右対称なので、中心はアートボードと一致する）
+    function centerItemsOnArtboard() {
+        var rect = getActiveArtboardRect();
+        var centerX = (rect[0] + rect[2]) / 2;
+        var centerY = (rect[1] + rect[3]) / 2;
+        var clusterBounds = getCombinedReferenceBounds(workingItems);
+        var dx = centerX - (clusterBounds.left + clusterBounds.width / 2);
+        var dy = centerY - (clusterBounds.top - clusterBounds.height / 2);
+        for (var i = 0; i < workingItems.length; i++) {
+            workingItems[i].left += dx;
+            workingItems[i].top += dy;
+        }
+        doc.selection = workingItems;
+    }
+
+    // 面積基準（最大／最小の面積に全アイテムを合わせる）
+    function applyAreaResize(mode) {
+        var areas = [];
+        for (var i = 0; i < workingItems.length; i++) {
+            var itemBounds = getReferenceBounds(workingItems[i]);
+            areas.push(itemBounds.width * itemBounds.height);
+        }
+        var baseArea = mode.isAreaMax ? Math.max.apply(null, areas) : Math.min.apply(null, areas);
+        if (!baseArea || baseArea <= 0) return;
+        for (var i = 0; i < workingItems.length; i++) {
+            resizeToMatchArea(workingItems[i], baseArea);
+        }
+        captureResizeBaseState();
+        app.redraw();
+    }
+
+    // --- リサイズ適用（オーケストレーション） / Apply resize by current selection ---
+    function applyResizeBySelection() {
+        var mode = getSelectedResizeMode();
+        if (!mode) return;
+        clearOutlineBoundsCache();
+
+        if (mode.isArea) {
+            applyAreaResize(mode);
+            return;
+        }
+
+        var referenceValue = computeReferenceValue(mode);
+        if (referenceValue === null || referenceValue <= 0) return;
+
+        if (mode.isArtboard || mode.isBleed) {
+            // 選択全体をアートボード（＋裁ち落とし）に合わせて等倍スケールし、中心へ配置
+            applyClusterResize(mode, referenceValue);
+            centerItemsOnArtboard();
+        } else {
+            // 最大／最小／指定サイズ／長辺／短辺: 各アイテムを個別にスケール
+            resizeItemsToReference(mode, referenceValue);
         }
         captureResizeBaseState();
         app.redraw();
@@ -1281,21 +1195,23 @@ SmartObjectResizer.jsx
 
     function resizeToMatchArea(item, targetArea) {
         var bounds = getReferenceBounds(item);
-        var w = bounds.width;
-        var h = bounds.height;
-        var area = w * h;
+        var area = bounds.width * bounds.height;
         if (area === 0) return;
         var scale = Math.sqrt(targetArea / area) * 100;
         item.resize(scale, scale, true, true, true, true, scale, Transformation.TOPLEFT);
     }
 
+    // item を目標サイズへリサイズ。除数 0（線のみ・空テキスト等）は Infinity 回避のため 100%＝現状維持とする。
+    // ※ 幅/高さが 0 の要素は resize では拡大できないため「厳密復元」ではなく現状スキップに近い（実用上は許容）
+    function resizeItemToSize(item, targetWidth, targetHeight) {
+        var scaleW = (targetWidth === 0 || item.width === 0) ? 100 : (targetWidth / item.width) * 100;
+        var scaleH = (targetHeight === 0 || item.height === 0) ? 100 : (targetHeight / item.height) * 100;
+        item.resize(scaleW, scaleH, true, true, true, true, scaleW, Transformation.TOPLEFT);
+    }
+
     function restoreOriginalGeometry() {
         for (var i = 0; i < originalStates.length; i++) {
-            var item = originalStates[i].item;
-            var state = originalStates[i];
-            var scaleW = (state.width === 0) ? 100 : (state.width / item.width) * 100;
-            var scaleH = (state.height === 0) ? 100 : (state.height / item.height) * 100;
-            item.resize(scaleW, scaleH, true, true, true, true, scaleW, Transformation.TOPLEFT);
+            resizeItemToSize(originalStates[i].item, originalStates[i].width, originalStates[i].height);
         }
     }
 
@@ -1308,32 +1224,12 @@ SmartObjectResizer.jsx
         }
     }
 
-    function restoreOriginalSizes() {
-        restoreOriginalGeometry();
-        restoreOriginalPosition();
-        app.redraw();
-    }
-
     function getReferenceBounds(item, forceVisible) {
         var useVisibleBounds = !!(forceVisible || (previewCheck && previewCheck.value));
         if (textOutlineBoundsCheck && textOutlineBoundsCheck.value && containsTextForOutlineBounds(item)) {
             return getOutlinedBoundsCached(item, useVisibleBounds);
         }
-
-        var boundsArray;
-        if (useVisibleBounds) {
-            boundsArray = item.visibleBounds;
-        } else {
-            boundsArray = item.geometricBounds;
-        }
-        var width = boundsArray[2] - boundsArray[0];
-        var height = boundsArray[1] - boundsArray[3];
-        return {
-            width: width,
-            height: height,
-            left: boundsArray[0],
-            top: boundsArray[1]
-        };
+        return getPageItemBoundsObject(item, useVisibleBounds);
     }
 
     // 整列処理は visibleBounds ではなく geometricBounds ベースで計算する
@@ -1429,10 +1325,7 @@ SmartObjectResizer.jsx
             // テキスト計測用の複製では、アウトライン化の前に分割を適用する
             // For duplicated text used for measurement, apply expand appearance before outlining
             if (containsTextForOutlineBounds(duplicateItem)) {
-                var previousSelection = null;
-                try {
-                    previousSelection = doc.selection;
-                } catch (_) { }
+                var previousSelection = doc.selection;
                 try {
                     doc.selection = null;
                     duplicateItem.selected = true;
@@ -1486,8 +1379,6 @@ SmartObjectResizer.jsx
             top: boundsArray[1]
         };
     }
-
-
 
     function snapshotAllPageItems(docRef) {
         var items = [];
@@ -1556,11 +1447,6 @@ SmartObjectResizer.jsx
         }
     }
 
-
-    function drawReferenceBackgrounds(x, y, width, height) {
-        var cellRect = doc.activeLayer.pathItems.rectangle(y, x, width, height);
-    }
-
     function captureResizeBaseState() {
         resizeBaseStates = [];
         for (var i = 0; i < workingItems.length; i++) {
@@ -1578,13 +1464,10 @@ SmartObjectResizer.jsx
     function restoreResizeBaseState() {
         if (!resizeBaseStates || resizeBaseStates.length === 0) return;
         for (var i = 0; i < resizeBaseStates.length; i++) {
-            var item = resizeBaseStates[i].item;
             var state = resizeBaseStates[i];
-            var scaleW = (state.width === 0) ? 100 : (state.width / item.width) * 100;
-            var scaleH = (state.height === 0) ? 100 : (state.height / item.height) * 100;
-            item.resize(scaleW, scaleH, true, true, true, true, scaleW, Transformation.TOPLEFT);
-            item.left = state.left;
-            item.top = state.top;
+            resizeItemToSize(state.item, state.width, state.height);
+            state.item.left = state.left;
+            state.item.top = state.top;
         }
         app.redraw();
     }
