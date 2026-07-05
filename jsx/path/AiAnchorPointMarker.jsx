@@ -30,13 +30,14 @@ Places a marker (auto-generated square / frontmost object / symbol) at every anc
 ### 更新履歴 / Change Log
 
 - v1.0.0: 初期バージョン。マーカー配置（正方形／最前面／シンボル）、基準点（9軸）、スケール、レイヤー移動、グループ化、ライブプレビュー。
+- v1.0.1: 既定のアンカーポイントカラーを RGB(79,128,255) に変更。
 
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 (function () {
 
@@ -56,7 +57,7 @@ var SCRIPT_VERSION = "v1.0.0";
     var DEFAULTS = {
         objectSource: OBJECT_SOURCE.autoGenerate, /* 追加するオブジェクトの種類 / Kind of object to add */
         squareSize: 6,                            /* 正方形の一辺（pt） / Square edge size (pt) */
-        squareColor: { r: 0, g: 149, b: 212 },    /* 塗り色（RGB） / Fill color (RGB) */
+        squareColor: { r: 79, g: 128, b: 255 },   /* 塗り色（RGB） / Fill color (RGB) */
         symbolize: true,                          /* 自動生成の正方形をシンボル化して配置 / Place squares as symbol instances */
         moveToLayer: false,                       /* 配置後のマーカーを専用レイヤーへ移動 / Move markers to a dedicated layer */
         groupItems: true,                         /* 配置後のマーカーを1つのグループにまとめる / Group the placed markers */
