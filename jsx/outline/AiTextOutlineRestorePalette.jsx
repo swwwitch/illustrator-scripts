@@ -14,7 +14,7 @@ UI messages support Japanese/English. (Note format remains Japanese for compatib
 - 常駐パレットから、選択テキストのアウトライン化（メモ付き）とその復元を行う
 - アウトライン化の直前に、文字・段落属性を note（メモ）へテキスト形式で保存
 - 復元時は note を解析してテキストフレームを再生成し、フォント・サイズ・行送り・カーニング・
-  文字カラー・行揃え・禁則・文字組み・長体／平体・組み方向・位置などをまとめて復元
+  文字カラー・行揃え・禁則・文字組み・長体／平体・組み方向・座標などをまとめて復元
 - 元のアウトラインは outlined_text レイヤーへ退避（淡く＋ロック）
 - 選択オブジェクトの note をパネルに一覧表示（読み込みボタン）
 - 旧 note（属性が未記録）は該当項目をスキップして従来動作を維持（後方互換）
@@ -54,7 +54,7 @@ UI messages support Japanese/English. (Note format remains Japanese for compatib
 - 禁則（セット名。「なし」はスクリプト制約により復元スキップ）/ Kinsoku (set name; "none" is skipped)
 - 文字組みアキ量設定（セット名で復元。「なし」対応）/ Mojikumi (restored by set name)
 - 文字カラー（CMYK／RGB／グレー／スポット）/ Fill color (CMYK / RGB / Gray / Spot)
-- 位置（geometricBounds 基準。listbox 非表示）/ Position (by geometricBounds; not shown in the list)
+- 座標（geometricBounds 基準。listbox 非表示）/ Coordinates (by geometricBounds; not shown in the list)
 
 ※ グラデーション／パターン塗り、混在属性は非対応（先頭文字の値を採用）
 ※ Gradient/pattern fills and mixed attributes are not supported (the first character's value is used)
@@ -69,6 +69,10 @@ https://note.com/dtp_transit/n/n3e0f241508db
 - v1.9 (20260704) : 常駐パレット化＋テキスト復元・メモ表示・カーニング／文字カラー復元／複数行対応・堅牢化
 - v1.10 (20260705) : 行揃え・自動行送りフラグ・水平比率／垂直比率（長体／平体）・禁則・文字組みアキ量設定の保存・復元に対応
 - v2.0.0 (20260705) : 禁則・文字組みアキ量設定の listbox 日本語表示、表示順を整理、outlined_text レイヤーを再利用、タイトル変更
+                      listbox の項目名・列挙値を英日ローカライズ、「アウトライン」「テキストを復元」パネルを分離（アウトライン化ボタンを最上部へ）、
+                      復元オプション「アウトラインデータを残す」「復元したテキストを別レイヤーに」を追加（OFF で削除／同一レイヤーに復元）
+                      パネル・listbox に helpTip を追加、UI 文言を「メモ」に統一（英語版は "note"）
+                      英語環境では和文専用属性（組み方向・禁則・文字組みアキ量設定・文字ツメ）を保存／表示／復元しない（バイリンガル版は locale 判定、英語版は常時）、概要・コメントの「位置」を「座標」に統一
 
 */
 
@@ -86,35 +90,62 @@ function getCurrentLang() {
     return (app.locale && app.locale.indexOf('ja') === 0) ? 'ja' : 'en';
 }
 var CURRENT_LANG = getCurrentLang();
+/* 英語環境では和文専用属性（組み方向・禁則・文字組みアキ量設定・文字ツメ）を保存／表示／復元しない */
+var HANDLE_JP = (CURRENT_LANG === 'ja');
 
 var LABELS = {
     dialog: {
         title: { ja: 'テキストのアウトライン化と復元', en: 'Outline & Restore Text' }
     },
     panel: {
+        outline: { ja: 'アウトライン', en: 'Outline' },
+        outlineTip: {
+            ja: 'テキストをアウトライン化し、文字・段落属性をメモとして保存します',
+            en: 'Outline text and save its character/paragraph attributes as a note'
+        },
         selected: { ja: 'メモ付きオブジェクト', en: 'Object with a note' },
-        commands: { ja: '操作', en: 'Commands' }
+        selectedTip: {
+            ja: '選択オブジェクトに保存されたメモ（属性）を一覧表示します',
+            en: 'Lists the note (attributes) saved on the selected object'
+        },
+        restore: { ja: 'テキストを復元', en: 'Restore Text' },
+        restoreTip: {
+            ja: 'メモからテキストを復元します',
+            en: 'Restore text from the note'
+        }
     },
     button: {
-        outline: { ja: 'アウトライン化（メモ付き）', en: 'Outline with Memo' },
+        outline: { ja: 'アウトライン化（メモ付き）', en: 'Outline with Note' },
         outlineTip: {
             ja: 'テキストを選択して実行（Esc で閉じる）',
             en: 'Select text and run (Esc to close)'
         },
         restore: { ja: 'テキストを復元', en: 'Restore Text' },
         restoreTip: {
-            ja: 'アウトライン情報（note）からテキストを復元（Esc で閉じる）',
+            ja: 'アウトライン情報（メモ）からテキストを復元（Esc で閉じる）',
             en: 'Restore text from the outline note (Esc to close)'
         },
         load: { ja: 'メモを読み込み', en: 'Load Note' },
         loadTip: {
-            ja: '選択オブジェクトの note を読み込んで表示',
+            ja: '選択オブジェクトのメモを読み込んで表示',
             en: 'Load and show the selected object\'s note'
         },
         attributes: { ja: '属性パネル', en: 'Attributes' },
         attributesTip: {
-            ja: '属性パネルを開く／閉じる',
-            en: 'Toggle the Attributes panel'
+            ja: '属性パネルを開く／閉じる（メモの確認・編集に使用）',
+            en: 'Toggle the Attributes panel (used to view/edit the note)'
+        }
+    },
+    option: {
+        keepOutline: { ja: 'アウトラインデータを残す', en: 'Keep outline data' },
+        keepOutlineTip: {
+            ja: 'OFF にすると復元後にアウトラインを削除し、outlined_text レイヤーを作成しません',
+            en: 'When off, outlines are deleted after restore and no outlined_text layer is created'
+        },
+        separateLayer: { ja: '復元したテキストを別レイヤーに', en: 'Restore text to a separate layer' },
+        separateLayerTip: {
+            ja: 'OFF にすると復元テキストをアウトライン情報と同じレイヤーに置き、restored_text レイヤーを作成しません',
+            en: 'When off, restored text is placed on the same layer as the outline and no restored_text layer is created'
         }
     },
     memo: {
@@ -122,7 +153,8 @@ var LABELS = {
     },
     listCol: {
         item: { ja: '項目', en: 'Item' },
-        value: { ja: '値', en: 'Value' }
+        value: { ja: '値', en: 'Value' },
+        hint: { ja: '選択オブジェクトのメモ（保存された属性）', en: 'The selected object\'s note (saved attributes)' }
     },
     status: {
         ready: { ja: 'テキストまたはアウトラインを選択', en: 'Select text or an outline' },
@@ -150,6 +182,73 @@ function L(path) {
     if (node[CURRENT_LANG] != null) return node[CURRENT_LANG];
     if (node.en != null) return node.en;
     return path;
+}
+
+// ==============================
+// listbox 表示のローカライズ / Localize the listbox contents
+//   note は互換性のため日本語で保存されるので、表示直前に項目名と列挙値だけ現在言語へ変換する
+//   （数値・フォント名・カラー値・true/false はそのまま）
+// ==============================
+
+/* 項目名（左列）/ Item labels (left column) */
+var LIST_ITEM_LABELS = {
+    '文字列':                     { ja: '文字列', en: 'Text' },
+    '組み方向':                   { ja: '組み方向', en: 'Orientation' },
+    'フォント':                   { ja: 'フォント', en: 'Font' },
+    'フォントサイズ':             { ja: 'フォントサイズ', en: 'Font size' },
+    '行送り':                     { ja: '行送り', en: 'Leading' },
+    '自動行送り':                 { ja: '自動行送り', en: 'Auto leading' },
+    '水平比率':                   { ja: '水平比率', en: 'Horizontal scale' },
+    '垂直比率':                   { ja: '垂直比率', en: 'Vertical scale' },
+    'カーニング':                 { ja: 'カーニング', en: 'Kerning' },
+    'プロポーショナルメトリクス': { ja: 'プロポーショナルメトリクス', en: 'Proportional metrics' },
+    'トラッキング':               { ja: 'トラッキング', en: 'Tracking' },
+    '文字ツメ':                   { ja: '文字ツメ', en: 'Tsume' },
+    '行揃え':                     { ja: '行揃え', en: 'Alignment' },
+    '禁則':                       { ja: '禁則', en: 'Kinsoku' },
+    '文字組み':                   { ja: '文字組み', en: 'Mojikumi' },
+    '文字カラー':                 { ja: '文字カラー', en: 'Fill color' }
+};
+
+/* 列挙値（右列）。ここに無い値（数値・フォント名・カラー・true/false）は素通し / Enumerated values (right column) */
+var LIST_VALUE_LABELS = {
+    '縦組み':                 { ja: '縦組み', en: 'Vertical' },
+    '横組み':                 { ja: '横組み', en: 'Horizontal' },
+    'メトリクス':             { ja: 'メトリクス', en: 'Metrics' },
+    'オプティカル':           { ja: 'オプティカル', en: 'Optical' },
+    '和文等幅':               { ja: '和文等幅', en: 'Metrics (Roman Only)' },
+    'なし':                   { ja: 'なし', en: 'None' },
+    '左揃え':                 { ja: '左揃え', en: 'Left' },
+    '中央揃え':               { ja: '中央揃え', en: 'Center' },
+    '右揃え':                 { ja: '右揃え', en: 'Right' },
+    '均等配置':               { ja: '均等配置', en: 'Justify all lines' },
+    '均等配置（最終行左）':   { ja: '均等配置（最終行左）', en: 'Justify (last left)' },
+    '均等配置（最終行中央）': { ja: '均等配置（最終行中央）', en: 'Justify (last center)' },
+    '均等配置（最終行右）':   { ja: '均等配置（最終行右）', en: 'Justify (last right)' },
+    '強い禁則':               { ja: '強い禁則', en: 'Hard' },
+    '弱い禁則':               { ja: '弱い禁則', en: 'Soft' },
+    '弱い禁則 v2':            { ja: '弱い禁則 v2', en: 'Soft v2' },
+    '行末約物全角/半角':      { ja: '行末約物全角/半角', en: 'Line end full/half-width' },
+    '約物半角':               { ja: '約物半角', en: 'Half-width punctuation' },
+    '行末約物半角':           { ja: '行末約物半角', en: 'Line end half-width' },
+    '行末約物全角':           { ja: '行末約物全角', en: 'Line end full-width' },
+    '約物全角':               { ja: '約物全角', en: 'Full-width punctuation' },
+    'ツメ組み':               { ja: 'ツメ組み', en: 'Tight' },
+    'ベタ組み':               { ja: 'ベタ組み', en: 'Solid' }
+};
+
+/* 項目名を現在言語へ（未知はそのまま）/ Localize a list item label */
+function localizeListLabel(jaLabel) {
+    var entry = LIST_ITEM_LABELS[jaLabel];
+    if (entry && entry[CURRENT_LANG] != null) { return entry[CURRENT_LANG]; }
+    return jaLabel;
+}
+
+/* 列挙値を現在言語へ（未知＝数値・フォント名・カラー等はそのまま）/ Localize a list value */
+function localizeListValue(jaValue) {
+    var entry = LIST_VALUE_LABELS[jaValue];
+    if (entry && entry[CURRENT_LANG] != null) { return entry[CURRENT_LANG]; }
+    return jaValue;
 }
 
 // ==============================
@@ -205,27 +304,30 @@ function workerToggleAttributesPanel() {
 }
 
 /* --- note 文字列を組み立て / Build the memo text from gathered values --- */
-function workerBuildMemoText(info) {
-    return "文字列：\n" + info.content + "\n\n" +
+/* handleJp が false（英語環境）のときは和文専用属性（組み方向・禁則・文字組み・文字ツメ）を書き出さない */
+function workerBuildMemoText(info, handleJp) {
+    var jp = (handleJp !== false);
+    var memo = "文字列：\n" + info.content + "\n\n" +
         "フォント：\n" + info.fontName + "\n\n" +
         "フォントサイズ：\n" + info.fontSize + "\n\n" +
         "行送り：\n" + info.leading + "\n\n" +
         "カーニング：\n" + info.kerning + "\n\n" +
         "プロポーショナルメトリクス：\n" + info.proportionalMetrics + "\n\n" +
-        "トラッキング：\n" + info.tracking + "\n\n" +
-        "文字ツメ：\n" + info.tsume + "\n\n" +
-        "組み方向：\n" + info.orientation + "\n\n" +
-        "文字カラー：\n" + info.color + "\n\n" +
-        "行揃え：\n" + info.justification + "\n\n" +
-        "禁則：\n" + info.kinsoku + "\n\n" +
-        "文字組み：\n" + info.mojikumi + "\n\n" +
-        "自動行送り：\n" + info.autoLeading + "\n\n" +
+        "トラッキング：\n" + info.tracking + "\n\n";
+    if (jp) { memo += "文字ツメ：\n" + info.tsume + "\n\n"; }
+    if (jp) { memo += "組み方向：\n" + info.orientation + "\n\n"; }
+    memo += "文字カラー：\n" + info.color + "\n\n" +
+        "行揃え：\n" + info.justification + "\n\n";
+    if (jp) { memo += "禁則：\n" + info.kinsoku + "\n\n"; }
+    if (jp) { memo += "文字組み：\n" + info.mojikumi + "\n\n"; }
+    memo += "自動行送り：\n" + info.autoLeading + "\n\n" +
         "水平比率：\n" + info.horizontalScale + "\n\n" +
         "垂直比率：\n" + info.verticalScale + "\n\n" +
         "座標：\nL = " + info.left + ", T = " + info.top + ", R = " + info.right + ", B = " + info.bottom;
+    return memo;
 }
 
-function workerProcessTextFrame(textFrame) {
+function workerProcessTextFrame(textFrame, handleJp) {
     var textRange = textFrame.textRange;
     var kerningMethod = textRange.characterAttributes.kerningMethod;
     var kerningMethodText;
@@ -256,7 +358,7 @@ function workerProcessTextFrame(textFrame) {
         top: workerRound(bounds[1]),
         right: workerRound(bounds[2]),
         bottom: workerRound(bounds[3])
-    });
+    }, handleJp);
     app.activeDocument.selection = null;
     textFrame.selected = true;
     textFrame.createOutline();
@@ -267,7 +369,7 @@ function workerProcessTextFrame(textFrame) {
     return true;
 }
 
-function workerRunOutline() {
+function workerRunOutline(handleJp) {
     if (app.documents.length < 1) { return "NODOC"; }
     var doc = app.activeDocument;
     var currentSelection = doc.selection;
@@ -279,7 +381,7 @@ function workerRunOutline() {
     }
     if (selectedTextFrames.length < 1) { return "NOSEL"; }
     for (loopIndex = 0; loopIndex < selectedTextFrames.length; loopIndex++) {
-        workerProcessTextFrame(selectedTextFrames[loopIndex]);
+        workerProcessTextFrame(selectedTextFrames[loopIndex], handleJp);
     }
     return "OK:" + selectedTextFrames.length;
 }
@@ -334,9 +436,12 @@ function workerMojikumiToDisplay(value) {
 }
 
 /* --- note を表示用にコンパクト整形 / Format the note for compact display --- */
-function workerFormatNoteForDisplay(noteText) {
+function workerFormatNoteForDisplay(noteText, handleJp) {
     var noteLines = noteText.split("\n");
-    var displayLabels = ["文字列", "組み方向", "フォント", "フォントサイズ", "行送り", "自動行送り", "水平比率", "垂直比率", "カーニング", "プロポーショナルメトリクス", "トラッキング", "文字ツメ", "行揃え", "禁則", "文字組み", "文字カラー"];
+    /* handleJp が false（英語環境）のときは和文専用属性（組み方向・禁則・文字組み・文字ツメ）を一覧に出さない（旧 note に含まれていてもスキップ） */
+    var displayLabels = (handleJp !== false)
+        ? ["文字列", "組み方向", "フォント", "フォントサイズ", "行送り", "自動行送り", "水平比率", "垂直比率", "カーニング", "プロポーショナルメトリクス", "トラッキング", "文字ツメ", "行揃え", "禁則", "文字組み", "文字カラー"]
+        : ["文字列", "フォント", "フォントサイズ", "行送り", "自動行送り", "水平比率", "垂直比率", "カーニング", "プロポーショナルメトリクス", "トラッキング", "行揃え", "文字カラー"];
     var displayLines = [];
     /* 本文（文字列）は複数行になりうるので "文字列：\n" 〜 "\n\nフォント：" を丸ごと取り出し、改行は ↵ で1行に畳む */
     var textStartMarker = "文字列：\n";
@@ -371,7 +476,7 @@ function workerFormatNoteForDisplay(noteText) {
 }
 
 /* --- 選択状態を検査（テキスト有無・メモ有無・表示用note） / Inspect selection state --- */
-function workerInspectSelection() {
+function workerInspectSelection(handleJp) {
     if (app.documents.length < 1) { return "NODOC"; }
     var doc = app.activeDocument;
     var currentSelection = doc.selection;
@@ -387,7 +492,7 @@ function workerInspectSelection() {
         }
     }
     if (!noteHolder) { return "NONOTE"; }
-    var formattedNote = workerFormatNoteForDisplay(noteHolder.note);
+    var formattedNote = workerFormatNoteForDisplay(noteHolder.note, handleJp);
     if (!formattedNote || formattedNote.length < 1) { formattedNote = noteHolder.note; }
     /* NOTE:<表示用note> / NONOTE の形式で返す */
     return "NOTE:" + formattedNote;
@@ -975,7 +1080,8 @@ function workerApplyKerning(textRange, kerningMethod) {
 }
 
 /* --- 復元：テキストフレーム再生成 / Restore: recreate the text frame --- */
-function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, restoreReport) {
+function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, restoreReport, handleJp) {
+    var jp = (handleJp !== false);
     var targetLayer = restoredLayer || sourceItem.layer;
     var textFrame = targetLayer.textFrames.add();
     textFrame.contents = attributes.text;
@@ -1004,7 +1110,8 @@ function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, re
     /* 水平比率・垂直比率（長体／平体）。旧 note は未記録なので null のときは触らない */
     try { if (attributes.horizontalScale !== null) { attrs.horizontalScale = attributes.horizontalScale; } } catch (eHScale) {}
     try { if (attributes.verticalScale !== null) { attrs.verticalScale = attributes.verticalScale; } } catch (eVScale) {}
-    try { if (attributes.tsume !== null) { attrs.Tsume = attributes.tsume; } } catch (eTsume) {}
+    /* 文字ツメは和文専用。英語環境（jp=false）はスキップ（旧 note に含まれていても適用しない） */
+    try { if (jp && attributes.tsume !== null) { attrs.Tsume = attributes.tsume; } } catch (eTsume) {}
     try {
         if (attributes.kerningText != null) {
             /* カーニング方式を復元（AutoKerning ロジック：proportionalMetrics は方式に連動） */
@@ -1014,16 +1121,17 @@ function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, re
             attrs.proportionalMetrics = attributes.proportionalMetrics;
         }
     } catch (eKern) {}
-    try { textFrame.orientation = (attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL; } catch (eOri) {}
+    /* 組み方向は和文専用。英語環境はスキップし新規フレーム既定（横組み）のまま */
+    try { if (jp && attributes.orientation != null) { textFrame.orientation = (attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL; } } catch (eOri) {}
     /* 行揃え（段落属性）。新規フレームの既定は LEFT なので左揃えは実質そのまま */
     try {
         if (attributes.justificationText != null) {
             textFrame.textRange.paragraphAttributes.justification = workerResolveJustification(attributes.justificationText);
         }
     } catch (eJust) {}
-    /* 禁則・文字組みアキ量設定（段落属性）。旧 note は未記録なので null ならスキップ */
-    try { if (attributes.kinsokuText != null) { workerApplyKinsoku(textFrame.textRange, attributes.kinsokuText); } } catch (eKinsoku) {}
-    try { if (attributes.mojikumiText != null) { workerApplyMojikumi(textFrame.textRange, attributes.mojikumiText); } } catch (eMojikumi) {}
+    /* 禁則・文字組みアキ量設定（段落属性）は和文専用。英語環境はスキップ。旧 note は未記録なので null ならスキップ */
+    try { if (jp && attributes.kinsokuText != null) { workerApplyKinsoku(textFrame.textRange, attributes.kinsokuText); } } catch (eKinsoku) {}
+    try { if (jp && attributes.mojikumiText != null) { workerApplyMojikumi(textFrame.textRange, attributes.mojikumiText); } } catch (eMojikumi) {}
     try {
         if (attributes.colorText != null) {
             var restoredColor = workerColorFromText(attributes.colorText);
@@ -1044,26 +1152,32 @@ function workerMoveToOutlinedLayer(sourceItem, outlinedTextLayer) {
 }
 
 /* --- 復元：1オブジェクトを復元（Path / Group 共通） / Restore one item (path or group) --- */
-function workerRestoreItem(sourceItem, outlinedTextLayer, restoredTextLayer, restoreReport) {
+function workerRestoreItem(sourceItem, outlinedTextLayer, restoredTextLayer, restoreReport, stashOutline, handleJp) {
     var noteText = sourceItem.note;
     if (!noteText) { return false; }
     var attributes = workerExtractTextAttributes(noteText);
     if (!attributes || attributes.text == null) { return false; }
-    var textFrame = workerCreateRestoredTextFrame(sourceItem, attributes, restoredTextLayer, restoreReport);
+    var textFrame = workerCreateRestoredTextFrame(sourceItem, attributes, restoredTextLayer, restoreReport, handleJp);
+    /* 位置合わせは元アウトラインを削除する前に行う（savedBounds が無い旧 note は sourceItem を参照するため） */
     workerAlignTextFrameByBounds(attributes.savedBounds || sourceItem, textFrame);
-    /* 先に退避してから淡く＋ロック（ロック解除状態で移動する方が確実） */
-    workerMoveToOutlinedLayer(sourceItem, outlinedTextLayer);
-    /* 種別を問わず淡く＋ロック。失敗しても復元処理は止めない */
-    try {
-        sourceItem.opacity = 30;
-        sourceItem.locked = true;
-    } catch (eDim) {}
+    if (stashOutline === false) {
+        /* 「アウトラインデータを残す」OFF：元アウトラインは退避せず削除 */
+        try { sourceItem.remove(); } catch (eDel) {}
+    } else {
+        /* 先に退避してから淡く＋ロック（ロック解除状態で移動する方が確実） */
+        workerMoveToOutlinedLayer(sourceItem, outlinedTextLayer);
+        /* 種別を問わず淡く＋ロック。失敗しても復元処理は止めない */
+        try {
+            sourceItem.opacity = 30;
+            sourceItem.locked = true;
+        } catch (eDim) {}
+    }
     if (restoreReport) { restoreReport.restored++; }
     return true;
 }
 
 /* --- 復元：エントリ / Restore: entry --- */
-function workerRestoreText() {
+function workerRestoreText(keepOutline, separateLayer, handleJp) {
     if (app.documents.length < 1) { return "NODOC"; }
     var doc = app.activeDocument;
     var currentSelection = doc.selection;
@@ -1075,30 +1189,36 @@ function workerRestoreText() {
         if (pickType === "GroupItem" || pickType === "PathItem") { restorableItems.push(currentSelection[pickIndex]); }
     }
     if (restorableItems.length < 1) { return "NOTGT"; }
-    var outlinedTextLayer = workerCreateOutlineStashLayer(doc);
-    var restoredTextLayer = workerCreateRestoredTextLayer(doc);
+    /* 既定はアウトラインを残す。false のときだけ退避レイヤーを作らず元アウトラインを削除 */
+    var stashOutline = (keepOutline !== false);
+    /* 既定は復元テキストを別レイヤー（restored_text）へ。false のときは元アウトラインと同じレイヤーへ置く（null で sourceItem.layer にフォールバック） */
+    var useSeparateLayer = (separateLayer !== false);
+    var outlinedTextLayer = stashOutline ? workerCreateOutlineStashLayer(doc) : null;
+    var restoredTextLayer = useSeparateLayer ? workerCreateRestoredTextLayer(doc) : null;
     var restoreReport = { restored: 0, fontFallback: false };
     /* ループ全体を try で囲み、想定外エラーでも空レイヤーを残さない */
     var runError = null;
     try {
         var restoreIndex;
         for (restoreIndex = 0; restoreIndex < restorableItems.length; restoreIndex++) {
-            workerRestoreItem(restorableItems[restoreIndex], outlinedTextLayer, restoredTextLayer, restoreReport);
+            workerRestoreItem(restorableItems[restoreIndex], outlinedTextLayer, restoredTextLayer, restoreReport, stashOutline, handleJp);
         }
     } catch (eRun) {
         runError = String(eRun);
     }
     if (restoreReport.restored < 1) {
         /* 1件も復元できなかったら（エラー時も含め）作成した退避／復元レイヤーを後始末 */
-        try { outlinedTextLayer.remove(); } catch (eStash) {}
-        try {
-            if (restoredTextLayer.pageItems.length < 1 && (!restoredTextLayer.layers || restoredTextLayer.layers.length < 1)) { restoredTextLayer.remove(); }
-        } catch (eRestored) {}
+        if (outlinedTextLayer) { try { outlinedTextLayer.remove(); } catch (eStash) {} }
+        if (restoredTextLayer) {
+            try {
+                if (restoredTextLayer.pageItems.length < 1 && (!restoredTextLayer.layers || restoredTextLayer.layers.length < 1)) { restoredTextLayer.remove(); }
+            } catch (eRestored) {}
+        }
         return runError ? ("ERR:" + runError) : "NONOTE";
     }
     /* 一部でも成功していれば、その分を確定（途中エラーでも退避レイヤーを宙ぶらりんにしない） */
-    workerFinalizeTemplateLayer(outlinedTextLayer);
-    try { doc.activeLayer = restoredTextLayer; } catch (eActive) {}
+    if (stashOutline && outlinedTextLayer) { workerFinalizeTemplateLayer(outlinedTextLayer); }
+    if (restoredTextLayer) { try { doc.activeLayer = restoredTextLayer; } catch (eActive) {} }
     return "OK:" + restoreReport.restored + (restoreReport.fontFallback ? ":FONT" : "");
 }
 
@@ -1200,10 +1320,10 @@ function onOutlineClick(win) {
     if (isBusy) return; // 再入防止
     isBusy = true;
     setStatus(win, L('status.busy'));
-    var result = callWorker("workerRunOutline();");
+    var result = callWorker("workerRunOutline(" + (HANDLE_JP ? "true" : "false") + ");");
     isBusy = false;
     applyResultToStatus(win, result, 'status.doneOutline');
-    refreshSelectedNote(win, true); // アウトライン化直後の note を表示
+    refreshSelectedNote(win, true); // アウトライン化直後のメモを表示
 }
 
 function onRestoreClick(win) {
@@ -1212,7 +1332,10 @@ function onRestoreClick(win) {
     refreshSelectedNote(win, true);
     isBusy = true;
     setStatus(win, L('status.busy'));
-    var result = callWorker("workerRestoreText();");
+    // チェックボックスの状態を worker に渡す（残す／別レイヤー）
+    var keepOutline = win.keepOutlineCheck ? win.keepOutlineCheck.value : true;
+    var separateLayer = win.separateLayerCheck ? win.separateLayerCheck.value : true;
+    var result = callWorker("workerRestoreText(" + (keepOutline ? "true" : "false") + ", " + (separateLayer ? "true" : "false") + ", " + (HANDLE_JP ? "true" : "false") + ");");
     isBusy = false;
     applyResultToStatus(win, result, 'status.doneRestore');
 }
@@ -1239,15 +1362,15 @@ function populateNoteList(win, formattedNote) {
             itemLabel = currentLine;
             itemValue = "";
         }
-        var row = win.noteList.add("item", itemLabel);
-        row.subItems[0].text = itemValue;
+        var row = win.noteList.add("item", localizeListLabel(itemLabel));
+        row.subItems[0].text = localizeListValue(itemValue);
     }
 }
 
 function refreshSelectedNote(win, keepStatus) {
     if (isBusy) return;
     isBusy = true;
-    var result = callWorker("workerInspectSelection();");
+    var result = callWorker("workerInspectSelection(" + (HANDLE_JP ? "true" : "false") + ");");
     isBusy = false;
     win.noteList.removeAll();
     if (result != null && result.indexOf("NOTE:") === 0) {
@@ -1280,8 +1403,21 @@ function showPalette() {
     var win = new Window("palette", L('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
     setupWindow(win);
 
-    // 選択オブジェクトの note を表示 / Selected object's note
+    // アウトライン化 / Outline（最上部）
+    var outlinePanel = win.add("panel", undefined, L('panel.outline'));
+    outlinePanel.helpTip = L('panel.outlineTip');
+    setupPanel(outlinePanel, 6);
+
+    var outlineButtonRow = outlinePanel.add("group");
+    setupRow(outlineButtonRow, "left", 8); // ボタン列は左寄せ
+
+    var outlineButton = outlineButtonRow.add("button", undefined, L('button.outline'));
+    outlineButton.helpTip = L('button.outlineTip');
+    outlineButton.onClick = function () { onOutlineClick(win); };
+
+    // 選択オブジェクトのメモを表示 / Selected object's note
     var selectedObjectPanel = win.add("panel", undefined, L('panel.selected'));
+    selectedObjectPanel.helpTip = L('panel.selectedTip');
     setupPanel(selectedObjectPanel, 6);
 
     win.noteList = selectedObjectPanel.add("listbox", undefined, [], {
@@ -1291,6 +1427,7 @@ function showPalette() {
         columnWidths: [140, 170]
     });
     win.noteList.preferredSize = [320, 340]; // 16行分 / 16 rows
+    win.noteList.helpTip = L('listCol.hint');
 
     // メモ操作の行：左＝属性パネル / 中央＝スペーサー / 右＝メモを読み込み
     var noteActionRow = selectedObjectPanel.add("group");
@@ -1316,20 +1453,27 @@ function showPalette() {
     loadNoteButton.alignment = ["right", "center"];
     loadNoteButton.onClick = function () { refreshSelectedNote(win, false); };
 
-    // 操作ボタン / Command buttons
-    var commandPanel = win.add("panel", undefined, L('panel.commands'));
-    setupPanel(commandPanel, 6);
+    // テキストを復元 / Restore Text
+    var restorePanel = win.add("panel", undefined, L('panel.restore'));
+    restorePanel.helpTip = L('panel.restoreTip');
+    setupPanel(restorePanel, 6);
 
-    var commandButtonRow = commandPanel.add("group");
-    setupRow(commandButtonRow, "left", 8); // ボタン列は左寄せ（幅いっぱいに広げない）
+    var restoreButtonRow = restorePanel.add("group");
+    setupRow(restoreButtonRow, "left", 8); // ボタン列は左寄せ
+    restoreButtonRow.margins = [0, 0, 0, 5]; // ボタンの下に余白 +5
 
-    var outlineButton = commandButtonRow.add("button", undefined, L('button.outline'));
-    outlineButton.helpTip = L('button.outlineTip');
-    outlineButton.onClick = function () { onOutlineClick(win); };
-
-    var restoreButton = commandButtonRow.add("button", undefined, L('button.restore'));
+    var restoreButton = restoreButtonRow.add("button", undefined, L('button.restore'));
     restoreButton.helpTip = L('button.restoreTip');
     restoreButton.onClick = function () { onRestoreClick(win); };
+
+    // 復元オプション：アウトラインを残す／別レイヤーに復元
+    win.keepOutlineCheck = restorePanel.add("checkbox", undefined, L('option.keepOutline'));
+    win.keepOutlineCheck.helpTip = L('option.keepOutlineTip');
+    win.keepOutlineCheck.value = true; // 既定 ON
+
+    win.separateLayerCheck = restorePanel.add("checkbox", undefined, L('option.separateLayer'));
+    win.separateLayerCheck.helpTip = L('option.separateLayerTip');
+    win.separateLayerCheck.value = true; // 既定 ON
 
     // ステータス表示 / Status
     win.statusText = win.add("statictext", undefined, L('status.ready'));

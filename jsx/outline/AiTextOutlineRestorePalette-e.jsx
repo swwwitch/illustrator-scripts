@@ -14,7 +14,8 @@ English-only build. UI, comments, and the note storage format are all English.
 - Outline selected text (saving its attributes to the note) and restore it back, from a persistent palette
 - Before outlining, character/paragraph attributes are serialized into the object's note as text
 - On restore, the note is parsed to recreate the text frame, bringing back font, size, leading,
-  kerning, fill color, alignment, horizontal/vertical scale, orientation, position, etc.
+  kerning, fill color, alignment, horizontal/vertical scale, position, etc.
+- Japanese-only typography attributes (orientation, kinsoku, mojikumi, tsume) are intentionally not handled in this English build
 - The original outlines are moved to the outlined_text layer (dimmed and locked)
 - The selected object's note is listed in the panel (Load button)
 - Older notes without newer fields fall back to previous behavior (backward compatible)
@@ -29,7 +30,6 @@ English-only build. UI, comments, and the note storage format are all English.
 ### Supported properties
 
 - Text contents (multi-line)
-- Orientation (vertical / horizontal)
 - Font (PostScript name)
 - Font size
 - Leading
@@ -65,25 +65,36 @@ var LABELS = {
         title: 'Outline & Restore Text'
     },
     panel: {
+        outline: 'Outline',
+        outlineTip: 'Outline text and save its character/paragraph attributes as a note',
         selected: 'Object with a note',
-        commands: 'Commands'
+        selectedTip: 'Lists the note (attributes) saved on the selected object',
+        restore: 'Restore Text',
+        restoreTip: 'Restore text from the note'
     },
     button: {
-        outline: 'Outline with Memo',
+        outline: 'Outline with Note',
         outlineTip: 'Select text and run (Esc to close)',
         restore: 'Restore Text',
         restoreTip: 'Restore text from the outline note (Esc to close)',
         load: 'Load Note',
         loadTip: "Load and show the selected object's note",
         attributes: 'Attributes',
-        attributesTip: 'Toggle the Attributes panel'
+        attributesTip: 'Toggle the Attributes panel (used to view/edit the note)'
+    },
+    option: {
+        keepOutline: 'Keep outline data',
+        keepOutlineTip: 'When off, outlines are deleted after restore and no outlined_text layer is created',
+        separateLayer: 'Restore text to a separate layer',
+        separateLayerTip: 'When off, restored text is placed on the same layer as the outline and no restored_text layer is created'
     },
     memo: {
         empty: '(No note)'
     },
     listCol: {
         item: 'Item',
-        value: 'Value'
+        value: 'Value',
+        hint: "The selected object's note (saved attributes)"
     },
     status: {
         ready: 'Select text or an outline',
@@ -172,7 +183,6 @@ function workerBuildMemoText(info) {
         "Kerning:\n" + info.kerning + "\n\n" +
         "ProportionalMetrics:\n" + info.proportionalMetrics + "\n\n" +
         "Tracking:\n" + info.tracking + "\n\n" +
-        "Orientation:\n" + info.orientation + "\n\n" +
         "Color:\n" + info.color + "\n\n" +
         "Justification:\n" + info.justification + "\n\n" +
         "AutoLeading:\n" + info.autoLeading + "\n\n" +
@@ -199,7 +209,6 @@ function workerProcessTextFrame(textFrame) {
         kerning: kerningMethodText,
         proportionalMetrics: textRange.characterAttributes.proportionalMetrics ? "true" : "false",
         tracking: textRange.characterAttributes.tracking,
-        orientation: (textFrame.orientation == TextOrientation.VERTICAL) ? "Vertical" : "Horizontal",
         color: workerColorToText(textRange.characterAttributes.fillColor),
         justification: workerJustificationToText(textRange.paragraphAttributes.justification),
         autoLeading: textRange.characterAttributes.autoLeading ? "true" : "false",
@@ -240,7 +249,7 @@ function workerRunOutline() {
 /* --- Format the note for compact display --- */
 function workerFormatNoteForDisplay(noteText) {
     var noteLines = noteText.split("\n");
-    var displayLabels = ["Text", "Orientation", "Font", "FontSize", "Leading", "AutoLeading", "HorizontalScale", "VerticalScale", "Kerning", "ProportionalMetrics", "Tracking", "Justification", "Color"];
+    var displayLabels = ["Text", "Font", "FontSize", "Leading", "AutoLeading", "HorizontalScale", "VerticalScale", "Kerning", "ProportionalMetrics", "Tracking", "Justification", "Color"];
     var displayLines = [];
     /* the body (Text) can span multiple lines, so grab the whole "Text:\n" .. "\n\nFont:" block and fold newlines into a single line with a return symbol */
     var textStartMarker = "Text:\n";
@@ -298,7 +307,6 @@ function workerExtractTextAttributes(noteText) {
         font: null,
         fontSize: null,
         leading: null,
-        orientation: null,
         tracking: null,
         kerningText: null,
         colorText: null,
@@ -329,7 +337,6 @@ function workerExtractTextAttributes(noteText) {
         if (noteLines[lineIndex].indexOf("Font:") === 0 && lineIndex + 1 < noteLines.length) { attributes.font = noteLines[lineIndex + 1]; }
         if (noteLines[lineIndex].indexOf("FontSize:") === 0 && lineIndex + 1 < noteLines.length) { attributes.fontSize = parseFloat(noteLines[lineIndex + 1]); }
         if (noteLines[lineIndex].indexOf("Leading:") === 0 && lineIndex + 1 < noteLines.length) { attributes.leading = parseFloat(noteLines[lineIndex + 1]); }
-        if (noteLines[lineIndex].indexOf("Orientation:") === 0 && lineIndex + 1 < noteLines.length) { attributes.orientation = noteLines[lineIndex + 1]; }
         if (noteLines[lineIndex].indexOf("Tracking:") === 0 && lineIndex + 1 < noteLines.length) { attributes.tracking = parseFloat(noteLines[lineIndex + 1]); }
         if (noteLines[lineIndex].indexOf("Kerning:") === 0 && lineIndex + 1 < noteLines.length) { attributes.kerningText = noteLines[lineIndex + 1]; }
         if (noteLines[lineIndex].indexOf("Color:") === 0 && lineIndex + 1 < noteLines.length) { attributes.colorText = noteLines[lineIndex + 1]; }
@@ -773,7 +780,6 @@ function workerCreateRestoredTextFrame(sourceItem, attributes, restoredLayer, re
             attrs.proportionalMetrics = attributes.proportionalMetrics;
         }
     } catch (eKern) {}
-    try { textFrame.orientation = (attributes.orientation === "Vertical") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL; } catch (eOri) {}
     /* alignment (paragraph attribute). a new frame defaults to LEFT, so left alignment is effectively unchanged */
     try {
         if (attributes.justificationText != null) {
@@ -800,26 +806,32 @@ function workerMoveToOutlinedLayer(sourceItem, outlinedTextLayer) {
 }
 
 /* --- Restore one item (path or group) --- */
-function workerRestoreItem(sourceItem, outlinedTextLayer, restoredTextLayer, restoreReport) {
+function workerRestoreItem(sourceItem, outlinedTextLayer, restoredTextLayer, restoreReport, stashOutline) {
     var noteText = sourceItem.note;
     if (!noteText) { return false; }
     var attributes = workerExtractTextAttributes(noteText);
     if (!attributes || attributes.text == null) { return false; }
     var textFrame = workerCreateRestoredTextFrame(sourceItem, attributes, restoredTextLayer, restoreReport);
+    /* align before removing the original outline (older notes without savedBounds reference sourceItem) */
     workerAlignTextFrameByBounds(attributes.savedBounds || sourceItem, textFrame);
-    /* stash first, then dim + lock (moving while unlocked is more reliable) */
-    workerMoveToOutlinedLayer(sourceItem, outlinedTextLayer);
-    /* dim + lock regardless of type. do not stop restore on failure */
-    try {
-        sourceItem.opacity = 30;
-        sourceItem.locked = true;
-    } catch (eDim) {}
+    if (stashOutline === false) {
+        /* "Keep outline data" is off: delete the original outline instead of stashing it */
+        try { sourceItem.remove(); } catch (eDel) {}
+    } else {
+        /* stash first, then dim + lock (moving while unlocked is more reliable) */
+        workerMoveToOutlinedLayer(sourceItem, outlinedTextLayer);
+        /* dim + lock regardless of type. do not stop restore on failure */
+        try {
+            sourceItem.opacity = 30;
+            sourceItem.locked = true;
+        } catch (eDim) {}
+    }
     if (restoreReport) { restoreReport.restored++; }
     return true;
 }
 
 /* --- Restore: entry --- */
-function workerRestoreText() {
+function workerRestoreText(keepOutline, separateLayer) {
     if (app.documents.length < 1) { return "NODOC"; }
     var doc = app.activeDocument;
     var currentSelection = doc.selection;
@@ -831,30 +843,36 @@ function workerRestoreText() {
         if (pickType === "GroupItem" || pickType === "PathItem") { restorableItems.push(currentSelection[pickIndex]); }
     }
     if (restorableItems.length < 1) { return "NOTGT"; }
-    var outlinedTextLayer = workerCreateOutlineStashLayer(doc);
-    var restoredTextLayer = workerCreateRestoredTextLayer(doc);
+    /* default keeps the outline; when false, skip the stash layer and delete the original outline */
+    var stashOutline = (keepOutline !== false);
+    /* default restores to a separate restored_text layer; when false, place on the outline's own layer (null falls back to sourceItem.layer) */
+    var useSeparateLayer = (separateLayer !== false);
+    var outlinedTextLayer = stashOutline ? workerCreateOutlineStashLayer(doc) : null;
+    var restoredTextLayer = useSeparateLayer ? workerCreateRestoredTextLayer(doc) : null;
     var restoreReport = { restored: 0, fontFallback: false };
     /* wrap the whole loop in try so an unexpected error does not leave empty layers behind */
     var runError = null;
     try {
         var restoreIndex;
         for (restoreIndex = 0; restoreIndex < restorableItems.length; restoreIndex++) {
-            workerRestoreItem(restorableItems[restoreIndex], outlinedTextLayer, restoredTextLayer, restoreReport);
+            workerRestoreItem(restorableItems[restoreIndex], outlinedTextLayer, restoredTextLayer, restoreReport, stashOutline);
         }
     } catch (eRun) {
         runError = String(eRun);
     }
     if (restoreReport.restored < 1) {
         /* if nothing was restored (including on error), clean up the stash/restore layers we created */
-        try { outlinedTextLayer.remove(); } catch (eStash) {}
-        try {
-            if (restoredTextLayer.pageItems.length < 1 && (!restoredTextLayer.layers || restoredTextLayer.layers.length < 1)) { restoredTextLayer.remove(); }
-        } catch (eRestored) {}
+        if (outlinedTextLayer) { try { outlinedTextLayer.remove(); } catch (eStash) {} }
+        if (restoredTextLayer) {
+            try {
+                if (restoredTextLayer.pageItems.length < 1 && (!restoredTextLayer.layers || restoredTextLayer.layers.length < 1)) { restoredTextLayer.remove(); }
+            } catch (eRestored) {}
+        }
         return runError ? ("ERR:" + runError) : "NONOTE";
     }
     /* if at least some succeeded, commit them (never leave the stash layer dangling even after a mid-way error) */
-    workerFinalizeTemplateLayer(outlinedTextLayer);
-    try { doc.activeLayer = restoredTextLayer; } catch (eActive) {}
+    if (stashOutline && outlinedTextLayer) { workerFinalizeTemplateLayer(outlinedTextLayer); }
+    if (restoredTextLayer) { try { doc.activeLayer = restoredTextLayer; } catch (eActive) {} }
     return "OK:" + restoreReport.restored + (restoreReport.fontFallback ? ":FONT" : "");
 }
 
@@ -959,7 +977,10 @@ function onRestoreClick(win) {
     refreshSelectedNote(win, true);
     isBusy = true;
     setStatus(win, L('status.busy'));
-    var result = callWorker("workerRestoreText();");
+    // pass the checkbox states to the worker (keep outline / separate layer)
+    var keepOutline = win.keepOutlineCheck ? win.keepOutlineCheck.value : true;
+    var separateLayer = win.separateLayerCheck ? win.separateLayerCheck.value : true;
+    var result = callWorker("workerRestoreText(" + (keepOutline ? "true" : "false") + ", " + (separateLayer ? "true" : "false") + ");");
     isBusy = false;
     applyResultToStatus(win, result, 'status.doneRestore');
 }
@@ -1027,8 +1048,21 @@ function showPalette() {
     var win = new Window("palette", L('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
     setupWindow(win);
 
+    // Outline (top)
+    var outlinePanel = win.add("panel", undefined, L('panel.outline'));
+    outlinePanel.helpTip = L('panel.outlineTip');
+    setupPanel(outlinePanel, 6);
+
+    var outlineButtonRow = outlinePanel.add("group");
+    setupRow(outlineButtonRow, "left", 8); // left-align the button row
+
+    var outlineButton = outlineButtonRow.add("button", undefined, L('button.outline'));
+    outlineButton.helpTip = L('button.outlineTip');
+    outlineButton.onClick = function () { onOutlineClick(win); };
+
     // selected object's note
     var selectedObjectPanel = win.add("panel", undefined, L('panel.selected'));
+    selectedObjectPanel.helpTip = L('panel.selectedTip');
     setupPanel(selectedObjectPanel, 6);
 
     win.noteList = selectedObjectPanel.add("listbox", undefined, [], {
@@ -1038,6 +1072,7 @@ function showPalette() {
         columnWidths: [140, 170]
     });
     win.noteList.preferredSize = [320, 280];
+    win.noteList.helpTip = L('listCol.hint');
 
     // note action row: left = Attributes / center = spacer / right = Load Note
     var noteActionRow = selectedObjectPanel.add("group");
@@ -1063,20 +1098,27 @@ function showPalette() {
     loadNoteButton.alignment = ["right", "center"];
     loadNoteButton.onClick = function () { refreshSelectedNote(win, false); };
 
-    // command buttons
-    var commandPanel = win.add("panel", undefined, L('panel.commands'));
-    setupPanel(commandPanel, 6);
+    // Restore Text
+    var restorePanel = win.add("panel", undefined, L('panel.restore'));
+    restorePanel.helpTip = L('panel.restoreTip');
+    setupPanel(restorePanel, 6);
 
-    var commandButtonRow = commandPanel.add("group");
-    setupRow(commandButtonRow, "left", 8); // left-align the button row (do not stretch to full width)
+    var restoreButtonRow = restorePanel.add("group");
+    setupRow(restoreButtonRow, "left", 8); // left-align the button row
+    restoreButtonRow.margins = [0, 0, 0, 5]; // +5 bottom margin below the button
 
-    var outlineButton = commandButtonRow.add("button", undefined, L('button.outline'));
-    outlineButton.helpTip = L('button.outlineTip');
-    outlineButton.onClick = function () { onOutlineClick(win); };
-
-    var restoreButton = commandButtonRow.add("button", undefined, L('button.restore'));
+    var restoreButton = restoreButtonRow.add("button", undefined, L('button.restore'));
     restoreButton.helpTip = L('button.restoreTip');
     restoreButton.onClick = function () { onRestoreClick(win); };
+
+    // restore options: keep outline / restore to a separate layer
+    win.keepOutlineCheck = restorePanel.add("checkbox", undefined, L('option.keepOutline'));
+    win.keepOutlineCheck.helpTip = L('option.keepOutlineTip');
+    win.keepOutlineCheck.value = true; // default ON
+
+    win.separateLayerCheck = restorePanel.add("checkbox", undefined, L('option.separateLayer'));
+    win.separateLayerCheck.helpTip = L('option.separateLayerTip');
+    win.separateLayerCheck.value = true; // default ON
 
     // status
     win.statusText = win.add("statictext", undefined, L('status.ready'));
