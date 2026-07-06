@@ -41,6 +41,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 BridgeTalk のワーカー登録と呼び出しの仕組み、行揃えのボタンの実装方法など、多くのアイデアとコードを提供いただきました。
 https://note.com/yukifurushima/n/n9f2078dc156f
 
+### 紹介記事（note）
+
+https://note.com/dtp_tranist/n/n4e2b79cf2891
+
 ### Overview
 
 A docked palette that sets text-composition attributes (font, font size, auto kerning,
@@ -78,19 +82,9 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.3";
+var SCRIPT_VERSION = "v1.1.0";
 
 (function () {
-
-    // =========================================
-    // ローカライズ / Localization
-    // =========================================
-
-    /* 言語判定 / Detect UI language */
-    function getCurrentLang() {
-        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
-    }
-    var currentLanguage = getCurrentLang();
 
     // =========================================
     // 設定スイッチ / Settings
@@ -102,10 +96,24 @@ var SCRIPT_VERSION = "v1.0.3";
        false = Individual: each line uses its own base size */
     var LEADING_USE_COMMON = true;
 
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /* 言語判定 / Detect UI language */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var currentLanguage = getCurrentLang();
+
     /* ラベル定義 / Label definitions */
     var LABELS = {
         dialog: {
             title: { ja: "統合文字組みパネル", en: "Unified Type Panel" }
+        },
+        tab: {
+            fonts: { ja: "フォント", en: "Fonts" },
+            type: { ja: "文字組み", en: "Type" }
         },
         field: {
             docFonts: { ja: "ドキュメントフォント", en: "Document Fonts" },
@@ -191,7 +199,7 @@ var SCRIPT_VERSION = "v1.0.3";
             deletePreset: { ja: "削除", en: "Delete" },
             reset: { ja: "リセット", en: "Reset" },
             reload: { ja: "再読み込み", en: "Reload" },
-            hiddenChar: { ja: "制御文字の表示/非表示", en: "Show/Hide Hidden Chars" },
+            hiddenChar: { ja: "制御文字", en: "Hidden Chars" },
             changeAuto: { ja: "自動行送りの値", en: "Auto-leading value" }
         },
         tip: {
@@ -214,7 +222,7 @@ var SCRIPT_VERSION = "v1.0.3";
             mojikumi: { ja: "段落の文字組みアキ量設定（約物の詰め方など）をまとめて適用します。", en: "Applies a mojikumi spacing set (punctuation spacing, etc.) to the paragraphs." },
             kinsoku: { ja: "段落の禁則処理（強い禁則／弱い禁則など）をまとめて適用します。", en: "Applies a kinsoku (line-break) set to the paragraphs." },
             changeAuto: { ja: "自動行送りの割合（%）を変更します。クリックして値を入力してください。", en: "Change the auto-leading percentage. Click to enter a new value." },
-            reset: { ja: "標準値に戻します（フォントサイズ12pt・比率100%・ツメ0・トラッキング0・自動カーニングメトリクス・欧文ベースライン・左揃え・行送り自動・文字組みツメ組み）。", en: "Reset to defaults (12pt / 100% scale / 0 Tsume / 0 tracking / Metrics kerning / Roman baseline / left / auto leading / Tight mojikumi)." },
+            reset: { ja: "標準値に戻します（フォントサイズ12pt・比率100%・ツメ0・トラッキング0・自動カーニングメトリクス・欧文ベースライン・左揃え・行送り自動・文字組みツメ組み・禁則弱い禁則v2）。", en: "Reset to defaults (12pt / 100% scale / 0 Tsume / 0 tracking / Metrics kerning / Roman baseline / left / auto leading / Tight mojikumi / Loose v2 kinsoku)." },
             reload: { ja: "選択中のテキストの現在値を読み取り直して UI に反映します。", en: "Re-read the current values from the selection and reflect them in the UI." },
             hiddenChar: { ja: "制御文字（改行・スペースなど）の表示／非表示を切り替えます。", en: "Toggle the display of hidden characters (returns, spaces, etc.)." }
         },
@@ -1649,40 +1657,64 @@ var SCRIPT_VERSION = "v1.0.3";
         var palette = new Window("palette", getLocalizedText(LABELS.dialog.title) + " " + SCRIPT_VERSION);
         palette.alignChildren = "fill";
 
-        var unit = getTextUnit();
+        var textUnit = getTextUnit();
         var leadingBasisChoices = getLeadingTypeChoices();
 
         // ===== 上部インフォバー（カラムを貫通、テキスト1つ選択時のみ表示、1行テキスト）
         //       Top info bar spanning the columns as a single line (shown only when a single text is selected) =====
         var infoGroup = palette.add("group");
-        infoGroup.orientation = "row";
+        infoGroup.orientation = "column"; // 2行を縦に積む（マルチラインの描画クセを避ける）/ Stack two lines vertically (avoids multiline quirks)
         infoGroup.alignment = "fill";
+        infoGroup.alignChildren = ["fill", "center"];
+        infoGroup.spacing = 2;
         infoGroup.margins = [4, 4, 4, 4];
+        // 1行目：フォント・サイズ・行送り / Line 1: font, size, leading
         var infoText = infoGroup.add("statictext", undefined, "");
-        infoText.alignment = ["fill", "center"];
         infoText.justify = "center";
+        // 2行目：その他（行揃え・カーニング・禁則）/ Line 2: the rest (justify, kerning, kinsoku)
+        var infoTextSub = infoGroup.add("statictext", undefined, "");
+        infoTextSub.justify = "center";
 
-        // ===== レイアウト：左（ドキュメントフォント）／中央（カーニング・ツメ・文字揃え）／右（行送り）
-        //       Layout: left (document fonts) / center (kerning, tsume, alignment) / right (leading) =====
-        var mainRow = palette.add("group");
-        mainRow.orientation = "row";
-        mainRow.alignChildren = ["fill", "top"];
-        mainRow.spacing = 12;
+        // ===== レイアウト：タブ1（ドキュメントフォント）／タブ2（カーニング・ツメ・文字揃え・行送りなど）
+        //       Layout: tab 1 (document fonts) / tab 2 (kerning, tsume, alignment, leading, ...) =====
+        var mainTabs = palette.add("tabbedpanel");
+        mainTabs.alignChildren = ["fill", "top"];
+
+        // ---- タブ1：ドキュメントフォント／プリセット / Tab 1: document fonts, presets ----
+        var fontsTab = mainTabs.add("tab", undefined, getLocalizedText(LABELS.tab.fonts));
+        fontsTab.orientation = "column";
+        fontsTab.alignChildren = ["fill", "top"];
+        fontsTab.margins.top = 15; // タブ内上部にマージン / Top margin inside the tab
+        fontsTab.margins.left = 15; // タブ内左にマージン / Left margin inside the tab
+
+        // ---- タブ2：文字組み設定（中央＋右カラムを横並び）/ Tab 2: type settings (center + right columns side by side) ----
+        var typeTab = mainTabs.add("tab", undefined, getLocalizedText(LABELS.tab.type));
+        typeTab.orientation = "column";
+        typeTab.alignChildren = ["fill", "top"];
+        typeTab.margins.top = 15; // タブ内上部にマージン / Top margin inside the tab
+        typeTab.margins.left = 15; // タブ内左にマージン / Left margin inside the tab
+
+        var typeColumnsRow = typeTab.add("group");
+        typeColumnsRow.orientation = "row";
+        typeColumnsRow.alignChildren = ["fill", "top"];
+        typeColumnsRow.spacing = 12;
+
+        mainTabs.selection = fontsTab;
 
         // ---- 左カラム：ドキュメントフォント／プリセット / Left column: document fonts, presets ----
-        var leftColumn = mainRow.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = ["fill", "top"];
-        leftColumn.spacing = 8;
+        var fontsColumn = fontsTab.add("group");
+        fontsColumn.orientation = "column";
+        fontsColumn.alignChildren = ["fill", "top"];
+        fontsColumn.spacing = 8;
 
-        var fontPanel = leftColumn.add("panel", undefined, getLocalizedText(LABELS.field.docFonts));
+        var fontPanel = fontsColumn.add("panel", undefined, getLocalizedText(LABELS.field.docFonts));
         setupPanel(fontPanel);
 
         var fontList = fontPanel.add("listbox", undefined, [], { multiselect: false });
         fontList.preferredSize = [164, 200]; // 1行分低く / One row shorter
         fontList.helpTip = getLocalizedText(LABELS.tip.docFonts);
 
-        var presetPanel = leftColumn.add("panel", undefined, getLocalizedText(LABELS.field.presets));
+        var presetPanel = fontsColumn.add("panel", undefined, getLocalizedText(LABELS.field.presets));
         setupPanel(presetPanel);
 
         var presetList = presetPanel.add("listbox", undefined, [], { multiselect: false });
@@ -1690,36 +1722,39 @@ var SCRIPT_VERSION = "v1.0.3";
         presetList.helpTip = getLocalizedText(LABELS.tip.presets);
         fillPresetList(presetList, loadPresets());
 
-        // プリセット操作ボタン（追加・上書き・削除）を横並びに / Preset action buttons (add / overwrite / delete) in a row
+        // プリセット操作ボタンを3カラムに（フッターと同じロジック：左＝削除／中央＝スペーサー／右＝上書き・追加）
+        // Preset action buttons in 3 columns (same logic as the footer: left = delete / center = fill spacer / right = overwrite, add)
         var presetButtonRow = presetPanel.add("group");
         presetButtonRow.orientation = "row";
-        presetButtonRow.alignment = ["center", "top"]; // 幅いっぱいにしない / Don't stretch to full width
-        presetButtonRow.spacing = 6;
+        presetButtonRow.alignment = ["fill", "top"]; // 幅いっぱいにして左右に振り分ける / Stretch to full width to split left/right
         presetButtonRow.margins = [0, 5, 0, 0]; // ボタン行の上に余白 / Extra top margin above the button row
 
-        // 小さめのボタンサイズ（英語はラベルが長いので広め）/ Slightly smaller buttons (wider in English where labels run long)
-        var presetButtonSize = (currentLanguage === "ja") ? [54, 22] : [72, 22];
-
-        var addPresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.addPreset));
-        addPresetButton.preferredSize = presetButtonSize;
-        addPresetButton.helpTip = getLocalizedText(LABELS.tip.addPreset);
-
-        var overwritePresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.overwritePreset));
-        overwritePresetButton.preferredSize = presetButtonSize;
-        overwritePresetButton.helpTip = getLocalizedText(LABELS.tip.overwritePreset);
-
+        // 左：削除 / Left: delete
         var deletePresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.deletePreset));
-        deletePresetButton.preferredSize = presetButtonSize;
+        deletePresetButton.alignment = ["left", "center"];
         deletePresetButton.helpTip = getLocalizedText(LABELS.tip.deletePreset);
 
+        // 中央：スペーサー（余白を吸って左右に振り分ける）/ Center: spacer (absorbs slack to split left/right)
+        var presetButtonSpacer = presetButtonRow.add("statictext", undefined, "");
+        presetButtonSpacer.alignment = ["fill", "center"];
+
+        // 右：上書き・追加 / Right: overwrite, add
+        var overwritePresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.overwritePreset));
+        overwritePresetButton.alignment = ["right", "center"];
+        overwritePresetButton.helpTip = getLocalizedText(LABELS.tip.overwritePreset);
+
+        var addPresetButton = presetButtonRow.add("button", undefined, getLocalizedText(LABELS.button.addPreset));
+        addPresetButton.alignment = ["right", "center"];
+        addPresetButton.helpTip = getLocalizedText(LABELS.tip.addPreset);
+
         // ---- 中央カラム：フォントサイズ・自動カーニング・文字ツメ・文字揃え / Center column: font size, kerning, Tsume, alignment ----
-        var centerColumn = mainRow.add("group");
-        centerColumn.orientation = "column";
-        centerColumn.alignChildren = ["fill", "top"];
-        centerColumn.spacing = 8;
+        var characterColumn = typeColumnsRow.add("group");
+        characterColumn.orientation = "column";
+        characterColumn.alignChildren = ["fill", "top"];
+        characterColumn.spacing = 8;
 
         // フォントサイズ（文字サイズ・比率・見かけ＋焼き込みトグル）/ Font size (size, scale, apparent + bake toggle)
-        var fontSizePanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.fontSizePanel));
+        var fontSizePanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.fontSizePanel));
         setupPanel(fontSizePanel, 6);
         fontSizePanel.alignChildren = ["left", "top"];
 
@@ -1731,7 +1766,7 @@ var SCRIPT_VERSION = "v1.0.3";
         var fsSizeLabel = fsSizeRow.add("statictext", undefined, getLocalizedText(LABELS.field.fontSize) + sizeColon);
         var fontSizeInput = fsSizeRow.add("edittext", undefined, "");
         fontSizeInput.characters = 4;
-        fsSizeRow.add("statictext", undefined, unit.label);
+        fsSizeRow.add("statictext", undefined, textUnit.label);
 
         var fsScaleRow = fontSizePanel.add("group");
         fsScaleRow.orientation = "row";
@@ -1748,7 +1783,7 @@ var SCRIPT_VERSION = "v1.0.3";
         var fsApparentLabel = fsApparentRow.add("statictext", undefined, getLocalizedText(LABELS.field.apparent) + sizeColon);
         var apparentValueLabel = fsApparentRow.add("statictext", undefined, "--");
         apparentValueLabel.characters = 5;
-        var fsApparentUnit = fsApparentRow.add("statictext", undefined, unit.label);
+        var fsApparentUnit = fsApparentRow.add("statictext", undefined, textUnit.label);
 
         fsSizeLabel.helpTip = getLocalizedText(LABELS.tip.fontSize); fontSizeInput.helpTip = fsSizeLabel.helpTip;
         fsScaleLabel.helpTip = getLocalizedText(LABELS.tip.scale); scaleInput.helpTip = fsScaleLabel.helpTip;
@@ -1760,7 +1795,7 @@ var SCRIPT_VERSION = "v1.0.3";
         fsScaleLabel.preferredSize.width = fsLabelWidth;
         fsApparentLabel.preferredSize.width = fsLabelWidth;
 
-        var autoKernPanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.autoKern));
+        var autoKernPanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.autoKern));
         setupPanel(autoKernPanel, 6); // spacing は行送りのラジオと同じ / Same row spacing as the leading radios
         autoKernPanel.alignChildren = ["left", "top"];
         autoKernPanel.helpTip = getLocalizedText(LABELS.tip.autoKern);
@@ -1775,7 +1810,7 @@ var SCRIPT_VERSION = "v1.0.3";
 
         // 字間調整（文字ツメ・トラッキング）：各行「ラベル：［入力］」＋スライダー
         // Letter spacing (Tsume / Tracking): each row "label: [input]" then a slider
-        var spacingPanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.spacingAdjust));
+        var spacingPanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.spacingAdjust));
         setupPanel(spacingPanel, 6);
 
         var tsumeRow = spacingPanel.add("group");
@@ -1799,7 +1834,7 @@ var SCRIPT_VERSION = "v1.0.3";
         trackingInput.helpTip = getLocalizedText(LABELS.tip.tracking);
         var trackingSlider = spacingPanel.add("slider", undefined, 0, -100, 500);
 
-        var alignPanel = centerColumn.add("panel", undefined, getLocalizedText(LABELS.field.align));
+        var alignPanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.align));
         setupPanel(alignPanel, 6);
         alignPanel.alignChildren = ["left", "top"];
         alignPanel.helpTip = getLocalizedText(LABELS.tip.align);
@@ -1838,12 +1873,12 @@ var SCRIPT_VERSION = "v1.0.3";
         alignRomanRadio.value = true;
 
         // ---- 右カラム：種別・行揃え・行送り・行送りの基準・文字組みアキ量設定 / Right column: type, justification, leading, basis, mojikumi ----
-        var rightColumn = mainRow.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = ["fill", "top"];
-        rightColumn.spacing = 8;
+        var paragraphColumn = typeColumnsRow.add("group");
+        paragraphColumn.orientation = "column";
+        paragraphColumn.alignChildren = ["fill", "top"];
+        paragraphColumn.spacing = 8;
 
-        var rolePanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.role));
+        var rolePanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.role));
         setupPanel(rolePanel);
         rolePanel.alignChildren = ["center", "top"];
         var roleRow = rolePanel.add("group");
@@ -1856,7 +1891,7 @@ var SCRIPT_VERSION = "v1.0.3";
         roleBodyRadio.helpTip = rolePanel.helpTip;
         roleHeadingRadio.helpTip = rolePanel.helpTip;
 
-        var justifyPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.justify));
+        var justifyPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.justify));
         setupPanel(justifyPanel, 5);
         justifyPanel.orientation = "row";
         justifyPanel.alignChildren = ["center", "center"]; // ボタン列を左右中央に / Center the button row horizontally
@@ -1878,7 +1913,7 @@ var SCRIPT_VERSION = "v1.0.3";
             justifyButtons.push(justifyButton);
         }
 
-        var leadingPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.leading));
+        var leadingPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.leading));
         setupPanel(leadingPanel);
         leadingPanel.alignChildren = "left";
         leadingPanel.helpTip = getLocalizedText(LABELS.tip.leading);
@@ -1949,7 +1984,7 @@ var SCRIPT_VERSION = "v1.0.3";
         leadingBasisRadios[0].value = true;
 
         // 禁則（ポップアップ）/ Kinsoku (popup)
-        var kinsokuPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.kinsoku));
+        var kinsokuPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.kinsoku));
         setupPanel(kinsokuPanel);
         kinsokuPanel.alignChildren = "fill";
         kinsokuPanel.helpTip = getLocalizedText(LABELS.tip.kinsoku);
@@ -1963,7 +1998,7 @@ var SCRIPT_VERSION = "v1.0.3";
         kinsokuDropdown.preferredSize.width = 150;
 
         // 文字組みアキ量設定（ポップアップ）/ Mojikumi spacing set (popup)
-        var mojikumiPanel = rightColumn.add("panel", undefined, getLocalizedText(LABELS.field.mojikumi));
+        var mojikumiPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.mojikumi));
         setupPanel(mojikumiPanel);
         mojikumiPanel.alignChildren = "fill";
         mojikumiPanel.helpTip = getLocalizedText(LABELS.tip.mojikumi);
@@ -1995,6 +2030,7 @@ var SCRIPT_VERSION = "v1.0.3";
         return {
             palette: palette,
             infoText: infoText,
+            infoTextSub: infoTextSub,
             fontList: fontList,
             presetList: presetList,
             addPresetButton: addPresetButton,
@@ -2026,7 +2062,7 @@ var SCRIPT_VERSION = "v1.0.3";
             resetButton: resetButton,
             reloadButton: reloadButton,
             hiddenCharButton: hiddenCharButton,
-            unit: unit,
+            textUnit: textUnit,
             leadingBasisChoices: leadingBasisChoices,
             leadingRadios: leadingRadios,
             leadingInput: leadingInput,
@@ -2103,7 +2139,7 @@ var SCRIPT_VERSION = "v1.0.3";
     function bindPaletteEvents(ui, autoKernOptions, alignOptions, justifyOptions) {
         // BridgeTalk は非同期なので、連打による委譲の重複を抑止 / Guard against overlapping async delegations
         var workerBusy = false;
-        var unit = ui.unit;
+        var textUnit = ui.textUnit;
         var lastAutoAmount = 175; // 直近に読み取った自動行送り量（適用時はこの値を維持）/ Last-read auto-leading amount (kept on apply)
         var lastLeadingPercent = NaN; // 直近に読み取った行送りの割合（%）／「その他」初期値に使う / Last-read leading percentage (used as the default for "Other")
         var suppressUiEvents = false; // 反映中のドロップダウン onChange を抑止 / Suppress dropdown onChange while reflecting state
@@ -2112,7 +2148,7 @@ var SCRIPT_VERSION = "v1.0.3";
            Surface an important-op failure in the info bar (don't swallow it; show which action failed and why) */
         function showWorkerError(actionId, payload) {
             var detail = payload ? (": " + String(payload)) : "";
-            try { ui.infoText.text = "⚠ " + getLocalizedText(LABELS.msg.applyError) + " [" + actionId + "]" + detail; } catch (e) { }
+            try { ui.infoText.text = "⚠ " + getLocalizedText(LABELS.msg.applyError) + " [" + actionId + "]" + detail; ui.infoTextSub.text = ""; } catch (e) { }
         }
 
         // 委譲する共通処理（連打抑止）/ Delegate an apply action (guarded against overlap)
@@ -2331,7 +2367,7 @@ var SCRIPT_VERSION = "v1.0.3";
             runApply("applyProfile", {
                 kern: "metrics", tsume: 0, tracking: 0, align: "roman", justify: "left",
                 ratio: null, leadingType: "top",
-                sizePt: 12, scale: 100, mojikumiIndex: 5, clearAki: true
+                sizePt: 12, scale: 100, mojikumiIndex: 5, kinsoku: "Soft_v2", clearAki: true
             });
             selectRadioById(ui.kernRadios, autoKernOptions, "metrics");
             reflectTsume(0);
@@ -2345,10 +2381,14 @@ var SCRIPT_VERSION = "v1.0.3";
             for (var mojikumiChoiceIndex = 0; mojikumiChoiceIndex < ui.mojikumiChoices.length; mojikumiChoiceIndex++) {
                 if (ui.mojikumiChoices[mojikumiChoiceIndex].index === 5) { ui.mojikumiDropdown.selection = mojikumiChoiceIndex; break; }
             }
+            // 禁則を「弱い禁則 v2」（Soft_v2）へ / Kinsoku to Loose v2 (Soft_v2)
+            for (var kinsokuChoiceIndex = 0; kinsokuChoiceIndex < ui.kinsokuChoices.length; kinsokuChoiceIndex++) {
+                if (ui.kinsokuChoices[kinsokuChoiceIndex].id === "Soft_v2") { ui.kinsokuDropdown.selection = kinsokuChoiceIndex; break; }
+            }
             suppressUiEvents = false;
             // 文字サイズ 12pt・比率 100% / Font size 12pt, scale 100%
             apparentToggleState = null;
-            ui.fontSizeInput.text = String(Math.round((12 / unit.factor) * 10) / 10);
+            ui.fontSizeInput.text = String(Math.round((12 / textUnit.factor) * 10) / 10);
             ui.scaleInput.text = "100";
             updateApparentDisplay();
             ui.roleBodyRadio.value = false;
@@ -2437,7 +2477,7 @@ var SCRIPT_VERSION = "v1.0.3";
         function applyFontSizeFromInput() {
             apparentToggleState = null;
             var inputValue = parseFloat(ui.fontSizeInput.text);
-            if (!isNaN(inputValue)) runApply("applyFontSize", { sizePt: inputValue * unit.factor });
+            if (!isNaN(inputValue)) runApply("applyFontSize", { sizePt: inputValue * textUnit.factor });
             updateApparentDisplay();
         }
         function applyScaleFromInput() {
@@ -2579,7 +2619,7 @@ var SCRIPT_VERSION = "v1.0.3";
                 // 上部インフォバー：テキストが1つだけのとき、値のみを1行表示（タイトルなし）
                 // Top info bar: a single line of values only (no titles), shown when exactly one text is selected
                 if (state.count === 1) {
-                    var sizeText = isNaN(state.fontSizePt) ? "—" : (Math.round((state.fontSizePt / unit.factor) * 10) / 10) + unit.label;
+                    var sizeText = isNaN(state.fontSizePt) ? "—" : (Math.round((state.fontSizePt / textUnit.factor) * 10) / 10) + textUnit.label;
                     // 行送り：自動は「自動（175%）」、固定は単位付き値のみ / Leading: "Auto (175%)" or a unit value only
                     var leadingText;
                     if (state.isAuto) {
@@ -2587,24 +2627,32 @@ var SCRIPT_VERSION = "v1.0.3";
                     } else if (isNaN(state.leadingPt)) {
                         leadingText = "—";
                     } else {
-                        leadingText = (Math.round((state.leadingPt / unit.factor) * 10) / 10) + unit.label;
+                        leadingText = (Math.round((state.leadingPt / textUnit.factor) * 10) / 10) + textUnit.label;
                     }
-                    ui.infoText.text = [
+                    // 1行目：フォント（ファミリー＋スタイル）・フォントサイズ・行送り
+                    // Line 1: font (family + style), font size, leading
+                    var infoLine1 = [
                         state.fontFamily || "—",
                         state.fontStyle || "—",
                         sizeText,
-                        leadingText,
+                        leadingText
+                    ].join(" / ");
+                    // 2行目：その他（行揃え・カーニング・禁則）/ Line 2: the rest (justify, kerning, kinsoku)
+                    var infoLine2 = [
                         justifyLabel(state.justifyId),
                         kernLabel(state.kernId),
                         kinsokuLabel(state.kinsokuId)
                     ].join(" / ");
+                    ui.infoText.text = infoLine1;
+                    ui.infoTextSub.text = infoLine2;
                 } else {
                     ui.infoText.text = "";
+                    ui.infoTextSub.text = "";
                 }
                 if (state.count <= 0) return;
                 // フォントサイズ・比率・見かけ / Font size, scale, apparent
                 apparentToggleState = null;
-                ui.fontSizeInput.text = isNaN(state.fontSizePt) ? "" : String(Math.round((state.fontSizePt / unit.factor) * 10) / 10);
+                ui.fontSizeInput.text = isNaN(state.fontSizePt) ? "" : String(Math.round((state.fontSizePt / textUnit.factor) * 10) / 10);
                 ui.scaleInput.text = isNaN(state.hScale) ? "100" : String(Math.round(state.hScale * 10) / 10);
                 updateApparentDisplay();
                 // 行送りラジオ / Leading radio
