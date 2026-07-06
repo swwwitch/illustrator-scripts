@@ -82,7 +82,7 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.1.0";
+var SCRIPT_VERSION = "v1.2.0";
 
 (function () {
 
