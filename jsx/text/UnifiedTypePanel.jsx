@@ -8,9 +8,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 選択したテキストの文字組み設定（フォント・フォントサイズ・自動カーニング・字間・文字揃え・行揃え・行送り・
 文字組みアキ量設定）をまとめて行う常駐パレットスクリプトです。3カラム構成（左：ドキュメントフォント／プリセット、
-中央：フォントサイズ・自動カーニング・字間調整・文字揃え、右：種別・行揃え・行送り・行送りの基準・文字組みアキ量設定・禁則）。
+中央：フォントサイズ・自動カーニング・字間調整・文字揃え、右：行揃え・行送り・行送りの基準・文字組みアキ量設定・禁則）。
 
-- 最上部にインフォバー：テキストが1つだけ選択されているとき、フォント名・スタイル・サイズ・行送り・行揃え・自動カーニング・禁則を表示
+- 最上部に種別（本文／見出し）と方針パネルを左右に配置
 
 - ドキュメントフォント：書類で使用中のフォントを一覧表示。選ぶと選択テキストへ適用
 - プリセット：フォント＋カーニング・文字ツメ・トラッキングをまとめて登録。選ぶと一括適用。
@@ -50,9 +50,9 @@ https://note.com/dtp_tranist/n/n4e2b79cf2891
 A docked palette that sets text-composition attributes (font, font size, auto kerning,
 letter spacing, character alignment, justification, leading, and mojikumi) for the selected text.
 Three columns (left: document fonts / presets, center: font size, kerning, letter spacing
-& alignment, right: type, justification, leading, basis, mojikumi, kinsoku).
+& alignment, right: justification, leading, basis, mojikumi, kinsoku).
 
-- Top info bar: when exactly one text is selected, shows font family, style, size, leading, justification, auto kerning, and kinsoku
+- Top area: Type (Body / Heading) and Policy panels laid out side by side
 
 - Document fonts: lists the fonts used in the document; clicking one applies it to the selection
 - Presets: a font plus kerning / Tsume / tracking, applied together when clicked. "Add"
@@ -113,7 +113,8 @@ var SCRIPT_VERSION = "v1.1.0";
         },
         tab: {
             fonts: { ja: "フォント", en: "Fonts" },
-            type: { ja: "文字組み", en: "Type" }
+            type: { ja: "文字組み", en: "Type" },
+            usedFonts: { ja: "使用フォント", en: "Used Fonts" }
         },
         field: {
             docFonts: { ja: "ドキュメントフォント", en: "Document Fonts" },
@@ -133,6 +134,40 @@ var SCRIPT_VERSION = "v1.1.0";
             leadingType: { ja: "行送りの基準", en: "Leading basis" },
             mojikumi: { ja: "文字組みアキ量設定", en: "Mojikumi" },
             kinsoku: { ja: "禁則", en: "Kinsoku" }
+        },
+        policy: {
+            wabun: { ja: "和文", en: "Japanese" },
+            latin: { ja: "欧文", en: "Latin" },
+            mixed: { ja: "和欧混在", en: "Mixed" }
+        },
+        // 使用フォント一覧（DocumentFontListSelector 由来）/ Used-fonts list labels
+        usedFonts: {
+            autoLeading: { ja: "自動", en: "Auto" },
+            column: {
+                count: { ja: "使用数", en: "Count" },
+                font: { ja: "フォント", en: "Font" },
+                size: { ja: "サイズ", en: "Size" },
+                leading: { ja: "行送り", en: "Leading" },
+                kern: { ja: "自動カーニング", en: "Auto Kerning" },
+                tsume: { ja: "文字ツメ", en: "Tsume" },
+                tracking: { ja: "トラッキング", en: "Tracking" },
+                propMetrics: { ja: "プロポーショナル", en: "Prop. Metrics" }
+            },
+            control: {
+                applyOnClick: { ja: "クリックで適用", en: "Apply on click" },
+                currentArtboardOnly: { ja: "現在のアートボードに限定", en: "Current artboard only" },
+                includeHidden: { ja: "非表示のテキストを含む", en: "Include hidden text" },
+                includeLocked: { ja: "ロックされたテキストを含む", en: "Include locked text" }
+            },
+            button: {
+                refresh: { ja: "リストを更新", en: "Refresh list" },
+                selectMatching: { ja: "選択した条件のフォントを選択", en: "Select matching text" }
+            },
+            status: {
+                needSelection: { ja: "適用先のテキストを選択してください。", en: "Select the text to apply to." },
+                needCondition: { ja: "一覧から条件を選択してください。", en: "Select a condition from the list." },
+                noMatch: { ja: "一致するテキストが見つかりませんでした。", en: "No matching text was found." }
+            }
         },
         kinsoku: {
             none: { ja: "なし", en: "None" },
@@ -776,6 +811,14 @@ var SCRIPT_VERSION = "v1.1.0";
         }
     }
 
+    /* 行送りの基準（leadingType）だけを設定し、行送り値は変更しない
+       Set only the leading basis (leadingType); leaves the leading values untouched */
+    function applyLeadingBasisToFrames(frames, leadingType) {
+        for (var i = 0; i < frames.length; i++) {
+            try { frames[i].textRange.leadingType = leadingType; } catch (e) { }
+        }
+    }
+
     /* テキストフレーム内の全段落に文字組みアキ量設定を適用 / Apply a mojikumi set to every paragraph in a text frame */
     function applyMojikumiToTextFrame(textFrame, mojikumiValue) {
         var paragraphs = textFrame.paragraphs;
@@ -943,6 +986,208 @@ var SCRIPT_VERSION = "v1.1.0";
     // メインエンジン委譲 / Main-engine delegation (BridgeTalk)
     // =========================================
 
+    // =========================================
+    // 使用フォント一覧（DocumentFontListSelector 由来）/ Used-fonts list (ported from DocumentFontListSelector)
+    // これらもメインエンジンへ委譲する DOM 処理 / DOM helpers also delegated to the main engine
+    // =========================================
+
+    /* 小数2桁までで末尾ゼロを落とす / Round to 2 decimals and trim trailing zeros */
+    function formatNumber(numericValue) {
+        if (numericValue === null || numericValue === undefined || isNaN(numericValue)) return "?";
+        var roundedValue = Math.round(numericValue * 100) / 100;
+        return String(roundedValue);
+    }
+
+    /* フォントの表示名（ファミリー＋スタイル）/ Display name of a font (family + style) */
+    function getFontDisplayName(textFont) {
+        if (!textFont) return "(no font)";
+        var fontFamily = textFont.family || textFont.name || "";
+        var fontStyle = textFont.style || "";
+        return fontFamily + (fontStyle ? " " + fontStyle : "");
+    }
+
+    /* 1文字の属性から組み合わせオブジェクトを作る（読めなければ null）/ Build a combination object from one character (null if unreadable) */
+    function readComboFromCharacter(character) {
+        try {
+            var charAttributes = character.characterAttributes;
+            var textFont = charAttributes.textFont;
+            if (!textFont) return null;
+            return {
+                psName: textFont.name,
+                displayName: getFontDisplayName(textFont),
+                size: charAttributes.size,
+                leading: charAttributes.leading,
+                autoLeading: charAttributes.autoLeading ? true : false,
+                tsume: charAttributes.Tsume,
+                tracking: charAttributes.tracking,
+                kernId: kernMethodToId(charAttributes.kerningMethod),
+                proportionalMetrics: charAttributes.proportionalMetrics ? true : false
+            };
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /* 組み合わせの重複排除キー / Dedupe key for a combination */
+    function comboKey(combo) {
+        return [
+            combo.psName,
+            formatNumber(combo.size),
+            combo.autoLeading ? "auto" : formatNumber(combo.leading),
+            String(Math.round(combo.tsume)),
+            String(Math.round(combo.tracking)),
+            combo.kernId,
+            combo.proportionalMetrics ? "p1" : "p0"
+        ].join("|");
+    }
+
+    /* 現在のアートボードの矩形を取得（取れなければ null）/ Get the active artboard rect ([L,T,R,B]); null if unavailable */
+    function getActiveArtboardRect(activeDocument) {
+        try {
+            var activeIndex = activeDocument.artboards.getActiveArtboardIndex();
+            return activeDocument.artboards[activeIndex].artboardRect;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    /* テキストフレームがアートボード矩形と重なるか / Whether a text frame overlaps the artboard rect */
+    function frameOverlapsArtboard(textFrame, artboardRect) {
+        if (!artboardRect) return true;
+        var bounds;
+        try { bounds = textFrame.geometricBounds; } catch (e) { return false; }
+        var frameLeft = bounds[0], frameTop = bounds[1], frameRight = bounds[2], frameBottom = bounds[3];
+        var artLeft = artboardRect[0], artTop = artboardRect[1], artRight = artboardRect[2], artBottom = artboardRect[3];
+        if (frameRight < artLeft || frameLeft > artRight) return false;
+        if (frameBottom > artTop || frameTop < artBottom) return false;
+        return true;
+    }
+
+    /* アイテムが表示されているか（自身と親グループの hidden、所属レイヤーの visible を遡って確認）/ Whether an item is visible */
+    function isItemVisible(pageItem) {
+        var node = pageItem;
+        try {
+            while (node) {
+                var nodeType = node.typename;
+                if (nodeType === "Document") break;
+                if (nodeType === "Layer") {
+                    if (!node.visible) return false;
+                } else {
+                    if (node.hidden) return false;
+                }
+                node = node.parent;
+            }
+        } catch (e) { }
+        return true;
+    }
+
+    /* アイテムがロックされていないか（自身と親グループの locked、所属レイヤーの locked を遡って確認）/ Whether an item is unlocked */
+    function isItemUnlocked(pageItem) {
+        var node = pageItem;
+        try {
+            while (node) {
+                var nodeType = node.typename;
+                if (nodeType === "Document") break;
+                if (node.locked) return false;
+                node = node.parent;
+            }
+        } catch (e) { }
+        return true;
+    }
+
+    /* ドキュメントを走査し、組み合わせを TAB 区切り行（LF 連結）で返す / Scan the document; return combos as TAB-joined rows (LF-joined)
+       1行 = psName \t displayName \t size \t leading \t autoLeading(0/1) \t tsume \t tracking \t kernId \t proportionalMetrics(0/1) \t count */
+    function collectDocumentCombosRaw(activeDocument, currentArtboardOnly, includeHidden, includeLocked) {
+        var comboOrder = [], comboData = {}, comboRows = [];
+        var TAB = String.fromCharCode(9), LF = String.fromCharCode(10);
+        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
+        var textFrames = activeDocument.textFrames;
+        for (var f = 0; f < textFrames.length; f++) {
+            if (!includeHidden && !isItemVisible(textFrames[f])) continue;
+            if (!includeLocked && !isItemUnlocked(textFrames[f])) continue;
+            if (artboardRect && !frameOverlapsArtboard(textFrames[f], artboardRect)) continue;
+            var characters;
+            try { characters = textFrames[f].characters; } catch (eFrame) { continue; }
+            var seenInFrame = {};
+            for (var c = 0; c < characters.length; c++) {
+                var combo = readComboFromCharacter(characters[c]);
+                if (!combo) continue;
+                var dedupeKey = comboKey(combo);
+                if (!comboData[dedupeKey]) {
+                    comboData[dedupeKey] = { combo: combo, count: 0 };
+                    comboOrder.push(dedupeKey);
+                }
+                /* 同じフレーム内で同じ組み合わせを複数回使っても使用数は1だけ増やす / Count each frame once per combo */
+                if (!seenInFrame[dedupeKey]) {
+                    seenInFrame[dedupeKey] = true;
+                    comboData[dedupeKey].count++;
+                }
+            }
+        }
+        for (var i = 0; i < comboOrder.length; i++) {
+            var entry = comboData[comboOrder[i]];
+            var entryCombo = entry.combo;
+            comboRows.push([
+                entryCombo.psName, entryCombo.displayName, String(entryCombo.size), String(entryCombo.leading),
+                entryCombo.autoLeading ? "1" : "0", String(entryCombo.tsume), String(entryCombo.tracking), entryCombo.kernId,
+                entryCombo.proportionalMetrics ? "1" : "0", String(entry.count)
+            ].join(TAB));
+        }
+        return comboRows.join(LF);
+    }
+
+    /* 選択範囲に組み合わせを適用 / Apply a combination to the given ranges. 戻り値: 適用できた範囲数 / Returns applied count */
+    function applyComboToRanges(selectedRanges, combo) {
+        var textFont = null;
+        try { textFont = app.textFonts.getByName(combo.psName); } catch (eGet) { textFont = null; }
+        var kernType = resolveAutoKernType(combo.kernId);
+        var appliedCount = 0;
+        for (var i = 0; i < selectedRanges.length; i++) {
+            /* 属性は同じ characterAttributes に連続代入するので try は1範囲につき1つ / One try per range */
+            try {
+                var charAttributes = selectedRanges[i].characterAttributes;
+                if (textFont) charAttributes.textFont = textFont;
+                if (!isNaN(combo.size)) charAttributes.size = combo.size;
+                if (combo.autoLeading) {
+                    charAttributes.autoLeading = true;
+                } else if (!isNaN(combo.leading)) {
+                    charAttributes.autoLeading = false;
+                    charAttributes.leading = combo.leading;
+                }
+                charAttributes.Tsume = combo.tsume;
+                if (!isNaN(combo.tracking)) charAttributes.tracking = combo.tracking;
+                charAttributes.kerningMethod = kernType;
+                charAttributes.proportionalMetrics = combo.proportionalMetrics ? true : false;
+                appliedCount++;
+            } catch (eApplyRange) { }
+        }
+        return appliedCount;
+    }
+
+    /* 組み合わせに一致する文字を含むテキストフレームを選択 / Select frames containing characters matching the combo. 戻り値: 選択したフレーム数 */
+    function selectFramesMatchingCombo(activeDocument, combo, currentArtboardOnly, includeHidden, includeLocked) {
+        var targetKey = comboKey(combo);
+        var artboardRect = currentArtboardOnly ? getActiveArtboardRect(activeDocument) : null;
+        var textFrames = activeDocument.textFrames;
+        var matchedFrames = [];
+        for (var f = 0; f < textFrames.length; f++) {
+            if (!includeHidden && !isItemVisible(textFrames[f])) continue;
+            if (!includeLocked && !isItemUnlocked(textFrames[f])) continue;
+            if (artboardRect && !frameOverlapsArtboard(textFrames[f], artboardRect)) continue;
+            var characters;
+            try { characters = textFrames[f].characters; } catch (eFrame) { continue; }
+            for (var c = 0; c < characters.length; c++) {
+                var charCombo = readComboFromCharacter(characters[c]);
+                if (charCombo && comboKey(charCombo) === targetKey) { matchedFrames.push(textFrames[f]); break; }
+            }
+        }
+        /* 一致0件のときは現在の選択を保持 / Keep the current selection when nothing matched */
+        if (matchedFrames.length === 0) return 0;
+        /* 配列を直接代入すれば既存選択を一括置換 / Assigning the array replaces the current selection */
+        activeDocument.selection = matchedFrames;
+        return matchedFrames.length;
+    }
+
     /* メインエンジンへ送る処理関数（上で定義済みのものを再利用）
        Functions shipped to the main engine (reuse of the helpers above) */
     var WORKER_FUNCS = [
@@ -956,10 +1201,13 @@ var SCRIPT_VERSION = "v1.1.0";
         getLineSampleFontSizes, getMostFrequentNumber, getBaseFontSizeFromLine, getCommonBaseFontSize,
         getProcessableTextFrame, collectLeadingFrames, collectLeadingFramesFromItem, addLeadingFrame,
         resolveLeadingType, leadingTypeToId,
-        applyLeadingToFrames, applyLineLeadingToFrames, applyAlignmentToSelection,
+        applyLeadingToFrames, applyLineLeadingToFrames, applyLeadingBasisToFrames, applyAlignmentToSelection,
         applyMojikumiToTextFrame, applyMojikumiToItem, applyMojikumiToSelection, matchMojikumiName, mojikumiToId,
         applyKinsokuToTextFrame, applyKinsokuToItem, applyKinsokuToSelection, kinsokuToId,
-        readLeadingState
+        readLeadingState,
+        formatNumber, getFontDisplayName, readComboFromCharacter, comboKey,
+        getActiveArtboardRect, frameOverlapsArtboard, isItemVisible, isItemUnlocked,
+        collectDocumentCombosRaw, applyComboToRanges, selectFramesMatchingCombo
     ];
 
     /* 関数配列を toString() で連結してソース文字列にする / Join the function array into a source string
@@ -1200,6 +1448,37 @@ var SCRIPT_VERSION = "v1.1.0";
             app.redraw();
             return "OK:1";
         }
+        if (action === "applyPolicy") {
+            var policySel = app.activeDocument.selection;
+            var policyFrames = collectLeadingFrames(policySel);
+            try {
+                if (params.align !== undefined) applyAlignmentToSelection(policySel, resolveAlignment(params.align));
+                if (params.leadingType !== undefined) applyLeadingBasisToFrames(policyFrames, resolveLeadingType(params.leadingType));
+            } catch (errPolicy) {
+                return "ERR:" + (errPolicy && errPolicy.message ? errPolicy.message : String(errPolicy));
+            }
+            app.redraw();
+            return "OK:" + policyFrames.length;
+        }
+        if (action === "getCombos") {
+            return "OK:" + encodeURIComponent(collectDocumentCombosRaw(app.activeDocument, params && params.currentArtboardOnly, params && params.includeHidden, params && params.includeLocked));
+        }
+        if (action === "applyCombo") {
+            if (ranges.length === 0) return "OK:nosel";
+            var appliedComboCount = 0;
+            try {
+                appliedComboCount = applyComboToRanges(ranges, params);
+            } catch (errCombo) {
+                return "ERR:" + (errCombo && errCombo.message ? errCombo.message : String(errCombo));
+            }
+            app.redraw();
+            return "OK:" + appliedComboCount;
+        }
+        if (action === "selectMatching") {
+            var matchedCount = selectFramesMatchingCombo(app.activeDocument, params, params && params.currentArtboardOnly, params && params.includeHidden, params && params.includeLocked);
+            app.redraw();
+            return "OK:" + matchedCount;
+        }
         return "OK:0";
     }
     var DISPATCH_SRC = "(" + dispatch.toString() + ")";
@@ -1228,6 +1507,15 @@ var SCRIPT_VERSION = "v1.1.0";
         if (params.directMode !== undefined) parts.push("directMode:" + (params.directMode ? "true" : "false"));
         if (params.directLeadingPt !== undefined) parts.push("directLeadingPt:" + (isNaN(params.directLeadingPt) ? "NaN" : params.directLeadingPt));
         if (params.clearAki !== undefined) parts.push("clearAki:" + (params.clearAki ? "true" : "false"));
+        // 使用フォント一覧（combo 適用・走査）用フィールド / Fields for the used-fonts list (combo apply / scan)
+        if (params.size !== undefined) parts.push("size:" + (isNaN(params.size) ? "NaN" : params.size));
+        if (params.leading !== undefined) parts.push("leading:" + (isNaN(params.leading) ? "NaN" : params.leading));
+        if (params.autoLeading !== undefined) parts.push("autoLeading:" + (params.autoLeading ? "true" : "false"));
+        if (params.kernId !== undefined) parts.push('kernId:decodeURIComponent("' + encodeURIComponent(params.kernId) + '")');
+        if (params.proportionalMetrics !== undefined) parts.push("proportionalMetrics:" + (params.proportionalMetrics ? "true" : "false"));
+        if (params.currentArtboardOnly !== undefined) parts.push("currentArtboardOnly:" + (params.currentArtboardOnly ? "true" : "false"));
+        if (params.includeHidden !== undefined) parts.push("includeHidden:" + (params.includeHidden ? "true" : "false"));
+        if (params.includeLocked !== undefined) parts.push("includeLocked:" + (params.includeLocked ? "true" : "false"));
         return "{" + parts.join(",") + "}";
     }
 
@@ -1258,6 +1546,82 @@ var SCRIPT_VERSION = "v1.1.0";
     function runWorker(actionId, params, onDone) {
         var code = getWorkerLibSource() + "\nvar __r=" + DISPATCH_SRC + "(\"" + actionId + "\"," + paramsToSource(params) + ");__r;";
         sendWorker(code, onDone);
+    }
+
+    // =========================================
+    // 使用フォント一覧：ラベル・解析（パレット側）/ Used-fonts list: labels & parsing (palette side)
+    // =========================================
+
+    /* カーニング method id を表示ラベルへ / Kerning method id to a display label */
+    function usedFontKernLabel(kernMethodId) {
+        var labelEntry = LABELS.autoKern[kernMethodId];
+        return labelEntry ? getLocalizedText(labelEntry) : "—";
+    }
+
+    /* 各列のセル文字列を組み立て / Build the per-column cell strings
+       [使用数, フォント, サイズ, 行送り, 自動カーニング, 文字ツメ, トラッキング, プロポーショナル] */
+    function comboCells(combo) {
+        var countText = isNaN(combo.count) ? "?" : String(combo.count);
+        var sizeText = formatNumber(combo.size) + "pt";
+        var leadingText = combo.autoLeading
+            ? getLocalizedText(LABELS.usedFonts.autoLeading)
+            : formatNumber(combo.leading) + "pt";
+        var tsumeText = String(Math.round(combo.tsume));
+        var trackingText = isNaN(combo.tracking) ? "?" : String(Math.round(combo.tracking));
+        var propMetricsText = combo.proportionalMetrics ? "ON" : "OFF";
+        return [countText, combo.displayName, sizeText, leadingText, usedFontKernLabel(combo.kernId), tsumeText, trackingText, propMetricsText];
+    }
+
+    /* 委譲結果（デコード済み）を組み合わせ配列に復元し、表示順に並べる / Parse the worker payload into combos and sort them */
+    function parseCombosPayload(rawPayload) {
+        var combos = [];
+        if (!rawPayload) return combos;
+        var TAB = String.fromCharCode(9), LF = String.fromCharCode(10);
+        var comboRows = rawPayload.split(LF);
+        for (var i = 0; i < comboRows.length; i++) {
+            var fields = comboRows[i].split(TAB);
+            if (fields.length < 10) continue;
+            var combo = {
+                psName: fields[0],
+                displayName: fields[1],
+                size: parseFloat(fields[2]),
+                leading: parseFloat(fields[3]),
+                autoLeading: fields[4] === "1",
+                tsume: parseFloat(fields[5]),
+                tracking: parseFloat(fields[6]),
+                kernId: fields[7],
+                proportionalMetrics: fields[8] === "1",
+                count: parseInt(fields[9], 10)
+            };
+            combo.cells = comboCells(combo);
+            combos.push(combo);
+        }
+        // フォント名→サイズ→行送り→自動カーニング→ツメ→トラッキング→プロポーショナル の順 / Sort by font, size, leading, kerning, Tsume, tracking, prop-metrics
+        combos.sort(function (a, b) {
+            if (a.displayName !== b.displayName) return a.displayName < b.displayName ? -1 : 1;
+            if ((a.size || 0) !== (b.size || 0)) return (a.size || 0) - (b.size || 0);
+            if ((a.leading || 0) !== (b.leading || 0)) return (a.leading || 0) - (b.leading || 0);
+            if (a.kernId !== b.kernId) return a.kernId < b.kernId ? -1 : 1;
+            if ((a.tsume || 0) !== (b.tsume || 0)) return (a.tsume || 0) - (b.tsume || 0);
+            if ((a.tracking || 0) !== (b.tracking || 0)) return (a.tracking || 0) - (b.tracking || 0);
+            if (a.proportionalMetrics !== b.proportionalMetrics) return a.proportionalMetrics ? 1 : -1;
+            return 0;
+        });
+        return combos;
+    }
+
+    /* 組み合わせを適用パラメータへ / Convert a combo to apply params */
+    function comboToParams(combo) {
+        return {
+            psName: combo.psName,
+            size: combo.size,
+            leading: combo.leading,
+            autoLeading: combo.autoLeading,
+            tsume: combo.tsume,
+            tracking: combo.tracking,
+            kernId: combo.kernId,
+            proportionalMetrics: combo.proportionalMetrics
+        };
     }
 
     // =========================================
@@ -1660,20 +2024,54 @@ var SCRIPT_VERSION = "v1.1.0";
         var textUnit = getTextUnit();
         var leadingBasisChoices = getLeadingTypeChoices();
 
-        // ===== 上部インフォバー（カラムを貫通、テキスト1つ選択時のみ表示、1行テキスト）
-        //       Top info bar spanning the columns as a single line (shown only when a single text is selected) =====
-        var infoGroup = palette.add("group");
-        infoGroup.orientation = "column"; // 2行を縦に積む（マルチラインの描画クセを避ける）/ Stack two lines vertically (avoids multiline quirks)
-        infoGroup.alignment = "fill";
-        infoGroup.alignChildren = ["fill", "center"];
-        infoGroup.spacing = 2;
-        infoGroup.margins = [4, 4, 4, 4];
-        // 1行目：フォント・サイズ・行送り / Line 1: font, size, leading
-        var infoText = infoGroup.add("statictext", undefined, "");
-        infoText.justify = "center";
-        // 2行目：その他（行揃え・カーニング・禁則）/ Line 2: the rest (justify, kerning, kinsoku)
-        var infoTextSub = infoGroup.add("statictext", undefined, "");
-        infoTextSub.justify = "center";
+        // ===== 上部：種別（タイトルなし）＋方針を左右に並べる
+        //       Top: Type (untitled panel) + Policy, laid out side by side =====
+        var topRow = palette.add("group");
+        topRow.orientation = "row";
+        topRow.alignment = "fill";
+        topRow.alignChildren = ["fill", "fill"]; // パネルを左右いっぱいに / Panels fill the full width
+        topRow.spacing = 8;
+
+        // 種別（本文／見出し）：タイトルなしパネル / Type (Body / Heading): untitled panel
+        var rolePanel = topRow.add("panel", undefined, "");
+        setupPanel(rolePanel);
+        rolePanel.margins.top = 7;
+        rolePanel.margins.bottom = 5; // 上下のみ指定、左右は setupPanel 既定 / Top/bottom only, left/right stay default
+        rolePanel.alignment = ["fill", "fill"]; // 左右いっぱいに / Fill the full width
+        rolePanel.alignChildren = ["center", "center"];
+        var roleRow = rolePanel.add("group");
+        roleRow.orientation = "row";
+        roleRow.spacing = 16;
+        roleRow.alignment = ["center", "center"]; // 上下左右中央 / Centered
+        var roleBodyRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.body));
+        var roleHeadingRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.heading));
+        rolePanel.helpTip = getLocalizedText(LABELS.tip.role);
+        roleBodyRadio.helpTip = rolePanel.helpTip;
+        roleHeadingRadio.helpTip = rolePanel.helpTip;
+
+        // 方針：和文／欧文／和欧混在（横並び）。文字揃えと行送りの基準をまとめて適用（タイトルなしパネル）
+        // Policy: Japanese / Western / Mixed (row). Applies char-alignment + leading-basis together (untitled panel)
+        var policyPanel = topRow.add("panel", undefined, "");
+        setupPanel(policyPanel);
+        policyPanel.margins.top = 7;
+        policyPanel.margins.bottom = 5; // 上下のみ指定、左右は setupPanel 既定 / Top/bottom only, left/right stay default
+        policyPanel.alignment = ["fill", "fill"]; // 左右いっぱいに / Fill the full width
+        policyPanel.alignChildren = ["center", "center"];
+        var policyRow = policyPanel.add("group");
+        policyRow.orientation = "row";
+        policyRow.spacing = 12;
+        policyRow.alignment = ["center", "center"];
+        var POLICY_PRESETS = [
+            { id: "wabun", label: LABELS.policy.wabun, align: "center", leadingType: "top" },     // 和文：中央 ＋ 仮想ボディの上
+            { id: "latin", label: LABELS.policy.latin, align: "roman", leadingType: "baseline" }, // 欧文：欧文ベースライン ＋ 欧文ベースライン
+            { id: "mixed", label: LABELS.policy.mixed, align: "roman", leadingType: "top" }        // 和欧混在：欧文ベースライン ＋ 仮想ボディの上
+        ];
+        var policyRadios = [];
+        for (var policyIndex = 0; policyIndex < POLICY_PRESETS.length; policyIndex++) {
+            var policyRadio = policyRow.add("radiobutton", undefined, getLocalizedText(POLICY_PRESETS[policyIndex].label));
+            policyRadio.policyPreset = POLICY_PRESETS[policyIndex];
+            policyRadios.push(policyRadio);
+        }
 
         // ===== レイアウト：タブ1（ドキュメントフォント）／タブ2（カーニング・ツメ・文字揃え・行送りなど）
         //       Layout: tab 1 (document fonts) / tab 2 (kerning, tsume, alignment, leading, ...) =====
@@ -1687,12 +2085,75 @@ var SCRIPT_VERSION = "v1.1.0";
         fontsTab.margins.top = 15; // タブ内上部にマージン / Top margin inside the tab
         fontsTab.margins.left = 15; // タブ内左にマージン / Left margin inside the tab
 
-        // ---- タブ2：文字組み設定（中央＋右カラムを横並び）/ Tab 2: type settings (center + right columns side by side) ----
+        // ---- タブ2：使用フォント / Tab 2: used fonts ----
+        var usedFontsTab = mainTabs.add("tab", undefined, getLocalizedText(LABELS.tab.usedFonts));
+        usedFontsTab.orientation = "column";
+        usedFontsTab.alignChildren = ["fill", "top"];
+        usedFontsTab.margins.top = 15; // タブ内上部にマージン / Top margin inside the tab
+        usedFontsTab.margins.left = 15; // タブ内左にマージン / Left margin inside the tab
+
+        // ---- タブ3：文字組み設定（中央＋右カラムを横並び）/ Tab 3: type settings (center + right columns side by side) ----
         var typeTab = mainTabs.add("tab", undefined, getLocalizedText(LABELS.tab.type));
         typeTab.orientation = "column";
         typeTab.alignChildren = ["fill", "top"];
         typeTab.margins.top = 15; // タブ内上部にマージン / Top margin inside the tab
         typeTab.margins.left = 15; // タブ内左にマージン / Left margin inside the tab
+
+        // 使用フォントタブの中身（DocumentFontListSelector 由来）/ Used-fonts tab contents (ported)
+        var usedFontColumnTitles = [
+            getLocalizedText(LABELS.usedFonts.column.count),
+            getLocalizedText(LABELS.usedFonts.column.font),
+            getLocalizedText(LABELS.usedFonts.column.size),
+            getLocalizedText(LABELS.usedFonts.column.leading),
+            getLocalizedText(LABELS.usedFonts.column.kern),
+            getLocalizedText(LABELS.usedFonts.column.tsume),
+            getLocalizedText(LABELS.usedFonts.column.tracking),
+            getLocalizedText(LABELS.usedFonts.column.propMetrics)
+        ];
+        var usedFontColumnWidths = [31, 100, 38, 44, 56, 44, 44, 44]; // 幅400に合わせて調整 / Scaled to fit a 400px list
+
+        // 最上部：走査オプションのチェックボックスを横並び・左右中央に / Top: scan-option checkboxes in one centered row
+        var usedFontTopRow = usedFontsTab.add("group");
+        usedFontTopRow.orientation = "column"; // チェックボックスを縦並びに / Stack the checkboxes vertically
+        usedFontTopRow.alignChildren = ["left", "top"];
+        usedFontTopRow.alignment = ["left", "top"];
+        usedFontTopRow.spacing = 4;
+        usedFontTopRow.margins = [0, 0, 0, 5]; // チェックボックス群とリストの間隔 / Gap below the checkboxes
+
+        var includeLockedCheckbox = usedFontTopRow.add("checkbox", undefined, getLocalizedText(LABELS.usedFonts.control.includeLocked));
+        includeLockedCheckbox.value = true;
+        var includeHiddenCheckbox = usedFontTopRow.add("checkbox", undefined, getLocalizedText(LABELS.usedFonts.control.includeHidden));
+        includeHiddenCheckbox.value = true;
+        var currentArtboardCheckbox = usedFontTopRow.add("checkbox", undefined, getLocalizedText(LABELS.usedFonts.control.currentArtboardOnly));
+        currentArtboardCheckbox.value = false;
+
+        var comboListBox = usedFontsTab.add("listbox", undefined, [], {
+            multiselect: false,
+            numberOfColumns: usedFontColumnTitles.length,
+            showHeaders: true,
+            columnTitles: usedFontColumnTitles,
+            columnWidths: usedFontColumnWidths
+        });
+        comboListBox.preferredSize = [360, 300];
+
+        // ボタンエリア：左＝スペーサー / 右＝更新・条件一致選択（クリック適用は常時ON・UIなし）
+        // Button area: left = spacer / right = refresh, select matching (apply-on-click always ON, no UI)
+        var usedFontButtonRow = usedFontsTab.add("group");
+        usedFontButtonRow.orientation = "row";
+        usedFontButtonRow.alignment = ["fill", "top"];
+        usedFontButtonRow.margins = [0, 15, 0, 0]; // リストとボタンの間隔 / Gap above the buttons
+
+        // var usedFontSpacer = usedFontButtonRow.add("group");
+        // usedFontSpacer.alignment = ["fill", "center"];
+        // usedFontSpacer.minimumSize = [10, 1];
+
+        var refreshCombosButton = usedFontButtonRow.add("button", undefined, getLocalizedText(LABELS.usedFonts.button.refresh));
+        refreshCombosButton.alignment = ["right", "center"];
+        var selectMatchingButton = usedFontButtonRow.add("button", undefined, getLocalizedText(LABELS.usedFonts.button.selectMatching));
+        selectMatchingButton.alignment = ["right", "center"];
+        // ボタンを少し低く / Buttons a touch shorter
+        refreshCombosButton.preferredSize.height = 20;
+        selectMatchingButton.preferredSize.height = 20;
 
         var typeColumnsRow = typeTab.add("group");
         typeColumnsRow.orientation = "row";
@@ -1711,14 +2172,14 @@ var SCRIPT_VERSION = "v1.1.0";
         setupPanel(fontPanel);
 
         var fontList = fontPanel.add("listbox", undefined, [], { multiselect: false });
-        fontList.preferredSize = [164, 200]; // 1行分低く / One row shorter
+        fontList.preferredSize = [164, 184]; // さらに1行分低く / One more row shorter
         fontList.helpTip = getLocalizedText(LABELS.tip.docFonts);
 
         var presetPanel = fontsColumn.add("panel", undefined, getLocalizedText(LABELS.field.presets));
         setupPanel(presetPanel);
 
         var presetList = presetPanel.add("listbox", undefined, [], { multiselect: false });
-        presetList.preferredSize = [164, 200];
+        presetList.preferredSize = [164, 184]; // 1行分低く / One row shorter
         presetList.helpTip = getLocalizedText(LABELS.tip.presets);
         fillPresetList(presetList, loadPresets());
 
@@ -1747,7 +2208,12 @@ var SCRIPT_VERSION = "v1.1.0";
         addPresetButton.alignment = ["right", "center"];
         addPresetButton.helpTip = getLocalizedText(LABELS.tip.addPreset);
 
-        // ---- 中央カラム：フォントサイズ・自動カーニング・文字ツメ・文字揃え / Center column: font size, kerning, Tsume, alignment ----
+        // プリセット操作ボタンは少し低く / Preset action buttons a touch shorter
+        deletePresetButton.preferredSize.height = 20;
+        overwritePresetButton.preferredSize.height = 20;
+        addPresetButton.preferredSize.height = 20;
+
+        // ---- 中央カラム：フォントサイズ・自動カーニング・文字ツメ・行揃え / Center column: font size, kerning, Tsume, justification ----
         var characterColumn = typeColumnsRow.add("group");
         characterColumn.orientation = "column";
         characterColumn.alignChildren = ["fill", "top"];
@@ -1834,7 +2300,35 @@ var SCRIPT_VERSION = "v1.1.0";
         trackingInput.helpTip = getLocalizedText(LABELS.tip.tracking);
         var trackingSlider = spacingPanel.add("slider", undefined, 0, -100, 500);
 
-        var alignPanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.align));
+        var justifyPanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.justify));
+        setupPanel(justifyPanel, 5);
+        justifyPanel.orientation = "row";
+        justifyPanel.alignChildren = ["center", "center"]; // ボタン列を左右中央に / Center the button row horizontally
+        justifyPanel.helpTip = getLocalizedText(LABELS.tip.justify);
+
+        // アクティブな行揃え id と UI 明暗を共有（onDraw のクロージャから参照）/ Shared active id + theme (read by onDraw closures)
+        var justifyState = { activeId: "", isLight: isLightUI() };
+        var justifyButtons = [];
+        for (var buttonIndex = 0; buttonIndex < justifyOptions.length; buttonIndex++) {
+            var justifyOption = justifyOptions[buttonIndex];
+            var justifyButton = justifyPanel.add("button", undefined, "");
+            justifyButton.helpTip = getLocalizedText(justifyOption.label);
+            justifyButton.preferredSize = [26, 26];
+            justifyButton.minimumSize = [26, 26];
+            justifyButton.maximumSize = [26, 26];
+            justifyButton.justifyId = justifyOption.id;
+            justifyButton.iconType = justifyOption.icon;
+            justifyButton.onDraw = function () { drawJustifyIcon(this, this.justifyId === justifyState.activeId, justifyState.isLight); };
+            justifyButtons.push(justifyButton);
+        }
+
+        // ---- 右カラム：文字揃え・行送り・行送りの基準・禁則・文字組みアキ量設定 / Right column: char alignment, leading, basis, kinsoku, mojikumi ----
+        var paragraphColumn = typeColumnsRow.add("group");
+        paragraphColumn.orientation = "column";
+        paragraphColumn.alignChildren = ["fill", "top"];
+        paragraphColumn.spacing = 8;
+
+        var alignPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.align));
         setupPanel(alignPanel, 6);
         alignPanel.alignChildren = ["left", "top"];
         alignPanel.helpTip = getLocalizedText(LABELS.tip.align);
@@ -1871,47 +2365,6 @@ var SCRIPT_VERSION = "v1.1.0";
         alignOtherDropdown.selection = 0;
         alignOtherDropdown.preferredSize.width = 124; // 少し狭く / A bit narrower
         alignRomanRadio.value = true;
-
-        // ---- 右カラム：種別・行揃え・行送り・行送りの基準・文字組みアキ量設定 / Right column: type, justification, leading, basis, mojikumi ----
-        var paragraphColumn = typeColumnsRow.add("group");
-        paragraphColumn.orientation = "column";
-        paragraphColumn.alignChildren = ["fill", "top"];
-        paragraphColumn.spacing = 8;
-
-        var rolePanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.role));
-        setupPanel(rolePanel);
-        rolePanel.alignChildren = ["center", "top"];
-        var roleRow = rolePanel.add("group");
-        roleRow.orientation = "row";
-        roleRow.spacing = 16;
-        roleRow.alignment = ["center", "top"]; // 左右中央 / Horizontally centered
-        var roleBodyRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.body));
-        var roleHeadingRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.heading));
-        rolePanel.helpTip = getLocalizedText(LABELS.tip.role);
-        roleBodyRadio.helpTip = rolePanel.helpTip;
-        roleHeadingRadio.helpTip = rolePanel.helpTip;
-
-        var justifyPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.justify));
-        setupPanel(justifyPanel, 5);
-        justifyPanel.orientation = "row";
-        justifyPanel.alignChildren = ["center", "center"]; // ボタン列を左右中央に / Center the button row horizontally
-        justifyPanel.helpTip = getLocalizedText(LABELS.tip.justify);
-
-        // アクティブな行揃え id と UI 明暗を共有（onDraw のクロージャから参照）/ Shared active id + theme (read by onDraw closures)
-        var justifyState = { activeId: "", isLight: isLightUI() };
-        var justifyButtons = [];
-        for (var buttonIndex = 0; buttonIndex < justifyOptions.length; buttonIndex++) {
-            var justifyOption = justifyOptions[buttonIndex];
-            var justifyButton = justifyPanel.add("button", undefined, "");
-            justifyButton.helpTip = getLocalizedText(justifyOption.label);
-            justifyButton.preferredSize = [26, 26];
-            justifyButton.minimumSize = [26, 26];
-            justifyButton.maximumSize = [26, 26];
-            justifyButton.justifyId = justifyOption.id;
-            justifyButton.iconType = justifyOption.icon;
-            justifyButton.onDraw = function () { drawJustifyIcon(this, this.justifyId === justifyState.activeId, justifyState.isLight); };
-            justifyButtons.push(justifyButton);
-        }
 
         var leadingPanel = paragraphColumn.add("panel", undefined, getLocalizedText(LABELS.field.leading));
         setupPanel(leadingPanel);
@@ -1963,7 +2416,7 @@ var SCRIPT_VERSION = "v1.1.0";
         changeAutoGroup.alignChildren = ["center", "top"];
         changeAutoGroup.margins = [0, 0, 0, 3]; // [左, 上, 右, 下]
         var changeAutoButton = changeAutoGroup.add("button", undefined, getLocalizedText(LABELS.button.changeAuto));
-        changeAutoButton.preferredSize.height = 22; // プリセットボタンと高さを揃えて小さく / Match the preset buttons' height
+        changeAutoButton.preferredSize.height = 20; // プリセットボタンと高さを揃えて小さく / Match the preset buttons' height
         changeAutoButton.helpTip = getLocalizedText(LABELS.tip.changeAuto);
 
         // 行送りの基準：タイトルなしパネルとして行送りパネル内に配置（個別／共通と同じ体裁）
@@ -2029,8 +2482,14 @@ var SCRIPT_VERSION = "v1.1.0";
 
         return {
             palette: palette,
-            infoText: infoText,
-            infoTextSub: infoTextSub,
+            mainTabs: mainTabs,
+            usedFontsTab: usedFontsTab,
+            comboListBox: comboListBox,
+            includeLockedCheckbox: includeLockedCheckbox,
+            includeHiddenCheckbox: includeHiddenCheckbox,
+            currentArtboardCheckbox: currentArtboardCheckbox,
+            refreshCombosButton: refreshCombosButton,
+            selectMatchingButton: selectMatchingButton,
             fontList: fontList,
             presetList: presetList,
             addPresetButton: addPresetButton,
@@ -2044,6 +2503,7 @@ var SCRIPT_VERSION = "v1.1.0";
             fsApparentUnit: fsApparentUnit,
             roleBodyRadio: roleBodyRadio,
             roleHeadingRadio: roleHeadingRadio,
+            policyRadios: policyRadios,
             alignRadios: alignRadios,
             alignRomanRadio: alignRomanRadio,
             alignCenterRadio: alignCenterRadio,
@@ -2087,28 +2547,6 @@ var SCRIPT_VERSION = "v1.1.0";
         return -1;
     }
 
-    /* カーニング method id を表示ラベルへ / Kerning method id to a display label */
-    function kernLabel(kernId) {
-        if (kernId === "mono") return getLocalizedText(LABELS.autoKern.mono);
-        if (kernId === "zero") return getLocalizedText(LABELS.autoKern.zero);
-        if (kernId === "metrics") return getLocalizedText(LABELS.autoKern.metrics);
-        if (kernId === "optical") return getLocalizedText(LABELS.autoKern.optical);
-        return "—";
-    }
-
-    /* 行揃え id を表示ラベルへ / Justification id to a display label */
-    function justifyLabel(justifyId) {
-        return (justifyId && LABELS.justify[justifyId]) ? getLocalizedText(LABELS.justify[justifyId]) : "—";
-    }
-
-    /* 禁則 id を表示ラベルへ / Kinsoku id to a display label */
-    function kinsokuLabel(kinsokuId) {
-        for (var i = 0; i < KINSOKU_CHOICES.length; i++) {
-            if (KINSOKU_CHOICES[i].id === kinsokuId) return KINSOKU_CHOICES[i].label;
-        }
-        return "—";
-    }
-
     /* "count|isAuto|leadingPt|basePt|autoAmount|leadingTypeId|paraCount|alignmentId|
         fontFamily|fontStyle|fontSizePt|kernId|justifyId|hScale|mojikumiId|kinsokuId" を分解
        Parse the encoded leading state string */
@@ -2144,11 +2582,11 @@ var SCRIPT_VERSION = "v1.1.0";
         var lastLeadingPercent = NaN; // 直近に読み取った行送りの割合（%）／「その他」初期値に使う / Last-read leading percentage (used as the default for "Other")
         var suppressUiEvents = false; // 反映中のドロップダウン onChange を抑止 / Suppress dropdown onChange while reflecting state
 
-        /* 重要処理の失敗をインフォバーに表示（握りつぶさず、どのアクションで何が起きたか見えるように）
-           Surface an important-op failure in the info bar (don't swallow it; show which action failed and why) */
+        /* 重要処理の失敗をダイアログで通知（握りつぶさず、どのアクションで何が起きたか見えるように）
+           Surface an important-op failure via an alert (don't swallow it; show which action failed and why) */
         function showWorkerError(actionId, payload) {
             var detail = payload ? (": " + String(payload)) : "";
-            try { ui.infoText.text = "⚠ " + getLocalizedText(LABELS.msg.applyError) + " [" + actionId + "]" + detail; ui.infoTextSub.text = ""; } catch (e) { }
+            try { alert("⚠ " + getLocalizedText(LABELS.msg.applyError) + " [" + actionId + "]" + detail); } catch (e) { }
         }
 
         // 委譲する共通処理（連打抑止）/ Delegate an apply action (guarded against overlap)
@@ -2357,6 +2795,20 @@ var SCRIPT_VERSION = "v1.1.0";
             reflectKinsokuById("Soft_v2"); // 弱い禁則 v2 / Loose v2
         };
 
+        // 方針：文字揃え＋行送りの基準をまとめて適用し、対応するラジオも反映
+        // Policy: apply char-alignment + leading-basis together and reflect the corresponding radios
+        for (var policyRadioIndex = 0; policyRadioIndex < ui.policyRadios.length; policyRadioIndex++) {
+            (function (index) {
+                ui.policyRadios[index].onClick = function () {
+                    var preset = ui.policyRadios[index].policyPreset;
+                    selectExclusiveRadio(ui.policyRadios, index);
+                    runApply("applyPolicy", { align: preset.align, leadingType: preset.leadingType });
+                    selectAlignRadio(preset.align);
+                    selectRadioById(ui.leadingBasisRadios, ui.leadingBasisChoices, preset.leadingType);
+                };
+            })(policyRadioIndex);
+        }
+
         // 制御文字の表示／非表示 / Toggle hidden characters
         ui.hiddenCharButton.onClick = function () {
             runApply("toggleHiddenChar", null);
@@ -2393,6 +2845,7 @@ var SCRIPT_VERSION = "v1.1.0";
             updateApparentDisplay();
             ui.roleBodyRadio.value = false;
             ui.roleHeadingRadio.value = false;
+            for (var policyResetIndex = 0; policyResetIndex < ui.policyRadios.length; policyResetIndex++) ui.policyRadios[policyResetIndex].value = false;
         };
 
         // ---- カーニング・文字ツメ / Kerning and Tsume ----
@@ -2616,39 +3069,6 @@ var SCRIPT_VERSION = "v1.1.0";
             runWorker("getState", null, function (status, payload) {
                 if (status !== "ok") return;
                 var state = parseLeadingState(payload);
-                // 上部インフォバー：テキストが1つだけのとき、値のみを1行表示（タイトルなし）
-                // Top info bar: a single line of values only (no titles), shown when exactly one text is selected
-                if (state.count === 1) {
-                    var sizeText = isNaN(state.fontSizePt) ? "—" : (Math.round((state.fontSizePt / textUnit.factor) * 10) / 10) + textUnit.label;
-                    // 行送り：自動は「自動（175%）」、固定は単位付き値のみ / Leading: "Auto (175%)" or a unit value only
-                    var leadingText;
-                    if (state.isAuto) {
-                        leadingText = formatAutoLabel(state.autoAmount);
-                    } else if (isNaN(state.leadingPt)) {
-                        leadingText = "—";
-                    } else {
-                        leadingText = (Math.round((state.leadingPt / textUnit.factor) * 10) / 10) + textUnit.label;
-                    }
-                    // 1行目：フォント（ファミリー＋スタイル）・フォントサイズ・行送り
-                    // Line 1: font (family + style), font size, leading
-                    var infoLine1 = [
-                        state.fontFamily || "—",
-                        state.fontStyle || "—",
-                        sizeText,
-                        leadingText
-                    ].join(" / ");
-                    // 2行目：その他（行揃え・カーニング・禁則）/ Line 2: the rest (justify, kerning, kinsoku)
-                    var infoLine2 = [
-                        justifyLabel(state.justifyId),
-                        kernLabel(state.kernId),
-                        kinsokuLabel(state.kinsokuId)
-                    ].join(" / ");
-                    ui.infoText.text = infoLine1;
-                    ui.infoTextSub.text = infoLine2;
-                } else {
-                    ui.infoText.text = "";
-                    ui.infoTextSub.text = "";
-                }
                 if (state.count <= 0) return;
                 // フォントサイズ・比率・見かけ / Font size, scale, apparent
                 apparentToggleState = null;
@@ -2765,7 +3185,63 @@ var SCRIPT_VERSION = "v1.1.0";
             ui.justifyState.isLight = isLightUI();
             setActiveJustify(ui.justifyState.activeId);
         }
-        ui.palette.onShow = function () { refreshJustifyTheme(); refreshState(); refreshFonts(); refreshPresetLabels(); };
+        // ---- 使用フォント一覧（DocumentFontListSelector 由来）/ Used-fonts list wiring ----
+        var currentCombos = [];
+        var comboApplyInProgress = false;
+
+        /* 組み合わせ一覧を読み直して listbox に反映 / Reload the combos into the listbox */
+        function refreshCombos() {
+            runWorker("getCombos", { currentArtboardOnly: ui.currentArtboardCheckbox.value, includeHidden: ui.includeHiddenCheckbox.value, includeLocked: ui.includeLockedCheckbox.value }, function (status, payload) {
+                ui.comboListBox.removeAll();
+                currentCombos = (status === "ok") ? parseCombosPayload(decodeURIComponent(payload)) : [];
+                for (var i = 0; i < currentCombos.length; i++) {
+                    var cells = currentCombos[i].cells;
+                    var listItem = ui.comboListBox.add("item", cells[0]);
+                    for (var col = 1; col < cells.length; col++) listItem.subItems[col - 1].text = cells[col];
+                    listItem.comboIndex = i;
+                }
+            });
+        }
+
+        // シングルクリックで選択テキストへ適用（「クリックで適用」ON のときだけ）/ A click applies to the selection when apply-on-click is ON
+        ui.comboListBox.onChange = function () {
+            if (!ui.comboListBox.selection) return;
+            if (comboApplyInProgress) return;
+            var combo = currentCombos[ui.comboListBox.selection.comboIndex];
+            if (!combo) return;
+            comboApplyInProgress = true;
+            runWorker("applyCombo", comboToParams(combo), function (status, payload) {
+                comboApplyInProgress = false;
+                // 選択が無いときだけ警告 / Warn only when nothing was selected
+                if (status === "ok" && payload === "nosel") alert(getLocalizedText(LABELS.usedFonts.status.needSelection));
+            });
+        };
+
+        // 選択中の条件に一致するテキストを選択（押すとクリック適用を自動 OFF）/ Select matching text (turns apply-on-click OFF)
+        ui.selectMatchingButton.onClick = function () {
+            if (!ui.comboListBox.selection) { alert(getLocalizedText(LABELS.usedFonts.status.needCondition)); return; }
+            var combo = currentCombos[ui.comboListBox.selection.comboIndex];
+            if (!combo) return;
+            var matchingParams = comboToParams(combo);
+            matchingParams.currentArtboardOnly = ui.currentArtboardCheckbox.value;
+            matchingParams.includeHidden = ui.includeHiddenCheckbox.value;
+            matchingParams.includeLocked = ui.includeLockedCheckbox.value;
+            runWorker("selectMatching", matchingParams, function (status, payload) {
+                if (status === "ok" && payload === "0") alert(getLocalizedText(LABELS.usedFonts.status.noMatch));
+            });
+        };
+
+        ui.refreshCombosButton.onClick = function () { refreshCombos(); };
+        ui.currentArtboardCheckbox.onClick = function () { refreshCombos(); };
+        ui.includeHiddenCheckbox.onClick = function () { refreshCombos(); };
+        ui.includeLockedCheckbox.onClick = function () { refreshCombos(); };
+
+        // 使用フォントタブに切り替えたら一覧を再走査（重い走査を必要時のみ）/ Rescan when switching to the used-fonts tab (scan only when needed)
+        ui.mainTabs.onChange = function () {
+            if (ui.mainTabs.selection === ui.usedFontsTab) refreshCombos();
+        };
+
+        ui.palette.onShow = function () { refreshJustifyTheme(); refreshState(); refreshFonts(); refreshPresetLabels(); if (ui.mainTabs.selection === ui.usedFontsTab) refreshCombos(); };
         ui.palette.onActivate = function () { refreshJustifyTheme(); refreshState(); refreshFonts(); refreshPresetLabels(); };
 
         // 再読み込み：選択中のテキストの現在値を読み直して UI に反映 / Reload: re-read the selection's current values into the UI
