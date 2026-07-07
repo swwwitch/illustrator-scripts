@@ -17,7 +17,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   「追加」で現在の選択の設定を保存、「上書き」で選択中のプリセットを更新、「削除」で除去（JSON で Folder.userData に永続化）
 - フォントサイズ：サイズ・比率（水平／垂直を同値）・実質（サイズ×比率の表示）
 - 自動カーニング：和文等幅／0／メトリクス／オプティカル（「メトリクス」のみプロポーショナルメトリクスON）
-- 字間調整：文字ツメ（0〜100%）とトラッキング（-100〜500）。入力欄とスライダー（Shift で粗い刻み）
+- 字間調整：最上部にプロポーショナルメトリクスのチェックボックス（自動カーニングを「メトリクス」にするとON、
+  それ以外でOFFに連動）。その下に文字ツメ（0〜100%）とトラッキング（-100〜500）。入力欄とスライダー（Shift で粗い刻み）
 - 文字揃え：欧文ベースライン／中央／その他（仮想ボディの上下・平均字面の上下をポップアップで選択）
 - 行揃え：左／中央／右／均等配置（最終行左）／両端揃え（テキストの見た目の位置を保持して適用）
 - 種別：本文（文字組みベタ組み）／見出し（文字組みツメ組み）。よく使う組み合わせを一括適用
@@ -59,7 +60,8 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
   saves the current selection's settings, "Overwrite" updates the selected preset, "Delete" removes it (persisted as JSON under Folder.userData)
 - Font size: size, scale (horizontal/vertical set together), effective (size × scale, shown)
 - Auto kerning: Metrics - Roman Only / 0 / Metrics / Optical (proportional metrics ON only for "Metrics")
-- Letter spacing: Tsume (0–100%) and tracking (-100 to 500), via input fields and sliders (Shift = coarse steps)
+- Letter spacing: a proportional-metrics checkbox at the top (ON when auto kerning is "Metrics", OFF otherwise),
+  then Tsume (0–100%) and tracking (-100 to 500), via input fields and sliders (Shift = coarse steps)
 - Character alignment: Roman baseline / center / Other (embox top-bottom & ICF box top-bottom via popup)
 - Justification: left / center / right / justify (last left) / justify all (applied while keeping the text's visual position)
 - Type: Body (solid mojikumi) / Heading (tight mojikumi); applies common combinations at once
