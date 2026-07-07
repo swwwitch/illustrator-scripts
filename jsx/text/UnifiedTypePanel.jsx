@@ -81,7 +81,7 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.3.0";
+var SCRIPT_VERSION = "v1.3.1";
 
 (function () {
 
@@ -101,10 +101,11 @@ var SCRIPT_VERSION = "v1.3.0";
             title: { ja: "統合文字組みパネル", en: "Unified Type Panel" }
         },
         tab: {
-            fonts: { ja: "フォント", en: "Fonts" },
+            fonts: { ja: "定番", en: "Favorites" },
             type: { ja: "文字組み", en: "Type" },
             fontSize: { ja: "サイズ", en: "Size" },
-            usedFonts: { ja: "使用フォント", en: "Used Fonts" }
+            usedFonts: { ja: "使用フォント", en: "Used Fonts" },
+            style: { ja: "スタイル", en: "Style" }
         },
         field: {
             docFonts: { ja: "ドキュメントフォント", en: "Document Fonts" },
@@ -116,12 +117,13 @@ var SCRIPT_VERSION = "v1.3.0";
             autoKern: { ja: "自動カーニング", en: "Auto Kerning" },
             tsume: { ja: "文字ツメ", en: "Tsume" },
             tracking: { ja: "トラッキング", en: "Tracking" },
+            proportionalMetrics: { ja: "プロポーショナルメトリクス", en: "Proportional Metrics" },
             spacingAdjust: { ja: "字間調整", en: "Letter Spacing" },
             align: { ja: "文字揃え", en: "Char Alignment" },
             justify: { ja: "行揃え", en: "Justification" },
             role: { ja: "種別", en: "Type" },
             leading: { ja: "行送り", en: "Leading" },
-            leadingPercent: { ja: "行送り（%）", en: "Leading (%)" },
+            leadingPercent: { ja: "行送り%", en: "Leading (%)" },
             sizeAndLeading: { ja: "フォントサイズと行送り", en: "Font Size & Leading" },
             leadingType: { ja: "行送りの基準", en: "Leading basis" },
             mojikumi: { ja: "文字組みアキ量設定", en: "Mojikumi" },
@@ -2055,7 +2057,7 @@ var SCRIPT_VERSION = "v1.3.0";
 
         // フォントのみ表示：単一列のフォント名リスト / Font-only view: single-column font list
         var fontOnlyListBox = usedFontListHost.add("listbox", undefined, [], { multiselect: false });
-        fontOnlyListBox.preferredSize = [300, 250];
+        fontOnlyListBox.preferredSize = [300, 230];
 
         // 詳細表示：8列の組み合わせリスト / Detailed view: the 8-column combination list
         var comboListBox = usedFontListHost.add("listbox", undefined, [], {
@@ -2065,7 +2067,7 @@ var SCRIPT_VERSION = "v1.3.0";
             columnTitles: usedFontColumnTitles,
             columnWidths: usedFontColumnWidths
         });
-        comboListBox.preferredSize = [300, 250];
+        comboListBox.preferredSize = [300, 230];
 
         // 既定はフォントのみ（詳細は隠す）/ Default: font-only (hide the detailed list)
         comboListBox.visible = false;
@@ -2075,7 +2077,7 @@ var SCRIPT_VERSION = "v1.3.0";
         var usedFontButtonRow = usedFontsTab.add("group");
         usedFontButtonRow.orientation = "row";
         usedFontButtonRow.alignment = ["fill", "top"];
-        usedFontButtonRow.margins = [0, 15, 0, 0]; // リストとボタンの間隔 / Gap above the buttons
+        usedFontButtonRow.margins = [0, 10, 0, 10]; // リストとボタンの間隔 / Gap above the buttons
 
         var refreshCombosButton = usedFontButtonRow.add("button", undefined, getLocalizedText(LABELS.usedFonts.button.refresh));
         refreshCombosButton.alignment = ["right", "center"];
@@ -2325,6 +2327,10 @@ var SCRIPT_VERSION = "v1.3.0";
         var spacingPanel = characterColumn.add("panel", undefined, getLocalizedText(LABELS.field.spacingAdjust));
         setupPanel(spacingPanel, 6);
 
+        // 一番上：プロポーショナルメトリクス / Top: Proportional metrics checkbox
+        var proportionalMetricsCheck = spacingPanel.add("checkbox", undefined, getLocalizedText(LABELS.field.proportionalMetrics));
+        proportionalMetricsCheck.value = false;
+
         var tsumeRow = spacingPanel.add("group");
         setupGroup(tsumeRow, "row");
         tsumeRow.add("statictext", undefined, labelText(LABELS.field.tsume));
@@ -2388,6 +2394,7 @@ var SCRIPT_VERSION = "v1.3.0";
 
         return {
             kernRadios: kernRadios,
+            proportionalMetricsCheck: proportionalMetricsCheck,
             tsumeInput: tsumeInput,
             tsumeSlider: tsumeSlider,
             trackingInput: trackingInput,
@@ -2425,7 +2432,7 @@ var SCRIPT_VERSION = "v1.3.0";
         leadSizeRow.alignChildren = ["left", "center"];
         var leadSizeLabel = leadSizeRow.add("statictext", undefined, getLocalizedText(LABELS.field.fontSize) + leadColon);
         var fontSizeInput = leadSizeRow.add("edittext", undefined, "");
-        fontSizeInput.characters = 4;
+        fontSizeInput.characters = 3;
         leadSizeRow.add("statictext", undefined, leadTextUnit.label);
         leadSizeLabel.helpTip = getLocalizedText(LABELS.tip.fontSize); fontSizeInput.helpTip = leadSizeLabel.helpTip;
 
@@ -2435,7 +2442,7 @@ var SCRIPT_VERSION = "v1.3.0";
         leadEffectiveRow.alignChildren = ["left", "center"];
         var leadEffectiveLabel = leadEffectiveRow.add("statictext", undefined, getLocalizedText(LABELS.field.leading) + leadColon);
         var leadingEffectiveInput = leadEffectiveRow.add("edittext", undefined, "");
-        leadingEffectiveInput.characters = 4;
+        leadingEffectiveInput.characters = 3;
         // 実質は行送りなので Q/H 環境では単位「H」/ Effective is a leading value, so use "H" when the unit is Q/H
         leadEffectiveRow.add("statictext", undefined, getLeadingUnitLabel(leadTextUnit.code));
         leadEffectiveLabel.helpTip = getLocalizedText(LABELS.tip.leadingEffective); leadingEffectiveInput.helpTip = leadEffectiveLabel.helpTip;
@@ -2446,12 +2453,12 @@ var SCRIPT_VERSION = "v1.3.0";
         leadPercentRow.alignChildren = ["left", "center"];
         var leadPercentLabel = leadPercentRow.add("statictext", undefined, getLocalizedText(LABELS.field.leadingPercent) + leadColon);
         var leadingPercentInput = leadPercentRow.add("edittext", undefined, "");
-        leadingPercentInput.characters = 4;
+        leadingPercentInput.characters = 3;
         leadPercentRow.add("statictext", undefined, "%");
         leadPercentLabel.helpTip = getLocalizedText(LABELS.tip.leading); leadingPercentInput.helpTip = leadPercentLabel.helpTip;
 
         // ラベル幅を揃える / Unify label widths
-        var leadLabelWidth = 55;
+        var leadLabelWidth = 65;
         leadSizeLabel.preferredSize.width = leadLabelWidth;
         leadEffectiveLabel.preferredSize.width = leadLabelWidth;
         leadPercentLabel.preferredSize.width = leadLabelWidth;
@@ -2499,7 +2506,7 @@ var SCRIPT_VERSION = "v1.3.0";
         jpPanel.alignChildren = "fill";
 
         // 禁則（ラベル＋ポップアップ）/ Kinsoku (label + popup)
-        var kinsokuHeading = jpPanel.add("statictext", undefined, getLocalizedText(LABELS.field.kinsoku));
+        var kinsokuHeading = jpPanel.add("statictext", undefined, labelText(LABELS.field.kinsoku));
         kinsokuHeading.helpTip = getLocalizedText(LABELS.tip.kinsoku);
         var kinsokuItems = [];
         for (var kinsokuChoiceIndex = 0; kinsokuChoiceIndex < KINSOKU_CHOICES.length; kinsokuChoiceIndex++) kinsokuItems.push(KINSOKU_CHOICES[kinsokuChoiceIndex].label);
@@ -2514,7 +2521,7 @@ var SCRIPT_VERSION = "v1.3.0";
         jpGap.preferredSize.height = 4;
 
         // 文字組みアキ量設定（ラベル＋ポップアップ）/ Mojikumi spacing set (label + popup)
-        var mojikumiHeading = jpPanel.add("statictext", undefined, getLocalizedText(LABELS.field.mojikumi));
+        var mojikumiHeading = jpPanel.add("statictext", undefined, labelText(LABELS.field.mojikumi));
         mojikumiHeading.helpTip = getLocalizedText(LABELS.tip.mojikumi);
         var mojikumiItems = [];
         for (var mojikumiChoiceIndex = 0; mojikumiChoiceIndex < MOJIKUMI_CHOICES.length; mojikumiChoiceIndex++) mojikumiItems.push(MOJIKUMI_CHOICES[mojikumiChoiceIndex].label);
@@ -2593,6 +2600,10 @@ var SCRIPT_VERSION = "v1.3.0";
         fsSizeLabel.preferredSize.width = fsLabelWidth;
         fsScaleLabel.preferredSize.width = fsLabelWidth;
         fsApparentLabel.preferredSize.width = fsLabelWidth;
+
+        // ボタン上に 5px のマージン / A 5px margin above the button
+        var apparentButtonGap = fontSizePanel.add("group");
+        apparentButtonGap.preferredSize.height = 5;
 
         // 実サイズ↔見かけ：サイズ×比率を実サイズへ焼き込み比率100%に／もう一度で復元
         // Actual ↔ Apparent: bake size × scale into the actual size at 100%; press again to restore
@@ -2693,6 +2704,7 @@ var SCRIPT_VERSION = "v1.3.0";
         var fontSizeTab = addTab(mainTabs, LABELS.tab.fontSize);
         var fontsTab = addTab(mainTabs, LABELS.tab.fonts);
         var usedFontsTab = addTab(mainTabs, LABELS.tab.usedFonts);
+        var styleTab = null; // 仮に OFF（addTab(mainTabs, LABELS.tab.style) で有効化）/ Temporarily OFF
 
         // フォントサイズタブの中身を構築 / Build the font-size tab contents
         var fontSizeTabUI = buildFontSizeTab(fontSizeTab, textUnit);
@@ -2724,6 +2736,7 @@ var SCRIPT_VERSION = "v1.3.0";
             mainTabs: mainTabs,
             typeTab: typeTab,
             usedFontsTab: usedFontsTab,
+            styleTab: styleTab,
             comboListBox: usedFontsUI.comboListBox,
             fontOnlyListBox: usedFontsUI.fontOnlyListBox,
             fontOnlyRadio: usedFontsUI.fontOnlyRadio,
@@ -2767,6 +2780,7 @@ var SCRIPT_VERSION = "v1.3.0";
             alignOptions: alignOptions,
             justifyOptions: justifyOptions,
             kernRadios: characterColumnUI.kernRadios,
+            proportionalMetricsCheck: characterColumnUI.proportionalMetricsCheck,
             tsumeSlider: characterColumnUI.tsumeSlider,
             tsumeInput: characterColumnUI.tsumeInput,
             trackingSlider: characterColumnUI.trackingSlider,
@@ -3116,9 +3130,18 @@ var SCRIPT_VERSION = "v1.3.0";
             for (var policyResetIndex = 0; policyResetIndex < ui.policyRadios.length; policyResetIndex++) ui.policyRadios[policyResetIndex].value = false;
         };
 
+        // 自動カーニングに合わせてプロポーショナルメトリクスのチェックを更新（メトリクスのみ ON）
+        // Sync the proportional-metrics checkbox with the kerning choice (ON only for Metrics)
+        function syncProportionalMetricsCheck(methodId) {
+            if (ui.proportionalMetricsCheck) ui.proportionalMetricsCheck.value = (methodId === "metrics");
+        }
+
         // ---- カーニング・文字ツメ / Kerning and Tsume ----
         for (var i = 0; i < ui.kernRadios.length; i++) {
-            ui.kernRadios[i].onClick = function () { runApply("apply", { method: autoKernOptions[this.index].id }); };
+            ui.kernRadios[i].onClick = function () {
+                syncProportionalMetricsCheck(autoKernOptions[this.index].id);
+                runApply("apply", { method: autoKernOptions[this.index].id });
+            };
         }
         // 文字ツメスライダー（Shift 併用で 10% 刻み）/ Tsume slider (Shift snaps to 10% steps)
         function tsumeSnap(value) {
