@@ -3612,11 +3612,32 @@ var SCRIPT_VERSION = "v1.3.2";
     // メイン処理 / Main
     // =========================================
     function main() {
+        // 二重起動ガード：既存パレットがあれば前面化して終了 / Single-instance guard: reuse the existing palette if any
+        if ($.global.__UnifiedTypePanel && $.global.__UnifiedTypePanel.window) {
+            try {
+                var existingPalette = $.global.__UnifiedTypePanel.window;
+                existingPalette.show();
+                existingPalette.active = true;
+                return;
+            } catch (existingError) {
+                // 参照が死んでいたら作り直す / Stale reference — fall through and rebuild
+                $.global.__UnifiedTypePanel = null;
+            }
+        }
+
         var autoKernOptions = createAutoKernOptions();
         var alignOptions = createAlignOptions();
         var justifyOptions = createJustifyOptions();
         var ui = createPaletteUI(autoKernOptions, alignOptions, justifyOptions);
         var controller = bindPaletteEvents(ui, autoKernOptions, alignOptions, justifyOptions);
+
+        // 常駐エンジンにパレット参照を保持 / Keep the palette reference on the persistent engine
+        $.global.__UnifiedTypePanel = { window: ui.palette };
+
+        // 閉じられたら参照をクリア / Clear the reference when the palette closes
+        ui.palette.addEventListener("close", function () {
+            $.global.__UnifiedTypePanel = null;
+        });
 
         ui.palette.show();
 

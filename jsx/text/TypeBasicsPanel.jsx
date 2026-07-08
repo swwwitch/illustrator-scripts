@@ -35,7 +35,7 @@ features are extracted from UnifiedTypePanel.jsx and gathered into a single view
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.1";
+var SCRIPT_VERSION = "v1.0.2";
 
 (function () {
 
@@ -1094,10 +1094,34 @@ var SCRIPT_VERSION = "v1.0.1";
     // =========================================
     // メイン処理 / Main
     // =========================================
+    // 常駐エンジンに保持するパレット参照のキー / Global key holding the persistent palette instance
+    var PALETTE_GLOBAL_KEY = "__typeBasicsPanelInstance";
+
     function main() {
+        // 二重起動防止：既に開いているパレットがあれば新規作成せず前面に出して終了
+        // Prevent double launch: if a palette is already open, bring it to the front and exit
+        var existingPalette = $.global[PALETTE_GLOBAL_KEY];
+        if (existingPalette) {
+            try {
+                existingPalette.show();
+                existingPalette.active = true;
+                return;
+            } catch (e) {
+                // 参照が無効（既に破棄済み）なら作り直す / Stale reference: fall through and rebuild
+                $.global[PALETTE_GLOBAL_KEY] = null;
+            }
+        }
+
         var autoKernOptions = createAutoKernOptions();
         var ui = createPaletteUI(autoKernOptions);
         bindPaletteEvents(ui, autoKernOptions);
+
+        // パレット参照を常駐エンジンに保持し、閉じたら解放 / Keep the instance on the resident engine; clear it on close
+        $.global[PALETTE_GLOBAL_KEY] = ui.palette;
+        ui.palette.onClose = function () {
+            try { $.global[PALETTE_GLOBAL_KEY] = null; } catch (eClose) { }
+        };
+
         ui.palette.show();
     }
 
