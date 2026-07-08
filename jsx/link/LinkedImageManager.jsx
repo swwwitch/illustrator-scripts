@@ -53,7 +53,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
     // バージョン / Version
     // =========================================
 
-    var SCRIPT_VERSION = "v1.4.0";
+    var SCRIPT_VERSION = "v1.4.1";
 
     // =========================================
     // ユーザー設定 / User configuration
@@ -124,7 +124,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
         checkbox: {
             dedup: { ja: "同一ファイルをまとめる", en: "Group Same Files" },
-            unit: { ja: "単位を「MB」で統一", en: "Use MB" },
+            unit: { ja: "単位表示「MB」", en: "Use MB" },
             displaySize: { ja: "サイズ", en: "Size" },
             displayFileCount: { ja: "使用数を表示", en: "Show Usage Count" },
             displayDimScalePpi: { ja: "サイズ、%、PPI", en: "Dimensions, Scale, PPI" },
@@ -148,7 +148,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             openFolder: { ja: "開く", en: "Open" },
             relinkSelected: { ja: "再リンク", en: "Relink Selected" },
             relinkAll: { ja: "一括再リンク", en: "Relink All" },
-            relinkFolder: { ja: "フォルダーに再リンク", en: "Relink Folder" },
+            relinkFolder: { ja: "フォルダー再リンク", en: "Relink Folder" },
             changeExtension: { ja: "拡張子の変更", en: "Change Extension" },
             chooseFolder: { ja: "フォルダー指定", en: "Choose Folder" },
             collectLinks: { ja: "リンクを収集", en: "Collect Links" },
@@ -297,7 +297,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
     // パレット側 純粋ヘルパー / Palette-side pure helpers（DOM を触らない）
     // =========================================
 
-    var PANEL_MARGINS = [16, 20, 16, 12];
+    var PANEL_MARGINS = [10, 14, 10, 11];
     var PANEL_SPACING = 8;
 
     function setupPanel(panel, spacing) {
@@ -1785,13 +1785,13 @@ https://note.com/dtp_tranist/n/na66732d2056a
     // =========================================
 
     function showPalette() {
-        var MAIN_LISTBOX_SIZE = [500, 190];
-        var FOLDER_LISTBOX_SIZE = [500, 120];
+        var MAIN_LISTBOX_SIZE = [450, 190];
+        var FOLDER_LISTBOX_SIZE = [450, 120];
 
         var palette = new Window("palette", L('dialog.main') + " " + SCRIPT_VERSION, undefined, { resizeable: false });
         palette.orientation = "column";
         palette.alignChildren = ["fill", "top"];
-        palette.preferredSize.width = 500;
+        palette.preferredSize.width = 450;
 
         // 多重起動防止：既存パレットがあれば閉じる
         ignoreError(function () {
@@ -1843,6 +1843,10 @@ https://note.com/dtp_tranist/n/na66732d2056a
             : "ON: Group same linked files into one row.\nOFF: Each placement is listed separately.";
         var countColCheck = optPanel.add("checkbox", undefined, L('checkbox.displayFileCount'));
         countColCheck.value = true;
+
+        // 選択時にズーム表示：「同一ファイル」パネルの直下に配置
+        var showOnCanvasCheck = leftCol.add("checkbox", undefined, L('checkbox.showOnCanvas'));
+        showOnCanvasCheck.value = true;
 
         var otherPanel = topRow.add("group");
         otherPanel.orientation = "column";
@@ -2183,13 +2187,6 @@ https://note.com/dtp_tranist/n/na66732d2056a
             recreateListBoxAndRebuildList();
         }
 
-        var viewOptRow = palette.add("group");
-        viewOptRow.orientation = "row";
-        viewOptRow.alignment = ["fill", "top"];
-        viewOptRow.alignChildren = ["left", "center"];
-        var showOnCanvasCheck = viewOptRow.add("checkbox", undefined, L('checkbox.showOnCanvas'));
-        showOnCanvasCheck.value = true;
-
         var pathPanel, pathStaticText, fullPathCheck, dropboxCheck, fileNameCheck;
 
         function createPathPanel(parent) {
@@ -2463,6 +2460,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         // ドキュメントから再読込してリストを更新（[更新] ボタン・将来のミューテーション後に使用）
         function refreshFromDoc() {
             var ok = loadData();
+            updateEmptyStateVisibility();
             if (!ok) {
                 sourceEntries = [];
                 filteredEntries = [];
@@ -2784,6 +2782,17 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 }
             }
         }
+
+        // 空状態（ドキュメント未オープン／配置画像0件）は簡易表示にする。
+        // オプション各パネル・リスト・パス欄を隠し、メッセージと［リンク］パネル／更新ボタン行だけ残す。
+        function updateEmptyStateVisibility() {
+            var isEmpty = (allPlacementEntries.length === 0);
+            topRow.visible = !isEmpty;
+            listHolder.visible = !isEmpty;
+            pathPanel.visible = !isEmpty;
+            ignoreError(function () { palette.layout.layout(true); });
+        }
+        updateEmptyStateVisibility();
 
         // Esc で閉じる（× でも閉じられる）
         palette.addEventListener("keydown", function (k) {
