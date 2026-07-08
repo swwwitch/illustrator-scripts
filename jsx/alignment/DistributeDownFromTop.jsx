@@ -24,13 +24,17 @@ DistributeDownFromTop.jsx
 
 移動・加算に使う値は、環境設定［テキスト］の「サイズ／行送り」キー入力増分
 （text/sizeIncrement）を、表示単位（text/units）込みで pt 換算したもの。
+
+行送りの適用は手動行送りではなく、目標行送りから自動行送り量（autoLeadingAmount ％）を
+逆算して設定する（autoLeading=true、基準は TOPTOTOP に固定）。段落ごとに先頭文字の
+フォントサイズを基準に算出する。
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.2.0";
+var SCRIPT_VERSION = "v1.3.0";
 
 // 「Y座標がほぼ同じ（横並び）」とみなす上端 Y の許容差（pt）
 var SAME_Y_TOLERANCE_PT = 2.0;
@@ -51,12 +55,11 @@ var LEADING_UNIFORM_TOLERANCE_PT = 0.01;
     var textUnit = app.preferences.getIntegerPreference("text/units")
     var sizeLeadingStep = app.preferences.getRealPreference("text/sizeIncrement") * pointsPerTextUnit(textUnit)
 
-    // テキストを1つだけ選択 → 行送りに「サイズ／行送り」分を加える
+    // テキストを1つだけ選択 → 行送りに「サイズ／行送り」分を加えた値を自動行送り量（％）で適用
     if (selection.length === 1 && selection[0].typename === "TextFrame") {
-        var attributes = selection[0].textRange.characterAttributes
-        var currentLeading = attributes.leading // 自動行送りのときは算出値が返る
-        attributes.autoLeading = false          // 自動行送りを解除して強制適用
-        attributes.leading = currentLeading + sizeLeadingStep
+        applyLeadingAsAutoLeading(selection[0], function (currentLeadingPt) {
+            return currentLeadingPt + sizeLeadingStep
+        })
         return
     }
 
@@ -124,17 +127,16 @@ var LEADING_UNIFORM_TOLERANCE_PT = 0.01;
         return (maxLeading - minLeading) <= tolerancePt
     }
 
-    // 全テキストの行送りを stepPt 分だけ増やす（位置は動かさない）
+    // 全テキストの行送りを stepPt 分だけ増やす（位置は動かさない）／自動行送り量（％）で適用
     function increaseLeading(textFrames, stepPt) {
         for (var i = 0; i < textFrames.length; i++) {
-            var attributes = textFrames[i].textRange.characterAttributes
-            var currentLeading = attributes.leading // 自動行送りのときは算出値が返る
-            attributes.autoLeading = false // 自動行送りを解除して強制適用
-            attributes.leading = currentLeading + stepPt
+            applyLeadingAsAutoLeading(textFrames[i], function (currentLeadingPt) {
+                return currentLeadingPt + stepPt
+            })
         }
     }
 
-    // 各テキストの行送りを平均値に統一する（位置は動かさない）
+    // 各テキストの行送りを平均値に統一する（位置は動かさない）／自動行送り量（％）で適用
     function unifyLeadingToAverage(textFrames) {
         var totalLeading = 0
         for (var i = 0; i < textFrames.length; i++) {
@@ -143,10 +145,32 @@ var LEADING_UNIFORM_TOLERANCE_PT = 0.01;
         }
         var averageLeading = totalLeading / textFrames.length
         for (var j = 0; j < textFrames.length; j++) {
-            var attributes = textFrames[j].textRange.characterAttributes
-            attributes.autoLeading = false // 自動行送りを解除して強制適用
-            attributes.leading = averageLeading
+            applyLeadingAsAutoLeading(textFrames[j], function () {
+                return averageLeading
+            })
         }
+    }
+
+    /* 目標行送り（pt）を自動行送り量（％）に逆算して各段落へ設定する（手動行送りは使わない）
+       各段落の先頭文字のフォントサイズを基準に「目標行送り ÷ サイズ × 100」で autoLeadingAmount を求め、
+       autoLeading=true・基準を TOPTOTOP に固定する。目標行送りは段落ごとに resolveTargetLeadingPt で算出。
+       @param {TextFrame} textFrame 対象のテキストフレーム
+       @param {function} resolveTargetLeadingPt 現在の行送り(pt)を受け取り目標行送り(pt)を返す関数 */
+    function applyLeadingAsAutoLeading(textFrame, resolveTargetLeadingPt) {
+        var paragraphs = textFrame.textRange.paragraphs
+        for (var i = 0; i < paragraphs.length; i++) {
+            var paragraph = paragraphs[i]
+            if (!paragraph.characters || paragraph.characters.length === 0) { continue; }
+            var charAttr = paragraph.characters[0].characterAttributes
+            var fontSizePt = charAttr.size
+            var currentLeadingPt = charAttr.leading // 自動行送りのときは算出値が返る
+            if (isNaN(fontSizePt) || fontSizePt <= 0 || isNaN(currentLeadingPt)) { continue; }
+            var targetLeadingPt = resolveTargetLeadingPt(currentLeadingPt)
+            if (isNaN(targetLeadingPt) || targetLeadingPt <= 0) { continue; }
+            paragraph.paragraphAttributes.autoLeadingAmount = (targetLeadingPt / fontSizePt) * 100
+            paragraph.characterAttributes.autoLeading = true
+        }
+        try { textFrame.textRange.leadingType = AutoLeadingType.TOPTOTOP } catch (e) {}
     }
 
     function sortByVerticalPosition(selection) {

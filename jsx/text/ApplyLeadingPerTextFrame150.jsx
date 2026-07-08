@@ -7,11 +7,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
      * 概要 / Overview
      * 選択された各テキストフレーム内の各行ごとに、行頭数文字のフォントサイズを基準に行送りを再計算して適用します。
      * テキストの一部（TextRange）が選択されている場合、その親のテキストフレーム（TextFrame）に正規化します。
-     * 自動行送りを無効化し、行単位で手動行送りを設定します。
+     * 自動行送りを有効化し、行送りの値そのものではなく自動行送りの値（％）を変更して行送りを調整します。
      * 非テキストオブジェクトや処理不能な要素はスキップされます。
      * エラーは最初の1回のみ通知され、処理は継続されます。
      * アラートメッセージはローカライズ定義（LABELS）を通して取得します。
-     * 更新日：2026-04-21
+     * 更新日：2026-07-08
      */
 
     var DEFAULT_LEADING_RATIO = 1.5; // fallback
@@ -181,7 +181,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             hasValidTextFrame = true;
 
             try {
-                // 各テキストフレーム内の各行ごとに行送りのみ変更する（フォントなど他の属性は触らない）
+                // 各テキストフレーム内の各行ごとに、自動行送りをONにして自動行送りの値（％）を変更する（行送り値そのものやフォントなど他の属性は触らない）
+                var autoLeadingPercent = leadingRatio * 100;
                 var lines = textFrame.lines;
                 for (var j = 0; j < lines.length; j++) {
                     var line = lines[j];
@@ -191,9 +192,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     }
 
                     hasProcessableLine = true;
-                    var newLeading = baseFontSizeFromLine * leadingRatio;
-                    line.characterAttributes.autoLeading = false;
-                    line.characterAttributes.leading = newLeading;
+                    line.characterAttributes.autoLeading = true;
+                    line.paragraphAttributes.autoLeadingAmount = autoLeadingPercent;
                 }
 
             } catch (e) {
