@@ -35,7 +35,7 @@ features are extracted from UnifiedTypePanel.jsx and gathered into a single view
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_VERSION = "v1.0.1";
 
 (function () {
 
@@ -386,17 +386,18 @@ var SCRIPT_VERSION = "v1.0.0";
     }
 
     /* 選択の現在値を読み取り、初期表示用にエンコード / Read the selection's current state for reflection
-       戻り値: count|fontSizePt|autoAmount|alignmentId|kernId|tsume|tracking|leadingTypeId|propMetrics
+       戻り値: count|fontSizePt|autoAmount|alignmentId|kernId|tsume|tracking|leadingTypeId|propMetrics|leadingPt
        注意: 値系は「最初のフレームの先頭文字／先頭段落」を代表値として読む簡略化 */
     function readState(frames) {
         var count = frames.length;
-        var fontSizePt = NaN, autoAmount = NaN, alignmentId = "", kernId = "", tsume = NaN, tracking = NaN, leadingTypeId = "", propMetrics = 0;
+        var fontSizePt = NaN, autoAmount = NaN, alignmentId = "", kernId = "", tsume = NaN, tracking = NaN, leadingTypeId = "", propMetrics = 0, leadingPt = NaN;
         for (var i = 0; i < frames.length; i++) {
             try {
                 var lines = frames[i].lines;
                 if (lines && lines.length > 0 && lines[0].characters.length > 0) {
                     var charAttributes = lines[0].characters[0].characterAttributes;
                     fontSizePt = charAttributes.size;
+                    leadingPt = charAttributes.leading;
                     alignmentId = alignmentToId(charAttributes.alignment);
                     kernId = kernMethodToId(charAttributes.kerningMethod);
                     tsume = charAttributes.Tsume;
@@ -411,7 +412,7 @@ var SCRIPT_VERSION = "v1.0.0";
                 }
             } catch (e) { }
         }
-        return [count, fontSizePt, autoAmount, alignmentId, kernId, tsume, tracking, leadingTypeId, propMetrics].join("|");
+        return [count, fontSizePt, autoAmount, alignmentId, kernId, tsume, tracking, leadingTypeId, propMetrics, leadingPt].join("|");
     }
 
     /* 選択の実際の行送り（絶対値 pt）とフォントサイズを読む / Read the actual leading (absolute pt) and font size
@@ -855,7 +856,8 @@ var SCRIPT_VERSION = "v1.0.0";
             tsume: toNumber(fields[5]),
             tracking: toNumber(fields[6]),
             leadingTypeId: fields[7] || "",
-            propMetrics: parseInt(fields[8], 10) === 1
+            propMetrics: parseInt(fields[8], 10) === 1,
+            leadingPt: toNumber(fields[9])
         };
     }
 
@@ -1057,8 +1059,12 @@ var SCRIPT_VERSION = "v1.0.0";
                 if (state.count <= 0) return;
                 // フォントサイズ / Font size
                 ui.fontSizeInput.text = isNaN(state.fontSizePt) ? "" : String(Math.round((state.fontSizePt / textUnit.factor) * 10) / 10);
-                // 行送り（常に自動行送り。自動行送り量% を % 欄に反映し実質も更新）/ Leading (auto-leading amount %)
-                reflectLeadingPercent(isNaN(state.autoAmount) ? NaN : Math.round(state.autoAmount));
+                // 行送り%：自動行送り量% を % 欄に反映（実質欄は現在値で上書きするので計算表示は使わない）
+                // Leading %: reflect the auto-leading amount %（the effective field is overwritten by the actual value below）
+                ui.leadingPercentInput.text = isNaN(state.autoAmount) ? "" : String(Math.round(state.autoAmount * 10) / 10);
+                // 行送り：選択の現在値（絶対値 pt）をそのまま表示（サイズ×% の計算値ではない）
+                // Leading: show the selection's actual current value (absolute pt), not the size × % computation
+                ui.leadingEffectiveInput.text = isNaN(state.leadingPt) ? "" : String(Math.round((state.leadingPt / textUnit.factor) * 10) / 10);
                 // 自動カーニング / Auto kerning
                 if (state.kernId) selectKernById(state.kernId);
                 // 文字ツメ / Tsume

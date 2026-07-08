@@ -3413,9 +3413,12 @@ var SCRIPT_VERSION = "v1.3.1";
                 ui.scaleInput.text = isNaN(state.hScale) ? "100" : String(Math.round(state.hScale * 10) / 10);
                 updateApparentDisplay();
                 updateReferenceApparent(); // 選択を読み直したら現在の見かけを基準にする / Reloading the selection sets the current apparent as the reference
-                // 行送り：常に自動行送りなので、自動行送り量（%）を % 欄に反映し実質も更新
-                // Leading: always auto-leading, so reflect the auto-leading amount (%) into the % field and refresh the effective value
-                reflectLeadingPercent(isNaN(state.autoAmount) ? NaN : Math.round(state.autoAmount));
+                // 行送り%：自動行送り量（%）を % 欄に反映（実質欄は現在値で上書きするので計算表示は使わない）
+                // Leading %: reflect the auto-leading amount (%) into the % field（the effective field is overwritten by the actual value below）
+                ui.leadingPercentInput.text = isNaN(state.autoAmount) ? "" : String(Math.round(state.autoAmount * 10) / 10);
+                // 行送り：選択の現在値（絶対値 pt）をそのまま表示（サイズ×% の計算値ではない）
+                // Leading: show the selection's actual current value (absolute pt), not the size × % computation
+                ui.leadingEffectiveInput.text = isNaN(state.leadingPt) ? "" : String(Math.round((state.leadingPt / textUnit.factor) * 10) / 10);
                 // 行送りの基準 / Leading basis
                 var basisIndex = 0;
                 for (var choiceIndex = 0; choiceIndex < ui.leadingBasisChoices.length; choiceIndex++) {
