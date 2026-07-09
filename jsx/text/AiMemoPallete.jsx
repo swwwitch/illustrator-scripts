@@ -165,6 +165,23 @@ function L(labelNode) {
 (function () {
 
     // =========================================
+    // 二重起動防止 / Prevent duplicate launch
+    // =========================================
+    /* 既にパレットが開いていれば前面に出して終了する（常駐エンジンなので二重に生成しない）/
+       If the palette is already open, bring it to the front and stop (avoid a second instance on this persistent engine) */
+    if ($.global.__TextMemoWindow) {
+        try {
+            var existingWindow = $.global.__TextMemoWindow;
+            if (existingWindow && existingWindow.visible) {
+                existingWindow.active = true; // 前面へ / Bring to front
+                return;
+            }
+        } catch (duplicateLaunchCheckError) {
+            // 参照が失効していれば通常どおり新規作成へ進む / If the reference is stale, fall through and create a new window
+        }
+    }
+
+    // =========================================
     // セッション保持用変数 / Session state
     // =========================================
     var savedText = $.global.__TextMemoContent || '';
@@ -190,6 +207,7 @@ function L(labelNode) {
     win.margins = [15, 15, 15, 15]; // 左右上下を対称に / Symmetric margins on all sides
     win.minimumSize = [300, 200];
     win.preferredSize.width = 400; // 初回（保存位置がないとき）の幅 / Initial width when there is no saved position
+    $.global.__TextMemoWindow = win; // 二重起動防止用に参照を保持 / Keep a reference so a second launch can detect this window
 
     /* モード選択（置き換え / 追加）/ Mode selection (replace / append) */
     var modeSelectGroup = win.add('group');
@@ -621,6 +639,7 @@ function L(labelNode) {
             $.global.__TextMemoContent = CLEAR_ON_CLOSE ? '' : memoTextArea.text;
         }
         storeWinBounds();
+        $.global.__TextMemoWindow = null; // 参照を解放（次回起動で新規作成できるように）/ Release the reference so the next launch creates a fresh window
         return true;
     };
 
