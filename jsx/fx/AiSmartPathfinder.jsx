@@ -61,7 +61,7 @@ compound shape back into plain paths.
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.3";
+var SCRIPT_VERSION = "v1.0.5";
 
 /* エンジンのグローバルを汚さないため IIFE で閉じる。パレット参照だけ $.global に残す。
  * Wrap everything in an IIFE; only the palette reference lives on $.global. */
@@ -92,7 +92,7 @@ var LABELS = {
         option:     { ja: "オプション",     en: "Options" }
     },
     mode: {
-        unite:      { ja: "合体",                     en: "Unite" },
+        unite:      { ja: "合体",                     en: "Unite(Add)" },
         minusFront: { ja: "前面オブジェクトで型抜き", en: "Minus Front" },
         intersect:  { ja: "交差",                     en: "Intersect" },
         exclude:    { ja: "中マド",                   en: "Exclude" }
@@ -111,7 +111,7 @@ var LABELS = {
         effect:   { ja: "効果として適用",         en: "Apply as effect" }
     },
     button: {
-        expand: { ja: "拡張", en: "Expand" }
+        expand: { ja: "複合シェイプを拡張", en: "Expand Compound Shape" }
     },
     option: {
         removePoints:    { ja: "余分なポイントを削除",       en: "Remove redundant points" },
@@ -161,17 +161,24 @@ function getLocalizedText(dotPath) {
  * シェイプモード定義 / Shape mode definitions
  * ============================================================ */
 
-/* value と name は記録済み .aia から採取（ai_compound_shape の enumerated 値）
- * value   : enumerated 値 / enumerated value
- * name    : parameter-1 の /name（.aia に記録された表示名）/ recorded parameter name
- * icon    : onDraw の描画種別 / icon draw type
- * labelKey: getLocalizedText() のドットパス / dotted label key
+/* compoundValue と name は記録済み .aia から採取（ai_compound_shape の enumerated 値）
+ * compoundValue    : B（複合シェイプ）用 ai_compound_shape の enumerated 値 / enumerated value for the compound-shape action
+ * pathfinderCommand: A/C（実行・効果）用 Pathfinder XML の Command 番号 / Pathfinder XML Command index
+ * name             : parameter-1 の /name（.aia に記録された表示名）/ recorded parameter name
+ * icon             : onDraw の描画種別 / icon draw type
+ * labelKey         : getLocalizedText() のドットパス / dotted label key
+ *
+ * ★ 番号体系を分離して持つ / NOTE: two separate numbering systems, held in separate fields
+ *   複合シェイプの enumerated 値と Pathfinder XML の Command は本来別体系。
+ *   0/1/2/3 はたまたま両者で一致しているが、片方の割り当てが変わっても壊れないよう
+ *   compoundValue / pathfinderCommand を別フィールドとして明示的に持つ。
+ *   下段 PATHFINDER_MODES.command（4〜9）と合わせて Pathfinder Command は 0〜9 の連番になる。
  */
 var SHAPE_MODES = [
-    { value: 0, name: "追加",                   icon: "unite",      labelKey: "mode.unite" },
-    { value: 3, name: "前面オブジェクトで型抜き", icon: "minusFront", labelKey: "mode.minusFront" },
-    { value: 1, name: "交差",                   icon: "intersect",  labelKey: "mode.intersect" },
-    { value: 2, name: "中マド",                 icon: "exclude",    labelKey: "mode.exclude" }
+    { compoundValue: 0, pathfinderCommand: 0, name: "追加",                   icon: "unite",      labelKey: "mode.unite" },
+    { compoundValue: 3, pathfinderCommand: 3, name: "前面オブジェクトで型抜き", icon: "minusFront", labelKey: "mode.minusFront" },
+    { compoundValue: 1, pathfinderCommand: 1, name: "交差",                   icon: "intersect",  labelKey: "mode.intersect" },
+    { compoundValue: 2, pathfinderCommand: 2, name: "中マド",                 icon: "exclude",    labelKey: "mode.exclude" }
 ];
 
 /* パスファインダー（Adobe Pathfinder ライブ効果）/ Pathfinders (Adobe Pathfinder live effect)
@@ -1099,10 +1106,12 @@ function showPalette() {
             this.__altPressed = false;
             runExclusive(function () {
                 if (modeCompoundRadio.value || withOption) {
-                    return markerToStatus(delegateApply(mode.value, mode.name, true), mode);
+                    /* B: ai_compound_shape の enumerated 値を渡す / pass the compound-shape enumerated value */
+                    return markerToStatus(delegateApply(mode.compoundValue, mode.name, true), mode);
                 }
                 var destructive = !modeEffectRadio.value;
-                var marker = delegatePathfinder(mode.value, removeUnpaintedCheckbox.value, removePointsCheckbox.value, destructive);
+                /* A/C: Pathfinder XML の Command 番号を渡す / pass the Pathfinder XML Command index */
+                var marker = delegatePathfinder(mode.pathfinderCommand, false, removePointsCheckbox.value, destructive);
                 return markerToStatus(marker, mode);
             });
         };
@@ -1132,7 +1141,8 @@ function showPalette() {
         return function () {
             runExclusive(function () {
                 var destructive = !modeEffectRadio.value;
-                var marker = delegatePathfinder(pathfinder.command, removeUnpaintedCheckbox.value, removePointsCheckbox.value, destructive);
+                var shouldRemoveUnpainted = pathfinder.unpainted && removeUnpaintedCheckbox.value;
+                var marker = delegatePathfinder(pathfinder.command, shouldRemoveUnpainted, removePointsCheckbox.value, destructive);
                 return markerToStatus(marker, pathfinder);
             });
         };
