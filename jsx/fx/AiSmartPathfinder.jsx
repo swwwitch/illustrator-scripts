@@ -1,5 +1,6 @@
 #target illustrator
 #targetengine "pathfinder-palette"
+app.preferences.setBooleanPreference("ShowExternalJSXWarning", false);
 
 /*
 AiSmartPathfinder.jsx — Smart Pathfinder Palette
@@ -8,44 +9,59 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
 アイコンをクリックすると、その操作をメインエンジンへ委譲して即時に実行する。
 
 パネル構成（上から）:
-  モード         出力モードを排他ラジオで選択（下記 A/B/C）
+  モード         出力モードを排他ラジオで選択（下記 A/B/C。ショートカット P/C/F）
   形状モード      合体／前面型抜き／交差／中マド（Adobe Pathfinder command 0〜3）
   パスファインダー 分割／刈り込み／合流／切り抜き／アウトライン／背面型抜き（3個×2行, command 4〜9）
-  オプション      余分なポイントを削除（RemovePoints）／塗りのないアートワークを削除（ExtractUnpainted, 分割・アウトラインのみ）
+  オプション      余分なポイントを削除（RemovePoints）／塗りのないアートワークを削除（ExtractUnpainted, 分割・アウトラインのみ）／［拡張］ボタン
 
 出力モード（モードパネルの排他ラジオ）:
   A パスファインダーを実行  上段・下段とも＝グループ化→XML（Adobe Pathfinder）→拡張→グループ解除（実際にパスへ変換）
-  B 複合シェイプにする      上段のみ＝ダイナミックアクション（ai_compound_shape）で複合シェイプ（下段6ボタンはディム＝無効）
+  B 複合シェイプを作成      上段のみ＝ダイナミックアクション（ai_compound_shape）で複合シェイプ（下段6ボタンはディム＝無効）
   C 効果として適用          上段・下段とも＝XML ライブ効果のまま（拡張しない）
   ※ ダイナミックアクションの複合シェイプは expandStyle で焼き込めないため、A の上段も XML 方式を使う
+  ※ A/C で複数オブジェクトを選択している場合は、効果適用の前に一時的にグループ化する（1つの効果対象にまとめるため）。
+     A では拡張後にそのグループを解除して実パスへ戻す。C はライブ効果のためグループのまま残る。
+
+形状モード（上段4ボタン）の Option+クリック:
+  出力モードに関係なく複合シェイプを作成する（＝モード B と同じ。拡張はしない）。
+
+［拡張］ボタン（オプションパネル）:
+  選択中の複合シェイプ（DOM 上 PluginItem）を通常のパスへ拡張する（ai_expand_compound_shape）。
+  パレットは選択変更を受け取れないため常に押せ、複合シェイプの有無はクリック時に判定する。
 
 Persistent palette that applies Pathfinder operations to the current selection.
-Panels top-down: Mode (A/B/C radios), Shape Mode (Unite/Minus Front/Intersect/
-Exclude), Pathfinders (Divide/Trim/Merge/Crop/Outline/Minus Back), Options.
+Panels top-down: Mode (A/B/C radios; shortcuts P/C/F), Shape Mode (Unite/Minus
+Front/Intersect/Exclude), Pathfinders (Divide/Trim/Merge/Crop/Outline/Minus
+Back), Options (Remove points / Remove unpainted / Expand button).
 A = Apply: both rows group, apply the Adobe Pathfinder XML, expand, and ungroup
 (bake to real paths). B = Compound shape: Shape Modes only via the
 ai_compound_shape action (Pathfinders dimmed/disabled). C = Apply as effect:
 both rows keep the live Adobe Pathfinder effect. "Remove unpainted artwork"
-affects Divide / Outline only.
+affects Divide / Outline only. Option-clicking a Shape Mode button always makes a
+compound shape regardless of the output mode. The Expand button turns a selected
+compound shape back into plain paths.
 
 構成 / Structure
 - 常駐エンジン（#targetengine）でパレット参照を保持し GC を回避
 - 表示中の常駐 app は DOM 接続を失うため、DOM 操作は BridgeTalk でメインエンジンへ委譲
 - 委譲は worker 関数を toString → encodeURIComponent → eval(decodeURIComponent(...)) で送信
-- worker の toString はコメントを取り込み壊すため、送信前に stripWorkerComments で除去
-- 戻り値はマーカー（OK / NODOC / NOSEL / ERR:...）→ ローカライズして下部 status に表示
-- UIレイアウトは setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一
+- worker の toString はコメントを取り込み壊すため、送信前に stripWorkerComments で除去（worker 本体にはコメントを書かず、説明は JSDoc に集約する）
+- 戻り値はマーカー（OK / NODOC / NOSEL / NEEDTWO / NOCS / ERR:...）→ ローカライズして下部 status に表示
+- 選択不足は条件で分離：効果は1つ以上（NOSEL）、実行・複合シェイプは2つ以上（NEEDTWO）
+- 複数選択時は効果を1つの対象にまとめるため一時的にグループ化し、A（destructive）では拡張後に解除する（エラー時はその一時グループだけを選択し直して解除）
+- UI は buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel / buildStatusText と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一
 - アイコンは onDraw で描画（無効時は dimIconColors でディム表示）
+- Option（alt）状態は onDraw では取れないため mousedown で記録し onClick で読む
 - 全体を IIFE で閉じ、$.global にはパレット参照（__pfPaletteWindow）だけを残す
 - 二重起動回避：既に開いていれば作り直さず前面化して終了
-- Esc でパレットを閉じる
+- キーボード：Esc で閉じる／P・C・F で出力モード切替
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.2";
+var SCRIPT_VERSION = "v1.0.3";
 
 /* エンジンのグローバルを汚さないため IIFE で閉じる。パレット参照だけ $.global に残す。
  * Wrap everything in an IIFE; only the palette reference lives on $.global. */
@@ -91,7 +107,7 @@ var LABELS = {
     },
     apply: {
         execute:  { ja: "パスファインダーを実行", en: "Apply Pathfinder" },
-        compound: { ja: "複合シェイプにする",     en: "Compound shape" },
+        compound: { ja: "複合シェイプを作成",     en: "Compound shape" },
         effect:   { ja: "効果として適用",         en: "Apply as effect" }
     },
     button: {
@@ -105,7 +121,8 @@ var LABELS = {
         ready:   { ja: "アイコンをクリックして実行",       en: "Click an icon to apply" },
         applied: { ja: "適用しました",                    en: "Applied." },
         noDoc:   { ja: "ドキュメントが開かれていません",  en: "No document is open." },
-        noSel:   { ja: "2つ以上のオブジェクトを選択してください", en: "Select two or more objects." },
+        noSel:   { ja: "1つ以上のオブジェクトを選択してください", en: "Select one or more objects." },
+        needTwo: { ja: "2つ以上のオブジェクトを選択してください", en: "Select two or more objects." },
         noCompound: { ja: "複合シェイプを選択してください", en: "Select a compound shape." },
         timeout: { ja: "タイムアウトしました",            en: "Timed out." },
         error:   { ja: "エラー: ",                        en: "Error: " }
@@ -114,6 +131,7 @@ var LABELS = {
         esc:             { ja: "Esc: パレットを閉じる",     en: "Esc: close the palette" },
         removeUnpainted: { ja: "分割・アウトラインのみ有効", en: "Divide / Outline only" },
         compoundApply:   { ja: "形状モード（上段）のみ",    en: "Shape Mode (top row) only" },
+        optionCompound:  { ja: "Option+クリックで複合シェイプ", en: "Option-click to make a compound shape" },
         expand:          { ja: "選択中の複合シェイプを通常のパスに拡張", en: "Expand the selected compound shape to paths" },
         shortcutExecute:  { ja: "ショートカット: P", en: "Shortcut: P" },
         shortcutCompound: { ja: "ショートカット: C", en: "Shortcut: C" },
@@ -188,12 +206,13 @@ var PATHFINDER_MODES = [
  * @param {number} shapeModeValue enumerated 値 / enumerated value
  * @param {string} shapeModeName parameter-1 の /name / recorded parameter name
  * @param {boolean} keepCompound 複合シェイプのまま残すか（false なら拡張）/ keep as compound shape (false expands)
- * @returns {string} マーカー "OK" / "NODOC" / "NOSEL" / "ERR:..."
+ * @returns {string} マーカー "OK" / "NODOC" / "NOSEL"（1つも未選択）/ "NEEDTWO"（2つ未満）/ "ERR:..."
  */
 function workerApplyCompoundShape(shapeModeValue, shapeModeName, keepCompound) {
     if (app.documents.length === 0) { return "NODOC"; }
     var currentSelection = app.activeDocument.selection;
-    if (!currentSelection || currentSelection.length < 2) { return "NOSEL"; }
+    if (!currentSelection || currentSelection.length < 1) { return "NOSEL"; }
+    if (currentSelection.length < 2) { return "NEEDTWO"; }
     var uniqueToken = "AiSmartPathfinder_"
         + (new Date()).getTime()
         + "_"
@@ -222,28 +241,32 @@ function workerApplyCompoundShape(shapeModeValue, shapeModeName, keepCompound) {
 
 /**
  * 選択オブジェクトにパスファインダー（Adobe Pathfinder ライブ効果）を適用する（メインエンジン用エントリ）。
- * 2個以上のときは先にグループ化してから適用する。効果のまま（destructive=false）なら単体オブジェクトでも実行できる。
- * destructive が true のときは拡張してフラットなパスにし、グループを解除する（実際にパスを変更）。
+ * 複数選択時は効果対象を1つにまとめるため一時的にグループ化する（効果のまま destructive=false なら単体でも実行可）。
+ * destructive が true のときは適用後に拡張し、その一時グループを解除してフラットなパスへ戻す。
+ * エラー時は作成した一時グループだけを選択し直して解除する（他の階層・選択には触れない）。
+ * ※ この関数は BridgeTalk 委譲で toString 送信されるため、本体にコメントを書かず説明はこの JSDoc に集約する。
  * @param {number} command ライブ効果の Command 番号 / live effect Command index
  * @param {boolean} removeUnpainted 塗りのないアートワークを削除（分割・アウトラインのみ有効）/ remove unpainted (Divide/Outline only)
  * @param {boolean} removePoints 余分なポイントを削除 / remove redundant points
  * @param {boolean} destructive 実際にパスへ変換するか（true: 拡張＋グループ解除 / false: ライブ効果のまま）/ bake to paths
- * @returns {string} マーカー "OK" / "NODOC" / "NOSEL" / "ERR:..."
+ * @returns {string} マーカー "OK" / "NODOC" / "NOSEL"（1つも未選択）/ "NEEDTWO"（実行モードで2つ未満）/ "ERR:..."
  */
 function workerApplyPathfinder(command, removeUnpainted, removePoints, destructive) {
     if (app.documents.length === 0) { return "NODOC"; }
     var currentDocument = app.activeDocument;
     var currentSelection = currentDocument.selection;
-    var minimumSelectionCount = destructive ? 2 : 1;
-    if (!currentSelection || currentSelection.length < minimumSelectionCount) { return "NOSEL"; }
+    if (!currentSelection || currentSelection.length < 1) { return "NOSEL"; }
+    if (destructive && currentSelection.length < 2) { return "NEEDTWO"; }
 
     var groupedForOperation = false;
+    var temporaryGroup = null;
     try {
         var targetItem;
         if (currentSelection.length >= 2) {
             app.executeMenuCommand("group");
             groupedForOperation = true;
-            targetItem = currentDocument.selection[0];
+            temporaryGroup = currentDocument.selection[0];
+            targetItem = temporaryGroup;
         } else {
             targetItem = currentSelection[0];
         }
@@ -255,15 +278,17 @@ function workerApplyPathfinder(command, removeUnpainted, removePoints, destructi
             app.executeMenuCommand("expandStyle");
             app.executeMenuCommand("ungroup");
             groupedForOperation = false;
+            temporaryGroup = null;
         }
 
         app.redraw();
         return "OK";
     } catch (pathfinderError) {
-        if (groupedForOperation) {
+        if (groupedForOperation && temporaryGroup) {
             try {
-                if (currentDocument.selection
-                        && currentDocument.selection.length === 1
+                currentDocument.selection = null;
+                temporaryGroup.selected = true;
+                if (currentDocument.selection.length === 1
                         && currentDocument.selection[0].typename === "GroupItem") {
                     app.executeMenuCommand("ungroup");
                 }
@@ -382,6 +407,9 @@ function stringToUtf8Hex(sourceText) {
 
 /**
  * 一時アクションをファイル化 → ロード → 実行し、後始末する。
+ * encoding は open より前に設定する（open 後だと書き込みに反映されない場合があるため）。
+ * unloadAction はロードに成功したときだけ行う（未ロードのセットを外そうとして例外を出さない）。
+ * ※ この関数は BridgeTalk 委譲で toString 送信されるため、本体にコメントを書かず説明はこの JSDoc に集約する。
  * @param {string} actionSource .aia のソース文字列 / .aia source text
  * @param {string} setName アクションセット名 / action set name
  * @param {string} actionName アクション名 / action name
@@ -392,10 +420,10 @@ function playTemporaryAction(actionSource, setName, actionName, actionFilePath) 
     var actionFile = new File(actionFilePath);
     var isActionLoaded = false;
     var isActionFileOpen = false;
+    actionFile.encoding = "UTF-8";
     try {
         if (!actionFile.open("w")) { throw new Error("Failed to open temporary action file."); }
         isActionFileOpen = true;
-        actionFile.encoding = "UTF-8";
         actionFile.write(actionSource);
         actionFile.close();
         isActionFileOpen = false;
@@ -405,7 +433,7 @@ function playTemporaryAction(actionSource, setName, actionName, actionFilePath) 
     } finally {
         if (isActionFileOpen) { try { actionFile.close(); } catch (closeError) { } }
         if (actionFile.exists) { try { actionFile.remove(); } catch (removeError) { } }
-        try { app.unloadAction(setName, ""); } catch (unloadError2) { }
+        if (isActionLoaded) { try { app.unloadAction(setName, ""); } catch (unloadError2) { } }
     }
 }
 
@@ -640,6 +668,7 @@ function markerToStatus(marker, mode) {
     if (marker === "OK") { return getLocalizedText(mode.labelKey) + ": " + getLocalizedText("status.applied"); }
     if (marker === "NODOC") { return getLocalizedText("status.noDoc"); }
     if (marker === "NOSEL") { return getLocalizedText("status.noSel"); }
+    if (marker === "NEEDTWO") { return getLocalizedText("status.needTwo"); }
     if (marker === "NOCS") { return getLocalizedText("status.noCompound"); }
     if (marker === "TIMEOUT") { return getLocalizedText("status.timeout"); }
     if (marker.indexOf("ERR:") === 0) { return getLocalizedText("status.error") + marker.substring(4); }
@@ -897,7 +926,10 @@ function buildModePanel(parentWindow) {
         effect:   panel.add("radiobutton", undefined, getLocalizedText("apply.effect"))
     };
     radios.execute.value = true;
-    radios.compound.helpTip = getLocalizedText("tip.compoundApply");
+    /* ショートカットは UI ラベルには出さず helpTip に載せる / show shortcuts in helpTip, not in the label */
+    radios.execute.helpTip = getLocalizedText("tip.shortcutExecute");
+    radios.compound.helpTip = getLocalizedText("tip.compoundApply") + " / " + getLocalizedText("tip.shortcutCompound");
+    radios.effect.helpTip = getLocalizedText("tip.shortcutEffect");
     /* ボタン類は広げず左寄せ / keep button-like controls left-aligned */
     radios.execute.alignment = "left";
     radios.compound.alignment = "left";
@@ -940,23 +972,27 @@ function buildPathfinderRows(parentWindow) {
 }
 
 /**
- * オプションパネル（チェックボックス）を構築する。
+ * オプションパネル（チェックボックス＋拡張ボタン）を構築する。
+ * 拡張ボタンは複合シェイプ選択時のみ機能するが、判定はクリック時に worker 側で行うため常に押せる。
  * @param {Window} parentWindow 親ウィンドウ / parent window
- * @returns {{removePoints: object, removeUnpainted: object}} チェックボックス群 / checkboxes
+ * @returns {{removePoints: object, removeUnpainted: object, expand: object}} 各コントロール / controls
  */
 function buildOptionPanel(parentWindow) {
     var panel = parentWindow.add("panel", undefined, getLocalizedText("panel.option"));
     setupPanel(panel);
-    var checkboxes = {
+    var controls = {
         removePoints:    panel.add("checkbox", undefined, getLocalizedText("option.removePoints")),
-        removeUnpainted: panel.add("checkbox", undefined, getLocalizedText("option.removeUnpainted"))
+        removeUnpainted: panel.add("checkbox", undefined, getLocalizedText("option.removeUnpainted")),
+        expand:          panel.add("button", undefined, getLocalizedText("button.expand"))
     };
-    checkboxes.removePoints.value = true;
-    checkboxes.removeUnpainted.value = false;
-    checkboxes.removeUnpainted.helpTip = getLocalizedText("tip.removeUnpainted");
-    checkboxes.removePoints.alignment = "left";
-    checkboxes.removeUnpainted.alignment = "left";
-    return checkboxes;
+    controls.removePoints.value = true;
+    controls.removeUnpainted.value = false;
+    controls.removeUnpainted.helpTip = getLocalizedText("tip.removeUnpainted");
+    controls.expand.helpTip = getLocalizedText("tip.expand");
+    controls.removePoints.alignment = "left";
+    controls.removeUnpainted.alignment = "left";
+    controls.expand.alignment = "left";
+    return controls;
 }
 
 /**
@@ -994,66 +1030,39 @@ function showPalette() {
 
     var paletteWindow = new Window("palette", getLocalizedText("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
     setupWindow(paletteWindow);
+    /* コメントエリア（下部ステータス）の下余白を 4 に / bottom margin under the comment area = 4 */
+    paletteWindow.margins = [WINDOW_MARGINS, WINDOW_MARGINS, WINDOW_MARGINS, 4];
 
     /* モードパネル（出力モードの排他ラジオ・最上段）/ Mode panel (output-mode radios, top)
      * A: 実行（実際にパスへ）/ B: 複合シェイプ（上段のみ）/ C: 効果として適用（ライブ）
      */
-    var modeRadioPanel = paletteWindow.add("panel", undefined, getLocalizedText("panel.mode"));
-    setupPanel(modeRadioPanel);
-    var modeExecuteRadio = modeRadioPanel.add("radiobutton", undefined, getLocalizedText("apply.execute"));
-    var modeCompoundRadio = modeRadioPanel.add("radiobutton", undefined, getLocalizedText("apply.compound"));
-    var modeEffectRadio = modeRadioPanel.add("radiobutton", undefined, getLocalizedText("apply.effect"));
-    modeExecuteRadio.value = true;
-    /* ショートカットは UI ラベルには出さず helpTip に載せる / show shortcuts in helpTip, not in the label */
-    modeExecuteRadio.helpTip = getLocalizedText("tip.shortcutExecute");
-    modeCompoundRadio.helpTip = getLocalizedText("tip.compoundApply") + " / " + getLocalizedText("tip.shortcutCompound");
-    modeEffectRadio.helpTip = getLocalizedText("tip.shortcutEffect");
-    /* ボタン類は広げず左寄せ / keep button-like controls left-aligned, not stretched */
-    modeExecuteRadio.alignment = "left";
-    modeCompoundRadio.alignment = "left";
-    modeEffectRadio.alignment = "left";
+    var modeRadios = buildModePanel(paletteWindow);
+    var modeExecuteRadio = modeRadios.execute;
+    var modeCompoundRadio = modeRadios.compound;
+    var modeEffectRadio = modeRadios.effect;
 
-    /* 形状モードパネル＋アイコンボタン列 / Shape mode panel with icon buttons */
-    var shapeModePanel = paletteWindow.add("panel", undefined, getLocalizedText("panel.shapeMode"));
-    shapeModePanel.orientation = "row";
-    shapeModePanel.alignChildren = "center";
-    shapeModePanel.margins = ICON_PANEL_MARGINS;
-    shapeModePanel.spacing = PANEL_SPACING;
+    /* 形状モードパネル（アイコンボタンは後段で追加）/ Shape mode panel (buttons added below) */
+    var shapeModePanel = buildShapeModePanel(paletteWindow);
 
-    /* パスファインダーパネル＋アイコンボタン（3個×2行）/ Pathfinder panel with icon buttons (3 per row, 2 rows) */
-    var pathfinderPanel = paletteWindow.add("panel", undefined, getLocalizedText("panel.pathfinder"));
-    pathfinderPanel.orientation = "column";
-    pathfinderPanel.alignChildren = "center";
-    pathfinderPanel.margins = ICON_PANEL_MARGINS;
-    pathfinderPanel.spacing = PANEL_SPACING;
-    var pathfinderRows = [pathfinderPanel.add("group"), pathfinderPanel.add("group")];
-    for (var rowIndex = 0; rowIndex < pathfinderRows.length; rowIndex++) {
-        pathfinderRows[rowIndex].orientation = "row";
-        pathfinderRows[rowIndex].alignChildren = "center";
-        pathfinderRows[rowIndex].spacing = PANEL_SPACING;
-    }
+    /* パスファインダーパネル（3個×2行, ボタンは後段で追加）/ Pathfinder panel (3 per row × 2, buttons added below) */
+    var pathfinderRows = buildPathfinderRows(paletteWindow);
 
-    /* オプションパネル / Options panel */
-    var optionPanel = paletteWindow.add("panel", undefined, getLocalizedText("panel.option"));
-    setupPanel(optionPanel);
-    var removePointsCheckbox = optionPanel.add("checkbox", undefined, getLocalizedText("option.removePoints"));
-    removePointsCheckbox.value = true;
-    var removeUnpaintedCheckbox = optionPanel.add("checkbox", undefined, getLocalizedText("option.removeUnpainted"));
-    removeUnpaintedCheckbox.value = false;
-    removeUnpaintedCheckbox.helpTip = getLocalizedText("tip.removeUnpainted");
-    /* 拡張ボタン（オプションパネル内・複合シェイプ選択時のみ有効）/ Expand button in Options (enabled only when a compound shape is selected) */
-    var expandButton = optionPanel.add("button", undefined, getLocalizedText("button.expand"));
-    expandButton.helpTip = getLocalizedText("tip.expand");
-    /* ボタン類は広げず左寄せ / keep button-like controls left-aligned, not stretched */
-    removePointsCheckbox.alignment = "left";
-    removeUnpaintedCheckbox.alignment = "left";
-    expandButton.alignment = "left";
+    /* オプションパネル＋コメントエリアをまとめ、両者間の余白をゼロにする / group options + comment area with no gap between them */
+    var bottomWrap = paletteWindow.add("group");
+    bottomWrap.orientation = "column";
+    bottomWrap.alignChildren = "fill";
+    bottomWrap.alignment = "fill";
+    bottomWrap.margins = 0;
+    bottomWrap.spacing = 18;
+
+    /* オプションパネル（チェックボックス＋拡張ボタン）/ Options panel (checkboxes + expand button) */
+    var optionControls = buildOptionPanel(bottomWrap);
+    var removePointsCheckbox = optionControls.removePoints;
+    var removeUnpaintedCheckbox = optionControls.removeUnpainted;
+    var expandButton = optionControls.expand;
 
     /* 状況表示（幅を膨らませないよう複数行で折り返す）/ Status text (multiline, keeps width narrow) */
-    var statusText = paletteWindow.add("statictext", undefined, getLocalizedText("status.ready"), { multiline: true });
-    statusText.characters = 20;
-    statusText.preferredSize.height = 32;
-    statusText.helpTip = getLocalizedText("tip.esc");
+    var statusText = buildStatusText(bottomWrap);
 
     /**
      * 状況表示を更新する / update the status line
@@ -1062,13 +1071,6 @@ function showPalette() {
      */
     function setStatus(message) {
         statusText.text = message;
-    }
-
-    /* onDraw から iconType を束縛する / bind iconType for onDraw */
-    function makeIconDrawer(iconType) {
-        return function () {
-            drawOperationIcon(this, iconType);
-        };
     }
 
     /* isBusy ガード付きで委譲を実行し、返り値（status 文字列）を表示する / guarded delegate + status */
@@ -1091,8 +1093,12 @@ function showPalette() {
      */
     function makeApplyHandler(mode) {
         return function () {
+            /* onClick は event を持たないため、直前の mousedown で記録した Option 状態を読む
+             * onClick carries no event; read the Option state recorded by the preceding mousedown */
+            var withOption = (this.__altPressed === true);
+            this.__altPressed = false;
             runExclusive(function () {
-                if (modeCompoundRadio.value) {
+                if (modeCompoundRadio.value || withOption) {
                     return markerToStatus(delegateApply(mode.value, mode.name, true), mode);
                 }
                 var destructive = !modeEffectRadio.value;
@@ -1102,13 +1108,20 @@ function showPalette() {
         };
     }
 
+    /* mousedown で Option（alt）状態をボタンに記録する（onClick は event を持たない）
+     * record the Option (alt) state on mousedown; onClick has no event to read it from */
+    function makeAltRecorder(button) {
+        return function (mouseEvent) {
+            button.__altPressed = (mouseEvent.altKey === true);
+        };
+    }
+
     for (var i = 0; i < SHAPE_MODES.length; i++) {
         var mode = SHAPE_MODES[i];
-        var shapeModeButton = shapeModePanel.add("iconbutton", undefined, undefined, { style: "toolbutton" });
-        shapeModeButton.preferredSize = [46, 46];
-        shapeModeButton.helpTip = getLocalizedText(mode.labelKey);
-        shapeModeButton.onDraw = makeIconDrawer(mode.icon);
-        shapeModeButton.onClick = makeApplyHandler(mode);
+        var shapeModeButton = addOperationButton(shapeModePanel, mode, makeApplyHandler(mode));
+        /* Option+クリックのヒントと mousedown での alt 記録を上乗せ / add Option-click hint & alt recorder */
+        shapeModeButton.helpTip = getLocalizedText(mode.labelKey) + " / " + getLocalizedText("tip.optionCompound");
+        shapeModeButton.addEventListener("mousedown", makeAltRecorder(shapeModeButton));
     }
 
     /* クリックで該当パスファインダーを即適用する / apply the Pathfinder immediately on click
@@ -1129,11 +1142,7 @@ function showPalette() {
     for (var pathfinderIndex = 0; pathfinderIndex < PATHFINDER_MODES.length; pathfinderIndex++) {
         var pathfinder = PATHFINDER_MODES[pathfinderIndex];
         var pathfinderRow = pathfinderRows[Math.floor(pathfinderIndex / 3)]; /* 3個ごとに改行 / 3 per row */
-        var pathfinderButton = pathfinderRow.add("iconbutton", undefined, undefined, { style: "toolbutton" });
-        pathfinderButton.preferredSize = [46, 46];
-        pathfinderButton.helpTip = getLocalizedText(pathfinder.labelKey);
-        pathfinderButton.onDraw = makeIconDrawer(pathfinder.icon);
-        pathfinderButton.onClick = makePathfinderHandler(pathfinder);
+        var pathfinderButton = addOperationButton(pathfinderRow, pathfinder, makePathfinderHandler(pathfinder));
         pathfinderButtons.push(pathfinderButton);
     }
 
