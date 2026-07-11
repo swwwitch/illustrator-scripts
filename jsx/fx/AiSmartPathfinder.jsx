@@ -61,7 +61,7 @@ compound shape back into plain paths.
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.5";
+var SCRIPT_VERSION = "v1.0.6";
 
 /* エンジンのグローバルを汚さないため IIFE で閉じる。パレット参照だけ $.global に残す。
  * Wrap everything in an IIFE; only the palette reference lives on $.global. */
@@ -104,6 +104,18 @@ var LABELS = {
         crop:      { ja: "切り抜き",               en: "Crop" },
         outline:   { ja: "アウトライン",           en: "Outline" },
         minusBack: { ja: "背面オブジェクトで型抜き", en: "Minus Back" }
+    },
+    caption: {
+        unite:      { ja: "合体",         en: "Unite" },
+        minusFront: { ja: "前面型抜き",   en: "Minus Front" },
+        intersect:  { ja: "交差",         en: "Intersect" },
+        exclude:    { ja: "中マド",       en: "Exclude" },
+        divide:     { ja: "分割",         en: "Divide" },
+        trim:       { ja: "刈り込み",     en: "Trim" },
+        merge:      { ja: "合流",         en: "Merge" },
+        crop:       { ja: "切り抜き",     en: "Crop" },
+        outline:    { ja: "アウトライン", en: "Outline" },
+        minusBack:  { ja: "背面型抜き",   en: "Minus Back" }
     },
     apply: {
         execute:  { ja: "パスファインダーを実行", en: "Apply Pathfinder" },
@@ -760,23 +772,6 @@ function strokeRect(graphics, pen, x, y, rectWidth, rectHeight) {
 }
 
 /**
- * 直線を描く / draw a line
- * @param {object} graphics ScriptUIGraphics
- * @param {object} pen ペン / pen
- * @param {number} x1 始点 x / start x
- * @param {number} y1 始点 y / start y
- * @param {number} x2 終点 x / end x
- * @param {number} y2 終点 y / end y
- * @returns {void}
- */
-function drawLine(graphics, pen, x1, y1, x2, y2) {
-    graphics.newPath();
-    graphics.moveTo(x1, y1);
-    graphics.lineTo(x2, y2);
-    graphics.strokePath(pen);
-}
-
-/**
  * パスファインダー操作のアイコンを iconbutton に描画する（形状モード・パスファインダー共通）。
  * 左上（back）と右下（front）の2つの正方形の重なりで各操作を表現する。無効時はディム表示。
  * @param {object} control 描画対象の iconbutton / the iconbutton being drawn
@@ -803,9 +798,15 @@ function drawOperationIcon(control, iconType) {
     var overlapWidth = (backX + side) - frontX;   /* 重なりの幅 / overlap width = 12 */
     var overlapHeight = (backY + side) - frontY;  /* 重なりの高さ / overlap height = 12 */
 
-    if (iconType === "unite" || iconType === "merge") {
-        /* 合体・合流：2つを同色で塗り、継ぎ目なしの和集合シルエット */
+    if (iconType === "unite") {
+        /* 合体：2つを同色で塗り、継ぎ目なしの和集合シルエット */
         fillRect(graphics, iconBrush, backX, backY, side, side);
+        fillRect(graphics, iconBrush, frontX, frontY, side, side);
+    } else if (iconType === "merge") {
+        /* 合流：和集合シルエット。back を塗り、front の左辺のすぐ外側（back の下タブ側）に細い縦の白いシームを入れてから
+         * front を塗り直し、front（重なり側）が欠けないようにする */
+        fillRect(graphics, iconBrush, backX, backY, side, side);
+        fillRect(graphics, backgroundBrush, frontX - 2, frontY, 2, overlapHeight);
         fillRect(graphics, iconBrush, frontX, frontY, side, side);
     } else if (iconType === "minusFront") {
         /* 前面型抜き：back を塗り、front を背景色で抜いて輪郭のみ残す */
@@ -823,29 +824,53 @@ function drawOperationIcon(control, iconType) {
         fillRect(graphics, iconBrush, frontX, frontY, side, side);
         fillRect(graphics, backgroundBrush, frontX, frontY, overlapWidth, overlapHeight);
     } else if (iconType === "divide") {
-        /* 分割：2つを塗り、front の輪郭を背景色の線で入れて分割の継ぎ目を見せる */
+        /* 分割：2つを塗り、重なり部分の輪郭を背景色の線で囲って分割の継ぎ目（小さな窓）を見せる */
         fillRect(graphics, iconBrush, backX, backY, side, side);
         fillRect(graphics, iconBrush, frontX, frontY, side, side);
-        strokeRect(graphics, backgroundPen, frontX, frontY, side, side);
+        strokeRect(graphics, backgroundPen, frontX, frontY, overlapWidth, overlapHeight);
     } else if (iconType === "trim") {
-        /* 刈り込み：2つを塗り、重なり境界（front の上辺・左辺）に背景色の継ぎ目線 */
+        /* 刈り込み：back を front で切り取った L字にし、front との境界に細い白いシームを残して front を最前面で塗る */
+        var trimSeam = 3;
         fillRect(graphics, iconBrush, backX, backY, side, side);
+        fillRect(graphics, backgroundBrush, frontX - trimSeam, frontY - trimSeam, side + trimSeam, side + trimSeam);
         fillRect(graphics, iconBrush, frontX, frontY, side, side);
-        drawLine(graphics, backgroundPen, frontX, frontY, backX + side, frontY);
-        drawLine(graphics, backgroundPen, frontX, frontY, frontX, backY + side);
     } else if (iconType === "crop") {
-        /* 切り抜き：back は中間色の輪郭のみ、front を塗る（最前面で切り抜く） */
-        strokeRect(graphics, mutedPen, backX, backY, side, side);
+        /* 切り抜き：back は中間色の太い枠。front はベタ塗りしてから内側の右下（重なりを除く）を背景色でくり抜き、
+         * 枠と重なりブロックを継ぎ目のない1つの黒い形にする（腕と中央が細い角だけで繋がってすき間に見えるのを防ぐ） */
+        var cropBorder = 3;
+        var cropBackPen = graphics.newPen(graphics.PenType.SOLID_COLOR, colors.muted, cropBorder);
+        strokeRect(graphics, cropBackPen, backX, backY, side, side);
         fillRect(graphics, iconBrush, frontX, frontY, side, side);
+        fillRect(graphics, backgroundBrush,
+            frontX + overlapWidth, frontY + cropBorder,
+            side - cropBorder - overlapWidth, side - cropBorder * 2);
+        fillRect(graphics, backgroundBrush,
+            frontX + cropBorder, frontY + overlapHeight,
+            side - cropBorder * 2, side - cropBorder - overlapHeight);
+        /* back の枠と front が交わる2点を背景色で抜き、light の枠と dark の図形を分離して見せる。
+         * 抜きは front の枠（cropBorder）を貫く大きさにして、ブロックと腕をつなぐ細いブリッジを残さない */
+        var cropGap = cropBorder * 2;
+        fillRect(graphics, backgroundBrush,
+            (backX + side) - cropGap / 2, frontY - cropGap / 2, cropGap, cropGap);
+        fillRect(graphics, backgroundBrush,
+            frontX - cropGap / 2, (backY + side) - cropGap / 2, cropGap, cropGap);
+        /* 中央の■は欠けさせない：抜きの後に重なりブロックを塗り直して常に完全な正方形にする */
+        fillRect(graphics, iconBrush, frontX, frontY, overlapWidth, overlapHeight);
     } else if (iconType === "outline") {
-        /* アウトライン：2つとも輪郭のみ（線に変換） */
-        strokeRect(graphics, mutedPen, backX, backY, side, side);
+        /* アウトライン：2つとも同色の輪郭のみ（線に変換）。2つの交差点を背景色で抜き、
+         * 交差の中心に白い窓を空けて2つの枠が編み込まれて見えるようにする */
+        strokeRect(graphics, iconPen, backX, backY, side, side);
         strokeRect(graphics, iconPen, frontX, frontY, side, side);
+        var outlineGap = 5;
+        fillRect(graphics, backgroundBrush,
+            (backX + side) - outlineGap / 2, frontY - outlineGap / 2, outlineGap, outlineGap);
+        fillRect(graphics, backgroundBrush,
+            frontX - outlineGap / 2, (backY + side) - outlineGap / 2, outlineGap, outlineGap);
     } else if (iconType === "minusBack") {
-        /* 背面型抜き：front を塗り、back の重なりを背景色で抜き、back を中間色の輪郭に */
+        /* 背面型抜き：front（背面側＝右下）を塗り、back（前面側＝左上）を背景色で塗って輪郭を付け、重なりを白く抜く */
         fillRect(graphics, iconBrush, frontX, frontY, side, side);
-        fillRect(graphics, backgroundBrush, frontX, frontY, overlapWidth, overlapHeight);
-        strokeRect(graphics, mutedPen, backX, backY, side, side);
+        fillRect(graphics, backgroundBrush, backX, backY, side, side);
+        strokeRect(graphics, iconPen, backX, backY, side, side);
     }
 }
 
@@ -904,18 +929,27 @@ function makeIconDrawer(iconType) {
 }
 
 /**
- * 操作アイコンボタン（46x46・onDraw 描画）を container に追加する。
+ * 操作アイコンボタン（46x46・onDraw 描画）＋直下のキャプションを container に追加する。
+ * アイコンとラベルを縦グループにまとめ、キャプションは caption.<icon> のローカライズ短縮名を使う。
+ * 有効/無効の切り替えでキャプションも一緒にディムできるよう、button に __caption 参照を持たせる。
  * @param {object} container 追加先のパネル/グループ / parent container
  * @param {object} operation icon / labelKey を持つ操作定義 / operation with icon & labelKey
  * @param {function} onClickHandler クリック時の処理 / click handler
- * @returns {object} 追加した iconbutton / the added iconbutton
+ * @returns {object} 追加した iconbutton（__caption にキャプションを保持）/ the added iconbutton (holds its caption on __caption)
  */
 function addOperationButton(container, operation, onClickHandler) {
-    var button = container.add("iconbutton", undefined, undefined, { style: "toolbutton" });
+    var cell = container.add("group");
+    cell.orientation = "column";
+    cell.alignChildren = "center";
+    cell.spacing = 2;
+    var button = cell.add("iconbutton", undefined, undefined, { style: "toolbutton" });
     button.preferredSize = [46, 46];
     button.helpTip = getLocalizedText(operation.labelKey);
     button.onDraw = makeIconDrawer(operation.icon);
     button.onClick = onClickHandler;
+    var caption = cell.add("statictext", undefined, getLocalizedText("caption." + operation.icon));
+    caption.justify = "center";
+    button.__caption = caption;
     return button;
 }
 
@@ -993,7 +1027,7 @@ function buildOptionPanel(parentWindow) {
         expand:          panel.add("button", undefined, getLocalizedText("button.expand"))
     };
     controls.removePoints.value = true;
-    controls.removeUnpainted.value = false;
+    controls.removeUnpainted.value = true;
     controls.removeUnpainted.helpTip = getLocalizedText("tip.removeUnpainted");
     controls.expand.helpTip = getLocalizedText("tip.expand");
     controls.removePoints.alignment = "left";
@@ -1161,6 +1195,9 @@ function showPalette() {
         var enabled = !modeCompoundRadio.value;
         for (var buttonIndex = 0; buttonIndex < pathfinderButtons.length; buttonIndex++) {
             pathfinderButtons[buttonIndex].enabled = enabled;
+            if (pathfinderButtons[buttonIndex].__caption) {
+                pathfinderButtons[buttonIndex].__caption.enabled = enabled;
+            }
         }
     }
     modeExecuteRadio.onClick = updatePathfinderEnabled;
