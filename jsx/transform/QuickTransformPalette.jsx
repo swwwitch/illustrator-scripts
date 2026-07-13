@@ -9,7 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 選択したオブジェクトの移動・複製と反転・回転を、アイコンのクリックで即時実行する常駐パレットです（プレビューや適用ボタンはありません）。
 
 - 移動・複製: 上 / 左 / 右 / 下 の矢印アイコンをクリックでその方向へ移動。Option＋クリックで複製。十字の中央ボタンは移動せず、選択オブジェクトを同じ座標にその場で複製（複製後は複製側を選択）
-- 反転・回転: アイコンボタンで左右反転／上下反転／90°回転（反時計回り・時計回り）を即時実行。Option＋クリックで複製してから変形。パネル最下部のスライダー（-180〜180°・15°刻み）で任意角度に回転。アイコン右の9軸（3×3）ウィジェットで基点を指定
+- 反転・回転: アイコンボタンで左右反転／上下反転／90°回転（反時計回り・時計回り）を即時実行。Option＋クリックで複製してから変形。パネル最下部のスライダー（-180〜180°・15°刻み／Shift＋ドラッグで90°刻み）で任意角度に回転。スライダー左に現在の角度を数字で表示（離すと0°に戻る）。アイコン右の9軸（3×3）ウィジェットで基点を指定
 - オプション（マージン／プレビュー境界。移動・複製と反転・回転の両方に適用）
 	- マージン: 変形後に基準点の反対方向へ足す余白（単位は定規に追従）。反転・回転では9軸が中心のときは無視
 	- プレビュー境界: 線や効果を含む見た目の境界でサイズ・基点を計算
@@ -31,7 +31,7 @@ https://note.com/dtp_tranist/n/n277bd0865986
 A persistent palette that moves/duplicates and flips/rotates the selection immediately on an icon click (no preview, no Apply button).
 
 - Move / duplicate: click an Up / Left / Right / Down arrow icon to move in that direction; Option-click to duplicate. The center button of the cross does not move — it duplicates the selection in place at the same coordinates (the copies become the new selection)
-- Flip & rotate: icon buttons flip horizontally/vertically and rotate 90° (CCW/CW), applied immediately; Option-click duplicates before transforming; a slider at the bottom of the panel (-180 to 180°, 15° steps) rotates by an arbitrary angle; a 9-axis (3x3) widget to the right of the icons sets the pivot
+- Flip & rotate: icon buttons flip horizontally/vertically and rotate 90° (CCW/CW), applied immediately; Option-click duplicates before transforming; a slider at the bottom of the panel (-180 to 180°, 15° steps / Shift+drag for 90° steps) rotates by an arbitrary angle, with a numeric readout to its left showing the current angle (returns to 0° on release); a 9-axis (3x3) widget to the right of the icons sets the pivot
 - Options (Margin / Preview bounds; applied to both move-duplicate and flip-rotate)
 	- Margin: extra gap added after the transform, away from the anchor (unit follows the ruler); ignored for flip/rotate when the 9-axis anchor is centered
 	- Preview bounds: uses the visible bounds (including stroke/effects) for size and pivot
@@ -44,7 +44,7 @@ DOM work (selection, move, duplicate, flip, rotate) is delegated to the main eng
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.3.0";
+var SCRIPT_VERSION = "v1.3.1";
 
 // =========================================
 // ユーザー設定 / User Settings
@@ -93,7 +93,7 @@ var LABELS = {
 		anchor: { ja: "基準点（反転・回転の基点）", en: "Anchor point (pivot for flip / rotate)" },
 		moveDuplicate: { ja: "クリックで移動／ Option＋クリックで複製", en: "Click to move / Option-click to duplicate" },
 		duplicateInPlace: { ja: "複製", en: "Duplicate" },
-		rotateSlider: { ja: "スライダーで回転（-180〜180°・15°刻み、正＝反時計回り、基準点が基点）", en: "Rotate with the slider (-180 to 180°, 15° steps, positive = CCW, about the anchor point)" }
+		rotateSlider: { ja: "スライダーで回転（-180〜180°・15°刻み／Shift＝90°刻み、正＝反時計回り、基準点が基点）", en: "Rotate with the slider (-180 to 180°, 15° steps / Shift = 90° steps, positive = CCW, about the anchor point)" }
 	}
 };
 
@@ -971,6 +971,15 @@ function buildFlipPanel(win) {
 	sliderRow.alignment = 'fill';
 	sliderRow.spacing = 6;
 
+	/* スライダーの左に現在角度を数字で表示（15°刻みのスナップ値。正＝反時計回り／負＝時計回り）/ Numeric angle readout to the left of the slider (snapped 15° value; positive = CCW / negative = CW) */
+	var angleLabel = sliderRow.add('statictext', undefined, '0°', { justify: 'right' });
+	angleLabel.preferredSize = [40, 18];
+
+	/* 角度ラベルを更新（度記号付き）/ Update the angle label (with degree sign) */
+	function updateAngleLabel(deg) {
+		angleLabel.text = deg + '°';
+	}
+
 	var rotateSlider = sliderRow.add('slider', undefined, 0, -180, 180);
 	rotateSlider.helpTip = L('tooltip.rotateSlider');
 	rotateSlider.alignment = ['fill', 'center'];
@@ -979,9 +988,19 @@ function buildFlipPanel(win) {
 	/* 前回適用したスナップ角（差分回転の基準。ドラッグ開始時は 0）/ Last applied snapped angle (baseline for delta rotation; 0 at drag start) */
 	var sliderPrevSnapped = 0;
 
-	/* -180〜180 を 15°刻みにスナップ / Snap -180..180 to 15° steps */
+	/* スナップの刻み幅を返す（通常15°、Shift 押下中は90°刻みに固定）/ Snap step (15° normally; 90° while Shift is held) */
+	function currentSnapStep() {
+		try {
+			return (ScriptUI.environment.keyboardState.shiftKey === true) ? 90 : 15;
+		} catch (e) {
+			return 15;
+		}
+	}
+
+	/* -180〜180 を刻み幅（15°／Shift で90°）にスナップ / Snap -180..180 to the step (15° / 90° with Shift) */
 	function snapSliderAngle(value) {
-		var snapped = Math.round(value / 15) * 15;
+		var step = currentSnapStep();
+		var snapped = Math.round(value / step) * step;
 		if (snapped < -180) { snapped = -180; }
 		if (snapped > 180) { snapped = 180; }
 		return snapped;
@@ -1002,16 +1021,19 @@ function buildFlipPanel(win) {
 		}
 	}
 
-	/* ドラッグ中：15°境界を越えるたびに差分回転 / While dragging: rotate by the delta each time a 15° boundary is crossed */
+	/* ドラッグ中：15°境界を越えるたびに差分回転し、角度表示も更新 / While dragging: rotate by the delta each time a 15° boundary is crossed and refresh the readout */
 	rotateSlider.onChanging = function () {
-		applySliderRotation(snapSliderAngle(this.value));
+		var snapped = snapSliderAngle(this.value);
+		updateAngleLabel(snapped);
+		applySliderRotation(snapped);
 	};
 
-	/* 離した時：最終スナップ角まで回してからスライダーを 0 に戻す（次のドラッグ用。オブジェクトは回った位置のまま）/ On release: finish rotating to the final snapped angle, then reset the slider to 0 for the next drag (the object keeps its rotation) */
+	/* 離した時：最終スナップ角まで回してからスライダーと表示を 0 に戻す（次のドラッグ用。オブジェクトは回った位置のまま）/ On release: finish rotating to the final snapped angle, then reset the slider and readout to 0 for the next drag (the object keeps its rotation) */
 	rotateSlider.onChange = function () {
 		applySliderRotation(snapSliderAngle(this.value));
 		sliderPrevSnapped = 0;
 		this.value = 0;
+		updateAngleLabel(0);
 	};
 }
 
