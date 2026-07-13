@@ -12,7 +12,8 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
   モード         出力モードを排他ラジオで選択（下記 A/B/C。ショートカット P/C/F）
   形状モード      合体／前面型抜き／交差／中マド（Adobe Pathfinder command 0〜3）
   パスファインダー 分割／刈り込み／合流／切り抜き／アウトライン／背面型抜き（3個×2行, command 4〜9）
-  オプション      余分なポイントを削除（RemovePoints）／塗りのないアートワークを削除（ExtractUnpainted, 分割・アウトラインのみ）／［拡張］ボタン
+  オプション      余分なポイントを削除（RemovePoints）／塗りのないアートワークを削除（ExtractUnpainted, 分割・アウトラインのみ）／［複合シェイプを拡張］ボタン
+  （最下部）      ［パネル］（パスファインダーパネル表示）／［アピアランス］（アピアランスパネル表示）ボタン（横並び・中央揃え・上マージン+5）
 
 出力モード（モードパネルの排他ラジオ）:
   A パスファインダーを実行  上段・下段とも＝グループ化→XML（Adobe Pathfinder）→拡張→グループ解除（実際にパスへ変換）
@@ -25,43 +26,55 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
 形状モード（上段4ボタン）の Option+クリック:
   出力モードに関係なく複合シェイプを作成する（＝モード B と同じ。拡張はしない）。
 
-［拡張］ボタン（オプションパネル）:
+［複合シェイプを拡張］ボタン（オプションパネル）:
   選択中の複合シェイプ（DOM 上 PluginItem）を通常のパスへ拡張する（ai_expand_compound_shape）。
-  パレットは選択変更を受け取れないため常に押せ、複合シェイプの有無はクリック時に判定する。
+  Option（Alt）+クリックのときは拡張ではなく解除する（ai_release_compound_shape）。
+  パレットは選択変更を受け取れないため常に押せ、複合シェイプの有無はクリック時に判定する（無ければ "NOCS"）。
+
+［パネル］／［アピアランス］ボタン（最下部）:
+  Illustrator のパスファインダーパネル（Adobe PathfinderUI）／アピアランスパネル（Style Palette）を表示する。
 
 Persistent palette that applies Pathfinder operations to the current selection.
 Panels top-down: Mode (A/B/C radios; shortcuts P/C/F), Shape Mode (Unite/Minus
 Front/Intersect/Exclude), Pathfinders (Divide/Trim/Merge/Crop/Outline/Minus
-Back), Options (Remove points / Remove unpainted / Expand button).
+Back), Options (Remove points / Remove unpainted / Expand Compound Shape button),
+and a bottom row of Panel / Appearance buttons.
 A = Apply: both rows group, apply the Adobe Pathfinder XML, expand, and ungroup
 (bake to real paths). B = Compound shape: Shape Modes only via the
 ai_compound_shape action (Pathfinders dimmed/disabled). C = Apply as effect:
 both rows keep the live Adobe Pathfinder effect. "Remove unpainted artwork"
 affects Divide / Outline only. Option-clicking a Shape Mode button always makes a
-compound shape regardless of the output mode. The Expand button turns a selected
-compound shape back into plain paths.
+compound shape regardless of the output mode. The Expand Compound Shape button
+turns a selected compound shape into plain paths (Option-click releases it
+instead). The Panel / Appearance buttons show the Pathfinder / Appearance panels.
 
 構成 / Structure
 - 常駐エンジン（#targetengine）でパレット参照を保持し GC を回避
 - 表示中の常駐 app は DOM 接続を失うため、DOM 操作は BridgeTalk でメインエンジンへ委譲
 - 委譲は worker 関数を toString → encodeURIComponent → eval(decodeURIComponent(...)) で送信
 - worker の toString はコメントを取り込み壊すため、送信前に stripWorkerComments で除去（worker 本体にはコメントを書かず、説明は JSDoc に集約する）
-- 戻り値はマーカー（OK / NODOC / NOSEL / NEEDTWO / NOCS / ERR:...）→ ローカライズして下部 status に表示
+- 戻り値はマーカー（OK / NODOC / NOSEL / NEEDTWO / NOCS / ERR:...）で受けるが、ステータス表示エリアは持たないため markerToStatus の戻り値は破棄（委譲の副作用のみ利用）
 - 選択不足は条件で分離：効果は1つ以上（NOSEL）、実行・複合シェイプは2つ以上（NEEDTWO）
 - 複数選択時は効果を1つの対象にまとめるため一時的にグループ化し、A（destructive）では拡張後に解除する（エラー時はその一時グループだけを選択し直して解除）
-- UI は buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel / buildStatusText と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一
+- UI は buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一
+- 最下部の［パネル］／［アピアランス］は app.executeMenuCommand（Adobe PathfinderUI / Style Palette）をメインエンジンへ委譲してパネルを表示
 - アイコンは onDraw で描画（無効時は dimIconColors でディム表示）
-- Option（alt）状態は onDraw では取れないため mousedown で記録し onClick で読む
+- Option（alt）状態は onDraw では取れないため mousedown で記録し onClick で読む（形状モードの複合シェイプ化・拡張ボタンの解除に共通）
 - 全体を IIFE で閉じ、$.global にはパレット参照（__pfPaletteWindow）だけを残す
 - 二重起動回避：既に開いていれば作り直さず前面化して終了
 - キーボード：Esc で閉じる／P・C・F で出力モード切替
+
+### 紹介記事(note)
+
+https://note.com/dtp_tranist/n/n6909b836221a
+
 */
 
 // =========================================
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.6";
+var SCRIPT_VERSION = "v1.0.7";
 
 /* エンジンのグローバルを汚さないため IIFE で閉じる。パレット参照だけ $.global に残す。
  * Wrap everything in an IIFE; only the palette reference lives on $.global. */
@@ -123,7 +136,10 @@ var LABELS = {
         effect:   { ja: "効果として適用",         en: "Apply as effect" }
     },
     button: {
-        expand: { ja: "複合シェイプを拡張", en: "Expand Compound Shape" }
+        expand:     { ja: "複合シェイプを拡張", en: "Expand Compound Shape" },
+        release:    { ja: "解除", en: "Release" },
+        panel:      { ja: "パネル", en: "Panel" },
+        appearance: { ja: "アピアランス", en: "Appearance" }
     },
     option: {
         removePoints:    { ja: "余分なポイントを削除",       en: "Remove redundant points" },
@@ -145,6 +161,10 @@ var LABELS = {
         compoundApply:   { ja: "形状モード（上段）のみ",    en: "Shape Mode (top row) only" },
         optionCompound:  { ja: "Option+クリックで複合シェイプ", en: "Option-click to make a compound shape" },
         expand:          { ja: "選択中の複合シェイプを通常のパスに拡張", en: "Expand the selected compound shape to paths" },
+        release:         { ja: "選択中の複合シェイプを解除", en: "Release the selected compound shape" },
+        optionRelease:   { ja: "Option+クリックで解除", en: "Option-click to release" },
+        panel:           { ja: "パスファインダーパネルを表示", en: "Show the Pathfinder panel" },
+        appearance:      { ja: "アピアランスパネルを表示", en: "Show the Appearance panel" },
         shortcutExecute:  { ja: "ショートカット: P", en: "Shortcut: P" },
         shortcutCompound: { ja: "ショートカット: C", en: "Shortcut: C" },
         shortcutEffect:   { ja: "ショートカット: F", en: "Shortcut: F" }
@@ -528,11 +548,80 @@ function buildExpandActionSource(actionConfig) {
         + '}\n';
 }
 
+/**
+ * 選択中の複合シェイプを解除する（メインエンジン用エントリ）。
+ * クリック時に選択を判定し、複合シェイプ（DOM 上 PluginItem）が無ければ "NOCS" を返す。
+ * 複合シェイプがあればダイナミックアクション ai_release_compound_shape を一時アクションとして再生する。
+ * アクション構造は拡張と同じ integer パラメータ1個のため buildExpandActionSource を共用する。
+ * @returns {string} マーカー "OK" / "NODOC" / "NOCS"（複合シェイプ未選択）/ "ERR:..."
+ */
+function workerReleaseCompoundShape() {
+    if (app.documents.length === 0) { return "NODOC"; }
+    var currentSelection = app.activeDocument.selection;
+    if (!currentSelection || currentSelection.length < 1) { return "NOCS"; }
+    var hasCompoundShape = false;
+    for (var selectionIndex = 0; selectionIndex < currentSelection.length; selectionIndex++) {
+        if (currentSelection[selectionIndex].typename === "PluginItem") { hasCompoundShape = true; break; }
+    }
+    if (!hasCompoundShape) { return "NOCS"; }
+    var uniqueToken = "AiSmartPathfinder_release_"
+        + (new Date()).getTime()
+        + "_"
+        + Math.floor(Math.random() * 100000);
+    var actionConfig = {
+        setName: uniqueToken + "_set",
+        actionName: uniqueToken + "_action",
+        internalName: "ai_release_compound_shape",
+        localizedName: "複合シェイプを解除",
+        expandParamKey: 1919710053,
+        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
+    };
+    try {
+        var actionSource = buildExpandActionSource(actionConfig);
+        playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+        app.redraw();
+        return "OK";
+    } catch (releaseError) {
+        return "ERR:" + releaseError;
+    }
+}
+
+/**
+ * パスファインダーパネルを表示する（メインエンジン用エントリ）。
+ * ドキュメント不要のメニューコマンドでパネルの表示をトグルする。
+ * @returns {string} マーカー "OK" / "ERR:..."
+ */
+function workerShowPathfinderPanel() {
+    try {
+        app.executeMenuCommand("Adobe PathfinderUI");
+        return "OK";
+    } catch (panelError) {
+        return "ERR:" + panelError;
+    }
+}
+
+/**
+ * アピアランスパネルを表示する（メインエンジン用エントリ）。
+ * ドキュメント不要のメニューコマンドでパネルの表示をトグルする。
+ * @returns {string} マーカー "OK" / "ERR:..."
+ */
+function workerShowAppearancePanel() {
+    try {
+        app.executeMenuCommand("Style Palette");
+        return "OK";
+    } catch (appearanceError) {
+        return "ERR:" + appearanceError;
+    }
+}
+
 /* 委譲する worker 関数はすべてここに登録する（登録漏れ防止）/ register every delegated worker function */
 var WORKER_FUNCS = [
     workerApplyCompoundShape,
     workerApplyPathfinder,
     workerExpandCompoundShape,
+    workerReleaseCompoundShape,
+    workerShowPathfinderPanel,
+    workerShowAppearancePanel,
     buildPathfinderXML,
     buildActionSource,
     buildExpandActionSource,
@@ -675,6 +764,30 @@ function delegatePathfinder(command, removeUnpainted, removePoints, destructive)
  */
 function delegateExpandCompoundShape() {
     return delegateCall('workerExpandCompoundShape()');
+}
+
+/**
+ * 選択中の複合シェイプを解除する / release the selected compound shape
+ * @returns {string} マーカー / marker string
+ */
+function delegateReleaseCompoundShape() {
+    return delegateCall('workerReleaseCompoundShape()');
+}
+
+/**
+ * パスファインダーパネルを表示する / show the Pathfinder panel
+ * @returns {string} マーカー / marker string
+ */
+function delegateShowPathfinderPanel() {
+    return delegateCall('workerShowPathfinderPanel()');
+}
+
+/**
+ * アピアランスパネルを表示する / show the Appearance panel
+ * @returns {string} マーカー / marker string
+ */
+function delegateShowAppearancePanel() {
+    return delegateCall('workerShowAppearancePanel()');
 }
 
 /**
@@ -1015,6 +1128,7 @@ function buildPathfinderRows(parentWindow) {
 /**
  * オプションパネル（チェックボックス＋拡張ボタン）を構築する。
  * 拡張ボタンは複合シェイプ選択時のみ機能するが、判定はクリック時に worker 側で行うため常に押せる。
+ * Option（Alt）+クリックで拡張ではなく解除する（配線は showPalette 側）。
  * @param {Window} parentWindow 親ウィンドウ / parent window
  * @returns {{removePoints: object, removeUnpainted: object, expand: object}} 各コントロール / controls
  */
@@ -1029,24 +1143,11 @@ function buildOptionPanel(parentWindow) {
     controls.removePoints.value = true;
     controls.removeUnpainted.value = true;
     controls.removeUnpainted.helpTip = getLocalizedText("tip.removeUnpainted");
-    controls.expand.helpTip = getLocalizedText("tip.expand");
+    controls.expand.helpTip = getLocalizedText("tip.expand") + " / " + getLocalizedText("tip.optionRelease");
     controls.removePoints.alignment = "left";
     controls.removeUnpainted.alignment = "left";
-    controls.expand.alignment = "left";
+    controls.expand.alignment = "center";
     return controls;
-}
-
-/**
- * 下部の状況表示（複数行で折り返し・幅を膨らませない）を構築する。
- * @param {Window} parentWindow 親ウィンドウ / parent window
- * @returns {object} statictext
- */
-function buildStatusText(parentWindow) {
-    var statusText = parentWindow.add("statictext", undefined, getLocalizedText("status.ready"), { multiline: true });
-    statusText.characters = 20;
-    statusText.preferredSize.height = 32;
-    statusText.helpTip = getLocalizedText("tip.esc");
-    return statusText;
 }
 
 /**
@@ -1071,8 +1172,6 @@ function showPalette() {
 
     var paletteWindow = new Window("palette", getLocalizedText("dialog.title") + " " + SCRIPT_VERSION, undefined, { resizeable: false });
     setupWindow(paletteWindow);
-    /* コメントエリア（下部ステータス）の下余白を 4 に / bottom margin under the comment area = 4 */
-    paletteWindow.margins = [WINDOW_MARGINS, WINDOW_MARGINS, WINDOW_MARGINS, 4];
 
     /* モードパネル（出力モードの排他ラジオ・最上段）/ Mode panel (output-mode radios, top)
      * A: 実行（実際にパスへ）/ B: 複合シェイプ（上段のみ）/ C: 効果として適用（ライブ）
@@ -1088,13 +1187,13 @@ function showPalette() {
     /* パスファインダーパネル（3個×2行, ボタンは後段で追加）/ Pathfinder panel (3 per row × 2, buttons added below) */
     var pathfinderRows = buildPathfinderRows(paletteWindow);
 
-    /* オプションパネル＋コメントエリアをまとめ、両者間の余白をゼロにする / group options + comment area with no gap between them */
+    /* 下部要素（オプション・パネルボタン）をまとめる / group the bottom controls */
     var bottomWrap = paletteWindow.add("group");
     bottomWrap.orientation = "column";
     bottomWrap.alignChildren = "fill";
     bottomWrap.alignment = "fill";
     bottomWrap.margins = 0;
-    bottomWrap.spacing = 18;
+    bottomWrap.spacing = WINDOW_SPACING;
 
     /* オプションパネル（チェックボックス＋拡張ボタン）/ Options panel (checkboxes + expand button) */
     var optionControls = buildOptionPanel(bottomWrap);
@@ -1102,26 +1201,26 @@ function showPalette() {
     var removeUnpaintedCheckbox = optionControls.removeUnpainted;
     var expandButton = optionControls.expand;
 
-    /* 状況表示（幅を膨らませないよう複数行で折り返す）/ Status text (multiline, keeps width narrow) */
-    var statusText = buildStatusText(bottomWrap);
+    /* パスファインダーパネルを開くボタン（最下部）/ button to open the Pathfinder panel (bottom)
+     * ボタン単体は margins が効かないためグループで包み、上に +5 の余白を付ける
+     * wrap in a group so the top margin (+5) takes effect (buttons ignore margins) */
+    var panelButtonArea = bottomWrap.add("group");
+    panelButtonArea.orientation = "row";
+    panelButtonArea.alignment = "center";
+    panelButtonArea.spacing = PANEL_SPACING;
+    panelButtonArea.margins = [0, 5, 0, 0];
+    var panelButton = panelButtonArea.add("button", undefined, getLocalizedText("button.panel"));
+    panelButton.helpTip = getLocalizedText("tip.panel");
+    var appearanceButton = panelButtonArea.add("button", undefined, getLocalizedText("button.appearance"));
+    appearanceButton.helpTip = getLocalizedText("tip.appearance");
 
-    /**
-     * 状況表示を更新する / update the status line
-     * @param {string} message 表示文字列 / message
-     * @returns {void}
-     */
-    function setStatus(message) {
-        statusText.text = message;
-    }
-
-    /* isBusy ガード付きで委譲を実行し、返り値（status 文字列）を表示する / guarded delegate + status */
+    /* isBusy ガード付きで委譲を実行する / guarded delegate */
     function runExclusive(produceStatus) {
         if (isBusy) { return; }
         isBusy = true;
         try {
-            setStatus(produceStatus());
+            produceStatus();
         } catch (delegateError) {
-            setStatus(getLocalizedText("status.error") + delegateError);
         } finally {
             isBusy = false;
         }
@@ -1206,13 +1305,34 @@ function showPalette() {
     updatePathfinderEnabled();
 
     /* 拡張ボタンのクリックで選択中の複合シェイプを拡張する（判定はクリック時に worker 側で実施）
+     * Option（Alt）+クリックのときは拡張ではなく解除する（直前の mousedown で記録した Option 状態を読む）
      * パレットは選択変更を通知できず enabled のキャッシュは古くなるため、常に押せるようにして
-     * クリック時に複合シェイプの有無を判定する（無ければ status に案内を出す）
-     * expand the compound shape on click; validate the selection at click time (palettes get no
-     * selection-change events, so a cached enabled state goes stale — keep it always clickable) */
+     * クリック時に複合シェイプの有無を判定する（無ければ worker 側で "NOCS" を返す）
+     * expand the compound shape on click; Option-click releases it instead (read the Option state
+     * recorded by the preceding mousedown). Validate the selection at click time in the worker. */
+    expandButton.addEventListener("mousedown", makeAltRecorder(expandButton));
     expandButton.onClick = function () {
+        var withOption = (this.__altPressed === true);
+        this.__altPressed = false;
         runExclusive(function () {
+            if (withOption) {
+                return markerToStatus(delegateReleaseCompoundShape(), { labelKey: "button.release" });
+            }
             return markerToStatus(delegateExpandCompoundShape(), { labelKey: "button.expand" });
+        });
+    };
+
+    /* パネルボタンのクリックでパスファインダーパネルを表示する / show the Pathfinder panel on click */
+    panelButton.onClick = function () {
+        runExclusive(function () {
+            return markerToStatus(delegateShowPathfinderPanel(), { labelKey: "button.panel" });
+        });
+    };
+
+    /* アピアランスボタンのクリックでアピアランスパネルを表示する / show the Appearance panel on click */
+    appearanceButton.onClick = function () {
+        runExclusive(function () {
+            return markerToStatus(delegateShowAppearancePanel(), { labelKey: "button.appearance" });
         });
     };
 
