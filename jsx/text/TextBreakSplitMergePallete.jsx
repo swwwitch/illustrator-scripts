@@ -27,12 +27,13 @@ Illustrator で分散しがちなテキスト処理（改行・分割・連結�
 - 行単位の編集・並べ替え・ソート・重複削除・空行削除
 - テキスト構造の可視化（改行数・タブ数・文字種別の集計表示、選択に追従）
 - 実行可能な処理だけを有効化する状態連動 UI
+- 略語ボタンには機能説明のツールチップ（helpTip）を表示
 
 ### UI タブ構成
 
-- 基本：改行（削除・挿入・変換）、分割、連結
-- クリーンアップ：タブ・スペース処理、スペースや記号の変換、その他、文字変換、リスト記号除去
-- 行の編集/ソート：行単位の並べ替え・追加・削除・ソート・重複除去
+- 基本：改行（削除・挿入・切り換え）、分割（改行／タブ／文字単位・書式保持/無視）、連結（縦・横・PDFテキスト整形）
+- 整形：タブ処理、スペース削除、スペース追加、スペースや記号の変換、文字変換、リストの除去
+- 行の編集：行単位の並べ替え・追加・編集・削除、ソート、重複行・空行の削除
 - 英数字：英字のケース変換（変換結果のプレビュー付き）
 
 ### 設計方針
@@ -42,7 +43,9 @@ Illustrator で分散しがちなテキスト処理（改行・分割・連結�
 - 見た目ベースの処理を優先し、実務での作業効率を重視
 - 実行条件に合わない機能は無効化し、誤操作を防止
 - パレットは常駐エンジン（#targetengine）で常駐表示。常駐エンジンの app はパレット表示中に DOM 接続を失うため、DOM 処理はメインエンジンへ BridgeTalk で都度委譲（コードは encodeURIComponent で包んで送信）
+- 委譲する処理関数は共通ヘルパーに集約（例：文字単位の削除／置換は mutateMatchingChars、選択状態の集計は computeSelectionState／encodeSelectionState）
 - ステータスはタイマー API が無いため、パレットへのフォーカス／マウスオーバー時に選択へ追従して更新
+- 既にパレットが開いている場合は二重起動せず、前面化して終了
 - Esc キーでパレットを閉じる
 
 ### 紹介記事
@@ -51,7 +54,7 @@ https://note.com/dtp_tranist/n/nf6f34559ba46
 
 ### メモ
 
-- 作成日：2026-03-18 ／ 更新日：2026-06-15
+- 作成日：2026-03-18 ／ 更新日：2026-07-13
 - UI・メッセージは日本語／英語を自動切り替え（ロケール判定）
 
 */
@@ -59,7 +62,7 @@ https://note.com/dtp_tranist/n/nf6f34559ba46
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.7.0";
+var SCRIPT_VERSION = "v1.7.2";
 
 // =========================================
 // ローカライズ / Localization
@@ -77,8 +80,8 @@ var LABELS = {
     },
     tab: {
         basic: { ja: "基本", en: "Basic" },
-        cleanup: { ja: "クリーンアップ", en: "Cleanup" },
-        lineArrange: { ja: "行の編集{slash}ソート", en: "Line Edit{slash}Sort" },
+        cleanup: { ja: "整形", en: "Cleanup" },
+        lineArrange: { ja: "行の編集", en: "Line Edit" },
         alnum: { ja: "英数字", en: "Alphanumeric" }
     },
     panel: {
@@ -93,7 +96,7 @@ var LABELS = {
         lineEdit: { ja: "編集", en: "Edit" },
         lineDelete: { ja: "行削除", en: "Delete Lines" },
         convert: { ja: "変換", en: "Convert" },
-        list: { ja: "リスト", en: "List" },
+        list: { ja: "リストの除去", en: "Remove List" },
         concat: { ja: "連結", en: "Concatenate" },
         tab: { ja: "タブ", en: "Tab" },
         space: { ja: "スペース削除", en: "Remove Spaces" },
@@ -102,7 +105,7 @@ var LABELS = {
         symbolConvert: { ja: "スペースや記号の変換", en: "Spaces & Symbols" },
         symbolBefore: { ja: "変換前", en: "Before" },
         symbolAfter: { ja: "変換後", en: "After" },
-        other: { ja: "その他", en: "Other" }
+        other: { ja: "スペース追加", en: "Add Space" }
     },
     radio: {
         space: { ja: "スペース", en: "Space" },
@@ -149,11 +152,11 @@ var LABELS = {
         removeEmptyLines: { ja: "空行", en: "Remove Empty Lines" },
         caseUpper: { ja: "すべて大文字に", en: "UPPERCASE" },
         caseLower: { ja: "すべて小文字に", en: "lowercase" },
-        caseWord: { ja: "単語の先頭のみ大文字", en: "Capitalize Each Word" },
+        caseWord: { ja: "単語の先頭を大文字", en: "Capitalize Words" },
         caseSentence: { ja: "文頭のみ大文字", en: "Sentence case" },
-        caseTitle: { ja: "英語タイトル形式", en: "Title Case (English)" },
+        caseTitle: { ja: "英語タイトル形式", en: "Title Case" },
         convertSymbol: { ja: "変換", en: "Convert" },
-        spaceAfterPunct: { ja: ".と,の後にスペース", en: "Space After . and ," },
+        spaceAfterPunct: { ja: ".と,の後", en: "Space After . and ," },
         undo: { ja: "1つ戻す", en: "Undo" },
         close: { ja: "閉じる", en: "Close" }
     },
@@ -175,6 +178,58 @@ var LABELS = {
         concatToArea: {
             ja: "横方向に連結し、エリア内文字として整形します",
             en: "Merge horizontally and format the result as area text"
+        },
+        removeLineBreaks: {
+            ja: "段落改行を削除します（「強制改行を含む」ON で強制改行も対象）",
+            en: "Remove paragraph breaks (also forced breaks when \"Include Forced Breaks\" is on)"
+        },
+        splitByLine: {
+            ja: "改行ごとに別々のテキストフレームへ分割します",
+            en: "Split into separate text frames at each line break"
+        },
+        splitByLineKeepStyle: {
+            ja: "改行ごとに分割し、文字書式と位置を保持します",
+            en: "Split at each line break while keeping character formatting and position"
+        },
+        splitKeepStyle: {
+            ja: "1文字ずつ別フレームに分割し、書式を保持します",
+            en: "Split into one frame per character, keeping formatting"
+        },
+        splitIgnoreStyle: {
+            ja: "1文字ずつ別フレームに分割し、書式をリセットします",
+            en: "Split into one frame per character, resetting formatting"
+        },
+        trimSpaces: {
+            ja: "各行の行頭・行末のスペースを削除します",
+            en: "Remove leading and trailing spaces on each line"
+        },
+        cjkLatinSpaces: {
+            ja: "和文と欧文の間のスペースを削除します（欧文単語間は保持）",
+            en: "Remove spaces between CJK and Latin (spaces within Latin words are kept)"
+        },
+        collapseSpaces: {
+            ja: "連続したスペースを1つにまとめます",
+            en: "Collapse consecutive spaces into a single space"
+        },
+        cleanupSpaces: {
+            ja: "行頭行末・和欧間・連続スペースをまとめて処理します",
+            en: "Apply trim, CJK/Latin, and collapse in one step"
+        },
+        removeAllSpaces: {
+            ja: "すべてのスペース（半角・全角）を削除します",
+            en: "Remove all spaces (half-width and full-width)"
+        },
+        spaceAfterPunct: {
+            ja: "半角ピリオド・カンマの直後にスペースを挿入します",
+            en: "Insert a space right after a period or comma"
+        },
+        bulletList: {
+            ja: "行頭の箇条書き記号（・ • - *）を削除します",
+            en: "Remove leading bullet markers (・ • - *)"
+        },
+        numberList: {
+            ja: "行頭の番号（1. など）を削除します",
+            en: "Remove leading numbering (1. etc.)"
         }
     },
     prompt: {
@@ -377,6 +432,17 @@ function toTitleCase(text) {
 }
 
 (function () {
+    /* 重複起動ガード：既にパレットが開いていれば前面化して終了（二重起動を防ぐ）
+       閉じると onClose で参照が null に戻るため、非 null＝表示中とみなす */
+    try {
+        var existingPalette = $.global.__TextBreakSplitMergePalette;
+        if (existingPalette) {
+            try { existingPalette.show(); } catch (_) { }
+            try { existingPalette.active = true; } catch (_) { }
+            return;
+        }
+    } catch (_) { }
+
     // ドキュメントが開かれていない場合は処理を終了
     if (app.documents.length === 0) {
         alert(getLabel(LABELS.message.noDocument));
@@ -387,16 +453,9 @@ function toTitleCase(text) {
     var selectedObjects = app.selection;
 
     // 選択オブジェクトがない場合は処理を終了
-    try {
-        if (!selectedObjects || (typeof selectedObjects.length === "number" && selectedObjects.length === 0)) {
-            alert(getLabel(LABELS.message.noSelection));
-            return;
-        }
-    } catch (e) {
-        if (!selectedObjects) {
-            alert(getLabel(LABELS.message.noSelection));
-            return;
-        }
+    if (!selectedObjects || !selectedObjects.length) {
+        alert(getLabel(LABELS.message.noSelection));
+        return;
     }
 
     // 初期選択からテキストフレームを解決
@@ -545,6 +604,51 @@ function toTitleCase(text) {
         };
     }
 
+    /* 選択状態の集計ヘルパー（__dispatch / __stateDispatch / showDialog で共用）*/
+
+    /* 2行以上（段落改行あり）のフレームが1つでもあるか */
+    function hasMultipleLines(objects) {
+        var frames = getTextFrames(objects);
+        for (var i = 0; i < frames.length; i++) {
+            if (splitParagraphLines(frames[i].contents).length >= 2) return true;
+        }
+        return false;
+    }
+
+    /* 対象テキストフレームが2つ以上あるか */
+    function hasMultipleTextFrames(objects) {
+        return getTextFrames(objects).length >= 2;
+    }
+
+    /* 半角/タブ/全角スペースを含むフレームが1つでもあるか */
+    function hasSpacesOrTabs(objects) {
+        var frames = getTextFrames(objects);
+        for (var i = 0; i < frames.length; i++) {
+            if (/[ \t　]/.test(frames[i].contents)) return true;
+        }
+        return false;
+    }
+
+    /* 選択状態をまとめたオブジェクトを返す（UI 反映用）*/
+    function computeSelectionState(objects) {
+        var counts = countTextFrameTypes(objects);
+        var breaks = countBreakTypes(objects);
+        return {
+            total: counts.total, point: counts.point, area: counts.area,
+            para: breaks.paragraph, forced: breaks.forced, tab: breaks.tab,
+            multiLines: hasMultipleLines(objects),
+            multiFrames: hasMultipleTextFrames(objects),
+            hasSpTab: hasSpacesOrTabs(objects)
+        };
+    }
+
+    /* 選択状態を "|" 区切り文字列へエンコード（BridgeTalk の戻り値用）*/
+    function encodeSelectionState(objects) {
+        var s = computeSelectionState(objects);
+        return [s.total, s.point, s.area, s.para, s.forced, s.tab,
+        s.multiLines ? 1 : 0, s.multiFrames ? 1 : 0, s.hasSpTab ? 1 : 0].join("|");
+    }
+
     /* 各テキストフレームのcontentsを変換する共通処理 */
     function transformContents(objects, transformFunc) {
         var frames = getTextFrames(objects);
@@ -553,40 +657,51 @@ function toTitleCase(text) {
         }
     }
 
-    /* 強制改行（charCode 3 または 10）を削除する共通処理 */
-    function removeForcedLineBreaks(frames) {
+    /* 各テキストフレームの文字を末尾から走査し、matchesCharCode が真の文字を処理する共通ヘルパー。
+       replacement が null なら削除、文字列なら差し替える（末尾走査なので remove でも index がずれない）*/
+    function mutateMatchingChars(objects, matchesCharCode, replacement) {
+        var frames = getTextFrames(objects);
         for (var i = 0; i < frames.length; i++) {
-            for (var c = frames[i].characters.length - 1; c >= 0; c--) {
-                var charCode = frames[i].characters[c].contents.charCodeAt(0);
-                if (isForcedBreak(charCode)) {
-                    frames[i].characters[c].remove();
+            var chars = frames[i].characters;
+            for (var c = chars.length - 1; c >= 0; c--) {
+                if (matchesCharCode(chars[c].contents.charCodeAt(0))) {
+                    if (replacement === null) {
+                        chars[c].remove();
+                    } else {
+                        chars[c].contents = replacement;
+                    }
                 }
             }
         }
     }
 
+    /* 強制改行（charCode 3 または 10）を削除する共通処理 */
+    function removeForcedLineBreaks(objects) {
+        mutateMatchingChars(objects, isForcedBreak, null);
+    }
+
     /* 上から順にソート（Y降順、同じYならX昇順） */
     function sortByPosition(items) {
-        var arr = items.slice(0);
-        arr.sort(function (a, b) {
+        var sorted = items.slice(0);
+        sorted.sort(function (a, b) {
             if (b.position[1] !== a.position[1]) return b.position[1] - a.position[1];
             return a.position[0] - b.position[0];
         });
-        return arr;
+        return sorted;
     }
 
     /* Y座標で降順ソート */
     function sortByY(items) {
-        var arr = items.slice(0);
-        arr.sort(function (a, b) { return b.position[1] - a.position[1]; });
-        return arr;
+        var sorted = items.slice(0);
+        sorted.sort(function (a, b) { return b.position[1] - a.position[1]; });
+        return sorted;
     }
 
     /* X座標で昇順ソート */
     function sortByX(items) {
-        var arr = items.slice(0);
-        arr.sort(function (a, b) { return a.position[0] - b.position[0]; });
-        return arr;
+        var sorted = items.slice(0);
+        sorted.sort(function (a, b) { return a.position[0] - b.position[0]; });
+        return sorted;
     }
 
     /* Y位置で行グループ化 */
@@ -646,28 +761,12 @@ function toTitleCase(text) {
 
     /* 改行文字を削除する関数 */
     function removeLineBreaks(objects) {
-        var frames = getTextFrames(objects);
-        for (var i = 0; i < frames.length; i++) {
-            for (var c = frames[i].characters.length - 1; c >= 0; c--) {
-                var charCode = frames[i].characters[c].contents.charCodeAt(0);
-                if (isParagraphBreak(charCode)) {
-                    frames[i].characters[c].remove();
-                }
-            }
-        }
+        mutateMatchingChars(objects, isParagraphBreak, null);
     }
 
     /* 強制改行と改行を削除する関数 */
     function removeAllBreaks(objects) {
-        var frames = getTextFrames(objects);
-        for (var i = 0; i < frames.length; i++) {
-            for (var c = frames[i].characters.length - 1; c >= 0; c--) {
-                var charCode = frames[i].characters[c].contents.charCodeAt(0);
-                if (isAnyBreak(charCode)) {
-                    frames[i].characters[c].remove();
-                }
-            }
-        }
+        mutateMatchingChars(objects, isAnyBreak, null);
     }
 
     /* 複数フレームを連結し、改行を取り除いて1行に統合する関数 */
@@ -701,14 +800,7 @@ function toTitleCase(text) {
 
     /* タブを削除する関数 */
     function removeTabs(objects) {
-        var frames = getTextFrames(objects);
-        for (var i = 0; i < frames.length; i++) {
-            for (var c = frames[i].characters.length - 1; c >= 0; c--) {
-                if (isTabChar(frames[i].characters[c].contents)) {
-                    frames[i].characters[c].remove();
-                }
-            }
-        }
+        mutateMatchingChars(objects, isTabChar, null);
     }
 
     /* タブをスペースに変換する関数 */
@@ -953,28 +1045,12 @@ function toTitleCase(text) {
 
     /* 強制改行を通常の改行に変換する関数 */
     function convertForcedLineBreaks(objects) {
-        var frames = getTextFrames(objects);
-        for (var i = 0; i < frames.length; i++) {
-            for (var c = frames[i].characters.length - 1; c >= 0; c--) {
-                var charCode = frames[i].characters[c].contents.charCodeAt(0);
-                if (isForcedBreak(charCode)) {
-                    frames[i].characters[c].contents = String.fromCharCode(13);
-                }
-            }
-        }
+        mutateMatchingChars(objects, isForcedBreak, String.fromCharCode(13));
     }
 
     /* 改行を強制改行に変換する関数 */
     function convertToForcedBreaks(objects) {
-        var frames = getTextFrames(objects);
-        for (var i = 0; i < frames.length; i++) {
-            for (var c = frames[i].characters.length - 1; c >= 0; c--) {
-                var charCode = frames[i].characters[c].contents.charCodeAt(0);
-                if (isParagraphBreak(charCode)) {
-                    frames[i].characters[c].contents = String.fromCharCode(3);
-                }
-            }
-        }
+        mutateMatchingChars(objects, isParagraphBreak, String.fromCharCode(3));
     }
 
     /* 句読点の後に改行を挿入する関数 */
@@ -1100,6 +1176,25 @@ function toTitleCase(text) {
         return groupTextFrames(resultFrames, doc.activeLayer);
     }
 
+    /* フレーム末尾の改行文字（\r \n 強制改行）を除去し、除去数を返す。
+       除去後に中身が空になったらフレームごと削除し Infinity を返す（呼び出し側で index を打ち切る）*/
+    function trimTrailingBreaks(frame) {
+        var removed = 0;
+        for (var ci = frame.characters.length - 1; ci >= 0; ci--) {
+            if (/[\r\n\x03]/.test(frame.characters[ci].contents)) {
+                frame.characters[ci].remove();
+                removed++;
+            } else {
+                break;
+            }
+        }
+        if (/^\s*$/.test(frame.contents)) {
+            frame.remove();
+            return Infinity;
+        }
+        return removed;
+    }
+
     /* =========================================
      * 改行で分割（書式保持）
      * TextRange.duplicate で書式を維持し、geometricBounds の tail 座標で正確に配置
@@ -1133,25 +1228,6 @@ function toTitleCase(text) {
             } else {
                 direction = 0; /* x */
                 indexTail = 0; /* left */
-            }
-
-            /* 末尾の改行文字を除去するヘルパー */
-            function trimTrailingBreaks(frame) {
-                var removed = 0;
-                for (var ci = frame.characters.length - 1; ci >= 0; ci--) {
-                    if (/[\r\n\x03]/.test(frame.characters[ci].contents)) {
-                        frame.characters[ci].remove();
-                        removed++;
-                    } else {
-                        break;
-                    }
-                }
-                /* フレームが空になったら削除 */
-                if (/^\s*$/.test(frame.contents)) {
-                    frame.remove();
-                    return Infinity;
-                }
-                return removed;
             }
 
             /* 末尾改行を事前に除去 */
@@ -1232,24 +1308,23 @@ function toTitleCase(text) {
      * 1文字ごとにテキストフレームを分割（書式保持）
      * ========================================= */
     function splitByCharKeepStyle(objects) {
-        var frames = getTextFrames(objects);
-        var resultFrames = [];
-        for (var i = 0; i < frames.length; i++) {
-            var made = splitCharHighPrecision(frames[i], true);
-            for (var j = 0; j < made.length; j++) resultFrames.push(made[j]);
-        }
-        return groupTextFrames(resultFrames, app.activeDocument.activeLayer);
+        return splitByChar(objects, true);
     }
 
     /* =========================================
      * 1文字ごとにテキストフレームを分割（書式無視）
      * =========================================  */
     function splitByCharIgnoreStyle(objects) {
+        return splitByChar(objects, false);
+    }
+
+    /* 1文字分割の共通処理。keepStyle=false のときは先頭フォント以外の書式をリセットしてから分割 */
+    function splitByChar(objects, keepStyle) {
         var frames = getTextFrames(objects);
         var resultFrames = [];
         for (var i = 0; i < frames.length; i++) {
-            stripStyleKeepFirstFont(frames[i]);
-            var made = splitCharHighPrecision(frames[i], false);
+            if (!keepStyle) stripStyleKeepFirstFont(frames[i]);
+            var made = splitCharHighPrecision(frames[i], keepStyle);
             for (var j = 0; j < made.length; j++) resultFrames.push(made[j]);
         }
         return groupTextFrames(resultFrames, app.activeDocument.activeLayer);
@@ -1279,8 +1354,10 @@ function toTitleCase(text) {
     function stripStyleKeepFirstFont(textFrame) {
         if (!textFrame || textFrame.typename !== "TextFrame") return;
         var tr, chars;
-        try { tr = textFrame.textRange; } catch (_) { return; }
-        try { chars = tr.characters; } catch (_) { return; }
+        try {
+            tr = textFrame.textRange;
+            chars = tr.characters;
+        } catch (_) { return; }
         if (!chars || chars.length < 1) return;
 
         var firstCA;
@@ -1307,9 +1384,11 @@ function toTitleCase(text) {
         if (!textFrame || textFrame.typename !== "TextFrame") return [];
 
         var tr, chars, n;
-        try { tr = textFrame.textRange; } catch (_) { return []; }
-        try { chars = tr.characters; } catch (_) { return []; }
-        try { n = chars.length; } catch (_) { return []; }
+        try {
+            tr = textFrame.textRange;
+            chars = tr.characters;
+            n = chars.length;
+        } catch (_) { return []; }
         if (!n || n <= 0) return [];
 
         var outlineInfo = null;
@@ -1319,28 +1398,26 @@ function toTitleCase(text) {
             var boundsList = outlineInfo.boundsList;
             var layer = textFrame.layer;
             var made = [];
-            var bi = 0;
+            var boundsIndex = 0;
 
             for (var ci = 0; ci < n; ci++) {
-                var ch;
-                try { ch = chars[ci]; } catch (_) { continue; }
-                var content = "";
-                try { content = ch.contents; } catch (_) { continue; }
+                var ch, content;
+                try { ch = chars[ci]; content = ch.contents; } catch (_) { continue; }
                 if (content === "") continue;
 
                 var code = content.charCodeAt(0);
                 if (code === 13 || code === 10 || code === 9 || content === " " || content === "\u3000") continue;
 
-                if (bi >= boundsList.length) {
+                if (boundsIndex >= boundsList.length) {
                     for (var x = 0; x < made.length; x++) { try { made[x].remove(); } catch (_) { } }
                     try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
                     return splitCharFallback(textFrame, keepStyle);
                 }
 
-                var nf;
+                var newFrame;
                 try {
-                    nf = layer.textFrames.add();
-                    nf.contents = content;
+                    newFrame = layer.textFrames.add();
+                    newFrame.contents = content;
                 } catch (_) {
                     for (var x2 = 0; x2 < made.length; x2++) { try { made[x2].remove(); } catch (_) { } }
                     try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
@@ -1348,22 +1425,22 @@ function toTitleCase(text) {
                 }
 
                 if (keepStyle) {
-                    try { copyCharAttrs(nf, ch); } catch (e) { debugLog("splitCharHighPrecision: copyCharAttrs", e); }
+                    try { copyCharAttrs(newFrame, ch); } catch (e) { debugLog("splitCharHighPrecision: copyCharAttrs", e); }
                 }
-                try { nf.matrix = textFrame.matrix; } catch (e) { debugLog("splitCharHighPrecision: matrix", e); }
-                try { nf.left = textFrame.left; nf.top = textFrame.top; } catch (e) { debugLog("splitCharHighPrecision: initial position", e); }
+                try { newFrame.matrix = textFrame.matrix; } catch (e) { debugLog("splitCharHighPrecision: matrix", e); }
+                try { newFrame.left = textFrame.left; newFrame.top = textFrame.top; } catch (e) { debugLog("splitCharHighPrecision: initial position", e); }
 
                 try {
-                    moveFrameToMatchBounds(nf, boundsList[bi]);
+                    moveFrameToMatchBounds(newFrame, boundsList[boundsIndex]);
                 } catch (_) {
-                    try { nf.remove(); } catch (_) { }
+                    try { newFrame.remove(); } catch (_) { }
                     for (var x3 = 0; x3 < made.length; x3++) { try { made[x3].remove(); } catch (_) { } }
                     try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
                     return splitCharFallback(textFrame, keepStyle);
                 }
 
-                made.push(nf);
-                bi++;
+                made.push(newFrame);
+                boundsIndex++;
             }
 
             try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
@@ -1391,14 +1468,14 @@ function toTitleCase(text) {
 
         var items = [];
         try {
-            var pi = outlined.pageItems;
-            var direct = [];
-            for (var i = 0; i < pi.length; i++) direct.push(pi[i]);
-            if (direct.length === 1 && direct[0] && direct[0].typename === "GroupItem") {
-                var inner = direct[0].pageItems;
+            var pageItemsColl = outlined.pageItems;
+            var directItems = [];
+            for (var i = 0; i < pageItemsColl.length; i++) directItems.push(pageItemsColl[i]);
+            if (directItems.length === 1 && directItems[0] && directItems[0].typename === "GroupItem") {
+                var inner = directItems[0].pageItems;
                 for (var j = 0; j < inner.length; j++) items.push(inner[j]);
             } else {
-                for (var k = 0; k < direct.length; k++) items.push(direct[k]);
+                for (var k = 0; k < directItems.length; k++) items.push(directItems[k]);
             }
         } catch (_) { }
 
@@ -1421,19 +1498,19 @@ function toTitleCase(text) {
     function sortOutlineItems(items) {
         if (!items || items.length <= 1) return;
 
-        var arr = [];
+        var glyphRecords = [];
         for (var i = 0; i < items.length; i++) {
-            var bnd;
-            try { bnd = items[i].geometricBounds; } catch (_) { continue; }
-            if (!bnd || bnd.length !== 4) continue;
-            var L = bnd[0], T = bnd[1], R = bnd[2], B = bnd[3];
-            arr.push({ it: items[i], L: L, T: T, cx: (L + R) / 2, cy: (T + B) / 2, h: Math.abs(T - B), idx: i });
+            var bounds;
+            try { bounds = items[i].geometricBounds; } catch (_) { continue; }
+            if (!bounds || bounds.length !== 4) continue;
+            var L = bounds[0], T = bounds[1], R = bounds[2], B = bounds[3];
+            glyphRecords.push({ it: items[i], L: L, T: T, cx: (L + R) / 2, cy: (T + B) / 2, h: Math.abs(T - B), idx: i });
         }
-        if (arr.length <= 1) return;
+        if (glyphRecords.length <= 1) return;
 
-        var th = estimateCharRowThreshold(arr);
+        var rowThreshold = estimateCharRowThreshold(glyphRecords);
 
-        arr.sort(function (p, q) {
+        glyphRecords.sort(function (p, q) {
             var dy = q.cy - p.cy;
             if (Math.abs(dy) > 0.001) return (dy < 0) ? -1 : 1;
             var dL = p.L - q.L;
@@ -1442,11 +1519,11 @@ function toTitleCase(text) {
         });
 
         var rows = [];
-        for (var a = 0; a < arr.length; a++) {
-            var cur = arr[a];
+        for (var a = 0; a < glyphRecords.length; a++) {
+            var cur = glyphRecords[a];
             var placed = false;
             for (var r = 0; r < rows.length; r++) {
-                if (Math.abs(cur.cy - rows[r].cy) <= th) {
+                if (Math.abs(cur.cy - rows[r].cy) <= rowThreshold) {
                     rows[r].items.push(cur);
                     rows[r].cy = (rows[r].cy * (rows[r].items.length - 1) + cur.cy) / rows[r].items.length;
                     placed = true;
@@ -1467,7 +1544,10 @@ function toTitleCase(text) {
             });
             for (var j = 0; j < rows[ri].items.length; j++) out.push(rows[ri].items[j].it);
         }
-        for (var k = 0; k < out.length; k++) items[k] = out[k];
+        /* バウンディング取得に失敗した要素は out に含まれないため、
+           上書きではなく作り直して末尾に古い要素（重複）が残らないようにする */
+        items.length = 0;
+        for (var k = 0; k < out.length; k++) items.push(out[k]);
     }
 
     function estimateCharRowThreshold(arr) {
@@ -1479,8 +1559,8 @@ function toTitleCase(text) {
         hs.sort(function (a, b) { return a - b; });
         var mid = hs[Math.floor(hs.length / 2)];
         if (!mid || mid <= 0) mid = hs[0];
-        var th = mid * 0.6;
-        return th < 2 ? 2 : th;
+        var rowThreshold = mid * 0.6;
+        return rowThreshold < 2 ? 2 : rowThreshold;
     }
 
     /* 文字属性をコピー */
@@ -1504,12 +1584,12 @@ function toTitleCase(text) {
     }
 
     /* アウトラインのバウンディングボックスに合わせて移動 */
-    function moveFrameToMatchBounds(nf, targetBounds) {
-        if (!nf || !targetBounds || targetBounds.length !== 4) return;
+    function moveFrameToMatchBounds(newFrame, targetBounds) {
+        if (!newFrame || !targetBounds || targetBounds.length !== 4) return;
 
         var dup;
-        try { dup = nf.duplicate(nf.parent, ElementPlacement.PLACEATBEGINNING); } catch (_) {
-            try { dup = nf.duplicate(nf.layer, ElementPlacement.PLACEATBEGINNING); } catch (_) { return; }
+        try { dup = newFrame.duplicate(newFrame.parent, ElementPlacement.PLACEATBEGINNING); } catch (_) {
+            try { dup = newFrame.duplicate(newFrame.layer, ElementPlacement.PLACEATBEGINNING); } catch (_) { return; }
         }
 
         var outlined;
@@ -1528,8 +1608,8 @@ function toTitleCase(text) {
         var dx = (targetBounds[0] + targetBounds[2]) / 2 - (bNow[0] + bNow[2]) / 2;
         var dy = (targetBounds[1] + targetBounds[3]) / 2 - (bNow[1] + bNow[3]) / 2;
 
-        try { nf.left += dx; nf.top += dy; } catch (_) {
-            try { nf.translate(dx, dy); } catch (_) { }
+        try { newFrame.left += dx; newFrame.top += dy; } catch (_) {
+            try { newFrame.translate(dx, dy); } catch (_) { }
         }
     }
 
@@ -1671,10 +1751,10 @@ function toTitleCase(text) {
             for (var j = 0; j < lines.length; j++) {
                 var lineText = stripTrailingBreaks(lines[j]);
                 if (lineText !== "") {
-                    var tf = sourceFrame.duplicate();
-                    tf.contents = lineText;
-                    tf.position = [baseX, baseY - (j * baseLeading)];
-                    splitFrames.push(tf);
+                    var lineFrame = sourceFrame.duplicate();
+                    lineFrame.contents = lineText;
+                    lineFrame.position = [baseX, baseY - (j * baseLeading)];
+                    splitFrames.push(lineFrame);
                 }
             }
         }
@@ -1753,6 +1833,19 @@ function toTitleCase(text) {
         return rect;
     }
 
+    /* Justification.LEFT は直接代入すると無視されるため、一時 resize（200%→50%＝実質等倍）で
+       段落属性をリフレッシュしてから左揃えにする */
+    function applyLeftJustification(frame) {
+        if (!frame) return;
+        try {
+            frame.resize(200, 200);
+            frame.resize(50, 50);
+        } catch (e) { }
+        try {
+            frame.textRange.justification = Justification.LEFT;
+        } catch (e2) { }
+    }
+
     /* 1行のみの横連結（area＝エリア内文字を新規作成 / それ以外＝先頭フレームへ集約）*/
     function concatHorizontalSingleLine(rowFrames, textMode) {
         var row = concatRowText(rowFrames);
@@ -1763,11 +1856,11 @@ function toTitleCase(text) {
             resultFrame.contents = row.text;
             resultFrame.textRange.characterAttributes.textFont = sorted[0].textRange.characterAttributes.textFont;
             resultFrame.textRange.characterAttributes.size = sorted[0].textRange.characterAttributes.size;
-            resultFrame.paragraphs[0].justification = Justification.LEFT;
+            applyLeftJustification(resultFrame);
         } else {
             sorted[0].contents = row.text;
-            sorted[0].paragraphs[0].justification = Justification.LEFT;
             resultFrame = sorted[0];
+            applyLeftJustification(resultFrame);
         }
         for (var k = 0; k < sorted.length; k++) {
             if (sorted[k] !== resultFrame) sorted[k].remove();
@@ -1807,7 +1900,7 @@ function toTitleCase(text) {
             newTF.textRange.characterAttributes.textFont = font;
             newTF.textRange.characterAttributes.size = fontSize;
             newTF.paragraphs[0].paragraphAttributes.kinsoku = "Soft";
-            newTF.textRange.justification = Justification.LEFT;
+            applyLeftJustification(newTF);
         } else {
             newTF = app.activeDocument.textFrames.areaText(makeFramelessRect(bounds));
             newTF.contents = finalText;
@@ -1846,10 +1939,10 @@ function toTitleCase(text) {
         var mergedFrames = [];
         for (var i = 0; i < textLines.length; i++) {
             var row = concatRowText(textLines[i]);
-            var mf = row.sorted[0].duplicate();
-            mf.contents = row.text;
-            mf.position = row.sorted[0].position;
-            mergedFrames.push(mf);
+            var mergedFrame = row.sorted[0].duplicate();
+            mergedFrame.contents = row.text;
+            mergedFrame.position = row.sorted[0].position;
+            mergedFrames.push(mergedFrame);
             for (var k = 0; k < row.sorted.length; k++) row.sorted[k].remove();
         }
 
@@ -1894,17 +1987,19 @@ function toTitleCase(text) {
         shouldInsertParagraphBreakBetweenLines, getCharCodeSafe, isParagraphBreak, isForcedBreak, isAnyBreak,
         isTabChar, hasVisibleChars,
         getTextFrames, detectTextFrameType, countTextFrameTypes, countBreakTypes, transformContents,
-        removeForcedLineBreaks, sortByPosition, sortByY, sortByX, groupByLineY, getSelBounds, groupTextFrames,
+        hasMultipleLines, hasMultipleTextFrames, hasSpacesOrTabs, computeSelectionState, encodeSelectionState,
+        mutateMatchingChars, removeForcedLineBreaks, sortByPosition, sortByY, sortByX, groupByLineY, getSelBounds, groupTextFrames,
         removeLineBreaks, removeAllBreaks, flattenToOneLine, removeEmptyLines, removeTabs, tabsToSpaces,
         trimSpaces, collapseSpaces, fullToHalfAlnum, halfToFullKana, toggleBulletList, toggleNumberList,
         reverseOrder, removeDuplicateLines, sortByCharCode, sortByLength, removeCjkLatinSpaces,
         addLineBreakPerChar, addLineBreakAtCount, convertForcedLineBreaks, convertToForcedBreaks,
-        addLineBreakAtPunctuation, splitByTab, splitByLineBreak, splitByLineBreakKeepStyle,
-        splitByCharKeepStyle, splitByCharIgnoreStyle, stripStyleKeepFirstFont, splitCharHighPrecision,
+        addLineBreakAtPunctuation, splitByTab, splitByLineBreak, trimTrailingBreaks, splitByLineBreakKeepStyle,
+        splitByCharKeepStyle, splitByCharIgnoreStyle, splitByChar, stripStyleKeepFirstFont, splitCharHighPrecision,
         buildOutlineCharBounds, sortOutlineItems, estimateCharRowThreshold, copyCharAttrs,
         moveFrameToMatchBounds, splitCharFallback, concatHorizontalOnly, concatVertical, concatHorizontal,
-        concatRowText, makeFramelessRect, concatHorizontalSingleLine, buildJoinedParagraphText, createConcatOutputText,
+        concatRowText, makeFramelessRect, applyLeftJustification, concatHorizontalSingleLine, buildJoinedParagraphText, createConcatOutputText,
         toWordCap, toSentenceCase, toTitleCase,
+        ungroupResult, runAction,
         safeSet, copyAttr, applyResetStyle
     ];
 
@@ -1927,129 +2022,109 @@ function toTitleCase(text) {
      * 先に定義される。この関数自体はパレット側では呼ばず、toString() で
      * 本文に埋め込む用途のみ。
      */
-    function __dispatch(ACTION, P) {
+    /* 分割結果のグループを解除し、中身を親へ出してバラの状態にする */
+    function ungroupResult(result) {
+        if (!result || !result.length) return result;
+        var frames = getTextFrames(result);
+        for (var i = 0; i < result.length; i++) {
+            var it = result[i];
+            try {
+                if (it && it.typename === "GroupItem") {
+                    var parent = it.parent;
+                    for (var j = it.pageItems.length - 1; j >= 0; j--) {
+                        it.pageItems[j].move(parent, ElementPlacement.PLACEATEND);
+                    }
+                    it.remove();
+                }
+            } catch (e) { }
+        }
+        return frames;
+    }
+    function runAction(actionName, targets, params) {
+        switch (actionName) {
+            case "flatten": { var flattened = flattenToOneLine(targets); var flattenTargets = (flattened && flattened.length) ? flattened : targets; trimSpaces(flattenTargets); removeCjkLatinSpaces(flattenTargets); collapseSpaces(flattenTargets); return flattenTargets; }
+            case "removeLineBreaks": if (params.forced) { removeAllBreaks(targets); } else { removeLineBreaks(targets); } return targets;
+            case "addLineBreakPerChar": addLineBreakPerChar(targets); return targets;
+            case "punctuation": addLineBreakAtPunctuation(targets, params.chars); return targets;
+            case "breakAtCount": addLineBreakAtCount(targets, params.count, params.forced); return targets;
+            case "convertForcedLineBreaks": convertForcedLineBreaks(targets); return targets;
+            case "convertToForcedBreaks": convertToForcedBreaks(targets); return targets;
+            case "splitByLineBreak": return ungroupResult(splitByLineBreak(targets));
+            case "splitByLineBreakKeepStyle": return splitByLineBreakKeepStyle(targets);
+            case "splitByTab": return splitByTab(targets);
+            case "splitByCharKeepStyle": return splitByCharKeepStyle(targets);
+            case "splitByCharIgnoreStyle": return splitByCharIgnoreStyle(targets);
+            case "concatVertical": return concatVertical(targets);
+            case "concatHorizontalOnly": return concatHorizontalOnly(targets);
+            case "concatH": return concatHorizontal(targets, detectTextFrameType(targets));
+            case "concatToArea": return concatHorizontal(targets, "area");
+            case "removeTabs": removeTabs(targets); return targets;
+            case "tabsToSpaces": tabsToSpaces(targets); return targets;
+            case "trimSpaces": trimSpaces(targets); return targets;
+            case "removeCjkLatinSpaces": removeCjkLatinSpaces(targets); return targets;
+            case "collapseSpaces": collapseSpaces(targets); return targets;
+            case "cleanupSpaces": trimSpaces(targets); removeCjkLatinSpaces(targets); collapseSpaces(targets); return targets;
+            case "removeAllSpaces": transformContents(targets, function (s) { return s.replace(/[ 　]/g, ""); }); return targets;
+            case "fullToHalfAlnum": fullToHalfAlnum(targets); return targets;
+            case "halfToFullKana": halfToFullKana(targets); return targets;
+            case "toggleBulletList": toggleBulletList(targets); return targets;
+            case "toggleNumberList": toggleNumberList(targets); return targets;
+            case "reverseOrder": reverseOrder(targets); return targets;
+            case "removeDuplicateLines": removeDuplicateLines(targets); return targets;
+            case "sortByCharCode": sortByCharCode(targets); return targets;
+            case "sortByLength": sortByLength(targets); return targets;
+            case "removeEmptyLines": removeEmptyLines(targets); return targets;
+            case "caseUpper": transformContents(targets, function (s) { return s.toUpperCase(); }); return targets;
+            case "caseLower": transformContents(targets, function (s) { return s.toLowerCase(); }); return targets;
+            case "caseWord": transformContents(targets, toWordCap); return targets;
+            case "caseSentence": transformContents(targets, toSentenceCase); return targets;
+            case "caseTitle": transformContents(targets, toTitleCase); return targets;
+            case "convertSymbol": {
+                /* ES の入れ子三項は左結合に誤評価されるため括弧で右結合を明示 */
+                var fromRe = (params.from === "underscore") ? /_/g : ((params.from === "hyphen") ? /-/g : /[ 　]/g);
+                var toStr = (params.to === "space") ? " " : ((params.to === "hyphen") ? "-" : "_");
+                transformContents(targets, function (s) { return s.replace(fromRe, toStr); });
+                return targets;
+            }
+            case "spaceAfterPunct": transformContents(targets, function (s) { return s.replace(/([.,])(?=[^\s\d.,])/g, "$1 "); }); return targets;
+        }
+        return targets;
+    }
+
+    function __dispatch(actionId, params) {
         if (app.documents.length === 0) return "ERR:nodoc";
         var doc;
         try { doc = app.activeDocument; } catch (e) { return "ERR:nodoc"; }
 
-        function hasMultipleLines(objs) {
-            var f = getTextFrames(objs);
-            for (var i = 0; i < f.length; i++) {
-                if (splitParagraphLines(f[i].contents).length >= 2) return true;
-            }
-            return false;
-        }
-        function hasMultipleTextFrames(objs) { return getTextFrames(objs).length >= 2; }
-        function hasSpacesOrTabs(objs) {
-            var f = getTextFrames(objs);
-            for (var i = 0; i < f.length; i++) {
-                if (/[ \t　]/.test(f[i].contents)) return true;
-            }
-            return false;
-        }
-        function encState(objs) {
-            var c = countTextFrameTypes(objs), b = countBreakTypes(objs);
-            return [c.total, c.point, c.area, b.paragraph, b.forced, b.tab,
-                hasMultipleLines(objs) ? 1 : 0, hasMultipleTextFrames(objs) ? 1 : 0, hasSpacesOrTabs(objs) ? 1 : 0].join("|");
-        }
-        /* 分割結果のグループを解除し、中身を親へ出してバラの状態にする */
-        function ungroupResult(result) {
-            if (!result || !result.length) return result;
-            var frames = getTextFrames(result);
-            for (var i = 0; i < result.length; i++) {
-                var it = result[i];
-                try {
-                    if (it && it.typename === "GroupItem") {
-                        var parent = it.parent;
-                        for (var j = it.pageItems.length - 1; j >= 0; j--) {
-                            it.pageItems[j].move(parent, ElementPlacement.PLACEATEND);
-                        }
-                        it.remove();
-                    }
-                } catch (e) { }
-            }
-            return frames;
-        }
-        function runAction(name, t) {
-            switch (name) {
-                case "flatten": { var r = flattenToOneLine(t); var tt = (r && r.length) ? r : t; trimSpaces(tt); removeCjkLatinSpaces(tt); collapseSpaces(tt); return tt; }
-                case "removeLineBreaks": if (P.forced) { removeAllBreaks(t); } else { removeLineBreaks(t); } return t;
-                case "addLineBreakPerChar": addLineBreakPerChar(t); return t;
-                case "punctuation": addLineBreakAtPunctuation(t, P.chars); return t;
-                case "breakAtCount": addLineBreakAtCount(t, P.count, P.forced); return t;
-                case "convertForcedLineBreaks": convertForcedLineBreaks(t); return t;
-                case "convertToForcedBreaks": convertToForcedBreaks(t); return t;
-                case "splitByLineBreak": return ungroupResult(splitByLineBreak(t));
-                case "splitByLineBreakKeepStyle": return splitByLineBreakKeepStyle(t);
-                case "splitByTab": return splitByTab(t);
-                case "splitByCharKeepStyle": return splitByCharKeepStyle(t);
-                case "splitByCharIgnoreStyle": return splitByCharIgnoreStyle(t);
-                case "concatVertical": return concatVertical(t);
-                case "concatHorizontalOnly": return concatHorizontalOnly(t);
-                case "concatH": return concatHorizontal(t, detectTextFrameType(t));
-                case "concatToArea": return concatHorizontal(t, "area");
-                case "removeTabs": removeTabs(t); return t;
-                case "tabsToSpaces": tabsToSpaces(t); return t;
-                case "trimSpaces": trimSpaces(t); return t;
-                case "removeCjkLatinSpaces": removeCjkLatinSpaces(t); return t;
-                case "collapseSpaces": collapseSpaces(t); return t;
-                case "cleanupSpaces": trimSpaces(t); removeCjkLatinSpaces(t); collapseSpaces(t); return t;
-                case "removeAllSpaces": transformContents(t, function (s) { return s.replace(/[ 　]/g, ""); }); return t;
-                case "fullToHalfAlnum": fullToHalfAlnum(t); return t;
-                case "halfToFullKana": halfToFullKana(t); return t;
-                case "toggleBulletList": toggleBulletList(t); return t;
-                case "toggleNumberList": toggleNumberList(t); return t;
-                case "reverseOrder": reverseOrder(t); return t;
-                case "removeDuplicateLines": removeDuplicateLines(t); return t;
-                case "sortByCharCode": sortByCharCode(t); return t;
-                case "sortByLength": sortByLength(t); return t;
-                case "removeEmptyLines": removeEmptyLines(t); return t;
-                case "caseUpper": transformContents(t, function (s) { return s.toUpperCase(); }); return t;
-                case "caseLower": transformContents(t, function (s) { return s.toLowerCase(); }); return t;
-                case "caseWord": transformContents(t, toWordCap); return t;
-                case "caseSentence": transformContents(t, toSentenceCase); return t;
-                case "caseTitle": transformContents(t, toTitleCase); return t;
-                case "convertSymbol": {
-                    /* ES の入れ子三項は左結合に誤評価されるため括弧で右結合を明示 */
-                    var fromRe = (P.from === "underscore") ? /_/g : ((P.from === "hyphen") ? /-/g : /[ 　]/g);
-                    var toStr = (P.to === "space") ? " " : ((P.to === "hyphen") ? "-" : "_");
-                    transformContents(t, function (s) { return s.replace(fromRe, toStr); });
-                    return t;
-                }
-                case "spaceAfterPunct": transformContents(t, function (s) { return s.replace(/([.,])(?=[^\s\d.,])/g, "$1 "); }); return t;
-            }
-            return t;
-        }
-
         var targets = getTextFrames(doc.selection);
 
-        if (ACTION === "getState") {
-            return "OK:" + encState(targets);
+        if (actionId === "getState") {
+            return "OK:" + encodeSelectionState(targets);
         }
-        if (ACTION === "getLines") {
+        if (actionId === "getLines") {
             if (targets.length === 1) return "LINES:" + encodeURIComponent(targets[0].contents);
             return "LINES:";
         }
-        if (ACTION === "getFirstText") {
+        if (actionId === "getFirstText") {
             if (targets.length >= 1) return "TEXT:" + encodeURIComponent(targets[0].contents);
             return "TEXT:";
         }
-        if (ACTION === "setLines") {
-            if (targets.length === 1) { targets[0].contents = P.text; }
+        if (actionId === "setLines") {
+            if (targets.length === 1) { targets[0].contents = params.text; }
             app.redraw();
-            return "OK:" + encState(getTextFrames(doc.selection));
+            return "OK:" + encodeSelectionState(getTextFrames(doc.selection));
         }
-        if (ACTION === "undo") {
+        if (actionId === "undo") {
             try { app.executeMenuCommand("undo"); } catch (e2) { }
             app.redraw();
-            return "OK:" + encState(getTextFrames(doc.selection));
+            return "OK:" + encodeSelectionState(getTextFrames(doc.selection));
         }
-        if (ACTION === "hiddenChar") {
+        if (actionId === "hiddenChar") {
             try { app.executeMenuCommand("showHiddenChar"); } catch (e3) { }
             app.redraw();
-            return "OK:" + encState(targets);
+            return "OK:" + encodeSelectionState(targets);
         }
-        if (ACTION === "finalizeClose") {
+        if (actionId === "finalizeClose") {
             for (var i = 0; i < targets.length; i++) {
                 try {
                     var p = targets[i].parent;
@@ -2061,16 +2136,16 @@ function toTitleCase(text) {
                 } catch (e4) { }
             }
             try { if (targets.length > 0) doc.selection = targets; } catch (e5) { }
-            if (P.turnOffHidden) { try { app.executeMenuCommand("showHiddenChar"); } catch (e6) { } }
+            if (params.turnOffHidden) { try { app.executeMenuCommand("showHiddenChar"); } catch (e6) { } }
             app.redraw();
             return "OK:";
         }
 
         /* 通常の処理アクション */
-        if (!targets || targets.length === 0) return "OK:" + encState([]);
+        if (!targets || targets.length === 0) return "OK:" + encodeSelectionState([]);
         var result;
         try {
-            result = runAction(ACTION, targets);
+            result = runAction(actionId, targets, params);
         } catch (errProc) {
             try { app.redraw(); } catch (e7) { }
             return "ERR:" + (errProc && errProc.message ? errProc.message : String(errProc));
@@ -2079,7 +2154,7 @@ function toTitleCase(text) {
         if (refreshed.length > 0) { try { doc.selection = refreshed; } catch (e8) { } targets = refreshed; }
         else { targets = []; }
         app.redraw();
-        return "OK:" + encState(targets);
+        return "OK:" + encodeSelectionState(targets);
     }
 
     var __DISPATCH_SRC = "(" + __dispatch.toString() + ")";
@@ -2130,18 +2205,18 @@ function toTitleCase(text) {
     }
 
     /* state 文字列（"total|point|area|para|forced|tab|multiLines|multiFrames|hasSpTab"）をオブジェクトへ */
-    function parseState(rest) {
-        var a = String(rest || "").split("|");
+    function parseState(encodedState) {
+        var fields = String(encodedState || "").split("|");
         return {
-            total: parseInt(a[0], 10) || 0,
-            point: parseInt(a[1], 10) || 0,
-            area: parseInt(a[2], 10) || 0,
-            para: parseInt(a[3], 10) || 0,
-            forced: parseInt(a[4], 10) || 0,
-            tab: parseInt(a[5], 10) || 0,
-            multiLines: a[6] === "1",
-            multiFrames: a[7] === "1",
-            hasSpTab: a[8] === "1"
+            total: parseInt(fields[0], 10) || 0,
+            point: parseInt(fields[1], 10) || 0,
+            area: parseInt(fields[2], 10) || 0,
+            para: parseInt(fields[3], 10) || 0,
+            forced: parseInt(fields[4], 10) || 0,
+            tab: parseInt(fields[5], 10) || 0,
+            multiLines: fields[6] === "1",
+            multiFrames: fields[7] === "1",
+            hasSpTab: fields[8] === "1"
         };
     }
 
@@ -2155,7 +2230,8 @@ function toTitleCase(text) {
     var __STATE_FUNCS = [
         debugLog, normalizeParagraphBreaks, splitParagraphLines,
         isParagraphBreak, isForcedBreak, isTabChar,
-        getTextFrames, countTextFrameTypes, countBreakTypes
+        getTextFrames, countTextFrameTypes, countBreakTypes,
+        hasMultipleLines, hasMultipleTextFrames, hasSpacesOrTabs, computeSelectionState, encodeSelectionState
     ];
     var __STATE_LIB_CACHE = null;
     function getStateLibSource() {
@@ -2168,12 +2244,7 @@ function toTitleCase(text) {
         if (app.documents.length === 0) return "ERR:nodoc";
         var doc;
         try { doc = app.activeDocument; } catch (e) { return "ERR:nodoc"; }
-        var t = getTextFrames(doc.selection);
-        function hasMultipleLines(objs) { var f = getTextFrames(objs); for (var i = 0; i < f.length; i++) { if (splitParagraphLines(f[i].contents).length >= 2) return true; } return false; }
-        function hasMultipleFrames(objs) { return getTextFrames(objs).length >= 2; }
-        function hasSpaceOrTab(objs) { var f = getTextFrames(objs); for (var i = 0; i < f.length; i++) { if (/[ \t　]/.test(f[i].contents)) return true; } return false; }
-        var c = countTextFrameTypes(t), b = countBreakTypes(t);
-        return "OK:" + [c.total, c.point, c.area, b.paragraph, b.forced, b.tab, hasMultipleLines(t) ? 1 : 0, hasMultipleFrames(t) ? 1 : 0, hasSpaceOrTab(t) ? 1 : 0].join("|");
+        return "OK:" + encodeSelectionState(getTextFrames(doc.selection));
     }
     var __STATE_DISPATCH_SRC = "(" + __stateDispatch.toString() + ")";
 
@@ -2185,20 +2256,6 @@ function toTitleCase(text) {
     /* ダイアログボックスを作成・表示する関数 */
     function showDialog(selectedObjects) {
         var dialog = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
-
-        function hasMultipleLines(objects) {
-            var frames = getTextFrames(objects);
-            for (var i = 0; i < frames.length; i++) {
-                if (splitParagraphLines(frames[i].contents).length >= 2) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        function hasMultipleTextFrames(objects) {
-            return getTextFrames(objects).length >= 2;
-        }
 
         /* 各処理をメインエンジンへ委譲し、結果のステータスで表示を更新 */
         function executeAction(actionId, params) {
@@ -2219,83 +2276,65 @@ function toTitleCase(text) {
             });
         }
 
-        /* 起動直後（パレット表示前）はこのエンジンでも DOM を読めるので、
-           初期ステータスはローカルで集計する */
-        function computeStateLocal(objects) {
-            var c = countTextFrameTypes(objects), b = countBreakTypes(objects);
+
+        /* ステータスパネルを構築し、各件数を表示する statictext を持つオブジェクトを返す */
+        function buildStatusPanel() {
+            var textFrameCounts = countTextFrameTypes(selectedObjects);
+            var breakCounts = countBreakTypes(selectedObjects);
+
+            var panelStatus = dialog.add("panel", undefined, getLabel(LABELS.panel.status));
+            panelStatus.margins = [50, 18, 50, 8];
+            panelStatus.alignment = ["fill", "top"];
+            panelStatus.alignChildren = ["left", "top"];
+
+            var statusRow = panelStatus.add("group");
+            statusRow.orientation = "row";
+            statusRow.alignment = ["fill", "top"];
+            statusRow.alignChildren = ["left", "center"];
+            statusRow.spacing = 16;
+
+            var frameCountColumn = statusRow.add("group");
+            frameCountColumn.orientation = "column";
+            frameCountColumn.alignment = ["fill", "top"];
+            frameCountColumn.alignChildren = ["left", "top"];
+
+            var breakCountColumn = statusRow.add("group");
+            breakCountColumn.orientation = "column";
+            breakCountColumn.alignment = ["fill", "top"];
+            breakCountColumn.alignChildren = ["left", "top"];
+
+            var statusCenterLabelWidth = 72;
+
+            /* 1行 = [ラベル：] [値] を作り、値の statictext を返す */
+            function addStatusRow(column, labelNode, value, labelWidth) {
+                var row = column.add("group");
+                row.orientation = "row";
+                row.alignChildren = ["left", "center"];
+                var lbl = row.add("statictext", undefined, labelText(labelNode));
+                if (labelWidth) lbl.preferredSize.width = labelWidth;
+                return row.add("statictext", undefined, String(value));
+            }
+
             return {
-                total: c.total, point: c.point, area: c.area,
-                para: b.paragraph, forced: b.forced, tab: b.tab,
-                multiLines: hasMultipleLines(objects),
-                multiFrames: hasMultipleTextFrames(objects),
-                hasSpTab: hasSpacesOrTabs(objects)
+                target: addStatusRow(frameCountColumn, LABELS.info.targetCount, textFrameCounts.total),
+                point: addStatusRow(frameCountColumn, LABELS.info.pointCount, textFrameCounts.point),
+                area: addStatusRow(frameCountColumn, LABELS.info.areaCount, textFrameCounts.area),
+                para: addStatusRow(breakCountColumn, LABELS.info.paragraphBreak, breakCounts.paragraph, statusCenterLabelWidth),
+                forced: addStatusRow(breakCountColumn, LABELS.info.forcedBreak, breakCounts.forced, statusCenterLabelWidth),
+                tab: addStatusRow(breakCountColumn, LABELS.info.tab, breakCounts.tab, statusCenterLabelWidth)
             };
         }
 
-        /* 処理対象件数を集計 */
-        var textFrameCounts = countTextFrameTypes(selectedObjects);
-        var breakCounts = countBreakTypes(selectedObjects);
-
-        /* ステータスパネル */
-        var panelStatus = dialog.add("panel", undefined, getLabel(LABELS.panel.status));
-        panelStatus.margins = [20, 20, 30, 10];
-        panelStatus.alignment = ["fill", "top"];
-        panelStatus.alignChildren = ["left", "top"];
-
-        /* ステータス表示 */
-        var statusRow = panelStatus.add("group");
-        statusRow.orientation = "row";
-        statusRow.alignment = ["fill", "top"];
-        statusRow.alignChildren = ["left", "center"];
-        statusRow.spacing = 30;
-
-        var frameCountColumn = statusRow.add("group");
-        frameCountColumn.orientation = "column";
-        frameCountColumn.alignment = ["fill", "top"];
-        frameCountColumn.alignChildren = ["left", "top"];
-
-        var breakCountColumn = statusRow.add("group");
-        breakCountColumn.orientation = "column";
-        breakCountColumn.alignment = ["fill", "top"];
-        breakCountColumn.alignChildren = ["left", "top"];
-
-
-        var statusCenterLabelWidth = 70;
-
-        /* 1行 = [ラベル：] [値] を作り、値の statictext を返す */
-        function addStatusRow(column, labelNode, value, labelWidth) {
-            var row = column.add("group");
-            row.orientation = "row";
-            row.alignChildren = ["left", "center"];
-            var lbl = row.add("statictext", undefined, labelText(labelNode));
-            if (labelWidth) lbl.preferredSize.width = labelWidth;
-            return row.add("statictext", undefined, String(value));
-        }
-
-        var valTargetCount = addStatusRow(frameCountColumn, LABELS.info.targetCount, textFrameCounts.total);
-        var valPointCount = addStatusRow(frameCountColumn, LABELS.info.pointCount, textFrameCounts.point);
-        var valAreaCount = addStatusRow(frameCountColumn, LABELS.info.areaCount, textFrameCounts.area);
-        var valParagraphBreakCount = addStatusRow(breakCountColumn, LABELS.info.paragraphBreak, breakCounts.paragraph, statusCenterLabelWidth);
-        var valForcedBreakCount = addStatusRow(breakCountColumn, LABELS.info.forcedBreak, breakCounts.forced, statusCenterLabelWidth);
-        var valTabCount = addStatusRow(breakCountColumn, LABELS.info.tab, breakCounts.tab, statusCenterLabelWidth);
+        var statusFields = buildStatusPanel();
 
         /* ステータス表示を state で更新 */
         function updateStatusDisplay(state) {
-            valTargetCount.text = String(state.total);
-            valPointCount.text = String(state.point);
-            valAreaCount.text = String(state.area);
-            valParagraphBreakCount.text = String(state.para);
-            valForcedBreakCount.text = String(state.forced);
-            valTabCount.text = String(state.tab);
-        }
-
-        function hasSpacesOrTabs(objects) {
-            var frames = getTextFrames(objects);
-            for (var i = 0; i < frames.length; i++) {
-                var txt = frames[i].contents;
-                if (/[ \t\u3000]/.test(txt)) return true;
-            }
-            return false;
+            statusFields.target.text = String(state.total);
+            statusFields.point.text = String(state.point);
+            statusFields.area.text = String(state.area);
+            statusFields.para.text = String(state.para);
+            statusFields.forced.text = String(state.forced);
+            statusFields.tab.text = String(state.tab);
         }
 
         function updateActionAvailability(state) {
@@ -2374,7 +2413,7 @@ function toTitleCase(text) {
 
         /* 改行グループパネル */
         var panelBreakGroup = breakColumn.add("panel", undefined, getLabel(LABELS.panel.breakGroup));
-        panelBreakGroup.margins = [15, 20, 15, 10];
+        panelBreakGroup.margins = [10, 18, 10, 8];
         panelBreakGroup.alignment = ["fill", "top"];
         panelBreakGroup.alignChildren = ["fill", "top"];
 
@@ -2382,7 +2421,7 @@ function toTitleCase(text) {
         var flattenButtonRow = panelBreakGroup.add("group");
         flattenButtonRow.alignment = ["fill", "top"];
         flattenButtonRow.alignChildren = ["fill", "center"];
-        flattenButtonRow.margins = [15, 0, 15, 10];
+        flattenButtonRow.margins = [10, 0, 10, 8];
 
         var btnFlattenToOneLine = flattenButtonRow.add("button", undefined, getLabel(LABELS.button.flattenToOneLine));
         btnFlattenToOneLine.onClick = function () {
@@ -2391,12 +2430,13 @@ function toTitleCase(text) {
 
         /* 改行削除パネル */
         var panelRemoveBreak = panelBreakGroup.add("panel", undefined, getLabel(LABELS.panel.removeBreak));
-        panelRemoveBreak.margins = [15, 20, 15, 10];
+        panelRemoveBreak.margins = [10, 18, 10, 8];
         panelRemoveBreak.alignment = ["fill", "top"];
         panelRemoveBreak.alignChildren = ["fill", "center"];
 
         /* 改行削除ボタン */
         var btnRemoveLineBreaks = panelRemoveBreak.add("button", undefined, getLabel(LABELS.button.removeLineBreaks));
+        btnRemoveLineBreaks.helpTip = getLabel(LABELS.tooltip.removeLineBreaks);
         btnRemoveLineBreaks.onClick = function () {
             executeAction("removeLineBreaks", { forced: chkIncludeForcedBreaks.value });
         };
@@ -2406,7 +2446,7 @@ function toTitleCase(text) {
 
         /* 改行パネル */
         var panelLineBreak = panelBreakGroup.add("panel", undefined, getLabel(LABELS.panel.insertBreak));
-        panelLineBreak.margins = [15, 20, 15, 10];
+        panelLineBreak.margins = [10, 18, 10, 8];
         panelLineBreak.alignment = ["fill", "top"];
         panelLineBreak.alignChildren = ["fill", "center"];
 
@@ -2443,7 +2483,7 @@ function toTitleCase(text) {
 
         /* その他の改行パネル */
         var panelOtherBreak = panelBreakGroup.add("panel", undefined, getLabel(LABELS.panel.convertBreak));
-        panelOtherBreak.margins = [15, 20, 15, 10];
+        panelOtherBreak.margins = [10, 18, 10, 8];
         panelOtherBreak.alignment = ["fill", "top"];
         panelOtherBreak.alignChildren = ["fill", "center"];
 
@@ -2467,24 +2507,26 @@ function toTitleCase(text) {
 
         /* 分割グループパネル */
         var panelSplitGroup = splitConcatColumn.add("panel", undefined, getLabel(LABELS.panel.splitGroup));
-        panelSplitGroup.margins = [15, 20, 15, 10];
+        panelSplitGroup.margins = [10, 18, 10, 8];
         panelSplitGroup.alignment = ["fill", "top"];
         panelSplitGroup.alignChildren = ["fill", "top"];
 
         /* 分割パネル */
         var panelSplit = panelSplitGroup.add("panel", undefined, getLabel(LABELS.panel.splitByBreak));
-        panelSplit.margins = [15, 20, 15, 10];
+        panelSplit.margins = [10, 18, 10, 8];
         panelSplit.alignment = ["fill", "top"];
         panelSplit.alignChildren = ["fill", "center"];
 
         /* 改行で分割ボタン */
         var btnSplitByLine = panelSplit.add("button", undefined, getLabel(LABELS.button.splitByLine));
+        btnSplitByLine.helpTip = getLabel(LABELS.tooltip.splitByLine);
         btnSplitByLine.onClick = function () {
             executeAction("splitByLineBreak");
         };
 
         /* 改行で分割（書式保持）ボタン */
         var btnSplitByLineKeepStyle = panelSplit.add("button", undefined, getLabel(LABELS.button.splitByLineKeepStyle));
+        btnSplitByLineKeepStyle.helpTip = getLabel(LABELS.tooltip.splitByLineKeepStyle);
         btnSplitByLineKeepStyle.onClick = function () {
             executeAction("splitByLineBreakKeepStyle");
         };
@@ -2497,30 +2539,32 @@ function toTitleCase(text) {
 
         /* 分割（文字）パネル */
         var panelSplitChar = panelSplitGroup.add("panel", undefined, getLabel(LABELS.panel.splitByChar));
-        panelSplitChar.margins = [15, 20, 15, 10];
+        panelSplitChar.margins = [10, 18, 10, 8];
         panelSplitChar.alignment = ["fill", "top"];
         panelSplitChar.alignChildren = ["fill", "center"];
 
         /* 書式を保持ボタン */
         var btnSplitKeepStyle = panelSplitChar.add("button", undefined, getLabel(LABELS.button.splitKeepStyle));
+        btnSplitKeepStyle.helpTip = getLabel(LABELS.tooltip.splitKeepStyle);
         btnSplitKeepStyle.onClick = function () {
             executeAction("splitByCharKeepStyle");
         };
 
         /* 書式を無視ボタン */
         var btnSplitIgnoreStyle = panelSplitChar.add("button", undefined, getLabel(LABELS.button.splitIgnoreStyle));
+        btnSplitIgnoreStyle.helpTip = getLabel(LABELS.tooltip.splitIgnoreStyle);
         btnSplitIgnoreStyle.onClick = function () {
             executeAction("splitByCharIgnoreStyle");
         };
 
         /* 連結パネル */
         var panelConcat = splitConcatColumn.add("panel", undefined, getLabel(LABELS.panel.concat));
-        panelConcat.margins = [15, 20, 15, 10];
+        panelConcat.margins = [10, 18, 10, 8];
         panelConcat.alignment = ["fill", "top"];
         panelConcat.alignChildren = ["center", "center"];
 
         var concatButtonColumn = panelConcat.add("group");
-        concatButtonColumn.margins = [15, 0, 15, 10];
+        concatButtonColumn.margins = [10, 0, 10, 8];
         concatButtonColumn.orientation = "column";
         concatButtonColumn.alignment = ["fill", "top"];
         concatButtonColumn.alignChildren = ["fill", "center"];
@@ -2569,7 +2613,7 @@ function toTitleCase(text) {
 
         /* タブパネル */
         var panelTab = tabSpaceColumn.add("panel", undefined, getLabel(LABELS.panel.tab));
-        panelTab.margins = [15, 20, 15, 10];
+        panelTab.margins = [10, 18, 10, 8];
         panelTab.alignment = ["fill", "top"];
         panelTab.alignChildren = ["fill", "center"];
 
@@ -2587,47 +2631,53 @@ function toTitleCase(text) {
 
         /* スペースパネル（タブパネルの下） */
         var panelSpace = tabSpaceColumn.add("panel", undefined, getLabel(LABELS.panel.space));
-        panelSpace.margins = [15, 20, 15, 10];
+        panelSpace.margins = [10, 18, 10, 8];
         panelSpace.alignment = ["fill", "top"];
         panelSpace.alignChildren = ["fill", "center"];
 
         /* 行頭行末のスペースボタン */
         var btnTrimSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.trimSpaces));
+        btnTrimSpaces.helpTip = getLabel(LABELS.tooltip.trimSpaces);
         btnTrimSpaces.onClick = function () {
             executeAction("trimSpaces");
         };
 
         /* 和欧間のスペースボタン */
         var btnCjkLatinSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.cjkLatinSpaces));
+        btnCjkLatinSpaces.helpTip = getLabel(LABELS.tooltip.cjkLatinSpaces);
         btnCjkLatinSpaces.onClick = function () {
             executeAction("removeCjkLatinSpaces");
         };
 
         /* 連続スペースボタン */
         var btnCollapseSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.collapseSpaces));
+        btnCollapseSpaces.helpTip = getLabel(LABELS.tooltip.collapseSpaces);
         btnCollapseSpaces.onClick = function () {
             executeAction("collapseSpaces");
         };
 
         /* スペース削除（一括）ボタン */
         var btnCleanupSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.cleanupSpaces));
+        btnCleanupSpaces.helpTip = getLabel(LABELS.tooltip.cleanupSpaces);
         btnCleanupSpaces.onClick = function () {
             executeAction("cleanupSpaces");
         };
 
         /* すべてのスペースを削除ボタン */
         var btnRemoveAllSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.removeAllSpaces));
+        btnRemoveAllSpaces.helpTip = getLabel(LABELS.tooltip.removeAllSpaces);
         btnRemoveAllSpaces.onClick = function () {
             executeAction("removeAllSpaces");
         };
 
         /* その他パネル（スペース削除パネルの下）*/
         var panelOther = tabSpaceColumn.add("panel", undefined, getLabel(LABELS.panel.other));
-        panelOther.margins = [15, 20, 15, 10];
+        panelOther.margins = [10, 18, 10, 8];
         panelOther.alignment = ["fill", "top"];
         panelOther.alignChildren = ["fill", "center"];
 
         var btnSpaceAfterPunct = panelOther.add("button", undefined, getLabel(LABELS.button.spaceAfterPunct));
+        btnSpaceAfterPunct.helpTip = getLabel(LABELS.tooltip.spaceAfterPunct);
         btnSpaceAfterPunct.onClick = function () {
             executeAction("spaceAfterPunct");
         };
@@ -2642,12 +2692,12 @@ function toTitleCase(text) {
          * 変換前（Before）／変換後（After）をラジオで選び、［変換］で置換。
          * 前後が同じ選択のときは［変換］をディムにする。*/
         var panelSymbolConvert = convertListColumn.add("panel", undefined, getLabel(LABELS.panel.symbolConvert));
-        panelSymbolConvert.margins = [15, 20, 15, 10];
+        panelSymbolConvert.margins = [10, 18, 10, 8];
         panelSymbolConvert.alignment = ["fill", "top"];
         panelSymbolConvert.alignChildren = ["fill", "top"];
 
         var symbolRow = panelSymbolConvert.add("group");
-        symbolRow.orientation = "row";
+        symbolRow.orientation = "column";
         symbolRow.alignment = ["fill", "top"];
         symbolRow.alignChildren = ["fill", "top"];
         symbolRow.spacing = 15;
@@ -2656,7 +2706,7 @@ function toTitleCase(text) {
         var beforePanel = symbolRow.add("panel", undefined, getLabel(LABELS.panel.symbolBefore));
         beforePanel.orientation = "column";
         beforePanel.alignChildren = ["left", "top"];
-        beforePanel.margins = [15, 20, 15, 10];
+        beforePanel.margins = [10, 18, 10, 8];
         var rbBeforeSpace = beforePanel.add("radiobutton", undefined, getLabel(LABELS.radio.space));
         var rbBeforeUnderscore = beforePanel.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
         var rbBeforeHyphen = beforePanel.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
@@ -2666,7 +2716,7 @@ function toTitleCase(text) {
         var afterPanel = symbolRow.add("panel", undefined, getLabel(LABELS.panel.symbolAfter));
         afterPanel.orientation = "column";
         afterPanel.alignChildren = ["left", "top"];
-        afterPanel.margins = [15, 20, 15, 10];
+        afterPanel.margins = [10, 18, 10, 8];
         var rbAfterSpace = afterPanel.add("radiobutton", undefined, getLabel(LABELS.radio.space));
         var rbAfterUnderscore = afterPanel.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
         var rbAfterHyphen = afterPanel.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
@@ -2701,7 +2751,7 @@ function toTitleCase(text) {
 
         /* 変換パネル */
         var panelConvert = convertListColumn.add("panel", undefined, getLabel(LABELS.panel.convert));
-        panelConvert.margins = [15, 20, 15, 10];
+        panelConvert.margins = [10, 18, 10, 8];
         panelConvert.alignment = ["fill", "top"];
         panelConvert.alignChildren = ["center", "center"];
 
@@ -2719,18 +2769,21 @@ function toTitleCase(text) {
 
         /* リストパネル */
         var panelList = convertListColumn.add("panel", undefined, getLabel(LABELS.panel.list));
-        panelList.margins = [15, 20, 15, 10];
+        panelList.margins = [10, 18, 10, 8];
+        panelList.orientation = "row";
         panelList.alignment = ["fill", "top"];
-        panelList.alignChildren = ["center", "center"];
+        panelList.alignChildren = ["fill", "center"];
 
         /* 箇条書きボタン */
         var btnBulletList = panelList.add("button", undefined, getLabel(LABELS.button.bulletList));
+        btnBulletList.helpTip = getLabel(LABELS.tooltip.bulletList);
         btnBulletList.onClick = function () {
             executeAction("toggleBulletList");
         };
 
         /* 番号リストボタン */
         var btnNumberList = panelList.add("button", undefined, getLabel(LABELS.button.numberList));
+        btnNumberList.helpTip = getLabel(LABELS.tooltip.numberList);
         btnNumberList.onClick = function () {
             executeAction("toggleNumberList");
         };
@@ -2822,7 +2875,7 @@ function toTitleCase(text) {
 
         /* 編集パネル */
         var panelLineEdit = lineActionColumn.add("panel", undefined, getLabel(LABELS.panel.lineEdit));
-        panelLineEdit.margins = [15, 20, 15, 10];
+        panelLineEdit.margins = [10, 18, 10, 8];
         panelLineEdit.alignment = ["fill", "top"];
         panelLineEdit.alignChildren = ["fill", "center"];
 
@@ -2882,7 +2935,7 @@ function toTitleCase(text) {
 
         /* ソートパネル */
         var panelSort = lineActionColumn.add("panel", undefined, getLabel(LABELS.panel.sort));
-        panelSort.margins = [15, 20, 15, 10];
+        panelSort.margins = [10, 18, 10, 8];
         panelSort.alignment = ["fill", "top"];
         panelSort.alignChildren = ["fill", "center"];
 
@@ -2906,7 +2959,7 @@ function toTitleCase(text) {
 
         /* 行削除パネル */
         var panelLineDelete = lineActionColumn.add("panel", undefined, getLabel(LABELS.panel.lineDelete));
-        panelLineDelete.margins = [15, 20, 15, 10];
+        panelLineDelete.margins = [10, 18, 10, 8];
         panelLineDelete.alignment = ["fill", "top"];
         panelLineDelete.alignChildren = ["fill", "center"];
 
@@ -2932,7 +2985,7 @@ function toTitleCase(text) {
 
         /* 英字の大文字/小文字変換（ボタン＋プレビュー）*/
         var panelLetterCase = tabAlnum.add("panel", undefined, getLabel(LABELS.panel.letterCase));
-        panelLetterCase.margins = [15, 20, 15, 10];
+        panelLetterCase.margins = [10, 18, 10, 8];
         panelLetterCase.alignment = ["fill", "top"];
         panelLetterCase.alignChildren = ["fill", "top"];
 
@@ -2947,13 +3000,13 @@ function toTitleCase(text) {
             row.alignChildren = ["left", "center"];
 
             var btn = row.add("button", undefined, getLabel(labelNode));
-            btn.preferredSize = [180, 24];
+            btn.preferredSize = [150, 24];
             btn.onClick = function () {
                 executeActionThen(actionId, {}, refreshCasePreview);
             };
 
             var preview = row.add("statictext", undefined, "");
-            preview.preferredSize = [240, 24];
+            preview.preferredSize = [120, 24];
             try { preview.justify = "left"; } catch (e) { }
             casePreview[modeKey] = preview;
         }
@@ -2988,7 +3041,7 @@ function toTitleCase(text) {
             });
         }
 
-        var initState = computeStateLocal(selectedObjects);
+        var initState = computeSelectionState(selectedObjects);
         updateStatusDisplay(initState);
         updateActionAvailability(initState);
         loadLinesToList();
@@ -3031,58 +3084,69 @@ function toTitleCase(text) {
             }
         };
 
-        /* ボタン行（左：制御文字、右：1つ戻す・閉じる） */
-        var footerRow = dialog.add("group");
-        footerRow.alignment = ["fill", "bottom"];
-        // footerRow.margins = [0, 15, 0, 0];
+        /* フッター（左：制御文字 / 伸縮スペーサー / 右：閉じる）を構築し、closePalette を返す */
+        function buildFooter() {
+            var footerRow = dialog.add("group");
+            footerRow.orientation = "row";
+            footerRow.alignment = ["fill", "bottom"];
+            footerRow.margins = [10, 10, 10, 0];
 
-        /* 左側：制御文字ボタン */
-        var footerLeftGroup = footerRow.add("group");
-        footerLeftGroup.alignment = ["left", "center"];
+            /* 左側：制御文字ボタン */
+            var footerLeftGroup = footerRow.add("group");
+            footerLeftGroup.alignChildren = ["left", "center"];
 
-        var btnShowHiddenChar = footerLeftGroup.add("button", undefined, hiddenCharLabel);
-        btnShowHiddenChar.preferredSize = [120, -1];
+            var btnShowHiddenChar = footerLeftGroup.add("button", undefined, hiddenCharLabel);
 
-        function updateHiddenCharButton() {
-            if (hiddenCharOn) {
-                btnShowHiddenChar.text = "\u2713 " + hiddenCharLabel;
-                try {
-                    var gfx = btnShowHiddenChar.graphics;
-                    gfx.foregroundColor = gfx.newPen(gfx.PenType.SOLID_COLOR, [0.0, 0.5, 0.8], 1);
-                } catch (_) { }
-            } else {
-                btnShowHiddenChar.text = hiddenCharLabel;
-                try {
-                    var gfx2 = btnShowHiddenChar.graphics;
-                    gfx2.foregroundColor = gfx2.newPen(gfx2.PenType.SOLID_COLOR, [0.0, 0.0, 0.0], 1);
-                } catch (_) { }
+            function updateHiddenCharButton() {
+                if (hiddenCharOn) {
+                    btnShowHiddenChar.text = "\u2713 " + hiddenCharLabel;
+                    try {
+                        var gfx = btnShowHiddenChar.graphics;
+                        gfx.foregroundColor = gfx.newPen(gfx.PenType.SOLID_COLOR, [0.0, 0.5, 0.8], 1);
+                    } catch (_) { }
+                } else {
+                    btnShowHiddenChar.text = hiddenCharLabel;
+                    try {
+                        var gfx2 = btnShowHiddenChar.graphics;
+                        gfx2.foregroundColor = gfx2.newPen(gfx2.PenType.SOLID_COLOR, [0.0, 0.0, 0.0], 1);
+                    } catch (_) { }
+                }
             }
+
+            btnShowHiddenChar.onClick = function () {
+                runWorker("hiddenChar", {}, function (status, payload) {
+                    if (status === "error") { showError({ message: payload }); return; }
+                    hiddenCharOn = !hiddenCharOn;
+                    updateHiddenCharButton();
+                    var st = parseState(payload);
+                    updateStatusDisplay(st);
+                    updateActionAvailability(st);
+                });
+            };
+
+            /* 中央：伸縮スペーサー（左右グループを両端へ押し広げる）*/
+            var footerSpacer = footerRow.add("group");
+            footerSpacer.alignment = ["fill", "fill"];
+            footerSpacer.minimumSize.width = 0;
+
+            /* 右側：閉じる */
+            var footerRightGroup = footerRow.add("group");
+            footerRightGroup.alignChildren = ["right", "center"];
+
+            /* パレットを閉じる（1要素だけのグループ解除・選択整理・制御文字OFF はメインエンジンで）*/
+            function closePalette() {
+                runWorker("finalizeClose", { turnOffHidden: hiddenCharOn }, function () {
+                    dialog.close();
+                });
+            }
+
+            var btnClose = footerRightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "ok" });
+            btnClose.onClick = closePalette;
+
+            return closePalette;
         }
 
-        btnShowHiddenChar.onClick = function () {
-            runWorker("hiddenChar", {}, function (status, payload) {
-                if (status === "error") { showError({ message: payload }); return; }
-                hiddenCharOn = !hiddenCharOn;
-                updateHiddenCharButton();
-                var st = parseState(payload);
-                updateStatusDisplay(st);
-                updateActionAvailability(st);
-            });
-        };
-
-        /* 右側：1つ戻す・閉じる */
-        var footerRightGroup = footerRow.add("group");
-        footerRightGroup.alignment = ["right", "center"];
-
-        /* パレットを閉じる（1要素だけのグループ解除・選択整理・制御文字OFF はメインエンジンで）*/
-        function closePalette() {
-            runWorker("finalizeClose", { turnOffHidden: hiddenCharOn }, function () {
-                dialog.close();
-            });
-        }
-
-        var btnClose = footerRightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "ok" });
-        btnClose.onClick = closePalette;
+        var closePalette = buildFooter();
 
         /* パレットがアクティブなとき Esc で閉じる */
         dialog.addEventListener("keydown", function (e) {
