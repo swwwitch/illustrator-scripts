@@ -138,7 +138,7 @@ var LABELS = {
     button: {
         expand:     { ja: "複合シェイプを拡張", en: "Expand Compound Shape" },
         release:    { ja: "解除", en: "Release" },
-        panel:      { ja: "パネル", en: "Panel" },
+        panel:      { ja: "パネル", en: "Path Finder" },
         appearance: { ja: "アピアランス", en: "Appearance" }
     },
     option: {
