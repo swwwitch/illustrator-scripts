@@ -8,7 +8,7 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
 選択した複数オブジェクトにパスファインダーを適用する常駐パレット。
 アイコンをクリックすると、その操作をメインエンジンへ委譲して即時に実行する。
 
-タブ構成: 「基本」／「Special」の2タブ（tabbedpanel）
+タブ構成: 「基本」／「その他」（EN: Special）の2タブ（tabbedpanel）
 
 「基本」タブ（上から）:
   モード         出力モードを排他ラジオで選択（下記 A/B/C。ショートカット P/C/F）
@@ -16,11 +16,14 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
   パスファインダー 分割／刈り込み／合流／切り抜き／アウトライン／背面型抜き（3個×2行, command 4〜9）
   オプション      余分なポイントを削除（RemovePoints, 右に［強制］ボタン）／塗りのないアートワークを削除（ExtractUnpainted, 分割・アウトライン かつ実行モードのみ）／［複合シェイプを拡張］ボタン
 
-「Special」タブ:
-  ［マド埋め］（複合パス解除＋合体）／［アピアランスを分割］（expandStyle）／［アピアランスパネル］（Style Palette 表示）ボタン
+「その他」タブ（4パネル構成）:
+  マド埋め      ［実行］（複合パス解除＋合体→実パス化）／［効果］（ライブ効果のまま）
+  変換          ［線を塗りに変換］（線のアウトライン化・ライブ効果）
+  アピアランス  ［分割］（expandStyle＋可能ならグループ解除）／［解除］（アピアランスを消去）
+  パネルを表示  ［アピアランス］（Style Palette）／［パスファインダー］（Adobe PathfinderUI）
 
   ※ ［強制］は選択パスの直線上の冗長アンカーを削除（PathCleanupTool 相当・許容誤差0.02固定）
-  ※ ［マド埋め］は PathCleanupTool の fillHolesOnSelection と同じ手順（group→noCompoundPath→Live Pathfinder Add→expandStyle→ungroup）
+  ※ マド埋め［実行］は PathCleanupTool の fillHolesOnSelection と同じ手順（group→noCompoundPath→Live Pathfinder Add→expandStyle→ungroup）
   ※ パスファインダーの6アイコン（2行×3）は unifyIconCellWidths でセル幅を統一し列を揃える
 
 出力モード（モードパネルの排他ラジオ）:
@@ -28,21 +31,30 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
   B 複合シェイプを作成      上段のみ＝ダイナミックアクション（ai_compound_shape）で複合シェイプ（下段6ボタンはディム＝無効）
   C 効果として適用          上段・下段とも＝XML ライブ効果のまま（拡張しない）
   ※ ダイナミックアクションの複合シェイプは expandStyle で焼き込めないため、A の上段も XML 方式を使う
+     （ai_plugin_pathfinder のパネル実行アクションも検討したが、undo が2回必要になるため不採用）
   ※ A/C で複数オブジェクトを選択している場合は、効果適用の前に一時的にグループ化する（1つの効果対象にまとめるため）。
      A では拡張後にそのグループを解除して実パスへ戻す。C はライブ効果のためグループのまま残る。
 
 形状モード（上段4ボタン）の Option+クリック:
   出力モードに関係なく複合シェイプを作成する（＝モード B と同じ。拡張はしない）。
 
+パスファインダー（下段6ボタン）の Option+クリック:
+  出力モードに関係なく効果として適用する（＝モード C と同じ。removeUnpainted は強制OFF）。
+
 ［複合シェイプを拡張］ボタン（オプションパネル）:
   選択中の複合シェイプ（DOM 上 PluginItem）を通常のパスへ拡張する（ai_expand_compound_shape）。
   Option（Alt）+クリックのときは拡張ではなく解除する（ai_release_compound_shape）。
   パレットは選択変更を受け取れないため常に押せ、複合シェイプの有無はクリック時に判定する（無ければ "NOCS"）。
 
-Special タブのボタン:
-  ［マド埋め］    選択を複合パス解除→ライブパスファインダー合体→拡張→グループ解除（PathCleanupTool の fillHolesOnSelection 相当）。
-  ［アピアランスを分割］ 選択のアピアランス（ライブ効果）を expandStyle で実体化する。
-  ［アピアランスパネル］ Illustrator のアピアランスパネル（Style Palette）を表示する。
+その他タブのボタン:
+  マド埋め［実行］    選択を複合パス解除→ライブパスファインダー合体→拡張→グループ解除（PathCleanupTool の fillHolesOnSelection 相当）。
+  マド埋め［効果］    選択を複合パス解除→ライブパスファインダー合体（ライブ効果のまま）。
+  ［線を塗りに変換］  線をアウトライン化して1つの塗りにまとめる（ライブ効果）。
+  アピアランス［分割］      選択のアピアランス（ライブ効果）を expandStyle で実体化し、可能ならグループ解除する。
+  アピアランス［解除］      「アピアランスを消去」ダイナミックアクション（ai_plugin_appearance / key 1835363957 / value 6）を
+                            選択全体に一括再生する。塗り・線などの復元は行わない（アピアランスパネルのメニュー相当）。
+  パネルを表示［アピアランス］   Illustrator のアピアランスパネル（Style Palette）を表示する。
+  パネルを表示［パスファインダー］ Illustrator のパスファインダーパネル（Adobe PathfinderUI）を表示する。
 
 ［強制］ボタン（オプションパネル・「余分なポイントを削除」の右）:
   選択パス（グループ・複合パス含む）の直線上の冗長なアンカーポイントを削除する（許容誤差 0.02 固定・2パス）。
@@ -51,18 +63,22 @@ Persistent palette that applies Pathfinder operations to the current selection.
 Two tabs: "Basic" and "Special". Basic tab, top-down: Mode (A/B/C radios;
 shortcuts P/C/F), Shape Mode (Unite/Minus Front/Intersect/Exclude), Pathfinders
 (Divide/Trim/Merge/Crop/Outline/Minus Back), Options (Remove points [+ Force
-button] / Remove unpainted / Expand Compound Shape button). Special tab: Fill
-Holes / Expand Appearance / Appearance-panel buttons.
+button] / Remove unpainted / Expand Compound Shape button). Special tab:
+grouped panels — Fill Holes (Apply / Effect), Convert (Convert Strokes to
+Fills), Appearance (Expand / Clear), Show Panel (Appearance / Pathfinder).
+Clear plays the ai_plugin_appearance "Clear Appearance" dynamic action on the
+whole selection (no attribute restoration).
 A = Apply: both rows group, apply the Adobe Pathfinder XML, expand, and ungroup
 (bake to real paths). B = Compound shape: Shape Modes only via the
 ai_compound_shape action (Pathfinders dimmed/disabled). C = Apply as effect:
 both rows keep the live Adobe Pathfinder effect. "Remove unpainted artwork"
 affects Divide / Outline only, and only in the destructive Apply mode (it is
 forced off in Apply-as-effect mode). Option-clicking a Shape Mode button always makes a
-compound shape regardless of the output mode. The Expand Compound Shape button
+compound shape regardless of the output mode; Option-clicking a Pathfinder
+button always applies it as a live effect. The Expand Compound Shape button
 turns a selected compound shape into plain paths (Option-click releases it
 instead). The Force button removes redundant collinear anchor points from the
-selected paths. The Appearance-panel button shows the Appearance panel.
+selected paths. The Show Panel buttons show the Appearance / Pathfinder panels.
 
 構成 / Structure
 - 常駐エンジン（#targetengine）でパレット参照を保持し GC を回避
@@ -72,10 +88,10 @@ selected paths. The Appearance-panel button shows the Appearance panel.
 - 戻り値はマーカー（OK / NODOC / NOSEL / NEEDTWO / NOCS / ERR:...）で受けるが、ステータス表示エリアは持たないため markerToStatus の戻り値は破棄（委譲の副作用のみ利用）
 - 選択不足は条件で分離：効果は1つ以上（NOSEL）、実行・複合シェイプは2つ以上（NEEDTWO）
 - 複数選択時は効果を1つの対象にまとめるため一時的にグループ化し、A（destructive）では拡張後に解除する（エラー時はその一時グループだけを選択し直して解除）
-- UI は tabbedpanel（基本／Special）配下に buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一。Special タブは specialTab に直接ボタンを追加
-- 最下部の［パネル］／［アピアランス］は app.executeMenuCommand（Adobe PathfinderUI / Style Palette）をメインエンジンへ委譲してパネルを表示
+- UI は tabbedpanel（基本／その他）配下に buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一。その他タブはマド埋め／変換／アピアランス／パネルを表示の4パネル（setupPanel 共用。マド埋め・アピアランスは row で横並び、パネルを表示は縦並び）
+- ［パネルを表示：アピアランス／パスファインダー］は app.executeMenuCommand（Style Palette / Adobe PathfinderUI）をメインエンジンへ委譲してパネルを表示
 - アイコンは onDraw で描画（無効時は dimIconColors でディム表示）
-- Option（alt）状態は onDraw では取れないため mousedown で記録し onClick で読む（形状モードの複合シェイプ化・拡張ボタンの解除に共通）
+- Option（alt）状態は onDraw では取れないため mousedown で記録し onClick で読む（形状モードの複合シェイプ化・下段の効果適用・拡張ボタンの解除に共通）
 - 全体を IIFE で閉じ、$.global にはパレット参照（__pfPaletteWindow）だけを残す
 - 二重起動回避：既に開いていれば作り直さず前面化して終了
 - キーボード：Esc で閉じる／P・C・F で出力モード切替
@@ -90,7 +106,7 @@ https://note.com/dtp_tranist/n/n6909b836221a
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.7";
+var SCRIPT_VERSION = "v1.0.8";
 
 /* エンジンのグローバルを汚さないため IIFE で閉じる。パレット参照だけ $.global に残す。
  * Wrap everything in an IIFE; only the palette reference lives on $.global. */
@@ -115,14 +131,18 @@ var LABELS = {
         title: { ja: "パスファインダー", en: "Pathfinder" }
     },
     tab: {
-        basic:   { ja: "基本",    en: "Basic" },
-        special: { ja: "Special", en: "Special" }
+        basic:   { ja: "基本",   en: "Basic" },
+        special: { ja: "その他", en: "Special" }
     },
     panel: {
         shapeMode:  { ja: "形状モード",     en: "Shape Mode" },
         pathfinder: { ja: "パスファインダー", en: "Pathfinders" },
         mode:       { ja: "モード",         en: "Mode" },
-        option:     { ja: "オプション",     en: "Options" }
+        option:     { ja: "オプション",     en: "Options" },
+        fillHoles:  { ja: "マド埋め",       en: "Fill Holes" },
+        convert:    { ja: "変換",           en: "Convert" },
+        appearance: { ja: "アピアランス",   en: "Appearance" },
+        showPanel:  { ja: "パネルを表示",   en: "Show Panel" }
     },
     mode: {
         unite:      { ja: "合体",                     en: "Unite(Add)" },
@@ -159,12 +179,14 @@ var LABELS = {
         expand:        { ja: "複合シェイプを拡張", en: "Expand Compound Shape" },
         expandRelease: { ja: "複合シェイプを解除", en: "Release Compound Shape" },
         release:       { ja: "解除", en: "Release" },
-        appearance:      { ja: "アピアランスパネル",   en: "Appearance" },
+        appearance:      { ja: "アピアランス",       en: "Appearance" },
+        pathfinderPanel: { ja: "パスファインダー",   en: "Pathfinder" },
         cleanup:         { ja: "強制",               en: "Force" },
-        fillHolesExpand: { ja: "マド埋め（拡張）",   en: "Fill Holes (Expand)" },
-        fillHolesEffect: { ja: "マド埋め（効果）",   en: "Fill Holes (Effect)" },
-        expandAppearance:{ ja: "アピアランスを分割", en: "Expand Appearance" },
-        strokeToFill:    { ja: "線を塗りに",         en: "Stroke to Fill" }
+        fillHolesExpand: { ja: "実行",               en: "Apply" },
+        fillHolesEffect: { ja: "効果",               en: "Effect" },
+        expandAppearance:{ ja: "分割",               en: "Expand" },
+        clearAppearance: { ja: "解除",               en: "Clear" },
+        strokeToFill:    { ja: "線を塗りに変換",     en: "Convert Strokes to Fills" }
     },
     option: {
         removePoints:    { ja: "余分なポイントを削除",       en: "Remove redundant points" },
@@ -190,9 +212,12 @@ var LABELS = {
         optionRelease:   { ja: "Option+クリックで解除", en: "Option-click to release" },
         cleanup:         { ja: "直線上の冗長なアンカーポイントを削除（許容誤差 0.02）", en: "Remove redundant collinear anchor points (tolerance 0.02)" },
         appearance:      { ja: "アピアランスパネルを表示", en: "Show the Appearance panel" },
+        pathfinderPanel: { ja: "パスファインダーパネルを表示", en: "Show the Pathfinder panel" },
         fillHolesExpand: { ja: "複合パスを解除して合体し、拡張して実パスにする（マド埋め）", en: "Fill holes and expand to real paths" },
         fillHolesEffect: { ja: "複合パスを解除して合体（ライブ効果のまま／マド埋め）", en: "Fill holes, keep as a live effect" },
-        expandAppearance:{ ja: "選択オブジェクトのアピアランスを実体化", en: "Expand the appearance of the selection" },
+        expandAppearance:{ ja: "選択オブジェクトのアピアランスを実体化（可能ならグループ解除）", en: "Expand the appearance of the selection (ungroup if possible)" },
+        clearAppearance: { ja: "選択オブジェクトのアピアランスを消去", en: "Clear the appearance of the selection" },
+        optionEffect:    { ja: "Option+クリックで効果として適用", en: "Option-click to apply as a live effect" },
         strokeToFill:    { ja: "線をアウトライン化して1つの塗りにまとめる（ライブ効果）", en: "Outline strokes and merge into one fill (live effect)" },
         shortcutExecute:  { ja: "ショートカット: P", en: "Shortcut: P" },
         shortcutCompound: { ja: "ショートカット: C", en: "Shortcut: C" },
@@ -659,6 +684,7 @@ function workerFillHoles(expand) {
 
 /**
  * アピアランスを分割：選択オブジェクトのアピアランス（ライブ効果）を実体化する（メインエンジン用エントリ）。
+ * 分割結果は通常グループになるため、続けてグループ解除を試みる（解除できない選択でも失敗は握りつぶす）。
  * @returns {string} マーカー "OK" / "NODOC" / "NOSEL" / "ERR:..."
  */
 function workerExpandAppearance() {
@@ -667,6 +693,9 @@ function workerExpandAppearance() {
     if (!currentSelection || currentSelection.length < 1) { return "NOSEL"; }
     try {
         app.executeMenuCommand("expandStyle");
+        try {
+            app.executeMenuCommand("ungroup");
+        } catch (ungroupError) { }
         app.redraw();
         return "OK";
     } catch (expandAppearanceError) {
@@ -836,6 +865,90 @@ function removeRedundantAnchorsCollinear(targets, tolerance) {
     return removedCount;
 }
 
+/**
+ * パスファインダーパネルを表示する（メインエンジン用エントリ）。
+ * ドキュメント不要のメニューコマンドでパネルの表示をトグルする。
+ * @returns {string} マーカー "OK" / "ERR:..."
+ */
+function workerShowPathfinderPanel() {
+    try {
+        app.executeMenuCommand("Adobe PathfinderUI");
+        return "OK";
+    } catch (pathfinderPanelError) {
+        return "ERR:" + pathfinderPanelError;
+    }
+}
+
+/**
+ * 単一の enumerated パラメータを持つ一時アクションソースを生成する（アピアランスの消去などに使用）。
+ * @param {object} actionConfig setName / actionName / internalName / localizedName / enumKey / enumName / enumValue を持つ設定
+ * @returns {string} .aia のソース文字列 / .aia source text
+ */
+function buildEnumeratedActionSource(actionConfig) {
+    return ''
+        + '/version 3\n'
+        + buildNameLine('/name', actionConfig.setName)
+        + '/isOpen 1\n'
+        + '/actionCount 1\n'
+        + '/action-1 {\n'
+        + buildNameLine(' /name', actionConfig.actionName)
+        + ' /keyIndex 0\n'
+        + ' /colorIndex 0\n'
+        + ' /isOpen 0\n'
+        + ' /eventCount 1\n'
+        + ' /event-1 {\n'
+        + ' /useRulersIn1stQuadrant 0\n'
+        + ' /internalName (' + actionConfig.internalName + ')\n'
+        + buildNameLine(' /localizedName', actionConfig.localizedName)
+        + ' /isOpen 1\n'
+        + ' /isOn 1\n'
+        + ' /hasDialog 0\n'
+        + ' /parameterCount 1\n'
+        + ' /parameter-1 {\n'
+        + ' /key ' + actionConfig.enumKey + '\n'
+        + ' /showInPalette 4294967295\n'
+        + ' /type (enumerated)\n'
+        + buildNameLine(' /name', actionConfig.enumName)
+        + ' /value ' + actionConfig.enumValue + '\n'
+        + ' }\n'
+        + ' }\n'
+        + '}\n';
+}
+
+/**
+ * アピアランスを解除：選択オブジェクトに「アピアランスを消去」ダイナミックアクションを再生する（メインエンジン用エントリ）。
+ * ai_plugin_appearance（key 1835363957 / enumerated「アピアランスを消去」/ value 6）を一時アクションとして選択全体に一括再生する。
+ * 記録済み .aia と同一パラメータ（セット名のみユニーク化して既存アクションセットとの衝突を回避）。塗り・線などの復元は行わない。
+ * @returns {string} マーカー "OK" / "NODOC" / "NOSEL" / "ERR:..."
+ */
+function workerClearAppearance() {
+    if (app.documents.length === 0) { return "NODOC"; }
+    var currentSelection = app.activeDocument.selection;
+    if (!currentSelection || currentSelection.length < 1) { return "NOSEL"; }
+    var uniqueToken = "AiSmartPathfinder_clearapp_"
+        + (new Date()).getTime()
+        + "_"
+        + Math.floor(Math.random() * 100000);
+    var actionConfig = {
+        setName: uniqueToken + "_set",
+        actionName: uniqueToken + "_action",
+        internalName: "ai_plugin_appearance",
+        localizedName: "アピアランス",
+        enumKey: 1835363957,
+        enumName: "アピアランスを消去",
+        enumValue: 6,
+        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
+    };
+    try {
+        var actionSource = buildEnumeratedActionSource(actionConfig);
+        playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+        app.redraw();
+        return "OK";
+    } catch (clearAppearanceError) {
+        return "ERR:" + clearAppearanceError;
+    }
+}
+
 /* 委譲する worker 関数はすべてここに登録する（登録漏れ防止）/ register every delegated worker function */
 var WORKER_FUNCS = [
     workerApplyCompoundShape,
@@ -843,8 +956,11 @@ var WORKER_FUNCS = [
     workerExpandCompoundShape,
     workerReleaseCompoundShape,
     workerShowAppearancePanel,
+    workerShowPathfinderPanel,
     workerFillHoles,
     workerExpandAppearance,
+    workerClearAppearance,
+    buildEnumeratedActionSource,
     workerStrokeToFill,
     workerCleanupCollinear,
     isCleanupSkippable,
@@ -1009,6 +1125,22 @@ function delegateReleaseCompoundShape() {
  */
 function delegateShowAppearancePanel() {
     return delegateCall('workerShowAppearancePanel()');
+}
+
+/**
+ * パスファインダーパネルを表示する / show the Pathfinder panel
+ * @returns {string} マーカー / marker string
+ */
+function delegateShowPathfinderPanel() {
+    return delegateCall('workerShowPathfinderPanel()');
+}
+
+/**
+ * アピアランスを解除（消去＋基本属性の復元）する / clear appearance and restore basic attributes
+ * @returns {string} マーカー / marker string
+ */
+function delegateClearAppearance() {
+    return delegateCall('workerClearAppearance()');
 }
 
 /**
@@ -1503,22 +1635,41 @@ function showPalette() {
     var expandButton = optionControls.expand;
     var cleanupButton = optionControls.cleanup;
 
-    /* Special タブ：マド埋め（拡張／効果）／アピアランスを分割／アピアランスパネル / Special tab buttons */
-    var fillHolesExpandButton = specialTab.add("button", undefined, getLocalizedText("button.fillHolesExpand"));
+    /* その他タブ：マド埋め／変換／アピアランスの3パネル / "Special" tab: three grouped panels */
+    var fillHolesPanel = specialTab.add("panel", undefined, getLocalizedText("panel.fillHoles"));
+    setupPanel(fillHolesPanel);
+    var fillHolesRow = fillHolesPanel.add("group");
+    fillHolesRow.orientation = "row";
+    fillHolesRow.alignment = "left";
+    var fillHolesExpandButton = fillHolesRow.add("button", undefined, getLocalizedText("button.fillHolesExpand"));
     fillHolesExpandButton.helpTip = getLocalizedText("tip.fillHolesExpand");
-    fillHolesExpandButton.alignment = "left";
-    var fillHolesEffectButton = specialTab.add("button", undefined, getLocalizedText("button.fillHolesEffect"));
+    var fillHolesEffectButton = fillHolesRow.add("button", undefined, getLocalizedText("button.fillHolesEffect"));
     fillHolesEffectButton.helpTip = getLocalizedText("tip.fillHolesEffect");
-    fillHolesEffectButton.alignment = "left";
-    var strokeToFillButton = specialTab.add("button", undefined, getLocalizedText("button.strokeToFill"));
+
+    var convertPanel = specialTab.add("panel", undefined, getLocalizedText("panel.convert"));
+    setupPanel(convertPanel);
+    var strokeToFillButton = convertPanel.add("button", undefined, getLocalizedText("button.strokeToFill"));
     strokeToFillButton.helpTip = getLocalizedText("tip.strokeToFill");
     strokeToFillButton.alignment = "left";
-    var expandAppearanceButton = specialTab.add("button", undefined, getLocalizedText("button.expandAppearance"));
+
+    var appearancePanel = specialTab.add("panel", undefined, getLocalizedText("panel.appearance"));
+    setupPanel(appearancePanel);
+    var appearanceRow = appearancePanel.add("group");
+    appearanceRow.orientation = "row";
+    appearanceRow.alignment = "left";
+    var expandAppearanceButton = appearanceRow.add("button", undefined, getLocalizedText("button.expandAppearance"));
     expandAppearanceButton.helpTip = getLocalizedText("tip.expandAppearance");
-    expandAppearanceButton.alignment = "left";
-    var appearanceButton = specialTab.add("button", undefined, getLocalizedText("button.appearance"));
+    var clearAppearanceButton = appearanceRow.add("button", undefined, getLocalizedText("button.clearAppearance"));
+    clearAppearanceButton.helpTip = getLocalizedText("tip.clearAppearance");
+
+    var showPanelPanel = specialTab.add("panel", undefined, getLocalizedText("panel.showPanel"));
+    setupPanel(showPanelPanel);
+    var appearanceButton = showPanelPanel.add("button", undefined, getLocalizedText("button.appearance"));
     appearanceButton.helpTip = getLocalizedText("tip.appearance");
     appearanceButton.alignment = "left";
+    var pathfinderPanelButton = showPanelPanel.add("button", undefined, getLocalizedText("button.pathfinderPanel"));
+    pathfinderPanelButton.helpTip = getLocalizedText("tip.pathfinderPanel");
+    pathfinderPanelButton.alignment = "left";
 
     /* isBusy ガード付きで委譲を実行する / guarded delegate */
     function runExclusive(produceStatus) {
@@ -1574,12 +1725,17 @@ function showPalette() {
 
     /* クリックで該当パスファインダーを即適用する / apply the Pathfinder immediately on click
      * C 効果 → ライブ効果のまま / A 実行 → 拡張＋グループ解除で実際にパスへ
+     * Option+クリック → 出力モードに関係なく効果として適用（＝モード C と同じ）
      * ※ B（複合シェイプ）選択時は下段が無効化されクリックできない。removeUnpainted は分割・アウトラインのみ有効
      */
     function makePathfinderHandler(pathfinder) {
         return function () {
+            /* onClick は event を持たないため、直前の mousedown で記録した Option 状態を読む
+             * onClick carries no event; read the Option state recorded by the preceding mousedown */
+            var withOption = (this.__altPressed === true);
+            this.__altPressed = false;
             runExclusive(function () {
-                var destructive = !modeEffectRadio.value;
+                var destructive = !modeEffectRadio.value && !withOption;
                 /* 「効果として適用」（ライブ効果＝アピアランスに残る）ときは removeUnpainted を強制OFF
                  * ExtractUnpainted はライブ効果だと分割・アウトラインの見た目を壊すため、実行モードのみ有効
                  * force removeUnpainted OFF in effect mode; only apply it in the destructive (Apply) mode */
@@ -1595,6 +1751,9 @@ function showPalette() {
         var pathfinder = PATHFINDER_MODES[pathfinderIndex];
         var pathfinderRow = pathfinderRows[Math.floor(pathfinderIndex / 3)]; /* 3個ごとに改行 / 3 per row */
         var pathfinderButton = addOperationButton(pathfinderRow, pathfinder, makePathfinderHandler(pathfinder));
+        /* Option+クリックのヒントと mousedown での alt 記録を上乗せ / add Option-click hint & alt recorder */
+        pathfinderButton.helpTip = getLocalizedText(pathfinder.labelKey) + " / " + getLocalizedText("tip.optionEffect");
+        pathfinderButton.addEventListener("mousedown", makeAltRecorder(pathfinderButton));
         pathfinderButtons.push(pathfinderButton);
     }
     /* 6アイコン（2行×3）をひとつのセットとしてセル幅を統一し、上下の列を揃える
@@ -1692,10 +1851,24 @@ function showPalette() {
         });
     };
 
+    /* アピアランスを解除：消去して塗り・線などの基本属性を復元する / clear appearance and restore attributes */
+    clearAppearanceButton.onClick = function () {
+        runExclusive(function () {
+            return markerToStatus(delegateClearAppearance(), { labelKey: "button.clearAppearance" });
+        });
+    };
+
     /* アピアランスボタンのクリックでアピアランスパネルを表示する / show the Appearance panel on click */
     appearanceButton.onClick = function () {
         runExclusive(function () {
             return markerToStatus(delegateShowAppearancePanel(), { labelKey: "button.appearance" });
+        });
+    };
+
+    /* パスファインダーボタンのクリックでパスファインダーパネルを表示する / show the Pathfinder panel on click */
+    pathfinderPanelButton.onClick = function () {
+        runExclusive(function () {
+            return markerToStatus(delegateShowPathfinderPanel(), { labelKey: "button.pathfinderPanel" });
         });
     };
 
