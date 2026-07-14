@@ -19,7 +19,7 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
 「その他」タブ（4パネル構成）:
   マド埋め      ［実行］（複合パス解除＋合体→実パス化）／［効果］（ライブ効果のまま）
   変換          ［線を塗りに変換］（線のアウトライン化・ライブ効果）
-  アピアランス  ［分割］（expandStyle＋可能ならグループ解除）／［解除］（アピアランスを消去）
+  アピアランス  縦並び。［分割］（expandStyle＋可能ならグループ解除）／［効果のみを消去］（消去→塗り・線を復元）／［（完全に）消去］（アピアランスを消去）
   パネルを表示  ［アピアランス］（Style Palette）／［パスファインダー］（Adobe PathfinderUI）
 
   ※ ［強制］は選択パスの直線上の冗長アンカーを削除（PathCleanupTool 相当・許容誤差0.02固定）
@@ -50,9 +50,11 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
   マド埋め［実行］    選択を複合パス解除→ライブパスファインダー合体→拡張→グループ解除（PathCleanupTool の fillHolesOnSelection 相当）。
   マド埋め［効果］    選択を複合パス解除→ライブパスファインダー合体（ライブ効果のまま）。
   ［線を塗りに変換］  線をアウトライン化して1つの塗りにまとめる（ライブ効果）。
-  アピアランス［分割］      選択のアピアランス（ライブ効果）を expandStyle で実体化し、可能ならグループ解除する。
-  アピアランス［解除］      「アピアランスを消去」ダイナミックアクション（ai_plugin_appearance / key 1835363957 / value 6）を
-                            選択全体に一括再生する。塗り・線などの復元は行わない（アピアランスパネルのメニュー相当）。
+  アピアランス［分割］          選択のアピアランス（ライブ効果）を expandStyle で実体化し、可能ならグループ解除する。
+  アピアランス［効果のみを消去］ 「アピアランスを消去」を対象単位で再生したうえで、元の塗り・線（テキストは文字塗り）だけを復元する。
+                                見た目上はライブ効果だけが消える（ClearAppearance.jsx の「復元する」既定と同等の固定オプション）。
+  アピアランス［（完全に）消去］ 「アピアランスを消去」ダイナミックアクション（ai_plugin_appearance / key 1835363957 / value 6）を
+                                選択全体に一括再生する。塗り・線などの復元は行わない（アピアランスパネルのメニュー相当）。
   パネルを表示［アピアランス］   Illustrator のアピアランスパネル（Style Palette）を表示する。
   パネルを表示［パスファインダー］ Illustrator のパスファインダーパネル（Adobe PathfinderUI）を表示する。
 
@@ -65,9 +67,11 @@ shortcuts P/C/F), Shape Mode (Unite/Minus Front/Intersect/Exclude), Pathfinders
 (Divide/Trim/Merge/Crop/Outline/Minus Back), Options (Remove points [+ Force
 button] / Remove unpainted / Expand Compound Shape button). Special tab:
 grouped panels — Fill Holes (Apply / Effect), Convert (Convert Strokes to
-Fills), Appearance (Expand / Clear), Show Panel (Appearance / Pathfinder).
-Clear plays the ai_plugin_appearance "Clear Appearance" dynamic action on the
-whole selection (no attribute restoration).
+Fills), Appearance (Expand / Clear Effects / Clear; stacked vertically), Show
+Panel (Appearance / Pathfinder). Clear plays the ai_plugin_appearance "Clear
+Appearance" dynamic action on the whole selection (no attribute restoration);
+Clear Effects clears each item's appearance and then restores its original
+fill/stroke (per-character fill for text) so only the live effects disappear.
 A = Apply: both rows group, apply the Adobe Pathfinder XML, expand, and ungroup
 (bake to real paths). B = Compound shape: Shape Modes only via the
 ai_compound_shape action (Pathfinders dimmed/disabled). C = Apply as effect:
@@ -88,7 +92,7 @@ selected paths. The Show Panel buttons show the Appearance / Pathfinder panels.
 - 戻り値はマーカー（OK / NODOC / NOSEL / NEEDTWO / NOCS / ERR:...）で受けるが、ステータス表示エリアは持たないため markerToStatus の戻り値は破棄（委譲の副作用のみ利用）
 - 選択不足は条件で分離：効果は1つ以上（NOSEL）、実行・複合シェイプは2つ以上（NEEDTWO）
 - 複数選択時は効果を1つの対象にまとめるため一時的にグループ化し、A（destructive）では拡張後に解除する（エラー時はその一時グループだけを選択し直して解除）
-- UI は tabbedpanel（基本／その他）配下に buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一。その他タブはマド埋め／変換／アピアランス／パネルを表示の4パネル（setupPanel 共用。マド埋め・アピアランスは row で横並び、パネルを表示は縦並び）
+- UI は tabbedpanel（基本／その他）配下に buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一。その他タブはマド埋め／変換／アピアランス／パネルを表示の4パネル（setupPanel 共用。マド埋めは row で横並び、アピアランス・パネルを表示は縦並び）
 - ［パネルを表示：アピアランス／パスファインダー］は app.executeMenuCommand（Style Palette / Adobe PathfinderUI）をメインエンジンへ委譲してパネルを表示
 - アイコンは onDraw で描画（無効時は dimIconColors でディム表示）
 - Option（alt）状態は onDraw では取れないため mousedown で記録し onClick で読む（形状モードの複合シェイプ化・下段の効果適用・拡張ボタンの解除に共通）
@@ -106,7 +110,7 @@ https://note.com/dtp_tranist/n/n6909b836221a
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.8";
+var SCRIPT_VERSION = "v1.0.9";
 
 /* エンジンのグローバルを汚さないため IIFE で閉じる。パレット参照だけ $.global に残す。
  * Wrap everything in an IIFE; only the palette reference lives on $.global. */
@@ -185,7 +189,8 @@ var LABELS = {
         fillHolesExpand: { ja: "実行",               en: "Apply" },
         fillHolesEffect: { ja: "効果",               en: "Effect" },
         expandAppearance:{ ja: "分割",               en: "Expand" },
-        clearAppearance: { ja: "解除",               en: "Clear" },
+        clearEffectsOnly:{ ja: "効果のみを消去",     en: "Clear Effects" },
+        clearAppearance: { ja: "（完全に）消去",       en: "Clear" },
         strokeToFill:    { ja: "線を塗りに変換",     en: "Convert Strokes to Fills" }
     },
     option: {
@@ -216,6 +221,7 @@ var LABELS = {
         fillHolesExpand: { ja: "複合パスを解除して合体し、拡張して実パスにする（マド埋め）", en: "Fill holes and expand to real paths" },
         fillHolesEffect: { ja: "複合パスを解除して合体（ライブ効果のまま／マド埋め）", en: "Fill holes, keep as a live effect" },
         expandAppearance:{ ja: "選択オブジェクトのアピアランスを実体化（可能ならグループ解除）", en: "Expand the appearance of the selection (ungroup if possible)" },
+        clearEffectsOnly:{ ja: "アピアランスを消去し、元の塗り・線（テキストは文字塗り）だけを戻す（＝効果のみ消去）", en: "Clear appearance but keep the original fill/stroke (removes effects only)" },
         clearAppearance: { ja: "選択オブジェクトのアピアランスを消去", en: "Clear the appearance of the selection" },
         optionEffect:    { ja: "Option+クリックで効果として適用", en: "Option-click to apply as a live effect" },
         strokeToFill:    { ja: "線をアウトライン化して1つの塗りにまとめる（ライブ効果）", en: "Outline strokes and merge into one fill (live effect)" },
@@ -949,6 +955,371 @@ function workerClearAppearance() {
     }
 }
 
+/**
+ * 「アピアランスを消去」ダイナミックアクション（ai_plugin_appearance / key 1835363957 / value 6）を
+ * 現在の選択に対して一時アクションとして1回再生する（呼び出し前に対象を選択しておくこと）。
+ * ClearAppearance.jsx の act_Clear 相当。セット名のみユニーク化して既存アクションセットとの衝突を避ける。
+ * @returns {void}
+ */
+function playClearAppearanceAction() {
+    var uniqueToken = "AiSmartPathfinder_cleareffects_"
+        + (new Date()).getTime()
+        + "_"
+        + Math.floor(Math.random() * 100000);
+    var actionConfig = {
+        setName: uniqueToken + "_set",
+        actionName: uniqueToken + "_action",
+        internalName: "ai_plugin_appearance",
+        localizedName: "アピアランス",
+        enumKey: 1835363957,
+        enumName: "アピアランスを消去",
+        enumValue: 6,
+        actionFilePath: Folder.temp.fsName + "/" + uniqueToken + ".aia"
+    };
+    var actionSource = buildEnumeratedActionSource(actionConfig);
+    playTemporaryAction(actionSource, actionConfig.setName, actionConfig.actionName, actionConfig.actionFilePath);
+}
+
+/**
+ * 効果のみを消去（メインエンジン用エントリ）。
+ * 選択オブジェクトのアピアランスを消去したうえで、元の塗り・線（テキストは文字塗り）だけを再適用する。
+ * 結果として見た目上はライブ効果だけが消える（ClearAppearance.jsx の「復元する」既定と同等の固定オプション）。
+ * 消去はオブジェクト単位で行うため、いったん個別選択→消去→復元を繰り返し、最後に元の選択へ戻す。
+ * @returns {string} マーカー "OK" / "NODOC" / "NOSEL" / "ERR:..."
+ */
+function workerClearEffectsOnly() {
+    if (app.documents.length === 0) { return "NODOC"; }
+    var currentDocument = app.activeDocument;
+    var currentSelection = currentDocument.selection;
+    if (!currentSelection || currentSelection.length < 1) { return "NOSEL"; }
+    var restoreOptions = {
+        fillStroke: true,
+        textFillFirst: false,
+        textFillPerChar: true,
+        strokeSettings: true,
+        opacity: true,
+        blendingMode: true,
+        overprint: true
+    };
+    try {
+        var originalSelection = [];
+        for (var i = 0; i < currentSelection.length; i++) { originalSelection.push(currentSelection[i]); }
+        processClearEffectsItems(originalSelection, restoreOptions);
+        currentDocument.selection = null;
+        for (var r = 0; r < originalSelection.length; r++) {
+            try { if (originalSelection[r]) { originalSelection[r].selected = true; } } catch (reselectError) { }
+        }
+        app.redraw();
+        return "OK";
+    } catch (clearEffectsError) {
+        return "ERR:" + clearEffectsError;
+    }
+}
+
+/**
+ * 選択項目を再帰的にたどり、種類ごとに効果のみ消去を適用する。
+ * グループ（クリップ以外）は展開して再帰、クリップグループ・複合パスは消去のみ、パスは塗り・線を復元、テキストは文字塗りを復元。
+ * @param {object[]} items 対象項目配列 / target items
+ * @param {object} restoreOptions 復元オプション / restore options
+ * @returns {void}
+ */
+function processClearEffectsItems(items, restoreOptions) {
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        if (!item) { continue; }
+        switch (item.typename) {
+            case "GroupItem":
+                if (item.clipped) {
+                    clearEffectsAppearanceOnly(item, restoreOptions);
+                } else {
+                    processClearEffectsItems(item.pageItems, restoreOptions);
+                }
+                break;
+            case "PathItem":
+                clearEffectsPreserveFillStroke(item, restoreOptions);
+                break;
+            case "CompoundPathItem":
+                clearEffectsAppearanceOnly(item, restoreOptions);
+                break;
+            case "TextFrame":
+                clearEffectsTextPreserveFill(item, restoreOptions);
+                break;
+        }
+    }
+}
+
+/**
+ * 対象1つだけを選択する（消去アクションを対象単位で効かせるため）。
+ * @param {object} targetItem 対象項目 / target item
+ * @returns {void}
+ */
+function selectOnlyForClear(targetItem) {
+    var currentDocument = app.activeDocument;
+    currentDocument.selection = null;
+    targetItem.selected = true;
+}
+
+/**
+ * クリップグループ・複合パス向け：アピアランスを消去し、不透明度・描画モードだけ戻す（塗り・線は戻さない）。
+ * @param {object} item 対象項目 / target item
+ * @param {object} restoreOptions 復元オプション / restore options
+ * @returns {void}
+ */
+function clearEffectsAppearanceOnly(item, restoreOptions) {
+    try {
+        var savedOpacity = null;
+        var savedBlendingMode = null;
+        if (restoreOptions && restoreOptions.opacity) {
+            try { savedOpacity = item.opacity; } catch (opacityReadError) { }
+        }
+        if (restoreOptions && restoreOptions.blendingMode) {
+            try { savedBlendingMode = item.blendingMode; } catch (blendReadError) { }
+        }
+        selectOnlyForClear(item);
+        playClearAppearanceAction();
+        try { if (savedOpacity !== null) { item.opacity = savedOpacity; } } catch (opacityWriteError) { }
+        try { if (savedBlendingMode !== null) { item.blendingMode = savedBlendingMode; } } catch (blendWriteError) { }
+    } catch (clearOnlyError) { }
+}
+
+/**
+ * パス向け：アピアランスを消去し、元の塗り・線・線幅（＋設定に応じて線属性・オーバープリント・不透明度・描画モード）を復元する。
+ * @param {object} item PathItem
+ * @param {object} restoreOptions 復元オプション / restore options
+ * @returns {void}
+ */
+function clearEffectsPreserveFillStroke(item, restoreOptions) {
+    try {
+        var hasFill = item.filled;
+        var hasStroke = item.stroked;
+        var savedFill = hasFill ? cloneColorForClear(item.fillColor) : null;
+        var savedStroke = hasStroke ? cloneColorForClear(item.strokeColor) : null;
+        var savedStrokeWidth = hasStroke ? item.strokeWidth : 1;
+
+        var savedStrokeCap = null;
+        var savedStrokeJoin = null;
+        var savedStrokeDashes = null;
+        var savedStrokeDashOffset = null;
+        var savedStrokeMiterLimit = null;
+        var savedStrokeOverprint = null;
+        var savedFillOverprint = null;
+
+        if (hasFill && restoreOptions.overprint) {
+            try { savedFillOverprint = item.fillOverprint; } catch (fillOverprintReadError) { }
+        }
+        if (hasStroke && restoreOptions.strokeSettings) {
+            try { savedStrokeCap = item.strokeCap; } catch (capReadError) { }
+            try { savedStrokeJoin = item.strokeJoin; } catch (joinReadError) { }
+            try { savedStrokeDashes = item.strokeDashes ? item.strokeDashes.slice(0) : null; } catch (dashReadError) { }
+            try { savedStrokeDashOffset = item.strokeDashOffset; } catch (dashOffsetReadError) { }
+            try { savedStrokeMiterLimit = item.strokeMiterLimit; } catch (miterReadError) { }
+        }
+        if (hasStroke && restoreOptions.overprint) {
+            try { savedStrokeOverprint = item.strokeOverprint; } catch (strokeOverprintReadError) { }
+        }
+
+        var savedOpacity = null;
+        var savedBlendingMode = null;
+        if (restoreOptions.opacity) {
+            try { savedOpacity = item.opacity; } catch (opacityReadError) { }
+        }
+        if (restoreOptions.blendingMode) {
+            try { savedBlendingMode = item.blendingMode; } catch (blendReadError) { }
+        }
+
+        selectOnlyForClear(item);
+        playClearAppearanceAction();
+
+        if (hasFill && savedFill) {
+            item.filled = true;
+            item.fillColor = savedFill;
+            if (restoreOptions.overprint) {
+                try { if (savedFillOverprint !== null) { item.fillOverprint = savedFillOverprint; } } catch (fillOverprintWriteError) { }
+            }
+        } else {
+            item.filled = false;
+            item.fillColor = makeNoColorForClear();
+        }
+
+        if (hasStroke && savedStroke) {
+            item.stroked = true;
+            item.strokeColor = savedStroke;
+            item.strokeWidth = savedStrokeWidth;
+            if (restoreOptions.strokeSettings) {
+                try { if (savedStrokeCap !== null) { item.strokeCap = savedStrokeCap; } } catch (capWriteError) { }
+                try { if (savedStrokeJoin !== null) { item.strokeJoin = savedStrokeJoin; } } catch (joinWriteError) { }
+                try { if (savedStrokeDashes !== null) { item.strokeDashes = savedStrokeDashes; } } catch (dashWriteError) { }
+                try { if (savedStrokeDashOffset !== null) { item.strokeDashOffset = savedStrokeDashOffset; } } catch (dashOffsetWriteError) { }
+                try { if (savedStrokeMiterLimit !== null) { item.strokeMiterLimit = savedStrokeMiterLimit; } } catch (miterWriteError) { }
+            }
+            if (restoreOptions.overprint) {
+                try { if (savedStrokeOverprint !== null) { item.strokeOverprint = savedStrokeOverprint; } } catch (strokeOverprintWriteError) { }
+            }
+        } else {
+            item.stroked = false;
+            item.strokeColor = makeNoColorForClear();
+        }
+
+        try { if (savedOpacity !== null) { item.opacity = savedOpacity; } } catch (opacityWriteError) { }
+        try { if (savedBlendingMode !== null) { item.blendingMode = savedBlendingMode; } } catch (blendWriteError) { }
+    } catch (preserveError) { }
+}
+
+/**
+ * テキスト向け：アピアランスを消去し、文字単位の塗り（textFillPerChar）を復元する（線は復元しない）。
+ * @param {object} textFrame TextFrame
+ * @param {object} restoreOptions 復元オプション / restore options
+ * @returns {void}
+ */
+function clearEffectsTextPreserveFill(textFrame, restoreOptions) {
+    try {
+        var textRange = textFrame.textRange;
+        var characters = null;
+        var characterCount = 0;
+        var characterFills = [];
+        var hasCharacters = false;
+
+        try {
+            characters = textRange.characters;
+            characterCount = characters.length;
+            hasCharacters = (characterCount > 0);
+        } catch (characterReadError) {
+            characters = null;
+            characterCount = 0;
+            hasCharacters = false;
+        }
+
+        if (restoreOptions.textFillPerChar && hasCharacters) {
+            for (var i = 0; i < characterCount; i++) {
+                characterFills.push(getTextRangeFillCloneForClear(characters[i]));
+            }
+        }
+
+        var firstCharacterFill = null;
+        if (restoreOptions.textFillFirst && hasCharacters) {
+            firstCharacterFill = getTextRangeFillCloneForClear(characters[0]);
+        }
+
+        var rangeFill = getTextRangeFillCloneForClear(textRange);
+
+        var savedOpacity = null;
+        var savedBlendingMode = null;
+        if (restoreOptions.opacity) {
+            try { savedOpacity = textFrame.opacity; } catch (opacityReadError) { }
+        }
+        if (restoreOptions.blendingMode) {
+            try { savedBlendingMode = textFrame.blendingMode; } catch (blendReadError) { }
+        }
+
+        selectOnlyForClear(textFrame);
+        playClearAppearanceAction();
+
+        if (restoreOptions.textFillPerChar && hasCharacters) {
+            for (var j = 0; j < characterCount; j++) {
+                restoreTextFillOnlyForClear(characters[j], characterFills[j]);
+            }
+        } else if (restoreOptions.textFillFirst) {
+            var fillToApply = firstCharacterFill || rangeFill;
+            restoreTextFillOnlyForClear(textRange, fillToApply);
+        }
+
+        try { if (savedOpacity !== null) { textFrame.opacity = savedOpacity; } } catch (opacityWriteError) { }
+        try { if (savedBlendingMode !== null) { textFrame.blendingMode = savedBlendingMode; } } catch (blendWriteError) { }
+    } catch (textPreserveError) { }
+}
+
+/**
+ * カラーオブジェクトを型ごとに安全に複製する。
+ * @param {object} color 複製元カラー / source color
+ * @returns {object} 複製したカラー（未対応型は null）/ cloned color (null when unsupported)
+ */
+function cloneColorForClear(color) {
+    if (!color) { return null; }
+    switch (color.typename) {
+        case "RGBColor":
+            var rgbColor = new RGBColor();
+            rgbColor.red = color.red;
+            rgbColor.green = color.green;
+            rgbColor.blue = color.blue;
+            return rgbColor;
+        case "CMYKColor":
+            var cmykColor = new CMYKColor();
+            cmykColor.cyan = color.cyan;
+            cmykColor.magenta = color.magenta;
+            cmykColor.yellow = color.yellow;
+            cmykColor.black = color.black;
+            return cmykColor;
+        case "GrayColor":
+            var grayColor = new GrayColor();
+            grayColor.gray = color.gray;
+            return grayColor;
+        case "SpotColor":
+            var spotColor = new SpotColor();
+            spotColor.spot = color.spot;
+            spotColor.tint = color.tint;
+            return spotColor;
+        case "GradientColor":
+            var gradientColor = new GradientColor();
+            gradientColor.gradient = color.gradient;
+            gradientColor.angle = color.angle;
+            gradientColor.length = color.length;
+            gradientColor.origin = color.origin;
+            gradientColor.matrix = color.matrix;
+            return gradientColor;
+        case "PatternColor":
+            var patternColor = new PatternColor();
+            patternColor.pattern = color.pattern;
+            try { patternColor.matrix = color.matrix; } catch (patternMatrixError) { }
+            return patternColor;
+        case "NoColor":
+            return new NoColor();
+        default:
+            return null;
+    }
+}
+
+/**
+ * NoColor を生成して返す。
+ * @returns {NoColor} NoColor インスタンス / a NoColor instance
+ */
+function makeNoColorForClear() {
+    return new NoColor();
+}
+
+/**
+ * テキスト範囲の塗りカラーを複製して返す（NoColor・取得失敗時は null）。
+ * @param {object} textRange TextRange
+ * @returns {object} 複製した塗りカラー、または null / cloned fill color or null
+ */
+function getTextRangeFillCloneForClear(textRange) {
+    var fillColor = null;
+    try {
+        fillColor = textRange.characterAttributes.fillColor;
+    } catch (fillReadError) {
+        return null;
+    }
+    if (fillColor && fillColor.typename && fillColor.typename !== "NoColor") {
+        return cloneColorForClear(fillColor);
+    }
+    return null;
+}
+
+/**
+ * テキスト範囲に塗りだけを復元する（線は NoColor に）。
+ * @param {object} textRange TextRange
+ * @param {object} fill 復元する塗りカラー（null なら NoColor）/ fill color to restore (NoColor when null)
+ * @returns {void}
+ */
+function restoreTextFillOnlyForClear(textRange, fill) {
+    var attributes = textRange.characterAttributes;
+    if (fill) {
+        attributes.fillColor = cloneColorForClear(fill);
+    } else {
+        attributes.fillColor = makeNoColorForClear();
+    }
+    attributes.strokeColor = makeNoColorForClear();
+}
+
 /* 委譲する worker 関数はすべてここに登録する（登録漏れ防止）/ register every delegated worker function */
 var WORKER_FUNCS = [
     workerApplyCompoundShape,
@@ -960,6 +1331,17 @@ var WORKER_FUNCS = [
     workerFillHoles,
     workerExpandAppearance,
     workerClearAppearance,
+    workerClearEffectsOnly,
+    playClearAppearanceAction,
+    processClearEffectsItems,
+    selectOnlyForClear,
+    clearEffectsAppearanceOnly,
+    clearEffectsPreserveFillStroke,
+    clearEffectsTextPreserveFill,
+    cloneColorForClear,
+    makeNoColorForClear,
+    getTextRangeFillCloneForClear,
+    restoreTextFillOnlyForClear,
     buildEnumeratedActionSource,
     workerStrokeToFill,
     workerCleanupCollinear,
@@ -1141,6 +1523,14 @@ function delegateShowPathfinderPanel() {
  */
 function delegateClearAppearance() {
     return delegateCall('workerClearAppearance()');
+}
+
+/**
+ * 効果のみを消去（アピアランス消去＋塗り・線の復元）する / clear effects only (clear appearance, keep fill/stroke)
+ * @returns {string} マーカー / marker string
+ */
+function delegateClearEffectsOnly() {
+    return delegateCall('workerClearEffectsOnly()');
 }
 
 /**
@@ -1412,6 +1802,13 @@ function setupPanel(panel, spacing) {
     panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
+/* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
+function trimButtonHeight(button, px) {
+    try {
+        button.size = [button.size.width, button.size.height - px];
+    } catch (e) {}
+}
+
 /* ============================================================
  * パレット UI / Palette UI
  * ============================================================ */
@@ -1655,10 +2052,13 @@ function showPalette() {
     var appearancePanel = specialTab.add("panel", undefined, getLocalizedText("panel.appearance"));
     setupPanel(appearancePanel);
     var appearanceRow = appearancePanel.add("group");
-    appearanceRow.orientation = "row";
+    appearanceRow.orientation = "column";
     appearanceRow.alignment = "left";
+    appearanceRow.alignChildren = "fill";
     var expandAppearanceButton = appearanceRow.add("button", undefined, getLocalizedText("button.expandAppearance"));
     expandAppearanceButton.helpTip = getLocalizedText("tip.expandAppearance");
+    var clearEffectsOnlyButton = appearanceRow.add("button", undefined, getLocalizedText("button.clearEffectsOnly"));
+    clearEffectsOnlyButton.helpTip = getLocalizedText("tip.clearEffectsOnly");
     var clearAppearanceButton = appearanceRow.add("button", undefined, getLocalizedText("button.clearAppearance"));
     clearAppearanceButton.helpTip = getLocalizedText("tip.clearAppearance");
 
@@ -1851,7 +2251,14 @@ function showPalette() {
         });
     };
 
-    /* アピアランスを解除：消去して塗り・線などの基本属性を復元する / clear appearance and restore attributes */
+    /* 効果のみを消去：アピアランスを消去し、元の塗り・線（テキストは文字塗り）だけを戻す / clear effects only, keep fill/stroke */
+    clearEffectsOnlyButton.onClick = function () {
+        runExclusive(function () {
+            return markerToStatus(delegateClearEffectsOnly(), { labelKey: "button.clearEffectsOnly" });
+        });
+    };
+
+    /* （完全に）消去：消去して塗り・線などの基本属性を復元する / clear appearance and restore attributes */
     clearAppearanceButton.onClick = function () {
         runExclusive(function () {
             return markerToStatus(delegateClearAppearance(), { labelKey: "button.clearAppearance" });
@@ -1906,6 +2313,20 @@ function showPalette() {
 
     /* 常駐エンジンに参照を保持して GC を回避 / keep the reference alive to avoid GC */
     $.global.__pfPaletteWindow = paletteWindow;
+
+    /* レイアウトを確定させてから全プッシュボタンの高さのみ -2 で詰める（アイコンボタンは対象外）
+     * finalize layout, then trim only the height of every push button by 2px (icon buttons excluded) */
+    paletteWindow.layout.layout(true);
+    var trimTargetButtons = [
+        expandButton, cleanupButton,
+        fillHolesExpandButton, fillHolesEffectButton,
+        strokeToFillButton,
+        expandAppearanceButton, clearEffectsOnlyButton, clearAppearanceButton,
+        appearanceButton, pathfinderPanelButton
+    ];
+    for (var trimIndex = 0; trimIndex < trimTargetButtons.length; trimIndex++) {
+        trimButtonHeight(trimTargetButtons[trimIndex], 2);
+    }
 
     paletteWindow.show();
 }
