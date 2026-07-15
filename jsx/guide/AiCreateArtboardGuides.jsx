@@ -768,7 +768,8 @@ function convertGuidesToArtboards(doc, convertTargets, allArtboards, extendPoint
         var convertTarget = convertTargets[i];
         var segments = convertTargetSegments(convertTarget, allArtboards, extendPoints);
 
-        /* 元ガイドは1回だけ削除 / Remove the original guide once */
+        /* 元ガイドは1回だけ削除（ロック中でも消せるよう先にアンロック）/ Remove the original guide once (unlock first so locked guides can be removed) */
+        try { convertTarget.guidePath.locked = false; } catch (e) {}
         convertTarget.guidePath.remove();
         addGuideSegments(doc, segments, null);
     }
@@ -819,7 +820,8 @@ function collectConvertTargets(doc, guidePaths) {
 
     for (var i = 0; i < guidePaths.length; i++) {
         var guidePath = guidePaths[i];
-        if (guidePath.locked || guidePath.hidden) continue;
+        // 「ガイドをロック」ON だとルーラーガイドは locked=true になるが、対象から外さない（削除直前に個別アンロック）/ "Lock Guides" sets locked=true on ruler guides; keep them (unlocked right before removal)
+        if (guidePath.hidden) continue;
 
         var guideBounds = guidePath.geometricBounds; // [left, top, right, bottom]
         var guideLeft = guideBounds[0];
