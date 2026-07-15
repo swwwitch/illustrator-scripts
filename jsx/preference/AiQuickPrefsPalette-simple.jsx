@@ -9,14 +9,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Illustrator の各種環境設定の切り替えと、選択オブジェクトの反転・回転を、常駐パレットでまとめて操作するユーティリティです。操作した時点で即時反映されます。
 
 - パレット（常駐エンジン）で表示し、書き込み・DOM 操作は BridgeTalk でメインエンジンへ委譲（読み出しは同期で直接取得）
-- 上段は2カラム（左:キー入力／整列オプション／変形オプション・右:反転と回転／字形の境界に整列）、その下に全幅でコピー/ペースト・描画
+- 上段は2カラム（左:キー増加／整列オプション／変形オプション・右:反転と回転／字形の境界に整列）、その下に全幅でコピー/ペースト・描画
 - 反転・回転はアイコンボタンで実行し、9軸（3×3）ウィジェットで基点を指定。アイコンはライト／ダーク UI に合わせて配色を自動切り替え
 - 環境設定ダイアログ等の外部変更は、パレットをクリック（再アクティブ）で同期
 - パレットがアクティブなとき esc キーで閉じる
 
 #### パネルと項目
 
-- キー入力：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
+- キー増加：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
 - 整列オプション：プレビュー境界
 - 字形の境界に整列：ポイント文字／エリア内文字
 - 変形オプション：パターン／角／線幅と効果
@@ -89,7 +89,7 @@ var SCRIPT_VERSION = "v2.0.0";
             title: { ja: "クイック環境設定", en: "Quick Preferences" }
         },
         panel: {
-            keyInput: { ja: "キー入力", en: "Key Input" },
+            keyInput: { ja: "キー増加", en: "Key Input" },
             align: { ja: "整列オプション", en: "Align Options" },
             transform: { ja: "変形オプション", en: "Transform Options" },
             flip: { ja: "反転と回転", en: "Flip & Rotate" },
@@ -109,7 +109,7 @@ var SCRIPT_VERSION = "v2.0.0";
             pastePreserve: { ja: "コピー元のレイヤーにペースト", en: "Paste Remembers Layers" }
         },
         tooltip: {
-            cursorStep: { ja: "矢印キーでの移動量（環境設定 > 一般 > キー入力）。↑↓ / Shift=±10 / Option=±0.1", en: "Keyboard increment (Preferences > General). Up/Down / Shift=±10 / Option=±0.1" },
+            cursorStep: { ja: "矢印キーでの移動量（環境設定 > 一般 > キー増加）。↑↓ / Shift=±10 / Option=±0.1", en: "Keyboard increment (Preferences > General). Up/Down / Shift=±10 / Option=±0.1" },
             unit: { ja: "定規の単位を切り替え", en: "Switch the ruler unit" },
             previewBounds: { ja: "整列・分布でプレビュー境界（線幅・効果を含む）を使用", en: "Use preview bounds (incl. stroke & effects) for align/distribute" },
             pointText: { ja: "ポイント文字を字形の境界で整列", en: "Align point type to glyph bounds" },
@@ -897,9 +897,9 @@ var SCRIPT_VERSION = "v2.0.0";
         rightColumn.orientation = 'column';
         rightColumn.alignChildren = ['fill', 'top'];
 
-        /* ----- 左列：キー入力 / 整列オプション / 変形オプション / Left column: Key input / Align Options / Transform Options ----- */
+        /* ----- 左列：キー増加 / 整列オプション / 変形オプション / Left column: Key input / Align Options / Transform Options ----- */
 
-        /* キー入力パネル（カーソル移動量）と単位ポップアップ / Key input panel (cursor step) with the unit popup */
+        /* キー増加パネル（カーソル移動量）と単位ポップアップ / Key input panel (cursor step) with the unit popup */
         var keyInputPanel = leftColumn.add('panel', undefined, L('panel.keyInput'));
         keyInputPanel.orientation = 'row';
         keyInputPanel.alignChildren = ['left', 'center'];
@@ -909,7 +909,7 @@ var SCRIPT_VERSION = "v2.0.0";
         cursorStepField.characters = 4;
         cursorStepField.helpTip = L('tooltip.cursorStep');
 
-        /* 編集中フラグ：キー入力欄にフォーカスがある間は外部同期で値を上書きしない / Editing flag: don't let external sync overwrite while the field has focus */
+        /* 編集中フラグ：キー増加欄にフォーカスがある間は外部同期で値を上書きしない / Editing flag: don't let external sync overwrite while the field has focus */
         var isEditingCursorStep = false;
         cursorStepField.onActivate = function () { isEditingCursorStep = true; };
         cursorStepField.onDeactivate = function () { isEditingCursorStep = false; };
@@ -934,7 +934,7 @@ var SCRIPT_VERSION = "v2.0.0";
 
         changeValueByArrowKey(cursorStepField);
 
-        /* 整列パネル（左列・キー入力の下）/ Align panel (left column, below Key input) */
+        /* 整列パネル（左列・キー増加の下）/ Align panel (left column, below Key input) */
         var alignPanel = leftColumn.add('panel', undefined, L('panel.align'));
         setupPanel(alignPanel);
 
@@ -1109,7 +1109,7 @@ var SCRIPT_VERSION = "v2.0.0";
             cursorStepField.text = readCursorKeyLengthInCurrentUnit();
         }
 
-        /* キー入力の確定時に保存（不正値は元へ戻す）/ Save on commit (restore on invalid input) */
+        /* キー増加の確定時に保存（不正値は元へ戻す）/ Save on commit (restore on invalid input) */
         cursorStepField.onChange = function () {
             if (!saveCursorKeyLengthInCurrentUnit(parseFloat(cursorStepField.text))) {
                 cursorStepField.text = readCursorKeyLengthInCurrentUnit();

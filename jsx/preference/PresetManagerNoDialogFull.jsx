@@ -22,7 +22,7 @@ with(app.preferences) {
      * General app-level preferences.
      */
 
-    // キー入力
+    // キー増加
     setRealPreference("cursorKeyLength", 0.2835); // 0.1mm
 
     // 詳細なツールヒントを表示

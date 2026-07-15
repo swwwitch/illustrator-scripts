@@ -33,7 +33,7 @@ Option + 矢印キーでも十字ボタンと同じ操作ができる。
 
 移動距離は「移動距離」パネルのラジオで選ぶ:
   ・環境設定のテキスト/行送り（text/sizeIncrement × 表示単位 text/units）
-  ・環境設定のキー入力（cursorKeyLength）
+  ・環境設定のキー増加（cursorKeyLength）
   ・カスタム（pt 指定）
 いずれも内部では pt 換算して処理する。
 */
@@ -60,7 +60,7 @@ var LABELS = {
     },
     radio: {
         sourceTextLeading: { ja: "テキスト{slash}行送り（環境設定）", en: "Type Size{slash}Leading (Pref)" },
-        sourceKeyInput: { ja: "キー入力（環境設定）", en: "Keyboard Increment (Pref)" },
+        sourceKeyInput: { ja: "キー増加（環境設定）", en: "Keyboard Increment (Pref)" },
         sourceCustom: { ja: "カスタム", en: "Custom" }
     },
     tooltip: {
@@ -394,7 +394,7 @@ function changeValueByArrowKey(editText) {
         leftButton.enabled = hasMultiple;
         rightButton.enabled = hasMultiple;
         zeroButton.enabled = hasMultiple;
-        // 基準点は複数選択時のみ／テキスト1つではキー入力も使えないのでディム
+        // 基準点は複数選択時のみ／テキスト1つではキー増加も使えないのでディム
         anchorPanel.enabled = hasMultiple;
         sourceKeyInputRadio.enabled = !single;
     }
@@ -673,14 +673,14 @@ function changeValueByArrowKey(editText) {
     /* ラジオラベルに環境設定の現在値を反映（表示単位込み） / Reflect current preference values in the radio labels */
     function refreshSourceLabels() {
         textUnit = app.preferences.getIntegerPreference("text/units");
-        // 行送りはテキスト単位（text/units）、キー入力は一般単位（rulerType）を参照
+        // 行送りはテキスト単位（text/units）、キー増加は一般単位（rulerType）を参照
         var rulerType = app.preferences.getIntegerPreference("rulerType");
 
         // 行送り：値は text/units 単位そのまま
         var leadingValue = app.preferences.getRealPreference("text/sizeIncrement");
         sourceTextLeadingRadio.text = L("radio.sourceTextLeading") + "：" + leadingValue + unitInfo(textUnit).label;
 
-        // キー入力：cursorKeyLength は pt で返るので一般単位へ換算して表示
+        // キー増加：cursorKeyLength は pt で返るので一般単位へ換算して表示
         var keyValue = app.preferences.getRealPreference("cursorKeyLength") / unitInfo(rulerType).pt;
         keyValue = Math.round(keyValue * 1000) / 1000;
         sourceKeyInputRadio.text = L("radio.sourceKeyInput") + "：" + keyValue + unitInfo(rulerType).label;

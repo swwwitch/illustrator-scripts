@@ -9,7 +9,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Illustrator の各種環境設定の切り替えを、常駐パレットでまとめて操作するユーティリティです。
 操作した時点で即時反映されます。
 
-- キー入力：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
+- キー増加：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
 - 整列オプション：プレビュー境界／字形の境界に整列（ポイント文字・エリア内文字を両方まとめてON/OFF）
 - 変形オプション：パターン／角／線幅と効果
 - コピー/ペースト：書式なしペースト／コピー元のレイヤーにペースト
@@ -54,7 +54,7 @@ var SCRIPT_VERSION = "v2.0.3";
             title: { ja: "クイック環境設定", en: "Quick Preferences" }
         },
         panel: {
-            keyInput: { ja: "キー入力", en: "Key Input" },
+            keyInput: { ja: "キー増加", en: "Key Input" },
             align: { ja: "整列オプション", en: "Align Options" },
             transform: { ja: "変形オプション", en: "Transform Options" },
             copyPaste: { ja: "コピー/ペースト", en: "Copy / Paste" },
@@ -72,7 +72,7 @@ var SCRIPT_VERSION = "v2.0.3";
             pastePreserve: { ja: "コピー元のレイヤーに", en: "Paste Remembers Layers" }
         },
         tooltip: {
-            cursorStep: { ja: "矢印キーでの移動量（環境設定 > 一般 > キー入力）。↑↓ / Shift=±10 / Option=±0.1", en: "Keyboard increment (Preferences > General). Up/Down / Shift=±10 / Option=±0.1" },
+            cursorStep: { ja: "矢印キーでの移動量（環境設定 > 一般 > キー増加）。↑↓ / Shift=±10 / Option=±0.1", en: "Keyboard increment (Preferences > General). Up/Down / Shift=±10 / Option=±0.1" },
             unit: { ja: "定規の単位を切り替え", en: "Switch the ruler unit" },
             previewBounds: { ja: "整列・分布でプレビュー境界（線幅・効果を含む）を使用", en: "Use preview bounds (incl. stroke & effects) for align/distribute" },
             glyphBounds: { ja: "ポイント文字・エリア内文字を字形の境界で整列", en: "Align point & area type to glyph bounds" },
@@ -363,7 +363,7 @@ var SCRIPT_VERSION = "v2.0.3";
     // パネル構築 / Panel builders
     // =========================================
 
-    /* キー入力パネルを構築（カーソル移動量＋単位ポップアップ）。編集中フラグと単位同期はビルダー内に閉じ込め、{field, isEditing(), syncDisplay()} を返す */
+    /* キー増加パネルを構築（カーソル移動量＋単位ポップアップ）。編集中フラグと単位同期はビルダー内に閉じ込め、{field, isEditing(), syncDisplay()} を返す */
     /* Build the Key Input panel (cursor step + unit popup); the editing flag and unit-sync are kept inside, returns {field, isEditing(), syncDisplay()} */
     function buildKeyInputPanel(parent) {
         var panel = parent.add('panel', undefined, L('panel.keyInput'));
@@ -400,7 +400,7 @@ var SCRIPT_VERSION = "v2.0.3";
 
         changeValueByArrowKey(cursorStepField);
 
-        /* キー入力の確定時に保存（不正値は元へ戻す）/ Save on commit (restore on invalid input) */
+        /* キー増加の確定時に保存（不正値は元へ戻す）/ Save on commit (restore on invalid input) */
         cursorStepField.onChange = function () {
             if (!saveCursorKeyLengthInCurrentUnit(parseFloat(cursorStepField.text))) {
                 cursorStepField.text = readCursorKeyLengthInCurrentUnit();
@@ -681,13 +681,13 @@ var SCRIPT_VERSION = "v2.0.3";
         mainGroup.orientation = 'column';
         mainGroup.alignChildren = ['fill', 'top'];
 
-        /* ----- キー入力 / 整列オプション / 変形オプション（1カラムで縦積み）/ Key input / Align Options / Transform Options (single column, stacked) ----- */
+        /* ----- キー増加 / 整列オプション / 変形オプション（1カラムで縦積み）/ Key input / Align Options / Transform Options (single column, stacked) ----- */
 
-        /* キー入力パネル（カーソル移動量＋単位ポップアップ）/ Key input panel (cursor step + unit popup) */
+        /* キー増加パネル（カーソル移動量＋単位ポップアップ）/ Key input panel (cursor step + unit popup) */
         var keyInput = buildKeyInputPanel(mainGroup);
         var cursorStepField = keyInput.field;
 
-        /* 整列オプションパネル（キー入力の下）。2チェックの参照を受け取る / Align Options panel (below Key input); receive the 2 checkbox refs */
+        /* 整列オプションパネル（キー増加の下）。2チェックの参照を受け取る / Align Options panel (below Key input); receive the 2 checkbox refs */
         var alignControls = buildAlignPanel(mainGroup);
         var checkboxPreview = alignControls.preview;
         var checkboxGlyphBounds = alignControls.glyphBounds;

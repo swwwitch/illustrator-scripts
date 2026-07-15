@@ -9,12 +9,12 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Illustrator の各種環境設定を、常駐パレットでまとめて切り替えるユーティリティです。設定は操作した時点で即時反映されます。
 
 - パレット（常駐エンジン）で表示し、書き込みは BridgeTalk でメインエンジンへ委譲（読み出しは同期で直接取得）
-- 2カラム構成：左＝キー入力／変形と整列、右＝字形の境界に整列／ガイドと定規、最下部（全幅）＝アートボード名と枠線／その他
+- 2カラム構成：左＝キー増加／変形と整列、右＝字形の境界に整列／ガイドと定規、最下部（全幅）＝アートボード名と枠線／その他
 - 環境設定ダイアログ等の外部変更は、パレットをクリック（再アクティブ）で同期
 
 #### パネルと項目
 
-- キー入力：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
+- キー増加：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
 - 変形と整列：プレビュー境界／パターンを変形／角を拡大・縮小／線幅と効果も拡大・縮小
 - 字形の境界に整列：ポイント文字／エリア内文字
 - ガイドと定規：ガイドを表示／ガイドをロック／ビデオ定規（トグル）
@@ -81,7 +81,7 @@ var SCRIPT_VERSION = "v1.6.0";
             title: { ja: "環境設定：変形と整列", en: "Preferences: Transform & Align" }
         },
         panel: {
-            keyInput: { ja: "キー入力", en: "Key Input" },
+            keyInput: { ja: "キー増加", en: "Key Input" },
             transform: { ja: "変形と整列", en: "Transform & Align" },
             glyphBounds: { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
             guide: { ja: "ガイドと定規", en: "Guides & Rulers" },
@@ -371,7 +371,7 @@ var SCRIPT_VERSION = "v1.6.0";
         return (PREF_STATE.cursorKeyLengthPt / getCurrentPtPerUnit()).toFixed(1);
     }
 
-    /* キー入力フィールドの値を保存 / Save the value from the key field */
+    /* キー増加フィールドの値を保存 / Save the value from the key field */
     function saveCursorKeyLengthFromField(editText) {
         saveCursorKeyLengthInCurrentUnit(parseFloat(editText.text));
     }
@@ -542,9 +542,9 @@ var SCRIPT_VERSION = "v1.6.0";
         rightColumn.orientation = 'column';
         rightColumn.alignChildren = ['fill', 'top'];
 
-        /* ----- 左列：キー入力 / 変形と整列 / Left column: Key input / Transform & Align ----- */
+        /* ----- 左列：キー増加 / 変形と整列 / Left column: Key input / Transform & Align ----- */
 
-        /* キー入力パネル（カーソル移動量）と単位ポップアップ / Key input panel (cursor step) with the unit popup */
+        /* キー増加パネル（カーソル移動量）と単位ポップアップ / Key input panel (cursor step) with the unit popup */
         var keyInputPanel = leftColumn.add('panel', undefined, L('panel.keyInput'));
         keyInputPanel.orientation = 'row';
         keyInputPanel.alignChildren = ['left', 'center'];
@@ -774,7 +774,7 @@ var SCRIPT_VERSION = "v1.6.0";
             keyField.text = readCursorKeyLengthInCurrentUnit();
         }
 
-        /* キー入力の確定時に保存（不正値は元へ戻す）/ Save on commit (restore on invalid input) */
+        /* キー増加の確定時に保存（不正値は元へ戻す）/ Save on commit (restore on invalid input) */
         keyField.onChange = function () {
             if (!saveCursorKeyLengthInCurrentUnit(parseFloat(keyField.text))) {
                 keyField.text = readCursorKeyLengthInCurrentUnit();

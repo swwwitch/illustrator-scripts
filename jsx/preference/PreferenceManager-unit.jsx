@@ -148,7 +148,7 @@ var LABELS = {
         en: "General"
     },
     keyInputLabel: {
-        ja: "キー入力：",
+        ja: "キー増加：",
         en: "Keyboard Increment::"
     },
     cornerRadiusLabel: {
@@ -374,7 +374,7 @@ function main() {
         return getUnitLabel(code, "rulerType");
     }
 
-    // キー入力
+    // キー増加
     var groupKeyInput = generalPanel.add('group');
     groupKeyInput.orientation = 'row';
     var labelKey = groupKeyInput.add('statictext', undefined, LABELS.keyInputLabel[lang]);

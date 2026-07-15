@@ -22,7 +22,7 @@ DistributeUpFromTop.jsx
     最上部のオブジェクトを固定し、以降を「サイズ／行送り」の値ぶんずつ
     上方向へ等間隔に再配置する。
 
-移動・減算に使う値は、環境設定［テキスト］の「サイズ／行送り」キー入力増分
+移動・減算に使う値は、環境設定［テキスト］の「サイズ／行送り」キー増加増分
 （text/sizeIncrement）を、表示単位（text/units）込みで pt 換算したもの。
 
 行送りの適用は手動行送りではなく、目標行送りから自動行送り量（autoLeadingAmount ％）を
@@ -51,7 +51,7 @@ var LEADING_UNIFORM_TOLERANCE_PT = 0.01;
     var selection = app.activeDocument.selection
     if (selection.length < 1) return
 
-    // 「サイズ／行送り」キー入力（text/sizeIncrement）を表示単位（text/units）込みで pt 換算
+    // 「サイズ／行送り」キー増加（text/sizeIncrement）を表示単位（text/units）込みで pt 換算
     var textUnit = app.preferences.getIntegerPreference("text/units")
     var sizeLeadingStep = app.preferences.getRealPreference("text/sizeIncrement") * pointsPerTextUnit(textUnit)
 

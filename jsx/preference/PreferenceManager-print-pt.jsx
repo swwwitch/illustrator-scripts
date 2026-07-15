@@ -157,10 +157,10 @@ function main() {
     var ddAsian = grpAsian.add("dropdownlist", undefined, unitOptions);
     ddAsian.selection = arrayIndexOf(unitOptions, currentAsian);
 
-    // キー入力インクリメント
+    // キー増加インクリメント
     var grpKey = rightPanel.add("group");
     grpKey.orientation = "row";
-    var lblKey = grpKey.add("statictext", undefined, "キー入力:");
+    var lblKey = grpKey.add("statictext", undefined, "キー増加:");
     lblKey.preferredSize.width = labelWidthRight;
     lblKey.justify = "right";
     var etKeyValue = grpKey.add("edittext", undefined, "0.1");
