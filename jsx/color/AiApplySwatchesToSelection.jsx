@@ -16,6 +16,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 「単語」は各行の先頭色が互い違いになるよう配色。
 - DOM 操作はメインエンジンへ BridgeTalk 委譲（常駐パレットは表示中に DOM 接続を失うため）。
 
+### 紹介記事（note）
+
+https://note.com/dtp_tranist/n/n5602f3084d2b
+
 ### Overview
 
 - A persistent palette that applies swatches or predefined colors to selected objects or text.
