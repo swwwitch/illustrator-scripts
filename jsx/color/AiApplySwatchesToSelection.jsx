@@ -7,18 +7,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 - 選択したオブジェクトやテキストに、スウォッチや定義済みカラーを適用する常駐パレットです。
-- 適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム）をラジオボタンで選択します。
+- 適用単位（オブジェクト／1文字／単語／行／段落）と適用順（そのまま／逆順／ランダム／完全ランダム）をラジオボタンで選択します。
+- 「ランダム」はカラーの並びをシャッフルして繰り返し適用、「完全ランダム」は適用先ごとに毎回抽選するため繰り返しがありません。
 - ラジオを変えるたびにライブプレビュー。適用ボタンはなく、閉じた時点の結果が確定します（取り消しは Cmd+Z）。
 - 開いた時点の選択スウォッチを■で取り込み、以後はそれ（スウォッチ名で参照）を最優先で使用。ラジオ操作でスウォッチ選択が外れても影響しません。1色でも選択があれば優先します。
 - スウォッチを選び直したら［アップデート］で再取り込みします。
 - スウォッチ未選択時は自動カラー（CMYK は CM/CY/MY 生成、RGB は既定色）を使用。
-- 「単語ごと」は各行の先頭色が互い違いになるよう配色。
+- 「単語」は各行の先頭色が互い違いになるよう配色。
 - DOM 操作はメインエンジンへ BridgeTalk 委譲（常駐パレットは表示中に DOM 接続を失うため）。
 
 ### Overview
 
 - A persistent palette that applies swatches or predefined colors to selected objects or text.
-- Choose apply unit (object / character / word / line / paragraph) and order (as-is / reverse / random) with radio buttons.
+- Choose apply unit (object / character / word / line / paragraph) and order (as-is / reverse / random / fully random) with radio buttons.
+- "Random" shuffles the color list once and cycles through it; "Fully random" draws a color per target, so no sequence repeats.
 - Live preview on every change. There is no Apply button — the result is committed when the palette closes (undo via Cmd+Z).
 - The swatches selected when the palette opens are captured as chips and used (by swatch name) with top priority, so losing the swatch selection when clicking radios has no effect. Even a single selected swatch is used.
 - Use [Update] to re-capture after reselecting swatches.
@@ -31,7 +33,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.7.1";
+var SCRIPT_VERSION = "v1.7.2";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -63,16 +65,17 @@ var LABELS = {
         option: { ja: "配色順", en: "Order" }
     },
     unit: {
-        object:    { ja: "オブジェクトごと", en: "Per object" },
-        character: { ja: "1文字ごと", en: "Per character" },
-        word:      { ja: "単語ごと", en: "Per word" },
-        line:      { ja: "行ごと", en: "Per line" },
-        paragraph: { ja: "段落ごと", en: "Per paragraph" }
+        object:    { ja: "オブジェクト", en: "Per object" },
+        character: { ja: "1文字", en: "Per character" },
+        word:      { ja: "単語", en: "Per word" },
+        line:      { ja: "行", en: "Per line" },
+        paragraph: { ja: "段落", en: "Per paragraph" }
     },
     order: {
-        asis:    { ja: "取り込み順", en: "As captured" },
-        reverse: { ja: "逆順", en: "Reverse" },
-        random:  { ja: "ランダム", en: "Random" }
+        asis:       { ja: "取り込み順", en: "As captured" },
+        reverse:    { ja: "逆順", en: "Reverse" },
+        random:     { ja: "ランダム", en: "Random" },
+        fullrandom: { ja: "完全ランダム", en: "Fully random" }
     },
     button: {
         fromSwatches: { ja: "スウォッチを読込", en: "Load Swatches" },
@@ -89,7 +92,8 @@ var LABELS = {
         unitParagraph: { ja: "テキストの段落ごとにカラーを適用します。", en: "Applies a color to each paragraph of the text." },
         orderAsis:     { ja: "取り込んだカラーの並び順で適用します（適用先は位置順・文字順）。", en: "Applies colors in the captured order (targets follow position / reading order)." },
         orderReverse:  { ja: "取り込んだカラーの並びを逆にして適用します。", en: "Applies the captured colors in reverse order." },
-        orderRandom:   { ja: "取り込んだカラーの並びをランダムにして適用します。", en: "Applies the captured colors in a random order." }
+        orderRandom:     { ja: "取り込んだカラーの並びをランダムにして適用します（並びは繰り返します）。", en: "Applies the captured colors in a random order (the sequence repeats)." },
+        orderFullRandom: { ja: "適用先ごとにカラーを毎回ランダムに選びます（並びは繰り返しません）。", en: "Picks a color at random for each target (no repeating sequence)." }
     },
     status: {
         done:  { ja: "プレビューを更新しました。", en: "Preview updated." },
@@ -229,11 +233,12 @@ function showPalette() {
     STATE.lastStatsSig = selectionStatsSignature(info);
 
     /* 配色順（カラム内は縦並び）/ Coloring order (vertical within its column) */
-    var orderRadioButtons = addRadioPanel(unitsRow, L("panel.option"), buildOptionList("order", ["asis", "reverse", "random"]), "asis", onOptionChange);
+    var orderRadioButtons = addRadioPanel(unitsRow, L("panel.option"), buildOptionList("order", ["asis", "reverse", "random", "fullrandom"]), "asis", onOptionChange);
     setOptionTooltips(orderRadioButtons, {
         asis: L("tooltip.orderAsis"),
         reverse: L("tooltip.orderReverse"),
-        random: L("tooltip.orderRandom")
+        random: L("tooltip.orderRandom"),
+        fullrandom: L("tooltip.orderFullRandom")
     });
 
     /* 状況表示 / Status line */
@@ -567,7 +572,7 @@ var WORKER_FUNCS = [
     collectColorTargetsByUnitW, pushTextRangeTargetsW, pushStaggeredWordTargetsW, getTextUnitRangesW, applyColorToTargetW,
     sortByPositionW, comparePositionKeysW, shuffleArrayW, randIntW,
     resolveAppliedColorsW, findSwatchColorByNameW, collectFillColorsW, isApplicableFillColorW, serializeColorW, deserializeColorW,
-    orderColorsW, pickSwatchColorW,
+    orderColorsW, fullRandomColorIndexW, pickSwatchColorW,
     buildCMYKColorW, buildRGBColorW, buildGrayColorW, getDefaultRGBColorsW,
     pickTwoChannelCMYW, generateRandomCMYPaletteUniqueW, isFarEnoughCMYW, cmyDistanceW,
     isWhiteColorW, allWhiteSwatchesW, colorToRGB255W
@@ -764,9 +769,19 @@ function workerApply(options, swatchNames, colorValues) {
     /* 各対象の元の状態を保存してから着色（次回プレビューで元に戻せるように）
        Snapshot each target's originals before coloring, so the next preview can revert it */
     var snapshot = [];
+    /* 完全ランダム：グループ（単語など）ごとに一度だけ抽選し、同一グループ内は同じ色にする
+       Fully random: draw once per group (e.g. a word) so a group keeps one color */
+    var isFullRandom = (options.order === "fullrandom");
+    var randomIndexByGroup = {};
     for (var i = 0; i < targets.length; i++) {
         snapshotTargetW(targets[i], snapshot);
-        var colorIndex = (typeof targets[i].colorIndex === "number") ? targets[i].colorIndex : i;
+        var colorIndex;
+        if (isFullRandom) {
+            var groupKey = (typeof targets[i].groupKey === "string") ? targets[i].groupKey : String(i);
+            colorIndex = fullRandomColorIndexW(groupKey, randomIndexByGroup, colors.length);
+        } else {
+            colorIndex = (typeof targets[i].colorIndex === "number") ? targets[i].colorIndex : i;
+        }
         applyColorToTargetW(targets[i], pickSwatchColorW(colorIndex, colors));
     }
     $.global.__aiApplyPreviewSnapshot = snapshot;
@@ -954,7 +969,10 @@ function pushStaggeredWordTargetsW(textRange, out) {
         var wordIndex = -1;
         for (var ci = 0; ci < chars.length; ci++) {
             if (wordStarts[chars[ci].start]) { wordIndex++; }
-            out.push({ kind: "textrange", node: chars[ci], colorIndex: (wordIndex < 0 ? 0 : wordIndex) + li });
+            var safeWordIndex = (wordIndex < 0) ? 0 : wordIndex;
+            /* groupKey は行内で一意（完全ランダムで単語ごとに別色を抽選するため）
+               groupKey is unique per line+word so fully random draws a distinct color per word */
+            out.push({ kind: "textrange", node: chars[ci], colorIndex: safeWordIndex + li, groupKey: li + ":" + safeWordIndex });
         }
     }
 }
@@ -1102,11 +1120,19 @@ function buildGrayColorW(gray) {
     return color;
 }
 
-/* 適用順に並べ替え / Reorder colors */
+/* 適用順に並べ替え（完全ランダムは適用側でインデックスを抽選するので並びは変えない）
+   Reorder colors (fully random draws indices at apply time, so the order is left as-is) */
 function orderColorsW(colors, orderMode) {
     if (orderMode === "reverse") return colors.slice().reverse();
     if (orderMode === "random") return shuffleArrayW(colors);
     return colors;
+}
+
+/* 完全ランダム用：グループキーごとのカラーインデックスを抽選してキャッシュ
+   Fully random: draw and cache a color index per group key */
+function fullRandomColorIndexW(groupKey, cache, colorCount) {
+    if (cache[groupKey] === undefined) { cache[groupKey] = randIntW(0, colorCount - 1); }
+    return cache[groupKey];
 }
 
 /* インデックスに応じて色を取得（ループ・不透明度100%）/ Pick a color by index (wraps, opacity 100%) */
