@@ -20,16 +20,16 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
   マド埋め      ［実行］（複合パス解除＋合体→実パス化）／［効果］（ライブ効果のまま）
   変換          ［線を塗りに変換］（線のアウトライン化・ライブ効果）
   アピアランス  縦並び。［分割］（expandStyle＋可能ならグループ解除）／［効果のみを消去］（消去→塗り・線を復元）／［（完全に）消去］（アピアランスを消去）
-  パネルを表示  ［アピアランス］（Style Palette）／［パスファインダー］（Adobe PathfinderUI）
+  ツール、パネルを表示 ［アピアランス］（Style Palette）／［パスファインダー］（Adobe PathfinderUI）／［シェイプ形成ツール］（selectTool）
 
   ※ ［強制］は選択パスの直線上の冗長アンカーを削除（PathCleanupTool 相当・許容誤差0.02固定）
   ※ マド埋め［実行］は PathCleanupTool の fillHolesOnSelection と同じ手順（group→noCompoundPath→Live Pathfinder Add→expandStyle→ungroup）
   ※ パスファインダーの6アイコン（2行×3）は unifyIconCellWidths でセル幅を統一し列を揃える
 
 出力モード（モードパネルの排他ラジオ）:
-  A パスファインダーを実行  上段・下段とも＝グループ化→XML（Adobe Pathfinder）→拡張→グループ解除（実際にパスへ変換）
-  B 複合シェイプを作成      上段のみ＝ダイナミックアクション（ai_compound_shape）で複合シェイプ（下段6ボタンはディム＝無効）
-  C 効果として適用          上段・下段とも＝XML ライブ効果のまま（拡張しない）
+  A パスに変換          上段・下段とも＝グループ化→XML（Adobe Pathfinder）→拡張→グループ解除（実際にパスへ変換）
+  B 複合シェイプを作成  上段のみ＝ダイナミックアクション（ai_compound_shape）で複合シェイプ（下段6ボタンはディム＝無効）
+  C 効果として適用      上段・下段とも＝XML ライブ効果のまま（拡張しない）
   ※ ダイナミックアクションの複合シェイプは expandStyle で焼き込めないため、A の上段も XML 方式を使う
      （ai_plugin_pathfinder のパネル実行アクションも検討したが、undo が2回必要になるため不採用）
   ※ A/C で複数オブジェクトを選択している場合は、効果適用の前に一時的にグループ化する（1つの効果対象にまとめるため）。
@@ -55,8 +55,9 @@ AiSmartPathfinder.jsx — Smart Pathfinder Palette
                                 見た目上はライブ効果だけが消える（ClearAppearance.jsx の「復元する」既定と同等の固定オプション）。
   アピアランス［（完全に）消去］ 「アピアランスを消去」ダイナミックアクション（ai_plugin_appearance / key 1835363957 / value 6）を
                                 選択全体に一括再生する。塗り・線などの復元は行わない（アピアランスパネルのメニュー相当）。
-  パネルを表示［アピアランス］   Illustrator のアピアランスパネル（Style Palette）を表示する。
-  パネルを表示［パスファインダー］ Illustrator のパスファインダーパネル（Adobe PathfinderUI）を表示する。
+  ツール、パネルを表示［アピアランス］     Illustrator のアピアランスパネル（Style Palette）を表示する。
+  ツール、パネルを表示［パスファインダー］ Illustrator のパスファインダーパネル（Adobe PathfinderUI）を表示する。
+  ツール、パネルを表示［シェイプ形成ツール］ シェイプ形成ツール（Adobe Shape Builder Tool）に切り替える（ドキュメント必須）。
 
 ［強制］ボタン（オプションパネル・「余分なポイントを削除」の右）:
   選択パス（グループ・複合パス含む）の直線上の冗長なアンカーポイントを削除する（許容誤差 0.02 固定・2パス）。
@@ -92,8 +93,8 @@ selected paths. The Show Panel buttons show the Appearance / Pathfinder panels.
 - 戻り値はマーカー（OK / NODOC / NOSEL / NEEDTWO / NOCS / ERR:...）で受けるが、ステータス表示エリアは持たないため markerToStatus の戻り値は破棄（委譲の副作用のみ利用）
 - 選択不足は条件で分離：効果は1つ以上（NOSEL）、実行・複合シェイプは2つ以上（NEEDTWO）
 - 複数選択時は効果を1つの対象にまとめるため一時的にグループ化し、A（destructive）では拡張後に解除する（エラー時はその一時グループだけを選択し直して解除）
-- UI は tabbedpanel（基本／その他）配下に buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一。その他タブはマド埋め／変換／アピアランス／パネルを表示の4パネル（setupPanel 共用。マド埋めは row で横並び、アピアランス・パネルを表示は縦並び）
-- ［パネルを表示：アピアランス／パスファインダー］は app.executeMenuCommand（Style Palette / Adobe PathfinderUI）をメインエンジンへ委譲してパネルを表示
+- UI は tabbedpanel（基本／その他）配下に buildModePanel / buildShapeModePanel / buildPathfinderRows / buildOptionPanel と addOperationButton で構築し、setupWindow / setupPanel と PANEL_MARGINS 等の共通変数で統一。その他タブはマド埋め／変換／アピアランス／ツール、パネルを表示の4パネル（setupPanel 共用。マド埋めは row で横並び、アピアランス・ツール、パネルを表示は縦並び）
+- ［ツール、パネルを表示：アピアランス／パスファインダー］は app.executeMenuCommand（Style Palette / Adobe PathfinderUI）を、［シェイプ形成ツール］は app.selectTool（Adobe Shape Builder Tool）をメインエンジンへ委譲
 - アイコンは onDraw で描画（無効時は dimIconColors でディム表示）
 - Option（alt）状態は onDraw では取れないため mousedown で記録し onClick で読む（形状モードの複合シェイプ化・下段の効果適用・拡張ボタンの解除に共通）
 - 全体を IIFE で閉じ、$.global にはパレット参照（__pfPaletteWindow）だけを残す
@@ -110,7 +111,7 @@ https://note.com/dtp_tranist/n/n6909b836221a
 // バージョン / Version
 // =========================================
 
-var SCRIPT_VERSION = "v1.0.9";
+var SCRIPT_VERSION = "v1.1.0";
 
 /* エンジンのグローバルを汚さないため IIFE で閉じる。パレット参照だけ $.global に残す。
  * Wrap everything in an IIFE; only the palette reference lives on $.global. */
@@ -146,7 +147,7 @@ var LABELS = {
         fillHoles:  { ja: "マド埋め",       en: "Fill Holes" },
         convert:    { ja: "変換",           en: "Convert" },
         appearance: { ja: "アピアランス",   en: "Appearance" },
-        showPanel:  { ja: "パネルを表示",   en: "Show Panel" }
+        showPanel:  { ja: "ツール、パネルを表示", en: "Show Tools & Panels" }
     },
     mode: {
         unite:      { ja: "合体",                     en: "Unite(Add)" },
@@ -175,7 +176,7 @@ var LABELS = {
         minusBack:  { ja: "背面型抜き",   en: "Minus Back" }
     },
     apply: {
-        execute:  { ja: "パスファインダーを実行", en: "Apply Pathfinder" },
+        execute:  { ja: "パスに変換",             en: "Convert to Paths" },
         compound: { ja: "複合シェイプを作成",     en: "Compound shape" },
         effect:   { ja: "効果として適用",         en: "Apply as effect" }
     },
@@ -185,6 +186,7 @@ var LABELS = {
         release:       { ja: "解除", en: "Release" },
         appearance:      { ja: "アピアランス",       en: "Appearance" },
         pathfinderPanel: { ja: "パスファインダー",   en: "Pathfinder" },
+        shapeBuilder:    { ja: "シェイプ形成ツール", en: "Shape Builder Tool" },
         cleanup:         { ja: "強制",               en: "Force" },
         fillHolesExpand: { ja: "実行",               en: "Apply" },
         fillHolesEffect: { ja: "効果",               en: "Effect" },
@@ -218,6 +220,7 @@ var LABELS = {
         cleanup:         { ja: "直線上の冗長なアンカーポイントを削除（許容誤差 0.02）", en: "Remove redundant collinear anchor points (tolerance 0.02)" },
         appearance:      { ja: "アピアランスパネルを表示", en: "Show the Appearance panel" },
         pathfinderPanel: { ja: "パスファインダーパネルを表示", en: "Show the Pathfinder panel" },
+        shapeBuilder:    { ja: "シェイプ形成ツールに切り替える", en: "Switch to the Shape Builder tool" },
         fillHolesExpand: { ja: "複合パスを解除して合体し、拡張して実パスにする（マド埋め）", en: "Fill holes and expand to real paths" },
         fillHolesEffect: { ja: "複合パスを解除して合体（ライブ効果のまま／マド埋め）", en: "Fill holes, keep as a live effect" },
         expandAppearance:{ ja: "選択オブジェクトのアピアランスを実体化（可能ならグループ解除）", en: "Expand the appearance of the selection (ungroup if possible)" },
@@ -886,6 +889,21 @@ function workerShowPathfinderPanel() {
 }
 
 /**
+ * シェイプ形成ツールに切り替える（メインエンジン用エントリ）。
+ * ツールの選択にはドキュメントが必要なため、未オープンなら NODOC を返す。
+ * @returns {string} マーカー "OK" / "NODOC" / "ERR:..."
+ */
+function workerSelectShapeBuilderTool() {
+    try {
+        if (app.documents.length === 0) return "NODOC";
+        app.selectTool("Adobe Shape Builder Tool");
+        return "OK";
+    } catch (shapeBuilderError) {
+        return "ERR:" + shapeBuilderError;
+    }
+}
+
+/**
  * 単一の enumerated パラメータを持つ一時アクションソースを生成する（アピアランスの消去などに使用）。
  * @param {object} actionConfig setName / actionName / internalName / localizedName / enumKey / enumName / enumValue を持つ設定
  * @returns {string} .aia のソース文字列 / .aia source text
@@ -1328,6 +1346,7 @@ var WORKER_FUNCS = [
     workerReleaseCompoundShape,
     workerShowAppearancePanel,
     workerShowPathfinderPanel,
+    workerSelectShapeBuilderTool,
     workerFillHoles,
     workerExpandAppearance,
     workerClearAppearance,
@@ -1515,6 +1534,14 @@ function delegateShowAppearancePanel() {
  */
 function delegateShowPathfinderPanel() {
     return delegateCall('workerShowPathfinderPanel()');
+}
+
+/**
+ * シェイプ形成ツールに切り替える / switch to the Shape Builder tool
+ * @returns {string} マーカー / marker string
+ */
+function delegateSelectShapeBuilderTool() {
+    return delegateCall('workerSelectShapeBuilderTool()');
 }
 
 /**
@@ -1958,7 +1985,7 @@ function buildOptionPanel(parentWindow) {
         expand:          panel.add("button", undefined, getLocalizedText("button.expand"))
     };
     controls.removePoints.value = true;
-    controls.removeUnpainted.value = true;
+    controls.removeUnpainted.value = false;
     controls.removeUnpainted.helpTip = getLocalizedText("tip.removeUnpainted");
     controls.expand.helpTip = getLocalizedText("tip.expand") + " / " + getLocalizedText("tip.optionRelease");
     controls.cleanup.helpTip = getLocalizedText("tip.cleanup");
@@ -2000,13 +2027,13 @@ function showPalette() {
     var basicTab = tabbedPanel.add("tab", undefined, getLocalizedText("tab.basic"));
     basicTab.orientation = "column";
     basicTab.alignChildren = "fill";
-    basicTab.margins = [12, 14, 12, 12];
+    basicTab.margins = [12, 14, 0, 12];
     basicTab.spacing = WINDOW_SPACING;
 
     var specialTab = tabbedPanel.add("tab", undefined, getLocalizedText("tab.special"));
     specialTab.orientation = "column";
     specialTab.alignChildren = "fill";
-    specialTab.margins = [12, 14, 12, 12];
+    specialTab.margins = [12, 14, 0, 12];
     specialTab.spacing = WINDOW_SPACING;
 
     tabbedPanel.selection = 0;
@@ -2070,6 +2097,9 @@ function showPalette() {
     var pathfinderPanelButton = showPanelPanel.add("button", undefined, getLocalizedText("button.pathfinderPanel"));
     pathfinderPanelButton.helpTip = getLocalizedText("tip.pathfinderPanel");
     pathfinderPanelButton.alignment = "left";
+    var shapeBuilderButton = showPanelPanel.add("button", undefined, getLocalizedText("button.shapeBuilder"));
+    shapeBuilderButton.helpTip = getLocalizedText("tip.shapeBuilder");
+    shapeBuilderButton.alignment = "left";
 
     /* isBusy ガード付きで委譲を実行する / guarded delegate */
     function runExclusive(produceStatus) {
@@ -2279,6 +2309,13 @@ function showPalette() {
         });
     };
 
+    /* シェイプ形成ツールボタンのクリックでツールを切り替える / switch to the Shape Builder tool on click */
+    shapeBuilderButton.onClick = function () {
+        runExclusive(function () {
+            return markerToStatus(delegateSelectShapeBuilderTool(), { labelKey: "button.shapeBuilder" });
+        });
+    };
+
     /* 出力モードを選択し、パスファインダーの有効状態を更新する / select an output mode and refresh Pathfinder state */
     function selectOutputMode(targetRadio) {
         modeExecuteRadio.value = (targetRadio === modeExecuteRadio);
@@ -2288,7 +2325,7 @@ function showPalette() {
     }
 
     /* キーボードショートカット / Keyboard shortcuts
-     * Esc: 閉じる / P: パスファインダーを実行 / C: 複合シェイプにする / F: 効果として適用
+     * Esc: 閉じる / P: パスに変換 / C: 複合シェイプにする / F: 効果として適用
      */
     paletteWindow.addEventListener("keydown", function (kbEvent) {
         if (kbEvent.keyName === "Escape") {
@@ -2322,7 +2359,7 @@ function showPalette() {
         fillHolesExpandButton, fillHolesEffectButton,
         strokeToFillButton,
         expandAppearanceButton, clearEffectsOnlyButton, clearAppearanceButton,
-        appearanceButton, pathfinderPanelButton
+        appearanceButton, pathfinderPanelButton, shapeBuilderButton
     ];
     for (var trimIndex = 0; trimIndex < trimTargetButtons.length; trimIndex++) {
         trimButtonHeight(trimTargetButtons[trimIndex], 2);
