@@ -37,7 +37,7 @@ https://note.com/dtp_tranist/n/n5602f3084d2b
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.7.2";
+var SCRIPT_VERSION = "v1.7.3";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -310,8 +310,11 @@ function showPalette() {
        When focus returns to the palette after changing the selection, refresh the unit dims (colors unchanged) */
     win.onActivate = function () {
         if (STATE.busy) return;
-        var freshInfo = readSelectionInfo();
-        if (freshInfo.ok) updateUnitAvailability(unitRadioButtons, freshInfo);
+        var freshStats = readSelectionStats();
+        if (freshStats.ok) {
+            updateUnitAvailability(unitRadioButtons, freshStats);
+            STATE.lastStatsSig = selectionStatsSignature(freshStats);
+        }
     };
 
     /* 適用ボタンなし：閉じたら現在の適用結果を確定（スナップショットは破棄＝以後 restore しない。戻すのは Cmd+Z）
@@ -485,7 +488,7 @@ function selectionStatsSignature(info) {
    Periodic poll: refresh only the unit dims when the selection changed (read-only, colors unchanged) */
 function pollDimsUpdate() {
     if (!STATE.win || STATE.busy || !STATE.unitRadioButtons) return;
-    var info = readSelectionInfo();
+    var info = readSelectionStats();
     if (!info.ok) return;
     var sig = selectionStatsSignature(info);
     if (sig === STATE.lastStatsSig) return;
@@ -493,10 +496,14 @@ function pollDimsUpdate() {
     updateUnitAvailability(STATE.unitRadioButtons, info);
 }
 
+/* ディム追従ポーリングの間隔（ms）。短くすると Illustrator 本体への割り込みが増えて重くなる
+   Dim-polling interval (ms); shorter values interrupt Illustrator more often and slow it down */
+var DIM_POLL_INTERVAL = 1200;
+
 /* ディム追従ポーリングを開始（scheduleTask 非対応環境では何もしない）/ Start dim polling (no-op if scheduleTask is unavailable) */
 function startDimPolling() {
     if (typeof app.scheduleTask !== "function") return;
-    STATE.pollTaskId = app.scheduleTask("if(typeof pollDimsUpdate==='function')pollDimsUpdate();", 500, true);
+    STATE.pollTaskId = app.scheduleTask("if(typeof pollDimsUpdate==='function')pollDimsUpdate();", DIM_POLL_INTERVAL, true);
 }
 
 /* ディム追従ポーリングを停止 / Stop dim polling */
@@ -571,7 +578,7 @@ function addChipRowCanvas(container, rowChips) {
    Worker functions (DOM code eval'd in the main engine). Register every new one here. */
 var WORKER_FUNCS = [
     workerApply, workerCommitPreview, restorePreviewW, restoreOneSnapshotW, snapshotTargetW, snapshotCharactersW,
-    workerReadSelection, workerReadObjectColors, selectionTextStatsW,
+    workerReadSelection, workerReadObjectColors, workerReadStats, selectionTextStatsW,
     flattenSelectionW, collectColorableItemsW, getSingleSelectedTextRangeW,
     collectColorTargetsByUnitW, pushTextRangeTargetsW, pushStaggeredWordTargetsW, getTextUnitRangesW, applyColorToTargetW,
     sortByPositionW, comparePositionKeysW, shuffleArrayW, randIntW,
@@ -678,6 +685,21 @@ function readSelectionInfo() {
         info.swatchNames = parts[3].split(",");
     }
     parseSelectionStats(info, parts);
+    return info;
+}
+
+/* 配色単位のディム判定に必要な統計だけを委譲取得（ポーリング用の軽量版）
+   Delegate reading only the stats needed for the unit dims (lightweight poll path) */
+function readSelectionStats() {
+    var info = { ok: false, itemCount: 0, isText: false, paragraphCount: 0, textObjectCount: 0 };
+    var raw = runWorker("workerReadStats()");
+    if (!raw || raw.indexOf("OK|") !== 0) return info;
+    info.ok = true;
+    var parts = raw.split("|");
+    info.itemCount = parts[1] ? parseInt(parts[1], 10) : 0;
+    info.isText = (parts[2] === "1");
+    info.paragraphCount = parts[3] ? parseInt(parts[3], 10) : 0;
+    info.textObjectCount = parts[4] ? parseInt(parts[4], 10) : 0;
     return info;
 }
 
@@ -874,16 +896,29 @@ function workerReadSelection() {
     return "OK|" + defaultUnit + "|" + chipParts.join(";") + "|" + nameParts.join(",") + "|" + items.length + "|" + (stats.isText ? "1" : "0") + "|" + stats.paragraphCount + "|" + stats.textObjectCount;
 }
 
-/* 選択のテキスト統計（テキスト有無・段落数・テキストオブジェクト数）/ Text stats (has-text, paragraphs, text-object count) */
+/* 選択のテキスト統計（テキスト有無・段落数・テキストオブジェクト数）。
+   段落数はテキストが1つのときだけ数える（ディム判定がその場合しか参照せず、長文では paragraphs.length が重いため）
+   Text stats; paragraphs are counted only for a single text object (the only case the dim logic reads it; costly on long text) */
 function selectionTextStatsW(items, textRange) {
     var isText = false;
-    var paragraphCount = 0;
     var textObjectCount = 0;
-    if (textRange) { isText = true; textObjectCount++; paragraphCount += textRange.paragraphs.length; }
+    var singleTextRange = null;
+    if (textRange) { isText = true; textObjectCount++; singleTextRange = textRange; }
     for (var i = 0; i < items.length; i++) {
-        if (items[i].typename === "TextFrame") { isText = true; textObjectCount++; paragraphCount += items[i].textRange.paragraphs.length; }
+        if (items[i].typename === "TextFrame") { isText = true; textObjectCount++; singleTextRange = items[i].textRange; }
     }
+    var paragraphCount = (textObjectCount === 1) ? singleTextRange.paragraphs.length : 0;
     return { isText: isText, paragraphCount: paragraphCount, textObjectCount: textObjectCount };
+}
+
+/* 配色単位のディム判定に必要な統計だけを返す（ポーリング用の軽量版：スウォッチ取得・チップ生成をしない）
+   "OK|<itemCount>|<isText>|<paragraphCount>|<textObjectCount>"
+   Return only the stats needed for unit dims (lightweight poll path: no swatch read, no chips) */
+function workerReadStats() {
+    if (app.documents.length === 0) return "NODOC";
+    var items = flattenSelectionW(app.selection);
+    var stats = selectionTextStatsW(items, getSingleSelectedTextRangeW(app.selection));
+    return "OK|" + items.length + "|" + (stats.isText ? "1" : "0") + "|" + stats.paragraphCount + "|" + stats.textObjectCount;
 }
 
 /* 選択オブジェクトの塗り色を返す "OK|<defaultUnit>|<r,g,b;...>|<serialized;...>|<itemCount>|<isText>|<paragraphCount>|<textObjectCount>" / Return fill colors of selected objects */
