@@ -83,7 +83,7 @@ Three columns (left: document fonts / presets, center: font size, kerning, lette
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.3.2";
+var SCRIPT_VERSION = "v1.3.3";
 
 (function () {
 
@@ -1386,9 +1386,20 @@ var SCRIPT_VERSION = "v1.3.2";
             var policyFrames = collectLeadingFrames(policySel);
             try {
                 if (params.align !== undefined) applyAlignmentToSelection(policySel, resolveAlignment(params.align));
+                if (params.justify !== undefined) {
+                    var policyTargets = collectJustifyTargets(policySel);
+                    var policyJustify = resolveJustification(params.justify);
+                    for (var policyTargetIndex = 0; policyTargetIndex < policyTargets.length; policyTargetIndex++) {
+                        justifyKeepingPosition(policyTargets[policyTargetIndex], policyJustify, params.justify);
+                    }
+                }
                 if (params.leadingType !== undefined) applyLeadingBasisToFrames(policyFrames, resolveLeadingType(params.leadingType));
+                // 自動行送り量（%）は段落ごとに設定 / The auto-leading amount (%) is set per paragraph
+                if (params.leadingPercent !== undefined) applyAutoLeadingToParagraphs(getSelectedParagraphRanges(), params.leadingPercent);
                 // ハイフネーションは段落属性（触れた段落全体へ）/ Hyphenation is a paragraph attribute (whole touched paragraphs)
                 if (params.hyphenation !== undefined) applyHyphenationToRanges(getSelectedParagraphRanges(), params.hyphenation);
+                if (params.mojikumiIndex !== undefined) applyMojikumiToSelection(policySel, params.mojikumiIndex);
+                if (params.kinsoku !== undefined) applyKinsokuToSelection(policySel, params.kinsoku);
             } catch (errPolicy) {
                 return "ERR:" + errMessage(errPolicy);
             }
@@ -2257,9 +2268,11 @@ var SCRIPT_VERSION = "v1.3.2";
         policyRow.spacing = 12;
         policyRow.alignment = ["center", "center"];
         var POLICY_PRESETS = [
-            { id: "wabun", label: LABELS.policy.wabun, align: "center", leadingType: "top", hyphenation: false },     // 和文：中央 ＋ 仮想ボディの上 ＋ ハイフネーションOFF
-            { id: "latin", label: LABELS.policy.latin, align: "roman", leadingType: "baseline", hyphenation: true },  // 欧文：欧文ベースライン ＋ 欧文ベースライン ＋ ハイフネーションON
-            { id: "mixed", label: LABELS.policy.mixed, align: "roman", leadingType: "top", hyphenation: false }        // 和欧混在：欧文ベースライン ＋ 仮想ボディの上 ＋ ハイフネーションOFF
+            // justify・bodyLeadingPercent・bodyMojikumiIndex は本文（種別＝本文）のとき、headingJustify・headingMojikumiIndex は見出しのときに適用
+            // justify / bodyLeadingPercent / bodyMojikumiIndex apply for the Body role; headingJustify / headingMojikumiIndex for the Heading role
+            { id: "wabun", label: LABELS.policy.wabun, align: "center", leadingType: "top", hyphenation: false, justify: "justifyLeft", headingJustify: "left", bodyLeadingPercent: 150, bodyMojikumiIndex: 6, headingMojikumiIndex: 5, kinsoku: "Soft_v2" },     // 和文：中央 ＋ 仮想ボディの上 ＋ ハイフネーションOFF ＋ 両端揃え（最終行左／見出しは左）＋ 本文は行送り150% ＋ ベタ組み（見出しはツメ組み）＋ 弱い禁則v2
+            { id: "latin", label: LABELS.policy.latin, align: "roman", leadingType: "baseline", hyphenation: true, justify: "left", headingJustify: "left", bodyLeadingPercent: 120, bodyMojikumiIndex: -1, headingMojikumiIndex: -1, kinsoku: "None" },  // 欧文：欧文ベースライン ＋ 欧文ベースライン ＋ ハイフネーションON ＋ 左揃え ＋ 本文は行送り120% ＋ 文字組み・禁則なし
+            { id: "mixed", label: LABELS.policy.mixed, align: "roman", leadingType: "top", hyphenation: false, justify: "justifyLeft", headingJustify: "left", bodyLeadingPercent: 150, bodyMojikumiIndex: 6, headingMojikumiIndex: 5, kinsoku: "Soft_v2" }        // 和欧混在：欧文ベースライン ＋ 仮想ボディの上 ＋ ハイフネーションOFF ＋ 両端揃え（最終行左／見出しは左）＋ 本文は行送り150% ＋ ベタ組み（見出しはツメ組み）＋ 弱い禁則v2
         ];
         var policyRadios = [];
         for (var policyIndex = 0; policyIndex < POLICY_PRESETS.length; policyIndex++) {
@@ -3055,26 +3068,51 @@ var SCRIPT_VERSION = "v1.3.2";
             }
         }
 
+        /* 現在選択中の方針プリセットを返す（未選択なら null）/ Return the selected policy preset (null if none) */
+        function currentPolicyPreset() {
+            for (var i = 0; i < ui.policyRadios.length; i++) {
+                if (ui.policyRadios[i].value) return ui.policyRadios[i].policyPreset;
+            }
+            return null;
+        }
+
+        /* 種別プロファイルの文字組み・禁則を、選択中の方針の指定で上書きする
+           （欧文＝いずれも「なし」、和文／和欧混在＝弱い禁則v2 ＋ 本文ベタ組み・見出しツメ組み）
+           Override the role profile's mojikumi/kinsoku with the selected policy's values
+           @param {object} profileParams - applyProfile へ渡すパラメータ / The params passed to applyProfile
+           @param {boolean} isHeadingRole - 見出しプロファイルなら true / true for the Heading profile
+           @returns {object} 上書き後のパラメータ（同一オブジェクト）/ The same object, after the override */
+        function applyPolicyOverrides(profileParams, isHeadingRole) {
+            var preset = currentPolicyPreset();
+            if (!preset) return profileParams;
+            var presetMojikumiIndex = isHeadingRole ? preset.headingMojikumiIndex : preset.bodyMojikumiIndex;
+            if (presetMojikumiIndex !== undefined) profileParams.mojikumiIndex = presetMojikumiIndex;
+            if (preset.kinsoku !== undefined) profileParams.kinsoku = preset.kinsoku;
+            return profileParams;
+        }
+
         // 本文：和文等幅／行送り 150%／均等配置（最終行左）／文字組みベタ組み / Body preset (mojikumi: Solid)
         ui.roleBodyRadio.onClick = function () {
             ui.mainTabs.selection = ui.typeTab; // 文字組みタブへ切り替え / Switch to the Type tab
-            runApply("applyProfile", { kern: "mono", leadingPercent: 150, justify: "justifyLeft", mojikumiIndex: 6, kinsoku: "Soft_v2" });
+            var bodyParams = applyPolicyOverrides({ kern: "mono", leadingPercent: 150, justify: "justifyLeft", mojikumiIndex: 6, kinsoku: "Soft_v2" }, false);
+            runApply("applyProfile", bodyParams);
             selectRadioById(ui.kernRadios, autoKernOptions, "mono");
             reflectLeadingPercent(150);
             setActiveJustify("justifyLeft");
-            reflectMojikumiByIndex(6); // ベタ組み / Solid
-            reflectKinsokuById("Soft_v2"); // 弱い禁則 v2 / Loose v2
+            reflectMojikumiByIndex(bodyParams.mojikumiIndex);
+            reflectKinsokuById(bodyParams.kinsoku);
         };
 
         // 見出し：メトリクス／行送り 115%／左揃え／文字組みツメ組み／弱い禁則 v2 / Heading preset (mojikumi: Tight, kinsoku: Soft_v2)
         ui.roleHeadingRadio.onClick = function () {
             ui.mainTabs.selection = ui.typeTab; // 文字組みタブへ切り替え / Switch to the Type tab
-            runApply("applyProfile", { kern: "metrics", leadingPercent: 115, justify: "left", mojikumiIndex: 5, kinsoku: "Soft_v2" });
+            var headingParams = applyPolicyOverrides({ kern: "metrics", leadingPercent: 115, justify: "left", mojikumiIndex: 5, kinsoku: "Soft_v2" }, true);
+            runApply("applyProfile", headingParams);
             selectRadioById(ui.kernRadios, autoKernOptions, "metrics");
             reflectLeadingPercent(115);
             setActiveJustify("left");
-            reflectMojikumiByIndex(5); // ツメ組み / Tight
-            reflectKinsokuById("Soft_v2"); // 弱い禁則 v2 / Loose v2
+            reflectMojikumiByIndex(headingParams.mojikumiIndex);
+            reflectKinsokuById(headingParams.kinsoku);
         };
 
         // 方針：文字揃え＋行送りの基準をまとめて適用し、対応するラジオも反映
@@ -3085,9 +3123,22 @@ var SCRIPT_VERSION = "v1.3.2";
                     ui.mainTabs.selection = ui.typeTab; // 文字組みタブへ切り替え / Switch to the Type tab
                     var preset = ui.policyRadios[index].policyPreset;
                     selectExclusiveRadio(ui.policyRadios, index);
-                    runApply("applyPolicy", { align: preset.align, leadingType: preset.leadingType, hyphenation: preset.hyphenation });
+                    // 種別が見出しなら headingJustify（左揃え）を優先 / Heading role prefers headingJustify (left)
+                    var isHeadingRole = ui.roleHeadingRadio.value;
+                    var policyJustifyId = (isHeadingRole && preset.headingJustify !== undefined) ? preset.headingJustify : preset.justify;
+                    // 行送り % は本文のときだけ方針ごとの値に合わせる（見出しは見出しプロファイルの 115% のまま）
+                    // The leading % follows the policy only for the Body role (Heading keeps its profile's 115%)
+                    var policyLeadingPercent = isHeadingRole ? undefined : preset.bodyLeadingPercent;
+                    // 文字組みアキ量設定は種別ごと（見出し＝ツメ組み／本文＝ベタ組み、欧文はいずれも「なし」）
+                    // The mojikumi set depends on the role (Heading = tight, Body = solid; Latin = "None" for both)
+                    var policyMojikumiIndex = isHeadingRole ? preset.headingMojikumiIndex : preset.bodyMojikumiIndex;
+                    runApply("applyPolicy", { align: preset.align, leadingType: preset.leadingType, hyphenation: preset.hyphenation, justify: policyJustifyId, leadingPercent: policyLeadingPercent, mojikumiIndex: policyMojikumiIndex, kinsoku: preset.kinsoku });
                     selectAlignRadio(preset.align);
                     selectRadioById(ui.leadingBasisRadios, ui.leadingBasisChoices, preset.leadingType);
+                    if (policyJustifyId !== undefined) setActiveJustify(policyJustifyId);
+                    if (policyLeadingPercent !== undefined) reflectLeadingPercent(policyLeadingPercent);
+                    if (policyMojikumiIndex !== undefined) reflectMojikumiByIndex(policyMojikumiIndex);
+                    if (preset.kinsoku !== undefined) reflectKinsokuById(preset.kinsoku);
                 };
             })(policyRadioIndex);
         }
