@@ -83,7 +83,8 @@ var LABELS = {
     },
     button: {
         fromSwatches: { ja: "スウォッチを読込", en: "Load Swatches" },
-        fromObjects:  { ja: "塗り色を読込", en: "Load Fills" }
+        fromObjects:  { ja: "塗り色を読込", en: "Load Fills" },
+        openSwatches: { ja: "「スウォッチ」パネルを開く", en: "Open Swatches Panel" }
     },
     tooltip: {
         fromSwatches:  { ja: "現在選択しているスウォッチを読み込み直します。パレットを閉じるには Esc キーを押します。", en: "Reload the currently selected swatches. Press Esc to close the palette." },
@@ -97,14 +98,8 @@ var LABELS = {
         orderAsis:     { ja: "取り込んだカラーの並び順で適用します（適用先は位置順・文字順）。", en: "Applies colors in the captured order (targets follow position / reading order)." },
         orderReverse:  { ja: "取り込んだカラーの並びを逆にして適用します。", en: "Applies the captured colors in reverse order." },
         orderRandom:     { ja: "取り込んだカラーの並びをランダムにして適用します（並びは繰り返します）。", en: "Applies the captured colors in a random order (the sequence repeats)." },
-        orderFullRandom: { ja: "適用先ごとにカラーを毎回ランダムに選びます（並びは繰り返しません）。", en: "Picks a color at random for each target (no repeating sequence)." }
-    },
-    status: {
-        done:  { ja: "プレビューを更新しました。", en: "Preview updated." },
-        noDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        noSel: { ja: "オブジェクトを選択してください。", en: "Please select objects." },
-        busy:  { ja: "処理中です…", en: "Working…" },
-        error: { ja: "エラー: ", en: "Error: " }
+        orderFullRandom: { ja: "適用先ごとにカラーを毎回ランダムに選びます（並びは繰り返しません）。", en: "Picks a color at random for each target (no repeating sequence)." },
+        openSwatches:    { ja: "Illustrator の「スウォッチ」パネルを表示します。", en: "Shows Illustrator's Swatches panel." }
     },
     progress: {
         title:    { ja: "読み込み中", en: "Loading" },
@@ -245,9 +240,15 @@ function showPalette() {
         fullrandom: L("tooltip.orderFullRandom")
     });
 
-    /* 状況表示 / Status line */
-    var statusText = win.add("statictext", undefined, "");
-    statusText.alignment = "left";
+    /* パレット下部：スウォッチパネルを開く / Footer: open the Swatches panel */
+    var footerRow = win.add("group");
+    setupRow(footerRow, "left");
+    footerRow.margins = [0, 5, 0, 0]; /* ボタン上に余白 / margin above the button */
+    var openSwatchesButton = footerRow.add("button", undefined, L("button.openSwatches"));
+    openSwatchesButton.helpTip = L("tooltip.openSwatches");
+    openSwatchesButton.onClick = function () {
+        runWorker("workerOpenSwatchesPanel()");
+    };
 
     /* 現在の設定を取得 / Read current settings */
     function currentOptions() {
@@ -263,7 +264,7 @@ function showPalette() {
     function runPreview() {
         var call = "workerApply(" + optionsToLiteral(currentOptions()) +
             ", " + stringsToLiteral(loadedSwatchNames) + ", " + stringsToLiteral(loadedColorValues) + ")";
-        statusText.text = markerToMessage(runWorker(call));
+        runWorker(call);
     }
 
     /* 単位・オプション変更時にプレビュー更新 / Refresh preview on any change */
@@ -332,6 +333,7 @@ function showPalette() {
     /* レイアウト確定後に取り込みボタンの天地を詰める / Trim the capture buttons' height after layout */
     trimButtonHeight(fromSwatchesButton, 2);
     trimButtonHeight(fromObjectsButton, 2);
+    trimButtonHeight(openSwatchesButton, 2);
     /* 初回プレビュー前に前セッションのスナップショットを破棄（現在の状態を基準にする）
        Discard any previous-session snapshot before the first preview (current doc becomes the baseline) */
     runWorker("workerCommitPreview()");
@@ -500,8 +502,17 @@ function pollDimsUpdate() {
    Dim-polling interval (ms); shorter values interrupt Illustrator more often and slow it down */
 var DIM_POLL_INTERVAL = 1200;
 
-/* ディム追従ポーリングを開始（scheduleTask 非対応環境では何もしない）/ Start dim polling (no-op if scheduleTask is unavailable) */
+/* ポーリングの有効／無効。true にすると選択変更に常時追従するが、1.2秒ごとに同期 BridgeTalk で
+   メインエンジンへ割り込むため作業中の操作が重くなる。false ではパレットが前面に戻ったとき
+   （win.onActivate）と各ボタン操作でディムを更新する
+   Enable dim polling. When true it follows selection changes continuously but interrupts the main
+   engine via a synchronous BridgeTalk every 1.2s, which slows editing. When false, dims refresh on
+   win.onActivate (palette returns to front) and on button actions instead */
+var ENABLE_DIM_POLLING = false;
+
+/* ディム追従ポーリングを開始（無効・scheduleTask 非対応環境では何もしない）/ Start dim polling (no-op when disabled or unavailable) */
 function startDimPolling() {
+    if (!ENABLE_DIM_POLLING) return;
     if (typeof app.scheduleTask !== "function") return;
     STATE.pollTaskId = app.scheduleTask("if(typeof pollDimsUpdate==='function')pollDimsUpdate();", DIM_POLL_INTERVAL, true);
 }
@@ -577,10 +588,10 @@ function addChipRowCanvas(container, rowChips) {
 /* worker 関数（メインエンジンで eval される DOM 処理）。追加時は必ずここへ登録
    Worker functions (DOM code eval'd in the main engine). Register every new one here. */
 var WORKER_FUNCS = [
-    workerApply, workerCommitPreview, restorePreviewW, restoreOneSnapshotW, snapshotTargetW, snapshotCharactersW,
-    workerReadSelection, workerReadObjectColors, workerReadStats, selectionTextStatsW,
+    workerApply, workerCommitPreview, workerOpenSwatchesPanel, previewKeyW, restorePreviewW, restoreOneSnapshotW, snapshotTargetW, snapshotCharactersW,
+    workerReadSelection, workerReadObjectColors, workerReadStats, selectionTextStatsW, countParagraphsW,
     flattenSelectionW, collectColorableItemsW, getSingleSelectedTextRangeW,
-    collectColorTargetsByUnitW, pushTextRangeTargetsW, pushStaggeredWordTargetsW, getTextUnitRangesW, applyColorToTargetW,
+    collectColorTargetsByUnitW, pushTextRangeTargetsW, pushStaggeredWordTargetsW, pushParagraphTargetsW, getTextUnitRangesW, spanRangeW, applyColorToTargetW,
     sortByPositionW, comparePositionKeysW, shuffleArrayW, randIntW,
     resolveAppliedColorsW, findSwatchColorByNameW, collectFillColorsW, isApplicableFillColorW, serializeColorW, deserializeColorW,
     orderColorsW, fullRandomColorIndexW, pickSwatchColorW,
@@ -756,16 +767,6 @@ function optionsToLiteral(options) {
     return "{unit:\"" + options.unit + "\",order:\"" + options.order + "\"}";
 }
 
-/* 結果マーカーをローカライズした状況文へ / Map a result marker to a localized status message */
-function markerToMessage(marker) {
-    if (marker === "OK") return L("status.done");
-    if (marker === "NODOC") return L("status.noDoc");
-    if (marker === "NOSEL") return L("status.noSel");
-    if (marker === "ERR:busy") return L("status.busy");
-    if (marker.indexOf("ERR:") === 0) return L("status.error") + marker.substring(4);
-    return String(marker);
-}
-
 // =========================================
 // worker 関数（メインエンジン・DOM）/ Worker functions (main engine, DOM)
 // -----------------------------------------
@@ -779,10 +780,8 @@ function markerToMessage(marker) {
 function workerApply(options, swatchNames, colorValues) {
     if (app.documents.length === 0) return "NODOC";
     var doc = app.activeDocument;
-    /* 前回プレビューを元の状態へ復元（スナップショットは restore 内で破棄）
-       Restore the previous preview to its originals (snapshot is cleared inside restore) */
-    restorePreviewW();
-    /* 復元後の現在の選択で対象を集める（参照はすべて有効）/ Collect targets from the current selection (all refs valid) */
+    /* 現在の選択から対象を集める（塗りの復元は構造を変えないので復元前に集めてよい）
+       Collect targets from the current selection (restoring colors never changes structure, so this may precede it) */
     var selection = doc.selection;
     var items = flattenSelectionW(selection);
     var textRange = getSingleSelectedTextRangeW(selection);
@@ -790,17 +789,29 @@ function workerApply(options, swatchNames, colorValues) {
        Save the object selection for restore (skip while editing text) */
     var savedSelection = textRange ? null : selection;
     var targets = (items.length > 0 || textRange) ? collectColorTargetsByUnitW(items, textRange, options.unit) : [];
-    if (targets.length === 0) { app.redraw(); return "NOSEL"; }
+    if (targets.length === 0) { restorePreviewW(); app.redraw(); return "NOSEL"; }
+    /* 対象が前回と同一なら復元を省く。適用が塗り/線/不透明度を必ず上書きするので、
+       元へ戻してから塗り直す必要がない（1文字ずつの書き込みは重いので効果が大きい）。
+       この場合スナップショットは前回のもの＝元の状態を保持し続ける
+       Skip the restore pass when the targets are unchanged: applying overwrites fill/stroke/opacity anyway.
+       The existing snapshot keeps holding the true originals */
+    var previewKey = previewKeyW(items, textRange, options.unit, targets.length);
+    var reusable = ($.global.__aiApplyPreviewSnapshot && $.global.__aiApplyPreviewKey === previewKey);
+    var snapshot;
+    if (reusable) {
+        snapshot = $.global.__aiApplyPreviewSnapshot;
+    } else {
+        /* 対象が変わった：前回プレビューを元へ戻してから採り直す / Targets changed: restore, then snapshot afresh */
+        restorePreviewW();
+        snapshot = [];
+    }
     var colors = orderColorsW(resolveAppliedColorsW(doc, targets.length, swatchNames, colorValues), options.order);
-    /* 各対象の元の状態を保存してから着色（次回プレビューで元に戻せるように）
-       Snapshot each target's originals before coloring, so the next preview can revert it */
-    var snapshot = [];
     /* 完全ランダム：グループ（単語など）ごとに一度だけ抽選し、同一グループ内は同じ色にする
        Fully random: draw once per group (e.g. a word) so a group keeps one color */
     var isFullRandom = (options.order === "fullrandom");
     var randomIndexByGroup = {};
     for (var i = 0; i < targets.length; i++) {
-        snapshotTargetW(targets[i], snapshot);
+        if (!reusable) { snapshotTargetW(targets[i], snapshot); }
         var colorIndex;
         if (isFullRandom) {
             var groupKey = (typeof targets[i].groupKey === "string") ? targets[i].groupKey : String(i);
@@ -811,6 +822,7 @@ function workerApply(options, swatchNames, colorValues) {
         applyColorToTargetW(targets[i], pickSwatchColorW(colorIndex, colors));
     }
     $.global.__aiApplyPreviewSnapshot = snapshot;
+    $.global.__aiApplyPreviewKey = previewKey;
     /* 適用で変わった選択（フォーカス）を元に戻す / Restore the selection changed by applying */
     if (savedSelection) { try { app.selection = savedSelection; } catch (e) {} }
     app.redraw();
@@ -821,6 +833,36 @@ function workerApply(options, swatchNames, colorValues) {
    Commit the current preview: discard the snapshot so it is never restored (called on close / before first preview) */
 function workerCommitPreview() {
     $.global.__aiApplyPreviewSnapshot = null;
+    $.global.__aiApplyPreviewKey = null;
+    return "OK";
+}
+
+/* 対象集合の同一性キー（配色単位＋選択の形）。前回と一致すれば同じ対象＝復元を省ける。
+   塗り替えでは変化しない値だけで作る（geometricBounds は線幅を含まないので着色の影響を受けない）
+   Identity key for the target set (unit + shape of the selection); an unchanged key means the same targets.
+   Built only from values that coloring never changes */
+function previewKeyW(items, textRange, unitMode, targetCount) {
+    var parts = [unitMode, targetCount, items.length];
+    parts.push(textRange ? ("tr:" + textRange.start + ":" + textRange.end) : "tr:-");
+    for (var i = 0; i < items.length; i++) {
+        var item = items[i];
+        var key = item.typename;
+        try {
+            var bounds = item.geometricBounds;
+            key += ":" + Math.round(bounds[0] * 100) + ":" + Math.round(bounds[1] * 100) + ":" + Math.round(bounds[2] * 100) + ":" + Math.round(bounds[3] * 100);
+        } catch (e) { key += ":?"; }
+        if (item.typename === "TextFrame") {
+            try { key += ":" + item.textRange.end; } catch (e2) { key += ":?"; }
+        }
+        parts.push(key);
+    }
+    return parts.join("|");
+}
+
+/* 「スウォッチ」パネルを表示（メニューコマンドはメインエンジンでのみ実行可）
+   Show the Swatches panel (menu commands only run in the main engine) */
+function workerOpenSwatchesPanel() {
+    app.executeMenuCommand('Adobe Swatches Menu Item');
     return "OK";
 }
 
@@ -829,6 +871,7 @@ function workerCommitPreview() {
 function restorePreviewW() {
     var snapshot = $.global.__aiApplyPreviewSnapshot;
     $.global.__aiApplyPreviewSnapshot = null;
+    $.global.__aiApplyPreviewKey = null;
     if (!snapshot) { return; }
     for (var i = 0; i < snapshot.length; i++) {
         try { restoreOneSnapshotW(snapshot[i]); } catch (e) { }
@@ -852,7 +895,8 @@ function restoreOneSnapshotW(entry) {
    Snapshot a target's originals into the array (text is snapshotted per character for fidelity) */
 function snapshotTargetW(target, out) {
     var node = target.node;
-    if (target.kind === "textrange") { snapshotCharactersW(node, out); }
+    if (target.kind === "span") { snapshotCharactersW(spanRangeW(target), out); }
+    else if (target.kind === "textrange") { snapshotCharactersW(node, out); }
     else if (target.kind === "textframe") { snapshotCharactersW(node.textRange, out); }
     else if (target.kind === "path") { out.push({ kind: "path", node: node, fill: node.fillColor, stroked: node.stroked, opacity: node.opacity }); }
     else if (target.kind === "compound") {
@@ -907,7 +951,11 @@ function selectionTextStatsW(items, textRange) {
     for (var i = 0; i < items.length; i++) {
         if (items[i].typename === "TextFrame") { isText = true; textObjectCount++; singleTextRange = items[i].textRange; }
     }
-    var paragraphCount = (textObjectCount === 1) ? singleTextRange.paragraphs.length : 0;
+    /* 段落数も \r 基準で数える（paragraphs.length は強制改行でも増えるので、
+       強制改行入りの1段落が「2段落」に見えて段落単位が有効になってしまう）
+       Count paragraphs by \r as well: paragraphs.length also counts forced line breaks,
+       which would make a single paragraph look like two and wrongly enable the paragraph unit */
+    var paragraphCount = (textObjectCount === 1) ? countParagraphsW(singleTextRange) : 0;
     return { isText: isText, paragraphCount: paragraphCount, textObjectCount: textObjectCount };
 }
 
@@ -989,46 +1037,97 @@ function collectColorTargetsByUnitW(items, textRange, unitMode) {
 /* テキスト範囲を単位ごとに分割してターゲット化 / Split a text range into per-unit targets */
 function pushTextRangeTargetsW(textRange, unitMode, out) {
     if (unitMode === "word") { pushStaggeredWordTargetsW(textRange, out); return; }
+    if (unitMode === "paragraph") { pushParagraphTargetsW(textRange, out); return; }
     var ranges = getTextUnitRangesW(textRange, unitMode);
     if (!ranges) { out.push({ kind: "textrange", node: textRange }); return; }
     for (var i = 0; i < ranges.length; i++) { out.push({ kind: "textrange", node: ranges[i] }); }
 }
 
-/* 単語ごと：Illustrator の単語境界で文字を単語にマッピングし、句読点・スペースは直前の単語色にする
-   （略語・小数は1単語のまま。各行先頭は互い違い）
-   Per word: map characters to Illustrator's word boundaries; punctuation/spaces share the preceding word's color */
+/* 単語ごと：Illustrator の単語境界で単語スパンを作る（各行先頭は互い違い）。
+   1文字ずつ塗ると文字数の二乗で重くなるため、単語スパン1回の書き込みにまとめている。
+   スパンは次の単語の開始まで伸ばし、句読点・スペースを直前の単語色にする
+   （行頭は先頭の単語色、行末の残りは最後の単語色。1文字ずつ塗っていた頃と同じ結果）
+   Per word: build one span per word (staggered per line). Coloring per character costs
+   roughly quadratic time, so each word is written once instead. Each span runs to the next
+   word's start so punctuation and spaces take the preceding word's colour, matching the
+   per-character behaviour this replaced */
 function pushStaggeredWordTargetsW(textRange, out) {
+    var story = textRange.story;
     var lines = textRange.lines;
-    for (var li = 0; li < lines.length; li++) {
+    var lineCount = lines.length;
+    for (var li = 0; li < lineCount; li++) {
         var line = lines[li];
         var words = line.words;
-        var wordStarts = {};
-        for (var wi = 0; wi < words.length; wi++) { wordStarts[words[wi].start] = true; }
-        var chars = line.characters;
-        var wordIndex = -1;
-        for (var ci = 0; ci < chars.length; ci++) {
-            if (wordStarts[chars[ci].start]) { wordIndex++; }
-            var safeWordIndex = (wordIndex < 0) ? 0 : wordIndex;
+        var wordCount = words.length;
+        for (var wi = 0; wi < wordCount; wi++) {
+            /* 行頭の記号類は先頭の単語に、行末の残りは最後の単語に含める
+               Leading symbols join the first word; the tail of the line joins the last word */
+            var spanStart = (wi === 0) ? line.start : words[wi].start;
+            var spanEnd = (wi === wordCount - 1) ? line.end : words[wi + 1].start;
+            if (spanEnd <= spanStart) { continue; }
             /* groupKey は行内で一意（完全ランダムで単語ごとに別色を抽選するため）
                groupKey is unique per line+word so fully random draws a distinct color per word */
-            out.push({ kind: "textrange", node: chars[ci], colorIndex: safeWordIndex + li, groupKey: li + ":" + safeWordIndex });
+            out.push({ kind: "span", story: story, start: spanStart, end: spanEnd, colorIndex: wi + li, groupKey: li + ":" + wi });
         }
     }
 }
 
-/* 単位に対応するテキスト範囲コレクション（word は pushTextRangeTargetsW で先に処理）
-   Text range collection for a unit (word is handled earlier in pushTextRangeTargetsW) */
+/* 段落ごと：本文を \r で走査してスパンを作る。
+   textRange.paragraphs は強制改行（）でも区切られてしまい、1段落が複数に割れるため使わない
+   Per paragraph: scan the story text for \r. textRange.paragraphs also splits on a forced
+   line break (), which would break one paragraph into several, so it is not used */
+function pushParagraphTargetsW(textRange, out) {
+    var story = textRange.story;
+    var storyText = story.textRange.contents;
+    var from = textRange.start;
+    var to = textRange.end;
+    var head = from;
+    while (head < to) {
+        var returnAt = storyText.indexOf("\r", head);
+        /* 改行が無い、または選択範囲の外なら、そこが最後の段落 / No return, or one past the selection, ends the last paragraph */
+        var tail = (returnAt === -1 || returnAt >= to) ? to : returnAt;
+        /* 空段落（改行だけ）は塗る文字が無いので飛ばす / An empty paragraph has nothing to color */
+        if (tail > head) { out.push({ kind: "span", story: story, start: head, end: tail }); }
+        if (returnAt === -1 || returnAt >= to) break;
+        head = returnAt + 1;
+    }
+}
+
+/* 範囲内の段落数を \r 基準で数える（塗る文字が無い空段落は数えない）
+   Count paragraphs in a range by \r (an empty paragraph has nothing to color, so it is not counted) */
+function countParagraphsW(textRange) {
+    var spans = [];
+    pushParagraphTargetsW(textRange, spans);
+    return spans.length;
+}
+
+/* 単位に対応するテキスト範囲コレクション（word/paragraph は pushTextRangeTargetsW で先に処理）
+   Text range collection for a unit (word/paragraph are handled earlier in pushTextRangeTargetsW) */
 function getTextUnitRangesW(textRange, unitMode) {
     if (unitMode === "character") return textRange.characters;
     if (unitMode === "line") return textRange.lines;
-    if (unitMode === "paragraph") return textRange.paragraphs;
     return null;
+}
+
+/* スパン（story 内の start〜end）に対応する TextRange を作る。
+   story.textRange は呼ぶたび独立したオブジェクトを返すので、start/end を書き換えて使える
+   Build a TextRange for a span: story.textRange hands back an independent object each call,
+   so its start/end can be rewritten safely */
+function spanRangeW(target) {
+    var range = target.story.textRange;
+    range.start = target.start;
+    range.end = target.end;
+    return range;
 }
 
 /* ターゲットにカラーを設定 / Set the color on a target */
 function applyColorToTargetW(target, color) {
     var node = target.node;
-    if (target.kind === "textrange") { node.fillColor = color; node.strokeColor = new NoColor(); node.opacity = 100; }
+    if (target.kind === "span") {
+        var range = spanRangeW(target);
+        range.fillColor = color; range.strokeColor = new NoColor(); range.opacity = 100;
+    }
+    else if (target.kind === "textrange") { node.fillColor = color; node.strokeColor = new NoColor(); node.opacity = 100; }
     else if (target.kind === "textframe") { node.textRange.fillColor = color; node.textRange.strokeColor = new NoColor(); node.textRange.opacity = 100; }
     else if (target.kind === "path") { node.fillColor = color; node.stroked = false; node.opacity = 100; }
     else if (target.kind === "compound") {
