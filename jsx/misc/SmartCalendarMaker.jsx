@@ -29,9 +29,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.3.1";
+var SCRIPT_NAME     = "SmartCalendarMaker";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-02-15";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-15";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // =========================================
 // ユーザー設定 / User Settings
@@ -683,23 +690,23 @@ function trimButtonHeight(button, px) {
     tabs.alignChildren = "fill";
     // tabs.margins = [15, 20, 15, 10]; // 上に余白を追加
 
-    var tabMain = tabs.add("tab", undefined, L("panel.base"));
-    setupTab(tabMain);
+    var tabGeneral = tabs.add("tab", undefined, L("panel.base"));
+    setupTab(tabGeneral);
 
-    var tabUnit = tabs.add("tab", undefined, L("panel.unit"));
-    setupTab(tabUnit);
+    var tabCell = tabs.add("tab", undefined, L("panel.unit"));
+    setupTab(tabCell);
 
-    var tabFormat = tabs.add("tab", undefined, L("panel.formatTab"));
-    setupTab(tabFormat, 10);
+    var tabText = tabs.add("tab", undefined, L("panel.formatTab"));
+    setupTab(tabText, 10);
 
-    var tabOption = tabs.add("tab", undefined, L("panel.option"));
-    setupTab(tabOption);
+    var tabLabel = tabs.add("tab", undefined, L("panel.option"));
+    setupTab(tabLabel);
 
     // 既定は「基本設定」タブ
-    try { tabs.selection = tabMain; } catch (_) { }
+    try { tabs.selection = tabGeneral; } catch (_) { }
 
     // ===== 2カラム =====
-    var gCols = tabMain.add("group");
+    var gCols = tabGeneral.add("group");
     gCols.orientation = "column";
     gCols.alignChildren = "fill";
 
@@ -712,7 +719,7 @@ function trimButtonHeight(button, px) {
     gColR.alignChildren = "fill";
 
     // ===== プリセット（「基本設定」タブ最下部・全幅）/ Preset (bottom of Basics tab, full width) =====
-    var pnlPresetTop = tabMain.add("panel", undefined, L("panel.preset"));
+    var pnlPresetTop = tabGeneral.add("panel", undefined, L("panel.preset"));
     pnlPresetTop.orientation = "column";
     pnlPresetTop.alignChildren = ["fill", "top"];
     pnlPresetTop.alignment = "fill";
@@ -948,7 +955,7 @@ function trimButtonHeight(button, px) {
     };
 
     // ===== オプションタブ内コンテナ =====
-    var gOption = tabOption.add("group");
+    var gOption = tabLabel.add("group");
     gOption.orientation = "column";
     gOption.alignChildren = "fill";
 
@@ -958,17 +965,17 @@ function trimButtonHeight(button, px) {
     pnlBaseDate.alignChildren = "left";
     pnlBaseDate.margins = PANEL_MARGINS;
 
-    var g1 = pnlBaseDate.add("group");
-    g1.add("statictext", undefined, L("field.year"));
-    var inputY = g1.add("edittext", undefined, String(today.getFullYear()));
+    var gBaseDateRow = pnlBaseDate.add("group");
+    gBaseDateRow.add("statictext", undefined, L("field.year"));
+    var inputY = gBaseDateRow.add("edittext", undefined, String(today.getFullYear()));
     inputY.characters = 4;
 
-    g1.add("statictext", undefined, L("field.month"));
-    var inputM = g1.add("edittext", undefined, String(today.getMonth() + 1));
+    gBaseDateRow.add("statictext", undefined, L("field.month"));
+    var inputM = gBaseDateRow.add("edittext", undefined, String(today.getMonth() + 1));
     inputM.characters = 2;
 
-    g1.add("statictext", undefined, L("field.day"));
-    var inputD = g1.add("edittext", undefined, String(today.getDate()));
+    gBaseDateRow.add("statictext", undefined, L("field.day"));
+    var inputD = gBaseDateRow.add("edittext", undefined, String(today.getDate()));
     inputD.characters = 2;
 
     // 月数プリセット（ラジオ）
@@ -1050,7 +1057,7 @@ function trimButtonHeight(button, px) {
     chkGhost.enabled = true; // 初期値（refreshPreviewで正しく同期される）
 
     // ===== 日付（panel） =====
-    var pnlDate = tabUnit.add("panel", undefined, L("panel.date"));
+    var pnlDate = tabCell.add("panel", undefined, L("panel.date"));
     pnlDate.orientation = "column";
     pnlDate.alignChildren = "left";
     pnlDate.margins = PANEL_MARGINS;
@@ -1422,7 +1429,7 @@ function trimButtonHeight(button, px) {
 
     // ===== セル（panel）をレイアウトから移動してフォントパネルの直前に配置 =====
     // セル（panel）
-    var pnlCell = tabUnit.add("panel", undefined, L("panel.cell"));
+    var pnlCell = tabCell.add("panel", undefined, L("panel.cell"));
     pnlCell.orientation = "column";
     pnlCell.alignChildren = "left";
     pnlCell.margins = PANEL_MARGINS;
@@ -1600,7 +1607,7 @@ function trimButtonHeight(button, px) {
     changeValueByArrowKey(inputCellH, { integer: false, min: 1, max: 2000 }, schedulePreviewRefresh);
 
     // ===== 書式パネル =====
-    var pnlFormat = tabFormat.add("panel", undefined, L("panel.font"));
+    var pnlFormat = tabText.add("panel", undefined, L("panel.font"));
     pnlFormat.orientation = "column";
     pnlFormat.alignChildren = "left";
     pnlFormat.margins = PANEL_MARGINS;
@@ -1612,7 +1619,7 @@ function trimButtonHeight(button, px) {
     var stFSYear;
 
     // フォントサイズ（2行4列）
-    var pnlFontSize = tabFormat.add("panel", undefined, L("panel.fontSize") + "（" + textUnitLabel + "）");
+    var pnlFontSize = tabText.add("panel", undefined, L("panel.fontSize") + "（" + textUnitLabel + "）");
     pnlFontSize.orientation = "column";
     pnlFontSize.alignChildren = "left";
     pnlFontSize.margins = PANEL_MARGINS;
@@ -2328,8 +2335,8 @@ function trimButtonHeight(button, px) {
         // プレビューレイヤーを全削除して作り直す
         removeLayerIfExists(doc, PREVIEW_LAYER_NAME);
 
-        var base = parseYMDFields(inputY.text, inputM.text, inputD.text);
-        if (!base) return; // 不正入力はプレビューしない
+        var baseDate = parseYMDFields(inputY.text, inputM.text, inputD.text);
+        if (!baseDate) return; // 不正入力はプレビューしない
         var monthCount = Math.round(Number(inputMonths.text));
         if (!monthCount || monthCount < 1) monthCount = 1;
         if (monthCount > 24) monthCount = 24;
@@ -2371,8 +2378,8 @@ function trimButtonHeight(button, px) {
             }
         } catch (_) { }
 
-        var fs = Number(inputFontSize.text);
-        if (!fs || fs <= 0) return;
+        var fontSize = Number(inputFontSize.text);
+        if (!fontSize || fontSize <= 0) return;
 
         var align = rbLeft.value ? "left" : (rbRight.value ? "right" : "center");
         var monthTitleAlign = rbMonthAlignL.value ? "left" : (rbMonthAlignR.value ? "right" : "center");
@@ -2431,13 +2438,13 @@ function trimButtonHeight(button, px) {
         if (weekdayBottomMargin > 2000) weekdayBottomMargin = 2000;
 
         var weekdayFontSize = Number(inputWeekdayFontSize.text);
-        if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fs;
+        if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fontSize;
 
         var monthFontSize = Number(inputMonthFontSize.text);
-        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fs;
+        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fontSize;
 
         var yearFontSize = Number(inputYearFontSize.text);
-        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fs;
+        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fontSize;
 
         var outerMarginX = toPtFromUI(inputOuterMarginX);
         if (isNaN(outerMarginX) || outerMarginX < 0) outerMarginX = 0;
@@ -2455,8 +2462,8 @@ function trimButtonHeight(button, px) {
 
         var weekdayLabelMode = getWeekdayLabelMode();
         try {
-            var opt = {
-                fontSize: fs,
+            var options = {
+                fontSize: fontSize,
                 align: align,
                 monthTitleAlign: monthTitleAlign,
                 fontName: fontName,
@@ -2506,7 +2513,7 @@ function trimButtonHeight(button, px) {
                     startFromJanuary: startFromJanuary
                 }
             };
-            buildCalendarOpt(doc, base, PREVIEW_LAYER_NAME, opt);
+            buildCalendarOpt(doc, baseDate, PREVIEW_LAYER_NAME, options);
         } catch (e) {
             try { removeLayerIfExists(doc, PREVIEW_LAYER_NAME); } catch (_) { }
             alert("Preview error:\n\n" + e);
@@ -2516,71 +2523,71 @@ function trimButtonHeight(button, px) {
     }
 
     // ===== buildCalendar: options object wrapper =====
-    // 引数ズレを防ぐため、呼び出し側は opt だけを組み立てて渡す。
-    /* optを正規化してbuildCalendarへ委譲 / Normalize the opt object and delegate to buildCalendar */
-    function buildCalendarOpt(doc, baseDate, layerName, opt) {
-        opt = opt || {};
-        opt.cell = opt.cell || {};
-        opt.cell.stroke = opt.cell.stroke || {};
-        opt.month = opt.month || {};
-        opt.year = opt.year || {};
-        opt.weekday = opt.weekday || {};
-        opt.unit = opt.unit || {};
-        opt.layout = opt.layout || {};
+    // 引数ズレを防ぐため、呼び出し側は options だけを組み立てて渡す。
+    /* optを正規化してbuildCalendarへ委譲 / Normalize the options object and delegate to buildCalendar */
+    function buildCalendarOpt(doc, baseDate, layerName, options) {
+        options = options || {};
+        options.cell = options.cell || {};
+        options.cell.stroke = options.cell.stroke || {};
+        options.month = options.month || {};
+        options.year = options.year || {};
+        options.weekday = options.weekday || {};
+        options.unit = options.unit || {};
+        options.layout = options.layout || {};
 
         // normalize
-        var fs = Number(opt.fontSize); if (!fs || fs <= 0) fs = 12;
-        var align = opt.align || "center";
-        var monthTitleAlign = opt.monthTitleAlign || align;
-        var fontName = opt.fontName || null;
-        var sundayRed = !!opt.sundayRed;
-        var holidayRed = !!opt.holidayRed;
-        var ghost = !!opt.ghost;
+        var fontSize = Number(options.fontSize); if (!fontSize || fontSize <= 0) fontSize = 12;
+        var align = options.align || "center";
+        var monthTitleAlign = options.monthTitleAlign || align;
+        var fontName = options.fontName || null;
+        var sundayRed = !!options.sundayRed;
+        var holidayRed = !!options.holidayRed;
+        var ghost = !!options.ghost;
 
-        var cellW = Number(opt.cell.w);
-        var cellH = Number(opt.cell.h);
-        var cellGapX = Number(opt.cell.gapX) || 0;
-        var cellGapY = Number(opt.cell.gapY) || 0;
-        var cellPosAdjY = Number(opt.cell.bgOffsetY) || 0; // 背景用
-        var cellFill = !!opt.cell.fill;
+        var cellW = Number(options.cell.w);
+        var cellH = Number(options.cell.h);
+        var cellGapX = Number(options.cell.gapX) || 0;
+        var cellGapY = Number(options.cell.gapY) || 0;
+        var cellPosAdjY = Number(options.cell.bgOffsetY) || 0; // 背景用
+        var cellFill = !!options.cell.fill;
 
-        var st = opt.cell.stroke;
+        var st = options.cell.stroke;
         var strokeMode = st.mode || "none";
         var strokeTop = !!st.top;
         var strokeBottom = !!st.bottom;
         var strokeLeft = !!st.left;
         var strokeRight = !!st.right;
 
-        var showTopYear = !!opt.year.showTop;
-        var includeYearInMonthTitle = !!opt.month.includeYear;
-        var monthTitleBottomBorder = !!opt.month.titleBottomBorder;
-        var topYearBottomMargin = Number(opt.year.bottomMargin) || 0;
+        var showTopYear = !!options.year.showTop;
+        var includeYearInMonthTitle = !!options.month.includeYear;
+        var monthTitleBottomBorder = !!options.month.titleBottomBorder;
+        var topYearBottomMargin = Number(options.year.bottomMargin) || 0;
 
-        var monthCount = Math.round(Number(opt.layout.monthCount));
+        var monthCount = Math.round(Number(options.layout.monthCount));
         if (!monthCount || monthCount < 1) monthCount = 1;
-        var colCount = Math.round(Number(opt.layout.colCount));
+        var colCount = Math.round(Number(options.layout.colCount));
         if (!colCount || colCount < 1) colCount = 1;
 
-        var monthTitleMode = opt.month.titleMode || "pad";
-        var monthBottomMargin = Number(opt.month.bottomMargin) || 0;
-        var weekdayBottomMargin = Number(opt.weekday.bottomMargin) || 0;
+        var monthTitleMode = options.month.titleMode || "pad";
+        var monthBottomMargin = Number(options.month.bottomMargin) || 0;
+        var weekdayBottomMargin = Number(options.weekday.bottomMargin) || 0;
 
-        var outerMarginX = Number(opt.unit.outerX) || 0;
-        var outerMarginY = Number(opt.unit.outerY) || 0;
+        var outerMarginX = Number(options.unit.outerX) || 0;
+        var outerMarginY = Number(options.unit.outerY) || 0;
 
-        var startFromJanuary = !!opt.layout.startFromJanuary;
-        var weekStartMonday = (opt.weekday.startMonday !== false);
-        var weekdayLabelMode = opt.weekday.labelMode || "jp";
+        var startFromJanuary = !!options.layout.startFromJanuary;
+        var weekStartMonday = (options.weekday.startMonday !== false);
+        var weekdayLabelMode = options.weekday.labelMode || "jp";
 
-        var weekdayFontSize = Number(opt.weekday.fontSize);
-        var monthFontSize = Number(opt.month.fontSize);
-        var yearFontSize = Number(opt.year.fontSize);
-        if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fs;
-        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fs;
-        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fs;
+        var weekdayFontSize = Number(options.weekday.fontSize);
+        var monthFontSize = Number(options.month.fontSize);
+        var yearFontSize = Number(options.year.fontSize);
+        if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fontSize;
+        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fontSize;
+        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fontSize;
 
         // Delegate to the existing implementation (現行buildCalendarは温存)
-        buildCalendar(doc, baseDate, layerName, fs, align, monthTitleAlign, fontName, sundayRed, holidayRed, ghost,
+        buildCalendar(doc, baseDate, layerName, fontSize, align, monthTitleAlign, fontName, sundayRed, holidayRed, ghost,
             cellW, cellH, cellGapX, cellGapY, cellPosAdjY, cellFill,
             strokeMode, strokeTop, strokeBottom, strokeLeft, strokeRight,
             showTopYear, includeYearInMonthTitle, monthTitleBottomBorder, topYearBottomMargin,
@@ -2615,8 +2622,8 @@ function trimButtonHeight(button, px) {
     });
 
     okBtn.onClick = function () {
-        var base = parseYMDFields(inputY.text, inputM.text, inputD.text);
-        if (!base) {
+        var baseDate = parseYMDFields(inputY.text, inputM.text, inputD.text);
+        if (!baseDate) {
             alert(L("error.badDate"));
             return;
         }
@@ -2629,8 +2636,8 @@ function trimButtonHeight(button, px) {
         if (colCount > 12) colCount = 12;
         if (colCount > monthCount) colCount = monthCount;
 
-        var fs = Number(inputFontSize.text);
-        if (!fs || fs <= 0) {
+        var fontSize = Number(inputFontSize.text);
+        if (!fontSize || fontSize <= 0) {
             alert(L("error.badFontSize"));
             return;
         }
@@ -2640,7 +2647,7 @@ function trimButtonHeight(button, px) {
         // プレビューONで既に描画済みなら、それをそのまま確定（再描画しない）
         var __existingPreview = null;
         try { __existingPreview = getLayerByName(doc, PREVIEW_LAYER_NAME); } catch (_) { }
-        var __finalName = "Calendar_" + base.getFullYear() + "_" + pad2(base.getMonth() + 1);
+        var __finalName = "Calendar_" + baseDate.getFullYear() + "_" + pad2(baseDate.getMonth() + 1);
         try {
             if (previewChk && previewChk.value && __existingPreview && __existingPreview.pageItems && __existingPreview.pageItems.length > 0) {
                 __existingPreview.name = __finalName;
@@ -2723,16 +2730,16 @@ function trimButtonHeight(button, px) {
         var weekdayLabelMode = getWeekdayLabelMode();
 
         var weekdayFontSize = Number(inputWeekdayFontSize.text);
-        if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fs;
+        if (!weekdayFontSize || weekdayFontSize <= 0) weekdayFontSize = fontSize;
 
         var monthFontSize = Number(inputMonthFontSize.text);
-        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fs;
+        if (!monthFontSize || monthFontSize <= 0) monthFontSize = fontSize;
 
         var yearFontSize = Number(inputYearFontSize.text);
-        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fs;
+        if (!yearFontSize || yearFontSize <= 0) yearFontSize = fontSize;
 
-        var opt = {
-            fontSize: fs,
+        var options = {
+            fontSize: fontSize,
             align: align,
             monthTitleAlign: monthTitleAlign,
             fontName: fontName,
@@ -2783,7 +2790,7 @@ function trimButtonHeight(button, px) {
             }
         };
 
-        buildCalendarOpt(doc, base, PREVIEW_LAYER_NAME, opt);
+        buildCalendarOpt(doc, baseDate, PREVIEW_LAYER_NAME, options);
 
         // 確定：プレビューレイヤー名を変更して残す
         var lyr = getLayerByName(doc, PREVIEW_LAYER_NAME);
@@ -2820,11 +2827,11 @@ function trimButtonHeight(button, px) {
     /**
      * ↑↓キーで数値を増減（Shift: ±10スナップ / Option: ±0.1）
      * @param {EditText} editText
-     * @param {{integer?:boolean, min?:number, max?:number, allowNegative?:boolean}} opt
+     * @param {{integer?:boolean, min?:number, max?:number, allowNegative?:boolean}} options
      * @param {Function=} onChanged 変更後に呼ぶ（プレビュー更新など）
      */
-    function changeValueByArrowKey(editText, opt, onChanged) {
-        opt = opt || {};
+    function changeValueByArrowKey(editText, options, onChanged) {
+        options = options || {};
         editText.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
 
@@ -2856,17 +2863,17 @@ function trimButtonHeight(button, px) {
             }
 
             // 丸め
-            if (keyboard.altKey && opt.integer !== true) {
+            if (keyboard.altKey && options.integer !== true) {
                 value = Math.round(value * 10) / 10; // 小数第1位
             } else {
                 value = Math.round(value); // 整数
             }
 
             // 下限
-            if (opt.allowNegative !== true && value < 0) value = 0;
+            if (options.allowNegative !== true && value < 0) value = 0;
 
             // min/max
-            value = clampNumber(value, opt.min, opt.max);
+            value = clampNumber(value, options.min, options.max);
 
             event.preventDefault();
             editText.text = String(value);
@@ -2888,8 +2895,6 @@ function trimButtonHeight(button, px) {
     ) {
 
         // ---- safety aliases (legacy name compatibility) ----
-        var base = baseDate; // buildCalendar内で base を参照しても落ちないように
-        var fs = fontSize;   // buildCalendar内で fs を参照しても落ちないように
         ghost = !!ghost;
         cellFill = !!cellFill;
         if (!monthTitleMode) monthTitleMode = "pad";
