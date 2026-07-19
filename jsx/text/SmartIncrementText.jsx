@@ -4,7 +4,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 (function () {
     /* =========================================
      * 連番複製スクリプト / Duplicate Text With Increment Numbers
-     * 更新日: 2026-02-20
      * Version: v2.0.0
      *
      * 概要:
@@ -15,8 +14,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
      * - ダイアログ位置を記憶して次回復元
      * ========================================= */
 
-    // バージョン / Version
-    var SCRIPT_VERSION = "v2.0.0";
+    // =========================================
+    // 基本情報 / Basic info
+    // =========================================
+    var SCRIPT_NAME     = "SmartIncrementText";           /* スクリプト名 / script name */
+    var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+    var SCRIPT_UPDATED  = "2026-02-20";                   /* 更新日 / last updated */
+
+    // Released under the MIT license
+    // http://opensource.org/licenses/mit-license.php
 
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";

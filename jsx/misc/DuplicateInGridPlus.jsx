@@ -26,11 +26,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     - 繰り返し数はスライダー（1〜20）でも操作可能で、ドラッグ中はプレビュー更新をスロットルしてチラつきを軽減。
   - 複数選択時は自動でグループ化してから処理（以降は単一オブジェクトと同様）。/ When multiple objects are selected, they are grouped first and processed like a single object.
 
-  更新日 / Last Updated: 2026-02-26
 */
 
-/* バージョン / Version */
-var SCRIPT_VERSION = "v2.0.1";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "DuplicateInGridPlus";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-26";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 言語判定 / Locale detection */
 function getCurrentLang() {

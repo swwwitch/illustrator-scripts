@@ -57,10 +57,16 @@ A persistent-palette utility for batch-toggling various Illustrator preferences 
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "AiQuickPrefsPalette-simple";   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v2.0.0";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

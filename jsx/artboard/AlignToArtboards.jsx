@@ -29,13 +29,19 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - マージン欄は ↑↓ で増減（Shift=±10、Option=±0.1）し、入力中もプレビューが更新されます。
 - Enter/Return キーで［OK］を実行できます。
 
-更新日 / Updated: 2026-05-15
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.1.2";
+var SCRIPT_NAME     = "AlignToArtboards";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-15";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // =========================================
 // ローカライズ / Localization

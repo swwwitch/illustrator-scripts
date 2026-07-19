@@ -15,12 +15,19 @@ and copies all text shown in the dialog to the clipboard.
 When "Ignore outside artboards" is enabled, text not overlapping any artboard is excluded.
 When duplicate filtering is enabled, line endings, leading / trailing whitespace, repeated whitespace, and full-width spaces are normalized before duplicate checks.
 Empty text is excluded. Supports Japanese / English UI and messages.
-
-更新日 / Updated: 2026-03-31
-バージョン / Version: v1.0.0
 */
 
-var SCRIPT_VERSION = "v1.0.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "selecttext";                   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-31";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";

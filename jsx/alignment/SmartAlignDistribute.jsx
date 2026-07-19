@@ -19,14 +19,20 @@ https://github.com/johnwun/js4ai/blob/master/distributeStackedObjects.jsx
 Gorolib Design
 https://gorolib.blog.jp/archives/77282974.html
 
-### 更新日 / Updated: 2026-02-26
 
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.2.1";
+var SCRIPT_NAME     = "SmartAlignDistribute";         /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-26";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 
 (function () {

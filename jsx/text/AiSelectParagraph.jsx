@@ -35,7 +35,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - v1.0.0 (2026-07-16): InDesign 版から移植。段落判定を \r の走査に変更し、強制改行は段落内として扱う
 
 作成日: 2026-07-16
-更新日: 2026-07-17
 */
 
 /*
@@ -73,10 +72,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "AiSelectParagraph";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-17";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.1";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function() {
 

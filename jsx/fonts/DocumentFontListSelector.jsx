@@ -83,9 +83,16 @@ the number of text frames that use the combination (a frame counts once).
 (function () {
 
     // =========================================
-    // バージョン / Version
+    // 基本情報 / Basic info
     // =========================================
-    var SCRIPT_VERSION = "v1.1.3";
+    var SCRIPT_NAME     = "DocumentFontListSelector";     /* スクリプト名 / script name */
+    var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+    var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+    // Released under the MIT license
+    // http://opensource.org/licenses/mit-license.php
 
     // =========================================
     // ローカライズ / Localization

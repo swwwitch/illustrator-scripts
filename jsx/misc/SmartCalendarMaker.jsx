@@ -6,9 +6,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 # SmartCalendarMaker.jsx
 
-バージョン / Version: v1.3.1
-更新日 / Updated: 2026-02-15
-
 ### 概要
 
 - 基準日をもとに、指定した月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。

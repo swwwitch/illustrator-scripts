@@ -24,11 +24,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 (function () {
 
   // =========================================
-  // バージョン / Version
+  // 基本情報 / Basic info
   // =========================================
+  var SCRIPT_NAME     = "ToggleTemplateLayer";          /* スクリプト名 / script name */
+  var SCRIPT_VERSION  = "v1.3";                         /* バージョン / version */
+  var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+  var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+  var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-  // スクリプトバージョン
-  var SCRIPT_VERSION = "v1.3";
+  // Released under the MIT license
+  // http://opensource.org/licenses/mit-license.php
 
   // =========================================
   // 一時アクション設定 / Temporary action settings

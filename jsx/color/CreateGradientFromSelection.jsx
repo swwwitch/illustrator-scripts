@@ -27,15 +27,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - ダイアログ値は targetengine 内でセッション保持（再起動では消える）
 
 Version: v1.9.2
-更新日: 2026-05-28
 
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "CreateGradientFromSelection";  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.9.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-28";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.9.2";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // =========================================
 // ユーザー設定 / User Settings

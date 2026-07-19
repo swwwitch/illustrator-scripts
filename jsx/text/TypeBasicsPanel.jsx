@@ -33,9 +33,16 @@ features are extracted from UnifiedTypePanel.jsx and gathered into a single view
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.0.2";
+var SCRIPT_NAME     = "TypeBasicsPanel";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

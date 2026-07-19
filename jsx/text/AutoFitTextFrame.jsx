@@ -33,8 +33,17 @@ Options (enabled only when “Adjust AreaText height” is ON):
 ※ エリア内文字は可能な場合 `overflows`（Illustratorのオーバーフロー判定）を優先して判定します。
 *****/
 
-/* バージョン / Version */
-var SCRIPT_VERSION = "v2.3.1";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AutoFitTextFrame";             /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.3.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

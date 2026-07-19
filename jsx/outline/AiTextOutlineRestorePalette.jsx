@@ -78,10 +78,17 @@ https://note.com/dtp_transit/n/n3e0f241508db
 
 (function () {
 
-// ==============================
-// バージョン / Version
-// ==============================
-var SCRIPT_VERSION = "v2.0.0";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AiTextOutlineRestorePalette";  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // ==============================
 // ローカライズ / Localization

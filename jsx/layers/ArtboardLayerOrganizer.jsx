@@ -29,14 +29,19 @@ ArtboardLayerOrganizer.jsx
 - 移動先レイヤーがロック／非表示でも自動で解除して移動し、元の状態に戻す
 - 処理後に空のトップレベルレイヤー・サブレイヤーを削除（保護レイヤーを除く）
 
-更新日：2026-05-26
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "ArtboardLayerOrganizer";       /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-05-26";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.3.0";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

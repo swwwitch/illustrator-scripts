@@ -6,7 +6,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   SmartGridMaker.jsx
   囲み罫とグリッド
 
-  更新日: 2026-02-24
 
   長方形またはアートボードを基準に、
   外側（辺の伸縮・線端）、タイトルエリア、
@@ -44,8 +43,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   ・Error 23対策：w/h未定義の残存箇所をガード
 */
 
-/* バージョン / Version */
-var SCRIPT_VERSION = "v1.4.1";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "SmartGridMaker";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-02-24";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // =========================
 // Session-persistent UI state (kept while Illustrator is running)

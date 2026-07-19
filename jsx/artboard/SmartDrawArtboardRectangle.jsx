@@ -70,10 +70,16 @@ https://note.com/dtp_tranist/n/n1ba88513a9c8
 (function () {
 
     // =========================================
-    // バージョン / Version
+    // 基本情報 / Basic info
     // =========================================
+    var SCRIPT_NAME     = "SmartDrawArtboardRectangle";   /* スクリプト名 / script name */
+    var SCRIPT_VERSION  = "v1.5.5";                       /* バージョン / version */
+    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+    var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-    var SCRIPT_VERSION = "v1.5.5";
+    // Released under the MIT license
+    // http://opensource.org/licenses/mit-license.php
 
     // =========================================
     // ユーザー設定 / User settings

@@ -62,8 +62,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   - UI・メッセージを日英対応（LABELS管理）
 */
 
-// バージョン / Version
-var SCRIPT_VERSION = "v1.6.1";
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "AddBackdrop";                  /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // -----------------------------------------------------------------------------
 // Dialog state persistence (engine-global)

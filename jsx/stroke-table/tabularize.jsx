@@ -12,7 +12,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   - 線：縦ケイ（なし／列間のみ／すべて）＋ ガター0時は連結描画
   - プリセット：代表的な組み合わせを一括適用
   - ダイアログ値はセッション内で復元（Illustrator再起動でリセット）
-  - 更新日: 2026-02-11
 
   Interpret the selection as a table grid and generate fills and rules (horizontal/vertical).
   - Text is duplicated and outlined for calculation only (original text remains editable).
@@ -48,8 +47,17 @@ $.global.__tabularizeState = $.global.__tabularizeState || {
     // 単位変換用の定数 (ポイント換算) / Unit conversion constant (pt)
     var MM_TO_PT = 2.83464567;
 
-    // バージョン / Version
-    var SCRIPT_VERSION = "v1.2.3";
+    // =========================================
+    // 基本情報 / Basic info
+    // =========================================
+    var SCRIPT_NAME     = "tabularize";                   /* スクリプト名 / script name */
+    var SCRIPT_VERSION  = "v1.2.3";                       /* バージョン / version */
+    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+    var SCRIPT_UPDATED  = "2026-02-11";                   /* 更新日 / last updated */
+
+    // Released under the MIT license
+    // http://opensource.org/licenses/mit-license.php
 
     // 言語判定 / Language detection
     function getCurrentLang() {

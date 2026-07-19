@@ -30,9 +30,16 @@ chosen, and the auto-leading amount that yields that integer leading is applied.
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_NAME     = "AutoLeadingStep+10";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // ステップ数はファイル名末尾の符号付き整数から取得する（例: AutoLeadingStep+10 → 10 / AutoLeadingStep-1 → -1）
 // 下記はファイル名から数値を読めなかったときの既定値

@@ -75,10 +75,16 @@ https://note.com/dtp_tranist/n/ne64abe5a2e8c
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "ReleaseClipMask";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.2.1";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 

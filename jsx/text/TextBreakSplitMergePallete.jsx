@@ -54,15 +54,21 @@ https://note.com/dtp_tranist/n/nf6f34559ba46
 
 ### メモ
 
-- 作成日：2026-03-18 ／ 更新日：2026-07-13
 - UI・メッセージは日本語／英語を自動切り替え（ロケール判定）
 
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.7.2";
+var SCRIPT_NAME     = "TextBreakSplitMergePallete";   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-13";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // =========================================
 // ローカライズ / Localization

@@ -31,9 +31,16 @@ applying the preference) is delegated to the main engine via BridgeTalk on each 
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.0.0";
+var SCRIPT_NAME     = "AiSmartRotateView";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 /* 同一リポジトリ内の transform フォルダのパス（外部スクリプト実行用）/ Path to the sibling transform folder (for running external scripts) */
 var TRANSFORM_FOLDER = (function () {

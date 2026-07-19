@@ -29,8 +29,17 @@ PathTextToolkit.jsx
 
 (function () {
 
-    /* バージョン / Version */
-    var SCRIPT_VERSION = "v1.3.3";
+    // =========================================
+    // 基本情報 / Basic info
+    // =========================================
+    var SCRIPT_NAME     = "PathTextToolkit";              /* スクリプト名 / script name */
+    var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
+    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+    var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+    // Released under the MIT license
+    // http://opensource.org/licenses/mit-license.php
 
     /* 表示言語を判定（ja / en）/ Detect the UI language (ja / en) */
     function getCurrentLang() {

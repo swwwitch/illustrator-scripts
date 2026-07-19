@@ -6,7 +6,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要：
 
-- 更新日：2026-07-14
 - 選択したパス（グループ／複合パスを含む）のパス構造を最適化
 - ロック／非表示オブジェクト（親・レイヤー含む）は自動スキップ
 - ダイアログ表示時点の選択状態を固定し、情報表示と実行対象を一致
@@ -47,7 +46,6 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanu
 
 ### Description:
 
-- Last Updated: 2026-07-14
 - Optimizes the structure of selected paths (including inside groups / compound paths)
 - Locked / hidden objects (including parents and layers) are skipped automatically
 - Selection is locked at dialog open time so the display and execution targets always match
@@ -73,10 +71,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanu
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "PathCleanupTool";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-14";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.5.2";
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // =========================================
 // ユーザー設定 / User Settings

@@ -54,9 +54,16 @@ https://note.com/nice_lotus120/n/n6291a432b30d
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.1.2";
+var SCRIPT_NAME     = "AiMemoPallete";                /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // =========================================
 // ユーザー設定 / User settings

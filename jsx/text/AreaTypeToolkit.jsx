@@ -15,7 +15,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ダイアログAで作成方法を選択し、ダイアログBで詳細を調整する。プレビューONで変更内容をリアルタイム反映。
 
-作成日: 2025-03-06 ／ 更新日: 2026-03-04
 
 */
 
@@ -36,9 +35,16 @@ Dialog A picks the creation method; Dialog B handles detailed adjustment. Previe
 */
 
 // =========================================
-// バージョン / Version
+// 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION = "v1.1.3";
+var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.3";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-03-04";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
