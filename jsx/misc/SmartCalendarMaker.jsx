@@ -2,139 +2,220 @@
 #targetengine "SmartCalendarMaker"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
-/* =====================================================
- * SmartCalendarMaker.jsx
- * バージョン: v1.3
- * 概要: 基準日を基準に、指定月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
- *      セル幅/高さ・月間隔（左右/上下）などの設定はダイアログで調整し、プレビューで即時反映します。
- * 更新日: 2026-02-15
- * ===================================================== */
+/*
+
+# SmartCalendarMaker.jsx
+
+バージョン / Version: v1.3.1
+更新日 / Updated: 2026-02-15
+
+### 概要
+
+- 基準日をもとに、指定した月数ぶんのカレンダー（月曜はじまり）をアートボード中心に作成します。
+- セル幅／高さ・月間隔（左右／上下）などの設定はダイアログで調整でき、プレビューで即時反映されます。
+- 日本の祝日（2020–2035、振替休日・国民の休日を含む）に対応しています。
+
+### Overview
+
+- Creates calendars (Monday start) for the given number of months, centered on the artboard, based on a reference date.
+- Cell size, month spacing (L/R, U/D) and more are set in the dialog with live preview.
+- Japanese national holidays (2020–2035, incl. substitute & citizen's holidays) are supported.
+
+### 紹介記事 / Article (note)
+
+- https://note.com/dtp_tranist/n/nc54c315c5dc3
+
+*/
 
 
-var SCRIPT_VERSION = "v1.3";
+// =========================================
+// バージョン / Version
+// =========================================
+var SCRIPT_VERSION = "v1.3.1";
 
+// =========================================
+// ユーザー設定 / User Settings
+// =========================================
+// よく調整する値をまとめています / Frequently adjusted values are collected here
+var offsetX = 300;                          /* ダイアログ表示位置の横オフセット / Dialog X offset */
+var offsetY = 0;                            /* ダイアログ表示位置の縦オフセット / Dialog Y offset */
+var dialogOpacity = 0.985;                   /* ダイアログの不透明度 / Dialog opacity */
+var __PREVIEW_DELAY_MS = 450;               /* プレビュー更新の遅延(ms) / Preview debounce delay (ms) */
+var PREVIEW_LAYER_NAME = "__CAL_PREVIEW__"; /* プレビュー用レイヤー名 / Preview layer name */
+
+// =========================================
+// ローカライズ / Localization
+// =========================================
+/* UIロケールから言語(ja/en)を判定 / Detect UI language (ja/en) from locale */
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
 var lang = getCurrentLang();
 
-/* 日英ラベル定義 / Japanese-English label definitions */
+/* 日英ラベル定義（カテゴリ別に構造化）/ Japanese-English label definitions (grouped by category) */
 var LABELS = {
-    dialogTitle: {
-        ja: "カレンダー作成 " + SCRIPT_VERSION,
-        en: "Calendar Maker " + SCRIPT_VERSION
+    /* ダイアログ / Dialog */
+    dialog: {
+        title: { ja: "カレンダー作成 " + SCRIPT_VERSION, en: "Calendar Maker " + SCRIPT_VERSION }
     },
 
-    alertNoDoc: { ja: "ドキュメントを開いてから実行してください。", en: "Please open a document before running." },
+    /* 警告メッセージ / Alerts */
+    alert: {
+        noDoc: {
+            ja: "ドキュメントを開いてから実行してください。",
+            en: "Please open a document before running."
+        }
+    },
 
-    // Panels
-    panelBase: { ja: "基本設定", en: "Basics" },
-    panelView: { ja: "画面表示", en: "View" },
-    panelUnit: { ja: "基本ユニット", en: "Units" },
-    panelYear: { ja: "年", en: "Year" },
-    panelMonth: { ja: "月", en: "Month" },
-    panelWeekday: { ja: "曜日", en: "Weekday" },
-    panelDate: { ja: "日付", en: "Date" },
-    panelLayout: { ja: "レイアウト", en: "Layout" },
-    panelCell: { ja: "セル", en: "Cell" },
-    panelFormatTab: { ja: "書式", en: "Format" },
-    panelFormat: { ja: "フォント", en: "Font" },
-    panelOption: { ja: "オプション", en: "Options" },
-    panelBasic: { ja: "フォントサイズ", en: "Font Size" },
-    panelPreset: { ja: "プリセット", en: "Preset" },
+    /* パネル・タブ見出し / Panel & tab titles */
+    panel: {
+        base: { ja: "全般", en: "General" },
+        view: { ja: "画面表示", en: "View" },
+        unit: { ja: "セル", en: "Cells" },
+        year: { ja: "年", en: "Year" },
+        month: { ja: "月", en: "Month" },
+        weekday: { ja: "曜日", en: "Weekday" },
+        date: { ja: "日付", en: "Date" },
+        layout: { ja: "レイアウト", en: "Layout" },
+        cell: { ja: "セル", en: "Cell" },
+        formatTab: { ja: "文字", en: "Text" },
+        font: { ja: "フォント", en: "Font" },
+        option: { ja: "表記", en: "Labels" },
+        fontSize: { ja: "フォントサイズ", en: "Font Size" },
+        preset: { ja: "プリセット", en: "Preset" },
+        notation: { ja: "表記", en: "Notation" }
+    },
 
-    // Basics
-    year: { ja: "年:", en: "Year:" },
-    month: { ja: "月:", en: "Month:" },
-    day: { ja: "日:", en: "Day:" },
+    /* 基準日フィールド / Base date fields */
+    field: {
+        year: { ja: "年:", en: "Year:" },
+        month: { ja: "月:", en: "Month:" },
+        day: { ja: "日:", en: "Day:" }
+    },
 
-    // Presets / Base
-    monthCountLabel: { ja: "月数：", en: "Months:" },
-    preset1: { ja: "1ヶ月", en: "1 mo" },
-    preset3: { ja: "3ヶ月", en: "3 mo" },
-    preset12: { ja: "12ヶ月", en: "12 mo" },
+    /* 月数プリセット・起点 / Month-count presets & base */
+    base: {
+        monthCount: { ja: "月数：", en: "Months:" },
+        preset1: { ja: "1ヶ月", en: "1 mo" },
+        preset3: { ja: "3ヶ月", en: "3 mo" },
+        preset12: { ja: "12ヶ月", en: "12 mo" },
+        label: { ja: "基準：", en: "Base:" },
+        current: { ja: "当月基準", en: "Current month" },
+        jan: { ja: "1月から", en: "From January" },
+        ghost: { ja: "ゴースト", en: "Ghost" }
+    },
 
-    baseLabel: { ja: "基準：", en: "Base:" },
-    baseCurrent: { ja: "当月基準", en: "Current month" },
-    baseJan: { ja: "1月から", en: "From January" },
-    ghost: { ja: "ゴースト", en: "Ghost" },
+    /* 共通UI / Common UI */
+    common: {
+        bottomMargin: { ja: "下マージン：", en: "Bottom margin: " },
+        align: { ja: "揃え：", en: "Align:" },
+        left: { ja: "左", en: "Left" },
+        center: { ja: "中央", en: "Center" },
+        right: { ja: "右", en: "Right" },
+        zoom: { ja: "ズーム：", en: "Zoom:" },
+        lr: { ja: "左右：", en: "L/R:" },
+        ud: { ja: "上下：", en: "U/D:" }
+    },
 
-    // Common UI
-    bottomMargin: { ja: "下マージン：", en: "Bottom margin: " },
-    alignLabel: { ja: "揃え：", en: "Align:" },
-    left: { ja: "左", en: "Left" },
-    center: { ja: "中央", en: "Center" },
-    right: { ja: "右", en: "Right" },
-    zoomLabel: { ja: "ズーム：", en: "Zoom:" },
+    /* 月タイトル / Month title */
+    month: {
+        includeYear: { ja: "年を併記", en: "Include year" },
+        num: { ja: "数字", en: "Number" },
+        pad: { ja: "数字（0埋め）", en: "Zero-padded" },
+        en: { ja: "英語", en: "English" },
+        ens: { ja: "英語（短縮）", en: "English (short)" },
+        bottomBorder: { ja: "下ボーダー", en: "Bottom border" }
+    },
 
-    // Month
-    chkIncludeYear: { ja: "年を併記", en: "Include year" },
-    panelNotation: { ja: "表記", en: "Notation" },
-    monthNum: { ja: "数字", en: "Number" },
-    monthPad: { ja: "数字（0埋め）", en: "Zero-padded" },
-    monthEn: { ja: "英語", en: "English" },
-    monthEnS: { ja: "英語（短縮）", en: "English (short)" },
-    chkBottomBorder: { ja: "下ボーダー", en: "Bottom border" },
+    /* 年タイトル / Year title */
+    year: {
+        show: { ja: "年を表示", en: "Show year" }
+    },
 
-    // Year
-    chkShowYear: { ja: "年を表示", en: "Show year" },
+    /* 曜日ヘッダ / Weekday header */
+    weekday: {
+        start: { ja: "週の始まり：", en: "Week starts:" },
+        monday: { ja: "月曜日", en: "Monday" },
+        sunday: { ja: "日曜日", en: "Sunday" },
+        notation: { ja: "表記：", en: "Notation:" },
+        margin: { ja: "下マージン：", en: "Bottom margin: " },
+        fontSize: { ja: "基本：", en: "Basic: " }
+    },
 
-    // Weekday
-    weekStart: { ja: "週の始まり", en: "Week starts" },
-    monday: { ja: "月曜日", en: "Monday" },
-    sunday: { ja: "日曜日", en: "Sunday" },
-    labelNotation: { ja: "表記", en: "Notation" },
-    labelMargin: { ja: "下マージン：", en: "Bottom margin: " },
-    labelFontSize: { ja: "基本：", en: "Basic: " },
+    /* レイアウト / Layout */
+    layout: {
+        months: { ja: "月数:", en: "Months: " },
+        cols: { ja: "列数:", en: "Columns: " },
+        width: { ja: "幅：", en: "W:" },
+        height: { ja: "高さ：", en: "H:" },
+        cellFill: { ja: "塗り", en: "Fill" }
+    },
 
-    // Layout
-    months: { ja: "月数:", en: "Months: " },
-    cols: { ja: "列数:", en: "Columns: " },
-    width: { ja: "幅", en: "W" },
-    height: { ja: "高さ", en: "H" },
-    lr: { ja: "左右", en: "L/R" },
-    ud: { ja: "上下", en: "U/D" },
-    cellFill: { ja: "塗り", en: "Fill" },
+    /* 書式（フォント・色）/ Format (font & color) */
+    format: {
+        font: { ja: "フォント：", en: "Font: " },
+        favorites: { ja: "お気に入り：", en: "Favorites: " },
+        sunday: { ja: "日曜日", en: "Sunday" },
+        holiday: { ja: "祝日", en: "Holidays" }
+    },
 
-    // Format
-    font: { ja: "フォント：", en: "Font: " },
-    favorites: { ja: "お気に入り：", en: "Favorites: " },
-    sundayLabel: { ja: "日曜日", en: "Sunday" },
-    holidayLabel: { ja: "祝日", en: "Holidays" },
+    /* ボタン / Buttons */
+    button: {
+        preview: { ja: "プレビュー", en: "Preview" },
+        cancel: { ja: "キャンセル", en: "Cancel" },
+        create: { ja: "作成", en: "OK" }
+    },
 
-    // Buttons
-    preview: { ja: "プレビュー", en: "Preview" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    create: { ja: "作成", en: "OK" },
+    /* エラーメッセージ / Error messages */
+    error: {
+        badDate: {
+            ja: "日付形式が正しくありません。例: 2026-02-14",
+            en: "Invalid date. e.g. 2026-02-14"
+        },
+        badFontSize: { ja: "フォントサイズが正しくありません。", en: "Invalid font size." },
+        badCellW: { ja: "セル幅が正しくありません。", en: "Invalid cell width." },
+        badCellH: { ja: "セル高さが正しくありません。", en: "Invalid cell height." },
+        build: {
+            ja: "作成中にエラーが発生しました。",
+            en: "An error occurred while creating."
+        }
+    },
 
-    // Errors
-    errBadDate: { ja: "日付形式が正しくありません。例: 2026-02-14", en: "Invalid date. e.g. 2026-02-14" },
-    errBadFontSize: { ja: "フォントサイズが正しくありません。", en: "Invalid font size." },
-    errBadCellW: { ja: "セル幅が正しくありません。", en: "Invalid cell width." },
-    errBadCellH: { ja: "セル高さが正しくありません。", en: "Invalid cell height." },
-    errBuild: { ja: "作成中にエラーが発生しました。", en: "An error occurred while creating." },
+    /* 進捗表示 / Loading progress */
+    loading: {
+        title: { ja: "準備中", en: "Loading" },
+        text: { ja: "処理中…", en: "Working…" },
+        fontsRead: { ja: "フォント一覧を読み込み中…", en: "Loading fonts…" },
+        fontsSet: { ja: "フォント一覧をセット中…", en: "Applying fonts…" },
+        ready: { ja: "準備完了", en: "Ready" }
+    },
 
-    // Loading
-    loadingTitle: { ja: "準備中", en: "Loading" },
-    loadingText: { ja: "処理中…", en: "Working…" },
-    loadingFontsRead: { ja: "フォント一覧を読み込み中…", en: "Loading fonts…" },
-    loadingFontsSet: { ja: "フォント一覧をセット中…", en: "Applying fonts…" },
-    ready: { ja: "準備完了", en: "Ready" },
-
-    presetSave: { ja: "保存", en: "Save" },
-    presetLoad: { ja: "読込", en: "Load" },
-    presetSaveDialog: { ja: "プリセットを保存", en: "Save preset" },
-    presetLoadDialog: { ja: "プリセットを読み込み", en: "Load preset" },
-    presetFileFilter: { ja: "プリセットファイル", en: "Preset file" },
-    presetSaveHint: { ja: "（.jsxpreset 推奨）", en: "(recommended .jsxpreset)" },
-    presetSaved: { ja: "プリセットを保存しました。", en: "Preset saved." },
-    presetLoaded: { ja: "プリセットを読み込みました。", en: "Preset loaded." },
-    presetErr: { ja: "プリセットの読み込みに失敗しました。", en: "Failed to load preset." }
+    /* プリセット入出力 / Preset save & load */
+    preset: {
+        save: { ja: "保存", en: "Save" },
+        load: { ja: "読込", en: "Load" },
+        saveDialog: { ja: "プリセットを保存", en: "Save preset" },
+        loadDialog: { ja: "プリセットを読み込み", en: "Load preset" },
+        fileFilter: { ja: "プリセットファイル", en: "Preset file" },
+        saveHint: { ja: "（.jsxpreset 推奨）", en: "(recommended .jsxpreset)" },
+        saved: { ja: "プリセットを保存しました。", en: "Preset saved." },
+        loaded: { ja: "プリセットを読み込みました。", en: "Preset loaded." },
+        err: {
+            ja: "プリセットの読み込みに失敗しました。",
+            en: "Failed to load preset."
+        }
+    }
 };
 
+/* ドット区切りキー（例 "panel.base"）でラベルを引く / Look up a label by dot-separated key (e.g. "panel.base") */
 function L(key) {
     try {
-        var o = LABELS[key];
+        var parts = String(key).split(".");
+        var o = LABELS;
+        for (var i = 0; i < parts.length; i++) {
+            if (!o) return key;
+            o = o[parts[i]];
+        }
         if (!o) return key;
         return o[lang] || o.en || o.ja || key;
     } catch (_) {
@@ -142,9 +223,165 @@ function L(key) {
     }
 }
 
+// =========================================
+// 単位 / Units
+// =========================================
+// ===== 単位ユーティリティ（Preferences 参照 / Q・H 切替対応）=====
+// ▼ 各設定キーの意味：
+// - "rulerType"       ：一般（定規の単位）
+// - "strokeUnits"     ：線
+// - "text/units"      ：文字
+// - "text/asianunits" ：東アジア言語のオプション（日本語・中国語など）
+
+// 単位コード → ラベル（Q/H は getUnitLabel() で分岐）
+var __SCM_unitMap = {
+    0: "in",
+    1: "mm",
+    2: "pt",
+    3: "pica",
+    4: "cm",
+    6: "px",
+    7: "ft/in",
+    8: "m",
+    9: "yd",
+    10: "ft"
+};
+
+/* 単位コードを表示ラベルに変換（Q/H対応）/ Convert a unit code to a display label (Q/H aware) */
+function __SCM_getUnitLabel(code, prefKey) {
+    // code===5 は Q/H
+    if (code === 5) {
+        var hKeys = {
+            "text/asianunits": true,
+            "rulerType": true,
+            "strokeUnits": true
+        };
+        return hKeys[prefKey] ? "H" : "Q";
+    }
+    return __SCM_unitMap[code] || "pt";
+}
+
+/* 環境設定の単位コードからラベルを取得 / Get a unit label from a preference's unit code */
+function __SCM_getPrefUnitLabel(prefKey, fallback) {
+    var fb = fallback || "pt";
+    try {
+        var code = app.preferences.getIntegerPreference(prefKey);
+        return __SCM_getUnitLabel(code, prefKey) || fb;
+    } catch (_) {
+        return fb;
+    }
+}
+
+// 画面上の寸法系はドキュメントの rulerUnits ではなく、Illustrator の一般単位（rulerType）に合わせる
+var unitLabel = __SCM_getPrefUnitLabel("rulerType", "pt");
+// 文字系（フォントサイズ等）の単位は text/units を参照
+var textUnitLabel = __SCM_getPrefUnitLabel("text/units", "pt");
+
+// --- Unit conversion helpers (rulerType-based) ---
+// 寸法系の換算は Illustrator の一般単位（rulerType）に統一する。
+/* 単位コード→ポイント換算係数 / Unit code to points conversion factor */
+function __SCM_getPtFactorFromUnitCode(code) {
+    switch (code) {
+        case 0: return 72.0;                        // in
+        case 1: return 72.0 / 25.4;                 // mm
+        case 2: return 1.0;                         // pt
+        case 3: return 12.0;                        // pica
+        case 4: return 72.0 / 2.54;                 // cm
+        case 5: return 72.0 / 25.4 * 0.25;          // Q or H（1Q=0.25mm）
+        case 6: return 1.0;                         // px（環境依存のため 1px=1pt 扱い）
+        case 7: return 72.0 * 12.0;                 // ft/in
+        case 8: return 72.0 / 25.4 * 1000.0;        // m
+        case 9: return 72.0 * 36.0;                 // yd
+        case 10: return 72.0 * 12.0;                // ft
+        default: return 1.0;
+    }
+}
+
+/* 現在の定規単位の値をポイントへ換算 / Convert a value in the current ruler unit to points */
+function unitValueToPt(v) {
+    v = Number(v);
+    if (isNaN(v)) return NaN;
+    try {
+        var code = app.preferences.getIntegerPreference("rulerType");
+        var f = __SCM_getPtFactorFromUnitCode(code);
+        return v * f;
+    } catch (_) { }
+    return v;
+}
+
+/* 入力欄の値をポイントへ換算 / Convert an edit field's value to points */
+function toPtFromUI(editText) {
+    return unitValueToPt(editText && editText.text);
+}
+
+/* ポイント値を現在の定規単位へ換算 / Convert a point value to the current ruler unit */
+function ptToUnitValue(pt) {
+    pt = Number(pt);
+    if (isNaN(pt)) return NaN;
+    try {
+        var code = app.preferences.getIntegerPreference("rulerType");
+        var f = __SCM_getPtFactorFromUnitCode(code);
+        if (!f) f = 1.0;
+        return pt / f;
+    } catch (_) { }
+    return pt;
+}
+
+
+// =========================================
+// UIレイアウトの共通設定 / Shared UI layout
+// =========================================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 8;                  /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var TAB_MARGINS    = [15, 20, 5, 10];    /* タブ余白 [左,上,右,下] / tab margins */
+
+/* ウィンドウの共通設定 / Apply shared window layout */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/* パネルの共通設定 / Apply shared panel layout */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/* タブの共通設定 / Apply shared tab layout */
+function setupTab(tab, spacing) {
+    tab.orientation = "column";
+    tab.alignChildren = "fill";
+    tab.margins = TAB_MARGINS;
+    if (typeof spacing === "number") tab.spacing = spacing;
+}
+
+/* 行グループの共通設定（ボタン列など）/ Apply a horizontal row group */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
+function trimButtonHeight(button, px) {
+    try {
+        button.size = [button.size.width, button.size.height - px];
+    } catch (e) {}
+}
+
 (function () {
     if (app.documents.length === 0) {
-        alert(L('alertNoDoc'));
+        alert(L("alert.noDoc"));
         return;
     }
 
@@ -161,6 +398,7 @@ function L(key) {
         __SCM_ORG_CENTER = __SCM_VIEW.centerPoint;
     } catch (_) { }
 
+    /* アクティブアートボードの中心座標を返す / Return the center point of the active artboard */
     function __SCM_getActiveArtboardCenterPoint() {
         try {
             var idx = doc.artboards.getActiveArtboardIndex();
@@ -171,12 +409,14 @@ function L(key) {
         return [0, 0];
     }
 
+    /* ズーム倍率をIllustratorの許容範囲に丸める / Clamp zoom factor to Illustrator's allowed range */
     function __SCM_clampZoomFactor(z) {
         if (z < 0.0313) z = 0.0313;
         if (z > 640.0) z = 640.0;
         return z;
     }
 
+    /* パーセント指定でビューをズーム（パン維持）/ Zoom the view by percent (keeping pan) */
     function __SCM_applyZoomPct(pct) {
         try {
             if (!__SCM_VIEW) return;
@@ -192,6 +432,7 @@ function L(key) {
         } catch (_) { }
     }
 
+    /* ズームUI（スライダー/入力）を同期し必要なら適用 / Sync zoom UI and optionally apply */
     function __SCM_syncZoomUI(inputZoomPct, sldZoom, valPct, apply) {
         try {
             var v = Number(valPct);
@@ -209,6 +450,7 @@ function L(key) {
     var __SCM_PAN_X = 0; // pt
     var __SCM_PAN_Y = 0; // pt (positive => down)
 
+    /* アートボードサイズからパンの可動範囲(pt)を求める / Derive pan range (pt) from artboard size */
     function __SCM_getPanRangePt() {
         // Range is based on active artboard size.
         // Use half of width/height (pt) as max, with safety clamps.
@@ -229,6 +471,7 @@ function L(key) {
         return { xMax: 2000, yMax: 2000 };
     }
 
+    /* パン量を反映してビュー中心を設定 / Set the view center reflecting the current pan offsets */
     function __SCM_applyViewCenterWithPan() {
         try {
             if (!__SCM_VIEW) return;
@@ -241,6 +484,7 @@ function L(key) {
         } catch (_) { }
     }
 
+    /* 左右パンを範囲内に丸めて適用 / Clamp and apply horizontal pan */
     function __SCM_applyPanX(v) {
         try {
             var n = Number(v);
@@ -254,6 +498,7 @@ function L(key) {
         } catch (_) { }
     }
 
+    /* 上下パンを範囲内に丸めて適用 / Clamp and apply vertical pan */
     function __SCM_applyPanY(v) {
         try {
             var n = Number(v);
@@ -267,101 +512,6 @@ function L(key) {
         } catch (_) { }
     }
 
-    // ===== 単位ユーティリティ（Preferences 参照 / Q・H 切替対応）=====
-    // ▼ 各設定キーの意味：
-    // - "rulerType"       ：一般（定規の単位）
-    // - "strokeUnits"     ：線
-    // - "text/units"      ：文字
-    // - "text/asianunits" ：東アジア言語のオプション（日本語・中国語など）
-
-    // 単位コード → ラベル（Q/H は getUnitLabel() で分岐）
-    var __SCM_unitMap = {
-        0: "in",
-        1: "mm",
-        2: "pt",
-        3: "pica",
-        4: "cm",
-        6: "px",
-        7: "ft/in",
-        8: "m",
-        9: "yd",
-        10: "ft"
-    };
-
-    function __SCM_getUnitLabel(code, prefKey) {
-        // code===5 は Q/H
-        if (code === 5) {
-            var hKeys = {
-                "text/asianunits": true,
-                "rulerType": true,
-                "strokeUnits": true
-            };
-            return hKeys[prefKey] ? "H" : "Q";
-        }
-        return __SCM_unitMap[code] || "pt";
-    }
-
-    function __SCM_getPrefUnitLabel(prefKey, fallback) {
-        var fb = fallback || "pt";
-        try {
-            var code = app.preferences.getIntegerPreference(prefKey);
-            return __SCM_getUnitLabel(code, prefKey) || fb;
-        } catch (_) {
-            return fb;
-        }
-    }
-
-    // 画面上の寸法系はドキュメントの rulerUnits ではなく、Illustrator の一般単位（rulerType）に合わせる
-    var unitLabel = __SCM_getPrefUnitLabel("rulerType", "pt");
-    // 文字系（フォントサイズ等）の単位は text/units を参照
-    var textUnitLabel = __SCM_getPrefUnitLabel("text/units", "pt");
-
-    // --- Unit conversion helpers (rulerType-based) ---
-    // 寸法系の換算は Illustrator の一般単位（rulerType）に統一する。
-    function __SCM_getPtFactorFromUnitCode(code) {
-        switch (code) {
-            case 0: return 72.0;                        // in
-            case 1: return 72.0 / 25.4;                 // mm
-            case 2: return 1.0;                         // pt
-            case 3: return 12.0;                        // pica
-            case 4: return 72.0 / 2.54;                 // cm
-            case 5: return 72.0 / 25.4 * 0.25;          // Q or H（1Q=0.25mm）
-            case 6: return 1.0;                         // px（環境依存のため 1px=1pt 扱い）
-            case 7: return 72.0 * 12.0;                 // ft/in
-            case 8: return 72.0 / 25.4 * 1000.0;        // m
-            case 9: return 72.0 * 36.0;                 // yd
-            case 10: return 72.0 * 12.0;                // ft
-            default: return 1.0;
-        }
-    }
-
-    function unitValueToPt(v) {
-        v = Number(v);
-        if (isNaN(v)) return NaN;
-        try {
-            var code = app.preferences.getIntegerPreference("rulerType");
-            var f = __SCM_getPtFactorFromUnitCode(code);
-            return v * f;
-        } catch (_) { }
-        return v;
-    }
-
-    function toPtFromUI(editText) {
-        return unitValueToPt(editText && editText.text);
-    }
-
-    function ptToUnitValue(pt) {
-        pt = Number(pt);
-        if (isNaN(pt)) return NaN;
-        try {
-            var code = app.preferences.getIntegerPreference("rulerType");
-            var f = __SCM_getPtFactorFromUnitCode(code);
-            if (!f) f = 1.0;
-            return pt / f;
-        } catch (_) { }
-        return pt;
-    }
-
     /* ================================
      * Japan Holidays (2020-2035) built-in
      * - Includes substitute holidays (振替休日) and citizen's holidays (国民の休日)
@@ -370,11 +520,13 @@ function L(key) {
     function __pad2(n) { return (n < 10) ? ("0" + n) : String(n); }
     function __dateKey(y, m1, d) { return y + "-" + __pad2(m1) + "-" + __pad2(d); }
     function __isLeap(y) { return (y % 4 === 0 && y % 100 !== 0) || (y % 400 === 0); }
+    /* 指定年月の日数を返す / Return the number of days in a given year/month */
     function __daysInMonth(y, m1) {
         var md = [31, (__isLeap(y) ? 29 : 28), 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
         return md[m1 - 1];
     }
     function __dow(y, m1, d) { return (new Date(y, m1 - 1, d)).getDay(); } // 0=Sun..6
+    /* 第n・指定曜日の日を返す / Return the date of the nth given weekday */
     function __nthWeekday(y, m1, weekday0Sun, nth) {
         // weekday0Sun: 0=Sun..6
         var firstDow = __dow(y, m1, 1);
@@ -382,14 +534,17 @@ function L(key) {
         var day = 1 + offset + (nth - 1) * 7;
         return day;
     }
+    /* 春分の日を近似計算(1980-2099) / Approximate the vernal equinox day (1980-2099) */
     function __vernalEquinoxDay(y) {
         // Approximation valid for 1980-2099
         return Math.floor(20.8431 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
     }
+    /* 秋分の日を近似計算(1980-2099) / Approximate the autumn equinox day (1980-2099) */
     function __autumnEquinoxDay(y) {
         // Approximation valid for 1980-2099
         return Math.floor(23.2488 + 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4));
     }
+    /* 指定年の祝日マップを生成（振替・国民の休日含む）/ Build the year's holiday map (incl. substitute & citizen's holidays) */
     function __buildHolidaysForYear(y) {
         var map = {};
         function add(m1, d, name) { map[__dateKey(y, m1, d)] = name; }
@@ -475,6 +630,7 @@ function L(key) {
 
         return map;
     }
+    /* 複数年ぶんの祝日マップを結合 / Merge holiday maps across multiple years */
     function __buildHolidayMap(fromY, toY) {
         var all = {};
         for (var yy = fromY; yy <= toY; yy++) {
@@ -484,11 +640,10 @@ function L(key) {
         return all;
     }
     var JP_HOLIDAYS_2020_2035 = __buildHolidayMap(2020, 2035);
+    /* 指定日の祝日名を返す（無ければ""）/ Return the holiday name for a date ("" if none) */
     function getJPHolidayName(yyyy, m1, d) {
         return JP_HOLIDAYS_2020_2035[__dateKey(yyyy, m1, d)] || "";
     }
-
-    var PREVIEW_LAYER_NAME = "__CAL_PREVIEW__";
 
     // 既存プレビューが残っていたら消す
     removeLayerIfExists(doc, PREVIEW_LAYER_NAME);
@@ -496,12 +651,8 @@ function L(key) {
     // ===== ダイアログ =====
     var today = new Date();
 
-    var dlg = new Window("dialog", L("dialogTitle"));
-    // ===== ダイアログ位置・透明度調整 =====
-    var offsetX = 300;
-    var offsetY = 0;
-    var dialogOpacity = 0.98;
-
+    var dlg = new Window("dialog", L("dialog.title"));
+    /* ダイアログ表示位置をずらし初回プレビューを起動 / Offset the dialog and trigger the first preview */
     function shiftDialogPosition(dlg, offsetX, offsetY) {
         dlg.onShow = function () {
             try {
@@ -513,6 +664,7 @@ function L(key) {
         };
     }
 
+    /* ダイアログの不透明度を設定 / Set the dialog opacity */
     function setDialogOpacity(dlg, opacityValue) {
         try { dlg.opacity = opacityValue; } catch (_) { }
     }
@@ -522,8 +674,8 @@ function L(key) {
     dlg.orientation = "column";
     dlg.alignChildren = "fill";
 
-    dlg.preferredSize.width = 400;
-    dlg.minimumSize.width = 400;
+    dlg.preferredSize.width = 320;
+    dlg.minimumSize.width = 320;
 
     // ===== タブ（プリセット / 設定） =====
     var tabs = dlg.add("tabbedpanel");
@@ -531,48 +683,50 @@ function L(key) {
     tabs.alignChildren = "fill";
     // tabs.margins = [15, 20, 15, 10]; // 上に余白を追加
 
-    var tabMain = tabs.add("tab", undefined, L("panelBase"));
-    tabMain.orientation = "column";
-    tabMain.alignChildren = "fill";
-    tabMain.margins = [15, 20, 15, 10];
+    var tabMain = tabs.add("tab", undefined, L("panel.base"));
+    setupTab(tabMain);
 
-    var tabUnit = tabs.add("tab", undefined, L("panelUnit"));
-    tabUnit.orientation = "column";
-    tabUnit.alignChildren = "fill";
-    tabUnit.margins = [15, 20, 15, 10];
+    var tabUnit = tabs.add("tab", undefined, L("panel.unit"));
+    setupTab(tabUnit);
 
-    var tabFormat = tabs.add("tab", undefined, L("panelFormatTab"));
-    tabFormat.orientation = "column";
-    tabFormat.alignChildren = "fill";
-    tabFormat.margins = [15, 20, 15, 10];
-    tabFormat.spacing = 10;
+    var tabFormat = tabs.add("tab", undefined, L("panel.formatTab"));
+    setupTab(tabFormat, 10);
 
-    var tabOption = tabs.add("tab", undefined, L("panelOption"));
-    tabOption.orientation = "column";
-    tabOption.alignChildren = "fill";
-    tabOption.margins = [15, 20, 15, 10];
-
-    var tabPreset = tabs.add("tab", undefined, L("panelPreset"));
-    tabPreset.orientation = "column";
-    tabPreset.alignChildren = "fill";
-    tabPreset.margins = [15, 20, 15, 10];
+    var tabOption = tabs.add("tab", undefined, L("panel.option"));
+    setupTab(tabOption);
 
     // 既定は「基本設定」タブ
     try { tabs.selection = tabMain; } catch (_) { }
 
-    // ===== プリセット（上部・全幅） =====
-    var pnlPresetTop = tabPreset.add("panel", undefined, L("panelPreset"));
+    // ===== 2カラム =====
+    var gCols = tabMain.add("group");
+    gCols.orientation = "column";
+    gCols.alignChildren = "fill";
+
+    var gColL = gCols.add("group");
+    gColL.orientation = "column";
+    gColL.alignChildren = "fill";
+
+    var gColR = gCols.add("group");
+    gColR.orientation = "column";
+    gColR.alignChildren = "fill";
+
+    // ===== プリセット（「基本設定」タブ最下部・全幅）/ Preset (bottom of Basics tab, full width) =====
+    var pnlPresetTop = tabMain.add("panel", undefined, L("panel.preset"));
     pnlPresetTop.orientation = "column";
     pnlPresetTop.alignChildren = ["fill", "top"];
     pnlPresetTop.alignment = "fill";
-    pnlPresetTop.margins = [15, 20, 15, 10];
+    pnlPresetTop.margins = PANEL_MARGINS;
 
     var gPresetBtns = pnlPresetTop.add("group");
     gPresetBtns.orientation = "row";
     gPresetBtns.alignChildren = ["left", "center"];
 
-    var presetLoadBtn = gPresetBtns.add("button", undefined, L("presetLoad"));
-    var presetSaveBtn = gPresetBtns.add("button", undefined, L("presetSave"));
+    var presetLoadBtn = gPresetBtns.add("button", undefined, L("preset.load"));
+    var presetSaveBtn = gPresetBtns.add("button", undefined, L("preset.save"));
+    // ボタンはパネル幅いっぱいに広げず左寄せ / Keep buttons at natural width, left-aligned
+    presetLoadBtn.alignment = "left";
+    presetSaveBtn.alignment = "left";
 
     // 2行目：プリセット一覧
     var gPresetListRow = pnlPresetTop.add("group");
@@ -751,6 +905,7 @@ function L(key) {
         try { ddPresetList.selection = 0; } catch (_) { }
     })();
 
+    /* プリセットを保持しドロップダウンへ追加 / Store a preset and add it to the dropdown */
     function __SCM_addPresetToDropdown(label, obj) {
         try {
             var lb = String(label || "");
@@ -792,40 +947,27 @@ function L(key) {
         } catch (_) { }
     };
 
-    // ===== 2カラム =====
-    var gCols = tabMain.add("group");
-    gCols.orientation = "column";
-    gCols.alignChildren = "fill";
-
-    var gColL = gCols.add("group");
-    gColL.orientation = "column";
-    gColL.alignChildren = "fill";
-
-    var gColR = gCols.add("group");
-    gColR.orientation = "column";
-    gColR.alignChildren = "fill";
-
     // ===== オプションタブ内コンテナ =====
     var gOption = tabOption.add("group");
     gOption.orientation = "column";
     gOption.alignChildren = "fill";
 
     // ===== 基本設定パネル =====
-    var pnlBaseDate = gColL.add("panel", undefined, L("panelBase"));
+    var pnlBaseDate = gColL.add("panel", undefined, L("panel.base"));
     pnlBaseDate.orientation = "column";
     pnlBaseDate.alignChildren = "left";
-    pnlBaseDate.margins = [15, 20, 15, 10];
+    pnlBaseDate.margins = PANEL_MARGINS;
 
     var g1 = pnlBaseDate.add("group");
-    g1.add("statictext", undefined, L("year"));
+    g1.add("statictext", undefined, L("field.year"));
     var inputY = g1.add("edittext", undefined, String(today.getFullYear()));
     inputY.characters = 4;
 
-    g1.add("statictext", undefined, L("month"));
+    g1.add("statictext", undefined, L("field.month"));
     var inputM = g1.add("edittext", undefined, String(today.getMonth() + 1));
     inputM.characters = 2;
 
-    g1.add("statictext", undefined, L("day"));
+    g1.add("statictext", undefined, L("field.day"));
     var inputD = g1.add("edittext", undefined, String(today.getDate()));
     inputD.characters = 2;
 
@@ -834,11 +976,12 @@ function L(key) {
     gMonthPreset.orientation = "row";
     gMonthPreset.alignChildren = ["left", "center"];
 
-    gMonthPreset.add("statictext", undefined, L("monthCountLabel"));
-    var rbPreset1 = gMonthPreset.add("radiobutton", undefined, L("preset1"));
-    var rbPreset3 = gMonthPreset.add("radiobutton", undefined, L("preset3"));
-    var rbPreset12 = gMonthPreset.add("radiobutton", undefined, L("preset12"));
+    gMonthPreset.add("statictext", undefined, L("base.monthCount"));
+    var rbPreset1 = gMonthPreset.add("radiobutton", undefined, L("base.preset1"));
+    var rbPreset3 = gMonthPreset.add("radiobutton", undefined, L("base.preset3"));
+    var rbPreset12 = gMonthPreset.add("radiobutton", undefined, L("base.preset12"));
 
+    /* 月数プリセット(1/3/12)に合わせUIを一括設定 / Apply a month-count preset (1/3/12) across the UI */
     function applyMonthPreset(months, cols) {
         try { inputMonths.text = String(months); } catch (_) { }
         try {
@@ -874,6 +1017,7 @@ function L(key) {
         try { schedulePreviewRefresh(true); } catch (_) { }
     }
 
+    /* 「年」パネルの有効/無効を年表示チェックに同期 / Sync the Year panel enabled-state with the show-year checkbox */
     function __SCM_syncYearPanelDimToFontSize() {
         var en = false;
         try { en = !!(chkTopYear && chkTopYear.enabled); } catch (_) { }
@@ -890,37 +1034,37 @@ function L(key) {
     gMonthStart.orientation = "row";
     gMonthStart.alignChildren = ["left", "center"];
 
-    gMonthStart.add("statictext", undefined, L("baseLabel"));
-    var rbStartCurrent = gMonthStart.add("radiobutton", undefined, L("baseCurrent"));
-    var rbStartJan = gMonthStart.add("radiobutton", undefined, L("baseJan"));
+    gMonthStart.add("statictext", undefined, L("base.label"));
+    var rbStartCurrent = gMonthStart.add("radiobutton", undefined, L("base.current"));
+    var rbStartJan = gMonthStart.add("radiobutton", undefined, L("base.jan"));
 
     rbStartCurrent.value = true; // デフォルト
     rbStartCurrent.onClick = schedulePreviewRefresh;
     rbStartJan.onClick = schedulePreviewRefresh;
 
     // ゴースト（ロジックは後で追加）
-    var chkGhost = pnlBaseDate.add("checkbox", undefined, L("ghost"));
+    var chkGhost = pnlBaseDate.add("checkbox", undefined, L("base.ghost"));
     chkGhost.value = false;
     chkGhost.onClick = schedulePreviewRefresh;
 
     chkGhost.enabled = true; // 初期値（refreshPreviewで正しく同期される）
 
     // ===== 日付（panel） =====
-    var pnlDate = tabUnit.add("panel", undefined, L("panelDate"));
+    var pnlDate = tabUnit.add("panel", undefined, L("panel.date"));
     pnlDate.orientation = "column";
     pnlDate.alignChildren = "left";
-    pnlDate.margins = [15, 20, 15, 10];
+    pnlDate.margins = PANEL_MARGINS;
 
     // ===== 揃え =====
     var gAlign = pnlDate.add("group");
     gAlign.orientation = "row";
     gAlign.alignChildren = ["left", "center"];
 
-    gAlign.add("statictext", undefined, L("alignLabel"));
+    gAlign.add("statictext", undefined, L("common.align"));
 
-    var rbLeft = gAlign.add("radiobutton", undefined, L("left"));
-    var rbCenter = gAlign.add("radiobutton", undefined, L("center"));
-    var rbRight = gAlign.add("radiobutton", undefined, L("right"));
+    var rbLeft = gAlign.add("radiobutton", undefined, L("common.left"));
+    var rbCenter = gAlign.add("radiobutton", undefined, L("common.center"));
+    var rbRight = gAlign.add("radiobutton", undefined, L("common.right"));
     rbCenter.value = true; // デフォルト中央
     rbLeft.onClick = schedulePreviewRefresh;
     rbCenter.onClick = schedulePreviewRefresh;
@@ -931,28 +1075,28 @@ function L(key) {
     gHoliday.orientation = "row";
     gHoliday.alignChildren = ["left", "center"];
 
-    var chkSundayRed = gHoliday.add("checkbox", undefined, L("sundayLabel"));
+    var chkSundayRed = gHoliday.add("checkbox", undefined, L("format.sunday"));
     chkSundayRed.value = true;
     chkSundayRed.onClick = schedulePreviewRefresh;
 
-    var chkHolidayRed = gHoliday.add("checkbox", undefined, L("holidayLabel"));
+    var chkHolidayRed = gHoliday.add("checkbox", undefined, L("format.holiday"));
     chkHolidayRed.value = true;
     chkHolidayRed.onClick = schedulePreviewRefresh;
 
     // ===== 曜日表記（panel） =====
-    var pnlWeekdayLabel = gOption.add("panel", undefined, L("panelWeekday"));
+    var pnlWeekdayLabel = gOption.add("panel", undefined, L("panel.weekday"));
     pnlWeekdayLabel.orientation = "column";
     pnlWeekdayLabel.alignChildren = "left";
-    pnlWeekdayLabel.margins = [15, 20, 15, 10];
+    pnlWeekdayLabel.margins = PANEL_MARGINS;
 
     // 週の始まり（ラベル + ラジオ）
     var gWeekStart = pnlWeekdayLabel.add("group");
     gWeekStart.orientation = "row";
     gWeekStart.alignChildren = ["left", "center"];
 
-    gWeekStart.add("statictext", undefined, L("weekStart"));
-    var rbWeekMon = gWeekStart.add("radiobutton", undefined, L("monday"));
-    var rbWeekSun = gWeekStart.add("radiobutton", undefined, L("sunday"));
+    gWeekStart.add("statictext", undefined, L("weekday.start"));
+    var rbWeekMon = gWeekStart.add("radiobutton", undefined, L("weekday.monday"));
+    var rbWeekSun = gWeekStart.add("radiobutton", undefined, L("weekday.sunday"));
 
     rbWeekMon.value = true; // デフォルト
     rbWeekMon.onClick = schedulePreviewRefresh;
@@ -963,7 +1107,7 @@ function L(key) {
     gWeekdayLabel.orientation = "row";
     gWeekdayLabel.alignChildren = ["left", "center"];
 
-    gWeekdayLabel.add("statictext", undefined, L("labelNotation"));
+    gWeekdayLabel.add("statictext", undefined, L("weekday.notation"));
     var rbWdJP = gWeekdayLabel.add("radiobutton", undefined, "月");
     var rbWdMTW = gWeekdayLabel.add("radiobutton", undefined, "M");
     var rbWdMon = gWeekdayLabel.add("radiobutton", undefined, "Mon");
@@ -972,7 +1116,7 @@ function L(key) {
     var gWeekdayBottomMargin = pnlWeekdayLabel.add("group");
     gWeekdayBottomMargin.orientation = "row";
     gWeekdayBottomMargin.alignChildren = ["left", "center"];
-    gWeekdayBottomMargin.add("statictext", undefined, L("labelMargin"));
+    gWeekdayBottomMargin.add("statictext", undefined, L("weekday.margin"));
     var inputWeekdayBottomMargin = gWeekdayBottomMargin.add("edittext", undefined, "2");
     inputWeekdayBottomMargin.characters = 4;
     gWeekdayBottomMargin.add("statictext", undefined, unitLabel);
@@ -988,10 +1132,10 @@ function L(key) {
 
 
     // ===== 月パネル =====
-    var pnlMonth = gOption.add("panel", undefined, L("panelMonth"));
+    var pnlMonth = gOption.add("panel", undefined, L("panel.month"));
     pnlMonth.orientation = "column";
     pnlMonth.alignChildren = "left";
-    pnlMonth.margins = [15, 20, 15, 10];
+    pnlMonth.margins = PANEL_MARGINS;
     pnlMonth.alignment = "fill";
     pnlMonth.minimumSize.height = 44;
     pnlMonth.preferredSize.height = 44;
@@ -1003,7 +1147,7 @@ function L(key) {
     gMonth.orientation = "row";
     gMonth.alignChildren = ["left", "center"];
 
-    var chkMonthYear = gMonth.add("checkbox", undefined, L("chkIncludeYear"));
+    var chkMonthYear = gMonth.add("checkbox", undefined, L("month.includeYear"));
     chkMonthYear.value = true;
     chkMonthYear.onClick = schedulePreviewRefresh;
 
@@ -1011,29 +1155,29 @@ function L(key) {
     var gMonthAlign = pnlMonth.add("group");
     gMonthAlign.orientation = "row";
     gMonthAlign.alignChildren = ["left", "center"];
-    gMonthAlign.add("statictext", undefined, L("alignLabel"));
-    var rbMonthAlignL = gMonthAlign.add("radiobutton", undefined, L("left"));
-    var rbMonthAlignC = gMonthAlign.add("radiobutton", undefined, L("center"));
-    var rbMonthAlignR = gMonthAlign.add("radiobutton", undefined, L("right"));
+    gMonthAlign.add("statictext", undefined, L("common.align"));
+    var rbMonthAlignL = gMonthAlign.add("radiobutton", undefined, L("common.left"));
+    var rbMonthAlignC = gMonthAlign.add("radiobutton", undefined, L("common.center"));
+    var rbMonthAlignR = gMonthAlign.add("radiobutton", undefined, L("common.right"));
     rbMonthAlignC.value = true; // default
     rbMonthAlignL.onClick = schedulePreviewRefresh;
     rbMonthAlignC.onClick = schedulePreviewRefresh;
     rbMonthAlignR.onClick = schedulePreviewRefresh;
 
     // 月タイトルの表記
-    var pnlMonthFmt = pnlMonth.add("panel", undefined, L("panelNotation"));
+    var pnlMonthFmt = pnlMonth.add("panel", undefined, L("panel.notation"));
     pnlMonthFmt.orientation = "column";
     pnlMonthFmt.alignChildren = "left";
-    pnlMonthFmt.margins = [15, 20, 15, 10];
+    pnlMonthFmt.margins = PANEL_MARGINS;
 
     var gMonthFmt = pnlMonthFmt.add("group");
     gMonthFmt.orientation = "column";
     gMonthFmt.alignChildren = ["left", "top"];
 
-    var rbMonthNum = gMonthFmt.add("radiobutton", undefined, L("monthNum"));
-    var rbMonthPad = gMonthFmt.add("radiobutton", undefined, L("monthPad"));
-    var rbMonthEn = gMonthFmt.add("radiobutton", undefined, L("monthEn"));
-    var rbMonthEnS = gMonthFmt.add("radiobutton", undefined, L("monthEnS"));
+    var rbMonthNum = gMonthFmt.add("radiobutton", undefined, L("month.num"));
+    var rbMonthPad = gMonthFmt.add("radiobutton", undefined, L("month.pad"));
+    var rbMonthEn = gMonthFmt.add("radiobutton", undefined, L("month.en"));
+    var rbMonthEnS = gMonthFmt.add("radiobutton", undefined, L("month.ens"));
 
     // デフォルトは 0埋め
     rbMonthPad.value = true;
@@ -1047,29 +1191,29 @@ function L(key) {
     var gMonthMargin = pnlMonth.add("group");
     gMonthMargin.orientation = "row";
     gMonthMargin.alignChildren = ["left", "center"];
-    gMonthMargin.add("statictext", undefined, L("bottomMargin"));
+    gMonthMargin.add("statictext", undefined, L("common.bottomMargin"));
     var inputMonthBottomMargin = gMonthMargin.add("edittext", undefined, "3");
     inputMonthBottomMargin.characters = 4;
     gMonthMargin.add("statictext", undefined, unitLabel);
     inputMonthBottomMargin.onChanging = schedulePreviewRefresh;
 
     // 月タイトル行の下ボーダー
-    var chkMonthBottomBorder = pnlMonth.add("checkbox", undefined, L("chkBottomBorder"));
+    var chkMonthBottomBorder = pnlMonth.add("checkbox", undefined, L("month.bottomBorder"));
     chkMonthBottomBorder.value = true; // デフォルトON
     chkMonthBottomBorder.onClick = schedulePreviewRefresh;
 
     // ===== 年パネル =====
-    var pnlYear = gOption.add("panel", undefined, L("panelYear"));
+    var pnlYear = gOption.add("panel", undefined, L("panel.year"));
     pnlYear.orientation = "column";
     pnlYear.alignChildren = "left";
-    pnlYear.margins = [15, 20, 15, 10];
+    pnlYear.margins = PANEL_MARGINS;
 
     var gYear = pnlYear.add("group");
     gYear.orientation = "row";
     gYear.alignChildren = ["left", "center"];
 
 
-    var chkTopYear = gYear.add("checkbox", undefined, L("chkShowYear"));
+    var chkTopYear = gYear.add("checkbox", undefined, L("year.show"));
     chkTopYear.value = false;      // 12ヶ月のときだけONにする
     chkTopYear.enabled = false;    // 12ヶ月以外は触れない
     chkTopYear.onClick = function () {
@@ -1081,13 +1225,14 @@ function L(key) {
     var gYearMargin = pnlYear.add("group");
     gYearMargin.orientation = "row";
     gYearMargin.alignChildren = ["left", "center"];
-    gYearMargin.add("statictext", undefined, L("bottomMargin"));
+    gYearMargin.add("statictext", undefined, L("common.bottomMargin"));
     var inputTopYearBottomMargin = gYearMargin.add("edittext", undefined, "3");
     inputTopYearBottomMargin.characters = 4;
     gYearMargin.add("statictext", undefined, unitLabel);
     inputTopYearBottomMargin.onChanging = schedulePreviewRefresh;
 
     try { gYearMargin.enabled = chkTopYear.value; } catch (_) { }
+    /* 選択中の曜日表記モードを返す / Return the selected weekday-label mode */
     function getWeekdayLabelMode() {
         // "jp" | "mtw" | "mon"
         try {
@@ -1097,6 +1242,7 @@ function L(key) {
         return "jp";
     }
 
+    /* 選択中の月タイトル表記モードを返す / Return the selected month-title mode */
     function getMonthTitleMode() {
         // "num" | "pad" | "en" | "ens"
         try {
@@ -1107,6 +1253,7 @@ function L(key) {
         return "pad"; // default
     }
 
+    /* 年・月・モードから月タイトル文字列を組み立てる / Build the month-title string from year/month/mode */
     function formatMonthTitle(year, month0, includeYear, mode) {
         var m = month0 + 1;
 
@@ -1123,20 +1270,20 @@ function L(key) {
 
 
     // ===== レイアウトパネル =====
-    var pnlLayout = gColL.add("panel", undefined, L("panelLayout"));
+    var pnlLayout = gColL.add("panel", undefined, L("panel.layout"));
     pnlLayout.orientation = "column";
     pnlLayout.alignChildren = "left";
-    pnlLayout.margins = [15, 20, 15, 10];
+    pnlLayout.margins = PANEL_MARGINS;
 
     // 月数/列数
     var gCount = pnlLayout.add("group");
     gCount.orientation = "row";
     gCount.alignChildren = ["left", "center"];
-    gCount.add("statictext", undefined, L("months"));
+    gCount.add("statictext", undefined, L("layout.months"));
     var inputMonths = gCount.add("edittext", undefined, "1");
     inputMonths.characters = 3;
     try { rbPreset1.value = true; } catch (_) { }
-    gCount.add("statictext", undefined, L("cols"));
+    gCount.add("statictext", undefined, L("layout.cols"));
     var inputCols = gCount.add("edittext", undefined, "1");
     inputCols.characters = 3;
 
@@ -1147,10 +1294,10 @@ function L(key) {
     gCellMonth.alignment = "fill";
 
     // 月（ユニット間マージン）panel
-    var pnlMonthOuter = gCellMonth.add("panel", undefined, L("panelMonth") + "（" + unitLabel + "）");
+    var pnlMonthOuter = gCellMonth.add("panel", undefined, L("panel.month") + "（" + unitLabel + "）");
     pnlMonthOuter.orientation = "column";
     pnlMonthOuter.alignChildren = "left";
-    pnlMonthOuter.margins = [15, 20, 15, 10];
+    pnlMonthOuter.margins = PANEL_MARGINS;
     pnlMonthOuter.enabled = false; // 月数=1 のときはディム（refreshPreviewで同期）
 
     // 横並びコンテナ
@@ -1161,7 +1308,7 @@ function L(key) {
     var gOuterH = gOuterRow.add("group");
     gOuterH.orientation = "row";
     gOuterH.alignChildren = ["left", "center"];
-    gOuterH.add("statictext", undefined, L("lr"));
+    gOuterH.add("statictext", undefined, L("common.lr"));
     var inputOuterMarginX = gOuterH.add("edittext", undefined, "10");
     inputOuterMarginX.characters = 3;
     inputOuterMarginX.onChanging = schedulePreviewRefresh;
@@ -1169,12 +1316,13 @@ function L(key) {
     var gOuterV = gOuterRow.add("group");
     gOuterV.orientation = "row";
     gOuterV.alignChildren = ["left", "center"];
-    gOuterV.add("statictext", undefined, L("ud"));
+    gOuterV.add("statictext", undefined, L("common.ud"));
     var inputOuterMarginY = gOuterV.add("edittext", undefined, "3");
     inputOuterMarginY.characters = 3;
     inputOuterMarginY.onChanging = schedulePreviewRefresh;
 
     // Slider fine control: hold Option(Alt) to move at 1/10 speed
+    /* Option押下時にスライダーを1/10速度で微調整 / Move a slider at 1/10 speed while Option is held */
     function __SCM_applySliderWithAltFine(slider, st, applyFn) {
         try {
             if (!slider || !st || typeof applyFn !== "function") return;
@@ -1209,16 +1357,16 @@ function L(key) {
     }
 
     // ===== 画面表示（ズーム） =====
-    var pnlView = gColL.add("panel", undefined, L("panelView"));
+    var pnlView = gColL.add("panel", undefined, L("panel.view"));
     pnlView.orientation = "column";
     pnlView.alignChildren = "left";
-    pnlView.margins = [15, 20, 15, 10];
+    pnlView.margins = PANEL_MARGINS;
 
     var gZoom = pnlView.add("group");
     gZoom.orientation = "row";
     gZoom.alignChildren = ["left", "center"];
 
-    var stZoom = gZoom.add("statictext", undefined, L("zoomLabel"));
+    var stZoom = gZoom.add("statictext", undefined, L("common.zoom"));
     try { stZoom.preferredSize.width = 58; } catch (_) { }
 
     var __initZoomPct = 100;
@@ -1226,7 +1374,7 @@ function L(key) {
     if (!__initZoomPct || __initZoomPct < 10) __initZoomPct = 100;
 
     var sldZoom = gZoom.add("slider", undefined, __initZoomPct, 10, 1600);
-    try { sldZoom.preferredSize.width = 260; } catch (_) { }
+    try { sldZoom.preferredSize.width = 180; } catch (_) { }
 
     var __stZoom = { raw: null, eff: null };
     sldZoom.onChanging = function () {
@@ -1240,12 +1388,12 @@ function L(key) {
     gPanX.orientation = "row";
     gPanX.alignChildren = ["left", "center"];
 
-    var stPanX = gPanX.add("statictext", undefined, L("lr"));
+    var stPanX = gPanX.add("statictext", undefined, L("common.lr"));
     try { stPanX.preferredSize.width = 58; } catch (_) { }
 
     var __panRange = __SCM_getPanRangePt();
     var sldPanX = gPanX.add("slider", undefined, 0, -__panRange.xMax, __panRange.xMax);
-    try { sldPanX.preferredSize.width = 260; } catch (_) { }
+    try { sldPanX.preferredSize.width = 180; } catch (_) { }
 
     var __stPanX = { raw: null, eff: null };
     sldPanX.onChanging = function () {
@@ -1259,11 +1407,11 @@ function L(key) {
     gPanY.orientation = "row";
     gPanY.alignChildren = ["left", "center"];
 
-    var stPanY = gPanY.add("statictext", undefined, L("ud"));
+    var stPanY = gPanY.add("statictext", undefined, L("common.ud"));
     try { stPanY.preferredSize.width = 58; } catch (_) { }
 
     var sldPanY = gPanY.add("slider", undefined, 0, -__panRange.yMax, __panRange.yMax);
-    try { sldPanY.preferredSize.width = 260; } catch (_) { }
+    try { sldPanY.preferredSize.width = 180; } catch (_) { }
 
     var __stPanY = { raw: null, eff: null };
     sldPanY.onChanging = function () {
@@ -1274,10 +1422,10 @@ function L(key) {
 
     // ===== セル（panel）をレイアウトから移動してフォントパネルの直前に配置 =====
     // セル（panel）
-    var pnlCell = tabUnit.add("panel", undefined, L("panelCell"));
+    var pnlCell = tabUnit.add("panel", undefined, L("panel.cell"));
     pnlCell.orientation = "column";
     pnlCell.alignChildren = "left";
-    pnlCell.margins = [15, 20, 15, 10];
+    pnlCell.margins = PANEL_MARGINS;
 
     // セル上段コンテナ（大きさ／セル間隔 横並び）
     var gCellTopRow = pnlCell.add("group");
@@ -1289,10 +1437,10 @@ function L(key) {
     var pnlCellSize = gCellTopRow.add("panel", undefined, "大きさ");
     pnlCellSize.orientation = "column";
     pnlCellSize.alignChildren = "left";
-    pnlCellSize.margins = [15, 20, 15, 10];
+    pnlCellSize.margins = PANEL_MARGINS;
 
     var gCellW = pnlCellSize.add("group");
-    var stCellW = gCellW.add("statictext", undefined, L("width"));
+    var stCellW = gCellW.add("statictext", undefined, L("layout.width"));
     stCellW.justification = "right";
     stCellW.preferredSize.width = 30;
     var __fs0 = 12;
@@ -1309,7 +1457,7 @@ function L(key) {
     gCellW.add("statictext", undefined, unitLabel);
 
     var gCellH = pnlCellSize.add("group");
-    var stCellH = gCellH.add("statictext", undefined, L("height"));
+    var stCellH = gCellH.add("statictext", undefined, L("layout.height"));
     stCellH.justification = "right";
     stCellH.preferredSize.width = 30;
     var __defaultCellH_pt = Math.round(__fs0 * 1.3);
@@ -1322,7 +1470,7 @@ function L(key) {
     var pnlCellGap = gCellTopRow.add("panel", undefined, "セル間隔（" + unitLabel + "）");
     pnlCellGap.orientation = "column";
     pnlCellGap.alignChildren = "left";
-    pnlCellGap.margins = [15, 20, 15, 10];
+    pnlCellGap.margins = PANEL_MARGINS;
 
     // 縦並び（左右 / 上下）
     var gCellGapRow = pnlCellGap.add("group");
@@ -1333,14 +1481,14 @@ function L(key) {
     var gCellGapX = gCellGapRow.add("group");
     gCellGapX.orientation = "row";
     gCellGapX.alignChildren = ["left", "center"];
-    gCellGapX.add("statictext", undefined, L("lr"));
+    gCellGapX.add("statictext", undefined, L("common.lr"));
     var inputCellGapX = gCellGapX.add("edittext", undefined, "0");
     inputCellGapX.characters = 3;
 
     var gCellGapY = gCellGapRow.add("group");
     gCellGapY.orientation = "row";
     gCellGapY.alignChildren = ["left", "center"];
-    gCellGapY.add("statictext", undefined, L("ud"));
+    gCellGapY.add("statictext", undefined, L("common.ud"));
     var inputCellGapY = gCellGapY.add("edittext", undefined, "0");
     inputCellGapY.characters = 3;
 
@@ -1354,16 +1502,16 @@ function L(key) {
     var gCellPosAdj = pnlCell.add("group");
     gCellPosAdj.orientation = "row";
     gCellPosAdj.alignChildren = ["left", "center"];
-    gCellPosAdj.add("statictext", undefined, "セル位置調整");
+    gCellPosAdj.add("statictext", undefined, "セル位置調整：");
     var inputCellPosAdjY = gCellPosAdj.add("edittext", undefined, "0");
     inputCellPosAdjY.characters = 4;
     gCellPosAdj.add("statictext", undefined, unitLabel);
 
     inputCellPosAdjY.onChanging = schedulePreviewRefresh;
-    changeValueByArrowKey(inputCellPosAdjY, { integer: false, min: -2000, max: 2000 }, schedulePreviewRefresh);
+    changeValueByArrowKey(inputCellPosAdjY, { integer: false, min: -2000, max: 2000, allowNegative: true }, schedulePreviewRefresh);
 
     // セル背景の塗り
-    var chkCellFill = pnlCell.add("checkbox", undefined, L("cellFill"));
+    var chkCellFill = pnlCell.add("checkbox", undefined, L("layout.cellFill"));
     chkCellFill.value = false; // 既定：OFF
     chkCellFill.onClick = schedulePreviewRefresh;
 
@@ -1371,7 +1519,7 @@ function L(key) {
     var pnlCellStroke = pnlCell.add("panel", undefined, "罫線");
     pnlCellStroke.orientation = "column";
     pnlCellStroke.alignChildren = "left";
-    pnlCellStroke.margins = [15, 20, 15, 10];
+    pnlCellStroke.margins = PANEL_MARGINS;
 
     // 罫線モード
     var gStrokeMode = pnlCellStroke.add("group");
@@ -1405,6 +1553,7 @@ function L(key) {
     chkStrokeRight.onClick = schedulePreviewRefresh;
 
     // 罫線モード切替ロジック
+    /* 罫線モード（なし/すべて/個別）でチェック状態を切替 / Toggle border checkboxes by stroke mode */
     function updateStrokeMode() {
         if (rbStrokeNone.value) {
             chkStrokeTop.value = false;
@@ -1451,10 +1600,10 @@ function L(key) {
     changeValueByArrowKey(inputCellH, { integer: false, min: 1, max: 2000 }, schedulePreviewRefresh);
 
     // ===== 書式パネル =====
-    var pnlFormat = tabFormat.add("panel", undefined, L("panelFormat"));
+    var pnlFormat = tabFormat.add("panel", undefined, L("panel.font"));
     pnlFormat.orientation = "column";
-    // pnlFormat.alignChildren = "right";
-    pnlFormat.margins = [15, 20, 15, 10];
+    pnlFormat.alignChildren = "left";
+    pnlFormat.margins = PANEL_MARGINS;
 
     // フォントサイズグリッド用変数宣言
     var inputFontSize;
@@ -1463,10 +1612,10 @@ function L(key) {
     var stFSYear;
 
     // フォントサイズ（2行4列）
-    var pnlFontSize = tabFormat.add("panel", undefined, L("panelBasic") + "（" + textUnitLabel + "）");
+    var pnlFontSize = tabFormat.add("panel", undefined, L("panel.fontSize") + "（" + textUnitLabel + "）");
     pnlFontSize.orientation = "column";
     pnlFontSize.alignChildren = "left";
-    pnlFontSize.margins = [15, 20, 15, 10];
+    pnlFontSize.margins = PANEL_MARGINS;
 
     // フォントサイズ（2行4列）
     var gFSGrid = pnlFontSize.add("group");
@@ -1492,8 +1641,8 @@ function L(key) {
 
     var gFSInputs = gFSGrid.add("group");
     gFSInputs.orientation = "row";
-    gFSInputs.alignChildren = ["center", "center"];
-    gFSInputs.alignment = ["center", "top"];
+    gFSInputs.alignChildren = ["left", "center"];
+    gFSInputs.alignment = ["left", "top"];
 
     inputFontSize = gFSInputs.add("edittext", undefined, "12");
     inputFontSize.characters = 3;
@@ -1518,18 +1667,18 @@ function L(key) {
 
     // フォント（インストール済み）選択
     var gFontName = pnlFormat.add("group");
-    gFontName.add("statictext", undefined, L("font"));
+    var stFontLbl = gFontName.add("statictext", undefined, L("format.font"));
     var ddFont = gFontName.add("dropdownlist", undefined, []);
     gFontName.alignChildren = ["left", "center"];
     ddFont.minimumSize = [80, 22];
-    ddFont.preferredSize = [200, 22];
-    ddFont.maximumSize = [200, 22];
+    ddFont.preferredSize = [180, 22];
+    ddFont.maximumSize = [180, 22];
 
     // お気に入り（よく使うフォント）
     var gFontFav = pnlFormat.add("group");
     gFontFav.orientation = "row";
-    gFontFav.alignChildren = ["left", "center"];
-    gFontFav.add("statictext", undefined, L("favorites"));
+    gFontFav.alignChildren = ["left", "left"];
+    var stFavLbl = gFontFav.add("statictext", undefined, L("format.favorites"));
     var ddFavFont = gFontFav.add("dropdownlist", undefined, [
         "-",
         "Automate OT Light",
@@ -1540,9 +1689,14 @@ function L(key) {
         "AgencyFB Regular"
     ]);
     ddFavFont.minimumSize = [80, 22];
-    ddFavFont.preferredSize = [200, 22];
-    ddFavFont.maximumSize = [200, 22];
+    ddFavFont.preferredSize = [180, 22];
+    ddFavFont.maximumSize = [180, 22];
     try { ddFavFont.selection = 0; } catch (_) { }
+
+    // フォント／お気に入りのラベル幅を一定に揃える（プルダウン左端を合わせる）/ Fix font & favorites label widths so the dropdowns align
+    var __FONT_LABEL_W = 80;
+    stFontLbl.preferredSize.width = __FONT_LABEL_W;
+    stFavLbl.preferredSize.width = __FONT_LABEL_W;
 
     // お気に入りの解決は重いので、初回にだけ辞書化してキャッシュする
     var __SCM_FAV_LABELS = [
@@ -1554,6 +1708,7 @@ function L(key) {
         "AgencyFB Regular"
     ];
 
+    /* お気に入りフォント名→内部名の対応表を一度だけ構築 / Build the favorite-label→internal-name map once */
     function __SCM_buildFavFontMapOnce() {
         try {
             var cache = ($.global.__SCM_CACHE = $.global.__SCM_CACHE || {});
@@ -1589,6 +1744,7 @@ function L(key) {
         return {};
     }
 
+    /* お気に入り表示名から内部フォント名を解決 / Resolve an internal font name from a favorite label */
     function __SCM_resolveFontInternalNameFromLabel(label) {
         try {
             var want = String(label || "").replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
@@ -1644,6 +1800,7 @@ function L(key) {
     // app.putCustomOptions 用キー（将来変更するときはバージョンを変える）
     var __FONT_CACHE_KEY = "SmartCalendarMaker_fontNames_v1";
 
+    /* カスタムオプションからフォント一覧キャッシュを読む / Load the cached font list from custom options */
     function loadFontNamesFromCustomOptions() {
         try {
             var desc = app.getCustomOptions(__FONT_CACHE_KEY);
@@ -1656,6 +1813,7 @@ function L(key) {
         return null;
     }
 
+    /* フォント一覧をカスタムオプションへ保存 / Save the font list to custom options */
     function saveFontNamesToCustomOptions(arr) {
         try {
             var desc = new ActionDescriptor();
@@ -1677,12 +1835,12 @@ function L(key) {
     if (!fontNames || !fontNames.length) {
         // ===== 準備中プログレス（重い処理向け）=====
         function __createLoadingPalette(title, initialText, maxValue) {
-            var w = new Window("palette", title || L("loadingTitle"));
+            var w = new Window("palette", title || L("loading.title"));
             w.orientation = "column";
             w.alignChildren = "fill";
             w.margins = 12;
 
-            var msg = w.add("statictext", undefined, initialText || L("loadingText"));
+            var msg = w.add("statictext", undefined, initialText || L("loading.text"));
             var bar = w.add("progressbar", undefined, 0, (typeof maxValue === "number" && maxValue > 0) ? maxValue : 100);
             bar.preferredSize = [260, 14];
 
@@ -1699,7 +1857,7 @@ function L(key) {
             };
         }
 
-        var __loading = __createLoadingPalette(L("loadingTitle"), L("loadingFontsRead"), 100);
+        var __loading = __createLoadingPalette(L("loading.title"), L("loading.fontsRead"), 100);
 
         // フォント一覧を作成（名前でソート）
         fontNames = [];
@@ -1712,7 +1870,7 @@ function L(key) {
                     try {
                         __loading.setMax(__len);
                         __loading.setValue(fi);
-                        __loading.setText(L("loadingFontsRead") + " (" + fi + "/" + __len + ")");
+                        __loading.setText(L("loading.fontsRead") + " (" + fi + "/" + __len + ")");
                     } catch (_) { }
                 }
             }
@@ -1728,7 +1886,7 @@ function L(key) {
         try {
             __loading.setMax((fontNames && fontNames.length) ? fontNames.length : 100);
             __loading.setValue((fontNames && fontNames.length) ? fontNames.length : 100);
-            __loading.setText(L("ready"));
+            __loading.setText(L("loading.ready"));
         } catch (_) { }
         __loading.close();
     }
@@ -1741,11 +1899,11 @@ function L(key) {
             // 既存の列挙用ヘルパーが未定義の可能性があるため、ここでも最小版を用意
             if (typeof __createLoadingPalette !== "function") {
                 var __createLoadingPalette = function (title, initialText, maxValue) {
-                    var w = new Window("palette", title || L("loadingTitle"));
+                    var w = new Window("palette", title || L("loading.title"));
                     w.orientation = "column";
                     w.alignChildren = "fill";
                     w.margins = 12;
-                    var msg = w.add("statictext", undefined, initialText || L("loadingText"));
+                    var msg = w.add("statictext", undefined, initialText || L("loading.text"));
                     var bar = w.add("progressbar", undefined, 0, (typeof maxValue === "number" && maxValue > 0) ? maxValue : 100);
                     bar.preferredSize = [260, 14];
                     try { w.show(); } catch (_) { }
@@ -1760,7 +1918,7 @@ function L(key) {
                     };
                 };
             }
-            __ddLoading = __createLoadingPalette(L("loadingTitle"), L("loadingFontsSet"), fontNames.length);
+            __ddLoading = __createLoadingPalette(L("loading.title"), L("loading.fontsSet"), fontNames.length);
         }
     } catch (_) { }
 
@@ -1769,7 +1927,7 @@ function L(key) {
         if (__ddLoading && (iFont % 50) === 0) {
             try {
                 __ddLoading.setValue(iFont);
-                __ddLoading.setText(L("loadingFontsSet") + " (" + iFont + "/" + fontNames.length + ")");
+                __ddLoading.setText(L("loading.fontsSet") + " (" + iFont + "/" + fontNames.length + ")");
             } catch (_) { }
         }
     }
@@ -1777,7 +1935,7 @@ function L(key) {
     if (__ddLoading) {
         try {
             __ddLoading.setValue(fontNames.length);
-            __ddLoading.setText(L("ready"));
+            __ddLoading.setText(L("loading.ready"));
         } catch (_) { }
         __ddLoading.close();
     }
@@ -1805,7 +1963,7 @@ function L(key) {
     // 左側：プレビュー
     var gBottomLeft = gBottom.add("group");
     gBottomLeft.alignment = ["left", "center"];
-    var previewChk = gBottomLeft.add("checkbox", undefined, L("preview"));
+    var previewChk = gBottomLeft.add("checkbox", undefined, L("button.preview"));
     previewChk.value = true;
 
     // スペーサー（左右を分離）
@@ -1816,8 +1974,8 @@ function L(key) {
     var gBottomRight = gBottom.add("group");
     gBottomRight.alignment = ["right", "center"];
 
-    var cancelBtn = gBottomRight.add("button", undefined, L("cancel"), { name: "cancel" });
-    var okBtn = gBottomRight.add("button", undefined, L("create"), { name: "ok" });
+    var cancelBtn = gBottomRight.add("button", undefined, L("button.cancel"), { name: "cancel" });
+    var okBtn = gBottomRight.add("button", undefined, L("button.create"), { name: "ok" });
 
     // ===== キー操作（↑↓で数値増減）=====
     changeValueByArrowKey(inputY, { integer: true, min: 1, max: 9999 }, schedulePreviewRefresh);
@@ -1836,7 +1994,6 @@ function L(key) {
     // onChanging が連続発火すると「全消去→大量生成」を連打してしまい重くなるため、
     // 最後の入力から少し待って1回だけ描画する。
     var __PREVIEW_TASK_ID = null;
-    var __PREVIEW_DELAY_MS = 450; // タイピング中の連打を抑える
 
     // scheduleTask から呼ぶため global に置く（#targetengine で Illustrator 起動中だけ保持）
     $.global.__SCM_doRefreshPreview = function () {
@@ -1846,6 +2003,7 @@ function L(key) {
         } catch (_) { }
     };
 
+    /* プレビュー更新をデバウンスして予約 / Schedule a debounced preview refresh */
     function schedulePreviewRefresh(immediate) {
         // immediate===true のときは遅延なしで1回だけ実行
         try {
@@ -1862,6 +2020,7 @@ function L(key) {
     }
 
     // ===== プリセット（書き出し / 読み込み） =====
+    /* ラジオ群から選択中のキーを返す / Return the selected key from a radio group */
     function __SCM_getSelectedRadioValue(map) {
         try {
             for (var k in map) {
@@ -1871,6 +2030,7 @@ function L(key) {
         return null;
     }
 
+    /* キー指定でラジオ群を選択 / Select a radio in a group by key */
     function __SCM_setRadioByKey(map, key) {
         try {
             for (var k in map) {
@@ -1880,11 +2040,13 @@ function L(key) {
         } catch (_) { }
     }
 
+    /* ドロップダウンの選択テキストを返す / Return the selected text of a dropdown */
     function __SCM_getDropdownText(dd) {
         try { return (dd && dd.selection) ? (dd.selection.text || "") : ""; } catch (_) { }
         return "";
     }
 
+    /* テキスト一致でドロップダウンを選択 / Select a dropdown item by matching text */
     function __SCM_setDropdownByText(dd, text) {
         try {
             if (!dd || !dd.items || dd.items.length === 0) return false;
@@ -1896,6 +2058,7 @@ function L(key) {
         return false;
     }
 
+    /* 現在のUI状態をプリセットオブジェクトへ直列化 / Serialize the current UI state into a preset object */
     function __SCM_serializePreset() {
         return {
             // date
@@ -1951,6 +2114,7 @@ function L(key) {
         };
     }
 
+    /* プリセットオブジェクトをUIへ反映 / Apply a preset object to the UI */
     function __SCM_applyPreset(obj) {
         if (!obj) return;
 
@@ -2017,6 +2181,7 @@ function L(key) {
         try { schedulePreviewRefresh(true); } catch (_) { }
     }
 
+    /* プリセットを保存用テキスト(JS/JSON)へ変換 / Convert a preset to savable text (JS/JSON) */
     function __SCM_toJsLiteral(obj) {
         // Human-editable preset format
         // Prefer JSON.stringify when available; otherwise use ExtendScript toSource().
@@ -2042,6 +2207,7 @@ function L(key) {
         return "// SmartCalendarMaker preset\n// " + SCRIPT_VERSION + "\n({})\n";
     }
 
+    /* 保存テキストからプリセットを復元 / Parse a preset from saved text */
     function __SCM_parsePresetText(text) {
         // Try JSON first, then JS literal (eval)
         var s = String(text || "");
@@ -2070,12 +2236,13 @@ function L(key) {
         }
     }
 
+    /* プリセットをファイルへ書き出す / Save a preset to a file */
     function __SCM_savePresetToFile() {
         try {
             var obj = __SCM_serializePreset();
             var txt = __SCM_toJsLiteral(obj);
 
-            var f = File.saveDialog(L("presetSaveDialog") + " " + L("presetSaveHint"), "*.jsxpreset;*.json");
+            var f = File.saveDialog(L("preset.saveDialog") + " " + L("preset.saveHint"), "*.jsxpreset;*.json");
             if (!f) return;
 
             var nameLower = String(f.name || "").toLowerCase();
@@ -2088,7 +2255,7 @@ function L(key) {
             // If user explicitly chose .json, save JSON (only if available)
             if (/\.json$/i.test(nameLower)) {
                 if (typeof JSON === "undefined" || !JSON || typeof JSON.stringify !== "function") {
-                    alert(L("presetErr") + "\n\n" + "JSON.stringify が利用できないため .json では保存できません。\n拡張子 .jsxpreset を選んでください。\n");
+                    alert(L("preset.err") + "\n\n" + "JSON.stringify が利用できないため .json では保存できません。\n拡張子 .jsxpreset を選んでください。\n");
                     return;
                 }
                 txt = JSON.stringify(obj, null, 2);
@@ -2098,16 +2265,17 @@ function L(key) {
             if (f.open("w")) {
                 f.write(txt);
                 f.close();
-                alert(L("presetSaved"));
+                alert(L("preset.saved"));
             }
         } catch (e) {
-            alert(L("presetErr") + "\n\n" + e);
+            alert(L("preset.err") + "\n\n" + e);
         }
     }
 
+    /* プリセットをファイルから読み込む / Load a preset from a file */
     function __SCM_loadPresetFromFile() {
         try {
-            var f = File.openDialog(L("presetLoadDialog"), "*.json;*.jsxpreset");
+            var f = File.openDialog(L("preset.loadDialog"), "*.json;*.jsxpreset");
             if (!f) return;
             f.encoding = "UTF-8";
             if (!f.open("r")) return;
@@ -2128,9 +2296,9 @@ function L(key) {
             } catch (_) { }
 
             __SCM_applyPreset(obj);
-            alert(L("presetLoaded"));
+            alert(L("preset.loaded"));
         } catch (e) {
-            alert(L("presetErr") + "\n\n" + e);
+            alert(L("preset.err") + "\n\n" + e);
         }
     }
 
@@ -2138,23 +2306,7 @@ function L(key) {
     presetSaveBtn.onClick = function () { __SCM_savePresetToFile(); };
     presetLoadBtn.onClick = function () { __SCM_loadPresetFromFile(); };
 
-    // Cancel handler: restore pan sliders to zero on Cancel along with zoom restore
-    if (cancelBtn) {
-        var origCancelHandler = cancelBtn.onClick;
-        cancelBtn.onClick = function () {
-            try {
-                if (__SCM_VIEW && __SCM_ORG_ZOOM != null && __SCM_ORG_CENTER != null) {
-                    __SCM_VIEW.zoom = __SCM_ORG_ZOOM;
-                    __SCM_VIEW.centerPoint = __SCM_ORG_CENTER;
-                }
-            } catch (_) { }
-            try { __SCM_PAN_X = 0; __SCM_PAN_Y = 0; } catch (_) { }
-            if (typeof origCancelHandler === "function") origCancelHandler();
-            try { dlg.close(); } catch (_) { }
-        };
-    }
-
-
+    /* 入力値からプレビュー用カレンダーを再生成 / Rebuild the preview calendar from current inputs */
     function refreshPreview() {
         // UI同期（プレビューOFFでも反映）: 月数=1のとき外側マージンをディム
         try {
@@ -2365,6 +2517,7 @@ function L(key) {
 
     // ===== buildCalendar: options object wrapper =====
     // 引数ズレを防ぐため、呼び出し側は opt だけを組み立てて渡す。
+    /* optを正規化してbuildCalendarへ委譲 / Normalize the opt object and delegate to buildCalendar */
     function buildCalendarOpt(doc, baseDate, layerName, opt) {
         opt = opt || {};
         opt.cell = opt.cell || {};
@@ -2464,7 +2617,7 @@ function L(key) {
     okBtn.onClick = function () {
         var base = parseYMDFields(inputY.text, inputM.text, inputD.text);
         if (!base) {
-            alert(L("errBadDate"));
+            alert(L("error.badDate"));
             return;
         }
         var monthCount = Math.round(Number(inputMonths.text));
@@ -2478,7 +2631,7 @@ function L(key) {
 
         var fs = Number(inputFontSize.text);
         if (!fs || fs <= 0) {
-            alert(L("errBadFontSize"));
+            alert(L("error.badFontSize"));
             return;
         }
 
@@ -2522,8 +2675,8 @@ function L(key) {
 
         var cellW = toPtFromUI(inputCellW);
         var cellH = toPtFromUI(inputCellH);
-        if (!cellW || isNaN(cellW) || cellW <= 0) return alert(L("errBadCellW"));
-        if (!cellH || isNaN(cellH) || cellH <= 0) return alert(L("errBadCellH"));
+        if (!cellW || isNaN(cellW) || cellW <= 0) return alert(L("error.badCellW"));
+        if (!cellH || isNaN(cellH) || cellH <= 0) return alert(L("error.badCellH"));
 
         var cellGapX = toPtFromUI(inputCellGapX);
         var cellGapY = toPtFromUI(inputCellGapY);
@@ -2657,6 +2810,7 @@ function L(key) {
     dlg.show();
 
     // ====== functions ======
+    /* 値をmin/maxで丸める / Clamp a number to min/max */
     function clampNumber(v, minV, maxV) {
         if (typeof minV === "number" && v < minV) v = minV;
         if (typeof maxV === "number" && v > maxV) v = maxV;
@@ -2720,6 +2874,7 @@ function L(key) {
             if (typeof onChanged === "function") onChanged();
         });
     }
+    /* カレンダー本体（年/月/曜日/日付/罫線）を描画 / Draw the calendar body (year/month/weekday/dates/borders) */
     function buildCalendar(
         doc, baseDate, layerName, fontSize, alignMode, monthTitleAlign, fontName,
         sundayRed, holidayRed, ghost,
@@ -3079,6 +3234,7 @@ function L(key) {
         }
     }
 
+    /* 水平罫線を1本追加 / Add a single horizontal rule */
     function addHLine(layer, x1, x2, y, strokeW, parentGroup) {
         var p = layer.pathItems.add();
         p.setEntirePath([[x1, y], [x2, y]]);
@@ -3099,6 +3255,7 @@ function L(key) {
         return p;
     }
 
+    /* 揃え指定でテキストフレームを1つ追加 / Add one text frame with the given alignment */
     function addText(layer, str, xLeft, y, size, alignMode, boxW, fontName, isRed, parentGroup) {
         var tf = layer.textFrames.add();
         tf.contents = str;
@@ -3138,14 +3295,12 @@ function L(key) {
         return tf;
     }
 
-    function toYMD(d) {
-        return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
-    }
-
+    /* 数値を2桁ゼロ埋め / Zero-pad a number to 2 digits */
     function pad2(n) {
         return (n < 10) ? ("0" + n) : String(n);
     }
 
+    /* 年月日入力を検証しDateを返す（不正はnull）/ Validate Y/M/D fields and return a Date (null if invalid) */
     function parseYMDFields(yStr, mStr, dStr) {
         var yy = Number(yStr);
         var mm = Number(mStr);
@@ -3161,6 +3316,7 @@ function L(key) {
         return d;
     }
 
+    /* 名前でレイヤーを取得 / Get a layer by name */
     function getLayerByName(doc, name) {
         for (var i = 0; i < doc.layers.length; i++) {
             if (doc.layers[i].name === name) return doc.layers[i];
@@ -3168,6 +3324,7 @@ function L(key) {
         return null;
     }
 
+    /* レイヤーを取得、無ければ作成 / Get a layer, creating it if missing */
     function getOrCreateLayer(doc, name) {
         var lyr = getLayerByName(doc, name);
         if (lyr) return lyr;
@@ -3176,6 +3333,7 @@ function L(key) {
         return lyr;
     }
 
+    /* レイヤーを削除して同名で作り直す / Remove a layer and recreate it under the same name */
     function clearLayerContents(doc, name) {
         var lyr = getLayerByName(doc, name);
         if (!lyr) return;
@@ -3196,6 +3354,7 @@ function L(key) {
         } catch (_) { }
     }
 
+    /* 同名レイヤーがあれば削除 / Remove a layer if it exists */
     function removeLayerIfExists(doc, name) {
         var lyr = getLayerByName(doc, name);
         if (!lyr) return;

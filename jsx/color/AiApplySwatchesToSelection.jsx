@@ -37,7 +37,7 @@ https://note.com/dtp_tranist/n/n5602f3084d2b
 // =========================================
 // バージョン / Version
 // =========================================
-var SCRIPT_VERSION = "v1.7.3";
+var SCRIPT_VERSION = "v1.8.0";
 
 // =========================================
 // ユーザー設定 / User settings
@@ -48,6 +48,7 @@ var TMK_CMYK_FALLBACK_MIN_DISTANCE = 35;  /* 近似色回避の最小距離 / mi
 var COLOR_CHIPS_PER_ROW = 12;             /* 1行あたりのチップ数 / chips per row */
 var CHIP_SIZE = 18;                       /* チップの一辺(px) / chip size */
 var CHIP_GAP = 4;                         /* チップ間の間隔(px) / gap between chips */
+var PREVIEW_CHAR_CAP = 500;               /* 1文字単位プレビューで着色する最大文字数（超過分は閉じる時に着色）/ max chars colored in per-character preview */
 
 // =========================================
 // ローカライズ / Localization
@@ -161,9 +162,9 @@ function setupRow(group, alignment, spacing) {
 // =========================================
 // 常駐エンジンの永続状態 / Persistent engine state
 // =========================================
-/* 再実行でも消えないよう $.global に保持（GC回避・多重起動防止）。プレビューの取り消し情報は
-   メインエンジン側の $.global.__aiApplyPreviewSnapshot に持つ（app.undo は使わない）
-   Kept on $.global so re-runs don't reset it. Preview-restore data lives on the main engine's snapshot */
+/* 再実行でも消えないよう $.global に保持（GC回避・多重起動防止）。プレビューの復元情報（ベースライン）は
+   メインエンジン側の $.global.__aiApplyBaseline に持つ（app.undo は使わない）
+   Kept on $.global so re-runs don't reset it. Preview-restore data (baseline) lives on the main engine */
 if (typeof $.global.__aiApplySwatchesState === "undefined") {
     $.global.__aiApplySwatchesState = { win: null, busy: false };
 }
@@ -318,11 +319,15 @@ function showPalette() {
         }
     };
 
-    /* 適用ボタンなし：閉じたら現在の適用結果を確定（スナップショットは破棄＝以後 restore しない。戻すのは Cmd+Z）
-       No Apply button: closing keeps the current result and discards the snapshot (undo via Cmd+Z) */
+    /* 適用ボタンなし：閉じたら現在の結果を確定。1文字間引きプレビューだった場合は全文字をフル着色してから確定する
+       （プレビューと同じ配色を保存値から再利用）。スナップショットは破棄＝以後 restore しない（戻すのは Cmd+Z）
+       No Apply button: closing commits. If the preview was decimated (per character), color everything
+       first (reusing the saved colors so it matches the preview), then discard the snapshot (undo via Cmd+Z) */
     win.onClose = function () {
         stopDimPolling();
-        runWorker("workerCommitPreview()");
+        var call = "workerFinalize(" + optionsToLiteral(currentOptions()) +
+            ", " + stringsToLiteral(loadedSwatchNames) + ", " + stringsToLiteral(loadedColorValues) + ")";
+        runWorker(call);
         STATE.win = null;
         STATE.unitRadioButtons = null;
         return true;
@@ -402,14 +407,9 @@ function trimButtonHeight(button, px) {
 }
 
 /* ラジオボタンのパネルを追加して配列を返す / Add a radio-button panel and return the buttons */
-function addRadioPanel(parent, title, options, defaultKey, onChange, horizontal) {
+function addRadioPanel(parent, title, options, defaultKey, onChange) {
     var panel = parent.add("panel", undefined, title);
     setupPanel(panel);
-    if (horizontal) {
-        /* ラジオを横並びに / Lay radios out in a row */
-        panel.orientation = "row";
-        panel.alignChildren = ["left", "center"];
-    }
     var radioButtons = [];
     for (var i = 0; i < options.length; i++) {
         var radioButton = panel.add("radiobutton", undefined, options[i].label);
@@ -418,7 +418,6 @@ function addRadioPanel(parent, title, options, defaultKey, onChange, horizontal)
         radioButton.onClick = onChange;
         radioButtons.push(radioButton);
     }
-    radioButtons.panel = panel; /* パネル本体も保持 / keep the panel element too */
     return radioButtons;
 }
 
@@ -588,7 +587,9 @@ function addChipRowCanvas(container, rowChips) {
 /* worker 関数（メインエンジンで eval される DOM 処理）。追加時は必ずここへ登録
    Worker functions (DOM code eval'd in the main engine). Register every new one here. */
 var WORKER_FUNCS = [
-    workerApply, workerCommitPreview, workerOpenSwatchesPanel, previewKeyW, restorePreviewW, restoreOneSnapshotW, snapshotTargetW, snapshotCharactersW,
+    workerApply, workerFinalize, workerCommitPreview, workerOpenSwatchesPanel,
+    restoreBaselineW, paintBaselineW, restoreOneSnapshotW, ensureBaselineW, snapshotTargetW, snapshotCharactersW, colorKeyW, selectionKeyW,
+    collectTargetsCachedW, prepareApplyW, applyColorsToTargetsW, resetTextStrokeOpacityW, applyNoStrokeFullOpacityW, applyColorFullToCharW,
     workerReadSelection, workerReadObjectColors, workerReadStats, selectionTextStatsW, countParagraphsW,
     flattenSelectionW, collectColorableItemsW, getSingleSelectedTextRangeW,
     collectColorTargetsByUnitW, pushTextRangeTargetsW, pushStaggeredWordTargetsW, pushParagraphTargetsW, getTextUnitRangesW, spanRangeW, applyColorToTargetW,
@@ -605,7 +606,7 @@ var WORKER_FUNCS = [
 var gEncodedWorkerDefs = null;
 function getEncodedWorkerDefs() {
     if (gEncodedWorkerDefs === null) {
-        var source = "var TMK_CMYK_FALLBACK_MAX_TOTAL=" + TMK_CMYK_FALLBACK_MAX_TOTAL + ";var TMK_CMYK_FALLBACK_MIN_DISTANCE=" + TMK_CMYK_FALLBACK_MIN_DISTANCE + ";";
+        var source = "var TMK_CMYK_FALLBACK_MAX_TOTAL=" + TMK_CMYK_FALLBACK_MAX_TOTAL + ";var TMK_CMYK_FALLBACK_MIN_DISTANCE=" + TMK_CMYK_FALLBACK_MIN_DISTANCE + ";var PREVIEW_CHAR_CAP=" + PREVIEW_CHAR_CAP + ";";
         for (var i = 0; i < WORKER_FUNCS.length; i++) {
             source += WORKER_FUNCS[i].toString() + ";";
         }
@@ -773,83 +774,125 @@ function optionsToLiteral(options) {
 // ※ toString() は改行を消すため、// 行コメント禁止・/* */ のみ・各文はセミコロンで終える
 // -----------------------------------------
 
-/* カラーを適用（swatchNames=スウォッチ名 / colorValues=シリアライズ済みカラー値、どちらか一方）。
-   app.undo は使わず、前回プレビューで書き換えた塗り/線/不透明度をスナップショットから復元してから再適用する。
-   これで手動編集・選択変更・部分失敗に強くなる（app.undo はグローバル履歴を巻き戻すため危険）
-   Apply colors; revert the previous preview via snapshot restore (never app.undo) */
-function workerApply(options, swatchNames, colorValues) {
+/* カラーを適用（swatchNames=スウォッチ名 / colorValues=シリアライズ済みカラー値、どちらか一方 / finalApply=確定時）。
+   元の塗り/線/不透明度は開いた最初の1回だけ全選択ぶんスナップショット（ベースライン）し、以降のプレビューは上書きのみ。
+   どの配色単位でも可視グリフ・全オブジェクトを必ず塗り直すので見た目は常に正しい。取り消しは Cmd+Z（app.undo は使わない）
+   Apply colors. Snapshot the whole selection once (baseline); later previews only overwrite. */
+function workerApply(options, swatchNames, colorValues, finalApply) {
     if (app.documents.length === 0) return "NODOC";
     var doc = app.activeDocument;
-    /* 現在の選択から対象を集める（塗りの復元は構造を変えないので復元前に集めてよい）
-       Collect targets from the current selection (restoring colors never changes structure, so this may precede it) */
     var selection = doc.selection;
     var items = flattenSelectionW(selection);
     var textRange = getSingleSelectedTextRangeW(selection);
-    /* オブジェクト選択は復元用に控える（テキスト編集中は復元しない）
-       Save the object selection for restore (skip while editing text) */
+    /* オブジェクト選択は適用後にフォーカスを戻すため控える（テキスト編集中は戻さない）*/
     var savedSelection = textRange ? null : selection;
-    var targets = (items.length > 0 || textRange) ? collectColorTargetsByUnitW(items, textRange, options.unit) : [];
-    if (targets.length === 0) { restorePreviewW(); app.redraw(); return "NOSEL"; }
-    /* 対象が前回と同一なら復元を省く。適用が塗り/線/不透明度を必ず上書きするので、
-       元へ戻してから塗り直す必要がない（1文字ずつの書き込みは重いので効果が大きい）。
-       この場合スナップショットは前回のもの＝元の状態を保持し続ける
-       Skip the restore pass when the targets are unchanged: applying overwrites fill/stroke/opacity anyway.
-       The existing snapshot keeps holding the true originals */
-    var previewKey = previewKeyW(items, textRange, options.unit, targets.length);
-    var reusable = ($.global.__aiApplyPreviewSnapshot && $.global.__aiApplyPreviewKey === previewKey);
-    var snapshot;
-    if (reusable) {
-        snapshot = $.global.__aiApplyPreviewSnapshot;
+    /* パレットは非モーダルで選択が変わりうる。選択が変わったら前のプレビューを元へ戻し、全キャッシュを破棄して作り直す
+       The palette is non-modal: on a selection change, revert the previous preview and drop all caches */
+    var selKey = selectionKeyW(items, textRange);
+    if ($.global.__aiApplySelKey !== selKey) {
+        paintBaselineW();
+        $.global.__aiApplyBaseline = null;
+        $.global.__aiApplyTargets = null;
+        $.global.__aiApplyTargetsUnit = null;
+        $.global.__aiApplyColors = null;
+        $.global.__aiApplyGroupIndex = null;
+        $.global.__aiApplyWasDecimated = null;
+        $.global.__aiApplySelKey = selKey;
+    }
+    /* 同一単位のプレビューでは対象集合をキャッシュ再利用（順序変更だけなら作り直さない）*/
+    var targets = collectTargetsCachedW(items, textRange, options.unit);
+    if (targets.length === 0) { restoreBaselineW(); app.redraw(); return "NOSEL"; }
+    /* 元状態は初回だけ取得（重い文字読み取りは1回きり）*/
+    ensureBaselineW(items, textRange);
+    /* 着色前の準備（間引きの要否と着色件数）*/
+    var prep = prepareApplyW(items, textRange, options.unit, targets.length, finalApply);
+    if (!finalApply) { $.global.__aiApplyWasDecimated = prep.decimated; }
+    /* ランダム系（並びシャッフル・完全ランダム抽選・自動CMYK生成）はプレビューと確定で変わらないよう、
+       プレビュー時に生成した配色と抽選結果を保存し、確定（finalApply）時はそれを再利用する */
+    var colors, groupIndexCache;
+    if (finalApply && $.global.__aiApplyColors) {
+        colors = $.global.__aiApplyColors;
+        groupIndexCache = $.global.__aiApplyGroupIndex || {};
     } else {
-        /* 対象が変わった：前回プレビューを元へ戻してから採り直す / Targets changed: restore, then snapshot afresh */
-        restorePreviewW();
-        snapshot = [];
+        colors = orderColorsW(resolveAppliedColorsW(doc, targets.length, swatchNames, colorValues), options.order);
+        groupIndexCache = {};
+        $.global.__aiApplyColors = colors;
+        $.global.__aiApplyGroupIndex = groupIndexCache;
     }
-    var colors = orderColorsW(resolveAppliedColorsW(doc, targets.length, swatchNames, colorValues), options.order);
-    /* 完全ランダム：グループ（単語など）ごとに一度だけ抽選し、同一グループ内は同じ色にする
-       Fully random: draw once per group (e.g. a word) so a group keeps one color */
-    var isFullRandom = (options.order === "fullrandom");
-    var randomIndexByGroup = {};
-    for (var i = 0; i < targets.length; i++) {
-        if (!reusable) { snapshotTargetW(targets[i], snapshot); }
-        var colorIndex;
-        if (isFullRandom) {
-            var groupKey = (typeof targets[i].groupKey === "string") ? targets[i].groupKey : String(i);
-            colorIndex = fullRandomColorIndexW(groupKey, randomIndexByGroup, colors.length);
-        } else {
-            colorIndex = (typeof targets[i].colorIndex === "number") ? targets[i].colorIndex : i;
-        }
-        applyColorToTargetW(targets[i], pickSwatchColorW(colorIndex, colors));
-    }
-    $.global.__aiApplyPreviewSnapshot = snapshot;
-    $.global.__aiApplyPreviewKey = previewKey;
-    /* 適用で変わった選択（フォーカス）を元に戻す / Restore the selection changed by applying */
+    applyColorsToTargetsW(targets, prep.limit, colors, options.order === "fullrandom", prep.decimated, groupIndexCache);
+    /* 適用で変わった選択（フォーカス）を元に戻す */
     if (savedSelection) { try { app.selection = savedSelection; } catch (e) {} }
     app.redraw();
     return "OK";
 }
 
-/* 現在のプレビューを確定（スナップショットを破棄＝以後 restore しない）。閉じる時・初回開始時に呼ぶ
-   Commit the current preview: discard the snapshot so it is never restored (called on close / before first preview) */
-function workerCommitPreview() {
-    $.global.__aiApplyPreviewSnapshot = null;
-    $.global.__aiApplyPreviewKey = null;
-    return "OK";
+/* 閉じる時の確定処理。間引きプレビューだったときだけ保存配色で全文字をフル着色し、その後ベースラインを破棄する
+   Finalize on close: if the preview was decimated, apply fully using the saved colors, then discard the baseline */
+function workerFinalize(options, swatchNames, colorValues) {
+    if ($.global.__aiApplyWasDecimated) { workerApply(options, swatchNames, colorValues, true); }
+    return workerCommitPreview();
 }
 
-/* 対象集合の同一性キー（配色単位＋選択の形）。前回と一致すれば同じ対象＝復元を省ける。
-   塗り替えでは変化しない値だけで作る（geometricBounds は線幅を含まないので着色の影響を受けない）
-   Identity key for the target set (unit + shape of the selection); an unchanged key means the same targets.
-   Built only from values that coloring never changes */
-function previewKeyW(items, textRange, unitMode, targetCount) {
-    var parts = [unitMode, targetCount, items.length];
+/* 着色前の準備。1文字単位で対象が多いプレビューは間引き（先頭 PREVIEW_CHAR_CAP だけ着色し残りは元色）、
+   それ以外は線なし・不透明度100 を範囲へ一括設定。戻り値 { decimated, limit } */
+function prepareApplyW(items, textRange, unitMode, targetCount, finalApply) {
+    var decimated = (!finalApply && unitMode === "character" && targetCount > PREVIEW_CHAR_CAP);
+    if (decimated) { paintBaselineW(); return { decimated: true, limit: PREVIEW_CHAR_CAP }; }
+    resetTextStrokeOpacityW(items, textRange);
+    return { decimated: false, limit: targetCount };
+}
+
+/* 対象 targets の先頭 limit 件へ色を適用。完全ランダムはグループごとに1回抽選（groupIndexCache に保持）、
+   間引き時は文字ごとに線・不透明度も設定 */
+function applyColorsToTargetsW(targets, limit, colors, isFullRandom, decimated, groupIndexCache) {
+    for (var i = 0; i < limit; i++) {
+        var colorIndex;
+        if (isFullRandom) {
+            var groupKey = (typeof targets[i].groupKey === "string") ? targets[i].groupKey : String(i);
+            colorIndex = fullRandomColorIndexW(groupKey, groupIndexCache, colors.length);
+        } else {
+            colorIndex = (typeof targets[i].colorIndex === "number") ? targets[i].colorIndex : i;
+        }
+        var color = pickSwatchColorW(colorIndex, colors);
+        if (decimated) { applyColorFullToCharW(targets[i], color); }
+        else { applyColorToTargetW(targets[i], color); }
+    }
+}
+
+/* 対象集合を単位ごとにキャッシュ。単位が同じなら作り直さない（順序変更だけのプレビューを速くする）*/
+function collectTargetsCachedW(items, textRange, unitMode) {
+    if ($.global.__aiApplyTargetsUnit === unitMode && $.global.__aiApplyTargets) { return $.global.__aiApplyTargets; }
+    var targets = (items.length > 0 || textRange) ? collectColorTargetsByUnitW(items, textRange, unitMode) : [];
+    $.global.__aiApplyTargets = targets;
+    $.global.__aiApplyTargetsUnit = unitMode;
+    return targets;
+}
+
+/* 元状態のベースラインを初回だけ取得（全選択ぶん・テキストは文字単位で忠実に保存）*/
+function ensureBaselineW(items, textRange) {
+    if ($.global.__aiApplyBaseline) { return; }
+    var baseline = [];
+    if (textRange) { snapshotTargetW({ kind: "textrange", node: textRange }, baseline); }
+    for (var i = 0; i < items.length; i++) {
+        var it = items[i];
+        if (it.typename === "TextFrame") { snapshotTargetW({ kind: "textframe", node: it }, baseline); }
+        else if (it.typename === "PathItem") { snapshotTargetW({ kind: "path", node: it }, baseline); }
+        else if (it.typename === "CompoundPathItem") { snapshotTargetW({ kind: "compound", node: it }, baseline); }
+    }
+    $.global.__aiApplyBaseline = baseline;
+}
+
+/* 選択の同一性キー（選択の形だけ。塗り替えで変化しない値で作る）。前回と変われば選択が変わった＝作り直す
+   Identity key for the selection shape (values coloring never changes); a change means re-capture */
+function selectionKeyW(items, textRange) {
+    var parts = [items.length];
     parts.push(textRange ? ("tr:" + textRange.start + ":" + textRange.end) : "tr:-");
     for (var i = 0; i < items.length; i++) {
         var item = items[i];
         var key = item.typename;
         try {
-            var bounds = item.geometricBounds;
-            key += ":" + Math.round(bounds[0] * 100) + ":" + Math.round(bounds[1] * 100) + ":" + Math.round(bounds[2] * 100) + ":" + Math.round(bounds[3] * 100);
+            var b = item.geometricBounds;
+            key += ":" + Math.round(b[0] * 100) + ":" + Math.round(b[1] * 100) + ":" + Math.round(b[2] * 100) + ":" + Math.round(b[3] * 100);
         } catch (e) { key += ":?"; }
         if (item.typename === "TextFrame") {
             try { key += ":" + item.textRange.end; } catch (e2) { key += ":?"; }
@@ -859,6 +902,18 @@ function previewKeyW(items, textRange, unitMode, targetCount) {
     return parts.join("|");
 }
 
+/* 現在のプレビューを確定（各キャッシュを破棄＝以後 restore しない）。閉じる時・初回開始前に呼ぶ */
+function workerCommitPreview() {
+    $.global.__aiApplyBaseline = null;
+    $.global.__aiApplyTargets = null;
+    $.global.__aiApplyTargetsUnit = null;
+    $.global.__aiApplyColors = null;
+    $.global.__aiApplyGroupIndex = null;
+    $.global.__aiApplyWasDecimated = null;
+    $.global.__aiApplySelKey = null;
+    return "OK";
+}
+
 /* 「スウォッチ」パネルを表示（メニューコマンドはメインエンジンでのみ実行可）
    Show the Swatches panel (menu commands only run in the main engine) */
 function workerOpenSwatchesPanel() {
@@ -866,22 +921,32 @@ function workerOpenSwatchesPanel() {
     return "OK";
 }
 
-/* 前回プレビューで書き換えた塗り/線/不透明度を元へ戻す（オブジェクト削除時などは個別に無視）
-   Restore fills/strokes/opacity changed by the previous preview (skip individually if an object was deleted) */
-function restorePreviewW() {
-    var snapshot = $.global.__aiApplyPreviewSnapshot;
-    $.global.__aiApplyPreviewSnapshot = null;
-    $.global.__aiApplyPreviewKey = null;
-    if (!snapshot) { return; }
-    for (var i = 0; i < snapshot.length; i++) {
-        try { restoreOneSnapshotW(snapshot[i]); } catch (e) { }
+/* ベースライン（元の塗り/線/不透明度）を画面へ書き戻すが破棄はしない。間引きプレビューで着色しなかった残りを元色に戻す用
+   Repaint the baseline (originals) without discarding it; used by the decimated preview to reset the tail */
+function paintBaselineW() {
+    var baseline = $.global.__aiApplyBaseline;
+    if (!baseline) { return; }
+    for (var i = 0; i < baseline.length; i++) {
+        try { restoreOneSnapshotW(baseline[i]); } catch (e) { }
     }
 }
 
-/* スナップショット1件を復元 / Restore one snapshot entry */
+/* ベースラインを書き戻して破棄（対象なし時など。以後 restore しない）
+   Repaint the baseline and discard it (e.g. when there are no targets; never restored afterward) */
+function restoreBaselineW() {
+    paintBaselineW();
+    $.global.__aiApplyBaseline = null;
+}
+
+/* スナップショット1件を復元。テキストは同色ランを範囲1回で書き戻す（1文字ずつより桁違いに速い）
+   Restore one snapshot entry; text runs are written back in a single span write */
 function restoreOneSnapshotW(entry) {
     var node = entry.node;
-    if (entry.kind === "char") { node.fillColor = entry.fill; node.strokeColor = entry.stroke; node.opacity = entry.opacity; }
+    if (entry.kind === "textrun") {
+        var range = entry.story.textRange;
+        range.start = entry.start; range.end = entry.end;
+        range.fillColor = entry.fill; range.strokeColor = entry.stroke; range.opacity = entry.opacity;
+    }
     else if (entry.kind === "path") { node.fillColor = entry.fill; node.stroked = entry.stroked; node.opacity = entry.opacity; }
     else if (entry.kind === "compound") {
         for (var i = 0; i < entry.subs.length; i++) {
@@ -907,14 +972,44 @@ function snapshotTargetW(target, out) {
     }
 }
 
-/* テキスト範囲を文字単位でスナップショット（元が混色でも忠実に戻せる）
-   Snapshot a text range per character (so mixed original colors restore faithfully) */
+/* テキスト範囲を「同色ラン」単位でスナップショット（元が混色でも忠実に戻せる／文字ごと保存より桁違いに軽い）。
+   連続範囲なので i 文字目の story オフセットは range.start + i（ch.start の DOM 読み取りを省く）
+   Snapshot a text range as same-color runs (faithful for mixed originals, far lighter than per-character) */
 function snapshotCharactersW(range, out) {
+    var story = range.story;
     var chars = range.characters;
-    for (var i = 0; i < chars.length; i++) {
+    var count = chars.length;
+    var rangeStart = range.start;
+    var started = false;
+    var runFill = null, runStroke = null, runOpacity = 0, runKey = null, runStart = 0, runEnd = 0;
+    for (var i = 0; i < count; i++) {
         var ch = chars[i];
-        out.push({ kind: "char", node: ch, fill: ch.fillColor, stroke: ch.strokeColor, opacity: ch.opacity });
+        var fill = ch.fillColor;
+        var stroke = ch.strokeColor;
+        var opacity = ch.opacity;
+        var chStart = rangeStart + i;
+        var key = colorKeyW(fill) + "|" + colorKeyW(stroke) + "|" + opacity;
+        if (started && key === runKey) {
+            runEnd = chStart + 1;
+        } else {
+            if (started) { out.push({ kind: "textrun", story: story, start: runStart, end: runEnd, fill: runFill, stroke: runStroke, opacity: runOpacity }); }
+            started = true;
+            runKey = key; runFill = fill; runStroke = stroke; runOpacity = opacity;
+            runStart = chStart; runEnd = chStart + 1;
+        }
     }
+    if (started) { out.push({ kind: "textrun", story: story, start: runStart, end: runEnd, fill: runFill, stroke: runStroke, opacity: runOpacity }); }
+}
+
+/* 色の同一性キー（NoColor 対応・SpotColor は tint も含める）。run 判定に使う
+   Identity key for a color (NoColor-aware; SpotColor includes tint) used for run detection */
+function colorKeyW(color) {
+    if (color.typename === "NoColor") { return "N"; }
+    if (color.typename === "SpotColor") {
+        var tint = (typeof color.tint === "number") ? color.tint : 100;
+        return "S," + tint + "," + serializeColorW(color);
+    }
+    return serializeColorW(color);
 }
 
 /* 選択情報を返す "OK|<defaultUnit>|<r,g,b;...>|<encName,...>|<itemCount>|<isText>|<paragraphCount>|<textObjectCount>" / Return selection info */
@@ -1120,15 +1215,36 @@ function spanRangeW(target) {
     return range;
 }
 
-/* ターゲットにカラーを設定 / Set the color on a target */
+/* テキストの線・不透明度をまとめて初期化（線なし・不透明度100）。全テキスト対象で同じ値なので範囲へ1回だけ書く
+   Reset stroke/opacity for text in bulk; the value is the same for every text target, so write it once per range */
+function resetTextStrokeOpacityW(items, textRange) {
+    if (textRange) { applyNoStrokeFullOpacityW(textRange); }
+    for (var i = 0; i < items.length; i++) {
+        if (items[i].typename === "TextFrame") { applyNoStrokeFullOpacityW(items[i].textRange); }
+    }
+}
+
+/* テキスト範囲に「線なし・不透明度100」を1回で設定 / Set no-stroke, 100% opacity on a range in one call */
+function applyNoStrokeFullOpacityW(range) {
+    range.strokeColor = new NoColor();
+    range.opacity = 100;
+}
+
+/* 間引きプレビュー用：1文字に塗り・線なし・不透明度100 をまとめて設定（着色しない残りは元色のまま）
+   For decimated preview: set fill + no-stroke + 100% opacity on a single character (the rest stays original) */
+function applyColorFullToCharW(target, color) {
+    var node = target.node;
+    node.fillColor = color;
+    applyNoStrokeFullOpacityW(node);
+}
+
+/* ターゲットに塗りを設定（テキストの線・不透明度は resetTextStrokeOpacityW でまとめて処理済み）
+   Set the fill on a target (text stroke/opacity are handled in bulk by resetTextStrokeOpacityW) */
 function applyColorToTargetW(target, color) {
     var node = target.node;
-    if (target.kind === "span") {
-        var range = spanRangeW(target);
-        range.fillColor = color; range.strokeColor = new NoColor(); range.opacity = 100;
-    }
-    else if (target.kind === "textrange") { node.fillColor = color; node.strokeColor = new NoColor(); node.opacity = 100; }
-    else if (target.kind === "textframe") { node.textRange.fillColor = color; node.textRange.strokeColor = new NoColor(); node.textRange.opacity = 100; }
+    if (target.kind === "span") { spanRangeW(target).fillColor = color; }
+    else if (target.kind === "textrange") { node.fillColor = color; }
+    else if (target.kind === "textframe") { node.textRange.fillColor = color; }
     else if (target.kind === "path") { node.fillColor = color; node.stroked = false; node.opacity = 100; }
     else if (target.kind === "compound") {
         var subs = node.pathItems;
@@ -1273,11 +1389,10 @@ function fullRandomColorIndexW(groupKey, cache, colorCount) {
     return cache[groupKey];
 }
 
-/* インデックスに応じて色を取得（ループ・不透明度100%）/ Pick a color by index (wraps, opacity 100%) */
+/* インデックスに応じて色を取得（末尾を超えたらループ）。不透明度は適用側で設定する
+   Pick a color by index (wraps past the end); opacity is set on the target when applying */
 function pickSwatchColorW(index, colors) {
-    var color = colors[index % colors.length];
-    color.opacity = 100;
-    return color;
+    return colors[index % colors.length];
 }
 
 /* CMYK カラーを生成 / Build a CMYKColor */
