@@ -10,13 +10,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 主な機能
 
-- 調整変形
+- 調整変形（プリセットはすべてアイコンで選択）
   - 台形（上辺を狭く / 広く、下辺を狭く / 広く）
-  - 平行四辺形（右シアー / 左シアー / 上シアー / 下シアー）
+  - 平行四辺形（4基準点 × 左右 / 上下 の8パターン）
   - 変形量スライダー（0.00〜0.49、ドラッグと↑↓キー操作に対応）
   - 強度切替（マイルド / ノーマル / ブースト）
 - 固定変形
-  - 三角形（左下 / 右下 / 左上 / 右上）
+  - 三角形（左上 / 右上 / 左下 / 右下）
   - 対角線（＼ / ／）
 - プレビュー機能（Undoベースで一時適用）
 - 日英ローカライズ対応UI
@@ -28,13 +28,31 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 選択対象にテキストが含まれる場合、強度の初期値はマイルドになります。
 - プレビューは Undo を利用して制御しているため、他の操作と混在すると不整合が起こる可能性があります。
 - 複数オブジェクト選択時は、すべてに同一のライブ効果を適用します。
-- シアー系の名称は、座標の増減方向そのものではなく見た目基準です。
+
+### 紹介記事（note）
+
+https://note.com/dtp_tranist/n/n15a7ae196a23
 
 ### GitHub
 
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDistort.jsx
 
 ### 更新履歴
+
+- v1.5.2 (2026-07-21)
+  - プレビュー解除のUndoを、目印レイヤーを使って過不足なく巻き戻すよう修正
+    （複数オブジェクト選択時に効果が残留し、二重適用になる問題への対応）
+  - 効果を適用できるオブジェクトがない場合、ダイアログを出す前に警告するよう変更
+  - プレビューのUndoで選択が失われた場合に備え、初期選択をフォールバックとして保持
+  - 本適用が途中で失敗した場合、何件まで適用したかを表示するよう変更
+  - アイコンの平行四辺形サンプル値を、実際の適用値（変形量×2）と一致するよう修正
+
+- v1.5.1 (2026-07-21)
+  - 平行四辺形を、4基準点 × 左右 / 上下 の8パターンに拡張
+  - 台形 / 平行四辺形 / 三角形 / 対角線のプリセットをすべてアイコンボタン化
+  - 台形 / 平行四辺形 / 三角形・対角線 の3カラムレイアウトに変更
+  - 変形量パネルをプリセットの下へ移動し、強度ラジオを左右中央に配置
+  - ボタンエリアを「左：プレビュー／中央：スペーサー／右：キャンセル・OK」に整理
 
 - v1.5.0 (2026-07-21)
   - プレビュー解除のUndoを、適用済みのときだけ1回実行するよう整理（戻りすぎの防止）
@@ -65,11 +83,11 @@ Pick a distortion preset from the dialog UI and apply it to the selection while 
 
 - Adjustable transform
   - Trapezoid (narrow / wide top, narrow / wide bottom)
-  - Parallelogram (right / left / up / down shear)
+  - Parallelogram (four anchor corners by two axes, eight presets)
   - Amount slider (0.00-0.49, supports dragging and arrow keys)
   - Strength switch (Mild / Normal / Boost)
 - Fixed transform
-  - Triangle (bottom left / bottom right / top left / top right)
+  - Triangle (top left / top right / bottom left / bottom right)
   - Diagonal (backslash / slash)
 - Preview based on Undo
 - Localized UI (Japanese / English)
@@ -81,13 +99,31 @@ Pick a distortion preset from the dialog UI and apply it to the selection while 
 - Strength defaults to Mild when the selection contains text.
 - Preview relies on Undo, so mixing it with other operations may cause inconsistencies.
 - The same live effect is applied to every selected object.
-- Shear names follow the visual direction, not the raw coordinate delta.
+
+### Article (note, in Japanese)
+
+https://note.com/dtp_tranist/n/n15a7ae196a23
 
 ### GitHub
 
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDistort.jsx
 
 ### Changelog
+
+- v1.5.2 (2026-07-21)
+  - Preview removal now undoes exactly the applied steps, using a marker layer as the
+    undo boundary (previously a leftover preview could be applied twice)
+  - Warn about a selection with no effect target before the dialog opens
+  - Keep the initial selection as a fallback in case an undo clears it
+  - Report how many objects were done when the final apply stops partway
+  - Icon sample shear now matches the amount actually applied (amount times two)
+
+- v1.5.1 (2026-07-21)
+  - Expanded the parallelogram presets to eight: four anchors by two axes
+  - Turned every preset into an icon button drawn from its own corner data
+  - Reorganized the dialog into three columns: trapezoid, parallelogram, triangle / diagonal
+  - Moved the amount panel below the presets and centered the strength radios
+  - Rearranged the footer: preview on the left, Cancel / OK on the right
 
 - v1.5.0 (2026-07-21)
   - Preview removal now runs a single undo, and only when one is actually pending
@@ -106,10 +142,13 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDist
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartFreeDistort";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-21";                   /* 更新日 / last updated */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 // =========================================
 // ユーザー設定 / User settings
@@ -155,11 +194,13 @@ var LABELS = {
         noTarget: {
             ja: "効果を適用できるオブジェクトが選択されていません。",
             en: "The selection contains no object that can receive an effect."
+        },
+        partialApply: {
+            ja: "{count}件に適用した時点で中断しました。取り消すには、その回数ぶん取り消してください。",
+            en: "Stopped after applying to {count} object(s). Undo that many times to revert."
         }
     },
     panel: {
-        adjustable: { ja: "調整変形", en: "Adjustable Transform" },
-        fixed: { ja: "固定変形", en: "Fixed Transform" },
         trapezoid: { ja: "台形", en: "Trapezoid" },
         parallelogram: { ja: "平行四辺形", en: "Parallelogram" },
         triangle: { ja: "三角形", en: "Triangle" },
@@ -174,10 +215,16 @@ var LABELS = {
         wideBottom: { ja: "下辺を広く", en: "Wide Bottom" }
     },
     shear: {
-        right: { ja: "右シアー", en: "Right Shear" },
-        left: { ja: "左シアー", en: "Left Shear" },
-        up: { ja: "上シアー", en: "Up Shear" },
-        down: { ja: "下シアー", en: "Down Shear" }
+        axisHorizontal: { ja: "左右", en: "Horizontal" },
+        axisVertical: { ja: "上下", en: "Vertical" },
+        anchorTopLeft: { ja: "左上", en: "Top Left" },
+        anchorTopRight: { ja: "右上", en: "Top Right" },
+        anchorBottomLeft: { ja: "左下", en: "Bottom Left" },
+        anchorBottomRight: { ja: "右下", en: "Bottom Right" },
+        tipFormat: {
+            ja: "{axis}（基準点：{anchor}）",
+            en: "{axis} (anchor: {anchor})"
+        }
     },
     triangle: {
         bottomLeft: { ja: "左下", en: "Bottom Left" },
@@ -216,7 +263,17 @@ function L(labelPath) {
         labelNode = labelNode[pathSegments[i]];
     }
 
-    return labelNode[lang] || labelNode.ja || labelNode.en || labelPath;
+    if (labelNode[lang] != null) return labelNode[lang];
+    if (labelNode.ja != null) return labelNode.ja;
+    if (labelNode.en != null) return labelNode.en;
+    return labelPath;
+}
+
+/* {name} 形式のプレースホルダを埋める / Fill in {name} placeholders */
+function formatLabel(template, values) {
+    return String(template).replace(/\{(\w+)\}/g, function (token, name) {
+        return (values[name] == null) ? token : values[name];
+    });
 }
 
 // =========================================
@@ -260,6 +317,39 @@ function setupRow(group, alignment, spacing) {
     group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
+/* 固定変形アイコンボタンの外観 / Appearance of the fixed-transform icon buttons */
+var ICON_BUTTON_SIZE = 40;          /* ボタンの一辺（px） / button side in pixels */
+var ICON_BUTTON_PADDING = 5;        /* ボタン枠とタイルの余白（px） / gap between the button edge and the tile */
+var ICON_GRID_COLUMNS = 2;          /* アイコンを並べる既定の列数 / default icons per row */
+var TRAPEZOID_ICON_COLUMNS = 1;     /* 台形は1列に縦積み / the trapezoid presets stack in one column */
+var ICON_GRID_SPACING = 4;          /* アイコン同士の間隔（px） / gap between icons */
+
+var ICON_TILE_LINE_WIDTH = 2;       /* タイルの枠線の太さ（px） / width of the tile frame */
+var ICON_SHAPE_SHRINK = 0.94;       /* 図形の縮小率（枠に触れさせない） / shrink so the shape clears the frame */
+var ICON_SHAPE_LINE_WIDTH = 1;      /* 図形の輪郭線の太さ（px） / outline width of a filled shape */
+
+/* アイコンに描く変形量のサンプル値。シアーは実際の適用と同じ比率（変形量×基準倍率）
+   にして、アイコンの形と適用結果がずれないようにする。
+   Sample amounts used when drawing the icons. The shear keeps the same ratio as the real
+   application (amount times the base factor) so the icon matches what gets applied. */
+var ICON_SAMPLE_TRAPEZOID_AMOUNT = 0.20;
+var ICON_SAMPLE_SHEAR_AMOUNT =
+    ICON_SAMPLE_TRAPEZOID_AMOUNT * DISTORT_CONFIG.shearBaseFactor;
+var ICON_DIAGONAL_LINE_WIDTH = 3.5; /* 対角線の太さ（px） / stroke width of the diagonal presets */
+var ICON_SELECTED_LINE_WIDTH = 2;   /* 選択枠の太さ（px） / width of the selection frame */
+
+/* この面積を下回る図形は線として描く（対角線プリセット用）
+   Shapes below this area are drawn as a line; this covers the diagonal presets */
+var DEGENERATE_AREA_THRESHOLD = 0.0001;
+
+/* アイコンの配色（RGBA、各0〜1） / Icon colors, RGBA in the 0-1 range */
+var ICON_COLORS = {
+    tileFill:   [0.91, 0.91, 0.91, 1],  /* 変形前の領域 / the area before distortion */
+    tileBorder: [0.76, 0.76, 0.76, 1],  /* タイルの枠線 / the tile frame */
+    distorted:  [0.09, 0.07, 0.06, 1],  /* 変形後の形 / the distorted shape */
+    selected:   [0.20, 0.55, 0.95, 1]   /* 選択枠 / the selection frame */
+};
+
 // =========================================
 // プリセット定義 / Preset definitions
 // =========================================
@@ -270,78 +360,135 @@ function setupRow(group, alignment, spacing) {
    UIの並び順・ラベル・可変/固定・座標をこのテーブル1か所で管理する。
    Order, label, adjustable flag and geometry all live in this single table. */
 var DISTORT_PRESETS = [
-    { presetKey: "trapNarrowTop", labelPath: "trapezoid.narrowTop", groupKey: "trapezoid", adjustable: true,
+    { presetKey: "trapNarrowTop", labelText: L("trapezoid.narrowTop"), groupKey: "trapezoid", adjustable: true,
       makeCorners: function (trapezoidAmount) {
           return [[trapezoidAmount, 0], [1 - trapezoidAmount, 0], [0, 1], [1, 1]];
       } },
 
-    { presetKey: "trapWideTop", labelPath: "trapezoid.wideTop", groupKey: "trapezoid", adjustable: true,
+    { presetKey: "trapWideTop", labelText: L("trapezoid.wideTop"), groupKey: "trapezoid", adjustable: true,
       makeCorners: function (trapezoidAmount) {
           return [[-trapezoidAmount, 0], [1 + trapezoidAmount, 0], [0, 1], [1, 1]];
       } },
 
-    { presetKey: "trapNarrowBottom", labelPath: "trapezoid.narrowBottom", groupKey: "trapezoid", adjustable: true,
+    { presetKey: "trapNarrowBottom", labelText: L("trapezoid.narrowBottom"), groupKey: "trapezoid", adjustable: true,
       makeCorners: function (trapezoidAmount) {
           return [[0, 0], [1, 0], [trapezoidAmount, 1], [1 - trapezoidAmount, 1]];
       } },
 
-    { presetKey: "trapWideBottom", labelPath: "trapezoid.wideBottom", groupKey: "trapezoid", adjustable: true,
+    { presetKey: "trapWideBottom", labelText: L("trapezoid.wideBottom"), groupKey: "trapezoid", adjustable: true,
       makeCorners: function (trapezoidAmount) {
           return [[0, 0], [1, 0], [-trapezoidAmount, 1], [1 + trapezoidAmount, 1]];
       } },
 
-    { presetKey: "shearRight", labelPath: "shear.right", groupKey: "parallelogram", adjustable: true,
-      makeCorners: function (trapezoidAmount, shearAmount) {
-          return [[shearAmount, 0], [1 + shearAmount, 0], [0, 1], [1, 1]];
-      } },
+    /* 平行四辺形は 4基準点 × 2軸 の8パターンを後段で生成して追加する
+       The eight parallelogram presets are generated further below */
 
-    { presetKey: "shearLeft", labelPath: "shear.left", groupKey: "parallelogram", adjustable: true,
-      makeCorners: function (trapezoidAmount, shearAmount) {
-          return [[0, 0], [1, 0], [shearAmount, 1], [1 + shearAmount, 1]];
-      } },
-
-    { presetKey: "shearUp", labelPath: "shear.up", groupKey: "parallelogram", adjustable: true,
-      makeCorners: function (trapezoidAmount, shearAmount) {
-          return [[0, 0], [1, shearAmount], [0, 1], [1, 1 + shearAmount]];
-      } },
-
-    { presetKey: "shearDown", labelPath: "shear.down", groupKey: "parallelogram", adjustable: true,
-      makeCorners: function (trapezoidAmount, shearAmount) {
-          return [[0, shearAmount], [1, 0], [0, 1 + shearAmount], [1, 1]];
-      } },
-
-    /* 三角形：名前の角と対角の頂点をたたむ / Triangle: fold the corner opposite to the name */
-    { presetKey: "triBottomLeft", labelPath: "triangle.bottomLeft", groupKey: "triangle", adjustable: false,
-      makeCorners: function () { return [[0, 0], [0, 0], [0, 1], [1, 1]]; } },
-
-    { presetKey: "triBottomRight", labelPath: "triangle.bottomRight", groupKey: "triangle", adjustable: false,
-      makeCorners: function () { return [[1, 0], [1, 0], [0, 1], [1, 1]]; } },
-
-    { presetKey: "triTopLeft", labelPath: "triangle.topLeft", groupKey: "triangle", adjustable: false,
+    /* 三角形：名前の角と対角の頂点をたたむ。並び順はアイコングリッドの
+       左上→右上→左下→右下に対応させる。
+       Triangle: fold the corner opposite to the name. The order matches the icon
+       grid, filled top-left, top-right, bottom-left, bottom-right. */
+    { presetKey: "triTopLeft", labelText: L("triangle.topLeft"), groupKey: "triangle", adjustable: false,
       makeCorners: function () { return [[0, 0], [1, 0], [0, 1], [0, 1]]; } },
 
-    { presetKey: "triTopRight", labelPath: "triangle.topRight", groupKey: "triangle", adjustable: false,
+    { presetKey: "triTopRight", labelText: L("triangle.topRight"), groupKey: "triangle", adjustable: false,
       makeCorners: function () { return [[0, 0], [1, 0], [1, 1], [1, 1]]; } },
 
+    { presetKey: "triBottomLeft", labelText: L("triangle.bottomLeft"), groupKey: "triangle", adjustable: false,
+      makeCorners: function () { return [[0, 0], [0, 0], [0, 1], [1, 1]]; } },
+
+    { presetKey: "triBottomRight", labelText: L("triangle.bottomRight"), groupKey: "triangle", adjustable: false,
+      makeCorners: function () { return [[1, 0], [1, 0], [0, 1], [1, 1]]; } },
+
     /* 対角線：上辺と下辺をそれぞれ1点につぶす / Diagonal: collapse the top and bottom edges */
-    { presetKey: "diagonalBackslash", labelPath: "diagonal.backslash", groupKey: "diagonal", adjustable: false,
+    { presetKey: "diagonalBackslash", labelText: L("diagonal.backslash"), groupKey: "diagonal", adjustable: false,
       makeCorners: function () { return [[0, 0], [0, 0], [1, 1], [1, 1]]; } },
 
-    { presetKey: "diagonalSlash", labelPath: "diagonal.slash", groupKey: "diagonal", adjustable: false,
+    { presetKey: "diagonalSlash", labelText: L("diagonal.slash"), groupKey: "diagonal", adjustable: false,
       makeCorners: function () { return [[1, 0], [1, 0], [0, 1], [0, 1]]; } }
 ];
 
+/* 平行四辺形の基準点。x=0 が左、y=0 が上。
+   Anchor corners for the parallelogram presets; x=0 is left, y=0 is top. */
+var SHEAR_ANCHORS = [
+    { anchorKey: "TopLeft",     x: 0, y: 0 },
+    { anchorKey: "TopRight",    x: 1, y: 0 },
+    { anchorKey: "BottomLeft",  x: 0, y: 1 },
+    { anchorKey: "BottomRight", x: 1, y: 1 }
+];
+
+/* シアーの方向 / Shear axes */
+var SHEAR_AXES = [
+    { axisKey: "Horizontal", labelPath: "shear.axisHorizontal" },
+    { axisKey: "Vertical",   labelPath: "shear.axisVertical" }
+];
+
+/* 基準点の角を固定し、その角を含む辺を残したまま、反対側の辺を基準点から
+   遠ざかる向きにずらす。これで 4基準点 × 2軸 の8パターンが一意に決まる。
+   Pin the anchor corner: the edge through it stays put and the opposite edge slides
+   away from the anchor. Four anchors times two axes give eight distinct shears. */
+function makeShearCorners(anchor, axisKey, shearAmount) {
+    var corners = [[0, 0], [1, 0], [0, 1], [1, 1]]; /* [TL, TR, BL, BR] */
+    var i;
+
+    if (axisKey === "Horizontal") {
+        /* 基準点の反対側の横辺が、左右にずれる / the opposite horizontal edge slides sideways */
+        var movingRow = 1 - anchor.y;
+        var horizontalShift = (anchor.x === 0) ? shearAmount : -shearAmount;
+
+        for (i = 0; i < corners.length; i++) {
+            if (corners[i][1] === movingRow) corners[i][0] += horizontalShift;
+        }
+    } else {
+        /* 基準点の反対側の縦辺が、上下にずれる / the opposite vertical edge slides up or down */
+        var movingColumn = 1 - anchor.x;
+        var verticalShift = (anchor.y === 0) ? shearAmount : -shearAmount;
+
+        for (i = 0; i < corners.length; i++) {
+            if (corners[i][0] === movingColumn) corners[i][1] += verticalShift;
+        }
+    }
+    return corners;
+}
+
+/* 8パターンを生成してテーブルに追加する。軸ごとに4基準点を並べるので、
+   2列のアイコングリッドでは上2行が左右、下2行が上下になる。
+   Generate the eight presets; anchors are grouped by axis, so in the two-column icon
+   grid the top two rows are the horizontal shears and the bottom two the vertical ones. */
+(function () {
+    for (var axisIndex = 0; axisIndex < SHEAR_AXES.length; axisIndex++) {
+        for (var anchorIndex = 0; anchorIndex < SHEAR_ANCHORS.length; anchorIndex++) {
+            var axis = SHEAR_AXES[axisIndex];
+            var anchor = SHEAR_ANCHORS[anchorIndex];
+
+            DISTORT_PRESETS.push({
+                presetKey: "shear" + axis.axisKey + anchor.anchorKey,
+                labelText: formatLabel(L("shear.tipFormat"), {
+                    axis: L(axis.labelPath),
+                    anchor: L("shear.anchor" + anchor.anchorKey)
+                }),
+                groupKey: "parallelogram",
+                adjustable: true,
+                /* クロージャで軸と基準点を閉じ込める / capture the axis and anchor in a closure */
+                makeCorners: (function (capturedAnchor, capturedAxisKey) {
+                    return function (trapezoidAmount, shearAmount) {
+                        return makeShearCorners(capturedAnchor, capturedAxisKey, shearAmount);
+                    };
+                })(anchor, axis.axisKey)
+            });
+        }
+    }
+})();
+
 var DEFAULT_PRESET_INDEX = 0; /* 初期選択プリセット / initially selected preset */
 
-/* 左右カラムに並べるプリセットグループ。値は DISTORT_PRESETS の groupKey と
+/* パネルに割り当てるプリセットグループ。値は DISTORT_PRESETS の groupKey と
    LABELS.panel のキーを兼ねる。
-   Preset groups laid out in the left and right columns; each value doubles as a
-   groupKey in DISTORT_PRESETS and as a key in LABELS.panel. */
-var ADJUSTABLE_GROUP_KEYS = ["trapezoid", "parallelogram"];
+   Preset groups assigned to panels; each value doubles as a groupKey in
+   DISTORT_PRESETS and as a key in LABELS.panel. */
+var TRAPEZOID_GROUP_KEY = "trapezoid";
+var SHEAR_GROUP_KEY = "parallelogram";
 var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
 
-/* シアー系の名称は座標の増減方向ではなく、ダイアログ上での見た目を基準にしています。
-   Shear names follow the visual direction seen in the dialog, not the raw coordinate delta. */
 
 (function () {
 
@@ -381,6 +528,23 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
         return targetItems;
     }
 
+    /* 保持しておいた参照のうち、まだ有効なものだけを返す。
+       Undo をまたぐと参照が無効になっていることがあるため、プロパティ参照で確かめる。
+       Keep only the references that are still alive: an undo can invalidate them, so
+       probe each one by touching a property. */
+    function filterLiveItems(items) {
+        var liveItems = [];
+
+        for (var i = 0; i < items.length; i++) {
+            try {
+                if (items[i].typename) liveItems.push(items[i]);
+            } catch (error) {
+                /* すでに無効な参照は捨てる / drop references that are already dead */
+            }
+        }
+        return liveItems;
+    }
+
     /* 変形後の4隅から自由変形の XML を組み立てる。
        プレースホルダは位置ではなく名前で解決する（src0h と src0v の取り違えを防ぐ）。
        Build the Free Distort XML; placeholders resolve by name, not by position. */
@@ -409,23 +573,79 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
     }
 
     /* 各オブジェクトへ効果を適用する。
-       redraw を挟まない連続した applyEffect は Illustrator 側で1つのアンドゥステップに
-       まとめられるため、複数選択でも取り消しは undo 1回で足りる。
-       onFirstApplied は最初の1件が適用された時点で呼ばれ、巻き戻しの要否判定に使う。
-       Apply the effect to each object. Consecutive applyEffect calls without a redraw
-       are coalesced into a single undo step by Illustrator, so one undo reverts them all.
-       onFirstApplied fires once the first object has been touched, so the caller knows a
-       rollback is needed. */
-    function applyFreeDistort(targetItems, destCorners, onFirstApplied) {
+       onApplied は1件適用するたびに、それまでの適用件数を引数として呼ばれる。
+       例外で中断しても、呼び出し側は何件まで適用済みかを把握できる。
+       Apply the effect to each object. onApplied receives the running count after every
+       object, so the caller still knows how far it got when an exception interrupts it. */
+    function applyFreeDistort(targetItems, destCorners, onApplied) {
         var xml = buildFreeDistortXML(destCorners);
 
         for (var i = 0; i < targetItems.length; i++) {
             targetItems[i].applyEffect(xml);
-            if (onFirstApplied) {
-                onFirstApplied();
-                onFirstApplied = null;
-            }
+            if (onApplied) onApplied(i + 1);
         }
+    }
+
+    // =========================================
+    // Undo境界の目印 / Undo boundary marker
+    // =========================================
+
+    /* applyEffect がオブジェクトごとに別々のアンドゥステップになるか、まとめて1ステップに
+       なるかは環境によって変わる。件数ぶん undo すると戻りすぎ、1回だけだと戻し足りない。
+       そこで適用前に空レイヤーを1枚足しておき、それが消えるまで undo する。
+       上限は適用件数なので、ユーザー自身の操作まで巻き戻すことは決してない。
+       Whether applyEffect produces one undo step per object or a single coalesced step
+       varies by environment: undoing once can leave effects behind, and undoing once per
+       object can eat the user's own edits. So add an empty layer before applying and undo
+       until it disappears, capped at the number of applications - never further back. */
+    var UNDO_MARK_LAYER_NAME = "__" + SCRIPT_NAME + "_undo_mark__";
+    var undoMarkBaseLayerCount = -1;
+
+    /* 目印レイヤーを追加する。追加できなければ false
+       Add the marker layer; returns false when it cannot be created */
+    function beginUndoMark() {
+        try {
+            undoMarkBaseLayerCount = doc.layers.length;
+            doc.layers.add().name = UNDO_MARK_LAYER_NAME;
+            return true;
+        } catch (error) {
+            undoMarkBaseLayerCount = -1;
+            return false;
+        }
+    }
+
+    /* 目印がまだ残っているか。名前ではなくレイヤー数で見るのは、レイヤー追加と
+       リネームが別のアンドゥステップに分かれる場合があるため。
+       Whether the marker is still there. This counts layers rather than matching the name,
+       because adding and renaming a layer can land in two separate undo steps. */
+    function hasUndoMark() {
+        return undoMarkBaseLayerCount >= 0 && doc.layers.length > undoMarkBaseLayerCount;
+    }
+
+    /* 目印を直接取り除く。undo で消えなかった場合の後始末に使う。
+       名前で引き当てるので、取り違えて他のレイヤーを消すことはない。
+       Delete the marker outright when undo did not remove it. The lookup is by name, so
+       this can never take out one of the user's own layers. */
+    function removeUndoMark() {
+        try {
+            doc.layers.getByName(UNDO_MARK_LAYER_NAME).remove();
+        } catch (error) {
+            /* すでに無ければ何もしない / nothing to do when it is already gone */
+        }
+        undoMarkBaseLayerCount = -1;
+    }
+
+    /* 目印が消えるまで undo する。stepLimit（＝適用件数）を超えて戻すことはない
+       Undo until the marker is gone, never exceeding stepLimit (the applied count) */
+    function undoToMark(stepLimit) {
+        var steps = 0;
+
+        while (steps < stepLimit && hasUndoMark()) {
+            app.undo();
+            steps++;
+        }
+        if (hasUndoMark()) removeUndoMark();
+        undoMarkBaseLayerCount = -1;
     }
 
     /* 例外内容をユーザーに通知 / Report an error to the user */
@@ -486,26 +706,188 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
     // ダイアログの構築 / Dialog construction
     // =========================================
 
-    /* 指定グループのプリセットを1枚のパネルにラジオボタンとして並べる。
-       presetRadios の添字は DISTORT_PRESETS の添字と一致させる。
-       Lay out one panel of radio buttons for the given group; the presetRadios
-       indices match those of DISTORT_PRESETS. */
-    function addPresetGroupPanel(parentGroup, groupKey, presetRadios) {
+    /* [TL, TR, BL, BR] を外周をたどる順に並べ替える
+       Reorder [TL, TR, BL, BR] so the points walk the perimeter */
+    function toPerimeter(corners) {
+        return [corners[0], corners[1], corners[3], corners[2]];
+    }
+
+    /* 点群を囲む矩形 / The rectangle enclosing the points */
+    function getBounds(points) {
+        var bounds = { minX: points[0][0], minY: points[0][1],
+                       maxX: points[0][0], maxY: points[0][1] };
+
+        for (var i = 1; i < points.length; i++) {
+            bounds.minX = Math.min(bounds.minX, points[i][0]);
+            bounds.minY = Math.min(bounds.minY, points[i][1]);
+            bounds.maxX = Math.max(bounds.maxX, points[i][0]);
+            bounds.maxY = Math.max(bounds.maxY, points[i][1]);
+        }
+        return bounds;
+    }
+
+    /* 点群を (0.5, 0.5) を中心に縮小する。図形がタイル枠に触れないようにするため。
+       Shrink the points about (0.5, 0.5) so the shape never touches the tile frame. */
+    function shrinkAboutCenter(points, factor) {
+        var shrunk = [];
+
+        for (var i = 0; i < points.length; i++) {
+            shrunk.push([
+                0.5 + (points[i][0] - 0.5) * factor,
+                0.5 + (points[i][1] - 0.5) * factor
+            ]);
+        }
+        return shrunk;
+    }
+
+    /* 変形前の正方形と変形後の図形の両方が収まるよう、描画領域に合わせて
+       拡大率と位置を決め、正規化座標をピクセル座標へ移す関数を返す。
+       平行四辺形や台形は 0〜1 の外へはみ出すため、この収め込みが必要になる。
+       Return a mapper from normalized to pixel coordinates, scaled so that both the
+       source square and the distorted shape fit the drawing area. The parallelogram
+       and trapezoid presets reach outside 0-1, so the fit is required. */
+    function makeIconScaler(points, areaLeft, areaTop, areaSide) {
+        var bounds = getBounds(points);
+        var width = bounds.maxX - bounds.minX;
+        var height = bounds.maxY - bounds.minY;
+        var scale = areaSide / Math.max(width, height);
+        var offsetX = areaLeft + (areaSide - width * scale) / 2 - bounds.minX * scale;
+        var offsetY = areaTop + (areaSide - height * scale) / 2 - bounds.minY * scale;
+
+        return function (point) {
+            return [offsetX + point[0] * scale, offsetY + point[1] * scale];
+        };
+    }
+
+    /* 多角形のパスを引く / Trace a polygon path */
+    function tracePolygon(graphics, points, toPixel) {
+        graphics.newPath();
+
+        for (var i = 0; i < points.length; i++) {
+            var pixel = toPixel(points[i]);
+            if (i === 0) graphics.moveTo(pixel[0], pixel[1]);
+            else graphics.lineTo(pixel[0], pixel[1]);
+        }
+        graphics.closePath();
+    }
+
+    /* アイコンボタンの描画。変形後の4隅を makeCorners から直接得るため、
+       アイコンの形と実際に適用される効果が必ず一致する。
+       Draw an icon button. The corners come straight from makeCorners, so the icon
+       always matches the effect that will actually be applied.
+       this は描画対象のボタン / `this` is the button being drawn. */
+    function drawPresetIcon() {
+        var graphics = this.graphics;
+        var preset = this.presetRef;
+
+        var areaSide = Math.min(this.size.width, this.size.height) - ICON_BUTTON_PADDING * 2;
+        var areaLeft = (this.size.width - areaSide) / 2;
+        var areaTop = (this.size.height - areaSide) / 2;
+
+        var sourceSquare = toPerimeter([[0, 0], [1, 0], [0, 1], [1, 1]]);
+        var distorted = shrinkAboutCenter(
+            toPerimeter(preset.adjustable
+                ? preset.makeCorners(ICON_SAMPLE_TRAPEZOID_AMOUNT, ICON_SAMPLE_SHEAR_AMOUNT)
+                : preset.makeCorners()),
+            ICON_SHAPE_SHRINK);
+
+        var toPixel = makeIconScaler(
+            sourceSquare.concat(distorted), areaLeft, areaTop, areaSide);
+
+        /* 変形前の領域をタイルとして塗り、枠線を回す
+           Fill the source area as a tile and outline it */
+        tracePolygon(graphics, sourceSquare, toPixel);
+        graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, ICON_COLORS.tileFill));
+        graphics.strokePath(graphics.newPen(
+            graphics.PenType.SOLID_COLOR, ICON_COLORS.tileBorder, ICON_TILE_LINE_WIDTH));
+
+        tracePolygon(graphics, distorted, toPixel);
+
+        if (getPolygonArea(distorted) < DEGENERATE_AREA_THRESHOLD) {
+            /* 対角線は面積が0で塗りが出ないため、太い線として描く
+               The diagonals have no area to fill, so draw them as a thick stroke */
+            graphics.strokePath(graphics.newPen(
+                graphics.PenType.SOLID_COLOR, ICON_COLORS.distorted, ICON_DIAGONAL_LINE_WIDTH));
+        } else {
+            /* 塗りだけだと輪郭が粗く出るため、同色の細線を重ねる
+               Fill alone leaves ragged edges, so overlay a thin outline in the same color */
+            graphics.fillPath(graphics.newBrush(
+                graphics.BrushType.SOLID_COLOR, ICON_COLORS.distorted));
+            graphics.strokePath(graphics.newPen(
+                graphics.PenType.SOLID_COLOR, ICON_COLORS.distorted, ICON_SHAPE_LINE_WIDTH));
+        }
+
+        /* 選択中はボタン全体を枠で囲んで示す
+           Mark the selected button with a frame around the whole button */
+        if (this.value) {
+            graphics.newPath();
+            graphics.rectPath(1, 1, this.size.width - 2, this.size.height - 2);
+            graphics.strokePath(graphics.newPen(
+                graphics.PenType.SOLID_COLOR, ICON_COLORS.selected, ICON_SELECTED_LINE_WIDTH));
+        }
+    }
+
+    /* 多角形の面積（靴ひも公式）。対角線プリセットのように面積が0のとき、
+       塗りではなく線で描くべきかを判定するために使う。
+       Polygon area via the shoelace formula, used to decide whether a preset has to be
+       stroked as a line instead of filled, as with the diagonal presets. */
+    function getPolygonArea(points) {
+        var doubledArea = 0;
+
+        for (var i = 0; i < points.length; i++) {
+            var next = points[(i + 1) % points.length];
+            doubledArea += points[i][0] * next[1] - next[0] * points[i][1];
+        }
+        return Math.abs(doubledArea) / 2;
+    }
+
+    /* プリセット1つぶんのアイコンボタンを追加 / Add one icon button for a preset */
+    function addPresetIconButton(parentGroup, preset) {
+        var iconButton = parentGroup.add("iconbutton", undefined, undefined,
+            { style: "toolbutton", toggle: true });
+
+        iconButton.preferredSize = [ICON_BUTTON_SIZE, ICON_BUTTON_SIZE];
+        iconButton.helpTip = preset.labelText;
+        iconButton.presetRef = preset;
+        iconButton.onDraw = drawPresetIcon;
+
+        return iconButton;
+    }
+
+    /* 指定グループのプリセットを、専用パネル内のアイコングリッドとして並べる。
+       columns 個ごとに行を折り返す（省略時は ICON_GRID_COLUMNS）。
+       Lay out the presets of a group as an icon grid inside its own panel, wrapping
+       to a new row every `columns` icons, defaulting to ICON_GRID_COLUMNS. */
+    function addPresetIconPanel(parentGroup, groupKey, presetControls, columns) {
         var groupPanel = parentGroup.add("panel", undefined, L("panel." + groupKey));
         setupPanel(groupPanel);
-        groupPanel.alignChildren = ["left", "top"];
+        groupPanel.alignChildren = ["center", "top"];
+        groupPanel.spacing = ICON_GRID_SPACING;
+
+        var iconsPerRow = (typeof columns === "number") ? columns : ICON_GRID_COLUMNS;
+        var currentRow = null;
+        var iconsInRow = 0;
 
         for (var i = 0; i < DISTORT_PRESETS.length; i++) {
             if (DISTORT_PRESETS[i].groupKey !== groupKey) continue;
-            presetRadios[i] = groupPanel.add("radiobutton", undefined, L(DISTORT_PRESETS[i].labelPath));
+
+            if (!currentRow || iconsInRow >= iconsPerRow) {
+                currentRow = groupPanel.add("group");
+                setupRow(currentRow, "center", ICON_GRID_SPACING);
+                iconsInRow = 0;
+            }
+
+            presetControls[i] = addPresetIconButton(currentRow, DISTORT_PRESETS[i]);
+            iconsInRow++;
         }
         return groupPanel;
     }
 
-    /* 複数グループのパネルをまとめて追加 / Add the panels for several groups at once */
-    function addPresetGroupPanels(parentGroup, groupKeys, presetRadios) {
+    /* 複数グループのアイコンパネルをまとめて追加
+       Add the icon panels for several groups at once */
+    function addPresetIconPanels(parentGroup, groupKeys, presetControls) {
         for (var i = 0; i < groupKeys.length; i++) {
-            addPresetGroupPanel(parentGroup, groupKeys[i], presetRadios);
+            addPresetIconPanel(parentGroup, groupKeys[i], presetControls);
         }
     }
 
@@ -526,12 +908,15 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
 
         var strengthPanel = amountPanel.add("panel", undefined, L("panel.strength"));
         setupPanel(strengthPanel);
-        strengthPanel.orientation = "row";
-        strengthPanel.alignChildren = ["left", "center"];
 
-        var mildRadio = strengthPanel.add("radiobutton", undefined, L("strength.mild"));
-        var normalRadio = strengthPanel.add("radiobutton", undefined, L("strength.normal"));
-        var boostRadio = strengthPanel.add("radiobutton", undefined, L("strength.boost"));
+        /* ラジオを内側のグループにまとめ、パネルの左右中央に置く
+           Group the radios so the row can be centered inside the panel */
+        var strengthRow = strengthPanel.add("group");
+        setupRow(strengthRow, "center");
+
+        var mildRadio = strengthRow.add("radiobutton", undefined, L("strength.mild"));
+        var normalRadio = strengthRow.add("radiobutton", undefined, L("strength.normal"));
+        var boostRadio = strengthRow.add("radiobutton", undefined, L("strength.boost"));
 
         return {
             amountPanel: amountPanel,
@@ -543,24 +928,34 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
         };
     }
 
-    /* プレビューチェックボックスと OK / キャンセルの行を組み立てる
-       Build the footer row holding the preview checkbox and the OK / Cancel buttons */
+    /* ボタンエリアを左右分割で組み立てる。
+       左：プレビュー、中央：伸縮スペーサー、右：キャンセル / OK。
+       Build the footer split left and right: Preview on the left, a stretchable spacer
+       in the middle, and Cancel / OK on the right. */
     function buildFooterRow(parentWindow) {
-        var footerRow = parentWindow.add("group");
-        setupRow(footerRow, "fill");
+        /* メイングループ（横並び） / Main group (horizontal layout) */
+        var btnRowGroup = parentWindow.add("group");
+        btnRowGroup.orientation = "row";
+        btnRowGroup.margins = [10, 10, 10, 0];
+        btnRowGroup.alignment = ["fill", "bottom"];
 
-        var footerLeftGroup = footerRow.add("group");
-        setupRow(footerLeftGroup, "left");
-        var previewCheckbox = footerLeftGroup.add("checkbox", undefined, L("checkbox.preview"));
+        /* 左側グループ / Left-side button group
+           プレビューは押しっぱなしの切り替えなので、ボタンではなくチェックボックスにしている
+           Preview is a sticky toggle, so it stays a checkbox rather than a button */
+        var btnLeftGroup = btnRowGroup.add("group");
+        btnLeftGroup.alignChildren = ["left", "center"];
+        var previewCheckbox = btnLeftGroup.add("checkbox", undefined, L("checkbox.preview"));
 
-        /* 左右を押し広げるためのスペーサー / spacer that pushes the two sides apart */
-        var footerSpacer = footerRow.add("group");
-        footerSpacer.alignment = ["fill", "fill"];
+        /* スペーサー（伸縮） / Spacer (stretchable) */
+        var spacer = btnRowGroup.add("group");
+        spacer.alignment = ["fill", "fill"];
+        spacer.minimumSize.width = 0;
 
-        var footerRightGroup = footerRow.add("group");
-        setupRow(footerRightGroup, "right");
-        footerRightGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        footerRightGroup.add("button", undefined, L("button.ok"), { name: "ok" });
+        /* 右側グループ / Right-side button group */
+        var btnRightGroup = btnRowGroup.add("group");
+        btnRightGroup.alignChildren = ["right", "center"];
+        btnRightGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
+        btnRightGroup.add("button", undefined, L("button.ok"), { name: "ok" });
 
         return previewCheckbox;
     }
@@ -575,28 +970,36 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
         setupRow(columnsGroup, "fill", COLUMN_SPACING);
         columnsGroup.alignChildren = ["fill", "top"];
 
-        var presetRadios = [];
+        /* 添字は DISTORT_PRESETS と対応させる / indices match DISTORT_PRESETS */
+        var presetControls = [];
 
-        /* --- 調整変形：変形量・強度が有効 / Adjustable transform --- */
-        var adjustablePanel = columnsGroup.add("panel", undefined, L("panel.adjustable"));
-        setupPanel(adjustablePanel);
+        /* 名前では変形の向きが伝わらないため、すべてアイコンで形を見せる
+           Names cannot convey the direction of a distortion, so every preset is an icon */
 
-        var adjustablePresetsRow = adjustablePanel.add("group");
-        setupRow(adjustablePresetsRow, "fill");
-        adjustablePresetsRow.alignChildren = ["fill", "top"];
-        addPresetGroupPanels(adjustablePresetsRow, ADJUSTABLE_GROUP_KEYS, presetRadios);
+        /* --- 1カラム目：台形（1列×4行） / Column 1: trapezoid, one column of four --- */
+        addPresetIconPanel(columnsGroup, TRAPEZOID_GROUP_KEY, presetControls,
+            TRAPEZOID_ICON_COLUMNS);
 
-        var amountControls = buildAmountPanel(adjustablePanel);
+        /* --- 2カラム目：平行四辺形（2列×4行、上2行が左右・下2行が上下）
+               Column 2: parallelogram, 2 by 4 with horizontal on top and vertical below --- */
+        addPresetIconPanel(columnsGroup, SHEAR_GROUP_KEY, presetControls);
 
-        /* --- 固定変形：変形量・強度は使用しない / Fixed transform --- */
-        var fixedPanel = columnsGroup.add("panel", undefined, L("panel.fixed"));
-        setupPanel(fixedPanel);
-        addPresetGroupPanels(fixedPanel, FIXED_GROUP_KEYS, presetRadios);
+        /* --- 3カラム目：三角形と対角線を縦に積む
+               Column 3: the triangle and diagonal panels stacked --- */
+        var fixedColumn = columnsGroup.add("group");
+        fixedColumn.orientation = "column";
+        fixedColumn.alignChildren = ["fill", "top"];
+        fixedColumn.spacing = PANEL_SPACING;
+        addPresetIconPanels(fixedColumn, FIXED_GROUP_KEYS, presetControls);
+
+        /* --- 変形量：プリセットの2カラムの下に、全幅で置く
+               Amount: placed full width below the two preset columns --- */
+        var amountControls = buildAmountPanel(dialog);
 
         var previewCheckbox = buildFooterRow(dialog);
 
         /* --- 初期状態 / Initial state --- */
-        presetRadios[DEFAULT_PRESET_INDEX].value = true;
+        presetControls[DEFAULT_PRESET_INDEX].value = true;
         previewCheckbox.value = false;
         /* テキストを含む選択では、崩れを抑えるためマイルドを初期値にする
            Default to Mild when text is selected, to keep the shapes readable */
@@ -606,7 +1009,7 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
 
         return {
             dialog: dialog,
-            presetRadios: presetRadios,
+            presetControls: presetControls,
             amountControls: amountControls,
             previewCheckbox: previewCheckbox
         };
@@ -620,22 +1023,20 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
        Show the dialog and return the confirmed settings, or null when cancelled */
     function showDialog() {
         var dialogUI = buildDialog(selectionContainsText(doc.selection));
-        var presetRadios = dialogUI.presetRadios;
+        var presetControls = dialogUI.presetControls;
         var amountControls = dialogUI.amountControls;
         var previewCheckbox = dialogUI.previewCheckbox;
 
-        /* previewApplied は「取り消すべきプレビューが残っているか」を表す。
-           複数オブジェクトでも Undo は1回で足りるため、件数ではなく真偽値で管理する。
-           previewApplied tracks whether a preview is still pending removal. One undo
-           covers every object, so this is a flag rather than a counter. */
-        var previewApplied = false;
+        /* 取り消すべきプレビューが何件ぶん残っているか。undoToMark の上限に使う。
+           How many applications of the pending preview remain; used as the undo cap. */
+        var previewAppliedCount = 0;
         var lastPreviewUpdateTime = 0;
         var lastPreviewSignature = null;
 
         /* 選択中のプリセットを取得 / Get the selected preset */
         function getSelectedPreset() {
-            for (var i = 0; i < presetRadios.length; i++) {
-                if (presetRadios[i].value) return DISTORT_PRESETS[i];
+            for (var i = 0; i < presetControls.length; i++) {
+                if (presetControls[i].value) return DISTORT_PRESETS[i];
             }
             return DISTORT_PRESETS[DEFAULT_PRESET_INDEX];
         }
@@ -679,16 +1080,14 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
             ].join("|");
         }
 
-        /* プレビューを取り消す。適用済みのときだけ Undo を1回だけ実行する
-           （余分に undo するとユーザーの直前の操作まで巻き戻ってしまう）
-           Remove the preview with a single undo, and only when one is pending:
-           any extra undo would roll back the user's own previous edit. */
+        /* プレビューを取り消す。目印レイヤーが消えるまで、適用件数を上限に undo する
+           Remove the preview: undo until the marker layer is gone, capped at the count applied */
         function clearPreview() {
-            if (previewApplied) {
-                app.undo();
+            if (previewAppliedCount > 0 || hasUndoMark()) {
+                undoToMark(previewAppliedCount);
                 app.redraw();
-                previewApplied = false;
             }
+            previewAppliedCount = 0;
             lastPreviewSignature = null;
         }
 
@@ -712,13 +1111,20 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
             var targetItems = getEffectTargets();
             if (targetItems.length === 0) return;
 
+            /* 目印を置けないと安全に巻き戻せないため、プレビュー自体を諦める
+               Without a marker the preview cannot be reverted safely, so skip it entirely */
+            if (!beginUndoMark()) {
+                previewCheckbox.value = false;
+                return;
+            }
+
             var destCorners = makeDestCorners(getSelectedPreset(), getAmountRatio(), getStrengthKey());
 
             try {
-                applyFreeDistort(targetItems, destCorners, function () { previewApplied = true; });
+                applyFreeDistort(targetItems, destCorners,
+                    function (appliedCount) { previewAppliedCount = appliedCount; });
             } catch (error) {
-                /* 1件でも適用済みなら巻き戻す。1件目で失敗した場合は何もしない
-                   Roll back if at least one object was touched; do nothing if the first failed */
+                /* 適用済みのぶんだけ巻き戻す / roll back exactly what was applied */
                 clearPreview();
                 previewCheckbox.value = false;
                 showError(error);
@@ -752,13 +1158,24 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
             updatePreview(true);
         };
 
-        /* プリセットは複数パネルに分かれており ScriptUI の排他が効かないため、手動で解除する
-           The presets span several panels, so ScriptUI cannot group them: clear the others by hand */
-        for (var i = 0; i < presetRadios.length; i++) {
-            presetRadios[i].onClick = function () {
-                for (var k = 0; k < presetRadios.length; k++) {
-                    if (presetRadios[k] !== this) presetRadios[k].value = false;
-                }
+        /* プリセットは複数パネルに分かれており、さらにラジオとトグルボタンが混在するため、
+           ScriptUI の排他選択は使えない。押されたものを選択状態に固定し、他を手動で解除する。
+           The presets span several panels and mix radio buttons with toggle buttons, so
+           ScriptUI cannot group them: pin the clicked one and clear the others by hand. */
+        function selectPresetControl(clickedControl) {
+            for (var k = 0; k < presetControls.length; k++) {
+                presetControls[k].value = (presetControls[k] === clickedControl);
+            }
+            /* アイコンボタンは onDraw で選択枠を描くので、再描画させる
+               The icon buttons draw their selection frame in onDraw, so force a repaint */
+            if (dialogUI.dialog.update) dialogUI.dialog.update();
+        }
+
+        for (var i = 0; i < presetControls.length; i++) {
+            presetControls[i].onClick = function () {
+                /* トグルボタンは再クリックで解除されてしまうため、選択状態を維持する
+                   A toggle button would clear itself on a second click, so keep it selected */
+                selectPresetControl(this);
                 updateAmountPanelEnabled();
                 updatePreview(true);
             };
@@ -784,10 +1201,22 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
     // =========================================
     // 実行 / Run
     // =========================================
+    /* 効果を適用できる対象が無いなら、ダイアログを出す前に知らせる
+       Tell the user before opening the dialog when nothing can take an effect */
+    var initialTargets = getEffectTargets();
+    if (initialTargets.length === 0) {
+        alert(L("alert.noTarget"));
+        return;
+    }
+
     var distortSettings = showDialog();
     if (!distortSettings) return;
 
+    /* プレビュー解除の Undo で選択が失われることがあるため、初期選択を保険にする
+       An undo from removing the preview can clear the selection, so fall back to the
+       objects captured before the dialog */
     var targetItems = getEffectTargets();
+    if (targetItems.length === 0) targetItems = filterLiveItems(initialTargets);
     if (targetItems.length === 0) {
         alert(L("alert.noTarget"));
         return;
@@ -798,10 +1227,22 @@ var FIXED_GROUP_KEYS = ["triangle", "diagonal"];
         distortSettings.amountRatio,
         distortSettings.strengthKey);
 
+    /* ここでは目印レイヤーを使わない。成功時に目印を消す操作がアンドゥ履歴の最後に残り、
+       ユーザーが Undo したときに空レイヤーが復活してしまうため。
+       代わりに、途中で失敗したら何件まで適用したかを伝える。
+       No marker layer here: removing it on success would sit at the top of the undo stack,
+       so the user's first undo would resurrect an empty layer. Report how far the run got
+       instead, and leave the undo to the user. */
+    var appliedCount = 0;
+
     try {
-        applyFreeDistort(targetItems, destCorners);
+        applyFreeDistort(targetItems, destCorners,
+            function (count) { appliedCount = count; });
     } catch (error) {
         showError(error);
+        if (appliedCount > 0) {
+            alert(formatLabel(L("alert.partialApply"), { count: appliedCount }));
+        }
     }
 
 })();

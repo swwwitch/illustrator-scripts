@@ -31,11 +31,6 @@ GenerateGuidesGrid.jsx
 
 スガサワ君β / https://note.com/sgswkn/n/nee8c3ec1a14c
 
-### 更新履歴
-
-- v1.7.0 (20260612) : 角丸（ライブエフェクト）・中心点の表示・各セルの左右分割ガイド・不透明度スライダーを追加、元オブジェクト処理に「ガイド化」を追加（「隠す」は廃止）、アウトライン⇔プレビュー切り替えボタンとツールチップを追加、UI レイアウト・文言を整理（マージンは3×3配置）、裁ち落とし機能を削除、単一アートボード時は「すべてのアートボード」を無効化、過大マージン/ガターの安全チェックを追加、内部リファクタ（重複削減・命名整理・drawGrid の分離）
-- v1.6.6 (20260316) : 起動時の対象モードを自動判定（選択あり→選択オブジェクト、なし→アートボード）
-- v1.0 (20250424) : 初期バージョン
 */
 
 // =========================================
@@ -44,8 +39,8 @@ GenerateGuidesGrid.jsx
 var SCRIPT_NAME     = "GenerateGuidesGrid";           /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "20250424";                             /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "20260612";                             /* 更新日 / last updated */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
