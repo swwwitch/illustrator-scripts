@@ -168,7 +168,7 @@ var SCRIPT_UPDATED  = "2026-07-21";                   /* 更新日 / last update
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartFreeDistort.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartFreeDistort.md
-var SCRIPT_URL      = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹介記事 / article URL */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php

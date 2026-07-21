@@ -41,6 +41,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Apply document fonts](readme-en/ApplyDocumentFonts.md)
 - [List fonts in weight order by category and instantly create font samples](readme-en/TypefaceSampler.md)
 - [Export font information used in the document](readme-en/ExportFontInfoFromXMP.md)
+- [Apply fonts line by line, treating each line's text as a font name](readme-en/ApplyFontByLine.md)
 
 ## Text
 
@@ -48,6 +49,10 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Adjust baseline shift for specific characters](readme-en/SmartBaselineShifter.md)
 - [Adjust font size and baseline for specific characters](readme-en/AdjustTextScaleBaseline.md)
 - [Text Merge To AreaBox](readme-en/TextMergeToAreaBox.md)
+- [Convert selected text into arched type on a path](readme-en/ArcTextGenerator.md)
+- [Auto-fit overflowing text by font size or area height](readme-en/AutoFitTextFrame.md)
+- [Convert between point / path type and area type](readme-en/ConvertAreaAndPointType.md)
+- [Increment dates, weekdays, and numbers in text](readme-en/IncrementDatesAndNumbers.md)
 
 ## Object arrangement and alignment
 
@@ -62,17 +67,22 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Create squares, circles, equilateral triangles, and more](readme-en/SmartShapeMaker.md)
 - [Adjust by Aspect Ratio](readme-en/AspectRatioScaler.md)
 - [Free distort with presets](readme-en/SmartFreeDistort.md)
+- [Reset the rotation of selected objects to 0°](readme-en/ResetRotation.md)
 
 ## Artwork and files
 
 - [Export selected objects](readme-en/SmartObjectExporter.md)
 - [Align and merge multiple open files into one](readme-en/SmartBatchImporter.md)
 - [Copy as PNG like Figma’s ⌘ + Shift + C](readme-en/CopyAsPngLikeFigma.md)
+- [Import styles, brushes, and font samples from registered AI files](readme-en/ImportStyles.md)
+- [Batch save AI / SVG files in a folder with a specified version](readme-en/AIBatchVersionSave.md)
 
 ## Color
 
 - [Apply swatches continuously](readme-en/ApplySwatchesToSelection.md)
 - [Apply colors randomly](readme-en/ShuffleObjectColors.md)
+- [Generate swatches and gradients from the colors of selected objects](readme-en/CreateGradientFromSelection.md)
+- [Swap, convert, or clear fill and stroke](readme-en/FillStrokeSwitcher.md)
 
 ## Artboards
 
@@ -83,12 +93,15 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Delete Objects Outside Artboards](readme-en/DeleteOutsideArtboard.md)
 - [FitArtboardWithMargin.jsx](readme-en/FitArtboardWithMargin.md)
 - [Slice2Artboards](readme-en/Slice2Artboards.md)
+- [Align selected objects to nine reference points on each artboard](readme-en/AlignToArtboards.md)
+- [Rearrange artboards into a grid based on their names](readme-en/GridArrangeArtboards.md)
 
 ## Layers, Z-order
 
 - [Move objects to a specified layer](readme-en/SmartLayerManage.md)
 - [Move selected objects to a new layer, send it to the back, and lock it](readme-en/SendToBgLayer.md)
 - [Reorder objects by coordinates](readme-en/SortItemsByPosition.md)
+- [Organize objects into layers per artboard](readme-en/ArtboardLayerOrganizer.md)
 
 ## Masks
 
@@ -96,6 +109,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Advanced release clipping masks](readme-en/ReleaseClipMask.md)
 - [Puzzle-like slicing](readme-en/SmartSliceWithPuzzlify.md)
 - [Resize Clip Mask](readme-en/ResizeClipMask.md)
+- [Adjust the mask and contents of clip groups](readme-en/ClipMaskAdjust.md)
 
 ## Guides
 
@@ -103,6 +117,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Create Guides From Selection](readme-en/CreateGuidesFromSelection.md)
 - [Delete All Guides](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
 - [New Guide Maker](readme-en/NewGuideMaker.md)
+- [Create artboard-based guides and convert ruler guides](readme-en/AiCreateArtboardGuides.md)
 
 ## Document
 
@@ -111,3 +126,4 @@ After release, we continue to fix bugs and make adjustments through daily use.
 ## Others
 
 - [Create crop marks](readme-en/AddTrimMark.md)
+- [Filter and reselect objects by conditions](readme-en/SmartSelectionFilter.md)

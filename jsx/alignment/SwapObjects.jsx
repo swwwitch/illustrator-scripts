@@ -50,7 +50,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapObjects.md
     // README (English)
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapObjects.md
-    var SCRIPT_URL      = "https://note.com/dtp_tranist/n/na534a676fae2";                             /* 紹介記事 / article URL */
+    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na534a676fae2";  /* 紹介記事 / article URL */
 
     // =========================================
     // ユーザー設定 / User settings

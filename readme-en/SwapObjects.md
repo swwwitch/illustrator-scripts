@@ -37,6 +37,10 @@
 - Objects that cannot be moved or whose bounds cannot be read
 - Locked or hidden objects, including those inside a locked or hidden layer or group
 
+### note
+
+https://note.com/dtp_tranist/n/na534a676fae2
+
 ### Update History
 
 - v1.2.1 (20260406): Public release
