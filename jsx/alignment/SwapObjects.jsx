@@ -50,7 +50,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SwapObjects.md
     // README (English)
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SwapObjects.md
-    var SCRIPT_URL      = "";                             /* 紹介記事 / article URL */
+    var SCRIPT_URL      = "https://note.com/dtp_tranist/n/na534a676fae2";                             /* 紹介記事 / article URL */
 
     // =========================================
     // ユーザー設定 / User settings
@@ -172,13 +172,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* 行グループの共通設定（ボタン列など） / Apply a horizontal row group */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     // =========================================
@@ -340,25 +333,34 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         chkUseVisualBounds.helpTip = getLabel('tooltip', 'useVisualBounds');
         chkUseVisualBounds.value = DEFAULT_USE_VISUAL_BOUNDS;
 
-        /* 最下段：プレビューとボタン / Bottom row: preview and buttons */
-        var dialogFooterRow = dialogWindow.add('group');
-        setupRow(dialogFooterRow, 'fill');
+        /* ボタンエリアを左右分割で組み立てる。
+           左：プレビュー、中央：伸縮スペーサー、右：キャンセル / OK。
+           Build the footer split left and right: Preview on the left, a stretchable spacer
+           in the middle, and Cancel / OK on the right. */
+        var footerRowGroup = dialogWindow.add('group');
+        footerRowGroup.orientation = 'row';
+        footerRowGroup.margins = [10, 10, 10, 0];
+        footerRowGroup.alignment = ['fill', 'bottom'];
 
-        var chkLivePreview = dialogFooterRow.add('checkbox', undefined, getLabel('checkbox', 'livePreview'));
+        /* 左側グループ / Left-side group
+           プレビューは押しっぱなしの切り替えなので、ボタンではなくチェックボックスにしている
+           Preview is a sticky toggle, so it stays a checkbox rather than a button */
+        var footerLeftGroup = footerRowGroup.add('group');
+        footerLeftGroup.alignChildren = ['left', 'center'];
+        var chkLivePreview = footerLeftGroup.add('checkbox', undefined, getLabel('checkbox', 'livePreview'));
         chkLivePreview.helpTip = getLabel('tooltip', 'livePreview');
-        chkLivePreview.alignment = 'left';
         chkLivePreview.value = DEFAULT_LIVE_PREVIEW_ENABLED;
 
-        /* 左右を押し広げる余白 / Flexible spacer between the checkbox and buttons */
-        var footerSpacer = dialogFooterRow.add('statictext', undefined, '');
-        footerSpacer.alignment = ['fill', 'center'];
+        /* スペーサー（伸縮） / Spacer (stretchable) */
+        var footerSpacer = footerRowGroup.add('group');
+        footerSpacer.alignment = ['fill', 'fill'];
+        footerSpacer.minimumSize.width = 0;
 
-        var btnCancel = dialogFooterRow.add('button', undefined, getLabel('button', 'cancel'), { name: 'cancel' });
-        var btnOk = dialogFooterRow.add('button', undefined, getLabel('button', 'ok'), { name: 'ok' });
-
-        /* ボタンは行内で引き伸ばさない / Keep buttons at their natural width */
-        btnCancel.alignment = 'right';
-        btnOk.alignment = 'right';
+        /* 右側グループ / Right-side button group */
+        var footerRightGroup = footerRowGroup.add('group');
+        footerRightGroup.alignChildren = ['right', 'center'];
+        var btnCancel = footerRightGroup.add('button', undefined, getLabel('button', 'cancel'), { name: 'cancel' });
+        var btnOk = footerRightGroup.add('button', undefined, getLabel('button', 'ok'), { name: 'ok' });
 
         return {
             dialogWindow: dialogWindow,

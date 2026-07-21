@@ -37,74 +37,77 @@ After release, we continue to fix bugs and make adjustments through daily use.
 
 ## Fonts
 
-- [Generate text showing font name, font size, etc. from selected text](readme.en/AddTextInfoLabel.md)
-- [Apply document fonts](readme.en/ApplyDocumentFonts.md)
-- [List fonts in weight order by category and instantly create font samples](readme.en/TypefaceSampler.md)
-- [Export font information used in the document](readme.en/ExportFontInfoFromXMP.md)
+- [Generate text showing font name, font size, etc. from selected text](readme-en/AddTextInfoLabel.md)
+- [Apply document fonts](readme-en/ApplyDocumentFonts.md)
+- [List fonts in weight order by category and instantly create font samples](readme-en/TypefaceSampler.md)
+- [Export font information used in the document](readme-en/ExportFontInfoFromXMP.md)
 
 ## Text
 
-- [Split text into individual characters](readme.en/TextSplitterPro.md)
-- [Adjust baseline shift for specific characters](readme.en/SmartBaselineShifter.md)
+- [Split text into individual characters](readme-en/TextSplitterPro.md)
+- [Adjust baseline shift for specific characters](readme-en/SmartBaselineShifter.md)
+- [Adjust font size and baseline for specific characters](readme-en/AdjustTextScaleBaseline.md)
 - [Text Merge To AreaBox](readme-en/TextMergeToAreaBox.md)
 
 ## Object arrangement and alignment
 
-- [Arrange placed objects into a grid](readme.en/SmartObjectDistributor.md)
-- [Sort selected objects by width, height, opacity, or color](readme.en/SmartObjectSorter.md)
-- [Swap objects](readme.en/SwapNearestItemWithDialogbox.md)
+- [Arrange placed objects into a grid](readme-en/SmartObjectDistributor.md)
+- [Sort selected objects by width, height, opacity, or color](readme-en/SmartObjectSorter.md)
+- [Swap objects](readme-en/SwapNearestItemWithDialogbox.md)
+- [Swap the positions of two selected objects](readme-en/SwapObjects.md)
 - [Ungroup subgroups inside the selected group to simplify the group structure](readme-en/SimplifyGroups.md)
 
 ## Basic shapes and Ajust
 
-- [Create squares, circles, equilateral triangles, and more](readme.en/SmartShapeMaker.md)
+- [Create squares, circles, equilateral triangles, and more](readme-en/SmartShapeMaker.md)
 - [Adjust by Aspect Ratio](readme-en/AspectRatioScaler.md)
+- [Free distort with presets](readme-en/SmartFreeDistort.md)
 
 ## Artwork and files
 
-- [Export selected objects](readme.en/SmartObjectExporter.md)
-- [Align and merge multiple open files into one](readme.en/SmartBatchImporter.md)
-- [Copy as PNG like Figma’s ⌘ + Shift + C](readme.en/CopyAsPngLikeFigma.md)
+- [Export selected objects](readme-en/SmartObjectExporter.md)
+- [Align and merge multiple open files into one](readme-en/SmartBatchImporter.md)
+- [Copy as PNG like Figma’s ⌘ + Shift + C](readme-en/CopyAsPngLikeFigma.md)
 
 ## Color
 
-- [Apply swatches continuously](readme.en/ApplySwatchesToSelection.md)
-- [Apply colors randomly](readme.en/ShuffleObjectColors.md)
+- [Apply swatches continuously](readme-en/ApplySwatchesToSelection.md)
+- [Apply colors randomly](readme-en/ShuffleObjectColors.md)
 
 ## Artboards
 
-- [Rename artboards based on the topmost text or text from a specific layer](readme.en/SmartArtboardRenamer.md)
-- [Insert page numbers](readme.en/AddPageNumberFromTextSelection.md)
-- [Batch rename artboards](readme.en/RenameArtboardsPlus.md)
+- [Rename artboards based on the topmost text or text from a specific layer](readme-en/SmartArtboardRenamer.md)
+- [Insert page numbers](readme-en/AddPageNumberFromTextSelection.md)
+- [Batch rename artboards](readme-en/RenameArtboardsPlus.md)
 - [Reorder Artboards By Position](readme-en/ReorderArtboardsByPosition.md)
 - [Delete Objects Outside Artboards](readme-en/DeleteOutsideArtboard.md)
 - [FitArtboardWithMargin.jsx](readme-en/FitArtboardWithMargin.md)
-- [Slice2Artboards](/Users/takano/Git/ai-scripts/readme-ja/Slice2Artboards.md)
+- [Slice2Artboards](readme-en/Slice2Artboards.md)
 
 ## Layers, Z-order
 
-- [Move objects to a specified layer](readme.en/SmartLayerManage.md)
-- [Move selected objects to a new layer, send it to the back, and lock it](readme.en/SendToBgLayer.md)
+- [Move objects to a specified layer](readme-en/SmartLayerManage.md)
+- [Move selected objects to a new layer, send it to the back, and lock it](readme-en/SendToBgLayer.md)
 - [Reorder objects by coordinates](readme-en/SortItemsByPosition.md)
 
 ## Masks
 
-- [Group or mask objects in logical sets](readme.en/SmartClipAndGroup.md)
-- [Advanced release clipping masks](readme.en/ReleaseClipMask.md)
-- [Puzzle-like slicing](readme.en/SmartSliceWithPuzzlify.md)
+- [Group or mask objects in logical sets](readme-en/SmartClipAndGroup.md)
+- [Advanced release clipping masks](readme-en/ReleaseClipMask.md)
+- [Puzzle-like slicing](readme-en/SmartSliceWithPuzzlify.md)
 - [Resize Clip Mask](readme-en/ResizeClipMask.md)
 
 ## Guides
 
-- [Generate guides in a grid](readme.en/GenerateGuidesGrid.md)
+- [Generate guides in a grid](readme-en/GenerateGuidesGrid.md)
 - [Create Guides From Selection](readme-en/CreateGuidesFromSelection.md)
 - [Delete All Guides](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
 - [New Guide Maker](readme-en/NewGuideMaker.md)
 
 ## Document
 
-- [Switch between documents](readme.en/SmartSwitchDocs.md)
+- [Switch between documents](readme-en/SmartSwitchDocs.md)
 
 ## Others
 
-- [Create crop marks](readme.en/AddTrimMark.md)
+- [Create crop marks](readme-en/AddTrimMark.md)

@@ -47,6 +47,12 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [特定の文字のベースラインシフトを調整](readme-ja/SmartBaselineShifter.md)
 - [PDFをイラレで開いたときのバラバラ文字を、ひとつのエリア内文字に再構成するスクリプト](readme-ja/TextMergeToAreaBox.md)
 - [特定の文字のフォントサイズやベースラインの調整](readme-ja/AdjustTextScaleBaseline.md)
+- [段落を選択](readme-ja/AiSelectParagraph.md)
+- [2つのテキストの内容を入れ替える](readme-ja/SwapText.md)
+- [テキストと図形をエリア内文字に変換](readme-ja/TextWithShapeToAreaType.md)
+- [テキストの分割・結合パレット](readme-ja/TextBreakSplitMergePallete.md)
+- [統合文字組みパネル](readme-ja/UnifiedTypePanel.md)
+- [テキストのアウトライン化と復元](readme-ja/AiTextOutlineRestorePalette.md)
 
 ## オブジェクトの配置や整列
 
@@ -54,22 +60,28 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択したオブジェクトを幅や高さ、不透明度、カラーでソート](readme-ja/SmartObjectSorter.md)
 - [オブジェクトを入れ替え](readme-ja/SwapNearestItemWithDialogbox.md)
 - [2つのオブジェクトの位置を入れ替え](readme-ja/SwapObjects.md)
+- [オブジェクトのリサイズ](readme-ja/SmartObjectResizer.md)
 
 ## 基本図形と変形
 
 - [正方形や正円、正三角形を作成するスクリプト](readme-ja/SmartShapeMaker.md)
 - [アスペクト比で変形](readme-ja/AspectRatioScaler.md)
+- [自由変形（フリーディストート）](readme-ja/SmartFreeDistort.md)
+- [パスファインダー](readme-ja/AiSmartPathfinder.md)
+- [パスの最適化](readme-ja/PathCleanupTool.md)
 
 ## アートワークやファイル
 
 - [選択したオブジェクトを書き出す](readme-ja/SmartObjectExporter.md)
 - [開いているファイルを1つに整列統合](readme-ja/SmartBatchImporter.md)
 - [Figmaの⌘ + shift + C（ビットマップとしてコピー）](readme-ja/CopyAsPngLikeFigma.md)
+- [リンク画像の管理](readme-ja/LinkedImageManager.md)
 
 ## カラー
 
 - [スウォッチの連続適用](readme-ja/ApplySwatchesToSelection.md)
 - [カラーをランダム適用](readme-ja/ShuffleObjectColors.md)
+- [カラーを配色](readme-ja/AiApplySwatchesToSelection.md)
 
 ## アートボード
 
@@ -80,6 +92,8 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [アートボード外のオブジェクトを削除](readme-ja/DeleteOutsideArtboard.md)
 - [選択オブジェクトに合わせてアートボードサイズを設定するときにマージンを付ける](readme-ja/FitArtboardWithMargin.md)
 - [画像を分割してアートボード化](readme-ja/Slice2Artboards.md)
+- [アートボードサイズ変更](readme-ja/AiArtboardScaler.md)
+- [アートボードナビゲーター](readme-ja/ArtboardNavigator.md)
 
 ## レイヤー、重ね順
 
@@ -87,6 +101,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [選択しているオブジェクトを新規レイヤーに移動し、そのレイヤーを最背面に移動してロック](readme-ja/SendToBgLayer.md)
 - [座標を基準に重ね順を変更](readme-ja/SortItemsByPosition.md)
 - [選択したグループ内のサブグループを解除して、グループ構造を簡素化](readme-ja/SimplifyGroups.md)
+- [水平方向にグループ化](readme-ja/SmartAutoGroup-yoko.md)
 
 ## マスク
 
@@ -105,9 +120,16 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 ## ドキュメント
 
 - [ドキュメントの切替](readme-ja/SmartSwitchDocs.md)
+- [ファイル名を変更して保存](readme-ja/Ai-FileNameManager.md)
+
+## 環境設定
+
+- [クイック環境設定](readme-ja/AiQuickPrefsPalette.md)
+- [環境設定：変形と整列](readme-ja/PreferenceManagerForTransformAndAlign.md)
 
 ## その他
 
 - [トンボ作成](readme-ja/AddTrimMark.md)
+- [テキストの文字列でグラフィックスタイルを登録](readme-ja/RegisterGraphicStyleWithText.md)
 
 
