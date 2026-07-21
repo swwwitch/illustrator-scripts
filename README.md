@@ -53,6 +53,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [配置したオブジェクトをグリッド状に配置する](readme-ja/SmartObjectDistributor.md)
 - [選択したオブジェクトを幅や高さ、不透明度、カラーでソート](readme-ja/SmartObjectSorter.md)
 - [オブジェクトを入れ替え](readme-ja/SwapNearestItemWithDialogbox.md)
+- [2つのオブジェクトの位置を入れ替え](readme-ja/SwapObjects.md)
 
 ## 基本図形と変形
 

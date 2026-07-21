@@ -96,9 +96,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         }
 
         /* キャンセル時は Finder を開かない / Skip revealing the folder when cancelled */
-        if (!cancelled) {
-            revealOutputFolder(outputFolder);
-        }
+        // if (!cancelled) {
+        //     revealOutputFolder(outputFolder);
+        // }
     }
 
     // =========================================
