@@ -5,8 +5,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-「自由変形」効果を、プリセット・変形量・強度の組み合わせで適用するスクリプトです。
-選択オブジェクトに対して、ダイアログUIから変形プリセットを選び、プレビューで確認しながら適用できます。
+選択オブジェクトに Illustrator の「自由変形」ライブ効果を適用するスクリプトです。
+台形・平行四辺形・三角形・対角線の全18プリセットをアイコンから選択し、
+調整可能なプリセットでは変形量と強度を設定できます。Undoベースのプレビューで
+結果を確認してから、効果を各オブジェクトへ個別に適用します。
 
 ### 主な機能
 
@@ -38,6 +40,12 @@ https://note.com/dtp_tranist/n/n15a7ae196a23
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDistort.jsx
 
 ### 更新履歴
+
+- v1.5.4 (2026-07-21)
+  - 日本語・英語READMEを追加し、基本情報からリンク
+
+- v1.5.3 (2026-07-21)
+  - 日本語・英語の概要を、現在のプリセット数と適用フローに合わせて更新
 
 - v1.5.2 (2026-07-21)
   - プレビュー解除のUndoを、目印レイヤーを使って過不足なく巻き戻すよう修正
@@ -76,8 +84,10 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDist
 
 ### Overview
 
-Applies the "Free Distort" live effect using a combination of preset, amount and strength.
-Pick a distortion preset from the dialog UI and apply it to the selection while checking the preview.
+Applies Illustrator's "Free Distort" live effect to selected objects. Choose from
+18 icon-based trapezoid, parallelogram, triangle and diagonal presets; adjustable
+presets also support amount and strength controls. An Undo-based preview lets you
+check the result before the effect is applied to each object individually.
 
 ### Key features
 
@@ -109,6 +119,13 @@ https://note.com/dtp_tranist/n/n15a7ae196a23
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDistort.jsx
 
 ### Changelog
+
+- v1.5.4 (2026-07-21)
+  - Added Japanese and English READMEs and linked them from Basic info
+
+- v1.5.3 (2026-07-21)
+  - Updated the Japanese and English overviews to reflect the current preset count
+    and application flow
 
 - v1.5.2 (2026-07-21)
   - Preview removal now undoes exactly the applied steps, using a marker layer as the
@@ -142,10 +159,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/fx/SmartFreeDist
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartFreeDistort";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.5.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-21";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartFreeDistort.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartFreeDistort.md
+var SCRIPT_URL      = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
