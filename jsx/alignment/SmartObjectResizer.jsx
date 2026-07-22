@@ -3,9 +3,6 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SmartObjectResizer.jsx
 
 ### 概要
 
@@ -18,8 +15,8 @@ SmartObjectResizer.jsx
 - 各種基準（最大／最小／指定サイズ／基準辺／面積／アートボード／裁ち落とし）でのスケーリング
 - テキストをアウトライン境界で計測（複製→分割→アウトライン→計測→即削除）
 - 整列（右カラムの「整列（横）」「整列（縦）」パネル）
-  - 横位置：左／中央／右／均等／0間隔
-  - 縦位置：上／中央／下／均等／0間隔
+  - 整列（横）パネル：左／中央／右（X座標）＋ 均等／0間隔（Y方向の分配）
+  - 整列（縦）パネル：上／中央／下（Y座標）＋ 均等／0間隔（X方向の分配）
   - 横位置と縦位置は同時指定可（横=left・縦=top で独立）。基準を変えても維持される
 - 主要オプションにツールチップ（helpTip）を表示
 - リアルタイムプレビュー、リセット、フッターの リセット／キャンセル／OK
@@ -31,16 +28,6 @@ SmartObjectResizer.jsx
 2. 選択基準でスケーリング（テキストは複製→分割→アウトライン化→計測し、元オブジェクトに反映）
 3. 整列（横位置／縦位置）や面積一致を適用。整列チェックを切り替えると、基準状態に戻してから両軸の整列を再適用
 4. OKで確定、キャンセル／リセットで元に戻す
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/n6f35bd4000ec
-
-### 更新履歴
-
-- v1.0.0 (20250405) : 初期バージョン
-- v1.4.0 (20260704) : 全体リファクタ（UIレイアウト共通化、LABELS/L() 多言語化、命名整理、重複・デッドコード削除、リサイズ／整列処理の関数分割、不要な try 削減）。縦横比／片辺トグルで選択中の基準を保持、整列リセットで「0間隔」の取りこぼしを修正。基準変更時も整列を保持、リセットボタンで整列も解除、UI文言を明確化、ゼロ幅/高さでの Infinity をガード、指定サイズ欄を createFixedSizeGroup に分離、setupWindow 削除。アートボード／裁ち落としのリサイズを一時グループ廃止＝クラスタ等倍スケール化し親階層・重ね順を保護、整列に右揃え／下揃えを追加、整列を「整列（横）／整列（縦）」の2パネルに再構成、フッターを3カラム（リセット／キャンセル・OK）化、左右余白を dialog.margins に集約
-- v1.4.1 (20260704) : ダイアログを開いた直後は基準を未選択にして変形を起こさない、パネル見出しの「基準」重複を解消（パネル＝「リサイズ基準」／行ラベル＝「基準辺」）、非自明なオプションに helpTip（ツールチップ）を追加、行ラベルのコロンを fieldLabel() で付与（データからコロンを分離）。整列チェックのクリックで他軸の整列が消える不具合を修正（常に reapplyActiveAlignments() で両軸を再適用）、整列の計測基準を「プレビュー境界で計測」に追従（ON＝visibleBounds／OFF＝geometricBounds）させ、線幅・効果のあるオブジェクトでも見た目の端でそろうよう修正
 
 ----
 
@@ -59,8 +46,8 @@ SmartObjectResizer.jsx
 - Scaling based on Max / Min / Fixed Size / Ref. side / Area / Artboard / Bleed
 - Text measured by outline bounds (duplicate → expand → outline → measure → immediate cleanup)
 - Alignment (the "Align (H)" / "Align (V)" panels in the right column)
-  - Horizontal: Left / Center / Right / Distribute evenly / Zero gap
-  - Vertical: Top / Center / Bottom / Distribute evenly / Zero gap
+  - Align (H) panel: Left / Center / Right (X) + Distribute evenly / Zero gap (along Y)
+  - Align (V) panel: Top / Middle / Bottom (Y) + Distribute evenly / Zero gap (along X)
   - Horizontal and vertical can be combined (independent: H = left, V = top); preserved across base changes
 - Tooltips (helpTips) on key options
 - Real-time preview, Reset, and a footer with Reset / Cancel / OK
@@ -73,21 +60,17 @@ SmartObjectResizer.jsx
 3. Apply alignment (horizontal / vertical) or area matching; toggling an alignment restores the base state and re-applies both axes
 4. Confirm with OK, or revert with Cancel / Reset
 
-### Update History
-
-- v1.0.0 (20250405): Initial version
-- v1.4.0 (20260704): Overall refactor (shared UI layout, LABELS/L() localization, renaming, dedup/dead-code removal, split resize/alignment functions, fewer redundant try blocks). Fixed: aspect/one-side toggle keeps the current base selection; align reset also clears the "zero gap" checkboxes; alignment is preserved across base changes; Reset button also clears alignment; clearer UI wording; guarded against Infinity on zero width/height; split the fixed-size row into createFixedSizeGroup; removed setupWindow. Artboard/Bleed resize no longer uses a temp group (cluster uniform-scale) to protect parent hierarchy and stacking order; added Right/Bottom alignment; reorganized alignment into two panels (Align H / Align V); footer with three columns (Reset / Cancel・OK); consolidated left/right margins into dialog.margins
-- v1.4.1 (20260704): No base is selected when the dialog opens, so it performs no transform on show; resolved the duplicate "Base" label (panel = "Resize base" / row = "Ref. side"); added helpTips (tooltips) to non-obvious options; row-label colon is now appended by fieldLabel() (colon separated from label data). Fixed a bug where clicking an alignment checkbox wiped the other axis's alignment (now always re-applies both axes via reapplyActiveAlignments()); alignment now follows the "Measure by preview bounds" option (ON = visibleBounds / OFF = geometricBounds) so stroked/effected objects align by their visual edges
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartObjectResizer";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-04-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-22";                   /* 更新日 / last updated */
+var SCRIPT_URL      = "https://note.com/dtp_tranist/n/n6f35bd4000ec"; /* 紹介記事（note） / article */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -119,13 +102,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* 行グループの共通設定（ボタン列など） / Apply a horizontal row group */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /* 縦方向のスペーサー（区切り用の空グループ） / Vertical spacer group */
@@ -176,7 +152,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         },
         panel: {
             base:  { ja: "リサイズ基準", en: "Resize base" },
-            align: { ja: "整列", en: "Alignment" },
             // 整列（横）: 左/中央/右 ＋ 縦方向の分配 / horizontal alignment
             hAlign: { ja: "整列{openParen}横{closeParen}", en: "Align {openParen}H{closeParen}" },
             // 整列（縦）: 上/中央/下 ＋ 横方向の分配 / vertical alignment
@@ -226,12 +201,13 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             artboard:    { ja: "選択全体をアートボードの幅／高さに合わせ、中央に配置します。", en: "Fit the whole selection to the artboard width / height and center it." },
             bleed:       { ja: "アートボード＋裁ち落とし（片側3mm）の幅／高さに合わせ、中央に配置します。", en: "Fit to the artboard plus bleed (3mm per side) and center it." },
             alignEven:   { ja: "オブジェクトの間隔が均等になるように分配します（3つ以上で有効）。", en: "Distribute objects with equal gaps (needs 3+ objects)." },
-            alignZero:   { ja: "オブジェクトを間隔0で隙間なく並べます。", en: "Place objects with zero gap (no spacing)." },
+            alignZero:   { ja: "オブジェクトを間隔0で隙間なく並べます（2つ以上で有効）。", en: "Place objects with zero gap, no spacing (needs 2+ objects)." },
             textOutline: { ja: "テキストをアウトライン化した実際の字形の境界で計測します。", en: "Measure text by the actual outlined glyph bounds." },
             preview:     { ja: "線幅や効果を含むプレビュー境界で計測します（オフは幾何境界）。", en: "Measure by preview bounds incl. strokes / effects (off = geometric bounds)." },
             reset:       { ja: "サイズ・位置・整列をすべて元の状態に戻します。", en: "Revert size, position, and alignment to the original state." }
         },
         alert: {
+            noDocument:   { ja: "ドキュメントを開いてください。", en: "Please open a document." },
             selectObject: { ja: "オブジェクトを選択してください。", en: "Please select an object." }
         }
     };
@@ -293,6 +269,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // 単位 / Units
     // =========================================
 
+    if (app.documents.length === 0) {
+        alert(L("alert.noDocument"));
+        return;
+    }
     var doc = app.activeDocument;
 
     var unitLabel;
@@ -409,59 +389,40 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     setHelpTip(keepRatioRadio, L("tooltip.keepAspect"));
     setHelpTip(oneSideOnlyRadio, L("tooltip.oneSideOnly"));
 
-    // 「片辺のみ」選択時に即時ディム表示
-    oneSideOnlyRadio.onClick = function () {
-        keepRatioRadio.value = false;
-        this.value = true;
+    // 「片辺のみ」でディムされる基準（基準辺／面積／アートボード／裁ち落とし）の選択を解除する。
+    // ディムするだけだと value が残り、getSelectedResizeMode() が enabled を見ないため
+    // 「片辺のみのはずが縦横比保持でリサイズされる」状態になる。
+    // Clear bases that "one side only" dims — leaving them checked would keep them active.
+    function clearDimmedBaseSelections() {
+        var dimmedGroups = [baseRadios, areaRadios, artboardRadios, bleedRadios];
+        for (var g = 0; g < dimmedGroups.length; g++) {
+            for (var r = 0; r < dimmedGroups[g].length; r++) {
+                dimmedGroups[g][r].value = false;
+            }
+        }
+    }
 
-        var baseGroup = baseRadios[0].parent;
-        baseGroup.enabled = false;
-        var areaGroup = areaRadios[0].parent;
-        areaGroup.enabled = false;
-        // アートボードラジオグループもディム
-        var artboardGroup = artboardRadios[0].parent;
-        artboardGroup.enabled = false;
-        // 裁ち落としラジオグループもディム
-        var bleedGroup = bleedRadios[0].parent;
-        bleedGroup.enabled = false;
+    // 縦横比保持／片辺のみトグルの共通処理（有効・無効の切替は updateRadioGroupStates() が担当）
+    // Shared handler for the keep-aspect / one-side-only toggle.
+    function onRatioModeChanged(useOneSideOnly) {
+        keepRatioRadio.value = !useOneSideOnly;
+        oneSideOnlyRadio.value = useOneSideOnly;
 
-        // 指定サイズセクション全体（ラジオ＋テキストフィールド）を有効化
+        if (useOneSideOnly) clearDimmedBaseSelections();
+
+        // 指定サイズセクション全体（ラジオ＋テキストフィールド）はどちらのモードでも有効
         if (createRadioGroup.sizeInput && createRadioGroup.sizeInput.parent) {
-            createRadioGroup.sizeInput.parent.enabled = true; // 入力行
+            createRadioGroup.sizeInput.parent.enabled = true;   // 入力行
         }
         if (createRadioGroup.widthRadio && createRadioGroup.widthRadio.parent) {
-            createRadioGroup.widthRadio.parent.enabled = true; // ラジオボタン行
+            createRadioGroup.widthRadio.parent.enabled = true;  // ラジオボタン行
         }
 
-        reapplyCurrentSelection();
-    };
+        reapplyCurrentSelection(); // 内部で updateRadioGroupStates() を呼ぶ
+    }
 
-    // 「縦横比保持」選択時に即時有効化
-    keepRatioRadio.onClick = function () {
-        oneSideOnlyRadio.value = false;
-        this.value = true;
-
-        var baseGroup = baseRadios[0].parent;
-        baseGroup.enabled = true;
-        var areaGroup = areaRadios[0].parent;
-        areaGroup.enabled = true;
-        // アートボードラジオグループも有効化
-        var artboardGroup = artboardRadios[0].parent;
-        artboardGroup.enabled = true;
-        // 裁ち落としラジオグループも有効化
-        var bleedGroup = bleedRadios[0].parent;
-        bleedGroup.enabled = true;
-
-        // 指定サイズセクション全体（ラジオ＋テキストフィールド）を有効化
-        if (createRadioGroup.sizeInput && createRadioGroup.sizeInput.parent) {
-            createRadioGroup.sizeInput.parent.enabled = true;
-        }
-        if (createRadioGroup.widthRadio && createRadioGroup.widthRadio.parent) {
-            createRadioGroup.widthRadio.parent.enabled = true;
-        }
-
-        reapplyCurrentSelection();
-    };
+    oneSideOnlyRadio.onClick = function () { onRatioModeChanged(true); };
+    keepRatioRadio.onClick   = function () { onRatioModeChanged(false); };
 
     var columnsGroup = dialog.add("group");
     columnsGroup.orientation = "row";
@@ -700,11 +661,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         reapplyCurrentSelection();
     }
 
+    // allRadioButtons は createRadioGroup / createFixedSizeGroup が作った基準ラジオのみ。
+    // keepRatioRadio / oneSideOnlyRadio は含まれず、個別に onClick を設定済み。
     for (var i = 0; i < allRadioButtons.length; i++) {
-        // keepRatioRadio, oneSideOnlyRadioには個別のonClickを設定済み
-        if (allRadioButtons[i] !== keepRatioRadio && allRadioButtons[i] !== oneSideOnlyRadio) {
-            allRadioButtons[i].onClick = onAnyRadioClick;
-        }
+        allRadioButtons[i].onClick = onAnyRadioClick;
     }
 
     // 初期状態ではどの基準も選択しない。
@@ -903,6 +863,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     }
 
     // 分配（縦=top降順 / 横=left昇順にソートして順に配置。useGap=false で 0 間隔）
+    // ※ item.top / item.left は visibleBounds 基準なので、getAlignmentBounds() の値を
+    //   直接代入すると「プレビュー境界で計測」OFF（geometricBounds）のとき線幅の半分ずれる。
+    //   端揃え系と同様、必ず差分（delta）で動かすこと。
+    //   item.top/left are visible-bounds based; always move by delta so the
+    //   distribution follows the same bounds basis as the alignment functions.
     function distributeVertical(useGap) {
         var sortedItems = workingItems.slice(0).sort(function (a, b) {
             return getAlignmentBounds(b).top - getAlignmentBounds(a).top;
@@ -918,9 +883,9 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
         var currentY = topMost;
         for (var j = 0; j < sortedItems.length; j++) {
-            var height = getAlignmentBounds(sortedItems[j]).height;
-            sortedItems[j].top = currentY;
-            currentY -= (height + gap);
+            var bounds = getAlignmentBounds(sortedItems[j]);
+            sortedItems[j].top += currentY - bounds.top;
+            currentY -= (bounds.height + gap);
         }
     }
     function distributeHorizontal(useGap) {
@@ -938,32 +903,35 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
         var currentX = leftMost;
         for (var j = 0; j < sortedItems.length; j++) {
-            var width = getAlignmentBounds(sortedItems[j]).width;
-            sortedItems[j].left = currentX;
-            currentX += (width + gap);
+            var bounds = getAlignmentBounds(sortedItems[j]);
+            sortedItems[j].left += currentX - bounds.left;
+            currentX += (bounds.width + gap);
         }
     }
 
     // 整列の定義テーブル（軸ごとに排他）: onClick 割り当てと再適用の唯一のソース
     // Alignment table (mutually exclusive within each axis) — drives both the
     // onClick handlers and reapplyActiveAlignments (single source of truth).
-    // requiresMultiple=true は分配（2個以上でのみ動作）
+    // minItems はその整列が成立する最小オブジェクト数。
+    // 「均等」は両端を固定して間を分けるので3個以上、「0間隔」は2個以上で意味を持つ。
+    // minItems is the smallest object count for which the entry is meaningful:
+    // 3+ for "distribute evenly" (both ends are pinned), 2+ for "zero gap".
     var alignAxes = [
         // 横位置（X座標を変更）: 左 / 中央 / 右 / 横均等 / 横0
         [
-            { check: alignLeftCheck,               requiresMultiple: false, apply: alignToMinLeft },
-            { check: alignCenterCheck,             requiresMultiple: false, apply: alignToCenterX },
-            { check: alignRightCheck,              requiresMultiple: false, apply: alignToMaxRight },
-            { check: alignHorizontalEvenCheck,     requiresMultiple: true,  apply: function () { distributeHorizontal(true); } },
-            { check: alignHorizontalEvenZeroCheck, requiresMultiple: true,  apply: function () { distributeHorizontal(false); } }
+            { check: alignLeftCheck,               minItems: 1, apply: alignToMinLeft },
+            { check: alignCenterCheck,             minItems: 1, apply: alignToCenterX },
+            { check: alignRightCheck,              minItems: 1, apply: alignToMaxRight },
+            { check: alignHorizontalEvenCheck,     minItems: 3, apply: function () { distributeHorizontal(true); } },
+            { check: alignHorizontalEvenZeroCheck, minItems: 2, apply: function () { distributeHorizontal(false); } }
         ],
         // 縦位置（Y座標を変更）: 上 / 中央 / 下 / 均等 / 0
         [
-            { check: alignTopCheck,     requiresMultiple: false, apply: alignToMaxTop },
-            { check: alignMiddleCheck,  requiresMultiple: false, apply: alignToCenterY },
-            { check: alignBottomCheck,  requiresMultiple: false, apply: alignToMinBottom },
-            { check: alignEvenCheck,     requiresMultiple: true, apply: function () { distributeVertical(true); } },
-            { check: alignEvenZeroCheck, requiresMultiple: true, apply: function () { distributeVertical(false); } }
+            { check: alignTopCheck,      minItems: 1, apply: alignToMaxTop },
+            { check: alignMiddleCheck,   minItems: 1, apply: alignToCenterY },
+            { check: alignBottomCheck,   minItems: 1, apply: alignToMinBottom },
+            { check: alignEvenCheck,     minItems: 3, apply: function () { distributeVertical(true); } },
+            { check: alignEvenZeroCheck, minItems: 2, apply: function () { distributeVertical(false); } }
         ]
     ];
 
@@ -987,7 +955,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             var axis = alignAxes[i];
             for (var j = 0; j < axis.length; j++) {
                 var entry = axis[j];
-                if (entry.check.value && (!entry.requiresMultiple || workingItems.length > 1)) {
+                if (entry.check.value && workingItems.length >= entry.minItems) {
                     entry.apply();
                     changed = true;
                     break; // 同一軸は1つだけ
@@ -1014,8 +982,17 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     var btnReset = btnLeftGroup.add("button", undefined, L("button.reset"));
     setHelpTip(btnReset, L("tooltip.reset"));
     btnReset.onClick = function () {
-        // 整列チェックもリセットして表示と実状態を揃える
+        // 基準ラジオ・整列チェック・基準状態をすべて解除して、UI と実状態を初期状態にそろえる。
+        // resizeBaseStates を消さないと、この後に整列をクリックしたとき
+        // restoreResizeBaseState() がリセット前のリサイズ結果を復元してしまう。
+        // Clearing resizeBaseStates is required: otherwise a later alignment click would
+        // restore the pre-reset (resized) geometry via restoreResizeBaseState().
+        for (var i = 0; i < allRadioButtons.length; i++) {
+            allRadioButtons[i].value = false;
+        }
+        resizeBaseStates = [];
         resetAlignChecks();
+        updateInputState();
         clearOutlineBoundsCache();
         restoreOriginalGeometry();
         restoreOriginalPosition();
@@ -1031,23 +1008,33 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     var btnRightGroup = btnRowGroup.add("group");
     btnRightGroup.alignChildren = ["right", "center"];
 
+    // 確定／破棄の判定は dialog.show() の戻り値に一本化する。
+    // ボタンの onClick だけで復元すると、ESC キーやウィンドウの閉じるボタンでは
+    // onClick が発火しないため、プレビュー中の変形がそのまま確定してしまう。
+    // Deciding commit vs. discard from the return value of show() (not from the button
+    // handlers) is what makes ESC / the window close box behave as a real cancel.
+    var DIALOG_RESULT_OK = 1;
+    var DIALOG_RESULT_CANCEL = 2;
+
     var btnCancel = btnRightGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
     btnCancel.onClick = function () {
-        restoreOriginalGeometry();
-        restoreOriginalPosition();
-        app.redraw();
-        clearOutlineBoundsCache();
-        dialog.close();
+        dialog.close(DIALOG_RESULT_CANCEL);
     };
 
     var btnOK = btnRightGroup.add("button", undefined, "OK", { name: "ok" });
     btnOK.onClick = function () {
-        // 確定（案B: 一時グループを使わないので親階層の復元処理は不要）
-        clearOutlineBoundsCache();
-        dialog.close();
+        // 確定（一時グループを使わないので親階層の復元処理は不要）
+        dialog.close(DIALOG_RESULT_OK);
     };
 
-    dialog.show();
+    var dialogResult = dialog.show();
+    if (dialogResult !== DIALOG_RESULT_OK) {
+        // キャンセル／ESC／ウィンドウを閉じる: プレビュー中の変形をすべて破棄
+        restoreOriginalGeometry();
+        restoreOriginalPosition();
+        app.redraw();
+    }
+    clearOutlineBoundsCache();
 
     function getScaleFactor(current, target) {
         return (target / current) * 100;
@@ -1173,6 +1160,16 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return referenceValue;
     }
 
+    // 片辺のみのスケール。引数を省略した 2 引数版は基準点が中心になり、他モード（TOPLEFT）と
+    // 挙動が食い違うため、常に明示指定する。線幅は非等倍では変えない（100%）。
+    // Always spell out the anchor: the 2-argument form scales about the center,
+    // which would be inconsistent with every other mode. Line widths stay at 100%.
+    function resizeOneSide(item, isWidth, scale) {
+        var scaleX = isWidth ? scale : 100;
+        var scaleY = isWidth ? 100 : scale;
+        item.resize(scaleX, scaleY, true, true, true, true, 100, Transformation.TOPLEFT);
+    }
+
     // 各アイテムを基準値に合わせてスケール（縦横比保持／片辺のみ）
     function resizeItemsToReference(mode, referenceValue) {
         var keepOneSideOnly = oneSideOnlyRadio.value;
@@ -1188,11 +1185,9 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
                 var currentSide = mode.isWidth ? bounds.width : bounds.height;
                 if (currentSide === 0) continue;
                 var scaleFixed = getScaleFactor(currentSide, referenceValue);
-                workingItems[i].resize(mode.isWidth ? scaleFixed : 100, mode.isWidth ? 100 : scaleFixed);
-            } else if (mode.isWidth) {
-                workingItems[i].resize(scale, 100);
+                resizeOneSide(workingItems[i], mode.isWidth, scaleFixed);
             } else {
-                workingItems[i].resize(100, scale);
+                resizeOneSide(workingItems[i], mode.isWidth, scale);
             }
         }
     }
@@ -1210,7 +1205,6 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             workingItems[i].left += dx;
             workingItems[i].top += dy;
         }
-        doc.selection = workingItems;
     }
 
     // 面積基準（最大／最小の面積に全アイテムを合わせる）
