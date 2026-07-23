@@ -61,6 +61,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Swap objects](readme-en/SwapNearestItemWithDialogbox.md)
 - [Swap the positions of two selected objects](readme-en/SwapObjects.md)
 - [Ungroup subgroups inside the selected group to simplify the group structure](readme-en/SimplifyGroups.md)
+- [Resize objects](readme-en/SmartObjectResizer.md)
 
 ## Basic shapes and Ajust
 

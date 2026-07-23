@@ -1,8 +1,10 @@
 # オブジェクトのリサイズ
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartObjectResizer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartObjectResizer.jsx)
+[![Direct Link](https://img.shields.io/badge/Direct%20Link-SmartObjectResizer.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartObjectResizer.jsx)
 
-[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectResizer.md)
+
+[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 
@@ -101,7 +103,7 @@
 
 排他の単位はパネルではなく**動かす座標軸**です。X座標を動かすもの（左／中央／右／「整列（縦）」の均等・0間隔）どうしが排他、Y座標を動かすもの（上／中央／下／「整列（横）」の均等・0間隔）どうしが排他になります。**軸が違えば同時に指定できる**ので、「整列（横）」パネルの中で「左」と「均等」を両方チェックする、という使い方ができます。
 
-なお「均等」「0間隔」は、オブジェクトが2つ以上のときだけ動作します。
+なお「均等」は両端を固定して間を分けるため**3つ以上**、「0間隔」は**2つ以上**選択しているときだけ動作します。
 
 整列の状態は、リサイズ基準を切り替えても維持されます。基準を変えて再リサイズしたあと、新しいサイズに対して整列が再適用されます。
 
@@ -121,8 +123,8 @@
 
 ## ボタン
 
-- **［リセット］**：サイズ・位置・整列をすべて元に戻します（ダイアログは開いたまま）。整列チェックもすべてオフになります
-- **［キャンセル］**：元に戻して閉じます
+- **［リセット］**：サイズ・位置・整列をすべて元に戻します（ダイアログは開いたまま）。リサイズ基準のラジオと整列チェックもすべてオフになります
+- **［キャンセル］**：元に戻して閉じます。**esc キーやウィンドウの閉じるボタンでも同じく元に戻ります**
 - **［OK］**：現在の状態で確定して閉じます
 
 ダイアログの表示位置はセッション内で記憶されます（Illustrator を終了するとリセットされます）。
@@ -131,7 +133,7 @@
 
 選択中の PageItem 全般。テキストとグループはアウトライン境界の計測時にのみ特別扱いされ、グループ内のテキストは再帰的に集めて計測します。
 
-オブジェクトが選択されていない場合はアラートを出して終了します。
+ドキュメントが開かれていない場合、およびオブジェクトが選択されていない場合はアラートを出して終了します。
 
 ## 補足
 
@@ -141,12 +143,13 @@
 
 幅または高さが0のオブジェクト（線のみ、空テキストなど）は、`resize()` で拡大できず倍率計算が Infinity になるため、100%＝現状維持として扱っています。
 
+## 紹介記事
+
+[【Illustrator】オブジェクトのサイズをそろえるスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/n6f35bd4000ec)
+
 ## 更新履歴
 
+- v1.4.2（2026-07-22）日本語・英語READMEを追加し、スクリプトの基本情報からリンク。esc キーやウィンドウの閉じるボタンでもキャンセル扱いになるよう修正（変形が確定してしまう不具合）。リセットでリサイズ基準のラジオと内部の基準状態も解除するよう修正（リセット後に整列をクリックすると変形が復活する不具合）。「片辺のみ」に切り替えたとき、ディムされる基準（基準辺／面積／アートボード／裁ち落とし）の選択を解除。分配（均等／0間隔）を差分移動に変更し、「プレビュー境界で計測」に追従。「均等」は3つ以上、「0間隔」は2つ以上で有効に変更。ドキュメント未オープン時のガードを追加。「片辺のみ」のリサイズ基準点を他モードと同じ左上に統一
 - v1.0.0（20250405）初期バージョン
 - v1.4.0（20260704）全体リファクタ（UIレイアウト共通化、LABELS/L() 多言語化、命名整理、重複・デッドコード削除、リサイズ／整列処理の関数分割、不要な try 削減）。縦横比／片辺トグルで選択中の基準を保持、整列リセットで「0間隔」の取りこぼしを修正。基準変更時も整列を保持、リセットボタンで整列も解除、UI文言を明確化、ゼロ幅/高さでの Infinity をガード、指定サイズ欄を createFixedSizeGroup に分離、setupWindow 削除。アートボード／裁ち落としのリサイズを一時グループ廃止＝クラスタ等倍スケール化し親階層・重ね順を保護、整列に右揃え／下揃えを追加、整列を「整列（横）／整列（縦）」の2パネルに再構成、フッターを3カラム（リセット／キャンセル・OK）化、左右余白を dialog.margins に集約
 - v1.4.1（20260704）ダイアログを開いた直後は基準を未選択にして変形を起こさない、パネル見出しの「基準」重複を解消（パネル＝「リサイズ基準」／行ラベル＝「基準辺」）、非自明なオプションに helpTip（ツールチップ）を追加、行ラベルのコロンを fieldLabel() で付与（データからコロンを分離）。整列チェックのクリックで他軸の整列が消える不具合を修正（常に reapplyActiveAlignments() で両軸を再適用）、整列の計測基準を「プレビュー境界で計測」に追従（ON＝visibleBounds／OFF＝geometricBounds）させ、線幅・効果のあるオブジェクトでも見た目の端でそろうよう修正
-
-### note
-
-- [記事URL]

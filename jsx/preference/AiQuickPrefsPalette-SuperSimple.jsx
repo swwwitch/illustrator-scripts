@@ -6,20 +6,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustrator の各種環境設定の切り替えを、常駐パレットでまとめて操作するユーティリティです。
-操作した時点で即時反映されます。
+Illustrator の使用頻度の高い環境設定を、常駐パレット（palette）でまとめて切り替えるユーティリティです。
+チェックや入力を操作したその場で即座に反映されるため、環境設定ダイアログを何度も開き直す手間がありません。
 
-- キー増加：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓ / Shift / Option で増減
-- 整列オプション：プレビュー境界／字形の境界に整列（ポイント文字・エリア内文字を両方まとめてON/OFF）
-- 変形オプション：パターン／角／線幅と効果
+書き込みは BridgeTalk でメインエンジンに委譲し、読み出しはパレット側で直接行うことで、
+常駐エンジンのまま安全に環境設定を操作します。パレットを再アクティブにすると現在値へ自動追従します。
+
+- キー増加：カーソル移動量（cursorKeyLength）。単位ポップアップで定規単位を切替、↑↓＝±1 / Shift＝±10（10の倍数にスナップ）/ Option＝±0.1 で増減
+- 整列オプション：プレビュー境界に整列／字形の境界に整列（ポイント文字・エリア内文字を両方まとめて ON/OFF）
+- 変形オプション：パターン／角（ライブコーナー）／線幅と効果。Option＋クリックで3つまとめて切替
 - コピー/ペースト：書式なしペースト／コピー元のレイヤーにペースト
-- 描画：リアルタイムの描画と編集／プレビュー更新（GPU プレビューを更新）
-- 明るさ：インターフェイスカラー（UIの明るさ）を4段階で切り替え。インターフェイスカラーは直接反映できないため、スウォッチをクリックすると環境設定（ユーザーインターフェイス）が開きます。矢印キー＋Return で確定してください
-
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/n41d8dc1961be
+- 描画：リアルタイムの描画と編集／プレビュー更新（GPU プレビューをトグルして再描画）
+- 環境設定：インターフェイスカラー（UIの明るさ）を4段階のスウォッチで切替。直接反映できないため、クリックで環境設定（ユーザーインターフェイス）が開くので、矢印キー＋Return で確定。「ファイル管理を開く」ボタンで環境設定（ファイル管理）を表示
 
 */
 
@@ -27,10 +25,16 @@ https://note.com/dtp_tranist/n/n41d8dc1961be
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiQuickPrefsPalette-SuperSimple";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.3";                           /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.4";                           /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";      /* 作者 / author */
-var SCRIPT_RELEASED = "";                                 /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                                 /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-08-05";                       /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-23";                       /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiQuickPrefsPalette-SuperSimple.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiQuickPrefsPalette-SuperSimple.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -65,7 +69,7 @@ var SCRIPT_UPDATED  = "";                                 /* 更新日 / last up
             transform: { ja: "変形オプション", en: "Transform Options" },
             copyPaste: { ja: "コピー/ペースト", en: "Copy / Paste" },
             drawing: { ja: "描画", en: "Drawing" },
-            brightness: { ja: "明るさ", en: "Brightness" }
+            preferences: { ja: "環境設定", en: "Preferences" }
         },
         checkbox: {
             glyphBounds: { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
@@ -89,10 +93,12 @@ var SCRIPT_UPDATED  = "";                                 /* 更新日 / last up
             pastePreserve: { ja: "コピー元と同じレイヤーにペースト", en: "Paste into the original (source) layer" },
             realtimeDrawing: { ja: "リアルタイムの描画と編集を切り替え", en: "Toggle real-time drawing & editing" },
             refreshGpuPreview: { ja: "GPUプレビューを更新（再描画）", en: "Refresh the GPU preview (redraw)" },
-            brightness: { ja: "インターフェイスカラーは直接反映できないため、クリックで環境設定が開きます。矢印キー＋Return で確定してください", en: "Interface color can't be applied directly, so clicking opens Preferences. Confirm with the arrow keys + Return." }
+            brightness: { ja: "インターフェイスカラーは直接反映できないため、クリックで環境設定が開きます。矢印キー＋Return で確定してください", en: "Interface color can't be applied directly, so clicking opens Preferences. Confirm with the arrow keys + Return." },
+            openFileHandling: { ja: "環境設定（ファイル管理とクリップボード）を開く", en: "Open Preferences (File Handling & Clipboard)" }
         },
         button: {
-            refreshGpuPreview: { ja: "プレビュー更新", en: "Refresh Preview" }
+            refreshGpuPreview: { ja: "プレビュー更新", en: "Refresh Preview" },
+            openFileHandling: { ja: "ファイル管理を開く", en: "Open File Handling" }
         },
         brightness: {
             dark: { ja: "暗", en: "Dark" },
@@ -558,10 +564,10 @@ var SCRIPT_UPDATED  = "";                                 /* 更新日 / last up
         return best;
     }
 
-    /* 明るさパネルを構築：4段階のシェードを onDraw で自前描画するボタン。{setByValue} を返す */
-    /* Build the Brightness panel: four shade swatches drawn by onDraw. Returns {setByValue} */
-    function buildBrightnessPanel(parent) {
-        var panel = parent.add('panel', undefined, L('panel.brightness'));
+    /* 環境設定パネルを構築：UI明るさの4段階スウォッチ（onDraw で自前描画）＋「ファイル管理を開く」ボタン。{setByValue, openButton} を返す。openButton はレイアウト確定後の trimButtonHeight 用 */
+    /* Build the Preferences panel: four UI-brightness swatches (drawn by onDraw) + an "Open File Handling" button. Returns {setByValue, openButton}. openButton is for trimButtonHeight after layout */
+    function buildPreferencesPanel(parent) {
+        var panel = parent.add('panel', undefined, L('panel.preferences'));
         setupPanel(panel);
 
         var row = panel.add('group');
@@ -642,7 +648,20 @@ var SCRIPT_UPDATED  = "";                                 /* 更新日 / last up
             buttons.push(button);
         }
 
-        return { setByValue: setByValue };
+        /* 環境設定（ファイル管理）を開く。明るさスウォッチの下に左右中央で配置（上に5pxマージン）/ Open Preferences (File Handling); centered below the brightness swatches with a 5px top margin */
+        var openFileHandlingRow = panel.add('group');
+        openFileHandlingRow.orientation = 'row';
+        openFileHandlingRow.alignment = ['fill', 'top'];
+        openFileHandlingRow.alignChildren = ['center', 'top']; /* 左右中央 / Center horizontally */
+        openFileHandlingRow.margins = [0, 5, 0, 0];            /* 上に5pxのマージン / 5px top margin */
+        var btnOpenFileHandling = openFileHandlingRow.add('button', undefined, L('button.openFileHandling'));
+        btnOpenFileHandling.helpTip = L('tooltip.openFileHandling');
+        btnOpenFileHandling.onClick = function () {
+            /* FilePref = ファイル管理（2022以降）。旧「ファイル管理とクリップボード」は FileClipboardPref だが分割済み / FilePref = File Handling (2022+); the old unified "File Handling & Clipboard" was FileClipboardPref but has been split */
+            runInMainEngine('try{app.executeMenuCommand("FilePref");}catch(e){}');
+        };
+
+        return { setByValue: setByValue, openButton: btnOpenFileHandling };
     }
 
     // =========================================
@@ -716,8 +735,9 @@ var SCRIPT_UPDATED  = "";                                 /* 更新日 / last up
         var checkboxRealtime = drawingControls.realtime;
         var btnRefreshGpuPreview = drawingControls.refreshButton;
 
-        /* 明るさパネル（最下部）。4段階のUI明るさスウォッチ / Brightness panel (bottom); four UI-brightness swatches */
-        var brightnessControls = buildBrightnessPanel(mainGroup);
+        /* 環境設定パネル（最下部）。UI明るさの4段階スウォッチ＋ファイル管理を開くボタン / Preferences panel (bottom); four UI-brightness swatches + Open File Handling button */
+        var preferencesControls = buildPreferencesPanel(mainGroup);
+        var btnOpenFileHandling = preferencesControls.openButton;
 
 
         /* 読み出した環境設定を UI へ反映 / Apply fetched preferences to the UI */
@@ -742,7 +762,7 @@ var SCRIPT_UPDATED  = "";                                 /* 更新日 / last up
 
             /* UI明るさの選択スウォッチを現在値に同期 / Sync the selected brightness swatch to the current value */
             var uiBrightnessValue = parseFloat(prefValues['uiBrightness']);
-            if (!isNaN(uiBrightnessValue)) brightnessControls.setByValue(uiBrightnessValue);
+            if (!isNaN(uiBrightnessValue)) preferencesControls.setByValue(uiBrightnessValue);
 
             /* 単位ポップアップと数値表示を PREF_STATE に同期 / Sync the unit popup and value display to PREF_STATE */
             keyInput.syncDisplay();
@@ -769,6 +789,7 @@ var SCRIPT_UPDATED  = "";                                 /* 更新日 / last up
 
         /* ボタンの高さを4px詰める（レイアウト確定後に1回）/ Trim button heights by 4px (once, after layout) */
         trimButtonHeight(btnRefreshGpuPreview, 4);
+        trimButtonHeight(btnOpenFileHandling, 4);
     }
 
     main();
