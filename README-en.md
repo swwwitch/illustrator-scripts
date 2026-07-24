@@ -126,5 +126,6 @@ After release, we continue to fix bugs and make adjustments through daily use.
 
 ## Others
 
+- [Remove unneeded document elements in one pass](readme-en/AiDocumentCleaner.md)
 - [Create crop marks](readme-en/AddTrimMark.md)
 - [Filter and reselect objects by conditions](readme-en/SmartSelectionFilter.md)

@@ -144,6 +144,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 ## その他
 
+- [ドキュメントの不要な要素をまとめて削除](readme-ja/AiDocumentCleaner.md)
 - [トンボ作成](readme-ja/AddTrimMark.md)
 - [テキストの文字列でグラフィックスタイルを登録](readme-ja/RegisterGraphicStyleWithText.md)
 - [選択オブジェクトを条件で絞り込み再選択](readme-ja/SmartSelectionFilter.md)

@@ -16,19 +16,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - グループ/レイヤー
   - 空のグループ（通常／クリップ）を再帰削除（空になった親もカスケード削除）
   - 空のレイヤー／サブレイヤーを再帰削除（ガイドだけのレイヤーは残す。_guide / _pasteboard は保護。トップレベルは最低1つ残す）
+  - グループ／レイヤーの掃除は他の削除より後に実行（パスやオブジェクトの削除で空になった親も同じ実行で削除される）
 - ガイド（ラジオで1つ選択。既定は「削除しない」）
-  - ガイド：メニュー「ガイドを消去」で削除
+  - ロックされていないガイド：メニュー「ガイドを消去」で削除（ロックされたレイヤー上のガイドは残る）
   - すべてのガイド（強制）：レイヤーのロックも一時解除して全削除
-  - 現在のアートボードのみ残す：アクティブなアートボード上にないガイドを削除
+  - 現在のアートボード以外：アクティブなアートボード上にないガイドを削除
 - アートボード
-  - アートボード外／アクティブアートボード外のオブジェクト、空のアートボード（強制 ON ですべて。最低1つは残す）
-- 誤削除しやすい項目（非表示オブジェクト・リンク切れの配置画像・アートボード外／アクティブアートボード外）は初期 OFF。ガイドは既定「削除しない」
+  - アートボード外／アクティブなアートボード外のオブジェクト、空のアートボード（強制 ON ですべて。最低1つは残す）
+- 誤削除しやすい項目（非表示オブジェクト・リンク切れの配置画像・アートボード外／アクティブなアートボード外）は初期 OFF。ガイドは既定「削除しない」
 - 一時アクションは finally で必ず解放・削除
 - 種類ごとに削除件数を集計して表示（0件の種類は省略）
-
-### 紹介記事
-
-https://note.com/dtp_tranist/n/n0d70178f0f65
 
 ### Overview
 
@@ -43,10 +40,11 @@ A cleanup tool that removes unneeded elements from a document in one pass. Choos
 - Groups / Layers
   - Recursively removes empty groups (ordinary and clip; a parent that becomes empty is also removed)
   - Recursively removes empty layers and sublayers (guide-only layers are kept; _guide / _pasteboard are protected; at least one top-level layer remains)
+  - Group / layer cleanup runs after the other deletions, so a parent emptied by path/object removal is cleaned in the same pass
 - Guides (pick one radio option; default "Don't delete")
-  - Guides: remove via the Clear Guides menu command
+  - Guides on unlocked layers: remove via the Clear Guides menu command (guides on locked layers remain)
   - All guides (force): unlock layers temporarily and remove everything
-  - Keep only the active artboard's guides: remove guides not on the active artboard
+  - Outside the active artboard: remove guides not on the active artboard
 - Artboards
   - Objects outside all / the active artboard, and empty artboards (all in force mode; at least one is kept)
 - Deletion-prone options (hidden objects, broken-link placed images, objects outside all / the active artboard) start unchecked; guides default to "Don't delete"
@@ -59,10 +57,16 @@ A cleanup tool that removes unneeded elements from a document in one pass. Choos
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiDocumentCleaner";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-24";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiDocumentCleaner.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiDocumentCleaner.md
+var SCRIPT_ARTICLE_URL      = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -73,7 +77,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 
 /* パネルの余白と間隔 / Panel margins and spacing */
 var PANEL_MARGINS = [16, 20, 16, 12];
-var PANEL_SPACING = 8;
+var PANEL_SPACING = 12;
 
 /* システム管理レイヤー名（空でも削除しない）/ System-managed layer names (kept even when empty) */
 var PROTECTED_LAYER_NAMES = { "_guide": true, "_pasteboard": true };
@@ -96,7 +100,8 @@ function setupPanel(panel, spacing) {
 
 var ACTION_SET_NAME = "TemporaryActionSet";
 var ACTION_NAME = "TemporaryActionName";
-var ACTION_FILE_NAME = "~/TemporaryAction.aia";
+/* 一時ファイルはホーム直下ではなく OS の一時フォルダへ / Write the temp file to the OS temp folder, not the home directory */
+var ACTION_FILE_NAME = Folder.temp.fsName + "/AiDocumentCleaner_TemporaryAction.aia";
 
 /* パネルごとの録画値（internalName・Select All Unused 値・Delete 値・各ラベルの16進）/ Recorded per-panel values (internalName, Select All Unused value, Delete value, label hex) */
 var PRUNE_SPECS = {
@@ -139,7 +144,7 @@ var LABELS = {
         characterStyles: { ja: "文字スタイル", en: "Character styles" },
         strayPoints: { ja: "孤立点", en: "Stray points" },
         emptyText: { ja: "空のテキスト", en: "Empty text frames" },
-        noPaintPath: { ja: "塗りも線もないオブジェクト", en: "Objects with no fill or stroke" },
+        noPaintPath: { ja: "塗りも線もないパス", en: "Paths with no fill or stroke" },
         zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
         hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
         brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
@@ -147,9 +152,9 @@ var LABELS = {
         outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
         emptyGroup: { ja: "空のグループ", en: "Empty groups" },
         guidesNone: { ja: "削除しない", en: "Don't delete" },
-        clearGuides: { ja: "ガイド", en: "Guides" },
+        clearGuides: { ja: "ロックされていないガイド", en: "Guides on unlocked layers" },
         guides: { ja: "すべてのガイド（強制）", en: "All guides (force)" },
-        guidesOutsideActiveArtboard: { ja: "現在のアートボードのみ残す", en: "Keep only the active artboard's guides" },
+        guidesOutsideActiveArtboard: { ja: "現在のアートボード以外", en: "Outside the active artboard" },
         emptyLayer: { ja: "空のレイヤー／サブレイヤー", en: "Empty layers / sublayers" },
         artboards: { ja: "空のアートボード", en: "Empty artboards" },
         force: { ja: "使用中の項目も削除", en: "Delete items even if in use" }
@@ -167,16 +172,16 @@ var LABELS = {
         characterStyles: { ja: "文字スタイル", en: "Character styles" },
         strayPoints: { ja: "孤立点", en: "Stray points" },
         emptyText: { ja: "空のテキスト", en: "Empty text frames" },
-        noPaintPath: { ja: "塗りも線もないオブジェクト", en: "Objects with no fill or stroke" },
-        zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "0% opacity objects" },
+        noPaintPath: { ja: "塗りも線もないパス", en: "Paths with no fill or stroke" },
+        zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
         hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
         brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
         outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
-        outsideActiveArtboard: { ja: "アクティブアートボード外のオブジェクト", en: "Objects outside the active artboard" },
+        outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
         emptyGroup: { ja: "空のグループ", en: "Empty groups" },
-        clearGuides: { ja: "ガイド", en: "Guides" },
+        clearGuides: { ja: "ロックされていないガイド", en: "Guides on unlocked layers" },
         guides: { ja: "すべてのガイド（強制）", en: "All guides (force)" },
-        guidesOutsideActiveArtboard: { ja: "現在のアートボード外のガイド", en: "Guides outside the active artboard" },
+        guidesOutsideActiveArtboard: { ja: "現在のアートボード以外のガイド", en: "Guides outside the active artboard" },
         emptyLayer: { ja: "空のレイヤー／サブレイヤー", en: "Empty layers / sublayers" },
         artboards: { ja: "アートボード", en: "Artboards" }
     },
@@ -215,8 +220,8 @@ var LABELS = {
             en: "Removes paths with no fill and no stroke (invisible). Guides and clipping paths are excluded."
         },
         zeroOpacity: {
-            ja: "不透明度が0%（完全に透明）のオブジェクトを削除します。グループ内も対象です。",
-            en: "Removes objects at 0% opacity (fully transparent), including those inside groups."
+            ja: "不透明度が0%（完全に透明）の個々のオブジェクトを削除します（グループ内の項目も対象）。グループ自体に設定した不透明度0%は対象外です。",
+            en: "Removes individual objects at 0% opacity (fully transparent), including items inside groups. A group's own 0% opacity is not evaluated."
         },
         hiddenObjects: {
             ja: "非表示（隠した）オブジェクトを削除します。非表示グループはその中身ごと削除されます。",
@@ -267,8 +272,8 @@ var LABELS = {
             en: "Removes empty artboards with no artwork (keeps at least one). Force mode removes them all."
         },
         force: {
-            ja: "OFF では各パネルの「未使用を選択」で未使用のみ削除します。ON では保護対象・既定以外をすべて削除します。",
-            en: "When off, only unused items are pruned via each panel's Select All Unused. When on, everything but protected/default is removed."
+            ja: "OFF では各パネルの「未使用を選択」で未使用のみ削除します。ON では保護対象・既定以外をすべて削除し、段落・文字スタイルの削除も有効になり、アートボードは空でなくてもすべて削除します（最低1つは残す）。",
+            en: "When off, only unused items are pruned via each panel's Select All Unused. When on, everything but protected/default is removed, paragraph/character style removal is enabled, and artboards are removed even if not empty (at least one remains)."
         }
     }
 };
@@ -362,6 +367,17 @@ function L(path) {
         return keys;
     })(DIALOG_LAYOUT);
 
+    /* 空グループ・空レイヤーの掃除は最後に回す（他の削除で空になった親も同じ実行で消せるように）/ Run container cleanup last so parents emptied by other deletions are removed in the same pass */
+    var CONTAINER_CLEANUP_KEYS = { emptyGroup: true, emptyLayer: true };
+    var EXECUTION_KEYS = (function (keys) {
+        var head = [];
+        var tail = [];
+        for (var i = 0; i < keys.length; i++) {
+            (CONTAINER_CLEANUP_KEYS[keys[i]] ? tail : head).push(keys[i]);
+        }
+        return head.concat(tail);
+    })(ALL_KEYS);
+
     /* 削除対象を選ぶダイアログを表示 / Show the dialog for choosing what to delete */
     var dialogChoices = showDeleteDialog();
     if (!dialogChoices) {
@@ -370,10 +386,10 @@ function L(path) {
 
     var force = dialogChoices.force;
 
-    /* 選択された種類ごとに削除し、件数を集計 / Delete each selected type and tally the counts */
+    /* 選択された種類ごとに削除し、件数を集計（実行順は EXECUTION_KEYS）/ Delete each selected type and tally the counts (in EXECUTION_KEYS order) */
     var deletedCounts = {};
-    for (var i = 0; i < ALL_KEYS.length; i++) {
-        var key = ALL_KEYS[i];
+    for (var i = 0; i < EXECUTION_KEYS.length; i++) {
+        var key = EXECUTION_KEYS[i];
         if (dialogChoices[key]) {
             deletedCounts[key] = TARGET_RUNNERS[key](force);
         }
@@ -440,6 +456,17 @@ function L(path) {
 
             /* 強制オプションはグループに入れて対象パネル（パネル項目）の末尾に追加、上にマージン6 / The force option sits in a group at the bottom of its panel (panel items), with a 6px top margin */
             if (node.force) {
+                /* 使用中削除オプションの上に区切り線（上に余白+2）/ Divider above the force option, with a little (+2) space above it */
+                var dividerWrap = panel.add("group");
+                dividerWrap.orientation = "column";
+                dividerWrap.alignChildren = ["fill", "top"];
+                dividerWrap.alignment = ["fill", "top"];
+                dividerWrap.margins = [0, 2, 0, 0];
+                dividerWrap.spacing = 0;
+                var forceDivider = dividerWrap.add("panel");
+                forceDivider.alignment = ["fill", "top"];
+                forceDivider.minimumSize.height = forceDivider.maximumSize.height = 1;
+
                 var forceGroup = panel.add("group");
                 forceGroup.orientation = "column";
                 forceGroup.alignChildren = ["left", "top"];
@@ -628,12 +655,17 @@ function L(path) {
     // アートボードの空判定 / Artboard emptiness check
     // ==================================================
 
-    /* アートボード矩形にアートワークが載っているか判定 / Determine whether any artwork sits on the artboard rectangle */
+    /* アートボード矩形にアートワークが載っているか判定（ガイドは対象外）/ Determine whether any artwork sits on the artboard rectangle (guides are ignored) */
     function isArtboardEmpty(doc, artboardRect) {
         for (var i = 0; i < doc.pageItems.length; i++) {
+            var item = doc.pageItems[i];
             var bounds;
             try {
-                bounds = doc.pageItems[i].visibleBounds;
+                /* ガイドはアートワークとみなさない / Guides don't count as artwork */
+                if (item.typename === "PathItem" && item.guides) {
+                    continue;
+                }
+                bounds = item.visibleBounds;
             } catch (e) {
                 continue;
             }
@@ -787,15 +819,25 @@ function L(path) {
 
     /* 非表示オブジェクトを削除し、件数を返す（非表示グループは中身ごと）/ Remove hidden objects and return the count (hidden groups go with their contents) */
     function deleteHiddenObjects(doc) {
-        var removedCount = 0;
-        /* doc.pageItems はグループ内も含む平坦なコレクション。末尾から削除 / doc.pageItems is flat (includes nested); remove from the end */
-        for (var i = doc.pageItems.length - 1; i >= 0; i--) {
+        /* まず参照だけを収集（この間はコレクションを変更しない）。非表示グループを消すと子のインデックスがずれ、末尾からの走査でも取りこぼすため
+           Collect references first without mutating the collection; removing a hidden group shifts child indices, so even a reverse scan would skip items */
+        var targets = [];
+        var items = doc.pageItems;
+        for (var i = 0; i < items.length; i++) {
             try {
-                var item = doc.pageItems[i];
-                if (item.hidden) {
-                    item.remove();
-                    removedCount++;
+                if (items[i].hidden) {
+                    targets.push(items[i]);
                 }
+            } catch (e) {
+                /* 判定不可はスキップ / Skip items we can't test */
+            }
+        }
+
+        var removedCount = 0;
+        for (var j = 0; j < targets.length; j++) {
+            try {
+                targets[j].remove();
+                removedCount++;
             } catch (e) {
                 /* 親ごと削除済み、または削除不可 / Already removed with its parent, or not removable */
             }
@@ -844,10 +886,13 @@ function L(path) {
     function deleteObjectsOutsideRects(doc, rects) {
         var removedCount = 0;
 
-        /* トップレベル（レイヤー直下）のオブジェクトだけをスナップショット / Snapshot only top-level objects (direct children of a layer) */
+        /* トップレベル（レイヤー直下）のオブジェクトだけをスナップショット。ガイドは専用オプションで扱うため除外 / Snapshot only top-level objects (direct children of a layer); guides are excluded (handled by the dedicated guide option) */
         var topLevelItems = [];
         for (var i = 0; i < doc.pageItems.length; i++) {
             var candidate = doc.pageItems[i];
+            if (candidate.typename === "PathItem" && candidate.guides) {
+                continue;
+            }
             if (candidate.parent && candidate.parent.typename === "Layer") {
                 topLevelItems.push(candidate);
             }
@@ -885,6 +930,12 @@ function L(path) {
     /* コンテナ内を再帰的に探索し、空のグループを削除して件数を返す。子を先に掃除するので、空になった親も同じパスで削除できる / Recurse a container removing empty groups; children are cleaned first so a parent that becomes empty is removed in the same pass */
     function removeEmptyGroupsIn(container) {
         var removed = 0;
+        /* サブレイヤーの中身は layer.pageItems に含まれないため、先に再帰する / Sublayer contents aren't in layer.pageItems, so recurse into sublayers first */
+        if (container.typename === "Layer") {
+            for (var s = container.layers.length - 1; s >= 0; s--) {
+                removed += removeEmptyGroupsIn(container.layers[s]);
+            }
+        }
         /* 削除でインデックスがずれるため末尾から / Iterate from the end because removal shifts indices */
         for (var i = container.pageItems.length - 1; i >= 0; i--) {
             var item = container.pageItems[i];
