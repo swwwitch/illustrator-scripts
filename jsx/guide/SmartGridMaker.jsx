@@ -105,28 +105,22 @@ single dialog with preview.
   Layers panel is cleared.
 - Dialog values persist only while Illustrator is running.
 
-### Article (note, in Japanese)
-
-https://note.com/dtp_tranist/n/n2b01f896c423
-
-### GitHub
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/SmartGridMaker.jsx
-
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version（ダイアログタイトルに表示） */
+var SCRIPT_NAME     = "SmartGridMaker";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-26";                   /* 更新日 / last updated */
 
-// Masahiro Takano (@swwwitch)
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartGridMaker.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartGridMaker.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
