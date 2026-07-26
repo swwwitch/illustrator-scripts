@@ -61,7 +61,8 @@ The placement area can be the current artboard, the backmost object, or a rectan
 - Any existing "cell-background" layer is removed on launch, which clears the result of the previous run.
 - With Convert to Guides or Convert to Artboards, the cell color is fixed to No Fill.
 - Up to 100 rows and 100 columns, and up to 1000 cells. Nothing is drawn when the margin or gutter leaves no room for cells.
-- The preview does not use Undo; it restores the recorded centers instead. A single Undo after the run may therefore not revert everything.
+- Each preview redraw undoes the previous one, so changing settings does not keep growing Illustrator's edit history (your pre-run history is not pushed out). Anything Undo fails to revert is cleaned up by restoring the recorded centers and dropping the preview layer.
+- Besides Cancel, pressing Esc or closing the window also discards the preview and restores the original state.
 - With Keep as Rectangle, the cell rectangles are selected after clicking OK.
 - Values follow Illustrator's ruler unit setting.
 
@@ -71,6 +72,7 @@ The placement area can be the current artboard, the backmost object, or a rectan
 
 ## Changelog
 
+- v1.9.5 (2026-07-27): Preview rollback now uses app.undo(), so the edit history no longer grows on every change; whatever Undo cannot revert is cleaned up by restoring the centers and dropping the preview layer. Added cleanup on Esc and window close. Fixed Undo reverting the "_target" rectangle's visibility toggle instead of the preview when switching the placement area
 - v1.9.0 (2026-07-27): Made the preview independent of Undo (fixes objects changing when a button is clicked repeatedly), added input validation and limits, reorganized UI wording and tooltips
 - v1.8.0 (2026-04-30): Cell handling as radio buttons, placement separated from cell drawing, transparency grid state restored
 - v1.0.0 (2025-06-05): Initial version
