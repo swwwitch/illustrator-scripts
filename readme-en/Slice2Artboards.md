@@ -43,3 +43,5 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipM
 - v1.2 (20250710): Added shape variations and custom settings
 - v1.3 (20250710): Minor adjustments
 - v1.4 (20250710): Adjusted aspect ratio options
+- v1.5 (20260727): Removed the ineffective `app.undoGroup` assignment (Illustrator has no such property, so the run was never grouped into one undo step)
+- v1.6 (20260727): Removed the unused legacy offset helpers (`createOffsetEffectXML` / `applyOffsetPathToSelection`), which were never called and would have thrown on an out-of-scope reference (offsetting is still done by adjusting the rectangle bounds)

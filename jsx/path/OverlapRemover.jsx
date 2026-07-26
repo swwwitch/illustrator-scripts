@@ -3,229 +3,273 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-OverlapRemover.jsx
+- 選択オブジェクトに対して、重なりをならすためのメニューコマンドを順に実行します。
+- オフセットパス → グループ化 → パスファインダー：合流 → アピアランスを分割、の順で処理します。
+- オフセットパスで生成されたオブジェクトを元の選択と合わせて選び直すため、続くコマンドが意図した対象に効きます。
+- 日本語／英語インターフェースに対応します。
 
-### Readme （GitHub）：
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/OverlapRemover.md
-
-### 概要：
-
-- 更新日：2026-03-01
-- 選択オブジェクトに対して Illustrator のメニューコマンドを連続実行
-- オフセットパス → グループ化 → パスファインダー：合流 → 形状を拡張
-
-### 主な機能：
+### 主な機能
 
 - 選択オブジェクトのみを処理対象とする
-- オフセットパス実行後、元選択と新規生成物を結合して後続処理に引き渡し
-- 失敗時はアラートを表示して中断
-- 可能な環境では suspendHistory による単一 Undo ステップ化
+- オフセットパスの実行前後を比較し、新しく作られたオブジェクトを検出
+- 元の選択と新規オブジェクトを結合して後続のコマンドへ引き渡し
+- ロック中・非表示のオブジェクトは選択対象から除外
+- コマンドが失敗した場合はアラートを表示して中断
 
-### 更新履歴：
+### 処理の流れ
 
-- v1.0.0 (2026-03-01) : 初期バージョン
+1. 選択とドキュメント内のオブジェクトを記録する
+2. オフセットパスを実行する（ダイアログが開きます）
+3. 新しく作られたオブジェクトを検出し、元の選択と合わせて選択し直す
+4. グループ化 → パスファインダー：合流 → アピアランスを分割 を順に実行する
+
+### 注意
+
+- オフセットパスはダイアログを開くため、値の指定はユーザー操作になります。
+- Illustrator には取り消しをグループ化する API がないため、この処理の取り消しは複数ステップに分かれます。
 
 */
 
 /*
 
-### Script Name:
+### Overview
 
-OverlapRemover.jsx
+- Runs a sequence of menu commands against the current selection to flatten overlaps.
+- The order is Offset Path, Group, Pathfinder: Merge, then Expand Appearance.
+- The objects produced by Offset Path are reselected together with the original selection, so the following commands act on the intended set.
+- Japanese and English user interface.
 
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/OverlapRemover.md
-
-### Description:
-
-- Last Updated: 2026-03-01
-- Run a sequence of Illustrator menu commands against the current selection
-- Offset Path → Group → Pathfinder: Merge → Expand Shape
-
-### Main Features:
+### Main Features
 
 - Operates only on the current selection
-- After Offset Path, combines the original selection with newly created items for follow-up steps
-- Aborts with an alert on failure
-- Wraps the run in a single Undo step via suspendHistory when available
+- Detects newly created objects by comparing the document before and after Offset Path
+- Hands the union of the original selection and the new objects to the following commands
+- Skips locked and hidden objects when building the selection
+- Aborts with an alert when a command fails
 
-### Changelog:
+### Workflow
 
-- v1.0.0 (2026-03-01) : Initial version
+1. Record the selection and the objects in the document.
+2. Run Offset Path (this opens a dialog).
+3. Detect the newly created objects and reselect them together with the original selection.
+4. Run Group, Pathfinder: Merge, and Expand Appearance in order.
+
+### Notes
+
+- Offset Path opens a dialog, so the offset value is entered by the user.
+- Illustrator has no undo-grouping API, so undoing this run takes multiple steps.
 
 */
 
 // =========================================
-// バージョンとローカライズ / Version and localization
+// 基本情報 / Basic info
 // =========================================
+var SCRIPT_NAME     = "OverlapRemover";               /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
 
-var SCRIPT_VERSION = "v1.0.0";
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/OverlapRemover.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/OverlapRemover.md
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
-    if (app.documents.length === 0) {
-        alert('ドキュメントが開かれていません。');
-        return;
+
+    // =========================================
+    // ユーザー設定 / User configuration
+    // =========================================
+    var CONFIG = {
+        offsetPathCommand: "OffsetPath v22",        /* オフセットパス / Offset Path */
+        groupCommand: "group",                      /* グループ化 / Group */
+        mergeCommand: "Live Pathfinder Merge",      /* パスファインダー：合流 / Pathfinder: Merge */
+        expandCommand: "expandStyle"                /* アピアランスを分割 / Expand Appearance */
+    };
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /* 実行環境のロケールから表示言語を決める / Pick the UI language from the locale */
+    function getCurrentLang() {
+        return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    }
+    var currentLanguage = getCurrentLang();
+
+    var LABELS = {
+        message: {
+            noDocument: {
+                ja: "ドキュメントを開いてください。",
+                en: "Please open a document."
+            },
+            noSelection: {
+                ja: "オブジェクトを選択してから実行してください。",
+                en: "Please select an object before running this script."
+            },
+            commandFailed: {
+                ja: "メニューコマンドの実行に失敗しました：\n",
+                en: "Failed to run the menu command:\n"
+            }
+        }
+    };
+
+    /* ラベルをドット区切りのキーで引く / Look a label up by a dot-separated key */
+    function L(key) {
+        var parts = key.split(".");
+        var entry = LABELS;
+        for (var i = 0; i < parts.length; i++) {
+            if (!entry) return key;
+            entry = entry[parts[i]];
+        }
+        return (entry && entry[currentLanguage]) ? entry[currentLanguage] : key;
     }
 
-    var doc = app.activeDocument;
+    // =========================================
+    // オブジェクトの走査 / Item inspection
+    // =========================================
 
-    // selection check
-    if (!doc.selection || doc.selection.length === 0) {
-        alert('オブジェクトを選択してから実行してください。');
-        return;
-    }
-
-    function runMenu(cmd) {
+    /*
+     * 選択できるオブジェクトかを判定する。
+     * ロック中・非表示のほか、参照が失われたオブジェクトも除外する。
+     * Test whether an item can be selected: not locked, not hidden,
+     * and still a live reference.
+     */
+    function isSelectable(item) {
+        if (!item) return false;
         try {
-            app.executeMenuCommand(cmd);
-            return true;
+            return !item.locked && !item.hidden;
         } catch (e) {
-            alert('メニューコマンドの実行に失敗しました：\n' + cmd + '\n\n' + e);
             return false;
         }
     }
 
-    function snapshotPageItems() {
-        var arr = [];
-        // doc.pageItems includes many types; we store references to detect newly created items
-        for (var i = 0; i < doc.pageItems.length; i++) {
-            arr.push(doc.pageItems[i]);
-        }
-        return arr;
-    }
-
-    function refExists(arr, obj) {
-        for (var i = 0; i < arr.length; i++) {
-            if (arr[i] === obj) return true;
+    /* 配列に同一参照が含まれるかを判定する / Test whether the array already holds this exact reference */
+    function containsRef(items, target) {
+        for (var i = 0; i < items.length; i++) {
+            if (items[i] === target) return true;
         }
         return false;
     }
 
-    function diffNewItems(beforeArr, afterArr) {
-        var out = [];
-        for (var i = 0; i < afterArr.length; i++) {
-            var it = afterArr[i];
-            if (!refExists(beforeArr, it)) {
-                // Avoid selecting locked/hidden items when possible
-                try {
-                    if (it.locked) continue;
-                    if (it.hidden) continue;
-                } catch (_) { }
-                out.push(it);
-            }
+    /* ドキュメント内の全オブジェクトを記録する（新規生成物の検出用）/ Snapshot every page item, used to spot newly created ones */
+    function snapshotPageItems(doc) {
+        var items = [];
+        for (var i = 0; i < doc.pageItems.length; i++) {
+            items.push(doc.pageItems[i]);
         }
-        return out;
+        return items;
     }
 
-    function restoreSelectionSafe(items) {
-        var sel = [];
-        for (var i = 0; i < items.length; i++) {
-            var it = items[i];
-            try {
-                if (it.locked) continue;
-                if (it.hidden) continue;
-            } catch (_) { }
-            sel.push(it);
-        }
-        try {
-            doc.selection = sel;
-        } catch (_) {
-            // If assignment fails, fall back to whatever Illustrator keeps selected
-        }
-    }
-
-    function pushUnique(arr, item) {
-        for (var i = 0; i < arr.length; i++) {
-            if (arr[i] === item) return;
-        }
-        arr.push(item);
-    }
-
-    function unionSelectable(a, b) {
-        var out = [];
-        var i, it;
-        if (a && a.length) {
-            for (i = 0; i < a.length; i++) {
-                it = a[i];
-                if (!it) continue;
-                try {
-                    if (it.locked) continue;
-                    if (it.hidden) continue;
-                } catch (_) { }
-                pushUnique(out, it);
+    /* 記録に無く、かつ選択できるオブジェクトだけを取り出す / Collect the selectable items that were not in the snapshot */
+    function findNewItems(before, after) {
+        var items = [];
+        for (var i = 0; i < after.length; i++) {
+            if (!containsRef(before, after[i]) && isSelectable(after[i])) {
+                items.push(after[i]);
             }
         }
-        if (b && b.length) {
-            for (i = 0; i < b.length; i++) {
-                it = b[i];
-                if (!it) continue;
-                try {
-                    if (it.locked) continue;
-                    if (it.hidden) continue;
-                } catch (_) { }
-                pushUnique(out, it);
-            }
-        }
-        return out;
+        return items;
     }
 
-    function main() {
-        // Preserve original selection (references)
-        var originalSel = [];
-        try {
-            for (var i = 0; i < doc.selection.length; i++) originalSel.push(doc.selection[i]);
-        } catch (_) { }
-
-        // Snapshot existing items so we can detect Offset Path results
-        var beforeItems = snapshotPageItems();
-
-        // Offset Path (opens dialog)
-        if (!runMenu('OffsetPath v22')) return;
-
-        // If selection got lost/changed unexpectedly, try to fix it by selecting newly created items
-        var afterItems = snapshotPageItems();
-        var newItems = diffNewItems(beforeItems, afterItems);
-
-        // Goal: after Offset Path, keep BOTH the original selection and the newly created offset results selected
-        // so that subsequent Group / Pathfinder / Expand target the intended combined set.
-        if (newItems.length > 0) {
-            var unionSel = unionSelectable(originalSel, newItems);
-            if (unionSel.length > 0) {
-                restoreSelectionSafe(unionSel);
-            } else {
-                // Fallback: at least try selecting the new items
-                restoreSelectionSafe(newItems);
-            }
-        } else {
-            // No detectable new items (or diff failed). If nothing is selected, restore original selection.
-            try {
-                if (!doc.selection || doc.selection.length === 0) {
-                    restoreSelectionSafe(originalSel);
+    /* 複数の配列を、重複と選択不可を除いて1つにまとめる / Merge lists, dropping duplicates and unselectable items */
+    function unionSelectable(first, second) {
+        var items = [];
+        var lists = [first, second];
+        for (var i = 0; i < lists.length; i++) {
+            var list = lists[i];
+            if (!list) continue;
+            for (var j = 0; j < list.length; j++) {
+                if (isSelectable(list[j]) && !containsRef(items, list[j])) {
+                    items.push(list[j]);
                 }
-            } catch (_) {
-                restoreSelectionSafe(originalSel);
             }
         }
-
-        // Group
-        if (!runMenu('group')) return;
-
-        // Live Pathfinder Merge
-        if (!runMenu('Live Pathfinder Merge')) return;
-
-        // Expand Appearance / Expand Style
-        if (!runMenu('expandStyle')) return;
+        return items;
     }
 
-    // Run as a single undo step where possible (AI version dependent)
-    if (doc && typeof doc.suspendHistory === 'function') {
-        doc.suspendHistory('MenuCommandBatch', 'main()');
+    // =========================================
+    // 選択とコマンド / Selection and commands
+    // =========================================
+
+    /* 選択オブジェクトを配列に写し取る（selection は操作で変化するため）/ Copy the selection into a plain array, since selection changes as we work */
+    function captureSelection(doc) {
+        var items = [];
+        var selection = doc.selection;
+        if (!selection || !selection.length) return items;
+        for (var i = 0; i < selection.length; i++) {
+            items.push(selection[i]);
+        }
+        return items;
+    }
+
+    /* 選択できるものだけを選択状態にする / Select only the items that can be selected */
+    function setSelection(doc, items) {
+        var selectable = unionSelectable(items, null);
+        try {
+            doc.selection = selectable.length > 0 ? selectable : null;
+        } catch (e) {
+            // Illustrator が選択を拒む場合は現在の選択のままにする / Keep whatever stays selected
+        }
+    }
+
+    /* メニューコマンドを実行し、失敗したらアラートを出す / Run a menu command, alerting on failure */
+    function runMenu(command) {
+        try {
+            app.executeMenuCommand(command);
+            return true;
+        } catch (e) {
+            alert(L("message.commandFailed") + command + "\n\n" + e);
+            return false;
+        }
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /*
+     * オフセットパスの結果を元の選択と合わせて選び直す。
+     * 新規オブジェクトが検出できなかった場合は、選択が空のときだけ元へ戻す。
+     * Reselect the Offset Path results together with the original selection.
+     * When nothing new is detected, restore the original selection only if the selection went empty.
+     */
+    function reselectAfterOffset(doc, originalSelection, newItems) {
+        if (newItems.length > 0) {
+            setSelection(doc, unionSelectable(originalSelection, newItems));
+            return;
+        }
+        if (!doc.selection || doc.selection.length === 0) {
+            setSelection(doc, originalSelection);
+        }
+    }
+
+    /* コマンドを順に実行して重なりをならす / Run the command sequence that flattens the overlaps */
+    function main() {
+        var doc = app.activeDocument;
+        var originalSelection = captureSelection(doc);
+
+        /* オフセットパスの前後を比較して、新しく作られたオブジェクトを見つける / Compare before and after to spot the new objects */
+        var before = snapshotPageItems(doc);
+        if (!runMenu(CONFIG.offsetPathCommand)) return;
+        reselectAfterOffset(doc, originalSelection, findNewItems(before, snapshotPageItems(doc)));
+
+        if (!runMenu(CONFIG.groupCommand)) return;
+        if (!runMenu(CONFIG.mergeCommand)) return;
+        runMenu(CONFIG.expandCommand);
+    }
+
+    if (app.documents.length === 0) {
+        alert(L("message.noDocument"));
+    } else if (!app.activeDocument.selection || app.activeDocument.selection.length === 0) {
+        alert(L("message.noSelection"));
     } else {
-        // Fallback for environments/versions without suspendHistory
         main();
     }
+
 })();
