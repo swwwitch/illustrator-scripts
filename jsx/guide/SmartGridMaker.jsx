@@ -6,84 +6,50 @@
 ### 概要
 
 長方形の選択、またはアートボードを基準に、囲み罫とグリッドを一括生成するスクリプトです。
-外側エリア（辺の伸縮・線端・角丸）、タイトルエリア、内側エリアのオフセット、
-列／行の分割と間隔、塗り・分割線・線種、裁ち落とし対応のフレームを、
-プレビューを見ながら1つのダイアログで設定します。
+外側エリア（角丸・辺の伸縮・線端）、タイトルエリア、内側エリアのオフセットと分割、
+塗り・分割線・線種、裁ち落とし対応のフレームを、プレビューを見ながら1つのダイアログで設定します。
 
 ### 主な機能
 
 - 基準の選択
   - 長方形を選択して実行、または選択なしでアートボード基準
   - アートボード基準時はマージン指定（上下左右・連動）
+- ダイアログは4タブ構成
+  - ［マージン］（マージン／フレーム）／［外側エリア］（外側エリア／タイトルエリア）
+    ／［内側エリア］／［画面表示］
 - 外側エリア
   - 外枠を残す／角丸／辺の伸縮／線端（なし・丸型・突出）
+  - 角丸と辺の伸縮は排他。一方をONにすると他方が自動でOFFになります
+  - 線端は4辺に分解するとき（外枠を残す＋辺の伸縮≠0）だけ指定できます
 - タイトルエリア
-  - 位置（上・下・左・右）、幅／高さ、塗り、線、辺の伸縮
+  - 位置（上・下・左・右）、幅／高さ、塗り、線（仕切り線）、辺の伸縮
   - 角丸は外側エリアの［角丸］値を、位置に応じた2角だけに適用
+  - 有効にしたとき、幅／高さの初期値は外側エリア高の1/5
 - 内側エリア
-  - オフセット（上下左右・連動）、列数／行数、間隔、塗り、分割線
+  - オフセット（上下左右・連動）、列数／行数、間隔（ガター）、塗り、分割線
   - 線種（実線・点線・ドット点線）
+  - 分割線は列または行が2以上のときだけ指定できます
 - フレーム
-  - 裁ち落とし（3mm）対応。アートボード基準時のみ
+  - 幅・裁ち落とし（3mm）・角丸。アートボード基準時のみ
 - 画面表示タブ
-  - ズームとパン、表示コマンド（アートボード全体表示・100%表示・全アートボード全体表示）
+  - ズームとパン（Option/Altドラッグで1/10の微調整）
+  - 表示コマンド（アートボード全体表示・100%表示・全アートボード全体表示）
+- 入力欄は↑↓キーで増減（Shiftで±10かつ10の倍数にスナップ、Option/Altで±0.1）
 - プレビュー付きダイアログ
 - 日英ローカライズ対応UI
 
 ### 仕様・注意
 
 - 数値はIllustratorの定規単位（rulerType）で入力します。
-- 長方形を選択して開始した場合、マージンpanelとフレームpanelは非表示になります。
+- 長方形を選択して開始した場合、［マージン］タブ全体（マージン・フレーム）が非表示になります。
 - 裁ち落としはフレームにのみ適用し、基準矩形には適用しません。
 - ［辺の伸縮］は外側エリア・タイトルエリアとも同じ向きです（＋で長く／−で短く）。
   タイトル側は内部で符号を反転し、仕切り線の「両端の詰め量」として扱っています。
-- 外側エリアの［角丸］をONにすると［辺の伸縮］は自動でOFFになります（同時には使えません）。
+- 辺の伸縮が0以外のときは外枠を4辺の直線に分解し、元の長方形（アートボード基準の一時矩形を含む）は削除します。
 - 内側エリアの［塗り］とフレームの［裁ち落とし］は手動操作を優先し、自動ONを抑制します。
+- 実行後は選択を解除します。生成物に付けた内部タグはnoteにのみ残し、
+  レイヤーパネルに出る名前はクリアします。
 - ダイアログの値はIllustratorの起動中のみ保持し、再起動でリセットされます。
-
-### 更新履歴
-
-- v1.6.0 (2026-07-26)
-  - 辺の伸縮≠0のとき、アートボード基準の一時矩形が非表示のまま残り実行ごとに蓄積する不具合を修正
-  - セッション復元時にタイトルの［線］OFFが自動ONで上書きされる不具合を修正
-  - ［辺の伸縮］の正負に関する注記がコードと逆だったのを修正（実挙動は＋で長く／−で短く）
-  - 外側エリアパネルを［角丸］→［辺の伸縮］の順に変更
-  - ［角丸］ONで［辺の伸縮］を自動OFF（角丸は辺の伸縮OFF時のみ有効なため）
-  - 辺の伸縮が負の値のとき後処理がスキップされ、元の長方形が非表示のまま残る不具合を修正
-  - 裁ち落としの状態が1描画分遅れて反映される不具合を修正
-  - タイトル帯の仕切り線がアクティブレイヤーに作られる不具合を修正
-  - ［外枠を残す］OFF時にアートボード基準の矩形が残る条件の不整合を修正
-  - 線端パネルの有効／無効を二重に制御していた箇所を一本化
-  - 未使用だった定数・ラベル・到達不能なコードを削除し、設定値の二重管理を解消
-  - createInnerArea / createFrameFill / collectOptions を役割ごとに分割
-  - セッションの保存と復元で二重に持っていた項目一覧を1つの定義表に統合
-  - マージンと内側オフセットの3段組UIを共通ビルダー（buildLinkedQuadUI）に統合
-  - 列／行パネル、ViewControlの3本のスライダー行を共通化
-  - タイトル位置による4分岐3箇所を calcTitleAreaLayout に集約
-  - タイトル／フレームのパネル構築をビルダー関数に切り出し、組み立て順を1箇所に集約
-  - 例外を投げない箇所の try を削減（80→55）
-  - 変数・関数・パネル名を実状に合わせて改名
-    - 実状と違っていたもの：innerCapPanel→innerLineTypePanel（線種パネル）、
-      chkRowFill／chkRowDivider→chkInnerFill／chkInnerDivider（列にも効くため）、
-      createShortenedLines→createOuterEdgeLines（伸ばす場合もあるため）
-    - 曖昧だったもの：editVal→editOuterEdgeScale、chkEnableLen→chkOuterEdgeScale、
-      distPt→outerEdgeScalePt、titleDistPt→titleDividerInsetPt、makeGrayFill→makeGrayColor
-    - 位置由来だったタブ名を役割ベースに：tabLeft／tabMid／tabRight→tabMargin／tabOuter／tabInner
-    - 短すぎたもの：vc→viewControl、win→dialog、k→handleLength、rr→radius、pts→cornerPoints ほか
-    - i / j はループカウンタ、dx / dy は座標差分、doc と L() はリポジトリ共通の慣用として据え置き
-  - 生成物の内部タグ名をレイヤーパネルに出さないよう変更
-  - ShowExternalJSXWarning の書き換え（ユーザー環境設定の変更）を削除
-
-- v1.5.0 (2026-07-26)
-  - 二重定義だったプレビュー処理を、計算（collectOptions）→生成（generateFromOptions）→描画に一本化
-  - 未使用だった角丸ヘルパー（roundAnyCorner 依存）を削除
-  - タグ付け・塗り生成・分割線生成などの重複処理を共通関数に集約
-  - セッション復元をテーブル定義に整理
-  - LABELSをカテゴリ別の入れ子構造に変更し、L()をドットパス参照に変更
-  - 日本語・英語READMEを追加し、基本情報からリンク
-
-- v1.0.0 (2026-02-24)
-  - 初期バージョン
 
 */
 
@@ -92,90 +58,75 @@
 ### Overview
 
 Builds a frame and grid in one pass, based on a selected rectangle or on the artboard.
-Outer area (edge scale, line caps, rounded corners), title area, inner area offsets,
-column and row divisions with spacing, fills, dividers, line types and a bleed-aware
-frame are all configured in a single dialog with preview.
+Outer area (rounded corners, edge scale, line caps), title area, inner area offsets and
+divisions, fills, dividers, line types and a bleed-aware frame are all configured in a
+single dialog with preview.
 
 ### Key features
 
 - Base object
   - Start from a selected rectangle, or from the artboard with nothing selected
   - Margins (top / bottom / left / right, with link) when based on the artboard
+- Four tabs
+  - Margin (margin / frame), Outer Area (outer / title), Inner Area, Display
 - Outer area
   - Keep outer frame / rounded corners / edge scale / line caps (butt, round, project)
+  - The radius and the edge scale are mutually exclusive: enabling one turns the other off
+  - Line caps apply only while the outline is split into four lines
+    (keep outer frame plus a non-zero edge scale)
 - Title area
-  - Position (top, bottom, left, right), size, fill, line, edge scale
+  - Position (top, bottom, left, right), size, fill, divider line, edge scale
   - Rounded corners reuse the outer area radius on the two matching corners
+  - When enabled, the size defaults to one fifth of the outer area height
 - Inner area
-  - Offsets (top, bottom, left, right, with link), columns and rows, spacing, fill, dividers
+  - Offsets (top, bottom, left, right, with link), columns and rows, gutters, fill, dividers
   - Line types (solid, dash, dots)
+  - Dividers are available only with two or more columns or rows
 - Frame
-  - Bleed (3mm) support, artboard-based runs only
+  - Width, bleed (3mm) and rounded corners; artboard-based runs only
 - Display tab
-  - Pan and zoom, plus view commands (Fit Artboard, Actual Size, Fit All)
+  - Pan and zoom (hold Option/Alt while dragging for one tenth speed)
+  - View commands (Fit Artboard, Actual Size, Fit All)
+- Arrow keys step every numeric field (Shift for +/-10 snapped to tens, Option/Alt for +/-0.1)
 - Dialog with preview
 - Localized UI (Japanese / English)
 
 ### Notes
 
 - Values are entered in Illustrator's ruler unit (rulerType).
-- Starting from a selected rectangle hides the margin and frame panels.
+- Starting from a selected rectangle hides the whole Margin tab (margin and frame).
 - Bleed applies to the frame only, never to the base rectangle.
 - The edge scale runs the same way in the outer and title areas: positive lengthens, negative shortens.
   Internally the title value is negated and used as the inset at both ends of the divider.
-- Enabling the outer rounded corners turns the edge scale off; the two cannot be combined.
+- A non-zero edge scale splits the outline into four lines and removes the original rectangle,
+  including the temporary artboard-based one.
 - The inner area fill and the frame bleed honour manual input and suppress the auto-on rules.
+- The selection is cleared after a run. Internal tags stay in note only; the name shown in the
+  Layers panel is cleared.
 - Dialog values persist only while Illustrator is running.
 
-### Changelog
+### Article (note, in Japanese)
 
-- v1.6.0 (2026-07-26)
-  - Fixed the artboard base rectangle being left hidden (and accumulating) when the edge scale is non-zero
-  - Fixed a saved title line = off being overwritten by the auto-on rule on restore
-  - Corrected the edge-scale sign note, which was the reverse of the actual behaviour
-  - Reordered the outer area panel to rounded corners, then edge scale
-  - Enabling the radius now turns the edge scale off (the radius only applies with it off)
-  - Fixed post-processing being skipped for a negative edge scale, which left the base rectangle hidden
-  - Fixed the bleed state lagging one render behind
-  - Fixed the title divider being created on the active layer instead of the target's layer
-  - Fixed the inconsistent condition that kept the artboard rectangle with the outer frame off
-  - Removed the duplicated writer of the line caps panel state
-  - Removed unused constants, labels and unreachable code; ended the duplicated config values
-  - Split createInnerArea / createFrameFill / collectOptions by responsibility
-  - Merged the duplicated save/restore field lists into one shared table
-  - Unified the margin and inner-offset three-row UI into buildLinkedQuadUI
-  - Shared the column/row panel builder and the three ViewControl slider rows
-  - Collapsed three title-position branches into calcTitleAreaLayout
-  - Moved the title and frame panels into builders; all builders are called in one place
-  - Reduced try blocks that guarded code which cannot throw (80 to 55)
-  - Renamed variables, functions and panels to match what they actually are
-    - Wrong before: innerCapPanel to innerLineTypePanel (it is the line-type panel),
-      chkRowFill / chkRowDivider to chkInnerFill / chkInnerDivider (they affect columns too),
-      createShortenedLines to createOuterEdgeLines (it can also lengthen)
-    - Vague before: editVal to editOuterEdgeScale, chkEnableLen to chkOuterEdgeScale,
-      distPt to outerEdgeScalePt, titleDistPt to titleDividerInsetPt, makeGrayFill to makeGrayColor
-    - Positional tab names are now role based: tabLeft / tabMid / tabRight to tabMargin / tabOuter / tabInner
-    - Too short before: vc to viewControl, win to dialog, k to handleLength, rr to radius, pts to cornerPoints
-    - Kept: i / j as loop counters, dx / dy as coordinate deltas, and doc and L() as repo-wide idioms
-  - Internal tag names are no longer shown in the Layers panel
-  - Dropped the ShowExternalJSXWarning preference write
+https://note.com/dtp_tranist/n/n2b01f896c423
+
+### GitHub
+
+https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/SmartGridMaker.jsx
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "SmartGridMaker";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version（ダイアログタイトルに表示） */
 var SCRIPT_RELEASED = "2026-02-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-26";                   /* 更新日 / last updated */
 
+// Masahiro Takano (@swwwitch)
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartGridMaker.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartGridMaker.md
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -213,7 +164,9 @@ var UI_CONFIG = {
     viewLabelWidth: 58,       /* 画面表示タブのラベル幅 / label width in the Display tab */
     viewSliderWidth: 200,     /* 画面表示タブのスライダー幅 / slider width in the Display tab */
     viewButtonWidth: 190,     /* 表示コマンドボタンの幅 / view command button width */
-    viewButtonHeight: 22      /* 表示コマンドボタンの高さ / view command button height */
+    viewButtonHeight: 22,     /* 表示コマンドボタンの高さ / view command button height */
+    toggleCheckboxWidth: 20   /* ラベルなしチェックボックスの幅（空文字ぶんの余白を抑える）
+                                 width of the label-less checkboxes, to drop the phantom text space */
 };
 
 // =========================================
@@ -274,6 +227,8 @@ var LABELS = {
         right: { ja: "右", en: "Right" }
     },
     field: {
+        width: { ja: "幅", en: "Width" },
+        titleSize: { ja: "幅／高さ", en: "Size" },
         columnCount: { ja: "列数", en: "Count" },
         rowCount: { ja: "行数", en: "Count" },
         spacing: { ja: "間隔", en: "Spacing" }
@@ -288,10 +243,15 @@ var LABELS = {
         fitIn: { ja: "アートボード全体表示", en: "Fit Artboard" },
         actualSize: { ja: "100%表示", en: "Actual Size" },
         fitAll: { ja: "全アートボード全体表示", en: "Fit All" },
+        zoomOut10: { ja: "10%縮小", en: "Zoom Out 10%" },
         cancel: { ja: "キャンセル", en: "Cancel" },
         ok: { ja: "実行", en: "OK" }
     }
 };
+
+/* 入力欄の前に置く項目名の区切り記号（日本語は全角コロン）
+   Separator appended to a field label placed before its input */
+var FIELD_LABEL_SEPARATOR = (lang === "ja") ? "：" : ":";
 
 /* ドット区切りのパスでLABELSから文言を取得 / Look up a label by dot-separated path */
 function L(labelPath) {
@@ -306,6 +266,18 @@ function L(labelPath) {
     if (labelNode[lang] != null) return labelNode[lang];
     if (labelNode.ja != null) return labelNode.ja;
     return labelPath;
+}
+
+/**
+ * 入力欄の前に置く項目名を、区切り記号付きで取得します。
+ *
+ * チェックボックス・ラジオボタン・パネル名には付けません（項目名ではないため）。
+ *
+ * @param {string} labelPath - LABELS のドット区切りパス。
+ * @returns {string} 区切り記号を付けた文言。
+ */
+function fieldLabel(labelPath) {
+    return L(labelPath) + FIELD_LABEL_SEPARATOR;
 }
 
 // =========================================
@@ -551,6 +523,36 @@ var ViewControl = (function () {
                 clampedPercent = clamp(Math.round(clampedPercent), zoomMin, zoomMax);
                 viewControl.view.zoom = clampZoomFactor(clampedPercent / 100.0);
                 viewControl.applyCenter(); // keep pan
+                syncZoomSlider();
+            } catch (_) { }
+        };
+
+        /* ズームスライダーを現在の表示倍率に追従させる
+           Keep the zoom slider in step with the current view */
+        function syncZoomSlider() {
+            try {
+                if (!viewControl.zoomSlider || !viewControl.view) return;
+                viewControl.zoomSlider.value = Math.round(Number(viewControl.view.zoom) * 100);
+            } catch (_) { }
+        }
+
+        /**
+         * 現在の表示倍率を指定の倍率で変更します（0.9 なら10%縮小）。
+         *
+         * @param {number} factor - 掛ける倍率。
+         * @returns {void}
+         */
+        viewControl.zoomBy = function (factor) {
+            try {
+                if (!viewControl.view) return;
+
+                var currentZoom = Number(viewControl.view.zoom);
+                var scale = Number(factor);
+                if (isNaN(currentZoom) || !(currentZoom > 0) || isNaN(scale) || !(scale > 0)) return;
+
+                viewControl.view.zoom = clampZoomFactor(currentZoom * scale);
+                viewControl.applyCenter(); // keep pan
+                syncZoomSlider();
             } catch (_) { }
         };
 
@@ -589,10 +591,14 @@ var ViewControl = (function () {
             var zoomMin = (typeof options.zoomMin === "number") ? options.zoomMin : 10;
             var zoomMax = (typeof options.zoomMax === "number") ? options.zoomMax : 1600;
 
+            /* 項目名の区切り記号（ViewControl 単体で使えるようロケールは内部で判定）
+               Field label separator, resolved locally so ViewControl stays self-contained */
+            var separator = ($.locale && $.locale.indexOf("ja") === 0) ? "：" : ":";
+
             // labels (prefer L())
-            var labelZoom = viewControl.localize("view.zoom", "ズーム");
-            var labelPanX = viewControl.localize("view.panLR", "左右");
-            var labelPanY = viewControl.localize("view.panUD", "上下");
+            var labelZoom = viewControl.localize("view.zoom", "ズーム") + separator;
+            var labelPanX = viewControl.localize("view.panLR", "左右") + separator;
+            var labelPanY = viewControl.localize("view.panUD", "上下") + separator;
 
             // initial zoom percent from the current view
             var initialZoomPercent = 100;
@@ -901,6 +907,21 @@ function clearTagNames(items) {
     var tempPreviewItems = [];
 
     /**
+     * 生成した一時オブジェクトを追跡リストに登録して返します。
+     *
+     * 生成した直後に登録するのが重要です。見た目の設定などで例外が起きても、
+     * すでに登録済みならプレビュー解除時に必ず削除できます
+     * （登録前に中断すると、消せないオブジェクトがドキュメントに残ります）。
+     *
+     * @param {PageItem} item - 登録するオブジェクト。
+     * @returns {PageItem} 受け取ったオブジェクトをそのまま返します。
+     */
+    function trackTempItem(item) {
+        tempPreviewItems.push(item);
+        return item;
+    }
+
+    /**
      * 長方形の指定した2角だけを角丸にします（同じパスを書き換えます）。
      *
      * @param {PathItem} rect - 対象の長方形（閉じたパス）。
@@ -1181,7 +1202,7 @@ function clearTagNames(items) {
     var getTitlePosKey, maybeApplyTitleAreaRound;
 
     // --- Frame UI handles ---
-    var framePanel;
+    var framePanel, frameWidthGroup;
     var chkFrameEnable, editFrameWidth, chkBleed, chkFrameRound, editFrameRound;
     var applyFrameEnabledState;
 
@@ -1223,7 +1244,7 @@ function clearTagNames(items) {
             var group = row.add("group");
             group.orientation = "row";
             group.alignChildren = ["left", "center"];
-            group.add("statictext", undefined, L("position." + posKey));
+            group.add("statictext", undefined, fieldLabel("position." + posKey));
 
             var field = group.add("edittext", undefined, options.value);
             field.characters = options.characters;
@@ -1290,12 +1311,12 @@ function clearTagNames(items) {
         row.orientation = "row";
         row.alignChildren = ["left", "center"];
 
-        row.add("statictext", undefined, L(countPath));
+        row.add("statictext", undefined, fieldLabel(countPath));
         var count = row.add("edittext", undefined, "1");
         count.characters = 3;
         changeValueByArrowKey(count, false);
 
-        row.add("statictext", undefined, L("field.spacing"));
+        row.add("statictext", undefined, fieldLabel("field.spacing"));
         var gutter = row.add("edittext", undefined, "0");
         gutter.characters = 4;
         changeValueByArrowKey(gutter, false);
@@ -1418,8 +1439,8 @@ function clearTagNames(items) {
                 var radius = parseFloat(editOuterRound.text);
                 if (isNaN(radius) || radius === 0) editOuterRound.text = GRID_CONFIG.defaultRound;
 
-                /* 角丸は辺の伸縮OFFのときだけ外側エリアに効くため、辺の伸縮を自動でOFFにする
-                   The radius only applies while the edge scale is off, so turn the edge scale off */
+                /* 角丸と辺の伸縮は同時に使えないので、ONにした側を残して他方をOFFにする
+                   The radius and the edge scale cannot be combined, so turning one on turns the other off */
                 chkOuterEdgeScale.value = false;
             }
 
@@ -1611,16 +1632,22 @@ function clearTagNames(items) {
         var titleEnableRow = titlePanel.add("group");
         titleEnableRow.orientation = "row";
         titleEnableRow.alignChildren = ["left", "center"];
+        titleEnableRow.spacing = 0;
 
         chkTitleEnable = titleEnableRow.add("checkbox", undefined, "");
         chkTitleEnable.value = false; // デフォルトOFF
+        /* ラベルがないので、空文字ぶんの幅が入らないよう抑える
+           No label, so cap the width to avoid the phantom text space */
+        try { chkTitleEnable.preferredSize.width = UI_CONFIG.toggleCheckboxWidth; } catch (_) { }
 
         // 幅／高さ（有効チェックの右側）
         titleSizeGroup = titleEnableRow.add("group");
         titleSizeGroup.orientation = "row";
         titleSizeGroup.alignChildren = ["left", "center"];
+        titleSizeGroup.margins = 0;
+        titleSizeGroup.spacing = 4;
 
-        // titleSizeGroup.add("statictext", undefined, L("field.titleSize"));
+        titleSizeGroup.add("statictext", undefined, fieldLabel("field.titleSize"));
         editTitleSize = titleSizeGroup.add("edittext", undefined, "0");
         editTitleSize.characters = 4;
         titleSizeGroup.add("statictext", undefined, getCurrentRulerUnitLabel());
@@ -1783,9 +1810,13 @@ function clearTagNames(items) {
         var frameRow = framePanel.add("group");
         frameRow.orientation = "row";
         frameRow.alignChildren = ["left", "center"];
+        frameRow.spacing = 0;
 
         chkFrameEnable = frameRow.add("checkbox", undefined, "");
         chkFrameEnable.value = false; /* デフォルトOFF / off by default */
+        /* ラベルがないので、空文字ぶんの幅が入らないよう抑える
+           No label, so cap the width to avoid the phantom text space */
+        try { chkFrameEnable.preferredSize.width = UI_CONFIG.toggleCheckboxWidth; } catch (_) { }
 
         chkFrameEnable.onClick = function () {
             if (chkFrameEnable.value) {
@@ -1800,9 +1831,18 @@ function clearTagNames(items) {
             requestPreview();
         };
 
-        editFrameWidth = frameRow.add("edittext", undefined, "0");
+        /* 幅（ラベル・入力欄・単位をまとめてディム表示できるようグループ化）
+           Width; grouped so the label, field and unit dim together */
+        frameWidthGroup = frameRow.add("group");
+        frameWidthGroup.orientation = "row";
+        frameWidthGroup.alignChildren = ["left", "center"];
+        frameWidthGroup.margins = 0;
+        frameWidthGroup.spacing = 4;
+
+        frameWidthGroup.add("statictext", undefined, fieldLabel("field.width"));
+        editFrameWidth = frameWidthGroup.add("edittext", undefined, "0");
         editFrameWidth.characters = 4;
-        frameRow.add("statictext", undefined, getCurrentRulerUnitLabel());
+        frameWidthGroup.add("statictext", undefined, getCurrentRulerUnitLabel());
         changeValueByArrowKey(editFrameWidth, false);
 
         /**
@@ -1824,7 +1864,7 @@ function clearTagNames(items) {
                 editFrameWidth.text = "0";
                 editFrameRound.text = "0";
 
-                editFrameWidth.enabled = false;
+                frameWidthGroup.enabled = false;
                 chkBleed.enabled = false;
                 chkFrameRound.enabled = false;
                 editFrameRound.enabled = false;
@@ -1832,7 +1872,7 @@ function clearTagNames(items) {
             }
 
             var enabled = !!chkFrameEnable.value;
-            editFrameWidth.enabled = enabled;
+            frameWidthGroup.enabled = enabled;
             if (!enabled) editFrameWidth.text = "0";
 
             var width = parseFloat(editFrameWidth.text);
@@ -1931,11 +1971,16 @@ function clearTagNames(items) {
         viewCommandGroup.alignment = ["fill", "top"];
         viewCommandGroup.spacing = 6;
 
-        /* 表示コマンド [ラベル, メニューコマンド] / View commands: [label, menu command] */
+        /* 表示コマンド [ラベル, 実行する処理] / View commands: [label, action] */
         var commands = [
-            [L("button.fitIn"), "fitin"],
-            [L("button.actualSize"), "actualsize"],
-            [L("button.fitAll"), "fitall"]
+            [L("button.fitIn"), runMenuCommand("fitin")],
+            [L("button.actualSize"), runMenuCommand("actualsize")],
+            [L("button.fitAll"), runMenuCommand("fitall")],
+            [L("button.zoomOut10"), function () {
+                /* 現在の表示倍率を10%縮小（スライダーも追従）
+                   Shrink the current zoom by 10%; the slider follows */
+                if (viewCtl && typeof viewCtl.zoomBy === "function") viewCtl.zoomBy(0.9);
+            }]
         ];
 
         for (var i = 0; i < commands.length; i++) {
@@ -1944,14 +1989,26 @@ function clearTagNames(items) {
     }
 
     /**
+     * メニューコマンドを実行する処理を作って返します。
+     *
+     * @param {string} menuCommand - 実行するメニューコマンド名。
+     * @returns {Function} クリック時に実行する処理。
+     */
+    function runMenuCommand(menuCommand) {
+        return function () {
+            try { app.executeMenuCommand(menuCommand); } catch (_) { }
+        };
+    }
+
+    /**
      * 表示コマンド用の小さめボタンを1つ追加します。
      *
      * @param {Group} parent - 追加先のグループ。
      * @param {string} label - ボタンのラベル。
-     * @param {string} menuCommand - 実行するメニューコマンド名。
+     * @param {Function} action - クリック時に実行する処理。
      * @returns {Button} 追加したボタン。
      */
-    function addViewCommandButton(parent, label, menuCommand) {
+    function addViewCommandButton(parent, label, action) {
         var button = parent.add("button", undefined, label);
         button.alignment = "left";
 
@@ -1963,9 +2020,7 @@ function clearTagNames(items) {
             button.maximumSize = [UI_CONFIG.viewButtonWidth, UI_CONFIG.viewButtonHeight];
         } catch (_) { }
 
-        button.onClick = function () {
-            try { app.executeMenuCommand(menuCommand); } catch (_) { }
-        };
+        button.onClick = action;
         return button;
     }
 
@@ -2278,12 +2333,23 @@ function clearTagNames(items) {
         requestPreview();
     };
 
-    bindAll([chkKeepOuter, chkOuterEdgeScale], "onClick", function () {
+    chkKeepOuter.onClick = function () {
         applyOuterEdgeScaleEnabledState();
         applyStrokeCapPanelEnabledState();
         applyOuterRoundEnabledState();
         requestPreview();
-    });
+    };
+
+    chkOuterEdgeScale.onClick = function () {
+        /* 角丸と辺の伸縮は同時に使えないので、ONにした側を残して他方をOFFにする
+           The radius and the edge scale cannot be combined, so turning one on turns the other off */
+        if (chkOuterEdgeScale.value) chkOuterRound.value = false;
+
+        applyOuterEdgeScaleEnabledState();
+        applyStrokeCapPanelEnabledState();
+        applyOuterRoundEnabledState();
+        requestPreview();
+    };
 
     bindAll([rbCapButt, rbCapRound, rbCapProject], "onClick", requestPreview);
 
@@ -2713,11 +2779,10 @@ function clearTagNames(items) {
 
             sourceRect.hidden = true;
 
-            var previewRect = sourceRect.layer.pathItems.rectangle(bounds[1], bounds[0], width, height);
+            var previewRect = trackTempItem(sourceRect.layer.pathItems.rectangle(bounds[1], bounds[0], width, height));
             copyAppearance(sourceRect, previewRect);
             tagItem(previewRect, TAG_OUTER_ROUND);
             applyRoundCornersEffect(previewRect, radiusPt);
-            tempPreviewItems.push(previewRect);
         }
     }
 
@@ -2989,12 +3054,12 @@ function clearTagNames(items) {
             var layer = pathItem.layer;
 
             // 外側・内側の矩形を作成
-            var outerRect = layer.pathItems.rectangle(top, left, width, height);
+            var outerRect = trackTempItem(layer.pathItems.rectangle(top, left, width, height));
             outerRect.stroked = false;
             outerRect.filled = true;
             outerRect.fillColor = makeGrayColor(FILL_TINTS.frame);
 
-            var innerRect = layer.pathItems.rectangle(holeTop, holeLeft, holeWidth, holeHeight);
+            var innerRect = trackTempItem(layer.pathItems.rectangle(holeTop, holeLeft, holeWidth, holeHeight));
             innerRect.stroked = false;
             innerRect.filled = true;
             // 内側は一時的な塗り（色は最終的に Exclude の結果で穴になる）
@@ -3004,15 +3069,14 @@ function clearTagNames(items) {
             applyRoundCornersEffect(innerRect, getFrameRoundPt());
 
             // グループ化して穴あきにする
-            var group = layer.groupItems.add();
+            var group = trackTempItem(layer.groupItems.add());
             outerRect.move(group, ElementPlacement.PLACEATEND);
             innerRect.move(group, ElementPlacement.PLACEATEND);
 
             var resultItem = applyPathfinderExclude(group);
+            if (resultItem !== group) trackTempItem(resultItem);
             tagItem(resultItem, TAG_FRAME_FILL);
             sendToBack(resultItem);
-
-            tempPreviewItems.push(resultItem);
         } catch (_) { }
     }
 
@@ -3130,8 +3194,8 @@ function clearTagNames(items) {
             var layout = calcTitleAreaLayout(pathItem.geometricBounds, sizePt, 0);
             if (!layout) return;
 
-            var bandRect = pathItem.layer.pathItems.rectangle(
-                layout.band.top, layout.band.left, layout.band.width, layout.band.height);
+            var bandRect = trackTempItem(pathItem.layer.pathItems.rectangle(
+                layout.band.top, layout.band.left, layout.band.width, layout.band.height));
             bandRect.stroked = false;
             bandRect.filled = true;
             bandRect.fillColor = makeGrayColor(FILL_TINTS.titleBand);
@@ -3141,7 +3205,6 @@ function clearTagNames(items) {
 
             /* 背面へ（他の罫線や要素の下に敷く） / Send behind the rules */
             sendToBack(bandRect);
-            tempPreviewItems.push(bandRect);
         } catch (_) { }
     }
 
@@ -3157,15 +3220,14 @@ function clearTagNames(items) {
 
             /* 他の生成物と同じレイヤーに作る（doc.activeLayer は使わない）
                Create it on the same layer as the other generated items */
-            var dividerLine = target.layer.pathItems.add();
+            var dividerLine = trackTempItem(target.layer.pathItems.add());
             dividerLine.setEntirePath(layout.divider);
             dividerLine.stroked = true;
             dividerLine.filled = false;
-            dividerLine.strokeColor = makeGrayColor(FILL_TINTS.dividerLine);
+            dividerLine.strokeColor = makeGrayColor(FILL_TINTS.line);
             dividerLine.strokeWidth = 1;
 
             tagItem(dividerLine, TAG_TITLE_DIVIDER);
-            tempPreviewItems.push(dividerLine);
         } catch (_) { }
     }
 
@@ -3243,7 +3305,7 @@ function clearTagNames(items) {
             for (var col = 0; col < grid.cols; col++) {
                 var cellLeft = grid.left + (grid.cellW + grid.gutterX) * col;
 
-                var cellRect = layer.pathItems.rectangle(cellTop, cellLeft, grid.cellW, grid.cellH);
+                var cellRect = trackTempItem(layer.pathItems.rectangle(cellTop, cellLeft, grid.cellW, grid.cellH));
                 cellRect.stroked = false;
                 cellRect.filled = true;
                 cellRect.fillColor = makeGrayColor(FILL_TINTS.innerBox);
@@ -3251,7 +3313,6 @@ function clearTagNames(items) {
 
                 /* 背面へ（罫線などのパスの下に敷く） / Send behind the rules */
                 sendToBack(cellRect);
-                tempPreviewItems.push(cellRect);
             }
         }
     }
@@ -3298,14 +3359,13 @@ function clearTagNames(items) {
          * @returns {void}
          */
         function addDivider(points) {
-            var dividerLine = layer.pathItems.add();
+            var dividerLine = trackTempItem(layer.pathItems.add());
             dividerLine.setEntirePath(points);
             dividerLine.stroked = true;
             dividerLine.filled = false;
             dividerLine.strokeColor = appearance.color;
             dividerLine.strokeWidth = appearance.width;
             applyInnerLineStyle(dividerLine);
-            tempPreviewItems.push(dividerLine);
         }
 
         /* 列の分割線：各ガターの中心に1本ずつ
@@ -3406,7 +3466,7 @@ function clearTagNames(items) {
             var endX = endAnchor[0] - dx * ratio * direction;
             var endY = endAnchor[1] - dy * ratio * direction;
 
-            var edgeLine = pathItem.layer.pathItems.add();
+            var edgeLine = trackTempItem(pathItem.layer.pathItems.add());
             edgeLine.setEntirePath([[startX, startY], [endX, endY]]);
 
             edgeLine.stroked = true;
@@ -3417,8 +3477,6 @@ function clearTagNames(items) {
 
             // 外枠（4辺）として識別できるようタグ付け
             tagItem(edgeLine, TAG_OUTER_EDGE);
-
-            tempPreviewItems.push(edgeLine);
         }
     }
 
