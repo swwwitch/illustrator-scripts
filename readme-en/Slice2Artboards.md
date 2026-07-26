@@ -29,12 +29,21 @@
 3. Optionally add and rename artboards
 4. Delete original artwork (optional)
 
-### Workflow
+### After running
+
 After running this script, the expected workflow is:
 
 1. Rearrange artboards using Illustrator's standard features
 2. Adjust mask path size using the ResizeClipMask script
 https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/mask/ResizeClipMask.jsx
+
+### Notes
+
+- The offset and margin fields show the ruler unit, but **the values are treated as points**. With the ruler set to mm, "10 mm" still applies 10 pt.
+- Entering a non-numeric value for the rows or columns stops the run with a message. Setting just one of them to 0 derives it from the aspect ratio of the selection.
+- With "Convert to Artboards" enabled, the artboards that existed before the split are removed.
+- A multiple selection is grouped and converted to a symbol before being processed.
+- Illustrator has no undo-grouping API, so undoing this run takes multiple steps.
 
 ### Change Log
 

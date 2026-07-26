@@ -7,28 +7,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 - 選択オブジェクトに対して、重なりをならすためのメニューコマンドを順に実行します。
 - オフセットパス → グループ化 → パスファインダー：合流 → アピアランスを分割、の順で処理します。
-- オフセットパスで生成されたオブジェクトを元の選択と合わせて選び直すため、続くコマンドが意図した対象に効きます。
-- 日本語／英語インターフェースに対応します。
-
-### 主な機能
-
-- 選択オブジェクトのみを処理対象とする
-- オフセットパスの実行前後を比較し、新しく作られたオブジェクトを検出
-- 元の選択と新規オブジェクトを結合して後続のコマンドへ引き渡し
-- ロック中・非表示のオブジェクトは選択対象から除外
-- コマンドが失敗した場合はアラートを表示して中断
-
-### 処理の流れ
-
-1. 選択とドキュメント内のオブジェクトを記録する
-2. オフセットパスを実行する（ダイアログが開きます）
-3. 新しく作られたオブジェクトを検出し、元の選択と合わせて選択し直す
-4. グループ化 → パスファインダー：合流 → アピアランスを分割 を順に実行する
-
-### 注意
-
-- オフセットパスはダイアログを開くため、値の指定はユーザー操作になります。
-- Illustrator には取り消しをグループ化する API がないため、この処理の取り消しは複数ステップに分かれます。
 
 */
 
@@ -38,28 +16,6 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 - Runs a sequence of menu commands against the current selection to flatten overlaps.
 - The order is Offset Path, Group, Pathfinder: Merge, then Expand Appearance.
-- The objects produced by Offset Path are reselected together with the original selection, so the following commands act on the intended set.
-- Japanese and English user interface.
-
-### Main Features
-
-- Operates only on the current selection
-- Detects newly created objects by comparing the document before and after Offset Path
-- Hands the union of the original selection and the new objects to the following commands
-- Skips locked and hidden objects when building the selection
-- Aborts with an alert when a command fails
-
-### Workflow
-
-1. Record the selection and the objects in the document.
-2. Run Offset Path (this opens a dialog).
-3. Detect the newly created objects and reselect them together with the original selection.
-4. Run Group, Pathfinder: Merge, and Expand Appearance in order.
-
-### Notes
-
-- Offset Path opens a dialog, so the offset value is entered by the user.
-- Illustrator has no undo-grouping API, so undoing this run takes multiple steps.
 
 */
 

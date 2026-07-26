@@ -5,34 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-- 選択した画像やオブジェクトを、指定した行数・列数のグリッドに分割し、各ピースを矩形マスクでクリッピングします。
+- 選択したオブジェクトを、指定した行数・列数のグリッドに分割し、各ピースを矩形マスクでクリッピングします。
 - 分割したピースごとにアートボードを作成できます。
-- アスペクト比のプリセット（A4、スクエア、16:9 など）を選ぶと、選択物の縦横比から行数・列数を自動で決めます。
-- 印刷の面付け、パズル風レイアウト、複数アートボード化に使えます。
-- 日本語／英語インターフェースに対応します。
-
-### 主な機能
-
-- 行数・列数の指定によるグリッド分割
-- アスペクト比のプリセット選択（A4／スクエア／16:9／8:9／カスタム、英語環境では US Letter／US Legal／Tabloid も選択可）
-- オフセットによるピースの拡大・縮小
-- アートボードの自動生成、接頭辞・連番・ゼロ埋め・区切り記号の指定
-- ファイル名をアートボード名に反映
-- アートボード周囲のマージン指定
-- 上下キーによる数値の増減（Shift：10単位）
-
-### 処理の流れ
-
-1. 選択オブジェクトをシンボル化し、マスク用の矩形を用意する
-2. ダイアログで分割数・アスペクト比・アートボードの設定を行う
-3. 実行でグリッド状の矩形マスクを生成し、各ピースをクリッピングする
-4. 必要に応じてアートボードを作成・リネームし、元のアートボードを削除する
-5. 元画像と一時的な矩形を削除する
-
-### 注意
-
-- オフセットとマージンの数値は定規単位のラベルを表示しますが、値はポイントとして扱われます。
-- Illustrator には取り消しをグループ化する API がないため、この処理の取り消しは複数ステップに分かれます。
 
 */
 
@@ -40,34 +14,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### Overview
 
-- Splits the selected image or object into a grid of the given rows and columns, clipping each piece with a rectangular mask.
+- Splits the selected object into a grid of the given rows and columns, clipping each piece with a rectangular mask.
 - Can create one artboard per piece.
-- Picking an aspect-ratio preset (A4, Square, 16:9, and so on) derives the rows and columns from the aspect ratio of the selection.
-- Useful for print imposition, puzzle-like layouts, and multi-artboard documents.
-- Japanese and English user interface.
-
-### Main Features
-
-- Grid splitting by rows and columns
-- Aspect-ratio presets (A4 / Square / 16:9 / 8:9 / Custom, plus US Letter / US Legal / Tabloid in the English UI)
-- Offset to grow or shrink each piece
-- Artboard creation with prefix, sequence, zero padding, and separator options
-- File name reflected in the artboard name
-- Margin around each artboard
-- Arrow-key stepping (Shift: by 10)
-
-### Workflow
-
-1. Symbolize the selection and prepare the mask rectangle.
-2. Configure divisions, aspect ratio, and artboard options in the dialog.
-3. Run to generate the grid of rectangular masks and clip each piece.
-4. Optionally create and rename artboards, then remove the original ones.
-5. Remove the original image and the temporary rectangle.
-
-### Notes
-
-- The offset and margin fields show the ruler unit, but the values are treated as points.
-- Illustrator has no undo-grouping API, so undoing this run takes multiple steps.
 
 */
 
@@ -173,6 +121,10 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
             noSelection: {
                 ja: "オブジェクトを選択してから実行してください。",
                 en: "Please select an object before running this script."
+            },
+            invalidCount: {
+                ja: "行数・列数には 1 以上の数値を入力してください（片方だけ 0 にすると比率から自動計算します）。",
+                en: "Enter 1 or more for the rows and columns. Setting just one of them to 0 derives it from the aspect ratio."
             },
             runError: {
                 ja: "スクリプトの実行中にエラーが発生しました：\n",
@@ -520,6 +472,9 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
      * Create one artboard per sorted piece, then remove the pre-existing artboards.
      */
     function createArtboardsFromPieces(doc, sortedPieces, options) {
+        /* 1枚も追加しないまま既存を消すと、アートボードが 0 枚になって壊れる / Never clear the existing artboards when nothing was added */
+        if (sortedPieces.length === 0) return;
+
         var existingCount = doc.artboards.length;
 
         for (var i = 0; i < sortedPieces.length; i++) {
@@ -668,6 +623,7 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
         function syncDivision() {
             var ratio = getSelectedRatio();
             if (!sourceSize || ratio === null) return;
+            if (sourceSize.width <= 0 || sourceSize.height <= 0) return;
 
             var division = computeDivision(sourceSize, ratio);
             columnInput.text = String(division.columnCount);
@@ -721,7 +677,6 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
         syncArtboardEnabled();
 
         dialog.layout.layout(true);
-        trimButtonHeight(runButton, 0);
 
         /* 入力内容をまとめて取り出す / Collect the entered values */
         function read() {
@@ -761,6 +716,26 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
     // メイン処理 / Main
     // =========================================
 
+    /*
+     * 行数・列数として使える値かを判定する。
+     * 数値でない入力は Number() が NaN になり、比較がすべて false になって
+     * 検証をすり抜けるため、isFinite で明示的に弾く。
+     * Validate the row/column input. A non-numeric field yields NaN, whose
+     * comparisons are all false, so it must be rejected explicitly.
+     */
+    function hasUsableCounts(settings) {
+        var columnCount = settings.columnCount;
+        var rowCount = settings.rowCount;
+
+        if (!isFinite(columnCount) || !isFinite(rowCount)) return false;
+        if (columnCount < 0 || rowCount < 0) return false;
+
+        /* 片方だけ 0 なら、もう一方から比率で補える / A single zero can be derived from the other count */
+        return (columnCount >= 1 && rowCount >= 1) ||
+            (columnCount === 0 && rowCount >= 1) ||
+            (columnCount >= 1 && rowCount === 0);
+    }
+
     /* 行数・列数が 0 のとき、選択物の縦横比から補う / Fill in a zero row or column count from the aspect ratio */
     function resolveCounts(settings, size) {
         var columnCount = settings.columnCount;
@@ -780,6 +755,9 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
         var baseItem = source.maskRect ? source.maskRect : source.symbolItem;
         var bounds = baseItem.geometricBounds;
         var size = getSize(bounds);
+
+        /* 面積のないオブジェクトでは比率が求まらない / A zero-area object gives no usable ratio */
+        if (size.width <= 0 || size.height <= 0) return;
 
         var counts = resolveCounts(settings, size);
         if (counts.columnCount < 1 || counts.rowCount < 1) return;
@@ -828,7 +806,12 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
         if (dialog.window.show() !== 1) return;
 
         var settings = dialog.read();
-        if (settings.columnCount < 1 && settings.rowCount < 1) return;
+
+        /* ドキュメントを変更する前に検証する / Validate before touching the document */
+        if (!hasUsableCounts(settings)) {
+            alert(L("message.invalidCount"));
+            return;
+        }
 
         try {
             var source = prepareSource(doc, selection);
