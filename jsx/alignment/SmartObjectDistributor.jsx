@@ -10,7 +10,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 行数・列数の初期値は、選択数と配置先の縦横比からセルが正方形に近くなるように決めます。
 - セルの扱い（長方形で残す／ガイド化／アートボード化）はラジオボタンで排他的に切り替えます。
 - セル数を超えたオブジェクトだけを、他のオブジェクトやアートボードと重ならない位置へ退避します。
-- プレビューは Undo に頼らず、記録した元の中心座標への復元とプレビュー専用レイヤーの削除で戻します。
+- プレビューは app.undo() でヒストリから取り除き、取り消し履歴を伸ばさないようにします。
+- app.undo() が戻しきれなかった分だけ、中心座標の復元とプレビュー専用レイヤーの削除で後始末します。
 - 透明グリッドの表示状態はスクリプト内で保持し、終了時に元へ戻します。
 
 ### 主な機能
@@ -43,7 +44,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - Initial rows and columns are derived from the selection count and the area's aspect ratio, so cells stay nearly square.
 - Cell handling (Keep as Rectangle / Convert to Guides / Convert to Artboards) is switched exclusively with radio buttons.
 - Only the objects beyond the number of cells are parked where they overlap neither other objects nor artboards.
-- Preview does not rely on Undo: it restores the recorded centers and removes the preview-only layers.
+- Preview is rolled back with app.undo() so the edit history does not grow on every change.
+- Whatever app.undo() fails to revert is cleaned up by restoring the recorded centers and dropping the preview-only layers.
 - The transparency grid state is tracked and restored when the script finishes.
 
 ### Main Features
@@ -73,7 +75,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // 基本情報 / Basic info
     // =========================================
     var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.9.0";                       /* バージョン / version */
+    var SCRIPT_VERSION  = "v1.9.5";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
     var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
     var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
@@ -352,9 +354,14 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     // =========================================
     // 位置の記録と復元 / Position bookkeeping
     // =========================================
-    // プレビューは Undo に依存しない（Illustrator の app.undo は
-    // スクリプト実行前の編集履歴まで巻き戻す恐れがあるため使用しない）。
-    // 代わりに、記録した中心座標へ戻すことで元の状態を復元する。
+    // プレビューの巻き戻しは app.undo() を主、ここでの座標復元を保険とする。
+    // app.undo() が効けば履歴は伸びないが、1プレビューが複数の履歴ステップに
+    // 分かれると 1 回では戻りきらない。その差分だけをここで埋める。
+    // 位置が変わっていなければ translate しないので、undo が完全に効いた場合は
+    // 履歴を 1 ステップも増やさない。
+
+    /** 位置が変化したと見なす最小差分（pt） / Minimum delta treated as a real move. */
+    var RESTORE_TOLERANCE = 0.001;
 
     /** @type {Array<number[]>} 記録した中心座標 [x, y] の配列。 */
     var originalCenters = [];
@@ -375,16 +382,24 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
     /**
      * 記録した中心座標へオブジェクトを戻します。/ Move objects back to the recorded centers.
+     * 既に元の位置にあるものは動かさないため、履歴を無駄に増やしません。
      *
      * @param {Array<PageItem>} items - 復元対象のオブジェクト（記録時と同じ順序）。
      * @returns {void}
      */
     function restoreOriginalCenters(items) {
         for (var i = 0; i < items.length && i < originalCenters.length; i++) {
-            var bounds = items[i].visibleBounds;
-            var dx = originalCenters[i][0] - (bounds[0] + bounds[2]) / 2;
-            var dy = originalCenters[i][1] - (bounds[1] + bounds[3]) / 2;
-            items[i].translate(dx, dy);
+            try {
+                var bounds = items[i].visibleBounds;
+                var dx = originalCenters[i][0] - (bounds[0] + bounds[2]) / 2;
+                var dy = originalCenters[i][1] - (bounds[1] + bounds[3]) / 2;
+
+                // undo が効いていれば差分は 0。ここで translate すると履歴が伸びる
+                if (Math.abs(dx) < RESTORE_TOLERANCE && Math.abs(dy) < RESTORE_TOLERANCE) continue;
+                items[i].translate(dx, dy);
+            } catch (e) {
+                // 参照が失われたオブジェクトは飛ばす / Skip items whose reference went stale
+            }
         }
     }
 
@@ -1116,16 +1131,23 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
          * セル描画と配置を実行します（プレビュー／本番共通）。/ Draw cells and place objects.
          *
          * @param {boolean} isPreview - プレビューとして描画する場合は true。
-         * @returns {void}
+         * @param {function(): void} [onWillMutate] - ドキュメントを変更する直前に一度だけ呼ばれます。
+         * @returns {boolean} ドキュメントを変更した場合は true。入力が無効で何もしなかった場合は false。
          */
-        function renderDistribution(isPreview) {
+        function renderDistribution(isPreview, onWillMutate) {
             // 配置先の座標を読む前に、必ず元の位置へ戻しておく
+            // （呼び出し前に clearPreview() 済みのため、通常ここは何も動かさない）
             restoreOriginalCenters(placeableItems);
 
             var cellMode = getCellMode();
             var items = getOrderedDistributionItems();
             var gridMetrics = computeGridMetrics();
-            if (!gridMetrics) return;
+
+            // グリッドが成立しない入力では、ドキュメントに一切手を加えない
+            if (!gridMetrics) return false;
+
+            // これ以降はドキュメントを変更する / Everything below mutates the document
+            if (onWillMutate) onWillMutate();
 
             // セル数を超えたオブジェクトだけを対象領域の外へ退避する
             var overflowItems = items.slice(gridMetrics.rowCount * gridMetrics.columnCount);
@@ -1142,12 +1164,26 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             }
 
             placeItemsInCells(items, gridMetrics);
+            return true;
         }
 
         // -----------------------------------------
         // プレビュー / Preview
         // -----------------------------------------
-        // Undo を使わず、明示的に「消して」「戻して」から描き直す
+        // app.undo() で直前のプレビューをヒストリごと取り除いてから描き直す。
+        // これをしないと、入力欄を 1 文字打つたびに数十〜数千ステップが積まれ、
+        // Illustrator の取り消し回数の上限を超えてユーザーの実行前履歴が失われる。
+        //
+        // ただし app.undo() は 1 回で 1 ステップしか戻さない。1 プレビューが
+        // 複数ステップに分かれる場合は戻りきらないため、レイヤー削除と座標復元を
+        // 保険として必ず併走させる（どちらも差分が無ければ何もしない）。
+        //
+        // undo の回数は「自分が積んだ 1 回分」に限る。ダイアログ表示前に
+        // cell-background レイヤーの削除と _target 矩形の非表示という 2 つの
+        // 変更を済ませており、そこまで巻き戻すと状態が壊れるため。
+
+        /** @type {boolean} app.undo() で剥がすべきプレビューが適用済みか。 */
+        var hasUncommittedPreview = false;
 
         /**
          * プレビューを消して元の状態に戻します。/ Discard the preview and restore the original state.
@@ -1155,6 +1191,17 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
          * @returns {void}
          */
         function clearPreview() {
+            // 1. 直前のプレビューをヒストリから取り除く
+            if (hasUncommittedPreview) {
+                hasUncommittedPreview = false;
+                try {
+                    app.undo();
+                } catch (e) {
+                    // undo できない状態なら、以下の後始末に任せる / Fall back to the cleanup below
+                }
+            }
+
+            // 2. undo で戻りきらなかった分だけを片付ける
             removeLayerByName(doc, CONFIG.previewCellLayerName);
             removeLayerByName(doc, CONFIG.legacyPreviewLayerName);
             restoreOriginalCenters(placeableItems);
@@ -1168,7 +1215,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         function updatePreview() {
             try {
                 clearPreview();
-                renderDistribution(true);
+                renderDistribution(true, function () {
+                    // 変更が始まった時点で印を付ける。途中で例外が出ても undo で剥がせる
+                    hasUncommittedPreview = true;
+                });
             } catch (e) {
                 clearPreview();
             }
@@ -1238,6 +1288,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
          * @returns {void}
          */
         function handleTargetChange() {
+            // 表示状態を変える前にプレビューを剥がす。順序を逆にすると、
+            // app.undo() がプレビューではなく setItemHidden を取り消してしまう
+            clearPreview();
             if (targetRectItem) setItemHidden(targetRectItem, placementUI.rectLayerRadio.value === true);
             updatePreview();
         }
@@ -1297,6 +1350,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         // -----------------------------------------
         // イベント / Event wiring
         // -----------------------------------------
+
+        /** @type {boolean} OK／キャンセルで後始末済みか（onClose の二重実行を防ぐ）。 */
+        var isCleanedUp = false;
+
         placementUI.artboardRadio.onClick = handleTargetChange;
         placementUI.backmostRadio.onClick = handleTargetChange;
         placementUI.rectLayerRadio.onClick = handleTargetChange;
@@ -1350,7 +1407,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var createdCount = -1;
             var artboardFailed = false;
 
-            // プレビューを破棄してから本番処理へ（プレビューの痕跡を残さない）
+            // プレビューを undo で破棄してから本番処理へ（プレビューの痕跡も履歴も残さない）
             clearPreview();
             if (cellMode === "artboard") {
                 try {
@@ -1359,6 +1416,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     artboardFailed = true;
                 }
             }
+            // 本番は undo の対象にしない（ユーザーの取り消し操作に委ねる）
             renderDistribution(false);
 
             // 「_target」レイヤーの矩形を再表示（プレビュー時に隠していた場合）
@@ -1371,6 +1429,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
             randomizedOrder = null;
             originalCenters = [];
+            isCleanedUp = true;
             app.redraw();
             distributeDialog.close(1);
 
@@ -1387,8 +1446,30 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             randomizedOrder = null;
             originalCenters = [];
             if (targetRectItem) setItemHidden(targetRectItem, false);
+            isCleanedUp = true;
             app.redraw();
             distributeDialog.close(0);
+        };
+
+        /**
+         * OK／キャンセルを経由せずに閉じた場合の保険。/ Safety net when the dialog closes without OK or Cancel.
+         * ESC やウィンドウを閉じた操作でプレビューが残らないようにします。
+         */
+        distributeDialog.onClose = function () {
+            if (!isCleanedUp) {
+                isCleanedUp = true;
+                try {
+                    clearPreview();
+                    randomizedOrder = null;
+                    originalCenters = [];
+                    if (targetRectItem) setItemHidden(targetRectItem, false);
+                    app.redraw();
+                } catch (e) {
+                    // 後始末の失敗でクローズを妨げない / Never block the close
+                }
+            }
+            // falsy を返すとクローズが取り消される実装があるため、必ず true を返す
+            return true;
         };
 
         // 行数・列数は 1 未満にしない（0 ではグリッドが成立しない）
