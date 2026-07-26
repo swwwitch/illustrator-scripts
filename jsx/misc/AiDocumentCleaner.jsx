@@ -18,7 +18,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   - 空のレイヤー／サブレイヤーを再帰削除（ガイドだけのレイヤーは残す。_guide / _pasteboard は保護。トップレベルは最低1つ残す）
   - グループ／レイヤーの掃除は他の削除より後に実行（パスやオブジェクトの削除で空になった親も同じ実行で削除される）
 - ガイド（ラジオで1つ選択。既定は「削除しない」）
-  - ロックされていないガイド：メニュー「ガイドを消去」で削除（ロックされたレイヤー上のガイドは残る）
+  - ガイドを消去（通常）：メニュー「ガイドを消去」で削除（ロックされたレイヤー上のガイドは残る）
   - すべてのガイド（強制）：レイヤーのロックも一時解除して全削除
   - 現在のアートボード以外：アクティブなアートボード上にないガイドを削除
 - アートボード
@@ -42,7 +42,7 @@ A cleanup tool that removes unneeded elements from a document in one pass. Choos
   - Recursively removes empty layers and sublayers (guide-only layers are kept; _guide / _pasteboard are protected; at least one top-level layer remains)
   - Group / layer cleanup runs after the other deletions, so a parent emptied by path/object removal is cleaned in the same pass
 - Guides (pick one radio option; default "Don't delete")
-  - Guides on unlocked layers: remove via the Clear Guides menu command (guides on locked layers remain)
+  - Clear Guides (normal): remove via the Clear Guides menu command (guides on locked layers remain)
   - All guides (force): unlock layers temporarily and remove everything
   - Outside the active artboard: remove guides not on the active artboard
 - Artboards
@@ -56,17 +56,17 @@ A cleanup tool that removes unneeded elements from a document in one pass. Choos
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "AiDocumentCleaner";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.0.3";                       /* バージョン / version */
-var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-24";                   /* 更新日 / last updated */
+var SCRIPT_NAME = "AiDocumentCleaner"; /* スクリプト名 / script name */
+var SCRIPT_VERSION = "v1.0.4"; /* バージョン / version */
+var SCRIPT_AUTHOR = "Masahiro Takano (@swwwitch)"; /* 作者 / author */
+var SCRIPT_RELEASED = "2026-06-27"; /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED = "2026-07-25"; /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiDocumentCleaner.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiDocumentCleaner.md
-var SCRIPT_ARTICLE_URL      = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹介記事 / article URL */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -80,10 +80,18 @@ var PANEL_MARGINS = [16, 20, 16, 12];
 var PANEL_SPACING = 12;
 
 /* システム管理レイヤー名（空でも削除しない）/ System-managed layer names (kept even when empty) */
-var PROTECTED_LAYER_NAMES = { "_guide": true, "_pasteboard": true };
+var PROTECTED_LAYER_NAMES = {
+    "_guide": true,
+    "_pasteboard": true
+};
 
 /* 初期状態でOFFにするチェックボックス（誤削除を招きやすい積極的な項目）/ Checkboxes that start unchecked (aggressive options prone to false positives) */
-var UNCHECKED_BY_DEFAULT = { hiddenObjects: true, brokenLink: true, outsideAllArtboards: true, outsideActiveArtboard: true };
+var UNCHECKED_BY_DEFAULT = {
+    hiddenObjects: true,
+    brokenLink: true,
+    outsideAllArtboards: true,
+    outsideActiveArtboard: true
+};
 
 /* パネルの共通設定 / Apply shared panel layout */
 function setupPanel(panel, spacing) {
@@ -105,10 +113,34 @@ var ACTION_FILE_NAME = Folder.temp.fsName + "/AiDocumentCleaner_TemporaryAction.
 
 /* パネルごとの録画値（internalName・Select All Unused 値・Delete 値・各ラベルの16進）/ Recorded per-panel values (internalName, Select All Unused value, Delete value, label hex) */
 var PRUNE_SPECS = {
-    swatch:       { internalName: "ai_plugin_swatches",       localizedNameHex: "e382b9e382a6e382a9e38383e38381",                                 selectValue: 11, deleteValue: 3, deleteNameHex: "44656c65746520537761746368" },
-    graphicstyle: { internalName: "ai_plugin_styles",         localizedNameHex: "e382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382a4e383ab",   selectValue: 14, deleteValue: 3, deleteNameHex: "44656c657465205374796c65" },
-    symbol:       { internalName: "ai_plugin_symbol_palette", localizedNameHex: "e382b7e383b3e3839ce383ab",                                       selectValue: 12, deleteValue: 5, deleteNameHex: "44656c6574652053796d626f6c" },
-    brush:        { internalName: "ai_plugin_brush",          localizedNameHex: "e38396e383a9e382b7",                                             selectValue: 8,  deleteValue: 3, deleteNameHex: "44656c657465204272757368" }
+    swatch: {
+        internalName: "ai_plugin_swatches",
+        localizedNameHex: "e382b9e382a6e382a9e38383e38381",
+        selectValue: 11,
+        deleteValue: 3,
+        deleteNameHex: "44656c65746520537761746368"
+    },
+    graphicstyle: {
+        internalName: "ai_plugin_styles",
+        localizedNameHex: "e382b0e383a9e38395e382a3e38383e382afe382b9e382bfe382a4e383ab",
+        selectValue: 14,
+        deleteValue: 3,
+        deleteNameHex: "44656c657465205374796c65"
+    },
+    symbol: {
+        internalName: "ai_plugin_symbol_palette",
+        localizedNameHex: "e382b7e383b3e3839ce383ab",
+        selectValue: 12,
+        deleteValue: 5,
+        deleteNameHex: "44656c6574652053796d626f6c"
+    },
+    brush: {
+        internalName: "ai_plugin_brush",
+        localizedNameHex: "e38396e383a9e382b7",
+        selectValue: 8,
+        deleteValue: 3,
+        deleteNameHex: "44656c657465204272757368"
+    }
 };
 
 /* 「Select All Unused」コマンド名の16進（全パネル共通）/ Hex for the "Select All Unused" command name (shared by all panels) */
@@ -126,69 +158,228 @@ var currentLanguage = getCurrentLang();
 
 var LABELS = {
     dialog: {
-        title: { ja: "不要な要素を削除", en: "Remove Unneeded Items" }
+        title: {
+            ja: "不要な要素を削除",
+            en: "Remove Unneeded Items"
+        }
     },
     panel: {
-        panelItems: { ja: "パネル項目", en: "Panel items" },
-        object: { ja: "パス/オブジェクト", en: "Paths/Objects" },
-        container: { ja: "グループ/レイヤー", en: "Groups/Layers" },
-        guide: { ja: "ガイド", en: "Guides" },
-        artboard: { ja: "アートボード", en: "Artboards" }
+        panelItems: {
+            ja: "パネル項目",
+            en: "Panel items"
+        },
+        object: {
+            ja: "パス/オブジェクト",
+            en: "Paths/Objects"
+        },
+        container: {
+            ja: "グループ/レイヤー",
+            en: "Groups/Layers"
+        },
+        guide: {
+            ja: "ガイド",
+            en: "Guides"
+        },
+        artboard: {
+            ja: "アートボード",
+            en: "Artboards"
+        }
     },
     checkbox: {
-        swatches: { ja: "スウォッチ", en: "Swatches" },
-        graphicStyles: { ja: "グラフィックスタイル", en: "Graphic styles" },
-        symbols: { ja: "シンボル", en: "Symbols" },
-        brushes: { ja: "ブラシ", en: "Brushes" },
-        paragraphStyles: { ja: "段落スタイル", en: "Paragraph styles" },
-        characterStyles: { ja: "文字スタイル", en: "Character styles" },
-        strayPoints: { ja: "孤立点", en: "Stray points" },
-        emptyText: { ja: "空のテキスト", en: "Empty text frames" },
-        noPaintPath: { ja: "塗りも線もないパス", en: "Paths with no fill or stroke" },
-        zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
-        hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
-        brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
-        outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
-        outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
-        emptyGroup: { ja: "空のグループ", en: "Empty groups" },
-        guidesNone: { ja: "削除しない", en: "Don't delete" },
-        clearGuides: { ja: "ロックされていないガイド", en: "Guides on unlocked layers" },
-        guides: { ja: "すべてのガイド（強制）", en: "All guides (force)" },
-        guidesOutsideActiveArtboard: { ja: "現在のアートボード以外", en: "Outside the active artboard" },
-        emptyLayer: { ja: "空のレイヤー／サブレイヤー", en: "Empty layers / sublayers" },
-        artboards: { ja: "空のアートボード", en: "Empty artboards" },
-        force: { ja: "使用中の項目も削除", en: "Delete items even if in use" }
+        swatches: {
+            ja: "スウォッチ",
+            en: "Swatches"
+        },
+        graphicStyles: {
+            ja: "グラフィックスタイル",
+            en: "Graphic styles"
+        },
+        symbols: {
+            ja: "シンボル",
+            en: "Symbols"
+        },
+        brushes: {
+            ja: "ブラシ",
+            en: "Brushes"
+        },
+        paragraphStyles: {
+            ja: "段落スタイル",
+            en: "Paragraph styles"
+        },
+        characterStyles: {
+            ja: "文字スタイル",
+            en: "Character styles"
+        },
+        strayPoints: {
+            ja: "孤立点",
+            en: "Stray points"
+        },
+        emptyText: {
+            ja: "空のテキスト",
+            en: "Empty text frames"
+        },
+        noPaintPath: {
+            ja: "塗りも線もないパス",
+            en: "Paths with no fill or stroke"
+        },
+        zeroOpacity: {
+            ja: "不透明度0%のオブジェクト",
+            en: "Objects at 0% opacity"
+        },
+        hiddenObjects: {
+            ja: "非表示オブジェクト",
+            en: "Hidden objects"
+        },
+        brokenLink: {
+            ja: "リンク切れの配置画像",
+            en: "Broken-link placed images"
+        },
+        outsideAllArtboards: {
+            ja: "アートボード外のオブジェクト",
+            en: "Objects outside all artboards"
+        },
+        outsideActiveArtboard: {
+            ja: "アクティブなアートボード外のオブジェクト",
+            en: "Objects outside the active artboard"
+        },
+        emptyGroup: {
+            ja: "空のグループ",
+            en: "Empty groups"
+        },
+        guidesNone: {
+            ja: "削除しない",
+            en: "Don't delete"
+        },
+        clearGuides: {
+            ja: "ガイドを消去（通常）",
+            en: "Clear Guides (normal)"
+        },
+        guides: {
+            ja: "すべてのガイド（強制）",
+            en: "All guides (force)"
+        },
+        guidesOutsideActiveArtboard: {
+            ja: "現在のアートボード以外",
+            en: "Outside the active artboard"
+        },
+        emptyLayer: {
+            ja: "空のレイヤー／サブレイヤー",
+            en: "Empty layers / sublayers"
+        },
+        artboards: {
+            ja: "空のアートボード",
+            en: "Empty artboards"
+        },
+        force: {
+            ja: "使用中の項目も削除",
+            en: "Delete items even if in use"
+        }
     },
     button: {
-        cancel: { ja: "キャンセル", en: "Cancel" },
-        run: { ja: "削除", en: "Delete" }
+        cancel: {
+            ja: "キャンセル",
+            en: "Cancel"
+        },
+        run: {
+            ja: "削除",
+            en: "Delete"
+        }
     },
     result: {
-        swatches: { ja: "スウォッチ", en: "Swatches" },
-        graphicStyles: { ja: "グラフィックスタイル", en: "Graphic styles" },
-        symbols: { ja: "シンボル", en: "Symbols" },
-        brushes: { ja: "ブラシ", en: "Brushes" },
-        paragraphStyles: { ja: "段落スタイル", en: "Paragraph styles" },
-        characterStyles: { ja: "文字スタイル", en: "Character styles" },
-        strayPoints: { ja: "孤立点", en: "Stray points" },
-        emptyText: { ja: "空のテキスト", en: "Empty text frames" },
-        noPaintPath: { ja: "塗りも線もないパス", en: "Paths with no fill or stroke" },
-        zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
-        hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
-        brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
-        outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
-        outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
-        emptyGroup: { ja: "空のグループ", en: "Empty groups" },
-        clearGuides: { ja: "ロックされていないガイド", en: "Guides on unlocked layers" },
-        guides: { ja: "すべてのガイド（強制）", en: "All guides (force)" },
-        guidesOutsideActiveArtboard: { ja: "現在のアートボード以外のガイド", en: "Guides outside the active artboard" },
-        emptyLayer: { ja: "空のレイヤー／サブレイヤー", en: "Empty layers / sublayers" },
-        artboards: { ja: "アートボード", en: "Artboards" }
+        swatches: {
+            ja: "スウォッチ",
+            en: "Swatches"
+        },
+        graphicStyles: {
+            ja: "グラフィックスタイル",
+            en: "Graphic styles"
+        },
+        symbols: {
+            ja: "シンボル",
+            en: "Symbols"
+        },
+        brushes: {
+            ja: "ブラシ",
+            en: "Brushes"
+        },
+        paragraphStyles: {
+            ja: "段落スタイル",
+            en: "Paragraph styles"
+        },
+        characterStyles: {
+            ja: "文字スタイル",
+            en: "Character styles"
+        },
+        strayPoints: {
+            ja: "孤立点",
+            en: "Stray points"
+        },
+        emptyText: {
+            ja: "空のテキスト",
+            en: "Empty text frames"
+        },
+        noPaintPath: {
+            ja: "塗りも線もないパス",
+            en: "Paths with no fill or stroke"
+        },
+        zeroOpacity: {
+            ja: "不透明度0%のオブジェクト",
+            en: "Objects at 0% opacity"
+        },
+        hiddenObjects: {
+            ja: "非表示オブジェクト",
+            en: "Hidden objects"
+        },
+        brokenLink: {
+            ja: "リンク切れの配置画像",
+            en: "Broken-link placed images"
+        },
+        outsideAllArtboards: {
+            ja: "アートボード外のオブジェクト",
+            en: "Objects outside all artboards"
+        },
+        outsideActiveArtboard: {
+            ja: "アクティブなアートボード外のオブジェクト",
+            en: "Objects outside the active artboard"
+        },
+        emptyGroup: {
+            ja: "空のグループ",
+            en: "Empty groups"
+        },
+        clearGuides: {
+            ja: "ガイドを消去（通常）",
+            en: "Clear Guides (normal)"
+        },
+        guides: {
+            ja: "すべてのガイド（強制）",
+            en: "All guides (force)"
+        },
+        guidesOutsideActiveArtboard: {
+            ja: "現在のアートボード以外のガイド",
+            en: "Guides outside the active artboard"
+        },
+        emptyLayer: {
+            ja: "空のレイヤー／サブレイヤー",
+            en: "Empty layers / sublayers"
+        },
+        artboards: {
+            ja: "アートボード",
+            en: "Artboards"
+        }
     },
     alert: {
-        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        done: { ja: "削除が完了しました。", en: "Deletion complete." },
-        noTarget: { ja: "削除対象はありませんでした。", en: "No items to delete." }
+        noDocument: {
+            ja: "ドキュメントが開かれていません。",
+            en: "No document is open."
+        },
+        done: {
+            ja: "削除が完了しました。",
+            en: "Deletion complete."
+        },
+        noTarget: {
+            ja: "削除対象はありませんでした。",
+            en: "No items to delete."
+        }
     },
     tooltip: {
         swatches: {
@@ -244,8 +435,8 @@ var LABELS = {
             en: "Removes empty groups with no contents. Clip groups also count when their non-mask contents are only paths with no fill or stroke."
         },
         clearGuides: {
-            ja: "メニューの「ガイドを消去」でガイドを削除します。ロックされたレイヤー上のガイドは残ることがあります（その場合は「すべてのガイド（強制）」を使用）。",
-            en: "Removes guides via the Clear Guides menu command. Guides on locked layers may remain (use \"All guides (force)\" for those)."
+            ja: "メニュー「ガイドを消去」を実行します。ロックされたレイヤー上のガイドは残ることがあります（その場合は「すべてのガイド（強制）」を使用）。",
+            en: "Runs the Clear Guides menu command. Guides on locked layers may remain (use \"All guides (force)\" for those)."
         },
         guides: {
             ja: "ドキュメント内のすべてのガイドを削除します（ロックされたレイヤーも一時的に解除）。",
@@ -297,7 +488,7 @@ function L(path) {
 // =========================================
 // メイン処理 / Main
 // =========================================
-(function () {
+(function() {
     /* ドキュメントの有無を確認 / Ensure a document is open */
     if (app.documents.length === 0) {
         alert(L('alert.noDocument'));
@@ -308,46 +499,107 @@ function L(path) {
 
     /* 種類キーごとの削除処理。run(force) で件数を返す / Handler per type key; run(force) returns the count */
     var TARGET_RUNNERS = {
-        swatches:              function (force) { return deleteUnusedSwatches(doc, force); },
-        graphicStyles:         function (force) { return deleteUnusedGraphicStyles(doc, force); },
-        symbols:               function (force) { return deleteUnusedSymbols(doc, force); },
-        brushes:               function (force) { return deleteUnusedBrushes(doc, force); },
-        paragraphStyles:       function (force) { return deleteUnusedParagraphStyles(doc, force); },
-        characterStyles:       function (force) { return deleteUnusedCharacterStyles(doc, force); },
-        strayPoints:           function ()      { return deleteStrayPoints(doc); },
-        emptyText:             function ()      { return deleteEmptyTextFrames(doc); },
-        noPaintPath:           function ()      { return deleteUnpaintedPaths(doc); },
-        zeroOpacity:           function ()      { return deleteZeroOpacityObjects(doc); },
-        hiddenObjects:         function ()      { return deleteHiddenObjects(doc); },
-        brokenLink:            function ()      { return deleteBrokenLinkImages(doc); },
-        outsideAllArtboards:   function ()      { return deleteObjectsOutsideAllArtboards(doc); },
-        outsideActiveArtboard: function ()      { return deleteObjectsOutsideActiveArtboard(doc); },
-        emptyGroup:            function ()      { return deleteEmptyGroups(doc); },
-        clearGuides:           function ()      { return clearGuides(doc); },
-        guides:                function ()      { return deleteAllGuides(doc); },
-        guidesOutsideActiveArtboard: function () { return deleteGuidesOutsideActiveArtboard(doc); },
-        emptyLayer:            function ()      { return deleteEmptyLayers(doc); },
-        artboards:             function (force) { return deleteUnusedArtboards(doc, force); }
+        swatches: function(force) {
+            return deleteUnusedSwatches(doc, force);
+        },
+        graphicStyles: function(force) {
+            return deleteUnusedGraphicStyles(doc, force);
+        },
+        symbols: function(force) {
+            return deleteUnusedSymbols(doc, force);
+        },
+        brushes: function(force) {
+            return deleteUnusedBrushes(doc, force);
+        },
+        paragraphStyles: function(force) {
+            return deleteUnusedParagraphStyles(doc, force);
+        },
+        characterStyles: function(force) {
+            return deleteUnusedCharacterStyles(doc, force);
+        },
+        strayPoints: function() {
+            return deleteStrayPoints(doc);
+        },
+        emptyText: function() {
+            return deleteEmptyTextFrames(doc);
+        },
+        noPaintPath: function() {
+            return deleteUnpaintedPaths(doc);
+        },
+        zeroOpacity: function() {
+            return deleteZeroOpacityObjects(doc);
+        },
+        hiddenObjects: function() {
+            return deleteHiddenObjects(doc);
+        },
+        brokenLink: function() {
+            return deleteBrokenLinkImages(doc);
+        },
+        outsideAllArtboards: function() {
+            return deleteObjectsOutsideAllArtboards(doc);
+        },
+        outsideActiveArtboard: function() {
+            return deleteObjectsOutsideActiveArtboard(doc);
+        },
+        emptyGroup: function() {
+            return deleteEmptyGroups(doc);
+        },
+        clearGuides: function() {
+            return clearGuides(doc);
+        },
+        guides: function() {
+            return deleteAllGuides(doc);
+        },
+        guidesOutsideActiveArtboard: function() {
+            return deleteGuidesOutsideActiveArtboard(doc);
+        },
+        emptyLayer: function() {
+            return deleteEmptyLayers(doc);
+        },
+        artboards: function(force) {
+            return deleteUnusedArtboards(doc, force);
+        }
     };
 
     /* ダイアログの構成（トップパネル → サブパネル/チェックボックス）。force はパネル項目パネルの末尾に置く / Dialog layout; the force option sits at the bottom of the panel-items panel */
-    var DIALOG_LAYOUT = [
-        { row: [
-            { column: [
-                { titleKey: "panel.panelItems", force: true, keys: ["swatches", "symbols", "brushes", "graphicStyles", "paragraphStyles", "characterStyles"] },
-                { titleKey: "panel.container", keys: ["emptyGroup", "emptyLayer"] }
-            ] },
-            { column: [
-                { titleKey: "panel.object", keys: ["strayPoints", "emptyText", "noPaintPath", "zeroOpacity", "hiddenObjects", "brokenLink"] },
-                { titleKey: "panel.guide", radio: true, noneKey: "guidesNone", keys: ["clearGuides", "guides", "guidesOutsideActiveArtboard"] }
-            ] }
-        ] },
-        { titleKey: "panel.artboard", keys: ["outsideAllArtboards", "outsideActiveArtboard", "artboards"] }
+    var DIALOG_LAYOUT = [{
+            row: [{
+                    column: [{
+                            titleKey: "panel.panelItems",
+                            force: true,
+                            keys: ["swatches", "symbols", "brushes", "graphicStyles", "paragraphStyles", "characterStyles"]
+                        },
+                        {
+                            titleKey: "panel.container",
+                            keys: ["emptyGroup", "emptyLayer"]
+                        }
+                    ]
+                },
+                {
+                    column: [{
+                            titleKey: "panel.object",
+                            keys: ["strayPoints", "emptyText", "noPaintPath", "zeroOpacity", "hiddenObjects", "brokenLink"]
+                        },
+                        {
+                            titleKey: "panel.guide",
+                            radio: true,
+                            noneKey: "guidesNone",
+                            keys: ["clearGuides", "guides", "guidesOutsideActiveArtboard"]
+                        }
+                    ]
+                }
+            ]
+        },
+        {
+            titleKey: "panel.artboard",
+            keys: ["outsideAllArtboards", "outsideActiveArtboard", "artboards"]
+        }
     ];
 
     /* レイアウトを順に辿って全キーを取り出す / Flatten all keys in layout order */
-    var ALL_KEYS = (function (layout) {
+    var ALL_KEYS = (function(layout) {
         var keys = [];
+
         function collectFromNode(node) {
             if (node.row) {
                 for (var r = 0; r < node.row.length; r++) {
@@ -368,8 +620,11 @@ function L(path) {
     })(DIALOG_LAYOUT);
 
     /* 空グループ・空レイヤーの掃除は最後に回す（他の削除で空になった親も同じ実行で消せるように）/ Run container cleanup last so parents emptied by other deletions are removed in the same pass */
-    var CONTAINER_CLEANUP_KEYS = { emptyGroup: true, emptyLayer: true };
-    var EXECUTION_KEYS = (function (keys) {
+    var CONTAINER_CLEANUP_KEYS = {
+        emptyGroup: true,
+        emptyLayer: true
+    };
+    var EXECUTION_KEYS = (function(keys) {
         var head = [];
         var tail = [];
         for (var i = 0; i < keys.length; i++) {
@@ -497,15 +752,21 @@ function L(path) {
 
         var buttonGroup = dialog.add("group");
         buttonGroup.alignment = "right";
-        buttonGroup.add("button", undefined, L('button.cancel'), { name: "cancel" });
-        buttonGroup.add("button", undefined, L('button.run'), { name: "ok" });
+        buttonGroup.add("button", undefined, L('button.cancel'), {
+            name: "cancel"
+        });
+        buttonGroup.add("button", undefined, L('button.run'), {
+            name: "ok"
+        });
 
         if (dialog.show() !== 1) {
             return null;
         }
 
         /* チェック状態を種類キーごとにまとめて返す / Collect checkbox states keyed by type */
-        var choices = { force: forceCheckbox ? forceCheckbox.value : false };
+        var choices = {
+            force: forceCheckbox ? forceCheckbox.value : false
+        };
         for (i = 0; i < ALL_KEYS.length; i++) {
             choices[ALL_KEYS[i]] = checkboxes[ALL_KEYS[i]].value;
         }
@@ -628,7 +889,9 @@ function L(path) {
             actionFile.close();
 
             /* loadAction 前に同名セットを解放 / Unload any same-name set before loading */
-            ignoringErrors(function () { app.unloadAction(setName, ""); });
+            ignoringErrors(function() {
+                app.unloadAction(setName, "");
+            });
 
             app.loadAction(actionFile);
             app.doScript(actionName, setName);
@@ -636,9 +899,15 @@ function L(path) {
         } catch (e) {
             /* 書き出し・読み込み・再生に失敗 / Failed to write, load, or play */
         } finally {
-            ignoringErrors(function () { actionFile.close(); });
-            ignoringErrors(function () { app.unloadAction(setName, ""); });
-            ignoringErrors(function () { actionFile.remove(); });
+            ignoringErrors(function() {
+                actionFile.close();
+            });
+            ignoringErrors(function() {
+                app.unloadAction(setName, "");
+            });
+            ignoringErrors(function() {
+                actionFile.remove();
+            });
         }
         return played;
     }
@@ -678,10 +947,18 @@ function L(path) {
 
     /* 2つの矩形 [left, top, right, bottom] が重なるか判定（Illustrator は上が大きいY）/ Whether two [left, top, right, bottom] rects overlap (Illustrator: top has the larger Y) */
     function rectsIntersect(a, b) {
-        if (b[2] < a[0]) { return false; } /* b 右端が a 左端より左 / b right is left of a left */
-        if (b[0] > a[2]) { return false; } /* b 左端が a 右端より右 / b left is right of a right */
-        if (b[3] > a[1]) { return false; } /* b 下端が a 上端より上 / b bottom is above a top */
-        if (b[1] < a[3]) { return false; } /* b 上端が a 下端より下 / b top is below a bottom */
+        if (b[2] < a[0]) {
+            return false;
+        } /* b 右端が a 左端より左 / b right is left of a left */
+        if (b[0] > a[2]) {
+            return false;
+        } /* b 左端が a 右端より右 / b left is right of a right */
+        if (b[3] > a[1]) {
+            return false;
+        } /* b 下端が a 上端より上 / b bottom is above a top */
+        if (b[1] < a[3]) {
+            return false;
+        } /* b 上端が a 下端より下 / b top is below a bottom */
         return true;
     }
 
@@ -999,20 +1276,10 @@ function L(path) {
         return count;
     }
 
-    /* メニューコマンド「ガイドを消去」でガイドを削除し、件数を返す / Remove guides via the Clear Guides menu command, return the count */
+    /* メニューコマンド「ガイドを消去」でガイドを削除し、件数を返す。ロック済みガイドは残す（一時解除しない）/ Remove guides via the Clear Guides menu command and return the count; locked guides are kept (no temporary unlock) */
     function clearGuides(doc) {
         var countBefore = countGuidePaths(doc);
-        var guidesWereLocked = doc.guidesLocked;
-        try {
-            /* ロックされたガイドも消去できるよう一時解除 / Temporarily unlock so locked guides can be cleared too */
-            doc.guidesLocked = false;
-            app.executeMenuCommand("clearguide");
-        } catch (e) {
-            /* 消去不可 / Could not clear */
-        } finally {
-            /* 例外時もロック状態を必ず元に戻す / Always restore the lock state, even on error */
-            doc.guidesLocked = guidesWereLocked;
-        }
+        app.executeMenuCommand("clearguide");
         return Math.max(0, countBefore - countGuidePaths(doc));
     }
 
@@ -1062,13 +1329,15 @@ function L(path) {
 
     /* すべてのガイドを削除し、件数を返す / Remove all guides and return the count */
     function deleteAllGuides(doc) {
-        return removeGuidesWhere(doc, function () { return true; });
+        return removeGuidesWhere(doc, function() {
+            return true;
+        });
     }
 
     /* 現在（アクティブ）のアートボード上にないガイドを削除し、件数を返す / Remove guides not on the active artboard and return the count */
     function deleteGuidesOutsideActiveArtboard(doc) {
         var activeRect = doc.artboards[doc.artboards.getActiveArtboardIndex()].artboardRect;
-        return removeGuidesWhere(doc, function (guidePath) {
+        return removeGuidesWhere(doc, function(guidePath) {
             return !rectsIntersect(activeRect, guidePath.geometricBounds);
         });
     }
