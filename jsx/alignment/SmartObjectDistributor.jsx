@@ -2,1292 +2,1421 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-SmartObjectDistributor.jsx
 
 ### 概要
 
-- 選択オブジェクトを、指定した行数・列数のグリッドに沿って整列配置するIllustrator用スクリプトです。
-- 配置先は現在のアートボード／最背面オブジェクト／「_target」レイヤー内の長方形から選択できます。
-- セル描画モード（残す／ガイド化／アートボード化）をラジオボタンで切り替え、排他的に処理します。
-- セル数を超えるオブジェクトはアートボード外へ退避し、プレビュー状態のまま確定します。
-- PreviewManager により、プレビュー更新時のUndo履歴を汚さず、OK時は1回のUndoで戻せます。
-- 透明グリッドの表示はスクリプト内で状態を保持し、終了時に元へ戻します。
+- 選択したオブジェクトを、指定した行数・列数のグリッドに沿って各セルの中央へ配置します。
+- 配置先は「現在のアートボード」「最背面のオブジェクト」「_target レイヤーの長方形」から選べます。
+- 行数・列数の初期値は、選択数と配置先の縦横比からセルが正方形に近くなるように決めます。
+- セルの扱い（長方形で残す／ガイド化／アートボード化）はラジオボタンで排他的に切り替えます。
+- セル数を超えたオブジェクトだけを、他のオブジェクトやアートボードと重ならない位置へ退避します。
+- プレビューは Undo に頼らず、記録した元の中心座標への復元とプレビュー専用レイヤーの削除で戻します。
+- 透明グリッドの表示状態はスクリプト内で保持し、終了時に元へ戻します。
 
 ### 主な機能
 
-- グリッド分割（行数・列数・マージン・ガター）設定
-- 現在のアートボード／最背面オブジェクト／「_target」レイヤー内長方形を配置先に指定
-- セル背景の描画、ガイド化、アートボード化
-- セル中央配置およびランダム配置
-- 即時プレビューとUndo履歴を抑えた確定処理
+- 行数・列数・セル間隔・マージンの指定によるグリッド分割
+- 配置先の切り替え（現在のアートボード／最背面のオブジェクト／_target レイヤーの長方形）
+- セルの長方形を残す、ガイドに変換する、セルごとにアートボードを作成する
+- セルの塗り（黒／白／塗りなし）と不透明度の指定
+- シャッフルによるセルへの割り当て順のランダム化
+- 入力と同時に更新される即時プレビュー
+- 上下キーによる数値の増減（Shift：10単位、Option：0.1単位）
+- 入力値の検証（行数・列数は各100まで、セル総数は1000まで。セルが成立しない値では描画しない）
 - 日本語／英語インターフェース対応
 
-### 更新履歴
+### 処理の流れ
 
-- v1.0 (20250605) : 初版。選択オブジェクトをグリッド状に配置する基本機能を追加
-- v1.8.0 (20260430) : セル描画モードのラジオボタン化、配置処理の分離、透明グリッド復元、プレビュー確定処理を整理
----
+1. 選択オブジェクトと、その元の中心座標を記録する
+2. ダイアログで配置先・分割数・マージン・セルの扱いを設定する（変更ごとにプレビューを更新）
+3. OK でプレビューを破棄してから、本番の描画と配置を実行する
+4. 「長方形で残す」ではセルの長方形を、それ以外では元のオブジェクトを選択状態にする
 
-### Script Name:
+*/
 
-SmartObjectDistributor.jsx
+/*
 
 ### Overview
 
-- Distributes selected objects into a grid based on specified rows and columns in Adobe Illustrator.
-- The target area can be selected from the current artboard, the backmost object, or a rectangle in the "_target" layer.
-- Cell drawing mode (Keep / Guides / Artboards) is handled via radio buttons with mutually exclusive behavior.
-- Objects exceeding the number of cells are moved outside the artboard and preserved as-is from preview on confirmation.
-- PreviewManager keeps the undo history clean during preview and commits changes as a single undoable step.
-- Transparency grid toggling is tracked and restored to its original state when the script finishes.
+- Places the selected objects at the center of each cell of a grid with the given rows and columns.
+- The placement area can be the current artboard, the backmost object, or a rectangle in the "_target" layer.
+- Initial rows and columns are derived from the selection count and the area's aspect ratio, so cells stay nearly square.
+- Cell handling (Keep as Rectangle / Convert to Guides / Convert to Artboards) is switched exclusively with radio buttons.
+- Only the objects beyond the number of cells are parked where they overlap neither other objects nor artboards.
+- Preview does not rely on Undo: it restores the recorded centers and removes the preview-only layers.
+- The transparency grid state is tracked and restored when the script finishes.
 
 ### Main Features
 
-- Grid division settings for rows, columns, margins, and gutters
-- Target selection from the current artboard, backmost object, or rectangle in the "_target" layer
-- Cell background drawing with guide or artboard conversion
-- Center placement and random placement
-- Instant preview with controlled Undo history
-- Japanese and English UI support
+- Grid division by rows, columns, gutter, and margin
+- Placement area switching (current artboard / backmost object / rectangle in the "_target" layer)
+- Keeping the cell rectangles, converting them to guides, or creating one artboard per cell
+- Cell fill (black / white / no fill) and opacity
+- Shuffling the order in which objects fill the cells
+- Live preview updated as values change
+- Arrow-key stepping (Shift: by 10, Option: by 0.1)
+- Input validation (up to 100 rows and columns, 1000 cells; nothing is drawn when cells cannot fit)
+- Japanese and English user interface
 
-### Update History
+### Workflow
 
-- v1.0 (20250605) : Initial release with basic grid distribution for selected objects
-- v1.8.0 (20260430) : Refined cell drawing modes as radio buttons, separated placement from cell drawing, restored transparency grid state, and improved preview confirmation behavior
+1. Record the selected objects and their original centers.
+2. Configure the placement area, divisions, margins, and cell handling in the dialog (preview updates on change).
+3. On OK, discard the preview and run the final drawing and placement.
+4. Select the cell rectangles for "Keep as Rectangle", or the original objects otherwise.
 
 */
 
 (function () {
 
-    var SCRIPT_VERSION = "v1.8.0";
+    // =========================================
+    // 基本情報 / Basic info
+    // =========================================
+    var SCRIPT_NAME     = "SmartObjectDistributor";       /* スクリプト名 / script name */
+    var SCRIPT_VERSION  = "v1.9.0";                       /* バージョン / version */
+    var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+    var SCRIPT_RELEASED = "2025-05-20";                   /* 最初のリリース日 / first release date */
+    var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
 
-    // 言語判定関数とラベル定義（グローバル）
+    // README (Japanese)
+    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartObjectDistributor.md
+    // README (English)
+    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectDistributor.md
+    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na3c45cea09b7"; /* 紹介記事 / article URL */
+
+    // Released under the MIT license
+    // http://opensource.org/licenses/mit-license.php
+
+    // =========================================
+    // ユーザー設定 / User configuration
+    // =========================================
+    var CONFIG = {
+        defaultGutter: 10,           /* 間隔の初期値（定規単位） / default gutter */
+        defaultMargin: 10,           /* マージンの初期値（定規単位） / default margin */
+        blackCellOpacity: 15,        /* 黒セルの不透明度（%） / opacity for black cells */
+        whiteCellOpacity: 100,       /* 白セルの不透明度（%） / opacity for white cells */
+        fallbackDivision: 5,         /* 分割数を決められないときの既定値 / fallback division */
+        maxDivision: 100,            /* 行・列の上限 / max rows or columns */
+        maxCellCount: 1000,          /* セル総数の上限 / max total cells */
+        parkingStep: 200,            /* 退避時の移動量（pt） / step when parking objects */
+        overlapTolerance: 1,         /* 重なり判定の余裕（pt） / overlap tolerance */
+        artboardBuffer: 10,          /* 他アートボードとの余裕（pt） / buffer around artboards */
+        targetLayerName: "_target",                  /* 配置先レイヤー名 / target layer name */
+        cellLayerName: "cell-background",            /* セル描画レイヤー名 / cell layer name */
+        previewCellLayerName: "_Preview_Background", /* プレビュー用レイヤー名 / preview layer name */
+        legacyPreviewLayerName: "_Preview_Guides"    /* 旧版のプレビュー用レイヤー名 / legacy preview layer */
+    };
+
+    /**
+     * 日英のラベル文言。
+     *
+     * @typedef {Object} LabelEntry
+     * @property {string} ja - 日本語の文言。
+     * @property {string} en - 英語の文言。
+     */
+
+    /**
+     * グリッドの寸法（すべて pt、矩形は [左, 上, 右, 下]）。
+     *
+     * @typedef {Object} GridMetrics
+     * @property {number} rowCount - 行数。
+     * @property {number} columnCount - 列数。
+     * @property {number} originLeft - 1行1列目のセル左端。
+     * @property {number} originTop - 1行1列目のセル上端。
+     * @property {number} cellWidth - セルの幅。
+     * @property {number} cellHeight - セルの高さ。
+     * @property {number} gutter - セル間の間隔。
+     * @property {number[]} targetRect - 配置先の矩形。
+     */
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 実行環境のロケールから表示言語を決めます。/ Pick the UI language from the locale.
+     *
+     * @returns {string} "ja" または "en"。
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var lang = getCurrentLang();
 
-    var labels = {
-        dialogTitle: {
-            ja: "グリッド状に配置",
-            en: "Distribute in Grid"
+    var LABELS = {
+        dialog: {
+            title: { ja: "グリッドに整列配置", en: "Arrange in Grid" }
         },
-        gridSettingsLabel: {
-            ja: "分割とマージン",
-            en: "Grid Settings"
+        panel: {
+            placement: { ja: "配置先", en: "Placement Area" },
+            division: { ja: "分割とマージン", en: "Divisions & Margin" },
+            cellDrawing: { ja: "セルの扱い", en: "Cell Handling" }
         },
-        rowsLabel: {
-            ja: "行数：",
-            en: "Rows:"
+        field: {
+            rowCount: { ja: "行数", en: "Rows" },
+            columnCount: { ja: "列数", en: "Columns" },
+            gutter: { ja: "セル間隔", en: "Gutter" },
+            margin: { ja: "マージン", en: "Margin" },
+            cellColor: { ja: "カラー", en: "Color" },
+            cellOpacity: { ja: "不透明度", en: "Opacity" }
         },
-        columnsLabel: {
-            ja: "列数：",
-            en: "Columns:"
+        radio: {
+            targetArtboard: { ja: "現在のアートボード", en: "Current Artboard" },
+            targetBackmost: { ja: "最背面のオブジェクト", en: "Backmost Object" },
+            targetRectLayer: {
+                ja: "「_target」レイヤーの長方形",
+                en: "Rectangle in '_target' Layer"
+            },
+            keepCell: { ja: "長方形で残す", en: "Keep as Rectangle" },
+            toGuide: { ja: "ガイド化", en: "Convert to Guides" },
+            toArtboard: { ja: "アートボード化", en: "Convert to Artboards" },
+            blackCell: { ja: "黒", en: "Black" },
+            whiteCell: { ja: "白", en: "White" },
+            transparentCell: { ja: "塗りなし", en: "No Fill" }
         },
-        rowGutterLabel: {
-            ja: "間隔：",
-            en: "Gutter:"
+        button: {
+            transparencyGrid: { ja: "透明グリッド表示", en: "Transparency Grid" },
+            randomize: { ja: "シャッフル", en: "Shuffle" },
+            cancel: { ja: "キャンセル", en: "Cancel" },
+            ok: { ja: "OK", en: "OK" }
         },
-        commonMarginLabel: {
-            ja: "マージン：",
-            en: "Margin:"
+        tip: {
+            targetUnavailable: {
+                ja: "該当するオブジェクトがありません。",
+                en: "No matching object was found."
+            },
+            targetRectLayer: {
+                ja: "この長方形は処理中だけ非表示になり、配置対象には含まれません。",
+                en: "This rectangle is hidden while the script runs and is never placed into a cell."
+            },
+            keepCell: {
+                ja: "セルの長方形を「cell-background」レイヤーに残します。",
+                en: "Keeps the cell rectangles on the \"cell-background\" layer."
+            },
+            toGuide: {
+                ja: "セルの長方形をガイドに変換します。",
+                en: "Converts the cell rectangles into guides."
+            },
+            toArtboard: {
+                ja: "セルごとにアートボードを作成し、長方形は残しません。",
+                en: "Creates one artboard per cell and keeps no rectangles."
+            },
+            division: {
+                ja: "セル数より多いオブジェクトは、アートボードの外へ退避します。",
+                en: "Objects beyond the number of cells are parked outside the artboard."
+            },
+            gutter: {
+                ja: "行数・列数のいずれかが2以上のときに有効です。",
+                en: "Available when the rows or columns are 2 or more."
+            },
+            randomize: {
+                ja: "セルへの割り当て順をシャッフルします（押すたびに変わります）。",
+                en: "Shuffles the order in which objects fill the cells (changes on every click)."
+            },
+            transparencyGrid: {
+                ja: "透明グリッドの表示を切り替えます。スクリプト終了時に元へ戻します。",
+                en: "Toggles the transparency grid. It is restored when the script finishes."
+            }
         },
-        cellDrawingLabel: {
-            ja: "セル描画",
-            en: "Cell Drawing"
-        },
-        cellRectLabel: {
-            ja: "残す",
-            en: "Keep Cell"
-        },
-        convertToGuideLabel: {
-            ja: "ガイド化",
-            en: "Convert to Guides"
-        },
-        convertToArtboardLabel: {
-            ja: "アートボード化",
-            en: "Convert to Artboards"
-        },
-        colorLabel: {
-            ja: "カラー：",
-            en: "Color:"
-        },
-        black: {
-            ja: "黒",
-            en: "Black"
-        },
-        white: {
-            ja: "白",
-            en: "White"
-        },
-        none: {
-            ja: "透過",
-            en: "Transparent"
-        },
-        opacityLabel: {
-            ja: "不透明度：",
-            en: "Opacity:"
-        },
-        transparencyGridLabel: {
-            ja: "透明グリッド",
-            en: "Transparency Grid"
-        },
-        randomLabel: {
-            ja: "ランダム",
-            en: "Random"
-        },
-        cancelLabel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        okLabel: {
-            ja: "OK",
-            en: "OK"
-        },
-        noSelection: {
-            ja: "オブジェクトが選択されていません。",
-            en: "No objects selected."
-        },
-        artboardError: {
-            ja: "アートボードの作成中にエラーが発生しました。",
-            en: "Error occurred while creating artboards."
-        },
-        artboardCreated: {
-            ja: " 個のアートボードを作成しました。",
-            en: " artboards created."
-        },
-        targetPanelLabel: {
-            ja: "対象",
-            en: "Target"
-        },
-        targetCurrentArtboard: {
-            ja: "現在のアートボード",
-            en: "Current Artboard"
-        },
-        targetBackmostObject: {
-            ja: "最背面のオブジェクト",
-            en: "Backmost Object"
-        },
-        targetRectangleLayer: {
-            ja: "「_target」レイヤーの長方形",
-            en: "Rectangle in '_target' Layer"
+        message: {
+            noDocument: {
+                ja: "ドキュメントを開いてください。",
+                en: "Please open a document."
+            },
+            noSelection: {
+                ja: "オブジェクトが選択されていません。",
+                en: "No objects selected."
+            },
+            artboardError: {
+                ja: "アートボードの作成中にエラーが発生しました。",
+                en: "Error occurred while creating artboards."
+            },
+            artboardCreated: {
+                ja: " 個のアートボードを作成しました。",
+                en: " artboards created."
+            }
         }
     };
 
-    // 汎用 Undo/Preview 管理クラス (PreviewManager)
-    // - プレビュー更新のたびに rollback → addStep で「履歴を汚さない」
-    // - OK時は confirm(finalAction) で「1回のUndoで戻せる」状態にする
-    function PreviewManager(doc, historyName) {
-        this.doc = doc;
-        this.historyName = historyName || "Preview";
-        this.undoDepth = 0; // プレビュー中に実行されたアクションの回数
-
-        /**
-         * 変更操作を実行し、履歴としてカウントする
-         * @param {Function} func - 実行したい処理（無名関数で渡す）
-         */
-        this.addStep = function (func) {
-            try {
-                // 可能なら1ステップにまとめる（環境によっては使えない場合がある）
-                if (this.doc && this.doc.suspendHistory) {
-                    var previewAction = func;
-                    PreviewManager._tempFunc = function () { previewAction(); };
-                    this.doc.suspendHistory(this.historyName, "PreviewManager._tempFunc()");
-                    PreviewManager._tempFunc = null;
-                } else {
-                    func();
-                }
-                this.undoDepth++;
-                app.redraw();
-            } catch (previewError) {
-                alert("Preview Error: " + previewError);
-            }
-        };
-
-        /**
-         * プレビューのために行った変更を全て取り消す（キャンセル時など）
-         */
-        this.rollback = function () {
-            while (this.undoDepth > 0) {
-                try { app.undo(); } catch (undoError) { break; }
-                this.undoDepth--;
-            }
-            app.redraw();
-        };
-
-        /**
-         * 現在の状態を確定する（OK時）
-         * @param {Function} [finalAction] - (任意) 全てUndoした後に実行する「本番」の処理
-         */
-        this.confirm = function (finalAction) {
-            if (finalAction) {
-                this.rollback();
-
-                // 最終処理も可能なら1ステップにまとめる
-                try {
-                    if (this.doc && this.doc.suspendHistory) {
-                        PreviewManager._tempFunc = function () { finalAction(); };
-                        this.doc.suspendHistory("SmartObjectDistributor", "PreviewManager._tempFunc()");
-                        PreviewManager._tempFunc = null;
-                    } else {
-                        finalAction();
-                    }
-                } catch (historyError) {
-                    // suspendHistory が失敗した場合は通常実行にフォールバック
-                    try { finalAction(); } catch (finalActionError) { throw finalActionError; }
-                }
-            } else {
-                this.undoDepth = 0;
-            }
-        };
-    }
-    PreviewManager._tempFunc = null;
-
-    // 選択オブジェクトがアートボードに重なっている場合、他と重ならない位置へ一時的に退避
-    function moveObjectsOutsideArtboard(doc, selection) {
-        var activeArtboardIndex = doc.artboards.getActiveArtboardIndex();
-        var activeArtboardRect = doc.artboards[activeArtboardIndex].artboardRect;
-        var artboardLeft = activeArtboardRect[0];
-        var artboardTop = activeArtboardRect[1];
-        var artboardRight = activeArtboardRect[2];
-        var artboardBottom = activeArtboardRect[3];
-
-        var movedObjects = [];
-        var BOUNDARY_MARGIN = 1;
-        var ARTBOARD_BUFFER = 10;
-
-        function isOverlappingWithMovedObjects(newBounds) {
-            for (var i = 0; i < movedObjects.length; i++) {
-                var movedBounds = movedObjects[i];
-                if (!(newBounds[2] < movedBounds[0] - BOUNDARY_MARGIN || newBounds[0] > movedBounds[2] + BOUNDARY_MARGIN ||
-                    newBounds[1] < movedBounds[3] - BOUNDARY_MARGIN || newBounds[3] > movedBounds[1] + BOUNDARY_MARGIN)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        function isOverlappingWithArtboards(newBounds) {
-            for (var i = 0; i < doc.artboards.length; i++) {
-                if (i === activeArtboardIndex) continue;
-                var otherArtboardRect = doc.artboards[i].artboardRect;
-                if (!(newBounds[2] < otherArtboardRect[0] - BOUNDARY_MARGIN - ARTBOARD_BUFFER ||
-                    newBounds[0] > otherArtboardRect[2] + BOUNDARY_MARGIN + ARTBOARD_BUFFER ||
-                    newBounds[1] < otherArtboardRect[3] - BOUNDARY_MARGIN - ARTBOARD_BUFFER ||
-                    newBounds[3] > otherArtboardRect[1] + BOUNDARY_MARGIN + ARTBOARD_BUFFER)) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
-        for (var i = 0; i < selection.length; i++) {
-            var item = selection[i];
-            var bounds = item.visibleBounds;
-            var overlapsActiveArtboard = !(bounds[2] < artboardLeft || bounds[0] > artboardRight || bounds[1] < artboardBottom || bounds[3] > artboardTop);
-
-            if (overlapsActiveArtboard) {
-                var horizontalOffset = (artboardRight - bounds[0]) + 200;
-                do {
-                    var newBounds = [bounds[0] + horizontalOffset, bounds[1], bounds[2] + horizontalOffset, bounds[3]];
-                    horizontalOffset += 200;
-                } while (isOverlappingWithMovedObjects(newBounds) || isOverlappingWithArtboards(newBounds));
-
-                item.position = [item.position[0] + horizontalOffset - 200, item.position[1]];
-                movedObjects.push(newBounds);
-            }
-        }
+    /**
+     * ラベルを現在の言語で取得します。/ Get a label in the current language.
+     *
+     * @param {LabelEntry} labelEntry - 日英の文言を持つラベル。
+     * @returns {string} 表示言語の文言。
+     */
+    function getLabel(labelEntry) {
+        return labelEntry[lang];
     }
 
-    var originalPositions = [];
+    /**
+     * コロン付きラベルを返します（日本語は全角、英語は半角）。/ Label with colon (full-width JA, half-width EN).
+     *
+     * @param {LabelEntry} labelEntry - 日英の文言を持つラベル。
+     * @returns {string} コロンを付けた文言。
+     */
+    function labelText(labelEntry) {
+        return getLabel(labelEntry) + (lang === "ja" ? "：" : ":");
+    }
 
-    function saveOriginalPositions(items) {
-        originalPositions = [];
+    // =========================================
+    // 単位 / Units
+    // =========================================
+    // rulerType の並びに対応（0:inch, 1:mm, 2:pt, 3:pica, 4:cm, 5:Q, 6:px）
+    var UNIT_TABLE = [
+        { label: "inch", factor: 72.0 },
+        { label: "mm", factor: 72.0 / 25.4 },
+        { label: "pt", factor: 1.0 },
+        { label: "pica", factor: 12.0 },
+        { label: "cm", factor: 72.0 / 2.54 },
+        { label: "Q", factor: 72.0 / 25.4 * 0.25 },
+        { label: "px", factor: 1.0 }
+    ];
+
+    /**
+     * 現在の定規単位を取得します。/ Return the current ruler unit.
+     *
+     * @returns {{label: string, factor: number}} 単位のラベルと pt 換算係数。
+     */
+    function getCurrentRulerUnit() {
+        var rulerType = app.preferences.getIntegerPreference("rulerType");
+        return UNIT_TABLE[rulerType] ? UNIT_TABLE[rulerType] : { label: "pt", factor: 1.0 };
+    }
+
+    // =========================================
+    // UIレイアウトの共通設定 / Shared UI layout
+    // =========================================
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+    /**
+     * ウィンドウに共通のレイアウト設定を適用します。/ Apply shared window layout.
+     *
+     * @param {Window} win - 対象のウィンドウ。
+     * @param {number} [spacing] - 要素間隔。省略時は WINDOW_SPACING。
+     * @returns {void}
+     */
+    function setupWindow(win, spacing) {
+        win.orientation = "column";
+        win.alignChildren = "fill";
+        win.margins = WINDOW_MARGINS;
+        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルに共通のレイアウト設定を適用します。/ Apply shared panel layout.
+     *
+     * @param {Panel} panel - 対象のパネル。
+     * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING。
+     * @returns {void}
+     */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * 横並びの行グループを設定します（ボタン列など）。/ Apply a horizontal row group.
+     *
+     * @param {Group} group - 対象のグループ。
+     * @param {string} [alignment] - 親に対する揃え。省略時は "left"。
+     * @param {number} [spacing] - 要素間隔。省略時は PANEL_SPACING。
+     * @returns {void}
+     */
+    function setupRow(group, alignment, spacing) {
+        group.orientation = "row";
+        group.alignment = alignment || "left";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ボタンの高さを指定 px 詰めます（レイアウト確定後に呼びます）。/ Trim a button's height.
+     *
+     * @param {Button} button - 対象のボタン。
+     * @param {number} px - 詰める高さ（px）。
+     * @returns {void}
+     */
+    function trimButtonHeight(button, px) {
+        try {
+            button.size = [button.size.width, button.size.height - px];
+        } catch (e) { }
+    }
+
+    // =========================================
+    // 位置の記録と復元 / Position bookkeeping
+    // =========================================
+    // プレビューは Undo に依存しない（Illustrator の app.undo は
+    // スクリプト実行前の編集履歴まで巻き戻す恐れがあるため使用しない）。
+    // 代わりに、記録した中心座標へ戻すことで元の状態を復元する。
+
+    /** @type {Array<number[]>} 記録した中心座標 [x, y] の配列。 */
+    var originalCenters = [];
+
+    /**
+     * 各オブジェクトの中心座標を記録します。/ Record the center of each object.
+     *
+     * @param {Array<PageItem>} items - 記録対象のオブジェクト。
+     * @returns {void}
+     */
+    function saveOriginalCenters(items) {
+        originalCenters = [];
         for (var i = 0; i < items.length; i++) {
             var bounds = items[i].visibleBounds;
-            var centerX = (bounds[0] + bounds[2]) / 2;
-            var centerY = (bounds[1] + bounds[3]) / 2;
-            originalPositions.push([centerX, centerY]);
+            originalCenters.push([(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2]);
         }
     }
 
-    // 記録した中心座標へ戻す（drawGuides 内で呼び出し）
-    function restoreOriginalPositions(items) {
-        if (!originalPositions || originalPositions.length === 0) return;
-        for (var i = 0; i < items.length && i < originalPositions.length; i++) {
+    /**
+     * 記録した中心座標へオブジェクトを戻します。/ Move objects back to the recorded centers.
+     *
+     * @param {Array<PageItem>} items - 復元対象のオブジェクト（記録時と同じ順序）。
+     * @returns {void}
+     */
+    function restoreOriginalCenters(items) {
+        for (var i = 0; i < items.length && i < originalCenters.length; i++) {
             var bounds = items[i].visibleBounds;
-            var itemCenterX = (bounds[0] + bounds[2]) / 2;
-            var itemCenterY = (bounds[1] + bounds[3]) / 2;
-            var horizontalOffset = originalPositions[i][0] - itemCenterX;
-            var verticalOffset = originalPositions[i][1] - itemCenterY;
-            items[i].translate(horizontalOffset, verticalOffset);
+            var dx = originalCenters[i][0] - (bounds[0] + bounds[2]) / 2;
+            var dy = originalCenters[i][1] - (bounds[1] + bounds[3]) / 2;
+            items[i].translate(dx, dy);
         }
     }
 
-    // 「_target」レイヤー内の最初の PathItem を返す（無ければ null）
-    function findTargetLayerRectangle() {
-        if (app.documents.length === 0) return null;
-        var doc = app.activeDocument;
+    /**
+     * 2つの矩形が重なるかを判定します（余裕を加味）。/ Test whether two rects overlap.
+     *
+     * @param {number[]} rectA - 矩形A [左, 上, 右, 下]。
+     * @param {number[]} rectB - 矩形B [左, 上, 右, 下]。
+     * @param {number} tolerance - 重なりと見なす余裕（pt）。
+     * @returns {boolean} 重なっている場合は true。
+     */
+    function rectsOverlap(rectA, rectB, tolerance) {
+        return !(rectA[2] < rectB[0] - tolerance || rectA[0] > rectB[2] + tolerance ||
+            rectA[1] < rectB[3] - tolerance || rectA[3] > rectB[1] + tolerance);
+    }
 
-        for (var layerIndex = 0; layerIndex < doc.layers.length; layerIndex++) {
-            var layer = doc.layers[layerIndex];
-            if (layer.name !== "_target") continue;
+    /**
+     * 対象領域や他アートボードと重ならない位置へオブジェクトを退避します。
+     * / Park objects clear of the target area and other artboards.
+     *
+     * @param {Document} doc - 対象ドキュメント。
+     * @param {Array<PageItem>} items - 退避するオブジェクト。
+     * @param {number[]} avoidRect - 避けたい配置先の矩形 [左, 上, 右, 下]。
+     * @returns {void}
+     */
+    function parkItemsOutside(doc, items, avoidRect) {
+        var activeIndex = doc.artboards.getActiveArtboardIndex();
+        var activeRect = doc.artboards[activeIndex].artboardRect;
 
-            for (var itemIndex = 0; itemIndex < layer.pathItems.length; itemIndex++) {
-                var item = layer.pathItems[itemIndex];
-                if (item.typename === "PathItem") return item;
+        // アクティブアートボードと対象領域の和を「避けたい領域」とする
+        var avoidArea = [
+            Math.min(activeRect[0], avoidRect[0]),
+            Math.max(activeRect[1], avoidRect[1]),
+            Math.max(activeRect[2], avoidRect[2]),
+            Math.min(activeRect[3], avoidRect[3])
+        ];
+
+        var parkedRects = [];
+        var artboardTolerance = CONFIG.overlapTolerance + CONFIG.artboardBuffer;
+
+        /**
+         * 退避先が既存の退避先や他アートボードと衝突するかを判定します。
+         * / Test a parking slot against parked items and artboards.
+         *
+         * @param {number[]} candidateRect - 退避先の候補矩形。
+         * @returns {boolean} 使用できない場合は true。
+         */
+        function isSlotTaken(candidateRect) {
+            for (var i = 0; i < parkedRects.length; i++) {
+                if (rectsOverlap(candidateRect, parkedRects[i], CONFIG.overlapTolerance)) return true;
             }
-            break;
+            for (var j = 0; j < doc.artboards.length; j++) {
+                if (j === activeIndex) continue;
+                if (rectsOverlap(candidateRect, doc.artboards[j].artboardRect, artboardTolerance)) return true;
+            }
+            return false;
+        }
+
+        for (var i = 0; i < items.length; i++) {
+            var bounds = items[i].visibleBounds;
+            if (!rectsOverlap(bounds, avoidArea, 0)) continue;
+
+            var dx = (avoidArea[2] - bounds[0]) + CONFIG.parkingStep;
+            var slotRect;
+            do {
+                slotRect = [bounds[0] + dx, bounds[1], bounds[2] + dx, bounds[3]];
+                if (!isSlotTaken(slotRect)) break;
+                dx += CONFIG.parkingStep;
+            } while (true);
+
+            items[i].translate(dx, 0);
+            parkedRects.push(slotRect);
+        }
+    }
+
+    // =========================================
+    // 対象の検出 / Target detection
+    // =========================================
+
+    /**
+     * 「_target」レイヤー内の最初の長方形を返します。/ Return the first rectangle in the "_target" layer.
+     *
+     * @param {Document} doc - 対象ドキュメント。
+     * @returns {PathItem|null} 見つかった長方形。無ければ null。
+     */
+    function findTargetLayerRectangle(doc) {
+        for (var i = 0; i < doc.layers.length; i++) {
+            var layer = doc.layers[i];
+            if (layer.name !== CONFIG.targetLayerName) continue;
+            return (layer.pathItems.length > 0) ? layer.pathItems[0] : null;
         }
         return null;
     }
 
-    // システムレイヤーを除外したドキュメント最背面の pageItem を返す（無ければ null）
-    // 選択中のアイテムも候補に含める：枠として使う場合の利便性を優先
-    function findBackmostPageItem() {
-        if (app.documents.length === 0) return null;
-        var doc = app.activeDocument;
-        var SYSTEM_LAYERS = {
+    /**
+     * システムレイヤーを除く最背面のオブジェクトを返します。/ Return the backmost object, ignoring system layers.
+     * 選択中のアイテムも候補に含めます（枠として使う場合の利便性を優先）。
+     *
+     * @param {Document} doc - 対象ドキュメント。
+     * @returns {PageItem|null} 最背面のオブジェクト。無ければ null。
+     */
+    function findBackmostPageItem(doc) {
+        var systemLayerNames = {
             "_target": 1,
             "_Preview_Guides": 1,
             "_Preview_Background": 1,
             "cell-background": 1,
             "placement_layer": 1
         };
-        for (var layerIndex = doc.layers.length - 1; layerIndex >= 0; layerIndex--) {
-            var layer = doc.layers[layerIndex];
-            try {
-                if (layer.visible === false || layer.locked) continue;
-            } catch (layerAccessError) { continue; }
-            if (SYSTEM_LAYERS[layer.name]) continue;
-            for (var i = layer.pageItems.length - 1; i >= 0; i--) {
-                var item = layer.pageItems[i];
-                try {
-                    if (item.hidden || item.locked) continue;
-                } catch (pageItemAccessError) { continue; }
+        for (var i = doc.layers.length - 1; i >= 0; i--) {
+            var layer = doc.layers[i];
+            if (!layer.visible || layer.locked || systemLayerNames[layer.name]) continue;
+            for (var j = layer.pageItems.length - 1; j >= 0; j--) {
+                var item = layer.pageItems[j];
+                if (item.hidden || item.locked) continue;
                 return item;
             }
         }
         return null;
     }
 
-    // 選択数とアートボードのアスペクト比から、セルが正方形に近くなる行数・列数を計算
-    // 余白セルが行/列1本分以上になる構成は除外し、その範囲内でセルアスペクト比1に最も近いものを選ぶ
-    function computeDefaultGridDivision(count, artboardRect) {
-        if (!count || count <= 0) return { rows: 5, cols: 5 };
-        if (count === 1) return { rows: 1, cols: 1 };
+    /**
+     * セルが正方形に近くなる行数・列数を求めます。/ Find rows and columns that make cells nearly square.
+     * 余白セルが行／列1本分以上になる構成は除外し、その範囲でセル比1に最も近いものを選びます。
+     *
+     * @param {number} itemCount - 配置するオブジェクトの数。
+     * @param {number[]} targetRect - 配置先の矩形 [左, 上, 右, 下]。
+     * @returns {{rowCount: number, columnCount: number}} 行数と列数。
+     */
+    function computeDefaultDivision(itemCount, targetRect) {
+        var fallback = { rowCount: CONFIG.fallbackDivision, columnCount: CONFIG.fallbackDivision };
+        if (!itemCount || itemCount <= 0) return fallback;
+        if (itemCount === 1) return { rowCount: 1, columnCount: 1 };
 
-        var width = artboardRect[2] - artboardRect[0];
-        var height = artboardRect[1] - artboardRect[3];
-        if (width <= 0 || height <= 0) return { rows: 5, cols: 5 };
+        var areaWidth = targetRect[2] - targetRect[0];
+        var areaHeight = targetRect[1] - targetRect[3];
+        if (areaWidth <= 0 || areaHeight <= 0) return fallback;
 
-        var bestRowCount = 1;
-        var bestColumnCount = count;
+        var best = { rowCount: 1, columnCount: itemCount };
         var bestAspectRatio = Infinity;
-        for (var columnCount = 1; columnCount <= count; columnCount++) {
-            var rowCount = Math.ceil(count / columnCount);
-            var emptyCellCount = rowCount * columnCount - count;
+        for (var columnCount = 1; columnCount <= itemCount; columnCount++) {
+            var rowCount = Math.ceil(itemCount / columnCount);
+            var emptyCellCount = rowCount * columnCount - itemCount;
             if (emptyCellCount > 0 && emptyCellCount >= Math.min(rowCount, columnCount)) continue;
-            var cellWidth = width / columnCount;
-            var cellHeight = height / rowCount;
+
+            var cellWidth = areaWidth / columnCount;
+            var cellHeight = areaHeight / rowCount;
             var aspectRatio = (cellWidth > cellHeight) ? (cellWidth / cellHeight) : (cellHeight / cellWidth);
             if (aspectRatio < bestAspectRatio) {
                 bestAspectRatio = aspectRatio;
-                bestRowCount = rowCount;
-                bestColumnCount = columnCount;
+                best = { rowCount: rowCount, columnCount: columnCount };
             }
         }
-        return { rows: bestRowCount, cols: bestColumnCount };
+        return best;
     }
 
-    function run() {
-        if (app.documents.length === 0) {
-            alert("ドキュメントを開いてください。\nPlease open a document.");
-            return;
-        }
+    // =========================================
+    // レイヤー操作 / Layer helpers
+    // =========================================
 
-        // "cell-background" レイヤーが存在する場合は削除
+    /**
+     * 指定名のレイヤーがあれば削除します。/ Remove the layer with the given name if present.
+     *
+     * @param {Document} doc - 対象ドキュメント。
+     * @param {string} layerName - 削除するレイヤー名。
+     * @returns {void}
+     */
+    function removeLayerByName(doc, layerName) {
         try {
-            var existingLayer = app.activeDocument.layers.getByName("cell-background");
-            if (existingLayer) existingLayer.remove();
-        } catch (existingLayerError) {
-            // 存在しない場合はエラーを無視
+            var layer = doc.layers.getByName(layerName);
+            layer.locked = false;
+            layer.remove();
+        } catch (e) {
+            // 見つからない場合は何もしない / Nothing to do when the layer is missing
+        }
+    }
+
+    /**
+     * レイヤーを取得し、無ければ作成します。/ Get the layer, creating it when missing.
+     *
+     * @param {Document} doc - 対象ドキュメント。
+     * @param {string} layerName - レイヤー名。
+     * @returns {Layer} 取得または作成したレイヤー（ロック解除済み）。
+     */
+    function getOrCreateLayer(doc, layerName) {
+        var layer;
+        try {
+            layer = doc.layers.getByName(layerName);
+        } catch (e) {
+            layer = doc.layers.add();
+            layer.name = layerName;
+        }
+        layer.locked = false;
+        return layer;
+    }
+
+    /**
+     * ロック中でも失敗しないように表示状態を切り替えます。/ Toggle visibility without failing on locked items.
+     *
+     * @param {PageItem} item - 対象のオブジェクト。
+     * @param {boolean} hidden - 非表示にする場合は true。
+     * @returns {void}
+     */
+    function setItemHidden(item, hidden) {
+        try {
+            item.hidden = hidden;
+        } catch (e) { }
+    }
+
+    // =========================================
+    // UIの組み立て / UI construction
+    // =========================================
+
+    /**
+     * 対象パネルを作成します。/ Build the target panel.
+     *
+     * @param {Window} parent - 配置先のウィンドウ。
+     * @param {boolean} hasBackmostItem - 最背面のオブジェクトが存在する場合は true。
+     * @param {boolean} hasTargetRect - 「_target」レイヤーの長方形が存在する場合は true。
+     * @returns {{artboardRadio: RadioButton, backmostRadio: RadioButton, rectLayerRadio: RadioButton}} 配置先のラジオボタン。
+     */
+    function buildPlacementTargetPanel(parent, hasBackmostItem, hasTargetRect) {
+        var placementPanel = parent.add("panel", undefined, getLabel(LABELS.panel.placement));
+        setupPanel(placementPanel, 6);
+        placementPanel.alignChildren = ["left", "top"];
+
+        var controls = {
+            artboardRadio: placementPanel.add("radiobutton", undefined, getLabel(LABELS.radio.targetArtboard)),
+            backmostRadio: placementPanel.add("radiobutton", undefined, getLabel(LABELS.radio.targetBackmost)),
+            rectLayerRadio: placementPanel.add("radiobutton", undefined, getLabel(LABELS.radio.targetRectLayer))
+        };
+
+        controls.backmostRadio.enabled = hasBackmostItem;
+        controls.rectLayerRadio.enabled = hasTargetRect;
+
+        // 選べない理由、または選んだときの挙動をツールチップで補う
+        if (!hasBackmostItem) controls.backmostRadio.helpTip = getLabel(LABELS.tip.targetUnavailable);
+        controls.rectLayerRadio.helpTip = hasTargetRect
+            ? getLabel(LABELS.tip.targetRectLayer)
+            : getLabel(LABELS.tip.targetUnavailable);
+
+        if (hasTargetRect) {
+            controls.rectLayerRadio.value = true;
+        } else {
+            controls.artboardRadio.value = true;
+        }
+        return controls;
+    }
+
+    /**
+     * 分割とマージンのパネルを作成します（左：分割数／右：間隔）。/ Build the division panel.
+     *
+     * @param {Window} parent - 配置先のウィンドウ。
+     * @param {{rowCount: number, columnCount: number}} defaultDivision - 行数・列数の初期値。
+     * @param {string} unitLabel - 定規単位のラベル。
+     * @returns {{rowCountInput: EditText, columnCountInput: EditText, gutterInput: EditText, marginInput: EditText}} 入力欄。
+     */
+    function buildDivisionPanel(parent, defaultDivision, unitLabel) {
+        var divisionPanel = parent.add("panel", undefined, getLabel(LABELS.panel.division));
+        setupPanel(divisionPanel, 6);
+        divisionPanel.orientation = "row";
+        divisionPanel.alignChildren = ["left", "top"];
+        divisionPanel.spacing = COLUMN_SPACING;
+
+        var divisionColumn = divisionPanel.add("group");
+        divisionColumn.orientation = "column";
+        divisionColumn.alignChildren = "left";
+        divisionColumn.margins.right = COLUMN_SPACING;
+
+        var spacingColumn = divisionPanel.add("group");
+        spacingColumn.orientation = "column";
+        spacingColumn.alignChildren = "left";
+
+        // ラベル幅は日本語環境と英語環境で個別に指定
+        var divisionLabelWidth = (lang === "ja") ? 45 : 60;
+        var spacingLabelWidth = (lang === "ja") ? 70 : 75;
+
+        /**
+         * ラベルと入力欄の1行を作成します。/ Build one label-and-field row.
+         *
+         * @param {Group} parentColumn - 配置先のカラム。
+         * @param {LabelEntry} labelEntry - 行ラベルの文言。
+         * @param {number} initialValue - 入力欄の初期値。
+         * @param {number} labelWidth - ラベルの幅（px）。
+         * @param {string|null} suffix - 入力欄の後ろに置く単位表記。不要なら null。
+         * @param {LabelEntry} [tipEntry] - ラベルと入力欄に付けるツールチップ。
+         * @returns {EditText} 作成した入力欄。
+         */
+        function addFieldRow(parentColumn, labelEntry, initialValue, labelWidth, suffix, tipEntry) {
+            var fieldRow = parentColumn.add("group");
+            setupRow(fieldRow, "left", 4);
+            fieldRow.alignChildren = "center";
+
+            var fieldLabel = fieldRow.add("statictext", undefined, labelText(labelEntry));
+            fieldLabel.preferredSize.width = labelWidth;
+            if (suffix) fieldLabel.justify = "right";
+
+            var fieldInput = fieldRow.add("edittext", undefined, String(initialValue));
+            fieldInput.characters = suffix ? 4 : 3;
+            if (suffix) fieldRow.add("statictext", undefined, suffix);
+
+            if (tipEntry) {
+                fieldLabel.helpTip = getLabel(tipEntry);
+                fieldInput.helpTip = getLabel(tipEntry);
+            }
+            return fieldInput;
         }
 
+        return {
+            rowCountInput: addFieldRow(divisionColumn, LABELS.field.rowCount, defaultDivision.rowCount, divisionLabelWidth, null, LABELS.tip.division),
+            columnCountInput: addFieldRow(divisionColumn, LABELS.field.columnCount, defaultDivision.columnCount, divisionLabelWidth, null, LABELS.tip.division),
+            gutterInput: addFieldRow(spacingColumn, LABELS.field.gutter, CONFIG.defaultGutter, spacingLabelWidth, unitLabel, LABELS.tip.gutter),
+            marginInput: addFieldRow(spacingColumn, LABELS.field.margin, CONFIG.defaultMargin, spacingLabelWidth, unitLabel, null)
+        };
+    }
+
+    /**
+     * セル描画パネルを作成します。/ Build the cell drawing panel.
+     *
+     * @param {Window} parent - 配置先のウィンドウ。
+     * @returns {Object} セル描画モード、カラー、不透明度、透明グリッドボタンをまとめたオブジェクト。
+     */
+    function buildCellDrawingPanel(parent) {
+        var cellDrawingPanel = parent.add("panel", undefined, getLabel(LABELS.panel.cellDrawing));
+        setupPanel(cellDrawingPanel, 6);
+
+        var cellModeRow = cellDrawingPanel.add("group");
+        setupRow(cellModeRow, "left");
+
+        var cellColorRow = cellDrawingPanel.add("group");
+        setupRow(cellColorRow, "left");
+        cellColorRow.add("statictext", undefined, labelText(LABELS.field.cellColor));
+
+        var cellOpacityRow = cellDrawingPanel.add("group");
+        setupRow(cellOpacityRow, "left");
+        cellOpacityRow.alignChildren = "center";
+        cellOpacityRow.add("statictext", undefined, labelText(LABELS.field.cellOpacity));
+
+        var controls = {
+            keepCellRadio: cellModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.keepCell)),
+            toGuideRadio: cellModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.toGuide)),
+            toArtboardRadio: cellModeRow.add("radiobutton", undefined, getLabel(LABELS.radio.toArtboard)),
+            blackCellRadio: cellColorRow.add("radiobutton", undefined, getLabel(LABELS.radio.blackCell)),
+            whiteCellRadio: cellColorRow.add("radiobutton", undefined, getLabel(LABELS.radio.whiteCell)),
+            transparentCellRadio: cellColorRow.add("radiobutton", undefined, getLabel(LABELS.radio.transparentCell)),
+            opacityInput: cellOpacityRow.add("edittext", undefined, String(CONFIG.blackCellOpacity))
+        };
+        controls.keepCellRadio.value = true;
+        controls.blackCellRadio.value = true;
+        controls.opacityInput.characters = 4;
+
+        // モードごとの結果をツールチップで補う
+        controls.keepCellRadio.helpTip = getLabel(LABELS.tip.keepCell);
+        controls.toGuideRadio.helpTip = getLabel(LABELS.tip.toGuide);
+        controls.toArtboardRadio.helpTip = getLabel(LABELS.tip.toArtboard);
+
+        cellOpacityRow.add("statictext", undefined, "%");
+
+        // ボタンはパネル幅いっぱいに広げない
+        controls.transparencyGridButton = cellOpacityRow.add("button", undefined, getLabel(LABELS.button.transparencyGrid));
+        controls.transparencyGridButton.alignment = "left";
+        controls.transparencyGridButton.helpTip = getLabel(LABELS.tip.transparencyGrid);
+        return controls;
+    }
+
+    /**
+     * 下部のボタン列を作成します。/ Build the footer button row.
+     *
+     * @param {Window} parent - 配置先のウィンドウ。
+     * @returns {{randomizeButton: Button, cancelButton: Button, okButton: Button}} 各ボタン。
+     */
+    function buildFooterRow(parent) {
+        var footerRow = parent.add("group");
+        setupRow(footerRow, "fill", 10);
+
+        var controls = {
+            randomizeButton: footerRow.add("button", undefined, getLabel(LABELS.button.randomize))
+        };
+        controls.randomizeButton.alignment = "left";
+        controls.randomizeButton.helpTip = getLabel(LABELS.tip.randomize);
+
+        // 左右のボタンを引き離すためのスペーサー
+        var footerSpacer = footerRow.add("group");
+        footerSpacer.alignment = ["fill", "fill"];
+        footerSpacer.minimumSize.width = (lang === "ja") ? 40 : 60;
+        footerSpacer.maximumSize.height = 0;
+
+        controls.cancelButton = footerRow.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
+        controls.okButton = footerRow.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
+        return controls;
+    }
+
+    // =========================================
+    // メイン処理 / Main
+    // =========================================
+
+    /**
+     * ダイアログを表示して配置処理を実行します。/ Show the dialog and run the distribution.
+     *
+     * @returns {void}
+     */
+    function showDistributeDialog() {
         var doc = app.activeDocument;
+
+        // 前回実行時のセル描画レイヤーが残っていれば削除
+        removeLayerByName(doc, CONFIG.cellLayerName);
 
         // 以後の計算は「ダイアログ起動時点のアクティブアートボード」を基準に固定
         var baseArtboardIndex = doc.artboards.getActiveArtboardIndex();
         var baseArtboardRect = doc.artboards[baseArtboardIndex].artboardRect;
 
-        // 対象候補の検出（変更は加えない）
-        var targetRectangleItem = findTargetLayerRectangle();
-        var backmostPageItem = findBackmostPageItem();
+        // 対象候補の検出（この時点では変更を加えない）
+        var targetRectItem = findTargetLayerRectangle(doc);
+        var backmostItem = findBackmostPageItem(doc);
 
-        // 初期ターゲット矩形（既存挙動を踏襲：_target 矩形があればそれ、なければ現在のアートボード）
-        var initialTargetRect;
-        if (targetRectangleItem) {
-            try { initialTargetRect = targetRectangleItem.geometricBounds; } catch (targetRectangleBoundsError) { }
+        // 選択内容はダイアログ起動時に固定する（順序も保持）
+        // 枠として使う「_target」矩形は移動対象から除いておく
+        var placeableItems = [];
+        var currentSelection = doc.selection;
+        for (var i = 0; currentSelection && i < currentSelection.length; i++) {
+            if (currentSelection[i] !== targetRectItem) placeableItems.push(currentSelection[i]);
         }
-        if (!initialTargetRect) initialTargetRect = baseArtboardRect;
+        saveOriginalCenters(placeableItems);
 
-        // _target レイヤーの矩形は対象として選ばれている間は非表示にする
-        if (targetRectangleItem) {
-            try { targetRectangleItem.hidden = true; } catch (targetRectangleHideError) { }
-        }
+        // 初期ターゲット矩形（_target 矩形があればそれ、なければ現在のアートボード）
+        var initialTargetRect = targetRectItem ? targetRectItem.geometricBounds : baseArtboardRect;
 
-        // PreviewManager
-        var previewMgr = new PreviewManager(doc, "SmartObjectDistributor Preview");
+        // 「_target」レイヤーの矩形は対象として選ばれている間は非表示にする
+        if (targetRectItem) setItemHidden(targetRectItem, true);
 
-        var rulerUnit = app.preferences.getIntegerPreference("rulerType");
-        var unitLabel = "pt";
-        var unitFactor = 1.0;
+        var rulerUnit = getCurrentRulerUnit();
+        var defaultDivision = computeDefaultDivision(placeableItems.length, initialTargetRect);
+        var transparencyGridToggleCount = 0;
 
-        // 単位設定 (switch文)
-        switch (rulerUnit) {
-            case 0: // inch
-                unitLabel = "inch";
-                unitFactor = 72.0;
-                break;
-            case 1: // mm
-                unitLabel = "mm";
-                unitFactor = 72.0 / 25.4;
-                break;
-            case 2: // pt
-                unitLabel = "pt";
-                unitFactor = 1.0;
-                break;
-            case 3: // pica
-                unitLabel = "pica";
-                unitFactor = 12.0;
-                break;
-            case 4: // cm
-                unitLabel = "cm";
-                unitFactor = 72.0 / 2.54;
-                break;
-            case 5: // Q
-                unitLabel = "Q";
-                unitFactor = 72.0 / 25.4 * 0.25;
-                break;
-            case 6: // px
-                unitLabel = "px";
-                unitFactor = 1.0;
-                break;
-            default:
-                unitLabel = "pt";
-                unitFactor = 1.0;
+        // -----------------------------------------
+        // ダイアログの組み立て / Dialog assembly
+        // -----------------------------------------
+        var distributeDialog = new Window("dialog", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+        setupWindow(distributeDialog);
+
+        var placementUI = buildPlacementTargetPanel(distributeDialog, backmostItem !== null, targetRectItem !== null);
+        var divisionUI = buildDivisionPanel(distributeDialog, defaultDivision, rulerUnit.label);
+        var cellUI = buildCellDrawingPanel(distributeDialog);
+        var footerUI = buildFooterRow(distributeDialog);
+
+        // -----------------------------------------
+        // 入力値の取得 / Input readers
+        // -----------------------------------------
+
+        /**
+         * 入力欄の値を整数として読み取ります。/ Read an integer from a field.
+         *
+         * @param {EditText} inputField - 対象の入力欄。
+         * @returns {number|null} 読み取った整数。数値でない場合は null。
+         */
+        function readCount(inputField) {
+            var value = parseInt(inputField.text, 10);
+            return isFinite(value) ? value : null;
         }
 
-        // ダイアログ作成
-        var dlg = new Window("dialog", labels.dialogTitle[currentLanguage] + " " + SCRIPT_VERSION);
-        dlg.orientation = "column";
-        dlg.alignChildren = "fill";
-
-        // === 対象パネル ===
-        var targetPanel = dlg.add("panel", undefined, labels.targetPanelLabel[currentLanguage]);
-        targetPanel.orientation = "column";
-        targetPanel.alignChildren = "left";
-        targetPanel.alignment = "fill";
-        targetPanel.margins = [15, 20, 15, 15];
-
-        var rbCurrentArtboard = targetPanel.add("radiobutton", undefined, labels.targetCurrentArtboard[currentLanguage]);
-        var rbBackmostObject = targetPanel.add("radiobutton", undefined, labels.targetBackmostObject[currentLanguage]);
-        var rbTargetRectLayer = targetPanel.add("radiobutton", undefined, labels.targetRectangleLayer[currentLanguage]);
-
-        rbBackmostObject.enabled = (backmostPageItem !== null);
-        rbTargetRectLayer.enabled = (targetRectangleItem !== null);
-
-        if (rbTargetRectLayer.enabled) {
-            rbTargetRectLayer.value = true;
-        } else {
-            rbCurrentArtboard.value = true;
+        /**
+         * 入力欄の値を pt 換算の長さとして読み取ります。/ Read a length in points from a field.
+         *
+         * @param {EditText} inputField - 対象の入力欄。
+         * @returns {number} pt に換算した長さ。数値でない場合は 0。
+         */
+        function readLength(inputField) {
+            var value = parseFloat(inputField.text);
+            return isFinite(value) ? value * rulerUnit.factor : 0;
         }
 
-        // 選ばれている対象の矩形（[left, top, right, bottom]）を返す
-        function computeTargetRect() {
-            if (rbBackmostObject.value && backmostPageItem) {
-                try { return backmostPageItem.geometricBounds; } catch (backmostBoundsError) { }
-            }
-            if (rbTargetRectLayer.value && targetRectangleItem) {
-                try { return targetRectangleItem.geometricBounds; } catch (targetRectangleBoundsError) { }
-            }
-            if (doc.artboards.length > baseArtboardIndex) {
-                return doc.artboards[baseArtboardIndex].artboardRect;
-            }
+        /**
+         * 不透明度を 0〜100 に収めて読み取ります。/ Read the opacity clamped to 0-100.
+         *
+         * @returns {number|null} 不透明度（%）。数値でない場合は null。
+         */
+        function readOpacity() {
+            var value = parseFloat(cellUI.opacityInput.text);
+            if (!isFinite(value)) return null;
+            return Math.max(0, Math.min(100, value));
+        }
+
+        /**
+         * 現在のセル描画モードを返します。/ Return the current cell drawing mode.
+         *
+         * @returns {string} "keep"、"guide"、"artboard" のいずれか。
+         */
+        function getCellMode() {
+            if (cellUI.toArtboardRadio.value) return "artboard";
+            if (cellUI.toGuideRadio.value) return "guide";
+            return "keep";
+        }
+
+        /**
+         * 選択中の対象領域の矩形を返します。/ Return the rect of the selected target area.
+         *
+         * @returns {number[]} 配置先の矩形 [左, 上, 右, 下]。
+         */
+        function getTargetRect() {
+            if (placementUI.backmostRadio.value && backmostItem) return backmostItem.geometricBounds;
+            if (placementUI.rectLayerRadio.value && targetRectItem) return targetRectItem.geometricBounds;
+            if (doc.artboards.length > baseArtboardIndex) return doc.artboards[baseArtboardIndex].artboardRect;
             return baseArtboardRect;
         }
 
-        // グリッド設定パネル（2列構成、タイトル付き）
-        var gridPanel = dlg.add("panel", undefined, labels.gridSettingsLabel[currentLanguage]);
-        gridPanel.orientation = "row";
-        gridPanel.alignChildren = "top";
-        gridPanel.margins = [15, 20, 15, 15];
-        gridPanel.spacing = 20;
+        // -----------------------------------------
+        // 配置対象 / Distribution items
+        // -----------------------------------------
 
-        // ラベル幅を日本語環境のときに 40/55、それ以外は 55/70 に個別指定
-        var leftLabelWidth = (currentLanguage === 'ja') ? 40 : 55;
-        var rightLabelWidth = (currentLanguage === 'ja') ? 65 : 70;
+        /** @type {Array<PageItem>|null} ランダムボタンで決めた配置順。未使用なら null。 */
+        var randomizedOrder = null;
 
-        // 2列グループ（gridPanel直下へ追加）
-        var leftColGroup = gridPanel.add("group");
-        leftColGroup.orientation = "column";
-        leftColGroup.alignChildren = "left";
-        leftColGroup.margins.right = 20; // 右列とのスペース確保
+        /** @type {RadioButton} 「長方形で残す」に戻したときに復帰させるカラー選択。 */
+        var lastCellColorRadio = cellUI.blackCellRadio;
 
-        var rightColGroup = gridPanel.add("group");
-        rightColGroup.orientation = "column";
-        rightColGroup.alignChildren = "left";
+        /**
+         * 枠として使うアイテムを除いた配置対象を返します。/ Return the items to place, excluding frame items.
+         *
+         * @returns {Array<PageItem>} 配置対象のオブジェクト。
+         */
+        function getDistributionItems() {
+            if (!(placementUI.backmostRadio.value && backmostItem)) return placeableItems;
 
-        // 選択オブジェクト数に応じて行・列の初期値を計算（セルが正方形に近くなるように）
-        var initialSelectionCount = 0;
-        try {
-            if (doc.selection && doc.selection.length) initialSelectionCount = doc.selection.length;
-        } catch (eSel) { }
-        var defaultGrid = computeDefaultGridDivision(initialSelectionCount, initialTargetRect);
+            var items = [];
+            for (var i = 0; i < placeableItems.length; i++) {
+                if (placeableItems[i] !== backmostItem) items.push(placeableItems[i]);
+            }
+            return items;
+        }
 
-        // 左側：行数・列数（ペアで整える）
-        var inputY = leftColGroup.add("group");
-        inputY.add("statictext", undefined, labels.rowsLabel[currentLanguage]).preferredSize.width = leftLabelWidth;
-        var inputYText = inputY.add("edittext", undefined, String(defaultGrid.rows));
-        inputYText.characters = 3;
+        /**
+         * 配列に指定アイテムが含まれるかを判定します。/ Test whether the list contains the item.
+         *
+         * @param {Array<PageItem>} items - 検索対象の配列。
+         * @param {PageItem} item - 探すオブジェクト。
+         * @returns {boolean} 含まれる場合は true。
+         */
+        function containsItem(items, item) {
+            for (var i = 0; i < items.length; i++) {
+                if (items[i] === item) return true;
+            }
+            return false;
+        }
 
-        var inputX = leftColGroup.add("group");
-        inputX.add("statictext", undefined, labels.columnsLabel[currentLanguage]).preferredSize.width = leftLabelWidth;
-        var inputXText = inputX.add("edittext", undefined, String(defaultGrid.cols));
-        inputXText.characters = 3;
+        /**
+         * ランダム順を現在の配置対象に合わせ直します。/ Rebuild the random order for the current items.
+         * 対象の切り替えでアイテムが増減しても破綻しないようにします。
+         *
+         * @returns {Array<PageItem>} 配置順に並べたオブジェクト。
+         */
+        function getOrderedDistributionItems() {
+            var items = getDistributionItems();
+            if (!randomizedOrder) return items;
 
-        // 右側：行間・マージン（ペアで整える）
-        var rowGutterGroup = rightColGroup.add("group");
-        rowGutterGroup.alignChildren = "center";
-        var rowGutterLabel = rowGutterGroup.add("statictext", undefined, labels.rowGutterLabel[currentLanguage]);
-        rowGutterLabel.preferredSize.width = rightLabelWidth;
-        rowGutterLabel.justify = "right";
-        var inputRowGutter = rowGutterGroup.add("edittext", undefined, "10");
-        inputRowGutter.characters = 4;
-        rowGutterGroup.add("statictext", undefined, unitLabel);
+            var ordered = [];
+            for (var i = 0; i < randomizedOrder.length; i++) {
+                if (containsItem(items, randomizedOrder[i])) ordered.push(randomizedOrder[i]);
+            }
+            for (var j = 0; j < items.length; j++) {
+                if (!containsItem(ordered, items[j])) ordered.push(items[j]);
+            }
+            return ordered;
+        }
 
-        var marginGroup = rightColGroup.add("group");
-        marginGroup.orientation = "row";
-        marginGroup.alignChildren = "center";
-        var marginLabel = marginGroup.add("statictext", undefined, labels.commonMarginLabel[currentLanguage]);
-        marginLabel.preferredSize.width = rightLabelWidth;
-        marginLabel.justify = "right";
-        var marginInput = marginGroup.add("edittext", undefined, "10");
-        marginInput.characters = 4;
-        marginGroup.add("statictext", undefined, unitLabel);
+        // -----------------------------------------
+        // グリッド計算 / Grid geometry
+        // -----------------------------------------
 
-        // オプション設定グループ
-        var optGroup = dlg.add("group");
-        optGroup.orientation = "column";
-        optGroup.alignChildren = "fill";
-        optGroup.alignment = "fill";
+        /**
+         * 入力値からグリッドの寸法を計算します。/ Compute the grid metrics.
+         *
+         * @returns {GridMetrics|null} グリッドの寸法。入力が無効な場合は null。
+         */
+        function computeGridMetrics() {
+            var rowCount = readCount(divisionUI.rowCountInput);
+            var columnCount = readCount(divisionUI.columnCountInput);
+            if (rowCount === null || columnCount === null) return null;
+            if (rowCount < 1 || columnCount < 1) return null;
+            if (rowCount > CONFIG.maxDivision || columnCount > CONFIG.maxDivision) return null;
+            if (rowCount * columnCount > CONFIG.maxCellCount) return null;
 
-        // === 長方形オプションパネル ===
-        var rectPanel = optGroup.add("panel", undefined, labels.cellDrawingLabel[currentLanguage]);
-        rectPanel.orientation = "column";
-        rectPanel.alignChildren = "left";
-        rectPanel.alignment = "fill";
-        rectPanel.margins = [15, 20, 15, 15];
+            var margin = readLength(divisionUI.marginInput);
+            var gutter = readLength(divisionUI.gutterInput);
+            var targetRect = getTargetRect();
 
-        // 横並びのグループにラジオボタンをまとめる
-        var rectOptionsGroup = rectPanel.add("group");
-        rectOptionsGroup.orientation = "row";
-        rectOptionsGroup.alignChildren = "left";
+            var usableWidth = (targetRect[2] - margin) - (targetRect[0] + margin);
+            var usableHeight = (targetRect[1] - margin) - (targetRect[3] + margin);
+            var cellWidth = (usableWidth - (columnCount - 1) * gutter) / columnCount;
+            var cellHeight = (usableHeight - (rowCount - 1) * gutter) / rowCount;
 
-        var cellRectRadio = rectOptionsGroup.add("radiobutton", undefined, labels.cellRectLabel[currentLanguage]);
-        var convertToGuideRadio = rectOptionsGroup.add("radiobutton", undefined, labels.convertToGuideLabel[currentLanguage]);
-        var convertToArtboardRadio = rectOptionsGroup.add("radiobutton", undefined, labels.convertToArtboardLabel[currentLanguage]);
+            // マージンや間隔が大きすぎてセルが成立しない場合は描画しない
+            if (!isFinite(cellWidth) || !isFinite(cellHeight) || cellWidth <= 0 || cellHeight <= 0) return null;
 
-        cellRectRadio.value = true;
+            return {
+                rowCount: rowCount,
+                columnCount: columnCount,
+                originLeft: targetRect[0] + margin,
+                originTop: targetRect[1] - margin,
+                cellWidth: cellWidth,
+                cellHeight: cellHeight,
+                gutter: gutter,
+                targetRect: targetRect
+            };
+        }
 
-        // カラー選択ラジオ（黒・白・透過）
-        var colorGroup = rectPanel.add("group");
-        colorGroup.orientation = "row";
-        colorGroup.alignChildren = "left";
+        /**
+         * 全セルを行→列の順に走査します。/ Iterate cells in row-major order.
+         *
+         * @param {GridMetrics} gridMetrics - グリッドの寸法。
+         * @param {function(number[]): (boolean|void)} handleCell - セル矩形を受け取る処理。false を返すと走査を中断します。
+         * @returns {void}
+         */
+        function eachCell(gridMetrics, handleCell) {
+            for (var i = 0; i < gridMetrics.rowCount; i++) {
+                var cellTop = gridMetrics.originTop - (gridMetrics.cellHeight + gridMetrics.gutter) * i;
+                for (var j = 0; j < gridMetrics.columnCount; j++) {
+                    var cellLeft = gridMetrics.originLeft + (gridMetrics.cellWidth + gridMetrics.gutter) * j;
+                    var cellRect = [cellLeft, cellTop, cellLeft + gridMetrics.cellWidth, cellTop - gridMetrics.cellHeight];
+                    if (handleCell(cellRect) === false) return;
+                }
+            }
+        }
 
-        colorGroup.add("statictext", undefined, labels.colorLabel[currentLanguage]);
+        // -----------------------------------------
+        // 描画と配置 / Drawing and placement
+        // -----------------------------------------
 
-        var rbBlack = colorGroup.add("radiobutton", undefined, labels.black[currentLanguage]);
-        var rbWhite = colorGroup.add("radiobutton", undefined, labels.white[currentLanguage]);
-        var rbNone = colorGroup.add("radiobutton", undefined, labels.none[currentLanguage]);
+        /**
+         * ドキュメントのカラーモードに合わせた無彩色を返します。/ Return a gray matching the document color mode.
+         *
+         * @param {number} cmykBlack - CMYK のときのブラック値（0〜100）。
+         * @param {number} rgbLevel - RGB のときの階調値（0〜255）。
+         * @returns {CMYKColor|RGBColor} 生成したカラー。
+         */
+        function createGrayColor(cmykBlack, rgbLevel) {
+            if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+                var cmykColor = new CMYKColor();
+                cmykColor.cyan = 0;
+                cmykColor.magenta = 0;
+                cmykColor.yellow = 0;
+                cmykColor.black = cmykBlack;
+                return cmykColor;
+            }
+            var rgbColor = new RGBColor();
+            rgbColor.red = rgbLevel;
+            rgbColor.green = rgbLevel;
+            rgbColor.blue = rgbLevel;
+            return rgbColor;
+        }
 
-        // 不透明度設定行を追加
-        var opacityGroup = rectPanel.add("group");
-        opacityGroup.orientation = "row";
-        opacityGroup.alignChildren = "center";
+        /**
+         * セルの塗り色を返します。/ Return the cell fill color.
+         *
+         * @returns {CMYKColor|RGBColor|null} 塗り色。透過を選んでいる場合は null。
+         */
+        function getCellFillColor() {
+            if (cellUI.blackCellRadio.value) return createGrayColor(100, 0);
+            if (cellUI.whiteCellRadio.value) return createGrayColor(0, 255);
+            return null;
+        }
 
-        opacityGroup.add("statictext", undefined, labels.opacityLabel[currentLanguage]);
+        /**
+         * 全セルの長方形を描画します。/ Draw rectangles for every cell.
+         *
+         * @param {Layer} cellLayer - 描画先のレイヤー。
+         * @param {GridMetrics} gridMetrics - グリッドの寸法。
+         * @param {boolean} asGuide - ガイドに変換する場合は true。
+         * @returns {void}
+         */
+        function drawCells(cellLayer, gridMetrics, asGuide) {
+            var fillColor = getCellFillColor();
+            var opacity = readOpacity();
 
-        var inputOpacity = opacityGroup.add("edittext", undefined, "15");
-        inputOpacity.characters = 4;
-        opacityGroup.add("statictext", undefined, "%");
+            eachCell(gridMetrics, function (cellRect) {
+                var cellRectangle = cellLayer.pathItems.rectangle(
+                    cellRect[1], cellRect[0], gridMetrics.cellWidth, gridMetrics.cellHeight);
+                cellRectangle.stroked = false;
+                cellRectangle.filled = (fillColor !== null);
+                if (fillColor) cellRectangle.fillColor = fillColor;
+                if (opacity !== null) cellRectangle.opacity = opacity;
+                if (asGuide) cellRectangle.guides = true;
+            });
+            cellLayer.zOrder(ZOrderMethod.SENDTOBACK);
+        }
 
-        var transparencyGridToggleCount = 0;
-        var transparencyGridButton = opacityGroup.add("button", undefined, labels.transparencyGridLabel[currentLanguage]);
-        transparencyGridButton.onClick = function () {
+        /**
+         * 各セルの中央へオブジェクトを1つずつ配置します。/ Place one object at the center of each cell.
+         *
+         * @param {Array<PageItem>} items - 配置するオブジェクト（配置順）。
+         * @param {GridMetrics} gridMetrics - グリッドの寸法。
+         * @returns {void}
+         */
+        function placeItemsInCells(items, gridMetrics) {
+            var index = 0;
+            eachCell(gridMetrics, function (cellRect) {
+                if (index >= items.length) return false;
+
+                var bounds = items[index].visibleBounds;
+                var dx = (cellRect[0] + cellRect[2]) / 2 - (bounds[0] + bounds[2]) / 2;
+                var dy = (cellRect[1] + cellRect[3]) / 2 - (bounds[1] + bounds[3]) / 2;
+                items[index].translate(dx, dy);
+                index++;
+            });
+        }
+
+        /**
+         * セルの寸法からアートボードを作成します。/ Create artboards from the cell metrics.
+         *
+         * @param {GridMetrics|null} gridMetrics - グリッドの寸法。
+         * @returns {number} 作成したアートボードの数。
+         */
+        function createArtboardsFromCells(gridMetrics) {
+            if (!gridMetrics) return 0;
+
+            var createdCount = 0;
+            eachCell(gridMetrics, function (cellRect) {
+                try {
+                    doc.artboards.add(cellRect);
+                    createdCount++;
+                } catch (e) {
+                    // アートボード数の上限などで失敗した場合は続行 / Keep going when a single artboard fails
+                }
+            });
+            doc.artboards.setActiveArtboardIndex(baseArtboardIndex);
+            return createdCount;
+        }
+
+        /**
+         * セル描画と配置を実行します（プレビュー／本番共通）。/ Draw cells and place objects.
+         *
+         * @param {boolean} isPreview - プレビューとして描画する場合は true。
+         * @returns {void}
+         */
+        function renderDistribution(isPreview) {
+            // 配置先の座標を読む前に、必ず元の位置へ戻しておく
+            restoreOriginalCenters(placeableItems);
+
+            var cellMode = getCellMode();
+            var items = getOrderedDistributionItems();
+            var gridMetrics = computeGridMetrics();
+            if (!gridMetrics) return;
+
+            // セル数を超えたオブジェクトだけを対象領域の外へ退避する
+            var overflowItems = items.slice(gridMetrics.rowCount * gridMetrics.columnCount);
+            if (overflowItems.length > 0) {
+                parkItemsOutside(doc, overflowItems, gridMetrics.targetRect);
+            }
+
+            // アートボード化のプレビューは、セルの範囲をガイドで示す
+            var drawsCells = (cellMode !== "artboard") || isPreview;
+            if (drawsCells) {
+                var layerName = isPreview ? CONFIG.previewCellLayerName : CONFIG.cellLayerName;
+                var asGuide = (cellMode === "guide") || (cellMode === "artboard" && isPreview);
+                drawCells(getOrCreateLayer(doc, layerName), gridMetrics, asGuide);
+            }
+
+            placeItemsInCells(items, gridMetrics);
+        }
+
+        // -----------------------------------------
+        // プレビュー / Preview
+        // -----------------------------------------
+        // Undo を使わず、明示的に「消して」「戻して」から描き直す
+
+        /**
+         * プレビューを消して元の状態に戻します。/ Discard the preview and restore the original state.
+         *
+         * @returns {void}
+         */
+        function clearPreview() {
+            removeLayerByName(doc, CONFIG.previewCellLayerName);
+            removeLayerByName(doc, CONFIG.legacyPreviewLayerName);
+            restoreOriginalCenters(placeableItems);
+        }
+
+        /**
+         * 現在の設定でプレビューを描き直します。/ Redraw the preview with the current settings.
+         *
+         * @returns {void}
+         */
+        function updatePreview() {
+            try {
+                clearPreview();
+                renderDistribution(true);
+            } catch (e) {
+                clearPreview();
+            }
+            app.redraw();
+        }
+
+        // -----------------------------------------
+        // UI 状態の同期 / UI state
+        // -----------------------------------------
+
+        /**
+         * 間隔欄の有効・無効を切り替えます。/ Enable or disable the gutter field.
+         * 間隔は行・列いずれかが2以上のときだけ意味を持ちます。
+         *
+         * @returns {void}
+         */
+        function syncGutterEnabled() {
+            var rowCount = readCount(divisionUI.rowCountInput);
+            var columnCount = readCount(divisionUI.columnCountInput);
+
+            // 入力途中で両方が空のときは、現在の有効・無効を保つ
+            if (rowCount === null && columnCount === null) return;
+            divisionUI.gutterInput.enabled = (rowCount > 1 || columnCount > 1);
+        }
+
+        /**
+         * カラー選択を不透明度欄に反映します。/ Reflect the color choice in the opacity field.
+         *
+         * @param {boolean} resetsValue - カラーごとの既定値で上書きする場合は true。
+         * @returns {void}
+         */
+        function syncOpacityEnabled(resetsValue) {
+            cellUI.opacityInput.enabled = cellUI.blackCellRadio.value || cellUI.whiteCellRadio.value;
+            if (!resetsValue) return;
+            if (cellUI.blackCellRadio.value) {
+                cellUI.opacityInput.text = String(CONFIG.blackCellOpacity);
+            } else if (cellUI.whiteCellRadio.value) {
+                cellUI.opacityInput.text = String(CONFIG.whiteCellOpacity);
+            }
+        }
+
+        /**
+         * セル描画モードに応じてUIを整えます。/ Update the UI for the current cell drawing mode.
+         *
+         * @returns {void}
+         */
+        function syncCellModeUI() {
+            var usesFill = (getCellMode() === "keep");
+            cellUI.blackCellRadio.enabled = usesFill;
+            cellUI.whiteCellRadio.enabled = usesFill;
+            cellUI.transparentCellRadio.enabled = usesFill;
+
+            if (usesFill) {
+                // 「塗りなし」固定から、直前に選んでいたカラーへ戻す
+                lastCellColorRadio.value = true;
+                syncOpacityEnabled(false);
+                return;
+            }
+            // ガイド化／アートボード化では塗りを持たないため塗りなしに固定
+            cellUI.transparentCellRadio.value = true;
+            cellUI.opacityInput.enabled = false;
+        }
+
+        /**
+         * 対象を切り替えます（「_target」矩形は選択中だけ非表示）。/ Switch the target area.
+         *
+         * @returns {void}
+         */
+        function handleTargetChange() {
+            if (targetRectItem) setItemHidden(targetRectItem, placementUI.rectLayerRadio.value === true);
+            updatePreview();
+        }
+
+        /**
+         * セル描画レイヤーの長方形を選択します。/ Select the rectangles on the cell layer.
+         *
+         * @returns {boolean} 選択できた場合は true。レイヤーが無い場合は false。
+         */
+        function selectCellRectangles() {
+            var cellItems = [];
+            try {
+                var cellLayer = doc.layers.getByName(CONFIG.cellLayerName);
+                for (var i = 0; i < cellLayer.pathItems.length; i++) cellItems.push(cellLayer.pathItems[i]);
+            } catch (e) {
+                return false;
+            }
+            doc.selection = cellItems;
+            return true;
+        }
+
+        /**
+         * 上下キーで数値を増減します（Shift:10単位、Option:0.1単位）。/ Step a value with arrow keys.
+         *
+         * @param {EditText} inputField - 対象の入力欄。
+         * @param {boolean} allowsDecimal - 小数の増減を許可する場合は true。
+         * @param {number} minValue - 下限値。
+         * @returns {void}
+         */
+        function enableArrowKeyStep(inputField, allowsDecimal, minValue) {
+            inputField.addEventListener("keydown", function (event) {
+                if (event.keyName !== "Up" && event.keyName !== "Down") return;
+
+                var value = Number(inputField.text);
+                if (isNaN(value)) return;
+
+                var keyboard = ScriptUI.environment.keyboardState;
+                var direction = (event.keyName === "Up") ? 1 : -1;
+
+                if (keyboard.shiftKey) {
+                    // 10 の倍数へ丸めながら増減
+                    value = (direction > 0) ? Math.ceil((value + 1) / 10) * 10 : Math.floor((value - 1) / 10) * 10;
+                } else if (keyboard.altKey && allowsDecimal) {
+                    value = Math.round((value + direction * 0.1) * 10) / 10;
+                } else {
+                    value = Math.round(value) + direction;
+                }
+
+                inputField.text = String(Math.max(minValue, value));
+                event.preventDefault();
+
+                syncGutterEnabled();
+                updatePreview();
+            });
+        }
+
+        // -----------------------------------------
+        // イベント / Event wiring
+        // -----------------------------------------
+        placementUI.artboardRadio.onClick = handleTargetChange;
+        placementUI.backmostRadio.onClick = handleTargetChange;
+        placementUI.rectLayerRadio.onClick = handleTargetChange;
+
+        cellUI.keepCellRadio.onClick = cellUI.toGuideRadio.onClick = cellUI.toArtboardRadio.onClick = function () {
+            syncCellModeUI();
+            updatePreview();
+        };
+
+        cellUI.blackCellRadio.onClick = cellUI.whiteCellRadio.onClick = cellUI.transparentCellRadio.onClick = function () {
+            // モードを往復してもカラー選択が失われないように覚えておく
+            lastCellColorRadio = cellUI.whiteCellRadio.value ? cellUI.whiteCellRadio
+                : (cellUI.transparentCellRadio.value ? cellUI.transparentCellRadio : cellUI.blackCellRadio);
+            syncOpacityEnabled(true);
+            updatePreview();
+        };
+
+        divisionUI.rowCountInput.onChanging = divisionUI.columnCountInput.onChanging = function () {
+            syncGutterEnabled();
+            updatePreview();
+        };
+        divisionUI.gutterInput.onChanging = updatePreview;
+        divisionUI.marginInput.onChanging = updatePreview;
+        cellUI.opacityInput.onChanging = updatePreview;
+
+        cellUI.transparencyGridButton.onClick = function () {
             app.executeMenuCommand('TransparencyGrid Menu Item');
             transparencyGridToggleCount++;
         };
 
-        rbBlack.value = true; // 初期選択は黒
-
-        // プレビュー更新（Undo汚染防止）
-        function updatePreviewFromCurrentSettings(convertToGuideOverride) {
-            var convertToGuide = (convertToGuideOverride !== undefined) ? convertToGuideOverride : convertToGuideRadio.value;
-            previewMgr.rollback();
-            previewMgr.addStep(function () {
-                renderDistributionGrid(true, true, convertToGuide);
-            });
-        }
-
-        // オプション切り替え時のUI状態反映（ラジオボタン用に再実装）
-        function syncCellDrawingOptions() {
-            if (convertToArtboardRadio.value) {
-                applyArtboardCellDrawingUIState();
-                updatePreviewFromCurrentSettings(true);
-            } else if (convertToGuideRadio.value) {
-                applyGuideCellDrawingUIState();
-                updatePreviewFromCurrentSettings(true);
-            } else {
-                applyNormalCellDrawingUIState();
-                updatePreviewFromCurrentSettings(false);
-            }
-        }
-
-        // サブ関数：アートボード化時のUI
-        function applyArtboardCellDrawingUIState() {
-            cellRectRadio.enabled = true;
-            convertToGuideRadio.enabled = true;
-            convertToArtboardRadio.enabled = true;
-            cellRectRadio.value = false;
-            convertToGuideRadio.value = false;
-            convertToArtboardRadio.value = true;
-
-            rbBlack.enabled = false;
-            rbWhite.enabled = false;
-            rbNone.enabled = false;
-            rbNone.value = true;
-            inputOpacity.enabled = false;
-        }
-
-        // サブ関数：ガイド化時のUI
-        function applyGuideCellDrawingUIState() {
-            cellRectRadio.enabled = true;
-            convertToGuideRadio.enabled = true;
-            convertToArtboardRadio.enabled = true;
-            cellRectRadio.value = false;
-            convertToGuideRadio.value = true;
-            convertToArtboardRadio.value = false;
-
-            rbBlack.enabled = false;
-            rbWhite.enabled = false;
-            rbNone.enabled = false;
-            rbNone.value = true;
-            inputOpacity.enabled = false;
-            syncColorOpacityUI(); // 内部でプレビュー更新
-        }
-
-        // サブ関数：通常時のUI
-        function applyNormalCellDrawingUIState() {
-            cellRectRadio.enabled = true;
-            convertToGuideRadio.enabled = true;
-            convertToArtboardRadio.enabled = true;
-            cellRectRadio.value = true;
-            convertToGuideRadio.value = false;
-            convertToArtboardRadio.value = false;
-
-            rbBlack.enabled = true;
-            rbWhite.enabled = true;
-            rbNone.enabled = true;
-            rbBlack.value = true;
-            inputOpacity.enabled = rbBlack.value || rbWhite.value;
-        }
-
-        // 対象ラジオの切り替え：_target 矩形は選択中だけ非表示にし、プレビュー再描画
-        function handleTargetSelectionChange() {
-            if (targetRectangleItem) {
-                try { targetRectangleItem.hidden = (rbTargetRectLayer.value === true); } catch (targetRectangleVisibilityError) { }
-            }
-            updatePreviewFromCurrentSettings();
-        }
-        rbCurrentArtboard.onClick = handleTargetSelectionChange;
-        rbBackmostObject.onClick = handleTargetSelectionChange;
-        rbTargetRectLayer.onClick = handleTargetSelectionChange;
-
-        cellRectRadio.onClick = syncCellDrawingOptions;
-        convertToGuideRadio.onClick = syncCellDrawingOptions;
-        convertToArtboardRadio.onClick = syncCellDrawingOptions;
-
-        // 不透明度欄：黒・白のとき有効、透過時は無効
-        function syncColorOpacityUI() {
-            var previousValue = inputOpacity.text;
-            var previousEnabled = inputOpacity.enabled;
-
-            inputOpacity.enabled = rbBlack.value || rbWhite.value;
-
-            // カラー選択時の不透明度値をUIに反映
-            if (rbBlack.value) {
-                inputOpacity.text = "15";
-            } else if (rbWhite.value) {
-                inputOpacity.text = "100";
-            }
-
-            if (previousValue !== inputOpacity.text || previousEnabled !== (rbBlack.value || rbWhite.value)) {
-                updatePreviewFromCurrentSettings(convertToGuideRadio.value);
-            }
-        }
-        rbBlack.onClick = rbWhite.onClick = rbNone.onClick = syncColorOpacityUI;
-
-        // 初期状態反映
-        syncColorOpacityUI();
-
-        // 不透明度変更時のみプレビュー更新
-        var lastOpacityValue = inputOpacity.text;
-        inputOpacity.onChanging = function () {
-            if (inputOpacity.text !== lastOpacityValue) {
-                lastOpacityValue = inputOpacity.text;
-                updatePreviewFromCurrentSettings(convertToGuideRadio.value);
-            }
-        };
-
-        // === ボタンエリア（レイアウト変更版）===
-        var outerGroup = dlg.add("group");
-        outerGroup.orientation = "row";
-        outerGroup.alignChildren = ["fill", "center"];
-        outerGroup.margins = [0, 10, 0, 0];
-        outerGroup.spacing = 0;
-
-        // --- 左グループ（ランダム） ---
-        var leftGroup = outerGroup.add("group");
-        leftGroup.orientation = "row";
-        leftGroup.alignChildren = "left";
-
-        var btnRandom = leftGroup.add("button", undefined, labels.randomLabel[currentLanguage]);
-
-        // スペーサー（横に伸びる空白）
-        var spacer = outerGroup.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = (currentLanguage === 'ja') ? 80 : 120;
-        spacer.maximumSize.height = 0;
-
-        // 右グループ（Cancel/OK）
-        var rightGroup = outerGroup.add("group");
-        rightGroup.orientation = "row";
-        rightGroup.alignChildren = "right";
-        rightGroup.spacing = 10;
-
-        var btnCancel = rightGroup.add("button", undefined, labels.cancelLabel[currentLanguage], { name: "cancel" });
-        var btnOK = rightGroup.add("button", undefined, labels.okLabel[currentLanguage], { name: "ok" });
-
-        // 行数・列数に応じてガター入力欄の有効/無効を切り替える
-        function syncGutterInputEnabled() {
-            var yVal = parseInt(inputYText.text, 10);
-            inputRowGutter.enabled = (yVal > 1);
-        }
-
-        inputXText.onChanging = inputYText.onChanging = function () {
-            syncGutterInputEnabled();
-            updatePreviewFromCurrentSettings();
-        };
-
-        inputRowGutter.onChanging = function () {
-            updatePreviewFromCurrentSettings();
-        };
-        marginInput.onChanging = function () {
-            updatePreviewFromCurrentSettings();
-        };
-
-
-        // 選択状態を退避／復元（Undo rollback 後に selection が空になるケース対策）
-        function getSelectionSnapshot() {
-            var selectedItems = [];
-            var currentSelection = doc.selection;
-            if (currentSelection && currentSelection.length) {
-                for (var i = 0; i < currentSelection.length; i++) selectedItems.push(currentSelection[i]);
-            }
-            return selectedItems;
-        }
-
-        function restoreSelectionSnapshot(snapshot) {
-            if (!snapshot || snapshot.length === 0) return;
-            try {
-                doc.selection = snapshot;
-            } catch (selectionRestoreError) { }
-        }
-        // グローバル変数：ランダム順序保持用
-        var randomizedSelection = null;
-
-        // 配置対象アイテムを返す（「最背面のオブジェクト」が対象のときは枠アイテムを除外）
-        function getDistributionItems() {
-            var distributionItems = [];
-            if (!doc.selection || !doc.selection.length) return distributionItems;
-
-            for (var i = 0; i < doc.selection.length; i++) {
-                var item = doc.selection[i];
-                if (rbBackmostObject.value && backmostPageItem && item === backmostPageItem) continue;
-                distributionItems.push(item);
-            }
-            return distributionItems;
-        }
-
-        // ランダムボタン押下時
-        btnRandom.onClick = function () {
-            var selectedItems = getDistributionItems();
-            if (!selectedItems || selectedItems.length === 0) {
-                alert(labels.noSelection[currentLanguage]);
+        footerUI.randomizeButton.onClick = function () {
+            var items = getDistributionItems();
+            if (items.length === 0) {
+                alert(getLabel(LABELS.message.noSelection));
                 return;
             }
-            randomizedSelection = [];
-            for (var i = 0; i < selectedItems.length; i++) {
-                randomizedSelection.push(selectedItems[i]);
-            }
             // Fisher-Yates シャッフルで順序をランダム化
-            for (var k = randomizedSelection.length - 1; k > 0; k--) {
-                var randomIndex = Math.floor(Math.random() * (k + 1));
-                var temporaryItem = randomizedSelection[k];
-                randomizedSelection[k] = randomizedSelection[randomIndex];
-                randomizedSelection[randomIndex] = temporaryItem;
+            randomizedOrder = [];
+            for (var i = 0; i < items.length; i++) randomizedOrder.push(items[i]);
+            for (var k = randomizedOrder.length - 1; k > 0; k--) {
+                var swapIndex = Math.floor(Math.random() * (k + 1));
+                var swapItem = randomizedOrder[k];
+                randomizedOrder[k] = randomizedOrder[swapIndex];
+                randomizedOrder[swapIndex] = swapItem;
             }
-            updatePreviewFromCurrentSettings(convertToGuideRadio.value);
+            updatePreview();
+        };
+
+        footerUI.okButton.onClick = function () {
+            var cellMode = getCellMode();
+            var createdCount = -1;
+            var artboardFailed = false;
+
+            // プレビューを破棄してから本番処理へ（プレビューの痕跡を残さない）
+            clearPreview();
+            if (cellMode === "artboard") {
+                try {
+                    createdCount = createArtboardsFromCells(computeGridMetrics());
+                } catch (e) {
+                    artboardFailed = true;
+                }
+            }
+            renderDistribution(false);
+
+            // 「_target」レイヤーの矩形を再表示（プレビュー時に隠していた場合）
+            if (targetRectItem) setItemHidden(targetRectItem, false);
+
+            // セル描画を残した場合はその長方形を、それ以外は元の選択を選択状態にする
+            if (cellMode !== "keep" || !selectCellRectangles()) {
+                doc.selection = placeableItems;
+            }
+
+            randomizedOrder = null;
+            originalCenters = [];
             app.redraw();
+            distributeDialog.close(1);
+
+            // 0 個は入力値が無効でグリッドが成立しなかったケース
+            if (artboardFailed || createdCount === 0) {
+                alert(getLabel(LABELS.message.artboardError));
+            } else if (createdCount > 0) {
+                alert(createdCount + getLabel(LABELS.message.artboardCreated));
+            }
         };
 
-        // OKボタン押下時（確定を1アクション化）
-        btnOK.onClick = function () {
-            syncGutterInputEnabled();
-            var selectionSnapshot = getSelectionSnapshot();
-
-            previewMgr.confirm(function () {
-
-                // app.executeMenuCommand("deselectall");
-
-                // プレビュー用レイヤーを削除（Undoで消えないケースの保険）
-                removePreviewLayers();
-
-                // rollback後に選択が外れてしまう環境向けに復元
-                restoreSelectionSnapshot(selectionSnapshot);
-
-                // アートボード化
-                if (convertToArtboardRadio.value) {
-                    try {
-                        var geomForArtboard = computeDistributionGridGeometry();
-                        var createdCount = createArtboardsFromGridGeometry(geomForArtboard);
-                        alert(createdCount + labels.artboardCreated[currentLanguage]);
-                    } catch (artboardCreationError) {
-                        alert(labels.artboardError[currentLanguage]);
-                    }
-                }
-                // 念のため：本番処理前に基準アートボードへ戻す
-                try {
-                    if (doc.artboards.setActiveArtboardIndex) {
-                        doc.artboards.setActiveArtboardIndex(baseArtboardIndex);
-                    }
-                } catch (activeArtboardRestoreError) { }
-
-                // 本番描画・配置（プレビュー時と同じ退避・配置状態で確定する）
-                var keepRects = !convertToArtboardRadio.value;
-                renderDistributionGrid(false, keepRects, convertToGuideRadio.value);
-
-                randomizedSelection = null;
-                originalPositions = [];
-
-                // === OK時にcell-backgroundレイヤー内の図形を選択状態にする ===
-                try {
-                    var bgLayerForSelect = doc.layers.getByName("cell-background");
-                    var bgItems = [];
-                    for (var ii = 0; ii < bgLayerForSelect.pathItems.length; ii++) {
-                        var backgroundPathItem = bgLayerForSelect.pathItems[ii];
-                        if (backgroundPathItem.typename === "PathItem") {
-                            bgItems.push(backgroundPathItem);
-                        }
-                    }
-                    doc.selection = bgItems;
-                } catch (backgroundSelectionError) {
-                    // レイヤーが見つからない場合は無視
-                }
-
-                // 「_target」レイヤーの矩形を再表示（プレビュー時に隠していた場合）
-                if (targetRectangleItem) {
-                    try { targetRectangleItem.hidden = false; } catch (targetRectangleUnhideError) { }
-                }
-            });
-
-            dlg.close(1);
+        footerUI.cancelButton.onClick = function () {
+            clearPreview();
+            randomizedOrder = null;
+            originalCenters = [];
+            if (targetRectItem) setItemHidden(targetRectItem, false);
+            app.redraw();
+            distributeDialog.close(0);
         };
 
-        // キャンセルボタン押下時
-        btnCancel.onClick = function () {
-            previewMgr.rollback();
-            removePreviewLayers(); // 念のため（Undoで消えないケース対策）
-            randomizedSelection = null;
-            originalPositions = [];
-            if (targetRectangleItem) {
-                try { targetRectangleItem.hidden = false; } catch (targetRectangleUnhideError) { }
-            }
-            dlg.close(0);
-        };
+        // 行数・列数は 1 未満にしない（0 ではグリッドが成立しない）
+        enableArrowKeyStep(divisionUI.rowCountInput, false, 1);
+        enableArrowKeyStep(divisionUI.columnCountInput, false, 1);
+        enableArrowKeyStep(divisionUI.gutterInput, true, 0);
+        enableArrowKeyStep(divisionUI.marginInput, true, 0);
+        enableArrowKeyStep(cellUI.opacityInput, true, 0);
 
-        // 長方形描画処理（背景長方形は専用レイヤーに描画する）
-        function drawCellRectangles(cellLayer, baseLeft, baseTop, cellWidth, cellHeight, columnCount, rowCount, colGutter, rowGutter, convertToGuide, isPreview) {
-            var opacityValue = parseFloat(inputOpacity.text);
-            for (var row = 0; row < rowCount; row++) {
-                var cellY = baseTop - (cellHeight + rowGutter) * row;
-                for (var col = 0; col < columnCount; col++) {
-                    var cellX = baseLeft + (cellWidth + colGutter) * col;
-                    var cellRectangle = cellLayer.pathItems.rectangle(cellY, cellX, cellWidth, cellHeight);
-                    cellRectangle.stroked = false;
+        // 初期状態を反映してプレビューを表示
+        syncGutterEnabled();
+        syncCellModeUI();
+        updatePreview();
 
-                    // カラーラジオボタンの値による分岐
-                    if (rbBlack.value) {
-                        cellRectangle.filled = true;
-                        cellRectangle.fillColor = createBlackColor();
-                    } else if (rbWhite.value) {
-                        cellRectangle.filled = true;
-                        cellRectangle.fillColor = createWhiteColor();
-                    } else {
-                        cellRectangle.filled = false;
-                    }
+        distributeDialog.layout.layout(true);
+        trimButtonHeight(cellUI.transparencyGridButton, 4);
+        distributeDialog.show();
 
-                    if (!isNaN(opacityValue)) {
-                        cellRectangle.opacity = opacityValue;
-                    }
-
-                    if (convertToGuide) {
-                        cellRectangle.guides = true;
-                    }
-                }
-            }
-
-            // 背景長方形レイヤーを最背面に移動
-            if ((isPreview && cellLayer.name === "_Preview_Guides") || (!isPreview && cellLayer.name === "cell-rectangle")) {
-                cellLayer.zOrder(ZOrderMethod.SENDTOBACK);
-            }
-        }
-
-        // 各長方形に1つずつオブジェクトを配置
-        function distributeSelectionToCells(selectedItems, baseLeft, baseTop, cellWidth, cellHeight, columnCount, rowCount, colGutter, rowGutter) {
-            if (!selectedItems || selectedItems.length === 0) return;
-            var items = randomizedSelection || selectedItems;
-            var index = 0;
-            for (var row = 0; row < rowCount; row++) {
-                var cellY = baseTop - (cellHeight + rowGutter) * row;
-                for (var col = 0; col < columnCount; col++) {
-                    if (index >= items.length) return;
-
-                    var cellX = baseLeft + (cellWidth + colGutter) * col;
-                    var cellCenterX = cellX + cellWidth / 2;
-                    var cellCenterY = cellY - cellHeight / 2;
-
-                    var item = items[index];
-                    var bounds = item.visibleBounds;
-                    var itemCenterX = (bounds[0] + bounds[2]) / 2;
-                    var itemCenterY = (bounds[1] + bounds[3]) / 2;
-                    var horizontalOffset = cellCenterX - itemCenterX;
-                    var verticalOffset = cellCenterY - itemCenterY;
-                    item.translate(horizontalOffset, verticalOffset);
-
-                    index++;
-                }
-            }
-        }
-
-        // グリッド計算結果をまとめて返す（プレビュー/本番で共通利用）
-        function computeDistributionGridGeometry() {
-            var columnCount = parseInt(inputXText.text, 10);
-            var rowCount = parseInt(inputYText.text, 10);
-            if (isNaN(columnCount) || columnCount <= 0 || isNaN(rowCount) || rowCount <= 0) return null;
-
-            var marginVal = parseFloat(marginInput.text) * unitFactor;
-            var top = marginVal;
-            var bottom = marginVal;
-            var left = marginVal;
-            var right = marginVal;
-
-            var rowGutter = parseFloat(inputRowGutter.text) * unitFactor;
-            var colGutter = rowGutter;
-
-            // 対象パネルの選択に応じた矩形を基準にする
-            var targetBounds = computeTargetRect();
-            var targetLeft = targetBounds[0];
-            var targetTop = targetBounds[1];
-            var targetRight = targetBounds[2];
-            var targetBottom = targetBounds[3];
-
-            var baseLeft = targetLeft + left;
-            var baseRight = targetRight - right;
-            var baseTop = targetTop - top;
-            var baseBottom = targetBottom + bottom;
-
-            var usableWidth = baseRight - baseLeft;
-            var usableHeight = baseTop - baseBottom;
-            var totalColumnGutter = (columnCount - 1) * colGutter;
-            var totalRowGutter = (rowCount - 1) * rowGutter;
-            var cellWidth = (usableWidth - totalColumnGutter) / columnCount;
-            var cellHeight = (usableHeight - totalRowGutter) / rowCount;
-
-            return {
-                columnCount: columnCount,
-                rowCount: rowCount,
-                baseLeft: baseLeft,
-                baseTop: baseTop,
-                cellWidth: cellWidth,
-                cellHeight: cellHeight,
-                colGutter: colGutter,
-                rowGutter: rowGutter
-            };
-        }
-
-        // セルの幾何情報からアートボードを作成
-        function createArtboardsFromGridGeometry(geom) {
-
-            var previousArtboardIndex = -1;
-            try { previousArtboardIndex = doc.artboards.getActiveArtboardIndex(); } catch (activeArtboardReadError) { }
-
-            if (!geom) return 0;
-            var createdCount = 0;
-            for (var row = 0; row < geom.rowCount; row++) {
-                var cellY = geom.baseTop - (geom.cellHeight + geom.rowGutter) * row;
-                for (var col = 0; col < geom.columnCount; col++) {
-                    var cellX = geom.baseLeft + (geom.cellWidth + geom.colGutter) * col;
-                    var left = cellX;
-                    var top = cellY;
-                    var right = cellX + geom.cellWidth;
-                    var bottom = cellY - geom.cellHeight;
-                    if (isNaN(left) || isNaN(top) || isNaN(right) || isNaN(bottom) || right <= left || top <= bottom) continue;
-                    try {
-                        doc.artboards.add([left, top, right, bottom]);
-                        createdCount++;
-                    } catch (artboardAddError) {
-                        // 個別エラーは握りつぶして続行
-                    }
-                }
-            }
-            // アクティブアートボードを元に戻す（最後の追加ABがアクティブになるのを防ぐ）
-            try {
-                if (previousArtboardIndex >= 0 && doc.artboards.setActiveArtboardIndex) {
-                    doc.artboards.setActiveArtboardIndex(previousArtboardIndex);
-                }
-            } catch (activeArtboardRestoreError) { }
-            return createdCount;
-        }
-
-        // ガイド描画／長方形描画／オブジェクト配置を制御
-        // 背景長方形は専用レイヤーに描画する
-        function renderDistributionGrid(isPreview, keepRects, convertToGuide) {
-            var distributionItems = getDistributionItems();
-
-            // プレビュー／確定ともに、いったん元位置へ戻してから対象セルに配置する
-            // セル数を超えるオブジェクトは、プレビューと同じくアートボード外へ退避した状態で確定する
-            if (doc.selection.length > 0) {
-                if (originalPositions.length === 0) saveOriginalPositions(doc.selection);
-                restoreOriginalPositions(doc.selection);
-                moveObjectsOutsideArtboard(doc, distributionItems);
-            }
-
-            if (isPreview) {
-                removePreviewLayers();
-            }
-
-            var geom = computeDistributionGridGeometry();
-            if (!geom) return;
-
-            var columnCount = geom.columnCount;
-            var rowCount = geom.rowCount;
-            var baseLeft = geom.baseLeft;
-            var baseTop = geom.baseTop;
-            var cellWidth = geom.cellWidth;
-            var cellHeight = geom.cellHeight;
-            var colGutter = geom.colGutter;
-            var rowGutter = geom.rowGutter;
-
-            var shouldDrawCellRectangles = cellRectRadio.value || convertToGuideRadio.value || (convertToArtboardRadio.value && isPreview);
-            var shouldKeepCellRectangles = cellRectRadio.value;
-
-            var gridLayerName = isPreview ? "_Preview_Guides" : "placement_layer";
-            var gridLayer;
-            try {
-                gridLayer = doc.layers.getByName(gridLayerName);
-            } catch (gridLayerError) {
-                gridLayer = doc.layers.add();
-                gridLayer.name = gridLayerName;
-            }
-            gridLayer.locked = false;
-
-            var bgLayerName = isPreview ? "_Preview_Background" : "cell-background";
-            var cellLayer;
-            try {
-                cellLayer = doc.layers.getByName(bgLayerName);
-            } catch (cellLayerError) {
-                cellLayer = doc.layers.add();
-                cellLayer.name = bgLayerName;
-            }
-            cellLayer.locked = false;
-
-            if (shouldDrawCellRectangles && cellLayer) {
-                drawCellRectangles(cellLayer, baseLeft, baseTop, cellWidth, cellHeight, columnCount, rowCount, colGutter, rowGutter, convertToGuide, isPreview);
-
-                if (isPreview) {
-                    try {
-                        var previewGuideLayer = doc.layers.getByName("_Preview_Guides");
-                        var previewBackgroundLayer = doc.layers.getByName("_Preview_Background");
-                        previewGuideLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
-                        previewBackgroundLayer.zOrder(ZOrderMethod.SENDTOBACK);
-                    } catch (previewLayerOrderError) { }
-                }
-            }
-
-            distributeSelectionToCells(distributionItems, baseLeft, baseTop, cellWidth, cellHeight, columnCount, rowCount, colGutter, rowGutter);
-
-            // OK実行時：アートボード化では背景長方形レイヤーを削除
-            if (!isPreview && !shouldKeepCellRectangles && !keepRects) {
-                try {
-                    var cellLayerToRemove = doc.layers.getByName("cell-background");
-                    if (cellLayerToRemove) cellLayerToRemove.remove();
-                } catch (cellLayerRemovalError) { }
-            }
-
-            // OK実行時の後処理
-            if (!isPreview) {
-                try {
-                    var placementLayer = doc.layers.getByName("placement_layer");
-                    if (placementLayer) placementLayer.remove();
-                } catch (placementLayerRemovalError) { }
-
-                try {
-                    var backgroundLayer = doc.layers.getByName("cell-background");
-                    if (backgroundLayer) backgroundLayer.zOrder(ZOrderMethod.SENDTOBACK);
-                } catch (backgroundLayerOrderError) { }
-
-                try {
-                    if (gridLayer) gridLayer.locked = true;
-                } catch (gridLayerLockError) { }
-            }
-
-            if (isPreview) {
-                app.redraw();
-            }
-        }
-
-        // 黒色（CMYK or RGB）を返す
-        function createBlackColor() {
-            if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-                var cmyk = new CMYKColor();
-                cmyk.cyan = 0;
-                cmyk.magenta = 0;
-                cmyk.yellow = 0;
-                cmyk.black = 100;
-                return cmyk;
-            } else {
-                var rgb = new RGBColor();
-                rgb.red = 0;
-                rgb.green = 0;
-                rgb.blue = 0;
-                return rgb;
-            }
-        }
-
-        // 白色（CMYK or RGB）を返す
-        function createWhiteColor() {
-            if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-                var cmyk = new CMYKColor();
-                cmyk.cyan = 0;
-                cmyk.magenta = 0;
-                cmyk.yellow = 0;
-                cmyk.black = 0;
-                return cmyk;
-            } else {
-                var rgb = new RGBColor();
-                rgb.red = 255;
-                rgb.green = 255;
-                rgb.blue = 255;
-                return rgb;
-            }
-        }
-
-        // プレビュー用レイヤー削除（背景レイヤーも削除）
-        function removePreviewLayers() {
-            try {
-                var previewLayer = doc.layers.getByName("_Preview_Guides");
-                if (previewLayer) previewLayer.remove();
-            } catch (previewGuideLayerError) { }
-            try {
-                var bgLayer = doc.layers.getByName("_Preview_Background");
-                if (bgLayer) bgLayer.remove();
-            } catch (previewBackgroundLayerError) { }
-        }
-
-        // セル描画モードと入力欄の初期状態を反映
-        syncGutterInputEnabled();
-        applyNormalCellDrawingUIState();
-        updatePreviewFromCurrentSettings(false);
-
-        // 値を矢印キーで増減する関数
-        function changeValueByArrowKey(editText) {
-            editText.addEventListener("keydown", function (event) {
-                var value = Number(editText.text);
-                if (isNaN(value)) return;
-
-                var keyboard = ScriptUI.environment.keyboardState;
-                var increment = 1;
-
-                if (keyboard.shiftKey) {
-                    increment = 10;
-                    if (event.keyName === "Up") {
-                        value = Math.ceil((value + 1) / increment) * increment;
-                        event.preventDefault();
-                    } else if (event.keyName === "Down") {
-                        value = Math.floor((value - 1) / increment) * increment;
-                        if (value < 0) value = 0;
-                        event.preventDefault();
-                    }
-                } else if (keyboard.altKey) {
-                    increment = 0.1;
-                    if (event.keyName === "Up") {
-                        value += increment;
-                        event.preventDefault();
-                    } else if (event.keyName === "Down") {
-                        value -= increment;
-                        event.preventDefault();
-                    }
-                } else {
-                    increment = 1;
-                    if (event.keyName === "Up") {
-                        value += increment;
-                        event.preventDefault();
-                    } else if (event.keyName === "Down") {
-                        value -= increment;
-                        if (value < 0) value = 0;
-                        event.preventDefault();
-                    }
-                }
-
-                if (keyboard.altKey) {
-                    value = Math.round(value * 10) / 10;
-                } else {
-                    value = Math.round(value);
-                }
-
-                editText.text = value;
-                updatePreviewFromCurrentSettings(convertToGuideRadio.value);
-            });
-        }
-
-        // 各入力欄に適用
-        changeValueByArrowKey(inputYText);
-        changeValueByArrowKey(inputXText);
-        changeValueByArrowKey(inputRowGutter);
-        changeValueByArrowKey(marginInput);
-        changeValueByArrowKey(inputOpacity);
-
-        dlg.show();
-
+        // 透明グリッドの表示状態を元へ戻す
         if (transparencyGridToggleCount % 2 !== 0) {
             app.executeMenuCommand('TransparencyGrid Menu Item');
         }
     }
 
-    run();
+    if (app.documents.length === 0) {
+        alert(LABELS.message.noDocument.ja + "\n" + LABELS.message.noDocument.en);
+    } else {
+        showDistributeDialog();
+    }
 
 }());

@@ -1,22 +1,82 @@
-# 配置したオブジェクトをグリッド状に配置する
+# SmartObjectDistributor.jsx
 
-[![Direct](https://img.shields.io/badge/Direct%20Link-SmartObjectDistributor.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartObjectDistributor.jsx)
+[![Direct Link](https://img.shields.io/badge/Direct%20Link-SmartObjectDistributor.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/alignment/SmartObjectDistributor.jsx)
 
-[![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartObjectDistributor.md)
+
+[![Back to home](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
 
 ![ss-2006-988-72-20250520-163549](https://github.com/user-attachments/assets/b438fa19-3d35-4b65-9ebc-c5de37946511)
 
+## 概要
 
-- 行数・列数、上下左右マージン、行間／列間の個別設定
-- マージンを「すべて同じ値にする」で一括指定可能
-- セルに不透明度付きの長方形を描画（黒・白・透過を選択）
-- 「残す」「ガイド化」「アートボード化」オプション付きで長方形制御
-- 選択オブジェクトを各セルに順次配置（余りは無視し、元の位置に）
-- 「ランダム」ボタンで配置順をシャッフル
+選択したオブジェクトを、指定した行数・列数のグリッドに沿って各セルの中央へ配置するスクリプトです。
+
+配置先は、現在のアートボード、最背面のオブジェクト、「_target」レイヤーの長方形から選べます。セルの長方形はそのまま残せるほか、ガイドやアートボードに変換できます。分割数・マージン・セル間隔は、プレビューを見ながら調整できます。
+
+## 主な機能
+
+- 配置先の切り替え（現在のアートボード／最背面のオブジェクト／「_target」レイヤーの長方形）
+- 行数・列数・セル間隔・マージンの指定
+- 選択数と配置先の縦横比から、セルが正方形に近くなる行数・列数を初期値として自動決定
+- セルの扱いを選択（長方形で残す／ガイド化／アートボード化）
+- セルの塗り（黒／白／塗りなし）と不透明度の指定
+- ［シャッフル］によるセルへの割り当て順のランダム化
+- セル数を超えたオブジェクトを、他のオブジェクトやアートボードと重ならない位置へ退避
+- 透明グリッドの表示切り替え（終了時に元の状態へ復帰）
+- 上下キーによる数値の増減（Shift：10単位、Option：0.1単位）
+- 入力と同時に更新される即時プレビュー
+- 数値はIllustratorの単位設定（ルーラー単位）で入力
+- 日本語／英語UI
+
+## 使い方
+
+1. グリッドに配置したいオブジェクトを選択します。
+2. `SmartObjectDistributor.jsx` を実行します。
+3. ダイアログのパネルで設定します。
+   - ［配置先］: グリッドを敷く領域
+   - ［分割とマージン］: 行数、列数、セル間隔、マージン
+   - ［セルの扱い］: 長方形の扱い、カラー、不透明度
+4. 必要に応じて［シャッフル］で割り当て順を入れ替えます。
+5. プレビューを確認しながら数値を調整します。
+6. ［OK］をクリックして確定します。
+
+## パネルと主な設定
+
+| パネル | 主な設定 |
+| --- | --- |
+| 配置先 | 現在のアートボード／最背面のオブジェクト／「_target」レイヤーの長方形 |
+| 分割とマージン | 行数、列数、セル間隔、マージン |
+| セルの扱い | 長方形で残す／ガイド化／アートボード化、カラー（黒／白／塗りなし）、不透明度、透明グリッド表示 |
 
 ![ss-746-988-72-20250521-053754](https://github.com/user-attachments/assets/3bec4d25-184d-46ab-98c5-fecbb2be9c0d)
 
+## 注意事項
+
+- 「_target」レイヤーの長方形は処理中だけ非表示になり、配置対象には含まれません。
+- ［最背面のオブジェクト］を選んだ場合、その枠として使うオブジェクトは配置対象から除外されます。
+- セル数を超えたオブジェクトは、他のオブジェクトやアートボードと重ならない位置へ退避されます。
+- 実行時に既存の「cell-background」レイヤーは削除されます（前回実行の結果がリセットされます）。
+- ［ガイド化］［アートボード化］では、セルのカラーは［塗りなし］に固定されます。
+- 行数・列数は各100まで、セル総数は1000までです。マージンやセル間隔が大きすぎてセルが成立しない場合は、何も描画されません。
+- プレビューはUndoを使わず、記録した元の中心座標へ戻す方式です。そのため、実行後に1回のUndoですべてが戻らない場合があります。
+- ［長方形で残す］では、OK後にセルの長方形が選択された状態になります。
+- 数値の単位は、Illustratorのルーラー単位の設定に従います。
+
+## 紹介記事
 
 [【Illustrator】配置したオブジェクトをグリッド状に配置するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/na3c45cea09b7)
+
+## 更新履歴
+
+- v1.9.0 (2026-07-27): プレビューをUndo非依存に変更（ボタン連打でオブジェクトが変化する不具合を修正）、入力値の検証と上限を追加、UI文言とツールチップを整理
+- v1.8.0 (2026-04-30): セルの扱いをラジオボタン化、配置処理を分離、透明グリッドの状態を復元
+- v1.0.0 (2025-06-05): 初期バージョン
+- v0.5.8 (2025-06-05): 「_target」レイヤーの長方形を一時的な配置先として使用できるように
+- v0.5.7 (2025-06-05): マージン変更時にプレビューを即時更新
+- v0.5.6 (2025-06-05): UIの制御を改善
+- v0.5.5 (2025-06-05): グリッド設定を簡素化、前回のセルを削除する処理を追加
+- v0.5.4 (2025-06-05): UIとラベル構成を整理、cell-backgroundレイヤーの自動削除を追加
+- v0.5.3 (2025-06-05): セル間隔とマージンの設定を統合
