@@ -2,6 +2,8 @@
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-UnifiedTypePanel.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/UnifiedTypePanel.jsx)
 
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnifiedTypePanel.md)
+
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
@@ -229,4 +231,4 @@ Illustrator の常駐パレットは、表示している間にドキュメン�
 
 ### note
 
-- [記事URL]
+- [【Illustrator】文字・段落・OpenTypeパネルを統合した、文字組み専用パレットスクリプト（JSX）｜DTP Transit 別館](https://note.com/dtp_tranist/n/n4e2b79cf2891)

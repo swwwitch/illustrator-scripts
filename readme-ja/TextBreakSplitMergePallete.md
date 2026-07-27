@@ -199,4 +199,4 @@ Illustrator の常駐パレットは、表示している間に DOM への接続
 
 ### note
 
-- [記事URL]
+- [【Illustrator】テキストの改行削除、改行で分割、連結をまとめてカバーするスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/nf6f34559ba46)
