@@ -17,7 +17,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
   - すべての埋め込み画像
 - 対象ファイルの一覧表示（ファイル名／パス）
   - ［フルパス］絶対パスのまま表示
-  - ［Dropboxパスを短縮］DROPBOX_PREFIX以下を相対表示。オフのときはホーム以下を「~」に短縮
+  - ［Dropboxパスを短縮］Dropboxのメンバーフォルダー以下を相対表示。オフのときはホーム以下を「~」に短縮
+    - ホーム直下の「Dropbox」を含むフォルダーとその中のメンバーフォルダーを自動検出
 - 元ファイルが判明している画像はそのファイルへリンク
 - 元ファイルが不明な画像は「Links」フォルダーへPSDで書き出してリンク
   - 書き出し名は、レイヤー名 → 拡張子付きの親グループ名 → XMPマニフェスト → image1、image2… の順に探索
@@ -60,7 +61,8 @@ Illustrator itself preserves the position, size, rotation and stacking order.
   - All embedded images
 - Target file list (file name / path)
   - [Full path] shows the absolute path
-  - [Shorten Dropbox path] hides DROPBOX_PREFIX; when off, the home folder becomes "~"
+  - [Shorten Dropbox path] hides the Dropbox member folder; when off, the home folder becomes "~"
+    - The "*Dropbox" folder in the home folder and its member folder are detected automatically
 - Images whose original file is known are linked to that file
 - Images with an unknown original are exported as a PSD into the "Links" folder and linked
   - The name is looked up in the layer name, the parent group name, the XMP manifest,
@@ -123,8 +125,8 @@ var LINKS_FOLDER_NAME  = "Links";                    /* 収集先フォルダー
 var EXPORT_RESOLUTION  = 72;                         /* 書き出し解像度（ppi） / export resolution */
 var USE_XMP_NAMES      = true;                       /* XMPマニフェストの元ファイル名を使う / use names from XMP manifest */
 
-/* Dropboxのローカルマウントパス。空文字にすると短縮機能は無効 / Local Dropbox mount path */
-var DROPBOX_PREFIX     = "/Users/takano/sw Dropbox/takano masahiro/";
+/* Dropboxのローカルマウントパス。空文字にするとホーム直下から自動検出 / Local Dropbox mount path ("" = auto detect) */
+var DROPBOX_PREFIX     = resolveDropboxPrefix("");
 
 // =========================================
 // 文字列エンコード / String encoding
@@ -789,6 +791,80 @@ function exportEmbeddedImageAsPSD(doc, item, baseName) {
 // =========================================
 // パス表示 / Path display
 // =========================================
+
+/**
+ * ホーム直下から「Dropbox」を含むフォルダーを探す。
+ * チームフォルダー（「sw Dropbox」など）を優先する。
+ * 個人用の「Dropbox」は「~/Dropbox/」として短縮できるため、優先度を下げている。
+ * @returns {Folder|null} 見つかったフォルダー。なければnull
+ */
+function findDropboxFolder() {
+    var homeFolder = Folder("~");
+    if (!homeFolder.exists) return null;
+
+    var entryList = [];
+    try { entryList = homeFolder.getFiles(); } catch (e) { return null; }
+
+    var personalFolder = null;
+    var teamFolder     = null;
+
+    for (var i = 0; i < entryList.length; i++) {
+        var entry = entryList[i];
+        if (!(entry instanceof Folder)) continue;
+
+        var entryName = safeDecodeURI(entry.name);
+        if (entryName.charAt(0) === ".") continue;
+        if (entryName.indexOf("Dropbox") === -1) continue;
+
+        if (entryName === "Dropbox") {
+            if (!personalFolder) personalFolder = entry;
+        } else if (!teamFolder) {
+            teamFolder = entry;
+        }
+    }
+    return teamFolder ? teamFolder : personalFolder;
+}
+
+/**
+ * フォルダー直下に表示用のサブフォルダーが1つだけあるとき、そのフォルダーを返す。
+ * チームDropboxのメンバーフォルダー（「takano masahiro」など）の判定に使う。
+ * @param {Folder} parentFolder - 探索するフォルダー
+ * @returns {Folder|null} 唯一のサブフォルダー。0個または2個以上のときはnull
+ */
+function findSingleSubFolder(parentFolder) {
+    var entryList = [];
+    try { entryList = parentFolder.getFiles(); } catch (e) { return null; }
+
+    var foundFolder = null;
+    for (var i = 0; i < entryList.length; i++) {
+        var entry = entryList[i];
+        if (!(entry instanceof Folder)) continue;
+        if (safeDecodeURI(entry.name).charAt(0) === ".") continue;
+
+        if (foundFolder) return null;
+        foundFolder = entry;
+    }
+    return foundFolder;
+}
+
+/**
+ * Dropboxのローカルマウントパスを決める。
+ * 手動指定が空のときは、ホーム直下の「Dropbox」を含むフォルダーを探し、
+ * その中にメンバーフォルダーが1つだけあれば、そこまでをプレフィックスとする。
+ * @param {string} manualPath - 手動で指定するパス。空文字なら自動検出
+ * @returns {string} 末尾に「/」を付けたプレフィックス。見つからない場合は空文字
+ */
+function resolveDropboxPrefix(manualPath) {
+    if (manualPath) {
+        return (manualPath.charAt(manualPath.length - 1) === "/") ? manualPath : manualPath + "/";
+    }
+
+    var dropboxFolder = findDropboxFolder();
+    if (!dropboxFolder) return "";
+
+    var memberFolder = findSingleSubFolder(dropboxFolder);
+    return (memberFolder ? memberFolder : dropboxFolder).fsName + "/";
+}
 
 /**
  * ホームフォルダー配下のパスを「~」始まりに置き換える。

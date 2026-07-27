@@ -38,8 +38,10 @@ Illustrator標準機能では行いにくい
 
 ### 設定
 
-・DROPBOX_PREFIX：Dropbox のローカルマウントパスを指定すると、
-  リンクパス表示時に接頭辞を省略できる。使わない場合は "" を指定する。
+・DROPBOX_PREFIX：リンクパス表示時に省略する接頭辞。
+  既定では、ホーム直下の「Dropbox」を含むフォルダーと、
+  その中のメンバーフォルダー（サブフォルダーが1つだけの場合）を自動検出する。
+  自動検出させず固定したい場合は resolveDropboxPrefix() の引数にパスを渡す。
 
 ### 参考記事
 
@@ -65,7 +67,8 @@ https://note.com/dtp_tranist/n/na66732d2056a
     // ユーザー設定 / User configuration
     // =========================================
 
-    var DROPBOX_PREFIX = "/Users/takano/sw Dropbox/takano masahiro/";
+    /* Dropboxのローカルマウントパス。空文字にするとホーム直下から自動検出 / Local Dropbox mount path ("" = auto detect) */
+    var DROPBOX_PREFIX = resolveDropboxPrefix("");
 
     // 「ファイル名不明」を worker → palette 間で運ぶためのセンチネル（JSON では ￾ がエスケープされ往復する）
     var UNKNOWN_NAME = "￾UNKNOWN";
@@ -410,6 +413,79 @@ https://note.com/dtp_tranist/n/na66732d2056a
         var sep = lastPathSep(path);
         if (sep < 0) return path;
         return path.substring(0, sep + 1);
+    }
+
+    /**
+     * ホーム直下から「Dropbox」を含むフォルダーを探す。
+     * チームフォルダー（「sw Dropbox」など）を優先する。
+     * 個人用の「Dropbox」は「~/Dropbox/」として短縮できるため、優先度を下げている。
+     * @returns {Folder|null} 見つかったフォルダー。なければnull
+     */
+    function findDropboxFolder() {
+        var homeFolder = Folder("~");
+        if (!homeFolder.exists) return null;
+
+        var entryList = tryGet(function () { return homeFolder.getFiles(); }, []);
+        var personalFolder = null;
+        var teamFolder     = null;
+
+        for (var i = 0; i < entryList.length; i++) {
+            var entry = entryList[i];
+            if (!(entry instanceof Folder)) continue;
+
+            var entryName = tryGet(function () { return decodeURI(String(entry.name)); }, String(entry.name));
+            if (entryName.charAt(0) === ".") continue;
+            if (entryName.indexOf("Dropbox") === -1) continue;
+
+            if (entryName === "Dropbox") {
+                if (!personalFolder) personalFolder = entry;
+            } else if (!teamFolder) {
+                teamFolder = entry;
+            }
+        }
+        return teamFolder ? teamFolder : personalFolder;
+    }
+
+    /**
+     * フォルダー直下に表示用のサブフォルダーが1つだけあるとき、そのフォルダーを返す。
+     * チームDropboxのメンバーフォルダー（「takano masahiro」など）の判定に使う。
+     * @param {Folder} parentFolder - 探索するフォルダー
+     * @returns {Folder|null} 唯一のサブフォルダー。0個または2個以上のときはnull
+     */
+    function findSingleSubFolder(parentFolder) {
+        var entryList = tryGet(function () { return parentFolder.getFiles(); }, []);
+        var foundFolder = null;
+
+        for (var i = 0; i < entryList.length; i++) {
+            var entry = entryList[i];
+            if (!(entry instanceof Folder)) continue;
+
+            var entryName = tryGet(function () { return decodeURI(String(entry.name)); }, String(entry.name));
+            if (entryName.charAt(0) === ".") continue;
+
+            if (foundFolder) return null;
+            foundFolder = entry;
+        }
+        return foundFolder;
+    }
+
+    /**
+     * Dropboxのローカルマウントパスを決める。
+     * 手動指定が空のときは、ホーム直下の「Dropbox」を含むフォルダーを探し、
+     * その中にメンバーフォルダーが1つだけあれば、そこまでをプレフィックスとする。
+     * @param {string} manualPath - 手動で指定するパス。空文字なら自動検出
+     * @returns {string} 末尾に「/」を付けたプレフィックス。見つからない場合は空文字
+     */
+    function resolveDropboxPrefix(manualPath) {
+        if (manualPath) {
+            return (manualPath.charAt(manualPath.length - 1) === "/") ? manualPath : manualPath + "/";
+        }
+
+        var dropboxFolder = findDropboxFolder();
+        if (!dropboxFolder) return "";
+
+        var memberFolder = findSingleSubFolder(dropboxFolder);
+        return (memberFolder ? memberFolder : dropboxFolder).fsName + "/";
     }
 
     function toTildePath(path) {
