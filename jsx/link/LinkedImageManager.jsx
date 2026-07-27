@@ -9,43 +9,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 ドキュメント内の配置画像（リンク画像）を解析し、
 一覧表示・絞り込み・重複管理・再リンク・リネーム・削除を一元化するユーティリティ。
 
-Illustrator標準機能では行いにくい
-「全体把握・状態確認・重複管理・再リンク作業」を効率化することを目的とする。
-
-### パレット構成メモ / Palette architecture
-
-・targetengine による常駐エンジンで動作する。常駐エンジンの app は表示中に DOM 接続を
-  失うため、選択取得・配置解析・移動・属性変更など DOM を触る処理はすべて worker 関数に
-  まとめ、押下のたびに BridgeTalk でメインエンジン（target=illustrator）へ委譲する。
-・worker 関数は WORKER_FUNCS に全登録し、初回に一度だけメインエンジンへ常駐させる
-  （$.global.__LIM）。以降は呼び出し式だけを送る。
-・worker 関数内は行コメント禁止（toString が改行を消すため）・ブロックコメントのみ・
-  必ずセミコロンで終える。
-・戻り値はマーカー方式（OK+json / NODOC / ERR+msg）。
-
-### 主な機能
-
-・ファイル名／サイズ／使用数／配置寸法／スケール／PPI／カラースペースの一覧表示
-・カラースペース表示（カラーモード + ICC プロファイル名／PNG・JPEG・PSD 対応）
-・リンク状態（正常／リンク切れ／更新が必要）の判定とフィルタリング
-・アートボード単位での絞り込みとビュー連動（選択時に移動・ズーム）
-・同一ファイルの重複検出・統合表示・使用数カウント
-・任意列でのソート／行選択に連動したカンバス上での選択・ズーム表示
-・単一ファイル／フォルダー単位での再リンク、参照フォルダー内の別拡張子への一括再リンク
-・リンクファイルのリネーム（物理ファイル名変更＋再リンクを同時実行）
-・配置画像の削除（クリップグループ内は「画像のみ」「クリップグループごと」を選択）
-・ファイル名のクリップボードコピー／リンクファイルのコピーと再リンク（Links フォルダーへ収集）
-
-### 設定
-
-・DROPBOX_PREFIX：リンクパス表示時に省略する接頭辞。
-  既定では、ホーム直下の「Dropbox」を含むフォルダーと、
-  その中のメンバーフォルダー（サブフォルダーが1つだけの場合）を自動検出する。
-  自動検出させず固定したい場合は resolveDropboxPrefix() の引数にパスを渡す。
-
-### 参考記事
-
-https://note.com/dtp_tranist/n/na66732d2056a
+機能・使い方・実装メモの詳細は README を参照。
 
 */
 
@@ -55,10 +19,16 @@ https://note.com/dtp_tranist/n/na66732d2056a
     // 基本情報 / Basic info
     // =========================================
     var SCRIPT_NAME     = "LinkedImageManager";           /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+    var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-    var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+    var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
+    var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
+
+    // README (Japanese)
+    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManager.md
+    // README (English)
+    // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/LinkedImageManager.md
+    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/na66732d2056a"; /* 紹介記事 / article URL */
 
     // Released under the MIT license
     // http://opensource.org/licenses/mit-license.php
@@ -1119,6 +1089,12 @@ https://note.com/dtp_tranist/n/na66732d2056a
         return refs;
     }
 
+    /* File.name は URI エンコードされているため表示前にデコードする（失敗時は元の文字列）*/
+    function w_decodeName(name) {
+        if (name === null || name === undefined || name === "") return name;
+        return w_tryGet(function () { return decodeURI(String(name)); }, String(name));
+    }
+
     function w_xmpNameKey(name) {
         if (!name) return "";
         var decoded = w_tryGet(function () { return decodeURI(String(name)); }, String(name));
@@ -1139,7 +1115,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         var UNKNOWN = "￾UNKNOWN";
         var fileName = defaultName || UNKNOWN;
         var placedFile = w_tryGet(function () { return placedItem.file; }, null);
-        if (placedFile) { fileName = w_safeProp(placedFile, "name", fileName); }
+        if (placedFile) { fileName = w_decodeName(w_safeProp(placedFile, "name", fileName)); }
         if (fileName === UNKNOWN && fallbackName) { fileName = fallbackName; }
         if (fileName === UNKNOWN) { fileName = w_safeProp(placedItem, "name", fileName); }
         return fileName;
@@ -1158,7 +1134,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             isLinkOk: false
         };
         if (basics.linkedFile) {
-            basics.fileName = w_safeProp(basics.linkedFile, "name", basics.fileName);
+            basics.fileName = w_decodeName(w_safeProp(basics.linkedFile, "name", basics.fileName));
             basics.filePath = w_safeProp(basics.linkedFile, "fsName", basics.filePath);
             var resolved = w_resolveLinkStatus(basics.linkedFile, xmpRef ? xmpRef.lastModifyDate : "");
             basics.statusCode = resolved.statusCode;
@@ -1609,7 +1585,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         w_readPngImageInfo, w_readJpegImageInfo, w_readPsdImageInfo, w_readImageInfo,
         w_lastPathSep, w_pathBaseName, w_formatFileSize, w_getEffectivePPI, w_parseXmpDate,
         w_isLinkOutOfDate, w_resolveLinkStatus, w_getScaleInfo, w_getDimensionsMm, w_getArtboardNumber,
-        w_collectXmpLinkedRefs, w_xmpNameKey, w_resolveXmpRef, w_getPlacedItemFileName,
+        w_collectXmpLinkedRefs, w_decodeName, w_xmpNameKey, w_resolveXmpRef, w_getPlacedItemFileName,
         w_getPlacementFileBasics, w_getPlacementGeometry, w_getPlacementImageMeta, w_buildPlacementEntry,
         w_getLinkGroupKey, w_assignFileCounts, w_dedupeByFile, w_collectLinkInfo, w_pickSinglePlacedItem,
         w_zoomToSelection, w_fitViewToArtboard, w_findEnclosingClipGroup,
@@ -1642,24 +1618,33 @@ https://note.com/dtp_tranist/n/na66732d2056a
         if (e.fileName === UNKNOWN_NAME) e.fileName = L('label.fileNameUnknown');
     }
 
-    // 解析を委譲してデータを読み込む。成功なら true。marker で状況を setStatus
+    // 保持しているデータ状態をすべて初期化（読み込み失敗時に古い内容を残さない）
+    function clearLoadedData() {
+        allPlacementEntries = [];
+        uniqueFileEntries = [];
+        artboardNames = [];
+        preIndex = -1;
+    }
+
+    // 解析を委譲してデータを読み込む。成功なら true / 失敗なら false / 実行中なら null
     function loadData() {
-        if (isBusy) return false;
+        if (isBusy) return null;
         isBusy = true;
         try {
             var parsed = parseWorkerResult(delegate("$.global.__LIM.analyze()"));
             if (parsed.marker === "NODOC") {
-                allPlacementEntries = [];
-                uniqueFileEntries = [];
+                clearLoadedData();
                 setStatus(L('status.noDocument'));
                 return false;
             }
             if (parsed.marker !== "OK") {
+                clearLoadedData();
                 setStatus(L('status.loadFailed') + "（" + parsed.body + "）");
                 return false;
             }
             var data = tryGet(function () { return eval("(" + parsed.body + ")"); }, null);
             if (!data) {
+                clearLoadedData();
                 setStatus(L('status.loadFailed'));
                 return false;
             }
@@ -1888,6 +1873,21 @@ https://note.com/dtp_tranist/n/na66732d2056a
         var suppressCanvasOnce = false;
         var pendingSelectionItemIndex = -1;
 
+        // ボタン操作の再入防止。BridgeTalk の同期送信中も ScriptUI のイベントは回るため、
+        // 委譲を伴うハンドラはこれで包んで二重実行を防ぐ（内部の isBusy とは別レイヤー）。
+        var isActionRunning = false;
+        function guardAction(handler) {
+            return function () {
+                if (isActionRunning) return;
+                isActionRunning = true;
+                try {
+                    return handler.apply(this, arguments);
+                } finally {
+                    isActionRunning = false;
+                }
+            };
+        }
+
         var topRow = palette.add("group");
         topRow.orientation = "row";
         topRow.alignChildren = ["fill", "top"];
@@ -1976,6 +1976,44 @@ https://note.com/dtp_tranist/n/na66732d2056a
         createStatusFilterPanel(otherTopRow);
 
         var abFilterDropdown, abPrevBtn, abNextBtn;
+        // 再構築中の onChange 発火を抑止（selection への代入でも onChange が走るため）
+        var suppressArtboardChange = false;
+
+        // アートボードドロップダウンの項目・ディム状態を現在のデータから作り直す。
+        // 選べる項目を選んでいた場合は選択を維持し、そうでなければ「すべて」に戻す。
+        function populateArtboardDropdown() {
+            var prevIndex = abFilterDropdown.selection ? abFilterDropdown.selection.index : 0;
+            var artboardsWithImages = {};
+            for (var entryIdx = 0; entryIdx < allPlacementEntries.length; entryIdx++) {
+                var abNum = allPlacementEntries[entryIdx].artboardNum;
+                if (abNum !== null) artboardsWithImages[abNum] = true;
+            }
+            var artboardSep = (currentLanguage === 'ja') ? '：' : ': ';
+
+            suppressArtboardChange = true;
+            try {
+                abFilterDropdown.removeAll();
+                abFilterDropdown.add("item", L('label.artboardAll'));
+                for (var artboardIndex = 0; artboardIndex < artboardNames.length; artboardIndex++) {
+                    var artboardName = artboardNames[artboardIndex] || "";
+                    abFilterDropdown.add("item", (artboardIndex + 1) + artboardSep + (artboardName || L('label.artboardFallback') + (artboardIndex + 1)));
+                }
+
+                var enabledCount = 0;
+                for (var di = 0; di < artboardNames.length; di++) {
+                    var isEnabled = !!artboardsWithImages[di + 1];
+                    abFilterDropdown.items[di + 1].enabled = isEnabled;
+                    if (isEnabled) enabledCount++;
+                }
+
+                var keepPrev = (prevIndex > 0 && prevIndex < abFilterDropdown.items.length && abFilterDropdown.items[prevIndex].enabled);
+                abFilterDropdown.selection = keepPrev ? prevIndex : 0;
+                abPrevBtn.enabled = (enabledCount > 1);
+                abNextBtn.enabled = (enabledCount > 1);
+            } finally {
+                suppressArtboardChange = false;
+            }
+        }
 
         function createArtboardFilterPanel(parent) {
             var abPanel = parent.add("panel", undefined, L('panel.artboard'));
@@ -1983,27 +2021,8 @@ https://note.com/dtp_tranist/n/na66732d2056a
             abPanel.alignChildren = ["left", "center"];
             abPanel.alignment = ["fill", "top"];
             abPanel.margins = PANEL_MARGINS;
-            var artboardsWithImages = {};
-            for (var entryIdx = 0; entryIdx < allPlacementEntries.length; entryIdx++) {
-                var abNum = allPlacementEntries[entryIdx].artboardNum;
-                if (abNum !== null) artboardsWithImages[abNum] = true;
-            }
 
-            var artboardDropdownItems = [L('label.artboardAll')];
-            var artboardSep = (currentLanguage === 'ja') ? '：' : ': ';
-            for (var artboardIndex = 0; artboardIndex < artboardNames.length; artboardIndex++) {
-                var artboardName = artboardNames[artboardIndex] || "";
-                artboardDropdownItems.push((artboardIndex + 1) + artboardSep + (artboardName || L('label.artboardFallback') + (artboardIndex + 1)));
-            }
-            abFilterDropdown = abPanel.add("dropdownlist", undefined, artboardDropdownItems);
-
-            for (var di = 0; di < artboardNames.length; di++) {
-                if (!artboardsWithImages[di + 1]) {
-                    abFilterDropdown.items[di + 1].enabled = false;
-                }
-            }
-
-            abFilterDropdown.selection = 0;
+            abFilterDropdown = abPanel.add("dropdownlist", undefined, []);
             abFilterDropdown.preferredSize.width = 200;
 
             abPrevBtn = abPanel.add("button", undefined, "");
@@ -2015,14 +2034,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
             abNextBtn.helpTip = L('label.nextArtboardTip');
             attachArrowDraw(abNextBtn, 1);
 
-            var enabledCount = 0;
-            for (var i = 1; i < abFilterDropdown.items.length; i++) {
-                if (abFilterDropdown.items[i].enabled) enabledCount++;
-            }
-            if (enabledCount <= 1) {
-                abPrevBtn.enabled = false;
-                abNextBtn.enabled = false;
-            }
+            populateArtboardDropdown();
         }
         createArtboardFilterPanel(otherPanel);
 
@@ -2228,6 +2240,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         }
 
         function applyArtboardFilter() {
+            if (suppressArtboardChange) return;
             var selectedArtboardIndex = abFilterDropdown.selection ? abFilterDropdown.selection.index : 0;
             if (selectedArtboardIndex > 0) {
                 delegateFitArtboard(selectedArtboardIndex - 1);
@@ -2470,18 +2483,18 @@ https://note.com/dtp_tranist/n/na66732d2056a
 
         var deleteLinkBtn = actionBtnRight.add("button", undefined, L('button.delete'));
         deleteLinkBtn.preferredSize = [50, 24];
-        deleteLinkBtn.onClick = requireSelectedEntry(handleDeleteSelected);
+        deleteLinkBtn.onClick = requireSelectedEntry(guardAction(handleDeleteSelected));
 
         var renameLinkBtn = actionBtnRight.add("button", undefined, L('button.rename'));
         renameLinkBtn.preferredSize = [70, 24];
-        renameLinkBtn.onClick = requireSelectedEntry(handleRenameSelected);
+        renameLinkBtn.onClick = requireSelectedEntry(guardAction(handleRenameSelected));
 
         var copyFileNameBtn = actionBtnLeft.add("button", undefined, L('button.copyFileName'));
-        copyFileNameBtn.onClick = requireSelectedEntry(handleCopyFileName);
+        copyFileNameBtn.onClick = requireSelectedEntry(guardAction(handleCopyFileName));
 
         var reloadOneBtn = actionBtnRight.add("button", undefined, L('button.relinkSelected'));
         reloadOneBtn.preferredSize = [94, 24];
-        reloadOneBtn.onClick = requireSelectedEntry(handleRelinkSelected);
+        reloadOneBtn.onClick = requireSelectedEntry(guardAction(handleRelinkSelected));
 
         function updateRelinkButtonLabel() {
             var placementCount = (selectedEntry && selectedEntry.itemIndices) ? selectedEntry.itemIndices.length : 0;
@@ -2542,7 +2555,9 @@ https://note.com/dtp_tranist/n/na66732d2056a
         // ドキュメントから再読込してリストを更新（[更新] ボタン・将来のミューテーション後に使用）
         function refreshFromDoc() {
             var ok = loadData();
+            if (ok === null) return; /* 別の委譲が実行中：現在の表示を壊さない */
             updateEmptyStateVisibility();
+            populateArtboardDropdown();
             if (!ok) {
                 sourceEntries = [];
                 filteredEntries = [];
@@ -2579,7 +2594,8 @@ https://note.com/dtp_tranist/n/na66732d2056a
             rebuildFolderList();
             folderCountLabel.text = L('label.linkedFolders') + " (" + withUnit(linkedFolderPaths.length, 'label.items') + ")";
             populateFoldersList();
-            rebuildList();
+            /* アートボード絞り込みが解除されると列構成が変わるためリストごと作り直す */
+            recreateListBoxAndRebuildList();
             if (selectedEntry) highlightFolderFor(selectedEntry.filePath);
         }
 
@@ -2627,15 +2643,15 @@ https://note.com/dtp_tranist/n/na66732d2056a
         folderActionRight.alignment = ["right", "center"];
 
         var reloadFolderBtn = folderActionLeft.add("button", undefined, L('button.relinkFolder'));
-        reloadFolderBtn.onClick = handleRelinkFolder;
+        reloadFolderBtn.onClick = guardAction(handleRelinkFolder);
         reloadFolderBtn.enabled = false;
 
         var changeExtensionBtn = folderActionLeft.add("button", undefined, L('button.changeExtension'));
-        changeExtensionBtn.onClick = handleChangeExtension;
+        changeExtensionBtn.onClick = guardAction(handleChangeExtension);
         changeExtensionBtn.enabled = false;
 
         var collectLinksBtn = folderActionRight.add("button", undefined, L('button.collectLinks'));
-        collectLinksBtn.onClick = handleCollectLinks;
+        collectLinksBtn.onClick = guardAction(handleCollectLinks);
 
         foldersListBox.onChange = function () {
             var hasSelection = (foldersListBox.selection !== null);
@@ -2769,8 +2785,8 @@ https://note.com/dtp_tranist/n/na66732d2056a
                 if (!entry || !entry.filePath || entry.filePath === "---") continue;
                 if (normalizeFolderPathForCompare(pathParent(entry.filePath)) !== sourceFolderPath) continue;
                 total++;
+                /* fileName は worker 側でデコード済み */
                 var sourceFileName = entry.fileName || pathBaseName(entry.filePath);
-                sourceFileName = tryGet(function () { return decodeURI(String(sourceFileName)); }, String(sourceFileName));
                 var baseName = splitFileName(sourceFileName).base;
                 if (!baseName) { failed++; continue; }
                 var repl = findReplacementFileByExtension(extPrefs.referenceFolder, baseName, extPrefs.primaryExt, extPrefs.fallbackExt);
@@ -2831,7 +2847,7 @@ https://note.com/dtp_tranist/n/na66732d2056a
         var reloadBtn = btnGroup.add("button", undefined, L('button.reload'));
         reloadBtn.alignment = ["right", "center"];
         reloadBtn.helpTip = (currentLanguage === 'ja') ? "ドキュメントから再読み込み" : "Reload from document";
-        reloadBtn.onClick = function () { refreshFromDoc(); };
+        reloadBtn.onClick = guardAction(function () { refreshFromDoc(); });
 
         statusText = palette.add("statictext", undefined, "", { truncate: "middle" });
         statusText.alignment = ["fill", "bottom"];
