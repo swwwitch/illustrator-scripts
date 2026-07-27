@@ -38,7 +38,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 注意
 
 - ドキュメントが未保存の場合、「Links」フォルダーの場所を決められないため収集・書き出しに失敗します。
-- ロックまたは非表示のレイヤー・画像は置換できません。
+- ロックまたは非表示のレイヤー・グループ・画像は置換できません（理由を明示して失敗として報告します）。
 - PSD書き出しはCMYK／RGB／グレースケールのみ対応です。
 - 効果（ドロップシャドウなど）はPSD書き出し時にラスタライズされて含まれます。
 
@@ -82,7 +82,7 @@ Illustrator itself preserves the position, size, rotation and stacking order.
 ### Notes
 
 - Collecting and exporting fail when the document has not been saved.
-- Locked or hidden layers and items cannot be replaced.
+- Locked or hidden layers, groups and items cannot be replaced (the reason is reported).
 - PSD export supports CMYK / RGB / Grayscale only.
 - Effects such as drop shadows are rasterized into the exported PSD.
 
@@ -101,7 +101,7 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnembedToLinks.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/UnembedToLinks.md
-var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6d9e2dabb054"; /* 紹介記事 / article URL */
 
 // 埋め込み画像のPSD書き出し処理は次のコードを参照 / The PSD export logic is based on:
 // @author m1b
@@ -129,6 +129,20 @@ var DROPBOX_PREFIX     = "/Users/takano/sw Dropbox/takano masahiro/";
 // =========================================
 // 文字列エンコード / String encoding
 // =========================================
+
+/**
+ * URIエンコードされた文字列をデコードする。
+ * File.name のように「%」が含まれうる値でも例外を投げない。
+ * @param {string} sourceText - デコードする文字列
+ * @returns {string} デコード結果。不正なエスケープを含む場合は元の文字列
+ */
+function safeDecodeURI(sourceText) {
+    try {
+        return decodeURI(sourceText);
+    } catch (e) {
+        return String(sourceText);
+    }
+}
 
 /**
  * 文字列をUTF-8バイト列に変換する。
@@ -308,30 +322,78 @@ function playTemporaryAction(actionSource, setName, actionName, actionFilePath) 
 // =========================================
 
 /**
+ * 選択できない状態になっている理由を返す。
+ * 親グループがロック・非表示の場合も選択できないため、祖先を辿って調べる。
+ * @param {PageItem} item - 調べるアイテム
+ * @returns {string} 選択できない理由。選択できる場合は空文字
+ */
+function findSelectionBlocker(item) {
+    var node = item;
+
+    while (node && node.typename !== "Document") {
+
+        if (node.typename === "Layer") {
+            if (node.locked)   return "レイヤー「" + node.name + "」がロックされています。";
+            if (!node.visible) return "レイヤー「" + node.name + "」が非表示です。";
+
+        } else {
+            var target = (node === item) ? "対象の画像" : "親グループ";
+            if (node.locked) return target + "がロックされています。";
+            if (node.hidden) return target + "が非表示です。";
+        }
+
+        node = node.parent;
+    }
+    return "";
+}
+
+/**
+ * 2つのアイテムが同じアートオブジェクトを指しているかを返す。
+ * @param {PageItem} itemA - 比較するアイテム
+ * @param {PageItem} itemB - 比較するアイテム
+ * @returns {boolean} 同じアイテムとみなせる場合はtrue
+ */
+function isSameArtItem(itemA, itemB) {
+    try {
+        return itemA.uuid === itemB.uuid;
+    } catch (e) {
+        /* uuidを参照できない場合は判定しない */
+        return true;
+    }
+}
+
+/**
  * 埋め込み画像（RasterItem）を、ダイナミックアクション経由でリンク画像に置き換える。
  * 選択オブジェクトの置換（rplc）で実行するため、位置・サイズ・角度・重なり順は
  * アクション側が引き継ぐ。スクリプト側での復元処理は行わない。
  * @param {Document} doc - 対象ドキュメント
  * @param {RasterItem} item - 置き換え対象の埋め込み画像
  * @param {File} targetFile - リンク先の画像ファイル
+ * @param {object} status - 実行状況を書き戻すオブジェクト（{ actionPlayed: boolean }）
  * @returns {PlacedItem} 置換後のリンク画像
  */
-function relinkByAction(doc, item, targetFile) {
-    var layer = item.layer;
-
-    if (layer.locked || !layer.visible) {
-        throw new Error("対象のレイヤーがロックまたは非表示です。");
-    }
-    if (item.locked || item.hidden) {
-        throw new Error("対象の画像がロックまたは非表示です。");
+function relinkByAction(doc, item, targetFile, status) {
+    var blockerReason = findSelectionBlocker(item);
+    if (blockerReason) {
+        throw new Error(blockerReason);
     }
 
     /* 置換対象だけを選択した状態で実行 / Select only the replacement target */
-    doc.activeLayer = layer;
+    doc.activeLayer = item.layer;
     doc.selection = null;
     item.selected = true;
 
+    /* 選択できていないとアクションが単なる配置になるため、ここで中止 */
+    var currentSelection = doc.selection;
+    if (!currentSelection || currentSelection.length !== 1 || !isSameArtItem(currentSelection[0], item)) {
+        doc.selection = null;
+        throw new Error("対象の画像を選択できませんでした。");
+    }
+
     var actionSource = buildActionSource(ACTION_SET_NAME, ACTION_NAME, targetFile.fsName);
+
+    /* この時点以降はアクションが実行済みとして扱う / The action may have run from here on */
+    status.actionPlayed = true;
     playTemporaryAction(actionSource, ACTION_SET_NAME, ACTION_NAME, ACTION_FILE_NAME);
 
     /* 置換直後の選択がリンク画像 / The replaced link image is selected right after the action */
@@ -366,7 +428,7 @@ function isSameFile(fileA, fileB) {
  * @returns {File} 収集先のファイル
  */
 function resolveCollectDestination(linksFolder, sourceFile) {
-    var fileName  = decodeURI(sourceFile.name);
+    var fileName  = safeDecodeURI(sourceFile.name);
     var dotIndex  = fileName.lastIndexOf(".");
     var baseName  = (dotIndex > 0) ? fileName.substring(0, dotIndex) : fileName;
     var extension = (dotIndex > 0) ? fileName.substring(dotIndex) : "";
@@ -462,7 +524,7 @@ function getManifestFileNames(doc) {
     if (filePaths == null) return nameList;
 
     for (var i = 0; i < filePaths.length(); i++) {
-        var fileName = decodeURI(String(filePaths[i])).replace(/^.*[\/\\]/, "");
+        var fileName = safeDecodeURI(String(filePaths[i])).replace(/^.*[\/\\]/, "");
         var nameKey = fileName.toLowerCase();
 
         if (fileName === "" || foundNames[nameKey]) continue;
@@ -685,6 +747,11 @@ function exportEmbeddedImageAsPSD(doc, item, baseName) {
     var imageColorSpace = item.imageColorSpace;
     var scaleAndRotation = getScaleAndRotation(item);
 
+    /* 0で割ると変形行列が壊れるため、等倍に戻せない画像はここで中止 */
+    if (!scaleAndRotation.scaleX || !scaleAndRotation.scaleY) {
+        throw new Error("拡大率を取得できませんでした。");
+    }
+
     var previousInteractionLevel = app.userInteractionLevel;
     app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
 
@@ -782,12 +849,14 @@ function updateFileList(listBox, itemList, useFullPath, useDropbox, exportNameMa
         var nameText, pathText;
 
         if (sourceFile) {
-            nameText = decodeURI(sourceFile.name);
-            pathText = formatDisplayPath(decodeURI(sourceFile.parent.fsName), useFullPath, useDropbox);
+            nameText = safeDecodeURI(sourceFile.name);
+            /* fsNameはデコード済みのパスなので、そのまま表示する / fsName is not URI-encoded */
+            pathText = formatDisplayPath(sourceFile.parent.fsName, useFullPath, useDropbox);
 
         } else {
             /* 元ファイルが不明な画像は書き出し予定のファイル名を見せる / Show the planned export name */
-            nameText = (exportNameMap[item.uuid] || ("image" + (i + 1))) + ".psd";
+            var exportName = exportNameMap[item.uuid];
+            nameText = exportName ? (exportName + ".psd") : "（元ファイル不明）";
             pathText = "（PSDに書き出し）";
         }
 
@@ -1009,28 +1078,35 @@ function promptForTargetFile() {
 
 /**
  * 埋め込み画像1件を再リンクし、必要なら収集する。
+ * 再リンクの失敗は例外、収集の失敗は戻り値の collectError で伝える。
  * @param {Document} doc - 対象ドキュメント
  * @param {RasterItem} item - 対象の埋め込み画像
  * @param {File} targetFile - リンク先の画像ファイル
  * @param {boolean} shouldCollect - 収集するかどうか
- * @returns {object} 処理結果（{ placedItem: PlacedItem, linkedFile: File }）
+ * @param {object} status - 実行状況を書き戻すオブジェクト（{ actionPlayed: boolean }）
+ * @returns {object} 処理結果（{ placedItem: PlacedItem, linkedFile: File, collectError: string }）
  */
-function processRasterItem(doc, item, targetFile, shouldCollect) {
-    var isRelinked = false;
+function processRasterItem(doc, item, targetFile, shouldCollect, status) {
+    var newPlaced;
 
     try {
-        var newPlaced = relinkByAction(doc, item, targetFile);
-        isRelinked = true;
-
-        var linkedFile = shouldCollect
-            ? collectLink(doc, newPlaced, targetFile)
-            : targetFile;
-
-        return { placedItem: newPlaced, linkedFile: linkedFile };
-
+        newPlaced = relinkByAction(doc, item, targetFile, status);
     } catch (e) {
-        throw new Error((isRelinked ? "収集" : "再リンク") + "に失敗: " + e.message);
+        throw new Error("再リンクに失敗: " + e.message);
     }
+
+    var result = { placedItem: newPlaced, linkedFile: targetFile, collectError: "" };
+
+    if (shouldCollect) {
+        /* 再リンク自体は成功しているため、収集の失敗で結果を失わない */
+        try {
+            result.linkedFile = collectLink(doc, newPlaced, targetFile);
+        } catch (e) {
+            result.collectError = "収集に失敗: " + e.message;
+        }
+    }
+
+    return result;
 }
 
 (function () {
@@ -1064,11 +1140,12 @@ function processRasterItem(doc, item, targetFile, shouldCollect) {
     var placedList   = [];
     var successCount = 0;
     var skipList     = [];
+    var warningList  = [];
     var errorList    = [];
 
     for (var i = 0; i < targetItems.length; i++) {
         var item = targetItems[i];
-        var itemName = decodeURI(item.name) || ("画像 " + (i + 1));
+        var itemName = item.name || ("画像 " + (i + 1));
 
         var targetFile = getEmbeddedSourceFile(item);
         var isExported = false;
@@ -1102,14 +1179,19 @@ function processRasterItem(doc, item, targetFile, shouldCollect) {
             }
         }
 
+        var status = { actionPlayed: false };
+
         try {
             /* 書き出し済みのPSDはすでに収集先にあるため、収集処理は不要 */
-            var result = processRasterItem(doc, item, targetFile, options.collect && !isExported);
+            var result = processRasterItem(doc, item, targetFile, options.collect && !isExported, status);
             placedList.push(result.placedItem);
             successCount++;
+
+            if (result.collectError) warningList.push(itemName + "：" + result.collectError);
+
         } catch (e) {
-            /* 書き出したPSDが未使用のまま残らないように片付ける */
-            if (isExported && targetFile.exists) targetFile.remove();
+            /* 配置アクションの実行前に失敗した場合だけ、未使用のPSDを片付ける */
+            if (isExported && !status.actionPlayed && targetFile.exists) targetFile.remove();
             errorList.push(itemName + "：" + e.message);
         }
     }
@@ -1128,6 +1210,7 @@ function processRasterItem(doc, item, targetFile, shouldCollect) {
         "失敗: " + errorList.length + " 件"];
 
     if (skipList.length > 0)    messageList.push("", "【スキップ】", skipList.join("\n"));
+    if (warningList.length > 0) messageList.push("", "【警告】", warningList.join("\n"));
     if (errorList.length > 0)   messageList.push("", "【失敗】", errorList.join("\n"));
 
     alert(messageList.join("\n"));

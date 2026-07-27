@@ -32,6 +32,7 @@
   - A `-1`, `-2`… suffix is added when a different file of the same name already exists
   - Files that can be considered identical (same path, or same size and modification date) are not copied again
 - Reports the result (success / skipped / failed counts and details) in a single alert
+  - When the relink succeeded but only the collect step failed, it is reported as a warning and still counted as a success
 - The temporary action file (.aia) is always removed and the action set unloaded after playback
 
 ### Workflow
@@ -62,7 +63,8 @@ Editable in the "Settings" block at the top of the script.
 ### Notes
 
 - When the document has not been saved, the "Links" folder cannot be located, so collecting and PSD export fail.
-- Locked or hidden layers and items cannot be replaced by the action and are reported as failures.
+- Locked or hidden layers, groups and items cannot be replaced by the action and are reported as failures with the reason.
+- Running the script repeatedly on the same document exports a new PSD each time for images with an unknown original (`image1.psd`, then `image1(2).psd`).
 - PSD export supports CMYK / RGB / Grayscale only; other color spaces are reported as skipped.
 - When the original is unknown and exactly one image is being processed, a manual file selection is offered if the export fails.
 - Names from the XMP manifest are assigned in order **only when the number of unique candidates matches the number of unnamed images**; otherwise `image1`, `image2`… is used.
