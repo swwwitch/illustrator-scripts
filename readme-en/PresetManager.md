@@ -161,6 +161,10 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 - Every preference read and write is wrapped in try/catch, so keys missing in a given Illustrator version do not stop the script; a failed read falls back to a default value.
 - Closing with [Cancel] leaves the preferences untouched, even if a preset was selected.
 
+### Article
+
+- [【Illustrator】環境設定をまとめて変更するスクリプト（v1.5）｜DTP Transit 別館](https://note.com/dtp_tranist/n/n3b33862538f6) (Japanese)
+
 ### Change Log
 
 - v1.0 (20250807): Initial release
