@@ -104,8 +104,8 @@ var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last update
 var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n6d9e2dabb054"; /* 紹介記事 / article URL */
 
 // 埋め込み画像のPSD書き出し処理は次のコードを参照 / The PSD export logic is based on:
-// @author m1b
-// @discussion https://community.adobe.com/t5/illustrator-discussions/is-it-possible-to-convert-rasteritem-to-placeditem/m-p/13081172
+// author: m1b
+// discussion: https://community.adobe.com/t5/illustrator-discussions/is-it-possible-to-convert-rasteritem-to-placeditem/m-p/13081172
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
