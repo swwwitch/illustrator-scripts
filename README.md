@@ -143,6 +143,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 
 - [クイック環境設定](readme-ja/AiQuickPrefsPalette.md)
 - [環境設定：変形と整列](readme-ja/PreferenceManagerForTransformAndAlign.md)
+- [環境設定をまとめて変更](readme-ja/PresetManager.md)
 
 ## その他
 
