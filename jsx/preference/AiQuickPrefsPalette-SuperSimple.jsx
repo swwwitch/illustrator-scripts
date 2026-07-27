@@ -17,7 +17,7 @@ Illustrator の使用頻度の高い環境設定を、常駐パレット（palet
 - 変形オプション：パターン／角（ライブコーナー）／線幅と効果。Option＋クリックで3つまとめて切替
 - コピー/ペースト：書式なしペースト／コピー元のレイヤーにペースト
 - 描画：リアルタイムの描画と編集／プレビュー更新（GPU プレビューをトグルして再描画）
-- 環境設定：インターフェイスカラー（UIの明るさ）を4段階のスウォッチで切替。直接反映できないため、クリックで環境設定（ユーザーインターフェイス）が開くので、矢印キー＋Return で確定。「ファイル管理を開く」ボタンで環境設定（ファイル管理）を表示
+- 表示：境界線（エッジ＋バウンディングボックスをまとめて切替）／アートボード／ビデオ定規（表示の切替）／カンバスカラー（UIに合わせる⇔ホワイトをトグル）
 
 */
 
@@ -25,10 +25,10 @@ Illustrator の使用頻度の高い環境設定を、常駐パレット（palet
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiQuickPrefsPalette-SuperSimple";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.4";                           /* バージョン / version */
+var SCRIPT_VERSION  = "v2.2.0";                           /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";      /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-05";                       /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-23";                       /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-07-27";                       /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiQuickPrefsPalette-SuperSimple.md
@@ -69,7 +69,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             transform: { ja: "変形オプション", en: "Transform Options" },
             copyPaste: { ja: "コピー/ペースト", en: "Copy / Paste" },
             drawing: { ja: "描画", en: "Drawing" },
-            preferences: { ja: "環境設定", en: "Preferences" }
+            view: { ja: "表示", en: "View" }
         },
         checkbox: {
             glyphBounds: { ja: "字形の境界に整列", en: "Align to Glyph Bounds" },
@@ -93,18 +93,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             pastePreserve: { ja: "コピー元と同じレイヤーにペースト", en: "Paste into the original (source) layer" },
             realtimeDrawing: { ja: "リアルタイムの描画と編集を切り替え", en: "Toggle real-time drawing & editing" },
             refreshGpuPreview: { ja: "GPUプレビューを更新（再描画）", en: "Refresh the GPU preview (redraw)" },
-            brightness: { ja: "インターフェイスカラーは直接反映できないため、クリックで環境設定が開きます。矢印キー＋Return で確定してください", en: "Interface color can't be applied directly, so clicking opens Preferences. Confirm with the arrow keys + Return." },
-            openFileHandling: { ja: "環境設定（ファイル管理とクリップボード）を開く", en: "Open Preferences (File Handling & Clipboard)" }
+            edges: { ja: "エッジとバウンディングボックスの表示をまとめて切り替え", en: "Toggle edges and the bounding box together" },
+            artboard: { ja: "アートボードの表示を切り替え", en: "Toggle artboard visibility" },
+            videoRuler: { ja: "ビデオ定規の表示を切り替え", en: "Toggle video ruler visibility" },
+            canvasColor: { ja: "カンバスカラーを「UIに合わせる」と「ホワイト」で切り替え", en: "Switch the canvas color between Match Brightness and White" }
         },
         button: {
             refreshGpuPreview: { ja: "プレビュー更新", en: "Refresh Preview" },
-            openFileHandling: { ja: "ファイル管理を開く", en: "Open File Handling" }
-        },
-        brightness: {
-            dark: { ja: "暗", en: "Dark" },
-            mediumDark: { ja: "やや暗", en: "Medium Dark" },
-            mediumLight: { ja: "やや明", en: "Medium Light" },
-            light: { ja: "明", en: "Light" }
+            edges: { ja: "境界線", en: "Edges" },
+            artboard: { ja: "アートボード", en: "Artboards" },
+            videoRuler: { ja: "ビデオ定規", en: "Video Ruler" },
+            canvasColor: { ja: "カンバスカラー", en: "Canvas Color" }
         }
     };
 
@@ -215,8 +214,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             pastePreserve: getBool("layers/pastePreserve"),
             policyForPreservingCorners: getInt("policyForPreservingCorners"),
             rulerType: getInt("rulerType"),
-            cursorKeyLength: getReal("cursorKeyLength"),
-            uiBrightness: getReal("uiBrightness")
+            cursorKeyLength: getReal("cursorKeyLength")
         };
     }
 
@@ -542,126 +540,71 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         return { realtime: checkboxRealtime, refreshButton: btnRefreshGpuPreview };
     }
 
-    /* UI明るさの4プリセット：uiBrightness 値・表示シェード（RGB 0..1）・ラベル / Four UI-brightness presets: uiBrightness value, swatch shade (RGB 0..1), label */
-    /* 値は連続値ではなく離散プリセット（0.5 と 0.50999999 が別段階）/ Values are discrete presets, not a continuous scale (0.5 vs 0.50999999 are distinct steps) */
-    var BRIGHTNESS_LEVELS = [
-        { value: 0.0,               shade: [0.22, 0.22, 0.22], labelKey: 'brightness.dark' },
-        { value: 0.5,               shade: [0.33, 0.33, 0.33], labelKey: 'brightness.mediumDark' },
-        { value: 0.50999999046326,  shade: [0.70, 0.70, 0.70], labelKey: 'brightness.mediumLight' },
-        { value: 1.0,               shade: [0.94, 0.94, 0.94], labelKey: 'brightness.light' }
-    ];
-    var BRIGHTNESS_SWATCH_SIZE = 23;                    /* スウォッチの一辺(px) / Swatch side length (px) */
-    var BRIGHTNESS_SELECTED_BORDER = [0.15, 0.5, 0.92]; /* 選択枠の青 / Blue selection border */
-    var BRIGHTNESS_SWATCH_OUTLINE = [0.5, 0.5, 0.5];    /* 通常時の細枠 / Thin outline when not selected */
-
-    /* uiBrightness 値に最も近いプリセットの index を返す / Index of the preset closest to a uiBrightness value */
-    function nearestBrightnessIndex(value) {
-        var best = 0, bestDiff = 1e9;
-        for (var i = 0; i < BRIGHTNESS_LEVELS.length; i++) {
-            var diff = Math.abs(BRIGHTNESS_LEVELS[i].value - value);
-            if (diff < bestDiff) { bestDiff = diff; best = i; }
-        }
-        return best;
-    }
-
-    /* 環境設定パネルを構築：UI明るさの4段階スウォッチ（onDraw で自前描画）＋「ファイル管理を開く」ボタン。{setByValue, openButton} を返す。openButton はレイアウト確定後の trimButtonHeight 用 */
-    /* Build the Preferences panel: four UI-brightness swatches (drawn by onDraw) + an "Open File Handling" button. Returns {setByValue, openButton}. openButton is for trimButtonHeight after layout */
-    function buildPreferencesPanel(parent) {
-        var panel = parent.add('panel', undefined, L('panel.preferences'));
-        setupPanel(panel);
-
+    /* 表示パネルのボタン行を追加（左右中央・2列）/ Add a button row to the View panel (centered, two columns) */
+    function addViewButtonRow(panel) {
         var row = panel.add('group');
         row.orientation = 'row';
-        row.alignment = ['center', 'top'];
+        row.alignment = ['fill', 'top'];
+        row.alignChildren = ['center', 'top']; /* 左右中央 / Center horizontally */
         row.spacing = 8;
+        return row;
+    }
 
-        var buttons = [];
-        var selectedIndex = -1;
+    /* 表示パネルを構築：境界線／アートボード／ビデオ定規／カンバスカラーのトグルボタン。各ボタンはレイアウト確定後の trimButtonHeight 用に返す */
+    /* Build the View panel: Edges / Artboards / Video Ruler / Canvas Color toggle buttons; each button is returned for trimButtonHeight after layout */
+    function buildViewPanel(parent) {
+        var panel = parent.add('panel', undefined, L('panel.view'));
+        setupPanel(panel);
 
-        /* onDraw ハンドラ：塗り＋（選択時のみ）青い枠を描く / onDraw handler: fill + (only when selected) a blue border */
-        function makeDraw(index) {
-            return function () {
-                var g = this.graphics;
-                var w = this.size[0], h = this.size[1];
-                var level = BRIGHTNESS_LEVELS[index];
+        /* 幅を抑えるため2列×2行に配置 / Two columns by two rows, to keep the palette narrow */
+        var firstRow = addViewButtonRow(panel);
+        var secondRow = addViewButtonRow(panel);
 
-                /* シェードで塗りつぶし / Fill with the shade */
-                var brush = g.newBrush(g.BrushType.SOLID_COLOR, level.shade.concat(1));
-                g.newPath();
-                g.rectPath(0, 0, w, h);
-                g.fillPath(brush);
-
-                if (index === selectedIndex) {
-                    /* 選択：太めの青枠 / Selected: thicker blue border */
-                    var penSel = g.newPen(g.PenType.SOLID_COLOR, BRIGHTNESS_SELECTED_BORDER.concat(1), 2);
-                    g.newPath();
-                    g.rectPath(1, 1, w - 2, h - 2);
-                    g.strokePath(penSel);
-                } else {
-                    /* 非選択：細いグレー枠（明シェードを明背景でも視認）/ Not selected: thin gray outline (keep light swatches visible) */
-                    var penOutline = g.newPen(g.PenType.SOLID_COLOR, BRIGHTNESS_SWATCH_OUTLINE.concat(1), 1);
-                    g.newPath();
-                    g.rectPath(0.5, 0.5, w - 1, h - 1);
-                    g.strokePath(penOutline);
-                }
-            };
-        }
-
-        /* 全ボタンを再描画（hide/show で onDraw を確実に再実行し、旧選択枠を残さない＝排他表示）/ Force all buttons to repaint (hide/show reliably re-runs onDraw so the old selection border never lingers = exclusive) */
-        function refresh() {
-            for (var i = 0; i < buttons.length; i++) {
-                buttons[i].hide();
-                buttons[i].show();
-            }
-        }
-
-        /* uiBrightness 値から選択状態だけ更新（適用はしない）。値が変わらなければ再描画しない */
-        /* Update selection only, from a uiBrightness value (no apply). Skip repaint when unchanged */
-        /* onActivate は毎クリック発火するため、無駄な hide/show を避けてウィンドウ z-order の乱れを防ぐ */
-        /* onActivate fires on every click, so avoid needless hide/show that disturbs window z-order */
-        function setByValue(value) {
-            var nextIndex = nearestBrightnessIndex(value);
-            if (nextIndex === selectedIndex) return;
-            selectedIndex = nextIndex;
-            refresh();
-        }
-
-        for (var i = 0; i < BRIGHTNESS_LEVELS.length; i++) {
-            var button = row.add('iconbutton', undefined, undefined, { style: 'toolbutton' });
-            button.preferredSize = [BRIGHTNESS_SWATCH_SIZE, BRIGHTNESS_SWATCH_SIZE];
-            button.helpTip = L(BRIGHTNESS_LEVELS[i].labelKey) + " / " + L('tooltip.brightness');
-            button.onDraw = makeDraw(i);
-            (function (index, level) {
-                button.onClick = function () {
-                    selectedIndex = index;
-                    /* 明るさを適用 → redraw → 環境設定(ユーザーインターフェイス)を開く。あとは矢印＋Return を手動で確定して反映 */
-                    /* Apply brightness → redraw → open Preferences (User Interface). Confirm with arrows + Return manually to apply */
-                    /* redraw はドキュメント未オープンだと例外になるため try で保護（以降の UIPref を止めない）/ Guard redraw (it throws with no open document) so it never blocks the following UIPref */
-                    var body =
-                        'app.preferences.setRealPreference("uiBrightness", ' + Number(level.value) + '); ' +
-                        'try { app.redraw(); } catch (e) {} ' +
-                        'app.executeMenuCommand("UIPref");';
-                    runInMainEngine(body);
-                    refresh();
-                };
-            })(i, BRIGHTNESS_LEVELS[i]);
-            buttons.push(button);
-        }
-
-        /* 環境設定（ファイル管理）を開く。明るさスウォッチの下に左右中央で配置（上に5pxマージン）/ Open Preferences (File Handling); centered below the brightness swatches with a 5px top margin */
-        var openFileHandlingRow = panel.add('group');
-        openFileHandlingRow.orientation = 'row';
-        openFileHandlingRow.alignment = ['fill', 'top'];
-        openFileHandlingRow.alignChildren = ['center', 'top']; /* 左右中央 / Center horizontally */
-        openFileHandlingRow.margins = [0, 5, 0, 0];            /* 上に5pxのマージン / 5px top margin */
-        var btnOpenFileHandling = openFileHandlingRow.add('button', undefined, L('button.openFileHandling'));
-        btnOpenFileHandling.helpTip = L('tooltip.openFileHandling');
-        btnOpenFileHandling.onClick = function () {
-            /* FilePref = ファイル管理（2022以降）。旧「ファイル管理とクリップボード」は FileClipboardPref だが分割済み / FilePref = File Handling (2022+); the old unified "File Handling & Clipboard" was FileClipboardPref but has been split */
-            runInMainEngine('try{app.executeMenuCommand("FilePref");}catch(e){}');
+        var btnEdges = firstRow.add('button', undefined, L('button.edges'));
+        btnEdges.helpTip = L('tooltip.edges');
+        btnEdges.onClick = function () {
+            /* edge＝エッジの表示/隠す、AI Bounding Box Toggle＝バウンディングボックスの表示/隠す。2つをまとめてトグル */
+            /* edge = Show/Hide Edges, AI Bounding Box Toggle = Show/Hide Bounding Box; toggle both at once */
+            runInMainEngine("try{app.executeMenuCommand('edge');app.executeMenuCommand('AI Bounding Box Toggle');}catch(e){}");
         };
 
-        return { setByValue: setByValue, openButton: btnOpenFileHandling };
+        /* アートボードの表示/隠すをトグル / Toggle Show/Hide Artboards */
+        var btnArtboard = firstRow.add('button', undefined, L('button.artboard'));
+        btnArtboard.helpTip = L('tooltip.artboard');
+        btnArtboard.onClick = function () {
+            runInMainEngine("try{app.executeMenuCommand('artboard');}catch(e){}");
+        };
+
+        /* ビデオ定規の表示/隠すをトグル / Toggle Show/Hide Video Rulers */
+        var btnVideoRuler = secondRow.add('button', undefined, L('button.videoRuler'));
+        btnVideoRuler.helpTip = L('tooltip.videoRuler');
+        btnVideoRuler.onClick = function () {
+            runInMainEngine("try{app.executeMenuCommand('videoruler');}catch(e){}");
+        };
+
+        /* カンバスカラー：uiCanvasIsWhite を 0（UIに合わせる）と 1（ホワイト）で交互に切替 */
+        /* Canvas Color: flip uiCanvasIsWhite between 0 (Match Brightness) and 1 (White) */
+        var btnCanvasColor = secondRow.add('button', undefined, L('button.canvasColor'));
+        btnCanvasColor.helpTip = L('tooltip.canvasColor');
+        btnCanvasColor.onClick = function () {
+            /* 現在値の読み出しから反転・保存・再描画までをメインエンジン側で完結（エンジン間で値がずれないように） */
+            /* Read, flip, save, and repaint all in the main engine so the two engines can't disagree on the value */
+            /* 反映には画面の強制再描画が必要。redraw() だけでは足りないため、ズーム操作で描き直す（PresetManager と同じ手当て） */
+            /* Applying it needs a forced repaint; redraw() alone is not enough, so toggle the zoom (same workaround as PresetManager) */
+            var body =
+                'var isWhite = 0; ' +
+                'try { isWhite = app.preferences.getIntegerPreference("uiCanvasIsWhite"); } catch (e) {} ' +
+                'app.preferences.setIntegerPreference("uiCanvasIsWhite", (isWhite === 1) ? 0 : 1); ' +
+                'try { app.redraw(); app.executeMenuCommand("zoomout"); app.executeMenuCommand("zoomin"); } catch (e) {}';
+            runInMainEngine(body);
+        };
+
+        return {
+            edgesButton: btnEdges,
+            artboardButton: btnArtboard,
+            videoRulerButton: btnVideoRuler,
+            canvasColorButton: btnCanvasColor
+        };
     }
 
     // =========================================
@@ -735,9 +678,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
         var checkboxRealtime = drawingControls.realtime;
         var btnRefreshGpuPreview = drawingControls.refreshButton;
 
-        /* 環境設定パネル（最下部）。UI明るさの4段階スウォッチ＋ファイル管理を開くボタン / Preferences panel (bottom); four UI-brightness swatches + Open File Handling button */
-        var preferencesControls = buildPreferencesPanel(mainGroup);
-        var btnOpenFileHandling = preferencesControls.openButton;
+        /* 表示パネル（最下部）。境界線／アートボード／ビデオ定規／カンバスカラーの切替ボタン / View panel (bottom); Edges / Artboards / Video Ruler / Canvas Color toggles */
+        var viewControls = buildViewPanel(mainGroup);
 
 
         /* 読み出した環境設定を UI へ反映 / Apply fetched preferences to the UI */
@@ -759,10 +701,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
             PREF_STATE.rulerType = isNaN(rulerTypeCode) ? PREF_STATE.rulerType : rulerTypeCode;
             var cursorKeyLengthPt = parseFloat(prefValues['cursorKeyLength']);
             PREF_STATE.cursorKeyLengthPt = isNaN(cursorKeyLengthPt) ? PREF_STATE.cursorKeyLengthPt : cursorKeyLengthPt;
-
-            /* UI明るさの選択スウォッチを現在値に同期 / Sync the selected brightness swatch to the current value */
-            var uiBrightnessValue = parseFloat(prefValues['uiBrightness']);
-            if (!isNaN(uiBrightnessValue)) preferencesControls.setByValue(uiBrightnessValue);
 
             /* 単位ポップアップと数値表示を PREF_STATE に同期 / Sync the unit popup and value display to PREF_STATE */
             keyInput.syncDisplay();
@@ -789,7 +727,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n41d8dc1961be"; /* 紹�
 
         /* ボタンの高さを4px詰める（レイアウト確定後に1回）/ Trim button heights by 4px (once, after layout) */
         trimButtonHeight(btnRefreshGpuPreview, 4);
-        trimButtonHeight(btnOpenFileHandling, 4);
+        trimButtonHeight(viewControls.edgesButton, 4);
+        trimButtonHeight(viewControls.artboardButton, 4);
+        trimButtonHeight(viewControls.videoRulerButton, 4);
+        trimButtonHeight(viewControls.canvasColorButton, 4);
     }
 
     main();

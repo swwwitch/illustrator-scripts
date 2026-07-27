@@ -28,10 +28,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     - 選択範囲へズーム、アンカー強調表示、オブジェクト選択・テキスト選択の「パスに制限」
     - テキスト：エリア内文字の自動サイズ、最近使用フォントの表示数、異体字・見つからない字形の保護
     - ガイド：カラー（シアン／ライトブルー）とスタイル（ライン／点線）の切替
-    - ユーザーインターフェイス：カンバスカラー（UIに合わせる／ホワイト）
+    - ユーザーインターフェイス：明るさ（4段階のスウォッチ）、カンバスカラー（UIに合わせる／ホワイト）
     - パフォーマンス：アニメーションズーム、ヒストリー数、リアルタイム描画
     - スマートガイド：オブジェクトのハイライト表示のオン／オフ
-    - ファイル管理：編集の既定アプリ、Adobe Fonts 自動アクティベート、ファイルの保存先（コンピューター／クラウド）
+    - ファイル管理：編集の既定アプリ、Adobe Fonts 自動アクティベート、ファイルの保存先（コンピューター／クラウド）、環境設定（ファイル管理）を開く
     - クリップボード：SVG コードを含めるのオン／オフ
     
     ### 処理の流れ：
@@ -43,8 +43,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     https://note.com/dtp_tranist/n/n3b33862538f6
     
     ### 更新日：
-    
-    - 2026-04-22（v1.7.0）
+
+    - 2026-07-27（v1.8.0）
     
     ### 更新履歴：
     
@@ -76,10 +76,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     - Control Zoom to Selection, anchor highlighting, and path-only selection for objects and type
     - Type: Auto Size Area Type, recent fonts count, alternate glyphs, and missing glyph protection
     - Guides: switch color (Cyan / Light Blue) and style (Lines / Dots)
-    - User Interface: Canvas Color (Match Brightness / White)
+    - User Interface: Brightness (four swatches) and Canvas Color (Match Brightness / White)
     - Performance: Animated Zoom, History States, Real-Time Drawing and Editing
     - Smart Guides: Object Highlighting on/off
-    - File Management: system default app for Edit Original, auto-activate Adobe Fonts, and save location (Computer / Cloud)
+    - File Management: system default app for Edit Original, auto-activate Adobe Fonts, save location (Computer / Cloud), and opening Preferences (File Handling)
     - Clipboard: include SVG code on/off
     
     ### Flow:
@@ -87,8 +87,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     1) Build dialog → 2) Load current preferences into UI → 3) Apply preset to UI → 4) Save preferences when pressing OK.
     
     ### Updated:
-    
-    - 2026-04-22 (v1.7.0)
+
+    - 2026-07-27 (v1.8.0)
     
     ### Changelog:
     
@@ -97,7 +97,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
     - v1.7.0 (2026-04-22): Refined localization, naming, comments, and structure
     
     */
-    var SCRIPT_VERSION = "v1.7.0";
+    var SCRIPT_VERSION = "v1.8.0";
 
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
@@ -205,6 +205,30 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         },
 
         // ユーザーインターフェイス
+        uiBrightness: {
+            ja: "明るさ",
+            en: "Brightness"
+        },
+        brightnessDark: {
+            ja: "暗",
+            en: "Dark"
+        },
+        brightnessMediumDark: {
+            ja: "やや暗",
+            en: "Medium Dark"
+        },
+        brightnessMediumLight: {
+            ja: "やや明",
+            en: "Medium Light"
+        },
+        brightnessLight: {
+            ja: "明",
+            en: "Light"
+        },
+        brightnessHelpTip: {
+            ja: "インターフェイスカラーは直接反映できないため、［OK］後に環境設定（ユーザーインターフェイス）が開きます。矢印キー＋Return で確定してください",
+            en: "Interface color can’t be applied directly, so Preferences opens after [OK]. Confirm with the arrow keys + Return."
+        },
         canvasColor: {
             ja: "カンバスカラー",
             en: "Canvas Color"
@@ -252,6 +276,18 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         saveCloud: {
             ja: "クラウド",
             en: "Cloud"
+        },
+        btnOpenFileHandling: {
+            ja: "ファイル管理を開く",
+            en: "Open File Handling"
+        },
+        btnOpenFileHandlingArmed: {
+            ja: "［OK］後に開きます",
+            en: "Opens after [OK]"
+        },
+        openFileHandlingHelpTip: {
+            ja: "［OK］後に環境設定（ファイル管理）を開きます。もう一度クリックすると取り消せます",
+            en: "Opens Preferences (File Handling) after [OK]. Click again to cancel."
         },
         cbIncludeSVG: {
             ja: "SVGコードを含める",
@@ -798,6 +834,124 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         panelUI.alignment = ["fill", "top"];
         panelUI.margins = PANEL_MARGINS;
 
+        /* UI明るさの4プリセット：uiBrightness 値・スウォッチのシェード（RGB 0..1）・ラベル / Four UI-brightness presets: uiBrightness value, swatch shade (RGB 0..1), label */
+        /* 値は連続値ではなく離散プリセット（0.5 と 0.50999999 が別段階）/ Values are discrete presets, not a continuous scale (0.5 vs 0.50999999 are distinct steps) */
+        var BRIGHTNESS_LEVELS = [{
+            value: 0.0,
+            shade: [0.22, 0.22, 0.22],
+            labelKey: "brightnessDark"
+        }, {
+            value: 0.5,
+            shade: [0.33, 0.33, 0.33],
+            labelKey: "brightnessMediumDark"
+        }, {
+            value: 0.50999999046326,
+            shade: [0.70, 0.70, 0.70],
+            labelKey: "brightnessMediumLight"
+        }, {
+            value: 1.0,
+            shade: [0.94, 0.94, 0.94],
+            labelKey: "brightnessLight"
+        }];
+        var BRIGHTNESS_SWATCH_SIZE = 23; /* スウォッチの一辺(px) / Swatch side length (px) */
+        var BRIGHTNESS_SELECTED_BORDER = [0.15, 0.5, 0.92]; /* 選択枠の青 / Blue selection border */
+        var BRIGHTNESS_SWATCH_OUTLINE = [0.5, 0.5, 0.5]; /* 通常時の細枠 / Thin outline when not selected */
+        var BRIGHTNESS_EPSILON = 0.001; /* プリセット同士の判定用（0.5 と 0.50999999 を区別）/ Preset comparison tolerance (keeps 0.5 and 0.50999999 distinct) */
+
+        /* uiBrightness 値に最も近いプリセットの index を返す / Index of the preset closest to a uiBrightness value */
+        function nearestBrightnessIndex(value) {
+            var best = 0,
+                bestDiff = 1e9;
+            for (var i = 0; i < BRIGHTNESS_LEVELS.length; i++) {
+                var diff = Math.abs(BRIGHTNESS_LEVELS[i].value - value);
+                if (diff < bestDiff) {
+                    bestDiff = diff;
+                    best = i;
+                }
+            }
+            return best;
+        }
+
+        /* 明るさ（1行レイアウト：ラベル＋4段階スウォッチ） / Brightness (single row: label + four swatches) */
+        var brightnessRow = panelUI.add("group", undefined, "");
+        brightnessRow.orientation = "row";
+        brightnessRow.alignChildren = ["left", "center"];
+        brightnessRow.spacing = 10;
+
+        brightnessRow.add("statictext", undefined, L("uiBrightness") + "：");
+
+        var brightnessSwatchGroup = brightnessRow.add("group");
+        brightnessSwatchGroup.orientation = "row";
+        brightnessSwatchGroup.spacing = 8;
+
+        var brightnessButtons = [];
+        var selectedBrightnessIndex = -1;
+        var brightnessTouched = false; /* ユーザーがスウォッチを操作したか（未操作なら書き込まない）/ Whether the user clicked a swatch (no write when untouched) */
+
+        /* onDraw ハンドラ：塗り＋（選択時のみ）青い枠を描く / onDraw handler: fill + (only when selected) a blue border */
+        function makeBrightnessDraw(index) {
+            return function () {
+                var g = this.graphics;
+                var w = this.size[0],
+                    h = this.size[1];
+                var level = BRIGHTNESS_LEVELS[index];
+
+                /* シェードで塗りつぶし / Fill with the shade */
+                var brush = g.newBrush(g.BrushType.SOLID_COLOR, level.shade.concat(1));
+                g.newPath();
+                g.rectPath(0, 0, w, h);
+                g.fillPath(brush);
+
+                if (index === selectedBrightnessIndex) {
+                    /* 選択：太めの青枠 / Selected: thicker blue border */
+                    var penSelected = g.newPen(g.PenType.SOLID_COLOR, BRIGHTNESS_SELECTED_BORDER.concat(1), 2);
+                    g.newPath();
+                    g.rectPath(1, 1, w - 2, h - 2);
+                    g.strokePath(penSelected);
+                } else {
+                    /* 非選択：細いグレー枠（明シェードを明背景でも視認）/ Not selected: thin gray outline (keep light swatches visible) */
+                    var penOutline = g.newPen(g.PenType.SOLID_COLOR, BRIGHTNESS_SWATCH_OUTLINE.concat(1), 1);
+                    g.newPath();
+                    g.rectPath(0.5, 0.5, w - 1, h - 1);
+                    g.strokePath(penOutline);
+                }
+            };
+        }
+
+        /* 全ボタンを再描画（hide/show で onDraw を確実に再実行し、旧選択枠を残さない＝排他表示）/ Force all buttons to repaint (hide/show reliably re-runs onDraw so the old selection border never lingers = exclusive) */
+        function refreshBrightnessSwatches() {
+            for (var i = 0; i < brightnessButtons.length; i++) {
+                brightnessButtons[i].hide();
+                brightnessButtons[i].show();
+            }
+        }
+
+        /* uiBrightness 値から選択状態だけ更新（書き込みはOK時）/ Update the selection only, from a uiBrightness value (writes happen on OK) */
+        function setBrightnessByValue(value) {
+            var nextIndex = nearestBrightnessIndex(value);
+            if (nextIndex === selectedBrightnessIndex) return;
+            selectedBrightnessIndex = nextIndex;
+            refreshBrightnessSwatches();
+        }
+
+        for (var bi = 0; bi < BRIGHTNESS_LEVELS.length; bi++) {
+            var brightnessButton = brightnessSwatchGroup.add("iconbutton", undefined, undefined, {
+                style: "toolbutton"
+            });
+            brightnessButton.preferredSize = [BRIGHTNESS_SWATCH_SIZE, BRIGHTNESS_SWATCH_SIZE];
+            brightnessButton.helpTip = L(BRIGHTNESS_LEVELS[bi].labelKey) + " / " + L("brightnessHelpTip");
+            brightnessButton.onDraw = makeBrightnessDraw(bi);
+            (function (index) {
+                brightnessButton.onClick = function () {
+                    // UI only; persist on OK
+                    selectedBrightnessIndex = index;
+                    brightnessTouched = true;
+                    refreshBrightnessSwatches();
+                };
+            })(bi);
+            brightnessButtons.push(brightnessButton);
+        }
+
         /* カンバスカラー（UIパネル） / Canvas color (UI panel) */
         // NOTE: All controls update UI only; actual writes occur on OK.
         // カンバスカラー（1行レイアウト）
@@ -913,6 +1067,20 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
         rbUpdateLinksAuto.value = (curUpdateLinks === 0);
         rbUpdateLinksManual.value = (curUpdateLinks === 1);
         rbUpdateLinksAsk.value = (curUpdateLinks !== 0 && curUpdateLinks !== 1);
+
+        /* 環境設定（ファイル管理）を開く。モーダルダイアログ表示中は開けないため、［OK］後に開く予約だけを行う */
+        /* Open Preferences (File Handling); it cannot open while this modal dialog is up, so only arm it for after [OK] */
+        var willOpenFileHandling = false;
+        var openFileHandlingRow = panelFile.add("group", undefined, "");
+        openFileHandlingRow.orientation = "row";
+        openFileHandlingRow.alignChildren = ["left", "center"];
+        var btnOpenFileHandling = openFileHandlingRow.add("button", undefined, L("btnOpenFileHandling"));
+        btnOpenFileHandling.helpTip = L("openFileHandlingHelpTip");
+        btnOpenFileHandling.onClick = function () {
+            /* 予約のトグル（押し間違いを取り消せるよう、ラベルで予約状態を示す）/ Toggle the reservation; the label shows the armed state so a mis-click can be undone */
+            willOpenFileHandling = !willOpenFileHandling;
+            btnOpenFileHandling.text = willOpenFileHandling ? L("btnOpenFileHandlingArmed") : L("btnOpenFileHandling");
+        };
 
         /*
           ［クリップボードの処理］パネル（右） / Clipboard Handling panel (right)
@@ -1069,6 +1237,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
             var canvasPreferenceValue = safeGetInt("uiCanvasIsWhite", 0);
             rbCanvasWhite.value = (canvasPreferenceValue === 1);
             rbCanvasMatch.value = (canvasPreferenceValue !== 1);
+            /* UIの明るさ：現在値に最も近いスウォッチを選択（書き込みなし）/ Brightness: select the swatch closest to the current value (no write) */
+            setBrightnessByValue(safeGetReal("uiBrightness", 0.0));
             // ストロークカラー・幅は Real 値なので bindings 外で個別読み込み
             var scR = safeGetReal("ArtboardBBColorRed", 0.0);
             var scG = safeGetReal("ArtboardBBColorGreen", 0.0);
@@ -1472,12 +1642,43 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
                     updateLinksValue = 1;
                 }
                 safeSetInt("plugin/FileClipboard/linkoptions", updateLinksValue);
+                /*
+                  Save UI brightness / UIの明るさを保存
+                  値の書き込みだけでは反映されないため、変更したときだけ書き込み、後段で環境設定（ユーザーインターフェイス）を開いて確定してもらう
+                  Writing the value alone does not apply it, so write only on change and open Preferences (User Interface) below to confirm
+                */
+                var willOpenUIPref = false;
+                var selectedBrightness = BRIGHTNESS_LEVELS[selectedBrightnessIndex];
+                if (brightnessTouched && selectedBrightness && !approx(safeGetReal("uiBrightness", 0.0), selectedBrightness.value, BRIGHTNESS_EPSILON)) {
+                    safeSetReal("uiBrightness", selectedBrightness.value);
+                    willOpenUIPref = true;
+                }
 
                 // Force screen refresh workaround: redraw() alone does not reliably update UI after preference changes
                 // 画面更新のためのハック：redraw() だけでは環境設定変更後にUIが確実に更新されないため、ズーム操作で強制再描画
                 app.executeMenuCommand('zoomout');
                 app.executeMenuCommand('zoomin');
                 dlg.close();
+                /*
+                  環境設定パネルはモーダルダイアログを閉じてから開く（表示中は開けないため）
+                  Open the Preferences panels only after this modal dialog is closed (they cannot open while it is up)
+                */
+                if (willOpenUIPref) {
+                    try {
+                        app.executeMenuCommand("UIPref");
+                    } catch (eUIPref) {
+                        $.writeln("[PresetManager] failed to open UIPref / " + eUIPref);
+                    }
+                }
+                if (willOpenFileHandling) {
+                    /* FilePref = ファイル管理（2022以降）。旧「ファイル管理とクリップボード」は FileClipboardPref だが分割済み */
+                    /* FilePref = File Handling (2022+); the old unified "File Handling & Clipboard" was FileClipboardPref but has been split */
+                    try {
+                        app.executeMenuCommand("FilePref");
+                    } catch (eFilePref) {
+                        $.writeln("[PresetManager] failed to open FilePref / " + eFilePref);
+                    }
+                }
             } catch (e) {
                 alert(L("alertSavePrefsFailed") + e);
             }
