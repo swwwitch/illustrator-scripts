@@ -234,7 +234,7 @@ worker 関数の本体は `toString()` で連結して送るため、次の制�
 
 ### note
 
-- [リンク画像の管理をIllustratorスクリプトで](https://note.com/dtp_tranist/n/na66732d2056a)
+- [【Illustrator】スクリプトで行う［リンク］パネルの再設計｜DTP Transit 別館](https://note.com/dtp_tranist/n/na66732d2056a)
 
 ## 更新履歴
 

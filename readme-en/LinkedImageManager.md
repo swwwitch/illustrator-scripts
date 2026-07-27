@@ -234,7 +234,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Article
 
-[Managing linked images with an Illustrator script (Japanese)](https://note.com/dtp_tranist/n/na66732d2056a)
+[Redesigning the Links panel with a script (Japanese)](https://note.com/dtp_tranist/n/na66732d2056a)
 
 ## Changelog
 
