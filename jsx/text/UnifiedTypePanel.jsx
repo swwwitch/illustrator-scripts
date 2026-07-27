@@ -32,7 +32,7 @@ See the README for the tab layout, the individual settings, and the scope each i
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "UnifiedTypePanel";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.3";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-24";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
@@ -2190,31 +2190,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         };
     }
 
-    /* 最上部の種別（本文／見出し）＋方針（和文／欧文／和欧混在）を構築して参照を返す
-       Build the top panels (Type + Policy) and return refs */
+    /* 最上部の方針（和文／欧文／和欧混在）＋種別（本文／見出し）を構築して参照を返す
+       Build the top panels (Policy + Type) and return refs */
     function buildTopPanels(palette) {
         var topRow = palette.add("group");
         topRow.orientation = "row";
         topRow.alignment = "fill";
         topRow.alignChildren = ["fill", "fill"]; // パネルを左右いっぱいに / Panels fill the full width
         topRow.spacing = 8;
-
-        // 種別（本文／見出し）：タイトルなしパネル / Type (Body / Heading): untitled panel
-        var rolePanel = topRow.add("panel", undefined, "");
-        setupPanel(rolePanel);
-        rolePanel.margins.top = 7;
-        rolePanel.margins.bottom = 5; // 上下のみ指定、左右は setupPanel 既定 / Top/bottom only, left/right stay default
-        rolePanel.alignment = ["fill", "fill"]; // 左右いっぱいに / Fill the full width
-        rolePanel.alignChildren = ["center", "center"];
-        var roleRow = rolePanel.add("group");
-        roleRow.orientation = "row";
-        roleRow.spacing = 16;
-        roleRow.alignment = ["center", "center"]; // 上下左右中央 / Centered
-        var roleBodyRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.body));
-        var roleHeadingRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.heading));
-        rolePanel.helpTip = getLocalizedText(LABELS.tip.role);
-        roleBodyRadio.helpTip = rolePanel.helpTip;
-        roleHeadingRadio.helpTip = rolePanel.helpTip;
 
         // 方針：和文／欧文／和欧混在（横並び）。文字揃えと行送りの基準をまとめて適用（タイトルなしパネル）
         // Policy: Japanese / Western / Mixed (row). Applies char-alignment + leading-basis together (untitled panel)
@@ -2233,7 +2216,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             // justify / bodyLeadingPercent / bodyMojikumiIndex apply for the Body role; headingJustify / headingMojikumiIndex for the Heading role
             { id: "wabun", label: LABELS.policy.wabun, align: "center", leadingType: "top", hyphenation: false, justify: "justifyLeft", headingJustify: "left", bodyLeadingPercent: 150, bodyMojikumiIndex: 6, headingMojikumiIndex: 5, kinsoku: "Soft_v2" },     // 和文：中央 ＋ 仮想ボディの上 ＋ ハイフネーションOFF ＋ 両端揃え（最終行左／見出しは左）＋ 本文は行送り150% ＋ ベタ組み（見出しはツメ組み）＋ 弱い禁則v2
             { id: "latin", label: LABELS.policy.latin, align: "roman", leadingType: "baseline", hyphenation: true, justify: "left", headingJustify: "left", bodyLeadingPercent: 120, bodyMojikumiIndex: -1, headingMojikumiIndex: -1, kinsoku: "None" },  // 欧文：欧文ベースライン ＋ 欧文ベースライン ＋ ハイフネーションON ＋ 左揃え ＋ 本文は行送り120% ＋ 文字組み・禁則なし
-            { id: "mixed", label: LABELS.policy.mixed, align: "roman", leadingType: "top", hyphenation: false, justify: "justifyLeft", headingJustify: "left", bodyLeadingPercent: 150, bodyMojikumiIndex: 6, headingMojikumiIndex: 5, kinsoku: "Soft_v2" }        // 和欧混在：欧文ベースライン ＋ 仮想ボディの上 ＋ ハイフネーションOFF ＋ 両端揃え（最終行左／見出しは左）＋ 本文は行送り150% ＋ ベタ組み（見出しはツメ組み）＋ 弱い禁則v2
+            { id: "mixed", label: LABELS.policy.mixed, align: "roman", leadingType: "top", hyphenation: true, justify: "justifyLeft", headingJustify: "left", bodyLeadingPercent: 150, bodyMojikumiIndex: 6, headingMojikumiIndex: 5, kinsoku: "Soft_v2" }        // 和欧混在：欧文ベースライン ＋ 仮想ボディの上 ＋ ハイフネーションON ＋ 両端揃え（最終行左／見出しは左）＋ 本文は行送り150% ＋ ベタ組み（見出しはツメ組み）＋ 弱い禁則v2
         ];
         var policyRadios = [];
         for (var policyIndex = 0; policyIndex < POLICY_PRESETS.length; policyIndex++) {
@@ -2241,6 +2224,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             policyRadio.policyPreset = POLICY_PRESETS[policyIndex];
             policyRadios.push(policyRadio);
         }
+
+        // 種別（本文／見出し）：タイトルなしパネル / Type (Body / Heading): untitled panel
+        var rolePanel = topRow.add("panel", undefined, "");
+        setupPanel(rolePanel);
+        rolePanel.margins.top = 7;
+        rolePanel.margins.bottom = 5; // 上下のみ指定、左右は setupPanel 既定 / Top/bottom only, left/right stay default
+        rolePanel.alignment = ["fill", "fill"]; // 左右いっぱいに / Fill the full width
+        rolePanel.alignChildren = ["center", "center"];
+        var roleRow = rolePanel.add("group");
+        roleRow.orientation = "row";
+        roleRow.spacing = 16;
+        roleRow.alignment = ["center", "center"]; // 上下左右中央 / Centered
+        var roleBodyRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.body));
+        var roleHeadingRadio = roleRow.add("radiobutton", undefined, getLocalizedText(LABELS.role.heading));
+        rolePanel.helpTip = getLocalizedText(LABELS.tip.role);
+        roleBodyRadio.helpTip = rolePanel.helpTip;
+        roleHeadingRadio.helpTip = rolePanel.helpTip;
 
         return {
             roleBodyRadio: roleBodyRadio,
