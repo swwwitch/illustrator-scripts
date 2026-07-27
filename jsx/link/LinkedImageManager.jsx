@@ -6,8 +6,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 
-ドキュメント内の配置画像（リンク画像）を解析し、
-一覧表示・絞り込み・重複管理・再リンク・リネーム・削除を一元化するユーティリティ。
+ドキュメント内の配置画像（リンク画像・埋め込み画像）を解析し、
+一覧表示・絞り込み・重複管理・再リンク・リネーム・埋め込み／埋め込み解除・削除を
+一元化するユーティリティ。
 
 機能・使い方・実装メモの詳細は README を参照。
 
@@ -19,7 +20,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     // 基本情報 / Basic info
     // =========================================
     var SCRIPT_NAME     = "LinkedImageManager";           /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.4.2";                       /* バージョン / version */
+    var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
     var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
     var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
@@ -114,7 +115,26 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             showOnCanvas: { ja: "選択時にズーム表示", en: "Zoom to Selection" },
             filterOk: { ja: "✓ リンク正常", en: "✓ Link OK" },
             filterBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
-            filterUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" }
+            filterUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" },
+            filterEmbedded: { ja: "▣ 埋め込み", en: "▣ Embedded" },
+            collectAfterRelink: { ja: "再リンク後に収集", en: "Collect after relinking" }
+        },
+
+        /* 埋め込み解除の失敗理由（worker はコードのみ返す）*/
+        reason: {
+            LOCKED_LAYER: { ja: "レイヤーがロックされています", en: "The layer is locked" },
+            HIDDEN_LAYER: { ja: "レイヤーが非表示です", en: "The layer is hidden" },
+            LOCKED_ITEM: { ja: "画像または親グループがロックされています", en: "The image or its parent group is locked" },
+            HIDDEN_ITEM: { ja: "画像または親グループが非表示です", en: "The image or its parent group is hidden" },
+            SELECT_FAILED: { ja: "対象の画像を選択できませんでした", en: "Could not select the target image" },
+            ACTION_RESULT_MISSING: { ja: "置換結果を取得できませんでした", en: "Could not get the replaced image" },
+            ACTION_FILE_FAILED: { ja: "一時アクションファイルを作成できませんでした", en: "Could not create the temporary action file" },
+            UNSUPPORTED_COLORSPACE: { ja: "未対応のカラースペース", en: "Unsupported color space" },
+            SCALE_UNAVAILABLE: { ja: "拡大率を取得できませんでした", en: "Could not get the scale" },
+            EXPORT_FAILED: { ja: "PSDを書き出せませんでした", en: "Could not export the PSD" },
+            DOC_NOT_SAVED: { ja: "ドキュメントが保存されていません", en: "The document has not been saved" },
+            LINKS_FOLDER_FAILED: { ja: "「Links」フォルダーを作成できませんでした", en: "Could not create the \"Links\" folder" },
+            COPY_FAILED: { ja: "リンクファイルを複製できませんでした", en: "Could not copy the linked file" }
         },
 
         button: {
@@ -128,6 +148,8 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             relinkSelected: { ja: "再リンク", en: "Relink Selected" },
             relinkAll: { ja: "一括再リンク", en: "Relink All" },
             relinkFolder: { ja: "フォルダー再リンク", en: "Relink Folder" },
+            embed: { ja: "埋め込み", en: "Embed" },
+            unembed: { ja: "埋め込み解除", en: "Unembed" },
             changeExtension: { ja: "拡張子の変更", en: "Change Extension" },
             chooseFolder: { ja: "フォルダー指定", en: "Choose Folder" },
             collectLinks: { ja: "リンクを収集", en: "Collect Links" },
@@ -179,6 +201,13 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
                 en: "Multiple links will be relinked at once. Continue?"
             },
             relinkDone: { ja: "リンク更新完了", en: "Relink Complete" },
+            confirmBatchEmbed: {
+                ja: "選択したリンクの配置をすべて埋め込み画像に変換します。よろしいですか？",
+                en: "All placements of the selected link will be embedded. Continue?"
+            },
+            embedDone: { ja: "埋め込み完了", en: "Embed Complete" },
+            unembedDone: { ja: "埋め込み解除完了", en: "Unembed Complete" },
+            unembedFailedDetail: { ja: "埋め込み解除できなかった画像があります。", en: "Some images could not be unembedded." },
             changeExtDone: { ja: "拡張子を変更しました", en: "Extension changed" },
             docNotSaved: {
                 ja: "ドキュメントが保存されていません。保存してからもう一度お試しください。",
@@ -192,6 +221,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             statusOk: { ja: "✓ リンク正常", en: "✓ Link OK" },
             statusBroken: { ja: "⚠ リンク切れ", en: "⚠ Broken Link" },
             statusUpdate: { ja: "⟳ 更新が必要", en: "⟳ Needs Update" },
+            statusEmbedded: { ja: "▣ 埋め込み", en: "▣ Embedded" },
             artboardAll: { ja: "すべて", en: "All" },
             artboardFallback: { ja: "アートボード", en: "Artboard" },
             prevArtboardTip: { ja: "前のアートボード", en: "Previous Artboard" },
@@ -269,6 +299,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     function statusDisplay(statusCode) {
         if (statusCode === "broken") return { status: L('label.statusBroken'), statusIcon: "⚠", isLinkOk: false };
         if (statusCode === "update") return { status: L('label.statusUpdate'), statusIcon: "⟳", isLinkOk: false };
+        if (statusCode === "embedded") return { status: L('label.statusEmbedded'), statusIcon: "▣", isLinkOk: true };
         return { status: L('label.statusOk'), statusIcon: "✓", isLinkOk: true };
     }
 
@@ -624,20 +655,21 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         for (var i = 0; i < WORKER_FUNCS.length; i++) {
             src += WORKER_FUNCS[i].toString() + "\n";
         }
-        src += "return { analyze: w_analyze, select: w_select, fitArtboard: w_fitArtboard, openLinksPanel: w_openLinksPanel, relinkPairs: w_relinkPairs, probeDelete: w_probeDelete, del: w_del, docFolder: w_docFolder, copyText: w_copyText };\n";
+        src += "return { analyze: w_analyze, select: w_select, fitArtboard: w_fitArtboard, openLinksPanel: w_openLinksPanel, relinkPairs: w_relinkPairs, embed: w_embed, unembed: w_unembed, probeDelete: w_probeDelete, del: w_del, docFolder: w_docFolder, copyText: w_copyText };\n";
         src += "})();";
         return src;
     }
 
     // メインエンジンへ 1 文を同期送信。結果 body を返す。エラー／タイムアウトは null
-    function sendRaw(bodyExpr) {
+    // timeoutSec 省略時は 10 秒（PSD 書き出しなど長い処理は呼び出し側で延ばす）
+    function sendRaw(bodyExpr, timeoutSec) {
         var holder = {};
         var bridge = new BridgeTalk();
         bridge.target = "illustrator";
         bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(bodyExpr) + "\"))";
         bridge.onResult = function (msg) { holder.value = msg.body; };
         bridge.onError = function (msg) { holder.error = msg.body; };
-        bridge.send(10);
+        bridge.send(timeoutSec || 10);
         if (holder.hasOwnProperty("error")) return null;
         return holder.hasOwnProperty("value") ? holder.value : null;
     }
@@ -661,6 +693,12 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             res = sendRaw(callExpr);
         }
         return res;
+    }
+
+    // 委譲呼び出し（リトライなし）。書き込みを伴う長時間処理は再送すると二重実行になるためこちらを使う
+    function delegateOnce(callExpr, timeoutSec) {
+        if (!ensureWorker()) return null;
+        return sendRaw(callExpr, timeoutSec);
     }
 
     // "OK\n<json>" / "NODOC" / "ERR\n<msg>" を分解 (最初の \n が区切り)
@@ -1192,6 +1230,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         var geometry = w_getPlacementGeometry(item, doc);
         var imageMeta = w_getPlacementImageMeta(item, basics.linkedFile);
         return {
+            kind: "placed",
             itemIndex: itemIndex,
             index: itemIndex + 1,
             fileName: basics.fileName,
@@ -1216,7 +1255,84 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         };
     }
 
+    /* 埋め込みラスターの itemIndex を placedItems と衝突しない値へずらすためのオフセット。
+       これ以上なら rasterItems、未満なら placedItems の添字として解決する（w_itemByIndex）*/
+    function w_rasterIndexBase() {
+        return 1000000;
+    }
+
+    /* エンコード済み itemIndex から実アイテムを取得（placedItems / rasterItems を自動判別）*/
+    function w_itemByIndex(doc, itemIndex) {
+        var base = w_rasterIndexBase();
+        if (itemIndex >= base) return doc.rasterItems[itemIndex - base];
+        return doc.placedItems[itemIndex];
+    }
+
+    /* RasterItem.imageColorSpace を表示用文字列へ（リンク側の colorMode 表記に合わせる）*/
+    function w_rasterColorSpaceText(item) {
+        var raw = w_tryGet(function () { return String(item.imageColorSpace); }, "");
+        if (!raw) return "";
+        var name = raw.replace(/^.*\./, "");
+        if (/^grayscale$/i.test(name)) return "Grayscale";
+        if (/^lab$/i.test(name)) return "Lab";
+        if (/^rgb$/i.test(name)) return "RGB";
+        if (/^cmyk$/i.test(name)) return "CMYK";
+        return name;
+    }
+
+    /* 埋め込みラスター 1 件分のエントリを組み立てる。
+       パス・ファイルサイズ・PPI は埋め込み後に取得手段が無いため "---" 固定 */
+    function w_buildEmbeddedEntry(item, rasterIndex, displayIndex, doc) {
+        var UNKNOWN = "￾UNKNOWN";
+        var itemIndex = w_rasterIndexBase() + rasterIndex;
+        var geometry = w_getPlacementGeometry(item, doc);
+        var fileName = UNKNOWN;
+        var sourceFile = w_tryGet(function () { return item.file; }, null);
+        if (sourceFile) fileName = w_decodeName(w_safeProp(sourceFile, "name", fileName));
+        /* 埋め込み後は item.file を辿れないため、拡張子つきの名前を優先して拾う */
+        if (fileName === UNKNOWN) fileName = w_getImageNameFromItem(item) || fileName;
+        return {
+            kind: "raster",
+            itemIndex: itemIndex,
+            index: displayIndex,
+            fileName: fileName,
+            filePath: "---",
+            fileSize: "---",
+            fileSizeBytes: -1,
+            statusIcon: "▣",
+            statusCode: "embedded",
+            isLinkOk: true,
+            artboardNum: geometry.artboardNum,
+            artboards: (geometry.artboardNum !== null) ? String(geometry.artboardNum) : "-",
+            widthMm: geometry.widthMm,
+            heightMm: geometry.heightMm,
+            widthText: geometry.widthText,
+            heightText: geometry.heightText,
+            scalePct: geometry.scalePct,
+            scaleText: geometry.scaleText,
+            ppi: null,
+            ppiText: "---",
+            colorSpace: w_rasterColorSpaceText(item),
+            itemIndices: [itemIndex]
+        };
+    }
+
+    /* ドキュメント内の埋め込みラスターを収集（リンク画像は PlacedItem 側で扱う）*/
+    function w_collectEmbeddedEntries(doc, displayIndexOffset) {
+        var entries = [];
+        var rasters = w_tryGet(function () { return doc.rasterItems; }, null);
+        if (!rasters) return entries;
+        for (var i = 0; i < rasters.length; i++) {
+            var raster = rasters[i];
+            var isEmbedded = w_tryGet(function () { return raster.embedded; }, true);
+            if (isEmbedded === false) continue;
+            entries.push(w_buildEmbeddedEntry(raster, i, displayIndexOffset + entries.length + 1, doc));
+        }
+        return entries;
+    }
+
     function w_getLinkGroupKey(info) {
+        if (info.kind === "raster") return "__embedded__#" + info.itemIndex;
         if (info.filePath && info.filePath !== "---") return info.filePath;
         return "__broken__#" + info.itemIndex + "#" + (info.fileName || "");
     }
@@ -1246,6 +1362,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
                 if (dedupInfo.artboardNum !== null) artboardSet[dedupInfo.artboardNum] = true;
                 var entry = {
                     index: uniqueList.length + 1,
+                    kind: dedupInfo.kind,
                     fileName: dedupInfo.fileName,
                     filePath: dedupInfo.filePath,
                     fileSize: dedupInfo.fileSize,
@@ -1296,6 +1413,9 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             var effectiveRef = w_resolveXmpRef(placedItems[i], xmpRefs[i] || null, xmpByName);
             linkInfoList.push(w_buildPlacementEntry(placedItems[i], i, effectiveRef, doc));
         }
+        /* 埋め込み画像はリンクの後ろに続けて並べる（以降の集計・重複統合は同じ経路を通す）*/
+        var embeddedEntries = w_collectEmbeddedEntries(doc, linkInfoList.length);
+        for (var e = 0; e < embeddedEntries.length; e++) linkInfoList.push(embeddedEntries[e]);
         w_assignFileCounts(linkInfoList);
         var uniqueList = w_dedupeByFile(linkInfoList);
         return { linkInfoList: linkInfoList, uniqueList: uniqueList };
@@ -1405,6 +1525,18 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
                     }
                 }
             }
+            /* 埋め込みラスターが単独選択されている場合はそちらを初期選択にする */
+            if (pre < 0 && sel && sel.length === 1) {
+                var selTypeName = w_tryGet(function () { return sel[0].typename; }, "");
+                if (selTypeName === "RasterItem") {
+                    var rasters = w_tryGet(function () { return doc.rasterItems; }, null);
+                    if (rasters) {
+                        for (var r = 0; r < rasters.length; r++) {
+                            if (rasters[r] === sel[0]) { pre = w_rasterIndexBase() + r; break; }
+                        }
+                    }
+                }
+            }
             var payload = { docOpen: true, artboards: abs, preIndex: pre, entries: collected.linkInfoList, unique: collected.uniqueList };
             return "OK\n" + w_jsonStr(payload);
         } catch (e) {
@@ -1412,15 +1544,14 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         }
     }
 
-    /* itemIndex 配列に対応する配置画像をカンバス上で選択＆ズーム */
+    /* itemIndex 配列に対応する配置画像／埋め込み画像をカンバス上で選択＆ズーム */
     function w_select(indices) {
         try {
             if (app.documents.length === 0) return "NODOC";
             var doc = app.activeDocument;
-            var placed = doc.placedItems;
             doc.selection = null;
             for (var i = 0; i < indices.length; i++) {
-                w_tryGet(function () { placed[indices[i]].selected = true; return 1; }, 0);
+                w_tryGet(function () { w_itemByIndex(doc, indices[i]).selected = true; return 1; }, 0);
             }
             w_zoomToSelection(doc);
             app.redraw();
@@ -1467,13 +1598,15 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         return null;
     }
 
-    /* [index, path] のペア配列に沿って placedItem のリンク先を差し替え。counts を返す */
+    /* [index, path] のペア配列に沿って placedItem のリンク先を差し替え。counts を返す。
+       埋め込み画像（エンコード済み index）は再リンクできないため失敗として数える */
     function w_relinkPairs(pairs) {
         try {
             if (app.documents.length === 0) return "NODOC";
             var placed = app.activeDocument.placedItems;
             var success = 0, failed = 0;
             for (var i = 0; i < pairs.length; i++) {
+                if (pairs[i][0] >= w_rasterIndexBase()) { failed++; continue; }
                 try {
                     placed[pairs[i][0]].file = new File(pairs[i][1]);
                     success++;
@@ -1488,13 +1621,587 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         }
     }
 
+    /**
+     * art item 配下の RasterItem を再帰的に集める（クリップグループの中も辿る）。
+     * @param {object} item - PageItem（RasterItem / GroupItem など）
+     * @param {Array<RasterItem>} results - 収集先の配列
+     * @returns {void}
+     */
+    function w_collectRasterItems(item, results) {
+        var typeName = w_tryGet(function () { return item.typename; }, "");
+        if (typeName === "RasterItem") { results.push(item); return; }
+        if (typeName !== "GroupItem") return;
+        var children = w_tryGet(function () { return item.pageItems; }, null);
+        if (!children) return;
+        for (var i = 0; i < children.length; i++) w_collectRasterItems(children[i], results);
+    }
+
+    /**
+     * 埋め込み直後（選択中）のラスターに元リンクのファイル名を拡張子つきで付ける。
+     * Illustrator の既定名は拡張子を落とすため、一覧表示と埋め込み解除の名前復元がこれに依存する。
+     * ラスターが複数に分かれた場合は取り違えるため何もしない。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} linkName - 埋め込み前のリンクファイル名（拡張子つき）
+     * @returns {void}
+     */
+    function w_nameEmbeddedRaster(doc, linkName) {
+        if (!linkName) return;
+        var rasters = [];
+        w_tryGet(function () {
+            var selection = doc.selection;
+            for (var i = 0; i < selection.length; i++) w_collectRasterItems(selection[i], rasters);
+            return 1;
+        }, 0);
+        if (rasters.length !== 1) return;
+        w_tryGet(function () { rasters[0].name = linkName; return 1; }, 0);
+    }
+
+    /* indices の placedItem を埋め込み画像へ変換。PSD はクリップグループ外のときのみグループ解除。counts を返す */
+    function w_embed(indices) {
+        try {
+            if (app.documents.length === 0) return "NODOC";
+            var doc = app.activeDocument;
+            // embed() で placedItems の並びが変わるため、先に参照と付随情報を確保しておく
+            var targets = [];
+            for (var i = 0; i < indices.length; i++) {
+                if (indices[i] >= w_rasterIndexBase()) continue; /* 既に埋め込み済み */
+                w_tryGet(function () {
+                    var pr = doc.placedItems[indices[i]];
+                    var linkName = w_decodeName(w_tryGet(function () { return String(pr.file.name); }, ""));
+                    targets.push({
+                        placed: pr,
+                        linkName: linkName,
+                        isPsd: /\.psd$/i.test(linkName),
+                        inClipGroup: (w_findEnclosingClipGroup(pr) !== null)
+                    });
+                    return 1;
+                }, 0);
+            }
+            var success = 0, failed = 0;
+            for (var k = 0; k < targets.length; k++) {
+                var target = targets[k];
+                try {
+                    w_tryGet(function () { doc.selection = null; return 1; }, 0);
+                    w_tryGet(function () { target.placed.selected = true; return 1; }, 0);
+                    target.placed.embed();
+                    // PSD は埋め込み時にレイヤーがグループ化されるため、クリップグループ外なら解除する
+                    if (target.isPsd && !target.inClipGroup) {
+                        w_tryGet(function () {
+                            var sel = doc.selection;
+                            if (sel && sel.length > 0 && sel[0].typename === "GroupItem") {
+                                app.executeMenuCommand("ungroup");
+                            }
+                            return 1;
+                        }, 0);
+                    }
+                    /* 拡張子つきの名前を残す（グループ解除で親グループ名が失われるため）*/
+                    w_nameEmbeddedRaster(doc, target.linkName);
+                    success++;
+                } catch (e) {
+                    failed++;
+                }
+            }
+            w_tryGet(function () { doc.selection = null; return 1; }, 0);
+            app.redraw();
+            return "OK\n" + w_jsonStr({ success: success, failed: failed });
+        } catch (e2) {
+            return "ERR\n" + e2;
+        }
+    }
+
+    /* ===== 埋め込み解除（UnembedToLinks.jsx のロジックを worker へ移植）===== */
+
+    /* 埋め込み解除で使う定数。worker へは関数しか転送しないため定数も関数から返す */
+    function w_unembedConfig() {
+        return {
+            actionSetName: "LinkedImageManagerTempSet",
+            actionName: "LinkedImageManagerPlace",
+            actionFilePath: "~/LinkedImageManagerTemp.aia",
+            linksFolderName: "Links",
+            exportResolution: 72
+        };
+    }
+
+    /* adobe_placeDocument のパラメーター定義（記録した .aia から採取した値）。
+       ustring（ファイルパス）だけ実行時に差し込む */
+    function w_placeParameters() {
+        return [
+            { key: 1851878757, type: "ustring", value: null },
+            { key: 1818848875, type: "boolean", value: "1" },
+            { key: 1919970403, type: "boolean", value: "1" },
+            { key: 1953329260, type: "boolean", value: "0" },
+            { key: 1768779887, type: "boolean", value: "0" },
+            { key: 1885828462, type: "boolean", value: "0" },
+            { key: 1935895653, type: "real", value: "1.0" },
+            { key: 1953656440, type: "real", value: "0.0" },
+            { key: 1953656441, type: "real", value: "0.0" }
+        ];
+    }
+
+    /* 文字列を UTF-8 バイト列へ */
+    function w_stringToUtf8Bytes(sourceText) {
+        var encodedText = encodeURIComponent(sourceText);
+        var byteList = [];
+        for (var i = 0; i < encodedText.length; i++) {
+            var currentChar = encodedText.charAt(i);
+            if (currentChar === "%") {
+                byteList.push(parseInt(encodedText.substr(i + 1, 2), 16));
+                i += 2;
+            } else {
+                byteList.push(currentChar.charCodeAt(0));
+            }
+        }
+        return byteList;
+    }
+
+    /* バイト列を 16 進文字列にし、記録された .aia と同じく 32 バイトごとに改行する */
+    function w_bytesToHexLines(byteList, indentText) {
+        var hexText = "";
+        for (var i = 0; i < byteList.length; i++) {
+            hexText += (byteList[i] < 16 ? "0" : "") + byteList[i].toString(16);
+        }
+        var lineList = [];
+        for (var start = 0; start < hexText.length; start += 64) {
+            lineList.push(indentText + hexText.substr(start, 64));
+        }
+        return lineList.join("\n");
+    }
+
+    /* .aia のテキスト値（[ バイト数 16進 ]）を組み立てる */
+    function w_buildTextValue(sourceText, indentText) {
+        var byteList = w_stringToUtf8Bytes(sourceText);
+        if (byteList.length === 0) return "[ 0 ]";
+        return "[ " + byteList.length + "\n"
+            + w_bytesToHexLines(byteList, indentText + "\t") + "\n"
+            + indentText + "]";
+    }
+
+    /* パラメーター 1 件分の .aia ブロック */
+    function w_buildParameterBlock(index, parameter, filePath) {
+        var indentText = "\t\t\t";
+        var valueText = (parameter.value !== null) ? parameter.value : w_buildTextValue(filePath, indentText);
+        return "\t\t/parameter-" + index + " {\n"
+            + indentText + "/key " + parameter.key + "\n"
+            + indentText + "/showInPalette 4294967295\n"
+            + indentText + "/type (" + parameter.type + ")\n"
+            + indentText + "/value " + valueText + "\n"
+            + "\t\t}\n";
+    }
+
+    /* 配置（adobe_placeDocument）を実行する一時アクションのソースを生成 */
+    function w_buildActionSource(setName, actionName, filePath) {
+        var parameters = w_placeParameters();
+        var parameterText = "";
+        for (var i = 0; i < parameters.length; i++) {
+            parameterText += w_buildParameterBlock(i + 1, parameters[i], filePath);
+        }
+        return ""
+            + "/version 3\n"
+            + "/name " + w_buildTextValue(setName, "") + "\n"
+            + "/isOpen 1\n"
+            + "/actionCount 1\n"
+            + "/action-1 {\n"
+            + "\t/name " + w_buildTextValue(actionName, "\t") + "\n"
+            + "\t/keyIndex 0\n"
+            + "\t/colorIndex 0\n"
+            + "\t/isOpen 1\n"
+            + "\t/eventCount 1\n"
+            + "\t/event-1 {\n"
+            + "\t\t/useRulersIn1stQuadrant 0\n"
+            + "\t\t/internalName (adobe_placeDocument)\n"
+            + "\t\t/localizedName [ 0 ]\n"
+            + "\t\t/isOpen 1\n"
+            + "\t\t/isOn 1\n"
+            + "\t\t/hasDialog 1\n"
+            + "\t\t/showDialog 0\n"
+            + "\t\t/parameterCount " + parameters.length + "\n"
+            + parameterText
+            + "\t}\n"
+            + "}\n";
+    }
+
+    /* 一時アクションを書き出して読み込み、実行後に必ず後片付けする */
+    function w_playTemporaryAction(actionSource, setName, actionName, actionFilePath) {
+        var actionFile = new File(actionFilePath);
+        w_tryGet(function () { app.unloadAction(setName, ""); return 1; }, 0);
+        try {
+            actionFile.lineFeed = "Unix";
+            if (!actionFile.open("w")) throw new Error("ACTION_FILE_FAILED");
+            actionFile.write(actionSource);
+            actionFile.close();
+            app.loadAction(actionFile);
+            app.doScript(actionName, setName, false);
+        } finally {
+            actionFile.close();
+            if (actionFile.exists) actionFile.remove();
+            w_tryGet(function () { app.unloadAction(setName, ""); return 1; }, 0);
+        }
+    }
+
+    /* 選択できない理由コードを返す。選択できる場合は空文字（祖先のロック・非表示も見る）*/
+    function w_findSelectionBlocker(item) {
+        var node = item;
+        while (node && node.typename !== "Document") {
+            if (node.typename === "Layer") {
+                if (node.locked) return "LOCKED_LAYER";
+                if (!node.visible) return "HIDDEN_LAYER";
+            } else {
+                if (node.locked) return "LOCKED_ITEM";
+                if (node.hidden) return "HIDDEN_ITEM";
+            }
+            node = node.parent;
+        }
+        return "";
+    }
+
+    /* 2 つのアイテムが同じアートオブジェクトを指しているか（uuid を参照できない場合は判定しない）*/
+    function w_isSameArtItem(itemA, itemB) {
+        return w_tryGet(function () { return itemA.uuid === itemB.uuid; }, true);
+    }
+
+    /* 埋め込み画像を一時アクション経由でリンク画像に置き換える。
+       「選択オブジェクトと置換」で配置するため、位置・サイズ・回転・重ね順はアクション側が引き継ぐ */
+    function w_relinkByAction(doc, item, targetFile, status) {
+        var blocker = w_findSelectionBlocker(item);
+        if (blocker) throw new Error(blocker);
+        var config = w_unembedConfig();
+        doc.activeLayer = item.layer;
+        doc.selection = null;
+        item.selected = true;
+        var currentSelection = doc.selection;
+        if (!currentSelection || currentSelection.length !== 1 || !w_isSameArtItem(currentSelection[0], item)) {
+            doc.selection = null;
+            throw new Error("SELECT_FAILED");
+        }
+        var actionSource = w_buildActionSource(config.actionSetName, config.actionName, targetFile.fsName);
+        /* ここから先はアクションが実行済みとして扱う */
+        status.actionPlayed = true;
+        w_playTemporaryAction(actionSource, config.actionSetName, config.actionName, config.actionFilePath);
+        var newSelection = doc.selection;
+        if (!newSelection || newSelection.length === 0 || newSelection[0].typename !== "PlacedItem") {
+            throw new Error("ACTION_RESULT_MISSING");
+        }
+        return newSelection[0];
+    }
+
+    /* 2 つのファイルを同一とみなせるか */
+    function w_isSameFile(fileA, fileB) {
+        if (fileA.fsName === fileB.fsName) return true;
+        return fileA.length === fileB.length && fileA.modified.getTime() === fileB.modified.getTime();
+    }
+
+    /* 収集先ファイルを決める。同名で内容が異なる場合は連番を付ける */
+    function w_resolveCollectDestination(linksFolder, sourceFile) {
+        var fileName = w_decodeName(sourceFile.name);
+        var dotIndex = fileName.lastIndexOf(".");
+        var baseName = (dotIndex > 0) ? fileName.substring(0, dotIndex) : fileName;
+        var extension = (dotIndex > 0) ? fileName.substring(dotIndex) : "";
+        var destFile = new File(linksFolder.fsName + "/" + fileName);
+        var counter = 1;
+        while (destFile.exists && !w_isSameFile(destFile, sourceFile)) {
+            destFile = new File(linksFolder.fsName + "/" + baseName + "-" + counter + extension);
+            counter++;
+        }
+        return destFile;
+    }
+
+    /* ドキュメントと同階層の「Links」フォルダーを返す（無ければ作成）*/
+    function w_getLinksFolder(doc) {
+        var config = w_unembedConfig();
+        var docFile = w_tryGet(function () { return doc.fullName; }, null);
+        if (!docFile || !docFile.exists) throw new Error("DOC_NOT_SAVED");
+        var linksFolder = new Folder(docFile.parent.fsName + "/" + config.linksFolderName);
+        if (!linksFolder.exists && !linksFolder.create()) throw new Error("LINKS_FOLDER_FAILED");
+        return linksFolder;
+    }
+
+    /* リンク先を「Links」フォルダーへ複製してリンクを張り替える */
+    function w_collectLink(doc, placedItem, sourceFile) {
+        var linksFolder = w_getLinksFolder(doc);
+        var destFile = w_resolveCollectDestination(linksFolder, sourceFile);
+        if (!destFile.exists && !sourceFile.copy(destFile.fsName)) throw new Error("COPY_FAILED");
+        placedItem.file = destFile;
+        return destFile;
+    }
+
+    /* 埋め込み画像の元ファイル（参照自体が失敗することがあるため tryGet 経由）*/
+    function w_getEmbeddedSourceFile(item) {
+        return w_tryGet(function () {
+            return (item.file && item.file.exists) ? item.file : null;
+        }, null);
+    }
+
+    /**
+     * 埋め込み画像自身が持つ名前を返す。
+     * Illustrator は埋め込み時、RasterItem にはレイヤー名（拡張子なし）を、
+     * 親グループに拡張子つきの元ファイル名を付けるため、拡張子つきの名前を優先する。
+     * 親グループ名は、そのグループにラスターが 1 つだけのときのみ採用する（取り違え防止）。
+     * @param {RasterItem} item - 埋め込み画像
+     * @returns {string} 名前（取得できないときは空文字）
+     */
+    function w_getImageNameFromItem(item) {
+        var hasExtension = /\.[a-z][a-z0-9]{1,4}\s*$/i;
+        var itemName = w_safeProp(item, "name", "");
+        if (itemName && hasExtension.test(itemName)) return itemName;
+        var parentItem = w_tryGet(function () { return item.parent; }, null);
+        if (!parentItem || w_tryGet(function () { return parentItem.typename; }, "") !== "GroupItem") return itemName;
+        if (w_tryGet(function () { return parentItem.rasterItems.length; }, 0) !== 1) return itemName;
+        var parentName = w_safeProp(parentItem, "name", "");
+        return hasExtension.test(parentName) ? parentName : itemName;
+    }
+
+    /* XMP マニフェストから埋め込み前の元ファイル名を出現順に取得 */
+    function w_getManifestFileNames(doc) {
+        var nameList = [];
+        var foundNames = {};
+        var filePaths = w_tryGet(function () {
+            var documentXMP = new XML(doc.XMPString);
+            var refs = documentXMP.xpath("//stMfs:reference/stRef:filePath");
+            if (refs == null || refs.length() === 0) refs = documentXMP.xpath("//stRef:filePath");
+            return refs;
+        }, null);
+        if (filePaths == null) return nameList;
+        for (var i = 0; i < filePaths.length(); i++) {
+            var fileName = w_decodeName(String(filePaths[i])).replace(/^.*[\/\\]/, "");
+            var nameKey = fileName.toLowerCase();
+            if (fileName === "" || foundNames[nameKey]) continue;
+            foundNames[nameKey] = true;
+            nameList.push(fileName);
+        }
+        return nameList;
+    }
+
+    /* 名前が取れなかった画像を XMP マニフェストの元ファイル名で補う。
+       候補数と名前未定の件数が一致するときだけ割り当て、取り違えを避ける */
+    function w_fillNamesFromManifest(doc, nameList) {
+        var manifestNames = w_getManifestFileNames(doc);
+        if (manifestNames.length === 0) return;
+        var knownNames = {};
+        var missingCount = 0;
+        var i;
+        for (i = 0; i < nameList.length; i++) {
+            if (nameList[i] === "") { missingCount++; continue; }
+            knownNames[nameList[i].toLowerCase()] = true;
+        }
+        if (missingCount === 0) return;
+        var remainingNames = [];
+        for (i = 0; i < manifestNames.length; i++) {
+            if (!knownNames[manifestNames[i].toLowerCase()]) remainingNames.push(manifestNames[i]);
+        }
+        if (remainingNames.length !== missingCount) return;
+        var nameIndex = 0;
+        for (i = 0; i < nameList.length; i++) {
+            if (nameList[i] === "") { nameList[i] = remainingNames[nameIndex]; nameIndex++; }
+        }
+    }
+
+    /* 拡張子と使用できない文字を除いてファイル名として整える */
+    function w_toSafeBaseName(fileName, fallbackName) {
+        var baseName = (fileName || "").replace(/\.[a-z][a-z0-9]{1,4}$/i, "").replace(/^\s+|\s+$/g, "");
+        baseName = baseName.replace(/[\\\/:*?"<>|]/g, "_");
+        return (baseName === "") ? fallbackName : baseName;
+    }
+
+    /* 埋め込み画像ごとの書き出し名（拡張子なし）を uuid をキーに決める */
+    function w_buildExportNameMap(doc) {
+        var allItems = doc.rasterItems;
+        var nameList = [];
+        var i;
+        for (i = 0; i < allItems.length; i++) { nameList.push(w_getImageNameFromItem(allItems[i])); }
+        w_fillNamesFromManifest(doc, nameList);
+        var nameMap = {};
+        for (i = 0; i < allItems.length; i++) {
+            var uuid = w_tryGet(function () { return allItems[i].uuid; }, "");
+            if (uuid !== "") nameMap[uuid] = w_toSafeBaseName(nameList[i], "image" + (i + 1));
+        }
+        return nameMap;
+    }
+
+    /* PSD 書き出しに対応するカラースペースか（CMYK / RGB / グレースケール）*/
+    function w_isSupportedColorSpace(imageColorSpace) {
+        return imageColorSpace == ImageColorSpace.CMYK
+            || imageColorSpace == ImageColorSpace.RGB
+            || imageColorSpace == ImageColorSpace.GrayScale;
+    }
+
+    /* 画像に蓄積された回転角（度）*/
+    function w_getAccumulatedRotation(item) {
+        var itemTags = w_tryGet(function () { return item.tags; }, null);
+        if (!itemTags) return 0;
+        for (var i = 0; i < itemTags.length; i++) {
+            if (itemTags[i].name === "BBAccumRotation") return itemTags[i].value * 180 / Math.PI;
+        }
+        return 0;
+    }
+
+    /* 画像の拡大率と回転角（RasterItem は行列の Y 方向が反転している）*/
+    function w_getScaleAndRotation(item) {
+        var placedItemFlip = (item.typename === "PlacedItem") ? 1 : -1;
+        var rotationAngle = w_getAccumulatedRotation(item);
+        var unrotatedMatrix = app.concatenateRotationMatrix(item.matrix, rotationAngle * placedItemFlip);
+        return {
+            scaleX: unrotatedMatrix.mValueA * 100,
+            scaleY: unrotatedMatrix.mValueD * -100 * placedItemFlip,
+            rotation: rotationAngle
+        };
+    }
+
+    /* 既存ファイルを上書きしないパス（連番の接尾辞を付ける）*/
+    function w_getNonOverwritingFilePath(filePath) {
+        var suffixIndex = 1;
+        var pathParts = filePath.split(/(\.[^\.]+)$/);
+        while (File(filePath).exists) {
+            suffixIndex++;
+            filePath = pathParts[0] + "(" + suffixIndex + ")" + pathParts[1];
+        }
+        return filePath;
+    }
+
+    /* 書き出し用の新規ドキュメントを作成 */
+    function w_createExportDocument(documentTitle, imageColorSpace) {
+        var documentPreset = new DocumentPreset();
+        var documentPresetType;
+        documentPreset.title = documentTitle;
+        documentPreset.width = 1000;
+        documentPreset.height = 1000;
+        if (imageColorSpace == ImageColorSpace.RGB) {
+            documentPresetType = DocumentPresetType.BasicRGB;
+            documentPreset.colorMode = DocumentColorSpace.RGB;
+        } else {
+            documentPresetType = DocumentPresetType.BasicCMYK;
+            documentPreset.colorMode = DocumentColorSpace.CMYK;
+        }
+        return app.documents.addDocument(documentPresetType, documentPreset);
+    }
+
+    /* ドキュメントを PSD として書き出す */
+    function w_exportDocumentAsPSD(exportDocument, exportFilePath, imageColorSpace, resolution) {
+        var exportedFile = File(exportFilePath);
+        var psdOptions = new ExportOptionsPhotoshop();
+        psdOptions.antiAliasing = false;
+        psdOptions.artBoardClipping = true;
+        psdOptions.imageColorSpace = imageColorSpace;
+        psdOptions.editableText = false;
+        psdOptions.flatten = true;
+        psdOptions.maximumEditability = false;
+        psdOptions.resolution = (resolution || 72);
+        psdOptions.warnings = false;
+        psdOptions.writeLayers = false;
+        exportDocument.exportFile(exportedFile, ExportType.PHOTOSHOP, psdOptions);
+        return exportedFile;
+    }
+
+    /* 元ファイルが不明な埋め込み画像を一時ドキュメントへ複製し、等倍・回転なしで PSD に書き出す。
+       再配置はアクションの置換が行うため、ここでは変形を戻した素の画像だけを書き出す */
+    function w_exportEmbeddedImageAsPSD(doc, item, baseName) {
+        var config = w_unembedConfig();
+        var linksFolder = w_getLinksFolder(doc);
+        var imageColorSpace = item.imageColorSpace;
+        var scaleAndRotation = w_getScaleAndRotation(item);
+        /* 0 で割ると変形行列が壊れるため、等倍に戻せない画像はここで中止 */
+        if (!scaleAndRotation.scaleX || !scaleAndRotation.scaleY) throw new Error("SCALE_UNAVAILABLE");
+        var previousInteractionLevel = app.userInteractionLevel;
+        app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
+        var exportDocument = w_createExportDocument(baseName, imageColorSpace);
+        var exportedFile;
+        try {
+            var workingImage = item.duplicate(exportDocument.layers[0], ElementPlacement.PLACEATBEGINNING);
+            var transformMatrix = app.getRotationMatrix(-scaleAndRotation.rotation);
+            transformMatrix = app.concatenateScaleMatrix(transformMatrix,
+                100 / scaleAndRotation.scaleX * 100,
+                100 / scaleAndRotation.scaleY * 100);
+            workingImage.transform(transformMatrix, true, true, true, true, true);
+            workingImage.position = [0, workingImage.height];
+            exportDocument.artboards[0].artboardRect = [0, workingImage.height, workingImage.width, 0];
+            var exportFilePath = w_getNonOverwritingFilePath(linksFolder.fsName + "/" + baseName + ".psd");
+            exportedFile = w_exportDocumentAsPSD(exportDocument, exportFilePath, imageColorSpace, config.exportResolution);
+        } finally {
+            exportDocument.close(SaveOptions.DONOTSAVECHANGES);
+            app.userInteractionLevel = previousInteractionLevel;
+            /* 一時ドキュメントを閉じたあと、確実に元のドキュメントへ戻す */
+            app.activeDocument = doc;
+        }
+        if (!exportedFile.exists) throw new Error("EXPORT_FAILED");
+        return exportedFile;
+    }
+
+    /* indices の埋め込み画像をリンク画像へ戻す。collect が true なら「Links」フォルダーへ収集。
+       counts と失敗理由（コード）を返す */
+    function w_unembed(indices, collect) {
+        try {
+            if (app.documents.length === 0) return "NODOC";
+            var doc = app.activeDocument;
+            /* 置換で rasterItems の並びが変わるため、先に参照を確保しておく */
+            var targets = [];
+            for (var i = 0; i < indices.length; i++) {
+                if (indices[i] < w_rasterIndexBase()) continue;
+                w_tryGet(function () { targets.push(w_itemByIndex(doc, indices[i])); return 1; }, 0);
+            }
+            var success = 0, skipped = 0, failed = 0;
+            var details = [];
+            var placedList = [];
+            var nameMap = w_tryGet(function () { return w_buildExportNameMap(doc); }, {});
+            for (var k = 0; k < targets.length; k++) {
+                var item = targets[k];
+                var itemName = w_safeProp(item, "name", "") || ("#" + (k + 1));
+                var targetFile = w_getEmbeddedSourceFile(item);
+                var isExported = false;
+                if (!targetFile) {
+                    if (!w_isSupportedColorSpace(w_tryGet(function () { return item.imageColorSpace; }, null))) {
+                        skipped++;
+                        details.push({ name: itemName, code: "UNSUPPORTED_COLORSPACE" });
+                        continue;
+                    }
+                    var baseName = w_tryGet(function () { return nameMap[item.uuid]; }, "") || ("image" + (k + 1));
+                    try {
+                        targetFile = w_exportEmbeddedImageAsPSD(doc, item, baseName);
+                        isExported = true;
+                    } catch (eExport) {
+                        failed++;
+                        details.push({ name: itemName, code: String(eExport.message) });
+                        continue;
+                    }
+                }
+                var status = { actionPlayed: false };
+                try {
+                    var placedItem = w_relinkByAction(doc, item, targetFile, status);
+                    placedList.push(placedItem);
+                    /* 書き出した PSD はすでに収集先にあるため、収集は不要 */
+                    if (collect && !isExported) {
+                        try {
+                            w_collectLink(doc, placedItem, targetFile);
+                        } catch (eCollect) {
+                            details.push({ name: itemName, code: String(eCollect.message) });
+                        }
+                    }
+                    success++;
+                } catch (eRelink) {
+                    /* アクション実行前に失敗した場合だけ、未使用の PSD を片付ける */
+                    if (isExported && !status.actionPlayed) {
+                        w_tryGet(function () { if (targetFile.exists) targetFile.remove(); return 1; }, 0);
+                    }
+                    failed++;
+                    details.push({ name: itemName, code: String(eRelink.message) });
+                }
+            }
+            w_tryGet(function () { doc.selection = null; return 1; }, 0);
+            for (var p = 0; p < placedList.length; p++) {
+                w_tryGet(function () { placedList[p].selected = true; return 1; }, 0);
+            }
+            app.redraw();
+            return "OK\n" + w_jsonStr({ success: success, skipped: skipped, failed: failed, details: details });
+        } catch (e2) {
+            return "ERR\n" + e2;
+        }
+    }
+
     /* 削除対象にクリップグループ内のものが含まれるか。CLIP / PLAIN を返す */
     function w_probeDelete(indices) {
         try {
             if (app.documents.length === 0) return "NODOC";
-            var placed = app.activeDocument.placedItems;
+            var doc = app.activeDocument;
             for (var i = 0; i < indices.length; i++) {
-                var g = w_tryGet(function () { return w_findEnclosingClipGroup(placed[indices[i]]); }, null);
+                var g = w_tryGet(function () { return w_findEnclosingClipGroup(w_itemByIndex(doc, indices[i])); }, null);
                 if (g) return "CLIP";
             }
             return "PLAIN";
@@ -1507,11 +2214,11 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     function w_del(indices, clipMode) {
         try {
             if (app.documents.length === 0) return "NODOC";
-            var placed = app.activeDocument.placedItems;
+            var doc = app.activeDocument;
             var refs = [];
             for (var i = 0; i < indices.length; i++) {
                 w_tryGet(function () {
-                    var pr = placed[indices[i]];
+                    var pr = w_itemByIndex(doc, indices[i]);
                     refs.push({ placed: pr, clipGroup: w_findEnclosingClipGroup(pr) });
                     return 1;
                 }, 0);
@@ -1587,10 +2294,19 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         w_isLinkOutOfDate, w_resolveLinkStatus, w_getScaleInfo, w_getDimensionsMm, w_getArtboardNumber,
         w_collectXmpLinkedRefs, w_decodeName, w_xmpNameKey, w_resolveXmpRef, w_getPlacedItemFileName,
         w_getPlacementFileBasics, w_getPlacementGeometry, w_getPlacementImageMeta, w_buildPlacementEntry,
+        w_rasterIndexBase, w_itemByIndex, w_rasterColorSpaceText, w_buildEmbeddedEntry, w_collectEmbeddedEntries,
         w_getLinkGroupKey, w_assignFileCounts, w_dedupeByFile, w_collectLinkInfo, w_pickSinglePlacedItem,
         w_zoomToSelection, w_fitViewToArtboard, w_findEnclosingClipGroup,
         w_analyze, w_select, w_fitArtboard, w_openLinksPanel,
-        w_relinkPairs, w_probeDelete, w_del, w_docFolder, w_copyText
+        w_relinkPairs, w_collectRasterItems, w_nameEmbeddedRaster, w_embed,
+        w_unembedConfig, w_placeParameters, w_stringToUtf8Bytes, w_bytesToHexLines, w_buildTextValue,
+        w_buildParameterBlock, w_buildActionSource, w_playTemporaryAction, w_findSelectionBlocker,
+        w_isSameArtItem, w_relinkByAction, w_isSameFile, w_resolveCollectDestination, w_getLinksFolder,
+        w_collectLink, w_getEmbeddedSourceFile, w_getImageNameFromItem, w_getManifestFileNames,
+        w_fillNamesFromManifest, w_toSafeBaseName, w_buildExportNameMap, w_isSupportedColorSpace,
+        w_getAccumulatedRotation, w_getScaleAndRotation, w_getNonOverwritingFilePath,
+        w_createExportDocument, w_exportDocumentAsPSD, w_exportEmbeddedImageAsPSD, w_unembed,
+        w_probeDelete, w_del, w_docFolder, w_copyText
     ];
 
     // =========================================
@@ -1709,6 +2425,28 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         var res = parseWorkerResult(delegate("$.global.__LIM.relinkPairs(" + pairsExpr(pairs) + ")"));
         if (res.marker !== "OK") return null;
         return tryGet(function () { return eval("(" + res.body + ")"); }, null);
+    }
+
+    // 埋め込み変換を委譲。counts オブジェクト or null
+    function delegateEmbed(indices) {
+        var res = parseWorkerResult(delegate("$.global.__LIM.embed(" + jsIntArray(indices) + ")"));
+        if (res.marker !== "OK") return null;
+        return tryGet(function () { return eval("(" + res.body + ")"); }, null);
+    }
+
+    // 埋め込み解除を委譲。PSD 書き出しとアクション実行を含むためタイムアウトを長く取り、リトライしない
+    function delegateUnembed(indices, collect) {
+        var res = parseWorkerResult(delegateOnce(
+            "$.global.__LIM.unembed(" + jsIntArray(indices) + "," + (collect ? "true" : "false") + ")", 300));
+        if (res.marker !== "OK") return null;
+        return tryGet(function () { return eval("(" + res.body + ")"); }, null);
+    }
+
+    // worker が返す失敗理由コードを表示用テキストへ（未知のコードはそのまま返す）
+    function unembedReasonText(code) {
+        var key = 'reason.' + code;
+        var text = L(key);
+        return (text === key) ? String(code) : text;
     }
 
     // 拡張子変更ダイアログ（参照フォルダー＋拡張子を選ぶモーダル）
@@ -1926,8 +2664,12 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         var countColCheck = optPanel.add("checkbox", undefined, L('checkbox.displayFileCount'));
         countColCheck.value = true;
 
-        // 選択時にズーム表示：「同一ファイル」パネルの直下に配置
-        var showOnCanvasCheck = leftCol.add("checkbox", undefined, L('checkbox.showOnCanvas'));
+        // 選択時にズーム表示：「同一ファイル」パネルの直下にグループで配置（左右中央揃え）
+        var showOnCanvasGroup = leftCol.add("group");
+        showOnCanvasGroup.orientation = "row";
+        showOnCanvasGroup.alignChildren = ["center", "center"];
+        showOnCanvasGroup.alignment = ["fill", "top"];
+        var showOnCanvasCheck = showOnCanvasGroup.add("checkbox", undefined, L('checkbox.showOnCanvas'));
         showOnCanvasCheck.value = true;
 
         var otherPanel = topRow.add("group");
@@ -1958,7 +2700,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         }
         createDisplayOptionsPanel(otherTopRow);
 
-        var okCheck, brokenCheck, updateCheck;
+        var okCheck, brokenCheck, updateCheck, embeddedCheck;
 
         function createStatusFilterPanel(parent) {
             var filterPanel = parent.add("panel", undefined, L('panel.status'));
@@ -1969,9 +2711,11 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             okCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterOk'));
             brokenCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterBroken'));
             updateCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterUpdate'));
+            embeddedCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterEmbedded'));
             okCheck.value = true;
             brokenCheck.value = true;
             updateCheck.value = true;
+            embeddedCheck.value = true;
         }
         createStatusFilterPanel(otherTopRow);
 
@@ -2098,6 +2842,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             if (statusCode === "broken") return 1;
             if (statusCode === "update") return 2;
             if (statusCode === "ok") return 3;
+            if (statusCode === "embedded") return 4;
             return 9;
         }
         var SORT_SPECS = [
@@ -2158,7 +2903,8 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             var allowOk = okCheck.value;
             var allowBroken = brokenCheck.value;
             var allowUpdate = updateCheck.value;
-            var hasStatusFlt = !(allowOk && allowBroken && allowUpdate);
+            var allowEmbedded = embeddedCheck.value;
+            var hasStatusFlt = !(allowOk && allowBroken && allowUpdate && allowEmbedded);
 
             if (hasStatusFlt || hasArtboardFilter) {
                 filteredEntries = [];
@@ -2169,6 +2915,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
                         if (statusCode === "ok" && !allowOk) continue;
                         if (statusCode === "broken" && !allowBroken) continue;
                         if (statusCode === "update" && !allowUpdate) continue;
+                        if (statusCode === "embedded" && !allowEmbedded) continue;
                     }
                     if (hasArtboardFilter) {
                         var matchesArtboard = entry.artboardSet
@@ -2438,6 +3185,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             okCheck.onClick = rebuildList;
             brokenCheck.onClick = rebuildList;
             updateCheck.onClick = rebuildList;
+            embeddedCheck.onClick = rebuildList;
             abFilterDropdown.onChange = applyArtboardFilter;
             abPrevBtn.onClick = function () { stepArtboard(-1); };
             abNextBtn.onClick = function () { stepArtboard(1); };
@@ -2451,6 +3199,16 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             fileNameCheck.onClick = onFileNameClick;
         }
         bindPaletteEvents();
+
+        // 埋め込み／埋め込み解除の行はフォルダー操作行の下で生成するため、参照だけ先に用意する
+        var embedBtn = null;
+        var unembedBtn = null;
+        var collectAfterRelinkCheck = null;
+
+        // エントリが埋め込み画像（rasterItems 由来）かどうか
+        function isEmbeddedEntry(entry) {
+            return !!(entry && entry.kind === "raster");
+        }
 
         // --- アクションボタン行（M1 では削除/リネーム/再リンク/コピーはスタブ）---
         var actionBtnRow = pathPanel.add("group");
@@ -2511,11 +3269,17 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         }
 
         function updateActionButtonStates() {
-            reloadOneBtn.enabled = (selectedEntry !== null);
-            renameLinkBtn.enabled = (selectedEntry !== null);
-            openFileBtn.enabled = (selectedEntry !== null);
-            deleteLinkBtn.enabled = (selectedEntry !== null);
-            copyFileNameBtn.enabled = (selectedEntry !== null);
+            var hasSelection = (selectedEntry !== null);
+            // 埋め込み画像はリンク元ファイルを持たないため、ファイル操作系は対象外
+            var canUseLinkFile = hasSelection && !isEmbeddedEntry(selectedEntry);
+            // 埋め込み／埋め込み解除は後段（フォルダー操作行の下）で生成するため、初回呼び出し時は未定義
+            if (embedBtn) embedBtn.enabled = canUseLinkFile;
+            if (unembedBtn) unembedBtn.enabled = hasSelection && isEmbeddedEntry(selectedEntry);
+            reloadOneBtn.enabled = canUseLinkFile;
+            renameLinkBtn.enabled = canUseLinkFile;
+            openFileBtn.enabled = canUseLinkFile;
+            deleteLinkBtn.enabled = hasSelection;
+            copyFileNameBtn.enabled = hasSelection;
             updateRelinkButtonLabel();
         }
         updateActionButtonStates();
@@ -2653,6 +3417,32 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         var collectLinksBtn = folderActionRight.add("button", undefined, L('button.collectLinks'));
         collectLinksBtn.onClick = guardAction(handleCollectLinks);
 
+        // --- 埋め込み／埋め込み解除行（対象はリストで選択中の画像）---
+        var embedRow = pathPanel.add("group");
+        embedRow.orientation = "row";
+        embedRow.alignment = "fill";
+        embedRow.alignChildren = ["left", "center"];
+
+        embedBtn = embedRow.add("button", undefined, L('button.embed'));
+        embedBtn.helpTip = (currentLanguage === 'ja')
+            ? "選択中のリンクを埋め込み画像に変換します。\nPSD はクリップグループ外のときグループ解除します。"
+            : "Embed the selected link.\nPSD files are ungrouped unless they are inside a clip group.";
+        embedBtn.onClick = requireSelectedEntry(guardAction(handleEmbedSelected));
+
+        unembedBtn = embedRow.add("button", undefined, L('button.unembed'));
+        unembedBtn.helpTip = (currentLanguage === 'ja')
+            ? "選択中の埋め込み画像をリンク画像に戻します。\n元ファイルが不明な場合は「Links」フォルダーへ PSD を書き出してリンクします。"
+            : "Turn the selected embedded image back into a link.\nWhen the original file is unknown, a PSD is exported into the \"Links\" folder.";
+        unembedBtn.onClick = requireSelectedEntry(guardAction(handleUnembedSelected));
+
+        collectAfterRelinkCheck = embedRow.add("checkbox", undefined, L('checkbox.collectAfterRelink'));
+        collectAfterRelinkCheck.value = true;
+        collectAfterRelinkCheck.helpTip = (currentLanguage === 'ja')
+            ? "埋め込み解除後、リンク先をドキュメントと同階層の「Links」フォルダーへコピーします。"
+            : "After unembedding, copy the linked file into the \"Links\" folder next to the document.";
+
+        updateActionButtonStates();
+
         foldersListBox.onChange = function () {
             var hasSelection = (foldersListBox.selection !== null);
             reloadFolderBtn.enabled = hasSelection;
@@ -2751,6 +3541,42 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             var counts = delegateRelinkPairs(pairs) || { success: 0, failed: 0 };
             refreshFromDoc();
             setStatus(L('message.relinkDone') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', counts.failed, 'label.items'));
+        }
+
+        function handleEmbedSelected() {
+            if (isEmbeddedEntry(selectedEntry)) return; /* 既に埋め込み済み */
+            var idxs = selectedEntry.itemIndices || [];
+            if (idxs.length === 0) { setStatus(L('message.selectItem')); return; }
+            if (idxs.length > 1) {
+                var confirmMessage = L('message.confirmBatchEmbed') + "\n" + kvLine('label.target', idxs.length, 'label.items');
+                if (!confirm(confirmMessage)) return;
+            }
+            var counts = delegateEmbed(idxs) || { success: 0, failed: 0 };
+            refreshFromDoc();
+            setStatus(L('message.embedDone') + "／" + kvLine('label.success', counts.success, 'label.items') + "／" + kvLine('label.failed', counts.failed, 'label.items'));
+        }
+
+        function handleUnembedSelected() {
+            if (!isEmbeddedEntry(selectedEntry)) return; /* 対象は埋め込み画像のみ */
+            var idxs = selectedEntry.itemIndices || [];
+            if (idxs.length === 0) { setStatus(L('message.selectItem')); return; }
+            var counts = delegateUnembed(idxs, collectAfterRelinkCheck.value);
+            if (!counts) { setStatus(L('status.loadFailed')); return; }
+            selectedEntry = null;
+            selectedFilePath = "";
+            refreshFromDoc();
+            setStatus(L('message.unembedDone')
+                + "／" + kvLine('label.success', counts.success, 'label.items')
+                + "／" + kvLine('label.skipped', counts.skipped, 'label.items')
+                + "／" + kvLine('label.failed', counts.failed, 'label.items'));
+            var details = counts.details || [];
+            if (details.length > 0) {
+                var lines = [L('message.unembedFailedDetail'), ""];
+                for (var i = 0; i < details.length; i++) {
+                    lines.push(details[i].name + "：" + unembedReasonText(details[i].code));
+                }
+                alert(lines.join("\n"));
+            }
         }
 
         function handleRelinkFolder() {

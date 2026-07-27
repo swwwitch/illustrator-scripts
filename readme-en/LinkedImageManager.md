@@ -12,11 +12,11 @@ Checking linked images before handing off artwork means answering the same quest
 
 Illustrator's Links panel can answer each of those, but only one image at a time — there is **no way to compare them side by side**. Checking PPI means selecting an image, expanding the panel, selecting the next image, expanding again. Sorting by "lowest PPI first" is not possible at all.
 
-This script analyzes every placed image at once and shows them **as a sortable, filterable table** in a persistent palette. Relinking, renaming, and deleting can all be done from the same list.
+This script analyzes every placed image at once and shows them **as a sortable, filterable table** in a persistent palette. Relinking, renaming, and deleting can all be done from the same list. **Embedded images appear in the same table**, and switching them back to links (unembedding) — or the other way around (embedding) — happens in the same place.
 
 ## Usage
 
-Running the script opens a palette listing the placed images (PlacedItem) in the document.
+Running the script opens a palette listing the placed images (PlacedItem) and the embedded images (RasterItem) in the document.
 
 If a placed image was selected before running, the matching row is selected from the start. The canvas view does not move in that case.
 
@@ -30,7 +30,7 @@ The leading icon column and the file name column are always visible. Every other
 
 | Column | Contents |
 | --- | --- |
-| Icon | ✓ Linked / ⚠ Missing / ⟳ Needs update |
+| Icon | ✓ Linked / ⚠ Missing / ⟳ Needs update / ▣ Embedded |
 | File name | Linked file name |
 | Size | File size |
 | Uses | How many places the same file is placed in |
@@ -39,6 +39,12 @@ The leading icon column and the file name column are always visible. Every other
 | PPI | Effective resolution |
 | Color space | Color mode (plus ICC profile name) |
 | Artboard | Which artboard the image sits on |
+
+### Rows for embedded images
+
+Embedded images are listed as "▣ Embedded". They have no source file on disk, so **the file path, size, and PPI show `---`**. The file name comes from the item name (which usually keeps the original file name after embedding), and the color space comes from `imageColorSpace`.
+
+Rasterized artwork also appears as an embedded image. An embedded PSD that has been ungrouped is listed once per layer.
 
 ### How status is determined
 
@@ -77,7 +83,7 @@ Sorting is controlled by the order dropdown and the ascending/descending radio b
 | Uses | Only while the Uses column is visible |
 | Artboard | Only while no artboard filter is applied |
 | Width / Height / Scale / PPI | Only while the size, %, and PPI columns are visible |
-| Status | Missing → Needs update → Linked |
+| Status | Missing → Needs update → Linked → Embedded |
 | Color space | Only while the Color space column is visible |
 
 **The dropdown entries follow the visible columns.** Hidden columns cannot be sorted on. Showing or hiding columns preserves the selected order whenever possible.
@@ -90,7 +96,7 @@ Rows with no value (such as a PPI of `---`) always collect at the end, in both a
 
 ### Status
 
-Three checkboxes — "✓ Linked", "⚠ Missing", and "⟳ Needs update" — control which statuses are listed. To see only broken links, clear the other two.
+Four checkboxes — "✓ Linked", "⚠ Missing", "⟳ Needs update", and "▣ Embedded" — control which statuses are listed. To see only broken links, clear the other three. All of them are on by default.
 
 ### Artboard
 
@@ -143,6 +149,10 @@ These buttons are available while a row is selected in the list.
 - **Rename**: renames the file on disk and relinks
 - **Delete**: removes the placed image from the document
 - **Relink / Relink all**: replaces the link target
+- **Embed**: converts a linked image into an embedded image
+- **Unembed**: turns an embedded image back into a link
+
+While an embedded image is selected, everything that depends on a source file (Open, Rename, Relink, Embed) is disabled and only Unembed is available. Delete and Copy file name work for either kind of row.
 
 ### Rename
 
@@ -166,6 +176,29 @@ For an image outside a clipping group, only a standard confirmation alert appear
 ### Relink
 
 The button label changes with the situation. When identical files are grouped and the row covers multiple placements, the button reads **Relink all**, and clicking it replaces every placement with the chosen file after a confirmation. With a single placement, it reads Relink.
+
+### Embed
+
+Converts the selected linked image into an embedded image. For a row that groups identical files, every placement is embedded together after a confirmation.
+
+**Embedding a PSD turns its layers into a group**, so the group is ungrouped as well — but only when the image is not inside a clipping group, to leave the mask structure intact.
+
+### Unembed
+
+Turns the selected embedded image back into a linked image. A temporary action (`adobe_placeDocument`) is generated on the fly and played with "replace selection", so **Illustrator itself preserves the position, size, rotation, and stacking order**.
+
+The link target is resolved in this order:
+
+1. If the embedded image still knows its source file and that file exists, it links to it
+2. Otherwise the image is **reset to 100% scale and 0° rotation and exported as a PSD into the `Links` folder**, and linked to that
+
+The export name is looked up in the layer name, then the parent group name with an extension, then the original file name in the XMP manifest, then falls back to `image1`, `image2`, and so on. A numbered suffix is added when a file of the same name exists, so nothing is overwritten.
+
+**Collect after relinking** (on by default) copies the linked file into the `Links` folder next to the document and repoints the link. A numbered suffix is added for different files of the same name, identical files are not copied again, and an image that was just exported as a PSD is already in the folder so it is not copied twice.
+
+Locked or hidden layers, groups, and images cannot be selected and therefore cannot be replaced. Unsupported color spaces (anything other than CMYK / RGB / Grayscale) are skipped, and every reason is collected into a single alert.
+
+Because a PSD export may be involved, an unsaved document fails: there is no place to create the `Links` folder.
 
 ## Folder-level operations
 
@@ -202,9 +235,9 @@ The palette stays open, so click Refresh after replacing or re-placing images on
 
 ## Target
 
-PlacedItem objects (linked images placed in the document). Embedded images are out of scope.
+PlacedItem objects (linked images placed in the document) and RasterItem objects (embedded images).
 
-PPI and color space are only read from PNG / JPEG / PSD files.
+PPI and color space are only read from PNG / JPEG / PSD files. Embedded images have no readable source file, so they show no PPI.
 
 ## Notes
 
@@ -222,9 +255,19 @@ Worker function bodies are concatenated with `toString()`, which imposes a few r
 
 Return values use a marker scheme: `OK\n<json>` / `NODOC` / `ERR\n<msg>`, distinguished by the first line.
 
+### How itemIndex is stored
+
+Each row carries an `itemIndex`: an index into `placedItems` for a linked image, or into `rasterItems` for an embedded one. Those two index spaces collide, so **embedded images add 1000000** to theirs. On the worker side, `w_itemByIndex()` reads that value to decide which collection to look in. The palette side keeps treating it as a plain integer, so the selection-restore and matching code stays unchanged.
+
+### Unembed and the bridge timeout
+
+BridgeTalk sends wait 10 seconds by default, which is not always enough for unembedding: it may include a PSD export and an action playback. That one call waits up to 300 seconds and **is never resent on timeout** — resending a write operation would place the image twice.
+
 ### Handled on the palette side
 
-`File` operations such as existence checks, renaming, and copying do work in the persistent engine, so those stay on the palette side. Only the link replacement itself touches the DOM, so only that part is delegated.
+`File` operations such as existence checks, renaming, and copying do work in the persistent engine, so those stay on the palette side. For relinking, only the link replacement itself is delegated.
+
+Embedding and unembedding are mostly DOM work, so each one runs as a single worker call. The PSD export behind unembedding (creating a temporary document and calling `exportFile`) and the generation and playback of the temporary action also happen on the worker side.
 
 ### Other
 
@@ -238,5 +281,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.5.1 (2026-07-27): Fixed the file extension being lost from the file name when embedding
+- v1.5.0 (2026-07-27): Added embedded images to the list (a "▣ Embedded" status and filter) plus the Embed, Unembed, and Collect after relinking controls
 - v1.4.2 (2026-07-27): Fixed URI-encoded file names in the list, rebuilt the artboard dropdown on Refresh, and guarded against re-entrant loads and double-clicked actions
 - v1.0.0 (2026-04-24): Initial version
