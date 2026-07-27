@@ -76,6 +76,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Align and merge multiple open files into one](readme-en/SmartBatchImporter.md)
 - [Copy as PNG like Figma’s ⌘ + Shift + C](readme-en/CopyAsPngLikeFigma.md)
 - [Import styles, brushes, and font samples from registered AI files](readme-en/ImportStyles.md)
+- [Convert embedded images into linked images](readme-en/UnembedRasterItems.md)
 - [Batch save AI / SVG files in a folder with a specified version](readme-en/AIBatchVersionSave.md)
 
 ## Color

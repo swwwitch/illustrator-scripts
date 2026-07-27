@@ -82,6 +82,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [開いているファイルを1つに整列統合](readme-ja/SmartBatchImporter.md)
 - [Figmaの⌘ + shift + C（ビットマップとしてコピー）](readme-ja/CopyAsPngLikeFigma.md)
 - [リンク画像の管理](readme-ja/LinkedImageManager.md)
+- [埋め込み画像をリンク画像に変換](readme-ja/UnembedRasterItems.md)
 - [登録済みAIファイルからスタイル・ブラシ・フォント見本を読み込み](readme-ja/ImportStyles.md)
 - [フォルダー内のAI／SVGをバージョン指定で一括保存](readme-ja/AIBatchVersionSave.md)
 
