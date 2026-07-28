@@ -32,10 +32,10 @@ See the README for the tab layout, the individual settings, and the scope each i
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "UnifiedTypePanel";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.3.4";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.5";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-07-28";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/UnifiedTypePanel.md
@@ -214,7 +214,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
             leadingType: { ja: "行送りを測る基準位置（仮想ボディの上／欧文ベースライン）。", en: "The reference position for measuring leading (virtual body top / Roman baseline)." },
             mojikumi: { ja: "段落の文字組みアキ量設定（約物の詰め方など）をまとめて適用します。", en: "Applies a mojikumi spacing set (punctuation spacing, etc.) to the paragraphs." },
             kinsoku: { ja: "段落の禁則処理（強い禁則／弱い禁則など）をまとめて適用します。", en: "Applies a kinsoku (line-break) set to the paragraphs." },
-            reset: { ja: "標準値に戻します（フォントサイズ12pt・比率100%・ツメ0・トラッキング0・自動カーニングメトリクス・欧文ベースライン・左揃え・行送り115%・文字組みツメ組み・禁則弱い禁則v2）。", en: "Reset to defaults (12pt / 100% scale / 0 Tsume / 0 tracking / Metrics kerning / Roman baseline / left / 115% leading / Tight mojikumi / Loose v2 kinsoku)." },
+            reset: { ja: "標準値に戻します（フォントサイズ12pt・比率100%・ツメ0・トラッキング0・自動カーニング和文等幅・欧文ベースライン・左揃え・行送り115%・文字組みツメ組み・禁則弱い禁則v2）。", en: "Reset to defaults (12pt / 100% scale / 0 Tsume / 0 tracking / Metrics - Roman Only kerning / Roman baseline / left / 115% leading / Tight mojikumi / Loose v2 kinsoku)." },
             reload: { ja: "選択中のテキストの現在値を読み取り直して UI に反映します。", en: "Re-read the current values from the selection and reflect them in the UI." },
             hiddenChar: { ja: "制御文字（改行・スペースなど）の表示／非表示を切り替えます。", en: "Toggle the display of hidden characters (returns, spaces, etc.)." },
             toApparent: { ja: "サイズ×比率を実フォントサイズに焼き込んで比率100%に、もう一度押すと元のサイズ・比率へ戻します（相互変換）。", en: "Bakes size × scale into the actual font size at 100%; press again to restore the original size and scale (round-trip)." },
@@ -1855,6 +1855,117 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         return parsed;
     }
 
+    // =========================================
+    // パレット位置の保存・復元 / Palette position persistence
+    // 閉じた位置（移動のたびの最新位置）を userData に保存し、次回起動時に同じ位置で開く。
+    // モニタ構成が変わっても画面外に復元しないよう、保存値は $.screens の範囲で検証する。
+    // Store the last position under userData and reopen there next time; validate against
+    // $.screens so a changed monitor layout never restores the palette off-screen.
+    // =========================================
+
+    /**
+     * パレット位置の保存先ファイルを返す
+     * @returns {File} 位置保存用の JSON ファイル
+     */
+    function getPaletteLocationFile() {
+        return File(Folder.userData.fsName + "/UnifiedTypePanel_location.json");
+    }
+
+    /**
+     * 指定した座標がいずれかのモニタ内に収まるか判定する
+     * @param {number} x - パレット左端の座標
+     * @param {number} y - パレット上端の座標
+     * @returns {boolean} いずれかの画面内に収まるなら true
+     */
+    function isLocationOnScreen(x, y) {
+        var screens;
+        try { screens = $.screens; } catch (eScreens) { return true; } /* 取得できない環境では検証しない / Skip validation when unavailable */
+        if (!screens || !screens.length) return true;
+        var margin = 40; /* タイトルバーを掴める余白 / Keep the title bar reachable */
+        for (var i = 0; i < screens.length; i++) {
+            var screen = screens[i];
+            if (x >= screen.left - margin && x <= screen.right - margin &&
+                y >= screen.top && y <= screen.bottom - margin) return true;
+        }
+        return false;
+    }
+
+    /**
+     * パレットの現在位置をファイルへ保存する
+     * @param {Window} win - 対象のパレット
+     * @returns {boolean} 保存できたら true
+     */
+    function savePaletteLocation(win) {
+        var x, y;
+        try {
+            x = win.location[0];
+            y = win.location[1];
+        } catch (eLocation) { return false; }
+        if (typeof x !== "number" || typeof y !== "number" || !isFinite(x) || !isFinite(y)) return false;
+
+        var file = getPaletteLocationFile();
+        try {
+            file.encoding = "UTF-8";
+            if (file.open("w")) {
+                file.write('{"x":' + Math.round(x) + ', "y":' + Math.round(y) + '}\n');
+                file.close();
+                return true;
+            }
+        } catch (eWrite) {
+            try { file.close(); } catch (eClose) { }
+        }
+        return false;
+    }
+
+    /**
+     * 保存済みのパレット位置を読み込む（未保存・不正・画面外は null）
+     * @returns {Array<number>|null} [x, y]。使えない場合は null
+     */
+    function loadPaletteLocation() {
+        var file = getPaletteLocationFile();
+        if (!file.exists) return null;
+
+        /* 読み込み / Read */
+        var fileText = "";
+        try {
+            file.encoding = "UTF-8";
+            if (!file.open("r")) return null;
+            fileText = file.read();
+            file.close();
+        } catch (eRead) {
+            try { file.close(); } catch (eClose) { }
+            return null;
+        }
+        if (!fileText || fileText.replace(/^\s+|\s+$/g, "") === "") return null;
+
+        /* パース（自前ファイルなので eval を許容）/ Parse (eval is acceptable for our own file) */
+        var parsed = null;
+        try {
+            parsed = eval("(" + fileText + ")");
+        } catch (eParse) {
+            parsed = null;
+        }
+        if (!parsed || typeof parsed.x !== "number" || typeof parsed.y !== "number") return null;
+        if (!isFinite(parsed.x) || !isFinite(parsed.y)) return null;
+
+        /* モニタ構成が変わっていたら既定位置に任せる / Fall back to the default spot if the layout changed */
+        if (!isLocationOnScreen(parsed.x, parsed.y)) return null;
+        return [parsed.x, parsed.y];
+    }
+
+    /**
+     * 保存済み位置をパレットへ適用する（保存が無ければ何もしない）
+     * @param {Window} win - 対象のパレット
+     * @returns {void}
+     */
+    function applySavedPaletteLocation(win) {
+        var savedLocation = loadPaletteLocation();
+        if (!savedLocation) return;
+        try {
+            win.location = savedLocation;
+        } catch (eApply) { }
+    }
+
     /* プリセット配列でリストボックスを再構築（表示名は後で和文名に差し替え）
        Rebuild a listbox from a preset array (display names resolved to Japanese later) */
     /* プリセットをフォントのみ／詳細の両 listbox へ流し込む / Fill both preset listboxes (font-only + detailed)
@@ -3112,11 +3223,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         // リセット：すべて既定値へ / Reset everything to defaults
         ui.resetButton.onClick = function () {
             runApply("applyProfile", {
-                kern: "metrics", tsume: 0, tracking: 0, align: "roman", justify: "left",
+                kern: "mono", tsume: 0, tracking: 0, align: "roman", justify: "left",
                 leadingPercent: 115, leadingType: "top",
                 sizePt: 12, scale: 100, mojikumiIndex: 5, kinsoku: "Soft_v2", clearAki: true
             });
-            selectRadioById(ui.kernRadios, autoKernOptions, "metrics");
+            selectRadioById(ui.kernRadios, autoKernOptions, "mono");
+            syncProportionalMetricsCheck("mono"); // 和文等幅ではプロポーショナルは OFF / Proportional is OFF for Japanese equal width
             reflectTsume(0);
             reflectTracking(0);
             selectAlignRadio("roman");
@@ -3646,12 +3758,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n4e2b79cf2891"; /* 紹�
         // 常駐エンジンにパレット参照を保持 / Keep the palette reference on the persistent engine
         $.global.__UnifiedTypePanel = { window: ui.palette };
 
-        // 閉じられたら参照をクリア / Clear the reference when the palette closes
+        // 移動のたびに位置を控える（閉じた位置がそのまま次回の初期位置になる）
+        // Track the position on every move, so wherever it was closed becomes next launch's spot
+        ui.palette.onMove = function () { savePaletteLocation(ui.palette); };
+
+        // 閉じられたら位置を保存して参照をクリア / Save the position and clear the reference on close
         ui.palette.addEventListener("close", function () {
+            savePaletteLocation(ui.palette);
             $.global.__UnifiedTypePanel = null;
         });
 
+        // 前回の位置を復元（保存が無ければ既定位置のまま）/ Restore the last position (default spot when none)
+        applySavedPaletteLocation(ui.palette);
+
         ui.palette.show();
+
+        // show 後にレイアウトが確定するため、位置をもう一度当て直す / Re-apply after show, when layout is final
+        applySavedPaletteLocation(ui.palette);
 
         // 表示（レイアウト確定）後にボタン高さをまとめて共通高さへ / Fit button heights after show (layout is final)
         fitAllButtonHeights(ui);
