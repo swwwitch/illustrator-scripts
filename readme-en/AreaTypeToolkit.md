@@ -12,11 +12,11 @@
 
 Headings and button labels often start life as point text, and only later do you wish they were Area Type — so the copy wraps inside a box when it grows, or sits centred in it.
 
-Doing that by hand means drawing a rectangle, converting it, pouring the text in, and setting the font again. And once you have Area Type, tuning it (frame size, leading, indents, text placement) still means moving between panels.
+Doing that by hand means drawing a rectangle, converting it, pouring the text in, and setting the font again. And once you have Area Type, tuning it (frame size, leading, indents, vertical alignment) still means moving between panels.
 
 This script puts **creation and adjustment into one flow**.
 
-<img alt="The Adjust Area Type dialog" src="../png/ss-1018-1328-144-20260728-110255.png" width="50%" />
+<img alt="The Adjust Area Type dialog" src="../png/ss-868-1198-144-20260728-182808.png" width="50%" />
 
 ## Usage
 
@@ -57,13 +57,19 @@ If nothing could be converted, the script says so and leaves the dialog open.
 
 Everything about the Area Type's typesetting, in one place. **Preview is always on** — every change shows up straight away.
 
+The panels are laid out like this:
+
+- Left: font size, frame size, offset, vertical alignment
+- Right: role, leading, justification, indent, Japanese composition
+- Bottom: [Separate text...], then [Cancel] and [OK]
+
 [OK] commits, [Cancel] reverts and closes — except for vertical text alignment, auto-size, the role presets, Clear overset, Fit to frame and Separate text, which are committed the moment you click them (see below).
 
 ### Role
 
 One click applies a whole preset for the text's purpose.
 
-| Role | Leading | Justification | Kinsoku | Mojikumi | Text alignment | Tab stops |
+| Role | Leading | Justification | Kinsoku | Mojikumi | Vertical alignment | Tab stops |
 | --- | --- | --- | --- | --- | --- | --- |
 | Body | 160% | Justify (last line left) | Loose v2 | Solid | Top | Cleared |
 | Heading | 120% | Left | Loose v2 | Tight | Top | Cleared |
@@ -96,7 +102,7 @@ Leading is set as an **auto-leading amount (%)**. Illustrator shows it as "Auto"
 
 For text with a fixed leading the fields open empty, and nothing is applied while they stay empty.
 
-### Justification / Text alignment (vertical)
+### Justification / Vertical alignment
 
 Justification (left, center, right, justify with last line left, justify all lines) and vertical text alignment within the frame (top, center, bottom, justify).
 
@@ -123,15 +129,14 @@ Width and height in the ruler unit. The width can also be driven by a character 
 
 The character count is the width minus the offset and both indents, divided by the font size.
 
-While auto-size is on, the **height field is dimmed** — the frame follows the text, so it cannot be set from here. The height is left untouched in that state, so the preview never drags the frame back.
+[Auto-size], under the height, makes the frame's height follow the amount of text. It is toggled through a dynamic action (`adobe_SLOAreaTextDialog`), which cannot run from the preview, so it is **committed the moment you tick it** (the preview is reverted, the setting applied, then the preview goes back on).
 
-### Indent / Options
+While it is on, the **height field is dimmed** — the frame follows the text, so it cannot be set from here. The height is left untouched in that state, so the preview never drags the frame back.
 
-- Left and right indents ("Link" keeps them equal)
-- Offset between the frame and the text
-- Auto-size, so the frame's height follows the amount of text
+### Indent / Offset
 
-[Auto-size] is toggled through a dynamic action (`adobe_SLOAreaTextDialog`). It cannot run from the preview, so it is **committed the moment you tick it** (the preview is reverted, the setting applied, then the preview goes back on).
+- Indents: left and right ("Link" is on by default — the right follows the left and its field is dimmed; text whose two indents differ opens with the link off)
+- Offset: the distance between the frame and the text (tick the box to enter a value)
 
 ## Separate text dialog
 
@@ -174,3 +179,7 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 - v1.2.0 (2026-07-28) Moved "Separate text" into its own dialog, reached from a [Separate text...] button in the adjust dialog; separating now preserves per-character formatting and selects the resulting rectangle and point text. Dropped the preview checkbox — the preview is now always on. Added the Role (Body / Heading / Menu), Leading, and Japanese-composition (kinsoku / mojikumi) panels. Justification and text alignment are now icon buttons. Folded the leader-tabs checkbox into the Menu role. Auto-size is now a checkbox that applies on click; while it is on the height field is dimmed and the height is no longer overwritten, and the font-fit passes switch it off for the pass. Renamed "Inset spacing" to "Offset". Clear overset and Fit to frame now stop on text with line breaks and write the resulting size back to the font-size and frame-size fields. Aligned the UI wording with Illustrator's own terms and added tooltips. Fixed reading justification and indents from existing Area Type. "Pour into selected shape" now handles multiple pairs. Added Q (ha) ruler unit. Added a warning when nothing can be converted
 - v1.1.3 (2026-03-04) Added input validation for width and height
 - v1.0.0 (2026-03-03) Initial release
+
+### note
+
+- [An Illustrator script for working comfortably with Area Type (Japanese)](https://note.com/dtp_tranist/n/nfd6cc5e13654)

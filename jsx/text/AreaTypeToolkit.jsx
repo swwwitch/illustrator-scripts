@@ -8,7 +8,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁を調整するツール。
 
 - 変換ダイアログで作成方法（シンプル／ボタン風／選択した図形に流し込む／選択した図形にダミーテキスト）を選ぶ
-- 調整ダイアログでフォントサイズ・フレームサイズ・行送り・行揃え・テキストの配置（垂直方向）・日本語の組版（禁則・文字組み）・インデント・オフセット・自動サイズ調整を設定
+- 調整ダイアログでフォントサイズ・フレームサイズ・行送り・行揃え・垂直方向の配置・日本語の組版（禁則・文字組み）・インデント・オフセット・自動サイズ調整を設定
 - 種別（本文／見出し／メニュー）を選ぶと、行送り・行揃え・禁則・文字組み・タブをまとめて適用する
 - エリア内文字を選択して実行すると、調整ダイアログから始まる
 - プレビューは常にONで、結果を確認しながら操作できる
@@ -48,7 +48,7 @@ var SCRIPT_UPDATED  = "2026-07-28";                   /* 更新日 / last update
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeToolkit.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AreaTypeToolkit.md
-var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -119,12 +119,12 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             frameHandling: { ja: "枠の処理", en: "Frame handling" },
             leading: { ja: "行送り", en: "Leading" },
             justification: { ja: "行揃え", en: "Justification" },
-            textAlign: { ja: "テキストの配置（垂直方向）", en: "Text alignment (vertical)" },
+            textAlign: { ja: "垂直方向の配置", en: "Vertical alignment" },
             fontSize: { ja: "フォントサイズ", en: "Font size" },
             frameSize: { ja: "フレームサイズ", en: "Frame size" },
             indent: { ja: "インデント", en: "Indent" },
             jpComposition: { ja: "日本語の組版", en: "Japanese composition" },
-            options: { ja: "オプション", en: "Options" }
+            offset: { ja: "オフセット", en: "Offset" }
         },
         radio: {
             strokeBlack: { ja: "枠を1pt黒に", en: "Frame: 1pt black" },
@@ -168,7 +168,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         },
         checkbox: {
             linkIndents: { ja: "連動", en: "Link" },
-            spacing: { ja: "オフセット", en: "Offset" },
             autoSize: { ja: "自動サイズ調整", en: "Auto-size" }
         },
         button: {
@@ -1636,6 +1635,8 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         // Right column: text role (Body / Heading / Menu); one click applies the whole preset
         var rolePanel = rightColumn.add("panel", undefined, getLabel("panel.role"));
         applyPanelLayout(rolePanel, 4);
+        rolePanel.orientation = "row";
+        rolePanel.alignChildren = ["left", "center"];
         var radRoleBody = rolePanel.add("radiobutton", undefined, getLabel("radio.roleBody"));
         var radRoleHeading = rolePanel.add("radiobutton", undefined, getLabel("radio.roleHeading"));
         var radRoleMenu = rolePanel.add("radiobutton", undefined, getLabel("radio.roleMenu"));
@@ -1693,6 +1694,32 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             justifyButtons.push(justifyButton);
         }
 
+        // 右カラム：インデント（行揃えの下）/ Right column: indent (below the justification panel)
+        var indentPanel = rightColumn.add("panel", undefined, getLabel("panel.indent"));
+        applyPanelLayout(indentPanel);
+        indentPanel.orientation = "row";
+        indentPanel.alignChildren = ["left", "top"];
+        var indentFieldsColumn = indentPanel.add("group");
+        indentFieldsColumn.orientation = "column";
+        indentFieldsColumn.alignChildren = "left";
+        var leftIndentRow = indentFieldsColumn.add("group");
+        leftIndentRow.add("statictext", undefined, labelWithColon("label.indentLeft"));
+        var etLeftIndent = leftIndentRow.add("edittext", undefined, "0");
+        etLeftIndent.characters = 4;
+        leftIndentRow.add("statictext", undefined, rulerInfo.label);
+        var rightIndentRow = indentFieldsColumn.add("group");
+        rightIndentRow.add("statictext", undefined, labelWithColon("label.indentRight"));
+        var etRightIndent = rightIndentRow.add("edittext", undefined, "0");
+        etRightIndent.characters = 4;
+        rightIndentRow.add("statictext", undefined, rulerInfo.label);
+        var linkColumn = indentPanel.add("group");
+        linkColumn.orientation = "column";
+        linkColumn.alignChildren = "left";
+        linkColumn.alignment = ["left", "center"];
+        var chkLinkIndents = linkColumn.add("checkbox", undefined, getLabel("checkbox.linkIndents"));
+        chkLinkIndents.helpTip = getLabel("tip.linkIndents");
+        chkLinkIndents.value = true;
+
         // 右カラム：日本語の組版（禁則・文字組みアキ量設定）/ Right column: Japanese composition (kinsoku and mojikumi)
         var jpCompositionPanel = rightColumn.add("panel", undefined, getLabel("panel.jpComposition"));
         applyPanelLayout(jpCompositionPanel, 4);
@@ -1718,14 +1745,21 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         // 左カラム：フォントサイズ / Left column: font size
         var fontSizePanel = leftColumn.add("panel", undefined, getLabel("panel.fontSize"));
         applyPanelLayout(fontSizePanel);
+        // パネル名が「フォントサイズ」なので、行のラベルは省く / The panel title already says it, so the row label is dropped
         var fontSizeRow = fontSizePanel.add("group");
         fontSizeRow.alignment = "left";
-        fontSizeRow.add("statictext", undefined, labelWithColon("label.fontSize"));
         var etFontSize = fontSizeRow.add("edittext", undefined, "");
         etFontSize.characters = 4;
         fontSizeRow.add("statictext", undefined, "pt");
+        // フォントサイズ欄との間を少し空ける / A little breathing room after the font-size field
+        var fontSizeButtonGap = fontSizePanel.add("group");
+        fontSizeButtonGap.preferredSize.height = 5;
+
+        // 縦並び。ボタンはラベル幅のまま（パネル幅いっぱいに伸ばさない）
+        // Stacked vertically, each button keeping its label width (not stretched to the panel)
         var fontSizeButtonRow = fontSizePanel.add("group");
-        fontSizeButtonRow.orientation = "row";
+        fontSizeButtonRow.orientation = "column";
+        fontSizeButtonRow.alignChildren = ["left", "top"];
         var btnShrinkToFit = fontSizeButtonRow.add("button", undefined, getLabel("button.shrinkToFit"));
         var btnFitFontSize = fontSizeButtonRow.add("button", undefined, getLabel("button.fitFontSize"));
         btnShrinkToFit.helpTip = getLabel("tip.shrinkToFit");
@@ -1740,9 +1774,14 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         var etWidth = widthRow.add("edittext", undefined, "");
         etWidth.characters = 5;
         widthRow.add("statictext", undefined, rulerInfo.label);
-        var etCharsPerLine = widthRow.add("edittext", undefined, "");
+        // 幅の下に字詰め欄。空きラベルで幅の入力欄と左端をそろえる
+        // Chars per line goes under the width, lined up with the width field via an empty label
+        var charsPerLineRow = frameSizePanel.add("group");
+        var lblCharsPerLineSpacer = charsPerLineRow.add("statictext", undefined, "");
+        lblCharsPerLineSpacer.preferredSize.width = 28;
+        var etCharsPerLine = charsPerLineRow.add("edittext", undefined, "");
         etCharsPerLine.characters = 4;
-        var lblCharsPerLine = widthRow.add("statictext", undefined, getLabel("label.charsPerLine"));
+        var lblCharsPerLine = charsPerLineRow.add("statictext", undefined, getLabel("label.charsPerLine"));
         lblCharsPerLine.helpTip = getLabel("tip.charsPerLine");
         etCharsPerLine.helpTip = lblCharsPerLine.helpTip;
         var heightRow = frameSizePanel.add("group");
@@ -1751,53 +1790,27 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         var etHeight = heightRow.add("edittext", undefined, "");
         etHeight.characters = 5;
         heightRow.add("statictext", undefined, rulerInfo.label);
+        // 高さの下に自動サイズ調整（heightRow の外に置く。ONのあいだ heightRow はディムするため）
+        // Auto-size sits under the height (outside heightRow, which gets dimmed while it is on)
+        var chkAutoSize = frameSizePanel.add("checkbox", undefined, getLabel("checkbox.autoSize"));
+        chkAutoSize.helpTip = getLabel("tip.autoSize");
         // 英語UIでは chars 計算は不正確なため使用不可にする
         if (currentLanguage !== "ja") {
             etCharsPerLine.enabled = false;
             lblCharsPerLine.enabled = false;
         }
 
-        // 左カラム：インデント / Left column: indent
-        var indentPanel = leftColumn.add("panel", undefined, getLabel("panel.indent"));
-        applyPanelLayout(indentPanel);
-        indentPanel.orientation = "row";
-        indentPanel.alignChildren = ["left", "top"];
-        var indentFieldsColumn = indentPanel.add("group");
-        indentFieldsColumn.orientation = "column";
-        indentFieldsColumn.alignChildren = "left";
-        var leftIndentRow = indentFieldsColumn.add("group");
-        var chkLeftIndent = leftIndentRow.add("checkbox", undefined, labelWithColon("label.indentLeft"));
-        chkLeftIndent.preferredSize.width = 56;
-        var etLeftIndent = leftIndentRow.add("edittext", undefined, "0");
-        etLeftIndent.characters = 4;
-        leftIndentRow.add("statictext", undefined, rulerInfo.label);
-        etLeftIndent.enabled = false;
-        var rightIndentRow = indentFieldsColumn.add("group");
-        var chkRightIndent = rightIndentRow.add("checkbox", undefined, labelWithColon("label.indentRight"));
-        chkRightIndent.preferredSize.width = 56;
-        var etRightIndent = rightIndentRow.add("edittext", undefined, "0");
-        etRightIndent.characters = 4;
-        rightIndentRow.add("statictext", undefined, rulerInfo.label);
-        etRightIndent.enabled = false;
-        var linkColumn = indentPanel.add("group");
-        linkColumn.orientation = "column";
-        linkColumn.alignChildren = "left";
-        linkColumn.alignment = ["left", "center"];
-        var chkLinkIndents = linkColumn.add("checkbox", undefined, getLabel("checkbox.linkIndents"));
-        chkLinkIndents.helpTip = getLabel("tip.linkIndents");
-
-        // 左カラム：オプション / Left column: options
-        var optionsPanel = leftColumn.add("panel", undefined, getLabel("panel.options"));
-        applyPanelLayout(optionsPanel);
-        var spacingRow = optionsPanel.add("group");
-        var chkSpacing = spacingRow.add("checkbox", undefined, labelWithColon("checkbox.spacing"));
+        // 左カラム：オフセット（パネル名で足りるので、チェックボックスのラベルは省く）
+        // Left column: offset (the panel title says it, so the checkbox label is dropped)
+        var offsetPanel = leftColumn.add("panel", undefined, getLabel("panel.offset"));
+        applyPanelLayout(offsetPanel);
+        var spacingRow = offsetPanel.add("group");
+        var chkSpacing = spacingRow.add("checkbox", undefined, "");
         var etSpacing = spacingRow.add("edittext", undefined, "0");
         etSpacing.characters = 4;
         var lblSpacingUnit = spacingRow.add("statictext", undefined, rulerInfo.label);
         etSpacing.enabled = false;
         lblSpacingUnit.enabled = false;
-        var chkAutoSize = optionsPanel.add("checkbox", undefined, getLabel("checkbox.autoSize"));
-        chkAutoSize.helpTip = getLabel("tip.autoSize");
 
         // 左カラム：テキストの配置（アイコンボタン。ラベルはツールチップで見せる）
         // Left column: text alignment (icon buttons; the labels live in the tooltips)
@@ -1918,8 +1931,8 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         /* 幅から差し引く余白（間隔×2＋左右インデント）/ Horizontal space taken out of the width (spacing x2 + both indents) */
         function getWidthAdjustmentPt() {
             var spacingPt = chkSpacing.value ? (parseFloat(etSpacing.text) || 0) * rulerInfo.toPt : 0;
-            var leftIndentPt = (chkLeftIndent.value || chkLinkIndents.value) ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt : 0;
-            var rightIndentPt = chkLinkIndents.value ? leftIndentPt : (chkRightIndent.value ? (parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt : 0);
+            var leftIndentPt = (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt;
+            var rightIndentPt = chkLinkIndents.value ? leftIndentPt : ((parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt);
             return 2 * spacingPt + leftIndentPt + rightIndentPt;
         }
 
@@ -1957,12 +1970,11 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 var firstParaAttrs = sourceFrame.paragraphs.length > 0 ? sourceFrame.paragraphs[0].paragraphAttributes : null;
                 var leftIndentPt = firstParaAttrs ? (firstParaAttrs.leftIndent || 0) : 0;
                 var rightIndentPt = firstParaAttrs ? (firstParaAttrs.rightIndent || 0) : 0;
-                chkLeftIndent.value = (leftIndentPt !== 0);
-                etLeftIndent.enabled = chkLeftIndent.value;
-                etLeftIndent.text = chkLeftIndent.value ? Math.round((leftIndentPt / rulerInfo.toPt) * 100) / 100 : "0";
-                chkRightIndent.value = (rightIndentPt !== 0);
-                etRightIndent.enabled = chkRightIndent.value;
-                etRightIndent.text = chkRightIndent.value ? Math.round((rightIndentPt / rulerInfo.toPt) * 100) / 100 : "0";
+                etLeftIndent.text = Math.round((leftIndentPt / rulerInfo.toPt) * 100) / 100;
+                etRightIndent.text = Math.round((rightIndentPt / rulerInfo.toPt) * 100) / 100;
+                // 左右が違うテキストは連動を外して開く（右の値を潰さないため）
+                // Open with the link off when the two differ, so the right value is not overwritten
+                if (Math.abs(leftIndentPt - rightIndentPt) > 0.01) { chkLinkIndents.value = false; }
             } catch (e) { }
             // 未設定（禁則なし／文字組みなし）のときは初期値のまま。混在（-2）のときは未選択にして触らない
             var frameKinsoku = getKinsokuId(sourceFrame);
@@ -1980,8 +1992,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
 
         /* ダイアログの入力を1つの設定オブジェクトにまとめる / Collect the dialog inputs into one settings object */
         function readAdjustmentSettings() {
-            var leftIndentPt = (chkLeftIndent.value || chkLinkIndents.value)
-                ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt : 0;
+            var leftIndentPt = (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt;
 
             return {
                 shrinkFont: (fontFitMode === "shrink"),
@@ -1995,7 +2006,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 mojikumiIndex: mojikumiDropdown.selection ? MOJIKUMI_CHOICES[mojikumiDropdown.selection.index].index : -2,
                 leftIndentPt: leftIndentPt,
                 rightIndentPt: chkLinkIndents.value ? leftIndentPt
-                    : (chkRightIndent.value ? (parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt : 0),
+                    : ((parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt),
                 spacingPt: chkSpacing.value ? (parseFloat(etSpacing.text) || 0) * rulerInfo.toPt : 0
             };
         }
@@ -2068,6 +2079,12 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
            Disable the height field while auto-size is on (the frame follows the text, so it cannot be set) */
         function updateHeightEnabled() {
             heightRow.enabled = !chkAutoSize.value;
+        }
+
+        /* 連動中は右インデント欄を使えなくする（左の値をそのまま使うため）
+           Disable the right indent field while linked (it just follows the left value) */
+        function updateRightIndentEnabled() {
+            etRightIndent.enabled = !chkLinkIndents.value;
         }
 
         /* オフセット欄の使用可否を更新する / Update whether the offset field can be used */
@@ -2326,23 +2343,9 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             onIndentOrSpacingChange();
         };
         chkLinkIndents.onClick = function () {
-            if (chkLinkIndents.value) {
-                chkLeftIndent.value = true; etLeftIndent.enabled = true;
-                chkRightIndent.enabled = false; etRightIndent.enabled = false;
-                etRightIndent.text = etLeftIndent.text;
-            } else {
-                chkRightIndent.enabled = true; etRightIndent.enabled = chkRightIndent.value;
-            }
-            onIndentOrSpacingChange();
-        };
-        chkLeftIndent.onClick = function () {
-            if (!chkLinkIndents.value) { etLeftIndent.enabled = chkLeftIndent.value; }
-            if (!chkLeftIndent.value) { etLeftIndent.text = "0"; }
-            onIndentOrSpacingChange();
-        };
-        chkRightIndent.onClick = function () {
-            etRightIndent.enabled = chkRightIndent.value;
-            if (!chkRightIndent.value) { etRightIndent.text = "0"; }
+            // 連動中は右を左に追従させるので、右の欄は触れないようにする
+            if (chkLinkIndents.value) { etRightIndent.text = etLeftIndent.text; }
+            updateRightIndentEnabled();
             onIndentOrSpacingChange();
         };
 
@@ -2403,6 +2406,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
 
         updateSpacingEnabled();
         updateHeightEnabled();
+        updateRightIndentEnabled();
 
         // 調整ダイアログを開いた時点からプレビューを反映する
         updatePreview();
