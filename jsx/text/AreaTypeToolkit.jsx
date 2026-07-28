@@ -7,8 +7,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁を調整するツール。
 
-- 変換ダイアログで作成方法（シンプル／ボタン風／選択オブジェクトを利用／ダミーテキスト）を選ぶ
-- 調整ダイアログでフォントサイズ・行送り・行揃え・テキストの配置・フレームサイズ・インデント・間隔を設定
+- 変換ダイアログで作成方法（シンプル／ボタン風／選択した図形に流し込む／選択した図形にダミーテキスト）を選ぶ
+- 調整ダイアログでフォントサイズ・フレームサイズ・行送り・行揃え・テキストの配置（垂直方向）・日本語の組版（禁則・文字組み）・インデント・オフセットを設定
+- 種別（本文／見出し／メニュー）を選ぶと、行送り・行揃え・禁則・文字組み・タブをまとめて適用する
 - エリア内文字を選択して実行すると、調整ダイアログから始まる
 - プレビューONで結果を確認しながら操作できる
 
@@ -22,8 +23,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 Builds Area Type from point text, path text, or shapes, then tunes its typesetting in place.
 
-- The convert dialog picks the creation method (Simple / Button style / Use selected object / Dummy text)
-- The adjust dialog sets font size, leading, justification, text placement, frame size, indents, and spacing
+- The convert dialog picks the creation method (Simple / Button style / Pour into selected shape / Dummy text in selected shape)
+- The adjust dialog sets font size, frame size, leading, justification, vertical text alignment, Japanese composition (kinsoku / mojikumi), indents, and offset
+- Picking a role (Body / Heading / Menu) applies leading, justification, kinsoku, mojikumi and tab stops in one go
 - Running it with Area Type selected starts straight from the adjust dialog
 - Preview shows the result while you work
 
@@ -55,7 +57,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     // ユーザー設定 / User settings
     // =========================================
 
-    /* 「選択オブジェクトにダミーテキスト」で流し込むダミー文字 / Dummy text for "Dummy text on selected object" */
+    /* 「選択した図形にダミーテキスト」で流し込むダミー文字 / Dummy text for "Dummy text in selected shape" */
     var DUMMY_TEXT_JA = "今日は15:00から予定外のミーティングがありました。疲れを癒すため、夕方に近くのカフェWAVEで、お気に入りの抹茶ラテを楽しみました。短い休憩でしたが、心が“ほっと”しました。";
     var DUMMY_TEXT_EN = "An unplanned meeting popped up at 3:00 PM today. To reset, I stopped by a nearby café for a matcha latte. It was a short break, but it helped me breathe and refocus.";
 
@@ -63,6 +65,18 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     var DUMMY_FONT_JA = ["HiraginoSans-W3", "Hiragino Sans W3"];
     var DUMMY_FONT_EN = ["MyriadPro-Regular", "Myriad Pro Regular", "MyriadPro", "Myriad"];
     var DUMMY_FONT_SIZE = 10;
+
+    /* 日本語の組版の初期値（テキスト側で未設定のときに使う）/ Defaults for Japanese composition (used when the text has none set) */
+    var DEFAULT_KINSOKU = "Soft_v2";   /* 弱い禁則 v2 / Loose v2 */
+    var DEFAULT_MOJIKUMI_INDEX = 6;    /* ベタ組み / Solid */
+
+    /* 種別プリセット（本文／見出し）。ラジオを押すと行送り・行揃え・禁則・文字組みをまとめて設定する
+       Role presets (Body / Heading): one click sets leading, justification, kinsoku and mojikumi */
+    var ROLE_PRESETS = {
+        body: { leadingPercent: 160, justifyId: "lastLineLeft", kinsoku: "Soft_v2", mojikumiIndex: 6, alignId: "top", tabMode: "clear" },
+        heading: { leadingPercent: 120, justifyId: "left", kinsoku: "Soft_v2", mojikumiIndex: 5, alignId: "top", tabMode: "clear" },
+        menu: { leadingPercent: 150, justifyId: "right", kinsoku: "Soft_v2", mojikumiIndex: 5, alignId: "top", tabMode: "leader" }
+    };
 
     /* 候補名から使用可能なフォントを返す（無ければ先頭フォント）/ Return first available font from candidates (fallback: first font) */
     function findAvailableTextFont(candidateFontNames) {
@@ -98,13 +112,15 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         },
         panel: {
             createMethod: { ja: "作成方法", en: "Creation method" },
+            role: { ja: "種別", en: "Role" },
             separateText: { ja: "テキストを分離", en: "Separate text" },
             leading: { ja: "行送り", en: "Leading" },
             justification: { ja: "行揃え", en: "Justification" },
-            textAlign: { ja: "テキストの配置", en: "Text alignment" },
+            textAlign: { ja: "テキストの配置（垂直方向）", en: "Text alignment (vertical)" },
             fontSize: { ja: "フォントサイズ", en: "Font size" },
             frameSize: { ja: "フレームサイズ", en: "Frame size" },
             indent: { ja: "インデント", en: "Indent" },
+            jpComposition: { ja: "日本語の組版", en: "Japanese composition" },
             options: { ja: "オプション", en: "Options" }
         },
         radio: {
@@ -112,6 +128,9 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             strokeBlack: { ja: "枠を1pt黒に", en: "Frame: 1pt black" },
             hidePath: { ja: "枠を塗り・線なしに", en: "Frame: unpainted" },
             removePath: { ja: "枠を削除", en: "Delete frame" },
+            roleBody: { ja: "本文", en: "Body" },
+            roleHeading: { ja: "見出し", en: "Heading" },
+            roleMenu: { ja: "メニュー", en: "Menu" },
             styleSimple: { ja: "シンプル", en: "Simple" },
             styleButton: { ja: "ボタン風", en: "Button style" },
             useShape: { ja: "選択した図形に流し込む", en: "Pour into selected shape" },
@@ -129,11 +148,26 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             alignBottom: { ja: "下揃え", en: "Bottom" },
             alignJustify: { ja: "均等配置", en: "Justify" }
         },
+        kinsoku: {
+            none: { ja: "なし", en: "None" },
+            hard: { ja: "強い禁則", en: "Strict" },
+            soft: { ja: "弱い禁則", en: "Loose" },
+            softV2: { ja: "弱い禁則 v2", en: "Loose v2" }
+        },
+        mojikumi: {
+            none: { ja: "なし", en: "None" },
+            lineEndFullHalf: { ja: "行末約物全角/半角", en: "Line-end punct full/half" },
+            punctHalf: { ja: "約物半角", en: "Half-width punctuation" },
+            lineEndHalf: { ja: "行末約物半角", en: "Line-end punct half" },
+            lineEndFull: { ja: "行末約物全角", en: "Line-end punct full" },
+            punctFull: { ja: "約物全角", en: "Full-width punctuation" },
+            tight: { ja: "ツメ組み", en: "Tight" },
+            solid: { ja: "ベタ組み", en: "Solid" }
+        },
         checkbox: {
             linkIndents: { ja: "連動", en: "Link" },
-            spacing: { ja: "内側のマージン", en: "Inset spacing" },
-            autoSize: { ja: "自動サイズ", en: "Auto-size" },
-            leaderTabs: { ja: "メニュー作成用（リーダー罫）", en: "Leader tabs" },
+            spacing: { ja: "オフセット", en: "Offset" },
+            autoSize: { ja: "自動サイズ調整", en: "Auto-size" },
             preview: { ja: "プレビュー", en: "Preview" }
         },
         button: {
@@ -149,7 +183,9 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             leadingEffective: { ja: "実寸", en: "Actual" },
             width: { ja: "幅", en: "Width" },
             height: { ja: "高さ", en: "Height" },
-            charsPerLine: { ja: "字詰め", en: "chars/line" },
+            charsPerLine: { ja: "文字", en: "chars" },
+            kinsoku: { ja: "禁則", en: "Kinsoku" },
+            mojikumi: { ja: "文字組み", en: "Mojikumi" },
             indentLeft: { ja: "左", en: "Left" },
             indentRight: { ja: "右", en: "Right" }
         },
@@ -171,36 +207,52 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 en: "Turns each selected shape itself into Area Type and fills it with dummy text."
             },
             shrinkToFit: {
-                ja: "あふれが消えるまでフォントサイズを縮小します。段落が2つ以上あるときは使えません。",
-                en: "Shrinks the font until the overset clears. Unavailable when the frame has more than one paragraph."
+                ja: "あふれが消えるまでフォントサイズを縮小します。改行を含むテキストには使えません。サイズが混在していると1つのサイズに揃います。",
+                en: "Shrinks the font until the overset clears. Not available for text with line breaks. Mixed sizes are flattened to a single size."
             },
             fitFontSize: {
-                ja: "あふれるまで拡大してから縮小し、枠いっぱいに収めます。",
-                en: "Grows until it oversets, then shrinks to fill the frame."
+                ja: "あふれるまで拡大してから縮小し、枠いっぱいに収めます。改行を含むテキストには使えません。",
+                en: "Grows until it oversets, then shrinks to fill the frame. Not available for text with line breaks."
             },
             autoSize: {
-                ja: "エリア内文字の自動サイズ調整。プレビュー中は適用されません。",
-                en: "Area Type auto-sizing. Not applied during preview."
+                ja: "エリア内文字の自動サイズ調整。クリックするとその場で反映されます。",
+                en: "Area Type auto-sizing. Applied as soon as you click."
             },
             leading: {
                 ja: "自動行送り量（%）。実寸＝フォントサイズ×%。実寸に入力すると%を逆算します。固定行送りのテキストでは空で開きます。",
                 en: "Auto-leading amount in %. Actual = font size x %. Enter an actual value to back-calculate the %. Empty for text with a fixed leading."
             },
             textAlign: {
-                ja: "フレーム内でのテキストの縦位置。ダイナミックアクションで適用するため、プレビューには反映されません。",
-                en: "Vertical placement inside the frame. Applied via a dynamic action, so it does not show in the preview."
+                ja: "フレーム内でのテキストの縦位置。クリックするとその場で反映されます。",
+                en: "Vertical placement inside the frame. Applied as soon as you click."
             },
             charsPerLine: {
                 ja: "1行の文字数から幅を逆算します。字幅が一定でないため日本語UIのみ。",
                 en: "Works the width back out from the characters per line. Japanese UI only, since Roman glyph widths vary."
             },
+            roleBody: {
+                ja: "本文向けの設定をまとめて適用します（行送り160%・均等配置（最終行左揃え）・弱い禁則 v2・ベタ組み・上揃え）。タブ設定は削除します。",
+                en: "Applies the body-text preset (160% leading, justify with last line left, Loose v2 kinsoku, Solid mojikumi, top alignment). Tab stops are cleared."
+            },
+            roleHeading: {
+                ja: "見出し向けの設定をまとめて適用します（行送り120%・左揃え・弱い禁則 v2・ツメ組み・上揃え）。タブ設定は削除します。",
+                en: "Applies the heading preset (120% leading, left, Loose v2 kinsoku, Tight mojikumi, top alignment). Tab stops are cleared."
+            },
+            roleMenu: {
+                ja: "メニュー向けの設定をまとめて適用します（行送り150%・右揃え・弱い禁則 v2・ツメ組み・上揃え）。各段落に右揃えタブ（リーダー「…」／400pt）を設定します。行揃えを変えると指定が解除され、タブ設定も削除されます。",
+                en: "Applies the menu preset (150% leading, right, Loose v2 kinsoku, Tight mojikumi, top alignment) and sets a right-aligned tab with a leader at 400pt on every paragraph. Changing the justification drops this role and clears the tab stops."
+            },
+            kinsoku: {
+                ja: "段落の禁則処理（強い禁則／弱い禁則など）をまとめて適用します。「なし」はスクリプトから設定できないため反映されません。",
+                en: "Applies a kinsoku (line-break) set to the paragraphs. \"None\" cannot be set by scripting, so it has no effect."
+            },
+            mojikumi: {
+                ja: "文字組みアキ量設定を全段落に適用します。設定が混在しているときは選択が空になり、そのままなら変更しません。",
+                en: "Applies a mojikumi spacing set to every paragraph. With mixed settings the menu opens empty and nothing is changed."
+            },
             linkIndents: {
                 ja: "左インデントの値を右にも適用します。",
                 en: "Applies the left indent value to the right as well."
-            },
-            leaderTabs: {
-                ja: "各段落に右揃えタブ（リーダー「…」／400pt）を設定します。ONにすると行揃えが「右揃え」になります。",
-                en: "Sets a right-aligned tab with a leader at 400pt on every paragraph. Turning it on switches justification to right."
             }
         },
         alert: {
@@ -211,6 +263,10 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             noDocument: {
                 ja: "ドキュメントが開かれていません。",
                 en: "No document is open."
+            },
+            lineBreakNotSupported: {
+                ja: "改行を含むテキストには対応していません。改行のないテキストを選択してください。",
+                en: "Text containing line breaks is not supported. Select text without line breaks."
             },
             convertFailed: {
                 ja: "変換できる対象がありませんでした。ポイント文字や閉じたパスを選択してください。",
@@ -262,6 +318,9 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     // パネルレイアウト / Panel layout
     // =========================================
 
+    /* 禁則・文字組みポップアップの幅（英語は語が長いので広め）/ Width of the kinsoku and mojikumi popups (wider in English) */
+    var JP_DROPDOWN_WIDTH = (currentLanguage === "ja") ? 140 : 190;
+
     /* パネルの余白と間隔 / Panel margins and spacing */
     var PANEL_MARGINS = [16, 20, 16, 12];
     var PANEL_SPACING = 8;
@@ -273,16 +332,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-    }
-
-    /* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-    function applyGroupLayout(group, orientation, spacing) {
-        var groupOrientation = orientation || "column";
-        group.orientation = groupOrientation;
-        /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-        group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-        group.alignment = "fill";
-        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /* ラジオ群から1つだけを選択状態にする / Turn on exactly one radio in the group */
@@ -304,6 +353,276 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         }
     }
 
+    // =========================================
+    // アイコンボタン（行揃え／テキストの配置）/ Icon buttons (justification and text alignment)
+    //   UnifiedTypePanel.jsx（原典は Keep_TextPosition.jsx）から移植
+    //   Ported from UnifiedTypePanel.jsx (originally Keep_TextPosition.jsx)
+    // =========================================
+
+    /* 行揃えの選択肢（id・ラベル・Justification 値・アイコン種別・ショートカット）
+       Justification options (id, label, Justification value, icon type, shortcut key) */
+    var JUSTIFY_OPTIONS = [
+        { id: "left", labelKey: "radio.justifyLeft", value: Justification.LEFT, icon: "left", shortcut: "L" },
+        { id: "center", labelKey: "radio.justifyCenter", value: Justification.CENTER, icon: "center", shortcut: "C" },
+        { id: "right", labelKey: "radio.justifyRight", value: Justification.RIGHT, icon: "right", shortcut: "R" },
+        { id: "lastLineLeft", labelKey: "radio.justifyLastLineLeft", value: Justification.FULLJUSTIFYLASTLINELEFT, icon: "justifyLeft", shortcut: "J" },
+        { id: "allLines", labelKey: "radio.justifyAllLines", value: Justification.FULLJUSTIFY, icon: "justifyAll", shortcut: "F" }
+    ];
+
+    /* 行揃え id から Justification 値を引く / Resolve a justification id to a Justification value */
+    function getJustificationValue(justifyId) {
+        for (var i = 0; i < JUSTIFY_OPTIONS.length; i++) {
+            if (JUSTIFY_OPTIONS[i].id === justifyId) return JUSTIFY_OPTIONS[i].value;
+        }
+        return Justification.LEFT;
+    }
+
+    /* Justification 値から行揃え id を引く / Resolve a Justification value to a justification id */
+    function getJustificationId(justificationValue) {
+        for (var i = 0; i < JUSTIFY_OPTIONS.length; i++) {
+            if (JUSTIFY_OPTIONS[i].value === justificationValue) return JUSTIFY_OPTIONS[i].id;
+        }
+        return "left";
+    }
+
+    /* テキストの配置の選択肢（id・ラベル・ダイナミックアクションの値・アイコン種別）
+       Text-alignment options (id, label, dynamic-action value, icon type) */
+    var ALIGN_OPTIONS = [
+        { id: "top", labelKey: "radio.alignTop", value: 0, icon: "top" },
+        { id: "center", labelKey: "radio.alignCenter", value: 1, icon: "center" },
+        { id: "bottom", labelKey: "radio.alignBottom", value: 2, icon: "bottom" },
+        { id: "justify", labelKey: "radio.alignJustify", value: 3, icon: "justify" }
+    ];
+
+    /* 配置 id からアクションの値を引く / Resolve an alignment id to its action value */
+    function getAlignmentValue(alignId) {
+        for (var i = 0; i < ALIGN_OPTIONS.length; i++) {
+            if (ALIGN_OPTIONS[i].id === alignId) return ALIGN_OPTIONS[i].value;
+        }
+        return 0;
+    }
+
+    /* アクションの値から配置 id を引く / Resolve an action value to an alignment id */
+    function getAlignmentId(alignmentValue) {
+        for (var i = 0; i < ALIGN_OPTIONS.length; i++) {
+            if (ALIGN_OPTIONS[i].value === alignmentValue) return ALIGN_OPTIONS[i].id;
+        }
+        return "top";
+    }
+
+    /* 環境設定のUI明るさが明るい側か（0=最暗〜1=最明。0.5 は暗い側に含める）
+       Whether the UI brightness preference is on the light side (0=darkest to 1=lightest; 0.5 counts as dark) */
+    function isLightUI() {
+        try {
+            return app.preferences.getRealPreference("uiBrightness") > 0.5;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    /* テーマ＋選択状態に応じたボタン配色 / Button colors per theme and active state */
+    function getIconButtonColors(isLight, isActive) {
+        if (isLight) {
+            return {
+                bg: isActive ? [0.40, 0.40, 0.40, 1] : [1, 1, 1, 1],
+                border: isActive ? [0.30, 0.30, 0.30, 1] : [0.62, 0.62, 0.62, 1],
+                line: isActive ? [1, 1, 1, 1] : [0.25, 0.25, 0.25, 1]
+            };
+        }
+        return {
+            bg: isActive ? [0.92, 0.92, 0.92, 1] : [0.30, 0.30, 0.30, 1],
+            border: null,
+            line: isActive ? [0.16, 0.16, 0.16, 1] : [0.82, 0.82, 0.82, 1]
+        };
+    }
+
+    /* 行ごとの線幅（アイコン種別ごと）/ Per-line widths for an icon type */
+    function getJustifyLineWidths(iconType, longWidth, shortWidth) {
+        if (iconType === "justifyAll") return [longWidth, longWidth, longWidth, longWidth];
+        if (iconType === "justifyLeft") return [longWidth, longWidth, longWidth, shortWidth];
+        return [longWidth, shortWidth, longWidth, shortWidth];
+    }
+
+    /* 行の開始 X（アイコン種別ごとに左／中央／右）/ Line start X per icon type (left / center / right) */
+    function getJustifyLineX(iconType, buttonWidth, lineWidth) {
+        var margin = 5;
+        if (iconType === "right") return buttonWidth - margin - lineWidth;
+        if (iconType === "center") return Math.round((buttonWidth - lineWidth) / 2);
+        return margin;
+    }
+
+    /* アイコンの罫線を描く / Draw the icon's lines */
+    function drawJustifyIconLines(graphics, iconType, buttonWidth, lineColor) {
+        var pen = graphics.newPen(graphics.PenType.SOLID_COLOR, lineColor, 1.2);
+        var rowYs = [7, 11, 15, 19];
+        var lineWidths = getJustifyLineWidths(iconType, 15, 10);
+        for (var i = 0; i < rowYs.length; i++) {
+            var lineWidth = lineWidths[i];
+            var lineStartX = getJustifyLineX(iconType, buttonWidth, lineWidth);
+            graphics.newPath();
+            graphics.moveTo(lineStartX, rowYs[i]);
+            graphics.lineTo(lineStartX + lineWidth, rowYs[i]);
+            graphics.strokePath(pen);
+        }
+    }
+
+    /* 行の Y 位置（配置種別ごと。上寄せ／中央／下寄せ／均等）
+       Row Y positions per alignment icon type (top / center / bottom / evenly spread) */
+    function getAlignRowYs(iconType) {
+        if (iconType === "center") return [9, 13, 17];
+        if (iconType === "bottom") return [11, 15, 19];
+        if (iconType === "justify") return [7, 13, 19];
+        return [7, 11, 15];
+    }
+
+    /* テキストの配置アイコンの罫線を描く（幅は3本とも同じで左右中央）
+       Draw the lines for a text-alignment icon (three equal-width lines, horizontally centered) */
+    function drawAlignIconLines(graphics, iconType, buttonWidth, lineColor) {
+        var pen = graphics.newPen(graphics.PenType.SOLID_COLOR, lineColor, 1.2);
+        var lineWidth = 14;
+        var lineStartX = Math.round((buttonWidth - lineWidth) / 2);
+        var rowYs = getAlignRowYs(iconType);
+        for (var i = 0; i < rowYs.length; i++) {
+            graphics.newPath();
+            graphics.moveTo(lineStartX, rowYs[i]);
+            graphics.lineTo(lineStartX + lineWidth, rowYs[i]);
+            graphics.strokePath(pen);
+        }
+    }
+
+    /* アイコンボタンの背景を描く / Draw an icon button's background */
+    function drawIconButtonBackground(graphics, buttonWidth, buttonHeight, colors) {
+        try {
+            graphics.rectPath(0, 0, buttonWidth, buttonHeight);
+            graphics.fillPath(graphics.newBrush(graphics.BrushType.SOLID_COLOR, colors.bg));
+            if (colors.border) {
+                graphics.rectPath(0, 0, buttonWidth, buttonHeight);
+                graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, colors.border, 1));
+            }
+        } catch (e) {
+            try { graphics.drawOSControl(); } catch (e0) { }
+        }
+    }
+
+    /* 行揃えボタンを描く（テーマ・選択状態に対応）/ Draw a justification button (theme and active aware) */
+    function drawJustifyIcon(button, isActive, isLight) {
+        var colors = getIconButtonColors(isLight, isActive);
+        drawIconButtonBackground(button.graphics, button.size[0], button.size[1], colors);
+        drawJustifyIconLines(button.graphics, button.iconType, button.size[0], colors.line);
+    }
+
+    /* テキストの配置ボタンを描く（テーマ・選択状態に対応）/ Draw a text-alignment button (theme and active aware) */
+    function drawAlignIcon(button, isActive, isLight) {
+        var colors = getIconButtonColors(isLight, isActive);
+        drawIconButtonBackground(button.graphics, button.size[0], button.size[1], colors);
+        drawAlignIconLines(button.graphics, button.iconType, button.size[0], colors.line);
+    }
+
+    // =========================================
+    // 日本語の組版（禁則・文字組みアキ量設定）/ Japanese composition (kinsoku and mojikumi)
+    //   UnifiedTypePanel.jsx から移植 / Ported from UnifiedTypePanel.jsx
+    // =========================================
+
+    /* 禁則の選択肢（id は paragraphAttributes.kinsoku に渡す値）
+       Kinsoku choices (id is the value passed to paragraphAttributes.kinsoku) */
+    var KINSOKU_CHOICES = [
+        { id: "None", labelKey: "kinsoku.none" },
+        { id: "Hard", labelKey: "kinsoku.hard" },
+        { id: "Soft", labelKey: "kinsoku.soft" },
+        { id: "Soft_v2", labelKey: "kinsoku.softV2" }
+    ];
+
+    /* 文字組みアキ量設定の選択肢（index は mojikumiSet の添字。-1 は「なし」）
+       Mojikumi choices (index is the mojikumiSet index; -1 means "None") */
+    var MOJIKUMI_CHOICES = [
+        { index: -1, labelKey: "mojikumi.none" },
+        { index: 0, labelKey: "mojikumi.lineEndFullHalf" },
+        { index: 1, labelKey: "mojikumi.punctHalf" },
+        { index: 2, labelKey: "mojikumi.lineEndHalf" },
+        { index: 3, labelKey: "mojikumi.lineEndFull" },
+        { index: 4, labelKey: "mojikumi.punctFull" },
+        { index: 5, labelKey: "mojikumi.tight" },
+        { index: 6, labelKey: "mojikumi.solid" }
+    ];
+
+    /* 選択肢テーブルからドロップダウン用のラベル配列を作る / Build the dropdown item list from a choice table */
+    function buildChoiceLabels(choices) {
+        var labels = [];
+        for (var i = 0; i < choices.length; i++) { labels.push(getLabel(choices[i].labelKey)); }
+        return labels;
+    }
+
+    /* 選択肢テーブルの値に一致する項目をドロップダウンで選ぶ（無ければ未選択のままにする）
+       Select the dropdown item matching a value (left unselected when there is no match) */
+    function selectChoiceByValue(dropdown, choices, keyName, value) {
+        for (var i = 0; i < choices.length; i++) {
+            if (choices[i][keyName] === value) { dropdown.selection = i; return; }
+        }
+        dropdown.selection = null;
+    }
+
+    /* 文字組み設定名から mojikumiSet の添字を引く（見つからなければ -2）
+       Look up a mojikumiSet index by name (-2 when not found) */
+    function matchMojikumiName(name) {
+        try {
+            var mojikumiSets = app.activeDocument.mojikumiSet;
+            for (var i = 0; i < mojikumiSets.length; i++) {
+                if (mojikumiSets[i].name === name) return i;
+            }
+        } catch (e) { }
+        return -2;
+    }
+
+    /* 先頭段落の文字組み設定を添字で返す（-1＝なし、-2＝不明・混在）
+       Return the first paragraph's mojikumi as an index (-1 = none, -2 = unknown or mixed) */
+    function getMojikumiIndex(textFrame) {
+        var mojikumiAttr;
+        try {
+            if (textFrame.paragraphs.length === 0) return -2;
+            mojikumiAttr = textFrame.paragraphs[0].paragraphAttributes.mojikumi;
+        } catch (e) { return -2; }
+        if (mojikumiAttr === undefined || mojikumiAttr === null) return -1;
+        if (typeof mojikumiAttr === "string") {
+            return (mojikumiAttr === "" || mojikumiAttr === "なし") ? -1 : matchMojikumiName(mojikumiAttr);
+        }
+        var mojikumiName;
+        try { mojikumiName = (mojikumiAttr.name === undefined || mojikumiAttr.name === null) ? "" : mojikumiAttr.name; } catch (e0) { return -2; }
+        if (mojikumiName === "") return -2;
+        if (mojikumiName === "なし") return -1;
+        return matchMojikumiName(mojikumiName);
+    }
+
+    /* 先頭段落の禁則処理を id で返す / Return the first paragraph's kinsoku set as an id */
+    function getKinsokuId(textFrame) {
+        try {
+            if (textFrame.paragraphs.length === 0) return "None";
+            var kinsokuValue = textFrame.paragraphs[0].paragraphAttributes.kinsoku;
+            if (kinsokuValue === undefined || kinsokuValue === null || kinsokuValue === "") return "None";
+            return String(kinsokuValue);
+        } catch (e) {
+            return "None";
+        }
+    }
+
+    /* 全段落に文字組みアキ量設定を適用する（-2＝不明のときは触らない）
+       Apply a mojikumi set to every paragraph (-2 means unknown, so nothing is touched) */
+    function applyMojikumiToTextFrame(textFrame, mojikumiIndex) {
+        if (mojikumiIndex === undefined || mojikumiIndex === null || mojikumiIndex === -2) return;
+        var mojikumiValue;
+        try {
+            mojikumiValue = (mojikumiIndex === -1) ? "なし" : app.activeDocument.mojikumiSet[mojikumiIndex];
+        } catch (e) { return; }
+        for (var i = 0; i < textFrame.paragraphs.length; i++) {
+            try { textFrame.paragraphs[i].paragraphAttributes.mojikumi = mojikumiValue; } catch (e0) { }
+        }
+    }
+
+    /* 禁則処理を適用する（「なし」はスクリプトから設定できないので失敗する）
+       Apply a kinsoku set ("None" cannot be set by scripting, so it fails silently) */
+    function applyKinsokuToTextFrame(textFrame, kinsokuId) {
+        if (!kinsokuId) return;
+        try { textFrame.textRange.paragraphAttributes.kinsoku = kinsokuId; } catch (e) { }
+    }
 
     /* パス上文字 → ポイント文字（変換ダイアログの前処理）/ Path text → point text (convert-dialog preprocess) */
     function detachPathTextToPointText(doc, pathTextFrames) {
@@ -423,7 +742,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         return nextSelection;
     }
 
-
     /* 自動サイズ調整ヘルパー（AutoFitTextFrame.jsx 参考）/ Auto-fit helpers (based on AutoFitTextFrame.jsx) */
 
     /* overflows プロパティを安全に読む（取れなければ null）/ Read the overflows property safely (null when unavailable) */
@@ -457,6 +775,21 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         try { return isTextOverset(textFrame, textFrame.lines.length || 1); } catch (e) { return false; }
     }
 
+    /* 改行を含むか / Whether the text contains a hard line break */
+    function hasLineBreak(textFrame) {
+        try { return /[\r\n\u2028\u2029]/.test(textFrame.contents); } catch (e) { return false; }
+    }
+
+    /* 代表となるフォントサイズを返す（混在しているときは先頭文字の値）/ Representative font size (falls back to the first character when sizes are mixed) */
+    function getRepresentativeFontSize(textFrame) {
+        try {
+            var size = textFrame.textRange.characterAttributes.size;
+            if (size > 0) return size;
+        } catch (e) { }
+        try { return textFrame.characters[0].characterAttributes.size || 0; } catch (e0) { }
+        return 0;
+    }
+
     /* 固定行送りのとき、行送り÷フォントサイズの比率を返す / Ratio of leading to font size, for a fixed (non-auto) leading */
     function getLeadingRatioInfo(textFrame) {
         try {
@@ -473,7 +806,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         if (!leadingRatioInfo) return;
         try { textFrame.textRange.characterAttributes.leading = newSize * leadingRatioInfo.ratio; } catch (e) { }
     }
-
 
     // =========================================
     // ダイナミックアクション / Dynamic actions
@@ -623,14 +955,19 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     // ちぢむ処理（バイナリサーチ：最大 40 回でオーバーセットにならない最大サイズを探す）
     function shrinkFontToFit(textFrame) {
         if (textFrame.characters.length <= 0 || !isFrameOverset(textFrame)) return;
+        var upperSize = getRepresentativeFontSize(textFrame);
+        if (upperSize <= 0) return;
         var leadingRatioInfo = getLeadingRatioInfo(textFrame);
-        var upperSize = textFrame.textRange.characterAttributes.size;
         var lowerSize = 0.1;
 
-        // lowerSize でもオーバーセットなら最小サイズのまま終了
+        // 最小サイズでも収まらないなら、極小のまま残さず元のサイズに戻す
         textFrame.textRange.characterAttributes.size = lowerSize;
         applyProportionalLeading(textFrame, lowerSize, leadingRatioInfo);
-        if (isFrameOverset(textFrame)) return;
+        if (isFrameOverset(textFrame)) {
+            textFrame.textRange.characterAttributes.size = upperSize;
+            applyProportionalLeading(textFrame, upperSize, leadingRatioInfo);
+            return;
+        }
 
         // バイナリサーチ
         for (var attempt = 0; attempt < 40; attempt++) {
@@ -653,8 +990,9 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     // テキスト（フィット）：オーバーセットになるまで拡大 → ちぢむ（fitFont 相当）
     function fitFontSizeToFrame(textFrame) {
         if (textFrame.characters.length <= 0) return;
+        var originalSize = getRepresentativeFontSize(textFrame);
+        if (originalSize <= 0) return;
         var leadingRatioInfo = getLeadingRatioInfo(textFrame);
-        var originalSize = textFrame.textRange.characterAttributes.size;
 
         // Step 1: オーバーセットが出るまで 2 倍ずつ拡大
         if (!isFrameOverset(textFrame)) {
@@ -735,6 +1073,15 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         } catch (e) { }
     }
 
+    /* 段落のタブ設定を削除する / Clear the tab stops on every paragraph */
+    function clearTabStops(textFrame) {
+        try {
+            for (var i = 0; i < textFrame.paragraphs.length; i++) {
+                textFrame.paragraphs[i].paragraphAttributes.tabStops = [];
+            }
+        } catch (e) { }
+    }
+
     // ============================================================
     // 変換ダイアログ：ポイント文字 → エリア内文字 変換
     // ============================================================
@@ -775,16 +1122,16 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
 
         // 選択内容に応じてモードを誘導
         if (hasPointText && hasPathItem) {
-            // テキスト＋図形 → シンプル・ボタン風をディム、選択オブジェクトを利用を自動選択
+            // テキスト＋図形 → シンプル・ボタン風をディムし、「選択した図形に流し込む」を自動選択
             radStyleSimple.enabled = false;
             radStyleButton.enabled = false;
             radUseShape.value = true; // default, dummy is also available
         } else if (hasPointText && !hasPathItem) {
-            // ポイント文字のみ → 選択オブジェクト系をディム
+            // ポイント文字のみ → 図形を使う方法をディム
             radUseShape.enabled = false;
             radUseShapeDummy.enabled = false;
         } else if (!hasPointText && hasPathItem) {
-            // 図形のみ → 「選択オブジェクトにダミーテキスト」を自動選択し、残りをディム
+            // 図形のみ → 「選択した図形にダミーテキスト」を自動選択し、残りをディム
             radStyleSimple.enabled = false;
             radStyleButton.enabled = false;
             radUseShape.enabled = false;
@@ -1126,49 +1473,88 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         rightColumn.orientation = "column";
         rightColumn.alignChildren = "fill";
 
+        // 右カラム：種別（本文／見出し／メニュー）。押すと関連する設定をまとめて適用する
+        // Right column: text role (Body / Heading / Menu); one click applies the whole preset
+        var rolePanel = rightColumn.add("panel", undefined, getLabel("panel.role"));
+        applyPanelLayout(rolePanel, 4);
+        var radRoleBody = rolePanel.add("radiobutton", undefined, getLabel("radio.roleBody"));
+        var radRoleHeading = rolePanel.add("radiobutton", undefined, getLabel("radio.roleHeading"));
+        var radRoleMenu = rolePanel.add("radiobutton", undefined, getLabel("radio.roleMenu"));
+        radRoleBody.helpTip = getLabel("tip.roleBody");
+        radRoleHeading.helpTip = getLabel("tip.roleHeading");
+        radRoleMenu.helpTip = getLabel("tip.roleMenu");
+
+        var roleRadios = [radRoleBody, radRoleHeading, radRoleMenu];
+
+        // 選択中の種別と、それが決めたタブ設定。tabMode が "none" のあいだはタブに触らない
+        var roleState = { activeId: "", tabMode: "none" };
+
         // 右カラム：行送り（自動行送り量％と、その実寸）/ Right column: leading (auto-leading % and its effective size)
         var leadingPanel = rightColumn.add("panel", undefined, getLabel("panel.leading"));
         applyPanelLayout(leadingPanel);
-        var leadingPercentRow = leadingPanel.add("group");
-        var lblLeadingPercent = leadingPercentRow.add("statictext", undefined, labelWithColon("label.leadingPercent"));
-        lblLeadingPercent.preferredSize.width = 48;
-        var etLeadingPercent = leadingPercentRow.add("edittext", undefined, "");
-        etLeadingPercent.characters = 4;
-        leadingPercentRow.add("statictext", undefined, "%");
         var leadingEffectiveRow = leadingPanel.add("group");
         var lblLeadingEffective = leadingEffectiveRow.add("statictext", undefined, labelWithColon("label.leadingEffective"));
         lblLeadingEffective.preferredSize.width = 48;
         var etLeadingEffective = leadingEffectiveRow.add("edittext", undefined, "");
         etLeadingEffective.characters = 4;
         leadingEffectiveRow.add("statictext", undefined, "pt");
+        var leadingPercentRow = leadingPanel.add("group");
+        var lblLeadingPercent = leadingPercentRow.add("statictext", undefined, labelWithColon("label.leadingPercent"));
+        lblLeadingPercent.preferredSize.width = 48;
+        var etLeadingPercent = leadingPercentRow.add("edittext", undefined, "");
+        etLeadingPercent.characters = 4;
+        leadingPercentRow.add("statictext", undefined, "%");
+        leadingPanel.helpTip = getLabel("tip.leading");
+        etLeadingPercent.helpTip = leadingPanel.helpTip;
+        etLeadingEffective.helpTip = leadingPanel.helpTip;
 
-        // 右カラム：行揃え / Right column: justification
+        // 右カラム：行揃え（アイコンボタン。ラベルはツールチップで見せる）
+        // Right column: justification (icon buttons; the labels live in the tooltips)
         var justificationPanel = rightColumn.add("panel", undefined, getLabel("panel.justification"));
-        applyPanelLayout(justificationPanel);
-        var radJustifyLeft = justificationPanel.add("radiobutton", undefined, getLabel("radio.justifyLeft"));
-        var radJustifyCenter = justificationPanel.add("radiobutton", undefined, getLabel("radio.justifyCenter"));
-        var radJustifyRight = justificationPanel.add("radiobutton", undefined, getLabel("radio.justifyRight"));
-        var radJustifyLastLineLeft = justificationPanel.add("radiobutton", undefined, getLabel("radio.justifyLastLineLeft"));
-        var radJustifyAllLines = justificationPanel.add("radiobutton", undefined, getLabel("radio.justifyAllLines"));
-        radJustifyLeft.value = true;
+        applyPanelLayout(justificationPanel, 4);
+        justificationPanel.orientation = "row";
+        justificationPanel.alignChildren = ["center", "center"];
 
-        // 右カラム：テキストの配置 / Right column: text alignment
-        var textAlignPanel = rightColumn.add("panel", undefined, getLabel("panel.textAlign"));
-        applyPanelLayout(textAlignPanel);
-        var radAlignTop = textAlignPanel.add("radiobutton", undefined, getLabel("radio.alignTop"));
-        var radAlignCenter = textAlignPanel.add("radiobutton", undefined, getLabel("radio.alignCenter"));
-        var radAlignBottom = textAlignPanel.add("radiobutton", undefined, getLabel("radio.alignBottom"));
-        var radAlignJustify = textAlignPanel.add("radiobutton", undefined, getLabel("radio.alignJustify"));
-        // Default alignment
-        if (initialAlignmentValue === 1) {
-            radAlignCenter.value = true;
-        } else if (initialAlignmentValue === 2) {
-            radAlignBottom.value = true;
-        } else if (initialAlignmentValue === 3) {
-            radAlignJustify.value = true;
-        } else {
-            radAlignTop.value = true;
+        // 選択中の id と UI 明暗を共有する（onDraw のクロージャから参照）
+        var isLightTheme = isLightUI();
+        var justifyState = { activeId: "left", isLight: isLightTheme };
+        var justifyButtons = [];
+        for (var justifyIndex = 0; justifyIndex < JUSTIFY_OPTIONS.length; justifyIndex++) {
+            var justifyOption = JUSTIFY_OPTIONS[justifyIndex];
+            var justifyButton = justificationPanel.add("button", undefined, "");
+            justifyButton.helpTip = getLabel(justifyOption.labelKey) + " (" + justifyOption.shortcut + ")";
+            justifyButton.preferredSize = [26, 26];
+            justifyButton.minimumSize = [26, 26];
+            justifyButton.maximumSize = [26, 26];
+            justifyButton.justifyId = justifyOption.id;
+            justifyButton.iconType = justifyOption.icon;
+            justifyButton.onDraw = function () {
+                drawJustifyIcon(this, this.justifyId === justifyState.activeId, justifyState.isLight);
+            };
+            justifyButtons.push(justifyButton);
         }
+
+        // 右カラム：日本語の組版（禁則・文字組みアキ量設定）/ Right column: Japanese composition (kinsoku and mojikumi)
+        var jpCompositionPanel = rightColumn.add("panel", undefined, getLabel("panel.jpComposition"));
+        applyPanelLayout(jpCompositionPanel, 4);
+        var lblKinsoku = jpCompositionPanel.add("statictext", undefined, labelWithColon("label.kinsoku"));
+        var kinsokuDropdown = jpCompositionPanel.add("dropdownlist", undefined, buildChoiceLabels(KINSOKU_CHOICES));
+        selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", DEFAULT_KINSOKU);
+        // fill を打ち消して幅を指定する（既定ではパネル幅いっぱいに広がる）
+        kinsokuDropdown.alignment = "left";
+        kinsokuDropdown.preferredSize.width = JP_DROPDOWN_WIDTH;
+        lblKinsoku.helpTip = getLabel("tip.kinsoku");
+        kinsokuDropdown.helpTip = lblKinsoku.helpTip;
+        // 禁則との間を少し空ける / A little breathing room after the kinsoku row
+        var mojikumiGap = jpCompositionPanel.add("group");
+        mojikumiGap.preferredSize.height = 5;
+        var lblMojikumi = jpCompositionPanel.add("statictext", undefined, labelWithColon("label.mojikumi"));
+        var mojikumiDropdown = jpCompositionPanel.add("dropdownlist", undefined, buildChoiceLabels(MOJIKUMI_CHOICES));
+        selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", DEFAULT_MOJIKUMI_INDEX);
+        mojikumiDropdown.alignment = "left";
+        mojikumiDropdown.preferredSize.width = JP_DROPDOWN_WIDTH;
+        lblMojikumi.helpTip = getLabel("tip.mojikumi");
+        mojikumiDropdown.helpTip = lblMojikumi.helpTip;
 
         // 左カラム：フォントサイズ / Left column: font size
         var fontSizePanel = leftColumn.add("panel", undefined, getLabel("panel.fontSize"));
@@ -1183,6 +1569,8 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         fontSizeButtonRow.orientation = "row";
         var btnShrinkToFit = fontSizeButtonRow.add("button", undefined, getLabel("button.shrinkToFit"));
         var btnFitFontSize = fontSizeButtonRow.add("button", undefined, getLabel("button.fitFontSize"));
+        btnShrinkToFit.helpTip = getLabel("tip.shrinkToFit");
+        btnFitFontSize.helpTip = getLabel("tip.fitFontSize");
 
         // 左カラム：フレームサイズ / Left column: frame size
         var frameSizePanel = leftColumn.add("panel", undefined, getLabel("panel.frameSize"));
@@ -1195,15 +1583,15 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         widthRow.add("statictext", undefined, rulerInfo.label);
         var etCharsPerLine = widthRow.add("edittext", undefined, "");
         etCharsPerLine.characters = 4;
-        var lblCharsPerLine = widthRow.add("statictext", undefined, getLabel("label.chars"));
+        var lblCharsPerLine = widthRow.add("statictext", undefined, getLabel("label.charsPerLine"));
+        lblCharsPerLine.helpTip = getLabel("tip.charsPerLine");
+        etCharsPerLine.helpTip = lblCharsPerLine.helpTip;
         var heightRow = frameSizePanel.add("group");
         var lblHeight = heightRow.add("statictext", undefined, labelWithColon("label.height"));
         lblHeight.preferredSize.width = 28;
         var etHeight = heightRow.add("edittext", undefined, "");
         etHeight.characters = 5;
         heightRow.add("statictext", undefined, rulerInfo.label);
-        var btnAutoSize = heightRow.add("button", undefined, getLabel("button.autoSize"));
-        btnAutoSize.preferredSize.width = 60;
         // 英語UIでは chars 計算は不正確なため使用不可にする
         if (currentLanguage !== "ja") {
             etCharsPerLine.enabled = false;
@@ -1220,14 +1608,14 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         indentFieldsColumn.alignChildren = "left";
         var leftIndentRow = indentFieldsColumn.add("group");
         var chkLeftIndent = leftIndentRow.add("checkbox", undefined, labelWithColon("label.indentLeft"));
-        chkLeftIndent.preferredSize.width = 40;
+        chkLeftIndent.preferredSize.width = 56;
         var etLeftIndent = leftIndentRow.add("edittext", undefined, "0");
         etLeftIndent.characters = 4;
         leftIndentRow.add("statictext", undefined, rulerInfo.label);
         etLeftIndent.enabled = false;
         var rightIndentRow = indentFieldsColumn.add("group");
         var chkRightIndent = rightIndentRow.add("checkbox", undefined, labelWithColon("label.indentRight"));
-        chkRightIndent.preferredSize.width = 40;
+        chkRightIndent.preferredSize.width = 56;
         var etRightIndent = rightIndentRow.add("edittext", undefined, "0");
         etRightIndent.characters = 4;
         rightIndentRow.add("statictext", undefined, rulerInfo.label);
@@ -1237,18 +1625,46 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         linkColumn.alignChildren = "left";
         linkColumn.alignment = ["left", "center"];
         var chkLinkIndents = linkColumn.add("checkbox", undefined, getLabel("checkbox.linkIndents"));
+        chkLinkIndents.helpTip = getLabel("tip.linkIndents");
 
         // 左カラム：オプション / Left column: options
         var optionsPanel = leftColumn.add("panel", undefined, getLabel("panel.options"));
         applyPanelLayout(optionsPanel);
         var spacingRow = optionsPanel.add("group");
-        var chkSpacing = spacingRow.add("checkbox", undefined, getLabel("checkbox.spacing"));
+        var chkSpacing = spacingRow.add("checkbox", undefined, labelWithColon("checkbox.spacing"));
         var etSpacing = spacingRow.add("edittext", undefined, "0");
         etSpacing.characters = 4;
         var lblSpacingUnit = spacingRow.add("statictext", undefined, rulerInfo.label);
         etSpacing.enabled = false;
         lblSpacingUnit.enabled = false;
-        var chkLeaderTabs = optionsPanel.add("checkbox", undefined, getLabel("checkbox.leaderTabs"));
+        var chkAutoSize = optionsPanel.add("checkbox", undefined, getLabel("checkbox.autoSize"));
+        chkAutoSize.helpTip = getLabel("tip.autoSize");
+
+        // 左カラム：テキストの配置（アイコンボタン。ラベルはツールチップで見せる）
+        // Left column: text alignment (icon buttons; the labels live in the tooltips)
+        var textAlignPanel = leftColumn.add("panel", undefined, getLabel("panel.textAlign"));
+        applyPanelLayout(textAlignPanel, 4);
+        textAlignPanel.orientation = "row";
+        textAlignPanel.alignChildren = ["center", "center"];
+        textAlignPanel.helpTip = getLabel("tip.textAlign");
+
+        // ボタン風で変換したときは中央、それ以外は上揃えで開く
+        var alignState = { activeId: getAlignmentId(initialAlignmentValue), isLight: isLightTheme };
+        var alignButtons = [];
+        for (var alignIndex = 0; alignIndex < ALIGN_OPTIONS.length; alignIndex++) {
+            var alignOption = ALIGN_OPTIONS[alignIndex];
+            var alignButton = textAlignPanel.add("button", undefined, "");
+            alignButton.helpTip = getLabel(alignOption.labelKey);
+            alignButton.preferredSize = [26, 26];
+            alignButton.minimumSize = [26, 26];
+            alignButton.maximumSize = [26, 26];
+            alignButton.alignId = alignOption.id;
+            alignButton.iconType = alignOption.icon;
+            alignButton.onDraw = function () {
+                drawAlignIcon(this, this.alignId === alignState.activeId, alignState.isLight);
+            };
+            alignButtons.push(alignButton);
+        }
 
         // ボタンエリア
         var bottomBar = adjustDialog.add("group");
@@ -1259,14 +1675,12 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         chkPreview.alignment = ["left", "center"];
         var bottomButtonRow = bottomBar.add("group");
         bottomButtonRow.alignment = ["right", "center"];
-        var btnCancelAdjust = bottomButtonRow.add("button", undefined, getLabel("button.close"), { name: "cancel" });
-        var btnRun = bottomButtonRow.add("button", undefined, getLabel("button.run"), { name: "ok" });
+        var btnCancelAdjust = bottomButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnRun = bottomButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         // 状態変数
         var isPreviewActive = false;
         var fontFitMode = "none";
-        var hasMultiParagraph = false;
-        var isAutoSizeOn = false;
         var currentFontSize = 0;
 
         /* 入力バリデーション（幅/高さ）/ Input validation (width/height) */
@@ -1307,20 +1721,39 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         }
 
         var separationRadios = [radStrokeBlack, radHidePath, radRemovePath, radNoAdjust];
-        var justificationRadios = [radJustifyLeft, radJustifyCenter, radJustifyRight, radJustifyLastLineLeft, radJustifyAllLines];
-        var alignmentRadios = [radAlignTop, radAlignCenter, radAlignBottom, radAlignJustify];
 
         /* ローカル関数 / Local functions */
 
-        /* 行揃えラジオを選び、右揃え以外ならリーダー罫を解除する / Select a justification radio; drop leader tabs unless right-aligned */
-        function selectJustificationRadio(targetRadio) {
-            selectRadio(justificationRadios, targetRadio);
-            if (chkLeaderTabs.value && targetRadio !== radJustifyRight) { chkLeaderTabs.value = false; }
+        /* テキストの配置ボタンを再描画する / Repaint the text-alignment buttons */
+        function redrawAlignButtons() {
+            for (var i = 0; i < alignButtons.length; i++) {
+                try { alignButtons[i].notify("onDraw"); } catch (e) { }
+            }
+            try { adjustDialog.update(); } catch (e2) { }
         }
 
-        /* 自動サイズボタンのON/OFF表示を更新する / Refresh the on/off marker on the auto-size button */
-        function updateAutoSizeButtonLabel() {
-            btnAutoSize.text = (isAutoSizeOn ? "✓ " : "") + getLabel("button.autoSize");
+        /* 行揃えボタンを再描画する / Repaint the justification buttons */
+        function redrawJustifyButtons() {
+            for (var i = 0; i < justifyButtons.length; i++) {
+                try { justifyButtons[i].notify("onDraw"); } catch (e) { }
+            }
+            try { adjustDialog.update(); } catch (e2) { }
+        }
+
+        /* メニュー指定を解除し、設定済みのタブも削除する / Drop the Menu role and clear the tab stops it set */
+        function cancelMenuRole() {
+            if (roleState.activeId !== "menu") return;
+            roleState.activeId = "";
+            roleState.tabMode = "clear";
+            selectRadio(roleRadios, null);
+        }
+
+        /* 行揃えを選ぶ（メニューの右揃え以外にしたら、メニュー指定を解除する）
+           Pick a justification (anything other than Menu's right alignment drops the Menu role) */
+        function setJustification(justifyId) {
+            justifyState.activeId = justifyId;
+            if (justifyId !== ROLE_PRESETS.menu.justifyId) { cancelMenuRole(); }
+            redrawJustifyButtons();
         }
 
         /* 幅から差し引く余白（間隔×2＋左右インデント）/ Horizontal space taken out of the width (spacing x2 + both indents) */
@@ -1331,9 +1764,15 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             return 2 * spacingPt + leftIndentPt + rightIndentPt;
         }
 
+        /* 幅とフォントサイズから字詰め欄を更新する / Refresh the chars-per-line field from the width and font size */
+        function updateCharsPerLineField() {
+            if (currentFontSize <= 0) return;
+            var widthPt = (parseFloat(etWidth.text) || 0) * rulerInfo.toPt;
+            etCharsPerLine.text = Math.round(((widthPt - getWidthAdjustmentPt()) / currentFontSize) * 100) / 100;
+        }
+
         /* 選択フレームの現在値をダイアログに読み込む / Load the frame's current values into the dialog */
         function loadValuesFromFrame(sourceFrame) {
-            try { hasMultiParagraph = (sourceFrame.paragraphs && sourceFrame.paragraphs.length >= 2); } catch (e) { hasMultiParagraph = false; }
             var frameWidth = sourceFrame.textPath.width / rulerInfo.toPt;
             var frameHeight = sourceFrame.textPath.height / rulerInfo.toPt;
             currentFontSize = 0;
@@ -1347,20 +1786,13 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 var justification = sourceFrame.paragraphs.length > 0
                     ? sourceFrame.paragraphs[0].paragraphAttributes.justification
                     : Justification.LEFT;
-                radJustifyLeft.value = (justification === Justification.LEFT);
-                radJustifyCenter.value = (justification === Justification.CENTER);
-                radJustifyRight.value = (justification === Justification.RIGHT);
-                radJustifyLastLineLeft.value = (justification === Justification.FULLJUSTIFYLASTLINELEFT);
-                radJustifyAllLines.value = (justification === Justification.FULLJUSTIFY);
-                if (!radJustifyLeft.value && !radJustifyCenter.value && !radJustifyRight.value &&
-                    !radJustifyLastLineLeft.value && !radJustifyAllLines.value) { radJustifyLeft.value = true; }
-            } catch (e) { radJustifyLeft.value = true; }
+                justifyState.activeId = getJustificationId(justification);
+            } catch (e) { justifyState.activeId = "left"; }
             try {
                 var spacingPt = sourceFrame.spacing || 0;
                 etSpacing.text = Math.round((spacingPt / rulerInfo.toPt) * 100) / 100;
                 chkSpacing.value = (spacingPt !== 0);
-                etSpacing.enabled = chkSpacing.value;
-                lblSpacingUnit.enabled = chkSpacing.value;
+                updateSpacingEnabled();
             } catch (e) { }
             try {
                 var firstParaAttrs = sourceFrame.paragraphs.length > 0 ? sourceFrame.paragraphs[0].paragraphAttributes : null;
@@ -1373,30 +1805,22 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 etRightIndent.enabled = chkRightIndent.value;
                 etRightIndent.text = chkRightIndent.value ? Math.round((rightIndentPt / rulerInfo.toPt) * 100) / 100 : "0";
             } catch (e) { }
+            // 未設定（禁則なし／文字組みなし）のときは初期値のまま。混在（-2）のときは未選択にして触らない
+            var frameKinsoku = getKinsokuId(sourceFrame);
+            if (frameKinsoku !== "None") { selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", frameKinsoku); }
+            var frameMojikumi = getMojikumiIndex(sourceFrame);
+            if (frameMojikumi >= 0) { selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", frameMojikumi); }
+            else if (frameMojikumi === -2) { mojikumiDropdown.selection = null; }
+
             var leadingPercent = getAutoLeadingPercent(sourceFrame);
             etLeadingPercent.text = (leadingPercent > 0) ? Math.round(leadingPercent * 10) / 10 : "";
             updateLeadingEffective();
 
-            if (currentFontSize > 0) {
-                etCharsPerLine.text = Math.round(((sourceFrame.textPath.width - getWidthAdjustmentPt()) / currentFontSize) * 100) / 100;
-            }
-            btnShrinkToFit.enabled = !hasMultiParagraph;
-            btnFitFontSize.enabled = !hasMultiParagraph;
+            updateCharsPerLineField();
         }
 
         /* ダイアログの入力を1つの設定オブジェクトにまとめる / Collect the dialog inputs into one settings object */
         function readAdjustmentSettings() {
-            var justificationValue = Justification.LEFT;
-            if (radJustifyCenter.value) justificationValue = Justification.CENTER;
-            else if (radJustifyRight.value) justificationValue = Justification.RIGHT;
-            else if (radJustifyLastLineLeft.value) justificationValue = Justification.FULLJUSTIFYLASTLINELEFT;
-            else if (radJustifyAllLines.value) justificationValue = Justification.FULLJUSTIFY;
-
-            var alignmentValue = 0;
-            if (radAlignCenter.value) alignmentValue = 1;
-            else if (radAlignBottom.value) alignmentValue = 2;
-            else if (radAlignJustify.value) alignmentValue = 3;
-
             var leftIndentPt = (chkLeftIndent.value || chkLinkIndents.value)
                 ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt : 0;
 
@@ -1407,11 +1831,13 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 separate: (radStrokeBlack.value || radHidePath.value || radRemovePath.value),
                 shrinkFont: (fontFitMode === "shrink"),
                 fitFont: (fontFitMode === "fit"),
-                autoSize: isAutoSizeOn,
-                leaderTabs: chkLeaderTabs.value,
-                justification: justificationValue,
-                alignment: alignmentValue,
+                autoSize: chkAutoSize.value,
+                tabMode: roleState.tabMode,
+                justification: getJustificationValue(justifyState.activeId),
+                alignment: getAlignmentValue(alignState.activeId),
                 leadingPercent: parseFloat(etLeadingPercent.text),
+                kinsoku: kinsokuDropdown.selection ? KINSOKU_CHOICES[kinsokuDropdown.selection.index].id : null,
+                mojikumiIndex: mojikumiDropdown.selection ? MOJIKUMI_CHOICES[mojikumiDropdown.selection.index].index : -2,
                 leftIndentPt: leftIndentPt,
                 rightIndentPt: chkLinkIndents.value ? leftIndentPt
                     : (chkRightIndent.value ? (parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt : 0),
@@ -1428,6 +1854,10 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 paraAttrs.rightIndent = settings.rightIndentPt;
             } catch (e) { }
             applyAutoLeading(textFrame, settings.leadingPercent);
+            applyKinsokuToTextFrame(textFrame, settings.kinsoku);
+            applyMojikumiToTextFrame(textFrame, settings.mojikumiIndex);
+            if (settings.tabMode === "leader") { applyLeaderTabStops(textFrame); }
+            else if (settings.tabMode === "clear") { clearTabStops(textFrame); }
         }
 
         /* エリア内文字を、囲み罫とポイント文字に分解する / Replace Area Type with a rectangle plus point text */
@@ -1471,7 +1901,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             }
 
             applyParagraphSettings(pointTextFrame, settings);
-            if (settings.leaderTabs) { applyLeaderTabStops(pointTextFrame); }
         }
 
         /* エリア内文字のフレームサイズ・行揃え・配置などを適用する / Apply frame size, justification and placement to Area Type */
@@ -1495,7 +1924,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
 
             applyParagraphSettings(areaTextFrame, settings);
             applyAreaTextFrameAlignment(areaTextFrame, settings.alignment, forPreview);
-            if (settings.leaderTabs) { applyLeaderTabStops(areaTextFrame); }
         }
 
         /* 対象のエリア内文字すべてに現在の設定を適用する / Apply the current settings to every target Area Type frame */
@@ -1553,20 +1981,19 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             var isSeparationMode = radStrokeBlack.value || radHidePath.value || radRemovePath.value;
             justificationPanel.enabled = !isSeparationMode;
             textAlignPanel.enabled = !isSeparationMode;
+            jpCompositionPanel.enabled = !isSeparationMode;
+            rolePanel.enabled = !isSeparationMode;
             fontSizePanel.enabled = !isSeparationMode;
             frameSizePanel.enabled = !isSeparationMode;
-            btnAutoSize.enabled = !isSeparationMode;
             indentPanel.enabled = !isSeparationMode;
             optionsPanel.enabled = !isSeparationMode;
-            if (fontSizePanel.enabled) { btnShrinkToFit.enabled = !hasMultiParagraph; btnFitFontSize.enabled = !hasMultiParagraph; }
-            else { btnShrinkToFit.enabled = false; btnFitFontSize.enabled = false; }
         }
 
-        /* 「外側からの間隔」の使用可否を更新する / Update whether the spacing field can be used */
+        /* オフセット欄の使用可否を更新する（分離モードのディムは optionsPanel 側が担当）
+           Update whether the offset field can be used (separation-mode dimming is handled by optionsPanel) */
         function updateSpacingEnabled() {
-            chkSpacing.enabled = radNoAdjust.value;
-            if (!radNoAdjust.value) { etSpacing.enabled = false; lblSpacingUnit.enabled = false; }
-            else { etSpacing.enabled = chkSpacing.value; lblSpacingUnit.enabled = chkSpacing.value; }
+            etSpacing.enabled = chkSpacing.value;
+            lblSpacingUnit.enabled = chkSpacing.value;
         }
 
         /* 実質行送り（フォントサイズ×％）の表示を更新する / Refresh the effective-leading display (font size × %) */
@@ -1592,10 +2019,48 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             updatePreview();
         }
 
+        /* 対象のエリア内文字ごとにダイナミックアクションを流す
+           Run a dynamic action over each target Area Type frame
+           アクションは選択に効くので選択を付け替えながら実行し、最後に元の対象へ戻す
+           The action works on the selection, so it is swapped per frame and restored at the end */
+        function runActionOnTargetFrames(runOnFrame) {
+            var framesToAdjust = getTargetAreaFrames();
+            var restoreSelection = [];
+            for (var i = 0; i < framesToAdjust.length; i++) { restoreSelection.push(framesToAdjust[i]); }
+
+            for (var i = 0; i < framesToAdjust.length; i++) {
+                var frame = framesToAdjust[i];
+                if (frame && frame.typename === "TextFrame" && frame.kind === TextType.AREATEXT) {
+                    runOnFrame(frame);
+                }
+            }
+
+            try { app.activeDocument.selection = restoreSelection; } catch (e) { }
+            app.redraw();
+        }
+
+        /* 現在のテキストの配置を対象フレームへ本適用する / Commit the current text alignment to the target frames */
+        function applyTextAlignment() {
+            var alignmentValue = getAlignmentValue(alignState.activeId);
+            runActionOnTargetFrames(function (frame) {
+                applyAreaTextFrameAlignment(frame, alignmentValue, false);
+            });
+        }
+
+        /* 自動サイズ調整の ON/OFF を対象フレームへ本適用する / Commit the auto-size setting to the target frames */
+        function applyAutoSize() {
+            var turnOn = chkAutoSize.value;
+            runActionOnTargetFrames(function (frame) {
+                if (turnOn) { enableFrameAutoSize(frame); } else { disableFrameAutoSize(frame); }
+            });
+        }
+
         /* フォントサイズ欄の値を対象フレームに適用する / Apply the font-size field to the target frames */
         function applyFontSizeFromField() {
             var newSize = parseFloat(etFontSize.text) || 0;
             if (newSize <= 0) return;
+            // プレビュー分を取り消してから本適用する（そうしないと後の undo がサイズ変更を巻き戻す）
+            revertPreview();
             currentFontSize = newSize;
             var framesToAdjust = getTargetAreaFrames();
             for (var i = 0; i < framesToAdjust.length; i++) {
@@ -1603,20 +2068,17 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                     try { framesToAdjust[i].textRange.characterAttributes.size = newSize; } catch (e) { }
                 }
             }
-            if (currentFontSize > 0) {
-                etCharsPerLine.text = Math.round((((parseFloat(etWidth.text) || 0) * rulerInfo.toPt - getWidthAdjustmentPt()) / currentFontSize) * 100) / 100;
-            }
+            updateCharsPerLineField();
             updateLeadingEffective();
             app.redraw();
+            updatePreview();
         }
 
         /* 幅の変更を検証し、文字数表示とプレビューを更新する / Validate a width change, then refresh the chars-per-line field and the preview */
         function onWidthChange() {
             var widthValue = validateSizeField(etWidth, lastValidWidth);
             if (widthValue !== null) { lastValidWidth = widthValue; }
-            if (currentFontSize > 0) {
-                etCharsPerLine.text = Math.round((((parseFloat(etWidth.text) || 0) * rulerInfo.toPt - getWidthAdjustmentPt()) / currentFontSize) * 100) / 100;
-            }
+            updateCharsPerLineField();
             updatePreview();
         }
         /* 1行の文字数から幅を逆算する / Work the width back out from the characters-per-line value */
@@ -1644,65 +2106,116 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 // 入力欄にフォーカスがあるときは通常の文字入力を優先する
                 try { if (event.target && event.target.type === "edittext") return; } catch (e0) { }
                 var keyName = String(event.keyName).toUpperCase();
-                var targetRadio = null;
-                if (keyName === "L") targetRadio = radJustifyLeft;
-                else if (keyName === "C") targetRadio = radJustifyCenter;
-                else if (keyName === "R") targetRadio = radJustifyRight;
-                else if (keyName === "J") targetRadio = radJustifyLastLineLeft;
-                else if (keyName === "F") targetRadio = radJustifyAllLines;
-                if (!targetRadio) return;
-                selectJustificationRadio(targetRadio);
-                event.preventDefault();
-                updatePreview();
+                for (var i = 0; i < JUSTIFY_OPTIONS.length; i++) {
+                    if (JUSTIFY_OPTIONS[i].shortcut !== keyName) continue;
+                    setJustification(JUSTIFY_OPTIONS[i].id);
+                    event.preventDefault();
+                    updatePreview();
+                    return;
+                }
             });
         }
 
         /* イベントハンドラ / Event handlers */
+        bindExclusiveRadios(roleRadios, function (radio) {
+            if (radio === radRoleBody) { applyRolePreset("body"); }
+            else if (radio === radRoleHeading) { applyRolePreset("heading"); }
+            else { applyRolePreset("menu"); }
+        });
         bindExclusiveRadios(separationRadios, function () {
             updateSeparationModeEnabled();
             updateSpacingEnabled();
             updatePreview();
         });
-        bindExclusiveRadios(justificationRadios, function (radio) {
-            selectJustificationRadio(radio);
-            updatePreview();
-        });
-        bindExclusiveRadios(alignmentRadios, updatePreview);
+        for (var buttonIndex = 0; buttonIndex < justifyButtons.length; buttonIndex++) {
+            justifyButtons[buttonIndex].onClick = function () {
+                setJustification(this.justifyId);
+                updatePreview();
+            };
+        }
+        for (var alignButtonIndex = 0; alignButtonIndex < alignButtons.length; alignButtonIndex++) {
+            alignButtons[alignButtonIndex].onClick = function () {
+                alignState.activeId = this.alignId;
+                redrawAlignButtons();
+                // プレビューを外してから本適用し、あらためてプレビューを貼り直す
+                revertPreview();
+                applyTextAlignment();
+                updatePreview();
+            };
+        }
         addJustificationShortcuts(adjustDialog);
+
+        /* 種別プリセットをダイアログに反映して適用する / Push a role preset into the dialog and apply it */
+        function applyRolePreset(roleId) {
+            var preset = ROLE_PRESETS[roleId];
+            if (!preset) return;
+            roleState.activeId = roleId;
+            roleState.tabMode = preset.tabMode;
+            etLeadingPercent.text = preset.leadingPercent;
+            updateLeadingEffective();
+            setJustification(preset.justifyId);
+            selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", preset.kinsoku);
+            selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", preset.mojikumiIndex);
+            alignState.activeId = preset.alignId;
+            redrawAlignButtons();
+
+            // テキストの配置はアクションで適用するため、プレビューを外した状態で流す
+            revertPreview();
+            applyTextAlignment();
+            updatePreview();
+        }
+
+        /* 対象フレームの現在のフォントサイズを欄に取り込む / Pull the target frame's current font size into the field */
+        function refreshFontSizeField() {
+            var framesToAdjust = getTargetAreaFrames();
+            var newSize = 0;
+            for (var i = 0; i < framesToAdjust.length; i++) {
+                var frame = framesToAdjust[i];
+                if (frame && frame.typename === "TextFrame" && frame.kind === TextType.AREATEXT) {
+                    newSize = getRepresentativeFontSize(frame);
+                    break;
+                }
+            }
+            if (newSize <= 0) return;
+            currentFontSize = newSize;
+            etFontSize.text = Math.round(newSize * 100) / 100;
+            updateCharsPerLineField();
+            updateLeadingEffective();
+        }
 
         /* フォントサイズ自動調整を本適用する（プレビュー分は先に取り消す）/ Commit a font-fit pass (revert the preview first) */
         function runFontFit(mode) {
+            // 改行があると行数を保ったまま収められず、極端に小さいサイズになるため中止する
+            var framesToAdjust = getTargetAreaFrames();
+            for (var i = 0; i < framesToAdjust.length; i++) {
+                var frame = framesToAdjust[i];
+                if (frame && frame.typename === "TextFrame" && frame.kind === TextType.AREATEXT && hasLineBreak(frame)) {
+                    alert(getLabel("alert.lineBreakNotSupported"));
+                    return;
+                }
+            }
             revertPreview();
             fontFitMode = mode;
             applyAdjustments(false);
             fontFitMode = "none";
+            // 縮小・拡大した結果をダイアログにも戻す
+            refreshFontSizeField();
         }
 
         btnShrinkToFit.onClick = function () { runFontFit("shrink"); };
         btnFitFontSize.onClick = function () { runFontFit("fit"); };
         chkPreview.onClick = updatePreview;
-        btnAutoSize.onClick = function () {
-            isAutoSizeOn = !isAutoSizeOn;
-            updateAutoSizeButtonLabel();
-            if (!isAutoSizeOn) {
-                try {
-                    var framesToAdjust = getTargetAreaFrames();
-                    for (var i = 0; i < framesToAdjust.length; i++) {
-                        if (framesToAdjust[i] && framesToAdjust[i].typename === "TextFrame" && framesToAdjust[i].kind === TextType.AREATEXT) { disableFrameAutoSize(framesToAdjust[i]); }
-                    }
-                } catch (e) { }
-            }
-            updatePreview();
-        };
-        chkLeaderTabs.onClick = function () {
-            // リーダー罫は右揃え前提なので、ONにしたら行揃えも右にそろえる
-            if (chkLeaderTabs.value) { selectRadio(justificationRadios, radJustifyRight); }
+        kinsokuDropdown.onChange = updatePreview;
+        mojikumiDropdown.onChange = updatePreview;
+        chkAutoSize.onClick = function () {
+            // プレビューを外してから ON/OFF を本適用し、あらためてプレビューを貼り直す
+            revertPreview();
+            applyAutoSize();
             updatePreview();
         };
         chkSpacing.onClick = function () {
-            etSpacing.enabled = chkSpacing.value;
-            lblSpacingUnit.enabled = chkSpacing.value;
             if (chkSpacing.value) { etSpacing.text = "1"; }
+            updateSpacingEnabled();
             onIndentOrSpacingChange();
         };
         chkLinkIndents.onClick = function () {
@@ -1763,7 +2276,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         if (initialFrame) { loadValuesFromFrame(initialFrame); }
 
         updateSeparationModeEnabled();
-        updateAutoSizeButtonLabel();
+        updateSpacingEnabled();
 
         // 調整ダイアログを開いたらプレビューON
         chkPreview.value = true;
@@ -1806,10 +2319,10 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         }
 
         if (hasPointText || hasPath) {
-            // ポイント文字 または 図形 → ダイアログA / Point text or shape → Dialog A
+            // ポイント文字 または 図形 → 変換ダイアログ / Point text or shape → convert dialog
             showConvertDialog(doc, selection);
         } else if (hasAreaText) {
-            // エリア内文字のみ → ダイアログB / Area text only → Dialog B
+            // エリア内文字のみ → 調整ダイアログ / Area text only → adjust dialog
             var firstAreaFrame = null;
             for (var i = 0; i < selection.length; i++) {
                 if (selection[i].typename === "TextFrame" && selection[i].kind === TextType.AREATEXT) {
