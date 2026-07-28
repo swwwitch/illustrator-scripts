@@ -8,10 +8,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁を調整するツール。
 
 - 変換ダイアログで作成方法（シンプル／ボタン風／選択した図形に流し込む／選択した図形にダミーテキスト）を選ぶ
-- 調整ダイアログでフォントサイズ・フレームサイズ・行送り・行揃え・テキストの配置（垂直方向）・日本語の組版（禁則・文字組み）・インデント・オフセットを設定
+- 調整ダイアログでフォントサイズ・フレームサイズ・行送り・行揃え・テキストの配置（垂直方向）・日本語の組版（禁則・文字組み）・インデント・オフセット・自動サイズ調整を設定
 - 種別（本文／見出し／メニュー）を選ぶと、行送り・行揃え・禁則・文字組み・タブをまとめて適用する
 - エリア内文字を選択して実行すると、調整ダイアログから始まる
-- プレビューONで結果を確認しながら操作できる
+- プレビューは常にONで、結果を確認しながら操作できる
+- ［テキストを分離...］ボタンから、囲み罫とポイント文字への分解ダイアログを開ける（文字ごとの書式は保持）
 
 詳細はREADMEを参照。
 
@@ -24,10 +25,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 Builds Area Type from point text, path text, or shapes, then tunes its typesetting in place.
 
 - The convert dialog picks the creation method (Simple / Button style / Pour into selected shape / Dummy text in selected shape)
-- The adjust dialog sets font size, frame size, leading, justification, vertical text alignment, Japanese composition (kinsoku / mojikumi), indents, and offset
+- The adjust dialog sets font size, frame size, leading, justification, vertical text alignment, Japanese composition (kinsoku / mojikumi), indents, offset, and auto-size
 - Picking a role (Body / Heading / Menu) applies leading, justification, kinsoku, mojikumi and tab stops in one go
 - Running it with Area Type selected starts straight from the adjust dialog
-- Preview shows the result while you work
+- The preview is always on, so you see the result while you work
+- The "Separate text..." button opens a dialog that breaks the frame into a rectangle plus point text, keeping the per-character formatting
 
 See the README for details.
 
@@ -108,12 +110,13 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
     var LABELS = {
         dialog: {
             title: { ja: "エリア内文字を調整", en: "Adjust Area Type" },
-            convertTitle: { ja: "エリア内文字に変換", en: "Convert to Area Type" }
+            convertTitle: { ja: "エリア内文字に変換", en: "Convert to Area Type" },
+            separateTitle: { ja: "テキストを分離", en: "Separate text" }
         },
         panel: {
             createMethod: { ja: "作成方法", en: "Creation method" },
             role: { ja: "種別", en: "Role" },
-            separateText: { ja: "テキストを分離", en: "Separate text" },
+            frameHandling: { ja: "枠の処理", en: "Frame handling" },
             leading: { ja: "行送り", en: "Leading" },
             justification: { ja: "行揃え", en: "Justification" },
             textAlign: { ja: "テキストの配置（垂直方向）", en: "Text alignment (vertical)" },
@@ -124,7 +127,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             options: { ja: "オプション", en: "Options" }
         },
         radio: {
-            noAdjust: { ja: "分離しない", en: "Don't separate" },
             strokeBlack: { ja: "枠を1pt黒に", en: "Frame: 1pt black" },
             hidePath: { ja: "枠を塗り・線なしに", en: "Frame: unpainted" },
             removePath: { ja: "枠を削除", en: "Delete frame" },
@@ -167,13 +169,13 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         checkbox: {
             linkIndents: { ja: "連動", en: "Link" },
             spacing: { ja: "オフセット", en: "Offset" },
-            autoSize: { ja: "自動サイズ調整", en: "Auto-size" },
-            preview: { ja: "プレビュー", en: "Preview" }
+            autoSize: { ja: "自動サイズ調整", en: "Auto-size" }
         },
         button: {
             convert: { ja: "変換", en: "Convert" },
             shrinkToFit: { ja: "文字あふれ解消", en: "Clear overset" },
             fitFontSize: { ja: "枠にフィット", en: "Fit to frame" },
+            separateText: { ja: "テキストを分離...", en: "Separate text..." },
             ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
@@ -215,8 +217,8 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 en: "Grows until it oversets, then shrinks to fill the frame. Not available for text with line breaks."
             },
             autoSize: {
-                ja: "エリア内文字の自動サイズ調整。クリックするとその場で反映されます。",
-                en: "Area Type auto-sizing. Applied as soon as you click."
+                ja: "エリア内文字の自動サイズ調整。クリックするとその場で反映されます。ONのまま［文字あふれ解消］［枠にフィット］を押すと、いったんOFFにして実行し、またONに戻します。",
+                en: "Area Type auto-sizing. Applied as soon as you click. Clear overset and Fit to frame switch it off for the pass and back on afterwards."
             },
             leading: {
                 ja: "自動行送り量（%）。実寸＝フォントサイズ×%。実寸に入力すると%を逆算します。固定行送りのテキストでは空で開きます。",
@@ -243,8 +245,8 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 en: "Applies the menu preset (150% leading, right, Loose v2 kinsoku, Tight mojikumi, top alignment) and sets a right-aligned tab with a leader at 400pt on every paragraph. Changing the justification drops this role and clears the tab stops."
             },
             kinsoku: {
-                ja: "段落の禁則処理（強い禁則／弱い禁則など）をまとめて適用します。「なし」はスクリプトから設定できないため反映されません。",
-                en: "Applies a kinsoku (line-break) set to the paragraphs. \"None\" cannot be set by scripting, so it has no effect."
+                ja: "段落の禁則処理（なし／強い禁則／弱い禁則など）をまとめて適用します。",
+                en: "Applies a kinsoku (line-break) set to the paragraphs (None / Strict / Loose and so on)."
             },
             mojikumi: {
                 ja: "文字組みアキ量設定を全段落に適用します。設定が混在しているときは選択が空になり、そのままなら変更しません。",
@@ -253,6 +255,10 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             linkIndents: {
                 ja: "左インデントの値を右にも適用します。",
                 en: "Applies the left indent value to the right as well."
+            },
+            separateText: {
+                ja: "エリア内文字を、囲み罫（長方形）とポイント文字に分解します。別ダイアログで枠の処理を選びます。",
+                en: "Breaks Area Type apart into a rectangle plus point text. A separate dialog picks how the frame is handled."
             }
         },
         alert: {
@@ -332,6 +338,17 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout)
+       size を変えても location は動かないので、上下から均等に詰めるには位置も半分ずらす
+       Changing size keeps the location, so the position shifts by half to trim top and bottom evenly */
+    function trimButtonHeight(button, px) {
+        try {
+            var buttonLocation = [button.location[0], button.location[1]];
+            button.size = [button.size.width, button.size.height - px];
+            button.location = [buttonLocation[0], buttonLocation[1] + px / 2];
+        } catch (e) { }
     }
 
     /* ラジオ群から1つだけを選択状態にする / Turn on exactly one radio in the group */
@@ -617,8 +634,8 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         }
     }
 
-    /* 禁則処理を適用する（「なし」はスクリプトから設定できないので失敗する）
-       Apply a kinsoku set ("None" cannot be set by scripting, so it fails silently) */
+    /* 禁則処理を適用する（「なし」も含めて設定できる）
+       Apply a kinsoku set ("None" included) */
     function applyKinsokuToTextFrame(textFrame, kinsokuId) {
         if (!kinsokuId) return;
         try { textFrame.textRange.paragraphAttributes.kinsoku = kinsokuId; } catch (e) { }
@@ -671,7 +688,7 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         // 既定の線をいったん外し、このあと文字単位で復元する / Clear the default stroke, then restore per character
         pointText.textRange.characterAttributes.strokeColor = new NoColor();
         pointText.textRange.characterAttributes.strokeWeight = 0;
-        restoreCharacterAttributes(pointText, charAttrSnapshots);
+        restoreCharacterAttributes(pointText, charAttrSnapshots, true);
 
         pathText.remove(); // パスも一緒に削除される / the path is removed along with it
         pointText.selected = true;
@@ -690,14 +707,19 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 strokeColor: charAttr.strokeColor,
                 strokeWeight: charAttr.strokeWeight,
                 autoLeading: charAttr.autoLeading,
-                leading: charAttr.leading
+                leading: charAttr.leading,
+                baselineShift: charAttr.baselineShift,
+                horizontalScale: charAttr.horizontalScale,
+                verticalScale: charAttr.verticalScale
             });
         }
         return snapshots;
     }
 
-    /* 控えた文字属性を書き戻す（パス上文字で付いた変形は捨てる）/ Write snapshotted attributes back, dropping path-induced transforms */
-    function restoreCharacterAttributes(textFrame, snapshots) {
+    /* 控えた文字属性を書き戻す / Write snapshotted attributes back
+       dropTransforms が true のときは、パス上文字で付いたベースライン移動・拡大縮小を捨てる
+       When dropTransforms is true, the baseline shift and scaling baked in by path text are dropped */
+    function restoreCharacterAttributes(textFrame, snapshots, dropTransforms) {
         var copyCount = Math.min(textFrame.characters.length, snapshots.length);
         for (var i = 0; i < copyCount; i++) {
             var destAttrs = textFrame.characters[i].characterAttributes;
@@ -710,9 +732,9 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 destAttrs.fillColor = srcAttrs.fillColor;
                 destAttrs.strokeColor = srcAttrs.strokeColor;
                 destAttrs.strokeWeight = (srcAttrs.strokeColor && srcAttrs.strokeColor.typename === "NoColor") ? 0 : srcAttrs.strokeWeight;
-                destAttrs.baselineShift = 0;
-                destAttrs.horizontalScale = 100;
-                destAttrs.verticalScale = 100;
+                destAttrs.baselineShift = dropTransforms ? 0 : srcAttrs.baselineShift;
+                destAttrs.horizontalScale = dropTransforms ? 100 : srcAttrs.horizontalScale;
+                destAttrs.verticalScale = dropTransforms ? 100 : srcAttrs.verticalScale;
                 destAttrs.autoLeading = srcAttrs.autoLeading;
                 if (!srcAttrs.autoLeading) { destAttrs.leading = srcAttrs.leading; }
             } catch (e1) { }
@@ -773,6 +795,11 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             try { return isTextOverset(textFrame, textFrame.lines.length || 1); } catch (e) { return false; }
         }
         try { return isTextOverset(textFrame, textFrame.lines.length || 1); } catch (e) { return false; }
+    }
+
+    /* エリア内文字の枠の高さを返す（取れなければ 0）/ Height of the Area Type frame (0 when unavailable) */
+    function getFramePathHeight(textFrame) {
+        try { return textFrame.textPath.height || 0; } catch (e) { return 0; }
     }
 
     /* 改行を含むか / Whether the text contains a hard line break */
@@ -994,6 +1021,20 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         if (originalSize <= 0) return;
         var leadingRatioInfo = getLeadingRatioInfo(textFrame);
 
+        /* 元のフォントサイズに戻す / Put the original font size back */
+        function restoreOriginalSize() {
+            try {
+                textFrame.textRange.characterAttributes.size = originalSize;
+                applyProportionalLeading(textFrame, originalSize, leadingRatioInfo);
+            } catch (e) { }
+        }
+
+        // 自動サイズ調整がONだと枠が文字に追従してあふれないため、拡大が止まらない。
+        // 枠の高さが変わったらそれと判断して中止する。
+        // With auto-size on the frame follows the text and never oversets, so the growth never stops.
+        // A change in the frame height means that is happening, so bail out.
+        var initialFrameHeight = getFramePathHeight(textFrame);
+
         // Step 1: オーバーセットが出るまで 2 倍ずつ拡大
         if (!isFrameOverset(textFrame)) {
             var trialSize = originalSize, guardCount = 0;
@@ -1002,12 +1043,16 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 trialSize = trialSize * 2;
                 if (trialSize > 100000) break;
                 try { textFrame.textRange.characterAttributes.size = trialSize; applyProportionalLeading(textFrame, trialSize, leadingRatioInfo); } catch (e) { break; }
+                if (Math.abs(getFramePathHeight(textFrame) - initialFrameHeight) > 0.01) {
+                    restoreOriginalSize();
+                    return;
+                }
             }
         }
 
         // オーバーセットが出なければ元に戻して終了
         if (!isFrameOverset(textFrame)) {
-            try { textFrame.textRange.characterAttributes.size = originalSize; applyProportionalLeading(textFrame, originalSize, leadingRatioInfo); } catch (e) { }
+            restoreOriginalSize();
             return;
         }
 
@@ -1390,6 +1435,132 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         };
     }
 
+    /* 段落の行揃えとインデントを適用する / Apply justification and indents to every paragraph */
+    function applyParagraphSettings(textFrame, settings) {
+        try {
+            var paraAttrs = textFrame.textRange.paragraphAttributes;
+            paraAttrs.justification = settings.justification;
+            paraAttrs.leftIndent = settings.leftIndentPt;
+            paraAttrs.rightIndent = settings.rightIndentPt;
+        } catch (e) { }
+        applyAutoLeading(textFrame, settings.leadingPercent);
+        applyKinsokuToTextFrame(textFrame, settings.kinsoku);
+        applyMojikumiToTextFrame(textFrame, settings.mojikumiIndex);
+        if (settings.tabMode === "leader") { applyLeaderTabStops(textFrame); }
+        else if (settings.tabMode === "clear") { clearTabStops(textFrame); }
+    }
+
+    // ============================================================
+    // 分離ダイアログ：エリア内文字 → 囲み罫＋ポイント文字
+    // Separate dialog: Area Type → rectangle plus point text
+    // ============================================================
+
+    /* エリア内文字を、囲み罫とポイント文字に分解し、できたオブジェクトを返す
+       Replace Area Type with a rectangle plus point text, returning what was created */
+    function separateAreaTextFrame(doc, areaTextFrame, settings) {
+        var bounds = areaTextFrame.geometricBounds;
+        var spacingPt = settings.spacingPt;
+        var left = bounds[0] - spacingPt, top = bounds[1] + spacingPt;
+        var right = bounds[2] + spacingPt, bottom = bounds[3] - spacingPt;
+
+        // 削除する前に、文字ごとの書式と1行目のベースライン位置に使うサイズを控える
+        // Snapshot the per-character formatting and the first-baseline size before the frame goes away
+        var charAttrSnapshots = snapshotCharacterAttributes(areaTextFrame);
+        var firstLineOffset = getRepresentativeFontSize(areaTextFrame);
+
+        var frameRect = doc.pathItems.rectangle(top, left, right - left, top - bottom);
+        frameRect.filled = false;
+        frameRect.stroked = true;
+
+        var pointTextFrame = doc.textFrames.add();
+        pointTextFrame.contents = areaTextFrame.contents;
+        pointTextFrame.position = [left, top - firstLineOffset];
+
+        // 既定の線をいったん外し、このあと文字単位で復元する / Clear the default stroke, then restore per character
+        try {
+            pointTextFrame.textRange.characterAttributes.strokeColor = new NoColor();
+            pointTextFrame.textRange.characterAttributes.strokeWeight = 0;
+        } catch (e0) { }
+        restoreCharacterAttributes(pointTextFrame, charAttrSnapshots, false);
+
+        areaTextFrame.remove();
+
+        var createdItems = [pointTextFrame];
+
+        if (settings.strokeBlack) {
+            var blackColor = new CMYKColor();
+            blackColor.cyan = 0; blackColor.magenta = 0; blackColor.yellow = 0; blackColor.black = 100;
+            frameRect.strokeColor = blackColor;
+            frameRect.strokeWidth = 1;
+            createdItems.push(frameRect);
+        } else if (settings.hidePath) {
+            frameRect.stroked = false;
+            createdItems.push(frameRect);
+        } else if (settings.removePath) {
+            frameRect.remove();
+        } else {
+            createdItems.push(frameRect);
+        }
+
+        applyParagraphSettings(pointTextFrame, settings);
+        return createdItems;
+    }
+
+    /* 「テキストを分離」ダイアログ。分離を実行したら true を返す
+       The "Separate text" dialog; returns true once the separation has run
+       settings は調整ダイアログから受け取り、枠の処理だけを足して使う
+       settings comes from the adjust dialog; only the frame handling is added here */
+    function showSeparateTextDialog(doc, areaTextFrames, settings) {
+        var separateDialog = new Window("dialog", getLabel("dialog.separateTitle"));
+        separateDialog.alignChildren = "fill";
+        separateDialog.margins = 20;
+
+        var framePanel = separateDialog.add("panel", undefined, getLabel("panel.frameHandling"));
+        applyPanelLayout(framePanel);
+        var radStrokeBlack = framePanel.add("radiobutton", undefined, getLabel("radio.strokeBlack"));
+        var radHidePath = framePanel.add("radiobutton", undefined, getLabel("radio.hidePath"));
+        var radRemovePath = framePanel.add("radiobutton", undefined, getLabel("radio.removePath"));
+        radStrokeBlack.value = true;
+        bindExclusiveRadios([radStrokeBlack, radHidePath, radRemovePath]);
+
+        // ボタンエリア：右から［OK］［キャンセル］
+        var buttonRow = separateDialog.add("group");
+        buttonRow.orientation = "row";
+        buttonRow.alignment = ["right", "center"];
+        var btnCancelSeparate = buttonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var btnRunSeparate = buttonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+
+        var didSeparate = false;
+
+        btnRunSeparate.onClick = function () {
+            settings.strokeBlack = radStrokeBlack.value;
+            settings.hidePath = radHidePath.value;
+            settings.removePath = radRemovePath.value;
+
+            // 分離するとオブジェクトが置き換わるので後ろから処理する
+            var createdItems = [];
+            for (var i = areaTextFrames.length - 1; i >= 0; i--) {
+                var areaTextFrame = areaTextFrames[i];
+                if (!areaTextFrame || areaTextFrame.typename !== "TextFrame" || areaTextFrame.kind !== TextType.AREATEXT) continue;
+                // 1フレームで失敗しても残りを処理できるようにする
+                try {
+                    createdItems = createdItems.concat(separateAreaTextFrame(doc, areaTextFrame, settings));
+                    didSeparate = true;
+                } catch (e) { }
+            }
+
+            // 削除済みの参照が選択に残らないよう、できたオブジェクトを選び直す
+            // Re-select what was created, so the deleted frames do not linger in the selection
+            try { doc.selection = createdItems.length ? createdItems : null; } catch (e2) { }
+            app.redraw();
+            separateDialog.close(1);
+        };
+        btnCancelSeparate.onClick = function () { separateDialog.close(0); };
+
+        separateDialog.show();
+        return didSeparate;
+    }
+
     // ============================================================
     // 調整ダイアログ：エリア内文字 調整
     // ============================================================
@@ -1446,18 +1617,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         var adjustDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
         adjustDialog.alignChildren = "fill";
         adjustDialog.margins = 20;
-
-        // 「テキストを分離」パネル / "Separate text" panel
-        var separateTextPanel = adjustDialog.add("panel", undefined, getLabel("panel.separateText"));
-        applyPanelLayout(separateTextPanel);
-        separateTextPanel.orientation = "row";
-        separateTextPanel.alignChildren = ["center", "center"];
-
-        var radNoAdjust = separateTextPanel.add("radiobutton", undefined, getLabel("radio.noAdjust"));
-        var radStrokeBlack = separateTextPanel.add("radiobutton", undefined, getLabel("radio.strokeBlack"));
-        var radHidePath = separateTextPanel.add("radiobutton", undefined, getLabel("radio.hidePath"));
-        var radRemovePath = separateTextPanel.add("radiobutton", undefined, getLabel("radio.removePath"));
-        radNoAdjust.value = true;
 
         // 2カラムレイアウト（左右カラムは上揃えで横いっぱいに）/ Two-column layout (columns fill width, top-aligned)
         var columnsGroup = adjustDialog.add("group");
@@ -1666,13 +1825,15 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             alignButtons.push(alignButton);
         }
 
-        // ボタンエリア
+        // ボタンエリア：左に［テキストを分離...］、右に［キャンセル］［OK］
+        // Button area: "Separate text..." on the left, Cancel and OK on the right
         var bottomBar = adjustDialog.add("group");
         bottomBar.orientation = "row";
         bottomBar.alignment = "fill";
         bottomBar.alignChildren = ["fill", "center"];
-        var chkPreview = bottomBar.add("checkbox", undefined, getLabel("checkbox.preview"));
-        chkPreview.alignment = ["left", "center"];
+        var btnSeparateText = bottomBar.add("button", undefined, getLabel("button.separateText"));
+        btnSeparateText.alignment = ["left", "center"];
+        btnSeparateText.helpTip = getLabel("tip.separateText");
         var bottomButtonRow = bottomBar.add("group");
         bottomButtonRow.alignment = ["right", "center"];
         var btnCancelAdjust = bottomButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
@@ -1719,8 +1880,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             }
             return value;
         }
-
-        var separationRadios = [radStrokeBlack, radHidePath, radRemovePath, radNoAdjust];
 
         /* ローカル関数 / Local functions */
 
@@ -1825,10 +1984,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 ? (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt : 0;
 
             return {
-                strokeBlack: radStrokeBlack.value,
-                hidePath: radHidePath.value,
-                removePath: radRemovePath.value,
-                separate: (radStrokeBlack.value || radHidePath.value || radRemovePath.value),
                 shrinkFont: (fontFitMode === "shrink"),
                 fitFont: (fontFitMode === "fit"),
                 autoSize: chkAutoSize.value,
@@ -1845,64 +2000,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             };
         }
 
-        /* 段落の行揃えとインデントを適用する / Apply justification and indents to every paragraph */
-        function applyParagraphSettings(textFrame, settings) {
-            try {
-                var paraAttrs = textFrame.textRange.paragraphAttributes;
-                paraAttrs.justification = settings.justification;
-                paraAttrs.leftIndent = settings.leftIndentPt;
-                paraAttrs.rightIndent = settings.rightIndentPt;
-            } catch (e) { }
-            applyAutoLeading(textFrame, settings.leadingPercent);
-            applyKinsokuToTextFrame(textFrame, settings.kinsoku);
-            applyMojikumiToTextFrame(textFrame, settings.mojikumiIndex);
-            if (settings.tabMode === "leader") { applyLeaderTabStops(textFrame); }
-            else if (settings.tabMode === "clear") { clearTabStops(textFrame); }
-        }
-
-        /* エリア内文字を、囲み罫とポイント文字に分解する / Replace Area Type with a rectangle plus point text */
-        function separateAreaTextFrame(areaTextFrame, settings) {
-            var bounds = areaTextFrame.geometricBounds;
-            var spacingPt = settings.spacingPt;
-            var left = bounds[0] - spacingPt, top = bounds[1] + spacingPt;
-            var right = bounds[2] + spacingPt, bottom = bounds[3] - spacingPt;
-
-            var frameRect = doc.pathItems.rectangle(top, left, right - left, top - bottom);
-            frameRect.filled = false;
-            frameRect.stroked = true;
-
-            var pointTextFrame = doc.textFrames.add();
-            pointTextFrame.contents = areaTextFrame.contents;
-
-            // 1行目のベースラインにそろえる。空フレームではサイズを取得できないことがある
-            var firstLineOffset = 0;
-            try { firstLineOffset = pointTextFrame.textRange.characterAttributes.size; } catch (e0) { }
-            pointTextFrame.position = [left, top - firstLineOffset];
-
-            try {
-                var srcAttrs = areaTextFrame.textRange.characterAttributes;
-                var destAttrs = pointTextFrame.textRange.characterAttributes;
-                if (srcAttrs.textFont && srcAttrs.textFont.name) { destAttrs.textFont = srcAttrs.textFont; }
-                destAttrs.size = srcAttrs.size;
-                destAttrs.leading = srcAttrs.leading;
-            } catch (e1) { }
-
-            areaTextFrame.remove();
-
-            if (settings.strokeBlack) {
-                var blackColor = new CMYKColor();
-                blackColor.cyan = 0; blackColor.magenta = 0; blackColor.yellow = 0; blackColor.black = 100;
-                frameRect.strokeColor = blackColor;
-                frameRect.strokeWidth = 1;
-            } else if (settings.hidePath) {
-                frameRect.stroked = false;
-            } else if (settings.removePath) {
-                frameRect.remove();
-            }
-
-            applyParagraphSettings(pointTextFrame, settings);
-        }
-
         /* エリア内文字のフレームサイズ・行揃え・配置などを適用する / Apply frame size, justification and placement to Area Type */
         function adjustAreaTextFrame(areaTextFrame, settings, forPreview) {
             // 幅/高さ：NaN・0以下・極端値をガード
@@ -1913,7 +2010,9 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             try {
                 areaTextFrame.spacing = settings.spacingPt;
                 if (widthValue !== null) { areaTextFrame.textPath.width = widthValue * rulerInfo.toPt; }
-                if (heightValue !== null) { areaTextFrame.textPath.height = heightValue * rulerInfo.toPt; }
+                // 自動サイズ調整ONのあいだは枠が文字に追従するので、高さには触らない
+                // While auto-size is on the frame follows the text, so the height is left alone
+                if (heightValue !== null && !settings.autoSize) { areaTextFrame.textPath.height = heightValue * rulerInfo.toPt; }
             } catch (e) { }
 
             if (settings.shrinkFont) { shrinkFontToFit(areaTextFrame); }
@@ -1930,26 +2029,17 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         function applyAdjustments(forPreview) {
             var settings = readAdjustmentSettings();
 
-            // 分離モードはオブジェクトが置き換わるため selection を使う。
-            // 非分離モードは固定ターゲットを優先して、プレビューが確実に反映されるようにする。
+            // 固定ターゲットを優先して、プレビューが確実に反映されるようにする
             var savedSelection = [];
-            var framesToAdjust;
-            if (settings.separate) {
-                framesToAdjust = app.activeDocument.selection;
-            } else {
-                var previousSelection = app.activeDocument.selection;
-                for (var i = 0; i < previousSelection.length; i++) { savedSelection.push(previousSelection[i]); }
-                framesToAdjust = getTargetAreaFrames();
-            }
+            var previousSelection = app.activeDocument.selection;
+            for (var i = 0; i < previousSelection.length; i++) { savedSelection.push(previousSelection[i]); }
+            var framesToAdjust = getTargetAreaFrames();
 
             for (var i = framesToAdjust.length - 1; i >= 0; i--) {
                 var areaTextFrame = framesToAdjust[i];
                 if (areaTextFrame.typename !== "TextFrame" || areaTextFrame.kind !== TextType.AREATEXT) continue;
                 // 1フレームで失敗しても残りを処理できるようにする
-                try {
-                    if (settings.separate) { separateAreaTextFrame(areaTextFrame, settings); }
-                    else { adjustAreaTextFrame(areaTextFrame, settings, forPreview); }
-                } catch (e) { }
+                try { adjustAreaTextFrame(areaTextFrame, settings, forPreview); } catch (e) { }
             }
 
             if (savedSelection.length > 0) { app.activeDocument.selection = savedSelection; }
@@ -1967,30 +2057,20 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             refreshTargetAreaFrames();
         }
 
-        /* プレビューを貼り直す / Re-apply the preview */
+        /* プレビューを貼り直す（プレビューは常にON）/ Re-apply the preview (preview is always on) */
         function updatePreview() {
             revertPreview();
-            if (chkPreview.value) {
-                applyAdjustments(true);
-                isPreviewActive = true;
-            }
+            applyAdjustments(true);
+            isPreviewActive = true;
         }
 
-        /* 分離モードのあいだは調整系パネルを使用不可にする / Disable the adjustment panels while separation mode is on */
-        function updateSeparationModeEnabled() {
-            var isSeparationMode = radStrokeBlack.value || radHidePath.value || radRemovePath.value;
-            justificationPanel.enabled = !isSeparationMode;
-            textAlignPanel.enabled = !isSeparationMode;
-            jpCompositionPanel.enabled = !isSeparationMode;
-            rolePanel.enabled = !isSeparationMode;
-            fontSizePanel.enabled = !isSeparationMode;
-            frameSizePanel.enabled = !isSeparationMode;
-            indentPanel.enabled = !isSeparationMode;
-            optionsPanel.enabled = !isSeparationMode;
+        /* 自動サイズ調整ONのあいだは高さ欄を使えなくする（枠が文字に追従して指定できないため）
+           Disable the height field while auto-size is on (the frame follows the text, so it cannot be set) */
+        function updateHeightEnabled() {
+            heightRow.enabled = !chkAutoSize.value;
         }
 
-        /* オフセット欄の使用可否を更新する（分離モードのディムは optionsPanel 側が担当）
-           Update whether the offset field can be used (separation-mode dimming is handled by optionsPanel) */
+        /* オフセット欄の使用可否を更新する / Update whether the offset field can be used */
         function updateSpacingEnabled() {
             etSpacing.enabled = chkSpacing.value;
             lblSpacingUnit.enabled = chkSpacing.value;
@@ -2047,12 +2127,16 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             });
         }
 
-        /* 自動サイズ調整の ON/OFF を対象フレームへ本適用する / Commit the auto-size setting to the target frames */
-        function applyAutoSize() {
-            var turnOn = chkAutoSize.value;
+        /* 対象フレームの自動サイズ調整を切り替える / Switch auto-size on or off across the target frames */
+        function setAutoSizeOnTargets(turnOn) {
             runActionOnTargetFrames(function (frame) {
                 if (turnOn) { enableFrameAutoSize(frame); } else { disableFrameAutoSize(frame); }
             });
+        }
+
+        /* チェックボックスの状態を対象フレームへ本適用する / Commit the checkbox state to the target frames */
+        function applyAutoSize() {
+            setAutoSizeOnTargets(chkAutoSize.value);
         }
 
         /* フォントサイズ欄の値を対象フレームに適用する / Apply the font-size field to the target frames */
@@ -2122,11 +2206,6 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             else if (radio === radRoleHeading) { applyRolePreset("heading"); }
             else { applyRolePreset("menu"); }
         });
-        bindExclusiveRadios(separationRadios, function () {
-            updateSeparationModeEnabled();
-            updateSpacingEnabled();
-            updatePreview();
-        });
         for (var buttonIndex = 0; buttonIndex < justifyButtons.length; buttonIndex++) {
             justifyButtons[buttonIndex].onClick = function () {
                 setJustification(this.justifyId);
@@ -2165,6 +2244,23 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
             updatePreview();
         }
 
+        /* 対象フレームの現在の幅・高さを欄に取り込む（自動サイズ調整やフィットで変わるため）
+           Pull the target frame's current width and height into the fields (auto-size and the font-fit passes change them) */
+        function refreshFrameSizeFields() {
+            var framesToAdjust = getTargetAreaFrames();
+            for (var i = 0; i < framesToAdjust.length; i++) {
+                var frame = framesToAdjust[i];
+                if (!frame || frame.typename !== "TextFrame" || frame.kind !== TextType.AREATEXT) continue;
+                try {
+                    etWidth.text = Math.round((frame.textPath.width / rulerInfo.toPt) * 100) / 100;
+                    etHeight.text = Math.round((frame.textPath.height / rulerInfo.toPt) * 100) / 100;
+                    lastValidWidth = parseFloat(etWidth.text);
+                    lastValidHeight = parseFloat(etHeight.text);
+                } catch (e) { }
+                return;
+            }
+        }
+
         /* 対象フレームの現在のフォントサイズを欄に取り込む / Pull the target frame's current font size into the field */
         function refreshFontSizeField() {
             var framesToAdjust = getTargetAreaFrames();
@@ -2195,22 +2291,33 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
                 }
             }
             revertPreview();
+
+            // 自動サイズ調整がONだと枠が文字に追従してあふれないため、いったんOFFにしてから実行する。
+            // ONへ戻すのは applyAdjustments 内（settings.autoSize）。新しい文字サイズで枠が引き直される。
+            // With auto-size on the frame follows the text and never oversets, so it is switched off first.
+            // applyAdjustments turns it back on (settings.autoSize), redrawing the frame around the new size.
+            if (chkAutoSize.value) { setAutoSizeOnTargets(false); }
+
             fontFitMode = mode;
             applyAdjustments(false);
             fontFitMode = "none";
+
             // 縮小・拡大した結果をダイアログにも戻す
             refreshFontSizeField();
+            refreshFrameSizeFields();
         }
 
         btnShrinkToFit.onClick = function () { runFontFit("shrink"); };
         btnFitFontSize.onClick = function () { runFontFit("fit"); };
-        chkPreview.onClick = updatePreview;
         kinsokuDropdown.onChange = updatePreview;
         mojikumiDropdown.onChange = updatePreview;
         chkAutoSize.onClick = function () {
+            updateHeightEnabled();
             // プレビューを外してから ON/OFF を本適用し、あらためてプレビューを貼り直す
             revertPreview();
             applyAutoSize();
+            // 枠の高さが変わるので、欄の値も追従させる（古い値でプレビューが枠を戻さないように）
+            refreshFrameSizeFields();
             updatePreview();
         };
         chkSpacing.onClick = function () {
@@ -2262,6 +2369,25 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         changeValueByArrowKey(etLeftIndent, false, onIndentOrSpacingChange);
         changeValueByArrowKey(etRightIndent, false, onIndentOrSpacingChange);
 
+        btnSeparateText.onClick = function () {
+            // プレビューを外し、いま見えている調整を本適用してから分離する
+            // （囲み罫はフレームの現在の大きさから作るため）
+            // Revert the preview and commit what is on screen before separating,
+            // since the rectangle is built from the frame's current size
+            revertPreview();
+            applyAdjustments(false);
+            var currentTargets = getTargetAreaFrames();
+            var framesToSeparate = [];
+            for (var i = 0; i < currentTargets.length; i++) { framesToSeparate.push(currentTargets[i]); }
+
+            if (showSeparateTextDialog(doc, framesToSeparate, readAdjustmentSettings())) {
+                // 分離するとエリア内文字が無くなるので、調整ダイアログも閉じる
+                adjustDialog.close(1);
+            } else {
+                // 分離しなかったときはプレビューを貼り直して調整を続ける
+                updatePreview();
+            }
+        };
         btnRun.onClick = function () {
             revertPreview();
             applyAdjustments(false);
@@ -2275,12 +2401,17 @@ var SCRIPT_ARTICLE_URL = ""; /* 紹介記事 / article URL */
         // 初期値読み込み
         if (initialFrame) { loadValuesFromFrame(initialFrame); }
 
-        updateSeparationModeEnabled();
         updateSpacingEnabled();
+        updateHeightEnabled();
 
-        // 調整ダイアログを開いたらプレビューON
-        chkPreview.value = true;
+        // 調整ダイアログを開いた時点からプレビューを反映する
         updatePreview();
+
+        // ［文字あふれ解消］［枠にフィット］だけ、上下2pxずつ詰めて小ぶりにする
+        // Make the two font-fit buttons a little shorter (2px off the top and bottom)
+        adjustDialog.layout.layout(true);
+        trimButtonHeight(btnShrinkToFit, 4);
+        trimButtonHeight(btnFitFontSize, 4);
 
         adjustDialog.show();
     }

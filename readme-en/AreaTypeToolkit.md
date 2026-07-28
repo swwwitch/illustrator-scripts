@@ -55,22 +55,9 @@ If nothing could be converted, the script says so and leaves the dialog open.
 
 ## Adjust dialog
 
-Everything about the Area Type's typesetting, in one place. Preview is on by default.
+Everything about the Area Type's typesetting, in one place. **Preview is always on** — every change shows up straight away.
 
-[OK] commits, [Cancel] reverts and closes — except for vertical text alignment, auto-size, the role presets, Clear overset and Fit to frame, which are committed the moment you click them (see below).
-
-### Separate text
-
-Breaks Area Type apart into **a rectangle plus point text**.
-
-| Option | What it does |
-| --- | --- |
-| Don't separate | Keeps the Area Type and applies the settings below (default) |
-| Frame: 1pt black | Separates, and gives the rectangle a 1pt black stroke |
-| Frame: unpainted | Separates, and leaves the rectangle unpainted |
-| Delete frame | Separates, and deletes the rectangle |
-
-Choosing anything but "Don't separate" dims the other panels.
+[OK] commits, [Cancel] reverts and closes — except for vertical text alignment, auto-size, the role presets, Clear overset, Fit to frame and Separate text, which are committed the moment you click them (see below).
 
 ### Role
 
@@ -94,7 +81,9 @@ One click applies a whole preset for the text's purpose.
 
 Clear overset and Fit to frame are **unavailable for text with line breaks** — holding the line count would drive the size absurdly small, so the script warns and stops. When the frame mixes font sizes, they are flattened to a single size.
 
-Both commit as soon as you click, and write the resulting size back into the font-size field. If even the smallest size still oversets, the original size is restored rather than left microscopic.
+Both commit as soon as you click, writing the resulting size back into the font-size field and the new frame size into the frame-size fields. If even the smallest size still oversets, the original size is restored rather than left microscopic.
+
+They stay available while auto-size is on. Since the frame follows the text and never oversets, auto-size is **switched off for the pass and back on afterwards** — turning it back on redraws the frame around the new font size. Frames auto-sized outside the script cannot be detected, so there the growth pass bails out and restores the original size as soon as the frame height moves.
 
 ### Leading
 
@@ -126,13 +115,15 @@ That action cannot run from the preview inside a modal dialog, so it is **commit
 
 These are paragraph attributes, so they apply to every paragraph in the frame. With mixed settings the Mojikumi menu opens empty; leave it alone and nothing changes.
 
-Kinsoku "None" cannot be set through Illustrator's scripting API, so picking it has no effect (switching away from it works).
+Opening text whose kinsoku is "None" shows the default "Loose v2" instead, since "None" is indistinguishable from unset. To keep it at "None", pick "None" again explicitly.
 
 ### Frame size
 
 Width and height in the ruler unit. The width can also be driven by a character count (Japanese UI only — Roman glyph widths vary too much for the arithmetic to hold).
 
 The character count is the width minus the offset and both indents, divided by the font size.
+
+While auto-size is on, the **height field is dimmed** — the frame follows the text, so it cannot be set from here. The height is left untouched in that state, so the preview never drags the frame back.
 
 ### Indent / Options
 
@@ -141,6 +132,22 @@ The character count is the width minus the offset and both indents, divided by t
 - Auto-size, so the frame's height follows the amount of text
 
 [Auto-size] is toggled through a dynamic action (`adobe_SLOAreaTextDialog`). It cannot run from the preview, so it is **committed the moment you tick it** (the preview is reverted, the setting applied, then the preview goes back on).
+
+## Separate text dialog
+
+Opened with the [Separate text...] button at the bottom left of the adjust dialog. It breaks Area Type apart into **a rectangle plus point text**.
+
+| Option | What it does |
+| --- | --- |
+| Frame: 1pt black | Gives the rectangle a 1pt black stroke (default) |
+| Frame: unpainted | Leaves the rectangle unpainted |
+| Delete frame | Deletes the rectangle |
+
+[OK] separates, then closes the adjust dialog too, since there is no Area Type left to adjust. [Cancel] does nothing and returns to the adjust dialog.
+
+Clicking [Separate text...] first commits what is set in the adjust dialog (frame size and the rest), so the rectangle is built from that size plus the offset — you can settle the width, then separate.
+
+The resulting point text keeps the justification, indents, leading, kinsoku, mojikumi and tab stops set in the adjust dialog, and **per-character font, size, fill, stroke, baseline shift and scaling are preserved**. Once separated, the new rectangle and point text are left selected.
 
 ## Input fields
 
@@ -164,6 +171,6 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 
 ## Change log
 
-- v1.2.0 (2026-07-28) Added the Role (Body / Heading / Menu), Leading, and Japanese-composition (kinsoku / mojikumi) panels. Justification and text alignment are now icon buttons. Folded the leader-tabs checkbox into the Menu role. Auto-size is now a checkbox that applies on click. Renamed "Inset spacing" to "Offset". Clear overset and Fit to frame now stop on text with line breaks and write the resulting size back to the field. Aligned the UI wording with Illustrator's own terms and added tooltips. Fixed reading justification and indents from existing Area Type. "Pour into selected shape" now handles multiple pairs. Added Q (ha) ruler unit. Added a warning when nothing can be converted
+- v1.2.0 (2026-07-28) Moved "Separate text" into its own dialog, reached from a [Separate text...] button in the adjust dialog; separating now preserves per-character formatting and selects the resulting rectangle and point text. Dropped the preview checkbox — the preview is now always on. Added the Role (Body / Heading / Menu), Leading, and Japanese-composition (kinsoku / mojikumi) panels. Justification and text alignment are now icon buttons. Folded the leader-tabs checkbox into the Menu role. Auto-size is now a checkbox that applies on click; while it is on the height field is dimmed and the height is no longer overwritten, and the font-fit passes switch it off for the pass. Renamed "Inset spacing" to "Offset". Clear overset and Fit to frame now stop on text with line breaks and write the resulting size back to the font-size and frame-size fields. Aligned the UI wording with Illustrator's own terms and added tooltips. Fixed reading justification and indents from existing Area Type. "Pour into selected shape" now handles multiple pairs. Added Q (ha) ruler unit. Added a warning when nothing can be converted
 - v1.1.3 (2026-03-04) Added input validation for width and height
 - v1.0.0 (2026-03-03) Initial release
