@@ -8,18 +8,28 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 自動カーニング（和文等幅／0／メトリクス／オプティカル）とプロポーショナルメトリクスだけを
 1枚の常駐パレットにまとめ、ラジオやチェックボックスを操作した時点で選択中のテキストへ即時適用します。
+統合文字組みパネル（UnifiedTypePanel）からカーニングまわりだけを抜き出したものです。
 
-自動カーニングは選択が触れた段落全体に適用されます。メトリクスを選ぶとプロポーショナルメトリクスは
-自動的にオン、それ以外を選ぶとオフになります（チェックボックスの単独操作も可能）。
+### 注意
+
+- 適用範囲は選択が触れた段落全体です。テキスト編集モードで数文字だけ選んでも、その段落全体に当たります。
+- 「メトリクス」を選んだときだけプロポーショナルメトリクスが ON になります。チェックボックスは単独でも
+  操作でき、その場合はカーニング方式を変えずに切り替えます。
+- UI に表示する値は、選択のうち最初に読めた段落の先頭文字です。設定が混在している選択では実態とズレます。
 
 ### Overview
 
 A persistent palette limited to auto kerning (Japanese equal width / 0 / Metrics / Optical) and
 proportional metrics. Operating a radio or the checkbox applies the change to the selected text
-immediately.
+immediately. It is the kerning part of the Unified Type Panel, pulled out on its own.
 
-Auto kerning applies to every paragraph the selection touches. Choosing Metrics turns proportional
-metrics on and any other choice turns it off; the checkbox can also be toggled on its own.
+### Notes
+
+- Settings apply to every paragraph the selection touches, even when only a few characters are selected.
+- Choosing Metrics turns proportional metrics on; any other choice turns it off. The checkbox can also be
+  toggled on its own, which leaves the kerning method alone.
+- The values shown come from the first readable paragraph's first character, so a mixed selection may not
+  be reflected accurately.
 
 */
 

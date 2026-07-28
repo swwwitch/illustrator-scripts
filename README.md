@@ -53,6 +53,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [テキストと図形をエリア内文字に変換](readme-ja/TextWithShapeToAreaType.md)
 - [テキストの分割・結合パレット](readme-ja/TextBreakSplitMergePallete.md)
 - [統合文字組みパネル](readme-ja/UnifiedTypePanel.md)
+- [カーニング設定パレット](readme-ja/AutoKerningPanel.md)
 - [テキストのアウトライン化と復元](readme-ja/AiTextOutlineRestorePalette.md)
 - [選択したテキストをアーチ状のパス上文字に変換](readme-ja/ArcTextGenerator.md)
 - [あふれたテキストの文字サイズ・エリア高さを自動調整](readme-ja/AutoFitTextFrame.md)
