@@ -37,7 +37,7 @@ immediately. It is the kerning part of the Unified Type Panel, pulled out on its
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AutoKerningPanel";             /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.1.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-06-22";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-07-29";                   /* 更新日 / last updated */
@@ -211,9 +211,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne7a198a4f527"; /* 紹�
             workerBusy = false;
             var payload = response.body || "";
             var colonIndex = payload.indexOf(":");
+            if (payload.substring(0, colonIndex) === "OK") { onDone(payload.substring(colonIndex + 1)); return; }
+            /* ドキュメントなしは異常ではないので黙って無視 / No document is a normal state, not a failure */
+            if (payload === "ERR:nodoc") return;
             /* 失敗は握りつぶさず可視化 / Surface failures instead of swallowing them */
-            if (payload.substring(0, colonIndex) === "OK") onDone(payload.substring(colonIndex + 1));
-            else alert("⚠ " + getLocalizedText(LABELS.applyError) + " [" + actionId + "]: " + payload);
+            alert("⚠ " + getLocalizedText(LABELS.applyError) + " [" + actionId + "]: " + payload);
         };
         bridge.onError = function (response) {
             workerBusy = false;
