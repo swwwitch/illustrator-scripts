@@ -4,117 +4,49 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-SelectionInspector.jsx
+- 選択中／ドキュメント全体のオブジェクトを集計し、2カラムの常駐パレットで表示します。
+- テキスト、配置画像、透明、グループ、パス、ガイドの内訳を確認でき、選択オブジェクトのメモ（属性パネルのメモ欄）の閲覧・編集にも対応します。
+- 機能の詳細と使い方はREADME（readme-ja/SelectionInspector.md）を参照してください。
 
-### GitHub：
+### 仕様・注意
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionInspector.jsx
+- 常駐パレットです。開いたまま選択を切り替え、［更新］で再集計します。
+- 数値は「選択 / 全体」の形式です（アートボードのみ全体の数）。
+- テキストとパスの統計は、グループ内も再帰的にカウントします。
+- ガイド（guides=true）はパスの統計から除外します。
+- 集計とメモの書き込みは、BridgeTalkでメインエンジンに委譲します（常駐パレットのDOM切断を回避）。
+- ［書き出し］は、デスクトップに「count-ドキュメント名-YYYYMMDD.txt」を保存します。
+- ダイアログの位置はIllustratorの起動中のみ保持し、再起動でリセットされます。
 
-### 概要：
+### キーボードショートカット
 
-- 選択中／全体のオブジェクト数をカウントし、2カラムのパレットで表示
-- テキスト・配置画像・透明・グループ・パス・ガイドの統計を表示
-- 「書き出し」でレポート（テキスト）を書き出し可能
-- メモ（属性パネルのメモ欄）の閲覧・編集に対応
-- 常駐パレット化：開いたまま選択を切り替え、［更新］で再集計
-- DOM 集計・メモ書き込みはメインエンジンへ BridgeTalk 委譲（常駐パレットの DOM 切断を回避）
+- ⌥I：情報タブ／⌥M：メモタブ／⌘R：更新／Esc：閉じる
 
-### 主な機能：
+*/
 
-- オブジェクト数（選択／全体）・アートボード数を表示
-- テキスト（ポイント／エリア／パス上）・文字数・段落数・強制改行数を表示
-- 配置画像（リンク／埋め込み／リンク切れ）を表示
-- 透明（不透明度<100、描画モード≠通常）を表示
-- グループ／クリップグループを表示
-- パス（オープン／クローズ／アンカー／ハンドル／複合パス／複合シェイプ）を表示
-  ※ ガイド（guides=true）はパス統計から除外
-- ガイド（ルーラー／アートボード／その他）を表示
-- 「メモ」タブで選択オブジェクトのメモを編集・適用
-- 「書き出し」ボタンで集計結果をテキストファイルとして保存
+/*
 
-### 処理の流れ：
+### Overview
 
-- 常駐パレットを表示（多重起動は自動で閉じてから再表示）
-- ［更新］押下（または表示直後）にメインエンジンへ集計を委譲
-- 戻り値（マーカー方式）を解析し、各パネル・メモタブを更新
-- メモ適用・書き出しも同様に委譲／収集データから生成
+- Counts the current selection and the whole document, and shows the result in a two-column persistent palette.
+- Breaks down text, placed images, transparency, groups, paths and guides, and lets you view and edit object notes (the Attributes panel note field).
+- See the README (readme-en/SelectionInspector.md) for the full feature list and usage.
 
-### note：
+### Notes
 
-https://note.com/dtp_tranist/n/nefcb1ce828ce
+- The palette stays open: change the selection, then press Refresh to recount.
+- Values are formatted as "Selection / All" (Artboards is the document total only).
+- Text and path stats are counted recursively inside groups.
+- Guide paths (guides=true) are excluded from the path stats.
+- Counting and note writing are delegated to the main engine via BridgeTalk (the palette engine has no live DOM).
+- Export writes "count-<document>-YYYYMMDD.txt" to the desktop.
+- The palette position is kept for the current Illustrator session only.
 
-### 更新履歴：
+### Keyboard shortcuts
 
-- v1.0 (20250806) : 初期バージョン
-- v1.1 (20250806) : 書き出し機能を追加
-- v1.2 (20250807) : UI調整
-- v1.3 (20260301) : パスのハンドル数を追加
-- v1.4 (20260301) : 強制改行（ソフトリターン）数を追加
-- v1.4.1 (20260302) : UI調整（OK→閉じる、キャンセル削除、書き出しを左へ移動）
-- v1.5 (20260302) : ガイド集計（ルーラー/アートボード/その他）、ガイド除外のパス統計、パネル配置と書き出しレイアウト更新
-- v1.5.1 (20260312) : グループ内のパス統計を再帰的にカウント
-- v1.5.2 (20260312) : グループ内のテキスト統計を再帰的にカウント
-- v1.5.3 (20260314) : ダイアログ位置をセッション中に記憶・復元
-- v1.6 (20260316) : 配置画像の下にメモパネルを追加（属性パネルのメモ欄を表示）
-- v1.6.1 (20260316) : ローカライズ整理（書き出し文言・セクション見出しをLABELSへ集約）
-- v1.7.0 (20260702) : 常駐パレット化（#targetengine ＋ BridgeTalk 委譲）、更新ボタン・ステータス表示、ローカライズをカテゴリ構造＋L()へ再編
-
----
-
-### Script Name:
-
-SelectionInspector.jsx
-
-### GitHub:
-
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionInspector.jsx
-
-### Overview:
-
-- Count selection / document totals and show them in a two-column palette
-- Show stats for text, images, transparency, groups, paths, and guides
-- Export the stats as a plain text report
-- View and edit object notes (Attributes panel note field)
-- Persistent palette: keep it open, change selection, press Refresh to recount
-- Delegate DOM counting / note writing to the main engine via BridgeTalk
-
-### Main Features:
-
-- Show object counts (Selection / All) and artboard count
-- Text stats: point/area/path text, characters, paragraphs, forced line breaks
-- Image stats: linked/embedded/broken links
-- Transparency stats: opacity < 100, blend mode != Normal
-- Group stats: groups and clipping groups
-- Path stats: open/closed, anchor points, handles, compound paths, compound shapes
-  * Guide paths (guides=true) are excluded from path stats
-- Guide breakdown: ruler / artboard / other
-- Edit and apply notes on the Notes tab
-- Export button writes a plain text report to the desktop
-
-### Process Flow:
-
-- Show a persistent palette (existing one is closed first to prevent duplicates)
-- On Refresh (or right after showing), delegate counting to the main engine
-- Parse the marker-based result and update each panel and the Notes tab
-- Note apply / export are delegated / generated from collected data
-
-### Changelog:
-
-- v1.0 (20250806): Initial version
-- v1.1 (20250806): Added export feature
-- v1.2 (20250807): UI adjustments
-- v1.3 (20260301): Added handle count for paths
-- v1.4 (20260301): Added forced line break (soft return) count
-- v1.4.1 (20260302): UI tweaks (OK->Close, removed Cancel, moved Export to left)
-- v1.5 (20260302): Added guide breakdown, excluded guides from path stats, updated layout
-- v1.5.1 (20260312): Recursively count path stats inside groups
-- v1.5.2 (20260312): Recursively count text stats inside groups
-- v1.5.3 (20260314): Remember and restore dialog position during the current session
-- v1.6 (20260316): Added Notes panel below Images
-- v1.6.1 (20260316): Localization cleanup
-- v1.7.0 (20260702): Palette conversion (#targetengine + BridgeTalk delegation), refresh button, status line, categorized localization with L()
+- Opt+I: Info tab / Opt+M: Notes tab / Cmd+R: Refresh / Esc: Close
 
 */
 
@@ -124,8 +56,14 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/misc/SelectionIn
 var SCRIPT_NAME     = "SelectionInspector";           /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.7.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-08-06";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-02";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SelectionInspector.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SelectionInspector.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nefcb1ce828ce"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
