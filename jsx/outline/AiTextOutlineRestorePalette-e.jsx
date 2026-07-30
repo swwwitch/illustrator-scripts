@@ -46,7 +46,7 @@ Note: Gradient/pattern fills and mixed attributes are not supported (the first c
 
 ### note
 
-https://note.com/dtp_transit/n/n3e0f241508db
+https://note.com/dtp_tranist/n/nc476be8ad43c
 
 */
 

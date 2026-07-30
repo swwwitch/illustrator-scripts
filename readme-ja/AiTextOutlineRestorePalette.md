@@ -2,6 +2,8 @@
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-AiTextOutlineRestorePalette.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/AiTextOutlineRestorePalette.jsx)
 
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutlineRestorePalette.md)
+
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
@@ -102,13 +104,13 @@ Illustrator の常駐パレットは表示している間に DOM への接続を
 
 テンプレートレイヤー属性の付与だけは API から直接指定できないため、一時アクションを読み込んで再生しています。アクションはパレットを閉じるときにまとめて解放されます。
 
+## 紹介記事
+
+[【Illustrator】アウトライン化したテキストを復元するスクリプト｜DTP Transit 別館](https://note.com/dtp_tranist/n/nc476be8ad43c)
+
 ## 更新履歴
 
-- v1.0（20240723）初期バージョン
-- v1.9（20260704）常駐パレット化＋テキスト復元・メモ表示・カーニング／文字カラー復元／複数行対応・堅牢化
-- v1.10（20260705）行揃え・自動行送りフラグ・水平比率／垂直比率（長体／平体）・禁則・文字組みアキ量設定の保存・復元に対応
-- v2.0.0（20260705）禁則・文字組みアキ量設定の listbox 日本語表示、表示順を整理、outlined_text レイヤーを再利用、タイトル変更、listbox の項目名・列挙値を英日ローカライズ、「アウトライン」「テキストを復元」パネルを分離、復元オプション「アウトラインデータを残す」「復元したテキストを別レイヤーに」を追加、パネル・listbox に helpTip を追加、UI 文言を「メモ」に統一、英語環境では和文専用属性を保存／表示／復元しない
-
-### note
-
-- [記事URL]
+- v1.0 (2024-07-23): 初期バージョン
+- v1.9 (2026-07-04): 常駐パレット化＋テキスト復元・メモ表示・カーニング／文字カラー復元／複数行対応・堅牢化
+- v1.10 (2026-07-05): 行揃え・自動行送りフラグ・水平比率／垂直比率（長体／平体）・禁則・文字組みアキ量設定の保存・復元に対応
+- v2.0.0 (2026-07-05): 禁則・文字組みアキ量設定の listbox 日本語表示、表示順を整理、outlined_text レイヤーを再利用、タイトル変更、listbox の項目名・列挙値を英日ローカライズ、「アウトライン」「テキストを復元」パネルを分離、復元オプション「アウトラインデータを残す」「復元したテキストを別レイヤーに」を追加、パネル・listbox に helpTip を追加、UI 文言を「メモ」に統一、英語環境では和文専用属性を保存／表示／復元しない

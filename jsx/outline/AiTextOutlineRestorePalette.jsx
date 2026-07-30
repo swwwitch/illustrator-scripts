@@ -3,76 +3,38 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名 / Script Name
-
-TextOutlineRestorePalette.jsx
-
-UI messages support Japanese/English. (Note format remains Japanese for compatibility.)
 
 ### 概要
 
-- 常駐パレットから、選択テキストのアウトライン化（メモ付き）とその復元を行う
-- アウトライン化の直前に、文字・段落属性を note（メモ）へテキスト形式で保存
-- 復元時は note を解析してテキストフレームを再生成し、フォント・サイズ・行送り・カーニング・
-  文字カラー・行揃え・禁則・文字組み・長体／平体・組み方向・座標などをまとめて復元
-- 元のアウトラインは outlined_text レイヤーへ退避（淡く＋ロック）
-- 選択オブジェクトの note をパネルに一覧表示（読み込みボタン）
-- 旧 note（属性が未記録）は該当項目をスキップして従来動作を維持（後方互換）
-- DOM 処理はすべてメインエンジンへ BridgeTalk 委譲
+テキストのアウトライン化と、アウトラインからのテキスト復元を常駐パレットから実行します。
+
+- アウトライン化の直前に、文字・段落属性をオブジェクトのメモ（note）へ保存
+- メモを解析してテキストフレームを再生成（フォント・サイズ・行送り・カーニング・文字カラー・
+  行揃え・禁則・文字組みアキ量設定・長体／平体・組み方向・座標など）
+- 元のアウトラインは `outlined_text` レイヤーへ退避（淡く＋ロック）
+- 復元オプションで、アウトラインを残すか、別レイヤーへ復元するかを切り替え
+- 選択オブジェクトのメモをパネルに一覧表示
+- 英語環境では和文専用の属性（組み方向・禁則・文字組みアキ量設定・文字ツメ）を扱いません
+
+詳しい仕様と注意事項は README を参照してください。
+
+*/
+
+/*
 
 ### Overview
 
-- Outline selected text (saving its attributes to the note) and restore it back, from a persistent palette
-- Before outlining, character/paragraph attributes are serialized into the object's note as text
-- On restore, the note is parsed to recreate the text frame, bringing back font, size, leading,
-  kerning, fill color, alignment, kinsoku, mojikumi, horizontal/vertical scale, orientation, position, etc.
-- The original outlines are moved to the outlined_text layer (dimmed and locked)
-- The selected object's note is listed in the panel (Load button)
-- Older notes without newer fields fall back to previous behavior (backward compatible)
-- All DOM work is delegated to the main engine via BridgeTalk
+Outlines text and restores it back from the outline, using a persistent palette.
 
-### 主な機能 / Features
+- Character and paragraph attributes are saved to the object's note before outlining
+- The note is parsed to recreate the text frame (font, size, leading, kerning, fill color,
+  alignment, kinsoku, mojikumi, horizontal/vertical scale, orientation, position, and more)
+- The original outlines are moved to the `outlined_text` layer (dimmed and locked)
+- Restore options switch whether the outlines are kept and whether text goes to a separate layer
+- The selected object's note is listed in the panel
+- Japanese-only attributes (orientation, kinsoku, mojikumi, tsume) are skipped in English locales
 
-- アウトライン化（メモ付き）：各種プロパティを note に保存
-- テキスト復元：note からテキストを再生成し、元アウトラインは outlined_text レイヤーへ退避
-- 選択オブジェクトの note をパネルに表示（読み込みボタン）
-
-### 保存・復元するプロパティ / Supported properties
-
-- 文字列（本文・複数行対応）/ Text contents (multi-line)
-- 組み方向（縦組み／横組み）/ Orientation (vertical / horizontal)
-- フォント（PostScript 名）/ Font (PostScript name)
-- フォントサイズ / Font size
-- 行送り / Leading
-- 自動行送り（オンのときは行送り値を自動計算に戻す）/ Auto leading
-- 水平比率・垂直比率（長体／平体）/ Horizontal & vertical scale
-- カーニング方式（メトリクス／オプティカル／和文等幅／なし）/ Kerning method
-- プロポーショナルメトリクス（カーニング方式に連動）/ Proportional metrics
-- トラッキング / Tracking
-- 文字ツメ（Tsume）/ Tsume
-- 行揃え（左／中央／右／均等配置）/ Alignment (left / center / right / justify)
-- 禁則（セット名。「なし」はスクリプト制約により復元スキップ）/ Kinsoku (set name; "none" is skipped)
-- 文字組みアキ量設定（セット名で復元。「なし」対応）/ Mojikumi (restored by set name)
-- 文字カラー（CMYK／RGB／グレー／スポット）/ Fill color (CMYK / RGB / Gray / Spot)
-- 座標（geometricBounds 基準。listbox 非表示）/ Coordinates (by geometricBounds; not shown in the list)
-
-※ グラデーション／パターン塗り、混在属性は非対応（先頭文字の値を採用）
-※ Gradient/pattern fills and mixed attributes are not supported (the first character's value is used)
-
-### note
-
-https://note.com/dtp_transit/n/n3e0f241508db
-
-### 更新履歴 / Change Log
-
-- v1.0 (20240723) : 初期バージョン
-- v1.9 (20260704) : 常駐パレット化＋テキスト復元・メモ表示・カーニング／文字カラー復元／複数行対応・堅牢化
-- v1.10 (20260705) : 行揃え・自動行送りフラグ・水平比率／垂直比率（長体／平体）・禁則・文字組みアキ量設定の保存・復元に対応
-- v2.0.0 (20260705) : 禁則・文字組みアキ量設定の listbox 日本語表示、表示順を整理、outlined_text レイヤーを再利用、タイトル変更
-                      listbox の項目名・列挙値を英日ローカライズ、「アウトライン」「テキストを復元」パネルを分離（アウトライン化ボタンを最上部へ）、
-                      復元オプション「アウトラインデータを残す」「復元したテキストを別レイヤーに」を追加（OFF で削除／同一レイヤーに復元）
-                      パネル・listbox に helpTip を追加、UI 文言を「メモ」に統一（英語版は "note"）
-                      英語環境では和文専用属性（組み方向・禁則・文字組みアキ量設定・文字ツメ）を保存／表示／復元しない（バイリンガル版は locale 判定、英語版は常時）、概要・コメントの「位置」を「座標」に統一
+See the README for the full specification and notes.
 
 */
 
@@ -82,10 +44,16 @@ https://note.com/dtp_transit/n/n3e0f241508db
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiTextOutlineRestorePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2024-07-23";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-31";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiTextOutlineRestorePalette.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nc476be8ad43c"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
