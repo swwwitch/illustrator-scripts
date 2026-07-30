@@ -111,16 +111,16 @@ single dialog with preview.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "SmartGridMaker";               /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-24";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-26";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-07-31";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/SmartGridMaker.md
 // README (English)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/SmartGridMaker.md
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n15a7ae196a23"; /* 紹介記事 / article URL */
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n2b01f896c423"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -1734,13 +1734,13 @@ function clearTagNames(items) {
 
             // 無効なら 0 扱い（=タイトル生成なし）
             if (!areaEnabled) {
-                editTitleSize.text = "0";
                 chkTitleFill.value = false;
                 chkTitleLine.value = false;
             }
 
-            // 幅／高さ・塗り/線は有効チェックに従う
-            titleSizeGroup.enabled = areaEnabled;
+            /* 幅／高さはディムせず常に入力可。OFFのときはチェックを外すだけで値は残す
+               Never dim the size; turning the checkbox off keeps the value as-is */
+            titleSizeGroup.enabled = true;
             titleOptionGroup.enabled = areaEnabled;
 
             // ［辺の伸縮］は「タイトル有効」かつ「線ON」のときのみ操作可能
@@ -1775,6 +1775,10 @@ function clearTagNames(items) {
 
         // サイズ変更
         editTitleSize.onChanging = function () {
+            /* OFFのときは入力だけ受け付け、プレビューには反映しない
+               While unchecked the field just stores the value; nothing is previewed */
+            if (!chkTitleEnable.value) return;
+
             applyTitleAreaEnabledState();
             requestPreview();
         };
@@ -1825,8 +1829,8 @@ function clearTagNames(items) {
             requestPreview();
         };
 
-        /* 幅（ラベル・入力欄・単位をまとめてディム表示できるようグループ化）
-           Width; grouped so the label, field and unit dim together */
+        /* 幅（ラベル・入力欄・単位をまとめて配置）
+           Width; the label, field and unit share one group */
         frameWidthGroup = frameRow.add("group");
         frameWidthGroup.orientation = "row";
         frameWidthGroup.alignChildren = ["left", "center"];
@@ -1866,8 +1870,9 @@ function clearTagNames(items) {
             }
 
             var enabled = !!chkFrameEnable.value;
-            frameWidthGroup.enabled = enabled;
-            if (!enabled) editFrameWidth.text = "0";
+            /* 幅はディムせず常に入力可。OFFのときはチェックを外すだけで値は残す
+               Never dim the width; turning the checkbox off keeps the value as-is */
+            frameWidthGroup.enabled = true;
 
             var width = parseFloat(editFrameWidth.text);
             var hasWidth = (!isNaN(width) && width > 0);
@@ -2385,12 +2390,9 @@ function clearTagNames(items) {
     };
 
     editFrameWidth.onChanging = function () {
-        if (!chkFrameEnable.value) {
-            editFrameWidth.text = "0";
-            applyFrameEnabledState();
-            requestPreview();
-            return;
-        }
+        /* OFFのときは入力だけ受け付け、プレビューには反映しない
+           While unchecked the field just stores the value; nothing is previewed */
+        if (!chkFrameEnable.value) return;
 
         var width = parseFloat(editFrameWidth.text);
         var hasWidth = (!isNaN(width) && width > 0);
