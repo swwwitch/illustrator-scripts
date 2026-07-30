@@ -4,69 +4,33 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### 概要：
+### 概要
 
-- 選択したパス（グループ／複合パスを含む）のパス構造を最適化
-- ロック／非表示オブジェクト（親・レイヤー含む）は自動スキップ
-- ダイアログ表示時点の選択状態を固定し、情報表示と実行対象を一致
+選択したパス（グループ・複合パスの中も含む）のアンカーポイントとハンドルを整理します。
 
-### 主な機能：
+- 「削除対象」タブ：同じ座標のアンカー、直線上の冗長なアンカー、直線区間のハンドルを削除
+- 「変換」タブ：スムーズ／コーナーへの変換、中間点／極点の追加、アンカーで分割、マド埋め
+- 情報パネルに、アンカー数・ハンドル数を「現在 → 実行後」で表示（実行前に増減を確認できる）
+- アンカー削除用とハンドル削除用の許容誤差を個別に調整
+- ロック／非表示のオブジェクト（親グループ・レイヤーを含む）は自動的にスキップ
 
-- 直線上の冗長なアンカーポイントの削除
-- 同一座標のアンカーポイントの削除
-- 直線として扱えるベジェ区間のハンドルの整理
-- 「その他」タブを3グループ（変換：スムーズ／コーナー、追加：中間／極点、その他：分割／マド埋め）に整理して実行可能
-- マド埋めは選択にマド（複合パス）が無いとき自動的に無効化
-- アンカー削除用／ハンドル削除用の許容誤差を個別調整可能
-- スムーズ化は前後アンカーの距離・角度に応じて安定するよう補正
-- オープンパス端点は安全に処理（循環参照なし）
-- 実行中の例外は最小限ログ出力
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/nd82f59bf63a8
-
-### 更新履歴：
-
-- v1.5.2 (2026-07-14) : 「極点を追加」モードを追加（現行版）
-- v1.5.1 (2026-03-20)
-- v1.0 (2026-03-01) : 初版
+詳しい仕様と注意事項は README を参照してください。
 
 */
 
 /*
 
-### Script Name:
+### Overview
 
-PathCleanupTool.jsx
+Cleans up the anchor points and handles of the selected paths (including those inside groups and compound paths).
 
-### GitHub:
+- Removal Targets tab: duplicate anchors, redundant anchors on straight segments, handles on straight segments
+- Transform tab: convert to smooth / corner, add midpoints / extrema, split at anchors, fill holes
+- The info panel shows anchor and handle counts as "current -> after", so the change is visible before running
+- Independent tolerances for anchor removal and handle removal
+- Locked / hidden objects (including parent groups and layers) are skipped automatically
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool.md
-
-### Description:
-
-- Optimizes the structure of selected paths (including inside groups / compound paths)
-- Locked / hidden objects (including parents and layers) are skipped automatically
-- Selection is locked at dialog open time so the display and execution targets always match
-
-### Main Features:
-
-- Removes redundant anchors on straight segments
-- Removes duplicate-coordinate anchors
-- Cleans up handles on bezier segments that can be treated as straight
-- "Other" tab is organized into 3 groups (Convert: smooth / corner, Add: midpoints / extrema, Other: split / fill holes)
-- Fill holes is disabled automatically when the selection has no compound path
-- Independent tolerance controls for anchor removal and handle removal
-- Smoothing is corrected for stability based on adjacent anchor distance / angle
-- Open-path endpoints are processed safely (no circular references)
-- Minimal logging for runtime exceptions
-
-### Changelog:
-
-- v1.5.2 (2026-07-14) : Added "Add Extreme Points" mode (current version)
-- v1.5.1 (2026-03-20)
-- v1.0 (2026-03-01) : Initial release
+See the README for the full specification and notes.
 
 */
 
@@ -74,10 +38,16 @@ https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanu
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathCleanupTool";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.5.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-14";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-07-31";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/PathCleanupTool.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd82f59bf63a8"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -146,7 +116,8 @@ var LABELS = {
     },
     alert: {
         noDocument:    { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-        needSelection: { ja: "パスを選択してから実行してください。", en: "Please select paths before running." }
+        needSelection: { ja: "パスを選択してから実行してください。", en: "Please select paths before running." },
+        lostSelection: { ja: "選択していたオブジェクトが見つからないため、処理を中止しました。", en: "The selected objects are no longer available, so processing was cancelled." }
     },
     tooltip: {
         removeSameAnchors: { ja: "連続して同じ座標にあるアンカーポイントを1つに統合します（離れた位置の同座標は対象外）。", en: "Merges consecutive anchors that share the same coordinates (non-adjacent duplicates are ignored)." },
@@ -199,28 +170,6 @@ function setupPanel(panel, spacing) {
     panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
 }
 
-/**
- * 行グループ（ボタン列など）に共通レイアウトを適用します。
- * ボタン類をパネル幅いっぱいに広げないため alignChildren は設定しない。
- * @param {Group} group - 対象の行グループ。
- * @param {string} [alignment] - 水平方向の揃え（省略時は "left"）。
- * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）。
- * @returns {void}
- */
-function setupRow(group, alignment, spacing) {
-    group.orientation = "row";
-    group.alignment = alignment || "left";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/** ボタン button の高さを px 詰めます（レイアウト確定後に呼ぶ）。 */
-function trimButtonHeight(button, px) {
-    try {
-        button.size = [button.size.width, button.size.height - px];
-    } catch (e) {}
-}
-
-
 (function () {
     // --- shared settings / helpers ---
     /* 共通設定とヘルパー / Shared settings and helpers */
@@ -248,6 +197,7 @@ function trimButtonHeight(button, px) {
      * @property {Array<number>} a - アンカー座標。
      * @property {Array<number>} l - 左方向線（leftDirection）座標。
      * @property {Array<number>} r - 右方向線（rightDirection）座標。
+     * @property {PointType} t - アンカーの種類（書き戻し時に復元）。
      */
 
     /**
@@ -267,71 +217,6 @@ function trimButtonHeight(button, px) {
     /** ドキュメントが1つ以上開かれていれば true。 */
     function hasDocument() {
         return app.documents.length > 0;
-    }
-
-    /**
-     * 同一座標のアンカーポイント（重複点）を削除します（対象 targets を明示指定）。
-     * 連続して同座標のアンカーのみ対象（離れた位置の同座標は対象外）。オープンパスの端点は削除しない。
-     * @param {Array<PathItem>} targets - 対象の PathItem 配列。
-     * @returns {number} 削除したアンカー数。
-     */
-    function removeDuplicateAnchorsOnTargets(targets) {
-        if (!targets || !targets.length) return 0;
-
-        var removed = 0;
-
-        for (var s = 0; s < targets.length; s++) {
-            var item = targets[s];
-            if (!item || isSkippableItem(item)) continue;
-
-            try {
-                var pts = item.pathPoints;
-                var isClosed = item.closed;
-                var n = pts.length;
-                if (n < 2) continue;
-
-                // Walk backward so index stays valid after removals
-                // Open path: do not remove endpoints => i from n-2 down to 1
-                // Closed path: can remove any point, but keep at least 2 points
-                var start = isClosed ? (n - 1) : (n - 2);
-                var end = isClosed ? 0 : 1;
-
-                for (var i = start; i >= end; i--) {
-                    var curLen = pts.length;
-                    if (curLen <= 2) break;
-
-                    if (i > curLen - 1) i = curLen - 1;
-                    if (!isClosed && (i <= 0 || i >= curLen - 1)) continue;
-
-                    var prevIndex = isClosed ? ((i - 1 + curLen) % curLen) : (i - 1);
-                    if (prevIndex < 0 || prevIndex > curLen - 1) continue;
-
-                    var pPrev = pts[prevIndex];
-                    var pCur = pts[i];
-
-                    if (samePoint(pPrev.anchor, pCur.anchor, TOL_SAMEPOINT)) {
-                        pCur.remove();
-                        removed++;
-                    }
-                }
-            } catch (e) {
-                logProcessError("removeDuplicateAnchorsOnTargets", e);
-            }
-        }
-
-        return removed;
-    }
-
-    /**
-     * 互換用：現在の選択を対象に重複アンカーを削除します（後方互換ラッパー）。
-     * 現行フローはダイアログ表示時点の targets を固定して removeDuplicateAnchorsOnTargets() を直接呼ぶ。
-     * @returns {number} 削除したアンカー数。
-     */
-    function removeDuplicateAnchors() {
-        var selection = getSelectionOrAlert();
-        if (!selection) return 0;
-        var targets = getTargetPathItemsFromSelection(selection);
-        return removeDuplicateAnchorsOnTargets(targets);
     }
 
     /**
@@ -382,8 +267,10 @@ function trimButtonHeight(button, px) {
      * @returns {boolean} 一直線上とみなせれば true。
      */
     function isCollinear(pointA, pointB, pointC, tolerance) {
+        /* 0 が既定値に化けないよう != null で判定する */
+        tolerance = (tolerance != null) ? tolerance : TOL_ANCHOR_COLLINEAR;
         var area = (pointB[0] - pointA[0]) * (pointC[1] - pointA[1]) - (pointB[1] - pointA[1]) * (pointC[0] - pointA[0]);
-        return Math.abs(area) < (tolerance || TOL_ANCHOR_COLLINEAR);
+        return Math.abs(area) < tolerance;
     }
 
     /**
@@ -394,7 +281,9 @@ function trimButtonHeight(button, px) {
      * @returns {boolean} 同一とみなせれば true。
      */
     function samePoint(pointA, pointB, tolerance) {
-        return (Math.abs(pointA[0] - pointB[0]) + Math.abs(pointA[1] - pointB[1])) < (tolerance || TOL_SAMEPOINT);
+        /* 0 が既定値に化けないよう != null で判定する */
+        tolerance = (tolerance != null) ? tolerance : TOL_SAMEPOINT;
+        return (Math.abs(pointA[0] - pointB[0]) + Math.abs(pointA[1] - pointB[1])) < tolerance;
     }
 
     /**
@@ -565,8 +454,10 @@ function trimButtonHeight(button, px) {
 
     /**
      * 選択配列から処理対象の PathItem 一覧を収集して返します。
+     * 収集時に isSkippableItem() でロック／非表示を除外済みのため、
+     * targets を受け取る各関数（*OnTargets / *ForTargets）は再判定しない。
      * @param {Array<PageItem>} selection - 選択オブジェクト配列。
-     * @returns {Array<PathItem>} 対象 PathItem 配列。
+     * @returns {Array<PathItem>} ロック／非表示を除外した対象 PathItem 配列。
      */
     function getTargetPathItemsFromSelection(selection) {
         var pathItems = [];
@@ -613,41 +504,6 @@ function trimButtonHeight(button, px) {
     }
 
     /**
-     * 互換用：現在の選択から情報（数）を取得します（後方互換ラッパー）。
-     * 現行の情報表示はダイアログ表示時点の targets を固定して getInfoCountsFromTargets() を使う。
-     * @returns {InfoCounts} パス数・アンカー数・ハンドル数。
-     */
-    function getCurrentInfoCounts() {
-        var info = { paths: 0, anchors: 0, handles: 0 };
-
-        if (!hasDocument()) return info;
-
-        var doc = app.activeDocument;
-        var sel = doc.selection;
-        if (!(sel instanceof Array) || sel.length === 0) return info;
-
-        var targets = getTargetPathItemsFromSelection(sel);
-
-        for (var i = 0; i < targets.length; i++) {
-            var item = targets[i];
-            if (!item || isSkippableItem(item)) continue;
-            info.paths++;
-
-            var pts = item.pathPoints;
-            var n = pts.length;
-            info.anchors += n;
-
-            for (var k = 0; k < n; k++) {
-                var pt = pts[k];
-                if (!samePoint(pt.leftDirection, pt.anchor, TOL_SAMEPOINT)) info.handles++;
-                if (!samePoint(pt.rightDirection, pt.anchor, TOL_SAMEPOINT)) info.handles++;
-            }
-        }
-
-        return info;
-    }
-
-    /**
      * 指定 targets からパス数・アンカー数・ハンドル数を集計します。
      * @param {Array<PathItem>} targets - 対象の PathItem 配列。
      * @returns {InfoCounts} 集計結果。
@@ -658,7 +514,7 @@ function trimButtonHeight(button, px) {
 
         for (var i = 0; i < targets.length; i++) {
             var item = targets[i];
-            if (!item || isSkippableItem(item)) continue;
+            if (!item) continue;
             info.paths++;
 
             var pts = item.pathPoints;
@@ -675,144 +531,173 @@ function trimButtonHeight(button, px) {
         return info;
     }
 
+    // =========================================
+    // パスモデル / Path model
+    // =========================================
+    /* 情報パネルの予測と実処理は、どちらもこのモデル関数を通す。
+       アルゴリズムをここ1箇所に集約し、実処理は結果を applyModelToPath() で書き戻す。
+       Both the preview and the actual processing go through these model functions. */
+
+    /** PathPoint pt をモデル点 PathModelPoint（{a, l, r, t}）に複製します。 */
+    function clonePointModel(pt) {
+        return {
+            a: [pt.anchor[0], pt.anchor[1]],
+            l: [pt.leftDirection[0], pt.leftDirection[1]],
+            r: [pt.rightDirection[0], pt.rightDirection[1]],
+            t: pt.pointType
+        };
+    }
+
     /**
-     * 直線上の冗長なアンカーポイントを削除します（対象 targets を明示指定）。
-     * ハンドルが引き出されておらず前後アンカーと一直線上にある点のみ削除。オープンパスの端点は削除しない。
-     * @param {Array<PathItem>} targets - 対象の PathItem 配列。
+     * PathItem を編集可能なパスモデルに複製します。
+     * @param {PathItem} item - 複製元のパス。
+     * @returns {PathModel} 複製したパスモデル。
+     */
+    function clonePathModel(item) {
+        var pts = item.pathPoints;
+        var out = [];
+        for (var i = 0; i < pts.length; i++) {
+            out.push(clonePointModel(pts[i]));
+        }
+        return {
+            closed: !!item.closed,
+            pts: out
+        };
+    }
+
+    /** 2つのモデル座標 a, b がほぼ同一（TOL_SAMEPOINT 基準）なら true。 */
+    function samePointModel(a, b) {
+        return (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) < TOL_SAMEPOINT;
+    }
+
+    /** モデル点 p にハンドルが無い（直線的：左右ともアンカーと一致）なら true。 */
+    function isStraightPointModel(p) {
+        var d1 = Math.abs(p.a[0] - p.l[0]) + Math.abs(p.a[1] - p.l[1]);
+        var d2 = Math.abs(p.a[0] - p.r[0]) + Math.abs(p.a[1] - p.r[1]);
+        return d1 < TOL_SAMEPOINT && d2 < TOL_SAMEPOINT;
+    }
+
+    /**
+     * セグメント (p0 → p1) が見た目として直線かを判定します。
+     * 両端アンカーを結ぶ直線に p0 右ハンドル・p1 左ハンドルが近ければ直線とみなす。
+     * @param {PathModelPoint} p0 - 始点モデル点。
+     * @param {PathModelPoint} p1 - 終点モデル点。
+     * @returns {boolean} 直線とみなせれば true。
+     */
+    function isStraightSegmentModel(p0, p1) {
+        return isPointOnLineByDistance(p0.a, p1.a, p0.r, TOL_HANDLE_COLLINEAR) &&
+            isPointOnLineByDistance(p0.a, p1.a, p1.l, TOL_HANDLE_COLLINEAR);
+    }
+
+    /**
+     * 同一座標のアンカーポイント（重複点）を削除します。
+     * 連続して同座標のアンカーのみ対象（離れた位置の同座標は対象外）。オープンパスの端点は削除しない。
+     * @param {PathModel} pathM - 対象のパスモデル（破壊的に更新）。
      * @returns {number} 削除したアンカー数。
      */
-    function removeRedundantAnchorsOnTargets(targets) {
-        if (!targets || !targets.length) return 0;
+    function removeDuplicateAnchorsModel(pathM) {
+        var removed = 0;
+        var pts = pathM.pts;
+        var isClosed = pathM.closed;
+        var n = pts.length;
+        if (n < 2) return 0;
 
-        var removedCount = 0;
+        /* 削除でインデックスがずれるのを防ぐため、後ろから走査する
+           オープンパスは端点を除外、クローズドパスは全点が対象（最低2点は残す） */
+        var start = isClosed ? (n - 1) : (n - 2);
+        var end = isClosed ? 0 : 1;
 
-        /**
-         * アンカーからハンドル（方向線）が引き出されていない（直線的な点）かを判定します。
-         * @param {PathPoint} pt - 判定対象のアンカーポイント。
-         * @returns {boolean} 左右ハンドルともアンカーと一致すれば true。
-         */
-        function isStraightPoint(pt) {
-            var d1 = Math.abs(pt.anchor[0] - pt.leftDirection[0]) + Math.abs(pt.anchor[1] - pt.leftDirection[1]);
-            var d2 = Math.abs(pt.anchor[0] - pt.rightDirection[0]) + Math.abs(pt.anchor[1] - pt.rightDirection[1]);
-            return d1 < TOL_SAMEPOINT && d2 < TOL_SAMEPOINT;
-        }
+        for (var i = start; i >= end; i--) {
+            var curLen = pts.length;
+            if (curLen <= 2) break;
 
-        for (var s = 0; s < targets.length; s++) {
-            var item = targets[s];
-            if (!item || isSkippableItem(item)) continue;
+            if (i > curLen - 1) i = curLen - 1;
+            if (!isClosed && (i <= 0 || i >= curLen - 1)) continue;
 
-            try {
-                var pts = item.pathPoints;
-                var isClosed = item.closed;
+            var prevIndex = isClosed ? ((i - 1 + curLen) % curLen) : (i - 1);
+            if (prevIndex < 0 || prevIndex > curLen - 1) continue;
 
-                // オープンパスの場合は端点を削除しない、クローズドパスの場合は全てループ
-                // 削除によってインデックスがずれるのを防ぐため、後ろからループする
-                var startIndex = isClosed ? pts.length - 1 : pts.length - 2;
-                var endIndex = isClosed ? 0 : 1;
-
-                for (var i = startIndex; i >= endIndex; i--) {
-                    var currentLen = pts.length;
-                    if (currentLen < 3) break;
-
-                    // 削除でインデックスが範囲外になった場合に備えて補正
-                    if (i > currentLen - 1) i = currentLen - 1;
-                    if (i < endIndex) break;
-
-                    var prevIndex = (i - 1 + currentLen) % currentLen;
-                    var nextIndex = (i + 1) % currentLen;
-
-                    var pA = pts[prevIndex];
-                    var pB = pts[i];
-                    var pC = pts[nextIndex];
-
-                    if (isStraightPoint(pB) && isCollinear(pA.anchor, pB.anchor, pC.anchor, TOL_ANCHOR_COLLINEAR)) {
-                        pB.remove();
-                        removedCount++;
-                    }
-                }
-            } catch (e) {
-                logProcessError("removeRedundantAnchorsOnTargets", e);
+            if (samePointModel(pts[prevIndex].a, pts[i].a)) {
+                pts.splice(i, 1);
+                removed++;
             }
         }
 
-        return removedCount;
+        return removed;
     }
 
     /**
-     * 互換用：現在の選択を対象に直線上の冗長アンカーを削除します（後方互換ラッパー）。
+     * 直線上の冗長なアンカーポイントを削除します。
+     * ハンドルが引き出されておらず前後アンカーと一直線上にある点のみ削除。オープンパスの端点は削除しない。
+     * @param {PathModel} pathM - 対象のパスモデル（破壊的に更新）。
      * @returns {number} 削除したアンカー数。
      */
-    function removeRedundantAnchors() {
-        var selection = getSelectionOrAlert();
-        if (!selection) return 0;
-        var targets = getTargetPathItemsFromSelection(selection);
-        return removeRedundantAnchorsOnTargets(targets);
+    function removeRedundantAnchorsModel(pathM) {
+        var removed = 0;
+        var pts = pathM.pts;
+        var isClosed = pathM.closed;
+
+        if (pts.length < 3) return 0;
+
+        /* オープンパスは端点を削除しない。削除でインデックスがずれるため後ろから走査する */
+        var startIndex = isClosed ? (pts.length - 1) : (pts.length - 2);
+        var endIndex = isClosed ? 0 : 1;
+
+        for (var i = startIndex; i >= endIndex; i--) {
+            var currentLen = pts.length;
+            if (currentLen < 3) break;
+
+            // 削除でインデックスが範囲外になった場合に備えて補正
+            if (i > currentLen - 1) i = currentLen - 1;
+            if (i < endIndex) break;
+
+            var pA = pts[(i - 1 + currentLen) % currentLen];
+            var pB = pts[i];
+            var pC = pts[(i + 1) % currentLen];
+
+            if (isStraightPointModel(pB) && isCollinear(pA.a, pB.a, pC.a, TOL_ANCHOR_COLLINEAR)) {
+                pts.splice(i, 1);
+                removed++;
+            }
+        }
+
+        return removed;
     }
 
     /**
-     * 直線になっているベジェ区間のハンドルをアンカーに戻します（対象 targets を明示指定）。
-     * @param {Array<PathItem>} targets - 対象の PathItem 配列。
+     * 直線になっているベジェ区間のハンドルをアンカーに戻します。
+     * オープンパスの最初のセグメントの始点側／最後のセグメントの終点側ハンドルは触らない。
+     * @param {PathModel} pathM - 対象のパスモデル（破壊的に更新）。
      * @returns {number} リセットしたハンドル数（左右それぞれ1カウント）。
      */
-    function removeRedundantHandlesOnTargets(targets) {
-        if (!targets || !targets.length) return 0;
-
+    function removeRedundantHandlesModel(pathM) {
         var changed = 0;
+        var pts = pathM.pts;
+        var len = pts.length;
+        if (len < 2) return 0;
 
-        /**
-         * セグメント (p0 → p1) が見た目として直線かを判定します。
-         * 両端アンカーを結ぶ直線に p0 右ハンドル・p1 左ハンドルが近ければ直線とみなす。
-         * @param {PathPoint} p0 - 始点アンカー。
-         * @param {PathPoint} p1 - 終点アンカー。
-         * @returns {boolean} 直線とみなせれば true。
-         */
-        function isStraightSegment(p0, p1) {
-            // 両端アンカーを結ぶ直線に、p0右ハンドル / p1左ハンドルが近ければ直線とみなす
-            return isPointOnLineByDistance(p0.anchor, p1.anchor, p0.rightDirection, TOL_HANDLE_COLLINEAR) &&
-                isPointOnLineByDistance(p0.anchor, p1.anchor, p1.leftDirection, TOL_HANDLE_COLLINEAR);
-        }
+        var isClosed = pathM.closed;
+        var segCount = isClosed ? len : (len - 1);
 
-        for (var s = 0; s < targets.length; s++) {
-            var item = targets[s];
-            if (!item || isSkippableItem(item)) continue;
+        for (var i = 0; i < segCount; i++) {
+            var p0 = pts[i];
+            var p1 = pts[(i + 1) % len];
 
-            try {
-                var pts = item.pathPoints;
-                var len = pts.length;
-                if (len < 2) continue;
+            if (!isStraightSegmentModel(p0, p1)) continue;
 
-                var isClosed = item.closed;
-                var segCount = isClosed ? len : (len - 1);
+            // オープンパス端点のハンドルは触らない / Do not modify endpoint handles for open paths
+            var isOpen = !isClosed;
+            var isFirstSeg = isOpen && (i === 0);
+            var isLastSeg = isOpen && (i === (segCount - 1));
 
-                for (var i = 0; i < segCount; i++) {
-                    var p0 = pts[i];
-                    var p1 = pts[(i + 1) % len];
+            if (!isFirstSeg && !samePointModel(p0.r, p0.a)) {
+                p0.r = [p0.a[0], p0.a[1]];
+                changed++;
+            }
 
-                    if (!isStraightSegment(p0, p1)) continue;
-
-                    // オープンパス端点のハンドルは触らない / Do not modify endpoint handles for open paths
-                    var isOpen = !item.closed;
-                    var isFirstSeg = isOpen && (i === 0);
-                    var isLastSeg = isOpen && (i === (segCount - 1));
-
-                    // p0.rightDirection: skip if p0 is the first endpoint of an open path
-                    if (!isFirstSeg) {
-                        if (!samePoint(p0.rightDirection, p0.anchor, TOL_SAMEPOINT)) {
-                            p0.rightDirection = p0.anchor;
-                            changed++;
-                        }
-                    }
-
-                    // p1.leftDirection: skip if p1 is the last endpoint of an open path
-                    if (!isLastSeg) {
-                        if (!samePoint(p1.leftDirection, p1.anchor, TOL_SAMEPOINT)) {
-                            p1.leftDirection = p1.anchor;
-                            changed++;
-                        }
-                    }
-                }
-            } catch (e) {
-                logProcessError("removeRedundantHandlesOnTargets", e);
+            if (!isLastSeg && !samePointModel(p1.l, p1.a)) {
+                p1.l = [p1.a[0], p1.a[1]];
+                changed++;
             }
         }
 
@@ -820,251 +705,129 @@ function trimButtonHeight(button, px) {
     }
 
     /**
-     * 互換用：現在の選択を対象に直線区間上の冗長ハンドルを削除します（後方互換ラッパー）。
-     * @returns {number} リセットしたハンドル数。
+     * モデル上のハンドル数を数えます（左右それぞれ1カウント）。
+     * @param {PathModel} pathM - 対象のパスモデル。
+     * @returns {number} ハンドル数。
      */
-    function removeRedundantHandles() {
-        var selection = getSelectionOrAlert();
-        if (!selection) return 0;
-        var targets = getTargetPathItemsFromSelection(selection);
-        return removeRedundantHandlesOnTargets(targets);
+    function countHandlesModel(pathM) {
+        var c = 0;
+        var pts = pathM.pts;
+        for (var i = 0; i < pts.length; i++) {
+            var p = pts[i];
+            if (!samePointModel(p.l, p.a)) c++;
+            if (!samePointModel(p.r, p.a)) c++;
+        }
+        return c;
+    }
+
+    /**
+     * モデルにクリーンアップを適用します。
+     * 実行順は 重複→冗長→ハンドル→冗長→重複。ハンドルを直線区間から外すと
+     * 「ハンドルがあるから消せない」と判定されていたアンカーが新たに対象になるため折り返す。
+     * @param {PathModel} pathM - 対象のパスモデル（破壊的に更新）。
+     * @param {boolean} doSameAnchors - 重複アンカー削除を含める場合は true。
+     * @param {boolean} doAnchors - 直線上の冗長アンカー削除を含める場合は true。
+     * @param {boolean} doHandles - 直線区間のハンドル削除を含める場合は true。
+     * @returns {number} 削除・リセットした総数（0 なら変化なし）。
+     */
+    function runCleanupOnModel(pathM, doSameAnchors, doAnchors, doHandles) {
+        var changed = 0;
+        if (doSameAnchors) changed += removeDuplicateAnchorsModel(pathM);
+        if (doAnchors) changed += removeRedundantAnchorsModel(pathM);
+        if (doHandles) changed += removeRedundantHandlesModel(pathM);
+        if (doAnchors) changed += removeRedundantAnchorsModel(pathM);
+        if (doSameAnchors) changed += removeDuplicateAnchorsModel(pathM);
+        return changed;
+    }
+
+    /**
+     * モデルの内容を PathItem へ書き戻します。
+     * 余った点を末尾から削除したうえで全点を上書きします。
+     * パスを作り直さず同一 PathItem を保持するため、アピアランスは維持されます。
+     * @param {PathItem} item - 書き戻し先のパス。
+     * @param {PathModel} pathM - 書き戻すパスモデル。
+     * @returns {void}
+     */
+    function applyModelToPath(item, pathM) {
+        var modelPoints = pathM.pts;
+        if (modelPoints.length < 2) return;
+
+        try {
+            var pts = item.pathPoints;
+            while (pts.length > modelPoints.length) {
+                pts[pts.length - 1].remove();
+            }
+            for (var i = 0; i < modelPoints.length; i++) {
+                var pt = pts[i];
+                var m = modelPoints[i];
+                pt.anchor = m.a;
+                pt.pointType = m.t;
+                pt.leftDirection = m.l;
+                pt.rightDirection = m.r;
+            }
+        } catch (e) {
+            logProcessError('applyModelToPath', e);
+        }
+    }
+
+    /**
+     * 指定 targets にクリーンアップを実行します（モデル上で処理してから書き戻す）。
+     * @param {Array<PathItem>} targets - 対象の PathItem 配列。
+     * @param {boolean} doSameAnchors - 重複アンカー削除を行うか。
+     * @param {boolean} doAnchors - 直線上の冗長アンカー削除を行うか。
+     * @param {boolean} doHandles - 直線区間のハンドル削除を行うか。
+     * @returns {number} 変化のあったパス数。
+     */
+    function runCleanupOnTargets(targets, doSameAnchors, doAnchors, doHandles) {
+        if (!targets || !targets.length) return 0;
+
+        var changedPaths = 0;
+        for (var i = 0; i < targets.length; i++) {
+            var item = targets[i];
+            if (!item) continue;
+
+            try {
+                var pathModel = clonePathModel(item);
+                if (runCleanupOnModel(pathModel, doSameAnchors, doAnchors, doHandles) === 0) continue;
+                applyModelToPath(item, pathModel);
+                changedPaths++;
+            } catch (e) {
+                logProcessError('runCleanupOnTargets', e);
+            }
+        }
+
+        return changedPaths;
     }
 
     /**
      * クリーンアップ実行後のアンカー数・ハンドル数を予測します。
-     * DOM は書き換えず、指定 targets を複製したモデル上で実行順（重複→冗長→ハンドル→冗長→重複）をシミュレートする。
+     * DOM は書き換えず、複製したモデル上で実処理とまったく同じ関数・同じ実行順を通します。
      * @param {Array<PathItem>} targets - 対象の PathItem 配列。
      * @param {boolean} doSameAnchors - 重複アンカー削除を含める場合は true。
      * @param {boolean} doAnchors - 直線上の冗長アンカー削除を含める場合は true。
      * @param {boolean} doHandles - 直線区間のハンドル削除を含める場合は true。
+     * @param {InfoCounts} [infoNow] - 実行前の集計値（省略時はここで集計）。ダイアログ表示中は変化しないため使い回す。
      * @returns {{paths: number, anchorsNow: number, anchorsAfter: number, handlesNow: number, handlesAfter: number}} 予測結果。
      */
-    function getPredictedInfoCountsForTargets(targets, doSameAnchors, doAnchors, doHandles) {
-        var infoNow = getInfoCountsFromTargets(targets);
+    function getPredictedInfoCountsForTargets(targets, doSameAnchors, doAnchors, doHandles, infoNow) {
+        if (!infoNow) infoNow = getInfoCountsFromTargets(targets);
 
-        // --- model helpers ---
-        /** PathPoint pt をモデル点 PathModelPoint（{a, l, r}）に複製します。 */
-        function clonePoint(pt) {
-            return {
-                a: [pt.anchor[0], pt.anchor[1]],
-                l: [pt.leftDirection[0], pt.leftDirection[1]],
-                r: [pt.rightDirection[0], pt.rightDirection[1]]
-            };
-        }
-
-        /**
-         * PathItem を編集可能なパスモデルに複製します。
-         * @param {PathItem} item - 複製元のパス。
-         * @returns {PathModel} 複製したパスモデル。
-         */
-        function clonePath(item) {
-            var pts = item.pathPoints;
-            var out = [];
-            for (var i = 0; i < pts.length; i++) {
-                out.push(clonePoint(pts[i]));
-            }
-            return {
-                closed: !!item.closed,
-                pts: out
-            };
-        }
-
-        /** モデル点 p にハンドルが無い（直線的：左右ともアンカーと一致）なら true。 */
-        function isStraightPointModel(p) {
-            var d1 = Math.abs(p.a[0] - p.l[0]) + Math.abs(p.a[1] - p.l[1]);
-            var d2 = Math.abs(p.a[0] - p.r[0]) + Math.abs(p.a[1] - p.r[1]);
-            return d1 < TOL_SAMEPOINT && d2 < TOL_SAMEPOINT;
-        }
-
-        /** 2つのモデル座標 a, b がほぼ同一（TOL_SAMEPOINT 基準）なら true。 */
-        function samePointModel(a, b) {
-            return (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1])) < TOL_SAMEPOINT;
-        }
-
-        /**
-         * モデル上で直線上の冗長アンカーを削除します。
-         * @param {PathModel} pathM - 対象のパスモデル（破壊的に更新）。
-         * @returns {number} 削除したアンカー数。
-         */
-        function removeRedundantAnchorsModel(pathM) {
-            var removed = 0;
-            var pts = pathM.pts;
-            var isClosed = pathM.closed;
-
-            if (pts.length < 3) return 0;
-
-            // 実処理と同じ：オープンは端点を除外、後ろから走査
-            var startIndex = isClosed ? (pts.length - 1) : (pts.length - 2);
-            var endIndex = isClosed ? 0 : 1;
-
-            for (var i = startIndex; i >= endIndex; i--) {
-                var currentLen = pts.length;
-                if (currentLen < 3) break;
-
-                // 途中で短くなった場合に備えて補正
-                if (i > currentLen - 1) i = currentLen - 1;
-                if (i < endIndex) break;
-
-                var prevIndex = (i - 1 + currentLen) % currentLen;
-                var nextIndex = (i + 1) % currentLen;
-
-                var pA = pts[prevIndex];
-                var pB = pts[i];
-                var pC = pts[nextIndex];
-
-                if (isStraightPointModel(pB) && isCollinear(pA.a, pB.a, pC.a, TOL_ANCHOR_COLLINEAR)) {
-                    pts.splice(i, 1);
-                    removed++;
-                }
-            }
-
-            return removed;
-        }
-
-        /**
-         * モデル上で重複（同一座標）アンカーを削除します。
-         * @param {PathModel} pathM - 対象のパスモデル（破壊的に更新）。
-         * @returns {number} 削除したアンカー数。
-         */
-        function removeDuplicateAnchorsModel(pathM) {
-            var removed = 0;
-            var pts = pathM.pts;
-            var isClosed = pathM.closed;
-            var n = pts.length;
-            if (n < 2) return 0;
-
-            var start = isClosed ? (n - 1) : (n - 2);
-            var end = isClosed ? 0 : 1;
-
-            for (var i = start; i >= end; i--) {
-                var curLen = pts.length;
-                if (curLen <= 2) break;
-
-                if (i > curLen - 1) i = curLen - 1;
-                if (!isClosed && (i <= 0 || i >= curLen - 1)) continue;
-
-                var prevIndex = isClosed ? ((i - 1 + curLen) % curLen) : (i - 1);
-                if (prevIndex < 0 || prevIndex > curLen - 1) continue;
-
-                var pPrev = pts[prevIndex];
-                var pCur = pts[i];
-
-                if (samePointModel(pPrev.a, pCur.a)) {
-                    pts.splice(i, 1);
-                    removed++;
-                }
-            }
-
-            return removed;
-        }
-
-        /**
-         * モデル上で直線区間のハンドルをアンカーに戻します。
-         * @param {PathModel} pathM - 対象のパスモデル（破壊的に更新）。
-         * @returns {number} リセットしたハンドル数。
-         */
-        function removeRedundantHandlesModel(pathM) {
-            var changed = 0;
-            var pts = pathM.pts;
-            var len = pts.length;
-            if (len < 2) return 0;
-
-            /**
-             * モデル上でセグメント (p0 → p1) が直線かを判定します。
-             * @param {PathModelPoint} p0 - 始点モデル点。
-             * @param {PathModelPoint} p1 - 終点モデル点。
-             * @returns {boolean} 直線とみなせれば true。
-             */
-            function isStraightSegmentModel(p0, p1) {
-                return isPointOnLineByDistance(p0.a, p1.a, p0.r, TOL_HANDLE_COLLINEAR) &&
-                    isPointOnLineByDistance(p0.a, p1.a, p1.l, TOL_HANDLE_COLLINEAR);
-            }
-
-            var isClosed = pathM.closed;
-            var segCount = isClosed ? len : (len - 1);
-
-            for (var i = 0; i < segCount; i++) {
-                var p0 = pts[i];
-                var p1 = pts[(i + 1) % len];
-
-                if (!isStraightSegmentModel(p0, p1)) continue;
-
-                var isOpen = !isClosed;
-                var isFirstSeg = isOpen && (i === 0);
-                var isLastSeg = isOpen && (i === (segCount - 1));
-
-                // p0.rightDirection
-                if (!isFirstSeg) {
-                    if (!samePointModel(p0.r, p0.a)) {
-                        p0.r = [p0.a[0], p0.a[1]];
-                        changed++;
-                    }
-                }
-
-                // p1.leftDirection
-                if (!isLastSeg) {
-                    if (!samePointModel(p1.l, p1.a)) {
-                        p1.l = [p1.a[0], p1.a[1]];
-                        changed++;
-                    }
-                }
-            }
-
-            return changed;
-        }
-
-        /**
-         * モデル上のハンドル数を数えます（左右それぞれ1カウント）。
-         * @param {PathModel} pathM - 対象のパスモデル。
-         * @returns {number} ハンドル数。
-         */
-        function countHandlesModel(pathM) {
-            var c = 0;
-            var pts = pathM.pts;
-            for (var i = 0; i < pts.length; i++) {
-                var p = pts[i];
-                if (!samePointModel(p.l, p.a)) c++;
-                if (!samePointModel(p.r, p.a)) c++;
-            }
-            return c;
-        }
-
-        // --- simulate ---
-        var pathsCount = 0;
         var anchorsAfterTotal = 0;
         var handlesAfterTotal = 0;
 
         for (var t = 0; t < (targets ? targets.length : 0); t++) {
             var item = targets[t];
-            if (!item || isSkippableItem(item)) continue;
+            if (!item) continue;
 
-            pathsCount++;
-
-            var pathModel = clonePath(item);
-
-            // 実行順に合わせる（重複アンカー→冗長アンカー→ハンドル→冗長アンカー→重複アンカー）
-            if (doSameAnchors) {
-                removeDuplicateAnchorsModel(pathModel);
-            }
-            if (doAnchors) {
-                removeRedundantAnchorsModel(pathModel);
-            }
-            if (doHandles) {
-                removeRedundantHandlesModel(pathModel);
-            }
-            if (doAnchors) {
-                removeRedundantAnchorsModel(pathModel);
-            }
-            if (doSameAnchors) {
-                removeDuplicateAnchorsModel(pathModel);
-            }
+            var pathModel = clonePathModel(item);
+            runCleanupOnModel(pathModel, doSameAnchors, doAnchors, doHandles);
 
             anchorsAfterTotal += pathModel.pts.length;
             handlesAfterTotal += countHandlesModel(pathModel);
         }
 
         return {
-            paths: pathsCount,
+            paths: infoNow.paths,
             anchorsNow: infoNow.anchors,
             anchorsAfter: anchorsAfterTotal,
             handlesNow: infoNow.handles,
@@ -1073,41 +836,22 @@ function trimButtonHeight(button, px) {
     }
 
     /**
-     * 互換用：現在の選択を対象に予測情報を取得します（後方互換ラッパー）。
-     * @param {boolean} doSameAnchors - 重複アンカー削除を含める場合は true。
-     * @param {boolean} doAnchors - 直線上の冗長アンカー削除を含める場合は true。
-     * @param {boolean} doHandles - 直線区間のハンドル削除を含める場合は true。
-     * @returns {{paths: number, anchorsNow: number, anchorsAfter: number, handlesNow: number, handlesAfter: number}} 予測結果。
-     */
-    function getPredictedInfoCounts(doSameAnchors, doAnchors, doHandles) {
-        if (!hasDocument()) {
-            return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
-        }
-        var doc = app.activeDocument;
-        var sel = doc.selection;
-        if (!(sel instanceof Array) || sel.length === 0) {
-            return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
-        }
-        var targets = getTargetPathItemsFromSelection(sel);
-        return getPredictedInfoCountsForTargets(targets, doSameAnchors, doAnchors, doHandles);
-    }
-
-    /**
      * 「その他」タブ（変換・分割）の予測情報を取得します。
      * corner=全ハンドル削除／smooth=全アンカーに左右ハンドル付与／add=各セグメントに1点追加／
      * split=各セグメントを独立パス化／fillHoles=結果を事前算出できないため未確定（"-"）。
      * @param {Array<PathItem>} targets - 対象の PathItem 配列。
      * @param {string} mode - 変換モード（'smooth' | 'corner' | 'add' | 'split' | 'fillHoles'）。
+     * @param {InfoCounts} [infoNow] - 実行前の集計値（省略時はここで集計）。ダイアログ表示中は変化しないため使い回す。
      * @returns {{paths: number, pathsAfter: (number|string), anchorsNow: number, anchorsAfter: (number|string), handlesNow: number, handlesAfter: (number|string)}} 予測結果。
      */
-    function getPredictedInfoForConvert(targets, mode) {
-        var infoNow = getInfoCountsFromTargets(targets);
+    function getPredictedInfoForConvert(targets, mode, infoNow) {
+        if (!infoNow) infoNow = getInfoCountsFromTargets(targets);
         var pathsAfter = infoNow.paths;
         var anchorsAfter = infoNow.anchors;
         var handlesAfter = infoNow.handles;
 
         if (!targets || !targets.length) {
-            return { paths: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
+            return { paths: 0, pathsAfter: 0, anchorsNow: 0, anchorsAfter: 0, handlesNow: 0, handlesAfter: 0 };
         }
 
         if (mode === 'corner') {
@@ -1121,7 +865,7 @@ function trimButtonHeight(button, px) {
             var totalSegs = 0;
             for (var i = 0; i < targets.length; i++) {
                 var item = targets[i];
-                if (!item || isSkippableItem(item)) continue;
+                if (!item) continue;
                 var n = item.pathPoints.length;
                 totalSegs += item.closed ? n : (n - 1);
             }
@@ -1132,7 +876,7 @@ function trimButtonHeight(button, px) {
             var totalSegs2 = 0;
             for (var j = 0; j < targets.length; j++) {
                 var item2 = targets[j];
-                if (!item2 || isSkippableItem(item2)) continue;
+                if (!item2) continue;
                 var n2 = item2.pathPoints.length;
                 totalSegs2 += item2.closed ? n2 : (n2 - 1);
             }
@@ -1179,6 +923,10 @@ function trimButtonHeight(button, px) {
      * @returns {DialogResult} 実行内容を表す結果オブジェクト。
      */
     function showDialog(frozenTargets, hasHoles) {
+        /* 実行前の集計はダイアログ表示中に変化しないため、1回だけ数えて使い回す
+           （スライダー操作のたびに全パスを数え直さないようにするため） */
+        var frozenInfoNow = getInfoCountsFromTargets(frozenTargets);
+
         /**
          * 現在アクティブなタブに対応する実行モードを返します。
          * @returns {string} 'other'（その他タブ）または 'process'（削除対象タブ）。
@@ -1233,7 +981,7 @@ function trimButtonHeight(button, px) {
          * @returns {void}
          */
         function refreshInfoPreview(doSameAnchors, doAnchors, doHandles) {
-            var predictedInfo = getPredictedInfoCountsForTargets(frozenTargets, doSameAnchors, doAnchors, doHandles);
+            var predictedInfo = getPredictedInfoCountsForTargets(frozenTargets, doSameAnchors, doAnchors, doHandles, frozenInfoNow);
             pathCountValue.text = String(predictedInfo.paths);
             anchorCountValue.text = formatArrow(predictedInfo.anchorsNow, predictedInfo.anchorsAfter);
             handleCountValue.text = formatArrow(predictedInfo.handlesNow, predictedInfo.handlesAfter);
@@ -1245,7 +993,7 @@ function trimButtonHeight(button, px) {
          * @returns {void}
          */
         function refreshInfoForConvert(mode) {
-            var predictedInfo = getPredictedInfoForConvert(frozenTargets, mode);
+            var predictedInfo = getPredictedInfoForConvert(frozenTargets, mode, frozenInfoNow);
             pathCountValue.text = formatArrow(predictedInfo.paths, predictedInfo.pathsAfter);
             anchorCountValue.text = formatArrow(predictedInfo.anchorsNow, predictedInfo.anchorsAfter);
             handleCountValue.text = formatArrow(predictedInfo.handlesNow, predictedInfo.handlesAfter);
@@ -1275,8 +1023,6 @@ function trimButtonHeight(button, px) {
                 refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
             }
         }
-
-        refreshInfoPreview(false, true, true);
 
         var tabbedPanel = dlg.add('tabbedpanel');
         tabbedPanel.alignChildren = ['fill', 'top'];
@@ -1710,6 +1456,28 @@ function trimButtonHeight(button, px) {
     }
 
     /**
+     * 分割後のパスを追加するコンテナを返します。
+     * グループ内のパスはそのグループへ追加してグループ構造と重ね順を保ちます。
+     * 複合パスの子は、開いたパスを複合パスへ戻せないため一段上のコンテナへ逃がします。
+     * @param {PathItem} pathItem - 分割対象のパス。
+     * @returns {Object} pathItems.add() を持つコンテナ（GroupItem または Layer）。
+     */
+    function getSplitContainer(pathItem) {
+        try {
+            var container = pathItem.parent;
+            while (container && container.typename === 'CompoundPathItem') {
+                container = container.parent;
+            }
+            if (container && (container.typename === 'GroupItem' || container.typename === 'Layer')) {
+                return container;
+            }
+        } catch (e) {
+            logProcessError('getSplitContainer', e);
+        }
+        return pathItem.layer;
+    }
+
+    /**
      * パスを各セグメントごとの独立したオープンパスに分割します（元のパスは削除）。
      * @param {PathItem} pathItem - 分割対象のパス。
      * @returns {void}
@@ -1718,7 +1486,7 @@ function trimButtonHeight(button, px) {
         var pts = pathItem.pathPoints;
         if (pts.length < 2) return;
 
-        var parentLayer = pathItem.layer;
+        var parentContainer = getSplitContainer(pathItem);
         var segCount = pathItem.closed ? pts.length : pts.length - 1;
 
         for (var s = 0; s < segCount; s++) {
@@ -1727,10 +1495,12 @@ function trimButtonHeight(button, px) {
             var startPoint = pts[startIndex];
             var endPoint = pts[endIndex];
 
-            var newPath = parentLayer.pathItems.add();
+            var newPath = parentContainer.pathItems.add();
             newPath.closed = false;
             newPath.filled = pathItem.filled;
-            newPath.fillColor = pathItem.fillColor;
+            if (pathItem.filled) {
+                newPath.fillColor = pathItem.fillColor;
+            }
             newPath.stroked = pathItem.stroked;
             if (pathItem.stroked) {
                 newPath.strokeColor = pathItem.strokeColor;
@@ -1758,15 +1528,13 @@ function trimButtonHeight(button, px) {
      * @returns {void}
      */
     function fillHolesOnSelection() {
+        /* executeMenuCommand は実行できないコマンドでも例外を投げず何もしないため、
+           冒頭の group と対になる ungroup をそのまま呼ぶ */
         app.executeMenuCommand('group');
         app.executeMenuCommand('noCompoundPath');
         app.executeMenuCommand('Live Pathfinder Add');
         app.executeMenuCommand('expandStyle');
-        try {
-            app.executeMenuCommand('ungroup');
-        } catch (e) {
-            // 単一オブジェクトでグループ化されていない場合があるため握りつぶす
-        }
+        app.executeMenuCommand('ungroup');
     }
 
     /**
@@ -2026,7 +1794,7 @@ function trimButtonHeight(button, px) {
         if (!targets || !targets.length) return total;
         for (var i = 0; i < targets.length; i++) {
             var item = targets[i];
-            if (!item || isSkippableItem(item)) continue;
+            if (!item) continue;
             try {
                 var pts = item.pathPoints;
                 var n = pts.length;
@@ -2096,7 +1864,7 @@ function trimButtonHeight(button, px) {
             doc.selection = null;
             for (var i = 0; i < selectablePathItems.length; i++) {
                 var pathItem = selectablePathItems[i];
-                if (!pathItem || isSkippableItem(pathItem)) continue;
+                if (!pathItem) continue;
                 try {
                     pathItem.selected = true;
                     restoredCount++;
@@ -2110,8 +1878,9 @@ function trimButtonHeight(button, px) {
         return restoredCount;
     }
 
-    // 実行前に選択を復元
+    // 実行前に選択を復元（1つも復元できなければ中止して理由を伝える）
     if (restoreSelection(selectionAtOpen) === 0) {
+        alert(L('alert.lostSelection'));
         return;
     }
 
@@ -2152,21 +1921,7 @@ function trimButtonHeight(button, px) {
             return;
         }
 
-        // 実行順：重複アンカー → 冗長アンカー → ハンドル → 冗長アンカー → 重複アンカー
-        if (ui.doRemoveSameAnchors) {
-            removeDuplicateAnchorsOnTargets(targetsAtOk);
-        }
-        if (ui.doRemoveAnchors) {
-            removeRedundantAnchorsOnTargets(targetsAtOk);
-        }
-        if (ui.doRemoveHandles) {
-            removeRedundantHandlesOnTargets(targetsAtOk);
-        }
-        if (ui.doRemoveAnchors) {
-            removeRedundantAnchorsOnTargets(targetsAtOk);
-        }
-        if (ui.doRemoveSameAnchors) {
-            removeDuplicateAnchorsOnTargets(targetsAtOk);
-        }
+        // 情報パネルの予測とまったく同じ関数・同じ実行順を通す
+        runCleanupOnTargets(targetsAtOk, ui.doRemoveSameAnchors, ui.doRemoveAnchors, ui.doRemoveHandles);
     }
 })();
