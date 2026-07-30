@@ -119,6 +119,7 @@ Enter is deliberately unassigned, because it conflicts with editing notes.
 
 ## Changelog
 
+- v1.7.1 (2026-07-31): Added the basic info block and trimmed the header overview down to a README pointer
 - v1.7.0 (2026-07-02): Palette conversion (`#targetengine` + BridgeTalk delegation), refresh button and status line, localization reorganized into categories with `L()`
 - v1.6.1 (2026-03-16): Localization cleanup (export strings and section headings moved into `LABELS`)
 - v1.6 (2026-03-16): Added the Notes panel below Images
