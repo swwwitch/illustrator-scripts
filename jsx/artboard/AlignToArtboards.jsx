@@ -8,7 +8,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 - 整列先は3×3の9点から選択でき、辺からのマージンを指定できます。
 - ダイアログ表示中はライブプレビューで結果を確認でき、キャンセルすると元の位置に戻ります。
 - 詳細な機能・オプションはREADMEを参照してください。
-
+新
 ### Overview
 
 - Aligns the selected objects to a chosen position on each artboard in a multi-artboard document.

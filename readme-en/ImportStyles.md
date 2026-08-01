@@ -12,29 +12,37 @@
 - Graphic styles, brushes, symbols, and font samples come along with the pasted objects.
 - The candidate list is persisted in a TSV file (`ImportStyles_candidates.tsv`) and can be extended from the dialog.
 
+### Folder Setting
+
+- The folder that holds your style AI files is chosen with a folder dialog on first launch (it is empty until then).
+- The chosen folder is stored in the Illustrator preferences and reused on every later run.
+- The **Folder…** button in the dialog lets you change it at any time (switching reloads the candidates TSV of that folder).
+
 ### Main Features
 
 - Candidates are shown in a headered, scrollable 2-column ListBox (Content / Filename)
-- **Category** radio buttons (**Style/Brush/Symbol** or **Fonts**) filter the list (no filter by default)
+- **Category** radio buttons (**All**, **Style/Brush/Symbol**, **Fonts**) filter the list (**All** by default)
 - Search field plus a **Search** button filters both content name and filename, case-insensitively (applied only on button click)
 - Confirm with a double-click, the Enter key, or the **Load** button
+- Cmd+F (Ctrl+F on Windows) focuses the search field; Enter inside the field runs the search
 - **Add** button: choose any AI file, copy it into the styles folder, then register or overwrite it in the candidates TSV with a display name and a category (auto-detected from the filename)
-- Objects are pasted into the "// _imported" layer (created automatically if missing, and unlocked and made visible)
+- **Paste into** radio buttons (**Current layer** or **Dedicated layer (// _imported)**) choose the destination (**Current layer** by default). The dedicated layer is created if missing, then unlocked and made visible
 - The candidates TSV has three columns, `label / path / category`; the legacy check column (0|1) is ignored on load
-- When no TSV exists, built-in defaults are used (Open path, Arrow, Circled numbers, Standard Latin fonts)
+- When no TSV exists, every `*.ai` in the configured folder is listed automatically (the category is guessed from the file name)
 - Automatic Japanese / English UI
 
 ### Workflow
 
-1. Choose an AI file from the candidate list in the dialog
+1. Choose an AI file and a destination in the dialog
 2. Open it and copy every object inside the working artboard
 3. Close the AI file without saving
-4. Return to the original document, prepare the "// _imported" layer, and paste
+4. Return to the original document, prepare the destination layer, and paste
 
 ### Not Supported
 
-- No destination document open (shows an alert and exits)
+- No destination document open (alerts and exits right at launch)
 - A candidate path that no longer exists (shows an alert and exits)
+- An AI file with nothing on its active artboard (alerts and exits, so stale clipboard contents are never pasted)
 - Objects outside the working artboard are not copied
 - Due to Illustrator's behavior, at least one Graphic Style / Brush always remains
 
