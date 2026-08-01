@@ -26,15 +26,20 @@
 | Item | Preference key |
 | --- | --- |
 | Show Rich Tool Tips | showRichToolTips |
-| Show the Home Screen When No Documents Are Open | Hello/ShowHomeScreenWS |
-| Use Legacy "File > New" Interface | Hello/NewDoc |
+| Show the Home Screen | Hello/ShowHomeScreenWS |
+| Legacy "File > New" Interface | Hello/NewDoc |
 | Show 'Print Bleed' generative AI buttons on Bleed | enablePrintBleedWidget |
+
+The two middle labels are shortened to keep the dialog compact. The full wording used by Preferences ("Show the Home Screen When No Documents Are Open" and "Use Legacy \"File > New\" Interface") appears as a tooltip.
 
 #### [Selection & Anchor Display] category
 
 | Item | Preference key |
 | --- | --- |
 | Zoom to Selection | zoomToSelection |
+| Anchor Point Size | anchorSizePref |
+
+Anchor Point Size is a four-step slider. The values written are 5 / 7 / 9 / 11, with 5 as the default. When the stored value matches none of the steps, the slider snaps to the closest one.
 
 #### Artboard
 
@@ -45,7 +50,7 @@
 | Highlight Color | ArtboardBBColorRed / Green / Blue |
 | Stroke Width (1–4) | ArtboardBBWidth |
 
-The highlight color is picked from nine presets: Light Blue, Light Red, Green, Medium Blue, Magenta, Cyan, Light Gray, Black and Yellow. When the current value matches none of them, the preset with the smallest RGB difference is shown as selected.
+The highlight color is picked from nine presets: Light Blue, Light Red, Green, Medium Blue, Magenta, Cyan, White, Black and Yellow. When the current value matches none of them, the preset with the smallest RGB difference is shown as selected.
 
 #### [Type] category
 
@@ -56,7 +61,7 @@ The highlight color is picked from nine presets: Light Blue, Light Red, Green, M
 | Enable Missing Glyph Protection | text/doFontLocking |
 | Show Character Alternates | text/enableAlternateGlyph |
 
-"Number of Recent Fonts" is a checkbox plus a numeric field. Unchecking it disables the field and saves 0 (list hidden). The accepted range is 0–30; out-of-range or non-numeric input falls back to 15.
+"Number of Recent Fonts" is a checkbox plus a numeric field. Unchecking it disables the field and saves 0 (list hidden). While checked, the accepted range is 1–30; out-of-range or non-numeric input falls back to 15, so a checked box can never save 0.
 
 #### [User Interface] category
 
@@ -64,7 +69,7 @@ The highlight color is picked from nine presets: Light Blue, Light Red, Green, M
 | --- | --- |
 | Canvas Color (Match Brightness / White) | uiCanvasIsWhite |
 
-The four-swatch brightness control (`uiBrightness`) is **currently commented out and not shown**. Its values are discrete presets (0.0 / 0.5 / 0.50999999 / 1.0) rather than a continuous scale, and writing `uiBrightness` alone does not apply the change on screen — Preferences (User Interface) has to be opened after [OK] and confirmed with the arrow keys + Return. The code is kept in place, so removing the comment markers brings it back.
+The four-swatch brightness control (`uiBrightness`) is **hidden by default**. Its values are discrete presets (0.0 / 0.5 / 0.50999999 / 1.0) rather than a continuous scale, and writing `uiBrightness` alone does not apply the change on screen — Preferences (User Interface) has to be opened after [OK] and confirmed with the arrow keys + Return. Set `SHOW_BRIGHTNESS_UI` near the top of the script to `true` to bring it back.
 
 #### Guides
 
@@ -89,7 +94,7 @@ The color is either Cyan (0, 1, 1) or Light Blue (0.29, 0.52, 1.0). When the cur
 | History States | maximumUndoDepth |
 | Real-Time Drawing and Editing | LiveEdit_State_Machine |
 
-History States accepts 1–1000; out-of-range or non-numeric input falls back to 100.
+History States accepts 1–1000; out-of-range or non-numeric input falls back to 100. When `maximumUndoDepth` cannot be read and returns 0, that 0 is treated as "key not present" and 100 is used instead.
 
 #### [File Management] category
 
@@ -125,6 +130,7 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 | 'Print Bleed' generative AI buttons | ON | OFF |
 | Move Locked and Hidden Artwork | OFF | ON |
 | Zoom to Selection | ON | OFF |
+| Anchor Point Size | 5 | 7 |
 | Object Selection by Path Only | OFF | OFF |
 | Type Object Selection by Path Only | OFF | OFF |
 | Show Artboard Name | ON | OFF |
@@ -136,6 +142,7 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 | Show Character Alternates | ON | OFF |
 | Canvas Color | Match Brightness | White |
 | Guide Color | Cyan | Light Blue |
+| Guide Style | Lines | Lines |
 | Object Highlighting (Smart Guides) | ON | OFF |
 | Animated Zoom | ON | OFF |
 | History States | 100 | 50 |
@@ -146,7 +153,7 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 | Update Links | Ask When Modified | Automatic |
 | Include SVG Code | OFF | ON |
 
-[Default] roughly corresponds to Illustrator's out-of-the-box state; [Preset 1] is tuned for production work. Neither preset includes **UI brightness or guide style**, so those two items stay as they are when a preset is selected.
+[Default] roughly corresponds to Illustrator's out-of-the-box state; [Preset 1] is tuned for production work. Neither preset includes **UI brightness**, so that item stays as it is when a preset is selected.
 
 ### Flow
 
@@ -155,10 +162,13 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 3. Selecting a preset overwrites the UI with predefined values (nothing is written to preferences)
 4. [OK] writes every preference key and opens the Preferences panels when required
 
+Every checkbox item is declared once, on a single line that carries its preference key, its control and its preset field. Loading, saving and preset application all read that same table, so a newly added item can never be left out of the save path.
+
 ### Notes
 
-- Preference changes are not always reflected on screen right away, so [OK] runs zoom out → zoom in to force a redraw.
-- Every preference read and write is wrapped in try/catch, so keys missing in a given Illustrator version do not stop the script; a failed read falls back to a default value.
+- Preference changes are not always reflected on screen right away, so [OK] runs zoom out → zoom in to force a redraw (skipped when no document is open).
+- Preference reads and writes go through a shared guard, so keys missing in a given Illustrator version do not stop the script.
+- Note, however, that Illustrator returns 0 / false for unknown keys instead of throwing. A key absent from your version therefore shows as OFF (or 0) and is written back with that value on [OK]. Keys where 0 is not a valid value (History States, for example) treat 0 as "not present" and fall back to their default.
 - Closing with [Cancel] leaves the preferences untouched, even if a preset was selected.
 
 ### Article
@@ -171,3 +181,4 @@ For these two keys 0 means ON and 1 means OFF, so the script inverts the value w
 - v1.6 (20260323): UI layout adjustments, localization improvements, removed incomplete features, fixed preference key (useSysDefEdit)
 - v1.7.0 (20260422): Refined localization, naming, comments, and structure
 - v1.8.0 (20260727): Reorganized naming, label definitions and UI layout (brightness swatches commented out, [Open File Handling] button removed)
+- v1.8.1 (20260801): Added Anchor Point Size (four-step slider). Added guide style to the presets. Fixed History States dropping to 1 and the recent-fonts field saving 0 while checked. Removed the dialog position offset. Shortened long labels and moved the full wording to tooltips. Brightness swatches are now toggled with `SHOW_BRIGHTNESS_UI`

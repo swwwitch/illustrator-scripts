@@ -7,14 +7,16 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 - Illustrator の主要な環境設定を、カテゴリ別に並べた1枚のダイアログでまとめて確認・変更します。
 - ［デフォルト］／［プリセット1］を選ぶと、一式の設定値をUIに反映できます。
-- 変更はすべて［OK］でまとめて書き込まれます。
+- 変更はすべて［OK］でまとめて書き込まれます。［キャンセル］なら何も変更されません。
+- ラベルを短くした項目は、環境設定と同じ全文をツールチップに表示します。
 - 対象カテゴリや環境設定キーの一覧は README を参照してください。
 
 ### Overview
 
 - Review and change the major Illustrator preferences from a single dialog grouped by category.
 - Selecting [Default] or [Preset 1] loads a whole set of values into the UI.
-- All changes are written at once when [OK] is pressed.
+- All changes are written at once when [OK] is pressed; [Cancel] changes nothing.
+- Where a label is shortened, the full wording used by Preferences is shown as a tooltip.
 - See the README for the covered categories and the preference keys.
 
 */
@@ -23,10 +25,10 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PresetManager";                /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.8.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.8.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2025-08-07";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-01";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PresetManager.md
@@ -44,28 +46,38 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     // =========================================
 
     /* 数値入力欄の許容範囲と既定値 / Allowed range and default for numeric fields */
+    /* 「0＝非表示」はチェックボックスOFFで表現するため、入力欄の最小値は1 / "0 = hidden" is expressed by unchecking the box, so the field itself starts at 1 */
     var NUMERIC_INPUT_RULES = {
-        recentFonts: { min: 0, max: 30, defaultValue: 15 },     /* 0で一覧を非表示 / 0 hides the list */
+        recentFonts: { min: 1, max: 30, defaultValue: 15 },     /* 表示数 1〜30 / Visible count 1-30 */
         historyStates: { min: 1, max: 1000, defaultValue: 100 } /* 想定範囲 1〜1000 / Expected range 1-1000 */
     };
 
-    /* ダイアログの表示位置と不透明度 / Dialog position offset and opacity */
-    var DIALOG_OFFSET_X = 300;
-    var DIALOG_OFFSET_Y = 0;
+    /* 明るさ（4段階スウォッチ）のUIを表示するか。［OK］後に環境設定を開く必要があるため既定は非表示 */
+    /* Whether to show the brightness swatches; off by default because it forces Preferences to open after [OK] */
+    var SHOW_BRIGHTNESS_UI = false;
+
+    /* ダイアログの不透明度 / Dialog opacity */
     var DIALOG_OPACITY = 0.98;
 
     /* アートボードのストローク幅の選択肢 / Selectable artboard stroke widths */
     var ARTBOARD_STROKE_WIDTHS = [1, 2, 3, 4];
 
+    /* アンカーポイントのサイズ（スライダー4段階）が anchorSizePref に書き込む値。既定は先頭の5 */
+    /* Values written to anchorSizePref by the four-step anchor point size slider; 5 is the default */
+    var ANCHOR_SIZE_LEVELS = [5, 7, 9, 11];
+
     // =========================================
     // ローカライズ / Localization
     // =========================================
 
-    /* UIロケールから言語(ja/en)を判定 / Detect UI language (ja/en) from locale */
+    /**
+     * UIロケールから言語(ja/en)を判定 / Detect UI language (ja/en) from locale
+     * @returns {string} "ja" または "en"
+     */
     function getCurrentLang() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var currentLang = getCurrentLang();
 
     /* 日英ラベル定義（カテゴリ別に構造化）/ Japanese-English label definitions (grouped by category) */
     var LABELS = {
@@ -96,13 +108,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         /* チェックボックス / Checkboxes */
         checkbox: {
             richToolTips: { ja: "詳細なツールヒントを表示", en: "Show Rich Tool Tips" },
-            homeScreen: {
-                ja: "ドキュメントを開いていないときに「ホーム画面」を表示",
-                en: "Show the Home Screen When No Documents Are Open"
-            },
+            homeScreen: { ja: "「ホーム画面」を表示", en: "Show the Home Screen" },
             legacyNewDoc: {
-                ja: "以前の「新規ドキュメント」インターフェイスを使用",
-                en: "Use Legacy \"File > New\" Interface"
+                ja: "以前の「新規ドキュメント」インターフェイス",
+                en: "Legacy \"File > New\" Interface"
             },
             printBleedWidget: {
                 ja: "「裁ち落としを印刷」生成AIボタンを表示",
@@ -147,6 +156,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             preset: { ja: "プリセット{colon}", en: "Preset{colon}" },
             artboardColor: { ja: "ハイライトのカラー{colon}", en: "Highlight Color{colon}" },
             artboardStrokeWidth: { ja: "ストロークの幅{colon}", en: "Stroke Width{colon}" },
+            anchorSize: { ja: "アンカーポイントのサイズ{colon}", en: "Anchor Point Size{colon}" },
             guideColor: { ja: "カラー{colon}", en: "Color{colon}" },
             guideStyle: { ja: "スタイル{colon}", en: "Style{colon}" },
             brightness: { ja: "明るさ{colon}", en: "Brightness{colon}" },
@@ -166,7 +176,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             colorMediumBlue: { ja: "ミディアムブルー", en: "Medium Blue" },
             colorMagenta: { ja: "マゼンタ", en: "Magenta" },
             colorCyan: { ja: "シアン", en: "Cyan" },
-            colorLightGray: { ja: "ライトグレー", en: "Light Gray" },
+            colorWhite: { ja: "ホワイト", en: "White" },
             colorBlack: { ja: "ブラック", en: "Black" },
             colorYellow: { ja: "イエロー", en: "Yellow" }
         },
@@ -191,9 +201,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             mediumLight: { ja: "やや明", en: "Medium Light" },
             light: { ja: "明", en: "Light" }
         },
-        /* ボタン / Buttons */
+        /* ボタン / Buttons（OKは日英同一なのでリテラル）/ ("OK" is identical in both languages, so it stays a literal) */
         button: {
-            ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
         /* ヘルプチップ / Help tips */
@@ -202,7 +211,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
                 ja: "インターフェイスカラーは直接反映できないため、［OK］後に環境設定（ユーザーインターフェイス）が開きます。矢印キー＋Return で確定してください",
                 en: "Interface color can’t be applied directly, so Preferences opens after [OK]. Confirm with the arrow keys + Return."
             },
-            historyStates: { ja: "ヒストリー数を設定", en: "Set history states" }
+            historyStates: { ja: "ヒストリー数を設定", en: "Set history states" },
+            anchorSize: {
+                ja: "アンカーポイント・ハンドル・バウンディングボックスの表示サイズ（4段階）",
+                en: "Display size of anchor points, handles and the bounding box (four steps)"
+            },
+            homeScreen: {
+                ja: "ドキュメントを開いていないときに「ホーム画面」を表示",
+                en: "Show the Home Screen When No Documents Are Open"
+            },
+            legacyNewDoc: {
+                ja: "以前の「新規ドキュメント」インターフェイスを使用",
+                en: "Use Legacy \"File > New\" Interface"
+            }
         },
         /* 警告メッセージ / Alerts */
         alert: {
@@ -213,22 +234,30 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         }
     };
 
-    /* LABELS からドット区切りのパスで多言語テキストを取り出す / Look up localized text from LABELS by dot path */
-    function L(path) {
-        var parts = path.split(".");
-        var node = LABELS;
-        for (var i = 0; i < parts.length; i++) {
-            node = node[parts[i]];
-            if (!node) return path; /* 保険（パスをそのまま返す）/ Fallback: return the path itself */
+    /**
+     * LABELS からドット区切りのパスで多言語テキストを取り出す / Look up localized text from LABELS by dot path
+     * @param {string} labelPath - "checkbox.richToolTips" のようなドット区切りのパス
+     * @returns {string} 現在の言語のテキスト（見つからない場合はパス文字列）
+     */
+    function getLabel(labelPath) {
+        var pathSegments = labelPath.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < pathSegments.length; i++) {
+            labelNode = labelNode[pathSegments[i]];
+            if (!labelNode) return labelPath; /* 保険（パスをそのまま返す）/ Fallback: return the path itself */
         }
-        var text = node[lang] || node.en;
-        if (!text) return path;
-        return applyUISymbols(text);
+        var localizedText = labelNode[currentLang] || labelNode.en;
+        if (!localizedText) return labelPath;
+        return applyUISymbols(localizedText);
     }
 
-    /* {colon} などのプレースホルダを言語別の記号に展開 / Expand placeholders like {colon} */
-    function applyUISymbols(text) {
-        return text.replace(/\{colon\}/g, (lang === "ja") ? "：" : ":");
+    /**
+     * {colon} などのプレースホルダを言語別の記号に展開 / Expand placeholders like {colon}
+     * @param {string} templateText - 展開前のテキスト
+     * @returns {string} 展開後のテキスト
+     */
+    function applyUISymbols(templateText) {
+        return templateText.replace(/\{colon\}/g, (currentLang === "ja") ? "：" : ":");
     }
 
     // =========================================
@@ -242,125 +271,313 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     var PANEL_SPACING = 6;                 /* パネル内の要素間隔 / panel spacing */
     var COLUMN_SPACING = 12;               /* 2カラムの間隔 / gap between columns */
 
-    /* ウィンドウの共通設定 / Apply shared window layout */
-    function setupWindow(win, spacing) {
-        win.orientation = "column";
-        win.alignChildren = "fill";
-        win.margins = WINDOW_MARGINS;
-        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    /**
+     * ウィンドウの共通設定 / Apply shared window layout
+     * @param {Window} targetWindow - 対象のウィンドウ
+     * @param {number} [rowSpacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(targetWindow, rowSpacing) {
+        targetWindow.orientation = "column";
+        targetWindow.alignChildren = "fill";
+        targetWindow.margins = WINDOW_MARGINS;
+        targetWindow.spacing = (typeof rowSpacing === "number") ? rowSpacing : WINDOW_SPACING;
     }
 
-    /* パネルの共通設定 / Apply shared panel layout */
-    function setupPanel(panel, spacing) {
-        panel.orientation = "column";
-        panel.alignChildren = ["fill", "top"];
-        panel.alignment = "fill";
-        panel.margins = PANEL_MARGINS;
-        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    /**
+     * パネルの共通設定 / Apply shared panel layout
+     * @param {Panel} targetPanel - 対象のパネル
+     * @param {number} [rowSpacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(targetPanel, rowSpacing) {
+        targetPanel.orientation = "column";
+        targetPanel.alignChildren = ["fill", "top"];
+        targetPanel.alignment = "fill";
+        targetPanel.margins = PANEL_MARGINS;
+        targetPanel.spacing = (typeof rowSpacing === "number") ? rowSpacing : PANEL_SPACING;
     }
 
-    /* 行グループの共通設定（ラベル＋コントロールの横並び）/ Apply a horizontal row group */
-    function setupRow(group, alignment, spacing) {
-        group.orientation = "row";
-        group.alignChildren = ["left", "center"];
-        group.alignment = alignment || "left";
-        group.spacing = (typeof spacing === "number") ? spacing : 10;
+    /**
+     * 行グループの共通設定（ラベル＋コントロールの横並び）/ Apply a horizontal row group
+     * @param {Group} targetGroup - 対象のグループ
+     * @param {string} [groupAlignment] - グループ自体の配置（省略時は "left"）
+     * @param {number} [controlSpacing] - 要素間隔（省略時は 10）
+     * @returns {void}
+     */
+    function setupRow(targetGroup, groupAlignment, controlSpacing) {
+        targetGroup.orientation = "row";
+        targetGroup.alignChildren = ["left", "center"];
+        targetGroup.alignment = groupAlignment || "left";
+        targetGroup.spacing = (typeof controlSpacing === "number") ? controlSpacing : 10;
+    }
+
+    /**
+     * ラベル付きチェックボックスを追加 / Add a labeled checkbox
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} labelPath - LABELS のドット区切りパス
+     * @param {string} [hintPath] - ツールチップ用のパス。省略時はラベルをそのまま使う
+     * @returns {Checkbox} 追加したチェックボックス
+     */
+    function addCheckbox(parentContainer, labelPath, hintPath) {
+        var newCheckbox = parentContainer.add("checkbox", undefined, getLabel(labelPath));
+        newCheckbox.helpTip = getLabel(hintPath || labelPath);
+        return newCheckbox;
+    }
+
+    /**
+     * 見出し付きパネルを追加 / Add a titled panel with the shared layout
+     * @param {Group} parentColumn - 追加先のカラム
+     * @param {string} labelPath - LABELS のドット区切りパス
+     * @returns {Panel} 追加したパネル
+     */
+    function addPanel(parentColumn, labelPath) {
+        var newPanel = parentColumn.add("panel", undefined, getLabel(labelPath));
+        setupPanel(newPanel);
+        return newPanel;
+    }
+
+    /**
+     * パネルを縦に積むカラムを追加 / Add a column that stacks panels vertically
+     * @param {Group} parentContainer - 追加先のグループ
+     * @returns {Group} 追加したカラムグループ
+     */
+    function addColumn(parentContainer) {
+        var columnGroup = parentContainer.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = ["fill", "top"];
+        return columnGroup;
+    }
+
+    /**
+     * ラベル＋コントロールを並べる行を追加 / Add a row that starts with a static label
+     * @param {Panel|Group} parentContainer - 追加先
+     * @param {string} labelPath - LABELS のドット区切りパス
+     * @param {number} [labelWidth] - ラベル幅。指定すると右揃えで幅を固定
+     * @returns {Group} 追加した行グループ（続けてコントロールを add する）
+     */
+    function addLabeledRow(parentContainer, labelPath, labelWidth) {
+        var rowGroup = parentContainer.add("group");
+        setupRow(rowGroup);
+        var rowLabel = rowGroup.add("statictext", undefined, getLabel(labelPath));
+        if (typeof labelWidth === "number") {
+            rowLabel.preferredSize = [labelWidth, -1]; /* 高さは自動 / height stays automatic */
+            rowLabel.justify = "right";
+        }
+        return rowGroup;
+    }
+
+    /**
+     * 排他の2択ラジオをまとめて設定 / Set a mutually exclusive pair of radio buttons
+     * @param {RadioButton} radioWhenTrue - 条件が真のときに選ぶラジオ
+     * @param {RadioButton} radioWhenFalse - 条件が偽のときに選ぶラジオ
+     * @param {boolean} isConditionMet - 条件の判定結果
+     * @returns {void}
+     */
+    function setRadioPair(radioWhenTrue, radioWhenFalse, isConditionMet) {
+        radioWhenTrue.value = !!isConditionMet;
+        radioWhenFalse.value = !isConditionMet;
     }
 
     // =========================================
     // 環境設定の読み書き / Preference accessors
     // =========================================
 
-    /* 整数の環境設定を書き込む（失敗しても処理を止めない）/ Write an integer preference (never throws) */
-    function safeSetInt(key, value) {
+    /* 注意：Illustrator は未登録のキーを読んでも例外を投げず 0 / false を返すため、
+       下記の fallbackValue は「例外が出た場合」にしか効かない。0 が正当な値でないキーは
+       safeGetPositiveInt() を使うこと */
+    /* Note: Illustrator returns 0 / false for unknown keys instead of throwing, so the
+       fallbacks below only apply on exceptions. Use safeGetPositiveInt() for keys where 0
+       is not a valid value */
+
+    /**
+     * 例外を握りつぶして処理を続行する共通ラッパー（このスクリプト唯一の try）
+     * Shared guard that swallows exceptions so the dialog keeps working (the only try in the script)
+     * @param {function} operation - 実行する処理
+     * @param {string} actionName - ログに出す処理名
+     * @param {string} targetDetail - ログに出す対象（キー名など）
+     * @param {*} [fallbackValue] - 失敗したときに返す値
+     * @returns {*} operation の戻り値、失敗時は fallbackValue
+     */
+    function runSafely(operation, actionName, targetDetail, fallbackValue) {
         try {
-            app.preferences.setIntegerPreference(key, value);
+            return operation();
         } catch (e) {
-            $.writeln("[" + SCRIPT_NAME + "] safeSetInt failed: " + key + " = " + value + " / " + e);
+            $.writeln("[" + SCRIPT_NAME + "] " + actionName + ": " + targetDetail + " / " + e);
+            return fallbackValue;
         }
     }
 
-    /* 真偽値の環境設定を書き込む / Write a boolean preference (never throws) */
-    function safeSetBool(key, value) {
-        try {
-            app.preferences.setBooleanPreference(key, value);
-        } catch (e) {
-            $.writeln("[" + SCRIPT_NAME + "] safeSetBool failed: " + key + " = " + value + " / " + e);
-        }
+    /**
+     * 整数の環境設定を書き込む（失敗しても処理を止めない）/ Write an integer preference (never throws)
+     * @param {string} preferenceKey - 環境設定キー
+     * @param {number} preferenceValue - 書き込む値
+     * @returns {void}
+     */
+    function safeSetInt(preferenceKey, preferenceValue) {
+        runSafely(function () {
+            app.preferences.setIntegerPreference(preferenceKey, preferenceValue);
+        }, "safeSetInt failed", preferenceKey + " = " + preferenceValue);
     }
 
-    /* 実数の環境設定を書き込む / Write a real-number preference (never throws) */
-    function safeSetReal(key, value) {
-        try {
-            app.preferences.setRealPreference(key, value);
-        } catch (e) {
-            $.writeln("[" + SCRIPT_NAME + "] safeSetReal failed: " + key + " = " + value + " / " + e);
-        }
+    /**
+     * 真偽値の環境設定を書き込む / Write a boolean preference (never throws)
+     * @param {string} preferenceKey - 環境設定キー
+     * @param {boolean} preferenceValue - 書き込む値
+     * @returns {void}
+     */
+    function safeSetBool(preferenceKey, preferenceValue) {
+        runSafely(function () {
+            app.preferences.setBooleanPreference(preferenceKey, preferenceValue);
+        }, "safeSetBool failed", preferenceKey + " = " + preferenceValue);
     }
 
-    /* 整数の環境設定を読む。存在しないキーはfallback / Read an integer preference, falling back when missing */
-    function safeGetInt(key, fallback) {
-        try {
-            return app.preferences.getIntegerPreference(key);
-        } catch (e) {
-            $.writeln("[" + SCRIPT_NAME + "] safeGetInt fallback: " + key + " / " + e);
-            return fallback;
-        }
+    /**
+     * 実数の環境設定を書き込む / Write a real-number preference (never throws)
+     * @param {string} preferenceKey - 環境設定キー
+     * @param {number} preferenceValue - 書き込む値
+     * @returns {void}
+     */
+    function safeSetReal(preferenceKey, preferenceValue) {
+        runSafely(function () {
+            app.preferences.setRealPreference(preferenceKey, preferenceValue);
+        }, "safeSetReal failed", preferenceKey + " = " + preferenceValue);
     }
 
-    /* 真偽値の環境設定を読む / Read a boolean preference, falling back when missing */
-    function safeGetBool(key, fallback) {
-        try {
-            return app.preferences.getBooleanPreference(key);
-        } catch (e) {
-            $.writeln("[" + SCRIPT_NAME + "] safeGetBool fallback: " + key + " / " + e);
-            return fallback;
-        }
+    /**
+     * 整数の環境設定を読む。読み取りに失敗したら fallbackValue / Read an integer preference, falling back on failure
+     * @param {string} preferenceKey - 環境設定キー
+     * @param {number} fallbackValue - 読み取りに失敗したときの値
+     * @returns {number} 環境設定の値または fallbackValue
+     */
+    function safeGetInt(preferenceKey, fallbackValue) {
+        return runSafely(function () {
+            return app.preferences.getIntegerPreference(preferenceKey);
+        }, "safeGetInt fallback", preferenceKey, fallbackValue);
     }
 
-    /* 実数の環境設定を読む / Read a real-number preference, falling back when missing */
-    function safeGetReal(key, fallback) {
-        try {
-            return app.preferences.getRealPreference(key);
-        } catch (e) {
-            $.writeln("[" + SCRIPT_NAME + "] safeGetReal fallback: " + key + " / " + e);
-            return fallback;
-        }
+    /**
+     * 正の整数として環境設定を読む。0以下は「キーが未登録」とみなして fallbackValue を返す
+     * Read an integer preference as a positive number; zero or less means "key not present"
+     * @param {string} preferenceKey - 環境設定キー（0以下が正当な値ではないキーに限る）
+     * @param {number} fallbackValue - キーが未登録・読み取り失敗のときの値
+     * @returns {number} 正の整数、または fallbackValue
+     */
+    function safeGetPositiveInt(preferenceKey, fallbackValue) {
+        var storedValue = safeGetInt(preferenceKey, fallbackValue);
+        return (storedValue > 0) ? storedValue : fallbackValue;
+    }
+
+    /**
+     * 真偽値の環境設定を読む / Read a boolean preference, falling back on failure
+     * @param {string} preferenceKey - 環境設定キー
+     * @param {boolean} fallbackValue - 読み取りに失敗したときの値
+     * @returns {boolean} 環境設定の値または fallbackValue
+     */
+    function safeGetBool(preferenceKey, fallbackValue) {
+        return runSafely(function () {
+            return app.preferences.getBooleanPreference(preferenceKey);
+        }, "safeGetBool fallback", preferenceKey, fallbackValue);
+    }
+
+    /**
+     * 実数の環境設定を読む / Read a real-number preference, falling back on failure
+     * @param {string} preferenceKey - 環境設定キー
+     * @param {number} fallbackValue - 読み取りに失敗したときの値
+     * @returns {number} 環境設定の値または fallbackValue
+     */
+    function safeGetReal(preferenceKey, fallbackValue) {
+        return runSafely(function () {
+            return app.preferences.getRealPreference(preferenceKey);
+        }, "safeGetReal fallback", preferenceKey, fallbackValue);
     }
 
     // =========================================
     // 数値ユーティリティ / Numeric utilities
     // =========================================
 
-    /* 値を min〜max に収める / Clamp a value into the min-max range */
-    function clamp(value, min, max) {
-        return Math.max(min, Math.min(max, value));
+    /**
+     * @typedef {object} NumericRule
+     * @property {number} min - 許容する最小値
+     * @property {number} max - 許容する最大値
+     * @property {number} defaultValue - 数値として解釈できないときの既定値
+     */
+
+    /**
+     * 値を min〜max に収める / Clamp a value into the min-max range
+     * @param {number} targetValue - 対象の値
+     * @param {number} minValue - 最小値
+     * @param {number} maxValue - 最大値
+     * @returns {number} 範囲内に収めた値
+     */
+    function clamp(targetValue, minValue, maxValue) {
+        return Math.max(minValue, Math.min(maxValue, targetValue));
     }
 
-    /* 整数に変換。数値でなければ null / Parse as an integer, or null when not numeric */
-    function parseIntOrNull(value) {
-        var parsed = parseInt(value, 10);
-        return isNaN(parsed) ? null : parsed;
+    /**
+     * 整数に変換。数値でなければ null / Parse as an integer, or null when not numeric
+     * @param {string|number} rawValue - 変換する値
+     * @returns {number|null} 整数、または変換できない場合は null
+     */
+    function parseIntOrNull(rawValue) {
+        var parsedInt = parseInt(rawValue, 10);
+        return isNaN(parsedInt) ? null : parsedInt;
     }
 
-    /* ルール（min/max/def）に沿って整数へ補正 / Normalize a value against a min/max/def rule */
-    function clampIntToRule(value, rule) {
-        var parsed = parseIntOrNull(value);
-        if (parsed === null) return rule.defaultValue;
-        return clamp(parsed, rule.min, rule.max);
+    /**
+     * ルール（min/max/defaultValue）に沿って整数へ補正 / Normalize a value against a min/max/default rule
+     * @param {string|number} rawValue - 対象の値
+     * @param {NumericRule} numericRule - 適用するルール
+     * @returns {number} 補正後の整数
+     */
+    function clampIntToRule(rawValue, numericRule) {
+        var parsedInt = parseIntOrNull(rawValue);
+        if (parsedInt === null) return numericRule.defaultValue;
+        return clamp(parsedInt, numericRule.min, numericRule.max);
     }
 
-    /* 入力欄の値を補正して書き戻す / Normalize an edittext value in place and return it */
-    function normalizeIntInput(inputField, rule) {
-        var normalized = clampIntToRule(inputField.text, rule);
-        inputField.text = String(normalized);
-        return normalized;
+    /**
+     * 入力欄の値を補正して書き戻す / Normalize an edittext value in place and return it
+     * @param {EditText} inputField - 対象の入力欄
+     * @param {NumericRule} numericRule - 適用するルール
+     * @returns {number} 補正後の整数
+     */
+    function normalizeIntInput(inputField, numericRule) {
+        var normalizedValue = clampIntToRule(inputField.text, numericRule);
+        inputField.text = String(normalizedValue);
+        return normalizedValue;
     }
 
-    /* 許容誤差つきで比較 / Compare two numbers with a tolerance */
-    function almostEqual(a, b, tolerance) {
+    /**
+     * 数値配列のうち目標値に最も近い要素の index を返す（離散的な選択肢へのスナップ用）
+     * Index of the array element closest to a target value (snaps to discrete choices)
+     * @param {number[]} candidateValues - 選択肢の数値配列
+     * @param {number} targetValue - 目標値
+     * @returns {number} 最も近い要素の index（配列が空なら 0）
+     */
+    function findNearestIndex(candidateValues, targetValue) {
+        var nearestIndex = 0;
+        var nearestDifference = Infinity;
+        for (var i = 0; i < candidateValues.length; i++) {
+            var difference = Math.abs(candidateValues[i] - targetValue);
+            if (difference < nearestDifference) {
+                nearestDifference = difference;
+                nearestIndex = i;
+            }
+        }
+        return nearestIndex;
+    }
+
+    /**
+     * 許容誤差つきで比較 / Compare two numbers with a tolerance
+     * @param {number} firstValue - 比較する値
+     * @param {number} secondValue - 比較する値
+     * @param {number} [tolerance] - 許容誤差（省略時は 0.02）
+     * @returns {boolean} 許容誤差の範囲内なら true
+     */
+    function almostEqual(firstValue, secondValue, tolerance) {
         if (typeof tolerance !== "number") tolerance = 0.02;
-        return Math.abs(a - b) < tolerance;
+        return Math.abs(firstValue - secondValue) < tolerance;
     }
 
     // =========================================
@@ -369,15 +586,15 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
 
     /* アートボードのハイライトカラープリセット（RGB 0..1）/ Artboard highlight color presets (RGB 0..1) */
     var ARTBOARD_COLOR_PRESETS = [
-        { label: L("dropdown.colorLightBlue"), red: 0.29, green: 0.52, blue: 1.0 },
-        { label: L("dropdown.colorLightRed"), red: 1.0, green: 0.29, blue: 0.29 },
-        { label: L("dropdown.colorGreen"), red: 0.0, green: 0.65, blue: 0.31 },
-        { label: L("dropdown.colorMediumBlue"), red: 0.0, green: 0.45, blue: 0.78 },
-        { label: L("dropdown.colorMagenta"), red: 1.0, green: 0.0, blue: 1.0 },
-        { label: L("dropdown.colorCyan"), red: 0.0, green: 1.0, blue: 1.0 },
-        { label: L("dropdown.colorLightGray"), red: 1.0, green: 1.0, blue: 1.0 },
-        { label: L("dropdown.colorBlack"), red: 0.0, green: 0.0, blue: 0.0 },
-        { label: L("dropdown.colorYellow"), red: 1.0, green: 1.0, blue: 0.0 }
+        { label: getLabel("dropdown.colorLightBlue"), red: 0.29, green: 0.52, blue: 1.0 },
+        { label: getLabel("dropdown.colorLightRed"), red: 1.0, green: 0.29, blue: 0.29 },
+        { label: getLabel("dropdown.colorGreen"), red: 0.0, green: 0.65, blue: 0.31 },
+        { label: getLabel("dropdown.colorMediumBlue"), red: 0.0, green: 0.45, blue: 0.78 },
+        { label: getLabel("dropdown.colorMagenta"), red: 1.0, green: 0.0, blue: 1.0 },
+        { label: getLabel("dropdown.colorCyan"), red: 0.0, green: 1.0, blue: 1.0 },
+        { label: getLabel("dropdown.colorWhite"), red: 1.0, green: 1.0, blue: 1.0 },
+        { label: getLabel("dropdown.colorBlack"), red: 0.0, green: 0.0, blue: 0.0 },
+        { label: getLabel("dropdown.colorYellow"), red: 1.0, green: 1.0, blue: 0.0 }
     ];
 
     /* ガイドカラーの2択（RGB 0..1）/ The two selectable guide colors (RGB 0..1) */
@@ -422,6 +639,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         moveLockedArt: false,
         objectPathOnly: false,
         zoomToSelection: true,
+        anchorSize: 5, /* anchorSizePref の値（5/7/9/11）/ anchorSizePref value (5/7/9/11) */
         textPathOnly: false,
         showArtboardName: true,
         artboardColorIndex: 0,
@@ -439,6 +657,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         autoActivateFonts: false,
         canvasWhite: false,
         guideColorIsLightBlue: false,
+        guideStyleIsDots: false,
         saveToCloud: true,
         updateLinks: UPDATE_LINKS_ASK,
         includeSvgCode: false
@@ -453,6 +672,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         moveLockedArt: true,
         objectPathOnly: false,
         zoomToSelection: false,
+        anchorSize: 7, /* anchorSizePref の値（5/7/9/11）/ anchorSizePref value (5/7/9/11) */
         textPathOnly: false,
         showArtboardName: false,
         artboardColorIndex: 7,
@@ -470,6 +690,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         autoActivateFonts: true,
         canvasWhite: true,
         guideColorIsLightBlue: true,
+        guideStyleIsDots: false,
         saveToCloud: false,
         updateLinks: UPDATE_LINKS_AUTO,
         includeSvgCode: true
@@ -479,7 +700,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     // 設定値のヘルパー / Preference value helpers
     // =========================================
 
-    /* 現在のRGBに最も近いハイライトカラーの index / Index of the highlight color nearest to the given RGB */
+    /**
+     * 指定RGBに最も近いハイライトカラーの index / Index of the highlight color nearest to the given RGB
+     * @param {number} red - 赤成分（0〜1）
+     * @param {number} green - 緑成分（0〜1）
+     * @param {number} blue - 青成分（0〜1）
+     * @returns {number} ARTBOARD_COLOR_PRESETS の index
+     */
     function findNearestArtboardColorIndex(red, green, blue) {
         var nearestIndex = 0;
         var nearestDistance = Infinity;
@@ -496,28 +723,34 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         return nearestIndex;
     }
 
-    /* uiBrightness 値に最も近いプリセットの index / Index of the brightness preset closest to a uiBrightness value */
-    function findNearestBrightnessIndex(value) {
-        var nearestIndex = 0;
-        var nearestDiff = Infinity;
+    /**
+     * uiBrightness 値に最も近いプリセットの index / Index of the brightness preset closest to a uiBrightness value
+     * @param {number} brightnessValue - uiBrightness の値
+     * @returns {number} BRIGHTNESS_LEVELS の index
+     */
+    function findNearestBrightnessIndex(brightnessValue) {
+        var brightnessValues = [];
         for (var i = 0; i < BRIGHTNESS_LEVELS.length; i++) {
-            var diff = Math.abs(BRIGHTNESS_LEVELS[i].value - value);
-            if (diff < nearestDiff) {
-                nearestDiff = diff;
-                nearestIndex = i;
-            }
+            brightnessValues.push(BRIGHTNESS_LEVELS[i].value);
         }
-        return nearestIndex;
+        return findNearestIndex(brightnessValues, brightnessValue);
     }
 
-    /* 現在のガイドカラーがライトブルーか / Whether the current guide color is Light Blue */
+    /**
+     * 現在のガイドカラーがライトブルーか / Whether the current guide color is Light Blue
+     * @returns {boolean} ライトブルーなら true
+     */
     function isGuideColorLightBlue() {
         return almostEqual(safeGetReal("Guide/Color/red", GUIDE_COLOR_CYAN.red), GUIDE_COLOR_LIGHT_BLUE.red) &&
             almostEqual(safeGetReal("Guide/Color/green", GUIDE_COLOR_CYAN.green), GUIDE_COLOR_LIGHT_BLUE.green) &&
             almostEqual(safeGetReal("Guide/Color/blue", GUIDE_COLOR_CYAN.blue), GUIDE_COLOR_LIGHT_BLUE.blue);
     }
 
-    /* ガイドカラーを書き込む / Write the guide color */
+    /**
+     * ガイドカラーを書き込む / Write the guide color
+     * @param {{red: number, green: number, blue: number}} guideColor - 書き込むRGB（0〜1）
+     * @returns {void}
+     */
     function writeGuideColor(guideColor) {
         safeSetReal("Guide/Color/red", guideColor.red);
         safeSetReal("Guide/Color/green", guideColor.green);
@@ -528,15 +761,42 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
     // メイン処理 / Main
     // =========================================
 
-    /* ダイアログを組み立てて表示し、［OK］で環境設定を保存する / Build and show the dialog, then save preferences on [OK] */
+    /**
+     * ダイアログを組み立てて表示し、［OK］で環境設定を保存する / Build and show the dialog, then save preferences on [OK]
+     * @returns {void}
+     */
     function main() {
 
+        /* 環境設定キー・UI・プリセット項目の対応表。UIを組み立てながら bindCheckbox() が積む */
+        /* Bindings between preference key, control and preset field; filled in by bindCheckbox() while the UI is built */
+        /* 読み込み・保存・プリセット適用の3か所がこの1つの表を参照する / Load, save and preset apply all read this single table */
+        var PREFERENCE_UI_BINDINGS = [];
+
+        /**
+         * チェックボックスを追加し、対応表に登録する / Add a checkbox and register it in the binding table
+         * @param {Panel|Group} parentPanel - 追加先
+         * @param {{label: string, key: string, preset: string, type: string, hint: string}} checkboxSpec
+         *        label=ラベルのパス / key=環境設定キー / preset=プリセット項目名 /
+         *        type=省略時 "bool"、0=ON・1=OFF の反転キーは "invertedInt" / hint=ツールチップのパス（省略可）
+         * @returns {Checkbox} 追加したチェックボックス
+         */
+        function bindCheckbox(parentPanel, checkboxSpec) {
+            var newCheckbox = addCheckbox(parentPanel, checkboxSpec.label, checkboxSpec.hint);
+            PREFERENCE_UI_BINDINGS.push({
+                key: checkboxSpec.key,
+                valueType: checkboxSpec.type || "bool",
+                control: newCheckbox,
+                presetField: checkboxSpec.preset
+            });
+            return newCheckbox;
+        }
+
         /* ダイアログ本体 / Dialog window */
-        var prefsDialog = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
-        setupWindow(prefsDialog);
+        var preferencesDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+        setupWindow(preferencesDialog);
 
         /* 全体を縦に積むコンテナ / Vertical container for the whole dialog */
-        var dialogContentGroup = prefsDialog.add("group");
+        var dialogContentGroup = preferencesDialog.add("group");
         dialogContentGroup.orientation = "column";
         dialogContentGroup.alignChildren = "left";
 
@@ -548,11 +808,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         setupRow(presetRow, "center");
         var presetSelectorGroup = presetRow.add("group");
         setupRow(presetSelectorGroup);
-        presetSelectorGroup.add("statictext", undefined, L("label.preset"));
+        presetSelectorGroup.add("statictext", undefined, getLabel("label.preset"));
         var presetLabels = [
-            L("dropdown.presetCurrent"),
-            L("dropdown.presetDefault"),
-            L("dropdown.preset1")
+            getLabel("dropdown.presetCurrent"),
+            getLabel("dropdown.presetDefault"),
+            getLabel("dropdown.preset1")
         ];
         var presetDropdown = presetSelectorGroup.add("dropdownlist", undefined, presetLabels);
         presetDropdown.selection = 0; /* 初期選択は「現在の設定」/ Default selection is "Current Settings" */
@@ -563,51 +823,33 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         panelColumnsGroup.alignChildren = "top";
         panelColumnsGroup.spacing = COLUMN_SPACING;
 
-        var leftColumnGroup = panelColumnsGroup.add("group");
-        leftColumnGroup.orientation = "column";
-        leftColumnGroup.alignChildren = ["fill", "top"];
-
-        var rightColumnGroup = panelColumnsGroup.add("group");
-        rightColumnGroup.orientation = "column";
-        rightColumnGroup.alignChildren = ["fill", "top"];
+        var leftColumnGroup = addColumn(panelColumnsGroup);
+        var rightColumnGroup = addColumn(panelColumnsGroup);
 
         /* ［一般］パネル（左）/ General panel (left) */
-        var generalPanel = leftColumnGroup.add("panel", undefined, L("panel.general"));
-        setupPanel(generalPanel);
-
-        var richToolTipsCheckbox = generalPanel.add("checkbox", undefined, L("checkbox.richToolTips"));
-        richToolTipsCheckbox.helpTip = L("checkbox.richToolTips");
-
-        var homeScreenCheckbox = generalPanel.add("checkbox", undefined, L("checkbox.homeScreen"));
-        homeScreenCheckbox.helpTip = L("checkbox.homeScreen");
-
-        var legacyNewDocCheckbox = generalPanel.add("checkbox", undefined, L("checkbox.legacyNewDoc"));
-        legacyNewDocCheckbox.helpTip = L("checkbox.legacyNewDoc");
-
-        var printBleedWidgetCheckbox = generalPanel.add("checkbox", undefined, L("checkbox.printBleedWidget"));
-        printBleedWidgetCheckbox.helpTip = L("checkbox.printBleedWidget");
+        var generalPanel = addPanel(leftColumnGroup, "panel.general");
+        bindCheckbox(generalPanel, { label: "checkbox.richToolTips", key: "showRichToolTips", preset: "richToolTips" });
+        bindCheckbox(generalPanel, { label: "checkbox.homeScreen", key: "Hello/ShowHomeScreenWS", preset: "homeScreen", hint: "hint.homeScreen" });
+        bindCheckbox(generalPanel, { label: "checkbox.legacyNewDoc", key: "Hello/NewDoc", preset: "legacyNewDoc", hint: "hint.legacyNewDoc" });
+        bindCheckbox(generalPanel, { label: "checkbox.printBleedWidget", key: "enablePrintBleedWidget", preset: "printBleedWidget" });
 
         /* ［選択範囲・アンカー表示］パネル（左）/ Selection & Anchor Display panel (left) */
-        var selectionAnchorPanel = leftColumnGroup.add("panel", undefined, L("panel.selectionAnchor"));
-        setupPanel(selectionAnchorPanel);
+        var selectionAnchorPanel = addPanel(leftColumnGroup, "panel.selectionAnchor");
+        bindCheckbox(selectionAnchorPanel, { label: "checkbox.zoomToSelection", key: "zoomToSelection", preset: "zoomToSelection" });
 
-        var zoomToSelectionCheckbox = selectionAnchorPanel.add("checkbox", undefined, L("checkbox.zoomToSelection"));
-        zoomToSelectionCheckbox.helpTip = L("checkbox.zoomToSelection");
+        /* アンカーポイントのサイズ（4段階スライダー）/ Anchor point size (four-step slider) */
+        var anchorSizeRow = addLabeledRow(selectionAnchorPanel, "label.anchorSize");
+        var anchorSizeSlider = anchorSizeRow.add("slider", undefined, 1, 1, ANCHOR_SIZE_LEVELS.length);
+        anchorSizeSlider.preferredSize = [110, -1];
+        anchorSizeSlider.helpTip = getLabel("hint.anchorSize");
 
         /* ［アートボード］パネル（左）/ Artboard panel (left) */
-        var artboardPanel = leftColumnGroup.add("panel", undefined, L("panel.artboard"));
-        setupPanel(artboardPanel);
-
-        var moveLockedArtCheckbox = artboardPanel.add("checkbox", undefined, L("checkbox.moveLockedArt"));
-        moveLockedArtCheckbox.helpTip = L("checkbox.moveLockedArt");
-
-        var showArtboardNameCheckbox = artboardPanel.add("checkbox", undefined, L("checkbox.showArtboardName"));
-        showArtboardNameCheckbox.helpTip = L("checkbox.showArtboardName");
+        var artboardPanel = addPanel(leftColumnGroup, "panel.artboard");
+        bindCheckbox(artboardPanel, { label: "checkbox.moveLockedArt", key: "moveLockedAndHiddenArt", preset: "moveLockedArt" });
+        bindCheckbox(artboardPanel, { label: "checkbox.showArtboardName", key: "showArtboardLabelOnCanvas", preset: "showArtboardName" });
 
         /* ハイライトのカラー（9色のプリセットから選択）/ Highlight color (nine presets) */
-        var artboardColorRow = artboardPanel.add("group");
-        setupRow(artboardColorRow);
-        artboardColorRow.add("statictext", undefined, L("label.artboardColor"));
+        var artboardColorRow = addLabeledRow(artboardPanel, "label.artboardColor");
         var artboardColorLabels = [];
         for (var i = 0; i < ARTBOARD_COLOR_PRESETS.length; i++) {
             artboardColorLabels.push(ARTBOARD_COLOR_PRESETS[i].label);
@@ -615,9 +857,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         var artboardColorDropdown = artboardColorRow.add("dropdownlist", undefined, artboardColorLabels);
 
         /* ストロークの幅（1〜4）/ Stroke width (1-4) */
-        var artboardStrokeWidthRow = artboardPanel.add("group");
-        setupRow(artboardStrokeWidthRow);
-        artboardStrokeWidthRow.add("statictext", undefined, L("label.artboardStrokeWidth"));
+        var artboardStrokeWidthRow = addLabeledRow(artboardPanel, "label.artboardStrokeWidth");
         var artboardStrokeWidthRadios = [];
         for (var i = 0; i < ARTBOARD_STROKE_WIDTHS.length; i++) {
             artboardStrokeWidthRadios.push(
@@ -626,73 +866,75 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         }
 
         /* ［テキスト］パネル（左）/ Text panel (left) */
-        var textPanel = leftColumnGroup.add("panel", undefined, L("panel.text"));
-        setupPanel(textPanel);
-
-        var autoSizeAreaTextCheckbox = textPanel.add("checkbox", undefined, L("checkbox.autoSizeAreaText"));
-        autoSizeAreaTextCheckbox.helpTip = L("checkbox.autoSizeAreaText");
+        var textPanel = addPanel(leftColumnGroup, "panel.text");
+        bindCheckbox(textPanel, { label: "checkbox.autoSizeAreaText", key: "text/autoSizing", preset: "autoSizeAreaText" });
 
         /* 最近使用したフォントの表示数（チェックOFFで0＝非表示）/ Recent font count (unchecked means 0 = hidden) */
         var recentFontsRow = textPanel.add("group");
         setupRow(recentFontsRow);
-        var recentFontsCheckbox = recentFontsRow.add("checkbox", undefined, L("checkbox.recentFonts"));
-        recentFontsCheckbox.helpTip = L("checkbox.recentFonts");
+        var recentFontsCheckbox = addCheckbox(recentFontsRow, "checkbox.recentFonts");
         var recentFontsInput = recentFontsRow.add("edittext", undefined, "0");
         recentFontsInput.characters = 3;
 
-        var missingGlyphProtectionCheckbox = textPanel.add("checkbox", undefined, L("checkbox.missingGlyphProtection"));
-        missingGlyphProtectionCheckbox.helpTip = L("checkbox.missingGlyphProtection");
-
-        var alternateGlyphCheckbox = textPanel.add("checkbox", undefined, L("checkbox.alternateGlyph"));
-        alternateGlyphCheckbox.helpTip = L("checkbox.alternateGlyph");
+        bindCheckbox(textPanel, { label: "checkbox.missingGlyphProtection", key: "text/doFontLocking", preset: "missingGlyphProtection" });
+        bindCheckbox(textPanel, { label: "checkbox.alternateGlyph", key: "text/enableAlternateGlyph", preset: "alternateGlyph" });
 
         /* ［ユーザーインターフェイス］パネル（左）/ User Interface panel (left) */
-        var userInterfacePanel = leftColumnGroup.add("panel", undefined, L("panel.userInterface"));
-        setupPanel(userInterfacePanel);
+        var userInterfacePanel = addPanel(leftColumnGroup, "panel.userInterface");
 
-        /* 明るさ（ラベル＋4段階のスウォッチ）。現在は非表示にしているが、復活できるよう残す */
-        /* Brightness (label + four swatches); currently hidden but kept so it can be restored */
-        // var brightnessRow = userInterfacePanel.add("group");
-        // setupRow(brightnessRow);
-        // brightnessRow.add("statictext", undefined, L("label.brightness"));
-        // var brightnessSwatchGroup = brightnessRow.add("group");
-        // setupRow(brightnessSwatchGroup, "left", 8);
+        /* 明るさ（ラベル＋4段階のスウォッチ）。SHOW_BRIGHTNESS_UI で表示を切り替える */
+        /* Brightness (label + four swatches); toggled by SHOW_BRIGHTNESS_UI */
+        var brightnessSwatchGroup = null;
+        if (SHOW_BRIGHTNESS_UI) {
+            var brightnessRow = addLabeledRow(userInterfacePanel, "label.brightness");
+            brightnessSwatchGroup = brightnessRow.add("group");
+            setupRow(brightnessSwatchGroup, "left", 8);
+        }
 
         var brightnessSwatchButtons = [];
         var selectedBrightnessIndex = -1;
         var brightnessSwatchTouched = false; /* ユーザーがスウォッチを操作したか（未操作なら書き込まない）/ Whether the user clicked a swatch (no write when untouched) */
 
-        /* スウォッチの描画ハンドラを作る：塗り＋（選択時のみ）青い枠 / Build a swatch draw handler: fill + (only when selected) a blue border */
-        function createBrightnessSwatchDrawHandler(index) {
+        /**
+         * スウォッチの描画ハンドラを作る：塗り＋（選択時のみ）青い枠
+         * Build a swatch draw handler: fill + (only when selected) a blue border
+         * @param {number} levelIndex - BRIGHTNESS_LEVELS の index
+         * @returns {function} onDraw に割り当てる関数
+         */
+        function createBrightnessSwatchDrawHandler(levelIndex) {
             return function () {
-                var graphics = this.graphics;
+                var swatchGraphics = this.graphics;
                 var swatchWidth = this.size[0];
                 var swatchHeight = this.size[1];
-                var brightnessLevel = BRIGHTNESS_LEVELS[index];
+                var brightnessLevel = BRIGHTNESS_LEVELS[levelIndex];
 
                 /* シェードで塗りつぶし / Fill with the shade */
-                var brush = graphics.newBrush(graphics.BrushType.SOLID_COLOR, brightnessLevel.shade.concat(1));
-                graphics.newPath();
-                graphics.rectPath(0, 0, swatchWidth, swatchHeight);
-                graphics.fillPath(brush);
+                var fillBrush = swatchGraphics.newBrush(swatchGraphics.BrushType.SOLID_COLOR, brightnessLevel.shade.concat(1));
+                swatchGraphics.newPath();
+                swatchGraphics.rectPath(0, 0, swatchWidth, swatchHeight);
+                swatchGraphics.fillPath(fillBrush);
 
-                if (index === selectedBrightnessIndex) {
+                if (levelIndex === selectedBrightnessIndex) {
                     /* 選択：太めの青枠 / Selected: thicker blue border */
-                    var selectedPen = graphics.newPen(graphics.PenType.SOLID_COLOR, BRIGHTNESS_SELECTED_BORDER.concat(1), 2);
-                    graphics.newPath();
-                    graphics.rectPath(1, 1, swatchWidth - 2, swatchHeight - 2);
-                    graphics.strokePath(selectedPen);
+                    var selectedPen = swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, BRIGHTNESS_SELECTED_BORDER.concat(1), 2);
+                    swatchGraphics.newPath();
+                    swatchGraphics.rectPath(1, 1, swatchWidth - 2, swatchHeight - 2);
+                    swatchGraphics.strokePath(selectedPen);
                 } else {
                     /* 非選択：細いグレー枠（明シェードを明背景でも視認）/ Not selected: thin gray outline (keep light swatches visible) */
-                    var outlinePen = graphics.newPen(graphics.PenType.SOLID_COLOR, BRIGHTNESS_SWATCH_OUTLINE.concat(1), 1);
-                    graphics.newPath();
-                    graphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
-                    graphics.strokePath(outlinePen);
+                    var outlinePen = swatchGraphics.newPen(swatchGraphics.PenType.SOLID_COLOR, BRIGHTNESS_SWATCH_OUTLINE.concat(1), 1);
+                    swatchGraphics.newPath();
+                    swatchGraphics.rectPath(0.5, 0.5, swatchWidth - 1, swatchHeight - 1);
+                    swatchGraphics.strokePath(outlinePen);
                 }
             };
         }
 
-        /* 全スウォッチを再描画（hide/show で onDraw を確実に再実行し、旧選択枠を残さない＝排他表示）/ Force all swatches to repaint (hide/show reliably re-runs onDraw so the old selection border never lingers = exclusive) */
+        /**
+         * 全スウォッチを再描画（hide/show で onDraw を確実に再実行し、旧選択枠を残さない＝排他表示）
+         * Force all swatches to repaint (hide/show reliably re-runs onDraw so the old selection border never lingers = exclusive)
+         * @returns {void}
+         */
         function refreshBrightnessSwatches() {
             for (var i = 0; i < brightnessSwatchButtons.length; i++) {
                 brightnessSwatchButtons[i].hide();
@@ -700,153 +942,103 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             }
         }
 
-        /* uiBrightness 値から選択状態だけ更新（書き込みは［OK］時）/ Update the selection only, from a uiBrightness value (writes happen on [OK]) */
-        function selectBrightnessSwatchByValue(value) {
-            var nextIndex = findNearestBrightnessIndex(value);
-            if (nextIndex === selectedBrightnessIndex) return;
-            selectedBrightnessIndex = nextIndex;
+        /**
+         * uiBrightness 値から選択状態だけ更新（書き込みは［OK］時）
+         * Update the selection only, from a uiBrightness value (writes happen on [OK])
+         * @param {number} brightnessValue - uiBrightness の値
+         * @returns {void}
+         */
+        function selectBrightnessSwatchByValue(brightnessValue) {
+            var nearestIndex = findNearestBrightnessIndex(brightnessValue);
+            if (nearestIndex === selectedBrightnessIndex) return;
+            selectedBrightnessIndex = nearestIndex;
             refreshBrightnessSwatches();
         }
 
-        /* スウォッチを4つ生成（非表示中）/ Build the four swatches (currently hidden) */
-        // for (var i = 0; i < BRIGHTNESS_LEVELS.length; i++) {
-        //     var brightnessSwatchButton = brightnessSwatchGroup.add("iconbutton", undefined, undefined, { style: "toolbutton" });
-        //     brightnessSwatchButton.preferredSize = [BRIGHTNESS_SWATCH_SIZE, BRIGHTNESS_SWATCH_SIZE];
-        //     brightnessSwatchButton.alignment = ["left", "center"];
-        //     brightnessSwatchButton.helpTip = L(BRIGHTNESS_LEVELS[i].labelPath) + " / " + L("hint.brightness");
-        //     brightnessSwatchButton.onDraw = createBrightnessSwatchDrawHandler(i);
-        //     brightnessSwatchButtons.push(brightnessSwatchButton);
-        //     (function (index) {
-        //         brightnessSwatchButtons[index].onClick = function () {
-        //             /* UIのみ更新し、保存は［OK］時 / UI only; persist on [OK] */
-        //             selectedBrightnessIndex = index;
-        //             brightnessSwatchTouched = true;
-        //             refreshBrightnessSwatches();
-        //         };
-        //     })(brightnessSwatchButtons.length - 1);
-        // }
+        /* スウォッチを4つ生成 / Build the four swatches */
+        if (SHOW_BRIGHTNESS_UI) {
+            for (var i = 0; i < BRIGHTNESS_LEVELS.length; i++) {
+                var brightnessSwatchButton = brightnessSwatchGroup.add("iconbutton", undefined, undefined, { style: "toolbutton" });
+                brightnessSwatchButton.preferredSize = [BRIGHTNESS_SWATCH_SIZE, BRIGHTNESS_SWATCH_SIZE];
+                brightnessSwatchButton.alignment = ["left", "center"];
+                brightnessSwatchButton.helpTip = getLabel(BRIGHTNESS_LEVELS[i].labelPath) + " / " + getLabel("hint.brightness");
+                brightnessSwatchButton.onDraw = createBrightnessSwatchDrawHandler(i);
+                brightnessSwatchButtons.push(brightnessSwatchButton);
+                (function (index) {
+                    brightnessSwatchButtons[index].onClick = function () {
+                        /* UIのみ更新し、保存は［OK］時 / UI only; persist on [OK] */
+                        selectedBrightnessIndex = index;
+                        brightnessSwatchTouched = true;
+                        refreshBrightnessSwatches();
+                    };
+                })(brightnessSwatchButtons.length - 1);
+            }
+        }
 
         /* カンバスカラー（UIに合わせる／ホワイト）/ Canvas color (Match Brightness / White) */
-        var canvasColorRow = userInterfacePanel.add("group");
-        setupRow(canvasColorRow);
-        canvasColorRow.add("statictext", undefined, L("label.canvasColor"));
-        var canvasMatchRadio = canvasColorRow.add("radiobutton", undefined, L("radio.canvasMatch"));
-        var canvasWhiteRadio = canvasColorRow.add("radiobutton", undefined, L("radio.canvasWhite"));
+        var canvasColorRow = addLabeledRow(userInterfacePanel, "label.canvasColor");
+        var canvasMatchRadio = canvasColorRow.add("radiobutton", undefined, getLabel("radio.canvasMatch"));
+        var canvasWhiteRadio = canvasColorRow.add("radiobutton", undefined, getLabel("radio.canvasWhite"));
 
         /* ［ガイド］パネル（右）/ Guides panel (right) */
-        var guidesPanel = rightColumnGroup.add("panel", undefined, L("panel.guides"));
-        setupPanel(guidesPanel);
+        var guidesPanel = addPanel(rightColumnGroup, "panel.guides");
 
         var GUIDE_LABEL_WIDTH = 80; /* ガイド内ラベルの共通幅 / Unified label width inside Guides */
 
         /* ガイドのカラー（シアン／ライトブルー）/ Guide color (Cyan / Light Blue) */
-        var guideColorRow = guidesPanel.add("group");
-        setupRow(guideColorRow);
-        var guideColorLabel = guideColorRow.add("statictext", undefined, L("label.guideColor"));
-        guideColorLabel.preferredSize = [GUIDE_LABEL_WIDTH, guideColorLabel.preferredSize ? guideColorLabel.preferredSize[1] : 20];
-        guideColorLabel.justify = "right";
-        var guideColorCyanRadio = guideColorRow.add("radiobutton", undefined, L("radio.guideColorCyan"));
-        var guideColorLightBlueRadio = guideColorRow.add("radiobutton", undefined, L("radio.guideColorLightBlue"));
+        var guideColorRow = addLabeledRow(guidesPanel, "label.guideColor", GUIDE_LABEL_WIDTH);
+        var guideColorCyanRadio = guideColorRow.add("radiobutton", undefined, getLabel("radio.guideColorCyan"));
+        var guideColorLightBlueRadio = guideColorRow.add("radiobutton", undefined, getLabel("radio.guideColorLightBlue"));
 
         /* ガイドのスタイル（ライン／点線）/ Guide style (Lines / Dots) */
-        var guideStyleRow = guidesPanel.add("group");
-        setupRow(guideStyleRow);
-        var guideStyleLabel = guideStyleRow.add("statictext", undefined, L("label.guideStyle"));
-        guideStyleLabel.preferredSize = [GUIDE_LABEL_WIDTH, guideStyleLabel.preferredSize ? guideStyleLabel.preferredSize[1] : 20];
-        guideStyleLabel.justify = "right";
-        var guideStyleLinesRadio = guideStyleRow.add("radiobutton", undefined, L("radio.guideStyleLines"));
-        var guideStyleDotsRadio = guideStyleRow.add("radiobutton", undefined, L("radio.guideStyleDots"));
+        var guideStyleRow = addLabeledRow(guidesPanel, "label.guideStyle", GUIDE_LABEL_WIDTH);
+        var guideStyleLinesRadio = guideStyleRow.add("radiobutton", undefined, getLabel("radio.guideStyleLines"));
+        var guideStyleDotsRadio = guideStyleRow.add("radiobutton", undefined, getLabel("radio.guideStyleDots"));
 
         /* ［スマートガイド］パネル（右）/ Smart Guides panel (right) */
-        var smartGuidesPanel = rightColumnGroup.add("panel", undefined, L("panel.smartGuides"));
-        setupPanel(smartGuidesPanel);
-
-        var objectHighlightingCheckbox = smartGuidesPanel.add("checkbox", undefined, L("checkbox.objectHighlighting"));
-        objectHighlightingCheckbox.helpTip = L("checkbox.objectHighlighting");
+        var smartGuidesPanel = addPanel(rightColumnGroup, "panel.smartGuides");
+        bindCheckbox(smartGuidesPanel, { label: "checkbox.objectHighlighting", key: "smartGuides/showObjectHighlighting", preset: "objectHighlighting" });
 
         /* ［パフォーマンス］パネル（右）/ Performance panel (right) */
-        var performancePanel = rightColumnGroup.add("panel", undefined, L("panel.performance"));
-        setupPanel(performancePanel);
+        var performancePanel = addPanel(rightColumnGroup, "panel.performance");
+        bindCheckbox(performancePanel, { label: "checkbox.animatedZoom", key: "Performance/AnimZoom", preset: "animatedZoom" });
 
-        var animatedZoomCheckbox = performancePanel.add("checkbox", undefined, L("checkbox.animatedZoom"));
-        animatedZoomCheckbox.helpTip = L("checkbox.animatedZoom");
-
-        var historyStatesRow = performancePanel.add("group");
-        setupRow(historyStatesRow);
-        historyStatesRow.add("statictext", undefined, L("label.historyStates"));
+        var historyStatesRow = addLabeledRow(performancePanel, "label.historyStates");
         var historyStatesInput = historyStatesRow.add("edittext", undefined, String(NUMERIC_INPUT_RULES.historyStates.defaultValue));
         historyStatesInput.characters = 4;
-        historyStatesInput.helpTip = L("hint.historyStates");
+        historyStatesInput.helpTip = getLabel("hint.historyStates");
 
-        var realTimeDrawingCheckbox = performancePanel.add("checkbox", undefined, L("checkbox.realTimeDrawing"));
-        realTimeDrawingCheckbox.helpTip = L("checkbox.realTimeDrawing");
+        bindCheckbox(performancePanel, { label: "checkbox.realTimeDrawing", key: "LiveEdit_State_Machine", preset: "realTimeDrawing" });
 
         /* ［ファイル管理］パネル（右）/ File Management panel (right) */
-        var fileManagementPanel = rightColumnGroup.add("panel", undefined, L("panel.fileManagement"));
-        setupPanel(fileManagementPanel);
-
-        var editOriginalSystemDefaultCheckbox = fileManagementPanel.add("checkbox", undefined, L("checkbox.editOriginalSystemDefault"));
-        editOriginalSystemDefaultCheckbox.helpTip = L("checkbox.editOriginalSystemDefault");
-
-        var autoActivateFontsCheckbox = fileManagementPanel.add("checkbox", undefined, L("checkbox.autoActivateFonts"));
-        autoActivateFontsCheckbox.helpTip = L("checkbox.autoActivateFonts");
+        var fileManagementPanel = addPanel(rightColumnGroup, "panel.fileManagement");
+        bindCheckbox(fileManagementPanel, { label: "checkbox.editOriginalSystemDefault", key: "useSysDefEdit", preset: "editOriginalSystemDefault" });
+        bindCheckbox(fileManagementPanel, { label: "checkbox.autoActivateFonts", key: "AutoActivateMissingFont", preset: "autoActivateFonts" });
 
         /* ファイルの保存先（コンピューター／クラウド）/ Save location (Computer / Cloud) */
-        var saveLocationRow = fileManagementPanel.add("group");
-        setupRow(saveLocationRow);
-        saveLocationRow.add("statictext", undefined, L("label.saveLocation"));
-        var saveToComputerRadio = saveLocationRow.add("radiobutton", undefined, L("radio.saveToComputer"));
-        var saveToCloudRadio = saveLocationRow.add("radiobutton", undefined, L("radio.saveToCloud"));
+        var saveLocationRow = addLabeledRow(fileManagementPanel, "label.saveLocation");
+        var saveToComputerRadio = saveLocationRow.add("radiobutton", undefined, getLabel("radio.saveToComputer"));
+        var saveToCloudRadio = saveLocationRow.add("radiobutton", undefined, getLabel("radio.saveToCloud"));
 
         /* リンクを更新（自動／手動／確認）/ Update Links (Automatic / Manual / Ask) */
-        var updateLinksRow = fileManagementPanel.add("group");
-        setupRow(updateLinksRow);
-        updateLinksRow.add("statictext", undefined, L("label.updateLinks"));
-        var updateLinksAutoRadio = updateLinksRow.add("radiobutton", undefined, L("radio.updateLinksAuto"));
-        var updateLinksManualRadio = updateLinksRow.add("radiobutton", undefined, L("radio.updateLinksManual"));
-        var updateLinksAskRadio = updateLinksRow.add("radiobutton", undefined, L("radio.updateLinksAsk"));
+        var updateLinksRow = addLabeledRow(fileManagementPanel, "label.updateLinks");
+        var updateLinksAutoRadio = updateLinksRow.add("radiobutton", undefined, getLabel("radio.updateLinksAuto"));
+        var updateLinksManualRadio = updateLinksRow.add("radiobutton", undefined, getLabel("radio.updateLinksManual"));
+        var updateLinksAskRadio = updateLinksRow.add("radiobutton", undefined, getLabel("radio.updateLinksAsk"));
 
         /* ［クリップボードの処理］パネル（右）/ Clipboard Handling panel (right) */
-        var clipboardPanel = rightColumnGroup.add("panel", undefined, L("panel.clipboard"));
-        setupPanel(clipboardPanel);
+        var clipboardPanel = addPanel(rightColumnGroup, "panel.clipboard");
+        bindCheckbox(clipboardPanel, { label: "checkbox.includeSvgCode", key: "plugin/FileClipboard/copySVGCode", preset: "includeSvgCode" });
 
-        var includeSvgCodeCheckbox = clipboardPanel.add("checkbox", undefined, L("checkbox.includeSvgCode"));
-        includeSvgCodeCheckbox.helpTip = L("checkbox.includeSvgCode");
+        /* ［パスに制限］パネル（右）。0=ON / 1=OFF の反転キー / Limit to Path panel; these keys store 0 = ON and 1 = OFF */
+        var limitToPathPanel = addPanel(rightColumnGroup, "panel.limitToPath");
+        bindCheckbox(limitToPathPanel, { label: "checkbox.objectPathOnly", key: "hitShapeOnPreview", preset: "objectPathOnly", type: "invertedInt" });
+        bindCheckbox(limitToPathPanel, { label: "checkbox.textPathOnly", key: "hitTypeShapeOnPreview", preset: "textPathOnly", type: "invertedInt" });
 
-        /* ［パスに制限］パネル（右）/ Limit to Path panel (right) */
-        var limitToPathPanel = rightColumnGroup.add("panel", undefined, L("panel.limitToPath"));
-        setupPanel(limitToPathPanel);
-
-        var objectPathOnlyCheckbox = limitToPathPanel.add("checkbox", undefined, L("checkbox.objectPathOnly"));
-        objectPathOnlyCheckbox.helpTip = L("checkbox.objectPathOnly");
-
-        var textPathOnlyCheckbox = limitToPathPanel.add("checkbox", undefined, L("checkbox.textPathOnly"));
-        textPathOnlyCheckbox.helpTip = L("checkbox.textPathOnly");
-
-        /* 環境設定キーとUIの単純な対応表。invertedInt は 0=ON / 1=OFF の反転キー */
-        /* Simple preference-to-UI bindings; "invertedInt" keys store 0 = ON and 1 = OFF */
-        var PREFERENCE_UI_BINDINGS = [
-            { key: "showRichToolTips", valueType: "bool", control: richToolTipsCheckbox },
-            { key: "Hello/ShowHomeScreenWS", valueType: "bool", control: homeScreenCheckbox },
-            { key: "Hello/NewDoc", valueType: "bool", control: legacyNewDocCheckbox },
-            { key: "enablePrintBleedWidget", valueType: "bool", control: printBleedWidgetCheckbox },
-            { key: "moveLockedAndHiddenArt", valueType: "bool", control: moveLockedArtCheckbox },
-            { key: "showArtboardLabelOnCanvas", valueType: "bool", control: showArtboardNameCheckbox },
-            { key: "zoomToSelection", valueType: "bool", control: zoomToSelectionCheckbox },
-            { key: "hitShapeOnPreview", valueType: "invertedInt", control: objectPathOnlyCheckbox },
-            { key: "hitTypeShapeOnPreview", valueType: "invertedInt", control: textPathOnlyCheckbox },
-            { key: "text/autoSizing", valueType: "bool", control: autoSizeAreaTextCheckbox },
-            { key: "text/doFontLocking", valueType: "bool", control: missingGlyphProtectionCheckbox },
-            { key: "text/enableAlternateGlyph", valueType: "bool", control: alternateGlyphCheckbox },
-            { key: "smartGuides/showObjectHighlighting", valueType: "bool", control: objectHighlightingCheckbox },
-            { key: "Performance/AnimZoom", valueType: "bool", control: animatedZoomCheckbox },
-            { key: "LiveEdit_State_Machine", valueType: "bool", control: realTimeDrawingCheckbox },
-            { key: "useSysDefEdit", valueType: "bool", control: editOriginalSystemDefaultCheckbox },
-            { key: "AutoActivateMissingFont", valueType: "bool", control: autoActivateFontsCheckbox },
-            { key: "plugin/FileClipboard/copySVGCode", valueType: "bool", control: includeSvgCodeCheckbox }
-        ];
-
-        /* 選択中のストローク幅を返す / Return the selected artboard stroke width */
+        /**
+         * 選択中のストローク幅を返す / Return the selected artboard stroke width
+         * @returns {number} 選択中の幅（未選択なら先頭の値）
+         */
         function getSelectedArtboardStrokeWidth() {
             for (var i = 0; i < artboardStrokeWidthRadios.length; i++) {
                 if (artboardStrokeWidthRadios[i].value) return ARTBOARD_STROKE_WIDTHS[i];
@@ -854,30 +1046,77 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             return ARTBOARD_STROKE_WIDTHS[0];
         }
 
-        /* ストローク幅のラジオを選択（1〜4を index に変換）/ Select the stroke-width radio for a width value (1-4) */
-        function selectArtboardStrokeWidth(width) {
-            var widthIndex = clamp(Math.round(width), 1, ARTBOARD_STROKE_WIDTHS.length) - 1;
+        /**
+         * ストローク幅のラジオを選択（最も近い選択肢に丸める）
+         * Select the stroke-width radio, snapping to the nearest available width
+         * @param {number} strokeWidth - ストローク幅
+         * @returns {void}
+         */
+        function selectArtboardStrokeWidth(strokeWidth) {
+            var widthIndex = findNearestIndex(ARTBOARD_STROKE_WIDTHS, strokeWidth);
             for (var i = 0; i < artboardStrokeWidthRadios.length; i++) {
                 artboardStrokeWidthRadios[i].value = (i === widthIndex);
             }
         }
 
-        /* 「リンクを更新」のラジオを選択 / Select the "Update Links" radio for a value */
-        function selectUpdateLinks(value) {
-            updateLinksAutoRadio.value = (value === UPDATE_LINKS_AUTO);
-            updateLinksManualRadio.value = (value === UPDATE_LINKS_MANUAL);
-            updateLinksAskRadio.value = (value !== UPDATE_LINKS_AUTO && value !== UPDATE_LINKS_MANUAL);
+        /**
+         * アンカーポイントサイズのスライダーを指定段階に合わせる / Move the anchor size slider to a step
+         * @param {number} anchorStep - 1〜ANCHOR_SIZE_LEVELS.length の段階番号
+         * @returns {void}
+         */
+        function applyAnchorSizeStep(anchorStep) {
+            anchorSizeSlider.value = clamp(Math.round(anchorStep), 1, ANCHOR_SIZE_LEVELS.length);
         }
 
-        /* 「最近使用したフォント」のチェックと入力欄を同期 / Sync the recent-fonts checkbox and its input */
-        function applyRecentFontsCount(count) {
-            recentFontsCheckbox.value = (count > 0);
-            recentFontsInput.text = String(count);
-            recentFontsInput.enabled = (count > 0);
+        /**
+         * anchorSizePref の値から最も近い段階にスナップ / Snap the slider to the step nearest a stored value
+         * @param {number} anchorSizeValue - anchorSizePref の値
+         * @returns {void}
+         */
+        function selectAnchorSize(anchorSizeValue) {
+            applyAnchorSizeStep(findNearestIndex(ANCHOR_SIZE_LEVELS, anchorSizeValue) + 1);
         }
 
-        /* 現在の環境設定を読み込んでUIに反映 / Load the current preferences into the UI */
-        function loadPreferencesIntoUI() {
+        /**
+         * 選択中の段階に対応する anchorSizePref の値を返す
+         * Return the anchorSizePref value for the selected step
+         * @returns {number} ANCHOR_SIZE_LEVELS のいずれかの値
+         */
+        function getSelectedAnchorSize() {
+            var selectedStep = clamp(Math.round(anchorSizeSlider.value), 1, ANCHOR_SIZE_LEVELS.length);
+            return ANCHOR_SIZE_LEVELS[selectedStep - 1];
+        }
+
+        /**
+         * 「リンクを更新」のラジオを選択 / Select the "Update Links" radio for a value
+         * @param {number} updateLinksValue - UPDATE_LINKS_* のいずれか
+         * @returns {void}
+         */
+        function selectUpdateLinks(updateLinksValue) {
+            updateLinksAutoRadio.value = (updateLinksValue === UPDATE_LINKS_AUTO);
+            updateLinksManualRadio.value = (updateLinksValue === UPDATE_LINKS_MANUAL);
+            updateLinksAskRadio.value = (updateLinksValue !== UPDATE_LINKS_AUTO && updateLinksValue !== UPDATE_LINKS_MANUAL);
+        }
+
+        /**
+         * 「最近使用したフォント」のチェックと入力欄を同期
+         * Sync the recent-fonts checkbox and its input
+         * @param {number} recentFontCount - 表示数（0以下はチェックOFF＝非表示）
+         * @returns {void}
+         */
+        function applyRecentFontsCount(recentFontCount) {
+            var isListVisible = (recentFontCount > 0);
+            recentFontsCheckbox.value = isListVisible;
+            /* ONのときだけルール（1〜30）で補正。OFFは0を表示 / Normalize only when enabled; show 0 when off */
+            recentFontsInput.text = String(isListVisible ? clampIntToRule(recentFontCount, NUMERIC_INPUT_RULES.recentFonts) : 0);
+            recentFontsInput.enabled = isListVisible;
+        }
+
+        /**
+         * 対応表のチェックボックスを環境設定から復元 / Restore the table-driven checkboxes from the preferences
+         * @returns {void}
+         */
+        function loadBindingsIntoUI() {
             for (var i = 0; i < PREFERENCE_UI_BINDINGS.length; i++) {
                 var binding = PREFERENCE_UI_BINDINGS[i];
                 if (binding.valueType === "bool") {
@@ -886,11 +1125,28 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
                     binding.control.value = (safeGetInt(binding.key, 1) === 0); /* 0がON / 0 means ON */
                 }
             }
+        }
 
-            /* 数値入力欄 / Numeric fields */
-            historyStatesInput.text = String(clampIntToRule(safeGetInt("maximumUndoDepth", 0), NUMERIC_INPUT_RULES.historyStates));
-            applyRecentFontsCount(clampIntToRule(safeGetInt("text/recentFontMenu/showNEntries", 0), NUMERIC_INPUT_RULES.recentFonts));
+        /**
+         * 数値入力欄を環境設定から復元 / Restore the numeric fields from the preferences
+         * @returns {void}
+         */
+        function loadNumericInputsIntoUI() {
+            /* ヒストリー数は 0 を取り得ないので、0＝キー未登録とみなして既定値に戻す */
+            /* History states can never be 0, so treat 0 as "key not present" and fall back to the default */
+            historyStatesInput.text = String(clampIntToRule(
+                safeGetPositiveInt("maximumUndoDepth", NUMERIC_INPUT_RULES.historyStates.defaultValue),
+                NUMERIC_INPUT_RULES.historyStates
+            ));
+            /* 0 は「一覧を非表示」なのでそのまま渡す / 0 means "hide the list", so pass it through */
+            applyRecentFontsCount(safeGetInt("text/recentFontMenu/showNEntries", 0));
+        }
 
+        /**
+         * ドロップダウン・ラジオを環境設定から復元 / Restore the dropdowns and radio groups from the preferences
+         * @returns {void}
+         */
+        function loadChoicesIntoUI() {
             /* アートボードのハイライト（Real値なので個別に読み込み）/ Artboard highlight (real values, read individually) */
             artboardColorDropdown.selection = findNearestArtboardColorIndex(
                 safeGetReal("ArtboardBBColorRed", 0.0),
@@ -899,61 +1155,65 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             );
             selectArtboardStrokeWidth(safeGetReal("ArtboardBBWidth", 1.0));
 
+            /* 選択範囲・アンカー表示（キー未登録の 0 は最小値の段階に落ちる）/ Selection & anchor display (a missing key reads 0 and snaps to the smallest step) */
+            selectAnchorSize(safeGetInt("anchorSizePref", ANCHOR_SIZE_LEVELS[0]));
+
             /* ユーザーインターフェイス / User interface */
-            var canvasIsWhite = (safeGetInt("uiCanvasIsWhite", 0) === 1);
-            canvasWhiteRadio.value = canvasIsWhite;
-            canvasMatchRadio.value = !canvasIsWhite;
+            setRadioPair(canvasWhiteRadio, canvasMatchRadio, safeGetInt("uiCanvasIsWhite", 0) === 1);
             selectBrightnessSwatchByValue(safeGetReal("uiBrightness", 0.0));
 
             /* ガイド / Guides */
-            var guideIsLightBlue = isGuideColorLightBlue();
-            guideColorLightBlueRadio.value = guideIsLightBlue;
-            guideColorCyanRadio.value = !guideIsLightBlue;
-            var guideStyleIsDots = (safeGetInt("Guide/Style", GUIDE_STYLE_LINES) === GUIDE_STYLE_DOTS);
-            guideStyleDotsRadio.value = guideStyleIsDots;
-            guideStyleLinesRadio.value = !guideStyleIsDots;
+            setRadioPair(guideColorLightBlueRadio, guideColorCyanRadio, isGuideColorLightBlue());
+            setRadioPair(guideStyleDotsRadio, guideStyleLinesRadio,
+                safeGetInt("Guide/Style", GUIDE_STYLE_LINES) === GUIDE_STYLE_DOTS);
 
             /* ファイル管理 / File management */
-            var saveToCloud = safeGetBool("AdobeSaveAsCloudDocumentPreference", false);
-            saveToCloudRadio.value = saveToCloud;
-            saveToComputerRadio.value = !saveToCloud;
+            setRadioPair(saveToCloudRadio, saveToComputerRadio,
+                safeGetBool("AdobeSaveAsCloudDocumentPreference", false));
             selectUpdateLinks(safeGetInt("plugin/FileClipboard/linkoptions", UPDATE_LINKS_ASK));
         }
 
-        /* プリセットの設定一式をUIに反映（環境設定には書き込まない）/ Load a preset into the UI (nothing is written to preferences) */
-        function applyPresetStateToUI(presetState) {
-            richToolTipsCheckbox.value = presetState.richToolTips;
-            homeScreenCheckbox.value = presetState.homeScreen;
-            legacyNewDocCheckbox.value = presetState.legacyNewDoc;
-            printBleedWidgetCheckbox.value = presetState.printBleedWidget;
-            moveLockedArtCheckbox.value = presetState.moveLockedArt;
-            objectPathOnlyCheckbox.value = presetState.objectPathOnly;
-            zoomToSelectionCheckbox.value = presetState.zoomToSelection;
-            textPathOnlyCheckbox.value = presetState.textPathOnly;
-            showArtboardNameCheckbox.value = presetState.showArtboardName;
-            artboardColorDropdown.selection = presetState.artboardColorIndex;
-            selectArtboardStrokeWidth(presetState.artboardStrokeWidth);
-            autoSizeAreaTextCheckbox.value = presetState.autoSizeAreaText;
-            applyRecentFontsCount(presetState.recentFontsEnabled ? presetState.recentFontsCount : 0);
-            missingGlyphProtectionCheckbox.value = presetState.missingGlyphProtection;
-            alternateGlyphCheckbox.value = presetState.alternateGlyph;
-            objectHighlightingCheckbox.value = presetState.objectHighlighting;
-            animatedZoomCheckbox.value = presetState.animatedZoom;
-            historyStatesInput.text = String(presetState.historyStates);
-            realTimeDrawingCheckbox.value = presetState.realTimeDrawing;
-            editOriginalSystemDefaultCheckbox.value = presetState.editOriginalSystemDefault;
-            autoActivateFontsCheckbox.value = presetState.autoActivateFonts;
-            canvasWhiteRadio.value = presetState.canvasWhite;
-            canvasMatchRadio.value = !presetState.canvasWhite;
-            guideColorLightBlueRadio.value = presetState.guideColorIsLightBlue;
-            guideColorCyanRadio.value = !presetState.guideColorIsLightBlue;
-            saveToCloudRadio.value = presetState.saveToCloud;
-            saveToComputerRadio.value = !presetState.saveToCloud;
-            selectUpdateLinks(presetState.updateLinks);
-            includeSvgCodeCheckbox.value = presetState.includeSvgCode;
+        /**
+         * 現在の環境設定を読み込んでUIに反映 / Load the current preferences into the UI
+         * @returns {void}
+         */
+        function loadPreferencesIntoUI() {
+            loadBindingsIntoUI();
+            loadNumericInputsIntoUI();
+            loadChoicesIntoUI();
         }
 
-        /* プリセットIDに応じてUIを更新 / Update the UI for the given preset id */
+        /**
+         * プリセットの設定一式をUIに反映（環境設定には書き込まない）
+         * Load a preset into the UI (nothing is written to preferences)
+         * @param {object} presetState - PRESET_STATE_DEFAULT / PRESET_STATE_1 と同じ形の設定一式
+         * @returns {void}
+         */
+        function applyPresetStateToUI(presetState) {
+            /* チェックボックスは対応表の presetField 経由 / Checkboxes come from the table's presetField */
+            for (var i = 0; i < PREFERENCE_UI_BINDINGS.length; i++) {
+                var binding = PREFERENCE_UI_BINDINGS[i];
+                binding.control.value = !!presetState[binding.presetField];
+            }
+
+            /* 対応表に載らない項目 / Fields the table doesn't cover */
+            artboardColorDropdown.selection = presetState.artboardColorIndex;
+            selectArtboardStrokeWidth(presetState.artboardStrokeWidth);
+            selectAnchorSize(presetState.anchorSize);
+            applyRecentFontsCount(presetState.recentFontsEnabled ? presetState.recentFontsCount : 0);
+            historyStatesInput.text = String(presetState.historyStates);
+            setRadioPair(canvasWhiteRadio, canvasMatchRadio, presetState.canvasWhite);
+            setRadioPair(guideColorLightBlueRadio, guideColorCyanRadio, presetState.guideColorIsLightBlue);
+            setRadioPair(guideStyleDotsRadio, guideStyleLinesRadio, presetState.guideStyleIsDots);
+            setRadioPair(saveToCloudRadio, saveToComputerRadio, presetState.saveToCloud);
+            selectUpdateLinks(presetState.updateLinks);
+        }
+
+        /**
+         * プリセットIDに応じてUIを更新 / Update the UI for the given preset id
+         * @param {string} presetId - PRESET_IDS のいずれか
+         * @returns {void}
+         */
         function applyPresetById(presetId) {
             if (presetId === PRESET_IDS.preset1) {
                 applyPresetStateToUI(PRESET_STATE_1);
@@ -964,32 +1224,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             }
         }
 
-        /* ドロップダウンの選択位置をプリセットIDに変換 / Map the dropdown index to a preset id */
+        /**
+         * ドロップダウンの選択位置をプリセットIDに変換 / Map the dropdown index to a preset id
+         * @param {number} selectionIndex - ドロップダウンの index
+         * @returns {string} PRESET_IDS のいずれか
+         */
         function getPresetIdByIndex(selectionIndex) {
             if (selectionIndex === 1) return PRESET_IDS.defaultPreset;
             if (selectionIndex === 2) return PRESET_IDS.preset1;
             return PRESET_IDS.current;
         }
 
-        /* ［OK］時に全項目を環境設定へ書き込む / Write every setting to the preferences on [OK] */
-        function savePreferences() {
-            safeSetBool("showRichToolTips", richToolTipsCheckbox.value);
-            safeSetBool("Hello/ShowHomeScreenWS", homeScreenCheckbox.value);
-            safeSetBool("Hello/NewDoc", legacyNewDocCheckbox.value);
-            safeSetBool("enablePrintBleedWidget", printBleedWidgetCheckbox.value);
-            safeSetBool("moveLockedAndHiddenArt", moveLockedArtCheckbox.value);
-            safeSetBool("zoomToSelection", zoomToSelectionCheckbox.value);
+        /**
+         * 対応表（PREFERENCE_UI_BINDINGS）のキーをまとめて書き込む
+         * Write every key listed in PREFERENCE_UI_BINDINGS
+         * @returns {void}
+         */
+        function savePreferenceBindings() {
+            for (var i = 0; i < PREFERENCE_UI_BINDINGS.length; i++) {
+                var binding = PREFERENCE_UI_BINDINGS[i];
+                if (binding.valueType === "bool") {
+                    safeSetBool(binding.key, !!binding.control.value);
+                } else if (binding.valueType === "invertedInt") {
+                    safeSetInt(binding.key, binding.control.value ? 0 : 1); /* 0がON / 0 means ON */
+                }
+            }
+        }
 
-            /* 「パスに制限」は 0=ON / 1=OFF の反転キー / "Limit to path" keys are inverted: 0 = ON, 1 = OFF */
-            safeSetInt("hitShapeOnPreview", objectPathOnlyCheckbox.value ? 0 : 1);
-            safeSetInt("hitTypeShapeOnPreview", textPathOnlyCheckbox.value ? 0 : 1);
+        /**
+         * ［OK］時に全項目を環境設定へ書き込む / Write every setting to the preferences on [OK]
+         * @returns {void}
+         */
+        function savePreferences() {
+            /* 対応表で扱えるキー（チェックボックス）/ Keys covered by the binding table (checkboxes) */
+            savePreferenceBindings();
 
             /* テキスト / Text */
-            safeSetBool("text/autoSizing", autoSizeAreaTextCheckbox.value);
             safeSetInt("text/recentFontMenu/showNEntries",
                 recentFontsCheckbox.value ? normalizeIntInput(recentFontsInput, NUMERIC_INPUT_RULES.recentFonts) : 0);
-            safeSetBool("text/doFontLocking", missingGlyphProtectionCheckbox.value);
-            safeSetBool("text/enableAlternateGlyph", alternateGlyphCheckbox.value);
+
+            /* 選択範囲・アンカー表示 / Selection & anchor display */
+            safeSetInt("anchorSizePref", getSelectedAnchorSize());
 
             /* ユーザーインターフェイス / User interface */
             safeSetInt("uiCanvasIsWhite", canvasWhiteRadio.value ? 1 : 0);
@@ -997,60 +1272,69 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
             /* ガイド / Guides */
             writeGuideColor(guideColorLightBlueRadio.value ? GUIDE_COLOR_LIGHT_BLUE : GUIDE_COLOR_CYAN);
             safeSetInt("Guide/Style", guideStyleDotsRadio.value ? GUIDE_STYLE_DOTS : GUIDE_STYLE_LINES);
-            safeSetBool("smartGuides/showObjectHighlighting", objectHighlightingCheckbox.value);
 
             /* パフォーマンス / Performance */
-            safeSetBool("Performance/AnimZoom", animatedZoomCheckbox.value);
             safeSetInt("maximumUndoDepth", normalizeIntInput(historyStatesInput, NUMERIC_INPUT_RULES.historyStates));
-            safeSetBool("LiveEdit_State_Machine", realTimeDrawingCheckbox.value);
 
             /* ファイル管理・クリップボード / File management & clipboard */
-            safeSetBool("useSysDefEdit", editOriginalSystemDefaultCheckbox.value);
-            safeSetBool("AutoActivateMissingFont", autoActivateFontsCheckbox.value);
             safeSetBool("AdobeSaveAsCloudDocumentPreference", !!saveToCloudRadio.value);
             safeSetInt("plugin/FileClipboard/linkoptions", getSelectedUpdateLinks());
-            safeSetBool("plugin/FileClipboard/copySVGCode", includeSvgCodeCheckbox.value);
 
             /* アートボード / Artboard */
-            safeSetBool("showArtboardLabelOnCanvas", showArtboardNameCheckbox.value);
-            var selectedColor = ARTBOARD_COLOR_PRESETS[artboardColorDropdown.selection ? artboardColorDropdown.selection.index : 0];
-            safeSetReal("ArtboardBBColorRed", selectedColor.red);
-            safeSetReal("ArtboardBBColorGreen", selectedColor.green);
-            safeSetReal("ArtboardBBColorBlue", selectedColor.blue);
+            var selectedArtboardColor = ARTBOARD_COLOR_PRESETS[artboardColorDropdown.selection ? artboardColorDropdown.selection.index : 0];
+            safeSetReal("ArtboardBBColorRed", selectedArtboardColor.red);
+            safeSetReal("ArtboardBBColorGreen", selectedArtboardColor.green);
+            safeSetReal("ArtboardBBColorBlue", selectedArtboardColor.blue);
             safeSetReal("ArtboardBBWidth", getSelectedArtboardStrokeWidth());
         }
 
-        /* 選択中の「リンクを更新」の値を返す / Return the selected "Update Links" value */
+        /**
+         * 選択中の「リンクを更新」の値を返す / Return the selected "Update Links" value
+         * @returns {number} UPDATE_LINKS_* のいずれか
+         */
         function getSelectedUpdateLinks() {
             if (updateLinksAutoRadio.value) return UPDATE_LINKS_AUTO;
             if (updateLinksManualRadio.value) return UPDATE_LINKS_MANUAL;
             return UPDATE_LINKS_ASK;
         }
 
-        /* UIの明るさを書き込む。値の書き込みだけでは反映されないため、変更したときだけ書き込む */
-        /* Write the UI brightness; writing the value alone does not apply it, so write only when it changed */
-        /* @returns {boolean} 環境設定（ユーザーインターフェイス）を開く必要があるか / Whether Preferences (User Interface) must be opened */
+        /**
+         * UIの明るさを書き込む。値の書き込みだけでは反映されないため、変更したときだけ書き込む
+         * Write the UI brightness; writing the value alone does not apply it, so write only when it changed
+         * @returns {boolean} 環境設定（ユーザーインターフェイス）を開く必要があるか
+         */
         function saveBrightness() {
-            var selectedLevel = BRIGHTNESS_LEVELS[selectedBrightnessIndex];
-            if (!brightnessSwatchTouched || !selectedLevel) return false;
-            if (almostEqual(safeGetReal("uiBrightness", 0.0), selectedLevel.value, BRIGHTNESS_TOLERANCE)) return false;
-            safeSetReal("uiBrightness", selectedLevel.value);
+            var selectedBrightnessLevel = BRIGHTNESS_LEVELS[selectedBrightnessIndex];
+            if (!brightnessSwatchTouched || !selectedBrightnessLevel) return false;
+            if (almostEqual(safeGetReal("uiBrightness", 0.0), selectedBrightnessLevel.value, BRIGHTNESS_TOLERANCE)) return false;
+            safeSetReal("uiBrightness", selectedBrightnessLevel.value);
             return true;
         }
 
-        /* 環境設定の変更後に画面を強制再描画（redraw だけでは反映されないため）/ Force a redraw after preference changes (redraw alone is unreliable) */
+        /**
+         * 環境設定の変更後に画面を強制再描画（redraw だけでは反映されないため）
+         * Force a redraw after preference changes (redraw alone is unreliable)
+         * ドキュメントが開いていないときは何もしない / Does nothing when no document is open
+         * @returns {void}
+         */
         function forceScreenRefresh() {
-            app.executeMenuCommand("zoomout");
-            app.executeMenuCommand("zoomin");
+            if (app.documents.length === 0) return;
+            runSafely(function () {
+                app.executeMenuCommand("zoomout");
+                app.executeMenuCommand("zoomin");
+            }, "forceScreenRefresh failed", "zoomout/zoomin");
         }
 
-        /* 環境設定パネルを開く（モーダルを閉じてから呼ぶ）/ Open a Preferences panel (call after the modal dialog is closed) */
+        /**
+         * 環境設定パネルを開く（モーダルを閉じてから呼ぶ）
+         * Open a Preferences panel (call after the modal dialog is closed)
+         * @param {string} menuCommand - メニューコマンド名（例: "UIPref"）
+         * @returns {void}
+         */
         function openPreferencePanel(menuCommand) {
-            try {
+            runSafely(function () {
                 app.executeMenuCommand(menuCommand);
-            } catch (e) {
-                $.writeln("[" + SCRIPT_NAME + "] failed to open " + menuCommand + " / " + e);
-            }
+            }, "openPreferencePanel failed", menuCommand);
         }
 
         /* プリセット選択でUIを差し替え / Swap the UI when a preset is selected */
@@ -1062,16 +1346,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
 
         /* チェックOFFで入力欄を無効化（0＝非表示として保存）/ Disable the field when unchecked (saved as 0 = hidden) */
         recentFontsCheckbox.onClick = function () {
-            recentFontsInput.enabled = recentFontsCheckbox.value;
-            if (recentFontsCheckbox.value) {
-                normalizeIntInput(recentFontsInput, NUMERIC_INPUT_RULES.recentFonts);
-            } else {
-                recentFontsInput.text = "0";
+            if (!recentFontsCheckbox.value) {
+                applyRecentFontsCount(0);
+                return;
             }
+            /* ONに戻したとき 0 のままでは矛盾するので既定値を入れる / Restore the default instead of leaving 0 when re-enabled */
+            var currentFontCount = parseIntOrNull(recentFontsInput.text);
+            if (currentFontCount === null || currentFontCount < NUMERIC_INPUT_RULES.recentFonts.min) {
+                currentFontCount = NUMERIC_INPUT_RULES.recentFonts.defaultValue;
+            }
+            applyRecentFontsCount(currentFontCount);
         };
 
         recentFontsInput.onChange = function () {
             normalizeIntInput(recentFontsInput, NUMERIC_INPUT_RULES.recentFonts);
+        };
+
+        /* ドラッグを離したときに段階へスナップ / Snap to a step when the drag is released */
+        anchorSizeSlider.onChange = function () {
+            applyAnchorSizeStep(anchorSizeSlider.value);
         };
 
         historyStatesInput.onChange = function () {
@@ -1092,41 +1385,40 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n3b33862538f6"; /* 紹�
         okCancelGroup.orientation = "row";
         okCancelGroup.alignChildren = ["right", "center"];
         okCancelGroup.spacing = 10;
-        var cancelButton = okCancelGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var okButton = okCancelGroup.add("button", undefined, L("button.ok"), { name: "ok" });
+        var cancelButton = okCancelGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var okButton = okCancelGroup.add("button", undefined, "OK", { name: "ok" });
 
         okButton.onClick = function () {
+            var willOpenUserInterface = false;
             try {
                 savePreferences();
-                var willOpenUserInterface = saveBrightness();
-                forceScreenRefresh();
-                prefsDialog.close();
-                /* 環境設定パネルはモーダルダイアログを閉じてから開く（表示中は開けないため）*/
-                /* Open the Preferences panel only after this modal dialog is closed (it cannot open while it is up) */
-                if (willOpenUserInterface) openPreferencePanel("UIPref");
+                willOpenUserInterface = saveBrightness();
             } catch (e) {
-                alert(L("alert.savePrefsFailed") + e);
+                alert(getLabel("alert.savePrefsFailed") + e);
             }
+            /* 書き込みの成否にかかわらずダイアログは閉じる / Close the dialog whether or not the writes succeeded */
+            forceScreenRefresh();
+            preferencesDialog.close();
+            /* 環境設定パネルはモーダルダイアログを閉じてから開く（表示中は開けないため）*/
+            /* Open the Preferences panel only after this modal dialog is closed (it cannot open while it is up) */
+            if (willOpenUserInterface) openPreferencePanel("UIPref");
         };
 
         /* 初期状態として現在の環境設定を読み込む / Load the current preferences as the initial UI state */
         applyPresetById(PRESET_IDS.current);
 
-        /* ダイアログの表示位置をずらす / Shift the dialog position */
-        function shiftDialogPosition(targetDialog, offsetX, offsetY) {
-            targetDialog.onShow = function () {
-                targetDialog.location = [targetDialog.location[0] + offsetX, targetDialog.location[1] + offsetY];
-            };
-        }
-
-        /* ダイアログの不透明度を設定 / Set the dialog opacity */
+        /**
+         * ダイアログの不透明度を設定 / Set the dialog opacity
+         * @param {Window} targetDialog - 対象のダイアログ
+         * @param {number} opacityValue - 不透明度（0〜1）
+         * @returns {void}
+         */
         function setDialogOpacity(targetDialog, opacityValue) {
             targetDialog.opacity = opacityValue;
         }
 
-        setDialogOpacity(prefsDialog, DIALOG_OPACITY);
-        shiftDialogPosition(prefsDialog, DIALOG_OFFSET_X, DIALOG_OFFSET_Y);
-        prefsDialog.show();
+        setDialogOpacity(preferencesDialog, DIALOG_OPACITY);
+        preferencesDialog.show();
     }
 
     main();
