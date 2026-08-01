@@ -1,66 +1,34 @@
 #target illustrator
+#targetengine "AiDocumentCleanerSession"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-
 ### 概要
 
-ドキュメント内の不要な要素をまとめて削除するクリーンアップツールです。ダイアログで対象を選びます。
-
-- パネル項目（スウォッチ・シンボル・ブラシ・グラフィックスタイル・段落スタイル・文字スタイル）
-  - スウォッチ・シンボル・ブラシ・グラフィックスタイルは、各パネルの「未使用をすべて選択 → 削除」アクションを一時生成・再生して未使用のみ削除（Illustrator 本体の判定）
-  - 段落スタイル・文字スタイルは使用情報を取得できないため、強制 ON のときだけ既定（先頭）以外を削除
-  - 「使用中も削除（強制）」ON では、パネル項目を DOM で保護対象・既定以外まで総当たり削除（ブラシは使用中・基本ブラシ以外を削除）
-- パス/オブジェクト
-  - 孤立点、空のテキスト、塗りも線もない（不可視）パス（ガイド・クリッピング・コンパウンドパスの構成は除外）、不透明度0%、非表示オブジェクト、リンク切れの配置画像
-- グループ/レイヤー
-  - 空のグループ（通常／クリップ）を再帰削除（空になった親もカスケード削除）
-  - 空のレイヤー／サブレイヤーを再帰削除（ガイドだけのレイヤーは残す。_guide / _pasteboard は保護。トップレベルは最低1つ残す）
-  - グループ／レイヤーの掃除は他の削除より後に実行（パスやオブジェクトの削除で空になった親も同じ実行で削除される）
-- ガイド（ラジオで1つ選択。既定は「削除しない」）
-  - ガイドを消去（通常）：メニュー「ガイドを消去」で削除（ロックされたレイヤー上のガイドは残る）
-  - すべてのガイド（強制）：レイヤーのロックも一時解除して全削除
-  - 現在のアートボード以外：アクティブなアートボード上にないガイドを削除
-- アートボード
-  - アートボード外／アクティブなアートボード外のオブジェクト、空のアートボード（強制 ON ですべて。最低1つは残す）
-- 誤削除しやすい項目（非表示オブジェクト・リンク切れの配置画像・アートボード外／アクティブなアートボード外）は初期 OFF。ガイドは既定「削除しない」
-- 一時アクションは finally で必ず解放・削除
-- 種類ごとに削除件数を集計して表示（0件の種類は省略）
+- ドキュメント内の不要な要素（未使用のパネル項目、孤立点や空のテキスト、空のグループ・レイヤー、ガイド、アートボード外のオブジェクトなど）をまとめて削除します。
+- 処理対象は「最前面のドキュメント」「開いているすべてのドキュメント」「指定フォルダー内の .ai ファイル（上書き保存）」から選べます。
+- ダイアログで削除対象を選び、実行後は種類ごとの削除件数を表示します。
+- 誤削除しやすい項目は初期OFF、ガイドは既定で「削除しない」です。
+- 詳細な機能・オプションはREADMEを参照してください。
 
 ### Overview
 
-A cleanup tool that removes unneeded elements from a document in one pass. Choose targets in the dialog.
-
-- Panel items (swatches, symbols, brushes, graphic styles, paragraph styles, character styles)
-  - Swatches / symbols / brushes / graphic styles are pruned by building and playing each panel's "Select All Unused -> Delete" action (Illustrator's own judgment)
-  - Paragraph / character styles have no usage info, so they are removed only in force mode (all but the default/first)
-  - In force mode, panel items are brute-force removed via the DOM down to protected/default ones (brushes: every removable one except in-use and basic brushes)
-- Paths / Objects
-  - Stray points, empty text frames, unpainted (invisible) paths (guides, clipping, and compound-path members excluded), 0% opacity, hidden objects, broken-link placed images
-- Groups / Layers
-  - Recursively removes empty groups (ordinary and clip; a parent that becomes empty is also removed)
-  - Recursively removes empty layers and sublayers (guide-only layers are kept; _guide / _pasteboard are protected; at least one top-level layer remains)
-  - Group / layer cleanup runs after the other deletions, so a parent emptied by path/object removal is cleaned in the same pass
-- Guides (pick one radio option; default "Don't delete")
-  - Clear Guides (normal): remove via the Clear Guides menu command (guides on locked layers remain)
-  - All guides (force): unlock layers temporarily and remove everything
-  - Outside the active artboard: remove guides not on the active artboard
-- Artboards
-  - Objects outside all / the active artboard, and empty artboards (all in force mode; at least one is kept)
-- Deletion-prone options (hidden objects, broken-link placed images, objects outside all / the active artboard) start unchecked; guides default to "Don't delete"
-- The temporary action is always unloaded and deleted in a finally block
-- Reports the deleted count per type (zero-count types are omitted)
+- Removes unneeded elements from a document in one pass: unused panel items, stray points and empty text frames, empty groups and layers, guides, objects outside the artboards, and more.
+- Runs against the frontmost document, every open document, or all .ai files in a chosen folder (saved over the originals).
+- Choose the targets in the dialog; the deleted count per type is reported afterwards.
+- Deletion-prone options start unchecked, and guides default to "Don't delete".
+- See the README for the full feature and option list.
 
 */
 
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME = "AiDocumentCleaner"; /* スクリプト名 / script name */
-var SCRIPT_VERSION = "v1.0.4"; /* バージョン / version */
-var SCRIPT_AUTHOR = "Masahiro Takano (@swwwitch)"; /* 作者 / author */
-var SCRIPT_RELEASED = "2026-06-27"; /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED = "2026-07-25"; /* 更新日 / last updated */
+var SCRIPT_NAME     = "AiDocumentCleaner";            /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-06-27";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-02";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiDocumentCleaner.md
@@ -73,11 +41,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n0d70178f0f65"; /* 紹�
 
 // =========================================
 // ユーザー設定 / User Settings
+// 動作を変えたいときに触る値 / Values to tweak when you want different behavior
 // =========================================
 
-/* パネルの余白と間隔 / Panel margins and spacing */
-var PANEL_MARGINS = [16, 20, 16, 12];
-var PANEL_SPACING = 12;
+/* Dropboxのローカルマウントパス。空文字にするとホーム直下から自動検出 / Local Dropbox mount path ("" = auto detect) */
+var DROPBOX_MOUNT_PATH = "";
 
 /* システム管理レイヤー名（空でも削除しない）/ System-managed layer names (kept even when empty) */
 var PROTECTED_LAYER_NAMES = {
@@ -93,6 +61,35 @@ var UNCHECKED_BY_DEFAULT = {
     outsideActiveArtboard: true
 };
 
+// =========================================
+// レイアウト / Layout
+// ダイアログの見た目の寸法。ScriptUI は生成後に幅が伸びないため、事前に確保しておく値を含む
+// Dialog metrics; ScriptUI controls don't grow after creation, so some widths are reserved up front
+// =========================================
+
+/* パネルの余白と間隔 / Panel margins and spacing */
+var PANEL_MARGINS = [16, 20, 16, 12];
+var PANEL_SPACING = 12;
+
+/* 「使用中のパネル項目も削除」の上に置く区切り線の、上下の余白（px）/ Space above and below the divider that sits over the force option */
+var FORCE_DIVIDER_MARGIN = 8;
+
+/* 「処理対象」パネルで選択中のフォルダーパスを表示する幅と、ラジオのラベル位置に合わせる字下げ（px）
+   Width of the chosen-folder path label in the Scope panel, and the indent that lines it up with the radio's label */
+var FOLDER_PATH_WIDTH = 280;
+var FOLDER_PATH_INDENT = 18;
+
+/* 「フォルダー指定」ラジオの幅（px）。選択後に件数を付け足してもラベルが切れないよう先に確保する
+   Width of the folder radio; reserved up front so appending the file count after selection doesn't clip the label */
+var FOLDER_RADIO_WIDTH = 160;
+
+/* セットのポップアップの幅（px）/ Width of the preset popup */
+var PRESET_DROPDOWN_WIDTH = 140;
+
+/* 復元したダイアログ位置を採用するかの判定に使う、画面端からの余裕（px）。タイトルバーが画面外に出ないようにする
+   Margin from a screen edge required to reuse a restored dialog position, so the title bar never lands off-screen */
+var ON_SCREEN_MARGIN = 60;
+
 /* パネルの共通設定 / Apply shared panel layout */
 function setupPanel(panel, spacing) {
     panel.orientation = "column";
@@ -103,6 +100,24 @@ function setupPanel(panel, spacing) {
 }
 
 // =========================================
+// セッション記憶 / Session memory
+// #targetengine で確保した永続エンジンの $.global に置くため、スクリプトを再実行しても
+// Illustrator を終了するまで保持される（環境設定には書き込まない）
+// Kept on $.global of the persistent engine declared by #targetengine, so it survives re-runs
+// until Illustrator quits. Nothing is written to the application preferences.
+// =========================================
+
+var SESSION_STATE_KEY = "__aiDocumentCleanerSession";
+if (typeof $.global[SESSION_STATE_KEY] === "undefined") {
+    $.global[SESSION_STATE_KEY] = {
+        choices: null,       /* 前回の選択内容 / the previous selection */
+        folderPath: null,    /* 前回の対象フォルダー（パス文字列で保持）/ the previous target folder, kept as a path string */
+        dialogLocation: null /* 前回のダイアログ位置 / the previous dialog position */
+    };
+}
+var sessionState = $.global[SESSION_STATE_KEY];
+
+// =========================================
 // 一時アクション設定 / Temporary action settings
 // =========================================
 
@@ -111,7 +126,12 @@ var ACTION_NAME = "TemporaryActionName";
 /* 一時ファイルはホーム直下ではなく OS の一時フォルダへ / Write the temp file to the OS temp folder, not the home directory */
 var ACTION_FILE_NAME = Folder.temp.fsName + "/AiDocumentCleaner_TemporaryAction.aia";
 
-/* パネルごとの録画値（internalName・Select All Unused 値・Delete 値・各ラベルの16進）/ Recorded per-panel values (internalName, Select All Unused value, Delete value, label hex) */
+/* パネルごとの録画値（internalName・Select All Unused 値・Delete 値・各ラベルの16進）
+   localizedNameHex は日本語UIのパネル名を録画したもの。英語版など他言語UIでの再生は未検証で、
+   失敗した場合は完了メッセージに「アクションを実行できませんでした」と出る（強制ONならDOM側の削除は動く）
+   Recorded per-panel values (internalName, Select All Unused value, Delete value, label hex).
+   localizedNameHex holds the panel names as recorded on a Japanese UI; playback on other UI languages is
+   unverified and, if it fails, the summary reports the action as unplayable (force mode still works via the DOM) */
 var PRUNE_SPECS = {
     swatch: {
         internalName: "ai_plugin_swatches",
@@ -147,6 +167,145 @@ var PRUNE_SPECS = {
 var SELECT_ALL_UNUSED_HEX = "53656c65637420416c6c20556e75736564";
 
 // =========================================
+// パス表示 / Path display
+// 移植元 / Ported from: LinkedImageManager.jsx
+// =========================================
+
+/* 失敗しうる取得を試み、例外時は代替値を返す / Try a lookup that may throw, falling back to a default */
+function tryGet(getValue, fallback) {
+    try {
+        return getValue();
+    } catch (e) {
+        return fallback;
+    }
+}
+
+/* ホーム直下から「Dropbox」を含むフォルダーを探す。チームフォルダー（「sw Dropbox」など）を優先し、
+   個人用の「Dropbox」は「~/Dropbox/」として短縮できるため優先度を下げる
+   Find a folder named like "Dropbox" directly under the home folder; a team folder ("sw Dropbox") wins over
+   the personal "Dropbox", which the ~ form already shortens well */
+function findDropboxFolder() {
+    var homeFolder = Folder("~");
+    if (!homeFolder.exists) {
+        return null;
+    }
+
+    var entryList = tryGet(function() {
+        return homeFolder.getFiles();
+    }, []);
+    var personalFolder = null;
+    var teamFolder = null;
+
+    for (var i = 0; i < entryList.length; i++) {
+        var entry = entryList[i];
+        if (!(entry instanceof Folder)) {
+            continue;
+        }
+
+        var entryName = tryGet(function() {
+            return decodeURI(String(entry.name));
+        }, String(entry.name));
+        if (entryName.charAt(0) === ".") {
+            continue;
+        }
+        if (entryName.indexOf("Dropbox") === -1) {
+            continue;
+        }
+
+        if (entryName === "Dropbox") {
+            if (!personalFolder) {
+                personalFolder = entry;
+            }
+        } else if (!teamFolder) {
+            teamFolder = entry;
+        }
+    }
+    return teamFolder ? teamFolder : personalFolder;
+}
+
+/* フォルダー直下にサブフォルダーが1つだけあるときそれを返す。チームDropboxのメンバーフォルダー（「takano masahiro」など）の判定に使う
+   Return the only subfolder directly inside a folder; used to spot a team Dropbox member folder. Null when there are zero or several */
+function findSingleSubFolder(parentFolder) {
+    var entryList = tryGet(function() {
+        return parentFolder.getFiles();
+    }, []);
+    var foundFolder = null;
+
+    for (var i = 0; i < entryList.length; i++) {
+        var entry = entryList[i];
+        if (!(entry instanceof Folder)) {
+            continue;
+        }
+
+        var entryName = tryGet(function() {
+            return decodeURI(String(entry.name));
+        }, String(entry.name));
+        if (entryName.charAt(0) === ".") {
+            continue;
+        }
+
+        if (foundFolder) {
+            return null;
+        }
+        foundFolder = entry;
+    }
+    return foundFolder;
+}
+
+/* Dropboxのローカルマウントパスを決める。手動指定が空のときはホーム直下の「Dropbox」を含むフォルダーを探し、
+   メンバーフォルダーが1つだけあればそこまでをプレフィックスにする。見つからない場合は空文字
+   Resolve the local Dropbox mount path; with no manual setting, look for a "Dropbox" folder under home and
+   extend the prefix to its single member folder when there is one. Empty string when nothing is found */
+function resolveDropboxPrefix(manualPath) {
+    if (manualPath) {
+        return (manualPath.charAt(manualPath.length - 1) === "/") ? manualPath : manualPath + "/";
+    }
+
+    var dropboxFolder = findDropboxFolder();
+    if (!dropboxFolder) {
+        return "";
+    }
+
+    var memberFolder = findSingleSubFolder(dropboxFolder);
+    return (memberFolder ? memberFolder : dropboxFolder).fsName + "/";
+}
+
+var DROPBOX_PREFIX = resolveDropboxPrefix(DROPBOX_MOUNT_PATH);
+
+/* ホームフォルダー以下のパスを ~ 表記に短縮する / Abbreviate a path under the home folder with ~ */
+function abbreviateHomePath(fsPath) {
+    var home = tryGet(function() {
+        return Folder("~").fsName;
+    }, "");
+    if (!home) {
+        return fsPath;
+    }
+    if (fsPath === home) {
+        return "~";
+    }
+    if (fsPath.indexOf(home) === 0) {
+        var rest = fsPath.substring(home.length);
+        /* 直後が区切り文字のときだけ短縮（同名の別フォルダーを誤判定しない）/ Abbreviate only on a separator boundary, so a similarly named folder isn't mistaken for the home folder */
+        if (rest.charAt(0) === "/" || rest.charAt(0) === "\\") {
+            return "~" + rest;
+        }
+    }
+    return fsPath;
+}
+
+/* 表示用にパスを短縮する。Dropbox配下ならプレフィックスを落とし、そうでなければ ~ 表記にする
+   Shorten a path for display: drop the Dropbox prefix when it applies, otherwise fall back to the ~ form */
+function formatDisplayPath(fsPath) {
+    if (!fsPath) {
+        return fsPath;
+    }
+    if (DROPBOX_PREFIX && fsPath.indexOf(DROPBOX_PREFIX) === 0) {
+        return fsPath.substring(DROPBOX_PREFIX.length);
+    }
+    return abbreviateHomePath(fsPath);
+}
+
+// =========================================
 // ローカライズ / Localization
 // =========================================
 
@@ -158,245 +317,170 @@ var currentLanguage = getCurrentLang();
 
 var LABELS = {
     dialog: {
-        title: {
-            ja: "不要な要素を削除",
-            en: "Remove Unneeded Items"
-        }
+        title: { ja: "不要な要素を一括削除", en: "Clean Up Documents" }
     },
     panel: {
-        panelItems: {
-            ja: "パネル項目",
-            en: "Panel items"
-        },
-        object: {
-            ja: "パス/オブジェクト",
-            en: "Paths/Objects"
-        },
-        container: {
-            ja: "グループ/レイヤー",
-            en: "Groups/Layers"
-        },
-        guide: {
-            ja: "ガイド",
-            en: "Guides"
-        },
-        artboard: {
-            ja: "アートボード",
-            en: "Artboards"
-        }
+        target: { ja: "処理対象", en: "Scope" },
+        panelItems: { ja: "パネル項目", en: "Panel items" },
+        object: { ja: "パス／オブジェクト", en: "Paths / Objects" },
+        container: { ja: "グループ／レイヤー", en: "Groups / Layers" },
+        guide: { ja: "ガイド", en: "Guides" },
+        artboard: { ja: "アートボード", en: "Artboards" }
     },
     checkbox: {
-        swatches: {
-            ja: "スウォッチ",
-            en: "Swatches"
-        },
-        graphicStyles: {
-            ja: "グラフィックスタイル",
-            en: "Graphic styles"
-        },
-        symbols: {
-            ja: "シンボル",
-            en: "Symbols"
-        },
-        brushes: {
-            ja: "ブラシ",
-            en: "Brushes"
-        },
-        paragraphStyles: {
-            ja: "段落スタイル",
-            en: "Paragraph styles"
-        },
-        characterStyles: {
-            ja: "文字スタイル",
-            en: "Character styles"
-        },
-        strayPoints: {
-            ja: "孤立点",
-            en: "Stray points"
-        },
-        emptyText: {
-            ja: "空のテキスト",
-            en: "Empty text frames"
-        },
-        noPaintPath: {
-            ja: "塗りも線もないパス",
-            en: "Paths with no fill or stroke"
-        },
-        zeroOpacity: {
-            ja: "不透明度0%のオブジェクト",
-            en: "Objects at 0% opacity"
-        },
-        hiddenObjects: {
-            ja: "非表示オブジェクト",
-            en: "Hidden objects"
-        },
-        brokenLink: {
-            ja: "リンク切れの配置画像",
-            en: "Broken-link placed images"
-        },
-        outsideAllArtboards: {
-            ja: "アートボード外のオブジェクト",
-            en: "Objects outside all artboards"
-        },
-        outsideActiveArtboard: {
-            ja: "アクティブなアートボード外のオブジェクト",
-            en: "Objects outside the active artboard"
-        },
-        emptyGroup: {
-            ja: "空のグループ",
-            en: "Empty groups"
-        },
-        guidesNone: {
-            ja: "削除しない",
-            en: "Don't delete"
-        },
-        clearGuides: {
-            ja: "ガイドを消去（通常）",
-            en: "Clear Guides (normal)"
-        },
-        guides: {
-            ja: "すべてのガイド（強制）",
-            en: "All guides (force)"
-        },
-        guidesOutsideActiveArtboard: {
-            ja: "現在のアートボード以外",
-            en: "Outside the active artboard"
-        },
-        emptyLayer: {
-            ja: "空のレイヤー／サブレイヤー",
-            en: "Empty layers / sublayers"
-        },
-        artboards: {
-            ja: "空のアートボード",
-            en: "Empty artboards"
-        },
-        force: {
-            ja: "使用中の項目も削除",
-            en: "Delete items even if in use"
-        }
+        swatches: { ja: "スウォッチ", en: "Swatches" },
+        graphicStyles: { ja: "グラフィックスタイル", en: "Graphic styles" },
+        symbols: { ja: "シンボル", en: "Symbols" },
+        brushes: { ja: "ブラシ", en: "Brushes" },
+        paragraphStyles: { ja: "段落スタイル", en: "Paragraph styles" },
+        characterStyles: { ja: "文字スタイル", en: "Character styles" },
+        strayPoints: { ja: "孤立点", en: "Stray points" },
+        emptyText: { ja: "空のテキスト", en: "Empty text frames" },
+        noPaintPath: { ja: "塗りも線もないパス", en: "Paths with no fill or stroke" },
+        zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
+        hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
+        brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
+        outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
+        outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
+        emptyGroup: { ja: "空のグループ", en: "Empty groups" },
+        guidesNone: { ja: "削除しない", en: "Don't delete" },
+        clearGuides: { ja: "ガイドを消去（ロック分は残る）", en: "Clear Guides (locked ones remain)" },
+        guides: { ja: "すべてのガイド（ロックも解除）", en: "All guides (unlocks everything)" },
+        guidesOutsideActiveArtboard: { ja: "アクティブなアートボード以外", en: "Outside the active artboard" },
+        emptyLayer: { ja: "空のレイヤー／サブレイヤー", en: "Empty layers / sublayers" },
+        artboards: { ja: "空のアートボード", en: "Empty artboards" },
+        force: { ja: "使用中のパネル項目も削除", en: "Delete panel items even if in use" }
+    },
+    target: {
+        frontmostDocument: { ja: "最前面のドキュメント", en: "Frontmost document" },
+        allOpenDocuments: { ja: "開いているすべてのドキュメント（{0}）", en: "All open documents ({0})" },
+        targetFolder: { ja: "フォルダー指定", en: "Folder" },
+        targetFolderWithCount: { ja: "フォルダー指定（{0}）", en: "Folder ({0})" },
+        noFolderChosen: { ja: "（未指定）", en: "(none chosen)" }
     },
     button: {
-        cancel: {
-            ja: "キャンセル",
-            en: "Cancel"
-        },
-        run: {
-            ja: "削除",
-            en: "Delete"
-        }
+        chooseFolder: { ja: "指定...", en: "Choose..." },
+        cancel: { ja: "キャンセル", en: "Cancel" },
+        run: { ja: "実行", en: "Run" }
+    },
+    preset: {
+        label: { ja: "セット", en: "Preset" },
+        basic: { ja: "基本", en: "Default" },
+        allOff: { ja: "すべてOFF", en: "All off" },
+        allOn: { ja: "すべてON", en: "All on" },
+        panelItemsOnly: { ja: "パネル項目のみ", en: "Panel items only" },
+        custom: { ja: "カスタム", en: "Custom" }
     },
     result: {
-        swatches: {
-            ja: "スウォッチ",
-            en: "Swatches"
-        },
-        graphicStyles: {
-            ja: "グラフィックスタイル",
-            en: "Graphic styles"
-        },
-        symbols: {
-            ja: "シンボル",
-            en: "Symbols"
-        },
-        brushes: {
-            ja: "ブラシ",
-            en: "Brushes"
-        },
-        paragraphStyles: {
-            ja: "段落スタイル",
-            en: "Paragraph styles"
-        },
-        characterStyles: {
-            ja: "文字スタイル",
-            en: "Character styles"
-        },
-        strayPoints: {
-            ja: "孤立点",
-            en: "Stray points"
-        },
-        emptyText: {
-            ja: "空のテキスト",
-            en: "Empty text frames"
-        },
-        noPaintPath: {
-            ja: "塗りも線もないパス",
-            en: "Paths with no fill or stroke"
-        },
-        zeroOpacity: {
-            ja: "不透明度0%のオブジェクト",
-            en: "Objects at 0% opacity"
-        },
-        hiddenObjects: {
-            ja: "非表示オブジェクト",
-            en: "Hidden objects"
-        },
-        brokenLink: {
-            ja: "リンク切れの配置画像",
-            en: "Broken-link placed images"
-        },
-        outsideAllArtboards: {
-            ja: "アートボード外のオブジェクト",
-            en: "Objects outside all artboards"
-        },
-        outsideActiveArtboard: {
-            ja: "アクティブなアートボード外のオブジェクト",
-            en: "Objects outside the active artboard"
-        },
-        emptyGroup: {
-            ja: "空のグループ",
-            en: "Empty groups"
-        },
-        clearGuides: {
-            ja: "ガイドを消去（通常）",
-            en: "Clear Guides (normal)"
-        },
-        guides: {
-            ja: "すべてのガイド（強制）",
-            en: "All guides (force)"
-        },
-        guidesOutsideActiveArtboard: {
-            ja: "現在のアートボード以外のガイド",
-            en: "Guides outside the active artboard"
-        },
-        emptyLayer: {
-            ja: "空のレイヤー／サブレイヤー",
-            en: "Empty layers / sublayers"
-        },
-        artboards: {
-            ja: "アートボード",
-            en: "Artboards"
-        }
+        swatches: { ja: "スウォッチ", en: "Swatches" },
+        graphicStyles: { ja: "グラフィックスタイル", en: "Graphic styles" },
+        symbols: { ja: "シンボル", en: "Symbols" },
+        brushes: { ja: "ブラシ", en: "Brushes" },
+        paragraphStyles: { ja: "段落スタイル", en: "Paragraph styles" },
+        characterStyles: { ja: "文字スタイル", en: "Character styles" },
+        strayPoints: { ja: "孤立点", en: "Stray points" },
+        emptyText: { ja: "空のテキスト", en: "Empty text frames" },
+        noPaintPath: { ja: "塗りも線もないパス", en: "Paths with no fill or stroke" },
+        zeroOpacity: { ja: "不透明度0%のオブジェクト", en: "Objects at 0% opacity" },
+        hiddenObjects: { ja: "非表示オブジェクト", en: "Hidden objects" },
+        brokenLink: { ja: "リンク切れの配置画像", en: "Broken-link placed images" },
+        outsideAllArtboards: { ja: "アートボード外のオブジェクト", en: "Objects outside all artboards" },
+        outsideActiveArtboard: { ja: "アクティブなアートボード外のオブジェクト", en: "Objects outside the active artboard" },
+        emptyGroup: { ja: "空のグループ", en: "Empty groups" },
+        clearGuides: { ja: "ガイドを消去（ロック分は残る）", en: "Clear Guides (locked ones remain)" },
+        guides: { ja: "すべてのガイド（ロックも解除）", en: "All guides (unlocks everything)" },
+        guidesOutsideActiveArtboard: { ja: "アクティブなアートボード以外のガイド", en: "Guides outside the active artboard" },
+        emptyLayer: { ja: "空のレイヤー／サブレイヤー", en: "Empty layers / sublayers" },
+        artboards: { ja: "空のアートボード", en: "Empty artboards" }
     },
     alert: {
-        noDocument: {
-            ja: "ドキュメントが開かれていません。",
-            en: "No document is open."
+        noDocument: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+        done: { ja: "削除が完了しました。", en: "Deletion complete." },
+        noTarget: { ja: "削除対象はありませんでした。", en: "No items to delete." },
+        actionFailed: {
+            ja: "次の項目は「未使用をすべて選択」アクションを実行できず、削除をスキップしました:",
+            en: "The following items were skipped because the \"Select All Unused\" action could not be played:"
         },
-        done: {
-            ja: "削除が完了しました。",
-            en: "Deletion complete."
+        folderNotChosen: {
+            ja: "対象フォルダーが指定されていません。［指定...］ボタンから選んでください。",
+            en: "No target folder is chosen. Pick one with the Choose button."
         },
-        noTarget: {
-            ja: "削除対象はありませんでした。",
-            en: "No items to delete."
+        folderNoFiles: {
+            ja: "指定したフォルダーに .ai ファイルがありません。\n\n{0}\n（フォルダー直下の {1} 項目を確認しました。サブフォルダーは対象外です）",
+            en: "The chosen folder contains no .ai files.\n\n{0}\n({1} item(s) checked directly inside the folder; subfolders are not included.)"
+        },
+        folderConfirm: {
+            ja: "「{1}」内の {0} 個の .ai ファイルを開いて処理し、上書き保存します。\n\n元のファイルは復元できません。実行しますか？",
+            en: "{0} .ai file(s) in \"{1}\" will be opened, cleaned, and saved over the originals.\n\nThis cannot be undone. Continue?"
+        },
+        batchDoneFiles: { ja: "{0} 個のファイルを処理しました。", en: "Processed {0} file(s)." },
+        batchDoneDocuments: {
+            ja: "{0} 個のドキュメントを処理しました（保存はしていません）。",
+            en: "Processed {0} document(s) (not saved)."
+        },
+        batchFailed: {
+            ja: "次のファイル／ドキュメントは処理できませんでした:",
+            en: "The following files/documents could not be processed:"
+        }
+    },
+    prompt: {
+        selectFolder: {
+            ja: "処理対象の .ai ファイルが入ったフォルダーを選択",
+            en: "Choose the folder containing the .ai files to process"
         }
     },
     tooltip: {
+        optionClickToggleAll: {
+            ja: "option（Alt）＋クリックで、このパネル内のチェックをまとめてON/OFFできます。",
+            en: "Option/Alt-click any checkbox to turn every option in this panel on or off."
+        },
+        preset: {
+            ja: "削除対象をまとめて切り替えます。「基本」は初期状態に戻し、「すべてON」はガイドも「すべてのガイド」に、「パネル項目のみ」はパネル項目だけをONにします。手で変えると「カスタム」になります。「使用中のパネル項目も削除」は変わりません。",
+            en: "Switches every deletion target at once. Default restores the initial state, All on also picks the all-guides option, and Panel items only leaves just the panel items checked. Changing anything by hand switches this to Custom. The force option is left alone."
+        },
+        target: {
+            ja: "どのドキュメントを処理するかを選びます。",
+            en: "Choose which documents to process."
+        },
+        chooseFolder: {
+            ja: "処理対象の .ai ファイルが入ったフォルダーを選びます。サブフォルダーは対象外です。",
+            en: "Pick the folder holding the .ai files to process. Subfolders are not included."
+        },
+        run: {
+            ja: "フォルダー指定のときは、各ファイルを上書き保存します。実行前に確認ダイアログが出ます。",
+            en: "With the folder scope, every file is saved over the original. A confirmation appears before the run."
+        },
+        guidesNone: {
+            ja: "ガイドには手を触れません。",
+            en: "Leaves every guide untouched."
+        },
+        frontmostDocument: {
+            ja: "現在いちばん手前にあるドキュメントだけを処理します。保存はしません。",
+            en: "Processes only the frontmost document. Nothing is saved."
+        },
+        allOpenDocuments: {
+            ja: "開いているすべてのドキュメントを処理します。保存はしないので、結果を確認してから保存してください。",
+            en: "Processes every open document. Nothing is saved, so review the results before saving."
+        },
+        targetFolder: {
+            ja: "指定したフォルダー直下の .ai ファイルを順に開いて処理し、上書き保存して閉じます。サブフォルダーは対象外です。",
+            en: "Opens each .ai file directly inside the chosen folder, cleans it, saves over the original, and closes it. Subfolders are not included."
+        },
         swatches: {
-            ja: "未使用のスウォッチをアクションで削除します（プロセスカラーも判定）。強制ONで保護対象以外をすべて削除します。",
-            en: "Prunes unused swatches via an action (process colors included). Force mode removes all but protected ones."
+            ja: "未使用のスウォッチをアクションで削除します（プロセスカラーも判定）。強制ONで保護対象以外をすべて削除します。空になったスウォッチグループも片付けます。",
+            en: "Prunes unused swatches via an action (process colors included). Force mode removes all but protected ones. Swatch groups left empty are cleared out too."
         },
         graphicStyles: {
             ja: "未使用のグラフィックスタイルをアクションで削除します。強制ONで既定（最後の1つ）以外をすべて削除します。",
             en: "Prunes unused graphic styles via an action. Force mode removes all but the default (the last one)."
         },
         symbols: {
-            ja: "未使用のシンボルをアクションで削除します。強制ONですべて削除します。",
-            en: "Prunes unused symbols via an action. Force mode removes them all."
+            ja: "未使用のシンボルをアクションで削除します。強制ONでは削除できるものをすべて削除します（使用中は Illustrator が削除を拒むため残ります）。",
+            en: "Prunes unused symbols via an action. Force mode removes every removable one; symbols still in use are refused by Illustrator and remain."
         },
         brushes: {
-            ja: "未使用のブラシをアクションで削除します。",
-            en: "Prunes unused brushes via an action."
+            ja: "未使用のブラシをアクションで削除します。強制ONでは使用中・基本ブラシ以外をすべて削除します。",
+            en: "Prunes unused brushes via an action. Force mode removes all but in-use and basic brushes."
         },
         strayPoints: {
             ja: "アンカーが1点だけで長さを持たないパス（孤立点）を削除します。",
@@ -411,8 +495,8 @@ var LABELS = {
             en: "Removes paths with no fill and no stroke (invisible). Guides and clipping paths are excluded."
         },
         zeroOpacity: {
-            ja: "不透明度が0%（完全に透明）の個々のオブジェクトを削除します（グループ内の項目も対象）。グループ自体に設定した不透明度0%は対象外です。",
-            en: "Removes individual objects at 0% opacity (fully transparent), including items inside groups. A group's own 0% opacity is not evaluated."
+            ja: "不透明度が0%（完全に透明）の個々のオブジェクトを削除します（グループ内の項目も対象）。グループ自体に設定した不透明度0%、ガイド、クリッピングパス、コンパウンドパスの構成パスは対象外です。",
+            en: "Removes individual objects at 0% opacity (fully transparent), including items inside groups. A group's own 0% opacity, guides, clipping paths, and compound-path members are all excluded."
         },
         hiddenObjects: {
             ja: "非表示（隠した）オブジェクトを削除します。非表示グループはその中身ごと削除されます。",
@@ -435,15 +519,15 @@ var LABELS = {
             en: "Removes empty groups with no contents. Clip groups also count when their non-mask contents are only paths with no fill or stroke."
         },
         clearGuides: {
-            ja: "メニュー「ガイドを消去」を実行します。ロックされたレイヤー上のガイドは残ることがあります（その場合は「すべてのガイド（強制）」を使用）。",
+            ja: "メニュー「ガイドを消去」を実行します。ロックされたレイヤー上のガイドは残ることがあります（その場合は「すべてのガイド（ロックも解除）」を使用）。",
             en: "Runs the Clear Guides menu command. Guides on locked layers may remain (use \"All guides (force)\" for those)."
         },
         guides: {
-            ja: "ドキュメント内のすべてのガイドを削除します（ロックされたレイヤーも一時的に解除）。",
-            en: "Removes all guides in the document (temporarily unlocking locked layers)."
+            ja: "ドキュメント内のすべてのガイドを削除します（ロックされたレイヤー・サブレイヤー・ガイドも一時的に解除）。",
+            en: "Removes all guides in the document (temporarily unlocking locked layers, sublayers, and the guides themselves)."
         },
         guidesOutsideActiveArtboard: {
-            ja: "現在（アクティブ）のアートボード上にないガイドを削除し、そのアートボード上のガイドだけを残します。",
+            ja: "アクティブなアートボード上にないガイドを削除し、そのアートボード上のガイドだけを残します。",
             en: "Removes guides that are not on the active artboard, keeping only that artboard's guides."
         },
         emptyLayer: {
@@ -459,107 +543,121 @@ var LABELS = {
             en: "Usage can't be detected, so all but [Normal Character Style] are removed only in force mode."
         },
         artboards: {
-            ja: "アートワークが載っていない空のアートボードを削除します（最低1つは残します）。強制ONですべて。",
-            en: "Removes empty artboards with no artwork (keeps at least one). Force mode removes them all."
+            ja: "アートワークが載っていない空のアートボードを削除します（最低1つは残します）。中身のあるアートボードは削除しません。",
+            en: "Removes empty artboards with no artwork (keeps at least one). Artboards holding artwork are never removed."
         },
         force: {
-            ja: "OFF では各パネルの「未使用を選択」で未使用のみ削除します。ON では保護対象・既定以外をすべて削除し、段落・文字スタイルの削除も有効になり、アートボードは空でなくてもすべて削除します（最低1つは残す）。",
-            en: "When off, only unused items are pruned via each panel's Select All Unused. When on, everything but protected/default is removed, paragraph/character style removal is enabled, and artboards are removed even if not empty (at least one remains)."
+            ja: "パネル項目だけに効きます。OFF では各パネルの「未使用を選択」で未使用のみ削除。ON ではドキュメント内で使用されていても削除し、段落・文字スタイルの削除も有効になります（保護対象・既定は残ります）。シンボルとブラシは使用中だと Illustrator が削除を拒むため残ります。アートボードには影響しません。",
+            en: "Applies to panel items only. When off, each panel's Select All Unused prunes unused items. When on, items are removed even when used in the document and paragraph/character style removal is enabled (protected and default items remain). Symbols and brushes still in use are refused by Illustrator and remain. Artboards are unaffected."
         }
     }
 };
 
 /* ドット区切りのキーからローカライズ文字列を取得 / Resolve a localized string from a dotted key path */
-function L(path) {
-    var parts = path.split(".");
-    var node = LABELS;
-    for (var i = 0; i < parts.length; i++) {
-        if (node == null) {
-            return path;
+function getLabel(labelKey) {
+    var keyParts = labelKey.split(".");
+    var labelNode = LABELS;
+    for (var i = 0; i < keyParts.length; i++) {
+        if (labelNode == null) {
+            return labelKey;
         }
-        node = node[parts[i]];
+        labelNode = labelNode[keyParts[i]];
     }
-    if (node == null) {
-        return path;
+    if (labelNode == null) {
+        return labelKey;
     }
-    return node[currentLanguage] || node.ja || path;
+    return labelNode[currentLanguage] || labelNode.ja || labelKey;
+}
+
+/* ラベル内の {0} {1} … を値で置き換える / Replace {0}, {1}, … placeholders in a label */
+function fillPlaceholders(template, values) {
+    var filledText = template;
+    for (var i = 0; i < values.length; i++) {
+        filledText = filledText.replace("{" + i + "}", values[i]);
+    }
+    return filledText;
 }
 
 // =========================================
 // メイン処理 / Main
 // =========================================
 (function() {
-    /* ドキュメントの有無を確認 / Ensure a document is open */
-    if (app.documents.length === 0) {
-        alert(L('alert.noDocument'));
-        return;
-    }
-
-    var doc = app.activeDocument;
-
-    /* 種類キーごとの削除処理。run(force) で件数を返す / Handler per type key; run(force) returns the count */
+    /* 種類キーごとの削除処理。run(doc, force) で件数を返す / Handler per type key; run(doc, force) returns the count */
     var TARGET_RUNNERS = {
-        swatches: function(force) {
+        swatches: function(doc, force) {
             return deleteUnusedSwatches(doc, force);
         },
-        graphicStyles: function(force) {
+        graphicStyles: function(doc, force) {
             return deleteUnusedGraphicStyles(doc, force);
         },
-        symbols: function(force) {
+        symbols: function(doc, force) {
             return deleteUnusedSymbols(doc, force);
         },
-        brushes: function(force) {
+        brushes: function(doc, force) {
             return deleteUnusedBrushes(doc, force);
         },
-        paragraphStyles: function(force) {
+        paragraphStyles: function(doc, force) {
             return deleteUnusedParagraphStyles(doc, force);
         },
-        characterStyles: function(force) {
+        characterStyles: function(doc, force) {
             return deleteUnusedCharacterStyles(doc, force);
         },
-        strayPoints: function() {
+        strayPoints: function(doc) {
             return deleteStrayPoints(doc);
         },
-        emptyText: function() {
+        emptyText: function(doc) {
             return deleteEmptyTextFrames(doc);
         },
-        noPaintPath: function() {
+        noPaintPath: function(doc) {
             return deleteUnpaintedPaths(doc);
         },
-        zeroOpacity: function() {
+        zeroOpacity: function(doc) {
             return deleteZeroOpacityObjects(doc);
         },
-        hiddenObjects: function() {
+        hiddenObjects: function(doc) {
             return deleteHiddenObjects(doc);
         },
-        brokenLink: function() {
+        brokenLink: function(doc) {
             return deleteBrokenLinkImages(doc);
         },
-        outsideAllArtboards: function() {
+        outsideAllArtboards: function(doc) {
             return deleteObjectsOutsideAllArtboards(doc);
         },
-        outsideActiveArtboard: function() {
+        outsideActiveArtboard: function(doc) {
             return deleteObjectsOutsideActiveArtboard(doc);
         },
-        emptyGroup: function() {
+        emptyGroup: function(doc) {
             return deleteEmptyGroups(doc);
         },
-        clearGuides: function() {
+        clearGuides: function(doc) {
             return clearGuides(doc);
         },
-        guides: function() {
+        guides: function(doc) {
             return deleteAllGuides(doc);
         },
-        guidesOutsideActiveArtboard: function() {
+        guidesOutsideActiveArtboard: function(doc) {
             return deleteGuidesOutsideActiveArtboard(doc);
         },
-        emptyLayer: function() {
+        emptyLayer: function(doc) {
             return deleteEmptyLayers(doc);
         },
-        artboards: function(force) {
-            return deleteUnusedArtboards(doc, force);
+        artboards: function(doc) {
+            return deleteUnusedArtboards(doc);
         }
     };
+
+    /* 削除対象プリセットのポップアップ項目。「カスタム」は選ぶものではなく、手でチェックを変えたことを示す状態
+       Items in the deletion-target preset popup; Custom isn't meant to be picked, it reports a hand-edited state */
+    var PRESET_BASIC = 0;
+    var PRESET_ALL_OFF = 1;
+    var PRESET_ALL_ON = 2;
+    var PRESET_PANEL_ITEMS_ONLY = 3;
+    var PRESET_CUSTOM = 4;
+
+    /* 対象の指定方法 / How the target is chosen */
+    var TARGET_FRONTMOST = "frontmost";
+    var TARGET_ALL_OPEN = "allOpen";
+    var TARGET_FOLDER = "folder";
 
     /* ダイアログの構成（トップパネル → サブパネル/チェックボックス）。force はパネル項目パネルの末尾に置く / Dialog layout; the force option sits at the bottom of the panel-items panel */
     var DIALOG_LAYOUT = [{
@@ -567,6 +665,8 @@ function L(path) {
                     column: [{
                             titleKey: "panel.panelItems",
                             force: true,
+                            /* 「パネル項目のみ」プリセットで ON にするパネル / The panel the Panel-items-only preset turns on */
+                            panelItemsGroup: true,
                             keys: ["swatches", "symbols", "brushes", "graphicStyles", "paragraphStyles", "characterStyles"]
                         },
                         {
@@ -584,6 +684,8 @@ function L(path) {
                             titleKey: "panel.guide",
                             radio: true,
                             noneKey: "guidesNone",
+                            /* 「すべてON」プリセットで選ぶ項目 / The option the All-on preset picks */
+                            allOnKey: "guides",
                             keys: ["clearGuides", "guides", "guidesOutsideActiveArtboard"]
                         }
                     ]
@@ -598,25 +700,78 @@ function L(path) {
 
     /* レイアウトを順に辿って全キーを取り出す / Flatten all keys in layout order */
     var ALL_KEYS = (function(layout) {
-        var keys = [];
+        var collectedKeys = [];
 
-        function collectFromNode(node) {
-            if (node.row) {
-                for (var r = 0; r < node.row.length; r++) {
-                    collectFromNode(node.row[r]);
+        function collectKeysFromNode(layoutNode) {
+            if (layoutNode.row) {
+                for (var j = 0; j < layoutNode.row.length; j++) {
+                    collectKeysFromNode(layoutNode.row[j]);
                 }
-            } else if (node.column) {
-                for (var c = 0; c < node.column.length; c++) {
-                    collectFromNode(node.column[c]);
+            } else if (layoutNode.column) {
+                for (var k = 0; k < layoutNode.column.length; k++) {
+                    collectKeysFromNode(layoutNode.column[k]);
                 }
             } else {
-                keys = keys.concat(node.keys);
+                collectedKeys = collectedKeys.concat(layoutNode.keys);
             }
         }
         for (var i = 0; i < layout.length; i++) {
-            collectFromNode(layout[i]);
+            collectKeysFromNode(layout[i]);
         }
-        return keys;
+        return collectedKeys;
+    })(DIALOG_LAYOUT);
+
+    /* ラジオで排他選択するパネル（ガイド）の情報。プリセット適用と復元で「削除しない」を含めて明示的に設定するために使う
+       The radio-selected panel (guides); presets and restoring need to set its options explicitly, none option included */
+    var RADIO_GROUP = (function(layout) {
+        var found = null;
+
+        function scanNode(layoutNode) {
+            if (layoutNode.row) {
+                for (var j = 0; j < layoutNode.row.length; j++) {
+                    scanNode(layoutNode.row[j]);
+                }
+            } else if (layoutNode.column) {
+                for (var k = 0; k < layoutNode.column.length; k++) {
+                    scanNode(layoutNode.column[k]);
+                }
+            } else if (layoutNode.radio && !found) {
+                found = {
+                    noneKey: layoutNode.noneKey,
+                    allOnKey: layoutNode.allOnKey,
+                    keys: layoutNode.keys
+                };
+            }
+        }
+        for (var i = 0; i < layout.length; i++) {
+            scanNode(layout[i]);
+        }
+        return found;
+    })(DIALOG_LAYOUT);
+
+    /* 「パネル項目のみ」プリセットで ON にするキーの集合 / The set of keys the Panel-items-only preset turns on */
+    var PANEL_ITEM_KEY_SET = (function(layout) {
+        var keySet = {};
+
+        function scanNode(layoutNode) {
+            if (layoutNode.row) {
+                for (var j = 0; j < layoutNode.row.length; j++) {
+                    scanNode(layoutNode.row[j]);
+                }
+            } else if (layoutNode.column) {
+                for (var k = 0; k < layoutNode.column.length; k++) {
+                    scanNode(layoutNode.column[k]);
+                }
+            } else if (layoutNode.panelItemsGroup) {
+                for (var m = 0; m < layoutNode.keys.length; m++) {
+                    keySet[layoutNode.keys[m]] = true;
+                }
+            }
+        }
+        for (var i = 0; i < layout.length; i++) {
+            scanNode(layout[i]);
+        }
+        return keySet;
     })(DIALOG_LAYOUT);
 
     /* 空グループ・空レイヤーの掃除は最後に回す（他の削除で空になった親も同じ実行で消せるように）/ Run container cleanup last so parents emptied by other deletions are removed in the same pass */
@@ -624,13 +779,13 @@ function L(path) {
         emptyGroup: true,
         emptyLayer: true
     };
-    var EXECUTION_KEYS = (function(keys) {
-        var head = [];
-        var tail = [];
-        for (var i = 0; i < keys.length; i++) {
-            (CONTAINER_CLEANUP_KEYS[keys[i]] ? tail : head).push(keys[i]);
+    var EXECUTION_KEYS = (function(layoutOrderedKeys) {
+        var earlierKeys = [];
+        var containerCleanupKeys = [];
+        for (var i = 0; i < layoutOrderedKeys.length; i++) {
+            (CONTAINER_CLEANUP_KEYS[layoutOrderedKeys[i]] ? containerCleanupKeys : earlierKeys).push(layoutOrderedKeys[i]);
         }
-        return head.concat(tail);
+        return earlierKeys.concat(containerCleanupKeys);
     })(ALL_KEYS);
 
     /* 削除対象を選ぶダイアログを表示 / Show the dialog for choosing what to delete */
@@ -639,37 +794,259 @@ function L(path) {
         return;
     }
 
-    var force = dialogChoices.force;
+    /* アクションの再生に失敗した種類キー。完了メッセージで「未使用0件」と区別して警告する / Type keys whose action failed to play; warned in the summary so they aren't mistaken for a genuine zero */
+    var actionFailureKeys = [];
 
-    /* 選択された種類ごとに削除し、件数を集計（実行順は EXECUTION_KEYS）/ Delete each selected type and tally the counts (in EXECUTION_KEYS order) */
-    var deletedCounts = {};
-    for (var i = 0; i < EXECUTION_KEYS.length; i++) {
-        var key = EXECUTION_KEYS[i];
-        if (dialogChoices[key]) {
-            deletedCounts[key] = TARGET_RUNNERS[key](force);
+    /* 対象の指定方法に応じて実行 / Run according to the chosen target */
+    if (dialogChoices.targetMode === TARGET_FOLDER) {
+        runFolderBatch(dialogChoices.targetFolder, dialogChoices);
+    } else if (dialogChoices.targetMode === TARGET_ALL_OPEN) {
+        runOpenDocumentsBatch(dialogChoices);
+    } else {
+        runFrontmostDocument(dialogChoices);
+    }
+
+    // ==================================================
+    // 実行 / Execution
+    // ==================================================
+
+    /* 1ドキュメントに対して選択された種類をすべて実行し、種類キーごとの件数を返す（実行順は EXECUTION_KEYS）
+       Run every selected type against one document and return the per-type counts (in EXECUTION_KEYS order) */
+    function runCleanup(targetDoc, choices) {
+        /* アクションとメニューコマンドは最前面のドキュメントに効くため、対象を必ず前面にする
+           Actions and menu commands act on the frontmost document, so bring the target forward first */
+        app.activeDocument = targetDoc;
+
+        var counts = {};
+        for (var i = 0; i < EXECUTION_KEYS.length; i++) {
+            var key = EXECUTION_KEYS[i];
+            if (choices[key]) {
+                counts[key] = TARGET_RUNNERS[key](targetDoc, choices.force);
+            }
+        }
+        return counts;
+    }
+
+    /* 最前面のドキュメントだけを処理する（保存はしない）/ Process only the frontmost document (nothing is saved) */
+    function runFrontmostDocument(choices) {
+        if (app.documents.length === 0) {
+            alert(getLabel('alert.noDocument'));
+            return;
+        }
+
+        var counts = runCleanup(app.activeDocument, choices);
+        app.redraw();
+        alert(buildSingleResultMessage(counts, choices));
+    }
+
+    /* 開いているすべてのドキュメントを処理する（保存はしない）/ Process every open document (nothing is saved) */
+    function runOpenDocumentsBatch(choices) {
+        if (app.documents.length === 0) {
+            alert(getLabel('alert.noDocument'));
+            return;
+        }
+
+        /* 処理中にアクティブドキュメントが切り替わるため、参照を先に控える / The active document changes while running, so snapshot the references first */
+        var targetDocs = [];
+        for (var i = 0; i < app.documents.length; i++) {
+            targetDocs.push(app.documents[i]);
+        }
+        var originallyActiveDoc = app.activeDocument;
+
+        var totals = {};
+        var processedCount = 0;
+        var failedNames = [];
+        for (var j = 0; j < targetDocs.length; j++) {
+            try {
+                addCounts(totals, runCleanup(targetDocs[j], choices));
+                processedCount++;
+            } catch (e) {
+                failedNames.push(getDocumentName(targetDocs[j]));
+            }
+        }
+
+        /* 元の作業ドキュメントを前面に戻す / Bring the originally active document back to the front */
+        try {
+            app.activeDocument = originallyActiveDoc;
+        } catch (e2) {
+            /* 閉じられていた場合などは無視 / Ignore when it is no longer available */
+        }
+        app.redraw();
+
+        alert(fillPlaceholders(getLabel('alert.batchDoneDocuments'), [processedCount]) + "\n\n" +
+            buildBatchResultMessage(totals, choices, failedNames));
+    }
+
+    /* 指定フォルダー直下の .ai ファイルを順に開いて処理し、上書き保存して閉じる / Open each .ai file directly inside the folder, clean it, save over the original, and close it */
+    function runFolderBatch(folder, choices) {
+        var aiFiles = collectAiFiles(folder);
+        if (aiFiles.length === 0) {
+            /* 対象フォルダーと走査した項目数を出して、フォルダー違いと絞り込み漏れを切り分けられるようにする
+               Report the folder and how many entries were scanned, so a wrong folder can be told apart from a filtering problem */
+            alert(fillPlaceholders(getLabel('alert.folderNoFiles'),
+                [formatDisplayPath(folder.fsName), folder.getFiles().length]));
+            return;
+        }
+
+        /* 元ファイルを上書きして元に戻せないため、実行前に必ず確認する / The originals are overwritten irreversibly, so always confirm first */
+        if (!confirm(fillPlaceholders(getLabel('alert.folderConfirm'), [aiFiles.length, folder.fsName]))) {
+            return;
+        }
+
+        /* 一括処理中はフォント欠落などのダイアログで止まらないようにする / Keep blocking dialogs (missing fonts, etc.) out of the way during the batch */
+        var originalInteractionLevel = app.userInteractionLevel;
+        app.userInteractionLevel = UserInteractionLevel.DONTDISPLAYALERTS;
+
+        var totals = {};
+        var processedCount = 0;
+        var failedNames = [];
+        try {
+            for (var i = 0; i < aiFiles.length; i++) {
+                var openedDoc = null;
+                try {
+                    openedDoc = app.open(aiFiles[i]);
+                    /* 保存に失敗した変更は破棄されるので、集計への加算は上書き保存が終わってから
+                       Changes are discarded when the save fails, so only fold the counts in once the file is safely saved */
+                    var fileCounts = runCleanup(openedDoc, choices);
+                    openedDoc.close(SaveOptions.SAVECHANGES);
+                    openedDoc = null;
+                    addCounts(totals, fileCounts);
+                    processedCount++;
+                } catch (e) {
+                    failedNames.push(getEntryName(aiFiles[i]));
+                    /* 失敗したファイルは保存せずに閉じ、壊れた状態を書き戻さない / Close a failed file without saving so a broken state isn't written back */
+                    if (openedDoc !== null) {
+                        try {
+                            openedDoc.close(SaveOptions.DONOTSAVECHANGES);
+                        } catch (e2) {
+                            /* 閉じられない場合は無視 / Ignore when it can't be closed */
+                        }
+                    }
+                }
+            }
+        } finally {
+            /* 例外時もユーザー操作レベルを必ず元に戻す / Always restore the interaction level, even on error */
+            app.userInteractionLevel = originalInteractionLevel;
+        }
+
+        alert(fillPlaceholders(getLabel('alert.batchDoneFiles'), [processedCount]) + "\n\n" +
+            buildBatchResultMessage(totals, choices, failedNames));
+    }
+
+    /* ファイル名を取得。displayName は OS の表示名なので拡張子の判定には使わず、実ファイル名の name を復号して使う
+       Get a file's name from `name` (URI-decoded): `displayName` is the OS display name and isn't reliable for extension matching */
+    function getEntryName(entry) {
+        return decodeURI(entry.name);
+    }
+
+    /* フォルダー直下の .ai ファイルを名前順に集める（サブフォルダー・不可視ファイルは対象外）
+       Collect .ai files directly inside the folder, sorted by name (subfolders and invisible files are skipped) */
+    function collectAiFiles(folder) {
+        var folderEntries = folder.getFiles();
+        var aiFiles = [];
+        for (var i = 0; i < folderEntries.length; i++) {
+            var entry = folderEntries[i];
+            /* サブフォルダーを除く（File 判定ではなく Folder 判定にして、取りこぼしを防ぐ）/ Exclude subfolders; testing for Folder rather than File avoids dropping everything if the check misbehaves */
+            if (entry instanceof Folder) {
+                continue;
+            }
+            var entryName = getEntryName(entry);
+            /* 不可視ファイルは対象外 / Skip invisible files */
+            if (entryName.charAt(0) === ".") {
+                continue;
+            }
+            if (entryName.length > 3 && entryName.substring(entryName.length - 3).toLowerCase() === ".ai") {
+                aiFiles.push(entry);
+            }
+        }
+        aiFiles.sort(function(entryA, entryB) {
+            var nameA = getEntryName(entryA);
+            var nameB = getEntryName(entryB);
+            if (nameA === nameB) {
+                return 0;
+            }
+            return (nameA < nameB) ? -1 : 1;
+        });
+        return aiFiles;
+    }
+
+    /* 件数の集計に1ドキュメントぶんの結果を足し込む / Add one document's counts into the running totals */
+    function addCounts(totals, counts) {
+        for (var i = 0; i < ALL_KEYS.length; i++) {
+            var key = ALL_KEYS[i];
+            if (counts[key] > 0) {
+                totals[key] = (totals[key] || 0) + counts[key];
+            }
         }
     }
 
-    /* パネル表示を更新 / Refresh the panels */
-    app.redraw();
-
-    /* 完了メッセージを組み立てて表示（0件の項目は省略）/ Build and show the completion message (omit zero-count types) */
-    var resultLines = "";
-    for (i = 0; i < ALL_KEYS.length; i++) {
-        key = ALL_KEYS[i];
-        if (dialogChoices[key] && deletedCounts[key] > 0) {
-            resultLines += formatResultLine('result.' + key, deletedCounts[key]);
+    /* ドキュメント名を取得（取得できない場合は空文字）/ Get a document's name (empty string when unavailable) */
+    function getDocumentName(targetDoc) {
+        try {
+            return targetDoc.name;
+        } catch (e) {
+            return "";
         }
     }
-    /* 1件も削除されなければ「対象なし」だけ表示 / If nothing was deleted, show only the no-target message */
-    alert(resultLines === "" ? L('alert.noTarget') : L('alert.done') + "\n\n" + resultLines);
+
+    // ==================================================
+    // 結果メッセージ / Result message
+    // ==================================================
 
     /* 集計1行を組み立て（日本語は「件」を付ける）/ Build one result line (JA appends a counter word) */
     function formatResultLine(key, count) {
         if (currentLanguage === "ja") {
-            return L(key) + ": " + count + " 件\n";
+            return getLabel(key) + ": " + count + " 件\n";
         }
-        return L(key) + ": " + count + "\n";
+        return getLabel(key) + ": " + count + "\n";
+    }
+
+    /* 種類ごとの削除件数を行にまとめる（0件の種類は省略）/ Collect the per-type counts into lines (zero-count types are omitted) */
+    function buildCountLines(counts, choices) {
+        var lines = "";
+        for (var i = 0; i < ALL_KEYS.length; i++) {
+            var key = ALL_KEYS[i];
+            if (choices[key] && counts[key] > 0) {
+                lines += formatResultLine('result.' + key, counts[key]);
+            }
+        }
+        return lines;
+    }
+
+    /* 見出しと項目名の一覧を組み立て（該当なしなら空文字）/ Build a heading followed by a list of names (empty when there is nothing to list) */
+    function buildNoticeLines(headingKey, names) {
+        if (names.length === 0) {
+            return "";
+        }
+        var lines = "\n" + getLabel(headingKey) + "\n";
+        for (var i = 0; i < names.length; i++) {
+            lines += "- " + names[i] + "\n";
+        }
+        return lines;
+    }
+
+    /* アクションを再生できなかった種類の一覧（0件ではなく失敗として明示する）/ List the types whose action couldn't be played, so they aren't reported as a genuine zero */
+    function buildActionFailureLines() {
+        var names = [];
+        for (var i = 0; i < actionFailureKeys.length; i++) {
+            names.push(getLabel('result.' + actionFailureKeys[i]));
+        }
+        return buildNoticeLines('alert.actionFailed', names);
+    }
+
+    /* 単一ドキュメント用の完了メッセージ / Completion message for a single document */
+    function buildSingleResultMessage(counts, choices) {
+        var lines = buildCountLines(counts, choices);
+        /* 1件も削除されなければ「対象なし」だけ表示 / If nothing was deleted, show only the no-target message */
+        var message = (lines === "") ? getLabel('alert.noTarget') : getLabel('alert.done') + "\n\n" + lines;
+        return message + buildActionFailureLines();
+    }
+
+    /* 一括処理用の完了メッセージ（合計件数と失敗したファイル名）/ Completion message for a batch run (totals plus the names that failed) */
+    function buildBatchResultMessage(totals, choices, failedNames) {
+        var lines = buildCountLines(totals, choices);
+        var message = (lines === "") ? getLabel('alert.noTarget') : lines;
+        return message + buildActionFailureLines() + buildNoticeLines('alert.batchFailed', failedNames);
     }
 
     // ==================================================
@@ -678,120 +1055,565 @@ function L(path) {
 
     /* 削除対象を選択するダイアログを構築し、選択結果を返す / Build the dialog and return the user's selection */
     function showDeleteDialog() {
-        var dialog = new Window("dialog", L('dialog.title') + " " + SCRIPT_VERSION);
+        var dialog = new Window("dialog", getLabel('dialog.title') + " " + SCRIPT_VERSION);
         dialog.orientation = "column";
         dialog.alignChildren = ["fill", "top"];
 
-        /* レイアウト定義どおりにパネル・サブパネル・チェックボックスを生成 / Build panels, sub-panels, and checkboxes per the layout */
-        var checkboxes = {};
-        var forceCheckbox = null;
+        /* 最上部に「対象」パネル（最前面／すべて開いている／フォルダー指定）/ The Target panel (frontmost / all open / folder) sits at the top */
+        var targetPanel = dialog.add("panel", undefined, getLabel('panel.target'));
+        setupPanel(targetPanel, 6);
+        targetPanel.helpTip = getLabel('tooltip.target');
 
-        /* 1ノードぶんのパネルを親コンテナに生成 / Build one node's panel inside a parent container */
-        function buildPanelNode(parent, node) {
+        var openDocumentCount = app.documents.length;
+
+        var frontmostRadio = targetPanel.add("radiobutton", undefined, getLabel('target.frontmostDocument'));
+        frontmostRadio.helpTip = getLabel('tooltip.frontmostDocument');
+        /* ドキュメントが1つも開いていなければ選べない / Not selectable when no document is open */
+        frontmostRadio.enabled = (openDocumentCount > 0);
+
+        /* 対象になるドキュメント数をラベルに添える / Show how many documents the option covers */
+        var allOpenRadio = targetPanel.add("radiobutton", undefined,
+            fillPlaceholders(getLabel('target.allOpenDocuments'), [openDocumentCount]));
+        allOpenRadio.helpTip = getLabel('tooltip.allOpenDocuments');
+        /* 1つ以下のときは「最前面のドキュメント」と変わらないのでディム表示 / Dimmed at one document or fewer, where it would do the same as the frontmost option */
+        allOpenRadio.enabled = (openDocumentCount > 1);
+
+        /* フォルダー指定はラジオと［指定］ボタンを1行に並べる / The folder option puts the radio and the Choose button on one row */
+        var folderRow = targetPanel.add("group");
+        folderRow.orientation = "row";
+        folderRow.alignment = ["fill", "top"];
+        folderRow.alignChildren = ["left", "center"];
+        folderRow.spacing = 8;
+
+        var folderRadio = folderRow.add("radiobutton", undefined, getLabel('target.targetFolder'));
+        folderRadio.helpTip = getLabel('tooltip.targetFolder');
+        /* ラジオも生成後に伸びないので、件数を付けた状態の幅を先に確保する / A radiobutton doesn't grow after creation either, so reserve the width the counted label needs */
+        folderRadio.preferredSize.width = FOLDER_RADIO_WIDTH;
+        var chooseFolderButton = folderRow.add("button", undefined, getLabel('button.chooseFolder'));
+        chooseFolderButton.helpTip = getLabel('tooltip.chooseFolder');
+
+        /* 選択中のパスは次の行に、ラジオのラベル位置に合わせて字下げして表示 / The chosen path goes on the next line, indented to line up with the radio's label */
+        var folderPathRow = targetPanel.add("group");
+        folderPathRow.orientation = "row";
+        folderPathRow.alignment = ["fill", "top"];
+        folderPathRow.alignChildren = ["left", "center"];
+        folderPathRow.margins = [FOLDER_PATH_INDENT, 0, 0, 0];
+
+        /* statictext は生成後に伸びないので、長いパスを収める幅を先に確保する / A statictext never grows after creation, so reserve enough width for a long path up front */
+        var folderPathText = folderPathRow.add("statictext", undefined, getLabel('target.noFolderChosen'), {
+            truncate: "middle"
+        });
+        folderPathText.preferredSize.width = FOLDER_PATH_WIDTH;
+        folderPathText.alignment = ["fill", "center"];
+
+        var selectedFolder = null;
+
+        /* 3つのラジオのうち1つだけを選択状態にする。フォルダー指定だけ横並び用の別グループにいて ScriptUI の自動排他が効かないため手動で揃える
+           Select exactly one of the three radios by hand: the folder radio sits in its own row group, so ScriptUI won't treat the three as one exclusive set */
+        function selectTargetRadio(chosenRadio) {
+            frontmostRadio.value = (chosenRadio === frontmostRadio);
+            allOpenRadio.value = (chosenRadio === allOpenRadio);
+            folderRadio.value = (chosenRadio === folderRadio);
+        }
+
+        /* 使えないラジオは選ばない。ドキュメントが1つも開いていなければフォルダー指定から始める
+           Never land on a disabled radio; with no document open, start on the folder option */
+        function selectDefaultTargetRadio() {
+            selectTargetRadio(frontmostRadio.enabled ? frontmostRadio : folderRadio);
+        }
+        selectDefaultTargetRadio();
+
+        /* 選んだフォルダーを保持して表示に反映する（選択ダイアログ経由でもセッション復元でも通る）
+           Hold the chosen folder and reflect it in the display; used both by the picker and by the session restore */
+        function applyChosenFolder(folder) {
+            selectedFolder = folder;
+            /* 表示は Dropbox 配下ならプレフィックスを落とし、そうでなければ ~ に短縮。幅に収まらないぶんは中央が省略されるため、末尾のフォルダー名は残る
+               Drop the Dropbox prefix when it applies, otherwise show the ~ form; middle truncation keeps the trailing folder name readable */
+            folderPathText.text = formatDisplayPath(folder.fsName);
+            folderPathText.helpTip = folder.fsName;
+            /* 処理対象になる .ai ファイル数をラベルに添える（0件なら実行前に気づける）/ Show how many .ai files the run will cover, so a zero is obvious before running */
+            folderRadio.text = fillPlaceholders(getLabel('target.targetFolderWithCount'), [collectAiFiles(folder).length]);
+        }
+
+        /* フォルダー選択ダイアログを開き、選んだフォルダーを表示に反映する（キャンセル時は false）
+           Open the folder picker and reflect the choice in the display; returns false when cancelled */
+        function chooseTargetFolder() {
+            var folder = Folder.selectDialog(getLabel('prompt.selectFolder'), selectedFolder);
+            if (!folder) {
+                return false;
+            }
+            applyChosenFolder(folder);
+            return true;
+        }
+
+        frontmostRadio.onClick = function() {
+            selectTargetRadio(frontmostRadio);
+        };
+
+        allOpenRadio.onClick = function() {
+            selectTargetRadio(allOpenRadio);
+        };
+
+        chooseFolderButton.onClick = function() {
+            /* ［指定］を押したらフォルダー指定モードに切り替える / Pressing Choose switches the target to folder mode */
+            if (chooseTargetFolder()) {
+                selectTargetRadio(folderRadio);
+            }
+        };
+
+        folderRadio.onClick = function() {
+            /* 未指定のままフォルダー指定を選んだら、その場で選択させる。キャンセル時はディム表示のラジオに戻さない
+               Picking folder mode with nothing chosen opens the picker right away; cancelling must not land on a dimmed radio */
+            if (selectedFolder === null && !chooseTargetFolder()) {
+                selectDefaultTargetRadio();
+                return;
+            }
+            selectTargetRadio(folderRadio);
+        };
+
+        /* レイアウト定義どおりにパネル・サブパネル・チェックボックス／ラジオを生成 / Build panels, sub-panels, and their checkboxes/radios per the layout */
+        var optionControls = {};
+        var forceCheckbox = null;
+        /* プリセットが値を書き込むチェックボックスの一覧。{ checkbox, key, initialValue } の組で持ち、
+           ScriptUI ウィジェットに独自プロパティを生やさない。強制オプションは含めない（ガイドのラジオは RADIO_GROUP 経由）
+           The checkboxes a preset writes to, held as { checkbox, key, initialValue } records rather than as custom
+           properties on the ScriptUI widgets; the force option is never included (guide radios go through RADIO_GROUP) */
+        var checkboxEntries = [];
+        var presetDropdown = null;
+        /* 表示を合わせ直している最中かどうか。ScriptUI は selection への代入でも onChange を呼ぶため、
+           そのままだと手で変えた直後にプリセットが再適用されてしまう
+           Whether the display is being resynced; ScriptUI fires onChange on assignment to selection too,
+           which would otherwise re-apply the preset right after a hand-made change */
+        var isSyncingPreset = false;
+
+        /* 手で選択を変えたらプリセット表示を今の状態に合わせ直す（多くは「カスタム」になる）
+           After a hand-made change, resync the preset display with the current state (usually landing on Custom) */
+        function refreshPresetSelection() {
+            if (!presetDropdown) {
+                return;
+            }
+            isSyncingPreset = true;
+            try {
+                presetDropdown.selection = detectPreset(checkboxEntries, optionControls);
+            } finally {
+                isSyncingPreset = false;
+            }
+        }
+
+        /* レイアウト定義1件ぶんのパネルを親コンテナに生成 / Build the panel for one layout node inside a parent container */
+        function buildPanelNode(parentContainer, layoutNode) {
             /* column ノードは複数パネルを縦積みするグループ / A column node stacks several panels vertically */
-            if (node.column) {
-                var stack = parent.add("group");
-                stack.orientation = "column";
-                stack.alignChildren = ["fill", "top"];
-                stack.alignment = "fill";
-                stack.spacing = PANEL_SPACING;
-                for (var k = 0; k < node.column.length; k++) {
-                    buildPanelNode(stack, node.column[k]);
+            if (layoutNode.column) {
+                var panelStack = parentContainer.add("group");
+                panelStack.orientation = "column";
+                panelStack.alignChildren = ["fill", "top"];
+                panelStack.alignment = "fill";
+                panelStack.spacing = PANEL_SPACING;
+                for (var k = 0; k < layoutNode.column.length; k++) {
+                    buildPanelNode(panelStack, layoutNode.column[k]);
                 }
                 return;
             }
 
-            var panel = parent.add("panel", undefined, L(node.titleKey));
-            setupPanel(panel, 6);
-            if (node.radio) {
-                addRadioGroup(panel, node, checkboxes);
+            var sectionPanel = parentContainer.add("panel", undefined, getLabel(layoutNode.titleKey));
+            setupPanel(sectionPanel, 6);
+            if (layoutNode.radio) {
+                addRadioGroup(sectionPanel, layoutNode, optionControls, refreshPresetSelection);
             } else {
-                addCheckboxes(panel, node.keys, checkboxes);
+                /* option＋クリックの一括切り替えが効くのはチェックボックスのパネルだけ / Only checkbox panels support the option-click bulk toggle */
+                sectionPanel.helpTip = getLabel('tooltip.optionClickToggleAll');
+                checkboxEntries = checkboxEntries.concat(
+                    addCheckboxes(sectionPanel, layoutNode.keys, optionControls, refreshPresetSelection));
             }
 
-            /* 強制オプションはグループに入れて対象パネル（パネル項目）の末尾に追加、上にマージン6 / The force option sits in a group at the bottom of its panel (panel items), with a 6px top margin */
-            if (node.force) {
-                /* 使用中削除オプションの上に区切り線（上に余白+2）/ Divider above the force option, with a little (+2) space above it */
-                var dividerWrap = panel.add("group");
-                dividerWrap.orientation = "column";
-                dividerWrap.alignChildren = ["fill", "top"];
-                dividerWrap.alignment = ["fill", "top"];
-                dividerWrap.margins = [0, 2, 0, 0];
-                dividerWrap.spacing = 0;
-                var forceDivider = dividerWrap.add("panel");
+            /* 強制オプションはグループに入れて対象パネル（パネル項目）の末尾に追加 / The force option sits in a group at the bottom of its panel (panel items) */
+            if (layoutNode.force) {
+                /* 使用中削除オプションの上に区切り線。上下の余白は区切り線側にまとめて持たせる / Divider above the force option; the space above and below it belongs to the divider */
+                var forceDividerWrap = sectionPanel.add("group");
+                forceDividerWrap.orientation = "column";
+                forceDividerWrap.alignChildren = ["fill", "top"];
+                forceDividerWrap.alignment = ["fill", "top"];
+                forceDividerWrap.margins = [0, FORCE_DIVIDER_MARGIN, 0, FORCE_DIVIDER_MARGIN];
+                forceDividerWrap.spacing = 0;
+                var forceDivider = forceDividerWrap.add("panel");
                 forceDivider.alignment = ["fill", "top"];
                 forceDivider.minimumSize.height = forceDivider.maximumSize.height = 1;
 
-                var forceGroup = panel.add("group");
+                var forceGroup = sectionPanel.add("group");
                 forceGroup.orientation = "column";
                 forceGroup.alignChildren = ["left", "top"];
                 forceGroup.alignment = "left";
-                forceGroup.margins = [0, 6, 0, 0];
-                forceCheckbox = forceGroup.add("checkbox", undefined, L('checkbox.force'));
+                forceGroup.margins = [0, 0, 0, 0];
+                forceCheckbox = forceGroup.add("checkbox", undefined, getLabel('checkbox.force'));
                 forceCheckbox.value = false;
-                forceCheckbox.helpTip = L('tooltip.force');
+                forceCheckbox.helpTip = getLabel('tooltip.force');
             }
         }
 
         for (var i = 0; i < DIALOG_LAYOUT.length; i++) {
-            var node = DIALOG_LAYOUT[i];
-            if (node.row) {
+            var layoutNode = DIALOG_LAYOUT[i];
+            if (layoutNode.row) {
                 /* 複数パネルを横並び / Lay multiple panels side by side */
                 var panelRow = dialog.add("group");
                 panelRow.orientation = "row";
                 panelRow.alignChildren = ["fill", "top"];
                 panelRow.alignment = "fill";
                 panelRow.spacing = PANEL_SPACING;
-                for (var r = 0; r < node.row.length; r++) {
-                    buildPanelNode(panelRow, node.row[r]);
+                for (var j = 0; j < layoutNode.row.length; j++) {
+                    buildPanelNode(panelRow, layoutNode.row[j]);
                 }
             } else {
-                buildPanelNode(dialog, node);
+                buildPanelNode(dialog, layoutNode);
             }
         }
 
-        var buttonGroup = dialog.add("group");
-        buttonGroup.alignment = "right";
-        buttonGroup.add("button", undefined, L('button.cancel'), {
+        /* ボタンエリアは 左（削除対象プリセット）／中央スペーサー／右（キャンセル・実行）の3カラム
+           Button area is three columns: left (deletion-target preset), center spacer, right (cancel / run) */
+        var buttonRow = dialog.add("group");
+        buttonRow.orientation = "row";
+        buttonRow.alignment = "fill";
+        buttonRow.alignChildren = ["fill", "center"];
+
+        var buttonLeft = buttonRow.add("group");
+        buttonLeft.orientation = "row";
+        buttonLeft.alignment = ["left", "center"];
+        buttonLeft.add("statictext", undefined, getLabel('preset.label'));
+        presetDropdown = buttonLeft.add("dropdownlist", undefined, [
+            getLabel('preset.basic'),
+            getLabel('preset.allOff'),
+            getLabel('preset.allOn'),
+            getLabel('preset.panelItemsOnly'),
+            getLabel('preset.custom')
+        ]);
+        presetDropdown.helpTip = getLabel('tooltip.preset');
+        presetDropdown.preferredSize.width = PRESET_DROPDOWN_WIDTH;
+        /* 初期状態は「基本」そのもの / The initial state is exactly the Default preset */
+        presetDropdown.selection = PRESET_BASIC;
+        presetDropdown.onChange = function() {
+            /* 表示を合わせ直しただけの代入では、プリセットを適用し直さない / An assignment that only resyncs the display must not re-apply the preset */
+            if (isSyncingPreset) {
+                return;
+            }
+            if (this.selection) {
+                applyCheckboxPreset(checkboxEntries, optionControls, this.selection.index);
+            }
+        };
+
+        /* 中央のスペーサーが余白を吸収して左右を両端に寄せる / The center spacer absorbs slack, pushing the two sides apart */
+        var buttonSpacer = buttonRow.add("group");
+        buttonSpacer.alignment = ["fill", "center"];
+        buttonSpacer.minimumSize.width = 1;
+
+        var buttonRight = buttonRow.add("group");
+        buttonRight.orientation = "row";
+        buttonRight.alignment = ["right", "center"];
+        var cancelButton = buttonRight.add("button", undefined, getLabel('button.cancel'), {
             name: "cancel"
         });
-        buttonGroup.add("button", undefined, L('button.run'), {
+        /* キャンセルでも位置だけは覚える（onClick を付けたので明示的に閉じる）
+           Remember the position even on cancel; onClick replaces the default close, so close explicitly */
+        cancelButton.onClick = function() {
+            rememberDialogLocation();
+            dialog.close(2);
+        };
+
+        var runButton = buttonRight.add("button", undefined, getLabel('button.run'), {
             name: "ok"
         });
+        runButton.helpTip = getLabel('tooltip.run');
+
+        /* フォルダー未指定のまま実行させない（onClick を付けたので明示的に閉じる）
+           Don't let the run start without a folder; onClick replaces the default close, so close explicitly */
+        runButton.onClick = function() {
+            if (folderRadio.value && selectedFolder === null) {
+                alert(getLabel('alert.folderNotChosen'));
+                return;
+            }
+            rememberDialogLocation();
+            dialog.close(1);
+        };
+
+        /* 前回の位置を覚えておく / Remember where the dialog was left */
+        function rememberDialogLocation() {
+            sessionState.dialogLocation = tryGet(function() {
+                return [dialog.location[0], dialog.location[1]];
+            }, null);
+        }
+
+        /* 前回の選択をセッションから復元する（記憶がなければ何もしない）/ Restore the previous selection from the session (a no-op when there is none) */
+        function restoreSessionChoices() {
+            var saved = sessionState.choices;
+            if (!saved) {
+                return;
+            }
+
+            /* チェックボックス（ガイドのラジオはこの後まとめて設定する）/ Checkboxes; the guide radios are set together below */
+            for (var i = 0; i < checkboxEntries.length; i++) {
+                checkboxEntries[i].checkbox.value = (saved[checkboxEntries[i].key] === true);
+            }
+
+            /* ガイドは1つだけONにする / Exactly one guide option is on */
+            if (RADIO_GROUP) {
+                var chosenGuideKey = null;
+                for (var j = 0; j < RADIO_GROUP.keys.length; j++) {
+                    if (saved[RADIO_GROUP.keys[j]]) {
+                        chosenGuideKey = RADIO_GROUP.keys[j];
+                        break;
+                    }
+                }
+                selectGuideRadio(optionControls, chosenGuideKey);
+            }
+
+            if (forceCheckbox) {
+                forceCheckbox.value = (saved.force === true);
+            }
+
+            /* 処理対象。今のドキュメント数で選べない項目と、消えたフォルダーは復元しない
+               The scope; an option the current document count disables, or a folder that is gone, is not restored */
+            if (saved.targetMode === TARGET_ALL_OPEN && allOpenRadio.enabled) {
+                selectTargetRadio(allOpenRadio);
+            } else if (saved.targetMode === TARGET_FOLDER && sessionState.folderPath) {
+                var savedFolder = new Folder(sessionState.folderPath);
+                if (savedFolder.exists) {
+                    applyChosenFolder(savedFolder);
+                    selectTargetRadio(folderRadio);
+                }
+            }
+        }
+
+        restoreSessionChoices();
+        /* 復元後の状態に合わせてプリセット表示を決める / Pick the preset display that matches the restored state */
+        refreshPresetSelection();
+
+        /* 前回の位置を再現する。画面構成が変わって画面外になる位置は使わない
+           Reuse the previous position, unless a display change would leave it off-screen */
+        dialog.onShow = function() {
+            if (sessionState.dialogLocation && isLocationOnScreen(sessionState.dialogLocation)) {
+                dialog.location = sessionState.dialogLocation;
+            }
+        };
 
         if (dialog.show() !== 1) {
             return null;
         }
 
-        /* チェック状態を種類キーごとにまとめて返す / Collect checkbox states keyed by type */
+        /* 対象の指定と各項目の選択状態を種類キーごとにまとめて返す / Collect the chosen target and every option's state, keyed by type */
         var choices = {
-            force: forceCheckbox ? forceCheckbox.value : false
+            force: forceCheckbox ? forceCheckbox.value : false,
+            targetMode: folderRadio.value ? TARGET_FOLDER : (allOpenRadio.value ? TARGET_ALL_OPEN : TARGET_FRONTMOST),
+            targetFolder: selectedFolder
         };
         for (i = 0; i < ALL_KEYS.length; i++) {
-            choices[ALL_KEYS[i]] = checkboxes[ALL_KEYS[i]].value;
+            choices[ALL_KEYS[i]] = optionControls[ALL_KEYS[i]].value;
         }
+
+        /* 次回の起動で再現できるようセッションに控える。Folder オブジェクトは持ち越さず、パス文字列だけを残す
+           Stash it in the session for the next run; the Folder object is dropped and only its path is kept */
+        sessionState.choices = copyChoicesForSession(choices);
+        sessionState.folderPath = selectedFolder ? selectedFolder.fsName : null;
+
         return choices;
     }
 
-    /* キー配列ぶんのチェックボックスを親に追加し、参照を記録 / Add a checkbox per key to the parent and record the reference */
-    function addCheckboxes(parent, keys, checkboxes) {
+    /* セッションに残す用の複製。targetFolder（Folder オブジェクト）は folderPath に置き換わるので持ち越さない
+       Copy for the session; targetFolder (a Folder object) is left out because folderPath replaces it */
+    function copyChoicesForSession(choices) {
+        var copy = {
+            force: choices.force,
+            targetMode: choices.targetMode
+        };
+        for (var i = 0; i < ALL_KEYS.length; i++) {
+            copy[ALL_KEYS[i]] = choices[ALL_KEYS[i]];
+        }
+        return copy;
+    }
+
+    /* 保存した位置がいずれかの画面に収まるか / Whether a saved position still lands on one of the screens */
+    function isLocationOnScreen(location) {
+        var screens = tryGet(function() {
+            return $.screens;
+        }, null);
+        if (!screens || !screens.length) {
+            return false;
+        }
+        for (var i = 0; i < screens.length; i++) {
+            var screen = screens[i];
+            if (location[0] >= screen.left && location[0] <= screen.right - ON_SCREEN_MARGIN &&
+                location[1] >= screen.top && location[1] <= screen.bottom - ON_SCREEN_MARGIN) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /* キー配列ぶんのチェックボックスを親に追加し、参照を記録して { checkbox, key, initialValue } の配列を返す。
+       initialValue は「基本」プリセットで元に戻すために控える
+       Add a checkbox per key, record the reference, and return { checkbox, key, initialValue } records;
+       initialValue is kept so the Default preset can restore it */
+    function addCheckboxes(parentContainer, keys, optionControls, onManualChange) {
+        var panelEntries = [];
         for (var i = 0; i < keys.length; i++) {
-            var checkbox = parent.add("checkbox", undefined, L('checkbox.' + keys[i]));
+            var checkbox = parentContainer.add("checkbox", undefined, getLabel('checkbox.' + keys[i]));
             checkbox.value = !UNCHECKED_BY_DEFAULT[keys[i]];
-            checkbox.helpTip = L('tooltip.' + keys[i]);
-            checkboxes[keys[i]] = checkbox;
+            checkbox.helpTip = getLabel('tooltip.' + keys[i]);
+            optionControls[keys[i]] = checkbox;
+            panelEntries.push({
+                checkbox: checkbox,
+                key: keys[i],
+                initialValue: checkbox.value
+            });
+        }
+        enableOptionClickToggleAll(panelEntries, onManualChange);
+        return panelEntries;
+    }
+
+    /* option（Alt）キーが押されているか / Whether the option/alt key is held down */
+    function isOptionKeyDown() {
+        return tryGet(function() {
+            return ScriptUI.environment.keyboardState.altKey === true;
+        }, false);
+    }
+
+    /* option（Alt）＋クリックで、渡したチェックボックス全部をクリック先の状態に揃える。修飾キーなしのクリックは通常どおり
+       Option/alt-click sets every given checkbox to the clicked one's new state; an unmodified click toggles just that one */
+    function enableOptionClickToggleAll(panelEntries, onManualChange) {
+        for (var i = 0; i < panelEntries.length; i++) {
+            panelEntries[i].checkbox.onClick = function() {
+                if (isOptionKeyDown()) {
+                    /* onClick の時点でクリックされた本人の値は反映済み / By the time onClick runs, the clicked checkbox already holds its new value */
+                    var newValue = this.value;
+                    for (var j = 0; j < panelEntries.length; j++) {
+                        panelEntries[j].checkbox.value = newValue;
+                    }
+                }
+                /* 手で変えた時点でプリセットは「カスタム」に落ちる / A hand-made change drops the preset to Custom */
+                onManualChange();
+            };
         }
     }
 
-    /* ラジオグループを生成。先頭に「削除しない」（既定で選択）を置き、各キーのラジオを記録 / Build a radio group with a "Don't delete" option (selected by default) first, recording each key's radio */
-    function addRadioGroup(panel, node, checkboxes) {
-        var noneRadio = panel.add("radiobutton", undefined, L('checkbox.' + node.noneKey));
+    /* ガイドのラジオで選ばれているキーを返す。「削除しない」のときは null / The selected guide key, or null when "Don't delete" is on */
+    function getSelectedGuideKey(optionControls) {
+        if (!RADIO_GROUP) {
+            return null;
+        }
+        for (var i = 0; i < RADIO_GROUP.keys.length; i++) {
+            if (optionControls[RADIO_GROUP.keys[i]].value) {
+                return RADIO_GROUP.keys[i];
+            }
+        }
+        return null;
+    }
+
+    /* ガイドのラジオを1つだけONにする。null なら「削除しない」/ Turn on exactly one guide radio; null means "Don't delete" */
+    function selectGuideRadio(optionControls, chosenKey) {
+        if (!RADIO_GROUP) {
+            return;
+        }
+        optionControls[RADIO_GROUP.noneKey].value = (chosenKey === null);
+        for (var i = 0; i < RADIO_GROUP.keys.length; i++) {
+            optionControls[RADIO_GROUP.keys[i]].value = (RADIO_GROUP.keys[i] === chosenKey);
+        }
+    }
+
+    /* プリセットに合わせてチェックとガイドのラジオを一括設定（「カスタム」は現状維持）
+       Apply a preset to every checkbox and to the guide radios (Custom leaves them as they are) */
+    function applyCheckboxPreset(checkboxEntries, optionControls, presetIndex) {
+        if (presetIndex === PRESET_CUSTOM) {
+            return;
+        }
+        for (var i = 0; i < checkboxEntries.length; i++) {
+            var entry = checkboxEntries[i];
+            if (presetIndex === PRESET_ALL_ON) {
+                entry.checkbox.value = true;
+            } else if (presetIndex === PRESET_ALL_OFF) {
+                entry.checkbox.value = false;
+            } else if (presetIndex === PRESET_PANEL_ITEMS_ONLY) {
+                /* すべてOFFにしてから、パネル項目だけをONにする / Everything off, then just the panel items back on */
+                entry.checkbox.value = (PANEL_ITEM_KEY_SET[entry.key] === true);
+            } else {
+                entry.checkbox.value = entry.initialValue;
+            }
+        }
+        /* 「すべてON」はガイドも「すべてのガイド」に。それ以外は既定の「削除しない」
+           All-on also picks the all-guides option; the others fall back to "Don't delete" */
+        var chosenGuideKey = (RADIO_GROUP && presetIndex === PRESET_ALL_ON) ? RADIO_GROUP.allOnKey : null;
+        selectGuideRadio(optionControls, chosenGuideKey);
+    }
+
+    /* 現在の選択がどのプリセットに当たるかを判定する / Work out which preset the current selection matches */
+    function detectPreset(checkboxEntries, optionControls) {
+        var matchesInitial = true;
+        var allOn = true;
+        var allOff = true;
+        var panelItemsOnly = true;
+
+        for (var i = 0; i < checkboxEntries.length; i++) {
+            var entry = checkboxEntries[i];
+            if (entry.checkbox.value !== entry.initialValue) {
+                matchesInitial = false;
+            }
+            if (entry.checkbox.value) {
+                allOff = false;
+            } else {
+                allOn = false;
+            }
+            if (entry.checkbox.value !== (PANEL_ITEM_KEY_SET[entry.key] === true)) {
+                panelItemsOnly = false;
+            }
+        }
+
+        /* ガイドの既定は「削除しない」なので、選ばれていれば初期状態ではない / The guide default is "Don't delete", so any choice means it isn't the initial state */
+        if (RADIO_GROUP) {
+            var guideKey = getSelectedGuideKey(optionControls);
+            if (guideKey !== null) {
+                matchesInitial = false;
+                allOff = false;
+                panelItemsOnly = false;
+            }
+            if (guideKey !== RADIO_GROUP.allOnKey) {
+                allOn = false;
+            }
+        }
+
+        if (matchesInitial) {
+            return PRESET_BASIC;
+        }
+        if (allOn) {
+            return PRESET_ALL_ON;
+        }
+        if (allOff) {
+            return PRESET_ALL_OFF;
+        }
+        if (panelItemsOnly) {
+            return PRESET_PANEL_ITEMS_ONLY;
+        }
+        return PRESET_CUSTOM;
+    }
+
+    /* ラジオグループを生成。先頭に「削除しない」（既定で選択）を置き、各キーのラジオを記録。
+       プリセット判定と復元で使うため、「削除しない」も noneKey で記録する
+       Build a radio group with a "Don't delete" option (selected by default) first and record each key's radio;
+       the none option is recorded under noneKey too, since presets and restoring need it */
+    function addRadioGroup(parentPanel, layoutNode, optionControls, onManualChange) {
+        var radios = [];
+        var noneRadio = parentPanel.add("radiobutton", undefined, getLabel('checkbox.' + layoutNode.noneKey));
+        noneRadio.helpTip = getLabel('tooltip.' + layoutNode.noneKey);
         noneRadio.value = true;
-        for (var i = 0; i < node.keys.length; i++) {
-            var radio = panel.add("radiobutton", undefined, L('checkbox.' + node.keys[i]));
-            radio.helpTip = L('tooltip.' + node.keys[i]);
+        optionControls[layoutNode.noneKey] = noneRadio;
+        radios.push(noneRadio);
+
+        for (var i = 0; i < layoutNode.keys.length; i++) {
+            var radio = parentPanel.add("radiobutton", undefined, getLabel('checkbox.' + layoutNode.keys[i]));
+            radio.helpTip = getLabel('tooltip.' + layoutNode.keys[i]);
             radio.value = false;
-            checkboxes[node.keys[i]] = radio;
+            optionControls[layoutNode.keys[i]] = radio;
+            radios.push(radio);
+        }
+
+        /* ガイドを手で切り替えたときもプリセット表示を追従させる / Keep the preset display in step when a guide option is picked by hand */
+        for (var j = 0; j < radios.length; j++) {
+            radios[j].onClick = onManualChange;
         }
     }
 
@@ -845,7 +1667,7 @@ function L(path) {
     }
 
     /* 「未使用をすべて選択 → 削除」の一時アクション定義を録画値から組み立て / Build the temporary "Select All Unused -> Delete" action from recorded values */
-    function buildActionSource(setName, actionName, spec) {
+    function buildActionSource(setName, actionName, pruneSpec) {
         return [
             "/version 3",
             "/name [ " + setName.length,
@@ -861,8 +1683,8 @@ function L(path) {
             "\t/colorIndex 0",
             "\t/isOpen 1",
             "\t/eventCount 2",
-            buildMenuEventBlock(1, spec.internalName, spec.localizedNameHex, SELECT_ALL_UNUSED_HEX, spec.selectValue, false),
-            buildMenuEventBlock(2, spec.internalName, spec.localizedNameHex, spec.deleteNameHex, spec.deleteValue, true),
+            buildMenuEventBlock(1, pruneSpec.internalName, pruneSpec.localizedNameHex, SELECT_ALL_UNUSED_HEX, pruneSpec.selectValue, false),
+            buildMenuEventBlock(2, pruneSpec.internalName, pruneSpec.localizedNameHex, pruneSpec.deleteNameHex, pruneSpec.deleteValue, true),
             "}"
         ].join("\n");
     }
@@ -912,11 +1734,25 @@ function L(path) {
         return played;
     }
 
-    /* 指定コレクションの未使用項目を、対応するアクションを再生して削除し、件数を返す / Prune a collection's unused items via its action and return the count */
-    function pruneUnusedViaAction(collection, spec) {
+    /* 指定コレクションの未使用項目を、対応するアクションを再生して削除し、件数を返す。再生に失敗した種類は resultKey を控えて完了時に警告する（「未使用0件」と区別するため）
+       Prune a collection's unused items via its action and return the count; a failed playback records resultKey so the summary can warn about it (instead of looking like a genuine zero) */
+    function pruneUnusedViaAction(collection, pruneSpec, resultKey) {
         var countBefore = collection.length;
-        var actionSource = buildActionSource(ACTION_SET_NAME, ACTION_NAME, spec);
-        playTemporaryAction(actionSource, ACTION_SET_NAME, ACTION_NAME, ACTION_FILE_NAME);
+        var actionSource = buildActionSource(ACTION_SET_NAME, ACTION_NAME, pruneSpec);
+        if (!playTemporaryAction(actionSource, ACTION_SET_NAME, ACTION_NAME, ACTION_FILE_NAME)) {
+            /* 一括処理ではファイルごとに同じ失敗が起きるため、種類は1回だけ控える / A batch run hits the same failure per file, so record each type only once */
+            var alreadyRecorded = false;
+            for (var i = 0; i < actionFailureKeys.length; i++) {
+                if (actionFailureKeys[i] === resultKey) {
+                    alreadyRecorded = true;
+                    break;
+                }
+            }
+            if (!alreadyRecorded) {
+                actionFailureKeys.push(resultKey);
+            }
+            return 0;
+        }
         return Math.max(0, countBefore - collection.length);
     }
 
@@ -924,21 +1760,30 @@ function L(path) {
     // アートボードの空判定 / Artboard emptiness check
     // ==================================================
 
-    /* アートボード矩形にアートワークが載っているか判定（ガイドは対象外）/ Determine whether any artwork sits on the artboard rectangle (guides are ignored) */
-    function isArtboardEmpty(doc, artboardRect) {
+    /* アートワークの外接矩形を一度だけ集める（ガイドは対象外）。アートボードごとに全 pageItems を走査し直さないため
+       Collect artwork bounds once (guides excluded), so each artboard doesn't rescan every pageItem */
+    function collectArtworkBounds(doc) {
+        var artworkBounds = [];
         for (var i = 0; i < doc.pageItems.length; i++) {
-            var item = doc.pageItems[i];
-            var bounds;
+            var pageItem = doc.pageItems[i];
             try {
                 /* ガイドはアートワークとみなさない / Guides don't count as artwork */
-                if (item.typename === "PathItem" && item.guides) {
+                if (pageItem.typename === "PathItem" && pageItem.guides) {
                     continue;
                 }
-                bounds = item.visibleBounds;
+                artworkBounds.push(pageItem.visibleBounds);
             } catch (e) {
-                continue;
+                /* 取得できないものは数えない / Skip items whose bounds we can't read */
             }
-            if (rectsIntersect(artboardRect, bounds)) {
+        }
+        return artworkBounds;
+    }
+
+    /* 集めておいた外接矩形を使い、アートボード矩形にアートワークが載っているか判定
+       Using the collected bounds, determine whether any artwork sits on the artboard rectangle */
+    function isArtboardEmpty(artworkBounds, artboardRect) {
+        for (var i = 0; i < artworkBounds.length; i++) {
+            if (rectsIntersect(artboardRect, artworkBounds[i])) {
                 return false;
             }
         }
@@ -946,19 +1791,19 @@ function L(path) {
     }
 
     /* 2つの矩形 [left, top, right, bottom] が重なるか判定（Illustrator は上が大きいY）/ Whether two [left, top, right, bottom] rects overlap (Illustrator: top has the larger Y) */
-    function rectsIntersect(a, b) {
-        if (b[2] < a[0]) {
+    function rectsIntersect(rectA, rectB) {
+        if (rectB[2] < rectA[0]) {
             return false;
-        } /* b 右端が a 左端より左 / b right is left of a left */
-        if (b[0] > a[2]) {
+        } /* B 右端が A 左端より左 / B right is left of A left */
+        if (rectB[0] > rectA[2]) {
             return false;
-        } /* b 左端が a 右端より右 / b left is right of a right */
-        if (b[3] > a[1]) {
+        } /* B 左端が A 右端より右 / B left is right of A right */
+        if (rectB[3] > rectA[1]) {
             return false;
-        } /* b 下端が a 上端より上 / b bottom is above a top */
-        if (b[1] < a[3]) {
+        } /* B 下端が A 上端より上 / B bottom is above A top */
+        if (rectB[1] < rectA[3]) {
             return false;
-        } /* b 上端が a 下端より下 / b top is below a bottom */
+        } /* B 上端が A 下端より下 / B top is below A bottom */
         return true;
     }
 
@@ -1047,22 +1892,22 @@ function L(path) {
         var removedCount = 0;
         var paths = doc.pathItems;
         for (var i = paths.length - 1; i >= 0; i--) {
-            var path = paths[i];
+            var pathItem = paths[i];
             try {
                 /* ガイドは別オプションで扱う / Guides are handled by a separate option */
-                if (path.guides) {
+                if (pathItem.guides) {
                     continue;
                 }
                 /* クリッピングパスはグループの一部なので残す / Keep clipping paths (part of a clip group) */
-                if (path.clipping) {
+                if (pathItem.clipping) {
                     continue;
                 }
                 /* コンパウンドパスの構成パス（穴など）は単体で削除しない / Don't delete a compound path's member paths (holes, etc.) */
-                if (path.parent && path.parent.typename === "CompoundPathItem") {
+                if (pathItem.parent && pathItem.parent.typename === "CompoundPathItem") {
                     continue;
                 }
-                if (!path.filled && !path.stroked) {
-                    path.remove();
+                if (!pathItem.filled && !pathItem.stroked) {
+                    pathItem.remove();
                     removedCount++;
                 }
             } catch (e) {
@@ -1072,7 +1917,10 @@ function L(path) {
         return removedCount;
     }
 
-    /* 不透明度が0%のオブジェクトを削除し、件数を返す（グループ内も対象）/ Remove objects at 0% opacity and return the count (including inside groups) */
+    /* 不透明度が0%のオブジェクトを削除し、件数を返す（グループ内も対象）。単体で消すと構造が壊れるもの、
+       および別オプションで扱うガイドは除外する
+       Remove objects at 0% opacity and return the count (including inside groups); items whose individual removal
+       would break a structure, and guides (handled by their own option), are excluded */
     function deleteZeroOpacityObjects(doc) {
         var removedCount = 0;
 
@@ -1083,6 +1931,20 @@ function L(path) {
                 continue;
             }
             try {
+                if (item.typename === "PathItem") {
+                    /* ガイドは「ガイド」セクションでのみ削除する / Guides are only removed by the guide section */
+                    if (item.guides) {
+                        continue;
+                    }
+                    /* マスクを消すとクリップが解除され、隠れていた中身が現れてしまう / Removing the mask releases the clip and reveals what it was hiding */
+                    if (item.clipping) {
+                        continue;
+                    }
+                    /* コンパウンドパスの構成パス（穴など）は単体で削除しない / Don't delete a compound path's member paths (holes, etc.) */
+                    if (item.parent && item.parent.typename === "CompoundPathItem") {
+                        continue;
+                    }
+                }
                 if (item.opacity === 0) {
                     item.remove();
                     removedCount++;
@@ -1098,12 +1960,12 @@ function L(path) {
     function deleteHiddenObjects(doc) {
         /* まず参照だけを収集（この間はコレクションを変更しない）。非表示グループを消すと子のインデックスがずれ、末尾からの走査でも取りこぼすため
            Collect references first without mutating the collection; removing a hidden group shifts child indices, so even a reverse scan would skip items */
-        var targets = [];
+        var hiddenItems = [];
         var items = doc.pageItems;
         for (var i = 0; i < items.length; i++) {
             try {
                 if (items[i].hidden) {
-                    targets.push(items[i]);
+                    hiddenItems.push(items[i]);
                 }
             } catch (e) {
                 /* 判定不可はスキップ / Skip items we can't test */
@@ -1111,9 +1973,9 @@ function L(path) {
         }
 
         var removedCount = 0;
-        for (var j = 0; j < targets.length; j++) {
+        for (var j = 0; j < hiddenItems.length; j++) {
             try {
-                targets[j].remove();
+                hiddenItems[j].remove();
                 removedCount++;
             } catch (e) {
                 /* 親ごと削除済み、または削除不可 / Already removed with its parent, or not removable */
@@ -1125,12 +1987,12 @@ function L(path) {
     /* リンク切れ（リンク先が見つからない）の配置画像を削除し、件数を返す。埋め込み・正常リンクは対象外 / Remove placed images with a missing link and return the count; embedded images and valid links are kept */
     function deleteBrokenLinkImages(doc) {
         var removedCount = 0;
-        var placed = doc.placedItems;
-        for (var i = placed.length - 1; i >= 0; i--) {
-            var item = placed[i];
+        var placedItems = doc.placedItems;
+        for (var i = placedItems.length - 1; i >= 0; i--) {
+            var placedItem = placedItems[i];
             var isBroken = false;
             try {
-                var linkedFile = item.file;
+                var linkedFile = placedItem.file;
                 isBroken = (!linkedFile || !linkedFile.exists);
             } catch (e) {
                 /* .file 取得で例外＝リンク切れ扱い / A throwing .file access means a missing link */
@@ -1138,7 +2000,7 @@ function L(path) {
             }
             if (isBroken) {
                 try {
-                    item.remove();
+                    placedItem.remove();
                     removedCount++;
                 } catch (e2) {
                     /* 削除不可 / Not removable */
@@ -1166,26 +2028,26 @@ function L(path) {
         /* トップレベル（レイヤー直下）のオブジェクトだけをスナップショット。ガイドは専用オプションで扱うため除外 / Snapshot only top-level objects (direct children of a layer); guides are excluded (handled by the dedicated guide option) */
         var topLevelItems = [];
         for (var i = 0; i < doc.pageItems.length; i++) {
-            var candidate = doc.pageItems[i];
-            if (candidate.typename === "PathItem" && candidate.guides) {
+            var pageItem = doc.pageItems[i];
+            if (pageItem.typename === "PathItem" && pageItem.guides) {
                 continue;
             }
-            if (candidate.parent && candidate.parent.typename === "Layer") {
-                topLevelItems.push(candidate);
+            if (pageItem.parent && pageItem.parent.typename === "Layer") {
+                topLevelItems.push(pageItem);
             }
         }
 
         for (var j = topLevelItems.length - 1; j >= 0; j--) {
-            var item = topLevelItems[j];
+            var topLevelItem = topLevelItems[j];
             var bounds;
             try {
-                bounds = item.visibleBounds;
+                bounds = topLevelItem.visibleBounds;
             } catch (e) {
                 continue;
             }
             if (!intersectsAnyRect(bounds, rects)) {
                 try {
-                    item.remove();
+                    topLevelItem.remove();
                     removedCount++;
                 } catch (e2) {
                     /* 削除不可（ロック等）/ Not removable (locked, etc.) */
@@ -1209,8 +2071,8 @@ function L(path) {
         var removed = 0;
         /* サブレイヤーの中身は layer.pageItems に含まれないため、先に再帰する / Sublayer contents aren't in layer.pageItems, so recurse into sublayers first */
         if (container.typename === "Layer") {
-            for (var s = container.layers.length - 1; s >= 0; s--) {
-                removed += removeEmptyGroupsIn(container.layers[s]);
+            for (var j = container.layers.length - 1; j >= 0; j--) {
+                removed += removeEmptyGroupsIn(container.layers[j]);
             }
         }
         /* 削除でインデックスがずれるため末尾から / Iterate from the end because removal shifts indices */
@@ -1283,17 +2145,33 @@ function L(path) {
         return Math.max(0, countBefore - countGuidePaths(doc));
     }
 
-    /* ガイドのロック・レイヤーロックを一時解除し、判定関数が真のガイドを削除して件数を返す。ロック状態は finally で必ず復元 / Temporarily clear guide/layer locks, remove guides for which the predicate is true, return the count; locks are always restored in finally */
+    /* サブレイヤーを含む全レイヤーを親→子の順に集める / Collect every layer and sublayer, parents before children */
+    function collectLayersDeep(layerCollection, collectedLayers) {
+        for (var i = 0; i < layerCollection.length; i++) {
+            var layer = layerCollection[i];
+            collectedLayers.push(layer);
+            collectLayersDeep(layer.layers, collectedLayers);
+        }
+        return collectedLayers;
+    }
+
+    /* ガイドのロック・レイヤーロック（サブレイヤー含む）・ガイド自体のロックを一時解除し、判定関数が真のガイドを削除して件数を返す。ロック状態は finally で必ず復元
+       Temporarily clear guide locks, layer locks (sublayers included), and each guide's own lock; remove guides for which the predicate is true and return the count. Locks are always restored in finally */
     function removeGuidesWhere(doc, shouldRemove) {
         var removedCount = 0;
-        var layers = doc.layers;
 
-        /* レイヤーのロック状態を保存して一時解除 / Save and temporarily clear layer locks */
+        /* サブレイヤーまで含めてロック状態を保存し、親から順に解除 / Save every lock state down to sublayers and clear them parents-first */
+        var layers = collectLayersDeep(doc.layers, []);
         var lockStates = [];
         for (var i = 0; i < layers.length; i++) {
-            lockStates[i] = layers[i].locked;
-            if (layers[i].locked) {
-                layers[i].locked = false;
+            lockStates[i] = false;
+            try {
+                lockStates[i] = layers[i].locked;
+                if (lockStates[i]) {
+                    layers[i].locked = false;
+                }
+            } catch (e) {
+                /* 解除できないレイヤーはそのまま / Leave layers we can't unlock */
             }
         }
 
@@ -1303,23 +2181,45 @@ function L(path) {
             doc.guidesLocked = false;
 
             var paths = doc.pathItems;
-            for (var p = paths.length - 1; p >= 0; p--) {
-                if (!paths[p].guides) {
+            for (var k = paths.length - 1; k >= 0; k--) {
+                var guidePath = paths[k];
+                if (!guidePath.guides) {
                     continue;
                 }
+                /* ガイド自体がロックされていると削除できないため一時解除 / A locked guide can't be removed, so clear its lock first */
+                var pathWasLocked = false;
                 try {
-                    if (shouldRemove(paths[p])) {
-                        paths[p].remove();
+                    pathWasLocked = guidePath.locked;
+                    if (pathWasLocked) {
+                        guidePath.locked = false;
+                    }
+                    if (shouldRemove(guidePath)) {
+                        guidePath.remove();
                         removedCount++;
+                    } else if (pathWasLocked) {
+                        /* 残すガイドはロックを戻す / Restore the lock on guides we keep */
+                        guidePath.locked = true;
                     }
                 } catch (e) {
-                    /* 判定不可・削除不可はスキップ / Skip guides we can't test or remove */
+                    /* 判定不可・削除不可はロックを戻してスキップ / Restore the lock and skip guides we can't test or remove */
+                    if (pathWasLocked) {
+                        try {
+                            guidePath.locked = true;
+                        } catch (e2) {
+                            /* 復元できない場合は無視 / Ignore when it can't be restored */
+                        }
+                    }
                 }
             }
         } finally {
-            /* 例外時もロック状態を必ず元に戻す / Always restore the lock states, even on error */
-            for (var j = 0; j < layers.length; j++) {
-                layers[j].locked = lockStates[j];
+            /* 例外時もロック状態を必ず元に戻す。子から順に戻して親のロックに邪魔されないようにする
+               Always restore the lock states, even on error; restore children first so a re-locked parent doesn't block them */
+            for (var j = layers.length - 1; j >= 0; j--) {
+                try {
+                    layers[j].locked = lockStates[j];
+                } catch (e3) {
+                    /* 復元できない場合は無視 / Ignore when it can't be restored */
+                }
             }
             doc.guidesLocked = guidesWereLocked;
         }
@@ -1359,13 +2259,7 @@ function L(path) {
             }
             /* トップレベルは最低1つ必要 / At least one top-level layer must remain */
             if (topLayer.pageItems.length === 0 && topLayer.layers.length === 0 && doc.layers.length > 1) {
-                try {
-                    topLayer.locked = false;
-                    topLayer.remove();
-                    removedCount++;
-                } catch (e) {
-                    /* 削除不可 / Not removable */
-                }
+                removedCount += removeLayerUnlocked(topLayer);
             }
         }
         return removedCount;
@@ -1381,16 +2275,32 @@ function L(path) {
                 continue;
             }
             if (subLayer.pageItems.length === 0 && subLayer.layers.length === 0) {
-                try {
-                    subLayer.locked = false;
-                    subLayer.remove();
-                    removed++;
-                } catch (e) {
-                    /* 削除不可 / Not removable */
-                }
+                removed += removeLayerUnlocked(subLayer);
             }
         }
         return removed;
+    }
+
+    /* ロックを一時解除してレイヤーを削除し、削除できた数（0 または 1）を返す。失敗した場合はロック状態を元に戻す
+       Unlock a layer, remove it, and return how many were removed (0 or 1); the lock is restored when removal fails */
+    function removeLayerUnlocked(layer) {
+        var wasLocked = false;
+        try {
+            wasLocked = layer.locked;
+            layer.locked = false;
+            layer.remove();
+            return 1;
+        } catch (e) {
+            /* 削除できなかったのでロックを戻す（意図しないロック解除を残さない）/ Removal failed, so restore the lock instead of leaving it cleared */
+            if (wasLocked) {
+                try {
+                    layer.locked = true;
+                } catch (e2) {
+                    /* 復元できない場合は無視 / Ignore when it can't be restored */
+                }
+            }
+            return 0;
+        }
     }
 
     // ==================================================
@@ -1399,8 +2309,11 @@ function L(path) {
 
     /* 通常はアクションで未使用のみ、強制時は保護対象以外を全削除。件数を返す / Normally prune unused via action; force mode removes all but protected ones. Returns the count */
     function deleteUnusedSwatches(doc, force) {
+        var removedCount;
         if (!force) {
-            return pruneUnusedViaAction(doc.swatches, PRUNE_SPECS.swatch);
+            removedCount = pruneUnusedViaAction(doc.swatches, PRUNE_SPECS.swatch, "swatches");
+            removeEmptySwatchGroups(doc);
+            return removedCount;
         }
 
         /* 強制時：削除してはいけない既定スウォッチ以外を総当たり削除 / Force: remove everything except the built-in swatches */
@@ -1411,7 +2324,7 @@ function L(path) {
             "[White]": true
         };
 
-        var removedCount = 0;
+        removedCount = 0;
         for (var i = doc.swatches.length - 1; i >= 0; i--) {
             var swatch = doc.swatches[i];
             if (protectedNames[swatch.name]) {
@@ -1424,7 +2337,22 @@ function L(path) {
                 /* 削除不可 / Not removable */
             }
         }
+        removeEmptySwatchGroups(doc);
         return removedCount;
+    }
+
+    /* スウォッチを消したあとに中身が空になったスウォッチグループを片付ける。スウォッチそのものではないので件数には数えない
+       Clear out swatch groups left empty after swatches were removed; they aren't swatches, so they don't count toward the total */
+    function removeEmptySwatchGroups(doc) {
+        for (var i = doc.swatchGroups.length - 1; i >= 0; i--) {
+            try {
+                if (doc.swatchGroups[i].getAllSwatches().length === 0) {
+                    doc.swatchGroups[i].remove();
+                }
+            } catch (e) {
+                /* 空判定も削除もできない場合はそのまま残す / Leave it alone when it can't be tested or removed */
+            }
+        }
     }
 
     // ==================================================
@@ -1434,7 +2362,7 @@ function L(path) {
     /* 通常はアクションで未使用のみ、強制時は既定（最後の1つ）以外を全削除。件数を返す / Normally prune unused via action; force mode removes all but the default. Returns the count */
     function deleteUnusedGraphicStyles(doc, force) {
         if (!force) {
-            return pruneUnusedViaAction(doc.graphicStyles, PRUNE_SPECS.graphicstyle);
+            return pruneUnusedViaAction(doc.graphicStyles, PRUNE_SPECS.graphicstyle, "graphicStyles");
         }
 
         var removedCount = 0;
@@ -1460,7 +2388,7 @@ function L(path) {
     /* 通常はアクションで未使用のみ、強制時はすべて削除。件数を返す / Normally prune unused via action; force mode removes them all. Returns the count */
     function deleteUnusedSymbols(doc, force) {
         if (!force) {
-            return pruneUnusedViaAction(doc.symbols, PRUNE_SPECS.symbol);
+            return pruneUnusedViaAction(doc.symbols, PRUNE_SPECS.symbol, "symbols");
         }
 
         var removedCount = 0;
@@ -1482,7 +2410,7 @@ function L(path) {
     /* 通常はアクションで未使用のみ、強制時は削除できるものをすべて削除（使用中・基本ブラシは不可）。件数を返す / Normally prune unused via action; force mode removes every removable brush (in-use and basic brushes can't be removed). Returns the count */
     function deleteUnusedBrushes(doc, force) {
         if (!force) {
-            return pruneUnusedViaAction(doc.brushes, PRUNE_SPECS.brush);
+            return pruneUnusedViaAction(doc.brushes, PRUNE_SPECS.brush, "brushes");
         }
 
         var removedCount = 0;
@@ -1547,9 +2475,12 @@ function L(path) {
     // 関数：未使用アートボード削除 / Delete unused artboards
     // ==================================================
 
-    /* 空の（強制時はすべての）アートボードを削除し、最低1つは残す。件数を返す / Remove empty (or all, when forced) artboards keeping at least one, return the count */
-    function deleteUnusedArtboards(doc, force) {
+    /* 空のアートボードを削除し、最低1つは残す。件数を返す / Remove empty artboards keeping at least one, return the count */
+    function deleteUnusedArtboards(doc) {
         var removedCount = 0;
+        /* アートボードを消してもアートワークは変わらないので、外接矩形は最初に1回だけ集める
+           Removing artboards doesn't touch the artwork, so the bounds are collected once up front */
+        var artworkBounds = collectArtworkBounds(doc);
 
         for (var i = doc.artboards.length - 1; i >= 0; i--) {
             /* アートボードは最低1つ必要 / At least one artboard must remain */
@@ -1557,8 +2488,10 @@ function L(path) {
                 break;
             }
 
+            /* 「使用中のパネル項目も削除」はパネル項目だけの設定なので、アートボードは常に空のものだけを削除する
+               The force option covers panel items only, so artboards are always limited to the empty ones */
             var artboard = doc.artboards[i];
-            if (!force && !isArtboardEmpty(doc, artboard.artboardRect)) {
+            if (!isArtboardEmpty(artworkBounds, artboard.artboardRect)) {
                 continue;
             }
 
