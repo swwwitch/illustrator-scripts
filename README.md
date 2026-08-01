@@ -59,6 +59,8 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [あふれたテキストの文字サイズ・エリア高さを自動調整](readme-ja/AutoFitTextFrame.md)
 - [ポイント文字・パス上文字とエリア内文字の相互変換](readme-ja/ConvertAreaAndPointType.md)
 - [テキスト内の日付・曜日・数値を一括で増減](readme-ja/IncrementDatesAndNumbers.md)
+- [エリア内文字ツールキット（作成と調整）](readme-ja/AreaTypeToolkit.md)
+- [クリップボードのテキストで選択テキストを置換](readme-ja/ReplaceTextWithPaste.md)
 
 ## オブジェクトの配置や整列
 
@@ -67,6 +69,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [オブジェクトを入れ替え](readme-ja/SwapNearestItemWithDialogbox.md)
 - [2つのオブジェクトの位置を入れ替え](readme-ja/SwapObjects.md)
 - [オブジェクトのリサイズ](readme-ja/SmartObjectResizer.md)
+- [隣り合うオブジェクトのアキの中央に記号を配置](readme-ja/RightMarkPlacer.md)
 
 ## 基本図形と変形
 
@@ -75,6 +78,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [自由変形（フリーディストート）](readme-ja/SmartFreeDistort.md)
 - [パスファインダー](readme-ja/AiSmartPathfinder.md)
 - [パスの最適化](readme-ja/PathCleanupTool.md)
+- [重なりをならす（オフセットパス＋合流）](readme-ja/OverlapRemover.md)
 - [選択オブジェクトの回転を水平（0°）に補正](readme-ja/ResetRotation.md)
 
 ## アートワークやファイル
@@ -84,6 +88,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [Figmaの⌘ + shift + C（ビットマップとしてコピー）](readme-ja/CopyAsPngLikeFigma.md)
 - [リンク画像の管理](readme-ja/LinkedImageManager.md)
 - [埋め込み画像をリンク画像に変換](readme-ja/UnembedRasterItems.md)
+- [埋め込み画像をリンク画像に変換（アクション方式）](readme-ja/UnembedToLinks.md)
 - [登録済みAIファイルからスタイル・ブラシ・フォント見本を読み込み](readme-ja/ImportStyles.md)
 - [フォルダー内のAI／SVGをバージョン指定で一括保存](readme-ja/AIBatchVersionSave.md)
 
@@ -143,6 +148,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 ## 環境設定
 
 - [クイック環境設定](readme-ja/AiQuickPrefsPalette.md)
+- [クイック環境設定（SuperSimple）](readme-ja/AiQuickPrefsPalette-SuperSimple.md)
 - [アートボード関連の環境設定](readme-ja/ArtboardDisplayPresetManager.md)
 - [環境設定：変形と整列](readme-ja/PreferenceManagerForTransformAndAlign.md)
 - [環境設定をまとめて変更](readme-ja/PresetManager.md)
@@ -153,3 +159,6 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [トンボ作成](readme-ja/AddTrimMark.md)
 - [テキストの文字列でグラフィックスタイルを登録](readme-ja/RegisterGraphicStyleWithText.md)
 - [選択オブジェクトを条件で絞り込み再選択](readme-ja/SmartSelectionFilter.md)
+- [選択中とドキュメント全体のオブジェクト数を集計](readme-ja/SelectionInspector.md)
+- [選択オブジェクトから新規レイヤー・アートボード・ドキュメントを作成](readme-ja/SelectionToNew.md)
+- [シンボルへのリンクを解除して整理](readme-ja/AiBreakLink.md)

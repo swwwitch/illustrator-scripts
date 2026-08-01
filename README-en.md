@@ -1,4 +1,3 @@
-
 # Adobe Illustrator Scripts
 
 A collection of scripts useful for design production in Adobe Illustrator. Mainly developed using ChatGPT.
@@ -53,6 +52,11 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Auto-fit overflowing text by font size or area height](readme-en/AutoFitTextFrame.md)
 - [Convert between point / path type and area type](readme-en/ConvertAreaAndPointType.md)
 - [Increment dates, weekdays, and numbers in text](readme-en/IncrementDatesAndNumbers.md)
+- [Create and adjust area type in one flow](readme-en/AreaTypeToolkit.md)
+- [Replace the contents of selected text frames with the clipboard](readme-en/ReplaceTextWithPaste.md)
+- [Unified type panel](readme-en/UnifiedTypePanel.md)
+- [Kerning settings palette](readme-en/AutoKerningPanel.md)
+- [Outline text and restore it later](readme-en/AiTextOutlineRestorePalette.md)
 
 ## Object arrangement and alignment
 
@@ -62,12 +66,15 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Swap the positions of two selected objects](readme-en/SwapObjects.md)
 - [Ungroup subgroups inside the selected group to simplify the group structure](readme-en/SimplifyGroups.md)
 - [Resize objects](readme-en/SmartObjectResizer.md)
+- [Place a mark at the center of the gap between adjacent objects](readme-en/RightMarkPlacer.md)
 
 ## Basic shapes and Ajust
 
 - [Create squares, circles, equilateral triangles, and more](readme-en/SmartShapeMaker.md)
 - [Adjust by Aspect Ratio](readme-en/AspectRatioScaler.md)
 - [Free distort with presets](readme-en/SmartFreeDistort.md)
+- [Path optimization](readme-en/PathCleanupTool.md)
+- [Flatten overlaps with offset path and pathfinder](readme-en/OverlapRemover.md)
 - [Reset the rotation of selected objects to 0°](readme-en/ResetRotation.md)
 
 ## Artwork and files
@@ -77,6 +84,8 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Copy as PNG like Figma’s ⌘ + Shift + C](readme-en/CopyAsPngLikeFigma.md)
 - [Import styles, brushes, and font samples from registered AI files](readme-en/ImportStyles.md)
 - [Convert embedded images into linked images](readme-en/UnembedRasterItems.md)
+- [Convert embedded images into linked images (action-based)](readme-en/UnembedToLinks.md)
+- [Linked image management](readme-en/LinkedImageManager.md)
 - [Batch save AI / SVG files in a folder with a specified version](readme-en/AIBatchVersionSave.md)
 
 ## Color
@@ -116,6 +125,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 ## Guides
 
 - [Generate guides in a grid](readme-en/GenerateGuidesGrid.md)
+- [Build a frame and grid in one pass](readme-en/SmartGridMaker.md)
 - [Create Guides From Selection](readme-en/CreateGuidesFromSelection.md)
 - [Delete All Guides](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/guide/DeleteAllGuides.jsx)
 - [New Guide Maker](readme-en/NewGuideMaker.md)
@@ -124,9 +134,20 @@ After release, we continue to fix bugs and make adjustments through daily use.
 ## Document
 
 - [Switch between documents](readme-en/SmartSwitchDocs.md)
+- [Rename and save](readme-en/Ai-FileNameManager.md)
+
+## Preferences
+
+- [Quick preferences](readme-en/AiQuickPrefsPalette.md)
+- [Quick preferences (SuperSimple)](readme-en/AiQuickPrefsPalette-SuperSimple.md)
+- [Artboard-related preferences](readme-en/ArtboardDisplayPresetManager.md)
+- [Change preferences from a single dialog](readme-en/PresetManager.md)
 
 ## Others
 
 - [Remove unneeded document elements in one pass](readme-en/AiDocumentCleaner.md)
 - [Create crop marks](readme-en/AddTrimMark.md)
 - [Filter and reselect objects by conditions](readme-en/SmartSelectionFilter.md)
+- [Count objects in the selection and the whole document](readme-en/SelectionInspector.md)
+- [Create a new layer, artboard, or document from the selection](readme-en/SelectionToNew.md)
+- [Break the link to symbols and tidy up the result](readme-en/AiBreakLink.md)
