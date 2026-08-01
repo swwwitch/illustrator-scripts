@@ -37,7 +37,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 var SCRIPT_NAME     = "AlignToArtboards";             /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2025年12月17日";                             /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-05-15";                   /* 更新日 / last updated */
 
 // Released under the MIT license
