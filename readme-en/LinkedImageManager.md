@@ -20,7 +20,7 @@ Running the script opens a palette listing the placed images (PlacedItem) and th
 
 If a placed image was selected before running, the matching row is selected from the start. The canvas view does not move in that case.
 
-The palette also opens with no document open. Open a document afterwards and click Refresh to load it. When there are no placed images, or no document is open, the palette collapses to a simplified view with the options and list hidden.
+The palette also opens with no document open. Open a document afterwards and click Refresh to load it. When there are no placed images, or no document is open, the palette collapses to a simplified view with the options and list hidden. If a load fails, the reason is shown in the status line at the bottom of the palette.
 
 The palette can also be closed with the `Esc` key.
 
@@ -118,6 +118,8 @@ Selecting a row also selects the corresponding placed image on the canvas and zo
 
 Clear the "Zoom on selection" checkbox to keep the view where it is.
 
+The reverse also works: **the list follows the image selected on the canvas**. Illustrator does not notify scripts when the selection changes, so this cannot track continuously. Instead, the moment the palette becomes active — when you click it after selecting an image on the canvas — the current selection is read and the matching row is selected. Only single selections are matched, and the canvas view stays where it is.
+
 ## Displaying file paths
 
 The path of the selected row appears in the File path panel. Three checkboxes control how it is shown.
@@ -194,7 +196,7 @@ The link target is resolved in this order:
 
 The export name is looked up in the layer name, then the parent group name with an extension, then the original file name in the XMP manifest, then falls back to `image1`, `image2`, and so on. A numbered suffix is added when a file of the same name exists, so nothing is overwritten.
 
-**Collect after relinking** (on by default) copies the linked file into the `Links` folder next to the document and repoints the link. A numbered suffix is added for different files of the same name, identical files are not copied again, and an image that was just exported as a PSD is already in the folder so it is not copied twice.
+**Collect after relinking** (on by default) is an option of Unembed, and is dimmed while the selected row cannot be unembedded. When it is on, the linked file is copied into the `Links` folder next to the document and repoints the link. A numbered suffix is added for different files of the same name, identical files are not copied again, and an image that was just exported as a PSD is already in the folder so it is not copied twice.
 
 Locked or hidden layers, groups, and images cannot be selected and therefore cannot be replaced. Unsupported color spaces (anything other than CMYK / RGB / Grayscale) are skipped, and every reason is collected into a single alert.
 
@@ -247,9 +249,17 @@ The script runs in a persistent engine via `#targetengine`. That engine's `app` 
 
 The worker functions are all registered in `WORKER_FUNCS` and installed into the main engine once on first use (`$.global.__LIM`); only the call expressions are sent afterwards. Sending every function body each time is noticeably slower given how many lines are involved. **Adding a worker function means registering it in `WORKER_FUNCS` as well** — a missing entry breaks only the delegating side, silently.
 
-Worker function bodies are concatenated with `toString()`, which imposes a few rules:
+Worker function bodies are concatenated with `toString()` — but **ExtendScript's `toString()` does not return the source as written**. Two things happen in practice:
 
-- No line comments (`//`) — the newline is lost, which would comment out the code that follows. Block comments only.
+- Lines come back separated by CR (`\r`). Since `eval` only ends a line comment at an LF, a `//` comment inside a function swallows everything up to the LF that joins the next function.
+- Fragments of the surrounding comments are included before and after the body, **with the closing `*/` missing**. The unterminated comment then swallows the start of the next function.
+
+Either one makes the `eval` on the main engine fail with a syntax error, so `$.global.__LIM` is never installed and **every delegated call fails silently**. The bundle therefore runs each function through `sliceFunctionSource()`, which normalizes the line endings to LF and takes only the lines from the `function` declaration through the closing-brace line.
+
+The rules for writing worker functions are:
+
+- No line comments (`//`). Block comments only.
+- No JSDoc blocks (`/** ... */`).
 - Always terminate statements with a semicolon.
 - Cross-references use the `w_` prefix names (everything lives in the same IIFE closure).
 
@@ -281,6 +291,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.5.2 (2026-08-02): Fixed the assembled worker source being corrupted, which made every delegated call fail; fixed the palette not shrinking in its compact empty state; fixed the reason for a failed load not being shown; unified panel margins and spacing into shared settings
 - v1.5.1 (2026-07-27): Fixed the file extension being lost from the file name when embedding
 - v1.5.0 (2026-07-27): Added embedded images to the list (a "▣ Embedded" status and filter) plus the Embed, Unembed, and Collect after relinking controls
 - v1.4.2 (2026-07-27): Fixed URI-encoded file names in the list, rebuilt the artboard dropdown on Refresh, and guarded against re-entrant loads and double-clicked actions

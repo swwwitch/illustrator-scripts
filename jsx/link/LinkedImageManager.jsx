@@ -6,8 +6,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 
-ドキュメント内の配置画像（リンク画像・埋め込み画像）を解析し、
-一覧表示・絞り込み・重複管理・再リンク・リネーム・埋め込み／埋め込み解除・削除を
+ドキュメント内の配置画像（リンク画像・埋め込み画像）を解析して一覧表示し、
+ソート・絞り込み・同一ファイルのまとめ、再リンク・リネーム・削除、
+埋め込み／埋め込み解除、フォルダー単位の再リンクやリンクの収集までを
 一元化するユーティリティ。
 
 機能・使い方・実装メモの詳細は README を参照。
@@ -20,10 +21,10 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     // 基本情報 / Basic info
     // =========================================
     var SCRIPT_NAME     = "LinkedImageManager";           /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.5.1";                       /* バージョン / version */
+    var SCRIPT_VERSION  = "v1.5.3";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
     var SCRIPT_RELEASED = "2026-04-24";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-07-27";                   /* 更新日 / last updated */
+    var SCRIPT_UPDATED  = "2026-08-02";                   /* 更新日 / last updated */
 
     // README (Japanese)
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/LinkedImageManager.md
@@ -304,12 +305,25 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     }
 
     // =========================================
-    // パレット側 純粋ヘルパー / Palette-side pure helpers（DOM を触らない）
+    // UIレイアウトの共通設定 / Shared UI layout
     // =========================================
 
-    var PANEL_MARGINS = [10, 14, 10, 11];
-    var PANEL_SPACING = 8;
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
 
+    /* ウィンドウの共通設定 / Apply shared window layout */
+    function setupWindow(win, spacing) {
+        win.orientation = "column";
+        win.alignChildren = ["fill", "top"];
+        win.margins = WINDOW_MARGINS;
+        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /* パネルの共通設定 / Apply shared panel layout */
     function setupPanel(panel, spacing) {
         panel.orientation = "column";
         panel.alignChildren = ["fill", "top"];
@@ -318,12 +332,23 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
+    /* 行グループの共通設定（ボタン列など） / Apply a horizontal row group */
+    function setupRow(group, alignment, spacing) {
+        group.orientation = "row";
+        group.alignment = alignment || "left";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
     function setupGroup(group, orientation, spacing) {
         group.orientation = orientation || "column";
         group.alignChildren = (group.orientation === "row") ? ["left", "center"] : ["fill", "top"];
         group.alignment = "fill";
         group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
+
+    // =========================================
+    // パレット側 純粋ヘルパー / Palette-side pure helpers（DOM を触らない）
+    // =========================================
 
     function safeRelayout() {
         for (var i = 0; i < arguments.length; i++) {
@@ -650,18 +675,33 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     // worker 関数群を 1 つの IIFE にまとめてメインエンジンへ送る本文を組み立てる。
     // 全ヘルパーを IIFE クロージャ内に置き、$.global.__LIM にエントリだけ公開することで、
     // グローバル関数宣言の永続化に依存せず確実に常駐させる。
+    // toString() は関数本体の前後に周辺コメントの断片（閉じ「*/」を欠いたもの）を含めて返すことがある。
+    // そのままつなぐと未終端コメントが次の関数を飲み込むため、宣言行から閉じ括弧行までを行単位で抜き出す。
+    function sliceFunctionSource(rawSource) {
+        var lines = rawSource.replace(/\r\n?/g, "\n").split("\n");
+        var first = 0;
+        while (first < lines.length && lines[first].indexOf("function ") !== 0) first++;
+        if (first >= lines.length) return rawSource; /* 想定外の形式：そのまま返す */
+        var last = lines.length - 1;
+        while (last > first && !/^\s*\}\s*$/.test(lines[last])) last--;
+        return lines.slice(first, last + 1).join("\n");
+    }
+
     function buildWorkerBundle() {
         var src = "$.global.__LIM = (function () {\n";
         for (var i = 0; i < WORKER_FUNCS.length; i++) {
-            src += WORKER_FUNCS[i].toString() + "\n";
+            src += sliceFunctionSource(WORKER_FUNCS[i].toString()) + "\n";
         }
-        src += "return { analyze: w_analyze, select: w_select, fitArtboard: w_fitArtboard, openLinksPanel: w_openLinksPanel, relinkPairs: w_relinkPairs, embed: w_embed, unembed: w_unembed, probeDelete: w_probeDelete, del: w_del, docFolder: w_docFolder, copyText: w_copyText };\n";
+        src += "return { analyze: w_analyze, currentIndex: w_currentIndex, select: w_select, fitArtboard: w_fitArtboard, openLinksPanel: w_openLinksPanel, relinkPairs: w_relinkPairs, embed: w_embed, unembed: w_unembed, probeDelete: w_probeDelete, del: w_del, docFolder: w_docFolder, copyText: w_copyText };\n";
         src += "})();";
         return src;
     }
 
     // メインエンジンへ 1 文を同期送信。結果 body を返す。エラー／タイムアウトは null
     // timeoutSec 省略時は 10 秒（PSD 書き出しなど長い処理は呼び出し側で延ばす）
+    // 直近の送信失敗理由（エラー本文／タイムアウト）。失敗時のステータス表示に使う
+    var lastBridgeError = "";
+
     function sendRaw(bodyExpr, timeoutSec) {
         var holder = {};
         var bridge = new BridgeTalk();
@@ -669,9 +709,17 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(bodyExpr) + "\"))";
         bridge.onResult = function (msg) { holder.value = msg.body; };
         bridge.onError = function (msg) { holder.error = msg.body; };
+        lastBridgeError = "";
         bridge.send(timeoutSec || 10);
-        if (holder.hasOwnProperty("error")) return null;
-        return holder.hasOwnProperty("value") ? holder.value : null;
+        if (holder.hasOwnProperty("error")) {
+            lastBridgeError = String(holder.error);
+            return null;
+        }
+        if (!holder.hasOwnProperty("value")) {
+            lastBridgeError = "timeout";
+            return null;
+        }
+        return holder.value;
     }
 
     // worker が未常駐なら常駐させる
@@ -703,7 +751,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 
     // "OK\n<json>" / "NODOC" / "ERR\n<msg>" を分解 (最初の \n が区切り)
     function parseWorkerResult(res) {
-        if (res === null || res === undefined) return { marker: "ERR", body: "no result" };
+        if (res === null || res === undefined) return { marker: "ERR", body: lastBridgeError || "no result" };
         var sep = res.indexOf("\n");
         if (sep < 0) return { marker: res, body: "" };
         return { marker: res.substring(0, sep), body: res.substring(sep + 1) };
@@ -1502,43 +1550,64 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     /* ===== 委譲エントリポイント / Delegated entry points ===== */
 
     /* 全配置画像を解析し、entries / unique / artboards / preIndex を JSON で返す */
+    /* 単独選択されている配置画像／埋め込み画像の itemIndex を返す。該当なしは -1 */
+    function w_findSelectedItemIndex(doc) {
+        var placed = doc.placedItems;
+        var pre = -1;
+        var sel = w_tryGet(function () { return doc.selection; }, null);
+        var single = w_pickSinglePlacedItem(sel);
+        if (single) {
+            for (var s = 0; s < placed.length; s++) { if (placed[s] === single) { pre = s; break; } }
+            if (pre < 0) {
+                var sb = w_tryGet(function () { return single.geometricBounds; }, null);
+                if (sb) {
+                    for (var t = 0; t < placed.length; t++) {
+                        var cb = w_tryGet(function () { return placed[t].geometricBounds; }, null);
+                        if (cb && cb[0] === sb[0] && cb[1] === sb[1] && cb[2] === sb[2] && cb[3] === sb[3]) { pre = t; break; }
+                    }
+                }
+            }
+        }
+        /* 埋め込みラスターが単独選択されている場合はそちらを対象にする */
+        if (pre < 0 && sel && sel.length === 1) {
+            var selTypeName = w_tryGet(function () { return sel[0].typename; }, "");
+            if (selTypeName === "RasterItem") {
+                var rasters = w_tryGet(function () { return doc.rasterItems; }, null);
+                if (rasters) {
+                    for (var r = 0; r < rasters.length; r++) {
+                        if (rasters[r] === sel[0]) { pre = w_rasterIndexBase() + r; break; }
+                    }
+                }
+            }
+        }
+        return pre;
+    }
+
     function w_analyze() {
         try {
             if (app.documents.length === 0) return "NODOC";
             var doc = app.activeDocument;
-            var placed = doc.placedItems;
-            var collected = w_collectLinkInfo(doc, placed);
+            var collected = w_collectLinkInfo(doc, doc.placedItems);
             var abs = [];
             for (var a = 0; a < doc.artboards.length; a++) { abs.push(w_safeProp(doc.artboards[a], "name", "")); }
-            var pre = -1;
-            var sel = w_tryGet(function () { return doc.selection; }, null);
-            var single = w_pickSinglePlacedItem(sel);
-            if (single) {
-                for (var s = 0; s < placed.length; s++) { if (placed[s] === single) { pre = s; break; } }
-                if (pre < 0) {
-                    var sb = w_tryGet(function () { return single.geometricBounds; }, null);
-                    if (sb) {
-                        for (var t = 0; t < placed.length; t++) {
-                            var cb = w_tryGet(function () { return placed[t].geometricBounds; }, null);
-                            if (cb && cb[0] === sb[0] && cb[1] === sb[1] && cb[2] === sb[2] && cb[3] === sb[3]) { pre = t; break; }
-                        }
-                    }
-                }
-            }
-            /* 埋め込みラスターが単独選択されている場合はそちらを初期選択にする */
-            if (pre < 0 && sel && sel.length === 1) {
-                var selTypeName = w_tryGet(function () { return sel[0].typename; }, "");
-                if (selTypeName === "RasterItem") {
-                    var rasters = w_tryGet(function () { return doc.rasterItems; }, null);
-                    if (rasters) {
-                        for (var r = 0; r < rasters.length; r++) {
-                            if (rasters[r] === sel[0]) { pre = w_rasterIndexBase() + r; break; }
-                        }
-                    }
-                }
-            }
-            var payload = { docOpen: true, artboards: abs, preIndex: pre, entries: collected.linkInfoList, unique: collected.uniqueList };
+            var payload = {
+                docOpen: true,
+                artboards: abs,
+                preIndex: w_findSelectedItemIndex(doc),
+                entries: collected.linkInfoList,
+                unique: collected.uniqueList
+            };
             return "OK\n" + w_jsonStr(payload);
+        } catch (e) {
+            return "ERR\n" + e;
+        }
+    }
+
+    /* カンバスで単独選択されている画像の itemIndex を返す（カンバス→一覧の逆同期用） */
+    function w_currentIndex() {
+        try {
+            if (app.documents.length === 0) return "NODOC";
+            return "OK\n" + w_jsonStr({ index: w_findSelectedItemIndex(app.activeDocument) });
         } catch (e) {
             return "ERR\n" + e;
         }
@@ -1621,7 +1690,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         }
     }
 
-    /**
+    /*
      * art item 配下の RasterItem を再帰的に集める（クリップグループの中も辿る）。
      * @param {object} item - PageItem（RasterItem / GroupItem など）
      * @param {Array<RasterItem>} results - 収集先の配列
@@ -1636,13 +1705,11 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         for (var i = 0; i < children.length; i++) w_collectRasterItems(children[i], results);
     }
 
-    /**
+    /*
      * 埋め込み直後（選択中）のラスターに元リンクのファイル名を拡張子つきで付ける。
      * Illustrator の既定名は拡張子を落とすため、一覧表示と埋め込み解除の名前復元がこれに依存する。
+     * ただし親グループが既に同じ名前を持つ場合は付けない（レイヤーパネルで同名が親子に並ぶため）。
      * ラスターが複数に分かれた場合は取り違えるため何もしない。
-     * @param {Document} doc - 対象ドキュメント
-     * @param {string} linkName - 埋め込み前のリンクファイル名（拡張子つき）
-     * @returns {void}
      */
     function w_nameEmbeddedRaster(doc, linkName) {
         if (!linkName) return;
@@ -1653,7 +1720,15 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             return 1;
         }, 0);
         if (rasters.length !== 1) return;
-        w_tryGet(function () { rasters[0].name = linkName; return 1; }, 0);
+        var raster = rasters[0];
+        if (w_safeProp(raster, "name", "") === linkName) return;
+        var parentItem = w_tryGet(function () { return raster.parent; }, null);
+        var parentIsGroup = !!parentItem && w_tryGet(function () { return parentItem.typename; }, "") === "GroupItem";
+        /* 親グループ名は w_getImageNameFromItem が拾うため、ラスターが1つだけのグループなら付け直さない */
+        if (parentIsGroup &&
+            w_safeProp(parentItem, "name", "") === linkName &&
+            w_tryGet(function () { return parentItem.rasterItems.length; }, 0) === 1) return;
+        w_tryGet(function () { raster.name = linkName; return 1; }, 0);
     }
 
     /* indices の placedItem を埋め込み画像へ変換。PSD はクリップグループ外のときのみグループ解除。counts を返す */
@@ -1661,7 +1736,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         try {
             if (app.documents.length === 0) return "NODOC";
             var doc = app.activeDocument;
-            // embed() で placedItems の並びが変わるため、先に参照と付随情報を確保しておく
+            /* embed() で placedItems の並びが変わるため、先に参照と付随情報を確保しておく */
             var targets = [];
             for (var i = 0; i < indices.length; i++) {
                 if (indices[i] >= w_rasterIndexBase()) continue; /* 既に埋め込み済み */
@@ -1684,7 +1759,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
                     w_tryGet(function () { doc.selection = null; return 1; }, 0);
                     w_tryGet(function () { target.placed.selected = true; return 1; }, 0);
                     target.placed.embed();
-                    // PSD は埋め込み時にレイヤーがグループ化されるため、クリップグループ外なら解除する
+                    /* PSD は埋め込み時にレイヤーがグループ化されるため、クリップグループ外なら解除する */
                     if (target.isPsd && !target.inClipGroup) {
                         w_tryGet(function () {
                             var sel = doc.selection;
@@ -1931,7 +2006,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         }, null);
     }
 
-    /**
+    /*
      * 埋め込み画像自身が持つ名前を返す。
      * Illustrator は埋め込み時、RasterItem にはレイヤー名（拡張子なし）を、
      * 親グループに拡張子つきの元ファイル名を付けるため、拡張子つきの名前を優先する。
@@ -2297,7 +2372,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         w_rasterIndexBase, w_itemByIndex, w_rasterColorSpaceText, w_buildEmbeddedEntry, w_collectEmbeddedEntries,
         w_getLinkGroupKey, w_assignFileCounts, w_dedupeByFile, w_collectLinkInfo, w_pickSinglePlacedItem,
         w_zoomToSelection, w_fitViewToArtboard, w_findEnclosingClipGroup,
-        w_analyze, w_select, w_fitArtboard, w_openLinksPanel,
+        w_findSelectedItemIndex, w_analyze, w_currentIndex, w_select, w_fitArtboard, w_openLinksPanel,
         w_relinkPairs, w_collectRasterItems, w_nameEmbeddedRaster, w_embed,
         w_unembedConfig, w_placeParameters, w_stringToUtf8Bytes, w_bytesToHexLines, w_buildTextValue,
         w_buildParameterBlock, w_buildActionSource, w_playTemporaryAction, w_findSelectionBlocker,
@@ -2320,8 +2395,11 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     var preIndex = -1;
     // 下部ステータス表示（showPalette で代入）
     var statusText = null;
+    // 直近のステータス文言。statusText 生成前（初回 loadData）のメッセージを取りこぼさないため保持する
+    var lastStatusMessage = "";
 
     function setStatus(msg) {
+        lastStatusMessage = msg;
         if (statusText) statusText.text = msg;
     }
 
@@ -2373,6 +2451,20 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             if (allPlacementEntries.length === 0) setStatus(L('status.noPlaced'));
             else setStatus(L('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
             return true;
+        } finally {
+            isBusy = false;
+        }
+    }
+
+    // カンバスで単独選択されている画像の itemIndex を取得（該当なし・失敗時は -1）
+    function delegateCurrentIndex() {
+        if (isBusy) return -1;
+        isBusy = true;
+        try {
+            var res = parseWorkerResult(delegate("$.global.__LIM.currentIndex()"));
+            if (res.marker !== "OK") return -1;
+            var data = tryGet(function () { return eval("(" + res.body + ")"); }, null);
+            return (data && typeof data.index === "number") ? data.index : -1;
         } finally {
             isBusy = false;
         }
@@ -2453,8 +2545,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     // 戻り値: { referenceFolder, primaryExt, fallbackExt } or null
     function showChangeExtensionDialog() {
         var extdialog = new Window("dialog", L('dialog.changeExt'));
-        extdialog.orientation = "column";
-        extdialog.alignChildren = ["fill", "top"];
+        setupWindow(extdialog);
 
         var folderPanel = extdialog.add("panel", undefined, L('panel.destFolder'));
         setupPanel(folderPanel);
@@ -2542,7 +2633,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         }
 
         var btnRow = extdialog.add("group");
-        btnRow.alignment = ["right", "top"];
+        setupRow(btnRow, ["right", "top"]);
         var cancelBtn = btnRow.add("button", undefined, L('button.cancel'), { name: "cancel" });
         okBtn = btnRow.add("button", undefined, "OK", { name: "ok" });
         okBtn.enabled = false;
@@ -2558,9 +2649,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     // クリップグループ内削除の確認＋モード選択。戻り値: 'image' / 'group' / null
     function askDeleteModeWithConfirm(targetCount) {
         var deleteDialog = new Window("dialog", L('dialog.clipGroupDelete'));
-        deleteDialog.orientation = "column";
-        deleteDialog.alignChildren = ["fill", "top"];
-        deleteDialog.margins = 16;
+        setupWindow(deleteDialog);
 
         var msgText = L('message.confirmDeleteLinks') + "\n" +
             kvLine('label.target', targetCount, 'label.items') + "\n\n" +
@@ -2569,8 +2658,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         msg.preferredSize.width = 360;
 
         var btnRow = deleteDialog.add("group");
-        btnRow.orientation = "row";
-        btnRow.alignment = ["right", "center"];
+        setupRow(btnRow, ["right", "center"]);
         var cancelBtn = btnRow.add("button", undefined, L('button.cancel'), { name: "cancel" });
         var imageOnlyBtn = btnRow.add("button", undefined, L('button.deleteImageOnly'));
         var withGroupBtn = btnRow.add("button", undefined, L('button.deleteWithClipGroup'), { name: "ok" });
@@ -2594,8 +2682,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         var FOLDER_LISTBOX_SIZE = [450, 120];
 
         var palette = new Window("palette", L('dialog.main') + " " + SCRIPT_VERSION, undefined, { resizeable: false });
-        palette.orientation = "column";
-        palette.alignChildren = ["fill", "top"];
+        setupWindow(palette);
         palette.preferredSize.width = 450;
 
         // 多重起動防止：既存パレットがあれば閉じる
@@ -2629,6 +2716,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         var topRow = palette.add("group");
         topRow.orientation = "row";
         topRow.alignChildren = ["fill", "top"];
+        topRow.spacing = COLUMN_SPACING;
 
         var leftCol = topRow.add("group");
         leftCol.orientation = "column";
@@ -2639,7 +2727,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 
         function createSortPanel(parent) {
             var sortPanel = parent.add("panel", undefined, L('panel.sort'));
-            setupPanel(sortPanel);
+            setupPanel(sortPanel, 6);
             var sortKeyRow = sortPanel.add("group");
             sortKeyRow.orientation = "row";
             sortKeyRow.alignChildren = ["left", "center"];
@@ -2655,7 +2743,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         createSortPanel(leftCol);
 
         var optPanel = leftCol.add("panel", undefined, L('panel.sameFile'));
-        setupPanel(optPanel);
+        setupPanel(optPanel, 6);
         var dedupCheck = optPanel.add("checkbox", undefined, L('checkbox.dedup'));
         dedupCheck.value = true;
         dedupCheck.helpTip = (currentLanguage === 'ja')
@@ -2684,7 +2772,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 
         function createDisplayOptionsPanel(parent) {
             var optionPanel = parent.add("panel", undefined, L('panel.displayColumn'));
-            setupPanel(optionPanel);
+            setupPanel(optionPanel, 6);
             var sizeRow = optionPanel.add("group");
             sizeRow.orientation = "row";
             sizeRow.alignChildren = ["left", "center"];
@@ -2704,10 +2792,11 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 
         function createStatusFilterPanel(parent) {
             var filterPanel = parent.add("panel", undefined, L('panel.status'));
-            setupPanel(filterPanel);
+            setupPanel(filterPanel, 6);
             var statusGroup = filterPanel.add("group");
             statusGroup.orientation = "column";
             statusGroup.alignChildren = ["left", "top"];
+            statusGroup.spacing = 6;
             okCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterOk'));
             brokenCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterBroken'));
             updateCheck = statusGroup.add("checkbox", undefined, L('checkbox.filterUpdate'));
@@ -3200,11 +3289,6 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         }
         bindPaletteEvents();
 
-        // 埋め込み／埋め込み解除の行はフォルダー操作行の下で生成するため、参照だけ先に用意する
-        var embedBtn = null;
-        var unembedBtn = null;
-        var collectAfterRelinkCheck = null;
-
         // エントリが埋め込み画像（rasterItems 由来）かどうか
         function isEmbeddedEntry(entry) {
             return !!(entry && entry.kind === "raster");
@@ -3254,6 +3338,30 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         reloadOneBtn.preferredSize = [94, 24];
         reloadOneBtn.onClick = requireSelectedEntry(guardAction(handleRelinkSelected));
 
+        // --- 埋め込み／埋め込み解除行（アクションボタン行と同じく、対象はリストで選択中の画像）---
+        var embedRow = pathPanel.add("group");
+        embedRow.orientation = "row";
+        embedRow.alignment = "fill";
+        embedRow.alignChildren = ["left", "center"];
+
+        var embedBtn = embedRow.add("button", undefined, L('button.embed'));
+        embedBtn.helpTip = (currentLanguage === 'ja')
+            ? "選択中のリンクを埋め込み画像に変換します。\nPSD はクリップグループ外のときグループ解除します。"
+            : "Embed the selected link.\nPSD files are ungrouped unless they are inside a clip group.";
+        embedBtn.onClick = requireSelectedEntry(guardAction(handleEmbedSelected));
+
+        var unembedBtn = embedRow.add("button", undefined, L('button.unembed'));
+        unembedBtn.helpTip = (currentLanguage === 'ja')
+            ? "選択中の埋め込み画像をリンク画像に戻します。\n元ファイルが不明な場合は「Links」フォルダーへ PSD を書き出してリンクします。"
+            : "Turn the selected embedded image back into a link.\nWhen the original file is unknown, a PSD is exported into the \"Links\" folder.";
+        unembedBtn.onClick = requireSelectedEntry(guardAction(handleUnembedSelected));
+
+        var collectAfterRelinkCheck = embedRow.add("checkbox", undefined, L('checkbox.collectAfterRelink'));
+        collectAfterRelinkCheck.value = true;
+        collectAfterRelinkCheck.helpTip = (currentLanguage === 'ja')
+            ? "埋め込み解除後、リンク先をドキュメントと同階層の「Links」フォルダーへコピーします。"
+            : "After unembedding, copy the linked file into the \"Links\" folder next to the document.";
+
         function updateRelinkButtonLabel() {
             var placementCount = (selectedEntry && selectedEntry.itemIndices) ? selectedEntry.itemIndices.length : 0;
             var useBatchLabel = dedupCheck.value && placementCount > 1;
@@ -3272,9 +3380,11 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             var hasSelection = (selectedEntry !== null);
             // 埋め込み画像はリンク元ファイルを持たないため、ファイル操作系は対象外
             var canUseLinkFile = hasSelection && !isEmbeddedEntry(selectedEntry);
-            // 埋め込み／埋め込み解除は後段（フォルダー操作行の下）で生成するため、初回呼び出し時は未定義
-            if (embedBtn) embedBtn.enabled = canUseLinkFile;
-            if (unembedBtn) unembedBtn.enabled = hasSelection && isEmbeddedEntry(selectedEntry);
+            var canUnembed = hasSelection && isEmbeddedEntry(selectedEntry);
+            embedBtn.enabled = canUseLinkFile;
+            unembedBtn.enabled = canUnembed;
+            // ［再リンク後に収集］は［埋め込み解除］のオプションなので、使えないときは一緒にディムにする
+            collectAfterRelinkCheck.enabled = canUnembed;
             reloadOneBtn.enabled = canUseLinkFile;
             renameLinkBtn.enabled = canUseLinkFile;
             openFileBtn.enabled = canUseLinkFile;
@@ -3416,32 +3526,6 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 
         var collectLinksBtn = folderActionRight.add("button", undefined, L('button.collectLinks'));
         collectLinksBtn.onClick = guardAction(handleCollectLinks);
-
-        // --- 埋め込み／埋め込み解除行（対象はリストで選択中の画像）---
-        var embedRow = pathPanel.add("group");
-        embedRow.orientation = "row";
-        embedRow.alignment = "fill";
-        embedRow.alignChildren = ["left", "center"];
-
-        embedBtn = embedRow.add("button", undefined, L('button.embed'));
-        embedBtn.helpTip = (currentLanguage === 'ja')
-            ? "選択中のリンクを埋め込み画像に変換します。\nPSD はクリップグループ外のときグループ解除します。"
-            : "Embed the selected link.\nPSD files are ungrouped unless they are inside a clip group.";
-        embedBtn.onClick = requireSelectedEntry(guardAction(handleEmbedSelected));
-
-        unembedBtn = embedRow.add("button", undefined, L('button.unembed'));
-        unembedBtn.helpTip = (currentLanguage === 'ja')
-            ? "選択中の埋め込み画像をリンク画像に戻します。\n元ファイルが不明な場合は「Links」フォルダーへ PSD を書き出してリンクします。"
-            : "Turn the selected embedded image back into a link.\nWhen the original file is unknown, a PSD is exported into the \"Links\" folder.";
-        unembedBtn.onClick = requireSelectedEntry(guardAction(handleUnembedSelected));
-
-        collectAfterRelinkCheck = embedRow.add("checkbox", undefined, L('checkbox.collectAfterRelink'));
-        collectAfterRelinkCheck.value = true;
-        collectAfterRelinkCheck.helpTip = (currentLanguage === 'ja')
-            ? "埋め込み解除後、リンク先をドキュメントと同階層の「Links」フォルダーへコピーします。"
-            : "After unembedding, copy the linked file into the \"Links\" folder next to the document.";
-
-        updateActionButtonStates();
 
         foldersListBox.onChange = function () {
             var hasSelection = (foldersListBox.selection !== null);
@@ -3677,11 +3761,14 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 
         statusText = palette.add("statictext", undefined, "", { truncate: "middle" });
         statusText.alignment = ["fill", "bottom"];
-        if (allPlacementEntries.length === 0) setStatus(L('status.noPlaced'));
+        // loadData が出した理由（未オープン／読み込み失敗）を優先し、無い場合だけ件数表示にフォールバック
+        if (lastStatusMessage) statusText.text = lastStatusMessage;
+        else if (allPlacementEntries.length === 0) setStatus(L('status.noPlaced'));
         else setStatus(L('status.loaded') + "：" + withUnit(allPlacementEntries.length, 'label.items'));
 
         // 実行前に選択していた PlacedItem があれば対応行を初期選択（カンバスは触らない）
-        if (typeof preIndex === "number" && preIndex >= 0) {
+        function applyInitialSelection() {
+            if (typeof preIndex !== "number" || preIndex < 0) return;
             for (var rowIdx = 0; rowIdx < filteredEntries.length; rowIdx++) {
                 var ent = filteredEntries[rowIdx];
                 var found = false;
@@ -3706,15 +3793,32 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
                 }
             }
         }
+        applyInitialSelection();
 
         // 空状態（ドキュメント未オープン／配置画像0件）は簡易表示にする。
         // オプション各パネル・リスト・パス欄を隠し、メッセージと［リンク］パネル／更新ボタン行だけ残す。
+        // ScriptUI は visible = false でもレイアウト上の高さを保持するため、
+        // maximumSize.height を 0 に潰して初めてウィンドウが縮む。
+        function setSectionCollapsed(section, collapsed) {
+            if (!section) return;
+            if (section.__limMaxHeight === undefined) {
+                section.__limMaxHeight = tryGet(function () { return section.maximumSize.height; }, 10000);
+            }
+            section.visible = !collapsed;
+            ignoreError(function () {
+                section.maximumSize.height = collapsed ? 0 : section.__limMaxHeight;
+            });
+        }
+
         function updateEmptyStateVisibility() {
             var isEmpty = (allPlacementEntries.length === 0);
-            topRow.visible = !isEmpty;
-            listHolder.visible = !isEmpty;
-            pathPanel.visible = !isEmpty;
-            ignoreError(function () { palette.layout.layout(true); });
+            setSectionCollapsed(topRow, isEmpty);
+            setSectionCollapsed(listHolder, isEmpty);
+            setSectionCollapsed(pathPanel, isEmpty);
+            ignoreError(function () {
+                palette.layout.layout(true);
+                palette.layout.resize();
+            });
         }
         updateEmptyStateVisibility();
 
@@ -3722,6 +3826,21 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         palette.addEventListener("keydown", function (k) {
             if (k.keyName === "Escape" || k.keyName === "Esc") { palette.close(); }
         });
+
+        // カンバス側で選択した画像に一覧の行を合わせる。
+        // Illustrator は選択変更を通知しないため、パレットがアクティブになった時点で取りに行く。
+        function syncSelectionFromCanvas() {
+            if (isActionRunning || isBusy) return;
+            var canvasIndex = delegateCurrentIndex();
+            if (canvasIndex < 0) return;
+            if (selectedEntry && selectedEntry.itemIndices) {
+                for (var i = 0; i < selectedEntry.itemIndices.length; i++) {
+                    if (selectedEntry.itemIndices[i] === canvasIndex) return; /* すでに一致：触らない */
+                }
+            }
+            restoreListSelectionByItemIndex(canvasIndex);
+        }
+        palette.onActivate = function () { syncSelectionFromCanvas(); };
 
         palette.onClose = function () {
             $.global.__LIM_paletteWindow = null;
