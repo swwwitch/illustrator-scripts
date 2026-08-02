@@ -5,55 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択オブジェクト・アートボード・カンバス（擬似）を基準にガイドを作成するスクリプト。
-
-- 上下左右の辺＋中心、各種プリセットをダイアログで指定して描画
-- 基準は「アートボード」または「カンバス（擬似）」を選択
-- アートボード基準時はガイドを外側へ「延長」、対象基準時は「選択オブジェクトとのマージン」を指定可能
-- グループ（選択全体の外接でまとめて1組）／オブジェクトごとを切り替え（選択1つ以下のときは無効）
-- プレビュー境界／幾何境界の切り替え。プレビュー境界時はテキストを一時アウトライン化＋アピアランス展開して正確な境界を取得（計算後に元へ復元。ライブプレビューでは省略）
-- 「_guide」レイヤーの既存ガイドを削除するオプション
-- ライブプレビュー（専用レイヤーに色付きの仮線で表示し、表示中は既存ガイドを一時非表示。確定時に「_guide」レイヤーへ本物のガイドを作成）
-- 単位は環境設定の rulerType を参照
-
-### 処理の流れ
-
-- ダイアログでオプションを設定（変更に追従してライブプレビュー）
-- 基準（選択／アートボード／カンバス）の外接矩形を取得
-- 「_guide」レイヤーにガイドを追加してロック
-
-### 紹介記事（note）
-
-https://note.com/dtp_tranist/n/nd1359cf41a2c
-
-### 更新履歴
-
-- v1.0 (20250711)：初期バージョン
-- v1.8.0 (20250802)：UIの整理、文言とツールチップの調整
-- v1.9.0 (20260628)：ライブプレビュー追加、ローカライズ構造化、IIFE化、プレビュー中は既存ガイドを非表示
-
-*/
-
-/*
+選択オブジェクト・アートボード・カンバスを基準にガイドを作成します。
+詳細はREADMEを参照してください。
 
 ### Overview
 
-Creates guides based on selected objects, the active artboard, or the pseudo canvas.
-
-- Specify the four edges + center and various presets in the dialog
-- Choose the target: "Artboard" or "Canvas (Pseudo)"
-- Extend guides outward for the artboard target, or set a margin from the selection for object targets
-- Toggle group (one set for the combined bounds) vs. per-object (disabled when 0–1 objects are selected)
-- Toggle preview vs. geometric bounds; with preview bounds, text is temporarily outlined and appearance-expanded for accurate bounds, then restored (skipped during live preview)
-- Option to delete existing guides in the "_guide" layer
-- Live preview (colored temporary lines on a dedicated layer; existing guides are hidden while open, real guides are created on the "_guide" layer on commit)
-- Units follow the rulerType preference
-
-### Workflow
-
-- Configure options in the dialog (live preview follows changes)
-- Get the bounding box of the target (selection / artboard / canvas)
-- Add guides to the "_guide" layer and lock it
+Creates guides based on the selection, the artboard, or the canvas.
+See the README for details.
 
 */
 
@@ -61,10 +19,16 @@ Creates guides based on selected objects, the active artboard, or the pseudo can
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "CreateGuidesFromSelection";    /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.9.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.9.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-07-11";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/CreateGuidesFromSelection.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/CreateGuidesFromSelection.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nd1359cf41a2c"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -73,19 +37,85 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
 // ユーザー設定 / User settings
 // =========================================
 
-/* 右側プリセットラジオの表示フラグ / Show flags for the preset radio buttons */
-var showRbTopBottom = false;
-var showRbLeftRight = false;
-var showRbTopLeft = true;
-var showRbBottomLeft = true;
-var showRbTopRight = false;
-var showRbBottomRight = false;
+/* ガイドを作成するレイヤー名 / Layer that receives the guides */
+var GUIDE_LAYER_NAME = "_guide";
+
+/* ライブプレビュー用の一時レイヤー名 / Temporary layer for the live preview */
+var PREVIEW_LAYER_NAME = "__GuidePreview__";
+
+/* カンバス基準時にガイドを伸ばす長さ（pt）/ Guide reach for the canvas target (pt) */
+var CANVAS_GUIDE_REACH = 8000;
+
+/* プリセットラジオボタンの表示 / Show flags for the preset radio buttons */
+var showPresetTopBottom = false;
+var showPresetLeftRight = false;
+var showPresetTopLeft = true;
+var showPresetBottomLeft = true;
+var showPresetTopRight = false;
+var showPresetBottomRight = false;
+
+// =========================================
+// レイアウト / Layout
+// =========================================
+
+/* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+var CROSS_SPACING  = 20;                 /* 十字レイアウトの間隔 / gap inside the cross layout */
+var ROW_SPACING    = 4;                  /* 行内の要素間隔 / gap inside a row */
+
+/**
+ * ウィンドウの共通設定
+ * @param {Window} win - 対象ウィンドウ
+ * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+ * @returns {void}
+ */
+function setupWindow(win, spacing) {
+    win.orientation = "column";
+    win.alignChildren = "fill";
+    win.margins = WINDOW_MARGINS;
+    win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+}
+
+/**
+ * パネルの共通設定
+ * @param {Panel} panel - 対象パネル
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupPanel(panel, spacing) {
+    panel.orientation = "column";
+    panel.alignChildren = ["fill", "top"];
+    panel.alignment = "fill";
+    panel.margins = PANEL_MARGINS;
+    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
+
+/**
+ * 行グループの共通設定（ボタン列・入力行など）
+ * @param {Group} group - 対象グループ
+ * @param {string} [alignment] - グループ自身の整列（省略時は "left"）
+ * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+ * @returns {void}
+ */
+function setupRow(group, alignment, spacing) {
+    group.orientation = "row";
+    group.alignChildren = ["left", "center"];
+    group.alignment = alignment || "left";
+    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+}
 
 // =========================================
 // ローカライズ / Localization
 // =========================================
 
-/* 現在の言語を判定 / Detect current language */
+/**
+ * 現在の言語を判定
+ * @returns {string} "ja" または "en"
+ */
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
@@ -98,12 +128,15 @@ var LABELS = {
     panel: {
         target: { ja: "対象", en: "Target" },
         preset: { ja: "プリセット", en: "Presets" },
+        destination: { ja: "描画先", en: "Destination" },
         options: { ja: "オプション", en: "Options" },
         axis: { ja: "ガイド位置（辺と中央）", en: "Guide Positions (Edges & Center)" }
     },
     radio: {
         artboard: { ja: "アートボード", en: "Artboard" },
         canvas: { ja: "カンバス（擬似）", en: "Canvas (Pseudo)" },
+        selectionLayer: { ja: "選択オブジェクトと同じレイヤー", en: "Same layer as the selection" },
+        guideLayer: { ja: "「_guide」レイヤー", en: "\"_guide\" layer" },
         allOn: { ja: "すべて", en: "All" },
         edges: { ja: "四辺", en: "Edges" },
         vertical: { ja: "上下", en: "Top & Bottom" },
@@ -125,10 +158,11 @@ var LABELS = {
         right: { ja: "右", en: "Right" },
         usePreviewBounds: { ja: "プレビュー境界を使用", en: "Use Preview Bounds" },
         deleteGuides: { ja: "「_guide」レイヤーのガイドを削除", en: "Delete guides in \"_guide\"" },
-        group: { ja: "グループとしてガイドを作成", en: "Create guides as a group" },
+        individual: { ja: "オブジェクトごとに作成", en: "Create per object" },
+        group: { ja: "描画するガイドをグループ化", en: "Group the guides to draw" },
         preview: { ja: "プレビュー", en: "Preview" }
     },
-    field: {
+    fieldLabel: {
         extension: { ja: "延長", en: "Extend" },
         offset: { ja: "選択オブジェクトとのマージン", en: "Margin from selection" }
     },
@@ -137,17 +171,12 @@ var LABELS = {
         cancel: { ja: "キャンセル", en: "Cancel" }
     },
     alert: {
-        noSelection: { ja: "オブジェクトを選択してください。", en: "Please select an object." },
         expandError: {
             ja: "アピアランス展開中にエラーが発生しました。",
             en: "An error occurred while expanding appearance."
         },
         noArtboard: { ja: "アートボードが存在しません。", en: "No artboard exists." },
         invalidArtboard: { ja: "有効なアートボードが選択されていません。", en: "No valid artboard selected." },
-        deleteGuideError: {
-            ja: "既存ガイド削除時にエラーが発生しました。",
-            en: "An error occurred while deleting existing guides."
-        },
         guideError: {
             ja: "ガイド作成中にエラーが発生しました。",
             en: "An error occurred while creating guides."
@@ -162,6 +191,14 @@ var LABELS = {
         artboard: {
             ja: "アクティブなアートボードの範囲に合わせてガイドを引きます。",
             en: "Draw guides within the active artboard area."
+        },
+        selectionLayer: {
+            ja: "選択オブジェクトと同じレイヤーにガイドを作成します。選択がないときはアクティブレイヤーに作成します。",
+            en: "Create the guides on the same layer as the selection. With no selection, the active layer is used."
+        },
+        guideLayer: {
+            ja: "「_guide」レイヤーにまとめてガイドを作成し、作成後はレイヤーをロックします。",
+            en: "Create the guides on the \"_guide\" layer and lock that layer afterwards."
         },
         extension: {
             ja: "アートボード基準時に、ガイド線をアートボード外へ伸ばす量です。カンバス基準では使用しません。",
@@ -179,9 +216,13 @@ var LABELS = {
             ja: "実行前に「_guide」レイヤー内の既存ガイドを削除します。ほかのレイヤーのガイドは対象外です。",
             en: "Before drawing, delete existing guides in the \"_guide\" layer only. Guides on other layers are not affected."
         },
+        individual: {
+            ja: "ON：選択オブジェクトごとにガイドを作成。OFF：選択全体の外接でまとめて1組作成。選択が1つ以下のときは使用しません。",
+            en: "On: one set of guides per selected object. Off: one set for the combined selection bounds. Not used with 0–1 objects selected."
+        },
         group: {
-            ja: "ON：選択全体の外接でまとめて1組のガイドを作成。OFF：各オブジェクトごとに作成。",
-            en: "On: one set of guides for the combined selection bounds. Off: separate guides per object."
+            ja: "作成したガイドを1つのグループにまとめます。オブジェクトごとに作成する場合は、オブジェクト単位でグループ化します。",
+            en: "Put the created guides into a group. With per-object guides, each object gets its own group."
         },
         preview: {
             ja: "確定前に、作成予定のガイド位置を色付きの仮線で表示します。",
@@ -211,37 +252,37 @@ var LABELS = {
     }
 };
 
-/* LABELS からドット区切りのキーで文言を取得 / Resolve a label by dotted key */
-function getLocalizedText(key) {
-    var parts = key.split(".");
+/**
+ * LABELS からドット区切りのキーで文言を取得
+ * @param {string} labelKey - "panel.target" のようなドット区切りキー
+ * @returns {string} 現在の言語の文言（見つからない場合はキーそのもの）
+ */
+function getLabel(labelKey) {
+    var keyParts = labelKey.split(".");
     var node = LABELS;
-    for (var i = 0; i < parts.length; i++) {
-        if (node == null) return key;
-        node = node[parts[i]];
+    for (var i = 0; i < keyParts.length; i++) {
+        if (node == null) return labelKey;
+        node = node[keyParts[i]];
     }
-    if (node == null) return key;
-    return node[currentLanguage] || node.en || key;
+    if (node == null) return labelKey;
+    return node[currentLanguage] || node.en || labelKey;
 }
 
-/* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-function labelText(key) {
-    return getLocalizedText(key) + (currentLanguage === "ja" ? "：" : ":");
-}
-
-/* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
-function labelWithCount(key, count) {
-    if (currentLanguage === "ja") {
-        return getLocalizedText(key) + "（" + count + "）";
-    }
-    return getLocalizedText(key) + " (" + count + ")";
+/**
+ * コロン付きラベルを取得（日本語は全角、英語は半角）
+ * @param {string} labelKey - ドット区切りキー
+ * @returns {string} コロンを付けた文言
+ */
+function labelWithColon(labelKey) {
+    return getLabel(labelKey) + (currentLanguage === "ja" ? "：" : ":");
 }
 
 // =========================================
 // 単位 / Units
 // =========================================
 
-/* 単位コードとラベルのマップ / Map of unit code to label */
-var unitLabelMap = {
+/* 単位コードとラベルのマップ / Map of ruler unit code to label */
+var rulerUnitLabels = {
     0: "in",
     1: "mm",
     2: "pt",
@@ -255,196 +296,21 @@ var unitLabelMap = {
     10: "ft"
 };
 
-/* 現在の単位ラベルを取得 / Get current ruler unit label */
-function getCurrentUnitLabel() {
-    var unitCode = app.preferences.getIntegerPreference("rulerType");
-    return unitLabelMap[unitCode] || "pt";
+/**
+ * 現在の定規単位ラベルを取得
+ * @returns {string} 単位ラベル（不明な場合は "pt"）
+ */
+function getRulerUnitLabel() {
+    return rulerUnitLabels[app.preferences.getIntegerPreference("rulerType")] || "pt";
 }
 
-// =========================================
-// UI ヘルパー / UI helpers
-// =========================================
-
-/* パネルの余白と間隔 / Panel margins and spacing */
-var PANEL_MARGINS = [16, 20, 16, 12];
-var PANEL_SPACING = 8;
-
-/* パネルの共通設定 / Apply shared panel layout */
-function setupPanel(panel, spacing) {
-    panel.orientation = "column";
-    panel.alignChildren = ["fill", "top"];
-    panel.alignment = "fill";
-    panel.margins = PANEL_MARGINS;
-    panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-/* グループの共通設定（row/column で整列を切り替え）/ Apply shared group layout (alignChildren switches by orientation) */
-function setupGroup(group, orientation, spacing) {
-    var groupOrientation = orientation || "column";
-    group.orientation = groupOrientation;
-    /* row は横並びなので縦中央、column は縦並びなので左揃え / row: vertically centered, column: left-aligned */
-    group.alignChildren = (groupOrientation === "row") ? ["left", "center"] : ["left", "top"];
-    group.alignment = "fill";
-    group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
-}
-
-
-/* 「_guide」レイヤーを取得（無ければ作成）/ Get or create the "_guide" layer */
-function getOrCreateGuideLayer() {
-    var doc = app.activeDocument;
-    var layer = null;
-    for (var i = 0; i < doc.layers.length; i++) {
-        if (doc.layers[i].name === "_guide") {
-            layer = doc.layers[i];
-            break;
-        }
-    }
-    if (!layer) {
-        layer = doc.layers.add();
-        layer.name = "_guide";
-    }
-    return layer;
-}
-
-/* アクティブなアートボードの矩形を取得（無効ならアラートして null）/ Active artboard rect (alerts and returns null if invalid) */
-function getActiveArtboardRect(doc) {
-    if (doc.artboards.length === 0) {
-        alert(getLocalizedText("alert.noArtboard"));
-        return null;
-    }
-    var index = doc.artboards.getActiveArtboardIndex();
-    if (index < 0 || index >= doc.artboards.length) {
-        alert(getLocalizedText("alert.invalidArtboard"));
-        return null;
-    }
-    return doc.artboards[index].artboardRect;
-}
-
-/* 複数オブジェクトの外接矩形を統合 / Union the bounds of multiple items */
-function unionBounds(items, usePreviewBounds) {
-    var bounds = null;
-    for (var i = 0; i < items.length; i++) {
-        var b = getItemBounds(items[i], usePreviewBounds);
-        if (!bounds) {
-            bounds = b.concat();
-        } else {
-            bounds[0] = Math.min(bounds[0], b[0]);
-            bounds[1] = Math.max(bounds[1], b[1]);
-            bounds[2] = Math.max(bounds[2], b[2]);
-            bounds[3] = Math.min(bounds[3], b[3]);
-        }
-    }
-    return bounds;
-}
-
-/* プレビュー境界使用時、テキストを一時アウトライン化して境界計算用に差し替え（restoreで復元）/ Temporarily outline text for bounds; returns { items, restore() } */
-function outlineTextForBounds(selItems, usePreviewBounds) {
-    var passthrough = { items: selItems, restore: function () {} };
-    if (!usePreviewBounds) return passthrough;
-
-    var tempCopies = [];
-    var originalTexts = [];
-    for (var i = 0; i < selItems.length; i++) {
-        var item = selItems[i];
-        if (item && item.typename === "TextFrame") {
-            tempCopies.push(item.duplicate());
-            item.hidden = true;
-            originalTexts.push(item);
-        }
-    }
-    if (tempCopies.length === 0) return passthrough;
-
-    /* 全選択解除は app.selection = null が確実（doc.selection = null は MRAP エラーになることがある）/ Use app.selection to deselect */
-    app.selection = null;
-    for (var j = 0; j < tempCopies.length; j++) tempCopies[j].selected = true;
-    try {
-        app.executeMenuCommand('expandStyle');
-    } catch (e) {
-        alert(getLocalizedText("alert.expandError") + "\n" + e.message);
-    }
-
-    var outlinedItems = [];
-    for (var k = 0; k < tempCopies.length; k++) {
-        var outlined = tempCopies[k].createOutline();
-        outlinedItems.push(outlined ? outlined : tempCopies[k]);
-    }
-    return {
-        items: outlinedItems,
-        restore: function () {
-            for (var m = 0; m < outlinedItems.length; m++) {
-                outlinedItems[m].remove();
-                originalTexts[m].hidden = false;
-            }
-        }
-    };
-}
-
-/* 基準矩形からガイドを描画（描画する方向は directionsFromBounds が算出）/ Draw guides from a reference bounds rect */
-function drawGuidesForBounds(layer, bounds, options, useCanvas, offsetValue, marginValue) {
-    var ab = null;
-    if (!useCanvas) {
-        ab = getActiveArtboardRect(app.activeDocument);
-        if (!ab) return;
-    }
-    var directions = directionsFromBounds(bounds, options, offsetValue);
-    for (var i = 0; i < directions.length; i++) {
-        createGuide(layer, directions[i].pos, directions[i].orientation, useCanvas, marginValue, ab);
-    }
-}
-
-/* 選択オブジェクト・アートボード・カンバスからガイドを作成（本処理）/ Create guides from the selection, artboard, or canvas (commit) */
-/* 引数: options=各方向フラグ, useCanvas=カンバス基準, offsetValue=距離(pt), marginValue=延長(pt) / Args as named */
-function createGuidesFromSelection(options, useCanvas, offsetValue, marginValue) {
-    var doc = app.activeDocument;
-    var selItems = doc.selection;
-    var layer, wasLocked;
-
-    /* オブジェクトごとにガイドを作成 / Per-object guides */
-    if (options.individual && selItems.length > 0) {
-        layer = getOrCreateGuideLayer();
-        wasLocked = layer.locked;
-        if (wasLocked) layer.locked = false;
-        for (var i = 0; i < selItems.length; i++) {
-            drawGuidesForBounds(layer, getItemBounds(selItems[i], options.usePreviewBounds), options, useCanvas, offsetValue, marginValue);
-        }
-        layer.locked = true;
-        return;
-    }
-
-    /* 基準となる外接矩形を決定 / Determine the reference bounds */
-    var bounds;
-    var textState = null;
-    if (selItems.length === 0) {
-        bounds = getActiveArtboardRect(doc);
-        if (!bounds) return; // アラートは getActiveArtboardRect 内 / alerted inside
-        bounds = bounds.concat();
-    } else {
-        textState = outlineTextForBounds(selItems, options.usePreviewBounds);
-        bounds = unionBounds(textState.items, options.usePreviewBounds);
-    }
-
-    layer = getOrCreateGuideLayer();
-    wasLocked = layer.locked;
-    if (wasLocked) layer.locked = false;
-
-    drawGuidesForBounds(layer, bounds, options, useCanvas, offsetValue, marginValue);
-
-    if (textState) textState.restore();
-    layer.locked = true;
-}
-
-/* 指定位置・向きにガイドを1本作成（線分は guideSegment が算出）/ Create a single guide (segment from guideSegment) */
-function createGuide(layer, pos, orientation, useCanvas, marginValue, ab) {
-    var guide = layer.pathItems.add();
-    guide.setEntirePath(guideSegment(pos, orientation, useCanvas, marginValue, ab));
-    guide.filled = false;
-    guide.stroked = false;
-    guide.guides = true;
-}
-
-/* 単位コード→pt 換算係数を取得 / Get the points-per-unit factor for a unit code */
-function getPtFactorFromUnitCode(code) {
-    switch (code) {
+/**
+ * 単位コードから pt への換算係数を取得
+ * @param {number} unitCode - rulerType の単位コード
+ * @returns {number} 1単位あたりの pt 数
+ */
+function getPointFactorForUnitCode(unitCode) {
+    switch (unitCode) {
         case 0:
             return 72.0; // in
         case 1:
@@ -472,507 +338,885 @@ function getPtFactorFromUnitCode(code) {
     }
 }
 
-/* ===== ライブプレビュー / Live preview ===== */
-
-/* プレビュー用レイヤー名 / Preview layer name */
-var PREVIEW_LAYER_NAME = "__GuidePreview__";
-
-/* プレビュー用の色（ドキュメントのカラースペースに合わせる）/ Preview color (matches doc color space) */
-function makePreviewColor(doc) {
-    if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
-        var cmyk = new CMYKColor();
-        cmyk.cyan = 0; cmyk.magenta = 90; cmyk.yellow = 0; cmyk.black = 0;
-        return cmyk;
-    }
-    var rgb = new RGBColor();
-    rgb.red = 255; rgb.green = 0; rgb.blue = 255;
-    return rgb;
+/**
+ * 入力文字列を定規単位として解釈し pt に変換
+ * @param {string} inputText - 入力欄の文字列
+ * @returns {number} pt 値（数値でない場合は 0）
+ */
+function rulerTextToPoints(inputText) {
+    var inputValue = parseFloat(inputText);
+    if (isNaN(inputValue)) inputValue = 0;
+    return inputValue * getPointFactorForUnitCode(app.preferences.getIntegerPreference("rulerType"));
 }
 
-/* プレビュー用レイヤーを削除 / Remove the preview layer if present */
-function removePreviewLayer(doc) {
-    try {
-        var layer = doc.layers.getByName(PREVIEW_LAYER_NAME);
-        layer.locked = false;
-        layer.visible = true;
-        layer.remove();
-    } catch (e) {}
-}
+// =========================================
+// 境界の取得 / Bounds
+// =========================================
 
-/* プレビュー用レイヤーを用意（既存は作り直し）/ Create a fresh preview layer */
-function createPreviewLayer(doc) {
-    removePreviewLayer(doc);
-    var layer = doc.layers.add();
-    layer.name = PREVIEW_LAYER_NAME;
-    return layer;
-}
-
-/* 線分配列を色付きプレビュー線としてレイヤーへ描画 / Draw colored preview lines into a layer */
-function addPreviewSegments(layer, segments, color) {
-    for (var i = 0; i < segments.length; i++) {
-        var path = layer.pathItems.add();
-        path.setEntirePath([segments[i][0], segments[i][1]]);
-        path.filled = false;
-        path.stroked = true;
-        path.strokeColor = color;
-        path.strokeWidth = 1;
-    }
-}
-
-/* オブジェクトの境界（クリップグループ対応）/ Bounds of an item (clip-group aware) */
-function getItemBounds(item, usePreview) {
-    if (item.typename === "GroupItem" && item.clipped) {
-        for (var j = 0; j < item.pageItems.length; j++) {
-            if (item.pageItems[j].clipping) {
-                return usePreview ? item.pageItems[j].visibleBounds : item.pageItems[j].geometricBounds;
+/**
+ * オブジェクトの境界を取得（クリップグループはマスクパス基準）
+ * @param {PageItem} pageItem - 対象オブジェクト
+ * @param {boolean} usePreviewBounds - プレビュー境界を使うかどうか
+ * @returns {number[]} [左, 上, 右, 下]
+ */
+function getItemBounds(pageItem, usePreviewBounds) {
+    if (pageItem.typename === "GroupItem" && pageItem.clipped) {
+        for (var i = 0; i < pageItem.pageItems.length; i++) {
+            if (pageItem.pageItems[i].clipping) {
+                return usePreviewBounds ? pageItem.pageItems[i].visibleBounds : pageItem.pageItems[i].geometricBounds;
             }
         }
     }
-    return usePreview ? item.visibleBounds : item.geometricBounds;
+    return usePreviewBounds ? pageItem.visibleBounds : pageItem.geometricBounds;
 }
 
-/* 境界とオプションから引くべき方向（位置・向き）を算出 / Directions to draw from bounds */
-function directionsFromBounds(bounds, options, offsetPt) {
-    var top = bounds[1] + offsetPt;
-    var left = bounds[0] - offsetPt;
-    var bottom = bounds[3] - offsetPt;
-    var right = bounds[2] + offsetPt;
-    var centerX = (left + right) / 2;
-    var centerY = (top + bottom) / 2;
-
-    var dirs = [];
-    if (options.left) dirs.push({ pos: left, orientation: "vertical" });
-    if (options.right) dirs.push({ pos: right, orientation: "vertical" });
-    if (options.top) dirs.push({ pos: top, orientation: "horizontal" });
-    if (options.bottom) dirs.push({ pos: bottom, orientation: "horizontal" });
-    if (options.center) {
-        dirs.push({ pos: centerX, orientation: "vertical" });
-        dirs.push({ pos: centerY, orientation: "horizontal" });
+/**
+ * 複数オブジェクトの外接矩形を統合
+ * @param {PageItem[]} pageItems - 対象オブジェクト
+ * @param {boolean} usePreviewBounds - プレビュー境界を使うかどうか
+ * @returns {number[]|null} 統合した [左, 上, 右, 下]（対象が無い場合は null）
+ */
+function unionBounds(pageItems, usePreviewBounds) {
+    var unionRect = null;
+    for (var i = 0; i < pageItems.length; i++) {
+        var itemBounds = getItemBounds(pageItems[i], usePreviewBounds);
+        if (!unionRect) {
+            unionRect = itemBounds.concat();
+        } else {
+            unionRect[0] = Math.min(unionRect[0], itemBounds[0]);
+            unionRect[1] = Math.max(unionRect[1], itemBounds[1]);
+            unionRect[2] = Math.max(unionRect[2], itemBounds[2]);
+            unionRect[3] = Math.min(unionRect[3], itemBounds[3]);
+        }
     }
-    if (options.centerMode === "vertical") dirs.push({ pos: centerX, orientation: "vertical" });
-    if (options.centerMode === "horizontal") dirs.push({ pos: centerY, orientation: "horizontal" });
-    return dirs;
+    return unionRect;
 }
 
-/* ガイド1本の線分（[start, end]）/ One guide segment */
-function guideSegment(pos, orientation, useCanvas, marginPt, ab) {
+/**
+ * アクティブなアートボードの矩形を取得
+ * @param {Document} doc - 対象ドキュメント
+ * @returns {number[]|null} [左, 上, 右, 下]（取得できない場合は null）
+ */
+function getActiveArtboardRect(doc) {
+    if (doc.artboards.length === 0) return null;
+    var artboardIndex = doc.artboards.getActiveArtboardIndex();
+    if (artboardIndex < 0 || artboardIndex >= doc.artboards.length) return null;
+    return doc.artboards[artboardIndex].artboardRect;
+}
+
+/**
+ * プレビュー境界使用時、テキストを一時的にアウトライン化して境界計算用に差し替える
+ * @param {PageItem[]} selectedItems - 選択オブジェクト
+ * @param {boolean} usePreviewBounds - プレビュー境界を使うかどうか
+ * @returns {object} { items: 境界計算用オブジェクト配列, restore: 復元関数 }
+ */
+function outlineTextForBounds(selectedItems, usePreviewBounds) {
+    var passthrough = { items: selectedItems, restore: function () {} };
+    if (!usePreviewBounds) return passthrough;
+
+    var boundsItems = [];
+    var duplicatedTexts = [];
+    var originalTexts = [];
+    for (var i = 0; i < selectedItems.length; i++) {
+        var selectedItem = selectedItems[i];
+        if (selectedItem && selectedItem.typename === "TextFrame") {
+            duplicatedTexts.push(selectedItem.duplicate());
+            originalTexts.push(selectedItem);
+        } else {
+            boundsItems.push(selectedItem);
+        }
+    }
+    if (duplicatedTexts.length === 0) return passthrough;
+
+    for (var j = 0; j < originalTexts.length; j++) originalTexts[j].hidden = true;
+
+    /* 全選択解除は app.selection = null が確実（doc.selection = null は MRAP エラーになることがある）/ Use app.selection to deselect */
+    app.selection = null;
+    for (var k = 0; k < duplicatedTexts.length; k++) duplicatedTexts[k].selected = true;
+    try {
+        app.executeMenuCommand('expandStyle');
+    } catch (e) {
+        alert(getLabel("alert.expandError") + "\n" + e.message);
+    }
+
+    var outlinedTexts = [];
+    for (var m = 0; m < duplicatedTexts.length; m++) {
+        var outlined = duplicatedTexts[m].createOutline();
+        outlinedTexts.push(outlined ? outlined : duplicatedTexts[m]);
+    }
+    return {
+        items: boundsItems.concat(outlinedTexts),
+        restore: function () {
+            for (var n = 0; n < outlinedTexts.length; n++) {
+                outlinedTexts[n].remove();
+                originalTexts[n].hidden = false;
+            }
+        }
+    };
+}
+
+/**
+ * ガイドの基準となる外接矩形と、その元オブジェクトが載るレイヤーを取得
+ * @param {PageItem[]} boundsItems - 境界計算に使うオブジェクト
+ * @param {object} guideOptions - ガイド作成オプション
+ * @param {number[]|null} artboardRect - アクティブなアートボードの矩形
+ * @returns {object[]} { bounds: number[], layer: Layer|null } の配列
+ */
+function collectTargetEntries(boundsItems, guideOptions, artboardRect) {
+    /* 選択が無いときはアートボードを基準にする / Fall back to the artboard when nothing is selected */
+    if (boundsItems.length === 0) return artboardRect ? [{ bounds: artboardRect.concat(), layer: null }] : [];
+
+    if (guideOptions.individual) {
+        var targetEntries = [];
+        for (var i = 0; i < boundsItems.length; i++) {
+            targetEntries.push({
+                bounds: getItemBounds(boundsItems[i], guideOptions.usePreviewBounds),
+                layer: boundsItems[i].layer
+            });
+        }
+        return targetEntries;
+    }
+    var combinedBounds = unionBounds(boundsItems, guideOptions.usePreviewBounds);
+    /* まとめて1組にするときは先頭オブジェクトのレイヤーを代表にする / Use the first item's layer for the combined set */
+    return combinedBounds ? [{ bounds: combinedBounds, layer: boundsItems[0].layer }] : [];
+}
+
+// =========================================
+// ガイドの線分 / Guide segments
+// =========================================
+
+/**
+ * 境界とオプションから引くべきガイドの位置と向きを算出
+ * @param {number[]} bounds - 基準の外接矩形 [左, 上, 右, 下]
+ * @param {object} guideOptions - ガイド作成オプション
+ * @param {number} offsetPt - 対象から離す距離（pt）
+ * @returns {object[]} { position: number, orientation: string } の配列
+ */
+function directionsFromBounds(bounds, guideOptions, offsetPt) {
+    var topPosition = bounds[1] + offsetPt;
+    var leftPosition = bounds[0] - offsetPt;
+    var bottomPosition = bounds[3] - offsetPt;
+    var rightPosition = bounds[2] + offsetPt;
+    var centerX = (leftPosition + rightPosition) / 2;
+    var centerY = (topPosition + bottomPosition) / 2;
+
+    var guideDirections = [];
+    if (guideOptions.left) guideDirections.push({ position: leftPosition, orientation: "vertical" });
+    if (guideOptions.right) guideDirections.push({ position: rightPosition, orientation: "vertical" });
+    if (guideOptions.top) guideDirections.push({ position: topPosition, orientation: "horizontal" });
+    if (guideOptions.bottom) guideDirections.push({ position: bottomPosition, orientation: "horizontal" });
+    if (guideOptions.center) {
+        guideDirections.push({ position: centerX, orientation: "vertical" });
+        guideDirections.push({ position: centerY, orientation: "horizontal" });
+    }
+    if (guideOptions.centerMode === "vertical") guideDirections.push({ position: centerX, orientation: "vertical" });
+    if (guideOptions.centerMode === "horizontal") guideDirections.push({ position: centerY, orientation: "horizontal" });
+    return guideDirections;
+}
+
+/**
+ * ガイド1本分の線分を算出
+ * @param {number} position - ガイドの座標
+ * @param {string} orientation - "vertical" または "horizontal"
+ * @param {boolean} useCanvas - カンバス基準かどうか
+ * @param {number} extensionPt - アートボード外へ伸ばす量（pt）
+ * @param {number[]|null} artboardRect - アクティブなアートボードの矩形
+ * @returns {number[][]} [始点, 終点]
+ */
+function guideSegment(position, orientation, useCanvas, extensionPt, artboardRect) {
     if (useCanvas) {
-        var big = 8000;
-        return (orientation === "horizontal") ? [[-big, pos], [big, pos]] : [[pos, big], [pos, -big]];
+        return (orientation === "horizontal")
+            ? [[-CANVAS_GUIDE_REACH, position], [CANVAS_GUIDE_REACH, position]]
+            : [[position, CANVAS_GUIDE_REACH], [position, -CANVAS_GUIDE_REACH]];
     }
     return (orientation === "horizontal")
-        ? [[ab[0] - marginPt, pos], [ab[2] + marginPt, pos]]
-        : [[pos, ab[1] + marginPt], [pos, ab[3] - marginPt]];
+        ? [[artboardRect[0] - extensionPt, position], [artboardRect[2] + extensionPt, position]]
+        : [[position, artboardRect[1] + extensionPt], [position, artboardRect[3] - extensionPt]];
 }
 
-/* 現在の設定からプレビュー線分を収集（本処理の幾何を簡易再現。テキストのアウトライン化は省略）/ Collect preview segments */
-function collectPreviewSegments(options, useCanvas, offsetPt, marginPt) {
-    var doc = app.activeDocument;
+/**
+ * 基準矩形1つ分のガイドの線分を算出
+ * @param {number[]} bounds - 基準の外接矩形 [左, 上, 右, 下]
+ * @param {object} guideOptions - ガイド作成オプション
+ * @param {boolean} useCanvas - カンバス基準かどうか
+ * @param {number} offsetPt - 対象から離す距離（pt）
+ * @param {number} extensionPt - アートボード外へ伸ばす量（pt）
+ * @param {number[]|null} artboardRect - アクティブなアートボードの矩形
+ * @returns {number[][][]} 線分（[始点, 終点]）の配列
+ */
+function segmentsForBounds(bounds, guideOptions, useCanvas, offsetPt, extensionPt, artboardRect) {
+    var guideDirections = directionsFromBounds(bounds, guideOptions, offsetPt);
     var segments = [];
-
-    var ab = null;
-    if (doc.artboards.length > 0) {
-        var abIndex = doc.artboards.getActiveArtboardIndex();
-        if (abIndex >= 0 && abIndex < doc.artboards.length) ab = doc.artboards[abIndex].artboardRect;
-    }
-    if (!useCanvas && !ab) return segments;
-
-    var selItems = doc.selection;
-
-    function pushDirs(bounds) {
-        var dirs = directionsFromBounds(bounds, options, offsetPt);
-        for (var d = 0; d < dirs.length; d++) {
-            segments.push(guideSegment(dirs[d].pos, dirs[d].orientation, useCanvas, marginPt, ab));
-        }
-    }
-
-    if (options.individual && selItems.length > 0) {
-        for (var i = 0; i < selItems.length; i++) {
-            pushDirs(getItemBounds(selItems[i], options.usePreviewBounds));
-        }
-    } else if (selItems.length === 0) {
-        if (ab) pushDirs([ab[0], ab[1], ab[2], ab[3]]);
-    } else {
-        var bounds = null;
-        for (var i = 0; i < selItems.length; i++) {
-            var b = getItemBounds(selItems[i], options.usePreviewBounds);
-            if (!bounds) {
-                bounds = b.concat();
-            } else {
-                bounds[0] = Math.min(bounds[0], b[0]);
-                bounds[1] = Math.max(bounds[1], b[1]);
-                bounds[2] = Math.max(bounds[2], b[2]);
-                bounds[3] = Math.min(bounds[3], b[3]);
-            }
-        }
-        if (bounds) pushDirs(bounds);
+    for (var i = 0; i < guideDirections.length; i++) {
+        segments.push(guideSegment(guideDirections[i].position, guideDirections[i].orientation, useCanvas, extensionPt, artboardRect));
     }
     return segments;
 }
 
-/* プリセットのラジオボタンを生成・配線（cross=十字チェックボックス, centerLine={mode}）/ Build & wire preset radios */
-function buildPresetRadios(parent, cross, centerLine) {
-    /* ラジオボタン生成（tooltipKey で説明、show が false なら作らない）/ Create a radio (with tooltip; skip when show is false) */
-    function createRadioButton(label, tooltipKey, show) {
-        if (typeof show !== "undefined" && !show) return null;
-        var radio = parent.add("radiobutton", undefined, label);
-        if (tooltipKey) radio.helpTip = getLocalizedText(tooltipKey);
-        return radio;
+// =========================================
+// ガイドの作成 / Guide creation
+// =========================================
+
+/**
+ * 名前でレイヤーを検索
+ * @param {Document} doc - 対象ドキュメント
+ * @param {string} layerName - レイヤー名
+ * @returns {Layer|null} 見つかったレイヤー（無ければ null）
+ */
+function findLayerByName(doc, layerName) {
+    for (var i = 0; i < doc.layers.length; i++) {
+        if (doc.layers[i].name === layerName) return doc.layers[i];
     }
-
-    var radios = {
-        allOn: createRadioButton(getLocalizedText("radio.allOn"), "tooltip.preset.allOn"),
-        edges: createRadioButton(getLocalizedText("radio.edges"), "tooltip.preset.edges"),
-        topBottom: createRadioButton(getLocalizedText("radio.vertical"), "tooltip.preset.topBottom", showRbTopBottom),
-        leftRight: createRadioButton(getLocalizedText("radio.horizontal"), "tooltip.preset.leftRight", showRbLeftRight),
-        topLeft: createRadioButton(getLocalizedText("radio.topLeft"), "tooltip.preset.topLeft", showRbTopLeft),
-        bottomLeft: createRadioButton(getLocalizedText("radio.bottomLeft"), "tooltip.preset.bottomLeft", showRbBottomLeft),
-        topRight: createRadioButton(getLocalizedText("radio.topRight"), "tooltip.preset.topRight", showRbTopRight),
-        bottomRight: createRadioButton(getLocalizedText("radio.bottomRight"), "tooltip.preset.bottomRight", showRbBottomRight),
-        centerBoth: createRadioButton(getLocalizedText("radio.centerBoth"), "tooltip.preset.centerBoth"),
-        centerVertical: createRadioButton(getLocalizedText("radio.centerVertical"), "tooltip.preset.centerVertical"),
-        centerHorizontal: createRadioButton(getLocalizedText("radio.centerHorizontal"), "tooltip.preset.centerHorizontal"),
-        clear: createRadioButton(getLocalizedText("radio.clear"), "tooltip.preset.clear")
-    };
-
-    /* 十字チェックボックス（左/上/右/下/中央）の状態をまとめて設定 / Set the cross checkboxes at once */
-    function setCrossState(showLeft, showTop, showRight, showBottom, showCenter) {
-        centerLine.mode = "";
-        cross.left.value = showLeft;
-        cross.top.value = showTop;
-        cross.right.value = showRight;
-        cross.bottom.value = showBottom;
-        cross.center.value = showCenter;
-    }
-
-    /* プリセット定義（cross=[左,上,右,下,中央], centerLine=中心線モード）/ Preset table */
-    var presetDefs = [
-        { rb: radios.allOn,            cross: [true,  true,  true,  true,  true ] },
-        { rb: radios.edges,            cross: [true,  true,  true,  true,  false] },
-        { rb: radios.topBottom,        cross: [false, true,  false, true,  false] },
-        { rb: radios.leftRight,        cross: [true,  false, true,  false, false] },
-        { rb: radios.topLeft,          cross: [true,  true,  false, false, false] },
-        { rb: radios.bottomLeft,       cross: [true,  false, false, true,  false] },
-        { rb: radios.topRight,         cross: [false, true,  true,  false, false] },
-        { rb: radios.bottomRight,      cross: [false, false, true,  true,  false] },
-        { rb: radios.clear,            cross: [false, false, false, false, false] },
-        { rb: radios.centerBoth,       cross: [false, false, false, false, true ] },
-        { rb: radios.centerVertical,   cross: [false, false, false, false, false], centerLine: "vertical" },
-        { rb: radios.centerHorizontal, cross: [false, false, false, false, false], centerLine: "horizontal" }
-    ];
-    for (var i = 0; i < presetDefs.length; i++) {
-        (function (def) {
-            if (!def.rb) return;
-            def.rb.onClick = function () {
-                if (!def.rb.value) return;
-                setCrossState(def.cross[0], def.cross[1], def.cross[2], def.cross[3], def.cross[4]);
-                if (def.centerLine) centerLine.mode = def.centerLine;
-            };
-        })(presetDefs[i]);
-    }
-
-    /* デフォルト選択は四辺を優先 / Default selection (prefer "Edges") */
-    if (radios.edges) {
-        radios.edges.value = true;
-    } else if (radios.allOn) {
-        radios.allOn.value = true;
-    }
-
-    /* 手動でチェックを変えたら中心線モードを解除 / Clear center-line mode on manual checkbox toggle */
-    function clearCenterLineOnToggle(checkbox) {
-        checkbox.onClick = function () {
-            centerLine.mode = "";
-        };
-    }
-    clearCenterLineOnToggle(cross.left);
-    clearCenterLineOnToggle(cross.top);
-    clearCenterLineOnToggle(cross.right);
-    clearCenterLineOnToggle(cross.bottom);
-    clearCenterLineOnToggle(cross.center);
-
-    return radios;
+    return null;
 }
 
-/* メインダイアログを構築して表示 / Build and show the main dialog */
-function buildDialog() {
-    /* 中心線モードの保持（プリセットと共有・参照渡し用に holder）/ Center-line mode holder (shared with presets) */
-    var centerLine = { mode: "" };
-    var dialog = new Window("dialog", getLocalizedText("dialog.title") + " " + SCRIPT_VERSION);
-    dialog.orientation = "column";
-    dialog.alignChildren = ["center", "top"];
-    dialog.spacing = 10;
-    dialog.margins = 15;
+/**
+ * ガイド用レイヤーを取得（無ければ作成）
+ * @param {Document} doc - 対象ドキュメント
+ * @returns {Layer} ガイド用レイヤー
+ */
+function getOrCreateGuideLayer(doc) {
+    var guideLayer = findLayerByName(doc, GUIDE_LAYER_NAME);
+    if (!guideLayer) {
+        guideLayer = doc.layers.add();
+        guideLayer.name = GUIDE_LAYER_NAME;
+    }
+    return guideLayer;
+}
 
-    var mainGroup = dialog.add("group");
-    mainGroup.orientation = "row";
-    mainGroup.alignChildren = ["fill", "top"];
-    mainGroup.spacing = 20;
-    mainGroup.margins = 0;
+/**
+ * レイヤー・グループ内の既存ガイドを削除（グループ化されたガイドも対象）
+ * @param {Layer|GroupItem} guideContainer - 対象レイヤーまたはグループ
+ * @returns {void}
+ */
+function deleteGuidesInContainer(guideContainer) {
+    for (var i = guideContainer.pageItems.length - 1; i >= 0; i--) {
+        var containedItem = guideContainer.pageItems[i];
+        if (containedItem.typename === "GroupItem") {
+            deleteGuidesInContainer(containedItem);
+            /* 中身が無くなったグループは残さない / Drop groups left empty */
+            if (containedItem.pageItems.length === 0) containedItem.remove();
+        } else if (containedItem.guides) {
+            containedItem.remove();
+        }
+    }
+}
 
-    var leftGroup = mainGroup.add("group");
-    leftGroup.orientation = "column";
-    leftGroup.alignChildren = ["left", "top"];
-    leftGroup.spacing = 10;
+/**
+ * 線分の配列からガイドを作成
+ * @param {Layer} targetLayer - 作成先レイヤー
+ * @param {number[][][]} segments - 線分（[始点, 終点]）の配列
+ * @param {boolean} groupGuides - 作成したガイドをグループにまとめるかどうか
+ * @returns {void}
+ */
+function addGuidesFromSegments(targetLayer, segments, groupGuides) {
+    if (segments.length === 0) return;
 
-    var presetPanel = mainGroup.add("panel", undefined, getLocalizedText("panel.preset"));
-    setupPanel(presetPanel);
+    /* グループ化するときはガイドをグループ内に直接作成 / Create the guides inside a group when grouping */
+    var guideContainer = groupGuides ? targetLayer.groupItems.add() : targetLayer;
+    for (var i = 0; i < segments.length; i++) {
+        var guidePath = guideContainer.pathItems.add();
+        guidePath.setEntirePath(segments[i]);
+        guidePath.filled = false;
+        guidePath.stroked = false;
+        guidePath.guides = true;
+    }
+}
 
-    var rightGroup = presetPanel.add("group");
-    rightGroup.orientation = "column";
-    rightGroup.alignChildren = ["left", "top"];
-    rightGroup.spacing = 10;
-    rightGroup.margins = 0;
+/**
+ * レイヤーのロック状態を記録して解除（記録済みなら何もしない）
+ * @param {Layer} targetLayer - 対象レイヤー
+ * @param {object[]} lockStates - { layer, wasLocked } の記録先
+ * @returns {void}
+ */
+function unlockLayerOnce(targetLayer, lockStates) {
+    for (var i = 0; i < lockStates.length; i++) {
+        if (lockStates[i].layer === targetLayer) return;
+    }
+    lockStates.push({ layer: targetLayer, wasLocked: targetLayer.locked });
+    targetLayer.locked = false;
+}
 
-    var targetPanel = leftGroup.add("panel", undefined, getLocalizedText("panel.target"));
-    setupPanel(targetPanel);
-    /* カンバス→アートボードの順にラジオボタンを追加し、デフォルトをアートボードに / Add radio buttons in order: Canvas → Artboard, default to Artboard */
-    var rbCanvas = targetPanel.add("radiobutton", undefined, getLocalizedText("radio.canvas"));
-    rbCanvas.helpTip = getLocalizedText("tooltip.canvas");
-    var rbArtboard = targetPanel.add("radiobutton", undefined, getLocalizedText("radio.artboard"));
-    rbArtboard.helpTip = getLocalizedText("tooltip.artboard");
-    rbArtboard.value = true;
-    /* 「延長」グループを targetPanel 内に追加 / Add extension group to targetPanel */
-    var marginGroup = targetPanel.add("group");
-    marginGroup.orientation = "row";
-    marginGroup.alignChildren = ["left", "center"];
-    var marginLabel = marginGroup.add("statictext", undefined, labelText("field.extension"));
-    marginLabel.helpTip = getLocalizedText("tooltip.extension");
-    var marginInput = marginGroup.add("edittext", undefined, "20");
-    marginInput.helpTip = getLocalizedText("tooltip.extension");
-    marginInput.characters = 3;
-    var marginUnitLabel = marginGroup.add("statictext", undefined, getCurrentUnitLabel());
-    marginUnitLabel.helpTip = getLocalizedText("tooltip.extension");
-    changeValueByArrowKey(marginInput);
+/**
+ * 選択オブジェクト・アートボード・カンバスを基準にガイドを作成（本処理）
+ * @param {object} guideOptions - ガイド作成オプション（各方向フラグ・プレビュー境界・個別作成・グループ化・描画先・既存削除）
+ * @param {boolean} useCanvas - カンバス基準かどうか
+ * @param {number} offsetPt - 対象から離す距離（pt）
+ * @param {number} extensionPt - アートボード外へ伸ばす量（pt）
+ * @returns {void}
+ */
+function createGuides(guideOptions, useCanvas, offsetPt, extensionPt) {
+    var doc = app.activeDocument;
+    var artboardRect = getActiveArtboardRect(doc);
+    if (!useCanvas && !artboardRect) {
+        alert(getLabel(doc.artboards.length === 0 ? "alert.noArtboard" : "alert.invalidArtboard"));
+        return;
+    }
 
-    var axisGroup = leftGroup.add("panel", undefined, undefined, {
-        name: "axisGroup"
+    /* 境界計算のあいだだけテキストをアウトライン化 / Outline text only while measuring */
+    var outlinedTextState = outlineTextForBounds(doc.selection, guideOptions.usePreviewBounds);
+    var targetEntries = collectTargetEntries(outlinedTextState.items, guideOptions, artboardRect);
+    /* 線分はアウトラインを戻す前に確定させる / Freeze the segments before restoring the outlined text */
+    var drawPlan = [];
+    for (var i = 0; i < targetEntries.length; i++) {
+        drawPlan.push({
+            layer: targetEntries[i].layer,
+            segments: segmentsForBounds(targetEntries[i].bounds, guideOptions, useCanvas, offsetPt, extensionPt, artboardRect)
+        });
+    }
+    outlinedTextState.restore();
+
+    /* 「_guide」レイヤーへまとめる場合は先に用意して既存ガイドを整理 / Prepare the "_guide" layer up front */
+    var guideLayer = null;
+    if (!guideOptions.drawOnSelectionLayer) {
+        guideLayer = getOrCreateGuideLayer(doc);
+        guideLayer.locked = false;
+        if (guideOptions.deleteExisting) deleteGuidesInContainer(guideLayer);
+    }
+
+    var lockStates = [];
+    for (var j = 0; j < drawPlan.length; j++) {
+        var targetLayer = guideLayer || drawPlan[j].layer || doc.activeLayer;
+        unlockLayerOnce(targetLayer, lockStates);
+        addGuidesFromSegments(targetLayer, drawPlan[j].segments, guideOptions.groupGuides);
+    }
+
+    /* 「_guide」レイヤーはロックし、ほかは元の状態へ戻す / Lock "_guide", restore the others */
+    for (var k = 0; k < lockStates.length; k++) {
+        if (lockStates[k].layer !== guideLayer) lockStates[k].layer.locked = lockStates[k].wasLocked;
+    }
+    if (guideLayer) guideLayer.locked = true;
+}
+
+// =========================================
+// ライブプレビュー / Live preview
+// =========================================
+
+/**
+ * プレビュー用の色を作成（ドキュメントのカラースペースに合わせる）
+ * @param {Document} doc - 対象ドキュメント
+ * @returns {CMYKColor|RGBColor} プレビュー線の色
+ */
+function makePreviewColor(doc) {
+    if (doc.documentColorSpace === DocumentColorSpace.CMYK) {
+        var cmykColor = new CMYKColor();
+        cmykColor.cyan = 0;
+        cmykColor.magenta = 90;
+        cmykColor.yellow = 0;
+        cmykColor.black = 0;
+        return cmykColor;
+    }
+    var rgbColor = new RGBColor();
+    rgbColor.red = 255;
+    rgbColor.green = 0;
+    rgbColor.blue = 255;
+    return rgbColor;
+}
+
+/**
+ * プレビュー用レイヤーを削除
+ * @param {Document} doc - 対象ドキュメント
+ * @returns {void}
+ */
+function removePreviewLayer(doc) {
+    var previewLayer = findLayerByName(doc, PREVIEW_LAYER_NAME);
+    if (!previewLayer) return;
+    previewLayer.locked = false;
+    previewLayer.visible = true;
+    previewLayer.remove();
+}
+
+/**
+ * プレビュー用レイヤーを用意（既存があれば作り直す）
+ * @param {Document} doc - 対象ドキュメント
+ * @returns {Layer} プレビュー用レイヤー
+ */
+function createPreviewLayer(doc) {
+    removePreviewLayer(doc);
+    var previewLayer = doc.layers.add();
+    previewLayer.name = PREVIEW_LAYER_NAME;
+    return previewLayer;
+}
+
+/**
+ * 線分を色付きの仮線としてレイヤーへ描画
+ * @param {Layer} previewLayer - 描画先レイヤー
+ * @param {number[][][]} segments - 線分（[始点, 終点]）の配列
+ * @param {CMYKColor|RGBColor} previewColor - 仮線の色
+ * @returns {void}
+ */
+function drawPreviewSegments(previewLayer, segments, previewColor) {
+    for (var i = 0; i < segments.length; i++) {
+        var previewPath = previewLayer.pathItems.add();
+        previewPath.setEntirePath([segments[i][0], segments[i][1]]);
+        previewPath.filled = false;
+        previewPath.stroked = true;
+        previewPath.strokeColor = previewColor;
+        previewPath.strokeWidth = 1;
+    }
+}
+
+/**
+ * 現在の設定からプレビュー線分を収集（テキストのアウトライン化は省略）
+ * @param {object} guideOptions - ガイド作成オプション
+ * @param {boolean} useCanvas - カンバス基準かどうか
+ * @param {number} offsetPt - 対象から離す距離（pt）
+ * @param {number} extensionPt - アートボード外へ伸ばす量（pt）
+ * @returns {number[][][]} 線分（[始点, 終点]）の配列
+ */
+function collectPreviewSegments(guideOptions, useCanvas, offsetPt, extensionPt) {
+    var doc = app.activeDocument;
+    var artboardRect = getActiveArtboardRect(doc);
+    if (!useCanvas && !artboardRect) return [];
+
+    var targetEntries = collectTargetEntries(doc.selection, guideOptions, artboardRect);
+    var segments = [];
+    for (var i = 0; i < targetEntries.length; i++) {
+        segments = segments.concat(segmentsForBounds(targetEntries[i].bounds, guideOptions, useCanvas, offsetPt, extensionPt, artboardRect));
+    }
+    return segments;
+}
+
+// =========================================
+// UI 部品 / UI parts
+// =========================================
+
+/**
+ * ツールチップ付きチェックボックスを追加
+ * @param {Group|Panel} parentContainer - 追加先コンテナ
+ * @param {string} labelKey - ラベルのドット区切りキー
+ * @param {string} tooltipKey - ツールチップのドット区切りキー
+ * @param {boolean} initialValue - 初期状態
+ * @returns {Checkbox} 追加したチェックボックス
+ */
+function addCheckbox(parentContainer, labelKey, tooltipKey, initialValue) {
+    var checkbox = parentContainer.add("checkbox", undefined, getLabel(labelKey));
+    checkbox.helpTip = getLabel(tooltipKey);
+    checkbox.value = initialValue;
+    return checkbox;
+}
+
+/**
+ * 「ラベル＋数値入力＋単位」の行を追加
+ * @param {Group|Panel} parentContainer - 追加先コンテナ
+ * @param {string} labelKey - ラベルのドット区切りキー
+ * @param {string} tooltipKey - ツールチップのドット区切りキー
+ * @param {string} initialValue - 入力欄の初期値
+ * @returns {object} { row: Group, input: EditText }
+ */
+function addUnitInputRow(parentContainer, labelKey, tooltipKey, initialValue) {
+    var inputRow = parentContainer.add("group");
+    setupRow(inputRow, "left", ROW_SPACING);
+    var tooltipText = getLabel(tooltipKey);
+
+    var rowLabel = inputRow.add("statictext", undefined, labelWithColon(labelKey));
+    rowLabel.helpTip = tooltipText;
+    var valueInput = inputRow.add("edittext", undefined, initialValue);
+    valueInput.characters = 3;
+    valueInput.helpTip = tooltipText;
+    var unitLabel = inputRow.add("statictext", undefined, getRulerUnitLabel());
+    unitLabel.helpTip = tooltipText;
+    changeValueByArrowKey(valueInput);
+
+    return { row: inputRow, input: valueInput };
+}
+
+/**
+ * テキストフィールドで上下矢印キーによる数値増減を可能にする
+ * @param {EditText} editText - 対象の入力欄
+ * @returns {void}
+ */
+function changeValueByArrowKey(editText) {
+    editText.addEventListener("keydown", function (event) {
+        var currentValue = Number(editText.text);
+        if (isNaN(currentValue)) return;
+        var keyboardState = ScriptUI.environment.keyboardState;
+
+        if (event.keyName == "Up" || event.keyName == "Down") {
+            if (keyboardState.shiftKey) {
+                /* Shift押下時は10の倍数スナップ / Snap to tens if Shift is pressed */
+                currentValue = Math.round(currentValue / 10) * 10 + (event.keyName == "Up" ? 10 : -10);
+            } else {
+                currentValue += (event.keyName == "Up" ? 1 : -1);
+            }
+
+            event.preventDefault();
+            editText.text = currentValue;
+            /* プログラム変更は onChanging を発火しないため明示的に呼ぶ / fire onChanging manually */
+            if (typeof editText.onChanging === "function") editText.onChanging();
+        }
     });
-    axisGroup.text = getLocalizedText("panel.axis");
-    setupPanel(axisGroup);
+}
 
-    var crossGroup = axisGroup.add("group", undefined, {
-        name: "crossGroup"
-    });
-    crossGroup.orientation = "row";
-    crossGroup.alignChildren = ["left", "center"];
-    crossGroup.spacing = 20;
-    crossGroup.margins = 0;
+/**
+ * 「対象」パネル（基準ラジオ＋延長）を構築
+ * @param {Group} parentContainer - 追加先コンテナ
+ * @returns {object} { canvasRadio, artboardRadio, extensionInput, updateExtensionEnabled }
+ */
+function buildTargetPanel(parentContainer) {
+    var targetPanel = parentContainer.add("panel", undefined, getLabel("panel.target"));
+    setupPanel(targetPanel, 6);
+
+    /* カンバス→アートボードの順に並べ、デフォルトはアートボード / Canvas → Artboard, default to Artboard */
+    var canvasRadio = targetPanel.add("radiobutton", undefined, getLabel("radio.canvas"));
+    canvasRadio.helpTip = getLabel("tooltip.canvas");
+    var artboardRadio = targetPanel.add("radiobutton", undefined, getLabel("radio.artboard"));
+    artboardRadio.helpTip = getLabel("tooltip.artboard");
+    artboardRadio.value = true;
+
+    var extensionRow = addUnitInputRow(targetPanel, "fieldLabel.extension", "tooltip.extension", "20");
+
+    /* 「延長」行はカンバス基準では使わないので丸ごとディム / Dim the whole row for the canvas target */
+    function updateExtensionEnabled() {
+        extensionRow.row.enabled = !canvasRadio.value;
+    }
+    artboardRadio.onClick = updateExtensionEnabled;
+    canvasRadio.onClick = updateExtensionEnabled;
+    updateExtensionEnabled();
+
+    return {
+        canvasRadio: canvasRadio,
+        artboardRadio: artboardRadio,
+        extensionInput: extensionRow.input,
+        updateExtensionEnabled: updateExtensionEnabled
+    };
+}
+
+/**
+ * 「ガイド位置」パネル（十字のチェックボックス）を構築
+ * @param {Group} parentContainer - 追加先コンテナ
+ * @returns {object} { left, top, right, bottom, center } のチェックボックス
+ */
+function buildAxisPanel(parentContainer) {
+    var axisPanel = parentContainer.add("panel", undefined, getLabel("panel.axis"));
+    setupPanel(axisPanel, 8);
+
+    var crossGroup = axisPanel.add("group");
+    setupRow(crossGroup, undefined, CROSS_SPACING);
     /* パネル内で左右中央に配置 / Center the cross horizontally in the panel */
     crossGroup.alignment = ["center", "top"];
 
-    var colLeft = crossGroup.add("group", undefined, {
-        name: "colLeft"
-    });
-    colLeft.orientation = "row";
-    colLeft.alignChildren = ["left", "center"];
-    colLeft.spacing = 10;
-    colLeft.margins = 0;
-    var cbLeft = colLeft.add("checkbox", undefined, undefined, {
-        name: "cbLeft"
-    });
-    cbLeft.text = getLocalizedText("checkbox.left");
-    cbLeft.helpTip = getLocalizedText("tooltip.edge.left");
-    cbLeft.value = true;
+    var leftColumn = crossGroup.add("group");
+    setupRow(leftColumn, undefined, 10);
+    var leftCheckbox = addCheckbox(leftColumn, "checkbox.left", "tooltip.edge.left", true);
 
-    var colCenter = crossGroup.add("group", undefined, {
-        name: "colCenter"
-    });
+    var centerColumn = crossGroup.add("group");
+    centerColumn.orientation = "column";
+    centerColumn.alignChildren = ["left", "center"];
+    centerColumn.spacing = 10;
+    var topCheckbox = addCheckbox(centerColumn, "checkbox.top", "tooltip.edge.top", true);
+    /* 中心（縦横）の中心線用 / Center lines (vertical & horizontal) */
+    var centerCheckbox = addCheckbox(centerColumn, "checkbox.center", "tooltip.edge.center", false);
+    var bottomCheckbox = addCheckbox(centerColumn, "checkbox.bottom", "tooltip.edge.bottom", true);
 
-    colCenter.orientation = "column";
-    colCenter.alignChildren = ["left", "center"];
-    colCenter.spacing = 10;
-    colCenter.margins = 0;
-    var cbTop = colCenter.add("checkbox", undefined, undefined, {
-        name: "cbTop"
-    });
-    cbTop.text = getLocalizedText("checkbox.top");
-    cbTop.helpTip = getLocalizedText("tooltip.edge.top");
-    cbTop.value = true;
-    var cbCenter = colCenter.add("checkbox", undefined, undefined, {
-        name: "cbCenter"
-    });
-    cbCenter.text = getLocalizedText("checkbox.center");
-    cbCenter.helpTip = getLocalizedText("tooltip.edge.center");
-    cbCenter.value = false;
-    /* for horizontal center line / 水平中心線用 */
-    var cbBottom = colCenter.add("checkbox", undefined, undefined, {
-        name: "cbBottom"
-    });
-    cbBottom.text = getLocalizedText("checkbox.bottom");
-    cbBottom.helpTip = getLocalizedText("tooltip.edge.bottom");
-    cbBottom.value = true;
+    var rightColumn = crossGroup.add("group");
+    setupRow(rightColumn, undefined, 10);
+    var rightCheckbox = addCheckbox(rightColumn, "checkbox.right", "tooltip.edge.right", true);
 
-    var colRight = crossGroup.add("group", undefined, {
-        name: "colRight"
-    });
-    colRight.orientation = "row";
-    colRight.alignChildren = ["left", "center"];
-    colRight.spacing = 10;
-    colRight.margins = 0;
-    var cbRight = colRight.add("checkbox", undefined, undefined, {
-        name: "cbRight"
-    });
-    cbRight.text = getLocalizedText("checkbox.right");
-    cbRight.helpTip = getLocalizedText("tooltip.edge.right");
-    cbRight.value = true;
+    return {
+        left: leftCheckbox,
+        top: topCheckbox,
+        right: rightCheckbox,
+        bottom: bottomCheckbox,
+        center: centerCheckbox
+    };
+}
 
-    /* プリセットのラジオを生成・配線 / Build and wire the preset radios */
-    var crossCheckboxes = { left: cbLeft, top: cbTop, right: cbRight, bottom: cbBottom, center: cbCenter };
-    var presetRadios = buildPresetRadios(rightGroup, crossCheckboxes, centerLine);
-
-    var optionsGroup = dialog.add("panel", undefined, getLocalizedText("panel.options"), {
-        name: "optionsGroup"
-    });
-    setupPanel(optionsGroup);
-
-    var cbUsePreview = optionsGroup.add("checkbox", undefined, getLocalizedText("checkbox.usePreviewBounds"));
-    cbUsePreview.value = true;
-    cbUsePreview.helpTip = getLocalizedText("tooltip.usePreviewBounds");
-    var cbDeleteGuide = optionsGroup.add("checkbox", undefined, getLocalizedText("checkbox.deleteGuides"));
-    cbDeleteGuide.value = true;
-    cbDeleteGuide.helpTip = getLocalizedText("tooltip.deleteGuides");
-
-    /* 個別ガイドチェックボックス追加 / Add individual guide checkbox */
-    var cbGroup = optionsGroup.add("checkbox", undefined, getLocalizedText("checkbox.group"));
-    cbGroup.value = true;
-    cbGroup.helpTip = getLocalizedText("tooltip.group");
-    /* 選択が1つ以下なら個別/グループの区別が無いのでディム / Dim when 0–1 objects are selected */
-    if (app.activeDocument.selection.length <= 1) {
-        cbGroup.enabled = false;
+/**
+ * プリセットのラジオボタンを生成して十字チェックボックスと連動させる
+ * @param {Group} parentContainer - 追加先コンテナ
+ * @param {object} crossCheckboxes - 十字のチェックボックス群
+ * @param {object} centerLineState - 中心線モードの保持オブジェクト（{ mode: string }）
+ * @returns {object} 生成したラジオボタン群
+ */
+function buildPresetRadios(parentContainer, crossCheckboxes, centerLineState) {
+    /* ラジオボタン生成（show が false なら作らない）/ Create a radio (skip when show is false) */
+    function addPresetRadio(labelKey, tooltipKey, show) {
+        if (typeof show !== "undefined" && !show) return null;
+        var presetRadio = parentContainer.add("radiobutton", undefined, getLabel(labelKey));
+        presetRadio.helpTip = getLabel(tooltipKey);
+        return presetRadio;
     }
 
-    /* オフセット入力欄追加 / Add offset input field */
-    var offsetGroup = optionsGroup.add("group");
-    offsetGroup.orientation = "row";
-    offsetGroup.alignChildren = ["left", "center"];
-    var offsetLabel = offsetGroup.add("statictext", undefined, labelText("field.offset"));
-    offsetLabel.helpTip = getLocalizedText("tooltip.offset");
-    offsetLabel.margins = [0, 0, 8, 0];
-    var offsetInput = offsetGroup.add("edittext", undefined, "0");
-    offsetInput.helpTip = getLocalizedText("tooltip.offset");
-    offsetInput.characters = 3;
-    var offsetUnitLabel = offsetGroup.add("statictext", undefined, getCurrentUnitLabel());
-    offsetUnitLabel.helpTip = getLocalizedText("tooltip.offset");
-    offsetInput.active = true;
-    changeValueByArrowKey(offsetInput);
+    var presetRadios = {
+        allOn: addPresetRadio("radio.allOn", "tooltip.preset.allOn"),
+        edges: addPresetRadio("radio.edges", "tooltip.preset.edges"),
+        topBottom: addPresetRadio("radio.vertical", "tooltip.preset.topBottom", showPresetTopBottom),
+        leftRight: addPresetRadio("radio.horizontal", "tooltip.preset.leftRight", showPresetLeftRight),
+        topLeft: addPresetRadio("radio.topLeft", "tooltip.preset.topLeft", showPresetTopLeft),
+        bottomLeft: addPresetRadio("radio.bottomLeft", "tooltip.preset.bottomLeft", showPresetBottomLeft),
+        topRight: addPresetRadio("radio.topRight", "tooltip.preset.topRight", showPresetTopRight),
+        bottomRight: addPresetRadio("radio.bottomRight", "tooltip.preset.bottomRight", showPresetBottomRight),
+        centerBoth: addPresetRadio("radio.centerBoth", "tooltip.preset.centerBoth"),
+        centerVertical: addPresetRadio("radio.centerVertical", "tooltip.preset.centerVertical"),
+        centerHorizontal: addPresetRadio("radio.centerHorizontal", "tooltip.preset.centerHorizontal"),
+        clear: addPresetRadio("radio.clear", "tooltip.preset.clear")
+    };
 
-    /* 「延長」行（ラベル＋入力＋単位）を「カンバス」選択時に丸ごとディム / Dim the whole extension row when canvas is selected */
-    function updateMarginEnabled() {
-        marginGroup.enabled = !rbCanvas.value;
-    }
-    rbArtboard.onClick = updateMarginEnabled;
-    rbCanvas.onClick = updateMarginEnabled;
-    /* 初期状態に合わせる / Set initial state */
-    updateMarginEnabled();
-
-    /* 選択オブジェクトがアートボード外にある場合、自動的にカンバス選択 / Auto-select Canvas if selection is outside artboard */
-    var doc = app.activeDocument;
-    var selItems = doc.selection;
-    if (selItems.length > 0 && doc.artboards.length > 0) {
-        var abIndex = doc.artboards.getActiveArtboardIndex();
-        var ab = doc.artboards[abIndex].artboardRect;
-        var abLeft = ab[0];
-        var abTop = ab[1];
-        var abRight = ab[2];
-        var abBottom = ab[3];
-
-        var allOutside = true;
-
-        for (var i = 0; i < selItems.length; i++) {
-            var itemBounds = selItems[i].geometricBounds;
-            if (!(itemBounds[0] > abRight || itemBounds[2] < abLeft || itemBounds[1] < abBottom || itemBounds[3] > abTop)) {
-                allOutside = false;
-                break;
-            }
-        }
-
-        if (allOutside) {
-            rbCanvas.value = true;
-            rbArtboard.value = false;
-            updateMarginEnabled();
-        }
+    /* プリセット定義（crossValues=[左,上,右,下,中心], centerLine=中心線モード）/ Preset table */
+    var presetDefinitions = [
+        { radio: presetRadios.allOn,            crossValues: [true,  true,  true,  true,  true ] },
+        { radio: presetRadios.edges,            crossValues: [true,  true,  true,  true,  false] },
+        { radio: presetRadios.topBottom,        crossValues: [false, true,  false, true,  false] },
+        { radio: presetRadios.leftRight,        crossValues: [true,  false, true,  false, false] },
+        { radio: presetRadios.topLeft,          crossValues: [true,  true,  false, false, false] },
+        { radio: presetRadios.bottomLeft,       crossValues: [true,  false, false, true,  false] },
+        { radio: presetRadios.topRight,         crossValues: [false, true,  true,  false, false] },
+        { radio: presetRadios.bottomRight,      crossValues: [false, false, true,  true,  false] },
+        { radio: presetRadios.clear,            crossValues: [false, false, false, false, false] },
+        { radio: presetRadios.centerBoth,       crossValues: [false, false, false, false, true ] },
+        { radio: presetRadios.centerVertical,   crossValues: [false, false, false, false, false], centerLine: "vertical" },
+        { radio: presetRadios.centerHorizontal, crossValues: [false, false, false, false, false], centerLine: "horizontal" }
+    ];
+    for (var i = 0; i < presetDefinitions.length; i++) {
+        (function (presetDefinition) {
+            if (!presetDefinition.radio) return;
+            presetDefinition.radio.onClick = function () {
+                if (!presetDefinition.radio.value) return;
+                var crossValues = presetDefinition.crossValues;
+                centerLineState.mode = presetDefinition.centerLine || "";
+                crossCheckboxes.left.value = crossValues[0];
+                crossCheckboxes.top.value = crossValues[1];
+                crossCheckboxes.right.value = crossValues[2];
+                crossCheckboxes.bottom.value = crossValues[3];
+                crossCheckboxes.center.value = crossValues[4];
+            };
+        })(presetDefinitions[i]);
     }
 
-    /* ===== ボタン領域（3カラム：左=プレビュー / 中央=spacer / 右=ボタン）/ Footer (3 columns) ===== */
-    var footerGroup = dialog.add("group");
-    footerGroup.orientation = "row";
-    footerGroup.alignment = "fill";
-    footerGroup.alignChildren = ["fill", "center"];
-    footerGroup.margins = [0, 10, 0, 0];
-
-    /* 左：プレビュー / Left: preview */
-    var footerLeft = footerGroup.add("group");
-    footerLeft.orientation = "row";
-    footerLeft.alignment = ["left", "center"];
-    var cbPreview = footerLeft.add("checkbox", undefined, getLocalizedText("checkbox.preview"));
-    cbPreview.value = true;
-    cbPreview.helpTip = getLocalizedText("tooltip.preview");
-
-    /* 中央：スペーサー（余白を吸収）/ Center: spacer (absorbs free space) */
-    var footerSpacer = footerGroup.add("group");
-    footerSpacer.alignment = ["fill", "center"];
-
-    /* 右：ボタン（Mac 順：Cancel → OK）/ Right: buttons (Mac order) */
-    var footerRight = footerGroup.add("group");
-    footerRight.orientation = "row";
-    footerRight.alignment = ["right", "center"];
-    var btnCancel = footerRight.add("button", undefined, getLocalizedText("button.cancel"));
-    var btnCreateGuides = footerRight.add("button", undefined, getLocalizedText("button.draw"), { name: "ok" });
-
-    /* ===== プレビュー配線 / Preview wiring ===== */
-    function previewToPoints(text) {
-        var value = parseFloat(text);
-        if (isNaN(value)) value = 0;
-        return value * getPtFactorFromUnitCode(app.preferences.getIntegerPreference("rulerType"));
+    /* デフォルト選択は四辺を優先 / Default selection (prefer "Edges") */
+    if (presetRadios.edges) {
+        presetRadios.edges.value = true;
+    } else if (presetRadios.allOn) {
+        presetRadios.allOn.value = true;
     }
-    function readPreviewState() {
-        return {
-            options: {
-                left: cbLeft.value,
-                right: cbRight.value,
-                top: cbTop.value,
-                bottom: cbBottom.value,
-                center: cbCenter.value,
-                centerMode: centerLine.mode,
-                usePreviewBounds: cbUsePreview.value,
-                individual: !cbGroup.value
-            },
-            useCanvas: rbCanvas.value,
-            offsetPt: previewToPoints(offsetInput.text),
-            marginPt: previewToPoints(marginInput.text)
+
+    /* 手動でチェックを変えたら中心線モードを解除 / Clear center-line mode on manual toggle */
+    function clearCenterLineOnToggle(checkbox) {
+        checkbox.onClick = function () {
+            centerLineState.mode = "";
         };
     }
-    function clearPreview() {
-        removePreviewLayer(app.activeDocument);
+    clearCenterLineOnToggle(crossCheckboxes.left);
+    clearCenterLineOnToggle(crossCheckboxes.top);
+    clearCenterLineOnToggle(crossCheckboxes.right);
+    clearCenterLineOnToggle(crossCheckboxes.bottom);
+    clearCenterLineOnToggle(crossCheckboxes.center);
+
+    return presetRadios;
+}
+
+/**
+ * 「描画先」パネルを構築
+ * @param {Window} dialog - 追加先ダイアログ
+ * @returns {object} { selectionLayerRadio, guideLayerRadio }
+ */
+function buildDestinationPanel(dialog) {
+    var destinationPanel = dialog.add("panel", undefined, getLabel("panel.destination"));
+    setupPanel(destinationPanel, 6);
+
+    var selectionLayerRadio = destinationPanel.add("radiobutton", undefined, getLabel("radio.selectionLayer"));
+    selectionLayerRadio.helpTip = getLabel("tooltip.selectionLayer");
+    var guideLayerRadio = destinationPanel.add("radiobutton", undefined, getLabel("radio.guideLayer"));
+    guideLayerRadio.helpTip = getLabel("tooltip.guideLayer");
+    guideLayerRadio.value = true;
+
+    return { selectionLayerRadio: selectionLayerRadio, guideLayerRadio: guideLayerRadio };
+}
+
+/**
+ * 「オプション」パネルを構築
+ * @param {Window} dialog - 追加先ダイアログ
+ * @param {number} selectionCount - 選択オブジェクト数
+ * @returns {object} { usePreviewBoundsCheckbox, deleteGuidesCheckbox, individualCheckbox, groupCheckbox, offsetRow, offsetInput }
+ */
+function buildOptionsPanel(dialog, selectionCount) {
+    var optionsPanel = dialog.add("panel", undefined, getLabel("panel.options"));
+    setupPanel(optionsPanel, 6);
+
+    var usePreviewBoundsCheckbox = addCheckbox(optionsPanel, "checkbox.usePreviewBounds", "tooltip.usePreviewBounds", true);
+    var deleteGuidesCheckbox = addCheckbox(optionsPanel, "checkbox.deleteGuides", "tooltip.deleteGuides", true);
+    var individualCheckbox = addCheckbox(optionsPanel, "checkbox.individual", "tooltip.individual", false);
+    /* 選択が1つ以下ならまとめて作成と変わらないのでディム / Dim when 0–1 objects are selected */
+    if (selectionCount <= 1) individualCheckbox.enabled = false;
+    var groupCheckbox = addCheckbox(optionsPanel, "checkbox.group", "tooltip.group", true);
+
+    var offsetRow = addUnitInputRow(optionsPanel, "fieldLabel.offset", "tooltip.offset", "0");
+    offsetRow.input.active = true;
+
+    return {
+        usePreviewBoundsCheckbox: usePreviewBoundsCheckbox,
+        deleteGuidesCheckbox: deleteGuidesCheckbox,
+        individualCheckbox: individualCheckbox,
+        groupCheckbox: groupCheckbox,
+        offsetRow: offsetRow.row,
+        offsetInput: offsetRow.input
+    };
+}
+
+/**
+ * フッター（左：プレビュー／右：ボタン）を構築
+ * @param {Window} dialog - 追加先ダイアログ
+ * @returns {object} { previewCheckbox, cancelButton, drawButton }
+ */
+function buildFooter(dialog) {
+    var footerRow = dialog.add("group");
+    setupRow(footerRow, "fill");
+    footerRow.alignChildren = ["fill", "center"];
+    footerRow.margins = [0, 10, 0, 0];
+
+    /* 左：プレビュー / Left: preview */
+    var footerLeftGroup = footerRow.add("group");
+    setupRow(footerLeftGroup, undefined);
+    footerLeftGroup.alignment = ["left", "center"];
+    var previewCheckbox = addCheckbox(footerLeftGroup, "checkbox.preview", "tooltip.preview", true);
+
+    /* 中央：スペーサー（余白を吸収）/ Center: spacer (absorbs free space) */
+    var footerSpacerGroup = footerRow.add("group");
+    footerSpacerGroup.alignment = ["fill", "center"];
+
+    /* 右：ボタン（Mac 順：Cancel → OK）/ Right: buttons (Mac order) */
+    var footerRightGroup = footerRow.add("group");
+    setupRow(footerRightGroup, undefined);
+    footerRightGroup.alignment = ["right", "center"];
+    var cancelButton = footerRightGroup.add("button", undefined, getLabel("button.cancel"));
+    var drawButton = footerRightGroup.add("button", undefined, getLabel("button.draw"), { name: "ok" });
+
+    return { previewCheckbox: previewCheckbox, cancelButton: cancelButton, drawButton: drawButton };
+}
+
+/**
+ * 選択オブジェクトがすべてアートボードの外にあるか判定
+ * @param {Document} doc - 対象ドキュメント
+ * @returns {boolean} すべて外にあれば true
+ */
+function isSelectionOutsideArtboard(doc) {
+    var selectedItems = doc.selection;
+    var artboardRect = getActiveArtboardRect(doc);
+    if (selectedItems.length === 0 || !artboardRect) return false;
+
+    for (var i = 0; i < selectedItems.length; i++) {
+        var itemBounds = selectedItems[i].geometricBounds;
+        var isOutside = itemBounds[0] > artboardRect[2] || itemBounds[2] < artboardRect[0] ||
+            itemBounds[1] < artboardRect[3] || itemBounds[3] > artboardRect[1];
+        if (!isOutside) return false;
     }
-    /* 既存ガイドの表示/非表示（showguide はトグルなので状態を自前で追跡）/ Hide/show existing guides (showguide is a toggle; track state) */
+    return true;
+}
+
+// =========================================
+// メイン処理 / Main
+// =========================================
+
+/**
+ * メインダイアログを構築して表示
+ * @returns {void}
+ */
+function buildDialog() {
+    var doc = app.activeDocument;
+    /* 中心線モードはプリセットと共有するため holder で保持 / Center-line mode holder shared with presets */
+    var centerLineState = { mode: "" };
+
+    var dialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
+    setupWindow(dialog);
+
+    var columnsGroup = dialog.add("group");
+    setupRow(columnsGroup, "fill", COLUMN_SPACING);
+    columnsGroup.alignChildren = ["fill", "top"];
+
+    var leftColumnGroup = columnsGroup.add("group");
+    leftColumnGroup.orientation = "column";
+    leftColumnGroup.alignChildren = ["fill", "top"];
+    leftColumnGroup.spacing = WINDOW_SPACING;
+
+    var targetControls = buildTargetPanel(leftColumnGroup);
+    var crossCheckboxes = buildAxisPanel(leftColumnGroup);
+
+    var presetPanel = columnsGroup.add("panel", undefined, getLabel("panel.preset"));
+    setupPanel(presetPanel, 6);
+    var presetRadios = buildPresetRadios(presetPanel, crossCheckboxes, centerLineState);
+
+    var destinationControls = buildDestinationPanel(dialog);
+    var optionControls = buildOptionsPanel(dialog, doc.selection.length);
+    var footerControls = buildFooter(dialog);
+
+    /* 既存ガイドの削除は「_guide」レイヤーに描くときだけ有効 / Deleting guides applies to the "_guide" layer only */
+    function updateDeleteGuidesEnabled() {
+        optionControls.deleteGuidesCheckbox.enabled = destinationControls.guideLayerRadio.value;
+    }
+    destinationControls.selectionLayerRadio.onClick = updateDeleteGuidesEnabled;
+    destinationControls.guideLayerRadio.onClick = updateDeleteGuidesEnabled;
+    updateDeleteGuidesEnabled();
+
+    /* 選択がすべてアートボード外なら自動的にカンバス基準へ / Prefer canvas when the selection is off-artboard */
+    if (isSelectionOutsideArtboard(doc)) {
+        targetControls.canvasRadio.value = true;
+        targetControls.artboardRadio.value = false;
+        targetControls.updateExtensionEnabled();
+    }
+
+    /* ===== プレビュー配線 / Preview wiring ===== */
+
+    /* ダイアログの現在値をガイド作成オプションにまとめる / Read the dialog into guide options */
+    function readGuideOptions() {
+        return {
+            left: crossCheckboxes.left.value,
+            right: crossCheckboxes.right.value,
+            top: crossCheckboxes.top.value,
+            bottom: crossCheckboxes.bottom.value,
+            center: crossCheckboxes.center.value,
+            centerMode: centerLineState.mode,
+            usePreviewBounds: optionControls.usePreviewBoundsCheckbox.value,
+            individual: optionControls.individualCheckbox.value,
+            groupGuides: optionControls.groupCheckbox.value,
+            drawOnSelectionLayer: destinationControls.selectionLayerRadio.value,
+            deleteExisting: optionControls.deleteGuidesCheckbox.value
+        };
+    }
+
+    /* マージンは辺のガイドにだけ効くので、中心線だけのときはディム / Offset only affects edge guides */
+    function updateOffsetEnabled() {
+        optionControls.offsetRow.enabled = crossCheckboxes.left.value || crossCheckboxes.right.value ||
+            crossCheckboxes.top.value || crossCheckboxes.bottom.value;
+    }
+
+    /* 既存ガイドの表示／非表示（showguide はトグルなので状態を自前で追跡）/ Toggle guide visibility (track state) */
     var guidesHidden = false;
     function setGuidesHidden(hide) {
         if (hide === guidesHidden) return;
-        try { app.executeMenuCommand("showguide"); } catch (e) {}
+        /* メニューコマンドが使えない状況でもダイアログ操作を止めない / Keep the dialog usable if the command is unavailable */
+        try {
+            app.executeMenuCommand("showguide");
+        } catch (e) {}
         guidesHidden = hide;
     }
+
     function renderPreview() {
-        clearPreview();
+        updateOffsetEnabled();
+        removePreviewLayer(doc);
         /* プレビュー中は既存ガイドを隠し、仮ガイド（色付き線）だけ見せる / Hide real guides during preview */
-        setGuidesHidden(cbPreview.value);
-        if (cbPreview.value) {
+        setGuidesHidden(footerControls.previewCheckbox.value);
+        if (footerControls.previewCheckbox.value) {
             try {
-                var state = readPreviewState();
-                var segments = collectPreviewSegments(state.options, state.useCanvas, state.offsetPt, state.marginPt);
+                var segments = collectPreviewSegments(
+                    readGuideOptions(),
+                    targetControls.canvasRadio.value,
+                    rulerTextToPoints(optionControls.offsetInput.text),
+                    rulerTextToPoints(targetControls.extensionInput.text)
+                );
                 if (segments.length > 0) {
-                    var previewDoc = app.activeDocument;
-                    var previewLayer = createPreviewLayer(previewDoc);
-                    addPreviewSegments(previewLayer, segments, makePreviewColor(previewDoc));
+                    var previewLayer = createPreviewLayer(doc);
+                    drawPreviewSegments(previewLayer, segments, makePreviewColor(doc));
                     previewLayer.locked = true;
                 }
             } catch (e) {
-                clearPreview();
+                removePreviewLayer(doc);
             }
         }
         app.redraw();
     }
-    /* 既存 onClick を保持しつつプレビュー更新を連結 / Chain renderPreview after existing onClick */
+
+    /* 既存 onClick を保持しつつプレビュー更新を連結 / Chain renderPreview after the existing onClick */
     function chainPreview(control) {
         if (!control) return;
         var previousOnClick = control.onClick;
@@ -982,69 +1226,35 @@ function buildDialog() {
         };
     }
     var previewTriggers = [
-        rbCanvas, rbArtboard,
+        targetControls.canvasRadio, targetControls.artboardRadio,
         presetRadios.allOn, presetRadios.edges, presetRadios.topBottom, presetRadios.leftRight,
         presetRadios.topLeft, presetRadios.bottomLeft, presetRadios.topRight, presetRadios.bottomRight,
         presetRadios.centerBoth, presetRadios.centerVertical, presetRadios.centerHorizontal, presetRadios.clear,
-        cbLeft, cbTop, cbRight, cbBottom, cbCenter,
-        cbUsePreview, cbGroup, cbPreview
+        crossCheckboxes.left, crossCheckboxes.top, crossCheckboxes.right, crossCheckboxes.bottom, crossCheckboxes.center,
+        optionControls.usePreviewBoundsCheckbox, optionControls.individualCheckbox, footerControls.previewCheckbox
     ];
     for (var i = 0; i < previewTriggers.length; i++) {
         chainPreview(previewTriggers[i]);
     }
-    offsetInput.onChanging = renderPreview;
-    marginInput.onChanging = renderPreview;
+    optionControls.offsetInput.onChanging = renderPreview;
+    targetControls.extensionInput.onChanging = renderPreview;
 
-    btnCancel.onClick = function () {
+    footerControls.cancelButton.onClick = function () {
         dialog.close();
     };
 
-    btnCreateGuides.onClick = function () {
-        clearPreview(); // プレビューを片付けてから本処理 / clean up preview before committing
+    footerControls.drawButton.onClick = function () {
+        removePreviewLayer(doc); /* プレビューを片付けてから本処理 / clean up the preview before committing */
         try {
-            var options = {
-                left: cbLeft.value,
-                right: cbRight.value,
-                top: cbTop.value,
-                bottom: cbBottom.value,
-                center: cbCenter.value,
-                centerMode: centerLine.mode,
-                usePreviewBounds: cbUsePreview.value,
-                individual: !cbGroup.value
-            };
-            var useCanvas = rbCanvas.value;
-
-            /* _guideレイヤー取得または作成 / Get or create "_guide" layer */
-            var layer = getOrCreateGuideLayer();
-            var wasLocked = layer.locked;
-            if (wasLocked) layer.locked = false;
-
-            /* 削除チェックON時、既存ガイド削除 / Remove existing guides if checked */
-            if (cbDeleteGuide.value) {
-                try {
-                    for (var i = layer.pageItems.length - 1; i >= 0; i--) {
-                        if (layer.pageItems[i].guides) {
-                            layer.pageItems[i].remove();
-                        }
-                    }
-                } catch (ex) {
-                    alert(getLocalizedText("alert.deleteGuideError") + "\n" + ex.message);
-                }
-            }
-
-            var offsetVal = parseFloat(offsetInput.text);
-            if (isNaN(offsetVal)) offsetVal = 0;
-            var marginVal = parseFloat(marginInput.text);
-            if (isNaN(marginVal)) marginVal = 0;
-            var unitCode = app.preferences.getIntegerPreference("rulerType");
-            var ptFactor = getPtFactorFromUnitCode(unitCode);
-            var offsetValPt = offsetVal * ptFactor;
-            var marginValPt = marginVal * ptFactor;
-
-            createGuidesFromSelection(options, useCanvas, offsetValPt, marginValPt);
+            createGuides(
+                readGuideOptions(),
+                targetControls.canvasRadio.value,
+                rulerTextToPoints(optionControls.offsetInput.text),
+                rulerTextToPoints(targetControls.extensionInput.text)
+            );
             dialog.close();
         } catch (e) {
-            alert(getLocalizedText("alert.guideError") + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
+            alert(getLabel("alert.guideError") + "\n" + (e && e.message ? e.message : e) + "\n" + (e && e.stack ? e.stack : ""));
         }
     };
 
@@ -1054,7 +1264,7 @@ function buildDialog() {
     };
     /* 閉じる時は仮ガイドを片付け、隠した既存ガイドを再表示 / On close: clear preview and restore guide visibility */
     dialog.onClose = function () {
-        clearPreview();
+        removePreviewLayer(doc);
         setGuidesHidden(false);
         app.redraw();
     };
@@ -1062,34 +1272,10 @@ function buildDialog() {
     dialog.show();
 }
 
-/* テキストフィールドで上下矢印キーによる数値増減を可能にする / Enable value change with up/down arrow keys in an edittext */
-function changeValueByArrowKey(editText) {
-    editText.addEventListener("keydown", function (event) {
-        var value = Number(editText.text);
-        if (isNaN(value)) return;
-        var keyboard = ScriptUI.environment.keyboardState;
-
-        if (event.keyName == "Up" || event.keyName == "Down") {
-            if (keyboard.shiftKey) {
-                /* Shift押下時は10の倍数スナップ / Snap to tens if Shift is pressed */
-                value = Math.round(value / 10) * 10 + (event.keyName == "Up" ? 10 : -10);
-            } else {
-                var delta = event.keyName == "Up" ? 1 : -1;
-                value += delta;
-            }
-
-            event.preventDefault();
-            editText.text = value;
-            // プログラム変更は onChanging を発火しないため明示的に呼ぶ / fire onChanging manually
-            if (typeof editText.onChanging === "function") editText.onChanging();
-        }
-    });
-}
-
 /* エントリーポイント / Entry point */
 (function main() {
     if (!app.documents.length) {
-        alert(getLocalizedText("alert.noDocument"));
+        alert(getLabel("alert.noDocument"));
         return;
     }
     buildDialog();
