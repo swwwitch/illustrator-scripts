@@ -185,6 +185,10 @@ Converts the selected linked image into an embedded image. For a row that groups
 
 **Embedding a PSD turns its layers into a group**, so the group is ungrouped as well — but only when the image is not inside a clipping group, to leave the mask structure intact.
 
+The group is released through DOM operations. Illustrator places the embedded raster into a clipping group and locks it, so the Ungroup menu command cannot select it and fails. When releasing, the mask path is deleted only if it fully covers the artwork, and the raster is unlocked. A mask that actually crops the artwork is left grouped, since releasing it would change how the artwork looks.
+
+Embedded images are given the original file name with its extension, which the list display and the name restoration on unembedding both rely on. **The name is not reapplied when the parent group already carries it**, since that would show the same name twice — on the group and on the raster — in the Layers panel.
+
 ### Unembed
 
 Turns the selected embedded image back into a linked image. A temporary action (`adobe_placeDocument`) is generated on the fly and played with "replace selection", so **Illustrator itself preserves the position, size, rotation, and stacking order**.
@@ -291,6 +295,7 @@ The ◀ ▶ artboard stepper draws its triangles as vectors on the button face r
 
 ## Changelog
 
+- v1.5.3 (2026-08-02): Added reverse selection sync so the list follows the image selected on the canvas (synced when the palette becomes active); fixed an embedded PSD staying grouped with its raster locked; fixed embedding applying the parent group's name to the raster as well; moved Embed, Unembed, and Collect after relinking directly below the file action buttons, and tied Collect after relinking's enabled state to Unembed
 - v1.5.2 (2026-08-02): Fixed the assembled worker source being corrupted, which made every delegated call fail; fixed the palette not shrinking in its compact empty state; fixed the reason for a failed load not being shown; unified panel margins and spacing into shared settings
 - v1.5.1 (2026-07-27): Fixed the file extension being lost from the file name when embedding
 - v1.5.0 (2026-07-27): Added embedded images to the list (a "▣ Embedded" status and filter) plus the Embed, Unembed, and Collect after relinking controls

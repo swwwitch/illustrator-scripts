@@ -9,7 +9,7 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
 ドキュメント内の配置画像（リンク画像・埋め込み画像）を解析して一覧表示し、
 ソート・絞り込み・同一ファイルのまとめ、再リンク・リネーム・削除、
 埋め込み／埋め込み解除、フォルダー単位の再リンクやリンクの収集までを
-一元化するユーティリティ。
+一元化するユーティリティ。一覧とカンバスの選択は相互に連動する。
 
 機能・使い方・実装メモの詳細は README を参照。
 
@@ -364,6 +364,14 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         return b > 0.5;
     }
 
+    /* ◀ ▶ ボタンの描画色。三角（mark）より枠（frame）を薄くして主張を抑える */
+    var ARROW_COLORS = {
+        light:         { mark: [0.40, 0.40, 0.40, 1], frame: [0.60, 0.60, 0.60, 1] }, /* #666 / #999 */
+        lightDisabled: { mark: [0.72, 0.72, 0.72, 1], frame: [0.82, 0.82, 0.82, 1] },
+        dark:          { mark: [0.65, 0.65, 0.65, 1], frame: [0.45, 0.45, 0.45, 1] },
+        darkDisabled:  { mark: [0.38, 0.38, 0.38, 1], frame: [0.30, 0.30, 0.30, 1] }
+    };
+
     // ボタン面に三角形（◀ / ▶）を onDraw で自前描画する。
     // フォントグリフに依存せず、枠＋塗り三角をベクターで描く。direction: -1=左, +1=右
     function attachArrowDraw(btn, direction) {
@@ -372,12 +380,11 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
             var g = this.graphics;
             var w = this.size[0], h = this.size[1];
             if (!w || !h) return;
-            var light = isLightUI();
-            var color = this.enabled
-                ? (light ? [0.13, 0.13, 0.13, 1] : [0.85, 0.85, 0.85, 1])
-                : (light ? [0.60, 0.60, 0.60, 1] : [0.40, 0.40, 0.40, 1]);
-            var pen = g.newPen(g.PenType.SOLID_COLOR, color, 1);
-            var brush = g.newBrush(g.BrushType.SOLID_COLOR, color);
+            var scheme = isLightUI()
+                ? (this.enabled ? ARROW_COLORS.light : ARROW_COLORS.lightDisabled)
+                : (this.enabled ? ARROW_COLORS.dark : ARROW_COLORS.darkDisabled);
+            var pen = g.newPen(g.PenType.SOLID_COLOR, scheme.frame, 1);
+            var brush = g.newBrush(g.BrushType.SOLID_COLOR, scheme.mark);
 
             // 枠
             g.newPath();
@@ -1731,6 +1738,69 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         w_tryGet(function () { raster.name = linkName; return 1; }, 0);
     }
 
+    /* グループ内のクリッピングパス（マスク）を返す。無ければ null */
+    function w_findClippingPath(group) {
+        var items = w_tryGet(function () { return group.pageItems; }, null);
+        if (!items) return null;
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (w_tryGet(function () { return item.typename; }, "") !== "PathItem") continue;
+            if (w_tryGet(function () { return item.clipping; }, false)) return item;
+        }
+        return null;
+    }
+
+    /* マスクがグループ内の他アイテムを覆いきっている（＝実際にはトリミングしていない）か */
+    function w_clipCoversItems(group, maskPath) {
+        var maskBounds = w_tryGet(function () { return maskPath.geometricBounds; }, null);
+        if (!maskBounds) return false;
+        var items = w_tryGet(function () { return group.pageItems; }, null);
+        if (!items) return false;
+        var tolerance = 0.5;
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (item === maskPath) continue;
+            var itemBounds = w_tryGet(function () { return item.geometricBounds; }, null);
+            if (!itemBounds) return false;
+            if (itemBounds[0] < maskBounds[0] - tolerance) return false;
+            if (itemBounds[1] > maskBounds[1] + tolerance) return false;
+            if (itemBounds[2] > maskBounds[2] + tolerance) return false;
+            if (itemBounds[3] < maskBounds[3] - tolerance) return false;
+        }
+        return true;
+    }
+
+    /* 埋め込みで生じたグループを DOM 操作で解除し、中身を選択状態にする。
+       Illustrator は埋め込んだラスターをロックするため executeMenuCommand("ungroup") は効かない。
+       クリップグループの場合、マスクが実際にトリミングしているなら見た目が変わるのでグループのまま残す。*/
+    function w_releaseEmbeddedGroup(doc, group) {
+        if (!group || w_tryGet(function () { return group.typename; }, "") !== "GroupItem") return false;
+        var maskPath = null;
+        if (w_tryGet(function () { return group.clipped; }, false)) {
+            maskPath = w_findClippingPath(group);
+            if (!maskPath || !w_clipCoversItems(group, maskPath)) return false;
+            w_tryGet(function () { group.clipped = false; return 1; }, 0);
+            w_tryGet(function () { maskPath.remove(); return 1; }, 0);
+        }
+        var moved = [];
+        var guard = 0;
+        while (w_tryGet(function () { return group.pageItems.length; }, 0) > 0 && guard++ < 1000) {
+            var child = group.pageItems[0];
+            w_tryGet(function () { child.locked = false; return 1; }, 0);
+            w_tryGet(function () { child.hidden = false; return 1; }, 0);
+            if (!w_tryGet(function () { child.move(group, ElementPlacement.PLACEBEFORE); return 1; }, 0)) break;
+            moved.push(child);
+        }
+        if (moved.length === 0) return false;
+        w_tryGet(function () { group.remove(); return 1; }, 0);
+        w_tryGet(function () { doc.selection = null; return 1; }, 0);
+        for (var m = 0; m < moved.length; m++) {
+            var movedItem = moved[m];
+            w_tryGet(function () { movedItem.selected = true; return 1; }, 0);
+        }
+        return true;
+    }
+
     /* indices の placedItem を埋め込み画像へ変換。PSD はクリップグループ外のときのみグループ解除。counts を返す */
     function w_embed(indices) {
         try {
@@ -1763,12 +1833,18 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
                     if (target.isPsd && !target.inClipGroup) {
                         w_tryGet(function () {
                             var sel = doc.selection;
-                            if (sel && sel.length > 0 && sel[0].typename === "GroupItem") {
-                                app.executeMenuCommand("ungroup");
-                            }
+                            if (sel && sel.length > 0) w_releaseEmbeddedGroup(doc, sel[0]);
                             return 1;
                         }, 0);
                     }
+                    /* クリップグループを残した場合、Illustrator が付けたロックのままだと選択も埋め込み解除もできない */
+                    w_tryGet(function () {
+                        var embedded = [];
+                        var sel = doc.selection;
+                        for (var s = 0; s < sel.length; s++) w_collectRasterItems(sel[s], embedded);
+                        for (var e = 0; e < embedded.length; e++) embedded[e].locked = false;
+                        return 1;
+                    }, 0);
                     /* 拡張子つきの名前を残す（グループ解除で親グループ名が失われるため）*/
                     w_nameEmbeddedRaster(doc, target.linkName);
                     success++;
@@ -1914,6 +1990,29 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     }
 
     /* 選択できない理由コードを返す。選択できる場合は空文字（祖先のロック・非表示も見る）*/
+    /* 選択を妨げるロックを一時的に外す。Illustrator は埋め込んだラスターを自動でロックするため。
+       戻り値は復元対象の配列 */
+    function w_unlockForSelection(item) {
+        var unlockedNodes = [];
+        var node = item;
+        while (node && w_tryGet(function () { return node.typename; }, "Document") !== "Document") {
+            var target = node;
+            if (w_tryGet(function () { return target.locked; }, false)) {
+                if (w_tryGet(function () { target.locked = false; return 1; }, 0)) unlockedNodes.push(target);
+            }
+            node = w_tryGet(function () { return target.parent; }, null);
+        }
+        return unlockedNodes;
+    }
+
+    /* w_unlockForSelection で外したロックを戻す（差し替えで消えたアイテムは無視される）*/
+    function w_restoreLocks(unlockedNodes) {
+        for (var i = 0; i < unlockedNodes.length; i++) {
+            var target = unlockedNodes[i];
+            w_tryGet(function () { target.locked = true; return 1; }, 0);
+        }
+    }
+
     function w_findSelectionBlocker(item) {
         var node = item;
         while (node && node.typename !== "Document") {
@@ -1937,26 +2036,32 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
     /* 埋め込み画像を一時アクション経由でリンク画像に置き換える。
        「選択オブジェクトと置換」で配置するため、位置・サイズ・回転・重ね順はアクション側が引き継ぐ */
     function w_relinkByAction(doc, item, targetFile, status) {
-        var blocker = w_findSelectionBlocker(item);
-        if (blocker) throw new Error(blocker);
-        var config = w_unembedConfig();
-        doc.activeLayer = item.layer;
-        doc.selection = null;
-        item.selected = true;
-        var currentSelection = doc.selection;
-        if (!currentSelection || currentSelection.length !== 1 || !w_isSameArtItem(currentSelection[0], item)) {
+        /* 埋め込み時に付いたロックは選択できない原因になるだけなので、置換の間だけ外す */
+        var unlockedNodes = w_unlockForSelection(item);
+        try {
+            var blocker = w_findSelectionBlocker(item);
+            if (blocker) throw new Error(blocker);
+            var config = w_unembedConfig();
+            doc.activeLayer = item.layer;
             doc.selection = null;
-            throw new Error("SELECT_FAILED");
+            item.selected = true;
+            var currentSelection = doc.selection;
+            if (!currentSelection || currentSelection.length !== 1 || !w_isSameArtItem(currentSelection[0], item)) {
+                doc.selection = null;
+                throw new Error("SELECT_FAILED");
+            }
+            var actionSource = w_buildActionSource(config.actionSetName, config.actionName, targetFile.fsName);
+            /* ここから先はアクションが実行済みとして扱う */
+            status.actionPlayed = true;
+            w_playTemporaryAction(actionSource, config.actionSetName, config.actionName, config.actionFilePath);
+            var newSelection = doc.selection;
+            if (!newSelection || newSelection.length === 0 || newSelection[0].typename !== "PlacedItem") {
+                throw new Error("ACTION_RESULT_MISSING");
+            }
+            return newSelection[0];
+        } finally {
+            w_restoreLocks(unlockedNodes);
         }
-        var actionSource = w_buildActionSource(config.actionSetName, config.actionName, targetFile.fsName);
-        /* ここから先はアクションが実行済みとして扱う */
-        status.actionPlayed = true;
-        w_playTemporaryAction(actionSource, config.actionSetName, config.actionName, config.actionFilePath);
-        var newSelection = doc.selection;
-        if (!newSelection || newSelection.length === 0 || newSelection[0].typename !== "PlacedItem") {
-            throw new Error("ACTION_RESULT_MISSING");
-        }
-        return newSelection[0];
     }
 
     /* 2 つのファイルを同一とみなせるか */
@@ -2373,9 +2478,11 @@ LinkedImageManager.jsx（常駐パレット版 / Persistent palette edition）
         w_getLinkGroupKey, w_assignFileCounts, w_dedupeByFile, w_collectLinkInfo, w_pickSinglePlacedItem,
         w_zoomToSelection, w_fitViewToArtboard, w_findEnclosingClipGroup,
         w_findSelectedItemIndex, w_analyze, w_currentIndex, w_select, w_fitArtboard, w_openLinksPanel,
-        w_relinkPairs, w_collectRasterItems, w_nameEmbeddedRaster, w_embed,
+        w_relinkPairs, w_collectRasterItems, w_nameEmbeddedRaster,
+        w_findClippingPath, w_clipCoversItems, w_releaseEmbeddedGroup, w_embed,
         w_unembedConfig, w_placeParameters, w_stringToUtf8Bytes, w_bytesToHexLines, w_buildTextValue,
-        w_buildParameterBlock, w_buildActionSource, w_playTemporaryAction, w_findSelectionBlocker,
+        w_buildParameterBlock, w_buildActionSource, w_playTemporaryAction,
+        w_unlockForSelection, w_restoreLocks, w_findSelectionBlocker,
         w_isSameArtItem, w_relinkByAction, w_isSameFile, w_resolveCollectDestination, w_getLinksFolder,
         w_collectLink, w_getEmbeddedSourceFile, w_getImageNameFromItem, w_getManifestFileNames,
         w_fillNamesFromManifest, w_toSafeBaseName, w_buildExportNameMap, w_isSupportedColorSpace,
