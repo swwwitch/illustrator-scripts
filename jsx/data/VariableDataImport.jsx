@@ -2,296 +2,473 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-VariableDataImport.jsx
 
-概要 / Overview:
-CSV / タブ区切りテキスト のデータファイルを Illustrator のテンプレートに流し込むデータ結合スクリプト。
-テキストフレーム内の <ヘッダー名> 形式のタグをデータ値に置換し、
-データ行数ぶんのアートボードとバリエーションを生成する。
-A data-merge script for Illustrator. It imports a CSV / TSV data file,
-replaces <header> placeholder tags inside text frames with row values,
-and generates one artboard variation per data row.
+### 概要
 
-主な動作 / Behavior:
-- データファイルは、開いているドキュメントと同じフォルダーの .csv / .txt から選ぶ。
-- 実行時に元ドキュメントを別名保存で複製し、複製側に流し込む（元ファイルは無変更）。
-- アートボード0を雛形とし、データ件数ぶんアートボードを複製する。
-  正方形に近いグリッドを計算し、カンバスの天地・左右中央に配置する。
-- アートボード名は、選択したデータ列の値から設定する。
-- 「プレビュー」をオンにすると、元ファイルを変更せず複製ファイルで結果を確認できる。
-  設定変更時は元ドキュメントからプレビュー用ファイルを作り直して反映する。
-  「プレビュー」をオフにすると、開いているプレビュー用ドキュメントを保存せず閉じる。
-- 1件目のデータを最後に処理し、雛形のタグ消失を回避する。
+CSV / タブ区切りテキストのデータを、Illustratorのテンプレートに流し込むデータ結合スクリプトです。
+テキストフレーム内の `<ヘッダー名>` タグをデータ値に置換し、データ件数ぶんのアートボードを生成します。
+
+- 元ドキュメントを別名保存で複製し、複製側に流し込みます（元ファイルは無変更）
+- アートボード0を雛形に、正方形に近いグリッドでカンバス中央へ配置します
+- ［プレビュー］で、元ファイルを変更せず結果を確認できます
+
+### 注意
+
+- 雛形として複製されるのは、アートボード0上のロックも非表示もされていないオブジェクトだけです。
+
+詳しい機能・使い方はREADMEを参照してください。
+
+*/
+
+/*
+
+### Overview
+
+A data-merge script for Illustrator. It replaces `<header>` tags inside text frames with CSV / TSV
+values and generates one artboard per data row.
+
+- The original document is duplicated with Save As and the data is merged into the copy
+- Artboard 0 is the template; the grid is sized close to a square and centred on the canvas
+- Preview shows the result without touching the original file
+
+### Notes
+
+- Only unlocked, visible objects on artboard 0 are duplicated as the template.
+
+See the README for the full feature list and usage.
+
 */
 
 // =========================================
-// バージョンとローカライズ / Version & Localization
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "VariableDataImport";           /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.4.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2026-01-22";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-03";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/VariableDataImport.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/VariableDataImport.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n741c9f28d0fd"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
+
+// =========================================
+// ユーザー設定 / User settings
 // =========================================
 
-var SCRIPT_VERSION = "v1.4.1";
+var MAX_ARTBOARD_COUNT = 1000;              /* 生成できるアートボードの上限 / artboard count limit */
+var CANVAS_MAX_SIZE = 16383;                /* Illustratorのカンバス最大寸法（pt） / max canvas size in pt */
+var ARTBOARD_GAP_STEP = 10;                 /* アートボード間隔の丸め単位（pt） / gap rounding step in pt */
+var ARTBOARD_GAP_DIVISOR = 5;               /* 間隔の初期値＝雛形幅/この値 / gap default divisor */
+var DATA_FILE_PATTERN = /\.(txt|csv)$/i;    /* データファイルとして拾う拡張子 / data file extensions */
+var ARTBOARD_NAME_PREFIX = "Data_";         /* 名前が空のときのアートボード名 / fallback artboard name */
+var MAX_TAG_REPLACEMENTS = 1000;            /* 1フレーム内で同一タグを置換する上限 / replacement guard */
 
-/* 実行環境のロケールから表示言語を判定 / Detect the display language from the runtime locale */
-function getCurrentLang() {
+// =========================================
+// レイアウト / Layout
+// =========================================
+
+var DIALOG_MARGINS = 15;                        /* ダイアログの余白 / dialog margins */
+var DIALOG_SPACING = 10;                        /* ダイアログの行間 / dialog spacing */
+var PANEL_MARGINS = 15;                         /* パネルの余白 / panel margins */
+var PANEL_SPACING = 10;                         /* パネルの行間 / panel spacing */
+var FIELD_LABEL_WIDTH = { ja: 165, en: 195 };   /* 流し込み設定パネルのラベル幅 / settings label width */
+var FILE_DROPDOWN_SIZE = [350, 25];             /* ファイル選択ドロップダウン / file dropdown */
+var COLUMN_DROPDOWN_SIZE = [200, 25];           /* 列選択ドロップダウン / column dropdown */
+var ARTBOARD_GAP_INPUT_SIZE = [60, 25];         /* 間隔入力欄 / gap input field */
+var DATA_LIST_BOUNDS = [0, 0, 550, 180];        /* データ一覧リスト / data list box */
+var PROGRESS_BAR_WIDTH = 300;                   /* 進捗バーの幅 / progress bar width */
+
+// =========================================
+// ローカライズ / Localization
+// =========================================
+
+/**
+ * 実行環境のロケールから表示言語を判定する
+ * @returns {string} "ja" または "en"
+ */
+function detectUILang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
-var lang = getCurrentLang();
+var uiLang = detectUILang();
 
 /* 日英ラベル定義 / Japanese-English label definitions */
 var LABELS = {
-    dialogTitle: { ja: "データ流し込み", en: "Data Import" },
-    infoTitle: { ja: "データファイル", en: "Data File" },
-    fileLabel: { ja: "ファイル", en: "File" },
-    settingsTitle: { ja: "流し込み設定", en: "Import Settings" },
-    abNameLabel: { ja: "アートボード名の参照列", en: "Artboard name column" },
-    preview: { ja: "プレビュー", en: "Preview" },
-    cancel: { ja: "キャンセル", en: "Cancel" },
-    run: { ja: "実行", en: "Run" },
-    processing: { ja: "処理中...", en: "Processing..." },
-    done: { ja: "完了！\n#count# 件処理しました。", en: "Done!\nProcessed #count# rows." },
-    noDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
-    needSave: { ja: "ドキュメントを保存してから実行してください。", en: "Please save the document before running." },
-    noDataFiles: { ja: "同じ階層に.txtまたは.csvファイルが見つかりませんでした。", en: "No .txt or .csv files found in the same folder." },
-    noTemplate: { ja: "雛形にオブジェクトがありません。", en: "No template objects found." },
-    dupFailed: { ja: "ドキュメントの複製（別名保存）に失敗しました。\n\n#detail#", en: "Failed to duplicate (Save As) the document.\n\n#detail#" },
-    tooManyData: { ja: "データ件数（#count# 件）がカンバスに収まりません。\n現在の設定では最大 #max# 件まで配置できます。\n間隔を小さくしてください。", en: "The number of rows (#count#) does not fit on the canvas.\nUp to #max# artboards can be placed with the current settings.\nReduce the gap." },
-    gapLabel: { ja: "アートボード間隔", en: "Artboard gap" },
-    fileHelp: { ja: "開いているドキュメントと同じフォルダーにある CSV / TSV ファイルを選びます。", en: "Choose a CSV / TSV file in the same folder as the open document." },
-    artboardNameHelp: { ja: "各アートボード名に使うデータ列を選びます。", en: "Choose the data column used for each artboard name." },
-    gapHelp: { ja: "複製するアートボード同士の間隔です。入力値は10pt単位に丸められます。", en: "The gap between duplicated artboards. Values are rounded to 10 pt increments." },
-    previewHelp: { ja: "元ファイルを変更せず、複製ファイルで流し込み結果を確認します。", en: "Preview the import result in a duplicate file without changing the original." },
-    runHelp: { ja: "元ドキュメントを別名保存で複製し、複製側にデータを流し込みます。", en: "Duplicate the original document with Save As and import the data into the copy." },
-    emptyFile: { ja: "選択したファイルにヘッダー行がありません。", en: "The selected file has no header row." },
-    fileOpenFailed: { ja: "選択したファイルを開けませんでした。", en: "Could not open the selected file." }
+    /* ダイアログ / Dialog */
+    dialog: {
+        title: { ja: "データ結合", en: "Data Merge" }
+    },
+    /* パネル見出し / Panel titles */
+    panel: {
+        dataFile: { ja: "データファイル", en: "Data File" },
+        settings: { ja: "アートボード設定", en: "Artboard Settings" }
+    },
+    /* フィールド見出し（コロンは labelText で付与）/ Field labels (colon added by labelText) */
+    fieldLabel: {
+        file: { ja: "ファイル", en: "File" },
+        artboardNameColumn: { ja: "アートボード名に使う列", en: "Artboard name column" },
+        gap: { ja: "アートボード間隔", en: "Artboard gap" }
+    },
+    /* チェックボックス / Checkboxes */
+    checkbox: {
+        preview: { ja: "プレビュー", en: "Preview" }
+    },
+    /* ボタン / Buttons */
+    button: {
+        cancel: { ja: "キャンセル", en: "Cancel" },
+        run: { ja: "複製して実行", en: "Duplicate and Run" }
+    },
+    /* 進捗表示 / Progress window */
+    progress: {
+        title: { ja: "処理中…", en: "Processing…" }
+    },
+    /* ヘルプチップ / Tooltips */
+    tooltip: {
+        file: {
+            ja: "開いているドキュメントと同じフォルダーにある CSV / TSV ファイルを選びます。",
+            en: "Choose a CSV / TSV file in the same folder as the open document."
+        },
+        artboardNameColumn: {
+            ja: "各アートボード名に使うデータ列を選びます。",
+            en: "Choose the data column used for each artboard name."
+        },
+        gap: {
+            ja: "複製するアートボード同士の間隔です。縦横とも同じ間隔で、単位はptです。\n入力値は10pt単位に丸められます。",
+            en: "The gap between duplicated artboards, applied both horizontally and vertically, in points.\nValues are rounded to 10 pt increments."
+        },
+        preview: {
+            ja: "元ファイルを変更せず、複製ファイルで流し込み結果を確認します。\n保存していない編集は反映されません。",
+            en: "Preview the import result in a duplicate file without changing the original.\nUnsaved edits are not reflected."
+        },
+        cancel: {
+            ja: "プレビュー用に作成したファイルを削除して閉じます。",
+            en: "Remove the preview file and close the dialog."
+        },
+        run: {
+            ja: "元ドキュメントを別名保存で複製し、複製側にデータを流し込みます。",
+            en: "Duplicate the original document with Save As and import the data into the copy."
+        }
+    },
+    /* 警告・完了メッセージ / Alerts */
+    alert: {
+        noDoc: { ja: "ドキュメントが開かれていません。", en: "No document is open." },
+        needSave: { ja: "ドキュメントを保存してから実行してください。", en: "Please save the document before running." },
+        noDataFiles: { ja: "同じフォルダーに.txtまたは.csvファイルが見つかりませんでした。", en: "No .txt or .csv files found in the same folder." },
+        noTemplate: { ja: "アートボード1にオブジェクトがありません。", en: "No objects found on artboard 1." },
+        emptyFile: { ja: "選択したファイルにヘッダー行がありません。", en: "The selected file has no header row." },
+        fileOpenFailed: { ja: "選択したファイルを開けませんでした。", en: "Could not open the selected file." },
+        done: {
+            ja: "完了しました。\n#count# 件を処理し、次のファイルに保存しました。\n\n#filename#",
+            en: "Done.\nProcessed #count# rows and saved to:\n\n#filename#"
+        },
+        dupFailed: {
+            ja: "ドキュメントの複製に失敗しました。\n\n#detail#",
+            en: "Failed to duplicate the document.\n\n#detail#"
+        },
+        tooManyData: {
+            ja: "データ件数（#count# 件）がカンバスに収まりません。\n現在の設定では最大 #max# 件まで配置できます。\nアートボード間隔を小さくするか、データ件数を減らしてください。",
+            en: "The number of rows (#count#) does not fit on the canvas.\nUp to #max# artboards can be placed with the current settings.\nReduce the artboard gap or the number of rows."
+        }
+    }
 };
 
-/* キーから現在の言語のラベルを取得（無ければキー名をそのまま返す）/ Get the localized label for a key (falls back to the key itself) */
-function L(key) {
-    try {
-        if (LABELS[key] && LABELS[key][lang]) return LABELS[key][lang];
-    } catch (e) { }
-    return key;
+/**
+ * ドット区切りキーから現在の言語のラベルを取得する（見つからなければキー名を返す）
+ * @param {string} labelKey - "alert.noDoc" のような階層キー
+ * @returns {string} 表示用の文字列
+ */
+function getLabel(labelKey) {
+    var keyParts = labelKey.split(".");
+    var labelNode = LABELS;
+    for (var i = 0; i < keyParts.length; i++) {
+        if (labelNode && labelNode[keyParts[i]] !== undefined) {
+            labelNode = labelNode[keyParts[i]];
+        } else {
+            return labelKey;
+        }
+    }
+    return (labelNode && labelNode[uiLang] !== undefined) ? String(labelNode[uiLang]) : labelKey;
 }
 
-/* コロン付きラベル（日本語は全角、英語は半角）/ Label with a colon (full-width for JA, half-width for EN) */
-function labelText(key) {
-    return L(key) + (lang === "ja" ? "：" : ":");
+/**
+ * コロン付きラベルを組み立てる（日本語は全角、英語は半角）
+ * @param {string} labelKey - ラベルの階層キー
+ * @returns {string} コロンを付けたラベル
+ */
+function labelText(labelKey) {
+    return getLabel(labelKey) + (uiLang === "ja" ? "：" : ":");
 }
 
-/* 文字列先頭のBOM（U+FEFF / 65279）と前後の空白を除去 / Strip a leading BOM (U+FEFF / 65279) and surrounding whitespace */
+/**
+ * 文字列先頭のBOM（U+FEFF / 65279）と前後の空白を除去する
+ * @param {string} text - 対象の文字列
+ * @returns {string} 整形後の文字列
+ */
 function trimAndStripBom(text) {
     text = String(text);
     if (text.length && text.charCodeAt(0) === 65279) text = text.substring(1);
     return text.replace(/^\s+|\s+$/g, "");
 }
 
+// =========================================
+// メイン処理 / Main
+// =========================================
+
 (function () {
 
-    var dataRows = [];      // 読み込んだデータ行 / Loaded data rows
-    var headers = [];       // ヘッダー（列名）/ Header column names
-    var previewFile = null; // プレビュー用に開く複製ファイル / Duplicate file opened for preview
+    var dataRows = [];               // 読み込んだデータ行 / Loaded data rows
+    var headerNames = [];            // ヘッダー（列名）/ Header column names
+    var previewFile = null;          // プレビュー用に開く複製ファイル / Duplicate file opened for preview
+    var artboardNameColumnIndex = 0; // アートボード名に使う列の番号 / Column used for artboard names
 
     // =========================================
     // 初期チェックとデータファイル収集 / Initial checks & data file discovery
     // =========================================
 
     if (app.documents.length === 0) {
-        alert(L("noDoc"));
+        alert(getLabel("alert.noDoc"));
         return;
     }
 
-    var doc = app.activeDocument;
-    var docPath;
+    var originalDocument = app.activeDocument;
+    var documentFolderPath;
     try {
-        docPath = doc.path;
+        documentFolderPath = originalDocument.path;
     } catch (e) {
-        alert(L("needSave"));
+        alert(getLabel("alert.needSave"));
         return;
     }
 
-    var documentFolder = new Folder(docPath);
-    var dataFiles = documentFolder.getFiles(/\.(txt|csv)$/i);
+    var documentFolder = new Folder(documentFolderPath);
+    var dataFiles = documentFolder.getFiles(DATA_FILE_PATTERN);
     if (dataFiles.length === 0) {
-        alert(L("noDataFiles"));
+        alert(getLabel("alert.noDataFiles"));
         return;
     }
 
     /* カンバス範囲と雛形アートボードのサイズを取得 / Canvas bounds & template artboard size */
-    var MAX_ARTBOARDS = 1000;
     var canvasBounds = getCanvasBounds();
-    var templateRect = doc.artboards[0].artboardRect;
-    var templateWidth = templateRect[2] - templateRect[0];
-    var templateHeight = templateRect[1] - templateRect[3];
+    var templateArtboardRect = originalDocument.artboards[0].artboardRect;
+    var templateArtboardWidth = templateArtboardRect[2] - templateArtboardRect[0];
+    var templateArtboardHeight = templateArtboardRect[1] - templateArtboardRect[3];
 
     // =========================================
     // ダイアログUIの構築 / Build the dialog UI
     // =========================================
 
-    var LABEL_WIDTH = (lang === "ja") ? 165 : 195; // 流し込み設定パネルのラベル幅 / Label width in the import-settings panel
-
-    /* 設定パネル用：一定幅のコロン付きラベルを追加し、項目を縦に揃える / Add a fixed-width colon label so settings rows line up */
-    function addFieldLabel(parentGroup, key) {
-        var labelControl = parentGroup.add("statictext", undefined, labelText(key));
-        labelControl.preferredSize.width = LABEL_WIDTH;
-        return labelControl;
+    /**
+     * 設定パネル用に、一定幅のコロン付きラベルを追加して項目を縦に揃える
+     * @param {Group} parentGroup - ラベルを追加するグループ
+     * @param {string} labelKey - ラベルの階層キー
+     * @returns {StaticText} 追加したラベル
+     */
+    function addFieldLabel(parentGroup, labelKey) {
+        var fieldLabel = parentGroup.add("statictext", undefined, labelText(labelKey));
+        fieldLabel.preferredSize.width = FIELD_LABEL_WIDTH[uiLang] || FIELD_LABEL_WIDTH.en;
+        return fieldLabel;
     }
 
-    var mainDialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
+    var mainDialog = new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION);
     mainDialog.orientation = "column";
     mainDialog.alignChildren = ["fill", "top"];
-    mainDialog.spacing = 10;
-    mainDialog.margins = 15;
+    mainDialog.spacing = DIALOG_SPACING;
+    mainDialog.margins = DIALOG_MARGINS;
 
-    /* データファイルパネル：ファイル選択とデータプレビュー / Data-file panel: file selector & data preview */
-    var infoPanel = mainDialog.add("panel", undefined, L("infoTitle"));
-    infoPanel.orientation = "column";
-    infoPanel.alignChildren = ["fill", "top"];
-    infoPanel.margins = 15;
-    infoPanel.spacing = 10;
+    /* データファイルパネル：ファイル選択とデータ一覧 / Data-file panel: file selector & data list */
+    var dataFilePanel = mainDialog.add("panel", undefined, getLabel("panel.dataFile"));
+    dataFilePanel.orientation = "column";
+    dataFilePanel.alignChildren = ["fill", "top"];
+    dataFilePanel.margins = PANEL_MARGINS;
+    dataFilePanel.spacing = PANEL_SPACING;
 
-    var fileSelectGroup = infoPanel.add("group");
-    fileSelectGroup.add("statictext", undefined, labelText("fileLabel"));
-    var fileDropdown = fileSelectGroup.add("dropdownlist", undefined, []);
-    fileDropdown.size = [350, 25];
-    fileDropdown.helpTip = L("fileHelp");
-    for (var i = 0; i < dataFiles.length; i++) fileDropdown.add("item", decodeURI(dataFiles[i].name));
+    var fileSelectGroup = dataFilePanel.add("group");
+    fileSelectGroup.add("statictext", undefined, labelText("fieldLabel.file"));
+    var dataFileDropdown = fileSelectGroup.add("dropdownlist", undefined, []);
+    dataFileDropdown.size = FILE_DROPDOWN_SIZE;
+    dataFileDropdown.helpTip = getLabel("tooltip.file");
+    for (var i = 0; i < dataFiles.length; i++) dataFileDropdown.add("item", decodeURI(dataFiles[i].name));
 
-    var listContainer = infoPanel.add("group");
-    listContainer.alignment = ["fill", "fill"];
+    var dataListGroup = dataFilePanel.add("group");
+    dataListGroup.alignment = ["fill", "fill"];
     var dataListBox = null;
 
-    var settingsPanel = mainDialog.add("panel", undefined, L("settingsTitle"));
-    settingsPanel.orientation = "column";
-    settingsPanel.alignChildren = ["left", "top"];
-    settingsPanel.margins = 15;
+    var importSettingsPanel = mainDialog.add("panel", undefined, getLabel("panel.settings"));
+    importSettingsPanel.orientation = "column";
+    importSettingsPanel.alignChildren = ["left", "top"];
+    importSettingsPanel.margins = PANEL_MARGINS;
 
-    var artboardNameGroup = settingsPanel.add("group");
-    addFieldLabel(artboardNameGroup, "abNameLabel");
-    var artboardNameDropdown = artboardNameGroup.add("dropdownlist", undefined, []);
-    artboardNameDropdown.size = [200, 25];
-    artboardNameDropdown.helpTip = L("artboardNameHelp");
+    var artboardNameColumnGroup = importSettingsPanel.add("group");
+    addFieldLabel(artboardNameColumnGroup, "fieldLabel.artboardNameColumn");
+    var artboardNameColumnDropdown = artboardNameColumnGroup.add("dropdownlist", undefined, []);
+    artboardNameColumnDropdown.size = COLUMN_DROPDOWN_SIZE;
+    artboardNameColumnDropdown.helpTip = getLabel("tooltip.artboardNameColumn");
 
     /* グリッド配置設定（アートボード間隔）/ Grid layout settings (artboard gap) */
-    var defaultGap = Math.round(templateWidth / 5 / 10) * 10;
+    var defaultArtboardGap = Math.round(templateArtboardWidth / ARTBOARD_GAP_DIVISOR / ARTBOARD_GAP_STEP) * ARTBOARD_GAP_STEP;
 
-    var rowGap = settingsPanel.add("group");
-    addFieldLabel(rowGap, "gapLabel");
-    var gapInput = rowGap.add("edittext", undefined, String(defaultGap));
-    gapInput.size = [60, 25];
-    gapInput.helpTip = L("gapHelp");
-    rowGap.add("statictext", undefined, "pt");
+    var artboardGapGroup = importSettingsPanel.add("group");
+    addFieldLabel(artboardGapGroup, "fieldLabel.gap");
+    var artboardGapInput = artboardGapGroup.add("edittext", undefined, String(defaultArtboardGap));
+    artboardGapInput.size = ARTBOARD_GAP_INPUT_SIZE;
+    artboardGapInput.helpTip = getLabel("tooltip.gap");
+    artboardGapGroup.add("statictext", undefined, "pt");
 
     // =========================================
     // グリッド配置の計算 / Grid layout calculations
     // =========================================
 
-    /* 横方向に並べられる最大数（カンバス幅から算出） / Max columns by canvas width */
-    function calcMaxColumns(gapSize) {
+    /**
+     * 横方向に並べられるアートボードの最大数をカンバス幅から算出する
+     * @param {number} artboardGap - アートボード間隔（pt）
+     * @returns {number} 収まる列数（収まらなければ0）
+     */
+    function calcMaxArtboardColumns(artboardGap) {
         var availableWidth = canvasBounds[2] - canvasBounds[0];
-        var maxCount = Math.floor((availableWidth - templateWidth) / (gapSize + templateWidth)) + 1;
-        return (maxCount < 1) ? 1 : maxCount;
+        var maxColumnCount = Math.floor((availableWidth - templateArtboardWidth) / (artboardGap + templateArtboardWidth)) + 1;
+        return (maxColumnCount < 0) ? 0 : maxColumnCount;
     }
 
-    /* 縦方向に並べられる最大数（カンバス高さから算出） / Max rows by canvas height */
-    function calcMaxRows(gapSize) {
+    /**
+     * 縦方向に並べられるアートボードの最大数をカンバス高さから算出する
+     * @param {number} artboardGap - アートボード間隔（pt）
+     * @returns {number} 収まる行数（収まらなければ0）
+     */
+    function calcMaxArtboardRows(artboardGap) {
         var availableHeight = canvasBounds[1] - canvasBounds[3];
-        var maxCount = Math.floor((availableHeight - templateHeight) / (gapSize + templateHeight)) + 1;
-        return (maxCount < 1) ? 1 : maxCount;
+        var maxRowCount = Math.floor((availableHeight - templateArtboardHeight) / (artboardGap + templateArtboardHeight)) + 1;
+        return (maxRowCount < 0) ? 0 : maxRowCount;
     }
 
-    /* アートボード間隔の入力値を取得（負値は0に補正し、10の倍数へ四捨五入）/ Read the gap input (clamp negatives to 0, round to the nearest multiple of 10) */
-    function getGapValue() {
-        var gap = parseFloat(gapInput.text);
-        if (isNaN(gap) || gap < 0) gap = 0;
-        return Math.round(gap / 10) * 10;
+    /**
+     * アートボード間隔の入力値を取得する（負値は0に補正し、10の倍数へ四捨五入）
+     * @returns {number} 丸めた間隔（pt）
+     */
+    function getArtboardGap() {
+        var gapValue = parseFloat(artboardGapInput.text);
+        if (isNaN(gapValue) || gapValue < 0) gapValue = 0;
+        return Math.round(gapValue / ARTBOARD_GAP_STEP) * ARTBOARD_GAP_STEP;
     }
 
-    /*
-       アートボードのグリッドを算出 / Resolve the artboard grid.
-       グリッド全体の幅と高さがなるべく等しく（正方形に近く）なる列数を選び、
-       カンバスの天地・左右中央に配置する。
-    */
+    /**
+     * グリッド全体の外形サイズを求める
+     * @param {number} columnCount - 列数
+     * @param {number} rowCount - 行数
+     * @param {number} cellWidth - 1セルの幅（pt）
+     * @param {number} cellHeight - 1セルの高さ（pt）
+     * @param {number} artboardGap - アートボード間隔（pt）
+     * @returns {{width: number, height: number}} グリッド全体の幅と高さ
+     */
+    function calcGridSize(columnCount, rowCount, cellWidth, cellHeight, artboardGap) {
+        return {
+            width: columnCount * cellWidth + (columnCount - 1) * artboardGap,
+            height: rowCount * cellHeight + (rowCount - 1) * artboardGap
+        };
+    }
+
+    /**
+     * アートボードのグリッドを算出する
+     * グリッド全体の幅と高さがなるべく等しく（正方形に近く）なる列数を選ぶ
+     * @returns {{columnCount: number, rowCount: number, artboardGap: number, fits: boolean}} 配置情報
+     */
     function computeArtboardLayout() {
-        var gap = getGapValue();
-        var maxFitColumns = calcMaxColumns(gap); // 横に収まる最大列数 / max columns that fit
-        var maxFitRows = calcMaxRows(gap);       // 縦に収まる最大行数 / max rows that fit
+        var artboardGap = getArtboardGap();
+        var maxFitColumns = calcMaxArtboardColumns(artboardGap); // 横に収まる最大列数 / max columns that fit
+        var maxFitRows = calcMaxArtboardRows(artboardGap);       // 縦に収まる最大行数 / max rows that fit
         var dataCount = dataRows ? dataRows.length : 0;
-        var layout = { cols: maxFitColumns, rows: 0, gap: gap, fits: false };
-        if (dataCount < 1) return layout; // 未読込：表示用に最大列数を返す
+        var artboardLayout = { columnCount: maxFitColumns, rowCount: 0, artboardGap: artboardGap, fits: false };
+        if (dataCount < 1) return artboardLayout;                     // 未読込：表示用に最大列数を返す
+        if (dataCount > MAX_ARTBOARD_COUNT) return artboardLayout;    // アートボード数の上限を超過
 
-        var bestColumns = 0, smallestDiff = -1;
-        for (var columns = 1; columns <= maxFitColumns; columns++) {
-            var rows = Math.ceil(dataCount / columns);
-            if (rows > maxFitRows) continue;                       // 縦に収まらない
-            if (columns * rows > MAX_ARTBOARDS) continue;          // アートボード数の上限
-            var occupiedColumns = (columns < dataCount) ? columns : dataCount; // 実際に使う列数
-            var gridWidth = occupiedColumns * templateWidth + (occupiedColumns - 1) * gap;
-            var gridHeight = rows * templateHeight + (rows - 1) * gap;
-            var widthHeightDiff = Math.abs(gridWidth - gridHeight);
+        var bestColumnCount = 0, smallestDiff = -1;
+        for (var columnCount = 1; columnCount <= maxFitColumns; columnCount++) {
+            var rowCount = Math.ceil(dataCount / columnCount);
+            if (rowCount > maxFitRows) continue;                                       // 縦に収まらない
+            var occupiedColumns = (columnCount < dataCount) ? columnCount : dataCount; // 実際に使う列数
+            var gridSize = calcGridSize(occupiedColumns, rowCount, templateArtboardWidth, templateArtboardHeight, artboardGap);
+            var widthHeightDiff = Math.abs(gridSize.width - gridSize.height);
             if (smallestDiff < 0 || widthHeightDiff < smallestDiff) {
                 smallestDiff = widthHeightDiff;
-                bestColumns = columns;
+                bestColumnCount = columnCount;
             }
         }
-        if (bestColumns < 1) return layout; // どの列数でも収まらない（fits:false）
+        if (bestColumnCount < 1) return artboardLayout; // どの列数でも収まらない（fits:false）
 
-        layout.cols = bestColumns;
-        layout.rows = Math.ceil(dataCount / bestColumns);
-        layout.fits = true;
-        return layout;
+        artboardLayout.columnCount = bestColumnCount;
+        artboardLayout.rowCount = Math.ceil(dataCount / bestColumnCount);
+        artboardLayout.fits = true;
+        return artboardLayout;
     }
 
-    /* 入力確定時に間隔を10の倍数へ四捨五入し、入力欄へ反映 / On commit, round the gap to the nearest 10 and write it back to the field */
-    function roundGapInput() {
-        gapInput.text = String(getGapValue());
+    /**
+     * 入力確定時に間隔を10の倍数へ四捨五入し、入力欄へ反映する
+     * @returns {void}
+     */
+    function roundArtboardGapInput() {
+        artboardGapInput.text = String(getArtboardGap());
     }
 
-    gapInput.onChange = function () {
-        roundGapInput();
-        if (previewCheckbox.value) runPreview(); // プレビュー中なら複製ファイルを開き直して更新 / refresh the preview while active
+    artboardGapInput.onChange = function () {
+        roundArtboardGapInput();
+        refreshPreviewIfActive();
     };
 
-    // ボタンエリア：3カラム（左＝プレビュー / 中央＝スペーサー / 右＝キャンセル・実行）
-    var buttonArea = mainDialog.add("group");
-    buttonArea.orientation = "row";
-    buttonArea.alignment = ["fill", "top"];
+    /* ボタンバー：3カラム（左＝プレビュー / 中央＝スペーサー / 右＝キャンセル・実行） */
+    var buttonBarGroup = mainDialog.add("group");
+    buttonBarGroup.orientation = "row";
+    buttonBarGroup.alignment = ["fill", "top"];
 
-    var buttonAreaLeft = buttonArea.add("group");
-    buttonAreaLeft.alignment = ["left", "center"];
-    var previewCheckbox = buttonAreaLeft.add("checkbox", undefined, L("preview"));
-    previewCheckbox.helpTip = L("previewHelp");
+    var previewToggleGroup = buttonBarGroup.add("group");
+    previewToggleGroup.alignment = ["left", "center"];
+    var previewCheckbox = previewToggleGroup.add("checkbox", undefined, getLabel("checkbox.preview"));
+    previewCheckbox.helpTip = getLabel("tooltip.preview");
 
-    var buttonAreaCenter = buttonArea.add("group"); // 中央スペーサー（伸縮）/ flexible spacer
-    buttonAreaCenter.alignment = ["fill", "center"];
+    var buttonSpacerGroup = buttonBarGroup.add("group"); // 中央スペーサー（伸縮）/ flexible spacer
+    buttonSpacerGroup.alignment = ["fill", "center"];
 
-    var buttonAreaRight = buttonArea.add("group");
-    buttonAreaRight.alignment = ["right", "center"];
-    var cancelButton = buttonAreaRight.add("button", undefined, L("cancel"), { name: "cancel" });
-    var runButton = buttonAreaRight.add("button", undefined, L("run"), { name: "ok" });
-    runButton.helpTip = L("runHelp");
+    var actionButtonGroup = buttonBarGroup.add("group");
+    actionButtonGroup.alignment = ["right", "center"];
+    var cancelButton = actionButtonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+    cancelButton.helpTip = getLabel("tooltip.cancel");
+    var runButton = actionButtonGroup.add("button", undefined, getLabel("button.run"), { name: "ok" });
+    runButton.helpTip = getLabel("tooltip.run");
 
     // =========================================
     // ドキュメントの複製（別名保存）/ Document duplication (Save As)
     // =========================================
 
-    /* 複製ファイルのパスを生成（元名_タグ_日時.拡張子）/ Build the duplicate file path (origName_tag_timestamp.ext) */
-    function buildDuplicateFilePath(originalFile, tag) {
+    /**
+     * 複製ファイルのパスを生成する（元名_用途_日時.拡張子）
+     * @param {File} originalFile - 元ファイル
+     * @param {string} [purposeTag] - ファイル名に挟む用途識別子（既定は "import"）
+     * @returns {File} 複製先のファイル
+     */
+    function buildDuplicateFilePath(originalFile, purposeTag) {
         var now = new Date();
-        function padTwoDigits(num) { return (num < 10 ? "0" : "") + String(num); }
+        function padTwoDigits(numberValue) { return (numberValue < 10 ? "0" : "") + String(numberValue); }
         var timestamp = String(now.getFullYear()) + padTwoDigits(now.getMonth() + 1) + padTwoDigits(now.getDate()) + "_" + padTwoDigits(now.getHours()) + padTwoDigits(now.getMinutes()) + padTwoDigits(now.getSeconds());
 
         var parentFolder = originalFile.parent;
-        var originalName = originalFile.name;
-        var dotIndex = originalName.lastIndexOf(".");
-        var baseName = (dotIndex >= 0) ? originalName.substring(0, dotIndex) : originalName;
-        var extension = (dotIndex >= 0) ? originalName.substring(dotIndex) : ".ai";
+        var originalFileName = originalFile.name;
+        var dotIndex = originalFileName.lastIndexOf(".");
+        var baseName = (dotIndex >= 0) ? originalFileName.substring(0, dotIndex) : originalFileName;
+        var fileExtension = (dotIndex >= 0) ? originalFileName.substring(dotIndex) : ".ai";
 
-        var duplicateName = baseName + "_" + (tag || "import") + "_" + timestamp + extension;
-        return new File(parentFolder.fsName + "/" + duplicateName);
+        var duplicateFileName = baseName + "_" + (purposeTag || "import") + "_" + timestamp + fileExtension;
+        return new File(parentFolder.fsName + "/" + duplicateFileName);
     }
 
-    /* 指定ドキュメントを別名保存し、操作対象として複製後ドキュメントを返す / Save the document under a new name and return the duplicated document */
+    /**
+     * 指定ドキュメントを別名保存し、操作対象として複製後ドキュメントを返す
+     * @param {Document} sourceDocument - 複製元のドキュメント
+     * @returns {Document} 別名保存後のドキュメント
+     */
     function duplicateDocumentBySaveAs(sourceDocument) {
-        var originalFile = sourceDocument.fullName; // File
+        var originalFile = sourceDocument.fullName;
         var duplicateFile = buildDuplicateFilePath(originalFile);
         sourceDocument.saveAs(duplicateFile); // Illustrator switches this document to the duplicated file
         return sourceDocument;
@@ -301,238 +478,440 @@ function trimAndStripBom(text) {
     // CSV / TSV の解析と読み込み / CSV / TSV parsing & loading
     // =========================================
 
-    /* 1行を区切り文字で分割（CSVは引用符・エスケープも解釈）/ Split one line by delimiter (CSV also honors quotes and escapes) */
-    function parseLine(line, delimiter) {
-        if (delimiter === "\t") return line.split("\t");
-        var fields = [], pattern = new RegExp("(\\" + delimiter + "|\\r?\\n|\\r|^)(?:\"([^\"]*(?:\"\"[^\"]*)*)\"|([^\"\\" + delimiter + "\\r\\n]*))", "gi");
-        var matches = null;
-        while (matches = pattern.exec(line)) {
-            fields.push(matches[2] ? matches[2].replace(/\"\"/g, "\"") : matches[3]);
+    /**
+     * データ1行を区切り文字で分割する（CSVは引用符・""エスケープも解釈）
+     * @param {string} dataLine - 1行分の文字列
+     * @param {string} delimiter - 区切り文字（"," または "\t"）
+     * @returns {string[]} 分割したフィールド
+     */
+    function parseDataLine(dataLine, delimiter) {
+        if (delimiter === "\t") return dataLine.split("\t");
+        var parsedFields = [], currentField = "", inQuotes = false;
+        for (var i = 0; i < dataLine.length; i++) {
+            var currentChar = dataLine.charAt(i);
+            if (inQuotes) {
+                if (currentChar !== '"') currentField += currentChar;
+                else if (dataLine.charAt(i + 1) === '"') { currentField += '"'; i++; } // "" は引用符1つ / escaped quote
+                else inQuotes = false;
+            } else if (currentChar === '"') {
+                inQuotes = true;
+            } else if (currentChar === delimiter) {
+                parsedFields.push(currentField);
+                currentField = "";
+            } else {
+                currentField += currentChar;
+            }
         }
-        return fields;
+        parsedFields.push(currentField);
+        return parsedFields;
     }
 
-    /* Illustrator の最大カンバス範囲を取得（一時レイヤーで原点を測定）/ Get Illustrator's max canvas bounds (measures the origin via a temp layer) */
-    function getCanvasBounds() {
-        var CANVAS_MAX_SIZE = 16383;
-        var targetDoc = app.activeDocument;
-        var wasModified = targetDoc.modified; // 計測前の変更フラグを退避 / remember the modified flag before measuring
-        var tempLayer = targetDoc.layers.add();
-        var tempTextFrame = tempLayer.textFrames.add();
-        var left = tempTextFrame.matrix.mValueTX;
-        var top = tempTextFrame.matrix.mValueTY;
-        tempLayer.remove();
-        targetDoc.modified = wasModified; // 一時レイヤー追加で立った変更フラグを元に戻す / restore the modified flag
-        // [left, top, right, bottom]
-        return [left, top, left + CANVAS_MAX_SIZE, top - CANVAS_MAX_SIZE];
+    /**
+     * バイト列がUTF-8として妥当か判定する
+     * @param {string} byteString - 1バイト＝1文字で読み込んだ文字列（BINARY読み）
+     * @returns {boolean} UTF-8として解釈できればtrue
+     */
+    function isValidUtf8(byteString) {
+        var i = 0, byteCount = byteString.length;
+        while (i < byteCount) {
+            var leadByte = byteString.charCodeAt(i);
+            if (leadByte <= 0x7F) { i++; continue; }
+            var followByteCount;
+            if (leadByte >= 0xC2 && leadByte <= 0xDF) followByteCount = 1;
+            else if (leadByte >= 0xE0 && leadByte <= 0xEF) followByteCount = 2;
+            else if (leadByte >= 0xF0 && leadByte <= 0xF4) followByteCount = 3;
+            else return false;
+            if (i + followByteCount >= byteCount) return false;
+            for (var j = 1; j <= followByteCount; j++) {
+                var followByte = byteString.charCodeAt(i + j);
+                if (followByte < 0x80 || followByte > 0xBF) return false;
+            }
+            i += followByteCount + 1;
+        }
+        return true;
     }
 
-    /* 選択ファイルを読み込み、ヘッダー・データ・データリストを再構築 / Load the selected file and rebuild headers, rows and the data list */
-    function loadDataFile(dataFile) {
-        if (dataListBox !== null) { listContainer.remove(dataListBox); dataListBox = null; }
-        dataRows = [];
-        dataFile.encoding = "UTF-8";
-        if (!dataFile.open("r")) {
-            headers = [];
-            artboardNameDropdown.removeAll();
-            mainDialog.layout.layout(true);
-            alert(L("fileOpenFailed"));
-            return;
-        }
+    /**
+     * データファイルを読み込む（UTF-8として解釈できなければShift-JISで読み直す）
+     * @param {File} dataFile - 読み込むファイル
+     * @returns {string} ファイル全体の文字列（読み込めなければnull）
+     */
+    function readDataFileText(dataFile) {
+        /* まずバイト列として読み、エンコーディングを判定 / Read raw bytes to detect the encoding */
+        var rawByteString = readFileAs(dataFile, "BINARY");
+        if (rawByteString === null) return null;
+        return readFileAs(dataFile, isValidUtf8(rawByteString) ? "UTF-8" : "SJIS");
+    }
+
+    /**
+     * 指定のエンコーディングでファイル全体を読む
+     * @param {File} dataFile - 読み込むファイル
+     * @param {string} encoding - ExtendScriptのエンコーディング名（"BINARY" / "UTF-8" / "SJIS"）
+     * @returns {string} ファイル全体の文字列（開けなければnull）
+     */
+    function readFileAs(dataFile, encoding) {
+        dataFile.encoding = encoding;
+        if (!dataFile.open("r")) return null;
         var fileContent = dataFile.read();
         dataFile.close();
+        return fileContent;
+    }
 
-        var lines = fileContent.split(/[\r\n]+/);
-        if (lines.length === 0) return;
+    /**
+     * Illustratorの最大カンバス範囲を取得する（一時レイヤーで原点を測定）
+     * @returns {number[]} [left, top, right, bottom]
+     */
+    function getCanvasBounds() {
+        var measuredDocument = app.activeDocument;
+        var wasModified = measuredDocument.modified; // 計測前の変更フラグを退避 / remember the flag before measuring
+        var originLayer = measuredDocument.layers.add();
+        var originTextFrame = originLayer.textFrames.add();
+        var originLeft = originTextFrame.matrix.mValueTX;
+        var originTop = originTextFrame.matrix.mValueTY;
+        originLayer.remove();
+        measuredDocument.modified = wasModified; // 一時レイヤーで立った変更フラグを元に戻す / restore the flag
+        return [originLeft, originTop, originLeft + CANVAS_MAX_SIZE, originTop - CANVAS_MAX_SIZE];
+    }
 
-        var delimiter = dataFile.name.toLowerCase().match(/\.csv$/) ? "," : "\t";
-        headers = parseLine(lines[0], delimiter);
-
-        // ヘッダーの正規化（BOM/前後空白を除去）/ Normalize headers (strip BOM & surrounding spaces)
-        for (var headerIndex = 0; headerIndex < headers.length; headerIndex++) {
-            headers[headerIndex] = trimAndStripBom(headers[headerIndex]);
+    /**
+     * ヘッダー行を解析し、BOM・前後空白を除いた列名を返す
+     * @param {string} headerLine - ヘッダー行の文字列
+     * @param {string} delimiter - 区切り文字
+     * @returns {string[]} 正規化した列名
+     */
+    function parseColumnNames(headerLine, delimiter) {
+        var columnNames = parseDataLine(headerLine, delimiter);
+        for (var i = 0; i < columnNames.length; i++) {
+            columnNames[i] = trimAndStripBom(columnNames[i]);
         }
+        return columnNames;
+    }
 
-        // ヘッダーが実質空（空ファイル等）なら中断 / Abort when there is effectively no header (e.g. empty file)
-        var hasHeader = false;
-        for (var headerCheckIndex = 0; headerCheckIndex < headers.length; headerCheckIndex++) {
-            if (headers[headerCheckIndex] !== "") { hasHeader = true; break; }
+    /**
+     * 列名がひとつでも入っているか判定する（空ファイル対策）
+     * @param {string[]} columnNames - 列名の配列
+     * @returns {boolean} ひとつでも空でなければtrue
+     */
+    function hasAnyColumnName(columnNames) {
+        for (var i = 0; i < columnNames.length; i++) {
+            if (columnNames[i] !== "") return true;
         }
-        if (!hasHeader) {
-            headers = [];
-            artboardNameDropdown.removeAll();
-            mainDialog.layout.layout(true);
-            alert(L("emptyFile"));
-            return;
-        }
+        return false;
+    }
 
-        artboardNameDropdown.removeAll();
-        for (var dropdownHeaderIndex = 0; dropdownHeaderIndex < headers.length; dropdownHeaderIndex++) {
-            artboardNameDropdown.add("item", headers[dropdownHeaderIndex]);
+    /**
+     * ヘッダー行より後を解析し、前後空白を除いたデータ行の配列を返す
+     * @param {string[]} fileLines - ファイルを行分割した配列
+     * @param {string} delimiter - 区切り文字
+     * @returns {Array<string[]>} データ行の配列
+     */
+    function parseDataRows(fileLines, delimiter) {
+        var parsedRows = [];
+        for (var i = 1; i < fileLines.length; i++) {
+            if (fileLines[i] === "") continue;
+            var cellValues = parseDataLine(fileLines[i], delimiter);
+            for (var j = 0; j < cellValues.length; j++) {
+                cellValues[j] = String(cellValues[j]).replace(/^\s+|\s+$/g, "");
+            }
+            parsedRows.push(cellValues);
         }
-        artboardNameDropdown.selection = 0;
+        return parsedRows;
+    }
 
-        dataListBox = listContainer.add("listbox", [0, 0, 550, 180], [], {
-            numberOfColumns: headers.length, showHeaders: true, columnTitles: headers
+    /**
+     * アートボード名の参照列ドロップダウンを作り直す
+     * @returns {void}
+     */
+    function rebuildColumnDropdown() {
+        artboardNameColumnIndex = 0;
+        /* removeAll() は項目の表示が壊れることがあるため末尾から個別に削除する / removeAll() can corrupt item display */
+        while (artboardNameColumnDropdown.items.length > 0) {
+            artboardNameColumnDropdown.remove(artboardNameColumnDropdown.items[artboardNameColumnDropdown.items.length - 1]);
+        }
+        for (var i = 0; i < headerNames.length; i++) {
+            artboardNameColumnDropdown.add("item", headerNames[i]);
+        }
+        if (headerNames.length > 0) artboardNameColumnDropdown.selection = 0;
+    }
+
+    /**
+     * データ行から表示用のセル文字列を取り出す（"0" を空扱いしない）
+     * @param {string[]} cellValues - 1行分のデータ値
+     * @param {number} cellIndex - 取り出す列の番号
+     * @returns {string} セルの文字列（無ければ空文字）
+     */
+    function cellText(cellValues, cellIndex) {
+        return (cellValues[cellIndex] != null) ? String(cellValues[cellIndex]) : "";
+    }
+
+    /**
+     * データ一覧リストを作り直す
+     * @returns {void}
+     */
+    function rebuildDataListBox() {
+        if (dataListBox !== null) { dataListGroup.remove(dataListBox); dataListBox = null; }
+        if (headerNames.length === 0) return;
+
+        /* ScriptUIに渡す配列は複製する（headerNamesを共有するとUI側から書き換わりうる）/ Pass copies to ScriptUI */
+        var columnTitles = [];
+        for (var titleIndex = 0; titleIndex < headerNames.length; titleIndex++) {
+            columnTitles.push(headerNames[titleIndex]);
+        }
+        dataListBox = dataListGroup.add("listbox", [DATA_LIST_BOUNDS[0], DATA_LIST_BOUNDS[1], DATA_LIST_BOUNDS[2], DATA_LIST_BOUNDS[3]], [], {
+            numberOfColumns: columnTitles.length, showHeaders: true, columnTitles: columnTitles
         });
-
-        for (var lineIndex = 1; lineIndex < lines.length; lineIndex++) {
-            if (lines[lineIndex] === "") continue;
-            var cells = parseLine(lines[lineIndex], delimiter);
-
-            // 値の正規化（前後空白を除去）/ Normalize cell values (strip surrounding spaces)
-            for (var cellIndex = 0; cellIndex < cells.length; cellIndex++) {
-                cells[cellIndex] = String(cells[cellIndex]).replace(/^\s+|\s+$/g, "");
-            }
-
-            dataRows.push(cells);
-            var listItem = dataListBox.add("item", cells[0] || "");
-            for (var listCellIndex = 1; listCellIndex < cells.length; listCellIndex++) {
-                if (listCellIndex < headers.length) {
-                    listItem.subItems[listCellIndex - 1].text = cells[listCellIndex] || "";
-                }
+        for (var i = 0; i < dataRows.length; i++) {
+            var cellValues = dataRows[i];
+            var dataListItem = dataListBox.add("item", cellText(cellValues, 0));
+            for (var j = 1; j < cellValues.length && j < headerNames.length; j++) {
+                dataListItem.subItems[j - 1].text = cellText(cellValues, j);
             }
         }
+    }
 
+    /**
+     * 読み込み済みのヘッダー・データと、それを表示しているUIを空にする
+     * @returns {void}
+     */
+    function clearLoadedData() {
+        headerNames = [];
+        dataRows = [];
+        rebuildColumnDropdown();
+        rebuildDataListBox();
         mainDialog.layout.layout(true);
     }
 
-    fileDropdown.onChange = function () {
-        if (fileDropdown.selection) loadDataFile(dataFiles[fileDropdown.selection.index]);
+    /**
+     * 選択ファイルを読み込み、ヘッダー・データ・データ一覧を再構築する
+     * @param {File} dataFile - 読み込むデータファイル
+     * @returns {void}
+     */
+    function loadDataFile(dataFile) {
+        var fileContent = readDataFileText(dataFile);
+        if (fileContent === null) {
+            clearLoadedData();
+            alert(getLabel("alert.fileOpenFailed"));
+            return;
+        }
+
+        var fileLines = fileContent.split(/[\r\n]+/);
+        var delimiter = dataFile.name.toLowerCase().match(/\.csv$/) ? "," : "\t";
+        var columnNames = parseColumnNames(fileLines[0], delimiter);
+        if (!hasAnyColumnName(columnNames)) {
+            clearLoadedData();
+            alert(getLabel("alert.emptyFile"));
+            return;
+        }
+
+        headerNames = columnNames;
+        dataRows = parseDataRows(fileLines, delimiter);
+        rebuildColumnDropdown();
+        rebuildDataListBox();
+        mainDialog.layout.layout(true);
+    }
+
+    dataFileDropdown.onChange = function () {
+        if (dataFileDropdown.selection) loadDataFile(dataFiles[dataFileDropdown.selection.index]);
     };
-    fileDropdown.selection = 0;
+    dataFileDropdown.selection = 0;
 
     // =========================================
     // 実行処理（流し込み）/ Run handler (data import)
     // =========================================
 
-    /* 配置レイアウトを確定（収まらなければ警告して null を返す）/ Resolve the layout (alerts and returns null when it does not fit) */
-    function prepareLayout() {
-        var nameColumnIndex = artboardNameDropdown.selection ? artboardNameDropdown.selection.index : 0;
-        var gridLayout = computeArtboardLayout();
-        if (!gridLayout.fits) {
-            var maxFitColumns = calcMaxColumns(gridLayout.gap);
-            var maxCapacity = Math.min(maxFitColumns * calcMaxRows(gridLayout.gap), MAX_ARTBOARDS);
-            alert(L("tooManyData").replace("#count#", String(dataRows.length)).replace("#max#", String(maxCapacity)));
+    /**
+     * 流し込み用の配置情報を確定する（収まらなければ警告してnullを返す）
+     * @returns {{columnCount: number, rowCount: number, artboardGap: number, nameColumnIndex: number}} 配置情報（収まらなければnull）
+     */
+    function resolveImportLayout() {
+        var artboardLayout = computeArtboardLayout();
+        if (!artboardLayout.fits) {
+            var maxArtboardCapacity = Math.min(
+                calcMaxArtboardColumns(artboardLayout.artboardGap) * calcMaxArtboardRows(artboardLayout.artboardGap),
+                MAX_ARTBOARD_COUNT
+            );
+            alert(getLabel("alert.tooManyData").replace("#count#", String(dataRows.length)).replace("#max#", String(maxArtboardCapacity)));
             return null;
         }
-        return {
-            cols: gridLayout.cols,
-            rows: gridLayout.rows,
-            gap: gridLayout.gap,
-            nameColumnIndex: nameColumnIndex
-        };
+        artboardLayout.nameColumnIndex = artboardNameColumnIndex;
+        return artboardLayout;
     }
 
-    /* 雛形を複製してデータを流し込む（targetDoc に対して実行）/ Duplicate the template and merge data into targetDoc */
-    function performImport(targetDoc, layout, isPreview) {
-        targetDoc.activate();
-        var nameColumnIndex = layout.nameColumnIndex;
-        var columnCount = layout.cols;
-        var gap = layout.gap;
-
-        var progressWindow = new Window("palette", L("processing"), undefined);
-        var progressBar = progressWindow.add("progressbar", undefined, 0, dataRows.length);
-        progressBar.preferredSize.width = 300;
-        progressWindow.show();
-
-        // 雛形：アートボード0と、その上に乗っているオブジェクト
-        var templateArtboard = targetDoc.artboards[0];
-        var placementRect = templateArtboard.artboardRect;
-        targetDoc.artboards.setActiveArtboardIndex(0);
-        targetDoc.selectObjectsOnActiveArtboard();
-        var templateItems = targetDoc.selection;
-        if (!templateItems || templateItems.length === 0) {
-            progressWindow.close();
-            alert(L("noTemplate"));
-            return;
+    /**
+     * アートボード0上の雛形オブジェクトを集める
+     * 選択は複製操作で変化しうるので、配列に控えてから返す
+     * @param {Document} targetDocument - 対象のドキュメント
+     * @returns {PageItem[]} 雛形オブジェクト（見つからなければ空配列）
+     */
+    function collectTemplateItems(targetDocument) {
+        targetDocument.artboards.setActiveArtboardIndex(0);
+        targetDocument.selectObjectsOnActiveArtboard();
+        var selectedItems = targetDocument.selection;
+        var templateItems = [];
+        if (!selectedItems) return templateItems;
+        for (var i = 0; i < selectedItems.length; i++) {
+            templateItems.push(selectedItems[i]);
         }
+        return templateItems;
+    }
 
-        // 雛形1セルのサイズ（アートボード0のサイズ）
+    /**
+     * 雛形アートボードと中身を、グリッドの左上（カンバス中央寄せ）へ移動する
+     * @param {Artboard} templateArtboard - 雛形のアートボード
+     * @param {PageItem[]} templateItems - 雛形オブジェクト
+     * @param {{columnCount: number, artboardGap: number}} importLayout - 配置情報
+     * @returns {number[]} 移動後の雛形アートボード矩形（グリッド配置の基準）
+     */
+    function moveTemplateToGridOrigin(templateArtboard, templateItems, importLayout) {
+        var placementRect = templateArtboard.artboardRect;
         var cellWidth = placementRect[2] - placementRect[0];
         var cellHeight = placementRect[1] - placementRect[3];
-
-        // グリッド全体の幅・高さを求め、カンバスの天地・左右中央へ配置
         var dataCount = dataRows.length;
-        var gridRows = Math.ceil(dataCount / columnCount);
-        var occupiedColumns = (columnCount < dataCount) ? columnCount : dataCount;
-        var gridWidth = occupiedColumns * cellWidth + (occupiedColumns - 1) * gap;
-        var gridHeight = gridRows * cellHeight + (gridRows - 1) * gap;
-        var canvasWidth = canvasBounds[2] - canvasBounds[0];
-        var canvasHeight = canvasBounds[1] - canvasBounds[3];
-        var leftMargin = Math.round((canvasWidth - gridWidth) / 2);
-        var topMargin = Math.round((canvasHeight - gridHeight) / 2);
-        var gridLeft = canvasBounds[0] + leftMargin;
-        var gridTop = canvasBounds[1] - topMargin;
-        var deltaX = gridLeft - placementRect[0];
-        var deltaY = gridTop - placementRect[1];
+        var occupiedColumns = (importLayout.columnCount < dataCount) ? importLayout.columnCount : dataCount;
+        var gridRowCount = Math.ceil(dataCount / importLayout.columnCount);
+        var gridSize = calcGridSize(occupiedColumns, gridRowCount, cellWidth, cellHeight, importLayout.artboardGap);
+
+        var gridLeft = canvasBounds[0] + Math.round(((canvasBounds[2] - canvasBounds[0]) - gridSize.width) / 2);
+        var gridTop = canvasBounds[1] - Math.round(((canvasBounds[1] - canvasBounds[3]) - gridSize.height) / 2);
+        var dx = gridLeft - placementRect[0];
+        var dy = gridTop - placementRect[1];
+
         templateArtboard.artboardRect = [gridLeft, gridTop, gridLeft + cellWidth, gridTop - cellHeight];
         for (var i = 0; i < templateItems.length; i++) {
-            templateItems[i].translate(deltaX, deltaY);
+            templateItems[i].translate(dx, dy);
         }
-        placementRect = templateArtboard.artboardRect; // 移動後の位置をグリッド配置の基準にする
+        return templateArtboard.artboardRect;
+    }
 
-        // 重要：2件目(i=1)から先に処理する（タグを維持するため）
-        for (var i = 1; i < dataRows.length; i++) {
-            progressBar.value = i;
-            progressWindow.update();
+    /**
+     * データ行からアートボード名を決める（値が空なら連番の既定名）
+     * @param {number} dataIndex - データ行の番号（0始まり）
+     * @param {number} nameColumnIndex - アートボード名に使う列の番号
+     * @returns {string} アートボード名
+     */
+    function resolveArtboardName(dataIndex, nameColumnIndex) {
+        var rowValues = dataRows[dataIndex];
+        /* "0" を空扱いしないよう、|| ではなく明示的に空文字を判定する / "0" must not be treated as empty */
+        var nameValue = (rowValues && rowValues.length > nameColumnIndex && rowValues[nameColumnIndex] != null)
+            ? String(rowValues[nameColumnIndex]) : "";
+        return (nameValue !== "") ? nameValue : (ARTBOARD_NAME_PREFIX + (dataIndex + 1));
+    }
 
-            var col = i % columnCount;
-            var row = Math.floor(i / columnCount);
-            var offsetX = (cellWidth + gap) * col;
-            var offsetY = -(cellHeight + gap) * row;
+    /**
+     * 1データ行ぶんのアートボードと、流し込み済みオブジェクトを生成する
+     * @param {Document} targetDocument - 流し込み先のドキュメント
+     * @param {PageItem[]} templateItems - 雛形オブジェクト
+     * @param {number[]} originRect - グリッド左上の基準矩形
+     * @param {{columnCount: number, artboardGap: number, nameColumnIndex: number}} importLayout - 配置情報
+     * @param {number} dataIndex - データ行の番号（0始まり）
+     * @returns {void}
+     */
+    function buildVariation(targetDocument, templateItems, originRect, importLayout, dataIndex) {
+        var cellWidth = originRect[2] - originRect[0];
+        var cellHeight = originRect[1] - originRect[3];
+        var offsetX = (cellWidth + importLayout.artboardGap) * (dataIndex % importLayout.columnCount);
+        var offsetY = -(cellHeight + importLayout.artboardGap) * Math.floor(dataIndex / importLayout.columnCount);
 
-            var newArtboard = targetDoc.artboards.add([
-                placementRect[0] + offsetX, placementRect[1] + offsetY,
-                placementRect[2] + offsetX, placementRect[3] + offsetY
-            ]);
-            newArtboard.name = (dataRows[i][nameColumnIndex] || "Data_" + (i + 1)).toString();
+        var variationArtboard = targetDocument.artboards.add([
+            originRect[0] + offsetX, originRect[1] + offsetY,
+            originRect[2] + offsetX, originRect[3] + offsetY
+        ]);
+        variationArtboard.name = resolveArtboardName(dataIndex, importLayout.nameColumnIndex);
 
-            // 雛形オブジェクトを複製し、対応するアートボードへ移動して流し込み
-            for (var j = 0; j < templateItems.length; j++) {
-                var duplicatedItem = templateItems[j].duplicate();
-                duplicatedItem.translate(offsetX, offsetY);
-                replaceTextRecursive(duplicatedItem, headers, dataRows[i]);
-            }
-        }
-
-        // 最後に1件目(i=0)を書き換える
-        progressBar.value = dataRows.length;
-        progressWindow.update();
-        templateArtboard.name = (dataRows[0][nameColumnIndex] || "Data_1").toString();
-        for (var k = 0; k < templateItems.length; k++) {
-            replaceTextRecursive(templateItems[k], headers, dataRows[0]);
-        }
-
-        targetDoc.selection = null;
-        progressWindow.close();
-        app.redraw();
-        if (!isPreview) {
-            alert(L("done").replace("#count#", String(dataRows.length)));
+        /* 雛形オブジェクトを複製し、対応するアートボードへ移動して流し込み / Duplicate and merge */
+        for (var i = 0; i < templateItems.length; i++) {
+            var duplicatedItem = templateItems[i].duplicate();
+            duplicatedItem.translate(offsetX, offsetY);
+            replaceTagsRecursive(duplicatedItem, headerNames, dataRows[dataIndex]);
         }
     }
 
-    /* 「実行」：ドキュメントを別名保存で複製し、流し込んでダイアログを閉じる / Run: duplicate via Save As, merge, then close the dialog */
+    /**
+     * 雛形を複製してデータを流し込む
+     * @param {Document} targetDocument - 流し込み先のドキュメント
+     * @param {{columnCount: number, rowCount: number, artboardGap: number, nameColumnIndex: number}} importLayout - 配置情報
+     * @param {boolean} isPreview - プレビュー実行ならtrue（完了メッセージを出さない）
+     * @returns {boolean} 流し込めたらtrue
+     */
+    function mergeDataIntoDocument(targetDocument, importLayout, isPreview) {
+        targetDocument.activate();
+
+        var templateArtboard = targetDocument.artboards[0];
+        var templateItems = collectTemplateItems(targetDocument);
+        if (templateItems.length === 0) {
+            alert(getLabel("alert.noTemplate"));
+            return false;
+        }
+        var originRect = moveTemplateToGridOrigin(templateArtboard, templateItems, importLayout);
+
+        var progressWindow = new Window("palette", getLabel("progress.title"), undefined);
+        var progressBar = progressWindow.add("progressbar", undefined, 0, dataRows.length);
+        progressBar.preferredSize.width = PROGRESS_BAR_WIDTH;
+        progressWindow.show();
+
+        try {
+            /* 重要：2件目(i=1)から先に処理する（雛形のタグを維持するため）/ Start at row 1 to keep the template tags */
+            for (var i = 1; i < dataRows.length; i++) {
+                progressBar.value = i;
+                progressWindow.update();
+                buildVariation(targetDocument, templateItems, originRect, importLayout, i);
+            }
+
+            /* 最後に1件目を雛形自身へ書き込む / Finally, merge row 0 into the template itself */
+            progressBar.value = dataRows.length;
+            progressWindow.update();
+            templateArtboard.name = resolveArtboardName(0, importLayout.nameColumnIndex);
+            for (var j = 0; j < templateItems.length; j++) {
+                replaceTagsRecursive(templateItems[j], headerNames, dataRows[0]);
+            }
+
+            targetDocument.selection = null;
+        } finally {
+            progressWindow.close(); // 途中でエラーが出てもパレットを残さない / never leave the palette on screen
+        }
+
+        app.redraw();
+        if (!isPreview) {
+            alert(getLabel("alert.done")
+                .replace("#count#", String(dataRows.length))
+                .replace("#filename#", String(targetDocument.name)));
+        }
+        return true;
+    }
+
+    /* 「実行」：ドキュメントを別名保存で複製し、流し込んでダイアログを閉じる / Run: duplicate via Save As, merge, then close */
     runButton.onClick = function () {
         if (dataRows.length === 0) return;
-        var layout = prepareLayout();
-        if (!layout) return;
+        var importLayout = resolveImportLayout();
+        if (!importLayout) return;
 
-        // プレビュー用ドキュメント・ファイルが残っていれば破棄してから実行 / Discard any leftover preview document & file before running
-        cleanupPreviewFile();
+        /* プレビュー用ドキュメント・ファイルが残っていれば破棄してから実行 / Discard any leftover preview first */
+        discardPreview();
 
         var importDocument;
         try {
-            importDocument = duplicateDocumentBySaveAs(doc);
+            importDocument = duplicateDocumentBySaveAs(originalDocument);
         } catch (e) {
-            alert(L("dupFailed").replace("#detail#", String(e)));
+            alertDuplicateFailure(e);
             return;
         }
         mainDialog.close();
-        performImport(importDocument, layout, false);
+        mergeDataIntoDocument(importDocument, importLayout, false);
     };
 
-    /* 既に開いているプレビュー用ドキュメントを探す（無ければ null）/ Find the already-open preview document (null if none) */
+    /**
+     * 複製（別名保存・ファイルコピー）の失敗を通知する
+     * @param {Error} err - 捕捉した例外
+     * @returns {void}
+     */
+    function alertDuplicateFailure(err) {
+        alert(getLabel("alert.dupFailed").replace("#detail#", String(err)));
+    }
+
+    /**
+     * 既に開いているプレビュー用ドキュメントを探す
+     * @returns {Document} 見つかったドキュメント（無ければnull）
+     */
     function getOpenPreviewDocument() {
         if (!previewFile) return null;
         for (var i = 0; i < app.documents.length; i++) {
@@ -543,106 +922,201 @@ function trimAndStripBom(text) {
         return null;
     }
 
-    /* プレビュー用ドキュメントを閉じ、プレビュー用ファイルを削除 / Close the preview document and remove the preview file */
-    function cleanupPreviewFile() {
-        var openedPreview = getOpenPreviewDocument();
-        if (openedPreview) {
-            try { openedPreview.close(SaveOptions.DONOTSAVECHANGES); } catch (e) { }
-        }
-        if (previewFile && previewFile.exists) {
-            try { previewFile.remove(); } catch (e) { }
-        }
+    /**
+     * 開いているプレビュー用ドキュメントを、保存せずに閉じる
+     * @returns {void}
+     */
+    function closePreviewDocument() {
+        var openedPreviewDocument = getOpenPreviewDocument();
+        if (!openedPreviewDocument) return;
+        try { openedPreviewDocument.close(SaveOptions.DONOTSAVECHANGES); } catch (e) { }
+    }
+
+    /**
+     * プレビュー用ドキュメントを閉じ、プレビュー用ファイルを削除する
+     * @returns {void}
+     */
+    function discardPreview() {
+        closePreviewDocument();
+        try {
+            if (previewFile && previewFile.exists) previewFile.remove();
+        } catch (e) { }
         previewFile = null;
     }
 
-    /*
-       プレビューを生成・更新 / Build or refresh the preview.
-       既存のプレビュードキュメントがあれば一旦閉じ、元ドキュメントから複製ファイルを作り直して開く。
-       流し込み結果は保存しないため、毎回クリーンな雛形状態から始まる。
-    */
-    function runPreview() {
+    /**
+     * プレビューを作り直す
+     * 既存のプレビュードキュメントがあれば一旦閉じ、元ドキュメントから複製ファイルを作り直して開く。
+     * 流し込み結果は保存しないため、毎回クリーンな雛形状態から始まる。
+     * @returns {boolean} プレビューを表示できたらtrue
+     */
+    function rebuildPreview() {
         if (dataRows.length === 0) return false;
-        var layout = prepareLayout();
-        if (!layout) return false;
+        var importLayout = resolveImportLayout();
+        if (!importLayout) return false;
 
-        // 既存のプレビュードキュメントがあれば閉じる（流し込み結果は破棄）
-        var openedPreview = getOpenPreviewDocument();
-        if (openedPreview) {
-            try { openedPreview.close(SaveOptions.DONOTSAVECHANGES); } catch (e) { }
-        }
+        closePreviewDocument(); // 前回の流し込み結果は破棄 / discard the previous merge
 
-        // 元ドキュメントからプレビュー用の複製ファイルを毎回作り直す
+        /* 元ドキュメントからプレビュー用の複製ファイルを毎回作り直す / Rebuild the preview copy every time */
         var previewDocument;
         try {
-            var sourceFile = doc.fullName;
-            if (!previewFile) {
-                previewFile = buildDuplicateFilePath(sourceFile, "preview");
-            }
-            if (previewFile.exists) {
-                previewFile.remove();
-            }
-            if (!sourceFile.copy(previewFile)) throw new Error("File copy failed");
+            var originalFile = originalDocument.fullName;
+            if (!previewFile) previewFile = buildDuplicateFilePath(originalFile, "preview");
+            if (previewFile.exists) previewFile.remove();
+            if (!originalFile.copy(previewFile)) throw new Error("File copy failed");
             previewDocument = app.open(previewFile);
         } catch (e) {
-            alert(L("dupFailed").replace("#detail#", String(e)));
+            alertDuplicateFailure(e);
             previewFile = null;
             return false;
         }
 
-        performImport(previewDocument, layout, true);
+        if (!mergeDataIntoDocument(previewDocument, importLayout, true)) {
+            discardPreview(); // 雛形が空などで流し込めなかった / nothing was merged
+            return false;
+        }
         return true;
     }
 
-    /* 「プレビュー」：オンで表示、オフでプレビュー用ドキュメントを閉じる / Preview checkbox: show on, close the preview document off */
+    /**
+     * プレビュー表示中のときだけ、プレビューを作り直す
+     * @returns {void}
+     */
+    function refreshPreviewIfActive() {
+        if (previewCheckbox.value) rebuildPreview();
+    }
+
+    /* 「プレビュー」：オンで表示、オフでプレビュー用ドキュメントを閉じる / Preview checkbox */
     previewCheckbox.onClick = function () {
         if (!previewCheckbox.value) {
-            cleanupPreviewFile();
+            discardPreview();
             return;
         }
-        if (!runPreview()) previewCheckbox.value = false;
+        if (!rebuildPreview()) previewCheckbox.value = false;
     };
 
-    /* 「キャンセル」：プレビュー用ファイルを削除して閉じる / Cancel: remove the preview file and close the dialog */
+    /* 「キャンセル」：プレビュー用ファイルを削除して閉じる / Cancel: remove the preview file and close */
     cancelButton.onClick = function () {
-        cleanupPreviewFile();
+        discardPreview();
         mainDialog.close();
     };
 
-    /* アートボード名の参照項目を変更したら、プレビュー中は複製ファイルを開き直して更新 / Refresh the preview when the artboard-name field changes */
-    artboardNameDropdown.onChange = function () {
-        if (previewCheckbox.value) runPreview();
+    /* ×ボタンやESCで閉じたときもプレビュー用ファイルを残さない / Clean up on any close path */
+    mainDialog.onClose = function () {
+        discardPreview();
+        return true; // falseを返すと閉じられなくなる / returning false would block the close
+    };
+
+    /*
+       アートボード名に使う列を変更したら、選択された列番号を控えてプレビューを更新。
+       selection は再描画などで null に戻ることがあるため、値そのものを保持する。
+       Keep the chosen index: selection can fall back to null and silently reset the column.
+    */
+    artboardNameColumnDropdown.onChange = function () {
+        if (artboardNameColumnDropdown.selection) {
+            artboardNameColumnIndex = artboardNameColumnDropdown.selection.index;
+        }
+        refreshPreviewIfActive();
     };
 
     // =========================================
     // テキストの置換 / Text replacement
     // =========================================
 
-    /* オブジェクトを再帰的に走査し、テキスト内の <タグ> をデータ値へ置換 / Walk objects recursively and replace <tag> placeholders in text with data values */
-    function replaceTextRecursive(pageItem, headerKeys, rowValues) {
-        if (!pageItem) return;
-
-        if (pageItem.typename === "TextFrame") {
-            var textContent = pageItem.contents;
-            if (textContent == null) return;
-
-            for (var k = 0; k < headerKeys.length; k++) {
-                var headerKey = trimAndStripBom(headerKeys[k]);
-                if (headerKey === "") continue;
-
-                var placeholderTag = "<" + headerKey + ">";
-                if (textContent.indexOf(placeholderTag) !== -1) {
-                    var value = (rowValues && rowValues.length > k && rowValues[k] != null) ? String(rowValues[k]) : "";
-                    // 全出現を置換（ExtendScript安全）
-                    textContent = textContent.split(placeholderTag).join(value);
+    /**
+     * テキストフレーム内のタグを、文字書式を保ったまま置換する
+     * タグの1文字目にデータ値を流し込み、残りのタグ文字を削除することで書式を引き継ぐ
+     * @param {TextFrame} textFrame - 対象のテキストフレーム
+     * @param {string} placeholderTag - 置換する `<ヘッダー名>` 形式のタグ
+     * @param {string} replacementValue - 流し込む値
+     * @returns {void}
+     */
+    function replaceTagKeepingStyle(textFrame, placeholderTag, replacementValue) {
+        var guardCount = 0;
+        var tagPosition = textFrame.contents.indexOf(placeholderTag);
+        while (tagPosition !== -1 && guardCount++ < MAX_TAG_REPLACEMENTS) {
+            if (replacementValue === "") {
+                for (var i = 0; i < placeholderTag.length; i++) {
+                    textFrame.characters[tagPosition].remove();
+                }
+            } else {
+                textFrame.characters[tagPosition].contents = replacementValue; // 1文字目の書式を引き継ぐ / inherit the style
+                for (var j = 1; j < placeholderTag.length; j++) {
+                    textFrame.characters[tagPosition + replacementValue.length].remove();
                 }
             }
-
-            pageItem.contents = textContent;
-        } else if (pageItem.typename === "GroupItem") {
-            for (var i = 0; i < pageItem.pageItems.length; i++) {
-                replaceTextRecursive(pageItem.pageItems[i], headerKeys, rowValues);
-            }
+            tagPosition = textFrame.contents.indexOf(placeholderTag);
         }
+    }
+
+    /**
+     * オブジェクトを再帰的に走査し、テキスト内の `<タグ>` をデータ値へ置換する
+     * @param {PageItem} pageItem - 走査対象のオブジェクト
+     * @param {string[]} columnNames - ヘッダー（列名）の配列
+     * @param {string[]} rowValues - 1行分のデータ値
+     * @returns {void}
+     */
+    function replaceTagsRecursive(pageItem, columnNames, rowValues) {
+        if (!pageItem) return;
+
+        if (pageItem.typename === "GroupItem") {
+            for (var i = 0; i < pageItem.pageItems.length; i++) {
+                replaceTagsRecursive(pageItem.pageItems[i], columnNames, rowValues);
+            }
+            return;
+        }
+        if (pageItem.typename !== "TextFrame") return;
+
+        var originalContents = pageItem.contents;
+        if (originalContents == null) return;
+
+        var tagReplacements = collectTagReplacements(String(originalContents), columnNames, rowValues);
+        if (tagReplacements.length === 0) return; // タグが無いフレームには触らない / leave untagged frames alone
+
+        try {
+            for (var j = 0; j < tagReplacements.length; j++) {
+                replaceTagKeepingStyle(pageItem, tagReplacements[j].tag, tagReplacements[j].value);
+            }
+        } catch (e) {
+            /* 文字単位で置換できない場合は一括代入にフォールバック（書式は失われる）/ Fallback: whole-contents assignment */
+            pageItem.contents = applyReplacementsToText(originalContents, tagReplacements);
+        }
+    }
+
+    /**
+     * テキストに含まれているタグと、その置換値を集める
+     * @param {string} textContents - テキストフレームの内容
+     * @param {string[]} columnNames - ヘッダー（列名）の配列
+     * @param {string[]} rowValues - 1行分のデータ値
+     * @returns {Array<{tag: string, value: string}>} 置換の組（含まれていないタグは返さない）
+     */
+    function collectTagReplacements(textContents, columnNames, rowValues) {
+        var tagReplacements = [];
+        for (var i = 0; i < columnNames.length; i++) {
+            var columnName = trimAndStripBom(columnNames[i]);
+            if (columnName === "") continue;
+
+            var placeholderTag = "<" + columnName + ">";
+            if (textContents.indexOf(placeholderTag) === -1) continue;
+
+            tagReplacements.push({ tag: placeholderTag, value: cellText(rowValues, i) });
+        }
+        return tagReplacements;
+    }
+
+    /**
+     * 集めた置換をすべて文字列に適用する（書式を保てないときのフォールバック用）
+     * @param {string} textContents - 置換前のテキスト
+     * @param {Array<{tag: string, value: string}>} tagReplacements - 置換の組
+     * @returns {string} 置換後のテキスト
+     */
+    function applyReplacementsToText(textContents, tagReplacements) {
+        var mergedContents = String(textContents);
+        for (var i = 0; i < tagReplacements.length; i++) {
+            /* 全出現を置換（ExtendScript安全）/ Replace every occurrence */
+            mergedContents = mergedContents.split(tagReplacements[i].tag).join(tagReplacements[i].value);
+        }
+        return mergedContents;
     }
 
     mainDialog.show();
