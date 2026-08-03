@@ -45,11 +45,13 @@ Four creation methods. Methods that don't apply to the current selection are dim
 | Shapes only | Dummy text in selected shape |
 | Text plus shapes | Pour into selected shape, Dummy text in selected shape |
 
-Path text is split off into point text first, automatically. Per-character font, size, fill, stroke, and leading are snapshotted and restored, so the appearance survives the trip.
+Path text is split off into point text first. Per-character font, size, fill, stroke, and leading are snapshotted and restored, so the appearance survives the trip. The split happens **when you click [Convert]**, so closing with [Cancel] leaves the original path text untouched.
 
 ### Pairing text with shapes
 
 "Pour into selected shape" accepts several text-and-shape pairs at once. Each text is matched to **the shape whose bounds contain the text's centre**, or failing that **the shape whose centre is nearest**. Matching uses `geometricBounds` (rectangular bounds).
+
+Compound paths work as shapes too (the first path becomes the frame).
 
 If nothing could be converted, the script says so and leaves the dialog open.
 
@@ -64,6 +66,8 @@ The panels are laid out like this:
 - Bottom: [Separate text...], then [Cancel] and [OK]
 
 [OK] commits, [Cancel] reverts and closes — except for vertical text alignment, auto-size, the role presets, Clear overset, Fit to frame and Separate text, which are committed the moment you click them (see below).
+
+When you open the dialog on existing Area Type, **settings you don't touch are left alone**: vertical alignment, height, kinsoku and mojikumi stay as they are until you change them or pick a role. (Vertical alignment and auto-size cannot be read back from the DOM, so what the dialog shows for them may not match the frame.)
 
 ### Role
 
@@ -108,9 +112,11 @@ Justification (left, center, right, justify with last line left, justify all lin
 
 Justification uses **icon buttons**, matching Illustrator's own Paragraph panel; the names show up as tooltips. It also responds to the **L / C / R / J / F** keys (disabled while an input field has focus).
 
-Vertical text alignment cannot be set reliably through the DOM, so it is applied via a dynamic action (`adobe_frameAlignment`) loaded from a temp file at startup and discarded on exit — nothing is left in the Actions panel.
+Vertical text alignment cannot be set reliably through the DOM, so it is applied via a dynamic action (`adobe_frameAlignment`) loaded from a temp file at startup and discarded on exit — nothing is left in the Actions panel. The action sets are named `AreaTypeToolkit_Alignment` and `AreaTypeToolkit_AutoSize`, so they never collide with your own actions.
 
 That action cannot run from the preview inside a modal dialog, so it is **committed the moment you click an icon** (the preview is reverted, the alignment applied, then the preview goes back on).
+
+The current alignment cannot be read from the DOM either, so opening the dialog on existing Area Type always shows "Top". **The frame's alignment does not change until you click an icon.**
 
 ### Japanese composition
 
@@ -121,7 +127,7 @@ That action cannot run from the preview inside a modal dialog, so it is **commit
 
 These are paragraph attributes, so they apply to every paragraph in the frame. With mixed settings the Mojikumi menu opens empty; leave it alone and nothing changes.
 
-Opening text whose kinsoku is "None" shows the default "Loose v2" instead, since "None" is indistinguishable from unset. To keep it at "None", pick "None" again explicitly.
+Opening the dialog on existing Area Type shows that frame's current settings — "None" when nothing is set — and nothing changes unless you touch them. Freshly converted frames get `DEFAULT_KINSOKU` (Loose v2) and `DEFAULT_MOJIKUMI_INDEX` (Solid) from the top of the script as their starting values.
 
 ### Frame size
 
@@ -132,6 +138,8 @@ The character count is the width minus the offset and both indents, divided by t
 [Auto-size], under the height, makes the frame's height follow the amount of text. It is toggled through a dynamic action (`adobe_SLOAreaTextDialog`), which cannot run from the preview, so it is **committed the moment you tick it** (the preview is reverted, the setting applied, then the preview goes back on).
 
 While it is on, the **height field is dimmed** — the frame follows the text, so it cannot be set from here. The height is left untouched in that state, so the preview never drags the frame back.
+
+The current auto-size state cannot be read from the DOM, so the checkbox always opens unticked. On existing Area Type the height is **not written back to the frame until you edit the height field**, so it never fights a frame that is already auto-sized.
 
 ### Indent / Offset
 
@@ -173,9 +181,11 @@ TextFrame (point / path / area text), PathItem and CompoundPathItem (closed path
 - Width and height reject zero, negative, NaN, and extreme values, falling back to the last valid entry (the cap is the equivalent of 100000pt).
 - Preview is undone with `app.undo()`. Mixing it with other operations may leave things out of step.
 - Ruler units supported: mm, cm, inch, pt, pica, px, Q.
+- The mojikumi set meaning "none" is named differently per UI language, so `なし` is tried first, then `None`.
 
 ## Change log
 
+- v1.2.2 (2026-08-03) Fixed path text being replaced even when the convert dialog was cancelled — the split now happens once [Convert] is clicked. Fixed opening existing Area Type and clicking OK resetting the vertical alignment to Top and overwriting kinsoku / mojikumi with the defaults. Renamed the dynamic action sets to `AreaTypeToolkit_AutoSize` and `AreaTypeToolkit_Alignment` so a user's own same-named action sets are no longer unloaded. Fixed "Pour into selected shape" ignoring compound paths. Fixed clearing the mojikumi on a non-Japanese UI
 - v1.2.0 (2026-07-28) Moved "Separate text" into its own dialog, reached from a [Separate text...] button in the adjust dialog; separating now preserves per-character formatting and selects the resulting rectangle and point text. Dropped the preview checkbox — the preview is now always on. Added the Role (Body / Heading / Menu), Leading, and Japanese-composition (kinsoku / mojikumi) panels. Justification and text alignment are now icon buttons. Folded the leader-tabs checkbox into the Menu role. Auto-size is now a checkbox that applies on click; while it is on the height field is dimmed and the height is no longer overwritten, and the font-fit passes switch it off for the pass. Renamed "Inset spacing" to "Offset". Clear overset and Fit to frame now stop on text with line breaks and write the resulting size back to the font-size and frame-size fields. Aligned the UI wording with Illustrator's own terms and added tooltips. Fixed reading justification and indents from existing Area Type. "Pour into selected shape" now handles multiple pairs. Added Q (ha) ruler unit. Added a warning when nothing can be converted
 - v1.1.3 (2026-03-04) Added input validation for width and height
 - v1.0.0 (2026-03-03) Initial release

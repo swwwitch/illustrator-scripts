@@ -5,14 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁を調整するツール。
-
-- 変換ダイアログで作成方法（シンプル／ボタン風／選択した図形に流し込む／選択した図形にダミーテキスト）を選ぶ
-- 調整ダイアログでフォントサイズ・フレームサイズ・行送り・行揃え・垂直方向の配置・日本語の組版（禁則・文字組み）・インデント・オフセット・自動サイズ調整を設定
-- 種別（本文／見出し／メニュー）を選ぶと、行送り・行揃え・禁則・文字組み・タブをまとめて適用する
-- エリア内文字を選択して実行すると、調整ダイアログから始まる
-- プレビューは常にONで、結果を確認しながら操作できる
-- ［テキストを分離...］ボタンから、囲み罫とポイント文字への分解ダイアログを開ける（文字ごとの書式は保持）
+ポイント文字・パス上文字・図形からエリア内文字をつくり、そのまま体裁（サイズ・行送り・行揃え・日本語の組版など）を調整するツール。
 
 詳細はREADMEを参照。
 
@@ -22,14 +15,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### Overview
 
-Builds Area Type from point text, path text, or shapes, then tunes its typesetting in place.
-
-- The convert dialog picks the creation method (Simple / Button style / Pour into selected shape / Dummy text in selected shape)
-- The adjust dialog sets font size, frame size, leading, justification, vertical text alignment, Japanese composition (kinsoku / mojikumi), indents, offset, and auto-size
-- Picking a role (Body / Heading / Menu) applies leading, justification, kinsoku, mojikumi and tab stops in one go
-- Running it with Area Type selected starts straight from the adjust dialog
-- The preview is always on, so you see the result while you work
-- The "Separate text..." button opens a dialog that breaks the frame into a rectangle plus point text, keeping the per-character formatting
+Builds Area Type from point text, path text, or shapes, then tunes its typesetting (size, leading, justification, Japanese composition, and so on) in place.
 
 See the README for details.
 
@@ -39,10 +25,10 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AreaTypeToolkit";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.2.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-03";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-28";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-03";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AreaTypeToolkit.md
@@ -577,6 +563,27 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         dropdown.selection = null;
     }
 
+    /* 「なし」を表す文字組み設定名の候補（UI言語で変わるため）/ Names that mean "none" for mojikumi (they vary by UI language) */
+    var MOJIKUMI_NONE_NAMES = ["なし", "None"];
+
+    /* 文字組み設定名が「なし」を指すか / Whether a mojikumi name means "none" */
+    function isMojikumiNoneName(name) {
+        for (var i = 0; i < MOJIKUMI_NONE_NAMES.length; i++) {
+            if (name === MOJIKUMI_NONE_NAMES[i]) return true;
+        }
+        return false;
+    }
+
+    /* 段落の文字組みを「なし」にする（設定名の候補を順に試す）/ Clear a paragraph's mojikumi, trying each candidate name */
+    function clearParagraphMojikumi(paragraph) {
+        for (var i = 0; i < MOJIKUMI_NONE_NAMES.length; i++) {
+            try {
+                paragraph.paragraphAttributes.mojikumi = MOJIKUMI_NONE_NAMES[i];
+                return;
+            } catch (e) { }
+        }
+    }
+
     /* 文字組み設定名から mojikumiSet の添字を引く（見つからなければ -2）
        Look up a mojikumiSet index by name (-2 when not found) */
     function matchMojikumiName(name) {
@@ -599,12 +606,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         } catch (e) { return -2; }
         if (mojikumiAttr === undefined || mojikumiAttr === null) return -1;
         if (typeof mojikumiAttr === "string") {
-            return (mojikumiAttr === "" || mojikumiAttr === "なし") ? -1 : matchMojikumiName(mojikumiAttr);
+            return (mojikumiAttr === "" || isMojikumiNoneName(mojikumiAttr)) ? -1 : matchMojikumiName(mojikumiAttr);
         }
         var mojikumiName;
         try { mojikumiName = (mojikumiAttr.name === undefined || mojikumiAttr.name === null) ? "" : mojikumiAttr.name; } catch (e0) { return -2; }
         if (mojikumiName === "") return -2;
-        if (mojikumiName === "なし") return -1;
+        if (isMojikumiNoneName(mojikumiName)) return -1;
         return matchMojikumiName(mojikumiName);
     }
 
@@ -624,12 +631,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
        Apply a mojikumi set to every paragraph (-2 means unknown, so nothing is touched) */
     function applyMojikumiToTextFrame(textFrame, mojikumiIndex) {
         if (mojikumiIndex === undefined || mojikumiIndex === null || mojikumiIndex === -2) return;
+        if (mojikumiIndex === -1) {
+            for (var i = 0; i < textFrame.paragraphs.length; i++) { clearParagraphMojikumi(textFrame.paragraphs[i]); }
+            return;
+        }
         var mojikumiValue;
-        try {
-            mojikumiValue = (mojikumiIndex === -1) ? "なし" : app.activeDocument.mojikumiSet[mojikumiIndex];
-        } catch (e) { return; }
-        for (var i = 0; i < textFrame.paragraphs.length; i++) {
-            try { textFrame.paragraphs[i].paragraphAttributes.mojikumi = mojikumiValue; } catch (e0) { }
+        try { mojikumiValue = app.activeDocument.mojikumiSet[mojikumiIndex]; } catch (e) { return; }
+        for (var j = 0; j < textFrame.paragraphs.length; j++) {
+            try { textFrame.paragraphs[j].paragraphAttributes.mojikumi = mojikumiValue; } catch (e0) { }
         }
     }
 
@@ -902,11 +911,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         try { tempFile.remove(); } catch (e1) { }
     }
 
+    /* アクションセット名。ユーザーのアクションを消さないよう、スクリプト名を冠して衝突を避ける
+       Action set names, prefixed with the script name so a user's own sets are never unloaded */
+    var ACTION_SET_AUTO_SIZE = "AreaTypeToolkit_AutoSize";
+    var ACTION_SET_ALIGNMENT = "AreaTypeToolkit_Alignment";
+
     /* 使用するアクションセットを読み込む（スクリプト開始時に1回）/ Load the action sets used (once at startup) */
     function loadDynamicActions() {
-        // AreaType: AutoSizeOn(1) / AutoSizeOff(2)
-        loadActionSet("AreaType", buildActionSetAia(
-            "AreaType",
+        // AutoSizeOn(1) / AutoSizeOff(2)
+        loadActionSet(ACTION_SET_AUTO_SIZE, buildActionSetAia(
+            ACTION_SET_AUTO_SIZE,
             "adobe_SLOAreaTextDialog",
             "33 e382a8e383aae382a2e58685e69687e5ad97e382aae38397e382b7e383a7e383b3",
             1952539754,
@@ -915,9 +929,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 { name: "AutoSizeOff", value: 2 }
             ]
         ));
-        // AreaText: AlignTop(0) / AlignCenter(1) / AlignBottom(2) / AlignJustify(3)
-        loadActionSet("AreaText", buildActionSetAia(
-            "AreaText",
+        // AlignTop(0) / AlignCenter(1) / AlignBottom(2) / AlignJustify(3)
+        loadActionSet(ACTION_SET_ALIGNMENT, buildActionSetAia(
+            ACTION_SET_ALIGNMENT,
             "adobe_frameAlignment",
             "39 e382a8e383aae382a2e58685e69687e5ad97e381aee38395e383ace383bce383a0e695b4e58897",
             1717660782,
@@ -932,8 +946,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
     /* 読み込んだアクションセットを破棄する（スクリプト終了時）/ Discard the loaded action sets (on exit) */
     function unloadDynamicActions() {
-        try { app.unloadAction("AreaType", ""); } catch (e) { }
-        try { app.unloadAction("AreaText", ""); } catch (e) { }
+        try { app.unloadAction(ACTION_SET_AUTO_SIZE, ""); } catch (e) { }
+        try { app.unloadAction(ACTION_SET_ALIGNMENT, ""); } catch (e) { }
     }
 
     /* フレームサイズ：自動サイズ調整を ON にして文字に合わせて広げる / Frame size: turn auto-size on to expand to fit text */
@@ -952,7 +966,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     function runAutoSizeAction(autoSizeValue) {
         if (autoSizeValue !== 1 && autoSizeValue !== 2) return;
         var actionName = (autoSizeValue === 1) ? "AutoSizeOn" : "AutoSizeOff";
-        try { app.doScript(actionName, "AreaType", false); } catch (e) { }
+        try { app.doScript(actionName, ACTION_SET_AUTO_SIZE, false); } catch (e) { }
     }
 
     /* テキストの配置アクションを実行（0=上, 1=中央, 2=下, 3=均等）/ Run the frame-alignment action (0=top, 1=center, 2=bottom, 3=justify) */
@@ -962,13 +976,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         if (alignmentValue === 1) actionName = "AlignCenter";
         else if (alignmentValue === 2) actionName = "AlignBottom";
         else if (alignmentValue === 3) actionName = "AlignJustify";
-        try { app.doScript(actionName, "AreaText", false); } catch (e) { }
+        try { app.doScript(actionName, ACTION_SET_ALIGNMENT, false); } catch (e) { }
     }
 
     /* 対象を選択してテキストの配置アクションを実行する（プレビュー中は実行しない）/ Select the frame and run the placement action (skipped during preview) */
     function applyAreaTextFrameAlignment(textFrame, alignmentValue, forPreview) {
         // app.doScript はプレビュー中にダイアログから呼ぶと不安定なためスキップ
         if (forPreview) return;
+        // 配置未指定（ユーザーが触っていない）なら、いまの配置をそのままにする
+        // No alignment requested (the user never touched it), so the current placement is left as is
+        if (alignmentValue === null || alignmentValue === undefined) return;
         try {
             var doc = app.activeDocument;
             doc.selection = null;
@@ -1130,7 +1147,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // 変換ダイアログ：ポイント文字 → エリア内文字 変換
     // ============================================================
     function showConvertDialog(doc, selection) {
-        selection = preprocessSelectionForConvertDialog(doc, selection);
         var convertDialog = new Window("dialog", getLabel("dialog.convertTitle") + " " + SCRIPT_VERSION);
         convertDialog.alignChildren = "fill";
         convertDialog.margins = 20;
@@ -1193,6 +1209,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         btnConvert.onClick = function () {
             var currentSelection = app.activeDocument.selection;
             if (!currentSelection || currentSelection.length === 0) { return; }
+            // パス上文字の置き換えは、変換を確定してから行う（キャンセル時に元のパス上文字を壊さないため）
+            // Path text is swapped out only once the conversion is confirmed, so Cancel leaves it intact
+            currentSelection = preprocessSelectionForConvertDialog(doc, currentSelection);
             var useShape = !!radUseShape.value;
             var useShapeDummy = !!radUseShapeDummy.value;
             var createdFrames = convertSelectionToAreaText(doc, currentSelection,
@@ -1247,6 +1266,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         return doc.textFrames.areaText(pathItem);
     }
 
+    /* 中身が無くなった複合パスの殻を片付ける / Drop a compound path shell left empty */
+    function removeEmptyCompoundPath(item) {
+        try {
+            if (item && item.typename === "CompoundPathItem" && item.pathItems.length === 0) { item.remove(); }
+        } catch (e) { }
+    }
+
     /* 先頭文字のフォントとサイズを読み取る / Read font and size from the head of the text */
     function getFontAndSize(textFrame) {
         try {
@@ -1297,31 +1323,31 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     }
 
     /* テキストの中心を含む図形、無ければ中心が最も近い図形を返す（未使用のものだけ）/ Shape containing the text center, else the nearest unused one */
-    function findShapeForText(sourceText, shapePaths, usedShapes) {
+    function findShapeForText(sourceText, shapeItems, usedShapes) {
         var textCenter = getBoundsCenter(sourceText);
         var nearestShape = null, nearestDistance = -1;
 
-        for (var i = 0; i < shapePaths.length; i++) {
-            var shapePath = shapePaths[i];
+        for (var i = 0; i < shapeItems.length; i++) {
+            var shapeItem = shapeItems[i];
 
             var isUsed = false;
             for (var j = 0; j < usedShapes.length; j++) {
-                if (usedShapes[j] === shapePath) { isUsed = true; break; }
+                if (usedShapes[j] === shapeItem) { isUsed = true; break; }
             }
             if (isUsed) continue;
 
-            var shapeBounds = shapePath.geometricBounds;
+            var shapeBounds = shapeItem.geometricBounds;
             if (textCenter[0] >= shapeBounds[0] && textCenter[0] <= shapeBounds[2] &&
                 textCenter[1] <= shapeBounds[1] && textCenter[1] >= shapeBounds[3]) {
-                return shapePath;
+                return shapeItem;
             }
 
-            var shapeCenter = getBoundsCenter(shapePath);
+            var shapeCenter = getBoundsCenter(shapeItem);
             var dx = shapeCenter[0] - textCenter[0], dy = shapeCenter[1] - textCenter[1];
             var distance = dx * dx + dy * dy;
             if (nearestDistance < 0 || distance < nearestDistance) {
                 nearestDistance = distance;
-                nearestShape = shapePath;
+                nearestShape = shapeItem;
             }
         }
         return nearestShape;
@@ -1350,13 +1376,16 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         var dummyFont = findAvailableTextFont((currentLanguage === "ja") ? DUMMY_FONT_JA : DUMMY_FONT_EN);
 
         for (var i = 0; i < selection.length; i++) {
-            var closedPath = getClosedPathItem(selection[i]);
+            var sourceShape = selection[i];
+            var closedPath = getClosedPathItem(sourceShape);
             if (!closedPath) continue;
             try {
                 var dummyFrame = createAreaTextFromPath(doc, closedPath);
                 dummyFrame.contents = dummyText;
                 applyFontAndSize(dummyFrame, { font: dummyFont, size: DUMMY_FONT_SIZE });
                 createdFrames.push(dummyFrame);
+                // 複合パスは先頭のパスだけを枠にするので、空になった殻を残さない
+                removeEmptyCompoundPath(sourceShape);
             } catch (e) { }
         }
         return createdFrames;
@@ -1365,26 +1394,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     /* 選択テキストを、対応する閉じたパスのエリア内文字に流し込む / Pour each selected text into its matching closed path */
     function pourTextsIntoShapes(doc, selection) {
         var createdFrames = [];
-        var sourceTexts = [], shapePaths = [];
+        var sourceTexts = [], shapeItems = [];
         for (var i = 0; i < selection.length; i++) {
+            // 複合パスも図形として受け付ける（変換ダイアログのラジオ判定と合わせる）
+            // Compound paths count as shapes too, matching how the convert dialog enables the radios
             if (selection[i].typename === "TextFrame") { sourceTexts.push(selection[i]); }
-            else if (selection[i].typename === "PathItem" && selection[i].closed) { shapePaths.push(selection[i]); }
+            else if (getClosedPathItem(selection[i])) { shapeItems.push(selection[i]); }
         }
 
         var usedShapes = [];
-        for (var i = 0; i < sourceTexts.length; i++) {
-            var sourceText = sourceTexts[i];
-            var targetPath = findShapeForText(sourceText, shapePaths, usedShapes);
-            if (!targetPath) continue;
-            usedShapes.push(targetPath);
+        for (var textIndex = 0; textIndex < sourceTexts.length; textIndex++) {
+            var sourceText = sourceTexts[textIndex];
+            var targetShape = findShapeForText(sourceText, shapeItems, usedShapes);
+            if (!targetShape) continue;
+            usedShapes.push(targetShape);
             try {
                 var contents = sourceText.contents;
                 var fontAndSize = getFontAndSize(sourceText);
-                var areaFrame = createAreaTextFromPath(doc, targetPath.duplicate());
+                // 複合パスごと複製してから、その中の閉じたパスを枠にする
+                // Duplicate the whole item, then use the closed path inside the copy as the frame
+                var duplicatedShape = targetShape.duplicate();
+                var areaFrame = createAreaTextFromPath(doc, getClosedPathItem(duplicatedShape));
                 areaFrame.contents = contents;
                 applyFontAndSize(areaFrame, fontAndSize);
+                removeEmptyCompoundPath(duplicatedShape);
                 sourceText.remove();
-                targetPath.remove();
+                targetShape.remove();
                 createdFrames.push(areaFrame);
             } catch (e) { }
         }
@@ -1565,6 +1600,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
     // ============================================================
     function showAdjustDialog(doc, initialFrame, targetFrames, initialAlignmentValue) {
         var rulerInfo = getRulerUnitInfo(doc);
+
+        // 変換したてのフレームかどうか。既存のエリア内文字では、DOM から読み取れない項目
+        // （テキストの配置・自動サイズ調整）や未設定の項目を、触っていないのに書き換えない
+        // Whether these frames were just converted. For existing Area Type, settings that cannot be
+        // read back from the DOM (placement, auto-size) are left alone unless the user touches them
+        var isNewlyConverted = !!(targetFrames && targetFrames.length);
+
+        /* ユーザーが操作した項目 / Which settings the user has touched */
+        var userTouched = {
+            alignment: isNewlyConverted,
+            height: isNewlyConverted,
+            kinsoku: isNewlyConverted,
+            mojikumi: isNewlyConverted
+        };
 
         // 変換ダイアログから受け取った変換結果を確実に対象にする（選択が変わっても崩れないように）
         if (targetFrames && targetFrames.length) {
@@ -1976,12 +2025,29 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
                 // Open with the link off when the two differ, so the right value is not overwritten
                 if (Math.abs(leftIndentPt - rightIndentPt) > 0.01) { chkLinkIndents.value = false; }
             } catch (e) { }
-            // 未設定（禁則なし／文字組みなし）のときは初期値のまま。混在（-2）のときは未選択にして触らない
+            // 設定済みならその値を表示して適用対象にする（表示＝実際の設定なので、当ててもフレームは変わらない）。
+            // 未設定のときは、変換直後だけ初期値（DEFAULT_KINSOKU / DEFAULT_MOJIKUMI_INDEX）を当て、
+            // 既存フレームでは「なし」を表示して勝手に付けない。混在（-2）のときは未選択にして触らない。
+            // A value that is already set is shown and applied back (a no-op, but it carries over when separating).
+            // When nothing is set, the defaults apply to freshly converted frames only; existing frames show "None".
             var frameKinsoku = getKinsokuId(sourceFrame);
-            if (frameKinsoku !== "None") { selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", frameKinsoku); }
+            if (frameKinsoku !== "None") {
+                selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", frameKinsoku);
+                userTouched.kinsoku = true;
+            } else if (!isNewlyConverted) {
+                selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", "None");
+                userTouched.kinsoku = true;
+            }
             var frameMojikumi = getMojikumiIndex(sourceFrame);
-            if (frameMojikumi >= 0) { selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", frameMojikumi); }
-            else if (frameMojikumi === -2) { mojikumiDropdown.selection = null; }
+            if (frameMojikumi >= 0) {
+                selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", frameMojikumi);
+                userTouched.mojikumi = true;
+            } else if (frameMojikumi === -2) {
+                mojikumiDropdown.selection = null;
+            } else if (!isNewlyConverted) {
+                selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", -1);
+                userTouched.mojikumi = true;
+            }
 
             var leadingPercent = getAutoLeadingPercent(sourceFrame);
             etLeadingPercent.text = (leadingPercent > 0) ? Math.round(leadingPercent * 10) / 10 : "";
@@ -1994,16 +2060,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         function readAdjustmentSettings() {
             var leftIndentPt = (parseFloat(etLeftIndent.text) || 0) * rulerInfo.toPt;
 
+            // 幅/高さの検証はここで1回だけ行う（不正なら null にして書き込まない）
+            // Width and height are validated once here; null means the value is not written back
+            var widthValue = validateSizeField(etWidth, lastValidWidth);
+            var heightValue = validateSizeField(etHeight, lastValidHeight);
+            if (widthValue !== null) { lastValidWidth = widthValue; }
+            if (heightValue !== null) { lastValidHeight = heightValue; }
+
             return {
                 shrinkFont: (fontFitMode === "shrink"),
                 fitFont: (fontFitMode === "fit"),
                 autoSize: chkAutoSize.value,
                 tabMode: roleState.tabMode,
                 justification: getJustificationValue(justifyState.activeId),
-                alignment: getAlignmentValue(alignState.activeId),
+                alignment: userTouched.alignment ? getAlignmentValue(alignState.activeId) : null,
+                widthPt: (widthValue !== null) ? widthValue * rulerInfo.toPt : null,
+                heightPt: (heightValue !== null && userTouched.height) ? heightValue * rulerInfo.toPt : null,
                 leadingPercent: parseFloat(etLeadingPercent.text),
-                kinsoku: kinsokuDropdown.selection ? KINSOKU_CHOICES[kinsokuDropdown.selection.index].id : null,
-                mojikumiIndex: mojikumiDropdown.selection ? MOJIKUMI_CHOICES[mojikumiDropdown.selection.index].index : -2,
+                kinsoku: (userTouched.kinsoku && kinsokuDropdown.selection) ? KINSOKU_CHOICES[kinsokuDropdown.selection.index].id : null,
+                mojikumiIndex: (userTouched.mojikumi && mojikumiDropdown.selection) ? MOJIKUMI_CHOICES[mojikumiDropdown.selection.index].index : -2,
                 leftIndentPt: leftIndentPt,
                 rightIndentPt: chkLinkIndents.value ? leftIndentPt
                     : ((parseFloat(etRightIndent.text) || 0) * rulerInfo.toPt),
@@ -2013,17 +2088,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         /* エリア内文字のフレームサイズ・行揃え・配置などを適用する / Apply frame size, justification and placement to Area Type */
         function adjustAreaTextFrame(areaTextFrame, settings, forPreview) {
-            // 幅/高さ：NaN・0以下・極端値をガード
-            var widthValue = validateSizeField(etWidth, lastValidWidth);
-            var heightValue = validateSizeField(etHeight, lastValidHeight);
-            if (widthValue !== null) { lastValidWidth = widthValue; }
-            if (heightValue !== null) { lastValidHeight = heightValue; }
             try {
                 areaTextFrame.spacing = settings.spacingPt;
-                if (widthValue !== null) { areaTextFrame.textPath.width = widthValue * rulerInfo.toPt; }
+                if (settings.widthPt !== null) { areaTextFrame.textPath.width = settings.widthPt; }
                 // 自動サイズ調整ONのあいだは枠が文字に追従するので、高さには触らない
                 // While auto-size is on the frame follows the text, so the height is left alone
-                if (heightValue !== null && !settings.autoSize) { areaTextFrame.textPath.height = heightValue * rulerInfo.toPt; }
+                if (settings.heightPt !== null && !settings.autoSize) { areaTextFrame.textPath.height = settings.heightPt; }
             } catch (e) { }
 
             if (settings.shrinkFont) { shrinkFontToFit(areaTextFrame); }
@@ -2043,7 +2113,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             // 固定ターゲットを優先して、プレビューが確実に反映されるようにする
             var savedSelection = [];
             var previousSelection = app.activeDocument.selection;
-            for (var i = 0; i < previousSelection.length; i++) { savedSelection.push(previousSelection[i]); }
+            for (var savedIndex = 0; savedIndex < previousSelection.length; savedIndex++) { savedSelection.push(previousSelection[savedIndex]); }
             var framesToAdjust = getTargetAreaFrames();
 
             for (var i = framesToAdjust.length - 1; i >= 0; i--) {
@@ -2060,7 +2130,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         /* 適用中のプレビューを取り消して未適用の状態に戻す / Revert the active preview back to the unapplied state */
         function revertPreview() {
             if (!isPreviewActive) return;
-            try { app.undo(); } catch (e) { }
+            // undo に失敗したときはプレビューが残るので、フラグを倒さず次の機会にやり直す
+            // A failed undo leaves the preview in place, so the flag stays up for the next attempt
+            try { app.undo(); } catch (e) { return; }
             try { app.redraw(); } catch (e2) { }
             isPreviewActive = false;
 
@@ -2123,7 +2195,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         function runActionOnTargetFrames(runOnFrame) {
             var framesToAdjust = getTargetAreaFrames();
             var restoreSelection = [];
-            for (var i = 0; i < framesToAdjust.length; i++) { restoreSelection.push(framesToAdjust[i]); }
+            for (var restoreIndex = 0; restoreIndex < framesToAdjust.length; restoreIndex++) { restoreSelection.push(framesToAdjust[restoreIndex]); }
 
             for (var i = 0; i < framesToAdjust.length; i++) {
                 var frame = framesToAdjust[i];
@@ -2182,6 +2254,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             updateCharsPerLineField();
             updatePreview();
         }
+        /* 高さの変更を検証してプレビューを更新する（以後、高さを枠へ書き戻す対象にする）
+           Validate a height change and refresh the preview (the height is written back from now on) */
+        function onHeightChange() {
+            var heightValue = validateSizeField(etHeight, lastValidHeight);
+            if (heightValue !== null) { lastValidHeight = heightValue; }
+            userTouched.height = true;
+            updatePreview();
+        }
         /* 1行の文字数から幅を逆算する / Work the width back out from the characters-per-line value */
         function onCharsPerLineChange() {
             if (currentFontSize > 0) {
@@ -2232,6 +2312,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         for (var alignButtonIndex = 0; alignButtonIndex < alignButtons.length; alignButtonIndex++) {
             alignButtons[alignButtonIndex].onClick = function () {
                 alignState.activeId = this.alignId;
+                userTouched.alignment = true;
                 redrawAlignButtons();
                 // プレビューを外してから本適用し、あらためてプレビューを貼り直す
                 revertPreview();
@@ -2253,6 +2334,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
             selectChoiceByValue(kinsokuDropdown, KINSOKU_CHOICES, "id", preset.kinsoku);
             selectChoiceByValue(mojikumiDropdown, MOJIKUMI_CHOICES, "index", preset.mojikumiIndex);
             alignState.activeId = preset.alignId;
+            // 種別はまとめて指定するものなので、関係する項目をすべて適用対象にする
+            userTouched.alignment = true;
+            userTouched.kinsoku = true;
+            userTouched.mojikumi = true;
             redrawAlignButtons();
 
             // テキストの配置はアクションで適用するため、プレビューを外した状態で流す
@@ -2326,8 +2411,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
 
         btnShrinkToFit.onClick = function () { runFontFit("shrink"); };
         btnFitFontSize.onClick = function () { runFontFit("fit"); };
-        kinsokuDropdown.onChange = updatePreview;
-        mojikumiDropdown.onChange = updatePreview;
+        kinsokuDropdown.onChange = function () {
+            userTouched.kinsoku = true;
+            updatePreview();
+        };
+        mojikumiDropdown.onChange = function () {
+            userTouched.mojikumi = true;
+            updatePreview();
+        };
         chkAutoSize.onClick = function () {
             updateHeightEnabled();
             // プレビューを外してから ON/OFF を本適用し、あらためてプレビューを貼り直す
@@ -2354,11 +2445,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         etLeadingEffective.onChange = onLeadingEffectiveChange;
         etSpacing.onChange = onIndentOrSpacingChange;
         etWidth.onChange = onWidthChange;
-        etHeight.onChange = function () {
-            var heightValue = validateSizeField(etHeight, lastValidHeight);
-            if (heightValue !== null) { lastValidHeight = heightValue; }
-            updatePreview();
-        };
+        etHeight.onChange = onHeightChange;
         etCharsPerLine.onChange = onCharsPerLineChange;
         etLeftIndent.onChange = onIndentOrSpacingChange;
         etRightIndent.onChange = onIndentOrSpacingChange;
@@ -2367,7 +2454,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         changeValueByArrowKey(etLeadingEffective, false, onLeadingEffectiveChange);
         changeValueByArrowKey(etSpacing, false, onIndentOrSpacingChange);
         changeValueByArrowKey(etWidth, false, onWidthChange);
-        changeValueByArrowKey(etHeight, false, updatePreview);
+        changeValueByArrowKey(etHeight, false, onHeightChange);
         changeValueByArrowKey(etCharsPerLine, false, onCharsPerLineChange);
         changeValueByArrowKey(etLeftIndent, false, onIndentOrSpacingChange);
         changeValueByArrowKey(etRightIndent, false, onIndentOrSpacingChange);
@@ -2459,9 +2546,9 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nfd6cc5e13654"; /* 紹�
         } else if (hasAreaText) {
             // エリア内文字のみ → 調整ダイアログ / Area text only → adjust dialog
             var firstAreaFrame = null;
-            for (var i = 0; i < selection.length; i++) {
-                if (selection[i].typename === "TextFrame" && selection[i].kind === TextType.AREATEXT) {
-                    firstAreaFrame = selection[i];
+            for (var areaIndex = 0; areaIndex < selection.length; areaIndex++) {
+                if (selection[areaIndex].typename === "TextFrame" && selection[areaIndex].kind === TextType.AREATEXT) {
+                    firstAreaFrame = selection[areaIndex];
                     break;
                 }
             }
