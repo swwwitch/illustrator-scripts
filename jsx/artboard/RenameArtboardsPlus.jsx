@@ -63,6 +63,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
             prefix:  { ja: "接頭辞", en: "Prefix" },
             name:    { ja: "アートボード名と番号", en: "Artboard Name & Number" },
             suffix:  { ja: "接尾辞", en: "Suffix" },
+            preset:  { ja: "プリセット", en: "Preset" },
             preview: { ja: "プレビュー", en: "Preview" }
         },
         fieldLabel: {
@@ -105,7 +106,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
         button: {
             ok:           { ja: "OK", en: "OK" },
             cancel:       { ja: "キャンセル", en: "Cancel" },
-            exportPreset: { ja: "プリセット書き出し", en: "Export Preset" }
+            exportPreset: { ja: "書き出し", en: "Export" }
         },
         alert: {
             title:        { ja: "エラー", en: "Error" },
@@ -210,7 +211,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     /**
      * 行グループの共通設定（ボタン列など）
      * @param {Object} group - 対象のグループ
-     * @param {string} [alignment] - グループ自体の配置（省略時は "left"）
+     * @param {string|Array} [alignment] - グループ自体の配置（省略時は "left"）。行の中で左右に寄せるときは ["right", "center"] のように2軸で指定する
      * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
@@ -253,7 +254,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     var DEFAULT_START_VALUES = { numeric: "1", alphaUpper: "A", alphaLower: "a" };
 
     /* プレビューに表示する最大件数 / Maximum number of preview rows */
-    var PREVIEW_MAX_ROWS = 15;
+    var PREVIEW_MAX_ROWS = 18;
 
     /* プリセットに保存する項目（label 以外。書き出し時の並び順になる）
        Preset fields other than label (the array order is the export order) */
@@ -591,33 +592,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     }
 
     /**
-     * プリセット選択行を構築する
-     * @param {Object} parentGroup - 追加先のグループ
-     * @returns {Object} presetDropdown / exportPresetButton を持つオブジェクト
-     */
-    function buildPresetRow(parentGroup) {
-        var presetRowGroup = parentGroup.add("group");
-        setupRow(presetRowGroup, "left");
-
-        var presetItemLabels = [getLabel("preset", "none")];
-        for (var i = 0; i < BUILTIN_NAMING_PRESETS.length; i++) {
-            presetItemLabels.push(BUILTIN_NAMING_PRESETS[i].label);
-        }
-
-        var presetDropdown = presetRowGroup.add("dropdownlist", undefined, presetItemLabels);
-        presetDropdown.selection = 0;
-
-        /* ボタンは行幅いっぱいに広げない / Keep the button at its natural width */
-        var exportPresetButton = presetRowGroup.add("button", undefined, getLabel("button", "exportPreset"));
-        exportPresetButton.alignment = "left";
-
-        return {
-            presetDropdown: presetDropdown,
-            exportPresetButton: exportPresetButton
-        };
-    }
-
-    /**
      * 接頭辞パネルを構築する
      * @param {Object} parentGroup - 追加先のグループ
      * @returns {Object} useFilenameRadios / prefixSeparatorRadios / prefixTextInput を持つオブジェクト
@@ -688,6 +662,35 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     }
 
     /**
+     * プリセットパネル（プリセット選択・書き出し）を構築する
+     * @param {Object} parentGroup - 追加先のグループ
+     * @returns {Object} presetDropdown / exportPresetButton を持つオブジェクト
+     */
+    function buildPresetPanel(parentGroup) {
+        var presetPanel = addPanel(parentGroup, getLabel("panel", "preset"), FIELD_SPACING);
+
+        var presetRowGroup = presetPanel.add("group");
+        setupRow(presetRowGroup, "left");
+
+        var presetItemLabels = [getLabel("preset", "none")];
+        for (var i = 0; i < BUILTIN_NAMING_PRESETS.length; i++) {
+            presetItemLabels.push(BUILTIN_NAMING_PRESETS[i].label);
+        }
+
+        var presetDropdown = presetRowGroup.add("dropdownlist", undefined, presetItemLabels);
+        presetDropdown.selection = 0;
+
+        /* ボタンは行幅いっぱいに広げない / Keep the button at its natural width */
+        var exportPresetButton = presetRowGroup.add("button", undefined, getLabel("button", "exportPreset"));
+        exportPresetButton.alignment = "left";
+
+        return {
+            presetDropdown: presetDropdown,
+            exportPresetButton: exportPresetButton
+        };
+    }
+
+    /**
      * プレビューパネルを構築する
      * @param {Object} parentGroup - 追加先のグループ
      * @returns {ListBox} プレビュー用のリストボックス
@@ -695,7 +698,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     function buildPreviewPanel(parentGroup) {
         var previewPanel = addPanel(parentGroup, getLabel("panel", "preview"));
         previewPanel.preferredSize.width = 250;
-        previewPanel.preferredSize.height = 380;
+        previewPanel.preferredSize.height = 440;
 
         var previewListBox = previewPanel.add("listbox", undefined, [], {
             multiselect: false,
@@ -708,28 +711,32 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
     }
 
     /**
-     * ダイアログ下部のボタン行を構築する（左にキャンセル、右にOK）
+     * ダイアログ下部のボタン行を構築する（左端にキャンセル、右端にOK）
      * @param {Window} parentWindow - 追加先のダイアログ
      * @returns {Button} OKボタン
      */
     function buildDialogButtonRow(parentWindow) {
         var dialogButtonRow = parentWindow.add("group");
         dialogButtonRow.orientation = "row";
+        dialogButtonRow.alignment = ["fill", "bottom"]; /* 行をダイアログ幅いっぱいに / Stretch the row to the dialog width */
         dialogButtonRow.alignChildren = ["fill", "center"];
         dialogButtonRow.spacing = 0;
 
-        /* alignChildren の "fill" がボタン自体を伸ばさないよう、それぞれグループで包む
-           Wrap each button in a group so the row's "fill" does not stretch the button */
+        /* alignChildren の "fill" がボタン自体を伸ばさないよう、それぞれグループで包む。
+           配置は必ず2軸で指定する（"left" だけだと "fill" のままになり、余白が両端に分配される）
+           Wrap each button in a group so the row's "fill" does not stretch the button.
+           Always give both axes: a bare "left" leaves the horizontal axis on "fill" and the slack gets shared */
         var cancelButtonGroup = dialogButtonRow.add("group");
-        setupRow(cancelButtonGroup, "left");
+        setupRow(cancelButtonGroup, ["left", "center"]);
         cancelButtonGroup.add("button", undefined, getLabel("button", "cancel"), { name: "cancel" });
 
+        /* 余白グループだけを伸ばし、OKボタンを右端に固定する / Only the spacer stretches, pinning OK to the right edge */
         var buttonSpacer = dialogButtonRow.add("group");
         buttonSpacer.alignment = ["fill", "fill"];
         buttonSpacer.minimumSize.width = 50;
 
         var okButtonGroup = dialogButtonRow.add("group");
-        setupRow(okButtonGroup, "right");
+        setupRow(okButtonGroup, ["right", "center"]);
         return okButtonGroup.add("button", undefined, getLabel("button", "ok"), { name: "ok" });
     }
 
@@ -737,10 +744,10 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
      * ダイアログ本体とすべてのコントロールを構築する
      * @typedef {Object} DialogUI
      * @property {Window} dialog - ダイアログ本体
-     * @property {Object} preset - プリセット行のコントロール
      * @property {Object} prefix - 接頭辞パネルのコントロール
      * @property {DropDownList} nameStyleDropdown - アートボード名スタイルのドロップダウン
      * @property {Object} suffix - 接尾辞パネルのコントロール
+     * @property {Object} preset - プリセットパネルのコントロール
      * @property {ListBox} previewListBox - プレビュー用のリストボックス
      * @property {Button} okButton - OKボタン
      *
@@ -760,12 +767,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹�
         settingsColumnGroup.alignChildren = ["fill", "top"];
         settingsColumnGroup.spacing = PANEL_SPACING;
 
+        /* プロパティの評価順がそのままUIの並び順になる / Property evaluation order is the on-screen order */
         return {
             dialog: renameDialog,
-            preset: buildPresetRow(settingsColumnGroup),
             prefix: buildPrefixPanel(settingsColumnGroup),
             nameStyleDropdown: buildNameStylePanel(settingsColumnGroup),
             suffix: buildSuffixPanel(settingsColumnGroup),
+            preset: buildPresetPanel(settingsColumnGroup),
             previewListBox: buildPreviewPanel(dialogBodyRow),
             okButton: buildDialogButtonRow(renameDialog)
         };
