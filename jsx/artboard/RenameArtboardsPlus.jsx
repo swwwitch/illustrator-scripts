@@ -3,130 +3,267 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名 / Script Name
+### 概要
 
-RenameArtboardsPlus.jsx
+接頭辞・接尾辞・元のアートボード名・連番を組み合わせて、アートボード名を一括で変更するツール。プレビューで結果を確認してから適用でき、命名ルールはプリセットとして書き出せる。
 
-### 概要 / Overview
-
-- アートボード名を一括で柔軟に変更できるIllustrator用スクリプトです。
-- 接頭辞・接尾辞・ファイル名・連番・元アートボード名を自由に組み合わせて、高度な命名ルールを実現できます。
-- A script to flexibly batch rename artboards in Illustrator.
-- Combine prefixes, suffixes, file name, numbers, and original artboard names to create advanced naming rules.
-
-### 主な機能 / Main Features
-
-- 接頭辞・接尾辞・元アートボード名の有無を選択可能 / Freely choose whether to include prefix, suffix, or original artboard name
-- ファイル名参照、区切り文字設定、プリセット保存／選択対応 / File name reference, separator settings, preset save/load
-- 連番形式（数字、大文字アルファベット、小文字アルファベット）選択 / Numbering formats: number, uppercase alphabet, lowercase alphabet
-- 開始番号に基づく桁数（ゼロ埋め）の自動判定 / Auto-detect padding digits based on start number
-- プレビュー機能で変更結果を事前確認 / Preview before applying
-- 最大15件のプレビュー表示 / Up to 15 preview items
-- ExtendScript（ES3）互換 / Compatible with ExtendScript (ES3)
-
-### 更新履歴 / Update History
-
-- v1.0 (20250420): 初期バージョン / Initial version
-- v1.1 (20250430): 開始番号から桁数自動判定追加、プリセットラベル簡素化、ES3対応強化 / Auto-pad detection, simplified preset labels, ES3 hardening
-- v1.2.0 (20260507): ローカライズ刷新（L/labelText/labelWithCount）、内部キー化で英語ロケール対応、連番形式に「なし」追加、適用ボタン削除、main()をUIビルダー/プリセットI/O/純粋関数に分割 / Localization overhaul (L/labelText/labelWithCount), key-based internals for EN locale support, "none" numbering format, removed Apply button, split main() into UI builders / preset I/O / pure helpers
+詳細はREADMEを参照。
 
 */
+
+/*
+
+### Overview
+
+Batch renames artboards by combining prefixes, suffixes, the original artboard name, and sequential numbering. The result can be checked in the preview before applying, and naming rules can be exported as presets.
+
+See the README for details.
+
+*/
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "RenameArtboardsPlus";          /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2025-04-20";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-06";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/RenameArtboardsPlus.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/RenameArtboardsPlus.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n80f9534bc6fb"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // =========================================
-    // バージョンとローカライズ / Version & Localization
+    // ローカライズ / Localization
     // =========================================
 
-    var SCRIPT_VERSION = "v1.3.0";
-
-    /* 現在のロケール判定 / Detect current locale */
-    function getCurrentLang() {
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var lang = getCurrentLang();
+    var uiLang = getUILanguage();
 
     /* 日英ラベル定義 / Japanese-English label definitions */
     var LABELS = {
-        dialogTitle: { ja: "アートボード名の一括設定", en: "Batch Rename Artboards" },
-        prefixPanel: { ja: "接頭辞", en: "Prefix" },
-        fileName: { ja: "ファイル名", en: "File Name" },
-        useFileNo: { ja: "参照しない", en: "Do not use" },
-        useFileYes: { ja: "参照する", en: "Use" },
-        separator: { ja: "区切り文字", en: "Separator" },
-        string: { ja: "文字列", en: "String" },
-        namePanel: { ja: "アートボード名と番号", en: "Artboard Name & Number" },
-        suffixPanel: { ja: "接尾辞", en: "Suffix" },
-        format: { ja: "連番形式", en: "Numbering Format" },
-        startNumber: { ja: "開始番号", en: "Start Number" },
-        increment: { ja: "増分", en: "Increment" },
-        preview: { ja: "プレビュー", en: "Preview" },
-        cancel: { ja: "キャンセル", en: "Cancel" },
-        ok: { ja: "OK", en: "OK" },
-        savePreset: { ja: "プリセット書き出し", en: "Export Preset" },
-        presetNone: { ja: "(未選択)", en: "(None)" },
-        none: { ja: "なし", en: "None" },
-        number: { ja: "番号", en: "Number" },
-        name: { ja: "名称", en: "Name" },
-        numberDashName: { ja: "番号-名称", en: "Number-Name" },
-        numberUnderscoreName: { ja: "番号_名称", en: "Number_Name" },
-        numeric: { ja: "数字", en: "Number" },
-        alphaUpper: { ja: "アルファベット（大文字）", en: "Alphabet (Upper)" },
-        alphaLower: { ja: "アルファベット（小文字）", en: "Alphabet (Lower)" },
-        previewInvalid: { ja: "※数値が正しくありません", en: "※ Invalid number" },
-        previewTruncated: { ja: "...（以下省略）", en: "... (more)" },
-        presetSavePrompt: {
-            ja: "プリセットを書き出す場所と名前を指定してください",
-            en: "Specify the location and name to export the preset"
+        dialog: {
+            title: { ja: "アートボード名の一括設定", en: "Batch Rename Artboards" }
         },
-        errorTitle: { ja: "エラー", en: "Error" },
-        errorInput: {
-            ja: "入力内容に誤りがあります。\n正しい数値を指定してください。",
-            en: "There is an error in your input.\nPlease enter valid numbers."
+        panel: {
+            prefix:  { ja: "接頭辞", en: "Prefix" },
+            name:    { ja: "アートボード名と番号", en: "Artboard Name & Number" },
+            suffix:  { ja: "接尾辞", en: "Suffix" },
+            preview: { ja: "プレビュー", en: "Preview" }
         },
-        errorEmptyName: {
-            ja: "アートボード名が空になります。\n接頭辞・名称・接尾辞・連番のいずれかを指定してください。",
-            en: "Artboard name would be empty.\nSpecify at least one of prefix, name, suffix, or numbering."
+        fieldLabel: {
+            fileName:    { ja: "ファイル名", en: "File Name" },
+            separator:   { ja: "区切り文字", en: "Separator" },
+            string:      { ja: "文字列", en: "String" },
+            format:      { ja: "連番形式", en: "Numbering Format" },
+            startNumber: { ja: "開始番号", en: "Start Number" },
+            increment:   { ja: "増分", en: "Increment" }
         },
-        exportSuccess: { ja: "プリセットを書き出しました：\n", en: "Preset exported:\n" },
-        exportFailed: { ja: "ファイルを書き込めませんでした。", en: "Could not write the file." },
-        exportError: { ja: "プリセットの保存に失敗しました：\n", en: "Failed to save preset:\n" },
-        generalError: { ja: "エラーが発生しました：\n", en: "An error occurred:\n" }
+        radio: {
+            useFileNo:     { ja: "参照しない", en: "Do not use" },
+            useFileYes:    { ja: "参照する", en: "Use" },
+            separatorNone: { ja: "なし", en: "None" }
+        },
+        nameStyle: {
+            none:                 { ja: "なし", en: "None" },
+            number:               { ja: "番号", en: "Number" },
+            name:                 { ja: "名称", en: "Name" },
+            numberDashName:       { ja: "番号-名称", en: "Number-Name" },
+            numberUnderscoreName: { ja: "番号_名称", en: "Number_Name" }
+        },
+        numberingFormat: {
+            none:       { ja: "なし", en: "None" },
+            numeric:    { ja: "数字", en: "Number" },
+            alphaUpper: { ja: "アルファベット（大文字）", en: "Alphabet (Upper)" },
+            alphaLower: { ja: "アルファベット（小文字）", en: "Alphabet (Lower)" }
+        },
+        preset: {
+            none: { ja: "(未選択)", en: "(None)" },
+            savePrompt: {
+                ja: "プリセットを書き出す場所と名前を指定してください",
+                en: "Specify the location and name to export the preset"
+            }
+        },
+        preview: {
+            invalid:   { ja: "※数値が正しくありません", en: "※ Invalid number" },
+            truncated: { ja: "...（以下省略）", en: "... (more)" }
+        },
+        button: {
+            ok:           { ja: "OK", en: "OK" },
+            cancel:       { ja: "キャンセル", en: "Cancel" },
+            exportPreset: { ja: "プリセット書き出し", en: "Export Preset" }
+        },
+        alert: {
+            title:        { ja: "エラー", en: "Error" },
+            exportFailed: { ja: "ファイルを書き込めませんでした。", en: "Could not write the file." },
+            exportSuccess: {
+                ja: "プリセットを書き出しました：\n",
+                en: "Preset exported:\n"
+            },
+            exportError: {
+                ja: "プリセットの保存に失敗しました：\n",
+                en: "Failed to save preset:\n"
+            },
+            generalError: {
+                ja: "エラーが発生しました：\n",
+                en: "An error occurred:\n"
+            },
+            invalidInput: {
+                ja: "入力内容に誤りがあります。\n正しい数値を指定してください。",
+                en: "There is an error in your input.\nPlease enter valid numbers."
+            },
+            emptyName: {
+                ja: "アートボード名が空になります。\n接頭辞・名称・接尾辞・連番のいずれかを指定してください。",
+                en: "Artboard name would be empty.\nSpecify at least one of prefix, name, suffix, or numbering."
+            }
+        }
     };
 
-    /* ラベル取得 / Get label */
-    function L(key) {
-        return (LABELS[key] && LABELS[key][lang]) ? LABELS[key][lang] : key;
-    }
-
-    /* コロン付きラベル（日本語は全角、英語は半角）/ Label with colon (full-width JA, half-width EN) */
-    function labelText(key) {
-        return L(key) + (lang === 'ja' ? '：' : ':');
-    }
-
-    /* 件数付きラベル（日本語は全角括弧、英語は半角括弧）/ Label with count (full-width JA parentheses, half-width EN parentheses) */
-    function labelWithCount(key, count) {
-        if (lang === "ja") {
-            return L(key) + "（" + count + "）";
+    /**
+     * LABELS をカテゴリ・キーの順にたどってラベルを取得する
+     * @param {...string} labelPath - たどるキー（例: getLabel("dialog", "title")）
+     * @returns {string} ローカライズされた文字列（見つからなければ空文字）
+     */
+    function getLabel() {
+        var node = LABELS;
+        for (var i = 0; i < arguments.length; i++) {
+            if (node == null) break;
+            node = node[arguments[i]];
         }
-        return L(key) + " (" + count + ")";
+        return (node && node[uiLang] != null) ? node[uiLang] : "";
+    }
+
+    /**
+     * 入力欄の見出しをコロン付きで取得する（日本語は全角、英語は半角）
+     * @param {string} labelKey - LABELS.fieldLabel のキー
+     * @returns {string} コロンを付けたラベル
+     */
+    function getFieldLabel(labelKey) {
+        return getLabel("fieldLabel", labelKey) + (uiLang === "ja" ? "：" : ":");
+    }
+
+    /**
+     * キー配列をローカライズ済みのドロップダウン項目に変換する
+     * @param {string} categoryName - LABELS のカテゴリ名
+     * @param {string[]} labelKeys - カテゴリ内のキーを表示順に並べた配列
+     * @returns {string[]} 表示用ラベルの配列
+     */
+    function toLabelList(categoryName, labelKeys) {
+        var labels = [];
+        for (var i = 0; i < labelKeys.length; i++) labels.push(getLabel(categoryName, labelKeys[i]));
+        return labels;
+    }
+
+    // =========================================
+    // UIレイアウトの共通設定 / Shared UI layout
+    // =========================================
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+    var FIELD_SPACING  = 6;                  /* 入力欄が並ぶパネル内の間隔 / spacing inside input-heavy panels */
+
+    /**
+     * ウィンドウの共通設定
+     * @param {Window} win - 対象のウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(win, spacing) {
+        win.orientation = "column";
+        win.alignChildren = "fill";
+        win.margins = WINDOW_MARGINS;
+        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定
+     * @param {Object} panel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * 行グループの共通設定（ボタン列など）
+     * @param {Object} group - 対象のグループ
+     * @param {string} [alignment] - グループ自体の配置（省略時は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(group, alignment, spacing) {
+        group.orientation = "row";
+        group.alignment = alignment || "left";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * ラベル付きパネルを生成する（共通レイアウト適用）
+     * @param {Object} parentGroup - 追加先のグループ
+     * @param {string} panelTitle - パネル見出し
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {Object} 追加したパネル
+     */
+    function addPanel(parentGroup, panelTitle, spacing) {
+        var panel = parentGroup.add("panel");
+        panel.text = panelTitle;
+        setupPanel(panel, spacing);
+        return panel;
     }
 
     // =========================================
     // 定数 / Constants
     // =========================================
 
-    /* 連番形式キー（dropdown の表示順と対応、"none" は連番なし）/ Numbering format keys (matches dropdown order; "none" means no number) */
-    var FORMAT_KEYS = ["none", "numeric", "alphaUpper", "alphaLower"];
+    /* 連番形式キー（LABELS.numberingFormat のキーを兼ね、dropdown の表示順になる。"none" は連番なし）
+       Numbering format keys (also LABELS.numberingFormat keys; the array order is the dropdown order) */
+    var NUMBERING_FORMAT_KEYS = ["none", "numeric", "alphaUpper", "alphaLower"];
 
-    /* アートボード名スタイルキー（dropdown の表示順と対応）/ Artboard name style keys (matches dropdown order) */
-    var NAME_STYLE_KEYS = ["none", "number", "name", "numberDashName", "numberUnderscoreName"];
+    /* アートボード名スタイルキー（LABELS.nameStyle のキーを兼ね、dropdown の表示順になる）
+       Artboard name style keys (also LABELS.nameStyle keys; the array order is the dropdown order) */
+    var ARTBOARD_NAME_STYLE_KEYS = ["none", "number", "name", "numberDashName", "numberUnderscoreName"];
 
-    /* 連番形式変更時の開始値デフォルト / Default start value per format */
-    var START_DEFAULTS = { numeric: "1", alphaUpper: "A", alphaLower: "a" };
+    /* 区切り文字の候補（ラジオボタンの並び順になる）/ Separator choices (the array order is the radio button order) */
+    var SEPARATOR_VALUES = ["", "-", "_"];
+
+    /* 連番形式ごとの開始値デフォルト / Default start value per numbering format */
+    var DEFAULT_START_VALUES = { numeric: "1", alphaUpper: "A", alphaLower: "a" };
+
+    /* プレビューに表示する最大件数 / Maximum number of preview rows */
+    var PREVIEW_MAX_ROWS = 15;
+
+    /* プリセットに保存する項目（label 以外。書き出し時の並び順になる）
+       Preset fields other than label (the array order is the export order) */
+    var PRESET_KEYS = [
+        "useFilename", "prefixSeparator", "prefix", "nameStyleKey",
+        "separator", "formatKey", "start", "increment", "suffix"
+    ];
 
     /* 内蔵プリセット定義（label はローカライズしない固定文字列）/ Built-in presets (label is a fixed, non-localized string) */
-    var BUILTIN_PRESETS = [
+    var BUILTIN_NAMING_PRESETS = [
         {
             label: "ファイル名+連番3",
             useFilename: true,
@@ -157,536 +294,766 @@ RenameArtboardsPlus.jsx
     // 補助関数群 / Helper functions
     // =========================================
 
-    /* 数字をゼロ埋め / Zero-pad a number */
-    function padNumber(num, length) {
-        var str = String(num);
-        while (str.length < length) str = "0" + str;
-        return str;
+    /**
+     * 数値をゼロ埋めした文字列にする
+     * @param {number} value - 対象の数値
+     * @param {number} digits - 最低桁数
+     * @returns {string} ゼロ埋めした文字列
+     */
+    function padNumberWithZeros(value, digits) {
+        var text = String(value);
+        while (text.length < digits) text = "0" + text;
+        return text;
     }
 
-    /* インデックスからアルファベットラベルを生成 / Generate alpha label from index */
-    function getAlphaLabel(index, isLower) {
+    /**
+     * 0始まりインデックスからアルファベットラベルを生成する（A, B, ... Z, AA, AB, ...）
+     * @param {number} index - 0始まりのインデックス
+     * @param {boolean} useLowercase - 小文字で返すかどうか
+     * @returns {string} アルファベットラベル
+     */
+    function buildAlphaLabel(index, useLowercase) {
         var label = "";
         while (index >= 0) {
             label = String.fromCharCode((index % 26) + 65) + label;
             index = Math.floor(index / 26) - 1;
         }
-        return isLower ? label.toLowerCase() : label;
+        return useLowercase ? label.toLowerCase() : label;
     }
 
-    /* アルファベット文字列を1始まりインデックスに変換 / Convert alpha string to 1-based index */
-    function getAlphaIndex(str) {
-        str = str.toUpperCase();
+    /**
+     * アルファベット文字列を1始まりのインデックスに変換する
+     * @param {string} alphaText - "A" や "ab" などのアルファベット文字列
+     * @returns {number} 1始まりのインデックス（アルファベット以外を含む場合は NaN）
+     */
+    function getIndexFromAlphaLabel(alphaText) {
+        var upperText = alphaText.toUpperCase();
         var total = 0;
-        for (var i = 0; i < str.length; i++) {
-            var code = str.charCodeAt(i);
-            if (code < 65 || code > 90) return NaN;
-            total = total * 26 + (code - 64);
+        for (var i = 0; i < upperText.length; i++) {
+            var charCode = upperText.charCodeAt(i);
+            if (charCode < 65 || charCode > 90) return NaN;
+            total = total * 26 + (charCode - 64);
         }
         return total;
     }
 
-    /* 開始値文字列の桁数を取得（数字のみ、ゼロ埋め判定用）/ Pad length from start string */
-    function getPadLengthFromStart(str) {
-        if (/^\d+$/.test(str)) return str.length;
-        return 0;
+    /**
+     * 前後の空白を取り除く（ES3 には String#trim がないため）
+     * @param {string} text - 対象の文字列
+     * @returns {string} 前後の空白を除いた文字列
+     */
+    function trimText(text) {
+        return String(text).replace(/^\s+|\s+$/g, "");
     }
 
-    /* キー配列から一致インデックスを返す / Find index of value in key array */
-    function indexOfKey(arr, val) {
-        for (var i = 0; i < arr.length; i++) if (arr[i] === val) return i;
+    /**
+     * 数字だけで構成された文字列を整数に変換する（"1あ" のような入力を弾く）
+     * @param {string} text - 入力文字列（前後の空白は除去済みであること）
+     * @returns {number} 変換した整数、数字以外を含む場合は NaN
+     */
+    function parseDigitsOnly(text) {
+        if (!/^\d+$/.test(text)) return NaN;
+        return parseInt(text, 10);
+    }
+
+    /**
+     * 開始番号の入力文字列からゼロ埋め桁数を求める
+     * @param {string} startText - 開始番号の入力文字列（前後の空白は除去済みであること）
+     * @returns {number} 数字のみなら文字数、それ以外は 0
+     */
+    function getPadDigitsFromStartText(startText) {
+        return isNaN(parseDigitsOnly(startText)) ? 0 : startText.length;
+    }
+
+    /**
+     * キー配列から一致するインデックスを返す（ES3 には Array#indexOf がないため）
+     * @param {string[]} keys - 検索対象のキー配列
+     * @param {string} targetKey - 探すキー
+     * @returns {number} 見つかったインデックス、なければ -1
+     */
+    function findKeyIndex(keys, targetKey) {
+        for (var i = 0; i < keys.length; i++) if (keys[i] === targetKey) return i;
         return -1;
     }
 
-    /* 区切り文字グループに各ラジオの値を関連付け（ラジオ配列順序への依存を排除）
-       Attach the separator value to each radio so callers don't depend on array order */
-    function tagSeparatorRadios(radios, values) {
-        for (var i = 0; i < radios.length; i++) radios[i]._separator = values[i];
+    /**
+     * ドロップダウンの選択位置に対応するキーを取得する
+     * @param {DropDownList} dropdown - 対象のドロップダウン
+     * @param {string[]} keys - 表示順に並んだキー配列
+     * @returns {string} 選択中のキー
+     */
+    function getSelectedKey(dropdown, keys) {
+        return keys[dropdown.selection.index];
     }
 
-    /* ラジオボタン群から選択中の区切り文字を取得 / Get separator string from radio group */
-    function getSeparator(radios) {
-        for (var i = 0; i < radios.length; i++) {
-            if (radios[i].value) return radios[i]._separator;
+    /**
+     * 区切り文字ラジオ群から選択中の区切り文字を取得する
+     * @param {Array<RadioButton>} separatorRadios - 区切り文字のラジオボタン群
+     * @returns {string} 選択中の区切り文字（未選択なら空文字）
+     */
+    function getSelectedSeparator(separatorRadios) {
+        for (var i = 0; i < separatorRadios.length; i++) {
+            if (separatorRadios[i].value) return separatorRadios[i]._separator;
         }
         return "";
     }
 
-    /* 区切り文字値からラジオボタンの状態を設定 / Set radio state from separator value */
-    function setSeparatorRadios(radios, value) {
-        for (var i = 0; i < radios.length; i++) {
-            radios[i].value = (radios[i]._separator === value);
+    /**
+     * 区切り文字の値からラジオボタンの選択状態を設定する
+     * @param {Array<RadioButton>} separatorRadios - 区切り文字のラジオボタン群
+     * @param {string} separatorValue - 選択したい区切り文字
+     * @returns {void}
+     */
+    function selectSeparatorRadio(separatorRadios, separatorValue) {
+        for (var i = 0; i < separatorRadios.length; i++) {
+            separatorRadios[i].value = (separatorRadios[i]._separator === separatorValue);
         }
     }
 
-    /* 配列要素にイベントハンドラを一括バインド / Bind handler to all elements */
-    function bindAll(elements, eventName, handler) {
-        for (var i = 0; i < elements.length; i++) {
-            elements[i][eventName] = handler;
-        }
+    /**
+     * 複数のコントロールに同じイベントハンドラを割り当てる
+     * @param {Array<Object>} controls - ScriptUI コントロールの配列
+     * @param {string} eventName - "onClick" などのイベント名
+     * @param {function} handler - 割り当てるハンドラ
+     * @returns {void}
+     */
+    function bindEventToAll(controls, eventName, handler) {
+        for (var i = 0; i < controls.length; i++) controls[i][eventName] = handler;
     }
 
-    /* 名称コンポーネントを構築（番号・名称・組み合わせ）/ Build name component by style key */
-    function getNameComponent(index, nameStyleKey, originalNames) {
-        var abNum = (index + 1).toString();
-        var abName = originalNames[index];
+    /**
+     * 複数のコントロールの活性状態をまとめて切り替える
+     * @param {Array<Object>} controls - ScriptUI コントロールの配列
+     * @param {boolean} isEnabled - 有効にするかどうか
+     * @returns {void}
+     */
+    function setControlsEnabled(controls, isEnabled) {
+        for (var i = 0; i < controls.length; i++) controls[i].enabled = isEnabled;
+    }
+
+    // =========================================
+    // 名前の組み立て / Name building
+    // =========================================
+
+    /**
+     * アートボード名スタイルに応じた名称部分を組み立てる
+     * @param {number} artboardIndex - 0始まりのアートボード番号
+     * @param {string} nameStyleKey - ARTBOARD_NAME_STYLE_KEYS のいずれか
+     * @param {string[]} originalNames - 変更前のアートボード名
+     * @returns {string} 名称部分（スタイルが "none" なら空文字）
+     */
+    function buildNameSegment(artboardIndex, nameStyleKey, originalNames) {
+        var positionNumberText = (artboardIndex + 1).toString();
+        var originalName = originalNames[artboardIndex];
         switch (nameStyleKey) {
-            case "number": return abNum;
-            case "name": return abName;
-            case "numberDashName": return abNum + "-" + abName;
-            case "numberUnderscoreName": return abNum + "_" + abName;
+            case "number": return positionNumberText;
+            case "name": return originalName;
+            case "numberDashName": return positionNumberText + "-" + originalName;
+            case "numberUnderscoreName": return positionNumberText + "_" + originalName;
             default: return "";
         }
     }
 
-    /* インデックスi番目のアートボード名を生成 / Build artboard name at index i */
-    function buildArtboardName(i, context, originalNames) {
-        var nameComponent = getNameComponent(i, context.nameStyleKey, originalNames);
-        if (!context.hasNumber) {
-            return context.composedPrefix + nameComponent + context.suffixText;
+    /**
+     * リネーム設定一式
+     * @typedef {Object} RenameContext
+     * @property {boolean} hasNumber - 連番を付けるかどうか
+     * @property {boolean} isNumeric - 連番が数字かどうか
+     * @property {boolean} isLowerAlpha - 連番が小文字アルファベットかどうか
+     * @property {number} startValue - 連番の開始値（アルファベットは1始まりインデックス）
+     * @property {number} incrementValue - 連番の増分（数字のときのみ使用）
+     * @property {number} padDigits - ゼロ埋め桁数
+     * @property {string} nameStyleKey - アートボード名スタイルキー
+     * @property {string} composedPrefix - 組み立て済みの接頭辞
+     * @property {string} numberSeparator - 名称と連番の間に入れる区切り文字
+     * @property {string} suffixText - 接尾辞の文字列
+     * @property {boolean} isValid - 入力値が妥当かどうか
+     */
+
+    /**
+     * 指定インデックスのアートボード名を組み立てる
+     * @param {number} artboardIndex - 0始まりのアートボード番号
+     * @param {RenameContext} renameContext - リネーム設定
+     * @param {string[]} originalNames - 変更前のアートボード名
+     * @returns {string} 新しいアートボード名
+     */
+    function buildArtboardName(artboardIndex, renameContext, originalNames) {
+        var nameSegment = buildNameSegment(artboardIndex, renameContext.nameStyleKey, originalNames);
+        if (!renameContext.hasNumber) {
+            return renameContext.composedPrefix + nameSegment + renameContext.suffixText;
         }
-        var num = context.startValue + (context.isNumeric ? i * context.increment : i);
-        var label = context.isNumeric ? padNumber(num, context.padLength) : getAlphaLabel(num - 1, context.isLower);
-        return context.composedPrefix + nameComponent + context.suffixSeparator + label + context.suffixText;
+        var offset = renameContext.isNumeric ? artboardIndex * renameContext.incrementValue : artboardIndex;
+        var numberValue = renameContext.startValue + offset;
+        var numberLabel = renameContext.isNumeric ?
+            padNumberWithZeros(numberValue, renameContext.padDigits) :
+            buildAlphaLabel(numberValue - 1, renameContext.isLowerAlpha);
+        return renameContext.composedPrefix + nameSegment + renameContext.numberSeparator + numberLabel + renameContext.suffixText;
     }
 
     // =========================================
-    // プリセット保存処理 / Preset save handler
+    // プリセット書き出し / Preset export
     // =========================================
 
-    /* JS リテラル用に文字列をエスケープ（\ と " のみ。改行はテキストフィールドに入らない想定）
-       Escape a string for use inside a JS double-quoted literal */
-    function escapeJSString(s) {
-        return String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+    /**
+     * JSリテラルに埋め込めるよう文字列をエスケープする（\ と " のみ。改行はテキストフィールドに入らない想定）
+     * @param {string} text - エスケープ対象の文字列
+     * @returns {string} エスケープ済みの文字列
+     */
+    function escapeForJSLiteral(text) {
+        return String(text).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
     }
 
-    /* プリセット設定を直書きできるテキスト形式に変換 / Serialize preset settings into a literal-style text */
-    function serializePreset(label, s) {
-        var q = function (v) { return '"' + escapeJSString(v) + '"'; };
-        return '{ label: ' + q(label) + ', ' +
-            'useFilename: ' + (s.useFilename ? 'true' : 'false') + ', ' +
-            'prefixSeparator: ' + q(s.prefixSeparator) + ', ' +
-            'prefix: ' + q(s.prefix) + ', ' +
-            'nameStyleKey: ' + q(s.nameStyleKey) + ', ' +
-            'separator: ' + q(s.separator) + ', ' +
-            'formatKey: ' + q(s.formatKey) + ', ' +
-            'start: ' + q(s.start) + ', ' +
-            'increment: ' + q(s.increment) + ', ' +
-            'suffix: ' + q(s.suffix) + ' }';
-    }
-
-    /* プリセットをテキストファイルに書き出し / Export preset to text file */
-    function savePresetToFile(settings) {
-        var saveFile = File.saveDialog(L("presetSavePrompt"), "*.txt");
-        if (!saveFile) return;
-        if (saveFile.name.indexOf(".") === -1) saveFile = new File(saveFile.fsName + ".txt");
-
-        var labelName = decodeURIComponent(saveFile.name.replace(/\.txt$/i, "")); // 日本語ファイル名もOK / Handles JA filenames
-        var presetString = serializePreset(labelName, settings);
-
-        try {
-            if (saveFile.open("w")) {
-                saveFile.write(presetString);
-                saveFile.close();
-                alert(L("exportSuccess") + saveFile.fsName);
-            } else {
-                alert(L("exportFailed"));
-            }
-        } catch (e) {
-            alert(L("exportError") + e.message);
+    /**
+     * プリセット設定を BUILTIN_NAMING_PRESETS へ直接貼り付けられるテキストに変換する
+     * @param {string} presetLabel - プリセット名
+     * @param {Object} settings - collectCurrentSettings() が返す設定
+     * @returns {string} オブジェクトリテラル形式の文字列
+     */
+    function serializePreset(presetLabel, settings) {
+        var fields = ['label: "' + escapeForJSLiteral(presetLabel) + '"'];
+        for (var i = 0; i < PRESET_KEYS.length; i++) {
+            var presetKey = PRESET_KEYS[i];
+            var value = settings[presetKey];
+            var literal = (typeof value === "boolean") ? String(value) : '"' + escapeForJSLiteral(value) + '"';
+            fields.push(presetKey + ": " + literal);
         }
+        return "{ " + fields.join(", ") + " }";
     }
 
-    // =========================================
-    // UIサブセクション構築 / UI subsection builders
-    // =========================================
+    /**
+     * プリセットをテキストファイルに書き出す
+     * @param {Object} settings - collectCurrentSettings() が返す設定
+     * @returns {void}
+     */
+    function exportPresetToFile(settings) {
+        var presetFile = File.saveDialog(getLabel("preset", "savePrompt"), "*.txt");
+        if (!presetFile) return;
+        if (presetFile.name.indexOf(".") === -1) presetFile = new File(presetFile.fsName + ".txt");
 
-    /* プリセット選択UIを構築 / Build preset selection UI */
-    function createPresetSection(parent) {
-        var presetGroup = parent.add("group");
-        presetGroup.orientation = "row";
-        presetGroup.alignChildren = "left";
-
-        var presetItems = [L("presetNone")];
-        for (var i = 0; i < BUILTIN_PRESETS.length; i++) {
-            presetItems.push(BUILTIN_PRESETS[i].label);
+        var presetLabel = decodeURIComponent(presetFile.name.replace(/\.txt$/i, "")); // 日本語ファイル名もOK / Handles JA filenames
+        presetFile.encoding = "UTF-8"; /* 日本語ラベルの文字化けを防ぐ / Keep JA labels readable */
+        if (!presetFile.open("w")) {
+            alert(getLabel("alert", "exportFailed"));
+            return;
         }
 
-        var presetDropdown = presetGroup.add("dropdownlist", undefined, presetItems);
+        var didWrite = presetFile.write(serializePreset(presetLabel, settings));
+        presetFile.close();
+        if (!didWrite) {
+            alert(getLabel("alert", "exportError") + presetFile.error);
+            return;
+        }
+        alert(getLabel("alert", "exportSuccess") + presetFile.fsName);
+    }
+
+    // =========================================
+    // UI構築 / UI builders
+    // =========================================
+
+    /**
+     * 「区切り文字：なし / - / _」のラジオ行を構築する
+     * @param {Object} parentPanel - 追加先のパネル
+     * @returns {Array<RadioButton>} 区切り文字のラジオボタン群（各ラジオが _separator に値を持つ）
+     */
+    function buildSeparatorRadioRow(parentPanel) {
+        var separatorGroup = parentPanel.add("group");
+        setupRow(separatorGroup);
+        separatorGroup.add("statictext", undefined, getFieldLabel("separator"));
+
+        var separatorRadios = [];
+        for (var i = 0; i < SEPARATOR_VALUES.length; i++) {
+            var separatorValue = SEPARATOR_VALUES[i];
+            var radioLabel = (separatorValue === "") ? getLabel("radio", "separatorNone") : separatorValue;
+            var radio = separatorGroup.add("radiobutton", undefined, radioLabel);
+            /* ラジオ配列の順序に依存せず値を引けるよう、ラジオ自身に持たせる / Keep the value on the radio so callers don't depend on order */
+            radio._separator = separatorValue;
+            separatorRadios.push(radio);
+        }
+        separatorRadios[0].value = true;
+        return separatorRadios;
+    }
+
+    /**
+     * 「ラベル：入力欄」の1行を構築する
+     * @param {Object} parentPanel - 追加先のパネル
+     * @param {string} labelKey - LABELS.fieldLabel のキー
+     * @param {string} initialText - 入力欄の初期値
+     * @param {number} charWidth - 入力欄の幅（文字数）
+     * @returns {EditText} 追加した入力欄
+     */
+    function buildLabeledInput(parentPanel, labelKey, initialText, charWidth) {
+        var inputRowGroup = parentPanel.add("group");
+        setupRow(inputRowGroup);
+        inputRowGroup.add("statictext", undefined, getFieldLabel(labelKey));
+        var textInput = inputRowGroup.add("edittext", undefined, initialText);
+        textInput.characters = charWidth;
+        return textInput;
+    }
+
+    /**
+     * プリセット選択行を構築する
+     * @param {Object} parentGroup - 追加先のグループ
+     * @returns {Object} presetDropdown / exportPresetButton を持つオブジェクト
+     */
+    function buildPresetRow(parentGroup) {
+        var presetRowGroup = parentGroup.add("group");
+        setupRow(presetRowGroup, "left");
+
+        var presetItemLabels = [getLabel("preset", "none")];
+        for (var i = 0; i < BUILTIN_NAMING_PRESETS.length; i++) {
+            presetItemLabels.push(BUILTIN_NAMING_PRESETS[i].label);
+        }
+
+        var presetDropdown = presetRowGroup.add("dropdownlist", undefined, presetItemLabels);
         presetDropdown.selection = 0;
-        presetDropdown.enabled = true;
 
-        var savePresetBtn = presetGroup.add("button", undefined, L("savePreset"));
+        /* ボタンは行幅いっぱいに広げない / Keep the button at its natural width */
+        var exportPresetButton = presetRowGroup.add("button", undefined, getLabel("button", "exportPreset"));
+        exportPresetButton.alignment = "left";
 
         return {
             presetDropdown: presetDropdown,
-            savePresetBtn: savePresetBtn
+            exportPresetButton: exportPresetButton
         };
     }
 
-    /* 接頭辞パネルを構築 / Build prefix panel */
-    function createPrefixPanel(parent) {
-        var prefixPanel = parent.add("panel", undefined, L("prefixPanel"));
-        prefixPanel.margins = [20, 20, 20, 10];
-        prefixPanel.orientation = "column";
-        prefixPanel.alignChildren = "left";
+    /**
+     * 接頭辞パネルを構築する
+     * @param {Object} parentGroup - 追加先のグループ
+     * @returns {Object} useFilenameRadios / prefixSeparatorRadios / prefixTextInput を持つオブジェクト
+     */
+    function buildPrefixPanel(parentGroup) {
+        var prefixPanel = addPanel(parentGroup, getLabel("panel", "prefix"), FIELD_SPACING);
 
-        var filenameGroup = prefixPanel.add("group");
-        filenameGroup.add("statictext", undefined, labelText("fileName"));
+        var useFilenameGroup = prefixPanel.add("group");
+        setupRow(useFilenameGroup);
+        useFilenameGroup.add("statictext", undefined, getFieldLabel("fileName"));
         var useFilenameRadios = [
-            filenameGroup.add("radiobutton", undefined, L("useFileNo")),
-            filenameGroup.add("radiobutton", undefined, L("useFileYes"))
+            useFilenameGroup.add("radiobutton", undefined, getLabel("radio", "useFileNo")),
+            useFilenameGroup.add("radiobutton", undefined, getLabel("radio", "useFileYes"))
         ];
         useFilenameRadios[0].value = true;
 
-        var prefixSeparatorGroup = prefixPanel.add("group");
-        prefixSeparatorGroup.add("statictext", undefined, labelText("separator"));
-        var prefixSeparatorRadios = [
-            prefixSeparatorGroup.add("radiobutton", undefined, L("none")),
-            prefixSeparatorGroup.add("radiobutton", undefined, "-"),
-            prefixSeparatorGroup.add("radiobutton", undefined, "_")
-        ];
-        tagSeparatorRadios(prefixSeparatorRadios, ["", "-", "_"]);
-        prefixSeparatorRadios[0].value = true;
-        for (var i = 0; i < 3; i++) prefixSeparatorRadios[i].enabled = false;
-
-        var prefixGroup = prefixPanel.add("group");
-        prefixGroup.add("statictext", undefined, labelText("string"));
-        var prefixInput = prefixGroup.add("edittext", undefined, "");
-        prefixInput.characters = 16;
+        var prefixSeparatorRadios = buildSeparatorRadioRow(prefixPanel);
+        var prefixTextInput = buildLabeledInput(prefixPanel, "string", "", 16);
 
         return {
             useFilenameRadios: useFilenameRadios,
             prefixSeparatorRadios: prefixSeparatorRadios,
-            prefixInput: prefixInput
+            prefixTextInput: prefixTextInput
         };
     }
 
-    /* 名称スタイルパネルを構築 / Build name style panel */
-    function createNamePanel(parent) {
-        var namePanel = parent.add("panel", undefined, L("namePanel"));
-        namePanel.margins = [20, 20, 20, 10];
-        namePanel.orientation = "row";
-        namePanel.alignChildren = "left";
-
-        var nameStyleDropdown = namePanel.add("dropdownlist", undefined, [
-            L("none"), L("number"), L("name"), L("numberDashName"), L("numberUnderscoreName")
-        ]);
-        nameStyleDropdown.selection = 0;
-
-        return { nameStyleDropdown: nameStyleDropdown };
+    /**
+     * アートボード名スタイルのパネルを構築する
+     * @param {Object} parentGroup - 追加先のグループ
+     * @returns {DropDownList} アートボード名スタイルのドロップダウン
+     */
+    function buildNameStylePanel(parentGroup) {
+        var nameStylePanel = addPanel(parentGroup, getLabel("panel", "name"), FIELD_SPACING);
+        var nameStyleDropdown = nameStylePanel.add("dropdownlist", undefined, toLabelList("nameStyle", ARTBOARD_NAME_STYLE_KEYS));
+        nameStyleDropdown.selection = findKeyIndex(ARTBOARD_NAME_STYLE_KEYS, "none");
+        /* ドロップダウンはパネル幅いっぱいに広げない / Keep the dropdown at its natural width */
+        nameStyleDropdown.alignment = "left";
+        return nameStyleDropdown;
     }
 
-    /* 接尾辞パネルを構築 / Build suffix panel */
-    function createSuffixPanel(parent) {
-        var suffixPanel = parent.add("panel", undefined, L("suffixPanel"));
-        suffixPanel.margins = [20, 20, 20, 10];
-        suffixPanel.orientation = "column";
-        suffixPanel.alignChildren = "left";
+    /**
+     * 接尾辞パネル（区切り文字・連番・接尾辞文字列）を構築する
+     * @param {Object} parentGroup - 追加先のグループ
+     * @returns {Object} numberSeparatorRadios / numberingFormatDropdown / startValueInput / incrementInput / suffixTextInput を持つオブジェクト
+     */
+    function buildSuffixPanel(parentGroup) {
+        var suffixPanel = addPanel(parentGroup, getLabel("panel", "suffix"), FIELD_SPACING);
 
-        var suffixSeparatorGroup = suffixPanel.add("group");
-        suffixSeparatorGroup.add("statictext", undefined, labelText("separator"));
-        var suffixSeparatorRadios = [
-            suffixSeparatorGroup.add("radiobutton", undefined, L("none")),
-            suffixSeparatorGroup.add("radiobutton", undefined, "-"),
-            suffixSeparatorGroup.add("radiobutton", undefined, "_")
-        ];
-        tagSeparatorRadios(suffixSeparatorRadios, ["", "-", "_"]);
-        suffixSeparatorRadios[0].value = true;
+        var numberSeparatorRadios = buildSeparatorRadioRow(suffixPanel);
 
-        var formatGroup = suffixPanel.add("group");
-        formatGroup.add("statictext", undefined, labelText("format"));
-        var formatDropdown = formatGroup.add("dropdownlist", undefined, [
-            L("none"), L("numeric"), L("alphaUpper"), L("alphaLower")
-        ]);
-        formatDropdown.selection = 1; // 既定は「数字」/ Default to numeric
+        var numberingFormatGroup = suffixPanel.add("group");
+        setupRow(numberingFormatGroup);
+        numberingFormatGroup.add("statictext", undefined, getFieldLabel("format"));
+        var numberingFormatDropdown = numberingFormatGroup.add("dropdownlist", undefined, toLabelList("numberingFormat", NUMBERING_FORMAT_KEYS));
+        numberingFormatDropdown.selection = findKeyIndex(NUMBERING_FORMAT_KEYS, "numeric");
 
-        var startGroup = suffixPanel.add("group");
-        startGroup.add("statictext", undefined, labelText("startNumber"));
-        var startValueInput = startGroup.add("edittext", undefined, "1");
-        startValueInput.characters = 5;
-
-        var incrementGroup = suffixPanel.add("group");
-        incrementGroup.add("statictext", undefined, labelText("increment"));
-        var incrementInput = incrementGroup.add("edittext", undefined, "1");
-        incrementInput.characters = 5;
-
-        var suffixGroup = suffixPanel.add("group");
-        suffixGroup.add("statictext", undefined, labelText("string"));
-        var suffixInput = suffixGroup.add("edittext", undefined, "");
-        suffixInput.characters = 16;
+        var startValueInput = buildLabeledInput(suffixPanel, "startNumber", DEFAULT_START_VALUES.numeric, 5);
+        var incrementInput = buildLabeledInput(suffixPanel, "increment", "1", 5);
+        var suffixTextInput = buildLabeledInput(suffixPanel, "string", "", 16);
 
         return {
-            suffixSeparatorRadios: suffixSeparatorRadios,
-            formatDropdown: formatDropdown,
+            numberSeparatorRadios: numberSeparatorRadios,
+            numberingFormatDropdown: numberingFormatDropdown,
             startValueInput: startValueInput,
             incrementInput: incrementInput,
-            suffixInput: suffixInput
+            suffixTextInput: suffixTextInput
         };
     }
 
-    /* プレビューエリアを構築 / Build preview area */
-    function createPreviewPanel(parent) {
-        var previewPanel = parent.add("panel", undefined, L("preview"));
-        previewPanel.alignChildren = "fill";
-        previewPanel.margins = [10, 20, 10, 10];
+    /**
+     * プレビューパネルを構築する
+     * @param {Object} parentGroup - 追加先のグループ
+     * @returns {ListBox} プレビュー用のリストボックス
+     */
+    function buildPreviewPanel(parentGroup) {
+        var previewPanel = addPanel(parentGroup, getLabel("panel", "preview"));
         previewPanel.preferredSize.width = 250;
         previewPanel.preferredSize.height = 380;
 
-        var previewList = previewPanel.add("listbox", undefined, [], {
+        var previewListBox = previewPanel.add("listbox", undefined, [], {
             multiselect: false,
             numberOfColumns: 1,
             showHeaders: false
         });
-        previewList.preferredSize.height = 320;
-
-        return { previewList: previewList };
+        /* リストだけはパネルいっぱいに広げる / The list is the one control that should fill the panel */
+        previewListBox.alignment = ["fill", "fill"];
+        return previewListBox;
     }
 
-    /* 下部ボタン行を構築 / Build bottom button row */
-    function createButtonRow(parent) {
-        var buttonRow = parent.add("group");
-        buttonRow.orientation = "row";
-        buttonRow.alignChildren = ["fill", "center"];
-        buttonRow.margins = [0, 10, 0, 0];
-        buttonRow.spacing = 0;
+    /**
+     * ダイアログ下部のボタン行を構築する（左にキャンセル、右にOK）
+     * @param {Window} parentWindow - 追加先のダイアログ
+     * @returns {Button} OKボタン
+     */
+    function buildDialogButtonRow(parentWindow) {
+        var dialogButtonRow = parentWindow.add("group");
+        dialogButtonRow.orientation = "row";
+        dialogButtonRow.alignChildren = ["fill", "center"];
+        dialogButtonRow.spacing = 0;
 
-        var cancelButtonGroup = buttonRow.add("group");
-        cancelButtonGroup.orientation = "row";
-        cancelButtonGroup.alignChildren = "left";
-        cancelButtonGroup.add("button", undefined, L("cancel"), { name: "cancel" });
+        /* alignChildren の "fill" がボタン自体を伸ばさないよう、それぞれグループで包む
+           Wrap each button in a group so the row's "fill" does not stretch the button */
+        var cancelButtonGroup = dialogButtonRow.add("group");
+        setupRow(cancelButtonGroup, "left");
+        cancelButtonGroup.add("button", undefined, getLabel("button", "cancel"), { name: "cancel" });
 
-        var spacer = buttonRow.add("group");
-        spacer.alignment = ["fill", "fill"];
-        spacer.minimumSize.width = 50;
+        var buttonSpacer = dialogButtonRow.add("group");
+        buttonSpacer.alignment = ["fill", "fill"];
+        buttonSpacer.minimumSize.width = 50;
 
-        var confirmButtonGroup = buttonRow.add("group");
-        confirmButtonGroup.orientation = "row";
-        confirmButtonGroup.alignChildren = ["right", "center"];
-        confirmButtonGroup.spacing = 10;
-        var okBtn = confirmButtonGroup.add("button", undefined, L("ok"), { name: "ok" });
+        var okButtonGroup = dialogButtonRow.add("group");
+        setupRow(okButtonGroup, "right");
+        return okButtonGroup.add("button", undefined, getLabel("button", "ok"), { name: "ok" });
+    }
 
-        return { okBtn: okBtn };
+    /**
+     * ダイアログ本体とすべてのコントロールを構築する
+     * @typedef {Object} DialogUI
+     * @property {Window} dialog - ダイアログ本体
+     * @property {Object} preset - プリセット行のコントロール
+     * @property {Object} prefix - 接頭辞パネルのコントロール
+     * @property {DropDownList} nameStyleDropdown - アートボード名スタイルのドロップダウン
+     * @property {Object} suffix - 接尾辞パネルのコントロール
+     * @property {ListBox} previewListBox - プレビュー用のリストボックス
+     * @property {Button} okButton - OKボタン
+     *
+     * @returns {DialogUI} ダイアログとコントロール一式
+     */
+    function buildRenameDialog() {
+        var renameDialog = new Window("dialog", getLabel("dialog", "title") + " " + SCRIPT_VERSION);
+        setupWindow(renameDialog);
+
+        var dialogBodyRow = renameDialog.add("group");
+        dialogBodyRow.orientation = "row";
+        dialogBodyRow.alignChildren = ["top", "fill"];
+        dialogBodyRow.spacing = COLUMN_SPACING;
+
+        var settingsColumnGroup = dialogBodyRow.add("group");
+        settingsColumnGroup.orientation = "column";
+        settingsColumnGroup.alignChildren = ["fill", "top"];
+        settingsColumnGroup.spacing = PANEL_SPACING;
+
+        return {
+            dialog: renameDialog,
+            preset: buildPresetRow(settingsColumnGroup),
+            prefix: buildPrefixPanel(settingsColumnGroup),
+            nameStyleDropdown: buildNameStylePanel(settingsColumnGroup),
+            suffix: buildSuffixPanel(settingsColumnGroup),
+            previewListBox: buildPreviewPanel(dialogBodyRow),
+            okButton: buildDialogButtonRow(renameDialog)
+        };
+    }
+
+    // =========================================
+    // ダイアログ制御 / Dialog controller
+    // =========================================
+
+    /**
+     * ダイアログの状態を読み書きする操作一式を作る
+     * @param {DialogUI} dialogUI - 構築済みのダイアログとコントロール
+     * @param {Document} activeDoc - 対象のドキュメント
+     * @returns {Object} プレビュー更新・プリセット反映・リネーム実行などの関数を持つオブジェクト
+     */
+    function createRenameController(dialogUI, activeDoc) {
+        var prefix = dialogUI.prefix;
+        var suffix = dialogUI.suffix;
+        var artboards = activeDoc.artboards;
+        var documentBaseName = activeDoc.name.replace(/\.[^\.]+$/, "");
+
+        /* 変更前のアートボード名を控えておく（何度リネームしても元の名前から組み立てられる）
+           Snapshot the original names so every rename starts from the same baseline */
+        var originalArtboardNames = [];
+        for (var i = 0; i < artboards.length; i++) originalArtboardNames.push(artboards[i].name);
+        var artboardCount = originalArtboardNames.length;
+
+        /**
+         * 現在のUI状態から接頭辞文字列を組み立てる
+         * @returns {string} 接頭辞（ファイル名参照時はファイル名＋区切り文字を前置）
+         */
+        function composePrefixText() {
+            var prefixText = prefix.prefixTextInput.text;
+            if (prefix.useFilenameRadios[1].value) {
+                prefixText = documentBaseName + getSelectedSeparator(prefix.prefixSeparatorRadios) + prefixText;
+            }
+            return prefixText;
+        }
+
+        /**
+         * 現在のUI状態からリネーム設定を組み立てる
+         * @returns {RenameContext} リネーム設定
+         */
+        function buildRenameContext() {
+            var formatKey = getSelectedKey(suffix.numberingFormatDropdown, NUMBERING_FORMAT_KEYS);
+            var hasNumber = (formatKey !== "none");
+            var isNumeric = (formatKey === "numeric");
+            var startText = trimText(suffix.startValueInput.text);
+            var startValue = !hasNumber ? 0 : (isNumeric ? parseDigitsOnly(startText) : getIndexFromAlphaLabel(startText));
+            var incrementValue = parseDigitsOnly(trimText(suffix.incrementInput.text));
+
+            var isStartValid = !isNaN(startValue) && startValue > 0;
+            var isIncrementValid = !isNumeric || (!isNaN(incrementValue) && incrementValue > 0);
+
+            return {
+                hasNumber: hasNumber,
+                isNumeric: isNumeric,
+                isLowerAlpha: (formatKey === "alphaLower"),
+                startValue: startValue,
+                incrementValue: incrementValue,
+                padDigits: getPadDigitsFromStartText(startText),
+                nameStyleKey: getSelectedKey(dialogUI.nameStyleDropdown, ARTBOARD_NAME_STYLE_KEYS),
+                composedPrefix: composePrefixText(),
+                numberSeparator: getSelectedSeparator(suffix.numberSeparatorRadios),
+                suffixText: suffix.suffixTextInput.text,
+                isValid: !hasNumber || (isStartValid && isIncrementValid)
+            };
+        }
+
+        /**
+         * 入力を検証したうえでリネーム設定を返す（不正ならアラートを表示）
+         * @returns {RenameContext|null} 妥当なリネーム設定、不正な場合は null
+         */
+        function validateAndBuildContext() {
+            var renameContext = buildRenameContext();
+            if (!renameContext.isValid) {
+                alert(getLabel("alert", "invalidInput"), getLabel("alert", "title"));
+                return null;
+            }
+            /* 連番なしの場合のみ空名になり得る（連番ありなら連番ラベルが必ず入る）
+               Empty name only possible when there is no numbering (the number label is always non-empty otherwise) */
+            if (!renameContext.hasNumber) {
+                for (var i = 0; i < artboardCount; i++) {
+                    if (buildArtboardName(i, renameContext, originalArtboardNames) === "") {
+                        alert(getLabel("alert", "emptyName"), getLabel("alert", "title"));
+                        return null;
+                    }
+                }
+            }
+            return renameContext;
+        }
+
+        /**
+         * プレビューリストを現在の設定で更新する
+         * @returns {void}
+         */
+        function refreshPreviewList() {
+            var renameContext = buildRenameContext();
+            dialogUI.previewListBox.removeAll();
+
+            if (!renameContext.isValid) {
+                dialogUI.previewListBox.add("item", getLabel("preview", "invalid"));
+                return;
+            }
+
+            var previewCount = Math.min(PREVIEW_MAX_ROWS, artboardCount);
+            for (var i = 0; i < previewCount; i++) {
+                dialogUI.previewListBox.add("item", buildArtboardName(i, renameContext, originalArtboardNames));
+            }
+            if (artboardCount > PREVIEW_MAX_ROWS) {
+                dialogUI.previewListBox.add("item", getLabel("preview", "truncated"));
+            }
+        }
+
+        /**
+         * 現在のUI設定をプリセット形式のオブジェクトとして取得する
+         * @returns {Object} プリセット1件分の設定（PRESET_KEYS の項目を持つ）
+         */
+        function collectCurrentSettings() {
+            return {
+                useFilename: prefix.useFilenameRadios[1].value,
+                prefixSeparator: getSelectedSeparator(prefix.prefixSeparatorRadios),
+                prefix: prefix.prefixTextInput.text,
+                nameStyleKey: getSelectedKey(dialogUI.nameStyleDropdown, ARTBOARD_NAME_STYLE_KEYS),
+                separator: getSelectedSeparator(suffix.numberSeparatorRadios),
+                formatKey: getSelectedKey(suffix.numberingFormatDropdown, NUMBERING_FORMAT_KEYS),
+                start: suffix.startValueInput.text,
+                increment: suffix.incrementInput.text,
+                suffix: suffix.suffixTextInput.text
+            };
+        }
+
+        /**
+         * ファイル名参照の有無に合わせて、接頭辞の区切り文字ラジオの活性状態をそろえる
+         * @returns {void}
+         */
+        function syncPrefixSeparatorControls() {
+            setControlsEnabled(prefix.prefixSeparatorRadios, prefix.useFilenameRadios[1].value);
+        }
+
+        /**
+         * 連番形式に合わせて、区切り文字・開始番号・増分の活性状態をそろえる
+         * @param {boolean} resetStartValue - 開始番号を形式ごとの既定値に戻すかどうか
+         * @returns {void}
+         */
+        function syncNumberingControls(resetStartValue) {
+            var formatKey = getSelectedKey(suffix.numberingFormatDropdown, NUMBERING_FORMAT_KEYS);
+            var hasNumber = (formatKey !== "none");
+            /* 区切り文字は連番の直前にしか入らないため、連番なしのときは操作させない
+               The separator only precedes a number, so disable it when there is none */
+            setControlsEnabled(suffix.numberSeparatorRadios, hasNumber);
+            suffix.startValueInput.enabled = hasNumber;
+            suffix.incrementInput.enabled = (formatKey === "numeric");
+            if (resetStartValue && hasNumber) suffix.startValueInput.text = DEFAULT_START_VALUES[formatKey];
+        }
+
+        /**
+         * プリセットの値をUIに反映する
+         * @param {Object} namingPreset - BUILTIN_NAMING_PRESETS の1件
+         * @returns {void}
+         */
+        function applyPresetToControls(namingPreset) {
+            prefix.useFilenameRadios[0].value = !namingPreset.useFilename;
+            prefix.useFilenameRadios[1].value = namingPreset.useFilename;
+            selectSeparatorRadio(prefix.prefixSeparatorRadios, namingPreset.prefixSeparator);
+            prefix.prefixTextInput.text = namingPreset.prefix;
+
+            var nameStyleIndex = findKeyIndex(ARTBOARD_NAME_STYLE_KEYS, namingPreset.nameStyleKey);
+            if (nameStyleIndex >= 0) dialogUI.nameStyleDropdown.selection = nameStyleIndex;
+
+            selectSeparatorRadio(suffix.numberSeparatorRadios, namingPreset.separator);
+            var formatIndex = findKeyIndex(NUMBERING_FORMAT_KEYS, namingPreset.formatKey);
+            if (formatIndex >= 0) suffix.numberingFormatDropdown.selection = formatIndex;
+
+            suffix.startValueInput.text = namingPreset.start;
+            suffix.incrementInput.text = namingPreset.increment;
+            suffix.suffixTextInput.text = namingPreset.suffix;
+
+            /* 開始番号はプリセットの値を使うため、既定値には戻さない / Keep the preset's start value instead of the per-format default */
+            syncPrefixSeparatorControls();
+            syncNumberingControls(false);
+            refreshPreviewList();
+        }
+
+        /**
+         * 検証に通ればすべてのアートボードに新しい名前を適用する
+         * @returns {boolean} 適用できたかどうか（検証エラー・適用エラーなら false）
+         */
+        function renameArtboards() {
+            var renameContext = validateAndBuildContext();
+            if (!renameContext) return false;
+            try {
+                for (var i = 0; i < artboardCount; i++) {
+                    artboards[i].name = buildArtboardName(i, renameContext, originalArtboardNames);
+                }
+            } catch (e) {
+                /* 名前がIllustratorに拒否された場合。途中まで適用された状態で確定させない
+                   Illustrator rejected a name; do not commit a partially applied rename */
+                alert(getLabel("alert", "generalError") + e.message);
+                return false;
+            }
+            return true;
+        }
+
+        return {
+            refreshPreviewList: refreshPreviewList,
+            collectCurrentSettings: collectCurrentSettings,
+            applyPresetToControls: applyPresetToControls,
+            syncPrefixSeparatorControls: syncPrefixSeparatorControls,
+            syncNumberingControls: syncNumberingControls,
+            renameArtboards: renameArtboards
+        };
+    }
+
+    // =========================================
+    // イベント配線 / Event wiring
+    // =========================================
+
+    /**
+     * ダイアログのコントロールにイベントハンドラを割り当てる
+     * @param {DialogUI} dialogUI - 構築済みのダイアログとコントロール
+     * @param {Object} renameController - createRenameController() が返す操作一式
+     * @returns {void}
+     */
+    function wireDialogEvents(dialogUI, renameController) {
+        var prefix = dialogUI.prefix;
+        var suffix = dialogUI.suffix;
+        var refreshPreviewList = renameController.refreshPreviewList;
+
+        /* プリセット選択（先頭は「(未選択)」なので読み飛ばす）/ Preset selection (index 0 is the "(None)" entry) */
+        dialogUI.preset.presetDropdown.onChange = function () {
+            var presetIndex = dialogUI.preset.presetDropdown.selection.index;
+            if (presetIndex > 0) renameController.applyPresetToControls(BUILTIN_NAMING_PRESETS[presetIndex - 1]);
+        };
+
+        /* プリセット書き出し / Export preset */
+        dialogUI.preset.exportPresetButton.onClick = function () {
+            exportPresetToFile(renameController.collectCurrentSettings());
+        };
+
+        /* ファイル名参照の切り替え：区切り文字ラジオの有効化を連動 / Toggle separator radios with filename usage */
+        prefix.useFilenameRadios[0].onClick = prefix.useFilenameRadios[1].onClick = function () {
+            renameController.syncPrefixSeparatorControls();
+            refreshPreviewList();
+        };
+
+        /* 連番形式の切り替え：関連コントロールの有効化と開始番号の既定値を更新 / On format change: sync related controls and reset the start value */
+        suffix.numberingFormatDropdown.onChange = function () {
+            renameController.syncNumberingControls(true);
+            refreshPreviewList();
+        };
+
+        /* 入力変更時に即時プレビュー / Live preview on input change */
+        bindEventToAll(prefix.prefixSeparatorRadios, "onClick", refreshPreviewList);
+        bindEventToAll(suffix.numberSeparatorRadios, "onClick", refreshPreviewList);
+        prefix.prefixTextInput.onChanging = refreshPreviewList;
+        suffix.startValueInput.onChanging = refreshPreviewList;
+        suffix.incrementInput.onChanging = refreshPreviewList;
+        suffix.suffixTextInput.onChanging = refreshPreviewList;
+        dialogUI.nameStyleDropdown.onChange = refreshPreviewList;
+
+        /* OKボタン：リネームに成功したときだけ閉じる / OK: close only when the rename succeeded */
+        dialogUI.okButton.onClick = function () {
+            if (renameController.renameArtboards()) dialogUI.dialog.close();
+        };
     }
 
     // =========================================
     // メイン処理 / Main entry
     // =========================================
 
-    /* メイン関数：ダイアログを表示してアートボード名を一括変更 / Main: show dialog and batch rename artboards */
+    /**
+     * ダイアログを表示してアートボード名を一括変更する
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) return;
 
-        var doc = app.activeDocument;
-        var filename = doc.name.replace(/\.[^\.]+$/, "");
-        var artboards = doc.artboards;
-        var artboardCount = artboards.length;
-        var originalNames = [];
-        for (var i = 0; i < artboardCount; i++) originalNames.push(artboards[i].name);
+        var dialogUI = buildRenameDialog();
+        var renameController = createRenameController(dialogUI, app.activeDocument);
+        wireDialogEvents(dialogUI, renameController);
 
-        /* ダイアログ枠 / Dialog skeleton */
-        var dialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-        dialog.alignChildren = "fill";
+        /* 初期状態を反映 / Apply the initial state */
+        renameController.syncPrefixSeparatorControls();
+        renameController.syncNumberingControls(true);
+        renameController.refreshPreviewList();
 
-        var bodyRow = dialog.add("group");
-        bodyRow.orientation = "row";
-        bodyRow.alignChildren = ["top", "fill"];
-
-        var inputGroup = bodyRow.add("group");
-        inputGroup.spacing = 20;
-        inputGroup.orientation = "column";
-        inputGroup.alignChildren = "left";
-
-        /* UIサブセクションを構築 / Build UI subsections */
-        var presetUI = createPresetSection(inputGroup);
-        var prefixUI = createPrefixPanel(inputGroup);
-        var nameUI = createNamePanel(inputGroup);
-        var suffixUI = createSuffixPanel(inputGroup);
-        var previewUI = createPreviewPanel(bodyRow);
-        var buttonUI = createButtonRow(dialog);
-
-        /* 接頭辞文字列を組み立て / Compose prefix from current state */
-        function composePrefix() {
-            var base = prefixUI.prefixInput.text;
-            if (prefixUI.useFilenameRadios[1].value) {
-                base = filename + getSeparator(prefixUI.prefixSeparatorRadios) + base;
-            }
-            return base;
-        }
-
-        /* 現在のUI状態からリネーム用コンテキストを生成 / Build rename context from current UI state */
-        function getRenameContext() {
-            var formatKey = FORMAT_KEYS[suffixUI.formatDropdown.selection.index];
-            var hasNumber = (formatKey !== "none");
-            var isNumeric = (formatKey === "numeric");
-            var rawStart = suffixUI.startValueInput.text;
-            var startValue = !hasNumber ? 0 : (isNumeric ? parseInt(rawStart, 10) : getAlphaIndex(rawStart));
-            var increment = parseInt(suffixUI.incrementInput.text, 10);
-            var valid = !hasNumber || !(isNaN(startValue) || startValue <= 0 || (isNumeric && (isNaN(increment) || increment <= 0)));
-            return {
-                formatKey: formatKey,
-                hasNumber: hasNumber,
-                isNumeric: isNumeric,
-                isLower: (formatKey === "alphaLower"),
-                startValue: startValue,
-                increment: increment,
-                padLength: getPadLengthFromStart(rawStart),
-                nameStyleKey: NAME_STYLE_KEYS[nameUI.nameStyleDropdown.selection.index],
-                composedPrefix: composePrefix(),
-                suffixSeparator: getSeparator(suffixUI.suffixSeparatorRadios),
-                suffixText: suffixUI.suffixInput.text,
-                valid: valid
-            };
-        }
-
-        /* 入力検証＋コンテキスト取得（無効ならエラー表示）/ Validate and return context, alert if invalid */
-        function validateContext() {
-            var context = getRenameContext();
-            if (!context.valid) {
-                alert(L("errorInput"), L("errorTitle"));
-                return null;
-            }
-            // 連番なしの場合のみ空名になり得る（連番ありなら label が必ず入る）
-            // Empty name only possible when there is no numbering (label is always non-empty otherwise)
-            if (!context.hasNumber) {
-                for (var i = 0; i < artboardCount; i++) {
-                    if (buildArtboardName(i, context, originalNames) === "") {
-                        alert(L("errorEmptyName"), L("errorTitle"));
-                        return null;
-                    }
-                }
-            }
-            return context;
-        }
-
-        /* すべてのアートボードに名前を適用 / Apply names to all artboards */
-        function applyContext(context) {
-            for (var i = 0; i < artboards.length; i++) {
-                artboards[i].name = buildArtboardName(i, context, originalNames);
-            }
-        }
-
-        /* プレビューリストを更新 / Refresh preview list */
-        function updatePreview() {
-            var context = getRenameContext();
-            previewUI.previewList.removeAll();
-
-            if (!context.valid) {
-                previewUI.previewList.add("item", L("previewInvalid"));
-                return;
-            }
-
-            var maxCount = Math.min(15, artboardCount);
-            for (var i = 0; i < maxCount; i++) {
-                previewUI.previewList.add("item", buildArtboardName(i, context, originalNames));
-            }
-
-            if (artboardCount > 15) previewUI.previewList.add("item", L("previewTruncated"));
-        }
-
-        /* 現在のUI設定を平坦なオブジェクトとして取得 / Snapshot current UI settings */
-        function currentSettings() {
-            return {
-                useFilename: prefixUI.useFilenameRadios[1].value,
-                prefixSeparator: getSeparator(prefixUI.prefixSeparatorRadios),
-                prefix: prefixUI.prefixInput.text,
-                nameStyleKey: NAME_STYLE_KEYS[nameUI.nameStyleDropdown.selection.index],
-                separator: getSeparator(suffixUI.suffixSeparatorRadios),
-                formatKey: FORMAT_KEYS[suffixUI.formatDropdown.selection.index],
-                start: suffixUI.startValueInput.text,
-                increment: suffixUI.incrementInput.text,
-                suffix: suffixUI.suffixInput.text
-            };
-        }
-
-        /* プリセットの値をUIに反映 / Apply preset values to UI */
-        function applyPreset(preset) {
-            prefixUI.useFilenameRadios[0].value = !preset.useFilename;
-            prefixUI.useFilenameRadios[1].value = preset.useFilename;
-            for (var i = 0; i < 3; i++) {
-                prefixUI.prefixSeparatorRadios[i].enabled = preset.useFilename;
-            }
-            setSeparatorRadios(prefixUI.prefixSeparatorRadios, preset.prefixSeparator);
-            prefixUI.prefixInput.text = preset.prefix;
-
-            var nameIdx = indexOfKey(NAME_STYLE_KEYS, preset.nameStyleKey);
-            if (nameIdx >= 0) nameUI.nameStyleDropdown.selection = nameIdx;
-
-            setSeparatorRadios(suffixUI.suffixSeparatorRadios, preset.separator);
-
-            var fmtIdx = indexOfKey(FORMAT_KEYS, preset.formatKey);
-            if (fmtIdx >= 0) {
-                suffixUI.formatDropdown.selection = fmtIdx;
-                // 活性状態とデフォルト開始値の更新を委譲。preset.start は後段で上書き
-                // Delegate enabled-state and default-start updates; preset.start is restored below
-                suffixUI.formatDropdown.onChange();
-            }
-
-            suffixUI.startValueInput.text = preset.start;
-            suffixUI.incrementInput.text = preset.increment;
-            suffixUI.suffixInput.text = preset.suffix;
-            updatePreview();
-        }
-
-        // =========================================
-        // イベント配線 / Event wiring
-        // =========================================
-
-        /* プリセット選択時：UIに反映してプレビュー更新（applyPreset 側で updatePreview 済み）
-           On preset selection (applyPreset already calls updatePreview) */
-        presetUI.presetDropdown.onChange = function () {
-            var index = presetUI.presetDropdown.selection.index;
-            if (index <= 0) return;
-            applyPreset(BUILTIN_PRESETS[index - 1]);
-        };
-
-        /* プリセット書き出し / Export preset */
-        presetUI.savePresetBtn.onClick = function () {
-            savePresetToFile(currentSettings());
-        };
-
-        /* ファイル名参照の切り替え：区切り文字ラジオの有効化を連動 / Toggle separator radios with filename usage */
-        prefixUI.useFilenameRadios[0].onClick = prefixUI.useFilenameRadios[1].onClick = function () {
-            for (var i = 0; i < 3; i++) {
-                prefixUI.prefixSeparatorRadios[i].enabled = prefixUI.useFilenameRadios[1].value;
-            }
-            updatePreview();
-        };
-
-        bindAll(prefixUI.prefixSeparatorRadios, "onClick", updatePreview);
-        bindAll(suffixUI.suffixSeparatorRadios, "onClick", updatePreview);
-
-        /* 連番形式変更時：開始値をリセット、開始値・増分の有効化を切り替え / On format change: reset start and toggle inputs */
-        suffixUI.formatDropdown.onChange = function () {
-            var formatKey = FORMAT_KEYS[suffixUI.formatDropdown.selection.index];
-            var hasNumber = (formatKey !== "none");
-            suffixUI.startValueInput.enabled = hasNumber;
-            suffixUI.incrementInput.enabled = (formatKey === "numeric");
-            if (hasNumber) suffixUI.startValueInput.text = START_DEFAULTS[formatKey];
-            updatePreview();
-        };
-
-        /* 入力変更時に即時プレビュー / Live preview on input change */
-        prefixUI.prefixInput.onChanging = updatePreview;
-        suffixUI.startValueInput.onChanging = updatePreview;
-        suffixUI.incrementInput.onChanging = updatePreview;
-        suffixUI.suffixInput.onChanging = updatePreview;
-        nameUI.nameStyleDropdown.onChange = updatePreview;
-
-        /* OKボタン：リネーム後にダイアログを閉じる / OK: rename and close */
-        buttonUI.okBtn.onClick = function () {
-            var context = validateContext();
-            if (!context) return;
-            try {
-                applyContext(context);
-            } catch (e) {
-                alert(L("generalError") + e.message);
-            }
-            dialog.close();
-        };
-
-        suffixUI.formatDropdown.onChange(); // 初期プレビュー反映 / Initial preview
-        dialog.show();
+        dialogUI.dialog.show();
     }
 
     main();

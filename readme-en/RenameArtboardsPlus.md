@@ -25,9 +25,12 @@
 
 1. Configure options (prefix, suffix, numbering format, etc.) in dialog
 2. Check name examples with the preview
-3. Click "Apply" or "OK" to rename artboards
+3. Click "OK" to rename artboards
 
 ### Update History
 
-- v1.0.0 (20250420): Initial version created
-- v1.0.1 (20250430): Added auto-detection of padding digits, simplified preset labels, enhanced ES3 support
+- v1.3.1 (2026-08-06): Write exported presets as UTF-8 so Japanese labels are not garbled, dim the suffix separator when the numbering format is "none" (it has no effect there), reject non-digit input and ignore surrounding whitespace in start number / increment, keep the dialog open when renaming fails, unified panel margins and spacing through a shared layout setup (setupPanel / PANEL_MARGINS), renamed variables / functions / panels to match what they actually represent, grouped LABELS into categories, and added JSDoc to every function
+- v1.3.0 (2026-05-09): Added a warning when the resulting name would be empty, tagged separator radio buttons with their values to remove array-order dependency, escaped strings when exporting presets, changed the default start number to "001"
+- v1.2.0 (2026-05-07): Localization overhaul (L / labelText / labelWithCount), key-based internals for EN locale support, added "none" numbering format, removed the Apply button, split main() into UI builders / preset I/O / pure helpers
+- v1.1 (2025-04-30): Added auto-detection of padding digits, simplified preset labels, enhanced ES3 support
+- v1.0 (2025-04-20): Initial version created
