@@ -2,104 +2,69 @@
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
-### スクリプト名：
-
-ReorderArtboardsByPosition.jsx
 
 ### 概要
 
-- 見た目の配置を基準に、アートボードを左上（Y優先）で並べ替えます
-- 許容差を調整しながら並び順を確認し、必要に応じて再配置できます
-- アートボード名を「行-列」形式に自動更新できます
+カンバス上の見た目の並び（左上基準・Y優先）をもとに、［アートボード］パネルの並び順を整理するツール。あわせて、列数指定やアートボード名にもとづくカンバス上の再配置、「行-列」形式へのリネームも実行できる。
 
-### 主な機能
+詳細はREADMEを参照。
 
-- 左上基準（Y優先）でのアートボード順並べ替え
-- 許容差の自動計算とスライダーによる調整
-- 行単位の並びをリストで確認（例：1 | 2 | 3）
-- パネル上の並び替えの ON / OFF を切り替え
-- カンバス上の再配置モードを 2 つのチェックボックスで切り替え（排他的に選択）
-  - 列数を指定して再配置
-  - アートボード名（「行-列」または「接頭辞-番号」）から行列に再配置
-- 再配置時は列間・行間（現在の定規単位）を指定可能、［連動］で同値入力
-- 間隔入力欄に現在の定規単位を表示
-- 列数・間隔は ↑↓キーで ±1、Shift + ↑↓キーで 10 の倍数にスナップ
-- 名前から再配置時の未指定／重複アートボードの扱いを選択可能
-  - 各行の末尾に配置
-  - 最終行の次の行にまとめる
-- アートボード名パネルでアートボード名を「行-列」形式に更新
-  - 「配置位置から作成」または「既存名を整形」を選択可能
-  - 区切り文字（- / _ / x）を選択可能
-  - 桁数（0 / 00 / 000）を選択可能
+*/
 
-### オリジナル、謝辞
-
-- m1b 氏: https://community.adobe.com/t5/illustrator-discussions/randomly-order-artboards/m-p/12692397
-- https://community.adobe.com/t5/illustrator-discussions/illustrator-script-to-renumber-reorder-the-artboards-with-there-position/m-p/12752568
-
-### 更新履歴
-
-- v1.0 (20231115) : 初期バージョン（Andrew_BJ による UI 改良と上限拡張）
-- v1.2.0 (20260415) : 左上基準専用ツールとしてUIと構成を整理、再配置設定とプレビュー表示を調整
-- v1.3.0 (20260508) : アートボード名パネル追加（「行-列」形式の自動命名、既存名の整形、区切り文字／桁数の選択）、再配置ロジックとUI構築を責務ごとの関数に分割、L() 経由のローカライズに統一、列間／行間の連動処理を整理
-- v1.3.1 (20260508) : 再配置とパネル並び順の実行順を入れ替え、再配置後の見た目に合わせてパネル順が更新されるよう修正
-- v1.4.0 (20260513) : パネル上の並び順を「名前順／カンバス上の並び順に／変更しない」のラジオボタンに変更、名前順は数字列を10桁ゼロ埋めした自然順ソート
-
----
-
-### Script Name:
-
-ReorderArtboardsByPosition.jsx
+/*
 
 ### Overview
 
-- Reorders artboards by visual layout using a Top Left (Y priority) order
-- Preview and adjust row grouping tolerance before reordering
-- Optionally update artboard names using a row-column format
+Organizes the Artboards panel order based on the visual layout on the canvas (Top Left, Y priority). It can also rearrange artboards on the canvas by column count or by row-column names, and rename them in a row-column format.
 
-### Main Features
+See the README for details.
 
-- Reorder artboards using Top Left base order (Y priority)
-- Auto-calculate tolerance and fine-tune it with a slider
-- Preview row-based order in a list (e.g. 1 | 2 | 3)
-- Toggle reorder execution in the Artboards panel on or off
-- Choose a canvas rearrange mode with two mutually exclusive checkboxes
-  - Rearrange by column count
-  - Rearrange by row-column / prefix-number from artboard names
-- When rearranging, set column and row gaps (current ruler unit), with optional linked values
-- Show the current ruler unit next to the spacing input
-- Up/Down keys change column count and spacing by 1; Shift + Up/Down snaps to multiples of 10
-- Choose how unspecified / duplicate names are handled when rearranging by name
-  - Append to each row end
-  - Group in row after last row
-- Artboard Names panel updates artboard names to a row-column format
-  - Choose source: "Create from position" or "Reformat existing names"
-  - Choose separator: - / _ / x
-  - Choose digit width: 0 / 00 / 000
-
-### Original / Credit
-
-- m1b: https://community.adobe.com/t5/illustrator-discussions/randomly-order-artboards/m-p/12692397
-- https://community.adobe.com/t5/illustrator-discussions/illustrator-script-to-renumber-reorder-the-artboards-with-there-position/m-p/12752568
-
-### Changelog
-
-- v1.0 (20231115): Initial version (UI improvements and limit extension by Andrew_BJ)
-- v1.2.0 (20260415): Refined the UI and structure as a dedicated Top Left reorder tool, and adjusted rearrange settings and preview display
-- v1.3.0 (20260508): Added Artboard Names panel (auto row-column naming, reformat existing names, separator and digit width selection), split rearrange logic and UI construction into responsibility-based helper functions, unified localization via L(), and refined linked column/row gap behavior
-- v1.3.1 (20260508): Swapped the execution order of rearrange and panel reorder so the panel order matches the post-rearrange visual layout
 */
+
+// =========================================
+// 基本情報 / Basic info
+// =========================================
+var SCRIPT_NAME     = "ReorderArtboardsByPosition";   /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.3.1";                       /* バージョン / version */
+var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
+var SCRIPT_RELEASED = "2023-11-15";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-07";                   /* 更新日 / last updated */
+
+/**
+ * オリジナル、謝辞 / Original and credit
+ * @author m1b
+ * @discussion https://community.adobe.com/t5/illustrator-discussions/randomly-order-artboards/m-p/12692397
+ * @discussion https://community.adobe.com/t5/illustrator-discussions/illustrator-script-to-renumber-reorder-the-artboards-with-there-position/m-p/12752568
+ */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReorderArtboardsByPosition.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReorderArtboardsByPosition.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb416cb01728a"; /* 紹介記事 / article URL */
+
+// Released under the MIT license
+// http://opensource.org/licenses/mit-license.php
 
 (function () {
 
     // =========================================
-    // バージョンとローカライズ、ユーティリティ / Version, localization, and utility functions  
+    // ユーザー設定 / User settings
     // =========================================
 
-    var SCRIPT_VERSION = "v1.3.1";
-
+    /* 座標比較に使う丸め桁数 / Rounding digits used when comparing coordinates */
     var COORDINATE_PRECISION_DIGITS = 3;
-    var PANEL_MARGINS = [15, 20, 15, 10];
+
+    /* 許容差の自動計算に使う係数と下限 / Factors used to auto-calculate the row tolerance */
+    var TOLERANCE_AUTO_MARGIN_RATIO  = 1.1; /* 自動計算値に掛ける倍率 / multiplier applied to the auto value */
+    var TOLERANCE_AUTO_MARGIN_POINTS = 2;   /* 最小差に加えるマージン（pt） / margin added to the smallest gap (pt) */
+    var TOLERANCE_FALLBACK_POINTS    = 5;   /* 上辺に差がないときの既定値（pt） / fallback when all top edges match (pt) */
+
+    /* 再配置ダイアログの初期値と下限 / Initial values and minimums for the rearrange settings */
+    var DEFAULT_COLUMN_COUNT = 4;   /* 列数 / column count */
+    var MIN_COLUMN_COUNT     = 1;   /* 列数の下限 / minimum column count */
+    var DEFAULT_GAP_VALUE    = 100; /* 列間・行間（表示単位） / column and row gap in the display unit */
+    var MIN_GAP_VALUE        = 0;   /* 列間・行間の下限 / minimum gap value */
 
     /* byName 再配置で例外領域（未指定／重複）の境界に適用するギャップ倍率
      * Gap multiplier applied at the boundary into the unspecified/duplicate exception area in byName mode. */
@@ -108,71 +73,172 @@ ReorderArtboardsByPosition.jsx
     /* 複製対象のアートボードプロパティ / Artboard properties to copy when duplicating */
     var ARTBOARD_COPYABLE_PROPS = ["name", "rulerOrigin", "rulerPAR", "showCenter", "showCrossHairs", "showSafeAreas"];
 
+    // =========================================
+    // レイアウト / Layout
+    // =========================================
+
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var DENSE_SPACING  = 6;                  /* ラジオを並べる密なパネルの間隔 / spacing for dense radio panels */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+    /* コントロールの寸法 / Control metrics */
+    var FIELD_LABEL_WIDTH   = 50;  /* 入力欄ラベルの幅 / labeled field label width */
+    var FIELD_INPUT_CHARS   = 5;   /* 入力欄の文字数 / edittext width in characters */
+    var SLIDER_WIDTH        = 250; /* 許容差スライダーの幅 / tolerance slider width */
+    var SLIDER_HEIGHT       = 20;  /* 許容差スライダーの高さ / tolerance slider height */
+    var PREVIEW_LIST_WIDTH  = 160; /* 並び順リストの幅 / reorder list width */
+    var PREVIEW_LIST_HEIGHT = 120; /* 並び順リストの最小高さ / reorder list minimum height */
+
+    /**
+     * ウィンドウの共通設定を適用する
+     * @param {Window} win - 対象ウィンドウ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {void}
+     */
+    function setupWindow(win, spacing) {
+        win.orientation = "column";
+        win.alignChildren = ["fill", "top"];
+        win.margins = WINDOW_MARGINS;
+        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+    }
+
+    /**
+     * パネルの共通設定を適用する
+     * @param {Panel} panel - 対象パネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
     function setupPanel(panel, spacing) {
         panel.orientation = "column";
-        panel.alignChildren = "left";
+        panel.alignChildren = ["fill", "top"];
         panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
-        if (typeof spacing === "number") {
-            panel.spacing = spacing;
-        }
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
-    function getCurrentLang() {
+    /**
+     * 行グループの共通設定を適用する
+     * @param {Group} group - 対象グループ
+     * @param {string|Array} [alignment] - 配置（省略時は "left"）
+     * @param {number} [spacing] - 要素間隔（省略時は ScriptUI 既定値）
+     * @returns {void}
+     */
+    function setupRow(group, alignment, spacing) {
+        group.orientation = "row";
+        group.alignChildren = ["left", "center"];
+        group.alignment = alignment || "left";
+        if (typeof spacing === "number") group.spacing = spacing;
+    }
+
+    /**
+     * 列グループの共通設定を適用する
+     * @param {Group} group - 対象グループ
+     * @param {string|Array} [alignChildren] - 子要素の配置（省略時は ["fill", "top"]）
+     * @param {string|Array} [alignment] - グループ自身の配置（省略時は ["fill", "top"]）
+     * @returns {void}
+     */
+    function setupColumn(group, alignChildren, alignment) {
+        group.orientation = "column";
+        group.alignChildren = alignChildren || ["fill", "top"];
+        group.alignment = alignment || ["fill", "top"];
+    }
+
+    /**
+     * 2カラムを横に並べる行グループの共通設定を適用する
+     * @param {Group} group - 対象グループ
+     * @returns {void}
+     */
+    function setupColumnsRow(group) {
+        group.orientation = "row";
+        group.alignChildren = ["fill", "top"];
+        group.alignment = ["fill", "top"];
+        group.spacing = COLUMN_SPACING;
+    }
+
+    // =========================================
+    // ローカライズ / Localization
+    // =========================================
+
+    /**
+     * 現在のUI言語を判定する
+     * @returns {string} "ja" または "en"
+     */
+    function getUILanguage() {
         return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
-    var currentLanguage = getCurrentLang();
+    var uiLang = getUILanguage();
 
-    /* ローカライズ済みラベル取得 / Get localized label by key */
-    function L(key) {
-        var entry = LABELS[key];
-        return entry ? entry[currentLanguage] : key;
-    }
-
-    /* -------------------------------------------------- */
     /* 日英ラベル定義 / Japanese-English label definitions */
-    /* -------------------------------------------------- */
-
     var LABELS = {
-        dialogTitle: {
-            ja: "アートボードの並び順を整理",
-            en: "Organize Artboard Order"
+        dialog: {
+            title: { ja: "アートボードの並び順を整理", en: "Organize Artboard Order" }
         },
-        noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
-        noArtboards: { ja: "アートボードが存在しません。", en: "No artboards found." },
-        preview: { ja: "パネル上の並び順", en: "Artboards Panel Order" },
-        execute: { ja: "OK", en: "OK" },
-        close: { ja: "キャンセル", en: "Cancel" },
-        rearrange: { ja: "カンバス上のアートボードを再配置", en: "Rearrange Canvas Artboards" },
-        rearrangeByColumns: { ja: "列数を指定して再配置", en: "Rearrange by column count" },
-        rearrangeByName: { ja: "アートボード名から行列に再配置", en: "Rearrange by row-column from names" },
-        duplicateHandling: { ja: "未指定／重複", en: "Unspecified / Duplicate" },
-        duplicateAppendToPrevRow: { ja: "各行の末尾に配置", en: "Append to each row end" },
-        duplicateGroupInLastRow: { ja: "最終行の次の行にまとめる", en: "Group in row after last row" },
-        columns: { ja: "列数：", en: "Columns:" },
-        columnGap: { ja: "列間：", en: "Column gap:" },
-        rowGap: { ja: "行間：", en: "Row gap:" },
-        gapLink: { ja: "連動", en: "Link" },
-        errorPrefix: { ja: "エラー: ", en: "Error: " },
-        namingPanel: { ja: "アートボード名の更新", en: "Update names as row-column" },
-        namingEnable: { ja: "「行-列」形式に更新", en: "Update" },
-        namingFromPosition: { ja: "配置位置から作成", en: "Create from position" },
-        namingFromExisting: { ja: "既存名を整形", en: "Reformat existing names" },
-        namingSeparator: { ja: "区切り文字", en: "Separator" },
-        namingPadWidth: { ja: "桁数", en: "Digits" },
-        sortByPosition: { ja: "カンバス上の並び順に", en: "Match canvas order" },
-        sortByName: { ja: "名前順", en: "By name" },
-        sortKeepAsIs: { ja: "変更しない", en: "Keep as is" },
-        noMatchAlert: {
-            ja: "「行-列」（例: 1-2）または「接頭辞-番号」（例: banner-1）形式のアートボード名が見つかりませんでした。",
-            en: "No artboard names in '<row><sep><column>' (e.g., 1-2) or '<prefix><sep><number>' (e.g., banner-1) format were found."
+        panel: {
+            reorder:          { ja: "パネル上の並び順", en: "Artboards Panel Order" },
+            rearrange:        { ja: "カンバス上のアートボードを再配置", en: "Rearrange Canvas Artboards" },
+            duplicateHandling: { ja: "未指定／重複", en: "Unspecified / Duplicate" },
+            naming:           { ja: "アートボード名の更新", en: "Update names as row-column" },
+            namingSeparator:  { ja: "区切り文字", en: "Separator" },
+            namingPadWidth:   { ja: "桁数", en: "Digits" }
+        },
+        radio: {
+            sortByName:               { ja: "名前順", en: "By name" },
+            sortByPosition:           { ja: "カンバス上の並び順に", en: "Match canvas order" },
+            sortKeepAsIs:             { ja: "変更しない", en: "Keep as is" },
+            duplicateAppendToRowEnd:  { ja: "各行の末尾に配置", en: "Append to each row end" },
+            duplicateGroupInLastRow:  { ja: "最終行の次の行にまとめる", en: "Group in row after last row" },
+            namingFromPosition:       { ja: "配置位置から作成", en: "Create from position" },
+            namingFromExisting:       { ja: "既存名を整形", en: "Reformat existing names" }
+        },
+        checkbox: {
+            rearrangeByColumns: { ja: "列数を指定して再配置", en: "Rearrange by column count" },
+            rearrangeByName:    { ja: "アートボード名から行列に再配置", en: "Rearrange by row-column from names" },
+            gapLink:            { ja: "連動", en: "Link" },
+            namingEnable:       { ja: "「行-列」形式に更新", en: "Update" }
+        },
+        fieldLabel: {
+            columns:   { ja: "列数：", en: "Columns:" },
+            columnGap: { ja: "列間：", en: "Column gap:" },
+            rowGap:    { ja: "行間：", en: "Row gap:" }
+        },
+        button: {
+            ok:     { ja: "OK", en: "OK" },
+            cancel: { ja: "キャンセル", en: "Cancel" }
+        },
+        alert: {
+            noDocument:  { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+            noArtboards: { ja: "アートボードが存在しません。", en: "No artboards found." },
+            errorPrefix: { ja: "エラー: ", en: "Error: " },
+            noMatch: {
+                ja: "「行-列」（例: 1-2）または「接頭辞-番号」（例: banner-1）形式のアートボード名が見つかりませんでした。",
+                en: "No artboard names in '<row><sep><column>' (e.g., 1-2) or '<prefix><sep><number>' (e.g., banner-1) format were found."
+            }
         }
     };
 
+    /**
+     * ラベルを現在のUI言語で取得する
+     * @param {...string} labelPath - たどるキー（例: getLabel("dialog", "title")）
+     * @returns {string} ローカライズ済みラベル
+     */
+    function getLabel() {
+        var node = LABELS;
+        for (var pathIndex = 0; pathIndex < arguments.length; pathIndex++) {
+            if (node == null) break;
+            node = node[arguments[pathIndex]];
+        }
+        return (node && node[uiLang] != null) ? node[uiLang] : "";
+    }
+
     // =========================================
-    // 単位コードとラベルのマッピング / Mapping of unit codes to labels
+    // 単位 / Units
     // =========================================
 
+    /* 単位コードとラベルのマッピング / Mapping of unit codes to labels */
     var unitLabelMap = {
         0: "in",
         1: "mm",
@@ -187,13 +253,21 @@ ReorderArtboardsByPosition.jsx
         10: "ft"
     };
 
+    /**
+     * 現在の定規単位のラベルを取得する
+     * @returns {string} 単位ラベル（取得できない場合は "pt"）
+     */
     function getCurrentUnitLabel() {
         var unitCode = app.preferences.getIntegerPreference("rulerType");
         return unitLabelMap[unitCode] || "pt";
     }
     var currentUnitLabel = getCurrentUnitLabel();
 
-    /* 表示単位の数値をポイントに変換 / Convert display-unit value to points */
+    /**
+     * 表示単位の数値をポイントに変換する
+     * @param {number} value - 表示単位の値
+     * @returns {number} ポイント値
+     */
     function convertDisplayUnitToPoints(value) {
         var unitCode = app.preferences.getIntegerPreference("rulerType");
         switch (unitCode) {
@@ -207,12 +281,17 @@ ReorderArtboardsByPosition.jsx
             case 7: return value * 72 * 12;             /* ft/in */
             case 8: return value * 72 / 0.0254;         /* m */
             case 9: return value * 72 * 36;             /* yd */
-            case 10: return value * 72 * 12;             /* ft */
+            case 10: return value * 72 * 12;            /* ft */
             default: return value;
         }
     }
 
-    /* 入力欄の表示単位値を読み取り、pt に変換 / Read display-unit input and convert it to points */
+    /**
+     * 入力欄の表示単位値を読み取り、ポイントに変換する
+     * @param {EditText} input - 対象の入力欄
+     * @param {number} defaultValue - 数値として読めない場合の既定値（表示単位）
+     * @returns {number} ポイント値
+     */
     function readDisplayUnitInputAsPoints(input, defaultValue) {
         var value = parseFloat(input.text);
         if (isNaN(value)) value = defaultValue;
@@ -220,17 +299,36 @@ ReorderArtboardsByPosition.jsx
     }
 
     // =========================================
-    // メイン処理
+    // メイン処理 / Main
     // =========================================
 
+    /**
+     * @typedef {Object} ArtboardEntry
+     * @property {string} name - アートボード名
+     * @property {number[]} artboardRect - [左, 上, 右, 下]
+     * @property {number} [sourceIndex] - 元のアートボードインデックス
+     * @property {number} [rowBand] - 上辺の近さで割り当てた 0 始まりの行番号
+     */
+
+    /**
+     * @typedef {Object} PreviewContext
+     * @property {ArtboardEntry[]} artboardEntries - プレビュー用のアートボード情報
+     * @property {number} sliderMax - 許容差スライダーの最大値
+     * @property {number} defaultTolerance - 許容差スライダーの初期値
+     */
+
+    /**
+     * ドキュメントを検証してダイアログを表示する
+     * @returns {void}
+     */
     function main() {
         if (app.documents.length === 0) {
-            alert(L("noDocument"));
+            alert(getLabel("alert", "noDocument"));
             return;
         }
         var doc = app.activeDocument;
         if (doc.artboards.length === 0) {
-            alert(L("noArtboards"));
+            alert(getLabel("alert", "noArtboards"));
             return;
         }
 
@@ -243,8 +341,13 @@ ReorderArtboardsByPosition.jsx
         ui.dialog.show();
     }
 
+    /**
+     * プレビューと許容差の初期値を組み立てる
+     * @param {Document} doc - 対象ドキュメント
+     * @returns {PreviewContext} プレビュー用のコンテキスト
+     */
     function buildPreviewContext(doc) {
-        /* アートボード情報を配列に格納（プレビュー・自動計算用） */
+        /* アートボード情報を配列に格納（プレビュー・自動計算用） / Snapshot artboards for preview and auto tolerance */
         var artboardEntries = [];
         for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
             artboardEntries.push({
@@ -253,7 +356,7 @@ ReorderArtboardsByPosition.jsx
             });
         }
 
-        /* スライダー最大値をアートボードの最大高さに設定 */
+        /* スライダー最大値をアートボードの最大高さに設定 / Use the tallest artboard as the slider maximum */
         var maxHeight = 0;
         for (var entryIndex = 0; entryIndex < artboardEntries.length; entryIndex++) {
             var artboardRect = artboardEntries[entryIndex].artboardRect;
@@ -262,9 +365,9 @@ ReorderArtboardsByPosition.jsx
         }
         var sliderMax = Math.round(maxHeight);
 
-        /* スライダー初期値を自動計算値×1.1に設定 */
+        /* スライダー初期値を自動計算値にマージンを掛けて設定 / Seed the slider with the auto value plus a margin */
         var autoTolerance = calculateAutoTolerance(artboardEntries);
-        var defaultTolerance = Math.round(autoTolerance * 1.1);
+        var defaultTolerance = Math.round(autoTolerance * TOLERANCE_AUTO_MARGIN_RATIO);
         defaultTolerance = Math.min(defaultTolerance, sliderMax);
 
         return {
@@ -274,6 +377,41 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
+    /**
+     * 許容差を自動計算する（上辺の最小差 + マージン）
+     * @param {ArtboardEntry[]} artboardEntries - アートボード情報
+     * @returns {number} 許容差（pt）
+     */
+    function calculateAutoTolerance(artboardEntries) {
+        var tops = [];
+        for (var entryIndex = 0; entryIndex < artboardEntries.length; entryIndex++) {
+            tops.push(artboardEntries[entryIndex].artboardRect[1]);
+        }
+        /* 上から下に並べる / Sort top to bottom */
+        tops.sort(function (firstTop, secondTop) {
+            return secondTop - firstTop;
+        });
+
+        var diffs = [];
+        for (var topIndex = 1; topIndex < tops.length; topIndex++) {
+            var diff = Math.abs(tops[topIndex] - tops[topIndex - 1]);
+            if (diff > 0) diffs.push(diff);
+        }
+
+        /* 差が無ければデフォルト / Default if no difference */
+        if (diffs.length === 0) return TOLERANCE_FALLBACK_POINTS;
+
+        /* 少しマージンを加える / Add some margin */
+        return Math.min.apply(null, diffs) + TOLERANCE_AUTO_MARGIN_POINTS;
+    }
+
+    /**
+     * ダイアログのイベントを設定する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PreviewContext} previewContext - プレビュー用のコンテキスト
+     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @returns {void}
+     */
     function bindEvents(doc, previewContext, ui) {
         var sortRadios = ui.preview.sortModeRadios;
 
@@ -288,98 +426,55 @@ ReorderArtboardsByPosition.jsx
             syncSortMode();
         }
 
-        function syncSortMode() {
-            var byPositionSelected = sortRadios.byPosition.value;
-            ui.preview.toleranceSlider.enabled = byPositionSelected;
-            var currentTolerance = Math.round(ui.preview.toleranceSlider.value);
-            updateReorderPreview(previewContext, ui, currentTolerance);
-            /* リスト更新後に enabled を当て直す（add の影響でディムが効かないケースを回避）
-             * Re-apply enabled after add() to make dimming take effect reliably */
-            ui.preview.reorderList.enabled = byPositionSelected;
+        /* 許容差はパネル並び順と「配置位置から作成」の両方で使うため、どちらかが有効なら操作できるようにする
+         * The tolerance drives both the panel order and position-based naming, so enable it for either */
+        function syncToleranceEnabled() {
+            var usedByPanelOrder = sortRadios.byPosition.value;
+            var usedByNaming = ui.naming.enableCheckbox.value && ui.naming.source.fromPosition.value;
+            ui.preview.toleranceSlider.enabled = usedByPanelOrder || usedByNaming;
         }
 
+        function syncSortMode() {
+            syncToleranceEnabled();
+            updateReorderPreview(previewContext, ui, Math.round(ui.preview.toleranceSlider.value));
+        }
+
+        function syncNamingState() {
+            ui.naming.settingsGroup.enabled = ui.naming.enableCheckbox.value;
+            syncToleranceEnabled();
+        }
+
+        syncNamingState();
         syncSortMode();
 
         ui.preview.toleranceSlider.onChanging = function () {
-            var tolerance = Math.round(ui.preview.toleranceSlider.value);
-            updateReorderPreview(previewContext, ui, tolerance);
+            updateReorderPreview(previewContext, ui, Math.round(ui.preview.toleranceSlider.value));
         };
 
         sortRadios.byPosition.onClick = function () { selectSortMode(sortRadios.byPosition); };
         sortRadios.byName.onClick = function () { selectSortMode(sortRadios.byName); };
         sortRadios.keepAsIs.onClick = function () { selectSortMode(sortRadios.keepAsIs); };
 
-        ui.buttons.executeBtn.onClick = function () {
+        ui.naming.enableCheckbox.onClick = syncNamingState;
+        ui.naming.source.fromPosition.onClick = syncToleranceEnabled;
+        ui.naming.source.fromExisting.onClick = syncToleranceEnabled;
+
+        ui.buttons.okBtn.onClick = function () {
             executeReorder(doc, ui);
         };
 
-        ui.buttons.closeBtn.onClick = function () {
+        ui.buttons.cancelBtn.onClick = function () {
             ui.dialog.close(-1);
         };
     }
 
-    function executeReorder(doc, ui) {
-        var tolerance = Math.round(ui.preview.toleranceSlider.value) || 0;
-
-        /* 再配置を先に実行（入力値は表示単位として受け取り、ptに変換して渡す）
-         * パネル並び順より先に再配置すると、パネル順が「再配置後の見た目」と揃う
-         * Run rearrange first so the panel order reflects post-rearrange positions */
-        if (ui.rearrange.modeChecks.byColumns.value) {
-            var columns = parseInt(ui.rearrange.columnsInput.text, 10) || 4;
-            var columnGapPoints = readDisplayUnitInputAsPoints(ui.rearrange.columnGapInput, 100);
-            var rowGapPoints = ui.rearrange.gapLinkCheckbox.value
-                ? columnGapPoints
-                : readDisplayUnitInputAsPoints(ui.rearrange.rowGapInput, 100);
-            try {
-                rearrangeArtboardsWithGaps(doc, columns, columnGapPoints, rowGapPoints);
-            } catch (e) {
-                alert(L("errorPrefix") + e.message);
-            }
-        } else if (ui.rearrange.modeChecks.byName.value) {
-            var byNameColumnGapPoints = readDisplayUnitInputAsPoints(ui.rearrange.columnGapInput, 100);
-            var byNameRowGapPoints = ui.rearrange.gapLinkCheckbox.value
-                ? byNameColumnGapPoints
-                : readDisplayUnitInputAsPoints(ui.rearrange.rowGapInput, 100);
-            var exceptionMode = ui.rearrange.duplicateRadios.groupLast.value ? 'lastRow' : 'rowEnd';
-            try {
-                rearrangeArtboardsByRowColumnName(doc, byNameColumnGapPoints, byNameRowGapPoints, exceptionMode);
-            } catch (e) {
-                alert(L("errorPrefix") + e.message);
-            }
-        }
-
-        /* 並び順モードに応じてソーター切替（変更しない場合はスキップ）
-         * Pick a sorter based on the selected sort mode; skip when "Keep as is" */
-        if (!ui.preview.sortModeRadios.keepAsIs.value) {
-            var sorter;
-            if (ui.preview.sortModeRadios.byName.value) {
-                sorter = function (_artboards) {
-                    sortArtboardsByName(_artboards);
-                };
-            } else {
-                sorter = function (_artboards, dp) {
-                    sortArtboardsTopLeftWithTolerance(_artboards, dp, tolerance);
-                };
-            }
-            rebuildArtboardsInSortedOrder(doc, sorter, COORDINATE_PRECISION_DIGITS);
-        }
-
-        /* 命名（配置位置から作成 / 既存名を整形） / Update or reformat artboard names as row-column */
-        if (ui.naming.enableCheckbox.value) {
-            var separators = ui.naming.separators;
-            var separator = separators.underscore.value ? "_" : (separators.x.value ? "x" : "-");
-            var padRadios = ui.naming.padRadios;
-            var padWidth = padRadios.w3.value ? 3 : (padRadios.w2.value ? 2 : 1);
-            if (ui.naming.source.fromPosition.value) {
-                renameArtboardsFromPositions(doc, separator, padWidth, tolerance);
-            } else {
-                renameArtboardsFromExistingNames(doc, separator, padWidth);
-            }
-        }
-
-        ui.dialog.close(1);
-    }
-
+    /**
+     * 並び順リストのプレビューを更新する
+     * @param {PreviewContext} previewContext - プレビュー用のコンテキスト
+     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @param {number} tolerance - 行判定の許容差（pt）
+     * @returns {void}
+     */
     function updateReorderPreview(previewContext, ui, tolerance) {
         var reorderList = ui.preview.reorderList;
         reorderList.removeAll();
@@ -402,12 +497,12 @@ ReorderArtboardsByPosition.jsx
             return;
         }
 
+        /* 位置順モード: 行ごとにまとめて表示 / Position mode: show one row per line */
         var decimalPlaces = Math.pow(10, COORDINATE_PRECISION_DIGITS);
         var sortedEntries = previewContext.artboardEntries.slice();
         sortArtboardsTopLeftWithTolerance(sortedEntries, decimalPlaces, tolerance);
 
-        var rowGroups = groupSortedIntoRows(sortedEntries, tolerance, decimalPlaces);
-
+        var rowGroups = groupSortedIntoRows(sortedEntries);
         for (var rowIndex = 0; rowIndex < rowGroups.length; rowIndex++) {
             var rowNames = [];
             for (var columnIndex = 0; columnIndex < rowGroups[rowIndex].length; columnIndex++) {
@@ -417,83 +512,201 @@ ReorderArtboardsByPosition.jsx
         }
     }
 
+    /**
+     * ダイアログの設定を読み取り、再配置・並べ替え・リネームを実行する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @returns {void}
+     */
+    function executeReorder(doc, ui) {
+        var tolerance = Math.round(ui.preview.toleranceSlider.value) || 0;
+
+        /* 再配置に失敗したらアラート済みなので、ダイアログを開いたまま中断する
+         * Abort with the dialog still open when the rearrange failed (already alerted) */
+        var rearrangeResult = applyCanvasRearrange(doc, ui);
+        if (!rearrangeResult.ok) return;
+
+        applyPanelReorder(doc, ui, tolerance);
+        applyArtboardRenaming(doc, ui, tolerance);
+
+        ui.dialog.close(1);
+
+        /* ダイアログを閉じてからビューを合わせる（モーダル表示中のメニュー実行を避ける）
+         * Fit the view after closing, so no menu command runs while the modal dialog is up */
+        if (rearrangeResult.rearranged) app.executeMenuCommand('fitall');
+    }
+
+    /**
+     * カンバス上の再配置を実行する
+     * 再配置を先に実行すると、パネル順が「再配置後の見た目」と揃う
+     * Run rearrange first so the panel order reflects post-rearrange positions
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @returns {{ok: boolean, rearranged: boolean}} ok は後続処理を続けてよいか、rearranged は実際に動かしたか
+     */
+    function applyCanvasRearrange(doc, ui) {
+        var modeChecks = ui.rearrange.modeChecks;
+        if (!modeChecks.byColumns.value && !modeChecks.byName.value) {
+            return { ok: true, rearranged: false };
+        }
+
+        /* 入力値は表示単位として受け取り、ptに変換して渡す / Read inputs in display units and convert to points */
+        var columnGapPoints = readDisplayUnitInputAsPoints(ui.rearrange.columnGapInput, DEFAULT_GAP_VALUE);
+        var rowGapPoints = ui.rearrange.gapLinkCheckbox.value
+            ? columnGapPoints
+            : readDisplayUnitInputAsPoints(ui.rearrange.rowGapInput, DEFAULT_GAP_VALUE);
+
+        try {
+            if (modeChecks.byColumns.value) {
+                rearrangeArtboardsWithGaps(doc, readColumnCount(ui.rearrange.columnsInput), columnGapPoints, rowGapPoints);
+                return { ok: true, rearranged: true };
+            }
+            var exceptionMode = ui.rearrange.duplicateRadios.groupLast.value ? 'lastRow' : 'rowEnd';
+            var matched = rearrangeArtboardsByRowColumnName(doc, columnGapPoints, rowGapPoints, exceptionMode);
+            return { ok: matched, rearranged: matched };
+        } catch (rearrangeError) {
+            alert(getLabel("alert", "errorPrefix") + rearrangeError.message);
+            return { ok: false, rearranged: false };
+        }
+    }
+
+    /**
+     * 列数入力を読み取り、下限でクランプする
+     * @param {EditText} columnsInput - 列数の入力欄
+     * @returns {number} 1 以上の列数
+     */
+    function readColumnCount(columnsInput) {
+        var columns = parseInt(columnsInput.text, 10);
+        if (isNaN(columns)) columns = DEFAULT_COLUMN_COUNT;
+        if (columns < MIN_COLUMN_COUNT) columns = MIN_COLUMN_COUNT;
+        columnsInput.text = columns;
+        return columns;
+    }
+
+    /**
+     * ［アートボード］パネルの並び順を更新する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @param {number} tolerance - 行判定の許容差（pt）
+     * @returns {void}
+     */
+    function applyPanelReorder(doc, ui, tolerance) {
+        /* 並び順モードに応じてソーター切替（変更しない場合はスキップ）
+         * Pick a sorter based on the selected sort mode; skip when "Keep as is" */
+        if (ui.preview.sortModeRadios.keepAsIs.value) return;
+
+        var sorter;
+        if (ui.preview.sortModeRadios.byName.value) {
+            sorter = function (entries) {
+                sortArtboardsByName(entries);
+            };
+        } else {
+            sorter = function (entries, decimalPlaces) {
+                sortArtboardsTopLeftWithTolerance(entries, decimalPlaces, tolerance);
+            };
+        }
+        rebuildArtboardsInSortedOrder(doc, sorter, COORDINATE_PRECISION_DIGITS);
+    }
+
+    /**
+     * アートボード名を「行-列」形式に更新する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Object} ui - buildDialogUI() が返すUI参照
+     * @param {number} tolerance - 行判定の許容差（pt）
+     * @returns {void}
+     */
+    function applyArtboardRenaming(doc, ui, tolerance) {
+        if (!ui.naming.enableCheckbox.value) return;
+
+        var separators = ui.naming.separators;
+        var separator = separators.underscore.value ? "_" : (separators.x.value ? "x" : "-");
+        var padRadios = ui.naming.padRadios;
+        var padWidth = padRadios.w3.value ? 3 : (padRadios.w2.value ? 2 : 1);
+
+        /* 配置位置から作成 / 既存名を整形 / Create from position, or reformat existing names */
+        if (ui.naming.source.fromPosition.value) {
+            renameArtboardsFromPositions(doc, separator, padWidth, tolerance);
+        } else {
+            renameArtboardsFromExistingNames(doc, separator, padWidth);
+        }
+    }
+
     // =========================================
-    // ダイアログUI
+    // ダイアログUI / Dialog UI
     // =========================================
 
+    /**
+     * ダイアログ全体を組み立てる
+     * @param {number} defaultTolerance - 許容差スライダーの初期値
+     * @param {number} sliderMax - 許容差スライダーの最大値
+     * @returns {Object} ダイアログとUI参照をまとめたオブジェクト
+     */
     function buildDialogUI(defaultTolerance, sliderMax) {
-        var dialog = new Window("dialog", L("dialogTitle") + " " + SCRIPT_VERSION);
-        dialog.orientation = "column";
-        dialog.alignChildren = ['fill', 'top'];
-        dialog.spacing = 15;
-
-        var mainColumn = dialog.add("group");
-        mainColumn.orientation = "column";
-        mainColumn.alignChildren = ['fill', 'top'];
-        mainColumn.alignment = ['fill', 'top'];
+        var dialog = new Window("dialog", getLabel("dialog", "title") + " " + SCRIPT_VERSION);
+        setupWindow(dialog);
 
         /* 並び順は上段にフル幅 / Order panel spans full width on top */
-        var preview = buildPreviewPanel(mainColumn, defaultTolerance, sliderMax);
+        var preview = buildPreviewPanel(dialog, defaultTolerance, sliderMax);
 
         /* 下段は 2 カラム（左: 再配置 / 右: 命名） / Two-column row: rearrange (left) / naming (right) */
-        var twoColumnsRow = mainColumn.add("group");
-        twoColumnsRow.orientation = "row";
-        twoColumnsRow.alignChildren = ['fill', 'top'];
-        twoColumnsRow.alignment = ['fill', 'top'];
-        twoColumnsRow.spacing = 10;
+        var twoColumnsRow = dialog.add("group");
+        setupColumnsRow(twoColumnsRow);
 
         var leftColumn = twoColumnsRow.add("group");
-        leftColumn.orientation = "column";
-        leftColumn.alignChildren = ['fill', 'top'];
-        leftColumn.alignment = ['fill', 'top'];
+        setupColumn(leftColumn);
 
         var rightColumn = twoColumnsRow.add("group");
-        rightColumn.orientation = "column";
-        rightColumn.alignChildren = ['fill', 'top'];
-        rightColumn.alignment = ['fill', 'top'];
+        setupColumn(rightColumn);
+
+        var rearrange = buildRearrangePanel(leftColumn);
+        var naming = buildNamingPanel(rightColumn);
+        var buttons = buildDialogButtons(dialog);
 
         return {
             dialog: dialog,
             preview: preview,
-            rearrange: buildRearrangePanel(leftColumn),
-            naming: buildNamingPanel(rightColumn),
-            buttons: buildDialogButtons(dialog)
+            rearrange: rearrange,
+            naming: naming,
+            buttons: buttons
         };
     }
 
-    /* プレビューパネル（並び順モード＋許容差スライダー＋並び順リスト） / Preview panel */
+    /**
+     * プレビューパネル（並び順モード＋許容差スライダー＋並び順リスト）を作成する
+     * @param {Group|Window} parent - 追加先のコンテナ
+     * @param {number} defaultTolerance - 許容差スライダーの初期値
+     * @param {number} sliderMax - 許容差スライダーの最大値
+     * @returns {Object} 並び順ラジオ・スライダー・リストの参照
+     */
     function buildPreviewPanel(parent, defaultTolerance, sliderMax) {
-        var reorderPanel = parent.add("panel", undefined, L("preview"));
-        setupPanel(reorderPanel);
+        var reorderPanel = parent.add("panel", undefined, getLabel("panel", "reorder"));
+        setupPanel(reorderPanel, DENSE_SPACING);
 
         /* 名前順（ラジオ） / Radio "By name" */
         var byNameRow = reorderPanel.add("group");
-        byNameRow.orientation = "row";
-        byNameRow.alignChildren = ['left', 'center'];
-        var sortByNameRadio = byNameRow.add("radiobutton", undefined, L("sortByName"));
+        setupRow(byNameRow);
+        var sortByNameRadio = byNameRow.add("radiobutton", undefined, getLabel("radio", "sortByName"));
 
         /* カンバス上の並び順に（ラジオ）＋ 許容差スライダーを同じ行に配置
          * Radio "Match canvas order" and tolerance slider on the same row */
         var byPositionRow = reorderPanel.add("group");
-        byPositionRow.orientation = "row";
-        byPositionRow.alignChildren = ['left', 'center'];
+        setupRow(byPositionRow);
 
-        var sortByPositionRadio = byPositionRow.add("radiobutton", undefined, L("sortByPosition"));
+        var sortByPositionRadio = byPositionRow.add("radiobutton", undefined, getLabel("radio", "sortByPosition"));
         sortByPositionRadio.value = true;
 
         var toleranceSlider = byPositionRow.add("slider", undefined, defaultTolerance, 0, sliderMax);
-        toleranceSlider.preferredSize = [250, 20];
+        toleranceSlider.preferredSize = [SLIDER_WIDTH, SLIDER_HEIGHT];
 
         /* 変更しない（ラジオ） / Radio "Keep as is" */
         var keepAsIsRow = reorderPanel.add("group");
-        keepAsIsRow.orientation = "row";
-        keepAsIsRow.alignChildren = ['left', 'center'];
-        var sortKeepAsIsRadio = keepAsIsRow.add("radiobutton", undefined, L("sortKeepAsIs"));
+        setupRow(keepAsIsRow);
+        var sortKeepAsIsRadio = keepAsIsRow.add("radiobutton", undefined, getLabel("radio", "sortKeepAsIs"));
 
         var reorderList = reorderPanel.add("listbox", undefined, [], { multiselect: false });
-        reorderList.preferredSize.width = 160;
-        reorderList.minimumSize.height = 120;
-        reorderList.alignment = ['fill', 'fill'];
+        reorderList.preferredSize.width = PREVIEW_LIST_WIDTH;
+        reorderList.minimumSize.height = PREVIEW_LIST_HEIGHT;
+        reorderList.alignment = ["fill", "fill"];
 
         return {
             sortModeRadios: {
@@ -506,19 +719,23 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
-    /* 再配置パネル / Rearrange panel */
+    /**
+     * 再配置パネルを作成する
+     * @param {Group} parent - 追加先のコンテナ
+     * @returns {Object} 再配置設定コントロールの参照
+     */
     function buildRearrangePanel(parent) {
-        var rearrangeGroup = parent.add("panel", undefined, L("rearrange"));
-        setupPanel(rearrangeGroup);
+        var rearrangePanel = parent.add("panel", undefined, getLabel("panel", "rearrange"));
+        setupPanel(rearrangePanel);
 
-        var modeChecks = buildRearrangeModeCheckboxes(rearrangeGroup);
-        var rearrangeSettingsGroup = rearrangeGroup.add("group");
-        rearrangeSettingsGroup.orientation = "column";
-        rearrangeSettingsGroup.alignChildren = ['fill', 'top'];
+        var modeChecks = buildRearrangeModeCheckboxes(rearrangePanel);
 
-        var columnsRow = addLabeledInput(rearrangeSettingsGroup, L("columns"), "4", 50);
+        var rearrangeSettingsGroup = rearrangePanel.add("group");
+        setupColumn(rearrangeSettingsGroup);
+
+        var columnsRow = addLabeledInput(rearrangeSettingsGroup, getLabel("fieldLabel", "columns"), String(DEFAULT_COLUMN_COUNT), MIN_COLUMN_COUNT);
         var spacingControls = buildRearrangeSpacingControls(rearrangeSettingsGroup);
-        var duplicateRadios = buildDuplicateHandlingPanel(rearrangeGroup);
+        var duplicateRadios = buildDuplicateHandlingPanel(rearrangePanel);
 
         function syncEnabled() {
             syncRearrangePanelState(modeChecks, rearrangeSettingsGroup, columnsRow, duplicateRadios.panel);
@@ -547,15 +764,17 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
-    /* 再配置モードのチェックボックスを作成 / Build rearrange mode checkboxes */
+    /**
+     * 再配置モードのチェックボックスを作成する（列数指定 / アートボード名、排他的に選択）
+     * @param {Panel} parent - 追加先のパネル
+     * @returns {Object} 各モードのチェックボックス参照
+     */
     function buildRearrangeModeCheckboxes(parent) {
-        /* 再配置モード（列数指定 / アートボード名から、排他的に選択） / Rearrange mode checkboxes (mutually exclusive) */
         var modeGroup = parent.add("group");
-        modeGroup.orientation = "column";
-        modeGroup.alignChildren = ['left', 'center'];
+        setupColumn(modeGroup, ["left", "top"]);
 
-        var byColumnsCheckbox = modeGroup.add("checkbox", undefined, L("rearrangeByColumns"));
-        var byNameCheckbox = modeGroup.add("checkbox", undefined, L("rearrangeByName"));
+        var byColumnsCheckbox = modeGroup.add("checkbox", undefined, getLabel("checkbox", "rearrangeByColumns"));
+        var byNameCheckbox = modeGroup.add("checkbox", undefined, getLabel("checkbox", "rearrangeByName"));
         byColumnsCheckbox.value = false;
         byNameCheckbox.value = false;
 
@@ -565,27 +784,28 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
-    /* 再配置の列間／行間入力と連動チェックを作成 / Build gap inputs and link checkbox */
+    /**
+     * 再配置の列間／行間入力と連動チェックを作成する
+     * @param {Group} parent - 追加先のコンテナ
+     * @returns {Object} 列間・行間入力欄と連動チェックの参照
+     */
     function buildRearrangeSpacingControls(parent) {
         /* 列間／行間 + 連動チェックの2カラム / Two-column row: gap inputs (left) + link checkbox (right) */
         var gapsRow = parent.add("group");
-        gapsRow.orientation = "row";
-        gapsRow.alignChildren = ['left', 'center'];
-        gapsRow.spacing = 20;
+        setupRow(gapsRow, "left", COLUMN_SPACING);
 
         var gapsLeft = gapsRow.add("group");
-        gapsLeft.orientation = "column";
-        gapsLeft.alignChildren = ['left', 'top'];
+        setupColumn(gapsLeft, ["left", "top"], ["left", "top"]);
 
-        var columnGapRow = addLabeledInput(gapsLeft, L("columnGap"), "100", 50);
+        var columnGapRow = addLabeledInput(gapsLeft, getLabel("fieldLabel", "columnGap"), String(DEFAULT_GAP_VALUE), MIN_GAP_VALUE);
         var columnGapInput = columnGapRow.input;
         columnGapRow.row.add("statictext", undefined, currentUnitLabel);
 
-        var rowGapRow = addLabeledInput(gapsLeft, L("rowGap"), "100", 50);
+        var rowGapRow = addLabeledInput(gapsLeft, getLabel("fieldLabel", "rowGap"), String(DEFAULT_GAP_VALUE), MIN_GAP_VALUE);
         var rowGapInput = rowGapRow.input;
         rowGapRow.row.add("statictext", undefined, currentUnitLabel);
 
-        var gapLinkCheckbox = gapsRow.add("checkbox", undefined, L("gapLink"));
+        var gapLinkCheckbox = gapsRow.add("checkbox", undefined, getLabel("checkbox", "gapLink"));
         gapLinkCheckbox.value = true;
 
         bindGapLinkControls(columnGapInput, rowGapInput, rowGapRow.row, gapLinkCheckbox);
@@ -597,7 +817,14 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
-    /* 列間／行間の連動挙動を設定 / Bind linked gap input behavior */
+    /**
+     * 列間／行間の連動挙動を設定する
+     * @param {EditText} columnGapInput - 列間の入力欄
+     * @param {EditText} rowGapInput - 行間の入力欄
+     * @param {Group} rowGapControlRow - 行間の入力行（連動時にディムする）
+     * @param {Checkbox} gapLinkCheckbox - 連動チェックボックス
+     * @returns {void}
+     */
     function bindGapLinkControls(columnGapInput, rowGapInput, rowGapControlRow, gapLinkCheckbox) {
         function syncRowGapEnabled() {
             rowGapControlRow.enabled = !gapLinkCheckbox.value;
@@ -617,13 +844,17 @@ ReorderArtboardsByPosition.jsx
         syncRowGapEnabled();
     }
 
-    /* 未指定／重複の扱いパネルを作成 / Build duplicate handling panel */
+    /**
+     * 未指定／重複の扱いパネルを作成する
+     * @param {Panel} parent - 追加先のパネル
+     * @returns {Object} パネルと各ラジオの参照
+     */
     function buildDuplicateHandlingPanel(parent) {
-        var duplicatePanel = parent.add("panel", undefined, L("duplicateHandling"));
-        setupPanel(duplicatePanel);
+        var duplicatePanel = parent.add("panel", undefined, getLabel("panel", "duplicateHandling"));
+        setupPanel(duplicatePanel, DENSE_SPACING);
 
-        var duplicateAppendRadio = duplicatePanel.add("radiobutton", undefined, L("duplicateAppendToPrevRow"));
-        var duplicateGroupRadio = duplicatePanel.add("radiobutton", undefined, L("duplicateGroupInLastRow"));
+        var duplicateAppendRadio = duplicatePanel.add("radiobutton", undefined, getLabel("radio", "duplicateAppendToRowEnd"));
+        var duplicateGroupRadio = duplicatePanel.add("radiobutton", undefined, getLabel("radio", "duplicateGroupInLastRow"));
         duplicateAppendRadio.value = true;
 
         return {
@@ -633,7 +864,14 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
-    /* 再配置パネルの有効／無効状態を同期 / Sync enabled state for rearrange panel controls */
+    /**
+     * 再配置パネルの有効／無効状態を同期する
+     * @param {Object} modeChecks - 再配置モードのチェックボックス参照
+     * @param {Group} rearrangeSettingsGroup - 再配置設定のコンテナ
+     * @param {Object} columnsRow - 列数入力行（addLabeledInput の戻り値）
+     * @param {Panel} duplicatePanel - 未指定／重複パネル
+     * @returns {void}
+     */
     function syncRearrangePanelState(modeChecks, rearrangeSettingsGroup, columnsRow, duplicatePanel) {
         var hasRearrangeMode = modeChecks.byColumns.value || modeChecks.byName.value;
         rearrangeSettingsGroup.enabled = hasRearrangeMode;
@@ -644,112 +882,128 @@ ReorderArtboardsByPosition.jsx
         duplicatePanel.enabled = modeChecks.byName.value;
     }
 
-    /* 命名パネル / Naming panel */
+    /**
+     * 命名パネルを作成する
+     * @param {Group} parent - 追加先のコンテナ
+     * @returns {Object} 命名設定コントロールの参照
+     */
     function buildNamingPanel(parent) {
-        var namingGroup = parent.add("panel", undefined, L("namingPanel"));
-        setupPanel(namingGroup);
+        var namingPanel = parent.add("panel", undefined, getLabel("panel", "naming"));
+        setupPanel(namingPanel);
 
-        var namingEnableCheckbox = namingGroup.add("checkbox", undefined, L("namingEnable"));
+        var namingEnableCheckbox = namingPanel.add("checkbox", undefined, getLabel("checkbox", "namingEnable"));
         namingEnableCheckbox.value = false;
 
-        var namingSettingsGroup = namingGroup.add("group");
-        namingSettingsGroup.orientation = "column";
-        namingSettingsGroup.alignChildren = ['fill', 'top'];
+        var namingSettingsGroup = namingPanel.add("group");
+        setupColumn(namingSettingsGroup);
 
         /* 命名ソース / Naming source */
-        var sourceRow = namingSettingsGroup.add("group");
-        sourceRow.orientation = "column";
-        sourceRow.alignChildren = ['left', 'center'];
-        var fromPositionRadio = sourceRow.add("radiobutton", undefined, L("namingFromPosition"));
-        var fromExistingRadio = sourceRow.add("radiobutton", undefined, L("namingFromExisting"));
+        var sourceGroup = namingSettingsGroup.add("group");
+        setupColumn(sourceGroup, ["left", "top"]);
+        var fromPositionRadio = sourceGroup.add("radiobutton", undefined, getLabel("radio", "namingFromPosition"));
+        var fromExistingRadio = sourceGroup.add("radiobutton", undefined, getLabel("radio", "namingFromExisting"));
         fromPositionRadio.value = true;
 
         /* 区切り文字パネルと桁数パネルを横並び / Separator and digits panels side by side */
-        var sepPadRow = namingSettingsGroup.add("group");
-        sepPadRow.orientation = "row";
-        sepPadRow.alignChildren = ['fill', 'top'];
-        sepPadRow.spacing = 10;
+        var separatorPadRow = namingSettingsGroup.add("group");
+        setupColumnsRow(separatorPadRow);
 
-        /* 区切り文字 / Separator */
-        var sepPanel = sepPadRow.add("panel", undefined, L("namingSeparator"));
-        setupPanel(sepPanel);
-        var sepRow = sepPanel.add("group");
-        sepRow.orientation = "column";
-        sepRow.alignChildren = ['left', 'center'];
-        var sepHyphen = sepRow.add("radiobutton", undefined, "-");
-        var sepUnderscore = sepRow.add("radiobutton", undefined, "_");
-        var sepX = sepRow.add("radiobutton", undefined, "x");
-        sepHyphen.value = true;
+        var separatorRadios = buildOptionRadioPanel(separatorPadRow, getLabel("panel", "namingSeparator"), ["-", "_", "x"]);
+        var padRadios = buildOptionRadioPanel(separatorPadRow, getLabel("panel", "namingPadWidth"), ["0", "00", "000"]);
 
-        /* ゼロ埋め桁数（0 / 00 / 000） / Zero-pad width options (0 / 00 / 000) */
-        var padPanel = sepPadRow.add("panel", undefined, L("namingPadWidth"));
-        setupPanel(padPanel);
-        var padRow = padPanel.add("group");
-        padRow.orientation = "column";
-        padRow.alignChildren = ['left', 'center'];
-        var pad1Radio = padRow.add("radiobutton", undefined, "0");
-        var pad2Radio = padRow.add("radiobutton", undefined, "00");
-        var pad3Radio = padRow.add("radiobutton", undefined, "000");
-        pad1Radio.value = true;
-
-        namingEnableCheckbox.onClick = function () {
-            namingSettingsGroup.enabled = namingEnableCheckbox.value;
-        };
-        namingSettingsGroup.enabled = namingEnableCheckbox.value;
-
+        /* 有効／無効の同期は bindEvents() が担当（許容差スライダーの状態と連動するため）
+         * bindEvents() owns the enable sync, since it also drives the tolerance slider */
         return {
             enableCheckbox: namingEnableCheckbox,
+            settingsGroup: namingSettingsGroup,
             source: {
                 fromPosition: fromPositionRadio,
                 fromExisting: fromExistingRadio
             },
             separators: {
-                hyphen: sepHyphen,
-                underscore: sepUnderscore,
-                x: sepX
+                hyphen: separatorRadios[0],
+                underscore: separatorRadios[1],
+                x: separatorRadios[2]
             },
             padRadios: {
-                w1: pad1Radio,
-                w2: pad2Radio,
-                w3: pad3Radio
+                w1: padRadios[0],
+                w2: padRadios[1],
+                w3: padRadios[2]
             }
         };
     }
 
-    /* キャンセル / OK ボタン / Dialog buttons */
+    /**
+     * 選択肢ラジオを縦に並べたパネルを作成する（先頭を選択状態にする）
+     * @param {Group} parent - 追加先のコンテナ
+     * @param {string} panelLabel - パネルのラベル
+     * @param {string[]} optionLabels - ラジオのラベル
+     * @returns {RadioButton[]} 作成したラジオボタン
+     */
+    function buildOptionRadioPanel(parent, panelLabel, optionLabels) {
+        var optionPanel = parent.add("panel", undefined, panelLabel);
+        setupPanel(optionPanel, DENSE_SPACING);
+
+        var optionGroup = optionPanel.add("group");
+        setupColumn(optionGroup, ["left", "top"]);
+
+        var radios = [];
+        for (var optionIndex = 0; optionIndex < optionLabels.length; optionIndex++) {
+            radios.push(optionGroup.add("radiobutton", undefined, optionLabels[optionIndex]));
+        }
+        if (radios.length > 0) radios[0].value = true;
+        return radios;
+    }
+
+    /**
+     * キャンセル / OK ボタンを作成する
+     * @param {Window} dialog - 対象ダイアログ
+     * @returns {Object} 各ボタンの参照
+     */
     function buildDialogButtons(dialog) {
         var buttonGroup = dialog.add("group");
-        buttonGroup.orientation = "row";
-        buttonGroup.alignment = ['right', 'bottom'];
+        setupRow(buttonGroup, ["right", "bottom"]);
 
-        var closeBtn = buttonGroup.add('button', undefined, L("close"));
-        var executeBtn = buttonGroup.add('button', undefined, L("execute"));
+        var cancelBtn = buttonGroup.add("button", undefined, getLabel("button", "cancel"));
+        var okBtn = buttonGroup.add("button", undefined, getLabel("button", "ok"));
 
-        var btnWidth = Math.max(executeBtn.preferredSize.width, closeBtn.preferredSize.width);
-        executeBtn.preferredSize.width = btnWidth;
-        closeBtn.preferredSize.width = btnWidth;
+        var buttonWidth = Math.max(okBtn.preferredSize.width, cancelBtn.preferredSize.width);
+        okBtn.preferredSize.width = buttonWidth;
+        cancelBtn.preferredSize.width = buttonWidth;
 
         return {
-            closeBtn: closeBtn,
-            executeBtn: executeBtn
+            cancelBtn: cancelBtn,
+            okBtn: okBtn
         };
     }
 
-    /* ラベル付き edittext 行を追加 / Add a labeled edittext row */
-    function addLabeledInput(parent, labelText, defaultValue, labelWidth) {
+    /**
+     * ラベル付き edittext 行を追加する
+     * @param {Group} parent - 追加先のコンテナ
+     * @param {string} labelText - ラベル文字列
+     * @param {string} defaultValue - 入力欄の初期値
+     * @param {number} minValue - ↑↓キーで下回らせない下限値
+     * @returns {{row: Group, input: EditText}} 行グループと入力欄
+     */
+    function addLabeledInput(parent, labelText, defaultValue, minValue) {
         var row = parent.add("group");
-        row.orientation = "row";
-        row.alignChildren = ['left', 'center'];
+        setupRow(row);
         var label = row.add("statictext", undefined, labelText);
-        label.preferredSize.width = labelWidth;
-        label.justify = 'right';
+        label.preferredSize.width = FIELD_LABEL_WIDTH;
+        label.justify = "right";
         var input = row.add("edittext", undefined, defaultValue);
-        input.characters = 5;
-        changeValueByArrowKey(input);
+        input.characters = FIELD_INPUT_CHARS;
+        changeValueByArrowKey(input, minValue);
         return { row: row, input: input };
     }
 
-    function changeValueByArrowKey(editText) {
+    /**
+     * 入力欄で ↑↓キーによる数値の増減を有効にする（Shift で 10 の倍数にスナップ）
+     * @param {EditText} editText - 対象の入力欄
+     * @param {number} minValue - 下回らせない下限値
+     * @returns {void}
+     */
+    function changeValueByArrowKey(editText, minValue) {
         editText.addEventListener("keydown", function (event) {
             if (event.keyName !== "Up" && event.keyName !== "Down") return;
             var value = Number(editText.text);
@@ -759,14 +1013,14 @@ ReorderArtboardsByPosition.jsx
             var direction = (event.keyName === "Up") ? 1 : -1;
 
             if (isShift) {
-                // Shift+矢印キーで 10 の倍数にスナップ / Snap to multiples of 10
+                /* Shift+矢印キーで 10 の倍数にスナップ / Snap to multiples of 10 */
                 value = (direction > 0)
                     ? Math.ceil((value + 1) / 10) * 10
                     : Math.floor((value - 1) / 10) * 10;
             } else {
                 value += direction;
             }
-            if (value < 0) value = 0;
+            if (value < minValue) value = minValue;
 
             editText.text = Math.round(value);
             editText.notify("onChange");
@@ -775,10 +1029,15 @@ ReorderArtboardsByPosition.jsx
     }
 
     // =========================================
-    // ソート処理
+    // ソート処理 / Sorting
     // =========================================
 
-    /* src のプロパティを dst にコピー / Copy listed properties from src to dst */
+    /**
+     * アートボードのプロパティをコピーする
+     * @param {Artboard|Object} sourceArtboard - コピー元
+     * @param {Artboard|Object} targetArtboard - コピー先
+     * @returns {void}
+     */
     function copyArtboardProps(sourceArtboard, targetArtboard) {
         for (var propertyIndex = 0; propertyIndex < ARTBOARD_COPYABLE_PROPS.length; propertyIndex++) {
             var propertyName = ARTBOARD_COPYABLE_PROPS[propertyIndex];
@@ -786,13 +1045,20 @@ ReorderArtboardsByPosition.jsx
         }
     }
 
-    /* アートボードを並べ替えて［アートボード］パネル順を再構築 / Rebuild Artboards panel order based on sorted result */
+    /**
+     * アートボードを並べ替えて［アートボード］パネル順を再構築する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {function(ArtboardEntry[], number): void} sorterFunction - 並べ替え関数
+     * @param {number} precisionDigits - 座標比較の丸め桁数
+     * @returns {void}
+     */
     function rebuildArtboardsInSortedOrder(doc, sorterFunction, precisionDigits) {
-        var decimalPlaces = Math.pow(10, precisionDigits || 3);
+        var decimalPlaces = Math.pow(10, precisionDigits || COORDINATE_PRECISION_DIGITS);
 
         /* 元アートボードのスナップショット（プロパティ＋rect）を取得 / Snapshot original artboards */
         var artboardSnapshots = [];
         var sortableEntries = [];
+        var liveOriginalIndexes = [];
         for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
             var sourceArtboard = doc.artboards[artboardIndex];
             var snapshot = { artboardRect: sourceArtboard.artboardRect };
@@ -803,41 +1069,106 @@ ReorderArtboardsByPosition.jsx
                 sourceIndex: artboardIndex,
                 name: sourceArtboard.name
             });
+            liveOriginalIndexes.push(artboardIndex);
         }
 
         sorterFunction(sortableEntries, decimalPlaces);
 
-        /* ソート結果順に末尾へ複製を追加 / Append duplicates in sorted order */
+        /* 1件複製するたびに元を削除する。まとめて複製すると一時的にアートボード数が倍になり、
+         * Illustrator のアートボード上限に当たるため。未削除の元は常に先頭側に残る。
+         * Copy-then-delete one at a time: duplicating them all at once would temporarily
+         * double the artboard count and hit Illustrator's limit. Pending originals stay at the front. */
         for (var sortedIndex = 0; sortedIndex < sortableEntries.length; sortedIndex++) {
-            var sourceSnapshot = artboardSnapshots[sortableEntries[sortedIndex].sourceIndex];
+            var sourceIndex = sortableEntries[sortedIndex].sourceIndex;
+            var sourceSnapshot = artboardSnapshots[sourceIndex];
             var newArtboard = doc.artboards.add(sourceSnapshot.artboardRect);
             copyArtboardProps(sourceSnapshot, newArtboard);
-        }
 
-        /* 元のアートボードを後ろから削除 / Remove original artboards from back to front */
-        for (var removeIndex = artboardSnapshots.length - 1; removeIndex >= 0; removeIndex--) {
-            doc.artboards[removeIndex].remove();
+            var livePosition = indexOfValue(liveOriginalIndexes, sourceIndex);
+            doc.artboards[livePosition].remove();
+            liveOriginalIndexes.splice(livePosition, 1);
         }
     }
 
-    /* 許容差付き 左上基準ソート（上辺降順 → tolerance 内なら左辺昇順）
-     * Top Left ordering with tolerance (top edge desc, then left edge asc) */
-    function sortArtboardsTopLeftWithTolerance(artboardEntries, decimalPlaces, tolerance) {
-        decimalPlaces = decimalPlaces || 1000;
+    /**
+     * 配列から値の位置を探す（ES3 に Array#indexOf がないため）
+     * @param {Array} list - 検索対象の配列
+     * @param {*} value - 探す値
+     * @returns {number} 見つかった位置。見つからなければ -1
+     */
+    function indexOfValue(list, value) {
+        for (var searchIndex = 0; searchIndex < list.length; searchIndex++) {
+            if (list[searchIndex] === value) return searchIndex;
+        }
+        return -1;
+    }
+
+    /**
+     * 座標を指定の係数で丸める
+     * @param {number} value - 座標値
+     * @param {number} decimalPlaces - 丸め係数（10 の冪）
+     * @returns {number} 丸めた座標値
+     */
+    function roundCoordinate(value, decimalPlaces) {
+        return Math.round(value * decimalPlaces) / decimalPlaces;
+    }
+
+    /**
+     * 上辺の近さで行バンド（0 始まりの行番号）を割り当てる
+     * 行の基準は「その行でいちばん上のアートボードの上辺」なので、
+     * 許容差ずつ階段状にずれた並びが1行に連鎖して吸収されることはない
+     * Each row is anchored to its own topmost edge, so a staircase of
+     * within-tolerance steps no longer collapses into a single row.
+     * @param {ArtboardEntry[]} artboardEntries - 対象の配列（上辺降順に並べ替え、rowBand を書き込む）
+     * @param {number} decimalPlaces - 座標の丸め係数
+     * @param {number} tolerance - 同一行とみなす上辺の差（pt）
+     * @returns {void}
+     */
+    function assignRowBands(artboardEntries, decimalPlaces, tolerance) {
         artboardEntries.sort(function (firstEntry, secondEntry) {
-            var firstTop = Math.round(firstEntry.artboardRect[1] * decimalPlaces) / decimalPlaces;
-            var secondTop = Math.round(secondEntry.artboardRect[1] * decimalPlaces) / decimalPlaces;
-            if (Math.abs(firstTop - secondTop) <= tolerance) {
-                var firstLeft = Math.round(firstEntry.artboardRect[0] * decimalPlaces) / decimalPlaces;
-                var secondLeft = Math.round(secondEntry.artboardRect[0] * decimalPlaces) / decimalPlaces;
-                return firstLeft - secondLeft;
+            return roundCoordinate(secondEntry.artboardRect[1], decimalPlaces) -
+                roundCoordinate(firstEntry.artboardRect[1], decimalPlaces);
+        });
+
+        var bandIndex = 0;
+        var bandTop = null;
+        for (var entryIndex = 0; entryIndex < artboardEntries.length; entryIndex++) {
+            var currentTop = roundCoordinate(artboardEntries[entryIndex].artboardRect[1], decimalPlaces);
+            if (bandTop === null) {
+                bandTop = currentTop;
+            } else if (bandTop - currentTop > tolerance) {
+                bandIndex++;
+                bandTop = currentTop;
             }
-            return secondTop - firstTop;
+            artboardEntries[entryIndex].rowBand = bandIndex;
+        }
+    }
+
+    /**
+     * 許容差付きの左上基準ソート（行バンド昇順 → 左辺昇順）
+     * 行バンドを整数化してから比較するため、比較関数は推移律を満たす
+     * @param {ArtboardEntry[]} artboardEntries - 並べ替える配列（破壊的に並べ替える）
+     * @param {number} decimalPlaces - 座標の丸め係数
+     * @param {number} tolerance - 同一行とみなす上辺の差（pt）
+     * @returns {void}
+     */
+    function sortArtboardsTopLeftWithTolerance(artboardEntries, decimalPlaces, tolerance) {
+        decimalPlaces = decimalPlaces || Math.pow(10, COORDINATE_PRECISION_DIGITS);
+        assignRowBands(artboardEntries, decimalPlaces, tolerance);
+        artboardEntries.sort(function (firstEntry, secondEntry) {
+            if (firstEntry.rowBand !== secondEntry.rowBand) {
+                return firstEntry.rowBand - secondEntry.rowBand;
+            }
+            return roundCoordinate(firstEntry.artboardRect[0], decimalPlaces) -
+                roundCoordinate(secondEntry.artboardRect[0], decimalPlaces);
         });
     }
 
-    /* 名前順（自然順）ソート: 数字を10桁ゼロ埋めして比較、大文字小文字は無視
-     * Natural sort by artboard name: pad digits to 10 zeros, compare case-insensitively. */
+    /**
+     * 名前順（自然順）にソートする。数字列を10桁ゼロ埋めして比較し、大文字小文字は無視する
+     * @param {ArtboardEntry[]} artboardEntries - 並べ替える配列（破壊的に並べ替える）
+     * @returns {void}
+     */
     function sortArtboardsByName(artboardEntries) {
         artboardEntries.sort(function (firstEntry, secondEntry) {
             var firstName = padNumbersForNaturalSort((firstEntry.name || "").toLowerCase());
@@ -848,7 +1179,11 @@ ReorderArtboardsByPosition.jsx
         });
     }
 
-    /* 文字列中の数字列を10桁ゼロ埋め / Zero-pad each run of digits in the string to 10 chars */
+    /**
+     * 文字列中の数字列を10桁ゼロ埋めする
+     * @param {string} text - 対象文字列
+     * @returns {string} ゼロ埋め後の文字列
+     */
     function padNumbersForNaturalSort(text) {
         return text.replace(/\d+/g, function (digitRun) {
             var pad = "0000000000";
@@ -856,28 +1191,35 @@ ReorderArtboardsByPosition.jsx
         });
     }
 
-    /* ソート済みエントリを上辺の差で行に分割 / Group sorted entries into rows by top-edge tolerance */
-    function groupSortedIntoRows(sortedEntries, tolerance, decimalPlaces) {
-        if (sortedEntries.length === 0) return [];
-        var rows = [[sortedEntries[0]]];
-        for (var entryIndex = 1; entryIndex < sortedEntries.length; entryIndex++) {
-            var previousTop = Math.round(sortedEntries[entryIndex - 1].artboardRect[1] * decimalPlaces) / decimalPlaces;
-            var currentTop = Math.round(sortedEntries[entryIndex].artboardRect[1] * decimalPlaces) / decimalPlaces;
-            if (Math.abs(previousTop - currentTop) > tolerance) {
-                rows.push([sortedEntries[entryIndex]]);
-            } else {
-                rows[rows.length - 1].push(sortedEntries[entryIndex]);
+    /**
+     * 行バンドごとにエントリをまとめる
+     * 事前に sortArtboardsTopLeftWithTolerance() を通し、rowBand が入っている必要がある
+     * @param {ArtboardEntry[]} sortedEntries - rowBand 付きでソート済みのアートボード情報
+     * @returns {Array<ArtboardEntry[]>} 行ごとにまとめた配列
+     */
+    function groupSortedIntoRows(sortedEntries) {
+        var rows = [];
+        for (var entryIndex = 0; entryIndex < sortedEntries.length; entryIndex++) {
+            if (entryIndex === 0 || sortedEntries[entryIndex].rowBand !== sortedEntries[entryIndex - 1].rowBand) {
+                rows.push([]);
             }
+            rows[rows.length - 1].push(sortedEntries[entryIndex]);
         }
         return rows;
     }
 
     // =========================================
-    // 再配置処理（列間／行間を独立指定） / Rearrange with separate column / row gaps
+    // 再配置処理（列数指定） / Rearrange by column count
     // =========================================
 
-    /* 列間を spacing として GridByRow で初回レイアウトし、行ごとに追加オフセットを適用
-     * Lay out with columnGap as base spacing, then apply extra row offsets per row */
+    /**
+     * 列間を spacing として GridByRow で初回レイアウトし、行ごとに追加オフセットを適用する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number} columns - 列数
+     * @param {number} columnGapPoints - 列間（pt）
+     * @param {number} rowGapPoints - 行間（pt）
+     * @returns {void}
+     */
     function rearrangeArtboardsWithGaps(doc, columns, columnGapPoints, rowGapPoints) {
         doc.rearrangeArtboards(DocumentArtboardLayout.GridByRow, columns, columnGapPoints, true);
 
@@ -915,30 +1257,51 @@ ReorderArtboardsByPosition.jsx
     }
 
     // =========================================
-    // 再配置処理（行-列名から） / Rearrange by row-column / prefix-number names
+    // 再配置処理（アートボード名） / Rearrange by row-column names
     // =========================================
 
-    /* アートボード名（「行-列」または「接頭辞-番号」）に従ってグリッド状に再配置
-     * Rearrange artboards as a grid based on '<row><sep><col>' or '<prefix><sep><num>' names.
+    /**
+     * @typedef {Object} PlacementItem
+     * @property {Artboard} artboard - 対象アートボード
+     * @property {number} width - 幅（pt）
+     * @property {number} height - 高さ（pt）
+     * @property {boolean} matched - 名前が解析できたか
+     * @property {string} matchType - "rowColumn" または "prefixNumber"
+     * @property {string} prefixName - 接頭辞（小文字）
+     * @property {number} rowNumber - 名前から得た行番号
+     * @property {number} columnNumber - 名前から得た列番号
+     * @property {number} assignedRow - 実際に割り当てた行番号
+     * @property {number} assignedColumn - 実際に割り当てた列番号
+     */
+
+    /**
+     * アートボード名（「行-列」または「接頭辞-番号」）に従ってグリッド状に再配置する
      * 区切り文字は -, _, x（大小文字無視）/ Separators: -, _, x (case-insensitive)
-     * exceptionMode: 'rowEnd' = 各行の末尾に配置 / Append to each row end
-     *                'lastRow' = 最終行の次の行にまとめる / Collect in row after last matched row */
+     * @param {Document} doc - 対象ドキュメント
+     * @param {number} columnGapPoints - 列間（pt）
+     * @param {number} rowGapPoints - 行間（pt）
+     * @param {string} exceptionMode - "rowEnd"（各行の末尾に配置）または "lastRow"（最終行の次の行にまとめる）
+     * @returns {boolean} 解析できる名前が1件以上あり、再配置した場合は true
+     */
     function rearrangeArtboardsByRowColumnName(doc, columnGapPoints, rowGapPoints, exceptionMode) {
         var placementContext = parseArtboardNamePlacements(doc.artboards);
         if (!placementContext.hasMatchedArtboard) {
-            alert(L("noMatchAlert"));
-            return;
+            alert(getLabel("alert", "noMatch"));
+            return false;
         }
 
         assignArtboardPlacementSlots(placementContext, exceptionMode);
         var placementMetrics = collectPlacementMetrics(placementContext.placementItems);
         computePlacementOffsets(placementContext, placementMetrics, columnGapPoints, rowGapPoints);
         applyComputedArtboardPositions(doc, placementContext.placementItems);
-
-        app.executeMenuCommand('fitall');
+        return true;
     }
 
-    /* アートボード名を解析して配置候補を作成 / Parse artboard names and build placement candidates */
+    /**
+     * アートボード名を解析して配置候補を作成する
+     * @param {Artboards} artboards - 対象のアートボードコレクション
+     * @returns {Object} 配置候補と集計値をまとめたコンテキスト
+     */
     function parseArtboardNamePlacements(artboards) {
         var maxColumnNumber = 0;
         var maxRowNumber = 0;
@@ -977,7 +1340,13 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
-    /* 配置候補の初期オブジェクトを作成 / Create an initial placement candidate object */
+    /**
+     * 配置候補の初期オブジェクトを作成する
+     * @param {Artboard} artboard - 対象アートボード
+     * @param {number} artboardWidth - 幅（pt）
+     * @param {number} artboardHeight - 高さ（pt）
+     * @returns {PlacementItem} 配置候補
+     */
     function createPlacementItem(artboard, artboardWidth, artboardHeight) {
         return {
             artboard: artboard,
@@ -993,7 +1362,12 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
-    /* 「行-列」形式の名前を配置候補に反映 / Apply a row-column name match to a placement candidate */
+    /**
+     * 「行-列」形式の名前を配置候補に反映する
+     * @param {PlacementItem} placementItem - 配置候補
+     * @param {string} artboardName - アートボード名
+     * @returns {boolean} 反映できたら true
+     */
     function applyRowColumnNameMatch(placementItem, artboardName) {
         var rowColumnMatch = artboardName.match(/^(\d+)[-_x](\d+)$/i);
         if (!rowColumnMatch) return false;
@@ -1007,7 +1381,14 @@ ReorderArtboardsByPosition.jsx
         return true;
     }
 
-    /* 「接頭辞-番号」形式の名前を配置候補に反映 / Apply a prefix-number name match to a placement candidate */
+    /**
+     * 「接頭辞-番号」形式の名前を配置候補に反映する
+     * @param {PlacementItem} placementItem - 配置候補
+     * @param {string} artboardName - アートボード名
+     * @param {string[]} prefixOrder - 出現順の接頭辞リスト（破壊的に追加する）
+     * @param {Object} prefixRowOffsetByName - 接頭辞ごとの行オフセット（破壊的に追加する）
+     * @returns {boolean} 反映できたら true
+     */
     function applyPrefixNumberNameMatch(placementItem, artboardName, prefixOrder, prefixRowOffsetByName) {
         var prefixNumberMatch = artboardName.match(/^(.+?)[-_x](\d+)$/i);
         if (!prefixNumberMatch || /^\d+$/.test(prefixNumberMatch[1])) return false;
@@ -1025,7 +1406,12 @@ ReorderArtboardsByPosition.jsx
         return true;
     }
 
-    /* 行・列番号を割り当てる / Assign row and column numbers */
+    /**
+     * 各配置候補に行・列番号を割り当てる
+     * @param {Object} placementContext - parseArtboardNamePlacements() の戻り値
+     * @param {string} exceptionMode - "rowEnd" または "lastRow"
+     * @returns {void}
+     */
     function assignArtboardPlacementSlots(placementContext, exceptionMode) {
         var occupiedSlots = {};
         var nextExceptionColumnByRow = {};
@@ -1047,20 +1433,27 @@ ReorderArtboardsByPosition.jsx
         }
     }
 
-    /* 一致した名前の配置スロットを割り当てる / Assign a placement slot for a matched name */
+    /**
+     * 一致した名前の配置スロットを割り当てる
+     * @param {PlacementItem} assignTarget - 配置候補
+     * @param {Object} placementContext - parseArtboardNamePlacements() の戻り値
+     * @param {Object} occupiedSlots - 使用済みスロット（"行,列" をキーにする）
+     * @param {Object} nextExceptionColumnByRow - 行ごとの次の例外列
+     * @returns {number} 割り当てた行番号
+     */
     function assignMatchedPlacementSlot(assignTarget, placementContext, occupiedSlots, nextExceptionColumnByRow) {
         var targetRowNumber = assignTarget.rowNumber;
         if (assignTarget.matchType === 'prefixNumber') {
             targetRowNumber = placementContext.maxRowNumber + placementContext.prefixRowOffsetByName[assignTarget.prefixName];
         }
 
+        assignTarget.assignedRow = targetRowNumber;
         var requestedKey = targetRowNumber + ',' + assignTarget.columnNumber;
         if (!occupiedSlots[requestedKey]) {
             occupiedSlots[requestedKey] = true;
-            assignTarget.assignedRow = targetRowNumber;
             assignTarget.assignedColumn = assignTarget.columnNumber;
         } else {
-            assignTarget.assignedRow = targetRowNumber;
+            /* 同じスロットが埋まっている場合は行末に逃がす / Fall back to the row end when the slot is taken */
             assignTarget.assignedColumn = reserveNextColumnAtRowEnd(
                 targetRowNumber, occupiedSlots, nextExceptionColumnByRow, placementContext.maxColumnNumber
             );
@@ -1068,7 +1461,14 @@ ReorderArtboardsByPosition.jsx
         return targetRowNumber;
     }
 
-    /* 最終行の次の行にまとめる例外スロットを割り当てる / Assign an exception slot in the row after the last matched row */
+    /**
+     * 最終行の次の行にまとめる例外スロットを割り当てる
+     * @param {PlacementItem} assignTarget - 配置候補
+     * @param {number} exceptionRowNumber - 例外行の行番号
+     * @param {number} lastRowExceptionColumn - 次に試す列番号
+     * @param {Object} occupiedSlots - 使用済みスロット
+     * @returns {number} 更新後の次に試す列番号
+     */
     function assignLastRowExceptionSlot(assignTarget, exceptionRowNumber, lastRowExceptionColumn, occupiedSlots) {
         assignTarget.assignedRow = exceptionRowNumber;
         while (true) {
@@ -1083,7 +1483,15 @@ ReorderArtboardsByPosition.jsx
         return lastRowExceptionColumn;
     }
 
-    /* 各行の末尾に置く例外スロットを割り当てる / Assign an exception slot at each row end */
+    /**
+     * 各行の末尾に置く例外スロットを割り当てる
+     * @param {PlacementItem} assignTarget - 配置候補
+     * @param {number} currentRowNumber - 直前に割り当てた行番号
+     * @param {number} maxColumnNumber - 名前から得た最大列番号
+     * @param {Object} occupiedSlots - 使用済みスロット
+     * @param {Object} nextExceptionColumnByRow - 行ごとの次の例外列
+     * @returns {void}
+     */
     function assignRowEndExceptionSlot(assignTarget, currentRowNumber, maxColumnNumber, occupiedSlots, nextExceptionColumnByRow) {
         assignTarget.assignedRow = currentRowNumber;
         assignTarget.assignedColumn = reserveNextColumnAtRowEnd(
@@ -1091,7 +1499,33 @@ ReorderArtboardsByPosition.jsx
         );
     }
 
-    /* 列ごとの最大幅・行ごとの最大高さを集計 / Collect per-column max widths and per-row max heights */
+    /**
+     * 指定行の末尾（maxColumnNumber + n）で空きスロットを予約する
+     * @param {number} rowNumber - 対象の行番号
+     * @param {Object} occupiedSlots - 使用済みスロット
+     * @param {Object} nextExceptionColumnByRow - 行ごとの次の例外列
+     * @param {number} maxColumnNumber - 名前から得た最大列番号
+     * @returns {number} 予約した列番号
+     */
+    function reserveNextColumnAtRowEnd(rowNumber, occupiedSlots, nextExceptionColumnByRow, maxColumnNumber) {
+        if (nextExceptionColumnByRow[rowNumber] === undefined) {
+            nextExceptionColumnByRow[rowNumber] = maxColumnNumber + 1;
+        }
+        while (true) {
+            var candidateColumn = nextExceptionColumnByRow[rowNumber]++;
+            var candidateSlotKey = rowNumber + ',' + candidateColumn;
+            if (!occupiedSlots[candidateSlotKey]) {
+                occupiedSlots[candidateSlotKey] = true;
+                return candidateColumn;
+            }
+        }
+    }
+
+    /**
+     * 列ごとの最大幅・行ごとの最大高さを集計する
+     * @param {PlacementItem[]} placementItems - 配置候補
+     * @returns {Object} 列幅・行高さと、使用されている列番号・行番号
+     */
     function collectPlacementMetrics(placementItems) {
         var columnWidthByNumber = {};
         var rowHeightByNumber = {};
@@ -1115,7 +1549,30 @@ ReorderArtboardsByPosition.jsx
         };
     }
 
-    /* 累積オフセットと移動量を計算 / Compute cumulative offsets and movement deltas */
+    /**
+     * 数値キーを昇順で取り出す
+     * @param {Object} numericKeyedObject - 数値をキーにしたオブジェクト
+     * @returns {number[]} 昇順の数値キー
+     */
+    function collectSortedNumericKeys(numericKeyedObject) {
+        var sortedKeys = [];
+        for (var numericKey in numericKeyedObject) {
+            if (numericKeyedObject.hasOwnProperty(numericKey)) {
+                sortedKeys.push(parseInt(numericKey, 10));
+            }
+        }
+        sortedKeys.sort(function (firstKey, secondKey) { return firstKey - secondKey; });
+        return sortedKeys;
+    }
+
+    /**
+     * 累積オフセットと移動量を計算する
+     * @param {Object} placementContext - parseArtboardNamePlacements() の戻り値
+     * @param {Object} placementMetrics - collectPlacementMetrics() の戻り値
+     * @param {number} columnGapPoints - 列間（pt）
+     * @param {number} rowGapPoints - 行間（pt）
+     * @returns {void}
+     */
     function computePlacementOffsets(placementContext, placementMetrics, columnGapPoints, rowGapPoints) {
         var columnOffsetByNumber = computeCumulativeOffsets(
             placementMetrics.usedColumnNumbers,
@@ -1146,48 +1603,14 @@ ReorderArtboardsByPosition.jsx
         }
     }
 
-    /* オブジェクト移動とアートボード矩形更新を適用 / Apply item translations and update artboard rectangles */
-    function applyComputedArtboardPositions(doc, placementItems) {
-        applyItemTranslations(doc, placementItems);
-
-        for (var applyIndex = 0; applyIndex < placementItems.length; applyIndex++) {
-            var applyItem = placementItems[applyIndex];
-            var newRight = applyItem.newLeft + applyItem.width;
-            var newBottom = applyItem.newTop - applyItem.height;
-            applyItem.artboard.artboardRect = [applyItem.newLeft, applyItem.newTop, newRight, newBottom];
-        }
-    }
-
-    /* 指定行の末尾（maxColumnNumber + n）で空きスロットを予約
-     * Reserve the next empty slot at the end of the given row */
-    function reserveNextColumnAtRowEnd(rowNumber, occupiedSlots, nextExceptionColumnByRow, maxColumnNumber) {
-        if (nextExceptionColumnByRow[rowNumber] === undefined) {
-            nextExceptionColumnByRow[rowNumber] = maxColumnNumber + 1;
-        }
-        while (true) {
-            var candidateColumn = nextExceptionColumnByRow[rowNumber]++;
-            var candidateSlotKey = rowNumber + ',' + candidateColumn;
-            if (!occupiedSlots[candidateSlotKey]) {
-                occupiedSlots[candidateSlotKey] = true;
-                return candidateColumn;
-            }
-        }
-    }
-
-    /* 数値キーを昇順で取り出す / Collect numeric keys in ascending order */
-    function collectSortedNumericKeys(numericKeyedObject) {
-        var sortedKeys = [];
-        for (var numericKey in numericKeyedObject) {
-            if (numericKeyedObject.hasOwnProperty(numericKey)) {
-                sortedKeys.push(parseInt(numericKey, 10));
-            }
-        }
-        sortedKeys.sort(function (a, b) { return a - b; });
-        return sortedKeys;
-    }
-
-    /* 累積オフセットを計算（boundaryNumber と一致するキーの直前の間隔は EXCEPTION_BOUNDARY_GAP_MULTIPLIER 倍）
-     * Compute cumulative offsets; the gap right before boundaryNumber is multiplied by EXCEPTION_BOUNDARY_GAP_MULTIPLIER. */
+    /**
+     * 累積オフセットを計算する（boundaryNumber と一致するキーの直前の間隔は EXCEPTION_BOUNDARY_GAP_MULTIPLIER 倍）
+     * @param {number[]} sortedNumbers - 昇順の行番号または列番号
+     * @param {Object} sizeByNumber - 行高さまたは列幅
+     * @param {number} gap - 基本の間隔（pt）
+     * @param {number} boundaryNumber - 例外領域が始まる番号
+     * @returns {Object} 番号ごとの累積オフセット
+     */
     function computeCumulativeOffsets(sortedNumbers, sizeByNumber, gap, boundaryNumber) {
         var offsetByNumber = {};
         var cumulative = 0;
@@ -1204,8 +1627,33 @@ ReorderArtboardsByPosition.jsx
         return offsetByNumber;
     }
 
-    /* placements（{artboard, oldRect, deltaX, deltaY}）に従ってアートボード上のアイテムを移動
-     * Translate items sitting on each artboard by the corresponding delta in placements. */
+    /**
+     * オブジェクト移動とアートボード矩形更新を適用する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PlacementItem[]} placementItems - 移動量を計算済みの配置候補
+     * @returns {void}
+     */
+    function applyComputedArtboardPositions(doc, placementItems) {
+        applyItemTranslations(doc, placementItems);
+
+        for (var applyIndex = 0; applyIndex < placementItems.length; applyIndex++) {
+            var applyItem = placementItems[applyIndex];
+            var newRight = applyItem.newLeft + applyItem.width;
+            var newBottom = applyItem.newTop - applyItem.height;
+            applyItem.artboard.artboardRect = [applyItem.newLeft, applyItem.newTop, newRight, newBottom];
+        }
+    }
+
+    // =========================================
+    // アイテム移動 / Item translation
+    // =========================================
+
+    /**
+     * placements に従ってアートボード上のアイテムを移動する
+     * @param {Document} doc - 対象ドキュメント
+     * @param {Array<{artboard: Artboard, oldRect: number[], deltaX: number, deltaY: number}>} placements - 移動量
+     * @returns {void}
+     */
     function applyItemTranslations(doc, placements) {
         var translations = collectItemTranslations(doc.layers, placements);
         for (var translateIndex = 0; translateIndex < translations.length; translateIndex++) {
@@ -1217,22 +1665,36 @@ ReorderArtboardsByPosition.jsx
         }
     }
 
-    /* レイヤーを再帰的に走査してアートボード上のオブジェクトの移動量を集める
-     * Walk layers recursively and collect translation deltas for items on artboards */
+    /**
+     * レイヤーを再帰的に走査してアートボード上のオブジェクトの移動量を集める
+     * @param {Layers} layerCollection - 走査するレイヤーコレクション
+     * @param {Array<Object>} placementItems - oldRect と移動量を持つ配置情報
+     * @returns {Array<{item: PageItem, deltaX: number, deltaY: number}>} 移動予定リスト
+     */
     function collectItemTranslations(layerCollection, placementItems) {
         var collected = [];
         appendItemTranslations(layerCollection, placementItems, collected);
         return collected;
     }
 
+    /**
+     * レイヤーとサブレイヤーを走査して移動予定を追加する
+     * @param {Layers} layerCollection - 走査するレイヤーコレクション
+     * @param {Array<Object>} placementItems - oldRect と移動量を持つ配置情報
+     * @param {Array<Object>} output - 追加先の配列
+     * @returns {void}
+     */
     function appendItemTranslations(layerCollection, placementItems, output) {
         for (var layerIndex = 0; layerIndex < layerCollection.length; layerIndex++) {
             var layer = layerCollection[layerIndex];
             for (var itemIndex = 0; itemIndex < layer.pageItems.length; itemIndex++) {
                 var pageItem = layer.pageItems[itemIndex];
+                /* サブレイヤーやグループの中身は親側で移動するのでスキップ / Sublayer and group children move with their parent */
                 if (pageItem.parent !== layer) continue;
                 /* ロックされたアイテムはスキップ / Skip locked items */
-                try { if (pageItem.locked) continue; } catch (lockedReadError) { /* プロパティが取得不能なら通常通り扱う */ }
+                try {
+                    if (pageItem.locked) continue;
+                } catch (lockedReadError) { /* プロパティが取得不能なら通常通り扱う / Treat as unlocked when unreadable */ }
                 appendTranslationForItem(pageItem, placementItems, output);
             }
             if (layer.layers && layer.layers.length > 0) {
@@ -1241,8 +1703,13 @@ ReorderArtboardsByPosition.jsx
         }
     }
 
-    /* オブジェクトの幾何中心が含まれる元アートボードを特定し、移動量を1件追加
-     * Determine the original artboard that contains the item center, then queue a delta */
+    /**
+     * オブジェクトの幾何中心が含まれる元アートボードを特定し、移動量を1件追加する
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @param {Array<Object>} placementItems - oldRect と移動量を持つ配置情報
+     * @param {Array<Object>} output - 追加先の配列
+     * @returns {void}
+     */
     function appendTranslationForItem(pageItem, placementItems, output) {
         var center = getItemGeometricCenter(pageItem);
         if (!center) return;
@@ -1255,98 +1722,106 @@ ReorderArtboardsByPosition.jsx
         }
     }
 
-    /* オブジェクトの幾何中心。取得できない場合は null
-     * Item geometric center, or null if unavailable */
+    /**
+     * オブジェクトの幾何中心を取得する
+     * @param {PageItem} pageItem - 対象オブジェクト
+     * @returns {number[]|null} [x, y]、取得できない場合は null
+     */
     function getItemGeometricCenter(pageItem) {
         try {
-            var bounds = pageItem.geometricBounds; /* [left, top, right, bottom] */
+            var bounds = pageItem.geometricBounds; /* [左, 上, 右, 下] / [left, top, right, bottom] */
             return [(bounds[0] + bounds[2]) / 2, (bounds[1] + bounds[3]) / 2];
         } catch (geometricBoundsError) {
             return null;
         }
     }
 
-    /* 中心座標が矩形内か（Illustrator の Y は上方向が正）
-     * Whether the center is inside the rect (Y positive upward) */
+    /**
+     * 中心座標が矩形内かを判定する（Illustrator の Y は上方向が正）
+     * @param {number[]} center - [x, y]
+     * @param {number[]} rect - [左, 上, 右, 下]
+     * @returns {boolean} 矩形内なら true
+     */
     function isCenterInsideRect(center, rect) {
         return center[0] >= rect[0] && center[0] <= rect[2] &&
             center[1] <= rect[1] && center[1] >= rect[3];
     }
 
     // =========================================
-    // リネーム処理
+    // リネーム処理 / Renaming
     // =========================================
 
-    /* 数値をゼロ埋め / Zero-pad a number */
-    function padNumber(num, width) {
-        var s = String(num);
-        while (s.length < width) s = "0" + s;
-        return s;
+    /**
+     * 数値をゼロ埋めする
+     * @param {number} value - 対象の数値
+     * @param {number} width - 桁数
+     * @returns {string} ゼロ埋めした文字列
+     */
+    function padNumber(value, width) {
+        var padded = String(value);
+        while (padded.length < width) padded = "0" + padded;
+        return padded;
     }
 
-    /* 行-列形式の名前を組み立てる / Format a row-column style name */
-    function formatRowColName(rowNum, colNum, separator, padWidth) {
-        return padNumber(rowNum, padWidth) + separator + padNumber(colNum, padWidth);
+    /**
+     * 「行-列」形式の名前を組み立てる
+     * @param {number} rowNumber - 行番号
+     * @param {number} columnNumber - 列番号
+     * @param {string} separator - 区切り文字
+     * @param {number} padWidth - ゼロ埋め桁数
+     * @returns {string} 組み立てた名前
+     */
+    function formatRowColumnName(rowNumber, columnNumber, separator, padWidth) {
+        return padNumber(rowNumber, padWidth) + separator + padNumber(columnNumber, padWidth);
     }
 
-    /* 物理的な配置から 行-列 名を割り当てる / Assign row-column names based on physical positions */
+    /**
+     * 物理的な配置から「行-列」名を割り当てる
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} separator - 区切り文字
+     * @param {number} padWidth - ゼロ埋め桁数
+     * @param {number} tolerance - 行判定の許容差（pt）
+     * @returns {void}
+     */
     function renameArtboardsFromPositions(doc, separator, padWidth, tolerance) {
-        var dp = Math.pow(10, COORDINATE_PRECISION_DIGITS);
+        var decimalPlaces = Math.pow(10, COORDINATE_PRECISION_DIGITS);
 
         var entries = [];
         for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
             entries.push({
-                index: artboardIndex,
+                sourceIndex: artboardIndex,
                 artboardRect: doc.artboards[artboardIndex].artboardRect
             });
         }
-        sortArtboardsTopLeftWithTolerance(entries, dp, tolerance);
+        sortArtboardsTopLeftWithTolerance(entries, decimalPlaces, tolerance);
 
-        var rows = groupSortedIntoRows(entries, tolerance, dp);
+        var rows = groupSortedIntoRows(entries);
         for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
             for (var columnIndex = 0; columnIndex < rows[rowIndex].length; columnIndex++) {
-                doc.artboards[rows[rowIndex][columnIndex].index].name = formatRowColName(rowIndex + 1, columnIndex + 1, separator, padWidth);
+                var targetArtboard = doc.artboards[rows[rowIndex][columnIndex].sourceIndex];
+                targetArtboard.name = formatRowColumnName(rowIndex + 1, columnIndex + 1, separator, padWidth);
             }
         }
     }
 
-    /* 既存の 行-列 名を再フォーマット / Reformat existing row-column names */
+    /**
+     * 既存の「行-列」名を再フォーマットする
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} separator - 区切り文字
+     * @param {number} padWidth - ゼロ埋め桁数
+     * @returns {void}
+     */
     function renameArtboardsFromExistingNames(doc, separator, padWidth) {
         for (var artboardIndex = 0; artboardIndex < doc.artboards.length; artboardIndex++) {
             var artboard = doc.artboards[artboardIndex];
-            var match = artboard.name.match(/^(\d+)[-_x](\d+)(.*)$/i);
-            if (!match) continue;
-            var rowNumber = parseInt(match[1], 10);
-            var columnNumber = parseInt(match[2], 10);
-            var rest = match[3] || "";
-            artboard.name = formatRowColName(rowNumber, columnNumber, separator, padWidth) + rest;
+            var nameMatch = artboard.name.match(/^(\d+)[-_x](\d+)(.*)$/i);
+            if (!nameMatch) continue;
+            var rowNumber = parseInt(nameMatch[1], 10);
+            var columnNumber = parseInt(nameMatch[2], 10);
+            var rest = nameMatch[3] || "";
+            artboard.name = formatRowColumnName(rowNumber, columnNumber, separator, padWidth) + rest;
         }
     }
 
-    /* 許容差自動計算関数 / Auto calculate tolerance function */
-    function calculateAutoTolerance(artboardEntries) {
-        var tops = [];
-        for (var entryIndex = 0; entryIndex < artboardEntries.length; entryIndex++) {
-            tops.push(artboardEntries[entryIndex].artboardRect[1]);
-        }
-        tops.sort(function (a, b) {
-            return b - a;
-        }); /* 上から下に並べる / Sort top to bottom */
-
-        var diffs = [];
-        for (var entryIndex = 1; entryIndex < tops.length; entryIndex++) {
-            var diff = Math.abs(tops[entryIndex] - tops[entryIndex - 1]);
-            if (diff > 0) {
-                diffs.push(diff);
-            }
-        }
-
-        if (diffs.length === 0) {
-            return 5; /* 差が無ければデフォルト / Default if no difference */
-        }
-
-        var minDiff = Math.min.apply(null, diffs);
-        return minDiff + 2; /* 少しマージンを加える / Add some margin */
-    }
     main();
 })();
