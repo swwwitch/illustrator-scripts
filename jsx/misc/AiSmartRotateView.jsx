@@ -4,29 +4,15 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
+# AiSmartRotateView.jsx
+
 ### 概要
 
-- 開いているドキュメントのアクティブビューの回転角度（表示の回転）を取得
-- パレットに回転角度を表示
-- 「適用」を押すと、環境設定の「角度の制限」（Shiftキーを押したときの角度）に値を設定
-
-「ビューの回転に連動」をONにすると、たとえば表示を30度回転して作業しているとき、
-「角度の制限」にも同じ30度が入り、表示と操作の角度が一致して作業しやすくなります。
-
-パレット（常駐ウィンドウ）化のため、DOMを参照する処理（ビュー回転角度の取得・環境設定の適用）は
-ボタンを押すたびにメインエンジンへ BridgeTalk で委譲します。
+ビューの回転角度と環境設定の「角度の制限」をパレットから確認・変更し、選択オブジェクトの角度と合わせられるスクリプトです。詳細はREADMEを参照。
 
 ### Overview
 
-- Get the active view rotation angle (view rotation) of the current document
-- Show the rotation angle in a palette
-- Click "Apply" to set the "constrain angle" preference (Shift-key angle)
-
-With "Link to view rotation" on, working with the view rotated 30 degrees seeds the constrain angle
-with the same 30 degrees, so the view and operation angles match for easier work.
-
-Because this is a palette (persistent window), DOM access (reading the view rotation and
-applying the preference) is delegated to the main engine via BridgeTalk on each button press.
+A palette for checking and changing the view rotation and the "constrain angle" preference, and for aligning them with the selected object's angle. See the README for details.
 
 */
 
@@ -36,8 +22,13 @@ applying the preference) is delegated to the main engine via BridgeTalk on each 
 var SCRIPT_NAME     = "AiSmartRotateView";            /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "20260605";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "20260805";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-06-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-11";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiSmartRotateView.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiSmartRotateView.md
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -455,6 +446,11 @@ function resetSelectionRotation(onResult) {
     changeValueByArrowKey(constrainInput);
     constrainGroup.add("statictext", undefined, "°");
 
+    /* 角度の制限スライダー（-180〜180、Shiftで15°単位にクランプ。離した時点で環境設定へ適用）
+       / Constrain angle slider (-180..180, snaps to 15° with Shift; applied to the preference on release) */
+    var constrainSlider = constrainPanel.add("slider", undefined, 0, -180, 180);
+    constrainSlider.alignment = "fill";
+
     /* ビューの回転に連動するかどうか（ONで回転角度と同じ値、OFFでは0のまま）
        / Whether to follow the view rotation (on: the same value as the rotation; off: stays 0) */
     var linkRotationCheck = constrainPanel.add("checkbox", undefined, L("label.linkRotation"));
@@ -518,16 +514,24 @@ function resetSelectionRotation(onResult) {
     var currentRotation = 0;
     var currentConstrain = 0;
 
-    /* 0°のリセットボタンをそれぞれディム（回転と制限は独立）/ Dim each Reset button when its value is 0° (rotation and constrain are independent) */
-    function updateResetState() {
+    /* 値が0°で意味を持たないボタンをディム。リセットは回転と制限で独立、「ビューの回転に合わせて回転」は回転0°では効果がない
+       / Dim the buttons that do nothing at 0°: the two Reset buttons are independent, and rotating the selection to the view has no effect while the rotation is 0° */
+    function updateButtonState() {
         resetRotationButton.enabled = (currentRotation !== 0);
         resetConstrainButton.enabled = (currentConstrain !== 0);
+        rotateSelectionButton.enabled = (currentRotation !== 0);
+    }
+
+    /* 制限角度を入力欄とスライダーの両方に表示 / Show the constrain angle in both the field and the slider */
+    function showConstrain(angle) {
+        constrainInput.text = roundAngle(angle);
+        constrainSlider.value = normalizeAngle(angle);
     }
 
     /* 制限入力欄に候補値を入れる。連動ONなら回転角度と同じ値、OFFなら0のまま
        / Seed the constrain field: the same value as the rotation while linking is on, otherwise 0 */
     function updateConstrainSuggestion() {
-        constrainInput.text = linkRotationCheck.value ? roundAngle(currentRotation) : 0;
+        showConstrain(linkRotationCheck.value ? currentRotation : 0);
     }
 
     /* 回転表示・スライダー・状態を更新し、制限入力欄の候補値も更新
@@ -537,7 +541,7 @@ function resetSelectionRotation(onResult) {
         rotationValue.text = formatAngle(currentRotation);
         rotationSlider.value = currentRotation;
         updateConstrainSuggestion();
-        updateResetState();
+        updateButtonState();
     }
 
     /* 制限角度を状態に記録。連動OFFのときは入力欄にも実際の値を反映し、ONのときは回転追従の候補値を残す
@@ -545,9 +549,22 @@ function resetSelectionRotation(onResult) {
     function setConstrain(angle) {
         currentConstrain = roundAngle(angle);
         if (!linkRotationCheck.value) {
-            constrainInput.text = currentConstrain;
+            showConstrain(currentConstrain);
         }
-        updateResetState();
+        updateButtonState();
+    }
+
+    /* 制限角度を環境設定へ適用し、成功したら状態と表示を更新 / Apply the constrain angle to the preference, then update the state and display on success */
+    function commitConstrain(angle) {
+        applyConstrainAngle(angle, function (result) {
+            if (result.indexOf("OK") === 0) {
+                setConstrain(angle);
+                showConstrain(angle);
+                statusText.text = L("status.applied");
+            } else {
+                statusText.text = statusFromResult(result);
+            }
+        });
     }
 
     /* 連動ONのとき、入力欄の候補値を環境設定へ自動適用（値が変わっていないときは何もしない）
@@ -556,14 +573,7 @@ function resetSelectionRotation(onResult) {
         if (!linkRotationCheck.value) { return; }
         var target = roundAngle(currentRotation);
         if (target === currentConstrain) { return; }
-        applyConstrainAngle(target, function (result) {
-            if (result.indexOf("OK") === 0) {
-                setConstrain(target);
-                statusText.text = L("status.applied");
-            } else {
-                statusText.text = statusFromResult(result);
-            }
-        });
+        commitConstrain(target);
     }
 
     /* ビュー回転角度・制限角度・選択角度を1回の委譲で取得して表示へ反映 / Fetch the view rotation, constrain angle, and selection angle in a single delegation and reflect them in the display */
@@ -607,6 +617,26 @@ function resetSelectionRotation(onResult) {
                 statusText.text = statusFromResult(result);
             }
         });
+    };
+
+    /* スライダー操作中：入力欄だけ更新（Shiftで15°クランプ）/ While dragging: update the field only (snap to 15° with Shift) */
+    constrainSlider.onChanging = function () {
+        var useShift = ScriptUI.environment.keyboardState.shiftKey;
+        var angle = snapAngle(constrainSlider.value, useShift);
+        if (useShift) { constrainSlider.value = angle; }
+        constrainInput.text = angle;
+    };
+
+    /* スライダー確定：「角度の制限」へ適用 / On release: apply to the constrain angle */
+    constrainSlider.onChange = function () {
+        var useShift = ScriptUI.environment.keyboardState.shiftKey;
+        commitConstrain(snapAngle(constrainSlider.value, useShift));
+    };
+
+    /* 入力欄の確定：スライダーの位置だけ合わせる（適用はボタンで）/ On field commit: sync the slider position only (applying is the button's job) */
+    constrainInput.onChange = function () {
+        var angle = parseFloat(constrainInput.text);
+        if (!isNaN(angle)) { constrainSlider.value = normalizeAngle(angle); }
     };
 
     /* 選択に合わせてビューを回転：選択パスの角度を取得し、表示とビュー回転へ反映 / Rotate view to match selection: measure the path angle and reflect it in the display and view */
@@ -685,7 +715,7 @@ function resetSelectionRotation(onResult) {
         resetConstrain(function (result) {
             if (result.indexOf("OK") === 0) {
                 setConstrain(0);
-                constrainInput.text = "0";
+                showConstrain(0);
                 statusText.text = L("status.resetConstrain");
             } else {
                 statusText.text = statusFromResult(result);
@@ -707,14 +737,7 @@ function resetSelectionRotation(onResult) {
             statusText.text = L("alert.invalidAngle");
             return;
         }
-        applyConstrainAngle(constrainAngle, function (result) {
-            if (result.indexOf("OK") === 0) {
-                setConstrain(constrainAngle);
-                statusText.text = L("status.applied");
-            } else {
-                statusText.text = statusFromResult(result);
-            }
-        });
+        commitConstrain(constrainAngle);
     };
 
     /* 更新ボタン：最新の状態を取得し直す / Refresh button: re-fetch the latest state */
