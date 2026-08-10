@@ -57,6 +57,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Unified type panel](readme-en/UnifiedTypePanel.md)
 - [Kerning settings palette](readme-en/AutoKerningPanel.md)
 - [Outline text and restore it later](readme-en/AiTextOutlineRestorePalette.md)
+- [Adjust font size and horizontal / vertical scale](readme-en/AdjustFontSize.md)
 
 ## Object arrangement and alignment
 
@@ -87,6 +88,7 @@ After release, we continue to fix bugs and make adjustments through daily use.
 - [Convert embedded images into linked images (action-based)](readme-en/UnembedToLinks.md)
 - [Linked image management](readme-en/LinkedImageManager.md)
 - [Batch save AI / SVG files in a folder with a specified version](readme-en/AIBatchVersionSave.md)
+- [Merge CSV / tab-separated data into a template](readme-en/VariableDataImport.md)
 
 ## Color
 

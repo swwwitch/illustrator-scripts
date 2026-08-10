@@ -61,6 +61,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [テキスト内の日付・曜日・数値を一括で増減](readme-ja/IncrementDatesAndNumbers.md)
 - [エリア内文字ツールキット（作成と調整）](readme-ja/AreaTypeToolkit.md)
 - [クリップボードのテキストで選択テキストを置換](readme-ja/ReplaceTextWithPaste.md)
+- [フォントサイズと水平比率／垂直比率を調整](readme-ja/AdjustFontSize.md)
 
 ## オブジェクトの配置や整列
 
@@ -91,6 +92,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [埋め込み画像をリンク画像に変換（アクション方式）](readme-ja/UnembedToLinks.md)
 - [登録済みAIファイルからスタイル・ブラシ・フォント見本を読み込み](readme-ja/ImportStyles.md)
 - [フォルダー内のAI／SVGをバージョン指定で一括保存](readme-ja/AIBatchVersionSave.md)
+- [CSV／タブ区切りデータをテンプレートに流し込むデータ結合](readme-ja/VariableDataImport.md)
 
 ## カラー
 
