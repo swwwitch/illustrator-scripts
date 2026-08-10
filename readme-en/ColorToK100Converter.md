@@ -8,9 +8,19 @@
 
 ---
 
-### Readme （GitHub）
+### Overview
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ColorToK100Converter.md
+- Updated: 2025-06-15
+- Converts blacks built from RGB or CMYK into a stable K100 black
+- Fill and stroke colours on text, paths and swatches are all covered
+
+### Main Features
+
+- Converts RGB black (every channel below 39) to K100
+- Converts rich CMYK black (all of C, M and Y at 70 or above, or a total of 310 or above) to K100
+- Converts text character by character
+- Converts swatch colours automatically
+- Japanese and English UI
 
 ### Script info
 

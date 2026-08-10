@@ -8,9 +8,24 @@
 
 ---
 
-### Readme （GitHub）
+### Overview
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUnite.md
+- Updated: 2026-05-10
+- Runs release compound path, unite, expand appearance and ungroup over the selection in one pass
+
+### Main Features
+
+- Release compound paths
+- Unite paths (live Pathfinder)
+- Expand appearance
+- Ungroup
+
+### Process Flow
+
+1. Release compound paths
+2. Unite paths (live Pathfinder)
+3. Expand appearance
+4. Ungroup
 
 ### Script info
 

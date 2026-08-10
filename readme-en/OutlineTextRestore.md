@@ -8,9 +8,22 @@
 
 ---
 
-### Readme （GitHub）
+### Overview
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/OutlineTextRestore.jsx
+- Restores outlined text back to live text using the information stored in the object's `note`.
+- Only the selected paths and groups are processed, and the restored text is collected onto a `restored_text` layer.
+- The original outlines (of the selection only) are moved to a newly created holding layer, which becomes `outlined_text`, is sent to the back, and is turned into a template layer.
+
+### Main Features
+
+- Extracts the text contents, font information and coordinates from the `note` of a PathItem or GroupItem
+- Recreates the text frame at its original position and hides or moves the original outlines
+- Warns when the note is missing or malformed
+- Restored text always goes onto a new layer, and the original outlines always go onto a new holding layer (`outlined_text`, sent to the back and set as a template)
+
+### Update History
+
+- 20260111
 
 ### Script info
 

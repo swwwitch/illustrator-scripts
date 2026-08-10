@@ -8,9 +8,20 @@
 
 ---
 
-### Readme （GitHub）
+### Overview
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AddOutlineOffsetPath.md
+- Updated: 2025-08-13
+- Duplicates the selection, sends it behind, applies Offset Path (a live effect), outlines it, unites it and expands it
+- Groups the original with the result, runs Subtract, and fills the outcome with white
+
+### Main Features
+
+- Works with multiple selections
+- Unit aware (pt, mm, in, cm, and so on)
+- The corner join (miter, round, bevel) is configurable
+- The offset value is entered in a dialog
+- Dialog position and opacity can be adjusted
+- Shift and Option modify the arrow-key step in numeric fields
 
 ### Script info
 

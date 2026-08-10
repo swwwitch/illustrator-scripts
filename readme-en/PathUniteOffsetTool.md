@@ -8,9 +8,20 @@
 
 ---
 
-### Readme （GitHub）
+### Overview
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathUniteOffsetTool.md
+- Updated: 2026-05-10
+- Runs release compound path, unite, expand appearance, ungroup and offset path over the selection in one pass
+- Enabling the preview in the dialog lets you check the result without closing it
+
+### Main Features
+
+- Release compound paths
+- Unite paths (live Pathfinder)
+- Expand appearance
+- Ungroup
+- Apply the Offset Path effect by a given value (mm)
+- Preview
 
 ### Script info
 

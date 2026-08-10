@@ -8,9 +8,22 @@
 
 ---
 
-### Readme （GitHub）
+### Overview
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool-v2.md
+- Updated: 2026-03-20
+- Optimizes the selected paths (including those inside groups and compound paths) by removing redundant anchors, duplicate anchors and Bezier handles that can be treated as straight
+- The Other tab also offers smoothing, cornering, adding anchors and splitting at anchors
+
+### Main Features
+
+- Removes anchor points that are redundant along a straight run
+- Removes anchor points that share the same coordinates
+- Removes handles on Bezier segments that can be treated as straight
+- Locked and hidden objects (including their parents and layers) are skipped automatically
+- The selection is frozen when the dialog opens, so the information shown matches what is processed
+- Separate tolerances for anchor removal and handle removal
+- Smoothing guards against neighbouring anchors that coincide or sit extremely close
+- Open-path endpoints use a natural tangent direction rather than wrapping around
 
 ### Script info
 

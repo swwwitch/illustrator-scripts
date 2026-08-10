@@ -8,13 +8,22 @@
 
 ---
 
-### Readme （GitHub）
+### Overview
 
-https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/outline/TextOutlineWithMemo.jsx
+- Reads the details of the selected text frames and then outlines them
+- The details are stored in the `note` property so they can be recovered later
 
-### Notes
+### Main Features
 
-https://note.com/dtp_tranist/n/n3e0f241508db
+- Captures the contents, font name, size, leading, kerning and similar attributes
+- Outlines the text and writes the captured details into `note`
+
+### Process Flow
+
+1. Select the text frames
+2. Capture the attributes
+3. Outline the text
+4. Store the captured details in the note of the outlined object
 
 ### Script info
 
