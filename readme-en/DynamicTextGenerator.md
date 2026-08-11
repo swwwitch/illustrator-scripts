@@ -39,7 +39,7 @@ Options belonging to unselected modes are dimmed. Pressing OK without picking a 
 
 - **Curve:** slider (0-100, default 100) for the path depth. 0 is almost straight; 100 gives the roundest curve. In Circle mode it sets how much of the circumference the text occupies (25-95%), i.e. the size of the circle
 - **Adjust:** None / Font size (default) / Letter spacing. Works on closed paths such as circles as well
-  - Font size: change the font size so the text reaches the path ends (shrinks in 0.1 pt steps, growing first when needed)
+  - Font size: grows the text until it overflows, then shrinks it back to the path ends. Scaling is done by ratio, so mixed character sizes keep their relative differences
   - Letter spacing: keep the font size and adjust the spacing with a coarse pass followed by a fine pass
 - **Effect:** Type on a Path effect, picked from a popup menu (Rainbow (default) / Skew / 3D Ribbon / Stair Step / Gravity)
 - **Remove line breaks:** on by default. Joins the text into a single line, since it flows along one path
@@ -89,6 +89,7 @@ Settings that apply to every mode. Both change the glyph widths, so they are **a
 - Selections containing no text
 - Empty text, or text whose lines / text ranges cannot be read
 - Block requires two or more lines (a single line has nothing to fit to)
+- When OK applies nothing, the dialog stays open so the settings can be corrected
 - Path fitting is skipped for locked, hidden, or non-editable text
 
 ### note

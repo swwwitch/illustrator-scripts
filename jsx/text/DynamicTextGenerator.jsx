@@ -5,7 +5,9 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの文字幅に合わせたパスを作り、アーチ・円・弓のパス上文字に変換します。パスを使わず、各行の文字サイズを変えて行の幅を最長行にそろえる「ブロック」も選べ、結果はダイアログを開いたままプレビューできます。
+選択したテキストの文字幅に合わせたパスを作り、アーチ・円・弓のパス上文字に変換します。
+パスを使わず、各行の文字サイズを変えて行の幅を最長行にそろえる「ブロック」も選べ、
+結果はダイアログを開いたままプレビューできます。
 
 詳細はREADMEを参照。
 
@@ -15,7 +17,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### Overview
 
-Builds a path sized to the selected text and converts it into type on a path shaped as an arch, a circle, or a bow. A Block mode is also available, which uses no path and instead scales each line's font size so every line matches the widest one; the result is previewed while the dialog stays open.
+Builds a path sized to the selected text and converts
+it into type on a path shaped as an arch, a circle, or
+a bow. A Block mode uses no path and instead scales
+each line's font size so every line matches the widest
+one. The result is previewed while the dialog stays open.
 
 See the README for details.
 
