@@ -5,7 +5,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの文字幅に合わせたパスを作り、アーチ・円・弓のパス上文字に変換します。
+選択したテキストの文字幅に合わせたパスを作り、上向きアーチ・円・下向き弓のパス上文字に変換します。
 パスを使わず、各行の文字サイズを変えて行の幅を最長行にそろえる「ブロック」も選べ、
 結果はダイアログを開いたままプレビューできます。
 
@@ -17,21 +17,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### Overview
 
-Builds a path sized to the selected text and converts
-it into type on a path shaped as an arch, a circle, or
-a bow. A Block mode uses no path and instead scales
+Builds a path sized to the selected text and converts it
+into type on a path shaped as an upward arch, a circle, or
+a downward bow. A Block mode uses no path and instead scales
 each line's font size so every line matches the widest
 one. The result is previewed while the dialog stays open.
 
 See the README for details.
-
-*/
-
-/*
-
-### オリジナル / Original
-
-高橋としゆき（@gautt）さん https://note.com/gautt/n/n92f6faeda048
 
 */
 
@@ -41,16 +33,17 @@ See the README for details.
     // 基本情報 / Basic info
     // =========================================
     var SCRIPT_NAME     = "DynamicTextGenerator";         /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
+    var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
     var SCRIPT_RELEASED = "2026-05-18";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-11";                   /* 更新日 / last updated */
+    var SCRIPT_UPDATED  = "2026-08-12";                   /* 更新日 / last updated */
 
     // README (Japanese)
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGenerator.md
     // README (English)
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/DynamicTextGenerator.md
-    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nbabfda4b7920"; /* 紹介記事 / article URL */
+    var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nb9e9082df5e5"; /* 紹介記事 / article URL */
+    var SCRIPT_INSPIRED_BY = "https://note.com/gautt/n/n92f6faeda048";       /* 着想元：高橋としゆき（@gautt） / inspired by */
 
     // Released under the MIT license
     // http://opensource.org/licenses/mit-license.php
@@ -91,8 +84,16 @@ See the README for details.
     var BLOCK_LINE_SPLIT = 'keep';
     /* ブロック：「行数を指定」の初期値 */
     var BLOCK_LINE_COUNT = 3;
-    /* ブロック：改行位置とみなす句読点 */
-    var BLOCK_PUNCTUATION = "、。，．";
+    /* ブロック：改行位置とみなす和文の句読点（直後で改行する） */
+    var BLOCK_PUNCTUATION = "、。，．！？";
+    /* ブロック：改行位置とみなす欧文の句読点（うしろにスペースがあるときだけ改行する） */
+    var BLOCK_PUNCTUATION_LATIN = ".,!?";
+    /* ブロック：改行位置を送るときに読み飛ばす空白 */
+    var BLOCK_BREAK_SPACES = " \t　";
+    /* ブロック：句読点に続いていたら前の行に残す閉じ括弧・引用符 */
+    var BLOCK_CLOSING_MARKS = "）」』】〉》〕｝］”’)]}\"'";
+    /* ブロック：行末に残った句読点を削除するか（ダイアログの初期値） */
+    var BLOCK_REMOVE_PUNCTUATION = false;
 
     /* ブロック：幅をそろえたあとに行送りを自動へ切り替えるか（ダイアログの初期値） */
     var BLOCK_AUTO_LEADING = true;
@@ -122,14 +123,14 @@ See the README for details.
         },
         panel: {
             blockOptions: { ja: "ブロックのオプション", en: "Block Options" },
-            arcOptions: { ja: "アーチ、円のオプション", en: "Arch and Circle Options" },
+            arcOptions: { ja: "パス上文字オプション", en: "Type on a Path Options" },
             commonOptions: { ja: "共通のオプション", en: "Common Options" }
         },
         mode: {
             block: { ja: "ブロック", en: "Block" },
             circle: { ja: "円", en: "Circle" },
-            arch: { ja: "アーチ", en: "Arch" },
-            bow: { ja: "弓", en: "Bow" }
+            arch: { ja: "上向きアーチ", en: "Arch Up" },
+            bow: { ja: "下向き弓", en: "Bow Down" }
         },
         fieldLabel: {
             lineSplit: { ja: "行の分け方：", en: "Line breaks:" },
@@ -146,7 +147,7 @@ See the README for details.
             lineSplitCount: { ja: "行数を指定", en: "Line count" },
             fitNone: { ja: "しない", en: "None" },
             fitByFontSize: { ja: "文字サイズ", en: "Font size" },
-            fitByTracking: { ja: "文字間", en: "Letter spacing" },
+            fitByTracking: { ja: "トラッキング", en: "Tracking" },
             kerningKeep: { ja: "そのまま", en: "Keep" },
             kerningMetrics: { ja: "メトリクス", en: "Metrics" },
             kerningOptical: { ja: "オプティカル", en: "Optical" },
@@ -154,8 +155,9 @@ See the README for details.
         },
         checkbox: {
             leadingAuto: { ja: "自動", en: "Auto" },
+            removePunctuation: { ja: "行末の句読点を削除", en: "Drop punctuation at line ends" },
             removeLineBreaks: { ja: "改行を削除", en: "Remove line breaks" },
-            zoomToSelection: { ja: "選択オブジェクトをズーム表示", en: "Zoom to selection" }
+            zoomToSelection: { ja: "オブジェクトを画面内に表示", en: "Keep the object in view" }
         },
         menu: {
             effectRainbow: { ja: "虹", en: "Rainbow" },
@@ -210,12 +212,16 @@ See the README for details.
                 en: "Keeps the current line breaks and fits each line."
             },
             lineSplitPunctuation: {
-                ja: "いまの改行をいったん外し、句読点のうしろで改行し直します。文字サイズもいちばん大きい値にそろえます。",
-                en: "Drops the current line breaks and re-breaks after each punctuation mark. Font sizes are levelled to the largest one."
+                ja: "いまの改行をいったん外し、句読点のうしろで改行し直します。欧文の「.」「,」はうしろにスペースがあるときだけ区切ります。文字サイズもいちばん大きい値にそろえます。",
+                en: "Drops the current line breaks and re-breaks after each punctuation mark. Latin marks such as \".\" and \",\" only break when a space follows. Font sizes are levelled to the largest one."
+            },
+            removePunctuation: {
+                ja: "行の終わりに残った句読点を削除します。閉じ括弧や引用符は残します。",
+                en: "Deletes the punctuation left at the end of each line. Closing brackets and quotes are kept."
             },
             lineSplitCount: {
-                ja: "いまの改行をいったん外し、指定した行数へ均等に分け直します。近くに句読点があればそこで改行し、文字サイズもいちばん大きい値にそろえます。",
-                en: "Drops the current line breaks and re-splits the text into the given number of lines, preferring nearby punctuation. Font sizes are levelled to the largest one."
+                ja: "いまの改行をいったん外し、指定した行数へ均等に分け直します。近くに句読点があればそこで、なければ単語の切れ目で改行し、文字サイズもいちばん大きい値にそろえます。",
+                en: "Drops the current line breaks and re-splits the text into the given number of lines, preferring nearby punctuation and falling back to word boundaries. Font sizes are levelled to the largest one."
             },
             leadingAuto: {
                 ja: "幅をそろえたあとに、行送りを自動へ切り替えます。",
@@ -226,8 +232,8 @@ See the README for details.
                 en: "The auto-leading ratio, given as a percentage of the font size."
             },
             roundness: {
-                ja: "0で直線に近く、100で最も丸くなります。円では文字が円周に占める割合＝円の大きさを決めます。",
-                en: "0 is almost straight; 100 gives the roundest curve. In Circle mode it sets how much of the circumference the text occupies."
+                ja: "0で直線に近く、100でちょうど半円になります。円では文字が円周に占める割合＝円の大きさを決めます。",
+                en: "0 is almost straight; 100 makes an exact semicircle. In Circle mode it sets how much of the circumference the text occupies."
             },
             fit: {
                 ja: "パスの端まで文字を収める方法を選びます。",
@@ -238,8 +244,8 @@ See the README for details.
                 en: "Does not fit to the path; only converts the text."
             },
             fitMethod: {
-                ja: "文字サイズを変えて合わせるか、文字サイズを保ったまま文字間で合わせるかを選びます。",
-                en: "Choose whether to fit by changing the font size, or by keeping the font size and adjusting the letter spacing."
+                ja: "文字サイズを変えて合わせるか、文字サイズを保ったままトラッキングで合わせるかを選びます。",
+                en: "Choose whether to fit by changing the font size, or by keeping the font size and adjusting the tracking."
             },
             effect: {
                 ja: "Illustratorの「パス上文字オプション」の効果を適用します。",
@@ -258,8 +264,8 @@ See the README for details.
                 en: "Applied before the widths are fitted, since it changes the glyph widths. Choosing Metrics also turns proportional metrics on."
             },
             tracking: {
-                ja: "既存のトラッキング値に加算します。「調整：文字間」を選んでいるときは自動調整にまかせるため使えません。",
-                en: "Adds this value to the existing tracking. Unavailable while \"Adjust: Letter spacing\" is selected, since it is set automatically."
+                ja: "既存のトラッキング値に加算します。「調整：トラッキング」を選んでいるときは自動調整にまかせるため使えません。",
+                en: "Adds this value to the existing tracking. Unavailable while \"Adjust: Tracking\" is selected, since it is set automatically."
             },
             trackingToggle: {
                 ja: "ONでトラッキングを調整できます。OFFにすると0に戻ります。",
@@ -798,6 +804,15 @@ See the README for details.
 
     setLineSplitMode(BLOCK_LINE_SPLIT);
 
+    /* 行末の句読点の削除（改行を入れ直すときだけ使える）/ Drop the marks, only when the lines are re-cut */
+    var grpRemovePunctuation = addFieldRow(pnlBlockOptions);
+
+    // 先頭は上の行と列を揃えるための空ラベル / empty label that keeps the column aligned
+    addLabelSpacer(grpRemovePunctuation);
+    var cbRemovePunctuation = grpRemovePunctuation.add('checkbox', undefined, getLabel('checkbox', 'removePunctuation'));
+    cbRemovePunctuation.helpTip = getLabel('tooltip', 'removePunctuation');
+    cbRemovePunctuation.value = BLOCK_REMOVE_PUNCTUATION;
+
     /* 行送り（ブロック専用）/ Leading (block mode only) */
     var grpLeading = addFieldRow(pnlBlockOptions);
 
@@ -1203,6 +1218,8 @@ See the README for details.
         var lineCountActive = blockActive && rbLineSplitCount.value;
         etLineCount.enabled = lineCountActive;
         stLineCountUnit.enabled = lineCountActive;
+        /* 句読点の削除は、改行を入れ直すときだけ / the marks are only dropped when the lines are re-cut */
+        cbRemovePunctuation.enabled = blockActive && !rbLineSplitKeep.value;
 
         stLeading.enabled = blockActive;
         cbAutoLeading.enabled = blockActive;
@@ -1330,6 +1347,7 @@ See the README for details.
     rbLineSplitKeep.onClick = makeLineSplitSelector('keep');
     rbLineSplitPunctuation.onClick = makeLineSplitSelector('punctuation');
     rbLineSplitCount.onClick = makeLineSplitSelector('count');
+    cbRemovePunctuation.onClick = refreshPreview;
     etLineCount.onChange = refreshPreview;
     etLeadingAmount.onChange = refreshPreview;
 
@@ -1661,23 +1679,48 @@ See the README for details.
         return Math.max(0, Math.min(100, percent));
     }
 
-    // Bend a 2-point straight path into an arc by moving its Bézier handles.
-    // directionSign: +1 = bulge upward, -1 = bulge downward.
-    // 水平ハンドルは固定、垂直ハンドル＝カーブの深さ（50% で pathLength/4）。
+    /**
+     * 2点の直線パスを真円の円弧に変形する
+     * カーブは弦の中点から頂点までの高さ（サジッタ）を決め、100で半幅＝半径、つまり弦を直径とする半円になる。
+     * 円弧は頂点で2分割し、90度以下の区間ごとにベジェ曲線で近似する。
+     * @param {PathItem} arcPath - ベースとなる2点の直線パス
+     * @param {number} roundnessPercent - カーブ（0〜100）
+     * @param {number} directionSign - 膨らむ向き（+1＝上／−1＝下）
+     * @returns {void}
+     */
     function applyArcHandles(arcPath, roundnessPercent, directionSign) {
-        var pathLength = arcPath.length;
-        var horizontalHandle = pathLength / 3.5;
-        var verticalHandle = pathLength * (roundnessPercent / 100) * 0.5 * directionSign;
+        var startX = arcPath.pathPoints[0].anchor[0];
+        var endX = arcPath.pathPoints[1].anchor[0];
+        var baselineY = arcPath.pathPoints[0].anchor[1];
+        var halfWidth = (endX - startX) / 2;
+        if (!(halfWidth > 0)) return;
+
+        var sagitta = halfWidth * (roundnessPercent / 100);
+        if (!(sagitta > 0)) return; /* カーブ0は直線のまま */
+
+        var radius = (sagitta * sagitta + halfWidth * halfWidth) / (2 * sagitta);
+        /* 1区間の中心角。カーブ100で90度＝合計180度の半円になる */
+        var segmentAngle = Math.atan2(halfWidth, radius - sagitta);
+        /* 中心角θの円弧を1本のベジェで近似するハンドル長（θ=90度で半径×0.5523） */
+        var handleLength = radius * (4 / 3) * Math.tan(segmentAngle / 4);
+        /* 端点での接線方向へ倒したハンドルの成分 */
+        var tangentX = handleLength * Math.cos(segmentAngle);
+        var tangentY = handleLength * Math.sin(segmentAngle);
+
+        var apexX = startX + halfWidth;
+        var apexY = baselineY + sagitta * directionSign;
+
+        arcPath.setEntirePath([
+            [startX, baselineY],
+            [apexX, apexY],
+            [endX, baselineY]
+        ]);
 
         var pathPoints = arcPath.pathPoints;
-        pathPoints[0].rightDirection = [
-            pathPoints[0].rightDirection[0] + horizontalHandle,
-            pathPoints[0].rightDirection[1] + verticalHandle
-        ];
-        pathPoints[1].leftDirection = [
-            pathPoints[1].leftDirection[0] - horizontalHandle,
-            pathPoints[1].leftDirection[1] + verticalHandle
-        ];
+        pathPoints[0].rightDirection = [startX + tangentX, baselineY + tangentY * directionSign];
+        pathPoints[1].leftDirection = [apexX - handleLength, apexY];
+        pathPoints[1].rightDirection = [apexX + handleLength, apexY];
+        pathPoints[2].leftDirection = [endX - tangentX, baselineY + tangentY * directionSign];
     }
 
     /**
@@ -2107,6 +2150,57 @@ See the README for details.
     }
 
     /**
+     * 句読点のうしろの改行位置を求める
+     * @param {string} text - 対象の文字列（改行を外した状態）
+     * @param {number} markIndex - 句読点とみなす文字の位置
+     * @returns {number} 改行を入れる位置（改行しないときは -1）
+     */
+    function findBreakAfterPunctuation(text, markIndex) {
+        if (markIndex < 0 || markIndex >= text.length) return -1;
+        /* 末尾の句読点で改行すると空行ができるので入れない / no break after the final mark */
+        if (markIndex + 1 >= text.length) return -1;
+
+        var mark = text.charAt(markIndex);
+        var isLatinMark = (BLOCK_PUNCTUATION_LATIN.indexOf(mark) >= 0);
+        if (!isLatinMark && BLOCK_PUNCTUATION.indexOf(mark) < 0) return -1;
+
+        /* 閉じ括弧・引用符が続くときは、それも前の行に残す（「〜です。」の 」 が行頭に落ちるのを防ぐ）*/
+        var position = markIndex + 1;
+        while (position < text.length && BLOCK_CLOSING_MARKS.indexOf(text.charAt(position)) >= 0) position++;
+        if (position >= text.length) return -1;
+
+        var nextChar = text.charAt(position);
+        /* 欧文は 3.14 や e.g. で切ってしまわないよう、うしろのスペースを条件にする */
+        if (isLatinMark && BLOCK_BREAK_SPACES.indexOf(nextChar) < 0) return -1;
+        /* 「！？」のように句読点が続くときは、あとの句読点にゆずる */
+        if (BLOCK_PUNCTUATION.indexOf(nextChar) >= 0 || BLOCK_PUNCTUATION_LATIN.indexOf(nextChar) >= 0) return -1;
+
+        /* 次の行が空白で始まらないよう、うしろのスペースは前の行に残す */
+        while (position < text.length && BLOCK_BREAK_SPACES.indexOf(text.charAt(position)) >= 0) position++;
+        if (position >= text.length) return -1;
+
+        return position;
+    }
+
+    /**
+     * 単語の切れ目（スペース）のうしろの改行位置を求める
+     * @param {string} text - 対象の文字列（改行を外した状態）
+     * @param {number} spaceIndex - スペースとみなす文字の位置
+     * @returns {number} 改行を入れる位置（改行しないときは -1）
+     */
+    function findBreakAfterSpace(text, spaceIndex) {
+        if (spaceIndex < 0 || spaceIndex >= text.length) return -1;
+        if (BLOCK_BREAK_SPACES.indexOf(text.charAt(spaceIndex)) < 0) return -1;
+
+        /* 次の行が空白で始まらないよう、続くスペースはまとめて前の行に残す */
+        var position = spaceIndex;
+        while (position < text.length && BLOCK_BREAK_SPACES.indexOf(text.charAt(position)) >= 0) position++;
+        if (position >= text.length) return -1;
+
+        return position;
+    }
+
+    /**
      * 句読点のうしろを改行位置として拾う
      * @param {string} text - 対象の文字列（改行を外した状態）
      * @returns {number[]} 改行を入れる位置の配列
@@ -2114,35 +2208,38 @@ See the README for details.
     function findPunctuationBreaks(text) {
         var positions = [];
         for (var i = 0; i < text.length; i++) {
-            if (BLOCK_PUNCTUATION.indexOf(text.charAt(i)) < 0) continue;
-            /* 末尾の句読点で改行すると空行ができるので入れない / no break after the final mark */
-            if (i + 1 >= text.length) continue;
-            positions.push(i + 1);
+            var position = findBreakAfterPunctuation(text, i);
+            if (position > 0) positions.push(position);
         }
         return positions;
     }
 
     /**
-     * 目標位置の近くに句読点があれば、そのうしろを改行位置として返す
+     * 目標位置の近くの区切りへ改行位置を寄せる
+     * 句読点を優先し、見つからないときは単語の切れ目を使う（欧文で単語の途中が切れるのを防ぐ）
      * @param {string} text - 対象の文字列
      * @param {number} targetPosition - 均等割りで求めた位置
      * @param {number} snapRange - 前後に探す文字数
      * @returns {number} 実際に改行する位置
      */
-    function snapToPunctuation(text, targetPosition, snapRange) {
+    function snapToBreakPoint(text, targetPosition, snapRange) {
         for (var offset = 0; offset <= snapRange; offset++) {
-            var forward = targetPosition + offset;
-            if (forward > 0 && forward < text.length &&
-                BLOCK_PUNCTUATION.indexOf(text.charAt(forward - 1)) >= 0) return forward;
-            var backward = targetPosition - offset;
-            if (backward > 0 && backward < text.length &&
-                BLOCK_PUNCTUATION.indexOf(text.charAt(backward - 1)) >= 0) return backward;
+            var forwardMark = findBreakAfterPunctuation(text, targetPosition + offset - 1);
+            if (forwardMark > 0) return forwardMark;
+            var backwardMark = findBreakAfterPunctuation(text, targetPosition - offset - 1);
+            if (backwardMark > 0) return backwardMark;
+        }
+        for (var spaceOffset = 0; spaceOffset <= snapRange; spaceOffset++) {
+            var forwardSpace = findBreakAfterSpace(text, targetPosition + spaceOffset - 1);
+            if (forwardSpace > 0) return forwardSpace;
+            var backwardSpace = findBreakAfterSpace(text, targetPosition - spaceOffset - 1);
+            if (backwardSpace > 0) return backwardSpace;
         }
         return targetPosition;
     }
 
     /**
-     * 指定行数へ均等に分ける改行位置を求める（近くに句読点があればそこを優先）
+     * 指定行数へ均等に分ける改行位置を求める（近くの句読点、なければ単語の切れ目を優先）
      * @param {string} text - 対象の文字列（改行を外した状態）
      * @param {number} lineCount - 分ける行数
      * @returns {number[]} 改行を入れる位置の配列
@@ -2157,7 +2254,7 @@ See the README for details.
         var previousPosition = 0;
 
         for (var i = 1; i < lineCount; i++) {
-            var position = snapToPunctuation(text, Math.round(charactersPerLine * i), snapRange);
+            var position = snapToBreakPoint(text, Math.round(charactersPerLine * i), snapRange);
             /* 空行を作らないよう、前の改行位置より必ず後ろにする / never produce an empty line */
             if (position <= previousPosition) position = previousPosition + 1;
             if (position >= textLength) break;
@@ -2165,6 +2262,42 @@ See the README for details.
             previousPosition = position;
         }
         return positions;
+    }
+
+    /**
+     * 「行末の句読点を削除」の指定を読み取る
+     * @returns {boolean} 削除するなら true
+     */
+    function readRemovePunctuation() {
+        try { return cbRemovePunctuation.value === true; } catch (e) { }
+        return BLOCK_REMOVE_PUNCTUATION;
+    }
+
+    /**
+     * 行の終わりに残った句読点を削除する（閉じ括弧・引用符・空白は残す）
+     * 改行を入れたあとに実行する。contents の書き換えでは文字ごとの書式が失われるため1文字ずつ消す。
+     * @param {TextFrame} textFrame - 対象テキストフレーム
+     * @returns {void}
+     */
+    function removeLineEndPunctuation(textFrame) {
+        var text = '';
+        try { text = textFrame.contents; } catch (e) { return; }
+
+        /* うしろから見れば、まだ消していない前側のインデックスがずれない
+           Scan from the end so the not-yet-used earlier indexes stay valid */
+        var atLineEnd = true; /* ここから行末までが閉じ括弧・空白だけか */
+        for (var i = text.length - 1; i >= 0; i--) {
+            var currentChar = text.charAt(i);
+            if (currentChar === '\r' || currentChar === '\n') { atLineEnd = true; continue; }
+            if (!atLineEnd) continue;
+            if (BLOCK_CLOSING_MARKS.indexOf(currentChar) >= 0 || BLOCK_BREAK_SPACES.indexOf(currentChar) >= 0) continue;
+            if (BLOCK_PUNCTUATION.indexOf(currentChar) >= 0 || BLOCK_PUNCTUATION_LATIN.indexOf(currentChar) >= 0) {
+                /* 「！？」のように続くときはまとめて消すので atLineEnd は下ろさない */
+                try { textFrame.characters[i].remove(); } catch (e) { }
+                continue;
+            }
+            atLineEnd = false;
+        }
     }
 
     /**
@@ -2189,6 +2322,9 @@ See the README for details.
             ? findPunctuationBreaks(text)
             : findEvenBreaks(text, readLineCount());
         insertLineBreaks(textFrame, positions);
+
+        /* 改行位置が決まったあとに消す（先に消すと位置がずれる）*/
+        if (readRemovePunctuation()) removeLineEndPunctuation(textFrame);
     }
 
     /**

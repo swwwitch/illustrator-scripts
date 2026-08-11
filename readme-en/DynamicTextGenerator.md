@@ -9,9 +9,11 @@
 ### Description
 
 - Script that builds a path sized to the selected text and converts it into type on a path.
-- The path can be an arch, a circle, or a bow. The generated path has no fill and no stroke (invisible), so only the text is visible.
+- The path can be an upward arch, a circle, or a downward bow. The generated path has no fill and no stroke (invisible), so only the text is visible.
 - A Block mode is also available, which uses no path and instead scales each line's font size so every line matches the widest one.
 - Point text, area type, and existing type on a path are all valid targets. The preview is always on, so the result can be checked while the dialog stays open.
+
+<img alt="The Dynamic Text dialog" src="../png/ss-842-1396-144-20260812-042103.png" width="50%" />
 
 ### Modes
 
@@ -21,8 +23,8 @@ Chosen with icon buttons. The mode name appears under each icon, and the help ti
 | --- | --- |
 | **Block** | Creates no path; scales each line's font size so every line matches the widest one |
 | **Circle** | Converts to a closed circular path and flows the text around it, centered at the top |
-| **Arch** | Converts to a path that bulges upward |
-| **Bow** | Converts to a path that bulges downward |
+| **Arch Up** | Converts to a path that bulges upward |
+| **Bow Down** | Converts to a path that bulges downward |
 
 Options belonging to unselected modes are dimmed. Pressing OK without picking a mode keeps the dialog open and asks for one.
 
@@ -30,18 +32,19 @@ Options belonging to unselected modes are dimmed. Pressing OK without picking a 
 
 - **Line breaks:**
   - **Keep** (default): keeps the current line breaks and fits each line
-  - **At punctuation**: drops the current line breaks and re-breaks after each punctuation mark (`、。，．`)
-  - **Line count [3] lines**: drops the current line breaks and re-splits the text into the given number of lines, preferring punctuation within one third of a line from the target position
+  - **At punctuation**: drops the current line breaks and re-breaks after each punctuation mark. Japanese marks (`、。，．！？`) break immediately; Latin marks (`.,!?`) break only when a space follows, so `3.14` and `e.g.` stay intact. A run of marks such as `！？` breaks after the last one. Closing brackets and quotes (`）」』】〉》”’)]}"'`) and any spaces that follow a mark stay on the previous line, so no line starts with `」` or a space
+  - **Line count [3] lines**: drops the current line breaks and re-splits the text into the given number of lines, preferring punctuation within one third of a line from the target position, and falling back to word boundaries so Latin words are not cut in half
 - With "At punctuation" and "Line count", the font size is **levelled to the largest size in the frame** before the lines are re-cut. This prevents sizes left over from an earlier Block pass from being mixed inside a single line; on uniformly sized text it changes nothing.
+- **Drop punctuation at line ends:** off by default. Deletes the punctuation left at the end of each line, for headlines and taglines. Closing brackets and quotes are kept. Dimmed while "Keep" is selected
 - **Leading:** when checked, switches leading to auto with the given ratio (default 100%)
 
-### Arch and Circle Options
+### Type on a Path Options
 
-- **Curve:** slider (0-100, default 100) for the path depth. 0 is almost straight; 100 gives the roundest curve. In Circle mode it sets how much of the circumference the text occupies (25-95%), i.e. the size of the circle
-- **Adjust:** None / Font size (default) / Letter spacing. Works on closed paths such as circles as well
+- **Curve:** slider (0-100, default 100) for the path depth. The path is a true circular arc: 0 is almost straight, and 100 gives an exact semicircle whose diameter is the text width. In Circle mode it sets how much of the circumference the text occupies (25-95%), i.e. the size of the circle
+- **Adjust:** None / Font size (default) / Tracking. Works on closed paths such as circles as well
   - Font size: grows the text until it overflows, then shrinks it back to the path ends. Scaling is done by ratio, so mixed character sizes keep their relative differences
-  - Letter spacing: keep the font size and adjust the spacing with a coarse pass followed by a fine pass
-- **Effect:** Type on a Path effect, picked from a popup menu (Rainbow (default) / Skew / 3D Ribbon / Stair Step / Gravity)
+  - Tracking: keep the font size and adjust the spacing with a coarse pass followed by a fine pass
+- **Effect:** Illustrator's Type on a Path effect, picked from a popup menu (Rainbow (default) / Skew / 3D Ribbon / Stair Step / Gravity)
 - **Remove line breaks:** on by default. Joins the text into a single line, since it flows along one path
 
 ### Common Options
@@ -52,11 +55,11 @@ Settings that apply to every mode. Both change the glyph widths, so they are **a
   - Keep: leaves the kerning settings untouched
   - Choosing Metrics also **turns proportional metrics on** (the other choices turn it off)
   - "Metrics - Roman Only" means metrics for Roman text and monospaced Japanese
-- **Tracking:** when the checkbox is on, adds the given value to the existing tracking (-100 to 500; arrow keys adjust, Shift = 10, Option = 0.1). Turning it off resets it to 0. Dimmed while "Adjust: Letter spacing" is selected
+- **Tracking:** when the checkbox is on, adds the given value to the existing tracking (-100 to 500; arrow keys adjust, Shift = 10, Option = 0.1). Turning it off resets it to 0. Dimmed while "Adjust: Tracking" is selected
 
 ### View and Buttons
 
-- **Zoom to selection:** on by default. Moves the view only when the converted result falls outside the visible area; the view is left alone when it is already in sight. When the result does not fit, the view zooms out only — it never zooms in
+- **Keep the object in view:** on by default. Moves the view only when the converted result falls outside the visible area; the view is left alone when it is already in sight. When the result does not fit, the view zooms out only — it never zooms in
 - **Hidden Characters:** toggles the display of hidden characters, useful for checking where "Line count" or "At punctuation" placed the breaks
 - Cancel discards the preview and closes
 
@@ -68,18 +71,18 @@ Settings that apply to every mode. Both change the glyph widths, so they are **a
 
 ### Workflow
 
-**Arch / Circle / Bow**
+**Arch Up / Circle / Bow Down**
 
 1. Collect point text, area type, and type on a path from the selection (recursing into groups)
 2. Copy anything that is not point text into plain point text and use that as the source. Lines that an arch or circle had pushed out of sight come back, and area type loses its frame wrapping
-3. Measure the source via temporary outlines, create a straight path along the baseline, and bend it into an arc with its Bézier handles (Circle mode builds a closed circular path instead)
+3. Measure the source via temporary outlines, and build a true circular arc along the baseline, split at its apex into two Bézier segments at the height the Curve slider sets (Circle mode builds a closed circular path instead)
 4. Create the type on a path, duplicate the character attributes, then apply line-break removal, center justification, kerning, tracking, and the effect
 5. Fit to the path with the chosen method, then shrink whatever still does not fit (any path selected together with the text is removed)
 
 **Block**
 
 1. Convert anything that is not point text into point text
-2. Re-cut the lines with the chosen method
+2. Re-cut the lines with the chosen method, dropping the punctuation at line ends when requested
 3. Apply kerning and tracking, then measure every line by its outline width and scale each line to the widest one (fixed leading is scaled along with it)
 4. Switch leading to auto when requested
 
@@ -94,9 +97,10 @@ Settings that apply to every mode. Both change the glyph widths, so they are **a
 
 ### note
 
-- Article: https://note.com/dtp_tranist/n/nbabfda4b7920
-- Original idea: Toshiyuki Takahashi (@gautt) https://note.com/gautt/n/n92f6faeda048
+- Article: https://note.com/dtp_tranist/n/nb9e9082df5e5
+- Inspired by: Toshiyuki Takahashi (@gautt) https://note.com/gautt/n/n92f6faeda048
 
 ### Update History
 
+- v1.0.2 (20260812): Renamed the modes to "Arch Up" and "Bow Down". The arc is now a true circular arc, so the maximum Curve gives an exact semicircle. Added `！？.,!?` to the punctuation used for line breaks, and closing brackets and quotes now stay on the previous line. "Line count" falls back to word boundaries when no punctuation is nearby. Added "Drop punctuation at line ends". Tidied up the UI wording
 - v1.0.0 (20260811): Public release
