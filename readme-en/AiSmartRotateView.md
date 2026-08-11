@@ -26,7 +26,7 @@ You can also read the angle of a selected object and rotate the view to it, or r
 - **Constrain angle**
   - Set it with the number field (↑↓ for ±1, Shift+↑↓ for ±10) or the slider
   - The slider updates the field while dragging and applies the preference on release (15° steps with Shift)
-  - [Change constrain angle] applies the field value to the preference
+  - [Change value] applies the field value to the preference
   - With "Link to view rotation" on, the same angle is applied automatically whenever the view rotation changes
   - [Reset] returns only the constrain angle to 0° (dimmed when it is already 0°)
 - **Selected object**
