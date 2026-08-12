@@ -1,5 +1,5 @@
 #target illustrator
-#targetengine "TextOutlineWithMemo"
+#targetengine "TextOutlineWithMemoEn"
 app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
@@ -500,8 +500,9 @@ function workerSetActiveLayerStrict(doc, layer) {
 function workerApplyTemplateLayerAttribute() {
     var actionString =
         '/version 3' +
-        '/name [ 5' +
-        ' 6c61796572' +
+        /* the set name must be unique: a generic name like "layer" would unload the user's own action set */
+        '/name [ 29' +
+        ' 44796e616d6963416374696f6e4f75746c696e65526573746f7265456e' +
         ' ]' +
         '/isOpen 1' +
         '/actionCount 1' +
@@ -592,28 +593,35 @@ function workerApplyTemplateLayerAttribute() {
         ' }' +
         ' }' +
         '}';
-    /* keep the action loaded until the palette closes (load only on first use) */
-    if (!$.global.__outlineTemplateActionLoaded) {
-        var actionFile = new File('~/ScriptAction.aia');
+    /* load, play and unload in one go, cleaning up the .aia and the action set in finally */
+    var setName = "DynamicActionOutlineRestoreEn";
+    var actionFile = new File('~/AiTextOutlineRestoreActionEn.aia');
+    var isActionLoaded = false;
+    var isFileOpen = false;
+    try { app.unloadAction(setName, ""); } catch (eUnload) {}
+    try {
         actionFile.encoding = 'UTF-8';
         actionFile.lineFeed = 'Unix';
-        actionFile.open('w');
+        if (!actionFile.open('w')) { return; }
+        isFileOpen = true;
         actionFile.write(actionString);
         actionFile.close();
+        isFileOpen = false;
         app.loadAction(actionFile);
-        actionFile.remove();
-        $.global.__outlineTemplateActionLoaded = true;
+        isActionLoaded = true;
+        app.doScript("change-to-template-layer", setName, false);
+    } catch (eAction) {
+    } finally {
+        if (isFileOpen) { try { actionFile.close(); } catch (eClose) {} }
+        if (actionFile.exists) { try { actionFile.remove(); } catch (eRemove) {} }
+        if (isActionLoaded) { try { app.unloadAction(setName, ""); } catch (eDone) {} }
     }
-    app.doScript("change-to-template-layer", "layer", false);
-    /* unloadAction is run together in workerUnloadTemplateAction when the palette closes */
 }
 
-/* --- Restore: unload the loaded template action (on palette close) --- */
+/* --- Restore: unload any template action left behind (on palette close) --- */
+/* normally already unloaded in the finally above; this is a safety net for abnormal termination */
 function workerUnloadTemplateAction() {
-    if ($.global.__outlineTemplateActionLoaded) {
-        try { app.unloadAction("layer", ""); } catch (e) {}
-        $.global.__outlineTemplateActionLoaded = false;
-    }
+    try { app.unloadAction("DynamicActionOutlineRestoreEn", ""); } catch (e) {}
     return "OK";
 }
 
@@ -912,10 +920,23 @@ var WORKER_FUNCS = [
 // ==============================
 // Delegation to main engine
 // ==============================
+/* Function.toString() can return fragments of the surrounding comments (with the closing marker missing).
+   Concatenated as-is, an unterminated comment swallows the next function, so keep only the lines
+   from the declaration down to the closing brace. */
+function sliceFunctionSource(rawSource) {
+    var lines = String(rawSource).replace(/\r\n?/g, "\n").split("\n");
+    var first = 0;
+    while (first < lines.length && lines[first].indexOf("function ") !== 0) { first++; }
+    if (first >= lines.length) { return rawSource; } /* unexpected shape: pass through */
+    var last = lines.length - 1;
+    while (last > first && !/^\s*\}\s*$/.test(lines[last])) { last--; }
+    return lines.slice(first, last + 1).join("\n");
+}
+
 function buildWorkerSource(funcs, entryCall) {
     var source = "";
     for (var i = 0; i < funcs.length; i++) {
-        source += funcs[i].toString() + "\n";
+        source += sliceFunctionSource(funcs[i].toString()) + "\n";
     }
     return source + entryCall;
 }
@@ -1035,14 +1056,14 @@ function refreshSelectedNote(win, keepStatus) {
 /* cleanup on palette close: unload the loaded action */
 function performCloseCleanup() {
     try { callWorker("workerUnloadTemplateAction();"); } catch (e) {}
-    $.global.__textOutlineMemoPalette = null;
+    $.global.__textOutlineMemoPaletteEn = null;
 }
 
 function showPalette() {
     // prevent multiple launches: close an existing palette (kept on $.global to persist across IIFE runs)
-    if ($.global.__textOutlineMemoPalette) {
-        try { $.global.__textOutlineMemoPalette.close(); } catch (e) {}
-        $.global.__textOutlineMemoPalette = null;
+    if ($.global.__textOutlineMemoPaletteEn) {
+        try { $.global.__textOutlineMemoPaletteEn.close(); } catch (e) {}
+        $.global.__textOutlineMemoPaletteEn = null;
     }
 
     var win = new Window("palette", L('dialog.title') + ' ' + SCRIPT_VERSION, undefined, { resizeable: false });
@@ -1137,7 +1158,7 @@ function showPalette() {
         return true;
     };
 
-    $.global.__textOutlineMemoPalette = win;
+    $.global.__textOutlineMemoPaletteEn = win;
     refreshSelectedNote(win, true); // show the selected object's note at launch
     win.show();
     return win;

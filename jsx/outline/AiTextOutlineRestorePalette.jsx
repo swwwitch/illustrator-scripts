@@ -7,14 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 テキストのアウトライン化と、アウトラインからのテキスト復元を常駐パレットから実行します。
-
-- アウトライン化の直前に、文字・段落属性をオブジェクトのメモ（note）へ保存
-- メモを解析してテキストフレームを再生成（フォント・サイズ・行送り・カーニング・文字カラー・
-  行揃え・禁則・文字組みアキ量設定・長体／平体・組み方向・座標など）
-- 元のアウトラインは `outlined_text` レイヤーへ退避（淡く＋ロック）
-- 復元オプションで、アウトラインを残すか、別レイヤーへ復元するかを切り替え
-- 選択オブジェクトのメモをパネルに一覧表示
-- 英語環境では和文専用の属性（組み方向・禁則・文字組みアキ量設定・文字ツメ）を扱いません
+アウトライン化の直前に文字・段落属性をオブジェクトのメモ（note）へ保存し、そのメモをもとにテキストフレームを再生成します。
 
 詳しい仕様と注意事項は README を参照してください。
 
@@ -25,14 +18,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### Overview
 
 Outlines text and restores it back from the outline, using a persistent palette.
-
-- Character and paragraph attributes are saved to the object's note before outlining
-- The note is parsed to recreate the text frame (font, size, leading, kerning, fill color,
-  alignment, kinsoku, mojikumi, horizontal/vertical scale, orientation, position, and more)
-- The original outlines are moved to the `outlined_text` layer (dimmed and locked)
-- Restore options switch whether the outlines are kept and whether text goes to a separate layer
-- The selected object's note is listed in the panel
-- Japanese-only attributes (orientation, kinsoku, mojikumi, tsume) are skipped in English locales
+Character and paragraph attributes are saved to the object's note just before outlining, and the text frame is recreated from that note.
 
 See the README for the full specification and notes.
 
@@ -44,10 +30,10 @@ See the README for the full specification and notes.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "AiTextOutlineRestorePalette";  /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0.2";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.3";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2024-07-23";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-13";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiTextOutlineRestorePalette.md
@@ -138,6 +124,7 @@ var LABELS = {
         doneRestore: { ja: 'テキストを復元しました', en: 'Text restored' },
         memoLoaded: { ja: 'メモを読み込みました', en: 'Note loaded' },
         fontWarn: { ja: '一部フォントは既定値を使用', en: 'Some fonts used defaults' },
+        partial: { ja: '一部は処理できませんでした', en: 'Some items could not be processed' },
         nodoc: { ja: 'ドキュメントがありません', en: 'No document is open' },
         nosel: { ja: 'オブジェクトが選択されていません', en: 'No objects are selected' },
         notgt: { ja: 'パス／グループを選択してください', en: 'Please select a path or group' },
@@ -345,10 +332,12 @@ function workerResolveKernType(kerningText) {
     return AutoKernType.NOAUTOKERN;
 }
 
+/* --- 1つのテキストフレームをアウトライン化し、生成されたグループに note を書く
+       Outline one text frame and write the note onto the resulting group --- */
+/* 戻り値は生成された GroupItem。作れなかったときは null（呼び出し側で失敗として数える） */
 function workerProcessTextFrame(textFrame, handleJp) {
     var textRange = textFrame.textRange;
     var charAttrs = textRange.characterAttributes;
-    app.redraw();
     var bounds = textFrame.geometricBounds;
     var memoText = workerBuildMemoText({
         text: textRange.contents,
@@ -372,14 +361,12 @@ function workerProcessTextFrame(textFrame, handleJp) {
         right: workerRound(bounds[2]),
         bottom: workerRound(bounds[3])
     }, handleJp);
-    app.activeDocument.selection = null;
-    textFrame.selected = true;
-    textFrame.createOutline();
-    /* createOutline 後の選択が常に期待どおりとは限らないので最低限チェック */
-    if (app.activeDocument.selection && app.activeDocument.selection.length > 0) {
-        app.activeDocument.selection[0].note = memoText;
-    }
-    return true;
+    /* createOutline() の戻り値（生成された GroupItem）へ直接書く。選択に頼るとメモが付かないまま
+       テキストだけ失われることがあるため */
+    var outlineGroup = textFrame.createOutline();
+    if (!outlineGroup) { return null; }
+    outlineGroup.note = memoText;
+    return outlineGroup;
 }
 
 /* --- 選択を取得（ドキュメントなし／選択なしはコード文字列を返す）/ Get the selection or an error code --- */
@@ -402,16 +389,30 @@ function workerFilterByType(selection, typeNames) {
     return picked;
 }
 
+/* --- アウトライン化：エントリ / Outline: entry --- */
+/* 1件失敗しても残りは処理し、生成したアウトラインを選択し直して直後のメモ表示につなげる */
 function workerRunOutline(handleJp) {
     var currentSelection = workerGetSelection();
     if (typeof currentSelection === "string") { return currentSelection; }
     var selectedTextFrames = workerFilterByType(currentSelection, ["TextFrame"]);
     if (selectedTextFrames.length < 1) { return "NOSEL"; }
+    /* geometricBounds を確定させるための再描画は1回だけ（件数分繰り返さない） */
+    try { app.redraw(); } catch (eDraw) {}
+    var outlineGroups = [];
+    var errorText = null;
     var loopIndex;
     for (loopIndex = 0; loopIndex < selectedTextFrames.length; loopIndex++) {
-        workerProcessTextFrame(selectedTextFrames[loopIndex], handleJp);
+        try {
+            var outlineGroup = workerProcessTextFrame(selectedTextFrames[loopIndex], handleJp);
+            if (outlineGroup) { outlineGroups.push(outlineGroup); }
+            else if (errorText == null) { errorText = "createOutline failed"; }
+        } catch (eItem) {
+            if (errorText == null) { errorText = String(eItem); }
+        }
     }
-    return "OK:" + selectedTextFrames.length;
+    if (outlineGroups.length < 1) { return errorText ? ("ERR:" + errorText) : "NOSEL"; }
+    workerSetAttr(app.activeDocument, "selection", outlineGroups);
+    return "OK:" + outlineGroups.length + (errorText ? ":PARTIAL" : "");
 }
 
 /* --- 表示用：禁則の内部名を日本語ラベルへ / Kinsoku internal name to Japanese label (display only) --- */
@@ -466,7 +467,9 @@ function workerExtractNoteBody(noteText) {
     var startMarker = "文字列：\n";
     var endMarker = "\n\nフォント：";
     var start = noteText.indexOf(startMarker);
-    var end = noteText.indexOf(endMarker);
+    /* 本文自体が "フォント：" を含むことがあるので、最後の出現を本文の終端とする
+       （本文より後ろのフィールドはすべて1行値なので、後方から探せば必ず本物に当たる） */
+    var end = noteText.lastIndexOf(endMarker);
     if (start < 0 || end <= start) { return null; }
     return { bodyText: noteText.substring(start + startMarker.length, end), restIndex: end + 2 };
 }
@@ -493,8 +496,9 @@ function workerDisplayLabels(handleJp) {
 /* --- 一覧表示用に値を整える（文字ツメ＝%表記、禁則・文字組み＝日本語ラベル）/ Tidy a value for display --- */
 function workerFormatDisplayValue(label, value) {
     if (label === "文字ツメ") {
+        /* Tsume は 0.0〜1.0 で保存されているので %表記に直す */
         var tsumeNumber = parseFloat(value);
-        return isNaN(tsumeNumber) ? value : (Math.round(tsumeNumber) + "%");
+        return isNaN(tsumeNumber) ? value : (Math.round(tsumeNumber * 100) + "%");
     }
     if (label === "禁則") { return workerKinsokuToDisplay(value); }
     if (label === "文字組み") { return workerMojikumiToDisplay(value); }
@@ -503,9 +507,10 @@ function workerFormatDisplayValue(label, value) {
 
 /* --- note を表示用にコンパクト整形 / Format the note for compact display --- */
 function workerFormatNoteForDisplay(noteText, handleJp) {
-    var noteLines = noteText.split("\n");
     var displayLabels = workerDisplayLabels(handleJp);
     var parsedBody = workerExtractNoteBody(noteText);
+    /* 単一行フィールドは本文を除いた残りだけを走査（本文行の誤マッチ防止。解析側と同じ方針） */
+    var noteLines = (parsedBody ? noteText.substring(parsedBody.restIndex) : noteText).split("\n");
     var displayLines = [];
     var labelIndex;
     for (labelIndex = 0; labelIndex < displayLabels.length; labelIndex++) {
@@ -618,31 +623,10 @@ function workerFindLayerByName(doc, layerName) {
     return null;
 }
 
-/* --- 退避レイヤーの目印グループを持つか / Does the layer carry the stash marker group --- */
-function workerHasMarkerGroup(layer) {
-    try {
-        var markerIndex;
-        for (markerIndex = 0; markerIndex < layer.groupItems.length; markerIndex++) {
-            if (layer.groupItems[markerIndex].name === "__outlined_text_marker__") { return true; }
-        }
-    } catch (e) {}
-    return false;
-}
-
-/* --- 目印グループを取り除く（ロックされていると消せないので先に解除）/ Remove the stash marker groups --- */
-function workerRemoveMarkerGroups(layer) {
-    if (!layer) { return; }
-    try {
-        layer.locked = false;
-        var markerIndex;
-        for (markerIndex = layer.groupItems.length - 1; markerIndex >= 0; markerIndex--) {
-            if (layer.groupItems[markerIndex].name === "__outlined_text_marker__") { layer.groupItems[markerIndex].remove(); }
-        }
-    } catch (e) {}
-}
-
 /* --- 復元：退避（アウトライン）レイヤーを用意（既存 outlined_text があればロック解除して再利用）
        Restore: reuse the existing outlined_text layer (unlocked) if present, otherwise create a fresh stash layer --- */
+/* 新規作成したレイヤーは一時名 __outlined_text_stash__ のままにし、確定時に outlined_text へ改名する。
+   この一時名が「今回作ったレイヤーかどうか」の目印を兼ねる（ドキュメントに目印オブジェクトを置かない） */
 function workerCreateOutlineStashLayer(doc) {
     if (!doc) { return null; }
     /* 既存の outlined_text レイヤーがあればロックを解除してそのまま退避先に使う（アウトラインを1枚に集約） */
@@ -652,10 +636,6 @@ function workerCreateOutlineStashLayer(doc) {
         stashLayer.name = "__outlined_text_stash__";
     }
     workerSetLayerUsable(stashLayer);
-    try {
-        var markerGroup = stashLayer.groupItems.add();
-        markerGroup.name = "__outlined_text_marker__";
-    } catch (e2) {}
     return stashLayer;
 }
 
@@ -684,8 +664,17 @@ function workerMergeExistingOutlinedLayers(doc, targetLayer) {
         if (!mergeLayer.name || !mergePattern.test(mergeLayer.name)) { continue; }
         workerSetLayerUsable(mergeLayer);
         try {
-            while (mergeLayer.pageItems.length > 0) { mergeLayer.pageItems[0].move(targetLayer, ElementPlacement.PLACEATBEGINNING); }
+            while (mergeLayer.pageItems.length > 0) {
+                /* 退避済みアイテムはロックされていて動かせないので、解除して移動し元に戻す */
+                var movingItem = mergeLayer.pageItems[0];
+                var wasLocked = false;
+                try { wasLocked = movingItem.locked; movingItem.locked = false; } catch (eUnlock) {}
+                movingItem.move(targetLayer, ElementPlacement.PLACEATBEGINNING);
+                if (wasLocked) { workerSetAttr(movingItem, "locked", true); }
+            }
         } catch (e1) {}
+        /* 移動しきれなかったレイヤーは中身ごと消さない（統合できなかったアウトラインを守る） */
+        if (mergeLayer.pageItems.length > 0) { continue; }
         try {
             while (mergeLayer.layers && mergeLayer.layers.length > 0) { mergeLayer.layers[0].remove(); }
             mergeLayer.remove();
@@ -708,30 +697,6 @@ function workerNormalizeOutlinedLayerNames(doc, keepLayer) {
     }
 }
 
-/* --- 復元：テンプレート適用後の後始末 / Restore: cleanup after template action --- */
-/* 目印グループを持つ outlined_text を優先し、無ければ最背面の outlined_text を残す */
-function workerCleanupOutlinedDuplicateNames(doc) {
-    if (!doc) { return null; }
-    var keepLayer = null;
-    var searchIndex;
-    for (searchIndex = 0; searchIndex < doc.layers.length; searchIndex++) {
-        if (doc.layers[searchIndex].name === "outlined_text" && workerHasMarkerGroup(doc.layers[searchIndex])) { keepLayer = doc.layers[searchIndex]; break; }
-    }
-    if (!keepLayer) {
-        var bottomIndex;
-        for (bottomIndex = doc.layers.length - 1; bottomIndex >= 0; bottomIndex--) {
-            if (doc.layers[bottomIndex].name === "outlined_text") { keepLayer = doc.layers[bottomIndex]; break; }
-        }
-    }
-    /* keep 以外の outlined_text をリネーム（normalize と同一処理を再利用） */
-    workerNormalizeOutlinedLayerNames(doc, keepLayer);
-    if (keepLayer) {
-        workerSetLayerUsable(keepLayer);
-        workerRemoveMarkerGroups(keepLayer);
-    }
-    return keepLayer;
-}
-
 /* --- 復元：指定レイヤーを確実にアクティブ化 / Restore: force active layer --- */
 function workerSetActiveLayerStrict(doc, layer) {
     if (!doc || !layer) { return false; }
@@ -749,13 +714,40 @@ function workerSetActiveLayerStrict(doc, layer) {
     }
 }
 
+/* --- 一時アクションの名前とファイル / Names and file path of the temporary action --- */
+/* セット名は固有名にする（"layer" のような一般名だとユーザーの同名アクションセットを消してしまう） */
+function workerActionNames() {
+    return {
+        setName: "DynamicActionOutlineRestore",
+        actionName: "change-to-template-layer",
+        filePath: "~/AiTextOutlineRestoreAction.aia"
+    };
+}
+
+/* --- 文字列を .aia の [ バイト長 16進 ] 形式へ / Encode a string as an .aia [ length hex ] token --- */
+function workerEncodeActionText(sourceText) {
+    var byteString = unescape(encodeURIComponent(sourceText));
+    var hexText = "";
+    var charIndex;
+    for (charIndex = 0; charIndex < byteString.length; charIndex++) {
+        var hexValue = byteString.charCodeAt(charIndex).toString(16);
+        if (hexValue.length < 2) { hexValue = "0" + hexValue; }
+        hexText += hexValue;
+    }
+    return "[ " + byteString.length + " " + hexText + " ]";
+}
+
 /* --- 復元：テンプレートレイヤー属性をアクションで付与 / Restore: apply template-layer attribute via action --- */
-function workerApplyTemplateLayerAttribute() {
-    /* 「レイヤーオプション」イベントのパラメーター（key と値は Illustrator のアクション定義に準拠） */
+/* 読み込み → 実行 → 解放を1回で完結させ、finally で .aia とアクションセットを必ず片付ける
+   （MakeTemplateLayer.jsx の playTemporaryAction と同じ方式）
+   レイヤー名（titl）は決め打ちにせず対象レイヤーの実際の名前を注入する。決め打ちだと
+   アクションがリネーム扱いになり、同名レイヤーが増える原因になるため */
+function workerApplyTemplateLayerAttribute(layerName) {
+    /* 「レイヤーオプション」イベントのパラメーター（key は FourCC：muid/name/titl/tmpl/show/lock/prvw/prnt/dim./pcnt） */
     var actionParams = [
         { key: 1836411236, valueType: "integer",   value: "4" },
         { key: 1851878757, valueType: "ustring",   value: "[ 36 e383ace382a4e383a4e383bce38391e3838de383abe382aae38397e382b7e383 a7e383b3 ]" },
-        { key: 1953068140, valueType: "ustring",   value: "[ 13 6f75746c696e65645f74657874 ]" },
+        { key: 1953068140, valueType: "ustring",   value: workerEncodeActionText(layerName || "outlined_text") },
         { key: 1953329260, valueType: "boolean",   value: "1" },
         { key: 1936224119, valueType: "boolean",   value: "1" },
         { key: 1819239275, valueType: "boolean",   value: "1" },
@@ -764,9 +756,10 @@ function workerApplyTemplateLayerAttribute() {
         { key: 1684630830, valueType: "boolean",   value: "1" },
         { key: 1885564532, valueType: "unit real", value: "50.0", unit: "592474723" }
     ];
+    var names = workerActionNames();
     /* アクション定義（.aia）は改行なしの1行。パラメーターだけ上表から組み立てる */
-    var actionString = '/version 3/name [ 5 6c61796572 ]/isOpen 1/actionCount 1/action-1 {' +
-        ' /name [ 24 6368616e67652d746f2d74656d706c6174652d6c61796572 ] /keyIndex 0 /colorIndex 0 /isOpen 1 /eventCount 1' +
+    var actionString = '/version 3/name ' + workerEncodeActionText(names.setName) + '/isOpen 1/actionCount 1/action-1 {' +
+        ' /name ' + workerEncodeActionText(names.actionName) + ' /keyIndex 0 /colorIndex 0 /isOpen 1 /eventCount 1' +
         ' /event-1 { /useRulersIn1stQuadrant 0 /internalName (ai_plugin_Layer) /localizedName [ 9 e8a1a8e7a4ba203a20 ]' +
         ' /isOpen 1 /isOn 1 /hasDialog 1 /showDialog 0 /parameterCount ' + actionParams.length;
     var paramIndex;
@@ -777,46 +770,58 @@ function workerApplyTemplateLayerAttribute() {
             (actionParam.unit ? (' /unit ' + actionParam.unit) : '') + ' }';
     }
     actionString += ' }}';
-    /* アクションはパレットを閉じるまで保持（初回のみ読み込む） */
-    if (!$.global.__outlineTemplateActionLoaded) {
-        var actionFile = new File('~/ScriptAction.aia');
+    var actionFile = new File(names.filePath);
+    var isActionLoaded = false;
+    var isFileOpen = false;
+    /* 同名セットが残っていると doScript が別物を実行しかねないので、読み込む前に必ず解放しておく */
+    try { app.unloadAction(names.setName, ""); } catch (eUnload) {}
+    try {
         actionFile.encoding = 'UTF-8';
         actionFile.lineFeed = 'Unix';
-        actionFile.open('w');
+        if (!actionFile.open('w')) { return; }
+        isFileOpen = true;
         actionFile.write(actionString);
         actionFile.close();
+        isFileOpen = false;
         app.loadAction(actionFile);
-        actionFile.remove();
-        $.global.__outlineTemplateActionLoaded = true;
+        isActionLoaded = true;
+        app.doScript(names.actionName, names.setName, false);
+    } catch (eAction) {
+    } finally {
+        if (isFileOpen) { try { actionFile.close(); } catch (eClose) {} }
+        if (actionFile.exists) { try { actionFile.remove(); } catch (eRemove) {} }
+        if (isActionLoaded) { try { app.unloadAction(names.setName, ""); } catch (eDone) {} }
     }
-    app.doScript("change-to-template-layer", "layer", false);
-    /* unloadAction はパレットを閉じるとき workerUnloadTemplateAction でまとめて実行 */
 }
 
-/* --- 復元：読み込んだテンプレートアクションを解放（パレットを閉じるとき） / Unload template action on palette close --- */
+/* --- 復元：残っているテンプレートアクションを解放（パレットを閉じるとき） / Unload the template action on palette close --- */
+/* 通常は workerApplyTemplateLayerAttribute の finally で解放済み。異常終了時の保険として実行する */
 function workerUnloadTemplateAction() {
-    if ($.global.__outlineTemplateActionLoaded) {
-        try { app.unloadAction("layer", ""); } catch (e) {}
-        $.global.__outlineTemplateActionLoaded = false;
-    }
+    var names = workerActionNames();
+    try { app.unloadAction(names.setName, ""); } catch (e) {}
     return "OK";
 }
 
 /* --- 復元：テンプレートレイヤーを確定 / Restore: finalize template layer --- */
+/* 退避レイヤーの参照はアクションを挟んでも有効なので、同名レイヤーが増えた場合も
+   「この参照以外の outlined_text をリネームする」だけで1枚に保てる（目印オブジェクトは不要） */
 function workerFinalizeTemplateLayer(outlinedTextLayer) {
     if (!outlinedTextLayer) { return; }
+    var doc = app.activeDocument;
     workerSetLayerUsable(outlinedTextLayer);
-    workerMergeExistingOutlinedLayers(app.activeDocument, outlinedTextLayer);
+    workerMergeExistingOutlinedLayers(doc, outlinedTextLayer);
     if (outlinedTextLayer.name !== "outlined_text") { outlinedTextLayer.name = "outlined_text"; }
     try { outlinedTextLayer.zOrder(ZOrderMethod.SENDTOBACK); } catch (eBack) {}
-    workerNormalizeOutlinedLayerNames(app.activeDocument, outlinedTextLayer);
-    /* アクティブ化できたときだけテンプレート属性アクションを実行（実行後は同名レイヤーが増えるので後始末） */
+    workerNormalizeOutlinedLayerNames(doc, outlinedTextLayer);
+    /* アクティブ化できたときだけテンプレート属性アクションを実行。
+       アクティブ化に失敗しても、最背面とロックは必ず通す */
     try {
-        if (!workerSetActiveLayerStrict(app.activeDocument, outlinedTextLayer)) { return; }
-        workerApplyTemplateLayerAttribute();
-        outlinedTextLayer = workerCleanupOutlinedDuplicateNames(app.activeDocument) || outlinedTextLayer;
+        if (workerSetActiveLayerStrict(doc, outlinedTextLayer)) {
+            workerApplyTemplateLayerAttribute(outlinedTextLayer.name);
+            /* 念のためアクション後にもう一度リネームを通す（増えた同名レイヤーは次回の統合で吸収される） */
+            workerNormalizeOutlinedLayerNames(doc, outlinedTextLayer);
+        }
     } catch (eAct) {}
-    workerRemoveMarkerGroups(outlinedTextLayer);
     try {
         outlinedTextLayer.zOrder(ZOrderMethod.SENDTOBACK);
         outlinedTextLayer.locked = true;
@@ -1042,9 +1047,9 @@ function workerApplyMojikumi(textRange, mojikumiText) {
 }
 
 /* --- 復元：カーニング適用（AutoKerning.jsx の applyKerningToRanges と同一） / Apply kerning --- */
-/* メトリクス（AUTO）のときだけ proportionalMetrics を ON、それ以外は OFF */
-function workerApplyKerning(textRange, kerningMethod) {
-    var useProportionalMetrics = (kerningMethod === AutoKernType.AUTO);
+/* proportionalMetrics は note の保存値を優先。未記録の旧 note だけ、メトリクス（AUTO）連動で決める */
+function workerApplyKerning(textRange, kerningMethod, proportionalMetrics) {
+    var useProportionalMetrics = (proportionalMetrics != null) ? proportionalMetrics : (kerningMethod === AutoKernType.AUTO);
     try {
         textRange.characterAttributes.kerningMethod = kerningMethod;
         textRange.characterAttributes.proportionalMetrics = useProportionalMetrics;
@@ -1081,8 +1086,8 @@ function workerApplyCharacterAttributes(textFrame, attributes, restoreReport, jp
         workerSetAttr(textFrame, "orientation", (attributes.orientation === "縦組み") ? TextOrientation.VERTICAL : TextOrientation.HORIZONTAL);
     }
     if (attributes.kerningText != null) {
-        /* カーニング方式を復元（AutoKerning ロジック：proportionalMetrics は方式に連動） */
-        workerApplyKerning(textFrame.textRange, workerResolveKernType(attributes.kerningText));
+        /* カーニング方式を復元。proportionalMetrics も note の保存値をそのまま渡す */
+        workerApplyKerning(textFrame.textRange, workerResolveKernType(attributes.kerningText), attributes.proportionalMetrics);
     } else {
         /* 旧 note（カーニング未記録）は保存済みの proportionalMetrics を復元 */
         workerSetAttr(attrs, "proportionalMetrics", attributes.proportionalMetrics);
@@ -1155,9 +1160,14 @@ function workerRestoreItem(sourceItem, outlinedTextLayer, restoredTextLayer, res
 }
 
 /* --- 復元：1件も復元できなかったときに作成したレイヤーを片付ける / Drop the layers created for a failed restore --- */
+/* 退避レイヤーは既存の outlined_text を再利用していることがあるので、今回新規作成したもの
+   （一時名のまま）だけを削除する。再利用した場合は過去のアウトラインごと消さずロックだけ戻す */
 function workerDiscardUnusedLayers(outlinedTextLayer, restoredTextLayer) {
     try {
-        if (outlinedTextLayer) { outlinedTextLayer.remove(); }
+        if (outlinedTextLayer) {
+            if (outlinedTextLayer.name === "__outlined_text_stash__") { outlinedTextLayer.remove(); }
+            else { workerSetAttr(outlinedTextLayer, "locked", true); }
+        }
     } catch (eStash) {}
     try {
         if (restoredTextLayer && restoredTextLayer.pageItems.length < 1 && (!restoredTextLayer.layers || restoredTextLayer.layers.length < 1)) { restoredTextLayer.remove(); }
@@ -1177,15 +1187,15 @@ function workerRestoreText(keepOutline, separateLayer, handleJp) {
     /* 既定は復元テキストを別レイヤー（restored_text）へ。false のときは元アウトラインと同じレイヤーへ置く（null で sourceItem.layer にフォールバック） */
     var restoredTextLayer = (separateLayer !== false) ? workerCreateRestoredTextLayer(doc) : null;
     var restoreReport = { restored: 0, fontFallback: false };
-    /* ループ全体を try で囲み、想定外エラーでも空レイヤーを残さない */
+    /* 1件ずつ try で囲み、途中で失敗しても残りの復元を続ける */
     var runError = null;
-    try {
-        var restoreIndex;
-        for (restoreIndex = 0; restoreIndex < restorableItems.length; restoreIndex++) {
+    var restoreIndex;
+    for (restoreIndex = 0; restoreIndex < restorableItems.length; restoreIndex++) {
+        try {
             workerRestoreItem(restorableItems[restoreIndex], outlinedTextLayer, restoredTextLayer, restoreReport, stashOutline, handleJp);
+        } catch (eRun) {
+            if (runError == null) { runError = String(eRun); }
         }
-    } catch (eRun) {
-        runError = String(eRun);
     }
     if (restoreReport.restored < 1) {
         workerDiscardUnusedLayers(outlinedTextLayer, restoredTextLayer);
@@ -1194,7 +1204,7 @@ function workerRestoreText(keepOutline, separateLayer, handleJp) {
     /* 一部でも成功していれば、その分を確定（途中エラーでも退避レイヤーを宙ぶらりんにしない） */
     if (stashOutline && outlinedTextLayer) { workerFinalizeTemplateLayer(outlinedTextLayer); }
     workerSetAttr(doc, "activeLayer", restoredTextLayer);
-    return "OK:" + restoreReport.restored + (restoreReport.fontFallback ? ":FONT" : "");
+    return "OK:" + restoreReport.restored + (restoreReport.fontFallback ? ":FONT" : "") + (runError ? ":PARTIAL" : "");
 }
 
 // ワーカー関数はすべてここに登録（追加漏れ防止）
@@ -1204,8 +1214,8 @@ var WORKER_FUNCS = [
     workerToggleAttributesPanel,
     workerSetLayerUsable,
     workerFindLayerByName,
-    workerHasMarkerGroup,
-    workerRemoveMarkerGroups,
+    workerActionNames,
+    workerEncodeActionText,
     workerNoteFields,
     workerBuildMemoText,
     workerKerningPairs,
@@ -1228,7 +1238,6 @@ var WORKER_FUNCS = [
     workerCreateRestoredTextLayer,
     workerMergeExistingOutlinedLayers,
     workerNormalizeOutlinedLayerNames,
-    workerCleanupOutlinedDuplicateNames,
     workerSetActiveLayerStrict,
     workerApplyTemplateLayerAttribute,
     workerUnloadTemplateAction,
@@ -1256,18 +1265,64 @@ var WORKER_FUNCS = [
     workerRestoreText
 ];
 
+// メモの読み込み（選択状態の検査）だけに必要な worker。毎回フルバンドルを送らないための最小構成
+var INSPECT_FUNCS = [
+    workerGetSelection,
+    workerFilterByType,
+    workerNoteFields,
+    workerExtractNoteBody,
+    workerDisplayLabels,
+    workerKinsokuToDisplay,
+    workerNormalizeMojikumiName,
+    workerMojikumiPresets,
+    workerFindMojikumiPreset,
+    workerMojikumiLabelFromApplied,
+    workerMojikumiToDisplay,
+    workerFormatDisplayValue,
+    workerFormatNoteForDisplay,
+    workerInspectSelection
+];
+
+// 属性パネルの開閉だけに必要な worker
+var ATTRIBUTES_FUNCS = [workerToggleAttributesPanel];
+
+// パレットを閉じるときの後始末だけに必要な worker
+var CLEANUP_FUNCS = [workerActionNames, workerUnloadTemplateAction];
+
 // ==============================
 // BridgeTalk 委譲 / Delegation to main engine
 // ==============================
+
+/* Function.toString() は関数の前後に周辺コメントの断片（閉じ記号を欠いたもの）を含めて返すことがある。
+   そのまま連結すると未終端コメントが次の関数を飲み込むので、宣言行から閉じ括弧行までを行単位で抜き出す */
+function sliceFunctionSource(rawSource) {
+    var lines = String(rawSource).replace(/\r\n?/g, "\n").split("\n");
+    var first = 0;
+    while (first < lines.length && lines[first].indexOf("function ") !== 0) { first++; }
+    if (first >= lines.length) { return rawSource; } /* 想定外の形式：そのまま返す */
+    var last = lines.length - 1;
+    while (last > first && !/^\s*\}\s*$/.test(lines[last])) { last--; }
+    return lines.slice(first, last + 1).join("\n");
+}
+
+/* 束ねたソースは呼び出しのたびに作り直さず、関数配列ごとにキャッシュする */
+var WORKER_SOURCE_CACHE = [];
+
 function buildWorkerSource(funcs, entryCall) {
-    var source = "";
-    for (var i = 0; i < funcs.length; i++) {
-        source += funcs[i].toString() + "\n";
+    var cacheIndex;
+    for (cacheIndex = 0; cacheIndex < WORKER_SOURCE_CACHE.length; cacheIndex++) {
+        if (WORKER_SOURCE_CACHE[cacheIndex].funcs === funcs) { return WORKER_SOURCE_CACHE[cacheIndex].source + entryCall; }
     }
+    var source = "";
+    var funcIndex;
+    for (funcIndex = 0; funcIndex < funcs.length; funcIndex++) {
+        source += sliceFunctionSource(funcs[funcIndex].toString()) + "\n";
+    }
+    WORKER_SOURCE_CACHE.push({ funcs: funcs, source: source });
     return source + entryCall;
 }
 
-/* funcs 省略時は全 worker を送信。ポーリングなど軽量呼び出しは必要な関数だけ渡す */
+/* funcs 省略時は全 worker を送信。メモ読み込みなど軽量呼び出しは必要な関数だけ渡す */
 function callWorker(entryCall, funcs) {
     var workerFuncs = funcs || WORKER_FUNCS;
     var resultHolder = { value: null };
@@ -1312,6 +1367,7 @@ function applyResultToStatus(win, result, doneKey) {
         var count = (parts.length > 1) ? parts[1] : "";
         var message = L(doneKey) + (count ? " (" + count + ")" : "");
         if (result.indexOf("FONT") >= 0) { message += " / " + L('status.fontWarn'); }
+        if (result.indexOf("PARTIAL") >= 0) { message += " / " + L('status.partial'); }
         setStatus(win, message);
         return;
     }
@@ -1326,12 +1382,22 @@ function argBool(value) {
     return value ? "true" : "false";
 }
 
+/* worker を呼び、送信自体が失敗してもエラー文字列に畳む（isBusy を立てたままにしない）
+   Call a worker, folding a send failure into an error string */
+function callWorkerSafely(entryCall, funcs) {
+    try {
+        return callWorker(entryCall, funcs);
+    } catch (e) {
+        return "ERR:" + e;
+    }
+}
+
 /* 再入防止つきで worker を呼び、結果をステータスへ反映 / Call a worker behind the busy guard */
 function runWorkerTask(win, entryCall, doneKey) {
     if (isBusy) { return null; }
     isBusy = true;
     setStatus(win, L('status.busy'));
-    var result = callWorker(entryCall);
+    var result = callWorkerSafely(entryCall);
     isBusy = false;
     applyResultToStatus(win, result, doneKey);
     return result;
@@ -1356,7 +1422,7 @@ function onRestoreClick(win) {
 /* 属性パネルの開閉（メインエンジンにメニューコマンドを委譲）/ Toggle Attributes panel (delegated) */
 function onAttributesClick(win) {
     if (isBusy) return;
-    callWorker("workerToggleAttributesPanel();", [workerToggleAttributesPanel]);
+    callWorkerSafely("workerToggleAttributesPanel();", ATTRIBUTES_FUNCS);
 }
 
 function populateNoteList(win, formattedNote) {
@@ -1383,7 +1449,7 @@ function populateNoteList(win, formattedNote) {
 function refreshSelectedNote(win, keepStatus) {
     if (isBusy) return;
     isBusy = true;
-    var result = callWorker("workerInspectSelection(" + argBool(HANDLE_JP) + ");");
+    var result = callWorkerSafely("workerInspectSelection(" + argBool(HANDLE_JP) + ");", INSPECT_FUNCS);
     isBusy = false;
     win.noteList.removeAll();
     if (result != null && result.indexOf("NOTE:") === 0) {
@@ -1397,7 +1463,7 @@ function refreshSelectedNote(win, keepStatus) {
 
 /* パレットを閉じるときの後始末：読み込んだアクションを解放 */
 function performCloseCleanup() {
-    try { callWorker("workerUnloadTemplateAction();", [workerUnloadTemplateAction]); } catch (e) {}
+    callWorkerSafely("workerUnloadTemplateAction();", CLEANUP_FUNCS);
     $.global.__textOutlineMemoPalette = null;
 }
 
