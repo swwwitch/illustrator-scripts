@@ -5,32 +5,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択オブジェクトの全アンカーポイントに、マーカー（正方形／最前面オブジェクト／シンボル）を配置するユーティリティです。ダイアログを閉じずにライブプレビューしながら設定できます。
+選択オブジェクトのすべてのアンカーポイントに、マーカー（自動生成の正方形／最前面オブジェクトの複製／シンボルのインスタンス）を配置します。
+ダイアログを閉じずに、ライブプレビューで仕上がりを確かめながら設定を調整できます。
 
-- 追加するオブジェクトを選択：アンカーポイントを自動生成（正方形）／最前面のオブジェクトを複製／ドキュメント内シンボルのインスタンス
-- 正方形は「大きさ（pt・小数可、⌘＋↑↓で±0.1）」「カラー（自前のRGBダイアログ）」「シンボル化（既定ON・シンボル名『アンカーポイント』）」を指定
-- オプション：スケール（%、最前面オブジェクト・シンボルに適用）／レイヤーに移動（_anchorpoint）／グループ化（既定ON）／9軸の基準点（マーカーをアンカーに合わせる位置）
-- 自動生成時はスケール・9軸をディム表示し、基準点は中央に固定
-- ライブプレビューは専用レイヤーに描画し、OK／キャンセルで確実に片付け
-- 実行中はエッジ表示とライブコーナー注釈を一時的に隠す（開始・終了でトグル）
-- 日英ローカライズ、ライト／ダークUIに追従
+詳しい仕様と注意事項は README を参照してください。
+
+*/
+
+/*
 
 ### Overview
 
-Places a marker (auto-generated square / frontmost object / symbol) at every anchor point of the selection, with a live preview you can tweak without closing the dialog.
+Places a marker — an auto-generated square, a duplicate of the frontmost object, or a symbol instance — at every anchor point of the selection.
+Settings can be adjusted with a live preview, without closing the dialog.
 
-- Choose what to add: an auto-generated square, a duplicate of the frontmost object, or an instance of a document symbol
-- The square takes size (pt, decimals allowed, ⌘+↑↓ = ±0.1), color (a self-contained RGB dialog), and Symbolize (on by default; symbol named "アンカーポイント")
-- Options: Scale (%, applied to the frontmost object / symbol), Move to layer (_anchorpoint), Group (on by default), and a 9-axis registration point
-- In auto-generate mode, Scale and the 9-axis widget are dimmed and the registration point is fixed to center
-- The live preview draws into a dedicated layer and is always cleaned up on OK / Cancel
-- Edges and the Live Corner Annotator are hidden during the run (toggled on start and finish)
-- Japanese / English localization; adapts to the light / dark UI
-
-### 更新履歴 / Change Log
-
-- v1.0.0: 初期バージョン。マーカー配置（正方形／最前面／シンボル）、基準点（9軸）、スケール、レイヤー移動、グループ化、ライブプレビュー。
-- v1.0.1: 既定のアンカーポイントカラーを RGB(79,128,255) に変更。
+See the README for the full specification and notes.
 
 */
 
@@ -40,8 +29,14 @@ Places a marker (auto-generated square / frontmost object / symbol) at every anc
 var SCRIPT_NAME     = "AiAnchorPointMarker";          /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-07-05";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-12";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/AiAnchorPointMarker.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/AiAnchorPointMarker.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -51,6 +46,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // =========================================
     // ユーザー設定 / User Settings
     // =========================================
+    /**
+     * 追加するオブジェクトの種別 / Kind of object to place
+     * @type {Object}
+     */
     var OBJECT_SOURCE = {
         autoGenerate: "autoGenerate", /* 正方形を自動生成 / Auto-generated square */
         frontObject: "frontObject",   /* 最前面のオブジェクト / Frontmost object */
@@ -61,6 +60,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     var ANCHOR_LAYER_NAME = "_anchorpoint";               /* マーカー移動先レイヤー名 / Destination layer for markers */
     var SQUARE_SYMBOL_NAME = "アンカーポイント";           /* 自動生成シンボルの名前 / Name for the generated symbol */
 
+    /**
+     * ダイアログの初期値 / Initial dialog values
+     * @type {Object}
+     */
     var DEFAULTS = {
         objectSource: OBJECT_SOURCE.autoGenerate, /* 追加するオブジェクトの種類 / Kind of object to add */
         squareSize: 6,                            /* 正方形の一辺（pt） / Square edge size (pt) */
@@ -73,13 +76,99 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     };
 
     // =========================================
+    // レイアウト / Layout
+    // =========================================
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 10;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 16;                 /* 2カラムの間隔 / gap between columns */
+    var WIDGET_SIZE    = 56;                 /* 9軸ウィジェットの一辺（px）/ edge size of the 9-axis widget */
+    var SWATCH_SIZE    = 20;                 /* カラースウォッチの一辺（px）/ edge size of the color swatch */
+
+    /**
+     * ダイアログウィンドウの共通レイアウトを設定します。
+     * @param {Window} dialogWindow - 対象のダイアログ
+     * @param {number} [spacing] - 要素間隔（省略時は WINDOW_SPACING）
+     * @returns {Window} 設定後のダイアログ
+     */
+    function setupWindow(dialogWindow, spacing) {
+        dialogWindow.orientation = "column";
+        dialogWindow.alignChildren = ["fill", "top"];
+        dialogWindow.margins = WINDOW_MARGINS;
+        dialogWindow.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
+        return dialogWindow;
+    }
+
+    /**
+     * パネルの共通レイアウトを設定します。
+     * @param {Panel} panel - 対象のパネル
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {Panel} 設定後のパネル
+     */
+    function setupPanel(panel, spacing) {
+        panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.margins = PANEL_MARGINS;
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        return panel;
+    }
+
+    /**
+     * グループ／パネルを横並び（row）に設定します。
+     * @param {Group|Panel} container - 対象のグループまたはパネル
+     * @param {Array<string>} alignChildren - 子要素の整列（例 ["left", "top"]）
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {Group|Panel} 設定後のコンテナ
+     */
+    function setupRow(container, alignChildren, spacing) {
+        container.orientation = "row";
+        container.alignChildren = alignChildren;
+        container.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        return container;
+    }
+
+    /**
+     * 共通レイアウト済みのパネルを追加します。
+     * @param {Window|Group} parent - 追加先
+     * @param {string} labelText - パネルのタイトル
+     * @returns {Panel} 追加したパネル
+     */
+    function addPanel(parent, labelText) {
+        return setupPanel(parent.add("panel", undefined, labelText));
+    }
+
+    /**
+     * 縦並びのカラムグループを追加します。
+     * @param {Window|Group|Panel} parent - 追加先
+     * @param {number} [spacing] - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {Group} 追加したグループ
+     */
+    function addColumnGroup(parent, spacing) {
+        var columnGroup = parent.add("group");
+        columnGroup.orientation = "column";
+        columnGroup.alignChildren = ["left", "center"];
+        columnGroup.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+        return columnGroup;
+    }
+
+    // =========================================
     // ローカライズ / Localization
     // =========================================
+    /**
+     * 現在の UI 言語（"ja" / "en"）を判定して返します。
+     * @returns {string} 言語コード
+     */
     function getCurrentLang() {
         return ($.locale && $.locale.indexOf("ja") === 0) ? "ja" : "en";
     }
     var currentLanguage = getCurrentLang();
 
+    /**
+     * 日英ラベル定義（カテゴリ別） / Japanese-English label definitions (by category)
+     * getLabel("dialog.title") のようにドット区切りで参照する。短い文言は1行で記述。
+     * @type {Object}
+     */
     var LABELS = {
         dialog: {
             title: { ja: "アンカーポイントに複製", en: "Duplicate to Anchor Points" }
@@ -137,8 +226,13 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
     };
 
-    /* ドット区切りキーで LABELS を辿る。キー漏れ・言語漏れ時はキー自身/英語にフォールバック */
-    function L(labelPath) {
+    /**
+     * ドット区切りキーで LABELS を辿り、現在の言語のラベルを返します。
+     * キー漏れ・言語漏れのときは、キー自身／英語にフォールバックします。
+     * @param {string} labelPath - ラベルのパス（例 "dialog.title"）
+     * @returns {string} ラベル文字列
+     */
+    function getLabel(labelPath) {
         var pathParts = labelPath.split(".");
         var labelNode = LABELS;
         for (var i = 0; i < pathParts.length; i++) {
@@ -163,7 +257,7 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // メイン / Main
     // =========================================
     if (app.documents.length === 0) {
-        alert(L("alert.noDocument"));
+        alert(getLabel("alert.noDocument"));
         return;
     }
 
@@ -171,13 +265,13 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     var selectedItems = doc.selection;
 
     if (!selectedItems || selectedItems.length === 0) {
-        alert(L("alert.noSelection"));
+        alert(getLabel("alert.noSelection"));
         return;
     }
 
     var anchorPoints = collectAllAnchorPoints(selectedItems);
     if (anchorPoints.length === 0) {
-        alert(L("alert.noAnchorPoints"));
+        alert(getLabel("alert.noAnchorPoints"));
         return; /* パスが無い（テキスト・画像のみ等）/ No path anchors (e.g. text/image only) */
     }
 
@@ -221,7 +315,24 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // =========================================
     // ダイアログ / Dialog
     // =========================================
-    /* 設定ダイアログを表示し、ユーザー設定オブジェクトを返す（キャンセル時は null） */
+    /**
+     * マーカー配置の設定 / Marker placement settings
+     * @typedef {Object} MarkerSettings
+     * @property {string} objectSource - 追加するオブジェクトの種別（OBJECT_SOURCE の値）
+     * @property {number} squareSize - 正方形の一辺（pt）
+     * @property {Object} squareColor - 塗り色 {r, g, b}
+     * @property {boolean} symbolize - 自動生成の正方形をシンボル化するか
+     * @property {number} symbolIndex - 配置するシンボルのインデックス（未選択は -1）
+     * @property {boolean} moveToLayer - 専用レイヤーへ移動するか
+     * @property {boolean} groupItems - 1つのグループにまとめるか
+     * @property {number} scalePercent - 拡大縮小率（%）
+     * @property {number} registrationIndex - 基準点 0..8（行優先, 4=中央）
+     */
+
+    /**
+     * 設定ダイアログを表示し、確定した設定を返します。
+     * @returns {MarkerSettings|null} 確定した設定（キャンセル時は null）
+     */
     function showSettingsDialog() {
         var pickedColor = {
             r: DEFAULTS.squareColor.r,
@@ -232,31 +343,21 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         var symbolNames = getSymbolNames();
         var hasSymbols = symbolNames.length > 0;
 
-        var dialogWindow = new Window("dialog", L("dialog.title") + " " + SCRIPT_VERSION);
-        dialogWindow.orientation = "column";
-        dialogWindow.alignChildren = ["fill", "top"];
-        dialogWindow.margins = 16;
-        dialogWindow.spacing = 12;
+        var dialogWindow = setupWindow(new Window("dialog", getLabel("dialog.title") + " " + SCRIPT_VERSION));
 
         // --- 追加するオブジェクト パネル / Object to Add panel ---
-        var objectSourcePanel = dialogWindow.add("panel", undefined, L("panel.objectSource"));
-        objectSourcePanel.orientation = "column";
-        objectSourcePanel.alignChildren = ["left", "center"];
-        objectSourcePanel.margins = [16, 20, 16, 16];
-        objectSourcePanel.spacing = 10;
+        var objectSourcePanel = addPanel(dialogWindow, getLabel("panel.objectSource"));
 
-        var autoGenerateRadio = objectSourcePanel.add("radiobutton", undefined, L("radio.autoGenerate"));
-        autoGenerateRadio.helpTip = L("tooltip.autoGenerate");
-        var frontObjectRadio = objectSourcePanel.add("radiobutton", undefined, L("radio.frontObject"));
-        frontObjectRadio.helpTip = L("tooltip.frontObject");
+        var autoGenerateRadio = objectSourcePanel.add("radiobutton", undefined, getLabel("radio.autoGenerate"));
+        autoGenerateRadio.helpTip = getLabel("tooltip.autoGenerate");
+        var frontObjectRadio = objectSourcePanel.add("radiobutton", undefined, getLabel("radio.frontObject"));
+        frontObjectRadio.helpTip = getLabel("tooltip.frontObject");
 
-        var symbolSourceGroup = objectSourcePanel.add("group");
-        symbolSourceGroup.orientation = "row";
-        symbolSourceGroup.spacing = 8;
-        var symbolRadio = symbolSourceGroup.add("radiobutton", undefined, L("radio.symbol"));
-        symbolRadio.helpTip = L("tooltip.symbol");
+        var symbolSourceGroup = setupRow(objectSourcePanel.add("group"), ["left", "center"], 8);
+        var symbolRadio = symbolSourceGroup.add("radiobutton", undefined, getLabel("radio.symbol"));
+        symbolRadio.helpTip = getLabel("tooltip.symbol");
         var symbolDropdown = symbolSourceGroup.add("dropdownlist", undefined, symbolNames);
-        symbolDropdown.helpTip = L("tooltip.symbolDropdown");
+        symbolDropdown.helpTip = getLabel("tooltip.symbolDropdown");
         symbolDropdown.preferredSize.width = 130;
         if (hasSymbols) {
             symbolDropdown.selection = 0;
@@ -272,46 +373,35 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         symbolRadio.enabled = hasSymbols;
 
         // --- アンカーポイント パネル（2カラム：左＝大きさ・シンボル化 / 右＝カラー）---
-        var anchorPointPanel = dialogWindow.add("panel", undefined, L("panel.anchorPoint"));
-        anchorPointPanel.orientation = "row";
-        anchorPointPanel.alignChildren = ["left", "top"];
-        anchorPointPanel.margins = [16, 20, 16, 16];
-        anchorPointPanel.spacing = 24;
+        var anchorPointPanel = addPanel(dialogWindow, getLabel("panel.anchorPoint"));
+        setupRow(anchorPointPanel, ["left", "top"], COLUMN_SPACING);
 
         // 左カラム：大きさ・シンボル化 / Left column: size, symbolize
-        var anchorLeft = anchorPointPanel.add("group");
-        anchorLeft.orientation = "column";
-        anchorLeft.alignChildren = ["left", "center"];
-        anchorLeft.spacing = 12;
+        var anchorLeft = addColumnGroup(anchorPointPanel);
 
-        var sizeInput = addLabeledField(anchorLeft, L("label.squareSize"), DEFAULTS.squareSize, 2, L("label.unit"), renderPreview, undefined, true, 0.1);
-        sizeInput.helpTip = L("tooltip.squareSize"); /* ⌘併用で ±0.1 などのキー説明 / Key modifiers incl. ⌘ = ±0.1 */
+        var sizeInput = addLabeledField(anchorLeft, getLabel("label.squareSize"), DEFAULTS.squareSize, 2, getLabel("label.unit"), renderPreview, undefined, true, 0.1);
+        sizeInput.helpTip = getLabel("tooltip.squareSize"); /* ⌘併用で ±0.1 などのキー説明 / Key modifiers incl. ⌘ = ±0.1 */
 
-        var symbolizeCheckbox = anchorLeft.add("checkbox", undefined, L("checkbox.symbolize"));
+        var symbolizeCheckbox = anchorLeft.add("checkbox", undefined, getLabel("checkbox.symbolize"));
         symbolizeCheckbox.value = DEFAULTS.symbolize;
-        symbolizeCheckbox.helpTip = L("tooltip.symbolize");
+        symbolizeCheckbox.helpTip = getLabel("tooltip.symbolize");
 
         // 右カラム：カラー（2行：カラー■ / 選択...）/ Right column: color (2 rows)
         // OSのカラーパレットはモーダルを壊すため、自前のRGBダイアログを使う
-        var anchorRight = anchorPointPanel.add("group");
-        anchorRight.orientation = "column";
-        anchorRight.alignChildren = ["left", "center"];
-        anchorRight.spacing = 0;
+        var anchorRight = addColumnGroup(anchorPointPanel, 0);
 
-        var colorRow = anchorRight.add("group");
-        colorRow.orientation = "row";
-        colorRow.spacing = 8;
-        colorRow.add("statictext", undefined, L("label.squareColor"));
+        var colorRow = setupRow(anchorRight.add("group"), ["left", "center"], 8);
+        colorRow.add("statictext", undefined, getLabel("label.squareColor"));
         var colorSwatch = colorRow.add("panel");
-        colorSwatch.preferredSize = [20, 20]; /* 正方形・高さは短いまま / Square, keep the short height */
-        colorSwatch.helpTip = L("tooltip.squareColor");
+        colorSwatch.preferredSize = [SWATCH_SIZE, SWATCH_SIZE]; /* 正方形・高さは短いまま / Square, keep the short height */
+        colorSwatch.helpTip = getLabel("tooltip.squareColor");
         colorSwatch.onDraw = makeSwatchDrawer(colorSwatch, pickedColor);
 
-        // 選択ボタンは上マージン5のグループで包む（コントロール直接の margins は効かない環境があるため）
+        // 選択ボタンは上マージンを持つグループで包む（コントロール直接の margins は効かない環境があるため）
         var chooseColorWrap = anchorRight.add("group");
-        chooseColorWrap.margins = [0, 10, 0, 0]; /* 上にマージン5 / 5px top margin */
-        var chooseColorButton = chooseColorWrap.add("button", undefined, L("button.chooseColor"));
-        chooseColorButton.helpTip = L("tooltip.squareColor");
+        chooseColorWrap.margins = [0, 10, 0, 0]; /* 上にマージン10 / 10px top margin */
+        var chooseColorButton = chooseColorWrap.add("button", undefined, getLabel("button.chooseColor"));
+        chooseColorButton.helpTip = getLabel("tooltip.squareColor");
         chooseColorButton.onClick = function () {
             var chosenColor = chooseRgbColor(pickedColor);
             if (chosenColor) {
@@ -323,45 +413,44 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             }
         };
 
-        // --- オプション パネル（2カラム：左＝3設定 / 右＝9axis）/ Options panel (2 columns) ---
-        var optionsPanel = dialogWindow.add("panel", undefined, L("panel.options"));
-        optionsPanel.orientation = "row";
-        optionsPanel.alignChildren = ["left", "top"];
-        optionsPanel.margins = [16, 20, 16, 16];
-        optionsPanel.spacing = 16;
+        // --- オプション パネル（2カラム：左＝3設定 / 右＝9軸）/ Options panel (2 columns) ---
+        var optionsPanel = addPanel(dialogWindow, getLabel("panel.options"));
+        setupRow(optionsPanel, ["left", "top"], COLUMN_SPACING);
 
         // 左カラム：スケール・レイヤーに移動・グループ化 / Left column: scale, move-to-layer, group
-        var optionsLeft = optionsPanel.add("group");
-        optionsLeft.orientation = "column";
-        optionsLeft.alignChildren = ["left", "center"];
-        optionsLeft.spacing = 10;
+        var optionsLeft = addColumnGroup(optionsPanel);
 
-        var scaleInput = addLabeledField(optionsLeft, L("label.scale"), DEFAULTS.scalePercent, 3, L("label.percent"), renderPreview);
-        scaleInput.helpTip = L("tooltip.scale");
+        var scaleInput = addLabeledField(optionsLeft, getLabel("label.scale"), DEFAULTS.scalePercent, 3, getLabel("label.percent"), renderPreview);
+        scaleInput.helpTip = getLabel("tooltip.scale");
 
-        var moveToLayerCheckbox = optionsLeft.add("checkbox", undefined, L("checkbox.moveToLayer"));
+        var moveToLayerCheckbox = optionsLeft.add("checkbox", undefined, getLabel("checkbox.moveToLayer"));
         moveToLayerCheckbox.value = DEFAULTS.moveToLayer;
-        moveToLayerCheckbox.helpTip = L("tooltip.moveToLayer");
+        moveToLayerCheckbox.helpTip = getLabel("tooltip.moveToLayer");
 
-        var groupCheckbox = optionsLeft.add("checkbox", undefined, L("checkbox.group"));
+        var groupCheckbox = optionsLeft.add("checkbox", undefined, getLabel("checkbox.group"));
         groupCheckbox.value = DEFAULTS.groupItems;
-        groupCheckbox.helpTip = L("tooltip.group");
+        groupCheckbox.helpTip = getLabel("tooltip.group");
 
-        // 右カラム：9axis（基準点）を天地左右中央に / Right column: 9-axis widget, centered both ways
-        var optionsRight = optionsPanel.add("group");
-        optionsRight.orientation = "column";
+        // 右カラム：9軸（基準点）を天地左右中央に / Right column: 9-axis widget, centered both ways
+        var optionsRight = addColumnGroup(optionsPanel);
         optionsRight.alignChildren = ["center", "center"];
         optionsRight.alignment = ["center", "center"]; /* 左カラムの高さに対して天地中央 / Vertically center against the left column */
         var registrationWidget = addRegistrationWidget(optionsRight, renderPreview);
 
-        // 現在選択されている「追加するオブジェクト」種別を返す
+        /**
+         * 現在選択されている「追加するオブジェクト」の種別を返します。
+         * @returns {string} OBJECT_SOURCE の値
+         */
         function getChosenSource() {
             if (frontObjectRadio.value) return OBJECT_SOURCE.frontObject;
             if (symbolRadio.value) return OBJECT_SOURCE.symbol;
             return OBJECT_SOURCE.autoGenerate;
         }
 
-        // 追加オブジェクトの選択に応じて各コントロールの有効/無効を切り替え
+        /**
+         * 追加するオブジェクトの選択に応じて、各コントロールの有効／無効を切り替えます。
+         * @returns {void}
+         */
         function syncControlState() {
             var isAutoGenerate = autoGenerateRadio.value;
             sizeInput.enabled = isAutoGenerate;
@@ -371,13 +460,18 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             if (isAutoGenerate) {
                 registrationIndex = DEFAULTS.registrationIndex;
             }
-            // 自動生成時はスケールと9axisのみディム（レイヤー移動・グループ化は常時有効）
+            // 自動生成時はスケールと9軸のみディム（レイヤー移動・グループ化は常時有効）
             scaleInput.parent.enabled = !isAutoGenerate;
             registrationWidget.enabled = !isAutoGenerate;
             redrawControl(registrationWidget); /* 自作描画なので色を更新 / Redraw the custom widget */
             symbolDropdown.enabled = symbolRadio.value;
         }
-        // ラジオが別コンテナに分かれているため排他選択を手動で担保
+
+        /**
+         * ラジオが別コンテナに分かれているため、排他選択を手動で担保します。
+         * @param {RadioButton} selectedRadio - 選択されたラジオボタン
+         * @returns {void}
+         */
         function selectObjectSource(selectedRadio) {
             autoGenerateRadio.value = (selectedRadio === autoGenerateRadio);
             frontObjectRadio.value = (selectedRadio === frontObjectRadio);
@@ -392,7 +486,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         symbolDropdown.onChange = renderPreview;
         syncControlState();
 
-        // 現在のコントロール値から設定オブジェクトを読み取る（プレビュー・本適用の共通ソース）
+        /**
+         * 現在のコントロール値から設定オブジェクトを読み取ります（プレビュー・本適用の共通ソース）。
+         * @returns {MarkerSettings} 現在の設定
+         */
         function readCurrentSettings() {
             var sizeValue = parseFloat(sizeInput.text);
             var scaleValue = parseFloat(scaleInput.text);
@@ -409,7 +506,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             };
         }
 
-        // プレビュー専用レイヤーに現在設定でマーカーを描画 / Draw markers into the preview layer
+        /**
+         * プレビュー専用レイヤーに、現在の設定でマーカーを描画します。
+         * @returns {void}
+         */
         function renderPreview() {
             removePreviewLayer();
 
@@ -427,12 +527,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
 
         // --- ボタン / Buttons（Mac 規約: Cancel → OK）---
-        var dialogButtonGroup = dialogWindow.add("group");
-        dialogButtonGroup.orientation = "row";
+        var dialogButtonGroup = setupRow(dialogWindow.add("group"), ["right", "center"], 8);
         dialogButtonGroup.alignment = ["right", "center"];
-        dialogButtonGroup.spacing = 8;
-        var cancelButton = dialogButtonGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var okButton = dialogButtonGroup.add("button", undefined, L("button.ok"), { name: "ok" });
+        var cancelButton = dialogButtonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var okButton = dialogButtonGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         var dialogResult = null;
         okButton.onClick = function () {
@@ -440,17 +538,17 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
             if (chosenSource === OBJECT_SOURCE.autoGenerate) {
                 var sizeValue = parseFloat(sizeInput.text);
                 if (isNaN(sizeValue) || sizeValue <= 0) {
-                    alert(L("alert.invalidSize"));
+                    alert(getLabel("alert.invalidSize"));
                     return;
                 }
             } else {
                 var scaleValue = parseFloat(scaleInput.text);
                 if (isNaN(scaleValue) || scaleValue <= 0) {
-                    alert(L("alert.invalidScale"));
+                    alert(getLabel("alert.invalidScale"));
                     return;
                 }
                 if (chosenSource === OBJECT_SOURCE.symbol && !symbolDropdown.selection) {
-                    alert(L("alert.noSymbolChosen"));
+                    alert(getLabel("alert.noSymbolChosen"));
                     return;
                 }
             }
@@ -483,11 +581,21 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // =========================================
     // ダイアログ部品 / Dialog Helpers
     // =========================================
-    /* 「ラベル [入力] 単位」の 1 行を作り、入力欄を返す / Build a "label [input] unit" row and return the input */
+    /**
+     * 「ラベル [入力] 単位」の1行を作り、入力欄を返します。
+     * @param {Group|Panel} parentPanel - 追加先
+     * @param {string} labelText - ラベル文字列
+     * @param {number} initialValue - 初期値
+     * @param {number} charCount - 入力欄の文字数（最小幅の指定）
+     * @param {string} unitText - 単位表記
+     * @param {function} onChange - 値が変わったときに呼ぶ関数
+     * @param {number} [labelWidth] - ラベルの固定幅（px）
+     * @param {boolean} [allowDecimal] - 小数第1位まで保持するか
+     * @param {number} [minValue] - 下限値（省略時は 0）
+     * @returns {EditText} 追加した入力欄
+     */
     function addLabeledField(parentPanel, labelText, initialValue, charCount, unitText, onChange, labelWidth, allowDecimal, minValue) {
-        var fieldRow = parentPanel.add("group");
-        fieldRow.orientation = "row";
-        fieldRow.spacing = 8;
+        var fieldRow = setupRow(parentPanel.add("group"), ["left", "center"], 8);
         var fieldLabel = fieldRow.add("statictext", undefined, labelText);
         if (labelWidth) {
             fieldLabel.preferredSize.width = labelWidth; /* 指定時のみ固定幅 / Fixed width only when given */
@@ -500,7 +608,12 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return fieldInput;
     }
 
-    /* スウォッチ（panel）を現在色で塗る onDraw ハンドラを生成 / Make an onDraw handler that fills a swatch */
+    /**
+     * スウォッチ（panel）を現在の色で塗る onDraw ハンドラを生成します。
+     * @param {Panel} swatch - 描画対象のパネル
+     * @param {Object} color - 塗り色 {r, g, b}
+     * @returns {function} onDraw ハンドラ
+     */
     function makeSwatchDrawer(swatch, color) {
         return function () {
             var swatchGraphics = swatch.graphics;
@@ -514,26 +627,29 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         };
     }
 
-    /* 自前の RGB カラーダイアログ。{r,g,b} を返す（キャンセル時は null） / In-dialog RGB color chooser */
+    /**
+     * 自前の RGB カラーダイアログを表示します（OS のカラーパレットはモーダルを壊すため）。
+     * @param {Object} startColor - 初期色 {r, g, b}
+     * @returns {Object|null} 選択した色 {r, g, b}（キャンセル時は null）
+     */
     function chooseRgbColor(startColor) {
         var workingColor = { r: startColor.r, g: startColor.g, b: startColor.b };
         var confirmed = false;
 
-        var pickerWindow = new Window("dialog", L("colorPicker.title"));
-        pickerWindow.orientation = "row";
-        pickerWindow.alignChildren = ["fill", "fill"];
-        pickerWindow.margins = 16;
-        pickerWindow.spacing = 12;
+        var pickerWindow = new Window("dialog", getLabel("colorPicker.title"));
+        setupRow(pickerWindow, ["fill", "fill"], WINDOW_SPACING);
+        pickerWindow.margins = WINDOW_MARGINS;
 
         var previewSwatch = pickerWindow.add("panel");
         previewSwatch.preferredSize = [64, 64];
         previewSwatch.onDraw = makeSwatchDrawer(previewSwatch, workingColor);
 
-        var fieldsColumn = pickerWindow.add("group");
-        fieldsColumn.orientation = "column";
-        fieldsColumn.alignChildren = ["left", "center"];
-        fieldsColumn.spacing = 6;
+        var fieldsColumn = addColumnGroup(pickerWindow, 6);
 
+        /**
+         * 3つの数値欄から作業色を読み直し、プレビューを再描画します。
+         * @returns {void}
+         */
         function refreshFromFields() {
             workingColor.r = clampColorChannel(Number(redInput.text));
             workingColor.g = clampColorChannel(Number(greenInput.text));
@@ -544,12 +660,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         var greenInput = addColorChannelField(fieldsColumn, "G", workingColor.g, refreshFromFields);
         var blueInput = addColorChannelField(fieldsColumn, "B", workingColor.b, refreshFromFields);
 
-        var pickerButtonGroup = fieldsColumn.add("group");
-        pickerButtonGroup.orientation = "row";
+        var pickerButtonGroup = setupRow(fieldsColumn.add("group"), ["right", "center"], 8);
         pickerButtonGroup.alignment = ["right", "center"];
-        pickerButtonGroup.spacing = 8;
-        var pickerCancelButton = pickerButtonGroup.add("button", undefined, L("button.cancel"), { name: "cancel" });
-        var pickerOkButton = pickerButtonGroup.add("button", undefined, L("button.ok"), { name: "ok" });
+        var pickerCancelButton = pickerButtonGroup.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        var pickerOkButton = pickerButtonGroup.add("button", undefined, getLabel("button.ok"), { name: "ok" });
 
         // show() の戻り値に依存せず、明示的な onClick で確定する（環境差で OK が 1 を返さない対策）
         pickerOkButton.onClick = function () {
@@ -567,12 +681,16 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return confirmed ? { r: workingColor.r, g: workingColor.g, b: workingColor.b } : null;
     }
 
-    /* RGB チャンネル 1 つ（ラベル＋スライダー＋数値入力を相互同期）を作り、入力欄を返す */
-    /* Build one RGB channel (label + slider + numeric field, kept in sync); returns the field */
+    /**
+     * RGB チャンネル1つ（ラベル＋スライダー＋数値入力を相互同期）を作り、入力欄を返します。
+     * @param {Group} parentGroup - 追加先
+     * @param {string} channelLabel - チャンネル名（"R" / "G" / "B"）
+     * @param {number} initialValue - 初期値（0〜255）
+     * @param {function} onChange - 値が変わったときに呼ぶ関数
+     * @returns {EditText} 追加した入力欄
+     */
     function addColorChannelField(parentGroup, channelLabel, initialValue, onChange) {
-        var channelRow = parentGroup.add("group");
-        channelRow.orientation = "row";
-        channelRow.spacing = 6;
+        var channelRow = setupRow(parentGroup.add("group"), ["left", "center"], 6);
         var channelLabelText = channelRow.add("statictext", undefined, channelLabel);
         channelLabelText.preferredSize.width = 14;
         var channelSlider = channelRow.add("slider", undefined, initialValue, 0, 255);
@@ -580,12 +698,19 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         var channelInput = channelRow.add("edittext", undefined, String(initialValue));
         channelInput.characters = 4;
 
-        /* スライダー → 数値欄 / Slider drives the field */
+        /**
+         * スライダーの値を数値欄へ反映します。
+         * @returns {void}
+         */
         function syncFromSlider() {
             channelInput.text = Math.round(channelSlider.value);
             onChange();
         }
-        /* 数値欄 → スライダー / Field drives the slider */
+
+        /**
+         * 数値欄の値をスライダーへ反映します。
+         * @returns {void}
+         */
         function syncFromInput() {
             channelSlider.value = clampColorChannel(Number(channelInput.text));
             onChange();
@@ -597,7 +722,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return channelInput;
     }
 
-    /* 0〜255 に丸めてクランプ / Round and clamp to 0..255 */
+    /**
+     * 数値を 0〜255 に丸めてクランプします。
+     * @param {number} value - 入力値
+     * @returns {number} 0〜255 の整数
+     */
     function clampColorChannel(value) {
         if (isNaN(value)) return 0;
         value = Math.round(value);
@@ -606,7 +735,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return value;
     }
 
-    /* 生成したプレビューレイヤーだけを参照で削除（同名の既存レイヤーは触らない）/ Remove only the preview layer we created, by reference */
+    /**
+     * 生成したプレビューレイヤーだけを参照で削除します（同名の既存レイヤーは触らない）。
+     * @returns {void}
+     */
     function removePreviewLayer() {
         if (activePreviewLayer) {
             try {
@@ -618,7 +750,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
     }
 
-    /* 指定名のレイヤーを取得、無ければ作成 / Get a layer by name, creating it if absent */
+    /**
+     * 指定名のレイヤーを取得し、無ければ作成します。
+     * @param {string} layerName - レイヤー名
+     * @returns {Layer} 取得または作成したレイヤー
+     */
     function getOrCreateLayer(layerName) {
         try {
             return doc.layers.getByName(layerName);
@@ -629,32 +765,53 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
     }
 
-    /* エッジ表示＋ライブコーナー注釈のトグル（実行中は隠す）/ Toggle edges and the Live Corner Annotator */
+    /**
+     * エッジ表示とライブコーナー注釈をトグルします（実行中は隠す）。
+     * @returns {void}
+     */
     function toggleCanvasHelpers() {
         app.executeMenuCommand('edge');
         app.executeMenuCommand('Live Corner Annotator');
     }
 
-    /* ボタンの高さを指定 px 詰める（レイアウト確定後に呼ぶ）/ Trim a button's height by the given px (call after layout) */
+    /**
+     * ボタンの高さを指定 px 詰めます（レイアウト確定後に呼ぶ）。
+     * @param {Button} button - 対象のボタン
+     * @param {number} px - 詰める量（px）
+     * @returns {void}
+     */
     function trimButtonHeight(button, px) {
         try {
             button.size = [button.size.width, button.size.height - px];
         } catch (e) {}
     }
 
-    /* 生成物を指定レイヤーの最前面へ移動 / Move a created item to the front of a layer */
+    /**
+     * 生成物を指定レイヤーの最前面へ移動します。
+     * @param {PageItem} item - 移動するオブジェクト
+     * @param {Layer|GroupItem} layer - 移動先
+     * @returns {void}
+     */
     function moveItemToLayer(item, layer) {
         item.move(layer, ElementPlacement.PLACEATBEGINNING);
     }
 
-    /* コントロールを再描画。notify は環境により例外を投げ得るので保護 / Redraw a control (notify can throw) */
+    /**
+     * コントロールを再描画します（notify は環境により例外を投げ得るので保護）。
+     * @param {Object} control - 再描画するコントロール
+     * @returns {void}
+     */
     function redrawControl(control) {
         try {
             control.notify("onDraw");
         } catch (e) {}
     }
 
-    /* 配置済みアイテムを1つのグループにまとめ、そのグループを返す / Group placed items and return the group */
+    /**
+     * 配置済みアイテムを1つのグループにまとめます。
+     * @param {Array<PageItem>} items - まとめる対象
+     * @returns {GroupItem} 作成したグループ
+     */
     function groupPlacedItems(items) {
         var markerGroup = doc.groupItems.add();
         for (var i = 0; i < items.length; i++) {
@@ -663,10 +820,13 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return markerGroup;
     }
 
-    /*
-     * ↑↓キーで値を増減（Shift=±10・10スナップ / ⌘=±0.1 / 通常=±1）
-     * allowDecimal=true で小数第1位まで保持、false で整数に丸め
-     * minValue を渡すとその値未満に下げられない（未指定は 0 を下限）
+    /**
+     * ↑↓キーで数値を増減できるようにします（Shift＝±10・10スナップ／⌘＝±0.1／通常＝±1）。
+     * @param {EditText} editText - 対象の入力欄
+     * @param {function} onValueChange - 値が変わったときに呼ぶ関数
+     * @param {boolean} [allowDecimal] - true で小数第1位まで保持、false で整数に丸め
+     * @param {number} [minValue] - 下限値（省略時は 0）
+     * @returns {void}
      */
     function changeValueByArrowKey(editText, onValueChange, allowDecimal, minValue) {
         var lowerBound = (typeof minValue === "number") ? minValue : 0;
@@ -704,7 +864,12 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         });
     }
 
-    /* キーイベントの修飾キー状態を返す（event 優先, keyboardState はフォールバック）/ Read a modifier flag, event first */
+    /**
+     * キーイベントの修飾キー状態を返します（event を優先し、keyboardState はフォールバック）。
+     * @param {Object} event - キーイベント
+     * @param {string} name - 修飾キー名（"shiftKey" / "metaKey" など）
+     * @returns {boolean} 押されていれば true
+     */
     function readModifier(event, name) {
         if (event[name] === true) return true;
         try {
@@ -717,7 +882,12 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // =========================================
     // アンカーポイント収集 / Anchor Point Collection
     // =========================================
-    /* 選択オブジェクト群からアンカー座標 [x, y] の配列を収集 / Collect all anchor coordinates */
+    /**
+     * 選択オブジェクト群からアンカー座標を収集します。
+     * @param {Array<PageItem>} items - 走査対象
+     * @param {PageItem} [excludeItem] - 除外するオブジェクト
+     * @returns {Array<Array<number>>} アンカー座標 [x, y] の配列
+     */
     function collectAllAnchorPoints(items, excludeItem) {
         var collectedPoints = [];
         for (var i = 0; i < items.length; i++) {
@@ -726,7 +896,13 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return collectedPoints;
     }
 
-    /* オブジェクトの種別に応じてアンカー座標を集める（excludeItem は対象外）/ Gather anchor coordinates, skipping excludeItem */
+    /**
+     * オブジェクトの種別に応じてアンカー座標を集めます（excludeItem は対象外）。
+     * @param {PageItem} item - 対象オブジェクト
+     * @param {Array<Array<number>>} collectedPoints - 収集先の配列
+     * @param {PageItem} [excludeItem] - 除外するオブジェクト
+     * @returns {void}
+     */
     function collectAnchorPoints(item, collectedPoints, excludeItem) {
         if (excludeItem && item === excludeItem) {
             return; /* このオブジェクト自身のアンカーは対象外 / Skip this object's own anchors */
@@ -746,10 +922,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
     }
 
-    /*
-     * 配置に使うアンカー座標を返す
-     * 「最前面のオブジェクト」モードでは複製元（最前面オブジェクト）自身のアンカーを除外する
-     * Anchors to place onto; in frontmost-object mode, exclude the source object's own anchors
+    /**
+     * 配置に使うアンカー座標を返します。
+     * 「最前面のオブジェクト」モードでは、複製元（最前面オブジェクト）自身のアンカーを除外します。
+     * @param {string} objectSource - 追加するオブジェクトの種別（OBJECT_SOURCE の値）
+     * @returns {Array<Array<number>>} アンカー座標 [x, y] の配列
      */
     function resolveAnchorPoints(objectSource) {
         var excludeItem = (objectSource === OBJECT_SOURCE.frontObject) ? getFrontmostItem() : null;
@@ -759,11 +936,14 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // =========================================
     // 配置処理 / Placement
     // =========================================
-    /*
-     * ユーザー設定から、アンカー座標に配置する処理（placer 関数）を組み立てる
-     * placer は生成した pageItem を返す（プレビュー時にレイヤー移動するため）
-     * forPreview=true のときは自動生成の「シンボル化」を無視し、見た目が同じ正方形パスを描く
-     * （プレビューのたびに新規シンボルを登録してシンボルパネルを汚さないため）
+    /**
+     * ユーザー設定から、アンカー座標に配置する処理（placer 関数）を組み立てます。
+     * placer は生成した pageItem を返します（プレビュー時にレイヤーへ移すため）。
+     * forPreview=true のときは自動生成の「シンボル化」を無視し、見た目が同じ正方形パスを描きます
+     * （プレビューのたびに新規シンボルを登録してシンボルパネルを汚さないため）。
+     * @param {MarkerSettings} settings - 現在の設定
+     * @param {boolean} forPreview - プレビュー用なら true
+     * @returns {function|null} (anchorX, anchorY) を受け取り PageItem を返す関数（用意できなければ null）
      */
     function buildMarkerPlacer(settings, forPreview) {
         var fractionX = (settings.registrationIndex % 3) / 2;         /* 0=左, 0.5=中央, 1=右 / 0=left, .5=center, 1=right */
@@ -798,13 +978,25 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         };
     }
 
-    /* 基準点の割合(0..1)に合わせて生成物を配置 / Position an item so its registration point sits on the anchor */
+    /**
+     * 基準点の割合（0〜1）に合わせて生成物を配置します。
+     * @param {PageItem} item - 配置するオブジェクト
+     * @param {number} anchorX - アンカーのX座標
+     * @param {number} anchorY - アンカーのY座標
+     * @param {number} fractionX - 横方向の基準位置（0=左, 0.5=中央, 1=右）
+     * @param {number} fractionY - 縦方向の基準位置（0=上, 0.5=中央, 1=下）
+     * @returns {void}
+     */
     function positionItemAtAnchor(item, anchorX, anchorY, fractionX, fractionY) {
         item.left = anchorX - fractionX * item.width;
         item.top = anchorY + fractionY * item.height;
     }
 
-    /* {r,g,b} を RGBColor へ変換 / Convert {r,g,b} to an RGBColor */
+    /**
+     * {r, g, b} を RGBColor へ変換します。
+     * @param {Object} rgb - 色 {r, g, b}
+     * @returns {RGBColor} 変換した色
+     */
     function toRgbColor(rgb) {
         var color = new RGBColor();
         color.red = rgb.r;
@@ -813,11 +1005,12 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return color;
     }
 
-    /*
-     * 現在の大きさ・カラーで正方形シンボルを毎回新規登録して返す（既存は再利用しない）
-     * → プレビュー（正方形パス）と本適用（同設定のシンボルインスタンス）の見た目が一致する
-     * Always register a fresh square symbol from the current size/color (no reuse),
-     * so the preview and the actual placement look identical.
+    /**
+     * 現在の大きさ・カラーで正方形シンボルを毎回新規登録して返します（既存は再利用しない）。
+     * プレビュー（正方形パス）と本適用（同設定のシンボルインスタンス）の見た目を一致させるためです。
+     * @param {number} squareSize - 正方形の一辺（pt）
+     * @param {RGBColor} squareColor - 塗り色
+     * @returns {Symbol} 登録したシンボル
      */
     function createSquareSymbol(squareSize, squareColor) {
         var masterSquare = doc.pathItems.rectangle(squareSize / 2, -squareSize / 2, squareSize, squareSize);
@@ -835,7 +1028,16 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return symbolDefinition;
     }
 
-    /* 基準点に合わせてシンボルインスタンスを配置し、生成物を返す / Place a symbol instance at the anchor */
+    /**
+     * 基準点に合わせてシンボルインスタンスを配置します。
+     * @param {Symbol} symbolDefinition - 配置するシンボル
+     * @param {number} anchorX - アンカーのX座標
+     * @param {number} anchorY - アンカーのY座標
+     * @param {number} scalePercent - 拡大縮小率（%）
+     * @param {number} fractionX - 横方向の基準位置
+     * @param {number} fractionY - 縦方向の基準位置
+     * @returns {SymbolItem} 配置したインスタンス
+     */
     function placeSymbolInstance(symbolDefinition, anchorX, anchorY, scalePercent, fractionX, fractionY) {
         var symbolInstance = doc.symbolItems.add(symbolDefinition);
         if (scalePercent !== 100) {
@@ -845,7 +1047,16 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return symbolInstance;
     }
 
-    /* 基準点に合わせて最前面オブジェクトを複製し、生成物を返す / Duplicate the frontmost object at the anchor */
+    /**
+     * 基準点に合わせて最前面オブジェクトを複製します。
+     * @param {PageItem} sourceItem - 複製元
+     * @param {number} anchorX - アンカーのX座標
+     * @param {number} anchorY - アンカーのY座標
+     * @param {number} scalePercent - 拡大縮小率（%）
+     * @param {number} fractionX - 横方向の基準位置
+     * @param {number} fractionY - 縦方向の基準位置
+     * @returns {PageItem} 複製したオブジェクト
+     */
     function duplicateItemAtPoint(sourceItem, anchorX, anchorY, scalePercent, fractionX, fractionY) {
         var duplicatedItem = sourceItem.duplicate();
         if (scalePercent !== 100) {
@@ -855,7 +1066,16 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return duplicatedItem;
     }
 
-    /* 基準点に合わせて正方形パスを配置し、生成物を返す / Place a square path at the anchor */
+    /**
+     * 基準点に合わせて正方形パスを配置します。
+     * @param {number} squareSize - 正方形の一辺（pt）
+     * @param {RGBColor} squareColor - 塗り色
+     * @param {number} anchorX - アンカーのX座標
+     * @param {number} anchorY - アンカーのY座標
+     * @param {number} fractionX - 横方向の基準位置
+     * @param {number} fractionY - 縦方向の基準位置
+     * @returns {PathItem} 配置した正方形
+     */
     function placeSquareRect(squareSize, squareColor, anchorX, anchorY, fractionX, fractionY) {
         var squareRect = doc.pathItems.rectangle(0, 0, squareSize, squareSize);
         squareRect.filled = true;
@@ -865,12 +1085,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return squareRect;
     }
 
-    /*
-     * 「選択範囲内で最前面のオブジェクト」を返す（未選択の最前面は対象外）
-     * ドキュメントを前面から走査し、最初に selected なアイテムを返す。未選択オブジェクトを
-     * 複製元に選んでしまう事故を防ぐ。
-     * Return the frontmost object *within the selection* (never an unselected one):
-     * scan the document front-to-back and return the first selected item.
+    /**
+     * 「選択範囲内で最前面のオブジェクト」を返します（未選択の最前面は対象外）。
+     * ドキュメントを前面から走査して最初に selected なアイテムを返すことで、
+     * 未選択オブジェクトを複製元に選んでしまう事故を防ぎます。
+     * @returns {PageItem|null} 選択範囲内の最前面オブジェクト（無ければ null）
      */
     function getFrontmostItem() {
         for (var i = 0; i < doc.layers.length; i++) {
@@ -884,8 +1103,11 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return null;
     }
 
-    /* コンテナ（レイヤー／グループ）を前面から走査し、最初に選択されているアイテムを返す */
-    /* Scan a container (layer / group) front-to-back for the first selected item */
+    /**
+     * コンテナ（レイヤー／グループ）を前面から走査し、最初に選択されているアイテムを返します。
+     * @param {Layer|GroupItem} container - 走査するコンテナ
+     * @returns {PageItem|null} 最初に見つかった選択アイテム（無ければ null）
+     */
     function frontmostSelectedInContainer(container) {
         var childItems = container.pageItems;
         for (var i = 0; i < childItems.length; i++) {
@@ -901,7 +1123,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return null;
     }
 
-    /* ドキュメント内シンボルの名前配列を返す / Return document symbol names */
+    /**
+     * ドキュメント内のシンボル名の一覧を返します。
+     * @returns {Array<string>} シンボル名の配列
+     */
     function getSymbolNames() {
         var names = [];
         for (var i = 0; i < doc.symbols.length; i++) {
@@ -913,13 +1138,18 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // =========================================
     // 基準点ウィジェット（9軸）/ Registration widget (9-axis)
     // =========================================
-    /* 3×3 の基準点ウィジェットを生成。クリックで registrationIndex を更新し onChange を呼ぶ */
+    /**
+     * 3×3 の基準点ウィジェットを生成します。クリックで registrationIndex を更新し onChange を呼びます。
+     * @param {Group} parentGroup - 追加先
+     * @param {function} onChange - 基準点が変わったときに呼ぶ関数
+     * @returns {Button} 追加したウィジェット
+     */
     function addRegistrationWidget(parentGroup, onChange) {
         var widget = parentGroup.add("button", undefined, "");
-        widget.helpTip = L("tooltip.registration");
-        widget.preferredSize = [56, 56];
-        widget.minimumSize = [56, 56];
-        widget.maximumSize = [56, 56];
+        widget.helpTip = getLabel("tooltip.registration");
+        widget.preferredSize = [WIDGET_SIZE, WIDGET_SIZE];
+        widget.minimumSize = [WIDGET_SIZE, WIDGET_SIZE];
+        widget.maximumSize = [WIDGET_SIZE, WIDGET_SIZE];
         widget.onDraw = function () {
             drawRegistrationWidget(this);
         };
@@ -935,14 +1165,22 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         return widget;
     }
 
-    /* 0..2 にクランプ / Clamp to 0..2 */
+    /**
+     * セル位置を 0〜2 にクランプします。
+     * @param {number} value - 入力値
+     * @returns {number} 0〜2 の値
+     */
     function clampCell(value) {
         if (value < 0) return 0;
         if (value > 2) return 2;
         return value;
     }
 
-    /* 9軸ウィジェットを描画（外周の□をケイ線でつなぐ・中央は独立）/ Draw the 9-axis widget */
+    /**
+     * 9軸ウィジェットを描画します（外周の□をケイ線でつなぎ、中央は独立）。
+     * @param {Button} widget - 描画対象のウィジェット
+     * @returns {void}
+     */
     function drawRegistrationWidget(widget) {
         var graphics = widget.graphics;
         var width = widget.size[0];
@@ -957,7 +1195,18 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         var originX = Math.round((width - gridSize) / 2);
         var originY = Math.round((height - gridSize) / 2);
 
+        /**
+         * セルの左上X座標を返します。
+         * @param {number} index - セル番号 0..8
+         * @returns {number} X座標
+         */
         function cellX(index) { return originX + (index % 3) * cellStep; }
+
+        /**
+         * セルの左上Y座標を返します。
+         * @param {number} index - セル番号 0..8
+         * @returns {number} Y座標
+         */
         function cellY(index) { return originY + Math.floor(index / 3) * cellStep; }
 
         // 中央(4)を除く外周の□どうしをケイ線でつなぐ / Join the outer squares (skipping center) with rules
@@ -982,8 +1231,17 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         }
     }
 
-    /* 基準点セルの□を1つ描画。選択中は「塗り＋ケイ線」で、非選択の枠線と外周サイズを合わせる */
-    /* Draw one cell square; selected uses fill + rule so its outer size matches the outlined cells */
+    /**
+     * 基準点セルの□を1つ描画します。
+     * 選択中は「塗り＋ケイ線」で描き、非選択の枠線と外周サイズをそろえます。
+     * @param {Object} graphics - ScriptUI の graphics オブジェクト
+     * @param {number} x - セルの左上X座標
+     * @param {number} y - セルの左上Y座標
+     * @param {number} size - セルの一辺（px）
+     * @param {boolean} selected - 選択中なら true
+     * @param {Array<number>} foreColor - 描画色 [r, g, b, a]
+     * @returns {void}
+     */
     function drawRegistrationCell(graphics, x, y, size, selected, foreColor) {
         if (selected) {
             buildCellPath(graphics, x, y, size);
@@ -993,7 +1251,14 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
         graphics.strokePath(graphics.newPen(graphics.PenType.SOLID_COLOR, foreColor, 1));
     }
 
-    /* セルの正方形パスを組む / Build the square path for a cell */
+    /**
+     * セルの正方形パスを組み立てます。
+     * @param {Object} graphics - ScriptUI の graphics オブジェクト
+     * @param {number} x - 左上X座標
+     * @param {number} y - 左上Y座標
+     * @param {number} size - 一辺（px）
+     * @returns {void}
+     */
     function buildCellPath(graphics, x, y, size) {
         graphics.newPath();
         graphics.moveTo(x, y);
@@ -1006,7 +1271,10 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // =========================================
     // UI の明暗判定 / Light vs. dark UI
     // =========================================
-    /* UI 明度 > 0.5 ならライト、取得失敗時はダーク扱い / Light if uiBrightness > 0.5; dark on failure */
+    /**
+     * UI 明度からライトテーマかどうかを判定します（取得に失敗したらダーク扱い）。
+     * @returns {boolean} ライトテーマなら true
+     */
     function isLightUI() {
         try {
             return app.preferences.getRealPreference("uiBrightness") > 0.5;

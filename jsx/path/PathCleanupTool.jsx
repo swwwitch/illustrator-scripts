@@ -7,12 +7,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### 概要
 
 選択したパス（グループ・複合パスの中も含む）のアンカーポイントとハンドルを整理します。
-
-- 「削除対象」タブ：同じ座標のアンカー、直線上の冗長なアンカー、直線区間のハンドルを削除
-- 「変換」タブ：スムーズ／コーナーへの変換、中間点／極点の追加、アンカーで分割、マド埋め
-- 情報パネルに、アンカー数・ハンドル数を「現在 → 実行後」で表示（実行前に増減を確認できる）
-- アンカー削除用とハンドル削除用の許容誤差を個別に調整
-- ロック／非表示のオブジェクト（親グループ・レイヤーを含む）は自動的にスキップ
+削除・変換の内容を選び、アンカー数とハンドル数の増減を確認してから実行できます。
 
 詳しい仕様と注意事項は README を参照してください。
 
@@ -23,12 +18,7 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### Overview
 
 Cleans up the anchor points and handles of the selected paths (including those inside groups and compound paths).
-
-- Removal Targets tab: duplicate anchors, redundant anchors on straight segments, handles on straight segments
-- Transform tab: convert to smooth / corner, add midpoints / extrema, split at anchors, fill holes
-- The info panel shows anchor and handle counts as "current -> after", so the change is visible before running
-- Independent tolerances for anchor removal and handle removal
-- Locked / hidden objects (including parent groups and layers) are skipped automatically
+Choose what to remove or convert, and check how the anchor and handle counts will change before running.
 
 See the README for the full specification and notes.
 
@@ -38,10 +28,10 @@ See the README for the full specification and notes.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "PathCleanupTool";              /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.6.0";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.6.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-03-01";                   /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-31";                   /* 更新日 / last updated */
+var SCRIPT_UPDATED  = "2026-08-12";                   /* 更新日 / last updated */
 
 // README (Japanese)
 // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/PathCleanupTool.md
@@ -141,7 +131,6 @@ var WINDOW_MARGINS = 16;               /* ウィンドウ外周の余白 / windo
 var WINDOW_SPACING = 12;               /* ウィンドウ内の要素間隔 / window spacing */
 var PANEL_MARGINS  = [16, 20, 16, 12]; /* パネル余白 [左,上,右,下] / panel margins */
 var PANEL_SPACING  = 8;                /* パネル内の要素間隔 / panel spacing */
-var COLUMN_SPACING = 12;               /* 2カラムの間隔 / gap between columns */
 
 /**
  * ウィンドウに共通レイアウトを適用します。
@@ -259,18 +248,19 @@ function setupPanel(panel, spacing) {
     }
 
     /**
-     * 3点が一直線上にあるかを外積で判定します。
+     * 3点が一直線上にあるかを、点Bから直線A-Cまでの垂直距離で判定します。
      * @param {Array<number>} pointA - 点A [x, y]。
-     * @param {Array<number>} pointB - 点B [x, y]。
+     * @param {Array<number>} pointB - 点B（直線上にあるか判定する点） [x, y]。
      * @param {Array<number>} pointC - 点C [x, y]。
-     * @param {number} [tolerance] - 許容誤差（省略時は TOL_ANCHOR_COLLINEAR）。
+     * @param {number} [tolerance] - 距離の許容誤差（pt、省略時は TOL_ANCHOR_COLLINEAR）。
      * @returns {boolean} 一直線上とみなせれば true。
      */
     function isCollinear(pointA, pointB, pointC, tolerance) {
         /* 0 が既定値に化けないよう != null で判定する */
         tolerance = (tolerance != null) ? tolerance : TOL_ANCHOR_COLLINEAR;
-        var area = (pointB[0] - pointA[0]) * (pointC[1] - pointA[1]) - (pointB[1] - pointA[1]) * (pointC[0] - pointA[0]);
-        return Math.abs(area) < tolerance;
+        /* 外積をそのまま比較するとセグメント長に比例して感度が変わり、
+           ハンドル側の許容誤差（垂直距離）と意味がずれるため距離で揃える */
+        return isPointOnLineByDistance(pointA, pointC, pointB, tolerance);
     }
 
     /**
@@ -582,16 +572,20 @@ function setupPanel(panel, spacing) {
      * 両端アンカーを結ぶ直線に p0 右ハンドル・p1 左ハンドルが近ければ直線とみなす。
      * @param {PathModelPoint} p0 - 始点モデル点。
      * @param {PathModelPoint} p1 - 終点モデル点。
+     * @param {number} [tolerance] - 距離の許容誤差（pt、省略時は TOL_HANDLE_COLLINEAR）。
      * @returns {boolean} 直線とみなせれば true。
      */
-    function isStraightSegmentModel(p0, p1) {
-        return isPointOnLineByDistance(p0.a, p1.a, p0.r, TOL_HANDLE_COLLINEAR) &&
-            isPointOnLineByDistance(p0.a, p1.a, p1.l, TOL_HANDLE_COLLINEAR);
+    function isStraightSegmentModel(p0, p1, tolerance) {
+        /* 0 が既定値に化けないよう != null で判定する */
+        tolerance = (tolerance != null) ? tolerance : TOL_HANDLE_COLLINEAR;
+        return isPointOnLineByDistance(p0.a, p1.a, p0.r, tolerance) &&
+            isPointOnLineByDistance(p0.a, p1.a, p1.l, tolerance);
     }
 
     /**
      * 同一座標のアンカーポイント（重複点）を削除します。
      * 連続して同座標のアンカーのみ対象（離れた位置の同座標は対象外）。オープンパスの端点は削除しない。
+     * 削除する点の右方向線は残す点へ引き継ぎ、見た目が変わらないようにする。
      * @param {PathModel} pathM - 対象のパスモデル（破壊的に更新）。
      * @returns {number} 削除したアンカー数。
      */
@@ -618,6 +612,11 @@ function setupPanel(panel, spacing) {
             if (prevIndex < 0 || prevIndex > curLen - 1) continue;
 
             if (samePointModel(pts[prevIndex].a, pts[i].a)) {
+                /* 削除する点が「出ていく側」のハンドルを持っているため、残す点へ引き継ぐ。
+                   引き継がないと重複解消のたびに後続セグメントの曲線が直線に潰れる */
+                pts[prevIndex].r = [pts[i].r[0], pts[i].r[1]];
+                /* 入り側と出側で別々のハンドルを持つ点はスムーズでは表現できない */
+                pts[prevIndex].t = PointType.CORNER;
                 pts.splice(i, 1);
                 removed++;
             }
@@ -628,7 +627,8 @@ function setupPanel(panel, spacing) {
 
     /**
      * 直線上の冗長なアンカーポイントを削除します。
-     * ハンドルが引き出されておらず前後アンカーと一直線上にある点のみ削除。オープンパスの端点は削除しない。
+     * 対象は「その点自身にハンドルが無い」「前後のセグメントがどちらも直線」
+     * 「前後アンカーと一直線上にある」の3条件を満たす点のみ。オープンパスの端点は削除しない。
      * @param {PathModel} pathM - 対象のパスモデル（破壊的に更新）。
      * @returns {number} 削除したアンカー数。
      */
@@ -655,7 +655,13 @@ function setupPanel(panel, spacing) {
             var pB = pts[i];
             var pC = pts[(i + 1) % currentLen];
 
-            if (isStraightPointModel(pB) && isCollinear(pA.a, pB.a, pC.a, TOL_ANCHOR_COLLINEAR)) {
+            /* B自身にハンドルが無いだけでは足りない。pA の右ハンドル／pC の左ハンドルが
+               線から外れていると前後のセグメントは曲線なので、B を消すと形が変わる。
+               判定はアンカー側の許容誤差で統一する（ハンドル側スライダーの影響を受けない） */
+            if (isStraightPointModel(pB) &&
+                isStraightSegmentModel(pA, pB, TOL_ANCHOR_COLLINEAR) &&
+                isStraightSegmentModel(pB, pC, TOL_ANCHOR_COLLINEAR) &&
+                isCollinear(pA.a, pB.a, pC.a, TOL_ANCHOR_COLLINEAR)) {
                 pts.splice(i, 1);
                 removed++;
             }
@@ -690,13 +696,17 @@ function setupPanel(panel, spacing) {
             var isFirstSeg = isOpen && (i === 0);
             var isLastSeg = isOpen && (i === (segCount - 1));
 
+            /* 片側だけハンドルが無い点はスムーズでは表現できないため、コーナーに落とす
+               （SMOOTH のまま書き戻すと Illustrator 側でハンドルを戻される場合がある） */
             if (!isFirstSeg && !samePointModel(p0.r, p0.a)) {
                 p0.r = [p0.a[0], p0.a[1]];
+                p0.t = PointType.CORNER;
                 changed++;
             }
 
             if (!isLastSeg && !samePointModel(p1.l, p1.a)) {
                 p1.l = [p1.a[0], p1.a[1]];
+                p1.t = PointType.CORNER;
                 changed++;
             }
         }
@@ -838,9 +848,10 @@ function setupPanel(panel, spacing) {
     /**
      * 「その他」タブ（変換・分割）の予測情報を取得します。
      * corner=全ハンドル削除／smooth=全アンカーに左右ハンドル付与／add=各セグメントに1点追加／
-     * split=各セグメントを独立パス化／fillHoles=結果を事前算出できないため未確定（"-"）。
+     * extreme=各曲線セグメントの極点数を実測して加算／split=各セグメントを独立パス化／
+     * fillHoles=結果を事前算出できないため未確定（"-"）。
      * @param {Array<PathItem>} targets - 対象の PathItem 配列。
-     * @param {string} mode - 変換モード（'smooth' | 'corner' | 'add' | 'split' | 'fillHoles'）。
+     * @param {string} mode - 変換モード（'smooth' | 'corner' | 'add' | 'extreme' | 'split' | 'fillHoles'）。
      * @param {InfoCounts} [infoNow] - 実行前の集計値（省略時はここで集計）。ダイアログ表示中は変化しないため使い回す。
      * @returns {{paths: number, pathsAfter: (number|string), anchorsNow: number, anchorsAfter: (number|string), handlesNow: number, handlesAfter: (number|string)}} 予測結果。
      */
@@ -858,8 +869,13 @@ function setupPanel(panel, spacing) {
             // 全ハンドル削除
             handlesAfter = 0;
         } else if (mode === 'smooth') {
-            // 全アンカーに左右ハンドル付与
-            handlesAfter = infoNow.anchors * 2;
+            /* 全アンカーに左右ハンドルが付く。ただしオープンパスは端点の外側
+               （始点の左・終点の右）にハンドルが付かないため、1本につき2つ引く */
+            var openPaths = 0;
+            for (var s = 0; s < targets.length; s++) {
+                if (targets[s] && !targets[s].closed) openPaths++;
+            }
+            handlesAfter = infoNow.anchors * 2 - openPaths * 2;
         } else if (mode === 'add') {
             // 各セグメントに1点追加
             var totalSegs = 0;
@@ -913,7 +929,7 @@ function setupPanel(panel, spacing) {
      * @property {boolean} doRemoveSameAnchors - 重複アンカー削除を行うか。
      * @property {boolean} doRemoveAnchors - 直線上の冗長アンカー削除を行うか。
      * @property {boolean} doRemoveHandles - 直線区間のハンドル削除を行うか。
-     * @property {string} convertMode - 変換モード（'smooth' | 'corner' | 'add' | 'split' | 'fillHoles'）。
+     * @property {string} convertMode - 変換モード（'smooth' | 'corner' | 'add' | 'extreme' | 'split' | 'fillHoles'）。
      */
 
     /**
@@ -959,9 +975,24 @@ function setupPanel(panel, spacing) {
             rowLabel.characters = 13;
             rowLabel.justify = 'right';
 
+            /* characters は最小幅なので小さく取り、「128 → 96」形式は fill で
+               行の余りを使って表示する（ここでウィンドウ幅を広げないため） */
             var rowValue = infoRow.add('statictext', undefined, '0');
             rowValue.characters = 4;
+            rowValue.alignment = ['fill', 'center'];
             return rowValue;
+        }
+
+        /**
+         * 許容誤差の入力文字列を数値に変換します（角括弧・全角括弧・空白を除去）。
+         * @param {string} text - 入力文字列。
+         * @returns {number} 変換した数値。空文字なら NaN。
+         */
+        function parseToleranceText(text) {
+            if (!text) return NaN;
+            // accept formats like "[0.01]", "0.01", and full-width brackets
+            text = String(text).replace(/\[/g, '').replace(/\]/g, '').replace(/［/g, '').replace(/］/g, '').replace(/\s/g, '');
+            return parseFloat(text);
         }
 
         var pathCountValue = addInfoRow('label.pathCount');
@@ -985,11 +1016,12 @@ function setupPanel(panel, spacing) {
             pathCountValue.text = String(predictedInfo.paths);
             anchorCountValue.text = formatArrow(predictedInfo.anchorsNow, predictedInfo.anchorsAfter);
             handleCountValue.text = formatArrow(predictedInfo.handlesNow, predictedInfo.handlesAfter);
+            updateOkEnabled();
         }
 
         /**
          * 「その他」タブの予測値で情報パネルを更新します。
-         * @param {string} mode - 変換モード（'smooth' | 'corner' | 'add' | 'split' | 'fillHoles'）。
+         * @param {string} mode - 変換モード（'smooth' | 'corner' | 'add' | 'extreme' | 'split' | 'fillHoles'）。
          * @returns {void}
          */
         function refreshInfoForConvert(mode) {
@@ -997,11 +1029,29 @@ function setupPanel(panel, spacing) {
             pathCountValue.text = formatArrow(predictedInfo.paths, predictedInfo.pathsAfter);
             anchorCountValue.text = formatArrow(predictedInfo.anchorsNow, predictedInfo.anchorsAfter);
             handleCountValue.text = formatArrow(predictedInfo.handlesNow, predictedInfo.handlesAfter);
+            updateOkEnabled();
+        }
+
+        /**
+         * 実行できる内容が選ばれているかに応じて OK ボタンの有効／無効を切り替えます。
+         * 「削除対象」タブでチェックが1つも無いと実行しても何も起きないため無効にします。
+         * @returns {void}
+         */
+        function updateOkEnabled() {
+            /* ボタン生成前にも予測表示が走るため、その時点では何もしない */
+            if (!btnOK) return;
+            if (tabbedPanel.selection === tabOther) {
+                btnOK.enabled = true;
+                return;
+            }
+            btnOK.enabled = removeSameAnchorsCheckbox.value ||
+                removeAnchorsCheckbox.value ||
+                removeHandlesCheckbox.value;
         }
 
         /**
          * 「その他」タブで選択中のラジオボタンから変換モードを返します。
-         * @returns {string} 'smooth' | 'corner' | 'add' | 'split' | 'fillHoles'。
+         * @returns {string} 'smooth' | 'corner' | 'add' | 'extreme' | 'split' | 'fillHoles'。
          */
         function getSelectedConvertMode() {
             if (smoothRadio.value) return 'smooth';
@@ -1065,6 +1115,17 @@ function setupPanel(panel, spacing) {
         anchorToleranceSlider.helpTip = L('tooltip.tolAnchor');
         anchorToleranceSlider.preferredSize.width = 160;
         anchorToleranceSlider.indent = 20;
+
+        /**
+         * アンカー許容誤差のUI（ラベル・入力欄・スライダー）をまとめて有効／無効にします。
+         * スライダーは入力欄と別グループにあるため、行だけを切り替えると消し忘れる。
+         * @param {boolean} enabled - 有効にする場合は true。
+         * @returns {void}
+         */
+        function setAnchorToleranceEnabled(enabled) {
+            anchorToleranceRow.enabled = enabled;
+            anchorToleranceSlider.enabled = enabled;
+        }
 
         /**
          * アンカー許容誤差を有効範囲（0.01〜3.00、小数2桁）に丸めます。
@@ -1134,6 +1195,17 @@ function setupPanel(panel, spacing) {
         handleToleranceSlider.indent = 20;
 
         /**
+         * ハンドル許容誤差のUI（ラベル・入力欄・スライダー）をまとめて有効／無効にします。
+         * スライダーは入力欄と別グループにあるため、行だけを切り替えると消し忘れる。
+         * @param {boolean} enabled - 有効にする場合は true。
+         * @returns {void}
+         */
+        function setHandleToleranceEnabled(enabled) {
+            handleToleranceRow.enabled = enabled;
+            handleToleranceSlider.enabled = enabled;
+        }
+
+        /**
          * ハンドル許容誤差を有効範囲（0.01〜3.00、小数2桁）に丸めます。
          * @param {number} toleranceValue - 入力値。
          * @returns {number} 丸めた許容誤差。NaN の場合は現在値。
@@ -1159,18 +1231,6 @@ function setupPanel(panel, spacing) {
             handleToleranceSlider.value = Math.round(toleranceValue * 100);
         }
 
-        /**
-         * 許容誤差の入力文字列を数値に変換します（角括弧・全角括弧・空白を除去）。
-         * @param {string} text - 入力文字列。
-         * @returns {number} 変換した数値。空文字なら NaN。
-         */
-        function parseToleranceText(text) {
-            if (!text) return NaN;
-            // accept formats like "[0.01]", "0.01", and full-width brackets
-            text = String(text).replace(/\[/g, '').replace(/\]/g, '').replace(/［/g, '').replace(/］/g, '').replace(/\s/g, '');
-            return parseFloat(text);
-        }
-
         handleToleranceSlider.onChanging = function () {
             var toleranceValue = handleToleranceSlider.value / 100;
             syncHandleToleranceFromValue(toleranceValue);
@@ -1190,18 +1250,18 @@ function setupPanel(panel, spacing) {
             refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
         };
         removeAnchorsCheckbox.onClick = function () {
-            anchorToleranceRow.enabled = removeAnchorsCheckbox.value;
+            setAnchorToleranceEnabled(removeAnchorsCheckbox.value);
             refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
         };
         removeHandlesCheckbox.onClick = function () {
-            handleToleranceRow.enabled = removeHandlesCheckbox.value;
+            setHandleToleranceEnabled(removeHandlesCheckbox.value);
             refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
         };
 
         // 初回反映
         refreshInfoPreview(removeSameAnchorsCheckbox.value, removeAnchorsCheckbox.value, removeHandlesCheckbox.value);
-        anchorToleranceRow.enabled = removeAnchorsCheckbox.value;
-        handleToleranceRow.enabled = removeHandlesCheckbox.value;
+        setAnchorToleranceEnabled(removeAnchorsCheckbox.value);
+        setHandleToleranceEnabled(removeHandlesCheckbox.value);
 
         // --- Tab 2: その他 ---
         var tabOther = tabbedPanel.add('tab', undefined, L('tab.other'));
@@ -1276,6 +1336,9 @@ function setupPanel(panel, spacing) {
 
         var btnCancel = buttonRow.add('button', undefined, L('button.cancel'), { name: 'cancel' });
         var btnOK = buttonRow.add('button', undefined, L('button.ok'), { name: 'ok' });
+
+        /* ボタン生成前の予測表示では OK の状態を反映できないため、ここで一度反映する */
+        updateOkEnabled();
 
         var dialogResult = {
             ok: false,
@@ -1524,7 +1587,8 @@ function setupPanel(panel, spacing) {
     }
 
     /**
-     * マド埋め：複合パス解除 → ライブパスファインダー（合体）→ アピアランス展開 → グループ解除を実行します。
+     * マド埋め：グループ化 → 複合パス解除 → ライブパスファインダー（合体）
+     * → アピアランス展開 → グループ解除を実行します。
      * @returns {void}
      */
     function fillHolesOnSelection() {
@@ -1904,7 +1968,9 @@ function setupPanel(panel, spacing) {
                 }
             }
         } else if (ui.convertMode === 'fillHoles') {
-            if (restoreSelectableSelection(selectionSnapshot) > 0) {
+            /* マド埋めは複合パス自体に対する操作なので、子パスに分解せず
+               ダイアログ表示時点の選択をそのまま復元する */
+            if (restoreSelection(selectionSnapshot) > 0) {
                 fillHolesOnSelection();
             }
         } else {
