@@ -6,55 +6,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-Illustrator で分散しがちなテキスト処理（改行・分割・連結・整形）を、1つのパレットに統合したオールインワンのテキスト処理スクリプトです。
-従来は個別スクリプトに分散しがちな処理（改行削除・空行整理・分割・連結など）を単一 UI に集約し、スクリプト管理やショートカット運用の負担を軽減します。
+改行・分割・連結・整形といったテキスト処理を1つのパレットに集約し、選択中のテキストへ即時に適用するツール。
+選択状態に応じて実行できる処理だけを有効化する。
 
-### 対象
+詳細はREADMEを参照。
 
-- テキストフレーム
-- テキストフレームを含むグループ
-- Illustrator が TextRange として返すテキスト選択
+*/
 
-### 主な機能
+/*
 
-- 改行の削除／挿入／変換（段落改行・強制改行の相互変換、指定文字・指定文字数での改行、1文字ごとの改行）
-- 段落／タブ／文字単位でのテキスト分割（書式保持／無視の両対応）
-- 複数テキストの縦方向・横方向連結（見た目ベースでの再構成、PDF テキスト整形）
-- スペース整理（行頭行末・和欧間・連続・まとめて・すべて削除）、タブ処理
-- スペースや記号の相互変換（スペース／アンダースコア／ハイフンを Before→After で指定）、`.` `,` の後にスペース挿入
-- 文字変換（全角英数→半角、半角カナ→全角）、リスト記号の除去
-- 英字のケース変換（すべて大文字／小文字／単語の先頭のみ／文頭のみ／英語タイトル形式）＋変換プレビュー
-- 行単位の編集・並べ替え・ソート・重複削除・空行削除
-- テキスト構造の可視化（改行数・タブ数・文字種別の集計表示、選択に追従）
-- 実行可能な処理だけを有効化する状態連動 UI
-- 略語ボタンには機能説明のツールチップ（helpTip）を表示
+### Overview
 
-### UI タブ構成
+Brings line-break, split, merge, and cleanup operations for text into a single palette and applies them to the
+current selection immediately. Only the operations available for the current selection stay enabled.
 
-- 基本：改行（削除・挿入・切り換え）、分割（改行／タブ／文字単位・書式保持/無視）、連結（縦・横・PDFテキスト整形）
-- 整形：タブ処理、スペース削除、スペース追加、スペースや記号の変換、文字変換、リストの除去
-- 行の編集：行単位の並べ替え・追加・編集・削除、ソート、重複行・空行の削除
-- 英数字：英字のケース変換（変換結果のプレビュー付き）
-
-### 設計方針
-
-- 既存テキストを直接編集しつつ、結果を即座に確認できる即時実行型 UI
-- 複数スクリプトの置き換えを前提とした「集約ツール」設計
-- 見た目ベースの処理を優先し、実務での作業効率を重視
-- 実行条件に合わない機能は無効化し、誤操作を防止
-- パレットは常駐エンジン（#targetengine）で常駐表示。常駐エンジンの app はパレット表示中に DOM 接続を失うため、DOM 処理はメインエンジンへ BridgeTalk で都度委譲（コードは encodeURIComponent で包んで送信）
-- 委譲する処理関数は共通ヘルパーに集約（例：文字単位の削除／置換は mutateMatchingChars、選択状態の集計は computeSelectionState／encodeSelectionState）
-- ステータスはタイマー API が無いため、パレットへのフォーカス／マウスオーバー時に選択へ追従して更新
-- 既にパレットが開いている場合は二重起動せず、前面化して終了
-- Esc キーでパレットを閉じる
-
-### 紹介記事
-
-https://note.com/dtp_tranist/n/nf6f34559ba46
-
-### メモ
-
-- UI・メッセージは日本語／英語を自動切り替え（ロケール判定）
+See the README for details.
 
 */
 
@@ -64,20 +30,110 @@ https://note.com/dtp_tranist/n/nf6f34559ba46
 var SCRIPT_NAME     = "TextBreakSplitMergePallete";   /* スクリプト名 / script name */
 var SCRIPT_VERSION  = "v1.7.2";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "2026-07-13";                   /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2026-03-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-13";                   /* 更新日 / last updated */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextBreakSplitMergePallete.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakSplitMergePallete.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf6f34559ba46"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
 
 // =========================================
+// ユーザー設定 / User settings
+// =========================================
+
+/* 「指定文字で改行」の初期値 / Default characters for "break at specified characters" */
+var DEFAULT_BREAK_CHARS = "、。，．｡､,.!?！？";
+
+/* 「指定文字数で改行」の初期値 / Default character count for "break at character count" */
+var DEFAULT_BREAK_COUNT = "35";
+
+/* ケース変換プレビューに表示する最大文字数 / Maximum characters shown in the letter-case preview */
+var CASE_PREVIEW_MAX_CHARS = 40;
+
+// =========================================
+// レイアウト / Layout
+// =========================================
+
+var PANEL_MARGINS       = [10, 18, 10, 8];   /* パネル余白 [左,上,右,下] */
+var STATUS_MARGINS      = [50, 18, 50, 8];   /* ステータスパネル余白 */
+var TAB_MARGINS         = [10, 20, 0, -10];  /* タブ余白 [左,上,右,下] */
+var TAB_SPACING         = 15;                /* タブ内の要素間隔 */
+var FOOTER_MARGINS      = [10, 10, 10, 0];   /* フッター余白 */
+var BUTTON_ROW_MARGINS  = [10, 0, 10, 8];    /* パネル内ボタン列の余白 */
+var STATUS_ROW_SPACING  = 16;                /* ステータス2カラムの間隔 */
+var STATUS_LABEL_WIDTH  = 72;                /* ステータス右カラムのラベル幅 */
+var LINE_LIST_SIZE      = [200, 460];        /* 行リストボックスのサイズ */
+var LINE_LIST_FONT_SIZE = 18;                /* 行リストボックスの文字サイズ */
+var CASE_BUTTON_SIZE    = [150, 24];         /* ケース変換ボタンのサイズ */
+var CASE_PREVIEW_SIZE   = [120, 24];         /* ケース変換プレビューのサイズ */
+
+/**
+ * パネルへ共通のレイアウトを適用する
+ * @param {Panel} panel - 対象パネル
+ * @param {Array<string>} alignChildren - 子要素の整列指定（省略時は ["fill", "center"]）
+ * @returns {void}
+ */
+function setupPanel(panel, alignChildren) {
+    panel.margins = PANEL_MARGINS;
+    panel.alignment = ["fill", "top"];
+    panel.alignChildren = alignChildren || ["fill", "center"];
+}
+
+/**
+ * ラベル付きパネルを生成し、共通レイアウトを適用する
+ * @param {Window|Panel|Group} parent - 追加先のコンテナ
+ * @param {string} titleText - パネルのタイトル
+ * @param {Array<string>} alignChildren - 子要素の整列指定（省略時は ["fill", "center"]）
+ * @returns {Panel} 生成したパネル
+ */
+function addPanel(parent, titleText, alignChildren) {
+    var panel = parent.add("panel", undefined, titleText);
+    setupPanel(panel, alignChildren);
+    return panel;
+}
+
+/**
+ * 縦積みのカラムグループを生成する
+ * @param {Window|Panel|Group} parent - 追加先のコンテナ
+ * @returns {Group} 生成したグループ
+ */
+function addColumnGroup(parent) {
+    var columnGroup = parent.add("group");
+    columnGroup.orientation = "column";
+    columnGroup.alignment = ["fill", "top"];
+    columnGroup.alignChildren = ["fill", "top"];
+    return columnGroup;
+}
+
+/**
+ * タブへ共通のレイアウトを適用する
+ * @param {Object} tab - 対象タブ
+ * @param {string} orientation - "row" または "column"
+ * @param {Array<string>} alignment - タブ自身の整列指定（省略時は ["fill", "top"]）
+ * @returns {void}
+ */
+function setupTab(tab, orientation, alignment) {
+    tab.margins = TAB_MARGINS;
+    tab.spacing = TAB_SPACING;
+    tab.orientation = orientation;
+    tab.alignment = alignment || ["fill", "top"];
+    tab.alignChildren = ["fill", "top"];
+}
+
+// =========================================
 // ローカライズ / Localization
 // =========================================
+
 /* 現在の言語を判定（ロケールが ja 始まりなら日本語）/ Detect UI language (Japanese if locale starts with "ja") */
 function getCurrentLang() {
     return ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 }
-var lang = getCurrentLang();
+var uiLang = getCurrentLang();
 
 /* 日英ラベル定義 / Bilingual labels */
 var LABELS = {
@@ -111,7 +167,7 @@ var LABELS = {
         symbolConvert: { ja: "スペースや記号の変換", en: "Spaces & Symbols" },
         symbolBefore: { ja: "変換前", en: "Before" },
         symbolAfter: { ja: "変換後", en: "After" },
-        other: { ja: "スペース追加", en: "Add Space" }
+        addSpace: { ja: "スペース追加", en: "Add Space" }
     },
     radio: {
         space: { ja: "スペース", en: "Space" },
@@ -122,7 +178,7 @@ var LABELS = {
         flattenToOneLine: { ja: "すべて1行に", en: "Merge All into One Line" },
         removeLineBreaks: { ja: "改行のみ", en: "Line Breaks Only" },
         addLineBreaks: { ja: "1文字ごとに改行", en: "Insert Line Break After Each Character" },
-        punctuation: { ja: "指定文字で改行", en: "At Specified Characters" },
+        breakAtChars: { ja: "指定文字で改行", en: "At Specified Characters" },
         breakAtCount: { ja: "指定文字数で改行", en: "At Character Count" },
         convertBreaks: { ja: "強制改行→改行", en: "Forced Breaks to Paragraph Breaks" },
         convertToForcedBreaks: { ja: "改行→強制改行", en: "Paragraph Breaks to Forced Breaks" },
@@ -163,11 +219,9 @@ var LABELS = {
         caseTitle: { ja: "英語タイトル形式", en: "Title Case" },
         convertSymbol: { ja: "変換", en: "Convert" },
         spaceAfterPunct: { ja: ".と,の後", en: "Space After . and ," },
-        undo: { ja: "1つ戻す", en: "Undo" },
-        close: { ja: "閉じる", en: "Close" }
+        showHiddenChar: { ja: "制御文字", en: "Hidden Characters" }
     },
     checkbox: {
-        showHiddenChar: { ja: "制御文字", en: "Hidden Characters" },
         includeForcedBreaks: { ja: "強制改行を含む", en: "Include Forced Breaks" },
         forcedBreak: { ja: "強制改行", en: "Forced Break" }
     },
@@ -270,45 +324,50 @@ var LABELS = {
     }
 };
 
-/* ラベルノードから現在言語の文言を返す（{slash}→/）/ Resolve a label node to the current language ({slash}→/) */
+/**
+ * ラベルノードから現在言語の文言を返す（{slash} は / に展開）
+ * @param {Object} labelNode - LABELS 内の { ja, en } ノード
+ * @returns {string} 現在言語の文言
+ */
 function getLabel(labelNode) {
     if (!labelNode) return "";
-    var text = labelNode[lang] || labelNode.ja || labelNode.en || "";
-    return text.replace(/\{slash\}/g, "/");
+    var labelString = labelNode[uiLang] || labelNode.ja || labelNode.en || "";
+    return labelString.replace(/\{slash\}/g, "/");
 }
 
-/* コロン付きラベル（日本語は全角、英語は半角）/ Label with a trailing colon (full-width JA, half-width EN) */
-function labelText(labelNode) {
-    return getLabel(labelNode) + (lang === "ja" ? "：" : ":");
+/**
+ * コロン付きラベルを返す（日本語は全角コロン、英語は半角コロン）
+ * @param {Object} labelNode - LABELS 内の { ja, en } ノード
+ * @returns {string} コロンを付けた文言
+ */
+function getColonLabel(labelNode) {
+    return getLabel(labelNode) + (uiLang === "ja" ? "：" : ":");
 }
 
-/* エラー表示補助 */
+/**
+ * 処理エラーをアラートで通知する
+ * @param {Error|Object} err - 例外オブジェクト、または message を持つオブジェクト
+ * @returns {void}
+ */
 function showError(err) {
-    var msg = getLabel(LABELS.message.processFailed) + "\n\n";
-    if (err && err.message) {
-        msg += err.message;
-    } else {
-        msg += String(err);
-    }
-    alert(msg);
+    var errorMessage = (err && err.message) ? err.message : String(err);
+    alert(getLabel(LABELS.message.processFailed) + "\n\n" + errorMessage);
 }
 
-/* 開発用ログ補助 */
+// =========================================
+// テキスト処理ユーティリティ / Text utilities
+// =========================================
+/* ここから下の関数群は BridgeTalk でメインエンジンへ委譲される（__LIB_FUNCS 参照）。
+   toString() の出力が壊れるため、JSDoc と // 形式のコメントは使わない。 */
+
 function debugLog(context, err) {
-    var msg = "[TextBreakSplitMerge] " + context;
-    if (err) {
-        if (err.message) {
-            msg += " :: " + err.message;
-        } else {
-            msg += " :: " + String(err);
-        }
-    }
+    var logMessage = "[TextBreakSplitMerge] " + context;
+    if (err) logMessage += " :: " + (err.message ? err.message : String(err));
     try {
-        $.writeln(msg);
-    } catch (_) { }
+        $.writeln(logMessage);
+    } catch (e) { }
 }
 
-/* 改行正規化ユーティリティ */
 function normalizeParagraphBreaks(txt) {
     return String(txt || "").replace(/\r\n/g, "\r").replace(/\n/g, "\r");
 }
@@ -370,11 +429,9 @@ function isForcedBreak(codeOrChar) {
     return code === 3 || code === 10;
 }
 
-
 function isAnyBreak(codeOrChar) {
     return isParagraphBreak(codeOrChar) || isForcedBreak(codeOrChar);
 }
-
 
 function isTabChar(codeOrChar) {
     var code = (typeof codeOrChar === "number") ? codeOrChar : getCharCodeSafe(codeOrChar);
@@ -385,56 +442,55 @@ function hasVisibleChars(txt) {
     return String(txt || "").replace(/[\r\n\t]/g, "").length > 0;
 }
 
-/* 英字ケース変換（純粋な文字列関数 / TextNormalize.jsx より移植）
-   プレビュー（パレット側）と適用（メインエンジン側）の両方で使う */
+/* 英字ケース変換（純粋な文字列関数 / TextNormalize.jsx より移植）。
+   プレビュー（パレット側）と適用（メインエンジン側）の両方で使う。 */
 
-/* 単語の先頭のみ大文字（各単語＝先頭大文字＋残りは小文字）
-   事前に小文字化しておく必要はなく、すべて大文字の語も Negoticible のようになる */
+/* 単語の先頭のみ大文字。事前に小文字化しているので、すべて大文字の語も Negotiable のようになる */
 function toWordCap(text) {
-    return String(text).toLowerCase().replace(/\b([a-z])/g, function (m, c) { return c.toUpperCase(); });
+    return String(text).toLowerCase().replace(/\b([a-z])/g, function (matched, initial) {
+        return initial.toUpperCase();
+    });
 }
 
-/* 文頭のみ大文字（文単位＝先頭大文字＋残りは小文字）
-   事前に小文字化しておく必要はなく、すべて大文字でも Negoticible のようになる。
-   英単語が1つだけ（文区切りなし）の場合も、先頭の頭文字を大文字化する。*/
+/* 文頭のみ大文字。文区切りが無い（英単語が1つだけの）場合も先頭を大文字化する */
 function toSentenceCase(text) {
     return String(text).toLowerCase().replace(/(^|[\.\!\?]\s+|[\r\n]+)([a-z])/g,
-        function (m, prefix, c) { return prefix + c.toUpperCase(); });
+        function (matched, prefix, initial) { return prefix + initial.toUpperCase(); });
 }
 
 /* 英語タイトル形式（冠詞・前置詞などは小文字 / John Gruber の Title Caps 移植）*/
 function toTitleCase(text) {
-    var small = "(a|abaft|aboard|about|above|absent|across|afore|after|against|along|alonside|amid|amidst|among|amongst|an|and|apopos|around|as|aside|astride|at|athwart|atop|barring|before|behind|below|beneath|beside|besides|between|betwixt|beyond|but|by|circa|concerning|despite|down|during|except|excluding|failing|following|for|from|given|in|including|inside|into|lest|like|mid|midst|minus|modula|near|next|nor|notwithstanding|of|off|on|onto|oppostie|or|out|outside|over|pace|per|plus|pro|qua|regarding|round|sans|save|than|that|the|through|throughout|till|times|to|toward|towards|under|underneath|unlike|until|unto|up|upon|versus|via|vice|with|within|without|worth|v[.]?|via|vs[.]?)";
-    var punct = "([!\"#$%&'()*+,./:;<=>?@[\\\\\\]^_`{|}~-]*)";
+    var smallWords = "(a|abaft|aboard|about|above|absent|across|afore|after|against|along|alonside|amid|amidst|among|amongst|an|and|apopos|around|as|aside|astride|at|athwart|atop|barring|before|behind|below|beneath|beside|besides|between|betwixt|beyond|but|by|circa|concerning|despite|down|during|except|excluding|failing|following|for|from|given|in|including|inside|into|lest|like|mid|midst|minus|modula|near|next|nor|notwithstanding|of|off|on|onto|oppostie|or|out|outside|over|pace|per|plus|pro|qua|regarding|round|sans|save|than|that|the|through|throughout|till|times|to|toward|towards|under|underneath|unlike|until|unto|up|upon|versus|via|vice|with|within|without|worth|v[.]?|via|vs[.]?)";
+    var punctuation = "([!\"#$%&'()*+,./:;<=>?@[\\\\\\]^_`{|}~-]*)";
 
-    function lower(word) { return word.toLowerCase(); }
-    function upper(word) { return word.substr(0, 1).toUpperCase() + word.substr(1); }
+    function toLowerWord(word) { return word.toLowerCase(); }
+    function capitalizeWord(word) { return word.substr(0, 1).toUpperCase() + word.substr(1); }
 
-    function titleCaps(title) {
-        var parts = [], split = /[:.;?!] |(?: |^)[\"Ò]/g, index = 0;
-        while (true) {
-            var m = split.exec(title);
-            parts.push(
-                title.substring(index, m ? m.index : title.length)
-                    .replace(/\b([A-Za-z][a-z.'Õ]*)\b/g, function (all) {
-                        return /[A-Za-z]\.[A-Za-z]/.test(all) ? all : upper(all);
-                    })
-                    .replace(RegExp("\\b" + small + "\\b", "ig"), lower)
-                    .replace(RegExp("^" + punct + small + "\\b", "ig"), function (all, p, word) {
-                        return p + upper(word);
-                    })
-                    .replace(RegExp("\\b" + small + punct + "$", "ig"), upper)
-            );
-            index = split.lastIndex;
-            if (m) parts.push(m[0]);
-            else break;
-        }
-        return parts.join("")
-            .replace(/ V(s?)\. /ig, " v$1. ")
-            .replace(/(['Õ])S\b/ig, "$1s")
-            .replace(/\b(AT&T|Q&A)\b/ig, function (all) { return all.toUpperCase(); });
+    var title = String(text);
+    var sentenceSplitter = /[:.;?!] |(?: |^)[\"Ò]/g;
+    var segments = [];
+    var segmentStart = 0;
+    while (true) {
+        var splitMatch = sentenceSplitter.exec(title);
+        segments.push(
+            title.substring(segmentStart, splitMatch ? splitMatch.index : title.length)
+                .replace(/\b([A-Za-z][a-z.'Õ]*)\b/g, function (matched) {
+                    return /[A-Za-z]\.[A-Za-z]/.test(matched) ? matched : capitalizeWord(matched);
+                })
+                .replace(RegExp("\\b" + smallWords + "\\b", "ig"), toLowerWord)
+                .replace(RegExp("^" + punctuation + smallWords + "\\b", "ig"), function (matched, leadingPunct, word) {
+                    return leadingPunct + capitalizeWord(word);
+                })
+                .replace(RegExp("\\b" + smallWords + punctuation + "$", "ig"), capitalizeWord)
+        );
+        segmentStart = sentenceSplitter.lastIndex;
+        if (!splitMatch) break;
+        segments.push(splitMatch[0]);
     }
-    return titleCaps(String(text));
+    return segments.join("")
+        .replace(/ V(s?)\. /ig, " v$1. ")
+        .replace(/(['Õ])S\b/ig, "$1s")
+        .replace(/\b(AT&T|Q&A)\b/ig, function (matched) { return matched.toUpperCase(); });
 }
 
 (function () {
@@ -449,40 +505,33 @@ function toTitleCase(text) {
         }
     } catch (_) { }
 
-    // ドキュメントが開かれていない場合は処理を終了
+    /* ドキュメントが開かれていない場合は処理を終了 / Abort when no document is open */
     if (app.documents.length === 0) {
         alert(getLabel(LABELS.message.noDocument));
         return;
     }
 
-    // 選択オブジェクトを取得
+    /* 選択オブジェクトを取得 / Get the current selection */
     var selectedObjects = app.selection;
-
-    // 選択オブジェクトがない場合は処理を終了
     if (!selectedObjects || !selectedObjects.length) {
         alert(getLabel(LABELS.message.noSelection));
         return;
     }
 
-    // 初期選択からテキストフレームを解決
+    /* 初期選択からテキストフレームを解決 / Resolve text frames from the initial selection */
     selectedObjects = getTextFrames(selectedObjects);
     if (selectedObjects.length === 0) {
         alert(getLabel(LABELS.message.noTextFrames));
         return;
     }
 
-    /* ユーティリティ関数 */
+    /* 選択・テキストフレーム操作（メインエンジンへ委譲される関数群）*/
 
-    /* テキストフレームのみ抽出 */
+    /* テキストフレームのみ抽出（グループと TextRange も再帰的にたどる）*/
     function getTextFrames(objects) {
         var frames = [];
 
         function pushUnique(frame) {
-            if (!frame) return;
-            try {
-                if (frame.isValid === false) return;
-            } catch (e) { debugLog("getTextFrames: pushUnique/isValid", e); return; }
-
             for (var i = 0; i < frames.length; i++) {
                 if (frames[i] === frame) return;
             }
@@ -492,76 +541,37 @@ function toTitleCase(text) {
         function collect(item) {
             if (!item) return;
 
+            var typeName, textRangeOwner = null;
             try {
                 if (item.isValid === false) return;
-            } catch (e) { debugLog("getTextFrames: collect/isValid", e); return; }
-
-            var typeName = "";
-            try {
                 typeName = item.typename || "";
-            } catch (e2) { debugLog("getTextFrames: collect/typename", e2); return; }
+                /* Illustrator ではテキスト選択が TextRange として返ることがある */
+                if (typeName === "TextRange" && item.parent && item.parent.typename === "TextFrame") {
+                    textRangeOwner = item.parent;
+                }
+            } catch (e) { debugLog("getTextFrames: inspect item", e); return; }
 
             if (typeName === "TextFrame") {
                 pushUnique(item);
-                return;
-            }
-
-            /* Illustrator ではテキスト選択が TextRange として返ることがある */
-            if (typeName === "TextRange") {
+            } else if (textRangeOwner) {
+                pushUnique(textRangeOwner);
+            } else if (typeName === "GroupItem") {
                 try {
-                    if (item.parent && item.parent.typename === "TextFrame") {
-                        pushUnique(item.parent);
-                        return;
-                    }
-                } catch (e3) { debugLog("getTextFrames: TextRange parent", e3); }
-            }
-
-            if (typeName === "GroupItem") {
-                try {
-                    for (var i = 0; i < item.pageItems.length; i++) {
-                        collect(item.pageItems[i]);
-                    }
-                } catch (e4) { }
-                return;
+                    for (var i = 0; i < item.pageItems.length; i++) collect(item.pageItems[i]);
+                } catch (e) { debugLog("getTextFrames: walk group", e); }
             }
         }
 
         if (!objects) return frames;
-
-        try {
-            if (typeof objects.length === "number" && !objects.typename) {
-                for (var k = 0; k < objects.length; k++) {
-                    collect(objects[k]);
-                }
-            } else {
-                collect(objects);
-            }
-        } catch (e5) { debugLog("getTextFrames: iterate objects", e5); }
-
+        if (typeof objects.length === "number" && !objects.typename) {
+            for (var k = 0; k < objects.length; k++) collect(objects[k]);
+        } else {
+            collect(objects);
+        }
         return frames;
     }
 
-
-    /* テキストタイプ判定 */
-    function detectTextFrameType(objects) {
-        var hasPointText = false;
-        var hasAreaText = false;
-        var frames = getTextFrames(objects);
-
-        for (var i = 0; i < frames.length; i++) {
-            if (frames[i].kind === TextType.AREATEXT) {
-                hasAreaText = true;
-            } else if (frames[i].kind === TextType.POINTTEXT) {
-                hasPointText = true;
-            }
-        }
-
-        if (hasPointText && hasAreaText) return "mixed";
-        if (hasAreaText) return "area";
-        return "point";
-    }
-
-    /* テキストタイプ件数を集計 */
+    /* ポイント文字／エリア内文字の件数を集計 */
     function countTextFrameTypes(objects) {
         var pointCount = 0;
         var areaCount = 0;
@@ -575,11 +585,14 @@ function toTitleCase(text) {
             }
         }
 
-        return {
-            total: frames.length,
-            point: pointCount,
-            area: areaCount
-        };
+        return { total: frames.length, point: pointCount, area: areaCount };
+    }
+
+    /* テキストタイプ判定（混在は "mixed"）*/
+    function detectTextFrameType(objects) {
+        var counts = countTextFrameTypes(objects);
+        if (counts.point > 0 && counts.area > 0) return "mixed";
+        return (counts.area > 0) ? "area" : "point";
     }
 
     /* 改行数とタブ数を集計 */
@@ -603,14 +616,10 @@ function toTitleCase(text) {
             }
         }
 
-        return {
-            paragraph: paragraphBreakCount,
-            forced: forcedBreakCount,
-            tab: tabCount
-        };
+        return { paragraph: paragraphBreakCount, forced: forcedBreakCount, tab: tabCount };
     }
 
-    /* 選択状態の集計ヘルパー（__dispatch / __stateDispatch / showDialog で共用）*/
+    /* 選択状態の集計ヘルパー（__dispatch / __stateDispatch / showPalette で共用）*/
 
     /* 2行以上（段落改行あり）のフレームが1つでもあるか */
     function hasMultipleLines(objects) {
@@ -650,9 +659,9 @@ function toTitleCase(text) {
 
     /* 選択状態を "|" 区切り文字列へエンコード（BridgeTalk の戻り値用）*/
     function encodeSelectionState(objects) {
-        var s = computeSelectionState(objects);
-        return [s.total, s.point, s.area, s.para, s.forced, s.tab,
-        s.multiLines ? 1 : 0, s.multiFrames ? 1 : 0, s.hasSpTab ? 1 : 0].join("|");
+        var state = computeSelectionState(objects);
+        return [state.total, state.point, state.area, state.para, state.forced, state.tab,
+        state.multiLines ? 1 : 0, state.multiFrames ? 1 : 0, state.hasSpTab ? 1 : 0].join("|");
     }
 
     /* 各テキストフレームのcontentsを変換する共通処理 */
@@ -669,13 +678,12 @@ function toTitleCase(text) {
         var frames = getTextFrames(objects);
         for (var i = 0; i < frames.length; i++) {
             var chars = frames[i].characters;
-            for (var c = chars.length - 1; c >= 0; c--) {
-                if (matchesCharCode(chars[c].contents.charCodeAt(0))) {
-                    if (replacement === null) {
-                        chars[c].remove();
-                    } else {
-                        chars[c].contents = replacement;
-                    }
+            for (var charIndex = chars.length - 1; charIndex >= 0; charIndex--) {
+                if (!matchesCharCode(chars[charIndex].contents.charCodeAt(0))) continue;
+                if (replacement === null) {
+                    chars[charIndex].remove();
+                } else {
+                    chars[charIndex].contents = replacement;
                 }
             }
         }
@@ -686,28 +694,29 @@ function toTitleCase(text) {
         mutateMatchingChars(objects, isForcedBreak, null);
     }
 
+    /* 元配列を変更せずに並べ替えた配列を返す */
+    function sortedCopy(items, comparator) {
+        var sorted = items.slice(0);
+        sorted.sort(comparator);
+        return sorted;
+    }
+
     /* 上から順にソート（Y降順、同じYならX昇順） */
     function sortByPosition(items) {
-        var sorted = items.slice(0);
-        sorted.sort(function (a, b) {
+        return sortedCopy(items, function (a, b) {
             if (b.position[1] !== a.position[1]) return b.position[1] - a.position[1];
             return a.position[0] - b.position[0];
         });
-        return sorted;
     }
 
     /* Y座標で降順ソート */
     function sortByY(items) {
-        var sorted = items.slice(0);
-        sorted.sort(function (a, b) { return b.position[1] - a.position[1]; });
-        return sorted;
+        return sortedCopy(items, function (a, b) { return b.position[1] - a.position[1]; });
     }
 
     /* X座標で昇順ソート */
     function sortByX(items) {
-        var sorted = items.slice(0);
-        sorted.sort(function (a, b) { return a.position[0] - b.position[0]; });
-        return sorted;
+        return sortedCopy(items, function (a, b) { return a.position[0] - b.position[0]; });
     }
 
     /* Y位置で行グループ化 */
@@ -730,20 +739,20 @@ function toTitleCase(text) {
         return lines;
     }
 
-    /* 選択範囲のバウンディングボックス取得 */
-    function getSelBounds(selection) {
-        var x1 = selection[0].visibleBounds[0];
-        var y1 = selection[0].visibleBounds[1];
-        var x2 = selection[0].visibleBounds[2];
-        var y2 = selection[0].visibleBounds[3];
-        for (var i = 1; i < selection.length; i++) {
-            var b = selection[i].visibleBounds;
-            if (b[0] < x1) x1 = b[0];
-            if (b[1] > y1) y1 = b[1];
-            if (b[2] > x2) x2 = b[2];
-            if (b[3] < y2) y2 = b[3];
+    /* 複数アイテムを内包するバウンディングボックス [左, 上, 右, 下] を返す */
+    function getUnionBounds(items) {
+        var left = items[0].visibleBounds[0];
+        var top = items[0].visibleBounds[1];
+        var right = items[0].visibleBounds[2];
+        var bottom = items[0].visibleBounds[3];
+        for (var i = 1; i < items.length; i++) {
+            var bounds = items[i].visibleBounds;
+            if (bounds[0] < left) left = bounds[0];
+            if (bounds[1] > top) top = bounds[1];
+            if (bounds[2] > right) right = bounds[2];
+            if (bounds[3] < bottom) bottom = bounds[3];
         }
-        return [x1, y1, x2, y2];
+        return [left, top, right, bottom];
     }
 
     /* テキストフレームを1つのグループにまとめる */
@@ -751,16 +760,13 @@ function toTitleCase(text) {
         var validFrames = getTextFrames(frames);
         if (validFrames.length === 0) return [];
 
-        var layer = targetLayer || app.activeDocument.activeLayer;
-        var grp = layer.groupItems.add();
-
+        var targetGroup = (targetLayer || app.activeDocument.activeLayer).groupItems.add();
         for (var i = 0; i < validFrames.length; i++) {
             try {
-                validFrames[i].move(grp, ElementPlacement.PLACEATEND);
+                validFrames[i].move(targetGroup, ElementPlacement.PLACEATEND);
             } catch (e) { debugLog("groupTextFrames: move to group", e); }
         }
-
-        return [grp];
+        return [targetGroup];
     }
 
     /* 改行系の関数 */
@@ -838,110 +844,96 @@ function toTitleCase(text) {
         });
     }
 
+    /* 各行の行頭を正規表現で除去する共通処理 */
+    function removeLinePrefix(objects, prefixPattern) {
+        transformContents(objects, function (txt) {
+            var lines = splitParagraphLines(txt);
+            for (var i = 0; i < lines.length; i++) {
+                lines[i] = lines[i].replace(prefixPattern, "");
+            }
+            return lines.join("\r");
+        });
+    }
+
+    /* 全角英数字を半角へ変換した文字列を返す
+       対象は ０-９ (0xFF10-0xFF19) / Ａ-Ｚ (0xFF21-0xFF3A) / ａ-ｚ (0xFF41-0xFF5A) */
+    function toHalfWidthAlnumText(txt) {
+        var result = "";
+        for (var i = 0; i < txt.length; i++) {
+            var code = txt.charCodeAt(i);
+            if (code >= 0xFF10 && code <= 0xFF19) {
+                result += String.fromCharCode(code - 0xFF10 + 0x30);
+            } else if (code >= 0xFF21 && code <= 0xFF3A) {
+                result += String.fromCharCode(code - 0xFF21 + 0x41);
+            } else if (code >= 0xFF41 && code <= 0xFF5A) {
+                result += String.fromCharCode(code - 0xFF41 + 0x61);
+            } else {
+                result += txt.charAt(i);
+            }
+        }
+        return result;
+    }
+
+    /* 半角カナを全角カナへ変換した文字列を返す（濁点・半濁点の合成と約物も対象）*/
+    function toFullWidthKanaText(txt) {
+        var halfKana = "ｦｧｨｩｪｫｬｭｮｯｰｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ";
+        var fullKana = "ヲァィゥェォャュョッーアイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワン";
+        /* 濁点・半濁点の合成対応表 */
+        var dakutenBase = "ｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾊﾋﾌﾍﾎ";
+        var dakutenFull = "ガギグゲゴザジズゼゾダヂヅデドバビブベボ";
+        var handakutenBase = "ﾊﾋﾌﾍﾎ";
+        var handakutenFull = "パピプペポ";
+        /* 単独で置き換える約物（濁点・半濁点・句読点・カギ括弧・中黒）*/
+        var halfPunct = "ﾞﾟ｡｢｣､･";
+        var fullPunct = "゛゜。「」、・";
+
+        var result = "";
+        for (var i = 0; i < txt.length; i++) {
+            var currentChar = txt.charAt(i);
+            var nextChar = (i + 1 < txt.length) ? txt.charAt(i + 1) : "";
+
+            /* 直後が濁点・半濁点なら合成して1文字にする */
+            var isDakuten = (nextChar === "ﾞ");
+            var comboIndex = -1;
+            if (isDakuten) comboIndex = dakutenBase.indexOf(currentChar);
+            else if (nextChar === "ﾟ") comboIndex = handakutenBase.indexOf(currentChar);
+            if (comboIndex >= 0) {
+                result += isDakuten ? dakutenFull.charAt(comboIndex) : handakutenFull.charAt(comboIndex);
+                i++;
+                continue;
+            }
+
+            var kanaIndex = halfKana.indexOf(currentChar);
+            var punctIndex = halfPunct.indexOf(currentChar);
+            if (kanaIndex >= 0) {
+                result += fullKana.charAt(kanaIndex);
+            } else if (punctIndex >= 0) {
+                result += fullPunct.charAt(punctIndex);
+            } else {
+                result += currentChar;
+            }
+        }
+        return result;
+    }
+
     /* 全角英数字を半角に変換する関数 */
     function fullToHalfAlnum(objects) {
-        transformContents(objects, function (txt) {
-            var result = "";
-            for (var i = 0; i < txt.length; i++) {
-                var code = txt.charCodeAt(i);
-                // 全角数字 ０-９ (0xFF10-0xFF19) → 半角 0-9
-                // 全角大文字 Ａ-Ｚ (0xFF21-0xFF3A) → 半角 A-Z
-                // 全角小文字 ａ-ｚ (0xFF41-0xFF5A) → 半角 a-z
-                if (code >= 0xFF10 && code <= 0xFF19) {
-                    result += String.fromCharCode(code - 0xFF10 + 0x30);
-                } else if (code >= 0xFF21 && code <= 0xFF3A) {
-                    result += String.fromCharCode(code - 0xFF21 + 0x41);
-                } else if (code >= 0xFF41 && code <= 0xFF5A) {
-                    result += String.fromCharCode(code - 0xFF41 + 0x61);
-                } else {
-                    result += txt.charAt(i);
-                }
-            }
-            return result;
-        });
+        transformContents(objects, toHalfWidthAlnumText);
     }
 
     /* 半角カナを全角カナに変換する関数 */
     function halfToFullKana(objects) {
-        var halfKana = "\uFF66\uFF67\uFF68\uFF69\uFF6A\uFF6B\uFF6C\uFF6D\uFF6E\uFF6F\uFF70\uFF71\uFF72\uFF73\uFF74\uFF75\uFF76\uFF77\uFF78\uFF79\uFF7A\uFF7B\uFF7C\uFF7D\uFF7E\uFF7F\uFF80\uFF81\uFF82\uFF83\uFF84\uFF85\uFF86\uFF87\uFF88\uFF89\uFF8A\uFF8B\uFF8C\uFF8D\uFF8E\uFF8F\uFF90\uFF91\uFF92\uFF93\uFF94\uFF95\uFF96\uFF97\uFF98\uFF99\uFF9A\uFF9B\uFF9C\uFF9D";
-        var fullKana = "\u30F2\u30A1\u30A3\u30A5\u30A7\u30A9\u30E3\u30E5\u30E7\u30C3\u30FC\u30A2\u30A4\u30A6\u30A8\u30AA\u30AB\u30AD\u30AF\u30B1\u30B3\u30B5\u30B7\u30B9\u30BB\u30BD\u30BF\u30C1\u30C4\u30C6\u30C8\u30CA\u30CB\u30CC\u30CD\u30CE\u30CF\u30D2\u30D5\u30D8\u30DB\u30DE\u30DF\u30E0\u30E1\u30E2\u30E4\u30E6\u30E8\u30E9\u30EA\u30EB\u30EC\u30ED\u30EF\u30F3";
-        // 濁点・半濁点の対応
-        var dakutenBase = "\uFF76\uFF77\uFF78\uFF79\uFF7A\uFF7B\uFF7C\uFF7D\uFF7E\uFF7F\uFF80\uFF81\uFF82\uFF83\uFF84\uFF8A\uFF8B\uFF8C\uFF8D\uFF8E";
-        var dakutenFull = "\u30AC\u30AE\u30B0\u30B2\u30B4\u30B6\u30B8\u30BA\u30BC\u30BE\u30C0\u30C2\u30C5\u30C7\u30C9\u30D0\u30D3\u30D6\u30D9\u30DC";
-        var handakutenBase = "\uFF8A\uFF8B\uFF8C\uFF8D\uFF8E";
-        var handakutenFull = "\u30D1\u30D4\u30D7\u30DA\u30DD";
-        transformContents(objects, function (txt) {
-            var result = "";
-            for (var i = 0; i < txt.length; i++) {
-                var ch = txt.charAt(i);
-                var next = (i + 1 < txt.length) ? txt.charAt(i + 1) : "";
-                // 濁点結合 (ﾞ = \uFF9E)
-                if (next === "\uFF9E") {
-                    var di = dakutenBase.indexOf(ch);
-                    if (di >= 0) {
-                        result += dakutenFull.charAt(di);
-                        i++;
-                        continue;
-                    }
-                }
-                // 半濁点結合 (ﾟ = \uFF9F)
-                if (next === "\uFF9F") {
-                    var hi = handakutenBase.indexOf(ch);
-                    if (hi >= 0) {
-                        result += handakutenFull.charAt(hi);
-                        i++;
-                        continue;
-                    }
-                }
-                // 単独変換
-                var ki = halfKana.indexOf(ch);
-                if (ki >= 0) {
-                    result += fullKana.charAt(ki);
-                } else if (ch === "\uFF9E") {
-                    result += "\u309B"; // 濁点単独
-                } else if (ch === "\uFF9F") {
-                    result += "\u309C"; // 半濁点単独
-                } else if (ch === "\uFF61") {
-                    result += "\u3002"; // 。
-                } else if (ch === "\uFF62") {
-                    result += "\u300C"; // 「
-                } else if (ch === "\uFF63") {
-                    result += "\u300D"; // 」
-                } else if (ch === "\uFF64") {
-                    result += "\u3001"; // 、
-                } else if (ch === "\uFF65") {
-                    result += "\u30FB"; // ・
-                } else {
-                    result += ch;
-                }
-            }
-            return result;
-        });
+        transformContents(objects, toFullWidthKanaText);
     }
 
-    /* 箇条書き記号の除去 */
-    function toggleBulletList(objects) {
-        var bulletPat = /^[\u30FB\u2022\-\*]\s*/; // ・ • - *
-        transformContents(objects, function (txt) {
-            var lines = splitParagraphLines(txt);
-            for (var i = 0; i < lines.length; i++) {
-                lines[i] = lines[i].replace(bulletPat, "");
-            }
-            return lines.join("\r");
-        });
+    /* 行頭の箇条書き記号（・ • - *）を除去する関数 */
+    function removeBulletMarkers(objects) {
+        removeLinePrefix(objects, /^[・•\-\*]\s*/);
     }
 
-    /* 番号リスト記号の除去 */
-    function toggleNumberList(objects) {
-        // 全角半角数字 + 全角半角ピリオド + スペース(複数可)
-        var numPat = /^[0-9\uFF10-\uFF19]+[.\uFF0E]\s*/;
-        transformContents(objects, function (txt) {
-            var lines = splitParagraphLines(txt);
-            for (var i = 0; i < lines.length; i++) {
-                lines[i] = lines[i].replace(numPat, "");
-            }
-            return lines.join("\r");
-        });
+    /* 行頭の番号（全角半角の数字＋ピリオド＋スペース）を除去する関数 */
+    function removeNumberMarkers(objects) {
+        removeLinePrefix(objects, /^[0-9０-９]+[.．]\s*/);
     }
 
     /* テキストフレームの順序を反転する関数 */
@@ -1014,38 +1006,34 @@ function toTitleCase(text) {
     /* 1文字ごとに改行を挿入する関数 */
     function addLineBreakPerChar(objects) {
         transformContents(objects, function (txt) {
-            var newTxt = "";
-            for (var j = 0; j < txt.length; j++) {
-                var c = txt.charAt(j);
-                newTxt += c;
-                if (!isAnyBreak(c) && j < txt.length - 1) {
-                    var nextC = txt.charAt(j + 1);
-                    if (!isAnyBreak(nextC)) {
-                        newTxt += '\r';
-                    }
-                }
+            var result = "";
+            for (var i = 0; i < txt.length; i++) {
+                var currentChar = txt.charAt(i);
+                result += currentChar;
+                if (isAnyBreak(currentChar) || i >= txt.length - 1) continue;
+                if (!isAnyBreak(txt.charAt(i + 1))) result += "\r";
             }
-            return newTxt;
+            return result;
         });
     }
 
     /* 指定文字数ごとに改行を挿入する関数 */
     function addLineBreakAtCount(objects, count, useForcedBreak) {
-        var n = parseInt(count, 10);
-        if (!n || n <= 0) n = 35;
-        var br = useForcedBreak ? String.fromCharCode(3) : "\r";
+        var maxChars = parseInt(count, 10);
+        if (!maxChars || maxChars <= 0) maxChars = 35;
+        var breakChar = useForcedBreak ? String.fromCharCode(3) : "\r";
         transformContents(objects, function (txt) {
             var lines = splitParagraphLines(txt);
-            var result = [];
+            var wrappedLines = [];
             for (var i = 0; i < lines.length; i++) {
                 var line = lines[i];
-                while (line.length > n) {
-                    result.push(line.substring(0, n));
-                    line = line.substring(n);
+                while (line.length > maxChars) {
+                    wrappedLines.push(line.substring(0, maxChars));
+                    line = line.substring(maxChars);
                 }
-                result.push(line);
+                wrappedLines.push(line);
             }
-            return result.join(br);
+            return wrappedLines.join(breakChar);
         });
     }
 
@@ -1059,127 +1047,107 @@ function toTitleCase(text) {
         mutateMatchingChars(objects, isParagraphBreak, String.fromCharCode(3));
     }
 
-    /* 句読点の後に改行を挿入する関数 */
+    /* 指定した記号の後に改行を挿入する関数（既定は和文・欧文の句読点と終止記号）*/
     function addLineBreakAtPunctuation(objects, punctuationChars) {
-        /* 対象記号：和文・欧文の句読点と終止記号 */
         var punctuation = punctuationChars || "、。，．｡､,.!?！？";
         transformContents(objects, function (txt) {
-            var newTxt = "";
-            for (var j = 0; j < txt.length; j++) {
-                var c = txt.charAt(j);
-                newTxt += c;
-                if (punctuation.indexOf(c) !== -1 && j < txt.length - 1) {
-                    var remaining = txt.substring(j + 1);
-                    if (hasVisibleChars(remaining)) {
-                        var nextC = txt.charAt(j + 1);
-                        if (!isAnyBreak(nextC)) {
-                            newTxt += '\r';
-                        }
-                    }
-                }
+            var result = "";
+            for (var i = 0; i < txt.length; i++) {
+                var currentChar = txt.charAt(i);
+                result += currentChar;
+                if (punctuation.indexOf(currentChar) === -1 || i >= txt.length - 1) continue;
+                /* 後ろに実体のある文字が残っている場合だけ改行を足す */
+                if (!hasVisibleChars(txt.substring(i + 1))) continue;
+                if (!isAnyBreak(txt.charAt(i + 1))) result += "\r";
             }
-            return newTxt;
+            return result;
         });
     }
 
-    /* タブで分解する関数 */
-    function splitByTab(objects) {
-        var doc = app.activeDocument;
+    /* 各テキストフレームの段落を上から順に走査し、段落ごとに
+       makeFrames(sourceFrame, paragraph, originX, originY, fontSize) が返したフレームを集める。
+       走査後に元フレームを削除し、生成したフレームを1つのグループにまとめて返す */
+    function splitFramesByParagraph(objects, makeFrames) {
+        var targetLayer = app.activeDocument.activeLayer;
+        var sourceFrames = getTextFrames(objects);
         var resultFrames = [];
 
-        for (var i = 0; i < objects.length; i++) {
-            var obj = objects[i];
+        for (var i = 0; i < sourceFrames.length; i++) {
+            var sourceFrame = sourceFrames[i];
+            var originX = sourceFrame.position[0];
+            var originY = sourceFrame.position[1];
+            var paragraphCount = sourceFrame.paragraphs.length;
 
-            if (obj.typename === "TextFrame") {
-                var paraCount = obj.paragraphs.length;
-                var pos = obj.position;
-                var myX = pos[0];
-                var myY = pos[1];
-
-                for (var p = 0; p < paraCount; p++) {
-                    var para = obj.paragraphs[p];
-                    var mySize = para.size;
-                    var plusH = para.leading;
-                    if (plusH === 0) { plusH = mySize * 1.2; }
-
-                    /* 段落単位でタブ位置を取得 */
-                    var tabCharPositions = [];
-                    var paraChars = para.characters;
-                    for (var ci = 0; ci < paraChars.length; ci++) {
-                        if (isTabChar(paraChars[ci].contents)) {
-                            if (ci + 1 < paraChars.length) {
-                                var nextCharBounds = paraChars[ci + 1].visibleBounds;
-                                tabCharPositions.push(nextCharBounds[0]); /* 左端X座標 */
-                            }
-                        }
-                    }
-
-                    var paraText = stripTrailingBreaks(para.contents);
-                    var contAry = paraText.split("\t");
-                    var prevFrame = null;
-                    for (var c = 0; c < contAry.length; c++) {
-                        var dupFrame = obj.duplicate(doc.activeLayer);
-                        dupFrame.contents = contAry[c];
-                        var moveX = myX;
-                        if (c > 0) {
-                            if ((c - 1) < tabCharPositions.length) {
-                                moveX = tabCharPositions[c - 1];
-                            } else if (prevFrame) {
-                                var prevBounds = prevFrame.visibleBounds;
-                                moveX = prevBounds[2] + (mySize * 0.5);
-                            } else {
-                                moveX = myX + (mySize * c);
-                            }
-                        }
-                        dupFrame.position = [moveX, myY];
-                        prevFrame = dupFrame;
-                        resultFrames.push(dupFrame);
-                    }
-                    myY = myY - plusH;
-                }
-
-                obj.remove();
+            for (var j = 0; j < paragraphCount; j++) {
+                var paragraph = sourceFrame.paragraphs[j];
+                var fontSize = paragraph.size;
+                var lineHeight = paragraph.leading || (fontSize * 1.2);
+                var madeFrames = makeFrames(sourceFrame, paragraph, originX, originY, fontSize);
+                for (var k = 0; k < madeFrames.length; k++) resultFrames.push(madeFrames[k]);
+                originY -= lineHeight;
             }
+            sourceFrame.remove();
         }
 
-        return groupTextFrames(resultFrames, doc.activeLayer);
+        return groupTextFrames(resultFrames, targetLayer);
     }
 
-    /* 改行で分割する関数 */
-    function splitByLineBreak(objects) {
-        var doc = app.activeDocument;
-        var resultFrames = [];
-
-        for (var i = 0; i < objects.length; i++) {
-            var obj = objects[i];
-
-            if (obj.typename === "TextFrame") {
-                var paraCount = obj.paragraphs.length;
-                var pos = obj.position;
-                var myX = pos[0];
-                var myY = pos[1];
-
-                for (var p = 0; p < paraCount; p++) {
-                    var para = obj.paragraphs[p];
-                    var mySize = para.size;
-                    var plusH = para.leading;
-                    if (plusH === 0) { plusH = mySize * 1.2; }
-
-                    var paraText = stripTrailingBreaks(para.contents);
-                    if (paraText !== "") {
-                        var dupFrame = obj.duplicate(doc.activeLayer);
-                        dupFrame.contents = paraText;
-                        dupFrame.position = [myX, myY];
-                        resultFrames.push(dupFrame);
-                    }
-                    myY = myY - plusH;
-                }
-
-                obj.remove();
+    /* 段落内のタブ位置（タブ直後の文字の左端X座標）を配列で返す */
+    function collectTabStopsX(paragraph) {
+        var tabStopsX = [];
+        var chars = paragraph.characters;
+        for (var i = 0; i < chars.length; i++) {
+            if (isTabChar(chars[i].contents) && i + 1 < chars.length) {
+                tabStopsX.push(chars[i + 1].visibleBounds[0]);
             }
         }
+        return tabStopsX;
+    }
 
-        return groupTextFrames(resultFrames, doc.activeLayer);
+    /* タブで分解する関数（元のタブ位置に合わせて横へ並べ直す）*/
+    function splitByTab(objects) {
+        var targetLayer = app.activeDocument.activeLayer;
+        return splitFramesByParagraph(objects, function (sourceFrame, paragraph, originX, originY, fontSize) {
+            var tabStopsX = collectTabStopsX(paragraph);
+            var segments = stripTrailingBreaks(paragraph.contents).split("\t");
+            var madeFrames = [];
+            var prevFrame = null;
+
+            for (var i = 0; i < segments.length; i++) {
+                var segmentFrame = sourceFrame.duplicate(targetLayer);
+                segmentFrame.contents = segments[i];
+
+                var segmentX = originX;
+                if (i > 0) {
+                    if ((i - 1) < tabStopsX.length) {
+                        segmentX = tabStopsX[i - 1];
+                    } else if (prevFrame) {
+                        /* タブ位置が取れない分は直前フレームの右端から半角分あける */
+                        segmentX = prevFrame.visibleBounds[2] + (fontSize * 0.5);
+                    } else {
+                        segmentX = originX + (fontSize * i);
+                    }
+                }
+                segmentFrame.position = [segmentX, originY];
+                prevFrame = segmentFrame;
+                madeFrames.push(segmentFrame);
+            }
+            return madeFrames;
+        });
+    }
+
+    /* 改行で分割する関数（段落ごとに別フレームへ）*/
+    function splitByLineBreak(objects) {
+        var targetLayer = app.activeDocument.activeLayer;
+        return splitFramesByParagraph(objects, function (sourceFrame, paragraph, originX, originY) {
+            var paragraphText = stripTrailingBreaks(paragraph.contents);
+            if (paragraphText === "") return [];
+
+            var lineFrame = sourceFrame.duplicate(targetLayer);
+            lineFrame.contents = paragraphText;
+            lineFrame.position = [originX, originY];
+            return [lineFrame];
+        });
     }
 
     /* フレーム末尾の改行文字（\r \n 強制改行）を除去し、除去数を返す。
@@ -1201,110 +1169,84 @@ function toTitleCase(text) {
         return removed;
     }
 
-    /* =========================================
-     * 改行で分割（書式保持）
-     * TextRange.duplicate で書式を維持し、geometricBounds の tail 座標で正確に配置
-     * 参考: Split Rows for Ai.jsx の splitRowsPoint 方式
-     * ========================================= */
-    function splitByLineBreakKeepStyle(objects) {
-        var resultFrames = [];
-        var frames = getTextFrames(objects);
+    /* 組み方向から、分割時に基準とする軸と geometricBounds の末尾側 index を返す。
+       横組み → Y方向に伸びるので tail = bottom(3)、縦組み → X方向(左)に伸びるので tail = left(0) */
+    function getTailAxis(frame) {
+        var isHorizontal = (frame.orientation === TextOrientation.HORIZONTAL);
+        return {
+            axisIndex: isHorizontal ? 1 : 0,
+            boundsIndex: isHorizontal ? 3 : 0
+        };
+    }
 
-        for (var fi = 0; fi < frames.length; fi++) {
-            var srcFrame = frames[fi];
+    /* 1フレームを段落ごとに分割し、書式と位置を保ったフレーム配列を返す。
+       TextRange.duplicate で書式を維持し、geometricBounds の tail 座標で位置を合わせる。
+       参考: Split Rows for Ai.jsx の splitRowsPoint 方式 */
+    function splitFrameKeepStyle(sourceFrame) {
+        var tail = getTailAxis(sourceFrame);
+
+        /* 末尾改行を事前に除去。空になったフレームは trimTrailingBreaks 側で削除済み */
+        if (trimTrailingBreaks(sourceFrame) === Infinity) return [];
+
+        var paragraphs = sourceFrame.paragraphs;
+        if (paragraphs.length <= 1) return [sourceFrame];
+
+        var splitFrames = [];
+
+        /* 後ろの段落から順に処理（参考スクリプトと同じ方式）*/
+        for (var i = paragraphs.length - 1; i >= 1; i--) {
+            var currentParagraph = paragraphs[i];
+
+            /* 空行またはホワイトスペースのみの行は消して次へ */
+            if (/^\s*$/.test(currentParagraph.contents)) {
+                currentParagraph.remove();
+                continue;
+            }
+
+            /* 分割前の tail 座標＝この段落があるべき位置の基準 */
+            var oldTail = sourceFrame.geometricBounds[tail.boundsIndex];
+
+            var newFrame = sourceFrame.duplicate(sourceFrame, ElementPlacement.PLACEAFTER);
+            newFrame.contents = "";
+            currentParagraph.duplicate(newFrame, ElementPlacement.INSIDE);
+            trimTrailingBreaks(newFrame);
+
+            /* 新フレームの tail を元フレームの旧 tail に揃えて元の位置へ戻す */
+            var delta = [0, 0];
+            delta[tail.axisIndex] = oldTail - newFrame.geometricBounds[tail.boundsIndex];
+            newFrame.translate(delta[0], delta[1]);
+            splitFrames.unshift(newFrame);
+
+            currentParagraph.remove();
+
+            /* 元フレームの末尾改行を除去し、除去した行数分 index を飛ばす */
+            i -= trimTrailingBreaks(sourceFrame);
+        }
+
+        /* 先頭段落が残った元フレームを先頭へ戻す */
+        if (splitFrames.length > 0 && !/^\s*$/.test(sourceFrame.contents)) {
+            sourceFrame.move(splitFrames[0], ElementPlacement.PLACEBEFORE);
+            splitFrames.unshift(sourceFrame);
+        }
+        return splitFrames;
+    }
+
+    /* 改行で分割（書式保持）*/
+    function splitByLineBreakKeepStyle(objects) {
+        var sourceFrames = getTextFrames(objects);
+        var resultFrames = [];
+
+        for (var i = 0; i < sourceFrames.length; i++) {
+            var sourceFrame = sourceFrames[i];
 
             /* 空フレームはスキップ */
-            if (/^\s*$/.test(srcFrame.contents)) {
-                srcFrame.remove();
+            if (/^\s*$/.test(sourceFrame.contents)) {
+                sourceFrame.remove();
                 continue;
             }
 
-            var isHorizontal = (srcFrame.orientation === TextOrientation.HORIZONTAL);
-
-            /*
-             * direction: translate に渡す配列 [dx, dy] のどちらを操作するか
-             * indexTail: geometricBounds [left, top, right, bottom] のうち末尾側の index
-             *   横組み → Y方向に伸びる → tail = bottom(3)
-             *   縦組み → X方向(左方向)に伸びる → tail = left(0)
-             */
-            var direction, indexTail;
-            if (isHorizontal) {
-                direction = 1; /* y */
-                indexTail = 3; /* bottom */
-            } else {
-                direction = 0; /* x */
-                indexTail = 0; /* left */
-            }
-
-            /* 末尾改行を事前に除去 */
-            trimTrailingBreaks(srcFrame);
-            if (/^\s*$/.test(srcFrame.contents)) {
-                try { srcFrame.remove(); } catch (_) { }
-                continue;
-            }
-
-            var rows = srcFrame.paragraphs;
-            if (rows.length <= 1) {
-                resultFrames.push(srcFrame);
-                continue;
-            }
-
-            var splitResults = [];
-
-            /* 後ろの段落から順に処理（参考スクリプトと同じ方式） */
-            for (var i = rows.length - 1; i >= 1; i--) {
-                var currentRow = rows[i];
-                var currentText = currentRow.contents;
-
-                /* 空行またはホワイトスペースのみの行は消して次へ */
-                if (/^\s*$/.test(currentText)) {
-                    currentRow.remove();
-                    continue;
-                }
-
-                /*
-                 * 分割前に元フレームの tail 座標を記録
-                 * この値が「この段落より下（左）にあるべき位置」の基準になる
-                 */
-                var oldTail = srcFrame.geometricBounds[indexTail];
-
-                /* 新フレームを生成し、TextRange.duplicate で書式ごとコピー */
-                var newFrame = srcFrame.duplicate(srcFrame, ElementPlacement.PLACEAFTER);
-                newFrame.contents = "";
-                currentRow.duplicate(newFrame, ElementPlacement.INSIDE);
-
-                /* 新フレームの末尾改行を除去 */
-                trimTrailingBreaks(newFrame);
-
-                /*
-                 * 位置補正: 新フレームの tail が、元フレームの旧 tail に揃うように移動
-                 * これにより各段落が元の位置に正確に配置される
-                 */
-                var newTail = newFrame.geometricBounds[indexTail];
-                var delta = [0, 0];
-                delta[direction] = oldTail - newTail;
-                newFrame.translate(delta[0], delta[1]);
-
-                splitResults.unshift(newFrame);
-
-                /* 元フレームからこの段落を削除 */
-                currentRow.remove();
-
-                /* 元フレームの末尾改行を除去し、除去した行数分 index を飛ばす */
-                i -= trimTrailingBreaks(srcFrame);
-            }
-
-            /* 元フレーム（先頭段落が残っている）を先頭に移動 */
-            try {
-                if (srcFrame && !/^\s*$/.test(srcFrame.contents)) {
-                    srcFrame.move(splitResults[0], ElementPlacement.PLACEBEFORE);
-                    splitResults.unshift(srcFrame);
-                }
-            } catch (_) { }
-
-            for (var r = 0; r < splitResults.length; r++) {
-                resultFrames.push(splitResults[r]);
-            }
+            var splitFrames = splitFrameKeepStyle(sourceFrame);
+            for (var j = 0; j < splitFrames.length; j++) resultFrames.push(splitFrames[j]);
         }
 
         return groupTextFrames(resultFrames, app.activeDocument.activeLayer);
@@ -1336,497 +1278,457 @@ function toTitleCase(text) {
         return groupTextFrames(resultFrames, app.activeDocument.activeLayer);
     }
 
-    /* try 付き代入（属性設定が失敗しても続行）*/
-    function safeSet(obj, prop, val) { try { obj[prop] = val; } catch (e) { } }
-
-    /* src の属性を dst へコピー（読み書きとも try で保護）*/
-    function copyAttr(dst, src, prop) { try { dst[prop] = src[prop]; } catch (e) { } }
-
-    /* characterAttributes を初期化（フォント・サイズは保持、色は黒・各種は既定へ）*/
-    function applyResetStyle(ca, keepFont, keepSize, black) {
-        if (keepFont) safeSet(ca, "textFont", keepFont);
-        if (keepSize != null) safeSet(ca, "size", keepSize);
-        safeSet(ca, "fillColor", black);
-        safeSet(ca, "baselineShift", 0);
-        safeSet(ca, "horizontalScale", 100);
-        safeSet(ca, "verticalScale", 100);
-        safeSet(ca, "rotation", 0);
-        safeSet(ca, "tracking", 0);
-        safeSet(ca, "kerningMethod", KerningMethod.METRICS);
-        safeSet(ca, "autoLeading", true);
-    }
-
-    /* 書式リセット（先頭文字のフォント情報のみ保持） */
-    function stripStyleKeepFirstFont(textFrame) {
-        if (!textFrame || textFrame.typename !== "TextFrame") return;
-        var tr, chars;
-        try {
-            tr = textFrame.textRange;
-            chars = tr.characters;
-        } catch (_) { return; }
-        if (!chars || chars.length < 1) return;
-
-        var firstCA;
-        try { firstCA = chars[0].characterAttributes; } catch (_) { return; }
-        var keepFont = null, keepSize = null;
-        try { keepFont = firstCA.textFont; } catch (_) { }
-        try { keepSize = firstCA.size; } catch (_) { }
-
-        var black = new GrayColor(); black.gray = 100;
-
-        var ca;
-        try { ca = tr.characterAttributes; } catch (_) { return; }
-        applyResetStyle(ca, keepFont, keepSize, black);
-
-        for (var i = 0; i < chars.length; i++) {
-            var c2;
-            try { c2 = chars[i].characterAttributes; } catch (_) { continue; }
-            applyResetStyle(c2, keepFont, keepSize, black);
+    /* 配列内のアイテムをまとめて削除（失敗は無視）*/
+    function removeItems(items) {
+        for (var i = 0; i < items.length; i++) {
+            try { if (items[i]) items[i].remove(); } catch (e) { }
         }
     }
 
-    /* 高精度分割（アウトラインのバウンディングボックスを使用） */
+    /* 属性へ try 付きで代入（設定が失敗しても続行）*/
+    function safeSet(target, propertyName, value) { try { target[propertyName] = value; } catch (e) { } }
+
+    /* srcAttrs の1属性を dstAttrs へコピー（読み書きとも try で保護）*/
+    function copyAttr(dstAttrs, srcAttrs, propertyName) { try { dstAttrs[propertyName] = srcAttrs[propertyName]; } catch (e) { } }
+
+    /* characterAttributes を初期化（フォント・サイズは保持、色は黒・各種は既定へ）*/
+    function applyResetStyle(charAttrs, keepFont, keepSize, blackColor) {
+        if (keepFont) safeSet(charAttrs, "textFont", keepFont);
+        if (keepSize != null) safeSet(charAttrs, "size", keepSize);
+        safeSet(charAttrs, "fillColor", blackColor);
+        safeSet(charAttrs, "baselineShift", 0);
+        safeSet(charAttrs, "horizontalScale", 100);
+        safeSet(charAttrs, "verticalScale", 100);
+        safeSet(charAttrs, "rotation", 0);
+        safeSet(charAttrs, "tracking", 0);
+        safeSet(charAttrs, "kerningMethod", KerningMethod.METRICS);
+        safeSet(charAttrs, "autoLeading", true);
+    }
+
+    /* 書式リセット（先頭文字のフォント情報のみ保持）*/
+    function stripStyleKeepFirstFont(textFrame) {
+        if (!textFrame || textFrame.typename !== "TextFrame") return;
+
+        var textRange, chars, keepFont = null, keepSize = null;
+        try {
+            textRange = textFrame.textRange;
+            chars = textRange.characters;
+            if (!chars || chars.length < 1) return;
+            keepFont = chars[0].characterAttributes.textFont;
+            keepSize = chars[0].characterAttributes.size;
+        } catch (e) { debugLog("stripStyleKeepFirstFont: read attributes", e); }
+        if (!chars || chars.length < 1) return;
+
+        var blackColor = new GrayColor();
+        blackColor.gray = 100;
+
+        try { applyResetStyle(textRange.characterAttributes, keepFont, keepSize, blackColor); } catch (e) { return; }
+        for (var i = 0; i < chars.length; i++) {
+            try { applyResetStyle(chars[i].characterAttributes, keepFont, keepSize, blackColor); } catch (e) { }
+        }
+    }
+
+    /* 分割対象にならない文字（改行・タブ・スペース）か */
+    function isNonSplittableChar(content) {
+        return content === "" || content === " " || content === "　" ||
+            isAnyBreak(content) || isTabChar(content);
+    }
+
+    /* 高精度分割（アウトライン化したグリフのバウンディングボックスに合わせて1文字ずつ配置）*/
     function splitCharHighPrecision(textFrame, keepStyle) {
         if (!textFrame || textFrame.typename !== "TextFrame") return [];
 
-        var tr, chars, n;
+        var chars, charCount;
         try {
-            tr = textFrame.textRange;
-            chars = tr.characters;
-            n = chars.length;
-        } catch (_) { return []; }
-        if (!n || n <= 0) return [];
+            chars = textFrame.textRange.characters;
+            charCount = chars.length;
+        } catch (e) { debugLog("splitCharHighPrecision: read characters", e); return []; }
+        if (!charCount) return [];
 
         var outlineInfo = null;
-        try { outlineInfo = buildOutlineCharBounds(textFrame); } catch (_) { outlineInfo = null; }
+        try { outlineInfo = buildOutlineCharBounds(textFrame); } catch (e) { debugLog("splitCharHighPrecision: outline bounds", e); }
+        if (!outlineInfo || !outlineInfo.ok) return splitCharFallback(textFrame, keepStyle);
 
-        if (outlineInfo && outlineInfo.ok && outlineInfo.boundsList && outlineInfo.boundsList.length > 0) {
-            var boundsList = outlineInfo.boundsList;
-            var layer = textFrame.layer;
-            var made = [];
-            var boundsIndex = 0;
+        var boundsList = outlineInfo.boundsList;
+        var targetLayer = textFrame.layer;
+        var madeFrames = [];
+        var boundsIndex = 0;
 
-            for (var ci = 0; ci < n; ci++) {
-                var ch, content;
-                try { ch = chars[ci]; content = ch.contents; } catch (_) { continue; }
-                if (content === "") continue;
-
-                var code = content.charCodeAt(0);
-                if (code === 13 || code === 10 || code === 9 || content === " " || content === "\u3000") continue;
-
-                if (boundsIndex >= boundsList.length) {
-                    for (var x = 0; x < made.length; x++) { try { made[x].remove(); } catch (_) { } }
-                    try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
-                    return splitCharFallback(textFrame, keepStyle);
-                }
-
-                var newFrame;
-                try {
-                    newFrame = layer.textFrames.add();
-                    newFrame.contents = content;
-                } catch (_) {
-                    for (var x2 = 0; x2 < made.length; x2++) { try { made[x2].remove(); } catch (_) { } }
-                    try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
-                    return splitCharFallback(textFrame, keepStyle);
-                }
-
-                if (keepStyle) {
-                    try { copyCharAttrs(newFrame, ch); } catch (e) { debugLog("splitCharHighPrecision: copyCharAttrs", e); }
-                }
-                try { newFrame.matrix = textFrame.matrix; } catch (e) { debugLog("splitCharHighPrecision: matrix", e); }
-                try { newFrame.left = textFrame.left; newFrame.top = textFrame.top; } catch (e) { debugLog("splitCharHighPrecision: initial position", e); }
-
-                try {
-                    moveFrameToMatchBounds(newFrame, boundsList[boundsIndex]);
-                } catch (_) {
-                    try { newFrame.remove(); } catch (_) { }
-                    for (var x3 = 0; x3 < made.length; x3++) { try { made[x3].remove(); } catch (_) { } }
-                    try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
-                    return splitCharFallback(textFrame, keepStyle);
-                }
-
-                made.push(newFrame);
-                boundsIndex++;
-            }
-
-            try { if (outlineInfo.outlinedRoot) outlineInfo.outlinedRoot.remove(); } catch (_) { }
-            try { textFrame.remove(); } catch (_) { }
-            return made;
+        /* 途中で失敗したら作りかけを片付けてフォールバックへ回す */
+        function giveUpToFallback() {
+            removeItems(madeFrames);
+            removeItems([outlineInfo.outlinedRoot]);
+            return splitCharFallback(textFrame, keepStyle);
         }
 
-        return splitCharFallback(textFrame, keepStyle);
+        for (var i = 0; i < charCount; i++) {
+            var charItem, content;
+            try { charItem = chars[i]; content = charItem.contents; } catch (e) { continue; }
+            if (isNonSplittableChar(content)) continue;
+            if (boundsIndex >= boundsList.length) return giveUpToFallback();
+
+            var newFrame = null;
+            try {
+                newFrame = targetLayer.textFrames.add();
+                newFrame.contents = content;
+            } catch (e) { debugLog("splitCharHighPrecision: add frame", e); return giveUpToFallback(); }
+
+            /* 書式と変形の引き継ぎは失敗しても続行する */
+            try {
+                if (keepStyle) copyCharacterAttributes(newFrame, charItem);
+                newFrame.matrix = textFrame.matrix;
+                newFrame.left = textFrame.left;
+                newFrame.top = textFrame.top;
+            } catch (e) { debugLog("splitCharHighPrecision: copy style", e); }
+
+            try {
+                moveFrameToMatchBounds(newFrame, boundsList[boundsIndex]);
+            } catch (e) {
+                debugLog("splitCharHighPrecision: match bounds", e);
+                removeItems([newFrame]);
+                return giveUpToFallback();
+            }
+
+            madeFrames.push(newFrame);
+            boundsIndex++;
+        }
+
+        removeItems([outlineInfo.outlinedRoot, textFrame]);
+        return madeFrames;
     }
 
-    /* アウトラインのバウンディングボックス情報を構築 */
+    /* テキストフレームをアウトライン化し、グリフごとの geometricBounds を読み順で返す */
     function buildOutlineCharBounds(textFrame) {
-        var dup = null;
-        try { dup = textFrame.duplicate(textFrame.parent, ElementPlacement.PLACEATBEGINNING); } catch (_) {
-            try { dup = textFrame.duplicate(textFrame.layer, ElementPlacement.PLACEATBEGINNING); } catch (_) { return { ok: false }; }
+        var duplicatedFrame = null;
+        try { duplicatedFrame = textFrame.duplicate(textFrame.parent, ElementPlacement.PLACEATBEGINNING); } catch (e) {
+            try { duplicatedFrame = textFrame.duplicate(textFrame.layer, ElementPlacement.PLACEATBEGINNING); } catch (err) { return { ok: false }; }
         }
 
-        var outlined = null;
-        try { outlined = dup.createOutline(); } catch (_) {
-            try { dup.remove(); } catch (_) { }
-            return { ok: false };
-        }
-        try { dup.remove(); } catch (_) { }
-        if (!outlined) return { ok: false };
+        var outlinedGroup = null;
+        try { outlinedGroup = duplicatedFrame.createOutline(); } catch (e) { debugLog("buildOutlineCharBounds: createOutline", e); }
+        removeItems([duplicatedFrame]);
+        if (!outlinedGroup) return { ok: false };
 
-        var items = [];
+        /* アウトライン結果が単一グループなら、その中身をグリフとして扱う */
+        var glyphItems = [];
         try {
-            var pageItemsColl = outlined.pageItems;
-            var directItems = [];
-            for (var i = 0; i < pageItemsColl.length; i++) directItems.push(pageItemsColl[i]);
-            if (directItems.length === 1 && directItems[0] && directItems[0].typename === "GroupItem") {
-                var inner = directItems[0].pageItems;
-                for (var j = 0; j < inner.length; j++) items.push(inner[j]);
-            } else {
-                for (var k = 0; k < directItems.length; k++) items.push(directItems[k]);
-            }
-        } catch (_) { }
+            var topLevelItems = outlinedGroup.pageItems;
+            var innerItems = (topLevelItems.length === 1 && topLevelItems[0].typename === "GroupItem")
+                ? topLevelItems[0].pageItems : topLevelItems;
+            for (var i = 0; i < innerItems.length; i++) glyphItems.push(innerItems[i]);
+        } catch (e) { debugLog("buildOutlineCharBounds: collect glyphs", e); }
 
-        try { sortOutlineItems(items, textFrame); } catch (_) { }
-
-        if (items.length === 0) {
-            try { outlined.remove(); } catch (_) { }
+        sortOutlineItems(glyphItems);
+        if (glyphItems.length === 0) {
+            removeItems([outlinedGroup]);
             return { ok: false };
         }
 
         var boundsList = [];
-        for (var m = 0; m < items.length; m++) {
-            try { boundsList.push(items[m].geometricBounds); } catch (_) { }
+        for (var j = 0; j < glyphItems.length; j++) {
+            try { boundsList.push(glyphItems[j].geometricBounds); } catch (e) { }
         }
-
-        return { ok: boundsList.length > 0, outlinedRoot: outlined, boundsList: boundsList };
+        return { ok: boundsList.length > 0, outlinedRoot: outlinedGroup, boundsList: boundsList };
     }
 
-    /* アウトライン項目を読み順にソート */
+    /* アウトライン項目を読み順（上の行から、行内は左から）に並べ替える。items は破壊的に更新する */
     function sortOutlineItems(items) {
         if (!items || items.length <= 1) return;
 
         var glyphRecords = [];
         for (var i = 0; i < items.length; i++) {
             var bounds;
-            try { bounds = items[i].geometricBounds; } catch (_) { continue; }
+            try { bounds = items[i].geometricBounds; } catch (e) { continue; }
             if (!bounds || bounds.length !== 4) continue;
-            var L = bounds[0], T = bounds[1], R = bounds[2], B = bounds[3];
-            glyphRecords.push({ it: items[i], L: L, T: T, cx: (L + R) / 2, cy: (T + B) / 2, h: Math.abs(T - B), idx: i });
+            glyphRecords.push({
+                item: items[i],
+                left: bounds[0],
+                centerY: (bounds[1] + bounds[3]) / 2,
+                height: Math.abs(bounds[1] - bounds[3]),
+                order: i
+            });
         }
         if (glyphRecords.length <= 1) return;
 
         var rowThreshold = estimateCharRowThreshold(glyphRecords);
 
-        glyphRecords.sort(function (p, q) {
-            var dy = q.cy - p.cy;
+        glyphRecords.sort(function (a, b) {
+            var dy = b.centerY - a.centerY;
             if (Math.abs(dy) > 0.001) return (dy < 0) ? -1 : 1;
-            var dL = p.L - q.L;
-            if (Math.abs(dL) > 0.001) return (dL < 0) ? -1 : 1;
-            return p.idx - q.idx;
+            var dx = a.left - b.left;
+            if (Math.abs(dx) > 0.001) return (dx < 0) ? -1 : 1;
+            return a.order - b.order;
         });
 
+        /* Y中心が近いものを同じ行にまとめ、行の代表Yは平均で更新する */
         var rows = [];
-        for (var a = 0; a < glyphRecords.length; a++) {
-            var cur = glyphRecords[a];
+        for (var j = 0; j < glyphRecords.length; j++) {
+            var record = glyphRecords[j];
             var placed = false;
-            for (var r = 0; r < rows.length; r++) {
-                if (Math.abs(cur.cy - rows[r].cy) <= rowThreshold) {
-                    rows[r].items.push(cur);
-                    rows[r].cy = (rows[r].cy * (rows[r].items.length - 1) + cur.cy) / rows[r].items.length;
-                    placed = true;
-                    break;
-                }
+            for (var k = 0; k < rows.length; k++) {
+                if (Math.abs(record.centerY - rows[k].centerY) > rowThreshold) continue;
+                rows[k].items.push(record);
+                rows[k].centerY = (rows[k].centerY * (rows[k].items.length - 1) + record.centerY) / rows[k].items.length;
+                placed = true;
+                break;
             }
-            if (!placed) rows.push({ cy: cur.cy, items: [cur] });
+            if (!placed) rows.push({ centerY: record.centerY, items: [record] });
         }
 
-        rows.sort(function (p, q) { return (q.cy - p.cy < 0) ? -1 : (q.cy - p.cy > 0) ? 1 : 0; });
+        rows.sort(function (a, b) { return b.centerY - a.centerY; });
 
-        var out = [];
-        for (var ri = 0; ri < rows.length; ri++) {
-            rows[ri].items.sort(function (p, q) {
-                var dL2 = p.L - q.L;
-                if (Math.abs(dL2) > 0.5) return (dL2 < 0) ? -1 : 1;
-                return p.idx - q.idx;
+        var sortedItems = [];
+        for (var rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+            rows[rowIndex].items.sort(function (a, b) {
+                var dx = a.left - b.left;
+                if (Math.abs(dx) > 0.5) return (dx < 0) ? -1 : 1;
+                return a.order - b.order;
             });
-            for (var j = 0; j < rows[ri].items.length; j++) out.push(rows[ri].items[j].it);
+            for (var glyphIndex = 0; glyphIndex < rows[rowIndex].items.length; glyphIndex++) {
+                sortedItems.push(rows[rowIndex].items[glyphIndex].item);
+            }
         }
-        /* バウンディング取得に失敗した要素は out に含まれないため、
+
+        /* バウンディング取得に失敗した要素は sortedItems に含まれないため、
            上書きではなく作り直して末尾に古い要素（重複）が残らないようにする */
         items.length = 0;
-        for (var k = 0; k < out.length; k++) items.push(out[k]);
+        for (var m = 0; m < sortedItems.length; m++) items.push(sortedItems[m]);
     }
 
-    function estimateCharRowThreshold(arr) {
-        var hs = [];
-        for (var i = 0; i < arr.length; i++) {
-            if (arr[i].h > 0) hs.push(arr[i].h);
+    /* 行判定のしきい値をグリフ高さの中央値から推定する */
+    function estimateCharRowThreshold(glyphRecords) {
+        var heights = [];
+        for (var i = 0; i < glyphRecords.length; i++) {
+            if (glyphRecords[i].height > 0) heights.push(glyphRecords[i].height);
         }
-        if (hs.length === 0) return 8;
-        hs.sort(function (a, b) { return a - b; });
-        var mid = hs[Math.floor(hs.length / 2)];
-        if (!mid || mid <= 0) mid = hs[0];
-        var rowThreshold = mid * 0.6;
-        return rowThreshold < 2 ? 2 : rowThreshold;
+        if (heights.length === 0) return 8;
+
+        heights.sort(function (a, b) { return a - b; });
+        var medianHeight = heights[Math.floor(heights.length / 2)] || heights[0];
+        var rowThreshold = medianHeight * 0.6;
+        return (rowThreshold < 2) ? 2 : rowThreshold;
     }
 
-    /* 文字属性をコピー */
-    function copyCharAttrs(dstFrame, srcChar) {
-        var src;
-        try { src = srcChar.characterAttributes; } catch (_) { return; }
-        var dst;
-        try { dst = dstFrame.textRange.characterAttributes; } catch (_) { return; }
-        copyAttr(dst, src, "textFont");
-        copyAttr(dst, src, "size");
-        copyAttr(dst, src, "horizontalScale");
-        copyAttr(dst, src, "verticalScale");
-        copyAttr(dst, src, "tracking");
-        copyAttr(dst, src, "baselineShift");
-        copyAttr(dst, src, "rotation");
-        try { if (src.fillColor && src.fillColor.typename !== "NoColor") dst.fillColor = src.fillColor; } catch (e) { }
-        try { if (src.strokeColor && src.strokeColor.typename !== "NoColor") { dst.strokeColor = src.strokeColor; dst.strokeWeight = src.strokeWeight; } } catch (e) { }
-        copyAttr(dst, src, "autoLeading");
-        try { if (!src.autoLeading) dst.leading = src.leading; } catch (e) { }
-        copyAttr(dst, src, "kerningMethod");
+    /* 1文字分の文字属性を新しいフレームへコピーする */
+    function copyCharacterAttributes(dstFrame, srcChar) {
+        var srcAttrs, dstAttrs;
+        try {
+            srcAttrs = srcChar.characterAttributes;
+            dstAttrs = dstFrame.textRange.characterAttributes;
+        } catch (e) { debugLog("copyCharacterAttributes: read attributes", e); return; }
+
+        var copiedProps = ["textFont", "size", "horizontalScale", "verticalScale",
+            "tracking", "baselineShift", "rotation", "autoLeading", "kerningMethod"];
+        for (var i = 0; i < copiedProps.length; i++) copyAttr(dstAttrs, srcAttrs, copiedProps[i]);
+
+        /* 色と行送りは「無色」「自動」のときにコピーしない */
+        try { if (srcAttrs.fillColor && srcAttrs.fillColor.typename !== "NoColor") dstAttrs.fillColor = srcAttrs.fillColor; } catch (e) { }
+        try {
+            if (srcAttrs.strokeColor && srcAttrs.strokeColor.typename !== "NoColor") {
+                dstAttrs.strokeColor = srcAttrs.strokeColor;
+                dstAttrs.strokeWeight = srcAttrs.strokeWeight;
+            }
+        } catch (e) { }
+        try { if (!srcAttrs.autoLeading) dstAttrs.leading = srcAttrs.leading; } catch (e) { }
     }
 
-    /* アウトラインのバウンディングボックスに合わせて移動 */
+    /* アウトライン化して求めた実寸バウンディングボックスの中心へフレームを移動する */
     function moveFrameToMatchBounds(newFrame, targetBounds) {
         if (!newFrame || !targetBounds || targetBounds.length !== 4) return;
 
-        var dup;
-        try { dup = newFrame.duplicate(newFrame.parent, ElementPlacement.PLACEATBEGINNING); } catch (_) {
-            try { dup = newFrame.duplicate(newFrame.layer, ElementPlacement.PLACEATBEGINNING); } catch (_) { return; }
+        var duplicatedFrame = null;
+        try { duplicatedFrame = newFrame.duplicate(newFrame.parent, ElementPlacement.PLACEATBEGINNING); } catch (e) {
+            try { duplicatedFrame = newFrame.duplicate(newFrame.layer, ElementPlacement.PLACEATBEGINNING); } catch (err) { return; }
         }
 
-        var outlined;
-        try { outlined = dup.createOutline(); } catch (_) {
-            try { dup.remove(); } catch (_) { }
-            return;
-        }
-        try { dup.remove(); } catch (_) { }
-        if (!outlined) return;
+        var outlinedGroup = null;
+        try { outlinedGroup = duplicatedFrame.createOutline(); } catch (e) { debugLog("moveFrameToMatchBounds: createOutline", e); }
+        removeItems([duplicatedFrame]);
+        if (!outlinedGroup) return;
 
-        var bNow;
-        try { bNow = outlined.geometricBounds; } catch (_) { bNow = null; }
-        try { outlined.remove(); } catch (_) { }
-        if (!bNow || bNow.length !== 4) return;
+        var currentBounds = null;
+        try { currentBounds = outlinedGroup.geometricBounds; } catch (e) { }
+        removeItems([outlinedGroup]);
+        if (!currentBounds || currentBounds.length !== 4) return;
 
-        var dx = (targetBounds[0] + targetBounds[2]) / 2 - (bNow[0] + bNow[2]) / 2;
-        var dy = (targetBounds[1] + targetBounds[3]) / 2 - (bNow[1] + bNow[3]) / 2;
+        var dx = (targetBounds[0] + targetBounds[2]) / 2 - (currentBounds[0] + currentBounds[2]) / 2;
+        var dy = (targetBounds[1] + targetBounds[3]) / 2 - (currentBounds[1] + currentBounds[3]) / 2;
 
-        try { newFrame.left += dx; newFrame.top += dy; } catch (_) {
-            try { newFrame.translate(dx, dy); } catch (_) { }
+        try { newFrame.left += dx; newFrame.top += dy; } catch (e) {
+            try { newFrame.translate(dx, dy); } catch (err) { }
         }
     }
 
-    /* フォールバック処理（文字幅の積算で位置を再構成） */
+    /* 1文字分の幅を実測してX方向のオフセットを求める（フォールバック用）*/
+    function measureCharOffsetX(textFrame, targetLayer, endIndex) {
+        var offsetX = 0;
+        for (var i = 0; i < endIndex; i++) {
+            var prevChar = textFrame.textRange.characters[i];
+            if (isNonSplittableChar(prevChar.contents)) continue;
+
+            var measureFrame = targetLayer.textFrames.add();
+            measureFrame.contents = prevChar.contents;
+            try {
+                var measureAttrs = measureFrame.textRange.characterAttributes;
+                var srcAttrs = prevChar.characterAttributes;
+                measureAttrs.textFont = srcAttrs.textFont;
+                measureAttrs.size = srcAttrs.size;
+                measureAttrs.horizontalScale = srcAttrs.horizontalScale;
+                measureAttrs.verticalScale = srcAttrs.verticalScale;
+                measureAttrs.tracking = srcAttrs.tracking;
+            } catch (e) { debugLog("measureCharOffsetX: copy attributes", e); }
+            offsetX += measureFrame.width;
+            measureFrame.remove();
+        }
+        return offsetX;
+    }
+
+    /* フォールバック処理（アウトラインを使わず、文字幅の積算で位置を再構成）*/
     function splitCharFallback(textFrame, keepStyle) {
         if (!textFrame || textFrame.typename !== "TextFrame") return [];
 
-        var textLength;
-        try { textLength = textFrame.textRange.characters.length; } catch (_) { return []; }
-        if (!textLength) return [];
+        var charCount, targetLayer;
+        try {
+            charCount = textFrame.textRange.characters.length;
+            targetLayer = textFrame.layer;
+        } catch (e) { debugLog("splitCharFallback: read frame", e); return []; }
+        if (!charCount) return [];
 
-        var layer;
-        try { layer = textFrame.layer; } catch (_) { return []; }
+        /* 回転しているフレームでも並びが崩れないよう、回転角に沿ってオフセットを掛ける */
+        var angleRad = 0;
+        try {
+            var matrix = textFrame.matrix;
+            angleRad = Math.atan2(matrix.mValueB, matrix.mValueA);
+        } catch (e) { debugLog("splitCharFallback: matrix", e); }
 
-        var made = [];
-        for (var i = textLength - 1; i >= 0; i--) {
+        var madeFrames = [];
+        for (var i = charCount - 1; i >= 0; i--) {
             try {
-                var character = textFrame.textRange.characters[i];
-                var charContent = character.contents;
-                var code = charContent.charCodeAt(0);
-                if (isAnyBreak(code) || isTabChar(code) || charContent === " " || charContent === "\u3000") continue;
+                var charItem = textFrame.textRange.characters[i];
+                var content = charItem.contents;
+                if (isNonSplittableChar(content)) continue;
 
-                var newFrame = layer.textFrames.add();
-                newFrame.contents = charContent;
-
-                if (keepStyle) {
-                    copyCharAttrs(newFrame, character);
-                }
-
+                var newFrame = targetLayer.textFrames.add();
+                newFrame.contents = content;
+                if (keepStyle) copyCharacterAttributes(newFrame, charItem);
                 newFrame.top = textFrame.top;
                 newFrame.left = textFrame.left;
                 try { newFrame.matrix = textFrame.matrix; } catch (e) { debugLog("splitCharFallback: matrix", e); }
 
-                var offsetX = 0;
-                for (var j = 0; j < i; j++) {
-                    var prevChar = textFrame.textRange.characters[j];
-                    var pc = prevChar.contents;
-                    var pcode = pc.charCodeAt(0);
-                    if (isAnyBreak(pcode) || isTabChar(pcode) || pc === " " || pc === "\u3000") continue;
+                var offsetX = measureCharOffsetX(textFrame, targetLayer, i);
+                newFrame.left = textFrame.left + offsetX * Math.cos(angleRad);
+                newFrame.top = textFrame.top - offsetX * Math.sin(angleRad);
 
-                    var tempFrame = layer.textFrames.add();
-                    tempFrame.contents = pc;
-                    try {
-                        var tca = tempFrame.textRange.characterAttributes;
-                        var sca = prevChar.characterAttributes;
-                        tca.textFont = sca.textFont;
-                        tca.size = sca.size;
-                        tca.horizontalScale = sca.horizontalScale;
-                        tca.verticalScale = sca.verticalScale;
-                        tca.tracking = sca.tracking;
-                    } catch (e) { debugLog("splitCharFallback: tempFrame attrs", e); }
-                    offsetX += tempFrame.width;
-                    tempFrame.remove();
-                }
-
-                var angle = 0;
-                try {
-                    var mx = textFrame.matrix;
-                    angle = Math.atan2(mx.mValueB, mx.mValueA) * 180 / Math.PI;
-                } catch (e) { debugLog("splitCharFallback: matrix", e); }
-                var rad = angle * Math.PI / 180;
-                newFrame.left = textFrame.left + offsetX * Math.cos(rad);
-                newFrame.top = textFrame.top - offsetX * Math.sin(rad);
-
-                made.push(newFrame);
+                madeFrames.push(newFrame);
             } catch (e) { debugLog("splitCharFallback: main loop", e); }
         }
 
-        try { textFrame.remove(); } catch (_) { }
-        return made;
+        removeItems([textFrame]);
+        return madeFrames;
     }
 
-    /*
-     * 縦連結
+    /* =========================================
+     * 連結（縦・横）
      *
-     * 仕様：
-     * - 選択されたテキストフレームを上から下、同じ高さでは左から右の順に処理します。
-     * - 各フレーム内の複数行は、改行単位で分解し、元フレームの行送りを使って仮のY位置を再構成します。
-     * - 連結順は仮配置後に再ソートして決定します。
-     * - 出力は最上段要素をベースにし、各行を `\r` で連結した単一テキストへ再構成します。
-     * - 複雑な段落属性や行ごとの差分書式は厳密には保持しません。
-     */
+     * いずれも見た目ベースの近似連結で、複雑な書式差・回転・厳密な段落属性までは保持しない。
+     * - 縦連結：上から下、同じ高さでは左から右の順に、各行を \r でつないだ1つのテキストへ再構成
+     * - 横連結（行維持）：同じ行のテキストを左から右へ連結し、行は別フレームのまま残す
+     * - 横連結（行統合）：行ごとに連結したうえで、行間ルール（英文ハイフン除去／語間スペース／
+     *   句点でのみ改行）に従って1つのテキストへまとめる
+     * ========================================= */
 
-    /* 横連結（行維持）
-     * 同じ行のテキストを左から右へ連結し、行ごとに別テキストフレームとして残します。 */
-
-
-    function concatHorizontalOnly(objects) {
+    /* Y位置でフレームを行ごとにグループ化する（同じ行と見なすY座標差は5pt）*/
+    function groupFramesIntoRows(frames) {
         var LINE_Y_THRESHOLD = 5;
-        var textItems = getTextFrames(objects);
-        if (textItems.length < 2) return textItems;
+        return groupByLineY(sortByY(frames), LINE_Y_THRESHOLD);
+    }
 
-        var textLines = groupByLineY(sortByY(textItems), LINE_Y_THRESHOLD);
+    /* 行内のフレームをX順に連結した文字列と、その並びを返す */
+    function concatRowText(rowFrames) {
+        var sortedFrames = sortByX(rowFrames);
+        var rowText = "";
+        for (var i = 0; i < sortedFrames.length; i++) rowText += stripTrailingBreaks(sortedFrames[i].contents);
+        return { sorted: sortedFrames, text: rowText };
+    }
+
+    /* 横連結（行維持）：同じ行を左から右へ連結し、行ごとに別テキストフレームとして残す */
+    function concatHorizontalOnly(objects) {
+        var textFrames = getTextFrames(objects);
+        if (textFrames.length < 2) return textFrames;
+
+        var rows = groupFramesIntoRows(textFrames);
         var resultFrames = [];
 
-        for (var i = 0; i < textLines.length; i++) {
-            var row = sortByX(textLines[i]);
-            if (row.length === 1) {
-                resultFrames.push(row[0]);
+        for (var i = 0; i < rows.length; i++) {
+            /* 1つしかない行はそのまま残す（内容に触れない）*/
+            if (rows[i].length === 1) {
+                resultFrames.push(rows[i][0]);
                 continue;
             }
 
-            var mergedText = "";
-            for (var j = 0; j < row.length; j++) {
-                mergedText += stripTrailingBreaks(row[j].contents);
-            }
-
-            row[0].contents = mergedText;
-            resultFrames.push(row[0]);
-
-            for (var k = 1; k < row.length; k++) {
-                try { row[k].remove(); } catch (_) { }
-            }
+            var row = concatRowText(rows[i]);
+            row.sorted[0].contents = row.text;
+            resultFrames.push(row.sorted[0]);
+            removeItems(row.sorted.slice(1));
         }
 
         return groupTextFrames(resultFrames, app.activeDocument.activeLayer);
     }
 
+    /* 縦連結：各フレームを行単位へ分解し、位置順に並べ直して1つのテキストへ再構成する */
     function concatVertical(objects) {
-        var textFrames = getTextFrames(objects);
-        if (textFrames.length < 2) return textFrames;
+        var sourceFrames = getTextFrames(objects);
+        if (sourceFrames.length < 2) return sourceFrames;
 
-        textFrames = sortByPosition(textFrames);
+        sourceFrames = sortByPosition(sourceFrames);
 
-        /* 各テキストフレームを行単位に分解して再ソート */
-        var splitFrames = [];
-        for (var i = 0; i < textFrames.length; i++) {
-            var sourceFrame = textFrames[i];
+        /* 各テキストフレームを行単位に分解し、元の行送りで仮のY位置を与える */
+        var lineFrames = [];
+        for (var i = 0; i < sourceFrames.length; i++) {
+            var sourceFrame = sourceFrames[i];
             var lines = splitParagraphLines(sourceFrame.contents);
-            var basePos = sourceFrame.position;
-            var baseX = basePos[0];
-            var baseY = basePos[1];
-            var baseSize = sourceFrame.textRange.characterAttributes.size;
-            var baseLeading = sourceFrame.textRange.characterAttributes.leading;
-            if (!baseLeading || baseLeading === 0) {
-                baseLeading = baseSize * 1.2;
-            }
+            var baseX = sourceFrame.position[0];
+            var baseY = sourceFrame.position[1];
+            var baseAttrs = sourceFrame.textRange.characterAttributes;
+            var baseLeading = baseAttrs.leading || (baseAttrs.size * 1.2);
 
             for (var j = 0; j < lines.length; j++) {
                 var lineText = stripTrailingBreaks(lines[j]);
-                if (lineText !== "") {
-                    var lineFrame = sourceFrame.duplicate();
-                    lineFrame.contents = lineText;
-                    lineFrame.position = [baseX, baseY - (j * baseLeading)];
-                    splitFrames.push(lineFrame);
-                }
+                if (lineText === "") continue;
+
+                var lineFrame = sourceFrame.duplicate();
+                lineFrame.contents = lineText;
+                lineFrame.position = [baseX, baseY - (j * baseLeading)];
+                lineFrames.push(lineFrame);
             }
         }
+        if (lineFrames.length === 0) return [];
 
-        if (splitFrames.length === 0) return [];
+        /* 仮配置後に位置で並べ直して連結順を決める */
+        lineFrames = sortByPosition(lineFrames);
 
-        splitFrames = sortByPosition(splitFrames);
-
-        /* 最上段のフレームをベースに文字列で再構成 */
         var mergedLines = [];
-        for (var k = 0; k < splitFrames.length; k++) {
-            var mergedLineText = stripTrailingBreaks(splitFrames[k].contents);
-            if (mergedLineText !== "") {
-                mergedLines.push(mergedLineText);
-            }
+        for (var k = 0; k < lineFrames.length; k++) {
+            var mergedLineText = stripTrailingBreaks(lineFrames[k].contents);
+            if (mergedLineText !== "") mergedLines.push(mergedLineText);
         }
-
         if (mergedLines.length === 0) {
-            for (var m = 0; m < splitFrames.length; m++) {
-                splitFrames[m].remove();
-            }
+            removeItems(lineFrames);
             return [];
         }
 
-        var baseFrame = splitFrames[0];
-        baseFrame.contents = mergedLines.join('\r');
-        baseFrame.position = splitFrames[0].position;
+        /* 最上段のフレームをベースに、残りは削除 */
+        var baseFrame = lineFrames[0];
+        baseFrame.contents = mergedLines.join("\r");
+        removeItems(lineFrames.slice(1));
 
-        for (var n = 1; n < splitFrames.length; n++) {
-            splitFrames[n].remove();
+        var leftovers = [];
+        for (var m = 0; m < sourceFrames.length; m++) {
+            if (sourceFrames[m] !== baseFrame) leftovers.push(sourceFrames[m]);
         }
+        removeItems(leftovers);
 
-        for (var t = 0; t < textFrames.length; t++) {
-            try {
-                if (textFrames[t] !== baseFrame) {
-                    textFrames[t].remove();
-                }
-            } catch (removeErr) { }
-        }
         return [baseFrame];
-    }
-
-    /*
- * 横連結（行統合）
- *
- * 仕様：
- * - 選択されたテキストフレームをY位置ベースで行グループ化し、各行を左から右へ連結します。
- * - 処理前に、強制改行（charCode 3 / 10）は削除します。
- * - 1行のみの場合は、その行の全テキストを連結して1つのテキストオブジェクトとして出力します。
- * - 複数行の場合は、まず各行を個別に連結し、その後、行間の連結ルールに従って1つのテキストへまとめます。
- * - 行末が英単語のハイフン区切りで、次行頭も英数字なら、ハイフンを削除して連結します。
- * - 行末と次行頭がともに英数字系なら、語間スペースを補います。
- * - 行末が句点・終止記号の場合のみ、行間に改行を残します。
- * - `textMode` が `point` の場合はポイント文字で出力し、それ以外はエリア内文字で出力します。
- * - `textMode` が未指定または `mixed` の場合は既存選択から自動判定し、混在時はエリア内文字を優先します。
- * - 出力書式は先頭要素のフォント・サイズを基準に再設定します。
- * - 行送りは、連結後の各行のY差分をもとに再設定します。
- * - これは見た目ベースの近似連結であり、複雑な書式差・回転・厳密な段落属性までは保持しません。
- */
-
-    /* 行内のフレームをX順に連結した文字列と、その並びを返す */
-    function concatRowText(rowFrames) {
-        var sorted = sortByX(rowFrames);
-        var text = "";
-        for (var j = 0; j < sorted.length; j++) text += stripTrailingBreaks(sorted[j].contents);
-        return { sorted: sorted, text: text };
     }
 
     /* 塗り・線なしの矩形を作る（エリア内文字の枠用）*/
@@ -1846,131 +1748,124 @@ function toTitleCase(text) {
         try {
             frame.resize(200, 200);
             frame.resize(50, 50);
-        } catch (e) { }
-        try {
             frame.textRange.justification = Justification.LEFT;
-        } catch (e2) { }
+        } catch (e) { debugLog("applyLeftJustification", e); }
     }
 
     /* 1行のみの横連結（area＝エリア内文字を新規作成 / それ以外＝先頭フレームへ集約）*/
     function concatHorizontalSingleLine(rowFrames, textMode) {
         var row = concatRowText(rowFrames);
-        var sorted = row.sorted;
+        var sortedFrames = row.sorted;
+        var baseAttrs = sortedFrames[0].textRange.characterAttributes;
         var resultFrame;
+
         if (textMode === "area") {
-            resultFrame = app.activeDocument.textFrames.areaText(makeFramelessRect(getSelBounds(sorted)));
-            resultFrame.contents = row.text;
-            resultFrame.textRange.characterAttributes.textFont = sorted[0].textRange.characterAttributes.textFont;
-            resultFrame.textRange.characterAttributes.size = sorted[0].textRange.characterAttributes.size;
-            applyLeftJustification(resultFrame);
+            resultFrame = createConcatOutputText("area", row.text, getUnionBounds(sortedFrames),
+                baseAttrs.textFont, baseAttrs.size, true);
         } else {
-            sorted[0].contents = row.text;
-            resultFrame = sorted[0];
+            sortedFrames[0].contents = row.text;
+            resultFrame = sortedFrames[0];
             applyLeftJustification(resultFrame);
         }
-        for (var k = 0; k < sorted.length; k++) {
-            if (sorted[k] !== resultFrame) sorted[k].remove();
+
+        var leftovers = [];
+        for (var i = 0; i < sortedFrames.length; i++) {
+            if (sortedFrames[i] !== resultFrame) leftovers.push(sortedFrames[i]);
         }
+        removeItems(leftovers);
+
         return [resultFrame];
     }
 
     /* 連結済みの各行を、英文ハイフン除去／語間スペース／句点改行のルールで1つの文字列へ */
     function buildJoinedParagraphText(mergedFrames) {
-        var finalText = "";
+        var joinedText = "";
         for (var i = 0; i < mergedFrames.length; i++) {
             var content = stripTrailingBreaks(mergedFrames[i].contents);
-            finalText += content;
-            if (i < mergedFrames.length - 1) {
-                var nextContent = stripTrailingBreaks(mergedFrames[i + 1].contents);
+            joinedText += content;
+            if (i >= mergedFrames.length - 1) continue;
+
+            var nextContent = stripTrailingBreaks(mergedFrames[i + 1].contents);
+            if (/[A-Za-z0-9)]-$/.test(content) && /^[A-Za-z0-9(]/.test(nextContent)) {
                 /* 英単語がハイフンで分断 → ハイフン除去して結合 */
-                if (/[A-Za-z0-9)]-$/.test(content) && /^[A-Za-z0-9(]/.test(nextContent)) {
-                    finalText = finalText.replace(/-$/, "");
-                }
-                /* 末尾・次行頭がともに英単語 → 語間スペース */
-                else if (/[A-Za-z0-9)]$/.test(content) && /^[A-Za-z0-9(]/.test(nextContent)) {
-                    finalText += " ";
-                }
-                /* 句点等で終わる場合のみ改行を残す */
-                if (shouldInsertParagraphBreakBetweenLines(content)) finalText += "\r";
+                joinedText = joinedText.replace(/-$/, "");
+            } else if (/[A-Za-z0-9)]$/.test(content) && /^[A-Za-z0-9(]/.test(nextContent)) {
+                /* 行末・次行頭がともに英単語 → 語間スペースを補う */
+                joinedText += " ";
             }
+            /* 句点等で終わる場合のみ改行を残す */
+            if (shouldInsertParagraphBreakBetweenLines(content)) joinedText += "\r";
         }
-        return finalText;
+        return joinedText;
     }
 
-    /* 連結結果テキストを point/area で出力（font/size/kinsoku/justification を設定）*/
-    function createConcatOutputText(textMode, finalText, bounds, font, fontSize) {
-        var newTF;
-        if (textMode === "point") {
-            newTF = app.activeDocument.textFrames.pointText([bounds[0], bounds[1]]);
-            newTF.contents = finalText;
-            newTF.textRange.characterAttributes.textFont = font;
-            newTF.textRange.characterAttributes.size = fontSize;
-            newTF.paragraphs[0].paragraphAttributes.kinsoku = "Soft";
-            applyLeftJustification(newTF);
+    /* 連結結果テキストを point/area で出力する（font/size/kinsoku/justification を設定）。
+       forceLeft が真なら、エリア内文字でも均等配置ではなく左揃えにする */
+    function createConcatOutputText(textMode, joinedText, bounds, baseFont, baseFontSize, forceLeft) {
+        var isPointText = (textMode === "point");
+        var outputFrame = isPointText
+            ? app.activeDocument.textFrames.pointText([bounds[0], bounds[1]])
+            : app.activeDocument.textFrames.areaText(makeFramelessRect(bounds));
+
+        outputFrame.contents = joinedText;
+        outputFrame.textRange.characterAttributes.textFont = baseFont;
+        outputFrame.textRange.characterAttributes.size = baseFontSize;
+        outputFrame.paragraphs[0].paragraphAttributes.kinsoku = "Soft";
+
+        if (isPointText || forceLeft) {
+            applyLeftJustification(outputFrame);
         } else {
-            newTF = app.activeDocument.textFrames.areaText(makeFramelessRect(bounds));
-            newTF.contents = finalText;
-            newTF.textRange.characterAttributes.textFont = font;
-            newTF.textRange.characterAttributes.size = fontSize;
-            newTF.paragraphs[0].paragraphAttributes.kinsoku = "Soft";
-            newTF.textRange.justification = Justification.FULLJUSTIFYLASTLINELEFT;
+            outputFrame.textRange.justification = Justification.FULLJUSTIFYLASTLINELEFT;
         }
-        return newTF;
+        return outputFrame;
     }
 
+    /* 横連結（行統合）：行ごとに連結したうえで、1つのテキストへまとめる。
+       textMode が未指定または "mixed" のときは選択から自動判定し、混在時はエリア内文字を優先する */
     function concatHorizontal(objects, textMode) {
-        var LINE_Y_THRESHOLD = 5;
         var MIN_LEADING_RATIO = 1.2;
 
-        var textItems = getTextFrames(objects);
-        if (textItems.length < 2) return textItems;
+        var textFrames = getTextFrames(objects);
+        if (textFrames.length < 2) return textFrames;
 
         if (!textMode || textMode === "mixed") {
             textMode = detectTextFrameType(objects);
             if (textMode === "mixed") textMode = "area";
         }
 
-        /* 強制改行を削除 */
-        removeForcedLineBreaks(textItems);
+        /* 強制改行を削除してから行グループ化する */
+        removeForcedLineBreaks(textFrames);
+        var rows = groupFramesIntoRows(textFrames);
+        if (rows.length === 1) return concatHorizontalSingleLine(rows[0], textMode);
 
-        /* Y位置で行ごとにグループ化 */
-        var textLines = groupByLineY(sortByY(textItems), LINE_Y_THRESHOLD);
-
-        /* 1行だけの場合 */
-        if (textLines.length === 1) {
-            return concatHorizontalSingleLine(textLines[0], textMode);
-        }
-
-        /* 複数行：行ごとにX順で連結して中間フレームを作る */
+        /* 行ごとにX順で連結して中間フレームを作る */
         var mergedFrames = [];
-        for (var i = 0; i < textLines.length; i++) {
-            var row = concatRowText(textLines[i]);
+        for (var i = 0; i < rows.length; i++) {
+            var row = concatRowText(rows[i]);
             var mergedFrame = row.sorted[0].duplicate();
             mergedFrame.contents = row.text;
             mergedFrame.position = row.sorted[0].position;
             mergedFrames.push(mergedFrame);
-            for (var k = 0; k < row.sorted.length; k++) row.sorted[k].remove();
+            removeItems(row.sorted);
         }
 
-        var font = mergedFrames[0].textRange.characterAttributes.textFont;
-        var fontSize = mergedFrames[0].textRange.characterAttributes.size;
-        var finalText = buildJoinedParagraphText(mergedFrames);
-        var bounds = getSelBounds(mergedFrames);
-        var newTF = createConcatOutputText(textMode, finalText, bounds, font, fontSize);
+        var baseAttrs = mergedFrames[0].textRange.characterAttributes;
+        var baseFont = baseAttrs.textFont;
+        var baseFontSize = baseAttrs.size;
+        var outputFrame = createConcatOutputText(textMode, buildJoinedParagraphText(mergedFrames),
+            getUnionBounds(mergedFrames), baseFont, baseFontSize, false);
 
-        /* 行間を設定 */
+        /* 行送りは連結前の行間から復元する */
         if (mergedFrames.length >= 2) {
             var leading = Math.abs(mergedFrames[0].position[1] - mergedFrames[1].position[1]);
-            if (leading < fontSize) leading = fontSize * MIN_LEADING_RATIO;
-            newTF.textRange.characterAttributes.autoLeading = false;
-            newTF.textRange.characterAttributes.leading = leading;
+            if (leading < baseFontSize) leading = baseFontSize * MIN_LEADING_RATIO;
+            outputFrame.textRange.characterAttributes.autoLeading = false;
+            outputFrame.textRange.characterAttributes.leading = leading;
         }
 
-        /* 元のフレームを削除 */
-        for (var m = 0; m < mergedFrames.length; m++) mergedFrames[m].remove();
-
+        removeItems(mergedFrames);
         app.redraw();
-        return [newTF];
+        return [outputFrame];
     }
 
     /* =========================================
@@ -1991,32 +1886,60 @@ function toTitleCase(text) {
         debugLog, normalizeParagraphBreaks, splitParagraphLines, trimLineSpaces, isBlankLine,
         stripTrailingBreaks, isLatinLetterOrDigit, isAsciiTextOnly, isSentenceEndingJP, isSentenceEndingEN,
         shouldInsertParagraphBreakBetweenLines, getCharCodeSafe, isParagraphBreak, isForcedBreak, isAnyBreak,
-        isTabChar, hasVisibleChars,
-        getTextFrames, detectTextFrameType, countTextFrameTypes, countBreakTypes, transformContents,
+        isTabChar, hasVisibleChars, isNonSplittableChar,
+        getTextFrames, countTextFrameTypes, detectTextFrameType, countBreakTypes, transformContents,
         hasMultipleLines, hasMultipleTextFrames, hasSpacesOrTabs, computeSelectionState, encodeSelectionState,
-        mutateMatchingChars, removeForcedLineBreaks, sortByPosition, sortByY, sortByX, groupByLineY, getSelBounds, groupTextFrames,
+        mutateMatchingChars, removeForcedLineBreaks, removeItems, sortedCopy, sortByPosition, sortByY, sortByX,
+        groupByLineY, getUnionBounds, groupTextFrames,
         removeLineBreaks, removeAllBreaks, flattenToOneLine, removeEmptyLines, removeTabs, tabsToSpaces,
-        trimSpaces, collapseSpaces, fullToHalfAlnum, halfToFullKana, toggleBulletList, toggleNumberList,
+        trimSpaces, collapseSpaces, removeLinePrefix, toHalfWidthAlnumText, toFullWidthKanaText,
+        fullToHalfAlnum, halfToFullKana, removeBulletMarkers, removeNumberMarkers,
         reverseOrder, removeDuplicateLines, sortByCharCode, sortByLength, removeCjkLatinSpaces,
         addLineBreakPerChar, addLineBreakAtCount, convertForcedLineBreaks, convertToForcedBreaks,
-        addLineBreakAtPunctuation, splitByTab, splitByLineBreak, trimTrailingBreaks, splitByLineBreakKeepStyle,
+        addLineBreakAtPunctuation, splitFramesByParagraph, collectTabStopsX, splitByTab, splitByLineBreak,
+        trimTrailingBreaks, getTailAxis, splitFrameKeepStyle, splitByLineBreakKeepStyle,
         splitByCharKeepStyle, splitByCharIgnoreStyle, splitByChar, stripStyleKeepFirstFont, splitCharHighPrecision,
-        buildOutlineCharBounds, sortOutlineItems, estimateCharRowThreshold, copyCharAttrs,
-        moveFrameToMatchBounds, splitCharFallback, concatHorizontalOnly, concatVertical, concatHorizontal,
-        concatRowText, makeFramelessRect, applyLeftJustification, concatHorizontalSingleLine, buildJoinedParagraphText, createConcatOutputText,
+        buildOutlineCharBounds, sortOutlineItems, estimateCharRowThreshold, copyCharacterAttributes,
+        moveFrameToMatchBounds, measureCharOffsetX, splitCharFallback,
+        groupFramesIntoRows, concatRowText, concatHorizontalOnly, concatVertical, concatHorizontal,
+        makeFramelessRect, applyLeftJustification, concatHorizontalSingleLine, buildJoinedParagraphText,
+        createConcatOutputText,
         toWordCap, toSentenceCase, toTitleCase,
-        ungroupResult, runAction,
+        ungroupResult, runStructureAction, runContentAction, runAction,
+        runQueryAction, finalizeSelection,
         safeSet, copyAttr, applyResetStyle
     ];
 
-    /* 関数配列を toString() で連結してソース文字列にする */
+    /* Function.toString() の出力から関数本体だけを切り出す。
+       ExtendScript は改行を CR で返し、前後のコメント断片（閉じていない \*\/ を含む）を
+       混入させることがあるため、LF へ正規化したうえで先頭の function 行から
+       閉じ括弧だけの行までを取り出す（そのままつなぐと構文エラーになる）*/
+    function sliceFunctionSource(func) {
+        var lines = String(func).replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+        var firstIndex = -1;
+        var lastIndex = -1;
+        for (var i = 0; i < lines.length; i++) {
+            if (firstIndex < 0 && /^\s*function\s/.test(lines[i])) firstIndex = i;
+            if (/^\s*\}\s*$/.test(lines[i])) lastIndex = i;
+        }
+        if (firstIndex < 0) return String(func);
+        if (lastIndex < firstIndex) {
+            /* 1行で書かれた関数は、その行だけを取り出す */
+            return /\}\s*$/.test(lines[firstIndex]) ? lines[firstIndex] : lines.slice(firstIndex).join("\n");
+        }
+        return lines.slice(firstIndex, lastIndex + 1).join("\n");
+    }
+
+    /* 関数配列を1つのソース文字列にまとめる */
     function buildLibSource(funcs) {
-        var src = "";
-        for (var i = 0; i < funcs.length; i++) src += funcs[i].toString() + "\n";
-        return src;
+        var sourceParts = [];
+        for (var i = 0; i < funcs.length; i++) sourceParts.push(sliceFunctionSource(funcs[i]));
+        return sourceParts.join("\n");
     }
 
     var __LIB_SRC_CACHE = null;
+
+    /* 全処理関数のソース（初回のみ組み立ててキャッシュ）*/
     function getLibSource() {
         if (__LIB_SRC_CACHE === null) __LIB_SRC_CACHE = buildLibSource(__LIB_FUNCS);
         return __LIB_SRC_CACHE;
@@ -2033,28 +1956,29 @@ function toTitleCase(text) {
         if (!result || !result.length) return result;
         var frames = getTextFrames(result);
         for (var i = 0; i < result.length; i++) {
-            var it = result[i];
+            var groupItem = result[i];
             try {
-                if (it && it.typename === "GroupItem") {
-                    var parent = it.parent;
-                    for (var j = it.pageItems.length - 1; j >= 0; j--) {
-                        it.pageItems[j].move(parent, ElementPlacement.PLACEATEND);
-                    }
-                    it.remove();
+                if (!groupItem || groupItem.typename !== "GroupItem") continue;
+                var parentItem = groupItem.parent;
+                for (var j = groupItem.pageItems.length - 1; j >= 0; j--) {
+                    groupItem.pageItems[j].move(parentItem, ElementPlacement.PLACEATEND);
                 }
-            } catch (e) { }
+                groupItem.remove();
+            } catch (e) { debugLog("ungroupResult", e); }
         }
         return frames;
     }
-    function runAction(actionName, targets, params) {
+    /* フレーム構成を変える処理（分割・連結・1行化）。該当しなければ null を返す */
+    function runStructureAction(actionName, targets) {
         switch (actionName) {
-            case "flatten": { var flattened = flattenToOneLine(targets); var flattenTargets = (flattened && flattened.length) ? flattened : targets; trimSpaces(flattenTargets); removeCjkLatinSpaces(flattenTargets); collapseSpaces(flattenTargets); return flattenTargets; }
-            case "removeLineBreaks": if (params.forced) { removeAllBreaks(targets); } else { removeLineBreaks(targets); } return targets;
-            case "addLineBreakPerChar": addLineBreakPerChar(targets); return targets;
-            case "punctuation": addLineBreakAtPunctuation(targets, params.chars); return targets;
-            case "breakAtCount": addLineBreakAtCount(targets, params.count, params.forced); return targets;
-            case "convertForcedLineBreaks": convertForcedLineBreaks(targets); return targets;
-            case "convertToForcedBreaks": convertToForcedBreaks(targets); return targets;
+            case "flatten": {
+                var flattened = flattenToOneLine(targets);
+                var flattenTargets = (flattened && flattened.length) ? flattened : targets;
+                trimSpaces(flattenTargets);
+                removeCjkLatinSpaces(flattenTargets);
+                collapseSpaces(flattenTargets);
+                return flattenTargets;
+            }
             case "splitByLineBreak": return ungroupResult(splitByLineBreak(targets));
             case "splitByLineBreakKeepStyle": return splitByLineBreakKeepStyle(targets);
             case "splitByTab": return splitByTab(targets);
@@ -2064,37 +1988,98 @@ function toTitleCase(text) {
             case "concatHorizontalOnly": return concatHorizontalOnly(targets);
             case "concatH": return concatHorizontal(targets, detectTextFrameType(targets));
             case "concatToArea": return concatHorizontal(targets, "area");
-            case "removeTabs": removeTabs(targets); return targets;
-            case "tabsToSpaces": tabsToSpaces(targets); return targets;
-            case "trimSpaces": trimSpaces(targets); return targets;
-            case "removeCjkLatinSpaces": removeCjkLatinSpaces(targets); return targets;
-            case "collapseSpaces": collapseSpaces(targets); return targets;
-            case "cleanupSpaces": trimSpaces(targets); removeCjkLatinSpaces(targets); collapseSpaces(targets); return targets;
-            case "removeAllSpaces": transformContents(targets, function (s) { return s.replace(/[ 　]/g, ""); }); return targets;
-            case "fullToHalfAlnum": fullToHalfAlnum(targets); return targets;
-            case "halfToFullKana": halfToFullKana(targets); return targets;
-            case "toggleBulletList": toggleBulletList(targets); return targets;
-            case "toggleNumberList": toggleNumberList(targets); return targets;
-            case "reverseOrder": reverseOrder(targets); return targets;
-            case "removeDuplicateLines": removeDuplicateLines(targets); return targets;
-            case "sortByCharCode": sortByCharCode(targets); return targets;
-            case "sortByLength": sortByLength(targets); return targets;
-            case "removeEmptyLines": removeEmptyLines(targets); return targets;
-            case "caseUpper": transformContents(targets, function (s) { return s.toUpperCase(); }); return targets;
-            case "caseLower": transformContents(targets, function (s) { return s.toLowerCase(); }); return targets;
-            case "caseWord": transformContents(targets, toWordCap); return targets;
-            case "caseSentence": transformContents(targets, toSentenceCase); return targets;
-            case "caseTitle": transformContents(targets, toTitleCase); return targets;
+        }
+        return null;
+    }
+
+    /* テキスト内容だけを書き換える処理（対象フレームはそのまま）*/
+    function runContentAction(actionName, targets, params) {
+        switch (actionName) {
+            case "removeLineBreaks": if (params.forced) removeAllBreaks(targets); else removeLineBreaks(targets); return;
+            case "addLineBreakPerChar": addLineBreakPerChar(targets); return;
+            case "punctuation": addLineBreakAtPunctuation(targets, params.chars); return;
+            case "breakAtCount": addLineBreakAtCount(targets, params.count, params.forced); return;
+            case "convertForcedLineBreaks": convertForcedLineBreaks(targets); return;
+            case "convertToForcedBreaks": convertToForcedBreaks(targets); return;
+            case "removeTabs": removeTabs(targets); return;
+            case "tabsToSpaces": tabsToSpaces(targets); return;
+            case "trimSpaces": trimSpaces(targets); return;
+            case "removeCjkLatinSpaces": removeCjkLatinSpaces(targets); return;
+            case "collapseSpaces": collapseSpaces(targets); return;
+            case "cleanupSpaces": trimSpaces(targets); removeCjkLatinSpaces(targets); collapseSpaces(targets); return;
+            case "removeAllSpaces": transformContents(targets, function (txt) { return txt.replace(/[ 　]/g, ""); }); return;
+            case "fullToHalfAlnum": fullToHalfAlnum(targets); return;
+            case "halfToFullKana": halfToFullKana(targets); return;
+            case "removeBulletMarkers": removeBulletMarkers(targets); return;
+            case "removeNumberMarkers": removeNumberMarkers(targets); return;
+            case "reverseOrder": reverseOrder(targets); return;
+            case "removeDuplicateLines": removeDuplicateLines(targets); return;
+            case "sortByCharCode": sortByCharCode(targets); return;
+            case "sortByLength": sortByLength(targets); return;
+            case "removeEmptyLines": removeEmptyLines(targets); return;
+            case "caseUpper": transformContents(targets, function (txt) { return txt.toUpperCase(); }); return;
+            case "caseLower": transformContents(targets, function (txt) { return txt.toLowerCase(); }); return;
+            case "caseWord": transformContents(targets, toWordCap); return;
+            case "caseSentence": transformContents(targets, toSentenceCase); return;
+            case "caseTitle": transformContents(targets, toTitleCase); return;
+            case "spaceAfterPunct": transformContents(targets, function (txt) { return txt.replace(/([.,])(?=[^\s\d.,])/g, "$1 "); }); return;
             case "convertSymbol": {
                 /* ES の入れ子三項は左結合に誤評価されるため括弧で右結合を明示 */
-                var fromRe = (params.from === "underscore") ? /_/g : ((params.from === "hyphen") ? /-/g : /[ 　]/g);
-                var toStr = (params.to === "space") ? " " : ((params.to === "hyphen") ? "-" : "_");
-                transformContents(targets, function (s) { return s.replace(fromRe, toStr); });
-                return targets;
+                var fromPattern = (params.from === "underscore") ? /_/g : ((params.from === "hyphen") ? /-/g : /[ 　]/g);
+                var toText = (params.to === "space") ? " " : ((params.to === "hyphen") ? "-" : "_");
+                transformContents(targets, function (txt) { return txt.replace(fromPattern, toText); });
+                return;
             }
-            case "spaceAfterPunct": transformContents(targets, function (s) { return s.replace(/([.,])(?=[^\s\d.,])/g, "$1 "); }); return targets;
         }
+    }
+
+    /* アクションIDに対応する処理を実行し、処理後の対象フレーム配列を返す */
+    function runAction(actionName, targets, params) {
+        var restructured = runStructureAction(actionName, targets);
+        if (restructured) return restructured;
+        runContentAction(actionName, targets, params);
         return targets;
+    }
+
+    /* 選択の取得・設定のみで完結するアクション。該当しなければ null を返す */
+    function runQueryAction(actionId, params, doc, targets) {
+        switch (actionId) {
+            case "getState":
+                return "OK:" + encodeSelectionState(targets);
+            case "getLines":
+                return (targets.length === 1) ? "LINES:" + encodeURIComponent(targets[0].contents) : "LINES:";
+            case "getFirstText":
+                return (targets.length >= 1) ? "TEXT:" + encodeURIComponent(targets[0].contents) : "TEXT:";
+            case "setLines":
+                if (targets.length === 1) targets[0].contents = params.text;
+                app.redraw();
+                return "OK:" + encodeSelectionState(getTextFrames(doc.selection));
+            case "hiddenChar":
+                try { app.executeMenuCommand("showHiddenChar"); } catch (e) { debugLog("showHiddenChar", e); }
+                app.redraw();
+                return "OK:" + encodeSelectionState(targets);
+            case "finalizeClose":
+                finalizeSelection(targets, params.turnOffHidden);
+                return "OK:";
+        }
+        return null;
+    }
+
+    /* パレットを閉じるときの後始末：1要素だけのグループを解除し、選択を整えて制御文字表示を戻す */
+    function finalizeSelection(targets, turnOffHidden) {
+        for (var i = 0; i < targets.length; i++) {
+            try {
+                var parentGroup = targets[i].parent;
+                if (!parentGroup || parentGroup.typename !== "GroupItem" || parentGroup.pageItems.length !== 1) continue;
+                targets[i].move(parentGroup.parent, ElementPlacement.PLACEATEND);
+                parentGroup.remove();
+            } catch (e) { debugLog("finalizeSelection: ungroup", e); }
+        }
+        try { if (targets.length > 0) app.activeDocument.selection = targets; } catch (e) { debugLog("finalizeSelection: select", e); }
+        if (turnOffHidden) {
+            try { app.executeMenuCommand("showHiddenChar"); } catch (e) { debugLog("finalizeSelection: hidden char", e); }
+        }
+        app.redraw();
     }
 
     function __dispatch(actionId, params) {
@@ -2104,113 +2089,94 @@ function toTitleCase(text) {
 
         var targets = getTextFrames(doc.selection);
 
-        if (actionId === "getState") {
-            return "OK:" + encodeSelectionState(targets);
-        }
-        if (actionId === "getLines") {
-            if (targets.length === 1) return "LINES:" + encodeURIComponent(targets[0].contents);
-            return "LINES:";
-        }
-        if (actionId === "getFirstText") {
-            if (targets.length >= 1) return "TEXT:" + encodeURIComponent(targets[0].contents);
-            return "TEXT:";
-        }
-        if (actionId === "setLines") {
-            if (targets.length === 1) { targets[0].contents = params.text; }
-            app.redraw();
-            return "OK:" + encodeSelectionState(getTextFrames(doc.selection));
-        }
-        if (actionId === "undo") {
-            try { app.executeMenuCommand("undo"); } catch (e2) { }
-            app.redraw();
-            return "OK:" + encodeSelectionState(getTextFrames(doc.selection));
-        }
-        if (actionId === "hiddenChar") {
-            try { app.executeMenuCommand("showHiddenChar"); } catch (e3) { }
-            app.redraw();
-            return "OK:" + encodeSelectionState(targets);
-        }
-        if (actionId === "finalizeClose") {
-            for (var i = 0; i < targets.length; i++) {
-                try {
-                    var p = targets[i].parent;
-                    if (p && p.typename === "GroupItem" && p.pageItems.length === 1) {
-                        var container = p.parent;
-                        targets[i].move(container, ElementPlacement.PLACEATEND);
-                        p.remove();
-                    }
-                } catch (e4) { }
-            }
-            try { if (targets.length > 0) doc.selection = targets; } catch (e5) { }
-            if (params.turnOffHidden) { try { app.executeMenuCommand("showHiddenChar"); } catch (e6) { } }
-            app.redraw();
-            return "OK:";
-        }
+        var queryResult = runQueryAction(actionId, params, doc, targets);
+        if (queryResult !== null) return queryResult;
 
         /* 通常の処理アクション */
-        if (!targets || targets.length === 0) return "OK:" + encodeSelectionState([]);
+        if (!targets.length) return "OK:" + encodeSelectionState([]);
+
         var result;
         try {
             result = runAction(actionId, targets, params);
-        } catch (errProc) {
-            try { app.redraw(); } catch (e7) { }
-            return "ERR:" + (errProc && errProc.message ? errProc.message : String(errProc));
+        } catch (err) {
+            app.redraw();
+            return "ERR:" + (err && err.message ? err.message : String(err));
         }
+
         var refreshed = getTextFrames((result && result.length) ? result : targets);
-        if (refreshed.length > 0) { try { doc.selection = refreshed; } catch (e8) { } targets = refreshed; }
-        else { targets = []; }
+        if (refreshed.length > 0) {
+            try { doc.selection = refreshed; } catch (e) { debugLog("__dispatch: select result", e); }
+        }
         app.redraw();
-        return "OK:" + encodeSelectionState(targets);
+        return "OK:" + encodeSelectionState(refreshed);
     }
 
-    var __DISPATCH_SRC = "(" + __dispatch.toString() + ")";
+    var __DISPATCH_SRC = "(" + sliceFunctionSource(__dispatch) + ")";
 
-    /* パラメータを安全な JS リテラル文字列へ */
-    function paramsToSource(p) {
-        if (!p) return "{}";
+    /**
+     * アクションのパラメーターを、そのまま eval できる JS リテラル文字列へ変換する
+     * @param {Object} params - forced / turnOffHidden / count / chars / text / from / to を持つオブジェクト
+     * @returns {string} "{ ... }" 形式のソース文字列
+     */
+    function paramsToSource(params) {
+        if (!params) return "{}";
+
         var parts = [];
-        if (p.forced !== undefined) parts.push("forced:" + (p.forced ? "true" : "false"));
-        if (p.turnOffHidden !== undefined) parts.push("turnOffHidden:" + (p.turnOffHidden ? "true" : "false"));
-        if (p.count !== undefined) parts.push("count:" + parseInt(p.count, 10));
-        if (p.chars !== undefined) parts.push('chars:decodeURIComponent("' + encodeURIComponent(p.chars) + '")');
-        if (p.text !== undefined) parts.push('text:decodeURIComponent("' + encodeURIComponent(p.text) + '")');
-        if (p.from !== undefined) parts.push('from:"' + p.from + '"');
-        if (p.to !== undefined) parts.push('to:"' + p.to + '"');
+        if (params.forced !== undefined) parts.push("forced:" + (params.forced ? "true" : "false"));
+        if (params.turnOffHidden !== undefined) parts.push("turnOffHidden:" + (params.turnOffHidden ? "true" : "false"));
+        if (params.count !== undefined) parts.push("count:" + parseInt(params.count, 10));
+        if (params.chars !== undefined) parts.push('chars:decodeURIComponent("' + encodeURIComponent(params.chars) + '")');
+        if (params.text !== undefined) parts.push('text:decodeURIComponent("' + encodeURIComponent(params.text) + '")');
+        if (params.from !== undefined) parts.push('from:"' + params.from + '"');
+        if (params.to !== undefined) parts.push('to:"' + params.to + '"');
         return "{" + parts.join(",") + "}";
     }
 
-    /*
-     * 本文をメインエンジンへ送り、結果マーカーを解析して onDone(status, payload) を呼ぶ。
-     * BridgeTalk は本文送信時にバックスラッシュをエスケープするため（"\r" → ターゲットで "\\r"）、
+    /**
+     * 本文をメインエンジンへ送り、結果マーカーを解析して onDone を呼ぶ。
+     * BridgeTalk は本文送信時にバックスラッシュをエスケープする（"\r" がターゲットで "\\r" になる）ため、
      * コード全体を encodeURIComponent で包んで送り（%エンコードに \ は出ない）、
-     * ターゲットで decodeURIComponent + eval して元ソースに復元してから実行する。
-     * status = "ok" | "lines" | "text" | "error"
+     * ターゲット側で decodeURIComponent + eval して元ソースに復元してから実行する。
+     * @param {string} code - メインエンジンで実行するソース
+     * @param {Function} onDone - (status, payload) を受け取るコールバック。status は "ok" | "lines" | "text" | "error"
+     * @returns {void}
      */
     function sendWorker(code, onDone) {
-        var bt = new BridgeTalk();
-        bt.target = "illustrator";
-        bt.body = "eval(decodeURIComponent(\"" + encodeURIComponent(code) + "\"));";
-        bt.onResult = function (res) {
-            var payload = res.body || "";
-            var ci = payload.indexOf(":");
-            var marker = ci >= 0 ? payload.substring(0, ci) : payload;
-            var rest = ci >= 0 ? payload.substring(ci + 1) : "";
-            if (marker === "OK") onDone("ok", rest);
-            else if (marker === "LINES") onDone("lines", rest);
-            else if (marker === "TEXT") onDone("text", rest);
-            else onDone("error", rest);
+        var STATUS_BY_MARKER = { OK: "ok", LINES: "lines", TEXT: "text" };
+
+        var bridge = new BridgeTalk();
+        bridge.target = "illustrator";
+        bridge.body = "eval(decodeURIComponent(\"" + encodeURIComponent(code) + "\"));";
+        bridge.onResult = function (bridgeResult) {
+            var body = bridgeResult.body || "";
+            var separatorIndex = body.indexOf(":");
+            var marker = (separatorIndex >= 0) ? body.substring(0, separatorIndex) : body;
+            var payload = (separatorIndex >= 0) ? body.substring(separatorIndex + 1) : "";
+            onDone(STATUS_BY_MARKER[marker] || "error", payload);
         };
-        bt.onError = function (res) { onDone("error", res && res.body ? res.body : "BridgeTalk error"); };
-        bt.send();
+        bridge.onError = function (bridgeResult) {
+            onDone("error", (bridgeResult && bridgeResult.body) ? bridgeResult.body : "BridgeTalk error");
+        };
+        bridge.send();
     }
 
-    /* メインエンジンへアクションを委譲（非同期）*/
+    /**
+     * メインエンジンへアクションを委譲する（非同期）
+     * @param {string} actionId - アクションID
+     * @param {Object} params - アクションのパラメーター
+     * @param {Function} onDone - (status, payload) を受け取るコールバック
+     * @returns {void}
+     */
     function runWorker(actionId, params, onDone) {
         var code = getLibSource() + "\nvar __r=" + __DISPATCH_SRC + "(\"" + actionId + "\"," + paramsToSource(params) + ");__r;";
         sendWorker(code, onDone);
     }
 
-    /* state 文字列（"total|point|area|para|forced|tab|multiLines|multiFrames|hasSpTab"）をオブジェクトへ */
+    /**
+     * state 文字列（"total|point|area|para|forced|tab|multiLines|multiFrames|hasSpTab"）をオブジェクトへ変換する
+     * @param {string} encodedState - encodeSelectionState() が返した文字列
+     * @returns {Object} 選択状態オブジェクト
+     */
     function parseState(encodedState) {
         var fields = String(encodedState || "").split("|");
         return {
@@ -2229,510 +2195,430 @@ function toTitleCase(text) {
     /* =========================================
      * 軽量ステータスポーラー（選択のリアルタイム反映用）
      *
-     * 定期ポーリングで毎回 LIB 全体を送ると重いので、件数集計に
-     * 必要な関数だけを同梱した軽量本文をメインエンジンへ送る。
-     * 選択は変更せず、state 文字列だけを返す。
+     * 毎回 LIB 全体を送ると重いので、件数集計に必要な関数だけを同梱した
+     * 軽量本文をメインエンジンへ送る。選択は変更せず、state 文字列だけを返す。
      * ========================================= */
     var __STATE_FUNCS = [
         debugLog, normalizeParagraphBreaks, splitParagraphLines,
-        isParagraphBreak, isForcedBreak, isTabChar,
+        getCharCodeSafe, isParagraphBreak, isForcedBreak, isTabChar,
         getTextFrames, countTextFrameTypes, countBreakTypes,
         hasMultipleLines, hasMultipleTextFrames, hasSpacesOrTabs, computeSelectionState, encodeSelectionState
     ];
     var __STATE_LIB_CACHE = null;
+
+    /* ステータス集計用の関数ソース（初回のみ組み立ててキャッシュ）*/
     function getStateLibSource() {
         if (__STATE_LIB_CACHE === null) __STATE_LIB_CACHE = buildLibSource(__STATE_FUNCS);
         return __STATE_LIB_CACHE;
     }
 
-    /* メインエンジンで現在の選択を集計して state を返す（選択は変えない）*/
     function __stateDispatch() {
         if (app.documents.length === 0) return "ERR:nodoc";
         var doc;
         try { doc = app.activeDocument; } catch (e) { return "ERR:nodoc"; }
         return "OK:" + encodeSelectionState(getTextFrames(doc.selection));
     }
-    var __STATE_DISPATCH_SRC = "(" + __stateDispatch.toString() + ")";
+    var __STATE_DISPATCH_SRC = "(" + sliceFunctionSource(__stateDispatch) + ")";
 
+    /**
+     * 現在の選択をメインエンジンで集計し、state 文字列を受け取る（選択は変えない）
+     * @param {Function} onDone - (status, payload) を受け取るコールバック
+     * @returns {void}
+     */
     function runStatePoll(onDone) {
         var code = getStateLibSource() + "\nvar __r=" + __STATE_DISPATCH_SRC + "();__r;";
         sendWorker(code, onDone);
     }
 
-    /* ダイアログボックスを作成・表示する関数 */
-    function showDialog(selectedObjects) {
-        var dialog = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
+    /**
+     * パレットを組み立てて表示する
+     * @param {Array<TextFrame>} selectedObjects - 起動時に選択されていたテキストフレーム
+     * @returns {void}
+     */
+    function showPalette(selectedObjects) {
+        var paletteWindow = new Window("palette", getLabel(LABELS.dialog.title) + " " + SCRIPT_VERSION);
 
-        /* 各処理をメインエンジンへ委譲し、結果のステータスで表示を更新 */
+        /**
+         * 処理をメインエンジンへ委譲し、結果のステータスで表示を更新する
+         * @param {string} actionId - アクションID
+         * @param {Object} params - アクションのパラメーター
+         * @returns {void}
+         */
         function executeAction(actionId, params) {
             executeActionThen(actionId, params, null);
         }
 
-        /* executeAction と同じだが、成功後に after() を呼ぶ（行リスト再読込などの連鎖用） */
+        /**
+         * executeAction と同じだが、成功後に after() を呼ぶ（行リスト再読込などの連鎖用）
+         * @param {string} actionId - アクションID
+         * @param {Object} params - アクションのパラメーター
+         * @param {Function} after - 成功後に呼ぶコールバック（不要なら null）
+         * @returns {void}
+         */
         function executeActionThen(actionId, params, after) {
             runWorker(actionId, params || {}, function (status, payload) {
                 if (status === "error") {
                     showError({ message: payload });
                     return;
                 }
-                var st = parseState(payload);
-                updateStatusDisplay(st);
-                updateActionAvailability(st);
+                applySelectionState(parseState(payload));
                 if (after) after();
             });
         }
 
-
-        /* ステータスパネルを構築し、各件数を表示する statictext を持つオブジェクトを返す */
+        /**
+         * ステータスパネルを構築し、件数表示用の statictext をまとめて返す
+         * @returns {Object} 件数表示の statictext を持つオブジェクト
+         */
         function buildStatusPanel() {
             var textFrameCounts = countTextFrameTypes(selectedObjects);
             var breakCounts = countBreakTypes(selectedObjects);
 
-            var panelStatus = dialog.add("panel", undefined, getLabel(LABELS.panel.status));
-            panelStatus.margins = [50, 18, 50, 8];
-            panelStatus.alignment = ["fill", "top"];
-            panelStatus.alignChildren = ["left", "top"];
+            var statusPanel = addPanel(paletteWindow, getLabel(LABELS.panel.status), ["left", "top"]);
+            statusPanel.margins = STATUS_MARGINS;
 
-            var statusRow = panelStatus.add("group");
+            var statusRow = statusPanel.add("group");
             statusRow.orientation = "row";
             statusRow.alignment = ["fill", "top"];
             statusRow.alignChildren = ["left", "center"];
-            statusRow.spacing = 16;
+            statusRow.spacing = STATUS_ROW_SPACING;
 
-            var frameCountColumn = statusRow.add("group");
-            frameCountColumn.orientation = "column";
-            frameCountColumn.alignment = ["fill", "top"];
+            var frameCountColumn = addColumnGroup(statusRow);
             frameCountColumn.alignChildren = ["left", "top"];
-
-            var breakCountColumn = statusRow.add("group");
-            breakCountColumn.orientation = "column";
-            breakCountColumn.alignment = ["fill", "top"];
+            var breakCountColumn = addColumnGroup(statusRow);
             breakCountColumn.alignChildren = ["left", "top"];
 
-            var statusCenterLabelWidth = 72;
-
-            /* 1行 = [ラベル：] [値] を作り、値の statictext を返す */
+            /**
+             * 1行 = [ラベル：] [値] を作り、値側の statictext を返す
+             * @param {Group} column - 追加先のカラム
+             * @param {Object} labelNode - LABELS のラベルノード
+             * @param {number} value - 初期表示する件数
+             * @param {number} labelWidth - ラベル幅（省略時は自動）
+             * @returns {StaticText} 値表示用の statictext
+             */
             function addStatusRow(column, labelNode, value, labelWidth) {
-                var row = column.add("group");
-                row.orientation = "row";
-                row.alignChildren = ["left", "center"];
-                var lbl = row.add("statictext", undefined, labelText(labelNode));
-                if (labelWidth) lbl.preferredSize.width = labelWidth;
-                return row.add("statictext", undefined, String(value));
+                var statusFieldRow = column.add("group");
+                statusFieldRow.orientation = "row";
+                statusFieldRow.alignChildren = ["left", "center"];
+
+                var fieldLabel = statusFieldRow.add("statictext", undefined, getColonLabel(labelNode));
+                if (labelWidth) fieldLabel.preferredSize.width = labelWidth;
+                return statusFieldRow.add("statictext", undefined, String(value));
             }
 
             return {
                 target: addStatusRow(frameCountColumn, LABELS.info.targetCount, textFrameCounts.total),
                 point: addStatusRow(frameCountColumn, LABELS.info.pointCount, textFrameCounts.point),
                 area: addStatusRow(frameCountColumn, LABELS.info.areaCount, textFrameCounts.area),
-                para: addStatusRow(breakCountColumn, LABELS.info.paragraphBreak, breakCounts.paragraph, statusCenterLabelWidth),
-                forced: addStatusRow(breakCountColumn, LABELS.info.forcedBreak, breakCounts.forced, statusCenterLabelWidth),
-                tab: addStatusRow(breakCountColumn, LABELS.info.tab, breakCounts.tab, statusCenterLabelWidth)
+                para: addStatusRow(breakCountColumn, LABELS.info.paragraphBreak, breakCounts.paragraph, STATUS_LABEL_WIDTH),
+                forced: addStatusRow(breakCountColumn, LABELS.info.forcedBreak, breakCounts.forced, STATUS_LABEL_WIDTH),
+                tab: addStatusRow(breakCountColumn, LABELS.info.tab, breakCounts.tab, STATUS_LABEL_WIDTH)
             };
         }
 
         var statusFields = buildStatusPanel();
 
-        /* ステータス表示を state で更新 */
-        function updateStatusDisplay(state) {
+        /**
+         * 選択状態をステータス表示と各ボタンの有効・無効へ反映する
+         * @param {Object} state - parseState() が返した選択状態
+         * @returns {void}
+         */
+        function applySelectionState(state) {
             statusFields.target.text = String(state.total);
             statusFields.point.text = String(state.point);
             statusFields.area.text = String(state.area);
             statusFields.para.text = String(state.para);
             statusFields.forced.text = String(state.forced);
             statusFields.tab.text = String(state.tab);
-        }
 
-        function updateActionAvailability(state) {
-            var multiLines = state.multiLines;
-            var multiFrames = state.multiFrames;
-            var hasSpTab = state.hasSpTab;
-
-            btnReverseOrder.enabled = multiLines;
-            btnRemoveDuplicateLines.enabled = multiLines;
-            btnRemoveEmptyLines.enabled = multiLines;
-            btnSortByCharCode.enabled = multiLines;
-            btnSortByLength.enabled = multiLines;
-            btnSplitByLine.enabled = multiLines;
-            btnSplitByLineKeepStyle.enabled = multiLines;
             var hasParagraph = state.para > 0;
             var hasForced = state.forced > 0;
             var hasAnyBreaks = hasParagraph || hasForced;
+            var hasTabs = state.tab > 0;
 
-            /* 改行削除系 */
+            /* 行操作系：2行以上あるときだけ */
+            btnReverseOrder.enabled = state.multiLines;
+            btnRemoveDuplicateLines.enabled = state.multiLines;
+            btnRemoveEmptyLines.enabled = state.multiLines;
+            btnSortByCharCode.enabled = state.multiLines;
+            btnSortByLength.enabled = state.multiLines;
+            btnSplitByLine.enabled = state.multiLines;
+            btnSplitByLineKeepStyle.enabled = state.multiLines;
+
+            /* 改行の削除・変換 */
             btnRemoveLineBreaks.enabled = hasAnyBreaks;
             chkIncludeForcedBreaks.enabled = hasForced;
-
-            /* 改行変換系 */
             btnConvertBreaks.enabled = hasForced;
             btnConvertToForcedBreaks.enabled = hasParagraph;
+            btnFlattenToOneLine.enabled = hasAnyBreaks || state.multiFrames;
 
-            /* スペシャル */
-            btnFlattenToOneLine.enabled = hasAnyBreaks || multiFrames;
+            /* タブ */
+            btnSplitByTab.enabled = hasTabs;
+            btnRemoveTabs.enabled = hasTabs;
+            btnTabsToSpaces.enabled = hasTabs;
 
-            /* 分割系 */
-            btnSplitByTab.enabled = state.tab > 0;
+            /* 連結：2つ以上のフレームが必要 */
+            btnConcatV.enabled = state.multiFrames;
+            btnConcatHOnly.enabled = state.multiFrames;
+            btnConcatH.enabled = state.multiFrames;
+            btnConcatToArea.enabled = state.multiFrames;
 
-            /* 連結系 */
-            btnConcatV.enabled = multiFrames;
-            btnConcatHOnly.enabled = multiFrames;
-            btnConcatH.enabled = multiFrames;
-            btnConcatToArea.enabled = multiFrames;
-
-            /* スペース系 */
-            btnTrimSpaces.enabled = hasSpTab;
-            btnCjkLatinSpaces.enabled = hasSpTab;
-            btnCollapseSpaces.enabled = hasSpTab;
-            btnCleanupSpaces.enabled = hasSpTab;
-            btnRemoveAllSpaces.enabled = hasSpTab;
-
-            /* タブ系 */
-            btnRemoveTabs.enabled = state.tab > 0;
-            btnTabsToSpaces.enabled = state.tab > 0;
+            /* スペース */
+            btnTrimSpaces.enabled = state.hasSpTab;
+            btnCjkLatinSpaces.enabled = state.hasSpTab;
+            btnCollapseSpaces.enabled = state.hasSpTab;
+            btnCleanupSpaces.enabled = state.hasSpTab;
+            btnRemoveAllSpaces.enabled = state.hasSpTab;
         }
 
-
-
-        /* 制御文字の状態管理 */
+        /* 制御文字の表示状態 */
         var hiddenCharOn = false;
-        var hiddenCharLabel = getLabel(LABELS.checkbox.showHiddenChar);
+        var hiddenCharLabel = getLabel(LABELS.button.showHiddenChar);
 
-        /* タブパネル（メイン） */
-        var tabbedPanel = dialog.add("tabbedpanel");
-        // tabbedPanel.margins = [20, 15, 0, -10];
+        var tabbedPanel = paletteWindow.add("tabbedpanel");
         tabbedPanel.alignment = ["fill", "top"];
         tabbedPanel.alignChildren = ["fill", "top"];
 
         /* === タブ1: 基本 === */
         var tabBasic = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.basic));
-        tabBasic.margins = [10, 20, 0, -10];
-        tabBasic.spacing = 15;
-        tabBasic.orientation = "row";
-        tabBasic.alignment = ["center", "top"];
-        tabBasic.alignChildren = ["fill", "top"];
+        setupTab(tabBasic, "row", ["center", "top"]);
 
         /* 左カラム：改行 */
-        var breakColumn = tabBasic.add("group");
-        breakColumn.orientation = "column";
-        breakColumn.alignment = ["fill", "top"];
-        breakColumn.alignChildren = ["fill", "top"];
+        var breakColumn = addColumnGroup(tabBasic);
+        var panelBreakGroup = addPanel(breakColumn, getLabel(LABELS.panel.breakGroup), ["fill", "top"]);
 
-        /* 改行グループパネル */
-        var panelBreakGroup = breakColumn.add("panel", undefined, getLabel(LABELS.panel.breakGroup));
-        panelBreakGroup.margins = [10, 18, 10, 8];
-        panelBreakGroup.alignment = ["fill", "top"];
-        panelBreakGroup.alignChildren = ["fill", "top"];
-
-        /* すべて1行にボタン（中央配置） */
         var flattenButtonRow = panelBreakGroup.add("group");
         flattenButtonRow.alignment = ["fill", "top"];
         flattenButtonRow.alignChildren = ["fill", "center"];
-        flattenButtonRow.margins = [10, 0, 10, 8];
+        flattenButtonRow.margins = BUTTON_ROW_MARGINS;
 
         var btnFlattenToOneLine = flattenButtonRow.add("button", undefined, getLabel(LABELS.button.flattenToOneLine));
         btnFlattenToOneLine.onClick = function () {
             executeAction("flatten");
         };
 
-        /* 改行削除パネル */
-        var panelRemoveBreak = panelBreakGroup.add("panel", undefined, getLabel(LABELS.panel.removeBreak));
-        panelRemoveBreak.margins = [10, 18, 10, 8];
-        panelRemoveBreak.alignment = ["fill", "top"];
-        panelRemoveBreak.alignChildren = ["fill", "center"];
+        /* 改行の削除 */
+        var panelRemoveBreak = addPanel(panelBreakGroup, getLabel(LABELS.panel.removeBreak));
 
-        /* 改行削除ボタン */
         var btnRemoveLineBreaks = panelRemoveBreak.add("button", undefined, getLabel(LABELS.button.removeLineBreaks));
         btnRemoveLineBreaks.helpTip = getLabel(LABELS.tooltip.removeLineBreaks);
         btnRemoveLineBreaks.onClick = function () {
             executeAction("removeLineBreaks", { forced: chkIncludeForcedBreaks.value });
         };
 
-        /* 強制改行を含むチェックボックス */
         var chkIncludeForcedBreaks = panelRemoveBreak.add("checkbox", undefined, getLabel(LABELS.checkbox.includeForcedBreaks));
 
-        /* 改行パネル */
-        var panelLineBreak = panelBreakGroup.add("panel", undefined, getLabel(LABELS.panel.insertBreak));
-        panelLineBreak.margins = [10, 18, 10, 8];
-        panelLineBreak.alignment = ["fill", "top"];
-        panelLineBreak.alignChildren = ["fill", "center"];
+        /* 改行の挿入 */
+        var panelInsertBreak = addPanel(panelBreakGroup, getLabel(LABELS.panel.insertBreak));
 
-        /* 1文字ごとに改行ボタン */
-        var btnAddLineBreaks = panelLineBreak.add("button", undefined, getLabel(LABELS.button.addLineBreaks));
+        var btnAddLineBreaks = panelInsertBreak.add("button", undefined, getLabel(LABELS.button.addLineBreaks));
         btnAddLineBreaks.onClick = function () {
             executeAction("addLineBreakPerChar");
         };
 
-        /* 句読点で改行ボタン */
-        var btnPunctuation = panelLineBreak.add("button", undefined, getLabel(LABELS.button.punctuation));
-        btnPunctuation.onClick = function () {
-            executeAction("punctuation", { chars: txtPunctuation.text });
+        var btnBreakAtChars = panelInsertBreak.add("button", undefined, getLabel(LABELS.button.breakAtChars));
+        btnBreakAtChars.onClick = function () {
+            executeAction("punctuation", { chars: txtBreakChars.text });
         };
 
-        /* 句読点対象文字テキストフィールド */
-        var txtPunctuation = panelLineBreak.add("edittext", undefined, "、。，．｡､,.!?！？");
-        txtPunctuation.alignment = ["fill", "center"];
+        var txtBreakChars = panelInsertBreak.add("edittext", undefined, DEFAULT_BREAK_CHARS);
+        txtBreakChars.alignment = ["fill", "center"];
 
-        /* 指定文字数で改行ボタン */
-        var btnBreakAtCount = panelLineBreak.add("button", undefined, getLabel(LABELS.button.breakAtCount));
+        var btnBreakAtCount = panelInsertBreak.add("button", undefined, getLabel(LABELS.button.breakAtCount));
         btnBreakAtCount.onClick = function () {
             executeAction("breakAtCount", { count: txtBreakCount.text, forced: chkForcedBreakAtCount.value });
         };
 
-        /* 文字数テキストフィールド + 強制改行チェックボックス */
-        var breakCountRow = panelLineBreak.add("group");
+        var breakCountRow = panelInsertBreak.add("group");
         breakCountRow.orientation = "row";
         breakCountRow.alignment = ["fill", "center"];
         breakCountRow.alignChildren = ["left", "center"];
-        var txtBreakCount = breakCountRow.add("edittext", undefined, "35");
+        var txtBreakCount = breakCountRow.add("edittext", undefined, DEFAULT_BREAK_COUNT);
         txtBreakCount.characters = 3;
         var chkForcedBreakAtCount = breakCountRow.add("checkbox", undefined, getLabel(LABELS.checkbox.forcedBreak));
 
-        /* その他の改行パネル */
-        var panelOtherBreak = panelBreakGroup.add("panel", undefined, getLabel(LABELS.panel.convertBreak));
-        panelOtherBreak.margins = [10, 18, 10, 8];
-        panelOtherBreak.alignment = ["fill", "top"];
-        panelOtherBreak.alignChildren = ["fill", "center"];
+        /* 改行の切り換え */
+        var panelConvertBreak = addPanel(panelBreakGroup, getLabel(LABELS.panel.convertBreak));
 
-        /* 強制改行→改行ボタン */
-        var btnConvertBreaks = panelOtherBreak.add("button", undefined, getLabel(LABELS.button.convertBreaks));
+        var btnConvertBreaks = panelConvertBreak.add("button", undefined, getLabel(LABELS.button.convertBreaks));
         btnConvertBreaks.onClick = function () {
             executeAction("convertForcedLineBreaks");
         };
 
-        /* 改行→強制改行ボタン */
-        var btnConvertToForcedBreaks = panelOtherBreak.add("button", undefined, getLabel(LABELS.button.convertToForcedBreaks));
+        var btnConvertToForcedBreaks = panelConvertBreak.add("button", undefined, getLabel(LABELS.button.convertToForcedBreaks));
         btnConvertToForcedBreaks.onClick = function () {
             executeAction("convertToForcedBreaks");
         };
 
         /* 右カラム：分割・連結 */
-        var splitConcatColumn = tabBasic.add("group");
-        splitConcatColumn.orientation = "column";
-        splitConcatColumn.alignment = ["fill", "top"];
-        splitConcatColumn.alignChildren = ["fill", "top"];
+        var splitConcatColumn = addColumnGroup(tabBasic);
+        var panelSplitGroup = addPanel(splitConcatColumn, getLabel(LABELS.panel.splitGroup), ["fill", "top"]);
 
-        /* 分割グループパネル */
-        var panelSplitGroup = splitConcatColumn.add("panel", undefined, getLabel(LABELS.panel.splitGroup));
-        panelSplitGroup.margins = [10, 18, 10, 8];
-        panelSplitGroup.alignment = ["fill", "top"];
-        panelSplitGroup.alignChildren = ["fill", "top"];
+        /* 改行・タブで分割 */
+        var panelSplitByBreak = addPanel(panelSplitGroup, getLabel(LABELS.panel.splitByBreak));
 
-        /* 分割パネル */
-        var panelSplit = panelSplitGroup.add("panel", undefined, getLabel(LABELS.panel.splitByBreak));
-        panelSplit.margins = [10, 18, 10, 8];
-        panelSplit.alignment = ["fill", "top"];
-        panelSplit.alignChildren = ["fill", "center"];
-
-        /* 改行で分割ボタン */
-        var btnSplitByLine = panelSplit.add("button", undefined, getLabel(LABELS.button.splitByLine));
+        var btnSplitByLine = panelSplitByBreak.add("button", undefined, getLabel(LABELS.button.splitByLine));
         btnSplitByLine.helpTip = getLabel(LABELS.tooltip.splitByLine);
         btnSplitByLine.onClick = function () {
             executeAction("splitByLineBreak");
         };
 
-        /* 改行で分割（書式保持）ボタン */
-        var btnSplitByLineKeepStyle = panelSplit.add("button", undefined, getLabel(LABELS.button.splitByLineKeepStyle));
+        var btnSplitByLineKeepStyle = panelSplitByBreak.add("button", undefined, getLabel(LABELS.button.splitByLineKeepStyle));
         btnSplitByLineKeepStyle.helpTip = getLabel(LABELS.tooltip.splitByLineKeepStyle);
         btnSplitByLineKeepStyle.onClick = function () {
             executeAction("splitByLineBreakKeepStyle");
         };
 
-        /* タブで分解ボタン */
-        var btnSplitByTab = panelSplit.add("button", undefined, getLabel(LABELS.button.splitByTab));
+        var btnSplitByTab = panelSplitByBreak.add("button", undefined, getLabel(LABELS.button.splitByTab));
         btnSplitByTab.onClick = function () {
             executeAction("splitByTab");
         };
 
-        /* 分割（文字）パネル */
-        var panelSplitChar = panelSplitGroup.add("panel", undefined, getLabel(LABELS.panel.splitByChar));
-        panelSplitChar.margins = [10, 18, 10, 8];
-        panelSplitChar.alignment = ["fill", "top"];
-        panelSplitChar.alignChildren = ["fill", "center"];
+        /* 1文字ずつ分割 */
+        var panelSplitByChar = addPanel(panelSplitGroup, getLabel(LABELS.panel.splitByChar));
 
-        /* 書式を保持ボタン */
-        var btnSplitKeepStyle = panelSplitChar.add("button", undefined, getLabel(LABELS.button.splitKeepStyle));
+        var btnSplitKeepStyle = panelSplitByChar.add("button", undefined, getLabel(LABELS.button.splitKeepStyle));
         btnSplitKeepStyle.helpTip = getLabel(LABELS.tooltip.splitKeepStyle);
         btnSplitKeepStyle.onClick = function () {
             executeAction("splitByCharKeepStyle");
         };
 
-        /* 書式を無視ボタン */
-        var btnSplitIgnoreStyle = panelSplitChar.add("button", undefined, getLabel(LABELS.button.splitIgnoreStyle));
+        var btnSplitIgnoreStyle = panelSplitByChar.add("button", undefined, getLabel(LABELS.button.splitIgnoreStyle));
         btnSplitIgnoreStyle.helpTip = getLabel(LABELS.tooltip.splitIgnoreStyle);
         btnSplitIgnoreStyle.onClick = function () {
             executeAction("splitByCharIgnoreStyle");
         };
 
-        /* 連結パネル */
-        var panelConcat = splitConcatColumn.add("panel", undefined, getLabel(LABELS.panel.concat));
-        panelConcat.margins = [10, 18, 10, 8];
-        panelConcat.alignment = ["fill", "top"];
-        panelConcat.alignChildren = ["center", "center"];
+        /* 連結 */
+        var panelConcat = addPanel(splitConcatColumn, getLabel(LABELS.panel.concat), ["center", "center"]);
 
         var concatButtonColumn = panelConcat.add("group");
-        concatButtonColumn.margins = [10, 0, 10, 8];
+        concatButtonColumn.margins = BUTTON_ROW_MARGINS;
         concatButtonColumn.orientation = "column";
         concatButtonColumn.alignment = ["fill", "top"];
         concatButtonColumn.alignChildren = ["fill", "center"];
 
-        /* 連結（縦）ボタン */
         var btnConcatV = concatButtonColumn.add("button", undefined, getLabel(LABELS.button.concatV));
         btnConcatV.helpTip = getLabel(LABELS.tooltip.concatV);
         btnConcatV.onClick = function () {
             executeAction("concatVertical");
         };
 
-        /* 横連結（行維持）ボタン */
         var btnConcatHOnly = concatButtonColumn.add("button", undefined, getLabel(LABELS.button.concatHOnly));
         btnConcatHOnly.helpTip = getLabel(LABELS.tooltip.concatHOnly);
         btnConcatHOnly.onClick = function () {
             executeAction("concatHorizontalOnly");
         };
 
-        /* 横連結ボタン */
         var btnConcatH = concatButtonColumn.add("button", undefined, getLabel(LABELS.button.concatH));
         btnConcatH.helpTip = getLabel(LABELS.tooltip.concatH);
         btnConcatH.onClick = function () {
             executeAction("concatH");
         };
 
-        /* PDFテキスト整形ボタン */
         var btnConcatToArea = concatButtonColumn.add("button", undefined, getLabel(LABELS.button.concatToArea));
         btnConcatToArea.helpTip = getLabel(LABELS.tooltip.concatToArea);
         btnConcatToArea.onClick = function () {
             executeAction("concatToArea");
         };
 
-        /* === タブ2: クリーンアップ === */
+        /* === タブ2: 整形 === */
         var tabCleanup = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.cleanup));
-        tabCleanup.margins = [10, 20, 0, -10];
-        tabCleanup.spacing = 15;
-        tabCleanup.orientation = "row";
-        tabCleanup.alignment = ["fill", "top"];
-        tabCleanup.alignChildren = ["fill", "top"];
+        setupTab(tabCleanup, "row");
 
-        /* 左カラム：タブ */
-        var tabSpaceColumn = tabCleanup.add("group");
-        tabSpaceColumn.orientation = "column";
-        tabSpaceColumn.alignment = ["fill", "top"];
-        tabSpaceColumn.alignChildren = ["fill", "top"];
+        /* 左カラム：タブ・スペース */
+        var spaceCleanupColumn = addColumnGroup(tabCleanup);
 
-        /* タブパネル */
-        var panelTab = tabSpaceColumn.add("panel", undefined, getLabel(LABELS.panel.tab));
-        panelTab.margins = [10, 18, 10, 8];
-        panelTab.alignment = ["fill", "top"];
-        panelTab.alignChildren = ["fill", "center"];
+        var panelTabChar = addPanel(spaceCleanupColumn, getLabel(LABELS.panel.tab));
 
-        /* タブを削除ボタン */
-        var btnRemoveTabs = panelTab.add("button", undefined, getLabel(LABELS.button.removeTabs));
+        var btnRemoveTabs = panelTabChar.add("button", undefined, getLabel(LABELS.button.removeTabs));
         btnRemoveTabs.onClick = function () {
             executeAction("removeTabs");
         };
 
-        /* タブをスペースにボタン */
-        var btnTabsToSpaces = panelTab.add("button", undefined, getLabel(LABELS.button.tabsToSpaces));
+        var btnTabsToSpaces = panelTabChar.add("button", undefined, getLabel(LABELS.button.tabsToSpaces));
         btnTabsToSpaces.onClick = function () {
             executeAction("tabsToSpaces");
         };
 
-        /* スペースパネル（タブパネルの下） */
-        var panelSpace = tabSpaceColumn.add("panel", undefined, getLabel(LABELS.panel.space));
-        panelSpace.margins = [10, 18, 10, 8];
-        panelSpace.alignment = ["fill", "top"];
-        panelSpace.alignChildren = ["fill", "center"];
+        var panelRemoveSpace = addPanel(spaceCleanupColumn, getLabel(LABELS.panel.space));
 
-        /* 行頭行末のスペースボタン */
-        var btnTrimSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.trimSpaces));
+        var btnTrimSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.trimSpaces));
         btnTrimSpaces.helpTip = getLabel(LABELS.tooltip.trimSpaces);
         btnTrimSpaces.onClick = function () {
             executeAction("trimSpaces");
         };
 
-        /* 和欧間のスペースボタン */
-        var btnCjkLatinSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.cjkLatinSpaces));
+        var btnCjkLatinSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.cjkLatinSpaces));
         btnCjkLatinSpaces.helpTip = getLabel(LABELS.tooltip.cjkLatinSpaces);
         btnCjkLatinSpaces.onClick = function () {
             executeAction("removeCjkLatinSpaces");
         };
 
-        /* 連続スペースボタン */
-        var btnCollapseSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.collapseSpaces));
+        var btnCollapseSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.collapseSpaces));
         btnCollapseSpaces.helpTip = getLabel(LABELS.tooltip.collapseSpaces);
         btnCollapseSpaces.onClick = function () {
             executeAction("collapseSpaces");
         };
 
-        /* スペース削除（一括）ボタン */
-        var btnCleanupSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.cleanupSpaces));
+        var btnCleanupSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.cleanupSpaces));
         btnCleanupSpaces.helpTip = getLabel(LABELS.tooltip.cleanupSpaces);
         btnCleanupSpaces.onClick = function () {
             executeAction("cleanupSpaces");
         };
 
-        /* すべてのスペースを削除ボタン */
-        var btnRemoveAllSpaces = panelSpace.add("button", undefined, getLabel(LABELS.button.removeAllSpaces));
+        var btnRemoveAllSpaces = panelRemoveSpace.add("button", undefined, getLabel(LABELS.button.removeAllSpaces));
         btnRemoveAllSpaces.helpTip = getLabel(LABELS.tooltip.removeAllSpaces);
         btnRemoveAllSpaces.onClick = function () {
             executeAction("removeAllSpaces");
         };
 
-        /* その他パネル（スペース削除パネルの下）*/
-        var panelOther = tabSpaceColumn.add("panel", undefined, getLabel(LABELS.panel.other));
-        panelOther.margins = [10, 18, 10, 8];
-        panelOther.alignment = ["fill", "top"];
-        panelOther.alignChildren = ["fill", "center"];
+        var panelAddSpace = addPanel(spaceCleanupColumn, getLabel(LABELS.panel.addSpace));
 
-        var btnSpaceAfterPunct = panelOther.add("button", undefined, getLabel(LABELS.button.spaceAfterPunct));
+        var btnSpaceAfterPunct = panelAddSpace.add("button", undefined, getLabel(LABELS.button.spaceAfterPunct));
         btnSpaceAfterPunct.helpTip = getLabel(LABELS.tooltip.spaceAfterPunct);
         btnSpaceAfterPunct.onClick = function () {
             executeAction("spaceAfterPunct");
         };
 
         /* 右カラム：変換・リスト */
-        var convertListColumn = tabCleanup.add("group");
-        convertListColumn.orientation = "column";
-        convertListColumn.alignment = ["fill", "top"];
-        convertListColumn.alignChildren = ["fill", "top"];
+        var convertListColumn = addColumnGroup(tabCleanup);
 
-        /* スペースや記号の変換パネル（右カラム先頭・変換の上）
-         * 変換前（Before）／変換後（After）をラジオで選び、［変換］で置換。
-         * 前後が同じ選択のときは［変換］をディムにする。*/
-        var panelSymbolConvert = convertListColumn.add("panel", undefined, getLabel(LABELS.panel.symbolConvert));
-        panelSymbolConvert.margins = [10, 18, 10, 8];
-        panelSymbolConvert.alignment = ["fill", "top"];
-        panelSymbolConvert.alignChildren = ["fill", "top"];
+        /* スペースや記号の変換：変換前／変換後をラジオで選び、［変換］で置換する */
+        var panelSymbolConvert = addPanel(convertListColumn, getLabel(LABELS.panel.symbolConvert), ["fill", "top"]);
 
-        var symbolRow = panelSymbolConvert.add("group");
-        symbolRow.orientation = "column";
-        symbolRow.alignment = ["fill", "top"];
-        symbolRow.alignChildren = ["fill", "top"];
-        symbolRow.spacing = 15;
+        var symbolConvertColumn = panelSymbolConvert.add("group");
+        symbolConvertColumn.orientation = "column";
+        symbolConvertColumn.alignment = ["fill", "top"];
+        symbolConvertColumn.alignChildren = ["fill", "top"];
+        symbolConvertColumn.spacing = TAB_SPACING;
 
-        /* 変換前（Before）*/
-        var beforePanel = symbolRow.add("panel", undefined, getLabel(LABELS.panel.symbolBefore));
-        beforePanel.orientation = "column";
-        beforePanel.alignChildren = ["left", "top"];
-        beforePanel.margins = [10, 18, 10, 8];
-        var rbBeforeSpace = beforePanel.add("radiobutton", undefined, getLabel(LABELS.radio.space));
-        var rbBeforeUnderscore = beforePanel.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
-        var rbBeforeHyphen = beforePanel.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
+        var panelSymbolBefore = addPanel(symbolConvertColumn, getLabel(LABELS.panel.symbolBefore), ["left", "top"]);
+        var rbBeforeSpace = panelSymbolBefore.add("radiobutton", undefined, getLabel(LABELS.radio.space));
+        var rbBeforeUnderscore = panelSymbolBefore.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
+        var rbBeforeHyphen = panelSymbolBefore.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
         rbBeforeSpace.value = true;
 
-        /* 変換後（After）*/
-        var afterPanel = symbolRow.add("panel", undefined, getLabel(LABELS.panel.symbolAfter));
-        afterPanel.orientation = "column";
-        afterPanel.alignChildren = ["left", "top"];
-        afterPanel.margins = [10, 18, 10, 8];
-        var rbAfterSpace = afterPanel.add("radiobutton", undefined, getLabel(LABELS.radio.space));
-        var rbAfterUnderscore = afterPanel.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
-        var rbAfterHyphen = afterPanel.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
+        var panelSymbolAfter = addPanel(symbolConvertColumn, getLabel(LABELS.panel.symbolAfter), ["left", "top"]);
+        var rbAfterSpace = panelSymbolAfter.add("radiobutton", undefined, getLabel(LABELS.radio.space));
+        var rbAfterUnderscore = panelSymbolAfter.add("radiobutton", undefined, getLabel(LABELS.radio.underscore));
+        var rbAfterHyphen = panelSymbolAfter.add("radiobutton", undefined, getLabel(LABELS.radio.hyphen));
         rbAfterUnderscore.value = true;
 
+        /**
+         * 変換前に選ばれている記号種別を返す
+         * @returns {string} "space" | "underscore" | "hyphen"
+         */
         function getBeforeSymbol() {
             if (rbBeforeUnderscore.value) return "underscore";
             if (rbBeforeHyphen.value) return "hyphen";
             return "space";
         }
+
+        /**
+         * 変換後に選ばれている記号種別を返す
+         * @returns {string} "space" | "underscore" | "hyphen"
+         */
         function getAfterSymbol() {
             if (rbAfterSpace.value) return "space";
             if (rbAfterHyphen.value) return "hyphen";
@@ -2745,87 +2631,82 @@ function toTitleCase(text) {
             executeAction("convertSymbol", { from: getBeforeSymbol(), to: getAfterSymbol() });
         };
 
-        /* 前後が同じならディム */
+        /**
+         * 変換前と変換後が同じ記号なら［変換］をディムにする
+         * @returns {void}
+         */
         function updateConvertSymbolState() {
             btnConvertSymbol.enabled = (getBeforeSymbol() !== getAfterSymbol());
         }
+
         var symbolRadios = [rbBeforeSpace, rbBeforeUnderscore, rbBeforeHyphen, rbAfterSpace, rbAfterUnderscore, rbAfterHyphen];
-        for (var rbi = 0; rbi < symbolRadios.length; rbi++) {
-            symbolRadios[rbi].onClick = updateConvertSymbolState;
+        for (var radioIndex = 0; radioIndex < symbolRadios.length; radioIndex++) {
+            symbolRadios[radioIndex].onClick = updateConvertSymbolState;
         }
         updateConvertSymbolState();
 
-        /* 変換パネル */
-        var panelConvert = convertListColumn.add("panel", undefined, getLabel(LABELS.panel.convert));
-        panelConvert.margins = [10, 18, 10, 8];
-        panelConvert.alignment = ["fill", "top"];
-        panelConvert.alignChildren = ["center", "center"];
+        /* 文字変換 */
+        var panelConvert = addPanel(convertListColumn, getLabel(LABELS.panel.convert), ["center", "center"]);
 
-        /* 全角英数字→半角ボタン */
         var btnFullToHalfAlnum = panelConvert.add("button", undefined, getLabel(LABELS.button.fullToHalfAlnum));
         btnFullToHalfAlnum.onClick = function () {
             executeAction("fullToHalfAlnum");
         };
 
-        /* 半角カナ→全角ボタン */
         var btnHalfToFullKana = panelConvert.add("button", undefined, getLabel(LABELS.button.halfToFullKana));
         btnHalfToFullKana.onClick = function () {
             executeAction("halfToFullKana");
         };
 
-        /* リストパネル */
-        var panelList = convertListColumn.add("panel", undefined, getLabel(LABELS.panel.list));
-        panelList.margins = [10, 18, 10, 8];
-        panelList.orientation = "row";
-        panelList.alignment = ["fill", "top"];
-        panelList.alignChildren = ["fill", "center"];
+        /* リストの除去 */
+        var panelRemoveList = addPanel(convertListColumn, getLabel(LABELS.panel.list));
+        panelRemoveList.orientation = "row";
 
-        /* 箇条書きボタン */
-        var btnBulletList = panelList.add("button", undefined, getLabel(LABELS.button.bulletList));
+        var btnBulletList = panelRemoveList.add("button", undefined, getLabel(LABELS.button.bulletList));
         btnBulletList.helpTip = getLabel(LABELS.tooltip.bulletList);
         btnBulletList.onClick = function () {
-            executeAction("toggleBulletList");
+            executeAction("removeBulletMarkers");
         };
 
-        /* 番号リストボタン */
-        var btnNumberList = panelList.add("button", undefined, getLabel(LABELS.button.numberList));
+        var btnNumberList = panelRemoveList.add("button", undefined, getLabel(LABELS.button.numberList));
         btnNumberList.helpTip = getLabel(LABELS.tooltip.numberList);
         btnNumberList.onClick = function () {
-            executeAction("toggleNumberList");
+            executeAction("removeNumberMarkers");
         };
 
-        /* === タブ3: 行の整理 === */
+        /* === タブ3: 行の編集 === */
         var tabLineArrange = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.lineArrange));
-        tabLineArrange.margins = [10, 20, 0, -10];
-        tabLineArrange.spacing = 15;
-        tabLineArrange.orientation = "row";
-        tabLineArrange.alignment = ["fill", "top"];
-        tabLineArrange.alignChildren = ["fill", "top"];
+        setupTab(tabLineArrange, "row");
 
-        /* 左カラム：行の並び替え（リストボックス＋操作ボタン） */
-        var lineListColumn = tabLineArrange.add("group");
-        lineListColumn.orientation = "column";
-        lineListColumn.alignment = ["fill", "top"];
-        lineListColumn.alignChildren = ["fill", "top"];
+        /* 左カラム：行リスト */
+        var lineListColumn = addColumnGroup(tabLineArrange);
 
         var lineListRow = lineListColumn.add("group");
         lineListRow.orientation = "row";
         lineListRow.alignChildren = ["fill", "fill"];
         lineListRow.spacing = 10;
 
-        var lineListBox = lineListRow.add("listbox", undefined, [], {
-            multiselect: false
-        });
-        lineListBox.preferredSize = [200, 460];
-        lineListBox.graphics.font = ScriptUI.newFont("dialog", "REGULAR", 18);
+        var lineListBox = lineListRow.add("listbox", undefined, [], { multiselect: false });
+        lineListBox.preferredSize = LINE_LIST_SIZE;
+        lineListBox.graphics.font = ScriptUI.newFont("dialog", "REGULAR", LINE_LIST_FONT_SIZE);
 
-        /* リストボックスのデータ管理 */
+        /* リストボックスが保持する行データ */
         var lineArrangeLines = [];
 
+        /**
+         * リストの内容をテキストフレームへ書き戻す
+         * @returns {void}
+         */
         function applyLinesToTextFrame() {
             executeAction("setLines", { text: lineArrangeLines.join("\r") });
         }
 
+        /**
+         * リストボックスを再構築する
+         * @param {number} selectIndex - 再構築後に選択する行番号
+         * @param {boolean} skipApply - 真ならテキストフレームへの書き戻しを行わない
+         * @returns {void}
+         */
         function refreshLineList(selectIndex, skipApply) {
             lineListBox.removeAll();
             for (var i = 0; i < lineArrangeLines.length; i++) {
@@ -2840,142 +2721,124 @@ function toTitleCase(text) {
             if (!skipApply) applyLinesToTextFrame();
         }
 
+        /**
+         * 選択中テキストフレームの内容を読み込んでリストへ反映する
+         * @returns {void}
+         */
         function loadLinesToList() {
             runWorker("getLines", {}, function (status, payload) {
                 lineArrangeLines = [];
                 if (status === "lines" && payload) {
-                    var contents = decodeURIComponent(payload);
-                    var normalized = contents.replace(/\r\n/g, "\r").replace(/\n/g, "\r");
-                    lineArrangeLines = normalized.split("\r");
+                    lineArrangeLines = normalizeParagraphBreaks(decodeURIComponent(payload)).split("\r");
                 }
                 refreshLineList(0, true);
             });
         }
 
+        /**
+         * 行リストの操作ボタンの有効・無効を選択状態に合わせる
+         * @returns {void}
+         */
         function updateLineListButtons() {
-            var hasSel = lineListBox.selection !== null;
-            btnLineUp.enabled = hasSel && lineListBox.selection.index > 0;
-            btnLineDown.enabled = hasSel && lineListBox.selection.index < lineArrangeLines.length - 1;
-            btnLineEdit.enabled = hasSel;
-            btnLineDelete.enabled = hasSel;
+            var hasSelection = lineListBox.selection !== null;
+            btnLineUp.enabled = hasSelection && lineListBox.selection.index > 0;
+            btnLineDown.enabled = hasSelection && lineListBox.selection.index < lineArrangeLines.length - 1;
+            btnLineEdit.enabled = hasSelection;
+            btnLineDelete.enabled = hasSelection;
         }
 
-        lineListBox.onDoubleClick = function () {
+        /**
+         * 選択行をダイアログで編集する
+         * @returns {void}
+         */
+        function editSelectedLine() {
             if (!lineListBox.selection) return;
-            var idx = lineListBox.selection.index;
-            var result = prompt(getLabel(LABELS.prompt.editLine), lineArrangeLines[idx]);
-            if (result === null) return;
-            lineArrangeLines[idx] = result;
-            refreshLineList(idx);
-        };
+            var selectedIndex = lineListBox.selection.index;
+            var editedText = prompt(getLabel(LABELS.prompt.editLine), lineArrangeLines[selectedIndex]);
+            if (editedText === null) return;
+            lineArrangeLines[selectedIndex] = editedText;
+            refreshLineList(selectedIndex);
+        }
 
-        lineListBox.onChange = function () {
-            updateLineListButtons();
-        };
+        /**
+         * 選択行を上下いずれかへ1行ぶん移動する
+         * @param {number} offset - -1 なら上へ、1 なら下へ
+         * @returns {void}
+         */
+        function moveSelectedLine(offset) {
+            if (!lineListBox.selection) return;
+            var selectedIndex = lineListBox.selection.index;
+            var movedIndex = selectedIndex + offset;
+            if (movedIndex < 0 || movedIndex >= lineArrangeLines.length) return;
 
-        /* 右カラム：一括操作ボタン */
-        var lineActionColumn = tabLineArrange.add("group");
-        lineActionColumn.orientation = "column";
-        lineActionColumn.alignment = ["fill", "top"];
-        lineActionColumn.alignChildren = ["fill", "top"];
+            var movedLine = lineArrangeLines[selectedIndex];
+            lineArrangeLines[selectedIndex] = lineArrangeLines[movedIndex];
+            lineArrangeLines[movedIndex] = movedLine;
+            refreshLineList(movedIndex);
+        }
 
-        /* 編集パネル */
-        var panelLineEdit = lineActionColumn.add("panel", undefined, getLabel(LABELS.panel.lineEdit));
-        panelLineEdit.margins = [10, 18, 10, 8];
-        panelLineEdit.alignment = ["fill", "top"];
-        panelLineEdit.alignChildren = ["fill", "center"];
+        lineListBox.onDoubleClick = editSelectedLine;
+        lineListBox.onChange = updateLineListButtons;
 
-        /* 上へボタン */
+        /* 右カラム：行への一括操作 */
+        var lineActionColumn = addColumnGroup(tabLineArrange);
+
+        var panelLineEdit = addPanel(lineActionColumn, getLabel(LABELS.panel.lineEdit));
+
         var btnLineUp = panelLineEdit.add("button", undefined, getLabel(LABELS.button.lineUp));
         btnLineUp.onClick = function () {
-            if (!lineListBox.selection) return;
-            var idx = lineListBox.selection.index;
-            if (idx <= 0) return;
-            var tmp = lineArrangeLines[idx];
-            lineArrangeLines[idx] = lineArrangeLines[idx - 1];
-            lineArrangeLines[idx - 1] = tmp;
-            refreshLineList(idx - 1);
+            moveSelectedLine(-1);
         };
 
-        /* 下へボタン */
         var btnLineDown = panelLineEdit.add("button", undefined, getLabel(LABELS.button.lineDown));
         btnLineDown.onClick = function () {
-            if (!lineListBox.selection) return;
-            var idx = lineListBox.selection.index;
-            if (idx >= lineArrangeLines.length - 1) return;
-            var tmp = lineArrangeLines[idx];
-            lineArrangeLines[idx] = lineArrangeLines[idx + 1];
-            lineArrangeLines[idx + 1] = tmp;
-            refreshLineList(idx + 1);
+            moveSelectedLine(1);
         };
 
-        /* 追加ボタン */
         var btnLineAdd = panelLineEdit.add("button", undefined, getLabel(LABELS.button.lineAdd));
         btnLineAdd.onClick = function () {
-            var result = prompt(getLabel(LABELS.prompt.addLine), "");
-            if (result === null) return;
-            lineArrangeLines.push(result);
+            var addedText = prompt(getLabel(LABELS.prompt.addLine), "");
+            if (addedText === null) return;
+            lineArrangeLines.push(addedText);
             refreshLineList(lineArrangeLines.length - 1);
         };
 
-        /* 編集ボタン */
         var btnLineEdit = panelLineEdit.add("button", undefined, getLabel(LABELS.button.lineEdit));
-        btnLineEdit.onClick = function () {
-            if (!lineListBox.selection) return;
-            var idx = lineListBox.selection.index;
-            var result = prompt(getLabel(LABELS.prompt.editLine), lineArrangeLines[idx]);
-            if (result === null) return;
-            lineArrangeLines[idx] = result;
-            refreshLineList(idx);
-        };
+        btnLineEdit.onClick = editSelectedLine;
 
-        /* 削除ボタン */
         var btnLineDelete = panelLineEdit.add("button", undefined, getLabel(LABELS.button.lineDelete));
         btnLineDelete.onClick = function () {
             if (!lineListBox.selection) return;
-            var idx = lineListBox.selection.index;
+            var selectedIndex = lineListBox.selection.index;
             if (!confirm(getLabel(LABELS.confirm.deleteLine))) return;
-            lineArrangeLines.splice(idx, 1);
-            refreshLineList(idx);
+            lineArrangeLines.splice(selectedIndex, 1);
+            refreshLineList(selectedIndex);
         };
 
-        /* ソートパネル */
-        var panelSort = lineActionColumn.add("panel", undefined, getLabel(LABELS.panel.sort));
-        panelSort.margins = [10, 18, 10, 8];
-        panelSort.alignment = ["fill", "top"];
-        panelSort.alignChildren = ["fill", "center"];
+        var panelSort = addPanel(lineActionColumn, getLabel(LABELS.panel.sort));
 
-        /* ソート（文字コード）ボタン */
         var btnSortByCharCode = panelSort.add("button", undefined, getLabel(LABELS.button.sortByCharCode));
         btnSortByCharCode.onClick = function () {
             executeActionThen("sortByCharCode", {}, loadLinesToList);
         };
 
-        /* ソート（文字数）ボタン */
         var btnSortByLength = panelSort.add("button", undefined, getLabel(LABELS.button.sortByLength));
         btnSortByLength.onClick = function () {
             executeActionThen("sortByLength", {}, loadLinesToList);
         };
 
-        /* 順序を反転ボタン */
         var btnReverseOrder = panelSort.add("button", undefined, getLabel(LABELS.button.reverseOrder));
         btnReverseOrder.onClick = function () {
             executeActionThen("reverseOrder", {}, loadLinesToList);
         };
 
-        /* 行削除パネル */
-        var panelLineDelete = lineActionColumn.add("panel", undefined, getLabel(LABELS.panel.lineDelete));
-        panelLineDelete.margins = [10, 18, 10, 8];
-        panelLineDelete.alignment = ["fill", "top"];
-        panelLineDelete.alignChildren = ["fill", "center"];
+        var panelLineDelete = addPanel(lineActionColumn, getLabel(LABELS.panel.lineDelete));
 
-        /* 重複行の削除ボタン */
         var btnRemoveDuplicateLines = panelLineDelete.add("button", undefined, getLabel(LABELS.button.removeDuplicateLines));
         btnRemoveDuplicateLines.onClick = function () {
             executeActionThen("removeDuplicateLines", {}, loadLinesToList);
         };
 
-        /* 空行削除ボタン */
         var btnRemoveEmptyLines = panelLineDelete.add("button", undefined, getLabel(LABELS.button.removeEmptyLines));
         btnRemoveEmptyLines.onClick = function () {
             executeActionThen("removeEmptyLines", {}, loadLinesToList);
@@ -2983,105 +2846,117 @@ function toTitleCase(text) {
 
         /* === タブ4: 英数字 === */
         var tabAlnum = tabbedPanel.add("tab", undefined, getLabel(LABELS.tab.alnum));
-        tabAlnum.margins = [10, 20, 0, -10];
-        tabAlnum.spacing = 15;
-        tabAlnum.orientation = "column";
-        tabAlnum.alignment = ["fill", "top"];
-        tabAlnum.alignChildren = ["fill", "top"];
+        setupTab(tabAlnum, "column");
 
-        /* 英字の大文字/小文字変換（ボタン＋プレビュー）*/
-        var panelLetterCase = tabAlnum.add("panel", undefined, getLabel(LABELS.panel.letterCase));
-        panelLetterCase.margins = [10, 18, 10, 8];
-        panelLetterCase.alignment = ["fill", "top"];
-        panelLetterCase.alignChildren = ["fill", "top"];
+        var panelLetterCase = addPanel(tabAlnum, getLabel(LABELS.panel.letterCase), ["fill", "top"]);
 
-        /* mode -> プレビュー用 statictext */
-        var casePreview = {};
+        /* モード名 → プレビュー用 statictext */
+        var casePreviewFields = {};
 
-        /* 1行 = [変換ボタン] [プレビュー] */
+        /**
+         * 1行 = [変換ボタン] [変換結果プレビュー] を追加する
+         * @param {string} modeKey - プレビューを引くためのモード名
+         * @param {Object} labelNode - ボタンのラベルノード
+         * @param {string} actionId - 実行するアクションID
+         * @returns {void}
+         */
         function addCaseRow(modeKey, labelNode, actionId) {
-            var row = panelLetterCase.add("group");
-            row.orientation = "row";
-            row.alignment = ["fill", "center"];
-            row.alignChildren = ["left", "center"];
+            var caseRow = panelLetterCase.add("group");
+            caseRow.orientation = "row";
+            caseRow.alignment = ["fill", "center"];
+            caseRow.alignChildren = ["left", "center"];
 
-            var btn = row.add("button", undefined, getLabel(labelNode));
-            btn.preferredSize = [150, 24];
-            btn.onClick = function () {
+            var caseButton = caseRow.add("button", undefined, getLabel(labelNode));
+            caseButton.preferredSize = CASE_BUTTON_SIZE;
+            caseButton.onClick = function () {
                 executeActionThen(actionId, {}, refreshCasePreview);
             };
 
-            var preview = row.add("statictext", undefined, "");
-            preview.preferredSize = [120, 24];
-            try { preview.justify = "left"; } catch (e) { }
-            casePreview[modeKey] = preview;
+            var previewText = caseRow.add("statictext", undefined, "", { justify: "left" });
+            previewText.preferredSize = CASE_PREVIEW_SIZE;
+            casePreviewFields[modeKey] = previewText;
         }
+
         addCaseRow("upper", LABELS.button.caseUpper, "caseUpper");
         addCaseRow("lower", LABELS.button.caseLower, "caseLower");
         addCaseRow("word", LABELS.button.caseWord, "caseWord");
         addCaseRow("sentence", LABELS.button.caseSentence, "caseSentence");
         addCaseRow("title", LABELS.button.caseTitle, "caseTitle");
 
-        /* プレビュー表示用にテキストを短く整える */
-        function normalizeExample(s) {
-            if (s == null) return "";
-            s = String(s).replace(/[\r\n]+/g, " ").replace(/[ 　\t]+/g, " ").replace(/^\s+|\s+$/g, "");
-            if (s.length > 40) s = s.substring(0, 40) + "…";
-            return s;
+        /**
+         * プレビュー表示用にテキストを1行へ詰めて短く整える
+         * @param {string} text - 元テキスト
+         * @returns {string} 整形後のテキスト
+         */
+        function normalizeCaseSample(text) {
+            if (text == null) return "";
+            var sample = String(text).replace(/[\r\n]+/g, " ").replace(/[ 　\t]+/g, " ").replace(/^\s+|\s+$/g, "");
+            if (sample.length > CASE_PREVIEW_MAX_CHARS) sample = sample.substring(0, CASE_PREVIEW_MAX_CHARS) + "…";
+            return sample;
         }
 
-        /* メインエンジンから先頭テキストを取得し、各モードのプレビューを更新 */
+        /* プレビュー更新の多重実行ガード */
         var casePreviewRefreshing = false;
+
+        /**
+         * メインエンジンから先頭テキストを取得し、各モードのプレビューを更新する
+         * @returns {void}
+         */
         function refreshCasePreview() {
             if (casePreviewRefreshing) return;
             casePreviewRefreshing = true;
+
             runWorker("getFirstText", {}, function (status, payload) {
                 casePreviewRefreshing = false;
-                var base = (status === "text" && payload) ? decodeURIComponent(payload) : "";
-                var src = normalizeExample(base);
-                if (casePreview.upper) casePreview.upper.text = normalizeExample(src.toUpperCase());
-                if (casePreview.lower) casePreview.lower.text = normalizeExample(src.toLowerCase());
-                if (casePreview.word) casePreview.word.text = normalizeExample(toWordCap(src));
-                if (casePreview.sentence) casePreview.sentence.text = normalizeExample(toSentenceCase(src));
-                if (casePreview.title) casePreview.title.text = normalizeExample(toTitleCase(src));
+                var sample = normalizeCaseSample((status === "text" && payload) ? decodeURIComponent(payload) : "");
+                casePreviewFields.upper.text = normalizeCaseSample(sample.toUpperCase());
+                casePreviewFields.lower.text = normalizeCaseSample(sample.toLowerCase());
+                casePreviewFields.word.text = normalizeCaseSample(toWordCap(sample));
+                casePreviewFields.sentence.text = normalizeCaseSample(toSentenceCase(sample));
+                casePreviewFields.title.text = normalizeCaseSample(toTitleCase(sample));
             });
         }
 
-        var initState = computeSelectionState(selectedObjects);
-        updateStatusDisplay(initState);
-        updateActionAvailability(initState);
+        applySelectionState(computeSelectionState(selectedObjects));
         loadLinesToList();
         refreshCasePreview();
 
         /* === 選択のリアルタイム反映 ===
-         * Illustrator 30.x には app.scheduleTask / setTimeout 等のタイマー API が
-         * 無いため、キャンバスにフォーカスがある間の連続ポーリングはできない。
-         * 代わりに「ユーザーがパレットへ操作しに来た瞬間」に選択を取り直す：
-         *   - onActivate : フォーカス復帰（パレットをクリック）時
-         *   - mouseover  : マウスがパレット上に乗った時
+         * Illustrator 30.x には app.scheduleTask / setTimeout 等のタイマー API が無いため、
+         * キャンバスにフォーカスがある間の連続ポーリングはできない。代わりに
+         * 「ユーザーがパレットへ操作しに来た瞬間」（onActivate＝フォーカス復帰、mouseover）に
          * メインエンジンの選択を取り直してステータスへ反映する。
          * 多重実行ガード（statusRefreshing）で BridgeTalk の重複呼び出しを防ぐ。*/
         var statusRefreshing = false;
+
+        /**
+         * メインエンジンの選択を取り直してステータス表示へ反映する
+         * @returns {void}
+         */
         function refreshStatusFromSelection() {
             if (statusRefreshing) return;
             statusRefreshing = true;
+
             runStatePoll(function (status, payload) {
                 statusRefreshing = false;
                 if (status !== "ok") return;
-                var st = parseState(payload);
-                updateStatusDisplay(st);
-                updateActionAvailability(st);
+                applySelectionState(parseState(payload));
             });
         }
+
+        /**
+         * パレットがフォーカスを得たときの更新処理
+         * @returns {void}
+         */
         function onPaletteFocus() {
             refreshStatusFromSelection();
             /* 英数字タブ表示中は選択変化に合わせてプレビューも更新 */
             if (tabbedPanel.selection === tabAlnum) refreshCasePreview();
         }
-        dialog.onActivate = onPaletteFocus;
-        try { dialog.addEventListener("mouseover", onPaletteFocus); } catch (e) { }
 
-        /* タブ切り替え時の再読み込み */
+        paletteWindow.onActivate = onPaletteFocus;
+        try { paletteWindow.addEventListener("mouseover", onPaletteFocus); } catch (e) { debugLog("addEventListener: mouseover", e); }
+
         tabbedPanel.onChange = function () {
             if (tabbedPanel.selection === tabLineArrange) {
                 loadLinesToList();
@@ -3090,86 +2965,66 @@ function toTitleCase(text) {
             }
         };
 
-        /* フッター（左：制御文字 / 伸縮スペーサー / 右：閉じる）を構築し、closePalette を返す */
-        function buildFooter() {
-            var footerRow = dialog.add("group");
-            footerRow.orientation = "row";
-            footerRow.alignment = ["fill", "bottom"];
-            footerRow.margins = [10, 10, 10, 0];
-
-            /* 左側：制御文字ボタン */
-            var footerLeftGroup = footerRow.add("group");
-            footerLeftGroup.alignChildren = ["left", "center"];
-
-            var btnShowHiddenChar = footerLeftGroup.add("button", undefined, hiddenCharLabel);
-
-            function updateHiddenCharButton() {
-                if (hiddenCharOn) {
-                    btnShowHiddenChar.text = "\u2713 " + hiddenCharLabel;
-                    try {
-                        var gfx = btnShowHiddenChar.graphics;
-                        gfx.foregroundColor = gfx.newPen(gfx.PenType.SOLID_COLOR, [0.0, 0.5, 0.8], 1);
-                    } catch (_) { }
-                } else {
-                    btnShowHiddenChar.text = hiddenCharLabel;
-                    try {
-                        var gfx2 = btnShowHiddenChar.graphics;
-                        gfx2.foregroundColor = gfx2.newPen(gfx2.PenType.SOLID_COLOR, [0.0, 0.0, 0.0], 1);
-                    } catch (_) { }
-                }
-            }
-
-            btnShowHiddenChar.onClick = function () {
-                runWorker("hiddenChar", {}, function (status, payload) {
-                    if (status === "error") { showError({ message: payload }); return; }
-                    hiddenCharOn = !hiddenCharOn;
-                    updateHiddenCharButton();
-                    var st = parseState(payload);
-                    updateStatusDisplay(st);
-                    updateActionAvailability(st);
-                });
-            };
-
-            /* 中央：伸縮スペーサー（左右グループを両端へ押し広げる）*/
-            var footerSpacer = footerRow.add("group");
-            footerSpacer.alignment = ["fill", "fill"];
-            footerSpacer.minimumSize.width = 0;
-
-            /* 右側：閉じる */
-            var footerRightGroup = footerRow.add("group");
-            footerRightGroup.alignChildren = ["right", "center"];
-
-            /* パレットを閉じる（1要素だけのグループ解除・選択整理・制御文字OFF はメインエンジンで）*/
-            function closePalette() {
-                runWorker("finalizeClose", { turnOffHidden: hiddenCharOn }, function () {
-                    dialog.close();
-                });
-            }
-
-            var btnClose = footerRightGroup.add("button", undefined, getLabel(LABELS.button.close), { name: "ok" });
-            btnClose.onClick = closePalette;
-
-            return closePalette;
+        /**
+         * パレットを閉じる（1要素だけのグループ解除・選択整理・制御文字OFF はメインエンジンで実行）
+         * @returns {void}
+         */
+        function closePalette() {
+            runWorker("finalizeClose", { turnOffHidden: hiddenCharOn }, function () {
+                paletteWindow.close();
+            });
         }
 
-        var closePalette = buildFooter();
+        /* フッター：制御文字の表示切り換え */
+        var footerRow = paletteWindow.add("group");
+        footerRow.orientation = "row";
+        footerRow.alignment = ["fill", "bottom"];
+        footerRow.alignChildren = ["left", "center"];
+        footerRow.margins = FOOTER_MARGINS;
+
+        var btnShowHiddenChar = footerRow.add("button", undefined, hiddenCharLabel);
+
+        /**
+         * 制御文字ボタンの表示（チェックマークと文字色）を状態に合わせる
+         * @returns {void}
+         */
+        function updateHiddenCharButton() {
+            btnShowHiddenChar.text = hiddenCharOn ? ("✓ " + hiddenCharLabel) : hiddenCharLabel;
+            try {
+                var buttonGraphics = btnShowHiddenChar.graphics;
+                var textColor = hiddenCharOn ? [0.0, 0.5, 0.8] : [0.0, 0.0, 0.0];
+                buttonGraphics.foregroundColor = buttonGraphics.newPen(buttonGraphics.PenType.SOLID_COLOR, textColor, 1);
+            } catch (e) { debugLog("updateHiddenCharButton: set color", e); }
+        }
+
+        btnShowHiddenChar.onClick = function () {
+            runWorker("hiddenChar", {}, function (status, payload) {
+                if (status === "error") {
+                    showError({ message: payload });
+                    return;
+                }
+                hiddenCharOn = !hiddenCharOn;
+                updateHiddenCharButton();
+                applySelectionState(parseState(payload));
+            });
+        };
 
         /* パレットがアクティブなとき Esc で閉じる */
-        dialog.addEventListener("keydown", function (e) {
-            if (e.keyName === "Escape") closePalette();
+        paletteWindow.addEventListener("keydown", function (keyEvent) {
+            if (keyEvent.keyName === "Escape") closePalette();
         });
 
         /* パレットが GC で破棄されないよう参照を保持 */
-        $.global.__TextBreakSplitMergePalette = dialog;
-        dialog.onClose = function () {
-            try { $.global.__TextBreakSplitMergePalette = null; } catch (_) { }
+        $.global.__TextBreakSplitMergePalette = paletteWindow;
+        paletteWindow.onClose = function () {
+            $.global.__TextBreakSplitMergePalette = null;
         };
 
-        dialog.show();
+        paletteWindow.show();
     }
 
     try {
-        showDialog(selectedObjects);
+        showPalette(selectedObjects);
     } catch (err) {
         showError(err);
     }

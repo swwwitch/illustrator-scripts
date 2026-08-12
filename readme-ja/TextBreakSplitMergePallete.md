@@ -2,6 +2,8 @@
 
 [![Direct](https://img.shields.io/badge/Direct%20Link-TextBreakSplitMergePallete.jsx-ffcc00.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/jsx/text/TextBreakSplitMergePallete.jsx)
 
+[![English](https://img.shields.io/badge/README-English-4b8bbe.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextBreakSplitMergePallete.md)
+
 [![Direct](https://img.shields.io/badge/Back%20to%20home-All%20scripts-cccccc.svg)](https://github.com/swwwitch/illustrator-scripts/blob/master/README.md)
 
 ---
@@ -19,7 +21,7 @@ Illustrator のテキストまわりの困りごとは、だいたい細かく�
 1. テキストフレーム（またはテキストを含むグループ）を選択
 2. スクリプトを実行
 
-ボタンを押すと即座に実行されます。プレビューや［適用］ボタンはありません。取り消したいときは `Cmd + Z` で戻してください。パレットは `Esc` キーでも閉じられます。
+ボタンを押すと即座に実行されます。プレビューや［適用］ボタンはありません。取り消したいときは `Cmd + Z` で戻してください。パレットは `Esc` キーで閉じます。
 
 すでにパレットが開いているときは、二重に起動せず前面化するだけです。
 
