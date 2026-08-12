@@ -248,6 +248,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
     // =========================================
     var registrationIndex = DEFAULTS.registrationIndex; /* 基準点 0..8（行優先, 4=中央）/ Registration point 0..8 (row-major, 4=center) */
     var activePreviewLayer = null; /* 生成したプレビュー用レイヤーの参照（名前でなく参照で管理）/ Reference to the preview layer we created */
+    var cachedFrontmostItem;       /* 複製元の走査結果。undefined＝未計算, null＝該当なし / Cached duplication source (undefined = not resolved yet) */
 
     var lightUI = isLightUI();
     var widgetForeColor = lightUI ? [0.25, 0.25, 0.25, 1] : [0.85, 0.85, 0.85, 1]; /* セル・ケイ線 / Cells and rules */
@@ -269,48 +270,54 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
         return;
     }
 
-    var anchorPoints = collectAllAnchorPoints(selectedItems);
-    if (anchorPoints.length === 0) {
+    if (collectAllAnchorPoints(selectedItems).length === 0) {
         alert(getLabel("alert.noAnchorPoints"));
         return; /* パスが無い（テキスト・画像のみ等）/ No path anchors (e.g. text/image only) */
     }
 
     toggleCanvasHelpers(); /* 実行時：エッジ等を隠す / On run: hide edges & annotator */
-
-    var userSettings = showSettingsDialog();
-    if (!userSettings) {
-        toggleCanvasHelpers(); /* 終了時：エッジを元に戻す / On exit: restore edges */
-        return; /* キャンセル / Cancelled */
-    }
-
-    var placeMarkerAtPoint = buildMarkerPlacer(userSettings, false);
-    if (!placeMarkerAtPoint) {
+    try {
+        placeMarkers();
+    } finally {
+        // 途中で例外が出ても、プレビューとエッジ表示は必ず元に戻す
+        // Always clean up the preview and restore edges, even if something throws
+        removePreviewLayer();
         toggleCanvasHelpers();
-        return; /* 配置元が用意できなかった / No placement source available */
     }
 
-    var placementPoints = resolveAnchorPoints(userSettings.objectSource);
-    var placedItems = [];
-    for (var i = 0; i < placementPoints.length; i++) {
-        placedItems.push(placeMarkerAtPoint(placementPoints[i][0], placementPoints[i][1]));
-    }
+    /**
+     * 設定ダイアログを表示し、確定した設定でマーカーを配置します。
+     * キャンセル時・配置元を用意できなかったときは、何もせずに戻ります。
+     * @returns {void}
+     */
+    function placeMarkers() {
+        var userSettings = showSettingsDialog();
+        if (!userSettings) return; /* キャンセル / Cancelled */
 
-    // グループ化：まとめてから（必要なら）レイヤーへ移す / Group first, then move to the layer if requested
-    var resultItems = (userSettings.groupItems && placedItems.length > 0) ? [groupPlacedItems(placedItems)] : placedItems;
+        var placeMarkerAtPoint = buildMarkerPlacer(userSettings, false);
+        if (!placeMarkerAtPoint) return; /* 配置元が用意できなかった / No placement source available */
 
-    if (userSettings.moveToLayer) {
-        var targetLayer = getOrCreateLayer(ANCHOR_LAYER_NAME);
-        for (var m = 0; m < resultItems.length; m++) {
-            moveItemToLayer(resultItems[m], targetLayer);
+        var placementPoints = resolveAnchorPoints(userSettings.objectSource);
+        var placedItems = [];
+        for (var i = 0; i < placementPoints.length; i++) {
+            placedItems.push(placeMarkerAtPoint(placementPoints[i][0], placementPoints[i][1]));
+        }
+
+        // グループ化：まとめてから（必要なら）レイヤーへ移す / Group first, then move to the layer if requested
+        var resultItems = (userSettings.groupItems && placedItems.length > 0) ? [groupPlacedItems(placedItems)] : placedItems;
+
+        if (userSettings.moveToLayer) {
+            var targetLayer = getOrCreateLayer(ANCHOR_LAYER_NAME);
+            for (var m = 0; m < resultItems.length; m++) {
+                moveItemToLayer(resultItems[m], targetLayer);
+            }
+        }
+
+        // 配置物を選択状態にして直後の移動・整列をしやすく / Select the placed items for easy move / align
+        if (resultItems.length > 0) {
+            doc.selection = resultItems;
         }
     }
-
-    // 配置物を選択状態にして直後の移動・整列をしやすく / Select the placed items for easy move / align
-    if (resultItems.length > 0) {
-        doc.selection = resultItems;
-    }
-
-    toggleCanvasHelpers(); /* 終了時：エッジ等を元に戻す / On finish: restore edges & annotator */
 
     // =========================================
     // ダイアログ / Dialog
@@ -1087,11 +1094,23 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n757f8802dc4b"; /* 紹�
 
     /**
      * 「選択範囲内で最前面のオブジェクト」を返します（未選択の最前面は対象外）。
-     * ドキュメントを前面から走査して最初に selected なアイテムを返すことで、
-     * 未選択オブジェクトを複製元に選んでしまう事故を防ぎます。
+     * 複製元はスクリプト実行中ずっと同じもの（選択は起動時に確定し、モーダル表示中は変更できず、
+     * プレビューの複製物は除外レイヤーへ逃がしている）なので、初回の走査結果を使い回します。
      * @returns {PageItem|null} 選択範囲内の最前面オブジェクト（無ければ null）
      */
     function getFrontmostItem() {
+        if (cachedFrontmostItem === undefined) {
+            cachedFrontmostItem = findFrontmostSelectedItem();
+        }
+        return cachedFrontmostItem;
+    }
+
+    /**
+     * ドキュメントを前面から走査して、最初に selected なアイテムを返します。
+     * 選択されているものだけを対象にすることで、未選択オブジェクトを複製元に選んでしまう事故を防ぎます。
+     * @returns {PageItem|null} 最前面の選択アイテム（無ければ null）
+     */
+    function findFrontmostSelectedItem() {
         for (var i = 0; i < doc.layers.length; i++) {
             var layer = doc.layers[i];
             if (!layer.visible || layer.locked || layer.name === PREVIEW_LAYER_NAME) {
