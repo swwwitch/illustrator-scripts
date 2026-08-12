@@ -32,9 +32,9 @@ https://note.com/dtp_tranist/n/ne8d31278c266
 
 ### Update History
 
-- v1.0 (20250718): Initial release
-- v1.1 (20250719): Added support for single line text, set kinsoku rules
-- v1.2 (20250720): Added handling for line breaks after English words
+- v1.0 (2025-07-18): Initial release
+- v1.1 (2025-07-19): Added support for single line text, set kinsoku rules
+- v1.2 (2025-07-20): Added handling for line breaks after English words
 
 ### Script info
 

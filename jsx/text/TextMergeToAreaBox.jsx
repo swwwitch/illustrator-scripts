@@ -3,74 +3,21 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 /*
 
-### スクリプト名：
+### 概要
 
-TextMergeToAreaBox.jsx
+バラバラに分割されたテキストオブジェクトを行単位にまとめ、元のフォント・サイズ・行送り・幅を引き継いだ1つのエリア内文字に再構成するツール。PDFをIllustratorで開いたときの分断テキストの復元に使う。
 
-### 概要：
+詳細はREADMEを参照。
 
-- 複数のテキストオブジェクトを1つのエリア内文字に連結します。
-- 元のオブジェクトのサイズ・フォント・行送りを反映します。
+*/
 
-### 主な機能：
+/*
 
-- 改行位置の調整（末尾が「。」以外、「.」「?」「!」の場合は連結）
-- JUSTIFY 揃えの自動適用
-- 元のオブジェクトの削除と置換処理
+### Overview
 
-### 処理の流れ：
+Rebuilds text items that were split apart into a single area text frame, grouping them line by line and inheriting the original font, size, leading, and width. Useful for restoring text broken up when a PDF is opened in Illustrator.
 
-1. 選択中のテキストオブジェクトを上から順にソート
-2. 幅・高さ・行送りなどを取得
-3. テキストを1つに連結し、エリア内文字を作成
-4. 元のオブジェクトは削除
-
-### 謝辞
-
-倉田タカシさん（イラレで便利）
-https://d-p.2-d.jp/ai-js/
-
-### note
-
-https://note.com/dtp_tranist/n/ne8d31278c266
-
-### 更新履歴：
-
-- v1.0 (20250717) : 初期バージョン
-- v1.1 (20250718) : 1行だけに対応、禁則を設定
-- v1.2 (20250719) : 行末が英単語の場合の改行処理を追加
-- v1.2.1 (20260618) : コードを整理（IIFE化・関数分割・命名見直し）、1行のときも横組みに統一、バウンディングボックスを選択状態に依存しないよう修正、ドキュメント未オープン時のガード追加
-
----
-
-### Script Name：
-
-TextMergeToAreaBox.jsx
-
-### Overview：
-
-- Merges multiple text items into a single area text box.
-- Inherits font, size, and leading from the original text.
-
-### Key Features：
-
-- Removes line breaks except after "。", ".", "!", or "?"
-- Applies JUSTIFY alignment automatically
-- Replaces and deletes original text items
-
-### Workflow：
-
-1. Sort selected text items from top to bottom
-2. Extract dimensions and leading
-3. Merge text and create area text
-4. Delete original items
-
-### Change Log：
-
-- v1.0 (20250718): Initial release
-- v1.1 (20250719): Added support for single line text, set kinsoku rules
-- v1.2 (20250720): Added handling for line breaks after English words
-- v1.2.1 (20260618): Refactored (IIFE wrap, function split, renaming); single line now forced horizontal; bounding box no longer depends on selection state; added guard for no open document
+See the README for details.
 
 */
 
@@ -78,10 +25,21 @@ TextMergeToAreaBox.jsx
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "TextMergeToAreaBox";           /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.2.1";                       /* バージョン / version */
+var SCRIPT_VERSION  = "v1.3.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "";                             /* 最初のリリース日 / first release date */
-var SCRIPT_UPDATED  = "";                             /* 更新日 / last updated */
+var SCRIPT_RELEASED = "2025-07-18";                   /* 最初のリリース日 / first release date */
+var SCRIPT_UPDATED  = "2026-08-13";                   /* 更新日 / last updated */
+
+/**
+ * 謝辞 / Credit
+ * @discussion 倉田タカシさん（イラレで便利） https://d-p.2-d.jp/ai-js/
+ */
+
+// README (Japanese)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/TextMergeToAreaBox.md
+// README (English)
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/TextMergeToAreaBox.md
+var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/ne8d31278c266"; /* 紹介記事 / article URL */
 
 // Released under the MIT license
 // http://opensource.org/licenses/mit-license.php
@@ -91,280 +49,389 @@ var SCRIPT_UPDATED  = "";                             /* 更新日 / last update
     // =========================================
     // ユーザー設定 / User settings
     // =========================================
-    var LINE_Y_THRESHOLD = 5; // 行分類のY座標差の閾値（pt） / Y threshold for grouping lines (pt)
-    var MIN_LEADING_RATIO = 1.2; // 最小の行送り倍率 / Minimum leading ratio
+
+    /* 同じ行と見なすY座標差の閾値（pt） / Y threshold for grouping items into the same line (pt) */
+    var LINE_Y_THRESHOLD = 5;
+
+    /* 行送りの最小倍率（フォントサイズ基準） / Minimum leading ratio against the font size */
+    var MIN_LEADING_RATIO = 1.2;
+
+    /* エリア内文字に適用する禁則 / Kinsoku applied to the area text */
+    var DEFAULT_KINSOKU  = "Soft_v2"; /* 弱い禁則 v2 / Loose v2 */
+    var FALLBACK_KINSOKU = "Soft";    /* v2がないバージョン向け / For versions without v2 */
+
+    /* エリア内文字に適用する行揃え / Justification applied to the area text */
+    var AREA_TEXT_JUSTIFICATION = Justification.FULLJUSTIFYLASTLINELEFT; /* 両端揃え（最終行左揃え） / Justify, last line left */
+
+    /* あふれ解消で枠を下に伸ばす最大回数 / Maximum number of times the frame is extended downward to clear overflow */
+    var MAX_HEIGHT_GROW_STEPS = 20;
 
     // =========================================
     // ローカライズ / Localize
     // =========================================
-    var lang = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
+    var currentLanguage = ($.locale.indexOf("ja") === 0) ? "ja" : "en";
 
     /* ラベル定義 / Label definitions */
     var LABELS = {
-        errorNoText: {
-            ja: "変換できるテキストはありません。",
-            en: "No convertible text found."
+        alert: {
+            noText: { ja: "変換できるテキストはありません。", en: "No convertible text found." }
         }
     };
 
-
-    /*
-      メイン処理：選択テキストを行ごとに連結し、エリア内文字を生成
-      Main: merge selected text by line and build an area text frame
-    */
-    function main() {
-        /* ドキュメント未オープン時は終了 / Exit when no document is open */
-        if (app.documents.length === 0) {
-            return;
+    /**
+     * "category.key" 形式のラベルを現在の言語で取得する
+     * @param {string} key - ラベルキー（例: "alert.noText"）
+     * @returns {string} 現在の言語のラベル文字列（未定義のときはキーをそのまま返す）
+     */
+    function getLabel(key) {
+        var keyParts = key.split(".");
+        var labelNode = LABELS;
+        for (var i = 0; i < keyParts.length; i++) {
+            if (!labelNode) break;
+            labelNode = labelNode[keyParts[i]];
         }
-
-        var textLines = groupTextFramesByLine(activeDocument.selection);
-
-        if (textLines.length === 0) {
-            /* エラーメッセージの表示 / Show error message */
-            alert(LABELS.errorNoText[lang]);
-            return;
+        if (labelNode) {
+            if (typeof labelNode[currentLanguage] === "string") return labelNode[currentLanguage];
+            if (typeof labelNode.en === "string") return labelNode.en;
         }
-
-        // 1行だけの場合は別処理：エリア内文字にせず左揃えで出力
-        if (textLines.length === 1) {
-            var singleLineFrame = mergeLineFrames(textLines[0]);
-            singleLineFrame.paragraphs[0].justification = Justification.LEFT;
-            app.selection = [singleLineFrame];
-            return;
-        }
-
-        // 各行を1つのテキストフレームに連結
-        var mergedTextFrames = [];
-        for (var i = 0; i < textLines.length; i++) {
-            mergedTextFrames.push(mergeLineFrames(textLines[i]));
-        }
-
-        var fontSize = mergedTextFrames[0].textRange.characterAttributes.size;
-        var finalText = joinLineContents(mergedTextFrames);
-
-        /*
-          マージ済みフレーム全体のバウンディングボックスから作成位置・サイズを決定
-          （選択状態に依存しないようmergedTextFramesから取得）
-          Decide area-text position and size from the merged frames' bounding box
-          (read from mergedTextFrames so it does not depend on the current selection)
-        */
-        var mergedBounds = getCombinedBounds(mergedTextFrames);
-        var boundsLeft = mergedBounds[0];
-        var boundsTop = mergedBounds[1];
-        var boundsRight = mergedBounds[2];
-        var boundsBottom = mergedBounds[3];
-        var areaWidth = (boundsRight - boundsLeft) - fontSize; // 作成幅を1文字分縮める
-        var areaHeight = boundsTop - boundsBottom;
-
-        /*
-          長方形を作成してエリア内文字に変換
-          Create a rectangle and convert it to area text
-        */
-        var areaRect = activeDocument.pathItems.rectangle(boundsTop, boundsLeft, areaWidth, areaHeight);
-        areaRect.stroked = false;
-        areaRect.filled = false;
-
-        var areaTextFrame = activeDocument.textFrames.areaText(areaRect);
-        areaTextFrame.contents = finalText;
-        areaTextFrame.textRange.characterAttributes.textFont = mergedTextFrames[0].textRange.characterAttributes.textFont;
-        areaTextFrame.textRange.characterAttributes.size = mergedTextFrames[0].textRange.characterAttributes.size;
-        areaTextFrame.paragraphs[0].paragraphAttributes.kinsoku = "Soft";
-        areaTextFrame.paragraphs[0].justification = Justification.FULLJUSTIFYLASTLINELEFT;
-        areaTextFrame.textRange.justification = Justification.FULLJUSTIFYLASTLINELEFT;
-        areaTextFrame.textRange.paragraphAttributes.justification = Justification.FULLJUSTIFYLASTLINELEFT;
-
-        var leading = computeLeading(mergedTextFrames, fontSize);
-        if (leading !== null) {
-            areaTextFrame.textRange.characterAttributes.autoLeading = false;
-            areaTextFrame.textRange.characterAttributes.leading = leading;
-        }
-
-        // 連結に使った元のmergedTextFramesを削除
-        for (var i = 0; i < mergedTextFrames.length; i++) {
-            mergedTextFrames[i].remove();
-        }
-
-        // 生成されたエリア内文字を選択状態にする
-        app.selection = null; // 選択を一度解除
-        app.selection = [areaTextFrame]; // 再度選択
-        app.redraw();
+        return key;
     }
 
-    main();
-
-    /*
-      選択したテキストアイテムをY位置で行単位に分類
-      Group selected text frames by line based on Y position
-    */
-    function groupTextFramesByLine(selection) {
-        var textItems = [];
-        for (var i = 0; i < selection.length; i++) {
-            if (selection[i].typename === "TextFrame") {
-                textItems.push(selection[i]);
-            }
+    /**
+     * テキストフレームをまとめて削除する
+     * @param {Array<TextFrame>} framesToRemove - 削除するテキストフレーム
+     * @returns {void}
+     */
+    function removeFrames(framesToRemove) {
+        for (var i = 0; i < framesToRemove.length; i++) {
+            framesToRemove[i].remove();
         }
-        var sortedItems = sortTextFramesByY(textItems);
-        return groupByLineY(sortedItems, LINE_Y_THRESHOLD);
     }
 
-    /*
-      1行分のテキストフレームをX順に連結し、1つのテキストフレームにまとめる
-      Merge one line's text frames (left to right) into a single text frame
-    */
-    function mergeLineFrames(lineFrames) {
-        var framesInLine = sortItemsByPosition(lineFrames, "x");
-
-        var mergedText = "";
-        for (var j = 0; j < framesInLine.length; j++) {
-            mergedText += framesInLine[j].contents;
-        }
-
-        var firstFrame = framesInLine[0];
-        var originalPosition = firstFrame.position;
-
-        var mergedFrame = firstFrame.duplicate();
-        mergedFrame.orientation = TextOrientation.HORIZONTAL;
-        mergedFrame.move(firstFrame, ElementPlacement.PLACEBEFORE);
-        mergedFrame.contents = mergedText;
-        mergedFrame.position = originalPosition;
-
-        for (var k = 0; k < framesInLine.length; k++) {
-            framesInLine[k].remove();
-        }
-
-        return mergedFrame;
-    }
-
-    /*
-      各行のmergedTextFrame.contentsを連結する
-      Join each line's contents into the final text
-      - 文末が「。」「！」「？」、または英文の「.」「!」「?」のときのみ改行
-      - 英単語どうしが隣り合う場合はスペースを挿入
-      - 英単語がハイフンで分断されている場合はハイフンを除去して結合
-    */
-    function joinLineContents(mergedTextFrames) {
-        var finalText = "";
-        for (var i = 0; i < mergedTextFrames.length; i++) {
-            var content = mergedTextFrames[i].contents;
-            finalText += content;
-
-            if (i >= mergedTextFrames.length - 1) {
-                continue; // 最終行は連結処理なし
-            }
-
-            var nextContent = mergedTextFrames[i + 1].contents;
-            var endsWithENWord = /[A-Za-z0-9)]$/.test(content);
-            var startsWithENWord = /^[A-Za-z0-9(]/.test(nextContent);
-
-            if (startsWithENWord) {
-                if (endsWithENWord) {
-                    finalText += " "; // 英単語どうしの間にスペース
-                } else if (/[A-Za-z0-9)]-$/.test(content)) {
-                    finalText = finalText.replace(/-$/, ""); // ハイフン分断を結合
-                }
-            }
-
-            // 文末でのみ改行を追加（英文判定で日本語末尾の誤改行を防ぐ）
-            var endsWithJP = /[。！？]$/.test(content);
-            var endsWithEN = /[.!?]$/.test(content);
-            var isEnglish = /^[\x00-\x7F]+$/.test(content.replace(/[\s\r\n]/g, ""));
-            if (endsWithJP || (endsWithEN && !isEnglish)) {
-                finalText += "\r";
-            }
-        }
-        return finalText;
-    }
-
-    /*
-      隣り合う2行のY差から行送りを求める（2行未満はnull）
-      Derive leading from the Y gap of the first two lines (null if fewer than two)
-    */
-    function computeLeading(mergedTextFrames, fontSize) {
-        if (mergedTextFrames.length < 2) {
-            return null;
-        }
-        var y1 = mergedTextFrames[0].position[1];
-        var y2 = mergedTextFrames[1].position[1];
-        var leading = Math.abs(y1 - y2); // 行送りとして y 差を使用
-        if (leading < fontSize) {
-            leading = fontSize * MIN_LEADING_RATIO; // 最小でも MIN_LEADING_RATIO 倍にする
-        }
-        return leading;
-    }
-
-    /*
-      アイテムをXまたはY座標で並び替え
-      Sort items by X or Y position
-    */
-    function sortItemsByPosition(itemsToSort, axis) {
-        var sortedItems = itemsToSort.slice(0);
-        var compareItems;
-        if (axis === "x") {
-            compareItems = function(a, b) {
-                return a["left"] - b["left"];
-            };
-        } else if (axis === "y") {
-            compareItems = function(a, b) {
-                return b["top"] - a["top"];
-            };
-        }
-        sortedItems.sort(compareItems);
-        return sortedItems;
-    }
-
-    /*
-      複数アイテム全体のバウンディングボックスを取得
-      Get the combined bounding box of multiple items
-    */
-    function getCombinedBounds(items) {
-        var x1 = items[0].visibleBounds[0];
-        var y1 = items[0].visibleBounds[1];
-        var x2 = items[0].visibleBounds[2];
-        var y2 = items[0].visibleBounds[3];
-        for (var i = 1; i < items.length; i++) {
-            var bounds = items[i].visibleBounds;
-            if (bounds[0] < x1) x1 = bounds[0];
-            if (bounds[1] > y1) y1 = bounds[1];
-            if (bounds[2] > x2) x2 = bounds[2];
-            if (bounds[3] < y2) y2 = bounds[3];
-        }
-        return [x1, y1, x2, y2];
-    }
-
-    /*
-      テキストフレームをY位置で上から下へ並び替え
-      Sort text frames from top to bottom by Y position
-    */
-    function sortTextFramesByY(textItems) {
-        return textItems.sort(function(a, b) {
-            return b.position[1] - a.position[1];
+    /**
+     * テキストフレームを左から右へ並び替える
+     * @param {Array<TextFrame>} framesToSort - 対象テキストフレーム
+     * @returns {Array<TextFrame>} 並び替えた新しい配列
+     */
+    function sortFramesLeftToRight(framesToSort) {
+        return framesToSort.slice(0).sort(function(frameA, frameB) {
+            return frameA.left - frameB.left;
         });
     }
 
-    /*
-      Y位置が近いフレームを同じ行としてグループ化
-      Group frames whose Y positions are within the threshold into the same line
-    */
-    function groupByLineY(sortedItems, yThreshold) {
+    /**
+     * テキストフレームを上から下へ並び替える
+     * @param {Array<TextFrame>} framesToSort - 対象テキストフレーム
+     * @returns {Array<TextFrame>} 並び替えた新しい配列
+     */
+    function sortFramesTopToBottom(framesToSort) {
+        return framesToSort.slice(0).sort(function(frameA, frameB) {
+            return frameB.position[1] - frameA.position[1];
+        });
+    }
+
+    /**
+     * 上から下に並べたフレームを、Y位置が近いものごとに同じ行としてまとめる
+     * @param {Array<TextFrame>} framesTopToBottom - 上から下へ並び替え済みのテキストフレーム
+     * @param {number} yThreshold - 同じ行と見なすY座標差の閾値（pt）
+     * @returns {Array<Array<TextFrame>>} 行ごとのテキストフレーム配列
+     */
+    function groupFramesIntoLines(framesTopToBottom, yThreshold) {
         var lineGroups = [];
-        for (var i = 0; i < sortedItems.length; i++) {
-            var frame = sortedItems[i];
-            var y = frame.position[1];
-            var found = false;
-            for (var j = 0; j < lineGroups.length; j++) {
-                var lineY = lineGroups[j][0].position[1];
-                if (Math.abs(lineY - y) <= yThreshold) {
-                    lineGroups[j].push(frame);
-                    found = true;
-                    break;
-                }
-            }
-            if (!found) {
+        for (var i = 0; i < framesTopToBottom.length; i++) {
+            var frame = framesTopToBottom[i];
+            /* 上から順に並んでいるので、直前の行とだけ比較すればよい
+               The frames are sorted top-down, so comparing with the last line is enough */
+            var lastLine = lineGroups[lineGroups.length - 1];
+            if (lastLine && Math.abs(lastLine[0].position[1] - frame.position[1]) <= yThreshold) {
+                lastLine.push(frame);
+            } else {
                 lineGroups.push([frame]);
             }
         }
         return lineGroups;
     }
 
+    /**
+     * 選択からテキストフレームだけを集め、Y位置で行単位に分類する
+     * @param {Array<PageItem>} selectedItems - 選択中のオブジェクト
+     * @returns {Array<Array<TextFrame>>} 上から順に並べた行ごとのテキストフレーム配列
+     */
+    function groupTextFramesByLine(selectedItems) {
+        var textFrames = [];
+        for (var i = 0; i < selectedItems.length; i++) {
+            if (selectedItems[i].typename === "TextFrame") {
+                textFrames.push(selectedItems[i]);
+            }
+        }
+        return groupFramesIntoLines(sortFramesTopToBottom(textFrames), LINE_Y_THRESHOLD);
+    }
+
+    /**
+     * 1行分のテキストフレームをX順に連結し、1つのテキストフレームにまとめる
+     * @param {Array<TextFrame>} lineFrames - 同じ行に属するテキストフレーム
+     * @returns {TextFrame} 連結後のテキストフレーム（元のフレームは削除される）
+     */
+    function mergeLineFrames(lineFrames) {
+        var framesInLine = sortFramesLeftToRight(lineFrames);
+
+        var mergedText = "";
+        for (var i = 0; i < framesInLine.length; i++) {
+            mergedText += framesInLine[i].contents;
+        }
+
+        var leftmostFrame = framesInLine[0];
+        var originalPosition = leftmostFrame.position;
+
+        var mergedFrame = leftmostFrame.duplicate();
+        mergedFrame.orientation = TextOrientation.HORIZONTAL;
+        mergedFrame.move(leftmostFrame, ElementPlacement.PLACEBEFORE);
+        mergedFrame.contents = mergedText;
+        mergedFrame.position = originalPosition;
+
+        removeFrames(framesInLine);
+        return mergedFrame;
+    }
+
+    /**
+     * 各行のテキストを1つの文字列に連結する
+     * 文末が「。」「！」「？」または半角の「.」「!」「?」のときだけ改行し、
+     * 英単語どうしが隣り合う場合はスペースを挿入、ハイフンで分断されている場合はハイフンを除去して結合する
+     * @param {Array<TextFrame>} mergedLineFrames - 行ごとに連結済みのテキストフレーム
+     * @returns {string} エリア内文字に流し込む文字列
+     */
+    function joinLineContents(mergedLineFrames) {
+        var joinedText = "";
+        for (var i = 0; i < mergedLineFrames.length; i++) {
+            var lineText = mergedLineFrames[i].contents;
+            joinedText += lineText;
+
+            /* 最終行は連結処理なし / No joining after the last line */
+            if (i >= mergedLineFrames.length - 1) {
+                continue;
+            }
+
+            var nextLineText = mergedLineFrames[i + 1].contents;
+            var endsWithENWord = /[A-Za-z0-9)]$/.test(lineText);
+            var startsWithENWord = /^[A-Za-z0-9(]/.test(nextLineText);
+
+            if (startsWithENWord) {
+                if (endsWithENWord) {
+                    /* 英単語どうしの間にスペース / Insert a space between English words */
+                    joinedText += " ";
+                } else if (/[A-Za-z0-9)]-$/.test(lineText)) {
+                    /* ハイフン分断を結合 / Join a hyphen-broken word */
+                    joinedText = joinedText.replace(/-$/, "");
+                }
+            }
+
+            /* 文末でのみ改行を追加（和文・欧文とも文末の約物で判定）
+               Break only at sentence ends (both Japanese and Western punctuation) */
+            if (/[。！？.!?]$/.test(lineText)) {
+                joinedText += "\r";
+            }
+        }
+        return joinedText;
+    }
+
+    /**
+     * 隣り合う2行のY差から行送りを求める
+     * @param {Array<TextFrame>} mergedLineFrames - 行ごとに連結済みのテキストフレーム
+     * @param {number} fontSize - 基準になるフォントサイズ（pt）
+     * @returns {number|null} 行送り（pt）。2行未満のときは null
+     */
+    function computeLeading(mergedLineFrames, fontSize) {
+        if (mergedLineFrames.length < 2) {
+            return null;
+        }
+        var firstLineTop = mergedLineFrames[0].position[1];
+        var secondLineTop = mergedLineFrames[1].position[1];
+        /* 行送りとしてY差を使用 / Use the Y gap as the leading */
+        var leading = Math.abs(firstLineTop - secondLineTop);
+        if (leading < fontSize) {
+            /* 最小でも MIN_LEADING_RATIO 倍にする / Keep at least MIN_LEADING_RATIO times the font size */
+            leading = fontSize * MIN_LEADING_RATIO;
+        }
+        return leading;
+    }
+
+    /**
+     * 複数フレーム全体のバウンディングボックスを取得する
+     * @param {Array<TextFrame>} sourceFrames - 対象テキストフレーム（1つ以上）
+     * @returns {Array<number>} [左, 上, 右, 下] の座標（pt）
+     */
+    function getCombinedVisibleBounds(sourceFrames) {
+        var minX = sourceFrames[0].visibleBounds[0];
+        var maxY = sourceFrames[0].visibleBounds[1];
+        var maxX = sourceFrames[0].visibleBounds[2];
+        var minY = sourceFrames[0].visibleBounds[3];
+        for (var i = 1; i < sourceFrames.length; i++) {
+            var bounds = sourceFrames[i].visibleBounds;
+            if (bounds[0] < minX) minX = bounds[0];
+            if (bounds[1] > maxY) maxY = bounds[1];
+            if (bounds[2] > maxX) maxX = bounds[2];
+            if (bounds[3] < minY) minY = bounds[3];
+        }
+        return [minX, maxY, maxX, minY];
+    }
+
+    /**
+     * 禁則を適用する（指定の禁則名が使えないバージョンではフォールバックに切り替える）
+     * @param {TextRange} targetRange - 適用先のテキスト範囲
+     * @param {string} kinsokuName - 適用したい禁則名
+     * @param {string} fallbackKinsokuName - 使えなかったときに適用する禁則名
+     * @returns {void}
+     */
+    function applyKinsoku(targetRange, kinsokuName, fallbackKinsokuName) {
+        try {
+            targetRange.paragraphAttributes.kinsoku = kinsokuName;
+            /* 例外にならず無視される場合もあるため読み戻して確認
+               Read the value back, since an unknown name can be ignored instead of throwing */
+            if (targetRange.paragraphAttributes.kinsoku === kinsokuName) {
+                return;
+            }
+        } catch (e) {
+            /* 未対応の禁則名 / Unsupported kinsoku name */
+        }
+        targetRange.paragraphAttributes.kinsoku = fallbackKinsokuName;
+    }
+
+    /**
+     * エリア内文字からテキストがあふれているかを判定する
+     * @param {TextFrame} areaTextFrame - 判定するエリア内文字
+     * @returns {boolean} あふれていれば true
+     */
+    function isTextOverflowing(areaTextFrame) {
+        var composedCharacters = 0;
+        for (var i = 0; i < areaTextFrame.lines.length; i++) {
+            composedCharacters += areaTextFrame.lines[i].characters.length;
+        }
+        /* 改行コードは各行の文字数に含まれないため、比較対象から除く
+           Line breaks are not counted in each line, so exclude them from the total */
+        return composedCharacters < areaTextFrame.contents.replace(/[\r\n]/g, "").length;
+    }
+
+    /**
+     * テキストがあふれなくなるまで枠を下方向に伸ばす（上端は動かさない）
+     * @param {TextFrame} areaTextFrame - 対象のエリア内文字
+     * @param {number} heightStep - 1回あたりに伸ばす高さ（pt）
+     * @returns {void}
+     */
+    function growFrameUntilTextFits(areaTextFrame, heightStep) {
+        var frameTop = areaTextFrame.top;
+        for (var i = 0; i < MAX_HEIGHT_GROW_STEPS && isTextOverflowing(areaTextFrame); i++) {
+            areaTextFrame.height = areaTextFrame.height + heightStep;
+            /* 上端は元の位置に固定 / Keep the top edge where it was */
+            areaTextFrame.top = frameTop;
+        }
+    }
+
+    /**
+     * エリア内文字にフォント・サイズ・行揃え・禁則・行送りを適用する
+     * @param {TextFrame} areaTextFrame - 適用先のエリア内文字
+     * @param {TextFrame} sourceFrame - 書式の引き継ぎ元（一番上の行）
+     * @param {number} fontSize - 適用するフォントサイズ（pt）
+     * @param {number|null} leading - 適用する行送り（pt）。null なら自動行送りのまま
+     * @returns {void}
+     */
+    function applyAreaTextFormatting(areaTextFrame, sourceFrame, fontSize, leading) {
+        var targetRange = areaTextFrame.textRange;
+        targetRange.characterAttributes.textFont = sourceFrame.textRange.characterAttributes.textFont;
+        targetRange.characterAttributes.size = fontSize;
+
+        /* 禁則・行揃えはテキスト全体に適用する（paragraphs[0] だけでは［段落］パネルに反映されない）
+           Apply kinsoku and justification to the whole text (paragraphs[0] alone is not reflected in the Paragraph panel) */
+        applyKinsoku(targetRange, DEFAULT_KINSOKU, FALLBACK_KINSOKU);
+        targetRange.paragraphAttributes.justification = AREA_TEXT_JUSTIFICATION;
+
+        if (leading !== null) {
+            targetRange.characterAttributes.autoLeading = false;
+            targetRange.characterAttributes.leading = leading;
+        }
+    }
+
+    /**
+     * 行ごとのフレーム全体の外接矩形からエリア内文字を作成し、体裁を引き継ぐ
+     * @param {Array<TextFrame>} mergedLineFrames - 行ごとに連結済みのテキストフレーム（2行以上）
+     * @param {string} joinedText - 流し込む文字列
+     * @returns {TextFrame} 作成したエリア内文字
+     */
+    function createAreaTextFrame(mergedLineFrames, joinedText) {
+        var fontSize = mergedLineFrames[0].textRange.characterAttributes.size;
+
+        /* 選択状態に依存しないよう mergedLineFrames から外接矩形を取得
+           Read the bounding box from mergedLineFrames so it does not depend on the current selection */
+        var lineBounds = getCombinedVisibleBounds(mergedLineFrames);
+        var boundsLeft = lineBounds[0];
+        var boundsTop = lineBounds[1];
+        var boundsWidth = lineBounds[2] - boundsLeft;
+        var areaHeight = boundsTop - lineBounds[3];
+
+        /* 作成幅は1文字分縮める。縮めると狭くなりすぎる選択では最低1文字分を確保
+           Shrink the created width by one character, but keep at least one character for narrow selections */
+        var areaWidth = boundsWidth - fontSize;
+        if (areaWidth < fontSize) {
+            areaWidth = Math.max(boundsWidth, fontSize);
+        }
+
+        /* 長方形を作成してエリア内文字に変換 / Create a rectangle and convert it to area text */
+        var areaRect = activeDocument.pathItems.rectangle(boundsTop, boundsLeft, areaWidth, areaHeight);
+        areaRect.stroked = false;
+        areaRect.filled = false;
+
+        var leading = computeLeading(mergedLineFrames, fontSize);
+        var areaTextFrame = activeDocument.textFrames.areaText(areaRect);
+        areaTextFrame.contents = joinedText;
+        applyAreaTextFormatting(areaTextFrame, mergedLineFrames[0], fontSize, leading);
+
+        /* 枠の高さは元の外接矩形どおりなので、最終行があふれる分だけ下に伸ばす
+           The frame keeps the original bounding box height, so extend it downward until the last line fits */
+        growFrameUntilTextFits(areaTextFrame, (leading !== null) ? leading : fontSize * MIN_LEADING_RATIO);
+        return areaTextFrame;
+    }
+
+    /**
+     * メイン処理：選択テキストを行ごとに連結し、エリア内文字を生成する
+     * @returns {void}
+     */
+    function main() {
+        /* ドキュメント未オープン時は終了 / Exit when no document is open */
+        if (app.documents.length === 0) {
+            return;
+        }
+
+        var lineGroups = groupTextFramesByLine(activeDocument.selection);
+        if (lineGroups.length === 0) {
+            /* エラーメッセージの表示 / Show error message */
+            alert(getLabel("alert.noText"));
+            return;
+        }
+
+        /* 1行だけの場合は別処理：エリア内文字にせず左揃えで出力
+           Single line: merge and left-align only, without converting to area text */
+        if (lineGroups.length === 1) {
+            var singleLineFrame = mergeLineFrames(lineGroups[0]);
+            singleLineFrame.textRange.paragraphAttributes.justification = Justification.LEFT;
+            app.selection = [singleLineFrame];
+            return;
+        }
+
+        /* 各行を1つのテキストフレームに連結 / Merge each line into a single text frame */
+        var mergedLineFrames = [];
+        for (var i = 0; i < lineGroups.length; i++) {
+            mergedLineFrames.push(mergeLineFrames(lineGroups[i]));
+        }
+
+        var areaTextFrame = createAreaTextFrame(mergedLineFrames, joinLineContents(mergedLineFrames));
+
+        /* 連結に使った元のフレームを削除 / Delete the merged source frames */
+        removeFrames(mergedLineFrames);
+
+        /* 生成されたエリア内文字を選択状態にする / Select the generated area text */
+        app.selection = null;
+        app.selection = [areaTextFrame];
+        app.redraw();
+    }
+
+    main();
 })();

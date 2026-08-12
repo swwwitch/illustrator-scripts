@@ -36,9 +36,9 @@ https://note.com/dtp_tranist/n/ne8d31278c266
 
 ### 更新履歴：
 
-- v1.0 (20250717) : 初期バージョン
-- v1.1 (20250718) : 1行だけに対応、禁則を設定
-- v1.2 (20250719) : 行末が英単語の場合の改行処理を追加
+- v1.0 (2025-07-18) : 初期バージョン
+- v1.1 (2025-07-19) : 1行だけに対応、禁則を設定
+- v1.2 (2025-07-20) : 行末が英単語の場合の改行処理を追加
 
 ---
 
@@ -66,9 +66,9 @@ TextMergeToAreaBox.jsx
 
 ### Change Log：
 
-- v1.0 (20250718): Initial release
-- v1.1 (20250719): Added support for single line text, set kinsoku rules
-- v1.2 (20250720): Added handling for line breaks after English words
+- v1.0 (2025-07-18): Initial release
+- v1.1 (2025-07-19): Added support for single line text, set kinsoku rules
+- v1.2 (2025-07-20): Added handling for line breaks after English words
 
 */
 
