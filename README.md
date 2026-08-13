@@ -161,6 +161,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [パスファインダー](readme-ja/AiSmartPathfinder.md)
 - [パスの最適化](readme-ja/PathCleanupTool.md)
 - [重なりをならす（オフセットパス＋合流）](readme-ja/OverlapRemover.md)
+- [チケット・クーポン形状の作成（ミシン目、ギザギザ、スリット／ホール）](readme-ja/CouponTicketMaker.md)
 - [選択オブジェクトの回転を水平（0°）に補正](readme-ja/ResetRotation.md)
 - [更新日：2025-08-13](readme-ja/AddOutlineOffsetPath.md)
 - [選択オブジェクトの全アンカーポイントに、マーカー（正方形／最前面オブジェクト／シンボル）を配置するユーティリ…](readme-ja/AiAnchorPointMarker.md)
