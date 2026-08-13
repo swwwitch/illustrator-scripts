@@ -5,8 +5,8 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択したテキストの文字幅に合わせたパスを作り、上向きアーチ・円・下向き弓のパス上文字に変換します。
-パスを使わず、各行の文字サイズを変えて行の幅を最長行にそろえる「ブロック」も選べ、
+選択したテキストの文字幅に合わせたパスを作り、アーチ・円・下向き弓のパス上文字に変換します。
+パスに対して文字が占める割合を指定でき、各行の幅を最長行にそろえる「ブロック」も選べて、
 結果はダイアログを開いたままプレビューできます。
 
 詳細はREADMEを参照。
@@ -18,10 +18,11 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 ### Overview
 
 Builds a path sized to the selected text and converts it
-into type on a path shaped as an upward arch, a circle, or
-a downward bow. A Block mode uses no path and instead scales
-each line's font size so every line matches the widest
-one. The result is previewed while the dialog stays open.
+into type on a path shaped as an arch, a circle, or a
+downward bow. How much of the path the text covers can be
+set, and a Block mode instead scales each line's font size
+so every line matches the widest one. The result is
+previewed while the dialog stays open.
 
 See the README for details.
 
@@ -33,10 +34,10 @@ See the README for details.
     // 基本情報 / Basic info
     // =========================================
     var SCRIPT_NAME     = "DynamicTextGenerator";         /* スクリプト名 / script name */
-    var SCRIPT_VERSION  = "v1.0.2";                       /* バージョン / version */
+    var SCRIPT_VERSION  = "v1.1.0";                       /* バージョン / version */
     var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
     var SCRIPT_RELEASED = "2026-05-18";                   /* 最初のリリース日 / first release date */
-    var SCRIPT_UPDATED  = "2026-08-12";                   /* 更新日 / last updated */
+    var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
 
     // README (Japanese)
     // https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/DynamicTextGenerator.md
@@ -77,6 +78,14 @@ See the README for details.
     /* カーブスライダーの初期値（0＝直線に近い／100＝最も丸い） */
     var ARC_ROUNDNESS_DEFAULT = 100;
 
+    /* 占有率スライダーの初期値（100＝パスの端まで文字を並べる） */
+    var PATH_COVERAGE_DEFAULT = 100;
+    /* 占有率スライダーの下限（％） */
+    var PATH_COVERAGE_MIN = 30;
+
+    /* カーブ・占有率スライダーを shift キー併用で動かすときの刻み */
+    var SLIDER_SHIFT_STEP = 10;
+
     /* アーチ化の前に改行を削除するか（ダイアログの初期値） */
     var REMOVE_LINE_BREAKS = true;
 
@@ -109,6 +118,8 @@ See the README for details.
     var MODE_ICON_RADIUS  = 9;         /* アイコンの円・円弧の半径 / radius of the circle and arcs */
     var MODE_ICON_STROKE  = 2;         /* アイコンの線幅 / stroke width of the icons */
     var LABEL_COLUMN_WIDTH = 88;       /* 各行の先頭ラベルの幅 / width of the leading label column */
+    var SLIDER_WIDTH = 200;            /* スライダーの幅（全スライダー共通）/ width shared by every slider */
+    var COVERAGE_VALUE_WIDTH = 34;     /* 占有率の数値表示の幅 / width of the coverage readout */
 
     /* 言語判定 / Language */
     function getCurrentLang() {
@@ -122,21 +133,22 @@ See the README for details.
             title: { ja: "ダイナミックテキスト", en: "Dynamic Text" }
         },
         panel: {
-            blockOptions: { ja: "ブロックのオプション", en: "Block Options" },
+            blockOptions: { ja: "ブロックオプション", en: "Block Options" },
             arcOptions: { ja: "パス上文字オプション", en: "Type on a Path Options" },
-            commonOptions: { ja: "共通のオプション", en: "Common Options" }
+            commonOptions: { ja: "共通オプション", en: "Common Options" }
         },
         mode: {
             block: { ja: "ブロック", en: "Block" },
             circle: { ja: "円", en: "Circle" },
-            arch: { ja: "上向きアーチ", en: "Arch Up" },
+            arch: { ja: "アーチ", en: "Arch" },
             bow: { ja: "下向き弓", en: "Bow Down" }
         },
         fieldLabel: {
             lineSplit: { ja: "行の分け方：", en: "Line breaks:" },
             leading: { ja: "行送り：", en: "Leading:" },
             roundness: { ja: "カーブ：", en: "Curve:" },
-            fit: { ja: "調整：", en: "Adjust:" },
+            coverage: { ja: "占有率：", en: "Coverage:" },
+            fit: { ja: "合わせ方：", en: "Fit:" },
             effect: { ja: "効果：", en: "Effect:" },
             autoKerning: { ja: "カーニング：", en: "Kerning:" },
             tracking: { ja: "トラッキング：", en: "Tracking:" }
@@ -157,25 +169,23 @@ See the README for details.
             leadingAuto: { ja: "自動", en: "Auto" },
             removePunctuation: { ja: "行末の句読点を削除", en: "Drop punctuation at line ends" },
             removeLineBreaks: { ja: "改行を削除", en: "Remove line breaks" },
-            zoomToSelection: { ja: "オブジェクトを画面内に表示", en: "Keep the object in view" }
+            zoomToSelection: { ja: "結果を画面内に表示", en: "Keep the result in view" }
         },
+        /* 効果名は Illustrator の「パス上文字オプション」の表記に合わせる
+           Effect names follow Illustrator's own Type on a Path Options dialog */
         menu: {
-            effectRainbow: { ja: "虹", en: "Rainbow" },
+            effectRainbow: { ja: "虹形", en: "Rainbow" },
             effectDistort: { ja: "歪み", en: "Skew" },
             effectRibbon: { ja: "3D リボン", en: "3D Ribbon" },
-            effectStep: { ja: "階段", en: "Stair Step" },
-            effectGravity: { ja: "引力", en: "Gravity" }
+            effectStep: { ja: "階段状", en: "Stair Step" },
+            effectGravity: { ja: "重力", en: "Gravity" }
         },
         unit: {
             percent: { ja: "%", en: "%" },
             line: { ja: "行", en: "lines" }
         },
         button: {
-            zoomToSelection: {
-                ja: "変換した結果が画面から外れたときに、見える位置へ表示を移します。すでに見えているときは動かしません。",
-                en: "Moves the view so the converted result stays visible. The view is left alone when it is already in sight."
-            },
-            hiddenChar: { ja: "制御文字", en: "Hidden Characters" },
+            hiddenChar: { ja: "制御文字の表示", en: "Hidden Characters" },
             ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" }
         },
@@ -196,11 +206,11 @@ See the README for details.
                 en: "Converts to a closed circular path and flows the text around it, centered at the top of the circle."
             },
             modeArch: {
-                ja: "上に膨らむアーチ状のパスに変換します。",
+                ja: "上に膨らむパスに変換します。",
                 en: "Converts the text to a path that bulges upward."
             },
             modeBow: {
-                ja: "下に膨らむ弓状のパスに変換します。",
+                ja: "下に膨らむパスに変換します。",
                 en: "Converts the text to a path that bulges downward."
             },
             lineSplit: {
@@ -232,24 +242,32 @@ See the README for details.
                 en: "The auto-leading ratio, given as a percentage of the font size."
             },
             roundness: {
-                ja: "0で直線に近く、100でちょうど半円になります。円では文字が円周に占める割合＝円の大きさを決めます。",
-                en: "0 is almost straight; 100 makes an exact semicircle. In Circle mode it sets how much of the circumference the text occupies."
+                ja: "0で直線に近く、100でちょうど半円になります。円では、文字に対する円の大きさを決めます。shiftキーを押しながら操作すると10刻みになります。",
+                en: "0 is almost straight; 100 makes an exact semicircle. In Circle mode it sets the size of the circle relative to the text. Hold Shift to move in steps of 10."
+            },
+            coverage: {
+                ja: "パス全体のうち、文字が占める割合です。100でパスの端まで、30でパスの中央3割だけに文字が並びます。円では円周に対する割合になり、文字は上側中央に集まります。「合わせ方：トラッキング」のときは文字サイズを保つため、字間を詰めて短くします。shiftキーを押しながら操作すると10刻みになります。",
+                en: "How much of the path the text covers. 100 reaches the path ends; 30 keeps the text within the middle third. In Circle mode it is measured against the circumference, so the text gathers at the top. With \"Fit: Tracking\" the font size is preserved, so the spacing is tightened instead. Hold Shift to move in steps of 10."
             },
             fit: {
-                ja: "パスの端まで文字を収める方法を選びます。",
-                en: "Chooses how the text is fitted to the path endpoints."
+                ja: "文字の長さをパスの長さに合わせる方法を選びます。",
+                en: "Chooses how the length of the text is fitted to the length of the path."
             },
             fitNone: {
-                ja: "パスの長さには合わせず、変換だけを行います。",
-                en: "Does not fit to the path; only converts the text."
+                ja: "パスの長さには合わせません。「占有率」を下げたぶんだけ文字サイズが小さくなります。",
+                en: "Does not fit to the path. The font size only shrinks by however much Coverage is lowered."
             },
-            fitMethod: {
-                ja: "文字サイズを変えて合わせるか、文字サイズを保ったままトラッキングで合わせるかを選びます。",
-                en: "Choose whether to fit by changing the font size, or by keeping the font size and adjusting the tracking."
+            fitByFontSize: {
+                ja: "文字サイズを拡大・縮小してパスの長さに合わせます。比率で変倍するので、文字ごとのサイズ差は保たれます。",
+                en: "Scales the font size up or down to the length of the path. Scaling is done by ratio, so mixed character sizes keep their relative differences."
+            },
+            fitByTracking: {
+                ja: "文字サイズを変えず、字間を広げたり詰めたりしてパスの長さに合わせます。",
+                en: "Keeps the font size and widens or tightens the letter spacing to the length of the path."
             },
             effect: {
-                ja: "Illustratorの「パス上文字オプション」の効果を適用します。",
-                en: "Applies Illustrator's Type on a Path effect."
+                ja: "Illustratorの「パス上文字オプション」の効果を適用します。虹形＝1文字ずつパスに垂直に立てる標準の効果／歪み＝文字を垂直に保ったまま傾ける／3D リボン＝厚みのあるリボンのように見せる／階段状＝文字を回転させず水平に並べる／重力＝中心へ引き寄せる。",
+                en: "Applies Illustrator's Type on a Path effect. Rainbow is the default, standing each character perpendicular to the path; Skew keeps the characters upright and slants them; 3D Ribbon gives them the thickness of a ribbon; Stair Step keeps them horizontal without rotating; Gravity pulls them toward the center."
             },
             removeLineBreaks: {
                 ja: "パスに沿わせる前に改行を削除し、1行にまとめます。",
@@ -263,9 +281,17 @@ See the README for details.
                 ja: "文字幅に影響するため、幅をそろえる前に適用します。「メトリクス」を選ぶとプロポーショナルメトリクスもONになります。",
                 en: "Applied before the widths are fitted, since it changes the glyph widths. Choosing Metrics also turns proportional metrics on."
             },
+            kerningOptical: {
+                ja: "字面を見て字間を自動調整します。メトリクス情報を持たないフォントに向きます。",
+                en: "Adjusts the spacing automatically from the shapes of the glyphs. Suits fonts that carry no metrics information."
+            },
+            kerningMono: {
+                ja: "欧文だけメトリクスを使い、和文は等幅のままにします。",
+                en: "Uses metrics for Roman text only and leaves Japanese text monospaced."
+            },
             tracking: {
-                ja: "既存のトラッキング値に加算します。「調整：トラッキング」を選んでいるときは自動調整にまかせるため使えません。",
-                en: "Adds this value to the existing tracking. Unavailable while \"Adjust: Tracking\" is selected, since it is set automatically."
+                ja: "既存のトラッキング値に加算します。「合わせ方：トラッキング」を選んでいるときは自動調整にまかせるため使えません。",
+                en: "Adds this value to the existing tracking. Unavailable while \"Fit: Tracking\" is selected, since it is set automatically."
             },
             trackingToggle: {
                 ja: "ONでトラッキングを調整できます。OFFにすると0に戻ります。",
@@ -345,6 +371,61 @@ See the README for details.
             // Prevent default arrow key behavior (cursor move)
             event.preventDefault();
             editText.text = String(currentValue);
+
+            if (onChanged) onChanged();
+        });
+    }
+
+    /**
+     * 値をスライダーの範囲内に収める
+     * @param {Slider} slider - 対象のスライダー
+     * @param {number} value - 収めたい値
+     * @returns {number} 範囲内に収めた値
+     */
+    function clampToSliderRange(slider, value) {
+        if (value < slider.minvalue) return slider.minvalue;
+        if (value > slider.maxvalue) return slider.maxvalue;
+        return value;
+    }
+
+    /**
+     * shift キーを押している間だけ、スライダーの値を SLIDER_SHIFT_STEP の倍数へそろえる
+     * ScriptUI のスライダーは刻み幅を持たないため、値そのものを丸めて代入する。
+     * @param {Slider} slider - 対象のスライダー
+     * @returns {void}
+     */
+    function snapSliderWithShift(slider) {
+        if (!ScriptUI.environment.keyboardState.shiftKey) return;
+
+        var snapped = Math.round(slider.value / SLIDER_SHIFT_STEP) * SLIDER_SHIFT_STEP;
+        slider.value = clampToSliderRange(slider, snapped);
+    }
+
+    // Arrow-key increment/decrement for a slider (Shift = snap to SLIDER_SHIFT_STEP)
+    function changeSliderByArrowKey(slider, onChanged) {
+        if (!slider) return;
+
+        slider.addEventListener('keydown', function (event) {
+            if (!event) return;
+
+            var goingUp = (event.keyName === 'Up' || event.keyName === 'Right');
+            var goingDown = (event.keyName === 'Down' || event.keyName === 'Left');
+            if (!goingUp && !goingDown) return;
+
+            var currentValue = Math.round(slider.value);
+
+            if (ScriptUI.environment.keyboardState.shiftKey) {
+                // Snap to multiples of the step for Shift
+                currentValue = goingUp
+                    ? Math.ceil((currentValue + 1) / SLIDER_SHIFT_STEP) * SLIDER_SHIFT_STEP
+                    : Math.floor((currentValue - 1) / SLIDER_SHIFT_STEP) * SLIDER_SHIFT_STEP;
+            } else {
+                currentValue = goingUp ? currentValue + 1 : currentValue - 1;
+            }
+
+            // Prevent default arrow key behavior (the slider would move on its own)
+            event.preventDefault();
+            slider.value = clampToSliderRange(slider, currentValue);
 
             if (onChanged) onChanged();
         });
@@ -485,7 +566,7 @@ See the README for details.
     }
 
     /**
-     * ダイナミックテキストのアイコン（幅のそろった3本の帯）を描く
+     * ブロックのアイコン（幅のそろった3本の帯）を描く
      * @param {object} graphics - ScriptUIGraphics
      * @param {object} brush - ブラシ
      * @param {number} centerX - アイコンの中心X
@@ -718,8 +799,8 @@ See the README for details.
     var KERNING_METHODS = [
         { key: 'keep', labelKey: 'kerningKeep', tipKey: 'kerningKeep', value: null },
         { key: 'metrics', labelKey: 'kerningMetrics', tipKey: 'autoKerning', value: AutoKernType.AUTO },
-        { key: 'optical', labelKey: 'kerningOptical', tipKey: 'autoKerning', value: AutoKernType.OPTICAL },
-        { key: 'mono', labelKey: 'kerningMono', tipKey: 'autoKerning', value: AutoKernType.METRICSROMANONLY }
+        { key: 'optical', labelKey: 'kerningOptical', tipKey: 'kerningOptical', value: AutoKernType.OPTICAL },
+        { key: 'mono', labelKey: 'kerningMono', tipKey: 'kerningMono', value: AutoKernType.METRICSROMANONLY }
     ];
 
     /* 効果の定義（表示順）。command は Illustrator のメニューコマンド名
@@ -845,13 +926,29 @@ See the README for details.
     stArcRoundness.helpTip = getLabel('tooltip', 'roundness');
     // Slider: 0 = flat, 100 = roundest（初期値は最大 / defaults to the maximum）
     var slArcRoundness = grpRoundness.add('slider', undefined, ARC_ROUNDNESS_DEFAULT, 0, 100);
-    slArcRoundness.preferredSize.width = 200;
+    slArcRoundness.preferredSize.width = SLIDER_WIDTH;
     slArcRoundness.helpTip = getLabel('tooltip', 'roundness');
+
+    /* 占有率 / Coverage */
+    var grpCoverage = addFieldRow(pnlArcOptions);
+
+    var stPathCoverage = grpCoverage.add('statictext', undefined, getLabel('fieldLabel', 'coverage'));
+    setupLabelColumn(stPathCoverage);
+    stPathCoverage.helpTip = getLabel('tooltip', 'coverage');
+    // Slider: 100 = パスの端まで, PATH_COVERAGE_MIN = パスの中央だけ
+    var slPathCoverage = grpCoverage.add('slider', undefined, PATH_COVERAGE_DEFAULT, PATH_COVERAGE_MIN, 100);
+    /* カーブと同じ幅にそろえ、数値表示はそのうしろへ置く
+       matches the Curve slider, with the readout placed after it */
+    slPathCoverage.preferredSize.width = SLIDER_WIDTH;
+    slPathCoverage.helpTip = getLabel('tooltip', 'coverage');
+    var stPathCoverageValue = grpCoverage.add('statictext', undefined, '');
+    stPathCoverageValue.preferredSize.width = COVERAGE_VALUE_WIDTH;
+    stPathCoverageValue.helpTip = getLabel('tooltip', 'coverage');
 
     /* フィット / Fit */
     var grpFit = addFieldRow(pnlArcOptions);
 
-    // 先頭ラベル「パス幅に合わせる：」 / Leading label "Fit to path width:"
+    // 先頭ラベル「合わせ方：」 / Leading label "Fit:"
     var stFit = grpFit.add('statictext', undefined, getLabel('fieldLabel', 'fit'));
     setupLabelColumn(stFit);
     stFit.helpTip = getLabel('tooltip', 'fit');
@@ -859,9 +956,9 @@ See the README for details.
     var rbFitNone = grpFit.add('radiobutton', undefined, getLabel('radio', 'fitNone'));
     rbFitNone.helpTip = getLabel('tooltip', 'fitNone');
     var rbFitFontSize = grpFit.add('radiobutton', undefined, getLabel('radio', 'fitByFontSize'));
-    rbFitFontSize.helpTip = getLabel('tooltip', 'fitMethod');
+    rbFitFontSize.helpTip = getLabel('tooltip', 'fitByFontSize');
     var rbFitTracking = grpFit.add('radiobutton', undefined, getLabel('radio', 'fitByTracking'));
-    rbFitTracking.helpTip = getLabel('tooltip', 'fitMethod');
+    rbFitTracking.helpTip = getLabel('tooltip', 'fitByTracking');
     rbFitNone.value = (DEFAULT_FIT_METHOD === 'none');
     rbFitFontSize.value = (DEFAULT_FIT_METHOD === 'fontSize');
     rbFitTracking.value = (DEFAULT_FIT_METHOD === 'tracking');
@@ -947,7 +1044,7 @@ See the README for details.
     // 先頭は上の行と列を揃えるための空ラベル / empty label that keeps the column aligned
     addLabelSpacer(grpTrackingSlider);
     var slTracking = grpTrackingSlider.add('slider', undefined, 0, -100, 500);
-    slTracking.preferredSize.width = 200;
+    slTracking.preferredSize.width = SLIDER_WIDTH;
     slTracking.helpTip = getLabel('tooltip', 'tracking');
 
     /* 表示の設定（ボタンの上に置く）/ View options, placed just above the buttons */
@@ -1116,7 +1213,47 @@ See the README for details.
     }
 
     /* ===== ハンドラ / Handlers ===== */
-    slArcRoundness.onChange = refreshPreview;
+
+    /* カーブ：shift を押しながらのドラッグ・矢印キーで10刻み
+       Curve: Shift snaps both dragging and the arrow keys to steps of 10 */
+    slArcRoundness.onChanging = function () {
+        snapSliderWithShift(slArcRoundness);
+    };
+    slArcRoundness.onChange = function () {
+        snapSliderWithShift(slArcRoundness);
+        refreshPreview();
+    };
+    changeSliderByArrowKey(slArcRoundness, refreshPreview);
+
+    /**
+     * 占有率スライダーの現在値を、右の数値表示へ反映する
+     * @returns {void}
+     */
+    function syncPathCoverageValue() {
+        stPathCoverageValue.text = Math.round(slPathCoverage.value) + getLabel('unit', 'percent');
+    }
+    syncPathCoverageValue();
+
+    /**
+     * 占有率を変えたあとの共通処理（数値表示を合わせてプレビューを貼り直す）
+     * @returns {void}
+     */
+    function onPathCoverageChanged() {
+        syncPathCoverageValue();
+        refreshPreview();
+    }
+
+    /* ドラッグ中は数値だけ追従させ、離したときにプレビューを貼り直す
+       the readout follows the drag; the preview is redrawn once the slider is released */
+    slPathCoverage.onChanging = function () {
+        snapSliderWithShift(slPathCoverage);
+        syncPathCoverageValue();
+    };
+    slPathCoverage.onChange = function () {
+        snapSliderWithShift(slPathCoverage);
+        onPathCoverageChanged();
+    };
+    changeSliderByArrowKey(slPathCoverage, onPathCoverageChanged);
 
     /**
      * モードが選択されているか（起動直後は未選択）
@@ -1135,8 +1272,8 @@ See the README for details.
     }
 
     /**
-     * ダイナミックテキストモードが選択されているか
-     * @returns {boolean} ダイナミックテキストモードなら true
+     * ブロックモードが選択されているか
+     * @returns {boolean} ブロックモードなら true
      */
     function isBlockMode() {
         return currentMode === 'modeBlock';
@@ -1197,11 +1334,14 @@ See the README for details.
         rbFitFontSize.enabled = fitAvailable;
         rbFitTracking.enabled = fitAvailable;
     }
-    // ダイナミックテキストはパス上文字を作らないため、アーチ用の行をまとめてディム表示
+    // ブロックはパス上文字を作らないため、アーチ用の行をまとめてディム表示
     function updatePathTextControlsEnabled() {
         var arcActive = isModeSelected() && !isBlockMode();
         stArcRoundness.enabled = arcActive;
         slArcRoundness.enabled = arcActive;
+        stPathCoverage.enabled = arcActive;
+        slPathCoverage.enabled = arcActive;
+        stPathCoverageValue.enabled = arcActive;
         stEffect.enabled = arcActive;
         ddEffect.enabled = arcActive;
         cbRemoveLineBreaks.enabled = arcActive;
@@ -1272,7 +1412,7 @@ See the README for details.
         stAutoKerning.enabled = kerningAvailable;
         for (var i = 0; i < kerningButtons.length; i++) kerningButtons[i].enabled = kerningAvailable;
     }
-    // 「調整：文字間」を選んでいる間は自動調整にまかせるので、手動トラッキング行をディム表示
+    // 「合わせ方：トラッキング」を選んでいる間は自動調整にまかせるので、手動トラッキング行をディム表示
     function updateTrackingEnabled() {
         var trackingAvailable = isModeSelected() && !isFitByTrackingActive();
         stTracking.enabled = trackingAvailable;
@@ -1680,6 +1820,18 @@ See the README for details.
     }
 
     /**
+     * 占有率スライダーの値を、パス長に対する比率として返す
+     * 数値表示と結果を一致させるため、スライダーの値は整数に丸めて扱う。
+     * @returns {number} 文字が占める割合（PATH_COVERAGE_MIN/100〜1）
+     */
+    function readPathCoverageRatio() {
+        var percent = PATH_COVERAGE_DEFAULT;
+        try { percent = Math.round(slPathCoverage.value); } catch (e) { percent = PATH_COVERAGE_DEFAULT; }
+        if (isNaN(percent)) percent = PATH_COVERAGE_DEFAULT;
+        return Math.max(PATH_COVERAGE_MIN, Math.min(100, percent)) / 100;
+    }
+
+    /**
      * 2点の直線パスを真円の円弧に変形する
      * カーブは弦の中点から頂点までの高さ（サジッタ）を決め、100で半幅＝半径、つまり弦を直径とする半円になる。
      * 円弧は頂点で2分割し、90度以下の区間ごとにベジェ曲線で近似する。
@@ -1880,7 +2032,7 @@ See the README for details.
         applyAutoKerning(textOnAPath);
 
         // トラッキング（既存値 + 指定値）※ フィット前に適用してオーバーセット判定へ反映
-        // 「文字間」フィット時は手動値を加算しない（ディム表示と挙動を一致させる）
+        // 「合わせ方：トラッキング」のときは手動値を加算しない（ディム表示と挙動を一致させる）
         if (!isFitByTrackingActive()) applyTrackingDelta(textOnAPath);
 
         // 効果（パス上文字の効果をメニューコマンドで適用）
@@ -1958,6 +2110,9 @@ See the README for details.
             try { fitTextToPathByFontSize(createdPathTexts); } catch (e) { }
         }
 
+        // 占有率：パスの端まで並んだ文字を、指定した割合ぶんまで詰めて中央へ寄せる
+        try { applyPathCoverage(createdPathTexts); } catch (e) { }
+
         // 保険：フィットの設定にかかわらず、パスに収まらないぶんは縮めて文字を欠けさせない
         try { preventOverset(createdPathTexts); } catch (e) { }
 
@@ -1967,7 +2122,7 @@ See the README for details.
         return createdPathTexts.length > 0;
     }
 
-    /* ===== ダイナミックテキスト / Dynamic text ===== */
+    /* ===== ブロック / Block ===== */
 
     /**
      * 改行や空白しか含まない行かどうかを判定する
@@ -2408,6 +2563,25 @@ See the README for details.
     }
 
     /**
+     * フレーム内の文字サイズの平均を返す
+     * @param {TextFrame} textFrame - 対象テキストフレーム
+     * @returns {number} 文字サイズの平均（読めなければ0）
+     */
+    function getAverageFontSize(textFrame) {
+        var ranges = collectTextRanges(textFrame);
+        var total = 0;
+        var counted = 0;
+
+        for (var rangeIndex = 0; rangeIndex < ranges.length; rangeIndex++) {
+            try {
+                total += ranges[rangeIndex].characterAttributes.size;
+                counted++;
+            } catch (e) { }
+        }
+        return (counted > 0) ? (total / counted) : 0;
+    }
+
+    /**
      * フレーム全体の文字サイズに同じ比率を掛ける（文字ごとのサイズ差を保つ）
      * @param {TextFrame} textFrame - 対象テキストフレーム
      * @param {number} ratio - 変倍率
@@ -2441,7 +2615,7 @@ See the README for details.
     }
 
     /**
-     * ダイナミックテキストを適用する
+     * ブロックを適用する
      * プレビューはUndoを使わない仕組みのため、複製へ適用して元のテキストを隠す
      * @param {boolean} showAlerts - 対象が1つもないときに警告を出すなら true
      * @param {boolean} previewMode - プレビューなら true
@@ -2578,6 +2752,58 @@ See the README for details.
             if (textFrame.lines && textFrame.lines.length > 0) return textFrame.lines.length;
         } catch (e) { }
         return 1;
+    }
+
+    /**
+     * 文字サイズを変えずに、文字の長さをパス長の指定割合まで詰めるトラッキング量を求める
+     * トラッキングは em の1/1000 単位なので、1文字あたり「文字サイズ×量/1000」だけ長さが変わる。
+     * フィット直後は文字の長さ＝パス長とみなせるため、詰める量はパス長から求められる。
+     * @param {TextFrame} textFrame - 対象のパス上文字
+     * @param {number} coverageRatio - パス長に対する割合（0〜1）
+     * @returns {number} 加算するトラッキング量（求められない場合は0）
+     */
+    function calcTrackingForCoverage(textFrame, coverageRatio) {
+        var pathLength = 0;
+        try { pathLength = textFrame.textPath.length; } catch (e) { pathLength = 0; }
+        if (!(pathLength > 0)) return 0;
+
+        var characterAmount = textFrame.characters.length;
+        var averageFontSize = getAverageFontSize(textFrame);
+        if (!(characterAmount > 0) || !(averageFontSize > 0)) return 0;
+
+        var shortenBy = pathLength * (1 - coverageRatio);
+        return -Math.round(shortenBy * 1000 / (averageFontSize * characterAmount));
+    }
+
+    /**
+     * パス長のうち文字が占める割合を、フィットのあとに詰めて合わせる
+     * 中央揃えなので、詰めたぶんだけ文字はパスの中央（円では上側中央）へ寄る。
+     * 「合わせ方：トラッキング」は文字サイズを保つ設定なので、サイズではなく字間を詰めて短くする。
+     * @param {TextFrame[]} frames - 生成したパス上文字
+     * @returns {void}
+     */
+    function applyPathCoverage(frames) {
+        if (!frames || frames.length === 0) return;
+
+        var coverageRatio = readPathCoverageRatio();
+        if (coverageRatio >= 1) return; /* 100％はパスの端まで＝何も詰めない */
+
+        var keepFontSize = isFitByTrackingActive();
+
+        for (var i = 0; i < frames.length; i++) {
+            var textFrame = frames[i];
+            if (!isEditablePathText(textFrame)) continue;
+
+            try {
+                if (textFrame.characters.length <= 0) continue;
+
+                if (keepFontSize) {
+                    addTrackingToFrame(textFrame, calcTrackingForCoverage(textFrame, coverageRatio));
+                } else {
+                    scaleFontSize(textFrame, coverageRatio);
+                }
+            } catch (e) { }
+        }
     }
 
     /**
