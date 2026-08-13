@@ -28,7 +28,7 @@ See the README for details.
 // 基本情報 / Basic info
 // =========================================
 var SCRIPT_NAME     = "DashGapCalculator";            /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v2.0";                         /* バージョン / version */
+var SCRIPT_VERSION  = "v2.0.1";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
 var SCRIPT_RELEASED = "2026-02-25";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-13";                   /* 更新日 / last updated */
@@ -66,66 +66,87 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
     var RANDOM_PATTERN_LENGTH = 6;
 
     // =========================================
-    // レイアウト / Layout
+    // UIレイアウトの共通設定 / Shared UI layout
     // =========================================
 
-    var WINDOW_MARGINS         = 16;                 /* ウィンドウ外周の余白 */
-    var WINDOW_SPACING         = 12;                 /* ウィンドウ内の要素間隔 */
-    var PANEL_MARGINS          = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] */
-    var PANEL_SPACING          = 6;                  /* パネル内の要素間隔 */
-    var COLUMN_SPACING         = 12;                 /* 2カラムの間隔 */
-    var BUTTON_ROW_MARGINS     = [0, 5, 0, 0];       /* ボタンエリアの余白 [左,上,右,下] */
-    var OPTION_ROW_SPACING     = 20;                 /* 下部チェックボックスの間隔 */
-    var FIELD_LABEL_WIDTH      = 40;                 /* 分割数・間隔・線分のラベル幅 */
-    var NUMBER_FIELD_CHARS     = 4;                  /* 数値入力欄の幅（文字数） */
-    var LABELLESS_CHECKBOX_WIDTH = 18;               /* ラベルなしチェックボックスの幅 */
+    /* ウィンドウ・パネルの余白と間隔 / Window & panel margins and spacing */
+    var WINDOW_MARGINS = 16;                 /* ウィンドウ外周の余白 / window margin */
+    var WINDOW_SPACING = 12;                 /* ウィンドウ内の要素間隔 / window spacing */
+    var PANEL_MARGINS  = [16, 20, 16, 12];   /* パネル余白 [左,上,右,下] / panel margins */
+    var PANEL_SPACING  = 12;                 /* パネル内の要素間隔 / panel spacing */
+    var COLUMN_SPACING = 12;                 /* 2カラムの間隔 / gap between columns */
+
+    /* このダイアログ固有の寸法 / Sizes specific to this dialog */
+    var BUTTON_ROW_MARGINS       = [0, 5, 0, 0]; /* ボタンエリアの余白 [左,上,右,下] */
+    var OPTION_ROW_SPACING       = 20;           /* 下部チェックボックスの間隔 */
+    var OFFSET_PANEL_SPACING     = 6;            /* 開始位置パネルの要素間隔（密） */
+    var FIELD_LABEL_WIDTH        = 40;           /* 分割数・間隔・線分のラベル幅 */
+    var NUMBER_FIELD_CHARS       = 4;            /* 数値入力欄の幅（文字数） */
+    var LABELLESS_CHECKBOX_WIDTH = 18;           /* ラベルなしチェックボックスの幅 */
 
     /**
-     * ダイアログへ共通のレイアウトを適用する
-     * @param {Window} dialog - 対象ダイアログ
+     * ウィンドウへ共通のレイアウトを適用する
+     * @param {Window} win - 対象ダイアログ
+     * @param {number} spacing - 要素間隔（省略時は WINDOW_SPACING）
      * @returns {void}
      */
-    function setupWindow(dialog) {
-        dialog.orientation = "column";
-        dialog.alignChildren = "fill";
-        dialog.margins = WINDOW_MARGINS;
-        dialog.spacing = WINDOW_SPACING;
+    function setupWindow(win, spacing) {
+        win.orientation = "column";
+        win.alignChildren = "fill";
+        win.margins = WINDOW_MARGINS;
+        win.spacing = (typeof spacing === "number") ? spacing : WINDOW_SPACING;
     }
 
     /**
      * パネルへ共通のレイアウトを適用する
      * @param {Panel} panel - 対象パネル
-     * @param {Array<string>} alignChildren - 子要素の整列指定（省略時は ["fill", "top"]）
+     * @param {number} spacing - 要素間隔（省略時は PANEL_SPACING）
      * @returns {void}
      */
-    function setupPanel(panel, alignChildren) {
+    function setupPanel(panel, spacing) {
         panel.orientation = "column";
+        panel.alignChildren = ["fill", "top"];
+        panel.alignment = "fill";
         panel.margins = PANEL_MARGINS;
-        panel.spacing = PANEL_SPACING;
-        panel.alignChildren = alignChildren || ["fill", "top"];
+        panel.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
+    }
+
+    /**
+     * 行グループへ共通のレイアウトを適用する
+     * @param {Group} group - 対象グループ
+     * @param {string} alignment - 親の中での配置（省略時は "left"）
+     * @param {number} spacing - 要素間隔（省略時は PANEL_SPACING）
+     * @returns {void}
+     */
+    function setupRow(group, alignment, spacing) {
+        group.orientation = "row";
+        group.alignment = alignment || "left";
+        group.spacing = (typeof spacing === "number") ? spacing : PANEL_SPACING;
     }
 
     /**
      * ラベル付きパネルを生成し、共通レイアウトを適用する
      * @param {Window|Panel|Group} parent - 追加先のコンテナ
      * @param {string} titleText - パネルのタイトル
-     * @param {Array<string>} alignChildren - 子要素の整列指定（省略時は ["fill", "top"]）
+     * @param {number} spacing - 要素間隔（省略時は PANEL_SPACING）
      * @returns {Panel} 生成したパネル
      */
-    function addPanel(parent, titleText, alignChildren) {
+    function addPanel(parent, titleText, spacing) {
         var panel = parent.add("panel", undefined, titleText);
-        setupPanel(panel, alignChildren);
+        setupPanel(panel, spacing);
         return panel;
     }
 
     /**
      * 横並びのグループを生成する
      * @param {Window|Panel|Group} parent - 追加先のコンテナ
+     * @param {string} alignment - 親の中での配置（省略時は "left"）
+     * @param {number} spacing - 要素間隔（省略時は PANEL_SPACING）
      * @returns {Group} 生成したグループ
      */
-    function addRow(parent) {
+    function addRow(parent, alignment, spacing) {
         var row = parent.add("group");
-        row.orientation = "row";
+        setupRow(row, alignment, spacing);
         row.alignChildren = ["left", "center"];
         return row;
     }
@@ -134,12 +155,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
      * 縦積みのグループを生成する
      * @param {Window|Panel|Group} parent - 追加先のコンテナ
      * @param {Array<string>} alignChildren - 子要素の整列指定（省略時は ["fill", "top"]）
+     * @param {string} alignment - 親の中での配置（省略時はコンテナ既定）
      * @returns {Group} 生成したグループ
      */
-    function addColumn(parent, alignChildren) {
+    function addColumn(parent, alignChildren, alignment) {
         var column = parent.add("group");
         column.orientation = "column";
         column.alignChildren = alignChildren || ["fill", "top"];
+        if (alignment) column.alignment = alignment;
         return column;
     }
 
@@ -685,26 +708,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         setupWindow(win);
 
         /* 選択中のパス情報（全幅）*/
-        var panelPathInfo = addPanel(win, getLabel(LABELS.panel.pathInfo), ["center", "top"]);
+        var panelPathInfo = addPanel(win, getLabel(LABELS.panel.pathInfo));
         var pathInfoText = getLabel(LABELS.fieldLabel.pathLength) + " " +
             ptToUnit(primaryPathLength, strokeUnit).toFixed(3) + " " + strokeUnit.label;
         if (targetPaths.length > 1) pathInfoText += "  (" + targetPaths.length + ")";
         var lblPathInfo = panelPathInfo.add("statictext", undefined, pathInfoText);
+        lblPathInfo.alignment = "center";
         lblPathInfo.helpTip = getLabel(LABELS.tooltip.pathInfo);
 
         /* 2カラム */
         var mainColumns = win.add("group");
-        mainColumns.orientation = "row";
+        setupRow(mainColumns, "fill", COLUMN_SPACING);
         mainColumns.alignChildren = ["fill", "top"];
-        mainColumns.alignment = "fill";
-        mainColumns.spacing = COLUMN_SPACING;
 
         var columnLeft = addColumn(mainColumns);
         var columnRight = addColumn(mainColumns);
 
         /* 破線の計算（左カラム）*/
-        var panelDashCalc = addPanel(columnLeft, getLabel(LABELS.panel.dashCalc), ["left", "top"]);
-        var dashInputColumn = addColumn(panelDashCalc, ["left", "top"]);
+        var panelDashCalc = addPanel(columnLeft, getLabel(LABELS.panel.dashCalc));
+        var dashInputColumn = addColumn(panelDashCalc, ["left", "top"], "left");
 
         /* 分割数 */
         var segmentsRow = addRow(dashInputColumn);
@@ -758,8 +780,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         dashRow.helpTip = txtDash.helpTip = getLabel(LABELS.tooltip.dash);
 
         /* 計算方法（左カラム）*/
-        var panelCalcMethod = addPanel(columnLeft, getLabel(LABELS.panel.calcMethod), ["left", "top"]);
-        var calcModeColumn = addColumn(panelCalcMethod, ["left", "top"]);
+        var panelCalcMethod = addPanel(columnLeft, getLabel(LABELS.panel.calcMethod));
+        var calcModeColumn = addColumn(panelCalcMethod, ["left", "top"], "left");
 
         var rbModeGapToDash = calcModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.gapToDash));
         var rbModeDashToGap = calcModeColumn.add("radiobutton", undefined, getLabel(LABELS.radio.dashToGap));
@@ -772,7 +794,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         rbModeRandom.value = (initialMode === 2);
 
         /* 開始位置（右カラム）*/
-        var panelOffset = addPanel(columnRight, getLabel(LABELS.panel.offset), ["left", "top"]);
+        var panelOffset = addPanel(columnRight, getLabel(LABELS.panel.offset), OFFSET_PANEL_SPACING);
 
         var offsetRow = addRow(panelOffset);
         var chkUseOffset = offsetRow.add("checkbox", undefined, "");
@@ -797,13 +819,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         var rbOffsetThreeQuarter = offsetPresetRow.add("radiobutton", undefined, "3/4");
 
         /* 部分表示（右カラム）*/
-        var panelPartialDisplay = addPanel(columnRight, getLabel(LABELS.panel.partial), ["left", "top"]);
+        var panelPartialDisplay = addPanel(columnRight, getLabel(LABELS.panel.partial));
         var chkPartialDisplay = panelPartialDisplay.add("checkbox", undefined, getLabel(LABELS.checkbox.partialDisplay));
+        chkPartialDisplay.alignment = "left";
         chkPartialDisplay.value = false;
         chkPartialDisplay.helpTip = getLabel(LABELS.tooltip.partialDisplay);
 
         /* 線端（右カラム）*/
-        var panelCap = addPanel(columnRight, getLabel(LABELS.panel.cap), ["left", "top"]);
+        var panelCap = addPanel(columnRight, getLabel(LABELS.panel.cap));
         var capRow = addRow(panelCap);
         capRow.helpTip = getLabel(LABELS.tooltip.cap);
         var rbCapButt = capRow.add("radiobutton", undefined, getLabel(LABELS.radio.capButt));
@@ -814,10 +837,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
         else rbCapButt.value = true;
 
         /* 両端を調整・パスの方向反転（中央）*/
-        var pathOptionRow = win.add("group");
-        pathOptionRow.orientation = "row";
-        pathOptionRow.alignment = "center";
-        pathOptionRow.spacing = OPTION_ROW_SPACING;
+        var pathOptionRow = addRow(win, "center", OPTION_ROW_SPACING);
 
         var chkAdjustEnds = pathOptionRow.add("checkbox", undefined, getLabel(LABELS.checkbox.adjustEnds));
         chkAdjustEnds.value = initialAdjustEnds;
@@ -829,23 +849,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n868bedb96542"; /* 紹�
 
         /* ボタン（左：破線クリア／右：キャンセル・OK）*/
         var buttonRow = win.add("group");
-        buttonRow.orientation = "row";
+        setupRow(buttonRow, "fill");
         buttonRow.alignChildren = ["fill", "center"];
-        buttonRow.alignment = "fill";
         buttonRow.margins = BUTTON_ROW_MARGINS;
 
-        var clearButtonGroup = addRow(buttonRow);
-        clearButtonGroup.alignment = "left";
+        var clearButtonGroup = addRow(buttonRow, "left");
         var btnClearDash = clearButtonGroup.add("button", undefined, getLabel(LABELS.button.clearDash));
+        btnClearDash.alignment = "left";
         btnClearDash.helpTip = getLabel(LABELS.tooltip.clearDash);
 
         var buttonSpacer = buttonRow.add("group");
         buttonSpacer.alignment = ["fill", "fill"];
         buttonSpacer.minimumSize.width = 0;
 
-        var commitButtonGroup = addRow(buttonRow);
-        commitButtonGroup.alignChildren = ["right", "center"];
-        commitButtonGroup.alignment = "right";
+        var commitButtonGroup = addRow(buttonRow, "right");
         var btnCancel = commitButtonGroup.add("button", undefined, getLabel(LABELS.button.cancel), { name: "cancel" });
         var btnOK = commitButtonGroup.add("button", undefined, getLabel(LABELS.button.ok), { name: "ok" });
 
