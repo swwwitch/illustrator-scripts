@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-クリップボードのテキストで、選択中のテキストフレームの内容をまとめて置き換えます。選択がない場合は、貼り付いた位置に既定の書式でテキストフレームを新規作成します。
+クリップボードの複数行テキストから1行目を取り出して、選択中のテキストフレームに適用します（空行は読み飛ばします）。適用した行はクリップボードから取り除かれるため、繰り返し実行すると次の行へ順に進みます。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Replaces the contents of the selected text frames with the text on the clipboard. With nothing selected, it creates a new text frame with the default formatting where the paste lands.
+Takes the first line of the multi-line text on the clipboard, skipping blank lines, and applies it to the selected text frames. The applied line is removed from the clipboard, so running the script repeatedly walks through the lines one by one.
 
 See the README for details.
 
@@ -20,20 +20,20 @@ See the README for details.
 // =========================================
 // 基本情報 / Basic info
 // =========================================
-var SCRIPT_NAME     = "ReplaceTextWithPaste";         /* スクリプト名 / script name */
-var SCRIPT_VERSION  = "v1.1.2";                       /* バージョン / version */
+var SCRIPT_NAME     = "ReplaceTextWithPasteSequential"; /* スクリプト名 / script name */
+var SCRIPT_VERSION  = "v1.0.0";                       /* バージョン / version */
 var SCRIPT_AUTHOR   = "Masahiro Takano (@swwwitch)";  /* 作者 / author */
-var SCRIPT_RELEASED = "2024-10-28";                   /* 最初のリリース日 / first release date */
+var SCRIPT_RELEASED = "2026-08-14";                   /* 最初のリリース日 / first release date */
 var SCRIPT_UPDATED  = "2026-08-14";                   /* 更新日 / last updated */
 
 // README (Japanese)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPaste.md
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-ja/ReplaceTextWithPasteSequential.md
 // README (English)
-// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPaste.md
-var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹介記事 / article URL */
+// https://github.com/swwwitch/illustrator-scripts/blob/master/readme-en/ReplaceTextWithPasteSequential.md
 
 /**
  * @discussion 原案 / Original idea by Gorolib Design
+ * @discussion ReplaceTextWithPaste.jsx から派生 / Derived from ReplaceTextWithPaste.jsx
  */
 
 // Released under the MIT license
@@ -51,6 +51,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     var LABELS = {
         alert: {
             noDocument: { ja: "ドキュメントを開いてください。", en: "Please open a document." },
+            noSelection: { ja: "テキストフレームを選択してください。", en: "Please select a text frame." },
             emptyClipboard: {
                 ja: "クリップボードが空か、Illustrator に貼り付けられない内容です。",
                 en: "The clipboard is empty, or Illustrator cannot paste its contents."
@@ -59,13 +60,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
                 ja: "クリップボードにテキストが見つかりませんでした。",
                 en: "No text was found on the clipboard."
             },
+            lastLineApplied: {
+                ja: "最後の行を適用しました。\nクリップボードの内容はそのまま残っています。",
+                en: "Applied the last line.\nThe clipboard has been left as it is."
+            },
             clipboardError: {
                 ja: "クリップボードからの取得に失敗しました：\n",
                 en: "Failed to get text from clipboard:\n"
             },
-            textCreateError: {
-                ja: "新規テキスト作成時にエラーが発生しました：\n",
-                en: "An error occurred while creating new text:\n"
+            clipboardWriteError: {
+                ja: "クリップボードの更新に失敗しました：\n",
+                en: "Failed to update the clipboard:\n"
             },
             replaceError: {
                 ja: "テキスト置換中にエラーが発生しました：\n",
@@ -132,31 +137,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     /**
-     * テキスト編集中の選択（TextRange）を、あとから使える数値として控える。
+     * テキスト編集中の選択（TextRange）から、親のテキストフレームを取り出す。
      * オブジェクト参照は編集モードの解除やペーストで無効になり得るため、
-     * 親テキストフレームと文字位置だけを持たせる。
+     * フレームだけを取り出して以降の対象にする。
      * @param {Array<Object>} capturedItems - 退避した選択
-     * @returns {{frame: TextFrame, start: number, end: number}|null} 文字範囲の情報。編集中でなければ null
+     * @returns {TextFrame|null} 親のテキストフレーム。編集中でなければ null
      */
-    function captureEditingRange(capturedItems) {
+    function captureEditingFrame(capturedItems) {
         if (!capturedItems || capturedItems.length !== 1) return null;
 
         var textRange = capturedItems[0];
         if (!textRange || textRange.typename !== "TextRange") return null;
 
         try {
-            var parentFrame = null;
-            if (textRange.parent && textRange.parent.typename === "TextFrame") {
-                parentFrame = textRange.parent;
-            } else if (textRange.story && textRange.story.textFrames.length > 0) {
-                parentFrame = textRange.story.textFrames[0];
-            }
-            if (!parentFrame) return null;
-
-            return { frame: parentFrame, start: textRange.start, end: textRange.end };
+            if (textRange.parent && textRange.parent.typename === "TextFrame") return textRange.parent;
+            if (textRange.story && textRange.story.textFrames.length > 0) return textRange.story.textFrames[0];
         } catch (e) {
-            return null;
+            // 取り出せない場合は編集中として扱わない / Treat it as a normal selection when we cannot tell
         }
+        return null;
     }
 
     /**
@@ -215,7 +214,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     // =========================================
-    // クリップボードの取得 / Clipboard access
+    // クリップボードの読み書き / Clipboard access
     // =========================================
 
     /**
@@ -245,16 +244,66 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     }
 
     /**
-     * 一度ペーストして、貼り付けられたテキストフレームから内容と座標を読み取る。
+     * 空白だけの行かどうかを判定する（半角スペース、タブ、全角スペースを空白として扱う）
+     * @param {string} lineText - 判定する行
+     * @returns {boolean} 空、または空白だけなら true
+     */
+    function isBlankLine(lineText) {
+        return /^[\s　]*$/.test(lineText);
+    }
+
+    /**
+     * 空行（空白だけの行を含む）を取り除く。
+     * 残った行のあいだの改行は、元の文字（段落改行の CR、強制改行の LF）をそのまま使う。
+     * @param {string} textContent - 対象の文字列
+     * @returns {string} 空行を取り除いた文字列
+     */
+    function removeEmptyLines(textContent) {
+        if (!textContent) return "";
+
+        var keptText = "";
+        var lineBuffer = "";
+        var breakBeforeLine = "";
+
+        /* 末尾は改行が無くても1行として確定させるため、長さの位置まで回す / Close the last line even without a trailing break */
+        for (var i = 0; i <= textContent.length; i++) {
+            var isEndOfText = (i === textContent.length);
+            var currentChar = isEndOfText ? "" : textContent.charAt(i);
+
+            if (!isEndOfText && currentChar !== "\r" && currentChar !== "\n") {
+                lineBuffer += currentChar;
+                continue;
+            }
+
+            /* 空行は改行ごと捨てるので、残す行の直前の改行だけが書き出される / Dropping a blank line drops its break too */
+            if (!isBlankLine(lineBuffer)) {
+                keptText += (keptText === "" ? "" : breakBeforeLine) + lineBuffer;
+            }
+            lineBuffer = "";
+
+            if (isEndOfText) break;
+
+            breakBeforeLine = currentChar;
+            /* CR+LF は1つの改行として扱う / Treat CR+LF as a single break */
+            if (currentChar === "\r" && textContent.charAt(i + 1) === "\n") {
+                breakBeforeLine = "\r\n";
+                i++;
+            }
+        }
+        return keptText;
+    }
+
+    /**
+     * 一度ペーストして、貼り付けられたテキストフレームから文字列を読み取る。
      * 読み取り後は貼り付けたオブジェクトを削除し、元の選択へ戻す。
      * 貼り付け前に選択を解除するのは、ペーストが実行されなかったときに
      * 元の選択を「貼り付いたもの」と誤認して削除しないため。
      * @param {Document} doc - 対象ドキュメント
      * @param {Array<Object>} originalSelection - 復元する元の選択
-     * @returns {{bounds: Array<number>, contents: string}|null} 読み取り結果。テキストが無い、または失敗した場合は null
+     * @returns {string|null} クリップボードの文字列。テキストが無い、または失敗した場合は null
      */
-    function readClipboardTextFrame(doc, originalSelection) {
-        var clipboardInfo = null;
+    function readClipboardText(doc, originalSelection) {
+        var clipboardText = null;
         var pastedItems = null;
         var pasteError = null;
 
@@ -265,10 +314,12 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
 
             var pastedTextFrame = findFirstTextFrame(pastedItems);
             if (pastedTextFrame) {
-                clipboardInfo = {
-                    bounds: pastedTextFrame.geometricBounds,
-                    contents: pastedTextFrame.contents
-                };
+                /* ここで空行を落としておけば、1行目の取り出しも書き戻しも空行を意識しなくてよい / Strip blank lines once, so neither the split nor the write-back has to care */
+                var pastedText = removeEmptyLines(pastedTextFrame.contents);
+                /* 中身が空なら「残りなし」として扱う / Nothing usable means there is nothing left to apply */
+                if (pastedText.length > 0) {
+                    clipboardText = pastedText;
+                }
             }
         } catch (e) {
             pasteError = String(e);
@@ -284,15 +335,69 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
         } else if (!pastedItems || pastedItems.length === 0) {
             /* ペースト自体が起きなかった場合と、貼り付いたがテキストが無い場合を区別する / Tell an unusable clipboard apart from a paste without text */
             alert(getLabel("alert.emptyClipboard"));
-        } else if (!clipboardInfo) {
+        } else if (clipboardText === null) {
             alert(getLabel("alert.noTextInClipboard"));
         }
-        return clipboardInfo;
+        return clipboardText;
+    }
+
+    /**
+     * 一時テキストフレーム経由でクリップボードを書き換える。
+     * Illustrator には文字列を直接クリップボードへ送る API が無いため、
+     * 内容を持つフレームを作ってコピーし、すぐに削除する。
+     * 追加直後のフレームは再描画しないとコピー対象として扱われないことがあり、
+     * また app.copy() は黙って無視される場合があるためメニューコマンドを使う。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {string} textContent - クリップボードに残す文字列
+     * @returns {void}
+     */
+    function writeTextToClipboard(doc, textContent) {
+        var tempFrame = null;
+        var writeError = null;
+
+        try {
+            tempFrame = doc.activeLayer.textFrames.add();
+            tempFrame.contents = textContent;
+
+            /* 追加したフレームを画面に反映してから選択する / Flush the new frame to the canvas before selecting it */
+            app.redraw();
+            app.executeMenuCommand("deselectall");
+            tempFrame.selected = true;
+            app.redraw();
+
+            app.executeMenuCommand("copy");
+            /* コピーが確定してから元のフレームを消す / Let the copy settle before deleting the source */
+            app.redraw();
+        } catch (e) {
+            writeError = String(e);
+        }
+
+        if (tempFrame) removeItems([tempFrame]);
+        if (writeError) {
+            alert(getLabel("alert.clipboardWriteError") + writeError);
+        }
     }
 
     // =========================================
     // テキストの適用 / Text application
     // =========================================
+
+    /**
+     * 文字列を最初の改行で1行目と残りに分ける。
+     * Illustrator のテキストは段落改行が CR、強制改行が LF になるため、どちらも区切りとして扱う。
+     * @param {string} textContent - 分割する文字列
+     * @returns {{firstLine: string, remainder: string}} 1行目と、改行を取り除いた残り
+     */
+    function splitFirstLine(textContent) {
+        var lineBreak = /\r\n|\r|\n/.exec(textContent);
+        if (!lineBreak) {
+            return { firstLine: textContent, remainder: "" };
+        }
+        return {
+            firstLine: textContent.substring(0, lineBreak.index),
+            remainder: textContent.substring(lineBreak.index + lineBreak[0].length)
+        };
+    }
 
     /**
      * 同じ内容のエラーを重複させずに追加する
@@ -305,49 +410,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
             if (errorMessages[i] === errorMessage) return;
         }
         errorMessages.push(errorMessage);
-    }
-
-    /**
-     * クリップボードのテキストを、貼り付いた位置に新規テキストフレームとして作成する
-     * @param {Layer} targetLayer - 作成先のレイヤー
-     * @param {Array<number>} pastedBounds - 貼り付いたテキストフレームの geometricBounds
-     * @param {string} textContent - 作成するテキスト
-     * @returns {void}
-     */
-    function createNewTextFrame(targetLayer, pastedBounds, textContent) {
-        try {
-            var newFrame = targetLayer.textFrames.add();
-            newFrame.contents = textContent;
-
-            var newFrameBounds = newFrame.geometricBounds;
-            newFrame.translate(pastedBounds[0] - newFrameBounds[0], pastedBounds[1] - newFrameBounds[1]);
-        } catch (e) {
-            alert(getLabel("alert.textCreateError") + e);
-        }
-    }
-
-    /**
-     * 控えた文字範囲だけをクリップボードのテキストで置き換える。
-     * カーソルがあるだけで文字が選ばれていない場合は、そのテキストフレーム全体を対象にする。
-     * @param {{frame: TextFrame, start: number, end: number}} rangeInfo - 置き換える範囲
-     * @param {string} textContent - 適用するテキスト
-     * @param {Array<string>} errorMessages - 発生したエラーの収集先（呼び出し元でまとめて通知する）
-     * @returns {void}
-     */
-    function replaceEditingRange(rangeInfo, textContent, errorMessages) {
-        if (rangeInfo.start === rangeInfo.end) {
-            applyTextToItem(rangeInfo.frame, textContent, errorMessages);
-            return;
-        }
-
-        try {
-            var targetRange = rangeInfo.frame.textRange;
-            targetRange.start = rangeInfo.start;
-            targetRange.end = rangeInfo.end;
-            targetRange.contents = textContent;
-        } catch (e) {
-            addUniqueError(errorMessages, String(e));
-        }
     }
 
     /**
@@ -385,7 +447,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
     // =========================================
 
     /**
-     * 選択の退避、クリップボードの取得、テキストの適用までを通して行う
+     * クリップボードの1行目を選択中のテキストフレームへ適用し、残りをクリップボードへ書き戻す
      * @returns {void}
      */
     function main() {
@@ -397,46 +459,47 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/nf14ce08eb618"; /* 紹�
         var doc = app.activeDocument;
         var originalSelection = captureSelection(doc);
 
-        /* 文字を選択して編集中なら、その範囲だけを置き換える / When characters are selected, replace just that range */
-        var editingRange = captureEditingRange(originalSelection);
-        if (editingRange) {
+        /* 文字を選択して編集中なら、編集を抜けて親テキストフレームを対象にする / Leave text editing and target the parent frame */
+        var editingFrame = captureEditingFrame(originalSelection);
+        if (editingFrame) {
             leaveTextEditing(doc);
+            originalSelection = [editingFrame];
+            setSelection(doc, originalSelection);
+        }
 
-            var editingClipboard = readClipboardTextFrame(doc, []);
-            if (!editingClipboard) return;
-
-            var editingErrors = [];
-            replaceEditingRange(editingRange, editingClipboard.contents, editingErrors);
-            if (editingErrors.length > 0) {
-                alert(getLabel("alert.replaceError") + editingErrors.join("\n"));
-            }
-
-            /* 編集モードは抜けているので、対象のテキストフレームを選択して終える / Editing is over, so leave the frame itself selected */
-            setSelection(doc, [editingRange.frame]);
-            app.redraw();
+        if (originalSelection.length === 0) {
+            alert(getLabel("alert.noSelection"));
             return;
         }
 
-        var clipboardInfo = readClipboardTextFrame(doc, originalSelection);
-        if (!clipboardInfo) return;
+        var clipboardText = readClipboardText(doc, originalSelection);
+        if (clipboardText === null) return;
 
-        if (originalSelection.length === 0) {
-            createNewTextFrame(doc.activeLayer, clipboardInfo.bounds, clipboardInfo.contents);
-        } else {
-            var errorMessages = [];
-            for (var i = 0; i < originalSelection.length; i++) {
-                applyTextToItem(originalSelection[i], clipboardInfo.contents, errorMessages);
-            }
-            /* 選択数だけダイアログが出ないよう、まとめて1回だけ知らせる / Report every failure in a single alert */
-            if (errorMessages.length > 0) {
-                alert(getLabel("alert.replaceError") + errorMessages.join("\n"));
-            }
+        var splitResult = splitFirstLine(clipboardText);
+
+        var errorMessages = [];
+        for (var i = 0; i < originalSelection.length; i++) {
+            applyTextToItem(originalSelection[i], splitResult.firstLine, errorMessages);
+        }
+        /* 選択数だけダイアログが出ないよう、まとめて1回だけ知らせる / Report every failure in a single alert */
+        if (errorMessages.length > 0) {
+            alert(getLabel("alert.replaceError") + errorMessages.join("\n"));
+        }
+
+        /* 適用した行を取り除いた残りをクリップボードへ戻し、次の実行で続きから進めるようにする / Put the remaining lines back so the next run continues where this one stopped */
+        var hasRemainder = (splitResult.remainder.length > 0);
+        if (hasRemainder) {
+            writeTextToClipboard(doc, splitResult.remainder);
         }
 
         /* 置換後の表示を確実に更新するため、選択を解除してから戻す / Clear and reset the selection so the redraw reflects the change */
         setSelection(doc, null);
         app.redraw();
         setSelection(doc, originalSelection);
+
+        if (!hasRemainder) {
+            alert(getLabel("alert.lastLineApplied"));
+        }
     }
 
     main();

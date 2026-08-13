@@ -67,6 +67,7 @@ Adobe Illustratorでのデザイン制作に役立つスクリプト集です。
 - [テキスト内の日付・曜日・数値を一括で増減](readme-ja/IncrementDatesAndNumbers.md)
 - [エリア内文字ツールキット（作成と調整）](readme-ja/AreaTypeToolkit.md)
 - [クリップボードのテキストで選択テキストを置換](readme-ja/ReplaceTextWithPaste.md)
+- [クリップボードの複数行テキストを1行ずつ順に流し込む](readme-ja/ReplaceTextWithPasteSequential.md)
 - [フォントサイズと水平比率／垂直比率を調整](readme-ja/AdjustFontSize.md)
 - [選択したテキストフレームの各行の先頭に、箇条書き記号または連番を付与します](readme-ja/AddBulletsAndNumbers.md)
 - [選択している文字を対象に、フォントサイズと水平比率／垂直比率を調整する](readme-ja/AdjustFontSizePallete.md)
