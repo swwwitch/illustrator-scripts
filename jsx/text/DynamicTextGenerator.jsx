@@ -1078,7 +1078,9 @@ See the README for details.
     var btnOk = grpFooterRight.add('button', undefined, getLabel('button', 'ok'), { name: 'ok' });
     btnOk.helpTip = getLabel('tooltip', 'ok');
 
-    /* ===== 表示領域 / View ===== */
+    /* ===== 表示領域 / View =====
+       同じ処理を再利用したいときは jsx/_templates/KeepInView.jsx を参照
+       see jsx/_templates/KeepInView.jsx to reuse this in another script */
 
     /**
      * 複数アイテムを囲む外接範囲を求める
