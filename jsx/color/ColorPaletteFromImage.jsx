@@ -5,13 +5,13 @@ app.preferences.setBooleanPreference('ShowExternalJSXWarning', false);
 
 ### 概要
 
-選択した配置画像・ラスター画像・ベクター・テキスト、またはスウォッチパネルの選択から代表色を抽出し、16／11／8／5色のカラーパレットを元オブジェクトの下に描画します。5色の行はスウォッチグループとしても登録できます。
+選択した配置画像・ラスター画像・ベクター・テキストから代表色を抽出し、16／11／8／5色のカラーパレットを元オブジェクトの下に描画します。オブジェクトを選択していないときは、スウォッチパネルで選択中のスウォッチから色玉パレットを作成します。
 
 詳細は README を参照してください。
 
 ### Overview
 
-Extracts representative colors from selected placed/raster images, vector art, text, or the current swatch selection, then draws 16 / 11 / 8 / 5 color palettes below the source object. The 5-color rows can also be registered as swatch groups.
+Extracts representative colors from selected placed/raster images, vector art, or text, then draws 16 / 11 / 8 / 5 color palettes below the source object. With nothing selected, it builds a palette from the swatches selected in the Swatches panel.
 
 See the README for details.
 
@@ -90,6 +90,14 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     var RASTERIZE_PADDING = 0;            /* 余白（px） / padding in px */
     var RASTERIZE_ANTIALIAS = true;       /* アンチエイリアス / anti-aliasing */
 
+    /* 既定で選ぶ画像トレースプリセット。名前がローカライズされるため候補を順に試す。
+       角カッコ・空白・大文字小文字・全角数字の違いは正規化して吸収する。
+       「16色変換」に誤ヒットしないよう、部分一致ではなく完全一致で探す。
+       Default image trace preset. The name is localized, so candidates are tried in order.
+       Brackets, spaces, letter case, and full-width digits are normalized away before comparing.
+       Matched exactly, not by substring, so that "[16 Colors]" is not picked up by mistake. */
+    var DEFAULT_TRACING_PRESETS = ["6色変換", "6色", "6カラー", "6 Colors", "6 Color"];
+
     /* CMYK補正の丸め幅（%） / Rounding step for the CMYK-adjusted row */
     var CMYK_ROUND_STEP = 5;
 
@@ -118,7 +126,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     /* ダイアログ内の寸法 / Sizes inside the dialogs */
     var PRESET_LIST_SIZE = [150, 300];       /* プリセット一覧の寸法 / preset listbox size */
     var DIALOG_BUTTON_SIZE = [90, 26];       /* ボタンの寸法 / dialog button size */
-    var BUTTON_SPACER_HEIGHT = 50;           /* 選び直すボタンの上の空き / spacer above the reselect button */
     var PROGRESS_BAR_SIZE = [260, 14];       /* 進捗バーの寸法 / progress bar size */
     var PROGRESS_TEXT_CHARS = 28;            /* 進捗テキストの最小幅 / minimum width of the progress text */
 
@@ -245,13 +252,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             count5: { ja: "5色", en: "5 Colors" },
             count5Adjusted: { ja: "5色（CMYK補正）", en: "5 Colors (CMYK Rounded)" },
             hex: { ja: "HEX", en: "HEX" },
-            cmyk: { ja: "CMYK", en: "CMYK" }
+            cmyk: { ja: "CMYK", en: "CMYK" },
+            fitView: { ja: "画面にフィット", en: "Fit View" }
         },
         button: {
             ok: { ja: "OK", en: "OK" },
             cancel: { ja: "キャンセル", en: "Cancel" },
-            retry: { ja: "選び直す", en: "Reselect" },
-            fitView: { ja: "画面にフィット", en: "Fit View" }
+            retry: { ja: "選び直す", en: "Reselect" }
         },
         tooltip: {
             allRows: {
@@ -291,8 +298,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
                 en: "Starts over from the image trace preset selection."
             },
             fitView: {
-                ja: "元オブジェクトとプレビューが収まるように表示倍率を合わせます。",
-                en: "Fits the view to the source object and the preview."
+                ja: "設定を変えるたびに、元オブジェクトとプレビューが収まるよう表示倍率を合わせます。",
+                en: "Refits the view to the source object and the preview whenever a setting changes."
             },
             presetBuiltIn: {
                 ja: "Illustrator にあらかじめ用意されているプリセットです。",
@@ -611,16 +618,25 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
      * オブジェクトツリーから塗りのカラーを面積付きで集める
      * @param {PageItem} item - 走査対象のオブジェクト
      * @param {Array<object>} collected - 収集先の配列
+     * @param {object} [stats] - 正しく読めた保証がない塗りを数える { unreadableCount: number }
      * @returns {Array<object>} { color: Color, area: number } の配列
      */
-    function collectFillColors(item, collected) {
+    function collectFillColors(item, collected, stats) {
         if (!collected) collected = [];
         if (!item) return collected;
 
         if (item.typename === "PathItem") {
-            if (!item.filled || !item.fillColor) return collected;
+            /* フリーグラデーションなど DOM から読めない塗りがあっても、1つのパスで全体を止めない
+               A fill the DOM cannot read (freeform gradient and the like) must not abort the whole walk */
+            var fillColor = null;
+            try {
+                if (item.filled) fillColor = item.fillColor;
+            } catch (e) {
+                if (stats) stats.unreadableCount++;
+                logError(e, "path fill color");
+            }
+            if (!fillColor) return collected;
 
-            var fillColor = item.fillColor;
             var area = 1;
             try {
                 area = Math.abs(item.area);
@@ -631,12 +647,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
             if (fillColor.typename === "GradientColor") {
                 var stopColors = getGradientStopColors(fillColor);
+                /* ストップを1つも読めないグラデーション（フリーグラデーションなど）
+                   A gradient whose stops cannot be read at all (a freeform gradient and the like) */
+                if (stopColors.length === 0 && stats) stats.unreadableCount++;
                 for (var i = 0; i < stopColors.length; i++) {
                     collected.push({ color: stopColors[i], area: area / stopColors.length });
                 }
             } else if (fillColor.typename !== "NoColor" &&
                 fillColor.typename !== "PatternColor" &&
                 fillColor.typename !== "SpotColor") {
+                /* フリーグラデーションは GrayColor（gray=0）として返るため、本物のグレー塗りと DOM 上は区別できない。
+                   取りこぼすより余分にラスタライズするほうが安全なので、読めない塗りとして扱う。
+                   Illustrator reports a freeform gradient as GrayColor(gray=0), which is indistinguishable from a
+                   real gray fill. Flag it as unreadable: an extra rasterize costs less than losing the colors. */
+                if (fillColor.typename === "GrayColor" && stats) stats.unreadableCount++;
                 collected.push({ color: fillColor, area: area });
             }
             return collected;
@@ -645,7 +669,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         if (item.typename === "GroupItem" || item.typename === "CompoundPathItem") {
             var children = (item.typename === "GroupItem") ? item.pageItems : item.pathItems;
             for (var k = 0; k < children.length; k++) {
-                collectFillColors(children[k], collected);
+                collectFillColors(children[k], collected, stats);
             }
         }
         return collected;
@@ -1372,6 +1396,51 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     var outputDialogBounds = null;
 
     /**
+     * プリセット名を照合用に正規化する（角カッコ・空白を除き、小文字と半角数字にそろえる）
+     * @param {string} presetName - プリセット名
+     * @returns {string} 正規化した名前
+     */
+    function normalizePresetName(presetName) {
+        var normalized = String(presetName).replace(/[\[\]\s]/g, "").toLowerCase();
+        return normalized.replace(/[０-９]/g, function (fullWidthDigit) {
+            return String.fromCharCode(fullWidthDigit.charCodeAt(0) - 0xFEE0);
+        });
+    }
+
+    /**
+     * 既定のトレースプリセットが一覧の何番目にあるかを返す
+     * @param {Array<string>} presetNames - プリセット名の配列
+     * @returns {number} 見つかった位置。無ければ -1
+     */
+    function findDefaultPresetIndex(presetNames) {
+        for (var i = 0; i < DEFAULT_TRACING_PRESETS.length; i++) {
+            var wanted = normalizePresetName(DEFAULT_TRACING_PRESETS[i]);
+            for (var k = 0; k < presetNames.length; k++) {
+                if (normalizePresetName(presetNames[k]) === wanted) return k;
+            }
+        }
+        return -1;
+    }
+
+    /**
+     * 利用できる既定のトレースプリセット名を返す
+     * @returns {string|null} プリセット名。見つからない場合は null
+     */
+    function getDefaultTracingPresetName() {
+        var presets = null;
+        try {
+            presets = app.tracingPresetsList;
+        } catch (e) {
+            logError(e, "tracing presets");
+            return null;
+        }
+        if (!presets || !presets.length) return null;
+
+        var index = findDefaultPresetIndex(presets);
+        return (index >= 0) ? presets[index] : null;
+    }
+
+    /**
      * トレースプリセットを標準（[]付き）とユーザー定義に分類する
      * @param {Array<string>} presets - プリセット名の配列
      * @returns {object} { builtIn: Array<string>, custom: Array<string> }
@@ -1435,9 +1504,17 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             if (customPresetList.selection) builtInPresetList.selection = null;
         };
 
-        if (presetCategories.custom.length > 0) {
+        /* 既定プリセット（6色変換）を標準・ユーザー定義の順に探し、無ければ最後のユーザー定義を選ぶ
+           Look for the default preset (6 Colors) in the built-in list then the custom one, otherwise fall back to the last custom preset */
+        var defaultBuiltInIndex = findDefaultPresetIndex(presetCategories.builtIn);
+        var defaultCustomIndex = findDefaultPresetIndex(presetCategories.custom);
+        if (defaultBuiltInIndex >= 0) {
+            builtInPresetList.selection = defaultBuiltInIndex;
+        } else if (defaultCustomIndex >= 0) {
+            customPresetList.selection = defaultCustomIndex;
+        } else if (presetCategories.custom.length > 0) {
             customPresetList.selection = presetCategories.custom.length - 1;
-        } else {
+        } else if (presetCategories.builtIn.length > 0) {
             builtInPresetList.selection = 0;
         }
 
@@ -1455,7 +1532,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     /**
      * 出力オプションダイアログを表示する
      * @param {function} onPreviewChange - 設定変更時に呼ばれるプレビュー更新関数
-     * @param {function} onFitView - 「画面にフィット」ボタンで呼ばれる関数
+     * @param {function} onFitView - 「画面にフィット」がONのときに呼ばれる関数
      * @returns {object|string|null} 出力オプション、"__RETRY__"、キャンセル時は null
      */
     function showOutputOptionsDialog(onPreviewChange, onFitView) {
@@ -1467,8 +1544,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         };
 
         var rowScopeRow = outputDialog.add("group");
-        setupRow(rowScopeRow, "left");
-        rowScopeRow.margins = [20, 0, 0, 0];
+        setupRow(rowScopeRow, "center");
         var allRowsRadio = rowScopeRow.add("radiobutton", undefined, getLabel("radio.allRows"));
         allRowsRadio.helpTip = getLabel("tooltip.allRows");
         var fiveRowsOnlyRadio = rowScopeRow.add("radiobutton", undefined, getLabel("radio.fiveRowsOnly"));
@@ -1480,7 +1556,6 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
         var outputRowsColumn = addColumnGroup(optionColumnsRow);
         var colorInfoColumn = addColumnGroup(optionColumnsRow);
-        var dialogButtonColumn = addColumnGroup(optionColumnsRow, ["right", "top"]);
 
         var outputRowsPanel = addPanel(outputRowsColumn, getLabel("panel.outputRows"), 6);
         var count16Checkbox = addLeftCheckbox(outputRowsPanel, getLabel("checkbox.count16"), getLabel("tooltip.count16"));
@@ -1496,6 +1571,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         /* CMYKラベルは CMYK ドキュメントでのみ意味を持つ / CMYK labels only make sense in a CMYK document */
         var canUseCmykLabels = isCmykDocument(app.activeDocument);
         if (!canUseCmykLabels) cmykCheckbox.helpTip = getLabel("tooltip.cmykDocOnly");
+
+        var fitViewRow = outputDialog.add("group");
+        setupRow(fitViewRow, "left");
+        fitViewRow.margins = [20, 0, 0, 0];
+        var fitViewCheckbox = fitViewRow.add("checkbox", undefined, getLabel("checkbox.fitView"));
+        fitViewCheckbox.value = true;
+        fitViewCheckbox.helpTip = getLabel("tooltip.fitView");
 
         /* 「5色の行のみ」で伏せる行と、状態を保存する対象 / Rows hidden by "5-color rows only", and the checkboxes whose state is saved */
         var wideRowCheckboxes = [count16Checkbox, count11Checkbox, count8Checkbox];
@@ -1528,6 +1610,19 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         }
 
         /**
+         * 「画面にフィット」がONのときだけビューを合わせる
+         * @returns {void}
+         */
+        function applyFitView() {
+            if (!onFitView || !fitViewCheckbox.value) return;
+            try {
+                onFitView();
+            } catch (e) {
+                logError(e, "fit view");
+            }
+        }
+
+        /**
          * プレビュー更新を通知する
          * @returns {void}
          */
@@ -1539,6 +1634,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             } catch (e) {
                 logError(e, "notify preview");
             }
+            applyFitView();
         }
 
         /**
@@ -1585,6 +1681,8 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
         allRowsRadio.onClick = function () { updateRowScope(true); };
         fiveRowsOnlyRadio.onClick = function () { updateRowScope(true); };
 
+        fitViewCheckbox.onClick = applyFitView;
+
         count16Checkbox.onClick = notifyPreviewChange;
         count11Checkbox.onClick = notifyPreviewChange;
         count8Checkbox.onClick = notifyPreviewChange;
@@ -1602,15 +1700,11 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             notifyPreviewChange();
         };
 
-        var okButton = dialogButtonColumn.add("button", undefined, getLabel("button.ok"), { name: "ok" });
-        okButton.preferredSize = DIALOG_BUTTON_SIZE;
-        var cancelButton = dialogButtonColumn.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
-        cancelButton.preferredSize = DIALOG_BUTTON_SIZE;
+        /* 最下部のボタン列: 左＝選び直す／右＝キャンセル・OK / Bottom button row: reselect on the left, cancel & OK on the right */
+        var dialogButtonRow = outputDialog.add("group");
+        setupRow(dialogButtonRow, "fill");
 
-        var retryButtonSpacer = dialogButtonColumn.add("group");
-        retryButtonSpacer.preferredSize = [-1, BUTTON_SPACER_HEIGHT];
-
-        var retryButton = dialogButtonColumn.add("button", undefined, getLabel("button.retry"));
+        var retryButton = dialogButtonRow.add("button", undefined, getLabel("button.retry"));
         retryButton.preferredSize = DIALOG_BUTTON_SIZE;
         retryButton.helpTip = getLabel("tooltip.retry");
         retryButton.onClick = function () {
@@ -1618,20 +1712,13 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
             outputDialog.close(2);
         };
 
-        var fitViewRow = outputDialog.add("group");
-        setupRow(fitViewRow, "fill");
-        fitViewRow.margins = [0, 10, 0, 0];
-        var fitViewButton = fitViewRow.add("button", undefined, getLabel("button.fitView"));
-        fitViewButton.alignment = ["fill", "center"];
-        fitViewButton.preferredSize = [-1, DIALOG_BUTTON_SIZE[1]];
-        fitViewButton.helpTip = getLabel("tooltip.fitView");
-        fitViewButton.onClick = function () {
-            try {
-                if (onFitView) onFitView();
-            } catch (e) {
-                logError(e, "fit view");
-            }
-        };
+        var buttonRowSpacer = dialogButtonRow.add("group");
+        buttonRowSpacer.alignment = ["fill", "fill"];
+
+        var cancelButton = dialogButtonRow.add("button", undefined, getLabel("button.cancel"), { name: "cancel" });
+        cancelButton.preferredSize = DIALOG_BUTTON_SIZE;
+        var okButton = dialogButtonRow.add("button", undefined, getLabel("button.ok"), { name: "ok" });
+        okButton.preferredSize = DIALOG_BUTTON_SIZE;
 
         okButton.onClick = function () {
             for (var i = 0; i < rowCheckboxes.length; i++) {
@@ -1781,6 +1868,20 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     }
 
     /**
+     * ユーザー設定に従ったラスタライズ設定を作る
+     * @returns {RasterizeOptions} ラスタライズ設定
+     */
+    function createRasterizeOptions() {
+        var rasterizeOptions = new RasterizeOptions();
+        rasterizeOptions.resolution = RASTERIZE_RESOLUTION;
+        rasterizeOptions.transparency = RASTERIZE_TRANSPARENCY;
+        rasterizeOptions.padding = RASTERIZE_PADDING;
+        rasterizeOptions.antiAliasing = RASTERIZE_ANTIALIAS;
+        rasterizeOptions.backgroundBlack = false;
+        return rasterizeOptions;
+    }
+
+    /**
      * 選択内のクリップグループをラスタライズし、処理対象の一覧を返す
      * @param {Document} doc - 対象ドキュメント
      * @param {Array<PageItem>} selection - 選択中のオブジェクト
@@ -1798,15 +1899,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
 
             /* クリップ範囲はパレット配置の基準として残す / Keep the clip bounds as the palette anchor */
             var clipBounds = getClippingBounds(selection[i]);
-
-            var rasterizeOptions = new RasterizeOptions();
-            rasterizeOptions.resolution = RASTERIZE_RESOLUTION;
-            rasterizeOptions.transparency = RASTERIZE_TRANSPARENCY;
-            rasterizeOptions.padding = RASTERIZE_PADDING;
-            rasterizeOptions.antiAliasing = RASTERIZE_ANTIALIAS;
-            rasterizeOptions.backgroundBlack = false;
-
-            var rasterizedItem = doc.rasterize(selection[i], clipBounds, rasterizeOptions);
+            var rasterizedItem = doc.rasterize(selection[i], clipBounds, createRasterizeOptions());
             rasterizedCount++;
             sourceEntries.push({ item: rasterizedItem, anchor: createBoundsAnchor(clipBounds, rasterizedItem.layer) });
         }
@@ -1946,17 +2039,50 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
     /**
      * 処理対象からカラーを抽出する
      * ベクターは直接、ラスター／配置画像はトレース→拡張してから抽出する。
+     * ベクターに読めない塗りが含まれていた場合は、ラスタライズしての抽出に切り替える。
+     * @param {Document} doc - 対象ドキュメント
      * @param {object} workTask - { type, originalItem, workItem }
      * @param {string|null} tracingPresetName - 適用するプリセット名
      * @returns {Array<object>|null} { color, area } の配列。抽出できない場合は null
      */
-    function extractTaskColors(workTask, tracingPresetName) {
-        var colorSource = workTask.workItem;
+    function extractTaskColors(doc, workTask, tracingPresetName) {
         if (workTask.type !== "vector") {
-            colorSource = traceAndExpand(colorSource, tracingPresetName);
-            if (!colorSource) return null;
+            var expanded = traceAndExpand(workTask.workItem, tracingPresetName);
+            return expanded ? deduplicateColors(collectFillColors(expanded, [])) : null;
         }
-        return deduplicateColors(collectFillColors(colorSource, []));
+
+        var stats = { unreadableCount: 0 };
+        var colors = deduplicateColors(collectFillColors(workTask.workItem, [], stats));
+        if (stats.unreadableCount === 0) return colors;
+
+        /* 読めない塗りがあったぶんは色が欠けるので、複製をラスタライズしてトレースし直す
+           Some fills could not be read, so rasterize the duplicate and trace it instead */
+        var fallbackColors = extractColorsByRasterizing(doc, workTask.workItem, tracingPresetName);
+        return (fallbackColors && fallbackColors.length > 0) ? fallbackColors : colors;
+    }
+
+    /**
+     * 作業用レイヤーの複製をラスタライズし、トレースしてカラーを抽出する
+     * フリーグラデーションなど、DOM から塗りを読めないオブジェクトの受け皿。
+     * @param {Document} doc - 対象ドキュメント
+     * @param {PageItem} workItem - 作業用レイヤー上の複製
+     * @param {string|null} tracingPresetName - 適用するプリセット名
+     * @returns {Array<object>|null} { color, area } の配列。失敗した場合は null
+     */
+    function extractColorsByRasterizing(doc, workItem, tracingPresetName) {
+        var rasterizedItem;
+        try {
+            rasterizedItem = doc.rasterize(workItem, workItem.geometricBounds, createRasterizeOptions());
+        } catch (e) {
+            logError(e, "vector fallback rasterize");
+            return null;
+        }
+
+        /* ベクター選択ではプリセット選択ダイアログを出さないため、既定プリセットで補う
+           The preset dialog is skipped for a vector selection, so fall back to the default preset */
+        var presetName = tracingPresetName || getDefaultTracingPresetName();
+        var expanded = traceAndExpand(rasterizedItem, presetName);
+        return expanded ? deduplicateColors(collectFillColors(expanded, [])) : null;
     }
 
     /**
@@ -2130,7 +2256,7 @@ var SCRIPT_ARTICLE_URL = "https://note.com/dtp_tranist/n/n8b57cf662462"; /* 紹�
                 var workTask = workTasks[i];
 
                 progress.set(i * 2 + 1, getLabel("progress.tracing"));
-                var colors = extractTaskColors(workTask, tracingPresetName);
+                var colors = extractTaskColors(doc, workTask, tracingPresetName);
 
                 progress.set(i * 2 + 2, getLabel("progress.palette"));
                 if (!colors || colors.length === 0) continue;
